@@ -44,7 +44,7 @@ static struct dentry *isofs_export_get_parent(struct dentry *child)
 {
 	unsigned long parent_block = 0;
 	unsigned long parent_offset = 0;
-	struct inode *child_inode = child->d_inode;
+	struct inode *child_inode = d_inode(child);
 	struct iso_inode_info *e_child_inode = ISOFS_I(child_inode);
 	struct iso_directory_record *de = NULL;
 	struct buffer_head * bh = NULL;

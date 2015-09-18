@@ -23,14 +23,14 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-#include <linux/i2c.h>
-#include <linux/spi/spi.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/cs4271.h>
+#include "cs4271.h"
 
 #define CS4271_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 			    SNDRV_PCM_FMTBIT_S24_LE | \
@@ -158,7 +158,6 @@ static bool cs4271_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 struct cs4271_private {
-	/* SND_SOC_I2C or SND_SOC_SPI */
 	unsigned int			mclk;
 	bool				master;
 	bool				deemph;
@@ -171,6 +170,26 @@ struct cs4271_private {
 	int				gpio_disable;
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
+};
+
+static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("AINA"),
+SND_SOC_DAPM_INPUT("AINB"),
+
+SND_SOC_DAPM_OUTPUT("AOUTA+"),
+SND_SOC_DAPM_OUTPUT("AOUTA-"),
+SND_SOC_DAPM_OUTPUT("AOUTB+"),
+SND_SOC_DAPM_OUTPUT("AOUTB-"),
+};
+
+static const struct snd_soc_dapm_route cs4271_dapm_routes[] = {
+	{ "Capture", NULL, "AINA" },
+	{ "Capture", NULL, "AINB" },
+
+	{ "AOUTA+", NULL, "Playback" },
+	{ "AOUTA-", NULL, "Playback" },
+	{ "AOUTB+", NULL, "Playback" },
+	{ "AOUTB-", NULL, "Playback" },
 };
 
 /*
@@ -264,20 +283,20 @@ static int cs4271_set_deemph(struct snd_soc_codec *codec)
 static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.enumerated.item[0] = cs4271->deemph;
+	ucontrol->value.integer.value[0] = cs4271->deemph;
 	return 0;
 }
 
 static int cs4271_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
-	cs4271->deemph = ucontrol->value.enumerated.item[0];
+	cs4271->deemph = ucontrol->value.integer.value[0];
 	return cs4271_set_deemph(codec);
 }
 
@@ -507,26 +526,23 @@ static int cs4271_soc_resume(struct snd_soc_codec *codec)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OF
-static const struct of_device_id cs4271_dt_ids[] = {
+const struct of_device_id cs4271_dt_ids[] = {
 	{ .compatible = "cirrus,cs4271", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, cs4271_dt_ids);
+EXPORT_SYMBOL_GPL(cs4271_dt_ids);
 #endif
 
-static int cs4271_probe(struct snd_soc_codec *codec)
+static int cs4271_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
-	int gpio_nreset = -EINVAL;
 	bool amutec_eq_bmutec = false;
 
 #ifdef CONFIG_OF
 	if (of_match_device(cs4271_dt_ids, codec->dev)) {
-		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
-						"reset-gpio", 0);
-
 		if (of_get_property(codec->dev->of_node,
 				     "cirrus,amutec-eq-bmutec", NULL))
 			amutec_eq_bmutec = true;
@@ -538,26 +554,18 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 #endif
 
 	if (cs4271plat) {
-		if (gpio_is_valid(cs4271plat->gpio_nreset))
-			gpio_nreset = cs4271plat->gpio_nreset;
-
 		amutec_eq_bmutec = cs4271plat->amutec_eq_bmutec;
 		cs4271->enable_soft_reset = cs4271plat->enable_soft_reset;
 	}
 
-	if (gpio_nreset >= 0)
-		if (devm_gpio_request(codec->dev, gpio_nreset, "CS4271 Reset"))
-			gpio_nreset = -EINVAL;
-	if (gpio_nreset >= 0) {
+	if (gpio_is_valid(cs4271->gpio_nreset)) {
 		/* Reset codec */
-		gpio_direction_output(gpio_nreset, 0);
-		udelay(1);
-		gpio_set_value(gpio_nreset, 1);
+		gpio_direction_output(cs4271->gpio_nreset, 0);
+		mdelay(1);
+		gpio_set_value(cs4271->gpio_nreset, 1);
 		/* Give the codec time to wake up */
-		udelay(1);
+		mdelay(1);
 	}
-
-	cs4271->gpio_nreset = gpio_nreset;
 
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
@@ -576,11 +584,10 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 				   CS4271_MODE2_MUTECAEQUB,
 				   CS4271_MODE2_MUTECAEQUB);
 
-	return snd_soc_add_codec_controls(codec, cs4271_snd_controls,
-		ARRAY_SIZE(cs4271_snd_controls));
+	return 0;
 }
 
-static int cs4271_remove(struct snd_soc_codec *codec)
+static int cs4271_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 
@@ -592,72 +599,50 @@ static int cs4271_remove(struct snd_soc_codec *codec)
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
-	.probe			= cs4271_probe,
-	.remove			= cs4271_remove,
+	.probe			= cs4271_codec_probe,
+	.remove			= cs4271_codec_remove,
 	.suspend		= cs4271_soc_suspend,
 	.resume			= cs4271_soc_resume,
+
+	.controls		= cs4271_snd_controls,
+	.num_controls		= ARRAY_SIZE(cs4271_snd_controls),
+	.dapm_widgets		= cs4271_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(cs4271_dapm_widgets),
+	.dapm_routes		= cs4271_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
 };
 
-#if defined(CONFIG_SPI_MASTER)
-
-static const struct regmap_config cs4271_spi_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = CS4271_LASTREG,
-	.read_flag_mask = 0x21,
-	.write_flag_mask = 0x20,
-
-	.reg_defaults = cs4271_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(cs4271_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
-
-	.volatile_reg = cs4271_volatile_reg,
-};
-
-static int cs4271_spi_probe(struct spi_device *spi)
+static int cs4271_common_probe(struct device *dev,
+			       struct cs4271_private **c)
 {
+	struct cs4271_platform_data *cs4271plat = dev->platform_data;
 	struct cs4271_private *cs4271;
 
-	cs4271 = devm_kzalloc(&spi->dev, sizeof(*cs4271), GFP_KERNEL);
+	cs4271 = devm_kzalloc(dev, sizeof(*cs4271), GFP_KERNEL);
 	if (!cs4271)
 		return -ENOMEM;
 
-	spi_set_drvdata(spi, cs4271);
-	cs4271->regmap = devm_regmap_init_spi(spi, &cs4271_spi_regmap);
-	if (IS_ERR(cs4271->regmap))
-		return PTR_ERR(cs4271->regmap);
+	if (of_match_device(cs4271_dt_ids, dev))
+		cs4271->gpio_nreset =
+			of_get_named_gpio(dev->of_node, "reset-gpio", 0);
 
-	return snd_soc_register_codec(&spi->dev, &soc_codec_dev_cs4271,
-		&cs4271_dai, 1);
-}
+	if (cs4271plat)
+		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
 
-static int cs4271_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
+	if (gpio_is_valid(cs4271->gpio_nreset)) {
+		int ret;
+
+		ret = devm_gpio_request(dev, cs4271->gpio_nreset,
+					"CS4271 Reset");
+		if (ret < 0)
+			return ret;
+	}
+
+	*c = cs4271;
 	return 0;
 }
 
-static struct spi_driver cs4271_spi_driver = {
-	.driver = {
-		.name	= "cs4271",
-		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(cs4271_dt_ids),
-	},
-	.probe		= cs4271_spi_probe,
-	.remove		= cs4271_spi_remove,
-};
-#endif /* defined(CONFIG_SPI_MASTER) */
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static const struct i2c_device_id cs4271_i2c_id[] = {
-	{"cs4271", 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, cs4271_i2c_id);
-
-static const struct regmap_config cs4271_i2c_regmap = {
-	.reg_bits = 8,
-	.val_bits = 8,
+const struct regmap_config cs4271_regmap_config = {
 	.max_register = CS4271_LASTREG,
 
 	.reg_defaults = cs4271_reg_defaults,
@@ -666,85 +651,27 @@ static const struct regmap_config cs4271_i2c_regmap = {
 
 	.volatile_reg = cs4271_volatile_reg,
 };
+EXPORT_SYMBOL_GPL(cs4271_regmap_config);
 
-static int cs4271_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+int cs4271_probe(struct device *dev, struct regmap *regmap)
 {
 	struct cs4271_private *cs4271;
-
-	cs4271 = devm_kzalloc(&client->dev, sizeof(*cs4271), GFP_KERNEL);
-	if (!cs4271)
-		return -ENOMEM;
-
-	i2c_set_clientdata(client, cs4271);
-	cs4271->regmap = devm_regmap_init_i2c(client, &cs4271_i2c_regmap);
-	if (IS_ERR(cs4271->regmap))
-		return PTR_ERR(cs4271->regmap);
-
-	return snd_soc_register_codec(&client->dev, &soc_codec_dev_cs4271,
-		&cs4271_dai, 1);
-}
-
-static int cs4271_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
-static struct i2c_driver cs4271_i2c_driver = {
-	.driver = {
-		.name	= "cs4271",
-		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(cs4271_dt_ids),
-	},
-	.id_table	= cs4271_i2c_id,
-	.probe		= cs4271_i2c_probe,
-	.remove		= cs4271_i2c_remove,
-};
-#endif /* defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE) */
-
-/*
- * We only register our serial bus driver here without
- * assignment to particular chip. So if any of the below
- * fails, there is some problem with I2C or SPI subsystem.
- * In most cases this module will be compiled with support
- * of only one serial bus.
- */
-static int __init cs4271_modinit(void)
-{
 	int ret;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&cs4271_i2c_driver);
-	if (ret) {
-		pr_err("Failed to register CS4271 I2C driver: %d\n", ret);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	ret = cs4271_common_probe(dev, &cs4271);
+	if (ret < 0)
 		return ret;
-	}
-#endif
 
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&cs4271_spi_driver);
-	if (ret) {
-		pr_err("Failed to register CS4271 SPI driver: %d\n", ret);
-		return ret;
-	}
-#endif
+	dev_set_drvdata(dev, cs4271);
+	cs4271->regmap = regmap;
 
-	return 0;
+	return snd_soc_register_codec(dev, &soc_codec_dev_cs4271, &cs4271_dai,
+				      1);
 }
-module_init(cs4271_modinit);
-
-static void __exit cs4271_modexit(void)
-{
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&cs4271_spi_driver);
-#endif
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&cs4271_i2c_driver);
-#endif
-}
-module_exit(cs4271_modexit);
+EXPORT_SYMBOL_GPL(cs4271_probe);
 
 MODULE_AUTHOR("Alexander Sverdlin <subaparts@yandex.ru>");
 MODULE_DESCRIPTION("Cirrus Logic CS4271 ALSA SoC Codec Driver");

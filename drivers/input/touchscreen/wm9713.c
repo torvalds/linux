@@ -41,7 +41,7 @@
  */
 static int rpu = 8;
 module_param(rpu, int, 0);
-MODULE_PARM_DESC(rpu, "Set internal pull up resitor for pen detect.");
+MODULE_PARM_DESC(rpu, "Set internal pull up resistor for pen detect.");
 
 /*
  * Set current used for pressure measurement.

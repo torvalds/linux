@@ -1,0 +1,231 @@
+/*
+ * Copyright 2013 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "skeleton.dtsi"
+
+#include "sun5i.dtsi"
+
+#include <dt-bindings/dma/sun4i-a10.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
+/ {
+	interrupt-parent = <&intc>;
+
+	aliases {
+		ethernet0 = &emac;
+	};
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@0 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0-hdmi";
+			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>;
+			status = "disabled";
+		};
+
+		framebuffer@1 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0";
+			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>;
+			status = "disabled";
+		};
+	};
+
+	clocks {
+		ahb_gates: clk@01c20060 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun5i-a10s-ahb-gates-clk";
+			reg = <0x01c20060 0x8>;
+			clocks = <&ahb>;
+			clock-indices = <0>, <1>,
+					<2>, <5>, <6>,
+					<7>, <8>, <9>,
+					<10>, <13>,
+					<14>, <17>, <18>,
+					<20>, <21>, <22>,
+					<26>, <28>, <32>,
+					<34>, <36>, <40>,
+					<43>, <44>,
+					<46>, <51>,
+					<52>;
+			clock-output-names = "ahb_usbotg", "ahb_ehci",
+					     "ahb_ohci", "ahb_ss", "ahb_dma",
+					     "ahb_bist", "ahb_mmc0", "ahb_mmc1",
+					     "ahb_mmc2", "ahb_nand",
+					     "ahb_sdram", "ahb_emac", "ahb_ts",
+					     "ahb_spi0", "ahb_spi1", "ahb_spi2",
+					     "ahb_gps", "ahb_stimer", "ahb_ve",
+					     "ahb_tve", "ahb_lcd", "ahb_csi",
+					     "ahb_hdmi", "ahb_de_be",
+					     "ahb_de_fe", "ahb_iep",
+					     "ahb_mali400";
+		};
+
+		apb0_gates: clk@01c20068 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun5i-a10s-apb0-gates-clk";
+			reg = <0x01c20068 0x4>;
+			clocks = <&apb0>;
+			clock-indices = <0>, <3>,
+					<5>, <6>,
+					<10>;
+			clock-output-names = "apb0_codec", "apb0_iis",
+					     "apb0_pio", "apb0_ir",
+					     "apb0_keypad";
+		};
+
+		apb1_gates: clk@01c2006c {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun5i-a10s-apb1-gates-clk";
+			reg = <0x01c2006c 0x4>;
+			clocks = <&apb1>;
+			clock-indices = <0>, <1>,
+					<2>, <16>,
+					<17>, <18>,
+					<19>;
+			clock-output-names = "apb1_i2c0", "apb1_i2c1",
+					     "apb1_i2c2", "apb1_uart0",
+					     "apb1_uart1", "apb1_uart2",
+					     "apb1_uart3";
+		};
+	};
+
+	soc@01c00000 {
+		emac: ethernet@01c0b000 {
+			compatible = "allwinner,sun4i-a10-emac";
+			reg = <0x01c0b000 0x1000>;
+			interrupts = <55>;
+			clocks = <&ahb_gates 17>;
+			allwinner,sram = <&emac_sram 1>;
+			status = "disabled";
+		};
+
+		mdio: mdio@01c0b080 {
+			compatible = "allwinner,sun4i-a10-mdio";
+			reg = <0x01c0b080 0x14>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		uart0: serial@01c28000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28000 0x400>;
+			interrupts = <1>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb1_gates 16>;
+			status = "disabled";
+		};
+
+		uart2: serial@01c28800 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x01c28800 0x400>;
+			interrupts = <3>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clocks = <&apb1_gates 18>;
+			status = "disabled";
+		};
+	};
+};
+
+&pio {
+	compatible = "allwinner,sun5i-a10s-pinctrl";
+
+	uart0_pins_a: uart0@0 {
+		allwinner,pins = "PB19", "PB20";
+		allwinner,function = "uart0";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	uart2_pins_a: uart2@0 {
+		allwinner,pins = "PC18", "PC19";
+		allwinner,function = "uart2";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	uart3_pins_a: uart3@0 {
+		allwinner,pins = "PG9", "PG10";
+		allwinner,function = "uart3";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	emac_pins_a: emac0@0 {
+		allwinner,pins = "PA0", "PA1", "PA2",
+				"PA3", "PA4", "PA5", "PA6",
+				"PA7", "PA8", "PA9", "PA10",
+				"PA11", "PA12", "PA13", "PA14",
+				"PA15", "PA16";
+		allwinner,function = "emac";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	mmc1_pins_a: mmc1@0 {
+		allwinner,pins = "PG3", "PG4", "PG5",
+				 "PG6", "PG7", "PG8";
+		allwinner,function = "mmc1";
+		allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+};
+
+&sram_a {
+	emac_sram: sram-section@8000 {
+		compatible = "allwinner,sun4i-a10-sram-a3-a4";
+		reg = <0x8000 0x4000>;
+		status = "disabled";
+	};
+};

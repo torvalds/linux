@@ -154,9 +154,9 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 	return 0;
 }
 
-int symbol__gtk_annotate(struct symbol *sym, struct map *map,
-			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt)
+static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
+				struct perf_evsel *evsel,
+				struct hist_browser_timer *hbt)
 {
 	GtkWidget *window;
 	GtkWidget *notebook;
@@ -224,6 +224,13 @@ int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 
 	perf_gtk__annotate_symbol(scrolled_window, sym, map, evsel, hbt);
 	return 0;
+}
+
+int hist_entry__gtk_annotate(struct hist_entry *he,
+			     struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt)
+{
+	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evsel, hbt);
 }
 
 void perf_gtk__show_annotations(void)

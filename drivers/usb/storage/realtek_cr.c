@@ -39,6 +39,9 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-realtek"
 
 MODULE_DESCRIPTION("Driver for Realtek USB Card Reader");
 MODULE_AUTHOR("wwang <wei_wang@realsil.com.cn>");
@@ -115,7 +118,7 @@ struct rts51x_chip {
 	enum RTS51X_STAT state;
 	int support_auto_delink;
 #endif
-	/* used to back up the protocal choosen in probe1 phase */
+	/* used to back up the protocol chosen in probe1 phase */
 	proto_cmnd proto_handler_backup;
 };
 
@@ -626,6 +629,7 @@ static int config_autodelink_after_power_on(struct us_data *us)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int config_autodelink_before_power_down(struct us_data *us)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
@@ -716,6 +720,7 @@ static void fw5895_init(struct us_data *us)
 		}
 	}
 }
+#endif
 
 #ifdef CONFIG_REALTEK_AUTOPM
 static void fw5895_set_mmc_wp(struct us_data *us)
@@ -925,7 +930,7 @@ static int realtek_cr_autosuspend_setup(struct us_data *us)
 			(unsigned long)chip);
 	fw5895_init(us);
 
-	/* enable autosuspend funciton of the usb device */
+	/* enable autosuspend function of the usb device */
 	usb_enable_autosuspend(us->pusb_dev);
 
 	return 0;
@@ -1032,6 +1037,8 @@ INIT_FAIL:
 	return -EIO;
 }
 
+static struct scsi_host_template realtek_cr_host_template;
+
 static int realtek_cr_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
@@ -1042,7 +1049,8 @@ static int realtek_cr_probe(struct usb_interface *intf,
 
 	result = usb_stor_probe1(&us, intf, id,
 				 (id - realtek_cr_ids) +
-				 realtek_cr_unusual_dev_list);
+				 realtek_cr_unusual_dev_list,
+				 &realtek_cr_host_template);
 	if (result)
 		return result;
 
@@ -1052,7 +1060,7 @@ static int realtek_cr_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver realtek_cr_driver = {
-	.name = "ums-realtek",
+	.name = DRV_NAME,
 	.probe = realtek_cr_probe,
 	.disconnect = usb_stor_disconnect,
 	/* .suspend =      usb_stor_suspend, */
@@ -1068,4 +1076,4 @@ static struct usb_driver realtek_cr_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(realtek_cr_driver);
+module_usb_stor_driver(realtek_cr_driver, realtek_cr_host_template, DRV_NAME);

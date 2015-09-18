@@ -172,7 +172,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	struct input_dev *key_dev;
 	struct resource *res, *mem;
 	struct device *dev = &pdev->dev;
-	struct davinci_ks_platform_data *pdata = pdev->dev.platform_data;
+	struct davinci_ks_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int error, i;
 
 	if (pdata->device_enable) {
@@ -314,8 +314,6 @@ static int davinci_ks_remove(struct platform_device *pdev)
 	iounmap(davinci_ks->base);
 	release_mem_region(davinci_ks->pbase, davinci_ks->base_size);
 
-	platform_set_drvdata(pdev, NULL);
-
 	kfree(davinci_ks);
 
 	return 0;
@@ -324,7 +322,6 @@ static int davinci_ks_remove(struct platform_device *pdev)
 static struct platform_driver davinci_ks_driver = {
 	.driver	= {
 		.name = "davinci_keyscan",
-		.owner = THIS_MODULE,
 	},
 	.remove	= davinci_ks_remove,
 };

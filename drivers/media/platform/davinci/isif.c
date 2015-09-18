@@ -1134,7 +1134,6 @@ static int isif_remove(struct platform_device *pdev)
 static struct platform_driver isif_driver = {
 	.driver = {
 		.name	= "isif",
-		.owner = THIS_MODULE,
 	},
 	.remove = isif_remove,
 	.probe = isif_probe,

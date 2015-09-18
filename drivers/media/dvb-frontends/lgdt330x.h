@@ -52,7 +52,7 @@ struct lgdt330x_config
 	int clock_polarity_flip;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LGDT330X)
+#if IS_REACHABLE(CONFIG_DVB_LGDT330X)
 extern struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 					    struct i2c_adapter* i2c);
 #else
@@ -65,9 +65,3 @@ static inline struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config*
 #endif // CONFIG_DVB_LGDT330X
 
 #endif /* LGDT330X_H */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

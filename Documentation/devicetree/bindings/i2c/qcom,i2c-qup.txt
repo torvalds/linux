@@ -1,0 +1,40 @@
+Qualcomm Universal Peripheral (QUP) I2C controller
+
+Required properties:
+ - compatible: Should be:
+   * "qcom,i2c-qup-v1.1.1" for 8660, 8960 and 8064.
+   * "qcom,i2c-qup-v2.1.1" for 8974 v1.
+   * "qcom,i2c-qup-v2.2.1" for 8974 v2 and later.
+ - reg: Should contain QUP register address and length.
+ - interrupts: Should contain I2C interrupt.
+
+ - clocks: A list of phandles + clock-specifiers, one for each entry in
+   clock-names.
+ - clock-names: Should contain:
+   * "core" for the core clock
+   * "iface" for the AHB clock
+
+ - #address-cells: Should be <1> Address cells for i2c device address
+ - #size-cells: Should be <0> as i2c addresses have no size component
+
+Optional properties:
+ - clock-frequency: Should specify the desired i2c bus clock frequency in Hz,
+                    defaults to 100kHz if omitted.
+
+Child nodes should conform to i2c bus binding.
+
+Example:
+
+ i2c@f9924000 {
+ 	compatible = "qcom,i2c-qup-v2.2.1";
+ 	reg = <0xf9924000 0x1000>;
+ 	interrupts = <0 96 0>;
+
+ 	clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
+ 	clock-names = "core", "iface";
+
+ 	clock-frequency = <355000>;
+
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+ };

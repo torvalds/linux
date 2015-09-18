@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/notifier.h>
 
 #include <xen/xen.h>
@@ -31,7 +33,7 @@ static int vcpu_online(unsigned int cpu)
 	err = xenbus_scanf(XBT_NIL, dir, "availability", "%15s", state);
 	if (err != 1) {
 		if (!xen_initial_domain())
-			printk(KERN_ERR "XENBUS: Unable to read cpu state\n");
+			pr_err("Unable to read cpu state\n");
 		return err;
 	}
 
@@ -40,7 +42,7 @@ static int vcpu_online(unsigned int cpu)
 	else if (strcmp(state, "offline") == 0)
 		return 0;
 
-	printk(KERN_ERR "XENBUS: unknown state(%s) on CPU%d\n", state, cpu);
+	pr_err("unknown state(%s) on CPU%d\n", state, cpu);
 	return -EINVAL;
 }
 static void vcpu_hotplug(unsigned int cpu)

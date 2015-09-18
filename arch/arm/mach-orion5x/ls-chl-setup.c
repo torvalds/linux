@@ -139,7 +139,7 @@ static struct mv_sata_platform_data lschl_sata_data = {
 
 static void lschl_power_off(void)
 {
-	orion5x_restart('h', NULL);
+	orion5x_restart(REBOOT_HARD, NULL);
 }
 
 /*****************************************************************************
@@ -294,8 +294,10 @@ static void __init lschl_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	mvebu_mbus_add_window("devbus-boot", LSCHL_NOR_BOOT_BASE,
-			      LSCHL_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    LSCHL_NOR_BOOT_BASE,
+				    LSCHL_NOR_BOOT_SIZE);
 	platform_device_register(&lschl_nor_flash);
 
 	platform_device_register(&lschl_leds);

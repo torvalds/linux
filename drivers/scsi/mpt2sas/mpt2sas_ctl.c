@@ -3,8 +3,9 @@
  * controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_ctl.c
- * Copyright (C) 2007-2012  LSI Corporation
- *  (mailto:DL-MPTFusionLinux@lsi.com)
+ * Copyright (C) 2007-2014  LSI Corporation
+ * Copyright (C) 20013-2014 Avago Technologies
+ *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -397,18 +398,22 @@ mpt2sas_ctl_add_to_event_log(struct MPT2SAS_ADAPTER *ioc,
  * This function merely adds a new work task into ioc->firmware_event_thread.
  * The tasks are worked from _firmware_event_work in user context.
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Returns void.
  */
-u8
+void
 mpt2sas_ctl_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
+	if (unlikely(!mpi_reply)) {
+		printk(MPT2SAS_ERR_FMT "mpi_reply not valid at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		return;
+	}
 	mpt2sas_ctl_add_to_event_log(ioc, mpi_reply);
-	return 1;
+	return;
 }
 
 /**
@@ -422,13 +427,16 @@ static int
 _ctl_verify_adapter(int ioc_number, struct MPT2SAS_ADAPTER **iocpp)
 {
 	struct MPT2SAS_ADAPTER *ioc;
-
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt2sas_ioc_list, list) {
 		if (ioc->id != ioc_number)
 			continue;
+		spin_unlock(&gioc_lock);
 		*iocpp = ioc;
 		return ioc_number;
 	}
+	spin_unlock(&gioc_lock);
 	*iocpp = NULL;
 	return -1;
 }
@@ -517,10 +525,15 @@ _ctl_poll(struct file *filep, poll_table *wait)
 
 	poll_wait(filep, &ctl_poll_wait, wait);
 
+	/* global ioc lock to protect controller on list operations */
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt2sas_ioc_list, list) {
-		if (ioc->aen_event_read_flag)
+		if (ioc->aen_event_read_flag) {
+			spin_unlock(&gioc_lock);
 			return POLLIN | POLLRDNORM;
+		}
 	}
+	spin_unlock(&gioc_lock);
 	return 0;
 }
 
@@ -983,7 +996,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command karg,
 			mpt2sas_scsih_issue_tm(ioc,
 			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
 			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10,
-			    0, TM_MUTEX_ON);
+			    TM_MUTEX_ON);
 			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
@@ -2163,16 +2176,23 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 
 	if (_ctl_verify_adapter(ioctl_header.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
+	/* pci_access_mutex lock acquired by ioctl path */
+	mutex_lock(&ioc->pci_access_mutex);
 	if (ioc->shost_recovery || ioc->pci_error_recovery ||
-	    ioc->is_driver_loading)
-		return -EAGAIN;
+		ioc->is_driver_loading || ioc->remove_host) {
+		ret = -EAGAIN;
+		goto out_unlock_pciaccess;
+	}
 
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
 	if (state == NON_BLOCKING) {
-		if (!mutex_trylock(&ioc->ctl_cmds.mutex))
-			return -EAGAIN;
+		if (!mutex_trylock(&ioc->ctl_cmds.mutex)) {
+			ret = -EAGAIN;
+			goto out_unlock_pciaccess;
+		}
 	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex)) {
-		return -ERESTARTSYS;
+		ret = -ERESTARTSYS;
+		goto out_unlock_pciaccess;
 	}
 
 	switch (cmd) {
@@ -2253,6 +2273,8 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 	}
 
 	mutex_unlock(&ioc->ctl_cmds.mutex);
+out_unlock_pciaccess:
+	mutex_unlock(&ioc->pci_access_mutex);
 	return ret;
 }
 
@@ -2706,6 +2728,12 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 		    "warpdrive\n", ioc->name, __func__);
 		goto out;
 	}
+	/* pci_access_mutex lock acquired by sysfs show path */
+	mutex_lock(&ioc->pci_access_mutex);
+	if (ioc->pci_error_recovery || ioc->remove_host) {
+		mutex_unlock(&ioc->pci_access_mutex);
+		return 0;
+	}
 
 	/* allocate upto GPIOVal 36 entries */
 	sz = offsetof(Mpi2IOUnitPage3_t, GPIOVal) + (sizeof(u16) * 36);
@@ -2744,6 +2772,7 @@ _ctl_BRM_status_show(struct device *cdev, struct device_attribute *attr,
 
  out:
 	kfree(io_unit_pg3);
+	mutex_unlock(&ioc->pci_access_mutex);
 	return rc;
 }
 static DEVICE_ATTR(BRM_status, S_IRUGO, _ctl_BRM_status_show, NULL);

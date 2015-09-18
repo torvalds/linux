@@ -63,7 +63,7 @@ static struct snd_soc_ops edb93xx_ops = {
 static struct snd_soc_dai_link edb93xx_dai = {
 	.name		= "CS4271",
 	.stream_name	= "CS4271 HiFi",
-	.platform_name	= "ep93xx-pcm-audio",
+	.platform_name	= "ep93xx-i2s",
 	.cpu_dai_name	= "ep93xx-i2s",
 	.codec_name	= "spi0.0",
 	.codec_dai_name	= "cs4271-hifi",
@@ -113,7 +113,6 @@ static int edb93xx_remove(struct platform_device *pdev)
 static struct platform_driver edb93xx_driver = {
 	.driver		= {
 		.name	= "edb93xx-audio",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= edb93xx_probe,
 	.remove		= edb93xx_remove,

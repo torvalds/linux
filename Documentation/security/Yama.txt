@@ -1,9 +1,7 @@
-Yama is a Linux Security Module that collects a number of system-wide DAC
-security protections that are not handled by the core kernel itself. To
-select it at boot time, specify "security=yama" (though this will disable
-any other LSM).
-
-Yama is controlled through sysctl in /proc/sys/kernel/yama:
+Yama is a Linux Security Module that collects system-wide DAC security
+protections that are not handled by the core kernel itself. This is
+selectable at build-time with CONFIG_SECURITY_YAMA, and can be controlled
+at run-time through sysctls in /proc/sys/kernel/yama:
 
 - ptrace_scope
 
@@ -37,7 +35,7 @@ still work as root).
 In mode 1, software that has defined application-specific relationships
 between a debugging process and its inferior (crash handlers, etc),
 prctl(PR_SET_PTRACER, pid, ...) can be used. An inferior can declare which
-other process (and its descendents) are allowed to call PTRACE_ATTACH
+other process (and its descendants) are allowed to call PTRACE_ATTACH
 against it. Only one such declared debugging process can exists for
 each inferior at a time. For example, this is used by KDE, Chromium, and
 Firefox's crash handlers, and by Wine for allowing only Wine processes

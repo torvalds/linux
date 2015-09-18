@@ -23,6 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 #include <mach/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -32,6 +33,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <mach/time.h>
+#include "gpio-iop32x.h"
 
 static void __init em7210_timer_init(void)
 {
@@ -175,14 +177,39 @@ static struct platform_device em7210_serial_device = {
 	.resource	= &em7210_uart_resource,
 };
 
+#define EM7210_HARDWARE_POWER 0
+
 void em7210_power_off(void)
 {
-	*IOP3XX_GPOE &= 0xfe;
-	*IOP3XX_GPOD |= 0x01;
+	int ret;
+
+	ret = gpio_direction_output(EM7210_HARDWARE_POWER, 1);
+	if (ret)
+		pr_crit("could not drive power off GPIO high\n");
 }
+
+static int __init em7210_request_gpios(void)
+{
+	int ret;
+
+	if (!machine_is_em7210())
+		return 0;
+
+	ret = gpio_request(EM7210_HARDWARE_POWER, "power");
+	if (ret) {
+		pr_err("could not request power off GPIO\n");
+		return 0;
+	}
+
+	pm_power_off = em7210_power_off;
+
+	return 0;
+}
+device_initcall(em7210_request_gpios);
 
 static void __init em7210_init_machine(void)
 {
+	register_iop32x_gpio();
 	platform_device_register(&em7210_serial_device);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&iop3xx_i2c1_device);
@@ -192,9 +219,6 @@ static void __init em7210_init_machine(void)
 
 	i2c_register_board_info(0, em7210_i2c_devices,
 		ARRAY_SIZE(em7210_i2c_devices));
-
-
-	pm_power_off = em7210_power_off;
 }
 
 MACHINE_START(EM7210, "Lanner EM7210")

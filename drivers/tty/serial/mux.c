@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 #include <asm/parisc-device.h>
 
-#ifdef CONFIG_MAGIC_SYSRQ
+#if defined(CONFIG_SERIAL_MUX_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #include <linux/sysrq.h>
 #define SUPPORT_SYSRQ
 #endif
@@ -165,16 +165,6 @@ static void mux_start_tx(struct uart_port *port)
  * The Serial Mux does not support this function.
  */
 static void mux_stop_rx(struct uart_port *port)
-{
-}
-
-/**
- * mux_enable_ms - Enable modum status interrupts.
- * @port: Ptr to the uart_port.
- *
- * The Serial Mux does not support this function.
- */
-static void mux_enable_ms(struct uart_port *port)
 {
 }
 
@@ -449,7 +439,6 @@ static struct uart_ops mux_pops = {
 	.stop_tx =		mux_stop_tx,
 	.start_tx =		mux_start_tx,
 	.stop_rx =		mux_stop_rx,
-	.enable_ms =		mux_enable_ms,
 	.break_ctl =		mux_break_ctl,
 	.startup =		mux_startup,
 	.shutdown =		mux_shutdown,
@@ -613,7 +602,7 @@ static void __exit mux_exit(void)
 {
 	/* Delete the Mux timer. */
 	if(port_cnt > 0) {
-		del_timer(&mux_timer);
+		del_timer_sync(&mux_timer);
 #ifdef CONFIG_SERIAL_MUX_CONSOLE
 		unregister_console(&mux_console);
 #endif

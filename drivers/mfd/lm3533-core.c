@@ -384,7 +384,7 @@ static struct attribute_group lm3533_attribute_group = {
 
 static int lm3533_device_als_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	if (!pdata->als)
@@ -407,7 +407,7 @@ static int lm3533_device_als_init(struct lm3533 *lm3533)
 
 static int lm3533_device_bl_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -436,7 +436,7 @@ static int lm3533_device_bl_init(struct lm3533 *lm3533)
 
 static int lm3533_device_led_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int i;
 	int ret;
 
@@ -481,7 +481,7 @@ static int lm3533_device_setup(struct lm3533 *lm3533,
 
 static int lm3533_device_init(struct lm3533 *lm3533)
 {
-	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
+	struct lm3533_platform_data *pdata = dev_get_platdata(lm3533->dev);
 	int ret;
 
 	dev_dbg(lm3533->dev, "%s\n", __func__);
@@ -583,7 +583,7 @@ static bool lm3533_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config regmap_config = {
+static const struct regmap_config regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= LM3533_REG_MAX,
@@ -640,7 +640,6 @@ MODULE_DEVICE_TABLE(i2c, lm3533_i2c_ids);
 static struct i2c_driver lm3533_i2c_driver = {
 	.driver = {
 		   .name = "lm3533",
-		   .owner = THIS_MODULE,
 	},
 	.id_table	= lm3533_i2c_ids,
 	.probe		= lm3533_i2c_probe,

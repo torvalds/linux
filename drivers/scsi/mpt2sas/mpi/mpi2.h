@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2012 LSI Corporation.
+ *  Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.25
+ *  mpi2.h Version:  02.00.35
  *
  *  Version History
  *  ---------------
@@ -75,6 +75,17 @@
  *  02-06-12  02.00.24  Bumped MPI2_HEADER_VERSION_UNIT.
  *  03-29-12  02.00.25  Bumped MPI2_HEADER_VERSION_UNIT.
  *                      Added Hard Reset delay timings.
+ *  07-10-12  02.00.26  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  07-26-12  02.00.27  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-27-12  02.00.28  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  12-20-12  02.00.29  Bumped MPI2_HEADER_VERSION_UNIT.
+ *			Added MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET.
+ *  04-09-13  02.00.30  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  04-17-13  02.00.31  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-19-13  02.00.32  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  12-05-13  02.00.33  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  01-08-14  02.00.34  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  06-13-14  02.00.35  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -100,7 +111,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x19)
+#define MPI2_HEADER_VERSION_UNIT            (0x23)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -260,6 +271,7 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_REPLY_POST_HOST_INDEX_MASK         (0x00FFFFFF)
 #define MPI2_RPHI_MSIX_INDEX_MASK               (0xFF000000)
 #define MPI2_RPHI_MSIX_INDEX_SHIFT              (24)
+#define MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET  (0x0000030C) /* MPI v2.5 only */
 
 /*
  * Defines for the HCBSize and address

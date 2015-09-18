@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mtd/nand_ecc.h>
 
+#include "mtd_test.h"
+
 /*
  * Test the implementation for software ECC
  *
@@ -19,7 +21,7 @@
  * or detected.
  */
 
-#if defined(CONFIG_MTD_NAND) || defined(CONFIG_MTD_NAND_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND)
 
 struct nand_ecc_test {
 	const char *name;
@@ -274,6 +276,10 @@ static int nand_ecc_test_run(const size_t size)
 		}
 		pr_info("ok - %s-%zd\n",
 			nand_ecc_test[i].name, size);
+
+		err = mtdtest_relax();
+		if (err)
+			break;
 	}
 error:
 	kfree(error_data);

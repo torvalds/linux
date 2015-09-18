@@ -30,8 +30,15 @@ static inline void set_my_cpu_offset(unsigned long off)
 static inline unsigned long __my_cpu_offset(void)
 {
 	unsigned long off;
-	/* Read TPIDRPRW */
-	asm("mrc p15, 0, %0, c13, c0, 4" : "=r" (off) : : "memory");
+
+	/*
+	 * Read TPIDRPRW.
+	 * We want to allow caching the value, so avoid using volatile and
+	 * instead use a fake stack read to hazard against barrier().
+	 */
+	asm("mrc p15, 0, %0, c13, c0, 4" : "=r" (off)
+		: "Q" (*(const unsigned long *)current_stack_pointer));
+
 	return off;
 }
 #define __my_cpu_offset __my_cpu_offset()

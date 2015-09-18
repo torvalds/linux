@@ -18,14 +18,17 @@
 /* EXPORT_SYMBOL() is in arch/tile/lib/exports.c since this should be asm. */
 
 /* Must be 8 bytes in size. */
-#define word_t uint64_t
+#define op_t uint64_t
 
-#if CHIP_L2_LINE_SIZE() != 64 && CHIP_L2_LINE_SIZE() != 128
-#error "Assumes 64 or 128 byte line size"
+/* Threshold value for when to enter the unrolled loops. */
+#define	OP_T_THRES	16
+
+#if CHIP_L2_LINE_SIZE() != 64
+#error "Assumes 64 byte line size"
 #endif
 
 /* How many cache lines ahead should we prefetch? */
-#define PREFETCH_LINES_AHEAD 3
+#define PREFETCH_LINES_AHEAD 4
 
 /*
  * Provide "base versions" of load and store for the normal code path.
@@ -51,15 +54,16 @@ void *memcpy(void *__restrict dstv, const void *__restrict srcv, size_t n)
  * macros to return a count of uncopied bytes due to mm fault.
  */
 #define RETVAL 0
-int USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
+int __attribute__((optimize("omit-frame-pointer")))
+USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
 #endif
 {
 	char *__restrict dst1 = (char *)dstv;
 	const char *__restrict src1 = (const char *)srcv;
 	const char *__restrict src1_end;
 	const char *__restrict prefetch;
-	word_t *__restrict dst8;    /* 8-byte pointer to destination memory. */
-	word_t final; /* Final bytes to write to trailing word, if any */
+	op_t *__restrict dst8;    /* 8-byte pointer to destination memory. */
+	op_t final; /* Final bytes to write to trailing word, if any */
 	long i;
 
 	if (n < 16) {
@@ -79,104 +83,228 @@ int USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
 	for (i = 0; i < PREFETCH_LINES_AHEAD; i++) {
 		__insn_prefetch(prefetch);
 		prefetch += CHIP_L2_LINE_SIZE();
-		prefetch = (prefetch > src1_end) ? prefetch : src1;
+		prefetch = (prefetch < src1_end) ? prefetch : src1;
 	}
 
 	/* Copy bytes until dst is word-aligned. */
-	for (; (uintptr_t)dst1 & (sizeof(word_t) - 1); n--)
+	for (; (uintptr_t)dst1 & (sizeof(op_t) - 1); n--)
 		ST1(dst1++, LD1(src1++));
 
 	/* 8-byte pointer to destination memory. */
-	dst8 = (word_t *)dst1;
+	dst8 = (op_t *)dst1;
 
-	if (__builtin_expect((uintptr_t)src1 & (sizeof(word_t) - 1), 0)) {
-		/*
-		 * Misaligned copy.  Copy 8 bytes at a time, but don't
-		 * bother with other fanciness.
-		 *
-		 * TODO: Consider prefetching and using wh64 as well.
-		 */
+	if (__builtin_expect((uintptr_t)src1 & (sizeof(op_t) - 1), 0)) {
+		/* Unaligned copy. */
 
-		/* Create an aligned src8. */
-		const word_t *__restrict src8 =
-			(const word_t *)((uintptr_t)src1 & -sizeof(word_t));
-		word_t b;
+		op_t  tmp0 = 0, tmp1 = 0, tmp2, tmp3;
+		const op_t *src8 = (const op_t *) ((uintptr_t)src1 &
+						   -sizeof(op_t));
+		const void *srci = (void *)src1;
+		int m;
 
-		word_t a = LD8(src8++);
-		for (; n >= sizeof(word_t); n -= sizeof(word_t)) {
-			b = LD8(src8++);
-			a = __insn_dblalign(a, b, src1);
-			ST8(dst8++, a);
-			a = b;
+		m = (CHIP_L2_LINE_SIZE() << 2) -
+			(((uintptr_t)dst8) & ((CHIP_L2_LINE_SIZE() << 2) - 1));
+		m = (n < m) ? n : m;
+		m /= sizeof(op_t);
+
+		/* Copy until 'dst' is cache-line-aligned. */
+		n -= (sizeof(op_t) * m);
+
+		switch (m % 4) {
+		case 0:
+			if (__builtin_expect(!m, 0))
+				goto _M0;
+			tmp1 = LD8(src8++);
+			tmp2 = LD8(src8++);
+			goto _8B3;
+		case 2:
+			m += 2;
+			tmp3 = LD8(src8++);
+			tmp0 = LD8(src8++);
+			goto _8B1;
+		case 3:
+			m += 1;
+			tmp2 = LD8(src8++);
+			tmp3 = LD8(src8++);
+			goto _8B2;
+		case 1:
+			m--;
+			tmp0 = LD8(src8++);
+			tmp1 = LD8(src8++);
+			if (__builtin_expect(!m, 0))
+				goto _8B0;
+		}
+
+		do {
+			tmp2 = LD8(src8++);
+			tmp0 =  __insn_dblalign(tmp0, tmp1, srci);
+			ST8(dst8++, tmp0);
+_8B3:
+			tmp3 = LD8(src8++);
+			tmp1 = __insn_dblalign(tmp1, tmp2, srci);
+			ST8(dst8++, tmp1);
+_8B2:
+			tmp0 = LD8(src8++);
+			tmp2 = __insn_dblalign(tmp2, tmp3, srci);
+			ST8(dst8++, tmp2);
+_8B1:
+			tmp1 = LD8(src8++);
+			tmp3 = __insn_dblalign(tmp3, tmp0, srci);
+			ST8(dst8++, tmp3);
+			m -= 4;
+		} while (m);
+
+_8B0:
+		tmp0 = __insn_dblalign(tmp0, tmp1, srci);
+		ST8(dst8++, tmp0);
+		src8--;
+
+_M0:
+		if (__builtin_expect(n >= CHIP_L2_LINE_SIZE(), 0)) {
+			op_t tmp4, tmp5, tmp6, tmp7, tmp8;
+
+			prefetch = ((const char *)src8) +
+				CHIP_L2_LINE_SIZE() * PREFETCH_LINES_AHEAD;
+
+			for (tmp0 = LD8(src8++); n >= CHIP_L2_LINE_SIZE();
+			     n -= CHIP_L2_LINE_SIZE()) {
+				/* Prefetch and advance to next line to
+				   prefetch, but don't go past the end.  */
+				__insn_prefetch(prefetch);
+
+				/* Make sure prefetch got scheduled
+				   earlier.  */
+				__asm__ ("" : : : "memory");
+
+				prefetch += CHIP_L2_LINE_SIZE();
+				prefetch = (prefetch < src1_end) ? prefetch :
+					(const char *) src8;
+
+				tmp1 = LD8(src8++);
+				tmp2 = LD8(src8++);
+				tmp3 = LD8(src8++);
+				tmp4 = LD8(src8++);
+				tmp5 = LD8(src8++);
+				tmp6 = LD8(src8++);
+				tmp7 = LD8(src8++);
+				tmp8 = LD8(src8++);
+
+				tmp0 = __insn_dblalign(tmp0, tmp1, srci);
+				tmp1 = __insn_dblalign(tmp1, tmp2, srci);
+				tmp2 = __insn_dblalign(tmp2, tmp3, srci);
+				tmp3 = __insn_dblalign(tmp3, tmp4, srci);
+				tmp4 = __insn_dblalign(tmp4, tmp5, srci);
+				tmp5 = __insn_dblalign(tmp5, tmp6, srci);
+				tmp6 = __insn_dblalign(tmp6, tmp7, srci);
+				tmp7 = __insn_dblalign(tmp7, tmp8, srci);
+
+				__insn_wh64(dst8);
+
+				ST8(dst8++, tmp0);
+				ST8(dst8++, tmp1);
+				ST8(dst8++, tmp2);
+				ST8(dst8++, tmp3);
+				ST8(dst8++, tmp4);
+				ST8(dst8++, tmp5);
+				ST8(dst8++, tmp6);
+				ST8(dst8++, tmp7);
+
+				tmp0 = tmp8;
+			}
+			src8--;
+		}
+
+		/* Copy the rest 8-byte chunks. */
+		if (n >= sizeof(op_t)) {
+			tmp0 = LD8(src8++);
+			for (; n >= sizeof(op_t); n -= sizeof(op_t)) {
+				tmp1 = LD8(src8++);
+				tmp0 = __insn_dblalign(tmp0, tmp1, srci);
+				ST8(dst8++, tmp0);
+				tmp0 = tmp1;
+			}
+			src8--;
 		}
 
 		if (n == 0)
 			return RETVAL;
 
-		b = ((const char *)src8 <= src1_end) ? *src8 : 0;
+		tmp0 = LD8(src8++);
+		tmp1 = ((const char *)src8 <= src1_end)
+			? LD8((op_t *)src8) : 0;
+		final = __insn_dblalign(tmp0, tmp1, srci);
 
-		/*
-		 * Final source bytes to write to trailing partial
-		 * word, if any.
-		 */
-		final = __insn_dblalign(a, b, src1);
 	} else {
 		/* Aligned copy. */
 
-		const word_t* __restrict src8 = (const word_t *)src1;
+		const op_t *__restrict src8 = (const op_t *)src1;
 
 		/* src8 and dst8 are both word-aligned. */
 		if (n >= CHIP_L2_LINE_SIZE()) {
 			/* Copy until 'dst' is cache-line-aligned. */
 			for (; (uintptr_t)dst8 & (CHIP_L2_LINE_SIZE() - 1);
-			     n -= sizeof(word_t))
+			     n -= sizeof(op_t))
 				ST8(dst8++, LD8(src8++));
 
 			for (; n >= CHIP_L2_LINE_SIZE(); ) {
-				__insn_wh64(dst8);
+				op_t tmp0, tmp1, tmp2, tmp3;
+				op_t tmp4, tmp5, tmp6, tmp7;
 
 				/*
 				 * Prefetch and advance to next line
-				 * to prefetch, but don't go past the end
+				 * to prefetch, but don't go past the
+				 * end.
 				 */
 				__insn_prefetch(prefetch);
+
+				/* Make sure prefetch got scheduled
+				   earlier.  */
+				__asm__ ("" : : : "memory");
+
 				prefetch += CHIP_L2_LINE_SIZE();
-				prefetch = (prefetch > src1_end) ? prefetch :
+				prefetch = (prefetch < src1_end) ? prefetch :
 					(const char *)src8;
 
 				/*
-				 * Copy an entire cache line.  Manually
-				 * unrolled to avoid idiosyncracies of
-				 * compiler unrolling.
+				 * Do all the loads before wh64.  This
+				 * is necessary if [src8, src8+7] and
+				 * [dst8, dst8+7] share the same cache
+				 * line and dst8 <= src8, as can be
+				 * the case when called from memmove,
+				 * or with code tested on x86 whose
+				 * memcpy always works with forward
+				 * copies.
 				 */
-#define COPY_WORD(offset) ({ ST8(dst8+offset, LD8(src8+offset)); n -= 8; })
-				COPY_WORD(0);
-				COPY_WORD(1);
-				COPY_WORD(2);
-				COPY_WORD(3);
-				COPY_WORD(4);
-				COPY_WORD(5);
-				COPY_WORD(6);
-				COPY_WORD(7);
-#if CHIP_L2_LINE_SIZE() == 128
-				COPY_WORD(8);
-				COPY_WORD(9);
-				COPY_WORD(10);
-				COPY_WORD(11);
-				COPY_WORD(12);
-				COPY_WORD(13);
-				COPY_WORD(14);
-				COPY_WORD(15);
-#elif CHIP_L2_LINE_SIZE() != 64
-# error Fix code that assumes particular L2 cache line sizes
-#endif
+				tmp0 = LD8(src8++);
+				tmp1 = LD8(src8++);
+				tmp2 = LD8(src8++);
+				tmp3 = LD8(src8++);
+				tmp4 = LD8(src8++);
+				tmp5 = LD8(src8++);
+				tmp6 = LD8(src8++);
+				tmp7 = LD8(src8++);
 
-				dst8 += CHIP_L2_LINE_SIZE() / sizeof(word_t);
-				src8 += CHIP_L2_LINE_SIZE() / sizeof(word_t);
+				/* wh64 and wait for tmp7 load completion. */
+				__asm__ ("move %0, %0; wh64 %1\n"
+					 : : "r"(tmp7), "r"(dst8));
+
+				ST8(dst8++, tmp0);
+				ST8(dst8++, tmp1);
+				ST8(dst8++, tmp2);
+				ST8(dst8++, tmp3);
+				ST8(dst8++, tmp4);
+				ST8(dst8++, tmp5);
+				ST8(dst8++, tmp6);
+				ST8(dst8++, tmp7);
+
+				n -= CHIP_L2_LINE_SIZE();
 			}
+#if CHIP_L2_LINE_SIZE() != 64
+# error "Fix code that assumes particular L2 cache line size."
+#endif
 		}
 
-		for (; n >= sizeof(word_t); n -= sizeof(word_t))
+		for (; n >= sizeof(op_t); n -= sizeof(op_t))
 			ST8(dst8++, LD8(src8++));
 
 		if (__builtin_expect(n == 0, 1))

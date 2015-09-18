@@ -18,16 +18,24 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
+#include <asm/homecache.h>
 
-HV_Topology smp_topology __write_once;
+/*
+ * We write to width and height with a single store in head_NN.S,
+ * so make the variable aligned to "long".
+ */
+HV_Topology smp_topology __write_once __aligned(sizeof(long));
 EXPORT_SYMBOL(smp_topology);
 
 #if CHIP_HAS_IPI()
 static unsigned long __iomem *ipi_mappings[NR_CPUS];
 #endif
 
+/* Does messaging work correctly to the local cpu? */
+bool self_interrupt_ok;
 
 /*
  * Top-level send_IPI*() functions to send messages to other cpus.
@@ -100,8 +108,8 @@ static void smp_start_cpu_interrupt(void)
 /* Handler to stop the current cpu. */
 static void smp_stop_cpu_interrupt(void)
 {
-	set_cpu_online(smp_processor_id(), 0);
 	arch_local_irq_disable_all();
+	set_cpu_online(smp_processor_id(), 0);
 	for (;;)
 		asm("nap; nop");
 }
@@ -142,6 +150,10 @@ void evaluate_message(int tag)
 		generic_smp_call_function_single_interrupt();
 		break;
 
+	case MSG_TAG_IRQ_WORK: /* Invoke IRQ work */
+		irq_work_run();
+		break;
+
 	default:
 		panic("Unknown IPI message tag %d", tag);
 		break;
@@ -167,16 +179,33 @@ static void ipi_flush_icache_range(void *info)
 void flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct ipi_flush flush = { start, end };
-	preempt_disable();
-	on_each_cpu(ipi_flush_icache_range, &flush, 1);
-	preempt_enable();
+
+	/* If invoked with irqs disabled, we can not issue IPIs. */
+	if (irqs_disabled())
+		flush_remote(0, HV_FLUSH_EVICT_L1I, NULL, 0, 0, 0,
+			NULL, NULL, 0);
+	else {
+		preempt_disable();
+		on_each_cpu(ipi_flush_icache_range, &flush, 1);
+		preempt_enable();
+	}
 }
+EXPORT_SYMBOL(flush_icache_range);
+
+
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	if (arch_irq_work_has_interrupt())
+		send_IPI_single(smp_processor_id(), MSG_TAG_IRQ_WORK);
+}
+#endif
 
 
 /* Called when smp_send_reschedule() triggers IRQ_RESCHEDULE. */
 static irqreturn_t handle_reschedule_ipi(int irq, void *token)
 {
-	__get_cpu_var(irq_stat).irq_resched_count++;
+	__this_cpu_inc(irq_stat.irq_resched_count);
 	scheduler_ipi();
 
 	return IRQ_HANDLED;
@@ -190,8 +219,22 @@ static struct irqaction resched_action = {
 
 void __init ipi_init(void)
 {
+	int cpu = smp_processor_id();
+	HV_Recipient recip = { .y = cpu_y(cpu), .x = cpu_x(cpu),
+			       .state = HV_TO_BE_SENT };
+	int tag = MSG_TAG_CALL_FUNCTION_SINGLE;
+
+	/*
+	 * Test if we can message ourselves for arch_irq_work_raise.
+	 * This functionality is only available in the Tilera hypervisor
+	 * in versions 4.3.4 and following.
+	 */
+	if (hv_send_message(&recip, 1, (HV_VirtAddr)&tag, sizeof(tag)) == 1)
+		self_interrupt_ok = true;
+	else
+		pr_warn("Older hypervisor: disabling fast irq_work_raise\n");
+
 #if CHIP_HAS_IPI()
-	int cpu;
 	/* Map IPI trigger MMIO addresses. */
 	for_each_possible_cpu(cpu) {
 		HV_Coord tile;

@@ -28,6 +28,7 @@ struct cpu_stop_work {
 };
 
 int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg);
+int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *arg);
 void stop_one_cpu_nowait(unsigned int cpu, cpu_stop_fn_t fn, void *arg,
 			 struct cpu_stop_work *work_buf);
 int stop_cpus(const struct cpumask *cpumask, cpu_stop_fn_t fn, void *arg);
@@ -111,25 +112,13 @@ static inline int try_stop_cpus(const struct cpumask *cpumask,
  *
  * This can be thought of as a very heavy write lock, equivalent to
  * grabbing every spinlock in the kernel. */
-int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
+int stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus);
 
-/**
- * __stop_machine: freeze the machine on all CPUs and run this function
- * @fn: the function to run
- * @data: the data ptr for the @fn
- * @cpus: the cpus to run the @fn() on (NULL = any online cpu)
- *
- * Description: This is a special version of the above, which assumes cpus
- * won't come or go while it's being called.  Used by hotplug cpu.
- */
-int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
-
-int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
+int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 				   const struct cpumask *cpus);
-
 #else	 /* CONFIG_STOP_MACHINE && CONFIG_SMP */
 
-static inline int __stop_machine(int (*fn)(void *), void *data,
+static inline int stop_machine(cpu_stop_fn_t fn, void *data,
 				 const struct cpumask *cpus)
 {
 	unsigned long flags;
@@ -140,16 +129,10 @@ static inline int __stop_machine(int (*fn)(void *), void *data,
 	return ret;
 }
 
-static inline int stop_machine(int (*fn)(void *), void *data,
-			       const struct cpumask *cpus)
-{
-	return __stop_machine(fn, data, cpus);
-}
-
-static inline int stop_machine_from_inactive_cpu(int (*fn)(void *), void *data,
+static inline int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 						 const struct cpumask *cpus)
 {
-	return __stop_machine(fn, data, cpus);
+	return stop_machine(fn, data, cpus);
 }
 
 #endif	/* CONFIG_STOP_MACHINE && CONFIG_SMP */

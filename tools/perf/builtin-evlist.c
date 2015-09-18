@@ -14,17 +14,24 @@
 #include "util/parse-events.h"
 #include "util/parse-options.h"
 #include "util/session.h"
+#include "util/data.h"
+#include "util/debug.h"
 
 static int __cmd_evlist(const char *file_name, struct perf_attr_details *details)
 {
 	struct perf_session *session;
 	struct perf_evsel *pos;
+	struct perf_data_file file = {
+		.path = file_name,
+		.mode = PERF_DATA_MODE_READ,
+		.force = details->force,
+	};
 
-	session = perf_session__new(file_name, O_RDONLY, 0, false, NULL);
+	session = perf_session__new(&file, 0, NULL);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
-	list_for_each_entry(pos, &session->evlist->entries, node)
+	evlist__for_each(session->evlist, pos)
 		perf_evsel__fprintf(pos, details, stdout);
 
 	perf_session__delete(session);
@@ -41,6 +48,7 @@ int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show all event attr details"),
 	OPT_BOOLEAN('g', "group", &details.event_group,
 		    "Show event group information"),
+	OPT_BOOLEAN('f', "force", &details.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const evlist_usage[] = {

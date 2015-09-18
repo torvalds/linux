@@ -49,7 +49,7 @@ void __init prom_init(void)
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str || strict_strtoul(memsize_str, 0, &memsize))
+	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
 		memsize = 0x04000000;
 
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
@@ -87,9 +87,9 @@ void __init board_setup(void)
 	alchemy_gpio2_enable();
 
 	/* Set multiple use pins (UART3/GPIO) to UART (it's used as UART too) */
-	pin_func  = au_readl(SYS_PINFUNC) & ~SYS_PF_UR3;
+	pin_func  = alchemy_rdsys(AU1000_SYS_PINFUNC) & ~SYS_PF_UR3;
 	pin_func |= SYS_PF_UR3;
-	au_writel(pin_func, SYS_PINFUNC);
+	alchemy_wrsys(pin_func, AU1000_SYS_PINFUNC);
 
 	/* Enable UART */
 	alchemy_uart_enable(AU1000_UART3_PHYS_ADDR);

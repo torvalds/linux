@@ -261,6 +261,49 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 EXPORT_SYMBOL(brcmu_pktq_mdeq);
 
+/* Produce a human-readable string for boardrev */
+char *brcmu_boardrev_str(u32 brev, char *buf)
+{
+	char c;
+
+	if (brev < 0x100) {
+		snprintf(buf, BRCMU_BOARDREV_LEN, "%d.%d",
+			 (brev & 0xf0) >> 4, brev & 0xf);
+	} else {
+		c = (brev & 0xf000) == 0x1000 ? 'P' : 'A';
+		snprintf(buf, BRCMU_BOARDREV_LEN, "%c%03x", c, brev & 0xfff);
+	}
+	return buf;
+}
+EXPORT_SYMBOL(brcmu_boardrev_str);
+
+char *brcmu_dotrev_str(u32 dotrev, char *buf)
+{
+	u8 dotval[4];
+
+	if (!dotrev) {
+		snprintf(buf, BRCMU_DOTREV_LEN, "unknown");
+		return buf;
+	}
+	dotval[0] = (dotrev >> 24) & 0xFF;
+	dotval[1] = (dotrev >> 16) & 0xFF;
+	dotval[2] = (dotrev >> 8) & 0xFF;
+	dotval[3] = dotrev & 0xFF;
+
+	if (dotval[3])
+		snprintf(buf, BRCMU_DOTREV_LEN, "%d.%d.%d.%d", dotval[0],
+			dotval[1], dotval[2], dotval[3]);
+	else if (dotval[2])
+		snprintf(buf, BRCMU_DOTREV_LEN, "%d.%d.%d", dotval[0],
+			dotval[1], dotval[2]);
+	else
+		snprintf(buf, BRCMU_DOTREV_LEN, "%d.%d", dotval[0],
+			dotval[1]);
+
+	return buf;
+}
+EXPORT_SYMBOL(brcmu_dotrev_str);
+
 #if defined(DEBUG)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)
@@ -292,4 +335,5 @@ void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...)
 	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, data, size);
 }
 EXPORT_SYMBOL(brcmu_dbg_hex_dump);
+
 #endif				/* defined(DEBUG) */

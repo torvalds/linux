@@ -7,8 +7,6 @@ config NET_BFIN
 	depends on BF516 || BF518 || BF526 || BF527 || BF536 || BF537
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
-	  Make sure you know the name of your card. Read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
 
 	  If unsure, say Y.
 
@@ -23,7 +21,6 @@ config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
 	depends on (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
 	select CRC32
-	select NET_CORE
 	select MII
 	select PHYLIB
 	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
@@ -53,8 +50,7 @@ config BFIN_TX_DESC_NUM
 config BFIN_RX_DESC_NUM
 	int "Number of receive buffer packets"
 	depends on BFIN_MAC
-	range 20 100 if BFIN_MAC_USE_L1
-	range 20 800
+	range 20 64
 	default "20"
 	---help---
 	  Set the number of buffer packets used in driver.

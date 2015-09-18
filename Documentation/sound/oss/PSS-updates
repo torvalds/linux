@@ -41,7 +41,7 @@ pss_no_sound
 
 	This module parameter is a flag that can be used to tell the driver to 
 just configure non-sound components.  0 configures all components, a non-0 
-value will only attept to configure the CDROM and joystick ports.  This 
+value will only attempt to configure the CDROM and joystick ports.  This 
 parameter can be used by a user who only wished to use the builtin joystick 
 and/or CDROM port(s) of his PSS sound card.  If this driver is loaded with this 
 parameter and with the parameter below set to true then a user can safely unload 

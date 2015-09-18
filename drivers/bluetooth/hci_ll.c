@@ -110,7 +110,6 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	/* prepare packet */
 	hcill_packet = (struct hcill_cmd *) skb_put(skb, 1);
 	hcill_packet->cmd = cmd;
-	skb->dev = (void *) hu->hdev;
 
 	/* send packet */
 	skb_queue_tail(&ll->txq, skb);
@@ -346,14 +345,14 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ll_check_data_len(struct ll_struct *ll, int len)
+static inline int ll_check_data_len(struct hci_dev *hdev, struct ll_struct *ll, int len)
 {
 	int room = skb_tailroom(ll->rx_skb);
 
 	BT_DBG("len %d room %d", len, room);
 
 	if (!len) {
-		hci_recv_frame(ll->rx_skb);
+		hci_recv_frame(hdev, ll->rx_skb);
 	} else if (len > room) {
 		BT_ERR("Data length is too large");
 		kfree_skb(ll->rx_skb);
@@ -371,10 +370,10 @@ static inline int ll_check_data_len(struct ll_struct *ll, int len)
 }
 
 /* Recv data */
-static int ll_recv(struct hci_uart *hu, void *data, int count)
+static int ll_recv(struct hci_uart *hu, const void *data, int count)
 {
 	struct ll_struct *ll = hu->priv;
-	char *ptr;
+	const char *ptr;
 	struct hci_event_hdr *eh;
 	struct hci_acl_hdr   *ah;
 	struct hci_sco_hdr   *sh;
@@ -395,7 +394,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			switch (ll->rx_state) {
 			case HCILL_W4_DATA:
 				BT_DBG("Complete data");
-				hci_recv_frame(ll->rx_skb);
+				hci_recv_frame(hu->hdev, ll->rx_skb);
 
 				ll->rx_state = HCILL_W4_PACKET_TYPE;
 				ll->rx_skb = NULL;
@@ -406,7 +405,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("Event header: evt 0x%2.2x plen %d", eh->evt, eh->plen);
 
-				ll_check_data_len(ll, eh->plen);
+				ll_check_data_len(hu->hdev, ll, eh->plen);
 				continue;
 
 			case HCILL_W4_ACL_HDR:
@@ -415,7 +414,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("ACL header: dlen %d", dlen);
 
-				ll_check_data_len(ll, dlen);
+				ll_check_data_len(hu->hdev, ll, dlen);
 				continue;
 
 			case HCILL_W4_SCO_HDR:
@@ -423,7 +422,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_DBG("SCO header: dlen %d", sh->dlen);
 
-				ll_check_data_len(ll, sh->dlen);
+				ll_check_data_len(hu->hdev, ll, sh->dlen);
 				continue;
 			}
 		}
@@ -494,7 +493,6 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			return -ENOMEM;
 		}
 
-		ll->rx_skb->dev = (void *) hu->hdev;
 		bt_cb(ll->rx_skb)->pkt_type = type;
 	}
 
@@ -507,8 +505,9 @@ static struct sk_buff *ll_dequeue(struct hci_uart *hu)
 	return skb_dequeue(&ll->txq);
 }
 
-static struct hci_uart_proto llp = {
+static const struct hci_uart_proto llp = {
 	.id		= HCI_UART_LL,
+	.name		= "LL",
 	.open		= ll_open,
 	.close		= ll_close,
 	.recv		= ll_recv,
@@ -519,14 +518,7 @@ static struct hci_uart_proto llp = {
 
 int __init ll_init(void)
 {
-	int err = hci_uart_register_proto(&llp);
-
-	if (!err)
-		BT_INFO("HCILL protocol initialized");
-	else
-		BT_ERR("HCILL protocol registration failed");
-
-	return err;
+	return hci_uart_register_proto(&llp);
 }
 
 int __exit ll_deinit(void)

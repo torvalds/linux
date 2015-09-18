@@ -34,6 +34,7 @@ optional properties:
 			- ignored     = ignored
  - interlaced (bool): boolean to enable interlaced mode
  - doublescan (bool): boolean to enable doublescan mode
+ - doubleclk (bool): boolean to enable doubleclock mode
 
 All the optional properties that are not bool follow the following logic:
     <1>: high active

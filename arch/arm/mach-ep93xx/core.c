@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <linux/timex.h>
+#include <linux/sys_soc.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -35,6 +35,9 @@
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/reboot.h>
+#include <linux/usb/ohci_pdriver.h>
+#include <linux/random.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -42,8 +45,8 @@
 #include <linux/platform_data/spi-ep93xx.h>
 #include <mach/gpio-ep93xx.h>
 
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 
 #include "soc.h"
 
@@ -68,113 +71,6 @@ void __init ep93xx_map_io(void)
 {
 	iotable_init(ep93xx_io_desc, ARRAY_SIZE(ep93xx_io_desc));
 }
-
-
-/*************************************************************************
- * Timer handling for EP93xx
- *************************************************************************
- * The ep93xx has four internal timers.  Timers 1, 2 (both 16 bit) and
- * 3 (32 bit) count down at 508 kHz, are self-reloading, and can generate
- * an interrupt on underflow.  Timer 4 (40 bit) counts down at 983.04 kHz,
- * is free-running, and can't generate interrupts.
- *
- * The 508 kHz timers are ideal for use for the timer interrupt, as the
- * most common values of HZ divide 508 kHz nicely.  We pick one of the 16
- * bit timers (timer 1) since we don't need more than 16 bits of reload
- * value as long as HZ >= 8.
- *
- * The higher clock rate of timer 4 makes it a better choice than the
- * other timers for use in gettimeoffset(), while the fact that it can't
- * generate interrupts means we don't have to worry about not being able
- * to use this timer for something else.  We also use timer 4 for keeping
- * track of lost jiffies.
- */
-#define EP93XX_TIMER_REG(x)		(EP93XX_TIMER_BASE + (x))
-#define EP93XX_TIMER1_LOAD		EP93XX_TIMER_REG(0x00)
-#define EP93XX_TIMER1_VALUE		EP93XX_TIMER_REG(0x04)
-#define EP93XX_TIMER1_CONTROL		EP93XX_TIMER_REG(0x08)
-#define EP93XX_TIMER123_CONTROL_ENABLE	(1 << 7)
-#define EP93XX_TIMER123_CONTROL_MODE	(1 << 6)
-#define EP93XX_TIMER123_CONTROL_CLKSEL	(1 << 3)
-#define EP93XX_TIMER1_CLEAR		EP93XX_TIMER_REG(0x0c)
-#define EP93XX_TIMER2_LOAD		EP93XX_TIMER_REG(0x20)
-#define EP93XX_TIMER2_VALUE		EP93XX_TIMER_REG(0x24)
-#define EP93XX_TIMER2_CONTROL		EP93XX_TIMER_REG(0x28)
-#define EP93XX_TIMER2_CLEAR		EP93XX_TIMER_REG(0x2c)
-#define EP93XX_TIMER4_VALUE_LOW		EP93XX_TIMER_REG(0x60)
-#define EP93XX_TIMER4_VALUE_HIGH	EP93XX_TIMER_REG(0x64)
-#define EP93XX_TIMER4_VALUE_HIGH_ENABLE	(1 << 8)
-#define EP93XX_TIMER3_LOAD		EP93XX_TIMER_REG(0x80)
-#define EP93XX_TIMER3_VALUE		EP93XX_TIMER_REG(0x84)
-#define EP93XX_TIMER3_CONTROL		EP93XX_TIMER_REG(0x88)
-#define EP93XX_TIMER3_CLEAR		EP93XX_TIMER_REG(0x8c)
-
-#define EP93XX_TIMER123_CLOCK		508469
-#define EP93XX_TIMER4_CLOCK		983040
-
-#define TIMER1_RELOAD			((EP93XX_TIMER123_CLOCK / HZ) - 1)
-#define TIMER4_TICKS_PER_JIFFY		DIV_ROUND_CLOSEST(CLOCK_TICK_RATE, HZ)
-
-static unsigned int last_jiffy_time;
-
-static irqreturn_t ep93xx_timer_interrupt(int irq, void *dev_id)
-{
-	/* Writing any value clears the timer interrupt */
-	__raw_writel(1, EP93XX_TIMER1_CLEAR);
-
-	/* Recover lost jiffies */
-	while ((signed long)
-		(__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time)
-						>= TIMER4_TICKS_PER_JIFFY) {
-		last_jiffy_time += TIMER4_TICKS_PER_JIFFY;
-		timer_tick();
-	}
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction ep93xx_timer_irq = {
-	.name		= "ep93xx timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= ep93xx_timer_interrupt,
-};
-
-static u32 ep93xx_gettimeoffset(void)
-{
-	int offset;
-
-	offset = __raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time;
-
-	/*
-	 * Timer 4 is based on a 983.04 kHz reference clock,
-	 * so dividing by 983040 gives the fraction of a second,
-	 * so dividing by 0.983040 converts to uS.
-	 * Refactor the calculation to avoid overflow.
-	 * Finally, multiply by 1000 to give nS.
-	 */
-	return (offset + (53 * offset / 3072)) * 1000;
-}
-
-void __init ep93xx_timer_init(void)
-{
-	u32 tmode = EP93XX_TIMER123_CONTROL_MODE |
-		    EP93XX_TIMER123_CONTROL_CLKSEL;
-
-	arch_gettimeoffset = ep93xx_gettimeoffset;
-
-	/* Enable periodic HZ timer.  */
-	__raw_writel(tmode, EP93XX_TIMER1_CONTROL);
-	__raw_writel(TIMER1_RELOAD, EP93XX_TIMER1_LOAD);
-	__raw_writel(tmode | EP93XX_TIMER123_CONTROL_ENABLE,
-			EP93XX_TIMER1_CONTROL);
-
-	/* Enable lost jiffy timer.  */
-	__raw_writel(EP93XX_TIMER4_VALUE_HIGH_ENABLE,
-			EP93XX_TIMER4_VALUE_HIGH);
-
-	setup_irq(IRQ_EP93XX_TIMER1, &ep93xx_timer_irq);
-}
-
 
 /*************************************************************************
  * EP93xx IRQ handling
@@ -238,6 +134,7 @@ unsigned int ep93xx_chip_revision(void)
 	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
 	return v;
 }
+EXPORT_SYMBOL_GPL(ep93xx_chip_revision);
 
 /*************************************************************************
  * EP93xx GPIO
@@ -280,7 +177,7 @@ static AMBA_APB_DEVICE(uart1, "apb:uart1", 0x00041010, EP93XX_UART1_PHYS_BASE,
 	{ IRQ_EP93XX_UART1 }, &ep93xx_uart_data);
 
 static AMBA_APB_DEVICE(uart2, "apb:uart2", 0x00041010, EP93XX_UART2_PHYS_BASE,
-	{ IRQ_EP93XX_UART2 }, &ep93xx_uart_data);
+	{ IRQ_EP93XX_UART2 }, NULL);
 
 static AMBA_APB_DEVICE(uart3, "apb:uart3", 0x00041010, EP93XX_UART3_PHYS_BASE,
 	{ IRQ_EP93XX_UART3 }, &ep93xx_uart_data);
@@ -296,24 +193,52 @@ static struct platform_device ep93xx_rtc_device = {
 	.resource	= ep93xx_rtc_resource,
 };
 
+/*************************************************************************
+ * EP93xx OHCI USB Host
+ *************************************************************************/
+
+static struct clk *ep93xx_ohci_host_clock;
+
+static int ep93xx_ohci_power_on(struct platform_device *pdev)
+{
+	if (!ep93xx_ohci_host_clock) {
+		ep93xx_ohci_host_clock = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(ep93xx_ohci_host_clock))
+			return PTR_ERR(ep93xx_ohci_host_clock);
+	}
+
+	return clk_enable(ep93xx_ohci_host_clock);
+}
+
+static void ep93xx_ohci_power_off(struct platform_device *pdev)
+{
+	clk_disable(ep93xx_ohci_host_clock);
+}
+
+static struct usb_ohci_pdata ep93xx_ohci_pdata = {
+	.power_on	= ep93xx_ohci_power_on,
+	.power_off	= ep93xx_ohci_power_off,
+	.power_suspend	= ep93xx_ohci_power_off,
+};
 
 static struct resource ep93xx_ohci_resources[] = {
 	DEFINE_RES_MEM(EP93XX_USB_PHYS_BASE, 0x1000),
 	DEFINE_RES_IRQ(IRQ_EP93XX_USB),
 };
 
+static u64 ep93xx_ohci_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device ep93xx_ohci_device = {
-	.name		= "ep93xx-ohci",
+	.name		= "ohci-platform",
 	.id		= -1,
-	.dev		= {
-		.dma_mask		= &ep93xx_ohci_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
+	.dev		= {
+		.dma_mask		= &ep93xx_ohci_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &ep93xx_ohci_pdata,
+	},
 };
-
 
 /*************************************************************************
  * EP93xx physmap'ed flash
@@ -895,8 +820,114 @@ void ep93xx_ide_release_gpio(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(ep93xx_ide_release_gpio);
 
-void __init ep93xx_init_devices(void)
+/*************************************************************************
+ * EP93xx Security peripheral
+ *************************************************************************/
+
+/*
+ * The Maverick Key is 256 bits of micro fuses blown at the factory during
+ * manufacturing to uniquely identify a part.
+ *
+ * See: http://arm.cirrus.com/forum/viewtopic.php?t=486&highlight=maverick+key
+ */
+#define EP93XX_SECURITY_REG(x)		(EP93XX_SECURITY_BASE + (x))
+#define EP93XX_SECURITY_SECFLG		EP93XX_SECURITY_REG(0x2400)
+#define EP93XX_SECURITY_FUSEFLG		EP93XX_SECURITY_REG(0x2410)
+#define EP93XX_SECURITY_UNIQID		EP93XX_SECURITY_REG(0x2440)
+#define EP93XX_SECURITY_UNIQCHK		EP93XX_SECURITY_REG(0x2450)
+#define EP93XX_SECURITY_UNIQVAL		EP93XX_SECURITY_REG(0x2460)
+#define EP93XX_SECURITY_SECID1		EP93XX_SECURITY_REG(0x2500)
+#define EP93XX_SECURITY_SECID2		EP93XX_SECURITY_REG(0x2504)
+#define EP93XX_SECURITY_SECCHK1		EP93XX_SECURITY_REG(0x2520)
+#define EP93XX_SECURITY_SECCHK2		EP93XX_SECURITY_REG(0x2524)
+#define EP93XX_SECURITY_UNIQID2		EP93XX_SECURITY_REG(0x2700)
+#define EP93XX_SECURITY_UNIQID3		EP93XX_SECURITY_REG(0x2704)
+#define EP93XX_SECURITY_UNIQID4		EP93XX_SECURITY_REG(0x2708)
+#define EP93XX_SECURITY_UNIQID5		EP93XX_SECURITY_REG(0x270c)
+
+static char ep93xx_soc_id[33];
+
+static const char __init *ep93xx_get_soc_id(void)
 {
+	unsigned int id, id2, id3, id4, id5;
+
+	if (__raw_readl(EP93XX_SECURITY_UNIQVAL) != 1)
+		return "bad Hamming code";
+
+	id = __raw_readl(EP93XX_SECURITY_UNIQID);
+	id2 = __raw_readl(EP93XX_SECURITY_UNIQID2);
+	id3 = __raw_readl(EP93XX_SECURITY_UNIQID3);
+	id4 = __raw_readl(EP93XX_SECURITY_UNIQID4);
+	id5 = __raw_readl(EP93XX_SECURITY_UNIQID5);
+
+	if (id != id2)
+		return "invalid";
+
+	/* Toss the unique ID into the entropy pool */
+	add_device_randomness(&id2, 4);
+	add_device_randomness(&id3, 4);
+	add_device_randomness(&id4, 4);
+	add_device_randomness(&id5, 4);
+
+	snprintf(ep93xx_soc_id, sizeof(ep93xx_soc_id),
+		 "%08x%08x%08x%08x", id2, id3, id4, id5);
+
+	return ep93xx_soc_id;
+}
+
+static const char __init *ep93xx_get_soc_rev(void)
+{
+	int rev = ep93xx_chip_revision();
+
+	switch (rev) {
+	case EP93XX_CHIP_REV_D0:
+		return "D0";
+	case EP93XX_CHIP_REV_D1:
+		return "D1";
+	case EP93XX_CHIP_REV_E0:
+		return "E0";
+	case EP93XX_CHIP_REV_E1:
+		return "E1";
+	case EP93XX_CHIP_REV_E2:
+		return "E2";
+	default:
+		return "unknown";
+	}
+}
+
+static const char __init *ep93xx_get_machine_name(void)
+{
+	return kasprintf(GFP_KERNEL,"%s", machine_desc->name);
+}
+
+static struct device __init *ep93xx_init_soc(void)
+{
+	struct soc_device_attribute *soc_dev_attr;
+	struct soc_device *soc_dev;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return NULL;
+
+	soc_dev_attr->machine = ep93xx_get_machine_name();
+	soc_dev_attr->family = "Cirrus Logic EP93xx";
+	soc_dev_attr->revision = ep93xx_get_soc_rev();
+	soc_dev_attr->soc_id = ep93xx_get_soc_id();
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr->machine);
+		kfree(soc_dev_attr);
+		return NULL;
+	}
+
+	return soc_device_to_device(soc_dev);
+}
+
+struct device __init *ep93xx_init_devices(void)
+{
+	struct device *parent;
+
 	/* Disallow access to MaverickCrunch initially */
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_CPENA);
 
@@ -906,6 +937,8 @@ void __init ep93xx_init_devices(void)
 			       EP93XX_SYSCON_DEVCFG_EONIDE |
 			       EP93XX_SYSCON_DEVCFG_GONIDE |
 			       EP93XX_SYSCON_DEVCFG_HONIDE);
+
+	parent = ep93xx_init_soc();
 
 	/* Get the GPIO working early, other devices need it */
 	platform_device_register(&ep93xx_gpio_device);
@@ -919,9 +952,11 @@ void __init ep93xx_init_devices(void)
 	platform_device_register(&ep93xx_wdt_device);
 
 	gpio_led_register_device(-1, &ep93xx_led_data);
+
+	return parent;
 }
 
-void ep93xx_restart(char mode, const char *cmd)
+void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Set then clear the SWRST bit to initiate a software reset

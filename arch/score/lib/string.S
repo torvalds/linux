@@ -175,10 +175,10 @@ ENTRY(__clear_user)
 	br	r3
 
 	.section .fixup, "ax"
+99:
 	br	r3
 	.previous
 	.section __ex_table, "a"
 	.align	2
-99:
 	.word	0b, 99b
 	.previous

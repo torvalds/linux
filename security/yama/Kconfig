@@ -1,21 +1,12 @@
 config SECURITY_YAMA
 	bool "Yama support"
 	depends on SECURITY
-	select SECURITYFS
-	select SECURITY_PATH
 	default n
 	help
 	  This selects Yama, which extends DAC support with additional
 	  system-wide security settings beyond regular Linux discretionary
 	  access controls. Currently available is ptrace scope restriction.
+	  Like capabilities, this security module stacks with other LSMs.
 	  Further information can be found in Documentation/security/Yama.txt.
 
 	  If you are unsure how to answer this question, answer N.
-
-config SECURITY_YAMA_STACKED
-	bool "Yama stacked with other LSMs"
-	depends on SECURITY_YAMA
-	default n
-	help
-	  When Yama is built into the kernel, force it to stack with the
-	  selected primary LSM.

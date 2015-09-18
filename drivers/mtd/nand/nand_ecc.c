@@ -506,7 +506,7 @@ int __nand_correct_data(unsigned char *buf,
 	if ((bitsperbyte[b0] + bitsperbyte[b1] + bitsperbyte[b2]) == 1)
 		return 1;	/* error in ECC data; no action needed */
 
-	pr_err("%s: uncorrectable ECC error", __func__);
+	pr_err("%s: uncorrectable ECC error\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(__nand_correct_data);

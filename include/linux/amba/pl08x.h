@@ -76,11 +76,11 @@ struct pl08x_channel_data {
  * platform, all inclusive, including multiplexed channels. The available
  * physical channels will be multiplexed around these signals as they are
  * requested, just enumerate all possible channels.
- * @get_signal: request a physical signal to be used for a DMA transfer
+ * @get_xfer_signal: request a physical signal to be used for a DMA transfer
  * immediately: if there is some multiplexing or similar blocking the use
  * of the channel the transfer can be denied by returning less than zero,
  * else it returns the allocated signal number
- * @put_signal: indicate to the platform that this physical signal is not
+ * @put_xfer_signal: indicate to the platform that this physical signal is not
  * running any DMA transfer and multiplexing can be recycled
  * @lli_buses: buses which LLIs can be fetched from: PL08X_AHB1 | PL08X_AHB2
  * @mem_buses: buses which memory can be accessed from: PL08X_AHB1 | PL08X_AHB2
@@ -89,8 +89,8 @@ struct pl08x_platform_data {
 	const struct pl08x_channel_data *slave_channels;
 	unsigned int num_slave_channels;
 	struct pl08x_channel_data memcpy_channel;
-	int (*get_signal)(const struct pl08x_channel_data *);
-	void (*put_signal)(const struct pl08x_channel_data *, int);
+	int (*get_xfer_signal)(const struct pl08x_channel_data *);
+	void (*put_xfer_signal)(const struct pl08x_channel_data *, int);
 	u8 lli_buses;
 	u8 mem_buses;
 };

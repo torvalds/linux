@@ -39,6 +39,11 @@
 #define  BCMA_RESET_CTL_RESET		0x0001
 #define BCMA_RESET_ST			0x0804
 
+#define BCMA_NS_ROM_IOST_BOOT_DEV_MASK	0x0003
+#define BCMA_NS_ROM_IOST_BOOT_DEV_NOR	0x0000
+#define BCMA_NS_ROM_IOST_BOOT_DEV_NAND	0x0001
+#define BCMA_NS_ROM_IOST_BOOT_DEV_ROM	0x0002
+
 /* BCMA PCI config space registers. */
 #define BCMA_PCI_PMCSR			0x44
 #define  BCMA_PCI_PE			0x100
@@ -58,6 +63,8 @@
 #define  BCMA_PCI_GPIO_HWRAD		0x20	/* PCI config space GPIO 13 for hw radio disable */
 #define  BCMA_PCI_GPIO_XTAL		0x40	/* PCI config space GPIO 14 for Xtal powerup */
 #define  BCMA_PCI_GPIO_PLL		0x80	/* PCI config space GPIO 15 for PLL powerdown */
+
+#define BCMA_PCIE2_BAR0_WIN2		0x70
 
 /* SiliconBackplane Address Map.
  * All regions may not exist on all chips.

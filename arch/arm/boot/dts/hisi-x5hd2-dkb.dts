@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2013-2014 Linaro Ltd.
+ * Copyright (c) 2013-2014 Hisilicon Limited.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/dts-v1/;
+#include "hisi-x5hd2.dtsi"
+
+/ {
+	model = "Hisilicon HIX5HD2 Development Board";
+	compatible = "hisilicon,hix5hd2";
+
+	chosen {
+		bootargs = "console=ttyAMA0,115200 earlyprintk";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "hisilicon,hix5hd2-smp";
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&l2>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&l2>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>;
+	};
+};
+
+&timer0 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&gmac0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-handle = <&phy2>;
+	phy-mode = "mii";
+	/* Placeholder, overwritten by bootloader */
+	mac-address = [00 00 00 00 00 00];
+	status = "okay";
+
+	phy2: ethernet-phy@2 {
+		reg = <2>;
+	};
+};
+
+&gmac1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii";
+	/* Placeholder, overwritten by bootloader */
+	mac-address = [00 00 00 00 00 00];
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&ahci {
+	phys = <&sata_phy>;
+	phy-names = "sata-phy";
+};

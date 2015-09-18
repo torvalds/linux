@@ -3,7 +3,9 @@ CSR SiRFprimaII and SiRFmarco device tree bindings.
 
 Required root node properties:
     - compatible:
+    - "sirf,atlas6-cb" : atlas6 "cb" evaluation board
+    - "sirf,atlas6" : atlas6 device based board
+    - "sirf,atlas7-cb" : atlas7 "cb" evaluation board
+    - "sirf,atlas7" : atlas7 device based board
     - "sirf,prima2-cb" : prima2 "cb" evaluation board
-    - "sirf,marco-cb" : marco "cb" evaluation board
     - "sirf,prima2" : prima2 device based board
-    - "sirf,marco" : marco device based board

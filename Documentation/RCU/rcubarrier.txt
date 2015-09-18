@@ -70,10 +70,14 @@ in realtime kernels in order to avoid excessive scheduling latencies.
 
 rcu_barrier()
 
-We instead need the rcu_barrier() primitive. This primitive is similar
-to synchronize_rcu(), but instead of waiting solely for a grace
-period to elapse, it also waits for all outstanding RCU callbacks to
-complete. Pseudo-code using rcu_barrier() is as follows:
+We instead need the rcu_barrier() primitive.  Rather than waiting for
+a grace period to elapse, rcu_barrier() waits for all outstanding RCU
+callbacks to complete.  Please note that rcu_barrier() does -not- imply
+synchronize_rcu(), in particular, if there are no RCU callbacks queued
+anywhere, rcu_barrier() is within its rights to return immediately,
+without waiting for a grace period to elapse.
+
+Pseudo-code using rcu_barrier() is as follows:
 
    1. Prevent any new RCU callbacks from being posted.
    2. Execute rcu_barrier().

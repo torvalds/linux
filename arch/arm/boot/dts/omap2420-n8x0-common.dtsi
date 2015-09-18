@@ -1,0 +1,105 @@
+#include "omap2420.dtsi"
+
+/ {
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x8000000>; /* 128 MB */
+	};
+
+	ocp {
+		i2c@0 {
+			compatible = "i2c-cbus-gpio";
+			gpios = <&gpio3 2 0 /* gpio66 clk */
+				 &gpio3 1 0 /* gpio65 dat */
+				 &gpio3 0 0 /* gpio64 sel */
+				>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			retu_mfd: retu@1 {
+				compatible = "retu-mfd";
+				interrupt-parent = <&gpio4>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+				reg = <0x1>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+
+	pmic@72 {
+		compatible = "menelaus";
+		reg = <0x72>;
+		interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+};
+
+&gpmc {
+	ranges = <0 0 0x04000000 0x1000000>;	/* CS0: 16MB for OneNAND */
+
+	/* gpio-irq for dma: 26 */
+
+	onenand@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
+
+		gpmc,sync-read;
+		gpmc,burst-length = <16>;
+		gpmc,burst-read;
+		gpmc,burst-wrap;
+		gpmc,device-width = <2>;
+		gpmc,mux-add-data = <2>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <127>;
+		gpmc,cs-wr-off-ns = <109>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <18>;
+		gpmc,adv-wr-off-ns = <18>;
+		gpmc,oe-on-ns = <27>;
+		gpmc,oe-off-ns = <127>;
+		gpmc,we-on-ns = <27>;
+		gpmc,we-off-ns = <72>;
+		gpmc,rd-cycle-ns = <145>;
+		gpmc,wr-cycle-ns = <136>;
+		gpmc,access-ns = <118>;
+		gpmc,page-burst-access-ns = <27>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <9>;
+		gpmc,sync-clk-ps = <27000>;
+
+		/* MTD partition table corresponding to old board-n8x0 file. */
+		partition@0 {
+			label = "bootloader";
+			reg = <0x00000000 0x00020000>;
+			read-only;
+		};
+		partition@1 {
+			label = "config";
+			reg = <0x00020000 0x00060000>;
+		};
+		partition@2 {
+			label = "kernel";
+			reg = <0x00080000 0x00200000>;
+		};
+		partition@3 {
+			label = "initfs";
+			reg = <0x00280000 0x00400000>;
+		};
+		partition@4 {
+			label = "rootfs";
+			reg = <0x00680000 0x0f980000>;
+		};
+		partition@5 {
+			label = "omap2-onenand";
+			reg = <0x00000000 0x10000000>;
+		};
+	};
+};

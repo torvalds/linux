@@ -259,6 +259,7 @@ static int qib_ibsd_reset(struct qib_devdata *dd, int assert_rst)
 		 * it again during startup.
 		 */
 		u64 val;
+
 		rst_val &= ~(1ULL);
 		qib_write_kreg(dd, kr_hwerrmask,
 			       dd->cspec->hwerrmask &
@@ -590,6 +591,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		 * Both should be clear
 		 */
 		u64 newval = 0;
+
 		qib_write_kreg(dd, acc, newval);
 		/* First read after write is not trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
@@ -601,6 +603,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		/* Need to claim */
 		u64 pollval;
 		u64 newval = EPB_ACC_REQ | oct_sel;
+
 		qib_write_kreg(dd, acc, newval);
 		/* First read after write is not trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
@@ -812,6 +815,7 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 			if (!sofar) {
 				/* Only set address at start of chunk */
 				int addrbyte = (addr + sofar) >> 8;
+
 				transval = csbit | EPB_MADDRH | addrbyte;
 				tries = epb_trans(dd, trans, transval,
 						  &transval);
@@ -922,7 +926,7 @@ qib_sd7220_ib_vfy(struct qib_devdata *dd, const struct firmware *fw)
  * IRQ not set up at this point in init, so we poll.
  */
 #define IB_SERDES_TRIM_DONE (1ULL << 11)
-#define TRIM_TMO (30)
+#define TRIM_TMO (15)
 
 static int qib_sd_trimdone_poll(struct qib_devdata *dd)
 {
@@ -940,7 +944,7 @@ static int qib_sd_trimdone_poll(struct qib_devdata *dd)
 			ret = 1;
 			break;
 		}
-		msleep(10);
+		msleep(20);
 	}
 	if (trim_tmo >= TRIM_TMO) {
 		qib_dev_err(dd, "No TRIMDONE in %d tries\n", trim_tmo);
@@ -1071,6 +1075,7 @@ static int qib_sd_setvals(struct qib_devdata *dd)
 		dds_reg_map >>= 4;
 		for (midx = 0; midx < DDS_ROWS; ++midx) {
 			u64 __iomem *daddr = taddr + ((midx << 4) + idx);
+
 			data = dds_init_vals[midx].reg_vals[idx];
 			writeq(data, daddr);
 			mmiowb();

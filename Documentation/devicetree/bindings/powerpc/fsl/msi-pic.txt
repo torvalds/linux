@@ -1,21 +1,20 @@
 * Freescale MSI interrupt controller
 
 Required properties:
-- compatible : compatible list, contains 2 entries,
-  first is "fsl,CHIP-msi", where CHIP is the processor(mpc8610, mpc8572,
-  etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" depending on
-  the parent type.
+- compatible : compatible list, may contain one or two entries
+  The first is "fsl,CHIP-msi", where CHIP is the processor(mpc8610, mpc8572,
+  etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" or
+  "fsl,mpic-msi-v4.3" depending on the parent type and version. If mpic
+  version is 4.3, the number of MSI registers is increased to 16, MSIIR1 is
+  provided to access these 16 registers, and compatible "fsl,mpic-msi-v4.3"
+  should be used. The first entry is optional; the second entry is
+  required.
 
 - reg : It may contain one or two regions. The first region should contain
   the address and the length of the shared message interrupt register set.
-  The second region should contain the address of aliased MSIIR register for
-  platforms that have such an alias.
-
-- msi-available-ranges: use <start count> style section to define which
-  msi interrupt can be used in the 256 msi interrupts. This property is
-  optional, without this, all the 256 MSI interrupts can be used.
-  Each available range must begin and end on a multiple of 32 (i.e.
-  no splitting an individual MSI register or the associated PIC interrupt).
+  The second region should contain the address of aliased MSIIR or MSIIR1
+  register for platforms that have such an alias, if using MSIIR1, the second
+  region must be added because different MSI group has different MSIIR1 offset.
 
 - interrupts : each one of the interrupts here is one entry per 32 MSIs,
   and routed to the host interrupt controller. the interrupts should
@@ -28,6 +27,14 @@ Required properties:
   to MPIC.
 
 Optional properties:
+- msi-available-ranges: use <start count> style section to define which
+  msi interrupt can be used in the 256 msi interrupts. This property is
+  optional, without this, all the MSI interrupts can be used.
+  Each available range must begin and end on a multiple of 32 (i.e.
+  no splitting an individual MSI register or the associated PIC interrupt).
+  MPIC v4.3 does not support this property because the 32 interrupts of an
+  individual register are not continuous when using MSIIR1.
+
 - msi-address-64: 64-bit PCI address of the MSIIR register. The MSIIR register
   is used for MSI messaging.  The address of MSIIR in PCI address space is
   the MSI message address.
@@ -52,6 +59,28 @@ Example:
 			0xe6 0
 			0xe7 0>;
 		interrupt-parent = <&mpic>;
+	};
+
+	msi@41600 {
+		compatible = "fsl,mpic-msi-v4.3";
+		reg = <0x41600 0x200 0x44148 4>;
+		interrupts = <
+			0xe0 0 0 0
+			0xe1 0 0 0
+			0xe2 0 0 0
+			0xe3 0 0 0
+			0xe4 0 0 0
+			0xe5 0 0 0
+			0xe6 0 0 0
+			0xe7 0 0 0
+			0x100 0 0 0
+			0x101 0 0 0
+			0x102 0 0 0
+			0x103 0 0 0
+			0x104 0 0 0
+			0x105 0 0 0
+			0x106 0 0 0
+			0x107 0 0 0>;
 	};
 
 The Freescale hypervisor and msi-address-64

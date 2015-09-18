@@ -16,7 +16,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -140,7 +139,7 @@ struct tx_msg {
 	u8 cmd;
 	u8 net;
 	u8 dlc;
-	__le32 hnd;
+	u32 hnd;	/* opaque handle, not used by device */
 	__le32 id; /* upper 3 bits contain flags */
 	u8 data[8];
 };
@@ -150,7 +149,7 @@ struct tx_done_msg {
 	u8 cmd;
 	u8 net;
 	u8 status;
-	__le32 hnd;
+	u32 hnd;	/* opaque handle, not used by device */
 	__le32 ts;
 };
 
@@ -251,6 +250,7 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 			case ESD_BUSSTATE_BUSOFF:
 				priv->can.state = CAN_STATE_BUS_OFF;
 				cf->can_id |= CAN_ERR_BUSOFF;
+				priv->can.can_stats.bus_off++;
 				can_bus_off(priv->netdev);
 				break;
 			case ESD_BUSSTATE_WARN:
@@ -301,13 +301,12 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 			cf->data[7] = rxerr;
 		}
 
-		netif_rx(skb);
-
 		priv->bec.txerr = txerr;
 		priv->bec.rxerr = rxerr;
 
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_rx(skb);
 	}
 }
 
@@ -347,10 +346,9 @@ static void esd_usb2_rx_can_msg(struct esd_usb2_net_priv *priv,
 				cf->data[i] = msg->msg.rx.data[i];
 		}
 
-		netif_rx(skb);
-
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_rx(skb);
 	}
 
 	return;
@@ -412,10 +410,20 @@ static void esd_usb2_read_bulk_callback(struct urb *urb)
 
 		switch (msg->msg.hdr.cmd) {
 		case CMD_CAN_RX:
+			if (msg->msg.rx.net >= dev->net_count) {
+				dev_err(dev->udev->dev.parent, "format error\n");
+				break;
+			}
+
 			esd_usb2_rx_can_msg(dev->nets[msg->msg.rx.net], msg);
 			break;
 
 		case CMD_CAN_TX:
+			if (msg->msg.txdone.net >= dev->net_count) {
+				dev_err(dev->udev->dev.parent, "format error\n");
+				break;
+			}
+
 			esd_usb2_tx_done_msg(dev->nets[msg->msg.txdone.net],
 					     msg);
 			break;
@@ -455,7 +463,6 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 {
 	struct esd_tx_urb_context *context = urb->context;
 	struct esd_usb2_net_priv *priv;
-	struct esd_usb2 *dev;
 	struct net_device *netdev;
 	size_t size = sizeof(struct esd_usb2_msg);
 
@@ -463,7 +470,6 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 
 	priv = context->priv;
 	netdev = priv->netdev;
-	dev = priv->usb2;
 
 	/* free up our allocated buffer */
 	usb_free_coherent(urb->dev, size,
@@ -612,8 +618,14 @@ static int esd_usb2_start(struct esd_usb2_net_priv *priv)
 {
 	struct esd_usb2 *dev = priv->usb2;
 	struct net_device *netdev = priv->netdev;
-	struct esd_usb2_msg msg;
+	struct esd_usb2_msg *msg;
 	int err, i;
+
+	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * Enable all IDs
@@ -628,33 +640,32 @@ static int esd_usb2_start(struct esd_usb2_net_priv *priv)
 	 * the number of the starting bitmask (0..64) to the filter.option
 	 * field followed by only some bitmasks.
 	 */
-	msg.msg.hdr.cmd = CMD_IDADD;
-	msg.msg.hdr.len = 2 + ESD_MAX_ID_SEGMENT;
-	msg.msg.filter.net = priv->index;
-	msg.msg.filter.option = ESD_ID_ENABLE; /* start with segment 0 */
+	msg->msg.hdr.cmd = CMD_IDADD;
+	msg->msg.hdr.len = 2 + ESD_MAX_ID_SEGMENT;
+	msg->msg.filter.net = priv->index;
+	msg->msg.filter.option = ESD_ID_ENABLE; /* start with segment 0 */
 	for (i = 0; i < ESD_MAX_ID_SEGMENT; i++)
-		msg.msg.filter.mask[i] = cpu_to_le32(0xffffffff);
+		msg->msg.filter.mask[i] = cpu_to_le32(0xffffffff);
 	/* enable 29bit extended IDs */
-	msg.msg.filter.mask[ESD_MAX_ID_SEGMENT] = cpu_to_le32(0x00000001);
+	msg->msg.filter.mask[ESD_MAX_ID_SEGMENT] = cpu_to_le32(0x00000001);
 
-	err = esd_usb2_send_msg(dev, &msg);
+	err = esd_usb2_send_msg(dev, msg);
 	if (err)
-		goto failed;
+		goto out;
 
 	err = esd_usb2_setup_rx_urbs(dev);
 	if (err)
-		goto failed;
+		goto out;
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
-	return 0;
-
-failed:
+out:
 	if (err == -ENODEV)
 		netif_device_detach(netdev);
+	if (err)
+		netdev_err(netdev, "couldn't start device: %d\n", err);
 
-	netdev_err(netdev, "couldn't start device: %d\n", err);
-
+	kfree(msg);
 	return err;
 }
 
@@ -833,26 +844,30 @@ nourbmem:
 static int esd_usb2_close(struct net_device *netdev)
 {
 	struct esd_usb2_net_priv *priv = netdev_priv(netdev);
-	struct esd_usb2_msg msg;
+	struct esd_usb2_msg *msg;
 	int i;
 
+	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
 	/* Disable all IDs (see esd_usb2_start()) */
-	msg.msg.hdr.cmd = CMD_IDADD;
-	msg.msg.hdr.len = 2 + ESD_MAX_ID_SEGMENT;
-	msg.msg.filter.net = priv->index;
-	msg.msg.filter.option = ESD_ID_ENABLE; /* start with segment 0 */
+	msg->msg.hdr.cmd = CMD_IDADD;
+	msg->msg.hdr.len = 2 + ESD_MAX_ID_SEGMENT;
+	msg->msg.filter.net = priv->index;
+	msg->msg.filter.option = ESD_ID_ENABLE; /* start with segment 0 */
 	for (i = 0; i <= ESD_MAX_ID_SEGMENT; i++)
-		msg.msg.filter.mask[i] = 0;
-	if (esd_usb2_send_msg(priv->usb2, &msg) < 0)
+		msg->msg.filter.mask[i] = 0;
+	if (esd_usb2_send_msg(priv->usb2, msg) < 0)
 		netdev_err(netdev, "sending idadd message failed\n");
 
 	/* set CAN controller to reset mode */
-	msg.msg.hdr.len = 2;
-	msg.msg.hdr.cmd = CMD_SETBAUD;
-	msg.msg.setbaud.net = priv->index;
-	msg.msg.setbaud.rsvd = 0;
-	msg.msg.setbaud.baud = cpu_to_le32(ESD_USB2_NO_BAUDRATE);
-	if (esd_usb2_send_msg(priv->usb2, &msg) < 0)
+	msg->msg.hdr.len = 2;
+	msg->msg.hdr.cmd = CMD_SETBAUD;
+	msg->msg.setbaud.net = priv->index;
+	msg->msg.setbaud.rsvd = 0;
+	msg->msg.setbaud.baud = cpu_to_le32(ESD_USB2_NO_BAUDRATE);
+	if (esd_usb2_send_msg(priv->usb2, msg) < 0)
 		netdev_err(netdev, "sending setbaud message failed\n");
 
 	priv->can.state = CAN_STATE_STOPPED;
@@ -861,6 +876,8 @@ static int esd_usb2_close(struct net_device *netdev)
 
 	close_candev(netdev);
 
+	kfree(msg);
+
 	return 0;
 }
 
@@ -868,6 +885,7 @@ static const struct net_device_ops esd_usb2_netdev_ops = {
 	.ndo_open = esd_usb2_open,
 	.ndo_stop = esd_usb2_close,
 	.ndo_start_xmit = esd_usb2_start_xmit,
+	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const esd_usb2_bittiming_const = {
@@ -886,7 +904,8 @@ static int esd_usb2_set_bittiming(struct net_device *netdev)
 {
 	struct esd_usb2_net_priv *priv = netdev_priv(netdev);
 	struct can_bittiming *bt = &priv->can.bittiming;
-	struct esd_usb2_msg msg;
+	struct esd_usb2_msg *msg;
+	int err;
 	u32 canbtr;
 	int sjw_shift;
 
@@ -912,15 +931,22 @@ static int esd_usb2_set_bittiming(struct net_device *netdev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		canbtr |= ESD_USB2_3_SAMPLES;
 
-	msg.msg.hdr.len = 2;
-	msg.msg.hdr.cmd = CMD_SETBAUD;
-	msg.msg.setbaud.net = priv->index;
-	msg.msg.setbaud.rsvd = 0;
-	msg.msg.setbaud.baud = cpu_to_le32(canbtr);
+	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	msg->msg.hdr.len = 2;
+	msg->msg.hdr.cmd = CMD_SETBAUD;
+	msg->msg.setbaud.net = priv->index;
+	msg->msg.setbaud.rsvd = 0;
+	msg->msg.setbaud.baud = cpu_to_le32(canbtr);
 
 	netdev_info(netdev, "setting BTR=%#x\n", canbtr);
 
-	return esd_usb2_send_msg(priv->usb2, &msg);
+	err = esd_usb2_send_msg(priv->usb2, msg);
+
+	kfree(msg);
+	return err;
 }
 
 static int esd_usb2_get_berr_counter(const struct net_device *netdev,
@@ -996,6 +1022,7 @@ static int esd_usb2_probe_one_net(struct usb_interface *intf, int index)
 	netdev->netdev_ops = &esd_usb2_netdev_ops;
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
+	netdev->dev_id = index;
 
 	err = register_candev(netdev);
 	if (err) {
@@ -1022,7 +1049,7 @@ static int esd_usb2_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 	struct esd_usb2 *dev;
-	struct esd_usb2_msg msg;
+	struct esd_usb2_msg *msg;
 	int i, err;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -1037,27 +1064,33 @@ static int esd_usb2_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, dev);
 
-	/* query number of CAN interfaces (nets) */
-	msg.msg.hdr.cmd = CMD_VERSION;
-	msg.msg.hdr.len = 2;
-	msg.msg.version.rsvd = 0;
-	msg.msg.version.flags = 0;
-	msg.msg.version.drv_version = 0;
+	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto free_msg;
+	}
 
-	err = esd_usb2_send_msg(dev, &msg);
+	/* query number of CAN interfaces (nets) */
+	msg->msg.hdr.cmd = CMD_VERSION;
+	msg->msg.hdr.len = 2;
+	msg->msg.version.rsvd = 0;
+	msg->msg.version.flags = 0;
+	msg->msg.version.drv_version = 0;
+
+	err = esd_usb2_send_msg(dev, msg);
 	if (err < 0) {
 		dev_err(&intf->dev, "sending version message failed\n");
-		goto free_dev;
+		goto free_msg;
 	}
 
-	err = esd_usb2_wait_msg(dev, &msg);
+	err = esd_usb2_wait_msg(dev, msg);
 	if (err < 0) {
 		dev_err(&intf->dev, "no version message answer\n");
-		goto free_dev;
+		goto free_msg;
 	}
 
-	dev->net_count = (int)msg.msg.version_reply.nets;
-	dev->version = le32_to_cpu(msg.msg.version_reply.version);
+	dev->net_count = (int)msg->msg.version_reply.nets;
+	dev->version = le32_to_cpu(msg->msg.version_reply.version);
 
 	if (device_create_file(&intf->dev, &dev_attr_firmware))
 		dev_err(&intf->dev,
@@ -1075,10 +1108,10 @@ static int esd_usb2_probe(struct usb_interface *intf,
 	for (i = 0; i < dev->net_count; i++)
 		esd_usb2_probe_one_net(intf, i);
 
-	return 0;
-
-free_dev:
-	kfree(dev);
+free_msg:
+	kfree(msg);
+	if (err)
+		kfree(dev);
 done:
 	return err;
 }
@@ -1107,6 +1140,7 @@ static void esd_usb2_disconnect(struct usb_interface *intf)
 			}
 		}
 		unlink_all_urbs(dev);
+		kfree(dev);
 	}
 }
 

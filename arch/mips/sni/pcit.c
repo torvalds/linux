@@ -128,13 +128,6 @@ static struct resource pcit_io_resources[] = {
 	}
 };
 
-static struct resource sni_mem_resource = {
-	.start	= 0x18000000UL,
-	.end	= 0x1fbfffffUL,
-	.name	= "PCIT PCI MEM",
-	.flags	= IORESOURCE_MEM
-};
-
 static void __init sni_pcit_resource_init(void)
 {
 	int i;
@@ -147,6 +140,14 @@ static void __init sni_pcit_resource_init(void)
 
 extern struct pci_ops sni_pcit_ops;
 
+#ifdef CONFIG_PCI
+static struct resource sni_mem_resource = {
+	.start	= 0x18000000UL,
+	.end	= 0x1fbfffffUL,
+	.name	= "PCIT PCI MEM",
+	.flags	= IORESOURCE_MEM
+};
+
 static struct pci_controller sni_pcit_controller = {
 	.pci_ops	= &sni_pcit_ops,
 	.mem_resource	= &sni_mem_resource,
@@ -155,6 +156,7 @@ static struct pci_controller sni_pcit_controller = {
 	.io_offset	= 0x00000000UL,
 	.io_map_base	= SNI_PORT_BASE
 };
+#endif /* CONFIG_PCI */
 
 static void enable_pcit_irq(struct irq_data *d)
 {

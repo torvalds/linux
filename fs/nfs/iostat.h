@@ -55,6 +55,11 @@ static inline void nfs_add_fscache_stats(struct inode *inode,
 {
 	this_cpu_add(NFS_SERVER(inode)->io_stats->fscache[stat], addend);
 }
+static inline void nfs_inc_fscache_stats(struct inode *inode,
+					 enum nfs_stat_fscachecounters stat)
+{
+	this_cpu_inc(NFS_SERVER(inode)->io_stats->fscache[stat]);
+}
 #endif
 
 static inline struct nfs_iostats __percpu *nfs_alloc_iostats(void)

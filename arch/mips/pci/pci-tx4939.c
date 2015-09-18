@@ -103,5 +103,5 @@ void __init tx4939_setup_pcierr_irq(void)
 			tx4927_pcierr_interrupt,
 			0, "PCI error",
 			(void *)TX4939_PCIC_REG))
-		pr_warning("Failed to request irq for PCIERR\n");
+		pr_warn("Failed to request irq for PCIERR\n");
 }

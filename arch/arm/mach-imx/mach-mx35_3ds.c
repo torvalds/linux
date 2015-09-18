@@ -50,6 +50,7 @@
 #include "3ds_debugboard.h"
 #include "common.h"
 #include "devices-imx35.h"
+#include "ehci.h"
 #include "hardware.h"
 #include "iomux-mx35.h"
 
@@ -165,7 +166,7 @@ static struct platform_device *devices[] __initdata = {
 	&mx35pdk_flash,
 };
 
-static iomux_v3_cfg_t mx35pdk_pads[] = {
+static const iomux_v3_cfg_t mx35pdk_pads[] __initconst = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
 	MX35_PAD_RTS1__UART1_RTS,
@@ -615,7 +616,6 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
-	.handle_irq = imx35_handle_irq,
 	.init_time	= mx35pdk_timer_init,
 	.init_machine = mx35_3ds_init,
 	.reserve = mx35_3ds_reserve,

@@ -867,6 +867,7 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 		gpadc->cal_data[ADC_INPUT_VBAT].offset);
 }
 
+#ifdef CONFIG_PM
 static int ab8500_gpadc_runtime_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
@@ -885,13 +886,9 @@ static int ab8500_gpadc_runtime_resume(struct device *dev)
 		dev_err(dev, "Failed to enable vtvout LDO: %d\n", ret);
 	return ret;
 }
+#endif
 
-static int ab8500_gpadc_runtime_idle(struct device *dev)
-{
-	pm_runtime_suspend(dev);
-	return 0;
-}
-
+#ifdef CONFIG_PM_SLEEP
 static int ab8500_gpadc_suspend(struct device *dev)
 {
 	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
@@ -919,13 +916,14 @@ static int ab8500_gpadc_resume(struct device *dev)
 	mutex_unlock(&gpadc->ab8500_gpadc_lock);
 	return ret;
 }
+#endif
 
 static int ab8500_gpadc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ab8500_gpadc *gpadc;
 
-	gpadc = kzalloc(sizeof(struct ab8500_gpadc), GFP_KERNEL);
+	gpadc = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_gpadc), GFP_KERNEL);
 	if (!gpadc) {
 		dev_err(&pdev->dev, "Error: No memory\n");
 		return -ENOMEM;
@@ -950,7 +948,8 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	if (gpadc->irq_sw >= 0) {
 		ret = request_threaded_irq(gpadc->irq_sw, NULL,
 			ab8500_bm_gpadcconvend_handler,
-			IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-sw",
+			IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
+			"ab8500-gpadc-sw",
 			gpadc);
 		if (ret < 0) {
 			dev_err(gpadc->dev,
@@ -963,7 +962,8 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	if (gpadc->irq_hw >= 0) {
 		ret = request_threaded_irq(gpadc->irq_hw, NULL,
 			ab8500_bm_gpadcconvend_handler,
-			IRQF_NO_SUSPEND | IRQF_SHARED, "ab8500-gpadc-hw",
+			IRQF_NO_SUSPEND | IRQF_SHARED | IRQF_ONESHOT,
+			"ab8500-gpadc-hw",
 			gpadc);
 		if (ret < 0) {
 			dev_err(gpadc->dev,
@@ -1005,8 +1005,6 @@ fail_irq:
 	free_irq(gpadc->irq_sw, gpadc);
 	free_irq(gpadc->irq_hw, gpadc);
 fail:
-	kfree(gpadc);
-	gpadc = NULL;
 	return ret;
 }
 
@@ -1031,15 +1029,13 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(gpadc->dev);
 
-	kfree(gpadc);
-	gpadc = NULL;
 	return 0;
 }
 
 static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
 	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
 			   ab8500_gpadc_runtime_resume,
-			   ab8500_gpadc_runtime_idle)
+			   NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(ab8500_gpadc_suspend,
 				ab8500_gpadc_resume)
 
@@ -1050,7 +1046,6 @@ static struct platform_driver ab8500_gpadc_driver = {
 	.remove = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
-		.owner = THIS_MODULE,
 		.pm = &ab8500_gpadc_pm_ops,
 	},
 };

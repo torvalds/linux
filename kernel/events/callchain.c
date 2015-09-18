@@ -52,7 +52,7 @@ static void release_callchain_buffers(void)
 	struct callchain_cpus_entries *entries;
 
 	entries = callchain_cpus_entries;
-	rcu_assign_pointer(callchain_cpus_entries, NULL);
+	RCU_INIT_POINTER(callchain_cpus_entries, NULL);
 	call_rcu(&entries->rcu_head, release_callchain_buffers_rcu);
 }
 
@@ -116,6 +116,9 @@ int get_callchain_buffers(void)
 
 	err = alloc_callchain_buffers();
 exit:
+	if (err)
+		atomic_dec(&nr_callchain_events);
+
 	mutex_unlock(&callchain_mutex);
 
 	return err;
@@ -134,7 +137,7 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 	int cpu;
 	struct callchain_cpus_entries *entries;
 
-	*rctx = get_recursion_context(__get_cpu_var(callchain_recursion));
+	*rctx = get_recursion_context(this_cpu_ptr(callchain_recursion));
 	if (*rctx == -1)
 		return NULL;
 
@@ -150,7 +153,7 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 static void
 put_callchain_entry(int rctx)
 {
-	put_recursion_context(__get_cpu_var(callchain_recursion), rctx);
+	put_recursion_context(this_cpu_ptr(callchain_recursion), rctx);
 }
 
 struct perf_callchain_entry *

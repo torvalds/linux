@@ -1,0 +1,25 @@
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include "vf500.dtsi"
+
+&a5_cpu {
+	next-level-cache = <&L2>;
+};
+
+&aips0 {
+	L2: l2-cache@40006000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x40006000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+		arm,data-latency = <1 1 1>;
+		arm,tag-latency = <2 2 2>;
+	};
+};

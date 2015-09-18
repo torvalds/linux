@@ -1,0 +1,84 @@
+/*
+ * SAMSUNG Exynos7 Espresso board device tree source
+ *
+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+#include "exynos7.dtsi"
+
+/ {
+	model = "Samsung Exynos7 Espresso board based on EXYNOS7";
+	compatible = "samsung,exynos7-espresso", "samsung,exynos7";
+
+	aliases {
+		serial0 = &serial_2;
+		mshc0 = &mmc_0;
+		mshc2 = &mmc_2;
+	};
+
+	chosen {
+		linux,stdout-path = &serial_2;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0xC0000000>;
+	};
+};
+
+&fin_pll {
+	clock-frequency = <24000000>;
+};
+
+&serial_2 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&adc {
+	status = "okay";
+};
+
+&mmc_0 {
+	status = "okay";
+	num-slots = <1>;
+	broken-cd;
+	cap-mmc-highspeed;
+	non-removable;
+	card-detect-delay = <200>;
+	clock-frequency = <800000000>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_qrdy &sd0_bus1 &sd0_bus4 &sd0_bus8>;
+	bus-width = <8>;
+};
+
+&mmc_2 {
+	status = "okay";
+	num-slots = <1>;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	clock-frequency = <400000000>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <2 3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
+	bus-width = <4>;
+	disable-wp;
+};

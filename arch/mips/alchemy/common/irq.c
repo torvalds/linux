@@ -389,13 +389,12 @@ static int au1x_ic1_setwake(struct irq_data *d, unsigned int on)
 		return -EINVAL;
 
 	local_irq_save(flags);
-	wakemsk = __raw_readl((void __iomem *)SYS_WAKEMSK);
+	wakemsk = alchemy_rdsys(AU1000_SYS_WAKEMSK);
 	if (on)
 		wakemsk |= 1 << bit;
 	else
 		wakemsk &= ~(1 << bit);
-	__raw_writel(wakemsk, (void __iomem *)SYS_WAKEMSK);
-	wmb();
+	alchemy_wrsys(wakemsk, AU1000_SYS_WAKEMSK);
 	local_irq_restore(flags);
 
 	return 0;
@@ -492,7 +491,7 @@ static int au1x_ic_settype(struct irq_data *d, unsigned int flow_type)
 	default:
 		ret = -EINVAL;
 	}
-	__irq_set_chip_handler_name_locked(d->irq, chip, handler, name);
+	irq_set_chip_handler_name_locked(d, chip, handler, name);
 
 	wmb();
 
@@ -704,7 +703,7 @@ static int au1300_gpic_settype(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	__irq_set_chip_handler_name_locked(d->irq, &au1300_gpic, hdl, name);
+	irq_set_chip_handler_name_locked(d, &au1300_gpic, hdl, name);
 
 	au1300_gpic_chgcfg(d->irq - ALCHEMY_GPIC_INT_BASE, GPIC_CFG_IC_MASK, s);
 

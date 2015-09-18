@@ -35,8 +35,9 @@ jiffies = jiffies_64;
 
 SECTIONS
 {
-	/* swapper_low_pmd_dir is sparc64 only */
-	swapper_low_pmd_dir = 0x0000000000402000;
+#ifdef CONFIG_SPARC64
+	swapper_pg_dir = 0x0000000000402000;
+#endif
 	. = INITIAL_ADDRESS;
 	.text TEXTSTART :
 	{
@@ -136,6 +137,11 @@ SECTIONS
 		__pause_3insn_patch = .;
 		*(.pause_3insn_patch)
 		__pause_3insn_patch_end = .;
+	}
+	.sun_m7_2insn_patch : {
+		__sun_m7_2insn_patch = .;
+		*(.sun_m7_2insn_patch)
+		__sun_m7_2insn_patch_end = .;
 	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 

@@ -55,16 +55,6 @@ typedef __u32 magic_t;
 #endif
 
 #ifdef CONFIG_IRDA_DEBUG
-
-extern unsigned int irda_debug;
-
-/* use 0 for production, 1 for verification, >2 for debug */
-#define IRDA_DEBUG_LEVEL 0
-
-#define IRDA_DEBUG(n, args...) \
-do {	if (irda_debug >= (n)) \
-		printk(KERN_DEBUG args); \
-} while (0)
 #define IRDA_ASSERT(expr, func) \
 do { if(!(expr)) { \
 	printk( "Assertion failed! %s:%s:%d %s\n", \
@@ -72,14 +62,9 @@ do { if(!(expr)) { \
 	func } } while (0)
 #define IRDA_ASSERT_LABEL(label)	label
 #else
-#define IRDA_DEBUG(n, args...) do { } while (0)
 #define IRDA_ASSERT(expr, func) do { (void)(expr); } while (0)
 #define IRDA_ASSERT_LABEL(label)
 #endif /* CONFIG_IRDA_DEBUG */
-
-#define IRDA_WARNING(args...) do { if (net_ratelimit()) printk(KERN_WARNING args); } while (0)
-#define IRDA_MESSAGE(args...) do { if (net_ratelimit()) printk(KERN_INFO args); } while (0)
-#define IRDA_ERROR(args...)   do { if (net_ratelimit()) printk(KERN_ERR args); } while (0)
 
 /*
  *  Magic numbers used by Linux-IrDA. Random numbers which must be unique to 
@@ -112,20 +97,19 @@ do { if(!(expr)) { \
 struct net_device;
 struct packet_type;
 
-extern void irda_proc_register(void);
-extern void irda_proc_unregister(void);
+void irda_proc_register(void);
+void irda_proc_unregister(void);
 
-extern int irda_sysctl_register(void);
-extern void irda_sysctl_unregister(void);
+int irda_sysctl_register(void);
+void irda_sysctl_unregister(void);
 
-extern int irsock_init(void);
-extern void irsock_cleanup(void);
+int irsock_init(void);
+void irsock_cleanup(void);
 
-extern int irda_nl_register(void);
-extern void irda_nl_unregister(void);
+int irda_nl_register(void);
+void irda_nl_unregister(void);
 
-extern int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
-			    struct packet_type *ptype,
-			    struct net_device *orig_dev);
+int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
+		     struct packet_type *ptype, struct net_device *orig_dev);
 
 #endif /* NET_IRDA_H */

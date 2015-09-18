@@ -27,12 +27,15 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/delay.h>
+#include <linux/context_tracking.h>
 #include <asm/stack.h>
 #include <asm/switch_to.h>
 #include <asm/homecache.h>
 #include <asm/syscalls.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
+#include <asm/uaccess.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -51,7 +54,7 @@ static int __init idle_setup(char *str)
 		return -EINVAL;
 
 	if (!strcmp(str, "poll")) {
-		pr_info("using polling idle threads.\n");
+		pr_info("using polling idle threads\n");
 		cpu_idle_poll_ctrl(true);
 		return 0;
 	} else if (!strcmp(str, "halt")) {
@@ -63,7 +66,7 @@ early_param("idle", idle_setup);
 
 void arch_cpu_idle(void)
 {
-	__get_cpu_var(irq_stat).idle_timestamp = jiffies;
+	__this_cpu_write(irq_stat.idle_timestamp, jiffies);
 	_cpu_idle();
 }
 
@@ -73,19 +76,6 @@ void arch_cpu_idle(void)
 void arch_release_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
-
-#ifdef CONFIG_HARDWALL
-	/*
-	 * We free a thread_info from the context of the task that has
-	 * been scheduled next, so the original task is already dead.
-	 * Calling deactivate here just frees up the data structures.
-	 * If the task we're freeing held the last reference to a
-	 * hardwall fd, it would have been released prior to this point
-	 * anyway via exit_files(), and the hardwall_task.info pointers
-	 * would be NULL by now.
-	 */
-	hardwall_deactivate_all(info->task);
-#endif
 
 	if (step_state) {
 
@@ -143,7 +133,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		       (CALLEE_SAVED_REGS_COUNT - 2) * sizeof(unsigned long));
 		callee_regs[0] = sp;   /* r30 = function */
 		callee_regs[1] = arg;  /* r31 = arg */
-		childregs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		return 0;
 	}
@@ -159,6 +148,14 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	 * must make its own lazily.
 	 */
 	task_thread_info(p)->step_state = NULL;
+
+#ifdef __tilegx__
+	/*
+	 * Do not clone unalign jit fixup from the parent; each thread
+	 * must allocate its own on demand.
+	 */
+	task_thread_info(p)->unalign_jit_base = NULL;
+#endif
 
 	/*
 	 * Copy the registers onto the kernel stack so the
@@ -191,16 +188,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	memset(&p->thread.dma_async_tlb, 0, sizeof(struct async_tlb));
 #endif
 
-#if CHIP_HAS_SN_PROC()
-	/* Likewise, the new thread is not running static processor code. */
-	p->thread.sn_proc_running = 0;
-	memset(&p->thread.sn_async_tlb, 0, sizeof(struct async_tlb));
-#endif
-
-#if CHIP_HAS_PROC_STATUS_SPR()
 	/* New thread has its miscellaneous processor state bits clear. */
 	p->thread.proc_status = 0;
-#endif
 
 #ifdef CONFIG_HARDWALL
 	/* New thread does not own any networks. */
@@ -218,19 +207,32 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	return 0;
 }
 
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	task_thread_info(tsk)->align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	return put_user(task_thread_info(tsk)->align_ctl,
+			(unsigned int __user *)adr);
+}
+
+static struct task_struct corrupt_current = { .comm = "<corrupt>" };
+
 /*
  * Return "current" if it looks plausible, or else a pointer to a dummy.
  * This can be helpful if we are just trying to emit a clean panic.
  */
 struct task_struct *validate_current(void)
 {
-	static struct task_struct corrupt = { .comm = "<corrupt>" };
 	struct task_struct *tsk = current;
 	if (unlikely((unsigned long)tsk < PAGE_OFFSET ||
 		     (high_memory && (void *)tsk > high_memory) ||
 		     ((unsigned long)tsk & (__alignof__(*tsk) - 1)) != 0)) {
 		pr_err("Corrupt 'current' %p (sp %#lx)\n", tsk, stack_pointer);
-		tsk = &corrupt;
+		tsk = &corrupt_current;
 	}
 	return tsk;
 }
@@ -369,15 +371,11 @@ static void save_arch_state(struct thread_struct *t)
 	t->system_save[2] = __insn_mfspr(SPR_SYSTEM_SAVE_0_2);
 	t->system_save[3] = __insn_mfspr(SPR_SYSTEM_SAVE_0_3);
 	t->intctrl_0 = __insn_mfspr(SPR_INTCTRL_0_STATUS);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	t->proc_status = __insn_mfspr(SPR_PROC_STATUS);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	t->interrupt_vector_base = __insn_mfspr(SPR_INTERRUPT_VECTOR_BASE_0);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	t->tile_rtf_hwm = __insn_mfspr(SPR_TILE_RTF_HWM);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	t->dstream_pf = __insn_mfspr(SPR_DSTREAM_PF);
 #endif
@@ -398,15 +396,11 @@ static void restore_arch_state(const struct thread_struct *t)
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_2, t->system_save[2]);
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_3, t->system_save[3]);
 	__insn_mtspr(SPR_INTCTRL_0_STATUS, t->intctrl_0);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	__insn_mtspr(SPR_PROC_STATUS, t->proc_status);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	__insn_mtspr(SPR_INTERRUPT_VECTOR_BASE_0, t->interrupt_vector_base);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	__insn_mtspr(SPR_TILE_RTF_HWM, t->tile_rtf_hwm);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	__insn_mtspr(SPR_DSTREAM_PF, t->dstream_pf);
 #endif
@@ -415,25 +409,10 @@ static void restore_arch_state(const struct thread_struct *t)
 
 void _prepare_arch_switch(struct task_struct *next)
 {
-#if CHIP_HAS_SN_PROC()
-	int snctl;
-#endif
 #if CHIP_HAS_TILE_DMA()
 	struct tile_dma_state *dma = &current->thread.tile_dma_state;
 	if (dma->enabled)
 		save_tile_dma_state(dma);
-#endif
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Suspend the static network processor if it was running.
-	 * We do not suspend the fabric itself, just like we don't
-	 * try to suspend the UDN.
-	 */
-	snctl = __insn_mfspr(SPR_SNCTL);
-	current->thread.sn_proc_running =
-		(snctl & SPR_SNCTL__FRZPROC_MASK) == 0;
-	if (current->thread.sn_proc_running)
-		__insn_mtspr(SPR_SNCTL, snctl | SPR_SNCTL__FRZPROC_MASK);
 #endif
 }
 
@@ -462,21 +441,15 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	/* Restore other arch state. */
 	restore_arch_state(&next->thread);
 
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Restart static network processor in the new process
-	 * if it was running before.
-	 */
-	if (next->thread.sn_proc_running) {
-		int snctl = __insn_mfspr(SPR_SNCTL);
-		__insn_mtspr(SPR_SNCTL, snctl & ~SPR_SNCTL__FRZPROC_MASK);
-	}
-#endif
-
 #ifdef CONFIG_HARDWALL
 	/* Enable or disable access to the network registers appropriately. */
 	hardwall_switch_tasks(prev, next);
 #endif
+
+	/* Notify the simulator of task exit. */
+	if (unlikely(prev->state == TASK_DEAD))
+		__insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_OS_EXIT |
+			     (prev->pid << _SIM_CONTROL_OPERATOR_BITS));
 
 	/*
 	 * Switch kernel SP, PC, and callee-saved registers.
@@ -507,6 +480,8 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (!user_mode(regs))
 		return 0;
 
+	user_exit();
+
 	/* Enable interrupts; they are disabled again on return to caller. */
 	local_irq_enable();
 
@@ -514,7 +489,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		schedule();
 		return 1;
 	}
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 	if (thread_info_flags & _TIF_ASYNC_TLB) {
 		do_async_page_fault(regs);
 		return 1;
@@ -529,11 +504,12 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		tracehook_notify_resume(regs);
 		return 1;
 	}
-	if (thread_info_flags & _TIF_SINGLESTEP) {
+	if (thread_info_flags & _TIF_SINGLESTEP)
 		single_step_once(regs);
-		return 0;
-	}
-	panic("work_pending: bad flags %#x\n", thread_info_flags);
+
+	user_enter();
+
+	return 0;
 }
 
 unsigned long get_wchan(struct task_struct *p)
@@ -564,35 +540,152 @@ void flush_thread(void)
  */
 void exit_thread(void)
 {
-	/* Nothing */
+#ifdef CONFIG_HARDWALL
+	/*
+	 * Remove the task from the list of tasks that are associated
+	 * with any live hardwalls.  (If the task that is exiting held
+	 * the last reference to a hardwall fd, it would already have
+	 * been released and deactivated at this point.)
+	 */
+	hardwall_deactivate_all(current);
+#endif
+}
+
+void tile_show_regs(struct pt_regs *regs)
+{
+	int i;
+#ifdef __tilegx__
+	for (i = 0; i < 17; i++)
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		       i, regs->regs[i], i+18, regs->regs[i+18],
+		       i+36, regs->regs[i+36]);
+	pr_err(" r17: "REGFMT" r35: "REGFMT" tp : "REGFMT"\n",
+	       regs->regs[17], regs->regs[35], regs->tp);
+	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
+#else
+	for (i = 0; i < 13; i++)
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
+		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		       i, regs->regs[i], i+14, regs->regs[i+14],
+		       i+27, regs->regs[i+27], i+40, regs->regs[i+40]);
+	pr_err(" r13: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
+	       regs->regs[13], regs->tp, regs->sp, regs->lr);
+#endif
+	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld flags:%s%s%s%s\n",
+	       regs->pc, regs->ex1, regs->faultnum,
+	       is_compat_task() ? " compat" : "",
+	       (regs->flags & PT_FLAGS_DISABLE_IRQ) ? " noirq" : "",
+	       !(regs->flags & PT_FLAGS_CALLER_SAVES) ? " nocallersave" : "",
+	       (regs->flags & PT_FLAGS_RESTORE_REGS) ? " restoreregs" : "");
 }
 
 void show_regs(struct pt_regs *regs)
 {
-	struct task_struct *tsk = validate_current();
-	int i;
+	struct KBacktraceIterator kbt;
 
-	pr_err("\n");
-	show_regs_print_info(KERN_ERR);
-#ifdef __tilegx__
-	for (i = 0; i < 51; i += 3)
-		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2]);
-	pr_err(" r51: "REGFMT" r52: "REGFMT" tp : "REGFMT"\n",
-	       regs->regs[51], regs->regs[52], regs->tp);
-	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
-#else
-	for (i = 0; i < 52; i += 4)
-		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
-		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2], i+3, regs->regs[i+3]);
-	pr_err(" r52: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
-	       regs->regs[52], regs->tp, regs->sp, regs->lr);
-#endif
-	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
-	       regs->pc, regs->ex1, regs->faultnum);
+	show_regs_print_info(KERN_DEFAULT);
+	tile_show_regs(regs);
 
-	dump_stack_regs(regs);
+	KBacktraceIterator_init(&kbt, NULL, regs);
+	tile_show_stack(&kbt);
 }
+
+/* To ensure stack dump on tiles occurs one by one. */
+static DEFINE_SPINLOCK(backtrace_lock);
+/* To ensure no backtrace occurs before all of the stack dump are done. */
+static atomic_t backtrace_cpus;
+/* The cpu mask to avoid reentrance. */
+static struct cpumask backtrace_mask;
+
+void do_nmi_dump_stack(struct pt_regs *regs)
+{
+	int is_idle = is_idle_task(current) && !in_interrupt();
+	int cpu;
+
+	nmi_enter();
+	cpu = smp_processor_id();
+	if (WARN_ON_ONCE(!cpumask_test_and_clear_cpu(cpu, &backtrace_mask)))
+		goto done;
+
+	spin_lock(&backtrace_lock);
+	if (is_idle)
+		pr_info("CPU: %d idle\n", cpu);
+	else
+		show_regs(regs);
+	spin_unlock(&backtrace_lock);
+	atomic_dec(&backtrace_cpus);
+done:
+	nmi_exit();
+}
+
+#ifdef __tilegx__
+void arch_trigger_all_cpu_backtrace(bool self)
+{
+	struct cpumask mask;
+	HV_Coord tile;
+	unsigned int timeout;
+	int cpu;
+	int ongoing;
+	HV_NMI_Info info[NR_CPUS];
+
+	ongoing = atomic_cmpxchg(&backtrace_cpus, 0, num_online_cpus() - 1);
+	if (ongoing != 0) {
+		pr_err("Trying to do all-cpu backtrace.\n");
+		pr_err("But another all-cpu backtrace is ongoing (%d cpus left)\n",
+		       ongoing);
+		if (self) {
+			pr_err("Reporting the stack on this cpu only.\n");
+			dump_stack();
+		}
+		return;
+	}
+
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &mask);
+	cpumask_copy(&backtrace_mask, &mask);
+
+	/* Backtrace for myself first. */
+	if (self)
+		dump_stack();
+
+	/* Tentatively dump stack on remote tiles via NMI. */
+	timeout = 100;
+	while (!cpumask_empty(&mask) && timeout) {
+		for_each_cpu(cpu, &mask) {
+			tile.x = cpu_x(cpu);
+			tile.y = cpu_y(cpu);
+			info[cpu] = hv_send_nmi(tile, TILE_NMI_DUMP_STACK, 0);
+			if (info[cpu].result == HV_NMI_RESULT_OK)
+				cpumask_clear_cpu(cpu, &mask);
+		}
+
+		mdelay(10);
+		timeout--;
+	}
+
+	/* Warn about cpus stuck in ICS and decrement their counts here. */
+	if (!cpumask_empty(&mask)) {
+		for_each_cpu(cpu, &mask) {
+			switch (info[cpu].result) {
+			case HV_NMI_RESULT_FAIL_ICS:
+				pr_warn("Skipping stack dump of cpu %d in ICS at pc %#llx\n",
+					cpu, info[cpu].pc);
+				break;
+			case HV_NMI_RESULT_FAIL_HV:
+				pr_warn("Skipping stack dump of cpu %d in hypervisor\n",
+					cpu);
+				break;
+			case HV_ENOSYS:
+				pr_warn("Hypervisor too old to allow remote stack dumps.\n");
+				goto skip_for_each;
+			default:  /* should not happen */
+				pr_warn("Skipping stack dump of cpu %d [%d,%#llx]\n",
+					cpu, info[cpu].result, info[cpu].pc);
+				break;
+			}
+		}
+skip_for_each:
+		atomic_sub(cpumask_weight(&mask), &backtrace_cpus);
+	}
+}
+#endif /* __tilegx_ */

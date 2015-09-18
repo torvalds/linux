@@ -5,8 +5,6 @@
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -18,19 +16,21 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
+ *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 
 #include "ieee754dp.h"
 
-s64 ieee754dp_tlong(ieee754dp x)
+s64 ieee754dp_tlong(union ieee754dp x)
 {
+	u64 residue;
+	int round;
+	int sticky;
+	int odd;
+
 	COMPXDP;
 
-	CLEARCX;
+	ieee754_clearcx();
 
 	EXPLODEXDP;
 	FLUSHXDP;
@@ -39,10 +39,12 @@ s64 ieee754dp_tlong(ieee754dp x)
 	case IEEE754_CLASS_SNAN:
 	case IEEE754_CLASS_QNAN:
 	case IEEE754_CLASS_INF:
-		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754di_xcpt(ieee754di_indef(), "dp_tlong", x);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
+		return ieee754di_indef();
+
 	case IEEE754_CLASS_ZERO:
 		return 0;
+
 	case IEEE754_CLASS_DNORM:
 	case IEEE754_CLASS_NORM:
 		break;
@@ -53,18 +55,13 @@ s64 ieee754dp_tlong(ieee754dp x)
 			return -0x8000000000000000LL;
 		/* Set invalid. We will only use overflow for floating
 		   point overflow */
-		SETCX(IEEE754_INVALID_OPERATION);
-		return ieee754di_xcpt(ieee754di_indef(), "dp_tlong", x);
+		ieee754_setcx(IEEE754_INVALID_OPERATION);
+		return ieee754di_indef();
 	}
 	/* oh gawd */
-	if (xe > DP_MBITS) {
-		xm <<= xe - DP_MBITS;
-	} else if (xe < DP_MBITS) {
-		u64 residue;
-		int round;
-		int sticky;
-		int odd;
-
+	if (xe > DP_FBITS) {
+		xm <<= xe - DP_FBITS;
+	} else if (xe < DP_FBITS) {
 		if (xe < -1) {
 			residue = xm;
 			round = 0;
@@ -75,51 +72,38 @@ s64 ieee754dp_tlong(ieee754dp x)
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);
-			residue <<= 63 - DP_MBITS;
+			residue <<= 63 - DP_FBITS;
 			round = (residue >> 63) != 0;
 			sticky = (residue << 1) != 0;
-			xm >>= DP_MBITS - xe;
+			xm >>= DP_FBITS - xe;
 		}
 		odd = (xm & 0x1) != 0x0;
 		switch (ieee754_csr.rm) {
-		case IEEE754_RN:
+		case FPU_CSR_RN:
 			if (round && (sticky || odd))
 				xm++;
 			break;
-		case IEEE754_RZ:
+		case FPU_CSR_RZ:
 			break;
-		case IEEE754_RU:	/* toward +Infinity */
+		case FPU_CSR_RU:	/* toward +Infinity */
 			if ((round || sticky) && !xs)
 				xm++;
 			break;
-		case IEEE754_RD:	/* toward -Infinity */
+		case FPU_CSR_RD:	/* toward -Infinity */
 			if ((round || sticky) && xs)
 				xm++;
 			break;
 		}
 		if ((xm >> 63) != 0) {
 			/* This can happen after rounding */
-			SETCX(IEEE754_INVALID_OPERATION);
-			return ieee754di_xcpt(ieee754di_indef(), "dp_tlong", x);
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
+			return ieee754di_indef();
 		}
 		if (round || sticky)
-			SETCX(IEEE754_INEXACT);
+			ieee754_setcx(IEEE754_INEXACT);
 	}
 	if (xs)
 		return -xm;
 	else
 		return xm;
-}
-
-
-u64 ieee754dp_tulong(ieee754dp x)
-{
-	ieee754dp hb = ieee754dp_1e63();
-
-	/* what if x < 0 ?? */
-	if (ieee754dp_lt(x, hb))
-		return (u64) ieee754dp_tlong(x);
-
-	return (u64) ieee754dp_tlong(ieee754dp_sub(x, hb)) |
-	    (1ULL << 63);
 }

@@ -60,8 +60,7 @@ static int tegra_wm8903_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = rtd->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 	int srate, mclk;
 	int err;
@@ -172,31 +171,28 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = rtd->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_wm8903_hp_jack_gpio.gpio = machine->gpio_hp_det;
-		snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-				&tegra_wm8903_hp_jack);
-		snd_soc_jack_add_pins(&tegra_wm8903_hp_jack,
-					ARRAY_SIZE(tegra_wm8903_hp_jack_pins),
-					tegra_wm8903_hp_jack_pins);
+		snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				      SND_JACK_HEADPHONE, &tegra_wm8903_hp_jack,
+				      tegra_wm8903_hp_jack_pins,
+				      ARRAY_SIZE(tegra_wm8903_hp_jack_pins));
 		snd_soc_jack_add_gpios(&tegra_wm8903_hp_jack,
 					1,
 					&tegra_wm8903_hp_jack_gpio);
 	}
 
-	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
-			 &tegra_wm8903_mic_jack);
-	snd_soc_jack_add_pins(&tegra_wm8903_mic_jack,
-			      ARRAY_SIZE(tegra_wm8903_mic_jack_pins),
-			      tegra_wm8903_mic_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Mic Jack", SND_JACK_MICROPHONE,
+			      &tegra_wm8903_mic_jack,
+			      tegra_wm8903_mic_jack_pins,
+			      ARRAY_SIZE(tegra_wm8903_mic_jack_pins));
 	wm8903_mic_detect(codec, &tegra_wm8903_mic_jack, SND_JACK_MICROPHONE,
 				0);
 
-	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+	snd_soc_dapm_force_enable_pin(&card->dapm, "MICBIAS");
 
 	return 0;
 }
@@ -206,6 +202,12 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 	struct snd_soc_pcm_runtime *rtd = &(card->rtd[0]);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
+
+	if (gpio_is_valid(machine->gpio_hp_det)) {
+		snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack, 1,
+					&tegra_wm8903_hp_jack_gpio);
+	}
 
 	wm8903_mic_detect(codec, NULL, 0, 0);
 
@@ -228,9 +230,7 @@ static struct snd_soc_card snd_soc_tegra_wm8903 = {
 	.owner = THIS_MODULE,
 	.dai_link = &tegra_wm8903_dai,
 	.num_links = 1,
-
 	.remove = tegra_wm8903_remove,
-
 	.controls = tegra_wm8903_controls,
 	.num_controls = ARRAY_SIZE(tegra_wm8903_controls),
 	.dapm_widgets = tegra_wm8903_dapm_widgets,
@@ -368,9 +368,6 @@ static int tegra_wm8903_driver_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 
-	snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack, 1,
-				&tegra_wm8903_hp_jack_gpio);
-
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&machine->util_data);
@@ -386,7 +383,6 @@ static const struct of_device_id tegra_wm8903_of_match[] = {
 static struct platform_driver tegra_wm8903_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = tegra_wm8903_of_match,
 	},

@@ -47,6 +47,9 @@ struct ulpi_info {
 static struct ulpi_info ulpi_ids[] = {
 	ULPI_INFO(ULPI_ID(0x04cc, 0x1504), "NXP ISP1504"),
 	ULPI_INFO(ULPI_ID(0x0424, 0x0006), "SMSC USB331x"),
+	ULPI_INFO(ULPI_ID(0x0424, 0x0007), "SMSC USB3320"),
+	ULPI_INFO(ULPI_ID(0x0424, 0x0009), "SMSC USB334x"),
+	ULPI_INFO(ULPI_ID(0x0451, 0x1507), "TI TUSB1210"),
 };
 
 static int ulpi_set_otg_flags(struct usb_phy *phy)
@@ -208,7 +211,7 @@ static int ulpi_init(struct usb_phy *phy)
 
 static int ulpi_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct usb_phy *phy = otg->phy;
+	struct usb_phy *phy = otg->usb_phy;
 	unsigned int flags = usb_phy_io_read(phy, ULPI_IFC_CTRL);
 
 	if (!host) {
@@ -234,7 +237,7 @@ static int ulpi_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 static int ulpi_set_vbus(struct usb_otg *otg, bool on)
 {
-	struct usb_phy *phy = otg->phy;
+	struct usb_phy *phy = otg->usb_phy;
 	unsigned int flags = usb_phy_io_read(phy, ULPI_OTG_CTRL);
 
 	flags &= ~(ULPI_OTG_CTRL_DRVVBUS | ULPI_OTG_CTRL_DRVVBUS_EXT);
@@ -273,7 +276,7 @@ otg_ulpi_create(struct usb_phy_io_ops *ops,
 	phy->otg	= otg;
 	phy->init	= ulpi_init;
 
-	otg->phy	= phy;
+	otg->usb_phy	= phy;
 	otg->set_host	= ulpi_set_host;
 	otg->set_vbus	= ulpi_set_vbus;
 

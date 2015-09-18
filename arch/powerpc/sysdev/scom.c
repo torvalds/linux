@@ -25,6 +25,7 @@
 #include <asm/debug.h>
 #include <asm/prom.h>
 #include <asm/scom.h>
+#include <asm/uaccess.h>
 
 const struct scom_controller *scom_controller;
 EXPORT_SYMBOL_GPL(scom_controller);
@@ -53,7 +54,7 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 {
 	struct device_node *parent;
 	unsigned int cells, size;
-	const u32 *prop;
+	const __be32 *prop, *sprop;
 	u64 reg, cnt;
 	scom_map_t ret;
 
@@ -62,12 +63,24 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 	if (parent == NULL)
 		return 0;
 
-	prop = of_get_property(parent, "#scom-cells", NULL);
-	cells = prop ? *prop : 1;
-
+	/*
+	 * We support "scom-reg" properties for adding scom registers
+	 * to a random device-tree node with an explicit scom-parent
+	 *
+	 * We also support the simple "reg" property if the device is
+	 * a direct child of a scom controller.
+	 *
+	 * In case both exist, "scom-reg" takes precedence.
+	 */
 	prop = of_get_property(dev, "scom-reg", &size);
+	sprop = of_get_property(parent, "#scom-cells", NULL);
+	if (!prop && parent == dev->parent) {
+		prop = of_get_property(dev, "reg", &size);
+		sprop = of_get_property(parent, "#address-cells", NULL);
+	}
 	if (!prop)
-		return 0;
+		return NULL;
+	cells = sprop ? be32_to_cpup(sprop) : 1;
 	size >>= 2;
 
 	if (index >= (size / (2*cells)))
@@ -86,62 +99,89 @@ EXPORT_SYMBOL_GPL(scom_map_device);
 #ifdef CONFIG_SCOM_DEBUGFS
 struct scom_debug_entry {
 	struct device_node *dn;
-	unsigned long addr;
-	scom_map_t map;
-	spinlock_t lock;
-	char name[8];
-	struct debugfs_blob_wrapper blob;
+	struct debugfs_blob_wrapper path;
+	char name[16];
 };
 
-static int scom_addr_set(void *data, u64 val)
+static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
+			       size_t count, loff_t *ppos)
 {
-	struct scom_debug_entry *ent = data;
+	struct scom_debug_entry *ent = filp->private_data;
+	u64 __user *ubuf64 = (u64 __user *)ubuf;
+	loff_t off = *ppos;
+	ssize_t done = 0; 
+	u64 reg, reg_cnt, val;
+	scom_map_t map;
+	int rc;
 
-	ent->addr = 0;
-	scom_unmap(ent->map);
+	if (off < 0 || (off & 7) || (count & 7))
+		return -EINVAL;
+	reg = off >> 3;
+	reg_cnt = count >> 3;
 
-	ent->map = scom_map(ent->dn, val, 1);
-	if (scom_map_ok(ent->map))
-		ent->addr = val;
-	else
-		return -EFAULT;
+	map = scom_map(ent->dn, reg, reg_cnt);
+	if (!scom_map_ok(map))
+		return -ENXIO;
 
-	return 0;
+	for (reg = 0; reg < reg_cnt; reg++) {
+		rc = scom_read(map, reg, &val);
+		if (!rc)
+			rc = put_user(val, ubuf64);
+		if (rc) {
+			if (!done)
+				done = rc;
+			break;
+		}
+		ubuf64++;
+		*ppos += 8;
+		done += 8;
+	}
+	scom_unmap(map);
+	return done;
 }
 
-static int scom_addr_get(void *data, u64 *val)
+static ssize_t scom_debug_write(struct file* filp, const char __user *ubuf,
+				size_t count, loff_t *ppos)
 {
-	struct scom_debug_entry *ent = data;
-	*val = ent->addr;
-	return 0;
+	struct scom_debug_entry *ent = filp->private_data;
+	u64 __user *ubuf64 = (u64 __user *)ubuf;
+	loff_t off = *ppos;
+	ssize_t done = 0; 
+	u64 reg, reg_cnt, val;
+	scom_map_t map;
+	int rc;
+
+	if (off < 0 || (off & 7) || (count & 7))
+		return -EINVAL;
+	reg = off >> 3;
+	reg_cnt = count >> 3;
+
+	map = scom_map(ent->dn, reg, reg_cnt);
+	if (!scom_map_ok(map))
+		return -ENXIO;
+
+	for (reg = 0; reg < reg_cnt; reg++) {
+		rc = get_user(val, ubuf64);
+		if (!rc)
+			rc = scom_write(map, reg,  val);
+		if (rc) {
+			if (!done)
+				done = rc;
+			break;
+		}
+		ubuf64++;
+		done += 8;
+	}
+	scom_unmap(map);
+	return done;
 }
-DEFINE_SIMPLE_ATTRIBUTE(scom_addr_fops, scom_addr_get, scom_addr_set,
-			"0x%llx\n");
 
-static int scom_val_set(void *data, u64 val)
-{
-	struct scom_debug_entry *ent = data;
-
-	if (!scom_map_ok(ent->map))
-		return -EFAULT;
-
-	scom_write(ent->map, 0, val);
-
-	return 0;
-}
-
-static int scom_val_get(void *data, u64 *val)
-{
-	struct scom_debug_entry *ent = data;
-
-	if (!scom_map_ok(ent->map))
-		return -EFAULT;
-
-	*val = scom_read(ent->map, 0);
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(scom_val_fops, scom_val_get, scom_val_set,
-			"0x%llx\n");
+static const struct file_operations scom_debug_fops = {
+	.read =		scom_debug_read,
+	.write =	scom_debug_write,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
 
 static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 			       int i)
@@ -154,11 +194,9 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 		return -ENOMEM;
 
 	ent->dn = of_node_get(dn);
-	ent->map = SCOM_MAP_INVALID;
-	spin_lock_init(&ent->lock);
-	snprintf(ent->name, 8, "scom%d", i);
-	ent->blob.data = (void*) dn->full_name;
-	ent->blob.size = strlen(dn->full_name);
+	snprintf(ent->name, 16, "%08x", i);
+	ent->path.data = (void*) dn->full_name;
+	ent->path.size = strlen(dn->full_name);
 
 	dir = debugfs_create_dir(ent->name, root);
 	if (!dir) {
@@ -167,9 +205,8 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 		return -1;
 	}
 
-	debugfs_create_file("addr", 0600, dir, ent, &scom_addr_fops);
-	debugfs_create_file("value", 0600, dir, ent, &scom_val_fops);
-	debugfs_create_blob("path", 0400, dir, &ent->blob);
+	debugfs_create_blob("devspec", 0400, dir, &ent->path);
+	debugfs_create_file("access", 0600, dir, ent, &scom_debug_fops);
 
 	return 0;
 }
@@ -185,8 +222,13 @@ static int scom_debug_init(void)
 		return -1;
 
 	i = rc = 0;
-	for_each_node_with_property(dn, "scom-controller")
-		rc |= scom_debug_init_one(root, dn, i++);
+	for_each_node_with_property(dn, "scom-controller") {
+		int id = of_get_ibm_chip_id(dn);
+		if (id == -1)
+			id = i;
+		rc |= scom_debug_init_one(root, dn, id);
+		i++;
+	}
 
 	return rc;
 }

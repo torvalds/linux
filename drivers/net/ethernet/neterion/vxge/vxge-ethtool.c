@@ -18,6 +18,25 @@
 
 #include "vxge-ethtool.h"
 
+static const char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
+	{"\n DRIVER STATISTICS"},
+	{"vpaths_opened"},
+	{"vpath_open_fail_cnt"},
+	{"link_up_cnt"},
+	{"link_down_cnt"},
+	{"tx_frms"},
+	{"tx_errors"},
+	{"tx_bytes"},
+	{"txd_not_free"},
+	{"txd_out_of_desc"},
+	{"rx_frms"},
+	{"rx_errors"},
+	{"rx_bytes"},
+	{"rx_mcast"},
+	{"pci_map_fail_cnt"},
+	{"skb_alloc_fail_cnt"}
+};
+
 /**
  * vxge_ethtool_sset - Sets different link parameters.
  * @dev: device pointer.
@@ -62,8 +81,8 @@ static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(info, -1);
-		info->duplex = -1;
+		ethtool_cmd_speed_set(info, SPEED_UNKNOWN);
+		info->duplex = DUPLEX_UNKNOWN;
 	}
 
 	info->autoneg = AUTONEG_DISABLE;
@@ -1128,5 +1147,5 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev)
 {
-	SET_ETHTOOL_OPS(ndev, &vxge_ethtool_ops);
+	ndev->ethtool_ops = &vxge_ethtool_ops;
 }

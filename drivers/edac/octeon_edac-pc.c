@@ -73,7 +73,7 @@ static int  co_cache_error_event(struct notifier_block *this,
 			edac_device_handle_ce(p->ed, cpu, 0, "dcache");
 
 		/* Clear the error indication */
-		if (OCTEON_IS_MODEL(OCTEON_FAM_2))
+		if (OCTEON_IS_OCTEON2())
 			write_octeon_c0_dcacheerr(1);
 		else
 			write_octeon_c0_dcacheerr(0);

@@ -22,7 +22,7 @@ system, building their checks on top of the defined capability hooks.
 For more details on capabilities, see capabilities(7) in the Linux
 man-pages project.
 
-Based on http://kerneltrap.org/Linux/Documenting_Security_Module_Intent,
+Based on https://lkml.org/lkml/2007/10/26/215,
 a new LSM is accepted into the kernel when its intent (a description of
 what it tries to protect against and in what cases one would expect to
 use it) has been appropriately documented in Documentation/security/.

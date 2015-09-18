@@ -94,7 +94,7 @@ struct stb6100_state {
 	u32 reference;
 };
 
-#if IS_ENABLED(CONFIG_DVB_STB6100)
+#if IS_REACHABLE(CONFIG_DVB_STB6100)
 
 extern struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 					   const struct stb6100_config *config,

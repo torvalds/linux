@@ -540,7 +540,7 @@ int ccw_device_stlck(struct ccw_device *cdev)
 	if (rc)
 		goto out_unlock;
 	/* Perform operation. */
-	cdev->private->state = DEV_STATE_STEAL_LOCK,
+	cdev->private->state = DEV_STATE_STEAL_LOCK;
 	ccw_device_stlck_start(cdev, &data, &buffer[0], &buffer[32]);
 	spin_unlock_irq(sch->lock);
 	/* Wait for operation to finish. */
@@ -563,14 +563,23 @@ out_unlock:
 	return rc;
 }
 
-void *ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
+/**
+ * chp_get_chp_desc - return newly allocated channel-path descriptor
+ * @cdev: device to obtain the descriptor for
+ * @chp_idx: index of the channel path
+ *
+ * On success return a newly allocated copy of the channel-path description
+ * data associated with the given channel path. Return %NULL on error.
+ */
+struct channel_path_desc *ccw_device_get_chp_desc(struct ccw_device *cdev,
+						  int chp_idx)
 {
 	struct subchannel *sch;
 	struct chp_id chpid;
 
 	sch = to_subchannel(cdev->dev.parent);
 	chp_id_init(&chpid);
-	chpid.id = sch->schib.pmcw.chpid[chp_no];
+	chpid.id = sch->schib.pmcw.chpid[chp_idx];
 	return chp_get_chp_desc(chpid);
 }
 

@@ -31,7 +31,7 @@ typedef struct {
 
 static inline bool dcr_map_ok_native(dcr_host_native_t host)
 {
-	return 1;
+	return true;
 }
 
 #define dcr_map_native(dev, dcr_n, dcr_c) \

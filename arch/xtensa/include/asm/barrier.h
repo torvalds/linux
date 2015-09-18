@@ -9,21 +9,13 @@
 #ifndef _XTENSA_SYSTEM_H
 #define _XTENSA_SYSTEM_H
 
-#define smp_read_barrier_depends() do { } while(0)
-#define read_barrier_depends() do { } while(0)
-
 #define mb()  ({ __asm__ __volatile__("memw" : : : "memory"); })
 #define rmb() barrier()
 #define wmb() mb()
 
-#ifdef CONFIG_SMP
-#error smp_* not defined
-#else
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#endif
+#define smp_mb__before_atomic()		barrier()
+#define smp_mb__after_atomic()		barrier()
 
-#define set_mb(var, value)	do { var = value; mb(); } while (0)
+#include <asm-generic/barrier.h>
 
 #endif /* _XTENSA_SYSTEM_H */

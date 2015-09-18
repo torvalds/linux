@@ -127,6 +127,7 @@ static int __init qpace_probe(void)
 		return 0;
 
 	hpte_init_native();
+	pm_power_off = rtas_power_off;
 
 	return 1;
 }
@@ -137,7 +138,6 @@ define_machine(qpace) {
 	.setup_arch		= qpace_setup_arch,
 	.show_cpuinfo		= qpace_show_cpuinfo,
 	.restart		= rtas_restart,
-	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.get_boot_time		= rtas_get_boot_time,
 	.get_rtc_time		= rtas_get_rtc_time,

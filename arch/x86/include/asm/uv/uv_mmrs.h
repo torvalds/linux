@@ -5,7 +5,7 @@
  *
  * SGI UV MMR definitions
  *
- * Copyright (C) 2007-2013 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_MMRS_H
@@ -459,6 +459,23 @@ union uvh_event_occurred0_u {
 #define UVH_EVENT_OCCURRED0_ALIAS 0x70008UL
 #define UVH_EVENT_OCCURRED0_ALIAS_32 0x5f0
 
+
+/* ========================================================================= */
+/*                         UVH_EXTIO_INT0_BROADCAST                          */
+/* ========================================================================= */
+#define UVH_EXTIO_INT0_BROADCAST 0x61448UL
+#define UVH_EXTIO_INT0_BROADCAST_32 0x3f0
+
+#define UVH_EXTIO_INT0_BROADCAST_ENABLE_SHFT		0
+#define UVH_EXTIO_INT0_BROADCAST_ENABLE_MASK		0x0000000000000001UL
+
+union uvh_extio_int0_broadcast_u {
+	unsigned long	v;
+	struct uvh_extio_int0_broadcast_s {
+		unsigned long	enable:1;			/* RW */
+		unsigned long	rsvd_1_63:63;
+	} s;
+};
 
 /* ========================================================================= */
 /*                         UVH_GR0_TLB_INT0_CONFIG                           */
@@ -2606,6 +2623,20 @@ union uvh_scratch5_u {
 };
 
 /* ========================================================================= */
+/*                            UVH_SCRATCH5_ALIAS                             */
+/* ========================================================================= */
+#define UVH_SCRATCH5_ALIAS 0x2d0208UL
+#define UVH_SCRATCH5_ALIAS_32 0x780
+
+
+/* ========================================================================= */
+/*                           UVH_SCRATCH5_ALIAS_2                            */
+/* ========================================================================= */
+#define UVH_SCRATCH5_ALIAS_2 0x2d0210UL
+#define UVH_SCRATCH5_ALIAS_2_32 0x788
+
+
+/* ========================================================================= */
 /*                          UVXH_EVENT_OCCURRED2                             */
 /* ========================================================================= */
 #define UVXH_EVENT_OCCURRED2 0x70100UL
@@ -2769,6 +2800,46 @@ union uv1h_lb_target_physical_apic_id_mask_u {
 		unsigned long	bit_enables:32;			/* RW */
 		unsigned long	rsvd_32_63:32;
 	} s1;
+};
+
+/* ========================================================================= */
+/*                          UV3H_GR0_GAM_GR_CONFIG                           */
+/* ========================================================================= */
+#define UV3H_GR0_GAM_GR_CONFIG				0xc00028UL
+
+#define UV3H_GR0_GAM_GR_CONFIG_M_SKT_SHFT		0
+#define UV3H_GR0_GAM_GR_CONFIG_SUBSPACE_SHFT		10
+#define UV3H_GR0_GAM_GR_CONFIG_M_SKT_MASK		0x000000000000003fUL
+#define UV3H_GR0_GAM_GR_CONFIG_SUBSPACE_MASK		0x0000000000000400UL
+
+union uv3h_gr0_gam_gr_config_u {
+	unsigned long	v;
+	struct uv3h_gr0_gam_gr_config_s {
+		unsigned long	m_skt:6;			/* RW */
+		unsigned long	undef_6_9:4;			/* Undefined */
+		unsigned long	subspace:1;			/* RW */
+		unsigned long	reserved:53;
+	} s3;
+};
+
+/* ========================================================================= */
+/*                          UV3H_GR1_GAM_GR_CONFIG                           */
+/* ========================================================================= */
+#define UV3H_GR1_GAM_GR_CONFIG				0x1000028UL
+
+#define UV3H_GR1_GAM_GR_CONFIG_M_SKT_SHFT		0
+#define UV3H_GR1_GAM_GR_CONFIG_SUBSPACE_SHFT		10
+#define UV3H_GR1_GAM_GR_CONFIG_M_SKT_MASK		0x000000000000003fUL
+#define UV3H_GR1_GAM_GR_CONFIG_SUBSPACE_MASK		0x0000000000000400UL
+
+union uv3h_gr1_gam_gr_config_u {
+	unsigned long	v;
+	struct uv3h_gr1_gam_gr_config_s {
+		unsigned long	m_skt:6;			/* RW */
+		unsigned long	undef_6_9:4;			/* Undefined */
+		unsigned long	subspace:1;			/* RW */
+		unsigned long	reserved:53;
+	} s3;
 };
 
 /* ========================================================================= */

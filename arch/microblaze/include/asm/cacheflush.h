@@ -102,21 +102,23 @@ do { \
 
 #define flush_cache_range(vma, start, len) do { } while (0)
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
-do {									\
-	u32 addr = virt_to_phys(dst);					\
-	memcpy((dst), (src), (len));					\
-	if (vma->vm_flags & VM_EXEC) {					\
-		invalidate_icache_range((unsigned) (addr),		\
-					(unsigned) (addr) + PAGE_SIZE);	\
-		flush_dcache_range((unsigned) (addr),			\
-					(unsigned) (addr) + PAGE_SIZE);	\
-	}								\
-} while (0)
+static inline void copy_to_user_page(struct vm_area_struct *vma,
+				     struct page *page, unsigned long vaddr,
+				     void *dst, void *src, int len)
+{
+	u32 addr = virt_to_phys(dst);
+	memcpy(dst, src, len);
+	if (vma->vm_flags & VM_EXEC) {
+		invalidate_icache_range(addr, addr + PAGE_SIZE);
+		flush_dcache_range(addr, addr + PAGE_SIZE);
+	}
+}
 
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)		\
-do {									\
-	memcpy((dst), (src), (len));					\
-} while (0)
+static inline void copy_from_user_page(struct vm_area_struct *vma,
+				       struct page *page, unsigned long vaddr,
+				       void *dst, void *src, int len)
+{
+	memcpy(dst, src, len);
+}
 
 #endif /* _ASM_MICROBLAZE_CACHEFLUSH_H */

@@ -74,8 +74,8 @@ struct wl18xx_cmd_scan_params {
 	u8 dfs;		   /* number of dfs channels in 5ghz */
 	u8 passive_active; /* number of passive before active channels 2.4ghz */
 
-	__le16 short_cycles_sec;
-	__le16 long_cycles_sec;
+	__le16 short_cycles_msec;
+	__le16 long_cycles_msec;
 	u8 short_cycles_count;
 	u8 total_cycles; /* 0 - infinite */
 	u8 padding[2];
@@ -122,6 +122,6 @@ int wl18xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl18xx_scan_completed(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl18xx_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			    struct cfg80211_sched_scan_request *req,
-			    struct ieee80211_sched_scan_ies *ies);
+			    struct ieee80211_scan_ies *ies);
 void wl18xx_scan_sched_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 #endif

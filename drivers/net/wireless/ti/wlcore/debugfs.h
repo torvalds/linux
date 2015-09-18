@@ -26,8 +26,8 @@
 
 #include "wlcore.h"
 
-int wl1271_format_buffer(char __user *userbuf, size_t count,
-			 loff_t *ppos, char *fmt, ...);
+__printf(4, 5) int wl1271_format_buffer(char __user *userbuf, size_t count,
+					loff_t *ppos, char *fmt, ...);
 
 int wl1271_debugfs_init(struct wl1271 *wl);
 void wl1271_debugfs_exit(struct wl1271 *wl);
@@ -57,7 +57,7 @@ static const struct file_operations name## _ops = {			\
 					    wl, &name## _ops);		\
 		if (!entry || IS_ERR(entry))				\
 			goto err;					\
-	} while (0);
+	} while (0)
 
 
 #define DEBUGFS_ADD_PREFIX(prefix, name, parent)			\
@@ -66,7 +66,7 @@ static const struct file_operations name## _ops = {			\
 				    wl, &prefix## _## name## _ops);	\
 		if (!entry || IS_ERR(entry))				\
 			goto err;					\
-	} while (0);
+	} while (0)
 
 #define DEBUGFS_FWSTATS_FILE(sub, name, fmt, struct_type)		\
 static ssize_t sub## _ ##name## _read(struct file *file,		\

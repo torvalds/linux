@@ -7,11 +7,98 @@
  */
 
 #include <linux/module.h>
-#include <drm/drm_usb.h>
+#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
-static struct drm_driver driver;
+static int udl_driver_set_busid(struct drm_device *d, struct drm_master *m)
+{
+	return 0;
+}
+
+static const struct vm_operations_struct udl_gem_vm_ops = {
+	.fault = udl_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+static const struct file_operations udl_driver_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.mmap = udl_drm_gem_mmap,
+	.poll = drm_poll,
+	.read = drm_read,
+	.unlocked_ioctl	= drm_ioctl,
+	.release = drm_release,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
+};
+
+static struct drm_driver driver = {
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.load = udl_driver_load,
+	.unload = udl_driver_unload,
+	.set_busid = udl_driver_set_busid,
+
+	/* gem hooks */
+	.gem_free_object = udl_gem_free_object,
+	.gem_vm_ops = &udl_gem_vm_ops,
+
+	.dumb_create = udl_dumb_create,
+	.dumb_map_offset = udl_gem_mmap,
+	.dumb_destroy = drm_gem_dumb_destroy,
+	.fops = &udl_driver_fops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = udl_gem_prime_export,
+	.gem_prime_import = udl_gem_prime_import,
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static int udl_usb_probe(struct usb_interface *interface,
+			 const struct usb_device_id *id)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct drm_device *dev;
+	int r;
+
+	dev = drm_dev_alloc(&driver, &interface->dev);
+	if (!dev)
+		return -ENOMEM;
+
+	r = drm_dev_register(dev, (unsigned long)udev);
+	if (r)
+		goto err_free;
+
+	usb_set_intfdata(interface, dev);
+	DRM_INFO("Initialized udl on minor %d\n", dev->primary->index);
+
+	return 0;
+
+err_free:
+	drm_dev_unref(dev);
+	return r;
+}
+
+static void udl_usb_disconnect(struct usb_interface *interface)
+{
+	struct drm_device *dev = usb_get_intfdata(interface);
+
+	drm_kms_helper_poll_disable(dev);
+	drm_connector_unplug_all(dev);
+	udl_fbdev_unplug(dev);
+	udl_drop_usb(dev);
+	drm_unplug_dev(dev);
+}
 
 /*
  * There are many DisplayLink-based graphics products, all with unique PIDs.
@@ -32,72 +119,6 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-MODULE_LICENSE("GPL");
-
-static int udl_usb_probe(struct usb_interface *interface,
-			 const struct usb_device_id *id)
-{
-	return drm_get_usb_dev(interface, id, &driver);
-}
-
-static void udl_usb_disconnect(struct usb_interface *interface)
-{
-	struct drm_device *dev = usb_get_intfdata(interface);
-
-	drm_kms_helper_poll_disable(dev);
-	drm_connector_unplug_all(dev);
-	udl_fbdev_unplug(dev);
-	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
-}
-
-static const struct vm_operations_struct udl_gem_vm_ops = {
-	.fault = udl_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
-static const struct file_operations udl_driver_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.mmap = udl_drm_gem_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.unlocked_ioctl	= drm_ioctl,
-	.release = drm_release,
-	.fasync = drm_fasync,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = drm_compat_ioctl,
-#endif
-	.llseek = noop_llseek,
-};
-
-static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
-	.load = udl_driver_load,
-	.unload = udl_driver_unload,
-
-	/* gem hooks */
-	.gem_init_object = udl_gem_init_object,
-	.gem_free_object = udl_gem_free_object,
-	.gem_vm_ops = &udl_gem_vm_ops,
-
-	.dumb_create = udl_dumb_create,
-	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = udl_dumb_destroy,
-	.fops = &udl_driver_fops,
-
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = udl_gem_prime_import,
-
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
-};
-
 static struct usb_driver udl_driver = {
 	.name = "udl",
 	.probe = udl_usb_probe,
@@ -107,13 +128,14 @@ static struct usb_driver udl_driver = {
 
 static int __init udl_init(void)
 {
-	return drm_usb_init(&driver, &udl_driver);
+	return usb_register(&udl_driver);
 }
 
 static void __exit udl_exit(void)
 {
-	drm_usb_exit(&driver, &udl_driver);
+	usb_deregister(&udl_driver);
 }
 
 module_init(udl_init);
 module_exit(udl_exit);
+MODULE_LICENSE("GPL");

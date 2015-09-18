@@ -1,4 +1,5 @@
 #ifndef TARGET_CORE_UA_H
+#define TARGET_CORE_UA_H
 
 /*
  * From spc4r17, Table D.1: ASC and ASCQ Assignement
@@ -19,15 +20,19 @@
 #define ASCQ_2AH_RESERVATIONS_RELEASED				0x04
 #define ASCQ_2AH_REGISTRATIONS_PREEMPTED			0x05
 #define ASCQ_2AH_ASYMMETRIC_ACCESS_STATE_CHANGED		0x06
-#define ASCQ_2AH_IMPLICT_ASYMMETRIC_ACCESS_STATE_TRANSITION_FAILED 0x07
+#define ASCQ_2AH_IMPLICIT_ASYMMETRIC_ACCESS_STATE_TRANSITION_FAILED 0x07
 #define ASCQ_2AH_PRIORITY_CHANGED				0x08
 
 #define ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS		0x09
 
+#define ASCQ_3FH_INQUIRY_DATA_HAS_CHANGED			0x03
+#define ASCQ_3FH_REPORTED_LUNS_DATA_HAS_CHANGED			0x0E
+
 extern struct kmem_cache *se_ua_cache;
 
 extern sense_reason_t target_scsi3_ua_check(struct se_cmd *);
-extern int core_scsi3_ua_allocate(struct se_node_acl *, u32, u8, u8);
+extern int core_scsi3_ua_allocate(struct se_dev_entry *, u8, u8);
+extern void target_ua_allocate_lun(struct se_node_acl *, u32, u8, u8);
 extern void core_scsi3_ua_release_all(struct se_dev_entry *);
 extern void core_scsi3_ua_for_check_condition(struct se_cmd *, u8 *, u8 *);
 extern int core_scsi3_ua_clear_for_request_sense(struct se_cmd *,

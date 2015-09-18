@@ -75,7 +75,7 @@ static void qib_vma_close(struct vm_area_struct *vma)
 	kref_put(&ip->ref, qib_release_mmap_info);
 }
 
-static struct vm_operations_struct qib_vm_ops = {
+static const struct vm_operations_struct qib_vm_ops = {
 	.open =     qib_vma_open,
 	.close =    qib_vma_close,
 };
@@ -134,7 +134,7 @@ struct qib_mmap_info *qib_create_mmap_info(struct qib_ibdev *dev,
 					   void *obj) {
 	struct qib_mmap_info *ip;
 
-	ip = kmalloc(sizeof *ip, GFP_KERNEL);
+	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
 		goto bail;
 

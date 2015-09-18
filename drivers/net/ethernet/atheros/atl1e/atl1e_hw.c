@@ -618,7 +618,6 @@ int atl1e_get_speed_and_duplex(struct atl1e_hw *hw, u16 *speed, u16 *duplex)
 		break;
 	default:
 		return AT_ERR_PHY_SPEED;
-		break;
 	}
 
 	if (phy_data & MII_AT001_PSSR_DPLX)

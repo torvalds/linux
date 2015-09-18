@@ -27,14 +27,3 @@ void pvr2_i2c_core_done(struct pvr2_hdw *);
 
 
 #endif /* __PVRUSB2_I2C_ADAPTER_H */
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

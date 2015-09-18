@@ -19,7 +19,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -498,7 +497,6 @@ MODULE_DEVICE_TABLE(i2c, qt2160_idtable);
 static struct i2c_driver qt2160_driver = {
 	.driver = {
 		.name	= "qt2160",
-		.owner  = THIS_MODULE,
 	},
 
 	.id_table	= qt2160_idtable,

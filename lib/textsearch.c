@@ -159,6 +159,7 @@ errout:
 	spin_unlock(&ts_mod_lock);
 	return err;
 }
+EXPORT_SYMBOL(textsearch_register);
 
 /**
  * textsearch_unregister - unregister a textsearch module
@@ -190,6 +191,7 @@ out:
 	spin_unlock(&ts_mod_lock);
 	return err;
 }
+EXPORT_SYMBOL(textsearch_unregister);
 
 struct ts_linear_state
 {
@@ -236,6 +238,7 @@ unsigned int textsearch_find_continuous(struct ts_config *conf,
 
 	return textsearch_find(conf, state);
 }
+EXPORT_SYMBOL(textsearch_find_continuous);
 
 /**
  * textsearch_prepare - Prepare a search
@@ -246,9 +249,7 @@ unsigned int textsearch_find_continuous(struct ts_config *conf,
  * @flags: search flags
  *
  * Looks up the search algorithm module and creates a new textsearch
- * configuration for the specified pattern. Upon completion all
- * necessary refcnts are held and the configuration must be put back
- * using textsearch_put() after usage.
+ * configuration for the specified pattern.
  *
  * Note: The format of the pattern may not be compatible between
  *       the various search algorithms.
@@ -298,6 +299,7 @@ errout:
 		
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL(textsearch_prepare);
 
 /**
  * textsearch_destroy - destroy a search configuration
@@ -316,9 +318,4 @@ void textsearch_destroy(struct ts_config *conf)
 
 	kfree(conf);
 }
-
-EXPORT_SYMBOL(textsearch_register);
-EXPORT_SYMBOL(textsearch_unregister);
-EXPORT_SYMBOL(textsearch_prepare);
-EXPORT_SYMBOL(textsearch_find_continuous);
 EXPORT_SYMBOL(textsearch_destroy);

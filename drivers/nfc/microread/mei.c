@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -43,35 +43,23 @@ static int microread_mei_probe(struct mei_cl_device *device,
 		return -ENOMEM;
 	}
 
-	r = mei_cl_register_event_cb(device, nfc_mei_event_cb, phy);
-	if (r) {
-		pr_err(MICROREAD_DRIVER_NAME ": event cb registration failed\n");
-		goto err_out;
-	}
-
 	r = microread_probe(phy, &mei_phy_ops, LLC_NOP_NAME,
 			    MEI_NFC_HEADER_SIZE, 0, MEI_NFC_MAX_HCI_PAYLOAD,
 			    &phy->hdev);
-	if (r < 0)
-		goto err_out;
+	if (r < 0) {
+		nfc_mei_phy_free(phy);
+
+		return r;
+	}
 
 	return 0;
-
-err_out:
-	nfc_mei_phy_free(phy);
-
-	return r;
 }
 
 static int microread_mei_remove(struct mei_cl_device *device)
 {
 	struct nfc_mei_phy *phy = mei_cl_get_drvdata(device);
 
-	pr_info("Removing microread\n");
-
 	microread_remove(phy->hdev);
-
-	nfc_mei_phy_disable(phy);
 
 	nfc_mei_phy_free(phy);
 
@@ -79,7 +67,7 @@ static int microread_mei_remove(struct mei_cl_device *device)
 }
 
 static struct mei_cl_device_id microread_mei_tbl[] = {
-	{ MICROREAD_DRIVER_NAME },
+	{ MICROREAD_DRIVER_NAME, MEI_NFC_UUID},
 
 	/* required last entry */
 	{ }

@@ -155,11 +155,9 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	u8 i;
 	if (!buffer)
 		return NULL;
-	{
-		struct timeval tv;
-		do_gettimeofday(&tv);
-		tomoyo_convert_time(tv.tv_sec, &stamp);
-	}
+
+	tomoyo_convert_time(get_seconds(), &stamp);
+
 	pos = snprintf(buffer, tomoyo_buffer_len - 1,
 		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s "
 		       "granted=%s (global-pid=%u) task={ pid=%u ppid=%u "

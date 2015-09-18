@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
@@ -556,8 +557,7 @@ int __init smu_init (void)
 	return 0;
 
 fail_msg_node:
-	if (smu->msg_node)
-		of_node_put(smu->msg_node);
+	of_node_put(smu->msg_node);
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:
@@ -666,7 +666,6 @@ static struct platform_driver smu_of_platform_driver =
 {
 	.driver = {
 		.name = "smu",
-		.owner = THIS_MODULE,
 		.of_match_table = smu_platform_match,
 	},
 	.probe		= smu_platform_probe,
@@ -1256,7 +1255,8 @@ static unsigned int smu_fpoll(struct file *file, poll_table *wait)
 		if (pp->busy && pp->cmd.status != 1)
 			mask |= POLLIN;
 		spin_unlock_irqrestore(&pp->lock, flags);
-	} if (pp->mode == smu_file_events) {
+	}
+	if (pp->mode == smu_file_events) {
 		/* Not yet implemented */
 	}
 	return mask;

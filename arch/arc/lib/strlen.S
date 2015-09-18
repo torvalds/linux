@@ -6,9 +6,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/linkage.h>
+#include <linux/linkage.h>
 
-ARC_ENTRY strlen
+ENTRY(strlen)
 	or	r3,r0,7
 	ld	r2,[r3,-7]
 	ld.a	r6,[r3,-3]
@@ -80,4 +80,4 @@ ARC_ENTRY strlen
 .Learly_end:
 	b.d	.Lend
 	sub_s.ne r1,r1,r1
-ARC_EXIT strlen
+END(strlen)

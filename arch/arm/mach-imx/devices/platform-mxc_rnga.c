@@ -48,9 +48,6 @@ static int __init imxXX_add_mxc_rnga(void)
 #endif /* if defined(CONFIG_SOC_IMX31) */
 		ret = ERR_PTR(-ENODEV);
 
-	if (IS_ERR(ret))
-		return PTR_ERR(ret);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ret);
 }
 arch_initcall(imxXX_add_mxc_rnga);

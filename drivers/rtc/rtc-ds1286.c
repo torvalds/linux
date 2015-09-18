@@ -332,13 +332,11 @@ static int ds1286_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct ds1286_priv *priv;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct ds1286_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->rtcregs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->rtcregs))
 		return PTR_ERR(priv->rtcregs);
@@ -353,18 +351,11 @@ static int ds1286_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ds1286_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ds1286_platform_driver = {
 	.driver		= {
 		.name	= "rtc-ds1286",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1286_probe,
-	.remove		= ds1286_remove,
 };
 
 module_platform_driver(ds1286_platform_driver);

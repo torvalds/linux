@@ -1,0 +1,32 @@
+APM X-Gene Standby GPIO controller bindings
+
+This is a gpio controller in the standby domain.
+
+There are 20 GPIO pins from 0..21. There is no GPIO_DS14 or GPIO_DS15,
+only GPIO_DS8..GPIO_DS13 support interrupts. The IRQ mapping
+is currently 1-to-1 on interrupts 0x28 thru 0x2d.
+
+Required properties:
+- compatible: "apm,xgene-gpio-sb" for the X-Gene Standby GPIO controller
+- reg: Physical base address and size of the controller's registers
+- #gpio-cells: Should be two.
+	- first cell is the pin number
+	- second cell is used to specify the gpio polarity:
+		0 = active high
+		1 = active low
+- gpio-controller: Marks the device node as a GPIO controller.
+- interrupts: Shall contain exactly 6 interrupts.
+
+Example:
+	sbgpio: sbgpio@17001000 {
+		compatible = "apm,xgene-gpio-sb";
+		reg = <0x0 0x17001000 0x0 0x400>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		interrupts = 	<0x0 0x28 0x1>,
+				<0x0 0x29 0x1>,
+				<0x0 0x2a 0x1>,
+				<0x0 0x2b 0x1>,
+				<0x0 0x2c 0x1>,
+				<0x0 0x2d 0x1>;
+	};

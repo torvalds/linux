@@ -39,6 +39,9 @@ enum sdma_peripheral_type {
 	IMX_DMATYPE_IPU_MEMORY,	/* IPU Memory */
 	IMX_DMATYPE_ASRC,	/* ASRC */
 	IMX_DMATYPE_ESAI,	/* ESAI */
+	IMX_DMATYPE_SSI_DUAL,	/* SSI Dual FIFO */
+	IMX_DMATYPE_ASRC_SP,	/* Shared ASRC */
+	IMX_DMATYPE_SAI,	/* SAI */
 };
 
 enum imx_dma_prio {
@@ -49,6 +52,7 @@ enum imx_dma_prio {
 
 struct imx_dma_data {
 	int dma_request; /* DMA request line */
+	int dma_request2; /* secondary DMA request line */
 	enum sdma_peripheral_type peripheral_type;
 	int priority;
 };
@@ -60,10 +64,8 @@ static inline int imx_dma_is_ipu(struct dma_chan *chan)
 
 static inline int imx_dma_is_general_purpose(struct dma_chan *chan)
 {
-	return strstr(dev_name(chan->device->dev), "sdma") ||
-		!strcmp(dev_name(chan->device->dev), "imx1-dma") ||
-		!strcmp(dev_name(chan->device->dev), "imx21-dma") ||
-		!strcmp(dev_name(chan->device->dev), "imx27-dma");
+	return !strcmp(chan->device->dev->driver->name, "imx-sdma") ||
+		!strcmp(chan->device->dev->driver->name, "imx-dma");
 }
 
 #endif

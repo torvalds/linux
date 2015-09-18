@@ -158,7 +158,7 @@ static inline int simple_feature_tweak(struct device_node *node, int type,
 	return 0;
 }
 
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 
 static long ohare_htw_scc_enable(struct device_node *node, long param,
 				 long value)
@@ -1318,7 +1318,7 @@ intrepid_aack_delay_enable(struct device_node *node, long param, long value)
 }
 
 
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
 static long
 core99_read_gpio(struct device_node *node, long param, long value)
@@ -1338,7 +1338,7 @@ core99_write_gpio(struct device_node *node, long param, long value)
 	return 0;
 }
 
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 static long g5_gmac_enable(struct device_node *node, long param, long value)
 {
 	struct macio_chip *macio = &macio_chips[0];
@@ -1550,9 +1550,9 @@ void g5_phy_disable_cpu1(void)
 	if (uninorth_maj == 3)
 		UN_OUT(U3_API_PHY_CONFIG_1, 0);
 }
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 
 
 #ifdef CONFIG_PM
@@ -1864,7 +1864,7 @@ core99_sleep_state(struct device_node *node, long param, long value)
 	return 0;
 }
 
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
 static long
 generic_dev_can_wake(struct device_node *node, long param, long value)
@@ -1906,7 +1906,7 @@ static struct feature_table_entry any_features[] = {
 	{ 0, NULL }
 };
 
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 
 /* OHare based motherboards. Currently, we only use these on the
  * 2400,3400 and 3500 series powerbooks. Some older desktops seem
@@ -2056,7 +2056,7 @@ static struct feature_table_entry intrepid_features[] = {
 	{ 0, NULL }
 };
 
-#else /* CONFIG_POWER4 */
+#else /* CONFIG_PPC64 */
 
 /* G5 features
  */
@@ -2074,10 +2074,10 @@ static struct feature_table_entry g5_features[] = {
 	{ 0, NULL }
 };
 
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
 static struct pmac_mb_def pmac_mb_defs[] = {
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 	/*
 	 * Desktops
 	 */
@@ -2342,7 +2342,7 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
 		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
 	},
-#else /* CONFIG_POWER4 */
+#else /* CONFIG_PPC64 */
 	{	"PowerMac7,2",			"PowerMac G5",
 		PMAC_TYPE_POWERMAC_G5,		g5_features,
 		0,
@@ -2373,7 +2373,7 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		0,
 	},
 #endif /* CONFIG_PPC64 */
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 };
 
 /*
@@ -2441,7 +2441,7 @@ static int __init probe_motherboard(void)
 
 	/* Fallback to selection depending on mac-io chip type */
 	switch(macio->type) {
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 	    case macio_grand_central:
 		pmac_mb.model_id = PMAC_TYPE_PSURGE;
 		pmac_mb.model_name = "Unknown PowerSurge";
@@ -2475,7 +2475,7 @@ static int __init probe_motherboard(void)
 		pmac_mb.model_name = "Unknown Intrepid-based";
 		pmac_mb.features = intrepid_features;
 		break;
-#else /* CONFIG_POWER4 */
+#else /* CONFIG_PPC64 */
 	case macio_keylargo2:
 		pmac_mb.model_id = PMAC_TYPE_UNKNOWN_K2;
 		pmac_mb.model_name = "Unknown K2-based";
@@ -2486,13 +2486,13 @@ static int __init probe_motherboard(void)
 		pmac_mb.model_name = "Unknown Shasta-based";
 		pmac_mb.features = g5_features;
 		break;
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 	default:
 		ret = -ENODEV;
 		goto done;
 	}
 found:
-#ifndef CONFIG_POWER4
+#ifndef CONFIG_PPC64
 	/* Fixup Hooper vs. Comet */
 	if (pmac_mb.model_id == PMAC_TYPE_HOOPER) {
 		u32 __iomem * mach_id_ptr = ioremap(0xf3000034, 4);
@@ -2546,9 +2546,9 @@ found:
 	 */
 	powersave_lowspeed = 1;
 
-#else /* CONFIG_POWER4 */
+#else /* CONFIG_PPC64 */
 	powersave_nap = 1;
-#endif  /* CONFIG_POWER4 */
+#endif  /* CONFIG_PPC64 */
 
 	/* Check for "mobile" machine */
 	if (model && (strncmp(model, "PowerBook", 9) == 0
@@ -2786,7 +2786,7 @@ set_initial_features(void)
 		MACIO_BIS(OHARE_FCR, OH_IOBUS_ENABLE);
 	}
 
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 	if (macio_chips[0].type == macio_keylargo2 ||
 	    macio_chips[0].type == macio_shasta) {
 #ifndef CONFIG_SMP
@@ -2805,28 +2805,23 @@ set_initial_features(void)
 		/* Enable GMAC for now for PCI probing. It will be disabled
 		 * later on after PCI probe
 		 */
-		np = of_find_node_by_name(NULL, "ethernet");
-		while(np) {
+		for_each_node_by_name(np, "ethernet")
 			if (of_device_is_compatible(np, "K2-GMAC"))
 				g5_gmac_enable(np, 0, 1);
-			np = of_find_node_by_name(np, "ethernet");
-		}
 
 		/* Enable FW before PCI probe. Will be disabled later on
 		 * Note: We should have a batter way to check that we are
 		 * dealing with uninorth internal cell and not a PCI cell
 		 * on the external PCI. The code below works though.
 		 */
-		np = of_find_node_by_name(NULL, "firewire");
-		while(np) {
+		for_each_node_by_name(np, "firewire") {
 			if (of_device_is_compatible(np, "pci106b,5811")) {
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				g5_fw_enable(np, 0, 1);
 			}
-			np = of_find_node_by_name(np, "firewire");
 		}
 	}
-#else /* CONFIG_POWER4 */
+#else /* CONFIG_PPC64 */
 
 	if (macio_chips[0].type == macio_keylargo ||
 	    macio_chips[0].type == macio_pangea ||
@@ -2834,13 +2829,11 @@ set_initial_features(void)
 		/* Enable GMAC for now for PCI probing. It will be disabled
 		 * later on after PCI probe
 		 */
-		np = of_find_node_by_name(NULL, "ethernet");
-		while(np) {
+		for_each_node_by_name(np, "ethernet") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && of_device_is_compatible(np, "gmac"))
 				core99_gmac_enable(np, 0, 1);
-			np = of_find_node_by_name(np, "ethernet");
 		}
 
 		/* Enable FW before PCI probe. Will be disabled later on
@@ -2848,8 +2841,7 @@ set_initial_features(void)
 		 * dealing with uninorth internal cell and not a PCI cell
 		 * on the external PCI. The code below works though.
 		 */
-		np = of_find_node_by_name(NULL, "firewire");
-		while(np) {
+		for_each_node_by_name(np, "firewire") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && (of_device_is_compatible(np, "pci106b,18") ||
@@ -2858,18 +2850,16 @@ set_initial_features(void)
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				core99_firewire_enable(np, 0, 1);
 			}
-			np = of_find_node_by_name(np, "firewire");
 		}
 
 		/* Enable ATA-100 before PCI probe. */
 		np = of_find_node_by_name(NULL, "ata-6");
-		while(np) {
+		for_each_node_by_name(np, "ata-6") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && of_device_is_compatible(np, "kauai-ata")) {
 				core99_ata100_enable(np, 1);
 			}
-			np = of_find_node_by_name(np, "ata-6");
 		}
 
 		/* Switch airport off */
@@ -2895,7 +2885,7 @@ set_initial_features(void)
 		MACIO_BIC(HEATHROW_FCR, HRW_SOUND_POWER_N);
 	}
 
-#endif /* CONFIG_POWER4 */
+#endif /* CONFIG_PPC64 */
 
 	/* On all machines, switch modem & serial ports off */
 	for_each_node_by_name(np, "ch-a")

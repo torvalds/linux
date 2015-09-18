@@ -22,6 +22,7 @@
 #define PL2303_PRODUCT_ID_GPRS		0x0609
 #define PL2303_PRODUCT_ID_HCR331	0x331a
 #define PL2303_PRODUCT_ID_MOTOROLA	0x0307
+#define PL2303_PRODUCT_ID_ZTEK		0xe1f1
 
 #define ATEN_VENDOR_ID		0x0557
 #define ATEN_VENDOR_ID2		0x0547
@@ -60,10 +61,6 @@
 /* Alcatel OT535/735 USB cable */
 #define ALCATEL_VENDOR_ID	0x11f7
 #define ALCATEL_PRODUCT_ID	0x02df
-
-/* Samsung I330 phone cradle */
-#define SAMSUNG_VENDOR_ID	0x04e8
-#define SAMSUNG_PRODUCT_ID	0x8001
 
 #define SIEMENS_VENDOR_ID	0x11f5
 #define SIEMENS_PRODUCT_ID_SX1	0x0001
@@ -121,8 +118,11 @@
 #define SUPERIAL_VENDOR_ID	0x5372
 #define SUPERIAL_PRODUCT_ID	0x2303
 
-/* Hewlett-Packard LD220-HP POS Pole Display */
+/* Hewlett-Packard POS Pole Displays */
 #define HP_VENDOR_ID		0x03f0
+#define HP_LD960_PRODUCT_ID	0x0b39
+#define HP_LCM220_PRODUCT_ID	0x3139
+#define HP_LCM960_PRODUCT_ID	0x3239
 #define HP_LD220_PRODUCT_ID	0x3524
 
 /* Cressi Edy (diving computer) PC interface */

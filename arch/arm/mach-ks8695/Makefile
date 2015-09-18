@@ -4,9 +4,6 @@
 #
 
 obj-y				:= cpu.o irq.o time.o devices.o
-obj-m				:=
-obj-n				:=
-obj-				:=
 
 # PCI support is optional
 obj-$(CONFIG_PCI)		+= pci.o

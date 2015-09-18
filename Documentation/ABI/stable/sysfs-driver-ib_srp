@@ -54,6 +54,19 @@ Description:	Interface for making ib_srp connect to a new target.
 		  ib_srp. Specifying a value that exceeds cmd_sg_entries is
 		  only safe with partial memory descriptor list support enabled
 		  (allow_ext_sg=1).
+		* comp_vector, a number in the range 0..n-1 specifying the
+		  MSI-X completion vector of the first RDMA channel. Some
+		  HCA's allocate multiple (n) MSI-X vectors per HCA port. If
+		  the IRQ affinity masks of these interrupts have been
+		  configured such that each MSI-X interrupt is handled by a
+		  different CPU then the comp_vector parameter can be used to
+		  spread the SRP completion workload over multiple CPU's.
+		* tl_retry_count, a number in the range 2..7 specifying the
+		  IB RC retry count.
+		* queue_size, the maximum number of commands that the
+		  initiator is allowed to queue per SCSI host. The default
+		  value for this parameter is 62. The lowest supported value
+		  is 2.
 
 What:		/sys/class/infiniband_srp/srp-<hca>-<port_number>/ibdev
 Date:		January 2, 2006
@@ -75,12 +88,25 @@ Description:	Whether ib_srp is allowed to include a partial memory
 		descriptor list in an SRP_CMD when communicating with an SRP
 		target.
 
+What:		/sys/class/scsi_host/host<n>/ch_count
+Date:		April 1, 2015
+KernelVersion:	3.19
+Contact:	linux-rdma@vger.kernel.org
+Description:	Number of RDMA channels used for communication with the SRP
+		target.
+
 What:		/sys/class/scsi_host/host<n>/cmd_sg_entries
 Date:		May 19, 2011
 KernelVersion:	2.6.39
 Contact:	linux-rdma@vger.kernel.org
 Description:	Maximum number of data buffer descriptors that may be sent to
 		the target in a single SRP_CMD request.
+
+What:		/sys/class/scsi_host/host<n>/comp_vector
+Date:		September 2, 2013
+KernelVersion:	3.11
+Contact:	linux-rdma@vger.kernel.org
+Description:	Completion vector used for the first RDMA channel.
 
 What:		/sys/class/scsi_host/host<n>/dgid
 Date:		June 17, 2006
@@ -145,6 +171,13 @@ KernelVersion:	2.6.17
 Contact:	linux-rdma@vger.kernel.org
 Description:	InfiniBand service ID used for establishing communication with
 		the SRP	target.
+
+What:		/sys/class/scsi_host/host<n>/sgid
+Date:		February 1, 2014
+KernelVersion:	3.13
+Contact:	linux-rdma@vger.kernel.org
+Description:	InfiniBand GID of the source port used for communication with
+		the SRP target.
 
 What:		/sys/class/scsi_host/host<n>/zero_req_lim
 Date:		September 20, 2006

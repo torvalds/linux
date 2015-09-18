@@ -1,0 +1,1240 @@
+/*
+ * Copyright 2012 Linaro Ltd
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/mfd/dbx500-prcmu.h>
+#include <dt-bindings/arm/ux500_pm_domains.h>
+#include "skeleton.dtsi"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "ste,dbx500-smp";
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+		};
+		CPU0: cpu@300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x300>;
+		};
+		CPU1: cpu@301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x301>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "stericsson,db8500";
+		interrupt-parent = <&intc>;
+		ranges;
+
+		ptm@801ae000 {
+			compatible = "arm,coresight-etm3x", "arm,primecell";
+			reg = <0x801ae000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			cpu = <&CPU0>;
+			port {
+				ptm0_out_port: endpoint {
+					remote-endpoint = <&funnel_in_port0>;
+				};
+			};
+		};
+
+		ptm@801af000 {
+			compatible = "arm,coresight-etm3x", "arm,primecell";
+			reg = <0x801af000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			cpu = <&CPU1>;
+			port {
+				ptm1_out_port: endpoint {
+					remote-endpoint = <&funnel_in_port1>;
+				};
+			};
+		};
+
+		funnel@801a6000 {
+			compatible = "arm,coresight-funnel", "arm,primecell";
+			reg = <0x801a6000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* funnel output ports */
+				port@0 {
+					reg = <0>;
+					funnel_out_port: endpoint {
+						remote-endpoint =
+							<&replicator_in_port0>;
+					};
+				};
+
+				/* funnel input ports */
+				port@1 {
+					reg = <0>;
+					funnel_in_port0: endpoint {
+						slave-mode;
+						remote-endpoint = <&ptm0_out_port>;
+					};
+				};
+
+				port@2 {
+					reg = <1>;
+					funnel_in_port1: endpoint {
+						slave-mode;
+						remote-endpoint = <&ptm1_out_port>;
+					};
+				};
+			};
+		};
+
+		replicator {
+			compatible = "arm,coresight-replicator";
+			clocks = <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "atclk";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* replicator output ports */
+				port@0 {
+					reg = <0>;
+					replicator_out_port0: endpoint {
+						remote-endpoint = <&tpiu_in_port>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+					replicator_out_port1: endpoint {
+						remote-endpoint = <&etb_in_port>;
+					};
+				};
+
+				/* replicator input port */
+				port@2 {
+					reg = <0>;
+					replicator_in_port0: endpoint {
+						slave-mode;
+						remote-endpoint = <&funnel_out_port>;
+					};
+				};
+			};
+		};
+
+		tpiu@80190000 {
+			compatible = "arm,coresight-tpiu", "arm,primecell";
+			reg = <0x80190000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			port {
+				tpiu_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out_port0>;
+				};
+			};
+		};
+
+		etb@801a4000 {
+			compatible = "arm,coresight-etb10", "arm,primecell";
+			reg = <0x801a4000 0x1000>;
+
+			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
+			clock-names = "apb_pclk", "atclk";
+			port {
+				etb_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&replicator_out_port1>;
+				};
+			};
+		};
+
+		intc: interrupt-controller@a0411000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <1>;
+			interrupt-controller;
+			reg = <0xa0411000 0x1000>,
+			      <0xa0410100 0x100>;
+		};
+
+		scu@a04100000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xa0410000 0x100>;
+		};
+
+		/*
+		 * The backup RAM is used for retention during sleep
+		 * and various things like spin tables
+		 */
+		backupram@80150000 {
+			compatible = "ste,dbx500-backupram";
+			reg = <0x80150000 0x2000>;
+		};
+
+		L2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0xa0412000 0x1000>;
+			interrupts = <0 13 IRQ_TYPE_LEVEL_HIGH>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pm_domains: pm_domains0 {
+			compatible = "stericsson,ux500-pm-domains";
+			#power-domain-cells = <1>;
+		};
+
+		clocks {
+			compatible = "stericsson,u8500-clks";
+			/*
+			 * Registers for the CLKRST block on peripheral
+			 * groups 1, 2, 3, 5, 6,
+			 */
+			reg = <0x8012f000 0x1000>, <0x8011f000 0x1000>,
+			    <0x8000f000 0x1000>, <0xa03ff000 0x1000>,
+			    <0xa03cf000 0x1000>;
+
+			prcmu_clk: prcmu-clock {
+				#clock-cells = <1>;
+			};
+
+			prcc_pclk: prcc-periph-clock {
+				#clock-cells = <2>;
+			};
+
+			prcc_kclk: prcc-kernel-clock {
+				#clock-cells = <2>;
+			};
+
+			rtc_clk: rtc32k-clock {
+				#clock-cells = <0>;
+			};
+
+			smp_twd_clk: smp-twd-clock {
+				#clock-cells = <0>;
+			};
+		};
+
+		mtu@a03c6000 {
+			/* Nomadik System Timer */
+			compatible = "st,nomadik-mtu";
+			reg = <0xa03c6000 0x1000>;
+			interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&prcmu_clk PRCMU_TIMCLK>, <&prcc_pclk 6 6>;
+			clock-names = "timclk", "apb_pclk";
+		};
+
+		timer@a0410600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0xa0410600 0x20>;
+			interrupts = <1 13 0x304>; /* IRQ level high per-CPU */
+
+			clocks = <&smp_twd_clk>;
+		};
+
+		watchdog@a0410620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xa0410620 0x20>;
+			interrupts = <1 14 0x304>;
+			clocks = <&smp_twd_clk>;
+		};
+
+		rtc@80154000 {
+			compatible = "arm,rtc-pl031", "arm,primecell";
+			reg = <0x80154000 0x1000>;
+			interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&rtc_clk>;
+			clock-names = "apb_pclk";
+		};
+
+		gpio0: gpio@8012e000 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8012e000 0x80>;
+			interrupts = <0 119 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <0>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			clocks = <&prcc_pclk 1 9>;
+		};
+
+		gpio1: gpio@8012e080 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8012e080 0x80>;
+			interrupts = <0 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <1>;
+			gpio-ranges = <&pinctrl 0 32 5>;
+			clocks = <&prcc_pclk 1 9>;
+		};
+
+		gpio2: gpio@8000e000 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8000e000 0x80>;
+			interrupts = <0 121 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <2>;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			clocks = <&prcc_pclk 3 8>;
+		};
+
+		gpio3: gpio@8000e080 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8000e080 0x80>;
+			interrupts = <0 122 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <3>;
+			gpio-ranges = <&pinctrl 0 96 2>;
+			clocks = <&prcc_pclk 3 8>;
+		};
+
+		gpio4: gpio@8000e100 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8000e100 0x80>;
+			interrupts = <0 123 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <4>;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			clocks = <&prcc_pclk 3 8>;
+		};
+
+		gpio5: gpio@8000e180 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8000e180 0x80>;
+			interrupts = <0 124 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <5>;
+			gpio-ranges = <&pinctrl 0 160 12>;
+			clocks = <&prcc_pclk 3 8>;
+		};
+
+		gpio6: gpio@8011e000 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8011e000 0x80>;
+			interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <6>;
+			gpio-ranges = <&pinctrl 0 192 32>;
+			clocks = <&prcc_pclk 2 11>;
+		};
+
+		gpio7: gpio@8011e080 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0x8011e080 0x80>;
+			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <7>;
+			gpio-ranges = <&pinctrl 0 224 7>;
+			clocks = <&prcc_pclk 2 11>;
+		};
+
+		gpio8: gpio@a03fe000 {
+			compatible = "stericsson,db8500-gpio",
+				"st,nomadik-gpio";
+			reg =  <0xa03fe000 0x80>;
+			interrupts = <0 127 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			st,supports-sleepmode;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <8>;
+			gpio-ranges = <&pinctrl 0 256 12>;
+			clocks = <&prcc_pclk 5 1>;
+		};
+
+		pinctrl: pinctrl {
+			compatible = "stericsson,db8500-pinctrl";
+			nomadik-gpio-chips = <&gpio0>, <&gpio1>, <&gpio2>, <&gpio3>,
+						<&gpio4>, <&gpio5>, <&gpio6>, <&gpio7>,
+						<&gpio8>;
+			prcm = <&prcmu>;
+		};
+
+		usb_per5@a03e0000 {
+			compatible = "stericsson,db8500-musb";
+			reg = <0xa03e0000 0x10000>;
+			interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mc";
+
+			dr_mode = "otg";
+
+			dmas = <&dma 38 0 0x2>, /* Logical - DevToMem */
+			       <&dma 38 0 0x0>, /* Logical - MemToDev */
+			       <&dma 37 0 0x2>, /* Logical - DevToMem */
+			       <&dma 37 0 0x0>, /* Logical - MemToDev */
+			       <&dma 36 0 0x2>, /* Logical - DevToMem */
+			       <&dma 36 0 0x0>, /* Logical - MemToDev */
+			       <&dma 19 0 0x2>, /* Logical - DevToMem */
+			       <&dma 19 0 0x0>, /* Logical - MemToDev */
+			       <&dma 18 0 0x2>, /* Logical - DevToMem */
+			       <&dma 18 0 0x0>, /* Logical - MemToDev */
+			       <&dma 17 0 0x2>, /* Logical - DevToMem */
+			       <&dma 17 0 0x0>, /* Logical - MemToDev */
+			       <&dma 16 0 0x2>, /* Logical - DevToMem */
+			       <&dma 16 0 0x0>, /* Logical - MemToDev */
+			       <&dma 39 0 0x2>, /* Logical - DevToMem */
+			       <&dma 39 0 0x0>; /* Logical - MemToDev */
+
+			dma-names = "iep_1_9",  "oep_1_9",
+				    "iep_2_10", "oep_2_10",
+				    "iep_3_11", "oep_3_11",
+				    "iep_4_12", "oep_4_12",
+				    "iep_5_13", "oep_5_13",
+				    "iep_6_14", "oep_6_14",
+				    "iep_7_15", "oep_7_15",
+				    "iep_8",    "oep_8";
+
+			clocks = <&prcc_pclk 5 0>;
+		};
+
+		dma: dma-controller@801C0000 {
+			compatible = "stericsson,db8500-dma40", "stericsson,dma40";
+			reg = <0x801C0000 0x1000 0x40010000 0x800>;
+			reg-names = "base", "lcpa";
+			interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH>;
+
+			#dma-cells = <3>;
+			memcpy-channels = <56 57 58 59 60>;
+
+			clocks = <&prcmu_clk PRCMU_DMACLK>;
+		};
+
+		prcmu: prcmu@80157000 {
+			compatible = "stericsson,db8500-prcmu";
+			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x1000>;
+			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
+			interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ranges;
+
+			prcmu-timer-4@80157450 {
+				compatible = "stericsson,db8500-prcmu-timer-4";
+				reg = <0x80157450 0xC>;
+			};
+
+			cpufreq {
+				compatible = "stericsson,cpufreq-ux500";
+				clocks = <&prcmu_clk PRCMU_ARMSS>;
+				clock-names = "armss";
+				status = "disabled";
+			};
+
+			thermal@801573c0 {
+				compatible = "stericsson,db8500-thermal";
+				reg = <0x801573c0 0x40>;
+				interrupts = <21 IRQ_TYPE_LEVEL_HIGH>,
+					     <22 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "IRQ_HOTMON_LOW", "IRQ_HOTMON_HIGH";
+				status = "disabled";
+			};
+
+			db8500-prcmu-regulators {
+				compatible = "stericsson,db8500-prcmu-regulator";
+
+				// DB8500_REGULATOR_VAPE
+				db8500_vape_reg: db8500_vape {
+					regulator-compatible = "db8500_vape";
+					regulator-always-on;
+				};
+
+				// DB8500_REGULATOR_VARM
+				db8500_varm_reg: db8500_varm {
+					regulator-compatible = "db8500_varm";
+				};
+
+				// DB8500_REGULATOR_VMODEM
+				db8500_vmodem_reg: db8500_vmodem {
+					regulator-compatible = "db8500_vmodem";
+				};
+
+				// DB8500_REGULATOR_VPLL
+				db8500_vpll_reg: db8500_vpll {
+					regulator-compatible = "db8500_vpll";
+				};
+
+				// DB8500_REGULATOR_VSMPS1
+				db8500_vsmps1_reg: db8500_vsmps1 {
+					regulator-compatible = "db8500_vsmps1";
+				};
+
+				// DB8500_REGULATOR_VSMPS2
+				db8500_vsmps2_reg: db8500_vsmps2 {
+					regulator-compatible = "db8500_vsmps2";
+				};
+
+				// DB8500_REGULATOR_VSMPS3
+				db8500_vsmps3_reg: db8500_vsmps3 {
+					regulator-compatible = "db8500_vsmps3";
+				};
+
+				// DB8500_REGULATOR_VRF1
+				db8500_vrf1_reg: db8500_vrf1 {
+					regulator-compatible = "db8500_vrf1";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SVAMMDSP
+				db8500_sva_mmdsp_reg: db8500_sva_mmdsp {
+					regulator-compatible = "db8500_sva_mmdsp";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SVAMMDSPRET
+				db8500_sva_mmdsp_ret_reg: db8500_sva_mmdsp_ret {
+					regulator-compatible = "db8500_sva_mmdsp_ret";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SVAPIPE
+				db8500_sva_pipe_reg: db8500_sva_pipe {
+					regulator-compatible = "db8500_sva_pipe";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SIAMMDSP
+				db8500_sia_mmdsp_reg: db8500_sia_mmdsp {
+					regulator-compatible = "db8500_sia_mmdsp";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SIAMMDSPRET
+				db8500_sia_mmdsp_ret_reg: db8500_sia_mmdsp_ret {
+				};
+
+				// DB8500_REGULATOR_SWITCH_SIAPIPE
+				db8500_sia_pipe_reg: db8500_sia_pipe {
+					regulator-compatible = "db8500_sia_pipe";
+				};
+
+				// DB8500_REGULATOR_SWITCH_SGA
+				db8500_sga_reg: db8500_sga {
+					regulator-compatible = "db8500_sga";
+					vin-supply = <&db8500_vape_reg>;
+				};
+
+				// DB8500_REGULATOR_SWITCH_B2R2_MCDE
+				db8500_b2r2_mcde_reg: db8500_b2r2_mcde {
+					regulator-compatible = "db8500_b2r2_mcde";
+					vin-supply = <&db8500_vape_reg>;
+				};
+
+				// DB8500_REGULATOR_SWITCH_ESRAM12
+				db8500_esram12_reg: db8500_esram12 {
+					regulator-compatible = "db8500_esram12";
+				};
+
+				// DB8500_REGULATOR_SWITCH_ESRAM12RET
+				db8500_esram12_ret_reg: db8500_esram12_ret {
+					regulator-compatible = "db8500_esram12_ret";
+				};
+
+				// DB8500_REGULATOR_SWITCH_ESRAM34
+				db8500_esram34_reg: db8500_esram34 {
+					regulator-compatible = "db8500_esram34";
+				};
+
+				// DB8500_REGULATOR_SWITCH_ESRAM34RET
+				db8500_esram34_ret_reg: db8500_esram34_ret {
+					regulator-compatible = "db8500_esram34_ret";
+				};
+			};
+
+			ab8500 {
+				compatible = "stericsson,ab8500";
+				interrupt-parent = <&intc>;
+				interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ab8500_gpio: ab8500-gpio {
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+
+				ab8500-rtc {
+					compatible = "stericsson,ab8500-rtc";
+					interrupts = <17 IRQ_TYPE_LEVEL_HIGH
+						      18 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "60S", "ALARM";
+				};
+
+				ab8500-gpadc {
+					compatible = "stericsson,ab8500-gpadc";
+					interrupts = <32 IRQ_TYPE_LEVEL_HIGH
+						      39 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "HW_CONV_END", "SW_CONV_END";
+					vddadc-supply = <&ab8500_ldo_tvout_reg>;
+				};
+
+				ab8500_battery: ab8500_battery {
+					stericsson,battery-type = "LIPO";
+					thermistor-on-batctrl;
+				};
+
+				ab8500_fg {
+					compatible = "stericsson,ab8500-fg";
+					battery	   = <&ab8500_battery>;
+				};
+
+				ab8500_btemp {
+					compatible = "stericsson,ab8500-btemp";
+					battery	   = <&ab8500_battery>;
+				};
+
+				ab8500_charger {
+					compatible	= "stericsson,ab8500-charger";
+					battery		= <&ab8500_battery>;
+					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
+				};
+
+				ab8500_chargalg {
+					compatible	= "stericsson,ab8500-chargalg";
+					battery		= <&ab8500_battery>;
+				};
+
+				ab8500_usb {
+					compatible = "stericsson,ab8500-usb";
+					interrupts = < 90 IRQ_TYPE_LEVEL_HIGH
+						       96 IRQ_TYPE_LEVEL_HIGH
+						       14 IRQ_TYPE_LEVEL_HIGH
+						       15 IRQ_TYPE_LEVEL_HIGH
+						       79 IRQ_TYPE_LEVEL_HIGH
+						       74 IRQ_TYPE_LEVEL_HIGH
+						       75 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ID_WAKEUP_R",
+							  "ID_WAKEUP_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_ADP_PROBE_PLUG",
+							  "USB_ADP_PROBE_UNPLUG";
+					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
+					v-ape-supply = <&db8500_vape_reg>;
+					musb_1v8-supply = <&db8500_vsmps2_reg>;
+				};
+
+				ab8500-ponkey {
+					compatible = "stericsson,ab8500-poweron-key";
+					interrupts = <6 IRQ_TYPE_LEVEL_HIGH
+						      7 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
+				};
+
+				ab8500-sysctrl {
+					compatible = "stericsson,ab8500-sysctrl";
+				};
+
+				ab8500-pwm {
+					compatible = "stericsson,ab8500-pwm";
+				};
+
+				ab8500-debugfs {
+					compatible = "stericsson,ab8500-debug";
+				};
+
+				codec: ab8500-codec {
+					compatible = "stericsson,ab8500-codec";
+
+					V-AUD-supply = <&ab8500_ldo_audio_reg>;
+					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
+					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
+					V-DMIC-supply = <&ab8500_ldo_dmic_reg>;
+
+					stericsson,earpeice-cmv = <950>; /* Units in mV. */
+				};
+
+				ext_regulators: ab8500-ext-regulators {
+					compatible = "stericsson,ab8500-ext-regulator";
+
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-compatible = "ab8500_ext1";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-boot-on;
+						regulator-always-on;
+					};
+
+					ab8500_ext2_reg: ab8500_ext2 {
+						regulator-compatible = "ab8500_ext2";
+						regulator-min-microvolt = <1360000>;
+						regulator-max-microvolt = <1360000>;
+						regulator-boot-on;
+						regulator-always-on;
+					};
+
+					ab8500_ext3_reg: ab8500_ext3 {
+						regulator-compatible = "ab8500_ext3";
+						regulator-min-microvolt = <3400000>;
+						regulator-max-microvolt = <3400000>;
+						regulator-boot-on;
+					};
+				};
+
+				ab8500-regulators {
+					compatible = "stericsson,ab8500-regulator";
+					vin-supply = <&ab8500_ext3_reg>;
+
+					// supplies to the display/camera
+					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-compatible = "ab8500_ldo_aux1";
+						regulator-min-microvolt = <2500000>;
+						regulator-max-microvolt = <2900000>;
+						regulator-boot-on;
+						/* BUG: If turned off MMC will be affected. */
+						regulator-always-on;
+					};
+
+					// supplies to the on-board eMMC
+					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-compatible = "ab8500_ldo_aux2";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					// supply for VAUX3; SDcard slots
+					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-compatible = "ab8500_ldo_aux3";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <3300000>;
+					};
+
+					// supply for v-intcore12; VINTCORE12 LDO
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-compatible = "ab8500_ldo_intcore";
+					};
+
+					// supply for tvout; gpadc; TVOUT LDO
+					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
+						regulator-compatible = "ab8500_ldo_tvout";
+					};
+
+					// supply for ab8500-usb; USB LDO
+					ab8500_ldo_usb_reg: ab8500_ldo_usb {
+						regulator-compatible = "ab8500_ldo_usb";
+					};
+
+					// supply for ab8500-vaudio; VAUDIO LDO
+					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+						regulator-compatible = "ab8500_ldo_audio";
+					};
+
+					// supply for v-anamic1 VAMIC1 LDO
+					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+						regulator-compatible = "ab8500_ldo_anamic1";
+					};
+
+					// supply for v-amic2; VAMIC2 LDO; reuse constants for AMIC1
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+						regulator-compatible = "ab8500_ldo_anamic2";
+					};
+
+					// supply for v-dmic; VDMIC LDO
+					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
+						regulator-compatible = "ab8500_ldo_dmic";
+					};
+
+					// supply for U8500 CSI/DSI; VANA LDO
+					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+						regulator-compatible = "ab8500_ldo_ana";
+					};
+				};
+			};
+		};
+
+		i2c@80004000 {
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			reg = <0x80004000 0x1000>;
+			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
+			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
+			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		i2c@80122000 {
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			reg = <0x80122000 0x1000>;
+			interrupts = <0 22 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
+			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		i2c@80128000 {
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			reg = <0x80128000 0x1000>;
+			interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
+			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		i2c@80110000 {
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			reg = <0x80110000 0x1000>;
+			interrupts = <0 12 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
+			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		i2c@8012a000 {
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c", "arm,primecell";
+			reg = <0x8012a000 0x1000>;
+			interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			v-i2c-supply = <&db8500_vape_reg>;
+
+			clock-frequency = <400000>;
+
+			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
+			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		ssp@80002000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80002000 0x1000>;
+			interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&prcc_kclk 3 1>, <&prcc_pclk 3 1>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 8 0 0x2>, /* Logical - DevToMem */
+			       <&dma 8 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		ssp@80003000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80003000 0x1000>;
+			interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&prcc_kclk 3 2>, <&prcc_pclk 3 2>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 9 0 0x2>, /* Logical - DevToMem */
+			       <&dma 9 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		spi@8011a000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x8011a000 0x1000>;
+			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 8>, <&prcc_pclk 2 8>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 0 0 0x2>, /* Logical - DevToMem */
+			       <&dma 0 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		spi@80112000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80112000 0x1000>;
+			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 2>, <&prcc_pclk 2 2>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 35 0 0x2>, /* Logical - DevToMem */
+			       <&dma 35 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		spi@80111000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80111000 0x1000>;
+			interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 2 1>, <&prcc_pclk 2 1>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 33 0 0x2>, /* Logical - DevToMem */
+			       <&dma 33 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		spi@80129000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x80129000 0x1000>;
+			interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Same clock wired to kernel and pclk */
+			clocks = <&prcc_pclk 1 7>, <&prcc_pclk 1 7>;
+			clock-names = "SSPCLK", "apb_pclk";
+			dmas = <&dma 40 0 0x2>, /* Logical - DevToMem */
+			       <&dma 40 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+		};
+
+		ux500_serial0: uart@80120000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x80120000 0x1000>;
+			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 13 0 0x2>, /* Logical - DevToMem */
+			       <&dma 13 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 0>, <&prcc_pclk 1 0>;
+			clock-names = "uart", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		ux500_serial1: uart@80121000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x80121000 0x1000>;
+			interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 12 0 0x2>, /* Logical - DevToMem */
+			       <&dma 12 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 1>, <&prcc_pclk 1 1>;
+			clock-names = "uart", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		ux500_serial2: uart@80007000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x80007000 0x1000>;
+			interrupts = <0 26 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 11 0 0x2>, /* Logical - DevToMem */
+			       <&dma 11 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 3 6>, <&prcc_pclk 3 6>;
+			clock-names = "uart", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		sdi0_per1@80126000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80126000 0x1000>;
+			interrupts = <0 60 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 29 0 0x2>, /* Logical - DevToMem */
+			       <&dma 29 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		sdi1_per2@80118000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80118000 0x1000>;
+			interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 32 0 0x2>, /* Logical - DevToMem */
+			       <&dma 32 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 4>, <&prcc_pclk 2 6>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		sdi2_per3@80005000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80005000 0x1000>;
+			interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 28 0 0x2>, /* Logical - DevToMem */
+			       <&dma 28 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 3 4>, <&prcc_pclk 3 4>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		sdi3_per2@80119000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80119000 0x1000>;
+			interrupts = <0 59 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 41 0 0x2>, /* Logical - DevToMem */
+			       <&dma 41 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 5>, <&prcc_pclk 2 7>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		sdi4_per2@80114000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80114000 0x1000>;
+			interrupts = <0 99 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 42 0 0x2>, /* Logical - DevToMem */
+			       <&dma 42 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 2>, <&prcc_pclk 2 4>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		sdi5_per3@80008000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x80008000 0x1000>;
+			interrupts = <0 100 IRQ_TYPE_LEVEL_HIGH>;
+
+			dmas = <&dma 43 0 0x2>, /* Logical - DevToMem */
+			       <&dma 43 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 3 7>, <&prcc_pclk 3 7>;
+			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
+
+			status = "disabled";
+		};
+
+		msp0: msp@80123000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80123000 0x1000>;
+			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
+			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 31 0 0x12>, /* Logical - DevToMem - HighPrio */
+			       <&dma 31 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 1 3>, <&prcc_pclk 1 3>;
+			clock-names = "msp", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		msp1: msp@80124000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80124000 0x1000>;
+			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
+			v-ape-supply = <&db8500_vape_reg>;
+
+			/* This DMA channel only exist on DB8500 v1 */
+			dmas = <&dma 30 0 0x10>; /* Logical - MemToDev - HighPrio */
+			dma-names = "tx";
+
+			clocks = <&prcc_kclk 1 4>, <&prcc_pclk 1 4>;
+			clock-names = "msp", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		// HDMI sound
+		msp2: msp@80117000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80117000 0x1000>;
+			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
+			v-ape-supply = <&db8500_vape_reg>;
+
+			dmas = <&dma 14 0 0x12>, /* Logical  - DevToMem - HighPrio */
+			       <&dma 14 1 0x19>; /* Physical Chan 1 - MemToDev
+                                                    HighPrio - Fixed */
+			dma-names = "rx", "tx";
+
+			clocks = <&prcc_kclk 2 3>, <&prcc_pclk 2 5>;
+			clock-names = "msp", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		msp3: msp@80125000 {
+			compatible = "stericsson,ux500-msp-i2s";
+			reg = <0x80125000 0x1000>;
+			interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
+			v-ape-supply = <&db8500_vape_reg>;
+
+			/* This DMA channel only exist on DB8500 v2 */
+			dmas = <&dma 30 0 0x12>; /* Logical - DevToMem - HighPrio */
+			dma-names = "rx";
+
+			clocks = <&prcc_kclk 1 10>, <&prcc_pclk 1 11>;
+			clock-names = "msp", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		external-bus@50000000 {
+			compatible = "simple-bus";
+			reg = <0x50000000 0x4000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x4000000>;
+			status = "disabled";
+		};
+
+		cpufreq-cooling {
+			compatible = "stericsson,db8500-cpufreq-cooling";
+			status = "disabled";
+		};
+
+		mcde@a0350000 {
+			compatible = "stericsson,mcde";
+			reg = <0xa0350000 0x1000>, /* MCDE */
+			      <0xa0351000 0x1000>, /* DSI link 1 */
+			      <0xa0352000 0x1000>, /* DSI link 2 */
+			      <0xa0353000 0x1000>; /* DSI link 3 */
+			interrupts = <0 48 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&prcmu_clk PRCMU_MCDECLK>, /* Main MCDE clock */
+				 <&prcmu_clk PRCMU_LCDCLK>, /* LCD clock */
+				 <&prcmu_clk PRCMU_PLLDSI>, /* HDMI clock */
+				 <&prcmu_clk PRCMU_DSI0CLK>, /* DSI 0 */
+				 <&prcmu_clk PRCMU_DSI1CLK>, /* DSI 1 */
+				 <&prcmu_clk PRCMU_DSI0ESCCLK>, /* TVout clock 0 */
+				 <&prcmu_clk PRCMU_DSI1ESCCLK>, /* TVout clock 1 */
+				 <&prcmu_clk PRCMU_DSI2ESCCLK>; /* TVout clock 2 */
+		};
+
+		cryp@a03cb000 {
+			compatible = "stericsson,ux500-cryp";
+			reg = <0xa03cb000 0x1000>;
+			interrupts = <0 15 IRQ_TYPE_LEVEL_HIGH>;
+
+			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 1>;
+		};
+
+		hash@a03c2000 {
+			compatible = "stericsson,ux500-hash";
+			reg = <0xa03c2000 0x1000>;
+
+			v-ape-supply = <&db8500_vape_reg>;
+			clocks = <&prcc_pclk 6 2>;
+		};
+	};
+};

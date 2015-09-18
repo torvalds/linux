@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	union acpi_operand_object *handler_desc;
 	union acpi_operand_object *second_desc;
 	union acpi_operand_object *next_desc;
+	union acpi_operand_object *start_desc;
 	union acpi_operand_object **last_obj_ptr;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_delete_internal_obj, object);
@@ -208,6 +209,9 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			acpi_ut_delete_object_desc(object->method.mutex);
 			object->method.mutex = NULL;
 		}
+		if (object->method.node) {
+			object->method.node = NULL;
+		}
 		break;
 
 	case ACPI_TYPE_REGION:
@@ -235,10 +239,11 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			if (handler_desc) {
 				next_desc =
 				    handler_desc->address_space.region_list;
+				start_desc = next_desc;
 				last_obj_ptr =
 				    &handler_desc->address_space.region_list;
 
-				/* Remove the region object from the handler's list */
+				/* Remove the region object from the handler list */
 
 				while (next_desc) {
 					if (next_desc == object) {
@@ -247,10 +252,19 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 						break;
 					}
 
-					/* Walk the linked list of handler */
+					/* Walk the linked list of handlers */
 
 					last_obj_ptr = &next_desc->region.next;
 					next_desc = next_desc->region.next;
+
+					/* Prevent infinite loop if list is corrupted */
+
+					if (next_desc == start_desc) {
+						ACPI_ERROR((AE_INFO,
+							    "Circular region list in address handler object %p",
+							    handler_desc));
+						return_VOID;
+					}
 				}
 
 				if (handler_desc->address_space.handler_flags &
@@ -303,6 +317,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		break;
 
 	default:
+
 		break;
 	}
 
@@ -508,7 +523,6 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		case ACPI_TYPE_PROCESSOR:
 		case ACPI_TYPE_POWER:
 		case ACPI_TYPE_THERMAL:
-
 			/*
 			 * Update the notify objects for these types (if present)
 			 * Two lists, system and device notify handlers.
@@ -623,6 +637,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 		case ACPI_TYPE_REGION:
 		default:
+
 			break;	/* No subobjects for all other types */
 		}
 
@@ -648,7 +663,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 	return (AE_OK);
 
-      error_exit:
+error_exit:
 
 	ACPI_EXCEPTION((AE_INFO, status,
 			"Could not update object reference count"));

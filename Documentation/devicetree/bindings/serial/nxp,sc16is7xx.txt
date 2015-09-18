@@ -1,0 +1,70 @@
+* NXP SC16IS7xx advanced Universal Asynchronous Receiver-Transmitter (UART)
+* i2c as bus
+
+Required properties:
+- compatible: Should be one of the following:
+  - "nxp,sc16is740" for NXP SC16IS740,
+  - "nxp,sc16is741" for NXP SC16IS741,
+  - "nxp,sc16is750" for NXP SC16IS750,
+  - "nxp,sc16is752" for NXP SC16IS752,
+  - "nxp,sc16is760" for NXP SC16IS760,
+  - "nxp,sc16is762" for NXP SC16IS762.
+- reg: I2C address of the SC16IS7xx device.
+- interrupt-parent: The phandle for the interrupt controller that
+  services interrupts for this IC.
+- interrupts: Should contain the UART interrupt
+- clocks: Reference to the IC source clock.
+
+Optional properties:
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Should be two. The first cell is the GPIO number and
+  the second cell is used to specify the GPIO polarity:
+    0 = active high,
+    1 = active low.
+
+Example:
+        sc16is750: sc16is750@51 {
+                compatible = "nxp,sc16is750";
+                reg = <0x51>;
+                clocks = <&clk20m>;
+                interrupt-parent = <&gpio3>;
+                interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+                gpio-controller;
+                #gpio-cells = <2>;
+        };
+
+* spi as bus
+
+Required properties:
+- compatible: Should be one of the following:
+  - "nxp,sc16is740" for NXP SC16IS740,
+  - "nxp,sc16is741" for NXP SC16IS741,
+  - "nxp,sc16is750" for NXP SC16IS750,
+  - "nxp,sc16is752" for NXP SC16IS752,
+  - "nxp,sc16is760" for NXP SC16IS760,
+  - "nxp,sc16is762" for NXP SC16IS762.
+- reg: SPI chip select number.
+- interrupt-parent: The phandle for the interrupt controller that
+  services interrupts for this IC.
+- interrupts: Specifies the interrupt source of the parent interrupt
+  controller. The format of the interrupt specifier depends on the
+  parent interrupt controller.
+- clocks: phandle to the IC source clock.
+
+Optional properties:
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Should be two. The first cell is the GPIO number and
+  the second cell is used to specify the GPIO polarity:
+    0 = active high,
+    1 = active low.
+
+Example:
+	sc16is750: sc16is750@0 {
+		compatible = "nxp,sc16is750";
+		reg = <0>;
+		clocks = <&clk20m>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};

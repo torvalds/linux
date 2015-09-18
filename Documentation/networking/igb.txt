@@ -1,8 +1,8 @@
-Linux* Base Driver for Intel(R) Network Connection
-==================================================
+Linux* Base Driver for Intel(R) Ethernet Network Connection
+===========================================================
 
 Intel Gigabit Linux driver.
-Copyright(c) 1999 - 2010 Intel Corporation.
+Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
 ========
@@ -36,17 +36,16 @@ Default Value: 0
 This parameter adds support for SR-IOV.  It causes the driver to spawn up to
 max_vfs worth of virtual function.
 
-
 Additional Configurations
 =========================
 
   Jumbo Frames
   ------------
   Jumbo Frames support is enabled by changing the MTU to a value larger than
-  the default of 1500.  Use the ifconfig command to increase the MTU size.
+  the default of 1500.  Use the ip command to increase the MTU size.
   For example:
 
-       ifconfig eth<x> mtu 9000 up
+       ip link set dev eth<x> mtu 9000
 
   This setting is not saved across reboots.
 
@@ -55,10 +54,10 @@ Additional Configurations
   - The maximum MTU setting for Jumbo Frames is 9216.  This value coincides
     with the maximum Jumbo Frames size of 9234 bytes.
 
-  - Using Jumbo Frames at 10 or 100 Mbps may result in poor performance or
-    loss of link.
+  - Using Jumbo frames at 10 or 100 Mbps is not supported and may result in
+    poor performance or loss of link.
 
-  Ethtool
+  ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information. The latest
@@ -105,6 +104,14 @@ Additional Configurations
   Spoof event(s) detected on VF(n)
 
   Where n=the VF that attempted to do the spoofing.
+
+  Setting MAC Address, VLAN and Rate Limit Using IProute2 Tool
+  ------------------------------------------------------------
+  You can set a MAC address of a Virtual Function (VF), a default VLAN and the
+  rate limit using the IProute2 tool. Download the latest version of the
+  iproute2 tool from Sourceforge if your version does not have all the
+  features you require.
+
 
 Support
 =======

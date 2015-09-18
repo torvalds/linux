@@ -60,7 +60,7 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	struct appldata_product_id id;
 	int rc;
 
-	strcpy(id.prod_nr, "LNXAPPL");
+	strncpy(id.prod_nr, "LNXAPPL", 7);
 	id.prod_fn = myhdr->applid;
 	id.record_nr = myhdr->record_num;
 	id.version_nr = myhdr->version;
@@ -334,7 +334,6 @@ static const struct dev_pm_ops monwriter_pm_ops = {
 static struct platform_driver monwriter_pdrv = {
 	.driver = {
 		.name	= "monwriter",
-		.owner	= THIS_MODULE,
 		.pm	= &monwriter_pm_ops,
 	},
 };

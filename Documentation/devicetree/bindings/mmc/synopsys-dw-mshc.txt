@@ -1,0 +1,109 @@
+* Synopsys Designware Mobile Storage Host Controller
+
+The Synopsys designware mobile storage host controller is used to interface
+a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
+differences between the core mmc properties described by mmc.txt and the
+properties used by the Synopsys Designware Mobile Storage Host Controller.
+
+Required Properties:
+
+* compatible: should be
+	- snps,dw-mshc: for controllers compliant with synopsys dw-mshc.
+* #address-cells: should be 1.
+* #size-cells: should be 0.
+
+# Slots: The slot specific information are contained within child-nodes with
+  each child-node representing a supported slot. There should be atleast one
+  child node representing a card slot. The name of the child node representing
+  the slot is recommended to be slot@n where n is the unique number of the slot
+  connnected to the controller. The following are optional properties which
+  can be included in the slot child node.
+
+	* reg: specifies the physical slot number. The valid values of this
+	  property is 0 to (num-slots -1), where num-slots is the value
+	  specified by the num-slots property.
+
+	* bus-width: as documented in mmc core bindings.
+
+	* wp-gpios: specifies the write protect gpio line. The format of the
+	  gpio specifier depends on the gpio controller. If a GPIO is not used
+	  for write-protect, this property is optional.
+
+	* disable-wp: If the wp-gpios property isn't present then (by default)
+	  we'd assume that the write protect is hooked up directly to the
+	  controller's special purpose write protect line (accessible via
+	  the WRTPRT register).  However, it's possible that we simply don't
+	  want write protect.  In that case specify 'disable-wp'.
+	  NOTE: This property is not required for slots known to always
+	  connect to eMMC or SDIO cards.
+
+Optional properties:
+
+* clocks: from common clock binding: handle to biu and ciu clocks for the
+  bus interface unit clock and the card interface unit clock.
+
+* clock-names: from common clock binding: Shall be "biu" and "ciu".
+  If the biu clock is missing we'll simply skip enabling it.  If the
+  ciu clock is missing we'll just assume that the clock is running at
+  clock-frequency.  It is an error to omit both the ciu clock and the
+  clock-frequency.
+
+* clock-frequency: should be the frequency (in Hz) of the ciu clock.  If this
+  is specified and the ciu clock is specified then we'll try to set the ciu
+  clock to this at probe time.
+
+* clock-freq-min-max: Minimum and Maximum clock frequency for card output
+  clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
+
+* num-slots: specifies the number of slots supported by the controller.
+  The number of physical slots actually used could be equal or less than the
+  value specified by num-slots. If this property is not specified, the value
+  of num-slot property is assumed to be 1.
+
+* fifo-depth: The maximum size of the tx/rx fifo's. If this property is not
+  specified, the default value of the fifo size is determined from the
+  controller registers.
+
+* card-detect-delay: Delay in milli-seconds before detecting card after card
+  insert event. The default value is 0.
+
+* supports-highspeed (DEPRECATED): Enables support for high speed cards (up to 50MHz)
+			   (use "cap-mmc-highspeed" or "cap-sd-highspeed" instead)
+
+* broken-cd: as documented in mmc core bindings.
+
+* vmmc-supply: The phandle to the regulator to use for vmmc.  If this is
+  specified we'll defer probe until we can find this regulator.
+
+Aliases:
+
+- All the MSHC controller nodes should be represented in the aliases node using
+  the following format 'mshc{n}' where n is a unique number for the alias.
+
+Example:
+
+The MSHC controller node can be split into two portions, SoC specific and
+board specific portions as listed below.
+
+	dwmmc0@12200000 {
+		compatible = "snps,dw-mshc";
+		clocks = <&clock 351>, <&clock 132>;
+		clock-names = "biu", "ciu";
+		reg = <0x12200000 0x1000>;
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dwmmc0@12200000 {
+		clock-frequency = <400000000>;
+		clock-freq-min-max = <400000 200000000>;
+		num-slots = <1>;
+		broken-cd;
+		fifo-depth = <0x80>;
+		card-detect-delay = <200>;
+		vmmc-supply = <&buck8>;
+		bus-width = <8>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+	};

@@ -560,9 +560,6 @@ dino_fixup_bus(struct pci_bus *bus)
 	} else if (bus->parent) {
 		int i;
 
-		pci_read_bridge_bases(bus);
-
-
 		for(i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
 			if((bus->self->resource[i].flags & 
 			    (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
@@ -913,7 +910,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	printk("%s version %s found at 0x%lx\n", name, version, hpa);
 
 	if (!request_mem_region(hpa, PAGE_SIZE, name)) {
-		printk(KERN_ERR "DINO: Hey! Someone took my MMIO space (0x%ld)!\n",
+		printk(KERN_ERR "DINO: Hey! Someone took my MMIO space (0x%lx)!\n",
 			hpa);
 		return 1;
 	}

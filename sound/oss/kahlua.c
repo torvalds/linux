@@ -178,7 +178,6 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_out_free:
-	pci_set_drvdata(pdev, NULL);
 	kfree(hw_config);
 	return 1;
 }
@@ -187,7 +186,6 @@ static void remove_one(struct pci_dev *pdev)
 {
 	struct address_info *hw_config = pci_get_drvdata(pdev);
 	sb_dsp_unload(hw_config, 0);
-	pci_set_drvdata(pdev, NULL);
 	kfree(hw_config);
 }
 
@@ -199,7 +197,7 @@ MODULE_LICENSE("GPL");
  *	5530 only. The 5510/5520 decode is different.
  */
 
-static DEFINE_PCI_DEVICE_TABLE(id_tbl) = {
+static const struct pci_device_id id_tbl[] = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_AUDIO), 0 },
 	{ }
 };

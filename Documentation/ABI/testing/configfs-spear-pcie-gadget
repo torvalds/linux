@@ -1,7 +1,7 @@
 What:		/config/pcie-gadget
 Date:		Feb 2011
 KernelVersion:	2.6.37
-Contact:	Pratyush Anand <pratyush.anand@st.com>
+Contact:	Pratyush Anand <pratyush.anand@gmail.com>
 Description:
 
 	Interface is used to configure selected dual mode PCIe controller

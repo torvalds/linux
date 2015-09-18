@@ -1,6 +1,9 @@
 #ifndef _LINUX_LIST_NULLS_H
 #define _LINUX_LIST_NULLS_H
 
+#include <linux/poison.h>
+#include <linux/const.h>
+
 /*
  * Special version of lists, where end of list is not a NULL pointer,
  * but a 'nulls' marker, which can have many different values.
@@ -21,8 +24,9 @@ struct hlist_nulls_head {
 struct hlist_nulls_node {
 	struct hlist_nulls_node *next, **pprev;
 };
+#define NULLS_MARKER(value) (1UL | (((long)value) << 1))
 #define INIT_HLIST_NULLS_HEAD(ptr, nulls) \
-	((ptr)->first = (struct hlist_nulls_node *) (1UL | (((long)nulls) << 1)))
+	((ptr)->first = (struct hlist_nulls_node *) NULLS_MARKER(nulls))
 
 #define hlist_nulls_entry(ptr, type, member) container_of(ptr,type,member)
 /**

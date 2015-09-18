@@ -172,6 +172,13 @@ capture and output devices.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
+	    <entry>&v4l2-sdr-format;</entry>
+	    <entry><structfield>sdr</structfield></entry>
+	    <entry>Definition of a data format, see
+<xref linkend="pixfmt" />, used by SDR capture devices.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>raw_data</structfield>[200]</entry>
 	    <entry>Place holder for future extensions.</entry>

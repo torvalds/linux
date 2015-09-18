@@ -5,7 +5,7 @@
  *
  *      Authors: Bjorn Wesen (bjornw@axis.com)
  *
- *      This file contains the interrupt vectors and some 
+ *      This file contains the interrupt vectors and some
  *      helper functions
  *
  */
@@ -182,19 +182,14 @@ void do_multiple_IRQ(struct pt_regs* regs)
    setting the irq vector table.
 */
 
-void __init
-init_IRQ(void)
+void __init init_IRQ(void)
 {
 	int i;
 
 	/* clear all interrupt masks */
-
-#ifndef CONFIG_SVINTO_SIM
 	*R_IRQ_MASK0_CLR = 0xffffffff;
 	*R_IRQ_MASK1_CLR = 0xffffffff;
 	*R_IRQ_MASK2_CLR = 0xffffffff;
-#endif
-
 	*R_VECT_MASK_CLR = 0xffffffff;
 
         for (i = 0; i < 256; i++)
@@ -211,25 +206,20 @@ init_IRQ(void)
            executed by the associated break handler, rather than just a jump
            address. therefore we need to setup a default breakpoint handler
            for all breakpoints */
-
 	for (i = 0; i < 16; i++)
                 set_break_vector(i, do_sigtrap);
-        
+
 	/* except IRQ 15 which is the multiple-IRQ handler on Etrax100 */
-
 	set_int_vector(15, multiple_interrupt);
-	
-	/* 0 and 1 which are special breakpoint/NMI traps */
 
+	/* 0 and 1 which are special breakpoint/NMI traps */
 	set_int_vector(0, hwbreakpoint);
 	set_int_vector(1, IRQ1_interrupt);
 
 	/* and irq 14 which is the mmu bus fault handler */
-
 	set_int_vector(14, mmu_bus_fault);
 
 	/* setup the system-call trap, which is reached by BREAK 13 */
-
 	set_break_vector(13, system_call);
 
         /* setup a breakpoint handler for debugging used for both user and

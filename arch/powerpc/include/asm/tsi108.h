@@ -84,10 +84,6 @@
 extern u32 tsi108_pci_cfg_base;
 /* Exported functions */
 
-extern int tsi108_bridge_init(struct pci_controller *hose, uint phys_csr_base);
-extern unsigned long tsi108_get_mem_size(void);
-extern unsigned long tsi108_get_cpu_clk(void);
-extern unsigned long tsi108_get_sdc_clk(void);
 extern int tsi108_direct_write_config(struct pci_bus *bus, unsigned int devfn,
 				      int offset, int len, u32 val);
 extern int tsi108_direct_read_config(struct pci_bus *bus, unsigned int devfn,

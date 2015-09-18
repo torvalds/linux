@@ -15,10 +15,6 @@ menuconfig ARCNET
 	  COM90xx type card, so say Y (or M) to "ARCnet COM90xx chipset
 	  support" below.
 
-	  You might also want to have a look at the Ethernet-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>(even though ARCnet
-	  is not really Ethernet).
-
 	  To compile this driver as a module, choose M here. The module will
 	  be called arcnet.
 

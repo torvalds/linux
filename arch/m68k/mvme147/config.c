@@ -26,6 +26,8 @@
 #include <linux/interrupt.h>
 
 #include <asm/bootinfo.h>
+#include <asm/bootinfo-vme.h>
+#include <asm/byteorder.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -51,9 +53,10 @@ static int bcd2int (unsigned char b);
 irq_handler_t tick_handler;
 
 
-int mvme147_parse_bootinfo(const struct bi_record *bi)
+int __init mvme147_parse_bootinfo(const struct bi_record *bi)
 {
-	if (bi->tag == BI_VME_TYPE || bi->tag == BI_VME_BRDINFO)
+	uint16_t tag = be16_to_cpu(bi->tag);
+	if (tag == BI_VME_TYPE || tag == BI_VME_BRDINFO)
 		return 0;
 	else
 		return 1;
@@ -164,50 +167,4 @@ int mvme147_hwclk(int op, struct rtc_time *t)
 int mvme147_set_clock_mmss (unsigned long nowtime)
 {
 	return 0;
-}
-
-/*-------------------  Serial console stuff ------------------------*/
-
-static void scc_delay (void)
-{
-	int n;
-	volatile int trash;
-
-	for (n = 0; n < 20; n++)
-		trash = n;
-}
-
-static void scc_write (char ch)
-{
-	volatile char *p = (volatile char *)M147_SCC_A_ADDR;
-
-	do {
-		scc_delay();
-	}
-	while (!(*p & 4));
-	scc_delay();
-	*p = 8;
-	scc_delay();
-	*p = ch;
-}
-
-
-void m147_scc_write (struct console *co, const char *str, unsigned count)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	while (count--)
-	{
-		if (*str == '\n')
-			scc_write ('\r');
-		scc_write (*str++);
-	}
-	local_irq_restore(flags);
-}
-
-void mvme147_init_console_port (struct console *co, int cflag)
-{
-	co->write    = m147_scc_write;
 }

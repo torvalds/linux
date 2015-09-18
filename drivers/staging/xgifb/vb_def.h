@@ -1,13 +1,12 @@
 #ifndef _VB_DEF_
 #define _VB_DEF_
-#include "../../video/sis/initdef.h"
+#include "../../video/fbdev/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
 
 #define SupportCRT2in301C       0x0100  /* for 301C */
 #define SetCHTVOverScan         0x8000
 
-#define Panel_320x480            0x07 /*fstn*/
 #define PanelResInfo            0x1F /* CR36 Panel Type/LCDResInfo */
 #define Panel_1024x768x75        0x22
 #define Panel_1280x1024x75       0x23
@@ -30,11 +29,6 @@
 #define SetCRT2ToDualEdge   0x8000
 
 #define ReserveTVOption     0x0008
-#define GatingCRT           0x0800
-#define DisableChB          0x1000
-#define EnableChB           0x2000
-#define DisableChA          0x4000
-#define EnableChA           0x8000
 
 #define SetTVLowResolution   0x0400
 #define TVSimuMode           0x0800
@@ -49,12 +43,10 @@
 #define SetLCDtoNonExpanding 0x0010
 #define SetLCDDualLink       0x0100
 #define SetLCDLowResolution  0x0200
-#define SetLCDStdMode        0x0400
 
 /* LCD Capability shampoo */
 #define DefaultLCDCap        0x80ea
 #define EnableLCD24bpp       0x0004 /* default */
-#define DisableLCD24bpp      0x0000
 #define LCDPolarity          0x00c0 /* default: SyncNN */
 #define XGI_LCDDualLink      0x0100
 #define EnableSpectrum       0x0200

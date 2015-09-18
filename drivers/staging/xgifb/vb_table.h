@@ -1284,7 +1284,7 @@ static const struct SiS_LVDSData XGI_LVDS1024x768Des_1[] = {
 	{0, 1048,   0, 771}, /* 04 (640x480x60Hz) */
 	{0, 1048,   0, 771}, /* 05 (800x600x60Hz) */
 	{0, 1048, 805, 770}  /* 06 (1024x768x60Hz) */
-} ;
+};
 
 static const struct SiS_LVDSData XGI_LVDS1024x768Des_2[] = {
 	{1142,  856, 622, 587}, /* 00 (320x200,320x400,640x200,640x400) */

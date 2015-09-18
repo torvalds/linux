@@ -1,0 +1,40 @@
+NVIDIA Tegra20/Tegra30/Tegr114/Tegra124 fuse block.
+
+Required properties:
+- compatible : For Tegra20, must contain "nvidia,tegra20-efuse".  For Tegra30,
+  must contain "nvidia,tegra30-efuse".  For Tegra114, must contain
+  "nvidia,tegra114-efuse".  For Tegra124, must contain "nvidia,tegra124-efuse".
+  Otherwise, must contain "nvidia,<chip>-efuse", plus one of the above, where
+  <chip> is tegra132.
+  Details:
+  nvidia,tegra20-efuse: Tegra20 requires using APB DMA to read the fuse data
+	due to a hardware bug. Tegra20 also lacks certain information which is
+	available in later generations such as fab code, lot code, wafer id,..
+  nvidia,tegra30-efuse, nvidia,tegra114-efuse and nvidia,tegra124-efuse:
+	The differences between these SoCs are the size of the efuse array,
+	the location of the spare (OEM programmable) bits and the location of
+	the speedo data.
+- reg: Should contain 1 entry: the entry gives the physical address and length
+       of the fuse registers.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+  - fuse
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must include the following entries:
+ - fuse
+
+Example:
+
+	fuse@7000f800 {
+		compatible = "nvidia,tegra20-efuse";
+		reg = <0x7000f800 0x400>,
+		      <0x70000000 0x400>;
+		clocks = <&tegra_car TEGRA20_CLK_FUSE>;
+		clock-names = "fuse";
+		resets = <&tegra_car 39>;
+		reset-names = "fuse";
+	};
+
+

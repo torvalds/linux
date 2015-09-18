@@ -130,6 +130,31 @@ sclp_console_timeout(unsigned long data)
 }
 
 /*
+ * Drop oldest console buffer if sclp_con_drop is set
+ */
+static int
+sclp_console_drop_buffer(void)
+{
+	struct list_head *list;
+	struct sclp_buffer *buffer;
+	void *page;
+
+	if (!sclp_console_drop)
+		return 0;
+	list = sclp_con_outqueue.next;
+	if (sclp_con_queue_running)
+		/* The first element is in I/O */
+		list = list->next;
+	if (list == &sclp_con_outqueue)
+		return 0;
+	list_del(list);
+	buffer = list_entry(list, struct sclp_buffer, list);
+	page = sclp_unmake_buffer(buffer);
+	list_add_tail((struct list_head *) page, &sclp_con_pages);
+	return 1;
+}
+
+/*
  * Writes the given message to S390 system console
  */
 static void
@@ -150,9 +175,13 @@ sclp_console_write(struct console *console, const char *message,
 	do {
 		/* make sure we have a console output buffer */
 		if (sclp_conbuf == NULL) {
+			if (list_empty(&sclp_con_pages))
+				sclp_console_full++;
 			while (list_empty(&sclp_con_pages)) {
 				if (sclp_con_suspended)
 					goto out;
+				if (sclp_console_drop_buffer())
+					break;
 				spin_unlock_irqrestore(&sclp_con_lock, flags);
 				sclp_sync_wait();
 				spin_lock_irqsave(&sclp_con_lock, flags);
@@ -297,7 +326,7 @@ sclp_console_init(void)
 		return rc;
 	/* Allocate pages for output buffering */
 	INIT_LIST_HEAD(&sclp_con_pages);
-	for (i = 0; i < MAX_CONSOLE_PAGES; i++) {
+	for (i = 0; i < sclp_console_pages; i++) {
 		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		list_add_tail(page, &sclp_con_pages);
 	}

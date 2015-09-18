@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -33,8 +33,6 @@ static int __init omap_iommu_dev_init(struct omap_hwmod *oh, void *unused)
 
 	pdata->name = oh->name;
 	pdata->nr_tlb_entries = a->nr_tlb_entries;
-	pdata->da_start = a->da_start;
-	pdata->da_end = a->da_end;
 
 	if (oh->rst_lines_cnt == 1) {
 		pdata->reset_name = oh->rst_lines->name;
@@ -58,17 +56,11 @@ static int __init omap_iommu_dev_init(struct omap_hwmod *oh, void *unused)
 
 static int __init omap_iommu_init(void)
 {
+	/* If dtb is there, the devices will be created dynamically */
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	return omap_hwmod_for_each_by_class("mmu", omap_iommu_dev_init, NULL);
 }
-/* must be ready before omap3isp is probed */
 omap_subsys_initcall(omap_iommu_init);
-
-static void __exit omap_iommu_exit(void)
-{
-	/* Do nothing */
-}
-module_exit(omap_iommu_exit);
-
-MODULE_AUTHOR("Hiroshi DOYU");
-MODULE_DESCRIPTION("omap iommu: omap device registration");
-MODULE_LICENSE("GPL v2");
+/* must be ready before omap3isp is probed */

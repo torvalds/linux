@@ -73,7 +73,7 @@
 #include <linux/proportions.h>
 #include <linux/rcupdate.h>
 
-int prop_descriptor_init(struct prop_descriptor *pd, int shift)
+int prop_descriptor_init(struct prop_descriptor *pd, int shift, gfp_t gfp)
 {
 	int err;
 
@@ -83,11 +83,11 @@ int prop_descriptor_init(struct prop_descriptor *pd, int shift)
 	pd->index = 0;
 	pd->pg[0].shift = shift;
 	mutex_init(&pd->mutex);
-	err = percpu_counter_init(&pd->pg[0].events, 0);
+	err = percpu_counter_init(&pd->pg[0].events, 0, gfp);
 	if (err)
 		goto out;
 
-	err = percpu_counter_init(&pd->pg[1].events, 0);
+	err = percpu_counter_init(&pd->pg[1].events, 0, gfp);
 	if (err)
 		percpu_counter_destroy(&pd->pg[0].events);
 
@@ -188,12 +188,12 @@ prop_adjust_shift(int *pl_shift, unsigned long *pl_period, int new_shift)
 
 #define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
-int prop_local_init_percpu(struct prop_local_percpu *pl)
+int prop_local_init_percpu(struct prop_local_percpu *pl, gfp_t gfp)
 {
 	raw_spin_lock_init(&pl->lock);
 	pl->shift = 0;
 	pl->period = 0;
-	return percpu_counter_init(&pl->events, 0);
+	return percpu_counter_init(&pl->events, 0, gfp);
 }
 
 void prop_local_destroy_percpu(struct prop_local_percpu *pl)

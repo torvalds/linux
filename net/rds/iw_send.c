@@ -153,9 +153,10 @@ void rds_iw_send_init_ring(struct rds_iw_connection *ic)
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = 0;
 
-		send->s_mr = ib_alloc_fast_reg_mr(ic->i_pd, fastreg_message_size);
+		send->s_mr = ib_alloc_mr(ic->i_pd, IB_MR_TYPE_MEM_REG,
+					 fastreg_message_size);
 		if (IS_ERR(send->s_mr)) {
-			printk(KERN_WARNING "RDS/IW: ib_alloc_fast_reg_mr failed\n");
+			printk(KERN_WARNING "RDS/IW: ib_alloc_mr failed\n");
 			break;
 		}
 
@@ -232,7 +233,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 		}
 
 		if (wc.wr_id == RDS_IW_ACK_WR_ID) {
-			if (ic->i_ack_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, ic->i_ack_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 			rds_iw_ack_send_complete(ic);
 			continue;
@@ -267,7 +268,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 			send->s_wr.opcode = 0xdead;
 			send->s_wr.num_sge = 1;
-			if (send->s_queued + HZ/2 < jiffies)
+			if (time_after(jiffies, send->s_queued + HZ/2))
 				rds_iw_stats_inc(s_iw_tx_stalled);
 
 			/* If a RDMA operation produced an error, signal this right
@@ -361,7 +362,7 @@ try_again:
 	posted = IB_GET_POST_CREDITS(oldval);
 	avail = IB_GET_SEND_CREDITS(oldval);
 
-	rdsdebug("rds_iw_send_grab_credits(%u): credits=%u posted=%u\n",
+	rdsdebug("wanted=%u credits=%u posted=%u\n",
 			wanted, avail, posted);
 
 	/* The last credit must be used to send a credit update. */
@@ -405,7 +406,7 @@ void rds_iw_send_add_credits(struct rds_connection *conn, unsigned int credits)
 	if (credits == 0)
 		return;
 
-	rdsdebug("rds_iw_send_add_credits(%u): current=%u%s\n",
+	rdsdebug("credits=%u current=%u%s\n",
 			credits,
 			IB_GET_SEND_CREDITS(atomic_read(&ic->i_credits)),
 			test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ? ", ll_send_full" : "");
@@ -581,6 +582,8 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 		ic->i_unsignaled_wrs = rds_iw_sysctl_max_unsig_wrs;
 		ic->i_unsignaled_bytes = rds_iw_sysctl_max_unsig_bytes;
 		rds_message_addref(rm);
+		rm->data.op_dmasg = 0;
+		rm->data.op_dmaoff = 0;
 		ic->i_rm = rm;
 
 		/* Finalize the header */
@@ -622,7 +625,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->data.op_sg[sg];
+	scat = &rm->data.op_sg[rm->data.op_dmasg];
 	sent = 0;
 	i = 0;
 
@@ -656,10 +659,11 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		send = &ic->i_sends[pos];
 
-		len = min(RDS_FRAG_SIZE, ib_sg_dma_len(dev, scat) - off);
+		len = min(RDS_FRAG_SIZE,
+			  ib_sg_dma_len(dev, scat) - rm->data.op_dmaoff);
 		rds_iw_xmit_populate_wr(ic, send, pos,
-				ib_sg_dma_address(dev, scat) + off, len,
-				send_flags);
+			ib_sg_dma_address(dev, scat) + rm->data.op_dmaoff, len,
+			send_flags);
 
 		/*
 		 * We want to delay signaling completions just enough to get
@@ -687,10 +691,11 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 &send->s_wr, send->s_wr.num_sge, send->s_wr.next);
 
 		sent += len;
-		off += len;
-		if (off == ib_sg_dma_len(dev, scat)) {
+		rm->data.op_dmaoff += len;
+		if (rm->data.op_dmaoff == ib_sg_dma_len(dev, scat)) {
 			scat++;
-			off = 0;
+			rm->data.op_dmaoff = 0;
+			rm->data.op_dmasg++;
 		}
 
 add_header:

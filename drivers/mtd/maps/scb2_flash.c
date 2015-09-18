@@ -47,7 +47,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <asm/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -212,7 +211,6 @@ static void scb2_flash_remove(struct pci_dev *dev)
 
 	if (!region_fail)
 		release_mem_region(SCB2_ADDR, SCB2_WINDOW);
-	pci_set_drvdata(dev, NULL);
 }
 
 static struct pci_device_id scb2_flash_pci_ids[] = {

@@ -66,7 +66,7 @@ static struct hardwall_type hardwall_types[] = {
 		0,
 		"udn",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_UDN].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_UDN].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_UDN].lock),
 		NULL
 	},
 #ifndef __tilepro__
@@ -77,7 +77,7 @@ static struct hardwall_type hardwall_types[] = {
 		1,  /* disabled pending hypervisor support */
 		"idn",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_IDN].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_IDN].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_IDN].lock),
 		NULL
 	},
 	{  /* access to user-space IPI */
@@ -87,7 +87,7 @@ static struct hardwall_type hardwall_types[] = {
 		0,
 		"ipi",
 		LIST_HEAD_INIT(hardwall_types[HARDWALL_IPI].list),
-		__SPIN_LOCK_INITIALIZER(hardwall_types[HARDWALL_IPI].lock),
+		__SPIN_LOCK_UNLOCKED(hardwall_types[HARDWALL_IPI].lock),
 		NULL
 	},
 #endif
@@ -272,9 +272,9 @@ static void hardwall_setup_func(void *info)
 	struct hardwall_info *r = info;
 	struct hardwall_type *hwt = r->type;
 
-	int cpu = smp_processor_id();
-	int x = cpu % smp_width;
-	int y = cpu / smp_width;
+	int cpu = smp_processor_id();  /* on_each_cpu disables preemption */
+	int x = cpu_x(cpu);
+	int y = cpu_y(cpu);
 	int bits = 0;
 	if (x == r->ulhc_x)
 		bits |= W_PROTECT;
@@ -317,6 +317,7 @@ static void hardwall_protect_rectangle(struct hardwall_info *r)
 	on_each_cpu_mask(&rect_cpus, hardwall_setup_func, r, 1);
 }
 
+/* Entered from INT_xDN_FIREWALL interrupt vector with irqs disabled. */
 void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 {
 	struct hardwall_info *rect;
@@ -325,7 +326,6 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	struct siginfo info;
 	int cpu = smp_processor_id();
 	int found_processes;
-	unsigned long flags;
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
@@ -346,7 +346,7 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	BUG_ON(hwt->disabled);
 
 	/* This tile trapped a network access; find the rectangle. */
-	spin_lock_irqsave(&hwt->lock, flags);
+	spin_lock(&hwt->lock);
 	list_for_each_entry(rect, &hwt->list, list) {
 		if (cpumask_test_cpu(cpu, &rect->cpumask))
 			break;
@@ -365,8 +365,7 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 	 * to quiesce.
 	 */
 	if (rect->teardown_in_progress) {
-		pr_notice("cpu %d: detected %s hardwall violation %#lx"
-		       " while teardown already in progress\n",
+		pr_notice("cpu %d: detected %s hardwall violation %#lx while teardown already in progress\n",
 			  cpu, hwt->name,
 			  (long)mfspr_XDN(hwt, DIRECTION_PROTECT));
 		goto done;
@@ -401,7 +400,7 @@ void __kprobes do_hardwall_trap(struct pt_regs* regs, int fault_num)
 		pr_notice("hardwall: no associated processes!\n");
 
  done:
-	spin_unlock_irqrestore(&hwt->lock, flags);
+	spin_unlock(&hwt->lock);
 
 	/*
 	 * We have to disable firewall interrupts now, or else when we
@@ -540,6 +539,14 @@ static struct hardwall_info *hardwall_create(struct hardwall_type *hwt,
 		}
 	}
 
+	/*
+	 * Eliminate cpus that are not part of this Linux client.
+	 * Note that this allows for configurations that we might not want to
+	 * support, such as one client on every even cpu, another client on
+	 * every odd cpu.
+	 */
+	cpumask_and(&info->cpumask, &info->cpumask, cpu_online_mask);
+
 	/* Confirm it doesn't overlap and add it to the list. */
 	spin_lock_irqsave(&hwt->lock, flags);
 	list_for_each_entry(iter, &hwt->list, list) {
@@ -612,7 +619,7 @@ static int hardwall_activate(struct hardwall_info *info)
 
 /*
  * Deactivate a task's hardwall.  Must hold lock for hardwall_type.
- * This method may be called from free_task(), so we don't want to
+ * This method may be called from exit_thread(), so we don't want to
  * rely on too many fields of struct task_struct still being valid.
  * We assume the cpus_allowed, pid, and comm fields are still valid.
  */
@@ -622,8 +629,7 @@ static void _hardwall_deactivate(struct hardwall_type *hwt,
 	struct thread_struct *ts = &task->thread;
 
 	if (cpumask_weight(&task->cpus_allowed) != 1) {
-		pr_err("pid %d (%s) releasing %s hardwall with"
-		       " an affinity mask containing %d cpus!\n",
+		pr_err("pid %d (%s) releasing %s hardwall with an affinity mask containing %d cpus!\n",
 		       task->pid, task->comm, hwt->name,
 		       cpumask_weight(&task->cpus_allowed));
 		BUG();
@@ -653,7 +659,7 @@ static int hardwall_deactivate(struct hardwall_type *hwt,
 		return -EINVAL;
 
 	printk(KERN_DEBUG "Pid %d (%s) deactivated for %s hardwall: cpu %d\n",
-	       task->pid, task->comm, hwt->name, smp_processor_id());
+	       task->pid, task->comm, hwt->name, raw_smp_processor_id());
 	return 0;
 }
 
@@ -795,8 +801,8 @@ static void reset_xdn_network_state(struct hardwall_type *hwt)
 	/* Reset UDN coordinates to their standard value */
 	{
 		unsigned int cpu = smp_processor_id();
-		unsigned int x = cpu % smp_width;
-		unsigned int y = cpu / smp_width;
+		unsigned int x = cpu_x(cpu);
+		unsigned int y = cpu_y(cpu);
 		__insn_mtspr(SPR_UDN_TILE_COORD, (x << 18) | (y << 7));
 	}
 
@@ -903,11 +909,8 @@ static void hardwall_destroy(struct hardwall_info *info)
 static int hardwall_proc_show(struct seq_file *sf, void *v)
 {
 	struct hardwall_info *info = sf->private;
-	char buf[256];
 
-	int rc = cpulist_scnprintf(buf, sizeof(buf), &info->cpumask);
-	buf[rc++] = '\n';
-	seq_write(sf, buf, rc);
+	seq_printf(sf, "%*pbl\n", cpumask_pr_args(&info->cpumask));
 	return 0;
 }
 
@@ -939,15 +942,15 @@ static void hardwall_remove_proc(struct hardwall_info *info)
 	remove_proc_entry(buf, info->type->proc_dir);
 }
 
-int proc_pid_hardwall(struct task_struct *task, char *buffer)
+int proc_pid_hardwall(struct seq_file *m, struct pid_namespace *ns,
+		      struct pid *pid, struct task_struct *task)
 {
 	int i;
 	int n = 0;
 	for (i = 0; i < HARDWALL_TYPES; ++i) {
 		struct hardwall_info *info = task->thread.hardwall[i].info;
 		if (info)
-			n += sprintf(&buffer[n], "%s: %d\n",
-				     info->type->name, info->id);
+			seq_printf(m, "%s: %d\n", info->type->name, info->id);
 	}
 	return n;
 }

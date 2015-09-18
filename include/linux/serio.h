@@ -18,11 +18,14 @@
 #include <linux/mod_devicetable.h>
 #include <uapi/linux/serio.h>
 
+extern struct bus_type serio_bus;
+
 struct serio {
 	void *port_data;
 
 	char name[32];
 	char phys[32];
+	char firmware_id[128];
 
 	bool manual_bind;
 

@@ -203,8 +203,8 @@ static void pnp_print_option(pnp_info_buffer_t * buffer, char *space,
 	}
 }
 
-static ssize_t pnp_show_options(struct device *dmdev,
-				struct device_attribute *attr, char *buf)
+static ssize_t options_show(struct device *dmdev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	pnp_info_buffer_t *buffer;
@@ -241,10 +241,10 @@ static ssize_t pnp_show_options(struct device *dmdev,
 	kfree(buffer);
 	return ret;
 }
+static DEVICE_ATTR_RO(options);
 
-static ssize_t pnp_show_current_resources(struct device *dmdev,
-					  struct device_attribute *attr,
-					  char *buf)
+static ssize_t resources_show(struct device *dmdev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	pnp_info_buffer_t *buffer;
@@ -331,9 +331,9 @@ static char *pnp_get_resource_value(char *buf,
 	return buf;
 }
 
-static ssize_t pnp_set_current_resources(struct device *dmdev,
-					 struct device_attribute *attr,
-					 const char *ubuf, size_t count)
+static ssize_t resources_store(struct device *dmdev,
+			       struct device_attribute *attr, const char *ubuf,
+			       size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
 	char *buf = (void *)ubuf;
@@ -346,41 +346,41 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 	}
 
 	buf = skip_spaces(buf);
-	if (!strnicmp(buf, "disable", 7)) {
+	if (!strncasecmp(buf, "disable", 7)) {
 		retval = pnp_disable_dev(dev);
 		goto done;
 	}
-	if (!strnicmp(buf, "activate", 8)) {
+	if (!strncasecmp(buf, "activate", 8)) {
 		retval = pnp_activate_dev(dev);
 		goto done;
 	}
-	if (!strnicmp(buf, "fill", 4)) {
+	if (!strncasecmp(buf, "fill", 4)) {
 		if (dev->active)
 			goto done;
 		retval = pnp_auto_config_dev(dev);
 		goto done;
 	}
-	if (!strnicmp(buf, "auto", 4)) {
+	if (!strncasecmp(buf, "auto", 4)) {
 		if (dev->active)
 			goto done;
 		pnp_init_resources(dev);
 		retval = pnp_auto_config_dev(dev);
 		goto done;
 	}
-	if (!strnicmp(buf, "clear", 5)) {
+	if (!strncasecmp(buf, "clear", 5)) {
 		if (dev->active)
 			goto done;
 		pnp_init_resources(dev);
 		goto done;
 	}
-	if (!strnicmp(buf, "get", 3)) {
+	if (!strncasecmp(buf, "get", 3)) {
 		mutex_lock(&pnp_res_mutex);
 		if (pnp_can_read(dev))
 			dev->protocol->get(dev);
 		mutex_unlock(&pnp_res_mutex);
 		goto done;
 	}
-	if (!strnicmp(buf, "set", 3)) {
+	if (!strncasecmp(buf, "set", 3)) {
 		resource_size_t start;
 		resource_size_t end;
 		unsigned long flags;
@@ -392,31 +392,31 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 		mutex_lock(&pnp_res_mutex);
 		while (1) {
 			buf = skip_spaces(buf);
-			if (!strnicmp(buf, "io", 2)) {
+			if (!strncasecmp(buf, "io", 2)) {
 				buf = pnp_get_resource_value(buf + 2,
 							     IORESOURCE_IO,
 							     &start, &end,
 							     &flags);
 				pnp_add_io_resource(dev, start, end, flags);
-			} else if (!strnicmp(buf, "mem", 3)) {
+			} else if (!strncasecmp(buf, "mem", 3)) {
 				buf = pnp_get_resource_value(buf + 3,
 							     IORESOURCE_MEM,
 							     &start, &end,
 							     &flags);
 				pnp_add_mem_resource(dev, start, end, flags);
-			} else if (!strnicmp(buf, "irq", 3)) {
+			} else if (!strncasecmp(buf, "irq", 3)) {
 				buf = pnp_get_resource_value(buf + 3,
 							     IORESOURCE_IRQ,
 							     &start, NULL,
 							     &flags);
 				pnp_add_irq_resource(dev, start, flags);
-			} else if (!strnicmp(buf, "dma", 3)) {
+			} else if (!strncasecmp(buf, "dma", 3)) {
 				buf = pnp_get_resource_value(buf + 3,
 							     IORESOURCE_DMA,
 							     &start, NULL,
 							     &flags);
 				pnp_add_dma_resource(dev, start, flags);
-			} else if (!strnicmp(buf, "bus", 3)) {
+			} else if (!strncasecmp(buf, "bus", 3)) {
 				buf = pnp_get_resource_value(buf + 3,
 							     IORESOURCE_BUS,
 							     &start, &end,
@@ -434,9 +434,10 @@ done:
 		return retval;
 	return count;
 }
+static DEVICE_ATTR_RW(resources);
 
-static ssize_t pnp_show_current_ids(struct device *dmdev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t id_show(struct device *dmdev, struct device_attribute *attr,
+		       char *buf)
 {
 	char *str = buf;
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
@@ -448,12 +449,20 @@ static ssize_t pnp_show_current_ids(struct device *dmdev,
 	}
 	return (str - buf);
 }
+static DEVICE_ATTR_RO(id);
 
-struct device_attribute pnp_interface_attrs[] = {
-	__ATTR(resources, S_IRUGO | S_IWUSR,
-		   pnp_show_current_resources,
-		   pnp_set_current_resources),
-	__ATTR(options, S_IRUGO, pnp_show_options, NULL),
-	__ATTR(id, S_IRUGO, pnp_show_current_ids, NULL),
-	__ATTR_NULL,
+static struct attribute *pnp_dev_attrs[] = {
+	&dev_attr_resources.attr,
+	&dev_attr_options.attr,
+	&dev_attr_id.attr,
+	NULL,
+};
+
+static const struct attribute_group pnp_dev_group = {
+	.attrs = pnp_dev_attrs,
+};
+
+const struct attribute_group *pnp_dev_groups[] = {
+	&pnp_dev_group,
+	NULL,
 };

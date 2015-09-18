@@ -133,7 +133,7 @@ struct af9015_state {
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);
-	int (*read_status[2]) (struct dvb_frontend *fe, fe_status_t *status);
+	int (*read_status[2]) (struct dvb_frontend *fe, enum fe_status *status);
 	int (*init[2]) (struct dvb_frontend *fe);
 	int (*sleep[2]) (struct dvb_frontend *fe);
 	int (*tuner_init[2]) (struct dvb_frontend *fe);

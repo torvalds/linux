@@ -7,9 +7,7 @@ config NET_VENDOR_ATHEROS
 	default y
 	depends on PCI
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -22,7 +20,6 @@ config ATL2
 	tristate "Atheros L2 Fast Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L2 fast ethernet adapter.
@@ -34,7 +31,6 @@ config ATL1
 	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros/Attansic L1 gigabit ethernet
@@ -47,7 +43,6 @@ config ATL1E
 	tristate "Atheros L1E Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L1E gigabit ethernet adapter.
@@ -59,12 +54,28 @@ config ATL1C
 	tristate "Atheros L1C Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports the Atheros L1C gigabit ethernet adapter.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1c.
+
+config ALX
+	tristate "Qualcomm Atheros AR816x/AR817x support"
+	depends on PCI
+	select CRC32
+	select MDIO
+	help
+	  This driver supports the Qualcomm Atheros L1F ethernet adapter,
+	  i.e. the following chipsets:
+
+	  1969:1091 - AR8161 Gigabit Ethernet
+	  1969:1090 - AR8162 Fast Ethernet
+	  1969:10A1 - AR8171 Gigabit Ethernet
+	  1969:10A0 - AR8172 Fast Ethernet
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called alx.
 
 endif # NET_VENDOR_ATHEROS

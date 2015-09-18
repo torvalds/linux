@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <asm/bitops.h>
 
@@ -103,7 +102,7 @@ enum ipg_regs {
 #define	IPG_MCSTFRAMESRCVDOK		0xB8
 #define	IPG_BCSTFRAMESRCVDOK		0xBE
 #define	IPG_MACCONTROLFRAMESRCVD	0xC6
-#define	IPG_FRAMETOOLONGERRRORS		0xC8
+#define	IPG_FRAMETOOLONGERRORS		0xC8
 #define	IPG_INRANGELENGTHERRORS		0xCA
 #define	IPG_FRAMECHECKSEQERRORS		0xCC
 #define	IPG_FRAMESLOSTRXERRORS		0xCE

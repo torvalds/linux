@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/i2c/bfin_twi.h>
 
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
@@ -1619,7 +1620,6 @@ static int __init bfin_debug_mmrs_init(void)
 	D16(USB_APHY_CNTRL);
 	D16(USB_APHY_CALIB);
 	D16(USB_APHY_CNTRL2);
-	D16(USB_PHY_TEST);
 	D16(USB_PLLOSC_CTRL);
 	D16(USB_SRP_CLKDIV);
 	D16(USB_EP_NI0_TXMAXP);

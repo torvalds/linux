@@ -24,14 +24,14 @@
 
 #include "ad7780.h"
 
-#define AD7780_RDY	(1 << 7)
-#define AD7780_FILTER	(1 << 6)
-#define AD7780_ERR	(1 << 5)
-#define AD7780_ID1	(1 << 4)
-#define AD7780_ID0	(1 << 3)
-#define AD7780_GAIN	(1 << 2)
-#define AD7780_PAT1	(1 << 1)
-#define AD7780_PAT0	(1 << 0)
+#define AD7780_RDY	BIT(7)
+#define AD7780_FILTER	BIT(6)
+#define AD7780_ERR	BIT(5)
+#define AD7780_ID1	BIT(4)
+#define AD7780_ID0	BIT(3)
+#define AD7780_GAIN	BIT(2)
+#define AD7780_PAT1	BIT(1)
+#define AD7780_PAT0	BIT(0)
 
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
@@ -90,17 +90,14 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad7780_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
 		return ad_sigma_delta_single_conversion(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
-		scale_uv = (st->int_vref_mv * 100000 * st->gain)
-			>> (chan->scan_type.realbits - 1);
-		*val =  scale_uv / 100000;
-		*val2 = (scale_uv % 100000) * 10;
-		return IIO_VAL_INT_PLUS_MICRO;
+		*val = st->int_vref_mv * st->gain;
+		*val2 = chan->scan_type.realbits - 1;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		*val -= (1 << (chan->scan_type.realbits - 1));
 		return IIO_VAL_INT;
@@ -171,8 +168,8 @@ static int ad7780_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL)
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
@@ -180,11 +177,11 @@ static int ad7780_probe(struct spi_device *spi)
 
 	ad_sd_init(&st->sd, indio_dev, spi, &ad7780_sigma_delta_info);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 
 		voltage_uv = regulator_get_voltage(st->reg);
 	}
@@ -210,8 +207,8 @@ static int ad7780_probe(struct spi_device *spi)
 
 	if (pdata && gpio_is_valid(pdata->gpio_pdrst)) {
 
-		ret = gpio_request_one(pdata->gpio_pdrst, GPIOF_OUT_INIT_LOW,
-			       "AD7780 /PDRST");
+		ret = devm_gpio_request_one(&spi->dev, pdata->gpio_pdrst,
+					GPIOF_OUT_INIT_LOW, "AD7780 /PDRST");
 		if (ret) {
 			dev_err(&spi->dev, "failed to request GPIO PDRST\n");
 			goto error_disable_reg;
@@ -223,7 +220,7 @@ static int ad7780_probe(struct spi_device *spi)
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)
-		goto error_free_gpio;
+		goto error_disable_reg;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
@@ -233,17 +230,9 @@ static int ad7780_probe(struct spi_device *spi)
 
 error_cleanup_buffer_and_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
-error_free_gpio:
-	if (pdata && gpio_is_valid(pdata->gpio_pdrst))
-		gpio_free(pdata->gpio_pdrst);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -256,14 +245,8 @@ static int ad7780_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	if (gpio_is_valid(st->powerdown_gpio))
-		gpio_free(st->powerdown_gpio);
-
-	if (!IS_ERR(st->reg)) {
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
-	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -22,6 +22,7 @@
 #include <asm/cpudata.h>
 
 #include "kernel.h"
+#include "entry.h"
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
@@ -491,6 +492,18 @@ static void __init sun4v_cpu_probe(void)
 		sparc_cpu_type = "UltraSparc T5 (Niagara5)";
 		sparc_fpu_type = "UltraSparc T5 integrated FPU";
 		sparc_pmu_type = "niagara5";
+		break;
+
+	case SUN4V_CHIP_SPARC_M6:
+		sparc_cpu_type = "SPARC-M6";
+		sparc_fpu_type = "SPARC-M6 integrated FPU";
+		sparc_pmu_type = "sparc-m6";
+		break;
+
+	case SUN4V_CHIP_SPARC_M7:
+		sparc_cpu_type = "SPARC-M7";
+		sparc_fpu_type = "SPARC-M7 integrated FPU";
+		sparc_pmu_type = "sparc-m7";
 		break;
 
 	case SUN4V_CHIP_SPARC64X:

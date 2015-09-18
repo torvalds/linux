@@ -7,8 +7,9 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9x35.dtsi"
-/include/ "at91sam9x5ek.dtsi"
+#include "at91sam9x35.dtsi"
+#include "at91sam9x5dm.dtsi"
+#include "at91sam9x5ek.dtsi"
 
 / {
 	model = "Atmel AT91SAM9X35-EK";
@@ -20,6 +21,25 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+			hlcdc: hlcdc@f8038000 {
+				status = "okay";
+			};
 		};
+	};
+
+	backlight: backlight {
+		status = "okay";
+	};
+
+	bl_reg: backlight_regulator {
+		status = "okay";
+	};
+
+	panel: panel {
+		status = "okay";
+	};
+
+	panel_reg: panel_regulator {
+		status = "okay";
 	};
 };

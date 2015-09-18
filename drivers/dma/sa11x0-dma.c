@@ -113,11 +113,9 @@ struct sa11x0_dma_phy {
 	struct sa11x0_dma_desc	*txd_load;
 	unsigned		sg_done;
 	struct sa11x0_dma_desc	*txd_done;
-#ifdef CONFIG_PM_SLEEP
 	u32			dbs[2];
 	u32			dbt[2];
 	u32			dcsr;
-#endif
 };
 
 struct sa11x0_dma_dev {
@@ -391,11 +389,6 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 }
 
 
-static int sa11x0_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void sa11x0_dma_free_chan_resources(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
@@ -436,7 +429,7 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(&c->vc.chan, cookie, state);
-	if (ret == DMA_SUCCESS)
+	if (ret == DMA_COMPLETE)
 		return ret;
 
 	if (!state)
@@ -614,7 +607,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 
 static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t addr, size_t size, size_t period,
-	enum dma_transfer_direction dir, unsigned long flags, void *context)
+	enum dma_transfer_direction dir, unsigned long flags)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_desc *txd;
@@ -671,8 +664,10 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	return vchan_tx_prep(&c->vc, &txd->vd, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 }
 
-static int sa11x0_dma_slave_config(struct sa11x0_dma_chan *c, struct dma_slave_config *cfg)
+static int sa11x0_dma_device_config(struct dma_chan *chan,
+				    struct dma_slave_config *cfg)
 {
+	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	u32 ddar = c->ddar & ((0xf << 4) | DDAR_RW);
 	dma_addr_t addr;
 	enum dma_slave_buswidth width;
@@ -706,99 +701,101 @@ static int sa11x0_dma_slave_config(struct sa11x0_dma_chan *c, struct dma_slave_c
 	return 0;
 }
 
-static int sa11x0_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
+static int sa11x0_dma_device_pause(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
 	LIST_HEAD(head);
 	unsigned long flags;
-	int ret;
 
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		return sa11x0_dma_slave_config(c, (struct dma_slave_config *)arg);
-
-	case DMA_TERMINATE_ALL:
-		dev_dbg(d->slave.dev, "vchan %p: terminate all\n", &c->vc);
-		/* Clear the tx descriptor lists */
-		spin_lock_irqsave(&c->vc.lock, flags);
-		vchan_get_all_descriptors(&c->vc, &head);
+	dev_dbg(d->slave.dev, "vchan %p: pause\n", &c->vc);
+	spin_lock_irqsave(&c->vc.lock, flags);
+	if (c->status == DMA_IN_PROGRESS) {
+		c->status = DMA_PAUSED;
 
 		p = c->phy;
 		if (p) {
-			dev_dbg(d->slave.dev, "pchan %u: terminating\n", p->num);
-			/* vchan is assigned to a pchan - stop the channel */
-			writel(DCSR_RUN | DCSR_IE |
-				DCSR_STRTA | DCSR_DONEA |
-				DCSR_STRTB | DCSR_DONEB,
-				p->base + DMA_DCSR_C);
-
-			if (p->txd_load) {
-				if (p->txd_load != p->txd_done)
-					list_add_tail(&p->txd_load->vd.node, &head);
-				p->txd_load = NULL;
-			}
-			if (p->txd_done) {
-				list_add_tail(&p->txd_done->vd.node, &head);
-				p->txd_done = NULL;
-			}
-			c->phy = NULL;
+			writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_C);
+		} else {
 			spin_lock(&d->lock);
-			p->vchan = NULL;
+			list_del_init(&c->node);
 			spin_unlock(&d->lock);
-			tasklet_schedule(&d->task);
 		}
-		spin_unlock_irqrestore(&c->vc.lock, flags);
-		vchan_dma_desc_free_list(&c->vc, &head);
-		ret = 0;
-		break;
-
-	case DMA_PAUSE:
-		dev_dbg(d->slave.dev, "vchan %p: pause\n", &c->vc);
-		spin_lock_irqsave(&c->vc.lock, flags);
-		if (c->status == DMA_IN_PROGRESS) {
-			c->status = DMA_PAUSED;
-
-			p = c->phy;
-			if (p) {
-				writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_C);
-			} else {
-				spin_lock(&d->lock);
-				list_del_init(&c->node);
-				spin_unlock(&d->lock);
-			}
-		}
-		spin_unlock_irqrestore(&c->vc.lock, flags);
-		ret = 0;
-		break;
-
-	case DMA_RESUME:
-		dev_dbg(d->slave.dev, "vchan %p: resume\n", &c->vc);
-		spin_lock_irqsave(&c->vc.lock, flags);
-		if (c->status == DMA_PAUSED) {
-			c->status = DMA_IN_PROGRESS;
-
-			p = c->phy;
-			if (p) {
-				writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_S);
-			} else if (!list_empty(&c->vc.desc_issued)) {
-				spin_lock(&d->lock);
-				list_add_tail(&c->node, &d->chan_pending);
-				spin_unlock(&d->lock);
-			}
-		}
-		spin_unlock_irqrestore(&c->vc.lock, flags);
-		ret = 0;
-		break;
-
-	default:
-		ret = -ENXIO;
-		break;
 	}
+	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	return ret;
+	return 0;
+}
+
+static int sa11x0_dma_device_resume(struct dma_chan *chan)
+{
+	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
+	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
+	struct sa11x0_dma_phy *p;
+	LIST_HEAD(head);
+	unsigned long flags;
+
+	dev_dbg(d->slave.dev, "vchan %p: resume\n", &c->vc);
+	spin_lock_irqsave(&c->vc.lock, flags);
+	if (c->status == DMA_PAUSED) {
+		c->status = DMA_IN_PROGRESS;
+
+		p = c->phy;
+		if (p) {
+			writel(DCSR_RUN | DCSR_IE, p->base + DMA_DCSR_S);
+		} else if (!list_empty(&c->vc.desc_issued)) {
+			spin_lock(&d->lock);
+			list_add_tail(&c->node, &d->chan_pending);
+			spin_unlock(&d->lock);
+		}
+	}
+	spin_unlock_irqrestore(&c->vc.lock, flags);
+
+	return 0;
+}
+
+static int sa11x0_dma_device_terminate_all(struct dma_chan *chan)
+{
+	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
+	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
+	struct sa11x0_dma_phy *p;
+	LIST_HEAD(head);
+	unsigned long flags;
+
+	dev_dbg(d->slave.dev, "vchan %p: terminate all\n", &c->vc);
+	/* Clear the tx descriptor lists */
+	spin_lock_irqsave(&c->vc.lock, flags);
+	vchan_get_all_descriptors(&c->vc, &head);
+
+	p = c->phy;
+	if (p) {
+		dev_dbg(d->slave.dev, "pchan %u: terminating\n", p->num);
+		/* vchan is assigned to a pchan - stop the channel */
+		writel(DCSR_RUN | DCSR_IE |
+		       DCSR_STRTA | DCSR_DONEA |
+		       DCSR_STRTB | DCSR_DONEB,
+		       p->base + DMA_DCSR_C);
+
+		if (p->txd_load) {
+			if (p->txd_load != p->txd_done)
+				list_add_tail(&p->txd_load->vd.node, &head);
+			p->txd_load = NULL;
+		}
+		if (p->txd_done) {
+			list_add_tail(&p->txd_done->vd.node, &head);
+			p->txd_done = NULL;
+		}
+		c->phy = NULL;
+		spin_lock(&d->lock);
+		p->vchan = NULL;
+		spin_unlock(&d->lock);
+		tasklet_schedule(&d->task);
+	}
+	spin_unlock_irqrestore(&c->vc.lock, flags);
+	vchan_dma_desc_free_list(&c->vc, &head);
+
+	return 0;
 }
 
 struct sa11x0_dma_channel_desc {
@@ -831,16 +828,17 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 {
 	unsigned i;
 
-	dmadev->chancnt = ARRAY_SIZE(chan_desc);
 	INIT_LIST_HEAD(&dmadev->channels);
 	dmadev->dev = dev;
-	dmadev->device_alloc_chan_resources = sa11x0_dma_alloc_chan_resources;
 	dmadev->device_free_chan_resources = sa11x0_dma_free_chan_resources;
-	dmadev->device_control = sa11x0_dma_control;
+	dmadev->device_config = sa11x0_dma_device_config;
+	dmadev->device_pause = sa11x0_dma_device_pause;
+	dmadev->device_resume = sa11x0_dma_device_resume;
+	dmadev->device_terminate_all = sa11x0_dma_device_terminate_all;
 	dmadev->device_tx_status = sa11x0_dma_tx_status;
 	dmadev->device_issue_pending = sa11x0_dma_issue_pending;
 
-	for (i = 0; i < dmadev->chancnt; i++) {
+	for (i = 0; i < ARRAY_SIZE(chan_desc); i++) {
 		struct sa11x0_dma_chan *c;
 
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
@@ -944,6 +942,12 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	d->slave.device_prep_slave_sg = sa11x0_dma_prep_slave_sg;
 	d->slave.device_prep_dma_cyclic = sa11x0_dma_prep_dma_cyclic;
+	d->slave.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	d->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	d->slave.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
+				   BIT(DMA_SLAVE_BUSWIDTH_2_BYTES);
+	d->slave.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
+				   BIT(DMA_SLAVE_BUSWIDTH_2_BYTES);
 	ret = sa11x0_dma_init_dmadev(&d->slave, &pdev->dev);
 	if (ret) {
 		dev_warn(d->slave.dev, "failed to register slave async device: %d\n",
@@ -984,7 +988,6 @@ static int sa11x0_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sa11x0_dma_suspend(struct device *dev)
 {
 	struct sa11x0_dma_dev *d = dev_get_drvdata(dev);
@@ -1054,7 +1057,6 @@ static int sa11x0_dma_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sa11x0_dma_pm_ops = {
 	.suspend_noirq = sa11x0_dma_suspend,
@@ -1068,7 +1070,6 @@ static const struct dev_pm_ops sa11x0_dma_pm_ops = {
 static struct platform_driver sa11x0_dma_driver = {
 	.driver = {
 		.name	= "sa11x0-dma",
-		.owner	= THIS_MODULE,
 		.pm	= &sa11x0_dma_pm_ops,
 	},
 	.probe		= sa11x0_dma_probe,

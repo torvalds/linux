@@ -14,22 +14,18 @@
 #ifndef _EXYNOS_DRM_FB_H_
 #define _EXYNOS_DRM_FB_H
 
+#include "exynos_drm_gem.h"
+
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
-			    struct drm_gem_object *obj);
+			    struct exynos_drm_gem_obj **gem_obj,
+			    int count);
 
-/* get memory information of a drm framebuffer */
-struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
+/* get gem object of a drm framebuffer */
+struct exynos_drm_gem_obj *exynos_drm_fb_gem_obj(struct drm_framebuffer *fb,
 						 int index);
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
-
-/* set a buffer count to drm framebuffer. */
-void exynos_drm_fb_set_buf_cnt(struct drm_framebuffer *fb,
-						unsigned int cnt);
-
-/* get a buffer count to drm framebuffer. */
-unsigned int exynos_drm_fb_get_buf_cnt(struct drm_framebuffer *fb);
 
 #endif

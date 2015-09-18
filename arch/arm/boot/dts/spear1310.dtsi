@@ -1,7 +1,7 @@
 /*
  * DTS file for all SPEAr1310 SoCs
  *
- * Copyright 2012 Viresh Kumar <viresh.linux@gmail.com>
+ * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -29,24 +29,111 @@
 			#gpio-cells = <2>;
 		};
 
-		ahci@b1000000 {
+		miphy0: miphy@eb800000 {
+			compatible = "st,spear1310-miphy";
+			reg = <0xeb800000 0x4000>;
+			misc = <&misc>;
+			phy-id = <0>;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		miphy1: miphy@eb804000 {
+			compatible = "st,spear1310-miphy";
+			reg = <0xeb804000 0x4000>;
+			misc = <&misc>;
+			phy-id = <1>;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		miphy2: miphy@eb808000 {
+			compatible = "st,spear1310-miphy";
+			reg = <0xeb808000 0x4000>;
+			misc = <&misc>;
+			phy-id = <2>;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		ahci0: ahci@b1000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1000000 0x10000>;
 			interrupts = <0 68 0x4>;
+			phys = <&miphy0 0>;
+			phy-names = "sata-phy";
 			status = "disabled";
 		};
 
-		ahci@b1800000 {
+		ahci1: ahci@b1800000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1800000 0x10000>;
 			interrupts = <0 69 0x4>;
+			phys = <&miphy1 0>;
+			phy-names = "sata-phy";
 			status = "disabled";
 		};
 
-		ahci@b4000000 {
+		ahci2: ahci@b4000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb4000000 0x10000>;
 			interrupts = <0 70 0x4>;
+			phys = <&miphy2 0>;
+			phy-names = "sata-phy";
+			status = "disabled";
+		};
+
+		pcie0: pcie@b1000000 {
+			compatible = "st,spear1340-pcie", "snps,dw-pcie";
+			reg = <0xb1000000 0x4000>, <0x80000000 0x20000>;
+			reg-names = "dbi", "config";
+			interrupts = <0 68 0x4>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0x0 0 &gic 0 68 0x4>;
+			num-lanes = <1>;
+			phys = <&miphy0 1>;
+			phy-names = "pcie-phy";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0	 0x80020000 0 0x00010000   /* downstream I/O */
+				0x82000000 0 0x80030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
+			status = "disabled";
+		};
+
+		pcie1: pcie@b1800000 {
+			compatible = "st,spear1340-pcie", "snps,dw-pcie";
+			reg = <0xb1800000 0x4000>, <0x90000000 0x20000>;
+			reg-names = "dbi", "config";
+			interrupts = <0 69 0x4>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0x0 0 &gic 0 69 0x4>;
+			num-lanes = <1>;
+			phys = <&miphy1 1>;
+			phy-names = "pcie-phy";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0  0x90020000 0 0x00010000   /* downstream I/O */
+				0x82000000 0 0x90030000 0x90030000 0 0x0ffd0000>; /* non-prefetchable memory */
+			status = "disabled";
+		};
+
+		pcie2: pcie@b4000000 {
+			compatible = "st,spear1340-pcie", "snps,dw-pcie";
+			reg = <0xb4000000 0x4000>, <0xc0000000 0x20000>;
+			reg-names = "dbi", "config";
+			interrupts = <0 70 0x4>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0x0 0 &gic 0 70 0x4>;
+			num-lanes = <1>;
+			phys = <&miphy2 1>;
+			phy-names = "pcie-phy";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x81000000 0 0	 0xc0020000 0 0x00010000   /* downstream I/O */
+				0x82000000 0 0xc0030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
 			status = "disabled";
 		};
 

@@ -54,11 +54,13 @@ struct inv_mpu6050_reg_map {
 	u8 int_enable;
 	u8 pwr_mgmt_1;
 	u8 pwr_mgmt_2;
+	u8 int_pin_cfg;
 };
 
 /*device enum */
 enum inv_devices {
 	INV_MPU6050,
+	INV_MPU6500,
 	INV_NUM_PARTS
 };
 
@@ -118,6 +120,9 @@ struct inv_mpu6050_state {
 	enum   inv_devices chip_type;
 	spinlock_t time_stamp_lock;
 	struct i2c_client *client;
+	struct i2c_adapter *mux_adapter;
+	struct i2c_client *mux_client;
+	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 };
@@ -126,35 +131,35 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_SAMPLE_RATE_DIV     0x19
 #define INV_MPU6050_REG_CONFIG              0x1A
 #define INV_MPU6050_REG_GYRO_CONFIG         0x1B
-#define INV_MPU6050_REG_ACCEL_CONFIG	    0x1C
+#define INV_MPU6050_REG_ACCEL_CONFIG        0x1C
 
 #define INV_MPU6050_REG_FIFO_EN             0x23
-#define INV_MPU6050_BIT_ACCEL_OUT                   0x08
-#define INV_MPU6050_BITS_GYRO_OUT                   0x70
+#define INV_MPU6050_BIT_ACCEL_OUT           0x08
+#define INV_MPU6050_BITS_GYRO_OUT           0x70
 
 #define INV_MPU6050_REG_INT_ENABLE          0x38
-#define INV_MPU6050_BIT_DATA_RDY_EN                 0x01
-#define INV_MPU6050_BIT_DMP_INT_EN                  0x02
+#define INV_MPU6050_BIT_DATA_RDY_EN         0x01
+#define INV_MPU6050_BIT_DMP_INT_EN          0x02
 
 #define INV_MPU6050_REG_RAW_ACCEL           0x3B
 #define INV_MPU6050_REG_TEMPERATURE         0x41
 #define INV_MPU6050_REG_RAW_GYRO            0x43
 
 #define INV_MPU6050_REG_USER_CTRL           0x6A
-#define INV_MPU6050_BIT_FIFO_RST                    0x04
-#define INV_MPU6050_BIT_DMP_RST                     0x08
-#define INV_MPU6050_BIT_I2C_MST_EN                  0x20
-#define INV_MPU6050_BIT_FIFO_EN                     0x40
-#define INV_MPU6050_BIT_DMP_EN                      0x80
+#define INV_MPU6050_BIT_FIFO_RST            0x04
+#define INV_MPU6050_BIT_DMP_RST             0x08
+#define INV_MPU6050_BIT_I2C_MST_EN          0x20
+#define INV_MPU6050_BIT_FIFO_EN             0x40
+#define INV_MPU6050_BIT_DMP_EN              0x80
 
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
-#define INV_MPU6050_BIT_H_RESET                     0x80
-#define INV_MPU6050_BIT_SLEEP                       0x40
-#define INV_MPU6050_BIT_CLK_MASK                    0x7
+#define INV_MPU6050_BIT_H_RESET             0x80
+#define INV_MPU6050_BIT_SLEEP               0x40
+#define INV_MPU6050_BIT_CLK_MASK            0x7
 
 #define INV_MPU6050_REG_PWR_MGMT_2          0x6C
-#define INV_MPU6050_BIT_PWR_ACCL_STBY               0x38
-#define INV_MPU6050_BIT_PWR_GYRO_STBY               0x07
+#define INV_MPU6050_BIT_PWR_ACCL_STBY       0x38
+#define INV_MPU6050_BIT_PWR_GYRO_STBY       0x07
 
 #define INV_MPU6050_REG_FIFO_COUNT_H        0x72
 #define INV_MPU6050_REG_FIFO_R_W            0x74
@@ -178,12 +183,15 @@ struct inv_mpu6050_state {
 /* 6 + 6 round up and plus 8 */
 #define INV_MPU6050_OUTPUT_DATA_SIZE         24
 
+#define INV_MPU6050_REG_INT_PIN_CFG	0x37
+#define INV_MPU6050_BIT_BYPASS_EN	0x2
+
 /* init parameters */
 #define INV_MPU6050_INIT_FIFO_RATE           50
-#define INV_MPU6050_TIME_STAMP_TOR                        5
-#define INV_MPU6050_MAX_FIFO_RATE                         1000
-#define INV_MPU6050_MIN_FIFO_RATE                         4
-#define INV_MPU6050_ONE_K_HZ                              1000
+#define INV_MPU6050_TIME_STAMP_TOR           5
+#define INV_MPU6050_MAX_FIFO_RATE            1000
+#define INV_MPU6050_MIN_FIFO_RATE            4
+#define INV_MPU6050_ONE_K_HZ                 1000
 
 /* scan element definition */
 enum inv_mpu6050_scan {
@@ -244,3 +252,5 @@ int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
+int inv_mpu_acpi_create_mux_client(struct inv_mpu6050_state *st);
+void inv_mpu_acpi_delete_mux_client(struct inv_mpu6050_state *st);

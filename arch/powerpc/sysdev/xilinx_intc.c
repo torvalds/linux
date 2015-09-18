@@ -23,6 +23,8 @@
 #include <linux/kernel.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/i8259.h>
@@ -177,7 +179,7 @@ static int xilinx_intc_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops xilinx_intc_ops = {
+static const struct irq_domain_ops xilinx_intc_ops = {
 	.map = xilinx_intc_map,
 	.xlate = xilinx_intc_xlate,
 };
@@ -263,7 +265,7 @@ static void __init xilinx_i8259_setup_cascade(void)
 static inline void xilinx_i8259_setup_cascade(void) { return; }
 #endif /* defined(CONFIG_PPC_I8259) */
 
-static struct of_device_id xilinx_intc_match[] __initconst = {
+static const struct of_device_id xilinx_intc_match[] __initconst = {
 	{ .compatible = "xlnx,opb-intc-1.00.c", },
 	{ .compatible = "xlnx,xps-intc-1.00.a", },
 	{}

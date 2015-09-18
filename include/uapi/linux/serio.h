@@ -76,5 +76,6 @@
 #define SERIO_HAMPSHIRE	0x3b
 #define SERIO_PS2MULT	0x3c
 #define SERIO_TSC40	0x3d
+#define SERIO_WACOM_IV	0x3e
 
 #endif /* _UAPI_SERIO_H */

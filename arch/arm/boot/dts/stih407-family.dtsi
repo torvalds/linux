@@ -1,0 +1,614 @@
+/*
+ * Copyright (C) 2014 STMicroelectronics Limited.
+ * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+#include "stih407-pinctrl.dtsi"
+#include <dt-bindings/mfd/st-lpc.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/reset/stih407-resets.h>
+#include <dt-bindings/interrupt-controller/irq-st.h>
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
+			cpu-release-addr = <0x94100A4>;
+		};
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+			/* u-boot puts hpen in SBC dmem at 0xa4 offset */
+			cpu-release-addr = <0x94100A4>;
+		};
+	};
+
+	intc: interrupt-controller@08761000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		reg = <0x08761000 0x1000>, <0x08760100 0x100>;
+	};
+
+	scu@08760000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0x08760000 0x1000>;
+	};
+
+	timer@08760200 {
+		interrupt-parent = <&intc>;
+		compatible = "arm,cortex-a9-global-timer";
+		reg = <0x08760200 0x100>;
+		interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&arm_periph_clk>;
+	};
+
+	l2: cache-controller {
+		compatible = "arm,pl310-cache";
+		reg = <0x08762000 0x1000>;
+		arm,data-latency = <3 3 3>;
+		arm,tag-latency = <2 2 2>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	arm-pmu {
+		interrupt-parent = <&intc>;
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	pwm_regulator: pwm-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm1 3 8448>;
+		regulator-name = "CPU_1V0_AVS";
+		regulator-min-microvolt = <784000>;
+		regulator-max-microvolt = <1299000>;
+		regulator-always-on;
+		max-duty-cycle = <255>;
+		status = "okay";
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+		ranges;
+		compatible = "simple-bus";
+
+		restart {
+			compatible = "st,stih407-restart";
+			st,syscfg = <&syscfg_sbc_reg>;
+			status = "okay";
+		};
+
+		powerdown: powerdown-controller {
+			compatible = "st,stih407-powerdown";
+			#reset-cells = <1>;
+		};
+
+		softreset: softreset-controller {
+			compatible = "st,stih407-softreset";
+			#reset-cells = <1>;
+		};
+
+		picophyreset: picophyreset-controller {
+			compatible = "st,stih407-picophyreset";
+			#reset-cells = <1>;
+		};
+
+		syscfg_sbc: sbc-syscfg@9620000 {
+			compatible = "st,stih407-sbc-syscfg", "syscon";
+			reg = <0x9620000 0x1000>;
+		};
+
+		syscfg_front: front-syscfg@9280000 {
+			compatible = "st,stih407-front-syscfg", "syscon";
+			reg = <0x9280000 0x1000>;
+		};
+
+		syscfg_rear: rear-syscfg@9290000 {
+			compatible = "st,stih407-rear-syscfg", "syscon";
+			reg = <0x9290000 0x1000>;
+		};
+
+		syscfg_flash: flash-syscfg@92a0000 {
+			compatible = "st,stih407-flash-syscfg", "syscon";
+			reg = <0x92a0000 0x1000>;
+		};
+
+		syscfg_sbc_reg: fvdp-lite-syscfg@9600000 {
+			compatible = "st,stih407-sbc-reg-syscfg", "syscon";
+			reg = <0x9600000 0x1000>;
+		};
+
+		syscfg_core: core-syscfg@92b0000 {
+			compatible = "st,stih407-core-syscfg", "syscon";
+			reg = <0x92b0000 0x1000>;
+		};
+
+		syscfg_lpm: lpm-syscfg@94b5100 {
+			compatible = "st,stih407-lpm-syscfg", "syscon";
+			reg = <0x94b5100 0x1000>;
+		};
+
+		irq-syscfg {
+			compatible    = "st,stih407-irq-syscfg";
+			st,syscfg     = <&syscfg_core>;
+			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
+					<ST_IRQ_SYSCFG_PMU_1>;
+			st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
+					<ST_IRQ_SYSCFG_DISABLED>;
+		};
+
+		serial@9830000 {
+			compatible = "st,asc";
+			reg = <0x9830000 0x2c>;
+			interrupts = <GIC_SPI 122 IRQ_TYPE_NONE>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_serial0>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+
+			status = "disabled";
+		};
+
+		serial@9831000 {
+			compatible = "st,asc";
+			reg = <0x9831000 0x2c>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_NONE>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_serial1>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+
+			status = "disabled";
+		};
+
+		serial@9832000 {
+			compatible = "st,asc";
+			reg = <0x9832000 0x2c>;
+			interrupts = <GIC_SPI 124 IRQ_TYPE_NONE>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_serial2>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+
+			status = "disabled";
+		};
+
+		/* SBC_ASC0 - UART10 */
+		sbc_serial0: serial@9530000 {
+			compatible = "st,asc";
+			reg = <0x9530000 0x2c>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_NONE>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sbc_serial0>;
+			clocks = <&clk_sysin>;
+
+			status = "disabled";
+		};
+
+		serial@9531000 {
+			compatible = "st,asc";
+			reg = <0x9531000 0x2c>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_NONE>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sbc_serial1>;
+			clocks = <&clk_sysin>;
+
+			status = "disabled";
+		};
+
+		i2c@9840000 {
+			compatible = "st,comms-ssc4-i2c";
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x9840000 0x110>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c0_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9841000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9841000 0x110>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c1_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9842000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9842000 0x110>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c2_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9843000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9843000 0x110>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c3_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9844000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9844000 0x110>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c4_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9845000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9845000 0x110>;
+			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c5_default>;
+
+			status = "disabled";
+		};
+
+
+		/* SSCs on SBC */
+		i2c@9540000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9540000 0x110>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c10_default>;
+
+			status = "disabled";
+		};
+
+		i2c@9541000 {
+			compatible = "st,comms-ssc4-i2c";
+			reg = <0x9541000 0x110>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+			clock-frequency = <400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c11_default>;
+
+			status = "disabled";
+		};
+
+		usb2_picophy0: phy1 {
+			compatible = "st,stih407-usb2-phy";
+			#phy-cells = <0>;
+			st,syscfg = <&syscfg_core 0x100 0xf4>;
+			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
+				 <&picophyreset STIH407_PICOPHY2_RESET>;
+			reset-names = "global", "port";
+		};
+
+		miphy28lp_phy: miphy28lp@9b22000 {
+			compatible = "st,miphy28lp-phy";
+			st,syscfg = <&syscfg_core>;
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			ranges;
+
+			phy_port0: port@9b22000 {
+				reg = <0x9b22000 0xff>,
+				      <0x9b09000 0xff>,
+				      <0x9b04000 0xff>;
+				reg-names = "sata-up",
+					    "pcie-up",
+					    "pipew";
+
+				st,syscfg = <0x114 0x818 0xe0 0xec>;
+				#phy-cells = <1>;
+
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY0_SOFTRESET>;
+			};
+
+			phy_port1: port@9b2a000 {
+				reg = <0x9b2a000 0xff>,
+				      <0x9b19000 0xff>,
+				      <0x9b14000 0xff>;
+				reg-names = "sata-up",
+					    "pcie-up",
+					    "pipew";
+
+				st,syscfg = <0x118 0x81c 0xe4 0xf0>;
+
+				#phy-cells = <1>;
+
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY1_SOFTRESET>;
+			};
+
+			phy_port2: port@8f95000 {
+				reg = <0x8f95000 0xff>,
+				      <0x8f90000 0xff>;
+				reg-names = "pipew",
+					    "usb3-up";
+
+				st,syscfg = <0x11c 0x820>;
+
+				#phy-cells = <1>;
+
+				reset-names = "miphy-sw-rst";
+				resets = <&softreset STIH407_MIPHY2_SOFTRESET>;
+			};
+		};
+
+		spi@9840000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9840000 0x110>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+			pinctrl-0 = <&pinctrl_spi0_default>;
+			pinctrl-names = "default";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
+
+		spi@9841000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9841000 0x110>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9842000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9842000 0x110>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9843000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9843000 0x110>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9844000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9844000 0x110>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		/* SBC SSC */
+		spi@9540000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9540000 0x110>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9541000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9541000 0x110>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		spi@9542000 {
+			compatible = "st,comms-ssc4-spi";
+			reg = <0x9542000 0x110>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk_sysin>;
+			clock-names = "ssc";
+
+			status = "disabled";
+		};
+
+		mmc0: sdhci@09060000 {
+			compatible = "st,sdhci-stih407", "st,sdhci";
+			status = "disabled";
+			reg = <0x09060000 0x7ff>, <0x9061008 0x20>;
+			reg-names = "mmc", "top-mmc-delay";
+			interrupts = <GIC_SPI 92 IRQ_TYPE_NONE>;
+			interrupt-names = "mmcirq";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_mmc0>;
+			clock-names = "mmc";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_0>;
+			bus-width = <8>;
+			non-removable;
+		};
+
+		mmc1: sdhci@09080000 {
+			compatible = "st,sdhci-stih407", "st,sdhci";
+			status = "disabled";
+			reg = <0x09080000 0x7ff>;
+			reg-names = "mmc";
+			interrupts = <GIC_SPI 90 IRQ_TYPE_NONE>;
+			interrupt-names = "mmcirq";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sd1>;
+			clock-names = "mmc";
+			clocks = <&clk_s_c0_flexgen CLK_MMC_1>;
+			resets = <&softreset STIH407_MMC1_SOFTRESET>;
+			bus-width = <4>;
+		};
+
+		/* Watchdog and Real-Time Clock */
+		lpc@8787000 {
+			compatible = "st,stih407-lpc";
+			reg = <0x8787000 0x1000>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clk_s_d3_flexgen CLK_LPC_0>;
+			timeout-sec = <120>;
+			st,syscfg = <&syscfg_core>;
+			st,lpc-mode = <ST_LPC_MODE_WDT>;
+		};
+
+		lpc@8788000 {
+			compatible = "st,stih407-lpc";
+			reg = <0x8788000 0x1000>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clk_s_d3_flexgen CLK_LPC_1>;
+			st,lpc-mode = <ST_LPC_MODE_RTC>;
+		};
+
+		sata0: sata@9b20000 {
+			compatible = "st,ahci";
+			reg = <0x9b20000 0x1000>;
+
+			interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port0 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA0_POWERDOWN>,
+				 <&softreset STIH407_SATA0_SOFTRESET>,
+				 <&softreset STIH407_SATA0_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn", "sw-rst", "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
+		};
+
+		sata1: sata@9b28000 {
+			compatible = "st,ahci";
+			reg = <0x9b28000 0x1000>;
+
+			interrupts = <GIC_SPI 170 IRQ_TYPE_NONE>;
+			interrupt-names = "hostc";
+
+			phys = <&phy_port1 PHY_TYPE_SATA>;
+			phy-names = "ahci_phy";
+
+			resets = <&powerdown STIH407_SATA1_POWERDOWN>,
+				 <&softreset STIH407_SATA1_SOFTRESET>,
+				 <&softreset STIH407_SATA1_PWR_SOFTRESET>;
+			reset-names = "pwr-dwn",
+				      "sw-rst",
+				      "pwr-rst";
+
+			clock-names = "ahci_clk";
+			clocks = <&clk_s_c0_flexgen CLK_ICN_REG>;
+
+			status = "disabled";
+		};
+
+
+		st_dwc3: dwc3@8f94000 {
+			compatible	= "st,stih407-dwc3";
+			reg		= <0x08f94000 0x1000>, <0x110 0x4>;
+			reg-names	= "reg-glue", "syscfg-reg";
+			st,syscfg	= <&syscfg_core>;
+			resets		= <&powerdown STIH407_USB3_POWERDOWN>,
+					  <&softreset STIH407_MIPHY2_SOFTRESET>;
+			reset-names	= "powerdown", "softreset";
+			#address-cells	= <1>;
+			#size-cells	= <1>;
+			pinctrl-names	= "default";
+			pinctrl-0	= <&pinctrl_usb3>;
+			ranges;
+
+			status = "disabled";
+
+			dwc3: dwc3@9900000 {
+				compatible	= "snps,dwc3";
+				reg		= <0x09900000 0x100000>;
+				interrupts	= <GIC_SPI 155 IRQ_TYPE_NONE>;
+				dr_mode		= "host";
+				phy-names	= "usb2-phy", "usb3-phy";
+				phys		= <&usb2_picophy0>,
+						  <&phy_port2 PHY_TYPE_USB3>;
+			};
+		};
+
+		/* COMMS PWM Module */
+		pwm0: pwm@9810000 {
+			compatible	= "st,sti-pwm";
+			status		= "okay";
+			#pwm-cells	= <2>;
+			reg		= <0x9810000 0x68>;
+			pinctrl-names	= "default";
+			pinctrl-0	= <&pinctrl_pwm0_chan0_default>;
+			clock-names	= "pwm";
+			clocks		= <&clk_sysin>;
+			st,pwm-num-chan = <1>;
+		};
+
+		/* SBC PWM Module */
+		pwm1: pwm@9510000 {
+			compatible	= "st,sti-pwm";
+			status		= "okay";
+			#pwm-cells	= <2>;
+			reg		= <0x9510000 0x68>;
+			pinctrl-names	= "default";
+			pinctrl-0	= <&pinctrl_pwm1_chan0_default
+					&pinctrl_pwm1_chan1_default
+					&pinctrl_pwm1_chan2_default
+					&pinctrl_pwm1_chan3_default>;
+			clock-names	= "pwm";
+			clocks		= <&clk_sysin>;
+			st,pwm-num-chan = <4>;
+		};
+	};
+};

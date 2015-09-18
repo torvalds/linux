@@ -1,5 +1,5 @@
 /*
- * General MIPS MT support routines, usable in AP/SP, SMVP, or SMTC kernels
+ * General MIPS MT support routines, usable in AP/SP and SMVP.
  * Copyright (C) 2005 Mips Technologies, Inc
  */
 
@@ -57,9 +57,6 @@ void mips_mt_regdump(unsigned long mvpctl)
 	int tc;
 	unsigned long haltval;
 	unsigned long tcstatval;
-#ifdef CONFIG_MIPS_MT_SMTC
-	void smtc_soft_dump(void);
-#endif /* CONFIG_MIPT_MT_SMTC */
 
 	local_irq_save(flags);
 	vpflags = dvpe();
@@ -116,9 +113,6 @@ void mips_mt_regdump(unsigned long mvpctl)
 		if (!haltval)
 			write_tc_c0_tchalt(0);
 	}
-#ifdef CONFIG_MIPS_MT_SMTC
-	smtc_soft_dump();
-#endif /* CONFIG_MIPT_MT_SMTC */
 	printk("===========================\n");
 	evpe(vpflags);
 	local_irq_restore(flags);
@@ -295,21 +289,11 @@ void mips_mt_set_cpuoptions(void)
 
 void mt_cflush_lockdown(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	void smtc_cflush_lockdown(void);
-
-	smtc_cflush_lockdown();
-#endif /* CONFIG_MIPS_MT_SMTC */
 	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
 
 void mt_cflush_release(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	void smtc_cflush_release(void);
-
-	smtc_cflush_release();
-#endif /* CONFIG_MIPS_MT_SMTC */
 	/* FILL IN VSMP and AP/SP VERSIONS HERE */
 }
 

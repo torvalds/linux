@@ -1,0 +1,4 @@
+libapi-y += fs.o
+libapi-y += debugfs.o
+libapi-y += findfs.o
+libapi-y += tracefs.o

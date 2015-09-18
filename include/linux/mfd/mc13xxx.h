@@ -21,25 +21,41 @@ int mc13xxx_reg_write(struct mc13xxx *mc13xxx, unsigned int offset, u32 val);
 int mc13xxx_reg_rmw(struct mc13xxx *mc13xxx, unsigned int offset,
 		u32 mask, u32 val);
 
-int mc13xxx_get_flags(struct mc13xxx *mc13xxx);
-
 int mc13xxx_irq_request(struct mc13xxx *mc13xxx, int irq,
-		irq_handler_t handler, const char *name, void *dev);
-int mc13xxx_irq_request_nounmask(struct mc13xxx *mc13xxx, int irq,
 		irq_handler_t handler, const char *name, void *dev);
 int mc13xxx_irq_free(struct mc13xxx *mc13xxx, int irq, void *dev);
 
-int mc13xxx_irq_mask(struct mc13xxx *mc13xxx, int irq);
-int mc13xxx_irq_unmask(struct mc13xxx *mc13xxx, int irq);
 int mc13xxx_irq_status(struct mc13xxx *mc13xxx, int irq,
 		int *enabled, int *pending);
-int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq);
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx);
 
 int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
 		unsigned int mode, unsigned int channel,
 		u8 ato, bool atox, unsigned int *sample);
+
+/* Deprecated calls */
+static inline int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq)
+{
+	return 0;
+}
+
+static inline int mc13xxx_irq_request_nounmask(struct mc13xxx *mc13xxx, int irq,
+					       irq_handler_t handler,
+					       const char *name, void *dev)
+{
+	return mc13xxx_irq_request(mc13xxx, irq, handler, name, dev);
+}
+
+int mc13xxx_irq_mask(struct mc13xxx *mc13xxx, int irq);
+int mc13xxx_irq_unmask(struct mc13xxx *mc13xxx, int irq);
+
+#define MC13783_AUDIO_RX0	36
+#define MC13783_AUDIO_RX1	37
+#define MC13783_AUDIO_TX	38
+#define MC13783_SSI_NETWORK	39
+#define MC13783_AUDIO_CODEC	40
+#define MC13783_AUDIO_DAC	41
 
 #define MC13XXX_IRQ_ADCDONE	0
 #define MC13XXX_IRQ_ADCBISDONE	1
@@ -63,8 +79,6 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
 #define MC13XXX_IRQ_THWARNH	37
 #define MC13XXX_IRQ_CLK		38
 
-#define MC13XXX_NUM_IRQ		46
-
 struct regulator_init_data;
 
 struct mc13xxx_regulator_init_data {
@@ -78,71 +92,95 @@ struct mc13xxx_regulator_platform_data {
 	struct mc13xxx_regulator_init_data *regulators;
 };
 
+enum {
+	/* MC13783 LED IDs */
+	MC13783_LED_MD,
+	MC13783_LED_AD,
+	MC13783_LED_KP,
+	MC13783_LED_R1,
+	MC13783_LED_G1,
+	MC13783_LED_B1,
+	MC13783_LED_R2,
+	MC13783_LED_G2,
+	MC13783_LED_B2,
+	MC13783_LED_R3,
+	MC13783_LED_G3,
+	MC13783_LED_B3,
+	/* MC13892 LED IDs */
+	MC13892_LED_MD,
+	MC13892_LED_AD,
+	MC13892_LED_KP,
+	MC13892_LED_R,
+	MC13892_LED_G,
+	MC13892_LED_B,
+	/* MC34708 LED IDs */
+	MC34708_LED_R,
+	MC34708_LED_G,
+};
+
 struct mc13xxx_led_platform_data {
-#define MC13783_LED_MD		0
-#define MC13783_LED_AD		1
-#define MC13783_LED_KP		2
-#define MC13783_LED_R1		3
-#define MC13783_LED_G1		4
-#define MC13783_LED_B1		5
-#define MC13783_LED_R2		6
-#define MC13783_LED_G2		7
-#define MC13783_LED_B2		8
-#define MC13783_LED_R3		9
-#define MC13783_LED_G3		10
-#define MC13783_LED_B3		11
-#define MC13783_LED_MAX MC13783_LED_B3
 	int id;
 	const char *name;
 	const char *default_trigger;
-
-/* Three or two bits current selection depending on the led */
-	char max_current;
 };
+
+#define MAX_LED_CONTROL_REGS	6
+
+/* MC13783 LED Control 0 */
+#define MC13783_LED_C0_ENABLE		(1 << 0)
+#define MC13783_LED_C0_TRIODE_MD	(1 << 7)
+#define MC13783_LED_C0_TRIODE_AD	(1 << 8)
+#define MC13783_LED_C0_TRIODE_KP	(1 << 9)
+#define MC13783_LED_C0_BOOST		(1 << 10)
+#define MC13783_LED_C0_ABMODE(x)	(((x) & 0x7) << 11)
+#define MC13783_LED_C0_ABREF(x)		(((x) & 0x3) << 14)
+/* MC13783 LED Control 1 */
+#define MC13783_LED_C1_TC1HALF		(1 << 18)
+#define MC13783_LED_C1_SLEWLIM		(1 << 23)
+/* MC13783 LED Control 2 */
+#define MC13783_LED_C2_CURRENT_MD(x)	(((x) & 0x7) << 0)
+#define MC13783_LED_C2_CURRENT_AD(x)	(((x) & 0x7) << 3)
+#define MC13783_LED_C2_CURRENT_KP(x)	(((x) & 0x7) << 6)
+#define MC13783_LED_C2_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C2_SLEWLIM		(1 << 23)
+/* MC13783 LED Control 3 */
+#define MC13783_LED_C3_CURRENT_R1(x)	(((x) & 0x3) << 0)
+#define MC13783_LED_C3_CURRENT_G1(x)	(((x) & 0x3) << 2)
+#define MC13783_LED_C3_CURRENT_B1(x)	(((x) & 0x3) << 4)
+#define MC13783_LED_C3_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C3_TRIODE_TC1	(1 << 23)
+/* MC13783 LED Control 4 */
+#define MC13783_LED_C4_CURRENT_R2(x)	(((x) & 0x3) << 0)
+#define MC13783_LED_C4_CURRENT_G2(x)	(((x) & 0x3) << 2)
+#define MC13783_LED_C4_CURRENT_B2(x)	(((x) & 0x3) << 4)
+#define MC13783_LED_C4_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C4_TRIODE_TC2	(1 << 23)
+/* MC13783 LED Control 5 */
+#define MC13783_LED_C5_CURRENT_R3(x)	(((x) & 0x3) << 0)
+#define MC13783_LED_C5_CURRENT_G3(x)	(((x) & 0x3) << 2)
+#define MC13783_LED_C5_CURRENT_B3(x)	(((x) & 0x3) << 4)
+#define MC13783_LED_C5_PERIOD(x)	(((x) & 0x3) << 21)
+#define MC13783_LED_C5_TRIODE_TC3	(1 << 23)
+/* MC13892 LED Control 0 */
+#define MC13892_LED_C0_CURRENT_MD(x)	(((x) & 0x7) << 9)
+#define MC13892_LED_C0_CURRENT_AD(x)	(((x) & 0x7) << 21)
+/* MC13892 LED Control 1 */
+#define MC13892_LED_C1_CURRENT_KP(x)	(((x) & 0x7) << 9)
+/* MC13892 LED Control 2 */
+#define MC13892_LED_C2_CURRENT_R(x)	(((x) & 0x7) << 9)
+#define MC13892_LED_C2_CURRENT_G(x)	(((x) & 0x7) << 21)
+/* MC13892 LED Control 3 */
+#define MC13892_LED_C3_CURRENT_B(x)	(((x) & 0x7) << 9)
+/* MC34708 LED Control 0 */
+#define MC34708_LED_C0_CURRENT_R(x)	(((x) & 0x3) << 9)
+#define MC34708_LED_C0_CURRENT_G(x)	(((x) & 0x3) << 21)
 
 struct mc13xxx_leds_platform_data {
-	int num_leds;
 	struct mc13xxx_led_platform_data *led;
-
-#define MC13783_LED_TRIODE_MD	(1 << 0)
-#define MC13783_LED_TRIODE_AD	(1 << 1)
-#define MC13783_LED_TRIODE_KP	(1 << 2)
-#define MC13783_LED_BOOST_EN	(1 << 3)
-#define MC13783_LED_TC1HALF	(1 << 4)
-#define MC13783_LED_SLEWLIMTC	(1 << 5)
-#define MC13783_LED_SLEWLIMBL	(1 << 6)
-#define MC13783_LED_TRIODE_TC1	(1 << 7)
-#define MC13783_LED_TRIODE_TC2	(1 << 8)
-#define MC13783_LED_TRIODE_TC3	(1 << 9)
-	int flags;
-
-#define MC13783_LED_AB_DISABLED		0
-#define MC13783_LED_AB_MD1		1
-#define MC13783_LED_AB_MD12		2
-#define MC13783_LED_AB_MD123		3
-#define MC13783_LED_AB_MD1234		4
-#define MC13783_LED_AB_MD1234_AD1	5
-#define MC13783_LED_AB_MD1234_AD12	6
-#define MC13783_LED_AB_MD1_AD		7
-	char abmode;
-
-#define MC13783_LED_ABREF_200MV	0
-#define MC13783_LED_ABREF_400MV	1
-#define MC13783_LED_ABREF_600MV	2
-#define MC13783_LED_ABREF_800MV	3
-	char abref;
-
-#define MC13783_LED_PERIOD_10MS		0
-#define MC13783_LED_PERIOD_100MS	1
-#define MC13783_LED_PERIOD_500MS	2
-#define MC13783_LED_PERIOD_2S		3
-	char bl_period;
-	char tc1_period;
-	char tc2_period;
-	char tc3_period;
+	int num_leds;
+	u32 led_control[MAX_LED_CONTROL_REGS];
 };
 
-struct mc13xxx_buttons_platform_data {
 #define MC13783_BUTTON_DBNC_0MS		0
 #define MC13783_BUTTON_DBNC_30MS	1
 #define MC13783_BUTTON_DBNC_150MS	2
@@ -150,6 +188,8 @@ struct mc13xxx_buttons_platform_data {
 #define MC13783_BUTTON_ENABLE		(1 << 2)
 #define MC13783_BUTTON_POL_INVERT	(1 << 3)
 #define MC13783_BUTTON_RESET_EN		(1 << 4)
+
+struct mc13xxx_buttons_platform_data {
 	int b1on_flags;
 	unsigned short b1on_key;
 	int b2on_flags;
@@ -158,14 +198,14 @@ struct mc13xxx_buttons_platform_data {
 	unsigned short b3on_key;
 };
 
+#define MC13783_TS_ATO_FIRST	false
+#define MC13783_TS_ATO_EACH	true
+
 struct mc13xxx_ts_platform_data {
 	/* Delay between Touchscreen polarization and ADC Conversion.
 	 * Given in clock ticks of a 32 kHz clock which gives a granularity of
 	 * about 30.5ms */
 	u8 ato;
-
-#define MC13783_TS_ATO_FIRST false
-#define MC13783_TS_ATO_EACH  true
 	/* Use the ATO delay only for the first conversion or for each one */
 	bool atox;
 };
@@ -180,11 +220,12 @@ struct mc13xxx_codec_platform_data {
 	enum mc13783_ssi_port dac_ssi_port;
 };
 
-struct mc13xxx_platform_data {
-#define MC13XXX_USE_TOUCHSCREEN (1 << 0)
+#define MC13XXX_USE_TOUCHSCREEN	(1 << 0)
 #define MC13XXX_USE_CODEC	(1 << 1)
 #define MC13XXX_USE_ADC		(1 << 2)
 #define MC13XXX_USE_RTC		(1 << 3)
+
+struct mc13xxx_platform_data {
 	unsigned int flags;
 
 	struct mc13xxx_regulator_platform_data regulators;

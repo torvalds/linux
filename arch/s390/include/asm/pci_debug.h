@@ -6,13 +6,8 @@
 extern debug_info_t *pci_debug_msg_id;
 extern debug_info_t *pci_debug_err_id;
 
-#ifdef CONFIG_PCI_DEBUG
 #define zpci_dbg(imp, fmt, args...)				\
 	debug_sprintf_event(pci_debug_msg_id, imp, fmt, ##args)
-
-#else /* !CONFIG_PCI_DEBUG */
-#define zpci_dbg(imp, fmt, args...) do { } while (0)
-#endif
 
 #define zpci_err(text...)							\
 	do {									\

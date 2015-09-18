@@ -20,16 +20,25 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
+
+#include <asm/alternative.h>
+#include <asm/cpufeature.h>
 #include <asm/errno.h>
+#include <asm/sysreg.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, tmp, oparg)		\
 	asm volatile(							\
-"1:	ldaxr	%w1, %2\n"						\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,		\
+		    CONFIG_ARM64_PAN)					\
+"	prfm	pstl1strm, %2\n"					\
+"1:	ldxr	%w1, %2\n"						\
 	insn "\n"							\
 "2:	stlxr	%w3, %w0, %2\n"						\
 "	cbnz	%w3, 1b\n"						\
+"	dmb	ish\n"							\
 "3:\n"									\
 "	.pushsection .fixup,\"ax\"\n"					\
+"	.align	2\n"							\
 "4:	mov	%w0, %w5\n"						\
 "	b	3b\n"							\
 "	.popsection\n"							\
@@ -37,9 +46,11 @@
 "	.align	3\n"							\
 "	.quad	1b, 4b, 2b, 4b\n"					\
 "	.popsection\n"							\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,		\
+		    CONFIG_ARM64_PAN)					\
 	: "=&r" (ret), "=&r" (oldval), "+Q" (*uaddr), "=&r" (tmp)	\
 	: "r" (oparg), "Ir" (-EFAULT)					\
-	: "cc", "memory")
+	: "memory")
 
 static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
@@ -56,7 +67,7 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	pagefault_disable();	/* implies preempt_disable() */
+	pagefault_disable();
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -83,7 +94,7 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 		ret = -ENOSYS;
 	}
 
-	pagefault_enable();	/* subsumes preempt_enable() */
+	pagefault_enable();
 
 	if (!ret) {
 		switch (cmp) {
@@ -110,11 +121,13 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	asm volatile("// futex_atomic_cmpxchg_inatomic\n"
-"1:	ldaxr	%w1, %2\n"
+"	prfm	pstl1strm, %2\n"
+"1:	ldxr	%w1, %2\n"
 "	sub	%w3, %w1, %w4\n"
 "	cbnz	%w3, 3f\n"
 "2:	stlxr	%w3, %w5, %2\n"
 "	cbnz	%w3, 1b\n"
+"	dmb	ish\n"
 "3:\n"
 "	.pushsection .fixup,\"ax\"\n"
 "4:	mov	%w0, %w6\n"
@@ -126,7 +139,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 "	.popsection\n"
 	: "+r" (ret), "=&r" (val), "+Q" (*uaddr), "=&r" (tmp)
 	: "r" (oldval), "r" (newval), "Ir" (-EFAULT)
-	: "cc", "memory");
+	: "memory");
 
 	*uval = val;
 	return ret;

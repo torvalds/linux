@@ -1,0 +1,208 @@
+/dts-v1/;
+
+#include "tegra30-colibri.dtsi"
+
+/ {
+	model = "Toradex Colibri T30 on Colibri Evaluation Board";
+	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30", "nvidia,tegra30";
+
+	aliases {
+		rtc0 = "/i2c@7000c000/rtc@68";
+		rtc1 = "/i2c@7000d000/tps65911@2d";
+		rtc2 = "/rtc@7000e000";
+		serial0 = &uarta;
+		serial1 = &uartb;
+		serial2 = &uartd;
+	};
+
+	host1x@50000000 {
+		dc@54200000 {
+			rgb {
+				status = "okay";
+				nvidia,panel = <&panel>;
+			};
+		};
+		hdmi@54280000 {
+			status = "okay";
+		};
+	};
+
+	serial@70006000 {
+		status = "okay";
+	};
+
+	serial@70006040 {
+		compatible = "nvidia,tegra30-hsuart";
+		status = "okay";
+	};
+
+	serial@70006300 {
+		compatible = "nvidia,tegra30-hsuart";
+		status = "okay";
+	};
+
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	/*
+	 * GEN1_I2C: I2C_SDA/SCL on SODIMM pin 194/196 (e.g. RTC on carrier
+	 * board)
+	 */
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		/* M41T0M6 real time clock on carrier board */
+		rtc@68 {
+			compatible = "stm,m41t00";
+			reg = <0x68>;
+		};
+	};
+
+	/* DDC_CLOCK/DATA on X3 pin 15/16 (e.g. display EDID) */
+	hdmiddc: i2c@7000c700 {
+		status = "okay";
+	};
+
+	/* SPI1: Colibri SSP */
+	spi@7000d400 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+		can0: can@0 {
+			compatible = "microchip,mcp2515";
+			reg = <0>;
+			clocks = <&clk16m>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+			spi-max-frequency = <10000000>;
+		};
+		spidev0: spi@1 {
+			compatible = "spidev";
+			reg = <1>;
+			spi-max-frequency = <25000000>;
+		};
+	};
+
+	sdhci@78000200 {
+		status = "okay";
+		bus-width = <4>;
+		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>;
+		no-1-8-v;
+	};
+
+	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
+	usb@7d000000 {
+		status = "okay";
+	};
+
+	usb-phy@7d000000 {
+		status = "okay";
+		dr_mode = "otg";
+		vbus-supply = <&usbc_vbus_reg>;
+	};
+
+	/* EHCI instance 2: USB3_DP/N -> USBH_P/N */
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		status = "okay";
+		vbus-supply = <&usbh_vbus_reg>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+
+		/* PWM<A> */
+		pwms = <&pwm 0 5000000>;
+		brightness-levels = <255 128 64 32 16 8 4 0>;
+		default-brightness-level = <6>;
+		/* BL_ON */
+		enable-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+	};
+
+	clocks {
+		clk16m: clk@1 {
+			compatible = "fixed-clock";
+			reg=<1>;
+			#clock-cells = <0>;
+			clock-frequency = <16000000>;
+			clock-output-names = "clk16m";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			gpio-key,wakeup;
+		};
+	};
+
+	panel: panel {
+		/*
+		 * edt,et057090dhu: EDT 5.7" LCD TFT
+		 * edt,et070080dh6: EDT 7.0" LCD TFT
+		 */
+		compatible = "edt,et057090dhu", "simple-panel";
+
+		backlight = <&backlight>;
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwmb {
+			label = "PWM<B>";
+			pwms = <&pwm 1 19600>;
+			max-brightness = <255>;
+		};
+		pwmc {
+			label = "PWM<C>";
+			pwms = <&pwm 2 19600>;
+			max-brightness = <255>;
+		};
+		pwmd {
+			label = "PWM<D>";
+			pwms = <&pwm 3 19600>;
+			max-brightness = <255>;
+		};
+	};
+
+	regulators {
+		sys_5v0_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "5v0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		usbc_vbus_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "usbc_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			vin-supply = <&sys_5v0_reg>;
+		};
+
+		/* USBH_PEN */
+		usbh_vbus_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "usbh_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
+			vin-supply = <&sys_5v0_reg>;
+		};
+	};
+};

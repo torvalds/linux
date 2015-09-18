@@ -123,7 +123,7 @@ static void it8761e_gpio_set(struct gpio_chip *gc,
 
 	curr_vals = inb(reg);
 	if (val)
-		outb(curr_vals | (1 << bit) , reg);
+		outb(curr_vals | (1 << bit), reg);
 	else
 		outb(curr_vals & ~(1 << bit), reg);
 
@@ -217,11 +217,7 @@ gpiochip_add_err:
 static void __exit it8761e_gpio_exit(void)
 {
 	if (gpio_ba) {
-		int ret = gpiochip_remove(&it8761e_gpio_chip);
-
-		WARN(ret, "%s(): gpiochip_remove() failed, ret=%d\n",
-				__func__, ret);
-
+		gpiochip_remove(&it8761e_gpio_chip);
 		release_region(gpio_ba, GPIO_IOSIZE);
 		gpio_ba = 0;
 	}

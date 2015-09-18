@@ -8,7 +8,7 @@ TWL6030 USB COMPARATOR
    usb interrupt number that raises VBUS interrupts when the controller has to
    act as device
  - usb-supply : phandle to the regulator device tree node. It should be vusb
-   if it is twl6030 or ldousb if it is twl6025 subclass.
+   if it is twl6030 or ldousb if it is twl6032 subclass.
 
 twl6030-usb {
 	compatible = "ti,twl6030-usb";
@@ -29,6 +29,9 @@ TWL4030 USB PHY AND COMPARATOR
    <supply-name> should be vusb1v5, vusb1v8 and vusb3v1
  - usb_mode : The mode used by the phy to connect to the controller. "1"
    specifies "ULPI" mode and "2" specifies "CEA2011_3PIN" mode.
+
+If a sibling node is compatible "ti,twl4030-bci", then it will find
+this device and query it for USB power status.
 
 twl4030-usb {
 	compatible = "ti,twl4030-usb";

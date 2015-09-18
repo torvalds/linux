@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -200,6 +200,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 		return -EINVAL;
 
 	port->encodernorm = saa7164_tvnorms[i];
+	port->std = id;
 
 	/* Update the audio decoder while is not running in
 	 * auto detect mode.
@@ -208,6 +209,15 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 
 	dprintk(DBGLVL_VBI, "%s(id=0x%x) OK\n", __func__, (u32)id);
 
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7164_encoder_fh *fh = file->private_data;
+	struct saa7164_port *port = fh->port;
+
+	*id = port->std;
 	return 0;
 }
 
@@ -650,13 +660,14 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 
-	cap->capabilities =
+	cap->device_caps =
 		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_READWRITE     |
-		0;
+		V4L2_CAP_READWRITE |
+		V4L2_CAP_TUNER;
 
-	cap->capabilities |= V4L2_CAP_TUNER;
-	cap->version = 0;
+	cap->capabilities = cap->device_caps |
+		V4L2_CAP_VIDEO_CAPTURE |
+		V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -1236,6 +1247,7 @@ static const struct v4l2_file_operations vbi_fops = {
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_std		 = vidioc_s_std,
+	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
 	.vidioc_s_input		 = vidioc_s_input,
@@ -1254,15 +1266,6 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_s_ext_ctrls	 = vidioc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-#if 0
-	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,
-#endif
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-#if 0
-	.vidioc_g_register	 = saa7164_g_register,
-	.vidioc_s_register	 = saa7164_s_register,
-#endif
-#endif
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_s_fmt_vbi_cap	 = saa7164_vbi_fmt,
@@ -1274,7 +1277,6 @@ static struct video_device saa7164_vbi_template = {
 	.ioctl_ops     = &vbi_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = SAA7164_NORMS,
-	.current_norm  = V4L2_STD_NTSC_M,
 };
 
 static struct video_device *saa7164_vbi_alloc(
@@ -1296,7 +1298,7 @@ static struct video_device *saa7164_vbi_alloc(
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, saa7164_boards[dev->board].name);
 
-	vfd->parent  = &pci->dev;
+	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	return vfd;
 }
@@ -1333,6 +1335,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 		goto failed;
 	}
 
+	port->std = V4L2_STD_NTSC_M;
 	video_set_drvdata(port->v4l_device, port);
 	result = video_register_device(port->v4l_device,
 		VFL_TYPE_VBI, -1);

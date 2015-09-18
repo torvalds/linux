@@ -3,15 +3,15 @@
 
 config TILE
 	def_bool y
+	select HAVE_PERF_EVENTS
+	select USE_PMC if PERF_EVENTS
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select SYSCTL_EXCEPTION_TRACE
-	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
@@ -24,7 +24,15 @@ config TILE
 	select MODULES_USE_ELF_RELA
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_SYSCALL_TRACEPOINTS
+	select USER_STACKTRACE_SUPPORT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select HAVE_DEBUG_STACKOVERFLOW
+	select ARCH_WANT_FRAME_POINTERS
+	select HAVE_CONTEXT_TRACKING
+	select EDAC_SUPPORT
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select HAVE_ARCH_SECCOMP_FILTER
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -62,6 +70,13 @@ config SYS_SUPPORTS_HUGETLBFS
 config HUGETLB_SUPER_PAGES
 	depends on HUGETLB_PAGE && TILEGX
 	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
+# Enable PMC if PERF_EVENTS, OPROFILE, or WATCHPOINTS are enabled.
+config USE_PMC
+	bool
 
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
@@ -111,10 +126,23 @@ config SMP
 config HVC_TILE
 	depends on TTY
 	select HVC_DRIVER
+	select HVC_IRQ if TILEGX
 	def_bool y
 
+# Building with ARCH=tilegx (or ARCH=tile) implies using the
+# 64-bit TILE-Gx toolchain, so force CONFIG_TILEGX on.
 config TILEGX
-	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
+	def_bool ARCH != "tilepro"
+	select SPARSE_IRQ
+	select GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_ARCH_KGDB
+	select ARCH_SUPPORTS_ATOMIC_RMW
 
 config TILEPRO
 	def_bool !TILEGX
@@ -126,6 +154,11 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 64BIT
+	default 2
 
 source "init/Kconfig"
 
@@ -172,6 +205,7 @@ source "kernel/Kconfig.hz"
 
 config KEXEC
 	bool "kexec system call"
+	select KEXEC_CORE
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -189,11 +223,27 @@ config COMPAT
 	  If enabled, the kernel will support running TILE-Gx binaries
 	  that were built with the -m32 option.
 
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl, it cannot be disabled and the task is only
+	  allowed to execute a few safe syscalls defined by each seccomp
+	  mode.
+
+	  If unsure, say N.
+
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
-# We do not currently support disabling HIGHMEM on tile64 and tilepro.
+# We do not currently support disabling HIGHMEM on tilepro.
 config HIGHMEM
 	bool # "Support for more than 512 MB of RAM"
 	default !TILEGX
@@ -299,6 +349,8 @@ config PAGE_OFFSET
 
 source "mm/Kconfig"
 
+source "kernel/Kconfig.preempt"
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n
@@ -346,7 +398,7 @@ config CMDLINE_OVERRIDE
 
 config VMALLOC_RESERVE
 	hex
-	default 0x1000000
+	default 0x2000000
 
 config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"
@@ -379,7 +431,6 @@ config PCI
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
 	select TILE_GXIO_TRIO if TILEGX
-	select ARCH_SUPPORTS_MSI if TILEGX
 	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
@@ -392,10 +443,22 @@ config PCI_DOMAINS
 config NO_IOMEM
 	def_bool !PCI
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool !PCI
 
+config TILE_PCI_IO
+	bool "PCI I/O space support"
+	default n
+	depends on PCI
+	depends on TILEGX
+	---help---
+	  Enable PCI I/O space support on TILEGx. Since the PCI I/O space
+	  is used by few modern PCIe endpoint devices, its support is disabled
+	  by default to save the TRIO PIO Region resource for other purposes.
+
 source "drivers/pci/Kconfig"
+
+source "drivers/pci/pcie/Kconfig"
 
 config TILE_USB
 	tristate "Tilera USB host adapter support"

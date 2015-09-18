@@ -322,22 +322,4 @@ struct ab8500_regulator_platform_data {
 	struct regulator_init_data *ext_regulator;
 };
 
-#ifdef CONFIG_REGULATOR_AB8500_DEBUG
-int ab8500_regulator_debug_init(struct platform_device *pdev);
-int ab8500_regulator_debug_exit(struct platform_device *pdev);
-#else
-static inline int ab8500_regulator_debug_init(struct platform_device *pdev)
-{
-	return 0;
-}
-static inline int ab8500_regulator_debug_exit(struct platform_device *pdev)
-{
-	return 0;
-}
-#endif
-
-/* AB8500 external regulator functions. */
-int ab8500_ext_regulator_init(struct platform_device *pdev);
-void ab8500_ext_regulator_exit(struct platform_device *pdev);
-
 #endif

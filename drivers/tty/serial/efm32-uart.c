@@ -185,11 +185,6 @@ static void efm32_uart_stop_rx(struct uart_port *port)
 	efm32_uart_write32(efm_port, UARTn_CMD_RXDIS, UARTn_CMD);
 }
 
-static void efm32_uart_enable_ms(struct uart_port *port)
-{
-	/* no handshake lines, no modem status interrupts */
-}
-
 static void efm32_uart_break_ctl(struct uart_port *port, int ctl)
 {
 	/* not possible without fiddling with gpios */
@@ -268,9 +263,9 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 		handled = IRQ_HANDLED;
 	}
 
-	tty_flip_buffer_push(tport);
-
 	spin_unlock(&port->lock);
+
+	tty_flip_buffer_push(tport);
 
 	return handled;
 }
@@ -407,7 +402,7 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	if (new->c_iflag & INPCK)
 		port->read_status_mask |=
 			UARTn_RXDATAX_FERR | UARTn_RXDATAX_PERR;
-	if (new->c_iflag & (BRKINT | PARMRK))
+	if (new->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SW_UARTn_RXDATAX_BERR;
 
 	port->ignore_status_mask = 0;
@@ -499,7 +494,6 @@ static struct uart_ops efm32_uart_pops = {
 	.stop_tx = efm32_uart_stop_tx,
 	.start_tx = efm32_uart_start_tx,
 	.stop_rx = efm32_uart_stop_rx,
-	.enable_ms = efm32_uart_enable_ms,
 	.break_ctl = efm32_uart_break_ctl,
 	.startup = efm32_uart_startup,
 	.shutdown = efm32_uart_shutdown,
@@ -671,7 +665,16 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return 1;
 
-	ret = of_property_read_u32(np, "location", &location);
+	ret = of_property_read_u32(np, "energymicro,location", &location);
+
+	if (ret)
+		/* fall back to wrongly namespaced property */
+		ret = of_property_read_u32(np, "efm32,location", &location);
+
+	if (ret)
+		/* fall back to old and (wrongly) generic property "location" */
+		ret = of_property_read_u32(np, "location", &location);
+
 	if (!ret) {
 		if (location > 5) {
 			dev_err(&pdev->dev, "invalid location\n");
@@ -698,6 +701,7 @@ static int efm32_uart_probe(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port;
 	struct resource *res;
+	unsigned int line;
 	int ret;
 
 	efm_port = kzalloc(sizeof(*efm_port), GFP_KERNEL);
@@ -750,18 +754,21 @@ static int efm32_uart_probe(struct platform_device *pdev)
 
 		if (pdata)
 			efm_port->pdata = *pdata;
-	}
+	} else if (ret < 0)
+		goto err_probe_dt;
 
-	if (efm_port->port.line >= 0 &&
-			efm_port->port.line < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[efm_port->port.line] = efm_port;
+	line = efm_port->port.line;
+
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = efm_port;
 
 	ret = uart_add_one_port(&efm32_uart_reg, &efm_port->port);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add port: %d\n", ret);
 
-		if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-			efm32_uart_ports[pdev->id] = NULL;
+		if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+			efm32_uart_ports[line] = NULL;
+err_probe_dt:
 err_get_rxirq:
 err_too_small:
 err_get_base:
@@ -777,21 +784,23 @@ err_get_base:
 static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
+	unsigned int line = efm_port->port.line;
 
 	uart_remove_one_port(&efm32_uart_reg, &efm_port->port);
 
-	if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[pdev->id] = NULL;
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = NULL;
 
 	kfree(efm_port);
 
 	return 0;
 }
 
-static struct of_device_id efm32_uart_dt_ids[] = {
+static const struct of_device_id efm32_uart_dt_ids[] = {
 	{
+		.compatible = "energymicro,efm32-uart",
+	}, {
+		/* doesn't follow the "vendor,device" scheme, don't use */
 		.compatible = "efm32,uart",
 	}, {
 		/* sentinel */
@@ -805,7 +814,6 @@ static struct platform_driver efm32_uart_driver = {
 
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = efm32_uart_dt_ids,
 	},
 };
@@ -833,6 +841,7 @@ static void __exit efm32_uart_exit(void)
 	platform_driver_unregister(&efm32_uart_driver);
 	uart_unregister_driver(&efm32_uart_reg);
 }
+module_exit(efm32_uart_exit);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
 MODULE_DESCRIPTION("EFM32 UART/USART driver");

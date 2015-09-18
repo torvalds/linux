@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <asm/mips-boards/piix4.h>
 
 /* PCI interrupt pins */
 #define PCIA		1
@@ -50,10 +51,26 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
+static void malta_piix_func3_base_fixup(struct pci_dev *dev)
+{
+	/* Set a sane PM I/O base address */
+	pci_write_config_word(dev, PIIX4_FUNC3_PMBA, 0x1000);
+
+	/* Enable access to the PM I/O region */
+	pci_write_config_byte(dev, PIIX4_FUNC3_PMREGMISC,
+			      PIIX4_FUNC3_PMREGMISC_EN);
+}
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3,
+			malta_piix_func3_base_fixup);
+
 static void malta_piix_func0_fixup(struct pci_dev *pdev)
 {
 	unsigned char reg_val;
-	static int piixirqmap[16] = {  /* PIIX PIRQC[A:D] irq mappings */
+	u32 reg_val32;
+	u16 reg_val16;
+	/* PIIX PIRQC[A:D] irq mappings */
+	static int piixirqmap[PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MAX] = {
 		0,  0,	0,  3,
 		4,  5,	6,  7,
 		0,  9, 10, 11,
@@ -63,11 +80,12 @@ static void malta_piix_func0_fixup(struct pci_dev *pdev)
 
 	/* Interrogate PIIX4 to get PCI IRQ mapping */
 	for (i = 0; i <= 3; i++) {
-		pci_read_config_byte(pdev, 0x60+i, &reg_val);
-		if (reg_val & 0x80)
+		pci_read_config_byte(pdev, PIIX4_FUNC0_PIRQRC+i, &reg_val);
+		if (reg_val & PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_DISABLE)
 			pci_irq[PCIA+i] = 0;	/* Disabled */
 		else
-			pci_irq[PCIA+i] = piixirqmap[reg_val & 15];
+			pci_irq[PCIA+i] = piixirqmap[reg_val &
+				PIIX4_FUNC0_PIRQRC_IRQ_ROUTING_MASK];
 	}
 
 	/* Done by YAMON 2.00 onwards */
@@ -76,9 +94,25 @@ static void malta_piix_func0_fixup(struct pci_dev *pdev)
 		 * Set top of main memory accessible by ISA or DMA
 		 * devices to 16 Mb.
 		 */
-		pci_read_config_byte(pdev, 0x69, &reg_val);
-		pci_write_config_byte(pdev, 0x69, reg_val | 0xf0);
+		pci_read_config_byte(pdev, PIIX4_FUNC0_TOM, &reg_val);
+		pci_write_config_byte(pdev, PIIX4_FUNC0_TOM, reg_val |
+				PIIX4_FUNC0_TOM_TOP_OF_MEMORY_MASK);
 	}
+
+	/* Mux SERIRQ to its pin */
+	pci_read_config_dword(pdev, PIIX4_FUNC0_GENCFG, &reg_val32);
+	pci_write_config_dword(pdev, PIIX4_FUNC0_GENCFG,
+			       reg_val32 | PIIX4_FUNC0_GENCFG_SERIRQ);
+
+	/* Enable SERIRQ */
+	pci_read_config_byte(pdev, PIIX4_FUNC0_SERIRQC, &reg_val);
+	reg_val |= PIIX4_FUNC0_SERIRQC_EN | PIIX4_FUNC0_SERIRQC_CONT;
+	pci_write_config_byte(pdev, PIIX4_FUNC0_SERIRQC, reg_val);
+
+	/* Enable response to special cycles */
+	pci_read_config_word(pdev, PCI_COMMAND, &reg_val16);
+	pci_write_config_word(pdev, PCI_COMMAND,
+			      reg_val16 | PCI_COMMAND_SPECIAL);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
@@ -93,10 +127,14 @@ static void malta_piix_func1_fixup(struct pci_dev *pdev)
 		/*
 		 * IDE Decode enable.
 		 */
-		pci_read_config_byte(pdev, 0x41, &reg_val);
-		pci_write_config_byte(pdev, 0x41, reg_val|0x80);
-		pci_read_config_byte(pdev, 0x43, &reg_val);
-		pci_write_config_byte(pdev, 0x43, reg_val|0x80);
+		pci_read_config_byte(pdev, PIIX4_FUNC1_IDETIM_PRIMARY_HI,
+			&reg_val);
+		pci_write_config_byte(pdev, PIIX4_FUNC1_IDETIM_PRIMARY_HI,
+			reg_val|PIIX4_FUNC1_IDETIM_PRIMARY_HI_IDE_DECODE_EN);
+		pci_read_config_byte(pdev, PIIX4_FUNC1_IDETIM_SECONDARY_HI,
+			&reg_val);
+		pci_write_config_byte(pdev, PIIX4_FUNC1_IDETIM_SECONDARY_HI,
+			reg_val|PIIX4_FUNC1_IDETIM_SECONDARY_HI_IDE_DECODE_EN);
 	}
 }
 
@@ -108,10 +146,12 @@ static void quirk_dlcsetup(struct pci_dev *dev)
 {
 	u8 odlc, ndlc;
 
-	(void) pci_read_config_byte(dev, 0x82, &odlc);
+	(void) pci_read_config_byte(dev, PIIX4_FUNC0_DLC, &odlc);
 	/* Enable passive releases and delayed transaction */
-	ndlc = odlc | 7;
-	(void) pci_write_config_byte(dev, 0x82, ndlc);
+	ndlc = odlc | PIIX4_FUNC0_DLC_USBPR_EN |
+		      PIIX4_FUNC0_DLC_PASSIVE_RELEASE_EN |
+		      PIIX4_FUNC0_DLC_DELAYED_TRANSACTION_EN;
+	(void) pci_write_config_byte(dev, PIIX4_FUNC0_DLC, ndlc);
 }
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,

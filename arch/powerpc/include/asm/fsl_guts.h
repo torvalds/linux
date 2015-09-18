@@ -68,7 +68,10 @@ struct ccsr_guts {
 	u8	res0b4[0xc0 - 0xb4];
 	__be32  iovselsr;	/* 0x.00c0 - I/O voltage select status register
 					     Called 'elbcvselcr' on 86xx SOCs */
-	u8	res0c4[0x224 - 0xc4];
+	u8	res0c4[0x100 - 0xc4];
+	__be32	rcwsr[16];	/* 0x.0100 - Reset Control Word Status registers
+					     There are 16 registers */
+	u8	res140[0x224 - 0x140];
 	__be32  iodelay1;	/* 0x.0224 - IO delay control register 1 */
 	__be32  iodelay2;	/* 0x.0228 - IO delay control register 2 */
 	u8	res22c[0x604 - 0x22c];

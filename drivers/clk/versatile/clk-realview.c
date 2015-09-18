@@ -6,7 +6,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -33,13 +32,13 @@ static const struct icst_params realview_oscvco_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-static const struct clk_icst_desc __initdata realview_osc0_desc = {
+static const struct clk_icst_desc realview_osc0_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC0_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
 };
 
-static const struct clk_icst_desc __initdata realview_osc4_desc = {
+static const struct clk_icst_desc realview_osc4_desc __initconst = {
 	.params = &realview_oscvco_params,
 	.vco_offset = REALVIEW_SYS_OSC4_OFFSET,
 	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
@@ -84,9 +83,11 @@ void __init realview_clk_init(void __iomem *sysbase, bool is_pb1176)
 
 	/* ICST VCO clock */
 	if (is_pb1176)
-		clk = icst_clk_register(NULL, &realview_osc0_desc, sysbase);
+		clk = icst_clk_register(NULL, &realview_osc0_desc,
+					"osc0", NULL, sysbase);
 	else
-		clk = icst_clk_register(NULL, &realview_osc4_desc, sysbase);
+		clk = icst_clk_register(NULL, &realview_osc4_desc,
+					"osc4", NULL, sysbase);
 
 	clk_register_clkdev(clk, NULL, "dev:clcd");
 	clk_register_clkdev(clk, NULL, "issp:clcd");

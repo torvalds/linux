@@ -15,7 +15,6 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -25,9 +24,6 @@
 #include <sound/soc.h>
 
 #include "ux500_msp_i2s.h"
-
-/* MSP1/3 Tx/Rx usage protection */
-static DEFINE_SPINLOCK(msp_rxtx_lock);
 
  /* Protocol desciptors */
 static const struct msp_protdesc prot_descs[] = {
@@ -356,24 +352,8 @@ static int configure_multichannel(struct ux500_msp *msp,
 
 static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 {
-	int status = 0, retval = 0;
+	int status = 0;
 	u32 reg_val_DMACR, reg_val_GCR;
-	unsigned long flags;
-
-	/* Check msp state whether in RUN or CONFIGURED Mode */
-	if (msp->msp_state == MSP_STATE_IDLE) {
-		spin_lock_irqsave(&msp_rxtx_lock, flags);
-		if (msp->pinctrl_rxtx_ref == 0 &&
-			!(IS_ERR(msp->pinctrl_p) || IS_ERR(msp->pinctrl_def))) {
-			retval = pinctrl_select_state(msp->pinctrl_p,
-						msp->pinctrl_def);
-			if (retval)
-				pr_err("could not set MSP defstate\n");
-		}
-		if (!retval)
-			msp->pinctrl_rxtx_ref++;
-		spin_unlock_irqrestore(&msp_rxtx_lock, flags);
-	}
 
 	/* Configure msp with protocol dependent settings */
 	configure_protocol(msp, config);
@@ -387,12 +367,14 @@ static int enable_msp(struct ux500_msp *msp, struct ux500_msp_config *config)
 	}
 
 	/* Make sure the correct DMA-directions are configured */
-	if ((config->direction & MSP_DIR_RX) && (!msp->dma_cfg_rx)) {
+	if ((config->direction & MSP_DIR_RX) &&
+			!msp->capture_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP RX-mode is not configured!",
 			__func__);
 		return -EINVAL;
 	}
-	if ((config->direction == MSP_DIR_TX) && (!msp->dma_cfg_tx)) {
+	if ((config->direction == MSP_DIR_TX) &&
+			!msp->playback_dma_data.dma_cfg) {
 		dev_err(msp->dev, "%s: ERROR: MSP TX-mode is not configured!",
 			__func__);
 		return -EINVAL;
@@ -630,8 +612,7 @@ int ux500_msp_i2s_trigger(struct ux500_msp *msp, int cmd, int direction)
 
 int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 {
-	int status = 0, retval = 0;
-	unsigned long flags;
+	int status = 0;
 
 	dev_dbg(msp->dev, "%s: Enter (dir = 0x%01x).\n", __func__, dir);
 
@@ -642,18 +623,6 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 		writel((readl(msp->registers + MSP_GCR) &
 			       (~(FRAME_GEN_ENABLE | SRG_ENABLE))),
 			      msp->registers + MSP_GCR);
-
-		spin_lock_irqsave(&msp_rxtx_lock, flags);
-		WARN_ON(!msp->pinctrl_rxtx_ref);
-		msp->pinctrl_rxtx_ref--;
-		if (msp->pinctrl_rxtx_ref == 0 &&
-			!(IS_ERR(msp->pinctrl_p) || IS_ERR(msp->pinctrl_sleep))) {
-			retval = pinctrl_select_state(msp->pinctrl_p,
-						msp->pinctrl_sleep);
-			if (retval)
-				pr_err("could not set MSP sleepstate\n");
-		}
-		spin_unlock_irqrestore(&msp_rxtx_lock, flags);
 
 		writel(0, msp->registers + MSP_GCR);
 		writel(0, msp->registers + MSP_TCF);
@@ -677,38 +646,63 @@ int ux500_msp_i2s_close(struct ux500_msp *msp, unsigned int dir)
 
 }
 
+static int ux500_msp_i2s_of_init_msp(struct platform_device *pdev,
+				struct ux500_msp *msp,
+				struct msp_i2s_platform_data **platform_data)
+{
+	struct msp_i2s_platform_data *pdata;
+
+	*platform_data = devm_kzalloc(&pdev->dev,
+				     sizeof(struct msp_i2s_platform_data),
+				     GFP_KERNEL);
+	pdata = *platform_data;
+	if (!pdata)
+		return -ENOMEM;
+
+	msp->playback_dma_data.dma_cfg = devm_kzalloc(&pdev->dev,
+					sizeof(struct stedma40_chan_cfg),
+					GFP_KERNEL);
+	if (!msp->playback_dma_data.dma_cfg)
+		return -ENOMEM;
+
+	msp->capture_dma_data.dma_cfg = devm_kzalloc(&pdev->dev,
+					sizeof(struct stedma40_chan_cfg),
+					GFP_KERNEL);
+	if (!msp->capture_dma_data.dma_cfg)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p,
 			struct msp_i2s_platform_data *platform_data)
 {
 	struct resource *res = NULL;
-	struct i2s_controller *i2s_cont;
 	struct device_node *np = pdev->dev.of_node;
 	struct ux500_msp *msp;
+	int ret;
 
 	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
 	msp = *msp_p;
 	if (!msp)
 		return -ENOMEM;
 
-	if (np) {
-		if (!platform_data) {
-			platform_data = devm_kzalloc(&pdev->dev,
-				sizeof(struct msp_i2s_platform_data), GFP_KERNEL);
-			if (!platform_data)
-				return -ENOMEM;
-		}
-	} else
-		if (!platform_data)
+	if (!platform_data) {
+		if (np) {
+			ret = ux500_msp_i2s_of_init_msp(pdev, msp,
+							&platform_data);
+			if (ret)
+				return ret;
+		} else
 			return -EINVAL;
+	} else {
+		msp->playback_dma_data.dma_cfg = platform_data->msp_i2s_dma_tx;
+		msp->capture_dma_data.dma_cfg = platform_data->msp_i2s_dma_rx;
+		msp->id = platform_data->id;
+	}
 
-	dev_dbg(&pdev->dev, "%s: Enter (name: %s, id: %d).\n", __func__,
-		pdev->name, platform_data->id);
-
-	msp->id = platform_data->id;
 	msp->dev = &pdev->dev;
-	msp->dma_cfg_rx = platform_data->msp_i2s_dma_rx;
-	msp->dma_cfg_tx = platform_data->msp_i2s_dma_tx;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -716,6 +710,9 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			__func__);
 		return -ENOMEM;
 	}
+
+	msp->playback_dma_data.tx_rx_addr = res->start + MSP_DR;
+	msp->capture_dma_data.tx_rx_addr = res->start + MSP_DR;
 
 	msp->registers = devm_ioremap(&pdev->dev, res->start,
 				      resource_size(res));
@@ -727,41 +724,6 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	msp->msp_state = MSP_STATE_IDLE;
 	msp->loopback_enable = 0;
 
-	/* I2S-controller is allocated and added in I2S controller class. */
-	i2s_cont = devm_kzalloc(&pdev->dev, sizeof(*i2s_cont), GFP_KERNEL);
-	if (!i2s_cont) {
-		dev_err(&pdev->dev,
-			"%s: ERROR: Failed to allocate I2S-controller!\n",
-			__func__);
-		return -ENOMEM;
-	}
-	i2s_cont->dev.parent = &pdev->dev;
-	i2s_cont->data = (void *)msp;
-	i2s_cont->id = (s16)msp->id;
-	snprintf(i2s_cont->name, sizeof(i2s_cont->name), "ux500-msp-i2s.%04x",
-		msp->id);
-	dev_dbg(&pdev->dev, "I2S device-name: '%s'\n", i2s_cont->name);
-	msp->i2s_cont = i2s_cont;
-
-	msp->pinctrl_p = pinctrl_get(msp->dev);
-	if (IS_ERR(msp->pinctrl_p))
-		dev_err(&pdev->dev, "could not get MSP pinctrl\n");
-	else {
-		msp->pinctrl_def = pinctrl_lookup_state(msp->pinctrl_p,
-						PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(msp->pinctrl_def)) {
-			dev_err(&pdev->dev,
-				"could not get MSP defstate (%li)\n",
-				PTR_ERR(msp->pinctrl_def));
-		}
-		msp->pinctrl_sleep = pinctrl_lookup_state(msp->pinctrl_p,
-						PINCTRL_STATE_SLEEP);
-		if (IS_ERR(msp->pinctrl_sleep))
-			dev_err(&pdev->dev,
-				"could not get MSP idlestate (%li)\n",
-				PTR_ERR(msp->pinctrl_def));
-	}
-
 	return 0;
 }
 
@@ -769,8 +731,6 @@ void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 			struct ux500_msp *msp)
 {
 	dev_dbg(msp->dev, "%s: Enter (id = %d).\n", __func__, msp->id);
-
-	device_unregister(&msp->i2s_cont->dev);
 }
 
 MODULE_LICENSE("GPL v2");

@@ -45,10 +45,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	int n = ptr_to_cpu(v);
 
 	if (n == 0) {
-		char buf[NR_CPUS*5];
-		cpulist_scnprintf(buf, sizeof(buf), cpu_online_mask);
 		seq_printf(m, "cpu count\t: %d\n", num_online_cpus());
-		seq_printf(m, "cpu list\t: %s\n", buf);
+		seq_printf(m, "cpu list\t: %*pbl\n",
+			   cpumask_pr_args(cpu_online_mask));
 		seq_printf(m, "model name\t: %s\n", chip_model);
 		seq_printf(m, "flags\t\t:\n");  /* nothing for now */
 		seq_printf(m, "cpu MHz\t\t: %llu.%06llu\n",
@@ -113,8 +112,7 @@ arch_initcall(proc_tile_init);
  * Support /proc/sys/tile directory
  */
 
-#ifndef __tilegx__  /* FIXME: GX: no support for unaligned access yet */
-static ctl_table unaligned_subtable[] = {
+static struct ctl_table unaligned_subtable[] = {
 	{
 		.procname	= "enabled",
 		.data		= &unaligned_fixup,
@@ -139,7 +137,7 @@ static ctl_table unaligned_subtable[] = {
 	{}
 };
 
-static ctl_table unaligned_table[] = {
+static struct ctl_table unaligned_table[] = {
 	{
 		.procname	= "unaligned_fixup",
 		.mode		= 0555,
@@ -160,4 +158,3 @@ static int __init proc_sys_tile_init(void)
 }
 
 arch_initcall(proc_sys_tile_init);
-#endif

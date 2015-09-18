@@ -7,33 +7,11 @@ vt6655_stage-y +=	device_main.o \
 	channel.o \
 	mac.o \
 	baseband.o \
-	wctl.o \
-	80211mgr.o \
-	wcmd.o \
-	wmgr.o \
-	bssdb.o \
 	rxtx.o \
 	dpc.o \
 	power.o \
-	datarate.o \
 	srom.o \
-	mib.o \
-	rc4.o \
-	tether.o \
-	tcrc.o \
-	ioctl.o \
-	hostap.o \
-	wpa.o \
 	key.o \
-	tkip.o \
-	michael.o \
-	wroute.o \
-	rf.o \
-	iwctl.o \
-	wpactl.o \
-	wpa2.o \
-	aes_ccmp.o \
-	vntwifi.o \
-	IEEE11h.o
+	rf.o
 
 obj-$(CONFIG_VT6655) +=	vt6655_stage.o

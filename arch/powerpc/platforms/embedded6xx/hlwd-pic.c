@@ -15,9 +15,10 @@
 #define pr_fmt(fmt) DRV_MODULE_NAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/io.h>
 
 #include "hlwd-pic.h"
@@ -123,7 +124,7 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 				      struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct irq_domain *irq_domain = irq_get_handler_data(cascade_virq);
+	struct irq_domain *irq_domain = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
 	raw_spin_lock(&desc->lock);
@@ -181,6 +182,7 @@ struct irq_domain *hlwd_pic_init(struct device_node *np)
 					   &hlwd_irq_domain_ops, io_base);
 	if (!irq_domain) {
 		pr_err("failed to allocate irq_domain\n");
+		iounmap(io_base);
 		return NULL;
 	}
 

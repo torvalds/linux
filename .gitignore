@@ -22,16 +22,21 @@
 *.lst
 *.symtypes
 *.order
-modules.builtin
 *.elf
 *.bin
+*.tar
 *.gz
 *.bz2
 *.lzma
 *.xz
+*.lz4
 *.lzo
 *.patch
 *.gcno
+modules.builtin
+Module.symvers
+*.dwo
+*.su
 
 #
 # Top-level generic files
@@ -40,15 +45,21 @@ modules.builtin
 /TAGS
 /linux
 /vmlinux
+/vmlinux.32
+/vmlinux-gdb.py
 /vmlinuz
 /System.map
 /Module.markers
-/Module.symvers
 
 #
 # Debian directory (make deb-pkg)
 #
 /debian/
+
+#
+# tar directory (make tar*-pkg)
+#
+/tar-install/
 
 #
 # git files that we don't want to ignore even it they are dot-files
@@ -80,6 +91,9 @@ GRTAGS
 GSYMS
 GTAGS
 
+# id-utils files
+ID
+
 *.orig
 *~
 \#*#
@@ -88,6 +102,13 @@ GTAGS
 # Leavings from module signing
 #
 extra_certificates
+signing_key.pem
 signing_key.priv
 signing_key.x509
 x509.genkey
+
+# Kconfig presets
+all.config
+
+# Kdevelop4
+*.kdev4

@@ -57,14 +57,28 @@
 #define pgd_present(pgd)	(pgd_val(pgd) != 0)
 #define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0)
 #define pgd_page_vaddr(pgd)	(pgd_val(pgd) & ~PGD_MASKED_BITS)
-#define pgd_page(pgd)		virt_to_page(pgd_page_vaddr(pgd))
+
+#ifndef __ASSEMBLY__
+
+static inline pte_t pgd_pte(pgd_t pgd)
+{
+	return __pte(pgd_val(pgd));
+}
+
+static inline pgd_t pte_pgd(pte_t pte)
+{
+	return __pgd(pte_val(pte));
+}
+extern struct page *pgd_page(pgd_t pgd);
+
+#endif /* !__ASSEMBLY__ */
 
 #define pud_offset(pgdp, addr)	\
   (((pud_t *) pgd_page_vaddr(*(pgdp))) + \
     (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
 
 #define pud_ERROR(e) \
-	printk("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
+	pr_err("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
 
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range() */

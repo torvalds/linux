@@ -12,12 +12,6 @@
  * Yura's function is added (04/07/2000)
  */
 
-//
-// keyed_hash
-// yura_hash
-// r5_hash
-//
-
 #include <linux/kernel.h>
 #include "reiserfs.h"
 #include <asm/types.h>
@@ -56,7 +50,7 @@ u32 keyed_hash(const signed char *msg, int len)
 	u32 pad;
 	int i;
 
-	//      assert(len >= 0 && len < 256);
+	/*      assert(len >= 0 && len < 256); */
 
 	pad = (u32) len | ((u32) len << 8);
 	pad |= pad << 16;
@@ -127,9 +121,10 @@ u32 keyed_hash(const signed char *msg, int len)
 	return h0 ^ h1;
 }
 
-/* What follows in this file is copyright 2000 by Hans Reiser, and the
- * licensing of what follows is governed by reiserfs/README */
-
+/*
+ * What follows in this file is copyright 2000 by Hans Reiser, and the
+ * licensing of what follows is governed by reiserfs/README
+ */
 u32 yura_hash(const signed char *msg, int len)
 {
 	int j, pow;

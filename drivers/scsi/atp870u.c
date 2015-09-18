@@ -3101,9 +3101,8 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 
 static int atp870u_show_info(struct seq_file *m, struct Scsi_Host *HBAptr)
 {
-	seq_printf(m, "ACARD AEC-671X Driver Version: 2.6+ac\n");
-	seq_printf(m, "\n");
-	seq_printf(m, "Adapter Configuration:\n");
+	seq_puts(m, "ACARD AEC-671X Driver Version: 2.6+ac\n\n"
+		"Adapter Configuration:\n");
 	seq_printf(m, "               Base IO: %#.4lx\n", HBAptr->io_port);
 	seq_printf(m, "                   IRQ: %d\n", HBAptr->irq);
 	return 0;
@@ -3144,8 +3143,6 @@ static void atp870u_remove (struct pci_dev *pdev)
 	atp870u_free_tables(pshost);
 	printk(KERN_INFO "scsi_host_put : %p\n",pshost);
 	scsi_host_put(pshost);
-	printk(KERN_INFO "pci_set_drvdata : %p\n",pdev);
-	pci_set_drvdata(pdev, NULL);	
 }
 MODULE_LICENSE("GPL");
 
@@ -3161,7 +3158,6 @@ static struct scsi_host_template atp870u_template = {
      .can_queue         	= qcnt			/* can_queue */,
      .this_id           	= 7			/* SCSI ID */,
      .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/ /*SG_NONE*/,
-     .cmd_per_lun       	= ATP870U_CMDLUN		/* commands per lun */,
      .use_clustering    	= ENABLE_CLUSTERING,
      .max_sectors		= ATP870U_MAX_SECTORS,
 };

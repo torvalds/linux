@@ -1,0 +1,41 @@
+Multi-Function Devices (MFD)
+
+These devices comprise a nexus for heterogeneous hardware blocks containing
+more than one non-unique yet varying hardware functionality.
+
+A typical MFD can be:
+
+- A mixed signal ASIC on an external bus, sometimes a PMIC (Power Management
+  Integrated Circuit) that is manufactured in a lower technology node (rough
+  silicon) that handles analog drivers for things like audio amplifiers, LED
+  drivers, level shifters, PHY (physical interfaces to things like USB or
+  ethernet), regulators etc.
+
+- A range of memory registers containing "miscellaneous system registers" also
+  known as a system controller "syscon" or any other memory range containing a
+  mix of unrelated hardware devices.
+
+Optional properties:
+
+- compatible : "simple-mfd" - this signifies that the operating system should
+  consider all subnodes of the MFD device as separate devices akin to how
+  "simple-bus" inidicates when to see subnodes as children for a simple
+  memory-mapped bus. For more complex devices, when the nexus driver has to
+  probe registers to figure out what child devices exist etc, this should not
+  be used. In the latter case the child devices will be determined by the
+  operating system.
+
+Example:
+
+foo@1000 {
+	compatible = "syscon", "simple-mfd";
+	reg = <0x01000 0x1000>;
+
+	led@08.0 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x01>;
+		label = "myled";
+		default-state = "on";
+	};
+};

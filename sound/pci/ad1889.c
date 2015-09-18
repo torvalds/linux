@@ -40,13 +40,12 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
-
-#include <asm/io.h>
 
 #include "ad1889.h"
 #include "ac97/ac97_id.h"
@@ -76,9 +75,6 @@ MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 
 #define DEVNAME "ad1889"
 #define PFX	DEVNAME ": "
-
-/* let's use the global sound debug interfaces */
-#define ad1889_debug(fmt, arg...) snd_printd(KERN_DEBUG fmt, ## arg)
 
 /* keep track of some hw registers */
 struct ad1889_register_state {
@@ -264,11 +260,11 @@ snd_ad1889_ac97_ready(struct snd_ad1889 *chip)
 			&& --retry)
 		mdelay(1);
 	if (!retry) {
-		snd_printk(KERN_ERR PFX "[%s] Link is not ready.\n",
-		       __func__);
+		dev_err(chip->card->dev, "[%s] Link is not ready.\n",
+			__func__);
 		return -EIO;
 	}
-	ad1889_debug("[%s] ready after %d ms\n", __func__, 400 - retry);
+	dev_dbg(chip->card->dev, "[%s] ready after %d ms\n", __func__, 400 - retry);
 
 	return 0;
 }
@@ -405,9 +401,9 @@ snd_ad1889_playback_prepare(struct snd_pcm_substream *ss)
 	
 	spin_unlock_irq(&chip->lock);
 	
-	ad1889_debug("prepare playback: addr = 0x%x, count = %u, "
-			"size = %u, reg = 0x%x, rate = %u\n", chip->wave.addr,
-			count, size, reg, rt->rate);
+	dev_dbg(chip->card->dev,
+		"prepare playback: addr = 0x%x, count = %u, size = %u, reg = 0x%x, rate = %u\n",
+		chip->wave.addr, count, size, reg, rt->rate);
 	return 0;
 }
 
@@ -452,9 +448,9 @@ snd_ad1889_capture_prepare(struct snd_pcm_substream *ss)
 	
 	spin_unlock_irq(&chip->lock);
 	
-	ad1889_debug("prepare capture: addr = 0x%x, count = %u, "
-			"size = %u, reg = 0x%x, rate = %u\n", chip->ramc.addr,
-			count, size, reg, rt->rate);
+	dev_dbg(chip->card->dev,
+		"prepare capture: addr = 0x%x, count = %u, size = %u, reg = 0x%x, rate = %u\n",
+		chip->ramc.addr, count, size, reg, rt->rate);
 	return 0;
 }
 
@@ -614,7 +610,8 @@ snd_ad1889_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (st & (AD_DMA_DISR_PMAI|AD_DMA_DISR_PTAI))
-		ad1889_debug("Unexpected master or target abort interrupt!\n");
+		dev_dbg(chip->card->dev,
+			"Unexpected master or target abort interrupt!\n");
 
 	if ((st & AD_DMA_DISR_WAVI) && chip->psubs)
 		snd_pcm_period_elapsed(chip->psubs);
@@ -625,13 +622,10 @@ snd_ad1889_interrupt(int irq, void *dev_id)
 }
 
 static int
-snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
+snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 {
 	int err;
 	struct snd_pcm *pcm;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	err = snd_pcm_new(chip->card, chip->card->driver, device, 1, 1, &pcm);
 	if (err < 0)
@@ -656,12 +650,9 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
 						BUFFER_BYTES_MAX);
 
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "buffer allocation error: %d\n", err);
+		dev_err(chip->card->dev, "buffer allocation error: %d\n", err);
 		return err;
 	}
-	
-	if (rpcm)
-		*rpcm = pcm;
 	
 	return 0;
 }
@@ -683,7 +674,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* WARQ is at offset 12 */
 	tmp = (reg & AD_DS_WSMC_WARQ) ?
-			(((reg & AD_DS_WSMC_WARQ >> 12) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_WSMC_WARQ) >> 12) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Wave FIFO: %d %s words\n\n", tmp,
@@ -695,7 +686,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* SYRQ is at offset 4 */
 	tmp = (reg & AD_DS_WSMC_SYRQ) ?
-			(((reg & AD_DS_WSMC_SYRQ >> 4) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_WSMC_SYRQ) >> 4) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_WSMC_WAST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Synthesis FIFO: %d %s words\n\n", tmp,
@@ -711,7 +702,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	
 	/* ACRQ is at offset 4 */
 	tmp = (reg & AD_DS_RAMC_ACRQ) ?
-			(((reg & AD_DS_RAMC_ACRQ >> 4) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_RAMC_ACRQ) >> 4) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "ADC FIFO: %d %s words\n\n", tmp,
@@ -722,7 +713,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 			
 	/* RERQ is at offset 12 */
 	tmp = (reg & AD_DS_RAMC_RERQ) ?
-			(((reg & AD_DS_RAMC_RERQ >> 12) & 0x01) ? 12 : 18) : 4;
+		((((reg & AD_DS_RAMC_RERQ) >> 12) & 0x01) ? 12 : 18) : 4;
 	tmp /= (reg & AD_DS_RAMC_ADST) ? 2 : 1;
 	
 	snd_iprintf(buffer, "Resampler FIFO: %d %s words\n\n", tmp,
@@ -739,7 +730,7 @@ snd_ad1889_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffe
 	reg = ad1889_readw(chip, AD_DS_WADA);
 	snd_iprintf(buffer, "Right: %s, -%d dB\n",
 			(reg & AD_DS_WADA_RWAM) ? "mute" : "unmute",
-			((reg & AD_DS_WADA_RWAA) >> 8) * 3);
+			(reg & AD_DS_WADA_RWAA) * 3);
 	
 	reg = ad1889_readw(chip, AD_DS_WAS);
 	snd_iprintf(buffer, "Wave samplerate: %u Hz\n", reg);
@@ -756,7 +747,7 @@ snd_ad1889_proc_init(struct snd_ad1889 *chip)
 		snd_info_set_text_ops(entry, chip, snd_ad1889_proc_read);
 }
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
 	{
 		.subvendor = 0x11d4,	/* AD */
 		.subdevice = 0x1889,	/* AD1889 */
@@ -861,12 +852,9 @@ snd_ad1889_free(struct snd_ad1889 *chip)
 		free_irq(chip->irq, chip);
 
 skip_hw:
-	if (chip->iobase)
-		iounmap(chip->iobase);
-
+	iounmap(chip->iobase);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
-
 	kfree(chip);
 	return 0;
 }
@@ -910,9 +898,9 @@ snd_ad1889_create(struct snd_card *card,
 		return err;
 
 	/* check PCI availability (32bit DMA) */
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
-		printk(KERN_ERR PFX "error setting 32-bit DMA mask.\n");
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0 ||
+	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
+		dev_err(card->dev, "error setting 32-bit DMA mask.\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -935,7 +923,7 @@ snd_ad1889_create(struct snd_card *card,
 	chip->bar = pci_resource_start(pci, 0);
 	chip->iobase = pci_ioremap_bar(pci, 0);
 	if (chip->iobase == NULL) {
-		printk(KERN_ERR PFX "unable to reserve region.\n");
+		dev_err(card->dev, "unable to reserve region.\n");
 		err = -EBUSY;
 		goto free_and_ret;
 	}
@@ -946,7 +934,7 @@ snd_ad1889_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_ad1889_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		printk(KERN_ERR PFX "cannot obtain IRQ %d\n", pci->irq);
+		dev_err(card->dev, "cannot obtain IRQ %d\n", pci->irq);
 		snd_ad1889_free(chip);
 		return -EBUSY;
 	}
@@ -964,8 +952,6 @@ snd_ad1889_create(struct snd_card *card,
 		snd_ad1889_free(chip);
 		return err;
 	}
-
-	snd_card_set_dev(card, &pci->dev);
 
 	*rchip = chip;
 
@@ -996,7 +982,8 @@ snd_ad1889_probe(struct pci_dev *pci,
 	}
 
 	/* (2) */
-	err = snd_card_create(index[devno], id[devno], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[devno], id[devno], THIS_MODULE,
+			   0, &card);
 	/* XXX REVISIT: we can probably allocate chip in this call */
 	if (err < 0)
 		return err;
@@ -1019,7 +1006,7 @@ snd_ad1889_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto free_and_ret;
 	
-	err = snd_ad1889_pcm_init(chip, 0, NULL);
+	err = snd_ad1889_pcm_init(chip, 0);
 	if (err < 0)
 		goto free_and_ret;
 
@@ -1046,10 +1033,9 @@ static void
 snd_ad1889_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(snd_ad1889_ids) = {
+static const struct pci_device_id snd_ad1889_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ANALOG_DEVICES, PCI_DEVICE_ID_AD1889JS) },
 	{ 0, },
 };

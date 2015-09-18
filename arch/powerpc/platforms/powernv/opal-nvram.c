@@ -16,6 +16,7 @@
 #include <linux/of.h>
 
 #include <asm/opal.h>
+#include <asm/nvram.h>
 #include <asm/machdep.h>
 
 static unsigned int nvram_size;
@@ -62,10 +63,19 @@ static ssize_t opal_nvram_write(char *buf, size_t count, loff_t *index)
 	return count;
 }
 
+static int __init opal_nvram_init_log_partitions(void)
+{
+	/* Scan nvram for partitions */
+	nvram_scan_partitions();
+	nvram_init_oops_partition(0);
+	return 0;
+}
+machine_arch_initcall(powernv, opal_nvram_init_log_partitions);
+
 void __init opal_nvram_init(void)
 {
 	struct device_node *np;
-	const u32 *nbytes_p;
+	const __be32 *nbytes_p;
 
 	np = of_find_compatible_node(NULL, NULL, "ibm,opal-nvram");
 	if (np == NULL)
@@ -76,9 +86,9 @@ void __init opal_nvram_init(void)
 		of_node_put(np);
 		return;
 	}
-	nvram_size = *nbytes_p;
+	nvram_size = be32_to_cpup(nbytes_p);
 
-	printk(KERN_INFO "OPAL nvram setup, %u bytes\n", nvram_size);
+	pr_info("OPAL nvram setup, %u bytes\n", nvram_size);
 	of_node_put(np);
 
 	ppc_md.nvram_read = opal_nvram_read;

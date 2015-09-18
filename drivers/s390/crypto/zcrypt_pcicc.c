@@ -24,6 +24,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "zcrypt"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
@@ -95,11 +98,11 @@ static struct ap_driver zcrypt_pcicc_driver = {
  * - VUD block
  */
 static struct CPRB static_cprb = {
-	.cprb_len	= __constant_cpu_to_le16(0x0070),
+	.cprb_len	= cpu_to_le16(0x0070),
 	.cprb_ver_id	=  0x41,
 	.func_id	= {0x54,0x32},
 	.checkpoint_flag=  0x01,
-	.svr_namel	= __constant_cpu_to_le16(0x0008),
+	.svr_namel	= cpu_to_le16(0x0008),
 	.svr_name	= {'I','C','S','F',' ',' ',' ',' '}
 };
 
@@ -161,7 +164,7 @@ static int ICAMEX_msg_to_type6MEX_msg(struct zcrypt_device *zdev,
 	};
 	static struct function_and_rules_block static_pke_function_and_rules ={
 		.function_code	= {'P','K'},
-		.ulen		= __constant_cpu_to_le16(10),
+		.ulen		= cpu_to_le16(10),
 		.only_rule	= {'P','K','C','S','-','1','.','2'}
 	};
 	struct {
@@ -248,7 +251,7 @@ static int ICACRT_msg_to_type6CRT_msg(struct zcrypt_device *zdev,
 	};
 	static struct function_and_rules_block static_pkd_function_and_rules ={
 		.function_code	= {'P','D'},
-		.ulen		= __constant_cpu_to_le16(10),
+		.ulen		= cpu_to_le16(10),
 		.only_rule	= {'P','K','C','S','-','1','.','2'}
 	};
 	struct {
@@ -372,6 +375,11 @@ static int convert_type86(struct zcrypt_device *zdev,
 		if (service_rc == 8 && service_rs == 72)
 			return -EINVAL;
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid, zdev->online,
+			       msg->hdr.reply_code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	data = msg->text;
@@ -425,6 +433,10 @@ static int convert_response(struct zcrypt_device *zdev,
 		/* no break, incorrect cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
+			       zdev->ap_dev->qid, zdev->online);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }

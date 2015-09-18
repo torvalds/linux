@@ -1,6 +1,6 @@
 config INFINIBAND_OCRDMA
 	tristate "Emulex One Connect HCA support"
-	depends on ETHERNET && NETDEVICES && PCI && (IPV6 || IPV6=n)
+	depends on ETHERNET && NETDEVICES && PCI && INET && (IPV6 || IPV6=n)
 	select NET_VENDOR_EMULEX
 	select BE2NET
 	---help---

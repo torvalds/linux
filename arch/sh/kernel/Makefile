@@ -22,7 +22,7 @@ obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 		\
 
 ifndef CONFIG_GENERIC_IOMAP
 obj-y				+= iomap.o
-obj-$(CONFIG_HAS_IOPORT)	+= ioport.o
+obj-$(CONFIG_HAS_IOPORT_MAP)	+= ioport.o
 endif
 
 obj-$(CONFIG_SUPERH32)		+= sys_sh32.o

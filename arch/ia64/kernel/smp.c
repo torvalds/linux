@@ -262,11 +262,11 @@ smp_flush_tlb_cpumask(cpumask_t xcpumask)
 	preempt_disable();
 	mycpu = smp_processor_id();
 
-	for_each_cpu_mask(cpu, cpumask)
+	for_each_cpu(cpu, &cpumask)
 		counts[cpu] = local_tlb_flush_counts[cpu].count & 0xffff;
 
 	mb();
-	for_each_cpu_mask(cpu, cpumask) {
+	for_each_cpu(cpu, &cpumask) {
 		if (cpu == mycpu)
 			flush_mycpu = 1;
 		else
@@ -276,7 +276,7 @@ smp_flush_tlb_cpumask(cpumask_t xcpumask)
 	if (flush_mycpu)
 		smp_local_flush_tlb();
 
-	for_each_cpu_mask(cpu, cpumask)
+	for_each_cpu(cpu, &cpumask)
 		while(counts[cpu] == (local_tlb_flush_counts[cpu].count & 0xffff))
 			udelay(FLUSH_DELAY);
 

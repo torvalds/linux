@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@
 #include <dmxdev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-device.h>
 
 #include "saa7164-reg.h"
 #include "saa7164-types.h"
@@ -83,6 +83,9 @@
 #define SAA7164_BOARD_HAUPPAUGE_HVR2250_3	8
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200_4	9
 #define SAA7164_BOARD_HAUPPAUGE_HVR2200_5	10
+#define SAA7164_BOARD_HAUPPAUGE_HVR2255proto	11
+#define SAA7164_BOARD_HAUPPAUGE_HVR2255		12
+#define SAA7164_BOARD_HAUPPAUGE_HVR2205		13
 
 #define SAA7164_MAX_UNITS		8
 #define SAA7164_TS_NUMBER_OF_LINES	312
@@ -313,13 +316,13 @@ struct saa7164_buffer {
 
 	/* A block of page align PCI memory */
 	u32 pci_size;	/* PCI allocation size in bytes */
-	u64 __iomem *cpu;	/* Virtual address */
+	u64 *cpu;	/* Virtual address */
 	dma_addr_t dma;	/* Physical address */
 	u32 crc;	/* Checksum for the entire buffer data */
 
 	/* A page table that splits the block into a number of entries */
 	u32 pt_size;		/* PCI allocation size in bytes */
-	u64 __iomem *pt_cpu;		/* Virtual address */
+	u64 *pt_cpu;		/* Virtual address */
 	dma_addr_t pt_dma;	/* Physical address */
 
 	/* Encoder fops */
@@ -371,11 +374,14 @@ struct saa7164_port {
 
 	/* --- DVB Transport Specific --- */
 	struct saa7164_dvb dvb;
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner;
 
 	/* --- Encoder/V4L related attributes --- */
 	/* Encoder */
 	/* Defaults established in saa7164-encoder.c */
 	struct saa7164_tvnorm encodernorm;
+	v4l2_std_id std;
 	u32 height;
 	u32 width;
 	u32 freq;
@@ -427,6 +433,8 @@ struct saa7164_dev {
 	struct list_head	devlist;
 	atomic_t		refcount;
 
+	struct v4l2_device v4l2_dev;
+
 	/* pci stuff */
 	struct pci_dev	*pci;
 	unsigned char	pci_rev, pci_lat;
@@ -456,6 +464,7 @@ struct saa7164_dev {
 	/* Interrupt status and ack registers */
 	u32 int_status;
 	u32 int_ack;
+	bool msi;
 
 	struct cmd			cmds[SAA_CMD_MAX_MSG_UNITS];
 	struct mutex			lock;

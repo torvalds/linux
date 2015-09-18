@@ -33,13 +33,13 @@
 
 #define FIMC_IS_DRV_NAME		"exynos4-fimc-is"
 
-#define FIMC_IS_FW_FILENAME		"fimc_is_fw.bin"
-#define FIMC_IS_SETFILE_6A3		"setfile.bin"
+#define FIMC_IS_FW_FILENAME		"exynos4_fimc_is_fw.bin"
+#define FIMC_IS_SETFILE_6A3		"exynos4_s5k6a3_setfile.bin"
 
 #define FIMC_IS_FW_LOAD_TIMEOUT		1000 /* ms */
 #define FIMC_IS_POWER_ON_TIMEOUT	1000 /* us */
 
-#define FIMC_IS_SENSOR_NUM		2
+#define FIMC_IS_SENSORS_NUM		2
 
 /* Memory definitions */
 #define FIMC_IS_CPU_MEM_SIZE		(0xa00000)
@@ -73,7 +73,6 @@ enum {
 	ISS_CLK_LITE0,
 	ISS_CLK_LITE1,
 	ISS_CLK_MPLL,
-	ISS_CLK_SYSREG,
 	ISS_CLK_ISP,
 	ISS_CLK_DRC,
 	ISS_CLK_FD,
@@ -226,8 +225,7 @@ struct chain_config {
 	struct drc_param	drc;
 	struct fd_param		fd;
 
-	unsigned long		p_region_index1;
-	unsigned long		p_region_index2;
+	unsigned long		p_region_index[2];
 };
 
 /**
@@ -255,7 +253,7 @@ struct fimc_is {
 	struct firmware			*f_w;
 
 	struct fimc_isp			isp;
-	struct fimc_is_sensor		*sensor;
+	struct fimc_is_sensor		sensor[FIMC_IS_SENSORS_NUM];
 	struct fimc_is_setfile		setfile;
 
 	struct vb2_alloc_ctx		*alloc_ctx;
@@ -265,7 +263,6 @@ struct fimc_is {
 	spinlock_t			slock;
 
 	struct clk			*clocks[ISS_CLKS_MAX];
-	bool				clk_init;
 	void __iomem			*regs;
 	void __iomem			*pmu_regs;
 	int				irq;
@@ -295,6 +292,11 @@ static inline struct fimc_is *fimc_isp_to_is(struct fimc_isp *isp)
 	return container_of(isp, struct fimc_is, isp);
 }
 
+static inline struct chain_config *__get_curr_is_config(struct fimc_is *is)
+{
+	return &is->config[is->config_index];
+}
+
 static inline void fimc_is_mem_barrier(void)
 {
 	mb();
@@ -304,10 +306,7 @@ static inline void fimc_is_set_param_bit(struct fimc_is *is, int num)
 {
 	struct chain_config *cfg = &is->config[is->config_index];
 
-	if (num >= 32)
-		set_bit(num - 32, &cfg->p_region_index2);
-	else
-		set_bit(num, &cfg->p_region_index1);
+	set_bit(num, &cfg->p_region_index[0]);
 }
 
 static inline void fimc_is_set_param_ctrl_cmd(struct fimc_is *is, int cmd)

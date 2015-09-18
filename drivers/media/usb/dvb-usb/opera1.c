@@ -167,7 +167,8 @@ static struct i2c_algorithm opera1_i2c_algo = {
 	.functionality = opera1_i2c_func,
 };
 
-static int opera1_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int opera1_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	static u8 command_13v[1]={0x00};
 	static u8 command_18v[1]={0x01};
@@ -554,8 +555,8 @@ static int opera1_probe(struct usb_interface *intf,
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	if (udev->descriptor.idProduct == USB_PID_OPERA1_WARM &&
-		udev->descriptor.idVendor == USB_VID_OPERA1 &&
+	if (le16_to_cpu(udev->descriptor.idProduct) == USB_PID_OPERA1_WARM &&
+	    le16_to_cpu(udev->descriptor.idVendor) == USB_VID_OPERA1 &&
 		opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga-01.fw") != 0
 	    ) {
 		return -EINVAL;

@@ -49,6 +49,7 @@
 typedef union {
 	uint64_t u64;
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/*
 		 * the (64-bit word) location in scratchpad to write
 		 * to (if len != 0)
@@ -63,6 +64,12 @@ typedef union {
 		 * the NCB bus.
 		 */
 		uint64_t addr:40;
+#else
+		uint64_t addr:40;
+		uint64_t did:8;
+		uint64_t len:8;
+		uint64_t scraddr:8;
+#endif
 	} s;
 } cvmx_fpa_iobdma_data_t;
 

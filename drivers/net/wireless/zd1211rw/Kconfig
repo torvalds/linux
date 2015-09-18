@@ -3,11 +3,11 @@ config ZD1211RW
 	depends on USB && MAC80211
 	select FW_LOADER
 	---help---
-	  This is an experimental driver for the ZyDAS ZD1211/ZD1211B wireless
+	  This is a driver for the ZyDAS ZD1211/ZD1211B wireless
 	  chip, present in many USB-wireless adapters.
 
 	  Device firmware is required alongside this driver. You can download
-	  the firmware distribution from http://zd1211.ath.cx/get-firmware
+	  the firmware distribution from http://sf.net/projects/zd1211/files/
 
 config ZD1211RW_DEBUG
 	bool "ZyDAS ZD1211 debugging"

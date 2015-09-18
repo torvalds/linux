@@ -21,9 +21,9 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 
 #define GPIO_BASE(x)		IO_ADDRESS(GEMINI_GPIO_BASE(x))
+#define irq_to_gpio(x)		((x) - GPIO_IRQ_BASE)
 
 /* GPIO registers definition */
 #define GPIO_DATA_OUT		0x0
@@ -220,11 +220,11 @@ void __init gemini_gpio_init(void)
 		     j < GPIO_IRQ_BASE + (i + 1) * 32; j++) {
 			irq_set_chip_and_handler(j, &gpio_irq_chip,
 						 handle_edge_irq);
-			set_irq_flags(j, IRQF_VALID);
+			irq_clear_status_flags(j, IRQ_NOREQUEST);
 		}
 
-		irq_set_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
-		irq_set_handler_data(IRQ_GPIO(i), (void *)i);
+		irq_set_chained_handler_and_data(IRQ_GPIO(i), gpio_irq_handler,
+						 (void *)i);
 	}
 
 	BUG_ON(gpiochip_add(&gemini_gpio_chip));

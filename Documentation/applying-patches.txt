@@ -94,7 +94,7 @@ Common errors when patching
 ---
  When patch applies a patch file it attempts to verify the sanity of the
 file in different ways.
-Checking that the file looks like a valid patch file & checking the code
+Checking that the file looks like a valid patch file and checking the code
 around the bits being modified matches the context provided in the patch are
 just two of the basic sanity checks patch does.
 

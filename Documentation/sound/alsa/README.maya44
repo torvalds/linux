@@ -120,7 +120,7 @@ Mic Phantom+48V: switch for +48V phantom power for electrostatic microphones on 
     Make sure this is not turned on while any other source is connected to input 1/2.
     It might damage the source and/or the maya44 card.
 
-Mic/Line input: if switch is is on, input jack 1/2 is microphone input (mono), otherwise line input (stereo).
+Mic/Line input: if switch is on, input jack 1/2 is microphone input (mono), otherwise line input (stereo).
 
 Bypass: analogue bypass from ADC input to output for channel 1+2. Same as "Monitor" in the windows driver.
 Bypass 1: same for channel 3+4.

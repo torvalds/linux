@@ -14,15 +14,12 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/pci.h>
+#include <linux/module.h>
+#include <linux/interrupt.h>
 
-#include "comedidev.h"
+#include "comedi_pci.h"
 
 /**
  * comedi_to_pci_dev() - comedi_device pointer to pci_dev pointer.
@@ -75,6 +72,29 @@ void comedi_pci_disable(struct comedi_device *dev)
 	dev->ioenabled = false;
 }
 EXPORT_SYMBOL_GPL(comedi_pci_disable);
+
+/**
+ * comedi_pci_detach() - A generic (*detach) function for PCI drivers.
+ * @dev: comedi_device struct
+ */
+void comedi_pci_detach(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (!pcidev || !dev->ioenabled)
+		return;
+
+	if (dev->irq) {
+		free_irq(dev->irq, dev);
+		dev->irq = 0;
+	}
+	if (dev->mmio) {
+		iounmap(dev->mmio);
+		dev->mmio = NULL;
+	}
+	comedi_pci_disable(dev);
+}
+EXPORT_SYMBOL_GPL(comedi_pci_detach);
 
 /**
  * comedi_pci_auto_config() - Configure/probe a comedi PCI driver.
@@ -148,3 +168,18 @@ void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
 	comedi_driver_unregister(comedi_driver);
 }
 EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
+
+static int __init comedi_pci_init(void)
+{
+	return 0;
+}
+module_init(comedi_pci_init);
+
+static void __exit comedi_pci_exit(void)
+{
+}
+module_exit(comedi_pci_exit);
+
+MODULE_AUTHOR("http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi PCI interface module");
+MODULE_LICENSE("GPL");

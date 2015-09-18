@@ -31,14 +31,14 @@ void perf_read_values_destroy(struct perf_read_values *values)
 		return;
 
 	for (i = 0; i < values->threads; i++)
-		free(values->value[i]);
-	free(values->value);
-	free(values->pid);
-	free(values->tid);
-	free(values->counterrawid);
+		zfree(&values->value[i]);
+	zfree(&values->value);
+	zfree(&values->pid);
+	zfree(&values->tid);
+	zfree(&values->counterrawid);
 	for (i = 0; i < values->counters; i++)
-		free(values->countername[i]);
-	free(values->countername);
+		zfree(&values->countername[i]);
+	zfree(&values->countername);
 }
 
 static void perf_read_values__enlarge_threads(struct perf_read_values *values)

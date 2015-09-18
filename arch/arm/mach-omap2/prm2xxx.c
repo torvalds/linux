@@ -18,9 +18,6 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
-#include "soc.h"
-#include "common.h"
-#include "vp.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "prm2xxx.h"
@@ -109,12 +106,31 @@ static int omap2xxx_pwrst_to_common_pwrst(u8 omap2xxx_pwrst)
  * Set the DPLL reset bit, which should reboot the SoC.  This is the
  * recommended way to restart the SoC.  No return value.
  */
-void omap2xxx_prm_dpll_reset(void)
+static void omap2xxx_prm_dpll_reset(void)
 {
 	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, WKUP_MOD,
 				   OMAP2_RM_RSTCTRL);
 	/* OCP barrier */
 	omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTCTRL);
+}
+
+/**
+ * omap2xxx_prm_clear_mod_irqs - clear wakeup status bits for a module
+ * @module: PRM module to clear wakeups from
+ * @regs: register offset to clear
+ * @wkst_mask: wakeup status mask to clear
+ *
+ * Clears wakeup status bits for a given module, so that the device can
+ * re-enter idle.
+ */
+static int omap2xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
+{
+	u32 wkst;
+
+	wkst = omap2_prm_read_mod_reg(module, regs);
+	wkst &= wkst_mask;
+	omap2_prm_write_mod_reg(wkst, module, regs);
+	return 0;
 }
 
 int omap2xxx_clkdm_sleep(struct clockdomain *clkdm)
@@ -197,23 +213,20 @@ struct pwrdm_ops omap2_pwrdm_operations = {
 
 static struct prm_ll_data omap2xxx_prm_ll_data = {
 	.read_reset_sources = &omap2xxx_prm_read_reset_sources,
+	.assert_hardreset = &omap2_prm_assert_hardreset,
+	.deassert_hardreset = &omap2_prm_deassert_hardreset,
+	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
+	.reset_system = &omap2xxx_prm_dpll_reset,
+	.clear_mod_irqs = &omap2xxx_prm_clear_mod_irqs,
 };
 
-int __init omap2xxx_prm_init(void)
+int __init omap2xxx_prm_init(const struct omap_prcm_init_data *data)
 {
-	if (!cpu_is_omap24xx())
-		return 0;
-
 	return prm_register(&omap2xxx_prm_ll_data);
 }
 
 static void __exit omap2xxx_prm_exit(void)
 {
-	if (!cpu_is_omap24xx())
-		return;
-
-	/* Should never happen */
-	WARN(prm_unregister(&omap2xxx_prm_ll_data),
-	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+	prm_unregister(&omap2xxx_prm_ll_data);
 }
 __exitcall(omap2xxx_prm_exit);

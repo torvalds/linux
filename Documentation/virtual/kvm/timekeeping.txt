@@ -467,7 +467,7 @@ at any time.  This causes problems as the passage of real time, the injection
 of machine interrupts and the associated clock sources are no longer completely
 synchronized with real time.
 
-This same problem can occur on native harware to a degree, as SMM mode may
+This same problem can occur on native hardware to a degree, as SMM mode may
 steal cycles from the naturally on X86 systems when SMM mode is used by the
 BIOS, but not in such an extreme fashion.  However, the fact that SMM mode may
 cause similar problems to virtualization makes it a good justification for

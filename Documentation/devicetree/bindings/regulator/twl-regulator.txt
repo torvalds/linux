@@ -18,20 +18,20 @@ For twl6030 regulators/LDOs
   - "ti,twl6030-vdd1" for VDD1 SMPS
   - "ti,twl6030-vdd2" for VDD2 SMPS
   - "ti,twl6030-vdd3" for VDD3 SMPS
-For twl6025 regulators/LDOs
+For twl6032 regulators/LDOs
 - compatible:
-  - "ti,twl6025-ldo1" for LDO1 LDO
-  - "ti,twl6025-ldo2" for LDO2 LDO
-  - "ti,twl6025-ldo3" for LDO3 LDO
-  - "ti,twl6025-ldo4" for LDO4 LDO
-  - "ti,twl6025-ldo5" for LDO5 LDO
-  - "ti,twl6025-ldo6" for LDO6 LDO
-  - "ti,twl6025-ldo7" for LDO7 LDO
-  - "ti,twl6025-ldoln" for LDOLN LDO
-  - "ti,twl6025-ldousb" for LDOUSB LDO
-  - "ti,twl6025-smps3" for SMPS3 SMPS
-  - "ti,twl6025-smps4" for SMPS4 SMPS
-  - "ti,twl6025-vio" for VIO SMPS
+  - "ti,twl6032-ldo1" for LDO1 LDO
+  - "ti,twl6032-ldo2" for LDO2 LDO
+  - "ti,twl6032-ldo3" for LDO3 LDO
+  - "ti,twl6032-ldo4" for LDO4 LDO
+  - "ti,twl6032-ldo5" for LDO5 LDO
+  - "ti,twl6032-ldo6" for LDO6 LDO
+  - "ti,twl6032-ldo7" for LDO7 LDO
+  - "ti,twl6032-ldoln" for LDOLN LDO
+  - "ti,twl6032-ldousb" for LDOUSB LDO
+  - "ti,twl6032-smps3" for SMPS3 SMPS
+  - "ti,twl6032-smps4" for SMPS4 SMPS
+  - "ti,twl6032-vio" for VIO SMPS
 For twl4030 regulators/LDOs
 - compatible:
   - "ti,twl4030-vaux1" for VAUX1 LDO

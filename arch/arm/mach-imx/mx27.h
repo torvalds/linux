@@ -135,7 +135,7 @@
 #define MX27_INT_GPT4		(NR_IRQS_LEGACY + 4)
 #define MX27_INT_RTIC		(NR_IRQS_LEGACY + 5)
 #define MX27_INT_CSPI3		(NR_IRQS_LEGACY + 6)
-#define MX27_INT_SDHC		(NR_IRQS_LEGACY + 7)
+#define MX27_INT_MSHC		(NR_IRQS_LEGACY + 7)
 #define MX27_INT_GPIO		(NR_IRQS_LEGACY + 8)
 #define MX27_INT_SDHC3		(NR_IRQS_LEGACY + 9)
 #define MX27_INT_SDHC2		(NR_IRQS_LEGACY + 10)
@@ -230,9 +230,5 @@
 #define MX27_DMA_REQ_UART6_RX	35
 #define MX27_DMA_REQ_SDHC3	36
 #define MX27_DMA_REQ_NFC	37
-
-#ifndef __ASSEMBLY__
-extern int mx27_revision(void);
-#endif
 
 #endif /* ifndef __MACH_MX27_H__ */

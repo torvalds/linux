@@ -1,13 +1,14 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/mod_devicetable.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
-#include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 
 #include "of_device_common.h"
 

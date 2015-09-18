@@ -263,7 +263,7 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_3[] = {
 	{ 0xffff			, 0xff },
 };
 
-struct stb0899_config vp1041_stb0899_config = {
+static struct stb0899_config vp1041_stb0899_config = {
 	.init_dev		= vp1041_stb0899_s1_init_1,
 	.init_s2_demod		= stb0899_s2_init_2,
 	.init_s1_demod		= vp1041_stb0899_s1_init_3,
@@ -273,7 +273,7 @@ struct stb0899_config vp1041_stb0899_config = {
 	.demod_address 		= 0x68, /*  0xd0 >> 1 */
 
 	.xtal_freq		= 27000000,
-	.inversion		= IQ_SWAP_ON, /* 1 */
+	.inversion		= IQ_SWAP_ON,
 
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
@@ -300,7 +300,7 @@ struct stb0899_config vp1041_stb0899_config = {
 	.tuner_set_rfsiggain	= NULL,
 };
 
-struct stb6100_config vp1041_stb6100_config = {
+static struct stb6100_config vp1041_stb6100_config = {
 	.tuner_address	= 0x60,
 	.refclock	= 27000000,
 };

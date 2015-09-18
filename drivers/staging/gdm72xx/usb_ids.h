@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __USB_IDS_H__
-#define __USB_IDS_H__
+#ifndef __GDM72XX_USB_IDS_H__
+#define __GDM72XX_USB_IDS_H__
 
 /*You can replace vendor-ID as yours.*/
 #define GCT_VID			0x1076
@@ -29,10 +29,12 @@
 	.idVendor = (vend), .idProduct = (prod), .bInterfaceClass = (intf)
 
 #define EMERGENCY_PID		0x720f
-#define BL_PID_MASK			0xffc0
+#define BL_PID_MASK		0xffc0
 
 #define USB_DEVICE_BOOTLOADER(vid, pid)	\
-	{USB_DEVICE((vid), ((pid)&BL_PID_MASK)|B_DOWNLOAD)},	\
+	{USB_DEVICE((vid), ((pid)&BL_PID_MASK)|B_DOWNLOAD)}
+
+#define USB_DEVICE_BOOTLOADER_DRV(vid, pid)	\
 	{USB_DEVICE((vid), ((pid)&BL_PID_MASK)|B_DOWNLOAD|B_DIFF_DL_DRV)}
 
 #define USB_DEVICE_CDC_DATA(vid, pid)	\
@@ -40,6 +42,7 @@
 
 static const struct usb_device_id id_table[] = {
 	USB_DEVICE_BOOTLOADER(GCT_VID, GCT_PID1),
+	USB_DEVICE_BOOTLOADER_DRV(GCT_VID, GCT_PID1),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID1),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID1+0x1),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID1+0x2),
@@ -58,6 +61,7 @@ static const struct usb_device_id id_table[] = {
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID1+0xf),
 
 	USB_DEVICE_BOOTLOADER(GCT_VID, GCT_PID2),
+	USB_DEVICE_BOOTLOADER_DRV(GCT_VID, GCT_PID2),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID2),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID2+0x1),
 	USB_DEVICE_CDC_DATA(GCT_VID, GCT_PID2+0x2),
@@ -79,4 +83,4 @@ static const struct usb_device_id id_table[] = {
 	{ }
 };
 
-#endif /* __USB_IDS_H__ */
+#endif /* __GDM72XX_USB_IDS_H__ */

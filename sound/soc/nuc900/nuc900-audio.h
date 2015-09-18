@@ -100,10 +100,7 @@
 struct nuc900_audio {
 	void __iomem *mmio;
 	spinlock_t lock;
-	dma_addr_t dma_addr[2];
-	unsigned long buffersize[2];
 	unsigned long irq_num;
-	struct snd_pcm_substream *substream;
 	struct resource *res;
 	struct clk *clk;
 	struct device *dev;

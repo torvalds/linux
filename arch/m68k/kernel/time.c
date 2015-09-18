@@ -11,6 +11,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -27,6 +28,11 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/profile.h>
+
+
+unsigned long (*mach_random_get_entropy)(void);
+EXPORT_SYMBOL_GPL(mach_random_get_entropy);
+
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -90,7 +96,7 @@ static int __init rtc_init(void)
 		return -ENODEV;
 
 	pdev = platform_device_register_simple("rtc-generic", -1, NULL, 0);
-	return PTR_RET(pdev);
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 module_init(rtc_init);

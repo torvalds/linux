@@ -478,7 +478,6 @@ static struct nls_table table = {
 	.char2uni	= char2uni,
 	.charset2lower	= charset2lower,
 	.charset2upper	= charset2upper,
-	.owner		= THIS_MODULE,
 };
 
 static int __init init_nls_macgreek(void)

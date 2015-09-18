@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,6 +26,7 @@
  **************************************************************************/
 
 #include "vmwgfx_kms.h"
+#include <drm/drm_plane_helper.h>
 
 
 #define vmw_crtc_to_ldu(x) \
@@ -56,7 +57,7 @@ struct vmw_legacy_display_unit {
 static void vmw_ldu_destroy(struct vmw_legacy_display_unit *ldu)
 {
 	list_del_init(&ldu->active);
-	vmw_display_unit_cleanup(&ldu->base);
+	vmw_du_cleanup(&ldu->base);
 	kfree(ldu);
 }
 
@@ -93,7 +94,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 		if (crtc == NULL)
 			return 0;
-		fb = entry->base.crtc.fb;
+		fb = entry->base.crtc.primary->fb;
 
 		return vmw_kms_write_svga(dev_priv, w, h, fb->pitches[0],
 					  fb->bits_per_pixel, fb->depth);
@@ -101,7 +102,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 	if (!list_empty(&lds->active)) {
 		entry = list_entry(lds->active.next, typeof(*entry), active);
-		fb = entry->base.crtc.fb;
+		fb = entry->base.crtc.primary->fb;
 
 		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitches[0],
 				   fb->bits_per_pixel, fb->depth);
@@ -259,7 +260,8 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 
 		connector->encoder = NULL;
 		encoder->crtc = NULL;
-		crtc->fb = NULL;
+		crtc->primary->fb = NULL;
+		crtc->enabled = false;
 
 		vmw_ldu_del_active(dev_priv, ldu);
 
@@ -277,14 +279,15 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 		return -EINVAL;
 	}
 
-	vmw_fb_off(dev_priv);
+	vmw_svga_enable(dev_priv);
 
-	crtc->fb = fb;
+	crtc->primary->fb = fb;
 	encoder->crtc = crtc;
 	connector->encoder = encoder;
 	crtc->x = set->x;
 	crtc->y = set->y;
 	crtc->mode = *mode;
+	crtc->enabled = true;
 
 	vmw_ldu_add_active(dev_priv, ldu, vfb);
 
@@ -369,6 +372,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
+	(void) drm_connector_register(connector);
+
 	drm_crtc_init(dev, crtc, &vmw_legacy_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
@@ -380,7 +385,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	return 0;
 }
 
-int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
+int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	int i, ret;
@@ -417,6 +422,10 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 	else
 		vmw_ldu_init(dev_priv, 0);
 
+	dev_priv->active_display_unit = vmw_du_legacy;
+
+	DRM_INFO("Legacy Display Unit initialized\n");
+
 	return 0;
 
 err_vblank_cleanup:
@@ -427,7 +436,7 @@ err_free:
 	return ret;
 }
 
-int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
+int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
@@ -440,5 +449,40 @@ int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
 
 	kfree(dev_priv->ldu_priv);
 
+	return 0;
+}
+
+
+int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
+				struct vmw_framebuffer *framebuffer,
+				unsigned flags, unsigned color,
+				struct drm_clip_rect *clips,
+				unsigned num_clips, int increment)
+{
+	size_t fifo_size;
+	int i;
+
+	struct {
+		uint32_t header;
+		SVGAFifoCmdUpdate body;
+	} *cmd;
+
+	fifo_size = sizeof(*cmd) * num_clips;
+	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Fifo reserve failed.\n");
+		return -ENOMEM;
+	}
+
+	memset(cmd, 0, fifo_size);
+	for (i = 0; i < num_clips; i++, clips += increment) {
+		cmd[i].header = SVGA_CMD_UPDATE;
+		cmd[i].body.x = clips->x1;
+		cmd[i].body.y = clips->y1;
+		cmd[i].body.width = clips->x2 - clips->x1;
+		cmd[i].body.height = clips->y2 - clips->y1;
+	}
+
+	vmw_fifo_commit(dev_priv, fifo_size);
 	return 0;
 }

@@ -29,6 +29,7 @@
 
 #include "../wifi.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -199,7 +200,6 @@ static void _rtl92s_dm_check_txpowertracking_thermalmeter(
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	static u8 tm_trigger;
 	u8 tx_power_checkcnt = 5;
 
 	/* 2T2R TP issue */
@@ -214,13 +214,13 @@ static void _rtl92s_dm_check_txpowertracking_thermalmeter(
 		return;
 	}
 
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER,
 			      RFREG_OFFSET_MASK, 0x60);
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 	} else {
 		_rtl92s_dm_txpowertracking_callback_thermalmeter(hw);
-		tm_trigger = 0;
+		rtlpriv->dm.tm_trigger = 0;
 	}
 }
 
@@ -469,7 +469,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 			if (digtable->backoff_enable_flag)
 				rtl92s_backoff_enable_flag(hw);
 			else
-				digtable->back_val = DM_DIG_BACKOFF;
+				digtable->back_val = DM_DIG_BACKOFF_MAX;
 
 			if ((digtable->rssi_val + 10 - digtable->back_val) >
 				digtable->rx_gain_max)
@@ -503,7 +503,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 		digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 		rtl92s_phy_set_fw_cmd(hw, FW_CMD_DIG_ENABLE);
 
-		digtable->back_val = DM_DIG_BACKOFF;
+		digtable->back_val = DM_DIG_BACKOFF_MAX;
 		digtable->cur_igvalue = rtlpriv->phy.default_initialgain[0];
 		digtable->pre_igvalue = 0;
 		return;
@@ -691,7 +691,7 @@ static void _rtl92s_dm_init_dig(struct ieee80211_hw *hw)
 
 	/* for dig debug rssi value */
 	digtable->rssi_val = 50;
-	digtable->back_val = DM_DIG_BACKOFF;
+	digtable->back_val = DM_DIG_BACKOFF_MAX;
 	digtable->rx_gain_max = DM_DIG_MAX;
 
 	digtable->rx_gain_min = DM_DIG_MIN;

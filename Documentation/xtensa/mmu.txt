@@ -44,3 +44,21 @@ After step 4, we jump to intended (linked) address of this code.
  40..5F -> 40         40..5F -> pc  -> pc  40..5F -> pc
  20..3F -> 20  -> 20  20..3F -> 20
  00..1F -> 00  -> 00  00..1F -> 00
+
+The default location of IO peripherals is above 0xf0000000. This may change
+using a "ranges" property in a device tree simple-bus node. See ePAPR 1.1, §6.5
+for details on the syntax and semantic of simple-bus nodes. The following
+limitations apply:
+
+1. Only top level simple-bus nodes are considered
+
+2. Only one (first) simple-bus node is considered
+
+3. Empty "ranges" properties are not supported
+
+4. Only the first triplet in the "ranges" property is considered
+
+5. The parent-bus-address value is rounded down to the nearest 256MB boundary
+
+6. The IO area covers the entire 256MB segment of parent-bus-address; the
+   "ranges" triplet length field is ignored

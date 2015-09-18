@@ -15,7 +15,6 @@
 #include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/phy.h>
 #include <linux/mdio-mux.h>
 
@@ -48,7 +47,7 @@ static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
 	struct mdio_mux_mmioreg_state *s = data;
 
 	if (current_child ^ desired_child) {
-		void *p = ioremap(s->phys, 1);
+		void __iomem *p = ioremap(s->phys, 1);
 		uint8_t x, y;
 
 		if (!p)
@@ -146,7 +145,7 @@ static int mdio_mux_mmioreg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mdio_mux_mmioreg_match[] = {
+static const struct of_device_id mdio_mux_mmioreg_match[] = {
 	{
 		.compatible = "mdio-mux-mmioreg",
 	},
@@ -157,7 +156,6 @@ MODULE_DEVICE_TABLE(of, mdio_mux_mmioreg_match);
 static struct platform_driver mdio_mux_mmioreg_driver = {
 	.driver = {
 		.name		= "mdio-mux-mmioreg",
-		.owner		= THIS_MODULE,
 		.of_match_table = mdio_mux_mmioreg_match,
 	},
 	.probe		= mdio_mux_mmioreg_probe,

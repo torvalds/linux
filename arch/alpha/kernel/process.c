@@ -46,6 +46,23 @@
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
+#ifdef CONFIG_ALPHA_WTINT
+/*
+ * Sleep the CPU.
+ * EV6, LCA45 and QEMU know how to power down, skipping N timer interrupts.
+ */
+void arch_cpu_idle(void)
+{
+	wtint(0);
+	local_irq_enable();
+}
+
+void arch_cpu_idle_dead(void)
+{
+	wtint(INT_MAX);
+}
+#endif /* ALPHA_WTINT */
+
 struct halt_info {
 	int mode;
 	char *restart_cmd;
@@ -117,7 +134,9 @@ common_shutdown_1(void *generic_ptr)
 		if (in_interrupt())
 			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
-		take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_lock();
+		do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_unlock();
 #endif
 		pci_restore_srm_config();
 		set_hae(srm_hae);
@@ -217,12 +236,11 @@ release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Copy an alpha thread..
+ * Copy architecture-specific thread state
  */
-
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long arg,
+	    unsigned long kthread_arg,
 	    struct task_struct *p)
 {
 	extern void ret_from_fork(void);
@@ -243,7 +261,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 		childstack->r26 = (unsigned long) ret_from_kernel_thread;
 		childstack->r9 = usp;	/* function */
-		childstack->r10 = arg;
+		childstack->r10 = kthread_arg;
 		childregs->hae = alpha_mv.hae_cache,
 		childti->pcb.usp = 0;
 		return 0;

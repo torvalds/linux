@@ -343,7 +343,7 @@ HYPERVISOR_memory_op(unsigned int cmd, void *arg)
 }
 
 static inline int
-HYPERVISOR_multicall(void *call_list, int nr_calls)
+HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
 {
 	return _hypercall2(int, multicall, call_list, nr_calls);
 }
@@ -463,6 +463,12 @@ HYPERVISOR_tmem_op(
 	struct tmem_op *op)
 {
 	return _hypercall1(int, tmem_op, op);
+}
+
+static inline int
+HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
+{
+	return _hypercall2(int, xenpmu_op, op, arg);
 }
 
 static inline void

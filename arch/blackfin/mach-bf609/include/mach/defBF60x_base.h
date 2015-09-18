@@ -839,6 +839,16 @@
 #define PORTG_LOCK                  0xFFC03344         /* PORTG Port x GPIO Lock Register */
 #define PORTG_REVID                 0xFFC0337C         /* PORTG Port x GPIO Revision ID */
 
+/* ==================================================
+        Pads Controller Registers
+   ================================================== */
+
+/* =========================
+        PADS0
+   ========================= */
+#define PADS0_EMAC_PTP_CLKSEL	    0xFFC03404         /* PADS0 Clock Selection for EMAC and PTP */
+#define PADS0_TWI_VSEL		    0xFFC03408         /* PADS0 TWI Voltage Selection */
+#define PADS0_PORTS_HYST	    0xFFC03440         /* PADS0 Hysteresis Enable Register */
 
 /* =========================
         PINT Registers

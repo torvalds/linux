@@ -1,0 +1,125 @@
+/*
+ * Samsung's S3C2416 SoC device tree source
+ *
+ * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/s3c2443.h>
+#include "s3c24xx.dtsi"
+#include "s3c2416-pinctrl.dtsi"
+
+/ {
+	model = "Samsung S3C2416 SoC";
+	compatible = "samsung,s3c2416";
+
+	aliases {
+		serial3 = &uart_3;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ejs";
+		};
+	};
+
+	interrupt-controller@4a000000 {
+		compatible = "samsung,s3c2416-irq";
+	};
+
+	clocks: clock-controller@0x4c000000 {
+		compatible = "samsung,s3c2416-clock";
+		reg = <0x4c000000 0x40>;
+		#clock-cells = <1>;
+	};
+
+	pinctrl@56000000 {
+		compatible = "samsung,s3c2416-pinctrl";
+	};
+
+	timer@51000000 {
+		clocks = <&clocks PCLK_PWM>;
+		clock-names = "timers";
+	};
+
+	uart_0: serial@50000000 {
+		compatible = "samsung,s3c2440-uart";
+		clock-names = "uart", "clk_uart_baud2",
+				"clk_uart_baud3";
+		clocks = <&clocks PCLK_UART0>, <&clocks PCLK_UART0>,
+				<&clocks SCLK_UART>;
+	};
+
+	uart_1: serial@50004000 {
+		compatible = "samsung,s3c2440-uart";
+		clock-names = "uart", "clk_uart_baud2",
+				"clk_uart_baud3";
+		clocks = <&clocks PCLK_UART1>, <&clocks PCLK_UART1>,
+				<&clocks SCLK_UART>;
+	};
+
+	uart_2: serial@50008000 {
+		compatible = "samsung,s3c2440-uart";
+		clock-names = "uart", "clk_uart_baud2",
+				"clk_uart_baud3";
+		clocks = <&clocks PCLK_UART2>, <&clocks PCLK_UART2>,
+				<&clocks SCLK_UART>;
+	};
+
+	uart_3: serial@5000C000 {
+		compatible = "samsung,s3c2440-uart";
+		reg = <0x5000C000 0x4000>;
+		interrupts = <1 18 24 4>, <1 18 25 4>;
+		clock-names = "uart", "clk_uart_baud2",
+				"clk_uart_baud3";
+		clocks = <&clocks PCLK_UART3>, <&clocks PCLK_UART3>,
+				<&clocks SCLK_UART>;
+		status = "disabled";
+	};
+
+	sdhci_1: sdhci@4AC00000 {
+		compatible = "samsung,s3c6410-sdhci";
+		reg = <0x4AC00000 0x100>;
+		interrupts = <0 0 21 3>;
+		clock-names = "hsmmc", "mmc_busclk.0",
+				"mmc_busclk.2";
+		clocks = <&clocks HCLK_HSMMC0>, <&clocks HCLK_HSMMC0>,
+				<&clocks MUX_HSMMC0>;
+		status = "disabled";
+	};
+
+	sdhci_0: sdhci@4A800000 {
+		compatible = "samsung,s3c6410-sdhci";
+		reg = <0x4A800000 0x100>;
+		interrupts = <0 0 20 3>;
+		clock-names = "hsmmc", "mmc_busclk.0",
+				"mmc_busclk.2";
+		clocks = <&clocks HCLK_HSMMC1>, <&clocks HCLK_HSMMC1>,
+				<&clocks MUX_HSMMC1>;
+		status = "disabled";
+	};
+
+	watchdog: watchdog@53000000 {
+		interrupts = <1 9 27 3>;
+		clocks = <&clocks PCLK_WDT>;
+		clock-names = "watchdog";
+	};
+
+	rtc: rtc@57000000 {
+		compatible = "samsung,s3c2416-rtc";
+		clocks = <&clocks PCLK_RTC>;
+		clock-names = "rtc";
+	};
+
+	i2c@54000000 {
+		compatible = "samsung,s3c2440-i2c";
+		clocks = <&clocks PCLK_I2C0>;
+		clock-names = "i2c";
+	};
+};

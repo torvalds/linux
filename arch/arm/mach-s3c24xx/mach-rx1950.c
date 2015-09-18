@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/device.h>
@@ -51,13 +52,13 @@
 #include <mach/fb.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
+#include <mach/gpio-samsung.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
-#include <plat/regs-serial.h>
 #include <plat/samsung-time.h>
+#include <plat/gpio-cfg.h>
 
 #include "common.h"
 #include "h1940.h"
@@ -249,9 +250,10 @@ static void rx1950_disable_charger(void)
 
 static DEFINE_SPINLOCK(rx1950_blink_spin);
 
-static int rx1950_led_blink_set(unsigned gpio, int state,
+static int rx1950_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	int gpio = desc_to_gpio(desc);
 	int blink_gpio, check_gpio;
 
 	switch (gpio) {
@@ -522,6 +524,7 @@ static struct platform_pwm_backlight_data rx1950_backlight_data = {
 	.max_brightness = 24,
 	.dft_brightness = 4,
 	.pwm_period_ns = 48000,
+	.enable_gpio = -1,
 	.init = rx1950_backlight_init,
 	.notify = rx1950_backlight_notify,
 	.exit = rx1950_backlight_exit,
@@ -530,7 +533,7 @@ static struct platform_pwm_backlight_data rx1950_backlight_data = {
 static struct platform_device rx1950_backlight = {
 	.name = "pwm-backlight",
 	.dev = {
-		.parent = &s3c_device_timer[0].dev,
+		.parent = &samsung_device_pwm.dev,
 		.platform_data = &rx1950_backlight_data,
 	},
 };
@@ -707,6 +710,7 @@ static struct i2c_board_info rx1950_i2c_devices[] = {
 };
 
 static struct platform_device *rx1950_devices[] __initdata = {
+	&s3c2410_device_dclk,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -717,8 +721,7 @@ static struct platform_device *rx1950_devices[] __initdata = {
 	&s3c_device_sdi,
 	&s3c_device_adc,
 	&s3c_device_ts,
-	&s3c_device_timer[0],
-	&s3c_device_timer[1],
+	&samsung_device_pwm,
 	&rx1950_backlight,
 	&rx1950_device_gpiokeys,
 	&power_supply,
@@ -726,20 +729,9 @@ static struct platform_device *rx1950_devices[] __initdata = {
 	&rx1950_leds,
 };
 
-static struct clk *rx1950_clocks[] __initdata = {
-	&s3c24xx_clkout0,
-	&s3c24xx_clkout1,
-};
-
 static void __init rx1950_map_io(void)
 {
-	s3c24xx_clkout0.parent  = &clk_h;
-	s3c24xx_clkout1.parent  = &clk_f;
-
-	s3c24xx_register_clocks(rx1950_clocks, ARRAY_SIZE(rx1950_clocks));
-
 	s3c24xx_init_io(rx1950_iodesc, ARRAY_SIZE(rx1950_iodesc));
-	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx1950_uartcfgs, ARRAY_SIZE(rx1950_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
@@ -750,6 +742,12 @@ static void __init rx1950_map_io(void)
 #endif
 
 	s3c_pm_init();
+}
+
+static void __init rx1950_init_time(void)
+{
+	s3c2442_init_clocks(16934000);
+	samsung_timer_init();
 }
 
 static void __init rx1950_init_machine(void)
@@ -814,6 +812,5 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.reserve	= rx1950_reserve,
 	.init_irq	= s3c2442_init_irq,
 	.init_machine = rx1950_init_machine,
-	.init_time	= samsung_timer_init,
-	.restart	= s3c244x_restart,
+	.init_time	= rx1950_init_time,
 MACHINE_END

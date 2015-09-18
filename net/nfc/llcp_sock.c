@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "llcp: %s: " fmt, __func__
@@ -526,13 +524,13 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 
 static inline unsigned int llcp_accept_poll(struct sock *parent)
 {
-	struct nfc_llcp_sock *llcp_sock, *n, *parent_sock;
+	struct nfc_llcp_sock *llcp_sock, *parent_sock;
 	struct sock *sk;
 
 	parent_sock = nfc_llcp_sock(parent);
 
-	list_for_each_entry_safe(llcp_sock, n, &parent_sock->accept_queue,
-				 accept_queue) {
+	list_for_each_entry(llcp_sock, &parent_sock->accept_queue,
+			    accept_queue) {
 		sk = &llcp_sock->sk;
 
 		if (sk->sk_state == LLCP_CONNECTED)
@@ -571,7 +569,7 @@ static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= POLLHUP;
 
-	if (sock_writeable(sk))
+	if (sock_writeable(sk) && sk->sk_state == LLCP_CONNECTED)
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 	else
 		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
@@ -603,7 +601,7 @@ static int llcp_sock_release(struct socket *sock)
 
 	/* Send a DISC */
 	if (sk->sk_state == LLCP_CONNECTED)
-		nfc_llcp_disconnect(llcp_sock);
+		nfc_llcp_send_disconnect(llcp_sock);
 
 	if (sk->sk_state == LLCP_LISTEN) {
 		struct nfc_llcp_sock *lsk, *n;
@@ -614,7 +612,7 @@ static int llcp_sock_release(struct socket *sock)
 			accept_sk = &lsk->sk;
 			lock_sock(accept_sk);
 
-			nfc_llcp_disconnect(lsk);
+			nfc_llcp_send_disconnect(lsk);
 			nfc_llcp_accept_unlink(accept_sk);
 
 			release_sock(accept_sk);
@@ -625,6 +623,13 @@ static int llcp_sock_release(struct socket *sock)
 		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
 	release_sock(sk);
+
+	/* Keep this sock alive and therefore do not remove it from the sockets
+	 * list until the DISC PDU has been actually sent. Otherwise we would
+	 * reply with DM PDUs before sending the DISC one.
+	 */
+	if (sk->sk_state == LLCP_DISCONNECTING)
+		return err;
 
 	if (sock->type == SOCK_RAW)
 		nfc_llcp_sock_unlink(&local->raw_sockets, sk);
@@ -695,7 +700,6 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 
 	llcp_sock->dev = dev;
 	llcp_sock->local = nfc_llcp_local_get(local);
-	llcp_sock->remote_miu = llcp_sock->local->remote_miu;
 	llcp_sock->ssap = nfc_llcp_get_local_ssap(local);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
 		ret = -ENOMEM;
@@ -722,14 +726,16 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	if (ret)
 		goto sock_unlink;
 
+	sk->sk_state = LLCP_CONNECTING;
+
 	ret = sock_wait_state(sk, LLCP_CONNECTED,
 			      sock_sndtimeo(sk, flags & O_NONBLOCK));
-	if (ret)
+	if (ret && ret != -EINPROGRESS)
 		goto sock_unlink;
 
 	release_sock(sk);
 
-	return 0;
+	return ret;
 
 sock_unlink:
 	nfc_llcp_put_ssap(local, llcp_sock->ssap);
@@ -744,8 +750,8 @@ error:
 	return ret;
 }
 
-static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len)
+static int llcp_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -763,8 +769,8 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	lock_sock(sk);
 
 	if (sk->sk_type == SOCK_DGRAM) {
-		struct sockaddr_nfc_llcp *addr =
-			(struct sockaddr_nfc_llcp *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_nfc_llcp *, addr,
+				 msg->msg_name);
 
 		if (msg->msg_namelen < sizeof(*addr)) {
 			release_sock(sk);
@@ -787,8 +793,8 @@ static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return nfc_llcp_send_i_frame(llcp_sock, msg, len);
 }
 
-static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			     struct msghdr *msg, size_t len, int flags)
+static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
+			     size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -797,8 +803,6 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int err = 0;
 
 	pr_debug("%p %zu\n", sk, len);
-
-	msg->msg_namelen = 0;
 
 	lock_sock(sk);
 
@@ -828,7 +832,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	copied = min_t(unsigned int, rlen, len);
 
 	cskb = skb;
-	if (skb_copy_datagram_iovec(cskb, 0, msg->msg_iov, copied)) {
+	if (skb_copy_datagram_msg(cskb, 0, msg, copied)) {
 		if (!(flags & MSG_PEEK))
 			skb_queue_head(&sk->sk_receive_queue, skb);
 		return -EFAULT;
@@ -838,8 +842,8 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_type == SOCK_DGRAM && msg->msg_name) {
 		struct nfc_llcp_ui_cb *ui_cb = nfc_llcp_ui_skb_cb(skb);
-		struct sockaddr_nfc_llcp *sockaddr =
-			(struct sockaddr_nfc_llcp *) msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_nfc_llcp *, sockaddr,
+				 msg->msg_name);
 
 		msg->msg_namelen = sizeof(struct sockaddr_nfc_llcp);
 
@@ -938,12 +942,12 @@ static void llcp_sock_destruct(struct sock *sk)
 	}
 }
 
-struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
+struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp, int kern)
 {
 	struct sock *sk;
 	struct nfc_llcp_sock *llcp_sock;
 
-	sk = sk_alloc(&init_net, PF_NFC, gfp, &llcp_sock_proto);
+	sk = sk_alloc(&init_net, PF_NFC, gfp, &llcp_sock_proto, kern);
 	if (!sk)
 		return NULL;
 
@@ -989,7 +993,7 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 }
 
 static int llcp_sock_create(struct net *net, struct socket *sock,
-			    const struct nfc_protocol *nfc_proto)
+			    const struct nfc_protocol *nfc_proto, int kern)
 {
 	struct sock *sk;
 
@@ -1005,7 +1009,7 @@ static int llcp_sock_create(struct net *net, struct socket *sock,
 	else
 		sock->ops = &llcp_sock_ops;
 
-	sk = nfc_llcp_sock_alloc(sock, sock->type, GFP_ATOMIC);
+	sk = nfc_llcp_sock_alloc(sock, sock->type, GFP_ATOMIC, kern);
 	if (sk == NULL)
 		return -ENOMEM;
 

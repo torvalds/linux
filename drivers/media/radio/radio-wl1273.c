@@ -347,6 +347,7 @@ static int wl1273_fm_set_tx_freq(struct wl1273_device *radio, unsigned int freq)
 {
 	struct wl1273_core *core = radio->core;
 	int r = 0;
+	unsigned long t;
 
 	if (freq < WL1273_BAND_TX_LOW) {
 		dev_err(radio->dev,
@@ -375,29 +376,29 @@ static int wl1273_fm_set_tx_freq(struct wl1273_device *radio, unsigned int freq)
 	if (r)
 		return r;
 
-	INIT_COMPLETION(radio->busy);
+	reinit_completion(&radio->busy);
 
 	/* wait for the FR IRQ */
-	r = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(2000));
-	if (!r)
+	t = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(2000));
+	if (!t)
 		return -ETIMEDOUT;
 
-	dev_dbg(radio->dev, "WL1273_CHANL_SET: %d\n", r);
+	dev_dbg(radio->dev, "WL1273_CHANL_SET: %lu\n", t);
 
 	/* Enable the output power */
 	r = core->write(core, WL1273_POWER_ENB_SET, 1);
 	if (r)
 		return r;
 
-	INIT_COMPLETION(radio->busy);
+	reinit_completion(&radio->busy);
 
 	/* wait for the POWER_ENB IRQ */
-	r = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
-	if (!r)
+	t = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
+	if (!t)
 		return -ETIMEDOUT;
 
 	radio->tx_frequency = freq;
-	dev_dbg(radio->dev, "WL1273_POWER_ENB_SET: %d\n", r);
+	dev_dbg(radio->dev, "WL1273_POWER_ENB_SET: %lu\n", t);
 
 	return	0;
 }
@@ -406,6 +407,7 @@ static int wl1273_fm_set_rx_freq(struct wl1273_device *radio, unsigned int freq)
 {
 	struct wl1273_core *core = radio->core;
 	int r, f;
+	unsigned long t;
 
 	if (freq < radio->rangelow) {
 		dev_err(radio->dev,
@@ -444,10 +446,10 @@ static int wl1273_fm_set_rx_freq(struct wl1273_device *radio, unsigned int freq)
 		goto err;
 	}
 
-	INIT_COMPLETION(radio->busy);
+	reinit_completion(&radio->busy);
 
-	r = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(2000));
-	if (!r) {
+	t = wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(2000));
+	if (!t) {
 		dev_err(radio->dev, "%s: TIMEOUT\n", __func__);
 		return -ETIMEDOUT;
 	}
@@ -805,7 +807,7 @@ static int wl1273_fm_set_seek(struct wl1273_device *radio,
 	if (level < SCHAR_MIN || level > SCHAR_MAX)
 		return -EINVAL;
 
-	INIT_COMPLETION(radio->busy);
+	reinit_completion(&radio->busy);
 	dev_dbg(radio->dev, "%s: BUSY\n", __func__);
 
 	r = core->write(core, WL1273_INT_MASK_SET, radio->irq_flags);
@@ -826,9 +828,12 @@ static int wl1273_fm_set_seek(struct wl1273_device *radio,
 	if (r)
 		goto out;
 
+	/* wait for the FR IRQ */
 	wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
-	if (!(radio->irq_received & WL1273_BL_EVENT))
+	if (!(radio->irq_received & WL1273_BL_EVENT)) {
+		r = -ETIMEDOUT;
 		goto out;
+	}
 
 	radio->irq_received &= ~WL1273_BL_EVENT;
 
@@ -847,14 +852,16 @@ static int wl1273_fm_set_seek(struct wl1273_device *radio,
 	if (r)
 		goto out;
 
-	INIT_COMPLETION(radio->busy);
+	reinit_completion(&radio->busy);
 	dev_dbg(radio->dev, "%s: BUSY\n", __func__);
 
 	r = core->write(core, WL1273_TUNER_MODE_SET, TUNER_MODE_AUTO_SEEK);
 	if (r)
 		goto out;
 
-	wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000));
+	/* wait for the FR IRQ */
+	if (!wait_for_completion_timeout(&radio->busy, msecs_to_jiffies(1000)))
+		r = -ETIMEDOUT;
 out:
 	dev_dbg(radio->dev, "%s: Err: %d\n", __func__, r);
 	return r;
@@ -1279,10 +1286,12 @@ static int wl1273_fm_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->bus_info, radio->bus_type,
 		sizeof(capability->bus_info));
 
-	capability->capabilities = V4L2_CAP_HW_FREQ_SEEK |
+	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK |
 		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_AUDIO |
 		V4L2_CAP_RDS_CAPTURE | V4L2_CAP_MODULATOR |
 		V4L2_CAP_RDS_OUTPUT;
+	capability->capabilities = capability->device_caps |
+		V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
@@ -2148,7 +2157,6 @@ static struct platform_driver wl1273_fm_radio_driver = {
 	.remove		= wl1273_fm_radio_remove,
 	.driver		= {
 		.name	= "wl1273_fm_radio",
-		.owner	= THIS_MODULE,
 	},
 };
 

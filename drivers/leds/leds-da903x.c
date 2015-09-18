@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/workqueue.h>
@@ -93,7 +92,7 @@ static void da903x_led_set(struct led_classdev *led_cdev,
 
 static int da903x_led_probe(struct platform_device *pdev)
 {
-	struct led_info *pdata = pdev->dev.platform_data;
+	struct led_info *pdata = dev_get_platdata(&pdev->dev);
 	struct da903x_led *led;
 	int id, ret;
 
@@ -109,10 +108,8 @@ static int da903x_led_probe(struct platform_device *pdev)
 	}
 
 	led = devm_kzalloc(&pdev->dev, sizeof(struct da903x_led), GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&pdev->dev, "failed to alloc memory for LED%d\n", id);
+	if (!led)
 		return -ENOMEM;
-	}
 
 	led->cdev.name = pdata->name;
 	led->cdev.default_trigger = pdata->default_trigger;
@@ -147,7 +144,6 @@ static int da903x_led_remove(struct platform_device *pdev)
 static struct platform_driver da903x_led_driver = {
 	.driver	= {
 		.name	= "da903x-led",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_led_probe,
 	.remove		= da903x_led_remove,

@@ -39,21 +39,6 @@ struct bcma_drv_mips {
 	u8 early_setup_done:1;
 };
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
-extern void bcma_core_mips_init(struct bcma_drv_mips *mcore);
-extern void bcma_core_mips_early_init(struct bcma_drv_mips *mcore);
-
-extern unsigned int bcma_core_irq(struct bcma_device *core);
-#else
-static inline void bcma_core_mips_init(struct bcma_drv_mips *mcore) { }
-static inline void bcma_core_mips_early_init(struct bcma_drv_mips *mcore) { }
-
-static inline unsigned int bcma_core_irq(struct bcma_device *core)
-{
-	return 0;
-}
-#endif
-
 extern u32 bcma_cpu_clock(struct bcma_drv_mips *mcore);
 
 #endif /* LINUX_BCMA_DRIVER_MIPS_H_ */

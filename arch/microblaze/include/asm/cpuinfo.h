@@ -91,15 +91,18 @@ extern struct cpuinfo cpuinfo;
 
 /* fwd declarations of the various CPUinfo populators */
 void setup_cpuinfo(void);
+void setup_cpuinfo_clk(void);
 
 void set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu);
 void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu);
 
 static inline unsigned int fcpu(struct device_node *cpu, char *n)
 {
-	const __be32 *val;
-	return (val = of_get_property(cpu, n, NULL)) ?
-							be32_to_cpup(val) : 0;
+	u32 val = 0;
+
+	of_property_read_u32(cpu, n, &val);
+
+	return val;
 }
 
 #endif /* _ASM_MICROBLAZE_CPUINFO_H */

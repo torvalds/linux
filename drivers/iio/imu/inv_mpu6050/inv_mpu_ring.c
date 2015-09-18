@@ -12,7 +12,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
@@ -24,6 +23,16 @@
 #include <linux/kfifo.h>
 #include <linux/poll.h>
 #include "inv_mpu_iio.h"
+
+static void inv_clear_kfifo(struct inv_mpu6050_state *st)
+{
+	unsigned long flags;
+
+	/* take the spin lock sem to avoid interrupt kick in */
+	spin_lock_irqsave(&st->time_stamp_lock, flags);
+	kfifo_reset(&st->timestamps);
+	spin_unlock_irqrestore(&st->time_stamp_lock, flags);
+}
 
 int inv_reset_fifo(struct iio_dev *indio_dev)
 {
@@ -51,6 +60,10 @@ int inv_reset_fifo(struct iio_dev *indio_dev)
 					INV_MPU6050_BIT_FIFO_RST);
 	if (result)
 		goto reset_fifo_fail;
+
+	/* clear timestamps fifo */
+	inv_clear_kfifo(st);
+
 	/* enable interrupt */
 	if (st->chip_config.accl_fifo_enable ||
 	    st->chip_config.gyro_fifo_enable) {
@@ -84,16 +97,6 @@ reset_fifo_fail:
 	return result;
 }
 
-static void inv_clear_kfifo(struct inv_mpu6050_state *st)
-{
-	unsigned long flags;
-
-	/* take the spin lock sem to avoid interrupt kick in */
-	spin_lock_irqsave(&st->time_stamp_lock, flags);
-	kfifo_reset(&st->timestamps);
-	spin_unlock_irqrestore(&st->time_stamp_lock, flags);
-}
-
 /**
  * inv_mpu6050_irq_handler() - Cache a timestamp at each data ready interrupt.
  */
@@ -124,7 +127,6 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 	u8 data[INV_MPU6050_OUTPUT_DATA_SIZE];
 	u16 fifo_count;
 	s64 timestamp;
-	u64 *tmp;
 
 	mutex_lock(&indio_dev->mlock);
 	if (!(st->chip_config.accl_fifo_enable |
@@ -170,9 +172,8 @@ irqreturn_t inv_mpu6050_read_fifo(int irq, void *p)
 		if (0 == result)
 			timestamp = 0;
 
-		tmp = (u64 *)data;
-		tmp[DIV_ROUND_UP(bytes_per_datum, 8)] = timestamp;
-		result = iio_push_to_buffers(indio_dev, data);
+		result = iio_push_to_buffers_with_timestamp(indio_dev, data,
+			timestamp);
 		if (result)
 			goto flush_fifo;
 		fifo_count -= bytes_per_datum;
@@ -187,7 +188,6 @@ end_session:
 flush_fifo:
 	/* Flush HW and SW FIFOs. */
 	inv_reset_fifo(indio_dev);
-	inv_clear_kfifo(st);
 	mutex_unlock(&indio_dev->mlock);
 	iio_trigger_notify_done(indio_dev->trig);
 

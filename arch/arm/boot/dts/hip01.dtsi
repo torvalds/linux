@@ -1,0 +1,110 @@
+/*
+ * Hisilicon Ltd. HiP01 SoC
+ *
+ * Copyright (c) 2014 Hisilicon Ltd.
+ * Copyright (c) 2014 Huawei Ltd.
+ *
+ * Author: Wang Long <long.wanglong@huawei.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	gic: interrupt-controller@1e001000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x1a001000 0x1000>, <0x1a000100 0x1000>;
+	};
+
+	hisi_refclk144mhz: refclk144mkhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <144000000>;
+		clock-output-names = "hisi:refclk144khz";
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&gic>;
+		ranges = <0 0x10000000 0x20000000>;
+
+		amba {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "arm,amba-bus";
+			ranges;
+
+			uart0: uart@10001000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x10001000 0x1000>;
+				clocks = <&hisi_refclk144mhz>;
+				clock-names = "apb_pclk";
+				reg-shift = <2>;
+				interrupts = <0 32 4>;
+				status = "disabled";
+			};
+
+			uart1: uart@10002000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x10002000 0x1000>;
+				clocks = <&hisi_refclk144mhz>;
+				clock-names = "apb_pclk";
+				reg-shift = <2>;
+				interrupts = <0 33 4>;
+				status = "disabled";
+			};
+
+			uart2: uart@10003000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x10003000 0x1000>;
+				clocks = <&hisi_refclk144mhz>;
+				clock-names = "apb_pclk";
+				reg-shift = <2>;
+				interrupts = <0 34 4>;
+				status = "disabled";
+			};
+
+			uart3: uart@10006000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x10006000 0x1000>;
+				clocks = <&hisi_refclk144mhz>;
+				clock-names = "apb_pclk";
+				reg-shift = <2>;
+				interrupts = <0 4 4>;
+				status = "disabled";
+			};
+		};
+
+		system-controller@10000000 {
+			compatible = "hisilicon,hip01-sysctrl", "hisilicon,sysctrl";
+			reg = <0x10000000 0x1000>;
+			reboot-offset = <0x4>;
+		};
+
+		global_timer@0a000200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0x0a000200 0x100>;
+			interrupts = <1 11 0xf04>;
+			clocks = <&hisi_refclk144mhz>;
+		};
+
+		local_timer@0a000600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0x0a000600 0x100>;
+			interrupts = <1 13 0xf04>;
+			clocks = <&hisi_refclk144mhz>;
+		};
+	};
+};

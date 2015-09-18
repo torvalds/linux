@@ -1,0 +1,48 @@
+* Renesas Electronics Ethernet AVB
+
+This file provides information on what the device node for the Ethernet AVB
+interface contains.
+
+Required properties:
+- compatible: "renesas,etheravb-r8a7790" if the device is a part of R8A7790 SoC.
+	      "renesas,etheravb-r8a7794" if the device is a part of R8A7794 SoC.
+- reg: offset and length of (1) the register block and (2) the stream buffer.
+- interrupts: interrupt specifier for the sole interrupt.
+- phy-mode: see ethernet.txt file in the same directory.
+- phy-handle: see ethernet.txt file in the same directory.
+- #address-cells: number of address cells for the MDIO bus, must be equal to 1.
+- #size-cells: number of size cells on the MDIO bus, must be equal to 0.
+- clocks: clock phandle and specifier pair.
+- pinctrl-0: phandle, referring to a default pin configuration node.
+
+Optional properties:
+- interrupt-parent: the phandle for the interrupt controller that services
+		    interrupts for this device.
+- pinctrl-names: pin configuration state name ("default").
+- renesas,no-ether-link: boolean, specify when a board does not provide a proper
+			 AVB_LINK signal.
+- renesas,ether-link-active-low: boolean, specify when the AVB_LINK signal is
+				 active-low instead of normal active-high.
+
+Example:
+
+	ethernet@e6800000 {
+		compatible = "renesas,etheravb-r8a7790";
+		reg = <0 0xe6800000 0 0x800>, <0 0xee0e8000 0 0x4000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 163 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7790_CLK_ETHERAVB>;
+		phy-mode = "rmii";
+		phy-handle = <&phy0>;
+		pinctrl-0 = <&ether_pins>;
+		pinctrl-names = "default";
+		renesas,no-ether-link;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};

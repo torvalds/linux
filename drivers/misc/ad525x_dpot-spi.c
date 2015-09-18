@@ -15,18 +15,21 @@
 static int write8(void *client, u8 val)
 {
 	u8 data = val;
+
 	return spi_write(client, &data, 1);
 }
 
 static int write16(void *client, u8 reg, u8 val)
 {
 	u8 data[2] = {reg, val};
+
 	return spi_write(client, data, 2);
 }
 
 static int write24(void *client, u8 reg, u16 val)
 {
 	u8 data[3] = {reg, val >> 8, val};
+
 	return spi_write(client, data, 3);
 }
 
@@ -34,6 +37,7 @@ static int read8(void *client)
 {
 	int ret;
 	u8 data;
+
 	ret = spi_read(client, &data, 1);
 	if (ret < 0)
 		return ret;

@@ -86,6 +86,7 @@ int main(int argc, char **argv)
 		case 'j':
 			include_jump = 1;
 			break;
+		default:
 			return usage();
 		}
 	}

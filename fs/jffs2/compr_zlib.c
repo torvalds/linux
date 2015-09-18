@@ -94,11 +94,12 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 
 	while (def_strm.total_out < *dstlen - STREAM_END_SPACE && def_strm.total_in < *sourcelen) {
 		def_strm.avail_out = *dstlen - (def_strm.total_out + STREAM_END_SPACE);
-		def_strm.avail_in = min((unsigned)(*sourcelen-def_strm.total_in), def_strm.avail_out);
-		jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
+		def_strm.avail_in = min_t(unsigned long,
+			(*sourcelen-def_strm.total_in), def_strm.avail_out);
+		jffs2_dbg(1, "calling deflate with avail_in %ld, avail_out %ld\n",
 			  def_strm.avail_in, def_strm.avail_out);
 		ret = zlib_deflate(&def_strm, Z_PARTIAL_FLUSH);
-		jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
+		jffs2_dbg(1, "deflate returned with avail_in %ld, avail_out %ld, total_in %ld, total_out %ld\n",
 			  def_strm.avail_in, def_strm.avail_out,
 			  def_strm.total_in, def_strm.total_out);
 		if (ret != Z_OK) {

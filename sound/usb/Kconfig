@@ -14,6 +14,7 @@ config SND_USB_AUDIO
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
+	select BITREVERSE
 	help
 	  Say Y here to include support for USB audio and USB MIDI
 	  devices.
@@ -114,6 +115,52 @@ config SND_USB_6FIRE
           after it has been coldstarted. An install script for the firmware
           and further help can be found at
           http://sixfireusb.sourceforge.net
+
+config SND_USB_HIFACE
+        tristate "M2Tech hiFace USB-SPDIF driver"
+        select SND_PCM
+        help
+	  Select this option to include support for M2Tech hiFace USB-SPDIF
+	  interface.
+
+	  This driver supports the original M2Tech hiFace and some other
+	  compatible devices. The supported products are:
+
+	    * M2Tech Young
+	    * M2Tech hiFace
+	    * M2Tech North Star
+	    * M2Tech W4S Young
+	    * M2Tech Corrson
+	    * M2Tech AUDIA
+	    * M2Tech SL Audio
+	    * M2Tech Empirical
+	    * M2Tech Rockna
+	    * M2Tech Pathos
+	    * M2Tech Metronome
+	    * M2Tech CAD
+	    * M2Tech Audio Esclusive
+	    * M2Tech Rotel
+	    * M2Tech Eeaudio
+	    * The Chord Company CHORD
+	    * AVA Group A/S Vitus
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-usb-hiface.
+
+config SND_BCD2000
+	tristate "Behringer BCD2000 MIDI driver"
+	select SND_RAWMIDI
+	help
+	  Say Y here to include MIDI support for the Behringer BCD2000 DJ
+	  controller.
+
+	  Audio support is still work-in-progress at
+	  https://github.com/anyc/snd-usb-bcd2000
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-bcd2000.
+
+source "sound/usb/line6/Kconfig"
 
 endif	# SND_USB
 

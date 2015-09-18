@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -26,8 +27,6 @@
 #include <linux/of_irq.h>
 #include <linux/stmp_device.h>
 #include <asm/exception.h>
-
-#include "irqchip.h"
 
 #define HW_ICOLL_VECTOR				0x0000
 #define HW_ICOLL_LEVELACK			0x0010
@@ -76,16 +75,9 @@ asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
 
-	do {
-		irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
-		if (irqnr != 0x7f) {
-			__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
-			irqnr = irq_find_mapping(icoll_domain, irqnr);
-			handle_IRQ(irqnr, regs);
-			continue;
-		}
-		break;
-	} while (1);
+	irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
+	__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
+	handle_domain_irq(icoll_domain, irqnr, regs);
 }
 
 static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
@@ -97,12 +89,12 @@ static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops icoll_irq_domain_ops = {
+static const struct irq_domain_ops icoll_irq_domain_ops = {
 	.map = icoll_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static void __init icoll_of_init(struct device_node *np,
+static int __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
 	icoll_base = of_iomap(np, 0);
@@ -116,6 +108,6 @@ static void __init icoll_of_init(struct device_node *np,
 
 	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
 					     &icoll_irq_domain_ops, NULL);
-	WARN_ON(!icoll_domain);
+	return icoll_domain ? 0 : -ENODEV;
 }
 IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);

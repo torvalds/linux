@@ -19,6 +19,7 @@
 	.type  __kernel_gettimeofday,@function
 __kernel_gettimeofday:
 	.cfi_startproc
+	aghi	%r15,-16
 	larl	%r5,_vdso_data
 0:	ltgr	%r3,%r3				/* check if tz is NULL */
 	je	1f
@@ -28,15 +29,16 @@ __kernel_gettimeofday:
 	lg	%r4,__VDSO_UPD_COUNT(%r5)	/* load update counter */
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	0b
-	stck	48(%r15)			/* Store TOD clock */
-	lg	%r1,48(%r15)
+	stcke	0(%r15)				/* Store TOD clock */
+	lg	%r1,1(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
-	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
-	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime.tv_nsec */
-	lg	%r0,__VDSO_XTIME_SEC(%r5)	/* xtime.tv_sec */
+	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
+	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */
+	lg	%r0,__VDSO_XTIME_SEC(%r5)	/* tk->xtime_sec */
 	clg	%r4,__VDSO_UPD_COUNT(%r5)	/* check update counter */
 	jne	0b
+	lgf	%r5,__VDSO_TK_SHIFT(%r5)	/* Timekeeper shift */
+	srlg	%r1,%r1,0(%r5)			/*  >> tk->shift */
 	larl	%r5,5f
 2:	clg	%r1,0(%r5)
 	jl	3f
@@ -49,6 +51,7 @@ __kernel_gettimeofday:
 	srlg	%r0,%r0,6
 	stg	%r0,8(%r2)			/* store tv->tv_usec */
 4:	lghi	%r2,0
+	aghi	%r15,16
 	br	%r14
 5:	.quad	1000000000
 	.long	274877907

@@ -15,7 +15,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-void __cpuinit cpu_probe(void)
+void cpu_probe(void)
 {
 	unsigned long pvr, prr, cvr;
 	unsigned long size;

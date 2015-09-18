@@ -28,6 +28,8 @@
 	.set	mips1
 	/* Save floating point context */
 LEAF(_save_fp_context)
+	.set	push
+	SET_HARDFLOAT
 	li	v0, 0					# assume success
 	cfc1	t1,fcr31
 	EX(swc1 $f0,(SC_FPREGS+0)(a0))
@@ -65,6 +67,7 @@ LEAF(_save_fp_context)
 	EX(sw	t1,(SC_FPC_CSR)(a0))
 	cfc1	t0,$0				# implementation/version
 	jr	ra
+	.set	pop
 	.set	nomacro
 	 EX(sw	t0,(SC_FPC_EIR)(a0))
 	.set	macro
@@ -80,6 +83,8 @@ LEAF(_save_fp_context)
  * stack frame which might have been changed by the user.
  */
 LEAF(_restore_fp_context)
+	.set	push
+	SET_HARDFLOAT
 	li	v0, 0					# assume success
 	EX(lw t0,(SC_FPC_CSR)(a0))
 	EX(lwc1 $f0,(SC_FPREGS+0)(a0))
@@ -116,6 +121,7 @@ LEAF(_restore_fp_context)
 	EX(lwc1 $f31,(SC_FPREGS+248)(a0))
 	jr	ra
 	 ctc1	t0,fcr31
+	.set	pop
 	END(_restore_fp_context)
 	.set	reorder
 

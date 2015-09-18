@@ -224,8 +224,6 @@ struct alpha_machine_vector jensen_mv __initmv = {
 	.machine_check		= jensen_machine_check,
 	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
 	.rtc_port		= 0x170,
-	.rtc_get_time		= common_get_rtc_time,
-	.rtc_set_time		= common_set_rtc_time,
 
 	.nr_irqs		= 16,
 	.device_interrupt	= jensen_device_interrupt,

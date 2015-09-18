@@ -41,8 +41,8 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
-		DRM_INFO("vendor descriptor length:%x data:%*ph\n",
-			total_len, 11, desc);
+		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
+			total_len, desc);
 
 		if ((desc[0] != total_len) || /* descriptor length */
 		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
@@ -202,7 +202,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 		}
 		unode->urb = urb;
 
-		buf = usb_alloc_coherent(udl->ddev->usbdev, MAX_TRANSFER, GFP_KERNEL,
+		buf = usb_alloc_coherent(udl->udev, MAX_TRANSFER, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
@@ -211,7 +211,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 		}
 
 		/* urb->transfer_buffer_length set to actual before submit */
-		usb_fill_bulk_urb(urb, udl->ddev->usbdev, usb_sndbulkpipe(udl->ddev->usbdev, 1),
+		usb_fill_bulk_urb(urb, udl->udev, usb_sndbulkpipe(udl->udev, 1),
 			buf, size, udl_urb_completion, unode);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -282,34 +282,49 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 
 int udl_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	struct usb_device *udev = (void*)flags;
 	struct udl_device *udl;
-	int ret;
+	int ret = -ENOMEM;
 
 	DRM_DEBUG("\n");
 	udl = kzalloc(sizeof(struct udl_device), GFP_KERNEL);
 	if (!udl)
 		return -ENOMEM;
 
+	udl->udev = udev;
 	udl->ddev = dev;
 	dev->dev_private = udl;
 
-	if (!udl_parse_vendor_descriptor(dev, dev->usbdev)) {
+	if (!udl_parse_vendor_descriptor(dev, udl->udev)) {
+		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
 	}
 
 	if (!udl_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		ret = -ENOMEM;
 		DRM_ERROR("udl_alloc_urb_list failed\n");
 		goto err;
 	}
 
 	DRM_DEBUG("\n");
 	ret = udl_modeset_init(dev);
+	if (ret)
+		goto err;
 
 	ret = udl_fbdev_init(dev);
+	if (ret)
+		goto err;
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		goto err_fb;
+
 	return 0;
+err_fb:
+	udl_fbdev_cleanup(dev);
 err:
+	if (udl->urbs.count)
+		udl_free_urb_list(dev);
 	kfree(udl);
 	DRM_ERROR("%d\n", ret);
 	return ret;
@@ -324,6 +339,8 @@ int udl_drop_usb(struct drm_device *dev)
 int udl_driver_unload(struct drm_device *dev)
 {
 	struct udl_device *udl = dev->dev_private;
+
+	drm_vblank_cleanup(dev);
 
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);

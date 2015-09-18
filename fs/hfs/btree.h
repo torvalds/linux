@@ -153,11 +153,6 @@ struct hfs_btree_header_rec {
 	u32 reserved3[16];
 } __packed;
 
-#define HFS_NODE_INDEX	0x00	/* An internal (index) node */
-#define HFS_NODE_HEADER	0x01	/* The tree header node (node 0) */
-#define HFS_NODE_MAP		0x02	/* Holds part of the bitmap of used nodes */
-#define HFS_NODE_LEAF		0xFF	/* A leaf (ndNHeight==1) node */
-
 #define BTREE_ATTR_BADCLOSE	0x00000001	/* b-tree not closed properly. not
 						   used by hfsplus. */
 #define HFS_TREE_BIGKEYS	0x00000002	/* key length is u16 instead of u8.

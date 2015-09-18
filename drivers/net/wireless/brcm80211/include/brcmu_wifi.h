@@ -29,6 +29,7 @@
 #define CH_UPPER_SB			0x01
 #define CH_LOWER_SB			0x02
 #define CH_EWA_VALID			0x04
+#define CH_30MHZ_APART			6
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2
 #define CH_5MHZ_APART			1 /* 2G band channels are 5 Mhz apart */
@@ -81,6 +82,20 @@
 #define WLC_N_BW_20ALL			0
 #define WLC_N_BW_40ALL			1
 #define WLC_N_BW_20IN2G_40IN5G		2
+
+#define WLC_BW_20MHZ_BIT		BIT(0)
+#define WLC_BW_40MHZ_BIT		BIT(1)
+#define WLC_BW_80MHZ_BIT		BIT(2)
+#define WLC_BW_160MHZ_BIT		BIT(3)
+
+/* Bandwidth capabilities */
+#define WLC_BW_CAP_20MHZ		(WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_40MHZ		(WLC_BW_40MHZ_BIT|WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_80MHZ		(WLC_BW_80MHZ_BIT|WLC_BW_40MHZ_BIT| \
+					 WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_160MHZ		(WLC_BW_160MHZ_BIT|WLC_BW_80MHZ_BIT| \
+					 WLC_BW_40MHZ_BIT|WLC_BW_20MHZ_BIT)
+#define WLC_BW_CAP_UNRESTRICTED		0xFF
 
 /* band types */
 #define	WLC_BAND_AUTO			0	/* auto-select */
@@ -203,6 +218,9 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define WSEC_SWFLAG		0x0008
 /* to go into transition mode without setting wep */
 #define SES_OW_ENABLED		0x0040
+/* MFP */
+#define MFP_CAPABLE		0x0200
+#define MFP_REQUIRED		0x0400
 
 /* WPA authentication mode bitvec */
 #define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */

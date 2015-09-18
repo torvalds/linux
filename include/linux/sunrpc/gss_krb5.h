@@ -81,7 +81,7 @@ struct gss_krb5_enctype {
 		       struct xdr_netobj *in,
 		       struct xdr_netobj *out);	/* complete key generation */
 	u32 (*encrypt_v2) (struct krb5_ctx *kctx, u32 offset,
-			   struct xdr_buf *buf, int ec,
+			   struct xdr_buf *buf,
 			   struct page **pages); /* v2 encryption function */
 	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset,
 			   struct xdr_buf *buf, u32 *headskip,
@@ -310,7 +310,7 @@ gss_krb5_aes_make_key(const struct gss_krb5_enctype *gk5e,
 
 u32
 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
-		     struct xdr_buf *buf, int ec,
+		     struct xdr_buf *buf,
 		     struct page **pages);
 
 u32

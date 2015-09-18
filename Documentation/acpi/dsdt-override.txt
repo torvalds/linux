@@ -4,4 +4,4 @@ CONFIG_ACPI_CUSTOM_DSDT builds the image into the kernel.
 
 When to use this method is described in detail on the
 Linux/ACPI home page:
-http://www.lesswatts.org/projects/acpi/overridingDSDT.php
+https://01.org/linux-acpi/documentation/overriding-dsdt

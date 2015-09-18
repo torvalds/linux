@@ -81,7 +81,7 @@ static inline int __init r5k_sc_probe(void)
 	unsigned long config = read_c0_config();
 
 	if (config & CONF_SC)
-		return(0);
+		return 0;
 
 	scache_size = (512 * 1024) << ((config & R5K_CONF_SS) >> 20);
 
@@ -98,7 +98,7 @@ static struct bcache_ops r5k_sc_ops = {
 	.bc_inv = r5k_dma_cache_inv_sc
 };
 
-void __cpuinit r5k_sc_init(void)
+void r5k_sc_init(void)
 {
 	if (r5k_sc_probe()) {
 		r5k_sc_enable();

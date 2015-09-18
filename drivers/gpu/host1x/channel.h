@@ -40,12 +40,6 @@ struct host1x_channel {
 /* channel list operations */
 int host1x_channel_list_init(struct host1x *host);
 
-struct host1x_channel *host1x_channel_request(struct device *dev);
-void host1x_channel_free(struct host1x_channel *channel);
-struct host1x_channel *host1x_channel_get(struct host1x_channel *channel);
-void host1x_channel_put(struct host1x_channel *channel);
-int host1x_job_submit(struct host1x_job *job);
-
 #define host1x_for_each_channel(host, channel)				\
 	list_for_each_entry(channel, &host->chlist.list, list)
 

@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains error recovery level one used by the iSCSI Target driver.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -24,7 +22,7 @@
 #include <target/target_core_fabric.h>
 #include <target/iscsi/iscsi_transport.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_seq_pdu_list.h"
 #include "iscsi_target_datain_values.h"
 #include "iscsi_target_device.h"
@@ -162,9 +160,8 @@ static int iscsit_handle_r2t_snack(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-			return iscsit_add_reject_from_cmd(
-					ISCSI_REASON_PROTOCOL_ERROR,
-					1, 0, buf, cmd);
+			return iscsit_reject_cmd(cmd,
+					ISCSI_REASON_PROTOCOL_ERROR, buf);
 	}
 
 	if (runlength) {
@@ -173,8 +170,8 @@ static int iscsit_handle_r2t_snack(
 			" with BegRun: 0x%08x, RunLength: 0x%08x, exceeds"
 			" current R2TSN: 0x%08x, protocol error.\n",
 			cmd->init_task_tag, begrun, runlength, cmd->r2t_sn);
-			return iscsit_add_reject_from_cmd(
-				ISCSI_REASON_BOOKMARK_INVALID, 1, 0, buf, cmd);
+			return iscsit_reject_cmd(cmd,
+					ISCSI_REASON_BOOKMARK_INVALID, buf);
 		}
 		last_r2tsn = (begrun + runlength);
 	} else
@@ -433,8 +430,7 @@ static int iscsit_handle_recovery_datain(
 			" protocol error.\n", cmd->init_task_tag, begrun,
 			(begrun + runlength), cmd->acked_data_sn);
 
-		return iscsit_add_reject_from_cmd(ISCSI_REASON_PROTOCOL_ERROR,
-				1, 0, buf, cmd);
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_PROTOCOL_ERROR, buf);
 	}
 
 	/*
@@ -445,14 +441,14 @@ static int iscsit_handle_recovery_datain(
 		pr_err("Initiator requesting BegRun: 0x%08x, RunLength"
 			": 0x%08x greater than maximum DataSN: 0x%08x.\n",
 				begrun, runlength, (cmd->data_sn - 1));
-		return iscsit_add_reject_from_cmd(ISCSI_REASON_BOOKMARK_INVALID,
-				1, 0, buf, cmd);
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_BOOKMARK_INVALID,
+					 buf);
 	}
 
 	dr = iscsit_allocate_datain_req();
 	if (!dr)
-		return iscsit_add_reject_from_cmd(ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 0, buf, cmd);
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+					 buf);
 
 	dr->data_sn = dr->begrun = begrun;
 	dr->runlength = runlength;
@@ -511,7 +507,9 @@ int iscsit_handle_status_snack(
 	u32 last_statsn;
 	int found_cmd;
 
-	if (conn->exp_statsn > begrun) {
+	if (!begrun) {
+		begrun = conn->exp_statsn;
+	} else if (conn->exp_statsn > begrun) {
 		pr_err("Got Status SNACK Begrun: 0x%08x, RunLength:"
 			" 0x%08x but already got ExpStatSN: 0x%08x on CID:"
 			" %hu.\n", begrun, runlength, conn->exp_statsn,
@@ -1090,7 +1088,7 @@ int iscsit_handle_ooo_cmdsn(
 
 	ooo_cmdsn = iscsit_allocate_ooo_cmdsn();
 	if (!ooo_cmdsn)
-		return CMDSN_ERROR_CANNOT_RECOVER;
+		return -ENOMEM;
 
 	ooo_cmdsn->cmd			= cmd;
 	ooo_cmdsn->batch_count		= (batch) ?
@@ -1101,10 +1099,10 @@ int iscsit_handle_ooo_cmdsn(
 
 	if (iscsit_attach_ooo_cmdsn(sess, ooo_cmdsn) < 0) {
 		kmem_cache_free(lio_ooo_cache, ooo_cmdsn);
-		return CMDSN_ERROR_CANNOT_RECOVER;
+		return -ENOMEM;
 	}
 
-	return CMDSN_HIGHER_THAN_EXP;
+	return 0;
 }
 
 static int iscsit_set_dataout_timeout_values(

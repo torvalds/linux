@@ -4,30 +4,22 @@
 
 menuconfig PLAT_SPEAR
 	bool "ST SPEAr Family" if ARCH_MULTI_V7 || ARCH_MULTI_V5
-	default PLAT_SPEAR_SINGLE
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 
 if PLAT_SPEAR
 
 config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx"
-	depends on ARCH_MULTI_V7 || PLAT_SPEAR_SINGLE
-	select ARCH_HAS_CPUFREQ
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
-	select CPU_V7
 	select GPIO_SPEAR_SPICS
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
+	select HAVE_ARM_TWD if SMP
 	select PINCTRL
-	select USE_OF
+	select MFD_SYSCON
+	select MIGHT_HAVE_PCI
 	help
 	  Supports for ARM's SPEAR13XX family
 
@@ -36,12 +28,14 @@ if ARCH_SPEAR13XX
 config MACH_SPEAR1310
 	bool "SPEAr1310 Machine support with Device Tree"
 	select PINCTRL_SPEAR1310
+	select PHY_ST_SPEAR1310_MIPHY
 	help
 	  Supports ST SPEAr1310 machine configured via the device-tree
 
 config MACH_SPEAR1340
 	bool "SPEAr1340 Machine support with Device Tree"
 	select PINCTRL_SPEAR1340
+	select PHY_ST_SPEAR1340_MIPHY
 	help
 	  Supports ST SPEAr1340 machine configured via the device-tree
 
@@ -49,12 +43,10 @@ endif #ARCH_SPEAR13XX
 
 config ARCH_SPEAR3XX
 	bool "ST SPEAr3xx"
-	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on ARCH_MULTI_V5
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
-	select CPU_ARM926T
 	select PINCTRL
-	select USE_OF
 	help
 	  Supports for ARM's SPEAR3XX family
 
@@ -82,22 +74,20 @@ endif
 
 config ARCH_SPEAR6XX
 	bool "ST SPEAr6XX"
-	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on ARCH_MULTI_V5
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
-	select CPU_ARM926T
 	help
 	  Supports for ARM's SPEAR6XX family
 
 config MACH_SPEAR600
 	def_bool y
 	depends on ARCH_SPEAR6XX
-	select USE_OF
 	help
-	  Supports ST SPEAr600 boards configured via the device-treesource "arch/arm/mach-spear6xx/Kconfig"
+	  Supports ST SPEAr600 boards configured via the device-tree
 
 config ARCH_SPEAR_AUTO
-	def_bool PLAT_SPEAR_SINGLE
+	bool
 	depends on !ARCH_SPEAR13XX && !ARCH_SPEAR6XX
 	select ARCH_SPEAR3XX
 

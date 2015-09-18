@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2015 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #ifndef _E1000_HW_H_
 #define _E1000_HW_H_
@@ -90,6 +83,14 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_LPT_I217_V		0x153B
 #define E1000_DEV_ID_PCH_LPTLP_I218_LM		0x155A
 #define E1000_DEV_ID_PCH_LPTLP_I218_V		0x1559
+#define E1000_DEV_ID_PCH_I218_LM2		0x15A0
+#define E1000_DEV_ID_PCH_I218_V2		0x15A1
+#define E1000_DEV_ID_PCH_I218_LM3		0x15A2	/* Wildcat Point PCH */
+#define E1000_DEV_ID_PCH_I218_V3		0x15A3	/* Wildcat Point PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM		0x156F	/* SPT PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V		0x1570	/* SPT PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM2		0x15B7	/* SPT-H PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V2		0x15B8	/* SPT-H PCH */
 
 #define E1000_REVISION_4	4
 
@@ -111,6 +112,7 @@ enum e1000_mac_type {
 	e1000_pchlan,
 	e1000_pch2lan,
 	e1000_pch_lpt,
+	e1000_pch_spt,
 };
 
 enum e1000_media_type {
@@ -156,6 +158,7 @@ enum e1000_bus_width {
 	e1000_bus_width_pcie_x1,
 	e1000_bus_width_pcie_x2,
 	e1000_bus_width_pcie_x4 = 4,
+	e1000_bus_width_pcie_x8 = 8,
 	e1000_bus_width_32,
 	e1000_bus_width_64,
 	e1000_bus_width_reserved
@@ -227,6 +230,10 @@ union e1000_rx_desc_extended {
 };
 
 #define MAX_PS_BUFFERS 4
+
+/* Number of packet split data buffers (not including the header buffer) */
+#define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
+
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
@@ -251,7 +258,8 @@ union e1000_rx_desc_packet_split {
 		} middle;
 		struct {
 			__le16 header_status;
-			__le16 length[3];	/* length of buffers 1-3 */
+			/* length of buffers 1-3 */
+			__le16 length[PS_PAGE_BUFFERS];
 		} upper;
 		__le64 reserved;
 	} wb; /* writeback */
@@ -402,13 +410,13 @@ struct e1000_phy_stats {
 
 struct e1000_host_mng_dhcp_cookie {
 	u32 signature;
-	u8  status;
-	u8  reserved0;
+	u8 status;
+	u8 reserved0;
 	u16 vlan_id;
 	u32 reserved1;
 	u16 reserved2;
-	u8  reserved3;
-	u8  checksum;
+	u8 reserved3;
+	u8 checksum;
 };
 
 /* Host Interface "Rev 1" */
@@ -427,8 +435,8 @@ struct e1000_host_command_info {
 
 /* Host Interface "Rev 2" */
 struct e1000_host_mng_command_header {
-	u8  command_id;
-	u8  checksum;
+	u8 command_id;
+	u8 checksum;
 	u16 reserved1;
 	u16 reserved2;
 	u16 command_length;
@@ -467,8 +475,9 @@ struct e1000_mac_operations {
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
 	void (*config_collision_dist)(struct e1000_hw *);
-	void (*rar_set)(struct e1000_hw *, u8 *, u32);
+	int  (*rar_set)(struct e1000_hw *, u8 *, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
+	u32  (*rar_get_count)(struct e1000_hw *);
 };
 
 /* When to use various PHY register access functions:
@@ -549,7 +558,7 @@ struct e1000_mac_info {
 	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
-	u8  forced_speed_duplex;
+	u8 forced_speed_duplex;
 
 	bool adaptive_ifs;
 	bool has_fwsm;
@@ -577,7 +586,7 @@ struct e1000_phy_info {
 
 	u32 addr;
 	u32 id;
-	u32 reset_delay_us; /* in usec */
+	u32 reset_delay_us;	/* in usec */
 	u32 revision;
 
 	enum e1000_media_type media_type;
@@ -636,15 +645,22 @@ struct e1000_dev_spec_82571 {
 };
 
 struct e1000_dev_spec_80003es2lan {
-	bool  mdic_wa_enable;
+	bool mdic_wa_enable;
 };
 
 struct e1000_shadow_ram {
-	u16  value;
+	u16 value;
 	bool modified;
 };
 
 #define E1000_ICH8_SHADOW_RAM_WORDS		2048
+
+/* I218 PHY Ultra Low Power (ULP) states */
+enum e1000_ulp_state {
+	e1000_ulp_state_unknown,
+	e1000_ulp_state_off,
+	e1000_ulp_state_on,
+};
 
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
@@ -652,6 +668,7 @@ struct e1000_dev_spec_ich8lan {
 	bool nvm_k1_enabled;
 	bool eee_disable;
 	u16 eee_lp_ability;
+	enum e1000_ulp_state ulp_state;
 };
 
 struct e1000_hw {
@@ -660,17 +677,17 @@ struct e1000_hw {
 	void __iomem *hw_addr;
 	void __iomem *flash_address;
 
-	struct e1000_mac_info  mac;
-	struct e1000_fc_info   fc;
-	struct e1000_phy_info  phy;
-	struct e1000_nvm_info  nvm;
-	struct e1000_bus_info  bus;
+	struct e1000_mac_info mac;
+	struct e1000_fc_info fc;
+	struct e1000_phy_info phy;
+	struct e1000_nvm_info nvm;
+	struct e1000_bus_info bus;
 	struct e1000_host_mng_dhcp_cookie mng_cookie;
 
 	union {
-		struct e1000_dev_spec_82571	e82571;
+		struct e1000_dev_spec_82571 e82571;
 		struct e1000_dev_spec_80003es2lan e80003es2lan;
-		struct e1000_dev_spec_ich8lan	ich8lan;
+		struct e1000_dev_spec_ich8lan ich8lan;
 	} dev_spec;
 };
 

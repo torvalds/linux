@@ -36,6 +36,11 @@ typedef enum {
 	PSMOUSE_FULL_PACKET
 } psmouse_ret_t;
 
+enum psmouse_scale {
+	PSMOUSE_SCALE11,
+	PSMOUSE_SCALE21
+};
+
 struct psmouse {
 	void *private;
 	struct input_dev *dev;
@@ -67,6 +72,7 @@ struct psmouse {
 	psmouse_ret_t (*protocol_handler)(struct psmouse *psmouse);
 	void (*set_rate)(struct psmouse *psmouse, unsigned int rate);
 	void (*set_resolution)(struct psmouse *psmouse, unsigned int resolution);
+	void (*set_scale)(struct psmouse *psmouse, enum psmouse_scale scale);
 
 	int (*reconnect)(struct psmouse *psmouse);
 	void (*disconnect)(struct psmouse *psmouse);
@@ -96,6 +102,8 @@ enum psmouse_type {
 	PSMOUSE_FSP,
 	PSMOUSE_SYNAPTICS_RELATIVE,
 	PSMOUSE_CYPRESS,
+	PSMOUSE_FOCALTECH,
+	PSMOUSE_VMMOUSE,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
@@ -108,6 +116,7 @@ void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution);
 psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse);
 int psmouse_activate(struct psmouse *psmouse);
 int psmouse_deactivate(struct psmouse *psmouse);
+bool psmouse_matches_pnp_id(struct psmouse *psmouse, const char * const ids[]);
 
 struct psmouse_attribute {
 	struct device_attribute dattr;

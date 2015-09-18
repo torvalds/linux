@@ -46,7 +46,7 @@
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/clnt.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -139,11 +139,12 @@ void gss_mech_unregister(struct gss_api_mech *gm)
 }
 EXPORT_SYMBOL_GPL(gss_mech_unregister);
 
-static struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm)
+struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm)
 {
 	__module_get(gm->gm_owner);
 	return gm;
 }
+EXPORT_SYMBOL(gss_mech_get);
 
 static struct gss_api_mech *
 _gss_mech_get_by_name(const char *name)
@@ -217,10 +218,8 @@ static struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 
 	spin_lock(&registered_mechs_lock);
 	list_for_each_entry(pos, &registered_mechs, gm_list) {
-		if (!mech_supports_pseudoflavor(pos, pseudoflavor)) {
-			module_put(pos->gm_owner);
+		if (!mech_supports_pseudoflavor(pos, pseudoflavor))
 			continue;
-		}
 		if (try_module_get(pos->gm_owner))
 			gm = pos;
 		break;
@@ -360,6 +359,7 @@ gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(gss_pseudoflavor_to_service);
 
 char *
 gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
@@ -379,6 +379,7 @@ gss_mech_put(struct gss_api_mech * gm)
 	if (gm)
 		module_put(gm->gm_owner);
 }
+EXPORT_SYMBOL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
  * as easy for now to pass it in. */

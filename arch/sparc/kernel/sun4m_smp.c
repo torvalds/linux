@@ -34,11 +34,11 @@ swap_ulong(volatile unsigned long *ptr, unsigned long val)
 	return val;
 }
 
-void __cpuinit sun4m_cpu_pre_starting(void *arg)
+void sun4m_cpu_pre_starting(void *arg)
 {
 }
 
-void __cpuinit sun4m_cpu_pre_online(void *arg)
+void sun4m_cpu_pre_online(void *arg)
 {
 	int cpuid = hard_smp_processor_id();
 
@@ -75,7 +75,7 @@ void __init smp4m_boot_cpus(void)
 	local_ops->cache_all();
 }
 
-int __cpuinit smp4m_boot_one_cpu(int i, struct task_struct *idle)
+int smp4m_boot_one_cpu(int i, struct task_struct *idle)
 {
 	unsigned long *entry = &sun4m_cpu_startup;
 	int timeout;
@@ -247,7 +247,7 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 
 	ce = &per_cpu(sparc32_clockevent, cpu);
 
-	if (ce->mode & CLOCK_EVT_MODE_PERIODIC)
+	if (clockevent_state_periodic(ce))
 		sun4m_clear_profile_irq(cpu);
 	else
 		sparc_config.load_profile_irq(cpu, 0); /* Is this needless? */

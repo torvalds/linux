@@ -1,0 +1,17 @@
+Freescale DCP (Data Co-Processor) found on i.MX23/i.MX28 .
+
+Required properties:
+- compatible : Should be "fsl,<soc>-dcp"
+- reg : Should contain MXS DCP registers location and length
+- interrupts : Should contain MXS DCP interrupt numbers, VMI IRQ and DCP IRQ
+               must be supplied, optionally Secure IRQ can be present, but
+	       is currently not implemented and not used.
+
+Example:
+
+dcp@80028000 {
+	compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
+	reg = <0x80028000 0x2000>;
+	interrupts = <52 53>;
+	status = "okay";
+};

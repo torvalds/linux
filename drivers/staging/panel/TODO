@@ -1,6 +1,5 @@
 TODO:
 	- checkpatch.pl cleanups
-	- Lindent
 	- review major/minor usages
 	- review userspace api
 	- see if all of this could be easier done in userspace instead.

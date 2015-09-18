@@ -550,6 +550,7 @@ static int pcan_add_channels(struct pcan_pccard *card)
 		priv = netdev_priv(netdev);
 		priv->priv = card;
 		SET_NETDEV_DEV(netdev, &pdev->dev);
+		netdev->dev_id = i;
 
 		priv->irq_flags = IRQF_SHARED;
 		netdev->irq = pdev->irq;

@@ -147,7 +147,7 @@ void mconsole_proc(struct mc_request *req)
 	}
 
 	do {
-		loff_t pos;
+		loff_t pos = file->f_pos;
 		mm_segment_t old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		len = vfs_read(file, buf, PAGE_SIZE - 1, &pos);
@@ -645,11 +645,9 @@ void mconsole_sysrq(struct mc_request *req)
 
 static void stack_proc(void *arg)
 {
-	struct task_struct *from = current, *to = arg;
+	struct task_struct *task = arg;
 
-	to->thread.saved_task = from;
-	rcu_user_hooks_switch(from, to);
-	switch_to(from, to, from);
+	show_stack(task, NULL);
 }
 
 /*

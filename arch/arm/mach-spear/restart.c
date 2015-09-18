@@ -4,7 +4,7 @@
  * SPEAr platform specific restart functions
  *
  * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar <viresh.linux@gmail.com>
+ * Viresh Kumar <vireshk@kernel.org>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -12,14 +12,15 @@
  */
 #include <linux/io.h>
 #include <linux/amba/sp810.h>
+#include <linux/reboot.h>
 #include <asm/system_misc.h>
 #include <mach/spear.h>
 #include "generic.h"
 
 #define SPEAR13XX_SYS_SW_RES			(VA_MISC_BASE + 0x204)
-void spear_restart(char mode, const char *cmd)
+void spear_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's') {
+	if (mode == REBOOT_SOFT) {
 		/* software reset, Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {

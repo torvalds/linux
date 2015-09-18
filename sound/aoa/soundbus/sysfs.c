@@ -30,13 +30,16 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return length;
 }
+static DEVICE_ATTR_RO(modalias);
 
 soundbus_config_of_attr (name, "%s\n");
+static DEVICE_ATTR_RO(name);
 soundbus_config_of_attr (type, "%s\n");
+static DEVICE_ATTR_RO(type);
 
-struct device_attribute soundbus_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(type),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+struct attribute *soundbus_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_type.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };

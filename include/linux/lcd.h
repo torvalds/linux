@@ -112,7 +112,12 @@ static inline void lcd_set_power(struct lcd_device *ld, int power)
 
 extern struct lcd_device *lcd_device_register(const char *name,
 	struct device *parent, void *devdata, struct lcd_ops *ops);
+extern struct lcd_device *devm_lcd_device_register(struct device *dev,
+	const char *name, struct device *parent,
+	void *devdata, struct lcd_ops *ops);
 extern void lcd_device_unregister(struct lcd_device *ld);
+extern void devm_lcd_device_unregister(struct device *dev,
+	struct lcd_device *ld);
 
 #define to_lcd_device(obj) container_of(obj, struct lcd_device, dev)
 

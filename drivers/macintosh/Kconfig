@@ -32,7 +32,7 @@ config ADB_MACII
 
 config ADB_MACIISI
 	bool "Include Mac IIsi ADB driver"
-	depends on ADB && MAC
+	depends on ADB && MAC && BROKEN
 	help
 	  Say Y here if want your kernel to support Macintosh systems that use
 	  the Mac IIsi style ADB.  This includes the IIsi, IIvi, IIvx, Classic
@@ -103,6 +103,7 @@ config ADB_PMU_LED_IDE
 	bool "Use front LED as IDE LED by default"
 	depends on ADB_PMU_LED
 	depends on LEDS_CLASS
+	depends on IDE_GD_ATA
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_IDE_DISK
 	help
@@ -202,16 +203,6 @@ config THERM_ADT746X
 	  This driver provides some thermostat and fan control for the
           iBook G4, and the ATI based aluminium PowerBooks, allowing slightly
 	  better fan behaviour by default, and some manual control.
-
-config THERM_PM72
-	tristate "Support for thermal management on PowerMac G5 (AGP)"
-	depends on I2C && I2C_POWERMAC && PPC_PMAC64
-	default n
-	help
-	  This driver provides thermostat and fan control for the desktop
-	  G5 machines.
-
-	  This is deprecated, use windfarm instead.
 
 config WINDFARM
 	tristate "New PowerMac thermal control infrastructure"

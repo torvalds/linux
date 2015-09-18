@@ -76,25 +76,14 @@ static const struct snd_soc_dapm_route ttc_audio_map[] = {
 static int ttc_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	/* connected pins */
-	snd_soc_dapm_enable_pin(dapm, "Ext Speaker");
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic 1");
-	snd_soc_dapm_enable_pin(dapm, "Ext Mic 3");
-	snd_soc_dapm_disable_pin(dapm, "Headset Mic 2");
-	snd_soc_dapm_disable_pin(dapm, "Headset Stereophone");
 
 	/* Headset jack detection */
-	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE
-			| SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2,
-			&hs_jack);
-	snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-			      hs_jack_pins);
-	snd_soc_jack_new(codec, "Microphone Jack", SND_JACK_MICROPHONE,
-			 &mic_jack);
-	snd_soc_jack_add_pins(&mic_jack, ARRAY_SIZE(mic_jack_pins),
-			      mic_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE |
+			      SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2,
+			      &hs_jack, hs_jack_pins, ARRAY_SIZE(hs_jack_pins));
+	snd_soc_card_jack_new(rtd->card, "Microphone Jack", SND_JACK_MICROPHONE,
+			      &mic_jack, mic_jack_pins,
+			      ARRAY_SIZE(mic_jack_pins));
 
 	/* headphone, microphone detection & headset short detection */
 	pm860x_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADPHONE,
@@ -122,6 +111,7 @@ static struct snd_soc_dai_link ttc_pm860x_hifi_dai[] = {
 /* ttc/td audio machine driver */
 static struct snd_soc_card ttc_dkb_card = {
 	.name = "ttc-dkb-hifi",
+	.owner = THIS_MODULE,
 	.dai_link = ttc_pm860x_hifi_dai,
 	.num_links = ARRAY_SIZE(ttc_pm860x_hifi_dai),
 
@@ -158,7 +148,7 @@ static int ttc_dkb_remove(struct platform_device *pdev)
 static struct platform_driver ttc_dkb_driver = {
 	.driver		= {
 		.name	= "ttc-dkb-audio",
-		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= ttc_dkb_probe,
 	.remove		= ttc_dkb_remove,

@@ -84,7 +84,6 @@ enum qdio_irq_states {
 #define QDIO_SIGA_WRITEQ	0x04
 #define QDIO_SIGA_QEBSM_FLAG	0x80
 
-#ifdef CONFIG_64BIT
 static inline int do_sqbs(u64 token, unsigned char state, int queue,
 			  int *start, int *count)
 {
@@ -122,12 +121,6 @@ static inline int do_eqbs(u64 token, unsigned char *state, int queue,
 
 	return (_ccq >> 32) & 0xff;
 }
-#else
-static inline int do_sqbs(u64 token, unsigned char state, int queue,
-			  int *start, int *count) { return 0; }
-static inline int do_eqbs(u64 token, unsigned char *state, int queue,
-			  int *start, int *count, int ack) { return 0; }
-#endif /* CONFIG_64BIT */
 
 struct qdio_irq;
 
@@ -138,40 +131,6 @@ struct siga_flag {
 	u8 sync_after_ai:1;
 	u8 sync_out_after_pci:1;
 	u8:3;
-} __attribute__ ((packed));
-
-struct chsc_ssqd_area {
-	struct chsc_header request;
-	u16:10;
-	u8 ssid:2;
-	u8 fmt:4;
-	u16 first_sch;
-	u16:16;
-	u16 last_sch;
-	u32:32;
-	struct chsc_header response;
-	u32:32;
-	struct qdio_ssqd_desc qdio_ssqd;
-} __attribute__ ((packed));
-
-struct scssc_area {
-	struct chsc_header request;
-	u16 operation_code;
-	u16:16;
-	u32:32;
-	u32:32;
-	u64 summary_indicator_addr;
-	u64 subchannel_indicator_addr;
-	u32 ks:4;
-	u32 kc:4;
-	u32:21;
-	u32 isc:3;
-	u32 word_with_d_bit;
-	u32:32;
-	struct subchannel_id schid;
-	u32 reserved[1004];
-	struct chsc_header response;
-	u32:32;
 } __attribute__ ((packed));
 
 struct qdio_dev_perf_stat {
@@ -393,14 +352,12 @@ static inline int multicast_outbound(struct qdio_q *q)
 #define need_siga_sync_out_after_pci(q)	\
 	(unlikely(q->irq_ptr->siga_flag.sync_out_after_pci))
 
-#define for_each_input_queue(irq_ptr, q, i)	\
-	for (i = 0, q = irq_ptr->input_qs[0];	\
-		i < irq_ptr->nr_input_qs;	\
-		q = irq_ptr->input_qs[++i])
-#define for_each_output_queue(irq_ptr, q, i)	\
-	for (i = 0, q = irq_ptr->output_qs[0];	\
-		i < irq_ptr->nr_output_qs;	\
-		q = irq_ptr->output_qs[++i])
+#define for_each_input_queue(irq_ptr, q, i)		\
+	for (i = 0; i < irq_ptr->nr_input_qs &&		\
+		({ q = irq_ptr->input_qs[i]; 1; }); i++)
+#define for_each_output_queue(irq_ptr, q, i)		\
+	for (i = 0; i < irq_ptr->nr_output_qs &&	\
+		({ q = irq_ptr->output_qs[i]; 1; }); i++)
 
 #define prev_buf(bufnr)	\
 	((bufnr + QDIO_MAX_BUFFERS_MASK) & QDIO_MAX_BUFFERS_MASK)

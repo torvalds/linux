@@ -48,7 +48,6 @@ void rtl92c_set_qos(struct ieee80211_hw *hw, int aci);
 /*---------------------------------------------------------------
  *	Hardware init functions
  *---------------------------------------------------------------*/
-void rtl92c_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr);
 void rtl92c_init_interrupt(struct ieee80211_hw *hw);
 void rtl92c_init_driver_info_size(struct ieee80211_hw *hw, u8 size);
 
@@ -66,24 +65,12 @@ void rtl92c_init_edca_param(struct ieee80211_hw *hw,
 
 void rtl92c_init_edca(struct ieee80211_hw *hw);
 void rtl92c_init_ampdu_aggregation(struct ieee80211_hw *hw);
-void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw, bool infra_mode);
+void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw);
 void rtl92c_init_rdg_setting(struct ieee80211_hw *hw);
 void rtl92c_init_retry_function(struct ieee80211_hw *hw);
 
-void rtl92c_init_beacon_parameters(struct ieee80211_hw *hw,
-				   enum version_8192c version);
-
 void rtl92c_disable_fast_edca(struct ieee80211_hw *hw);
 void rtl92c_set_min_space(struct ieee80211_hw *hw, bool is2T);
-
-/* For filter */
-u16 rtl92c_get_mgt_filter(struct ieee80211_hw *hw);
-void rtl92c_set_mgt_filter(struct ieee80211_hw *hw, u16 filter);
-u16 rtl92c_get_ctrl_filter(struct ieee80211_hw *hw);
-void rtl92c_set_ctrl_filter(struct ieee80211_hw *hw, u16 filter);
-u16 rtl92c_get_data_filter(struct ieee80211_hw *hw);
-void rtl92c_set_data_filter(struct ieee80211_hw *hw, u16 filter);
-
 
 u32 rtl92c_get_txdma_status(struct ieee80211_hw *hw);
 

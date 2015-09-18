@@ -8,6 +8,7 @@
  * Copyright (C) 1997, 1998, 1999, 2000, 06 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -25,9 +26,9 @@
 #include <asm/sn/gda.h>
 #include <asm/sn/sn0/hub.h>
 
-void machine_restart(char *command) __attribute__((noreturn));
-void machine_halt(void) __attribute__((noreturn));
-void machine_power_off(void) __attribute__((noreturn));
+void machine_restart(char *command) __noreturn;
+void machine_halt(void) __noreturn;
+void machine_power_off(void) __noreturn;
 
 #define noreturn while(1);				/* Silence gcc.	 */
 

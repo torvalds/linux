@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,18 +83,21 @@ struct iwl_nvm_data {
 	bool sku_cap_band_24GHz_enable;
 	bool sku_cap_band_52GHz_enable;
 	bool sku_cap_11n_enable;
+	bool sku_cap_11ac_enable;
 	bool sku_cap_amt_enable;
 	bool sku_cap_ipan_enable;
+	bool sku_cap_mimo_disabled;
 
-	u8 radio_cfg_type;
+	u16 radio_cfg_type;
 	u8 radio_cfg_step;
 	u8 radio_cfg_dash;
 	u8 radio_cfg_pnum;
 	u8 valid_tx_ant, valid_rx_ant;
 
-	u16 nvm_version;
+	u32 nvm_version;
 	s8 max_tx_pwr_half_dbm;
 
+	bool lar_enabled;
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[];
 };
@@ -133,6 +138,7 @@ int iwl_init_sband_channels(struct iwl_nvm_data *data,
 void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 			  struct iwl_nvm_data *data,
 			  struct ieee80211_sta_ht_cap *ht_info,
-			  enum ieee80211_band band);
+			  enum ieee80211_band band,
+			  u8 tx_chains, u8 rx_chains);
 
 #endif /* __iwl_eeprom_parse_h__ */

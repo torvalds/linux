@@ -18,6 +18,28 @@ Removal of a device:
 
   $ echo <dev-id> > /sys/bus/rbd/remove
 
+What:		/sys/bus/rbd/add_single_major
+Date:		December 2013
+KernelVersion:	3.14
+Contact:	Sage Weil <sage@inktank.com>
+Description:	Available only if rbd module is inserted with single_major
+		parameter set to true.
+		Usage is the same as for /sys/bus/rbd/add.  If present,
+		should be used instead of the latter: any attempts to use
+		/sys/bus/rbd/add if /sys/bus/rbd/add_single_major is
+		available will fail for backwards compatibility reasons.
+
+What:		/sys/bus/rbd/remove_single_major
+Date:		December 2013
+KernelVersion:	3.14
+Contact:	Sage Weil <sage@inktank.com>
+Description:	Available only if rbd module is inserted with single_major
+		parameter set to true.
+		Usage is the same as for /sys/bus/rbd/remove.  If present,
+		should be used instead of the latter: any attempts to use
+		/sys/bus/rbd/remove if /sys/bus/rbd/remove_single_major is
+		available will fail for backwards compatibility reasons.
+
 Entries under /sys/bus/rbd/devices/<dev-id>/
 --------------------------------------------
 
@@ -32,6 +54,10 @@ features
 major
 
 	The block device major number.
+
+minor
+
+	The block device minor number.  (December 2013, since 3.14.)
 
 name
 
@@ -68,5 +94,5 @@ current_snap
 
 parent
 
-	Information identifying the pool, image, and snapshot id for
-	the parent image in a layered rbd image (format 2 only).
+	Information identifying the chain of parent images in a layered rbd
+	image.  Entries are separated by empty lines.

@@ -15,10 +15,11 @@
 
 /* maximum number of pages concerning our own memory management */
 #define MAX_KMEM_PAGES (sizeof(unsigned long) << 3)
-#define MAX_CONSOLE_PAGES	6
+#define SCLP_CONSOLE_PAGES	6
 
 #define EVTYP_OPCMD		0x01
 #define EVTYP_MSG		0x02
+#define EVTYP_DIAG_TEST		0x07
 #define EVTYP_STATECHANGE	0x08
 #define EVTYP_PMSGCMD		0x09
 #define EVTYP_CNTLPROGOPCMD	0x20
@@ -32,6 +33,7 @@
 
 #define EVTYP_OPCMD_MASK	0x80000000
 #define EVTYP_MSG_MASK		0x40000000
+#define EVTYP_DIAG_TEST_MASK	0x02000000
 #define EVTYP_STATECHANGE_MASK	0x01000000
 #define EVTYP_PMSGCMD_MASK	0x00800000
 #define EVTYP_CTLPROGOPCMD_MASK	0x00000001
@@ -98,12 +100,11 @@ struct init_sccb {
 	sccb_mask_t sclp_send_mask;
 } __attribute__((packed));
 
-extern u64 sclp_facilities;
-#define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
-#define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
-#define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
-#define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
-#define SCLP_HAS_PCI_RECONFIG	(sclp_facilities & 0x0000000040000000ULL)
+#define SCLP_HAS_CHP_INFO	(sclp.facilities & 0x8000000000000000ULL)
+#define SCLP_HAS_CHP_RECONFIG	(sclp.facilities & 0x2000000000000000ULL)
+#define SCLP_HAS_CPU_INFO	(sclp.facilities & 0x0800000000000000ULL)
+#define SCLP_HAS_CPU_RECONFIG	(sclp.facilities & 0x0400000000000000ULL)
+#define SCLP_HAS_PCI_RECONFIG	(sclp.facilities & 0x0000000040000000ULL)
 
 
 struct gds_subvector {
@@ -132,6 +133,11 @@ struct sclp_req {
 	/* Callback that is called after reaching final status. */
 	void (*callback)(struct sclp_req *, void *data);
 	void *callback_data;
+	int queue_timeout;		/* request queue timeout (sec), set by
+					   caller of sclp_add_request(), if
+					   needed */
+	/* Internal fields */
+	unsigned long queue_expires;	/* request queue timeout (jiffies) */
 };
 
 #define SCLP_REQ_FILLED	  0x00	/* request is ready to be processed */
@@ -139,6 +145,9 @@ struct sclp_req {
 #define SCLP_REQ_RUNNING  0x02	/* request is currently running */
 #define SCLP_REQ_DONE	  0x03	/* request is completed successfully */
 #define SCLP_REQ_FAILED	  0x05	/* request is finally failed */
+#define SCLP_REQ_QUEUED_TIMEOUT 0x06	/* request on queue timed out */
+
+#define SCLP_QUEUE_INTERVAL 5	/* timeout interval for request queue */
 
 /* function pointers that a high level driver has to use for registration */
 /* of some routines it wants to be called from the low level driver */
@@ -171,9 +180,15 @@ int sclp_remove_processed(struct sccb_header *sccb);
 int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_service_call(sclp_cmdw_t command, void *sccb);
+int sclp_sync_request(sclp_cmdw_t command, void *sccb);
+int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
+
+extern int sclp_console_pages;
+extern int sclp_console_drop;
+extern unsigned long sclp_console_full;
 
 /* useful inlines */
 

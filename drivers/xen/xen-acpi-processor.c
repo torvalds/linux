@@ -17,6 +17,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
 #include <linux/freezer.h>
@@ -25,16 +27,12 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/syscore_ops.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <acpi/processor.h>
-
 #include <xen/xen.h>
+#include <xen/xen-ops.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
-
-#define DRV_NAME "xen-acpi-processor: "
 
 static int no_hypercall;
 MODULE_PARM_DESC(off, "Inhibit the hypercall.");
@@ -104,7 +102,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 		set_xen_guest_handle(dst_cx->dp, NULL);
 	}
 	if (!ok) {
-		pr_debug(DRV_NAME "No _Cx for ACPI CPU %u\n", _pr->acpi_id);
+		pr_debug("No _Cx for ACPI CPU %u\n", _pr->acpi_id);
 		kfree(dst_cx_states);
 		return -EINVAL;
 	}
@@ -129,11 +127,11 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 			pr_debug("     C%d: %s %d uS\n",
 				 cx->type, cx->desc, (u32)cx->latency);
 		}
-	} else if (ret != -EINVAL)
+	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
 		 * table is referencing a non-existing CPU - which can happen
 		 * with broken ACPI tables. */
-		pr_err(DRV_NAME "(CX): Hypervisor error (%d) for ACPI CPU%u\n",
+		pr_err("(CX): Hypervisor error (%d) for ACPI CPU%u\n",
 		       ret, _pr->acpi_id);
 
 	kfree(dst_cx_states);
@@ -239,7 +237,7 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 		dst_perf->flags |= XEN_PX_PSD;
 
 	if (dst_perf->flags != (XEN_PX_PSD | XEN_PX_PSS | XEN_PX_PCT | XEN_PX_PPC)) {
-		pr_warn(DRV_NAME "ACPI CPU%u missing some P-state data (%x), skipping.\n",
+		pr_warn("ACPI CPU%u missing some P-state data (%x), skipping\n",
 			_pr->acpi_id, dst_perf->flags);
 		ret = -ENODEV;
 		goto err_free;
@@ -261,12 +259,12 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 			(u32) perf->states[i].power,
 			(u32) perf->states[i].transition_latency);
 		}
-	} else if (ret != -EINVAL)
+	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
 		/* EINVAL means the ACPI ID is incorrect - meaning the ACPI
 		 * table is referencing a non-existing CPU - which can happen
 		 * with broken ACPI tables. */
-		pr_warn(DRV_NAME "(_PXX): Hypervisor error (%d) for ACPI CPU%u\n",
-		       ret, _pr->acpi_id);
+		pr_warn("(_PXX): Hypervisor error (%d) for ACPI CPU%u\n",
+			ret, _pr->acpi_id);
 err_free:
 	if (!IS_ERR_OR_NULL(dst_states))
 		kfree(dst_states);
@@ -318,7 +316,7 @@ static unsigned int __init get_max_acpi_id(void)
 		max_acpi_id = max(info->acpi_id, max_acpi_id);
 	}
 	max_acpi_id *= 2; /* Slack for CPU hotplug support. */
-	pr_debug(DRV_NAME "Max ACPI ID: %u\n", max_acpi_id);
+	pr_debug("Max ACPI ID: %u\n", max_acpi_id);
 	return max_acpi_id;
 }
 /*
@@ -365,15 +363,14 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
 	if (acpi_id > nr_acpi_bits) {
-		pr_debug(DRV_NAME "We only have %u, trying to set %u\n",
+		pr_debug("We only have %u, trying to set %u\n",
 			 nr_acpi_bits, acpi_id);
 		return AE_OK;
 	}
 	/* OK, There is a ACPI Processor object */
 	__set_bit(acpi_id, acpi_id_present);
 
-	pr_debug(DRV_NAME "ACPI CPU%u w/ PBLK:0x%lx\n", acpi_id,
-		 (unsigned long)pblk);
+	pr_debug("ACPI CPU%u w/ PBLK:0x%lx\n", acpi_id, (unsigned long)pblk);
 
 	status = acpi_evaluate_object(handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -476,7 +473,7 @@ static int xen_upload_processor_pm_data(void)
 	unsigned int i;
 	int rc = 0;
 
-	pr_info(DRV_NAME "Uploading Xen processor PM info\n");
+	pr_info("Uploading Xen processor PM info\n");
 
 	for_each_possible_cpu(i) {
 		struct acpi_processor *_pr;
@@ -498,14 +495,15 @@ static int xen_upload_processor_pm_data(void)
 	return rc;
 }
 
-static void xen_acpi_processor_resume(void)
+static int xen_acpi_processor_resume(struct notifier_block *nb,
+				     unsigned long action, void *data)
 {
 	bitmap_zero(acpi_ids_done, nr_acpi_bits);
-	xen_upload_processor_pm_data();
+	return xen_upload_processor_pm_data();
 }
 
-static struct syscore_ops xap_syscore_ops = {
-	.resume	= xen_acpi_processor_resume,
+struct notifier_block xen_acpi_processor_resume_nb = {
+	.notifier_call = xen_acpi_processor_resume,
 };
 
 static int __init xen_acpi_processor_init(void)
@@ -523,7 +521,7 @@ static int __init xen_acpi_processor_init(void)
 
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
-		pr_debug(DRV_NAME "Memory allocation error for acpi_perf_data.\n");
+		pr_debug("Memory allocation error for acpi_perf_data\n");
 		kfree(acpi_ids_done);
 		return -ENOMEM;
 	}
@@ -558,15 +556,13 @@ static int __init xen_acpi_processor_init(void)
 	if (rc)
 		goto err_unregister;
 
-	register_syscore_ops(&xap_syscore_ops);
+	xen_resume_notifier_register(&xen_acpi_processor_resume_nb);
 
 	return 0;
 err_unregister:
-	for_each_possible_cpu(i) {
-		struct acpi_processor_performance *perf;
-		perf = per_cpu_ptr(acpi_perf_data, i);
-		acpi_processor_unregister_performance(perf, i);
-	}
+	for_each_possible_cpu(i)
+		acpi_processor_unregister_performance(i);
+
 err_out:
 	/* Freeing a NULL pointer is OK: alloc_percpu zeroes. */
 	free_acpi_perf_data();
@@ -577,15 +573,13 @@ static void __exit xen_acpi_processor_exit(void)
 {
 	int i;
 
-	unregister_syscore_ops(&xap_syscore_ops);
+	xen_resume_notifier_unregister(&xen_acpi_processor_resume_nb);
 	kfree(acpi_ids_done);
 	kfree(acpi_id_present);
 	kfree(acpi_id_cst_present);
-	for_each_possible_cpu(i) {
-		struct acpi_processor_performance *perf;
-		perf = per_cpu_ptr(acpi_perf_data, i);
-		acpi_processor_unregister_performance(perf, i);
-	}
+	for_each_possible_cpu(i)
+		acpi_processor_unregister_performance(i);
+
 	free_acpi_perf_data();
 }
 

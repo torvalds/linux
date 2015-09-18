@@ -16,20 +16,28 @@ Example:
 			   "fsl,pq2-localbus";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		reg = <f0010100 40>;
+		reg = <0xf0010100 0x40>;
 
-		ranges = <0 0 fe000000 02000000
-			  1 0 f4500000 00008000>;
+		ranges = <0x0 0x0 0xfe000000 0x02000000
+			  0x1 0x0 0xf4500000 0x00008000
+			  0x2 0x0 0xfd810000 0x00010000>;
 
 		flash@0,0 {
 			compatible = "jedec-flash";
-			reg = <0 0 2000000>;
+			reg = <0x0 0x0 0x2000000>;
 			bank-width = <4>;
 			device-width = <1>;
 		};
 
 		board-control@1,0 {
-			reg = <1 0 20>;
+			reg = <0x1 0x0 0x20>;
 			compatible = "fsl,mpc8272ads-bcsr";
+		};
+
+		simple-periph@2,0 {
+			compatible = "fsl,elbc-gpcm-uio";
+			reg = <0x2 0x0 0x10000>;
+			elbc-gpcm-br = <0xfd810800>;
+			elbc-gpcm-or = <0xffff09f7>;
 		};
 	};

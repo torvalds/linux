@@ -22,9 +22,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
@@ -39,7 +41,7 @@
 #include "disp.h"
 
 #include <subdev/bios/pll.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
 static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -110,12 +112,12 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nouveau_bios(drm->device);
-	struct nouveau_clock *clk = nouveau_clock(drm->device);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
+	struct nvkm_clk *clk = nvxx_clk(&drm->device);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];
-	struct nouveau_pll_vals *pv = &regp->pllvals;
+	struct nvkm_pll_vals *pv = &regp->pllvals;
 	struct nvbios_pll pll_lim;
 
 	if (nvbios_pll_parse(bios, nv_crtc->index ? PLL_VPLL1 : PLL_VPLL0,
@@ -135,7 +137,7 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	 * has yet been observed in allowing the use a single stage pll on all
 	 * nv43 however.  the behaviour of single stage use is untested on nv40
 	 */
-	if (nv_device(drm->device)->chipset > 0x40 && dot_clock <= (pll_lim.vco1.max_freq / 2))
+	if (drm->device.info.chipset > 0x40 && dot_clock <= (pll_lim.vco1.max_freq / 2))
 		memset(&pll_lim.vco2, 0, sizeof(pll_lim.vco2));
 
 
@@ -145,10 +147,10 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 	state->pllsel &= PLLSEL_VPLL1_MASK | PLLSEL_VPLL2_MASK | PLLSEL_TV_MASK;
 
 	/* The blob uses this always, so let's do the same */
-	if (nv_device(drm->device)->card_type == NV_40)
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE)
 		state->pllsel |= NV_PRAMDAC_PLL_COEFF_SELECT_USE_VPLL2_TRUE;
 	/* again nv40 and some nv43 act more like nv3x as described above */
-	if (nv_device(drm->device)->chipset < 0x41)
+	if (drm->device.info.chipset < 0x41)
 		state->pllsel |= NV_PRAMDAC_PLL_COEFF_SELECT_SOURCE_PROG_MPLL |
 				 NV_PRAMDAC_PLL_COEFF_SELECT_SOURCE_PROG_NVPLL;
 	state->pllsel |= nv_crtc->index ? PLLSEL_VPLL2_MASK : PLLSEL_VPLL1_MASK;
@@ -238,7 +240,7 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 
 	/* Calculate our timings */
 	int horizDisplay	= (mode->crtc_hdisplay >> 3)		- 1;
@@ -274,7 +276,7 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		horizEnd = horizTotal - 2;
 		horizBlankEnd = horizTotal + 4;
 #if 0
-		if (dev->overlayAdaptor && nv_device(drm->device)->card_type >= NV_10)
+		if (dev->overlayAdaptor && drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS)
 			/* This reportedly works around some video overlay bandwidth problems */
 			horizTotal += 2;
 #endif
@@ -324,8 +326,6 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		else
 			regp->MiscOutReg = 0x23;	/* +hsync +vsync */
 	}
-
-	regp->MiscOutReg |= (mode->clock_index & 0x03) << 2;
 
 	/*
 	 * Time Sequencer
@@ -510,7 +510,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	regp->cursor_cfg = NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64 |
 			     NV_PCRTC_CURSOR_CONFIG_CUR_PIXELS_64 |
 			     NV_PCRTC_CURSOR_CONFIG_ADDRESS_SPACE_PNVM;
-	if (nv_device(drm->device)->chipset >= 0x11)
+	if (drm->device.info.chipset >= 0x11)
 		regp->cursor_cfg |= NV_PCRTC_CURSOR_CONFIG_CUR_BPP_32;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		regp->cursor_cfg |= NV_PCRTC_CURSOR_CONFIG_DOUBLE_SCAN_ENABLE;
@@ -551,47 +551,47 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	 * 1 << 30 on 0x60.830), for no apparent reason */
 	regp->CRTC[NV_CIO_CRE_59] = off_chip_digital;
 
-	if (nv_device(drm->device)->card_type >= NV_30)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_RANKINE)
 		regp->CRTC[0x9f] = off_chip_digital ? 0x11 : 0x1;
 
 	regp->crtc_830 = mode->crtc_vdisplay - 3;
 	regp->crtc_834 = mode->crtc_vdisplay - 1;
 
-	if (nv_device(drm->device)->card_type == NV_40)
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE)
 		/* This is what the blob does */
 		regp->crtc_850 = NVReadCRTC(dev, 0, NV_PCRTC_850);
 
-	if (nv_device(drm->device)->card_type >= NV_30)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_RANKINE)
 		regp->gpio_ext = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT);
 
-	if (nv_device(drm->device)->card_type >= NV_10)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS)
 		regp->crtc_cfg = NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 	else
 		regp->crtc_cfg = NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
-	if (nv_device(drm->device)->card_type == NV_40) {
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE) {
 		regp->CRTC[NV_CIO_CRE_85] = 0xFF;
 		regp->CRTC[NV_CIO_CRE_86] = 0x1;
 	}
 
-	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (crtc->fb->depth + 1) / 8;
+	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (crtc->primary->fb->depth + 1) / 8;
 	/* Enable slaved mode (called MODE_TV in nv4ref.h) */
 	if (lvds_output || tmds_output || tv_output)
 		regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (1 << 7);
 
 	/* Generic PRAMDAC regs */
 
-	if (nv_device(drm->device)->card_type >= NV_10)
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS)
 		/* Only bit that bios and blob set. */
 		regp->nv10_cursync = (1 << 25);
 
 	regp->ramdac_gen_ctrl = NV_PRAMDAC_GENERAL_CONTROL_BPC_8BITS |
 				NV_PRAMDAC_GENERAL_CONTROL_VGA_STATE_SEL |
 				NV_PRAMDAC_GENERAL_CONTROL_PIXMIX_ON;
-	if (crtc->fb->depth == 16)
+	if (crtc->primary->fb->depth == 16)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
-	if (nv_device(drm->device)->chipset >= 0x11)
+	if (drm->device.info.chipset >= 0x11)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_PIPE_LONG;
 
 	regp->ramdac_630 = 0; /* turn off green mode (tv test pattern?) */
@@ -604,6 +604,24 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	regp->ramdac_a20 = 0x0;
 	regp->ramdac_a24 = 0xfffff;
 	regp->ramdac_a34 = 0x1;
+}
+
+static int
+nv_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
+{
+	struct nv04_display *disp = nv04_display(crtc->dev);
+	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->primary->fb);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	int ret;
+
+	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM, false);
+	if (ret == 0) {
+		if (disp->image[nv_crtc->index])
+			nouveau_bo_unpin(disp->image[nv_crtc->index]);
+		nouveau_bo_ref(nvfb->nvbo, &disp->image[nv_crtc->index]);
+	}
+
+	return ret;
 }
 
 /**
@@ -622,16 +640,21 @@ nv_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	int ret;
 
 	NV_DEBUG(drm, "CTRC mode on CRTC %d:\n", nv_crtc->index);
 	drm_mode_debug_printmodeline(adjusted_mode);
+
+	ret = nv_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
 
 	/* unlock must come after turning off FP_TG_CONTROL in output_prepare */
 	nv_lock_vga_crtc_shadow(dev, nv_crtc->index, -1);
 
 	nv_crtc_mode_set_vga(crtc, adjusted_mode);
 	/* calculated in nv04_dfp_prepare, nv40 needs it written before calculating PLLs */
-	if (nv_device(drm->device)->card_type == NV_40)
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK, nv04_display(dev)->mode_reg.sel_clk);
 	nv_crtc_mode_set_regs(crtc, adjusted_mode);
 	nv_crtc_calc_state_ext(crtc, mode, adjusted_mode->clock);
@@ -680,7 +703,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
 
 	if (nv_two_heads(dev))
 		NVSetOwner(dev, nv_crtc->index);
@@ -692,7 +715,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 
 	/* Some more preparation. */
 	NVWriteCRTC(dev, nv_crtc->index, NV_PCRTC_CONFIG, NV_PCRTC_CONFIG_START_ADDRESS_NON_VGA);
-	if (nv_device(drm->device)->card_type == NV_40) {
+	if (drm->device.info.family == NV_DEVICE_INFO_V0_CURIE) {
 		uint32_t reg900 = NVReadRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_900);
 		NVWriteRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_900, reg900 & ~0x10000);
 	}
@@ -701,7 +724,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 static void nv_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *funcs = crtc->helper_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
 	nouveau_hw_load_state(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
@@ -722,12 +745,17 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 
 static void nv_crtc_destroy(struct drm_crtc *crtc)
 {
+	struct nv04_display *disp = nv04_display(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
 	if (!nv_crtc)
 		return;
 
 	drm_crtc_cleanup(crtc);
+
+	if (disp->image[nv_crtc->index])
+		nouveau_bo_unpin(disp->image[nv_crtc->index]);
+	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
 
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
@@ -754,6 +782,16 @@ nv_crtc_gamma_load(struct drm_crtc *crtc)
 }
 
 static void
+nv_crtc_disable(struct drm_crtc *crtc)
+{
+	struct nv04_display *disp = nv04_display(crtc->dev);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	if (disp->image[nv_crtc->index])
+		nouveau_bo_unpin(disp->image[nv_crtc->index]);
+	nouveau_bo_ref(NULL, &disp->image[nv_crtc->index]);
+}
+
+static void
 nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t start,
 		  uint32_t size)
 {
@@ -771,7 +809,7 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t start,
 	 * mark the lut values as dirty by setting depth==0, and it'll be
 	 * uploaded on the first mode_set_base()
 	 */
-	if (!nv_crtc->base.fb) {
+	if (!nv_crtc->base.primary->fb) {
 		nv_crtc->lut.depth = 0;
 		return;
 	}
@@ -791,38 +829,24 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	struct drm_framebuffer *drm_fb;
 	struct nouveau_framebuffer *fb;
 	int arb_burst, arb_lwm;
-	int ret;
 
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
 
-
 	/* If atomic, we want to switch to the fb we were passed, so
-	 * now we update pointers to do that.  (We don't pin; just
-	 * assume we're already pinned and update the base address.)
+	 * now we update pointers to do that.
 	 */
 	if (atomic) {
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
 	} else {
-		drm_fb = crtc->fb;
-		fb = nouveau_framebuffer(crtc->fb);
-		/* If not atomic, we can go ahead and pin, and unpin the
-		 * old fb we were passed.
-		 */
-		ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM);
-		if (ret)
-			return ret;
-
-		if (passed_fb) {
-			struct nouveau_framebuffer *ofb = nouveau_framebuffer(passed_fb);
-			nouveau_bo_unpin(ofb->nvbo);
-		}
+		drm_fb = crtc->primary->fb;
+		fb = nouveau_framebuffer(crtc->primary->fb);
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset;
@@ -834,9 +858,9 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 
 	/* Update the framebuffer format. */
 	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] &= ~3;
-	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (crtc->fb->depth + 1) / 8;
+	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (crtc->primary->fb->depth + 1) / 8;
 	regp->ramdac_gen_ctrl &= ~NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
-	if (crtc->fb->depth == 16)
+	if (crtc->primary->fb->depth == 16)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_PIXEL_INDEX);
 	NVWriteRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_GENERAL_CONTROL,
@@ -865,7 +889,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_FF_INDEX);
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_FFLWM__INDEX);
 
-	if (nv_device(drm->device)->card_type >= NV_20) {
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_KELVIN) {
 		regp->CRTC[NV_CIO_CRE_47] = arb_lwm >> 8;
 		crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_47);
 	}
@@ -877,6 +901,9 @@ static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			struct drm_framebuffer *old_fb)
 {
+	int ret = nv_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
 	return nv04_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
 
@@ -889,9 +916,9 @@ nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 	struct drm_device *dev = drm->dev;
 
 	if (state == ENTER_ATOMIC_MODE_SET)
-		nouveau_fbcon_save_disable_accel(dev);
+		nouveau_fbcon_accel_save_disable(dev);
 	else
-		nouveau_fbcon_restore_accel(dev);
+		nouveau_fbcon_accel_restore(dev);
 
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
@@ -943,7 +970,7 @@ static void nv11_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
 		{
 			struct nouveau_drm *drm = nouveau_drm(dev);
 
-			if (nv_device(drm->device)->chipset == 0x11) {
+			if (drm->device.info.chipset == 0x11) {
 				pixel = ((pixel & 0x000000ff) << 24) |
 					((pixel & 0x0000ff00) << 8) |
 					((pixel & 0x00ff0000) >> 8) |
@@ -984,7 +1011,7 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	if (ret)
 		goto out;
 
-	if (nv_device(drm->device)->chipset >= 0x11)
+	if (drm->device.info.chipset >= 0x11)
 		nv11_cursor_upload(dev, cursor, nv_crtc->cursor.nvbo);
 	else
 		nv04_cursor_upload(dev, cursor, nv_crtc->cursor.nvbo);
@@ -1007,13 +1034,59 @@ nv04_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
+int
+nouveau_crtc_set_config(struct drm_mode_set *set)
+{
+	struct drm_device *dev;
+	struct nouveau_drm *drm;
+	int ret;
+	struct drm_crtc *crtc;
+	bool active = false;
+	if (!set || !set->crtc)
+		return -EINVAL;
+
+	dev = set->crtc->dev;
+
+	/* get a pm reference here */
+	ret = pm_runtime_get_sync(dev->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	ret = drm_crtc_helper_set_config(set);
+
+	drm = nouveau_drm(dev);
+
+	/* if we get here with no crtcs active then we can drop a reference */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc->enabled)
+			active = true;
+	}
+
+	pm_runtime_mark_last_busy(dev->dev);
+	/* if we have active crtcs and we don't have a power ref,
+	   take the current one */
+	if (active && !drm->have_disp_power_ref) {
+		drm->have_disp_power_ref = true;
+		return ret;
+	}
+	/* if we have no active crtcs, then drop the power ref
+	   we got before */
+	if (!active && drm->have_disp_power_ref) {
+		pm_runtime_put_autosuspend(dev->dev);
+		drm->have_disp_power_ref = false;
+	}
+	/* drop the power reference we got coming in here */
+	pm_runtime_put_autosuspend(dev->dev);
+	return ret;
+}
+
 static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.save = nv_crtc_save,
 	.restore = nv_crtc_restore,
 	.cursor_set = nv04_crtc_cursor_set,
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = nouveau_crtc_set_config,
 	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };
@@ -1027,6 +1100,7 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.mode_set_base = nv04_crtc_mode_set_base,
 	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
 	.load_lut = nv_crtc_gamma_load,
+	.disable = nv_crtc_disable,
 };
 
 int
@@ -1054,9 +1128,9 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
 	ret = nouveau_bo_new(dev, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
+			     0, 0x0000, NULL, NULL, &nv_crtc->cursor.nvbo);
 	if (!ret) {
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, false);
 		if (!ret) {
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 			if (ret)

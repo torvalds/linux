@@ -32,10 +32,9 @@ static int tps65912_spi_write(struct tps65912 *tps65912, u8 addr,
 	unsigned long spi_data = 1 << 23 | addr << 15 | *data;
 	struct spi_transfer xfer;
 	struct spi_message msg;
-	u32 tx_buf, rx_buf;
+	u32 tx_buf;
 
 	tx_buf = spi_data;
-	rx_buf = 0;
 
 	xfer.tx_buf	= &tx_buf;
 	xfer.rx_buf	= NULL;
@@ -85,7 +84,8 @@ static int tps65912_spi_probe(struct spi_device *spi)
 {
 	struct tps65912 *tps65912;
 
-	tps65912 = kzalloc(sizeof(struct tps65912), GFP_KERNEL);
+	tps65912 = devm_kzalloc(&spi->dev,
+				sizeof(struct tps65912), GFP_KERNEL);
 	if (tps65912 == NULL)
 		return -ENOMEM;
 

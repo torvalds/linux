@@ -5,27 +5,6 @@
 #include <linux/export.h>
 #include <linux/bootmem.h>
 
-int __first_cpu(const cpumask_t *srcp)
-{
-	return min_t(int, NR_CPUS, find_first_bit(srcp->bits, NR_CPUS));
-}
-EXPORT_SYMBOL(__first_cpu);
-
-int __next_cpu(int n, const cpumask_t *srcp)
-{
-	return min_t(int, NR_CPUS, find_next_bit(srcp->bits, NR_CPUS, n+1));
-}
-EXPORT_SYMBOL(__next_cpu);
-
-#if NR_CPUS > 64
-int __next_cpu_nr(int n, const cpumask_t *srcp)
-{
-	return min_t(int, nr_cpu_ids,
-				find_next_bit(srcp->bits, nr_cpu_ids, n+1));
-}
-EXPORT_SYMBOL(__next_cpu_nr);
-#endif
-
 /**
  * cpumask_next_and - get the next cpu in *src1p & *src2p
  * @n: the cpu prior to the place to search (ie. return will be > @n)
@@ -89,13 +68,6 @@ bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 		dump_stack();
 	}
 #endif
-	/* FIXME: Bandaid to save us from old primitives which go to NR_CPUS. */
-	if (*mask) {
-		unsigned char *ptr = (unsigned char *)cpumask_bits(*mask);
-		unsigned int tail;
-		tail = BITS_TO_LONGS(NR_CPUS - nr_cpumask_bits) * sizeof(long);
-		memset(ptr + cpumask_size() - tail, 0, tail);
-	}
 
 	return *mask != NULL;
 }
@@ -140,7 +112,7 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
  */
 void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 {
-	*mask = alloc_bootmem(cpumask_size());
+	*mask = memblock_virt_alloc(cpumask_size(), 0);
 }
 
 /**
@@ -161,6 +133,47 @@ EXPORT_SYMBOL(free_cpumask_var);
  */
 void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 {
-	free_bootmem(__pa(mask), cpumask_size());
+	memblock_free_early(__pa(mask), cpumask_size());
 }
 #endif
+
+/**
+ * cpumask_local_spread - select the i'th cpu with local numa cpu's first
+ * @i: index number
+ * @node: local numa_node
+ *
+ * This function selects an online CPU according to a numa aware policy;
+ * local cpus are returned first, followed by non-local ones, then it
+ * wraps around.
+ *
+ * It's not very efficient, but useful for setup.
+ */
+unsigned int cpumask_local_spread(unsigned int i, int node)
+{
+	int cpu;
+
+	/* Wrap: we always want a cpu. */
+	i %= num_online_cpus();
+
+	if (node == -1) {
+		for_each_cpu(cpu, cpu_online_mask)
+			if (i-- == 0)
+				return cpu;
+	} else {
+		/* NUMA first. */
+		for_each_cpu_and(cpu, cpumask_of_node(node), cpu_online_mask)
+			if (i-- == 0)
+				return cpu;
+
+		for_each_cpu(cpu, cpu_online_mask) {
+			/* Skip NUMA nodes, done above. */
+			if (cpumask_test_cpu(cpu, cpumask_of_node(node)))
+				continue;
+
+			if (i-- == 0)
+				return cpu;
+		}
+	}
+	BUG();
+}
+EXPORT_SYMBOL(cpumask_local_spread);

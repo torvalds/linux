@@ -1,0 +1,44 @@
+/*
+ * ARM Juno Platform clocks
+ *
+ * Copyright (c) 2013-2014 ARM Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+	/* SoC fixed clocks */
+	soc_uartclk: refclk7273800hz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <7273800>;
+		clock-output-names = "juno:uartclk";
+	};
+
+	soc_usb48mhz: clk48mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <48000000>;
+		clock-output-names = "clk48mhz";
+	};
+
+	soc_smc50mhz: clk50mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+		clock-output-names = "smc_clk";
+	};
+
+	soc_refclk100mhz: refclk100mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "apb_pclk";
+	};
+
+	soc_faxiclk: refclk400mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <400000000>;
+		clock-output-names = "faxi_clk";
+	};

@@ -46,7 +46,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	mflr	r0
 	std	r0,16(r1)
 	stdu    r1,-128(r1)
-	bl	.trace_hardirqs_on
+	bl	trace_hardirqs_on
 	addi    r1,r1,128
 	ld	r0,16(r1)
 	mtlr	r0

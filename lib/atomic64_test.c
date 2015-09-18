@@ -8,13 +8,47 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 
+#define TEST(bit, op, c_op, val)				\
+do {								\
+	atomic##bit##_set(&v, v0);				\
+	r = v0;							\
+	atomic##bit##_##op(val, &v);				\
+	r c_op val;						\
+	WARN(atomic##bit##_read(&v) != r, "%Lx != %Lx\n",	\
+		(unsigned long long)atomic##bit##_read(&v),	\
+		(unsigned long long)r);				\
+} while (0)
+
+static __init void test_atomic(void)
+{
+	int v0 = 0xaaa31337;
+	int v1 = 0xdeadbeef;
+	int onestwos = 0x11112222;
+	int one = 1;
+
+	atomic_t v;
+	int r;
+
+	TEST(, add, +=, onestwos);
+	TEST(, add, +=, -one);
+	TEST(, sub, -=, onestwos);
+	TEST(, sub, -=, -one);
+	TEST(, or, |=, v1);
+	TEST(, and, &=, v1);
+	TEST(, xor, ^=, v1);
+	TEST(, andnot, &= ~, v1);
+}
+
 #define INIT(c) do { atomic64_set(&v, c); r = c; } while (0)
-static __init int test_atomic64(void)
+static __init void test_atomic64(void)
 {
 	long long v0 = 0xaaa31337c001d00dLL;
 	long long v1 = 0xdeadbeefdeafcafeLL;
@@ -31,15 +65,14 @@ static __init int test_atomic64(void)
 	BUG_ON(v.counter != r);
 	BUG_ON(atomic64_read(&v) != r);
 
-	INIT(v0);
-	atomic64_add(onestwos, &v);
-	r += onestwos;
-	BUG_ON(v.counter != r);
-
-	INIT(v0);
-	atomic64_add(-one, &v);
-	r += -one;
-	BUG_ON(v.counter != r);
+	TEST(64, add, +=, onestwos);
+	TEST(64, add, +=, -one);
+	TEST(64, sub, -=, onestwos);
+	TEST(64, sub, -=, -one);
+	TEST(64, or, |=, v1);
+	TEST(64, and, &=, v1);
+	TEST(64, xor, ^=, v1);
+	TEST(64, andnot, &= ~, v1);
 
 	INIT(v0);
 	r += onestwos;
@@ -49,16 +82,6 @@ static __init int test_atomic64(void)
 	INIT(v0);
 	r += -one;
 	BUG_ON(atomic64_add_return(-one, &v) != r);
-	BUG_ON(v.counter != r);
-
-	INIT(v0);
-	atomic64_sub(onestwos, &v);
-	r -= onestwos;
-	BUG_ON(v.counter != r);
-
-	INIT(v0);
-	atomic64_sub(-one, &v);
-	r -= -one;
 	BUG_ON(v.counter != r);
 
 	INIT(v0);
@@ -144,23 +167,29 @@ static __init int test_atomic64(void)
 	BUG_ON(!atomic64_inc_not_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
+}
+
+static __init int test_atomics(void)
+{
+	test_atomic();
+	test_atomic64();
 
 #ifdef CONFIG_X86
-	printk(KERN_INFO "atomic64 test passed for %s platform %s CX8 and %s SSE\n",
+	pr_info("passed for %s platform %s CX8 and %s SSE\n",
 #ifdef CONFIG_X86_64
-	       "x86-64",
+		"x86-64",
 #elif defined(CONFIG_X86_CMPXCHG64)
-	       "i586+",
+		"i586+",
 #else
-	       "i386+",
+		"i386+",
 #endif
 	       boot_cpu_has(X86_FEATURE_CX8) ? "with" : "without",
 	       boot_cpu_has(X86_FEATURE_XMM) ? "with" : "without");
 #else
-	printk(KERN_INFO "atomic64 test passed\n");
+	pr_info("passed\n");
 #endif
 
 	return 0;
 }
 
-core_initcall(test_atomic64);
+core_initcall(test_atomics);

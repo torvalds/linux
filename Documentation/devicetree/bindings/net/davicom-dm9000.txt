@@ -1,0 +1,28 @@
+Davicom DM9000 Fast Ethernet controller
+
+Required properties:
+- compatible = "davicom,dm9000";
+- reg : physical addresses and sizes of registers, must contain 2 entries:
+    first entry : address register,
+    second entry : data register.
+- interrupt-parent : interrupt controller to which the device is connected
+- interrupts : interrupt specifier specific to interrupt controller
+
+Optional properties:
+- davicom,no-eeprom : Configuration EEPROM is not available
+- davicom,ext-phy : Use external PHY
+- reset-gpios : phandle of gpio that will be used to reset chip during probe
+- vcc-supply : phandle of regulator that will be used to enable power to chip
+
+Example:
+
+	ethernet@18000000 {
+		compatible = "davicom,dm9000";
+		reg = <0x18000000 0x2 0x18000004 0x2>;
+		interrupt-parent = <&gpn>;
+		interrupts = <7 4>;
+		local-mac-address = [00 00 de ad be ef];
+		davicom,no-eeprom;
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&eth0_power>;
+	};

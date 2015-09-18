@@ -10,13 +10,37 @@ menu "Hardware Spinlock drivers"
 
 config HWSPINLOCK_OMAP
 	tristate "OMAP Hardware Spinlock device"
-	depends on ARCH_OMAP4 || SOC_OMAP5
+	depends on ARCH_OMAP4 || SOC_OMAP5 || SOC_DRA7XX || SOC_AM33XX || SOC_AM43XX
 	select HWSPINLOCK
 	help
 	  Say y here to support the OMAP Hardware Spinlock device (firstly
 	  introduced in OMAP4).
 
 	  If unsure, say N.
+
+config HWSPINLOCK_QCOM
+	tristate "Qualcomm Hardware Spinlock device"
+	depends on ARCH_QCOM
+	select HWSPINLOCK
+	select MFD_SYSCON
+	help
+	  Say y here to support the Qualcomm Hardware Mutex functionality, which
+	  provides a synchronisation mechanism for the various processors on
+	  the SoC.
+
+	  If unsure, say N.
+
+config HWSPINLOCK_SIRF
+	tristate "SIRF Hardware Spinlock device"
+	depends on ARCH_SIRF
+	select HWSPINLOCK
+	help
+	  Say y here to support the SIRF Hardware Spinlock device, which
+	  provides a synchronisation mechanism for the various processors
+	  on the SoC.
+
+	  It's safe to say n here if you're not interested in SIRF hardware
+	  spinlock or just want a bare minimum kernel.
 
 config HSEM_U8500
 	tristate "STE Hardware Semaphore functionality"

@@ -40,8 +40,8 @@ struct ad1836_priv {
  */
 static const char *ad1836_deemp[] = {"None", "44.1kHz", "32kHz", "48kHz"};
 
-static const struct soc_enum ad1836_deemp_enum =
-	SOC_ENUM_SINGLE(AD1836_DAC_CTRL1, 8, 4, ad1836_deemp);
+static SOC_ENUM_SINGLE_DECL(ad1836_deemp_enum,
+			    AD1836_DAC_CTRL1, 8, ad1836_deemp);
 
 #define AD1836_DAC_VOLUME(x) \
 	SOC_DOUBLE_R("DAC" #x " Playback Volume", AD1836_DAC_L_VOL(x), \
@@ -168,17 +168,19 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	int word_len = 0;
 
 	/* bit size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		word_len = AD1836_WORD_LEN_16;
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
+	case 20:
 		word_len = AD1836_WORD_LEN_20;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
+	case 24:
+	case 32:
 		word_len = AD1836_WORD_LEN_24;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	regmap_update_bits(ad1836->regmap, AD1836_DAC_CTRL1,
@@ -249,7 +251,7 @@ static int ad1836_resume(struct snd_soc_codec *codec)
 static int ad1836_probe(struct snd_soc_codec *codec)
 {
 	struct ad1836_priv *ad1836 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int num_dacs, num_adcs;
 	int ret = 0;
 	int i;

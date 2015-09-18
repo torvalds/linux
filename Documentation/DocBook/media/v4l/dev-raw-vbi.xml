@@ -150,9 +150,15 @@ signal. Drivers shall not convert the sample format by software.</para></entry>
 	      <entry>This is the scanning system line number
 associated with the first line of the VBI image, of the first and the
 second field respectively. See <xref linkend="vbi-525" /> and
-<xref linkend="vbi-625" /> for valid values. VBI input drivers can
-return start values 0 if the hardware cannot reliable identify
-scanning lines, VBI acquisition may not require this
+<xref linkend="vbi-625" /> for valid values.
+The <constant>V4L2_VBI_ITU_525_F1_START</constant>,
+<constant>V4L2_VBI_ITU_525_F2_START</constant>,
+<constant>V4L2_VBI_ITU_625_F1_START</constant> and
+<constant>V4L2_VBI_ITU_625_F2_START</constant> defines give the start line
+numbers for each field for each 525 or 625 line format as a convenience.
+Don't forget that ITU line numbering starts at 1, not 0.
+VBI input drivers can return start values 0 if the hardware cannot
+reliable identify scanning lines, VBI acquisition may not require this
 information.</entry>
 	    </row>
 	    <row>

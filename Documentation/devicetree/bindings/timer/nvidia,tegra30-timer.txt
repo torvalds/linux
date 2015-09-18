@@ -6,10 +6,14 @@ trigger a legacy watchdog reset.
 
 Required properties:
 
-- compatible : should be "nvidia,tegra30-timer", "nvidia,tegra20-timer".
+- compatible : For Tegra30, must contain "nvidia,tegra30-timer".  Otherwise,
+  must contain '"nvidia,<chip>-timer", "nvidia,tegra30-timer"' where
+  <chip> is tegra124 or tegra132.
 - reg : Specifies base physical address and size of the registers.
 - interrupts : A list of 6 interrupts; one per each of timer channels 1
     through 5, and one for the shared interrupt for the remaining channels.
+- clocks : Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
 
 timer {
 	compatible = "nvidia,tegra30-timer", "nvidia,tegra20-timer";
@@ -20,4 +24,5 @@ timer {
 		      0 42 0x04
 		      0 121 0x04
 		      0 122 0x04>;
+	clocks = <&tegra_car 214>;
 };

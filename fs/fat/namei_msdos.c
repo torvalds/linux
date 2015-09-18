@@ -7,8 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/time.h>
-#include <linux/buffer_head.h>
 #include "fat.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
@@ -148,8 +146,7 @@ static int msdos_find(struct inode *dir, const unsigned char *name, int len,
  * that the existing dentry can be used. The msdos fs routines will
  * return ENOENT or EINVAL as appropriate.
  */
-static int msdos_hash(const struct dentry *dentry, const struct inode *inode,
-	       struct qstr *qstr)
+static int msdos_hash(const struct dentry *dentry, struct qstr *qstr)
 {
 	struct fat_mount_options *options = &MSDOS_SB(dentry->d_sb)->options;
 	unsigned char msdos_name[MSDOS_NAME];
@@ -165,8 +162,7 @@ static int msdos_hash(const struct dentry *dentry, const struct inode *inode,
  * Compare two msdos names. If either of the names are invalid,
  * we fall back to doing the standard name comparison.
  */
-static int msdos_cmp(const struct dentry *parent, const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+static int msdos_cmp(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct fat_mount_options *options = &MSDOS_SB(parent->d_sb)->options;
@@ -312,7 +308,7 @@ out:
 static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct fat_slot_info sinfo;
 	int err;
 
@@ -406,7 +402,7 @@ out:
 /***** Unlink a file */
 static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
@@ -444,8 +440,8 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	int err, old_attrs, is_dir, update_dotdot, corrupt = 0;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
-	old_inode = old_dentry->d_inode;
-	new_inode = new_dentry->d_inode;
+	old_inode = d_inode(old_dentry);
+	new_inode = d_inode(new_dentry);
 
 	err = fat_scan(old_dir, old_name, &old_sinfo);
 	if (err) {

@@ -1,0 +1,55 @@
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include "skeleton.dtsi"
+#include "vfxxx.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		a5_cpu: cpu@0 {
+			compatible = "arm,cortex-a5";
+			device_type = "cpu";
+			reg = <0x0>;
+		};
+	};
+
+	soc {
+		aips-bus@40000000 {
+
+			intc: interrupt-controller@40002000 {
+				compatible = "arm,cortex-a9-gic";
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				interrupt-parent = <&intc>;
+				reg = <0x40003000 0x1000>,
+				      <0x40002100 0x100>;
+			};
+
+			global_timer: timer@40002200 {
+				compatible = "arm,cortex-a9-global-timer";
+				reg = <0x40002200 0x20>;
+				interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-parent = <&intc>;
+				clocks = <&clks VF610_CLK_PLATFORM_BUS>;
+			};
+		};
+	};
+};
+
+&mscm_ir {
+	interrupt-parent = <&intc>;
+};
+
+&wdoga5 {
+	status = "okay";
+};

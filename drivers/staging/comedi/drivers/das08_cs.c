@@ -16,19 +16,12 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
     PCMCIA support code for this driver is adapted from the dummy_cs.c
     driver of the Linux PCMCIA Card Services package.
 
     The initial developer of the original code is David A. Hinds
     <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
     are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-*****************************************************************
-
 */
 /*
 Driver: das08_cs
@@ -46,13 +39,9 @@ Options (for pcm-das08):
 Command support does not exist, but could be added for this board.
 */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
+#include <linux/module.h>
 
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 #include "das08.h"
 
@@ -85,25 +74,18 @@ static int das08_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 	iobase = link->resource[0]->start;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	return das08_common_attach(dev, iobase);
-}
-
-static void das08_cs_detach(struct comedi_device *dev)
-{
-	das08_common_detach(dev);
-	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_das08_cs = {
 	.driver_name	= "das08_cs",
 	.module		= THIS_MODULE,
 	.auto_attach	= das08_cs_auto_attach,
-	.detach		= das08_cs_detach,
+	.detach		= comedi_pcmcia_disable,
 };
 
 static int das08_pcmcia_attach(struct pcmcia_device *link)
@@ -126,7 +108,7 @@ static struct pcmcia_driver das08_cs_driver = {
 };
 module_comedi_pcmcia_driver(driver_das08_cs, das08_cs_driver);
 
-MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
-	      "Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_DESCRIPTION("Comedi driver for ComputerBoards DAS-08 PCMCIA boards");
 MODULE_LICENSE("GPL");

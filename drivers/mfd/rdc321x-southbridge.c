@@ -19,7 +19,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -39,7 +38,7 @@ static struct resource rdc321x_wdt_resource[] = {
 };
 
 static struct rdc321x_gpio_pdata rdc321x_gpio_pdata = {
-	.max_gpios	= RDC321X_MAX_GPIO,
+	.max_gpios	= RDC321X_NUM_GPIO,
 };
 
 static struct resource rdc321x_gpio_resources[] = {
@@ -56,7 +55,7 @@ static struct resource rdc321x_gpio_resources[] = {
 	}
 };
 
-static struct mfd_cell rdc321x_sb_cells[] = {
+static const struct mfd_cell rdc321x_sb_cells[] = {
 	{
 		.name		= "rdc321x-wdt",
 		.resources	= rdc321x_wdt_resource,
@@ -96,7 +95,7 @@ static void rdc321x_sb_remove(struct pci_dev *pdev)
 	mfd_remove_devices(&pdev->dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(rdc321x_sb_table) = {
+static const struct pci_device_id rdc321x_sb_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6030) },
 	{}
 };

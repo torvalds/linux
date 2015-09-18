@@ -8,19 +8,31 @@
 /*
  * CPU interrupt mask handling.
  */
+#ifdef CONFIG_CPU_V7M
+#define IRQMASK_REG_NAME_R "primask"
+#define IRQMASK_REG_NAME_W "primask"
+#define IRQMASK_I_BIT	1
+#else
+#define IRQMASK_REG_NAME_R "cpsr"
+#define IRQMASK_REG_NAME_W "cpsr_c"
+#define IRQMASK_I_BIT	PSR_I_BIT
+#endif
+
 #if __LINUX_ARM_ARCH__ >= 6
 
+#define arch_local_irq_save arch_local_irq_save
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
 
 	asm volatile(
-		"	mrs	%0, cpsr	@ arch_local_irq_save\n"
+		"	mrs	%0, " IRQMASK_REG_NAME_R "	@ arch_local_irq_save\n"
 		"	cpsid	i"
 		: "=r" (flags) : : "memory", "cc");
 	return flags;
 }
 
+#define arch_local_irq_enable arch_local_irq_enable
 static inline void arch_local_irq_enable(void)
 {
 	asm volatile(
@@ -30,6 +42,7 @@ static inline void arch_local_irq_enable(void)
 		: "memory", "cc");
 }
 
+#define arch_local_irq_disable arch_local_irq_disable
 static inline void arch_local_irq_disable(void)
 {
 	asm volatile(
@@ -46,6 +59,7 @@ static inline void arch_local_irq_disable(void)
 /*
  * Save the current interrupt enable state & disable IRQs
  */
+#define arch_local_irq_save arch_local_irq_save
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags, temp;
@@ -63,6 +77,7 @@ static inline unsigned long arch_local_irq_save(void)
 /*
  * Enable IRQs
  */
+#define arch_local_irq_enable arch_local_irq_enable
 static inline void arch_local_irq_enable(void)
 {
 	unsigned long temp;
@@ -78,6 +93,7 @@ static inline void arch_local_irq_enable(void)
 /*
  * Disable IRQs
  */
+#define arch_local_irq_disable arch_local_irq_disable
 static inline void arch_local_irq_disable(void)
 {
 	unsigned long temp;
@@ -125,11 +141,12 @@ static inline void arch_local_irq_disable(void)
 /*
  * Save the current interrupt enable state.
  */
+#define arch_local_save_flags arch_local_save_flags
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
 	asm volatile(
-		"	mrs	%0, cpsr	@ local_save_flags"
+		"	mrs	%0, " IRQMASK_REG_NAME_R "	@ local_save_flags"
 		: "=r" (flags) : : "memory", "cc");
 	return flags;
 }
@@ -137,19 +154,23 @@ static inline unsigned long arch_local_save_flags(void)
 /*
  * restore saved IRQ & FIQ state
  */
+#define arch_local_irq_restore arch_local_irq_restore
 static inline void arch_local_irq_restore(unsigned long flags)
 {
 	asm volatile(
-		"	msr	cpsr_c, %0	@ local_irq_restore"
+		"	msr	" IRQMASK_REG_NAME_W ", %0	@ local_irq_restore"
 		:
 		: "r" (flags)
 		: "memory", "cc");
 }
 
+#define arch_irqs_disabled_flags arch_irqs_disabled_flags
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
-	return flags & PSR_I_BIT;
+	return flags & IRQMASK_I_BIT;
 }
 
-#endif
-#endif
+#include <asm-generic/irqflags.h>
+
+#endif /* ifdef __KERNEL__ */
+#endif /* ifndef __ASM_ARM_IRQFLAGS_H */

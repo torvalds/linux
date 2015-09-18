@@ -46,6 +46,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -54,7 +55,6 @@
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
-#include <asm/io.h>
 #include <linux/atomic.h>
 #include "echoaudio.h"
 
@@ -69,7 +69,7 @@ static const struct firmware card_fw[] = {
 	{0, "indigo_io_dsp.fw"}
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_echo_ids) = {
+static const struct pci_device_id snd_echo_ids[] = {
 	{0x1057, 0x3410, 0xECC0, 0x00A0, 0, 0, 0},	/* Indigo IO*/
 	{0,}
 };

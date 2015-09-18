@@ -1,17 +1,13 @@
 /*
- * include/asm-xtensa/tlbflush.h
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2013 Tensilica Inc.
  */
 
 #ifndef _XTENSA_TLBFLUSH_H
 #define _XTENSA_TLBFLUSH_H
-
-#ifdef __KERNEL__
 
 #include <linux/stringify.h>
 #include <asm/processor.h>
@@ -34,12 +30,34 @@
  *  - flush_tlb_range(mm, start, end) flushes a range of pages
  */
 
-extern void flush_tlb_all(void);
-extern void flush_tlb_mm(struct mm_struct*);
-extern void flush_tlb_page(struct vm_area_struct*,unsigned long);
-extern void flush_tlb_range(struct vm_area_struct*,unsigned long,unsigned long);
+void local_flush_tlb_all(void);
+void local_flush_tlb_mm(struct mm_struct *mm);
+void local_flush_tlb_page(struct vm_area_struct *vma,
+		unsigned long page);
+void local_flush_tlb_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end);
+void local_flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
-#define flush_tlb_kernel_range(start,end) flush_tlb_all()
+#ifdef CONFIG_SMP
+
+void flush_tlb_all(void);
+void flush_tlb_mm(struct mm_struct *);
+void flush_tlb_page(struct vm_area_struct *, unsigned long);
+void flush_tlb_range(struct vm_area_struct *, unsigned long,
+		unsigned long);
+void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+
+#else /* !CONFIG_SMP */
+
+#define flush_tlb_all()			   local_flush_tlb_all()
+#define flush_tlb_mm(mm)		   local_flush_tlb_mm(mm)
+#define flush_tlb_page(vma, page)	   local_flush_tlb_page(vma, page)
+#define flush_tlb_range(vma, vmaddr, end)  local_flush_tlb_range(vma, vmaddr, \
+								 end)
+#define flush_tlb_kernel_range(start, end) local_flush_tlb_kernel_range(start, \
+									end)
+
+#endif /* CONFIG_SMP */
 
 /* TLB operations. */
 
@@ -187,5 +205,4 @@ static inline unsigned long read_itlb_translation (int way)
 }
 
 #endif	/* __ASSEMBLY__ */
-#endif	/* __KERNEL__ */
 #endif	/* _XTENSA_TLBFLUSH_H */

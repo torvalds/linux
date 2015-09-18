@@ -58,21 +58,23 @@ static void pcibios_scanbus(struct pci_channel *hose)
 
 	need_domain_info = need_domain_info || hose->index;
 	hose->need_domain_info = need_domain_info;
-	if (bus) {
-		next_busno = bus->busn_res.end + 1;
-		/* Don't allow 8-bit bus number overflow inside the hose -
-		   reserve some space for bridges. */
-		if (next_busno > 224) {
-			next_busno = 0;
-			need_domain_info = 1;
-		}
 
-		pci_bus_size_bridges(bus);
-		pci_bus_assign_resources(bus);
-		pci_enable_bridges(bus);
-	} else {
+	if (!bus) {
 		pci_free_resource_list(&resources);
+		return;
 	}
+
+	next_busno = bus->busn_res.end + 1;
+	/* Don't allow 8-bit bus number overflow inside the hose -
+	   reserve some space for bridges. */
+	if (next_busno > 224) {
+		next_busno = 0;
+		need_domain_info = 1;
+	}
+
+	pci_bus_size_bridges(bus);
+	pci_bus_assign_resources(bus);
+	pci_bus_add_devices(bus);
 }
 
 /*
@@ -185,11 +187,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 	}
 
 	return start;
-}
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	return pci_enable_resources(dev, mask);
 }
 
 static void __init

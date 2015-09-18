@@ -60,6 +60,7 @@ static void wd_block_output(struct net_device *dev, int count,
 							const unsigned char *buf, int start_page);
 static int wd_close(struct net_device *dev);
 
+static u32 wd_msg_enable;
 
 #define WD_START_PG		0x00	/* First page of TX buffer */
 #define WD03_STOP_PG	0x20	/* Last page +1 of RX ring */
@@ -170,6 +171,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	int word16 = 0;				/* 0 = 8 bit, 1 = 16 bit */
 	const char *model_name;
 	static unsigned version_printed;
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	for (i = 0; i < 8; i++)
 		checksum += inb(ioaddr + 8 + i);
@@ -180,19 +182,19 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 
 	/* Check for semi-valid mem_start/end values if supplied. */
 	if ((dev->mem_start % 0x2000) || (dev->mem_end % 0x2000)) {
-		printk(KERN_WARNING "wd.c: user supplied mem_start or mem_end not on 8kB boundary - ignored.\n");
+		netdev_warn(dev,
+			    "wd.c: user supplied mem_start or mem_end not on 8kB boundary - ignored.\n");
 		dev->mem_start = 0;
 		dev->mem_end = 0;
 	}
 
-	if (ei_debug  &&  version_printed++ == 0)
-		printk(version);
+	if ((wd_msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
+		netdev_info(dev, version);
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: WD80x3 at %#3x, %pM",
-	       dev->name, ioaddr, dev->dev_addr);
+	netdev_info(dev, "WD80x3 at %#3x, %pM", ioaddr, dev->dev_addr);
 
 	/* The following PureData probe code was contributed by
 	   Mike Jagdis <jaggy@purplet.demon.co.uk>. Puredata does software
@@ -244,8 +246,9 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		}
 #ifndef final_version
 		if ( !ancient && (inb(ioaddr+1) & 0x01) != (word16 & 0x01))
-			printk("\nWD80?3: Bus width conflict, %d (probe) != %d (reg report).",
-				   word16 ? 16 : 8, (inb(ioaddr+1) & 0x01) ? 16 : 8);
+			pr_cont("\nWD80?3: Bus width conflict, %d (probe) != %d (reg report).",
+				word16 ? 16 : 8,
+				(inb(ioaddr+1) & 0x01) ? 16 : 8);
 #endif
 	}
 
@@ -259,7 +262,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		if (reg0 == 0xff || reg0 == 0) {
 			/* Future plan: this could check a few likely locations first. */
 			dev->mem_start = 0xd0000;
-			printk(" assigning address %#lx", dev->mem_start);
+			pr_cont(" assigning address %#lx", dev->mem_start);
 		} else {
 			int high_addr_bits = inb(ioaddr+WD_CMDREG5) & 0x1f;
 			/* Some boards don't have the register 5 -- it returns 0xff. */
@@ -297,8 +300,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 
 			outb_p(0x00, nic_addr+EN0_IMR);	/* Mask all intrs. again. */
 
-			if (ei_debug > 2)
-				printk(" autoirq is %d", dev->irq);
+			if (netif_msg_drv(ei_local))
+				pr_cont(" autoirq is %d", dev->irq);
 			if (dev->irq < 2)
 				dev->irq = word16 ? 10 : 5;
 		} else
@@ -310,7 +313,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	   share and the board will usually be enabled. */
 	i = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
 	if (i) {
-		printk (" unable to get IRQ %d.\n", dev->irq);
+		pr_cont(" unable to get IRQ %d.\n", dev->irq);
 		return i;
 	}
 
@@ -338,8 +341,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		return -ENOMEM;
 	}
 
-	printk(" %s, IRQ %d, shared memory at %#lx-%#lx.\n",
-		   model_name, dev->irq, dev->mem_start, dev->mem_end-1);
+	pr_cont(" %s, IRQ %d, shared memory at %#lx-%#lx.\n",
+		model_name, dev->irq, dev->mem_start, dev->mem_end-1);
 
 	ei_status.reset_8390 = wd_reset_8390;
 	ei_status.block_input = wd_block_input;
@@ -348,6 +351,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 
 	dev->netdev_ops = &wd_netdev_ops;
 	NS8390_init(dev, 0);
+	ei_local->msg_enable = wd_msg_enable;
 
 #if 1
 	/* Enable interrupt generation on softconfig cards -- M.U */
@@ -385,9 +389,11 @@ static void
 wd_reset_8390(struct net_device *dev)
 {
 	int wd_cmd_port = dev->base_addr - WD_NIC_OFFSET; /* WD_CMDREG */
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	outb(WD_RESET, wd_cmd_port);
-	if (ei_debug > 1) printk("resetting the WD80x3 t=%lu...", jiffies);
+	netif_dbg(ei_local, hw, dev, "resetting the WD80x3 t=%lu...\n",
+		  jiffies);
 	ei_status.txing = 0;
 
 	/* Set up the ASIC registers, just in case something changed them. */
@@ -395,7 +401,7 @@ wd_reset_8390(struct net_device *dev)
 	if (ei_status.word16)
 		outb(NIC16 | ((dev->mem_start>>19) & 0x1f), wd_cmd_port+WD_CMDREG5);
 
-	if (ei_debug > 1) printk("reset done\n");
+	netif_dbg(ei_local, hw, dev, "reset done\n");
 }
 
 /* Grab the 8390 specific header. Similar to the block_input routine, but
@@ -474,9 +480,9 @@ static int
 wd_close(struct net_device *dev)
 {
 	int wd_cmdreg = dev->base_addr - WD_NIC_OFFSET; /* WD_CMDREG */
+	struct ei_device *ei_local = netdev_priv(dev);
 
-	if (ei_debug > 1)
-		printk("%s: Shutting down ethercard.\n", dev->name);
+	netif_dbg(ei_local, ifdown, dev, "Shutting down ethercard.\n");
 	ei_close(dev);
 
 	/* Change from 16-bit to 8-bit shared memory so reboot works. */
@@ -502,10 +508,12 @@ module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);
 module_param_array(mem, int, NULL, 0);
 module_param_array(mem_end, int, NULL, 0);
+module_param_named(msg_enable, wd_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
 MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");
 MODULE_PARM_DESC(mem_end, "memory end address(es)");
+MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("ISA Western Digital wd8003/wd8013 ; SMC Elite, Elite16 ethernet driver");
 MODULE_LICENSE("GPL");
 

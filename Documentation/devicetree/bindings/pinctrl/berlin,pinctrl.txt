@@ -1,0 +1,43 @@
+* Pin-controller driver for the Marvell Berlin SoCs
+
+Pin control registers are part of both chip controller and system
+controller register sets. Pin controller nodes should be a sub-node of
+either the chip controller or system controller node. The pins
+controlled are organized in groups, so no actual pin information is
+needed.
+
+A pin-controller node should contain subnodes representing the pin group
+configurations, one per function. Each subnode has the group name and
+the muxing function used.
+
+Be aware the Marvell Berlin datasheets use the keyword 'mode' for what
+is called a 'function' in the pin-controller subsystem.
+
+Required properties:
+- compatible: should be one of:
+	"marvell,berlin2-soc-pinctrl",
+	"marvell,berlin2-system-pinctrl",
+	"marvell,berlin2cd-soc-pinctrl",
+	"marvell,berlin2cd-system-pinctrl",
+	"marvell,berlin2q-soc-pinctrl",
+	"marvell,berlin2q-system-pinctrl"
+
+Required subnode-properties:
+- groups: a list of strings describing the group names.
+- function: a string describing the function used to mux the groups.
+
+Example:
+
+sys_pinctrl: pin-controller {
+	compatible = "marvell,berlin2q-system-pinctrl";
+
+	uart0_pmux: uart0-pmux {
+		groups = "GSM12";
+		function = "uart0";
+	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pmux>;
+	pinctrl-names = "default";
+};

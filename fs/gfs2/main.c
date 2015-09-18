@@ -7,6 +7,8 @@
  * of the GNU General Public License version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
@@ -28,13 +30,9 @@
 #include "quota.h"
 #include "recovery.h"
 #include "dir.h"
+#include "glops.h"
 
 struct workqueue_struct *gfs2_control_wq;
-
-static struct shrinker qd_shrinker = {
-	.shrink = gfs2_shrink_qd_memory,
-	.seeks = DEFAULT_SEEKS,
-};
 
 static void gfs2_init_inode_once(void *foo)
 {
@@ -81,10 +79,15 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_str2qstr(&gfs2_qdot, ".");
 	gfs2_str2qstr(&gfs2_qdotdot, "..");
+	gfs2_quota_hash_init();
 
 	error = gfs2_sys_init();
 	if (error)
 		return error;
+
+	error = list_lru_init(&gfs2_qd_lru);
+	if (error)
+		goto fail_lru;
 
 	error = gfs2_glock_init();
 	if (error)
@@ -138,7 +141,7 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_rsrv_cachep)
 		goto fail;
 
-	register_shrinker(&qd_shrinker);
+	register_shrinker(&gfs2_qd_shrinker);
 
 	error = register_filesystem(&gfs2_fs_type);
 	if (error)
@@ -155,20 +158,27 @@ static int __init init_gfs2_fs(void)
 		goto fail_wq;
 
 	gfs2_control_wq = alloc_workqueue("gfs2_control",
-			       WQ_NON_REENTRANT | WQ_UNBOUND | WQ_FREEZABLE, 0);
+					  WQ_UNBOUND | WQ_FREEZABLE, 0);
 	if (!gfs2_control_wq)
 		goto fail_recovery;
 
+	gfs2_freeze_wq = alloc_workqueue("freeze_workqueue", 0, 0);
+
+	if (!gfs2_freeze_wq)
+		goto fail_control;
+
 	gfs2_page_pool = mempool_create_page_pool(64, 0);
 	if (!gfs2_page_pool)
-		goto fail_control;
+		goto fail_freeze;
 
 	gfs2_register_debugfs();
 
-	printk("GFS2 installed\n");
+	pr_info("GFS2 installed\n");
 
 	return 0;
 
+fail_freeze:
+	destroy_workqueue(gfs2_freeze_wq);
 fail_control:
 	destroy_workqueue(gfs2_control_wq);
 fail_recovery:
@@ -178,7 +188,9 @@ fail_wq:
 fail_unregister:
 	unregister_filesystem(&gfs2_fs_type);
 fail:
-	unregister_shrinker(&qd_shrinker);
+	list_lru_destroy(&gfs2_qd_lru);
+fail_lru:
+	unregister_shrinker(&gfs2_qd_shrinker);
 	gfs2_glock_exit();
 
 	if (gfs2_rsrv_cachep)
@@ -213,13 +225,15 @@ fail:
 
 static void __exit exit_gfs2_fs(void)
 {
-	unregister_shrinker(&qd_shrinker);
+	unregister_shrinker(&gfs2_qd_shrinker);
 	gfs2_glock_exit();
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 	destroy_workqueue(gfs_recovery_wq);
 	destroy_workqueue(gfs2_control_wq);
+	destroy_workqueue(gfs2_freeze_wq);
+	list_lru_destroy(&gfs2_qd_lru);
 
 	rcu_barrier();
 

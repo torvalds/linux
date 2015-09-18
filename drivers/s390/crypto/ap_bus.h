@@ -31,11 +31,13 @@
 #include <linux/types.h>
 
 #define AP_DEVICES 64		/* Number of AP devices. */
-#define AP_DOMAINS 16		/* Number of AP domains. */
-#define AP_MAX_RESET 90		/* Maximum number of resets. */
-#define AP_RESET_TIMEOUT (HZ/2)	/* Time in ticks for reset timeouts. */
+#define AP_DOMAINS 256		/* Number of AP domains. */
+#define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
+
+#define AP_POLL_IMMEDIATELY	1 /* continue running poll tasklet */
+#define AP_POLL_AFTER_TIMEOUT	2 /* run poll tasklet again after timout */
 
 extern int ap_domain_index;
 
@@ -45,9 +47,9 @@ extern int ap_domain_index;
  */
 typedef unsigned int ap_qid_t;
 
-#define AP_MKQID(_device,_queue) (((_device) & 63) << 8 | ((_queue) & 15))
+#define AP_MKQID(_device, _queue) (((_device) & 63) << 8 | ((_queue) & 255))
 #define AP_QID_DEVICE(_qid) (((_qid) >> 8) & 63)
-#define AP_QID_QUEUE(_qid) ((_qid) & 15)
+#define AP_QID_QUEUE(_qid) ((_qid) & 255)
 
 /**
  * structy ap_queue_status - Holds the AP queue status.
@@ -117,6 +119,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_DEVICE_TYPE_CEX3A	8
 #define AP_DEVICE_TYPE_CEX3C	9
 #define AP_DEVICE_TYPE_CEX4	10
+#define AP_DEVICE_TYPE_CEX5	11
 
 /*
  * Known function facilities
@@ -125,6 +128,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_FUNC_CRT4K 2
 #define AP_FUNC_COPRO 3
 #define AP_FUNC_ACCEL 4
+#define AP_FUNC_EP11  5
+#define AP_FUNC_APXA  6
 
 /*
  * AP reset flag states
@@ -132,6 +137,14 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESET_IGNORE	0	/* request timeout will be ignored */
 #define AP_RESET_ARMED	1	/* request timeout timer is active */
 #define AP_RESET_DO	2	/* AP reset required */
+#define AP_RESET_IN_PROGRESS	3	/* AP reset in progress */
+
+/*
+ * AP interrupt states
+ */
+#define AP_INTR_DISABLED	0	/* AP interrupt disabled */
+#define AP_INTR_ENABLED		1	/* AP interrupt enabled */
+#define AP_INTR_IN_PROGRESS	3	/* AP interrupt in progress */
 
 struct ap_device;
 struct ap_message;
@@ -159,11 +172,13 @@ struct ap_device {
 	ap_qid_t qid;			/* AP queue id. */
 	int queue_depth;		/* AP queue depth.*/
 	int device_type;		/* AP device type. */
+	int raw_hwtype;			/* AP raw hardware type. */
 	unsigned int functions;		/* AP device function bitfield. */
 	int unregistered;		/* marks AP device as unregistered */
 	struct timer_list timeout;	/* Timer for request timeouts. */
 	int reset;			/* Reset required after req. timeout. */
 
+	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
 
 	struct list_head pendingq;	/* List of message sent to AP queue. */

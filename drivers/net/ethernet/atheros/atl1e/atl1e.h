@@ -23,7 +23,6 @@
 #ifndef _ATL1E_H_
 #define _ATL1E_H_
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -499,10 +498,10 @@ struct atl1e_adapter {
 extern char atl1e_driver_name[];
 extern char atl1e_driver_version[];
 
-extern void atl1e_check_options(struct atl1e_adapter *adapter);
-extern int atl1e_up(struct atl1e_adapter *adapter);
-extern void atl1e_down(struct atl1e_adapter *adapter);
-extern void atl1e_reinit_locked(struct atl1e_adapter *adapter);
-extern s32 atl1e_reset_hw(struct atl1e_hw *hw);
-extern void atl1e_set_ethtool_ops(struct net_device *netdev);
+void atl1e_check_options(struct atl1e_adapter *adapter);
+int atl1e_up(struct atl1e_adapter *adapter);
+void atl1e_down(struct atl1e_adapter *adapter);
+void atl1e_reinit_locked(struct atl1e_adapter *adapter);
+s32 atl1e_reset_hw(struct atl1e_hw *hw);
+void atl1e_set_ethtool_ops(struct net_device *netdev);
 #endif /* _ATL1_E_H_ */

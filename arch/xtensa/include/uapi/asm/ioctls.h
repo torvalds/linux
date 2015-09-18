@@ -28,17 +28,17 @@
 #define TCSETSW		0x5403
 #define TCSETSF		0x5404
 
-#define TCGETA		_IOR('t', 23, struct termio)
-#define TCSETA		_IOW('t', 24, struct termio)
-#define TCSETAW		_IOW('t', 25, struct termio)
-#define TCSETAF		_IOW('t', 28, struct termio)
+#define TCGETA		0x80127417	/* _IOR('t', 23, struct termio) */
+#define TCSETA		0x40127418	/* _IOW('t', 24, struct termio) */
+#define TCSETAW		0x40127419	/* _IOW('t', 25, struct termio) */
+#define TCSETAF		0x4012741C	/* _IOW('t', 28, struct termio) */
 
 #define TCSBRK		_IO('t', 29)
 #define TCXONC		_IO('t', 30)
 #define TCFLSH		_IO('t', 31)
 
-#define TIOCSWINSZ	_IOW('t', 103, struct winsize)
-#define TIOCGWINSZ	_IOR('t', 104, struct winsize)
+#define TIOCSWINSZ	0x40087467	/* _IOW('t', 103, struct winsize) */
+#define TIOCGWINSZ	0x80087468	/* _IOR('t', 104, struct winsize) */
 #define	TIOCSTART	_IO('t', 110)		/* start output, like ^Q */
 #define	TIOCSTOP	_IO('t', 111)		/* stop output, like ^S */
 #define TIOCOUTQ        _IOR('t', 115, int)     /* output queue size */
@@ -88,7 +88,6 @@
 #define TIOCSETD	_IOW('T', 35, int)
 #define TIOCGETD	_IOR('T', 36, int)
 #define TCSBRKP		_IOW('T', 37, int)   /* Needed for POSIX tcsendbreak()*/
-#define TIOCTTYGSTRUCT	_IOR('T', 38, struct tty_struct) /* For debugging only*/
 #define TIOCSBRK	_IO('T', 39) 	     /* BSD compatibility */
 #define TIOCCBRK	_IO('T', 40)	     /* BSD compatibility */
 #define TIOCGSID	_IOR('T', 41, pid_t) /* Return the session ID of FD*/
@@ -96,6 +95,8 @@
 #define TCSETS2		_IOW('T', 43, struct termios2)
 #define TCSETSW2	_IOW('T', 44, struct termios2)
 #define TCSETSF2	_IOW('T', 45, struct termios2)
+#define TIOCGRS485	_IOR('T', 46, struct serial_rs485)
+#define TIOCSRS485	_IOWR('T', 47, struct serial_rs485)
 #define TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
 #define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device node of /dev/console */
@@ -114,8 +115,10 @@
 #define TIOCSERGETLSR   _IOR('T', 89, unsigned int) /* Get line status reg. */
   /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 # define TIOCSER_TEMT    0x01		     /* Transmitter physically empty */
-#define TIOCSERGETMULTI _IOR('T', 90, struct serial_multiport_struct) /* Get multiport config  */
-#define TIOCSERSETMULTI _IOW('T', 91, struct serial_multiport_struct) /* Set multiport config */
+#define TIOCSERGETMULTI 0x80a8545a /* Get multiport config  */
+			/* _IOR('T', 90, struct serial_multiport_struct) */
+#define TIOCSERSETMULTI 0x40a8545b /* Set multiport config */
+			/* _IOW('T', 91, struct serial_multiport_struct) */
 
 #define TIOCMIWAIT	_IO('T', 92) /* wait for a change on serial input line(s) */
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */

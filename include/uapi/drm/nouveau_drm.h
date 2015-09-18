@@ -25,10 +25,21 @@
 #ifndef __NOUVEAU_DRM_H__
 #define __NOUVEAU_DRM_H__
 
+#define DRM_NOUVEAU_EVENT_NVIF                                       0x80000000
+
+/* reserved object handles when using deprecated object APIs - these
+ * are here so that libdrm can allow interoperability with the new
+ * object APIs
+ */
+#define NOUVEAU_ABI16_CLIENT   0xffffffff
+#define NOUVEAU_ABI16_DEVICE   0xdddddddd
+#define NOUVEAU_ABI16_CHAN(n) (0xcccc0000 | (n))
+
 #define NOUVEAU_GEM_DOMAIN_CPU       (1 << 0)
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)
 #define NOUVEAU_GEM_DOMAIN_MAPPABLE  (1 << 3)
+#define NOUVEAU_GEM_DOMAIN_COHERENT  (1 << 4)
 
 #define NOUVEAU_GEM_TILE_COMP        0x00030000 /* nv50-only */
 #define NOUVEAU_GEM_TILE_LAYOUT_MASK 0x0000ff00
@@ -123,6 +134,7 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_NOUVEAU_GROBJ_ALLOC        0x04 /* deprecated */
 #define DRM_NOUVEAU_NOTIFIEROBJ_ALLOC  0x05 /* deprecated */
 #define DRM_NOUVEAU_GPUOBJ_FREE        0x06 /* deprecated */
+#define DRM_NOUVEAU_NVIF               0x07
 #define DRM_NOUVEAU_GEM_NEW            0x40
 #define DRM_NOUVEAU_GEM_PUSHBUF        0x41
 #define DRM_NOUVEAU_GEM_CPU_PREP       0x42

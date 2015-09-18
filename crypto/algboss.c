@@ -45,10 +45,9 @@ struct cryptomgr_param {
 		} nu32;
 	} attrs[CRYPTO_MAX_ATTRS];
 
-	char larval[CRYPTO_MAX_ALG_NAME];
 	char template[CRYPTO_MAX_ALG_NAME];
 
-	struct completion *completion;
+	struct crypto_larval *larval;
 
 	u32 otype;
 	u32 omask;
@@ -87,7 +86,8 @@ static int cryptomgr_probe(void *data)
 	crypto_tmpl_put(tmpl);
 
 out:
-	complete_all(param->completion);
+	complete_all(&param->larval->completion);
+	crypto_alg_put(&param->larval->alg);
 	kfree(param);
 	module_put_and_exit(0);
 }
@@ -187,18 +187,19 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	param->otype = larval->alg.cra_flags;
 	param->omask = larval->mask;
 
-	memcpy(param->larval, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
-
-	param->completion = &larval->completion;
+	crypto_alg_get(&larval->alg);
+	param->larval = larval;
 
 	thread = kthread_run(cryptomgr_probe, param, "cryptomgr_probe");
 	if (IS_ERR(thread))
-		goto err_free_param;
+		goto err_put_larval;
 
 	wait_for_completion_interruptible(&larval->completion);
 
 	return NOTIFY_STOP;
 
+err_put_larval:
+	crypto_alg_put(&larval->alg);
 err_free_param:
 	kfree(param);
 err_put_module:
@@ -247,13 +248,11 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	type = alg->cra_flags;
 
 	/* This piece of crap needs to disappear into per-type test hooks. */
-	if ((!((type ^ CRYPTO_ALG_TYPE_BLKCIPHER) &
-	       CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV) &&
-	     ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-	      CRYPTO_ALG_TYPE_BLKCIPHER ? alg->cra_blkcipher.ivsize :
-					  alg->cra_ablkcipher.ivsize)) ||
-	    (!((type ^ CRYPTO_ALG_TYPE_AEAD) & CRYPTO_ALG_TYPE_MASK) &&
-	     alg->cra_type == &crypto_nivaead_type && alg->cra_aead.ivsize))
+	if (!((type ^ CRYPTO_ALG_TYPE_BLKCIPHER) &
+	      CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV) &&
+	    ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	     CRYPTO_ALG_TYPE_BLKCIPHER ? alg->cra_blkcipher.ivsize :
+					 alg->cra_ablkcipher.ivsize))
 		type |= CRYPTO_ALG_TESTED;
 
 	param->type = type;

@@ -65,6 +65,7 @@
 #include <asm/page.h>
 #include <asm/m32r.h>
 #include <asm/mmu_context.h>
+#include <asm/asm-offsets.h>
 
 #if !defined(CONFIG_MMU)
 #define sys_madvise		sys_ni_syscall
@@ -182,13 +183,7 @@ need_resched:
 	ld	r4, PSW(sp)		; interrupts off (exception path) ?
 	and3	r4, r4, #0x4000
 	beqz	r4, restore_all
-	LDIMM	(r4, PREEMPT_ACTIVE)
-	st	r4, @(TI_PRE_COUNT, r8)
-	ENABLE_INTERRUPTS(r4)
-	bl	schedule
-	ldi	r4, #0
-	st	r4, @(TI_PRE_COUNT, r8)
-	DISABLE_INTERRUPTS(r4)
+	bl	preempt_schedule_irq
 	bra	need_resched
 #endif
 

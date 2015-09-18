@@ -19,8 +19,10 @@
 #define H1940_SUSPEND_RESUMEAT		(0x30081000)
 #define H1940_SUSPEND_CHECK		(0x30080000)
 
+struct gpio_desc;
+
 extern void h1940_pm_return(void);
-extern int h1940_led_blink_set(unsigned gpio, int state,
+extern int h1940_led_blink_set(struct gpio_desc *desc, int state,
 			       unsigned long *delay_on,
 			       unsigned long *delay_off);
 

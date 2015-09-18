@@ -10,7 +10,7 @@
 	@
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
 	@
-	adrne	lr, BSYM(1b)
+	badrne	lr, 1b
 	bne	asm_do_IRQ
 
 #ifdef CONFIG_SMP
@@ -23,7 +23,7 @@
 	ALT_SMP(test_for_ipi r0, r2, r6, lr)
 	ALT_UP_B(9997f)
 	movne	r1, sp
-	adrne	lr, BSYM(1b)
+	badrne	lr, 1b
 	bne	do_IPI
 #endif
 9997:
@@ -35,5 +35,5 @@
 \symbol_name:
 	mov	r8, lr
 	arch_irq_handler_default
-	mov     pc, r8
+	ret	r8
 	.endm

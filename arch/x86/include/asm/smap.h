@@ -27,23 +27,11 @@
 
 #ifdef CONFIG_X86_SMAP
 
-#define ASM_CLAC							\
-	661: ASM_NOP3 ;							\
-	.pushsection .altinstr_replacement, "ax" ;			\
-	662: __ASM_CLAC ;						\
-	.popsection ;							\
-	.pushsection .altinstructions, "a" ;				\
-	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3 ;	\
-	.popsection
+#define ASM_CLAC \
+	ALTERNATIVE "", __stringify(__ASM_CLAC), X86_FEATURE_SMAP
 
-#define ASM_STAC							\
-	661: ASM_NOP3 ;							\
-	.pushsection .altinstr_replacement, "ax" ;			\
-	662: __ASM_STAC ;						\
-	.popsection ;							\
-	.pushsection .altinstructions, "a" ;				\
-	altinstruction_entry 661b, 662b, X86_FEATURE_SMAP, 3, 3 ;	\
-	.popsection
+#define ASM_STAC \
+	ALTERNATIVE "", __stringify(__ASM_STAC), X86_FEATURE_SMAP
 
 #else /* CONFIG_X86_SMAP */
 
@@ -61,20 +49,20 @@
 static __always_inline void clac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
-	alternative(ASM_NOP3, __stringify(__ASM_CLAC), X86_FEATURE_SMAP);
+	alternative("", __stringify(__ASM_CLAC), X86_FEATURE_SMAP);
 }
 
 static __always_inline void stac(void)
 {
 	/* Note: a barrier is implicit in alternative() */
-	alternative(ASM_NOP3, __stringify(__ASM_STAC), X86_FEATURE_SMAP);
+	alternative("", __stringify(__ASM_STAC), X86_FEATURE_SMAP);
 }
 
 /* These macros can be used in asm() statements */
 #define ASM_CLAC \
-	ALTERNATIVE(ASM_NOP3, __stringify(__ASM_CLAC), X86_FEATURE_SMAP)
+	ALTERNATIVE("", __stringify(__ASM_CLAC), X86_FEATURE_SMAP)
 #define ASM_STAC \
-	ALTERNATIVE(ASM_NOP3, __stringify(__ASM_STAC), X86_FEATURE_SMAP)
+	ALTERNATIVE("", __stringify(__ASM_STAC), X86_FEATURE_SMAP)
 
 #else /* CONFIG_X86_SMAP */
 

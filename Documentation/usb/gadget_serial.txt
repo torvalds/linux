@@ -236,8 +236,12 @@ I:  If#= 0 Alt= 0 #EPs= 2 Cls=0a(data ) Sub=00 Prot=00 Driver=serial
 E:  Ad=81(I) Atr=02(Bulk) MxPS= 512 Ivl=0ms
 E:  Ad=02(O) Atr=02(Bulk) MxPS= 512 Ivl=0ms
 
-You must explicitly load the usbserial driver with parameters to
-configure it to recognize the gadget serial device, like this:
+You must load the usbserial driver and explicitly set its parameters
+to configure it to recognize the gadget serial device, like this:
+
+  echo 0x0525 0xA4A6 >/sys/bus/usb-serial/drivers/generic/new_id
+
+The legacy way is to use module parameters:
 
   modprobe usbserial vendor=0x0525 product=0xA4A6
 

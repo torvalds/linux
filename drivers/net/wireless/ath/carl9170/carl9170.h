@@ -133,6 +133,9 @@ struct carl9170_sta_tid {
 
 	/* Preaggregation reorder queue */
 	struct sk_buff_head queue;
+
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
 };
 
 #define CARL9170_QUEUE_TIMEOUT		256
@@ -253,6 +256,7 @@ struct ar9170 {
 	atomic_t rx_work_urbs;
 	atomic_t rx_pool_urbs;
 	kernel_ulong_t features;
+	bool usb_ep_cmd_is_bulk;
 
 	/* firmware settings */
 	struct completion fw_load_wait;

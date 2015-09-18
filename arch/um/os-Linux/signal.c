@@ -25,7 +25,7 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 	[SIGIO]		= sigio_handler,
 	[SIGVTALRM]	= timer_handler };
 
-static void sig_handler_common(int sig, siginfo_t *si, mcontext_t *mc)
+static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 {
 	struct uml_pt_regs r;
 	int save_errno = errno;
@@ -61,7 +61,7 @@ static void sig_handler_common(int sig, siginfo_t *si, mcontext_t *mc)
 static int signals_enabled;
 static unsigned int signals_pending;
 
-void sig_handler(int sig, siginfo_t *si, mcontext_t *mc)
+void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 {
 	int enabled;
 
@@ -112,15 +112,17 @@ void timer_init(void)
 
 void set_sigstack(void *sig_stack, int size)
 {
-	stack_t stack = ((stack_t) { .ss_flags	= 0,
-				     .ss_sp	= (__ptr_t) sig_stack,
-				     .ss_size 	= size - sizeof(void *) });
+	stack_t stack = {
+		.ss_flags = 0,
+		.ss_sp = sig_stack,
+		.ss_size = size - sizeof(void *)
+	};
 
 	if (sigaltstack(&stack, NULL) != 0)
 		panic("enabling signal stack failed, errno = %d\n", errno);
 }
 
-static void (*handlers[_NSIG])(int sig, siginfo_t *si, mcontext_t *mc) = {
+static void (*handlers[_NSIG])(int sig, struct siginfo *si, mcontext_t *mc) = {
 	[SIGSEGV] = sig_handler,
 	[SIGBUS] = sig_handler,
 	[SIGILL] = sig_handler,
@@ -162,7 +164,7 @@ static void hard_handler(int sig, siginfo_t *si, void *p)
 		while ((sig = ffs(pending)) != 0){
 			sig--;
 			pending &= ~(1 << sig);
-			(*handlers[sig])(sig, si, mc);
+			(*handlers[sig])(sig, (struct siginfo *)si, mc);
 		}
 
 		/*
@@ -303,4 +305,12 @@ int set_signals(int enable)
 	else block_signals();
 
 	return ret;
+}
+
+int os_is_signal_stack(void)
+{
+	stack_t ss;
+	sigaltstack(NULL, &ss);
+
+	return ss.ss_flags & SS_ONSTACK;
 }

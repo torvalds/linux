@@ -1,8 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/jump_label.h>
-
-#include "insn.h"
-#include "patch.h"
+#include <asm/patch.h>
+#include <asm/insn.h>
 
 #ifdef HAVE_JUMP_LABEL
 
@@ -13,13 +12,13 @@ static void __arch_jump_label_transform(struct jump_entry *entry,
 	void *addr = (void *)entry->code;
 	unsigned int insn;
 
-	if (type == JUMP_LABEL_ENABLE)
+	if (type == JUMP_LABEL_JMP)
 		insn = arm_gen_branch(entry->code, entry->target);
 	else
 		insn = arm_gen_nop();
 
 	if (is_static)
-		__patch_text(addr, insn);
+		__patch_text_early(addr, insn);
 	else
 		patch_text(addr, insn);
 }

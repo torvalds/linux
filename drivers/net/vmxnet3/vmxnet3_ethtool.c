@@ -104,7 +104,7 @@ vmxnet3_rq_driver_stats[] = {
 					  rx_buf_alloc_failure) },
 };
 
-/* gloabl stats maintained by the driver */
+/* global stats maintained by the driver */
 static const struct vmxnet3_stat_desc
 vmxnet3_global_stats[] = {
 	/* description,         offset */
@@ -272,7 +272,7 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 			adapter->shared->devRead.misc.uptFeatures &=
 			~UPT1_F_RXCSUM;
 
-		/* update harware LRO capability accordingly */
+		/* update hardware LRO capability accordingly */
 		if (features & NETIF_F_LRO)
 			adapter->shared->devRead.misc.uptFeatures |=
 							UPT1_F_LRO;
@@ -323,7 +323,7 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 					  vmxnet3_tq_driver_stats[i].offset);
 	}
 
-	for (j = 0; j < adapter->num_tx_queues; j++) {
+	for (j = 0; j < adapter->num_rx_queues; j++) {
 		base = (u8 *)&adapter->rqd_start[j].stats;
 		*buf++ = (u64) j;
 		for (i = 1; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
@@ -431,8 +431,8 @@ vmxnet3_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(ecmd, -1);
-		ecmd->duplex = -1;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 	return 0;
 }
@@ -447,12 +447,12 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_max_pending = VMXNET3_RX_RING_MAX_SIZE;
 	param->tx_max_pending = VMXNET3_TX_RING_MAX_SIZE;
 	param->rx_mini_max_pending = 0;
-	param->rx_jumbo_max_pending = 0;
+	param->rx_jumbo_max_pending = VMXNET3_RX_RING2_MAX_SIZE;
 
-	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size;
-	param->tx_pending = adapter->tx_queue[0].tx_ring.size;
+	param->rx_pending = adapter->rx_ring_size;
+	param->tx_pending = adapter->tx_ring_size;
 	param->rx_mini_pending = 0;
-	param->rx_jumbo_pending = 0;
+	param->rx_jumbo_pending = adapter->rx_ring2_size;
 }
 
 
@@ -461,7 +461,7 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		      struct ethtool_ringparam *param)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	u32 new_tx_ring_size, new_rx_ring_size;
+	u32 new_tx_ring_size, new_rx_ring_size, new_rx_ring2_size;
 	u32 sz;
 	int err = 0;
 
@@ -471,6 +471,10 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 
 	if (param->rx_pending == 0 || param->rx_pending >
 						VMXNET3_RX_RING_MAX_SIZE)
+		return -EINVAL;
+
+	if (param->rx_jumbo_pending == 0 ||
+	    param->rx_jumbo_pending > VMXNET3_RX_RING2_MAX_SIZE)
 		return -EINVAL;
 
 	/* if adapter not yet initialized, do nothing */
@@ -500,8 +504,15 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 							   sz) != 0)
 		return -EINVAL;
 
-	if (new_tx_ring_size == adapter->tx_queue[0].tx_ring.size &&
-	    new_rx_ring_size == adapter->rx_queue[0].rx_ring[0].size) {
+	/* ring2 has to be a multiple of VMXNET3_RING_SIZE_ALIGN */
+	new_rx_ring2_size = (param->rx_jumbo_pending + VMXNET3_RING_SIZE_MASK) &
+				~VMXNET3_RING_SIZE_MASK;
+	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
+				  VMXNET3_RX_RING2_MAX_SIZE);
+
+	if (new_tx_ring_size == adapter->tx_ring_size &&
+	    new_rx_ring_size == adapter->rx_ring_size &&
+	    new_rx_ring2_size == adapter->rx_ring2_size) {
 		return 0;
 	}
 
@@ -522,17 +533,20 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 		vmxnet3_rq_destroy_all(adapter);
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
-			new_rx_ring_size, VMXNET3_DEF_RX_RING_SIZE);
+			new_rx_ring_size, new_rx_ring2_size);
 
 		if (err) {
 			/* failed, most likely because of OOM, try default
 			 * size */
 			netdev_err(netdev, "failed to apply new sizes, "
 				   "try the default ones\n");
+			new_rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
+			new_rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
+			new_tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
 			err = vmxnet3_create_queues(adapter,
-						    VMXNET3_DEF_TX_RING_SIZE,
-						    VMXNET3_DEF_RX_RING_SIZE,
-						    VMXNET3_DEF_RX_RING_SIZE);
+						    new_tx_ring_size,
+						    new_rx_ring_size,
+						    new_rx_ring2_size);
 			if (err) {
 				netdev_err(netdev, "failed to create queues "
 					   "with default sizes. Closing it\n");
@@ -545,6 +559,9 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 			netdev_err(netdev, "failed to re-activate, error %d."
 				   " Closing it\n", err);
 	}
+	adapter->tx_ring_size = new_tx_ring_size;
+	adapter->rx_ring_size = new_rx_ring_size;
+	adapter->rx_ring2_size = new_rx_ring2_size;
 
 out:
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
@@ -579,12 +596,16 @@ vmxnet3_get_rss_indir_size(struct net_device *netdev)
 }
 
 static int
-vmxnet3_get_rss_indir(struct net_device *netdev, u32 *p)
+vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key, u8 *hfunc)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 	unsigned int n = rssConf->indTableSize;
 
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (!p)
+		return 0;
 	while (n--)
 		p[n] = rssConf->indTable[n];
 	return 0;
@@ -592,13 +613,20 @@ vmxnet3_get_rss_indir(struct net_device *netdev, u32 *p)
 }
 
 static int
-vmxnet3_set_rss_indir(struct net_device *netdev, const u32 *p)
+vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
+		const u8 hfunc)
 {
 	unsigned int i;
 	unsigned long flags;
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
+	/* We do not allow change in unsupported parameters */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!p)
+		return 0;
 	for (i = 0; i < rssConf->indTableSize; i++)
 		rssConf->indTable[i] = p[i];
 
@@ -628,12 +656,12 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_rxnfc         = vmxnet3_get_rxnfc,
 #ifdef VMXNET3_RSS
 	.get_rxfh_indir_size = vmxnet3_get_rss_indir_size,
-	.get_rxfh_indir    = vmxnet3_get_rss_indir,
-	.set_rxfh_indir    = vmxnet3_set_rss_indir,
+	.get_rxfh          = vmxnet3_get_rss,
+	.set_rxfh          = vmxnet3_set_rss,
 #endif
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &vmxnet3_ethtool_ops);
+	netdev->ethtool_ops = &vmxnet3_ethtool_ops;
 }

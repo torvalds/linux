@@ -12,7 +12,7 @@ virtual addresses.
 
 PAT allows for different types of memory attributes. The most commonly used
 ones that will be supported at this time are Write-back, Uncached,
-Write-combined and Uncached Minus.
+Write-combined, Write-through and Uncached Minus.
 
 
 PAT APIs
@@ -34,14 +34,21 @@ ioremap                |    --    |    UC-     |       UC-        |
                        |          |            |                  |
 ioremap_cache          |    --    |    WB      |       WB         |
                        |          |            |                  |
+ioremap_uc             |    --    |    UC      |       UC         |
+                       |          |            |                  |
 ioremap_nocache        |    --    |    UC-     |       UC-        |
                        |          |            |                  |
 ioremap_wc             |    --    |    --      |       WC         |
+                       |          |            |                  |
+ioremap_wt             |    --    |    --      |       WT         |
                        |          |            |                  |
 set_memory_uc          |    UC-   |    --      |       --         |
  set_memory_wb         |          |            |                  |
                        |          |            |                  |
 set_memory_wc          |    WC    |    --      |       --         |
+ set_memory_wb         |          |            |                  |
+                       |          |            |                  |
+set_memory_wt          |    WT    |    --      |       --         |
  set_memory_wb         |          |            |                  |
                        |          |            |                  |
 pci sysfs resource     |    --    |    --      |       UC-        |
@@ -102,7 +109,38 @@ wants to export a RAM region, it has to do set_memory_uc() or set_memory_wc()
 as step 0 above and also track the usage of those pages and use set_memory_wb()
 before the page is freed to free pool.
 
+MTRR effects on PAT / non-PAT systems
+-------------------------------------
 
+The following table provides the effects of using write-combining MTRRs when
+using ioremap*() calls on x86 for both non-PAT and PAT systems. Ideally
+mtrr_add() usage will be phased out in favor of arch_phys_wc_add() which will
+be a no-op on PAT enabled systems. The region over which a arch_phys_wc_add()
+is made, should already have been ioremapped with WC attributes or PAT entries,
+this can be done by using ioremap_wc() / set_memory_wc().  Devices which
+combine areas of IO memory desired to remain uncacheable with areas where
+write-combining is desirable should consider use of ioremap_uc() followed by
+set_memory_wc() to white-list effective write-combined areas.  Such use is
+nevertheless discouraged as the effective memory type is considered
+implementation defined, yet this strategy can be used as last resort on devices
+with size-constrained regions where otherwise MTRR write-combining would
+otherwise not be effective.
+
+----------------------------------------------------------------------
+MTRR Non-PAT   PAT    Linux ioremap value        Effective memory type
+----------------------------------------------------------------------
+                                                  Non-PAT |  PAT
+     PAT
+     |PCD
+     ||PWT
+     |||
+WC   000      WB      _PAGE_CACHE_MODE_WB            WC   |   WC
+WC   001      WC      _PAGE_CACHE_MODE_WC            WC*  |   WC
+WC   010      UC-     _PAGE_CACHE_MODE_UC_MINUS      WC*  |   UC
+WC   011      UC      _PAGE_CACHE_MODE_UC            UC   |   UC
+----------------------------------------------------------------------
+
+(*) denotes implementation defined and is discouraged
 
 Notes:
 
@@ -115,8 +153,8 @@ can be more restrictive, in case of any existing aliasing for that address.
 For example: If there is an existing uncached mapping, a new ioremap_wc can
 return uncached mapping in place of write-combine requested.
 
-set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
-first make a region uc or wc and switch it back to wb after use.
+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
+will first make a region uc, wc or wt and switch it back to wb after use.
 
 Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
 interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
@@ -124,7 +162,7 @@ interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
 Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
 types.
 
-Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
+Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
 
 
 PAT debugging

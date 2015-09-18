@@ -60,7 +60,7 @@
  * register a pci_driver, because someone else might one day
  * want to register another driver on the same PCI id.
  */
-static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
+static const struct pci_device_id pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS), 0 },
 	{ 0, },	/* terminate list */
 };
@@ -213,6 +213,12 @@ found:
 		goto out;
 	}
 	gp.pm = ioport_map(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
+	if (!gp.pm) {
+		dev_err(&pdev->dev, "Couldn't map io port into io memory\n");
+		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
+		err = -ENOMEM;
+		goto out;
+	}
 	gp.pdev = pdev;
 	gp.chip.dev = &pdev->dev;
 
@@ -223,6 +229,7 @@ found:
 	if (err) {
 		printk(KERN_ERR "GPIO registering failed (%d)\n",
 		       err);
+		ioport_unmap(gp.pm);
 		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 		goto out;
 	}
@@ -232,8 +239,7 @@ out:
 
 static void __exit amd_gpio_exit(void)
 {
-	int err = gpiochip_remove(&gp.chip);
-	WARN_ON(err);
+	gpiochip_remove(&gp.chip);
 	ioport_unmap(gp.pm);
 	release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
 }

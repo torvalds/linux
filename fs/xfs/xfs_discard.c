@@ -16,22 +16,21 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
-#include "xfs_log.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_quota.h"
-#include "xfs_trans.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
 #include "xfs_discard.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 STATIC int
 xfs_trim_extents(
@@ -85,7 +84,7 @@ xfs_trim_extents(
 		error = xfs_alloc_get_rec(cur, &fbno, &flen, &i);
 		if (error)
 			goto out_del_cursor;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, out_del_cursor);
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_del_cursor);
 		ASSERT(flen <= be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_longest));
 
 		/*
@@ -124,7 +123,7 @@ xfs_trim_extents(
 		}
 
 		trace_xfs_discard_extent(mp, agno, fbno, flen);
-		error = -blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
+		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
 		if (error)
 			goto out_del_cursor;
 		*blocks_trimmed += flen;
@@ -157,7 +156,7 @@ xfs_ioc_trim(
 	struct xfs_mount		*mp,
 	struct fstrim_range __user	*urange)
 {
-	struct request_queue	*q = mp->m_ddev_targp->bt_bdev->bd_disk->queue;
+	struct request_queue	*q = bdev_get_queue(mp->m_ddev_targp->bt_bdev);
 	unsigned int		granularity = q->limits.discard_granularity;
 	struct fstrim_range	range;
 	xfs_daddr_t		start, end, minlen;
@@ -166,11 +165,11 @@ xfs_ioc_trim(
 	int			error, last_error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 	if (!blk_queue_discard(q))
-		return -XFS_ERROR(EOPNOTSUPP);
+		return -EOPNOTSUPP;
 	if (copy_from_user(&range, urange, sizeof(range)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	/*
 	 * Truncating down the len isn't actually quite correct, but using
@@ -180,8 +179,9 @@ xfs_ioc_trim(
 	 * matter as trimming blocks is an advisory interface.
 	 */
 	if (range.start >= XFS_FSB_TO_B(mp, mp->m_sb.sb_dblocks) ||
-	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)))
-		return -XFS_ERROR(EINVAL);
+	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)) ||
+	    range.len < mp->m_sb.sb_blocksize)
+		return -EINVAL;
 
 	start = BTOBB(range.start);
 	end = start + BTOBBT(range.len) - 1;
@@ -194,7 +194,7 @@ xfs_ioc_trim(
 	end_agno = xfs_daddr_to_agno(mp, end);
 
 	for (agno = start_agno; agno <= end_agno; agno++) {
-		error = -xfs_trim_extents(mp, agno, start, end, minlen,
+		error = xfs_trim_extents(mp, agno, start, end, minlen,
 					  &blocks_trimmed);
 		if (error)
 			last_error = error;
@@ -205,7 +205,7 @@ xfs_ioc_trim(
 
 	range.len = XFS_FSB_TO_B(mp, blocks_trimmed);
 	if (copy_to_user(urange, &range, sizeof(range)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	return 0;
 }
 
@@ -221,11 +221,11 @@ xfs_discard_extents(
 		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
 					 busyp->length);
 
-		error = -blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
+		error = blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
 				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_NOFS, 0);
-		if (error && error != EOPNOTSUPP) {
+		if (error && error != -EOPNOTSUPP) {
 			xfs_info(mp,
 	 "discard failed for extent [0x%llu,%u], error %d",
 				 (unsigned long long)busyp->bno,

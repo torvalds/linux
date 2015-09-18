@@ -92,15 +92,6 @@ static void key_gc_timer_func(unsigned long data)
 }
 
 /*
- * wait_on_bit() sleep function for uninterruptible waiting
- */
-static int key_gc_wait_bit(void *flags)
-{
-	schedule();
-	return 0;
-}
-
-/*
  * Reap keys of dead type.
  *
  * We use three flags to make sure we see three complete cycles of the garbage
@@ -123,55 +114,11 @@ void key_gc_keytype(struct key_type *ktype)
 	schedule_work(&key_gc_work);
 
 	kdebug("sleep");
-	wait_on_bit(&key_gc_flags, KEY_GC_REAPING_KEYTYPE, key_gc_wait_bit,
+	wait_on_bit(&key_gc_flags, KEY_GC_REAPING_KEYTYPE,
 		    TASK_UNINTERRUPTIBLE);
 
 	key_gc_dead_keytype = NULL;
 	kleave("");
-}
-
-/*
- * Garbage collect pointers from a keyring.
- *
- * Not called with any locks held.  The keyring's key struct will not be
- * deallocated under us as only our caller may deallocate it.
- */
-static void key_gc_keyring(struct key *keyring, time_t limit)
-{
-	struct keyring_list *klist;
-	int loop;
-
-	kenter("%x", key_serial(keyring));
-
-	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
-			      (1 << KEY_FLAG_REVOKED)))
-		goto dont_gc;
-
-	/* scan the keyring looking for dead keys */
-	rcu_read_lock();
-	klist = rcu_dereference(keyring->payload.subscriptions);
-	if (!klist)
-		goto unlock_dont_gc;
-
-	loop = klist->nkeys;
-	smp_rmb();
-	for (loop--; loop >= 0; loop--) {
-		struct key *key = rcu_dereference(klist->keys[loop]);
-		if (key_is_dead(key, limit))
-			goto do_gc;
-	}
-
-unlock_dont_gc:
-	rcu_read_unlock();
-dont_gc:
-	kleave(" [no gc]");
-	return;
-
-do_gc:
-	rcu_read_unlock();
-
-	keyring_gc(keyring, limit);
-	kleave(" [gc]");
 }
 
 /*
@@ -201,11 +148,11 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
 			atomic_dec(&key->user->nikeys);
 
-		key_user_put(key->user);
-
 		/* now throw away the key memory */
 		if (key->type->destroy)
 			key->type->destroy(key);
+
+		key_user_put(key->user);
 
 		kfree(key->description);
 
@@ -392,8 +339,7 @@ found_unreferenced_key:
 	 */
 found_keyring:
 	spin_unlock(&key_serial_lock);
-	kdebug("scan keyring %d", key->serial);
-	key_gc_keyring(key, limit);
+	keyring_gc(key, limit);
 	goto maybe_resched;
 
 	/* We found a dead key that is still referenced.  Reset its type and

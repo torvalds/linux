@@ -29,7 +29,8 @@
 
 /* snippet from wikipedia :-) */
 
-uint64_t rdtsc() {
+static uint64_t rdtsc(void)
+{
 uint32_t lo, hi;
 /* We cannot use "=A", since this would use %rax on x86_64 */
 __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
@@ -38,7 +39,7 @@ return (uint64_t)hi << 32 | lo;
 
 int should_segv = 0;
 
-void sigsegv_cb(int sig)
+static void sigsegv_cb(int sig)
 {
 	if (!should_segv)
 	{
@@ -55,7 +56,7 @@ void sigsegv_cb(int sig)
 	rdtsc();
 }
 
-void task(void)
+static void task(void)
 {
 	signal(SIGSEGV, sigsegv_cb);
 	alarm(10);

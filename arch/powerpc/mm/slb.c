@@ -41,13 +41,10 @@ static void slb_allocate(unsigned long ea)
 	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
 
 static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
-					 unsigned long slot)
+					 unsigned long entry)
 {
-	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | entry;
 }
-
-#define slb_vsid_shift(ssize)	\
-	((ssize) == MMU_SEGSIZE_256M? SLB_VSID_SHIFT: SLB_VSID_SHIFT_1T)
 
 static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 					 unsigned long flags)
@@ -66,8 +63,10 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
 	get_slb_shadow()->save_area[entry].esid = 0;
-	get_slb_shadow()->save_area[entry].vsid = mk_vsid_data(ea, ssize, flags);
-	get_slb_shadow()->save_area[entry].esid = mk_esid_data(ea, ssize, entry);
+	get_slb_shadow()->save_area[entry].vsid =
+				cpu_to_be64(mk_vsid_data(ea, ssize, flags));
+	get_slb_shadow()->save_area[entry].esid =
+				cpu_to_be64(mk_esid_data(ea, ssize, entry));
 }
 
 static inline void slb_shadow_clear(unsigned long entry)
@@ -95,7 +94,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 static void __slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
-	 * appropriately too. */
+	 * and PR KVM appropriately too. */
 	unsigned long linear_llp, vmalloc_llp, lflags, vflags;
 	unsigned long ksp_esid_data, ksp_vsid_data;
 
@@ -112,7 +111,8 @@ static void __slb_flush_and_rebolt(void)
 	} else {
 		/* Update stack entry; others don't change */
 		slb_shadow_update(get_paca()->kstack, mmu_kernel_ssize, lflags, 2);
-		ksp_vsid_data = get_slb_shadow()->save_area[2].vsid;
+		ksp_vsid_data =
+			be64_to_cpu(get_slb_shadow()->save_area[2].vsid);
 	}
 
 	/* We need to do this all in asm, so we're sure we don't touch
@@ -249,14 +249,31 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 static inline void patch_slb_encoding(unsigned int *insn_addr,
 				      unsigned int immed)
 {
-	int insn = (*insn_addr & 0xffff0000) | immed;
+
+	/*
+	 * This function patches either an li or a cmpldi instruction with
+	 * a new immediate value. This relies on the fact that both li
+	 * (which is actually addi) and cmpldi both take a 16-bit immediate
+	 * value, and it is situated in the same location in the instruction,
+	 * ie. bits 16-31 (Big endian bit order) or the lower 16 bits.
+	 * The signedness of the immediate operand differs between the two
+	 * instructions however this code is only ever patching a small value,
+	 * much less than 1 << 15, so we can get away with it.
+	 * To patch the value we read the existing instruction, clear the
+	 * immediate value, and or in our new value, then write the instruction
+	 * back.
+	 */
+	unsigned int insn = (*insn_addr & 0xffff0000) | immed;
 	patch_instruction(insn_addr, insn);
 }
 
+extern u32 slb_miss_kernel_load_linear[];
+extern u32 slb_miss_kernel_load_io[];
+extern u32 slb_compare_rr_to_size[];
+extern u32 slb_miss_kernel_load_vmemmap[];
+
 void slb_set_size(u16 size)
 {
-	extern unsigned int *slb_compare_rr_to_size;
-
 	if (mmu_slb_size == size)
 		return;
 
@@ -269,11 +286,7 @@ void slb_initialize(void)
 	unsigned long linear_llp, vmalloc_llp, io_llp;
 	unsigned long lflags, vflags;
 	static int slb_encoding_inited;
-	extern unsigned int *slb_miss_kernel_load_linear;
-	extern unsigned int *slb_miss_kernel_load_io;
-	extern unsigned int *slb_compare_rr_to_size;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	extern unsigned int *slb_miss_kernel_load_vmemmap;
 	unsigned long vmemmap_llp;
 #endif
 
@@ -309,12 +322,11 @@ void slb_initialize(void)
 	lflags = SLB_VSID_KERNEL | linear_llp;
 	vflags = SLB_VSID_KERNEL | vmalloc_llp;
 
-	/* Invalidate the entire SLB (even slot 0) & all the ERATS */
+	/* Invalidate the entire SLB (even entry 0) & all the ERATS */
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, 0);
-
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
 	/* For the boot cpu, we're running on the stack in init_thread_union,

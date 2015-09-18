@@ -34,8 +34,8 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
+#include <net/af_vsock.h>
 
-#include "af_vsock.h"
 #include "vmci_transport_notify.h"
 
 static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg);
@@ -625,13 +625,14 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 
 	/* Attach the packet to the socket's receive queue as an sk_buff. */
 	skb = alloc_skb(size, GFP_ATOMIC);
-	if (skb) {
-		/* sk_receive_skb() will do a sock_put(), so hold here. */
-		sock_hold(sk);
-		skb_put(skb, size);
-		memcpy(skb->data, dg, size);
-		sk_receive_skb(sk, skb, 0);
-	}
+	if (!skb)
+		return VMCI_ERROR_NO_MEM;
+
+	/* sk_receive_skb() will do a sock_put(), so hold here. */
+	sock_hold(sk);
+	skb_put(skb, size);
+	memcpy(skb->data, dg, size);
+	sk_receive_skb(sk, skb, 0);
 
 	return VMCI_SUCCESS;
 }
@@ -939,10 +940,9 @@ static void vmci_transport_recv_pkt_work(struct work_struct *work)
 		 * reset to prevent that.
 		 */
 		vmci_transport_send_reset(sk, pkt);
-		goto out;
+		break;
 	}
 
-out:
 	release_sock(sk);
 	kfree(recv_pkt_info);
 	/* Release reference obtained in the stream callback when we fetched
@@ -1022,7 +1022,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	}
 
 	pending = __vsock_create(sock_net(sk), NULL, sk, GFP_KERNEL,
-				 sk->sk_type);
+				 sk->sk_type, 0);
 	if (!pending) {
 		vmci_transport_send_reset(sk, pkt);
 		return -ENOMEM;
@@ -1697,7 +1697,7 @@ static int vmci_transport_dgram_bind(struct vsock_sock *vsk,
 static int vmci_transport_dgram_enqueue(
 	struct vsock_sock *vsk,
 	struct sockaddr_vm *remote_addr,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len)
 {
 	int err;
@@ -1714,7 +1714,7 @@ static int vmci_transport_dgram_enqueue(
 	if (!dg)
 		return -ENOMEM;
 
-	memcpy_fromiovec(VMCI_DG_PAYLOAD(dg), iov, len);
+	memcpy_from_msg(VMCI_DG_PAYLOAD(dg), msg, len);
 
 	dg->dst = vmci_make_handle(remote_addr->svm_cid,
 				   remote_addr->svm_port);
@@ -1730,8 +1730,7 @@ static int vmci_transport_dgram_enqueue(
 	return err - sizeof(*dg);
 }
 
-static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
-					struct vsock_sock *vsk,
+static int vmci_transport_dgram_dequeue(struct vsock_sock *vsk,
 					struct msghdr *msg, size_t len,
 					int flags)
 {
@@ -1745,8 +1744,6 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
 		return -EOPNOTSUPP;
-
-	msg->msg_namelen = 0;
 
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
@@ -1775,16 +1772,13 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	}
 
 	/* Place the datagram payload in the user's iovec. */
-	err = skb_copy_datagram_iovec(skb, sizeof(*dg), msg->msg_iov,
-		payload_len);
+	err = skb_copy_datagram_msg(skb, sizeof(*dg), msg, payload_len);
 	if (err)
 		goto out;
 
 	if (msg->msg_name) {
-		struct sockaddr_vm *vm_addr;
-
 		/* Provide the address of the sender. */
-		vm_addr = (struct sockaddr_vm *)msg->msg_name;
+		DECLARE_SOCKADDR(struct sockaddr_vm *, vm_addr, msg->msg_name);
 		vsock_addr_init(vm_addr, dg->src.context, dg->src.resource);
 		msg->msg_namelen = sizeof(*vm_addr);
 	}
@@ -1840,22 +1834,22 @@ static int vmci_transport_connect(struct vsock_sock *vsk)
 
 static ssize_t vmci_transport_stream_dequeue(
 	struct vsock_sock *vsk,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len,
 	int flags)
 {
 	if (flags & MSG_PEEK)
-		return vmci_qpair_peekv(vmci_trans(vsk)->qpair, iov, len, 0);
+		return vmci_qpair_peekv(vmci_trans(vsk)->qpair, msg, len, 0);
 	else
-		return vmci_qpair_dequev(vmci_trans(vsk)->qpair, iov, len, 0);
+		return vmci_qpair_dequev(vmci_trans(vsk)->qpair, msg, len, 0);
 }
 
 static ssize_t vmci_transport_stream_enqueue(
 	struct vsock_sock *vsk,
-	struct iovec *iov,
+	struct msghdr *msg,
 	size_t len)
 {
-	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, iov, len, 0);
+	return vmci_qpair_enquev(vmci_trans(vsk)->qpair, msg, len, 0);
 }
 
 static s64 vmci_transport_stream_has_data(struct vsock_sock *vsk)

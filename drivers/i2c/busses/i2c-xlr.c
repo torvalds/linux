@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -264,7 +263,6 @@ static struct platform_driver xlr_i2c_driver = {
 	.remove = xlr_i2c_remove,
 	.driver = {
 		.name   = "xlr-i2cbus",
-		.owner  = THIS_MODULE,
 	},
 };
 

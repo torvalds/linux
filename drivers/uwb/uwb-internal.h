@@ -55,7 +55,8 @@ static inline struct uwb_rc *__uwb_rc_get(struct uwb_rc *rc)
 
 static inline void __uwb_rc_put(struct uwb_rc *rc)
 {
-	uwb_dev_put(&rc->uwb_dev);
+	if (rc)
+		uwb_dev_put(&rc->uwb_dev);
 }
 
 extern int uwb_rc_reset(struct uwb_rc *rc);
@@ -171,7 +172,8 @@ struct uwb_rsv_alloc_info {
 	int interval;
 };
 
-int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *available, 
+int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv,
+				 struct uwb_mas_bm *available,
 				 struct uwb_mas_bm *result);
 void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc);
 /*
@@ -312,6 +314,7 @@ int uwb_radio_force_channel(struct uwb_rc *rc, int channel);
 
 /* -- UWB Sysfs representation */
 extern struct class uwb_rc_class;
+extern struct bus_type uwb_bus_type;
 extern struct device_attribute dev_attr_mac_address;
 extern struct device_attribute dev_attr_beacon;
 extern struct device_attribute dev_attr_scan;

@@ -49,7 +49,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	for (i = 0; i < 6; i++) {
 		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev, "error reading header\n");
+			dev_err(chip->pdev, "error reading header\n");
 			return -EIO;
 		}
 		*buf++ = ioread8(chip->vendor.iobase);
@@ -60,12 +60,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	size = be32_to_cpu(*native_size);
 
 	if (count < size) {
-		dev_err(chip->dev,
+		dev_err(chip->pdev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
 			status = ioread8(chip->vendor.iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-				dev_err(chip->dev, "error reading data\n");
+				dev_err(chip->pdev, "error reading data\n");
 				return -EIO;
 			}
 		}
@@ -76,7 +76,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	for (; i < size; i++) {
 		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev, "error reading data\n");
+			dev_err(chip->pdev, "error reading data\n");
 			return -EIO;
 		}
 		*buf++ = ioread8(chip->vendor.iobase);
@@ -86,7 +86,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	status = ioread8(chip->vendor.iobase + 1);
 
 	if (status & ATML_STATUS_DATA_AVAIL) {
-		dev_err(chip->dev, "data available is stuck\n");
+		dev_err(chip->pdev, "data available is stuck\n");
 		return -EIO;
 	}
 
@@ -97,9 +97,9 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int i;
 
-	dev_dbg(chip->dev, "tpm_atml_send:\n");
+	dev_dbg(chip->pdev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
-		dev_dbg(chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
+		dev_dbg(chip->pdev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
  		iowrite8(buf[i], chip->vendor.iobase);
 	}
 
@@ -121,31 +121,7 @@ static bool tpm_atml_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == ATML_STATUS_READY);
 }
 
-static const struct file_operations atmel_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR |S_IWGRP, NULL, tpm_store_cancel);
-
-static struct attribute* atmel_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	NULL,
-};
-
-static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };
-
-static const struct tpm_vendor_specific tpm_atmel = {
+static const struct tpm_class_ops tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
@@ -153,8 +129,6 @@ static const struct tpm_vendor_specific tpm_atmel = {
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
 	.req_canceled = tpm_atml_req_canceled,
-	.attr_group = &atmel_attr_grp,
-	.miscdev = { .fops = &atmel_ops, },
 };
 
 static struct platform_device *pdev;
@@ -164,11 +138,11 @@ static void atml_plat_remove(void)
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
 
 	if (chip) {
+		tpm_chip_unregister(chip);
 		if (chip->vendor.have_region)
 			atmel_release_region(chip->vendor.base,
 					     chip->vendor.region_size);
 		atmel_put_base_addr(chip->vendor.iobase);
-		tpm_remove_hardware(chip->dev);
 		platform_device_unregister(pdev);
 	}
 }
@@ -178,7 +152,6 @@ static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);
 static struct platform_driver atml_drv = {
 	.driver = {
 		.name = "tpm_atmel",
-		.owner		= THIS_MODULE,
 		.pm		= &tpm_atml_pm,
 	},
 };
@@ -202,7 +175,7 @@ static int __init init_atmel(void)
 
 	have_region =
 	    (atmel_request_region
-	     (tpm_atmel.base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
+	     (base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
 
 	pdev = platform_device_register_simple("tpm_atmel", -1, NULL, 0);
 	if (IS_ERR(pdev)) {
@@ -210,8 +183,9 @@ static int __init init_atmel(void)
 		goto err_rel_reg;
 	}
 
-	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_atmel))) {
-		rc = -ENODEV;
+	chip = tpmm_chip_alloc(&pdev->dev, &tpm_atmel);
+	if (IS_ERR(chip)) {
+		rc = PTR_ERR(chip);
 		goto err_unreg_dev;
 	}
 
@@ -219,6 +193,10 @@ static int __init init_atmel(void)
 	chip->vendor.base = base;
 	chip->vendor.have_region = have_region;
 	chip->vendor.region_size = region_size;
+
+	rc = tpm_chip_register(chip);
+	if (rc)
+		goto err_unreg_dev;
 
 	return 0;
 

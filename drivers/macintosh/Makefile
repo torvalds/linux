@@ -25,7 +25,6 @@ obj-$(CONFIG_ADB_IOP)		+= adb-iop.o
 obj-$(CONFIG_ADB_PMU68K)	+= via-pmu68k.o
 obj-$(CONFIG_ADB_MACIO)		+= macio-adb.o
 
-obj-$(CONFIG_THERM_PM72)	+= therm_pm72.o
 obj-$(CONFIG_THERM_WINDTUNNEL)	+= therm_windtunnel.o
 obj-$(CONFIG_THERM_ADT746X)	+= therm_adt746x.o
 obj-$(CONFIG_WINDFARM)	        += windfarm_core.o
@@ -40,6 +39,7 @@ obj-$(CONFIG_WINDFARM_RM31)     += windfarm_fcu_controls.o \
 				   windfarm_ad7417_sensor.o \
 				   windfarm_lm75_sensor.o \
 				   windfarm_lm87_sensor.o \
+				   windfarm_max6690_sensor.o \
 				   windfarm_pid.o \
 				   windfarm_cpufreq_clamp.o \
 				   windfarm_rm31.o

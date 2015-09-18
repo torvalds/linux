@@ -10,14 +10,12 @@
 /*
  * a simple reference counted buffer.
  *
- * use kmalloc for small sizes (<= one page), vmalloc for larger
- * sizes.
+ * use kmalloc for smaller sizes, vmalloc for larger sizes.
  */
 struct ceph_buffer {
 	struct kref kref;
 	struct kvec vec;
 	size_t alloc_len;
-	bool is_vmalloc;
 };
 
 extern struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp);

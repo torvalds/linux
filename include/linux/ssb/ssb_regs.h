@@ -172,6 +172,8 @@
 #define SSB_SPROMSIZE_WORDS_R4		220
 #define SSB_SPROMSIZE_BYTES_R123	(SSB_SPROMSIZE_WORDS_R123 * sizeof(u16))
 #define SSB_SPROMSIZE_BYTES_R4		(SSB_SPROMSIZE_WORDS_R4 * sizeof(u16))
+#define SSB_SPROMSIZE_WORDS_R10		230
+#define SSB_SPROMSIZE_WORDS_R11		234
 #define SSB_SPROM_BASE1			0x1000
 #define SSB_SPROM_BASE31		0x0800
 #define SSB_SPROM_REVISION		0x007E
@@ -344,6 +346,43 @@
 #define  SSB_SPROM4_TXPID5GH2_SHIFT	0
 #define  SSB_SPROM4_TXPID5GH3		0xFF00
 #define  SSB_SPROM4_TXPID5GH3_SHIFT	8
+
+/* There are 4 blocks with power info sharing the same layout */
+#define SSB_SPROM4_PWR_INFO_CORE0	0x0080
+#define SSB_SPROM4_PWR_INFO_CORE1	0x00AE
+#define SSB_SPROM4_PWR_INFO_CORE2	0x00DC
+#define SSB_SPROM4_PWR_INFO_CORE3	0x010A
+
+#define SSB_SPROM4_2G_MAXP_ITSSI	0x00	/* 2 GHz ITSSI and 2 GHz Max Power */
+#define  SSB_SPROM4_2G_MAXP		0x00FF
+#define  SSB_SPROM4_2G_ITSSI		0xFF00
+#define  SSB_SPROM4_2G_ITSSI_SHIFT	8
+#define SSB_SPROM4_2G_PA_0		0x02	/* 2 GHz power amp */
+#define SSB_SPROM4_2G_PA_1		0x04
+#define SSB_SPROM4_2G_PA_2		0x06
+#define SSB_SPROM4_2G_PA_3		0x08
+#define SSB_SPROM4_5G_MAXP_ITSSI	0x0A	/* 5 GHz ITSSI and 5.3 GHz Max Power */
+#define  SSB_SPROM4_5G_MAXP		0x00FF
+#define  SSB_SPROM4_5G_ITSSI		0xFF00
+#define  SSB_SPROM4_5G_ITSSI_SHIFT	8
+#define SSB_SPROM4_5GHL_MAXP		0x0C	/* 5.2 GHz and 5.8 GHz Max Power */
+#define  SSB_SPROM4_5GH_MAXP		0x00FF
+#define  SSB_SPROM4_5GL_MAXP		0xFF00
+#define  SSB_SPROM4_5GL_MAXP_SHIFT	8
+#define SSB_SPROM4_5G_PA_0		0x0E	/* 5.3 GHz power amp */
+#define SSB_SPROM4_5G_PA_1		0x10
+#define SSB_SPROM4_5G_PA_2		0x12
+#define SSB_SPROM4_5G_PA_3		0x14
+#define SSB_SPROM4_5GL_PA_0		0x16	/* 5.2 GHz power amp */
+#define SSB_SPROM4_5GL_PA_1		0x18
+#define SSB_SPROM4_5GL_PA_2		0x1A
+#define SSB_SPROM4_5GL_PA_3		0x1C
+#define SSB_SPROM4_5GH_PA_0		0x1E	/* 5.8 GHz power amp */
+#define SSB_SPROM4_5GH_PA_1		0x20
+#define SSB_SPROM4_5GH_PA_2		0x22
+#define SSB_SPROM4_5GH_PA_3		0x24
+
+/* TODO: Make it deprecated */
 #define SSB_SPROM4_MAXP_BG		0x0080  /* Max Power BG in path 1 */
 #define  SSB_SPROM4_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */
 #define  SSB_SPROM4_ITSSI_BG		0xFF00	/* Mask for path 1 itssi_bg */

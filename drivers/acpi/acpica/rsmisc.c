@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,7 +119,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			/*
 			 * Get the resource type and the initial (minimum) length
 			 */
-			ACPI_MEMSET(resource, 0, INIT_RESOURCE_LENGTH(info));
+			memset(resource, 0, INIT_RESOURCE_LENGTH(info));
 			resource->type = INIT_RESOURCE_TYPE(info);
 			resource->length = INIT_RESOURCE_LENGTH(info);
 			break;
@@ -194,7 +194,6 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_RES:
-
 			/*
 			 * Vendor data is optional (length/offset may both be zero)
 			 * Examine vendor data length field first
@@ -325,13 +324,13 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_SET8:
 
-			ACPI_MEMSET(destination, info->aml_offset, info->value);
+			memset(destination, info->aml_offset, info->value);
 			break;
 
 		case ACPI_RSC_DATA8:
 
 			target = ACPI_ADD_PTR(char, resource, info->value);
-			ACPI_MEMCPY(destination, source, ACPI_GET16(target));
+			memcpy(destination, source, ACPI_GET16(target));
 			break;
 
 		case ACPI_RSC_ADDRESS:
@@ -410,12 +409,14 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 */
 			switch (info->resource_offset) {
 			case ACPI_RSC_COMPARE_AML_LENGTH:
+
 				if (aml_resource_length != info->value) {
 					goto exit;
 				}
 				break;
 
 			case ACPI_RSC_COMPARE_VALUE:
+
 				if (ACPI_GET8(source) != info->value) {
 					goto exit;
 				}
@@ -439,7 +440,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	if (!flags_mode) {
 
 		/* Round the resource struct length up to the next boundary (32 or 64) */
@@ -501,7 +502,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		switch (info->opcode) {
 		case ACPI_RSC_INITSET:
 
-			ACPI_MEMSET(aml, 0, INIT_RESOURCE_LENGTH(info));
+			memset(aml, 0, INIT_RESOURCE_LENGTH(info));
 			aml_length = INIT_RESOURCE_LENGTH(info);
 			acpi_rs_set_resource_header(INIT_RESOURCE_TYPE(info),
 						    aml_length, aml);
@@ -782,7 +783,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		info++;
 	}
 
-      exit:
+exit:
 	return_ACPI_STATUS(AE_OK);
 }
 

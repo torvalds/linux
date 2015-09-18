@@ -46,7 +46,7 @@
 
 static cycle_t au1x_counter1_read(struct clocksource *cs)
 {
-	return au_readl(SYS_RTCREAD);
+	return alchemy_rdsys(AU1000_SYS_RTCREAD);
 }
 
 static struct clocksource au1x_counter1_clocksource = {
@@ -60,19 +60,13 @@ static struct clocksource au1x_counter1_clocksource = {
 static int au1x_rtcmatch2_set_next_event(unsigned long delta,
 					 struct clock_event_device *cd)
 {
-	delta += au_readl(SYS_RTCREAD);
+	delta += alchemy_rdsys(AU1000_SYS_RTCREAD);
 	/* wait for register access */
-	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M21)
+	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_M21)
 		;
-	au_writel(delta, SYS_RTCMATCH2);
-	au_sync();
+	alchemy_wrsys(delta, AU1000_SYS_RTCMATCH2);
 
 	return 0;
-}
-
-static void au1x_rtcmatch2_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *cd)
-{
 }
 
 static irqreturn_t au1x_rtcmatch2_irq(int irq, void *dev_id)
@@ -87,7 +81,6 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 1500,
 	.set_next_event = au1x_rtcmatch2_set_next_event,
-	.set_mode	= au1x_rtcmatch2_set_mode,
 	.cpumask	= cpu_all_mask,
 };
 
@@ -112,31 +105,29 @@ static int __init alchemy_time_init(unsigned int m2int)
 	 * (the 32S bit seems to be stuck set to 1 once a single clock-
 	 * edge is detected, hence the timeouts).
 	 */
-	if (CNTR_OK != (au_readl(SYS_COUNTER_CNTRL) & CNTR_OK))
+	if (CNTR_OK != (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & CNTR_OK))
 		goto cntr_err;
 
 	/*
 	 * setup counter 1 (RTC) to tick at full speed
 	 */
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T1S) && --t)
+	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_T1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;
 
-	au_writel(0, SYS_RTCTRIM);	/* 32.768 kHz */
-	au_sync();
+	alchemy_wrsys(0, AU1000_SYS_RTCTRIM);	/* 32.768 kHz */
 
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && --t)
+	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;
-	au_writel(0, SYS_RTCWRITE);
-	au_sync();
+	alchemy_wrsys(0, AU1000_SYS_RTCWRITE);
 
 	t = 0xffffff;
-	while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S) && --t)
+	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C1S) && --t)
 		asm volatile ("nop");
 	if (!t)
 		goto cntr_err;

@@ -73,8 +73,7 @@ fields of a &v4l2-dbg-chip-info;
 and call <constant>VIDIOC_DBG_G_CHIP_INFO</constant> with a pointer to
 this structure. On success the driver stores information about the
 selected chip in the <structfield>name</structfield> and
-<structfield>flags</structfield> fields. On failure the structure
-remains unchanged.</para>
+<structfield>flags</structfield> fields.</para>
 
     <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_BRIDGE</constant>,
@@ -132,7 +131,7 @@ to the <structfield>type</structfield> field.</entry>
 	    <entry>char</entry>
 	    <entry><structfield>name[32]</structfield></entry>
 	    <entry>Match a chip by this name, interpreted according
-to the <structfield>type</structfield> field.</entry>
+to the <structfield>type</structfield> field. Currently unused.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -181,21 +180,6 @@ is set, then the driver supports reading registers from the device. If
 	    <entry>0</entry>
 	    <entry>Match the nth chip on the card, zero for the
 	    bridge chip. Does not match sub-devices.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant></entry>
-	    <entry>1</entry>
-	    <entry>Match an &i2c; chip by its driver name. Can't be used with this ioctl.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_I2C_ADDR</constant></entry>
-	    <entry>2</entry>
-	    <entry>Match a chip by its 7 bit &i2c; bus address. Can't be used with this ioctl.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_AC97</constant></entry>
-	    <entry>3</entry>
-	    <entry>Match the nth anciliary AC97 chip. Can't be used with this ioctl.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>

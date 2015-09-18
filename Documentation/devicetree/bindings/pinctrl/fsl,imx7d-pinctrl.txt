@@ -1,0 +1,27 @@
+* Freescale i.MX7 Dual IOMUX Controller
+
+Please refer to fsl,imx-pinctrl.txt in this directory for common binding part
+and usage.
+
+Required properties:
+- compatible: "fsl,imx7d-iomuxc"
+- fsl,pins: each entry consists of 6 integers and represents the mux and config
+  setting for one pin.  The first 5 integers <mux_reg conf_reg input_reg mux_val
+  input_val> are specified using a PIN_FUNC_ID macro, which can be found in
+  imx7d-pinfunc.h under device tree source folder.  The last integer CONFIG is
+  the pad setting value like pull-up on this pin.  Please refer to i.MX7 Dual
+  Reference Manual for detailed CONFIG settings.
+
+CONFIG bits definition:
+PAD_CTL_PUS_100K_DOWN           (0 << 5)
+PAD_CTL_PUS_5K_UP               (1 << 5)
+PAD_CTL_PUS_47K_UP              (2 << 5)
+PAD_CTL_PUS_100K_UP             (3 << 5)
+PAD_CTL_PUE                     (1 << 4)
+PAD_CTL_HYS                     (1 << 3)
+PAD_CTL_SRE_SLOW                (1 << 2)
+PAD_CTL_SRE_FAST                (0 << 2)
+PAD_CTL_DSE_X1                  (0 << 0)
+PAD_CTL_DSE_X2                  (1 << 0)
+PAD_CTL_DSE_X3                  (2 << 0)
+PAD_CTL_DSE_X4                  (3 << 0)

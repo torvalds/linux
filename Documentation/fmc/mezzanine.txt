@@ -1,0 +1,123 @@
+FMC Driver
+**********
+
+An FMC driver is concerned with the specific mezzanine and associated
+gateware. As such, it is expected to be independent of the carrier
+being used: it will perform I/O accesses only by means of
+carrier-provided functions.
+
+The matching between device and driver is based on the content of the
+EEPROM (as mandated by the FMC standard) or by the actual cores
+configured in the FPGA; the latter technique is used when the FPGA is
+already programmed when the device is registered to the bus core.
+
+In some special cases it is possible for a driver to directly access
+FPGA registers, by means of the `fpga_base' field of the device
+structure. This may be needed for high-bandwidth peripherals like fast
+ADC cards. If the device module registered a remote device (for example
+by means of Etherbone), the `fpga_base' pointer will be NULL.
+Therefore, drivers must be ready to deal with NULL base pointers, and
+fail gracefully.  Most driver, however, are not expected to access the
+pointer directly but run fmc_readl and fmc_writel instead, which will
+work in any case.
+
+In even more special cases, the driver may access carrier-specific
+functionality: the `carrier_name' string allows the driver to check
+which is the current carrier and make use of the `carrier_data'
+pointer.  We chose to use carrier names rather than numeric identifiers
+for greater flexibility, but also to avoid a central registry within
+the `fmc.h' file - we hope other users will exploit our framework with
+their own carriers.  An example use of carrier names is in GPIO setup
+(see *note The GPIO Abstraction::), although the name match is not
+expected to be performed by the driver.  If you depend on specific
+carriers, please check the carrier name and fail gracefully if your
+driver finds it is running in a yet-unknown-to-it environment.
+
+
+ID Table
+========
+
+Like most other Linux drivers, and FMC driver must list all the devices
+which it is able to drive.  This is usually done by means of a device
+table, but in FMC we can match hardware based either on the contents of
+their EEPROM or on the actual FPGA cores that can be enumerated.
+Therefore, we have two tables of identifiers.
+
+Matching of FRU information depends on two names, the manufacturer (or
+vendor) and the device (see *note FMC Identification::); for
+flexibility during production (i.e. before writing to the EEPROM) the
+bus supports a catch-all driver that specifies NULL strings. For this
+reason, the table is specified as pointer-and-length, not a a
+null-terminated array - the entry with NULL names can be a valid entry.
+
+Matching on FPGA cores depends on two numeric fields: the 64-bit vendor
+number and the 32-bit device number. Support for matching based on
+class is not yet implemented.  Each device is expected to be uniquely
+identified by an array of cores (it matches if all of the cores are
+instantiated), and for consistency the list is passed as
+pointer-and-length.  Several similar devices can be driven by the same
+driver, and thus the driver specifies and array of such arrays.
+
+The complete set of involved data structures is thus the following:
+
+        struct fmc_fru_id { char *manufacturer; char *product_name; };
+        struct fmc_sdb_one_id { uint64_t vendor; uint32_t device; };
+        struct fmc_sdb_id { struct fmc_sdb_one_id *cores; int cores_nr; };
+
+        struct fmc_device_id {
+                struct fmc_fru_id *fru_id; int fru_id_nr;
+                struct fmc_sdb_id *sdb_id; int sdb_id_nr;
+        };
+
+A better reference, with full explanation, is the <linux/fmc.h> header.
+
+
+Module Parameters
+=================
+
+Most of the FMC drivers need the same set of kernel parameters. This
+package includes support to implement common parameters by means of
+fields in the `fmc_driver' structure and simple macro definitions.
+
+The parameters are carrier-specific, in that they rely on the busid
+concept, that varies among carriers. For the SPEC, the identifier is a
+PCI bus and devfn number, 16 bits wide in total; drivers for other
+carriers will most likely offer something similar but not identical,
+and some code duplication is unavoidable.
+
+This is the list of parameters that are common to several modules to
+see how they are actually used, please look at spec-trivial.c.
+
+`busid='
+     This is an array of integers, listing carrier-specific
+     identification numbers. For PIC, for example, `0x0400' represents
+     bus 4, slot 0.  If any such ID is specified, the driver will only
+     accept to drive cards that appear in the list (even if the FMC ID
+     matches). This is accomplished by the validate carrier method.
+
+`gateware='
+     The argument is an array of strings. If no busid= is specified,
+     the first string of gateware= is used for all cards; otherwise the
+     identifiers and gateware names are paired one by one, in the order
+     specified.
+
+`show_sdb='
+     For modules supporting it, this parameter asks to show the SDB
+     internal structure by means of kernel messages. It is disabled by
+     default because those lines tend to hide more important messages,
+     if you look at the system console while loading the drivers.
+     Note: the parameter is being obsoleted, because fmc.ko itself now
+     supports dump_sdb= that applies to every client driver.
+
+
+For example, if you are using the trivial driver to load two different
+gateware files to two different cards, you can use the following
+parameters to load different binaries to the cards, after looking up
+the PCI identifiers. This has been tested with a SPEC carrier.
+
+        insmod fmc-trivial.ko \
+                              busid=0x0200,0x0400 \
+                              gateware=fmc/fine-delay.bin,fmc/simple-dio.bin
+
+Please note that not all sub-modules support all of those parameters.
+You can use modinfo to check what is supported by each module.

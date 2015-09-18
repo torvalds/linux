@@ -21,6 +21,8 @@
   *
   */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -57,7 +59,7 @@ static int __init omap4430_phy_power_down(void)
 	}
 
 	/* Power down the phy */
-	__raw_writel(PHY_PD, ctrl_base + CONTROL_DEV_CONF);
+	writel_relaxed(PHY_PD, ctrl_base + CONTROL_DEV_CONF);
 
 	iounmap(ctrl_base);
 
@@ -97,13 +99,13 @@ void am35x_musb_phy_power(u8 on)
 
 		omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
 
-		pr_info(KERN_INFO "Waiting for PHY clock good...\n");
+		pr_info("Waiting for PHY clock good...\n");
 		while (!(omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2)
 				& CONF2_PHYCLKGD)) {
 			cpu_relax();
 
 			if (time_after(jiffies, timeout)) {
-				pr_err(KERN_ERR "musb PHY clock good timed out\n");
+				pr_err("musb PHY clock good timed out\n");
 				break;
 			}
 		}
@@ -145,43 +147,8 @@ void am35x_set_mode(u8 musb_mode)
 		devconf2 |= CONF2_NO_OVERRIDE;
 		break;
 	default:
-		pr_info(KERN_INFO "Unsupported mode %u\n", musb_mode);
+		pr_info("Unsupported mode %u\n", musb_mode);
 	}
 
 	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-}
-
-void ti81xx_musb_phy_power(u8 on)
-{
-	void __iomem *scm_base = NULL;
-	u32 usbphycfg;
-
-	scm_base = ioremap(TI81XX_SCM_BASE, SZ_2K);
-	if (!scm_base) {
-		pr_err("system control module ioremap failed\n");
-		return;
-	}
-
-	usbphycfg = __raw_readl(scm_base + USBCTRL0);
-
-	if (on) {
-		if (cpu_is_ti816x()) {
-			usbphycfg |= TI816X_USBPHY0_NORMAL_MODE;
-			usbphycfg &= ~TI816X_USBPHY_REFCLK_OSC;
-		} else if (cpu_is_ti814x()) {
-			usbphycfg &= ~(USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN
-				| USBPHY_DPINPUT | USBPHY_DMINPUT);
-			usbphycfg |= (USBPHY_OTGVDET_EN | USBPHY_OTGSESSEND_EN
-				| USBPHY_DPOPBUFCTL | USBPHY_DMOPBUFCTL);
-		}
-	} else {
-		if (cpu_is_ti816x())
-			usbphycfg &= ~TI816X_USBPHY0_NORMAL_MODE;
-		else if (cpu_is_ti814x())
-			usbphycfg |= USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN;
-
-	}
-	__raw_writel(usbphycfg, scm_base + USBCTRL0);
-
-	iounmap(scm_base);
 }

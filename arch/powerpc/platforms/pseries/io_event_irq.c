@@ -82,9 +82,9 @@ static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
 	 * RTAS_TYPE_IO only exists in extended event log version 6 or later.
 	 * No need to check event log version.
 	 */
-	if (unlikely(elog->type != RTAS_TYPE_IO)) {
-		printk_once(KERN_WARNING "io_event_irq: Unexpected event type %d",
-			    elog->type);
+	if (unlikely(rtas_error_type(elog) != RTAS_TYPE_IO)) {
+		printk_once(KERN_WARNING"io_event_irq: Unexpected event type %d",
+			    rtas_error_type(elog));
 		return NULL;
 	}
 
@@ -115,7 +115,7 @@ static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
  *   by scope or event type alone. For example, Torrent ISR route change
  *   event is reported with scope 0x00 (Not Applicatable) rather than
  *   0x3B (Torrent-hub). It is better to let the clients to identify
- *   who owns the the event.
+ *   who owns the event.
  */
 
 static irqreturn_t ioei_interrupt(int irq, void *dev_id)

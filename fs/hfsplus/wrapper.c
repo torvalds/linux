@@ -24,15 +24,8 @@ struct hfsplus_wd {
 	u16 embed_count;
 };
 
-static void hfsplus_end_io_sync(struct bio *bio, int err)
-{
-	if (err)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	complete(bio->bi_private);
-}
-
-/*
- * hfsplus_submit_bio - Perfrom block I/O
+/**
+ * hfsplus_submit_bio - Perform block I/O
  * @sb: super block of volume for I/O
  * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
  * @buf: buffer for I/O
@@ -53,7 +46,6 @@ static void hfsplus_end_io_sync(struct bio *bio, int err)
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		void *buf, void **data, int rw)
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
 	struct bio *bio;
 	int ret = 0;
 	u64 io_size;
@@ -71,10 +63,8 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
 
 	bio = bio_alloc(GFP_NOIO, 1);
-	bio->bi_sector = sector;
+	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = sb->s_bdev;
-	bio->bi_end_io = hfsplus_end_io_sync;
-	bio->bi_private = &wait;
 
 	if (!(rw & WRITE) && data)
 		*data = (u8 *)buf + offset;
@@ -93,12 +83,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		buf = (u8 *)buf + len;
 	}
 
-	submit_bio(rw, bio);
-	wait_for_completion(&wait);
-
-	if (!bio_flagged(bio, BIO_UPTODATE))
-		ret = -EIO;
-
+	ret = submit_bio_wait(rw, bio);
 out:
 	bio_put(bio);
 	return ret < 0 ? ret : 0;
@@ -246,10 +231,8 @@ reread:
 	if (blocksize < HFSPLUS_SECTOR_SIZE || ((blocksize - 1) & blocksize))
 		goto out_free_backup_vhdr;
 	sbi->alloc_blksz = blocksize;
-	sbi->alloc_blksz_shift = 0;
-	while ((blocksize >>= 1) != 0)
-		sbi->alloc_blksz_shift++;
-	blocksize = min(sbi->alloc_blksz, (u32)PAGE_SIZE);
+	sbi->alloc_blksz_shift = ilog2(blocksize);
+	blocksize = min_t(u32, sbi->alloc_blksz, PAGE_SIZE);
 
 	/*
 	 * Align block size to block offset.

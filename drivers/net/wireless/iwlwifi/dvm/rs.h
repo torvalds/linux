@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -315,7 +315,7 @@ struct iwl_scale_tbl_info {
 	u8 is_dup;	/* 1 = duplicated data streams */
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
-	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
+	const u16 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
 	u32 current_rate;  /* rate_n_flags, uCode API format */
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
@@ -389,13 +389,6 @@ struct iwl_lq_sta {
 	u8 last_bt_traffic;
 };
 
-static inline u8 num_of_ant(u8 mask)
-{
-	return  !!((mask) & ANT_A) +
-		!!((mask) & ANT_B) +
-		!!((mask) & ANT_C);
-}
-
 static inline u8 first_antenna(u8 mask)
 {
 	if (mask & ANT_A)
@@ -407,8 +400,8 @@ static inline u8 first_antenna(u8 mask)
 
 
 /* Initialize station's rate scaling information after adding station */
-extern void iwl_rs_rate_init(struct iwl_priv *priv,
-			     struct ieee80211_sta *sta, u8 sta_id);
+void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta,
+		      u8 sta_id);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
@@ -420,7 +413,7 @@ extern void iwl_rs_rate_init(struct iwl_priv *priv,
  * ieee80211_register_hw
  *
  */
-extern int iwlagn_rate_control_register(void);
+int iwlagn_rate_control_register(void);
 
 /**
  * iwl_rate_control_unregister - Unregister the rate control callbacks
@@ -428,6 +421,6 @@ extern int iwlagn_rate_control_register(void);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwlagn_rate_control_unregister(void);
+void iwlagn_rate_control_unregister(void);
 
 #endif /* __iwl_agn__rs__ */

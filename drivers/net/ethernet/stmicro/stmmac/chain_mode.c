@@ -28,7 +28,7 @@
 
 #include "stmmac.h"
 
-static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
+static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)p;
 	unsigned int txsize = priv->dma_tx_size;
@@ -47,10 +47,13 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	desc->des2 = dma_map_single(priv->device, skb->data,
 				    bmax, DMA_TO_DEVICE);
-	priv->tx_skbuff_dma[entry] = desc->des2;
+	if (dma_mapping_error(priv->device, desc->des2))
+		return -1;
+	priv->tx_skbuff_dma[entry].buf = desc->des2;
 	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
 
 	while (len != 0) {
+		priv->tx_skbuff[entry] = NULL;
 		entry = (++priv->cur_tx) % txsize;
 		desc = priv->dma_tx + entry;
 
@@ -58,22 +61,24 @@ static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i),
 						    bmax, DMA_TO_DEVICE);
-			priv->tx_skbuff_dma[entry] = desc->des2;
+			if (dma_mapping_error(priv->device, desc->des2))
+				return -1;
+			priv->tx_skbuff_dma[entry].buf = desc->des2;
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
-			priv->tx_skbuff[entry] = NULL;
 			len -= bmax;
 			i++;
 		} else {
 			desc->des2 = dma_map_single(priv->device,
 						    (skb->data + bmax * i), len,
 						    DMA_TO_DEVICE);
-			priv->tx_skbuff_dma[entry] = desc->des2;
+			if (dma_mapping_error(priv->device, desc->des2))
+				return -1;
+			priv->tx_skbuff_dma[entry].buf = desc->des2;
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
-			priv->tx_skbuff[entry] = NULL;
 			len = 0;
 		}
 	}
@@ -152,7 +157,7 @@ static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 					  sizeof(struct dma_desc)));
 }
 
-const struct stmmac_chain_mode_ops chain_mode_ops = {
+const struct stmmac_mode_ops chain_mode_ops = {
 	.init = stmmac_init_dma_chain,
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,

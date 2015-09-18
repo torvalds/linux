@@ -388,7 +388,7 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 
 	if ((rc == 0) && xlen) {
 		if (xlen != nbperpage) {
-			jfs_error(ip->i_sb, "extHint: corrupt xtree");
+			jfs_error(ip->i_sb, "corrupt xtree\n");
 			rc = -EIO;
 		}
 		XADaddress(xp, xaddr);

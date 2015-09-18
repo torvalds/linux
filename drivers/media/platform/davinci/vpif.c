@@ -17,31 +17,28 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/err.h>
 #include <linux/init.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/kernel.h>
-#include <linux/io.h>
-#include <linux/err.h>
 #include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
 #include <linux/v4l2-dv-timings.h>
-
-#include <mach/hardware.h>
 
 #include "vpif.h"
 
 MODULE_DESCRIPTION("TI DaVinci Video Port Interface driver");
 MODULE_LICENSE("GPL");
 
-#define VPIF_CH0_MAX_MODES	(22)
-#define VPIF_CH1_MAX_MODES	(02)
-#define VPIF_CH2_MAX_MODES	(15)
-#define VPIF_CH3_MAX_MODES	(02)
+#define VPIF_CH0_MAX_MODES	22
+#define VPIF_CH1_MAX_MODES	2
+#define VPIF_CH2_MAX_MODES	15
+#define VPIF_CH3_MAX_MODES	2
 
-static resource_size_t	res_len;
-static struct resource	*res;
 spinlock_t vpif_lock;
+EXPORT_SYMBOL_GPL(vpif_lock);
 
 void __iomem *vpif_base;
 EXPORT_SYMBOL_GPL(vpif_base);
@@ -423,23 +420,12 @@ EXPORT_SYMBOL(vpif_channel_getfid);
 
 static int vpif_probe(struct platform_device *pdev)
 {
-	int status = 0;
+	static struct resource	*res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
-	res_len = resource_size(res);
-
-	res = request_mem_region(res->start, res_len, res->name);
-	if (!res)
-		return -EBUSY;
-
-	vpif_base = ioremap(res->start, res_len);
-	if (!vpif_base) {
-		status = -EBUSY;
-		goto fail;
-	}
+	vpif_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(vpif_base))
+		return PTR_ERR(vpif_base);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get(&pdev->dev);
@@ -447,17 +433,11 @@ static int vpif_probe(struct platform_device *pdev)
 	spin_lock_init(&vpif_lock);
 	dev_info(&pdev->dev, "vpif probe success\n");
 	return 0;
-
-fail:
-	release_mem_region(res->start, res_len);
-	return status;
 }
 
 static int vpif_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	iounmap(vpif_base);
-	release_mem_region(res->start, res_len);
 	return 0;
 }
 
@@ -487,7 +467,6 @@ static const struct dev_pm_ops vpif_pm = {
 static struct platform_driver vpif_driver = {
 	.driver = {
 		.name	= "vpif",
-		.owner = THIS_MODULE,
 		.pm	= vpif_pm_ops,
 	},
 	.remove = vpif_remove,

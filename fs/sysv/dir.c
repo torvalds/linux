@@ -18,12 +18,12 @@
 #include <linux/swap.h>
 #include "sysv.h"
 
-static int sysv_readdir(struct file *, void *, filldir_t);
+static int sysv_readdir(struct file *, struct dir_context *);
 
 const struct file_operations sysv_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= sysv_readdir,
+	.iterate	= sysv_readdir,
 	.fsync		= generic_file_fsync,
 };
 
@@ -31,11 +31,6 @@ static inline void dir_put_page(struct page *page)
 {
 	kunmap(page);
 	page_cache_release(page);
-}
-
-static inline unsigned long dir_pages(struct inode *inode)
-{
-	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
 }
 
 static int dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
@@ -65,18 +60,21 @@ static struct page * dir_get_page(struct inode *dir, unsigned long n)
 	return page;
 }
 
-static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
+static int sysv_readdir(struct file *file, struct dir_context *ctx)
 {
-	unsigned long pos = filp->f_pos;
-	struct inode *inode = file_inode(filp);
+	unsigned long pos = ctx->pos;
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
-	unsigned offset = pos & ~PAGE_CACHE_MASK;
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
 	unsigned long npages = dir_pages(inode);
+	unsigned offset;
+	unsigned long n;
 
-	pos = (pos + SYSV_DIRSIZE-1) & ~(SYSV_DIRSIZE-1);
+	ctx->pos = pos = (pos + SYSV_DIRSIZE-1) & ~(SYSV_DIRSIZE-1);
 	if (pos >= inode->i_size)
-		goto done;
+		return 0;
+
+	offset = pos & ~PAGE_CACHE_MASK;
+	n = pos >> PAGE_CACHE_SHIFT;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *kaddr, *limit;
@@ -88,29 +86,21 @@ static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		kaddr = (char *)page_address(page);
 		de = (struct sysv_dir_entry *)(kaddr+offset);
 		limit = kaddr + PAGE_CACHE_SIZE - SYSV_DIRSIZE;
-		for ( ;(char*)de <= limit; de++) {
+		for ( ;(char*)de <= limit; de++, ctx->pos += sizeof(*de)) {
 			char *name = de->name;
-			int over;
 
 			if (!de->inode)
 				continue;
 
-			offset = (char *)de - kaddr;
-
-			over = filldir(dirent, name, strnlen(name,SYSV_NAMELEN),
-					((loff_t)n<<PAGE_CACHE_SHIFT) | offset,
+			if (!dir_emit(ctx, name, strnlen(name,SYSV_NAMELEN),
 					fs16_to_cpu(SYSV_SB(sb), de->inode),
-					DT_UNKNOWN);
-			if (over) {
+					DT_UNKNOWN)) {
 				dir_put_page(page);
-				goto done;
+				return 0;
 			}
 		}
 		dir_put_page(page);
 	}
-
-done:
-	filp->f_pos = ((loff_t)n << PAGE_CACHE_SHIFT) | offset;
 	return 0;
 }
 
@@ -137,7 +127,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
-	struct inode * dir = dentry->d_parent->d_inode;
+	struct inode * dir = d_inode(dentry->d_parent);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
 	struct page *page = NULL;
@@ -181,7 +171,7 @@ found:
 
 int sysv_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct page *page = NULL;

@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/sh_dma.h>
 
 /*
  * MMCIF : CE_CLK_CTRL [19:16]
@@ -33,12 +32,12 @@
  */
 
 struct sh_mmcif_plat_data {
-	void (*set_pwr)(struct platform_device *pdev, int state);
-	void (*down_pwr)(struct platform_device *pdev);
 	int (*get_cd)(struct platform_device *pdef);
 	unsigned int		slave_id_tx;	/* embedded slave_id_[tr]x */
 	unsigned int		slave_id_rx;
 	bool			use_cd_gpio : 1;
+	bool			ccs_unsupported : 1;
+	bool			clk_ctrl2_present : 1;
 	unsigned int		cd_gpio;
 	u8			sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
 	unsigned long		caps;
@@ -62,6 +61,7 @@ struct sh_mmcif_plat_data {
 #define MMCIF_CE_INT_MASK	0x00000044
 #define MMCIF_CE_HOST_STS1	0x00000048
 #define MMCIF_CE_HOST_STS2	0x0000004C
+#define MMCIF_CE_CLK_CTRL2	0x00000070
 #define MMCIF_CE_VERSION	0x0000007C
 
 /* CE_BUF_ACC */

@@ -1,0 +1,25 @@
+* Rockchip specific extensions to the Synopsys Designware Mobile
+  Storage Host Controller
+
+The Synopsys designware mobile storage host controller is used to interface
+a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
+differences between the core Synopsys dw mshc controller properties described
+by synopsys-dw-mshc.txt and the properties used by the Rockchip specific
+extensions to the Synopsys Designware Mobile Storage Host Controller.
+
+Required Properties:
+
+* compatible: should be
+	- "rockchip,rk2928-dw-mshc": for Rockchip RK2928 and following,
+							before RK3288
+	- "rockchip,rk3288-dw-mshc": for Rockchip RK3288
+
+Example:
+
+	rkdwmmc0@12200000 {
+		compatible = "rockchip,rk3288-dw-mshc";
+		reg = <0x12200000 0x1000>;
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

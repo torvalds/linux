@@ -1,0 +1,60 @@
+Freescale Asynchronous Sample Rate Converter (ASRC) Controller
+
+The Asynchronous Sample Rate Converter (ASRC) converts the sampling rate of a
+signal associated with an input clock into a signal associated with a different
+output clock. The driver currently works as a Front End of DPCM with other Back
+Ends Audio controller such as ESAI, SSI and SAI. It has three pairs to support
+three substreams within totally 10 channels.
+
+Required properties:
+
+  - compatible		: Contains "fsl,imx35-asrc" or "fsl,imx53-asrc".
+
+  - reg			: Offset and length of the register set for the device.
+
+  - interrupts		: Contains the spdif interrupt.
+
+  - dmas		: Generic dma devicetree binding as described in
+			  Documentation/devicetree/bindings/dma/dma.txt.
+
+  - dma-names		: Contains "rxa", "rxb", "rxc", "txa", "txb" and "txc".
+
+  - clocks		: Contains an entry for each entry in clock-names.
+
+  - clock-names		: Contains the following entries
+	"mem"		  Peripheral access clock to access registers.
+	"ipg"		  Peripheral clock to driver module.
+	"asrck_<0-f>"	  Clock sources for input and output clock.
+
+   - big-endian		: If this property is absent, the little endian mode
+			  will be in use as default. Otherwise, the big endian
+			  mode will be in use for all the device registers.
+
+   - fsl,asrc-rate	: Defines a mutual sample rate used by DPCM Back Ends.
+
+   - fsl,asrc-width	: Defines a mutual sample width used by DPCM Back Ends.
+
+Example:
+
+asrc: asrc@02034000 {
+	compatible = "fsl,imx53-asrc";
+	reg = <0x02034000 0x4000>;
+	interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clks 107>, <&clks 107>, <&clks 0>,
+	       <&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+	       <&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+	       <&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+	       <&clks 107>, <&clks 0>, <&clks 0>;
+	clock-names = "mem", "ipg", "asrck0",
+		"asrck_1", "asrck_2", "asrck_3", "asrck_4",
+		"asrck_5", "asrck_6", "asrck_7", "asrck_8",
+		"asrck_9", "asrck_a", "asrck_b", "asrck_c",
+		"asrck_d", "asrck_e", "asrck_f";
+	dmas = <&sdma 17 23 1>, <&sdma 18 23 1>, <&sdma 19 23 1>,
+	     <&sdma 20 23 1>, <&sdma 21 23 1>, <&sdma 22 23 1>;
+	dma-names = "rxa", "rxb", "rxc",
+		"txa", "txb", "txc";
+	fsl,asrc-rate  = <48000>;
+	fsl,asrc-width = <16>;
+	status = "okay";
+};

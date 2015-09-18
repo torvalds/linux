@@ -20,6 +20,7 @@
 #include <linux/i2c/tps65010.h>
 
 #include <plat/cpu-freq.h>
+#include <mach/gpio-samsung.h>
 
 #define OSIRIS_GPIO_DVS	S3C2410_GPB(5)
 
@@ -170,7 +171,6 @@ static struct platform_driver osiris_dvs_driver = {
 	.remove		= osiris_dvs_remove,
 	.driver		= {
 		.name	= "osiris-dvs",
-		.owner	= THIS_MODULE,
 		.pm	= &osiris_dvs_pm,
 	},
 };

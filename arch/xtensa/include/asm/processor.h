@@ -1,11 +1,10 @@
 /*
- * include/asm-xtensa/processor.h
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
  * Copyright (C) 2001 - 2008 Tensilica Inc.
+ * Copyright (C) 2015 Cadence Design Systems Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -45,6 +44,14 @@
 #define STACK_TOP_MAX	STACK_TOP
 
 /*
+ * General exception cause assigned to fake NMI. Fake NMI needs to be handled
+ * differently from other interrupts, but it uses common kernel entry/exit
+ * code.
+ */
+
+#define EXCCAUSE_MAPPED_NMI	62
+
+/*
  * General exception cause assigned to debug exceptions. Debug exceptions go
  * to their own vector, rather than the general exception vectors (user,
  * kernel, double); and their specific causes are reported via DEBUGCAUSE
@@ -65,10 +72,30 @@
 
 #define VALID_DOUBLE_EXCEPTION_ADDRESS	64
 
+#define XTENSA_INT_LEVEL(intno) _XTENSA_INT_LEVEL(intno)
+#define _XTENSA_INT_LEVEL(intno) XCHAL_INT##intno##_LEVEL
+
+#define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
+#define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)
+
+#define IS_POW2(v) (((v) & ((v) - 1)) == 0)
+
+#define PROFILING_INTLEVEL XTENSA_INT_LEVEL(XCHAL_PROFILING_INTERRUPT)
+
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
+#if defined(CONFIG_XTENSA_VARIANT_HAVE_PERF_EVENTS) && \
+	defined(XCHAL_PROFILING_INTERRUPT) && \
+	PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
+	XCHAL_EXCM_LEVEL > 1 && \
+	IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL))
+#define LOCKLEVEL (XCHAL_EXCM_LEVEL - 1)
+#else
 #define LOCKLEVEL XCHAL_EXCM_LEVEL
+#endif
+#define TOPLEVEL XCHAL_EXCM_LEVEL
+#define XTENSA_FAKE_NMI (LOCKLEVEL < TOPLEVEL)
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers
@@ -182,6 +209,7 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
 
 #define cpu_relax()  barrier()
+#define cpu_relax_lowlatency() cpu_relax()
 
 /* Special register access. */
 
@@ -190,6 +218,26 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define set_sr(x,sr) ({unsigned int v=(unsigned int)x; WSR(v,sr);})
 #define get_sr(sr) ({unsigned int v; RSR(v,sr); v; })
+
+#ifndef XCHAL_HAVE_EXTERN_REGS
+#define XCHAL_HAVE_EXTERN_REGS 0
+#endif
+
+#if XCHAL_HAVE_EXTERN_REGS
+
+static inline void set_er(unsigned long value, unsigned long addr)
+{
+	asm volatile ("wer %0, %1" : : "a" (value), "a" (addr) : "memory");
+}
+
+static inline unsigned long get_er(unsigned long addr)
+{
+	register unsigned long value;
+	asm volatile ("rer %0, %1" : "=a" (value) : "a" (addr) : "memory");
+	return value;
+}
+
+#endif /* XCHAL_HAVE_EXTERN_REGS */
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_PROCESSOR_H */

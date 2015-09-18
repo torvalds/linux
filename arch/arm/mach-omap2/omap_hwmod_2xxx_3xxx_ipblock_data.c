@@ -17,7 +17,6 @@
 #include "hdq1w.h"
 
 #include "omap_hwmod_common_data.h"
-#include "dma.h"
 
 /* UART */
 
@@ -38,46 +37,6 @@ struct omap_hwmod_class omap2_uart_class = {
 };
 
 /*
- * 'dss' class
- * display sub-system
- */
-
-static struct omap_hwmod_class_sysconfig omap2_dss_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
-			   SYSS_HAS_RESET_STATUS),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-struct omap_hwmod_class omap2_dss_hwmod_class = {
-	.name	= "dss",
-	.sysc	= &omap2_dss_sysc,
-	.reset	= omap_dss_reset,
-};
-
-/*
- * 'rfbi' class
- * remote frame buffer interface
- */
-
-static struct omap_hwmod_class_sysconfig omap2_rfbi_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-struct omap_hwmod_class omap2_rfbi_hwmod_class = {
-	.name	= "rfbi",
-	.sysc	= &omap2_rfbi_sysc,
-};
-
-/*
  * 'venc' class
  * video encoder
  */
@@ -89,32 +48,32 @@ struct omap_hwmod_class omap2_venc_hwmod_class = {
 
 /* Common DMA request line data */
 struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[] = {
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART1_RX, },
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART1_TX, },
+	{ .name = "rx", .dma_req = 50, },
+	{ .name = "tx", .dma_req = 49, },
 	{ .dma_req = -1 }
 };
 
 struct omap_hwmod_dma_info omap2_uart2_sdma_reqs[] = {
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART2_RX, },
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART2_TX, },
+	{ .name = "rx", .dma_req = 52, },
+	{ .name = "tx", .dma_req = 51, },
 	{ .dma_req = -1 }
 };
 
 struct omap_hwmod_dma_info omap2_uart3_sdma_reqs[] = {
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART3_RX, },
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART3_TX, },
+	{ .name = "rx", .dma_req = 54, },
+	{ .name = "tx", .dma_req = 53, },
 	{ .dma_req = -1 }
 };
 
 struct omap_hwmod_dma_info omap2_i2c1_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C1_TX },
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C1_RX },
+	{ .name = "tx", .dma_req = 27 },
+	{ .name = "rx", .dma_req = 28 },
 	{ .dma_req = -1 }
 };
 
 struct omap_hwmod_dma_info omap2_i2c2_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C2_TX },
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C2_RX },
+	{ .name = "tx", .dma_req = 29 },
+	{ .name = "rx", .dma_req = 30 },
 	{ .dma_req = -1 }
 };
 

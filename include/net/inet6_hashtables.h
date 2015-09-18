@@ -28,32 +28,15 @@
 
 struct inet_hashinfo;
 
-static inline unsigned int inet6_ehashfn(struct net *net,
-				const struct in6_addr *laddr, const u16 lport,
-				const struct in6_addr *faddr, const __be16 fport)
+static inline unsigned int __inet6_ehashfn(const u32 lhash,
+				    const u16 lport,
+				    const u32 fhash,
+				    const __be16 fport,
+				    const u32 initval)
 {
-	u32 ports = (((u32)lport) << 16) | (__force u32)fport;
-
-	return jhash_3words((__force u32)laddr->s6_addr32[3],
-			    ipv6_addr_jhash(faddr),
-			    ports,
-			    inet_ehash_secret + net_hash_mix(net));
+	const u32 ports = (((u32)lport) << 16) | (__force u32)fport;
+	return jhash_3words(lhash, fhash, ports, initval);
 }
-
-static inline int inet6_sk_ehashfn(const struct sock *sk)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const struct ipv6_pinfo *np = inet6_sk(sk);
-	const struct in6_addr *laddr = &np->rcv_saddr;
-	const struct in6_addr *faddr = &np->daddr;
-	const __u16 lport = inet->inet_num;
-	const __be16 fport = inet->inet_dport;
-	struct net *net = sock_net(sk);
-
-	return inet6_ehashfn(net, laddr, lport, faddr, fport);
-}
-
-extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
@@ -61,21 +44,19 @@ extern int __inet6_hash(struct sock *sk, struct inet_timewait_sock *twp);
  *
  * The sockhash lock must be held as a reader here.
  */
-extern struct sock *__inet6_lookup_established(struct net *net,
-					   struct inet_hashinfo *hashinfo,
-					   const struct in6_addr *saddr,
-					   const __be16 sport,
-					   const struct in6_addr *daddr,
-					   const u16 hnum,
-					   const int dif);
+struct sock *__inet6_lookup_established(struct net *net,
+					struct inet_hashinfo *hashinfo,
+					const struct in6_addr *saddr,
+					const __be16 sport,
+					const struct in6_addr *daddr,
+					const u16 hnum, const int dif);
 
-extern struct sock *inet6_lookup_listener(struct net *net,
-					  struct inet_hashinfo *hashinfo,
-					  const struct in6_addr *saddr,
-					  const __be16 sport,
-					  const struct in6_addr *daddr,
-					  const unsigned short hnum,
-					  const int dif);
+struct sock *inet6_lookup_listener(struct net *net,
+				   struct inet_hashinfo *hashinfo,
+				   const struct in6_addr *saddr,
+				   const __be16 sport,
+				   const struct in6_addr *daddr,
+				   const unsigned short hnum, const int dif);
 
 static inline struct sock *__inet6_lookup(struct net *net,
 					  struct inet_hashinfo *hashinfo,
@@ -97,7 +78,8 @@ static inline struct sock *__inet6_lookup(struct net *net,
 static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 					      struct sk_buff *skb,
 					      const __be16 sport,
-					      const __be16 dport)
+					      const __be16 dport,
+					      int iif)
 {
 	struct sock *sk = skb_steal_sock(skb);
 
@@ -107,12 +89,22 @@ static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 	return __inet6_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
 			      &ipv6_hdr(skb)->saddr, sport,
 			      &ipv6_hdr(skb)->daddr, ntohs(dport),
-			      inet6_iif(skb));
+			      iif);
 }
 
-extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
-				 const struct in6_addr *saddr, const __be16 sport,
-				 const struct in6_addr *daddr, const __be16 dport,
-				 const int dif);
+struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
+			  const struct in6_addr *saddr, const __be16 sport,
+			  const struct in6_addr *daddr, const __be16 dport,
+			  const int dif);
 #endif /* IS_ENABLED(CONFIG_IPV6) */
+
+#define INET6_MATCH(__sk, __net, __saddr, __daddr, __ports, __dif)	\
+	(((__sk)->sk_portpair == (__ports))			&&	\
+	 ((__sk)->sk_family == AF_INET6)			&&	\
+	 ipv6_addr_equal(&(__sk)->sk_v6_daddr, (__saddr))		&&	\
+	 ipv6_addr_equal(&(__sk)->sk_v6_rcv_saddr, (__daddr))	&&	\
+	 (!(__sk)->sk_bound_dev_if	||				\
+	   ((__sk)->sk_bound_dev_if == (__dif))) 		&&	\
+	 net_eq(sock_net(__sk), (__net)))
+
 #endif /* _INET6_HASHTABLES_H */

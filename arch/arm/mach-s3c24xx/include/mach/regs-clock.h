@@ -42,24 +42,6 @@
 #define S3C2410_CLKCON_IIS	     (1<<17)
 #define S3C2410_CLKCON_SPI	     (1<<18)
 
-/* DCLKCON register addresses in gpio.h */
-
-#define S3C2410_DCLKCON_DCLK0EN	     (1<<0)
-#define S3C2410_DCLKCON_DCLK0_PCLK   (0<<1)
-#define S3C2410_DCLKCON_DCLK0_UCLK   (1<<1)
-#define S3C2410_DCLKCON_DCLK0_DIV(x) (((x) - 1 )<<4)
-#define S3C2410_DCLKCON_DCLK0_CMP(x) (((x) - 1 )<<8)
-#define S3C2410_DCLKCON_DCLK0_DIV_MASK ((0xf)<<4)
-#define S3C2410_DCLKCON_DCLK0_CMP_MASK ((0xf)<<8)
-
-#define S3C2410_DCLKCON_DCLK1EN	     (1<<16)
-#define S3C2410_DCLKCON_DCLK1_PCLK   (0<<17)
-#define S3C2410_DCLKCON_DCLK1_UCLK   (1<<17)
-#define S3C2410_DCLKCON_DCLK1_DIV(x) (((x) - 1) <<20)
-#define S3C2410_DCLKCON_DCLK1_CMP(x) (((x) - 1) <<24)
-#define S3C2410_DCLKCON_DCLK1_DIV_MASK ((0xf) <<20)
-#define S3C2410_DCLKCON_DCLK1_CMP_MASK ((0xf) <<24)
-
 #define S3C2410_CLKDIVN_PDIVN	     (1<<0)
 #define S3C2410_CLKDIVN_HDIVN	     (1<<1)
 

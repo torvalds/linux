@@ -1,0 +1,56 @@
+Module Parameters in fmc.ko
+***************************
+
+The core driver receives two module parameters, meant to help debugging
+client modules. Both parameters can be modified by writing to
+/sys/module/fmc/parameters/, because they are used when client drivers
+are devices are registered, not when fmc.ko is loaded.
+
+`dump_eeprom='
+     If not zero, the parameter asks the bus controller to dump the
+     EEPROM of any device that is registered, using printk.
+
+`dump_sdb='
+     If not zero, the parameter prints the SDB tree of every FPGA it is
+     loaded by fmc_reprogram(). If greater than one, it asks to dump
+     the binary content of SDB records.  This currently only dumps the
+     top-level SDB array, though.
+
+
+EEPROM dumping avoids repeating lines, since most of the contents is
+usually empty and all bits are one or zero. This is an example of the
+output:
+
+        [ 6625.850480] spec 0000:02:00.0: FPGA programming successful
+        [ 6626.139949] spec 0000:02:00.0: Manufacturer: CERN
+        [ 6626.144666] spec 0000:02:00.0: Product name: FmcDelay1ns4cha
+        [ 6626.150370] FMC: mezzanine 0: 0000:02:00.0 on SPEC
+        [ 6626.155179] FMC: dumping eeprom 0x2000 (8192) bytes
+        [ 6626.160087] 0000: 01 00 00 01  00 0b 00 f3  01 0a 00 a5  85 87 c4 43
+        [ 6626.167069] 0010: 45 52 4e cf  46 6d 63 44  65 6c 61 79  31 6e 73 34
+        [ 6626.174019] 0020: 63 68 61 c7  70 72 6f 74  6f 2d 30 cc  45 44 41 2d
+        [ 6626.180975] 0030: 30 32 32 36  37 2d 56 33  da 32 30 31  32 2d 31 31
+        [...]
+        [ 6626.371366] 0200: 66 64 65 6c  61 79 0a 00  00 00 00 00  00 00 00 00
+        [ 6626.378359] 0210: 00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00
+        [ 6626.385361] [...]
+        [ 6626.387308] 1800: 70 6c 61 63  65 68 6f 6c  64 65 72 ff  ff ff ff ff
+        [ 6626.394259] 1810: ff ff ff ff  ff ff ff ff  ff ff ff ff  ff ff ff ff
+        [ 6626.401250] [...]
+
+The dump of SDB looks like the following; the example shows the simple
+golden gateware for the SPEC card, removing the leading timestamps to
+fit the page:
+
+        spec 0000:02:00.0: SDB: 00000651:e6a542c9 WB4-Crossbar-GSI
+        spec 0000:02:00.0: SDB: 0000ce42:ff07fc47 WR-Periph-Syscon (00000000-000000ff)
+        FMC: mezzanine 0: 0000:02:00.0 on SPEC
+        FMC: poor dump of sdb first level:
+        0000: 53 44 42 2d  00 02 01 00  00 00 00 00  00 00 00 00
+        0010: 00 00 00 00  00 00 01 ff  00 00 00 00  00 00 06 51
+        0020: e6 a5 42 c9  00 00 00 02  20 12 05 11  57 42 34 2d
+        0030: 43 72 6f 73  73 62 61 72  2d 47 53 49  20 20 20 00
+        0040: 00 00 01 01  00 00 00 07  00 00 00 00  00 00 00 00
+        0050: 00 00 00 00  00 00 00 ff  00 00 00 00  00 00 ce 42
+        0060: ff 07 fc 47  00 00 00 01  20 12 03 05  57 52 2d 50
+        0070: 65 72 69 70  68 2d 53 79  73 63 6f 6e  20 20 20 01

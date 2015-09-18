@@ -26,6 +26,7 @@
 #include <linux/dm9000.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
+#include <linux/regulator/machine.h>
 #include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
@@ -332,8 +333,7 @@ static int trizeps4_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 	int err;
 
 	err = request_irq(TRIZEPS4_MMC_IRQ, mci_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING,
-			  "MMC card detect", data);
+			  IRQF_TRIGGER_RISING, "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "trizeps4_mci_init: MMC/SD: can't request"
 						"MMC card detect IRQ\n");
@@ -535,6 +535,8 @@ static void __init trizeps4_init(void)
 
 	BCR_writew(trizeps_conxs_bcr);
 	board_backlight_power(1);
+
+	regulator_has_full_constraints();
 }
 
 static void __init trizeps4_map_io(void)

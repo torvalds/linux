@@ -54,7 +54,8 @@ standard automatically. To do so, applications call <constant>
 VIDIOC_QUERYSTD</constant> with a pointer to a &v4l2-std-id; type. The
 driver stores here a set of candidates, this can be a single flag or a
 set of supported standards if for example the hardware can only
-distinguish between 50 and 60 Hz systems. When detection is not
+distinguish between 50 and 60 Hz systems. If no signal was detected,
+then the driver will return V4L2_STD_UNKNOWN. When detection is not
 possible or fails, the set must contain all standards supported by the
 current video input or output.</para>
 

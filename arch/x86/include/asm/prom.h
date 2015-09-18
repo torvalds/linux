@@ -26,23 +26,16 @@
 extern int of_ioapic;
 extern u64 initial_dtb;
 extern void add_dtb(u64 data);
-extern void x86_add_irq_domains(void);
-void __cpuinit x86_of_pci_init(void);
+void x86_of_pci_init(void);
 void x86_dtb_init(void);
 #else
 static inline void add_dtb(u64 data) { }
-static inline void x86_add_irq_domains(void) { }
 static inline void x86_of_pci_init(void) { }
 static inline void x86_dtb_init(void) { }
 #define of_ioapic 0
 #endif
 
 extern char cmd_line[COMMAND_LINE_SIZE];
-
-#define pci_address_to_pio pci_address_to_pio
-unsigned long pci_address_to_pio(phys_addr_t addr);
-
-#define HAVE_ARCH_DEVTREE_FIXUPS
 
 #endif /* __ASSEMBLY__ */
 #endif

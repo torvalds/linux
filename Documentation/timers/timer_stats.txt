@@ -39,9 +39,9 @@ To stop a sample period issue:
 The statistics can be retrieved by:
 # cat /proc/timer_stats
 
-The readout of /proc/timer_stats automatically disables sampling. The sampled
-information is kept until a new sample period is started. This allows multiple
-readouts.
+While sampling is enabled, each readout from /proc/timer_stats will see
+newly updated statistics. Once sampling is disabled, the sampled information
+is kept until a new sample period is started. This allows multiple readouts.
 
 Sample output of /proc/timer_stats:
 

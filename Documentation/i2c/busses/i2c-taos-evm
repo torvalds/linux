@@ -1,6 +1,6 @@
 Kernel driver i2c-taos-evm
 
-Author: Jean Delvare <khali@linux-fr.org>
+Author: Jean Delvare <jdelvare@suse.de>
 
 This is a driver for the evaluation modules for TAOS I2C/SMBus chips.
 The modules include an SMBus master with limited capabilities, which can

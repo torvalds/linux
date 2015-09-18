@@ -79,7 +79,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    Required properties:
      - #address-cells : Should be <1>
      - #size-cells : Should be <0>
-     - device_type : Should be "mdio"
      - compatible : Should be "marvell,mv64360-mdio"
 
    Example:
@@ -87,7 +86,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
      mdio {
 	     #address-cells = <1>;
 	     #size-cells = <0>;
-	     device_type = "mdio";
 	     compatible = "marvell,mv64360-mdio";
 
 	     ethernet-phy@0 {
@@ -132,7 +130,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    Ethernet port node
 
    Required properties:
-     - device_type : Should be "network".
      - compatible : Should be "marvell,mv64360-eth".
      - reg : Should be <0>, <1>, or <2>, according to which registers
        within the silicon block the device uses.
@@ -145,7 +142,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery Ethernet port node:
      ethernet@0 {
-	     device_type = "network";
 	     compatible = "marvell,mv64360-eth";
 	     reg = <0>;
 	     interrupts = <32>;
@@ -159,7 +155,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    c) Marvell Discovery PHY nodes
 
    Required properties:
-     - device_type : Should be "ethernet-phy"
      - interrupts : <a> where a is the interrupt number for this phy.
      - interrupt-parent : the phandle for the interrupt controller that
        services interrupts for this device.
@@ -167,7 +162,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery PHY node:
      ethernet-phy@1 {
-	     device_type = "ethernet-phy";
 	     compatible = "broadcom,bcm5421";
 	     interrupts = <76>;      /* GPP 12 */
 	     interrupt-parent = <&PIC>;
@@ -271,7 +265,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
    serial port.
 
    Required properties:
-     - device_type : "serial"
      - compatible : "marvell,mv64360-mpsc"
      - reg : Offset and length of the register set for this device
      - sdma : the phandle for the SDMA node used by this port
@@ -288,7 +281,6 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 
    Example Discovery MPSCINTR node:
      mpsc@8000 {
-	     device_type = "serial";
 	     compatible = "marvell,mv64360-mpsc";
 	     reg = <0x8000 0x38>;
 	     virtual-reg = <0xf1008000>;

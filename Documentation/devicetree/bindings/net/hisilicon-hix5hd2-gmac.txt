@@ -1,0 +1,36 @@
+Hisilicon hix5hd2 gmac controller
+
+Required properties:
+- compatible: should be "hisilicon,hix5hd2-gmac".
+- reg: specifies base physical address(s) and size of the device registers.
+  The first region is the MAC register base and size.
+  The second region is external interface control register.
+- interrupts: should contain the MAC interrupt.
+- #address-cells: must be <1>.
+- #size-cells: must be <0>.
+- phy-mode: see ethernet.txt [1].
+- phy-handle: see ethernet.txt [1].
+- mac-address: see ethernet.txt [1].
+- clocks: clock phandle and specifier pair.
+
+- PHY subnode: inherits from phy binding [2]
+
+[1] Documentation/devicetree/bindings/net/ethernet.txt
+[2] Documentation/devicetree/bindings/net/phy.txt
+
+Example:
+	gmac0: ethernet@f9840000 {
+		compatible = "hisilicon,hix5hd2-gmac";
+		reg = <0xf9840000 0x1000>,<0xf984300c 0x4>;
+		interrupts = <0 71 4>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy-mode = "mii";
+		phy-handle = <&phy2>;
+		mac-address = [00 00 00 00 00 00];
+		clocks = <&clock HIX5HD2_MAC0_CLK>;
+
+		phy2: ethernet-phy@2 {
+			reg = <2>;
+		};
+	};

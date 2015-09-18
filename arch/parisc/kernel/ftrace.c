@@ -112,6 +112,9 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	unsigned long long calltime;
 	struct ftrace_graph_ent trace;
 
+	if (unlikely(ftrace_graph_is_dead()))
+		return;
+
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
@@ -151,9 +154,6 @@ void ftrace_function_trampoline(unsigned long parent,
 				unsigned long org_sp_gr3)
 {
 	extern ftrace_func_t ftrace_trace_function;
-
-	if (function_trace_stop)
-		return;
 
 	if (ftrace_trace_function != ftrace_stub) {
 		ftrace_trace_function(parent, self_addr);

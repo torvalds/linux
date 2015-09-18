@@ -18,14 +18,6 @@ Description:
 		Reading returns either '1' or '0'. '1' means that the
 		pllY is locked.
 
-What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
-KernelVersion:	3.4.0
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Writing '1' stores the current device configuration into
-		on-chip EEPROM. After power-up or chip reset the device will
-		automatically load the saved configuration.
-
 What:		/sys/bus/iio/devices/iio:deviceX/sync_dividers
 KernelVersion:	3.4.0
 Contact:	linux-iio@vger.kernel.org

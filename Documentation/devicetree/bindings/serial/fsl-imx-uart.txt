@@ -1,35 +1,29 @@
-* Freescale i.MX UART controller
+* Freescale i.MX Universal Asynchronous Receiver/Transmitter (UART)
 
 Required properties:
-- compatible : should be "fsl,imx21-uart"
+- compatible : Should be "fsl,<soc>-uart"
 - reg : Address and length of the register set for the device
-- interrupts : Should contain UART interrupt number
+- interrupts : Should contain uart interrupt
 
 Optional properties:
-- fsl,uart-has-rtscts: indicate that RTS/CTS signals are used
+- fsl,uart-has-rtscts : Indicate the uart has rts and cts
+- fsl,irda-mode : Indicate the uart supports irda mode
+- fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
+                  is DCE mode by default.
 
 Note: Each uart controller should have an alias correctly numbered
 in "aliases" node.
 
 Example:
 
-- From imx51.dtsi:
 aliases {
 	serial0 = &uart1;
-	serial1 = &uart2;
-	serial2 = &uart3;
 };
 
 uart1: serial@73fbc000 {
 	compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 	reg = <0x73fbc000 0x4000>;
 	interrupts = <31>;
-	status = "disabled";
-}
-
-- From imx51-babbage.dts:
-uart1: serial@73fbc000 {
 	fsl,uart-has-rtscts;
-	status = "okay";
+	fsl,dte-mode;
 };
-

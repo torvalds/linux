@@ -34,7 +34,6 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	if (wm831x == NULL)
 		return -ENOMEM;
 
-	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
 	spi_set_drvdata(spi, wm831x);
@@ -67,16 +66,19 @@ static int wm831x_spi_suspend(struct device *dev)
 	return wm831x_device_suspend(wm831x);
 }
 
-static void wm831x_spi_shutdown(struct spi_device *spi)
+static int wm831x_spi_poweroff(struct device *dev)
 {
-	struct wm831x *wm831x = spi_get_drvdata(spi);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 
 	wm831x_device_shutdown(wm831x);
+
+	return 0;
 }
 
 static const struct dev_pm_ops wm831x_spi_pm = {
 	.freeze = wm831x_spi_suspend,
 	.suspend = wm831x_spi_suspend,
+	.poweroff = wm831x_spi_poweroff,
 };
 
 static const struct spi_device_id wm831x_spi_ids[] = {
@@ -100,7 +102,6 @@ static struct spi_driver wm831x_spi_driver = {
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
 	.remove		= wm831x_spi_remove,
-	.shutdown	= wm831x_spi_shutdown,
 };
 
 static int __init wm831x_spi_init(void)

@@ -19,8 +19,10 @@
 #include <linux/gpio.h>
 #include <linux/rfkill.h>
 
+#include <plat/gpio-cfg.h>
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include "h1940.h"
 
@@ -39,7 +41,7 @@ static void h1940bt_enable(int on)
 		mdelay(10);
 		gpio_set_value(S3C2410_GPH(1), 0);
 
-		h1940_led_blink_set(-EINVAL, GPIO_LED_BLINK, NULL, NULL);
+		h1940_led_blink_set(NULL, GPIO_LED_BLINK, NULL, NULL);
 	}
 	else {
 		gpio_set_value(S3C2410_GPH(1), 1);
@@ -48,7 +50,7 @@ static void h1940bt_enable(int on)
 		mdelay(10);
 		gpio_set_value(H1940_LATCH_BLUETOOTH_POWER, 0);
 
-		h1940_led_blink_set(-EINVAL, GPIO_LED_NO_BLINK_LOW, NULL, NULL);
+		h1940_led_blink_set(NULL, GPIO_LED_NO_BLINK_LOW, NULL, NULL);
 	}
 }
 

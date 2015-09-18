@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -171,11 +170,6 @@ static int dnet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
-static int dnet_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void dnet_handle_link_change(struct net_device *dev)
 {
 	struct dnet *bp = netdev_priv(dev);
@@ -323,14 +317,14 @@ static int dnet_mii_init(struct dnet *bp)
 	bp->mii_bus->name = "dnet_mii_bus";
 	bp->mii_bus->read = &dnet_mdio_read;
 	bp->mii_bus->write = &dnet_mdio_write;
-	bp->mii_bus->reset = &dnet_mdio_reset;
 
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		bp->pdev->name, bp->pdev->id);
 
 	bp->mii_bus->priv = bp;
 
-	bp->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	bp->mii_bus->irq = devm_kmalloc(&bp->pdev->dev,
+					sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!bp->mii_bus->irq) {
 		err = -ENOMEM;
 		goto err_out;
@@ -341,7 +335,7 @@ static int dnet_mii_init(struct dnet *bp)
 
 	if (mdiobus_register(bp->mii_bus)) {
 		err = -ENXIO;
-		goto err_out_free_mdio_irq;
+		goto err_out;
 	}
 
 	if (dnet_mii_probe(bp->dev) != 0) {
@@ -353,8 +347,6 @@ static int dnet_mii_init(struct dnet *bp)
 
 err_out_unregister_bus:
 	mdiobus_unregister(bp->mii_bus);
-err_out_free_mdio_irq:
-	kfree(bp->mii_bus->irq);
 err_out:
 	mdiobus_free(bp->mii_bus);
 	return err;
@@ -406,13 +398,8 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 		 * break out of while loop if there are no more
 		 * packets waiting
 		 */
-		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16)) {
-			napi_complete(napi);
-			int_enable = dnet_readl(bp, INTR_ENB);
-			int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
-			dnet_writel(bp, int_enable, INTR_ENB);
-			return 0;
-		}
+		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16))
+			break;
 
 		cmd_word = dnet_readl(bp, RX_LEN_FIFO);
 		pkt_len = cmd_word & 0xFFFF;
@@ -441,20 +428,17 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 			       "size %u.\n", dev->name, pkt_len);
 	}
 
-	budget -= npackets;
-
 	if (npackets < budget) {
 		/* We processed all packets available.  Tell NAPI it can
-		 * stop polling then re-enable rx interrupts */
+		 * stop polling then re-enable rx interrupts.
+		 */
 		napi_complete(napi);
 		int_enable = dnet_readl(bp, INTR_ENB);
 		int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 		dnet_writel(bp, int_enable, INTR_ENB);
-		return 0;
 	}
 
-	/* There are still packets waiting */
-	return 1;
+	return npackets;
 }
 
 static irqreturn_t dnet_interrupt(int irq, void *dev_id)
@@ -832,28 +816,14 @@ static int dnet_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct dnet *bp;
 	struct phy_device *phydev;
-	int err = -ENXIO;
-	unsigned int mem_base, mem_size, irq;
+	int err;
+	unsigned int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no mmio resource defined\n");
-		goto err_out;
-	}
-	mem_base = res->start;
-	mem_size = resource_size(res);
 	irq = platform_get_irq(pdev, 0);
 
-	if (!request_mem_region(mem_base, mem_size, DRV_NAME)) {
-		dev_err(&pdev->dev, "no memory region available\n");
-		err = -EBUSY;
-		goto err_out;
-	}
-
-	err = -ENOMEM;
 	dev = alloc_etherdev(sizeof(*bp));
 	if (!dev)
-		goto err_out_release_mem;
+		return -ENOMEM;
 
 	/* TODO: Actually, we have some interesting features... */
 	dev->features |= 0;
@@ -866,10 +836,10 @@ static int dnet_probe(struct platform_device *pdev)
 
 	spin_lock_init(&bp->lock);
 
-	bp->regs = ioremap(mem_base, mem_size);
-	if (!bp->regs) {
-		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
-		err = -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	bp->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(bp->regs)) {
+		err = PTR_ERR(bp->regs);
 		goto err_out_free_dev;
 	}
 
@@ -878,7 +848,7 @@ static int dnet_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Unable to request IRQ %d (error %d)\n",
 		       irq, err);
-		goto err_out_iounmap;
+		goto err_out_free_dev;
 	}
 
 	dev->netdev_ops = &dnet_netdev_ops;
@@ -915,7 +885,7 @@ static int dnet_probe(struct platform_device *pdev)
 		goto err_out_unregister_netdev;
 
 	dev_info(&pdev->dev, "Dave DNET at 0x%p (0x%08x) irq %d %pM\n",
-	       bp->regs, mem_base, dev->irq, dev->dev_addr);
+	       bp->regs, (unsigned int)res->start, dev->irq, dev->dev_addr);
 	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma\n",
 	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "no ",
@@ -932,13 +902,8 @@ err_out_unregister_netdev:
 	unregister_netdev(dev);
 err_out_free_irq:
 	free_irq(dev->irq, dev);
-err_out_iounmap:
-	iounmap(bp->regs);
 err_out_free_dev:
 	free_netdev(dev);
-err_out_release_mem:
-	release_mem_region(mem_base, mem_size);
-err_out:
 	return err;
 }
 
@@ -955,11 +920,9 @@ static int dnet_remove(struct platform_device *pdev)
 		if (bp->phy_dev)
 			phy_disconnect(bp->phy_dev);
 		mdiobus_unregister(bp->mii_bus);
-		kfree(bp->mii_bus->irq);
 		mdiobus_free(bp->mii_bus);
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
-		iounmap(bp->regs);
 		free_netdev(dev);
 	}
 

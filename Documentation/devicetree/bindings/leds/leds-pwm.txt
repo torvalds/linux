@@ -13,6 +13,8 @@ LED sub-node properties:
   For the pwms and pwm-names property please refer to:
   Documentation/devicetree/bindings/pwm/pwm.txt
 - max-brightness : Maximum brightness possible for the LED
+- active-low : (optional) For PWMs where the LED is wired to supply
+  rather than ground.
 - label :  (optional)
   see Documentation/devicetree/bindings/leds/common.txt
 - linux,default-trigger :  (optional)

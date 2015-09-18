@@ -70,11 +70,20 @@ static int romfs_mmap(struct file *file, struct vm_area_struct *vma)
 	return vma->vm_flags & (VM_SHARED | VM_MAYSHARE) ? 0 : -ENOSYS;
 }
 
+static unsigned romfs_mmap_capabilities(struct file *file)
+{
+	struct mtd_info *mtd = file_inode(file)->i_sb->s_mtd;
+
+	if (!mtd)
+		return NOMMU_MAP_COPY;
+	return mtd_mmap_capabilities(mtd);
+}
+
 const struct file_operations romfs_ro_fops = {
 	.llseek			= generic_file_llseek,
-	.read			= do_sync_read,
-	.aio_read		= generic_file_aio_read,
+	.read_iter		= generic_file_read_iter,
 	.splice_read		= generic_file_splice_read,
 	.mmap			= romfs_mmap,
 	.get_unmapped_area	= romfs_get_unmapped_area,
+	.mmap_capabilities	= romfs_mmap_capabilities,
 };

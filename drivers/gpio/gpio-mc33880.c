@@ -86,7 +86,7 @@ static int mc33880_probe(struct spi_device *spi)
 	struct mc33880_platform_data *pdata;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (!pdata || !pdata->base) {
 		dev_dbg(&spi->dev, "incorrect or missing platform data\n");
 		return -EINVAL;
@@ -115,7 +115,7 @@ static int mc33880_probe(struct spi_device *spi)
 	mc->chip.set = mc33880_set;
 	mc->chip.base = pdata->base;
 	mc->chip.ngpio = PIN_NUMBER;
-	mc->chip.can_sleep = 1;
+	mc->chip.can_sleep = true;
 	mc->chip.dev = &spi->dev;
 	mc->chip.owner = THIS_MODULE;
 
@@ -142,7 +142,6 @@ static int mc33880_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&mc->lock);
 	return ret;
 }
@@ -150,22 +149,15 @@ exit_destroy:
 static int mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
-	int ret;
 
 	mc = spi_get_drvdata(spi);
-	if (mc == NULL)
+	if (!mc)
 		return -ENODEV;
 
-	spi_set_drvdata(spi, NULL);
+	gpiochip_remove(&mc->chip);
+	mutex_destroy(&mc->lock);
 
-	ret = gpiochip_remove(&mc->chip);
-	if (!ret)
-		mutex_destroy(&mc->lock);
-	else
-		dev_err(&spi->dev, "Failed to remove the GPIO controller: %d\n",
-			ret);
-
-	return ret;
+	return 0;
 }
 
 static struct spi_driver mc33880_driver = {

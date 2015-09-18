@@ -1,0 +1,155 @@
+STMicroelectronics sti ASoC cards
+
+The sti ASoC Sound Card can be used, for all sti SoCs using internal sti-sas
+codec or external codecs.
+
+sti sound drivers allows to expose sti SoC audio interface through the
+generic ASoC simple card. For details about sound card declaration please refer to
+Documentation/devicetree/bindings/sound/simple-card.txt.
+
+1) sti-uniperiph-dai: audio dai device.
+---------------------------------------
+
+Required properties:
+  - compatible: "st,sti-uni-player" or "st,sti-uni-reader"
+
+  - st,syscfg: phandle to boot-device system configuration registers
+
+  - clock-names: name of the clocks listed in clocks property in the same order
+
+  - reg: CPU DAI IP Base address and size entries, listed  in same
+	 order than the CPU_DAI properties.
+
+  - reg-names: names of the mapped memory regions listed in regs property in
+	       the same order.
+
+  - interrupts: CPU_DAI interrupt line, listed in the same order than the
+		CPU_DAI properties.
+
+  - dma: CPU_DAI DMA controller phandle and DMA request line, listed in the same
+	 order than the CPU_DAI properties.
+
+  - dma-names: identifier string for each DMA request line in the dmas property.
+	"tx" for "st,sti-uni-player" compatibility
+	"rx" for "st,sti-uni-reader" compatibility
+
+  - version: IP version integrated in SOC.
+
+  - dai-name: DAI name that describes the IP.
+
+Required properties ("st,sti-uni-player" compatibility only):
+  - clocks: CPU_DAI IP clock source, listed in the same order than the
+	    CPU_DAI properties.
+
+  - uniperiph-id: internal SOC IP instance ID.
+
+  - IP mode: IP working mode depending on associated codec.
+	"HDMI" connected to HDMI codec IP and IEC HDMI formats.
+	"SPDIF"connected to SPDIF codec and support SPDIF formats.
+	"PCM"  PCM standard mode for I2S or TDM bus.
+
+Optional properties:
+  - pinctrl-0: defined for CPU_DAI@1 and CPU_DAI@4 to describe I2S PIOs for
+	       external codecs connection.
+
+  - pinctrl-names: should contain only one value - "default".
+
+Example:
+
+	sti_uni_player2: sti-uni-player@2 {
+		compatible = "st,sti-uni-player";
+		status = "okay";
+		#sound-dai-cells = <0>;
+		st,syscfg = <&syscfg_core>;
+		clocks = <&clk_s_d0_flexgen CLK_PCM_2>;
+		reg = <0x8D82000 0x158>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
+		dmas = <&fdma0 4 0 1>;
+		dai-name = "Uni Player #1 (DAC)";
+		dma-names = "tx";
+		uniperiph-id = <2>;
+		version = <5>;
+		mode = "PCM";
+	};
+
+	sti_uni_player3: sti-uni-player@3 {
+		compatible = "st,sti-uni-player";
+		status = "okay";
+		#sound-dai-cells = <0>;
+		st,syscfg = <&syscfg_core>;
+		clocks = <&clk_s_d0_flexgen CLK_SPDIFF>;
+		reg = <0x8D85000 0x158>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
+		dmas = <&fdma0 7 0 1>;
+		dma-names = "tx";
+		dai-name = "Uni Player #1 (PIO)";
+		uniperiph-id = <3>;
+		version = <5>;
+		mode = "SPDIF";
+	};
+
+	sti_uni_reader1: sti-uni-reader@1 {
+		compatible = "st,sti-uni-reader";
+		status = "disabled";
+		#sound-dai-cells = <0>;
+		st,syscfg = <&syscfg_core>;
+		reg = <0x8D84000 0x158>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_NONE>;
+		dmas = <&fdma0 6 0 1>;
+		dma-names = "rx";
+		dai-name = "Uni Reader #1 (HDMI RX)";
+		version = <3>;
+	};
+
+2) sti-sas-codec: internal audio codec IPs driver
+-------------------------------------------------
+
+Required properties:
+  - compatible: "st,sti<chip>-sas-codec" .
+	Should be chip "st,stih416-sas-codec" or "st,stih407-sas-codec"
+
+  - st,syscfg: phandle to boot-device system configuration registers.
+
+  - pinctrl-0: SPDIF PIO description.
+
+  - pinctrl-names: should contain only one value - "default".
+
+Example:
+	sti_sas_codec: sti-sas-codec {
+		compatible = "st,stih407-sas-codec";
+		#sound-dai-cells = <1>;
+		st,reg_audio = <&syscfg_core>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spdif_out >;
+	};
+
+Example of audio card declaration:
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "sti audio card";
+		status = "okay";
+
+		simple-audio-card,dai-link@0 {
+			/* DAC */
+			format = "i2s";
+			dai-tdm-slot-width = <32>;
+			cpu {
+				sound-dai = <&sti_uni_player2>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 1>;
+			};
+		};
+		simple-audio-card,dai-link@1 {
+			/* SPDIF */
+			format = "left_j";
+			cpu {
+				sound-dai = <&sti_uni_player3>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 0>;
+			};
+		};
+	};

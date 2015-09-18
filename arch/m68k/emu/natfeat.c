@@ -9,6 +9,7 @@
  * the GNU General Public License (GPL), incorporated herein by reference.
  */
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/console.h>
 #include <linux/string.h>
@@ -18,9 +19,11 @@
 #include <asm/machdep.h>
 #include <asm/natfeat.h>
 
+extern long nf_get_id_phys(unsigned long feature_name);
+
 asm("\n"
-"	.global nf_get_id,nf_call\n"
-"nf_get_id:\n"
+"	.global nf_get_id_phys,nf_call\n"
+"nf_get_id_phys:\n"
 "	.short	0x7300\n"
 "	rts\n"
 "nf_call:\n"
@@ -29,11 +32,24 @@ asm("\n"
 "1:	moveq.l	#0,%d0\n"
 "	rts\n"
 "	.section __ex_table,\"a\"\n"
-"	.long	nf_get_id,1b\n"
+"	.long	nf_get_id_phys,1b\n"
 "	.long	nf_call,1b\n"
 "	.previous");
-EXPORT_SYMBOL_GPL(nf_get_id);
 EXPORT_SYMBOL_GPL(nf_call);
+
+long nf_get_id(const char *feature_name)
+{
+	/* feature_name may be in vmalloc()ed memory, so make a copy */
+	char name_copy[32];
+	size_t n;
+
+	n = strlcpy(name_copy, feature_name, sizeof(name_copy));
+	if (n >= sizeof(name_copy))
+		return 0;
+
+	return nf_get_id_phys(virt_to_phys(name_copy));
+}
+EXPORT_SYMBOL_GPL(nf_get_id);
 
 void nfprint(const char *fmt, ...)
 {
@@ -43,7 +59,7 @@ void nfprint(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	n = vsnprintf(buf, 256, fmt, ap);
-	nf_call(nf_get_id("NF_STDERR"), buf);
+	nf_call(nf_get_id("NF_STDERR"), virt_to_phys(buf));
 	va_end(ap);
 }
 
@@ -55,7 +71,7 @@ static void nf_poweroff(void)
 		nf_call(id);
 }
 
-void nf_init(void)
+void __init nf_init(void)
 {
 	unsigned long id, version;
 	char buf[256];
@@ -68,7 +84,7 @@ void nf_init(void)
 	id = nf_get_id("NF_NAME");
 	if (!id)
 		return;
-	nf_call(id, buf, 256);
+	nf_call(id, virt_to_phys(buf), 256);
 	buf[255] = 0;
 
 	pr_info("NatFeats found (%s, %lu.%lu)\n", buf, version >> 16,

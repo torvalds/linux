@@ -32,6 +32,7 @@
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 
 #define O_PATH		040000000
+#define __O_TMPFILE	0100000000
 
 #define F_GETLK		7
 #define F_SETLK		8

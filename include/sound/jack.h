@@ -28,8 +28,23 @@
 struct input_dev;
 
 /**
- * Jack types which can be reported.  These values are used as a
- * bitmask.
+ * enum snd_jack_types - Jack types which can be reported
+ * @SND_JACK_HEADPHONE: Headphone
+ * @SND_JACK_MICROPHONE: Microphone
+ * @SND_JACK_HEADSET: Headset
+ * @SND_JACK_LINEOUT: Line out
+ * @SND_JACK_MECHANICAL: Mechanical switch
+ * @SND_JACK_VIDEOOUT: Video out
+ * @SND_JACK_AVOUT: AV (Audio Video) out
+ * @SND_JACK_LINEIN:  Line in
+ * @SND_JACK_BTN_0: Button 0
+ * @SND_JACK_BTN_1: Button 1
+ * @SND_JACK_BTN_2: Button 2
+ * @SND_JACK_BTN_3: Button 3
+ * @SND_JACK_BTN_4: Button 4
+ * @SND_JACK_BTN_5: Button 5
+ *
+ * These values are used as a bitmask.
  *
  * Note that this must be kept in sync with the lookup table in
  * sound/core/jack.c.
@@ -58,6 +73,8 @@ enum snd_jack_types {
 
 struct snd_jack {
 	struct input_dev *input_dev;
+	struct list_head kctl_list;
+	struct snd_card *card;
 	int registered;
 	int type;
 	const char *id;
@@ -70,7 +87,8 @@ struct snd_jack {
 #ifdef CONFIG_SND_JACK
 
 int snd_jack_new(struct snd_card *card, const char *id, int type,
-		 struct snd_jack **jack);
+		 struct snd_jack **jack, bool initial_kctl, bool phantom_jack);
+int snd_jack_add_new_kctl(struct snd_jack *jack, const char * name, int mask);
 void snd_jack_set_parent(struct snd_jack *jack, struct device *parent);
 int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
 		     int keytype);
@@ -78,9 +96,13 @@ int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
 void snd_jack_report(struct snd_jack *jack, int status);
 
 #else
-
 static inline int snd_jack_new(struct snd_card *card, const char *id, int type,
-			       struct snd_jack **jack)
+			       struct snd_jack **jack, bool initial_kctl, bool phantom_jack)
+{
+	return 0;
+}
+
+static inline int snd_jack_add_new_kctl(struct snd_jack *jack, const char * name, int mask)
 {
 	return 0;
 }
@@ -88,6 +110,13 @@ static inline int snd_jack_new(struct snd_card *card, const char *id, int type,
 static inline void snd_jack_set_parent(struct snd_jack *jack,
 				       struct device *parent)
 {
+}
+
+static inline int snd_jack_set_key(struct snd_jack *jack,
+				   enum snd_jack_types type,
+				   int keytype)
+{
+	return 0;
 }
 
 static inline void snd_jack_report(struct snd_jack *jack, int status)

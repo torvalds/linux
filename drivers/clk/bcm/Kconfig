@@ -1,0 +1,18 @@
+config CLK_BCM_KONA
+	bool "Broadcom Kona CCU clock support"
+	depends on ARCH_BCM_MOBILE
+	depends on COMMON_CLK
+	default y
+	help
+	  Enable common clock framework support for Broadcom SoCs
+	  using "Kona" style clock control units, including those
+	  in the BCM281xx and BCM21664 families.
+
+config COMMON_CLK_IPROC
+	bool "Broadcom iProc clock support"
+	depends on ARCH_BCM_IPROC
+	depends on COMMON_CLK
+	default ARCH_BCM_IPROC
+	help
+	  Enable common clock framework support for Broadcom SoCs
+	  based on the iProc architecture

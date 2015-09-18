@@ -41,7 +41,7 @@ config USB_STORAGE_REALTEK
 
 config REALTEK_AUTOPM
 	bool "Realtek Card Reader autosuspend support"
-	depends on USB_STORAGE_REALTEK && PM_RUNTIME
+	depends on USB_STORAGE_REALTEK && PM
 	default y
 
 config USB_STORAGE_DATAFAB
@@ -191,7 +191,7 @@ config USB_STORAGE_ENE_UB6250
 	depends on USB_STORAGE
 	---help---
 	  Say Y here if you wish to control a ENE SD/MS Card reader.
-	  To use SM card, please build driver/staging/keucr/keucr.ko
+	  Note that this driver does not support SM cards.
 
 	  This option depends on 'SCSI' support being enabled, but you
 	  probably also need 'SCSI device support: SCSI disk support'
@@ -202,7 +202,7 @@ config USB_STORAGE_ENE_UB6250
 
 config USB_UAS
 	tristate "USB Attached SCSI"
-	depends on SCSI && BROKEN
+	depends on SCSI && USB_STORAGE
 	help
 	  The USB Attached SCSI protocol is supported by some USB
 	  storage devices.  It permits higher performance by supporting

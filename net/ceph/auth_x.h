@@ -26,6 +26,7 @@ struct ceph_x_ticket_handler {
 
 
 struct ceph_x_authorizer {
+	struct ceph_crypto_key session_key;
 	struct ceph_buffer *buf;
 	unsigned int service;
 	u64 nonce;
@@ -45,7 +46,7 @@ struct ceph_x_info {
 	struct ceph_x_authorizer auth_authorizer;
 };
 
-extern int ceph_x_init(struct ceph_auth_client *ac);
+int ceph_x_init(struct ceph_auth_client *ac);
 
 #endif
 

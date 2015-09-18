@@ -106,17 +106,18 @@ In the majority of cases, the machine identity is irrelevant, and the
 kernel will instead select setup code based on the machine's core
 CPU or SoC.  On ARM for example, setup_arch() in
 arch/arm/kernel/setup.c will call setup_machine_fdt() in
-arch/arm/kernel/devicetree.c which searches through the machine_desc
+arch/arm/kernel/devtree.c which searches through the machine_desc
 table and selects the machine_desc which best matches the device tree
 data.  It determines the best match by looking at the 'compatible'
 property in the root device tree node, and comparing it with the
-dt_compat list in struct machine_desc.
+dt_compat list in struct machine_desc (which is defined in
+arch/arm/include/asm/mach/arch.h if you're curious).
 
 The 'compatible' property contains a sorted list of strings starting
 with the exact name of the machine, followed by an optional list of
 boards it is compatible with sorted from most compatible to least.  For
 example, the root compatible properties for the TI BeagleBoard and its
-successor, the BeagleBoard xM board might look like:
+successor, the BeagleBoard xM board might look like, respectively:
 
 	compatible = "ti,omap3-beagleboard", "ti,omap3450", "ti,omap3";
 	compatible = "ti,omap3-beagleboard-xm", "ti,omap3450", "ti,omap3";
@@ -161,7 +162,7 @@ cases.
 
 Instead, the compatible list allows a generic machine_desc to provide
 support for a wide common set of boards by specifying "less
-compatible" value in the dt_compat list.  In the example above,
+compatible" values in the dt_compat list.  In the example above,
 generic board support can claim compatibility with "ti,omap3" or
 "ti,omap3450".  If a bug was discovered on the original beagleboard
 that required special workaround code during early boot, then a new
@@ -377,7 +378,7 @@ platform_devices as more platform_devices is a common pattern, and the
 device tree support code reflects that and makes the above example
 simpler.  The second argument to of_platform_populate() is an
 of_device_id table, and any node that matches an entry in that table
-will also get its child nodes registered.  In the tegra case, the code
+will also get its child nodes registered.  In the Tegra case, the code
 can look something like this:
 
 static void __init harmony_init_machine(void)

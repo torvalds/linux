@@ -44,9 +44,18 @@
 /* Return size of the log buffer */
 #define SYSLOG_ACTION_SIZE_BUFFER   10
 
-#define SYSLOG_FROM_CALL 0
-#define SYSLOG_FROM_FILE 1
+#define SYSLOG_FROM_READER           0
+#define SYSLOG_FROM_PROC             1
 
-int do_syslog(int type, char __user *buf, int count, bool from_file);
+int do_syslog(int type, char __user *buf, int count, int source);
+
+#ifdef CONFIG_PRINTK
+int check_syslog_permissions(int type, int source);
+#else
+static inline int check_syslog_permissions(int type, int source)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_SYSLOG_H */

@@ -1,0 +1,12 @@
+MOXA ART device tree bindings
+
+Boards with the MOXA ART SoC shall have the following properties:
+
+Required root node property:
+
+compatible = "moxa,moxart";
+
+Boards:
+
+- UC-7112-LX: embedded computer
+  compatible = "moxa,moxart-uc-7112-lx", "moxa,moxart"

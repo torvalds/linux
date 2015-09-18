@@ -38,6 +38,85 @@
  * that it cannot safely queue packets (as it may not be kicked to send them).
  */
 
+ /*
+ * "feature-split-event-channels" is introduced to separate guest TX
+ * and RX notificaion. Backend either doesn't support this feature or
+ * advertise it via xenstore as 0 (disabled) or 1 (enabled).
+ *
+ * To make use of this feature, frontend should allocate two event
+ * channels for TX and RX, advertise them to backend as
+ * "event-channel-tx" and "event-channel-rx" respectively. If frontend
+ * doesn't want to use this feature, it just writes "event-channel"
+ * node as before.
+ */
+
+/*
+ * Multiple transmit and receive queues:
+ * If supported, the backend will write the key "multi-queue-max-queues" to
+ * the directory for that vif, and set its value to the maximum supported
+ * number of queues.
+ * Frontends that are aware of this feature and wish to use it can write the
+ * key "multi-queue-num-queues", set to the number they wish to use, which
+ * must be greater than zero, and no more than the value reported by the backend
+ * in "multi-queue-max-queues".
+ *
+ * Queues replicate the shared rings and event channels.
+ * "feature-split-event-channels" may optionally be used when using
+ * multiple queues, but is not mandatory.
+ *
+ * Each queue consists of one shared ring pair, i.e. there must be the same
+ * number of tx and rx rings.
+ *
+ * For frontends requesting just one queue, the usual event-channel and
+ * ring-ref keys are written as before, simplifying the backend processing
+ * to avoid distinguishing between a frontend that doesn't understand the
+ * multi-queue feature, and one that does, but requested only one queue.
+ *
+ * Frontends requesting two or more queues must not write the toplevel
+ * event-channel (or event-channel-{tx,rx}) and {tx,rx}-ring-ref keys,
+ * instead writing those keys under sub-keys having the name "queue-N" where
+ * N is the integer ID of the queue for which those keys belong. Queues
+ * are indexed from zero. For example, a frontend with two queues and split
+ * event channels must write the following set of queue-related keys:
+ *
+ * /local/domain/1/device/vif/0/multi-queue-num-queues = "2"
+ * /local/domain/1/device/vif/0/queue-0 = ""
+ * /local/domain/1/device/vif/0/queue-0/tx-ring-ref = "<ring-ref-tx0>"
+ * /local/domain/1/device/vif/0/queue-0/rx-ring-ref = "<ring-ref-rx0>"
+ * /local/domain/1/device/vif/0/queue-0/event-channel-tx = "<evtchn-tx0>"
+ * /local/domain/1/device/vif/0/queue-0/event-channel-rx = "<evtchn-rx0>"
+ * /local/domain/1/device/vif/0/queue-1 = ""
+ * /local/domain/1/device/vif/0/queue-1/tx-ring-ref = "<ring-ref-tx1>"
+ * /local/domain/1/device/vif/0/queue-1/rx-ring-ref = "<ring-ref-rx1"
+ * /local/domain/1/device/vif/0/queue-1/event-channel-tx = "<evtchn-tx1>"
+ * /local/domain/1/device/vif/0/queue-1/event-channel-rx = "<evtchn-rx1>"
+ *
+ * If there is any inconsistency in the XenStore data, the backend may
+ * choose not to connect any queues, instead treating the request as an
+ * error. This includes scenarios where more (or fewer) queues were
+ * requested than the frontend provided details for.
+ *
+ * Mapping of packets to queues is considered to be a function of the
+ * transmitting system (backend or frontend) and is not negotiated
+ * between the two. Guests are free to transmit packets on any queue
+ * they choose, provided it has been set up correctly. Guests must be
+ * prepared to receive packets on any queue they have requested be set up.
+ */
+
+/*
+ * "feature-no-csum-offload" should be used to turn IPv4 TCP/UDP checksum
+ * offload off or on. If it is missing then the feature is assumed to be on.
+ * "feature-ipv6-csum-offload" should be used to turn IPv6 TCP/UDP checksum
+ * offload on or off. If it is missing then the feature is assumed to be off.
+ */
+
+/*
+ * "feature-gso-tcpv4" and "feature-gso-tcpv6" advertise the capability to
+ * handle large TCP packets (in IPv4 or IPv6 form respectively). Neither
+ * frontends nor backends are assumed to be capable unless the flags are
+ * present.
+ */
+
 /*
  * This is the 'wire' format for packets:
  *  Request 1: xen_netif_tx_request  -- XEN_NETTXF_* (any flags)
@@ -77,14 +156,18 @@ struct xen_netif_tx_request {
 /* Types of xen_netif_extra_info descriptors. */
 #define XEN_NETIF_EXTRA_TYPE_NONE	(0)  /* Never used - invalid */
 #define XEN_NETIF_EXTRA_TYPE_GSO	(1)  /* u.gso */
-#define XEN_NETIF_EXTRA_TYPE_MAX	(2)
+#define XEN_NETIF_EXTRA_TYPE_MCAST_ADD	(2)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MCAST_DEL	(3)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MAX	(4)
 
 /* xen_netif_extra_info flags. */
 #define _XEN_NETIF_EXTRA_FLAG_MORE	(0)
 #define  XEN_NETIF_EXTRA_FLAG_MORE	(1U<<_XEN_NETIF_EXTRA_FLAG_MORE)
 
-/* GSO types - only TCPv4 currently supported. */
+/* GSO types */
+#define XEN_NETIF_GSO_TYPE_NONE		(0)
 #define XEN_NETIF_GSO_TYPE_TCPV4	(1)
+#define XEN_NETIF_GSO_TYPE_TCPV6	(2)
 
 /*
  * This structure needs to fit within both netif_tx_request and
@@ -119,6 +202,10 @@ struct xen_netif_extra_info {
 			 */
 			uint16_t features; /* XEN_NETIF_GSO_FEAT_* */
 		} gso;
+
+		struct {
+			uint8_t addr[6]; /* Address to add/remove. */
+		} mcast;
 
 		uint16_t pad[3];
 	} u;

@@ -449,7 +449,7 @@ static int ptp_pch_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int ptp_pch_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int ptp_pch_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	u64 ns;
 	u32 remainder;
@@ -467,7 +467,7 @@ static int ptp_pch_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 }
 
 static int ptp_pch_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	u64 ns;
 	unsigned long flags;
@@ -514,11 +514,12 @@ static struct ptp_clock_info ptp_pch_caps = {
 	.name		= "PCH timer",
 	.max_adj	= 50000000,
 	.n_ext_ts	= N_EXT_TS,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_pch_adjfreq,
 	.adjtime	= ptp_pch_adjtime,
-	.gettime	= ptp_pch_gettime,
-	.settime	= ptp_pch_settime,
+	.gettime64	= ptp_pch_gettime,
+	.settime64	= ptp_pch_settime,
 	.enable		= ptp_pch_enable,
 };
 
@@ -628,9 +629,10 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	chip->caps = ptp_pch_caps;
 	chip->ptp_clock = ptp_clock_register(&chip->caps, &pdev->dev);
-
-	if (IS_ERR(chip->ptp_clock))
-		return PTR_ERR(chip->ptp_clock);
+	if (IS_ERR(chip->ptp_clock)) {
+		ret = PTR_ERR(chip->ptp_clock);
+		goto err_ptp_clock_reg;
+	}
 
 	spin_lock_init(&chip->register_lock);
 
@@ -669,6 +671,7 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 err_req_irq:
 	ptp_clock_unregister(chip->ptp_clock);
+err_ptp_clock_reg:
 	iounmap(chip->regs);
 	chip->regs = NULL;
 
@@ -688,7 +691,7 @@ err_pci_en:
 	return ret;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pch_ieee1588_pcidev_id) = {
+static const struct pci_device_id pch_ieee1588_pcidev_id[] = {
 	{
 	  .vendor = PCI_VENDOR_ID_INTEL,
 	  .device = PCI_DEVICE_ID_PCH_1588

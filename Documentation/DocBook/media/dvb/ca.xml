@@ -1,7 +1,7 @@
 <title>DVB CA Device</title>
 <para>The DVB CA device controls the conditional access hardware. It can be accessed through
-<emphasis role="tt">/dev/dvb/adapter0/ca0</emphasis>. Data types and and ioctl definitions can be accessed by
-including <emphasis role="tt">linux/dvb/ca.h</emphasis> in your application.
+<constant>/dev/dvb/adapter?/ca?</constant>. Data types and and ioctl definitions can be accessed by
+including <constant>linux/dvb/ca.h</constant> in your application.
 </para>
 
 <section id="ca_data_types">

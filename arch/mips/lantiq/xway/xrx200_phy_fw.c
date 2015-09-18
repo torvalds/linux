@@ -24,7 +24,28 @@ static dma_addr_t xway_gphy_load(struct platform_device *pdev)
 	void *fw_addr;
 	size_t size;
 
-	if (of_property_read_string(pdev->dev.of_node, "firmware", &fw_name)) {
+	if (of_get_property(pdev->dev.of_node, "firmware1", NULL) ||
+		of_get_property(pdev->dev.of_node, "firmware2", NULL)) {
+		switch (ltq_soc_type()) {
+		case SOC_TYPE_VR9:
+			if (of_property_read_string(pdev->dev.of_node,
+						    "firmware1", &fw_name)) {
+				dev_err(&pdev->dev,
+					"failed to load firmware filename\n");
+				return 0;
+			}
+			break;
+		case SOC_TYPE_VR9_2:
+			if (of_property_read_string(pdev->dev.of_node,
+						    "firmware2", &fw_name)) {
+				dev_err(&pdev->dev,
+					"failed to load firmware filename\n");
+				return 0;
+			}
+			break;
+		}
+	} else if (of_property_read_string(pdev->dev.of_node,
+					 "firmware", &fw_name)) {
 		dev_err(&pdev->dev, "failed to load firmware filename\n");
 		return 0;
 	}
@@ -85,7 +106,6 @@ static struct platform_driver xway_phy_driver = {
 	.probe = xway_phy_fw_probe,
 	.driver = {
 		.name = "phy-xrx200",
-		.owner = THIS_MODULE,
 		.of_match_table = xway_phy_match,
 	},
 };

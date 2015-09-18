@@ -289,7 +289,7 @@ static void lp3944_led_set_brightness(struct led_classdev *led_cdev,
 	dev_dbg(&led->client->dev, "%s: %s, %d\n",
 		__func__, led_cdev->name, brightness);
 
-	led->status = brightness;
+	led->status = !!brightness;
 	schedule_work(&led->work);
 }
 
@@ -335,7 +335,8 @@ static int lp3944_configure(struct i2c_client *client,
 			}
 
 			/* to expose the default value to userspace */
-			led->ldev.brightness = led->status;
+			led->ldev.brightness =
+					(enum led_brightness) led->status;
 
 			/* Set the default led status */
 			err = lp3944_led_set(led, led->status);
@@ -377,7 +378,8 @@ exit:
 static int lp3944_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lp3944_platform_data *lp3944_pdata = client->dev.platform_data;
+	struct lp3944_platform_data *lp3944_pdata =
+			dev_get_platdata(&client->dev);
 	struct lp3944_data *data;
 	int err;
 
@@ -413,7 +415,7 @@ static int lp3944_probe(struct i2c_client *client,
 
 static int lp3944_remove(struct i2c_client *client)
 {
-	struct lp3944_platform_data *pdata = client->dev.platform_data;
+	struct lp3944_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lp3944_data *data = i2c_get_clientdata(client);
 	int i;
 

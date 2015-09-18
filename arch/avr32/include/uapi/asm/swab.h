@@ -1,8 +1,8 @@
 /*
  * AVR32 byteswapping functions.
  */
-#ifndef __ASM_AVR32_SWAB_H
-#define __ASM_AVR32_SWAB_H
+#ifndef _UAPI__ASM_AVR32_SWAB_H
+#define _UAPI__ASM_AVR32_SWAB_H
 
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -32,4 +32,4 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 val)
 #define __arch_swab32 __arch_swab32
 #endif
 
-#endif /* __ASM_AVR32_SWAB_H */
+#endif /* _UAPI__ASM_AVR32_SWAB_H */

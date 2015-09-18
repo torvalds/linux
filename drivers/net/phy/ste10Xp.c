@@ -112,20 +112,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.driver = {.owner = THIS_MODULE,}
 } };
 
-static int __init ste10Xp_init(void)
-{
-	return phy_drivers_register(ste10xp_pdriver,
-		ARRAY_SIZE(ste10xp_pdriver));
-}
-
-static void __exit ste10Xp_exit(void)
-{
-	phy_drivers_unregister(ste10xp_pdriver,
-		ARRAY_SIZE(ste10xp_pdriver));
-}
-
-module_init(ste10Xp_init);
-module_exit(ste10Xp_exit);
+module_phy_driver(ste10xp_pdriver);
 
 static struct mdio_device_id __maybe_unused ste10Xp_tbl[] = {
 	{ STE101P_PHY_ID, 0xfffffff0 },

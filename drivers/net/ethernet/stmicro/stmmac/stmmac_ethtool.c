@@ -175,7 +175,7 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_octetcount_g),
 	STMMAC_MMC_STAT(mmc_rx_broadcastframe_g),
 	STMMAC_MMC_STAT(mmc_rx_multicastframe_g),
-	STMMAC_MMC_STAT(mmc_rx_crc_errror),
+	STMMAC_MMC_STAT(mmc_rx_crc_error),
 	STMMAC_MMC_STAT(mmc_rx_align_error),
 	STMMAC_MMC_STAT(mmc_rx_run_error),
 	STMMAC_MMC_STAT(mmc_rx_jabber_error),
@@ -261,10 +261,10 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 		ethtool_cmd_speed_set(cmd, priv->xstats.pcs_speed);
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
-		if (priv->hw->mac->get_adv)
-			priv->hw->mac->get_adv(priv->ioaddr, &adv);
-		else
+		if (!priv->hw->mac->get_adv)
 			return -EOPNOTSUPP;	/* should never happen indeed */
+
+		priv->hw->mac->get_adv(priv->hw, &adv);
 
 		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
 
@@ -322,9 +322,7 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 		return -EBUSY;
 	}
 	cmd->transceiver = XCVR_INTERNAL;
-	spin_lock_irq(&priv->lock);
 	rc = phy_ethtool_gset(phy, cmd);
-	spin_unlock_irq(&priv->lock);
 	return rc;
 }
 
@@ -342,19 +340,17 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 		if (cmd->autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
 
-		if (cmd->autoneg == AUTONEG_ENABLE) {
-			mask &= (ADVERTISED_1000baseT_Half |
+		mask &= (ADVERTISED_1000baseT_Half |
 			ADVERTISED_1000baseT_Full |
 			ADVERTISED_100baseT_Half |
 			ADVERTISED_100baseT_Full |
 			ADVERTISED_10baseT_Half |
 			ADVERTISED_10baseT_Full);
 
-			spin_lock(&priv->lock);
-			if (priv->hw->mac->ctrl_ane)
-				priv->hw->mac->ctrl_ane(priv->ioaddr, 1);
-			spin_unlock(&priv->lock);
-		}
+		spin_lock(&priv->lock);
+		if (priv->hw->mac->ctrl_ane)
+			priv->hw->mac->ctrl_ane(priv->hw, 1);
+		spin_unlock(&priv->lock);
 
 		return 0;
 	}
@@ -431,8 +427,6 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	if (priv->pcs)	/* FIXME */
 		return;
 
-	spin_lock(&priv->lock);
-
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 	pause->autoneg = priv->phydev->autoneg;
@@ -442,7 +436,6 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	if (priv->flow_ctrl & FLOW_TX)
 		pause->tx_pause = 1;
 
-	spin_unlock(&priv->lock);
 }
 
 static int
@@ -457,8 +450,6 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	if (priv->pcs)	/* FIXME */
 		return -EOPNOTSUPP;
 
-	spin_lock(&priv->lock);
-
 	if (pause->rx_pause)
 		new_pause |= FLOW_RX;
 	if (pause->tx_pause)
@@ -471,9 +462,8 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		if (netif_running(netdev))
 			ret = phy_start_aneg(phy);
 	} else
-		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
+		priv->hw->mac->flow_ctrl(priv->hw, phy->duplex,
 					 priv->flow_ctrl, priv->pause);
-	spin_unlock(&priv->lock);
 	return ret;
 }
 
@@ -706,7 +696,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	    (ec->tx_max_coalesced_frames == 0))
 		return -EINVAL;
 
-	if ((ec->tx_coalesce_usecs > STMMAC_COAL_TX_TIMER) ||
+	if ((ec->tx_coalesce_usecs > STMMAC_MAX_COAL_TX_TICK) ||
 	    (ec->tx_max_coalesced_frames > STMMAC_TX_MAX_FRAMES))
 		return -EINVAL;
 
@@ -784,5 +774,5 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &stmmac_ethtool_ops);
+	netdev->ethtool_ops = &stmmac_ethtool_ops;
 }

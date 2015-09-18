@@ -180,25 +180,34 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 ipack_device_attr(id_format, "0x%hhu\n");
 
-static struct device_attribute ipack_dev_attrs[] = {
-	__ATTR_RO(id),
-	__ATTR_RO(id_device),
-	__ATTR_RO(id_format),
-	__ATTR_RO(id_vendor),
-	__ATTR_RO(modalias),
+static DEVICE_ATTR_RO(id);
+static DEVICE_ATTR_RO(id_device);
+static DEVICE_ATTR_RO(id_format);
+static DEVICE_ATTR_RO(id_vendor);
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *ipack_attrs[] = {
+	&dev_attr_id.attr,
+	&dev_attr_id_device.attr,
+	&dev_attr_id_format.attr,
+	&dev_attr_id_vendor.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ipack);
 
 static struct bus_type ipack_bus_type = {
 	.name      = "ipack",
 	.probe     = ipack_bus_probe,
 	.match     = ipack_bus_match,
 	.remove    = ipack_bus_remove,
-	.dev_attrs = ipack_dev_attrs,
+	.dev_groups = ipack_groups,
 	.uevent	   = ipack_uevent,
 };
 
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
-					    const struct ipack_bus_ops *ops)
+					    const struct ipack_bus_ops *ops,
+					    struct module *owner)
 {
 	int bus_nr;
 	struct ipack_bus_device *bus;
@@ -217,6 +226,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	bus->parent = parent;
 	bus->slots = slots;
 	bus->ops = ops;
+	bus->owner = owner;
 	return bus;
 }
 EXPORT_SYMBOL_GPL(ipack_bus_register);

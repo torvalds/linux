@@ -5,7 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2013 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,8 +67,8 @@
 #include "fw-api.h"
 #include "mvm.h"
 
-/* Maps the driver specific channel width definition to the the fw values */
-static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
+/* Maps the driver specific channel width definition to the fw values */
+u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -88,7 +90,7 @@ static inline u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  * Maps the driver specific control channel position (relative to the center
  * freq) definitions to the the fw values
  */
-static inline u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->chan->center_freq - chandef->center_freq1) {
 	case -70:
@@ -156,13 +158,29 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
-	cmd->rxchain_info = cpu_to_le32(iwl_fw_valid_rx_ant(mvm->fw) <<
+	/* In scenarios where we only ever use a single-stream rates,
+	 * i.e. legacy 11b/g/a associations, single-stream APs or even
+	 * static SMPS, enable both chains to get diversity, improving
+	 * the case where we're far enough from the AP that attenuation
+	 * between the two antennas is sufficiently different to impact
+	 * performance.
+	 */
+	if (active_cnt == 1 && iwl_mvm_rx_diversity_allowed(mvm)) {
+		idle_cnt = 2;
+		active_cnt = 2;
+	}
+
+	cmd->rxchain_info = cpu_to_le32(iwl_mvm_get_valid_rx_ant(mvm) <<
 					PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= cpu_to_le32(active_cnt <<
 					 PHY_RX_CHAIN_MIMO_CNT_POS);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (unlikely(mvm->dbgfs_rx_phyinfo))
+		cmd->rxchain_info = cpu_to_le32(mvm->dbgfs_rx_phyinfo);
+#endif
 
-	cmd->txchain_info = cpu_to_le32(iwl_fw_valid_tx_ant(mvm->fw));
+	cmd->txchain_info = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 }
 
 /*
@@ -187,27 +205,12 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	iwl_mvm_phy_ctxt_cmd_data(mvm, &cmd, chandef,
 				  chains_static, chains_dynamic);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
+	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, 0,
 				   sizeof(struct iwl_phy_context_cmd),
 				   &cmd);
 	if (ret)
 		IWL_ERR(mvm, "PHY ctxt cmd error. ret=%d\n", ret);
 	return ret;
-}
-
-
-struct phy_ctx_used_data {
-	unsigned long used[BITS_TO_LONGS(NUM_PHY_CTX)];
-};
-
-static void iwl_mvm_phy_ctx_used_iter(struct ieee80211_hw *hw,
-				      struct ieee80211_chanctx_conf *ctx,
-				      void *_data)
-{
-	struct phy_ctx_used_data *data = _data;
-	struct iwl_mvm_phy_ctxt *phy_ctxt = (void *)ctx->drv_priv;
-
-	__set_bit(phy_ctxt->id, data->used);
 }
 
 /*
@@ -217,34 +220,25 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
-	struct phy_ctx_used_data data = {
-		.used = { },
-	};
-
-	/*
-	 * If this is a regular PHY context (not the ROC one)
-	 * skip the ROC PHY context's ID.
-	 */
-	if (ctxt != &mvm->phy_ctxt_roc)
-		__set_bit(mvm->phy_ctxt_roc.id, data.used);
-
+	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
-	ctxt->color++;
-
-	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		ieee80211_iter_chan_contexts_atomic(
-			mvm->hw, iwl_mvm_phy_ctx_used_iter, &data);
-
-		ctxt->id = find_first_zero_bit(data.used, NUM_PHY_CTX);
-		if (WARN_ONCE(ctxt->id == NUM_PHY_CTX,
-			      "Failed to init PHY context - no free ID!\n"))
-			return -EIO;
-	}
 
 	ctxt->channel = chandef->chan;
+
 	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				      chains_static, chains_dynamic,
 				      FW_CTXT_ACTION_ADD, 0);
+}
+
+/*
+ * Update the number of references to the given PHY context. This is valid only
+ * in case the PHY context was already created, i.e., its reference count > 0.
+ */
+void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
+{
+	lockdep_assert_held(&mvm->mutex);
+	ctxt->ref++;
 }
 
 /*
@@ -264,23 +258,38 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 				      FW_CTXT_ACTION_MODIFY, 0);
 }
 
-/*
- * Send a command to the FW to remove the given phy context.
- * Once the command is sent, regardless of success or failure, the context is
- * marked as invalid
- */
-void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
+void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
-	struct iwl_phy_context_cmd cmd;
-	int ret;
-
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_mvm_phy_ctxt_cmd_hdr(ctxt, &cmd, FW_CTXT_ACTION_REMOVE, 0);
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
-				   sizeof(struct iwl_phy_context_cmd),
-				   &cmd);
-	if (ret)
-		IWL_ERR(mvm, "Failed to send PHY remove: ctxt id=%d\n",
-			ctxt->id);
+	if (WARN_ON_ONCE(!ctxt))
+		return;
+
+	ctxt->ref--;
+}
+
+static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	unsigned long *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!mvmvif->phy_ctxt)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_STATION ||
+	    vif->type == NL80211_IFTYPE_AP)
+		__set_bit(mvmvif->phy_ctxt->id, data);
+}
+
+int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm)
+{
+	unsigned long phy_ctxt_counter = 0;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_binding_iterator,
+						   &phy_ctxt_counter);
+
+	return hweight8(phy_ctxt_counter);
 }

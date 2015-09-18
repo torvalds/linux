@@ -25,3 +25,65 @@ struct pt_regs;
 
 /* Emulate instructions that cause a transfer of control. */
 extern int emulate_step(struct pt_regs *regs, unsigned int instr);
+
+enum instruction_type {
+	COMPUTE,		/* arith/logical/CR op, etc. */
+	LOAD,
+	LOAD_MULTI,
+	LOAD_FP,
+	LOAD_VMX,
+	LOAD_VSX,
+	STORE,
+	STORE_MULTI,
+	STORE_FP,
+	STORE_VMX,
+	STORE_VSX,
+	LARX,
+	STCX,
+	BRANCH,
+	MFSPR,
+	MTSPR,
+	CACHEOP,
+	BARRIER,
+	SYSCALL,
+	MFMSR,
+	MTMSR,
+	RFI,
+	INTERRUPT,
+	UNKNOWN
+};
+
+#define INSTR_TYPE_MASK	0x1f
+
+/* Load/store flags, ORed in with type */
+#define SIGNEXT		0x20
+#define UPDATE		0x40	/* matches bit in opcode 31 instructions */
+#define BYTEREV		0x80
+
+/* Cacheop values, ORed in with type */
+#define CACHEOP_MASK	0x700
+#define DCBST		0
+#define DCBF		0x100
+#define DCBTST		0x200
+#define DCBT		0x300
+#define ICBI		0x400
+
+/* Size field in type word */
+#define SIZE(n)		((n) << 8)
+#define GETSIZE(w)	((w) >> 8)
+
+#define MKOP(t, f, s)	((t) | (f) | SIZE(s))
+
+struct instruction_op {
+	int type;
+	int reg;
+	unsigned long val;
+	/* For LOAD/STORE/LARX/STCX */
+	unsigned long ea;
+	int update_reg;
+	/* For MFSPR */
+	int spr;
+};
+
+extern int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
+			 unsigned int instr);

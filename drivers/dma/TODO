@@ -7,7 +7,6 @@ TODO for slave dma
 	- imx-dma
 	- imx-sdma
 	- mxs-dma.c
-	- dw_dmac
 	- intel_mid_dma
 4. Check other subsystems for dma drivers and merge/move to dmaengine
 5. Remove dma_slave_config's dma direction.

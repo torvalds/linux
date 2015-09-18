@@ -16,24 +16,49 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+enum ieee80211_regd_source {
+	REGD_SOURCE_INTERNAL_DB,
+	REGD_SOURCE_CRDA,
+};
+
 extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
+bool reg_is_valid_request(const char *alpha2);
 bool is_world_regdom(const char *alpha2);
-bool reg_supported_dfs_region(u8 dfs_region);
+bool reg_supported_dfs_region(enum nl80211_dfs_regions dfs_region);
+enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy);
 
 int regulatory_hint_user(const char *alpha2,
 			 enum nl80211_user_reg_hint_type user_reg_hint_type);
 
-int reg_device_uevent(struct device *dev, struct kobj_uevent_env *env);
+/**
+ * regulatory_hint_indoor - hint operation in indoor env. or not
+ * @is_indoor: if true indicates that user space thinks that the
+ * device is operating in an indoor environment.
+ * @portid: the netlink port ID on which the hint was given.
+ */
+int regulatory_hint_indoor(bool is_indoor, u32 portid);
+
+/**
+ * regulatory_netlink_notify - notify on released netlink socket
+ * @portid: the netlink socket port ID
+ */
+void regulatory_netlink_notify(u32 portid);
+
 void wiphy_regulatory_register(struct wiphy *wiphy);
 void wiphy_regulatory_deregister(struct wiphy *wiphy);
 
 int __init regulatory_init(void);
 void regulatory_exit(void);
 
-int set_regdom(const struct ieee80211_regdomain *rd);
+int set_regdom(const struct ieee80211_regdomain *rd,
+	       enum ieee80211_regd_source regd_src);
+
+unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
+				   const struct ieee80211_reg_rule *rule);
 
 bool reg_last_request_cell_base(void);
+const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy);
 
 /**
  * regulatory_hint_found_beacon - hints a beacon was found on a channel
@@ -58,7 +83,7 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 				 gfp_t gfp);
 
 /**
- * regulatory_hint_11d - hints a country IE as a regulatory domain
+ * regulatory_hint_country_ie - hints a country IE as a regulatory domain
  * @wiphy: the wireless device giving the hint (used only for reporting
  *	conflicts)
  * @band: the band on which the country IE was received on. This determines
@@ -78,7 +103,7 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  * not observed. For this reason if a triplet is seen with channel
  * information for a band the BSS is not present in it will be ignored.
  */
-void regulatory_hint_11d(struct wiphy *wiphy,
+void regulatory_hint_country_ie(struct wiphy *wiphy,
 			 enum ieee80211_band band,
 			 const u8 *country_ie,
 			 u8 country_ie_len);
@@ -100,5 +125,22 @@ void regulatory_hint_11d(struct wiphy *wiphy,
  * Must be called from process context.
  */
 void regulatory_hint_disconnect(void);
+
+/**
+ * cfg80211_get_unii - get the U-NII band for the frequency
+ * @freq: the frequency for which we want to get the UNII band.
+
+ * Get a value specifying the U-NII band frequency belongs to.
+ * U-NII bands are defined by the FCC in C.F.R 47 part 15.
+ *
+ * Returns -EINVAL if freq is invalid, 0 for UNII-1, 1 for UNII-2A,
+ * 2 for UNII-2B, 3 for UNII-2C and 4 for UNII-3.
+ */
+int cfg80211_get_unii(int freq);
+
+/**
+ * regulatory_indoor_allowed - is indoor operation allowed
+ */
+bool regulatory_indoor_allowed(void);
 
 #endif  /* __NET_WIRELESS_REG_H */

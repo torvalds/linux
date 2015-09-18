@@ -101,8 +101,7 @@ void ide_device_put(ide_drive_t *drive)
 	struct device *host_dev = drive->hwif->host->dev[0];
 	struct module *module = host_dev ? host_dev->driver->owner : NULL;
 
-	if (module)
-		module_put(module);
+	module_put(module);
 #endif
 	put_device(&drive->gendev);
 }
@@ -158,7 +157,7 @@ struct bus_type ide_bus_type = {
 	.probe		= generic_ide_probe,
 	.remove		= generic_ide_remove,
 	.shutdown	= generic_ide_shutdown,
-	.dev_attrs	= ide_dev_attrs,
+	.dev_groups	= ide_dev_groups,
 	.suspend	= generic_ide_suspend,
 	.resume		= generic_ide_resume,
 };
@@ -200,7 +199,7 @@ static int ide_set_dev_param_mask(const char *s, const struct kernel_param *kp)
 	return 0;
 }
 
-static struct kernel_param_ops param_ops_ide_dev_mask = {
+static const struct kernel_param_ops param_ops_ide_dev_mask = {
 	.set = ide_set_dev_param_mask
 };
 

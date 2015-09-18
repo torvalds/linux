@@ -1,0 +1,147 @@
+/*
+ * Copyright 2013-2014 Texas Instruments, Inc.
+ *
+ * Keystone 2 Edison soc device tree
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gic>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <3>;
+		};
+	};
+
+	soc {
+		/include/ "k2e-clocks.dtsi"
+
+		usb: usb@2680000 {
+			interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			dwc3@2690000 {
+				interrupts = <GIC_SPI 152 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		usb1_phy: usb_phy@2620750 {
+			compatible = "ti,keystone-usbphy";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x2620750 24>;
+			status = "disabled";
+		};
+
+		usb1: usb@25000000 {
+			compatible = "ti,keystone-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x25000000 0x10000>;
+			clocks = <&clkusb1>;
+			clock-names = "usb";
+			interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+			ranges;
+			dma-coherent;
+			dma-ranges;
+			status = "disabled";
+
+			dwc3@25010000 {
+				compatible = "synopsys,dwc3";
+				reg = <0x25010000 0x70000>;
+				interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
+				usb-phy = <&usb1_phy>, <&usb1_phy>;
+			};
+		};
+
+		dspgpio0: keystone_dsp_gpio@02620240 {
+			compatible = "ti,keystone-dsp-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		pcie1: pcie@21020000 {
+			compatible = "ti,keystone-pcie","snps,dw-pcie";
+			clocks = <&clkpcie1>;
+			clock-names = "pcie";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			reg =  <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
+			ranges = <0x81000000 0 0 0x23260000 0x4000 0x4000
+				0x82000000 0 0x60000000 0x60000000 0 0x10000000>;
+
+			status = "disabled";
+			device_type = "pci";
+			num-lanes = <2>;
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie_intc1 0>, /* INT A */
+					<0 0 0 2 &pcie_intc1 1>, /* INT B */
+					<0 0 0 3 &pcie_intc1 2>, /* INT C */
+					<0 0 0 4 &pcie_intc1 3>; /* INT D */
+
+			pcie_msi_intc1: msi-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 378 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 379 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 380 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 381 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 382 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 383 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 384 IRQ_TYPE_EDGE_RISING>;
+			};
+
+			pcie_intc1: legacy-interrupt-controller {
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 373 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 374 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 375 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 376 IRQ_TYPE_EDGE_RISING>;
+			};
+		};
+
+		mdio: mdio@24200f00 {
+			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x24200f00 0x100>;
+			status = "disabled";
+			clocks = <&clkcpgmac>;
+			clock-names = "fck";
+			bus_freq	= <2500000>;
+		};
+		/include/ "k2e-netcp.dtsi"
+	};
+};

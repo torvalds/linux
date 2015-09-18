@@ -35,6 +35,34 @@ extern void edac_atomic_assert_error(void);
 extern struct bus_type *edac_get_sysfs_subsys(void);
 extern void edac_put_sysfs_subsys(void);
 
+enum {
+	EDAC_REPORTING_ENABLED,
+	EDAC_REPORTING_DISABLED,
+	EDAC_REPORTING_FORCE
+};
+
+extern int edac_report_status;
+#ifdef CONFIG_EDAC
+static inline int get_edac_report_status(void)
+{
+	return edac_report_status;
+}
+
+static inline void set_edac_report_status(int new)
+{
+	edac_report_status = new;
+}
+#else
+static inline int get_edac_report_status(void)
+{
+	return EDAC_REPORTING_DISABLED;
+}
+
+static inline void set_edac_report_status(int new)
+{
+}
+#endif
+
 static inline void opstate_init(void)
 {
 	switch (edac_op_state) {
@@ -51,7 +79,7 @@ static inline void opstate_init(void)
 #define EDAC_MC_LABEL_LEN	31
 
 /* Maximum size of the location string */
-#define LOCATION_SIZE 80
+#define LOCATION_SIZE 256
 
 /* Defines the maximum number of labels that can be reported */
 #define EDAC_MAX_LABELS		8
@@ -166,6 +194,10 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_DDR3:		DDR3 RAM
  * @MEM_RDDR3:		Registered DDR3 RAM
  *			This is a variant of the DDR3 memories.
+ * @MEM_LRDDR3		Load-Reduced DDR3 memory.
+ * @MEM_DDR4:		Unbuffered DDR4 RAM
+ * @MEM_RDDR4:		Registered DDR4 RAM
+ *			This is a variant of the DDR4 memories.
  */
 enum mem_type {
 	MEM_EMPTY = 0,
@@ -185,6 +217,9 @@ enum mem_type {
 	MEM_XDR,
 	MEM_DDR3,
 	MEM_RDDR3,
+	MEM_LRDDR3,
+	MEM_DDR4,
+	MEM_RDDR4,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -622,7 +657,7 @@ struct edac_raw_error_desc {
  */
 struct mem_ctl_info {
 	struct device			dev;
-	struct bus_type			bus;
+	struct bus_type			*bus;
 
 	struct list_head link;	/* for global list of mem_ctl_info structs */
 
@@ -741,5 +776,10 @@ struct mem_ctl_info {
 	u16 fake_inject_count;
 #endif
 };
+
+/*
+ * Maximum number of memory controllers in the coherent fabric.
+ */
+#define EDAC_MAX_MCS	16
 
 #endif

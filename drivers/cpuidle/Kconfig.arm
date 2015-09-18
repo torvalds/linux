@@ -1,0 +1,76 @@
+#
+# ARM CPU Idle drivers
+#
+config ARM_CPUIDLE
+        bool "Generic ARM/ARM64 CPU idle Driver"
+        select DT_IDLE_STATES
+        help
+          Select this to enable generic cpuidle driver for ARM.
+          It provides a generic idle driver whose idle states are configured
+          at run-time through DT nodes. The CPUidle suspend backend is
+          initialized by calling the CPU operations init idle hook
+          provided by architecture code.
+
+config ARM_BIG_LITTLE_CPUIDLE
+	bool "Support for ARM big.LITTLE processors"
+	depends on ARCH_VEXPRESS_TC2_PM || ARCH_EXYNOS
+	depends on MCPM && !ARM64
+	select ARM_CPU_SUSPEND
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	select DT_IDLE_STATES
+	help
+	  Select this option to enable CPU idle driver for big.LITTLE based
+	  ARM systems. Driver manages CPUs coordination through MCPM and
+	  define different C-states for little and big cores through the
+	  multiple CPU idle drivers infrastructure.
+
+config ARM_CLPS711X_CPUIDLE
+	bool "CPU Idle Driver for CLPS711X processors"
+	depends on ARCH_CLPS711X && !ARM64 || COMPILE_TEST
+	help
+	  Select this to enable cpuidle on Cirrus Logic CLPS711X SOCs.
+
+config ARM_HIGHBANK_CPUIDLE
+	bool "CPU Idle Driver for Calxeda processors"
+	depends on ARM_PSCI && !ARM64
+	select ARM_CPU_SUSPEND
+	help
+	  Select this to enable cpuidle on Calxeda processors.
+
+config ARM_KIRKWOOD_CPUIDLE
+	bool "CPU Idle Driver for Marvell Kirkwood SoCs"
+	depends on MACH_KIRKWOOD && !ARM64
+	help
+	  This adds the CPU Idle driver for Marvell Kirkwood SoCs.
+
+config ARM_ZYNQ_CPUIDLE
+	bool "CPU Idle Driver for Xilinx Zynq processors"
+	depends on ARCH_ZYNQ && !ARM64
+	help
+	  Select this to enable cpuidle on Xilinx Zynq processors.
+
+config ARM_U8500_CPUIDLE
+	bool "Cpu Idle Driver for the ST-E u8500 processors"
+	depends on ARCH_U8500 && !ARM64
+	help
+	  Select this to enable cpuidle for ST-E u8500 processors
+
+config ARM_AT91_CPUIDLE
+	bool "Cpu Idle Driver for the AT91 processors"
+	default y
+	depends on ARCH_AT91 && !ARM64
+	help
+	  Select this to enable cpuidle for AT91 processors
+
+config ARM_EXYNOS_CPUIDLE
+	bool "Cpu Idle Driver for the Exynos processors"
+	depends on ARCH_EXYNOS && !ARM64
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	help
+	  Select this to enable cpuidle for Exynos processors
+
+config ARM_MVEBU_V7_CPUIDLE
+	bool "CPU Idle Driver for mvebu v7 family processors"
+	depends on ARCH_MVEBU && !ARM64
+	help
+	  Select this to enable cpuidle on Armada 370, 38x and XP processors.

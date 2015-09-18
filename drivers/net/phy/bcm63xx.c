@@ -78,7 +78,7 @@ static struct phy_driver bcm63xx_driver[] = {
 	.name		= "Broadcom BCM63XX (1)",
 	/* ASYM_PAUSE bit is marked RO in datasheet, so don't cheat */
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -91,7 +91,7 @@ static struct phy_driver bcm63xx_driver[] = {
 	.phy_id_mask	= 0xfffffc00,
 	.name		= "Broadcom BCM63XX (2)",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
-	.flags		= PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT | PHY_IS_INTERNAL,
 	.config_init	= bcm63xx_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -100,20 +100,7 @@ static struct phy_driver bcm63xx_driver[] = {
 	.driver		= { .owner = THIS_MODULE },
 } };
 
-static int __init bcm63xx_phy_init(void)
-{
-	return phy_drivers_register(bcm63xx_driver,
-		ARRAY_SIZE(bcm63xx_driver));
-}
-
-static void __exit bcm63xx_phy_exit(void)
-{
-	phy_drivers_unregister(bcm63xx_driver,
-		ARRAY_SIZE(bcm63xx_driver));
-}
-
-module_init(bcm63xx_phy_init);
-module_exit(bcm63xx_phy_exit);
+module_phy_driver(bcm63xx_driver);
 
 static struct mdio_device_id __maybe_unused bcm63xx_tbl[] = {
 	{ 0x00406000, 0xfffffc00 },

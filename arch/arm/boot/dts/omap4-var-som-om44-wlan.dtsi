@@ -1,0 +1,78 @@
+/*
+ * Copyright (C) 2014 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	/* regulator for wl12xx on sdio4 */
+	wl12xx_vmmc: wl12xx_vmmc {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl12xx_ctrl_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio2 11 0>;	/* gpio 43 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+};
+
+&omap4_pmx_core {
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x118, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart2_cts.uart2_cts */
+			OMAP4_IOPAD(0x11a, PIN_OUTPUT | MUX_MODE0)		/* uart2_rts.uart2_rts */
+			OMAP4_IOPAD(0x11c, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart2_rx.uart2_rx */
+			OMAP4_IOPAD(0x11e, PIN_OUTPUT | MUX_MODE0)		/* uart2_tx.uart2_tx */
+		>;
+	};
+
+	wl12xx_ctrl_pins: pinmux_wl12xx_ctrl_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x062, PIN_INPUT_PULLUP | MUX_MODE3)	/* gpmc_a17.gpio_41 (WLAN_IRQ) */
+			OMAP4_IOPAD(0x064, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a18.gpio_42 (BT_EN) */
+			OMAP4_IOPAD(0x066, PIN_OUTPUT | MUX_MODE3)		/* gpmc_a19.gpio_43 (WLAN_EN) */
+		>;
+	};
+
+	mmc4_pins: pinmux_mmc4_pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x154, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_clk.sdmmc4_clk */
+			OMAP4_IOPAD(0x156, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_simo.sdmmc4_cmd */
+			OMAP4_IOPAD(0x158, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_somi.sdmmc4_dat0 */
+			OMAP4_IOPAD(0x15e, PIN_INPUT_PULLUP | MUX_MODE1)	/* uart4_tx.sdmmc4_dat1 */
+			OMAP4_IOPAD(0x15c, PIN_INPUT_PULLUP | MUX_MODE1)	/* uart4_rx.sdmmc4_dat2 */
+			OMAP4_IOPAD(0x15a, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi4_cs0.sdmmc4_dat3 */
+		>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
+};
+
+&mmc4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc4_pins>;
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <9 IRQ_TYPE_LEVEL_HIGH>; /* gpio 41 */
+		ref-clock-frequency = <38400000>;
+	};
+};

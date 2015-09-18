@@ -45,7 +45,7 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -641,7 +641,7 @@ out:
 
 u32
 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
-		     struct xdr_buf *buf, int ec, struct page **pages)
+		     struct xdr_buf *buf, struct page **pages)
 {
 	u32 err;
 	struct xdr_netobj hmac;
@@ -684,13 +684,8 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		ecptr = buf->tail[0].iov_base;
 	}
 
-	memset(ecptr, 'X', ec);
-	buf->tail[0].iov_len += ec;
-	buf->len += ec;
-
 	/* copy plaintext gss token header after filler (if any) */
-	memcpy(ecptr + ec, buf->head[0].iov_base + offset,
-						GSS_KRB5_TOK_HDR_LEN);
+	memcpy(ecptr, buf->head[0].iov_base + offset, GSS_KRB5_TOK_HDR_LEN);
 	buf->tail[0].iov_len += GSS_KRB5_TOK_HDR_LEN;
 	buf->len += GSS_KRB5_TOK_HDR_LEN;
 
@@ -886,9 +881,7 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
 	if (err)
 		goto out_err;
 
-	sg_init_table(sg, 1);
-	sg_set_buf(sg, &zeroconstant, 4);
-
+	sg_init_one(sg, &zeroconstant, 4);
 	err = crypto_hash_digest(&desc, sg, 4, Kseq);
 	if (err)
 		goto out_err;
@@ -956,9 +949,7 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
 	if (err)
 		goto out_err;
 
-	sg_init_table(sg, 1);
-	sg_set_buf(sg, zeroconstant, 4);
-
+	sg_init_one(sg, zeroconstant, 4);
 	err = crypto_hash_digest(&desc, sg, 4, Kcrypt);
 	if (err)
 		goto out_err;

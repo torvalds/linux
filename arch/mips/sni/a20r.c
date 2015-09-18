@@ -122,7 +122,6 @@ static struct resource sc26xx_rsrc[] = {
 
 static struct sccnxp_pdata sccnxp_data = {
 	.reg_shift	= 2,
-	.frequency	= 3686400,
 	.mctrl_cfg[0]	= MCTRL_SIG(DTR_OP, LINE_OP7) |
 			  MCTRL_SIG(RTS_OP, LINE_OP3) |
 			  MCTRL_SIG(DSR_IP, LINE_IP5) |

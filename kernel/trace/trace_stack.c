@@ -7,24 +7,16 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
-#include <linux/fs.h>
 
 #include <asm/setup.h>
 
 #include "trace.h"
 
 #define STACK_TRACE_ENTRIES 500
-
-#ifdef CC_USING_FENTRY
-# define fentry		1
-#else
-# define fentry		0
-#endif
 
 static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES+1] =
 	 { [0 ... (STACK_TRACE_ENTRIES)] = ULONG_MAX };
@@ -37,7 +29,7 @@ static unsigned stack_dump_index[STACK_TRACE_ENTRIES];
  */
 static struct stack_trace max_stack_trace = {
 	.max_entries		= STACK_TRACE_ENTRIES - 1,
-	.entries		= &stack_dump_trace[1],
+	.entries		= &stack_dump_trace[0],
 };
 
 static unsigned long max_stack_size;
@@ -50,14 +42,36 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
+static inline void print_max_stack(void)
+{
+	long i;
+	int size;
+
+	pr_emerg("        Depth    Size   Location    (%d entries)\n"
+			   "        -----    ----   --------\n",
+			   max_stack_trace.nr_entries);
+
+	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+		if (stack_dump_trace[i] == ULONG_MAX)
+			break;
+		if (i+1 == max_stack_trace.nr_entries ||
+				stack_dump_trace[i+1] == ULONG_MAX)
+			size = stack_dump_index[i];
+		else
+			size = stack_dump_index[i] - stack_dump_index[i+1];
+
+		pr_emerg("%3ld) %8d   %5d   %pS\n", i, stack_dump_index[i],
+				size, (void *)stack_dump_trace[i]);
+	}
+}
+
 static inline void
 check_stack(unsigned long ip, unsigned long *stack)
 {
-	unsigned long this_size, flags;
-	unsigned long *p, *top, *start;
+	unsigned long this_size, flags; unsigned long *p, *top, *start;
 	static int tracer_frame;
 	int frame_size = ACCESS_ONCE(tracer_frame);
-	int i;
+	int i, x;
 
 	this_size = ((unsigned long)stack) & (THREAD_SIZE-1);
 	this_size = THREAD_SIZE - this_size;
@@ -84,23 +98,21 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 	max_stack_size = this_size;
 
-	max_stack_trace.nr_entries	= 0;
-	max_stack_trace.skip		= 3;
+	max_stack_trace.nr_entries = 0;
+	max_stack_trace.skip = 3;
 
 	save_stack_trace(&max_stack_trace);
 
-	/*
-	 * Add the passed in ip from the function tracer.
-	 * Searching for this on the stack will skip over
-	 * most of the overhead from the stack tracer itself.
-	 */
-	stack_dump_trace[0] = ip;
-	max_stack_trace.nr_entries++;
+	/* Skip over the overhead of the stack tracer itself */
+	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+		if (stack_dump_trace[i] == ip)
+			break;
+	}
 
 	/*
 	 * Now find where in the stack these are.
 	 */
-	i = 0;
+	x = 0;
 	start = stack;
 	top = (unsigned long *)
 		(((unsigned long)start & ~(THREAD_SIZE-1)) + THREAD_SIZE);
@@ -115,12 +127,15 @@ check_stack(unsigned long ip, unsigned long *stack)
 	while (i < max_stack_trace.nr_entries) {
 		int found = 0;
 
-		stack_dump_index[i] = this_size;
+		stack_dump_index[x] = this_size;
 		p = start;
 
 		for (; p < top && i < max_stack_trace.nr_entries; p++) {
+			if (stack_dump_trace[i] == ULONG_MAX)
+				break;
 			if (*p == stack_dump_trace[i]) {
-				this_size = stack_dump_index[i++] =
+				stack_dump_trace[x] = stack_dump_trace[i++];
+				this_size = stack_dump_index[x++] =
 					(top - p) * sizeof(unsigned long);
 				found = 1;
 				/* Start the search from here */
@@ -132,7 +147,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 				 * out what that is, then figure it out
 				 * now.
 				 */
-				if (unlikely(!tracer_frame) && i == 1) {
+				if (unlikely(!tracer_frame)) {
 					tracer_frame = (p - stack) *
 						sizeof(unsigned long);
 					max_stack_size -= tracer_frame;
@@ -142,6 +157,15 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 		if (!found)
 			i++;
+	}
+
+	max_stack_trace.nr_entries = x;
+	for (; x < i; x++)
+		stack_dump_trace[x] = ULONG_MAX;
+
+	if (task_stack_end_corrupted(current)) {
+		print_max_stack();
+		BUG();
 	}
 
  out:
@@ -163,24 +187,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	if (per_cpu(trace_active, cpu)++ != 0)
 		goto out;
 
-	/*
-	 * When fentry is used, the traced function does not get
-	 * its stack frame set up, and we lose the parent.
-	 * The ip is pretty useless because the function tracer
-	 * was called before that function set up its stack frame.
-	 * In this case, we use the parent ip.
-	 *
-	 * By adding the return address of either the parent ip
-	 * or the current ip we can disregard most of the stack usage
-	 * caused by the stack tracer itself.
-	 *
-	 * The function tracer always reports the address of where the
-	 * mcount call was, but the stack will hold the return address.
-	 */
-	if (fentry)
-		ip = parent_ip;
-	else
-		ip += MCOUNT_INSN_SIZE;
+	ip += MCOUNT_INSN_SIZE;
 
 	check_stack(ip, &stack);
 
@@ -255,7 +262,7 @@ __next(struct seq_file *m, loff_t *pos)
 {
 	long n = *pos - 1;
 
-	if (n >= max_stack_trace.nr_entries || stack_dump_trace[n] == ULONG_MAX)
+	if (n > max_stack_trace.nr_entries || stack_dump_trace[n] == ULONG_MAX)
 		return NULL;
 
 	m->private = (void *)n;
@@ -298,11 +305,11 @@ static void t_stop(struct seq_file *m, void *p)
 	local_irq_enable();
 }
 
-static int trace_lookup_stack(struct seq_file *m, long i)
+static void trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
 
-	return seq_printf(m, "%pS\n", (void *)addr);
+	seq_printf(m, "%pS\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)
@@ -325,7 +332,7 @@ static int t_show(struct seq_file *m, void *v)
 		seq_printf(m, "        Depth    Size   Location"
 			   "    (%d entries)\n"
 			   "        -----    ----   --------\n",
-			   max_stack_trace.nr_entries - 1);
+			   max_stack_trace.nr_entries);
 
 		if (!stack_tracer_enabled && !max_stack_size)
 			print_disabled(m);
@@ -382,7 +389,7 @@ static const struct file_operations stack_trace_filter_fops = {
 	.open = stack_trace_filter_open,
 	.read = seq_read,
 	.write = ftrace_filter_write,
-	.llseek = ftrace_filter_lseek,
+	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
 
@@ -431,7 +438,7 @@ static __init int stack_trace_init(void)
 	struct dentry *d_tracer;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
 	trace_create_file("stack_max_size", 0644, d_tracer,

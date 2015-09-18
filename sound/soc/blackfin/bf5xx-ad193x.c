@@ -39,30 +39,16 @@
 
 #include "../codecs/ad193x.h"
 
-#include "bf5xx-tdm-pcm.h"
-#include "bf5xx-tdm.h"
-
 static struct snd_soc_card bf5xx_ad193x;
 
-static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int bf5xx_ad193x_link_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	unsigned int clk = 0;
-	unsigned int channel_map[] = {0, 1, 2, 3, 4, 5, 6, 7};
-	int ret = 0;
-
-	switch (params_rate(params)) {
-	case 48000:
-		clk = 24576000;
-		break;
-	}
+	int ret;
 
 	/* set the codec system clock for DAC and ADC */
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk,
-		SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 24576000, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
@@ -71,9 +57,7 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* set cpu DAI channel mapping */
-	ret = snd_soc_dai_set_channel_map(cpu_dai, ARRAY_SIZE(channel_map),
-		channel_map, ARRAY_SIZE(channel_map), channel_map);
+	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0xFF, 0xFF, 8, 32);
 	if (ret < 0)
 		return ret;
 
@@ -83,30 +67,26 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 #define BF5XX_AD193X_DAIFMT (SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_IF | \
 				SND_SOC_DAIFMT_CBM_CFM)
 
-static struct snd_soc_ops bf5xx_ad193x_ops = {
-	.hw_params = bf5xx_ad193x_hw_params,
-};
-
 static struct snd_soc_dai_link bf5xx_ad193x_dai[] = {
 	{
 		.name = "ad193x",
 		.stream_name = "AD193X",
-		.cpu_dai_name = "bfin-tdm.0",
+		.cpu_dai_name = "bfin-i2s.0",
 		.codec_dai_name ="ad193x-hifi",
-		.platform_name = "bfin-tdm-pcm-audio",
+		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "spi0.5",
-		.ops = &bf5xx_ad193x_ops,
 		.dai_fmt = BF5XX_AD193X_DAIFMT,
+		.init = bf5xx_ad193x_link_init,
 	},
 	{
 		.name = "ad193x",
 		.stream_name = "AD193X",
-		.cpu_dai_name = "bfin-tdm.1",
+		.cpu_dai_name = "bfin-i2s.1",
 		.codec_dai_name ="ad193x-hifi",
-		.platform_name = "bfin-tdm-pcm-audio",
+		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "spi0.5",
-		.ops = &bf5xx_ad193x_ops,
 		.dai_fmt = BF5XX_AD193X_DAIFMT,
+		.init = bf5xx_ad193x_link_init,
 	},
 };
 

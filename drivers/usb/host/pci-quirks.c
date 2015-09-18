@@ -12,7 +12,6 @@
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/acpi.h>
@@ -79,11 +78,30 @@
 #define USB_INTEL_USB3_PSSEN   0xD8
 #define USB_INTEL_USB3PRM      0xDC
 
+/*
+ * amd_chipset_gen values represent AMD different chipset generations
+ */
+enum amd_chipset_gen {
+	NOT_AMD_CHIPSET = 0,
+	AMD_CHIPSET_SB600,
+	AMD_CHIPSET_SB700,
+	AMD_CHIPSET_SB800,
+	AMD_CHIPSET_HUDSON2,
+	AMD_CHIPSET_BOLTON,
+	AMD_CHIPSET_YANGTZE,
+	AMD_CHIPSET_UNKNOWN,
+};
+
+struct amd_chipset_type {
+	enum amd_chipset_gen gen;
+	u8 rev;
+};
+
 static struct amd_chipset_info {
 	struct pci_dev	*nb_dev;
 	struct pci_dev	*smbus_dev;
 	int nb_type;
-	int sb_type;
+	struct amd_chipset_type sb_type;
 	int isoc_reqs;
 	int probe_count;
 	int probe_result;
@@ -91,9 +109,66 @@ static struct amd_chipset_info {
 
 static DEFINE_SPINLOCK(amd_lock);
 
-int usb_amd_find_chipset_info(void)
+/*
+ * amd_chipset_sb_type_init - initialize amd chipset southbridge type
+ *
+ * AMD FCH/SB generation and revision is identified by SMBus controller
+ * vendor, device and revision IDs.
+ *
+ * Returns: 1 if it is an AMD chipset, 0 otherwise.
+ */
+static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 {
 	u8 rev = 0;
+	pinfo->sb_type.gen = AMD_CHIPSET_UNKNOWN;
+
+	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
+			PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
+	if (pinfo->smbus_dev) {
+		rev = pinfo->smbus_dev->revision;
+		if (rev >= 0x10 && rev <= 0x1f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB600;
+		else if (rev >= 0x30 && rev <= 0x3f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB700;
+		else if (rev >= 0x40 && rev <= 0x4f)
+			pinfo->sb_type.gen = AMD_CHIPSET_SB800;
+	} else {
+		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
+
+		if (!pinfo->smbus_dev) {
+			pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+			return 0;
+		}
+
+		rev = pinfo->smbus_dev->revision;
+		if (rev >= 0x11 && rev <= 0x14)
+			pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
+		else if (rev >= 0x15 && rev <= 0x18)
+			pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
+		else if (rev >= 0x39 && rev <= 0x3a)
+			pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
+	}
+
+	pinfo->sb_type.rev = rev;
+	return 1;
+}
+
+void sb800_prefetch(struct device *dev, int on)
+{
+	u16 misc;
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	pci_read_config_word(pdev, 0x50, &misc);
+	if (on == 0)
+		pci_write_config_word(pdev, 0x50, misc & 0xfcff);
+	else
+		pci_write_config_word(pdev, 0x50, misc | 0x0300);
+}
+EXPORT_SYMBOL_GPL(sb800_prefetch);
+
+int usb_amd_find_chipset_info(void)
+{
 	unsigned long flags;
 	struct amd_chipset_info info;
 	int ret;
@@ -109,27 +184,17 @@ int usb_amd_find_chipset_info(void)
 	memset(&info, 0, sizeof(info));
 	spin_unlock_irqrestore(&amd_lock, flags);
 
-	info.smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
-	if (info.smbus_dev) {
-		rev = info.smbus_dev->revision;
-		if (rev >= 0x40)
-			info.sb_type = 1;
-		else if (rev >= 0x30 && rev <= 0x3b)
-			info.sb_type = 3;
-	} else {
-		info.smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-						0x780b, NULL);
-		if (!info.smbus_dev) {
-			ret = 0;
-			goto commit;
-		}
-
-		rev = info.smbus_dev->revision;
-		if (rev >= 0x11 && rev <= 0x18)
-			info.sb_type = 2;
+	if (!amd_chipset_sb_type_init(&info)) {
+		ret = 0;
+		goto commit;
 	}
 
-	if (info.sb_type == 0) {
+	/* Below chipset generations needn't enable AMD PLL quirk */
+	if (info.sb_type.gen == AMD_CHIPSET_UNKNOWN ||
+			info.sb_type.gen == AMD_CHIPSET_SB600 ||
+			info.sb_type.gen == AMD_CHIPSET_YANGTZE ||
+			(info.sb_type.gen == AMD_CHIPSET_SB700 &&
+			info.sb_type.rev > 0x3b)) {
 		if (info.smbus_dev) {
 			pci_dev_put(info.smbus_dev);
 			info.smbus_dev = NULL;
@@ -168,10 +233,8 @@ commit:
 
 		spin_unlock_irqrestore(&amd_lock, flags);
 
-		if (info.nb_dev)
-			pci_dev_put(info.nb_dev);
-		if (info.smbus_dev)
-			pci_dev_put(info.smbus_dev);
+		pci_dev_put(info.nb_dev);
+		pci_dev_put(info.smbus_dev);
 
 	} else {
 		/* no race - commit the result */
@@ -183,6 +246,39 @@ commit:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
+
+int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
+{
+	/* Make sure amd chipset type has already been initialized */
+	usb_amd_find_chipset_info();
+	if (amd_chipset.sb_type.gen != AMD_CHIPSET_YANGTZE)
+		return 0;
+
+	dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
+	return 1;
+}
+EXPORT_SYMBOL_GPL(usb_hcd_amd_remote_wakeup_quirk);
+
+bool usb_amd_hang_symptom_quirk(void)
+{
+	u8 rev;
+
+	usb_amd_find_chipset_info();
+	rev = amd_chipset.sb_type.rev;
+	/* SB600 and old version of SB700 have hang symptom bug */
+	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB600 ||
+			(amd_chipset.sb_type.gen == AMD_CHIPSET_SB700 &&
+			 rev >= 0x3a && rev <= 0x3b);
+}
+EXPORT_SYMBOL_GPL(usb_amd_hang_symptom_quirk);
+
+bool usb_amd_prefetch_quirk(void)
+{
+	usb_amd_find_chipset_info();
+	/* SB800 needs pre-fetch fix */
+	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB800;
+}
+EXPORT_SYMBOL_GPL(usb_amd_prefetch_quirk);
 
 /*
  * The hardware normally enables the A-link power management feature, which
@@ -216,7 +312,9 @@ static void usb_amd_quirk_pll(int disable)
 		}
 	}
 
-	if (amd_chipset.sb_type == 1 || amd_chipset.sb_type == 2) {
+	if (amd_chipset.sb_type.gen == AMD_CHIPSET_SB800 ||
+			amd_chipset.sb_type.gen == AMD_CHIPSET_HUDSON2 ||
+			amd_chipset.sb_type.gen == AMD_CHIPSET_BOLTON) {
 		outb_p(AB_REG_BAR_LOW, 0xcd6);
 		addr_low = inb_p(0xcd7);
 		outb_p(AB_REG_BAR_HIGH, 0xcd6);
@@ -227,7 +325,8 @@ static void usb_amd_quirk_pll(int disable)
 		outl_p(0x40, AB_DATA(addr));
 		outl_p(0x34, AB_INDX(addr));
 		val = inl_p(AB_DATA(addr));
-	} else if (amd_chipset.sb_type == 3) {
+	} else if (amd_chipset.sb_type.gen == AMD_CHIPSET_SB700 &&
+			amd_chipset.sb_type.rev <= 0x3b) {
 		pci_read_config_dword(amd_chipset.smbus_dev,
 					AB_REG_BAR_SB700, &addr);
 		outl(AX_INDXC, AB_INDX(addr));
@@ -340,16 +439,14 @@ void usb_amd_dev_put(void)
 	amd_chipset.nb_dev = NULL;
 	amd_chipset.smbus_dev = NULL;
 	amd_chipset.nb_type = 0;
-	amd_chipset.sb_type = 0;
+	memset(&amd_chipset.sb_type, 0, sizeof(amd_chipset.sb_type));
 	amd_chipset.isoc_reqs = 0;
 	amd_chipset.probe_result = 0;
 
 	spin_unlock_irqrestore(&amd_lock, flags);
 
-	if (nb)
-		pci_dev_put(nb);
-	if (smbus)
-		pci_dev_put(smbus);
+	pci_dev_put(nb);
+	pci_dev_put(smbus);
 }
 EXPORT_SYMBOL_GPL(usb_amd_dev_put);
 
@@ -470,7 +567,8 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
 	u32 control;
-	u32 fminterval;
+	u32 fminterval = 0;
+	bool no_fminterval = false;
 	int cnt;
 
 	if (!mmio_resource_enabled(pdev, 0))
@@ -479,6 +577,13 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	base = pci_ioremap_bar(pdev, 0);
 	if (base == NULL)
 		return;
+
+	/*
+	 * ULi M5237 OHCI controller locks the whole system when accessing
+	 * the OHCI_FMINTERVAL offset.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_AL && pdev->device == 0x5237)
+		no_fminterval = true;
 
 	control = readl(base + OHCI_CONTROL);
 
@@ -498,9 +603,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			msleep(10);
 		}
 		if (wait_time <= 0)
-			dev_warn(&pdev->dev, "OHCI: BIOS handoff failed"
-					" (BIOS bug?) %08x\n",
-					readl(base + OHCI_CONTROL));
+			dev_warn(&pdev->dev,
+				 "OHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 readl(base + OHCI_CONTROL));
 	}
 #endif
 
@@ -518,7 +623,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	}
 
 	/* software reset of the controller, preserving HcFmInterval */
-	fminterval = readl(base + OHCI_FMINTERVAL);
+	if (!no_fminterval)
+		fminterval = readl(base + OHCI_FMINTERVAL);
+
 	writel(OHCI_HCR, base + OHCI_CMDSTATUS);
 
 	/* reset requires max 10 us delay */
@@ -527,7 +634,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			break;
 		udelay(1);
 	}
-	writel(fminterval, base + OHCI_FMINTERVAL);
+
+	if (!no_fminterval)
+		writel(fminterval, base + OHCI_FMINTERVAL);
 
 	/* Now the controller is safely in SUSPEND and nothing can wake it up */
 	iounmap(base);
@@ -555,6 +664,14 @@ static const struct dmi_system_id ehci_dmi_nohandoff_table[] = {
 			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-"),
 		},
 	},
+	{
+		/* HASEE E200 */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "HASEE"),
+			DMI_MATCH(DMI_BOARD_NAME, "E210"),
+			DMI_MATCH(DMI_BIOS_VERSION, "6.00"),
+		},
+	},
 	{ }
 };
 
@@ -564,9 +681,14 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 {
 	int try_handoff = 1, tried_handoff = 0;
 
-	/* The Pegatron Lucid tablet sporadically waits for 98 seconds trying
-	 * the handoff on its unused controller.  Skip it. */
-	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
+	/*
+	 * The Pegatron Lucid tablet sporadically waits for 98 seconds trying
+	 * the handoff on its unused controller.  Skip it.
+	 *
+	 * The HASEE E200 hangs when the semaphore is set (bugzilla #77021).
+	 */
+	if (pdev->vendor == 0x8086 && (pdev->device == 0x283a ||
+			pdev->device == 0x27cc)) {
 		if (dmi_check_system(ehci_dmi_nohandoff_table))
 			try_handoff = 0;
 	}
@@ -611,8 +733,9 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 		 * and hope nothing goes too wrong
 		 */
 		if (try_handoff)
-			dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
-				 " (BIOS bug?) %08x\n", cap);
+			dev_warn(&pdev->dev,
+				 "EHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 cap);
 		pci_write_config_byte(pdev, offset + 2, 0);
 	}
 
@@ -659,8 +782,9 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
 		case 0: /* Illegal reserved cap, set cap=0 so we exit */
 			cap = 0; /* then fallthrough... */
 		default:
-			dev_warn(&pdev->dev, "EHCI: unrecognized capability "
-				 "%02x\n", cap & 0xff);
+			dev_warn(&pdev->dev,
+				 "EHCI: unrecognized capability %02x\n",
+				 cap & 0xff);
 		}
 		offset = (cap >> 8) & 0xff;
 	}
@@ -722,32 +846,6 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done,
 	return -ETIMEDOUT;
 }
 
-#define PCI_DEVICE_ID_INTEL_LYNX_POINT_XHCI	0x8C31
-#define PCI_DEVICE_ID_INTEL_LYNX_POINT_LP_XHCI	0x9C31
-
-bool usb_is_intel_ppt_switchable_xhci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_XHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		pdev->device == PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI;
-}
-
-/* The Intel Lynx Point chipset also has switchable ports. */
-bool usb_is_intel_lpt_switchable_xhci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_XHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		(pdev->device == PCI_DEVICE_ID_INTEL_LYNX_POINT_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_LYNX_POINT_LP_XHCI);
-}
-
-bool usb_is_intel_switchable_xhci(struct pci_dev *pdev)
-{
-	return usb_is_intel_ppt_switchable_xhci(pdev) ||
-		usb_is_intel_lpt_switchable_xhci(pdev);
-}
-EXPORT_SYMBOL_GPL(usb_is_intel_switchable_xhci);
-
 /*
  * Intel's Panther Point chipset has two host controllers (EHCI and xHCI) that
  * share some number of ports.  These ports can be switched between either
@@ -766,9 +864,30 @@ EXPORT_SYMBOL_GPL(usb_is_intel_switchable_xhci);
  * terminations before switching the USB 2.0 wires over, so that USB 3.0
  * devices connect at SuperSpeed, rather than at USB 2.0 speeds.
  */
-void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
+void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 {
 	u32		ports_available;
+	bool		ehci_found = false;
+	struct pci_dev	*companion = NULL;
+
+	/* Sony VAIO t-series with subsystem device ID 90a8 is not capable of
+	 * switching ports from EHCI to xHCI
+	 */
+	if (xhci_pdev->subsystem_vendor == PCI_VENDOR_ID_SONY &&
+	    xhci_pdev->subsystem_device == 0x90a8)
+		return;
+
+	/* make sure an intel EHCI controller exists */
+	for_each_pci_dev(companion) {
+		if (companion->class == PCI_CLASS_SERIAL_USB_EHCI &&
+		    companion->vendor == PCI_VENDOR_ID_INTEL) {
+			ehci_found = true;
+			break;
+		}
+	}
+
+	if (!ehci_found)
+		return;
 
 	/* Don't switchover the ports if the user hasn't compiled the xHCI
 	 * driver.  Otherwise they will see "dead" USB ports that don't power
@@ -776,8 +895,7 @@ void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 	 */
 	if (!IS_ENABLED(CONFIG_USB_XHCI_HCD)) {
 		dev_warn(&xhci_pdev->dev,
-				"CONFIG_USB_XHCI_HCD is turned off, "
-				"defaulting to EHCI.\n");
+			 "CONFIG_USB_XHCI_HCD is turned off, defaulting to EHCI.\n");
 		dev_warn(&xhci_pdev->dev,
 				"USB 3.0 devices will work at USB 2.0 speeds.\n");
 		usb_disable_xhci_ports(xhci_pdev);
@@ -798,12 +916,13 @@ void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 	 * switchable ports.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
-	dev_dbg(&xhci_pdev->dev, "USB 3.0 ports that are now enabled "
-			"under xHCI: 0x%x\n", ports_available);
+	dev_dbg(&xhci_pdev->dev,
+		"USB 3.0 ports that are now enabled under xHCI: 0x%x\n",
+		ports_available);
 
 	/* Read XUSB2PRM, xHCI USB 2.0 Port Routing Mask Register
 	 * Indicate the USB 2.0 ports to be controlled by the xHCI host.
@@ -820,14 +939,15 @@ void usb_enable_xhci_ports(struct pci_dev *xhci_pdev)
 	 * host.
 	 */
 	pci_write_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
-			cpu_to_le32(ports_available));
+			ports_available);
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);
-	dev_dbg(&xhci_pdev->dev, "USB 2.0 ports that are now switched over "
-			"to xHCI: 0x%x\n", ports_available);
+	dev_dbg(&xhci_pdev->dev,
+		"USB 2.0 ports that are now switched over to xHCI: 0x%x\n",
+		ports_available);
 }
-EXPORT_SYMBOL_GPL(usb_enable_xhci_ports);
+EXPORT_SYMBOL_GPL(usb_enable_intel_xhci_ports);
 
 void usb_disable_xhci_ports(struct pci_dev *xhci_pdev)
 {
@@ -893,8 +1013,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 
 		/* Assume a buggy BIOS and take HC ownership anyway */
 		if (timeout) {
-			dev_warn(&pdev->dev, "xHCI BIOS handoff failed"
-					" (BIOS bug ?) %08x\n", val);
+			dev_warn(&pdev->dev,
+				 "xHCI BIOS handoff failed (BIOS bug ?) %08x\n",
+				 val);
 			writel(val & ~XHCI_HC_BIOS_OWNED, base + ext_cap_offset);
 		}
 	}
@@ -908,8 +1029,8 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	writel(val, base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
 
 hc_init:
-	if (usb_is_intel_switchable_xhci(pdev))
-		usb_enable_xhci_ports(pdev);
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+		usb_enable_intel_xhci_ports(pdev);
 
 	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
 
@@ -922,8 +1043,8 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-				"xHCI HW not ready after 5 sec (HC bug?) "
-				"status = 0x%x\n", val);
+			 "xHCI HW not ready after 5 sec (HC bug?) status = 0x%x\n",
+			 val);
 	}
 
 	/* Send the halt and disable interrupts command */
@@ -937,8 +1058,8 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-				"xHCI HW did not halt within %d usec "
-				"status = 0x%x\n", XHCI_MAX_HALT_USEC, val);
+			 "xHCI HW did not halt within %d usec status = 0x%x\n",
+			 XHCI_MAX_HALT_USEC, val);
 	}
 
 	iounmap(base);
@@ -958,8 +1079,8 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 		return;
 
 	if (pci_enable_device(pdev) < 0) {
-		dev_warn(&pdev->dev, "Can't enable PCI device, "
-				"BIOS handoff failed.\n");
+		dev_warn(&pdev->dev,
+			 "Can't enable PCI device, BIOS handoff failed.\n");
 		return;
 	}
 	if (pdev->class == PCI_CLASS_SERIAL_USB_UHCI)

@@ -2,7 +2,8 @@
  * I2C driver for Marvell 88PM860x
  *
  * Copyright (C) 2009 Marvell International Ltd.
- * 	Haojian Zhuang <haojian.zhuang@marvell.com>
+ *
+ * Author: Haojian Zhuang <haojian.zhuang@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -121,7 +122,7 @@ static int read_device(struct i2c_client *i2c, int reg,
 static int write_device(struct i2c_client *i2c, int reg,
 			int bytes, void *src)
 {
-	unsigned char buf[bytes + 1];
+	unsigned char buf[2];
 	struct i2c_adapter *adap = i2c->adapter;
 	struct i2c_msg msg;
 	int ret;
@@ -138,26 +139,6 @@ static int write_device(struct i2c_client *i2c, int reg,
 		return ret;
 	return 0;
 }
-
-int pm860x_page_reg_read(struct i2c_client *i2c, int reg)
-{
-	unsigned char zero = 0;
-	unsigned char data;
-	int ret;
-
-	i2c_lock_adapter(i2c->adapter);
-	read_device(i2c, 0xFA, 0, &zero);
-	read_device(i2c, 0xFB, 0, &zero);
-	read_device(i2c, 0xFF, 0, &zero);
-	ret = read_device(i2c, reg, 1, &data);
-	if (ret >= 0)
-		ret = (int)data;
-	read_device(i2c, 0xFE, 0, &zero);
-	read_device(i2c, 0xFC, 0, &zero);
-	i2c_unlock_adapter(i2c->adapter);
-	return ret;
-}
-EXPORT_SYMBOL(pm860x_page_reg_read);
 
 int pm860x_page_reg_write(struct i2c_client *i2c, int reg,
 			  unsigned char data)
@@ -194,47 +175,3 @@ int pm860x_page_bulk_read(struct i2c_client *i2c, int reg,
 	return ret;
 }
 EXPORT_SYMBOL(pm860x_page_bulk_read);
-
-int pm860x_page_bulk_write(struct i2c_client *i2c, int reg,
-			   int count, unsigned char *buf)
-{
-	unsigned char zero = 0;
-	int ret;
-
-	i2c_lock_adapter(i2c->adapter);
-	read_device(i2c, 0xFA, 0, &zero);
-	read_device(i2c, 0xFB, 0, &zero);
-	read_device(i2c, 0xFF, 0, &zero);
-	ret = write_device(i2c, reg, count, buf);
-	read_device(i2c, 0xFE, 0, &zero);
-	read_device(i2c, 0xFC, 0, &zero);
-	i2c_unlock_adapter(i2c->adapter);
-	i2c_unlock_adapter(i2c->adapter);
-	return ret;
-}
-EXPORT_SYMBOL(pm860x_page_bulk_write);
-
-int pm860x_page_set_bits(struct i2c_client *i2c, int reg,
-			 unsigned char mask, unsigned char data)
-{
-	unsigned char zero;
-	unsigned char value;
-	int ret;
-
-	i2c_lock_adapter(i2c->adapter);
-	read_device(i2c, 0xFA, 0, &zero);
-	read_device(i2c, 0xFB, 0, &zero);
-	read_device(i2c, 0xFF, 0, &zero);
-	ret = read_device(i2c, reg, 1, &value);
-	if (ret < 0)
-		goto out;
-	value &= ~mask;
-	value |= data;
-	ret = write_device(i2c, reg, 1, &value);
-out:
-	read_device(i2c, 0xFE, 0, &zero);
-	read_device(i2c, 0xFC, 0, &zero);
-	i2c_unlock_adapter(i2c->adapter);
-	return ret;
-}
-EXPORT_SYMBOL(pm860x_page_set_bits);

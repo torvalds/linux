@@ -44,7 +44,7 @@ def trace_begin():
 
 def raw_syscalls__sys_enter(event_name, context, common_cpu,
 	common_secs, common_nsecs, common_pid, common_comm,
-	id, args):
+	common_callchain, id, args):
 	if for_comm is not None:
 		if common_comm != for_comm:
 			return
@@ -52,6 +52,11 @@ def raw_syscalls__sys_enter(event_name, context, common_cpu,
 		syscalls[id] += 1
 	except TypeError:
 		syscalls[id] = 1
+
+def syscalls__sys_enter(event_name, context, common_cpu,
+	common_secs, common_nsecs, common_pid, common_comm,
+	id, args):
+	raw_syscalls__sys_enter(**locals())
 
 def print_syscall_totals(interval):
 	while 1:

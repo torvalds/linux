@@ -725,16 +725,11 @@ static int __init init_pmc551(void)
 		}
 
 		mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
-		if (!mtd) {
-			printk(KERN_NOTICE "pmc551: Cannot allocate new MTD "
-				"device.\n");
+		if (!mtd)
 			break;
-		}
 
 		priv = kzalloc(sizeof(struct mypriv), GFP_KERNEL);
 		if (!priv) {
-			printk(KERN_NOTICE "pmc551: Cannot allocate new MTD "
-				"device.\n");
 			kfree(mtd);
 			break;
 		}
@@ -817,8 +812,7 @@ static int __init init_pmc551(void)
 	}
 
 	/* Exited early, reference left over */
-	if (PCI_Device)
-		pci_dev_put(PCI_Device);
+	pci_dev_put(PCI_Device);
 
 	if (!pmc551list) {
 		printk(KERN_NOTICE "pmc551: not detected\n");

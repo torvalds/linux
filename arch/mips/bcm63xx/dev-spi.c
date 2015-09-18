@@ -18,7 +18,6 @@
 #include <bcm63xx_dev_spi.h>
 #include <bcm63xx_regs.h>
 
-#ifdef BCMCPU_RUNTIME_DETECT
 /*
  * register offsets
  */
@@ -37,12 +36,10 @@ static __init void bcm63xx_spi_regs_init(void)
 {
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348())
 		bcm63xx_regs_spi = bcm6348_regs_spi;
-	if (BCMCPU_IS_6358() || BCMCPU_IS_6362() || BCMCPU_IS_6368())
+	if (BCMCPU_IS_3368() || BCMCPU_IS_6358() ||
+		BCMCPU_IS_6362() || BCMCPU_IS_6368())
 		bcm63xx_regs_spi = bcm6358_regs_spi;
 }
-#else
-static __init void bcm63xx_spi_regs_init(void) { }
-#endif
 
 static struct resource spi_resources[] = {
 	{
@@ -87,7 +84,8 @@ int __init bcm63xx_spi_register(void)
 		spi_pdata.msg_ctl_width = SPI_6348_MSG_CTL_WIDTH;
 	}
 
-	if (BCMCPU_IS_6358() || BCMCPU_IS_6362() || BCMCPU_IS_6368()) {
+	if (BCMCPU_IS_3368() || BCMCPU_IS_6358() || BCMCPU_IS_6362() ||
+		BCMCPU_IS_6368()) {
 		spi_resources[0].end += BCM_6358_RSET_SPI_SIZE - 1;
 		spi_pdata.fifo_size = SPI_6358_MSG_DATA_SIZE;
 		spi_pdata.msg_type_shift = SPI_6358_MSG_TYPE_SHIFT;

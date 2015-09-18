@@ -276,8 +276,9 @@ static inline unsigned long viper_irq_pending(void)
 			viper_irq_enabled_mask;
 }
 
-static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void viper_irq_handler(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq;
 	unsigned long pending;
 
 	pending = viper_irq_pending();
@@ -313,7 +314,7 @@ static void __init viper_init_irq(void)
 		isa_irq = viper_bit_to_irq(level);
 		irq_set_chip_and_handler(isa_irq, &viper_irq_chip,
 					 handle_edge_irq);
-		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(isa_irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	irq_set_chained_handler(gpio_to_irq(VIPER_CPLD_GPIO),
@@ -401,6 +402,7 @@ static struct platform_pwm_backlight_data viper_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
 	.pwm_period_ns	= 1000000,
+	.enable_gpio	= -1,
 	.init		= viper_backlight_init,
 	.notify		= viper_backlight_notify,
 	.exit		= viper_backlight_exit,
@@ -768,7 +770,7 @@ static unsigned long viper_tpm;
 
 static int __init viper_tpm_setup(char *str)
 {
-	return strict_strtoul(str, 10, &viper_tpm) >= 0;
+	return kstrtoul(str, 10, &viper_tpm) >= 0;
 }
 
 __setup("tpm=", viper_tpm_setup);
@@ -883,9 +885,6 @@ static int viper_cpufreq_notifier(struct notifier_block *nb,
 			 * after we change freq */
 			viper_set_core_cpu_voltage(freq->new, 0);
 		}
-		break;
-	case CPUFREQ_RESUMECHANGE:
-		viper_set_core_cpu_voltage(freq->new, 0);
 		break;
 	default:
 		/* ignore */

@@ -29,25 +29,9 @@
 
 #ifdef CONFIG_PPC64
 
-static loff_t page_map_seek( struct file *file, loff_t off, int whence)
+static loff_t page_map_seek(struct file *file, loff_t off, int whence)
 {
-	loff_t new;
-	switch(whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	case 2:
-		new = PAGE_SIZE + off;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if ( new < 0 || new > PAGE_SIZE )
-		return -EINVAL;
-	return (file->f_pos = new);
+	return fixed_size_llseek(file, off, whence, PAGE_SIZE);
 }
 
 static ssize_t page_map_read( struct file *file, char __user *buf, size_t nbytes,

@@ -122,7 +122,7 @@ void xmon_printf(const char *format, ...)
 
 	if (n && rc == 0) {
 		/* No udbg hooks, fallback to printk() - dangerous */
-		printk(xmon_outbuf);
+		printk("%s", xmon_outbuf);
 	}
 }
 

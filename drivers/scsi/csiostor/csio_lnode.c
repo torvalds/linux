@@ -603,7 +603,7 @@ csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 	enum fw_retval retval;
 	__be32 nport_id;
 
-	retval = FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16));
+	retval = FW_CMD_RETVAL_G(ntohl(rsp->alloc_to_len16));
 	if (retval != FW_SUCCESS) {
 		csio_err(hw, "FCOE VNP read cmd returned error:0x%x\n", retval);
 		mempool_free(mbp, hw->mb_mempool);
@@ -770,7 +770,7 @@ csio_ln_read_fcf_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 				(struct fw_fcoe_fcf_cmd *)(mbp->mb);
 	enum fw_retval retval;
 
-	retval = FW_CMD_RETVAL_GET(ntohl(rsp->retval_len16));
+	retval = FW_CMD_RETVAL_G(ntohl(rsp->retval_len16));
 	if (retval != FW_SUCCESS) {
 		csio_ln_err(ln, "FCOE FCF cmd failed with ret x%x\n",
 				retval);
@@ -1506,7 +1506,7 @@ csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 		}
 	} else if (cpl_op == CPL_FW6_PLD) {
 		wr = (struct fw_wr_hdr *) (cmd + 4);
-		if (FW_WR_OP_GET(be32_to_cpu(wr->hi))
+		if (FW_WR_OP_G(be32_to_cpu(wr->hi))
 			== FW_RDEV_WR) {
 
 			rdev_wr = (struct fw_rdev_wr *) (cmd + 4);
@@ -1574,17 +1574,17 @@ out_pld:
 			return;
 		} else {
 			csio_warn(hw, "unexpected WR op(0x%x) recv\n",
-				FW_WR_OP_GET(be32_to_cpu((wr->hi))));
+				  FW_WR_OP_G(be32_to_cpu((wr->hi))));
 			CSIO_INC_STATS(hw, n_cpl_unexp);
 		}
 	} else if (cpl_op == CPL_FW6_MSG) {
 		wr = (struct fw_wr_hdr *) (cmd);
-		if (FW_WR_OP_GET(be32_to_cpu(wr->hi)) == FW_FCOE_ELS_CT_WR) {
+		if (FW_WR_OP_G(be32_to_cpu(wr->hi)) == FW_FCOE_ELS_CT_WR) {
 			csio_ln_mgmt_wr_handler(hw, wr,
 					sizeof(struct fw_fcoe_els_ct_wr));
 		} else {
 			csio_warn(hw, "unexpected WR op(0x%x) recv\n",
-				FW_WR_OP_GET(be32_to_cpu((wr->hi))));
+				  FW_WR_OP_G(be32_to_cpu((wr->hi))));
 			CSIO_INC_STATS(hw, n_cpl_unexp);
 		}
 	} else {
@@ -1668,12 +1668,12 @@ csio_ln_prep_ecwr(struct csio_ioreq *io_req, uint32_t wr_len,
 	__be32 port_id;
 
 	wr  = (struct fw_fcoe_els_ct_wr *)fw_wr;
-	wr->op_immdlen = cpu_to_be32(FW_WR_OP(FW_FCOE_ELS_CT_WR) |
+	wr->op_immdlen = cpu_to_be32(FW_WR_OP_V(FW_FCOE_ELS_CT_WR) |
 				     FW_FCOE_ELS_CT_WR_IMMDLEN(immd_len));
 
 	wr_len =  DIV_ROUND_UP(wr_len, 16);
-	wr->flowid_len16 = cpu_to_be32(FW_WR_FLOWID(flow_id) |
-					  FW_WR_LEN16(wr_len));
+	wr->flowid_len16 = cpu_to_be32(FW_WR_FLOWID_V(flow_id) |
+				       FW_WR_LEN16_V(wr_len));
 	wr->els_ct_type = sub_op;
 	wr->ctl_pri = 0;
 	wr->cp_en_class = 0;
@@ -1757,8 +1757,8 @@ csio_ln_mgmt_submit_wr(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req,
 		csio_wr_copy_to_wrp(pld->vaddr, &wrp, wr_off, im_len);
 	else {
 		/* Program DSGL to dma payload */
-		dsgl.cmd_nsge = htonl(ULPTX_CMD(ULP_TX_SC_DSGL) |
-					ULPTX_MORE | ULPTX_NSGE(1));
+		dsgl.cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
+					ULPTX_MORE_F | ULPTX_NSGE_V(1));
 		dsgl.len0 = cpu_to_be32(pld_len);
 		dsgl.addr0 = cpu_to_be64(pld->paddr);
 		csio_wr_copy_to_wrp(&dsgl, &wrp, ALIGN(wr_off, 8),

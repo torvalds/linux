@@ -25,8 +25,6 @@ struct gio_driver {
 
 	int  (*probe)(struct gio_device *, const struct gio_device_id *);
 	void (*remove)(struct gio_device *);
-	int  (*suspend)(struct gio_device *, pm_message_t);
-	int  (*resume)(struct gio_device *);
 	void (*shutdown)(struct gio_device *);
 
 	struct device_driver driver;
@@ -50,7 +48,7 @@ static inline void gio_device_free(struct gio_device *dev)
 extern int gio_register_driver(struct gio_driver *);
 extern void gio_unregister_driver(struct gio_driver *);
 
-#define gio_get_drvdata(_dev)	     drv_get_drvdata(&(_dev)->dev)
-#define gio_set_drvdata(_dev, data)  drv_set_drvdata(&(_dev)->dev, (data))
+#define gio_get_drvdata(_dev)	     dev_get_drvdata(&(_dev)->dev)
+#define gio_set_drvdata(_dev, data)  dev_set_drvdata(&(_dev)->dev, (data))
 
 extern void gio_set_master(struct gio_device *);

@@ -41,7 +41,7 @@ void __init smp_prepare_boot_cpu(void)
 	int cpu = smp_processor_id();
 	set_cpu_online(cpu, 1);
 	set_cpu_present(cpu, 1);
-	__get_cpu_var(cpu_state) = CPU_ONLINE;
+	__this_cpu_write(cpu_state, CPU_ONLINE);
 
 	init_messaging();
 }
@@ -127,27 +127,28 @@ static __init int reset_init_affinity(void)
 {
 	long rc = sched_setaffinity(current->pid, &init_affinity);
 	if (rc != 0)
-		pr_warning("couldn't reset init affinity (%ld)\n",
-		       rc);
+		pr_warn("couldn't reset init affinity (%ld)\n", rc);
 	return 0;
 }
 late_initcall(reset_init_affinity);
 
-static struct cpumask cpu_started __cpuinitdata;
+static struct cpumask cpu_started;
 
 /*
  * Activate a secondary processor.  Very minimal; don't add anything
  * to this path without knowing what you're doing, since SMP booting
  * is pretty fragile.
  */
-static void __cpuinit start_secondary(void)
+static void start_secondary(void)
 {
-	int cpuid = smp_processor_id();
+	int cpuid;
+
+	preempt_disable();
+
+	cpuid = smp_processor_id();
 
 	/* Set our thread pointer appropriately. */
 	set_my_cpu_offset(__per_cpu_offset[cpuid]);
-
-	preempt_disable();
 
 	/*
 	 * In large machines even this will slow us down, since we
@@ -156,7 +157,7 @@ static void __cpuinit start_secondary(void)
 	/* printk(KERN_DEBUG "Initializing CPU#%d\n", cpuid); */
 
 	/* Initialize the current asid for our first page table. */
-	__get_cpu_var(current_asid) = min_asid;
+	__this_cpu_write(current_asid, min_asid);
 
 	/* Set up this thread as another owner of the init_mm */
 	atomic_inc(&init_mm.mm_count);
@@ -172,7 +173,7 @@ static void __cpuinit start_secondary(void)
 	/* Indicate that we're ready to come up. */
 	/* Must not do this before we're ready to receive messages */
 	if (cpumask_test_and_set_cpu(cpuid, &cpu_started)) {
-		pr_warning("CPU#%d already started!\n", cpuid);
+		pr_warn("CPU#%d already started!\n", cpuid);
 		for (;;)
 			local_irq_enable();
 	}
@@ -183,7 +184,7 @@ static void __cpuinit start_secondary(void)
 /*
  * Bring a secondary processor online.
  */
-void __cpuinit online_secondary(void)
+void online_secondary(void)
 {
 	/*
 	 * low-memory mappings have been cleared, flush them from
@@ -199,7 +200,7 @@ void __cpuinit online_secondary(void)
 	notify_cpu_starting(smp_processor_id());
 
 	set_cpu_online(smp_processor_id(), 1);
-	__get_cpu_var(cpu_state) = CPU_ONLINE;
+	__this_cpu_write(cpu_state, CPU_ONLINE);
 
 	/* Set up tile-specific state for this cpu. */
 	setup_cpu(0);
@@ -210,7 +211,7 @@ void __cpuinit online_secondary(void)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
+int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	/* Wait 5s total for all CPUs for them to come online */
 	static int timeout;

@@ -67,7 +67,7 @@ static int fscache_max_active_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
-ctl_table fscache_sysctls[] = {
+static struct ctl_table fscache_sysctls[] = {
 	{
 		.procname	= "object_max_active",
 		.data		= &fscache_object_max_active,
@@ -87,7 +87,7 @@ ctl_table fscache_sysctls[] = {
 	{}
 };
 
-ctl_table fscache_sysctls_root[] = {
+static struct ctl_table fscache_sysctls_root[] = {
 	{
 		.procname	= "fscache",
 		.mode		= 0555,
@@ -146,8 +146,7 @@ static int __init fscache_init(void)
 					       0,
 					       fscache_cookie_init_once);
 	if (!fscache_cookie_jar) {
-		printk(KERN_NOTICE
-		       "FS-Cache: Failed to allocate a cookie jar\n");
+		pr_notice("Failed to allocate a cookie jar\n");
 		ret = -ENOMEM;
 		goto error_cookie_jar;
 	}
@@ -156,7 +155,7 @@ static int __init fscache_init(void)
 	if (!fscache_root)
 		goto error_kobj;
 
-	printk(KERN_NOTICE "FS-Cache: Loaded\n");
+	pr_notice("Loaded\n");
 	return 0;
 
 error_kobj:
@@ -192,27 +191,16 @@ static void __exit fscache_exit(void)
 	fscache_proc_cleanup();
 	destroy_workqueue(fscache_op_wq);
 	destroy_workqueue(fscache_object_wq);
-	printk(KERN_NOTICE "FS-Cache: Unloaded\n");
+	pr_notice("Unloaded\n");
 }
 
 module_exit(fscache_exit);
 
 /*
- * wait_on_bit() sleep function for uninterruptible waiting
+ * wait_on_atomic_t() sleep function for uninterruptible waiting
  */
-int fscache_wait_bit(void *flags)
+int fscache_wait_atomic_t(atomic_t *p)
 {
 	schedule();
 	return 0;
 }
-EXPORT_SYMBOL(fscache_wait_bit);
-
-/*
- * wait_on_bit() sleep function for interruptible waiting
- */
-int fscache_wait_bit_interruptible(void *flags)
-{
-	schedule();
-	return signal_pending(current);
-}
-EXPORT_SYMBOL(fscache_wait_bit_interruptible);

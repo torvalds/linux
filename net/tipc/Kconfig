@@ -20,21 +20,17 @@ menuconfig TIPC
 
 	  If in doubt, say N.
 
-config TIPC_PORTS
-	int "Maximum number of ports in a node"
-	depends on TIPC
-	range 127 65535
-	default "8191"
-	help
-	  Specifies how many ports can be supported by a node.
-	  Can range from 127 to 65535 ports; default is 8191.
-
-	  Setting this to a smaller value saves some memory,
-	  setting it to higher allows for more ports.
-
 config TIPC_MEDIA_IB
 	bool "InfiniBand media type support"
 	depends on TIPC && INFINIBAND_IPOIB
 	help
 	  Saying Y here will enable support for running TIPC on
 	  IP-over-InfiniBand devices.
+config TIPC_MEDIA_UDP
+	bool "IP/UDP media type support"
+	depends on TIPC
+	select NET_UDP_TUNNEL
+	help
+	  Saying Y here will enable support for running TIPC over IP/UDP
+	bool
+	default y

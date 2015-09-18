@@ -1,0 +1,111 @@
+/*
+ * Device Tree file for LaCie 5Big Network v2
+ *
+ * Copyright (C) 2014
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * Based on netxbig_v2-setup.c,
+ * Copyright (C) 2010 Simon Guinot <sguinot@lacie.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+*/
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-netxbig.dtsi"
+
+/ {
+	model = "LaCie 5Big Network v2";
+	compatible = "lacie,net5big_v2", "lacie,netxbig", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+};
+
+&regulators {
+	regulator@2 {
+		compatible = "regulator-fixed";
+		reg = <2>;
+		regulator-name = "hdd1power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulator@3 {
+		compatible = "regulator-fixed";
+		reg = <3>;
+		regulator-name = "hdd2power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulator@4 {
+		compatible = "regulator-fixed";
+		reg = <4>;
+		regulator-name = "hdd3power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
+
+	regulator@5 {
+		compatible = "regulator-fixed";
+		reg = <5>;
+		regulator-name = "hdd4power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+	};
+
+	clocks {
+	       g762_clk: g762-oscillator {
+			 compatible = "fixed-clock";
+			 #clock-cells = <0>;
+			 clock-frequency = <32768>;
+	       };
+	};
+};
+
+&mdio {
+	ethphy1: ethernet-phy@1 {
+		reg = <0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};
+
+
+&i2c0 {
+	g762@3e {
+		compatible = "gmt,g762";
+		reg = <0x3e>;
+		clocks = <&g762_clk>;
+	};
+};

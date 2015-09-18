@@ -18,12 +18,16 @@
  *  Add Programmable Multibit ECC support for various AT91 SoC
  *     © Copyright 2012 ATMEL, Hong Xu
  *
+ *  Add Nand Flash Controller support for SAMA5 SoC
+ *     © Copyright 2013 ATMEL, Josh Wu (josh.wu@atmel.com)
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -37,13 +41,12 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/platform_data/atmel.h>
-#include <linux/pinctrl/consumer.h>
-
-#include <mach/cpu.h>
 
 static int use_dma = 1;
 module_param(use_dma, int, 0);
@@ -58,6 +61,11 @@ module_param(on_flash_bbt, int, 0);
 	__raw_writel((value), add + ATMEL_ECC_##reg)
 
 #include "atmel_nand_ecc.h"	/* Hardware ECC registers */
+#include "atmel_nand_nfc.h"	/* Nand Flash Controller definition */
+
+struct atmel_nand_caps {
+	bool pmecc_correct_erase_page;
+};
 
 /* oob layout for large page size
  * bad block info is on bytes 0 and 1
@@ -85,6 +93,27 @@ static struct nand_ecclayout atmel_oobinfo_small = {
 	},
 };
 
+struct atmel_nfc {
+	void __iomem		*base_cmd_regs;
+	void __iomem		*hsmc_regs;
+	void			*sram_bank0;
+	dma_addr_t		sram_bank0_phys;
+	bool			use_nfc_sram;
+	bool			write_by_sram;
+
+	struct clk		*clk;
+
+	bool			is_initialized;
+	struct completion	comp_ready;
+	struct completion	comp_cmd_done;
+	struct completion	comp_xfer_done;
+
+	/* Point to the sram bank which include readed data via NFC */
+	void			*data_in_sram;
+	bool			will_write_sram;
+};
+static struct atmel_nfc	nand_nfc;
+
 struct atmel_nand_host {
 	struct nand_chip	nand_chip;
 	struct mtd_info		mtd;
@@ -97,15 +126,17 @@ struct atmel_nand_host {
 	struct completion	comp;
 	struct dma_chan		*dma_chan;
 
+	struct atmel_nfc	*nfc;
+
+	struct atmel_nand_caps	*caps;
 	bool			has_pmecc;
 	u8			pmecc_corr_cap;
 	u16			pmecc_sector_size;
+	bool			has_no_lookup_table;
 	u32			pmecc_lookup_table_offset;
 	u32			pmecc_lookup_table_offset_512;
 	u32			pmecc_lookup_table_offset_1024;
 
-	int			pmecc_bytes_per_sector;
-	int			pmecc_sector_number;
 	int			pmecc_degree;	/* Degree of remainders */
 	int			pmecc_cw_len;	/* Length of codeword */
 
@@ -127,11 +158,6 @@ struct atmel_nand_host {
 };
 
 static struct nand_ecclayout atmel_pmecc_oobinfo;
-
-static int cpu_has_dma(void)
-{
-	return cpu_is_at91sam9rl() || cpu_is_at91sam9g45();
-}
 
 /*
  * Enable NAND.
@@ -186,21 +212,83 @@ static int atmel_nand_device_ready(struct mtd_info *mtd)
                 !!host->board.rdy_pin_active_low;
 }
 
+/* Set up for hardware ready pin and enable pin. */
+static int atmel_nand_set_enable_ready_pins(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct atmel_nand_host *host = chip->priv;
+	int res = 0;
+
+	if (gpio_is_valid(host->board.rdy_pin)) {
+		res = devm_gpio_request(host->dev,
+				host->board.rdy_pin, "nand_rdy");
+		if (res < 0) {
+			dev_err(host->dev,
+				"can't request rdy gpio %d\n",
+				host->board.rdy_pin);
+			return res;
+		}
+
+		res = gpio_direction_input(host->board.rdy_pin);
+		if (res < 0) {
+			dev_err(host->dev,
+				"can't request input direction rdy gpio %d\n",
+				host->board.rdy_pin);
+			return res;
+		}
+
+		chip->dev_ready = atmel_nand_device_ready;
+	}
+
+	if (gpio_is_valid(host->board.enable_pin)) {
+		res = devm_gpio_request(host->dev,
+				host->board.enable_pin, "nand_enable");
+		if (res < 0) {
+			dev_err(host->dev,
+				"can't request enable gpio %d\n",
+				host->board.enable_pin);
+			return res;
+		}
+
+		res = gpio_direction_output(host->board.enable_pin, 1);
+		if (res < 0) {
+			dev_err(host->dev,
+				"can't request output direction enable gpio %d\n",
+				host->board.enable_pin);
+			return res;
+		}
+	}
+
+	return res;
+}
+
 /*
  * Minimal-overhead PIO for data access.
  */
 static void atmel_read_buf8(struct mtd_info *mtd, u8 *buf, int len)
 {
 	struct nand_chip	*nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
 
-	__raw_readsb(nand_chip->IO_ADDR_R, buf, len);
+	if (host->nfc && host->nfc->use_nfc_sram && host->nfc->data_in_sram) {
+		memcpy(buf, host->nfc->data_in_sram, len);
+		host->nfc->data_in_sram += len;
+	} else {
+		__raw_readsb(nand_chip->IO_ADDR_R, buf, len);
+	}
 }
 
 static void atmel_read_buf16(struct mtd_info *mtd, u8 *buf, int len)
 {
 	struct nand_chip	*nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
 
-	__raw_readsw(nand_chip->IO_ADDR_R, buf, len / 2);
+	if (host->nfc && host->nfc->use_nfc_sram && host->nfc->data_in_sram) {
+		memcpy(buf, host->nfc->data_in_sram, len);
+		host->nfc->data_in_sram += len;
+	} else {
+		__raw_readsw(nand_chip->IO_ADDR_R, buf, len / 2);
+	}
 }
 
 static void atmel_write_buf8(struct mtd_info *mtd, const u8 *buf, int len)
@@ -222,6 +310,40 @@ static void dma_complete_func(void *completion)
 	complete(completion);
 }
 
+static int nfc_set_sram_bank(struct atmel_nand_host *host, unsigned int bank)
+{
+	/* NFC only has two banks. Must be 0 or 1 */
+	if (bank > 1)
+		return -EINVAL;
+
+	if (bank) {
+		/* Only for a 2k-page or lower flash, NFC can handle 2 banks */
+		if (host->mtd.writesize > 2048)
+			return -EINVAL;
+		nfc_writel(host->nfc->hsmc_regs, BANK, ATMEL_HSMC_NFC_BANK1);
+	} else {
+		nfc_writel(host->nfc->hsmc_regs, BANK, ATMEL_HSMC_NFC_BANK0);
+	}
+
+	return 0;
+}
+
+static uint nfc_get_sram_off(struct atmel_nand_host *host)
+{
+	if (nfc_readl(host->nfc->hsmc_regs, BANK) & ATMEL_HSMC_NFC_BANK1)
+		return NFC_SRAM_BANK1_OFFSET;
+	else
+		return 0;
+}
+
+static dma_addr_t nfc_sram_phys(struct atmel_nand_host *host)
+{
+	if (nfc_readl(host->nfc->hsmc_regs, BANK) & ATMEL_HSMC_NFC_BANK1)
+		return host->nfc->sram_bank0_phys + NFC_SRAM_BANK1_OFFSET;
+	else
+		return host->nfc->sram_bank0_phys;
+}
+
 static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 			       int is_read)
 {
@@ -235,14 +357,14 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 	void *p = buf;
 	int err = -EIO;
 	enum dma_data_direction dir = is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	struct atmel_nfc *nfc = host->nfc;
 
 	if (buf >= high_memory)
 		goto err_buf;
 
 	dma_dev = host->dma_chan->device;
 
-	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP |
-		DMA_COMPL_SKIP_DEST_UNMAP;
+	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
 	phys_addr = dma_map_single(dma_dev->dev, p, len, dir);
 	if (dma_mapping_error(dma_dev->dev, phys_addr)) {
@@ -251,11 +373,20 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 	}
 
 	if (is_read) {
-		dma_src_addr = host->io_phys;
+		if (nfc && nfc->data_in_sram)
+			dma_src_addr = nfc_sram_phys(host) + (nfc->data_in_sram
+				- (nfc->sram_bank0 + nfc_get_sram_off(host)));
+		else
+			dma_src_addr = host->io_phys;
+
 		dma_dst_addr = phys_addr;
 	} else {
 		dma_src_addr = phys_addr;
-		dma_dst_addr = host->io_phys;
+
+		if (nfc && nfc->write_by_sram)
+			dma_dst_addr = nfc_sram_phys(host);
+		else
+			dma_dst_addr = host->io_phys;
 	}
 
 	tx = dma_dev->device_prep_dma_memcpy(host->dma_chan, dma_dst_addr,
@@ -278,13 +409,17 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 	dma_async_issue_pending(host->dma_chan);
 	wait_for_completion(&host->comp);
 
+	if (is_read && nfc && nfc->data_in_sram)
+		/* After read data from SRAM, need to increase the position */
+		nfc->data_in_sram += len;
+
 	err = 0;
 
 err_dma:
 	dma_unmap_single(dma_dev->dev, phys_addr, len, dir);
 err_buf:
 	if (err != 0)
-		dev_warn(host->dev, "Fall back to CPU I/O\n");
+		dev_dbg(host->dev, "Fall back to CPU I/O\n");
 	return err;
 }
 
@@ -350,7 +485,7 @@ static void pmecc_config_ecc_layout(struct nand_ecclayout *layout,
 	for (i = 0; i < ecc_len; i++)
 		layout->eccpos[i] = oobsize - ecc_len + i;
 
-	layout->oobfree[0].offset = 2;
+	layout->oobfree[0].offset = PMECC_OOB_RESERVED_BYTES;
 	layout->oobfree[0].length =
 		oobsize - ecc_len - layout->oobfree[0].offset;
 }
@@ -366,43 +501,34 @@ static void __iomem *pmecc_get_alpha_to(struct atmel_nand_host *host)
 			table_size * sizeof(int16_t);
 }
 
-static void pmecc_data_free(struct atmel_nand_host *host)
-{
-	kfree(host->pmecc_partial_syn);
-	kfree(host->pmecc_si);
-	kfree(host->pmecc_lmu);
-	kfree(host->pmecc_smu);
-	kfree(host->pmecc_mu);
-	kfree(host->pmecc_dmu);
-	kfree(host->pmecc_delta);
-}
-
 static int pmecc_data_alloc(struct atmel_nand_host *host)
 {
 	const int cap = host->pmecc_corr_cap;
+	int size;
 
-	host->pmecc_partial_syn = kzalloc((2 * cap + 1) * sizeof(int16_t),
-					GFP_KERNEL);
-	host->pmecc_si = kzalloc((2 * cap + 1) * sizeof(int16_t), GFP_KERNEL);
-	host->pmecc_lmu = kzalloc((cap + 1) * sizeof(int16_t), GFP_KERNEL);
-	host->pmecc_smu = kzalloc((cap + 2) * (2 * cap + 1) * sizeof(int16_t),
-					GFP_KERNEL);
-	host->pmecc_mu = kzalloc((cap + 1) * sizeof(int), GFP_KERNEL);
-	host->pmecc_dmu = kzalloc((cap + 1) * sizeof(int), GFP_KERNEL);
-	host->pmecc_delta = kzalloc((cap + 1) * sizeof(int), GFP_KERNEL);
+	size = (2 * cap + 1) * sizeof(int16_t);
+	host->pmecc_partial_syn = devm_kzalloc(host->dev, size, GFP_KERNEL);
+	host->pmecc_si = devm_kzalloc(host->dev, size, GFP_KERNEL);
+	host->pmecc_lmu = devm_kzalloc(host->dev,
+			(cap + 1) * sizeof(int16_t), GFP_KERNEL);
+	host->pmecc_smu = devm_kzalloc(host->dev,
+			(cap + 2) * size, GFP_KERNEL);
 
-	if (host->pmecc_partial_syn &&
-			host->pmecc_si &&
-			host->pmecc_lmu &&
-			host->pmecc_smu &&
-			host->pmecc_mu &&
-			host->pmecc_dmu &&
-			host->pmecc_delta)
-		return 0;
+	size = (cap + 1) * sizeof(int);
+	host->pmecc_mu = devm_kzalloc(host->dev, size, GFP_KERNEL);
+	host->pmecc_dmu = devm_kzalloc(host->dev, size, GFP_KERNEL);
+	host->pmecc_delta = devm_kzalloc(host->dev, size, GFP_KERNEL);
 
-	/* error happened */
-	pmecc_data_free(host);
-	return -ENOMEM;
+	if (!host->pmecc_partial_syn ||
+		!host->pmecc_si ||
+		!host->pmecc_lmu ||
+		!host->pmecc_smu ||
+		!host->pmecc_mu ||
+		!host->pmecc_dmu ||
+		!host->pmecc_delta)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void pmecc_gen_syndrome(struct mtd_info *mtd, int sector)
@@ -702,7 +828,7 @@ static void pmecc_correct_data(struct mtd_info *mtd, uint8_t *buf, uint8_t *ecc,
 				pos, bit_pos, err_byte, *(buf + byte_pos));
 		} else {
 			/* Bit flip in OOB area */
-			tmp = sector_num * host->pmecc_bytes_per_sector
+			tmp = sector_num * nand_chip->ecc.bytes
 					+ (byte_pos - sector_size);
 			err_byte = ecc[tmp];
 			ecc[tmp] ^= (1 << bit_pos);
@@ -724,19 +850,22 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
-	int i, err_nbr, eccbytes;
+	int i, err_nbr;
 	uint8_t *buf_pos;
-	int total_err = 0;
+	int max_bitflips = 0;
 
-	eccbytes = nand_chip->ecc.bytes;
-	for (i = 0; i < eccbytes; i++)
+	/* If can correct bitfilps from erased page, do the normal check */
+	if (host->caps->pmecc_correct_erase_page)
+		goto normal_check;
+
+	for (i = 0; i < nand_chip->ecc.total; i++)
 		if (ecc[i] != 0xff)
 			goto normal_check;
 	/* Erased page, return OK */
 	return 0;
 
 normal_check:
-	for (i = 0; i < host->pmecc_sector_number; i++) {
+	for (i = 0; i < nand_chip->ecc.steps; i++) {
 		err_nbr = 0;
 		if (pmecc_stat & 0x1) {
 			buf_pos = buf + i * host->pmecc_sector_size;
@@ -752,35 +881,54 @@ normal_check:
 				return -EIO;
 			} else {
 				pmecc_correct_data(mtd, buf_pos, ecc, i,
-					host->pmecc_bytes_per_sector, err_nbr);
+					nand_chip->ecc.bytes, err_nbr);
 				mtd->ecc_stats.corrected += err_nbr;
-				total_err += err_nbr;
+				max_bitflips = max_t(int, max_bitflips, err_nbr);
 			}
 		}
 		pmecc_stat >>= 1;
 	}
 
-	return total_err;
+	return max_bitflips;
+}
+
+static void pmecc_enable(struct atmel_nand_host *host, int ecc_op)
+{
+	u32 val;
+
+	if (ecc_op != NAND_ECC_READ && ecc_op != NAND_ECC_WRITE) {
+		dev_err(host->dev, "atmel_nand: wrong pmecc operation type!");
+		return;
+	}
+
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
+	val = pmecc_readl_relaxed(host->ecc, CFG);
+
+	if (ecc_op == NAND_ECC_READ)
+		pmecc_writel(host->ecc, CFG, (val & ~PMECC_CFG_WRITE_OP)
+			| PMECC_CFG_AUTO_ENABLE);
+	else
+		pmecc_writel(host->ecc, CFG, (val | PMECC_CFG_WRITE_OP)
+			& ~PMECC_CFG_AUTO_ENABLE);
+
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_ENABLE);
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DATA);
 }
 
 static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
 {
 	struct atmel_nand_host *host = chip->priv;
-	int eccsize = chip->ecc.size;
+	int eccsize = chip->ecc.size * chip->ecc.steps;
 	uint8_t *oob = chip->oob_poi;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
 	uint32_t stat;
 	unsigned long end_time;
 	int bitflips = 0;
 
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
-	pmecc_writel(host->ecc, CFG, (pmecc_readl_relaxed(host->ecc, CFG)
-		& ~PMECC_CFG_WRITE_OP) | PMECC_CFG_AUTO_ENABLE);
-
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_ENABLE);
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DATA);
+	if (!host->nfc || !host->nfc->use_nfc_sram)
+		pmecc_enable(host, NAND_ECC_READ);
 
 	chip->read_buf(mtd, buf, eccsize);
 	chip->read_buf(mtd, oob, mtd->oobsize);
@@ -813,16 +961,10 @@ static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
 	int i, j;
 	unsigned long end_time;
 
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
-
-	pmecc_writel(host->ecc, CFG, (pmecc_readl_relaxed(host->ecc, CFG) |
-		PMECC_CFG_WRITE_OP) & ~PMECC_CFG_AUTO_ENABLE);
-
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_ENABLE);
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DATA);
-
-	chip->write_buf(mtd, (u8 *)buf, mtd->writesize);
+	if (!host->nfc || !host->nfc->write_by_sram) {
+		pmecc_enable(host, NAND_ECC_WRITE);
+		chip->write_buf(mtd, (u8 *)buf, mtd->writesize);
+	}
 
 	end_time = jiffies + msecs_to_jiffies(PMECC_MAX_TIMEOUT_MS);
 	while ((pmecc_readl_relaxed(host->ecc, SR) & PMECC_SR_BUSY)) {
@@ -833,11 +975,11 @@ static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
 		cpu_relax();
 	}
 
-	for (i = 0; i < host->pmecc_sector_number; i++) {
-		for (j = 0; j < host->pmecc_bytes_per_sector; j++) {
+	for (i = 0; i < chip->ecc.steps; i++) {
+		for (j = 0; j < chip->ecc.bytes; j++) {
 			int pos;
 
-			pos = i * host->pmecc_bytes_per_sector + j;
+			pos = i * chip->ecc.bytes + j;
 			chip->oob_poi[eccpos[pos]] =
 				pmecc_readb_ecc_relaxed(host->ecc, i, j);
 		}
@@ -880,7 +1022,7 @@ static void atmel_pmecc_core_init(struct mtd_info *mtd)
 	else if (host->pmecc_sector_size == 1024)
 		val |= PMECC_CFG_SECTOR1024;
 
-	switch (host->pmecc_sector_number) {
+	switch (nand_chip->ecc.steps) {
 	case 1:
 		val |= PMECC_CFG_PAGE_1SECTOR;
 		break;
@@ -911,67 +1053,39 @@ static void atmel_pmecc_core_init(struct mtd_info *mtd)
 }
 
 /*
- * Get ECC requirement in ONFI parameters, returns -1 if ONFI
- * parameters is not supported.
- * return 0 if success to get the ECC requirement.
- */
-static int get_onfi_ecc_param(struct nand_chip *chip,
-		int *ecc_bits, int *sector_size)
-{
-	*ecc_bits = *sector_size = 0;
-
-	if (chip->onfi_params.ecc_bits == 0xff)
-		/* TODO: the sector_size and ecc_bits need to be find in
-		 * extended ecc parameter, currently we don't support it.
-		 */
-		return -1;
-
-	*ecc_bits = chip->onfi_params.ecc_bits;
-
-	/* The default sector size (ecc codeword size) is 512 */
-	*sector_size = 512;
-
-	return 0;
-}
-
-/*
- * Get ecc requirement from ONFI parameters ecc requirement.
+ * Get minimum ecc requirements from NAND.
  * If pmecc-cap, pmecc-sector-size in DTS are not specified, this function
- * will set them according to ONFI ecc requirement. Otherwise, use the
+ * will set them according to minimum ecc requirement. Otherwise, use the
  * value in DTS file.
  * return 0 if success. otherwise return error code.
  */
 static int pmecc_choose_ecc(struct atmel_nand_host *host,
 		int *cap, int *sector_size)
 {
-	/* Get ECC requirement from ONFI parameters */
-	*cap = *sector_size = 0;
-	if (host->nand_chip.onfi_version) {
-		if (!get_onfi_ecc_param(&host->nand_chip, cap, sector_size))
-			dev_info(host->dev, "ONFI params, minimum required ECC: %d bits in %d bytes\n",
+	/* Get minimum ECC requirements */
+	if (host->nand_chip.ecc_strength_ds) {
+		*cap = host->nand_chip.ecc_strength_ds;
+		*sector_size = host->nand_chip.ecc_step_ds;
+		dev_info(host->dev, "minimum ECC: %d bits in %d bytes\n",
 				*cap, *sector_size);
-		else
-			dev_info(host->dev, "NAND chip ECC reqirement is in Extended ONFI parameter, we don't support yet.\n");
 	} else {
-		dev_info(host->dev, "NAND chip is not ONFI compliant, assume ecc_bits is 2 in 512 bytes");
-	}
-	if (*cap == 0 && *sector_size == 0) {
 		*cap = 2;
 		*sector_size = 512;
+		dev_info(host->dev, "can't detect min. ECC, assume 2 bits in 512 bytes\n");
 	}
 
-	/* If dts file doesn't specify then use the one in ONFI parameters */
+	/* If device tree doesn't specify, use NAND's minimum ECC parameters */
 	if (host->pmecc_corr_cap == 0) {
 		/* use the most fitable ecc bits (the near bigger one ) */
 		if (*cap <= 2)
 			host->pmecc_corr_cap = 2;
 		else if (*cap <= 4)
 			host->pmecc_corr_cap = 4;
-		else if (*cap < 8)
+		else if (*cap <= 8)
 			host->pmecc_corr_cap = 8;
-		else if (*cap < 12)
+		else if (*cap <= 12)
 			host->pmecc_corr_cap = 12;
-		else if (*cap < 24)
+		else if (*cap <= 24)
 			host->pmecc_corr_cap = 24;
 		else
 			return -EINVAL;
@@ -988,12 +1102,66 @@ static int pmecc_choose_ecc(struct atmel_nand_host *host,
 	return 0;
 }
 
-static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
+static inline int deg(unsigned int poly)
+{
+	/* polynomial degree is the most-significant bit index */
+	return fls(poly) - 1;
+}
+
+static int build_gf_tables(int mm, unsigned int poly,
+		int16_t *index_of, int16_t *alpha_to)
+{
+	unsigned int i, x = 1;
+	const unsigned int k = 1 << deg(poly);
+	unsigned int nn = (1 << mm) - 1;
+
+	/* primitive polynomial must be of degree m */
+	if (k != (1u << mm))
+		return -EINVAL;
+
+	for (i = 0; i < nn; i++) {
+		alpha_to[i] = x;
+		index_of[x] = i;
+		if (i && (x == 1))
+			/* polynomial is not primitive (a^i=1 with 0<i<2^m-1) */
+			return -EINVAL;
+		x <<= 1;
+		if (x & k)
+			x ^= poly;
+	}
+	alpha_to[nn] = 1;
+	index_of[0] = 0;
+
+	return 0;
+}
+
+static uint16_t *create_lookup_table(struct device *dev, int sector_size)
+{
+	int degree = (sector_size == 512) ?
+			PMECC_GF_DIMENSION_13 :
+			PMECC_GF_DIMENSION_14;
+	unsigned int poly = (sector_size == 512) ?
+			PMECC_GF_13_PRIMITIVE_POLY :
+			PMECC_GF_14_PRIMITIVE_POLY;
+	int table_size = (sector_size == 512) ?
+			PMECC_LOOKUP_TABLE_SIZE_512 :
+			PMECC_LOOKUP_TABLE_SIZE_1024;
+
+	int16_t *addr = devm_kzalloc(dev, 2 * table_size * sizeof(uint16_t),
+			GFP_KERNEL);
+	if (addr && build_gf_tables(degree, poly, addr, addr + table_size))
+		return NULL;
+
+	return addr;
+}
+
+static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
 	struct mtd_info *mtd = &host->mtd;
 	struct nand_chip *nand_chip = &host->nand_chip;
 	struct resource *regs, *regs_pmerr, *regs_rom;
+	uint16_t *galois_table;
 	int cap, sector_size, err_no;
 
 	err_no = pmecc_choose_ecc(host, &cap, &sector_size);
@@ -1002,7 +1170,7 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		return err_no;
 	}
 
-	if (cap != host->pmecc_corr_cap ||
+	if (cap > host->pmecc_corr_cap ||
 			sector_size != host->pmecc_sector_size)
 		dev_info(host->dev, "WARNING: Be Caution! Using different PMECC parameters from Nand ONFI ECC reqirement.\n");
 
@@ -1023,65 +1191,84 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		return 0;
 	}
 
-	host->ecc = ioremap(regs->start, resource_size(regs));
-	if (host->ecc == NULL) {
-		dev_err(host->dev, "ioremap failed\n");
-		err_no = -EIO;
-		goto err_pmecc_ioremap;
+	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(host->ecc)) {
+		err_no = PTR_ERR(host->ecc);
+		goto err;
 	}
 
 	regs_pmerr = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	if (regs_pmerr && regs_rom) {
-		host->pmerrloc_base = ioremap(regs_pmerr->start,
-			resource_size(regs_pmerr));
-		host->pmecc_rom_base = ioremap(regs_rom->start,
-			resource_size(regs_rom));
+	host->pmerrloc_base = devm_ioremap_resource(&pdev->dev, regs_pmerr);
+	if (IS_ERR(host->pmerrloc_base)) {
+		err_no = PTR_ERR(host->pmerrloc_base);
+		goto err;
 	}
 
-	if (!host->pmerrloc_base || !host->pmecc_rom_base) {
-		dev_err(host->dev,
-			"Can not get I/O resource for PMECC ERRLOC controller or ROM!\n");
-		err_no = -EIO;
-		goto err_pmloc_ioremap;
+	if (!host->has_no_lookup_table) {
+		regs_rom = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+		host->pmecc_rom_base = devm_ioremap_resource(&pdev->dev,
+								regs_rom);
+		if (IS_ERR(host->pmecc_rom_base)) {
+			dev_err(host->dev, "Can not get I/O resource for ROM, will build a lookup table in runtime!\n");
+			host->has_no_lookup_table = true;
+		}
 	}
 
-	/* ECC is calculated for the whole page (1 step) */
-	nand_chip->ecc.size = mtd->writesize;
+	if (host->has_no_lookup_table) {
+		/* Build the look-up table in runtime */
+		galois_table = create_lookup_table(host->dev, sector_size);
+		if (!galois_table) {
+			dev_err(host->dev, "Failed to build a lookup table in runtime!\n");
+			err_no = -EINVAL;
+			goto err;
+		}
+
+		host->pmecc_rom_base = (void __iomem *)galois_table;
+		host->pmecc_lookup_table_offset = 0;
+	}
+
+	nand_chip->ecc.size = sector_size;
 
 	/* set ECC page size and oob layout */
 	switch (mtd->writesize) {
+	case 512:
+	case 1024:
 	case 2048:
-		host->pmecc_degree = PMECC_GF_DIMENSION_13;
+	case 4096:
+	case 8192:
+		if (sector_size > mtd->writesize) {
+			dev_err(host->dev, "pmecc sector size is bigger than the page size!\n");
+			err_no = -EINVAL;
+			goto err;
+		}
+
+		host->pmecc_degree = (sector_size == 512) ?
+			PMECC_GF_DIMENSION_13 : PMECC_GF_DIMENSION_14;
 		host->pmecc_cw_len = (1 << host->pmecc_degree) - 1;
-		host->pmecc_sector_number = mtd->writesize / sector_size;
-		host->pmecc_bytes_per_sector = pmecc_get_ecc_bytes(
-			cap, sector_size);
 		host->pmecc_alpha_to = pmecc_get_alpha_to(host);
 		host->pmecc_index_of = host->pmecc_rom_base +
 			host->pmecc_lookup_table_offset;
 
-		nand_chip->ecc.steps = 1;
 		nand_chip->ecc.strength = cap;
-		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector *
-				       host->pmecc_sector_number;
-		if (nand_chip->ecc.bytes > mtd->oobsize - 2) {
+		nand_chip->ecc.bytes = pmecc_get_ecc_bytes(cap, sector_size);
+		nand_chip->ecc.steps = mtd->writesize / sector_size;
+		nand_chip->ecc.total = nand_chip->ecc.bytes *
+			nand_chip->ecc.steps;
+		if (nand_chip->ecc.total >
+				mtd->oobsize - PMECC_OOB_RESERVED_BYTES) {
 			dev_err(host->dev, "No room for ECC bytes\n");
 			err_no = -EINVAL;
-			goto err_no_ecc_room;
+			goto err;
 		}
 		pmecc_config_ecc_layout(&atmel_pmecc_oobinfo,
 					mtd->oobsize,
-					nand_chip->ecc.bytes);
+					nand_chip->ecc.total);
+
 		nand_chip->ecc.layout = &atmel_pmecc_oobinfo;
 		break;
-	case 512:
-	case 1024:
-	case 4096:
-		/* TODO */
+	default:
 		dev_warn(host->dev,
 			"Unsupported page size for PMECC, use Software ECC\n");
-	default:
 		/* page size not handled by HW ECC */
 		/* switching back to soft ECC */
 		nand_chip->ecc.mode = NAND_ECC_SOFT;
@@ -1093,9 +1280,10 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 	if (err_no) {
 		dev_err(host->dev,
 				"Cannot allocate memory for PMECC computation!\n");
-		goto err_pmecc_data_alloc;
+		goto err;
 	}
 
+	nand_chip->options |= NAND_NO_SUBPAGE_WRITE;
 	nand_chip->ecc.read_page = atmel_nand_pmecc_read_page;
 	nand_chip->ecc.write_page = atmel_nand_pmecc_write_page;
 
@@ -1103,15 +1291,7 @@ static int __init atmel_pmecc_nand_init_params(struct platform_device *pdev,
 
 	return 0;
 
-err_pmecc_data_alloc:
-err_no_ecc_room:
-err_pmloc_ioremap:
-	iounmap(host->ecc);
-	if (host->pmerrloc_base)
-		iounmap(host->pmerrloc_base);
-	if (host->pmecc_rom_base)
-		iounmap(host->pmecc_rom_base);
-err_pmecc_ioremap:
+err:
 	return err_no;
 }
 
@@ -1174,10 +1354,9 @@ static int atmel_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	 * Workaround: Reset the parity registers before reading the
 	 * actual data.
 	 */
-	if (cpu_is_at32ap7000()) {
-		struct atmel_nand_host *host = chip->priv;
+	struct atmel_nand_host *host = chip->priv;
+	if (host->board.need_reset_workaround)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
-	}
 
 	/* read the page */
 	chip->read_buf(mtd, p, eccsize);
@@ -1298,14 +1477,15 @@ static int atmel_nand_correct(struct mtd_info *mtd, u_char *dat,
  */
 static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 {
-	if (cpu_is_at32ap7000()) {
-		struct nand_chip *nand_chip = mtd->priv;
-		struct atmel_nand_host *host = nand_chip->priv;
+	struct nand_chip *nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
+
+	if (host->board.need_reset_workaround)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
-	}
 }
 
-#if defined(CONFIG_OF)
+static const struct of_device_id atmel_nand_dt_ids[];
+
 static int atmel_of_init_port(struct atmel_nand_host *host,
 			      struct device_node *np)
 {
@@ -1313,7 +1493,10 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 	u32 offset[2];
 	int ecc_mode;
 	struct atmel_nand_data *board = &host->board;
-	enum of_gpio_flags flags;
+	enum of_gpio_flags flags = 0;
+
+	host->caps = (struct atmel_nand_caps *)
+		of_match_device(atmel_nand_dt_ids, host->dev)->data;
 
 	if (of_property_read_u32(np, "atmel,nand-addr-offset", &val) == 0) {
 		if (val >= 32) {
@@ -1337,6 +1520,8 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	board->on_flash_bbt = of_get_nand_on_flash_bbt(np);
 
+	board->has_dma = of_property_read_bool(np, "atmel,nand-has-dma");
+
 	if (of_get_nand_bus_width(np) == 16)
 		board->bus_width_16 = 1;
 
@@ -1347,6 +1532,9 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 	board->det_pin = of_get_gpio(np, 2);
 
 	host->has_pmecc = of_property_read_bool(np, "atmel,has-pmecc");
+
+	/* load the nfc driver if there is */
+	of_platform_populate(np, NULL, NULL, host->dev);
 
 	if (!(board->ecc_mode == NAND_ECC_HW) || !host->has_pmecc)
 		return 0;	/* Not using PMECC */
@@ -1379,8 +1567,10 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	if (of_property_read_u32_array(np, "atmel,pmecc-lookup-table-offset",
 			offset, 2) != 0) {
-		dev_err(host->dev, "Cannot get PMECC lookup table offset\n");
-		return -EINVAL;
+		dev_err(host->dev, "Cannot get PMECC lookup table offset, will build a lookup table in runtime.\n");
+		host->has_no_lookup_table = true;
+		/* Will build a lookup table and initialize the offset later */
+		return 0;
 	}
 	if (!offset[0] && !offset[1]) {
 		dev_err(host->dev, "Invalid PMECC lookup table offset\n");
@@ -1391,15 +1581,8 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	return 0;
 }
-#else
-static int atmel_of_init_port(struct atmel_nand_host *host,
-			      struct device_node *np)
-{
-	return -EINVAL;
-}
-#endif
 
-static int __init atmel_hw_nand_init_params(struct platform_device *pdev,
+static int atmel_hw_nand_init_params(struct platform_device *pdev,
 					 struct atmel_nand_host *host)
 {
 	struct mtd_info *mtd = &host->mtd;
@@ -1414,11 +1597,9 @@ static int __init atmel_hw_nand_init_params(struct platform_device *pdev,
 		return 0;
 	}
 
-	host->ecc = ioremap(regs->start, resource_size(regs));
-	if (host->ecc == NULL) {
-		dev_err(host->dev, "ioremap failed\n");
-		return -EIO;
-	}
+	host->ecc = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(host->ecc))
+		return PTR_ERR(host->ecc);
 
 	/* ECC is calculated for the whole page (1 step) */
 	nand_chip->ecc.size = mtd->writesize;
@@ -1459,50 +1640,487 @@ static int __init atmel_hw_nand_init_params(struct platform_device *pdev,
 	return 0;
 }
 
+static inline u32 nfc_read_status(struct atmel_nand_host *host)
+{
+	u32 err_flags = NFC_SR_DTOE | NFC_SR_UNDEF | NFC_SR_AWB | NFC_SR_ASE;
+	u32 nfc_status = nfc_readl(host->nfc->hsmc_regs, SR);
+
+	if (unlikely(nfc_status & err_flags)) {
+		if (nfc_status & NFC_SR_DTOE)
+			dev_err(host->dev, "NFC: Waiting Nand R/B Timeout Error\n");
+		else if (nfc_status & NFC_SR_UNDEF)
+			dev_err(host->dev, "NFC: Access Undefined Area Error\n");
+		else if (nfc_status & NFC_SR_AWB)
+			dev_err(host->dev, "NFC: Access memory While NFC is busy\n");
+		else if (nfc_status & NFC_SR_ASE)
+			dev_err(host->dev, "NFC: Access memory Size Error\n");
+	}
+
+	return nfc_status;
+}
+
+/* SMC interrupt service routine */
+static irqreturn_t hsmc_interrupt(int irq, void *dev_id)
+{
+	struct atmel_nand_host *host = dev_id;
+	u32 status, mask, pending;
+	irqreturn_t ret = IRQ_NONE;
+
+	status = nfc_read_status(host);
+	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
+	pending = status & mask;
+
+	if (pending & NFC_SR_XFR_DONE) {
+		complete(&host->nfc->comp_xfer_done);
+		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_XFR_DONE);
+		ret = IRQ_HANDLED;
+	}
+	if (pending & NFC_SR_RB_EDGE) {
+		complete(&host->nfc->comp_ready);
+		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_RB_EDGE);
+		ret = IRQ_HANDLED;
+	}
+	if (pending & NFC_SR_CMD_DONE) {
+		complete(&host->nfc->comp_cmd_done);
+		nfc_writel(host->nfc->hsmc_regs, IDR, NFC_SR_CMD_DONE);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
+
+/* NFC(Nand Flash Controller) related functions */
+static void nfc_prepare_interrupt(struct atmel_nand_host *host, u32 flag)
+{
+	if (flag & NFC_SR_XFR_DONE)
+		init_completion(&host->nfc->comp_xfer_done);
+
+	if (flag & NFC_SR_RB_EDGE)
+		init_completion(&host->nfc->comp_ready);
+
+	if (flag & NFC_SR_CMD_DONE)
+		init_completion(&host->nfc->comp_cmd_done);
+
+	/* Enable interrupt that need to wait for */
+	nfc_writel(host->nfc->hsmc_regs, IER, flag);
+}
+
+static int nfc_wait_interrupt(struct atmel_nand_host *host, u32 flag)
+{
+	int i, index = 0;
+	struct completion *comp[3];	/* Support 3 interrupt completion */
+
+	if (flag & NFC_SR_XFR_DONE)
+		comp[index++] = &host->nfc->comp_xfer_done;
+
+	if (flag & NFC_SR_RB_EDGE)
+		comp[index++] = &host->nfc->comp_ready;
+
+	if (flag & NFC_SR_CMD_DONE)
+		comp[index++] = &host->nfc->comp_cmd_done;
+
+	if (index == 0) {
+		dev_err(host->dev, "Unknown interrupt flag: 0x%08x\n", flag);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < index; i++) {
+		if (wait_for_completion_timeout(comp[i],
+				msecs_to_jiffies(NFC_TIME_OUT_MS)))
+			continue;	/* wait for next completion */
+		else
+			goto err_timeout;
+	}
+
+	return 0;
+
+err_timeout:
+	dev_err(host->dev, "Time out to wait for interrupt: 0x%08x\n", flag);
+	/* Disable the interrupt as it is not handled by interrupt handler */
+	nfc_writel(host->nfc->hsmc_regs, IDR, flag);
+	return -ETIMEDOUT;
+}
+
+static int nfc_send_command(struct atmel_nand_host *host,
+	unsigned int cmd, unsigned int addr, unsigned char cycle0)
+{
+	unsigned long timeout;
+	u32 flag = NFC_SR_CMD_DONE;
+	flag |= cmd & NFCADDR_CMD_DATAEN ? NFC_SR_XFR_DONE : 0;
+
+	dev_dbg(host->dev,
+		"nfc_cmd: 0x%08x, addr1234: 0x%08x, cycle0: 0x%02x\n",
+		cmd, addr, cycle0);
+
+	timeout = jiffies + msecs_to_jiffies(NFC_TIME_OUT_MS);
+	while (nfc_readl(host->nfc->hsmc_regs, SR) & NFC_SR_BUSY) {
+		if (time_after(jiffies, timeout)) {
+			dev_err(host->dev,
+				"Time out to wait for NFC ready!\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	nfc_prepare_interrupt(host, flag);
+	nfc_writel(host->nfc->hsmc_regs, CYCLE0, cycle0);
+	nfc_cmd_addr1234_writel(cmd, addr, host->nfc->base_cmd_regs);
+	return nfc_wait_interrupt(host, flag);
+}
+
+static int nfc_device_ready(struct mtd_info *mtd)
+{
+	u32 status, mask;
+	struct nand_chip *nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
+
+	status = nfc_read_status(host);
+	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
+
+	/* The mask should be 0. If not we may lost interrupts */
+	if (unlikely(mask & status))
+		dev_err(host->dev, "Lost the interrupt flags: 0x%08x\n",
+				mask & status);
+
+	return status & NFC_SR_RB_EDGE;
+}
+
+static void nfc_select_chip(struct mtd_info *mtd, int chip)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
+
+	if (chip == -1)
+		nfc_writel(host->nfc->hsmc_regs, CTRL, NFC_CTRL_DISABLE);
+	else
+		nfc_writel(host->nfc->hsmc_regs, CTRL, NFC_CTRL_ENABLE);
+}
+
+static int nfc_make_addr(struct mtd_info *mtd, int command, int column,
+		int page_addr, unsigned int *addr1234, unsigned int *cycle0)
+{
+	struct nand_chip *chip = mtd->priv;
+
+	int acycle = 0;
+	unsigned char addr_bytes[8];
+	int index = 0, bit_shift;
+
+	BUG_ON(addr1234 == NULL || cycle0 == NULL);
+
+	*cycle0 = 0;
+	*addr1234 = 0;
+
+	if (column != -1) {
+		if (chip->options & NAND_BUSWIDTH_16 &&
+				!nand_opcode_8bits(command))
+			column >>= 1;
+		addr_bytes[acycle++] = column & 0xff;
+		if (mtd->writesize > 512)
+			addr_bytes[acycle++] = (column >> 8) & 0xff;
+	}
+
+	if (page_addr != -1) {
+		addr_bytes[acycle++] = page_addr & 0xff;
+		addr_bytes[acycle++] = (page_addr >> 8) & 0xff;
+		if (chip->chipsize > (128 << 20))
+			addr_bytes[acycle++] = (page_addr >> 16) & 0xff;
+	}
+
+	if (acycle > 4)
+		*cycle0 = addr_bytes[index++];
+
+	for (bit_shift = 0; index < acycle; bit_shift += 8)
+		*addr1234 += addr_bytes[index++] << bit_shift;
+
+	/* return acycle in cmd register */
+	return acycle << NFCADDR_CMD_ACYCLE_BIT_POS;
+}
+
+static void nfc_nand_command(struct mtd_info *mtd, unsigned int command,
+				int column, int page_addr)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct atmel_nand_host *host = chip->priv;
+	unsigned long timeout;
+	unsigned int nfc_addr_cmd = 0;
+
+	unsigned int cmd1 = command << NFCADDR_CMD_CMD1_BIT_POS;
+
+	/* Set default settings: no cmd2, no addr cycle. read from nand */
+	unsigned int cmd2 = 0;
+	unsigned int vcmd2 = 0;
+	int acycle = NFCADDR_CMD_ACYCLE_NONE;
+	int csid = NFCADDR_CMD_CSID_3;
+	int dataen = NFCADDR_CMD_DATADIS;
+	int nfcwr = NFCADDR_CMD_NFCRD;
+	unsigned int addr1234 = 0;
+	unsigned int cycle0 = 0;
+	bool do_addr = true;
+	host->nfc->data_in_sram = NULL;
+
+	dev_dbg(host->dev, "%s: cmd = 0x%02x, col = 0x%08x, page = 0x%08x\n",
+	     __func__, command, column, page_addr);
+
+	switch (command) {
+	case NAND_CMD_RESET:
+		nfc_addr_cmd = cmd1 | acycle | csid | dataen | nfcwr;
+		nfc_send_command(host, nfc_addr_cmd, addr1234, cycle0);
+		udelay(chip->chip_delay);
+
+		nfc_nand_command(mtd, NAND_CMD_STATUS, -1, -1);
+		timeout = jiffies + msecs_to_jiffies(NFC_TIME_OUT_MS);
+		while (!(chip->read_byte(mtd) & NAND_STATUS_READY)) {
+			if (time_after(jiffies, timeout)) {
+				dev_err(host->dev,
+					"Time out to wait status ready!\n");
+				break;
+			}
+		}
+		return;
+	case NAND_CMD_STATUS:
+		do_addr = false;
+		break;
+	case NAND_CMD_PARAM:
+	case NAND_CMD_READID:
+		do_addr = false;
+		acycle = NFCADDR_CMD_ACYCLE_1;
+		if (column != -1)
+			addr1234 = column;
+		break;
+	case NAND_CMD_RNDOUT:
+		cmd2 = NAND_CMD_RNDOUTSTART << NFCADDR_CMD_CMD2_BIT_POS;
+		vcmd2 = NFCADDR_CMD_VCMD2;
+		break;
+	case NAND_CMD_READ0:
+	case NAND_CMD_READOOB:
+		if (command == NAND_CMD_READOOB) {
+			column += mtd->writesize;
+			command = NAND_CMD_READ0; /* only READ0 is valid */
+			cmd1 = command << NFCADDR_CMD_CMD1_BIT_POS;
+		}
+		if (host->nfc->use_nfc_sram) {
+			/* Enable Data transfer to sram */
+			dataen = NFCADDR_CMD_DATAEN;
+
+			/* Need enable PMECC now, since NFC will transfer
+			 * data in bus after sending nfc read command.
+			 */
+			if (chip->ecc.mode == NAND_ECC_HW && host->has_pmecc)
+				pmecc_enable(host, NAND_ECC_READ);
+		}
+
+		cmd2 = NAND_CMD_READSTART << NFCADDR_CMD_CMD2_BIT_POS;
+		vcmd2 = NFCADDR_CMD_VCMD2;
+		break;
+	/* For prgramming command, the cmd need set to write enable */
+	case NAND_CMD_PAGEPROG:
+	case NAND_CMD_SEQIN:
+	case NAND_CMD_RNDIN:
+		nfcwr = NFCADDR_CMD_NFCWR;
+		if (host->nfc->will_write_sram && command == NAND_CMD_SEQIN)
+			dataen = NFCADDR_CMD_DATAEN;
+		break;
+	default:
+		break;
+	}
+
+	if (do_addr)
+		acycle = nfc_make_addr(mtd, command, column, page_addr,
+				&addr1234, &cycle0);
+
+	nfc_addr_cmd = cmd1 | cmd2 | vcmd2 | acycle | csid | dataen | nfcwr;
+	nfc_send_command(host, nfc_addr_cmd, addr1234, cycle0);
+
+	/*
+	 * Program and erase have their own busy handlers status, sequential
+	 * in, and deplete1 need no delay.
+	 */
+	switch (command) {
+	case NAND_CMD_CACHEDPROG:
+	case NAND_CMD_PAGEPROG:
+	case NAND_CMD_ERASE1:
+	case NAND_CMD_ERASE2:
+	case NAND_CMD_RNDIN:
+	case NAND_CMD_STATUS:
+	case NAND_CMD_RNDOUT:
+	case NAND_CMD_SEQIN:
+	case NAND_CMD_READID:
+		return;
+
+	case NAND_CMD_READ0:
+		if (dataen == NFCADDR_CMD_DATAEN) {
+			host->nfc->data_in_sram = host->nfc->sram_bank0 +
+				nfc_get_sram_off(host);
+			return;
+		}
+		/* fall through */
+	default:
+		nfc_prepare_interrupt(host, NFC_SR_RB_EDGE);
+		nfc_wait_interrupt(host, NFC_SR_RB_EDGE);
+	}
+}
+
+static int nfc_sram_write_page(struct mtd_info *mtd, struct nand_chip *chip,
+			uint32_t offset, int data_len, const uint8_t *buf,
+			int oob_required, int page, int cached, int raw)
+{
+	int cfg, len;
+	int status = 0;
+	struct atmel_nand_host *host = chip->priv;
+	void *sram = host->nfc->sram_bank0 + nfc_get_sram_off(host);
+
+	/* Subpage write is not supported */
+	if (offset || (data_len < mtd->writesize))
+		return -EINVAL;
+
+	len = mtd->writesize;
+	/* Copy page data to sram that will write to nand via NFC */
+	if (use_dma) {
+		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) != 0)
+			/* Fall back to use cpu copy */
+			memcpy(sram, buf, len);
+	} else {
+		memcpy(sram, buf, len);
+	}
+
+	cfg = nfc_readl(host->nfc->hsmc_regs, CFG);
+	if (unlikely(raw) && oob_required) {
+		memcpy(sram + len, chip->oob_poi, mtd->oobsize);
+		len += mtd->oobsize;
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg | NFC_CFG_WSPARE);
+	} else {
+		nfc_writel(host->nfc->hsmc_regs, CFG, cfg & ~NFC_CFG_WSPARE);
+	}
+
+	if (chip->ecc.mode == NAND_ECC_HW && host->has_pmecc)
+		/*
+		 * When use NFC sram, need set up PMECC before send
+		 * NAND_CMD_SEQIN command. Since when the nand command
+		 * is sent, nfc will do transfer from sram and nand.
+		 */
+		pmecc_enable(host, NAND_ECC_WRITE);
+
+	host->nfc->will_write_sram = true;
+	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
+	host->nfc->will_write_sram = false;
+
+	if (likely(!raw))
+		/* Need to write ecc into oob */
+		status = chip->ecc.write_page(mtd, chip, buf, oob_required);
+
+	if (status < 0)
+		return status;
+
+	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+	status = chip->waitfunc(mtd, chip);
+
+	if ((status & NAND_STATUS_FAIL) && (chip->errstat))
+		status = chip->errstat(mtd, chip, FL_WRITING, status, page);
+
+	if (status & NAND_STATUS_FAIL)
+		return -EIO;
+
+	return 0;
+}
+
+static int nfc_sram_init(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct atmel_nand_host *host = chip->priv;
+	int res = 0;
+
+	/* Initialize the NFC CFG register */
+	unsigned int cfg_nfc = 0;
+
+	/* set page size and oob layout */
+	switch (mtd->writesize) {
+	case 512:
+		cfg_nfc = NFC_CFG_PAGESIZE_512;
+		break;
+	case 1024:
+		cfg_nfc = NFC_CFG_PAGESIZE_1024;
+		break;
+	case 2048:
+		cfg_nfc = NFC_CFG_PAGESIZE_2048;
+		break;
+	case 4096:
+		cfg_nfc = NFC_CFG_PAGESIZE_4096;
+		break;
+	case 8192:
+		cfg_nfc = NFC_CFG_PAGESIZE_8192;
+		break;
+	default:
+		dev_err(host->dev, "Unsupported page size for NFC.\n");
+		res = -ENXIO;
+		return res;
+	}
+
+	/* oob bytes size = (NFCSPARESIZE + 1) * 4
+	 * Max support spare size is 512 bytes. */
+	cfg_nfc |= (((mtd->oobsize / 4) - 1) << NFC_CFG_NFC_SPARESIZE_BIT_POS
+		& NFC_CFG_NFC_SPARESIZE);
+	/* default set a max timeout */
+	cfg_nfc |= NFC_CFG_RSPARE |
+			NFC_CFG_NFC_DTOCYC | NFC_CFG_NFC_DTOMUL;
+
+	nfc_writel(host->nfc->hsmc_regs, CFG, cfg_nfc);
+
+	host->nfc->will_write_sram = false;
+	nfc_set_sram_bank(host, 0);
+
+	/* Use Write page with NFC SRAM only for PMECC or ECC NONE. */
+	if (host->nfc->write_by_sram) {
+		if ((chip->ecc.mode == NAND_ECC_HW && host->has_pmecc) ||
+				chip->ecc.mode == NAND_ECC_NONE)
+			chip->write_page = nfc_sram_write_page;
+		else
+			host->nfc->write_by_sram = false;
+	}
+
+	dev_info(host->dev, "Using NFC Sram read %s\n",
+			host->nfc->write_by_sram ? "and write" : "");
+	return 0;
+}
+
+static struct platform_driver atmel_nand_nfc_driver;
 /*
  * Probe for the NAND device.
  */
-static int __init atmel_nand_probe(struct platform_device *pdev)
+static int atmel_nand_probe(struct platform_device *pdev)
 {
 	struct atmel_nand_host *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
 	struct resource *mem;
 	struct mtd_part_parser_data ppdata = {};
-	int res;
-	struct pinctrl *pinctrl;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		printk(KERN_ERR "atmel_nand: can't get I/O resource mem\n");
-		return -ENXIO;
-	}
+	int res, irq;
 
 	/* Allocate memory for the device structure (and zero it) */
-	host = kzalloc(sizeof(struct atmel_nand_host), GFP_KERNEL);
-	if (!host) {
-		printk(KERN_ERR "atmel_nand: failed to allocate device structure.\n");
+	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	if (!host)
 		return -ENOMEM;
-	}
 
-	host->io_phys = (dma_addr_t)mem->start;
+	res = platform_driver_register(&atmel_nand_nfc_driver);
+	if (res)
+		dev_err(&pdev->dev, "atmel_nand: can't register NFC driver\n");
 
-	host->io_base = ioremap(mem->start, resource_size(mem));
-	if (host->io_base == NULL) {
-		printk(KERN_ERR "atmel_nand: ioremap failed\n");
-		res = -EIO;
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->io_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(host->io_base)) {
+		res = PTR_ERR(host->io_base);
 		goto err_nand_ioremap;
 	}
+	host->io_phys = (dma_addr_t)mem->start;
 
 	mtd = &host->mtd;
 	nand_chip = &host->nand_chip;
 	host->dev = &pdev->dev;
-	if (pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		/* Only when CONFIG_OF is enabled of_node can be parsed */
 		res = atmel_of_init_port(host, pdev->dev.of_node);
 		if (res)
-			goto err_ecc_ioremap;
+			goto err_nand_ioremap;
 	} else {
-		memcpy(&host->board, pdev->dev.platform_data,
+		memcpy(&host->board, dev_get_platdata(&pdev->dev),
 		       sizeof(struct atmel_nand_data));
 	}
 
@@ -1513,55 +2131,40 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	/* Set address of NAND IO lines */
 	nand_chip->IO_ADDR_R = host->io_base;
 	nand_chip->IO_ADDR_W = host->io_base;
-	nand_chip->cmd_ctrl = atmel_nand_cmd_ctrl;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(host->dev, "Failed to request pinctrl\n");
-		res = PTR_ERR(pinctrl);
-		goto err_ecc_ioremap;
-	}
+	if (nand_nfc.is_initialized) {
+		/* NFC driver is probed and initialized */
+		host->nfc = &nand_nfc;
 
-	if (gpio_is_valid(host->board.rdy_pin)) {
-		res = gpio_request(host->board.rdy_pin, "nand_rdy");
-		if (res < 0) {
-			dev_err(&pdev->dev,
-				"can't request rdy gpio %d\n",
-				host->board.rdy_pin);
-			goto err_ecc_ioremap;
+		nand_chip->select_chip = nfc_select_chip;
+		nand_chip->dev_ready = nfc_device_ready;
+		nand_chip->cmdfunc = nfc_nand_command;
+
+		/* Initialize the interrupt for NFC */
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0) {
+			dev_err(host->dev, "Cannot get HSMC irq!\n");
+			res = irq;
+			goto err_nand_ioremap;
 		}
 
-		res = gpio_direction_input(host->board.rdy_pin);
-		if (res < 0) {
-			dev_err(&pdev->dev,
-				"can't request input direction rdy gpio %d\n",
-				host->board.rdy_pin);
-			goto err_ecc_ioremap;
+		res = devm_request_irq(&pdev->dev, irq, hsmc_interrupt,
+				0, "hsmc", host);
+		if (res) {
+			dev_err(&pdev->dev, "Unable to request HSMC irq %d\n",
+				irq);
+			goto err_nand_ioremap;
 		}
+	} else {
+		res = atmel_nand_set_enable_ready_pins(mtd);
+		if (res)
+			goto err_nand_ioremap;
 
-		nand_chip->dev_ready = atmel_nand_device_ready;
-	}
-
-	if (gpio_is_valid(host->board.enable_pin)) {
-		res = gpio_request(host->board.enable_pin, "nand_enable");
-		if (res < 0) {
-			dev_err(&pdev->dev,
-				"can't request enable gpio %d\n",
-				host->board.enable_pin);
-			goto err_ecc_ioremap;
-		}
-
-		res = gpio_direction_output(host->board.enable_pin, 1);
-		if (res < 0) {
-			dev_err(&pdev->dev,
-				"can't request output direction enable gpio %d\n",
-				host->board.enable_pin);
-			goto err_ecc_ioremap;
-		}
+		nand_chip->cmd_ctrl = atmel_nand_cmd_ctrl;
 	}
 
 	nand_chip->ecc.mode = host->board.ecc_mode;
-	nand_chip->chip_delay = 20;		/* 20us command delay time */
+	nand_chip->chip_delay = 40;		/* 40us command delay time */
 
 	if (host->board.bus_width_16)	/* 16-bit bus width */
 		nand_chip->options |= NAND_BUSWIDTH_16;
@@ -1573,7 +2176,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	atmel_nand_enable(host);
 
 	if (gpio_is_valid(host->board.det_pin)) {
-		res = gpio_request(host->board.det_pin, "nand_det");
+		res = devm_gpio_request(&pdev->dev,
+				host->board.det_pin, "nand_det");
 		if (res < 0) {
 			dev_err(&pdev->dev,
 				"can't request det gpio %d\n",
@@ -1590,18 +2194,18 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		}
 
 		if (gpio_get_value(host->board.det_pin)) {
-			printk(KERN_INFO "No SmartMedia card inserted.\n");
+			dev_info(&pdev->dev, "No SmartMedia card inserted.\n");
 			res = -ENXIO;
 			goto err_no_card;
 		}
 	}
 
 	if (host->board.on_flash_bbt || on_flash_bbt) {
-		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
+		dev_info(&pdev->dev, "Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
-	if (!cpu_has_dma())
+	if (!host->board.has_dma)
 		use_dma = 0;
 
 	if (use_dma) {
@@ -1637,6 +2241,15 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 			goto err_hw_ecc;
 	}
 
+	/* initialize the nfc configuration register */
+	if (host->nfc && host->nfc->use_nfc_sram) {
+		res = nfc_sram_init(mtd);
+		if (res) {
+			host->nfc->use_nfc_sram = false;
+			dev_err(host->dev, "Disable use nfc sram for data transfer.\n");
+		}
+	}
+
 	/* second phase scan */
 	if (nand_scan_tail(mtd)) {
 		res = -ENXIO;
@@ -1651,34 +2264,22 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		return res;
 
 err_scan_tail:
-	if (host->has_pmecc && host->nand_chip.ecc.mode == NAND_ECC_HW) {
+	if (host->has_pmecc && host->nand_chip.ecc.mode == NAND_ECC_HW)
 		pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
-		pmecc_data_free(host);
-	}
-	if (host->ecc)
-		iounmap(host->ecc);
-	if (host->pmerrloc_base)
-		iounmap(host->pmerrloc_base);
-	if (host->pmecc_rom_base)
-		iounmap(host->pmecc_rom_base);
 err_hw_ecc:
 err_scan_ident:
 err_no_card:
 	atmel_nand_disable(host);
-	platform_set_drvdata(pdev, NULL);
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
-err_ecc_ioremap:
-	iounmap(host->io_base);
 err_nand_ioremap:
-	kfree(host);
 	return res;
 }
 
 /*
  * Remove a NAND device.
  */
-static int __exit atmel_nand_remove(struct platform_device *pdev)
+static int atmel_nand_remove(struct platform_device *pdev)
 {
 	struct atmel_nand_host *host = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = &host->mtd;
@@ -1691,53 +2292,119 @@ static int __exit atmel_nand_remove(struct platform_device *pdev)
 		pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
 		pmerrloc_writel(host->pmerrloc_base, ELDIS,
 				PMERRLOC_DISABLE);
-		pmecc_data_free(host);
 	}
-
-	if (gpio_is_valid(host->board.det_pin))
-		gpio_free(host->board.det_pin);
-
-	if (gpio_is_valid(host->board.enable_pin))
-		gpio_free(host->board.enable_pin);
-
-	if (gpio_is_valid(host->board.rdy_pin))
-		gpio_free(host->board.rdy_pin);
-
-	if (host->ecc)
-		iounmap(host->ecc);
-	if (host->pmecc_rom_base)
-		iounmap(host->pmecc_rom_base);
-	if (host->pmerrloc_base)
-		iounmap(host->pmerrloc_base);
 
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
 
-	iounmap(host->io_base);
-	kfree(host);
+	platform_driver_unregister(&atmel_nand_nfc_driver);
 
 	return 0;
 }
 
-#if defined(CONFIG_OF)
+static struct atmel_nand_caps at91rm9200_caps = {
+	.pmecc_correct_erase_page = false,
+};
+
+static struct atmel_nand_caps sama5d4_caps = {
+	.pmecc_correct_erase_page = true,
+};
+
 static const struct of_device_id atmel_nand_dt_ids[] = {
-	{ .compatible = "atmel,at91rm9200-nand" },
+	{ .compatible = "atmel,at91rm9200-nand", .data = &at91rm9200_caps },
+	{ .compatible = "atmel,sama5d4-nand", .data = &sama5d4_caps },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, atmel_nand_dt_ids);
-#endif
+
+static int atmel_nand_nfc_probe(struct platform_device *pdev)
+{
+	struct atmel_nfc *nfc = &nand_nfc;
+	struct resource *nfc_cmd_regs, *nfc_hsmc_regs, *nfc_sram;
+	int ret;
+
+	nfc_cmd_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	nfc->base_cmd_regs = devm_ioremap_resource(&pdev->dev, nfc_cmd_regs);
+	if (IS_ERR(nfc->base_cmd_regs))
+		return PTR_ERR(nfc->base_cmd_regs);
+
+	nfc_hsmc_regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	nfc->hsmc_regs = devm_ioremap_resource(&pdev->dev, nfc_hsmc_regs);
+	if (IS_ERR(nfc->hsmc_regs))
+		return PTR_ERR(nfc->hsmc_regs);
+
+	nfc_sram = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (nfc_sram) {
+		nfc->sram_bank0 = (void * __force)
+				devm_ioremap_resource(&pdev->dev, nfc_sram);
+		if (IS_ERR(nfc->sram_bank0)) {
+			dev_warn(&pdev->dev, "Fail to ioremap the NFC sram with error: %ld. So disable NFC sram.\n",
+					PTR_ERR(nfc->sram_bank0));
+		} else {
+			nfc->use_nfc_sram = true;
+			nfc->sram_bank0_phys = (dma_addr_t)nfc_sram->start;
+
+			if (pdev->dev.of_node)
+				nfc->write_by_sram = of_property_read_bool(
+						pdev->dev.of_node,
+						"atmel,write-by-sram");
+		}
+	}
+
+	nfc_writel(nfc->hsmc_regs, IDR, 0xffffffff);
+	nfc_readl(nfc->hsmc_regs, SR);	/* clear the NFC_SR */
+
+	nfc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(nfc->clk)) {
+		ret = clk_prepare_enable(nfc->clk);
+		if (ret)
+			return ret;
+	} else {
+		dev_warn(&pdev->dev, "NFC clock missing, update your Device Tree");
+	}
+
+	nfc->is_initialized = true;
+	dev_info(&pdev->dev, "NFC is probed.\n");
+
+	return 0;
+}
+
+static int atmel_nand_nfc_remove(struct platform_device *pdev)
+{
+	struct atmel_nfc *nfc = &nand_nfc;
+
+	if (!IS_ERR(nfc->clk))
+		clk_disable_unprepare(nfc->clk);
+
+	return 0;
+}
+
+static const struct of_device_id atmel_nand_nfc_match[] = {
+	{ .compatible = "atmel,sama5d3-nfc" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, atmel_nand_nfc_match);
+
+static struct platform_driver atmel_nand_nfc_driver = {
+	.driver = {
+		.name = "atmel_nand_nfc",
+		.of_match_table = of_match_ptr(atmel_nand_nfc_match),
+	},
+	.probe = atmel_nand_nfc_probe,
+	.remove = atmel_nand_nfc_remove,
+};
 
 static struct platform_driver atmel_nand_driver = {
-	.remove		= __exit_p(atmel_nand_remove),
+	.probe		= atmel_nand_probe,
+	.remove		= atmel_nand_remove,
 	.driver		= {
 		.name	= "atmel_nand",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_nand_dt_ids),
 	},
 };
 
-module_platform_driver_probe(atmel_nand_driver, atmel_nand_probe);
+module_platform_driver(atmel_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rick Bronson");

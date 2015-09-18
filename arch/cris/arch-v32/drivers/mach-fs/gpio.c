@@ -425,12 +425,11 @@ gpio_open(struct inode *inode, struct file *filp)
 	if (p > GPIO_MINOR_LAST)
 		return -EINVAL;
 
-	priv = kmalloc(sizeof(struct gpio_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct gpio_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	mutex_lock(&gpio_mutex);
-	memset(priv, 0, sizeof(*priv));
 
 	priv->minor = p;
 
@@ -958,17 +957,13 @@ gpio_init(void)
 
 	printk(KERN_INFO "ETRAX FS GPIO driver v2.5, (c) 2003-2007 "
 		"Axis Communications AB\n");
-	/* We call etrax_gpio_wake_up_check() from timer interrupt and
-	 * from cpu_idle() in kernel/process.c
-	 * The check in cpu_idle() reduces latency from ~15 ms to ~6 ms
-	 * in some tests.
-	 */
+	/* We call etrax_gpio_wake_up_check() from timer interrupt */
 	if (request_irq(TIMER0_INTR_VECT, gpio_poll_timer_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "gpio poll", &alarmlist))
+			IRQF_SHARED, "gpio poll", &alarmlist))
 		printk(KERN_ERR "timer0 irq for gpio\n");
 
 	if (request_irq(GIO_INTR_VECT, gpio_pa_interrupt,
-			IRQF_SHARED | IRQF_DISABLED, "gpio PA", &alarmlist))
+			IRQF_SHARED, "gpio PA", &alarmlist))
 		printk(KERN_ERR "PA irq for gpio\n");
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

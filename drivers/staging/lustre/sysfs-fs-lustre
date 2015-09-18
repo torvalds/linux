@@ -1,0 +1,646 @@
+What:		/sys/fs/lustre/version
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows current running lustre version.
+
+What:		/sys/fs/lustre/pinger
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows if the lustre module has pinger support.
+		"on" means yes and "off" means no.
+
+What:		/sys/fs/lustre/health
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows whenever current system state believed to be "healthy",
+		"NOT HEALTHY", or "LBUG" whenever lustre has experienced
+		an internal assertion failure
+
+What:		/sys/fs/lustre/jobid_name
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Currently running job "name" for this node to be transferred
+		to Lustre servers for purposes of QoS and statistics gathering.
+		Writing into this file will change the name, reading outputs
+		currently set value.
+
+What:		/sys/fs/lustre/jobid_var
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Control file for lustre "jobstats" functionality, write new
+		value from the list below to change the mode:
+		disable - disable job name reporting to the servers (default)
+		procname_uid - form the job name as the current running
+			       command name and pid with a dot in between
+			       e.g. dd.1253
+		nodelocal - use jobid_name value from above.
+
+What:		/sys/fs/lustre/timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls "lustre timeout" variable, also known as obd_timeout
+		in some old manual. In the past obd_timeout was of paramount
+		importance as the timeout value used everywhere and where
+		other timeouts were derived from. These days it's much less
+		important as network timeouts are mostly determined by
+		AT (adaptive timeouts).
+		Unit: seconds, default: 100
+
+What:		/sys/fs/lustre/max_dirty_mb
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls total number of dirty cache (in megabytes) allowed
+		across all mounted lustre filesystems.
+		Since writeout of dirty pages in Lustre is somewhat expensive,
+		when you allow to many dirty pages, this might lead to
+		performance degradations as kernel tries to desperately
+		find some pages to free/writeout.
+		Default 1/2 RAM. Min value 4, max value 9/10 of RAM.
+
+What:		/sys/fs/lustre/debug_peer_on_timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Control if lnet debug information should be printed when
+		an RPC timeout occurs.
+		0 disabled (default)
+		1 enabled
+
+What:		/sys/fs/lustre/dump_on_timeout
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if Lustre debug log should be dumped when an RPC
+		timeout occurs. This is useful if yout debug buffer typically
+		rolls over by the time you notice RPC timeouts.
+
+What:		/sys/fs/lustre/dump_on_eviction
+Date:		June 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if Lustre debug log should be dumped when an this
+		client is evicted from one of the servers.
+		This is useful if yout debug buffer typically rolls over
+		 by the time you notice the eviction event.
+
+What:		/sys/fs/lustre/at_min
+Date:		July 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls minimum adaptive timeout in seconds. If you encounter
+		a case where clients timeout due to server-reported processing
+		time being too short, you might consider increasing this value.
+		One common case of this if the underlying network has
+		unpredictable long delays.
+		Default: 0
+
+What:		/sys/fs/lustre/at_max
+Date:		July 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls maximum adaptive timeout in seconds. If at_max timeout
+		is reached for an RPC, the RPC will time out.
+		Some genuinuely slow network hardware might warrant increasing
+		this value.
+		Setting this value to 0 disables Adaptive Timeouts
+		functionality and old-style obd_timeout value is then used.
+		Default: 600
+
+What:		/sys/fs/lustre/at_extra
+Date:		July 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls how much extra time to request for unfinished requests
+		in processing in seconds. Normally a server-side parameter, it
+		is also used on the client for responses to various LDLM ASTs
+		that are handled with a special server thread on the client.
+		This is a way for the servers to ask the clients not to time
+		out the request that reached current servicing time estimate
+		yet and give it some more time.
+		Default: 30
+
+What:		/sys/fs/lustre/at_early_margin
+Date:		July 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls when to send the early reply for requests that are
+		about to timeout as an offset to the estimated service time in
+		seconds..
+		Default: 5
+
+What:		/sys/fs/lustre/at_history
+Date:		July 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls for how many seconds to remember slowest events
+		encountered by adaptive timeouts code.
+		Default: 600
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/blocksize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Biggest blocksize on object storage server for this filesystem.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of kilobytes of space on this filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of free kilobytes of space on this filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytesavail
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of free kilobytes of space on this filesystem
+		actually available for use (taking into account per-client
+		grants and filesystem reservations).
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/filestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of inodes on the filesystem.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/filesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows estimated number of free inodes on the filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/client_type
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows whenever this filesystem considers this client to be
+		compute cluster-local or remote. Remote clients have
+		additional uid/gid convrting logic applied.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/fstype
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows filesystem type of the filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/uuid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows this filesystem superblock uuid
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_read_ahead_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Sets maximum number of megabytes in system memory to be
+		given to read-ahead cache.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_read_ahead_per_file_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Sets maximum number of megabytes to read-ahead for a single file
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_read_ahead_whole_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		For small reads, how many megabytes to actually request from
+		the server as initial read-ahead.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/checksum_pages
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Enables or disables per-page checksum at llite layer, before
+		the pages are actually given to lower level for network transfer
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_pid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single pid.
+		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_ppid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single ppid.
+		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_gid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single gid.
+		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/statahead_max
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls maximum number of statahead requests to send when
+		sequential readdir+stat pattern is detected.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/statahead_agl
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if AGL (async glimpse ahead - obtain object information
+		from OSTs in parallel with MDS during statahead) should be
+		enabled or disabled.
+		0 to disable, 1 to enable.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/lazystatfs
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls statfs(2) behaviour in the face of down servers.
+		If 0, always wait for all servers to come online,
+		if 1, ignote inactive servers.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_easize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows maximum number of bytes file striping data could be
+		in current configuration of storage.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/default_easize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows maximum observed file striping data seen by this
+		filesystem client instance.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/xattr_cache
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls extended attributes client-side cache.
+		1 to enable, 0 to disable.
+
+What:		/sys/fs/lustre/ldlm/cancel_unused_locks_before_replay
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if client should replay unused locks during recovery
+		If a client tends to have a lot of unused locks in LRU,
+		recovery times might become prolonged.
+		1 - just locally cancel unused locks (default)
+		0 - replay unused locks.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/resource_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number of lock resources (objects on which individual
+		locks are taken) currently allocated in this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lock_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number or locks allocated in this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lru_size
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls and displays LRU size limit for unused locks for this
+		namespace.
+		0 - LRU size is unlimited, controlled by server resources
+		positive number - number of locks to allow in lock LRU list
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lock_unused_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Display number of locks currently sitting in the LRU list
+		of this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lru_max_age
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of milliseconds a lock could sit in LRU list
+		before client would voluntarily cancel it as unused.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/early_lock_cancel
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls "early lock cancellation" feature on this namespace
+		if supported by the server.
+		When enabled, tries to preemtively cancel locks that would be
+		cancelled by verious operations and bundle the cancellation
+		requests in the same RPC as the main operation, which results
+		in significant speedups due to reduced lock-pingpong RPCs.
+		0 - disabled
+		1 - enabled (default)
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/granted
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number of granted locks in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_rate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of granted locks in this namespace during last
+		time interval
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/cancel_rate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of lock cancellations in this namespace during
+		last time interval
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_speed
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Calculated speed of lock granting (grant_rate - cancel_rate)
+		in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_plan
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Estimated number of locks to be granted in the next time
+		interval in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/limit
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls number of allowed locks in this pool.
+		When lru_size is 0, this is the actual limit then.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/lock_volume_factor
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Multiplier for all lock volume calculations above.
+		Default is 1. Increase to make the client to more agressively
+		clean it's lock LRU list for this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/server_lock_volume
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Calculated server lock volume.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/recalc_period
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls length of time between recalculation of above
+		values (in seconds).
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_min
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls minimum number of ldlm callback threads to start.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_max
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls maximum number of ldlm callback threads to start.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_started
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows actual number of ldlm callback threads running.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/high_priority_ratio
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls what percentage of ldlm callback threads is dedicated
+		to "high priority" incoming requests.
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/blocksize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Blocksize on backend filesystem for service behind this obd
+		device (or biggest blocksize for compound devices like lov
+		and lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Total number of kilobytes of space on backend filesystem
+		for service behind this obd (or total amount for compound
+		devices like lov lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of free kilobytes on backend filesystem for service
+		behind this obd (or total amount for compound devices
+		like lov lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytesavail
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of kilobytes of free space on backend filesystem
+		for service behind this obd (or total amount for compound
+		devices like lov lmv) that is actually available for use
+		(taking into account per-client and filesystem reservations).
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/filestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of inodes on backend filesystem for service behind this
+		obd.
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/filesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of free inodes on backend filesystem for service
+		behind this obd.
+
+What:		/sys/fs/lustre/mdc/{connection_name}/max_pages_per_rpc
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of readdir pages to fit into a single readdir
+		RPC.
+
+What:		/sys/fs/lustre/{mdc,osc}/{connection_name}/max_rpcs_in_flight
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of parallel RPCs on the wire to allow on
+		this connection. Increasing this number would help on higher
+		latency links, but has a chance of overloading a server
+		if you have too many clients like this.
+		Default: 8
+
+What:		/sys/fs/lustre/osc/{connection_name}/max_pages_per_rpc
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of pages to fit into a single RPC.
+		Typically bigger RPCs allow for better performance.
+		Default: however many pages to form 1M of data (256 pages
+		for 4K page sized platforms)
+
+What:		/sys/fs/lustre/osc/{connection_name}/active
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls accessibility of this connection. If set to 0,
+		fail all accesses immediately.
+
+What:		/sys/fs/lustre/osc/{connection_name}/checksums
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls whenever to checksum bulk RPC data over the wire
+		to this target.
+		1: enable (default) ; 0: disable
+
+What:		/sys/fs/lustre/osc/{connection_name}/contention_seconds
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls for how long to consider a file contended once
+		indicated as such by the server.
+		When a file is considered contended, all operations switch to
+		synchronous lockless mode to avoid cache and lock pingpong.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_dirty_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays how many dirty bytes is presently in the cache for this
+		target.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_grant_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows how many bytes we have as a "dirty cache" grant from the
+		server. Writing a value smaller than shown allows to release
+		some grant back to the server.
+		Dirty cache grant is a way Lustre ensures that cached successful
+		writes on client do not end up discarded by the server due to
+		lack of space later on.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_lost_grant_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows how many granted bytes were released to the server due
+		to lack of write activity on this client.
+
+What:		/sys/fs/lustre/osc/{connection_name}/grant_shrink_interval
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of seconds with no write activity for this target
+		to start releasing dirty grant back to the server.
+
+What:		/sys/fs/lustre/osc/{connection_name}/destroys_in_flight
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of DESTROY RPCs currently in flight to this target.
+
+What:		/sys/fs/lustre/osc/{connection_name}/lockless_truncate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls whether lockless truncate RPCs are allowed to this
+		target.
+		Lockless truncate causes server to perform the locking which
+		is beneficial if the truncate is not followed by a write
+		immediately.
+		1: enable ; 0: disable (default)
+
+What:		/sys/fs/lustre/osc/{connection_name}/max_dirty_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls how much dirty data this client can accumulate
+		for this target. This is orthogonal to dirty grant and is
+		a hard limit even if the server would allow a bigger dirty
+		cache.
+		While allowing higher dirty cache is beneficial for write
+		performance, flushing write cache takes longer and as such
+		the node might be more prone to OOMs.
+		Having this value set too low might result in not being able
+		to sent too many parallel WRITE RPCs.
+		Default: 32
+
+What:		/sys/fs/lustre/osc/{connection_name}/resend_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls how many times to try and resend RPCs to this target
+		that failed with "recoverable" status, such as EAGAIN,
+		ENOMEM.
+
+What:		/sys/fs/lustre/lov/{connection_name}/numobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of OSC targets managed by this LOV instance.
+
+What:		/sys/fs/lustre/lov/{connection_name}/activeobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of OSC targets managed by this LOV instance that are
+		actually active.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/numobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of MDC targets managed by this LMV instance.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/activeobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of MDC targets managed by this LMV instance that are
+		actually active.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/placement
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Determines policy of inode placement in case of multiple
+		metadata servers:
+		CHAR - based on a hash of the file name used at creation time
+		       (Default)
+		NID - based on a hash of creating client network id.

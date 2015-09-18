@@ -113,7 +113,8 @@ change for example with the current video standard.</entry>
 	    <entry>The lowest tunable frequency in units of 62.5
 KHz, or if the <structfield>capability</structfield> flag
 <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz.</entry>
+Hz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set, in units of 1 Hz.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -121,7 +122,8 @@ Hz.</entry>
 	    <entry>The highest tunable frequency in units of 62.5
 KHz, or if the <structfield>capability</structfield> flag
 <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz.</entry>
+Hz, or if the <structfield>capability</structfield> flag
+<constant>V4L2_TUNER_CAP_1HZ</constant> is set, in units of 1 Hz.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

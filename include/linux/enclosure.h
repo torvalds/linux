@@ -79,6 +79,12 @@ struct enclosure_component_callbacks {
 	int (*set_locate)(struct enclosure_device *,
 			  struct enclosure_component *,
 			  enum enclosure_component_setting);
+	void (*get_power_status)(struct enclosure_device *,
+				 struct enclosure_component *);
+	int (*set_power_status)(struct enclosure_device *,
+				struct enclosure_component *,
+				int);
+	int (*show_id)(struct enclosure_device *, char *buf);
 };
 
 
@@ -91,7 +97,9 @@ struct enclosure_component {
 	int fault;
 	int active;
 	int locate;
+	int slot;
 	enum enclosure_status status;
+	int power_status;
 };
 
 struct enclosure_device {
@@ -120,8 +128,9 @@ enclosure_register(struct device *, const char *, int,
 		   struct enclosure_component_callbacks *);
 void enclosure_unregister(struct enclosure_device *);
 struct enclosure_component *
-enclosure_component_register(struct enclosure_device *, unsigned int,
-				 enum enclosure_component_type, const char *);
+enclosure_component_alloc(struct enclosure_device *, unsigned int,
+			  enum enclosure_component_type, const char *);
+int enclosure_component_register(struct enclosure_component *);
 int enclosure_add_device(struct enclosure_device *enclosure, int component,
 			 struct device *dev);
 int enclosure_remove_device(struct enclosure_device *, struct device *);

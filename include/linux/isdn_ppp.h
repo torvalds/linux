@@ -180,9 +180,8 @@ struct ippp_struct {
   struct slcompress *slcomp;
 #endif
 #ifdef CONFIG_IPPP_FILTER
-  struct sock_filter *pass_filter;	/* filter for packets to pass */
-  struct sock_filter *active_filter;	/* filter for pkts to reset idle */
-  unsigned pass_len, active_len;
+  struct bpf_prog *pass_filter;   /* filter for packets to pass */
+  struct bpf_prog *active_filter; /* filter for pkts to reset idle */
 #endif
   unsigned long debug;
   struct isdn_ppp_compressor *compressor,*decompressor;

@@ -2882,7 +2882,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
-	WARN_ON(BFA_IOIM_TAG_2_ID(ioim->iotag) != iotag);
+	WARN_ON(ioim->iotag != iotag);
 
 	bfa_ioim_cb_profile_comp(fcpim, ioim);
 

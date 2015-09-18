@@ -35,7 +35,7 @@ static inline int mls_level_eq(struct mls_level *l1, struct mls_level *l2)
 static inline int mls_level_dom(struct mls_level *l1, struct mls_level *l2)
 {
 	return ((l1->sens >= l2->sens) &&
-		ebitmap_contains(&l1->cat, &l2->cat));
+		ebitmap_contains(&l1->cat, &l2->cat, 0));
 }
 
 #define mls_level_incomp(l1, l2) \

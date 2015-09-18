@@ -45,8 +45,8 @@ static struct super_block *efivarfs_sb;
  * So we need to perform a case-sensitive match on part 1 and a
  * case-insensitive match on part 2.
  */
-static int efivarfs_d_compare(const struct dentry *parent, const struct inode *pinode,
-			      const struct dentry *dentry, const struct inode *inode,
+static int efivarfs_d_compare(const struct dentry *parent,
+			      const struct dentry *dentry,
 			      unsigned int len, const char *str,
 			      const struct qstr *name)
 {
@@ -63,8 +63,7 @@ static int efivarfs_d_compare(const struct dentry *parent, const struct inode *p
 	return strncasecmp(name->name + guid, str + guid, EFI_VARIABLE_GUID_LEN);
 }
 
-static int efivarfs_d_hash(const struct dentry *dentry,
-			   const struct inode *inode, struct qstr *qstr)
+static int efivarfs_d_hash(const struct dentry *dentry, struct qstr *qstr)
 {
 	unsigned long hash = init_name_hash();
 	const unsigned char *s = qstr->name;
@@ -84,19 +83,10 @@ static int efivarfs_d_hash(const struct dentry *dentry,
 	return 0;
 }
 
-/*
- * Retaining negative dentries for an in-memory filesystem just wastes
- * memory and lookup time: arrange for them to be deleted immediately.
- */
-static int efivarfs_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
-static struct dentry_operations efivarfs_d_ops = {
+static const struct dentry_operations efivarfs_d_ops = {
 	.d_compare = efivarfs_d_compare,
 	.d_hash = efivarfs_d_hash,
-	.d_delete = efivarfs_delete_dentry,
+	.d_delete = always_delete_dentry,
 };
 
 static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
@@ -108,7 +98,7 @@ static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 	q.name = name;
 	q.len = strlen(name);
 
-	err = efivarfs_d_hash(NULL, NULL, &q);
+	err = efivarfs_d_hash(NULL, &q);
 	if (err)
 		return ERR_PTR(err);
 
@@ -131,7 +121,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	int len, i;
 	int err = -ENOMEM;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return err;
 
@@ -150,11 +140,11 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	name[len] = '-';
 
-	efi_guid_unparse(&entry->var.VendorGuid, name + len + 1);
+	efi_guid_to_str(&entry->var.VendorGuid, name + len + 1);
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 
-	inode = efivarfs_get_inode(sb, root->d_inode, S_IFREG | 0644, 0);
+	inode = efivarfs_get_inode(sb, d_inode(root), S_IFREG | 0644, 0);
 	if (!inode)
 		goto fail_name;
 
@@ -246,6 +236,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type efivarfs_type = {
+	.owner   = THIS_MODULE,
 	.name    = "efivarfs",
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
@@ -254,12 +245,17 @@ static struct file_system_type efivarfs_type = {
 static __init int efivarfs_init(void)
 {
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
+		return -ENODEV;
 
 	if (!efivars_kobject())
-		return 0;
+		return -ENODEV;
 
 	return register_filesystem(&efivarfs_type);
+}
+
+static __exit void efivarfs_exit(void)
+{
+	unregister_filesystem(&efivarfs_type);
 }
 
 MODULE_AUTHOR("Matthew Garrett, Jeremy Kerr");
@@ -268,3 +264,4 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_FS("efivarfs");
 
 module_init(efivarfs_init);
+module_exit(efivarfs_exit);

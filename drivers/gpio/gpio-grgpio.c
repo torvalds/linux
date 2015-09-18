@@ -104,24 +104,19 @@ static void grgpio_set_imask(struct grgpio_priv *priv, unsigned int offset,
 {
 	struct bgpio_chip *bgc = &priv->bgc;
 	unsigned long mask = bgc->pin2mask(bgc, offset);
-	unsigned long flags;
-
-	spin_lock_irqsave(&bgc->lock, flags);
 
 	if (val)
 		priv->imask |= mask;
 	else
 		priv->imask &= ~mask;
 	bgc->write_reg(priv->regs + GRGPIO_IMASK, priv->imask);
-
-	spin_unlock_irqrestore(&bgc->lock, flags);
 }
 
 static int grgpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct grgpio_priv *priv = grgpio_gc_to_priv(gc);
 
-	if (offset > gc->ngpio)
+	if (offset >= gc->ngpio)
 		return -ENXIO;
 
 	if (priv->lirqs[offset].index < 0)
@@ -180,16 +175,26 @@ static void grgpio_irq_mask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 0);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static void grgpio_irq_unmask(struct irq_data *d)
 {
 	struct grgpio_priv *priv = irq_data_get_irq_chip_data(d);
 	int offset = d->hwirq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->bgc.lock, flags);
 
 	grgpio_set_imask(priv, offset, 1);
+
+	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
 static struct irq_chip grgpio_irq_chip = {
@@ -235,8 +240,8 @@ static irqreturn_t grgpio_irq_handler(int irq, void *dev)
  * This function will be called as a consequence of the call to
  * irq_create_mapping in grgpio_to_irq
  */
-int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
-		   irq_hw_number_t hwirq)
+static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
+			  irq_hw_number_t hwirq)
 {
 	struct grgpio_priv *priv = d->host_data;
 	struct grgpio_lirq *lirq;
@@ -281,17 +286,12 @@ int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, priv);
 	irq_set_chip_and_handler(irq, &grgpio_irq_chip,
 				 handle_simple_irq);
-	irq_clear_status_flags(irq, IRQ_NOREQUEST);
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return ret;
 }
 
-void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
+static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 	struct grgpio_priv *priv = d->host_data;
 	int index;
@@ -301,9 +301,6 @@ void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	int ngpio = priv->bgc.gc.ngpio;
 	int i;
 
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, 0);
-#endif
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 
@@ -332,7 +329,7 @@ void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 	spin_unlock_irqrestore(&priv->bgc.lock, flags);
 }
 
-static struct irq_domain_ops grgpio_irq_domain_ops = {
+static const struct irq_domain_ops grgpio_irq_domain_ops = {
 	.map	= grgpio_irq_map,
 	.unmap	= grgpio_irq_unmap,
 };
@@ -441,6 +438,8 @@ static int grgpio_probe(struct platform_device *ofdev)
 	err = gpiochip_add(gc);
 	if (err) {
 		dev_err(&ofdev->dev, "Could not add gpiochip\n");
+		if (priv->domain)
+			irq_domain_remove(priv->domain);
 		return err;
 	}
 
@@ -468,9 +467,7 @@ static int grgpio_remove(struct platform_device *ofdev)
 		}
 	}
 
-	ret = gpiochip_remove(&priv->bgc.gc);
-	if (ret)
-		goto out;
+	gpiochip_remove(&priv->bgc.gc);
 
 	if (priv->domain)
 		irq_domain_remove(priv->domain);
@@ -481,7 +478,7 @@ out:
 	return ret;
 }
 
-static struct of_device_id grgpio_match[] = {
+static const struct of_device_id grgpio_match[] = {
 	{.name = "GAISLER_GPIO"},
 	{.name = "01_01a"},
 	{},
@@ -492,7 +489,6 @@ MODULE_DEVICE_TABLE(of, grgpio_match);
 static struct platform_driver grgpio_driver = {
 	.driver = {
 		.name = "grgpio",
-		.owner = THIS_MODULE,
 		.of_match_table = grgpio_match,
 	},
 	.probe = grgpio_probe,

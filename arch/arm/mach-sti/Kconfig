@@ -1,0 +1,57 @@
+menuconfig ARCH_STI
+	bool "STMicroelectronics Consumer Electronics SOCs" if ARCH_MULTI_V7
+	select ARM_GIC
+	select ST_IRQCHIP
+	select ARM_GLOBAL_TIMER
+	select PINCTRL
+	select PINCTRL_ST
+	select MFD_SYSCON
+	select ARCH_HAS_RESET_CONTROLLER
+	select HAVE_ARM_SCU if SMP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_775420
+	select PL310_ERRATA_753970 if CACHE_L2X0
+	select PL310_ERRATA_769419 if CACHE_L2X0
+	select RESET_CONTROLLER
+	help
+	  Include support for STiH41x SOCs like STiH415/416 using the device tree
+	  for discovery
+	  More information at Documentation/arm/STiH41x and
+	  at Documentation/devicetree
+
+
+if ARCH_STI
+
+config SOC_STIH415
+	bool "STiH415 STMicroelectronics Consumer Electronics family"
+	default y
+	select STIH415_RESET
+	help
+	  This enables support for STMicroelectronics Digital Consumer
+	  Electronics family StiH415 parts, primarily targeted at set-top-box
+	  and other digital audio/video applications using Flattned Device
+	  Trees.
+
+config SOC_STIH416
+	bool "STiH416 STMicroelectronics Consumer Electronics family"
+	default y
+	select STIH416_RESET
+	help
+	  This enables support for STMicroelectronics Digital Consumer
+	  Electronics family StiH416 parts, primarily targeted at set-top-box
+	  and other digital audio/video applications using Flattened Device
+	  Trees.
+
+config SOC_STIH407
+	bool "STiH407 STMicroelectronics Consumer Electronics family"
+	default y
+	select STIH407_RESET
+	help
+	  This enables support for STMicroelectronics Digital Consumer
+	  Electronics family StiH407 parts, targetted at set-top-box
+	  and other digital audio/video applications using Flattened Device
+	  Trees.
+
+endif

@@ -36,7 +36,7 @@ o	How can the updater tell when a grace period has completed
 	executed in user mode, or executed in the idle loop, we can
 	safely free up that item.
 
-	Preemptible variants of RCU (CONFIG_TREE_PREEMPT_RCU) get the
+	Preemptible variants of RCU (CONFIG_PREEMPT_RCU) get the
 	same effect, but require that the readers manipulate CPU-local
 	counters.  These counters allow limited types of blocking within
 	RCU read-side critical sections.  SRCU also uses CPU-local
@@ -81,7 +81,7 @@ o	I hear that RCU is patented?  What is with that?
 o	I hear that RCU needs work in order to support realtime kernels?
 
 	This work is largely completed.  Realtime-friendly RCU can be
-	enabled via the CONFIG_TREE_PREEMPT_RCU kernel configuration
+	enabled via the CONFIG_PREEMPT_RCU kernel configuration
 	parameter.  However, work is in progress for enabling priority
 	boosting of preempted RCU read-side critical sections.	This is
 	needed if you have CPU-bound realtime threads.

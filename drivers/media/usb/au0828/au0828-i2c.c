@@ -19,13 +19,14 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include "au0828.h"
 #include "media/tuner.h"
 #include <media/v4l2-common.h>
 
@@ -141,25 +142,27 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 {
 	int i, strobe = 0;
 	struct au0828_dev *dev = i2c_adap->algo_data;
+	u8 i2c_speed = dev->board.i2c_clk_divider;
 
 	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
-	/* Set the I2C clock */
 	if (((dev->board.tuner_type == TUNER_XC5000) ||
 	     (dev->board.tuner_type == TUNER_XC5000C)) &&
-	    (dev->board.tuner_addr == msg->addr) &&
-	    (msg->len == 64)) {
-		/* Hack to speed up firmware load.  The xc5000 lets us do up
-		   to 400 KHz when in firmware download mode */
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     AU0828_I2C_CLK_250KHZ);
-	} else {
-		/* Use the i2c clock speed in the board configuration */
-		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-			     dev->board.i2c_clk_divider);
+	    (dev->board.tuner_addr == msg->addr)) {
+		/*
+		 * Due to I2C clock stretch, we need to use a lower speed
+		 * on xc5000 for commands. However, firmware transfer can
+		 * speed up to 400 KHz.
+		 */
+		if (msg->len == 64)
+			i2c_speed = AU0828_I2C_CLK_250KHZ;
+		else
+			i2c_speed = AU0828_I2C_CLK_20KHZ;
 	}
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202, i2c_speed);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
@@ -228,15 +231,24 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	const struct i2c_msg *msg, int joined)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
+	u8 i2c_speed = dev->board.i2c_clk_divider;
 	int i;
 
 	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
+	/*
+	 * Due to xc5000c clock stretch, we cannot use full speed at
+	 * readings from xc5000, as otherwise they'll fail.
+	 */
+	if (((dev->board.tuner_type == TUNER_XC5000) ||
+	     (dev->board.tuner_type == TUNER_XC5000C)) &&
+	    (dev->board.tuner_addr == msg->addr))
+		i2c_speed = AU0828_I2C_CLK_20KHZ;
+
 	/* Set the I2C clock */
-	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-		     dev->board.i2c_clk_divider);
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202, i2c_speed);
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
@@ -329,7 +341,7 @@ static struct i2c_algorithm au0828_i2c_algo_template = {
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_adapter au0828_i2c_adap_template = {
-	.name              = DRIVER_NAME,
+	.name              = KBUILD_MODNAME,
 	.owner             = THIS_MODULE,
 	.algo              = &au0828_i2c_algo_template,
 };
@@ -354,7 +366,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 		rc = i2c_master_recv(c, &buf, 0);
 		if (rc < 0)
 			continue;
-		printk(KERN_INFO "%s: i2c scan: found device @ 0x%x  [%s]\n",
+		pr_info("%s: i2c scan: found device @ 0x%x  [%s]\n",
 		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 }
@@ -370,7 +382,7 @@ int au0828_i2c_register(struct au0828_dev *dev)
 
 	dev->i2c_adap.dev.parent = &dev->usbdev->dev;
 
-	strlcpy(dev->i2c_adap.name, DRIVER_NAME,
+	strlcpy(dev->i2c_adap.name, KBUILD_MODNAME,
 		sizeof(dev->i2c_adap.name));
 
 	dev->i2c_adap.algo = &dev->i2c_algo;
@@ -385,11 +397,11 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
 	if (0 == dev->i2c_rc) {
-		printk(KERN_INFO "%s: i2c bus registered\n", DRIVER_NAME);
+		pr_info("i2c bus registered\n");
 		if (i2c_scan)
-			do_i2c_scan(DRIVER_NAME, &dev->i2c_client);
+			do_i2c_scan(KBUILD_MODNAME, &dev->i2c_client);
 	} else
-		printk(KERN_INFO "%s: i2c bus register FAILED\n", DRIVER_NAME);
+		pr_info("i2c bus register FAILED\n");
 
 	return dev->i2c_rc;
 }

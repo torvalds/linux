@@ -15,7 +15,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -119,6 +118,7 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 
 	orinoco_cs_release(link);
 
+	wiphy_unregister(priv_to_wiphy(priv));
 	free_orinocodev(priv);
 }				/* orinoco_cs_detach */
 

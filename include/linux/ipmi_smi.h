@@ -98,23 +98,34 @@ struct ipmi_smi_handlers {
 	   operation is not allowed to fail.  If an error occurs, it
 	   should report back the error in a received message.  It may
 	   do this in the current call context, since no write locks
-	   are held when this is run.  If the priority is > 0, the
-	   message will go into a high-priority queue and be sent
-	   first.  Otherwise, it goes into a normal-priority queue. */
+	   are held when this is run.  Message are delivered one at
+	   a time by the message handler, a new message will not be
+	   delivered until the previous message is returned. */
 	void (*sender)(void                *send_info,
-		       struct ipmi_smi_msg *msg,
-		       int                 priority);
+		       struct ipmi_smi_msg *msg);
 
 	/* Called by the upper layer to request that we try to get
 	   events from the BMC we are attached to. */
 	void (*request_events)(void *send_info);
+
+	/* Called by the upper layer when some user requires that the
+	   interface watch for events, received messages, watchdog
+	   pretimeouts, or not.  Used by the SMI to know if it should
+	   watch for these.  This may be NULL if the SMI does not
+	   implement it. */
+	void (*set_need_watch)(void *send_info, bool enable);
+
+	/*
+	 * Called when flushing all pending messages.
+	 */
+	void (*flush_messages)(void *send_info);
 
 	/* Called when the interface should go into "run to
 	   completion" mode.  If this call sets the value to true, the
 	   interface should make sure that all messages are flushed
 	   out and that none are pending, and any new requests are run
 	   to completion immediately. */
-	void (*set_run_to_completion)(void *send_info, int run_to_completion);
+	void (*set_run_to_completion)(void *send_info, bool run_to_completion);
 
 	/* Called to poll for work to do.  This is so upper layers can
 	   poll for operations during things like crash dumps. */
@@ -125,7 +136,7 @@ struct ipmi_smi_handlers {
 	   setting.  The message handler does the mode handling.  Note
 	   that this is called from interrupt context, so it cannot
 	   block. */
-	void (*set_maintenance_mode)(void *send_info, int enable);
+	void (*set_maintenance_mode)(void *send_info, bool enable);
 
 	/* Tell the handler that we are using it/not using it.  The
 	   message handler get the modules that this handler belongs
@@ -201,11 +212,10 @@ static inline int ipmi_demangle_device_id(const unsigned char *data,
    upper layer until the start_processing() function in the handlers
    is called, and the lower layer must get the interface from that
    call. */
-int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
+int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,
-		      const char               *sysfs_name,
 		      unsigned char            slave_addr);
 
 /*

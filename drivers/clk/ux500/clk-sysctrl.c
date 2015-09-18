@@ -52,7 +52,7 @@ static void clk_sysctrl_unprepare(struct clk_hw *hw)
 	struct clk_sysctrl *clk = to_clk_sysctrl(hw);
 	if (ab8500_sysctrl_clear(clk->reg_sel[0], clk->reg_mask[0]))
 		dev_err(clk->dev, "clk_sysctrl: %s fail to clear %s.\n",
-			__func__, __clk_get_name(hw->clk));
+			__func__, clk_hw_get_name(hw));
 }
 
 static unsigned long clk_sysctrl_recalc_rate(struct clk_hw *hw,
@@ -145,7 +145,13 @@ static struct clk *clk_reg_sysctrl(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (i = 0; i < num_parents; i++) {
+	/* set main clock registers */
+	clk->reg_sel[0] = reg_sel[0];
+	clk->reg_bits[0] = reg_bits[0];
+	clk->reg_mask[0] = reg_mask[0];
+
+	/* handle clocks with more than one parent */
+	for (i = 1; i < num_parents; i++) {
 		clk->reg_sel[i] = reg_sel[i];
 		clk->reg_bits[i] = reg_bits[i];
 		clk->reg_mask[i] = reg_mask[i];

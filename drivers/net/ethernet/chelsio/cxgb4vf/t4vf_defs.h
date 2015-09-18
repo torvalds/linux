@@ -64,8 +64,8 @@
  * Mailbox Data in the fixed CIM PF map and the programmable VF map must
  * match.  However, it's a useful convention ...
  */
-#if T4VF_MBDATA_BASE_ADDR != CIM_PF_MAILBOX_DATA
-#error T4VF_MBDATA_BASE_ADDR must match CIM_PF_MAILBOX_DATA!
+#if T4VF_MBDATA_BASE_ADDR != CIM_PF_MAILBOX_DATA_A
+#error T4VF_MBDATA_BASE_ADDR must match CIM_PF_MAILBOX_DATA_A!
 #endif
 
 /*

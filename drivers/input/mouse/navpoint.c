@@ -9,7 +9,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -287,7 +286,7 @@ static int navpoint_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_irq:
-	free_irq(ssp->irq, &pdev->dev);
+	free_irq(ssp->irq, navpoint);
 err_free_mem:
 	input_free_device(input);
 	kfree(navpoint);
@@ -319,8 +318,7 @@ static int navpoint_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int navpoint_suspend(struct device *dev)
+static int __maybe_unused navpoint_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct navpoint *navpoint = platform_get_drvdata(pdev);
@@ -334,7 +332,7 @@ static int navpoint_suspend(struct device *dev)
 	return 0;
 }
 
-static int navpoint_resume(struct device *dev)
+static int __maybe_unused navpoint_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct navpoint *navpoint = platform_get_drvdata(pdev);
@@ -347,7 +345,6 @@ static int navpoint_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(navpoint_pm_ops, navpoint_suspend, navpoint_resume);
 
@@ -356,7 +353,6 @@ static struct platform_driver navpoint_driver = {
 	.remove		= navpoint_remove,
 	.driver = {
 		.name	= "navpoint",
-		.owner	= THIS_MODULE,
 		.pm	= &navpoint_pm_ops,
 	},
 };

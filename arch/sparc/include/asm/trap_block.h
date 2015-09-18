@@ -51,11 +51,11 @@ struct trap_per_cpu {
 	unsigned long		__per_cpu_base;
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
-extern void init_cur_cpu_trap(struct thread_info *);
-extern void setup_tba(void);
+void init_cur_cpu_trap(struct thread_info *);
+void setup_tba(void);
 extern int ncpus_probed;
 
-extern unsigned long real_hard_smp_processor_id(void);
+unsigned long real_hard_smp_processor_id(void);
 
 struct cpuid_patch_entry {
 	unsigned int	addr;
@@ -79,6 +79,8 @@ struct sun4v_2insn_patch_entry {
 };
 extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	__sun4v_2insn_patch_end;
+extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,
+	__sun_m7_2insn_patch_end;
 
 
 #endif /* !(__ASSEMBLY__) */

@@ -6,24 +6,19 @@
  *    Copyright (C) 2000 Michael Ang <mang with subcarrier.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *    Copyright (C) 2003 James Bottomley <jejb with parisc-linux.org>
- *    Copyright (C) 2006 Helge Deller <deller@gmx.de>
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *    Copyright (C) 2006-2013 Helge Deller <deller@gmx.de>
  */
+
+/*
+ * Put page table entries (swapper_pg_dir) as the first thing in .bss. This
+ * will ensure that it has .bss alignment (PAGE_SIZE).
+ */
+#define BSS_FIRST_SECTIONS	*(.data..vm0.pmd) \
+				*(.data..vm0.pgd) \
+				*(.data..vm0.pte)
+
 #include <asm-generic/vmlinux.lds.h>
+
 /* needed for the processor specific cache alignment size */	
 #include <asm/cache.h>
 #include <asm/page.h>
@@ -39,7 +34,7 @@ OUTPUT_FORMAT("elf64-hppa-linux")
 OUTPUT_ARCH(hppa:hppa2.0w)
 #endif
 
-ENTRY(_stext)
+ENTRY(parisc_kernel_start)
 #ifndef CONFIG_64BIT
 jiffies = jiffies_64 + 4;
 #else
@@ -49,11 +44,29 @@ SECTIONS
 {
 	. = KERNEL_BINARY_TEXT_START;
 
+	__init_begin = .;
+	HEAD_TEXT_SECTION
+	INIT_TEXT_SECTION(8)
+
+	. = ALIGN(PAGE_SIZE);
+	INIT_DATA_SECTION(PAGE_SIZE)
+	/* we have to discard exit text and such at runtime, not link time */
+	.exit.text :
+	{
+		EXIT_TEXT
+	}
+	.exit.data :
+	{
+		EXIT_DATA
+	}
+	PERCPU_SECTION(8)
+	. = ALIGN(PAGE_SIZE);
+	__init_end = .;
+	/* freed after init ends here */
+
 	_text = .;		/* Text and read-only data */
-	.head ALIGN(16) : {
-		HEAD_TEXT
-	} = 0
-	.text ALIGN(16) : {
+	_stext = .;
+	.text ALIGN(PAGE_SIZE) : {
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -68,13 +81,35 @@ SECTIONS
 		*(.lock.text)		/* out-of-line lock text */
 		*(.gnu.warning)
 	}
-	/* End of text section */
+	. = ALIGN(PAGE_SIZE);
 	_etext = .;
+	/* End of text section */
 
 	/* Start of data section */
 	_sdata = .;
 
-	RODATA
+	RO_DATA_SECTION(8)
+
+#ifdef CONFIG_64BIT
+	. = ALIGN(16);
+	/* Linkage tables */
+	.opd : {
+		*(.opd)
+	} PROVIDE (__gp = .);
+	.plt : {
+		*(.plt)
+	}
+	.dlt : {
+		*(.dlt)
+	}
+#endif
+
+	/* unwind info */
+	.PARISC.unwind : {
+		__start___unwind = .;
+		*(.PARISC.unwind)
+		__stop___unwind = .;
+	}
 
 	/* writeable */
 	/* Make sure this is page aligned so
@@ -84,14 +119,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	data_start = .;
 
-	/* unwind info */
-	.PARISC.unwind : {
-		__start___unwind = .;
-		*(.PARISC.unwind)
-		__stop___unwind = .;
-	}
-
-	EXCEPTION_TABLE(16)
+	EXCEPTION_TABLE(8)
 	NOTES
 
 	/* Data */
@@ -107,54 +135,8 @@ SECTIONS
 	_edata = .;
 
 	/* BSS */
-	__bss_start = .;
-	/* page table entries need to be PAGE_SIZE aligned */
-	. = ALIGN(PAGE_SIZE);
-	.data..vmpages : {
-		*(.data..vm0.pmd)
-		*(.data..vm0.pgd)
-		*(.data..vm0.pte)
-	}
-	.bss : {
-		*(.bss)
-		*(COMMON)
-	}
-	__bss_stop = .;
+	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 8)
 
-#ifdef CONFIG_64BIT
-	. = ALIGN(16);
-	/* Linkage tables */
-	.opd : {
-		*(.opd)
-	} PROVIDE (__gp = .); 
-	.plt : {
-		*(.plt)
-	} 
-	.dlt : {
-		*(.dlt)
-	}
-#endif
-
-	/* reserve space for interrupt stack by aligning __init* to 16k */
-	. = ALIGN(16384);
-	__init_begin = .;
-	INIT_TEXT_SECTION(16384)
-	. = ALIGN(PAGE_SIZE);
-	INIT_DATA_SECTION(16)
-	/* we have to discard exit text and such at runtime, not link time */
-	.exit.text :
-	{
-		EXIT_TEXT
-	}
-	.exit.data :
-	{
-		EXIT_DATA
-	}
-
-	PERCPU_SECTION(L1_CACHE_BYTES)
-	. = ALIGN(PAGE_SIZE);
-	__init_end = .;
-	/* freed after init ends here */
 	_end = . ;
 
 	STABS_DEBUG

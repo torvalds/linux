@@ -1,6 +1,7 @@
 # UAPI Header export list
 header-y += audio.h
 header-y += cdc.h
+header-y += cdc-wdm.h
 header-y += ch11.h
 header-y += ch9.h
 header-y += functionfs.h

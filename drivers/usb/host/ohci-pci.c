@@ -14,12 +14,19 @@
  * This file is licenced under the GPL.
  */
 
-#ifndef CONFIG_PCI
-#error "This file is PCI bus glue.  CONFIG_PCI must be defined."
-#endif
-
-#include <linux/pci.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ohci.h"
+#include "pci-quirks.h"
+
+#define DRIVER_DESC "OHCI PCI platform driver"
+
+static const char hcd_name[] = "ohci-pci";
 
 
 /*-------------------------------------------------------------------------*/
@@ -123,13 +130,6 @@ static void ohci_quirk_nec_worker(struct work_struct *work)
 	struct ohci_hcd *ohci = container_of(work, struct ohci_hcd, nec_work);
 	int status;
 
-	status = ohci_init(ohci);
-	if (status != 0) {
-		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",
-			 "ohci_init", status);
-		return;
-	}
-
 	status = ohci_restart(ohci);
 	if (status != 0)
 		ohci_err(ohci, "Restarting NEC controller failed in %s, %d\n",
@@ -150,42 +150,18 @@ static int ohci_quirk_nec(struct usb_hcd *hcd)
 static int ohci_quirk_amd700(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	struct pci_dev *amd_smbus_dev;
-	u8 rev;
 
 	if (usb_amd_find_chipset_info())
 		ohci->flags |= OHCI_QUIRK_AMD_PLL;
 
-	amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
-			PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
-	if (!amd_smbus_dev)
-		return 0;
-
-	rev = amd_smbus_dev->revision;
-
 	/* SB800 needs pre-fetch fix */
-	if ((rev >= 0x40) && (rev <= 0x4f)) {
+	if (usb_amd_prefetch_quirk()) {
 		ohci->flags |= OHCI_QUIRK_AMD_PREFETCH;
 		ohci_dbg(ohci, "enabled AMD prefetch quirk\n");
 	}
 
-	pci_dev_put(amd_smbus_dev);
-	amd_smbus_dev = NULL;
-
+	ohci->flags |= OHCI_QUIRK_GLOBAL_SUSPEND;
 	return 0;
-}
-
-static void sb800_prefetch(struct ohci_hcd *ohci, int on)
-{
-	struct pci_dev *pdev;
-	u16 misc;
-
-	pdev = to_pci_dev(ohci_to_hcd(ohci)->self.controller);
-	pci_read_config_word(pdev, 0x50, &misc);
-	if (on == 0)
-		pci_write_config_word(pdev, 0x50, misc & 0xfcff);
-	else
-		pci_write_config_word(pdev, 0x50, misc | 0x0300);
 }
 
 /* List of quirks for OHCI */
@@ -249,10 +225,10 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 static int ohci_pci_reset (struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 	int ret = 0;
 
 	if (hcd->self.controller) {
-		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 		const struct pci_device_id *quirk_id;
 
 		quirk_id = pci_match_id(ohci_pci_quirks, pdev);
@@ -262,93 +238,24 @@ static int ohci_pci_reset (struct usb_hcd *hcd)
 			ret = quirk(hcd);
 		}
 	}
-	if (ret == 0) {
-		ohci_hcd_init (ohci);
-		return ohci_init (ohci);
-	}
+
+	if (ret == 0)
+		ret = ohci_setup(hcd);
+	/*
+	* After ohci setup RWC may not be set for add-in PCI cards.
+	* This transfers PCI PM wakeup capabilities.
+	*/
+	if (device_can_wakeup(&pdev->dev))
+		ohci->hc_control |= OHCI_CTRL_RWC;
 	return ret;
 }
 
+static struct hc_driver __read_mostly ohci_pci_hc_driver;
 
-static int ohci_pci_start (struct usb_hcd *hcd)
-{
-	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
-	int		ret;
-
-#ifdef CONFIG_PM /* avoid warnings about unused pdev */
-	if (hcd->self.controller) {
-		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
-
-		/* RWC may not be set for add-in PCI cards, since boot
-		 * firmware probably ignored them.  This transfers PCI
-		 * PM wakeup capabilities.
-		 */
-		if (device_can_wakeup(&pdev->dev))
-			ohci->hc_control |= OHCI_CTRL_RWC;
-	}
-#endif /* CONFIG_PM */
-
-	ret = ohci_run (ohci);
-	if (ret < 0) {
-		ohci_err (ohci, "can't start\n");
-		ohci_stop (hcd);
-	}
-	return ret;
-}
-
-
-/*-------------------------------------------------------------------------*/
-
-static const struct hc_driver ohci_pci_hc_driver = {
-	.description =		hcd_name,
-	.product_desc =		"OHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct ohci_hcd),
-
-	/*
-	 * generic hardware linkage
-	 */
-	.irq =			ohci_irq,
-	.flags =		HCD_MEMORY | HCD_USB11,
-
-	/*
-	 * basic lifecycle operations
-	 */
+static const struct ohci_driver_overrides pci_overrides __initconst = {
+	.product_desc =		"OHCI PCI host controller",
 	.reset =		ohci_pci_reset,
-	.start =		ohci_pci_start,
-	.stop =			ohci_stop,
-	.shutdown =		ohci_shutdown,
-
-#ifdef	CONFIG_PM
-	.pci_suspend =		ohci_suspend,
-	.pci_resume =		ohci_resume,
-#endif
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue =		ohci_urb_enqueue,
-	.urb_dequeue =		ohci_urb_dequeue,
-	.endpoint_disable =	ohci_endpoint_disable,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number =	ohci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data =	ohci_hub_status_data,
-	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_PM
-	.bus_suspend =		ohci_bus_suspend,
-	.bus_resume =		ohci_bus_resume,
-#endif
-	.start_port_reset =	ohci_start_port_reset,
 };
-
-/*-------------------------------------------------------------------------*/
-
 
 static const struct pci_device_id pci_ids [] = { {
 	/* handle any USB OHCI controller */
@@ -371,9 +278,38 @@ static struct pci_driver ohci_pci_driver = {
 	.remove =	usb_hcd_pci_remove,
 	.shutdown =	usb_hcd_pci_shutdown,
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver =	{
 		.pm =	&usb_hcd_pci_pm_ops
 	},
 #endif
 };
+
+static int __init ohci_pci_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ohci_init_driver(&ohci_pci_hc_driver, &pci_overrides);
+
+#ifdef	CONFIG_PM
+	/* Entries for the PCI suspend/resume callbacks are special */
+	ohci_pci_hc_driver.pci_suspend = ohci_suspend;
+	ohci_pci_hc_driver.pci_resume = ohci_resume;
+#endif
+
+	return pci_register_driver(&ohci_pci_driver);
+}
+module_init(ohci_pci_init);
+
+static void __exit ohci_pci_cleanup(void)
+{
+	pci_unregister_driver(&ohci_pci_driver);
+}
+module_exit(ohci_pci_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: ehci_pci");

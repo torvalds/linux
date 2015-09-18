@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/cpufeature.h>
 
 #include "sha.h"
 #include "crypt_s390.h"
@@ -86,7 +87,7 @@ static struct shash_alg sha512_alg = {
 	}
 };
 
-MODULE_ALIAS("sha512");
+MODULE_ALIAS_CRYPTO("sha512");
 
 static int sha384_init(struct shash_desc *desc)
 {
@@ -126,7 +127,7 @@ static struct shash_alg sha384_alg = {
 	}
 };
 
-MODULE_ALIAS("sha384");
+MODULE_ALIAS_CRYPTO("sha384");
 
 static int __init init(void)
 {
@@ -148,7 +149,7 @@ static void __exit fini(void)
 	crypto_unregister_shash(&sha384_alg);
 }
 
-module_init(init);
+module_cpu_feature_match(MSA, init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");

@@ -1,0 +1,30 @@
+config RSI_91X
+	tristate "Redpine Signals Inc 91x WLAN driver support"
+	depends on MAC80211
+	---help---
+	  This option enabes support for RSI 1x1 devices.
+	  Select M (recommended), if you have a RSI 1x1 wireless module.
+
+config RSI_DEBUGFS
+	bool "Redpine Signals Inc debug support"
+	depends on RSI_91X
+	default y
+	---help---
+	 Say Y, if you would like to enable debug support. This option
+	 creates debugfs entries
+
+config RSI_SDIO
+	tristate "Redpine Signals SDIO bus support"
+	depends on MMC && RSI_91X
+	default m
+	---help---
+	  This option enables the SDIO bus support in rsi drivers.
+	  Select M (recommended), if you have a RSI 1x1 wireless module.
+
+config RSI_USB
+	tristate "Redpine Signals USB bus support"
+	depends on USB && RSI_91X
+	default m
+	---help---
+	  This option enables the USB bus support in rsi drivers.
+	  Select M (recommended), if you have a RSI 1x1 wireless module.

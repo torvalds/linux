@@ -30,6 +30,7 @@ irqreturn_t pdacf_interrupt(int irq, void *dev)
 {
 	struct snd_pdacf *chip = dev;
 	unsigned short stat;
+	bool wake_thread = false;
 
 	if ((chip->chip_status & (PDAUDIOCF_STAT_IS_STALE|
 				  PDAUDIOCF_STAT_IS_CONFIGURED|
@@ -41,13 +42,13 @@ irqreturn_t pdacf_interrupt(int irq, void *dev)
 		if (stat & PDAUDIOCF_IRQOVR)	/* should never happen */
 			snd_printk(KERN_ERR "PDAUDIOCF SRAM buffer overrun detected!\n");
 		if (chip->pcm_substream)
-			tasklet_schedule(&chip->tq);
+			wake_thread = true;
 		if (!(stat & PDAUDIOCF_IRQAKM))
 			stat |= PDAUDIOCF_IRQAKM;	/* check rate */
 	}
 	if (get_irq_regs() != NULL)
 		snd_ak4117_check_rate_and_errors(chip->ak4117, 0);
-	return IRQ_HANDLED;
+	return wake_thread ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 }
 
 static inline void pdacf_transfer_mono16(u16 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
@@ -256,16 +257,16 @@ static void pdacf_transfer(struct snd_pdacf *chip, unsigned int size, unsigned i
 	}
 }
 
-void pdacf_tasklet(unsigned long private_data)
+irqreturn_t pdacf_threaded_irq(int irq, void *dev)
 {
-	struct snd_pdacf *chip = (struct snd_pdacf *) private_data;
+	struct snd_pdacf *chip = dev;
 	int size, off, cont, rdp, wdp;
 
 	if ((chip->chip_status & (PDAUDIOCF_STAT_IS_STALE|PDAUDIOCF_STAT_IS_CONFIGURED)) != PDAUDIOCF_STAT_IS_CONFIGURED)
-		return;
+		return IRQ_HANDLED;
 	
 	if (chip->pcm_substream == NULL || chip->pcm_substream->runtime == NULL || !snd_pcm_running(chip->pcm_substream))
-		return;
+		return IRQ_HANDLED;
 
 	rdp = inw(chip->port + PDAUDIOCF_REG_RDP);
 	wdp = inw(chip->port + PDAUDIOCF_REG_WDP);
@@ -311,15 +312,15 @@ void pdacf_tasklet(unsigned long private_data)
 		size -= cont;
 	}
 #endif
-	spin_lock(&chip->reg_lock);
+	mutex_lock(&chip->reg_lock);
 	while (chip->pcm_tdone >= chip->pcm_period) {
 		chip->pcm_hwptr += chip->pcm_period;
 		chip->pcm_hwptr %= chip->pcm_size;
 		chip->pcm_tdone -= chip->pcm_period;
-		spin_unlock(&chip->reg_lock);
+		mutex_unlock(&chip->reg_lock);
 		snd_pcm_period_elapsed(chip->pcm_substream);
-		spin_lock(&chip->reg_lock);
+		mutex_lock(&chip->reg_lock);
 	}
-	spin_unlock(&chip->reg_lock);
-	/* printk(KERN_DEBUG "TASKLET: end\n"); */
+	mutex_unlock(&chip->reg_lock);
+	return IRQ_HANDLED;
 }

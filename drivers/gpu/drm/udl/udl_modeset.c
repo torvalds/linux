@@ -14,6 +14,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
 #include "udl_drv.h"
 
 /*
@@ -310,7 +311,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_framebuffer *ufb = to_udl_fb(crtc->fb);
+	struct udl_framebuffer *ufb = to_udl_fb(crtc->primary->fb);
 	struct udl_device *udl = dev->dev_private;
 	char *buf;
 	char *wrptr;
@@ -339,11 +340,11 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 	wrptr = udl_dummy_render(wrptr);
 
-	ufb->active_16 = true;
 	if (old_fb) {
 		struct udl_framebuffer *uold_fb = to_udl_fb(old_fb);
 		uold_fb->active_16 = false;
 	}
+	ufb->active_16 = true;
 	udl->mode_buf_len = wrptr - buf;
 
 	/* damage all of it */
@@ -363,8 +364,31 @@ static void udl_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
-static void udl_load_lut(struct drm_crtc *crtc)
+static int udl_crtc_page_flip(struct drm_crtc *crtc,
+			      struct drm_framebuffer *fb,
+			      struct drm_pending_vblank_event *event,
+			      uint32_t page_flip_flags)
 {
+	struct udl_framebuffer *ufb = to_udl_fb(fb);
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	struct drm_framebuffer *old_fb = crtc->primary->fb;
+	if (old_fb) {
+		struct udl_framebuffer *uold_fb = to_udl_fb(old_fb);
+		uold_fb->active_16 = false;
+	}
+	ufb->active_16 = true;
+
+	udl_handle_damage(ufb, 0, 0, fb->width, fb->height);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (event)
+		drm_send_vblank_event(dev, 0, event);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	crtc->primary->fb = fb;
+
+	return 0;
 }
 
 static void udl_crtc_prepare(struct drm_crtc *crtc)
@@ -383,12 +407,12 @@ static struct drm_crtc_helper_funcs udl_helper_funcs = {
 	.prepare = udl_crtc_prepare,
 	.commit = udl_crtc_commit,
 	.disable = udl_crtc_disable,
-	.load_lut = udl_load_lut,
 };
 
 static const struct drm_crtc_funcs udl_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = udl_crtc_destroy,
+	.page_flip = udl_crtc_page_flip,
 };
 
 static int udl_crtc_init(struct drm_device *dev)

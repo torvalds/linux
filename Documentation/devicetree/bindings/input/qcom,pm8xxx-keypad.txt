@@ -1,0 +1,89 @@
+Qualcomm PM8xxx PMIC Keypad
+
+PROPERTIES
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,pm8058-keypad"
+		    "qcom,pm8921-keypad"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: address of keypad control register
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: the first interrupt specifies the key sense interrupt
+		    and the second interrupt specifies the key stuck interrupt.
+		    The format of the specifier is defined by the binding
+		    document describing the node's interrupt parent.
+
+- linux,keymap:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: the linux keymap. More information can be found in
+		    input/matrix-keymap.txt.
+
+- linux,keypad-no-autorepeat:
+	Usage: optional
+	Value type: <bool>
+	Definition: don't enable autorepeat feature.
+
+- wakeup-source:
+	Usage: optional
+	Value type: <bool>
+	Definition: use any event on keypad as wakeup event.
+
+- keypad,num-rows:
+	Usage: required
+	Value type: <u32>
+	Definition: number of rows in the keymap. More information can be found
+		    in input/matrix-keymap.txt.
+
+- keypad,num-columns:
+	Usage: required
+	Value type: <u32>
+	Definition: number of columns in the keymap. More information can be
+		    found in input/matrix-keymap.txt.
+
+- debounce:
+	Usage: optional
+	Value type: <u32>
+	Definition: time in microseconds that key must be pressed or release
+		    for key sense interrupt to trigger.
+
+- scan-delay:
+	Usage: optional
+	Value type: <u32>
+	Definition: time in microseconds to pause between successive scans
+		    of the matrix array.
+
+- row-hold:
+	Usage: optional
+	Value type: <u32>
+	Definition: time in nanoseconds to pause between scans of each row in
+		    the matrix array.
+
+EXAMPLE
+
+	keypad@148 {
+		compatible = "qcom,pm8921-keypad";
+		reg = <0x148>;
+		interrupt-parent = <&pmicintc>;
+		interrupts = <74 1>, <75 1>;
+		linux,keymap = <
+			MATRIX_KEY(0, 0, KEY_VOLUMEUP)
+			MATRIX_KEY(0, 1, KEY_VOLUMEDOWN)
+			MATRIX_KEY(0, 2, KEY_CAMERA_FOCUS)
+			MATRIX_KEY(0, 3, KEY_CAMERA)
+			>;
+		keypad,num-rows = <1>;
+		keypad,num-columns = <5>;
+		debounce = <15>;
+		scan-delay = <32>;
+		row-hold = <91500>;
+	};

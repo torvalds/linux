@@ -1,0 +1,171 @@
+* Renesas Pin Function Controller (GPIO and Pin Mux/Config)
+
+The Pin Function Controller (PFC) is a Pin Mux/Config controller. On SH73A0,
+R8A73A4 and R8A7740 it also acts as a GPIO controller.
+
+
+Pin Control
+-----------
+
+Required Properties:
+
+  - compatible: should be one of the following.
+    - "renesas,pfc-emev2": for EMEV2 (EMMA Mobile EV2) compatible pin-controller.
+    - "renesas,pfc-r8a73a4": for R8A73A4 (R-Mobile APE6) compatible pin-controller.
+    - "renesas,pfc-r8a7740": for R8A7740 (R-Mobile A1) compatible pin-controller.
+    - "renesas,pfc-r8a7778": for R8A7778 (R-Mobile M1) compatible pin-controller.
+    - "renesas,pfc-r8a7779": for R8A7779 (R-Car H1) compatible pin-controller.
+    - "renesas,pfc-r8a7790": for R8A7790 (R-Car H2) compatible pin-controller.
+    - "renesas,pfc-r8a7791": for R8A7791 (R-Car M2-W) compatible pin-controller.
+    - "renesas,pfc-r8a7793": for R8A7793 (R-Car M2-N) compatible pin-controller.
+    - "renesas,pfc-r8a7794": for R8A7794 (R-Car E2) compatible pin-controller.
+    - "renesas,pfc-sh73a0": for SH73A0 (SH-Mobile AG5) compatible pin-controller.
+
+  - reg: Base address and length of each memory resource used by the pin
+    controller hardware module.
+
+Optional properties:
+
+  - #gpio-range-cells: Mandatory when the PFC doesn't handle GPIO, forbidden
+    otherwise. Should be 3.
+
+  - interrupts-extended: Specify the interrupts associated with external
+    IRQ pins. This property is mandatory when the PFC handles GPIOs and
+    forbidden otherwise. When specified, it must contain one interrupt per
+    external IRQ, sorted by external IRQ number.
+
+The PFC node also acts as a container for pin configuration nodes. Please refer
+to pinctrl-bindings.txt in this directory for the definition of the term "pin
+configuration node" and for the common pinctrl bindings used by client devices.
+
+Each pin configuration node represents a desired configuration for a pin, a
+pin group, or a list of pins or pin groups. The configuration can include the
+function to select on those pin(s) and pin configuration parameters (such as
+pull-up and pull-down).
+
+Pin configuration nodes contain pin configuration properties, either directly
+or grouped in child subnodes. Both pin muxing and configuration parameters can
+be grouped in that way and referenced as a single pin configuration node by
+client devices.
+
+A configuration node or subnode must reference at least one pin (through the
+pins or pin groups properties) and contain at least a function or one
+configuration parameter. When the function is present only pin groups can be
+used to reference pins.
+
+All pin configuration nodes and subnodes names are ignored. All of those nodes
+are parsed through phandles and processed purely based on their content.
+
+Pin Configuration Node Properties:
+
+- pins : An array of strings, each string containing the name of a pin.
+- groups : An array of strings, each string containing the name of a pin
+  group.
+
+- function: A string containing the name of the function to mux to the pin
+  group(s) specified by the groups property.
+
+  Valid values for pin, group and function names can be found in the group and
+  function arrays of the PFC data file corresponding to the SoC
+  (drivers/pinctrl/sh-pfc/pfc-*.c)
+
+The pin configuration parameters use the generic pinconf bindings defined in
+pinctrl-bindings.txt in this directory. The supported parameters are
+bias-disable, bias-pull-up, bias-pull-down and power-source. For pins that
+have a configurable I/O voltage, the power-source value should be the
+nominal I/O voltage in millivolts.
+
+
+GPIO
+----
+
+On SH73A0, R8A73A4 and R8A7740 the PFC node is also a GPIO controller node.
+
+Required Properties:
+
+  - gpio-controller: Marks the device node as a gpio controller.
+
+  - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
+    cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
+    GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
+
+The syntax of the gpio specifier used by client nodes should be the following
+with values derived from the SoC user manual.
+
+  <[phandle of the gpio controller node]
+   [pin number within the gpio controller]
+   [flags]>
+
+On other mach-shmobile platforms GPIO is handled by the gpio-rcar driver.
+Please refer to Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+for documentation of the GPIO device tree bindings on those platforms.
+
+
+Examples
+--------
+
+Example 1: SH73A0 (SH-Mobile AG5) pin controller node
+
+	pfc: pfc@e6050000 {
+		compatible = "renesas,pfc-sh73a0";
+		reg = <0xe6050000 0x8000>,
+		      <0xe605801c 0x1c>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupts-extended =
+			<&irqpin0 0 0>, <&irqpin0 1 0>, <&irqpin0 2 0>, <&irqpin0 3 0>,
+			<&irqpin0 4 0>, <&irqpin0 5 0>, <&irqpin0 6 0>, <&irqpin0 7 0>,
+			<&irqpin1 0 0>, <&irqpin1 1 0>, <&irqpin1 2 0>, <&irqpin1 3 0>,
+			<&irqpin1 4 0>, <&irqpin1 5 0>, <&irqpin1 6 0>, <&irqpin1 7 0>,
+			<&irqpin2 0 0>, <&irqpin2 1 0>, <&irqpin2 2 0>, <&irqpin2 3 0>,
+			<&irqpin2 4 0>, <&irqpin2 5 0>, <&irqpin2 6 0>, <&irqpin2 7 0>,
+			<&irqpin3 0 0>, <&irqpin3 1 0>, <&irqpin3 2 0>, <&irqpin3 3 0>,
+			<&irqpin3 4 0>, <&irqpin3 5 0>, <&irqpin3 6 0>, <&irqpin3 7 0>;
+	};
+
+Example 2: A GPIO LED node that references a GPIO
+
+	#include <dt-bindings/gpio/gpio.h>
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 20 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+Example 3: KZM-A9-GT (SH-Mobile AG5) default pin state hog and pin control maps
+           for the MMCIF and SCIFA4 devices
+
+	&pfc {
+		pinctrl-0 = <&scifa4_pins>;
+		pinctrl-names = "default";
+
+		mmcif_pins: mmcif {
+			mux {
+				groups = "mmc0_data8_0", "mmc0_ctrl_0";
+				function = "mmc0";
+			};
+			cfg {
+				groups = "mmc0_data8_0";
+				pins = "PORT279";
+				bias-pull-up;
+			};
+		};
+
+		scifa4_pins: scifa4 {
+			groups = "scifa4_data", "scifa4_ctrl";
+			function = "scifa4";
+		};
+	};
+
+Example 4: KZM-A9-GT (SH-Mobile AG5) default pin state for the MMCIF device
+
+	&mmcif {
+		pinctrl-0 = <&mmcif_pins>;
+		pinctrl-names = "default";
+
+		bus-width = <8>;
+		vmmc-supply = <&reg_1p8v>;
+		status = "okay";
+	};

@@ -75,7 +75,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 	return 0;
 }
 
-asmlinkage int xo1_do_sleep(u8 sleep_state)
+asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
 {
 	void *pgd_addr = __va(read_cr3());
 
@@ -170,7 +170,6 @@ static int xo1_pm_remove(struct platform_device *pdev)
 static struct platform_driver cs5535_pms_driver = {
 	.driver = {
 		.name = "cs5535-pms",
-		.owner = THIS_MODULE,
 	},
 	.probe = xo1_pm_probe,
 	.remove = xo1_pm_remove,
@@ -179,7 +178,6 @@ static struct platform_driver cs5535_pms_driver = {
 static struct platform_driver cs5535_acpi_driver = {
 	.driver = {
 		.name = "olpc-xo1-pm-acpi",
-		.owner = THIS_MODULE,
 	},
 	.probe = xo1_pm_probe,
 	.remove = xo1_pm_remove,

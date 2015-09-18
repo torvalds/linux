@@ -37,7 +37,6 @@ static void arizona_haptics_work(struct work_struct *work)
 						       struct arizona_haptics,
 						       work);
 	struct arizona *arizona = haptics->arizona;
-	struct mutex *dapm_mutex = &arizona->dapm->card->dapm_mutex;
 	int ret;
 
 	if (!haptics->arizona->dapm) {
@@ -67,13 +66,10 @@ static void arizona_haptics_work(struct work_struct *work)
 			return;
 		}
 
-		mutex_lock_nested(dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-
 		ret = snd_soc_dapm_enable_pin(arizona->dapm, "HAPTICS");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to start HAPTICS: %d\n",
 				ret);
-			mutex_unlock(dapm_mutex);
 			return;
 		}
 
@@ -81,21 +77,14 @@ static void arizona_haptics_work(struct work_struct *work)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to sync DAPM: %d\n",
 				ret);
-			mutex_unlock(dapm_mutex);
 			return;
 		}
-
-		mutex_unlock(dapm_mutex);
-
 	} else {
 		/* This disable sequence will be a noop if already enabled */
-		mutex_lock_nested(dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-
 		ret = snd_soc_dapm_disable_pin(arizona->dapm, "HAPTICS");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to disable HAPTICS: %d\n",
 				ret);
-			mutex_unlock(dapm_mutex);
 			return;
 		}
 
@@ -103,11 +92,8 @@ static void arizona_haptics_work(struct work_struct *work)
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to sync DAPM: %d\n",
 				ret);
-			mutex_unlock(dapm_mutex);
 			return;
 		}
-
-		mutex_unlock(dapm_mutex);
 
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_HAPTICS_CONTROL_1,
@@ -155,16 +141,11 @@ static int arizona_haptics_play(struct input_dev *input, void *data,
 static void arizona_haptics_close(struct input_dev *input)
 {
 	struct arizona_haptics *haptics = input_get_drvdata(input);
-	struct mutex *dapm_mutex = &haptics->arizona->dapm->card->dapm_mutex;
 
 	cancel_work_sync(&haptics->work);
 
-	mutex_lock_nested(dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-
 	if (haptics->arizona->dapm)
 		snd_soc_dapm_disable_pin(haptics->arizona->dapm, "HAPTICS");
-
-	mutex_unlock(dapm_mutex);
 }
 
 static int arizona_haptics_probe(struct platform_device *pdev)
@@ -189,8 +170,8 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 
 	INIT_WORK(&haptics->work, arizona_haptics_work);
 
-	haptics->input_dev = input_allocate_device();
-	if (haptics->input_dev == NULL) {
+	haptics->input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!haptics->input_dev) {
 		dev_err(arizona->dev, "Failed to allocate input device\n");
 		return -ENOMEM;
 	}
@@ -207,44 +188,25 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(arizona->dev, "input_ff_create_memless() failed: %d\n",
 			ret);
-		goto err_ialloc;
+		return ret;
 	}
 
 	ret = input_register_device(haptics->input_dev);
 	if (ret < 0) {
 		dev_err(arizona->dev, "couldn't register input device: %d\n",
 			ret);
-		goto err_iff;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, haptics);
-
-	return 0;
-
-err_iff:
-	if (haptics->input_dev)
-		input_ff_destroy(haptics->input_dev);
-err_ialloc:
-	input_free_device(haptics->input_dev);
-
-	return ret;
-}
-
-static int arizona_haptics_remove(struct platform_device *pdev)
-{
-	struct arizona_haptics *haptics = platform_get_drvdata(pdev);
-
-	input_unregister_device(haptics->input_dev);
 
 	return 0;
 }
 
 static struct platform_driver arizona_haptics_driver = {
 	.probe		= arizona_haptics_probe,
-	.remove		= arizona_haptics_remove,
 	.driver		= {
 		.name	= "arizona-haptics",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(arizona_haptics_driver);

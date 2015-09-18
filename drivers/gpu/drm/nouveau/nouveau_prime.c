@@ -23,6 +23,7 @@
  */
 
 #include <drm/drmP.h>
+#include <linux/dma-buf.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_gem.h"
@@ -56,40 +57,59 @@ void nouveau_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 
 struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
-							 size_t size,
+							 struct dma_buf_attachment *attach,
 							 struct sg_table *sg)
 {
 	struct nouveau_bo *nvbo;
+	struct reservation_object *robj = attach->dmabuf->resv;
 	u32 flags = 0;
 	int ret;
 
 	flags = TTM_PL_FLAG_TT;
 
-	ret = nouveau_bo_new(dev, size, 0, flags, 0, 0,
-			     sg, &nvbo);
+	ww_mutex_lock(&robj->lock, NULL);
+	ret = nouveau_bo_new(dev, attach->dmabuf->size, 0, flags, 0, 0,
+			     sg, robj, &nvbo);
+	ww_mutex_unlock(&robj->lock);
 	if (ret)
 		return ERR_PTR(ret);
 
 	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_GART;
-	nvbo->gem = drm_gem_object_alloc(dev, nvbo->bo.mem.size);
-	if (!nvbo->gem) {
+
+	/* Initialize the embedded gem-object. We return a single gem-reference
+	 * to the caller, instead of a normal nouveau_bo ttm reference. */
+	ret = drm_gem_object_init(dev, &nvbo->gem, nvbo->bo.mem.size);
+	if (ret) {
 		nouveau_bo_ref(NULL, &nvbo);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	nvbo->gem->driver_private = nvbo;
-	return nvbo->gem;
+	return &nvbo->gem;
 }
 
 int nouveau_gem_prime_pin(struct drm_gem_object *obj)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
-	int ret = 0;
+	int ret;
 
 	/* pin buffer into GTT */
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_TT);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_TT, false);
 	if (ret)
 		return -EINVAL;
 
 	return 0;
+}
+
+void nouveau_gem_prime_unpin(struct drm_gem_object *obj)
+{
+	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+
+	nouveau_bo_unpin(nvbo);
+}
+
+struct reservation_object *nouveau_gem_prime_res_obj(struct drm_gem_object *obj)
+{
+	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+
+	return nvbo->bo.resv;
 }
