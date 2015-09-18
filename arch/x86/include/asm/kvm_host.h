@@ -176,6 +176,8 @@ enum {
  */
 #define KVM_APIC_PV_EOI_PENDING	1
 
+struct kvm_kernel_irq_routing_entry;
+
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
  * enough memory for a single page fault in a cache.
@@ -1244,4 +1246,6 @@ bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu);
 bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 			     struct kvm_vcpu **dest_vcpu);
 
+void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+		     struct kvm_lapic_irq *irq);
 #endif /* _ASM_X86_KVM_HOST_H */
