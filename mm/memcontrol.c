@@ -5202,6 +5202,7 @@ static struct cftype memory_files[] = {
 	{
 		.name = "events",
 		.flags = CFTYPE_NOT_ON_ROOT,
+		.file_offset = offsetof(struct mem_cgroup, events_file),
 		.seq_show = memory_events_show,
 	},
 	{ }	/* terminate */
