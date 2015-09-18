@@ -639,7 +639,7 @@ bool find_process(const char *name)
 
 	dir = opendir(procfs__mountpoint());
 	if (!dir)
-		return -1;
+		return false;
 
 	/* Walk through the directory. */
 	while (ret && (d = readdir(dir)) != NULL) {
