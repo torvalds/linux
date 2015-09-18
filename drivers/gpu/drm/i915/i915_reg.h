@@ -6286,16 +6286,16 @@ enum skl_disp_power_wells {
 
 #define HSW_TVIDEO_DIP_CTL(trans) \
 	 _TRANSCODER2(trans, HSW_VIDEO_DIP_CTL_A)
-#define HSW_TVIDEO_DIP_AVI_DATA(trans) \
-	 _TRANSCODER2(trans, HSW_VIDEO_DIP_AVI_DATA_A)
-#define HSW_TVIDEO_DIP_VS_DATA(trans) \
-	 _TRANSCODER2(trans, HSW_VIDEO_DIP_VS_DATA_A)
-#define HSW_TVIDEO_DIP_SPD_DATA(trans) \
-	 _TRANSCODER2(trans, HSW_VIDEO_DIP_SPD_DATA_A)
+#define HSW_TVIDEO_DIP_AVI_DATA(trans, i) \
+	(_TRANSCODER2(trans, HSW_VIDEO_DIP_AVI_DATA_A) + (i) * 4)
+#define HSW_TVIDEO_DIP_VS_DATA(trans, i) \
+	(_TRANSCODER2(trans, HSW_VIDEO_DIP_VS_DATA_A) + (i) * 4)
+#define HSW_TVIDEO_DIP_SPD_DATA(trans, i) \
+	(_TRANSCODER2(trans, HSW_VIDEO_DIP_SPD_DATA_A) + (i) * 4)
 #define HSW_TVIDEO_DIP_GCP(trans) \
 	_TRANSCODER2(trans, HSW_VIDEO_DIP_GCP_A)
-#define HSW_TVIDEO_DIP_VSC_DATA(trans) \
-	 _TRANSCODER2(trans, HSW_VIDEO_DIP_VSC_DATA_A)
+#define HSW_TVIDEO_DIP_VSC_DATA(trans, i) \
+	(_TRANSCODER2(trans, HSW_VIDEO_DIP_VSC_DATA_A) + (i) * 4)
 
 #define HSW_STEREO_3D_CTL_A	0x70020
 #define   S3D_ENABLE		(1<<31)
