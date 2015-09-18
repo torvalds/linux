@@ -577,7 +577,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
 	unsigned long flags;
 	int ret;
-	const struct firmware *fw;
 	struct spi_message m;
 	struct spi_transfer t;
 	struct dfw_pllrec pll_rec;
@@ -622,14 +621,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
 	wm0010->state = WM0010_OUT_OF_RESET;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
-
-	/* First the bootloader */
-	ret = request_firmware(&fw, "wm0010_stage2.bin", codec->dev);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request stage2 loader: %d\n",
-			ret);
-		goto abort;
-	}
 
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
 					 msecs_to_jiffies(20)))
