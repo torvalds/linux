@@ -35,7 +35,7 @@ typedef atomic_t atomic_long_t;
 #endif
 
 #define ATOMIC_LONG_READ_OP(mo)						\
-static inline long atomic_long_read##mo(atomic_long_t *l)		\
+static inline long atomic_long_read##mo(const atomic_long_t *l)		\
 {									\
 	ATOMIC_LONG_PFX(_t) *v = (ATOMIC_LONG_PFX(_t) *)l;		\
 									\
@@ -43,6 +43,7 @@ static inline long atomic_long_read##mo(atomic_long_t *l)		\
 }
 ATOMIC_LONG_READ_OP()
 ATOMIC_LONG_READ_OP(_acquire)
+ATOMIC_LONG_READ_OP(_ctrl)
 
 #undef ATOMIC_LONG_READ_OP
 
