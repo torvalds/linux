@@ -404,9 +404,9 @@ static inline u8 _usb_addr(struct ci_hw_ep *ep)
 }
 
 /**
- * _hardware_queue: configures a request at hardware level
- * @gadget: gadget
+ * _hardware_enqueue: configures a request at hardware level
  * @hwep:   endpoint
+ * @hwreq:  request
  *
  * This function returns an error code
  */
@@ -793,8 +793,12 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 
 /**
  * _ep_queue: queues (submits) an I/O request to an endpoint
+ * @ep:        endpoint
+ * @req:       request
+ * @gfp_flags: GFP flags (not used)
  *
  * Caller must hold lock
+ * This function returns an error code
  */
 static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 		    gfp_t __maybe_unused gfp_flags)
