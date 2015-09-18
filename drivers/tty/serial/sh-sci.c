@@ -1285,12 +1285,6 @@ static void rx_timer_fn(unsigned long arg)
 	spin_lock_irqsave(&port->lock, flags);
 
 	dev_dbg(port->dev, "DMA Rx timed out\n");
-	scr = serial_port_in(port, SCSCR);
-	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		scr &= ~SCSCR_RDRQE;
-		enable_irq(s->irqs[SCIx_RXI_IRQ]);
-	}
-	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
 
 	active = sci_dma_rx_find_active(s);
 	if (active < 0) {
@@ -1315,10 +1309,18 @@ static void rx_timer_fn(unsigned long arg)
 			tty_flip_buffer_push(&port->state->port);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
-
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
 		sci_submit_rx(s);
+
+	/* Direct new serial port interrupts back to CPU */
+	scr = serial_port_in(port, SCSCR);
+	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+		scr &= ~SCSCR_RDRQE;
+		enable_irq(s->irqs[SCIx_RXI_IRQ]);
+	}
+	serial_port_out(port, SCSCR, scr | SCSCR_RIE);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void sci_request_dma(struct uart_port *port)
