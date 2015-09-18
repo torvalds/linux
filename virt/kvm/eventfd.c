@@ -35,6 +35,7 @@
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <linux/seqlock.h>
+#include <linux/irqbypass.h>
 #include <trace/events/kvm.h>
 
 #include <kvm/iodev.h>
@@ -140,6 +141,9 @@ irqfd_shutdown(struct work_struct *work)
 	/*
 	 * It is now safe to release the object's resources
 	 */
+#ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+	irq_bypass_unregister_consumer(&irqfd->consumer);
+#endif
 	eventfd_ctx_put(irqfd->eventfd);
 	kfree(irqfd);
 }
@@ -391,6 +395,17 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	 * we might race against the POLLHUP
 	 */
 	fdput(f);
+#ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+	irqfd->consumer.token = (void *)irqfd->eventfd;
+	irqfd->consumer.add_producer = kvm_arch_irq_bypass_add_producer;
+	irqfd->consumer.del_producer = kvm_arch_irq_bypass_del_producer;
+	irqfd->consumer.stop = kvm_arch_irq_bypass_stop;
+	irqfd->consumer.start = kvm_arch_irq_bypass_start;
+	ret = irq_bypass_register_consumer(&irqfd->consumer);
+	if (ret)
+		pr_info("irq bypass consumer (token %p) registration fails: %d\n",
+				irqfd->consumer.token, ret);
+#endif
 
 	return 0;
 
