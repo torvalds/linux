@@ -98,15 +98,11 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 lvds_reg, tmp, flags = 0;
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	u32 tmp, flags = 0;
 	int dotclock;
 
-	if (HAS_PCH_SPLIT(dev))
-		lvds_reg = PCH_LVDS;
-	else
-		lvds_reg = LVDS;
-
-	tmp = I915_READ(lvds_reg);
+	tmp = I915_READ(lvds_encoder->reg);
 	if (tmp & LVDS_HSYNC_POLARITY)
 		flags |= DRM_MODE_FLAG_NHSYNC;
 	else
@@ -943,6 +939,7 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
 	struct drm_crtc *crtc;
+	u32 lvds_reg;
 	u32 lvds;
 	int pipe;
 	u8 pin;
@@ -965,8 +962,15 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
+	if (HAS_PCH_SPLIT(dev))
+		lvds_reg = PCH_LVDS;
+	else
+		lvds_reg = LVDS;
+
+	lvds = I915_READ(lvds_reg);
+
 	if (HAS_PCH_SPLIT(dev)) {
-		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
+		if ((lvds & LVDS_DETECTED) == 0)
 			return;
 		if (dev_priv->vbt.edp_support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
@@ -976,8 +980,7 @@ void intel_lvds_init(struct drm_device *dev)
 
 	pin = GMBUS_PIN_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
-		u32 reg = HAS_PCH_SPLIT(dev) ? PCH_LVDS : LVDS;
-		if ((I915_READ(reg) & LVDS_PORT_EN) == 0) {
+		if ((lvds & LVDS_PORT_EN) == 0) {
 			DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 			return;
 		}
@@ -1054,11 +1057,7 @@ void intel_lvds_init(struct drm_device *dev)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	if (HAS_PCH_SPLIT(dev)) {
-		lvds_encoder->reg = PCH_LVDS;
-	} else {
-		lvds_encoder->reg = LVDS;
-	}
+	lvds_encoder->reg = lvds_reg;
 
 	/* create the scaling mode property */
 	drm_mode_create_scaling_mode_property(dev);
@@ -1139,7 +1138,6 @@ void intel_lvds_init(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev))
 		goto failed;
 
-	lvds = I915_READ(LVDS);
 	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 
