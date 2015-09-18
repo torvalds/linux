@@ -8,8 +8,6 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
-#define LOWPAN_NHC_MAX_ID_LEN	1
-
 /**
  * LOWPAN_NHC - helper macro to generate nh id fields and lowpan_nhc struct
  *

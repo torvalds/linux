@@ -104,9 +104,8 @@ static void lowpan_setup(struct net_device *ldev)
 	ldev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(ldev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 	ldev->type		= ARPHRD_6LOWPAN;
-	/* Frame Control + Sequence Number + Address fields + Security Header */
-	ldev->hard_header_len	= 2 + 1 + 20 + 14;
-	ldev->needed_tailroom	= 2; /* FCS */
+	/* We need an ipv6hdr as minimum len when calling xmit */
+	ldev->hard_header_len	= sizeof(struct ipv6hdr);
 	ldev->mtu		= IPV6_MIN_MTU;
 	ldev->priv_flags	|= IFF_NO_QUEUE;
 	ldev->flags		= IFF_BROADCAST | IFF_MULTICAST;
@@ -156,6 +155,15 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	lowpan_dev_info(ldev)->wdev = wdev;
 	/* Set the lowpan hardware address to the wpan hardware address. */
 	memcpy(ldev->dev_addr, wdev->dev_addr, IEEE802154_ADDR_LEN);
+	/* We need headroom for possible wpan_dev_hard_header call and tailroom
+	 * for encryption/fcs handling. The lowpan interface will replace
+	 * the IPv6 header with 6LoWPAN header. At worst case the 6LoWPAN
+	 * header has LOWPAN_IPHC_MAX_HEADER_LEN more bytes than the IPv6
+	 * header.
+	 */
+	ldev->needed_headroom = LOWPAN_IPHC_MAX_HEADER_LEN +
+				wdev->needed_headroom;
+	ldev->needed_tailroom = wdev->needed_tailroom;
 
 	lowpan_netdev_setup(ldev, LOWPAN_LLTYPE_IEEE802154);
 

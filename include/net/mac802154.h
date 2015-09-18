@@ -23,14 +23,6 @@
 
 #include <net/cfg802154.h>
 
-/* General MAC frame format:
- *  2 bytes: Frame Control
- *  1 byte:  Sequence Number
- * 20 bytes: Addressing fields
- * 14 bytes: Auxiliary Security Header
- */
-#define MAC802154_FRAME_HARD_HEADER_LEN		(2 + 1 + 20 + 14)
-
 /**
  * enum ieee802154_hw_addr_filt_flags - hardware address filtering flags
  *

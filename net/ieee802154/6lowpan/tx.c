@@ -10,6 +10,7 @@
 
 #include <net/6lowpan.h>
 #include <net/ieee802154_netdev.h>
+#include <net/mac802154.h>
 
 #include "6lowpan_i.h"
 
@@ -36,6 +37,13 @@ lowpan_addr_info *lowpan_skb_priv(const struct sk_buff *skb)
 			sizeof(struct lowpan_addr_info));
 }
 
+/* This callback will be called from AF_PACKET and IPv6 stack, the AF_PACKET
+ * sockets gives an 8 byte array for addresses only!
+ *
+ * TODO I think AF_PACKET DGRAM (sending/receiving) RAW (sending) makes no
+ * sense here. We should disable it, the right use-case would be AF_INET6
+ * RAW/DGRAM sockets.
+ */
 int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 			 unsigned short type, const void *_daddr,
 			 const void *_saddr, unsigned int len)
@@ -77,13 +85,13 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 	struct sk_buff *frag;
 	int rc;
 
-	frag = alloc_skb(wdev->hard_header_len + wdev->needed_tailroom + size,
+	frag = alloc_skb(wdev->needed_headroom + wdev->needed_tailroom + size,
 			 GFP_ATOMIC);
 
 	if (likely(frag)) {
 		frag->dev = wdev;
 		frag->priority = skb->priority;
-		skb_reserve(frag, wdev->hard_header_len);
+		skb_reserve(frag, wdev->needed_headroom);
 		skb_reset_network_header(frag);
 		*mac_cb(frag) = *mac_cb(skb);
 

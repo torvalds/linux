@@ -537,8 +537,18 @@ static void ieee802154_if_setup(struct net_device *dev)
 	dev->addr_len		= IEEE802154_EXTENDED_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
-	dev->hard_header_len	= MAC802154_FRAME_HARD_HEADER_LEN;
-	dev->needed_tailroom	= 2 + 16; /* FCS + MIC */
+	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
+	 * will not send frames without any payload, but ack frames
+	 * has no payload, so substract one that we can send a 3 bytes
+	 * frame. The xmit callback assumes at least a hard header where two
+	 * bytes fc and sequence field are set.
+	 */
+	dev->hard_header_len	= IEEE802154_MIN_HEADER_LEN - 1;
+	/* The auth_tag header is for security and places in private payload
+	 * room of mac frame which stucks between payload and FCS field.
+	 */
+	dev->needed_tailroom	= IEEE802154_MAX_AUTH_TAG_LEN +
+				  IEEE802154_FCS_LEN;
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 300;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
@@ -617,7 +627,8 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
 
-	ndev->needed_headroom = local->hw.extra_tx_headroom;
+	ndev->needed_headroom = local->hw.extra_tx_headroom +
+				IEEE802154_MAX_HEADER_LEN;
 
 	ret = dev_alloc_name(ndev, ndev->name);
 	if (ret < 0)

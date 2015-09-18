@@ -77,9 +77,6 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
-	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
-		goto err_tx;
-
 	/* Stop the netif queue on each sub_if_data object. */
 	ieee802154_stop_queue(&local->hw);
 

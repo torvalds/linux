@@ -85,7 +85,7 @@ ieee802154_hdr_push_sechdr(u8 *buf, const struct ieee802154_sechdr *hdr)
 int
 ieee802154_hdr_push(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 {
-	u8 buf[MAC802154_FRAME_HARD_HEADER_LEN];
+	u8 buf[IEEE802154_MAX_HEADER_LEN];
 	int pos = 2;
 	int rc;
 	struct ieee802154_hdr_fc *fc = &hdr->fc;
