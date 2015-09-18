@@ -608,8 +608,7 @@ static int bcmgenet_set_coalesce(struct net_device *dev,
 	 * transmitted, or when the ring is emtpy.
 	 */
 	if (ec->tx_coalesce_usecs || ec->tx_coalesce_usecs_high ||
-	    ec->tx_coalesce_usecs_irq || ec->tx_coalesce_usecs_high ||
-	    ec->tx_coalesce_usecs_low)
+	    ec->tx_coalesce_usecs_irq || ec->tx_coalesce_usecs_low)
 		return -EOPNOTSUPP;
 
 	/* Program all TX queues with the same values, as there is no
