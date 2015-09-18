@@ -347,9 +347,7 @@ ino_t page_cgroup_ino(struct page *page);
 
 static inline bool mem_cgroup_disabled(void)
 {
-	if (memory_cgrp_subsys.disabled)
-		return true;
-	return false;
+	return !cgroup_subsys_enabled(memory_cgrp_subsys);
 }
 
 /*
