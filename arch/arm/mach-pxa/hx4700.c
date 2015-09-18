@@ -630,7 +630,6 @@ static struct spi_board_info tsc2046_board_info[] __initdata = {
 
 static struct pxa2xx_spi_master pxa_ssp2_master_info = {
 	.num_chipselect = 1,
-	.clock_enable   = CKEN_SSP2,
 	.enable_dma     = 1,
 };
 

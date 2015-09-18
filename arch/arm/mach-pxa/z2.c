@@ -595,13 +595,11 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 static struct pxa2xx_spi_master pxa_ssp1_master_info = {
-	.clock_enable	= CKEN_SSP,
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
 
 static struct pxa2xx_spi_master pxa_ssp2_master_info = {
-	.clock_enable	= CKEN_SSP2,
 	.num_chipselect	= 1,
 };
 
