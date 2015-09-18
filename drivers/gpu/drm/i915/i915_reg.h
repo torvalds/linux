@@ -3274,7 +3274,9 @@ enum skl_disp_power_wells {
 #define GEN3_SDVOC	0x61160
 #define GEN4_HDMIB	GEN3_SDVOB
 #define GEN4_HDMIC	GEN3_SDVOC
-#define CHV_HDMID	0x6116C
+#define VLV_HDMIB	(VLV_DISPLAY_BASE + GEN4_HDMIB)
+#define VLV_HDMIC	(VLV_DISPLAY_BASE + GEN4_HDMIC)
+#define CHV_HDMID	(VLV_DISPLAY_BASE + 0x6116C)
 #define PCH_SDVOB	0xe1140
 #define PCH_HDMIB	PCH_SDVOB
 #define PCH_HDMIC	0xe1150
@@ -4102,6 +4104,10 @@ enum skl_disp_power_wells {
 #define DP_B				0x64100
 #define DP_C				0x64200
 #define DP_D				0x64300
+
+#define VLV_DP_B			(VLV_DISPLAY_BASE + DP_B)
+#define VLV_DP_C			(VLV_DISPLAY_BASE + DP_C)
+#define CHV_DP_D			(VLV_DISPLAY_BASE + DP_D)
 
 #define   DP_PORT_EN			(1 << 31)
 #define   DP_PIPEB_SELECT		(1 << 30)
