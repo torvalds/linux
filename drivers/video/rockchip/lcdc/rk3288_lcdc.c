@@ -76,23 +76,41 @@ static int rk3288_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 	u32 v,r,g,b;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 					struct lcdc_device,driver);
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
+	if (dev_drv->cur_screen->dsp_lut)
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+			     v_DSP_LUT_EN(0));
+	if ((dev_drv->cur_screen->cabc_lut) &&
+	    (dev_drv->version == VOP_FULL_RK3288_V1_1))
+		lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
+			     v_CABC_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
-	for (i = 0; i < 256; i++) {
-		v = dev_drv->cur_screen->dsp_lut[i];
-		c = lcdc_dev->dsp_lut_addr_base + (i << 2);
-		b = (v & 0xff) << 2;
-		g = (v & 0xff00) << 4;
-		r = (v & 0xff0000) << 6;
-		v = r + g + b;
-		for (j = 0; j < 4; j++) {
-			writel_relaxed(v, c);
-			v += (1 + (1 << 10) + (1 << 20)) ;
-			c++;
+	if (dev_drv->cur_screen->dsp_lut) {
+		for (i = 0; i < 256; i++) {
+			v = dev_drv->cur_screen->dsp_lut[i];
+			c = lcdc_dev->dsp_lut_addr_base + (i << 2);
+			b = (v & 0xff) << 2;
+			g = (v & 0xff00) << 4;
+			r = (v & 0xff0000) << 6;
+			v = r + g + b;
+			for (j = 0; j < 4; j++) {
+				writel_relaxed(v, c);
+				v += (1 + (1 << 10) + (1 << 20));
+				c++;
+			}
 		}
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+			     v_DSP_LUT_EN(1));
 	}
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
+	if ((dev_drv->cur_screen->cabc_lut) &&
+	    (dev_drv->version == VOP_FULL_RK3288_V1_1)) {
+		for (i = 0; i < 128; i++) {
+			v = dev_drv->cur_screen->cabc_lut[i];
+			lcdc_writel(lcdc_dev, i * 4 + CABC_LUT_ADDR, v);
+		}
+		lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
+			     v_CABC_LUT_EN(1));
+	}
 
 	return 0;
 
@@ -1561,8 +1579,7 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->bcsh.enable)
 			rk3288_lcdc_set_bcsh(dev_drv, 1);
 		spin_lock(&lcdc_dev->reg_lock);
-		if (dev_drv->cur_screen->dsp_lut)
-			rk3288_lcdc_set_lut(dev_drv);
+		rk3288_lcdc_set_lut(dev_drv);
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
 
@@ -2598,9 +2615,6 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	int i, j;
-	int __iomem *c;
-	int v, r, g, b;
 
 	if (!dev_drv->suspend_flag)
 		return 0;
@@ -2612,27 +2626,7 @@ static int rk3288_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		rk3288_lcdc_reg_restore(lcdc_dev);
 
 		spin_lock(&lcdc_dev->reg_lock);
-		if (dev_drv->cur_screen->dsp_lut) {
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
-				     v_DSP_LUT_EN(0));
-			lcdc_cfg_done(lcdc_dev);
-			mdelay(25);
-			for (i = 0; i < 256; i++) {
-				v = dev_drv->cur_screen->dsp_lut[i];
-				c = lcdc_dev->dsp_lut_addr_base + (i << 2);
-				b = (v & 0xff) << 2;
-				g = (v & 0xff00) << 4;
-				r = (v & 0xff0000) << 6;
-				v = r + g + b;
-				for (j = 0; j < 4; j++) {
-					writel_relaxed(v, c);
-					v += (1 + (1 << 10) + (1 << 20)) ;
-					c++;
-				}
-			}
-			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
-				     v_DSP_LUT_EN(1));
-		}
+		rk3288_lcdc_set_lut(dev_drv);
 
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_OUT_ZERO,
 			     v_DSP_OUT_ZERO(0));
@@ -3533,86 +3527,81 @@ static int rk3288_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
-static struct lcdc_cabc_mode cabc_mode[4] = {
-/* pixel_num, stage_up, stage_down */
-	{5,	128,	0},	/*mode 1*/
-	{10,	128,	0},	/*mode 2*/
-	{15,	128,	0},	/*mode 3*/
-	{20,	128,	0},	/*mode 4*/
-};
-
-static int __maybe_unused
-rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
+static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,
+				    int mode, int calc, int up,
+				    int down, int global)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
-	u32 total_pixel, calc_pixel, stage_up, stage_down, pixel_num;
-	u32 mask = 0, val = 0, cabc_en = 0;
-	u32 max_mode_num = sizeof(cabc_mode) / sizeof(struct lcdc_cabc_mode);
+	u32 total_pixel, calc_pixel, stage_up, stage_down;
+	u32 pixel_num, global_dn;
+	u32 mask = 0, val = 0;
 
-	dev_drv->cabc_mode = mode;
-
-	/* iomux connect to vop or pwm */
-	if (mode == 0) {
-		DBG(3, "close cabc and select rk pwm\n");
-		val = 0x30001;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
-		cabc_en = 0;
-	} else if (mode > 0 && mode <= max_mode_num) {
-		DBG(3, "open cabc and select vop pwm\n");
-		val = (dev_drv->id == 0) ? 0x30002 : 0x30003;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
-		cabc_en = 1;
-	} else if (mode > 0x10 && mode <= (max_mode_num + 0x10)) {
-		DBG(3, "open cabc and select rk pwm\n");
-		val = 0x30001;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
-		cabc_en = 1;
-		mode -= 0x10;
-	} else if (mode == 0xff) {
-		DBG(3, "close cabc and select vop pwm\n");
-		val = (dev_drv->id == 0) ? 0x30002 : 0x30003;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
-		cabc_en = 0;
-	} else {
-		dev_err(lcdc_dev->dev, "invalid cabc mode value:%d", mode);
+	if (dev_drv->version != VOP_FULL_RK3288_V1_1) {
+		pr_err("vop version:%x, not supoort cabc\n", dev_drv->version);
 		return 0;
 	}
-
-	if (cabc_en == 0) {
+	if (!screen->cabc_lut) {
+		pr_err("screen cabc lut not config, so not open cabc\n");
+		return 0;
+	}
+	dev_drv->cabc_mode = mode;
+	if (!dev_drv->cabc_mode) {
 		spin_lock(&lcdc_dev->reg_lock);
-		if(lcdc_dev->clk_on) {
-			lcdc_msk_reg(lcdc_dev, CABC_CTRL0, m_CABC_EN, v_CABC_EN(0));
+		if (lcdc_dev->clk_on) {
+			lcdc_msk_reg(lcdc_dev, CABC_CTRL0 | m_CABC_HANDLE_EN,
+				     m_CABC_EN, v_CABC_EN(0) |
+				     v_CABC_HANDLE_EN(0));
 			lcdc_cfg_done(lcdc_dev);
 		}
+		pr_info("mode = 0, close cabc\n");
 		spin_unlock(&lcdc_dev->reg_lock);
 		return 0;
 	}
 
 	total_pixel = screen->mode.xres * screen->mode.yres;
-        pixel_num = 1000 - (cabc_mode[mode - 1].pixel_num);
+	pixel_num = 1000 - calc;
 	calc_pixel = (total_pixel * pixel_num) / 1000;
-	stage_up = cabc_mode[mode - 1].stage_up;
-	stage_down = cabc_mode[mode - 1].stage_down;
-	
+	stage_up = up;
+	stage_down = down;
+	global_dn = global;
+	pr_info("enable cabc:mode=%d, calc=%d, up=%d, down=%d, global=%d\n",
+		mode, calc, stage_up, stage_down, global_dn);
+
 	spin_lock(&lcdc_dev->reg_lock);
-	if(lcdc_dev->clk_on) {
-		mask = m_CABC_TOTAL_NUM | m_CABC_STAGE_DOWN;
-		val = v_CABC_TOTAL_NUM(total_pixel) | v_CABC_STAGE_DOWN(stage_down);
+	if (lcdc_dev->clk_on) {
+		mask = m_CABC_EN | m_CABC_HANDLE_EN | m_PWM_CONFIG_MODE |
+			m_CABC_CALC_PIXEL_NUM;
+		val = v_CABC_EN(1) | v_CABC_HANDLE_EN(1) |
+			v_PWM_CONFIG_MODE(STAGE_BY_STAGE) |
+			v_CABC_CALC_PIXEL_NUM(calc_pixel);
+		lcdc_msk_reg(lcdc_dev, CABC_CTRL0, mask, val);
+
+		mask = m_CABC_LUT_EN | m_CABC_TOTAL_PIXEL_NUM;
+		val = v_CABC_LUT_EN(1) | v_CABC_TOTAL_PIXEL_NUM(total_pixel);
 		lcdc_msk_reg(lcdc_dev, CABC_CTRL1, mask, val);
 
-		mask = m_CABC_EN | m_CABC_CALC_PIXEL_NUM |
-			m_CABC_STAGE_UP;
-		val = v_CABC_EN(1) | v_CABC_CALC_PIXEL_NUM(calc_pixel) |
-			v_CABC_STAGE_UP(stage_up);
-		lcdc_msk_reg(lcdc_dev, CABC_CTRL0, mask, val);
+		mask = m_CABC_STAGE_DOWN | m_CABC_STAGE_UP |
+			m_CABC_STAGE_MODE | m_MAX_SCALE_CFG_VALUE |
+			m_MAX_SCALE_CFG_ENABLE;
+		val = v_CABC_STAGE_DOWN(stage_down) |
+			v_CABC_STAGE_UP(stage_up) |
+			v_CABC_STAGE_MODE(0) | v_MAX_SCALE_CFG_VALUE(1) |
+			v_MAX_SCALE_CFG_ENABLE(0);
+		lcdc_msk_reg(lcdc_dev, CABC_CTRL2, mask, val);
+
+		mask = m_CABC_GLOBAL_DN | m_CABC_GLOBAL_DN_LIMIT_EN;
+		val = v_CABC_GLOBAL_DN(global_dn) |
+			v_CABC_GLOBAL_DN_LIMIT_EN(1);
+		lcdc_msk_reg(lcdc_dev, CABC_CTRL3, mask, val);
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
 	return 0;
 }
+
 /*
 	a:[-30~0]:
 	    sin_hue = sin(a)*256 +0x100;
@@ -3863,7 +3852,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_win_sel 		= rk3288_lcdc_dpi_win_sel,
 	.dpi_status 		= rk3288_lcdc_dpi_status,
 	.get_dsp_addr 		= rk3288_lcdc_get_dsp_addr,
-	/*.set_dsp_cabc 		= rk3288_lcdc_set_dsp_cabc,*/
+	.set_dsp_cabc		= rk3288_lcdc_set_dsp_cabc,
 	.set_dsp_bcsh_hue 	= rk3288_lcdc_set_bcsh_hue,
 	.set_dsp_bcsh_bcs 	= rk3288_lcdc_set_bcsh_bcs,
 	.get_dsp_bcsh_hue 	= rk3288_lcdc_get_bcsh_hue,

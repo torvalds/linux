@@ -1070,112 +1070,54 @@
 #define m_BCSH_Y2R_EN			(0x1<<0)
 #define m_BCSH_R2Y_EN			(0x1<<4)
 
-#define CABC_CTRL0 			(0x01c0)
-#define v_CABC_EN(x)			(((x)&1)<<0)
-#define v_CABC_CALC_PIXEL_NUM(x)	(((x)&0x7fffff)<<1)
-#define v_CABC_STAGE_UP(x)		(((x)&0xff)<<24)
-#define m_CABC_EN			(1<<0)
-#define m_CABC_CALC_PIXEL_NUM		(0x7fffff<<1)
-#define m_CABC_STAGE_UP			(0xff<<24)
+#define CABC_CTRL0			(0x01c0)
+#define v_CABC_EN(x)				(((x)&1)<<0)
+#define v_CABC_HANDLE_EN(x)			(((x)&1)<<1)
+#define v_PWM_CONFIG_MODE(x)			(((x)&3)<<2)
+#define v_CABC_CALC_PIXEL_NUM(x)		(((x)&0x7fffff)<<4)
+#define m_CABC_EN				(1<<0)
+#define m_CABC_HANDLE_EN			(1<<1)
+#define m_PWM_CONFIG_MODE			(3<<2)
+#define m_CABC_CALC_PIXEL_NUM			(0x7fffff<<4)
 
-
-#define CABC_CTRL1 			(0x01c4)
-#define v_CABC_TOTAL_NUM(x)		(((x)&0x7fffff)<<1)
-#define v_CABC_STAGE_DOWN(x)		(((x)&0xff)<<24)
-#define m_CABC_TOTAL_NUM		(0x7fffff<<1)
-#define m_CABC_STAGE_DOWN		(0xff<<24)
+#define CABC_CTRL1			(0x01c4)
+#define v_CABC_LUT_EN(x)			(((x)&1)<<0)
+#define v_CABC_TOTAL_PIXEL_NUM(x)		(((x)&0x7fffff)<<4)
+#define m_CABC_LUT_EN				(1<<0)
+#define m_CABC_TOTAL_PIXEL_NUM			(0x7fffff<<4)
 
 #define CABC_GAUSS_LINE0_0 		(0x01c8)
-#define v_CABC_T_LINE0_0(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE0_1(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE0_2(x)		(((x)&0xff)<<16)
-#define v_CABC_T_LINE0_3(x)		(((x)&0xff)<<24)
-#define m_CABC_T_LINE0_0		(0xff<<0)
-#define m_CABC_T_LINE0_1		(0xff<<8)
-#define m_CABC_T_LINE0_2		(0xff<<16)
-#define m_CABC_T_LINE0_3		((u32)0xff<<24)
-
 #define CABC_GAUSS_LINE0_1 		(0x01cc)
-#define v_CABC_T_LINE0_4(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE0_5(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE0_6(x)		(((x)&0xff)<<16)
-#define m_CABC_T_LINE0_4		(0xff<<0)
-#define m_CABC_T_LINE0_5		(0xff<<8)
-#define m_CABC_T_LINE0_6		(0xff<<16)
-
-
 #define CABC_GAUSS_LINE1_0 		(0x01d0)
-#define v_CABC_T_LINE1_0(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE1_1(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE1_2(x)		(((x)&0xff)<<16)
-#define v_CABC_T_LINE1_3(x)		(((x)&0xff)<<24)
-#define m_CABC_T_LINE1_0		(0xff<<0)
-#define m_CABC_T_LINE1_1		(0xff<<8)
-#define m_CABC_T_LINE1_2		(0xff<<16)
-#define m_CABC_T_LINE1_3		((u32)0xff<<24)
-
 #define CABC_GAUSS_LINE1_1 		(0x01d4)
-#define v_CABC_T_LINE1_4(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE1_5(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE1_6(x)		(((x)&0xff)<<16)
-#define m_CABC_T_LINE1_4		(0xff<<0)
-#define m_CABC_T_LINE1_5		(0xff<<8)
-#define m_CABC_T_LINE1_6		(0xff<<16)
-
 #define CABC_GAUSS_LINE2_0 		(0x01d8)
-#define v_CABC_T_LINE2_0(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE2_1(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE2_2(x)		(((x)&0xff)<<16)
-#define v_CABC_T_LINE2_3(x)		(((x)&0xff)<<24)
-#define m_CABC_T_LINE2_0		(0xff<<0)
-#define m_CABC_T_LINE2_1		(0xff<<8)
-#define m_CABC_T_LINE2_2		(0xff<<16)
-#define m_CABC_T_LINE2_3		((u32)0xff<<24)
-
 #define CABC_GAUSS_LINE2_1 		(0x01dc)
-#define v_CABC_T_LINE2_4(x)		(((x)&0xff)<<0)
-#define v_CABC_T_LINE2_5(x)		(((x)&0xff)<<8)
-#define v_CABC_T_LINE2_6(x)		(((x)&0xff)<<16)
-#define m_CABC_T_LINE2_4		(0xff<<0)
-#define m_CABC_T_LINE2_5		(0xff<<8)
-#define m_CABC_T_LINE2_6		(0xff<<16)
 
 /*FRC register*/
 #define FRC_LOWER01_0 			(0x01e0)
-#define v_FRC_LOWER01_FRM0(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER01_FRM1(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER01_FRM0		(0xffff<<0)
-#define m_FRC_LOWER01_FRM1		((u32)0xffff<<16)
-
 #define FRC_LOWER01_1 			(0x01e4)
-#define v_FRC_LOWER01_FRM2(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER01_FRM3(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER01_FRM2		(0xffff<<0)
-#define m_FRC_LOWER01_FRM3		((u32)0xffff<<16)
-
 #define FRC_LOWER10_0 			(0x01e8)
-#define v_FRC_LOWER10_FRM0(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER10_FRM1(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER10_FRM0		(0xffff<<0)
-#define m_FRC_LOWER10_FRM1		((u32)0xffff<<16)
-
 #define FRC_LOWER10_1 			(0x01ec)
-#define v_FRC_LOWER10_FRM2(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER10_FRM3(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER10_FRM2		(0xffff<<0)
-#define m_FRC_LOWER10_FRM3		((u32)0xffff<<16)
-
 #define FRC_LOWER11_0 			(0x01f0)
-#define v_FRC_LOWER11_FRM0(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER11_FRM1(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER11_FRM0		(0xffff<<0)
-#define m_FRC_LOWER11_FRM1		((u32)0xffff<<16)
-
 #define FRC_LOWER11_1 			(0x01f4)
-#define v_FRC_LOWER11_FRM2(x)		(((x)&0xffff)<<0)
-#define v_FRC_LOWER11_FRM3(x)		(((x)&0xffff)<<16)
-#define m_FRC_LOWER11_FRM2		(0xffff<<0)
-#define m_FRC_LOWER11_FRM3		((u32)0xffff<<16)
+
+#define CABC_CTRL2			(0x01f8)
+#define v_CABC_STAGE_DOWN(x)			(((x)&0xff)<<0)
+#define v_CABC_STAGE_UP(x)			(((x)&0x1ff)<<8)
+#define v_CABC_STAGE_MODE(x)			(((x)&1)<<19)
+#define v_MAX_SCALE_CFG_VALUE(x)		(((x)&0x1ff)<<20)
+#define v_MAX_SCALE_CFG_ENABLE(x)		(((x)&1)<<31)
+#define m_CABC_STAGE_DOWN			(0xff<<0)
+#define m_CABC_STAGE_UP				(0x1ff<<8)
+#define m_CABC_STAGE_MODE			(1<<19)
+#define m_MAX_SCALE_CFG_VALUE			(0x1ff<<20)
+#define m_MAX_SCALE_CFG_ENABLE			(1<<31)
+
+#define CABC_CTRL3			(0x01fc)
+#define v_CABC_GLOBAL_DN(x)			(((x)&0xff)<<0)
+#define v_CABC_GLOBAL_DN_LIMIT_EN(x)		(((x)&1)<<8)
+#define m_CABC_GLOBAL_DN			(0xff<<0)
+#define m_CABC_GLOBAL_DN_LIMIT_EN		(1<<8)
 
 #define MMU_DTE_ADDR			(0x0300)
 #define v_MMU_DTE_ADDR(x)		(((x)&0xffffffff)<<0)
@@ -1241,6 +1183,7 @@
 #define WIN3_LUT_ADDR  			(0x0800)
 #define HWC_LUT_ADDR   			(0x0c00)
 #define GAMMA_LUT_ADDR 			(0x1000)
+#define CABC_LUT_ADDR			(0x1800)
 #define MCU_BYPASS_WPORT 		(0x2200) 
 #define MCU_BYPASS_RPORT 		(0x2300)
 
@@ -1312,6 +1255,12 @@ enum factor_mode {
 	AA_SRC_INVERSE          = 0x3,
 	AA_SRC_GLOBAL           = 0x4
 };/*src_factor_mode  &&  dst_factor_mode*/
+
+enum cabc_stage_mode {
+	LAST_FRAME_PWM_VAL	= 0x0,
+	CUR_FRAME_PWM_VAL	= 0x1,
+	STAGE_BY_STAGE		= 0x2
+};
 
 struct lcdc_device{
 	int id;
