@@ -1366,6 +1366,7 @@ err:
 static int rebind_subsystems(struct cgroup_root *dst_root,
 			     unsigned long ss_mask)
 {
+	struct cgroup *dcgrp = &dst_root->cgrp;
 	struct cgroup_subsys *ss;
 	unsigned long tmp_ss_mask;
 	int ssid, i, ret;
@@ -1387,7 +1388,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 	if (dst_root == &cgrp_dfl_root)
 		tmp_ss_mask &= ~cgrp_dfl_root_inhibit_ss_mask;
 
-	ret = cgroup_populate_dir(&dst_root->cgrp, tmp_ss_mask);
+	ret = cgroup_populate_dir(dcgrp, tmp_ss_mask);
 	if (ret) {
 		if (dst_root != &cgrp_dfl_root)
 			return ret;
@@ -1413,37 +1414,35 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
 
 	for_each_subsys_which(ss, ssid, &ss_mask) {
-		struct cgroup_root *src_root;
-		struct cgroup_subsys_state *css;
+		struct cgroup_root *src_root = ss->root;
+		struct cgroup *scgrp = &src_root->cgrp;
+		struct cgroup_subsys_state *css = cgroup_css(scgrp, ss);
 		struct css_set *cset;
 
-		src_root = ss->root;
-		css = cgroup_css(&src_root->cgrp, ss);
+		WARN_ON(!css || cgroup_css(dcgrp, ss));
 
-		WARN_ON(!css || cgroup_css(&dst_root->cgrp, ss));
-
-		RCU_INIT_POINTER(src_root->cgrp.subsys[ssid], NULL);
-		rcu_assign_pointer(dst_root->cgrp.subsys[ssid], css);
+		RCU_INIT_POINTER(scgrp->subsys[ssid], NULL);
+		rcu_assign_pointer(dcgrp->subsys[ssid], css);
 		ss->root = dst_root;
-		css->cgroup = &dst_root->cgrp;
+		css->cgroup = dcgrp;
 
 		down_write(&css_set_rwsem);
 		hash_for_each(css_set_table, i, cset, hlist)
 			list_move_tail(&cset->e_cset_node[ss->id],
-				       &dst_root->cgrp.e_csets[ss->id]);
+				       &dcgrp->e_csets[ss->id]);
 		up_write(&css_set_rwsem);
 
 		src_root->subsys_mask &= ~(1 << ssid);
-		src_root->cgrp.subtree_control &= ~(1 << ssid);
-		cgroup_refresh_child_subsys_mask(&src_root->cgrp);
+		scgrp->subtree_control &= ~(1 << ssid);
+		cgroup_refresh_child_subsys_mask(scgrp);
 
 		/* default hierarchy doesn't enable controllers by default */
 		dst_root->subsys_mask |= 1 << ssid;
 		if (dst_root == &cgrp_dfl_root) {
 			static_branch_enable(cgroup_subsys_on_dfl_key[ssid]);
 		} else {
-			dst_root->cgrp.subtree_control |= 1 << ssid;
-			cgroup_refresh_child_subsys_mask(&dst_root->cgrp);
+			dcgrp->subtree_control |= 1 << ssid;
+			cgroup_refresh_child_subsys_mask(dcgrp);
 			static_branch_disable(cgroup_subsys_on_dfl_key[ssid]);
 		}
 
@@ -1451,7 +1450,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 			ss->bind(css);
 	}
 
-	kernfs_activate(dst_root->cgrp.kn);
+	kernfs_activate(dcgrp->kn);
 	return 0;
 }
 
