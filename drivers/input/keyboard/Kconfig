@@ -402,7 +402,7 @@ config KEYBOARD_MPR121
 
 config KEYBOARD_SNVS_PWRKEY
 	tristate "IMX SNVS Power Key Driver"
-	depends on SOC_IMX6SX
+	depends on (SOC_IMX6SX || SOC_IMX6UL || SOC_IMX7)
 	depends on OF
 	help
 	  This is the snvs powerkey driver for the Freescale i.MX application
