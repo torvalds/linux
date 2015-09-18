@@ -221,7 +221,8 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
 		      bool visible);
 static void css_release(struct percpu_ref *ref);
 static void kill_css(struct cgroup_subsys_state *css);
-static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
+static int cgroup_addrm_files(struct cgroup_subsys_state *css,
+			      struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
 
 /**
@@ -1313,53 +1314,57 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 }
 
 /**
- * cgroup_clear_dir - remove subsys files in a cgroup directory
- * @cgrp: target cgroup
- * @subsys_mask: mask of the subsystem ids whose files should be removed
+ * css_clear_dir - remove subsys files in a cgroup directory
+ * @css: taget css
+ * @cgrp_override: specify if target cgroup is different from css->cgroup
  */
-static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
+static void css_clear_dir(struct cgroup_subsys_state *css,
+			  struct cgroup *cgrp_override)
 {
-	struct cgroup_subsys *ss;
-	int i;
+	struct cgroup *cgrp = cgrp_override ?: css->cgroup;
+	struct cftype *cfts;
 
-	for_each_subsys(ss, i) {
-		struct cftype *cfts;
-
-		if (!(subsys_mask & (1 << i)))
-			continue;
-		list_for_each_entry(cfts, &ss->cfts, node)
-			cgroup_addrm_files(cgrp, cfts, false);
-	}
+	list_for_each_entry(cfts, &css->ss->cfts, node)
+		cgroup_addrm_files(css, cgrp, cfts, false);
 }
 
 /**
- * cgroup_populate_dir - create subsys files in a cgroup directory
- * @cgrp: target cgroup
- * @subsys_mask: mask of the subsystem ids whose files should be added
+ * css_populate_dir - create subsys files in a cgroup directory
+ * @css: target css
+ * @cgrp_overried: specify if target cgroup is different from css->cgroup
  *
  * On failure, no file is added.
  */
-static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
+static int css_populate_dir(struct cgroup_subsys_state *css,
+			    struct cgroup *cgrp_override)
 {
-	struct cgroup_subsys *ss;
-	int i, ret = 0;
+	struct cgroup *cgrp = cgrp_override ?: css->cgroup;
+	struct cftype *cfts, *failed_cfts;
+	int ret;
 
-	/* process cftsets of each subsystem */
-	for_each_subsys(ss, i) {
-		struct cftype *cfts;
+	if (!css->ss) {
+		if (cgroup_on_dfl(cgrp))
+			cfts = cgroup_dfl_base_files;
+		else
+			cfts = cgroup_legacy_base_files;
 
-		if (!(subsys_mask & (1 << i)))
-			continue;
+		return cgroup_addrm_files(&cgrp->self, cgrp, cfts, true);
+	}
 
-		list_for_each_entry(cfts, &ss->cfts, node) {
-			ret = cgroup_addrm_files(cgrp, cfts, true);
-			if (ret < 0)
-				goto err;
+	list_for_each_entry(cfts, &css->ss->cfts, node) {
+		ret = cgroup_addrm_files(css, cgrp, cfts, true);
+		if (ret < 0) {
+			failed_cfts = cfts;
+			goto err;
 		}
 	}
 	return 0;
 err:
-	cgroup_clear_dir(cgrp, subsys_mask);
+	list_for_each_entry(cfts, &css->ss->cfts, node) {
+		if (cfts == failed_cfts)
+			break;
+		cgroup_addrm_files(css, cgrp, cfts, false);
+	}
 	return ret;
 }
 
@@ -1388,10 +1393,13 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 	if (dst_root == &cgrp_dfl_root)
 		tmp_ss_mask &= ~cgrp_dfl_root_inhibit_ss_mask;
 
-	ret = cgroup_populate_dir(dcgrp, tmp_ss_mask);
-	if (ret) {
-		if (dst_root != &cgrp_dfl_root)
-			return ret;
+	for_each_subsys_which(ss, ssid, &tmp_ss_mask) {
+		struct cgroup *scgrp = &ss->root->cgrp;
+		int tssid;
+
+		ret = css_populate_dir(cgroup_css(scgrp, ss), dcgrp);
+		if (!ret)
+			continue;
 
 		/*
 		 * Rebinding back to the default root is not allowed to
@@ -1399,20 +1407,27 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		 * be rare.  Moving subsystems back and forth even more so.
 		 * Just warn about it and continue.
 		 */
-		if (cgrp_dfl_root_visible) {
-			pr_warn("failed to create files (%d) while rebinding 0x%lx to default root\n",
-				ret, ss_mask);
-			pr_warn("you may retry by moving them to a different hierarchy and unbinding\n");
+		if (dst_root == &cgrp_dfl_root) {
+			if (cgrp_dfl_root_visible) {
+				pr_warn("failed to create files (%d) while rebinding 0x%lx to default root\n",
+					ret, ss_mask);
+				pr_warn("you may retry by moving them to a different hierarchy and unbinding\n");
+			}
+			continue;
 		}
+
+		for_each_subsys_which(ss, tssid, &tmp_ss_mask) {
+			if (tssid == ssid)
+				break;
+			css_clear_dir(cgroup_css(scgrp, ss), dcgrp);
+		}
+		return ret;
 	}
 
 	/*
 	 * Nothing can fail from this point on.  Remove files for the
 	 * removed subsystems and rebind each subsystem.
 	 */
-	for_each_subsys_which(ss, ssid, &ss_mask)
-		cgroup_clear_dir(&ss->root->cgrp, 1 << ssid);
-
 	for_each_subsys_which(ss, ssid, &ss_mask) {
 		struct cgroup_root *src_root = ss->root;
 		struct cgroup *scgrp = &src_root->cgrp;
@@ -1420,6 +1435,8 @@ static int rebind_subsystems(struct cgroup_root *dst_root,
 		struct css_set *cset;
 
 		WARN_ON(!css || cgroup_css(dcgrp, ss));
+
+		css_clear_dir(css, NULL);
 
 		RCU_INIT_POINTER(scgrp->subsys[ssid], NULL);
 		rcu_assign_pointer(dcgrp->subsys[ssid], css);
@@ -1791,7 +1808,6 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->cgrp;
-	struct cftype *base_files;
 	struct css_set *cset;
 	int i, ret;
 
@@ -1830,12 +1846,7 @@ static int cgroup_setup_root(struct cgroup_root *root, unsigned long ss_mask)
 	}
 	root_cgrp->kn = root->kf_root->kn;
 
-	if (root == &cgrp_dfl_root)
-		base_files = cgroup_dfl_base_files;
-	else
-		base_files = cgroup_legacy_base_files;
-
-	ret = cgroup_addrm_files(root_cgrp, base_files, true);
+	ret = css_populate_dir(&root_cgrp->self, NULL);
 	if (ret)
 		goto destroy_root;
 
@@ -2985,7 +2996,8 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 				ret = create_css(child, ss,
 					cgrp->subtree_control & (1 << ssid));
 			else
-				ret = cgroup_populate_dir(child, 1 << ssid);
+				ret = css_populate_dir(cgroup_css(child, ss),
+						       NULL);
 			if (ret)
 				goto err_undo_css;
 		}
@@ -3018,7 +3030,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 			if (css_disable & (1 << ssid)) {
 				kill_css(css);
 			} else {
-				cgroup_clear_dir(child, 1 << ssid);
+				css_clear_dir(css, NULL);
 				if (ss->css_reset)
 					ss->css_reset(css);
 			}
@@ -3066,7 +3078,7 @@ err_undo_css:
 			if (css_enable & (1 << ssid))
 				kill_css(css);
 			else
-				cgroup_clear_dir(child, 1 << ssid);
+				css_clear_dir(css, NULL);
 		}
 	}
 	goto out_unlock;
@@ -3218,7 +3230,8 @@ static int cgroup_kn_set_ugid(struct kernfs_node *kn)
 	return kernfs_setattr(kn, &iattr);
 }
 
-static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
+static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
+			   struct cftype *cft)
 {
 	char name[CGROUP_FILE_NAME_MAX];
 	struct kernfs_node *kn;
@@ -3249,14 +3262,16 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 
 /**
  * cgroup_addrm_files - add or remove files to a cgroup directory
- * @cgrp: the target cgroup
+ * @css: the target css
+ * @cgrp: the target cgroup (usually css->cgroup)
  * @cfts: array of cftypes to be added
  * @is_add: whether to add or remove
  *
  * Depending on @is_add, add or remove files defined by @cfts on @cgrp.
  * For removals, this function never fails.
  */
-static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
+static int cgroup_addrm_files(struct cgroup_subsys_state *css,
+			      struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add)
 {
 	struct cftype *cft, *cft_end = NULL;
@@ -3277,7 +3292,7 @@ restart:
 			continue;
 
 		if (is_add) {
-			ret = cgroup_add_file(cgrp, cft);
+			ret = cgroup_add_file(css, cgrp, cft);
 			if (ret) {
 				pr_warn("%s: failed to add %s, err=%d\n",
 					__func__, cft->name, ret);
@@ -3309,7 +3324,7 @@ static int cgroup_apply_cftypes(struct cftype *cfts, bool is_add)
 		if (cgroup_is_dead(cgrp))
 			continue;
 
-		ret = cgroup_addrm_files(cgrp, cfts, is_add);
+		ret = cgroup_addrm_files(css, cgrp, cfts, is_add);
 		if (ret)
 			break;
 	}
@@ -4685,7 +4700,7 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
 	css->id = err;
 
 	if (visible) {
-		err = cgroup_populate_dir(cgrp, 1 << ss->id);
+		err = css_populate_dir(css, NULL);
 		if (err)
 			goto err_free_id;
 	}
@@ -4711,7 +4726,7 @@ static int create_css(struct cgroup *cgrp, struct cgroup_subsys *ss,
 
 err_list_del:
 	list_del_rcu(&css->sibling);
-	cgroup_clear_dir(css->cgroup, 1 << css->ss->id);
+	css_clear_dir(css, NULL);
 err_free_id:
 	cgroup_idr_remove(&ss->css_idr, css->id);
 err_free_percpu_ref:
@@ -4728,7 +4743,6 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	struct cgroup_root *root;
 	struct cgroup_subsys *ss;
 	struct kernfs_node *kn;
-	struct cftype *base_files;
 	int ssid, ret;
 
 	/* Do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable.
@@ -4804,12 +4818,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	if (cgroup_on_dfl(cgrp))
-		base_files = cgroup_dfl_base_files;
-	else
-		base_files = cgroup_legacy_base_files;
-
-	ret = cgroup_addrm_files(cgrp, base_files, true);
+	ret = css_populate_dir(&cgrp->self, NULL);
 	if (ret)
 		goto out_destroy;
 
@@ -4896,7 +4905,7 @@ static void kill_css(struct cgroup_subsys_state *css)
 	 * This must happen before css is disassociated with its cgroup.
 	 * See seq_css() for details.
 	 */
-	cgroup_clear_dir(css->cgroup, 1 << css->ss->id);
+	css_clear_dir(css, NULL);
 
 	/*
 	 * Killing would put the base ref, but we need to keep it alive
