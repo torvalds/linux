@@ -293,19 +293,9 @@ no_valid_irq:
 	return -ENOSPC;
 }
 
-static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
-			struct msi_desc *desc)
+static void dw_msi_setup_msg(struct pcie_port *pp, unsigned int irq, u32 pos)
 {
-	int irq, pos;
 	struct msi_msg msg;
-	struct pcie_port *pp = sys_to_pcie(pdev->bus->sysdata);
-
-	if (desc->msi_attrib.is_msix)
-		return -EINVAL;
-
-	irq = assign_irq(1, desc, &pos);
-	if (irq < 0)
-		return irq;
 
 	if (pp->ops->get_msi_addr)
 		msg.address_lo = pp->ops->get_msi_addr(pp);
@@ -319,6 +309,22 @@ static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 		msg.data = pos;
 
 	pci_write_msi_msg(irq, &msg);
+}
+
+static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
+			struct msi_desc *desc)
+{
+	int irq, pos;
+	struct pcie_port *pp = sys_to_pcie(pdev->bus->sysdata);
+
+	if (desc->msi_attrib.is_msix)
+		return -EINVAL;
+
+	irq = assign_irq(1, desc, &pos);
+	if (irq < 0)
+		return irq;
+
+	dw_msi_setup_msg(pp, irq, pos);
 
 	return 0;
 }
