@@ -2011,7 +2011,7 @@ enum skl_disp_power_wells {
 #define   FBC_CTL_CPU_FENCE	(1<<1)
 #define   FBC_CTL_PLANE(plane)	((plane)<<0)
 #define FBC_FENCE_OFF		0x03218 /* BSpec typo has 321Bh */
-#define FBC_TAG			0x03300
+#define FBC_TAG(i)		(0x03300 + (i) * 4)
 
 #define FBC_STATUS2		0x43214
 #define  FBC_COMPRESSION_MASK	0x7ff

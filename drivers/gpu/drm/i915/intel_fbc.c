@@ -101,7 +101,7 @@ static void i8xx_fbc_enable(struct intel_crtc *crtc)
 
 	/* Clear old tags */
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
-		I915_WRITE(FBC_TAG + (i * 4), 0);
+		I915_WRITE(FBC_TAG(i), 0);
 
 	if (IS_GEN4(dev_priv)) {
 		u32 fbc_ctl2;
