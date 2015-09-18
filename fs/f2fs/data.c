@@ -596,40 +596,36 @@ static int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 			err = 0;
 		goto unlock_out;
 	}
-	if (dn.data_blkaddr == NEW_ADDR) {
-		if (flag == F2FS_GET_BLOCK_BMAP) {
-			err = -ENOENT;
-			goto put_out;
-		} else if (flag == F2FS_GET_BLOCK_READ ||
-				flag == F2FS_GET_BLOCK_DIO) {
-			goto put_out;
+
+	if (dn.data_blkaddr == NEW_ADDR || dn.data_blkaddr == NULL_ADDR) {
+		if (create) {
+			err = __allocate_data_block(&dn);
+			if (err)
+				goto put_out;
+			allocated = true;
+			map->m_flags = F2FS_MAP_NEW;
+		} else {
+			if (flag != F2FS_GET_BLOCK_FIEMAP ||
+						dn.data_blkaddr != NEW_ADDR) {
+				if (flag == F2FS_GET_BLOCK_BMAP)
+					err = -ENOENT;
+				goto put_out;
+			}
+
+			/*
+			 * preallocated unwritten block should be mapped
+			 * for fiemap.
+			 */
+			if (dn.data_blkaddr == NEW_ADDR)
+				map->m_flags = F2FS_MAP_UNWRITTEN;
 		}
-		/*
-		 * if it is in fiemap call path (flag = F2FS_GET_BLOCK_FIEMAP),
-		 * mark it as mapped and unwritten block.
-		 */
 	}
 
-	if (dn.data_blkaddr != NULL_ADDR) {
-		map->m_flags = F2FS_MAP_MAPPED;
-		map->m_pblk = dn.data_blkaddr;
-		if (dn.data_blkaddr == NEW_ADDR)
-			map->m_flags |= F2FS_MAP_UNWRITTEN;
-	} else if (create) {
-		err = __allocate_data_block(&dn);
-		if (err)
-			goto put_out;
-		allocated = true;
-		map->m_flags = F2FS_MAP_NEW | F2FS_MAP_MAPPED;
-		map->m_pblk = dn.data_blkaddr;
-	} else {
-		if (flag == F2FS_GET_BLOCK_BMAP)
-			err = -ENOENT;
-		goto put_out;
-	}
+	map->m_flags |= F2FS_MAP_MAPPED;
+	map->m_pblk = dn.data_blkaddr;
+	map->m_len = 1;
 
 	end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
-	map->m_len = 1;
 	dn.ofs_in_node++;
 	pgofs++;
 
@@ -648,23 +644,31 @@ get_next:
 			goto unlock_out;
 		}
 
-		if (dn.data_blkaddr == NEW_ADDR &&
-				flag != F2FS_GET_BLOCK_FIEMAP)
-			goto put_out;
-
 		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
 	}
 
 	if (maxblocks > map->m_len) {
 		block_t blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
-		if (blkaddr == NULL_ADDR && create) {
-			err = __allocate_data_block(&dn);
-			if (err)
-				goto sync_out;
-			allocated = true;
-			map->m_flags |= F2FS_MAP_NEW;
-			blkaddr = dn.data_blkaddr;
+
+		if (blkaddr == NEW_ADDR || blkaddr == NULL_ADDR) {
+			if (create) {
+				err = __allocate_data_block(&dn);
+				if (err)
+					goto sync_out;
+				allocated = true;
+				map->m_flags |= F2FS_MAP_NEW;
+				blkaddr = dn.data_blkaddr;
+			} else {
+				/*
+				 * we only merge preallocated unwritten blocks
+				 * for fiemap.
+				 */
+				if (flag != F2FS_GET_BLOCK_FIEMAP ||
+						blkaddr != NEW_ADDR)
+					goto sync_out;
+			}
 		}
+
 		/* Give more consecutive addresses for the readahead */
 		if ((map->m_pblk != NEW_ADDR &&
 				blkaddr == (map->m_pblk + ofs)) ||
