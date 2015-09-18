@@ -9,6 +9,7 @@ endif
 lib_source = $(filter-out %-host.c,$(wildcard lib/*.c))
 source = $(wildcard tests/*.c)
 ifneq (,$(filter $(shell $(LD) -r -print-output-format),elf64-x86-64 elf32-i386))
+source += $(wildcard *.c)
 lib_source += lib/posix-host.c
 LDFLAGS += -lpthread -lrt
 endif
@@ -35,3 +36,5 @@ $(execs): lib/liblkl.a
 
 clean:
 	-rm -rf include/lkl/ lib/liblkl.a $(lib_objs) $(objs) $(execs)
+
+fs2tar: LDFLAGS += -larchive
