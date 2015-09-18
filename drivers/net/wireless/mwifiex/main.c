@@ -963,8 +963,10 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 		cardp = (struct usb_card_rec *)adapter->card;
 		p += sprintf(p, "tx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->tx_cmd_urb_pending));
-		p += sprintf(p, "tx_data_urb_pending = %d\n",
-			     atomic_read(&cardp->tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_0 = %d\n",
+			     atomic_read(&cardp->port[0].tx_data_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending_port_1 = %d\n",
+			     atomic_read(&cardp->port[1].tx_data_urb_pending));
 		p += sprintf(p, "rx_cmd_urb_pending = %d\n",
 			     atomic_read(&cardp->rx_cmd_urb_pending));
 		p += sprintf(p, "rx_data_urb_pending = %d\n",
