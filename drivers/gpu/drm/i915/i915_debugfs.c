@@ -2069,8 +2069,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 
 		seq_printf(m, "%s\n", ring->name);
 
-		status = I915_READ(RING_EXECLIST_STATUS(ring));
-		ctx_id = I915_READ(RING_EXECLIST_STATUS(ring) + 4);
+		status = I915_READ(RING_EXECLIST_STATUS_LO(ring));
+		ctx_id = I915_READ(RING_EXECLIST_STATUS_HI(ring));
 		seq_printf(m, "\tExeclist status: 0x%08X, context: %u\n",
 			   status, ctx_id);
 
@@ -2085,8 +2085,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 			   read_pointer, write_pointer);
 
 		for (i = 0; i < 6; i++) {
-			status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i);
-			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) + 8*i + 4);
+			status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, i));
+			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, i));
 
 			seq_printf(m, "\tStatus buffer %d: 0x%08X, context: %u\n",
 				   i, status, ctx_id);

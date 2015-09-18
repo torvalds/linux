@@ -349,7 +349,7 @@ static void execlists_elsp_write(struct drm_i915_gem_request *rq0,
 	I915_WRITE_FW(RING_ELSP(ring), lower_32_bits(desc[0]));
 
 	/* ELSP is a wo register, use another nearby reg for posting */
-	POSTING_READ_FW(RING_EXECLIST_STATUS(ring));
+	POSTING_READ_FW(RING_EXECLIST_STATUS_LO(ring));
 	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
 	spin_unlock(&dev_priv->uncore.lock);
 }
@@ -519,10 +519,8 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 
 	while (read_pointer < write_pointer) {
 		read_pointer++;
-		status = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8);
-		status_id = I915_READ(RING_CONTEXT_STATUS_BUF(ring) +
-				(read_pointer % 6) * 8 + 4);
+		status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, read_pointer % 6));
+		status_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, read_pointer % 6));
 
 		if (status & GEN8_CTX_STATUS_IDLE_ACTIVE)
 			continue;
