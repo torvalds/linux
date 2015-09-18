@@ -10822,7 +10822,7 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 	 */
 	return (I915_READ(DSPSURFLIVE(crtc->plane)) & ~0xfff) ==
 		crtc->unpin_work->gtt_offset &&
-		g4x_flip_count_after_eq(I915_READ(PIPE_FLIPCOUNT_GM45(crtc->pipe)),
+		g4x_flip_count_after_eq(I915_READ(PIPE_FLIPCOUNT_G4X(crtc->pipe)),
 				    crtc->unpin_work->flip_count);
 }
 
@@ -11434,7 +11434,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_crtc->reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 
 	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
-		work->flip_count = I915_READ(PIPE_FLIPCOUNT_GM45(pipe)) + 1;
+		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
 	if (IS_VALLEYVIEW(dev)) {
 		ring = &dev_priv->ring[BCS];

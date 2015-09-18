@@ -4846,10 +4846,10 @@ enum skl_disp_power_wells {
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
 /* GM45+ just has to be different */
-#define _PIPEA_FRMCOUNT_GM45	0x70040
-#define _PIPEA_FLIPCOUNT_GM45	0x70044
-#define PIPE_FRMCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_GM45)
-#define PIPE_FLIPCOUNT_GM45(pipe) _PIPE2(pipe, _PIPEA_FLIPCOUNT_GM45)
+#define _PIPEA_FRMCOUNT_G4X	0x70040
+#define _PIPEA_FLIPCOUNT_G4X	0x70044
+#define PIPE_FRMCOUNT_G4X(pipe) _PIPE2(pipe, _PIPEA_FRMCOUNT_G4X)
+#define PIPE_FLIPCOUNT_G4X(pipe) _PIPE2(pipe, _PIPEA_FLIPCOUNT_G4X)
 
 /* Cursor A & B regs */
 #define _CURACNTR		0x70080
@@ -5012,8 +5012,8 @@ enum skl_disp_power_wells {
 #define _PIPEBSTAT		(dev_priv->info.display_mmio_offset + 0x71024)
 #define _PIPEBFRAMEHIGH		0x71040
 #define _PIPEBFRAMEPIXEL	0x71044
-#define _PIPEB_FRMCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x71040)
-#define _PIPEB_FLIPCOUNT_GM45	(dev_priv->info.display_mmio_offset + 0x71044)
+#define _PIPEB_FRMCOUNT_G4X	(dev_priv->info.display_mmio_offset + 0x71040)
+#define _PIPEB_FLIPCOUNT_G4X	(dev_priv->info.display_mmio_offset + 0x71044)
 
 
 /* Display B control */

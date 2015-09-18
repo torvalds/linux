@@ -710,10 +710,10 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
-static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 g4x_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = PIPE_FRMCOUNT_GM45(pipe);
+	int reg = PIPE_FRMCOUNT_G4X(pipe);
 
 	return I915_READ(reg);
 }
@@ -4400,7 +4400,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
 	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
-		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
 	} else {
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
 		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
