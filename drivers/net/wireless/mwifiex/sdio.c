@@ -1606,8 +1606,9 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 				(rx_len + MWIFIEX_SDIO_BLOCK_SIZE -
 				 1) / MWIFIEX_SDIO_BLOCK_SIZE;
 			if (rx_len <= INTF_HEADER_LEN ||
-			    (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
-			     card->mpa_rx.buf_size) {
+			    (card->mpa_rx.enabled &&
+			     ((rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
+			      card->mpa_rx.buf_size))) {
 				mwifiex_dbg(adapter, ERROR,
 					    "invalid rx_len=%d\n",
 					    rx_len);
@@ -1925,6 +1926,8 @@ error:
 	if (ret) {
 		kfree(card->mpa_tx.buf);
 		kfree(card->mpa_rx.buf);
+		card->mpa_tx.buf_size = 0;
+		card->mpa_rx.buf_size = 0;
 	}
 
 	return ret;
