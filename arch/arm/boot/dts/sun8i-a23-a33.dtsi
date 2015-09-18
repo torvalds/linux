@@ -412,6 +412,13 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			pwm0_pins: pwm0 {
+				allwinner,pins = "PH0";
+				allwinner,function = "pwm0";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PH2", "PH3";
 				allwinner,function = "i2c0";
