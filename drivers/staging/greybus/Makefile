@@ -82,6 +82,9 @@ endif
 # add -Wall to try to catch everything we can.
 ccflags-y := -Wall
 
+# needed for trace events
+ccflags-y += -I$(src)
+
 all: module
 
 module:

@@ -9,7 +9,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#define CREATE_TRACE_POINTS
 #include "greybus.h"
+#include "greybus_trace.h"
 
 /* Allow greybus to be disabled at boot if needed */
 static bool nogreybus;
@@ -347,6 +349,7 @@ static void __exit gb_exit(void)
 	gb_operation_exit();
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
+	tracepoint_synchronize_unregister();
 }
 module_exit(gb_exit);
 MODULE_LICENSE("GPL v2");

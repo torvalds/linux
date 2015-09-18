@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 
 #include "greybus.h"
+#include "greybus_trace.h"
 
 static struct kmem_cache *gb_operation_cache;
 static struct kmem_cache *gb_message_cache;
@@ -197,6 +198,7 @@ static int gb_message_send(struct gb_message *message, gfp_t gfp)
 {
 	struct gb_connection *connection = message->operation->connection;
 
+	trace_gb_message_send(message);
 	return connection->hd->driver->message_send(connection->hd,
 					connection->hd_cport_id,
 					message,
@@ -834,6 +836,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 		gb_operation_put(operation);
 		return;
 	}
+	trace_gb_message_recv_request(operation->request);
 
 	/*
 	 * The initial reference to the operation will be dropped when the
@@ -872,6 +875,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 			message->header->type, size, message_size);
 		errno = -EMSGSIZE;
 	}
+	trace_gb_message_recv_response(operation->response);
 
 	/* We must ignore the payload if a bad status is returned */
 	if (errno)
@@ -942,6 +946,7 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 		gb_message_cancel(operation->request);
 		queue_work(gb_operation_completion_wq, &operation->work);
 	}
+	trace_gb_message_cancel_outgoing(operation->request);
 
 	atomic_inc(&operation->waiters);
 	wait_event(gb_operation_cancellation_queue,
@@ -968,6 +973,7 @@ void gb_operation_cancel_incoming(struct gb_operation *operation, int errno)
 		if (!gb_operation_result_set(operation, errno))
 			gb_message_cancel(operation->response);
 	}
+	trace_gb_message_cancel_incoming(operation->response);
 
 	atomic_inc(&operation->waiters);
 	wait_event(gb_operation_cancellation_queue,
