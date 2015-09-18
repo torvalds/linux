@@ -6359,6 +6359,7 @@ LINUX KERNEL LIBRARY
 M:	Octavian Purdila <octavian.purdila@intel.com>
 S:	Maintained
 F:	arch/lkl/
+F:	tools/lkl/
 
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 M:	Chris Wright <chrisw@sous-sol.org>
