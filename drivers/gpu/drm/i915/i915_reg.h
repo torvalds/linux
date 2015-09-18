@@ -4284,7 +4284,7 @@ enum skl_disp_power_wells {
 #define   DP_AUX_CH_CTL_PSR_DATA_AUX_REG_SKL	(1 << 14)
 #define   DP_AUX_CH_CTL_FS_DATA_AUX_REG_SKL	(1 << 13)
 #define   DP_AUX_CH_CTL_GTC_DATA_AUX_REG_SKL	(1 << 12)
-#define   DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL_MASK (1f << 5)
+#define   DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL_MASK (0x1f << 5)
 #define   DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(c) (((c) - 1) << 5)
 #define   DP_AUX_CH_CTL_SYNC_PULSE_SKL(c)   ((c) - 1)
 
@@ -7979,7 +7979,7 @@ enum skl_disp_power_wells {
 #define  VIRTUAL_CHANNEL_SHIFT				6
 #define  VIRTUAL_CHANNEL_MASK				(3 << 6)
 #define  DATA_TYPE_SHIFT				0
-#define  DATA_TYPE_MASK					(3f << 0)
+#define  DATA_TYPE_MASK					(0x3f << 0)
 /* data type values, see include/video/mipi_display.h */
 
 #define _MIPIA_GEN_FIFO_STAT		(dev_priv->mipi_mmio_base + 0xb074)
