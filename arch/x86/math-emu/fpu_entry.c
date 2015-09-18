@@ -40,7 +40,7 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
-/* f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
+/* fcmovCC and f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
 
 /* WARNING: "u" entries are not documented by Intel in their 80486 manual
    and may not work on FPU clones or later Intel FPUs.
@@ -49,13 +49,13 @@
 static FUNC const st_instr_table[64] = {
 /* Opcode:	d8		d9		da		db */
 /*		dc		dd		de		df */
-/* c0..7 */	fadd__,		fld_i_,		__BAD__,	__BAD__,
+/* c0..7 */	fadd__,		fld_i_,		fcmovb,		fcmovnb,
 /* c0..7 */	fadd_i,		ffree_,		faddp_,		ffreep,/*u*/
-/* c8..f */	fmul__,		fxch_i,		__BAD__,	__BAD__,
+/* c8..f */	fmul__,		fxch_i,		fcmove,		fcmovne,
 /* c8..f */	fmul_i,		fxch_i,/*u*/	fmulp_,		fxch_i,/*u*/
-/* d0..7 */	fcom_st,	fp_nop,		__BAD__,	__BAD__,
+/* d0..7 */	fcom_st,	fp_nop,		fcmovbe,	fcmovnbe,
 /* d0..7 */	fcom_st,/*u*/	fst_i_,		fcompst,/*u*/	fstp_i,/*u*/
-/* d8..f */	fcompst,	fstp_i,/*u*/	__BAD__,	__BAD__,
+/* d8..f */	fcompst,	fstp_i,/*u*/	fcmovu,		fcmovnu,
 /* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
 /* e0..7 */	fsub__,		FPU_etc,	__BAD__,	finit_,
 /* e0..7 */	fsubri,		fucom_,		fsubrp,		fstsw_,
@@ -80,10 +80,10 @@ static FUNC const st_instr_table[64] = {
 
 static u_char const type_table[64] = {
 /* Opcode:	d8	d9	da	db	dc	dd	de	df */
-/* c0..7 */	_REGI_, _NONE_, _null_, _null_, _REGIi, _REGi_, _REGIp, _REGi_,
-/* c8..f */	_REGI_, _REGIn, _null_, _null_, _REGIi, _REGI_, _REGIp, _REGI_,
-/* d0..7 */	_REGIc, _NONE_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
-/* d8..f */	_REGIc, _REG0_, _null_, _null_, _REGIc, _REG0_, _REGIc, _REG0_,
+/* c0..7 */	_REGI_, _NONE_, _REGIn, _REGIn, _REGIi, _REGi_, _REGIp, _REGi_,
+/* c8..f */	_REGI_, _REGIn, _REGIn, _REGIn, _REGIi, _REGI_, _REGIp, _REGI_,
+/* d0..7 */	_REGIc, _NONE_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
+/* d8..f */	_REGIc, _REG0_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
 /* e0..7 */	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
 /* e8..f */	_REGI_, _NONE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
 /* f0..7 */	_REGI_, _NONE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
