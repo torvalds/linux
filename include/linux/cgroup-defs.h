@@ -84,6 +84,17 @@ enum {
 };
 
 /*
+ * cgroup_file is the handle for a file instance created in a cgroup which
+ * is used, for example, to generate file changed notifications.  This can
+ * be obtained by setting cftype->file_offset.
+ */
+struct cgroup_file {
+	/* do not access any fields from outside cgroup core */
+	struct list_head node;			/* anchored at css->files */
+	struct kernfs_node *kn;
+};
+
+/*
  * Per-subsystem/per-cgroup state maintained by the system.  This is the
  * fundamental structural building block that controllers deal with.
  *
@@ -122,6 +133,9 @@ struct cgroup_subsys_state {
 	 * used to allow interrupting and resuming iterations.
 	 */
 	u64 serial_nr;
+
+	/* all cgroup_files associated with this css */
+	struct list_head files;
 
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
@@ -226,8 +240,8 @@ struct cgroup {
 	int populated_cnt;
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
-	struct kernfs_node *procs_kn;	/* kn for "cgroup.procs" */
-	struct kernfs_node *events_kn;	/* kn for "cgroup.events" */
+	struct cgroup_file procs_file;	/* handle for "cgroup.procs" */
+	struct cgroup_file events_file;	/* handle for "cgroup.events" */
 
 	/*
 	 * The bitmask of subsystems enabled on the child cgroups.
@@ -334,6 +348,14 @@ struct cftype {
 
 	/* CFTYPE_* flags */
 	unsigned int flags;
+
+	/*
+	 * If non-zero, should contain the offset from the start of css to
+	 * a struct cgroup_file field.  cgroup will record the handle of
+	 * the created file into it.  The recorded handle can be used as
+	 * long as the containing css remains accessible.
+	 */
+	unsigned int file_offset;
 
 	/*
 	 * Fields used for internal bookkeeping.  Initialized automatically
