@@ -13,15 +13,6 @@
 	};
 
 	soc {
-		pinctrl@800000 {
-			i2c1_pins: i2c1 {
-				mux {
-					pins = "gpio20", "gpio21";
-					function = "gsbi1";
-				};
-			};
-		};
-
 		rpm@108000 {
 			regulators {
 				vin_lvs1_3_6-supply = <&pm8921_s4>;
@@ -96,8 +87,6 @@
 			i2c@12460000 {
 				status = "okay";
 				clock-frequency = <200000>;
-				pinctrl-0 = <&i2c1_pins>;
-				pinctrl-names = "default";
 
 				eeprom: eeprom@50 {
 					compatible = "24c02";

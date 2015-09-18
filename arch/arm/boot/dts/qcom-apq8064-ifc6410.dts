@@ -119,8 +119,6 @@
 			qcom,mode = <GSBI_PROT_I2C>;
 			i2c3: i2c@16280000 {
 				status = "okay";
-				pinctrl-0 = <&i2c3_pins>;
-				pinctrl-names = "default";
 			};
 		};
 
@@ -131,8 +129,6 @@
 			i2c@12460000 {
 				status = "okay";
 				clock-frequency = <200000>;
-				pinctrl-0 = <&i2c1_pins>;
-				pinctrl-names = "default";
 
 				eeprom: eeprom@52 {
 					compatible = "atmel,24c128";
@@ -148,7 +144,6 @@
 
 			serial@16540000 {
 				status = "ok";
-
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart_pins>;
 			};
