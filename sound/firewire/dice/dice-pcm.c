@@ -243,8 +243,7 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_stream_set_pcm_format(&dice->tx_stream,
-				    params_format(hw_params));
+	amdtp_am824_set_pcm_format(&dice->tx_stream, params_format(hw_params));
 
 	return 0;
 }
@@ -265,8 +264,7 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_stream_set_pcm_format(&dice->rx_stream,
-				    params_format(hw_params));
+	amdtp_am824_set_pcm_format(&dice->rx_stream, params_format(hw_params));
 
 	return 0;
 }

@@ -272,7 +272,7 @@ static void read_pcm_s32(struct amdtp_stream *s,
 			 __be32 *buffer, unsigned int frames);
 
 /**
- * amdtp_stream_set_pcm_format - set the PCM format
+ * amdtp_am824_set_pcm_format - set the PCM format
  * @s: the AMDTP stream to configure
  * @format: the format of the ALSA PCM device
  *
@@ -280,8 +280,7 @@ static void read_pcm_s32(struct amdtp_stream *s,
  * MIDI) and before the stream is started, and must not be changed while the
  * stream is running.
  */
-void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
-				 snd_pcm_format_t format)
+void amdtp_am824_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format)
 {
 	if (WARN_ON(amdtp_stream_pcm_running(s)))
 		return;
@@ -305,7 +304,7 @@ void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
 		break;
 	}
 }
-EXPORT_SYMBOL(amdtp_stream_set_pcm_format);
+EXPORT_SYMBOL_GPL(amdtp_am824_set_pcm_format);
 
 /**
  * amdtp_stream_pcm_prepare - prepare PCM device for running

@@ -220,8 +220,8 @@ pcm_capture_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		atomic_inc(&bebob->substreams_counter);
-	amdtp_stream_set_pcm_format(&bebob->tx_stream,
-				    params_format(hw_params));
+
+	amdtp_am824_set_pcm_format(&bebob->tx_stream, params_format(hw_params));
 
 	return 0;
 }
@@ -239,8 +239,8 @@ pcm_playback_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		atomic_inc(&bebob->substreams_counter);
-	amdtp_stream_set_pcm_format(&bebob->rx_stream,
-				    params_format(hw_params));
+
+	amdtp_am824_set_pcm_format(&bebob->rx_stream, params_format(hw_params));
 
 	return 0;
 }

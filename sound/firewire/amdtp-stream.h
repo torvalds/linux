@@ -190,8 +190,8 @@ void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
-void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
-				 snd_pcm_format_t format);
+void amdtp_am824_set_pcm_format(struct amdtp_stream *s,
+				snd_pcm_format_t format);
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
