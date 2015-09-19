@@ -7,7 +7,7 @@
 	#size-cells = <1>;
 
 	chosen {
-		bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 rootfstype=ramfs init=/init";
+		bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 init=/init";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
