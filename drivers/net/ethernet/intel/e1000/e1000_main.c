@@ -1199,13 +1199,13 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		for (i = 0; i < 32; i++) {
 			hw->phy_addr = i;
 			e1000_read_phy_reg(hw, PHY_ID2, &tmp);
-			if (tmp == 0 || tmp == 0xFF) {
-				if (i == 31)
-					goto err_eeprom;
-				continue;
-			} else
+
+			if (tmp != 0 && tmp != 0xFF)
 				break;
 		}
+
+		if (i >= 32)
+			goto err_eeprom;
 	}
 
 	/* reset the hardware with the new settings */
