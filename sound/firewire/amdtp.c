@@ -59,8 +59,8 @@
  * Audio and Music transfer protocol specific parameters
  * only "Clock-based rate control mode" is supported
  */
-#define CIP_FMT_AM		(0x10 << CIP_FMT_SHIFT)
-#define AMDTP_FDF_AM824		(0 << (CIP_FDF_SHIFT + 3))
+#define CIP_FMT_AM		0x10
+#define AMDTP_FDF_AM824		0x00
 #define AMDTP_FDF_NO_DATA	0xff
 
 /* TODO: make these configurable */
@@ -93,6 +93,8 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	init_waitqueue_head(&s->callback_wait);
 	s->callbacked = false;
 	s->sync_slave = NULL;
+
+	s->fmt = CIP_FMT_AM;
 
 	return 0;
 }
@@ -224,6 +226,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	s->sfc = sfc;
 	s->data_block_quadlets = s->pcm_channels + midi_channels;
 	s->midi_ports = midi_ports;
+
+	s->fdf = AMDTP_FDF_AM824 | s->sfc;
 
 	/*
 	 * In IEC 61883-6, one data block represents one event. In ALSA, one
@@ -691,8 +695,10 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				s->data_block_counter);
-	buffer[1] = cpu_to_be32(CIP_EOH | CIP_FMT_AM | AMDTP_FDF_AM824 |
-				(s->sfc << CIP_FDF_SHIFT) | syt);
+	buffer[1] = cpu_to_be32(CIP_EOH |
+				((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
+				((s->fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
+				(syt & CIP_SYT_MASK));
 
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 
@@ -732,6 +738,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 			    unsigned int *data_blocks, unsigned int syt)
 {
 	u32 cip_header[2];
+	unsigned int fmt, fdf;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
@@ -745,8 +752,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 	 * For convenience, also check FMT field is AM824 or not.
 	 */
 	if (((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
-	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH) ||
-	    ((cip_header[1] & CIP_FMT_MASK) != CIP_FMT_AM)) {
+	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) {
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
@@ -755,10 +761,19 @@ static int handle_in_packet(struct amdtp_stream *s,
 		goto end;
 	}
 
+	/* Check valid protocol or not. */
+	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
+	if (fmt != s->fmt) {
+		dev_err(&s->unit->device,
+			"Detect unexpected protocol: %08x %08x\n",
+			cip_header[0], cip_header[1]);
+		return -EIO;
+	}
+
 	/* Calculate data blocks */
+	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
 	if (payload_quadlets < 3 ||
-	    ((cip_header[1] & CIP_FDF_MASK) ==
-				(AMDTP_FDF_NO_DATA << CIP_FDF_SHIFT))) {
+	    (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
 		*data_blocks = 0;
 	} else {
 		data_block_quadlets =

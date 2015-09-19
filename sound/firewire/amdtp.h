@@ -128,6 +128,8 @@ struct amdtp_stream {
 	unsigned int source_node_id_field;
 	unsigned int data_block_quadlets;
 	unsigned int data_block_counter;
+	unsigned int fmt;
+	unsigned int fdf;
 	/* quirk: fixed interval of dbc between previos/current packets. */
 	unsigned int tx_dbc_interval;
 	/* quirk: indicate the value of dbc field in a first packet. */
