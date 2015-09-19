@@ -604,8 +604,8 @@ static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 }
 
 static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
-				      struct iwl_lq_sta *lq_data, u8 tid,
-				      struct ieee80211_sta *sta)
+				     struct iwl_lq_sta *lq_data, u8 tid,
+				     struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
 
