@@ -305,7 +305,7 @@ static int init_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 		goto end;
 	resources->channels_mask = 0x00000000ffffffffuLL;
 
-	err = amdtp_stream_init(stream, dice->unit, dir, CIP_BLOCKING);
+	err = amdtp_am824_init(stream, dice->unit, dir, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		fw_iso_resources_destroy(resources);

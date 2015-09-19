@@ -537,8 +537,8 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_init(&bebob->tx_stream, bebob->unit,
-				AMDTP_IN_STREAM, CIP_BLOCKING);
+	err = amdtp_am824_init(&bebob->tx_stream, bebob->unit,
+			       AMDTP_IN_STREAM, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(&bebob->tx_stream);
 		destroy_both_connections(bebob);
@@ -566,8 +566,8 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 	if (bebob->maudio_special_quirk)
 		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
 
-	err = amdtp_stream_init(&bebob->rx_stream, bebob->unit,
-				AMDTP_OUT_STREAM, CIP_BLOCKING);
+	err = amdtp_am824_init(&bebob->rx_stream, bebob->unit,
+			       AMDTP_OUT_STREAM, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(&bebob->tx_stream);
 		amdtp_stream_destroy(&bebob->rx_stream);

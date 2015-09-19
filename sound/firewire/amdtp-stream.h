@@ -4,6 +4,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <sound/asound.h>
 #include "packets-buffer.h"
 
@@ -174,7 +175,7 @@ struct amdtp_stream {
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir,
-		      enum cip_flags flags);
+		      enum cip_flags flags, unsigned int fmt);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
 int amdtp_stream_set_parameters(struct amdtp_stream *s,
