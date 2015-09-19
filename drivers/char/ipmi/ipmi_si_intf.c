@@ -2582,6 +2582,7 @@ static const struct of_device_id of_ipmi_match[] = {
 	  .data = (void *)(unsigned long) SI_BT },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_ipmi_match);
 
 static int of_ipmi_probe(struct platform_device *dev)
 {
@@ -2668,7 +2669,6 @@ static int of_ipmi_probe(struct platform_device *dev)
 	}
 	return 0;
 }
-MODULE_DEVICE_TABLE(of, of_ipmi_match);
 #else
 #define of_ipmi_match NULL
 static int of_ipmi_probe(struct platform_device *dev)
