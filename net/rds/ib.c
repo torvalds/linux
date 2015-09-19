@@ -148,8 +148,8 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
 
 	rds_ibdev->fmr_max_remaps = dev_attr->max_map_per_fmr?: 32;
-	rds_ibdev->max_fmrs = dev_attr->max_fmr ?
-			min_t(unsigned int, dev_attr->max_fmr, fmr_pool_size) :
+	rds_ibdev->max_fmrs = dev_attr->max_mr ?
+			min_t(unsigned int, dev_attr->max_mr, fmr_pool_size) :
 			fmr_pool_size;
 
 	rds_ibdev->max_initiator_depth = dev_attr->max_qp_init_rd_atom;
