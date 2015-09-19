@@ -799,8 +799,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 int f2fs_gc(struct f2fs_sb_info *sbi)
 {
-	unsigned int segno = NULL_SEGNO;
-	unsigned int i;
+	unsigned int segno, i;
 	int gc_type = BG_GC;
 	int sec_freed = 0;
 	int ret = -1;
@@ -812,6 +811,8 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 
 	cpc.reason = __get_cp_reason(sbi);
 gc_more:
+	segno = NULL_SEGNO;
+
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;
 	if (unlikely(f2fs_cp_error(sbi)))
