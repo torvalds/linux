@@ -168,4 +168,13 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 	};
+
+	pmic: pmic@F8000000 {
+                compatible = "hisilicon,hi655x-pmic-driver";
+                reg = <0x0 0xf8000000 0x0 0x1000>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                pmu_irq_gpio = <&gpio_pmu_irq_n>;
+                status = "ok";
+	};
 };
