@@ -155,7 +155,10 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 		err = -EINVAL;
 		goto end;
 	}
-	amdtp_stream_set_parameters(stream, rate, pcm_channels, midi_ports);
+	err = amdtp_stream_set_parameters(stream, rate,
+					  pcm_channels, midi_ports);
+	if (err < 0)
+		goto end;
 
 	err = cmp_connection_establish(conn,
 				       amdtp_stream_get_max_payload(stream));

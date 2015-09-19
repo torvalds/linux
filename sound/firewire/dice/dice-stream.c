@@ -133,7 +133,10 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 		stream->double_pcm_frames = false;
 	}
 
-	amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports);
+	err = amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports);
+	if (err < 0)
+		goto end;
+
 	if (mode > 1) {
 		pcm_chs /= 2;
 

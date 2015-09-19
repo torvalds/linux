@@ -73,8 +73,10 @@ start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 		midi_ports = efw->midi_in_ports;
 	}
 
-	amdtp_stream_set_parameters(stream, sampling_rate,
-				    pcm_channels, midi_ports);
+	err = amdtp_stream_set_parameters(stream, sampling_rate,
+					  pcm_channels, midi_ports);
+	if (err < 0)
+		goto end;
 
 	/*  establish connection via CMP */
 	err = cmp_connection_establish(conn,

@@ -197,10 +197,10 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
  */
-void amdtp_stream_set_parameters(struct amdtp_stream *s,
-				 unsigned int rate,
-				 unsigned int pcm_channels,
-				 unsigned int midi_ports)
+int amdtp_stream_set_parameters(struct amdtp_stream *s,
+				unsigned int rate,
+				unsigned int pcm_channels,
+				unsigned int midi_ports)
 {
 	unsigned int i, sfc, midi_channels;
 
@@ -209,15 +209,15 @@ void amdtp_stream_set_parameters(struct amdtp_stream *s,
 	if (WARN_ON(amdtp_stream_running(s)) |
 	    WARN_ON(pcm_channels > AMDTP_MAX_CHANNELS_FOR_PCM) |
 	    WARN_ON(midi_channels > AMDTP_MAX_CHANNELS_FOR_MIDI))
-		return;
+		return -EINVAL;
 
-	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc)
+	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc) {
 		if (amdtp_rate_table[sfc] == rate)
-			goto sfc_found;
-	WARN_ON(1);
-	return;
+			break;
+	}
+	if (sfc == ARRAY_SIZE(amdtp_rate_table))
+		return -EINVAL;
 
-sfc_found:
 	s->pcm_channels = pcm_channels;
 	s->sfc = sfc;
 	s->data_block_quadlets = s->pcm_channels + midi_channels;
@@ -243,6 +243,8 @@ sfc_found:
 	 * (The value here is adjusted for midi_ratelimit_per_packet().)
 	 */
 	s->midi_fifo_limit = rate - MIDI_BYTES_PER_SECOND * s->syt_interval + 1;
+
+	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_set_parameters);
 
