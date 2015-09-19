@@ -83,7 +83,7 @@ struct rds_ib_mr_pool {
 	struct ib_fmr_attr	fmr_attr;
 };
 
-struct workqueue_struct *rds_ib_fmr_wq;
+static struct workqueue_struct *rds_ib_fmr_wq;
 
 int rds_ib_fmr_init(void)
 {
