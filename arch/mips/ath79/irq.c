@@ -304,6 +304,16 @@ static int __init ar7100_misc_intc_of_init(
 IRQCHIP_DECLARE(ar7100_misc_intc, "qca,ar7100-misc-intc",
 		ar7100_misc_intc_of_init);
 
+static int __init ar7240_misc_intc_of_init(
+	struct device_node *node, struct device_node *parent)
+{
+	ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
+	return ath79_misc_intc_of_init(node, parent);
+}
+
+IRQCHIP_DECLARE(ar7240_misc_intc, "qca,ar7240-misc-intc",
+		ar7240_misc_intc_of_init);
+
 static int __init ar79_cpu_intc_of_init(
 	struct device_node *node, struct device_node *parent)
 {
