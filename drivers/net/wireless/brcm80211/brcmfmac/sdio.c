@@ -15,6 +15,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/printk.h>
