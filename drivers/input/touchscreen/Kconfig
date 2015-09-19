@@ -1077,4 +1077,15 @@ config TOUCHSCREEN_COLIBRI_VF50
 	  To compile this driver as a module, choose M here: the
 	  module will be called colibri_vf50_ts.
 
+config TOUCHSCREEN_ROHM_BU21023
+	tristate "ROHM BU21023/24 Dual touch support resistive touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using ROHM BU21023/24.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bu21023_ts.
+
 endif
