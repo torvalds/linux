@@ -10,6 +10,12 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			       unsigned int midi_ports,
 			       bool double_pcm_frames);
 
+void amdtp_am824_set_pcm_position(struct amdtp_stream *s, unsigned int index,
+				 unsigned int position);
+
+void amdtp_am824_set_midi_position(struct amdtp_stream *s,
+				   unsigned int position);
+
 int amdtp_am824_add_pcm_hw_constraints(struct amdtp_stream *s,
 				       struct snd_pcm_runtime *runtime);
 

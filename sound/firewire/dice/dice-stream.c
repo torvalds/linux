@@ -141,8 +141,9 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 		pcm_chs /= 2;
 
 		for (i = 0; i < pcm_chs; i++) {
-			stream->pcm_positions[i] = i * 2;
-			stream->pcm_positions[i + pcm_chs] = i * 2 + 1;
+			amdtp_am824_set_pcm_position(stream, i, i * 2);
+			amdtp_am824_set_pcm_position(stream, i + pcm_chs,
+						     i * 2 + 1);
 		}
 	}
 

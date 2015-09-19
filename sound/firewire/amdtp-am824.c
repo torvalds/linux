@@ -53,6 +53,34 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 EXPORT_SYMBOL_GPL(amdtp_am824_set_parameters);
 
 /**
+ * amdtp_am824_set_pcm_position - set an index of data channel for a channel
+ *				  of PCM frame
+ * @s: the AMDTP stream
+ * @index: the index of data channel in an data block
+ * @position: the channel of PCM frame
+ */
+void amdtp_am824_set_pcm_position(struct amdtp_stream *s, unsigned int index,
+				 unsigned int position)
+{
+	if (index < s->pcm_channels)
+		s->pcm_positions[index] = position;
+}
+EXPORT_SYMBOL_GPL(amdtp_am824_set_pcm_position);
+
+/**
+ * amdtp_am824_set_midi_position - set a index of data channel for MIDI
+ *				   conformant data channel
+ * @s: the AMDTP stream
+ * @position: the index of data channel in an data block
+ */
+void amdtp_am824_set_midi_position(struct amdtp_stream *s,
+				   unsigned int position)
+{
+	s->midi_position = position;
+}
+EXPORT_SYMBOL_GPL(amdtp_am824_set_midi_position);
+
+/**
  * amdtp_am824_add_pcm_hw_constraints - add hw constraints for PCM substream
  * @s:		the AMDTP stream for AM824 data block, must be initialized.
  * @runtime:	the PCM substream runtime

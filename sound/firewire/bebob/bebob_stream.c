@@ -338,7 +338,7 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 					err = -ENOSYS;
 					goto end;
 				}
-				s->midi_position = stm_pos;
+				amdtp_am824_set_midi_position(s, stm_pos);
 				midi = stm_pos;
 				break;
 			/* for PCM data channel */
@@ -358,7 +358,8 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 					err = -ENOSYS;
 					goto end;
 				}
-				s->pcm_positions[location] = stm_pos;
+				amdtp_am824_set_pcm_position(s, location,
+							     stm_pos);
 				break;
 			}
 		}
