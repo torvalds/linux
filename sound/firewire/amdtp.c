@@ -193,6 +193,7 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * @pcm_channels: the number of PCM samples in each data block, to be encoded
  *                as AM824 multi-bit linear audio
  * @midi_ports: the number of MIDI ports (i.e., MPX-MIDI Data Channels)
+ * @double_pcm_frames: one data block transfers two PCM frames
  *
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
@@ -200,7 +201,8 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
 int amdtp_stream_set_parameters(struct amdtp_stream *s,
 				unsigned int rate,
 				unsigned int pcm_channels,
-				unsigned int midi_ports)
+				unsigned int midi_ports,
+				bool double_pcm_frames)
 {
 	unsigned int i, sfc, midi_channels;
 

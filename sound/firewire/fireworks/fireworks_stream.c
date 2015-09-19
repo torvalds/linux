@@ -74,7 +74,7 @@ start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 	}
 
 	err = amdtp_stream_set_parameters(stream, sampling_rate,
-					  pcm_channels, midi_ports);
+					  pcm_channels, midi_ports, false);
 	if (err < 0)
 		goto end;
 

@@ -100,6 +100,7 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 {
 	struct fw_iso_resources *resources;
 	unsigned int i, mode, pcm_chs, midi_ports;
+	bool double_pcm_frames;
 	int err;
 
 	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
@@ -125,19 +126,18 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 	 * For this quirk, blocking mode is required and PCM buffer size should
 	 * be aligned to SYT_INTERVAL.
 	 */
-	if (mode > 1) {
+	double_pcm_frames = mode > 1;
+	if (double_pcm_frames) {
 		rate /= 2;
 		pcm_chs *= 2;
-		stream->double_pcm_frames = true;
-	} else {
-		stream->double_pcm_frames = false;
 	}
 
-	err = amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports);
+	err = amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports,
+					  false);
 	if (err < 0)
 		goto end;
 
-	if (mode > 1) {
+	if (double_pcm_frames) {
 		pcm_chs /= 2;
 
 		for (i = 0; i < pcm_chs; i++) {
