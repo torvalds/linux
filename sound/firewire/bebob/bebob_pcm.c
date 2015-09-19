@@ -146,7 +146,7 @@ pcm_init_hw_params(struct snd_bebob *bebob,
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_add_pcm_hw_constraints(s, runtime);
+	err = amdtp_am824_add_pcm_hw_constraints(s, runtime);
 end:
 	return err;
 }

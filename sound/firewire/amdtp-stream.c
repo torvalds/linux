@@ -140,11 +140,6 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 {
 	int err;
 
-	/* AM824 in IEC 61883-6 can deliver 24bit data */
-	err = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
-	if (err < 0)
-		goto end;
-
 	/*
 	 * Currently firewire-lib processes 16 packets in one software
 	 * interrupt callback. This equals to 2msec but actually the

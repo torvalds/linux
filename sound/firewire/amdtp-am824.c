@@ -53,6 +53,26 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 EXPORT_SYMBOL_GPL(amdtp_am824_set_parameters);
 
 /**
+ * amdtp_am824_add_pcm_hw_constraints - add hw constraints for PCM substream
+ * @s:		the AMDTP stream for AM824 data block, must be initialized.
+ * @runtime:	the PCM substream runtime
+ *
+ */
+int amdtp_am824_add_pcm_hw_constraints(struct amdtp_stream *s,
+				       struct snd_pcm_runtime *runtime)
+{
+	int err;
+
+	err = amdtp_stream_add_pcm_hw_constraints(s, runtime);
+	if (err < 0)
+		return err;
+
+	/* AM824 in IEC 61883-6 can deliver 24bit data. */
+	return snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+}
+EXPORT_SYMBOL_GPL(amdtp_am824_add_pcm_hw_constraints);
+
+/**
  * amdtp_am824_init - initialize an AMDTP stream structure to handle AM824
  *		      data block
  * @s: the AMDTP stream to initialize
