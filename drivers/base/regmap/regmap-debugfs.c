@@ -30,7 +30,7 @@ static LIST_HEAD(regmap_debugfs_early_list);
 static DEFINE_MUTEX(regmap_debugfs_early_lock);
 
 /* Calculate the length of a fixed format  */
-static size_t regmap_calc_reg_len(int max_val, char *buf, size_t buf_size)
+static size_t regmap_calc_reg_len(int max_val)
 {
 	return snprintf(NULL, 0, "%x", max_val);
 }
@@ -173,8 +173,7 @@ static inline void regmap_calc_tot_len(struct regmap *map,
 {
 	/* Calculate the length of a fixed format  */
 	if (!map->debugfs_tot_len) {
-		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register,
-							   buf, count);
+		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register),
 		map->debugfs_val_len = 2 * map->format.val_bytes;
 		map->debugfs_tot_len = map->debugfs_reg_len +
 			map->debugfs_val_len + 3;      /* : \n */
@@ -420,7 +419,7 @@ static ssize_t regmap_access_read_file(struct file *file,
 		return -ENOMEM;
 
 	/* Calculate the length of a fixed format  */
-	reg_len = regmap_calc_reg_len(map->max_register, buf, count);
+	reg_len = regmap_calc_reg_len(map->max_register);
 	tot_len = reg_len + 10; /* ': R W V P\n' */
 
 	for (i = 0; i <= map->max_register; i += map->reg_stride) {
