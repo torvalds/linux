@@ -132,8 +132,8 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 		pcm_chs *= 2;
 	}
 
-	err = amdtp_stream_set_parameters(stream, rate, pcm_chs, midi_ports,
-					  false);
+	err = amdtp_am824_set_parameters(stream, rate, pcm_chs, midi_ports,
+					 double_pcm_frames);
 	if (err < 0)
 		goto end;
 

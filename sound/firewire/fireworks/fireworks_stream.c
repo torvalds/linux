@@ -73,8 +73,8 @@ start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 		midi_ports = efw->midi_in_ports;
 	}
 
-	err = amdtp_stream_set_parameters(stream, sampling_rate,
-					  pcm_channels, midi_ports, false);
+	err = amdtp_am824_set_parameters(stream, sampling_rate,
+					 pcm_channels, midi_ports, false);
 	if (err < 0)
 		goto end;
 

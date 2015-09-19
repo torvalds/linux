@@ -427,17 +427,17 @@ make_both_connections(struct snd_bebob *bebob, unsigned int rate)
 	index = get_formation_index(rate);
 	pcm_channels = bebob->tx_stream_formations[index].pcm;
 	midi_channels = bebob->tx_stream_formations[index].midi;
-	err = amdtp_stream_set_parameters(&bebob->tx_stream, rate,
-					  pcm_channels, midi_channels * 8,
-					  false);
+	err = amdtp_am824_set_parameters(&bebob->tx_stream, rate,
+					 pcm_channels, midi_channels * 8,
+					 false);
 	if (err < 0)
 		goto end;
 
 	pcm_channels = bebob->rx_stream_formations[index].pcm;
 	midi_channels = bebob->rx_stream_formations[index].midi;
-	err = amdtp_stream_set_parameters(&bebob->rx_stream, rate,
-					  pcm_channels, midi_channels * 8,
-					  false);
+	err = amdtp_am824_set_parameters(&bebob->rx_stream, rate,
+					 pcm_channels, midi_channels * 8,
+					 false);
 	if (err < 0)
 		goto end;
 

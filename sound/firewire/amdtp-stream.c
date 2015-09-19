@@ -54,12 +54,8 @@
 #define CIP_SYT_MASK		0x0000ffff
 #define CIP_SYT_NO_INFO		0xffff
 
-/*
- * Audio and Music transfer protocol specific parameters
- * only "Clock-based rate control mode" is supported
- */
+/* Audio and Music transfer protocol specific parameters */
 #define CIP_FMT_AM		0x10
-#define AMDTP_FDF_AM824		0x00
 #define AMDTP_FDF_NO_DATA	0xff
 
 /* TODO: make these configurable */
@@ -204,8 +200,7 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
 int amdtp_stream_set_parameters(struct amdtp_stream *s,
 				unsigned int rate,
 				unsigned int pcm_channels,
-				unsigned int midi_ports,
-				bool double_pcm_frames)
+				unsigned int midi_ports)
 {
 	unsigned int i, sfc, midi_channels;
 
@@ -227,18 +222,6 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	s->sfc = sfc;
 	s->data_block_quadlets = s->pcm_channels + midi_channels;
 	s->midi_ports = midi_ports;
-
-	s->fdf = AMDTP_FDF_AM824 | s->sfc;
-
-	/*
-	 * In IEC 61883-6, one data block represents one event. In ALSA, one
-	 * event equals to one PCM frame. But Dice has a quirk at higher
-	 * sampling rate to transfer two PCM frames in one data block.
-	 */
-	if (double_pcm_frames)
-		s->frame_multiplier = 2;
-	else
-		s->frame_multiplier = 1;
 
 	s->syt_interval = amdtp_syt_intervals[sfc];
 

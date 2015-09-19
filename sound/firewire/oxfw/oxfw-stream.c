@@ -155,8 +155,8 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 		err = -EINVAL;
 		goto end;
 	}
-	err = amdtp_stream_set_parameters(stream, rate,
-					  pcm_channels, midi_ports, false);
+	err = amdtp_am824_set_parameters(stream, rate, pcm_channels, midi_ports,
+					 false);
 	if (err < 0)
 		goto end;
 
