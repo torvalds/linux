@@ -28,7 +28,7 @@
 #include "../fcp.h"
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-stream.h"
 #include "../cmp.h"
 
 struct device_info {

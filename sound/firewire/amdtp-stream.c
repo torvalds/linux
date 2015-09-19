@@ -15,7 +15,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/rawmidi.h>
-#include "amdtp.h"
+#include "amdtp-stream.h"
 
 #define TICKS_PER_CYCLE		3072
 #define CYCLES_PER_SECOND	8000
@@ -210,8 +210,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 
 	midi_channels = DIV_ROUND_UP(midi_ports, 8);
 
-	if (WARN_ON(amdtp_stream_running(s)) |
-	    WARN_ON(pcm_channels > AMDTP_MAX_CHANNELS_FOR_PCM) |
+	if (WARN_ON(amdtp_stream_running(s)) ||
+	    WARN_ON(pcm_channels > AMDTP_MAX_CHANNELS_FOR_PCM) ||
 	    WARN_ON(midi_channels > AMDTP_MAX_CHANNELS_FOR_MIDI))
 		return -EINVAL;
 
