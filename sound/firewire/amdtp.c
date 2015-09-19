@@ -657,28 +657,42 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
+unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
+				    unsigned int data_blocks, unsigned int *syt)
+{
+	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	unsigned int pcm_frames;
+
+	if (pcm) {
+		s->transfer_samples(s, pcm, buffer, data_blocks);
+		pcm_frames = data_blocks * s->frame_multiplier;
+	} else {
+		write_pcm_silence(s, buffer, data_blocks);
+		pcm_frames = 0;
+	}
+
+	if (s->midi_ports)
+		write_midi_messages(s, buffer, data_blocks);
+
+	return pcm_frames;
+}
+
 static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 			     unsigned int syt)
 {
 	__be32 *buffer;
 	unsigned int payload_length;
+	unsigned int pcm_frames;
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
+	pcm_frames = process_rx_data_blocks(s, buffer + 2, data_blocks, &syt);
+
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				s->data_block_counter);
 	buffer[1] = cpu_to_be32(CIP_EOH | CIP_FMT_AM | AMDTP_FDF_AM824 |
 				(s->sfc << CIP_FDF_SHIFT) | syt);
-	buffer += 2;
-
-	pcm = ACCESS_ONCE(s->pcm);
-	if (pcm)
-		s->transfer_samples(s, pcm, buffer, data_blocks);
-	else
-		write_pcm_silence(s, buffer, data_blocks);
-	if (s->midi_ports)
-		write_midi_messages(s, buffer, data_blocks);
 
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 
@@ -686,20 +700,41 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 	if (queue_out_packet(s, payload_length, false) < 0)
 		return -EIO;
 
-	if (pcm)
-		update_pcm_pointers(s, pcm, data_blocks * s->frame_multiplier);
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
 
 	/* No need to return the number of handled data blocks. */
 	return 0;
 }
 
+unsigned int process_tx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
+				    unsigned int data_blocks, unsigned int *syt)
+{
+	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
+	unsigned int pcm_frames;
+
+	if (pcm) {
+		s->transfer_samples(s, pcm, buffer, data_blocks);
+		pcm_frames = data_blocks * s->frame_multiplier;
+	} else {
+		pcm_frames = 0;
+	}
+
+	if (s->midi_ports)
+		read_midi_messages(s, buffer, data_blocks);
+
+	return pcm_frames;
+}
+
 static int handle_in_packet(struct amdtp_stream *s,
 			    unsigned int payload_quadlets, __be32 *buffer,
-			    unsigned int *data_blocks)
+			    unsigned int *data_blocks, unsigned int syt)
 {
 	u32 cip_header[2];
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
-	struct snd_pcm_substream *pcm = NULL;
+	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 	bool lost;
 
 	cip_header[0] = be32_to_cpu(buffer[0]);
@@ -716,6 +751,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
 		*data_blocks = 0;
+		pcm_frames = 0;
 		goto end;
 	}
 
@@ -769,16 +805,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 		return -EIO;
 	}
 
-	if (*data_blocks > 0) {
-		buffer += 2;
-
-		pcm = ACCESS_ONCE(s->pcm);
-		if (pcm)
-			s->transfer_samples(s, pcm, buffer, *data_blocks);
-
-		if (s->midi_ports)
-			read_midi_messages(s, buffer, *data_blocks);
-	}
+	pcm_frames = process_tx_data_blocks(s, buffer + 2, *data_blocks, &syt);
 
 	if (s->flags & CIP_DBC_IS_END_EVENT)
 		s->data_block_counter = data_block_counter;
@@ -789,8 +816,9 @@ end:
 	if (queue_in_packet(s) < 0)
 		return -EIO;
 
-	if (pcm)
-		update_pcm_pointers(s, pcm, *data_blocks * s->frame_multiplier);
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
 
 	return 0;
 }
@@ -860,15 +888,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			break;
 		}
 
+		syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 		if (handle_in_packet(s, payload_quadlets, buffer,
-							&data_blocks) < 0) {
+						&data_blocks, syt) < 0) {
 			s->packet_index = -1;
 			break;
 		}
 
 		/* Process sync slave stream */
 		if (s->sync_slave && s->sync_slave->callbacked) {
-			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 			if (handle_out_packet(s->sync_slave,
 					      data_blocks, syt) < 0) {
 				s->packet_index = -1;
