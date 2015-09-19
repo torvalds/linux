@@ -1,0 +1,125 @@
+QCOM CPR (Core Power Reduction)
+
+CPR (Core Power Reduction) is a technology to reduce core power on a CPU
+or other device. Each OPP of a device corresponds to a "corner" that has
+a range of valid voltages for a particular frequency. While the device is
+running at a particular frequency, CPR monitors dynamic factors such as
+temperature, etc. and suggests adjustments to the voltage to save power
+and meet silicon characteristic requirements.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be "qcom,cpr"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: base address and size of the rbcpr register region
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: list of three interrupts in order of irq0, irq1, irq2
+
+- acc-syscon:
+	Usage: optional
+	Value type: <phandle>
+	Definition: phandle to syscon for writing ACC settings
+
+- nvmem:
+	Usage: required
+	Value type: <phandle>
+	Definition: phandle to nvmem provider containing efuse settings
+
+- nvmem-names:
+	Usage: required
+	Value type: <string>
+	Definition: must be "qfprom"
+
+vdd-mx-supply = <&pm8916_l3>;
+
+- qcom,cpr-ref-clk:
+	Usage: required
+	Value type: <u32>
+	Definition: rate of reference clock in kHz
+
+- qcom,cpr-timer-delay-us:
+	Usage: required
+	Value type: <u32>
+	Definition: delay in uS for the timer interval
+
+- qcom,cpr-timer-cons-up:
+	Usage: required
+	Value type: <u32>
+	Definition: Consecutive number of timer intervals, or units of
+		    qcom,cpr-timer-delay-us, that occur before issuing an up
+		    interrupt
+
+- qcom,cpr-timer-cons-down:
+	Usage: required
+	Value type: <u32>
+	Definition: Consecutive number of timer intervals, or units of
+		    qcom,cpr-timer-delay-us, that occur before issuing a down
+		    interrupt
+
+- qcom,cpr-up-threshold:
+	Usage: optional
+	Value type: <u32>
+	Definition: The threshold for CPR to issue interrupt when error_steps
+		    is greater than it when stepping up
+
+- qcom,cpr-down-threshold:
+	Usage: optional
+	Value type: <u32>
+	Definition: The threshold for CPR to issue interrdownt when error_steps
+		    is greater than it when stepping down
+
+- qcom,cpr-down-threshold:
+	Usage: optional
+	Value type: <u32>
+	Definition: Idle clock cycles ring oscillator can be in
+
+- qcom,cpr-gcnt-us:
+	Usage: required
+	Value type: <u32>
+	Definition: The time for gate count in uS
+
+- qcom,vdd-apc-step-up-limit:
+	Usage: required
+	Value type: <u32>
+	Definition: Limit of vdd-apc-supply steps for scaling up
+
+- qcom,vdd-apc-step-down-limit:
+	Usage: required
+	Value type: <u32>
+	Definition: Limit of vdd-apc-supply steps for scaling down
+
+- qcom,cpr-cpus:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: List of CPUs that are being monitored
+
+Example:
+
+	avs@b018000 {
+		compatible = "qcom,cpr";
+		reg = <0xb018000 0x1000>;
+		interrupts = <0 15 1>, <0 16 1>, <0 17 1>;
+		vdd-mx-supply = <&pm8916_l3>;
+		acc-syscon = <&tcsr>;
+		nvmem = <&qfprom>;
+		nvmem-names = "qfprom";
+
+		qcom,cpr-ref-clk = <19200>;
+		qcom,cpr-timer-delay-us = <5000>;
+		qcom,cpr-timer-cons-up = <0>;
+		qcom,cpr-timer-cons-down = <2>;
+		qcom,cpr-up-threshold = <0>;
+		qcom,cpr-down-threshold = <2>;
+		qcom,cpr-idle-clocks = <15>;
+		qcom,cpr-gcnt-us = <1>;
+		qcom,vdd-apc-step-up-limit = <1>;
+		qcom,vdd-apc-step-down-limit = <1>;
+		qcom,cpr-cpus = <&CPU0 &CPU1 &CPU2 &CPU3>;
+	};
