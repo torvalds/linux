@@ -465,10 +465,4 @@
 	bman: bman@31a000 {
 		interrupts = <16 2 1 29>;
 	};
-
-	L2: l2-cache-controller@c20000 {
-		compatible = "fsl,b4-l2-cache-controller";
-		reg = <0xc20000 0x1000>;
-		next-level-cache = <&cpc>;
-	};
 };
