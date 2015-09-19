@@ -1664,6 +1664,51 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, false);
 }
 
+static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
+			      struct ieee80211_sta *sta,
+			      struct iwl_lq_sta *lq_sta,
+			      struct iwl_scale_tbl_info *tbl,
+			      enum rs_action scale_action)
+{
+	if (sta->bandwidth != IEEE80211_STA_RX_BW_80)
+		return false;
+
+	if (!is_vht_siso(&tbl->rate))
+		return false;
+
+	if ((tbl->rate.bw == RATE_MCS_CHAN_WIDTH_80) &&
+	    (tbl->rate.index == IWL_RATE_MCS_0_INDEX) &&
+	    (scale_action == RS_ACTION_DOWNSCALE)) {
+		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_20;
+		tbl->rate.index = IWL_RATE_MCS_4_INDEX;
+		IWL_DEBUG_RATE(mvm, "Switch 80Mhz SISO MCS0 -> 20Mhz MCS4\n");
+		goto tweaked;
+	}
+
+	/* Go back to 80Mhz MCS1 only if we've established that 20Mhz MCS5 is
+	 * sustainable, i.e. we're past the test window. We can't go back
+	 * if MCS5 is just tested as this will happen always after switching
+	 * to 20Mhz MCS4 because the rate stats are cleared.
+	 */
+	if ((tbl->rate.bw == RATE_MCS_CHAN_WIDTH_20) &&
+	    (((tbl->rate.index == IWL_RATE_MCS_5_INDEX) &&
+	     (scale_action == RS_ACTION_STAY)) ||
+	     ((tbl->rate.index > IWL_RATE_MCS_5_INDEX) &&
+	      (scale_action == RS_ACTION_UPSCALE)))) {
+		tbl->rate.bw = RATE_MCS_CHAN_WIDTH_80;
+		tbl->rate.index = IWL_RATE_MCS_1_INDEX;
+		IWL_DEBUG_RATE(mvm, "Switch 20Mhz SISO MCS5 -> 80Mhz MCS1\n");
+		goto tweaked;
+	}
+
+	return false;
+
+tweaked:
+	rs_set_expected_tpt_table(lq_sta, tbl);
+	rs_rate_scale_clear_tbl_windows(mvm, tbl);
+	return true;
+}
+
 static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 					 struct iwl_lq_sta *lq_sta,
 					 struct ieee80211_sta *sta,
@@ -2347,6 +2392,8 @@ lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq) {
 		tbl->rate.index = index;
+		if (IWL_MVM_RS_80_20_FAR_RANGE_TWEAK)
+			rs_tweak_rate_tbl(mvm, sta, lq_sta, tbl, scale_action);
 		rs_update_rate_tbl(mvm, sta, lq_sta, tbl);
 	}
 
