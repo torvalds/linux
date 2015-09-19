@@ -2806,6 +2806,7 @@ static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
  * e1000_read_phy_reg - read a phy register
  * @hw: Struct containing variables accessed by shared code
  * @reg_addr: address of the PHY register to read
+ * @phy_data: pointer to the value on the PHY register
  *
  * Reads the value from a PHY register, if the value is on a specific non zero
  * page, sets the page first.
