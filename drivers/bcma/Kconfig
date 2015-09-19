@@ -92,7 +92,7 @@ config BCMA_DRIVER_GMAC_CMN
 config BCMA_DRIVER_GPIO
 	bool "BCMA GPIO driver"
 	depends on BCMA && GPIOLIB
-	select IRQ_DOMAIN if BCMA_HOST_SOC
+	select GPIOLIB_IRQCHIP if BCMA_HOST_SOC
 	help
 	  Driver to provide access to the GPIO pins of the bcma bus.
 

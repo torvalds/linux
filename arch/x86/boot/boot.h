@@ -307,9 +307,6 @@ void query_edd(void);
 /* header.S */
 void __attribute__((noreturn)) die(void);
 
-/* mca.c */
-int query_mca(void);
-
 /* memory.c */
 int detect_memory(void);
 

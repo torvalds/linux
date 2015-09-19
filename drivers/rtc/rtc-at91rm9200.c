@@ -18,20 +18,21 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/time.h>
-#include <linux/rtc.h>
 #include <linux/bcd.h>
-#include <linux/interrupt.h>
-#include <linux/spinlock.h>
-#include <linux/ioctl.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
+#include <linux/interrupt.h>
+#include <linux/ioctl.h>
 #include <linux/io.h>
-#include <linux/of.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/rtc.h>
+#include <linux/spinlock.h>
 #include <linux/suspend.h>
+#include <linux/time.h>
 #include <linux/uaccess.h>
 
 #include "rtc-at91rm9200.h"
@@ -59,6 +60,7 @@ static bool suspended;
 static DEFINE_SPINLOCK(suspended_lock);
 static unsigned long cached_events;
 static u32 at91_rtc_imr;
+static struct clk *sclk;
 
 static void at91_rtc_write_ier(u32 mask)
 {
@@ -407,6 +409,16 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sclk))
+		return PTR_ERR(sclk);
+
+	ret = clk_prepare_enable(sclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		return ret;
+	}
+
 	at91_rtc_write(AT91_RTC_CR, 0);
 	at91_rtc_write(AT91_RTC_MR, 0);		/* 24 hour mode */
 
@@ -420,7 +432,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 			       "at91_rtc", pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq);
-		return ret;
+		goto err_clk;
 	}
 
 	/* cpu init code should really have flagged this device as
@@ -431,8 +443,10 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&at91_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	if (IS_ERR(rtc)) {
+		ret = PTR_ERR(rtc);
+		goto err_clk;
+	}
 	platform_set_drvdata(pdev, rtc);
 
 	/* enable SECEV interrupt in order to initialize at91_rtc_upd_rdy
@@ -442,6 +456,11 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "AT91 Real Time Clock driver.\n");
 	return 0;
+
+err_clk:
+	clk_disable_unprepare(sclk);
+
+	return ret;
 }
 
 /*
@@ -453,6 +472,8 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 	at91_rtc_write_idr(AT91_RTC_ACKUPD | AT91_RTC_ALARM |
 					AT91_RTC_SECEV | AT91_RTC_TIMEV |
 					AT91_RTC_CALEV);
+
+	clk_disable_unprepare(sclk);
 
 	return 0;
 }

@@ -77,7 +77,7 @@ void rds_trans_put(struct rds_transport *trans)
 		module_put(trans->t_owner);
 }
 
-struct rds_transport *rds_trans_get_preferred(__be32 addr)
+struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr)
 {
 	struct rds_transport *ret = NULL;
 	struct rds_transport *trans;
@@ -90,7 +90,7 @@ struct rds_transport *rds_trans_get_preferred(__be32 addr)
 	for (i = 0; i < RDS_TRANS_COUNT; i++) {
 		trans = transports[i];
 
-		if (trans && (trans->laddr_check(addr) == 0) &&
+		if (trans && (trans->laddr_check(net, addr) == 0) &&
 		    (!trans->t_owner || try_module_get(trans->t_owner))) {
 			ret = trans;
 			break;

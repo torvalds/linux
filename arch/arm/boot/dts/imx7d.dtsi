@@ -121,6 +121,209 @@
 		clock-output-names = "osc";
 	};
 
+	etr@30086000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0x30086000 0x1000>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		port {
+			etr_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port1>;
+			};
+		};
+	};
+
+	tpiu@30087000 {
+		compatible = "arm,coresight-tpiu", "arm,primecell";
+		reg = <0x30087000 0x1000>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		port {
+			tpiu_in_port: endpoint {
+				slave-mode;
+				remote-endpoint = <&replicator_out_port1>;
+			};
+		};
+	};
+
+	replicator {
+		/*
+		 * non-configurable replicators don't show up on the
+		 * AMBA bus.  As such no need to add "arm,primecell"
+		 */
+		compatible = "arm,coresight-replicator";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+
+			/* replicator input port */
+			port@2 {
+				reg = <0>;
+				replicator_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf_out_port>;
+				};
+			};
+		};
+	};
+
+	etf@30084000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		reg = <0x30084000 0x1000>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				etf_in_port: endpoint {
+					slave-mode;
+					remote-endpoint = <&hugo_funnel_out_port0>;
+				};
+			};
+
+			port@1 {
+				reg = <0>;
+				etf_out_port: endpoint {
+					remote-endpoint = <&replicator_in_port0>;
+				};
+			};
+		};
+	};
+
+	funnel@30083000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0x30083000 0x1000>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* funnel input ports */
+			port@0 {
+				reg = <0>;
+				hugo_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&ca_funnel_out_port0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				hugo_funnel_in_port1: endpoint {
+					slave-mode; /* M4 input */
+				};
+			};
+
+			port@2 {
+				reg = <0>;
+				hugo_funnel_out_port0: endpoint {
+					remote-endpoint = <&etf_in_port>;
+				};
+			};
+
+			/* the other input ports are not connect to anything */
+		};
+	};
+
+	funnel@30041000 {
+		compatible = "arm,coresight-funnel", "arm,primecell";
+		reg = <0x30041000 0x1000>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* funnel input ports */
+			port@0 {
+				reg = <0>;
+				ca_funnel_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				ca_funnel_in_port1: endpoint {
+					slave-mode;
+					remote-endpoint = <&etm1_out_port>;
+				};
+			};
+
+			/* funnel output port */
+			port@2 {
+				reg = <0>;
+				ca_funnel_out_port0: endpoint {
+					remote-endpoint = <&hugo_funnel_in_port0>;
+				};
+			};
+
+			/* the other input ports are not connect to anything */
+		};
+	};
+
+	etm@3007c000 {
+		compatible = "arm,coresight-etm3x", "arm,primecell";
+		reg = <0x3007c000 0x1000>;
+		cpu = <&cpu0>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		port {
+			etm0_out_port: endpoint {
+				remote-endpoint = <&ca_funnel_in_port0>;
+			};
+		};
+	};
+
+	etm@3007d000 {
+		compatible = "arm,coresight-etm3x", "arm,primecell";
+		reg = <0x3007d000 0x1000>;
+
+		/*
+		 * System will hang if added nosmp in kernel command line
+		 * without arm,primecell-periphid because amba bus try to
+		 * read id and core1 power off at this time.
+		 */
+		arm,primecell-periphid = <0xbb956>;
+		cpu = <&cpu1>;
+		clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
+		clock-names = "apb_pclk";
+
+		port {
+			etm1_out_port: endpoint {
+				remote-endpoint = <&ca_funnel_in_port1>;
+			};
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -212,6 +415,37 @@
 				#interrupt-cells = <2>;
 			};
 
+			wdog1: wdog@30280000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x30280000 0x10000>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG1_ROOT_CLK>;
+			};
+
+			wdog2: wdog@30290000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x30290000 0x10000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG2_ROOT_CLK>;
+				status = "disabled";
+			};
+
+			wdog3: wdog@302a0000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x302a0000 0x10000>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG3_ROOT_CLK>;
+				status = "disabled";
+			};
+
+			wdog4: wdog@302b0000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x302b0000 0x10000>;
+				interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG4_ROOT_CLK>;
+				status = "disabled";
+			};
+
 			gpt1: gpt@302d0000 {
 				compatible = "fsl,imx7d-gpt", "fsl,imx6sx-gpt";
 				reg = <0x302d0000 0x10000>;
@@ -291,16 +525,30 @@
 			};
 
 			snvs: snvs@30370000 {
-				compatible = "fsl,sec-v4.0-mon", "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x30370000 0x10000>;
+				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
+				reg = <0x30370000 0x10000>;
 
-				snvs-rtc-lp@34 {
+				snvs_rtc: snvs-rtc-lp {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
-					reg = <0x34 0x58>;
+					regmap = <&snvs>;
+					offset = <0x34>;
 					interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 						     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				snvs_poweroff: snvs-poweroff {
+					compatible = "syscon-poweroff";
+					regmap = <&snvs>;
+					offset = <0x38>;
+					mask = <0x60>;
+				};
+
+				snvs_pwrkey: snvs-powerkey {
+					compatible = "fsl,sec-v4.0-pwrkey";
+					regmap = <&snvs>;
+					interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+					linux,keycode = <KEY_POWER>;
+					wakeup-source;
 				};
 			};
 

@@ -8,6 +8,7 @@
 #include <linux/tracepoint.h>
 
 #define DAPM_DIRECT "(direct)"
+#define DAPM_ARROW(dir) (((dir) == SND_SOC_DAPM_DIR_OUT) ? "->" : "<-")
 
 struct snd_soc_jack;
 struct snd_soc_codec;
@@ -152,62 +153,38 @@ TRACE_EVENT(snd_soc_dapm_walk_done,
 		  (int)__entry->path_checks, (int)__entry->neighbour_checks)
 );
 
-TRACE_EVENT(snd_soc_dapm_output_path,
+TRACE_EVENT(snd_soc_dapm_path,
 
 	TP_PROTO(struct snd_soc_dapm_widget *widget,
+		enum snd_soc_dapm_direction dir,
 		struct snd_soc_dapm_path *path),
 
-	TP_ARGS(widget, path),
+	TP_ARGS(widget, dir, path),
 
 	TP_STRUCT__entry(
 		__string(	wname,	widget->name		)
 		__string(	pname,	path->name ? path->name : DAPM_DIRECT)
-		__string(	psname,	path->sink->name	)
-		__field(	int,	path_sink		)
+		__string(	pnname,	path->node[dir]->name	)
+		__field(	int,	path_node		)
 		__field(	int,	path_connect		)
+		__field(	int,	path_dir		)
 	),
 
 	TP_fast_assign(
 		__assign_str(wname, widget->name);
 		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
-		__assign_str(psname, path->sink->name);
+		__assign_str(pnname, path->node[dir]->name);
 		__entry->path_connect = path->connect;
-		__entry->path_sink = (long)path->sink;
+		__entry->path_node = (long)path->node[dir];
+		__entry->path_dir = dir;
 	),
 
-	TP_printk("%c%s -> %s -> %s",
-		(int) __entry->path_sink &&
+	TP_printk("%c%s %s %s %s %s",
+		(int) __entry->path_node &&
 		(int) __entry->path_connect ? '*' : ' ',
-		__get_str(wname), __get_str(pname), __get_str(psname))
-);
-
-TRACE_EVENT(snd_soc_dapm_input_path,
-
-	TP_PROTO(struct snd_soc_dapm_widget *widget,
-		struct snd_soc_dapm_path *path),
-
-	TP_ARGS(widget, path),
-
-	TP_STRUCT__entry(
-		__string(	wname,	widget->name		)
-		__string(	pname,	path->name ? path->name : DAPM_DIRECT)
-		__string(	psname,	path->source->name	)
-		__field(	int,	path_source		)
-		__field(	int,	path_connect		)
-	),
-
-	TP_fast_assign(
-		__assign_str(wname, widget->name);
-		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
-		__assign_str(psname, path->source->name);
-		__entry->path_connect = path->connect;
-		__entry->path_source = (long)path->source;
-	),
-
-	TP_printk("%c%s <- %s <- %s",
-		(int) __entry->path_source &&
-		(int) __entry->path_connect ? '*' : ' ',
-		__get_str(wname), __get_str(pname), __get_str(psname))
+		__get_str(wname), DAPM_ARROW(__entry->path_dir),
+		__get_str(pname), DAPM_ARROW(__entry->path_dir),
+		__get_str(pnname))
 );
 
 TRACE_EVENT(snd_soc_dapm_connected,

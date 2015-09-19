@@ -172,8 +172,7 @@ void handle_watchdog_bite(struct pt_regs *regs)
 extern void cris_profile_sample(struct pt_regs *regs);
 static void __iomem *timer_base;
 
-static void crisv32_clkevt_mode(enum clock_event_mode mode,
-				struct clock_event_device *dev)
+static int crisv32_clkevt_switch_state(struct clock_event_device *dev)
 {
 	reg_timer_rw_tmr0_ctrl ctrl = {
 		.op = regk_timer_hold,
@@ -181,6 +180,7 @@ static void crisv32_clkevt_mode(enum clock_event_mode mode,
 	};
 
 	REG_WR(timer, timer_base, rw_tmr0_ctrl, ctrl);
+	return 0;
 }
 
 static int crisv32_clkevt_next_event(unsigned long evt,
@@ -231,7 +231,9 @@ static struct clock_event_device crisv32_clockevent = {
 	.name = "crisv32-timer",
 	.rating = 300,
 	.features = CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode = crisv32_clkevt_mode,
+	.set_state_oneshot = crisv32_clkevt_switch_state,
+	.set_state_shutdown = crisv32_clkevt_switch_state,
+	.tick_resume = crisv32_clkevt_switch_state,
 	.set_next_event = crisv32_clkevt_next_event,
 };
 

@@ -646,6 +646,7 @@ static struct davinci_spi_platform_data dm365_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
 	.dma_event_q	= EVENTQ_3,
+	.prescaler_limit = 1,
 };
 
 static struct resource dm365_spi0_resources[] = {

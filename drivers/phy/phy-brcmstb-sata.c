@@ -122,7 +122,7 @@ static int brcm_sata_phy_init(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_ops_28nm = {
+static const struct phy_ops phy_ops_28nm = {
 	.init		= brcm_sata_phy_init,
 	.owner		= THIS_MODULE,
 };

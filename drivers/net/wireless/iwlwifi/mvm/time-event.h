@@ -157,9 +157,8 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 /*
  * iwl_mvm_rx_time_event_notif - handles %TIME_EVENT_NOTIFICATION.
  */
-int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd);
+void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
  * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionality

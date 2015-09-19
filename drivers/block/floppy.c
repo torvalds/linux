@@ -3771,13 +3771,14 @@ struct rb0_cbdata {
 	struct completion complete;
 };
 
-static void floppy_rb0_cb(struct bio *bio, int err)
+static void floppy_rb0_cb(struct bio *bio)
 {
 	struct rb0_cbdata *cbdata = (struct rb0_cbdata *)bio->bi_private;
 	int drive = cbdata->drive;
 
-	if (err) {
-		pr_info("floppy: error %d while reading block 0\n", err);
+	if (bio->bi_error) {
+		pr_info("floppy: error %d while reading block 0\n",
+			bio->bi_error);
 		set_bit(FD_OPEN_SHOULD_FAIL_BIT, &UDRS->flags);
 	}
 	complete(&cbdata->complete);

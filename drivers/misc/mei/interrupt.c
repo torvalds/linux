@@ -403,6 +403,13 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 			if (ret)
 				return ret;
 			break;
+
+		case MEI_FOP_NOTIFY_START:
+		case MEI_FOP_NOTIFY_STOP:
+			ret = mei_cl_irq_notify(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
 		default:
 			BUG();
 		}
@@ -424,6 +431,24 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 EXPORT_SYMBOL_GPL(mei_irq_write_handler);
 
 
+/**
+ * mei_connect_timeout  - connect/disconnect timeouts
+ *
+ * @cl: host client
+ */
+static void mei_connect_timeout(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+
+	if (cl->state == MEI_FILE_CONNECTING) {
+		if (dev->hbm_f_dot_supported) {
+			cl->state = MEI_FILE_DISCONNECT_REQUIRED;
+			wake_up(&cl->wait);
+			return;
+		}
+	}
+	mei_reset(dev);
+}
 
 /**
  * mei_timer - timer function.
@@ -464,7 +489,7 @@ void mei_timer(struct work_struct *work)
 		if (cl->timer_count) {
 			if (--cl->timer_count == 0) {
 				dev_err(dev->dev, "timer: connect/disconnect timeout.\n");
-				mei_reset(dev);
+				mei_connect_timeout(cl);
 				goto out;
 			}
 		}

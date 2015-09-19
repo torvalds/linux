@@ -929,13 +929,11 @@ The C Programming Language, Second Edition
 by Brian W. Kernighan and Dennis M. Ritchie.
 Prentice Hall, Inc., 1988.
 ISBN 0-13-110362-8 (paperback), 0-13-110370-9 (hardback).
-URL: http://cm.bell-labs.com/cm/cs/cbook/
 
 The Practice of Programming
 by Brian W. Kernighan and Rob Pike.
 Addison-Wesley, Inc., 1999.
 ISBN 0-201-61586-X.
-URL: http://cm.bell-labs.com/cm/cs/tpop/
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
 gcc internals and indent, all available from http://www.gnu.org/manual/

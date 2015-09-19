@@ -7,6 +7,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/udp.h>
+#include <net/dst_metadata.h>
 
 #define VNI_HASH_BITS	10
 #define VNI_HASH_SIZE	(1<<VNI_HASH_BITS)
@@ -94,20 +95,18 @@ struct vxlanhdr {
 #define VXLAN_VNI_MASK  (VXLAN_VID_MASK << 8)
 #define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
+#define VNI_HASH_BITS	10
+#define VNI_HASH_SIZE	(1<<VNI_HASH_BITS)
+#define FDB_HASH_BITS	8
+#define FDB_HASH_SIZE	(1<<FDB_HASH_BITS)
+
 struct vxlan_metadata {
-	__be32		vni;
 	u32		gbp;
 };
-
-struct vxlan_sock;
-typedef void (vxlan_rcv_t)(struct vxlan_sock *vh, struct sk_buff *skb,
-			   struct vxlan_metadata *md);
 
 /* per UDP socket information */
 struct vxlan_sock {
 	struct hlist_node hlist;
-	vxlan_rcv_t	 *rcv;
-	void		 *data;
 	struct work_struct del_work;
 	struct socket	 *sock;
 	struct rcu_head	  rcu;
@@ -115,6 +114,58 @@ struct vxlan_sock {
 	atomic_t	  refcnt;
 	struct udp_offload udp_offloads;
 	u32		  flags;
+};
+
+union vxlan_addr {
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr sa;
+};
+
+struct vxlan_rdst {
+	union vxlan_addr	 remote_ip;
+	__be16			 remote_port;
+	u32			 remote_vni;
+	u32			 remote_ifindex;
+	struct list_head	 list;
+	struct rcu_head		 rcu;
+};
+
+struct vxlan_config {
+	union vxlan_addr	remote_ip;
+	union vxlan_addr	saddr;
+	u32			vni;
+	int			remote_ifindex;
+	int			mtu;
+	__be16			dst_port;
+	__u16			port_min;
+	__u16			port_max;
+	__u8			tos;
+	__u8			ttl;
+	u32			flags;
+	unsigned long		age_interval;
+	unsigned int		addrmax;
+	bool			no_share;
+};
+
+/* Pseudo network device */
+struct vxlan_dev {
+	struct hlist_node hlist;	/* vni hash table */
+	struct list_head  next;		/* vxlan's per namespace list */
+	struct vxlan_sock *vn_sock;	/* listening socket */
+	struct net_device *dev;
+	struct net	  *net;		/* netns for packet i/o */
+	struct vxlan_rdst default_dst;	/* default destination */
+	u32		  flags;	/* VXLAN_F_* in vxlan.h */
+
+	struct timer_list age_timer;
+	spinlock_t	  hash_lock;
+	unsigned int	  addrcnt;
+	struct gro_cells  gro_cells;
+
+	struct vxlan_config	cfg;
+
+	struct hlist_head fdb_head[FDB_HASH_SIZE];
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -130,6 +181,7 @@ struct vxlan_sock {
 #define VXLAN_F_REMCSUM_RX		0x400
 #define VXLAN_F_GBP			0x800
 #define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
+#define VXLAN_F_COLLECT_METADATA	0x2000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -137,18 +189,16 @@ struct vxlan_sock {
 #define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_REMCSUM_RX |		\
-					 VXLAN_F_REMCSUM_NOPARTIAL)
+					 VXLAN_F_REMCSUM_NOPARTIAL |	\
+					 VXLAN_F_COLLECT_METADATA)
 
-struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
-				  vxlan_rcv_t *rcv, void *data,
-				  bool no_share, u32 flags);
+struct net_device *vxlan_dev_create(struct net *net, const char *name,
+				    u8 name_assign_type, struct vxlan_config *conf);
 
-void vxlan_sock_release(struct vxlan_sock *vs);
-
-int vxlan_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
-		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
-		   __be16 src_port, __be16 dst_port, struct vxlan_metadata *md,
-		   bool xnet, u32 vxflags);
+static inline __be16 vxlan_dev_dst_port(struct vxlan_dev *vxlan)
+{
+	return inet_sk(vxlan->vn_sock->sock->sk)->inet_sport;
+}
 
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)
@@ -191,4 +241,10 @@ static inline void vxlan_get_rx_port(struct net_device *netdev)
 {
 }
 #endif
+
+static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
+{
+	return vs->sock->sk->sk_family;
+}
+
 #endif

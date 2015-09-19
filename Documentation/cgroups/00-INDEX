@@ -22,6 +22,8 @@ net_cls.txt
 	- Network classifier cgroups details and usages.
 net_prio.txt
 	- Network priority cgroups details and usages.
+pids.txt
+	- Process number cgroups details and usages.
 resource_counter.txt
 	- Resource Counter API.
 unified-hierarchy.txt

@@ -298,7 +298,7 @@ static int ti_pipe3_exit(struct phy *x)
 
 	return 0;
 }
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= ti_pipe3_init,
 	.exit		= ti_pipe3_exit,
 	.power_on	= ti_pipe3_power_on,

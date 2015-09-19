@@ -1437,28 +1437,28 @@ Load_ctr32_enc_key:
 	?vperm		v31,v31,$out0,$keyperm
 	lvx		v25,$x10,$key_		# pre-load round[2]
 
-	vadduwm		$two,$one,$one
+	vadduqm		$two,$one,$one
 	subi		$inp,$inp,15		# undo "caller"
 	$SHL		$len,$len,4
 
-	vadduwm		$out1,$ivec,$one	# counter values ...
-	vadduwm		$out2,$ivec,$two
+	vadduqm		$out1,$ivec,$one	# counter values ...
+	vadduqm		$out2,$ivec,$two
 	vxor		$out0,$ivec,$rndkey0	# ... xored with rndkey[0]
 	 le?li		$idx,8
-	vadduwm		$out3,$out1,$two
+	vadduqm		$out3,$out1,$two
 	vxor		$out1,$out1,$rndkey0
 	 le?lvsl	$inpperm,0,$idx
-	vadduwm		$out4,$out2,$two
+	vadduqm		$out4,$out2,$two
 	vxor		$out2,$out2,$rndkey0
 	 le?vspltisb	$tmp,0x0f
-	vadduwm		$out5,$out3,$two
+	vadduqm		$out5,$out3,$two
 	vxor		$out3,$out3,$rndkey0
 	 le?vxor	$inpperm,$inpperm,$tmp	# transform for lvx_u/stvx_u
-	vadduwm		$out6,$out4,$two
+	vadduqm		$out6,$out4,$two
 	vxor		$out4,$out4,$rndkey0
-	vadduwm		$out7,$out5,$two
+	vadduqm		$out7,$out5,$two
 	vxor		$out5,$out5,$rndkey0
-	vadduwm		$ivec,$out6,$two	# next counter value
+	vadduqm		$ivec,$out6,$two	# next counter value
 	vxor		$out6,$out6,$rndkey0
 	vxor		$out7,$out7,$rndkey0
 
@@ -1594,27 +1594,27 @@ Loop_ctr32_enc8x_middle:
 
 	vcipherlast	$in0,$out0,$in0
 	vcipherlast	$in1,$out1,$in1
-	 vadduwm	$out1,$ivec,$one	# counter values ...
+	 vadduqm	$out1,$ivec,$one	# counter values ...
 	vcipherlast	$in2,$out2,$in2
-	 vadduwm	$out2,$ivec,$two
+	 vadduqm	$out2,$ivec,$two
 	 vxor		$out0,$ivec,$rndkey0	# ... xored with rndkey[0]
 	vcipherlast	$in3,$out3,$in3
-	 vadduwm	$out3,$out1,$two
+	 vadduqm	$out3,$out1,$two
 	 vxor		$out1,$out1,$rndkey0
 	vcipherlast	$in4,$out4,$in4
-	 vadduwm	$out4,$out2,$two
+	 vadduqm	$out4,$out2,$two
 	 vxor		$out2,$out2,$rndkey0
 	vcipherlast	$in5,$out5,$in5
-	 vadduwm	$out5,$out3,$two
+	 vadduqm	$out5,$out3,$two
 	 vxor		$out3,$out3,$rndkey0
 	vcipherlast	$in6,$out6,$in6
-	 vadduwm	$out6,$out4,$two
+	 vadduqm	$out6,$out4,$two
 	 vxor		$out4,$out4,$rndkey0
 	vcipherlast	$in7,$out7,$in7
-	 vadduwm	$out7,$out5,$two
+	 vadduqm	$out7,$out5,$two
 	 vxor		$out5,$out5,$rndkey0
 	le?vperm	$in0,$in0,$in0,$inpperm
-	 vadduwm	$ivec,$out6,$two	# next counter value
+	 vadduqm	$ivec,$out6,$two	# next counter value
 	 vxor		$out6,$out6,$rndkey0
 	le?vperm	$in1,$in1,$in1,$inpperm
 	 vxor		$out7,$out7,$rndkey0

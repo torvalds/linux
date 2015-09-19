@@ -223,8 +223,7 @@ static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 	status = readl(&app_reg->int_sts);
 
 	if (status & MSI_CTRL_INT) {
-		if (!IS_ENABLED(CONFIG_PCI_MSI))
-			BUG();
+		BUG_ON(!IS_ENABLED(CONFIG_PCI_MSI));
 		dw_handle_msi_irq(pp);
 	}
 

@@ -22,6 +22,7 @@
 #define TEGRA114	0x35
 #define TEGRA124	0x40
 #define TEGRA132	0x13
+#define TEGRA210	0x21
 
 #define TEGRA_FUSE_SKU_CALIB_0	0xf0
 #define TEGRA30_FUSE_SATA_CALIB	0x124
@@ -47,10 +48,11 @@ struct tegra_sku_info {
 	int cpu_speedo_id;
 	int cpu_speedo_value;
 	int cpu_iddq_value;
-	int core_process_id;
+	int soc_process_id;
 	int soc_speedo_id;
-	int gpu_speedo_id;
+	int soc_speedo_value;
 	int gpu_process_id;
+	int gpu_speedo_id;
 	int gpu_speedo_value;
 	enum tegra_revision revision;
 };

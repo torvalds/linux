@@ -28,25 +28,6 @@
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
-#include "../mount.h"
-
-void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
-{
-	struct fsnotify_mark *mark;
-	struct hlist_node *n;
-	struct mount *m = real_mount(mnt);
-	LIST_HEAD(free_list);
-
-	spin_lock(&mnt->mnt_root->d_lock);
-	hlist_for_each_entry_safe(mark, n, &m->mnt_fsnotify_marks, obj_list) {
-		list_add(&mark->free_list, &free_list);
-		hlist_del_init_rcu(&mark->obj_list);
-		fsnotify_get_mark(mark);
-	}
-	spin_unlock(&mnt->mnt_root->d_lock);
-
-	fsnotify_destroy_marks(&free_list);
-}
 
 void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 {

@@ -38,7 +38,7 @@ typedef struct icn_cdef {
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/major.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/slab.h>

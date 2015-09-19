@@ -520,12 +520,11 @@ static void ipvlan_link_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
-	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->priv_flags |= IFF_UNICAST_FLT | IFF_NO_QUEUE;
 	dev->netdev_ops = &ipvlan_netdev_ops;
 	dev->destructor = free_netdev;
 	dev->header_ops = &ipvlan_header_ops;
 	dev->ethtool_ops = &ipvlan_ethtool_ops;
-	dev->tx_queue_len = 0;
 }
 
 static const struct nla_policy ipvlan_nl_policy[IFLA_IPVLAN_MAX + 1] =

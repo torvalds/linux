@@ -61,7 +61,7 @@ berlin2_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	fbdiv = (val >> map->fbdiv_shift) & FBDIV_MASK;
 	rfdiv = (val >> map->rfdiv_shift) & RFDIV_MASK;
 	if (rfdiv == 0) {
-		pr_warn("%s has zero rfdiv\n", __clk_get_name(hw->clk));
+		pr_warn("%s has zero rfdiv\n", clk_hw_get_name(hw));
 		rfdiv = 1;
 	}
 
@@ -70,7 +70,7 @@ berlin2_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	vcodiv = map->vcodiv[vcodivsel];
 	if (vcodiv == 0) {
 		pr_warn("%s has zero vcodiv (index %d)\n",
-			__clk_get_name(hw->clk), vcodivsel);
+			clk_hw_get_name(hw), vcodivsel);
 		vcodiv = 1;
 	}
 

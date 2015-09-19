@@ -32,6 +32,7 @@
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
+#include <net/lwtunnel.h>
 
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>

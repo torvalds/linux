@@ -110,6 +110,18 @@
 				read-only;
 			};
 		};
+
+		gpio: xlp_gpio@34100 {
+			compatible = "netlogic,xlp316-gpio";
+			reg = <0 0x34100 0x1000>;
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			#interrupt-cells = <2>;
+			interrupt-parent = <&pic>;
+			interrupts = <39>;
+			interrupt-controller;
+		};
 	};
 
 	chosen {

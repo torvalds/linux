@@ -282,7 +282,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_asoc_ssp2,
 	&pxa_device_asoc_ssp3,
 	&pxa_device_asoc_platform,
-	&sa1100_device_rtc,
 	&pxa_device_rtc,
 	&pxa27x_device_ssp1,
 	&pxa27x_device_ssp2,
@@ -310,6 +309,7 @@ static int __init pxa27x_init(void)
 		if (!of_have_populated_dt()) {
 			pxa_register_device(&pxa27x_device_gpio,
 					    &pxa27x_gpio_info);
+			pxa2xx_set_dmac_info(32);
 			ret = platform_add_devices(devices,
 						   ARRAY_SIZE(devices));
 		}

@@ -397,6 +397,7 @@ int snd_soc_dapm_del_routes(struct snd_soc_dapm_context *dapm,
 			    const struct snd_soc_dapm_route *route, int num);
 int snd_soc_dapm_weak_routes(struct snd_soc_dapm_context *dapm,
 			     const struct snd_soc_dapm_route *route, int num);
+void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w);
 
 /* dapm events */
 void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
@@ -511,9 +512,18 @@ struct snd_soc_dapm_route {
 struct snd_soc_dapm_path {
 	const char *name;
 
-	/* source (input) and sink (output) widgets */
-	struct snd_soc_dapm_widget *source;
-	struct snd_soc_dapm_widget *sink;
+	/*
+	 * source (input) and sink (output) widgets
+	 * The union is for convience, since it is a lot nicer to type
+	 * p->source, rather than p->node[SND_SOC_DAPM_DIR_IN]
+	 */
+	union {
+		struct {
+			struct snd_soc_dapm_widget *source;
+			struct snd_soc_dapm_widget *sink;
+		};
+		struct snd_soc_dapm_widget *node[2];
+	};
 
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
@@ -524,8 +534,7 @@ struct snd_soc_dapm_path {
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink);
 
-	struct list_head list_source;
-	struct list_head list_sink;
+	struct list_head list_node[2];
 	struct list_head list_kcontrol;
 	struct list_head list;
 };
@@ -559,8 +568,7 @@ struct snd_soc_dapm_widget {
 	unsigned char new_power:1;		/* power from this run */
 	unsigned char power_checked:1;		/* power checked this run */
 	unsigned char is_supply:1;		/* Widget is a supply type widget */
-	unsigned char is_sink:1;		/* Widget is a sink type widget */
-	unsigned char is_source:1;		/* Widget is a source type widget */
+	unsigned char is_ep:2;			/* Widget is a endpoint type widget */
 	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
@@ -575,16 +583,14 @@ struct snd_soc_dapm_widget {
 	struct snd_kcontrol **kcontrols;
 	struct snd_soc_dobj dobj;
 
-	/* widget input and outputs */
-	struct list_head sources;
-	struct list_head sinks;
+	/* widget input and output edges */
+	struct list_head edges[2];
 
 	/* used during DAPM updates */
 	struct list_head work_list;
 	struct list_head power_list;
 	struct list_head dirty;
-	int inputs;
-	int outputs;
+	int endpoints[2];
 
 	struct clk *clk;
 };
@@ -671,5 +677,59 @@ static inline enum snd_soc_bias_level snd_soc_dapm_get_bias_level(
 {
 	return dapm->bias_level;
 }
+
+enum snd_soc_dapm_direction {
+	SND_SOC_DAPM_DIR_IN,
+	SND_SOC_DAPM_DIR_OUT
+};
+
+#define SND_SOC_DAPM_DIR_TO_EP(x) BIT(x)
+
+#define SND_SOC_DAPM_EP_SOURCE SND_SOC_DAPM_DIR_TO_EP(SND_SOC_DAPM_DIR_IN)
+#define SND_SOC_DAPM_EP_SINK SND_SOC_DAPM_DIR_TO_EP(SND_SOC_DAPM_DIR_OUT)
+
+/**
+ * snd_soc_dapm_widget_for_each_sink_path - Iterates over all paths in the
+ *   specified direction of a widget
+ * @w: The widget
+ * @dir: Whether to iterate over the paths where the specified widget is the
+ *       incoming or outgoing widgets
+ * @p: The path iterator variable
+ */
+#define snd_soc_dapm_widget_for_each_path(w, dir, p) \
+	list_for_each_entry(p, &w->edges[dir], list_node[dir])
+
+/**
+ * snd_soc_dapm_widget_for_each_sink_path_safe - Iterates over all paths in the
+ *   specified direction of a widget
+ * @w: The widget
+ * @dir: Whether to iterate over the paths where the specified widget is the
+ *       incoming or outgoing widgets
+ * @p: The path iterator variable
+ * @next_p: Temporary storage for the next path
+ *
+ *  This function works like snd_soc_dapm_widget_for_each_sink_path, expect that
+ *  it is safe to remove the current path from the list while iterating
+ */
+#define snd_soc_dapm_widget_for_each_path_safe(w, dir, p, next_p) \
+	list_for_each_entry_safe(p, next_p, &w->edges[dir], list_node[dir])
+
+/**
+ * snd_soc_dapm_widget_for_each_sink_path - Iterates over all paths leaving a
+ *  widget
+ * @w: The widget
+ * @p: The path iterator variable
+ */
+#define snd_soc_dapm_widget_for_each_sink_path(w, p) \
+	snd_soc_dapm_widget_for_each_path(w, SND_SOC_DAPM_DIR_IN, p)
+
+/**
+ * snd_soc_dapm_widget_for_each_source_path - Iterates over all paths leading to
+ *  a widget
+ * @w: The widget
+ * @p: The path iterator variable
+ */
+#define snd_soc_dapm_widget_for_each_source_path(w, p) \
+	snd_soc_dapm_widget_for_each_path(w, SND_SOC_DAPM_DIR_OUT, p)
 
 #endif

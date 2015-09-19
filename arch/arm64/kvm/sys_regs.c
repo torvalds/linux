@@ -38,6 +38,8 @@
 
 #include "sys_regs.h"
 
+#include "trace.h"
+
 /*
  * All of this file is extremly similar to the ARM coproc.c, but the
  * types are different. My gut feeling is that it should be pretty
@@ -208,7 +210,215 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 		*vcpu_reg(vcpu, p->Rt) = vcpu_sys_reg(vcpu, r->reg);
 	}
 
+	trace_trap_reg(__func__, r->reg, p->is_write, *vcpu_reg(vcpu, p->Rt));
+
 	return true;
+}
+
+/*
+ * reg_to_dbg/dbg_to_reg
+ *
+ * A 32 bit write to a debug register leave top bits alone
+ * A 32 bit read from a debug register only returns the bottom bits
+ *
+ * All writes will set the KVM_ARM64_DEBUG_DIRTY flag to ensure the
+ * hyp.S code switches between host and guest values in future.
+ */
+static inline void reg_to_dbg(struct kvm_vcpu *vcpu,
+			      const struct sys_reg_params *p,
+			      u64 *dbg_reg)
+{
+	u64 val = *vcpu_reg(vcpu, p->Rt);
+
+	if (p->is_32bit) {
+		val &= 0xffffffffUL;
+		val |= ((*dbg_reg >> 32) << 32);
+	}
+
+	*dbg_reg = val;
+	vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+}
+
+static inline void dbg_to_reg(struct kvm_vcpu *vcpu,
+			      const struct sys_reg_params *p,
+			      u64 *dbg_reg)
+{
+	u64 val = *dbg_reg;
+
+	if (p->is_32bit)
+		val &= 0xffffffffUL;
+
+	*vcpu_reg(vcpu, p->Rt) = val;
+}
+
+static inline bool trap_bvr(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+
+	if (p->is_write)
+		reg_to_dbg(vcpu, p, dbg_reg);
+	else
+		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
+
+	return true;
+}
+
+static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+	const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+
+	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static inline void reset_bvr(struct kvm_vcpu *vcpu,
+			     const struct sys_reg_desc *rd)
+{
+	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg] = rd->val;
+}
+
+static inline bool trap_bcr(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+
+	if (p->is_write)
+		reg_to_dbg(vcpu, p, dbg_reg);
+	else
+		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
+
+	return true;
+}
+
+static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+	const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+
+	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static inline void reset_bcr(struct kvm_vcpu *vcpu,
+			     const struct sys_reg_desc *rd)
+{
+	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg] = rd->val;
+}
+
+static inline bool trap_wvr(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+
+	if (p->is_write)
+		reg_to_dbg(vcpu, p, dbg_reg);
+	else
+		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write,
+		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg]);
+
+	return true;
+}
+
+static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+	const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+
+	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static inline void reset_wvr(struct kvm_vcpu *vcpu,
+			     const struct sys_reg_desc *rd)
+{
+	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg] = rd->val;
+}
+
+static inline bool trap_wcr(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+
+	if (p->is_write)
+		reg_to_dbg(vcpu, p, dbg_reg);
+	else
+		dbg_to_reg(vcpu, p, dbg_reg);
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
+
+	return true;
+}
+
+static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+		const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+	const struct kvm_one_reg *reg, void __user *uaddr)
+{
+	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+
+	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+		return -EFAULT;
+	return 0;
+}
+
+static inline void reset_wcr(struct kvm_vcpu *vcpu,
+			     const struct sys_reg_desc *rd)
+{
+	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg] = rd->val;
 }
 
 static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
@@ -240,16 +450,16 @@ static void reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 #define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
 	/* DBGBVRn_EL1 */						\
 	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b100),	\
-	  trap_debug_regs, reset_val, (DBGBVR0_EL1 + (n)), 0 },		\
+	  trap_bvr, reset_bvr, n, 0, get_bvr, set_bvr },		\
 	/* DBGBCRn_EL1 */						\
 	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b101),	\
-	  trap_debug_regs, reset_val, (DBGBCR0_EL1 + (n)), 0 },		\
+	  trap_bcr, reset_bcr, n, 0, get_bcr, set_bcr },		\
 	/* DBGWVRn_EL1 */						\
 	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b110),	\
-	  trap_debug_regs, reset_val, (DBGWVR0_EL1 + (n)), 0 },		\
+	  trap_wvr, reset_wvr, n, 0,  get_wvr, set_wvr },		\
 	/* DBGWCRn_EL1 */						\
 	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b111),	\
-	  trap_debug_regs, reset_val, (DBGWCR0_EL1 + (n)), 0 }
+	  trap_wcr, reset_wcr, n, 0,  get_wcr, set_wcr }
 
 /*
  * Architected system registers.
@@ -328,13 +538,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	/* DBGAUTHSTATUS_EL1 */
 	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
 	  trap_dbgauthstatus_el1 },
-
-	/* TEECR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEECR32_EL1, 0 },
-	/* TEEHBR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEEHBR32_EL1, 0 },
 
 	/* MDCCSR_EL1 */
 	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),
@@ -516,28 +719,57 @@ static bool trap_debug32(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-#define DBG_BCR_BVR_WCR_WVR(n)					\
-	/* DBGBVRn */						\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_debug32,	\
-	  NULL, (cp14_DBGBVR0 + (n) * 2) },			\
-	/* DBGBCRn */						\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_debug32,	\
-	  NULL, (cp14_DBGBCR0 + (n) * 2) },			\
-	/* DBGWVRn */						\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_debug32,	\
-	  NULL, (cp14_DBGWVR0 + (n) * 2) },			\
-	/* DBGWCRn */						\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_debug32,	\
-	  NULL, (cp14_DBGWCR0 + (n) * 2) }
+/* AArch32 debug register mappings
+ *
+ * AArch32 DBGBVRn is mapped to DBGBVRn_EL1[31:0]
+ * AArch32 DBGBXVRn is mapped to DBGBVRn_EL1[63:32]
+ *
+ * All control registers and watchpoint value registers are mapped to
+ * the lower 32 bits of their AArch64 equivalents. We share the trap
+ * handlers with the above AArch64 code which checks what mode the
+ * system is in.
+ */
 
-#define DBGBXVR(n)						\
-	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_debug32,	\
-	  NULL, cp14_DBGBXVR0 + n * 2 }
+static inline bool trap_xvr(struct kvm_vcpu *vcpu,
+			    const struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+
+	if (p->is_write) {
+		u64 val = *dbg_reg;
+
+		val &= 0xffffffffUL;
+		val |= *vcpu_reg(vcpu, p->Rt) << 32;
+		*dbg_reg = val;
+
+		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+	} else {
+		*vcpu_reg(vcpu, p->Rt) = *dbg_reg >> 32;
+	}
+
+	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
+
+	return true;
+}
+
+#define DBG_BCR_BVR_WCR_WVR(n)						\
+	/* DBGBVRn */							\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, 	\
+	/* DBGBCRn */							\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	\
+	/* DBGWVRn */							\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	\
+	/* DBGWCRn */							\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_wcr, NULL, n }
+
+#define DBGBXVR(n)							\
+	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_xvr, NULL, n }
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
  * debug, on the principle that they don't really make sense to a
- * guest. Revisit this one day, whould this principle change.
+ * guest. Revisit this one day, would this principle change.
  */
 static const struct sys_reg_desc cp14_regs[] = {
 	/* DBGIDR */
@@ -999,6 +1231,8 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	struct sys_reg_params params;
 	unsigned long esr = kvm_vcpu_get_hsr(vcpu);
 
+	trace_kvm_handle_sys_reg(esr);
+
 	params.is_aarch32 = false;
 	params.is_32bit = false;
 	params.Op0 = (esr >> 20) & 3;
@@ -1303,6 +1537,9 @@ int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 	if (!r)
 		return get_invariant_sys_reg(reg->id, uaddr);
 
+	if (r->get_user)
+		return (r->get_user)(vcpu, r, reg, uaddr);
+
 	return reg_to_user(uaddr, &vcpu_sys_reg(vcpu, r->reg), reg->id);
 }
 
@@ -1320,6 +1557,9 @@ int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 	r = index_to_sys_reg_desc(vcpu, reg->id);
 	if (!r)
 		return set_invariant_sys_reg(reg->id, uaddr);
+
+	if (r->set_user)
+		return (r->set_user)(vcpu, r, reg, uaddr);
 
 	return reg_from_user(&vcpu_sys_reg(vcpu, r->reg), uaddr, reg->id);
 }

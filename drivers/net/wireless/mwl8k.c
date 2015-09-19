@@ -5019,35 +5019,36 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		memcpy(ap_mcs_rates, ap->ht_cap.mcs.rx_mask, 16);
 
 		rcu_read_unlock();
-	}
 
-	if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
-	    !priv->ap_fw) {
-		rc = mwl8k_cmd_set_rate(hw, vif, ap_legacy_rates, ap_mcs_rates);
-		if (rc)
-			goto out;
+		if (changed & BSS_CHANGED_ASSOC) {
+			if (!priv->ap_fw) {
+				rc = mwl8k_cmd_set_rate(hw, vif,
+							ap_legacy_rates,
+							ap_mcs_rates);
+				if (rc)
+					goto out;
 
-		rc = mwl8k_cmd_use_fixed_rate_sta(hw);
-		if (rc)
-			goto out;
-	} else {
-		if ((changed & BSS_CHANGED_ASSOC) && vif->bss_conf.assoc &&
-		    priv->ap_fw) {
-			int idx;
-			int rate;
+				rc = mwl8k_cmd_use_fixed_rate_sta(hw);
+				if (rc)
+					goto out;
+			} else {
+				int idx;
+				int rate;
 
-			/* Use AP firmware specific rate command.
-			 */
-			idx = ffs(vif->bss_conf.basic_rates);
-			if (idx)
-				idx--;
+				/* Use AP firmware specific rate command.
+				 */
+				idx = ffs(vif->bss_conf.basic_rates);
+				if (idx)
+					idx--;
 
-			if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
-				rate = mwl8k_rates_24[idx].hw_value;
-			else
-				rate = mwl8k_rates_50[idx].hw_value;
+				if (hw->conf.chandef.chan->band ==
+				    IEEE80211_BAND_2GHZ)
+					rate = mwl8k_rates_24[idx].hw_value;
+				else
+					rate = mwl8k_rates_50[idx].hw_value;
 
-			mwl8k_cmd_use_fixed_rate_ap(hw, rate, rate);
+				mwl8k_cmd_use_fixed_rate_ap(hw, rate, rate);
+			}
 		}
 	}
 

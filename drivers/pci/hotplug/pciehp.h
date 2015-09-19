@@ -101,18 +101,12 @@ struct controller {
 	unsigned int power_fault_detected;
 };
 
-#define INT_BUTTON_IGNORE		0
 #define INT_PRESENCE_ON			1
 #define INT_PRESENCE_OFF		2
-#define INT_SWITCH_CLOSE		3
-#define INT_SWITCH_OPEN			4
-#define INT_POWER_FAULT			5
-#define INT_POWER_FAULT_CLEAR		6
-#define INT_BUTTON_PRESS		7
-#define INT_BUTTON_RELEASE		8
-#define INT_BUTTON_CANCEL		9
-#define INT_LINK_UP			10
-#define INT_LINK_DOWN			11
+#define INT_POWER_FAULT			3
+#define INT_BUTTON_PRESS		4
+#define INT_LINK_UP			5
+#define INT_LINK_DOWN			6
 
 #define STATIC_STATE			0
 #define BLINKINGON_STATE		1

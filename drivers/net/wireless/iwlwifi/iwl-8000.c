@@ -69,13 +69,13 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL8000_UCODE_API_MAX	15
+#define IWL8000_UCODE_API_MAX	17
 
 /* Oldest version we won't warn about */
 #define IWL8000_UCODE_API_OK	12
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	10
+#define IWL8000_UCODE_API_MIN	12
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d
@@ -97,8 +97,9 @@
 #define DEFAULT_NVM_FILE_FAMILY_8000B		"nvmData-8000B"
 #define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
-/* Max SDIO RX aggregation size of the ADDBA request/response */
-#define MAX_RX_AGG_SIZE_8260_SDIO	28
+/* Max SDIO RX/TX aggregation sizes of the ADDBA request/response */
+#define MAX_RX_AGG_SIZE_8260_SDIO	21
+#define MAX_TX_AGG_SIZE_8260_SDIO	40
 
 /* Max A-MPDU exponent for HT and VHT */
 #define MAX_HT_AMPDU_EXPONENT_8260_SDIO	IEEE80211_HT_MAX_AMPDU_32K
@@ -154,6 +155,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,		\
 	.d0i3 = true,							\
+	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\
 	.dccm_len = IWL8260_DCCM_LEN,					\
@@ -203,6 +205,7 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
+	.max_tx_agg_size = MAX_TX_AGG_SIZE_8260_SDIO,
 	.disable_dummy_notification = true,
 	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,
 	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
@@ -216,6 +219,7 @@ const struct iwl_cfg iwl4165_2ac_sdio_cfg = {
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
+	.max_tx_agg_size = MAX_TX_AGG_SIZE_8260_SDIO,
 	.bt_shared_single_ant = true,
 	.disable_dummy_notification = true,
 	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,

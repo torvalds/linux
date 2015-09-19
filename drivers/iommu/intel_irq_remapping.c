@@ -384,7 +384,7 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 
 static int iommu_load_old_irte(struct intel_iommu *iommu)
 {
-	struct irte *old_ir_table;
+	struct irte __iomem *old_ir_table;
 	phys_addr_t irt_phys;
 	unsigned int i;
 	size_t size;
@@ -413,7 +413,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 		return -ENOMEM;
 
 	/* Copy data over */
-	memcpy(iommu->ir_table->base, old_ir_table, size);
+	memcpy_fromio(iommu->ir_table->base, old_ir_table, size);
 
 	__iommu_flush_cache(iommu, iommu->ir_table->base, size);
 
@@ -425,6 +425,8 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 		if (iommu->ir_table->base[i].present)
 			bitmap_set(iommu->ir_table->bitmap, i, 1);
 	}
+
+	iounmap(old_ir_table);
 
 	return 0;
 }

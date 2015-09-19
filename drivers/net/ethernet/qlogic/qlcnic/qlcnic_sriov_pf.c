@@ -5,9 +5,10 @@
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
+#include <linux/types.h>
+
 #include "qlcnic_sriov.h"
 #include "qlcnic.h"
-#include <linux/types.h>
 
 #define QLCNIC_SRIOV_VF_MAX_MAC 7
 #define QLC_VF_MIN_TX_RATE	100

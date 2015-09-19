@@ -19,10 +19,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
@@ -412,7 +408,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 
-	if (dev->irq_managed && dev->irq > 0)
+	if (pci_has_managed_irq(dev))
 		return 0;
 
 	entry = acpi_pci_irq_lookup(dev, pin);
@@ -457,8 +453,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		kfree(entry);
 		return rc;
 	}
-	dev->irq = rc;
-	dev->irq_managed = 1;
+	pci_set_managed_irq(dev, rc);
 
 	if (link)
 		snprintf(link_desc, sizeof(link_desc), " -> Link[%s]", link);
@@ -481,16 +476,8 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	u8 pin;
 
 	pin = dev->pin;
-	if (!pin || !dev->irq_managed || dev->irq <= 0)
+	if (!pin || !pci_has_managed_irq(dev))
 		return;
-
-	/* Keep IOAPIC pin configuration when suspending */
-	if (dev->dev.power.is_prepared)
-		return;
-#ifdef	CONFIG_PM
-	if (dev->dev.power.runtime_status == RPM_SUSPENDING)
-		return;
-#endif
 
 	entry = acpi_pci_irq_lookup(dev, pin);
 	if (!entry)
@@ -511,6 +498,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
 	if (gsi >= 0) {
 		acpi_unregister_gsi(gsi);
-		dev->irq_managed = 0;
+		pci_reset_managed_irq(dev);
 	}
 }

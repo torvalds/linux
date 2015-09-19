@@ -820,7 +820,6 @@ MODULE_DEVICE_TABLE(i2c, au8522_id);
 
 static struct i2c_driver au8522_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "au8522",
 	},
 	.probe		= au8522_probe,

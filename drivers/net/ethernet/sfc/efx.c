@@ -115,9 +115,9 @@ static struct workqueue_struct *reset_workqueue;
  *
  * This is only used in MSI-X interrupt mode
  */
-static bool separate_tx_channels;
-module_param(separate_tx_channels, bool, 0444);
-MODULE_PARM_DESC(separate_tx_channels,
+bool efx_separate_tx_channels;
+module_param(efx_separate_tx_channels, bool, 0444);
+MODULE_PARM_DESC(efx_separate_tx_channels,
 		 "Use separate channels for TX and RX");
 
 /* This is the weight assigned to each of the (per-channel) virtual
@@ -1391,7 +1391,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		unsigned int n_channels;
 
 		n_channels = efx_wanted_parallelism(efx);
-		if (separate_tx_channels)
+		if (efx_separate_tx_channels)
 			n_channels *= 2;
 		n_channels += extra_channels;
 		n_channels = min(n_channels, efx->max_channels);
@@ -1418,13 +1418,16 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			efx->n_channels = n_channels;
 			if (n_channels > extra_channels)
 				n_channels -= extra_channels;
-			if (separate_tx_channels) {
-				efx->n_tx_channels = max(n_channels / 2, 1U);
+			if (efx_separate_tx_channels) {
+				efx->n_tx_channels = min(max(n_channels / 2,
+							     1U),
+							 efx->max_tx_channels);
 				efx->n_rx_channels = max(n_channels -
 							 efx->n_tx_channels,
 							 1U);
 			} else {
-				efx->n_tx_channels = n_channels;
+				efx->n_tx_channels = min(n_channels,
+							 efx->max_tx_channels);
 				efx->n_rx_channels = n_channels;
 			}
 			for (i = 0; i < efx->n_channels; i++)
@@ -1450,7 +1453,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 
 	/* Assume legacy interrupts */
 	if (efx->interrupt_mode == EFX_INT_MODE_LEGACY) {
-		efx->n_channels = 1 + (separate_tx_channels ? 1 : 0);
+		efx->n_channels = 1 + (efx_separate_tx_channels ? 1 : 0);
 		efx->n_rx_channels = 1;
 		efx->n_tx_channels = 1;
 		efx->legacy_irq = efx->pci_dev->irq;
@@ -1624,7 +1627,8 @@ static void efx_set_channels(struct efx_nic *efx)
 	struct efx_tx_queue *tx_queue;
 
 	efx->tx_channel_offset =
-		separate_tx_channels ? efx->n_channels - efx->n_tx_channels : 0;
+		efx_separate_tx_channels ?
+		efx->n_channels - efx->n_tx_channels : 0;
 
 	/* We need to mark which channels really have RX and TX
 	 * queues, and adjust the TX queue numbers if we have separate
@@ -1653,17 +1657,34 @@ static int efx_probe_nic(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	/* Determine the number of channels and queues by trying to hook
-	 * in MSI-X interrupts. */
-	rc = efx_probe_interrupts(efx);
-	if (rc)
-		goto fail1;
+	do {
+		if (!efx->max_channels || !efx->max_tx_channels) {
+			netif_err(efx, drv, efx->net_dev,
+				  "Insufficient resources to allocate"
+				  " any channels\n");
+			rc = -ENOSPC;
+			goto fail1;
+		}
 
-	efx_set_channels(efx);
+		/* Determine the number of channels and queues by trying
+		 * to hook in MSI-X interrupts.
+		 */
+		rc = efx_probe_interrupts(efx);
+		if (rc)
+			goto fail1;
 
-	rc = efx->type->dimension_resources(efx);
-	if (rc)
-		goto fail2;
+		efx_set_channels(efx);
+
+		/* dimension_resources can fail with EAGAIN */
+		rc = efx->type->dimension_resources(efx);
+		if (rc != 0 && rc != -EAGAIN)
+			goto fail2;
+
+		if (rc == -EAGAIN)
+			/* try again with new max_channels */
+			efx_remove_interrupts(efx);
+
+	} while (rc == -EAGAIN);
 
 	if (efx->n_channels > 1)
 		netdev_rss_key_fill(&efx->rx_hash_key,

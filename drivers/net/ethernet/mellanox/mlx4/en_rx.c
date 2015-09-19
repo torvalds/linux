@@ -725,7 +725,7 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 
 	hw_checksum = csum_unfold((__force __sum16)cqe->checksum);
 
-	if (cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK) &&
+	if (cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_CVLAN_PRESENT_MASK) &&
 	    !(dev_features & NETIF_F_HW_VLAN_CTAG_RX)) {
 		hw_checksum = get_fixed_vlan_csum(hw_checksum, hdr);
 		hdr += sizeof(struct vlan_hdr);
@@ -906,17 +906,25 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				gro_skb->csum_level = 1;
 
 			if ((cqe->vlan_my_qpn &
-			    cpu_to_be32(MLX4_CQE_VLAN_PRESENT_MASK)) &&
+			    cpu_to_be32(MLX4_CQE_CVLAN_PRESENT_MASK)) &&
 			    (dev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 				u16 vid = be16_to_cpu(cqe->sl_vid);
 
 				__vlan_hwaccel_put_tag(gro_skb, htons(ETH_P_8021Q), vid);
+			} else if ((be32_to_cpu(cqe->vlan_my_qpn) &
+				  MLX4_CQE_SVLAN_PRESENT_MASK) &&
+				 (dev->features & NETIF_F_HW_VLAN_STAG_RX)) {
+				__vlan_hwaccel_put_tag(gro_skb,
+						       htons(ETH_P_8021AD),
+						       be16_to_cpu(cqe->sl_vid));
 			}
 
 			if (dev->features & NETIF_F_RXHASH)
 				skb_set_hash(gro_skb,
 					     be32_to_cpu(cqe->immed_rss_invalid),
-					     PKT_HASH_TYPE_L3);
+					     (ip_summed == CHECKSUM_UNNECESSARY) ?
+						PKT_HASH_TYPE_L4 :
+						PKT_HASH_TYPE_L3);
 
 			skb_record_rx_queue(gro_skb, cq->ring);
 			skb_mark_napi_id(gro_skb, &cq->napi);
@@ -962,12 +970,19 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (dev->features & NETIF_F_RXHASH)
 			skb_set_hash(skb,
 				     be32_to_cpu(cqe->immed_rss_invalid),
-				     PKT_HASH_TYPE_L3);
+				     (ip_summed == CHECKSUM_UNNECESSARY) ?
+					PKT_HASH_TYPE_L4 :
+					PKT_HASH_TYPE_L3);
 
 		if ((be32_to_cpu(cqe->vlan_my_qpn) &
-		    MLX4_CQE_VLAN_PRESENT_MASK) &&
+		    MLX4_CQE_CVLAN_PRESENT_MASK) &&
 		    (dev->features & NETIF_F_HW_VLAN_CTAG_RX))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(cqe->sl_vid));
+		else if ((be32_to_cpu(cqe->vlan_my_qpn) &
+			  MLX4_CQE_SVLAN_PRESENT_MASK) &&
+			 (dev->features & NETIF_F_HW_VLAN_STAG_RX))
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD),
+					       be16_to_cpu(cqe->sl_vid));
 
 		if (ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL) {
 			timestamp = mlx4_en_get_cqe_ts(cqe);
@@ -1032,13 +1047,15 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {
-		int cpu_curr;
 		const struct cpumask *aff;
+		struct irq_data *idata;
+		int cpu_curr;
 
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 
 		cpu_curr = smp_processor_id();
-		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
+		idata = irq_desc_get_irq_data(cq->irq_desc);
+		aff = irq_data_get_affinity_mask(idata);
 
 		if (likely(cpumask_test_cpu(cpu_curr, aff)))
 			return budget;
@@ -1065,7 +1082,10 @@ static const int frag_sizes[] = {
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int eff_mtu = dev->mtu + ETH_HLEN + VLAN_HLEN;
+	/* VLAN_HLEN is added twice,to support skb vlan tagged with multiple
+	 * headers. (For example: ETH_P_8021Q and ETH_P_8021AD).
+	 */
+	int eff_mtu = dev->mtu + ETH_HLEN + (2 * VLAN_HLEN);
 	int buf_size = 0;
 	int i = 0;
 

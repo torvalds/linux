@@ -41,7 +41,6 @@ struct pamu_isr_data {
 
 static struct paace *ppaact;
 static struct paace *spaact;
-static struct ome *omt __initdata;
 
 /*
  * Table for matching compatible strings, for device tree
@@ -50,7 +49,7 @@ static struct ome *omt __initdata;
  * SOCs. For the older SOCs "fsl,qoriq-device-config-1.0"
  * string would be used.
  */
-static const struct of_device_id guts_device_ids[] __initconst = {
+static const struct of_device_id guts_device_ids[] = {
 	{ .compatible = "fsl,qoriq-device-config-1.0", },
 	{ .compatible = "fsl,qoriq-device-config-2.0", },
 	{}
@@ -599,7 +598,7 @@ found_cpu_node:
  * Memory accesses to QMAN and BMAN private memory need not be coherent, so
  * clear the PAACE entry coherency attribute for them.
  */
-static void __init setup_qbman_paace(struct paace *ppaace, int  paace_type)
+static void setup_qbman_paace(struct paace *ppaace, int  paace_type)
 {
 	switch (paace_type) {
 	case QMAN_PAACE:
@@ -629,7 +628,7 @@ static void __init setup_qbman_paace(struct paace *ppaace, int  paace_type)
  * this table to translate device transaction to appropriate corenet
  * transaction.
  */
-static void __init setup_omt(struct ome *omt)
+static void setup_omt(struct ome *omt)
 {
 	struct ome *ome;
 
@@ -666,7 +665,7 @@ static void __init setup_omt(struct ome *omt)
  * Get the maximum number of PAACT table entries
  * and subwindows supported by PAMU
  */
-static void __init get_pamu_cap_values(unsigned long pamu_reg_base)
+static void get_pamu_cap_values(unsigned long pamu_reg_base)
 {
 	u32 pc_val;
 
@@ -676,9 +675,9 @@ static void __init get_pamu_cap_values(unsigned long pamu_reg_base)
 }
 
 /* Setup PAMU registers pointing to PAACT, SPAACT and OMT */
-static int __init setup_one_pamu(unsigned long pamu_reg_base, unsigned long pamu_reg_size,
-				 phys_addr_t ppaact_phys, phys_addr_t spaact_phys,
-				 phys_addr_t omt_phys)
+static int setup_one_pamu(unsigned long pamu_reg_base, unsigned long pamu_reg_size,
+			  phys_addr_t ppaact_phys, phys_addr_t spaact_phys,
+			  phys_addr_t omt_phys)
 {
 	u32 *pc;
 	struct pamu_mmap_regs *pamu_regs;
@@ -720,7 +719,7 @@ static int __init setup_one_pamu(unsigned long pamu_reg_base, unsigned long pamu
 }
 
 /* Enable all device LIODNS */
-static void __init setup_liodns(void)
+static void setup_liodns(void)
 {
 	int i, len;
 	struct paace *ppaace;
@@ -846,7 +845,7 @@ struct ccsr_law {
 /*
  * Create a coherence subdomain for a given memory block.
  */
-static int __init create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
+static int create_csd(phys_addr_t phys, size_t size, u32 csd_port_id)
 {
 	struct device_node *np;
 	const __be32 *iprop;
@@ -988,7 +987,7 @@ error:
 static const struct {
 	u32 svr;
 	u32 port_id;
-} port_id_map[] __initconst = {
+} port_id_map[] = {
 	{(SVR_P2040 << 8) | 0x10, 0xFF000000},	/* P2040 1.0 */
 	{(SVR_P2040 << 8) | 0x11, 0xFF000000},	/* P2040 1.1 */
 	{(SVR_P2041 << 8) | 0x10, 0xFF000000},	/* P2041 1.0 */
@@ -1006,7 +1005,7 @@ static const struct {
 
 #define SVR_SECURITY	0x80000	/* The Security (E) bit */
 
-static int __init fsl_pamu_probe(struct platform_device *pdev)
+static int fsl_pamu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	void __iomem *pamu_regs = NULL;
@@ -1022,6 +1021,7 @@ static int __init fsl_pamu_probe(struct platform_device *pdev)
 	int irq;
 	phys_addr_t ppaact_phys;
 	phys_addr_t spaact_phys;
+	struct ome *omt;
 	phys_addr_t omt_phys;
 	size_t mem_size = 0;
 	unsigned int order = 0;
@@ -1200,7 +1200,7 @@ error:
 	return ret;
 }
 
-static struct platform_driver fsl_of_pamu_driver __initdata = {
+static struct platform_driver fsl_of_pamu_driver = {
 	.driver = {
 		.name = "fsl-of-pamu",
 	},

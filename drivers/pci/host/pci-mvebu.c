@@ -879,6 +879,7 @@ static void mvebu_pcie_msi_enable(struct mvebu_pcie *pcie)
 		return;
 
 	pcie->msi = of_pci_find_msi_chip_by_node(msi_node);
+	of_node_put(msi_node);
 
 	if (pcie->msi)
 		pcie->msi->dev = &pcie->pdev->dev;

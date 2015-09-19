@@ -53,9 +53,13 @@ struct media_file_operations {
 
 /**
  * struct media_devnode - Media device node
+ * @fops:	pointer to struct media_file_operations with media device ops
+ * @dev:	struct device pointer for the media controller device
+ * @cdev:	struct cdev pointer character device
  * @parent:	parent device
  * @minor:	device node minor number
  * @flags:	flags, combination of the MEDIA_FLAG_* constants
+ * @release:	release callback called at the end of media_devnode_release()
  *
  * This structure represents a media-related device node.
  *

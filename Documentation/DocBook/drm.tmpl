@@ -3982,7 +3982,6 @@ int num_ioctls;</synopsis>
         <title>Interrupt Handling</title>
 !Pdrivers/gpu/drm/i915/i915_irq.c interrupt handling
 !Fdrivers/gpu/drm/i915/i915_irq.c intel_irq_init intel_irq_init_hw intel_hpd_init
-!Fdrivers/gpu/drm/i915/i915_irq.c intel_irq_fini
 !Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_disable_interrupts
 !Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_enable_interrupts
       </sect2>
@@ -4012,7 +4011,6 @@ int num_ioctls;</synopsis>
         <title>Frontbuffer Tracking</title>
 !Pdrivers/gpu/drm/i915/intel_frontbuffer.c frontbuffer tracking
 !Idrivers/gpu/drm/i915/intel_frontbuffer.c
-!Fdrivers/gpu/drm/i915/intel_drv.h intel_frontbuffer_flip
 !Fdrivers/gpu/drm/i915/i915_gem.c i915_gem_track_fb
       </sect2>
       <sect2>
@@ -4043,6 +4041,11 @@ int num_ioctls;</synopsis>
 	  i915 driver still uses most of the common DRM helper code for output
 	  probing, so those sections fully apply.
         </para>
+      </sect2>
+      <sect2>
+        <title>Hotplug</title>
+!Pdrivers/gpu/drm/i915/intel_hotplug.c Hotplug
+!Idrivers/gpu/drm/i915/intel_hotplug.c
       </sect2>
       <sect2>
 	<title>High Definition Audio</title>
@@ -4193,6 +4196,23 @@ int num_ioctls;</synopsis>
         <title>Global GTT views</title>
 !Pdrivers/gpu/drm/i915/i915_gem_gtt.c Global GTT views
 !Idrivers/gpu/drm/i915/i915_gem_gtt.c
+      </sect2>
+      <sect2>
+        <title>GTT Fences and Swizzling</title>
+!Idrivers/gpu/drm/i915/i915_gem_fence.c
+        <sect3>
+          <title>Global GTT Fence Handling</title>
+!Pdrivers/gpu/drm/i915/i915_gem_fence.c fence register handling
+        </sect3>
+        <sect3>
+          <title>Hardware Tiling and Swizzling Details</title>
+!Pdrivers/gpu/drm/i915/i915_gem_fence.c tiling swizzling details
+        </sect3>
+      </sect2>
+      <sect2>
+        <title>Object Tiling IOCTLs</title>
+!Idrivers/gpu/drm/i915/i915_gem_tiling.c
+!Pdrivers/gpu/drm/i915/i915_gem_tiling.c buffer object tiling
       </sect2>
       <sect2>
         <title>Buffer Object Eviction</title>

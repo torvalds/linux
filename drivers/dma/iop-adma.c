@@ -1300,10 +1300,11 @@ static int iop_adma_probe(struct platform_device *pdev)
 	 * note: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
 	 */
-	if ((adev->dma_desc_pool_virt = dma_alloc_writecombine(&pdev->dev,
-					plat_data->pool_size,
-					&adev->dma_desc_pool,
-					GFP_KERNEL)) == NULL) {
+	adev->dma_desc_pool_virt = dma_alloc_writecombine(&pdev->dev,
+							  plat_data->pool_size,
+							  &adev->dma_desc_pool,
+							  GFP_KERNEL);
+	if (!adev->dma_desc_pool_virt) {
 		ret = -ENOMEM;
 		goto err_free_adev;
 	}

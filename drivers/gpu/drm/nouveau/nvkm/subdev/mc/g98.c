@@ -21,38 +21,40 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 static const struct nvkm_mc_intr
 g98_mc_intr[] = {
-	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work */
-	{ 0x00000001, NVDEV_ENGINE_MSPPP },
-	{ 0x00000100, NVDEV_ENGINE_FIFO },
-	{ 0x00001000, NVDEV_ENGINE_GR },
-	{ 0x00004000, NVDEV_ENGINE_SEC },	/* NV84:NVA3 */
-	{ 0x00008000, NVDEV_ENGINE_MSVLD },
-	{ 0x00020000, NVDEV_ENGINE_MSPDEC },
-	{ 0x00040000, NVDEV_SUBDEV_PMU },	/* NVA3:NVC0 */
-	{ 0x00080000, NVDEV_SUBDEV_THERM },	/* NVA3:NVC0 */
-	{ 0x00100000, NVDEV_SUBDEV_TIMER },
-	{ 0x00200000, NVDEV_SUBDEV_GPIO },	/* PMGR->GPIO */
-	{ 0x00200000, NVDEV_SUBDEV_I2C }, 	/* PMGR->I2C/AUX */
-	{ 0x00400000, NVDEV_ENGINE_CE0 },	/* NVA3-     */
-	{ 0x10000000, NVDEV_SUBDEV_BUS },
-	{ 0x80000000, NVDEV_ENGINE_SW },
-	{ 0x0042d101, NVDEV_SUBDEV_FB },
+	{ 0x04000000, NVKM_ENGINE_DISP },  /* DISP first, so pageflip timestamps work */
+	{ 0x00000001, NVKM_ENGINE_MSPPP },
+	{ 0x00000100, NVKM_ENGINE_FIFO },
+	{ 0x00001000, NVKM_ENGINE_GR },
+	{ 0x00004000, NVKM_ENGINE_SEC },	/* NV84:NVA3 */
+	{ 0x00008000, NVKM_ENGINE_MSVLD },
+	{ 0x00020000, NVKM_ENGINE_MSPDEC },
+	{ 0x00040000, NVKM_SUBDEV_PMU },	/* NVA3:NVC0 */
+	{ 0x00080000, NVKM_SUBDEV_THERM },	/* NVA3:NVC0 */
+	{ 0x00100000, NVKM_SUBDEV_TIMER },
+	{ 0x00200000, NVKM_SUBDEV_GPIO },	/* PMGR->GPIO */
+	{ 0x00200000, NVKM_SUBDEV_I2C }, 	/* PMGR->I2C/AUX */
+	{ 0x00400000, NVKM_ENGINE_CE0 },	/* NVA3-     */
+	{ 0x10000000, NVKM_SUBDEV_BUS },
+	{ 0x80000000, NVKM_ENGINE_SW },
+	{ 0x0042d101, NVKM_SUBDEV_FB },
 	{},
 };
 
-struct nvkm_oclass *
-g98_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x98),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_mc_ctor,
-		.dtor = _nvkm_mc_dtor,
-		.init = nv50_mc_init,
-		.fini = _nvkm_mc_fini,
-	},
+static const struct nvkm_mc_func
+g98_mc = {
+	.init = nv50_mc_init,
 	.intr = g98_mc_intr,
-	.msi_rearm = nv40_mc_msi_rearm,
-}.base;
+	.intr_unarm = nv04_mc_intr_unarm,
+	.intr_rearm = nv04_mc_intr_rearm,
+	.intr_mask = nv04_mc_intr_mask,
+};
+
+int
+g98_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+{
+	return nvkm_mc_new_(&g98_mc, device, index, pmc);
+}

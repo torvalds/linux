@@ -156,33 +156,29 @@ static const DECLARE_TLV_DB_SCALE(dpga_tlv, -9450, 150, 1);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -900, 300, 0);
 
 /* {-23, -17, -13.5, -11, -9, -6, -3, 0}dB */
-static const unsigned int mic_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static const DECLARE_TLV_DB_RANGE(mic_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(-2300, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(-1700, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(-1350, 0, 0),
 	3, 3, TLV_DB_SCALE_ITEM(-1100, 0, 0),
-	4, 7, TLV_DB_SCALE_ITEM(-900, 300, 0),
-};
+	4, 7, TLV_DB_SCALE_ITEM(-900, 300, 0)
+);
 
 /* {0, 0, 0, -6, 0, 6, 12, 18}dB */
-static const unsigned int aux_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(aux_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(0, 0, 0),
-	3, 7, TLV_DB_SCALE_ITEM(-600, 600, 0),
-};
+	3, 7, TLV_DB_SCALE_ITEM(-600, 600, 0)
+);
 
 /* {-16, -13, -10, -7, -5.2, -3,3, -2.2, 0}dB, mute instead of -16dB */
-static const unsigned int out_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(out_tlv,
 	0, 3, TLV_DB_SCALE_ITEM(-1600, 300, 1),
 	4, 4, TLV_DB_SCALE_ITEM(-520, 0, 0),
 	5, 5, TLV_DB_SCALE_ITEM(-330, 0, 0),
-	6, 7, TLV_DB_SCALE_ITEM(-220, 220, 0),
-};
+	6, 7, TLV_DB_SCALE_ITEM(-220, 220, 0)
+);
 
-static const unsigned int st_tlv[] = {
-	TLV_DB_RANGE_HEAD(8),
+static const DECLARE_TLV_DB_RANGE(st_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-12041, 602, 0),
 	2, 3, TLV_DB_SCALE_ITEM(-11087, 250, 0),
 	4, 5, TLV_DB_SCALE_ITEM(-10643, 158, 0),
@@ -190,8 +186,8 @@ static const unsigned int st_tlv[] = {
 	8, 9, TLV_DB_SCALE_ITEM(-10133, 92, 0),
 	10, 13, TLV_DB_SCALE_ITEM(-9958, 70, 0),
 	14, 17, TLV_DB_SCALE_ITEM(-9689, 53, 0),
-	18, 271, TLV_DB_SCALE_ITEM(-9484, 37, 0),
-};
+	18, 271, TLV_DB_SCALE_ITEM(-9484, 37, 0)
+);
 
 /* Sidetone Gain = M * 2^(-5-N) */
 struct st_gain {
@@ -1028,10 +1024,8 @@ static int pm860x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	if (dir == PM860X_CLK_DIR_OUT)
 		pm860x->dir = PM860X_CLK_DIR_OUT;
-	else {
-		pm860x->dir = PM860X_CLK_DIR_IN;
+	else	/* Slave mode is not supported */
 		return -EINVAL;
-	}
 
 	return 0;
 }

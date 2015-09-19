@@ -409,29 +409,11 @@ static int rebalance3(struct shadow_spine *s, struct dm_btree_info *info,
 	return 0;
 }
 
-static int get_nr_entries(struct dm_transaction_manager *tm,
-			  dm_block_t b, uint32_t *result)
-{
-	int r;
-	struct dm_block *block;
-	struct btree_node *n;
-
-	r = dm_tm_read_lock(tm, b, &btree_node_validator, &block);
-	if (r)
-		return r;
-
-	n = dm_block_data(block);
-	*result = le32_to_cpu(n->header.nr_entries);
-
-	return dm_tm_unlock(tm, block);
-}
-
 static int rebalance_children(struct shadow_spine *s,
 			      struct dm_btree_info *info,
 			      struct dm_btree_value_type *vt, uint64_t key)
 {
 	int i, r, has_left_sibling, has_right_sibling;
-	uint32_t child_entries;
 	struct btree_node *n;
 
 	n = dm_block_data(shadow_current(s));
@@ -457,10 +439,6 @@ static int rebalance_children(struct shadow_spine *s,
 	i = lower_bound(n, key);
 	if (i < 0)
 		return -ENODATA;
-
-	r = get_nr_entries(info->tm, value64(n, i), &child_entries);
-	if (r)
-		return r;
 
 	has_left_sibling = i > 0;
 	has_right_sibling = i < (le32_to_cpu(n->header.nr_entries) - 1);

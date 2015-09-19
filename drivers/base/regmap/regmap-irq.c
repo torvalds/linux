@@ -209,7 +209,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	 * Read in the statuses, using a single bulk read if possible
 	 * in order to reduce the I/O overheads.
 	 */
-	if (!map->use_single_rw && map->reg_stride == 1 &&
+	if (!map->use_single_read && map->reg_stride == 1 &&
 	    data->irq_reg_stride == 1) {
 		u8 *buf8 = data->status_reg_buf;
 		u16 *buf16 = data->status_reg_buf;
@@ -398,7 +398,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	else
 		d->irq_reg_stride = 1;
 
-	if (!map->use_single_rw && map->reg_stride == 1 &&
+	if (!map->use_single_read && map->reg_stride == 1 &&
 	    d->irq_reg_stride == 1) {
 		d->status_reg_buf = kmalloc(map->format.val_bytes *
 					    chip->num_regs, GFP_KERNEL);

@@ -588,7 +588,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	return count;
 
 fail:
-	DRM_ERROR("Can not read HDMI EDID\n");
+	DRM_ERROR("Can't read HDMI EDID\n");
 	return 0;
 }
 
@@ -693,20 +693,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct sti_hdmi_connector *connector;
 	struct drm_connector *drm_connector;
 	struct drm_bridge *bridge;
-	struct device_node *ddc;
 	int err;
-
-	ddc = of_parse_phandle(dev->of_node, "ddc", 0);
-	if (ddc) {
-		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
-		if (!hdmi->ddc_adapt) {
-			err = -EPROBE_DEFER;
-			of_node_put(ddc);
-			return err;
-		}
-
-		of_node_put(ddc);
-	}
 
 	/* Set the drm device handle */
 	hdmi->drm_dev = drm_dev;
@@ -796,6 +783,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	struct sti_hdmi *hdmi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
+	struct device_node *ddc;
 	int ret;
 
 	DRM_INFO("%s\n", __func__);
@@ -803,6 +791,17 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
+
+	ddc = of_parse_phandle(pdev->dev.of_node, "ddc", 0);
+	if (ddc) {
+		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
+		if (!hdmi->ddc_adapt) {
+			of_node_put(ddc);
+			return -EPROBE_DEFER;
+		}
+
+		of_node_put(ddc);
+	}
 
 	hdmi->dev = pdev->dev;
 

@@ -27,6 +27,7 @@
 #include "kfd_mqd_manager.h"
 #include "cik_regs.h"
 #include "cik_structs.h"
+#include "oss/oss_2_4_sh_mask.h"
 
 static inline struct cik_mqd *get_mqd(void *mqd)
 {
@@ -214,17 +215,20 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	BUG_ON(!mm || !mqd || !q);
 
 	m = get_sdma_mqd(mqd);
-	m->sdma_rlc_rb_cntl =
-		SDMA_RB_SIZE((ffs(q->queue_size / sizeof(unsigned int)))) |
-		SDMA_RB_VMID(q->vmid) |
-		SDMA_RPTR_WRITEBACK_ENABLE |
-		SDMA_RPTR_WRITEBACK_TIMER(6);
+	m->sdma_rlc_rb_cntl = ffs(q->queue_size / sizeof(unsigned int)) <<
+			SDMA0_RLC0_RB_CNTL__RB_SIZE__SHIFT |
+			q->vmid << SDMA0_RLC0_RB_CNTL__RB_VMID__SHIFT |
+			1 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
+			6 << SDMA0_RLC0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT;
 
 	m->sdma_rlc_rb_base = lower_32_bits(q->queue_address >> 8);
 	m->sdma_rlc_rb_base_hi = upper_32_bits(q->queue_address >> 8);
 	m->sdma_rlc_rb_rptr_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->sdma_rlc_rb_rptr_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
-	m->sdma_rlc_doorbell = SDMA_OFFSET(q->doorbell_off) | SDMA_DB_ENABLE;
+	m->sdma_rlc_doorbell = q->doorbell_off <<
+			SDMA0_RLC0_DOORBELL__OFFSET__SHIFT |
+			1 << SDMA0_RLC0_DOORBELL__ENABLE__SHIFT;
+
 	m->sdma_rlc_virtual_addr = q->sdma_vm_addr;
 
 	m->sdma_engine_id = q->sdma_engine_id;
@@ -234,7 +238,9 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	if (q->queue_size > 0 &&
 			q->queue_address != 0 &&
 			q->queue_percent > 0) {
-		m->sdma_rlc_rb_cntl |= SDMA_RB_ENABLE;
+		m->sdma_rlc_rb_cntl |=
+				1 << SDMA0_RLC0_RB_CNTL__RB_ENABLE__SHIFT;
+
 		q->is_active = true;
 	}
 

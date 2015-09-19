@@ -948,6 +948,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 {
 	struct mmc_data *data = req->data;
 	int i, use_dma = 1, block_size;
+	struct scatterlist *sg;
 	unsigned sg_len;
 
 	host->data = data;
@@ -972,8 +973,8 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 	sg_len = (data->blocks == 1) ? 1 : data->sg_len;
 
 	/* Only do DMA for entire blocks */
-	for (i = 0; i < sg_len; i++) {
-		if ((data->sg[i].length % block_size) != 0) {
+	for_each_sg(data->sg, sg, sg_len, i) {
+		if ((sg->length % block_size) != 0) {
 			use_dma = 0;
 			break;
 		}
@@ -1419,8 +1420,10 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->reg_shift = (mmc_omap7xx() ? 1 : 2);
 
 	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
-	if (!host->mmc_omap_wq)
+	if (!host->mmc_omap_wq) {
+		ret = -ENOMEM;
 		goto err_plat_cleanup;
+	}
 
 	for (i = 0; i < pdata->nr_slots; i++) {
 		ret = mmc_omap_new_slot(host, i);

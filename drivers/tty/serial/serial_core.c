@@ -1377,7 +1377,6 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port;
 	struct uart_port *uport;
-	unsigned long flags;
 
 	if (!state) {
 		struct uart_driver *drv = tty->driver->driver_state;
@@ -1403,10 +1402,9 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 * disable the receive line status interrupts.
 	 */
 	if (port->flags & ASYNC_INITIALIZED) {
-		unsigned long flags;
-		spin_lock_irqsave(&uport->lock, flags);
+		spin_lock_irq(&uport->lock);
 		uport->ops->stop_rx(uport);
-		spin_unlock_irqrestore(&uport->lock, flags);
+		spin_unlock_irq(&uport->lock);
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
@@ -1419,17 +1417,17 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	uart_shutdown(tty, state);
 	tty_port_tty_set(port, NULL);
 
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock_irq(&port->lock);
 
 	if (port->blocked_open) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		spin_unlock_irq(&port->lock);
 		if (port->close_delay)
 			msleep_interruptible(jiffies_to_msecs(port->close_delay));
-		spin_lock_irqsave(&port->lock, flags);
+		spin_lock_irq(&port->lock);
 	} else if (!uart_console(uport)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		spin_unlock_irq(&port->lock);
 		uart_change_pm(state, UART_PM_STATE_OFF);
-		spin_lock_irqsave(&port->lock, flags);
+		spin_lock_irq(&port->lock);
 	}
 
 	/*
@@ -1437,7 +1435,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	 */
 	clear_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
 	clear_bit(ASYNCB_CLOSING, &port->flags);
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock_irq(&port->lock);
 	wake_up_interruptible(&port->open_wait);
 	wake_up_interruptible(&port->close_wait);
 
@@ -1530,11 +1528,6 @@ static void uart_hangup(struct tty_struct *tty)
 		wake_up_interruptible(&port->delta_msr_wait);
 	}
 	mutex_unlock(&port->mutex);
-}
-
-static int uart_port_activate(struct tty_port *port, struct tty_struct *tty)
-{
-	return 0;
 }
 
 static void uart_port_shutdown(struct tty_port *port)
@@ -2379,8 +2372,6 @@ static const struct tty_operations uart_ops = {
 };
 
 static const struct tty_port_operations uart_port_ops = {
-	.activate	= uart_port_activate,
-	.shutdown	= uart_port_shutdown,
 	.carrier_raised = uart_carrier_raised,
 	.dtr_rts	= uart_dtr_rts,
 };

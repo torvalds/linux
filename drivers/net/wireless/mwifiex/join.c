@@ -783,6 +783,8 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 
 	if (priv->sec_info.wpa_enabled || priv->sec_info.wpa2_enabled)
 		priv->scan_block = true;
+	else
+		priv->port_open = true;
 
 done:
 	/* Need to indicate IOCTL complete */

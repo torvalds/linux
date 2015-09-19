@@ -47,7 +47,7 @@ static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 	/* Stop the timer tick */
-	if (evt->mode == CLOCK_EVT_MODE_ONESHOT) {
+	if (clockevent_state_oneshot(evt)) {
 		u32 ctrl = readl_relaxed(event_base + TIMER_ENABLE);
 		ctrl &= ~TIMER_ENABLE_EN;
 		writel_relaxed(ctrl, event_base + TIMER_ENABLE);
@@ -75,26 +75,14 @@ static int msm_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void msm_timer_set_mode(enum clock_event_mode mode,
-			      struct clock_event_device *evt)
+static int msm_timer_shutdown(struct clock_event_device *evt)
 {
 	u32 ctrl;
 
 	ctrl = readl_relaxed(event_base + TIMER_ENABLE);
 	ctrl &= ~(TIMER_ENABLE_EN | TIMER_ENABLE_CLR_ON_MATCH_EN);
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_RESUME:
-	case CLOCK_EVT_MODE_PERIODIC:
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* Timer is enabled in set_next_event */
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		break;
-	}
 	writel_relaxed(ctrl, event_base + TIMER_ENABLE);
+	return 0;
 }
 
 static struct clock_event_device __percpu *msm_evt;
@@ -126,7 +114,9 @@ static int msm_local_timer_setup(struct clock_event_device *evt)
 	evt->name = "msm_timer";
 	evt->features = CLOCK_EVT_FEAT_ONESHOT;
 	evt->rating = 200;
-	evt->set_mode = msm_timer_set_mode;
+	evt->set_state_shutdown = msm_timer_shutdown;
+	evt->set_state_oneshot = msm_timer_shutdown;
+	evt->tick_resume = msm_timer_shutdown;
 	evt->set_next_event = msm_timer_set_next_event;
 	evt->cpumask = cpumask_of(cpu);
 
@@ -147,7 +137,7 @@ static int msm_local_timer_setup(struct clock_event_device *evt)
 
 static void msm_local_timer_stop(struct clock_event_device *evt)
 {
-	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+	evt->set_state_shutdown(evt);
 	disable_percpu_irq(evt->irq);
 }
 

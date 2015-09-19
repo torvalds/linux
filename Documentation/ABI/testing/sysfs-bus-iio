@@ -413,6 +413,11 @@ Description:
 		to compute the calories burnt by the user.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
+What:		/sys/.../iio:deviceX/in_anglvel_scale_available
+What:		/sys/.../iio:deviceX/in_magn_scale_available
+What:		/sys/.../iio:deviceX/in_illuminance_scale_available
+What:		/sys/.../iio:deviceX/in_intensity_scale_available
+What:		/sys/.../iio:deviceX/in_proximity_scale_available
 What:		/sys/.../iio:deviceX/in_voltageX_scale_available
 What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
 What:		/sys/.../iio:deviceX/out_voltageX_scale_available
@@ -488,7 +493,7 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the output powerdown mode.
 		DAC output stage is disconnected from the amplifier and
-		1kohm_to_gnd: connected	to ground via an 1kOhm resistor,
+		1kohm_to_gnd: connected to ground via an 1kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
@@ -498,9 +503,9 @@ Description:
 		outX_powerdown_mode_available. If Y is not present the
 		mode is shared across all outputs.
 
-What:		/sys/.../iio:deviceX/out_votlageY_powerdown_mode_available
+What:		/sys/.../iio:deviceX/out_voltageY_powerdown_mode_available
 What:		/sys/.../iio:deviceX/out_voltage_powerdown_mode_available
-What:		/sys/.../iio:deviceX/out_altvotlageY_powerdown_mode_available
+What:		/sys/.../iio:deviceX/out_altvoltageY_powerdown_mode_available
 What:		/sys/.../iio:deviceX/out_altvoltage_powerdown_mode_available
 KernelVersion:	2.6.38
 Contact:	linux-iio@vger.kernel.org
@@ -1034,13 +1039,6 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of scans contained by the buffer.
-
-What:		/sys/bus/iio/devices/iio:deviceX/buffer/bytes_per_datum
-KernelVersion:	2.6.37
-Contact:	linux-iio@vger.kernel.org
-Description:
-		Bytes per scan.  Due to alignment fun, the scan may be larger
-		than implied directly by the scan_element parameters.
 
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/enable
 KernelVersion:	2.6.35

@@ -939,6 +939,7 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	ldlm_pool_fini(&ns->ns_pool);
 
 	ldlm_namespace_debugfs_unregister(ns);
+	ldlm_namespace_sysfs_unregister(ns);
 	cfs_hash_putref(ns->ns_rs_hash);
 	/* Namespace \a ns should be not on list at this time, otherwise
 	 * this will cause issues related to using freed \a ns in poold

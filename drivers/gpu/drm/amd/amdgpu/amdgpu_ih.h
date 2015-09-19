@@ -52,6 +52,7 @@ struct amdgpu_iv_entry {
 	unsigned ring_id;
 	unsigned vm_id;
 	unsigned pas_id;
+	const uint32_t *iv_entry;
 };
 
 int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
