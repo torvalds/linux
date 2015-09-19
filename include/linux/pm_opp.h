@@ -25,6 +25,7 @@ struct opp_table;
 
 enum dev_pm_opp_event {
 	OPP_EVENT_ADD, OPP_EVENT_REMOVE, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,
+	OPP_EVENT_ADJUST_VOLTAGE,
 };
 
 /**
@@ -109,6 +110,9 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq,
 		   unsigned long u_volt);
 void dev_pm_opp_remove(struct device *dev, unsigned long freq);
 void dev_pm_opp_remove_all_dynamic(struct device *dev);
+
+int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
+			      unsigned long u_volt);
 
 int dev_pm_opp_enable(struct device *dev, unsigned long freq);
 
@@ -220,6 +224,14 @@ static inline void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 
 static inline void dev_pm_opp_remove_all_dynamic(struct device *dev)
 {
+	return 0;
+}
+
+static inline int
+dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
+			  unsigned long u_volt)
+{
+	return 0;
 }
 
 static inline int dev_pm_opp_enable(struct device *dev, unsigned long freq)
