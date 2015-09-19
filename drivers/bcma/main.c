@@ -436,13 +436,8 @@ int bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	dev = bcma_bus_get_host_dev(bus);
-	/* TODO: remove check for IS_BUILTIN(CONFIG_BCMA) check when
-	 * of_default_bus_match_table is exported or in some other way
-	 * accessible. This is just a temporary workaround.
-	 */
-	if (IS_BUILTIN(CONFIG_BCMA) && dev) {
-		of_platform_populate(dev->of_node, of_default_bus_match_table,
-				     NULL, dev);
+	if (dev) {
+		of_platform_default_populate(dev->of_node, NULL, dev);
 	}
 
 	/* Cores providing flash access go before SPROM init */
