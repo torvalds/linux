@@ -101,6 +101,24 @@ int amdtp_am824_add_pcm_hw_constraints(struct amdtp_stream *s,
 EXPORT_SYMBOL_GPL(amdtp_am824_add_pcm_hw_constraints);
 
 /**
+ * amdtp_am824_midi_trigger - start/stop playback/capture with a MIDI device
+ * @s: the AMDTP stream
+ * @port: index of MIDI port
+ * @midi: the MIDI device to be started, or %NULL to stop the current device
+ *
+ * Call this function on a running isochronous stream to enable the actual
+ * transmission of MIDI data.  This function should be called from the MIDI
+ * device's .trigger callback.
+ */
+void amdtp_am824_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			      struct snd_rawmidi_substream *midi)
+{
+	if (port < s->midi_ports)
+		ACCESS_ONCE(s->midi[port]) = midi;
+}
+EXPORT_SYMBOL_GPL(amdtp_am824_midi_trigger);
+
+/**
  * amdtp_am824_init - initialize an AMDTP stream structure to handle AM824
  *		      data block
  * @s: the AMDTP stream to initialize

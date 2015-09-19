@@ -248,24 +248,6 @@ static inline void amdtp_stream_pcm_trigger(struct amdtp_stream *s,
 	ACCESS_ONCE(s->pcm) = pcm;
 }
 
-/**
- * amdtp_stream_midi_trigger - start/stop playback/capture with a MIDI device
- * @s: the AMDTP stream
- * @port: index of MIDI port
- * @midi: the MIDI device to be started, or %NULL to stop the current device
- *
- * Call this function on a running isochronous stream to enable the actual
- * transmission of MIDI data.  This function should be called from the MIDI
- * device's .trigger callback.
- */
-static inline void amdtp_stream_midi_trigger(struct amdtp_stream *s,
-					     unsigned int port,
-					     struct snd_rawmidi_substream *midi)
-{
-	if (port < s->midi_ports)
-		ACCESS_ONCE(s->midi[port]) = midi;
-}
-
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)
 {
 	return sfc & 1;
