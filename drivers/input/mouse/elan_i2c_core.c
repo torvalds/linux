@@ -266,11 +266,10 @@ static int elan_query_device_info(struct elan_tp_data *data)
 
 	error = elan_get_fwinfo(data->iap_version, &data->fw_validpage_count,
 				&data->fw_signature_address);
-	if (error) {
-		dev_err(&data->client->dev,
-			"unknown iap version %d\n", data->iap_version);
-		return error;
-	}
+	if (error)
+		dev_warn(&data->client->dev,
+			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
+			 data->iap_version, data->ic_type);
 
 	return 0;
 }
@@ -485,6 +484,9 @@ static ssize_t elan_sysfs_update_fw(struct device *dev,
 	int error;
 	const u8 *fw_signature;
 	static const u8 signature[] = {0xAA, 0x55, 0xCC, 0x33, 0xFF, 0xFF};
+
+	if (data->fw_validpage_count == 0)
+		return -EINVAL;
 
 	/* Look for a firmware with the product id appended. */
 	fw_name = kasprintf(GFP_KERNEL, ETP_FW_NAME, data->product_id);
