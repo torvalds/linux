@@ -225,6 +225,16 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	s->data_block_quadlets = s->pcm_channels + midi_channels;
 	s->midi_ports = midi_ports;
 
+	/*
+	 * In IEC 61883-6, one data block represents one event. In ALSA, one
+	 * event equals to one PCM frame. But Dice has a quirk at higher
+	 * sampling rate to transfer two PCM frames in one data block.
+	 */
+	if (double_pcm_frames)
+		s->frame_multiplier = 2;
+	else
+		s->frame_multiplier = 1;
+
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
 	/* default buffering in the device */
@@ -584,14 +594,6 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 {
 	unsigned int ptr;
 
-	/*
-	 * In IEC 61883-6, one data block represents one event. In ALSA, one
-	 * event equals to one PCM frame. But Dice has a quirk to transfer
-	 * two PCM frames in one data block.
-	 */
-	if (s->double_pcm_frames)
-		frames *= 2;
-
 	ptr = s->pcm_buffer_pointer + frames;
 	if (ptr >= pcm->runtime->buffer_size)
 		ptr -= pcm->runtime->buffer_size;
@@ -685,7 +687,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 		return -EIO;
 
 	if (pcm)
-		update_pcm_pointers(s, pcm, data_blocks);
+		update_pcm_pointers(s, pcm, data_blocks * s->frame_multiplier);
 
 	/* No need to return the number of handled data blocks. */
 	return 0;
@@ -788,7 +790,7 @@ end:
 		return -EIO;
 
 	if (pcm)
-		update_pcm_pointers(s, pcm, *data_blocks);
+		update_pcm_pointers(s, pcm, *data_blocks * s->frame_multiplier);
 
 	return 0;
 }

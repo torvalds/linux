@@ -162,11 +162,12 @@ struct amdtp_stream {
 
 	u8 pcm_positions[AMDTP_MAX_CHANNELS_FOR_PCM];
 	u8 midi_position;
-	bool double_pcm_frames;
 
 	void (*transfer_samples)(struct amdtp_stream *s,
 				 struct snd_pcm_substream *pcm,
 				 __be32 *buffer, unsigned int frames);
+
+	unsigned int frame_multiplier;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
