@@ -2584,7 +2584,6 @@ static struct rs_rate *rs_get_optimal_rate(struct iwl_mvm *mvm,
 		}
 	}
 
-	rs_dump_rate(mvm, rate, "OPTIMAL RATE");
 	return rate;
 }
 
