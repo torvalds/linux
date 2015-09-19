@@ -13,24 +13,11 @@
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/rawmidi.h>
 #include "amdtp-stream.h"
 
 #define TICKS_PER_CYCLE		3072
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
-
-/*
- * Nominally 3125 bytes/second, but the MIDI port's clock might be
- * 1% too slow, and the bus clock 100 ppm too fast.
- */
-#define MIDI_BYTES_PER_SECOND	3093
-
-/*
- * Several devices look only at the first eight data blocks.
- * In any case, this is more than enough for the MIDI data rate.
- */
-#define MAX_MIDI_RX_BLOCKS	8
 
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
@@ -74,11 +61,22 @@ static void pcm_period_tasklet(unsigned long data);
  * @dir: the direction of stream
  * @flags: the packet transmission method to use
  * @fmt: the value of fmt field in CIP header
+ * @process_data_blocks: callback handler to process data blocks
+ * @protocol_size: the size to allocate newly for protocol
  */
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags,
-		      unsigned int fmt)
+		      unsigned int fmt,
+		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      unsigned int protocol_size)
 {
+	if (process_data_blocks == NULL)
+		return -EINVAL;
+
+	s->protocol = kzalloc(protocol_size, GFP_KERNEL);
+	if (!s->protocol)
+		return -ENOMEM;
+
 	s->unit = unit;
 	s->direction = dir;
 	s->flags = flags;
@@ -92,6 +90,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->sync_slave = NULL;
 
 	s->fmt = fmt;
+	s->process_data_blocks = process_data_blocks;
 
 	return 0;
 }
@@ -104,6 +103,7 @@ EXPORT_SYMBOL(amdtp_stream_init);
 void amdtp_stream_destroy(struct amdtp_stream *s)
 {
 	WARN_ON(amdtp_stream_running(s));
+	kfree(s->protocol);
 	mutex_destroy(&s->mutex);
 }
 EXPORT_SYMBOL(amdtp_stream_destroy);
@@ -184,27 +184,15 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * amdtp_stream_set_parameters - set stream parameters
  * @s: the AMDTP stream to configure
  * @rate: the sample rate
- * @pcm_channels: the number of PCM samples in each data block, to be encoded
- *                as AM824 multi-bit linear audio
- * @midi_ports: the number of MIDI ports (i.e., MPX-MIDI Data Channels)
- * @double_pcm_frames: one data block transfers two PCM frames
+ * @data_block_quadlets: the size of a data block in quadlet unit
  *
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
  */
-int amdtp_stream_set_parameters(struct amdtp_stream *s,
-				unsigned int rate,
-				unsigned int pcm_channels,
-				unsigned int midi_ports)
+int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
+				unsigned int data_block_quadlets)
 {
-	unsigned int i, sfc, midi_channels;
-
-	midi_channels = DIV_ROUND_UP(midi_ports, 8);
-
-	if (WARN_ON(amdtp_stream_running(s)) ||
-	    WARN_ON(pcm_channels > AM824_MAX_CHANNELS_FOR_PCM) ||
-	    WARN_ON(midi_channels > AM824_MAX_CHANNELS_FOR_MIDI))
-		return -EINVAL;
+	unsigned int sfc;
 
 	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc) {
 		if (amdtp_rate_table[sfc] == rate)
@@ -213,11 +201,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	if (sfc == ARRAY_SIZE(amdtp_rate_table))
 		return -EINVAL;
 
-	s->pcm_channels = pcm_channels;
 	s->sfc = sfc;
-	s->data_block_quadlets = s->pcm_channels + midi_channels;
-	s->midi_ports = midi_ports;
-
+	s->data_block_quadlets = data_block_quadlets;
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
 	/* default buffering in the device */
@@ -225,19 +210,6 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	if (s->flags & CIP_BLOCKING)
 		/* additional buffering needed to adjust for no-data packets */
 		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
-
-	/* init the position map for PCM and MIDI channels */
-	for (i = 0; i < pcm_channels; i++)
-		s->pcm_positions[i] = i;
-	s->midi_position = s->pcm_channels;
-
-	/*
-	 * We do not know the actual MIDI FIFO size of most devices.  Just
-	 * assume two bytes, i.e., one byte can be received over the bus while
-	 * the previous one is transmitted over MIDI.
-	 * (The value here is adjusted for midi_ratelimit_per_packet().)
-	 */
-	s->midi_fifo_limit = rate - MIDI_BYTES_PER_SECOND * s->syt_interval + 1;
 
 	return 0;
 }
@@ -260,51 +232,6 @@ unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 	return 8 + s->syt_interval * s->data_block_quadlets * 4 * multiplier;
 }
 EXPORT_SYMBOL(amdtp_stream_get_max_payload);
-
-static void write_pcm_s16(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames);
-static void write_pcm_s32(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames);
-static void read_pcm_s32(struct amdtp_stream *s,
-			 struct snd_pcm_substream *pcm,
-			 __be32 *buffer, unsigned int frames);
-
-/**
- * amdtp_am824_set_pcm_format - set the PCM format
- * @s: the AMDTP stream to configure
- * @format: the format of the ALSA PCM device
- *
- * The sample format must be set after the other parameters (rate/PCM channels/
- * MIDI) and before the stream is started, and must not be changed while the
- * stream is running.
- */
-void amdtp_am824_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format)
-{
-	if (WARN_ON(amdtp_stream_pcm_running(s)))
-		return;
-
-	switch (format) {
-	default:
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S16:
-		if (s->direction == AMDTP_OUT_STREAM) {
-			s->transfer_samples = write_pcm_s16;
-			break;
-		}
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S32:
-		if (s->direction == AMDTP_OUT_STREAM)
-			s->transfer_samples = write_pcm_s32;
-		else
-			s->transfer_samples = read_pcm_s32;
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(amdtp_am824_set_pcm_format);
 
 /**
  * amdtp_stream_pcm_prepare - prepare PCM device for running
@@ -408,168 +335,6 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 	}
 }
 
-static void write_pcm_s32(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	const u32 *src;
-
-	channels = s->pcm_channels;
-	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			buffer[s->pcm_positions[c]] =
-					cpu_to_be32((*src >> 8) | 0x40000000);
-			src++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			src = (void *)runtime->dma_area;
-	}
-}
-
-static void write_pcm_s16(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	const u16 *src;
-
-	channels = s->pcm_channels;
-	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			buffer[s->pcm_positions[c]] =
-					cpu_to_be32((*src << 8) | 0x42000000);
-			src++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			src = (void *)runtime->dma_area;
-	}
-}
-
-static void read_pcm_s32(struct amdtp_stream *s,
-			 struct snd_pcm_substream *pcm,
-			 __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	u32 *dst;
-
-	channels = s->pcm_channels;
-	dst  = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			*dst = be32_to_cpu(buffer[s->pcm_positions[c]]) << 8;
-			dst++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			dst = (void *)runtime->dma_area;
-	}
-}
-
-static void write_pcm_silence(struct amdtp_stream *s,
-			      __be32 *buffer, unsigned int frames)
-{
-	unsigned int i, c;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < s->pcm_channels; ++c)
-			buffer[s->pcm_positions[c]] = cpu_to_be32(0x40000000);
-		buffer += s->data_block_quadlets;
-	}
-}
-
-/*
- * To avoid sending MIDI bytes at too high a rate, assume that the receiving
- * device has a FIFO, and track how much it is filled.  This values increases
- * by one whenever we send one byte in a packet, but the FIFO empties at
- * a constant rate independent of our packet rate.  One packet has syt_interval
- * samples, so the number of bytes that empty out of the FIFO, per packet(!),
- * is MIDI_BYTES_PER_SECOND * syt_interval / sample_rate.  To avoid storing
- * fractional values, the values in midi_fifo_used[] are measured in bytes
- * multiplied by the sample rate.
- */
-static bool midi_ratelimit_per_packet(struct amdtp_stream *s, unsigned int port)
-{
-	int used;
-
-	used = s->midi_fifo_used[port];
-	if (used == 0) /* common shortcut */
-		return true;
-
-	used -= MIDI_BYTES_PER_SECOND * s->syt_interval;
-	used = max(used, 0);
-	s->midi_fifo_used[port] = used;
-
-	return used < s->midi_fifo_limit;
-}
-
-static void midi_rate_use_one_byte(struct amdtp_stream *s, unsigned int port)
-{
-	s->midi_fifo_used[port] += amdtp_rate_table[s->sfc];
-}
-
-static void write_midi_messages(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int frames)
-{
-	unsigned int f, port;
-	u8 *b;
-
-	for (f = 0; f < frames; f++) {
-		b = (u8 *)&buffer[s->midi_position];
-
-		port = (s->data_block_counter + f) % 8;
-		if (f < MAX_MIDI_RX_BLOCKS &&
-		    midi_ratelimit_per_packet(s, port) &&
-		    s->midi[port] != NULL &&
-		    snd_rawmidi_transmit(s->midi[port], &b[1], 1) == 1) {
-			midi_rate_use_one_byte(s, port);
-			b[0] = 0x81;
-		} else {
-			b[0] = 0x80;
-			b[1] = 0;
-		}
-		b[2] = 0;
-		b[3] = 0;
-
-		buffer += s->data_block_quadlets;
-	}
-}
-
-static void read_midi_messages(struct amdtp_stream *s,
-			       __be32 *buffer, unsigned int frames)
-{
-	unsigned int f, port;
-	int len;
-	u8 *b;
-
-	for (f = 0; f < frames; f++) {
-		port = (s->data_block_counter + f) % 8;
-		b = (u8 *)&buffer[s->midi_position];
-
-		len = b[0] - 0x80;
-		if ((1 <= len) &&  (len <= 3) && (s->midi[port]))
-			snd_rawmidi_receive(s->midi[port], b + 1, len);
-
-		buffer += s->data_block_quadlets;
-	}
-}
-
 static void update_pcm_pointers(struct amdtp_stream *s,
 				struct snd_pcm_substream *pcm,
 				unsigned int frames)
@@ -639,26 +404,6 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
-unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
-				    unsigned int data_blocks, unsigned int *syt)
-{
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
-	unsigned int pcm_frames;
-
-	if (pcm) {
-		s->transfer_samples(s, pcm, buffer, data_blocks);
-		pcm_frames = data_blocks * s->frame_multiplier;
-	} else {
-		write_pcm_silence(s, buffer, data_blocks);
-		pcm_frames = 0;
-	}
-
-	if (s->midi_ports)
-		write_midi_messages(s, buffer, data_blocks);
-
-	return pcm_frames;
-}
-
 static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 			     unsigned int syt)
 {
@@ -668,7 +413,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
-	pcm_frames = process_rx_data_blocks(s, buffer + 2, data_blocks, &syt);
+	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
 
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
@@ -690,25 +435,6 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 
 	/* No need to return the number of handled data blocks. */
 	return 0;
-}
-
-unsigned int process_tx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
-				    unsigned int data_blocks, unsigned int *syt)
-{
-	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
-	unsigned int pcm_frames;
-
-	if (pcm) {
-		s->transfer_samples(s, pcm, buffer, data_blocks);
-		pcm_frames = data_blocks * s->frame_multiplier;
-	} else {
-		pcm_frames = 0;
-	}
-
-	if (s->midi_ports)
-		read_midi_messages(s, buffer, data_blocks);
-
-	return pcm_frames;
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
@@ -798,7 +524,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 		return -EIO;
 	}
 
-	pcm_frames = process_tx_data_blocks(s, buffer + 2, *data_blocks, &syt);
+	pcm_frames = s->process_data_blocks(s, buffer + 2, *data_blocks, &syt);
 
 	if (s->flags & CIP_DBC_IS_END_EVENT)
 		s->data_block_counter = data_block_counter;

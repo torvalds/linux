@@ -81,39 +81,22 @@ enum cip_sfc {
 	CIP_SFC_COUNT
 };
 
-#define AM824_IN_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
-
-#define AM824_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
-					 SNDRV_PCM_FMTBIT_S32)
-
-
-/*
- * This module supports maximum 64 PCM channels for one PCM stream
- * This is for our convenience.
- */
-#define AM824_MAX_CHANNELS_FOR_PCM	64
-
-/*
- * AMDTP packet can include channels for MIDI conformant data.
- * Each MIDI conformant data channel includes 8 MPX-MIDI data stream.
- * Each MPX-MIDI data stream includes one data stream from/to MIDI ports.
- *
- * This module supports maximum 1 MIDI conformant data channels.
- * Then this AMDTP packets can transfer maximum 8 MIDI data streams.
- */
-#define AM824_MAX_CHANNELS_FOR_MIDI	1
-
 struct fw_unit;
 struct fw_iso_context;
 struct snd_pcm_substream;
 struct snd_pcm_runtime;
-struct snd_rawmidi_substream;
 
 enum amdtp_stream_direction {
 	AMDTP_OUT_STREAM = 0,
 	AMDTP_IN_STREAM
 };
 
+struct amdtp_stream;
+typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
+						struct amdtp_stream *s,
+						__be32 *buffer,
+						unsigned int data_blocks,
+						unsigned int *syt);
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
@@ -156,32 +139,20 @@ struct amdtp_stream {
 	wait_queue_head_t callback_wait;
 	struct amdtp_stream *sync_slave;
 
-	/* For AM824 processing. */
-	struct snd_rawmidi_substream *midi[AM824_MAX_CHANNELS_FOR_MIDI * 8];
-	int midi_fifo_limit;
-	int midi_fifo_used[AM824_MAX_CHANNELS_FOR_MIDI * 8];
-	unsigned int pcm_channels;
-	unsigned int midi_ports;
-
-	u8 pcm_positions[AM824_MAX_CHANNELS_FOR_PCM];
-	u8 midi_position;
-
-	void (*transfer_samples)(struct amdtp_stream *s,
-				 struct snd_pcm_substream *pcm,
-				 __be32 *buffer, unsigned int frames);
-
-	unsigned int frame_multiplier;
+	/* For backends to process data blocks. */
+	void *protocol;
+	amdtp_stream_process_data_blocks_t process_data_blocks;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum amdtp_stream_direction dir,
-		      enum cip_flags flags, unsigned int fmt);
+		      enum amdtp_stream_direction dir, enum cip_flags flags,
+		      unsigned int fmt,
+		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      unsigned int protocol_size);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
-int amdtp_stream_set_parameters(struct amdtp_stream *s,
-				unsigned int rate,
-				unsigned int pcm_channels,
-				unsigned int midi_ports);
+int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
+				unsigned int data_block_quadlets);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
 int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
@@ -190,8 +161,7 @@ void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
-void amdtp_am824_set_pcm_format(struct amdtp_stream *s,
-				snd_pcm_format_t format);
+
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
