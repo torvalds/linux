@@ -285,7 +285,8 @@ static void rds_ib_tasklet_fn_recv(unsigned long data)
 	struct rds_ib_device *rds_ibdev = ic->rds_ibdev;
 	struct rds_ib_ack_state state;
 
-	BUG_ON(!rds_ibdev);
+	if (!rds_ibdev)
+		rds_conn_drop(conn);
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
