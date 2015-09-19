@@ -122,11 +122,11 @@ pcm_init_hw_params(struct snd_bebob *bebob,
 			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		runtime->hw.formats = AMDTP_IN_PCM_FORMAT_BITS;
+		runtime->hw.formats = AM824_IN_PCM_FORMAT_BITS;
 		s = &bebob->tx_stream;
 		formations = bebob->tx_stream_formations;
 	} else {
-		runtime->hw.formats = AMDTP_OUT_PCM_FORMAT_BITS;
+		runtime->hw.formats = AM824_OUT_PCM_FORMAT_BITS;
 		s = &bebob->rx_stream;
 		formations = bebob->rx_stream_formations;
 	}

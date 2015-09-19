@@ -202,8 +202,8 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s,
 	midi_channels = DIV_ROUND_UP(midi_ports, 8);
 
 	if (WARN_ON(amdtp_stream_running(s)) ||
-	    WARN_ON(pcm_channels > AMDTP_MAX_CHANNELS_FOR_PCM) ||
-	    WARN_ON(midi_channels > AMDTP_MAX_CHANNELS_FOR_MIDI))
+	    WARN_ON(pcm_channels > AM824_MAX_CHANNELS_FOR_PCM) ||
+	    WARN_ON(midi_channels > AM824_MAX_CHANNELS_FOR_MIDI))
 		return -EINVAL;
 
 	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc) {

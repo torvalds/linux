@@ -133,11 +133,11 @@ static int init_hw_info(struct snd_dice *dice,
 		   SNDRV_PCM_INFO_BLOCK_TRANSFER;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		hw->formats = AMDTP_IN_PCM_FORMAT_BITS;
+		hw->formats = AM824_IN_PCM_FORMAT_BITS;
 		stream = &dice->tx_stream;
 		pcm_channels = dice->tx_channels;
 	} else {
-		hw->formats = AMDTP_OUT_PCM_FORMAT_BITS;
+		hw->formats = AM824_OUT_PCM_FORMAT_BITS;
 		stream = &dice->rx_stream;
 		pcm_channels = dice->rx_channels;
 	}

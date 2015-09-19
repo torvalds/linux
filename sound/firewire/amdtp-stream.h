@@ -81,9 +81,9 @@ enum cip_sfc {
 	CIP_SFC_COUNT
 };
 
-#define AMDTP_IN_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
+#define AM824_IN_PCM_FORMAT_BITS	SNDRV_PCM_FMTBIT_S32
 
-#define AMDTP_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
+#define AM824_OUT_PCM_FORMAT_BITS	(SNDRV_PCM_FMTBIT_S16 | \
 					 SNDRV_PCM_FMTBIT_S32)
 
 
@@ -91,7 +91,7 @@ enum cip_sfc {
  * This module supports maximum 64 PCM channels for one PCM stream
  * This is for our convenience.
  */
-#define AMDTP_MAX_CHANNELS_FOR_PCM	64
+#define AM824_MAX_CHANNELS_FOR_PCM	64
 
 /*
  * AMDTP packet can include channels for MIDI conformant data.
@@ -101,7 +101,7 @@ enum cip_sfc {
  * This module supports maximum 1 MIDI conformant data channels.
  * Then this AMDTP packets can transfer maximum 8 MIDI data streams.
  */
-#define AMDTP_MAX_CHANNELS_FOR_MIDI	1
+#define AM824_MAX_CHANNELS_FOR_MIDI	1
 
 struct fw_unit;
 struct fw_iso_context;
@@ -157,13 +157,13 @@ struct amdtp_stream {
 	struct amdtp_stream *sync_slave;
 
 	/* For AM824 processing. */
-	struct snd_rawmidi_substream *midi[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
+	struct snd_rawmidi_substream *midi[AM824_MAX_CHANNELS_FOR_MIDI * 8];
 	int midi_fifo_limit;
-	int midi_fifo_used[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
+	int midi_fifo_used[AM824_MAX_CHANNELS_FOR_MIDI * 8];
 	unsigned int pcm_channels;
 	unsigned int midi_ports;
 
-	u8 pcm_positions[AMDTP_MAX_CHANNELS_FOR_PCM];
+	u8 pcm_positions[AM824_MAX_CHANNELS_FOR_PCM];
 	u8 midi_position;
 
 	void (*transfer_samples)(struct amdtp_stream *s,

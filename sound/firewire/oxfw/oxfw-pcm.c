@@ -134,11 +134,11 @@ static int init_hw_params(struct snd_oxfw *oxfw,
 			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		runtime->hw.formats = AMDTP_IN_PCM_FORMAT_BITS;
+		runtime->hw.formats = AM824_IN_PCM_FORMAT_BITS;
 		stream = &oxfw->tx_stream;
 		formats = oxfw->tx_stream_formats;
 	} else {
-		runtime->hw.formats = AMDTP_OUT_PCM_FORMAT_BITS;
+		runtime->hw.formats = AM824_OUT_PCM_FORMAT_BITS;
 		stream = &oxfw->rx_stream;
 		formats = oxfw->rx_stream_formats;
 	}

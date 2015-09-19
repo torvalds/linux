@@ -354,7 +354,7 @@ map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 			case 0x09:	/* Digital */
 			default:
 				location = pcm + sec_loc;
-				if (location >= AMDTP_MAX_CHANNELS_FOR_PCM) {
+				if (location >= AM824_MAX_CHANNELS_FOR_PCM) {
 					err = -ENOSYS;
 					goto end;
 				}
@@ -872,8 +872,8 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		}
 	}
 
-	if (formation[i].pcm  > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    formation[i].midi > AMDTP_MAX_CHANNELS_FOR_MIDI)
+	if (formation[i].pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
+	    formation[i].midi > AM824_MAX_CHANNELS_FOR_MIDI)
 		return -ENOSYS;
 
 	return 0;

@@ -483,8 +483,8 @@ int snd_oxfw_stream_parse_format(u8 *format,
 		}
 	}
 
-	if (formation->pcm  > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    formation->midi > AMDTP_MAX_CHANNELS_FOR_MIDI)
+	if (formation->pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
+	    formation->midi > AM824_MAX_CHANNELS_FOR_MIDI)
 		return -ENOSYS;
 
 	return 0;
