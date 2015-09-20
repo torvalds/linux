@@ -92,7 +92,7 @@ static const struct ieee80211_txrx_stypes
 #define WILC_WFI_DWELL_ACTIVE  40
 
 struct wireless_dev *WILC_WFI_CfgAlloc(void);
-struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net);
+struct wireless_dev *wilc_create_wiphy(struct net_device *net);
 void wilc_free_wiphy(struct net_device *net);
 int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed);
 int WILC_WFI_DeInitHostInt(struct net_device *net);

@@ -1883,7 +1883,7 @@ int wilc_netdev_init(void)
 		{
 			struct wireless_dev *wdev;
 			/*Register WiFi*/
-			wdev = WILC_WFI_WiphyRegister(ndev);
+			wdev = wilc_create_wiphy(ndev);
 
 			#ifdef WILC_SDIO
 			/* set netdev, tony */

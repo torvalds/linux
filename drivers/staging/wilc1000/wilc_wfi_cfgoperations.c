@@ -3519,7 +3519,7 @@ _fail_:
 
 }
 /**
- *  @brief      WILC_WFI_WiphyRegister
+ *  @brief      wilc_create_wiphy
  *  @details    Registering of the wiphy structure and interface modes
  *  @param[in]   NONE
  *  @return     NONE
@@ -3527,7 +3527,7 @@ _fail_:
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-struct wireless_dev *WILC_WFI_WiphyRegister(struct net_device *net)
+struct wireless_dev *wilc_create_wiphy(struct net_device *net)
 {
 	struct wilc_priv *priv;
 	struct wireless_dev *wdev;
