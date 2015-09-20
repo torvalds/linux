@@ -674,7 +674,7 @@ static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 	}
 }
 
-static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
+static u8 _rtl92e_get_supported_wireless_mode(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 ret = 0;
@@ -699,7 +699,7 @@ static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 bSupportMode = rtl8192_getSupportedWireleeMode(dev);
+	u8 bSupportMode = _rtl92e_get_supported_wireless_mode(dev);
 
 	if ((wireless_mode == WIRELESS_MODE_AUTO) ||
 	    ((wireless_mode & bSupportMode) == 0)) {
