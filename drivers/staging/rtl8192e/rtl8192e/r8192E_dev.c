@@ -1861,11 +1861,11 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	}
 }
 
-static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
-					   struct sk_buff *skb,
-					   struct rtllib_rx_stats *pstats,
-					   struct rx_desc *pdesc,
-					   struct rx_fwinfo *pdrvinfo)
+static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
+					      struct sk_buff *skb,
+					      struct rtllib_rx_stats *pstats,
+					      struct rx_desc *pdesc,
+					      struct rx_fwinfo *pdrvinfo)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	bool bpacket_match_bssid, bpacket_toself;
@@ -2073,8 +2073,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 
 	stats->RxIs40MHzPacket = pDrvInfo->BW;
 
-	rtl8192_TranslateRxSignalStuff(dev, skb, stats, pdesc,
-				       pDrvInfo);
+	_rtl92e_translate_rx_signal_stats(dev, skb, stats, pdesc, pDrvInfo);
 
 	if (pDrvInfo->FirstAGGR == 1 || pDrvInfo->PartAggr == 1)
 		RT_TRACE(COMP_RXDESC,
