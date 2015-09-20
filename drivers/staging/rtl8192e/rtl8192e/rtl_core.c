@@ -2274,7 +2274,7 @@ static void r8192_set_multicast(struct net_device *dev)
 }
 
 
-static int r8192_set_mac_adr(struct net_device *dev, void *mac)
+static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct sockaddr *addr = mac;
@@ -2557,7 +2557,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_tx_timeout = _rtl92e_tx_timeout,
 	.ndo_do_ioctl = _rtl92e_ioctl,
 	.ndo_set_rx_mode = r8192_set_multicast,
-	.ndo_set_mac_address = r8192_set_mac_adr,
+	.ndo_set_mac_address = _rtl92e_set_mac_adr,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = eth_change_mtu,
 	.ndo_start_xmit = rtllib_xmit,
