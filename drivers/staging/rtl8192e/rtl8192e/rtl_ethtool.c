@@ -29,8 +29,8 @@
 
 #include "rtl_core.h"
 
-static void rtl819x_ethtool_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *info)
+static void _rtl92e_ethtool_get_drvinfo(struct net_device *dev,
+					struct ethtool_drvinfo *info)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -48,6 +48,6 @@ static u32 rtl819x_ethtool_get_link(struct net_device *dev)
 }
 
 const struct ethtool_ops rtl819x_ethtool_ops = {
-	.get_drvinfo = rtl819x_ethtool_get_drvinfo,
+	.get_drvinfo = _rtl92e_ethtool_get_drvinfo,
 	.get_link = rtl819x_ethtool_get_link,
 };
