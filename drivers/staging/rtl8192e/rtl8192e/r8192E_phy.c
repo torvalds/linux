@@ -1166,14 +1166,14 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 		_rtl92e_cck_tx_power_track_bw_switch_thermal(dev);
 }
 
-static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
+static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 regBwOpMode;
 
 	RT_TRACE(COMP_SWBW,
-		 "==>rtl8192_SetBWModeWorkItem()  Switch to %s bandwidth\n",
+		 "==>_rtl92e_set_bw_mode_work_item()  Switch to %s bandwidth\n",
 		 priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 ?
 			 "20MHz" : "40MHz");
 
@@ -1294,7 +1294,7 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width Bandwidth,
 	else
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-	rtl8192_SetBWModeWorkItem(dev);
+	_rtl92e_set_bw_mode_work_item(dev);
 
 }
 
