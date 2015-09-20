@@ -395,7 +395,7 @@ static void rtl8192_update_beacon(void *data)
 	rtl8192_update_cap(dev, net->capability);
 }
 
-static void rtl8192_qos_activate(void *data)
+static void _rtl92e_qos_activate(void *data)
 {
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
 				  qos_activate);
@@ -1018,7 +1018,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 			      (void *)rtl92e_dm_rf_pathcheck_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->update_beacon_wq,
 			      (void *)rtl8192_update_beacon, dev);
-	INIT_WORK_RSL(&priv->qos_activate, (void *)rtl8192_qos_activate, dev);
+	INIT_WORK_RSL(&priv->qos_activate, (void *)_rtl92e_qos_activate, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_wakeup_wq,
 			      (void *) rtl92e_hw_wakeup_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_sleep_wq,
