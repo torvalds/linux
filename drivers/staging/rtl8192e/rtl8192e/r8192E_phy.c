@@ -1125,7 +1125,7 @@ static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct net_device *dev)
 	}
 }
 
-static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct net_device *dev)
+static void _rtl92e_cck_tx_power_track_bw_switch_thermal(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1142,14 +1142,14 @@ static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct net_device *dev)
 			priv->Record_CCK_20Mindex = 6;
 		priv->CCK_index = priv->Record_CCK_20Mindex;
 		RT_TRACE(COMP_POWER_TRACKING,
-			 "20MHz, CCK_Tx_Power_Track_BW_Switch_ThermalMeter(),CCK_index = %d\n",
+			 "20MHz, _rtl92e_cck_tx_power_track_bw_switch_thermal(),CCK_index = %d\n",
 			 priv->CCK_index);
 	break;
 
 	case HT_CHANNEL_WIDTH_20_40:
 		priv->CCK_index = priv->Record_CCK_40Mindex;
 		RT_TRACE(COMP_POWER_TRACKING,
-			 "40MHz, CCK_Tx_Power_Track_BW_Switch_ThermalMeter(), CCK_index = %d\n",
+			 "40MHz, _rtl92e_cck_tx_power_track_bw_switch_thermal(), CCK_index = %d\n",
 			 priv->CCK_index);
 	break;
 	}
@@ -1163,7 +1163,7 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		CCK_Tx_Power_Track_BW_Switch_TSSI(dev);
 	else
-		CCK_Tx_Power_Track_BW_Switch_ThermalMeter(dev);
+		_rtl92e_cck_tx_power_track_bw_switch_thermal(dev);
 }
 
 static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
