@@ -101,7 +101,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	return true;
 }
 
-static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool _rtl92e_fw_boot_cpu(struct net_device *dev)
 {
 	bool		rt_status = true;
 	u32		CPU_status = 0;
@@ -192,12 +192,11 @@ static bool firmware_check_ready(struct net_device *dev,
 	case FW_INIT_STEP1_MAIN:
 		pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
 
-		rt_status = CPUcheck_maincodeok_turnonCPU(dev);
+		rt_status = _rtl92e_fw_boot_cpu(dev);
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
 		else
-			RT_TRACE(COMP_FIRMWARE,
-				 "CPUcheck_maincodeok_turnonCPU fail!\n");
+			RT_TRACE(COMP_FIRMWARE, "_rtl92e_fw_boot_cpu fail!\n");
 
 		break;
 
