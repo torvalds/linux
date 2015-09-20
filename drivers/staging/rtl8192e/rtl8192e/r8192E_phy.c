@@ -355,7 +355,7 @@ void rtl92e_config_mac(struct net_device *dev)
 
 }
 
-static void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
+static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 {
 	int i;
 	u32 *Rtl819XPHY_REGArray_Table = NULL;
@@ -571,12 +571,12 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 		}
 	}
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
-	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
+	_rtl92e_phy_config_bb(dev, BaseBand_Config_PHY_REG);
 
 	dwRegValue = rtl92e_readl(dev, CPU_GEN);
 	rtl92e_writel(dev, CPU_GEN, (dwRegValue|CPU_GEN_BB_RST));
 
-	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
+	_rtl92e_phy_config_bb(dev, BaseBand_Config_AGC_TAB);
 
 	if (priv->IC_Cut  > VERSION_8190_BD) {
 		if (priv->rf_type == RF_2T4R)
