@@ -88,7 +88,7 @@ static struct pci_driver rtl8192_pci_driver = {
 };
 
 static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
-static void rtl819x_watchdog_wqcallback(void *data);
+static void _rtl92e_watchdog_wq_cb(void *data);
 static void watch_dog_timer_callback(unsigned long data);
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
@@ -1011,7 +1011,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)rtl92e_ips_leave_wq,
 		      dev);
 	INIT_DELAYED_WORK_RSL(&priv->watch_dog_wq,
-			      (void *)rtl819x_watchdog_wqcallback, dev);
+			      (void *)_rtl92e_watchdog_wq_cb, dev);
 	INIT_DELAYED_WORK_RSL(&priv->txpower_tracking_wq,
 			      (void *)rtl92e_dm_txpower_tracking_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rfpath_check_wq,
@@ -1391,7 +1391,7 @@ static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 	}
 }
 
-static void rtl819x_watchdog_wqcallback(void *data)
+static void _rtl92e_watchdog_wq_cb(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, watch_dog_wq);
