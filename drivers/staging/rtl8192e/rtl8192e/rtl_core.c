@@ -2210,7 +2210,7 @@ static int rtl8192_up(struct net_device *dev)
 }
 
 
-static int rtl8192_close(struct net_device *dev)
+static int _rtl92e_close(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
@@ -2553,7 +2553,7 @@ done:
 *****************************************************************************/
 static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_open = _rtl92e_open,
-	.ndo_stop = rtl8192_close,
+	.ndo_stop = _rtl92e_close,
 	.ndo_tx_timeout = rtl8192_tx_timeout,
 	.ndo_do_ioctl = _rtl92e_ioctl,
 	.ndo_set_rx_mode = r8192_set_multicast,
