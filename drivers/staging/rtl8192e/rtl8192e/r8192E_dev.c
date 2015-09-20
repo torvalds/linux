@@ -1438,7 +1438,7 @@ static u8 _rtl92e_rate_hw_to_mgn(bool bIsHT, u8 rate)
 	return ret_rate;
 }
 
-static long rtl8192_signal_scale_mapping(struct r8192_priv *priv, long currsig)
+static long _rtl92e_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 {
 	long retsig;
 
@@ -1678,13 +1678,13 @@ static void _rtl92e_query_rxphystatus(
 
 	if (is_cck_rate) {
 		pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(rtl8192_signal_scale_mapping(priv,
+					 (u8)(_rtl92e_signal_scale_mapping(priv,
 					 (long)pwdb_all));
 
 	} else {
 		if (rf_rx_num != 0)
 			pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(rtl8192_signal_scale_mapping(priv,
+					 (u8)(_rtl92e_signal_scale_mapping(priv,
 					 (long)(total_rssi /= rf_rx_num)));
 	}
 }
