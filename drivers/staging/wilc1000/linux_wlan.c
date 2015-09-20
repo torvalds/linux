@@ -2006,7 +2006,7 @@ static void __exit exit_wilc_driver(void)
 			PRINT_D(INIT_DBG, "Unregistering netdev %p\n", g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			unregister_netdev(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			PRINT_D(INIT_DBG, "Freeing Wiphy...\n");
-			WILC_WFI_WiphyFree(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
+			wilc_free_wiphy(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 			PRINT_D(INIT_DBG, "Freeing netdev...\n");
 			free_netdev(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
 		}
