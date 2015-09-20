@@ -1370,7 +1370,7 @@ END:
 	}
 }
 
-static void rtl819x_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
+static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 				    u32 *TotalRxDataNum)
 {
 	u16	SlotIndex;
@@ -1481,7 +1481,7 @@ static void rtl819x_watchdog_wqcallback(void *data)
 		u32	TotalRxBcnNum = 0;
 		u32	TotalRxDataNum = 0;
 
-		rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
+		_rtl92e_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
 
 		if ((TotalRxBcnNum+TotalRxDataNum) == 0)
 			priv->check_roaming_cnt++;
