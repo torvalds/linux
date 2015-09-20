@@ -48,9 +48,9 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 
 static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
 				  enum rf90_radio_path eRFPath, u32 Offset);
-static void phy_FwRFSerialWrite(struct net_device *dev,
-				enum rf90_radio_path eRFPath,
-				u32 Offset, u32 Data);
+static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
+				    enum rf90_radio_path eRFPath, u32 Offset,
+				    u32 Data);
 
 static u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
@@ -233,9 +233,10 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 			New_Value = (((Original_Value) & (~BitMask)) |
 				    (Data << BitShift));
 
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, New_Value);
+			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr,
+						New_Value);
 		} else
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, Data);
+			_rtl92e_phy_rf_fw_write(dev, eRFPath, RegAddr, Data);
 		udelay(200);
 
 	} else {
@@ -303,9 +304,9 @@ static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
 
 }
 
-static void phy_FwRFSerialWrite(struct net_device *dev,
-				enum rf90_radio_path eRFPath,
-				u32 Offset, u32 Data)
+static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
+				    enum rf90_radio_path eRFPath, u32 Offset,
+				    u32 Data)
 {
 	u8	time = 0;
 
