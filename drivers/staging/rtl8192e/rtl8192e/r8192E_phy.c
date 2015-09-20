@@ -1156,7 +1156,7 @@ static void CCK_Tx_Power_Track_BW_Switch_ThermalMeter(struct net_device *dev)
 	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 }
 
-static void CCK_Tx_Power_Track_BW_Switch(struct net_device *dev)
+static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1215,7 +1215,7 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			rtl92e_writel(dev, rCCK0_TxFilter2, 0x090e1317);
 			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000204);
 		} else {
-			CCK_Tx_Power_Track_BW_Switch(dev);
+			_rtl92e_cck_tx_power_track_bw_switch(dev);
 		}
 
 		rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x00100000, 1);
@@ -1230,7 +1230,7 @@ static void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			rtl92e_writel(dev, rCCK0_TxFilter2, 0x121c252e);
 			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000409);
 		} else {
-			CCK_Tx_Power_Track_BW_Switch(dev);
+			_rtl92e_cck_tx_power_track_bw_switch(dev);
 		}
 
 		rtl92e_set_bb_reg(dev, rCCK0_System, bCCKSideBand,
