@@ -206,7 +206,7 @@ static	void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev);
 static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
 static void _rtl92e_dm_check_fsync(struct net_device *dev);
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data);
-static void dm_fsync_timer_callback(unsigned long data);
+static void _rtl92e_dm_fsync_timer_callback(unsigned long data);
 
 /*---------------------Define local function prototype-----------------------*/
 
@@ -2164,8 +2164,8 @@ static void dm_init_fsync(struct net_device *dev)
 	priv->rtllib->fsync_state = Default_Fsync;
 	priv->framesyncMonitor = 1;
 
-	setup_timer(&priv->fsync_timer, dm_fsync_timer_callback,
-		   (unsigned long) dev);
+	setup_timer(&priv->fsync_timer, _rtl92e_dm_fsync_timer_callback,
+		    (unsigned long)dev);
 }
 
 
@@ -2176,7 +2176,7 @@ static void _rtl92e_dm_deinit_fsync(struct net_device *dev)
 	del_timer_sync(&priv->fsync_timer);
 }
 
-static void dm_fsync_timer_callback(unsigned long data)
+static void _rtl92e_dm_fsync_timer_callback(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
