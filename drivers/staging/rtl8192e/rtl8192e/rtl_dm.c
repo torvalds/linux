@@ -203,7 +203,7 @@ static void dm_init_fsync(struct net_device *dev);
 static void dm_deInit_fsync(struct net_device *dev);
 
 static	void dm_check_txrateandretrycount(struct net_device *dev);
-static  void dm_check_ac_dc_power(struct net_device *dev);
+static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
 static void dm_check_fsync(struct net_device *dev);
 static void dm_CheckRfCtrlGPIO(void *data);
 static void dm_fsync_timer_callback(unsigned long data);
@@ -257,7 +257,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	if (priv->being_init_adapter)
 		return;
 
-	dm_check_ac_dc_power(dev);
+	_rtl92e_dm_check_ac_dc_power(dev);
 
 	dm_check_pbc_gpio(dev);
 	dm_check_txrateandretrycount(dev);
@@ -277,7 +277,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	dm_ctstoself(dev);
 }
 
-static void dm_check_ac_dc_power(struct net_device *dev)
+static void _rtl92e_dm_check_ac_dc_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static char *ac_dc_script = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
