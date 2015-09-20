@@ -531,7 +531,7 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 	return 0;
 }
 
-static void rtl8192_prepare_beacon(struct r8192_priv *priv)
+static void _rtl92e_prepare_beacon(struct r8192_priv *priv)
 {
 	struct net_device *dev = priv->rtllib->dev;
 	struct sk_buff *pskb = NULL, *pnewskb = NULL;
@@ -1030,7 +1030,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 		     (void(*)(unsigned long))_rtl92e_irq_tx_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->irq_prepare_beacon_tasklet,
-		     (void(*)(unsigned long))rtl8192_prepare_beacon,
+		     (void(*)(unsigned long))_rtl92e_prepare_beacon,
 		     (unsigned long)priv);
 }
 
