@@ -819,13 +819,10 @@ static int _rtl92e_wx_set_retry(struct net_device *dev,
 		err = -EINVAL;
 		goto exit;
 	}
-	if (wrqu->retry.flags & IW_RETRY_MAX) {
+	if (wrqu->retry.flags & IW_RETRY_MAX)
 		priv->retry_rts = wrqu->retry.value;
-
-	} else {
+	else
 		priv->retry_data = wrqu->retry.value;
-	}
-
 
 	rtl92e_commit(dev);
 exit:
