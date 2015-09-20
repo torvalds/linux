@@ -168,7 +168,7 @@ struct drx_path_sel DM_RxPathSelTable;
 /*---------------------Define local function prototype-----------------------*/
 static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev);
 
-static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
+static void _rtl92e_dm_init_bandwidth_autoswitch(struct net_device *dev);
 static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
 
@@ -232,7 +232,7 @@ void rtl92e_dm_init(struct net_device *dev)
 
 	_rtl92e_dm_dig_init(dev);
 	rtl92e_dm_init_edca_turbo(dev);
-	dm_init_bandwidth_autoswitch(dev);
+	_rtl92e_dm_init_bandwidth_autoswitch(dev);
 	dm_init_fsync(dev);
 	dm_init_rxpath_selection(dev);
 	dm_init_ctstoself(dev);
@@ -459,7 +459,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	}
 }
 
-static void dm_init_bandwidth_autoswitch(struct net_device *dev)
+static void _rtl92e_dm_init_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
