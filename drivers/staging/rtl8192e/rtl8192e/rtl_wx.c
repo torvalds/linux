@@ -202,9 +202,10 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 	return 0;
 }
 
-static int r8192se_wx_set_lps_awake_interval(struct net_device *dev,
-	struct iw_request_info *info,
-	union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
+					     struct iw_request_info *info,
+					     union iwreq_data *wrqu,
+					     char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -1203,7 +1204,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-	(iw_handler)r8192se_wx_set_lps_awake_interval,
+	(iw_handler)_rtl92e_wx_set_lps_awake_interval,
 	(iw_handler)_rtl92e_wx_set_force_lps,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
