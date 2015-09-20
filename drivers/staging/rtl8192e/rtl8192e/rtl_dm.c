@@ -2323,7 +2323,7 @@ static void _rtl92e_dm_end_sw_fsync(struct net_device *dev)
 	rtl92e_writel(dev, rOFDM0_RxDetector2, 0x465c52cd);
 }
 
-static void dm_StartSWFsync(struct net_device *dev)
+static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32			rateIndex;
@@ -2399,12 +2399,12 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 		} else {
 			switch (priv->rtllib->fsync_state) {
 			case Default_Fsync:
-				dm_StartSWFsync(dev);
+				_rtl92e_dm_start_sw_fsync(dev);
 				priv->rtllib->fsync_state = SW_Fsync;
 				break;
 			case HW_Fsync:
 				_rtl92e_dm_end_hw_fsync(dev);
-				dm_StartSWFsync(dev);
+				_rtl92e_dm_start_sw_fsync(dev);
 				priv->rtllib->fsync_state = SW_Fsync;
 				break;
 			case SW_Fsync:
