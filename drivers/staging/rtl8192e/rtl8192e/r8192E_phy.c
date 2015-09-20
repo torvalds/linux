@@ -544,7 +544,7 @@ bool rtl92e_check_bb_and_rf(struct net_device *dev, enum hw90_block CheckBlock,
 	return ret;
 }
 
-static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
+static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool rtStatus = true;
@@ -598,7 +598,7 @@ static bool rtl8192_BB_Config_ParaFile(struct net_device *dev)
 bool rtl92e_config_bb(struct net_device *dev)
 {
 	rtl8192_InitBBRFRegDef(dev);
-	return rtl8192_BB_Config_ParaFile(dev);
+	return _rtl92e_bb_config_para_file(dev);
 }
 
 void rtl92e_get_tx_power(struct net_device *dev)
