@@ -13,6 +13,7 @@
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 
+#include <linux/bitops.h>
 #include "rtl_core.h"
 #include "r8192E_hw.h"
 #include "r8192E_phyreg.h"
@@ -50,13 +51,9 @@ static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
 
 static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 {
-	u32 i;
-
-	for (i = 0; i <= 31; i++) {
-		if (((dwBitMask >> i) & 0x1) == 1)
-			break;
-	}
-	return i;
+	if (!dwBitMask)
+		return 32;
+	return ffs(dwBitMask) - 1;
 }
 
 u8 rtl92e_is_legal_rf_path(struct net_device *dev, u32 eRFPath)
