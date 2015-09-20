@@ -1194,7 +1194,7 @@ static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-static enum reset_type rtl819x_ifcheck_resetornot(struct net_device *dev)
+static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	enum reset_type TxResetType = RESET_TYPE_NORESET;
@@ -1525,7 +1525,7 @@ static void rtl819x_watchdog_wqcallback(void *data)
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
 	    (!priv->RFChangeInProgress) && (!pPSC->bSwRfProcessing)) {
-		ResetType = rtl819x_ifcheck_resetornot(dev);
+		ResetType = _rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
