@@ -756,8 +756,8 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 	case RF90_PATH_D:
 		for (i = 0; i < RadioD_ArrayLength; i += 2) {
 			if (Rtl819XRadioD_Array[i] == 0xfe) {
-					msleep(100);
-					continue;
+				msleep(100);
+				continue;
 			}
 			rtl92e_set_rf_reg(dev, eRFPath, Rtl819XRadioD_Array[i],
 					  bMask12Bits,

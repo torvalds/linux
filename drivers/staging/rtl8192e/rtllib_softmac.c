@@ -709,7 +709,7 @@ EXPORT_SYMBOL(rtllib_stop_scan);
 void rtllib_stop_scan_syncro(struct rtllib_device *ieee)
 {
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
-			ieee->sync_scan_hurryup = 1;
+		ieee->sync_scan_hurryup = 1;
 	} else {
 		if (ieee->rtllib_stop_hw_scan)
 			ieee->rtllib_stop_hw_scan(ieee->dev);
@@ -2762,10 +2762,10 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 {
 	netif_carrier_off(ieee->dev);
 	if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)
-			rtllib_reset_queue(ieee);
+		rtllib_reset_queue(ieee);
 
 	if (ieee->data_hard_stop)
-			ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee->dev);
 	if (IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
 	ieee->state = RTLLIB_NOLINK;

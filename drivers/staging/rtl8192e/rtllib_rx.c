@@ -1200,11 +1200,9 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
-			struct eapol *eap = (struct eapol *)(skb->data +
-				24);
-			netdev_dbg(ieee->dev,
-				   "RX: IEEE 802.1X EAPOL frame: %s\n",
-				   eap_get_type(eap->type));
+		struct eapol *eap = (struct eapol *)(skb->data + 24);
+		netdev_dbg(ieee->dev, "RX: IEEE 802.1X EAPOL frame: %s\n",
+			   eap_get_type(eap->type));
 	}
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&

@@ -713,7 +713,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 					 "TSSI_report_value = %d\n",
 					 tmp_report[k]);
 
-			       if (tmp_report[k] <= 20) {
+				if (tmp_report[k] <= 20) {
 					viviflag = true;
 					break;
 				}
@@ -1497,7 +1497,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
-				rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
+			rtl92e_writeb(dev, (rOFDM0_XATxAFE+3), 0x10);
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
 	} else {
@@ -2444,9 +2444,9 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 				    RegC38_TH) {
 					if (reg_c38_State !=
 					    RegC38_NonFsync_Other_AP) {
-							rtl92e_writeb(dev,
-							    rOFDM0_RxDetector3,
-							    0x90);
+						rtl92e_writeb(dev,
+							      rOFDM0_RxDetector3,
+							      0x90);
 
 						reg_c38_State =
 						     RegC38_NonFsync_Other_AP;

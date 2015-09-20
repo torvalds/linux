@@ -36,7 +36,7 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 
 	for (eRFPath = 0; eRFPath < priv->NumTotalRFPath; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-				continue;
+			continue;
 
 		switch (Bandwidth) {
 		case HT_CHANNEL_WIDTH_20:
@@ -82,7 +82,7 @@ bool rtl92e_config_rf(struct net_device *dev)
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
 	     eRFPath < priv->NumTotalRFPath; eRFPath++) {
 		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-				continue;
+			continue;
 
 		pPhyReg = &priv->PHYRegDef[eRFPath];
 
