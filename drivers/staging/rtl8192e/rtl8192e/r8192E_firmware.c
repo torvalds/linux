@@ -177,8 +177,8 @@ CPUCheckFirmwareReady_Fail:
 
 }
 
-static bool firmware_check_ready(struct net_device *dev,
-					u8 load_fw_status)
+static bool _rtl92e_fw_check_ready(struct net_device *dev,
+				   u8 load_fw_status)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
@@ -304,7 +304,7 @@ bool rtl92e_init_fw(struct net_device *dev)
 		if (!rt_status)
 			goto download_firmware_fail;
 
-		if (!firmware_check_ready(dev, i))
+		if (!_rtl92e_fw_check_ready(dev, i))
 			goto download_firmware_fail;
 	}
 
