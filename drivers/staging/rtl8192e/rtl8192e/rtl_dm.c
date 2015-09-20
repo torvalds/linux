@@ -213,7 +213,7 @@ static void _rtl92e_dm_fsync_timer_callback(unsigned long data);
 static	void	_rtl92e_dm_init_dynamic_tx_power(struct net_device *dev);
 static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev);
 
-static	void dm_send_rssi_tofw(struct net_device *dev);
+static void _rtl92e_dm_send_rssi_to_fw(struct net_device *dev);
 static void _rtl92e_dm_cts_to_self(struct net_device *dev);
 /*---------------------------Define function prototype------------------------*/
 
@@ -272,7 +272,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_check_rx_path_selection(dev);
 	_rtl92e_dm_check_fsync(dev);
 
-	dm_send_rssi_tofw(dev);
+	_rtl92e_dm_send_rssi_to_fw(dev);
 	_rtl92e_dm_cts_to_self(dev);
 }
 
@@ -2562,7 +2562,7 @@ static void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev)
 						 Tx_Retry_Count_Reg);
 }
 
-static void dm_send_rssi_tofw(struct net_device *dev)
+static void _rtl92e_dm_send_rssi_to_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
