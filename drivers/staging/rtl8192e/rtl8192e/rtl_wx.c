@@ -174,9 +174,9 @@ static int r8192_wx_force_reset(struct net_device *dev,
 
 }
 
-static int r8192_wx_adapter_power_status(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
+					   struct iw_request_info *info,
+					   union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -1197,7 +1197,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)r8192_wx_force_reset,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-	(iw_handler)r8192_wx_adapter_power_status,
+	(iw_handler)_rtl92e_wx_adapter_power_status,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
