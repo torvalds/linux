@@ -1061,7 +1061,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	return true;
 }
 
-static void CCK_Tx_Power_Track_BW_Switch_TSSI(struct net_device *dev)
+static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1161,7 +1161,7 @@ static void _rtl92e_cck_tx_power_track_bw_switch(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
-		CCK_Tx_Power_Track_BW_Switch_TSSI(dev);
+		_rtl92e_cck_tx_power_track_bw_switch_tssi(dev);
 	else
 		_rtl92e_cck_tx_power_track_bw_switch_thermal(dev);
 }
