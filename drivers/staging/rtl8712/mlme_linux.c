@@ -122,7 +122,8 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 			    r8712_use_tkipkey_handler,
 			    (unsigned long)adapter);
 		/* Restore the PMK information to securitypriv structure
-		 * for the following connection. */
+		 * for the following connection.
+		 */
 		memcpy(&adapter->securitypriv.PMKIDList[0],
 			&backupPMKIDList[0],
 			sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
