@@ -592,7 +592,8 @@ static void dm_tx_update_tssi_weak_signal(struct net_device *dev, u8 RF_Type)
 	}
 }
 
-static void dm_tx_update_tssi_strong_signal(struct net_device *dev, u8 RF_Type)
+static void _rtl92e_dm_tx_update_tssi_strong_signal(struct net_device *dev,
+						    u8 RF_Type)
 {
 	struct r8192_priv *p = rtllib_priv(dev);
 
@@ -766,7 +767,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
 				dm_tx_update_tssi_weak_signal(dev, RF_Type);
 			else
-				dm_tx_update_tssi_strong_signal(dev, RF_Type);
+				_rtl92e_dm_tx_update_tssi_strong_signal(dev, RF_Type);
 
 			if (RF_Type == RF_2T4R) {
 				priv->CCKPresentAttentuation_difference
