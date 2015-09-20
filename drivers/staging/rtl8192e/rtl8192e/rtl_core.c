@@ -94,7 +94,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
 static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
-static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
+static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
@@ -1643,7 +1643,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	skb_push(skb, priv->rtllib->tx_headroom);
-	ret = rtl8192_tx(dev, skb);
+	ret = _rtl92e_tx(dev, skb);
 	if (ret != 0)
 		kfree_skb(skb);
 
@@ -1681,7 +1681,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tcb_desc->bTxUseDriverAssingedRate = 1;
 	tcb_desc->bTxEnableFwCalcDur = 1;
 	skb_push(skb, priv->rtllib->tx_headroom);
-	ret = rtl8192_tx(dev, skb);
+	ret = _rtl92e_tx(dev, skb);
 	if (ret != 0)
 		kfree_skb(skb);
 	return ret;
@@ -1736,7 +1736,7 @@ static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 }
 
-static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
+static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring  *ring;
