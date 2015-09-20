@@ -416,9 +416,9 @@ success:
 	mutex_unlock(&priv->mutex);
 }
 
-static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
-		int active_network,
-		struct rtllib_network *network)
+static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
+					     int active_network,
+					     struct rtllib_network *network)
 {
 	int ret = 0;
 	u32 size = sizeof(struct rtllib_qos_parameters);
@@ -467,7 +467,7 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	rtl8192_qos_handle_probe_response(priv, 1, network);
+	_rtl92e_qos_handle_probe_response(priv, 1, network);
 
 	queue_delayed_work_rsl(priv->priv_wq, &priv->update_beacon_wq, 0);
 	return 0;
