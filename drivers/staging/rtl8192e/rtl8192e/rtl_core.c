@@ -2033,7 +2033,7 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 
 
 
-static void rtl8192_rx_normal(struct net_device *dev)
+static void _rtl92e_rx_normal(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
@@ -2163,7 +2163,7 @@ static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv)
 
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
 {
-	rtl8192_rx_normal(priv->rtllib->dev);
+	_rtl92e_rx_normal(priv->rtllib->dev);
 
 	rtl92e_writel(priv->rtllib->dev, INTA_MASK,
 		      rtl92e_readl(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
