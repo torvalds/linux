@@ -78,10 +78,9 @@ static int _rtl92e_wx_set_rate(struct net_device *dev,
 	return ret;
 }
 
-
-static int r8192_wx_set_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_set_rts(struct net_device *dev,
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1137,7 +1136,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWNICKN)] = _rtl92e_wx_get_nick,
 	[IW_IOCTL(SIOCSIWRATE)] = _rtl92e_wx_set_rate,
 	[IW_IOCTL(SIOCGIWRATE)] = _rtl92e_wx_get_rate,
-	[IW_IOCTL(SIOCSIWRTS)] = r8192_wx_set_rts,
+	[IW_IOCTL(SIOCSIWRTS)] = _rtl92e_wx_set_rts,
 	[IW_IOCTL(SIOCGIWRTS)] = _rtl92e_wx_get_rts,
 	[IW_IOCTL(SIOCSIWFRAG)] = _rtl92e_wx_set_frag,
 	[IW_IOCTL(SIOCGIWFRAG)] = _rtl92e_wx_get_frag,
