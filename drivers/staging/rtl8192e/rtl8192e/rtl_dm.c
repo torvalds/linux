@@ -1022,12 +1022,10 @@ static void _rtl92e_dm_check_tx_power_tracking_thermal(struct net_device *dev)
 	}
 
 	if (!TM_Trigger) {
-		{
 		rtl92e_set_rf_reg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
 		rtl92e_set_rf_reg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
 		rtl92e_set_rf_reg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
 		rtl92e_set_rf_reg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		}
 		TM_Trigger = 1;
 		return;
 	}
