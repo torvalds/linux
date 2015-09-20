@@ -272,7 +272,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	return bActionAllowed;
 }
 
-static short rtl8192_check_nic_enough_desc(struct net_device *dev, int prio)
+static short _rtl92e_check_nic_enough_desc(struct net_device *dev, int prio)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
@@ -856,7 +856,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_chan			= _rtl92e_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
-	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
+	priv->rtllib->check_nic_enough_desc	= _rtl92e_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= _rtl92e_handle_assoc_response;
 	priv->rtllib->handle_beacon		= _rtl92e_handle_beacon;
 	priv->rtllib->SetWirelessMode		= rtl92e_set_wireless_mode;
