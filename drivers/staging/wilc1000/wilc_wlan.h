@@ -22,7 +22,6 @@
 #define ETH_ETHERNET_HDR_OFFSET   (MAX_MAC_HDR_LEN + SUB_MSDU_HEADER_LENGTH + \
 				   SNAP_HDR_LEN - ETHERNET_HDR_LEN + WORD_ALIGNMENT_PAD)
 
-/*Bug3959: transmitting mgmt frames received from host*/
 #define HOST_HDR_OFFSET		4
 #define ETHERNET_HDR_LEN          14
 #define IP_HDR_LEN                20
@@ -104,8 +103,8 @@
 #define WILC_AHB_DATA_MEM_BASE 0x30000
 #define WILC_AHB_SHARE_MEM_BASE 0xd0000
 
-#define WILC_VMM_TBL_RX_SHADOW_BASE WILC_AHB_SHARE_MEM_BASE /* Bug 4477 fix */
-#define WILC_VMM_TBL_RX_SHADOW_SIZE (256) /* Bug 4477 fix */
+#define WILC_VMM_TBL_RX_SHADOW_BASE WILC_AHB_SHARE_MEM_BASE
+#define WILC_VMM_TBL_RX_SHADOW_SIZE (256)
 
 #define WILC_GP_REG_0   0x149c
 #define WILC_GP_REG_1   0x14a0
@@ -137,7 +136,6 @@
  ********************************************/
 #define WILC_CFG_PKT	1
 #define WILC_NET_PKT 0
-/*Bug3959: transmitting mgmt frames received from host*/
 #define WILC_MGMT_PKT 2
 
 #define WILC_CFG_SET 1

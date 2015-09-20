@@ -244,7 +244,6 @@ typedef struct _tstrHostIFGetChan {
 	u8 u8GetChan;
 } tstrHostIFGetChan;
 
-/*bug3819: Add Scan acomplete notification to host*/
 /*!
  *  @struct             tstrScanComplete
  *  @brief			hold received Async. Scan Complete message body
@@ -472,7 +471,6 @@ typedef struct _tstrWidJoinReqExt {
 } tstrWidJoinReqExt;
 #endif
 
-/*Bug4218: Parsing Join Param*/
 #ifdef WILC_PARSE_SCAN_IN_HOST
 /*Struct containg joinParam of each AP*/
 typedef struct _tstrJoinBssParam {
@@ -504,7 +502,6 @@ typedef struct _tstrJoinBssParam {
 	u8 au8Interval[4];
 	u8 au8StartTime[4];
 } tstrJoinBssParam;
-/*Bug4218: Parsing Join Param*/
 /*a linked list table containing needed join parameters entries for each AP found in most recent scan*/
 typedef struct _tstrBssTable {
 	u8 u8noBssEntries;
@@ -573,9 +570,7 @@ tstrWILC_WFIDrv *gu8FlushedJoinReqDrvHandler;
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79     /* Position the byte indicating flushing in the flushed request */
 
-/*Bug4218: Parsing Join Param*/
 #ifdef WILC_PARSE_SCAN_IN_HOST
-/*Bug4218: Parsing Join Param*/
 static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo);
 #endif /*WILC_PARSE_SCAN_IN_HOST*/
 
@@ -843,7 +838,6 @@ s32 Handle_get_IPAddress(tstrWILC_WFIDrv *drvHandler, u8 *pu8IPAddr, u8 idx)
 }
 
 
-/*BugId_5077*/
 /**
  *  @brief Handle_SetMacAddress
  *  @details    Setting mac address
@@ -1376,7 +1370,6 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHost
 	strWIDList[u32WidsCount].u16WIDid = WID_SCAN_CHANNEL_LIST;
 	strWIDList[u32WidsCount].enuWIDtype = WID_BIN_DATA;
 
-	/* Bug 4648: Convert channel numbers to start from 0 not 1. */
 	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL && pstrHostIFscanAttr->u8ChnlListLen > 0) {
 		int i;
 
@@ -1528,7 +1521,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	#else
 	u8 *pu8CurrByte = NULL;
-	/*Bug4218: Parsing Join Param*/
 	#ifdef WILC_PARSE_SCAN_IN_HOST
 	tstrJoinBssParam *ptstrJoinBssParam;
 	#endif /*WILC_PARSE_SCAN_IN_HOST*/
@@ -1704,7 +1696,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *ps
 
 	PRINT_INFO(HOSTINF_DBG, "Saving connection parameters in global structure\n");
 
-	/*Bug4218: Parsing Join Param*/
 	#ifdef WILC_PARSE_SCAN_IN_HOST
 	ptstrJoinBssParam = (tstrJoinBssParam *)pstrHostIFconnectAttr->pJoinParams;
 	if (ptstrJoinBssParam == NULL) {
@@ -2325,7 +2316,6 @@ static s32 Handle_RcvdNtwrkInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdNetworkInfo
 					pstrWFIDrv->strWILC_UsrScanReq.u32RcvdChCount++;
 
 					pstrNetworkInfo->bNewNetwork = true;
-					/*Bug4218: Parsing Join Param*/
 					/* add new BSS to JoinBssTable */
 				#ifdef WILC_PARSE_SCAN_IN_HOST
 					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
@@ -3477,7 +3467,6 @@ static void Handle_AddBeacon(tstrWILC_WFIDrv *drvHandler, tstrHostIFSetBeacon *p
 	*pu8CurrByte++ = ((pstrSetBeaconParam->u32TailLen >> 16) & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->u32TailLen >> 24) & 0xFF);
 
-	/* Bug 4599 : if tail length = 0 skip copying */
 	if (pstrSetBeaconParam->pu8Tail > 0)
 		memcpy(pu8CurrByte, pstrSetBeaconParam->pu8Tail, pstrSetBeaconParam->u32TailLen);
 	pu8CurrByte += pstrSetBeaconParam->u32TailLen;
@@ -6951,7 +6940,6 @@ s32 host_int_add_beacon(tstrWILC_WFIDrv *hWFIDrv, u32 u32Interval,
 	memcpy(pstrSetBeaconParam->pu8Head, pu8Head, u32HeadLen);
 	pstrSetBeaconParam->u32TailLen = u32TailLen;
 
-	/* Bug 4599 : if tail length = 0 skip allocating & copying */
 	if (u32TailLen > 0) {
 		pstrSetBeaconParam->pu8Tail = kmalloc(u32TailLen, GFP_KERNEL);
 		if (pstrSetBeaconParam->pu8Tail == NULL) {
@@ -7279,10 +7267,8 @@ s32 host_int_setup_multicast_filter(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u
 
 
 
-/*Bug4218: Parsing Join Param*/
 #ifdef WILC_PARSE_SCAN_IN_HOST
 
-/*Bug4218: Parsing Join Param*/
 /**
  *  @brief              host_int_ParseJoinBssParam
  *  @details            Parse Needed Join Parameters and save it in a new JoinBssParam entry

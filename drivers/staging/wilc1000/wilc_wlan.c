@@ -547,7 +547,6 @@ static int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size, wi
 	return p->txq_entries;
 }
 
-/*Bug3959: transmitting mgmt frames received from host*/
 int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_complete_func_t func)
 {
 
@@ -870,9 +869,6 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				if (tqe->type == WILC_CFG_PKT) {
 					vmm_sz = ETH_CONFIG_PKT_HDR_OFFSET;
 				}
-				/*Bug3959: transmitting mgmt frames received from host*/
-				/*vmm_sz will only be equal to tqe->buffer_size + 4 bytes (HOST_HDR_OFFSET)*/
-				/* in other cases WILC_MGMT_PKT and WILC_DATA_PKT_MAC_HDR*/
 				else if (tqe->type == WILC_NET_PKT) {
 					vmm_sz = ETH_ETHERNET_HDR_OFFSET;
 				}
@@ -959,7 +955,7 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 			/**
 			 * write to vmm table
 			 **/
-			ret = p->hif_func.hif_block_tx(WILC_VMM_TBL_RX_SHADOW_BASE, (u8 *)vmm_table, ((i + 1) * 4)); /* Bug 4477 fix */
+			ret = p->hif_func.hif_block_tx(WILC_VMM_TBL_RX_SHADOW_BASE, (u8 *)vmm_table, ((i + 1) * 4));
 			if (!ret) {
 				wilc_debug(N_ERR, "ERR block TX of VMM table.\n");
 				break;
@@ -1057,8 +1053,6 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				vmm_sz = (vmm_table[i] & 0x3ff);        /* in word unit */
 				vmm_sz *= 4;
 				header = (tqe->type << 31) | (tqe->buffer_size << 15) | vmm_sz;
-				/*Bug3959: transmitting mgmt frames received from host*/
-				/*setting bit 30 in the host header to indicate mgmt frame*/
 				if (tqe->type == WILC_MGMT_PKT)
 					header |= (1 << 30);
 				else
@@ -1071,9 +1065,6 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				if (tqe->type == WILC_CFG_PKT) {
 					buffer_offset = ETH_CONFIG_PKT_HDR_OFFSET;
 				}
-				/*Bug3959: transmitting mgmt frames received from host*/
-				/*buffer offset = HOST_HDR_OFFSET in other cases: WILC_MGMT_PKT*/
-				/* and WILC_DATA_PKT_MAC_HDR*/
 				else if (tqe->type == WILC_NET_PKT) {
 					char *pBSSID = ((struct tx_complete_data *)(tqe->priv))->pBssid;
 
@@ -1434,7 +1425,7 @@ static int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 	u8 *dma_buffer;
 	int ret = 0;
 
-	blksz = (1ul << 12); /* Bug 4703: 4KB Good enough size for most platforms = PAGE_SIZE. */
+	blksz = (1ul << 12);
 	/* Allocate a DMA coherent  buffer. */
 
 	dma_buffer = kmalloc(blksz, GFP_KERNEL);
@@ -1685,9 +1676,6 @@ static int wilc_wlan_stop(void)
 
 	} while (timeout);
 #if 1
-/******************************************************************************/
-/* This was add at Bug 4595 to reset the chip while maintaining the bus state */
-/******************************************************************************/
 	reg = ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 8) | (1 << 9) | (1 << 26) | (1 << 29) | (1 << 30) | (1 << 31)); /**/
 	/**/
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);                                 /**/
@@ -2106,7 +2094,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	oup->wlan_cfg_get = wilc_wlan_cfg_get;
 	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;
 
-	/*Bug3959: transmitting mgmt frames received from host*/
 	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
 
 	if (!init_chip()) {

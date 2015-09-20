@@ -188,7 +188,7 @@ typedef struct {
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
 	/* unsigned char eth_dst_address[6]; */
 
-	const struct firmware *wilc_firmware; /* Bug 4703 */
+	const struct firmware *wilc_firmware;
 
 	struct net_device *real_ndev;
 #ifdef WILC_SDIO

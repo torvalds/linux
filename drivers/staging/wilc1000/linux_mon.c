@@ -60,7 +60,6 @@ void WILC_WFI_monitor_rx(u8 *buff, u32 size)
 
 	PRINT_INFO(HOSTAPD_DBG, "In monitor interface receive function\n");
 
-	/* Bug 4601 */
 	if (wilc_wfi_mon == NULL)
 		return;
 
@@ -222,7 +221,6 @@ static netdev_tx_t WILC_WFI_mon_xmit(struct sk_buff *skb,
 	struct sk_buff *skb2;
 	struct wilc_wfi_radiotap_cb_hdr *cb_hdr;
 
-	/* Bug 4601 */
 	if (wilc_wfi_mon == NULL)
 		return -EFAULT;
 

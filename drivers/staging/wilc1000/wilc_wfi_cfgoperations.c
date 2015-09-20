@@ -2529,8 +2529,6 @@ int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	pstrWFIDrv->u64P2p_MgmtTimeout = jiffies;
 
 	if (priv->bInP2PlistenState == false) {
-		/* Bug 5504: This is just to avoid connection failure when getting stuck when the supplicant
-		 *                      considers the driver falsely that it is in Listen state */
 		cfg80211_remain_on_channel_expired(priv->wdev,
 						   priv->strRemainOnChanParams.u64ListenCookie,
 						   priv->strRemainOnChanParams.pstrListenChan,

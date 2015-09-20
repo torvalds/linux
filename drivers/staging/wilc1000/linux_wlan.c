@@ -615,7 +615,7 @@ int linux_wlan_get_firmware(perInterface_wlan_t *p_nic)
 		goto _fail_;
 	}
 #endif
-	g_linux_wlan->wilc_firmware = wilc_firmware; /* Bug 4703 */
+	g_linux_wlan->wilc_firmware = wilc_firmware;
 
 _fail_:
 
@@ -736,7 +736,7 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_BSS_TYPE, c_val, 1, 0, 0))
 		goto _fail_;
 
-	/* c_val[0] = RATE_AUTO; / * bug 4275: Enable autorate and limit it to 24Mbps * / */
+	/* c_val[0] = RATE_AUTO; */
 	c_val[0] = RATE_AUTO;
 	if (!g_linux_wlan->oup.wlan_cfg_set(0, WID_CURRENT_TX_RATE, c_val, 1, 0, 0))
 		goto _fail_;
@@ -2012,7 +2012,6 @@ static void __exit exit_wilc_driver(void)
 		}
 	}
 
-	/* Bug 4600 : WILC_WFI_deinit_mon_interface was already called at mac_close */
 	/* WILC_WFI_deinit_mon_interface(); */
 
 	/* if(g_linux_wlan->open_ifcs==0) */

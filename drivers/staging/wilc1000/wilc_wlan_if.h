@@ -11,7 +11,6 @@
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
 
-/*bug 3887: [AP] Allow Management frames to be passed to the host*/
 /* #define MEMORY_STATIC */
 /* #define USE_OLD_SPI_SW */
 
@@ -171,7 +170,6 @@ typedef struct {
 	int (*wlan_cfg_set)(int, u32, u8 *, u32, int, u32);
 	int (*wlan_cfg_get)(int, u32, int, u32);
 	int (*wlan_cfg_get_value)(u32, u8 *, u32);
-	/*Bug3959: transmitting mgmt frames received from host*/
 	int (*wlan_add_mgmt_to_tx_que)(void *, u8 *, u32, wilc_tx_complete_func_t);
 } wilc_wlan_oup_t;
 
@@ -235,7 +233,6 @@ typedef enum {
 #define MAC_CONNECTED    1
 #define MAC_DISCONNECTED 0
 
-/*bug3819: */
 #define SCAN_DONE		TRUE
 typedef enum {
 	PASSIVE_SCAN = 0,
@@ -756,7 +753,6 @@ typedef enum {
 
 	/* Custom Character WID list */
 	WID_PC_TEST_MODE          = 0x00C8,
-	/*bug3819: */
 	/* SCAN Complete notification WID*/
 	WID_SCAN_COMPLETE		= 0x00C9,
 
