@@ -1095,9 +1095,9 @@ static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
 }
 
 
-static int r8192_wx_get_PromiscuousMode(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
+				       struct iw_request_info *info,
+				       union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -1215,7 +1215,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)r8192_wx_set_PromiscuousMode,
-	(iw_handler)r8192_wx_get_PromiscuousMode,
+	(iw_handler)_rtl92e_wx_get_promisc_mode,
 };
 
 static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
