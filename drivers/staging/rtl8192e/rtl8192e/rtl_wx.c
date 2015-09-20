@@ -678,9 +678,9 @@ static int _rtl92e_wx_get_enc(struct net_device *dev,
 	return rtllib_wx_get_encode(priv->rtllib, info, wrqu, key);
 }
 
-static int r8192_wx_set_enc(struct net_device *dev,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *key)
+static int _rtl92e_wx_set_enc(struct net_device *dev,
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *key)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
@@ -1143,7 +1143,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWFRAG)] = _rtl92e_wx_get_frag,
 	[IW_IOCTL(SIOCSIWRETRY)] = _rtl92e_wx_set_retry,
 	[IW_IOCTL(SIOCGIWRETRY)] = _rtl92e_wx_get_retry,
-	[IW_IOCTL(SIOCSIWENCODE)] = r8192_wx_set_enc,
+	[IW_IOCTL(SIOCSIWENCODE)] = _rtl92e_wx_set_enc,
 	[IW_IOCTL(SIOCGIWENCODE)] = _rtl92e_wx_get_enc,
 	[IW_IOCTL(SIOCSIWPOWER)] = _rtl92e_wx_set_power,
 	[IW_IOCTL(SIOCGIWPOWER)] = _rtl92e_wx_get_power,
