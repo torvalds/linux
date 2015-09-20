@@ -39,7 +39,7 @@ static void _rtl92e_ethtool_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
 }
 
-static u32 rtl819x_ethtool_get_link(struct net_device *dev)
+static u32 _rtl92e_ethtool_get_link(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -49,5 +49,5 @@ static u32 rtl819x_ethtool_get_link(struct net_device *dev)
 
 const struct ethtool_ops rtl819x_ethtool_ops = {
 	.get_drvinfo = _rtl92e_ethtool_get_drvinfo,
-	.get_link = rtl819x_ethtool_get_link,
+	.get_link = _rtl92e_ethtool_get_link,
 };
