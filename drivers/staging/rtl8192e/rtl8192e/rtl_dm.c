@@ -205,7 +205,7 @@ static void dm_deInit_fsync(struct net_device *dev);
 static	void dm_check_txrateandretrycount(struct net_device *dev);
 static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
 static void _rtl92e_dm_check_fsync(struct net_device *dev);
-static void dm_CheckRfCtrlGPIO(void *data);
+static void _rtl92e_dm_check_rf_ctrl_gpio(void *data);
 static void dm_fsync_timer_callback(unsigned long data);
 
 /*---------------------Define local function prototype-----------------------*/
@@ -240,7 +240,7 @@ void rtl92e_dm_init(struct net_device *dev)
 		dm_Init_WA_Broadcom_IOT(dev);
 
 	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq,
-			      (void *)dm_CheckRfCtrlGPIO, dev);
+			      (void *)_rtl92e_dm_check_rf_ctrl_gpio, dev);
 }
 
 void rtl92e_dm_deinit(struct net_device *dev)
@@ -1841,7 +1841,7 @@ static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev)
 {
 }
 
-static void dm_CheckRfCtrlGPIO(void *data)
+static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 {
 	struct r8192_priv *priv = container_of_dwork_rsl(data,
 				  struct r8192_priv, gpio_change_rf_wq);
