@@ -3691,7 +3691,6 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
  */
 void wilc_free_wiphy(struct net_device *net)
 {
-
 	PRINT_D(CFG80211_DBG, "Unregistering wiphy\n");
 
 	if (!net) {
