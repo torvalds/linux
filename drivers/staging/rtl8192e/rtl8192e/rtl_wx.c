@@ -793,7 +793,7 @@ static int r8192_wx_set_scan_type(struct net_device *dev,
 
 
 #define R8192_MAX_RETRY 255
-static int r8192_wx_set_retry(struct net_device *dev,
+static int _rtl92e_wx_set_retry(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
@@ -1141,7 +1141,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWRTS)] = _rtl92e_wx_get_rts,
 	[IW_IOCTL(SIOCSIWFRAG)] = _rtl92e_wx_set_frag,
 	[IW_IOCTL(SIOCGIWFRAG)] = _rtl92e_wx_get_frag,
-	[IW_IOCTL(SIOCSIWRETRY)] = r8192_wx_set_retry,
+	[IW_IOCTL(SIOCSIWRETRY)] = _rtl92e_wx_set_retry,
 	[IW_IOCTL(SIOCGIWRETRY)] = _rtl92e_wx_get_retry,
 	[IW_IOCTL(SIOCSIWENCODE)] = r8192_wx_set_enc,
 	[IW_IOCTL(SIOCGIWENCODE)] = _rtl92e_wx_get_enc,
