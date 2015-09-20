@@ -102,7 +102,7 @@ static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
 static int rtl8192_up(struct net_device *dev);
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
-static void rtl8192_restart(void *data);
+static void _rtl92e_restart(void *data);
 
 /****************************************************************************
    -----------------------------IO STUFF-------------------------
@@ -1007,7 +1007,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->priv_wq = create_workqueue(DRV_NAME);
-	INIT_WORK_RSL(&priv->reset_wq, (void *)rtl8192_restart, dev);
+	INIT_WORK_RSL(&priv->reset_wq, (void *)_rtl92e_restart, dev);
 	INIT_WORK_RSL(&priv->rtllib->ips_leave_wq, (void *)rtl92e_ips_leave_wq,
 		      dev);
 	INIT_DELAYED_WORK_RSL(&priv->watch_dog_wq,
@@ -2250,7 +2250,7 @@ void rtl92e_commit(struct net_device *dev)
 	_rtl8192_up(dev, false);
 }
 
-static void rtl8192_restart(void *data)
+static void _rtl92e_restart(void *data)
 {
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
 				  reset_wq);
