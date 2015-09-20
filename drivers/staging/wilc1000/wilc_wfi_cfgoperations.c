@@ -3694,17 +3694,17 @@ void wilc_free_wiphy(struct net_device *net)
 
 	PRINT_D(CFG80211_DBG, "Unregistering wiphy\n");
 
-	if (net == NULL) {
+	if (!net) {
 		PRINT_D(INIT_DBG, "net_device is NULL\n");
 		return;
 	}
 
-	if (net->ieee80211_ptr == NULL) {
+	if (!net->ieee80211_ptr) {
 		PRINT_D(INIT_DBG, "ieee80211_ptr is NULL\n");
 		return;
 	}
 
-	if (net->ieee80211_ptr->wiphy == NULL) {
+	if (!net->ieee80211_ptr->wiphy) {
 		PRINT_D(INIT_DBG, "wiphy is NULL\n");
 		return;
 	}
