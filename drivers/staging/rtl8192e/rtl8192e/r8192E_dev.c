@@ -955,7 +955,7 @@ end:
 	return rtStatus;
 }
 
-static void rtl8192_net_update(struct net_device *dev)
+static void _rtl92e_net_update(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -993,7 +993,7 @@ void rtl92e_link_change(struct net_device *dev)
 		return;
 
 	if (ieee->state == RTLLIB_LINKED) {
-		rtl8192_net_update(dev);
+		_rtl92e_net_update(dev);
 		priv->ops->update_ratr_table(dev);
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
 		    (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
