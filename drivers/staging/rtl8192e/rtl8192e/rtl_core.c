@@ -96,7 +96,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 static short rtl8192_pci_initdescring(struct net_device *dev);
-static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
+static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
@@ -1027,7 +1027,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 		     (void(*)(unsigned long))_rtl92e_irq_rx_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->irq_tx_tasklet,
-		     (void(*)(unsigned long))rtl8192_irq_tx_tasklet,
+		     (void(*)(unsigned long))_rtl92e_irq_tx_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->irq_prepare_beacon_tasklet,
 		     (void(*)(unsigned long))rtl8192_prepare_beacon,
@@ -2156,7 +2156,7 @@ static void rtl8192_tx_resume(struct net_device *dev)
 	}
 }
 
-static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
+static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv)
 {
 	rtl8192_tx_resume(priv->rtllib->dev);
 }
