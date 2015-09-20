@@ -461,9 +461,9 @@ static int _rtl92e_qos_handle_probe_response(struct r8192_priv *priv,
 	return 0;
 }
 
-static int rtl8192_handle_beacon(struct net_device *dev,
-	struct rtllib_beacon *beacon,
-	struct rtllib_network *network)
+static int _rtl92e_handle_beacon(struct net_device *dev,
+				 struct rtllib_beacon *beacon,
+				 struct rtllib_network *network)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -858,7 +858,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->softmac_data_hard_start_xmit = rtl8192_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= _rtl92e_handle_assoc_response;
-	priv->rtllib->handle_beacon		= rtl8192_handle_beacon;
+	priv->rtllib->handle_beacon		= _rtl92e_handle_beacon;
 	priv->rtllib->SetWirelessMode		= rtl92e_set_wireless_mode;
 	priv->rtllib->LeisurePSLeave		= rtl92e_leisure_ps_leave;
 	priv->rtllib->SetBWModeHandler		= rtl92e_set_bw_mode;
