@@ -848,7 +848,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 	return 0;
 }
 
-static void rtl8192_init_priv_handler(struct net_device *dev)
+static void _rtl92e_init_priv_handler(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1069,7 +1069,7 @@ static short _rtl92e_init(struct net_device *dev)
 
 	memset(&(priv->stats), 0, sizeof(struct rt_stats));
 
-	rtl8192_init_priv_handler(dev);
+	_rtl92e_init_priv_handler(dev);
 	_rtl92e_init_priv_constant(dev);
 	rtl8192_init_priv_variable(dev);
 	rtl8192_init_priv_lock(priv);
