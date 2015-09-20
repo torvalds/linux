@@ -389,8 +389,9 @@ static int rtl8192_wx_get_range(struct net_device *dev,
 	return 0;
 }
 
-static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+static int _rtl92e_wx_set_scan(struct net_device *dev,
+			       struct iw_request_info *a,
+			       union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -1128,7 +1129,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWRANGE)] = rtl8192_wx_get_range,
 	[IW_IOCTL(SIOCSIWAP)] = r8192_wx_set_wap,
 	[IW_IOCTL(SIOCGIWAP)] = _rtl92e_wx_get_wap,
-	[IW_IOCTL(SIOCSIWSCAN)] = r8192_wx_set_scan,
+	[IW_IOCTL(SIOCSIWSCAN)] = _rtl92e_wx_set_scan,
 	[IW_IOCTL(SIOCGIWSCAN)] = _rtl92e_wx_get_scan,
 	[IW_IOCTL(SIOCSIWESSID)] = _rtl92e_wx_set_essid,
 	[IW_IOCTL(SIOCGIWESSID)] = _rtl92e_wx_get_essid,
