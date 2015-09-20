@@ -183,10 +183,12 @@ struct nfs4_state {
 
 
 struct nfs4_exception {
-	long timeout;
-	int retry;
 	struct nfs4_state *state;
 	struct inode *inode;
+	long timeout;
+	unsigned char delay : 1,
+		      recovering : 1,
+		      retry : 1;
 };
 
 struct nfs4_state_recovery_ops {
