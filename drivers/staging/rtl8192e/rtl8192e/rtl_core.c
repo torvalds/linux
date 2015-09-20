@@ -1602,7 +1602,7 @@ static void _rtl92e_free_rx_ring(struct net_device *dev)
 	}
 }
 
-static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
+static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
@@ -1910,7 +1910,7 @@ err_free_rings:
 	_rtl92e_free_rx_ring(dev);
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 		if (priv->tx_ring[i].desc)
-			rtl8192_free_tx_ring(dev, i);
+			_rtl92e_free_tx_ring(dev, i);
 	return 1;
 }
 
@@ -2717,7 +2717,7 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 		destroy_workqueue(priv->priv_wq);
 		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-			rtl8192_free_tx_ring(dev, i);
+			_rtl92e_free_tx_ring(dev, i);
 
 		if (priv->irq) {
 			dev_info(&pdev->dev, "Freeing irq %d\n", dev->irq);
