@@ -189,7 +189,7 @@ static	void dm_cs_ratio(struct net_device *dev);
 static	void dm_init_ctstoself(struct net_device *dev);
 static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
 
-static	void	dm_check_edca_turbo(struct net_device *dev);
+static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 
 static	void dm_check_pbc_gpio(struct net_device *dev);
 
@@ -261,7 +261,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 	dm_check_pbc_gpio(dev);
 	dm_check_txrateandretrycount(dev);
-	dm_check_edca_turbo(dev);
+	_rtl92e_dm_check_edca_turbo(dev);
 
 	dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);
@@ -1696,7 +1696,7 @@ void rtl92e_dm_init_edca_turbo(struct net_device *dev)
 	priv->bis_cur_rdlstate = false;
 }
 
-static void dm_check_edca_turbo(struct net_device *dev)
+static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
