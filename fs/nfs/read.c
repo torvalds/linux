@@ -72,6 +72,9 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 {
 	struct nfs_pgio_mirror *mirror;
 
+	if (pgio->pg_ops && pgio->pg_ops->pg_cleanup)
+		pgio->pg_ops->pg_cleanup(pgio);
+
 	pgio->pg_ops = &nfs_pgio_rw_ops;
 
 	/* read path should never have more than one mirror */
