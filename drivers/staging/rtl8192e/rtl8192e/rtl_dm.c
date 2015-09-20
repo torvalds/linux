@@ -186,10 +186,6 @@ static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
 static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
-
-static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev);
-
-
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
 static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev);
 static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev);
@@ -254,7 +250,6 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 	_rtl92e_dm_check_ac_dc_power(dev);
 
-	_rtl92e_dm_check_pbc_gpio(dev);
 	_rtl92e_dm_check_txrateandretrycount(dev);
 	_rtl92e_dm_check_edca_turbo(dev);
 
@@ -1832,10 +1827,6 @@ static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev)
 
 	pHTInfo->bWAIotBroadcom = false;
 	pHTInfo->WAIotTH = WAIotTHVal;
-}
-
-static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev)
-{
 }
 
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
