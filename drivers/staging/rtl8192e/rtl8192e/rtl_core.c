@@ -2290,7 +2290,7 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 }
 
 /* based on ipw2200 driver */
-static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int _rtl92e_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct iwreq *wrq = (struct iwreq *)rq;
@@ -2555,7 +2555,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_open = rtl8192_open,
 	.ndo_stop = rtl8192_close,
 	.ndo_tx_timeout = rtl8192_tx_timeout,
-	.ndo_do_ioctl = rtl8192_ioctl,
+	.ndo_do_ioctl = _rtl92e_ioctl,
 	.ndo_set_rx_mode = r8192_set_multicast,
 	.ndo_set_mac_address = r8192_set_mac_adr,
 	.ndo_validate_addr = eth_validate_addr,
