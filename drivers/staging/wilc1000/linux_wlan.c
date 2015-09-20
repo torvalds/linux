@@ -1425,7 +1425,7 @@ int mac_open(struct net_device *ndev)
 	priv = wiphy_priv(nic->wilc_netdev->ieee80211_ptr->wiphy);
 	PRINT_D(INIT_DBG, "MAC OPEN[%p]\n", ndev);
 
-	ret = WILC_WFI_InitHostInt(ndev);
+	ret = wilc_init_host_int(ndev);
 	if (ret < 0) {
 		PRINT_ER("Failed to initialize host interface\n");
 
