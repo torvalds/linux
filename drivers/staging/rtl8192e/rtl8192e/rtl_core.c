@@ -379,7 +379,7 @@ static struct rtllib_qos_parameters def_qos_parameters = {
 	{0, 0, 0, 0}
 };
 
-static void rtl8192_update_beacon(void *data)
+static void _rtl92e_update_beacon(void *data)
 {
 	struct r8192_priv *priv = container_of_work_rsl(data, struct r8192_priv,
 				  update_beacon_wq.work);
@@ -1017,7 +1017,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 	INIT_DELAYED_WORK_RSL(&priv->rfpath_check_wq,
 			      (void *)rtl92e_dm_rf_pathcheck_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->update_beacon_wq,
-			      (void *)rtl8192_update_beacon, dev);
+			      (void *)_rtl92e_update_beacon, dev);
 	INIT_WORK_RSL(&priv->qos_activate, (void *)_rtl92e_qos_activate, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_wakeup_wq,
 			      (void *) rtl92e_hw_wakeup_wq, dev);
