@@ -2188,7 +2188,7 @@ static int _rtl8192_up(struct net_device *dev, bool is_silent_reset)
 	return 0;
 }
 
-static int rtl8192_open(struct net_device *dev)
+static int _rtl92e_open(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
@@ -2552,7 +2552,7 @@ done:
 	---------------------------- PCI_STUFF---------------------------
 *****************************************************************************/
 static const struct net_device_ops rtl8192_netdev_ops = {
-	.ndo_open = rtl8192_open,
+	.ndo_open = _rtl92e_open,
 	.ndo_stop = rtl8192_close,
 	.ndo_tx_timeout = rtl8192_tx_timeout,
 	.ndo_do_ioctl = _rtl92e_ioctl,
