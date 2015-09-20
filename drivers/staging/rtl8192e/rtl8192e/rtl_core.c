@@ -92,7 +92,7 @@ static void _rtl92e_watchdog_wq_cb(void *data);
 static void _rtl92e_watchdog_timer_cb(unsigned long data);
 static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
-static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
@@ -852,7 +852,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	priv->rtllib->softmac_hard_start_xmit	= rtl8192_hard_start_xmit;
+	priv->rtllib->softmac_hard_start_xmit	= _rtl92e_hard_start_xmit;
 	priv->rtllib->set_chan			= _rtl92e_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
@@ -1654,7 +1654,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 }
 
-static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	int ret;
