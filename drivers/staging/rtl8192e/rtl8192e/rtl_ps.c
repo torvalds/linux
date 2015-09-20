@@ -30,7 +30,7 @@
 #include "r8192E_cmdpkt.h"
 #include <linux/jiffies.h>
 
-static void rtl8192_hw_sleep_down(struct net_device *dev)
+static void _rtl92e_hw_sleep(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
@@ -39,7 +39,7 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		RT_TRACE(COMP_DBG,
-			 "rtl8192_hw_sleep_down(): RF Change in progress!\n");
+			 "_rtl92e_hw_sleep(): RF Change in progress!\n");
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -54,7 +54,7 @@ void rtl92e_hw_sleep_wq(void *data)
 				     struct rtllib_device, hw_sleep_wq);
 	struct net_device *dev = ieee->dev;
 
-	rtl8192_hw_sleep_down(dev);
+	_rtl92e_hw_sleep(dev);
 }
 
 void rtl92e_hw_wakeup(struct net_device *dev)
