@@ -991,7 +991,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 		skb_queue_head_init(&priv->rtllib->skb_aggQ[i]);
 }
 
-static void rtl8192_init_priv_lock(struct r8192_priv *priv)
+static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
 {
 	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->irq_th_lock);
@@ -1072,7 +1072,7 @@ static short _rtl92e_init(struct net_device *dev)
 	_rtl92e_init_priv_handler(dev);
 	_rtl92e_init_priv_constant(dev);
 	rtl8192_init_priv_variable(dev);
-	rtl8192_init_priv_lock(priv);
+	_rtl92e_init_priv_lock(priv);
 	rtl8192_init_priv_task(dev);
 	priv->ops->get_eeprom_size(dev);
 	priv->ops->init_adapter_variable(dev);
