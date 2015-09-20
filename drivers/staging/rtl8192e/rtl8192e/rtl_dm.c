@@ -215,7 +215,7 @@ static	void	dm_dynamic_txpower(struct net_device *dev);
 
 
 static	void dm_send_rssi_tofw(struct net_device *dev);
-static	void	dm_ctstoself(struct net_device *dev);
+static void _rtl92e_dm_cts_to_self(struct net_device *dev);
 /*---------------------------Define function prototype------------------------*/
 
 void rtl92e_dm_init(struct net_device *dev)
@@ -274,7 +274,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_check_fsync(dev);
 
 	dm_send_rssi_tofw(dev);
-	dm_ctstoself(dev);
+	_rtl92e_dm_cts_to_self(dev);
 }
 
 static void _rtl92e_dm_check_ac_dc_power(struct net_device *dev)
@@ -1800,7 +1800,7 @@ static void dm_init_ctstoself(struct net_device *dev)
 	priv->rtllib->bCTSToSelfEnable = true;
 }
 
-static void dm_ctstoself(struct net_device *dev)
+static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
