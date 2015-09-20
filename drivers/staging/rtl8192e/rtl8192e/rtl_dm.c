@@ -187,7 +187,7 @@ static	void dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
 static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
-static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
+static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 
@@ -236,7 +236,7 @@ void rtl92e_dm_init(struct net_device *dev)
 	_rtl92e_dm_init_rx_path_selection(dev);
 	_rtl92e_dm_init_cts_to_self(dev);
 	if (IS_HARDWARE_TYPE_8192SE(dev))
-		dm_Init_WA_Broadcom_IOT(dev);
+		_rtl92e_dm_init_wa_broadcom_iot(dev);
 
 	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq,
 			      (void *)_rtl92e_dm_check_rf_ctrl_gpio, dev);
@@ -1826,7 +1826,7 @@ static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 }
 
 
-static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev)
+static void _rtl92e_dm_init_wa_broadcom_iot(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
