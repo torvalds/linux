@@ -93,7 +93,7 @@ static void watch_dog_timer_callback(unsigned long data);
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
 static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
@@ -1672,7 +1672,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	if (queue_index == TXCMD_QUEUE) {
-		rtl8192_tx_cmd(dev, skb);
+		_rtl92e_tx_cmd(dev, skb);
 		return 0;
 	}
 
@@ -1713,7 +1713,7 @@ static void rtl8192_tx_isr(struct net_device *dev, int prio)
 		tasklet_schedule(&priv->irq_tx_tasklet);
 }
 
-static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
+static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring *ring;
