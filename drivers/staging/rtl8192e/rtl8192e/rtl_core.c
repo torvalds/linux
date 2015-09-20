@@ -1227,7 +1227,7 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 
 }
 
-static void rtl819x_silentreset_mesh_bk(struct net_device *dev, u8 IsPortal)
+static void _rtl92e_silent_reset_mesh(struct net_device *dev, u8 IsPortal)
 {
 }
 
@@ -1352,7 +1352,7 @@ RESET_START:
 
 			netif_carrier_on(ieee->dev);
 		} else if (ieee->iw_mode == IW_MODE_MESH) {
-			rtl819x_silentreset_mesh_bk(dev, IsPortal);
+			_rtl92e_silent_reset_mesh(dev, IsPortal);
 		}
 
 		rtl92e_cam_restore(dev);
