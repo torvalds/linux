@@ -2263,7 +2263,7 @@ static void _rtl92e_restart(void *data)
 	up(&priv->wx_sem);
 }
 
-static void r8192_set_multicast(struct net_device *dev)
+static void _rtl92e_set_multicast(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	short promisc;
@@ -2556,7 +2556,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_stop = _rtl92e_close,
 	.ndo_tx_timeout = _rtl92e_tx_timeout,
 	.ndo_do_ioctl = _rtl92e_ioctl,
-	.ndo_set_rx_mode = r8192_set_multicast,
+	.ndo_set_rx_mode = _rtl92e_set_multicast,
 	.ndo_set_mac_address = _rtl92e_set_mac_adr,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = eth_change_mtu,
