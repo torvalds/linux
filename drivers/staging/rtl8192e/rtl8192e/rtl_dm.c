@@ -195,7 +195,7 @@ static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev);
 
 
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
-static	void dm_init_rxpath_selection(struct net_device *dev);
+static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev);
 static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 
 
@@ -233,7 +233,7 @@ void rtl92e_dm_init(struct net_device *dev)
 	rtl92e_dm_init_edca_turbo(dev);
 	_rtl92e_dm_init_bandwidth_autoswitch(dev);
 	_rtl92e_dm_init_fsync(dev);
-	dm_init_rxpath_selection(dev);
+	_rtl92e_dm_init_rx_path_selection(dev);
 	_rtl92e_dm_init_cts_to_self(dev);
 	if (IS_HARDWARE_TYPE_8192SE(dev))
 		dm_Init_WA_Broadcom_IOT(dev);
@@ -1915,7 +1915,7 @@ void rtl92e_dm_rf_pathcheck_wq(void *data)
 	dm_rxpath_sel_byrssi(dev);
 }
 
-static void dm_init_rxpath_selection(struct net_device *dev)
+static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 {
 	u8 i;
 	struct r8192_priv *priv = rtllib_priv(dev);
