@@ -1690,7 +1690,7 @@ static void rtl8192_query_rxphystatus(
 	}
 }
 
-static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
+static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 				    struct rtllib_rx_stats *prev_st,
 				    struct rtllib_rx_stats *curr_st)
 {
@@ -1900,7 +1900,7 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 		priv->stats.numpacket_matchbssid++;
 	if (bpacket_toself)
 		priv->stats.numpacket_toself++;
-	rtl8192_process_phyinfo(priv, tmp_buf, &previous_stats, pstats);
+	_rtl92e_process_phyinfo(priv, tmp_buf, &previous_stats, pstats);
 	rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
 				  &previous_stats, bpacket_match_bssid,
 				  bpacket_toself, bPacketBeacon, bToSelfBA);
