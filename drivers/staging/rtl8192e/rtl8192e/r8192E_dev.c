@@ -1906,7 +1906,7 @@ static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
 	rtl92e_copy_mpdu_stats(pstats, &previous_stats);
 }
 
-static void rtl8192_UpdateReceivedRateHistogramStatistics(
+static void _rtl92e_update_received_rate_histogram_stats(
 					   struct net_device *dev,
 					   struct rtllib_rx_stats *pstats)
 {
@@ -2057,7 +2057,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 					     (u8)pDrvInfo->RxRate);
 	stats->bShortPreamble = pDrvInfo->SPLCP;
 
-	rtl8192_UpdateReceivedRateHistogramStatistics(dev, stats);
+	_rtl92e_update_received_rate_histogram_stats(dev, stats);
 
 	stats->bIsAMPDU = (pDrvInfo->PartAggr == 1);
 	stats->bFirstMPDU = (pDrvInfo->PartAggr == 1) &&
