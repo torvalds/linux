@@ -989,7 +989,7 @@ void rtl92e_dm_init_txpower_tracking(struct net_device *dev)
 		dm_InitializeTXPowerTracking_ThermalMeter(dev);
 }
 
-static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
+static void _rtl92e_dm_check_tx_power_tracking_tssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u32 tx_power_track_counter;
@@ -1049,7 +1049,7 @@ static void _rtl92e_dm_check_tx_power_tracking(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
-		dm_CheckTXPowerTracking_TSSI(dev);
+		_rtl92e_dm_check_tx_power_tracking_tssi(dev);
 	else
 		_rtl92e_dm_check_tx_power_tracking_thermal(dev);
 }
