@@ -1182,7 +1182,7 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-static enum reset_type rtl819x_RxCheckStuck(struct net_device *dev)
+static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1209,7 +1209,7 @@ static enum reset_type rtl819x_ifcheck_resetornot(struct net_device *dev)
 	if (rfState == eRfOn &&
 	    (priv->rtllib->iw_mode == IW_MODE_INFRA) &&
 	    (priv->rtllib->state == RTLLIB_LINKED))
-		RxResetType = rtl819x_RxCheckStuck(dev);
+		RxResetType = _rtl92e_rx_check_stuck(dev);
 
 	if (TxResetType == RESET_TYPE_NORMAL ||
 	    RxResetType == RESET_TYPE_NORMAL) {
