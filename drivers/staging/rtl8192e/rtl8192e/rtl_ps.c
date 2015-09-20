@@ -222,8 +222,7 @@ void rtl92e_rtllib_ips_leave(struct net_device *dev)
 	up(&priv->rtllib->ips_sem);
 }
 
-static bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,
-					    u8 rtPsMode)
+static bool _rtl92e_ps_set_mode(struct net_device *dev, u8 rtPsMode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -281,8 +280,7 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 						priv->rtllib->SetFwCmdHandler(
 							dev, FW_CMD_LPS_ENTER);
 				}
-				MgntActSet_802_11_PowerSaveMode(dev,
-							 RTLLIB_PS_MBCAST |
+				_rtl92e_ps_set_mode(dev, RTLLIB_PS_MBCAST |
 							 RTLLIB_PS_UNICAST);
 			}
 		} else
@@ -305,8 +303,7 @@ void rtl92e_leisure_ps_leave(struct net_device *dev)
 		if (priv->rtllib->ps != RTLLIB_PS_DISABLED) {
 			RT_TRACE(COMP_LPS,
 				 "rtl92e_leisure_ps_leave(): Busy Traffic , Leave 802.11 power save..\n");
-			MgntActSet_802_11_PowerSaveMode(dev,
-					 RTLLIB_PS_DISABLED);
+			_rtl92e_ps_set_mode(dev, RTLLIB_PS_DISABLED);
 
 			if (!pPSC->bFwCtrlLPS) {
 				if (priv->rtllib->SetFwCmdHandler)
