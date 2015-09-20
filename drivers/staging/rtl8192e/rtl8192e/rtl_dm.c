@@ -210,9 +210,8 @@ static void _rtl92e_dm_fsync_timer_callback(unsigned long data);
 
 /*---------------------Define local function prototype-----------------------*/
 
-static	void	dm_init_dynamic_txpower(struct net_device *dev);
+static	void	_rtl92e_dm_init_dynamic_tx_power(struct net_device *dev);
 static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev);
-
 
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static void _rtl92e_dm_cts_to_self(struct net_device *dev);
@@ -226,7 +225,7 @@ void rtl92e_dm_init(struct net_device *dev)
 
 	priv->undecorated_smoothed_pwdb = -1;
 
-	dm_init_dynamic_txpower(dev);
+	_rtl92e_dm_init_dynamic_tx_power(dev);
 
 	rtl92e_init_adaptive_rate(dev);
 
@@ -2484,7 +2483,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 }
 
 /*---------------------------Define function prototype------------------------*/
-static void dm_init_dynamic_txpower(struct net_device *dev)
+static void _rtl92e_dm_init_dynamic_tx_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
