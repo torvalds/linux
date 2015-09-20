@@ -98,7 +98,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
-static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
+static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl92e_up(struct net_device *dev, bool is_silent_reset);
 static int _rtl92e_try_up(struct net_device *dev);
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
@@ -816,7 +816,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	rtl92e_irq_disable(dev);
 
 	del_timer_sync(&priv->watch_dog_timer);
-	rtl8192_cancel_deferred_work(priv);
+	_rtl92e_cancel_deferred_work(priv);
 	cancel_delayed_work(&priv->rtllib->hw_wakeup_wq);
 
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
@@ -1284,7 +1284,7 @@ RESET_START:
 
 		rtl92e_irq_disable(dev);
 		del_timer_sync(&priv->watch_dog_timer);
-		rtl8192_cancel_deferred_work(priv);
+		_rtl92e_cancel_deferred_work(priv);
 		rtl92e_dm_deinit(dev);
 		rtllib_stop_scan_syncro(ieee);
 
@@ -2172,7 +2172,7 @@ static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
 /****************************************************************************
  ---------------------------- NIC START/CLOSE STUFF---------------------------
 *****************************************************************************/
-static void rtl8192_cancel_deferred_work(struct r8192_priv *priv)
+static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 {
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
@@ -2779,7 +2779,7 @@ bool rtl92e_disable_nic(struct net_device *dev)
 	tmp_state = priv->rtllib->state;
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, false);
 	priv->rtllib->state = tmp_state;
-	rtl8192_cancel_deferred_work(priv);
+	_rtl92e_cancel_deferred_work(priv);
 	rtl92e_irq_disable(dev);
 
 	priv->ops->stop_adapter(dev, false);
