@@ -2383,7 +2383,7 @@ void hfi1_rc_hdrerr(
 	struct hfi1_other_headers *ohdr;
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	int diff;
-	u8 opcode;
+	u32 opcode;
 	u32 psn;
 
 	/* Check for GRH */
