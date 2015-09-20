@@ -1574,7 +1574,7 @@ void rtl92e_tx_enable(struct net_device *dev)
 }
 
 
-static void rtl8192_free_rx_ring(struct net_device *dev)
+static void _rtl92e_free_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i, rx_queue_idx;
@@ -1907,7 +1907,7 @@ static short _rtl92e_pci_initdescring(struct net_device *dev)
 	return 0;
 
 err_free_rings:
-	rtl8192_free_rx_ring(dev);
+	_rtl92e_free_rx_ring(dev);
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 		if (priv->tx_ring[i].desc)
 			rtl8192_free_tx_ring(dev, i);
@@ -2715,7 +2715,7 @@ static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 			priv->pFirmware = NULL;
 		}
 		destroy_workqueue(priv->priv_wq);
-		rtl8192_free_rx_ring(dev);
+		_rtl92e_free_rx_ring(dev);
 		for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
 			rtl8192_free_tx_ring(dev, i);
 
