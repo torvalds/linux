@@ -87,7 +87,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.resume = rtl92e_resume,                 /* PM resume fn  */
 };
 
-static short rtl8192_is_tx_queue_empty(struct net_device *dev);
+static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
 static void rtl819x_watchdog_wqcallback(void *data);
 static void watch_dog_timer_callback(unsigned long data);
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
@@ -869,7 +869,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
-	priv->rtllib->ps_is_queue_empty = rtl8192_is_tx_queue_empty;
+	priv->rtllib->ps_is_queue_empty = _rtl92e_is_tx_queue_empty;
 
 	priv->rtllib->GetNmodeSupportBySecCfg = rtl92e_get_nmode_support_by_sec;
 	priv->rtllib->GetHalfNmodeSupportByAPsHandler =
@@ -1109,7 +1109,7 @@ static short _rtl92e_init(struct net_device *dev)
 /***************************************************************************
 	-------------------------------WATCHDOG STUFF---------------------------
 ***************************************************************************/
-static short rtl8192_is_tx_queue_empty(struct net_device *dev)
+static short _rtl92e_is_tx_queue_empty(struct net_device *dev)
 {
 	int i = 0;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -2467,7 +2467,7 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 		_rtl92e_tx_isr(dev, MGNT_QUEUE);
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 		if (priv->rtllib->ack_tx_to_ieee) {
-			if (rtl8192_is_tx_queue_empty(dev)) {
+			if (_rtl92e_is_tx_queue_empty(dev)) {
 				priv->rtllib->ack_tx_to_ieee = 0;
 				rtllib_ps_tx_ack(priv->rtllib, 1);
 			}
