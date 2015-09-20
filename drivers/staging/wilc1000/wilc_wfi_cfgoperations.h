@@ -100,6 +100,8 @@ int wilc_init_host_int(struct net_device *net);
 void WILC_WFI_monitor_rx(u8 *buff, u32 size);
 int WILC_WFI_deinit_mon_interface(void);
 struct net_device *WILC_WFI_init_mon_interface(const char *name, struct net_device *real_dev);
+void WILC_WFI_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     u16 frame_type, bool reg);
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
