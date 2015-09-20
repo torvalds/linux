@@ -149,7 +149,7 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	return rt_status;
 }
 
-static bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool _rtl92e_is_fw_ready(struct net_device *dev)
 {
 
 	bool	rt_status = true;
@@ -205,12 +205,12 @@ static bool firmware_check_ready(struct net_device *dev,
 		pfirmware->firmware_status = FW_STATUS_4_MOVE_DATA_CODE;
 		mdelay(1);
 
-		rt_status = CPUcheck_firmware_ready(dev);
+		rt_status = _rtl92e_is_fw_ready(dev);
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_5_READY;
 		else
 			RT_TRACE(COMP_FIRMWARE,
-				 "CPUcheck_firmware_ready fail(%d)!\n",
+				 "_rtl92e_is_fw_ready fail(%d)!\n",
 				 rt_status);
 
 		break;
