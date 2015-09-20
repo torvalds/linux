@@ -833,7 +833,7 @@ exit:
 	return err;
 }
 
-static int r8192_wx_get_retry(struct net_device *dev,
+static int _rtl92e_wx_get_retry(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
@@ -1140,7 +1140,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCSIWFRAG)] = r8192_wx_set_frag,
 	[IW_IOCTL(SIOCGIWFRAG)] = _rtl92e_wx_get_frag,
 	[IW_IOCTL(SIOCSIWRETRY)] = r8192_wx_set_retry,
-	[IW_IOCTL(SIOCGIWRETRY)] = r8192_wx_get_retry,
+	[IW_IOCTL(SIOCGIWRETRY)] = _rtl92e_wx_get_retry,
 	[IW_IOCTL(SIOCSIWENCODE)] = r8192_wx_set_enc,
 	[IW_IOCTL(SIOCGIWENCODE)] = _rtl92e_wx_get_enc,
 	[IW_IOCTL(SIOCSIWPOWER)] = r8192_wx_set_power,
