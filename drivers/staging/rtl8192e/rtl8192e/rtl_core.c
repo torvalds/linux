@@ -100,7 +100,7 @@ static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
-static int rtl8192_up(struct net_device *dev);
+static int _rtl92e_try_up(struct net_device *dev);
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
 static void _rtl92e_restart(void *data);
 
@@ -2194,13 +2194,13 @@ static int _rtl92e_open(struct net_device *dev)
 	int ret;
 
 	down(&priv->wx_sem);
-	ret = rtl8192_up(dev);
+	ret = _rtl92e_try_up(dev);
 	up(&priv->wx_sem);
 	return ret;
 
 }
 
-static int rtl8192_up(struct net_device *dev)
+static int _rtl92e_try_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
