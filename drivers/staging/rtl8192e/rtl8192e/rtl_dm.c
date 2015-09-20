@@ -2293,7 +2293,7 @@ static void dm_StartHWFsync(struct net_device *dev)
 	rtl92e_writeb(dev, 0xc3b, 0x41);
 }
 
-static void dm_EndHWFsync(struct net_device *dev)
+static void _rtl92e_dm_end_hw_fsync(struct net_device *dev)
 {
 	u8 rf_timing = 0xaa;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -2404,7 +2404,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 				priv->rtllib->fsync_state = SW_Fsync;
 				break;
 			case HW_Fsync:
-				dm_EndHWFsync(dev);
+				_rtl92e_dm_end_hw_fsync(dev);
 				dm_StartSWFsync(dev);
 				priv->rtllib->fsync_state = SW_Fsync;
 				break;
@@ -2424,7 +2424,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 	} else {
 		switch (priv->rtllib->fsync_state) {
 		case HW_Fsync:
-			dm_EndHWFsync(dev);
+			_rtl92e_dm_end_hw_fsync(dev);
 			priv->rtllib->fsync_state = Default_Fsync;
 			break;
 		case SW_Fsync:
