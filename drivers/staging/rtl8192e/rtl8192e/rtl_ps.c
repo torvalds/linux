@@ -122,21 +122,21 @@ void rtl92e_enter_sleep(struct net_device *dev, u64 time)
 	spin_unlock_irqrestore(&priv->ps_lock, flags);
 }
 
-static void InactivePsWorkItemCallback(struct net_device *dev)
+static void _rtl92e_ps_update_rf_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
 
-	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() --------->\n");
+	RT_TRACE(COMP_PS, "_rtl92e_ps_update_rf_state() --------->\n");
 	pPSC->bSwRfProcessing = true;
 
-	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback(): Set RF to %s.\n",
+	RT_TRACE(COMP_PS, "_rtl92e_ps_update_rf_state(): Set RF to %s.\n",
 		 pPSC->eInactivePowerState == eRfOff ? "OFF" : "ON");
 	rtl92e_set_rf_state(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS);
 
 	pPSC->bSwRfProcessing = false;
-	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() <---------\n");
+	RT_TRACE(COMP_PS, "_rtl92e_ps_update_rf_state() <---------\n");
 }
 
 void rtl92e_ips_enter(struct net_device *dev)
@@ -155,7 +155,7 @@ void rtl92e_ips_enter(struct net_device *dev)
 			pPSC->eInactivePowerState = eRfOff;
 			priv->isRFOff = true;
 			priv->bInPowerSaveMode = true;
-			InactivePsWorkItemCallback(dev);
+			_rtl92e_ps_update_rf_state(dev);
 		}
 	}
 }
@@ -174,7 +174,7 @@ void rtl92e_ips_leave(struct net_device *dev)
 			RT_TRACE(COMP_PS, "rtl92e_ips_leave(): Turn on RF.\n");
 			pPSC->eInactivePowerState = eRfOn;
 			priv->bInPowerSaveMode = false;
-			InactivePsWorkItemCallback(dev);
+			_rtl92e_ps_update_rf_state(dev);
 		}
 	}
 }
