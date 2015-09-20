@@ -963,7 +963,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 	return false;
 }
 
-static void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
+static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 delay = 0;
@@ -986,7 +986,7 @@ static void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 	RT_TRACE(COMP_TRACE, "=====>--%s(), set chan:%d, priv:%p\n", __func__,
 		 priv->chan, priv);
 
-	rtl8192_phy_FinishSwChnlNow(dev, priv->chan);
+	_rtl92e_phy_switch_channel(dev, priv->chan);
 
 	RT_TRACE(COMP_TRACE, "<== SwChnlCallback819xUsbWorkItem()\n");
 }
