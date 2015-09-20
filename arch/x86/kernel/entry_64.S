@@ -1456,9 +1456,12 @@ ENTRY(nmi)
 	 * we don't want to enable interrupts, because then we'll end
 	 * up in an awkward situation in which IRQs are on but NMIs
 	 * are off.
+	 *
+	 * We also must not push anything to the stack before switching
+	 * stacks lest we corrupt the "NMI executing" variable.
 	 */
 
-	SWAPGS
+	SWAPGS_UNSAFE_STACK
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(kernel_stack), %rsp
