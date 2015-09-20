@@ -474,8 +474,8 @@ static int rtl8192_handle_beacon(struct net_device *dev,
 
 }
 
-static int rtl8192_qos_association_resp(struct r8192_priv *priv,
-	struct rtllib_network *network)
+static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
+				  struct rtllib_network *network)
 {
 	unsigned long flags;
 	u32 size = sizeof(struct rtllib_qos_parameters);
@@ -527,7 +527,7 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	rtl8192_qos_association_resp(priv, network);
+	_rtl92e_qos_assoc_resp(priv, network);
 	return 0;
 }
 
