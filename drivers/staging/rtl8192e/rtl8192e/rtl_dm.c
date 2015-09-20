@@ -191,7 +191,7 @@ static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 
-static	void dm_check_pbc_gpio(struct net_device *dev);
+static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev);
 
 
 static	void dm_check_rx_path_selection(struct net_device *dev);
@@ -259,7 +259,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 	_rtl92e_dm_check_ac_dc_power(dev);
 
-	dm_check_pbc_gpio(dev);
+	_rtl92e_dm_check_pbc_gpio(dev);
 	dm_check_txrateandretrycount(dev);
 	_rtl92e_dm_check_edca_turbo(dev);
 
@@ -1837,7 +1837,7 @@ static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev)
 	pHTInfo->WAIotTH = WAIotTHVal;
 }
 
-static	void	dm_check_pbc_gpio(struct net_device *dev)
+static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev)
 {
 }
 
