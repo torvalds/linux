@@ -988,7 +988,8 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 			break;
 	}
 }
-static void rtl8192_SwChnl_WorkItem(struct net_device *dev)
+
+static void _rtl92e_phy_switch_channel_work_item(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1055,7 +1056,7 @@ u8 rtl92e_set_channel(struct net_device *dev, u8 channel)
 	priv->SwChnlStep = 0;
 
 	if (priv->up)
-		rtl8192_SwChnl_WorkItem(dev);
+		_rtl92e_phy_switch_channel_work_item(dev);
 	priv->SwChnlInProgress = false;
 	return true;
 }
