@@ -163,9 +163,9 @@ static u32 _rtl92e_phy_rf_read(struct net_device *dev,
 
 }
 
-static void rtl8192_phy_RFSerialWrite(struct net_device *dev,
-				      enum rf90_radio_path eRFPath, u32 Offset,
-				      u32 Data)
+static void _rtl92e_phy_rf_write(struct net_device *dev,
+				 enum rf90_radio_path eRFPath, u32 Offset,
+				 u32 Data)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 DataAndAddr = 0, NewOffset = 0;
@@ -248,10 +248,9 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 			New_Value = (((Original_Value) & (~BitMask)) |
 				     (Data << BitShift));
 
-			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr,
-						  New_Value);
+			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, New_Value);
 		} else
-			rtl8192_phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
+			_rtl92e_phy_rf_write(dev, eRFPath, RegAddr, Data);
 	}
 }
 
