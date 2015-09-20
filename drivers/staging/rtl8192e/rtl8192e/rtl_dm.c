@@ -1154,7 +1154,7 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);
 }
 
-static void dm_txpower_reset_recovery(struct net_device *dev)
+static void _rtl92e_dm_tx_power_reset_recovery(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1209,7 +1209,7 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 	rtl92e_writel(dev, RATR0, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);
 	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
-		dm_txpower_reset_recovery(dev);
+		_rtl92e_dm_tx_power_reset_recovery(dev);
 
 	_rtl92e_dm_bb_initialgain_restore(dev);
 
