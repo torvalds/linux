@@ -101,7 +101,7 @@ static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl8192_up(struct net_device *dev, bool is_silent_reset);
 static int rtl8192_up(struct net_device *dev);
-static int rtl8192_down(struct net_device *dev, bool shutdownrf);
+static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
 static void rtl8192_restart(void *data);
 
 /****************************************************************************
@@ -2222,7 +2222,7 @@ static int _rtl92e_close(struct net_device *dev)
 
 	down(&priv->wx_sem);
 
-	ret = rtl8192_down(dev, true);
+	ret = _rtl92e_down(dev, true);
 
 	up(&priv->wx_sem);
 
@@ -2230,7 +2230,7 @@ static int _rtl92e_close(struct net_device *dev)
 
 }
 
-static int rtl8192_down(struct net_device *dev, bool shutdownrf)
+static int _rtl92e_down(struct net_device *dev, bool shutdownrf)
 {
 	if (rtl8192_sta_down(dev, shutdownrf) == -1)
 		return -1;
@@ -2708,7 +2708,7 @@ static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 		del_timer_sync(&priv->gpio_polling_timer);
 		cancel_delayed_work(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
-		rtl8192_down(dev, true);
+		_rtl92e_down(dev, true);
 		rtl92e_dm_deinit(dev);
 		if (priv->pFirmware) {
 			vfree(priv->pFirmware);
