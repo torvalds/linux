@@ -837,7 +837,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 	rtl92e_writeb(dev, Pw_Track_Flag, 0);
 }
 
-static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
+static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 {
 #define ThermalMeterVal	9
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -949,7 +949,7 @@ void rtl92e_dm_txpower_tracking_wq(void *data)
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_TXPowerTrackingCallback_TSSI(dev);
 	else
-		dm_TXPowerTrackingCallback_ThermalMeter(dev);
+		_rtl92e_dm_tx_power_tracking_cb_thermal(dev);
 }
 
 static void _rtl92e_dm_initialize_tx_power_tracking_tssi(struct net_device *dev)
