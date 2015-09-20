@@ -640,7 +640,7 @@ void rtl92e_get_eeprom_size(struct net_device *dev)
 	rtl8192_read_eeprom_info(dev);
 }
 
-static void rtl8192_hwconfig(struct net_device *dev)
+static void _rtl92e_hwconfig(struct net_device *dev)
 {
 	u32 regRATR = 0, regRRSR = 0;
 	u8 regBwOpMode = 0, regTmp = 0;
@@ -772,7 +772,7 @@ start:
 
 		udelay(500);
 	}
-	rtl8192_hwconfig(dev);
+	_rtl92e_hwconfig(dev);
 	rtl92e_writeb(dev, CMDR, CR_RE | CR_TE);
 
 	rtl92e_writeb(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
