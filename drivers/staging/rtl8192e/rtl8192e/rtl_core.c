@@ -658,7 +658,7 @@ void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
 	}
 }
 
-static void rtl8192_refresh_supportrate(struct r8192_priv *priv)
+static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 {
 	struct rtllib_device *ieee = priv->rtllib;
 
@@ -739,7 +739,7 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 	}
 
 	RT_TRACE(COMP_INIT, "Current Wireless Mode is %x\n", wireless_mode);
-	rtl8192_refresh_supportrate(priv);
+	_rtl92e_refresh_support_rate(priv);
 }
 
 static int _rtl8192_sta_up(struct net_device *dev, bool is_silent_reset)
