@@ -1002,7 +1002,7 @@ static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
 	mutex_init(&priv->mutex);
 }
 
-static void rtl8192_init_priv_task(struct net_device *dev)
+static void _rtl92e_init_priv_task(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1073,7 +1073,7 @@ static short _rtl92e_init(struct net_device *dev)
 	_rtl92e_init_priv_constant(dev);
 	rtl8192_init_priv_variable(dev);
 	_rtl92e_init_priv_lock(priv);
-	rtl8192_init_priv_task(dev);
+	_rtl92e_init_priv_task(dev);
 	priv->ops->get_eeprom_size(dev);
 	priv->ops->init_adapter_variable(dev);
 	rtl8192_get_channel_map(dev);
