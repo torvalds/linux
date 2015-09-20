@@ -1860,8 +1860,8 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 	return 0;
 }
 
-static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
-	unsigned int prio, unsigned int entries)
+static int _rtl92e_alloc_tx_ring(struct net_device *dev, unsigned int prio,
+				 unsigned int entries)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct tx_desc *ring;
@@ -1899,7 +1899,7 @@ static short _rtl92e_pci_initdescring(struct net_device *dev)
 		return ret;
 
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
-		ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount);
+		ret = _rtl92e_alloc_tx_ring(dev, i, priv->txringcount);
 		if (ret)
 			goto err_free_rings;
 	}
