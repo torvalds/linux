@@ -1034,7 +1034,7 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 		     (unsigned long)priv);
 }
 
-static short rtl8192_get_channel_map(struct net_device *dev)
+static short _rtl92e_get_channel_map(struct net_device *dev)
 {
 	int i;
 
@@ -1076,7 +1076,7 @@ static short _rtl92e_init(struct net_device *dev)
 	_rtl92e_init_priv_task(dev);
 	priv->ops->get_eeprom_size(dev);
 	priv->ops->init_adapter_variable(dev);
-	rtl8192_get_channel_map(dev);
+	_rtl92e_get_channel_map(dev);
 
 	rtl92e_dm_init(dev);
 
