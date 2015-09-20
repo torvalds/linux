@@ -171,8 +171,6 @@ static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
 static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
-static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
-
 static void _rtl92e_dm_dig_init(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
@@ -1242,22 +1240,13 @@ static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev)
 
 }
 
-
 void rtl92e_dm_backup_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+	u32 bit_mask = bMaskByte0;
 
 	priv->bswitch_fsync  = false;
 	priv->bfsync_processing = false;
-	_rtl92e_dm_bb_initialgain_backup(dev);
-
-}
-
-
-static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u32 bit_mask = bMaskByte0;
 
 	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		return;
@@ -1280,7 +1269,6 @@ static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev)
 		 priv->initgain_backup.xdagccore1);
 	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xa0a is %x\n",
 		 priv->initgain_backup.cca);
-
 }
 
 static void _rtl92e_dm_dig_init(struct net_device *dev)
