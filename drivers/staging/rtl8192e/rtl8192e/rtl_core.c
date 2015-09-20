@@ -561,7 +561,7 @@ static void _rtl92e_prepare_beacon(struct r8192_priv *priv)
 	pdesc->OWN = 1;
 }
 
-static void rtl8192_stop_beacon(struct net_device *dev)
+static void _rtl92e_stop_beacon(struct net_device *dev)
 {
 }
 
@@ -865,7 +865,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rf_set_chan			= rtl92e_set_channel;
 
 	priv->rtllib->start_send_beacons = rtl92e_start_beacon;
-	priv->rtllib->stop_send_beacons = rtl8192_stop_beacon;
+	priv->rtllib->stop_send_beacons = _rtl92e_stop_beacon;
 
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
