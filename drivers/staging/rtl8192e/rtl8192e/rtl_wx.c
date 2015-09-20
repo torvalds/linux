@@ -1219,7 +1219,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)_rtl92e_wx_get_promisc_mode,
 };
 
-static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
+static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -1254,6 +1254,6 @@ const struct iw_handler_def r8192_wx_handlers_def = {
 	.num_private = ARRAY_SIZE(r8192_private_handler),
 	.num_private_args = sizeof(r8192_private_args) /
 			    sizeof(struct iw_priv_args),
-	.get_wireless_stats = r8192_get_wireless_stats,
+	.get_wireless_stats = _rtl92e_get_wireless_stats,
 	.private_args = (struct iw_priv_args *)r8192_private_args,
 };
