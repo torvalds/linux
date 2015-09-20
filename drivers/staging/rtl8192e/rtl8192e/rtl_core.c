@@ -95,7 +95,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
-static short rtl8192_pci_initdescring(struct net_device *dev);
+static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv);
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv);
 static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
@@ -1097,7 +1097,7 @@ static short _rtl92e_init(struct net_device *dev)
 	priv->irq = dev->irq;
 	RT_TRACE(COMP_INIT, "IRQ %d\n", dev->irq);
 
-	if (rtl8192_pci_initdescring(dev) != 0) {
+	if (_rtl92e_pci_initdescring(dev) != 0) {
 		netdev_err(dev, "Endopoints initialization failed");
 		free_irq(dev->irq, dev);
 		return -1;
@@ -1888,7 +1888,7 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 	return 0;
 }
 
-static short rtl8192_pci_initdescring(struct net_device *dev)
+static short _rtl92e_pci_initdescring(struct net_device *dev)
 {
 	u32 ret;
 	int i;
