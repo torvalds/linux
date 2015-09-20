@@ -172,7 +172,7 @@ static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
 static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
 
-static	void	dm_check_txpower_tracking(struct net_device *dev);
+static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
 static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
 static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
@@ -265,7 +265,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 
 	_rtl92e_dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);
-	dm_check_txpower_tracking(dev);
+	_rtl92e_dm_check_tx_power_tracking(dev);
 
 	dm_ctrl_initgain_byrssi(dev);
 	_rtl92e_dm_bandwidth_autoswitch(dev);
@@ -1043,7 +1043,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 
 }
 
-static void dm_check_txpower_tracking(struct net_device *dev)
+static void _rtl92e_dm_check_tx_power_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
