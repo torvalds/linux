@@ -1172,7 +1172,7 @@ static u8 _rtl92e_hw_queue_to_fw_queue(struct net_device *dev, u8 QueueID,
 	return QueueSelect;
 }
 
-static u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
+static u8 _rtl92e_query_is_short(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 
@@ -1197,9 +1197,8 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->TxHT = (cb_desc->data_rate & 0x80) ? 1 : 0;
 	pTxFwInfo->TxRate = _rtl92e_rate_mgn_to_hw((u8)cb_desc->data_rate);
 	pTxFwInfo->EnableCPUDur = cb_desc->bTxEnableFwCalcDur;
-	pTxFwInfo->Short = rtl8192_QueryIsShort(pTxFwInfo->TxHT,
-						pTxFwInfo->TxRate,
-						cb_desc);
+	pTxFwInfo->Short = _rtl92e_query_is_short(pTxFwInfo->TxHT,
+						  pTxFwInfo->TxRate, cb_desc);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
 		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
