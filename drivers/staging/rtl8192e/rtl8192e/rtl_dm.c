@@ -174,12 +174,7 @@ static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
 static	void	dm_check_txpower_tracking(struct net_device *dev);
 
-
-
-
-
-static	void	dm_bb_initialgain_restore(struct net_device *dev);
-
+static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
 static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
 
 static	void dm_dig_init(struct net_device *dev);
@@ -1215,11 +1210,11 @@ void rtl92e_dm_restore_state(struct net_device *dev)
 	if (priv->btxpower_trackingInit && priv->btxpower_tracking)
 		dm_txpower_reset_recovery(dev);
 
-	dm_bb_initialgain_restore(dev);
+	_rtl92e_dm_bb_initialgain_restore(dev);
 
 }
 
-static void dm_bb_initialgain_restore(struct net_device *dev)
+static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 bit_mask = 0x7f;
