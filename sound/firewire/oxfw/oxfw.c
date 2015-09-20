@@ -19,6 +19,8 @@
 #define VENDOR_BEHRINGER	0x001564
 #define VENDOR_LACIE		0x00d04b
 
+#define MODEL_SATELLITE		0x00200f
+
 #define SPECIFIER_1394TA	0x00a02d
 #define VERSION_AVC		0x010001
 
@@ -129,6 +131,31 @@ static void oxfw_card_free(struct snd_card *card)
 	mutex_destroy(&oxfw->mutex);
 }
 
+static void detect_quirks(struct snd_oxfw *oxfw)
+{
+	struct fw_device *fw_dev = fw_parent_device(oxfw->unit);
+	struct fw_csr_iterator it;
+	int key, val;
+	int vendor, model;
+
+	/* Seek from Root Directory of Config ROM. */
+	vendor = model = 0;
+	fw_csr_iterator_init(&it, fw_dev->config_rom + 5);
+	while (fw_csr_iterator_next(&it, &key, &val)) {
+		if (key == CSR_VENDOR)
+			vendor = val;
+		else if (key == CSR_MODEL)
+			model = val;
+	}
+
+	/*
+	 * Mackie Onyx Satellite with base station has a quirk to report a wrong
+	 * value in 'dbs' field of CIP header against its format information.
+	 */
+	if (vendor == VENDOR_LOUD && model == MODEL_SATELLITE)
+		oxfw->wrong_dbs = true;
+}
+
 static int oxfw_probe(struct fw_unit *unit,
 		       const struct ieee1394_device_id *id)
 {
@@ -156,6 +183,8 @@ static int oxfw_probe(struct fw_unit *unit,
 	err = snd_oxfw_stream_discover(oxfw);
 	if (err < 0)
 		goto error;
+
+	detect_quirks(oxfw);
 
 	err = name_card(oxfw);
 	if (err < 0)
