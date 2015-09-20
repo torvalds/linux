@@ -785,7 +785,7 @@ static int _rtl8192_sta_up(struct net_device *dev, bool is_silent_reset)
 	return 0;
 }
 
-static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
+static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
@@ -2232,7 +2232,7 @@ static int _rtl92e_close(struct net_device *dev)
 
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf)
 {
-	if (rtl8192_sta_down(dev, shutdownrf) == -1)
+	if (_rtl92e_sta_down(dev, shutdownrf) == -1)
 		return -1;
 
 	return 0;
