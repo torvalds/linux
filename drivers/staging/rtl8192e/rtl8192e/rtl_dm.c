@@ -180,8 +180,7 @@ static	void	dm_check_txpower_tracking(struct net_device *dev);
 
 static	void	dm_bb_initialgain_restore(struct net_device *dev);
 
-
-static	void	dm_bb_initialgain_backup(struct net_device *dev);
+static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
 
 static	void dm_dig_init(struct net_device *dev);
 static	void dm_ctrl_initgain_byrssi(struct net_device *dev);
@@ -1262,12 +1261,12 @@ void rtl92e_dm_backup_state(struct net_device *dev)
 
 	priv->bswitch_fsync  = false;
 	priv->bfsync_processing = false;
-	dm_bb_initialgain_backup(dev);
+	_rtl92e_dm_bb_initialgain_backup(dev);
 
 }
 
 
-static void dm_bb_initialgain_backup(struct net_device *dev)
+static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 bit_mask = bMaskByte0;
