@@ -1324,7 +1324,7 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 	entry->OWN = 1;
 }
 
-static u8 HwRateToMRate90(bool bIsHT, u8 rate)
+static u8 _rtl92e_rate_hw_to_mgn(bool bIsHT, u8 rate)
 {
 	u8  ret_rate = 0x02;
 
@@ -1369,7 +1369,7 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 		default:
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supportedRate [%x], bIsHT = %d!!!\n",
+				 "_rtl92e_rate_hw_to_mgn(): Non supportedRate [%x], bIsHT = %d!!!\n",
 				 rate, bIsHT);
 			break;
 		}
@@ -1430,7 +1430,7 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 		default:
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
+				 "_rtl92e_rate_hw_to_mgn(): Non supported Rate [%x], bIsHT = %d!!!\n",
 				 rate, bIsHT);
 			break;
 		}
@@ -2054,8 +2054,8 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 
 	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 
-	stats->rate = HwRateToMRate90((bool)pDrvInfo->RxHT,
-				     (u8)pDrvInfo->RxRate);
+	stats->rate = _rtl92e_rate_hw_to_mgn((bool)pDrvInfo->RxHT,
+					     (u8)pDrvInfo->RxRate);
 	stats->bShortPreamble = pDrvInfo->SPLCP;
 
 	rtl8192_UpdateReceivedRateHistogramStatistics(dev, stats);
