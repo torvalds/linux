@@ -14,6 +14,7 @@
 #ifndef _ASM_X86_NUMACHIP_NUMACHIP_CSR_H
 #define _ASM_X86_NUMACHIP_NUMACHIP_CSR_H
 
+#include <linux/smp.h>
 #include <linux/io.h>
 
 #define CSR_NODE_SHIFT		16
@@ -48,6 +49,40 @@ static inline unsigned int read_lcsr(unsigned long offset)
 static inline void write_lcsr(unsigned long offset, unsigned int val)
 {
 	writel(swab32(val), lcsr_address(offset));
+}
+
+/*
+ * On NumaChip2, local CSR space is 16MB and starts at fixed offset below 4G
+ */
+
+#define NUMACHIP2_LCSR_BASE       0xf0000000UL
+#define NUMACHIP2_LCSR_SIZE       0x1000000UL
+#define NUMACHIP2_APIC_ICR        0x100000
+
+static inline void __iomem *numachip2_lcsr_address(unsigned long offset)
+{
+	return (void __iomem *)__va(NUMACHIP2_LCSR_BASE |
+		(offset & (NUMACHIP2_LCSR_SIZE - 1)));
+}
+
+static inline u32 numachip2_read32_lcsr(unsigned long offset)
+{
+	return readl(numachip2_lcsr_address(offset));
+}
+
+static inline u64 numachip2_read64_lcsr(unsigned long offset)
+{
+	return readq(numachip2_lcsr_address(offset));
+}
+
+static inline void numachip2_write32_lcsr(unsigned long offset, u32 val)
+{
+	writel(val, numachip2_lcsr_address(offset));
+}
+
+static inline void numachip2_write64_lcsr(unsigned long offset, u64 val)
+{
+	writeq(val, numachip2_lcsr_address(offset));
 }
 
 #endif /* _ASM_X86_NUMACHIP_NUMACHIP_CSR_H */

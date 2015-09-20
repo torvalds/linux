@@ -22,6 +22,7 @@
 
 u8 numachip_system __read_mostly;
 static const struct apic apic_numachip1;
+static const struct apic apic_numachip2;
 static void (*numachip_apic_icr_write)(int apicid, unsigned int val) __read_mostly;
 
 static unsigned int numachip1_get_apic_id(unsigned long x)
@@ -45,6 +46,19 @@ static unsigned long numachip1_set_apic_id(unsigned int id)
 	return x;
 }
 
+static unsigned int numachip2_get_apic_id(unsigned long x)
+{
+	u64 mcfg;
+
+	rdmsrl(MSR_FAM10H_MMIO_CONF_BASE, mcfg);
+	return ((mcfg >> (28 - 8)) & 0xfff00) | (x >> 24);
+}
+
+static unsigned long numachip2_set_apic_id(unsigned int id)
+{
+	return id << 24;
+}
+
 static int numachip_apic_id_valid(int apicid)
 {
 	/* Trust what bootloader passes in MADT */
@@ -64,6 +78,11 @@ static int numachip_phys_pkg_id(int initial_apic_id, int index_msb)
 static void numachip1_apic_icr_write(int apicid, unsigned int val)
 {
 	write_lcsr(CSR_G3_EXT_IRQ_GEN, (apicid << 16) | val);
+}
+
+static void numachip2_apic_icr_write(int apicid, unsigned int val)
+{
+	numachip2_write32_lcsr(NUMACHIP2_APIC_ICR, (apicid << 12) | val);
 }
 
 static int numachip_wakeup_secondary(int phys_apicid, unsigned long start_rip)
@@ -130,6 +149,11 @@ static int __init numachip1_probe(void)
 	return apic == &apic_numachip1;
 }
 
+static int __init numachip2_probe(void)
+{
+	return apic == &apic_numachip2;
+}
+
 static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 {
 	u64 val;
@@ -155,6 +179,13 @@ static int __init numachip_system_init(void)
 		numachip_apic_icr_write = numachip1_apic_icr_write;
 		x86_init.pci.arch_init = pci_numachip_init;
 		break;
+	case 2:
+		init_extra_mapping_uc(NUMACHIP2_LCSR_BASE, NUMACHIP2_LCSR_SIZE);
+		numachip_apic_icr_write = numachip2_apic_icr_write;
+
+		/* Use MCFG config cycles rather than locked CF8 cycles */
+		raw_pci_ops = &pci_mmcfg;
+		break;
 	default:
 		return 0;
 	}
@@ -172,6 +203,17 @@ static int numachip1_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		return 0;
 
 	numachip_system = 1;
+
+	return 1;
+}
+
+static int numachip2_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	if ((strncmp(oem_id, "NUMASC", 6) != 0) ||
+	    (strncmp(oem_table_id, "NCONECT2", 8) != 0))
+		return 0;
+
+	numachip_system = 2;
 
 	return 1;
 }
@@ -226,3 +268,54 @@ static const struct apic apic_numachip1 __refconst = {
 };
 
 apic_driver(apic_numachip1);
+
+static const struct apic apic_numachip2 __refconst = {
+	.name				= "NumaConnect2 system",
+	.probe				= numachip2_probe,
+	.acpi_madt_oem_check		= numachip2_acpi_madt_oem_check,
+	.apic_id_valid			= numachip_apic_id_valid,
+	.apic_id_registered		= numachip_apic_id_registered,
+
+	.irq_delivery_mode		= dest_Fixed,
+	.irq_dest_mode			= 0, /* physical */
+
+	.target_cpus			= online_target_cpus,
+	.disable_esr			= 0,
+	.dest_logical			= 0,
+	.check_apicid_used		= NULL,
+
+	.vector_allocation_domain	= default_vector_allocation_domain,
+	.init_apic_ldr			= flat_init_apic_ldr,
+
+	.ioapic_phys_id_map		= NULL,
+	.setup_apic_routing		= NULL,
+	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
+	.apicid_to_cpu_present		= NULL,
+	.check_phys_apicid_present	= default_check_phys_apicid_present,
+	.phys_pkg_id			= numachip_phys_pkg_id,
+
+	.get_apic_id			= numachip2_get_apic_id,
+	.set_apic_id			= numachip2_set_apic_id,
+	.apic_id_mask			= 0xffU << 24,
+
+	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
+
+	.send_IPI_mask			= numachip_send_IPI_mask,
+	.send_IPI_mask_allbutself	= numachip_send_IPI_mask_allbutself,
+	.send_IPI_allbutself		= numachip_send_IPI_allbutself,
+	.send_IPI_all			= numachip_send_IPI_all,
+	.send_IPI_self			= numachip_send_IPI_self,
+
+	.wakeup_secondary_cpu		= numachip_wakeup_secondary,
+	.inquire_remote_apic		= NULL, /* REMRD not supported */
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.eoi_write			= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
+};
+
+apic_driver(apic_numachip2);
