@@ -1063,7 +1063,7 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 	return 0;
 }
 
-static short rtl8192_init(struct net_device *dev)
+static short _rtl92e_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2663,7 +2663,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	}
 
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
-	if (rtl8192_init(dev) != 0) {
+	if (_rtl92e_init(dev) != 0) {
 		netdev_warn(dev, "Initialization failed");
 		goto err_free_irq;
 	}
