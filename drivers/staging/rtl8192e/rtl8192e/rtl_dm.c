@@ -202,7 +202,7 @@ static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 static void dm_init_fsync(struct net_device *dev);
 static void dm_deInit_fsync(struct net_device *dev);
 
-static	void dm_check_txrateandretrycount(struct net_device *dev);
+static	void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev);
 static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
 static void _rtl92e_dm_check_fsync(struct net_device *dev);
 static void _rtl92e_dm_check_rf_ctrl_gpio(void *data);
@@ -260,7 +260,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_check_ac_dc_power(dev);
 
 	_rtl92e_dm_check_pbc_gpio(dev);
-	dm_check_txrateandretrycount(dev);
+	_rtl92e_dm_check_txrateandretrycount(dev);
 	_rtl92e_dm_check_edca_turbo(dev);
 
 	_rtl92e_dm_check_rate_adaptive(dev);
@@ -2550,7 +2550,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 
 }
 
-static void dm_check_txrateandretrycount(struct net_device *dev)
+static void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
