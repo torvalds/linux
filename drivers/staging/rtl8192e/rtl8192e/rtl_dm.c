@@ -179,7 +179,7 @@ static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
 
 static	void dm_dig_init(struct net_device *dev);
 static	void dm_ctrl_initgain_byrssi(struct net_device *dev);
-static	void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
+static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev);
 static	void dm_initial_gain(struct net_device *dev);
@@ -1441,7 +1441,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 
 		if (dm_digtable.dig_state == DM_STA_DIG_ON &&
 		    (priv->reset_count == reset_cnt)) {
-			dm_ctrl_initgain_byrssi_highpwr(dev);
+			_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
 			return;
 		}
 		if (priv->reset_count != reset_cnt)
@@ -1472,11 +1472,11 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 
 		rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
 	}
-	dm_ctrl_initgain_byrssi_highpwr(dev);
+	_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
 }
 
 
-static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
+static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u32 reset_cnt_highpwr;
