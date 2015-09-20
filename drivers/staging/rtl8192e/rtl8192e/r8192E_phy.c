@@ -105,8 +105,9 @@ u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 
 	return Ret;
 }
-static u32 rtl8192_phy_RFSerialRead(struct net_device *dev,
-				    enum rf90_radio_path eRFPath, u32 Offset)
+
+static u32 _rtl92e_phy_rf_read(struct net_device *dev,
+			       enum rf90_radio_path eRFPath, u32 Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret = 0;
@@ -241,8 +242,8 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 
 	} else {
 		if (BitMask != bMask12Bits) {
-			Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath,
-								  RegAddr);
+			Original_Value = _rtl92e_phy_rf_read(dev, eRFPath,
+							     RegAddr);
 			BitShift =  rtl8192_CalculateBitShift(BitMask);
 			New_Value = (((Original_Value) & (~BitMask)) |
 				     (Data << BitShift));
@@ -269,8 +270,7 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 		Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath, RegAddr);
 		udelay(200);
 	} else {
-		Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath,
-							  RegAddr);
+		Original_Value = _rtl92e_phy_rf_read(dev, eRFPath, RegAddr);
 	}
 	BitShift =  rtl8192_CalculateBitShift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
