@@ -341,6 +341,16 @@ static void sunxi_musb_disable(struct musb *musb)
 	clear_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags);
 }
 
+struct dma_controller *sunxi_musb_dma_controller_create(struct musb *musb,
+						    void __iomem *base)
+{
+	return NULL;
+}
+
+void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
+{
+}
+
 /*
  * sunxi musb register layout
  * 0x00 - 0x17	fifo regs, 1 long per fifo
@@ -566,6 +576,8 @@ static const struct musb_platform_ops sunxi_musb_ops = {
 	.writeb		= sunxi_musb_writeb,
 	.readw		= sunxi_musb_readw,
 	.writew		= sunxi_musb_writew,
+	.dma_init	= sunxi_musb_dma_controller_create,
+	.dma_exit	= sunxi_musb_dma_controller_destroy,
 	.set_vbus	= sunxi_musb_set_vbus,
 	.pre_root_reset_end = sunxi_musb_pre_root_reset_end,
 	.post_root_reset_end = sunxi_musb_post_root_reset_end,
