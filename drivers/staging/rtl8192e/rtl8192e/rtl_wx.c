@@ -1017,9 +1017,9 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	return ret;
 }
 
-static int r8192_wx_set_gen_ie(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *data, char *extra)
+static int _rtl92e_wx_set_gen_ie(struct net_device *dev,
+				 struct iw_request_info *info,
+				 union iwreq_data *data, char *extra)
 {
 	int ret = 0;
 
@@ -1148,7 +1148,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWENCODE)] = _rtl92e_wx_get_enc,
 	[IW_IOCTL(SIOCSIWPOWER)] = r8192_wx_set_power,
 	[IW_IOCTL(SIOCGIWPOWER)] = _rtl92e_wx_get_power,
-	[IW_IOCTL(SIOCSIWGENIE)] = r8192_wx_set_gen_ie,
+	[IW_IOCTL(SIOCSIWGENIE)] = _rtl92e_wx_set_gen_ie,
 	[IW_IOCTL(SIOCGIWGENIE)] = _rtl92e_wx_get_gen_ie,
 	[IW_IOCTL(SIOCSIWMLME)] = r8192_wx_set_mlme,
 	[IW_IOCTL(SIOCSIWAUTH)] = _rtl92e_wx_set_auth,
