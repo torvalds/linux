@@ -52,7 +52,7 @@ static void _rtl92e_phy_rf_fw_write(struct net_device *dev,
 				    enum rf90_radio_path eRFPath, u32 Offset,
 				    u32 Data);
 
-static u32 rtl8192_CalculateBitShift(u32 dwBitMask)
+static u32 _rtl92e_calculate_bit_shift(u32 dwBitMask)
 {
 	u32 i;
 
@@ -87,7 +87,7 @@ void rtl92e_set_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask,
 
 	if (dwBitMask != bMaskDWord) {
 		OriginalValue = rtl92e_readl(dev, dwRegAddr);
-		BitShift = rtl8192_CalculateBitShift(dwBitMask);
+		BitShift = _rtl92e_calculate_bit_shift(dwBitMask);
 		NewValue = (((OriginalValue) & (~dwBitMask)) |
 			    (dwData << BitShift));
 		rtl92e_writel(dev, dwRegAddr, NewValue);
@@ -100,7 +100,7 @@ u32 rtl92e_get_bb_reg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask)
 	u32 Ret = 0, OriginalValue, BitShift;
 
 	OriginalValue = rtl92e_readl(dev, dwRegAddr);
-	BitShift = rtl8192_CalculateBitShift(dwBitMask);
+	BitShift = _rtl92e_calculate_bit_shift(dwBitMask);
 	Ret = (OriginalValue & dwBitMask) >> BitShift;
 
 	return Ret;
@@ -230,7 +230,7 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath,
 								RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(BitMask);
+			BitShift =  _rtl92e_calculate_bit_shift(BitMask);
 			New_Value = (((Original_Value) & (~BitMask)) |
 				    (Data << BitShift));
 
@@ -244,7 +244,7 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 		if (BitMask != bMask12Bits) {
 			Original_Value = _rtl92e_phy_rf_read(dev, eRFPath,
 							     RegAddr);
-			BitShift =  rtl8192_CalculateBitShift(BitMask);
+			BitShift =  _rtl92e_calculate_bit_shift(BitMask);
 			New_Value = (((Original_Value) & (~BitMask)) |
 				     (Data << BitShift));
 
@@ -271,7 +271,7 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	} else {
 		Original_Value = _rtl92e_phy_rf_read(dev, eRFPath, RegAddr);
 	}
-	BitShift =  rtl8192_CalculateBitShift(BitMask);
+	BitShift =  _rtl92e_calculate_bit_shift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
 	up(&priv->rf_sem);
 	return Readback_Value;
