@@ -1474,7 +1474,7 @@ static long rtl8192_signal_scale_mapping(struct r8192_priv *priv, long currsig)
 			_pdrvinfo->RxRate == DESC90_RATE11M) &&\
 			!_pdrvinfo->RxHT)
 
-static void rtl8192_query_rxphystatus(
+static void _rtl92e_query_rxphystatus(
 	struct r8192_priv *priv,
 	struct rtllib_rx_stats *pstats,
 	struct rx_desc  *pdesc,
@@ -1900,7 +1900,7 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 	if (bpacket_toself)
 		priv->stats.numpacket_toself++;
 	_rtl92e_process_phyinfo(priv, tmp_buf, &previous_stats, pstats);
-	rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
+	_rtl92e_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
 				  &previous_stats, bpacket_match_bssid,
 				  bpacket_toself, bPacketBeacon, bToSelfBA);
 	rtl92e_copy_mpdu_stats(pstats, &previous_stats);
