@@ -96,8 +96,24 @@ static int numachip_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 
 static void numachip_send_IPI_one(int cpu, int vector)
 {
-	int apicid = per_cpu(x86_cpu_to_apicid, cpu);
+	int local_apicid, apicid = per_cpu(x86_cpu_to_apicid, cpu);
 	unsigned int dmode;
+
+	preempt_disable();
+	local_apicid = __this_cpu_read(x86_cpu_to_apicid);
+
+	/* Send via local APIC where non-local part matches */
+	if (!((apicid ^ local_apicid) >> NUMACHIP_LAPIC_BITS)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__default_send_IPI_dest_field(apicid, vector,
+			APIC_DEST_PHYSICAL);
+		local_irq_restore(flags);
+		preempt_enable();
+		return;
+	}
+	preempt_enable();
 
 	dmode = (vector == NMI_VECTOR) ? APIC_DM_NMI : APIC_DM_FIXED;
 	numachip_apic_icr_write(apicid, dmode | vector);
@@ -218,6 +234,17 @@ static int numachip2_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
+/* APIC IPIs are queued */
+static void numachip_apic_wait_icr_idle(void)
+{
+}
+
+/* APIC NMI IPIs are queued */
+static u32 numachip_safe_apic_wait_icr_idle(void)
+{
+	return 0;
+}
+
 static const struct apic apic_numachip1 __refconst = {
 	.name				= "NumaConnect system",
 	.probe				= numachip1_probe,
@@ -263,8 +290,8 @@ static const struct apic apic_numachip1 __refconst = {
 	.eoi_write			= native_apic_mem_write,
 	.icr_read			= native_apic_icr_read,
 	.icr_write			= native_apic_icr_write,
-	.wait_icr_idle			= native_apic_wait_icr_idle,
-	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
+	.wait_icr_idle			= numachip_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= numachip_safe_apic_wait_icr_idle,
 };
 
 apic_driver(apic_numachip1);
@@ -314,8 +341,8 @@ static const struct apic apic_numachip2 __refconst = {
 	.eoi_write			= native_apic_mem_write,
 	.icr_read			= native_apic_icr_read,
 	.icr_write			= native_apic_icr_write,
-	.wait_icr_idle			= native_apic_wait_icr_idle,
-	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
+	.wait_icr_idle			= numachip_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= numachip_safe_apic_wait_icr_idle,
 };
 
 apic_driver(apic_numachip2);

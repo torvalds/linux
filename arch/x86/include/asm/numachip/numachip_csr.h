@@ -34,6 +34,7 @@
 #define NUMACHIP_LCSR_BASE	0x3ffffe000000ULL
 #define NUMACHIP_LCSR_LIM	0x3fffffffffffULL
 #define NUMACHIP_LCSR_SIZE	(NUMACHIP_LCSR_LIM - NUMACHIP_LCSR_BASE + 1)
+#define NUMACHIP_LAPIC_BITS	8
 
 static inline void *lcsr_address(unsigned long offset)
 {
