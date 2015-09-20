@@ -57,7 +57,7 @@ void rtl92e_start_beacon(struct net_device *dev)
 	rtl92e_irq_enable(dev);
 }
 
-static void rtl8192e_update_msr(struct net_device *dev)
+static void _rtl92e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 msr;
@@ -1001,7 +1001,7 @@ void rtl92e_link_change(struct net_device *dev)
 	} else {
 		rtl92e_writeb(dev, 0x173, 0);
 	}
-	rtl8192e_update_msr(dev);
+	_rtl92e_update_msr(dev);
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		u32 reg = 0;
