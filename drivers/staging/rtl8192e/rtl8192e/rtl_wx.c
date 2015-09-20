@@ -774,9 +774,9 @@ end_hw_sec:
 	return ret;
 }
 
-static int r8192_wx_set_scan_type(struct net_device *dev,
-				  struct iw_request_info *aa,
-				  union iwreq_data *wrqu, char *p)
+static int _rtl92e_wx_set_scan_type(struct net_device *dev,
+				    struct iw_request_info *aa,
+				    union iwreq_data *wrqu, char *p)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int *parms = (int *)p;
@@ -1195,7 +1195,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 
 static iw_handler r8192_private_handler[] = {
 	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
-	(iw_handler)r8192_wx_set_scan_type,
+	(iw_handler)_rtl92e_wx_set_scan_type,
 	(iw_handler)_rtl92e_wx_set_rawtx,
 	(iw_handler)_rtl92e_wx_force_reset,
 	(iw_handler)NULL,
