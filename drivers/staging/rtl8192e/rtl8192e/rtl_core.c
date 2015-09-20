@@ -1231,7 +1231,7 @@ static void rtl819x_silentreset_mesh_bk(struct net_device *dev, u8 IsPortal)
 {
 }
 
-static void rtl819x_ifsilentreset(struct net_device *dev)
+static void _rtl92e_if_silent_reset(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	reset_times = 0;
@@ -1538,7 +1538,7 @@ static void rtl819x_watchdog_wqcallback(void *data)
 
 	if (((priv->force_reset) || (!priv->bDisableNormalResetCheck &&
 	      ResetType == RESET_TYPE_SILENT)))
-		rtl819x_ifsilentreset(dev);
+		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
