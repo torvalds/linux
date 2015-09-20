@@ -309,7 +309,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 }
 
-static void rtl8192_read_eeprom_info(struct net_device *dev)
+static void _rtl92e_read_eeprom_info(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	const u8 bMac_Tmp_Addr[ETH_ALEN] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
@@ -318,7 +318,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	u16 i, usValue, IC_Version;
 	u16 EEPROMId;
 
-	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
+	RT_TRACE(COMP_INIT, "====> _rtl92e_read_eeprom_info\n");
 
 	EEPROMId = rtl92e_eeprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
@@ -637,7 +637,7 @@ void rtl92e_get_eeprom_size(struct net_device *dev)
 			  EEPROM_93C46;
 	RT_TRACE(COMP_INIT, "<===========%s(), epromtype:%d\n", __func__,
 		 priv->epromtype);
-	rtl8192_read_eeprom_info(dev);
+	_rtl92e_read_eeprom_info(dev);
 }
 
 static void _rtl92e_hwconfig(struct net_device *dev)
