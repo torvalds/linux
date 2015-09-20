@@ -1126,7 +1126,7 @@ static short _rtl92e_is_tx_queue_empty(struct net_device *dev)
 	return 1;
 }
 
-static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
+static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	QueueID;
@@ -1204,7 +1204,7 @@ static enum reset_type rtl819x_ifcheck_resetornot(struct net_device *dev)
 	rfState = priv->rtllib->eRFPowerState;
 
 	if (rfState == eRfOn)
-		TxResetType = rtl819x_TxCheckStuck(dev);
+		TxResetType = _rtl92e_tx_check_stuck(dev);
 
 	if (rfState == eRfOn &&
 	    (priv->rtllib->iw_mode == IW_MODE_INFRA) &&
