@@ -177,7 +177,7 @@ static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
 static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
 
-static	void dm_dig_init(struct net_device *dev);
+static void _rtl92e_dm_dig_init(struct net_device *dev);
 static	void dm_ctrl_initgain_byrssi(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
@@ -230,7 +230,7 @@ void rtl92e_dm_init(struct net_device *dev)
 
 	rtl92e_init_adaptive_rate(dev);
 
-	dm_dig_init(dev);
+	_rtl92e_dm_dig_init(dev);
 	rtl92e_dm_init_edca_turbo(dev);
 	dm_init_bandwidth_autoswitch(dev);
 	dm_init_fsync(dev);
@@ -1292,7 +1292,7 @@ static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev)
 
 }
 
-static void dm_dig_init(struct net_device *dev)
+static void _rtl92e_dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
