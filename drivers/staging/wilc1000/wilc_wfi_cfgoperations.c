@@ -3627,9 +3627,9 @@ int WILC_WFI_InitHostInt(struct net_device *net)
 
 	sema_init(&(priv->hSemScanReq), 1);
 	s32Error = host_int_init(&priv->hWILCWFIDrv);
-	if (s32Error) {
+	if (s32Error)
 		PRINT_ER("Error while initializing hostinterface\n");
-	}
+
 	return s32Error;
 }
 
@@ -3667,9 +3667,9 @@ int WILC_WFI_DeInitHostInt(struct net_device *net)
 	}
 	#endif
 
-	if (s32Error) {
+	if (s32Error)
 		PRINT_ER("Error while deintializing host interface\n");
-	}
+
 	return s32Error;
 }
 
