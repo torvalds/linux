@@ -2139,7 +2139,7 @@ done:
 
 }
 
-static void rtl8192_tx_resume(struct net_device *dev)
+static void _rtl92e_tx_resume(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -2158,7 +2158,7 @@ static void rtl8192_tx_resume(struct net_device *dev)
 
 static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv)
 {
-	rtl8192_tx_resume(priv->rtllib->dev);
+	_rtl92e_tx_resume(priv->rtllib->dev);
 }
 
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
