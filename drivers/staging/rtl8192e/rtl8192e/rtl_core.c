@@ -75,14 +75,14 @@ MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 
 static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id);
-static void rtl8192_pci_disconnect(struct pci_dev *pdev);
+static void _rtl92e_pci_disconnect(struct pci_dev *pdev);
 static irqreturn_t _rtl92e_irq(int irq, void *netdev);
 
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
-	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
+	.remove	 = _rtl92e_pci_disconnect,	/* remove fn */
 	.suspend = rtl92e_suspend,	/* PM suspend fn */
 	.resume = rtl92e_resume,                 /* PM resume fn  */
 };
@@ -2694,7 +2694,7 @@ err_pci_disable:
 	return err;
 }
 
-static void rtl8192_pci_disconnect(struct pci_dev *pdev)
+static void _rtl92e_pci_disconnect(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv;
