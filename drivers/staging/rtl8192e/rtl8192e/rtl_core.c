@@ -308,7 +308,7 @@ void rtl92e_irq_disable(struct net_device *dev)
 	priv->irq_enabled = 0;
 }
 
-static void rtl8192_set_chan(struct net_device *dev, short ch)
+static void _rtl92e_set_chan(struct net_device *dev, short ch)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
@@ -853,7 +853,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->rtllib->softmac_hard_start_xmit	= rtl8192_hard_start_xmit;
-	priv->rtllib->set_chan			= rtl8192_set_chan;
+	priv->rtllib->set_chan			= _rtl92e_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = rtl8192_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
