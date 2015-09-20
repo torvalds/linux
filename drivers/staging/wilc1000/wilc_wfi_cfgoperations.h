@@ -95,7 +95,7 @@ struct wireless_dev *WILC_WFI_CfgAlloc(void);
 struct wireless_dev *wilc_create_wiphy(struct net_device *net);
 void wilc_free_wiphy(struct net_device *net);
 int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed);
-int WILC_WFI_DeInitHostInt(struct net_device *net);
+int wilc_deinit_host_int(struct net_device *net);
 int WILC_WFI_InitHostInt(struct net_device *net);
 void WILC_WFI_monitor_rx(u8 *buff, u32 size);
 int WILC_WFI_deinit_mon_interface(void);

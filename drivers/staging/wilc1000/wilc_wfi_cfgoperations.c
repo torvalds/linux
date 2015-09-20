@@ -3642,7 +3642,7 @@ int WILC_WFI_InitHostInt(struct net_device *net)
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-int WILC_WFI_DeInitHostInt(struct net_device *net)
+int wilc_deinit_host_int(struct net_device *net)
 {
 	int s32Error = 0;
 

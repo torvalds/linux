@@ -1437,7 +1437,7 @@ int mac_open(struct net_device *ndev)
 	ret = wilc1000_wlan_init(ndev, nic);
 	if (ret < 0) {
 		PRINT_ER("Failed to initialize wilc1000\n");
-		WILC_WFI_DeInitHostInt(ndev);
+		wilc_deinit_host_int(ndev);
 		return ret;
 	}
 
@@ -1474,7 +1474,7 @@ int mac_open(struct net_device *ndev)
 	return 0;
 
 _err_:
-	WILC_WFI_DeInitHostInt(ndev);
+	wilc_deinit_host_int(ndev);
 	wilc1000_wlan_deinit(g_linux_wlan);
 	return ret;
 }
@@ -1667,7 +1667,7 @@ int mac_close(struct net_device *ndev)
 		/* Stop the network interface queue */
 		netif_stop_queue(nic->wilc_netdev);
 
-		WILC_WFI_DeInitHostInt(nic->wilc_netdev);
+		wilc_deinit_host_int(nic->wilc_netdev);
 	}
 
 	if (g_linux_wlan->open_ifcs == 0) {
