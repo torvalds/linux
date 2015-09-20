@@ -544,7 +544,8 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 #define		Tssi_Report_Value2			0x13e
 #define		FW_Busy_Flag				0x13f
 
-static void dm_tx_update_tssi_weak_signal(struct net_device *dev, u8 RF_Type)
+static void _rtl92e_dm_tx_update_tssi_weak_signal(struct net_device *dev,
+						  u8 RF_Type)
 {
 	struct r8192_priv *p = rtllib_priv(dev);
 
@@ -765,7 +766,8 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 				return;
 			}
 			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK)
-				dm_tx_update_tssi_weak_signal(dev, RF_Type);
+				_rtl92e_dm_tx_update_tssi_weak_signal(dev,
+								      RF_Type);
 			else
 				_rtl92e_dm_tx_update_tssi_strong_signal(dev, RF_Type);
 
