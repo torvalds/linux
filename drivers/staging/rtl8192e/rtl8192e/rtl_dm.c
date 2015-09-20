@@ -186,7 +186,7 @@ static	void dm_initial_gain(struct net_device *dev);
 static	void dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
-static	void dm_init_ctstoself(struct net_device *dev);
+static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
 static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
 
 static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
@@ -235,7 +235,7 @@ void rtl92e_dm_init(struct net_device *dev)
 	_rtl92e_dm_init_bandwidth_autoswitch(dev);
 	dm_init_fsync(dev);
 	dm_init_rxpath_selection(dev);
-	dm_init_ctstoself(dev);
+	_rtl92e_dm_init_cts_to_self(dev);
 	if (IS_HARDWARE_TYPE_8192SE(dev))
 		dm_Init_WA_Broadcom_IOT(dev);
 
@@ -1793,7 +1793,7 @@ dm_CheckEdcaTurbo_EXIT:
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
 
-static void dm_init_ctstoself(struct net_device *dev)
+static void _rtl92e_dm_init_cts_to_self(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
 
