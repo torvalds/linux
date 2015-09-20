@@ -589,9 +589,9 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	return ret;
 }
 
-static int r8192_wx_get_name(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_get_name(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1117,7 +1117,7 @@ static int r8192_wx_get_PromiscuousMode(struct net_device *dev,
 
 #define IW_IOCTL(x) ((x) - SIOCSIWCOMMIT)
 static iw_handler r8192_wx_handlers[] = {
-	[IW_IOCTL(SIOCGIWNAME)] = r8192_wx_get_name,
+	[IW_IOCTL(SIOCGIWNAME)] = _rtl92e_wx_get_name,
 	[IW_IOCTL(SIOCSIWFREQ)] = r8192_wx_set_freq,
 	[IW_IOCTL(SIOCGIWFREQ)] = _rtl92e_wx_get_freq,
 	[IW_IOCTL(SIOCSIWMODE)] = r8192_wx_set_mode,
