@@ -1424,8 +1424,8 @@ void rtl92e_set_rf_off(struct net_device *dev)
 
 }
 
-static bool SetRFPowerState8190(struct net_device *dev,
-				enum rt_rf_power_state eRFPowerState)
+static bool _rtl92e_set_rf_power_state(struct net_device *dev,
+				       enum rt_rf_power_state eRFPowerState)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -1436,14 +1436,15 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 	if (priv->SetRFPowerStateInProgress)
 		return false;
-	RT_TRACE(COMP_PS, "===========> SetRFPowerState8190()!\n");
+	RT_TRACE(COMP_PS, "===========> _rtl92e_set_rf_power_state()!\n");
 	priv->SetRFPowerStateInProgress = true;
 
 	switch (priv->rf_chip) {
 	case RF_8256:
 		switch (eRFPowerState) {
 		case eRfOn:
-			RT_TRACE(COMP_PS, "SetRFPowerState8190() eRfOn!\n");
+			RT_TRACE(COMP_PS,
+				 "_rtl92e_set_rf_power_state() eRfOn!\n");
 			if ((priv->rtllib->eRFPowerState == eRfOff) &&
 			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC)) {
 				bool rtstatus = true;
@@ -1510,7 +1511,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 				if (i >= MAX_DOZE_WAITING_TIMES_9x) {
 					RT_TRACE(COMP_POWER,
-						 "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n",
+						 "\n\n\n TimeOut!! _rtl92e_set_rf_power_state(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n",
 						 MAX_DOZE_WAITING_TIMES_9x,
 						 QueueID);
 					break;
@@ -1521,7 +1522,7 @@ static bool SetRFPowerState8190(struct net_device *dev,
 
 		case eRfOff:
 			RT_TRACE(COMP_PS,
-				 "SetRFPowerState8190() eRfOff/Sleep !\n");
+				 "_rtl92e_set_rf_power_state() eRfOff/Sleep !\n");
 
 			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
 				ring = &priv->tx_ring[QueueID];
@@ -1586,7 +1587,8 @@ static bool SetRFPowerState8190(struct net_device *dev,
 	}
 
 	priv->SetRFPowerStateInProgress = false;
-	RT_TRACE(COMP_PS, "<=========== SetRFPowerState8190() bResult = %d!\n",
+	RT_TRACE(COMP_PS,
+		 "<=========== _rtl92e_set_rf_power_state() bResult = %d!\n",
 		 bResult);
 	return bResult;
 }
@@ -1609,7 +1611,7 @@ bool rtl92e_set_rf_power_state(struct net_device *dev,
 		return bResult;
 	}
 
-	bResult = SetRFPowerState8190(dev, eRFPowerState);
+	bResult = _rtl92e_set_rf_power_state(dev, eRFPowerState);
 
 	RT_TRACE(COMP_PS,
 		 "<--------- rtl92e_set_rf_power_state(): bResult(%d)\n",
