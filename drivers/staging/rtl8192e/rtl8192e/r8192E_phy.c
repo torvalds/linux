@@ -772,7 +772,8 @@ u8 rtl92e_config_rf_path(struct net_device *dev, enum rf90_radio_path eRFPath)
 	return 0;
 
 }
-static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
+
+static void _rtl92e_set_tx_power_level(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
@@ -939,7 +940,8 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
 				if (priv->IC_Cut > (u8)VERSION_8190_BD)
-					rtl8192_SetTxPowerLevel(dev, channel);
+					_rtl92e_set_tx_power_level(dev,
+								   channel);
 				break;
 			case CmdID_WritePortUlong:
 				rtl92e_writel(dev, CurrentCmd->Para1,
