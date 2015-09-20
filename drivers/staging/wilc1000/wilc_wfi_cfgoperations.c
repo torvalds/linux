@@ -3603,7 +3603,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net)
 int WILC_WFI_InitHostInt(struct net_device *net)
 {
 
-	s32 s32Error = 0;
+	int s32Error = 0;
 
 	struct wilc_priv *priv;
 
@@ -3644,7 +3644,7 @@ int WILC_WFI_InitHostInt(struct net_device *net)
  */
 int WILC_WFI_DeInitHostInt(struct net_device *net)
 {
-	s32 s32Error = 0;
+	int s32Error = 0;
 
 	struct wilc_priv *priv;
 
