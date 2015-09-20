@@ -184,7 +184,7 @@ static	void dm_ctrl_initgain_byrssi_by_driverrssi(struct net_device *dev);
 static	void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(struct net_device *dev);
 static	void dm_initial_gain(struct net_device *dev);
 static	void dm_pd_th(struct net_device *dev);
-static	void dm_cs_ratio(struct net_device *dev);
+static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
 static	void dm_init_ctstoself(struct net_device *dev);
 static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
@@ -1382,7 +1382,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
 	dm_initial_gain(dev);
 	dm_pd_th(dev);
-	dm_cs_ratio(dev);
+	_rtl92e_dm_cs_ratio(dev);
 	if (dm_digtable.dig_algorithm_switch)
 		dm_digtable.dig_algorithm_switch = 0;
 	dm_digtable.PreSTAConnectState = dm_digtable.CurSTAConnectState;
@@ -1644,7 +1644,7 @@ static void dm_pd_th(struct net_device *dev)
 	}
 }
 
-static	void dm_cs_ratio(struct net_device *dev)
+static void _rtl92e_dm_cs_ratio(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 initialized, force_write;
