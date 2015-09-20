@@ -73,15 +73,15 @@ static struct pci_device_id rtl8192_pci_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 
-static int rtl8192_pci_probe(struct pci_dev *pdev,
-			const struct pci_device_id *id);
+static int _rtl92e_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id);
 static void _rtl92e_pci_disconnect(struct pci_dev *pdev);
 static irqreturn_t _rtl92e_irq(int irq, void *netdev);
 
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
-	.probe	= rtl8192_pci_probe,	/* probe fn      */
+	.probe	= _rtl92e_pci_probe,	/* probe fn      */
 	.remove	 = _rtl92e_pci_disconnect,	/* remove fn */
 	.suspend = rtl92e_suspend,	/* PM suspend fn */
 	.resume = rtl92e_resume,                 /* PM resume fn  */
@@ -2563,8 +2563,8 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_start_xmit = rtllib_xmit,
 };
 
-static int rtl8192_pci_probe(struct pci_dev *pdev,
-			const struct pci_device_id *id)
+static int _rtl92e_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
 	struct net_device *dev = NULL;
