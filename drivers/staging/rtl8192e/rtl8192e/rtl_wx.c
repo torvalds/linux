@@ -240,9 +240,9 @@ static int r8192se_wx_set_force_lps(struct net_device *dev,
 
 }
 
-static int r8192_wx_set_debugflag(struct net_device *dev,
-				  struct iw_request_info *info,
-				  union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_set_debug(struct net_device *dev,
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 c = *extra;
@@ -1194,7 +1194,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 };
 
 static iw_handler r8192_private_handler[] = {
-	(iw_handler)r8192_wx_set_debugflag,   /*SIOCIWSECONDPRIV*/
+	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
 	(iw_handler)r8192_wx_set_scan_type,
 	(iw_handler)r8192_wx_set_rawtx,
 	(iw_handler)_rtl92e_wx_force_reset,
