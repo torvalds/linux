@@ -395,6 +395,7 @@ static const struct of_device_id bcm6328_leds_of_match[] = {
 	{ .compatible = "brcm,bcm6328-leds", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcm6328_leds_of_match);
 
 static struct platform_driver bcm6328_leds_driver = {
 	.probe = bcm6328_leds_probe,
