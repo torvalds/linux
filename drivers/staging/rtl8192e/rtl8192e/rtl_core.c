@@ -89,7 +89,7 @@ static struct pci_driver rtl8192_pci_driver = {
 
 static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
 static void _rtl92e_watchdog_wq_cb(void *data);
-static void watch_dog_timer_callback(unsigned long data);
+static void _rtl92e_watchdog_timer_cb(unsigned long data);
 static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
 static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -775,7 +775,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		rtllib_softmac_start_protocol(priv->rtllib, 0);
 	rtllib_reset_queue(priv->rtllib);
-	watch_dog_timer_callback((unsigned long) dev);
+	_rtl92e_watchdog_timer_cb((unsigned long)dev);
 
 	if (!netif_queue_stopped(dev))
 		netif_start_queue(dev);
@@ -1081,7 +1081,7 @@ static short _rtl92e_init(struct net_device *dev)
 	rtl92e_dm_init(dev);
 
 	setup_timer(&priv->watch_dog_timer,
-		    watch_dog_timer_callback,
+		    _rtl92e_watchdog_timer_cb,
 		    (unsigned long) dev);
 
 	setup_timer(&priv->gpio_polling_timer,
@@ -1545,7 +1545,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
-static void watch_dog_timer_callback(unsigned long data)
+static void _rtl92e_watchdog_timer_cb(unsigned long data)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
 
