@@ -2280,7 +2280,7 @@ static void _rtl92e_dm_fsync_timer_callback(unsigned long data)
 		 priv->bswitch_fsync);
 }
 
-static void dm_StartHWFsync(struct net_device *dev)
+static void _rtl92e_dm_start_hw_fsync(struct net_device *dev)
 {
 	u8 rf_timing = 0x77;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -2384,12 +2384,12 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 		if (priv->rtllib->bfsync_enable == 0) {
 			switch (priv->rtllib->fsync_state) {
 			case Default_Fsync:
-				dm_StartHWFsync(dev);
+				_rtl92e_dm_start_hw_fsync(dev);
 				priv->rtllib->fsync_state = HW_Fsync;
 				break;
 			case SW_Fsync:
 				_rtl92e_dm_end_sw_fsync(dev);
-				dm_StartHWFsync(dev);
+				_rtl92e_dm_start_hw_fsync(dev);
 				priv->rtllib->fsync_state = HW_Fsync;
 				break;
 			case HW_Fsync:
