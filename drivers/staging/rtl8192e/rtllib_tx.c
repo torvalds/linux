@@ -635,10 +635,10 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (skb->len > 282) {
-			if (ETH_P_IP == ether_type) {
+			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
 					((u8 *)skb->data+14);
-				if (IPPROTO_UDP == ip->protocol) {
+				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
 					udp = (struct udphdr *)((u8 *)ip +
@@ -651,7 +651,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 						ieee->LPSDelayCnt = 200;
 					}
 				}
-			} else if (ETH_P_ARP == ether_type) {
+			} else if (ether_type == ETH_P_ARP) {
 				netdev_info(ieee->dev,
 					    "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;

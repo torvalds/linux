@@ -995,8 +995,8 @@ void rtl92e_link_change(struct net_device *dev)
 	if (ieee->state == RTLLIB_LINKED) {
 		_rtl92e_net_update(dev);
 		priv->ops->update_ratr_table(dev);
-		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-		    (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
+		if ((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
+		    (ieee->pairwise_key_type == KEY_TYPE_WEP104))
 			rtl92e_enable_hw_security_config(dev);
 	} else {
 		rtl92e_writeb(dev, 0x173, 0);
@@ -1885,7 +1885,7 @@ static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
 	praddr = hdr->addr1;
 
 	bpacket_match_bssid =
-		((RTLLIB_FTYPE_CTL != type) &&
+		((type != RTLLIB_FTYPE_CTL) &&
 		 ether_addr_equal(priv->rtllib->current_network.bssid,
 				  (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
 				  (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 :

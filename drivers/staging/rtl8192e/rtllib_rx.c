@@ -1530,7 +1530,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	int ret = 0;
 
-	if ((NULL == ieee) || (NULL == skb) || (NULL == rx_stats)) {
+	if (!ieee || !skb || !rx_stats) {
 		pr_info("%s: Input parameters NULL!\n", __func__);
 		goto rx_dropped;
 	}
@@ -2554,7 +2554,7 @@ static inline int is_beacon(u16 fc)
 
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}
@@ -2567,7 +2567,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 
 int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
-	if (MAX_CHANNEL_NUMBER < channel) {
+	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
 		return 0;
 	}

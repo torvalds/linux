@@ -938,7 +938,7 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 			idx--;
 		group = ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY;
 
-		if ((!group) || (IW_MODE_ADHOC == ieee->iw_mode) ||
+		if ((!group) || (ieee->iw_mode == IW_MODE_ADHOC) ||
 		    (alg ==  KEY_TYPE_WEP40)) {
 			if ((ext->key_len == 13) && (alg == KEY_TYPE_WEP40))
 				alg = KEY_TYPE_WEP104;
@@ -1073,7 +1073,7 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 	bPromiscuousOn = info_buf[1];
 	bFilterSourceStationFrame = info_buf[2];
 
-	if (OID_RT_INTEL_PROMISCUOUS_MODE == oid) {
+	if (oid == OID_RT_INTEL_PROMISCUOUS_MODE) {
 		ieee->IntelPromiscuousModeInfo.bPromiscuousOn =
 					(bPromiscuousOn) ? (true) : (false);
 		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
