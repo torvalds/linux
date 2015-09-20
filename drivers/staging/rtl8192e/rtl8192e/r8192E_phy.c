@@ -46,9 +46,8 @@ static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 
 /*************************Define local function prototype**********************/
 
-static u32 phy_FwRFSerialRead(struct net_device *dev,
-			      enum rf90_radio_path eRFPath,
-			      u32 Offset);
+static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
+				  enum rf90_radio_path eRFPath, u32 Offset);
 static void phy_FwRFSerialWrite(struct net_device *dev,
 				enum rf90_radio_path eRFPath,
 				u32 Offset, u32 Data);
@@ -228,8 +227,8 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	RT_TRACE(COMP_PHY, "FW RF CTRL is not ready now\n");
 	if (priv->Rf_Mode == RF_OP_By_FW) {
 		if (BitMask != bMask12Bits) {
-			Original_Value = phy_FwRFSerialRead(dev, eRFPath,
-							    RegAddr);
+			Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath,
+								RegAddr);
 			BitShift =  rtl8192_CalculateBitShift(BitMask);
 			New_Value = (((Original_Value) & (~BitMask)) |
 				    (Data << BitShift));
@@ -266,7 +265,7 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 		return	0;
 	down(&priv->rf_sem);
 	if (priv->Rf_Mode == RF_OP_By_FW) {
-		Original_Value = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
+		Original_Value = _rtl92e_phy_rf_fw_read(dev, eRFPath, RegAddr);
 		udelay(200);
 	} else {
 		Original_Value = rtl8192_phy_RFSerialRead(dev, eRFPath,
@@ -278,8 +277,8 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 	return Readback_Value;
 }
 
-static u32 phy_FwRFSerialRead(struct net_device *dev,
-			      enum rf90_radio_path eRFPath, u32 Offset)
+static u32 _rtl92e_phy_rf_fw_read(struct net_device *dev,
+				  enum rf90_radio_path eRFPath, u32 Offset)
 {
 	u32		Data = 0;
 	u8		time = 0;
