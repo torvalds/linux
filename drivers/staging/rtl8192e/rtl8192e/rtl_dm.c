@@ -1053,7 +1053,8 @@ static void dm_check_txpower_tracking(struct net_device *dev)
 		dm_CheckTXPowerTracking_ThermalMeter(dev);
 }
 
-static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
+static void _rtl92e_dm_cck_tx_power_adjust_tssi(struct net_device *dev,
+						bool bInCH14)
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1148,7 +1149,7 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
-		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
+		_rtl92e_dm_cck_tx_power_adjust_tssi(dev, binch14);
 	else
 		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);
 }
