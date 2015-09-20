@@ -90,7 +90,7 @@ static struct pci_driver rtl8192_pci_driver = {
 static short _rtl92e_is_tx_queue_empty(struct net_device *dev);
 static void _rtl92e_watchdog_wq_cb(void *data);
 static void _rtl92e_watchdog_timer_cb(unsigned long data);
-static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
+static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				   int rate);
 static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb);
@@ -855,7 +855,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->softmac_hard_start_xmit	= rtl8192_hard_start_xmit;
 	priv->rtllib->set_chan			= _rtl92e_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
-	priv->rtllib->softmac_data_hard_start_xmit = rtl8192_hard_data_xmit;
+	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= rtl8192_check_nic_enough_desc;
 	priv->rtllib->handle_assoc_response	= _rtl92e_handle_assoc_response;
 	priv->rtllib->handle_beacon		= _rtl92e_handle_beacon;
@@ -1622,8 +1622,8 @@ static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
 	ring->desc = NULL;
 }
 
-static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
-			    int rate)
+static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
+				   int rate)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	int ret;
