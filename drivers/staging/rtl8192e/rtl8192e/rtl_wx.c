@@ -318,7 +318,7 @@ struct  iw_range_with_scan_capa {
 	__u8	    scan_capa;
 };
 
-static int rtl8192_wx_get_range(struct net_device *dev,
+static int _rtl92e_wx_get_range(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
@@ -1125,7 +1125,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWMODE)] = _rtl92e_wx_get_mode,
 	[IW_IOCTL(SIOCSIWSENS)] = _rtl92e_wx_set_sens,
 	[IW_IOCTL(SIOCGIWSENS)] = _rtl92e_wx_get_sens,
-	[IW_IOCTL(SIOCGIWRANGE)] = rtl8192_wx_get_range,
+	[IW_IOCTL(SIOCGIWRANGE)] = _rtl92e_wx_get_range,
 	[IW_IOCTL(SIOCSIWAP)] = _rtl92e_wx_set_wap,
 	[IW_IOCTL(SIOCGIWAP)] = _rtl92e_wx_get_wap,
 	[IW_IOCTL(SIOCSIWSCAN)] = _rtl92e_wx_set_scan,
