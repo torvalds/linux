@@ -25,7 +25,7 @@
 #include "rtl_pci.h"
 #include "rtl_core.h"
 
-static void rtl8192_parse_pci_configuration(struct pci_dev *pdev,
+static void _rtl92e_parse_pci_configuration(struct pci_dev *pdev,
 					    struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -92,7 +92,7 @@ bool rtl92e_check_adapter(struct pci_dev *pdev, struct net_device *dev)
 		return false;
 	}
 
-	rtl8192_parse_pci_configuration(pdev, dev);
+	_rtl92e_parse_pci_configuration(pdev, dev);
 
 	return true;
 }
