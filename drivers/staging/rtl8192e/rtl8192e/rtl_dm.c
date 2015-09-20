@@ -194,7 +194,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev);
 static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev);
 
 
-static	void dm_check_rx_path_selection(struct net_device *dev);
+static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
 static	void dm_init_rxpath_selection(struct net_device *dev);
 static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 
@@ -270,7 +270,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	dm_ctrl_initgain_byrssi(dev);
 	_rtl92e_dm_bandwidth_autoswitch(dev);
 
-	dm_check_rx_path_selection(dev);
+	_rtl92e_dm_check_rx_path_selection(dev);
 	_rtl92e_dm_check_fsync(dev);
 
 	dm_send_rssi_tofw(dev);
@@ -2143,7 +2143,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 	}
 }
 
-static	void	dm_check_rx_path_selection(struct net_device *dev)
+static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
