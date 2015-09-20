@@ -2800,7 +2800,7 @@ static int __init rtl8192_pci_module_init(void)
 	return 0;
 }
 
-static void __exit rtl8192_pci_module_exit(void)
+static void __exit _rtl92e_pci_module_exit(void)
 {
 	pci_unregister_driver(&rtl8192_pci_driver);
 
@@ -2823,7 +2823,7 @@ void rtl92e_check_rfctrl_gpio_timer(unsigned long data)
 	------------------- module init / exit stubs ----------------
 ****************************************************************************/
 module_init(rtl8192_pci_module_init);
-module_exit(rtl8192_pci_module_exit);
+module_exit(_rtl92e_pci_module_exit);
 
 MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
