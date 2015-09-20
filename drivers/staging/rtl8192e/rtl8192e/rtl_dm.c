@@ -169,7 +169,7 @@ struct drx_path_sel DM_RxPathSelTable;
 static	void	dm_check_rate_adaptive(struct net_device *dev);
 
 static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
-static	void	dm_bandwidth_autoswitch(struct net_device *dev);
+static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
 
 static	void	dm_check_txpower_tracking(struct net_device *dev);
@@ -274,7 +274,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	dm_check_txpower_tracking(dev);
 
 	dm_ctrl_initgain_byrssi(dev);
-	dm_bandwidth_autoswitch(dev);
+	_rtl92e_dm_bandwidth_autoswitch(dev);
 
 	dm_check_rx_path_selection(dev);
 	dm_check_fsync(dev);
@@ -475,7 +475,7 @@ static void dm_init_bandwidth_autoswitch(struct net_device *dev)
 	priv->rtllib->bandwidth_auto_switch.bautoswitch_enable = false;
 }
 
-static void dm_bandwidth_autoswitch(struct net_device *dev)
+static void _rtl92e_dm_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
