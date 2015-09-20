@@ -821,8 +821,8 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 	return true;
 }
 
-static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
-				       u8 *stage, u8 *step, u32 *delay)
+static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
+					  u8 *stage, u8 *step, u32 *delay)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -979,8 +979,9 @@ static void _rtl92e_phy_switch_channel(struct net_device *dev, u8 channel)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 delay = 0;
 
-	while (!rtl8192_phy_SwChnlStepByStep(dev, channel, &priv->SwChnlStage,
-	      &priv->SwChnlStep, &delay)) {
+	while (!_rtl92e_phy_switch_channel_step(dev, channel,
+						&priv->SwChnlStage,
+						&priv->SwChnlStep, &delay)) {
 		if (delay > 0)
 			msleep(delay);
 		if (!priv->up)
