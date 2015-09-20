@@ -1091,8 +1091,8 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 	}
 }
 
-static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,
-					     bool bInCH14)
+static void _rtl92e_dm_cck_tx_power_adjust_thermal_meter(struct net_device *dev,
+							 bool bInCH14)
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1150,7 +1150,7 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
-		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
+		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);
 }
 
 static void dm_txpower_reset_recovery(struct net_device *dev)
