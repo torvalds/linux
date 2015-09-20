@@ -204,7 +204,7 @@ static void dm_deInit_fsync(struct net_device *dev);
 
 static	void dm_check_txrateandretrycount(struct net_device *dev);
 static  void _rtl92e_dm_check_ac_dc_power(struct net_device *dev);
-static void dm_check_fsync(struct net_device *dev);
+static void _rtl92e_dm_check_fsync(struct net_device *dev);
 static void dm_CheckRfCtrlGPIO(void *data);
 static void dm_fsync_timer_callback(unsigned long data);
 
@@ -271,7 +271,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_bandwidth_autoswitch(dev);
 
 	dm_check_rx_path_selection(dev);
-	dm_check_fsync(dev);
+	_rtl92e_dm_check_fsync(dev);
 
 	dm_send_rssi_tofw(dev);
 	dm_ctstoself(dev);
@@ -2361,7 +2361,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 
 }
 
-static void dm_check_fsync(struct net_device *dev)
+static void _rtl92e_dm_check_fsync(struct net_device *dev)
 {
 #define	RegC38_Default			0
 #define	RegC38_NonFsync_Other_AP	1
