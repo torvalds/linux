@@ -282,7 +282,7 @@ static short rtl8192_check_nic_enough_desc(struct net_device *dev, int prio)
 	return 0;
 }
 
-static void rtl8192_tx_timeout(struct net_device *dev)
+static void _rtl92e_tx_timeout(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2554,7 +2554,7 @@ done:
 static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_open = _rtl92e_open,
 	.ndo_stop = _rtl92e_close,
-	.ndo_tx_timeout = rtl8192_tx_timeout,
+	.ndo_tx_timeout = _rtl92e_tx_timeout,
 	.ndo_do_ioctl = _rtl92e_ioctl,
 	.ndo_set_rx_mode = r8192_set_multicast,
 	.ndo_set_mac_address = r8192_set_mac_adr,
