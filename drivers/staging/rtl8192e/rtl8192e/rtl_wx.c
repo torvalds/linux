@@ -870,9 +870,9 @@ static int _rtl92e_wx_get_sens(struct net_device *dev,
 }
 
 
-static int r8192_wx_set_sens(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_set_sens(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1124,7 +1124,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWFREQ)] = _rtl92e_wx_get_freq,
 	[IW_IOCTL(SIOCSIWMODE)] = _rtl92e_wx_set_mode,
 	[IW_IOCTL(SIOCGIWMODE)] = _rtl92e_wx_get_mode,
-	[IW_IOCTL(SIOCSIWSENS)] = r8192_wx_set_sens,
+	[IW_IOCTL(SIOCSIWSENS)] = _rtl92e_wx_set_sens,
 	[IW_IOCTL(SIOCGIWSENS)] = _rtl92e_wx_get_sens,
 	[IW_IOCTL(SIOCGIWRANGE)] = rtl8192_wx_get_range,
 	[IW_IOCTL(SIOCSIWAP)] = r8192_wx_set_wap,
