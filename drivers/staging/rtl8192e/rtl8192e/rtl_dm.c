@@ -196,7 +196,7 @@ static void _rtl92e_dm_check_pbc_gpio(struct net_device *dev);
 
 static void _rtl92e_dm_check_rx_path_selection(struct net_device *dev);
 static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev);
-static	void dm_rxpath_sel_byrssi(struct net_device *dev);
+static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev);
 
 
 static void _rtl92e_dm_init_fsync(struct net_device *dev);
@@ -1912,7 +1912,7 @@ void rtl92e_dm_rf_pathcheck_wq(void *data)
 	if (!DM_RxPathSelTable.Enable)
 		return;
 
-	dm_rxpath_sel_byrssi(dev);
+	_rtl92e_dm_rx_path_sel_byrssi(dev);
 }
 
 static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
@@ -1938,7 +1938,7 @@ static void _rtl92e_dm_init_rx_path_selection(struct net_device *dev)
 #define PWDB_IN_RANGE	((cur_cck_pwdb < tmp_cck_max_pwdb) &&	\
 			(cur_cck_pwdb > tmp_cck_sec_pwdb))
 
-static void dm_rxpath_sel_byrssi(struct net_device *dev)
+static void _rtl92e_dm_rx_path_sel_byrssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i, max_rssi_index = 0, min_rssi_index = 0;
