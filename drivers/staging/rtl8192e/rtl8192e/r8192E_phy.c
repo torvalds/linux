@@ -795,11 +795,11 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	}
 }
 
-static u8 rtl8192_phy_SetSwChnlCmdArray(struct net_device *dev,
-					struct sw_chnl_cmd *CmdTable,
-					u32 CmdTableIdx, u32 CmdTableSz,
-					enum sw_chnl_cmd_id CmdID,
-					u32 Para1, u32 Para2, u32 msDelay)
+static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
+					    struct sw_chnl_cmd *CmdTable,
+					    u32 CmdTableIdx, u32 CmdTableSz,
+					    enum sw_chnl_cmd_id CmdID,
+					    u32 Para1, u32 Para2, u32 msDelay)
 {
 	struct sw_chnl_cmd *pCmd;
 
@@ -842,19 +842,22 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 
 	{
 		PreCommonCmdCnt = 0;
-		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PreCommonCmd,
-					PreCommonCmdCnt++,
-					MAX_PRECMD_CNT, CmdID_SetTxPowerLevel,
-					0, 0, 0);
-		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PreCommonCmd,
-					PreCommonCmdCnt++,
-					MAX_PRECMD_CNT, CmdID_End, 0, 0, 0);
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev, ieee->PreCommonCmd,
+						  PreCommonCmdCnt++,
+						  MAX_PRECMD_CNT,
+						  CmdID_SetTxPowerLevel,
+						  0, 0, 0);
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev, ieee->PreCommonCmd,
+						  PreCommonCmdCnt++,
+						  MAX_PRECMD_CNT, CmdID_End,
+						  0, 0, 0);
 
 		PostCommonCmdCnt = 0;
 
-		rtl8192_phy_SetSwChnlCmdArray(dev, ieee->PostCommonCmd,
-					PostCommonCmdCnt++,
-					MAX_POSTCMD_CNT, CmdID_End, 0, 0, 0);
+		_rtl92e_phy_set_sw_chnl_cmd_array(dev, ieee->PostCommonCmd,
+						  PostCommonCmdCnt++,
+						  MAX_POSTCMD_CNT, CmdID_End,
+						  0, 0, 0);
 
 		RfDependCmdCnt = 0;
 		switch (priv->rf_chip) {
@@ -865,13 +868,19 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					   channel);
 				return false;
 			}
-			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
-				RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_RF_WriteReg, rZebra1_Channel,
-				RF_CHANNEL_TABLE_ZEBRA[channel], 10);
-			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
-				RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_End, 0, 0, 0);
+			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+							  ieee->RfDependCmd,
+							  RfDependCmdCnt++,
+							  MAX_RFDEPENDCMD_CNT,
+							  CmdID_RF_WriteReg,
+							  rZebra1_Channel,
+							  RF_CHANNEL_TABLE_ZEBRA[channel],
+							  10);
+			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+							  ieee->RfDependCmd,
+							  RfDependCmdCnt++,
+							  MAX_RFDEPENDCMD_CNT,
+							  CmdID_End, 0, 0, 0);
 			break;
 
 		case RF_8256:
@@ -881,15 +890,18 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 					   channel);
 				return false;
 			}
-			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
-				 RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
-				CmdID_RF_WriteReg, rZebra1_Channel, channel,
-				 10);
-			rtl8192_phy_SetSwChnlCmdArray(dev, ieee->RfDependCmd,
-
-						      RfDependCmdCnt++,
-						      MAX_RFDEPENDCMD_CNT,
-			CmdID_End, 0, 0, 0);
+			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+							  ieee->RfDependCmd,
+							  RfDependCmdCnt++,
+							  MAX_RFDEPENDCMD_CNT,
+							  CmdID_RF_WriteReg,
+							  rZebra1_Channel,
+							  channel, 10);
+			_rtl92e_phy_set_sw_chnl_cmd_array(dev,
+							  ieee->RfDependCmd,
+							  RfDependCmdCnt++,
+							  MAX_RFDEPENDCMD_CNT,
+							  CmdID_End, 0, 0, 0);
 			break;
 
 		case RF_8258:
