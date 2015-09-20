@@ -183,7 +183,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev);
 static void _rtl92e_dm_initial_gain(struct net_device *dev);
-static	void dm_pd_th(struct net_device *dev);
+static void _rtl92e_dm_pd_th(struct net_device *dev);
 static void _rtl92e_dm_cs_ratio(struct net_device *dev);
 
 static	void _rtl92e_dm_init_cts_to_self(struct net_device *dev);
@@ -1379,7 +1379,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 
 	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
 	_rtl92e_dm_initial_gain(dev);
-	dm_pd_th(dev);
+	_rtl92e_dm_pd_th(dev);
 	_rtl92e_dm_cs_ratio(dev);
 	if (dm_digtable.dig_algorithm_switch)
 		dm_digtable.dig_algorithm_switch = 0;
@@ -1573,7 +1573,7 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 	}
 }
 
-static void dm_pd_th(struct net_device *dev)
+static void _rtl92e_dm_pd_th(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 initialized, force_write;
