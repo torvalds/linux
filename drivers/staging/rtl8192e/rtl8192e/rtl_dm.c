@@ -166,7 +166,7 @@ struct drx_path_sel DM_RxPathSelTable;
 
 
 /*---------------------Define local function prototype-----------------------*/
-static	void	dm_check_rate_adaptive(struct net_device *dev);
+static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev);
 
 static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
 static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
@@ -263,7 +263,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	dm_check_txrateandretrycount(dev);
 	_rtl92e_dm_check_edca_turbo(dev);
 
-	dm_check_rate_adaptive(dev);
+	_rtl92e_dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);
 	dm_check_txpower_tracking(dev);
 
@@ -342,7 +342,7 @@ void rtl92e_init_adaptive_rate(struct net_device *dev)
 }
 
 
-static void dm_check_rate_adaptive(struct net_device *dev)
+static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
@@ -354,7 +354,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 
 	if (!priv->up) {
 		RT_TRACE(COMP_RATE,
-			 "<---- dm_check_rate_adaptive(): driver is going to unload\n");
+			 "<---- _rtl92e_dm_check_rate_adaptive(): driver is going to unload\n");
 		return;
 	}
 
