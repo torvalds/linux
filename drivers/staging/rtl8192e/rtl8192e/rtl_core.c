@@ -888,7 +888,7 @@ static void rtl8192_init_priv_handler(struct net_device *dev)
 	priv->rtllib->ScanOperationBackupHandler = rtl92e_scan_op_backup;
 }
 
-static void rtl8192_init_priv_constant(struct net_device *dev)
+static void _rtl92e_init_priv_constant(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -1070,7 +1070,7 @@ static short _rtl92e_init(struct net_device *dev)
 	memset(&(priv->stats), 0, sizeof(struct rt_stats));
 
 	rtl8192_init_priv_handler(dev);
-	rtl8192_init_priv_constant(dev);
+	_rtl92e_init_priv_constant(dev);
 	rtl8192_init_priv_variable(dev);
 	rtl8192_init_priv_lock(priv);
 	rtl8192_init_priv_task(dev);
