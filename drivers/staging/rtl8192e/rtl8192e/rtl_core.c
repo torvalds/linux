@@ -898,7 +898,7 @@ static void _rtl92e_init_priv_constant(struct net_device *dev)
 }
 
 
-static void rtl8192_init_priv_variable(struct net_device *dev)
+static void _rtl92e_init_priv_variable(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 i;
@@ -1071,7 +1071,7 @@ static short _rtl92e_init(struct net_device *dev)
 
 	_rtl92e_init_priv_handler(dev);
 	_rtl92e_init_priv_constant(dev);
-	rtl8192_init_priv_variable(dev);
+	_rtl92e_init_priv_variable(dev);
 	_rtl92e_init_priv_lock(priv);
 	_rtl92e_init_priv_task(dev);
 	priv->ops->get_eeprom_size(dev);
