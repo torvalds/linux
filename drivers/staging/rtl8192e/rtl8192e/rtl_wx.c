@@ -31,9 +31,9 @@ static u32 rtl8192_rates[] = {
 #define ENETDOWN 1
 #endif
 
-static int r8192_wx_get_freq(struct net_device *dev,
-			     struct iw_request_info *a,
-			     union iwreq_data *wrqu, char *b)
+static int _rtl92e_wx_get_freq(struct net_device *dev,
+			       struct iw_request_info *a,
+			       union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1118,7 +1118,7 @@ static int r8192_wx_get_PromiscuousMode(struct net_device *dev,
 static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWNAME)] = r8192_wx_get_name,
 	[IW_IOCTL(SIOCSIWFREQ)] = r8192_wx_set_freq,
-	[IW_IOCTL(SIOCGIWFREQ)] = r8192_wx_get_freq,
+	[IW_IOCTL(SIOCGIWFREQ)] = _rtl92e_wx_get_freq,
 	[IW_IOCTL(SIOCSIWMODE)] = r8192_wx_set_mode,
 	[IW_IOCTL(SIOCGIWMODE)] = r8192_wx_get_mode,
 	[IW_IOCTL(SIOCSIWSENS)] = r8192_wx_set_sens,
