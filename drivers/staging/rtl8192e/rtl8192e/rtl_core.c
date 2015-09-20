@@ -1812,7 +1812,7 @@ static short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
+static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_desc *entry = NULL;
@@ -1894,7 +1894,7 @@ static short _rtl92e_pci_initdescring(struct net_device *dev)
 	int i;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	ret = rtl8192_alloc_rx_desc_ring(dev);
+	ret = _rtl92e_alloc_rx_ring(dev);
 	if (ret)
 		return ret;
 
