@@ -322,7 +322,7 @@ static void _rtl92e_set_chan(struct net_device *dev, short ch)
 		priv->rf_set_chan(dev, priv->chan);
 }
 
-static void rtl8192_update_cap(struct net_device *dev, u16 cap)
+static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_network *net = &priv->rtllib->current_network;
@@ -392,7 +392,7 @@ static void _rtl92e_update_beacon(void *data)
 	ieee->pHTInfo->bCurrentRT2RTLongSlotTime =
 		 net->bssht.bdRT2RTLongSlotTime;
 	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.RT2RT_HT_Mode;
-	rtl8192_update_cap(dev, net->capability);
+	_rtl92e_update_cap(dev, net->capability);
 }
 
 static void _rtl92e_qos_activate(void *data)
