@@ -395,7 +395,7 @@ static void _rtl92e_phy_config_bb(struct net_device *dev, u8 ConfigType)
 	}
 }
 
-static void rtl8192_InitBBRFRegDef(struct net_device *dev)
+static void _rtl92e_init_bb_rf_reg_def(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -597,7 +597,7 @@ static bool _rtl92e_bb_config_para_file(struct net_device *dev)
 }
 bool rtl92e_config_bb(struct net_device *dev)
 {
-	rtl8192_InitBBRFRegDef(dev);
+	_rtl92e_init_bb_rf_reg_def(dev);
 	return _rtl92e_bb_config_para_file(dev);
 }
 
