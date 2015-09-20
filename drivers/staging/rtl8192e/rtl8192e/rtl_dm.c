@@ -178,7 +178,7 @@ static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
 static void _rtl92e_dm_bb_initialgain_backup(struct net_device *dev);
 
 static void _rtl92e_dm_dig_init(struct net_device *dev);
-static	void dm_ctrl_initgain_byrssi(struct net_device *dev);
+static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev);
@@ -266,7 +266,7 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 	_rtl92e_dm_dynamic_tx_power(dev);
 	_rtl92e_dm_check_tx_power_tracking(dev);
 
-	dm_ctrl_initgain_byrssi(dev);
+	_rtl92e_dm_ctrl_initgain_byrssi(dev);
 	_rtl92e_dm_bandwidth_autoswitch(dev);
 
 	_rtl92e_dm_check_rx_path_selection(dev);
@@ -1324,7 +1324,7 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN;
 }
 
-static void dm_ctrl_initgain_byrssi(struct net_device *dev)
+static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
 
 	if (dm_digtable.dig_enable_flag == false)
