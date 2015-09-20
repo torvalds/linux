@@ -1131,8 +1131,8 @@ static u8 _rtl92e_rate_mgn_to_hw(u8 rate)
 	return ret;
 }
 
-static u8 rtl8192_MapHwQueueToFirmwareQueue(struct net_device *dev, u8 QueueID,
-					    u8 priority)
+static u8 _rtl92e_hw_queue_to_fw_queue(struct net_device *dev, u8 QueueID,
+				       u8 priority)
 {
 	u8 QueueSelect = 0x0;
 
@@ -1278,9 +1278,9 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	pdesc->PktId = 0x0;
 
-	pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(dev,
-						cb_desc->queue_index,
-						cb_desc->priority);
+	pdesc->QueueSelect = _rtl92e_hw_queue_to_fw_queue(dev,
+							  cb_desc->queue_index,
+							  cb_desc->priority);
 	pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
 
 	pdesc->DISFB = cb_desc->bTxDisableRateFallBack;
