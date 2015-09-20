@@ -32,8 +32,8 @@ void rtl92e_init_fw_param(struct net_device *dev)
 					     MAX_TRANSMIT_BUFFER_SIZE);
 }
 
-static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
-			     u32 buffer_len)
+static bool _rtl92e_fw_download_code(struct net_device *dev,
+				     u8 *code_virtual_address, u32 buffer_len)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16		    frag_threshold;
@@ -299,7 +299,8 @@ bool rtl92e_init_fw(struct net_device *dev)
 		mapped_file = pfirmware->firmware_buf[i];
 		file_length = pfirmware->firmware_buf_size[i];
 
-		rt_status = fw_download_code(dev, mapped_file, file_length);
+		rt_status = _rtl92e_fw_download_code(dev, mapped_file,
+						     file_length);
 		if (!rt_status)
 			goto download_firmware_fail;
 
