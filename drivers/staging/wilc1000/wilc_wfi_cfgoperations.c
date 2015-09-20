@@ -3713,5 +3713,4 @@ void wilc_free_wiphy(struct net_device *net)
 	PRINT_D(INIT_DBG, "Freeing wiphy\n");
 	wiphy_free(net->ieee80211_ptr->wiphy);
 	kfree(net->ieee80211_ptr);
-
 }
