@@ -1675,7 +1675,6 @@ static int wilc_wlan_stop(void)
 		}
 
 	} while (timeout);
-#if 1
 	reg = ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 8) | (1 << 9) | (1 << 26) | (1 << 29) | (1 << 30) | (1 << 31)); /**/
 	/**/
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);                                 /**/
@@ -1683,7 +1682,6 @@ static int wilc_wlan_stop(void)
 	/**/
 	ret = p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);                                 /**/
 /******************************************************************************/
-#endif
 
 	release_bus(RELEASE_ALLOW_SLEEP);
 

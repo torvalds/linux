@@ -534,13 +534,11 @@ static int wilc_wlan_cfg_indicate_rx(u8 *frame, int size, wilc_cfg_rsp_t *rsp)
 		GnrlAsyncInfoReceived(frame - 4, size + 4);
 		break;
 
-#if 1
 	case 'N':
 		NetworkInfoReceived(frame - 4, size + 4);
 		rsp->type = 0;
 		break;
 
-#endif
 	case 'S':
 		PRINT_INFO(RX_DBG, "Scan Notification Received\n");
 		host_int_ScanCompleteReceived(frame - 4, size + 4);

@@ -2948,7 +2948,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		PRINT_D(HOSTAPD_DBG, "Downloading P2P_CONCURRENCY_FIRMWARE\n");
 
 
-		#if 1
 		nic->iftype = GO_MODE;
 
 		/* ensure that the message Q is empty */
@@ -2988,7 +2987,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				g_key_gtk_params.key[1],
 				g_key_gtk_params.key[2],
 				g_key_gtk_params.cipher);
-			#if 1
 			add_key(g_linux_wlan->strInterfaceInfo[0].wilc_netdev->ieee80211_ptr->wiphy,
 				g_linux_wlan->strInterfaceInfo[0].wilc_netdev,
 				g_add_ptk_key_params.key_idx,
@@ -3002,9 +3000,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 				g_add_gtk_key_params.pairwise,
 				g_add_gtk_key_params.mac_addr,
 				(struct key_params *)(&g_key_gtk_params));
-			#endif
 		}
-		#endif
 
 		if (g_linux_wlan->wilc1000_initialized)	{
 			for (i = 0; i < num_reg_frame; i++) {
