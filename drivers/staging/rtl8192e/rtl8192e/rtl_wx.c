@@ -504,9 +504,9 @@ static int _rtl92e_wx_get_scan(struct net_device *dev,
 	return ret;
 }
 
-static int r8192_wx_set_essid(struct net_device *dev,
-			      struct iw_request_info *a,
-			      union iwreq_data *wrqu, char *b)
+static int _rtl92e_wx_set_essid(struct net_device *dev,
+				struct iw_request_info *a,
+				union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
@@ -1131,7 +1131,7 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWAP)] = _rtl92e_wx_get_wap,
 	[IW_IOCTL(SIOCSIWSCAN)] = r8192_wx_set_scan,
 	[IW_IOCTL(SIOCGIWSCAN)] = _rtl92e_wx_get_scan,
-	[IW_IOCTL(SIOCSIWESSID)] = r8192_wx_set_essid,
+	[IW_IOCTL(SIOCSIWESSID)] = _rtl92e_wx_set_essid,
 	[IW_IOCTL(SIOCGIWESSID)] = _rtl92e_wx_get_essid,
 	[IW_IOCTL(SIOCSIWNICKN)] = r8192_wx_set_nick,
 	[IW_IOCTL(SIOCGIWNICKN)] = _rtl92e_wx_get_nick,
