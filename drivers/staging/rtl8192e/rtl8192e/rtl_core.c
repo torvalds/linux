@@ -1687,7 +1687,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-static void rtl8192_tx_isr(struct net_device *dev, int prio)
+static void _rtl92e_tx_isr(struct net_device *dev, int prio)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
@@ -2464,7 +2464,7 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 	if (inta  & IMR_MGNTDOK) {
 		RT_TRACE(COMP_INTR, "Manage ok interrupt!\n");
 		priv->stats.txmanageokint++;
-		rtl8192_tx_isr(dev, MGNT_QUEUE);
+		_rtl92e_tx_isr(dev, MGNT_QUEUE);
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 		if (priv->rtllib->ack_tx_to_ieee) {
 			if (rtl8192_is_tx_queue_empty(dev)) {
@@ -2477,11 +2477,11 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_COMDOK) {
 		priv->stats.txcmdpktokint++;
-		rtl8192_tx_isr(dev, TXCMD_QUEUE);
+		_rtl92e_tx_isr(dev, TXCMD_QUEUE);
 	}
 
 	if (inta & IMR_HIGHDOK)
-		rtl8192_tx_isr(dev, HIGH_QUEUE);
+		_rtl92e_tx_isr(dev, HIGH_QUEUE);
 
 	if (inta & IMR_ROK) {
 		priv->stats.rxint++;
@@ -2515,28 +2515,28 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 		RT_TRACE(COMP_INTR, "BK Tx OK interrupt!\n");
 		priv->stats.txbkokint++;
 		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
-		rtl8192_tx_isr(dev, BK_QUEUE);
+		_rtl92e_tx_isr(dev, BK_QUEUE);
 	}
 
 	if (inta & IMR_BEDOK) {
 		RT_TRACE(COMP_INTR, "BE TX OK interrupt!\n");
 		priv->stats.txbeokint++;
 		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
-		rtl8192_tx_isr(dev, BE_QUEUE);
+		_rtl92e_tx_isr(dev, BE_QUEUE);
 	}
 
 	if (inta & IMR_VIDOK) {
 		RT_TRACE(COMP_INTR, "VI TX OK interrupt!\n");
 		priv->stats.txviokint++;
 		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
-		rtl8192_tx_isr(dev, VI_QUEUE);
+		_rtl92e_tx_isr(dev, VI_QUEUE);
 	}
 
 	if (inta & IMR_VODOK) {
 		priv->stats.txvookint++;
 		RT_TRACE(COMP_INTR, "Vo TX OK interrupt!\n");
 		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
-		rtl8192_tx_isr(dev, VO_QUEUE);
+		_rtl92e_tx_isr(dev, VO_QUEUE);
 	}
 
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
