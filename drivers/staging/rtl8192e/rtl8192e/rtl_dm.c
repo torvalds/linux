@@ -632,7 +632,7 @@ static void dm_tx_update_tssi_strong_signal(struct net_device *dev, u8 RF_Type)
 	}
 }
 
-static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
+static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	bHighpowerstate, viviflag = false;
@@ -947,7 +947,7 @@ void rtl92e_dm_txpower_tracking_wq(void *data)
 	struct net_device *dev = priv->rtllib->dev;
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
-		dm_TXPowerTrackingCallback_TSSI(dev);
+		_rtl92e_dm_tx_power_tracking_callback_tssi(dev);
 	else
 		_rtl92e_dm_tx_power_tracking_cb_thermal(dev);
 }
