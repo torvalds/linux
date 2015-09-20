@@ -1223,10 +1223,6 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 
 }
 
-static void _rtl92e_silent_reset_mesh(struct net_device *dev, u8 IsPortal)
-{
-}
-
 static void _rtl92e_if_silent_reset(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1234,9 +1230,6 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 	int reset_status = 0;
 	struct rtllib_device *ieee = priv->rtllib;
 	unsigned long flag;
-
-	u8 IsPortal = 0;
-
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 
@@ -1347,8 +1340,6 @@ RESET_START:
 			rtllib_start_send_beacons(ieee);
 
 			netif_carrier_on(ieee->dev);
-		} else if (ieee->iw_mode == IW_MODE_MESH) {
-			_rtl92e_silent_reset_mesh(dev, IsPortal);
 		}
 
 		rtl92e_cam_restore(dev);
