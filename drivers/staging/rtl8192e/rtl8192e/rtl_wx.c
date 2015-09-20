@@ -1058,9 +1058,9 @@ static int _rtl92e_wx_get_gen_ie(struct net_device *dev,
 
 #define OID_RT_INTEL_PROMISCUOUS_MODE	0xFF0101F6
 
-static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
-		struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra)
+static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
+				       struct iw_request_info *info,
+				       union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -1218,7 +1218,7 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-	(iw_handler)r8192_wx_set_PromiscuousMode,
+	(iw_handler)_rtl92e_wx_set_promisc_mode,
 	(iw_handler)_rtl92e_wx_get_promisc_mode,
 };
 
