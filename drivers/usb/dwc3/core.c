@@ -871,6 +871,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	hird_threshold = 12;
 
 	dwc->maximum_speed = usb_get_maximum_speed(dev);
+	dwc->dr_mode = usb_get_dr_mode(dev);
 
 	if (node) {
 		dwc->has_lpm_erratum = of_property_read_bool(node,
@@ -886,7 +887,6 @@ static int dwc3_probe(struct platform_device *pdev)
 
 		dwc->needs_fifo_resize = of_property_read_bool(node,
 				"tx-fifo-resize");
-		dwc->dr_mode = of_usb_get_dr_mode(node);
 
 		dwc->disable_scramble_quirk = of_property_read_bool(node,
 				"snps,disable_scramble_quirk");

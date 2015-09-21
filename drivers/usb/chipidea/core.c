@@ -611,7 +611,7 @@ static int ci_get_platdata(struct device *dev,
 		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
 
 	if (!platdata->dr_mode)
-		platdata->dr_mode = of_usb_get_dr_mode(dev->of_node);
+		platdata->dr_mode = usb_get_dr_mode(dev);
 
 	if (platdata->dr_mode == USB_DR_MODE_UNKNOWN)
 		platdata->dr_mode = USB_DR_MODE_OTG;

@@ -617,7 +617,7 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	memset(&pdata, 0, sizeof(pdata));
-	switch (of_usb_get_dr_mode(np)) {
+	switch (usb_get_dr_mode(&pdev->dev)) {
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_HOST
 	case USB_DR_MODE_HOST:
 		pdata.mode = MUSB_PORT_MODE_HOST;

@@ -268,7 +268,7 @@ static int st_dwc3_probe(struct platform_device *pdev)
 		goto undo_softreset;
 	}
 
-	dwc3_data->dr_mode = of_usb_get_dr_mode(child_pdev->dev.of_node);
+	dwc3_data->dr_mode = usb_get_dr_mode(&child_pdev->dev);
 
 	/*
 	 * Configure the USB port as device or host according to the static

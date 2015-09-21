@@ -220,7 +220,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
+	hsotg->dr_mode = usb_get_dr_mode(&dev->dev);
 
 	/*
 	 * Attempt to find a generic PHY, then look for an old style
