@@ -487,7 +487,8 @@ struct ip_vs_protocol {
 
 	void (*exit_netns)(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd);
 
-	int (*conn_schedule)(int af, struct sk_buff *skb,
+	int (*conn_schedule)(struct netns_ipvs *ipvs,
+			     int af, struct sk_buff *skb,
 			     struct ip_vs_proto_data *pd,
 			     int *verdict, struct ip_vs_conn **cpp,
 			     struct ip_vs_iphdr *iph);

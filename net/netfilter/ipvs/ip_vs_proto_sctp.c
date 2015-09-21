@@ -9,19 +9,15 @@
 #include <net/ip_vs.h>
 
 static int
-sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
+sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
+		   struct ip_vs_proto_data *pd,
 		   int *verdict, struct ip_vs_conn **cpp,
 		   struct ip_vs_iphdr *iph)
 {
-	struct net *net;
 	struct ip_vs_service *svc;
-	struct netns_ipvs *ipvs;
 	sctp_chunkhdr_t _schunkh, *sch;
 	sctp_sctphdr_t *sh, _sctph;
 	__be16 _ports[2], *ports = NULL;
-
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 
 	if (likely(!ip_vs_iph_icmp(iph))) {
 		sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);

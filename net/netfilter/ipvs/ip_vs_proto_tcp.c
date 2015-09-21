@@ -32,18 +32,14 @@
 #include <net/ip_vs.h>
 
 static int
-tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
+tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
+		  struct ip_vs_proto_data *pd,
 		  int *verdict, struct ip_vs_conn **cpp,
 		  struct ip_vs_iphdr *iph)
 {
-	struct net *net;
 	struct ip_vs_service *svc;
 	struct tcphdr _tcph, *th;
-	struct netns_ipvs *ipvs;
 	__be16 _ports[2], *ports = NULL;
-
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 
 	/* In the event of icmp, we're only guaranteed to have the first 8
 	 * bytes of the transport header, so we only check the rest of the

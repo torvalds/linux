@@ -104,7 +104,8 @@ ah_esp_conn_out_get(struct netns_ipvs *ipvs, int af, const struct sk_buff *skb,
 
 
 static int
-ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
+ah_esp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
+		     struct ip_vs_proto_data *pd,
 		     int *verdict, struct ip_vs_conn **cpp,
 		     struct ip_vs_iphdr *iph)
 {
