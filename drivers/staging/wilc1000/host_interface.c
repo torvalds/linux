@@ -418,7 +418,7 @@ typedef struct {
 union message_body {
 	struct scan_attr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
 	struct connect_attr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
-	tstrRcvdNetworkInfo strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
+	struct rcvd_net_info strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
 	tstrRcvdGnrlAsyncInfo strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
 	tstrHostIFkeyAttr strHostIFkeyAttr;                             /*!<>*/
 	tstrHostIFCfgParamAttr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
@@ -2241,13 +2241,14 @@ static s32 Handle_ConnectTimeout(tstrWILC_WFIDrv *drvHandler)
 /**
  *  @brief Handle_RcvdNtwrkInfo
  *  @details       Handling received network information
- *  @param[in]    tstrRcvdNetworkInfo* pstrRcvdNetworkInfo
+ *  @param[in]    struct rcvd_net_info *pstrRcvdNetworkInfo
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-static s32 Handle_RcvdNtwrkInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdNetworkInfo *pstrRcvdNetworkInfo)
+static s32 Handle_RcvdNtwrkInfo(tstrWILC_WFIDrv *drvHandler,
+				struct rcvd_net_info *pstrRcvdNetworkInfo)
 {
 	u32 i;
 	bool bNewNtwrkFound;
