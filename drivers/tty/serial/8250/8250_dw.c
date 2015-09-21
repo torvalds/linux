@@ -286,7 +286,6 @@ static int dw8250_probe_of(struct uart_port *p,
 {
 	struct device_node	*np = p->dev->of_node;
 	struct uart_8250_port *up = up_to_u8250p(p);
-	u32			val;
 	bool has_ucv = true;
 	int id;
 
@@ -298,22 +297,8 @@ static int dw8250_probe_of(struct uart_port *p,
 		p->type = PORT_OCTEON;
 		data->usr_reg = 0x27;
 		has_ucv = false;
-	} else
-#endif
-	if (!of_property_read_u32(np, "reg-io-width", &val)) {
-		switch (val) {
-		case 1:
-			break;
-		case 4:
-			p->iotype = UPIO_MEM32;
-			p->serial_in = dw8250_serial_in32;
-			p->serial_out = dw8250_serial_out32;
-			break;
-		default:
-			dev_err(p->dev, "unsupported reg-io-width (%u)\n", val);
-			return -EINVAL;
-		}
 	}
+#endif
 	if (has_ucv)
 		dw8250_setup_port(up);
 
@@ -325,37 +310,10 @@ static int dw8250_probe_of(struct uart_port *p,
 		up->dma->txconf.dst_maxburst = p->fifosize / 4;
 	}
 
-	if (!of_property_read_u32(np, "reg-shift", &val))
-		p->regshift = val;
-
 	/* get index of serial line, if found in DT aliases */
 	id = of_alias_get_id(np, "serial");
 	if (id >= 0)
 		p->line = id;
-
-	if (of_property_read_bool(np, "dcd-override")) {
-		/* Always report DCD as active */
-		data->msr_mask_on |= UART_MSR_DCD;
-		data->msr_mask_off |= UART_MSR_DDCD;
-	}
-
-	if (of_property_read_bool(np, "dsr-override")) {
-		/* Always report DSR as active */
-		data->msr_mask_on |= UART_MSR_DSR;
-		data->msr_mask_off |= UART_MSR_DDSR;
-	}
-
-	if (of_property_read_bool(np, "cts-override")) {
-		/* Always report CTS as active */
-		data->msr_mask_on |= UART_MSR_CTS;
-		data->msr_mask_off |= UART_MSR_DCTS;
-	}
-
-	if (of_property_read_bool(np, "ri-override")) {
-		/* Always report Ring indicator as inactive */
-		data->msr_mask_off |= UART_MSR_RI;
-		data->msr_mask_off |= UART_MSR_TERI;
-	}
 
 	return 0;
 }
@@ -407,6 +365,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	struct uart_port *p = &uart.port;
 	struct dw8250_data *data;
 	int err;
+	u32 val;
 
 	if (!regs) {
 		dev_err(&pdev->dev, "no registers defined\n");
@@ -441,6 +400,41 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	data->usr_reg = DW_UART_USR;
 	p->private_data = data;
+
+	err = device_property_read_u32(p->dev, "reg-shift", &val);
+	if (!err)
+		p->regshift = val;
+
+	err = device_property_read_u32(p->dev, "reg-io-width", &val);
+	if (!err && val == 4) {
+		p->iotype = UPIO_MEM32;
+		p->serial_in = dw8250_serial_in32;
+		p->serial_out = dw8250_serial_out32;
+	}
+
+	if (device_property_read_bool(p->dev, "dcd-override")) {
+		/* Always report DCD as active */
+		data->msr_mask_on |= UART_MSR_DCD;
+		data->msr_mask_off |= UART_MSR_DDCD;
+	}
+
+	if (device_property_read_bool(p->dev, "dsr-override")) {
+		/* Always report DSR as active */
+		data->msr_mask_on |= UART_MSR_DSR;
+		data->msr_mask_off |= UART_MSR_DDSR;
+	}
+
+	if (device_property_read_bool(p->dev, "cts-override")) {
+		/* Always report CTS as active */
+		data->msr_mask_on |= UART_MSR_CTS;
+		data->msr_mask_off |= UART_MSR_DCTS;
+	}
+
+	if (device_property_read_bool(p->dev, "ri-override")) {
+		/* Always report Ring indicator as inactive */
+		data->msr_mask_off |= UART_MSR_RI;
+		data->msr_mask_off |= UART_MSR_TERI;
+	}
 
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(p->dev, "clock-frequency", &p->uartclk);
