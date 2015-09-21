@@ -669,13 +669,13 @@ static inline unsigned int comedi_offset_munge(struct comedi_subdevice *s,
 }
 
 /**
- * comedi_bytes_per_sample - determine subdevice sample size
- * @s:		comedi_subdevice struct
+ * comedi_bytes_per_sample() - Determine subdevice sample size
+ * @s: COMEDI subdevice.
  *
  * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
- * whether the SDF_LSAMPL subdevice flag is set or not.
+ * whether the %SDF_LSAMPL subdevice flag is set or not.
  *
- * Returns the subdevice sample size.
+ * Return: The subdevice sample size.
  */
 static inline unsigned int comedi_bytes_per_sample(struct comedi_subdevice *s)
 {
@@ -683,15 +683,15 @@ static inline unsigned int comedi_bytes_per_sample(struct comedi_subdevice *s)
 }
 
 /**
- * comedi_sample_shift - determine log2 of subdevice sample size
- * @s:		comedi_subdevice struct
+ * comedi_sample_shift() - Determine log2 of subdevice sample size
+ * @s: COMEDI subdevice.
  *
  * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
- * whether the SDF_LSAMPL subdevice flag is set or not.  The log2 of the
+ * whether the %SDF_LSAMPL subdevice flag is set or not.  The log2 of the
  * sample size will be 2 or 1 and can be used as the right operand of a
  * bit-shift operator to multiply or divide something by the sample size.
  *
- * Returns log2 of the subdevice sample size.
+ * Return: log2 of the subdevice sample size.
  */
 static inline unsigned int comedi_sample_shift(struct comedi_subdevice *s)
 {
@@ -699,11 +699,11 @@ static inline unsigned int comedi_sample_shift(struct comedi_subdevice *s)
 }
 
 /**
- * comedi_bytes_to_samples - converts a number of bytes to a number of samples
- * @s:		comedi_subdevice struct
- * @nbytes:	number of bytes
+ * comedi_bytes_to_samples() - Convert a number of bytes to a number of samples
+ * @s: COMEDI subdevice.
+ * @nbytes: Number of bytes
  *
- * Returns the number of bytes divided by the subdevice sample size.
+ * Return: The number of bytes divided by the subdevice sample size.
  */
 static inline unsigned int comedi_bytes_to_samples(struct comedi_subdevice *s,
 						   unsigned int nbytes)
@@ -712,12 +712,12 @@ static inline unsigned int comedi_bytes_to_samples(struct comedi_subdevice *s,
 }
 
 /**
- * comedi_samples_to_bytes - converts a number of samples to a number of bytes
- * @s:		comedi_subdevice struct
- * @nsamples:	number of samples
+ * comedi_samples_to_bytes() - Convert a number of samples to a number of bytes
+ * @s: COMEDI subdevice.
+ * @nsamples: Number of samples.
  *
- * Returns the number of samples multiplied by the subdevice sample size.
- * Does not check for arithmetic overflow.
+ * Return: The number of samples multiplied by the subdevice sample size.
+ * (Does not check for arithmetic overflow.)
  */
 static inline unsigned int comedi_samples_to_bytes(struct comedi_subdevice *s,
 						   unsigned int nsamples)
@@ -726,14 +726,18 @@ static inline unsigned int comedi_samples_to_bytes(struct comedi_subdevice *s,
 }
 
 /**
- * comedi_check_trigger_src() - trivially validate a comedi_cmd trigger source
- * @src: pointer to the trigger source to validate
- * @flags: bitmask of valid TRIG_* for the trigger
+ * comedi_check_trigger_src() - Trivially validate a comedi_cmd trigger source
+ * @src: Pointer to the trigger source to validate.
+ * @flags: Bitmask of valid %TRIG_* for the trigger.
  *
  * This is used in "step 1" of the do_cmdtest functions of comedi drivers
- * to vaildate the comedi_cmd triggers. The mask of the @src against the
+ * to validate the comedi_cmd triggers. The mask of the @src against the
  * @flags allows the userspace comedilib to pass all the comedi_cmd
- * triggers as TRIG_ANY and get back a bitmask of the valid trigger sources.
+ * triggers as %TRIG_ANY and get back a bitmask of the valid trigger sources.
+ *
+ * Return:
+ *	0 if trigger sources in *@src are all supported.
+ *	-EINVAL if any trigger source in *@src is unsupported.
  */
 static inline int comedi_check_trigger_src(unsigned int *src,
 					   unsigned int flags)
@@ -747,8 +751,12 @@ static inline int comedi_check_trigger_src(unsigned int *src,
 }
 
 /**
- * comedi_check_trigger_is_unique() - make sure a trigger source is unique
- * @src: the trigger source to check
+ * comedi_check_trigger_is_unique() - Make sure a trigger source is unique
+ * @src: The trigger source to check.
+ *
+ * Return:
+ *	0 if no more than one trigger source is set.
+ *	-EINVAL if more than one trigger source is set.
  */
 static inline int comedi_check_trigger_is_unique(unsigned int src)
 {
@@ -759,9 +767,15 @@ static inline int comedi_check_trigger_is_unique(unsigned int src)
 }
 
 /**
- * comedi_check_trigger_arg_is() - trivially validate a trigger argument
- * @arg: pointer to the trigger arg to validate
- * @val: the value the argument should be
+ * comedi_check_trigger_arg_is() - Trivially validate a trigger argument
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The value the argument should be.
+ *
+ * Forces *@arg to be @val.
+ *
+ * Return:
+ *	0 if *@arg was already @val.
+ *	-EINVAL if *@arg differed from @val.
  */
 static inline int comedi_check_trigger_arg_is(unsigned int *arg,
 					      unsigned int val)
@@ -774,9 +788,15 @@ static inline int comedi_check_trigger_arg_is(unsigned int *arg,
 }
 
 /**
- * comedi_check_trigger_arg_min() - trivially validate a trigger argument
- * @arg: pointer to the trigger arg to validate
- * @val: the minimum value the argument should be
+ * comedi_check_trigger_arg_min() - Trivially validate a trigger argument min
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The minimum value the argument should be.
+ *
+ * Forces *@arg to be at least @val, setting it to @val if necessary.
+ *
+ * Return:
+ *	0 if *@arg was already at least @val.
+ *	-EINVAL if *@arg was less than @val.
  */
 static inline int comedi_check_trigger_arg_min(unsigned int *arg,
 					       unsigned int val)
@@ -789,9 +809,15 @@ static inline int comedi_check_trigger_arg_min(unsigned int *arg,
 }
 
 /**
- * comedi_check_trigger_arg_max() - trivially validate a trigger argument
- * @arg: pointer to the trigger arg to validate
- * @val: the maximum value the argument should be
+ * comedi_check_trigger_arg_max() - Trivially validate a trigger argument max
+ * @arg: Pointer to the trigger arg to validate.
+ * @val: The maximum value the argument should be.
+ *
+ * Forces *@arg to be no more than @val, setting it to @val if necessary.
+ *
+ * Return:
+ *	0 if*@arg was already no more than @val.
+ *	-EINVAL if *@arg was greater than @val.
  */
 static inline int comedi_check_trigger_arg_max(unsigned int *arg,
 					       unsigned int val)
