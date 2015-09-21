@@ -72,6 +72,8 @@
 #define __NR_userfaultfd 374
 #elif defined(__powewrpc__)
 #define __NR_userfaultfd 364
+#elif defined(__s390__)
+#define __NR_userfaultfd 355
 #else
 #error "missing __NR_userfaultfd definition"
 #endif
