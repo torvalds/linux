@@ -374,7 +374,7 @@ struct power_mgmt_param {
 };
 
 /*!
- *  @struct             tstrHostIFSetIPAddr
+ *  @struct             set_ip_addr
  *  @brief		set IP Address message body
  *  @details
  *  @todo
@@ -383,11 +383,10 @@ struct power_mgmt_param {
  *  @date		30 August 2013
  *  @version		1.0 Description
  */
-
-typedef struct {
+struct set_ip_addr {
 	u8 *au8IPAddr;
 	u8 idx;
-} tstrHostIFSetIPAddr;
+};
 
 /*!
  *  @struct     sta_inactive_t
@@ -431,7 +430,7 @@ union message_body {
 	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
 	struct power_mgmt_param strPowerMgmtparam;     /*!< Power Management message body */
 	struct sta_inactive_t strHostIfStaInactiveT;
-	tstrHostIFSetIPAddr strHostIfSetIP;
+	struct set_ip_addr strHostIfSetIP;
 	tstrHostIfSetDrvHandler strHostIfSetDrvHandler;
 	tstrHostIFSetMulti strHostIfSetMulti;
 	tstrHostIfSetOperationMode strHostIfSetOperationMode;
