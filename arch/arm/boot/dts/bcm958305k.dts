@@ -42,8 +42,8 @@
 		stdout-path = &uart3;
 		bootargs = "console=ttyS0,115200";
 	};
+};
 
-	uart3: serial@18023000 {
-		status = "okay";
-	};
+&uart3 {
+	status = "okay";
 };

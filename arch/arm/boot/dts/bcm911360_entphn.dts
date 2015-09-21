@@ -44,10 +44,6 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	uart3: serial@18023000 {
-		status = "okay";
-	};
-
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -59,4 +55,8 @@
 			gpios = <&gpio_asiu 48 0>;
 		};
 	};
+};
+
+&uart3 {
+	status = "okay";
 };
