@@ -37,6 +37,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
 
+#include "bmc150-accel.h"
+
 #define BMC150_ACCEL_DRV_NAME			"bmc150_accel"
 #define BMC150_ACCEL_IRQ_NAME			"bmc150_accel_event"
 
@@ -1014,15 +1016,6 @@ static const struct iio_chan_spec bmc150_accel_channels[] =
 static const struct iio_chan_spec bma280_accel_channels[] =
 	BMC150_ACCEL_CHANNELS(14);
 
-enum {
-	bmc150,
-	bmi055,
-	bma255,
-	bma250e,
-	bma222e,
-	bma280,
-};
-
 static const struct bmc150_accel_chip_info bmc150_accel_chip_info_tbl[] = {
 	[bmc150] = {
 		.name = "BMC150A",
@@ -1553,33 +1546,23 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	return 0;
 }
 
-static int bmc150_accel_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
+			    const char *name, bool block_supported)
 {
 	struct bmc150_accel_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
-	const char *name = NULL;
-	struct device *dev;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
-	i2c_set_clientdata(client, indio_dev);
-	data->dev = &client->dev;
-	dev = &client->dev;
-	data->irq = client->irq;
+	dev_set_drvdata(dev, indio_dev);
+	data->dev = dev;
+	data->irq = irq;
 
-	data->regmap = devm_regmap_init_i2c(client, &bmc150_i2c_regmap_conf);
-	if (IS_ERR(data->regmap)) {
-		dev_err(dev, "Failed to initialize i2c regmap\n");
-		return PTR_ERR(data->regmap);
-	}
-
-	if (id)
-		name = id->name;
+	data->regmap = regmap;
 
 	ret = bmc150_accel_chip_init(data);
 	if (ret < 0)
@@ -1633,9 +1616,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 		if (ret)
 			goto err_buffer_cleanup;
 
-		if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) ||
-		    i2c_check_functionality(client->adapter,
-					    I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
+		if (block_supported) {
 			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
 			indio_dev->info = &bmc150_accel_info_fifo;
 			indio_dev->buffer->attrs = bmc150_accel_fifo_attributes;
@@ -1644,7 +1625,7 @@ static int bmc150_accel_probe(struct i2c_client *client,
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
-		dev_err(data->dev, "Unable to register iio device\n");
+		dev_err(dev, "Unable to register iio device\n");
 		goto err_trigger_unregister;
 	}
 
@@ -1667,10 +1648,11 @@ err_buffer_cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(bmc150_accel_core_probe);
 
-static int bmc150_accel_remove(struct i2c_client *client)
+int bmc150_accel_core_remove(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
 	pm_runtime_disable(data->dev);
@@ -1689,6 +1671,7 @@ static int bmc150_accel_remove(struct i2c_client *client)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(bmc150_accel_core_remove);
 
 #ifdef CONFIG_PM_SLEEP
 static int bmc150_accel_suspend(struct device *dev)
@@ -1759,47 +1742,12 @@ static int bmc150_accel_runtime_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops bmc150_accel_pm_ops = {
+const struct dev_pm_ops bmc150_accel_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(bmc150_accel_suspend, bmc150_accel_resume)
 	SET_RUNTIME_PM_OPS(bmc150_accel_runtime_suspend,
 			   bmc150_accel_runtime_resume, NULL)
 };
-
-static const struct acpi_device_id bmc150_accel_acpi_match[] = {
-	{"BSBA0150",	bmc150},
-	{"BMC150A",	bmc150},
-	{"BMI055A",	bmi055},
-	{"BMA0255",	bma255},
-	{"BMA250E",	bma250e},
-	{"BMA222E",	bma222e},
-	{"BMA0280",	bma280},
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, bmc150_accel_acpi_match);
-
-static const struct i2c_device_id bmc150_accel_id[] = {
-	{"bmc150_accel",	bmc150},
-	{"bmi055_accel",	bmi055},
-	{"bma255",		bma255},
-	{"bma250e",		bma250e},
-	{"bma222e",		bma222e},
-	{"bma280",		bma280},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, bmc150_accel_id);
-
-static struct i2c_driver bmc150_accel_driver = {
-	.driver = {
-		.name	= BMC150_ACCEL_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(bmc150_accel_acpi_match),
-		.pm	= &bmc150_accel_pm_ops,
-	},
-	.probe		= bmc150_accel_probe,
-	.remove		= bmc150_accel_remove,
-	.id_table	= bmc150_accel_id,
-};
-module_i2c_driver(bmc150_accel_driver);
+EXPORT_SYMBOL_GPL(bmc150_accel_pm_ops);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
