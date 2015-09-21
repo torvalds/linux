@@ -152,10 +152,10 @@ exit:
 /* Set Timed Power-On */
 static int opal_set_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	u64 h_m_s_ms = 0, token;
+	u64 h_m_s_ms = 0;
 	struct opal_msg msg;
 	u32 y_m_d = 0;
-	int rc;
+	int token, rc;
 
 	tm_to_opal(&alarm->time, &y_m_d, &h_m_s_ms);
 
