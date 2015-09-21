@@ -133,7 +133,7 @@ static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 {
 	struct ccw_request *req = &cdev->private->req;
 	struct ccw1 *cp = cdev->private->iccws;
-	int i = 8 - ffs(req->lpm);
+	int i = pathmask_to_pos(req->lpm);
 	struct pgid *pgid = &cdev->private->pgid[i];
 
 	pgid->inf.fc	= fn;
@@ -434,7 +434,7 @@ static void snid_build_cp(struct ccw_device *cdev)
 {
 	struct ccw_request *req = &cdev->private->req;
 	struct ccw1 *cp = cdev->private->iccws;
-	int i = 8 - ffs(req->lpm);
+	int i = pathmask_to_pos(req->lpm);
 
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_PGID;

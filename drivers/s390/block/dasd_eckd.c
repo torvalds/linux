@@ -1068,8 +1068,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 			path_data->opm |= lpm;
 			continue;	/* no error */
 		}
-		/* translate path mask to position in mask */
-		pos = 8 - ffs(lpm);
+		pos = pathmask_to_pos(lpm);
 		kfree(private->path_conf_data[pos]);
 		if ((__u8 *)private->path_conf_data[pos] ==
 		    private->conf_data) {
@@ -4671,7 +4670,7 @@ static struct dasd_conf_data *dasd_eckd_get_ref_conf(struct dasd_device *device,
 			return conf_data;
 	}
 out:
-	return private->path_conf_data[8 - ffs(lpum)];
+	return private->path_conf_data[pathmask_to_pos(lpum)];
 }
 
 /*
@@ -4716,7 +4715,7 @@ static int dasd_eckd_cuir_scope(struct dasd_device *device, __u8 lpum,
 	for (path = 0x80; path; path >>= 1) {
 		/* initialise data per path */
 		bitmask = mask;
-		pos = 8 - ffs(path);
+		pos = pathmask_to_pos(path);
 		conf_data = private->path_conf_data[pos];
 		pos = 8 - ffs(cuir->ned_map);
 		ned = (char *) &conf_data->neds[pos];
@@ -4937,9 +4936,7 @@ static void dasd_eckd_handle_cuir(struct dasd_device *device, void *messages,
 		      ((u64 *)cuir)[0], ((u64 *)cuir)[1], ((u64 *)cuir)[2],
 		      ((u32 *)cuir)[3]);
 	ccw_device_get_schid(device->cdev, &sch_id);
-	/* get position of path in mask */
-	pos = 8 - ffs(lpum);
-	/* get channel path descriptor from this position */
+	pos = pathmask_to_pos(lpum);
 	desc = ccw_device_get_chp_desc(device->cdev, pos);
 
 	if (cuir->code == CUIR_QUIESCE) {
