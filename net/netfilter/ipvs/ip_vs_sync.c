@@ -1204,10 +1204,9 @@ out:
  *      ip_vs_conn entries.
  *      Handles Version 0 & 1
  */
-static void ip_vs_process_message(struct net *net, __u8 *buffer,
+static void ip_vs_process_message(struct netns_ipvs *ipvs, __u8 *buffer,
 				  const size_t buflen)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_sync_mesg *m2 = (struct ip_vs_sync_mesg *)buffer;
 	__u8 *p, *msg_end;
 	int i, nr_conns;
@@ -1257,7 +1256,7 @@ static void ip_vs_process_message(struct net *net, __u8 *buffer,
 				return;
 			}
 			/* Process a single sync_conn */
-			retc = ip_vs_proc_sync_conn(net, p, msg_end);
+			retc = ip_vs_proc_sync_conn(ipvs->net, p, msg_end);
 			if (retc < 0) {
 				IP_VS_ERR_RL("BACKUP, Dropping buffer, Err: %d in decoding\n",
 					     retc);
@@ -1763,7 +1762,7 @@ static int sync_thread_backup(void *data)
 				break;
 			}
 
-			ip_vs_process_message(ipvs->net, tinfo->buf, len);
+			ip_vs_process_message(ipvs, tinfo->buf, len);
 		}
 	}
 
