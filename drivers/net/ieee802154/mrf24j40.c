@@ -720,6 +720,11 @@ err_ret:
 	return ret;
 }
 
+static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
+{
+	devrec->hw->phy->current_channel = 11;
+}
+
 static int mrf24j40_probe(struct spi_device *spi)
 {
 	int ret = -ENOMEM;
@@ -758,6 +763,8 @@ static int mrf24j40_probe(struct spi_device *spi)
 	ret = mrf24j40_hw_init(devrec);
 	if (ret)
 		goto err_register_device;
+
+	mrf24j40_phy_setup(devrec);
 
 	ret = devm_request_threaded_irq(&spi->dev,
 					spi->irq,
