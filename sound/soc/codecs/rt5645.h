@@ -1626,6 +1626,10 @@
 #define RT5645_OT_P_NOR				(0x0 << 10)
 #define RT5645_OT_P_INV				(0x1 << 10)
 #define RT5645_IRQ_JD_1_1_EN			(0x1 << 9)
+#define RT5645_JD_1_1_MASK			(0x1 << 7)
+#define RT5645_JD_1_1_SFT			7
+#define RT5645_JD_1_1_NOR			(0x0 << 7)
+#define RT5645_JD_1_1_INV			(0x1 << 7)
 
 /* IRQ Control 2 (0xbe) */
 #define RT5645_IRQ_MB1_OC_MASK			(0x1 << 15)
