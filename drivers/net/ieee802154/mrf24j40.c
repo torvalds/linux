@@ -753,14 +753,9 @@ static int mrf24j40_probe(struct spi_device *spi)
 	mutex_init(&devrec->buffer_mutex);
 	init_completion(&devrec->tx_complete);
 
-	dev_dbg(printdev(devrec), "registered mrf24j40\n");
-	ret = ieee802154_register_hw(devrec->hw);
-	if (ret)
-		goto err_register_device;
-
 	ret = mrf24j40_hw_init(devrec);
 	if (ret)
-		goto err_hw_init;
+		goto err_register_device;
 
 	ret = devm_request_threaded_irq(&spi->dev,
 					spi->irq,
@@ -772,14 +767,16 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	if (ret) {
 		dev_err(printdev(devrec), "Unable to get IRQ");
-		goto err_irq;
+		goto err_register_device;
 	}
+
+	dev_dbg(printdev(devrec), "registered mrf24j40\n");
+	ret = ieee802154_register_hw(devrec->hw);
+	if (ret)
+		goto err_register_device;
 
 	return 0;
 
-err_irq:
-err_hw_init:
-	ieee802154_unregister_hw(devrec->hw);
 err_register_device:
 	ieee802154_free_hw(devrec->hw);
 err_ret:
