@@ -155,7 +155,7 @@ typedef struct _tstrHostIFkeyAttr {
 
 
 /*!
- *  @struct             tstrHostIFscanAttr
+ *  @struct             scan_attr
  *  @brief		Structure to hold Host IF Scan Attributes
  *  @details
  *  @todo
@@ -164,7 +164,7 @@ typedef struct _tstrHostIFkeyAttr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFscanAttr {
+struct scan_attr {
 	u8 u8ScanSource;
 	u8 u8ScanType;
 	u8 *pu8ChnlFreqList;
@@ -174,8 +174,7 @@ typedef struct _tstrHostIFscanAttr {
 	tWILCpfScanResult pfScanResult;
 	void *pvUserArg;
 	tstrHiddenNetwork strHiddenNetwork;
-
-} tstrHostIFscanAttr;
+};
 
 /*!
  *  @struct             tstrHostIFconnectAttr
@@ -417,7 +416,7 @@ typedef struct {
  *  @version		1.0
  */
 union message_body {
-	tstrHostIFscanAttr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
+	struct scan_attr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
 	tstrHostIFconnectAttr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
 	tstrRcvdNetworkInfo strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
 	tstrRcvdGnrlAsyncInfo strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
@@ -1276,13 +1275,14 @@ static s32 Handle_wait_msg_q_empty(void)
 /**
  *  @brief Handle_Scan
  *  @details       Sending config packet to firmware to set the scan params
- *  @param[in]    tstrHostIFscanAttr* pstrHostIFscanAttr
+ *  @param[in]    struct scan_attr *pstrHostIFscanAttr
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler, tstrHostIFscanAttr *pstrHostIFscanAttr)
+static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler,
+		       struct scan_attr *pstrHostIFscanAttr)
 {
 	s32 s32Error = 0;
 	tstrWID strWIDList[5];
