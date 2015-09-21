@@ -59,6 +59,10 @@ static inline void write_lcsr(unsigned long offset, unsigned int val)
 #define NUMACHIP2_LCSR_BASE       0xf0000000UL
 #define NUMACHIP2_LCSR_SIZE       0x1000000UL
 #define NUMACHIP2_APIC_ICR        0x100000
+#define NUMACHIP2_TIMER_DEADLINE  0x200000
+#define NUMACHIP2_TIMER_INT       0x200008
+#define NUMACHIP2_TIMER_NOW       0x200018
+#define NUMACHIP2_TIMER_RESET     0x200020
 
 static inline void __iomem *numachip2_lcsr_address(unsigned long offset)
 {
@@ -84,6 +88,11 @@ static inline void numachip2_write32_lcsr(unsigned long offset, u32 val)
 static inline void numachip2_write64_lcsr(unsigned long offset, u64 val)
 {
 	writeq(val, numachip2_lcsr_address(offset));
+}
+
+static inline unsigned int numachip2_timer(void)
+{
+	return (smp_processor_id() % 48) << 6;
 }
 
 #endif /* _ASM_X86_NUMACHIP_NUMACHIP_CSR_H */
