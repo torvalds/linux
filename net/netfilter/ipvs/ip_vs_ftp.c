@@ -223,14 +223,14 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		 */
 		{
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(ip_vs_conn_net(cp), AF_INET,
+			ip_vs_conn_fill_param(cp->ipvs->net, AF_INET,
 					      iph->protocol, &from, port,
 					      &cp->caddr, 0, &p);
 			n_cp = ip_vs_conn_out_get(&p);
 		}
 		if (!n_cp) {
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(ip_vs_conn_net(cp),
+			ip_vs_conn_fill_param(cp->ipvs->net,
 					      AF_INET, IPPROTO_TCP, &cp->caddr,
 					      0, &cp->vaddr, port, &p);
 			/* As above, this is ipv4 only */
@@ -392,7 +392,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 
 	{
 		struct ip_vs_conn_param p;
-		ip_vs_conn_fill_param(ip_vs_conn_net(cp), AF_INET,
+		ip_vs_conn_fill_param(cp->ipvs->net, AF_INET,
 				      iph->protocol, &to, port, &cp->vaddr,
 				      htons(ntohs(cp->vport)-1), &p);
 		n_cp = ip_vs_conn_in_get(&p);

@@ -574,7 +574,7 @@ static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 		skb_forward_csum(skb);
 		if (!skb->sk)
 			skb_sender_cpu_clear(skb);
-		NF_HOOK(pf, NF_INET_LOCAL_OUT, ip_vs_conn_net(cp), NULL, skb,
+		NF_HOOK(pf, NF_INET_LOCAL_OUT, cp->ipvs->net, NULL, skb,
 			NULL, skb_dst(skb)->dev, dst_output_okfn);
 	} else
 		ret = NF_ACCEPT;
@@ -596,7 +596,7 @@ static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 		skb_forward_csum(skb);
 		if (!skb->sk)
 			skb_sender_cpu_clear(skb);
-		NF_HOOK(pf, NF_INET_LOCAL_OUT, ip_vs_conn_net(cp), NULL, skb,
+		NF_HOOK(pf, NF_INET_LOCAL_OUT, cp->ipvs->net, NULL, skb,
 			NULL, skb_dst(skb)->dev, dst_output_okfn);
 	} else
 		ret = NF_ACCEPT;

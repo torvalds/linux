@@ -572,9 +572,7 @@ struct ip_vs_conn {
 	volatile __u32          flags;          /* status flags */
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
 	__u16			daf;		/* Address family of the dest */
-#ifdef CONFIG_NET_NS
-	struct net              *net;           /* Name space */
-#endif
+	struct netns_ipvs	*ipvs;
 
 	/* counter and timer */
 	atomic_t		refcnt;		/* reference count */
@@ -620,33 +618,6 @@ struct ip_vs_conn {
 
 	struct rcu_head		rcu_head;
 };
-
-/* To save some memory in conn table when name space is disabled. */
-static inline struct net *ip_vs_conn_net(const struct ip_vs_conn *cp)
-{
-#ifdef CONFIG_NET_NS
-	return cp->net;
-#else
-	return &init_net;
-#endif
-}
-
-static inline void ip_vs_conn_net_set(struct ip_vs_conn *cp, struct net *net)
-{
-#ifdef CONFIG_NET_NS
-	cp->net = net;
-#endif
-}
-
-static inline int ip_vs_conn_net_eq(const struct ip_vs_conn *cp,
-				    struct net *net)
-{
-#ifdef CONFIG_NET_NS
-	return cp->net == net;
-#else
-	return 1;
-#endif
-}
 
 /* Extended internal versions of struct ip_vs_service_user and ip_vs_dest_user
  * for IPv6 support.
