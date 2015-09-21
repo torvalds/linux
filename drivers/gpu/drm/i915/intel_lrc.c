@@ -1254,9 +1254,10 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *ring,
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:bdw */
 	if (IS_BROADWELL(ring->dev)) {
-		index = gen8_emit_flush_coherentl3_wa(ring, batch, index);
-		if (index < 0)
-			return index;
+		int rc = gen8_emit_flush_coherentl3_wa(ring, batch, index);
+		if (rc < 0)
+			return rc;
+		index = rc;
 	}
 
 	/* WaClearSlmSpaceAtContextSwitch:bdw,chv */
