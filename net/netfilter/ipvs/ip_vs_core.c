@@ -2087,7 +2087,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	if (ip_vs_conn_net_init(net) < 0)
 		goto conn_fail;
 
-	if (ip_vs_sync_net_init(net) < 0)
+	if (ip_vs_sync_net_init(ipvs) < 0)
 		goto sync_fail;
 
 	printk(KERN_INFO "IPVS: Creating netns size=%zu id=%d\n",

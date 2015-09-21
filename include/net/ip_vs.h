@@ -1328,7 +1328,7 @@ int ip_vs_control_net_init(struct net *net);
 int ip_vs_protocol_net_init(struct net *net);
 int ip_vs_app_net_init(struct net *net);
 int ip_vs_conn_net_init(struct net *net);
-int ip_vs_sync_net_init(struct net *net);
+int ip_vs_sync_net_init(struct netns_ipvs *ipvs);
 void ip_vs_conn_net_cleanup(struct net *net);
 void ip_vs_app_net_cleanup(struct net *net);
 void ip_vs_protocol_net_cleanup(struct net *net);

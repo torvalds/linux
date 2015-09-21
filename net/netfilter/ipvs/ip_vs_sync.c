@@ -2007,10 +2007,8 @@ int stop_sync_thread(struct netns_ipvs *ipvs, int state)
 /*
  * Initialize data struct for each netns
  */
-int __net_init ip_vs_sync_net_init(struct net *net)
+int __net_init ip_vs_sync_net_init(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
 	__mutex_init(&ipvs->sync_mutex, "ipvs->sync_mutex", &__ipvs_sync_key);
 	spin_lock_init(&ipvs->sync_lock);
 	spin_lock_init(&ipvs->sync_buff_lock);
