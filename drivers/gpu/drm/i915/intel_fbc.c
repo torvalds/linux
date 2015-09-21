@@ -484,6 +484,8 @@ const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
 		return "framebuffer stride not supported";
 	case FBC_PIXEL_RATE:
 		return "pixel rate is too big";
+	case FBC_PIXEL_FORMAT:
+		return "pixel format is invalid";
 	default:
 		MISSING_CASE(reason);
 		return "unknown reason";
@@ -709,6 +711,29 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 	return true;
 }
 
+static bool pixel_format_is_valid(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+		return true;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_RGB565:
+		/* 16bpp not supported on gen2 */
+		if (IS_GEN2(dev))
+			return false;
+		/* WaFbcOnly1to1Ratio:ctg */
+		if (IS_G4X(dev_priv))
+			return false;
+		return true;
+	default:
+		return false;
+	}
+}
+
 /**
  * __intel_fbc_update - enable/disable FBC as needed, unlocked
  * @dev_priv: i915 device instance
@@ -821,6 +846,11 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 
 	if (!stride_is_valid(dev_priv, fb->pitches[0])) {
 		set_no_fbc_reason(dev_priv, FBC_BAD_STRIDE);
+		goto out_disable;
+	}
+
+	if (!pixel_format_is_valid(fb)) {
+		set_no_fbc_reason(dev_priv, FBC_PIXEL_FORMAT);
 		goto out_disable;
 	}
 
