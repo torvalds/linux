@@ -429,12 +429,6 @@
 		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-
-		cpsw_sel_s0 {
-			gpio-hog;
-			gpios = <4 GPIO_ACTIVE_HIGH>;
-			output-low;
-		};
 	};
 
 	tlv320aic3106: tlv320aic3106@19 {
@@ -689,6 +683,7 @@
 	pinctrl-0 = <&cpsw_default>;
 	pinctrl-1 = <&cpsw_sleep>;
 	slaves = <1>;
+	mode-gpios = <&pcf_gpio_21 4 GPIO_ACTIVE_HIGH>;
 };
 
 &cpsw_emac0 {
