@@ -840,7 +840,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	spin_unlock_bh(&dest->dst_lock);
 
 	if (add) {
-		ip_vs_start_estimator(svc->ipvs->net, &dest->stats);
+		ip_vs_start_estimator(svc->ipvs, &dest->stats);
 		list_add_rcu(&dest->n_list, &svc->destinations);
 		svc->num_dests++;
 		sched = rcu_dereference_protected(svc->scheduler, 1);
@@ -1036,7 +1036,7 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 static void __ip_vs_del_dest(struct netns_ipvs *ipvs, struct ip_vs_dest *dest,
 			     bool cleanup)
 {
-	ip_vs_stop_estimator(ipvs->net, &dest->stats);
+	ip_vs_stop_estimator(ipvs, &dest->stats);
 
 	/*
 	 *  Remove it from the d-linked list with the real services.
@@ -1254,7 +1254,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	else if (svc->port == 0)
 		atomic_inc(&ipvs->nullsvc_counter);
 
-	ip_vs_start_estimator(ipvs->net, &svc->stats);
+	ip_vs_start_estimator(ipvs, &svc->stats);
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
@@ -1382,7 +1382,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 	if (svc->af == AF_INET)
 		ipvs->num_services--;
 
-	ip_vs_stop_estimator(svc->ipvs->net, &svc->stats);
+	ip_vs_stop_estimator(svc->ipvs, &svc->stats);
 
 	/* Unbind scheduler */
 	old_sched = rcu_dereference_protected(svc->scheduler, 1);
@@ -3917,7 +3917,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 			kfree(tbl);
 		return -ENOMEM;
 	}
-	ip_vs_start_estimator(net, &ipvs->tot_stats);
+	ip_vs_start_estimator(ipvs, &ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
@@ -3933,7 +3933,7 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
-	ip_vs_stop_estimator(net, &ipvs->tot_stats);
+	ip_vs_stop_estimator(ipvs, &ipvs->tot_stats);
 
 	if (!net_eq(net, &init_net))
 		kfree(ipvs->sysctl_tbl);

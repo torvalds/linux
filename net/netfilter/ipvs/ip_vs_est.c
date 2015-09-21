@@ -140,9 +140,8 @@ static void estimation_timer(unsigned long arg)
 	mod_timer(&ipvs->est_timer, jiffies + 2*HZ);
 }
 
-void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats)
+void ip_vs_start_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_estimator *est = &stats->est;
 
 	INIT_LIST_HEAD(&est->list);
@@ -152,9 +151,8 @@ void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats)
 	spin_unlock_bh(&ipvs->est_lock);
 }
 
-void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats)
+void ip_vs_stop_estimator(struct netns_ipvs *ipvs, struct ip_vs_stats *stats)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_estimator *est = &stats->est;
 
 	spin_lock_bh(&ipvs->est_lock);
