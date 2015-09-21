@@ -40,7 +40,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.6.0"
+#define ELAN_DRIVER_VERSION	"1.6.1"
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
 #define ETP_FINGER_WIDTH	15
@@ -76,7 +76,7 @@ struct elan_tp_data {
 	unsigned int		x_res;
 	unsigned int		y_res;
 
-	u8			product_id;
+	u16			product_id;
 	u8			fw_version;
 	u8			sm_version;
 	u8			iap_version;
