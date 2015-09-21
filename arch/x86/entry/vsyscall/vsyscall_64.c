@@ -39,9 +39,9 @@
 #include "vsyscall_trace.h"
 
 static enum { EMULATE, NATIVE, NONE } vsyscall_mode =
-#ifdef CONFIG_LEGACY_VSYSCALL_NATIVE
+#if defined(CONFIG_LEGACY_VSYSCALL_NATIVE)
 	NATIVE;
-#elif CONFIG_LEGACY_VSYSCALL_NONE
+#elif defined(CONFIG_LEGACY_VSYSCALL_NONE)
 	NONE;
 #else
 	EMULATE;
