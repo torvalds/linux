@@ -495,7 +495,7 @@ static int smp_ah(struct crypto_blkcipher *tfm, const u8 irk[16],
 	}
 
 	/* The output of the random address function ah is:
-	 *	ah(h, r) = e(k, r') mod 2^24
+	 *	ah(k, r) = e(k, r') mod 2^24
 	 * The output of the security function e is then truncated to 24 bits
 	 * by taking the least significant 24 bits of the output of e as the
 	 * result of ah.

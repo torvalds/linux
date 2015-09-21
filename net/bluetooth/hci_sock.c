@@ -503,7 +503,16 @@ static int hci_sock_release(struct socket *sock)
 
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
-			hci_dev_close(hdev->id);
+			/* When releasing an user channel exclusive access,
+			 * call hci_dev_do_close directly instead of calling
+			 * hci_dev_close to ensure the exclusive access will
+			 * be released and the controller brought back down.
+			 *
+			 * The checking of HCI_AUTO_OFF is not needed in this
+			 * case since it will have been cleared already when
+			 * opening the user channel.
+			 */
+			hci_dev_do_close(hdev);
 			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
 			mgmt_index_added(hdev);
 		}

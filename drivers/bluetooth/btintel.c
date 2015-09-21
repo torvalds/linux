@@ -22,6 +22,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/firmware.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -168,6 +169,51 @@ int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btintel_secure_send);
+
+int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name)
+{
+	const struct firmware *fw;
+	struct sk_buff *skb;
+	const u8 *fw_ptr;
+	int err;
+
+	err = request_firmware_direct(&fw, ddc_name, &hdev->dev);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to load Intel DDC file %s (%d)",
+			   ddc_name, err);
+		return err;
+	}
+
+	bt_dev_info(hdev, "Found Intel DDC parameters: %s", ddc_name);
+
+	fw_ptr = fw->data;
+
+	/* DDC file contains one or more DDC structure which has
+	 * Length (1 byte), DDC ID (2 bytes), and DDC value (Length - 2).
+	 */
+	while (fw->size > fw_ptr - fw->data) {
+		u8 cmd_plen = fw_ptr[0] + sizeof(u8);
+
+		skb = __hci_cmd_sync(hdev, 0xfc8b, cmd_plen, fw_ptr,
+				     HCI_INIT_TIMEOUT);
+		if (IS_ERR(skb)) {
+			bt_dev_err(hdev, "Failed to send Intel_Write_DDC (%ld)",
+				   PTR_ERR(skb));
+			release_firmware(fw);
+			return PTR_ERR(skb);
+		}
+
+		fw_ptr += cmd_plen;
+		kfree_skb(skb);
+	}
+
+	release_firmware(fw);
+
+	bt_dev_info(hdev, "Applying Intel DDC parameters completed");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btintel_load_ddc_config);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth support for Intel devices ver " VERSION);
