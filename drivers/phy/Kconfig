@@ -380,4 +380,13 @@ config PHY_BRCMSTB_SATA
 	  Enable this to support the SATA3 PHY on 28nm Broadcom STB SoCs.
 	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
 
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
+
 endmenu
