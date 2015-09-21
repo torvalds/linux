@@ -431,7 +431,7 @@ union message_body {
 	struct power_mgmt_param strPowerMgmtparam;     /*!< Power Management message body */
 	struct sta_inactive_t strHostIfStaInactiveT;
 	struct set_ip_addr strHostIfSetIP;
-	tstrHostIfSetDrvHandler strHostIfSetDrvHandler;
+	struct drv_handler strHostIfSetDrvHandler;
 	tstrHostIFSetMulti strHostIfSetMulti;
 	tstrHostIfSetOperationMode strHostIfSetOperationMode;
 	tstrHostIfSetMacAddress strHostIfSetMacAddress;
@@ -660,14 +660,15 @@ static s32 Handle_SetChannel(tstrWILC_WFIDrv *drvHandler,
 /**
  *  @brief Handle_SetWfiDrvHandler
  *  @details    Sending config packet to firmware to set driver handler
- *  @param[in]   void * drvHandler,tstrHostIfSetDrvHandler* pstrHostIfSetDrvHandler
+ *  @param[in]   void * drvHandler,
+ *		 struct drv_handler *pstrHostIfSetDrvHandler
  *  @return     Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
 static s32 Handle_SetWfiDrvHandler(tstrWILC_WFIDrv *drvHandler,
-				   tstrHostIfSetDrvHandler *pstrHostIfSetDrvHandler)
+				   struct drv_handler *pstrHostIfSetDrvHandler)
 {
 
 	s32 s32Error = 0;

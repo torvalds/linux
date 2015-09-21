@@ -255,9 +255,9 @@ typedef struct {
 	void *u32UserConnectPvoid;
 } tstrWILC_UsrConnReq;
 
-typedef struct {
+struct drv_handler {
 	u32 u32Address;
-} tstrHostIfSetDrvHandler;
+};
 
 typedef struct {
 	u32 u32Mode;
