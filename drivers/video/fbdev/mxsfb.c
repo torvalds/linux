@@ -896,9 +896,7 @@ static int mxsfb_blank(int blank, struct fb_info *fb_info)
 	case FB_BLANK_NORMAL:
 		if (host->enabled) {
 			mxsfb_disable_controller(fb_info);
-			pm_runtime_put_noidle(&host->pdev->dev);
 			pm_runtime_put_sync_suspend(&host->pdev->dev);
-			pm_runtime_get_noresume(&host->pdev->dev);
 		}
 
 		clk_disable_disp_axi(host);
@@ -1478,6 +1476,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 		writel(0, host->base + LCDC_CTRL);
 		mxsfb_set_par(fb_info);
 		mxsfb_enable_controller(fb_info);
+		pm_runtime_get_sync(&host->pdev->dev);
 	}
 
 	ret = register_framebuffer(fb_info);
