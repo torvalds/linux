@@ -70,8 +70,7 @@ static struct irq_domain *aic5_domain;
 static asmlinkage void __exception_irq_entry
 aic5_handle(struct pt_regs *regs)
 {
-	struct irq_domain_chip_generic *dgc = aic5_domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(aic5_domain, 0);
 	u32 irqnr;
 	u32 irqstat;
 
@@ -87,8 +86,7 @@ aic5_handle(struct pt_regs *regs)
 static void aic5_mask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
 	/*
@@ -105,8 +103,7 @@ static void aic5_mask(struct irq_data *d)
 static void aic5_unmask(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 
 	/*
@@ -123,8 +120,7 @@ static void aic5_unmask(struct irq_data *d)
 static int aic5_retrigger(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 
 	/* Enable interrupt on AIC5 */
 	irq_gc_lock(bgc);
@@ -138,8 +134,7 @@ static int aic5_retrigger(struct irq_data *d)
 static int aic5_set_type(struct irq_data *d, unsigned type)
 {
 	struct irq_domain *domain = d->domain;
-	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	unsigned int smr;
 	int ret;
 
@@ -159,7 +154,7 @@ static void aic5_suspend(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 	u32 mask;
@@ -183,7 +178,7 @@ static void aic5_resume(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 	u32 mask;
@@ -207,7 +202,7 @@ static void aic5_pm_shutdown(struct irq_data *d)
 {
 	struct irq_domain *domain = d->domain;
 	struct irq_domain_chip_generic *dgc = domain->gc;
-	struct irq_chip_generic *bgc = dgc->gc[0];
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(domain, 0);
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	int i;
 
@@ -262,20 +257,17 @@ static int aic5_irq_domain_xlate(struct irq_domain *d,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_type)
 {
-	struct irq_domain_chip_generic *dgc = d->gc;
-	struct irq_chip_generic *bgc;
+	struct irq_chip_generic *bgc = irq_get_domain_generic_chip(d, 0);
 	unsigned smr;
 	int ret;
 
-	if (!dgc)
+	if (!bgc)
 		return -EINVAL;
 
 	ret = aic_common_irq_domain_xlate(d, ctrlr, intspec, intsize,
 					  out_hwirq, out_type);
 	if (ret)
 		return ret;
-
-	bgc = dgc->gc[0];
 
 	irq_gc_lock(bgc);
 	irq_reg_writel(bgc, *out_hwirq, AT91_AIC5_SSR);
