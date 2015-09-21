@@ -274,15 +274,13 @@
 				regulator-always-on;
 			};
 
-			ldo8_reg: ldo@8 {
-				regulator-compatible = "LDO8";
+			ldo8_reg: LDO8 {
 				regulator-name = "VDD10_HDMI_1.0V";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 			};
 
-			ldo10_reg: ldo@10 {
-				regulator-compatible = "LDO10";
+			ldo10_reg: LDO10 {
 				regulator-name = "VDDQ_MIPIHSI_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
