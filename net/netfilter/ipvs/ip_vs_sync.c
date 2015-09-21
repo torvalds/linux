@@ -193,7 +193,7 @@ union ip_vs_sync_conn {
 #define IPVS_OPT_F_PARAM	(1 << (IPVS_OPT_PARAM-1))
 
 struct ip_vs_sync_thread_data {
-	struct net *net;
+	struct netns_ipvs *ipvs;
 	struct socket *sock;
 	char *buf;
 	int id;
@@ -1685,7 +1685,7 @@ next_sync_buff(struct netns_ipvs *ipvs, struct ipvs_master_sync_state *ms)
 static int sync_thread_master(void *data)
 {
 	struct ip_vs_sync_thread_data *tinfo = data;
-	struct netns_ipvs *ipvs = net_ipvs(tinfo->net);
+	struct netns_ipvs *ipvs = tinfo->ipvs;
 	struct ipvs_master_sync_state *ms = &ipvs->ms[tinfo->id];
 	struct sock *sk = tinfo->sock->sk;
 	struct ip_vs_sync_buff *sb;
@@ -1741,7 +1741,7 @@ done:
 static int sync_thread_backup(void *data)
 {
 	struct ip_vs_sync_thread_data *tinfo = data;
-	struct netns_ipvs *ipvs = net_ipvs(tinfo->net);
+	struct netns_ipvs *ipvs = tinfo->ipvs;
 	int len;
 
 	pr_info("sync thread started: state = BACKUP, mcast_ifn = %s, "
@@ -1763,7 +1763,7 @@ static int sync_thread_backup(void *data)
 				break;
 			}
 
-			ip_vs_process_message(tinfo->net, tinfo->buf, len);
+			ip_vs_process_message(ipvs->net, tinfo->buf, len);
 		}
 	}
 
@@ -1880,7 +1880,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
 		if (!tinfo)
 			goto outsocket;
-		tinfo->net = ipvs->net;
+		tinfo->ipvs = ipvs;
 		tinfo->sock = sock;
 		if (state == IP_VS_STATE_BACKUP) {
 			tinfo->buf = kmalloc(ipvs->bcfg.sync_maxlen,
