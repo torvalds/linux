@@ -912,6 +912,7 @@ out:
 static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 			  unsigned int hooknum)
 {
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
@@ -974,7 +975,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 	ip_vs_fill_iph_skb_icmp(AF_INET, skb, offset, true, &ciph);
 
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(AF_INET, skb, &ciph);
+	cp = pp->conn_out_get(ipvs, AF_INET, skb, &ciph);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -987,6 +988,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 			     unsigned int hooknum, struct ip_vs_iphdr *ipvsh)
 {
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 	struct icmp6hdr	_icmph, *ic;
 	struct ip_vs_iphdr ciph = {.flags = 0, .fragoffs = 0};/*Contained IP */
 	struct ip_vs_conn *cp;
@@ -1029,7 +1031,7 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 		return NF_ACCEPT;
 
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(AF_INET6, skb, &ciph);
+	cp = pp->conn_out_get(ipvs, AF_INET6, skb, &ciph);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -1257,7 +1259,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	/*
 	 * Check if the packet belongs to an existing entry
 	 */
-	cp = pp->conn_out_get(af, skb, &iph);
+	cp = pp->conn_out_get(ipvs, af, skb, &iph);
 
 	if (likely(cp))
 		return handle_response(af, skb, pd, cp, &iph, hooknum);

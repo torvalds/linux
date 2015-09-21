@@ -499,7 +499,8 @@ struct ip_vs_protocol {
 		       const struct ip_vs_iphdr *iph);
 
 	struct ip_vs_conn *
-	(*conn_out_get)(int af,
+	(*conn_out_get)(struct netns_ipvs *ipvs,
+			int af,
 			const struct sk_buff *skb,
 			const struct ip_vs_iphdr *iph);
 
@@ -1229,7 +1230,8 @@ struct ip_vs_conn * ip_vs_conn_in_get_proto(struct netns_ipvs *ipvs, int af,
 
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
-struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
+struct ip_vs_conn * ip_vs_conn_out_get_proto(struct netns_ipvs *ipvs, int af,
+					     const struct sk_buff *skb,
 					     const struct ip_vs_iphdr *iph);
 
 /* Get reference to gain full access to conn.
