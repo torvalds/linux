@@ -556,13 +556,11 @@ static struct xgene_dma_desc_sw *xgene_dma_alloc_descriptor(
 	struct xgene_dma_desc_sw *desc;
 	dma_addr_t phys;
 
-	desc = dma_pool_alloc(chan->desc_pool, GFP_NOWAIT, &phys);
+	desc = dma_pool_zalloc(chan->desc_pool, GFP_NOWAIT, &phys);
 	if (!desc) {
 		chan_err(chan, "Failed to allocate LDs\n");
 		return NULL;
 	}
-
-	memset(desc, 0, sizeof(*desc));
 
 	INIT_LIST_HEAD(&desc->tx_list);
 	desc->tx.phys = phys;
