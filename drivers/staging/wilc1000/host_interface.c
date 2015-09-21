@@ -329,7 +329,7 @@ typedef struct {
 } tstrHostIFDelAllSta;
 
 /*!
- *  @struct             tstrHostIFDelSta
+ *  @struct             del_sta
  *  @brief		Delete station message body
  *  @details
  *  @todo
@@ -338,10 +338,9 @@ typedef struct {
  *  @date		15 July 2012
  *  @version		1.0 Description
  */
-
-typedef struct {
+struct del_sta {
 	u8 au8MacAddr[ETH_ALEN];
-} tstrHostIFDelSta;
+};
 
 /*!
  *  @struct             timer_cb
@@ -424,7 +423,7 @@ union message_body {
 	struct set_beacon strHostIFSetBeacon;                 /*!< Set beacon message body */
 	struct del_beacon strHostIFDelBeacon;                 /*!< Del beacon message body */
 	struct add_sta_param strAddStaParam;                    /*!< Add station message body */
-	tstrHostIFDelSta strDelStaParam;                                /*!< Del Station message body */
+	struct del_sta strDelStaParam;                                /*!< Del Station message body */
 	struct add_sta_param strEditStaParam;                           /*!< Edit station message body */
 	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
 	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
@@ -3686,13 +3685,14 @@ ERRORHANDLER:
 /**
  *  @brief Handle_DelStation
  *  @details        Sending config packet to delete station
- *  @param[in]   tstrHostIFDelSta* pstrDelStaParam
+ *  @param[in]   struct del_sta *pstrDelStaParam
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_DelStation(tstrWILC_WFIDrv *drvHandler, tstrHostIFDelSta *pstrDelStaParam)
+static void Handle_DelStation(tstrWILC_WFIDrv *drvHandler,
+			      struct del_sta *pstrDelStaParam)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -7084,7 +7084,7 @@ s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr)
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIFDelSta *pstrDelStationMsg = &msg.body.strDelStaParam;
+	struct del_sta *pstrDelStationMsg = &msg.body.strDelStaParam;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
