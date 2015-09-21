@@ -3155,7 +3155,7 @@ static int add_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 s32Error = 0;
 	struct wilc_priv *priv;
-	tstrWILC_AddStaParam strStaParams = { {0} };
+	struct add_sta_param strStaParams = { {0} };
 	perInterface_wlan_t *nic;
 
 	if (!wiphy)
@@ -3266,7 +3266,7 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 s32Error = 0;
 	struct wilc_priv *priv;
-	tstrWILC_AddStaParam strStaParams = { {0} };
+	struct add_sta_param strStaParams = { {0} };
 	perInterface_wlan_t *nic;
 
 

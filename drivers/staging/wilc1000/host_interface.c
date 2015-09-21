@@ -425,9 +425,9 @@ union message_body {
 	struct get_channel strHostIFGetChan;
 	struct set_beacon strHostIFSetBeacon;                 /*!< Set beacon message body */
 	struct del_beacon strHostIFDelBeacon;                 /*!< Del beacon message body */
-	tstrWILC_AddStaParam strAddStaParam;                    /*!< Add station message body */
+	struct add_sta_param strAddStaParam;                    /*!< Add station message body */
 	tstrHostIFDelSta strDelStaParam;                                /*!< Del Station message body */
-	tstrWILC_AddStaParam strEditStaParam;                           /*!< Edit station message body */
+	struct add_sta_param strEditStaParam;                           /*!< Edit station message body */
 	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
 	tstrTimerCb strTimerCb;                                                 /*!< Timer callback message body */
 	tstrHostIfPowerMgmtParam strPowerMgmtparam;     /*!< Power Management message body */
@@ -3533,13 +3533,14 @@ static void Handle_DelBeacon(tstrWILC_WFIDrv *drvHandler,
 /**
  *  @brief WILC_HostIf_PackStaParam
  *  @details       Handling packing of the station params in a buffer
- *  @param[in]   u8* pu8Buffer, tstrWILC_AddStaParam* pstrStationParam
+ *  @param[in]   u8* pu8Buffer, struct add_sta_param *pstrStationParam
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer, tstrWILC_AddStaParam *pstrStationParam)
+static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer,
+				    struct add_sta_param *pstrStationParam)
 {
 	u8 *pu8CurrByte;
 
@@ -3587,13 +3588,14 @@ static u32 WILC_HostIf_PackStaParam(u8 *pu8Buffer, tstrWILC_AddStaParam *pstrSta
 /**
  *  @brief Handle_AddStation
  *  @details       Sending config packet to add station
- *  @param[in]   tstrWILC_AddStaParam* pstrStationParam
+ *  @param[in]   struct add_sta_param *pstrStationParam
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_AddStation(tstrWILC_WFIDrv *drvHandler, tstrWILC_AddStaParam *pstrStationParam)
+static void Handle_AddStation(tstrWILC_WFIDrv *drvHandler,
+			      struct add_sta_param *pstrStationParam)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -3722,13 +3724,14 @@ ERRORHANDLER:
 /**
  *  @brief Handle_EditStation
  *  @details        Sending config packet to edit station
- *  @param[in]   tstrWILC_AddStaParam* pstrStationParam
+ *  @param[in]   struct add_sta_param *pstrStationParam
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_EditStation(tstrWILC_WFIDrv *drvHandler, tstrWILC_AddStaParam *pstrStationParam)
+static void Handle_EditStation(tstrWILC_WFIDrv *drvHandler,
+			       struct add_sta_param *pstrStationParam)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -7012,18 +7015,19 @@ s32 host_int_del_beacon(tstrWILC_WFIDrv *hWFIDrv)
 /**
  *  @brief host_int_add_station
  *  @details       Setting add station params in message queue
- *  @param[in]    WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam* pstrStaParams
+ *  @param[in]    WILC_WFIDrvHandle hWFIDrv, struct add_sta_param *pstrStaParams
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrStaParams)
+s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv,
+			 struct add_sta_param *pstrStaParams)
 {
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrWILC_AddStaParam *pstrAddStationMsg = &msg.body.strAddStaParam;
+	struct add_sta_param *pstrAddStationMsg = &msg.body.strAddStaParam;
 
 
 	if (pstrWFIDrv == NULL) {
@@ -7040,7 +7044,7 @@ s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSta
 	msg.id = HOST_IF_MSG_ADD_STATION;
 	msg.drvHandler = hWFIDrv;
 
-	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(tstrWILC_AddStaParam));
+	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(struct add_sta_param));
 	if (pstrAddStationMsg->u8NumRates > 0) {
 		u8 *rates = kmalloc(pstrAddStationMsg->u8NumRates, GFP_KERNEL);
 
@@ -7162,18 +7166,19 @@ s32 host_int_del_allstation(tstrWILC_WFIDrv *hWFIDrv, u8 pu8MacAddr[][ETH_ALEN])
 /**
  *  @brief host_int_edit_station
  *  @details       Setting edit station params in message queue
- *  @param[in]    WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam* pstrStaParams
+ *  @param[in]    WILC_WFIDrvHandle hWFIDrv, struct add_sta_param *pstrStaParams
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrStaParams)
+s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv,
+			  struct add_sta_param *pstrStaParams)
 {
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrWILC_AddStaParam *pstrAddStationMsg = &msg.body.strAddStaParam;
+	struct add_sta_param *pstrAddStationMsg = &msg.body.strAddStaParam;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
@@ -7189,7 +7194,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 	msg.id = HOST_IF_MSG_EDIT_STATION;
 	msg.drvHandler = hWFIDrv;
 
-	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(tstrWILC_AddStaParam));
+	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(struct add_sta_param));
 	if (pstrAddStationMsg->u8NumRates > 0) {
 		u8 *rates = kmalloc(pstrAddStationMsg->u8NumRates, GFP_KERNEL);
 

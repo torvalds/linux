@@ -369,7 +369,7 @@ typedef enum {
 	WILC_STA_FLAG_AUTHENTICATED             /*!< station is authenticated*/
 } tenuWILC_StaFlag;
 
-typedef struct {
+struct add_sta_param {
 	u8 au8BSSID[ETH_ALEN];
 	u16 u16AssocID;
 	u8 u8NumRates;
@@ -383,7 +383,7 @@ typedef struct {
 	u8 u8ASELCap;
 	u16 u16FlagsMask;               /*<! Determines which of u16FlagsSet were changed>*/
 	u16 u16FlagsSet;                /*<! Decoded according to tenuWILC_StaFlag */
-} tstrWILC_AddStaParam;
+};
 
 /*****************************************************************************/
 /*																			 */
@@ -1049,7 +1049,8 @@ s32 host_int_add_beacon(tstrWILC_WFIDrv *hWFIDrv, u32 u32Interval,
 s32 host_int_del_beacon(tstrWILC_WFIDrv *hWFIDrv);
 
 /*!
- *  @fn		s32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam strStaParams)
+ *  @fn		s32 host_int_add_station(WILC_WFIDrvHandle hWFIDrv,
+ *					 struct add_sta_param *pstrStaParams)
  *  @brief		Notifies the firmware with a new associated stations
  *  @details
  *  @param[in,out]	hWFIDrv		handle to the wifi driver
@@ -1061,7 +1062,8 @@ s32 host_int_del_beacon(tstrWILC_WFIDrv *hWFIDrv);
  *  @date		12 July 2012
  *  @version		1.0 Description
  */
-s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrStaParams);
+s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv,
+			 struct add_sta_param *pstrStaParams);
 
 /*!
  *  @fn		s32 host_int_del_allstation(WILC_WFIDrvHandle hWFIDrv, const u8* pu8MacAddr)
@@ -1094,7 +1096,8 @@ s32 host_int_del_allstation(tstrWILC_WFIDrv *hWFIDrv, u8 pu8MacAddr[][ETH_ALEN])
 s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr);
 
 /*!
- *  @fn		s32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv, tstrWILC_AddStaParam strStaParams)
+ *  @fn		s32 host_int_edit_station(WILC_WFIDrvHandle hWFIDrv,
+ *					  struct add_sta_param *pstrStaParams)
  *  @brief		Notifies the firmware with new parameters of an already associated station
  *  @details
  *  @param[in,out]	hWFIDrv		handle to the wifi driver
@@ -1106,7 +1109,8 @@ s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr);
  *  @date		15 July 2012
  *  @version		1.0 Description
  */
-s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrStaParams);
+s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv,
+			  struct add_sta_param *pstrStaParams);
 
 /*!
  *  @fn		s32 host_int_set_power_mgmt(WILC_WFIDrvHandle hWFIDrv, bool bIsEnabled, u32 u32Timeout)
