@@ -881,9 +881,6 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 		goto out;
 	}
 
-	/* Cut off the checksum */
-	skb_trim(skb, len-2);
-
 	/* TODO: Other drivers call ieee20154_rx_irqsafe() here (eg: cc2040,
 	 * also from a workqueue).  I think irqsafe is not necessary here.
 	 * Can someone confirm? */
@@ -1060,7 +1057,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	devrec->hw = hw;
 	devrec->hw->parent = &spi->dev;
 	devrec->hw->phy->supported.channels[0] = CHANNEL_MASK;
-	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
+	devrec->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
 	devrec->regmap_short = devm_regmap_init_spi(spi,
 						    &mrf24j40_short_regmap);
