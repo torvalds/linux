@@ -294,12 +294,7 @@ static void dw8250_setup_port(struct uart_8250_port *up)
 
 static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 {
-	struct device *dev = param;
-
-	if (dev != chan->device->dev->parent)
-		return false;
-
-	return true;
+	return param == chan->device->dev->parent;
 }
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
