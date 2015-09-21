@@ -285,9 +285,9 @@ ip_vs_svc_hashkey(struct net *net, int af, unsigned int proto,
 /*
  *	Returns hash value of fwmark for virtual service lookup
  */
-static inline unsigned int ip_vs_svc_fwm_hashkey(struct net *net, __u32 fwmark)
+static inline unsigned int ip_vs_svc_fwm_hashkey(struct netns_ipvs *ipvs, __u32 fwmark)
 {
-	return (((size_t)net>>8) ^ fwmark) & IP_VS_SVC_TAB_MASK;
+	return (((size_t)ipvs>>8) ^ fwmark) & IP_VS_SVC_TAB_MASK;
 }
 
 /*
@@ -316,7 +316,7 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 		/*
 		 *  Hash it by fwmark in svc_fwm_table
 		 */
-		hash = ip_vs_svc_fwm_hashkey(svc->ipvs->net, svc->fwmark);
+		hash = ip_vs_svc_fwm_hashkey(svc->ipvs, svc->fwmark);
 		hlist_add_head_rcu(&svc->f_list, &ip_vs_svc_fwm_table[hash]);
 	}
 
@@ -393,7 +393,7 @@ __ip_vs_svc_fwm_find(struct net *net, int af, __u32 fwmark)
 	struct ip_vs_service *svc;
 
 	/* Check for fwmark addressed entries */
-	hash = ip_vs_svc_fwm_hashkey(net, fwmark);
+	hash = ip_vs_svc_fwm_hashkey(ipvs, fwmark);
 
 	hlist_for_each_entry_rcu(svc, &ip_vs_svc_fwm_table[hash], f_list) {
 		if (svc->fwmark == fwmark && svc->af == af
