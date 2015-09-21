@@ -713,10 +713,9 @@ static void ip_vs_dest_free(struct ip_vs_dest *dest)
  *  are expired, and the refcnt of each destination in the trash must
  *  be 0, so we simply release them here.
  */
-static void ip_vs_trash_cleanup(struct net *net)
+static void ip_vs_trash_cleanup(struct netns_ipvs *ipvs)
 {
 	struct ip_vs_dest *dest, *nxt;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	del_timer_sync(&ipvs->dest_trash_timer);
 	/* No need to use dest_trash_lock */
@@ -4005,7 +4004,7 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	ip_vs_trash_cleanup(net);
+	ip_vs_trash_cleanup(ipvs);
 	ip_vs_control_net_cleanup_sysctl(net);
 	remove_proc_entry("ip_vs_stats_percpu", net->proc_net);
 	remove_proc_entry("ip_vs_stats", net->proc_net);
