@@ -188,10 +188,8 @@ void ip_vs_read_estimator(struct ip_vs_kstats *dst, struct ip_vs_stats *stats)
 	dst->outbps = (e->outbps + 0xF) >> 5;
 }
 
-int __net_init ip_vs_estimator_net_init(struct net *net)
+int __net_init ip_vs_estimator_net_init(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
 	INIT_LIST_HEAD(&ipvs->est_list);
 	spin_lock_init(&ipvs->est_lock);
 	setup_timer(&ipvs->est_timer, estimation_timer, (unsigned long)ipvs);
@@ -199,7 +197,7 @@ int __net_init ip_vs_estimator_net_init(struct net *net)
 	return 0;
 }
 
-void __net_exit ip_vs_estimator_net_cleanup(struct net *net)
+void __net_exit ip_vs_estimator_net_cleanup(struct netns_ipvs *ipvs)
 {
-	del_timer_sync(&net_ipvs(net)->est_timer);
+	del_timer_sync(&ipvs->est_timer);
 }

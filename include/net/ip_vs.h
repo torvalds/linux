@@ -1323,7 +1323,7 @@ ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
 }
 
 /* IPVS netns init & cleanup functions */
-int ip_vs_estimator_net_init(struct net *net);
+int ip_vs_estimator_net_init(struct netns_ipvs *ipvs);
 int ip_vs_control_net_init(struct netns_ipvs *ipvs);
 int ip_vs_protocol_net_init(struct net *net);
 int ip_vs_app_net_init(struct net *net);
@@ -1333,7 +1333,7 @@ void ip_vs_conn_net_cleanup(struct net *net);
 void ip_vs_app_net_cleanup(struct net *net);
 void ip_vs_protocol_net_cleanup(struct net *net);
 void ip_vs_control_net_cleanup(struct netns_ipvs *ipvs);
-void ip_vs_estimator_net_cleanup(struct net *net);
+void ip_vs_estimator_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_sync_net_cleanup(struct netns_ipvs *ipvs);
 void ip_vs_service_net_cleanup(struct netns_ipvs *ipvs);
 
