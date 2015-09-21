@@ -177,7 +177,7 @@ struct scan_attr {
 };
 
 /*!
- *  @struct             tstrHostIFconnectAttr
+ *  @struct             connect_attr
  *  @brief		Structure to hold Host IF Connect Attributes
  *  @details
  *  @todo
@@ -186,7 +186,7 @@ struct scan_attr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFconnectAttr {
+struct connect_attr {
 	u8 *pu8bssid;
 	u8 *pu8ssid;
 	size_t ssidLen;
@@ -198,7 +198,7 @@ typedef struct _tstrHostIFconnectAttr {
 	AUTHTYPE_T tenuAuth_type;
 	u8 u8channel;
 	void *pJoinParams;
-} tstrHostIFconnectAttr;
+};
 
 /*!
  *  @struct             tstrRcvdGnrlAsyncInfo
@@ -417,7 +417,7 @@ typedef struct {
  */
 union message_body {
 	struct scan_attr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
-	tstrHostIFconnectAttr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
+	struct connect_attr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
 	tstrRcvdNetworkInfo strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
 	tstrRcvdGnrlAsyncInfo strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
 	tstrHostIFkeyAttr strHostIFkeyAttr;                             /*!<>*/
@@ -1500,14 +1500,15 @@ static s32 Handle_ScanDone(tstrWILC_WFIDrv *drvHandler, tenuScanEvent enuEvent)
 /**
  *  @brief Handle_Connect
  *  @details       Sending config packet to firmware to starting connection
- *  @param[in]    tstrHostIFconnectAttr* pstrHostIFconnectAttr
+ *  @param[in]    struct connect_attr *pstrHostIFconnectAttr
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
 u8 u8ConnectedSSID[6] = {0};
-static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler, tstrHostIFconnectAttr *pstrHostIFconnectAttr)
+static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
+			  struct connect_attr *pstrHostIFconnectAttr)
 {
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *) drvHandler;
 	s32 s32Error = 0;
