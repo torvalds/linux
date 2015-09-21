@@ -235,7 +235,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	else if (key->flags & I915_SET_COLORKEY_SOURCE)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
 
-	surf_addr = intel_plane_obj_offset(intel_plane, obj);
+	surf_addr = intel_plane_obj_offset(intel_plane, obj, 0);
 
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride: Surface height in tiles */

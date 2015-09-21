@@ -145,6 +145,7 @@ struct intel_rotation_info {
 	uint64_t size;
 	unsigned int width_pages_uv, height_pages_uv;
 	uint64_t size_uv;
+	unsigned int uv_start_page;
 };
 
 struct i915_ggtt_view {

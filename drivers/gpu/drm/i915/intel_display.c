@@ -2897,14 +2897,29 @@ u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 }
 
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
-				     struct drm_i915_gem_object *obj)
+				     struct drm_i915_gem_object *obj,
+				     unsigned int plane)
 {
 	const struct i915_ggtt_view *view = &i915_ggtt_view_normal;
+	struct i915_vma *vma;
+	unsigned char *offset;
 
 	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
 		view = &i915_ggtt_view_rotated;
 
-	return i915_gem_obj_ggtt_offset_view(obj, view);
+	vma = i915_gem_obj_to_ggtt_view(obj, view);
+	if (WARN(!vma, "ggtt vma for display object not found! (view=%u)\n",
+		view->type))
+		return -1;
+
+	offset = (unsigned char *)vma->node.start;
+
+	if (plane == 1) {
+		offset += vma->ggtt_view.rotation_info.uv_start_page *
+			  PAGE_SIZE;
+	}
+
+	return (unsigned long)offset;
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -3060,7 +3075,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	obj = intel_fb_obj(fb);
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
-	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj);
+	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj, 0);
 
 	/*
 	 * FIXME: intel_plane_state->src, dst aren't set when transitional
@@ -11423,8 +11438,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_pending;
 
-	work->gtt_offset = intel_plane_obj_offset(to_intel_plane(primary), obj)
-						  + intel_crtc->dspaddr_offset;
+	work->gtt_offset = intel_plane_obj_offset(to_intel_plane(primary),
+						  obj, 0);
+	work->gtt_offset += intel_crtc->dspaddr_offset;
 
 	if (mmio_flip) {
 		ret = intel_queue_mmio_flip(dev, crtc, fb, obj, ring,

@@ -3332,6 +3332,8 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 		if (offset_in_page(rot_info->uv_offset))
 			uv_start_page--;
 
+		rot_info->uv_start_page = uv_start_page;
+
 		rotate_pages(page_addr_list, uv_start_page,
 			     rot_info->width_pages_uv,
 			     rot_info->height_pages_uv,
