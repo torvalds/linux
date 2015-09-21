@@ -2190,7 +2190,7 @@ static bool need_vtd_wa(struct drm_device *dev)
 
 unsigned int
 intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
-		  uint64_t fb_format_modifier)
+		  uint64_t fb_format_modifier, unsigned int plane)
 {
 	unsigned int tile_height;
 	uint32_t pixel_bytes;
@@ -2206,7 +2206,7 @@ intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
 		tile_height = 32;
 		break;
 	case I915_FORMAT_MOD_Yf_TILED:
-		pixel_bytes = drm_format_plane_cpp(pixel_format, 0);
+		pixel_bytes = drm_format_plane_cpp(pixel_format, plane);
 		switch (pixel_bytes) {
 		default:
 		case 1:
@@ -2240,7 +2240,7 @@ intel_fb_align_height(struct drm_device *dev, unsigned int height,
 		      uint32_t pixel_format, uint64_t fb_format_modifier)
 {
 	return ALIGN(height, intel_tile_height(dev, pixel_format,
-					       fb_format_modifier));
+					       fb_format_modifier, 0));
 }
 
 static int
@@ -2266,7 +2266,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	info->fb_modifier = fb->modifier[0];
 
 	tile_height = intel_tile_height(fb->dev, fb->pixel_format,
-					fb->modifier[0]);
+					fb->modifier[0], 0);
 	tile_pitch = PAGE_SIZE / tile_height;
 	info->width_pages = DIV_ROUND_UP(fb->pitches[0], tile_pitch);
 	info->height_pages = DIV_ROUND_UP(fb->height, tile_height);
@@ -3075,7 +3075,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
 		tile_height = intel_tile_height(dev, fb->pixel_format,
-						fb->modifier[0]);
+						fb->modifier[0], 0);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
 		x_offset = stride * tile_height - y - src_h;
 		y_offset = x;

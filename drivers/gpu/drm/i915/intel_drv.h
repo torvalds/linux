@@ -1089,7 +1089,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 
 unsigned int
 intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
-		  uint64_t fb_format_modifier);
+		  uint64_t fb_format_modifier, unsigned int plane);
 
 static inline bool
 intel_rotation_90_or_270(unsigned int rotation)
