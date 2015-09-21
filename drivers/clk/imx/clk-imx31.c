@@ -62,6 +62,16 @@ enum mx31_clks {
 static struct clk *clk[clk_max];
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[ipg],
+	&clk[uart1_gate],
+	&clk[uart2_gate],
+	&clk[uart3_gate],
+	&clk[uart4_gate],
+	&clk[uart5_gate],
+	NULL
+};
+
 int __init mx31_clocks_init(unsigned long fref)
 {
 	void __iomem *base;
@@ -199,6 +209,8 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_prepare_enable(clk[iim_gate]);
 	mx31_revision();
 	clk_disable_unprepare(clk[iim_gate]);
+
+	imx_register_uart_clocks(uart_clks);
 
 	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT, GPT_TYPE_IMX31);
 
