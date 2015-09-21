@@ -622,24 +622,85 @@ struct comedi_lrange {
 	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
 };
 
+/**
+ * comedi_range_is_bipolar() - Test if subdevice range is bipolar
+ * @s: COMEDI subdevice.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is bipolar by checking whether its minimum value
+ * is negative.
+ *
+ * Assumes @range is valid.  Does not work for subdevices using a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is bipolar.
+ *	%false if the range is unipolar.
+ */
 static inline bool comedi_range_is_bipolar(struct comedi_subdevice *s,
 					   unsigned int range)
 {
 	return s->range_table->range[range].min < 0;
 }
 
+/**
+ * comedi_range_is_unipolar() - Test if subdevice range is unipolar
+ * @s: COMEDI subdevice.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is unipolar by checking whether its minimum value
+ * is at least 0.
+ *
+ * Assumes @range is valid.  Does not work for subdevices using a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is unipolar.
+ *	%false if the range is bipolar.
+ */
 static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
 					    unsigned int range)
 {
 	return s->range_table->range[range].min >= 0;
 }
 
+/**
+ * comedi_range_is_external() - Test if subdevice range is external
+ * @s: COMEDI subdevice.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is externally reference by checking whether its
+ * %RF_EXTERNAL flag is set.
+ *
+ * Assumes @range is valid.  Does not work for subdevices using a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is external.
+ *	%false if the range is internal.
+ */
 static inline bool comedi_range_is_external(struct comedi_subdevice *s,
 					    unsigned int range)
 {
 	return !!(s->range_table->range[range].flags & RF_EXTERNAL);
 }
 
+/**
+ * comedi_chan_range_is_bipolar() - Test if channel-specific range is bipolar
+ * @s: COMEDI subdevice.
+ * @chan: The channel number.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is bipolar by checking whether its minimum value
+ * is negative.
+ *
+ * Assumes @chan and @range are valid.  Only works for subdevices with a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is bipolar.
+ *	%false if the range is unipolar.
+ */
 static inline bool comedi_chan_range_is_bipolar(struct comedi_subdevice *s,
 						unsigned int chan,
 						unsigned int range)
@@ -647,6 +708,22 @@ static inline bool comedi_chan_range_is_bipolar(struct comedi_subdevice *s,
 	return s->range_table_list[chan]->range[range].min < 0;
 }
 
+/**
+ * comedi_chan_range_is_unipolar() - Test if channel-specific range is unipolar
+ * @s: COMEDI subdevice.
+ * @chan: The channel number.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is unipolar by checking whether its minimum value
+ * is at least 0.
+ *
+ * Assumes @chan and @range are valid.  Only works for subdevices with a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is unipolar.
+ *	%false if the range is bipolar.
+ */
 static inline bool comedi_chan_range_is_unipolar(struct comedi_subdevice *s,
 						 unsigned int chan,
 						 unsigned int range)
@@ -654,6 +731,22 @@ static inline bool comedi_chan_range_is_unipolar(struct comedi_subdevice *s,
 	return s->range_table_list[chan]->range[range].min >= 0;
 }
 
+/**
+ * comedi_chan_range_is_external() - Test if channel-specific range is external
+ * @s: COMEDI subdevice.
+ * @chan: The channel number.
+ * @range: Index of range within a range table.
+ *
+ * Tests whether a range is externally reference by checking whether its
+ * %RF_EXTERNAL flag is set.
+ *
+ * Assumes @chan and @range are valid.  Only works for subdevices with a
+ * channel-specific range table list.
+ *
+ * Return:
+ *	%true if the range is bipolar.
+ *	%false if the range is unipolar.
+ */
 static inline bool comedi_chan_range_is_external(struct comedi_subdevice *s,
 						 unsigned int chan,
 						 unsigned int range)
@@ -661,7 +754,16 @@ static inline bool comedi_chan_range_is_external(struct comedi_subdevice *s,
 	return !!(s->range_table_list[chan]->range[range].flags & RF_EXTERNAL);
 }
 
-/* munge between offset binary and two's complement values */
+/**
+ * comedi_offset_munge() - Convert between offset binary and 2's complement
+ * @s: COMEDI subdevice.
+ * @val: Value to be converted.
+ *
+ * Toggles the highest bit of a sample value to toggle between offset binary
+ * and 2's complement.  Assumes that @s->maxdata is a power of 2 minus 1.
+ *
+ * Return: The converted value.
+ */
 static inline unsigned int comedi_offset_munge(struct comedi_subdevice *s,
 					       unsigned int val)
 {
@@ -837,6 +939,16 @@ static inline int comedi_check_trigger_arg_max(unsigned int *arg,
  */
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
 
+/**
+ * comedi_buf_n_bytes_ready - Determine amount of unread data in buffer
+ * @s: COMEDI subdevice.
+ *
+ * Determines the number of bytes of unread data in the asynchronous
+ * acquisition data buffer for a subdevice.  The data in question might not
+ * have been fully "munged" yet.
+ *
+ * Returns: The amount of unread data in bytes.
+ */
 static inline unsigned int comedi_buf_n_bytes_ready(struct comedi_subdevice *s)
 {
 	return s->async->buf_write_count - s->async->buf_read_count;
