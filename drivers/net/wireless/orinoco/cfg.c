@@ -220,7 +220,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
 		/* Set fragmentation */
 		if (priv->has_mwo) {
-			if (wiphy->frag_threshold < 0)
+			if (wiphy->frag_threshold == -1)
 				frag_value = 0;
 			else {
 				printk(KERN_WARNING "%s: Fixed fragmentation "
@@ -230,7 +230,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 				frag_value = 1;
 			}
 		} else {
-			if (wiphy->frag_threshold < 0)
+			if (wiphy->frag_threshold == -1)
 				frag_value = 2346;
 			else if ((wiphy->frag_threshold < 257) ||
 				 (wiphy->frag_threshold > 2347))
@@ -252,7 +252,7 @@ static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		 * the upper limit.
 		 */
 
-		if (wiphy->rts_threshold < 0)
+		if (wiphy->rts_threshold == -1)
 			rts_value = 2347;
 		else if (wiphy->rts_threshold > 2347)
 			err = -EINVAL;
