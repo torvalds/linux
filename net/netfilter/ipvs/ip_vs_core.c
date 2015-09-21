@@ -1403,6 +1403,7 @@ static int
 ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 {
 	struct net *net = NULL;
+	struct netns_ipvs *ipvs;
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
@@ -1452,6 +1453,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
 	net = skb_net(skb);
+	ipvs = net_ipvs(net);
 
 	/* Special case for errors for IPIP packets */
 	ipip = false;
@@ -1493,7 +1495,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (!cp) {
 		int v;
 
-		if (!sysctl_schedule_icmp(net_ipvs(net)))
+		if (!sysctl_schedule_icmp(ipvs))
 			return NF_ACCEPT;
 
 		if (!ip_vs_try_to_schedule(AF_INET, skb, pd, &v, &cp, &ciph))
@@ -1589,6 +1591,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 			    unsigned int hooknum, struct ip_vs_iphdr *iph)
 {
 	struct net *net = NULL;
+	struct netns_ipvs *ipvs;
 	struct icmp6hdr	_icmph, *ic;
 	struct ip_vs_iphdr ciph = {.flags = 0, .fragoffs = 0};/*Contained IP */
 	struct ip_vs_conn *cp;
@@ -1629,6 +1632,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 		return NF_ACCEPT;
 
 	net = skb_net(skb);
+	ipvs = net_ipvs(net);
 	pd = ip_vs_proto_data_get(net, ciph.protocol);
 	if (!pd)
 		return NF_ACCEPT;
@@ -1649,7 +1653,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	if (!cp) {
 		int v;
 
-		if (!sysctl_schedule_icmp(net_ipvs(net)))
+		if (!sysctl_schedule_icmp(ipvs))
 			return NF_ACCEPT;
 
 		if (!ip_vs_try_to_schedule(AF_INET6, skb, pd, &v, &cp, &ciph))
