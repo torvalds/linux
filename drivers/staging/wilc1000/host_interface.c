@@ -283,7 +283,7 @@ struct set_beacon {
 
 
 /*!
- *  @struct             tstrHostIFDelBeacon
+ *  @struct             del_beacon
  *  @brief		Del Beacon  message body
  *  @details
  *  @todo
@@ -292,9 +292,9 @@ struct set_beacon {
  *  @date		15 July 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFDelBeacon {
+struct del_beacon {
 	u8 u8dummy;
-} tstrHostIFDelBeacon;
+};
 
 /*!
  *  @struct             tstrHostIFSetMulti
@@ -424,7 +424,7 @@ union message_body {
 	struct set_channel strHostIFSetChan;
 	struct get_channel strHostIFGetChan;
 	struct set_beacon strHostIFSetBeacon;                 /*!< Set beacon message body */
-	tstrHostIFDelBeacon strHostIFDelBeacon;                 /*!< Del beacon message body */
+	struct del_beacon strHostIFDelBeacon;                 /*!< Del beacon message body */
 	tstrWILC_AddStaParam strAddStaParam;                    /*!< Add station message body */
 	tstrHostIFDelSta strDelStaParam;                                /*!< Del Station message body */
 	tstrWILC_AddStaParam strEditStaParam;                           /*!< Edit station message body */
@@ -3495,13 +3495,14 @@ ERRORHANDLER:
 /**
  *  @brief Handle_AddBeacon
  *  @details       Sending config packet to delete beacon
- *  @param[in]   tstrHostIFDelBeacon* pstrDelBeacon
+ *  @param[in]   struct del_beacon *pstrDelBeacon
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_DelBeacon(tstrWILC_WFIDrv *drvHandler, tstrHostIFDelBeacon *pstrDelBeacon)
+static void Handle_DelBeacon(tstrWILC_WFIDrv *drvHandler,
+			     struct del_beacon *pstrDelBeacon)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
