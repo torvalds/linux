@@ -109,12 +109,44 @@ static void gic_redist_wait_for_rwp(void)
 }
 
 /* Low level accessors */
-static u64 __maybe_unused gic_read_iar(void)
+static u64 gic_read_iar_common(void)
 {
 	u64 irqstat;
 
 	asm volatile("mrs_s %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
 	return irqstat;
+}
+
+/*
+ * Cavium ThunderX erratum 23154
+ *
+ * The gicv3 of ThunderX requires a modified version for reading the
+ * IAR status to ensure data synchronization (access to icc_iar1_el1
+ * is not sync'ed before and after).
+ */
+static u64 gic_read_iar_cavium_thunderx(void)
+{
+	u64 irqstat;
+
+	asm volatile(
+		"nop;nop;nop;nop\n\t"
+		"nop;nop;nop;nop\n\t"
+		"mrs_s %0, " __stringify(ICC_IAR1_EL1) "\n\t"
+		"nop;nop;nop;nop"
+		: "=r" (irqstat));
+	mb();
+
+	return irqstat;
+}
+
+static struct static_key is_cavium_thunderx = STATIC_KEY_INIT_FALSE;
+
+static u64 __maybe_unused gic_read_iar(void)
+{
+	if (static_key_false(&is_cavium_thunderx))
+		return gic_read_iar_cavium_thunderx();
+	else
+		return gic_read_iar_common();
 }
 
 static void __maybe_unused gic_write_pmr(u64 val)
@@ -836,6 +868,12 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.free = gic_irq_domain_free,
 };
 
+static void gicv3_enable_quirks(void)
+{
+	if (cpus_have_cap(ARM64_WORKAROUND_CAVIUM_23154))
+		static_key_slow_inc(&is_cavium_thunderx);
+}
+
 static int __init gic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *dist_base;
@@ -900,6 +938,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	gic_data.redist_regions = rdist_regs;
 	gic_data.nr_redist_regions = nr_redist_regions;
 	gic_data.redist_stride = redist_stride;
+
+	gicv3_enable_quirks();
 
 	/*
 	 * Find out how many interrupts are supported.
