@@ -1493,16 +1493,15 @@ static void get_mcast_sockaddr(union ipvs_sockaddr *sa, int *salen,
 /*
  *      Set up sending multicast socket over UDP
  */
-static struct socket *make_send_sock(struct net *net, int id)
+static struct socket *make_send_sock(struct netns_ipvs *ipvs, int id)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	/* multicast addr */
 	union ipvs_sockaddr mcast_addr;
 	struct socket *sock;
 	int result, salen;
 
 	/* First create a socket */
-	result = sock_create_kern(net, ipvs->mcfg.mcast_af, SOCK_DGRAM,
+	result = sock_create_kern(ipvs->net, ipvs->mcfg.mcast_af, SOCK_DGRAM,
 				  IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
@@ -1872,7 +1871,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 	tinfo = NULL;
 	for (id = 0; id < count; id++) {
 		if (state == IP_VS_STATE_MASTER)
-			sock = make_send_sock(ipvs->net, id);
+			sock = make_send_sock(ipvs, id);
 		else
 			sock = make_receive_sock(ipvs->net, id);
 		if (IS_ERR(sock)) {
