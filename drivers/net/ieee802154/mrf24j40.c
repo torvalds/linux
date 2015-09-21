@@ -864,6 +864,65 @@ static int mrf24j40_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
 	return -EINVAL;
 }
 
+static const s32 mrf24j40ma_powers[] = {
+	0, -50, -120, -190, -280, -370, -490, -630, -1000, -1050, -1120, -1190,
+	-1280, -1370, -1490, -1630, -2000, -2050, -2120, -2190, -2280, -2370,
+	-2490, -2630, -3000, -3050, -3120, -3190, -3280, -3370, -3490, -3630,
+};
+
+static int mrf24j40_set_txpower(struct ieee802154_hw *hw, s32 mbm)
+{
+	struct mrf24j40 *devrec = hw->priv;
+	s32 small_scale;
+	u8 val;
+
+	if (0 >= mbm && mbm > -1000) {
+		val = 0;
+		small_scale = mbm;
+	} else if (-1000 >= mbm && mbm > -2000) {
+		val = 0x40;
+		small_scale = mbm + 1000;
+	} else if (-2000 >= mbm && mbm > -3000) {
+		val = 0x80;
+		small_scale = mbm + 2000;
+	} else if (-3000 >= mbm && mbm > -4000) {
+		val = 0xc0;
+		small_scale = mbm + 3000;
+	} else {
+		return -EINVAL;
+	}
+
+	switch (small_scale) {
+	case 0:
+		break;
+	case -50:
+		val |= 0x08;
+		break;
+	case -120:
+		val |= 0x10;
+		break;
+	case -190:
+		val |= 0x18;
+		break;
+	case -280:
+		val |= 0x20;
+		break;
+	case -370:
+		val |= 0x28;
+		break;
+	case -490:
+		val |= 0x30;
+		break;
+	case -630:
+		val |= 0x38;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(devrec->regmap_long, REG_RFCON3, 0xf8, val);
+}
+
 static const struct ieee802154_ops mrf24j40_ops = {
 	.owner = THIS_MODULE,
 	.xmit_async = mrf24j40_tx,
@@ -875,6 +934,7 @@ static const struct ieee802154_ops mrf24j40_ops = {
 	.set_csma_params = mrf24j40_csma_params,
 	.set_cca_mode = mrf24j40_set_cca_mode,
 	.set_cca_ed_level = mrf24j40_set_cca_ed_level,
+	.set_txpower = mrf24j40_set_txpower,
 };
 
 static void mrf24j40_intstat_complete(void *context)
@@ -1088,6 +1148,17 @@ static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
 	devrec->hw->phy->cca_ed_level = -6900;
 	devrec->hw->phy->supported.cca_ed_levels = mrf24j40_ed_levels;
 	devrec->hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(mrf24j40_ed_levels);
+
+	switch (spi_get_device_id(devrec->spi)->driver_data) {
+	case MRF24J40:
+	case MRF24J40MA:
+		devrec->hw->phy->supported.tx_powers = mrf24j40ma_powers;
+		devrec->hw->phy->supported.tx_powers_size = ARRAY_SIZE(mrf24j40ma_powers);
+		devrec->hw->phy->flags |= WPAN_PHY_FLAG_TXPOWER;
+		break;
+	default:
+		break;
+	}
 }
 
 static int mrf24j40_probe(struct spi_device *spi)
