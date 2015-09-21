@@ -887,6 +887,7 @@ pxad_tx_prep(struct virt_dma_chan *vc, struct virt_dma_desc *vd,
 	struct dma_async_tx_descriptor *tx;
 	struct pxad_chan *chan = container_of(vc, struct pxad_chan, vc);
 
+	INIT_LIST_HEAD(&vd->node);
 	tx = vchan_tx_prep(vc, vd, tx_flags);
 	tx->tx_submit = pxad_tx_submit;
 	dev_dbg(&chan->vc.chan.dev->device,
