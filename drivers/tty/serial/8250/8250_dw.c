@@ -63,6 +63,8 @@ struct dw8250_data {
 	struct clk		*pclk;
 	struct reset_control	*rst;
 	struct uart_8250_dma	dma;
+
+	unsigned int		skip_autocfg:1;
 };
 
 #define BYT_PRV_CLK			0x800
@@ -285,8 +287,6 @@ static int dw8250_probe_of(struct uart_port *p,
 			   struct dw8250_data *data)
 {
 	struct device_node	*np = p->dev->of_node;
-	struct uart_8250_port *up = up_to_u8250p(p);
-	bool has_ucv = true;
 	int id;
 
 #ifdef CONFIG_64BIT
@@ -296,12 +296,9 @@ static int dw8250_probe_of(struct uart_port *p,
 		p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
 		p->type = PORT_OCTEON;
 		data->usr_reg = 0x27;
-		has_ucv = false;
+		data->skip_autocfg = true;
 	}
 #endif
-	if (has_ucv)
-		dw8250_setup_port(up);
-
 	/* get index of serial line, if found in DT aliases */
 	id = of_alias_get_id(np, "serial");
 	if (id >= 0)
@@ -324,8 +321,6 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
 	struct uart_port *p = &up->port;
-
-	dw8250_setup_port(up);
 
 	p->iotype = UPIO_MEM32;
 	p->serial_in = dw8250_serial_in32;
@@ -485,6 +480,9 @@ static int dw8250_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_reset;
 	}
+
+	if (!data->skip_autocfg)
+		dw8250_setup_port(&uart);
 
 	/* If we have a valid fifosize, try hooking up DMA */
 	if (p->fifosize) {
