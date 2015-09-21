@@ -267,9 +267,9 @@ struct set_mac_addr {
 	u8 u8MacAddress[ETH_ALEN];
 };
 
-typedef struct {
+struct get_mac_addr {
 	u8 *u8MacAddress;
-} tstrHostIfGetMacAddress;
+};
 
 typedef struct {
 	u8 au8Bssid[ETH_ALEN];

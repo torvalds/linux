@@ -435,7 +435,7 @@ union message_body {
 	struct set_multicast strHostIfSetMulti;
 	struct op_mode strHostIfSetOperationMode;
 	struct set_mac_addr strHostIfSetMacAddress;
-	tstrHostIfGetMacAddress strHostIfGetMacAddress;
+	struct get_mac_addr strHostIfGetMacAddress;
 	tstrHostIfBASessionInfo strHostIfBASessionInfo;
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	tstrHostIfRegisterFrame strHostIfRegisterFrame;
@@ -889,7 +889,8 @@ static s32 Handle_SetMacAddress(tstrWILC_WFIDrv *drvHandler,
  *  @date		JAN 2013
  *  @version	8.0
  */
-static s32 Handle_GetMacAddress(tstrWILC_WFIDrv *drvHandler, tstrHostIfGetMacAddress *pstrHostIfGetMacAddress)
+static s32 Handle_GetMacAddress(tstrWILC_WFIDrv *drvHandler,
+				struct get_mac_addr *pstrHostIfGetMacAddress)
 {
 
 	s32 s32Error = 0;
