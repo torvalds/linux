@@ -3950,10 +3950,10 @@ static struct notifier_block ip_vs_dst_notifier = {
 	.notifier_call = ip_vs_dst_event,
 };
 
-int __net_init ip_vs_control_net_init(struct net *net)
+int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 {
+	struct net *net = ipvs->net;
 	int i, idx;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	/* Initialize rs_table */
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
@@ -3994,9 +3994,9 @@ err:
 	return -ENOMEM;
 }
 
-void __net_exit ip_vs_control_net_cleanup(struct net *net)
+void __net_exit ip_vs_control_net_cleanup(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct net *net = ipvs->net;
 
 	ip_vs_trash_cleanup(ipvs);
 	ip_vs_control_net_cleanup_sysctl(ipvs);

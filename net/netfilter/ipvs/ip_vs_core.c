@@ -2075,7 +2075,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	if (ip_vs_estimator_net_init(net) < 0)
 		goto estimator_fail;
 
-	if (ip_vs_control_net_init(net) < 0)
+	if (ip_vs_control_net_init(ipvs) < 0)
 		goto control_fail;
 
 	if (ip_vs_protocol_net_init(net) < 0)
@@ -2104,7 +2104,7 @@ conn_fail:
 app_fail:
 	ip_vs_protocol_net_cleanup(net);
 protocol_fail:
-	ip_vs_control_net_cleanup(net);
+	ip_vs_control_net_cleanup(ipvs);
 control_fail:
 	ip_vs_estimator_net_cleanup(net);
 estimator_fail:
@@ -2120,7 +2120,7 @@ static void __net_exit __ip_vs_cleanup(struct net *net)
 	ip_vs_conn_net_cleanup(net);
 	ip_vs_app_net_cleanup(net);
 	ip_vs_protocol_net_cleanup(net);
-	ip_vs_control_net_cleanup(net);
+	ip_vs_control_net_cleanup(ipvs);
 	ip_vs_estimator_net_cleanup(net);
 	IP_VS_DBG(2, "ipvs netns %d released\n", ipvs->gen);
 	net->ipvs = NULL;
