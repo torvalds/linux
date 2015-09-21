@@ -162,13 +162,13 @@ static inline int __init mips_sc_probe(void)
 		return 0;
 
 	tmp = (config2 >> 8) & 0x0f;
-	if (0 <= tmp && tmp <= 7)
+	if (tmp <= 7)
 		c->scache.sets = 64 << tmp;
 	else
 		return 0;
 
 	tmp = (config2 >> 0) & 0x0f;
-	if (0 <= tmp && tmp <= 7)
+	if (tmp <= 7)
 		c->scache.ways = tmp + 1;
 	else
 		return 0;
