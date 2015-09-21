@@ -201,7 +201,7 @@ struct connect_attr {
 };
 
 /*!
- *  @struct             tstrRcvdGnrlAsyncInfo
+ *  @struct             rcvd_async_info
  *  @brief		Structure to hold Received General Asynchronous info
  *  @details
  *  @todo
@@ -210,10 +210,10 @@ struct connect_attr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrRcvdGnrlAsyncInfo {
+struct rcvd_async_info {
 	u8 *pu8Buffer;
 	u32 u32Length;
-} tstrRcvdGnrlAsyncInfo;
+};
 
 /*!
  *  @struct             tstrHostIFSetChan
@@ -419,7 +419,7 @@ union message_body {
 	struct scan_attr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
 	struct connect_attr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
 	struct rcvd_net_info strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
-	tstrRcvdGnrlAsyncInfo strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
+	struct rcvd_async_info strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
 	tstrHostIFkeyAttr strHostIFkeyAttr;                             /*!<>*/
 	tstrHostIFCfgParamAttr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
 	tstrHostIFSetChan strHostIFSetChan;
@@ -2359,13 +2359,14 @@ done:
 /**
  *  @brief Handle_RcvdGnrlAsyncInfo
  *  @details       Handling received asynchrous general network information
- *  @param[in]    tstrRcvdGnrlAsyncInfo* pstrRcvdGnrlAsyncInfo
+ *  @param[in]     struct rcvd_async_info *pstrRcvdGnrlAsyncInfo
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler, tstrRcvdGnrlAsyncInfo *pstrRcvdGnrlAsyncInfo)
+static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
+				    struct rcvd_async_info *pstrRcvdGnrlAsyncInfo)
 {
 	/* TODO: mostafa: till now, this function just handles only the received mac status msg, */
 	/*				 which carries only 1 WID which have WID ID = WID_STATUS */
