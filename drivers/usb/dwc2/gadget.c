@@ -3146,8 +3146,6 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 	hsotg->gadget.dev.of_node = hsotg->dev->of_node;
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
 
-	clk_enable(hsotg->clk);
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
 	if (ret) {
@@ -3217,8 +3215,6 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	clk_disable(hsotg->clk);
-
 	mutex_unlock(&hsotg->init_mutex);
 
 	return 0;
@@ -3259,7 +3255,6 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	mutex_lock(&hsotg->init_mutex);
 	spin_lock_irqsave(&hsotg->lock, flags);
 	if (is_on) {
-		clk_enable(hsotg->clk);
 		hsotg->enabled = 1;
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		dwc2_hsotg_core_connect(hsotg);
@@ -3267,7 +3262,6 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 		dwc2_hsotg_core_disconnect(hsotg);
 		dwc2_hsotg_disconnect(hsotg);
 		hsotg->enabled = 0;
-		clk_disable(hsotg->clk);
 	}
 
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
