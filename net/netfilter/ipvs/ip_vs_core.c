@@ -1684,15 +1684,13 @@ out:
  *	and send it on its way...
  */
 static unsigned int
-ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
+ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int af)
 {
-	struct net *net;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	struct ip_vs_conn *cp;
 	int ret, pkts;
-	struct netns_ipvs *ipvs;
 	int conn_reuse_mode;
 
 	/* Already marked as IPVS request or reply? */
@@ -1715,8 +1713,6 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		return NF_ACCEPT;
 	}
 	/* ipvs enabled in this netns ? */
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
@@ -1844,7 +1840,7 @@ static unsigned int
 ip_vs_remote_request4(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	return ip_vs_in(state->hook, skb, AF_INET);
+	return ip_vs_in(net_ipvs(state->net), state->hook, skb, AF_INET);
 }
 
 /*
@@ -1855,7 +1851,7 @@ static unsigned int
 ip_vs_local_request4(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return ip_vs_in(state->hook, skb, AF_INET);
+	return ip_vs_in(net_ipvs(state->net), state->hook, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1868,7 +1864,7 @@ static unsigned int
 ip_vs_remote_request6(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	return ip_vs_in(state->hook, skb, AF_INET6);
+	return ip_vs_in(net_ipvs(state->net), state->hook, skb, AF_INET6);
 }
 
 /*
@@ -1879,7 +1875,7 @@ static unsigned int
 ip_vs_local_request6(void *priv, struct sk_buff *skb,
 		     const struct nf_hook_state *state)
 {
-	return ip_vs_in(state->hook, skb, AF_INET6);
+	return ip_vs_in(net_ipvs(state->net), state->hook, skb, AF_INET6);
 }
 
 #endif
