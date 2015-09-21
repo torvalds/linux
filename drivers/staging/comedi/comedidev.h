@@ -216,26 +216,27 @@ struct comedi_async {
 };
 
 /**
- * comedi_async callback "events"
+ * enum comedi_cb - &struct comedi_async callback "events"
  * @COMEDI_CB_EOS:		end-of-scan
  * @COMEDI_CB_EOA:		end-of-acquisition/output
  * @COMEDI_CB_BLOCK:		data has arrived, wakes up read() / write()
  * @COMEDI_CB_EOBUF:		DEPRECATED: end of buffer
  * @COMEDI_CB_ERROR:		card error during acquisition
  * @COMEDI_CB_OVERFLOW:		buffer overflow/underflow
- *
  * @COMEDI_CB_ERROR_MASK:	events that indicate an error has occurred
  * @COMEDI_CB_CANCEL_MASK:	events that will cancel an async command
  */
-#define COMEDI_CB_EOS		BIT(0)
-#define COMEDI_CB_EOA		BIT(1)
-#define COMEDI_CB_BLOCK		BIT(2)
-#define COMEDI_CB_EOBUF		BIT(3)
-#define COMEDI_CB_ERROR		BIT(4)
-#define COMEDI_CB_OVERFLOW	BIT(5)
-
-#define COMEDI_CB_ERROR_MASK	(COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)
-#define COMEDI_CB_CANCEL_MASK	(COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
+enum comedi_cb {
+	COMEDI_CB_EOS		= BIT(0),
+	COMEDI_CB_EOA		= BIT(1),
+	COMEDI_CB_BLOCK		= BIT(2),
+	COMEDI_CB_EOBUF		= BIT(3),
+	COMEDI_CB_ERROR		= BIT(4),
+	COMEDI_CB_OVERFLOW	= BIT(5),
+	/* masks */
+	COMEDI_CB_ERROR_MASK	= (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW),
+	COMEDI_CB_CANCEL_MASK	= (COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
+};
 
 struct comedi_driver {
 	struct comedi_driver *next;
