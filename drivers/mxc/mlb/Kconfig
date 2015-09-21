@@ -9,7 +9,7 @@ config MXC_MLB
 
 config MXC_MLB150
 	tristate "MLB150 support"
-	depends on SOC_IMX6Q
+	depends on (SOC_IMX6Q || SOC_IMX6SX)
 	select MXC_MLB
 	---help---
 	Say Y to get the MLB150 support.
