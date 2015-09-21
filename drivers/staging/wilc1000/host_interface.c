@@ -229,7 +229,7 @@ struct set_channel {
 };
 
 /*!
- *  @struct             tstrHostIFSetChan
+ *  @struct             get_channel
  *  @brief		Get Channel  message body
  *  @details
  *  @todo
@@ -238,9 +238,9 @@ struct set_channel {
  *  @date		01 Jule 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFGetChan {
+struct get_channel {
 	u8 u8GetChan;
-} tstrHostIFGetChan;
+};
 
 /*!
  *  @struct             tstrScanComplete
@@ -422,7 +422,7 @@ union message_body {
 	struct key_attr strHostIFkeyAttr;                             /*!<>*/
 	struct cfg_param_attr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
 	struct set_channel strHostIFSetChan;
-	tstrHostIFGetChan strHostIFGetChan;
+	struct get_channel strHostIFGetChan;
 	tstrHostIFSetBeacon strHostIFSetBeacon;                 /*!< Set beacon message body */
 	tstrHostIFDelBeacon strHostIFDelBeacon;                 /*!< Del beacon message body */
 	tstrWILC_AddStaParam strAddStaParam;                    /*!< Add station message body */
