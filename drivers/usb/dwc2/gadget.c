@@ -3572,8 +3572,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
 
-	dwc2_hsotg_of_probe(hsotg);
-
 	/* Initialize to legacy fifo configuration values */
 	hsotg->g_rx_fifo_sz = 2048;
 	hsotg->g_np_g_tx_fifo_sz = 1024;
