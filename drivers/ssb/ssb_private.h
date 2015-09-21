@@ -133,7 +133,6 @@ extern int ssb_sdio_get_invariants(struct ssb_bus *bus,
 
 extern u32 ssb_sdio_scan_read32(struct ssb_bus *bus, u16 offset);
 extern int ssb_sdio_scan_switch_coreidx(struct ssb_bus *bus, u8 coreidx);
-extern int ssb_sdio_hardware_setup(struct ssb_bus *bus);
 extern void ssb_sdio_exit(struct ssb_bus *bus);
 extern int ssb_sdio_init(struct ssb_bus *bus);
 
@@ -144,10 +143,6 @@ static inline u32 ssb_sdio_scan_read32(struct ssb_bus *bus, u16 offset)
 	return 0;
 }
 static inline int ssb_sdio_scan_switch_coreidx(struct ssb_bus *bus, u8 coreidx)
-{
-	return 0;
-}
-static inline int ssb_sdio_hardware_setup(struct ssb_bus *bus)
 {
 	return 0;
 }
