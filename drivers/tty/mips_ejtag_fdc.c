@@ -977,7 +977,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	/* Try requesting the IRQ */
 	if (priv->irq >= 0) {
 		/*
-		 * IRQF_SHARED, IRQF_NO_SUSPEND: The FDC IRQ may be shared with
+		 * IRQF_SHARED, IRQF_COND_SUSPEND: The FDC IRQ may be shared with
 		 * other local interrupts such as the timer which sets
 		 * IRQF_TIMER (including IRQF_NO_SUSPEND).
 		 *
@@ -987,7 +987,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		 */
 		ret = devm_request_irq(priv->dev, priv->irq, mips_ejtag_fdc_isr,
 				       IRQF_PERCPU | IRQF_SHARED |
-				       IRQF_NO_THREAD | IRQF_NO_SUSPEND,
+				       IRQF_NO_THREAD | IRQF_COND_SUSPEND,
 				       priv->fdc_name, priv);
 		if (ret)
 			priv->irq = -1;
