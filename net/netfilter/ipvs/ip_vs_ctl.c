@@ -3841,10 +3841,10 @@ static void ip_vs_genl_unregister(void)
  * per netns intit/exit func.
  */
 #ifdef CONFIG_SYSCTL
-static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
+static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 {
+	struct net *net = ipvs->net;
 	int idx;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ctl_table *tbl;
 
 	atomic_set(&ipvs->dropentry, 0);
@@ -3926,9 +3926,9 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	return 0;
 }
 
-static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
+static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct net *net = ipvs->net;
 
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
@@ -3941,8 +3941,8 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 
 #else
 
-static int __net_init ip_vs_control_net_init_sysctl(struct net *net) { return 0; }
-static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net) { }
+static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs) { return 0; }
+static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs) { }
 
 #endif
 
@@ -3984,7 +3984,7 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	proc_create("ip_vs_stats_percpu", 0, net->proc_net,
 		    &ip_vs_stats_percpu_fops);
 
-	if (ip_vs_control_net_init_sysctl(net))
+	if (ip_vs_control_net_init_sysctl(ipvs))
 		goto err;
 
 	return 0;
@@ -3999,7 +3999,7 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_trash_cleanup(ipvs);
-	ip_vs_control_net_cleanup_sysctl(net);
+	ip_vs_control_net_cleanup_sysctl(ipvs);
 	remove_proc_entry("ip_vs_stats_percpu", net->proc_net);
 	remove_proc_entry("ip_vs_stats", net->proc_net);
 	remove_proc_entry("ip_vs", net->proc_net);
