@@ -23,8 +23,6 @@
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	write_reg(par, 0xae); /* Display Off */
@@ -128,8 +126,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];
 	int i, acc = 0;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	for (i = 0; i < 63; i++) {
 		if (i > 0 && curves[i] < 2) {

@@ -68,8 +68,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, 0x36, 0x80 | (par->bgr << 3));

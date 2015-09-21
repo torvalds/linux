@@ -31,8 +31,6 @@
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* driving ability */
@@ -112,8 +110,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	};
 	int i, j;
 	int acc = 0;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)

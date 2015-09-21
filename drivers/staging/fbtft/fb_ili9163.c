@@ -108,8 +108,6 @@ create setup for different displays.
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gpio.cs != -1)
@@ -201,8 +199,6 @@ static int set_var(struct fbtft_par *par)
 {
 	u8 mactrl_data = 0; /* Avoid compiler warning */
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
 		mactrl_data = 0x08;
@@ -235,8 +231,6 @@ static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
 		0x1f, 0x3f, 0x0f, 0x0f, 0x7f, 0x1f,
 		0x3F, 0x3F, 0x3F, 0x3F, 0x3F};
 	int i, j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	for (i = 0; i < GAMMA_NUM; i++)
 		for (j = 0; j < GAMMA_LEN; j++)

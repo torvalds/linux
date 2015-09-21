@@ -106,8 +106,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 #define MV BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* MADCTL - Memory data access control
 	     RGB/BGR:
 	     1. Mode selection pin SRGB
@@ -141,8 +139,6 @@ static int set_var(struct fbtft_par *par)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	int i, j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)

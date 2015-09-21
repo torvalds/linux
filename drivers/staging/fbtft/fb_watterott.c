@@ -159,8 +159,6 @@ static int init_display(struct fbtft_par *par)
 	unsigned version;
 	u8 save_mode;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* enable SPI interface by having CS and MOSI low during reset */
 	save_mode = par->spi->mode;
 	par->spi->mode |= SPI_CS_HIGH;
@@ -199,8 +197,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int set_var(struct fbtft_par *par)
 {
 	u8 rotate;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* this controller rotates clock wise */
 	switch (par->info->var.rotate) {

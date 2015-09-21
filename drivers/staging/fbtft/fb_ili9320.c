@@ -43,8 +43,6 @@ static int init_display(struct fbtft_par *par)
 {
 	unsigned devcode;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	devcode = read_devicecode(par);
@@ -200,8 +198,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
 		write_reg(par, 0x3, (par->bgr << 12) | 0x30);
@@ -232,8 +228,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
 	};
 	int i, j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < 2; i++)

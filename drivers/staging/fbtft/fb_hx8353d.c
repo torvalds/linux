@@ -28,8 +28,6 @@
 static int init_display(struct fbtft_par *par)
 {
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 	mdelay(150);
 
@@ -89,8 +87,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 #define mv BIT(5)
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* madctl - memory data access control
 	     rgb/bgr:
 	     1. mode selection pin srgb
@@ -120,8 +116,6 @@ static int set_var(struct fbtft_par *par)
 */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	write_reg(par, 0xE0,
 		curves[0], curves[1], curves[2], curves[3],
 		curves[4], curves[5], curves[6], curves[7],

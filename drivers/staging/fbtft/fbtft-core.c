@@ -1050,8 +1050,6 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 	u32 val;
 	int buf[64], i, j;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	if (!node)
 		return -EINVAL;
 
@@ -1133,8 +1131,6 @@ int fbtft_init_display(struct fbtft_par *par)
 	char str[16];
 	int i = 0;
 	int j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* sanity check */
 	if (!par->init_sequence) {

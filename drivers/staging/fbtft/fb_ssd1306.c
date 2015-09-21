@@ -40,8 +40,6 @@
 /* Init sequence taken from the Adafruit SSD1306 Arduino library */
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	if (par->gamma.curves[0] == 0) {
@@ -150,8 +148,6 @@ static int blank(struct fbtft_par *par, bool on)
 /* Gamma is used to control Contrast */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* apply mask */
 	curves[0] &= 0xFF;
 

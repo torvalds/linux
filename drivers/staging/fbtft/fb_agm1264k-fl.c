@@ -74,8 +74,6 @@ static int init_display(struct fbtft_par *par)
 {
 	u8 i;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	for (i = 0; i < 2; ++i) {

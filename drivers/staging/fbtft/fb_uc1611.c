@@ -72,8 +72,6 @@ static int init_display(struct fbtft_par *par)
 {
 	int ret;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* Set CS active high */
 	par->spi->mode |= SPI_CS_HIGH;
 	ret = par->spi->master->setup(par->spi);
@@ -152,8 +150,6 @@ static int blank(struct fbtft_par *par, bool on)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* par->info->fix.visual = FB_VISUAL_PSEUDOCOLOR; */
 	par->info->var.grayscale = 1;
 	par->info->var.red.offset    = 0;
