@@ -136,7 +136,7 @@ typedef union _tuniHostIFkeyAttr {
 } tuniHostIFkeyAttr;
 
 /*!
- *  @struct             tstrHostIFkeyAttr
+ *  @struct             key_attr
  *  @brief		Structure to hold Host IF Scan Attributes
  *  @details
  *  @todo
@@ -145,11 +145,11 @@ typedef union _tuniHostIFkeyAttr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFkeyAttr {
+struct key_attr {
 	tenuKeyType enuKeyType;
 	u8 u8KeyAction;
 	tuniHostIFkeyAttr uniHostIFkeyAttr;
-} tstrHostIFkeyAttr;
+};
 
 
 
@@ -420,7 +420,7 @@ union message_body {
 	struct connect_attr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
 	struct rcvd_net_info strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
 	struct rcvd_async_info strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
-	tstrHostIFkeyAttr strHostIFkeyAttr;                             /*!<>*/
+	struct key_attr strHostIFkeyAttr;                             /*!<>*/
 	tstrHostIFCfgParamAttr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
 	tstrHostIFSetChan strHostIFSetChan;
 	tstrHostIFGetChan strHostIFGetChan;
@@ -2686,13 +2686,14 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 /**
  *  @brief Handle_Key
  *  @details       Sending config packet to firmware to set key
- *  @param[in]    tstrHostIFkeyAttr* pstrHostIFkeyAttr
+ *  @param[in]    struct key_attr *pstrHostIFkeyAttr
  *  @return         Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-static int Handle_Key(tstrWILC_WFIDrv *drvHandler, tstrHostIFkeyAttr *pstrHostIFkeyAttr)
+static int Handle_Key(tstrWILC_WFIDrv *drvHandler,
+		      struct key_attr *pstrHostIFkeyAttr)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
