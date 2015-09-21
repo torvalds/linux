@@ -3209,6 +3209,31 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{ }
 };
 
+static struct rt5645_platform_data buddy_platform_data = {
+	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
+	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
+	.jd_mode = 3,
+};
+
+static int buddy_quirk_cb(const struct dmi_system_id *id)
+{
+	rt5645_pdata = &buddy_platform_data;
+
+	return 1;
+}
+
+static struct dmi_system_id dmi_platform_intel_broadwell[] __initdata = {
+	{
+		.ident = "Chrome Buddy",
+		.callback = buddy_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Buddy"),
+		},
+	},
+	{ }
+};
+
+
 static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
 {
 	rt5645->pdata.in2_diff = device_property_read_bool(dev,
@@ -3241,7 +3266,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5645->pdata = *pdata;
-	else if (dmi_check_system(dmi_platform_intel_braswell))
+	else if (dmi_check_system(dmi_platform_intel_braswell) ||
+			dmi_check_system(dmi_platform_intel_broadwell))
 		rt5645->pdata = *rt5645_pdata;
 	else
 		rt5645_parse_dt(rt5645, &i2c->dev);
