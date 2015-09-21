@@ -33,6 +33,12 @@ Optional properties in the area nodes:
 
 - compatible : standard definition, should contain a vendor specific string
                in the form <vendor>,[<device>-]<usage>
+- pool : indicates that the particular reserved SRAM area is addressable
+         and in use by another device or devices
+- export : indicates that the reserved SRAM area may be accessed outside
+           of the kernel, e.g. by bootloader or userspace
+- label : the name for the reserved partition, if omitted, the label
+          is taken from the node name excluding the unit address.
 
 Example:
 
@@ -47,5 +53,15 @@ sram: sram@5c000000 {
 	smp-sram@100 {
 		compatible = "socvendor,smp-sram";
 		reg = <0x100 0x50>;
+	};
+
+	device-sram@1000 {
+		reg = <0x1000 0x1000>;
+		pool;
+	};
+
+	exported@20000 {
+		reg = <0x20000 0x20000>;
+		export;
 	};
 };
