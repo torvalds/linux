@@ -271,12 +271,12 @@ struct get_mac_addr {
 	u8 *u8MacAddress;
 };
 
-typedef struct {
+struct ba_session_info {
 	u8 au8Bssid[ETH_ALEN];
 	u8 u8Ted;
 	u16 u16BufferSize;
 	u16 u16SessionTimeout;
-} tstrHostIfBASessionInfo;
+};
 
 typedef struct {
 	u16 u16Channel;

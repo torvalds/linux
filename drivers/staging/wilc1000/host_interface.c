@@ -436,7 +436,7 @@ union message_body {
 	struct op_mode strHostIfSetOperationMode;
 	struct set_mac_addr strHostIfSetMacAddress;
 	struct get_mac_addr strHostIfGetMacAddress;
-	tstrHostIfBASessionInfo strHostIfBASessionInfo;
+	struct ba_session_info strHostIfBASessionInfo;
 	tstrHostIfRemainOnChan strHostIfRemainOnChan;
 	tstrHostIfRegisterFrame strHostIfRegisterFrame;
 	char *pUserData;
@@ -4081,7 +4081,8 @@ ERRORHANDLER:
  *  @date			Feb. 2014
  *  @version		9.0
  */
-static s32 Handle_AddBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionInfo *strHostIfBASessionInfo)
+static s32 Handle_AddBASession(tstrWILC_WFIDrv *drvHandler,
+			       struct ba_session_info *strHostIfBASessionInfo)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -4170,7 +4171,8 @@ static s32 Handle_AddBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionI
  *  @date			Feb. 2013
  *  @version		9.0
  */
-static s32 Handle_DelBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionInfo *strHostIfBASessionInfo)
+static s32 Handle_DelBASession(tstrWILC_WFIDrv *drvHandler,
+			       struct ba_session_info *strHostIfBASessionInfo)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -4241,7 +4243,8 @@ static s32 Handle_DelBASession(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionI
  *  @date			Feb. 2013
  *  @version		9.0
  */
-static s32 Handle_DelAllRxBASessions(tstrWILC_WFIDrv *drvHandler, tstrHostIfBASessionInfo *strHostIfBASessionInfo)
+static s32 Handle_DelAllRxBASessions(tstrWILC_WFIDrv *drvHandler,
+				     struct ba_session_info *strHostIfBASessionInfo)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -7521,7 +7524,7 @@ static int host_int_addBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TI
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIfBASessionInfo *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
@@ -7552,7 +7555,7 @@ s32 host_int_delBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID)
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIfBASessionInfo *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
@@ -7582,7 +7585,7 @@ s32 host_int_del_All_Rx_BASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char T
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIfBASessionInfo *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
