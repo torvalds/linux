@@ -472,10 +472,8 @@ udp_state_transition(struct ip_vs_conn *cp, int direction,
 	cp->timeout = pd->timeout_table[IP_VS_UDP_S_NORMAL];
 }
 
-static int __udp_init(struct net *net, struct ip_vs_proto_data *pd)
+static int __udp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
 	ip_vs_init_hash_table(ipvs->udp_apps, UDP_APP_TAB_SIZE);
 	pd->timeout_table = ip_vs_create_timeout_table((int *)udp_timeouts,
 							sizeof(udp_timeouts));
@@ -484,7 +482,7 @@ static int __udp_init(struct net *net, struct ip_vs_proto_data *pd)
 	return 0;
 }
 
-static void __udp_exit(struct net *net, struct ip_vs_proto_data *pd)
+static void __udp_exit(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)
 {
 	kfree(pd->timeout_table);
 }

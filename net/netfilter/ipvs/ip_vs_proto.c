@@ -78,7 +78,7 @@ register_ip_vs_proto_netns(struct netns_ipvs *ipvs, struct ip_vs_protocol *pp)
 	atomic_set(&pd->appcnt, 0);	/* Init app counter */
 
 	if (pp->init_netns != NULL) {
-		int ret = pp->init_netns(ipvs->net, pd);
+		int ret = pp->init_netns(ipvs, pd);
 		if (ret) {
 			/* unlink an free proto data */
 			ipvs->proto_data_table[hash] = pd->next;
@@ -125,7 +125,7 @@ unregister_ip_vs_proto_netns(struct netns_ipvs *ipvs, struct ip_vs_proto_data *p
 		if (*pd_p == pd) {
 			*pd_p = pd->next;
 			if (pd->pp->exit_netns != NULL)
-				pd->pp->exit_netns(ipvs->net, pd);
+				pd->pp->exit_netns(ipvs, pd);
 			kfree(pd);
 			return 0;
 		}
