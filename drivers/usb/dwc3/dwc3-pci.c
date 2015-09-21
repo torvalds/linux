@@ -154,6 +154,7 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		goto err;
 
 	dwc3->dev.parent = dev;
+	ACPI_COMPANION_SET(&dwc3->dev, ACPI_COMPANION(dev));
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
