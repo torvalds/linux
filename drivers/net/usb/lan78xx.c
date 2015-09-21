@@ -2424,11 +2424,6 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 			skb_pull(skb, align_count);
 	}
 
-	if (unlikely(skb->len < 0)) {
-		netdev_warn(dev->net, "invalid rx length<0 %d", skb->len);
-		return 0;
-	}
-
 	return 1;
 }
 
