@@ -64,6 +64,7 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
 
+FEATURE_USER = .libbpf
 FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
 FEATURE_DISPLAY = libelf bpf
 
