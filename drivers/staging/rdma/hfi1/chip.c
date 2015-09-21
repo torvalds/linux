@@ -2710,7 +2710,7 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	if (sleep_ok) {
 		mutex_lock(&ppd->hls_lock);
 	} else {
-		while (mutex_trylock(&ppd->hls_lock) == EBUSY)
+		while (!mutex_trylock(&ppd->hls_lock))
 			udelay(1);
 	}
 
@@ -2758,7 +2758,7 @@ int release_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	if (sleep_ok) {
 		mutex_lock(&dd->pport->hls_lock);
 	} else {
-		while (mutex_trylock(&dd->pport->hls_lock) == EBUSY)
+		while (!mutex_trylock(&dd->pport->hls_lock))
 			udelay(1);
 	}
 
