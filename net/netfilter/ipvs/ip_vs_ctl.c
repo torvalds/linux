@@ -2205,6 +2205,7 @@ static const struct file_operations ip_vs_stats_percpu_fops = {
 static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 {
 #if defined(CONFIG_IP_VS_PROTO_TCP) || defined(CONFIG_IP_VS_PROTO_UDP)
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;
 #endif
 
@@ -2215,13 +2216,13 @@ static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	if (u->tcp_timeout) {
-		pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+		pd = ip_vs_proto_data_get(ipvs, IPPROTO_TCP);
 		pd->timeout_table[IP_VS_TCP_S_ESTABLISHED]
 			= u->tcp_timeout * HZ;
 	}
 
 	if (u->tcp_fin_timeout) {
-		pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+		pd = ip_vs_proto_data_get(ipvs, IPPROTO_TCP);
 		pd->timeout_table[IP_VS_TCP_S_FIN_WAIT]
 			= u->tcp_fin_timeout * HZ;
 	}
@@ -2229,7 +2230,7 @@ static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	if (u->udp_timeout) {
-		pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
+		pd = ip_vs_proto_data_get(ipvs, IPPROTO_UDP);
 		pd->timeout_table[IP_VS_UDP_S_NORMAL]
 			= u->udp_timeout * HZ;
 	}
@@ -2589,18 +2590,19 @@ static inline void
 __ip_vs_get_timeouts(struct net *net, struct ip_vs_timeout_user *u)
 {
 #if defined(CONFIG_IP_VS_PROTO_TCP) || defined(CONFIG_IP_VS_PROTO_UDP)
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;
 #endif
 
 	memset(u, 0, sizeof (*u));
 
 #ifdef CONFIG_IP_VS_PROTO_TCP
-	pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+	pd = ip_vs_proto_data_get(ipvs, IPPROTO_TCP);
 	u->tcp_timeout = pd->timeout_table[IP_VS_TCP_S_ESTABLISHED] / HZ;
 	u->tcp_fin_timeout = pd->timeout_table[IP_VS_TCP_S_FIN_WAIT] / HZ;
 #endif
 #ifdef CONFIG_IP_VS_PROTO_UDP
-	pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
+	pd = ip_vs_proto_data_get(ipvs, IPPROTO_UDP);
 	u->udp_timeout =
 			pd->timeout_table[IP_VS_UDP_S_NORMAL] / HZ;
 #endif

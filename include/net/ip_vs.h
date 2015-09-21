@@ -541,7 +541,7 @@ struct ip_vs_proto_data {
 };
 
 struct ip_vs_protocol   *ip_vs_proto_get(unsigned short proto);
-struct ip_vs_proto_data *ip_vs_proto_data_get(struct net *net,
+struct ip_vs_proto_data *ip_vs_proto_data_get(struct netns_ipvs *ipvs,
 					      unsigned short proto);
 
 struct ip_vs_conn_param {

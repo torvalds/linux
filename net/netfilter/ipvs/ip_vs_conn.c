@@ -668,7 +668,7 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 #endif
 			ip_vs_bind_xmit(cp);
 
-		pd = ip_vs_proto_data_get(cp->ipvs->net, cp->protocol);
+		pd = ip_vs_proto_data_get(cp->ipvs, cp->protocol);
 		if (pd && atomic_read(&pd->appcnt))
 			ip_vs_bind_app(cp, pd->pp);
 	}
@@ -876,7 +876,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 {
 	struct ip_vs_conn *cp;
 	struct netns_ipvs *ipvs = p->ipvs;
-	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(p->ipvs->net,
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(p->ipvs,
 							   p->protocol);
 
 	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);

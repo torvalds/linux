@@ -941,7 +941,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 	} else {
 		struct ip_vs_proto_data *pd;
 
-		pd = ip_vs_proto_data_get(net, protocol);
+		pd = ip_vs_proto_data_get(ipvs, protocol);
 		if (!(flags & IP_VS_CONN_F_TEMPLATE) && pd && pd->timeout_table)
 			cp->timeout = pd->timeout_table[state];
 		else

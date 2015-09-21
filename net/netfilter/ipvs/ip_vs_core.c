@@ -1237,7 +1237,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 				return verdict;
 		}
 
-	pd = ip_vs_proto_data_get(net, iph.protocol);
+	pd = ip_vs_proto_data_get(ipvs, iph.protocol);
 	if (unlikely(!pd))
 		return NF_ACCEPT;
 	pp = pd->pp;
@@ -1470,7 +1470,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		ipip = true;
 	}
 
-	pd = ip_vs_proto_data_get(net, cih->protocol);
+	pd = ip_vs_proto_data_get(ipvs, cih->protocol);
 	if (!pd)
 		return NF_ACCEPT;
 	pp = pd->pp;
@@ -1633,7 +1633,7 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 
 	net = skb_net(skb);
 	ipvs = net_ipvs(net);
-	pd = ip_vs_proto_data_get(net, ciph.protocol);
+	pd = ip_vs_proto_data_get(ipvs, ciph.protocol);
 	if (!pd)
 		return NF_ACCEPT;
 	pp = pd->pp;
@@ -1765,7 +1765,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		}
 
 	/* Protocol supported? */
-	pd = ip_vs_proto_data_get(net, iph.protocol);
+	pd = ip_vs_proto_data_get(ipvs, iph.protocol);
 	if (unlikely(!pd)) {
 		/* The only way we'll see this packet again is if it's
 		 * encapsulated, so mark it with ipvs_property=1 so we

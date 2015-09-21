@@ -156,8 +156,8 @@ EXPORT_SYMBOL(ip_vs_proto_get);
 /*
  *	get ip_vs_protocol object data by netns and proto
  */
-static struct ip_vs_proto_data *
-__ipvs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
+struct ip_vs_proto_data *
+ip_vs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
 {
 	struct ip_vs_proto_data *pd;
 	unsigned int hash = IP_VS_PROTO_HASH(proto);
@@ -168,14 +168,6 @@ __ipvs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
 	}
 
 	return NULL;
-}
-
-struct ip_vs_proto_data *
-ip_vs_proto_data_get(struct net *net, unsigned short proto)
-{
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
-	return __ipvs_proto_data_get(ipvs, proto);
 }
 EXPORT_SYMBOL(ip_vs_proto_data_get);
 

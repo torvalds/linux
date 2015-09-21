@@ -494,7 +494,7 @@ static int sctp_register_app(struct net *net, struct ip_vs_app *inc)
 	__be16 port = inc->port;
 	int ret = 0;
 	struct netns_ipvs *ipvs = net_ipvs(net);
-	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_SCTP);
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(ipvs, IPPROTO_SCTP);
 
 	hash = sctp_app_hashkey(port);
 
@@ -513,7 +513,7 @@ out:
 
 static void sctp_unregister_app(struct net *net, struct ip_vs_app *inc)
 {
-	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_SCTP);
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net_ipvs(net), IPPROTO_SCTP);
 
 	atomic_dec(&pd->appcnt);
 	list_del_rcu(&inc->p_list);
