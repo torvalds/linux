@@ -1077,6 +1077,7 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 		/* Fast syscall setup is all done in hypercalls, so
 		   these are all ignored.  Stub them out here to stop
 		   Xen console noise. */
+		break;
 
 	default:
 		if (!pmu_msr_write(msr, low, high, &ret))
