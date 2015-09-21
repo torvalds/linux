@@ -1173,10 +1173,9 @@ drop:
  *	Check if outgoing packet belongs to the established ip_vs_conn.
  */
 static unsigned int
-ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
+ip_vs_out(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int af)
 {
-	struct net *net = NULL;
-	struct netns_ipvs *ipvs;
+	struct net *net = ipvs->net;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
@@ -1201,8 +1200,6 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	if (unlikely(!skb_dst(skb)))
 		return NF_ACCEPT;
 
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 	if (!ipvs->enable)
 		return NF_ACCEPT;
 
@@ -1306,7 +1303,7 @@ static unsigned int
 ip_vs_reply4(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	return ip_vs_out(state->hook, skb, AF_INET);
+	return ip_vs_out(net_ipvs(state->net), state->hook, skb, AF_INET);
 }
 
 /*
@@ -1317,7 +1314,7 @@ static unsigned int
 ip_vs_local_reply4(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
-	return ip_vs_out(state->hook, skb, AF_INET);
+	return ip_vs_out(net_ipvs(state->net), state->hook, skb, AF_INET);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1331,7 +1328,7 @@ static unsigned int
 ip_vs_reply6(void *priv, struct sk_buff *skb,
 	     const struct nf_hook_state *state)
 {
-	return ip_vs_out(state->hook, skb, AF_INET6);
+	return ip_vs_out(net_ipvs(state->net), state->hook, skb, AF_INET6);
 }
 
 /*
@@ -1342,7 +1339,7 @@ static unsigned int
 ip_vs_local_reply6(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
-	return ip_vs_out(state->hook, skb, AF_INET6);
+	return ip_vs_out(net_ipvs(state->net), state->hook, skb, AF_INET6);
 }
 
 #endif
