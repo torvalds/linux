@@ -1335,7 +1335,7 @@ void ip_vs_protocol_net_cleanup(struct net *net);
 void ip_vs_control_net_cleanup(struct net *net);
 void ip_vs_estimator_net_cleanup(struct net *net);
 void ip_vs_sync_net_cleanup(struct net *net);
-void ip_vs_service_net_cleanup(struct net *net);
+void ip_vs_service_net_cleanup(struct netns_ipvs *ipvs);
 
 /* IPVS application functions
  * (from ip_vs_app.c)

@@ -1484,9 +1484,8 @@ static int ip_vs_flush(struct netns_ipvs *ipvs, bool cleanup)
  *	Delete service by {netns} in the service table.
  *	Called by __ip_vs_cleanup()
  */
-void ip_vs_service_net_cleanup(struct net *net)
+void ip_vs_service_net_cleanup(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	EnterFunction(2);
 	/* Check for "full" addressed entries */
 	mutex_lock(&__ip_vs_mutex);
