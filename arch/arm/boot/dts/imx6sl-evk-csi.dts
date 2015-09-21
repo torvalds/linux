@@ -1,0 +1,21 @@
+/*
+ * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sl-evk.dts"
+
+&csi {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&epdc {
+	status = "disabled";
+};

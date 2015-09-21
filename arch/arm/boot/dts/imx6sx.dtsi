@@ -1145,12 +1145,14 @@
 				ranges;
 
 				csi1: csi@02214000 {
+					compatible = "fsl,imx6s-csi";
 					reg = <0x02214000 0x4000>;
 					interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_DISPLAY_AXI>,
 						 <&clks IMX6SX_CLK_CSI>,
 						 <&clks IMX6SX_CLK_DCIC1>;
-					clock-names = "disp-axi", "csi_mclk", "dcic";
+					clock-names = "disp-axi", "csi_mclk", "disp_dcic";
+					power-domains = <&gpc 2>;
 					status = "disabled";
 				};
 
@@ -1164,12 +1166,14 @@
 				};
 
 				csi2: csi@0221c000 {
+					compatible = "fsl,imx6s-csi";
 					reg = <0x0221c000 0x4000>;
 					interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_DISPLAY_AXI>,
 						 <&clks IMX6SX_CLK_CSI>,
 						 <&clks IMX6SX_CLK_DCIC2>;
-					clock-names = "disp-axi", "csi_mclk", "dcic";
+					clock-names = "disp-axi", "csi_mclk", "disp_dcic";
+					power-domains = <&gpc 2>;
 					status = "disabled";
 				};
 

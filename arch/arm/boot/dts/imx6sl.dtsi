@@ -695,8 +695,14 @@
 			};
 
 			csi: csi@020e4000 {
+				compatible = "fsl,imx6s-csi";
 				reg = <0x020e4000 0x4000>;
 				interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SL_CLK_DUMMY>,
+					<&clks IMX6SL_CLK_DUMMY>,
+					<&clks IMX6SL_CLK_DUMMY>;
+				clock-names = "disp-axi", "csi_mclk", "disp_dcic";
+				status = "disabled";
 			};
 
 			spdc: spdc@020e8000 {

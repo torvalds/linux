@@ -15,3 +15,17 @@
 	model = "Freescale i.MX6 DualLite/Solo SABRE Automotive Board";
 	compatible = "fsl,imx6dl-sabreauto", "fsl,imx6dl";
 };
+&ldb {
+	lvds-channel@0 {
+		crtc = "ipu1-di0";
+	};
+	lvds-channel@1 {
+		crtc = "ipu1-di1";
+	};
+};
+&mxcfb1 {
+	status = "okay";
+};
+&mxcfb2 {
+	status = "okay";
+};

@@ -14,6 +14,7 @@
 
 / {
 	aliases {
+		ipu1 = &ipu2;
 		spi4 = &ecspi5;
 	};
 
@@ -174,6 +175,18 @@
 						>;
 					};
 				};
+			};
+		};
+
+		aips-bus@02100000 { /* AIPS2 */
+			mipi_dsi: mipi@021e0000 {
+				compatible = "fsl,imx6q-mipi-dsi";
+				reg = <0x021e0000 0x4000>;
+				interrupts = <0 102 0x04>;
+				gpr = <&gpr>;
+				clocks = <&clks IMX6QDL_CLK_HSI_TX>, <&clks IMX6QDL_CLK_VIDEO_27M>;
+				clock-names = "mipi_pllref_clk", "mipi_cfg_clk";
+				status = "disabled";
 			};
 		};
 

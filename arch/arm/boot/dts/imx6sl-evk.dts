@@ -130,6 +130,14 @@
 	soc-supply = <&sw1c_reg>;
 };
 
+&csi {
+	port {
+		csi_ep: endpoint {
+			remote-endpoint = <&ov5640_ep>;
+		};
+	};
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 11 0>;
@@ -292,6 +300,34 @@
 	};
 };
 
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "disabled";
+
+	ov5640: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_csi_0>;
+		clocks = <&clks IMX6SL_CLK_CSI>;
+		clock-names = "csi_mclk";
+		AVDD-supply = <&vgen6_reg>;  /* 2.8v */
+		DVDD-supply = <&vgen2_reg>;  /* 1.5v*/
+		pwn-gpios = <&gpio1 25 1>;
+		rst-gpios = <&gpio1 26 0>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		port {
+			ov5640_ep: endpoint {
+				remote-endpoint = <&csi_ep>;
+			};
+		};
+	};
+};
+
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
@@ -368,6 +404,13 @@
 			fsl,pins = <
 				MX6SL_PAD_I2C2_SCL__I2C2_SCL	0x4001b8b1
 				MX6SL_PAD_I2C2_SDA__I2C2_SDA	0x4001b8b1
+			>;
+		};
+
+		pinctrl_i2c3: i2c3grp {
+			fsl,pins = <
+				MX6SL_PAD_EPDC_SDCE2__I2C3_SCL 0x4001b8b1
+				MX6SL_PAD_EPDC_SDCE3__I2C3_SDA 0x4001b8b1
 			>;
 		};
 
@@ -574,6 +617,27 @@
 				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x170f9
 			>;
 		};
+
+		pinctrl_csi_0: csigrp-0 {
+			fsl,pins = <
+				MX6SL_PAD_EPDC_GDRL__CSI_MCLK	0x110b0
+				MX6SL_PAD_EPDC_GDCLK__CSI_PIXCLK 0x110b0
+				MX6SL_PAD_EPDC_GDSP__CSI_VSYNC	0x110b0
+				MX6SL_PAD_EPDC_GDOE__CSI_HSYNC	0x110b0
+				MX6SL_PAD_EPDC_SDLE__CSI_DATA09	0x110b0
+				MX6SL_PAD_EPDC_SDCLK__CSI_DATA08 0x110b0
+				MX6SL_PAD_EPDC_D7__CSI_DATA07	0x110b0
+				MX6SL_PAD_EPDC_D6__CSI_DATA06	0x110b0
+				MX6SL_PAD_EPDC_D5__CSI_DATA05	0x110b0
+				MX6SL_PAD_EPDC_D4__CSI_DATA04	0x110b0
+				MX6SL_PAD_EPDC_D3__CSI_DATA03	0x110b0
+				MX6SL_PAD_EPDC_D2__CSI_DATA02	0x110b0
+				MX6SL_PAD_EPDC_D1__CSI_DATA01	0x110b0
+				MX6SL_PAD_EPDC_D0__CSI_DATA00	0x110b0
+				MX6SL_PAD_EPDC_SDSHR__GPIO1_IO26 0x80000000
+				MX6SL_PAD_EPDC_SDOE__GPIO1_IO25	 0x80000000
+			>;
+		};
 	};
 };
 
@@ -601,7 +665,7 @@
 	status = "okay";
 
 	display0: display0 {
-		bits-per-pixel = <32>;
+		bits-per-pixel = <16>;
 		bus-width = <24>;
 
 		display-timings {

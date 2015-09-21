@@ -91,6 +91,12 @@
 				compatible = "fsl,imx6dl-iomuxc";
 			};
 
+			dcic2: dcic@020e8000 {
+				clocks = <&clks IMX6QDL_CLK_DCIC1 >,
+						<&clks IMX6QDL_CLK_DCIC2>; /* DCIC2 depend on DCIC1 clock in imx6dl*/
+				clock-names = "dcic", "disp-axi";
+			};
+
 			pxp: pxp@020f0000 {
 				reg = <0x020f0000 0x4000>;
 				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -108,6 +114,16 @@
 		};
 
 		aips2: aips-bus@02100000 {
+			mipi_dsi: mipi@021e0000 {
+				compatible = "fsl,imx6dl-mipi-dsi";
+				reg = <0x021e0000 0x4000>;
+				interrupts = <0 102 0x04>;
+				gpr = <&gpr>;
+				clocks = <&clks IMX6QDL_CLK_HSI_TX>, <&clks IMX6QDL_CLK_VIDEO_27M>;
+				clock-names = "mipi_pllref_clk", "mipi_cfg_clk";
+				status = "disabled";
+			};
+
 			i2c4: i2c@021f8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;

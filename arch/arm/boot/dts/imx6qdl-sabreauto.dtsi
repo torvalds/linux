@@ -69,6 +69,14 @@
 			regulator-always-on;
 		};
 
+		reg_3p3v: 3p3v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
 		reg_si4763_vio1: regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
@@ -203,6 +211,14 @@
 		pwms = <&pwm3 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
+		status = "okay";
+	};
+
+	v4l2_cap_0 {
+		compatible = "fsl,imx6q-v4l2-capture";
+		ipu_id = <0>;
+		csi_id = <0>;
+		mclk_source = <0>;
 		status = "okay";
 	};
 
@@ -441,6 +457,24 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
+	adv7180: adv7180@21 {
+		compatible = "adv,adv7180";
+		reg = <0x21>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu1_1>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		clock-names = "csi_mclk";
+		DOVDD-supply = <&reg_3p3v>; /* 3.3v, enabled via 2.8 VGEN6 */
+		AVDD-supply = <&reg_3p3v>;  /* 1.8v */
+		DVDD-supply = <&reg_3p3v>;  /* 1.8v */
+		PVDD-supply = <&reg_3p3v>;  /* 1.8v */
+		pwn-gpios = <&max7310_b 2 0>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		cvbs = <1>;
+	};
+
 	isl29023@44 {
 		compatible = "fsl,isl29023";
 		reg = <0x44>;
@@ -503,12 +537,17 @@
 
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6QDL_PAD_NANDF_CS2__GPIO6_IO15 0x80000000
+				MX6QDL_PAD_NANDF_CS2__GPIO6_IO15 0x1f059
 				MX6QDL_PAD_SD2_DAT2__GPIO1_IO13  0x80000000
 				MX6QDL_PAD_GPIO_18__SD3_VSELECT 0x17059
+				MX6QDL_PAD_EIM_A24__GPIO5_IO04   0x80000000
+				MX6QDL_PAD_SD2_DAT0__GPIO1_IO15  0x80000000
 				MX6QDL_PAD_EIM_BCLK__GPIO6_IO31 0x80000000
 				MX6QDL_PAD_EIM_EB1__GPIO2_IO29	0x80000000
 				MX6QDL_PAD_DISP0_DAT23__GPIO5_IO17 0x80000000
+				MX6QDL_PAD_SD3_RST__GPIO7_IO08 0x80000000
+				MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20 0x17059
+				MX6QDL_PAD_GPIO_1__GPIO1_IO01 0x17059
 			>;
 		};
 
