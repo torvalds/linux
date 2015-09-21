@@ -247,7 +247,15 @@ out:
 	serial8250_do_set_termios(p, termios, old);
 }
 
-static bool dw8250_dma_filter(struct dma_chan *chan, void *param)
+/*
+ * dw8250_fallback_dma_filter will prevent the UART from getting just any free
+ * channel on platforms that have DMA engines, but don't have any channels
+ * assigned to the UART.
+ *
+ * REVISIT: This is a work around for limitation in the DMA Engine API. Once the
+ * core problem is fixed, this function is no longer needed.
+ */
+static bool dw8250_fallback_dma_filter(struct dma_chan *chan, void *param)
 {
 	return false;
 }
@@ -374,6 +382,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	data->dma.fn = dw8250_fallback_dma_filter;
 	data->usr_reg = DW_UART_USR;
 	p->private_data = data;
 
@@ -459,10 +468,6 @@ static int dw8250_probe(struct platform_device *pdev)
 	}
 	if (!IS_ERR(data->rst))
 		reset_control_deassert(data->rst);
-
-	data->dma.rx_param = data;
-	data->dma.tx_param = data;
-	data->dma.fn = dw8250_dma_filter;
 
 	dw8250_quirks(p, data);
 
