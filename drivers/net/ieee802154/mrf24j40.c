@@ -923,6 +923,24 @@ static int mrf24j40_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 	return regmap_update_bits(devrec->regmap_long, REG_RFCON3, 0xf8, val);
 }
 
+static int mrf24j40_set_promiscuous_mode(struct ieee802154_hw *hw, bool on)
+{
+	struct mrf24j40 *devrec = hw->priv;
+	int ret;
+
+	if (on) {
+		/* set PROMI, ERRPKT and NOACKRSP */
+		ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR, 0x23,
+					 0x23);
+	} else {
+		/* clear PROMI, ERRPKT and NOACKRSP */
+		ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR, 0x23,
+					 0x00);
+	}
+
+	return ret;
+}
+
 static const struct ieee802154_ops mrf24j40_ops = {
 	.owner = THIS_MODULE,
 	.xmit_async = mrf24j40_tx,
@@ -935,6 +953,7 @@ static const struct ieee802154_ops mrf24j40_ops = {
 	.set_cca_mode = mrf24j40_set_cca_mode,
 	.set_cca_ed_level = mrf24j40_set_cca_ed_level,
 	.set_txpower = mrf24j40_set_txpower,
+	.set_promiscuous_mode = mrf24j40_set_promiscuous_mode,
 };
 
 static void mrf24j40_intstat_complete(void *context)
@@ -1182,7 +1201,8 @@ static int mrf24j40_probe(struct spi_device *spi)
 	devrec->hw->parent = &spi->dev;
 	devrec->hw->phy->supported.channels[0] = CHANNEL_MASK;
 	devrec->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-			    IEEE802154_HW_CSMA_PARAMS;
+			    IEEE802154_HW_CSMA_PARAMS |
+			    IEEE802154_HW_PROMISCUOUS;
 
 	devrec->hw->phy->flags = WPAN_PHY_FLAG_CCA_MODE |
 				 WPAN_PHY_FLAG_CCA_ED_LEVEL;
