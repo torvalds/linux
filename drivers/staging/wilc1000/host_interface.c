@@ -344,7 +344,7 @@ typedef struct {
 } tstrHostIFDelSta;
 
 /*!
- *  @struct             tstrTimerCb
+ *  @struct             timer_cb
  *  @brief		Timer callback message body
  *  @details
  *  @todo
@@ -353,9 +353,9 @@ typedef struct {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrTimerCb {
+struct timer_cb {
 	void *pvUsrArg;                 /*!< Private data passed at timer start */
-} tstrTimerCb;
+};
 
 /*!
  *  @struct     tstrHostIfPowerMgmtParam
@@ -429,7 +429,7 @@ union message_body {
 	tstrHostIFDelSta strDelStaParam;                                /*!< Del Station message body */
 	struct add_sta_param strEditStaParam;                           /*!< Edit station message body */
 	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
-	tstrTimerCb strTimerCb;                                                 /*!< Timer callback message body */
+	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
 	tstrHostIfPowerMgmtParam strPowerMgmtparam;     /*!< Power Management message body */
 	tstrHostIfStaInactiveT strHostIfStaInactiveT;
 	tstrHostIFSetIPAddr strHostIfSetIP;
