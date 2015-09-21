@@ -447,7 +447,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	if (!ipvs)
 		return -ENOENT;
 
-	app = register_ip_vs_app(net, &ip_vs_ftp);
+	app = register_ip_vs_app(ipvs, &ip_vs_ftp);
 	if (IS_ERR(app))
 		return PTR_ERR(app);
 
@@ -463,7 +463,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	return 0;
 
 err_unreg:
-	unregister_ip_vs_app(net, &ip_vs_ftp);
+	unregister_ip_vs_app(ipvs, &ip_vs_ftp);
 	return ret;
 }
 /*
@@ -471,7 +471,12 @@ err_unreg:
  */
 static void __ip_vs_ftp_exit(struct net *net)
 {
-	unregister_ip_vs_app(net, &ip_vs_ftp);
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	if (!ipvs)
+		return;
+
+	unregister_ip_vs_app(ipvs, &ip_vs_ftp);
 }
 
 static struct pernet_operations ip_vs_ftp_ops = {

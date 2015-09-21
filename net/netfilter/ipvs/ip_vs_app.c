@@ -192,14 +192,10 @@ register_ip_vs_app_inc(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 pro
 
 
 /* Register application for netns */
-struct ip_vs_app *register_ip_vs_app(struct net *net, struct ip_vs_app *app)
+struct ip_vs_app *register_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_app *a;
 	int err = 0;
-
-	if (!ipvs)
-		return ERR_PTR(-ENOENT);
 
 	mutex_lock(&__ip_vs_app_mutex);
 
@@ -231,13 +227,10 @@ out_unlock:
  *	We are sure there are no app incarnations attached to services
  *	Caller should use synchronize_rcu() or rcu_barrier()
  */
-void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
+void unregister_ip_vs_app(struct netns_ipvs *ipvs, struct ip_vs_app *app)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_app *a, *anxt, *inc, *nxt;
-
-	if (!ipvs)
-		return;
+	struct net *net = ipvs->net;
 
 	mutex_lock(&__ip_vs_app_mutex);
 
@@ -623,6 +616,8 @@ int __net_init ip_vs_app_net_init(struct net *net)
 
 void __net_exit ip_vs_app_net_cleanup(struct net *net)
 {
-	unregister_ip_vs_app(net, NULL /* all */);
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	unregister_ip_vs_app(ipvs, NULL /* all */);
 	remove_proc_entry("ip_vs_app", net->proc_net);
 }
