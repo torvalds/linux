@@ -78,6 +78,7 @@ static int
 ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
 		  __u16 port)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_protocol *pp;
 	struct ip_vs_app *inc;
 	int ret;
@@ -107,7 +108,7 @@ ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
 		}
 	}
 
-	ret = pp->register_app(net, inc);
+	ret = pp->register_app(ipvs, inc);
 	if (ret)
 		goto out;
 
@@ -129,13 +130,14 @@ ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
 static void
 ip_vs_app_inc_release(struct net *net, struct ip_vs_app *inc)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_protocol *pp;
 
 	if (!(pp = ip_vs_proto_get(inc->protocol)))
 		return;
 
 	if (pp->unregister_app)
-		pp->unregister_app(net, inc);
+		pp->unregister_app(ipvs, inc);
 
 	IP_VS_DBG(9, "%s App %s:%u unregistered\n",
 		  pp->name, inc->name, ntohs(inc->port));

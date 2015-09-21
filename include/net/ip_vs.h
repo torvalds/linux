@@ -517,9 +517,9 @@ struct ip_vs_protocol {
 				 const struct sk_buff *skb,
 				 struct ip_vs_proto_data *pd);
 
-	int (*register_app)(struct net *net, struct ip_vs_app *inc);
+	int (*register_app)(struct netns_ipvs *ipvs, struct ip_vs_app *inc);
 
-	void (*unregister_app)(struct net *net, struct ip_vs_app *inc);
+	void (*unregister_app)(struct netns_ipvs *ipvs, struct ip_vs_app *inc);
 
 	int (*app_conn_bind)(struct ip_vs_conn *cp);
 
