@@ -723,16 +723,28 @@ err_ret:
 static int mrf24j40_probe(struct spi_device *spi)
 {
 	int ret = -ENOMEM;
+	struct ieee802154_hw *hw;
 	struct mrf24j40 *devrec;
 
 	dev_info(&spi->dev, "probe(). IRQ: %d\n", spi->irq);
 
-	devrec = devm_kzalloc(&spi->dev, sizeof(struct mrf24j40), GFP_KERNEL);
-	if (!devrec)
+	/* Register with the 802154 subsystem */
+
+	hw = ieee802154_alloc_hw(sizeof(*devrec), &mrf24j40_ops);
+	if (!hw)
 		goto err_ret;
+
+	devrec = hw->priv;
+	devrec->spi = spi;
+	spi_set_drvdata(spi, devrec);
+	devrec->hw = hw;
+	devrec->hw->parent = &spi->dev;
+	devrec->hw->phy->supported.channels[0] = CHANNEL_MASK;
+	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
+
 	devrec->buf = devm_kzalloc(&spi->dev, 3, GFP_KERNEL);
 	if (!devrec->buf)
-		goto err_ret;
+		goto err_register_device;
 
 	spi->mode = SPI_MODE_0; /* TODO: Is this appropriate for right here? */
 	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ)
@@ -740,19 +752,6 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	mutex_init(&devrec->buffer_mutex);
 	init_completion(&devrec->tx_complete);
-	devrec->spi = spi;
-	spi_set_drvdata(spi, devrec);
-
-	/* Register with the 802154 subsystem */
-
-	devrec->hw = ieee802154_alloc_hw(0, &mrf24j40_ops);
-	if (!devrec->hw)
-		goto err_ret;
-
-	devrec->hw->priv = devrec;
-	devrec->hw->parent = &devrec->spi->dev;
-	devrec->hw->phy->supported.channels[0] = CHANNEL_MASK;
-	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AFILT;
 
 	dev_dbg(printdev(devrec), "registered mrf24j40\n");
 	ret = ieee802154_register_hw(devrec->hw);
