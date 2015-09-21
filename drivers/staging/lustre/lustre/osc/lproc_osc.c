@@ -451,9 +451,6 @@ static ssize_t resend_count_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	if (val < 0)
-	       return -EINVAL;
-
 	atomic_set(&obd->u.cli.cl_resends, val);
 
 	return count;
