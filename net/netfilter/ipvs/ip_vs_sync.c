@@ -904,7 +904,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		 * with synchronization, so we can make the assumption that
 		 * the svc_af is the same as the dest_af
 		 */
-		dest = ip_vs_find_dest(net, type, type, daddr, dport,
+		dest = ip_vs_find_dest(ipvs, type, type, daddr, dport,
 				       param->vaddr, param->vport, protocol,
 				       fwmark, flags);
 

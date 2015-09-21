@@ -638,7 +638,7 @@ void ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	 * so we can make the assumption that the svc_af is the same as the
 	 * dest_af
 	 */
-	dest = ip_vs_find_dest(cp->ipvs->net, cp->af, cp->af, &cp->daddr,
+	dest = ip_vs_find_dest(cp->ipvs, cp->af, cp->af, &cp->daddr,
 			       cp->dport, &cp->vaddr, cp->vport,
 			       cp->protocol, cp->fwmark, cp->flags);
 	if (dest) {
