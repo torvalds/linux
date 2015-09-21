@@ -404,6 +404,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
+	struct uart_port *p = &uart.port;
 	struct dw8250_data *data;
 	int err;
 
@@ -418,18 +419,20 @@ static int dw8250_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	spin_lock_init(&uart.port.lock);
-	uart.port.mapbase = regs->start;
-	uart.port.irq = irq;
-	uart.port.handle_irq = dw8250_handle_irq;
-	uart.port.pm = dw8250_do_pm;
-	uart.port.type = PORT_8250;
-	uart.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_FIXED_PORT;
-	uart.port.dev = &pdev->dev;
+	spin_lock_init(&p->lock);
+	p->mapbase	= regs->start;
+	p->irq		= irq;
+	p->handle_irq	= dw8250_handle_irq;
+	p->pm		= dw8250_do_pm;
+	p->type		= PORT_8250;
+	p->flags	= UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_FIXED_PORT;
+	p->dev		= &pdev->dev;
+	p->iotype	= UPIO_MEM;
+	p->serial_in	= dw8250_serial_in;
+	p->serial_out	= dw8250_serial_out;
 
-	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
-					 resource_size(regs));
-	if (!uart.port.membase)
+	p->membase = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
+	if (!p->membase)
 		return -ENOMEM;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -437,10 +440,10 @@ static int dw8250_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->usr_reg = DW_UART_USR;
+	p->private_data = data;
 
 	/* Always ask for fixed clock rate from a property. */
-	device_property_read_u32(&pdev->dev, "clock-frequency",
-				 &uart.port.uartclk);
+	device_property_read_u32(p->dev, "clock-frequency", &p->uartclk);
 
 	/* If there is separate baudclk, get the rate from it. */
 	data->clk = devm_clk_get(&pdev->dev, "baudclk");
@@ -454,11 +457,11 @@ static int dw8250_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
-			uart.port.uartclk = clk_get_rate(data->clk);
+			p->uartclk = clk_get_rate(data->clk);
 	}
 
 	/* If no clock rate is defined, fail. */
-	if (!uart.port.uartclk) {
+	if (!p->uartclk) {
 		dev_err(&pdev->dev, "clock rate not defined\n");
 		return -EINVAL;
 	}
@@ -488,13 +491,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	data->dma.tx_param = data;
 	data->dma.fn = dw8250_dma_filter;
 
-	uart.port.iotype = UPIO_MEM;
-	uart.port.serial_in = dw8250_serial_in;
-	uart.port.serial_out = dw8250_serial_out;
-	uart.port.private_data = data;
-
 	if (pdev->dev.of_node) {
-		err = dw8250_probe_of(&uart.port, data);
+		err = dw8250_probe_of(p, data);
 		if (err)
 			goto err_reset;
 	} else if (ACPI_HANDLE(&pdev->dev)) {
