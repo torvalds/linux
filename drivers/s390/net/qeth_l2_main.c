@@ -252,6 +252,23 @@ static inline int qeth_l2_get_cast_type(struct qeth_card *card,
 	return RTN_UNSPEC;
 }
 
+static inline void qeth_l2_hdr_csum(struct qeth_card *card,
+				    struct qeth_hdr *hdr, struct sk_buff *skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+
+	/* tcph->check contains already the pseudo hdr checksum
+	 * so just set the header flags
+	 */
+	if (iph->protocol == IPPROTO_UDP)
+		hdr->hdr.l2.flags[1] |= QETH_HDR_EXT_UDP;
+	hdr->hdr.l2.flags[1] |= QETH_HDR_EXT_CSUM_TRANSP_REQ |
+		QETH_HDR_EXT_CSUM_HDR_REQ;
+	iph->check = 0;
+	if (card->options.performance_stats)
+		card->perf_stats.tx_csum++;
+}
+
 static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			struct sk_buff *skb, int cast_type)
 {
@@ -390,6 +407,38 @@ static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
 	return rc;
 }
 
+static netdev_features_t qeth_l2_fix_features(struct net_device *dev,
+					      netdev_features_t features)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_DBF_TEXT(SETUP, 2, "fixfeat");
+	if (!qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM))
+		features &= ~NETIF_F_IP_CSUM;
+	if (!qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+		features &= ~NETIF_F_RXCSUM;
+	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
+	return features;
+}
+
+static int qeth_l2_set_features(struct net_device *dev,
+				netdev_features_t features)
+{
+	struct qeth_card *card = dev->ml_priv;
+	netdev_features_t changed = dev->features ^ features;
+
+	QETH_DBF_TEXT(SETUP, 2, "setfeat");
+	QETH_DBF_HEX(SETUP, 2, &features, sizeof(features));
+
+	if (card->state == CARD_STATE_DOWN ||
+	    card->state == CARD_STATE_RECOVER)
+		return 0;
+
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
+	return qeth_set_rx_csum(card, features & NETIF_F_RXCSUM ? 1 : 0);
+}
+
 static void qeth_l2_stop_card(struct qeth_card *card, int recovery_mode)
 {
 	QETH_DBF_TEXT(SETUP , 2, "stopcard");
@@ -450,7 +499,15 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 		case QETH_HEADER_TYPE_LAYER2:
 			skb->pkt_type = PACKET_HOST;
 			skb->protocol = eth_type_trans(skb, skb->dev);
-			skb->ip_summed = CHECKSUM_NONE;
+			if ((card->dev->features & NETIF_F_RXCSUM)
+			   && ((hdr->hdr.l2.flags[1] &
+				(QETH_HDR_EXT_CSUM_HDR_REQ |
+				   QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
+				(QETH_HDR_EXT_CSUM_HDR_REQ |
+				   QETH_HDR_EXT_CSUM_TRANSP_REQ)))
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+			else
+				skb->ip_summed = CHECKSUM_NONE;
 			if (skb->protocol == htons(ETH_P_802_2))
 				*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
 			len = skb->len;
@@ -803,6 +860,8 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						sizeof(struct qeth_hdr));
 			skb_set_mac_header(new_skb, sizeof(struct qeth_hdr));
 			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
+			if (new_skb->ip_summed == CHECKSUM_PARTIAL)
+				qeth_l2_hdr_csum(card, hdr, new_skb);
 		}
 	}
 
@@ -968,6 +1027,8 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= qeth_tx_timeout,
+	.ndo_fix_features	= qeth_l2_fix_features,
+	.ndo_set_features	= qeth_l2_set_features
 };
 
 static int qeth_l2_setup_netdev(struct qeth_card *card)
@@ -997,11 +1058,27 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		(card->info.type != QETH_CARD_TYPE_OSN) ?
 		&qeth_l2_ethtool_ops : &qeth_l2_osn_ops;
 	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
+		card->dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+		/* Turn on RX offloading per default */
+		card->dev->features |= NETIF_F_RXCSUM;
+	}
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_l2_poll, QETH_NAPI_WEIGHT);
 	return register_netdev(card->dev);
+}
+
+static int qeth_l2_start_ipassists(struct qeth_card *card)
+{
+	/* configure isolation level */
+	if (qeth_set_access_ctrl_online(card, 0))
+		return -ENODEV;
+	if (qeth_is_supported(card, IPA_INBOUND_CHECKSUM))
+		qeth_set_rx_csum(card, 1);
+	qeth_start_ipa_tx_checksum(card);
+	return 0;
 }
 
 static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
@@ -1069,12 +1146,8 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 contin:
 	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
 	    (card->info.type == QETH_CARD_TYPE_OSX)) {
-		/* configure isolation level */
-		rc = qeth_set_access_ctrl_online(card, 0);
-		if (rc) {
-			rc = -ENODEV;
+		if (qeth_l2_start_ipassists(card))
 			goto out_remove;
-		}
 	}
 
 	if (card->info.type != QETH_CARD_TYPE_OSN &&
@@ -1452,8 +1525,8 @@ static void qeth_bridge_emit_host_event(struct qeth_card *card,
 			env[i] = str[i]; i++;
 		}
 		if (code & IPA_ADDR_CHANGE_CODE_MACADDR) {
-			snprintf(str[i], sizeof(str[i]), "MAC=%pM6",
-				&addr_lnid->mac);
+			snprintf(str[i], sizeof(str[i]), "MAC=%pM",
+				addr_lnid->mac);
 			env[i] = str[i]; i++;
 		}
 		snprintf(str[i], sizeof(str[i]), "NTOK_BUSID=%x.%x.%04x",

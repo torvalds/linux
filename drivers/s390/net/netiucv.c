@@ -149,12 +149,11 @@ static struct device_driver netiucv_driver = {
 	.pm = &netiucv_pm_ops,
 };
 
-static int netiucv_callback_connreq(struct iucv_path *,
-				    u8 ipvmid[8], u8 ipuser[16]);
-static void netiucv_callback_connack(struct iucv_path *, u8 ipuser[16]);
-static void netiucv_callback_connrej(struct iucv_path *, u8 ipuser[16]);
-static void netiucv_callback_connsusp(struct iucv_path *, u8 ipuser[16]);
-static void netiucv_callback_connres(struct iucv_path *, u8 ipuser[16]);
+static int netiucv_callback_connreq(struct iucv_path *, u8 *, u8 *);
+static void netiucv_callback_connack(struct iucv_path *, u8 *);
+static void netiucv_callback_connrej(struct iucv_path *, u8 *);
+static void netiucv_callback_connsusp(struct iucv_path *, u8 *);
+static void netiucv_callback_connres(struct iucv_path *, u8 *);
 static void netiucv_callback_rx(struct iucv_path *, struct iucv_message *);
 static void netiucv_callback_txdone(struct iucv_path *, struct iucv_message *);
 
@@ -556,8 +555,8 @@ static void netiucv_callback_connack(struct iucv_path *path, u8 ipuser[16])
 	fsm_event(conn->fsm, CONN_EVENT_CONN_ACK, conn);
 }
 
-static int netiucv_callback_connreq(struct iucv_path *path,
-				    u8 ipvmid[8], u8 ipuser[16])
+static int netiucv_callback_connreq(struct iucv_path *path, u8 *ipvmid,
+				    u8 *ipuser)
 {
 	struct iucv_connection *conn = path->private;
 	struct iucv_event ev;
@@ -587,21 +586,21 @@ static int netiucv_callback_connreq(struct iucv_path *path,
 	return rc;
 }
 
-static void netiucv_callback_connrej(struct iucv_path *path, u8 ipuser[16])
+static void netiucv_callback_connrej(struct iucv_path *path, u8 *ipuser)
 {
 	struct iucv_connection *conn = path->private;
 
 	fsm_event(conn->fsm, CONN_EVENT_CONN_REJ, conn);
 }
 
-static void netiucv_callback_connsusp(struct iucv_path *path, u8 ipuser[16])
+static void netiucv_callback_connsusp(struct iucv_path *path, u8 *ipuser)
 {
 	struct iucv_connection *conn = path->private;
 
 	fsm_event(conn->fsm, CONN_EVENT_CONN_SUS, conn);
 }
 
-static void netiucv_callback_connres(struct iucv_path *path, u8 ipuser[16])
+static void netiucv_callback_connres(struct iucv_path *path, u8 *ipuser)
 {
 	struct iucv_connection *conn = path->private;
 
