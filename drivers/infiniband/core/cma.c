@@ -1324,7 +1324,7 @@ static struct rdma_id_private *cma_id_from_event(struct ib_cm_id *cm_id,
 	bind_list = cma_ps_find(rdma_ps_from_service_id(req.service_id),
 				cma_port_from_service_id(req.service_id));
 	id_priv = cma_find_listener(bind_list, cm_id, ib_event, &req, *net_dev);
-	if (IS_ERR(id_priv)) {
+	if (IS_ERR(id_priv) && *net_dev) {
 		dev_put(*net_dev);
 		*net_dev = NULL;
 	}
