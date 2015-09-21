@@ -202,7 +202,7 @@ static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
 					u32 ipu_clk)
 {
 	u32 temp;
-	u32 div_ratio;
+	int div_ratio;
 
 	div_ratio = (ipu_clk / pixel_clk) - 1;
 
