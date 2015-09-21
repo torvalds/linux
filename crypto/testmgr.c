@@ -3287,6 +3287,22 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
+		.alg = "kw(aes)",
+		.test = alg_test_skcipher,
+		.fips_allowed = 1,
+		.suite = {
+			.cipher = {
+				.enc = {
+					.vecs = aes_kw_enc_tv_template,
+					.count = ARRAY_SIZE(aes_kw_enc_tv_template)
+				},
+				.dec = {
+					.vecs = aes_kw_dec_tv_template,
+					.count = ARRAY_SIZE(aes_kw_dec_tv_template)
+				}
+			}
+		}
+	}, {
 		.alg = "lrw(aes)",
 		.test = alg_test_skcipher,
 		.suite = {
