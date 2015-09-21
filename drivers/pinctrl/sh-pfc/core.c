@@ -272,7 +272,7 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 			      u16 *enum_idp)
 {
-	const u16 *data = pfc->info->gpio_data;
+	const u16 *data = pfc->info->pinmux_data;
 	unsigned int k;
 
 	if (pos) {
@@ -280,7 +280,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
 		return pos + 1;
 	}
 
-	for (k = 0; k < pfc->info->gpio_data_size; k++) {
+	for (k = 0; k < pfc->info->pinmux_data_size; k++) {
 		if (data[k] == mark) {
 			*enum_idp = data[k + 1];
 			return k + 1;

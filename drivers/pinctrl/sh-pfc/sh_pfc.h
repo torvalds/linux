@@ -168,8 +168,8 @@ struct sh_pfc_soc_info {
 	const struct pinmux_cfg_reg *cfg_regs;
 	const struct pinmux_data_reg *data_regs;
 
-	const u16 *gpio_data;
-	unsigned int gpio_data_size;
+	const u16 *pinmux_data;
+	unsigned int pinmux_data_size;
 
 	const struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
@@ -182,7 +182,7 @@ struct sh_pfc_soc_info {
  */
 
 /*
- * sh_pfc_soc_info gpio_data array macros
+ * sh_pfc_soc_info pinmux_data array macros
  */
 
 #define PINMUX_DATA(data_or_mark, ids...)	data_or_mark, ids, 0

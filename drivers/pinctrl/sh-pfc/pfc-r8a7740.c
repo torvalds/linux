@@ -3774,8 +3774,8 @@ const struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.cfg_regs	= pinmux_config_regs,
 	.data_regs	= pinmux_data_regs,
 
-	.gpio_data	= pinmux_data,
-	.gpio_data_size	= ARRAY_SIZE(pinmux_data),
+	.pinmux_data	= pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 
 	.gpio_irq	= pinmux_irqs,
 	.gpio_irq_size	= ARRAY_SIZE(pinmux_irqs),
