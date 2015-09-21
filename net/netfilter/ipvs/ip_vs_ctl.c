@@ -406,11 +406,10 @@ __ip_vs_svc_fwm_find(struct netns_ipvs *ipvs, int af, __u32 fwmark)
 
 /* Find service, called under RCU lock */
 struct ip_vs_service *
-ip_vs_service_find(struct net *net, int af, __u32 fwmark, __u16 protocol,
+ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol,
 		   const union nf_inet_addr *vaddr, __be16 vport)
 {
 	struct ip_vs_service *svc;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	/*
 	 *	Check the table hashed by fwmark first
@@ -612,7 +611,7 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int svc_af, int dest_af,
 	struct ip_vs_service *svc;
 	__be16 port = dport;
 
-	svc = ip_vs_service_find(net, svc_af, fwmark, protocol, vaddr, vport);
+	svc = ip_vs_service_find(net_ipvs(net), svc_af, fwmark, protocol, vaddr, vport);
 	if (!svc)
 		return NULL;
 	if (fwmark && (flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ)

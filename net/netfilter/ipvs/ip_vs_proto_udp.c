@@ -34,6 +34,7 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		  struct ip_vs_iphdr *iph)
 {
 	struct net *net;
+	struct netns_ipvs *ipvs;
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
 	__be16 _ports[2], *ports = NULL;
@@ -54,12 +55,13 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	}
 
 	net = skb_net(skb);
+	ipvs = net_ipvs(net);
 	rcu_read_lock();
 	if (likely(!ip_vs_iph_inverse(iph)))
-		svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->daddr, ports[1]);
 	else
-		svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {

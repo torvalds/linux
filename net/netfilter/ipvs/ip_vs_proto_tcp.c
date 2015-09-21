@@ -70,10 +70,10 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	rcu_read_lock();
 
 	if (likely(!ip_vs_iph_inverse(iph)))
-		svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->daddr, ports[1]);
 	else
-		svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {
