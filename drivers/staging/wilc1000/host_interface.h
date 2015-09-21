@@ -287,14 +287,11 @@ struct remain_ch {
 	u32 u32ListenSessionID;
 };
 
-typedef struct {
-
+struct reg_frame {
 	bool bReg;
 	u16 u16FrameType;
 	u8 u8Regid;
-
-
-} tstrHostIfRegisterFrame;
+};
 
 
 #define ACTION			0xD0

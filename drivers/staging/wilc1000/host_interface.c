@@ -437,7 +437,7 @@ union message_body {
 	struct get_mac_addr strHostIfGetMacAddress;
 	struct ba_session_info strHostIfBASessionInfo;
 	struct remain_ch strHostIfRemainOnChan;
-	tstrHostIfRegisterFrame strHostIfRegisterFrame;
+	struct reg_frame strHostIfRegisterFrame;
 	char *pUserData;
 	tstrHostIFDelAllSta strHostIFDelAllSta;
 };
@@ -3862,7 +3862,8 @@ ERRORHANDLER:
  *  @date
  *  @version	1.0
  */
-static int Handle_RegisterFrame(tstrWILC_WFIDrv *drvHandler, tstrHostIfRegisterFrame *pstrHostIfRegisterFrame)
+static int Handle_RegisterFrame(tstrWILC_WFIDrv *drvHandler,
+				struct reg_frame *pstrHostIfRegisterFrame)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
