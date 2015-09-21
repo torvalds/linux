@@ -234,8 +234,7 @@
 		};
 
 		nand: nand@18046000 {
-			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1",
-				     "brcm,brcmnand";
+			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x18046000 0x600>, <0xf8105408 0x600>,
 			      <0x18046f00 0x20>;
 			reg-names = "nand", "iproc-idm", "iproc-ext";
