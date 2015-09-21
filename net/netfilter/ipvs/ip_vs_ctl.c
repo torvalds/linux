@@ -3374,9 +3374,8 @@ nla_put_failure:
 	return skb->len;
 }
 
-static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
+static int ip_vs_genl_new_daemon(struct netns_ipvs *ipvs, struct nlattr **attrs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ipvs_sync_daemon_cfg c;
 	struct nlattr *a;
 	int ret;
@@ -3433,7 +3432,7 @@ static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 
 	rtnl_lock();
 	mutex_lock(&ipvs->sync_mutex);
-	ret = start_sync_thread(net, &c,
+	ret = start_sync_thread(ipvs->net, &c,
 				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
 	mutex_unlock(&ipvs->sync_mutex);
 	rtnl_unlock();
@@ -3495,7 +3494,7 @@ static int ip_vs_genl_set_daemon(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 
 		if (cmd == IPVS_CMD_NEW_DAEMON)
-			ret = ip_vs_genl_new_daemon(net, daemon_attrs);
+			ret = ip_vs_genl_new_daemon(ipvs, daemon_attrs);
 		else
 			ret = ip_vs_genl_del_daemon(net, daemon_attrs);
 	}
