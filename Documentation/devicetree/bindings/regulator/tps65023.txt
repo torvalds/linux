@@ -1,0 +1,60 @@
+TPS65023 family of regulators
+
+Required properties:
+- compatible: Must be one of the following.
+	"ti,tps65020",
+	"ti,tps65021",
+	"ti,tps65023",
+- reg: I2C slave address
+- regulators: list of regulators provided by this controller, must be named
+  after their hardware counterparts: VDCDC[1-3] and LDO[1-2]
+- regulators: This is the list of child nodes that specify the regulator
+  initialization data for defined regulators. The definition for each of
+  these nodes is defined using the standard binding for regulators found at
+  Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Each regulator is defined using the standard binding for regulators.
+
+Example:
+
+	tps65023@48 {
+		compatible = "ti,tps65023";
+		reg = <0x48>;
+
+		regulators {
+			VDCDC1 {
+				regulator-name = "vdd_mpu";
+				regulator-always-on;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			VDCDC2 {
+				regulator-name = "vdd_core";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			VDCDC3 {
+				regulator-name = "vdd_io";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			LDO1 {
+				regulator-name = "vdd_usb18";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			LDO2 {
+				regulator-name = "vdd_usb33";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
