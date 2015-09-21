@@ -260,31 +260,31 @@ struct comedi_buf_map {
 };
 
 /**
- * struct comedi_async - control data for asynchronous comedi commands
- * @prealloc_buf:	preallocated buffer
- * @prealloc_bufsz:	buffer size (in bytes)
- * @buf_map:		map of buffer pages
- * @max_bufsize:	maximum buffer size (in bytes)
- * @buf_write_count:	"write completed" count (in bytes, modulo 2**32)
- * @buf_write_alloc_count: "allocated for writing" count (in bytes,
- *			modulo 2**32)
- * @buf_read_count:	"read completed" count (in bytes, modulo 2**32)
- * @buf_read_alloc_count: "allocated for reading" count (in bytes,
- *			modulo 2**32)
- * @buf_write_ptr:	buffer position for writer
- * @buf_read_ptr:	buffer position for reader
- * @cur_chan:		current position in chanlist for scan (for those
- *			drivers that use it)
- * @scans_done:		the number of scans completed (COMEDI_CB_EOS)
- * @scan_progress:	amount received or sent for current scan (in bytes)
- * @munge_chan:		current position in chanlist for "munging"
- * @munge_count:	"munge" count (in bytes, modulo 2**32)
- * @munge_ptr:		buffer position for "munging"
- * @events:		bit-vector of events that have occurred
- * @cmd:		details of comedi command in progress
- * @wait_head:		task wait queue for file reader or writer
- * @cb_mask:		bit-vector of events that should wake waiting tasks
- * @inttrig:		software trigger function for command, or NULL
+ * struct comedi_async - Control data for asynchronous COMEDI commands
+ * @prealloc_buf: Kernel virtual address of allocated acquisition buffer.
+ * @prealloc_bufsz: Buffer size (in bytes).
+ * @buf_map: Map of buffer pages.
+ * @max_bufsize: Maximum allowed buffer size (in bytes).
+ * @buf_write_count: "Write completed" count (in bytes, modulo 2**32).
+ * @buf_write_alloc_count: "Allocated for writing" count (in bytes,
+ *	modulo 2**32).
+ * @buf_read_count: "Read completed" count (in bytes, modulo 2**32).
+ * @buf_read_alloc_count: "Allocated for reading" count (in bytes,
+ *	modulo 2**32).
+ * @buf_write_ptr: Buffer position for writer.
+ * @buf_read_ptr: Buffer position for reader.
+ * @cur_chan: Current position in chanlist for scan (for those drivers that
+ *	use it).
+ * @scans_done: The number of scans completed.
+ * @scan_progress: Amount received or sent for current scan (in bytes).
+ * @munge_chan: Current position in chanlist for "munging".
+ * @munge_count: "Munge" count (in bytes, modulo 2**32).
+ * @munge_ptr: Buffer position for "munging".
+ * @events: Bit-vector of events that have occurred.
+ * @cmd: Details of comedi command in progress.
+ * @wait_head: Task wait queue for file reader or writer.
+ * @cb_mask: Bit-vector of events that should wake waiting tasks.
+ * @inttrig: Software trigger function for command, or NULL.
  *
  * Note about the ..._count and ..._ptr members:
  *
