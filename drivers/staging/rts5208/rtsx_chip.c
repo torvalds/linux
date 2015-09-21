@@ -521,13 +521,14 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 		}
 	}
 
-	/* Disable cd_pwr_save (u_force_rst_core_en=0, u_cd_rst_core_en=0)
-	      0xFE5B
-	      bit[1]    u_cd_rst_core_en	rst_value = 0
-	      bit[2]    u_force_rst_core_en	rst_value = 0
-	      bit[5]    u_mac_phy_rst_n_dbg	rst_value = 1
-	      bit[4]	u_non_sticky_rst_n_dbg	rst_value = 0
-	*/
+	/*
+	 * Disable cd_pwr_save (u_force_rst_core_en=0, u_cd_rst_core_en=0)
+	 *    0xFE5B
+	 *    bit[1]    u_cd_rst_core_en	rst_value = 0
+	 *    bit[2]    u_force_rst_core_en	rst_value = 0
+	 *    bit[5]    u_mac_phy_rst_n_dbg	rst_value = 1
+	 *    bit[4]	u_non_sticky_rst_n_dbg	rst_value = 0
+	 */
 	retval = rtsx_write_register(chip, CHANGE_LINK_STATE, 0x16, 0x10);
 	if (retval) {
 		rtsx_trace(chip);
@@ -2153,12 +2154,13 @@ int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 				clear_bit(SD_NR, &chip->need_reset);
 			}
 		} else {
-			/* If multi-luns, it's possible that
-			   when plugging/unplugging one card
-			   there is another card which still
-			   exists in the slot. In this case,
-			   all existed cards should be reset.
-			*/
+			/*
+			 * If multi-luns, it's possible that
+			 * when plugging/unplugging one card
+			 * there is another card which still
+			 * exists in the slot. In this case,
+			 * all existed cards should be reset.
+			 */
 			if (exit_ss && (status & SD_EXIST))
 				set_bit(SD_NR, &chip->need_reinit);
 		}
