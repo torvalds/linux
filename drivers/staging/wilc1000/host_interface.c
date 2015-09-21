@@ -259,7 +259,7 @@ struct get_channel {
  * } tstrScanComplete;*/
 
 /*!
- *  @struct             tstrHostIFSetBeacon
+ *  @struct             set_beacon
  *  @brief		Set Beacon  message body
  *  @details
  *  @todo
@@ -268,7 +268,7 @@ struct get_channel {
  *  @date		10 July 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFSetBeacon {
+struct set_beacon {
 	u32 u32Interval;                        /*!< Beacon Interval. Period between two successive beacons on air  */
 	u32 u32DTIMPeriod;              /*!< DTIM Period. Indicates how many Beacon frames
 											*                              (including the current frame) appear before the next DTIM		*/
@@ -278,7 +278,7 @@ typedef struct _tstrHostIFSetBeacon {
 	u32 u32TailLen;                         /*!< Length of the tail buffer in bytes	*/
 	u8 *pu8Tail;                    /*!< Pointer to the beacon's tail buffer. Beacon's tail	starts just
 											*                              after the TIM inormation element	*/
-} tstrHostIFSetBeacon;
+};
 
 
 
@@ -423,7 +423,7 @@ union message_body {
 	struct cfg_param_attr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
 	struct set_channel strHostIFSetChan;
 	struct get_channel strHostIFGetChan;
-	tstrHostIFSetBeacon strHostIFSetBeacon;                 /*!< Set beacon message body */
+	struct set_beacon strHostIFSetBeacon;                 /*!< Set beacon message body */
 	tstrHostIFDelBeacon strHostIFDelBeacon;                 /*!< Del beacon message body */
 	tstrWILC_AddStaParam strAddStaParam;                    /*!< Add station message body */
 	tstrHostIFDelSta strDelStaParam;                                /*!< Del Station message body */
@@ -3426,13 +3426,14 @@ static s32 Handle_Get_InActiveTime(tstrWILC_WFIDrv *drvHandler, tstrHostIfStaIna
 /**
  *  @brief Handle_AddBeacon
  *  @details       Sending config packet to add beacon
- *  @param[in]    tstrHostIFSetBeacon* pstrSetBeaconParam
+ *  @param[in]    struct set_beacon *pstrSetBeaconParam
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_AddBeacon(tstrWILC_WFIDrv *drvHandler, tstrHostIFSetBeacon *pstrSetBeaconParam)
+static void Handle_AddBeacon(tstrWILC_WFIDrv *drvHandler,
+			     struct set_beacon *pstrSetBeaconParam)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -6919,7 +6920,7 @@ s32 host_int_add_beacon(tstrWILC_WFIDrv *hWFIDrv, u32 u32Interval,
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIFSetBeacon *pstrSetBeaconParam = &msg.body.strHostIFSetBeacon;
+	struct set_beacon *pstrSetBeaconParam = &msg.body.strHostIFSetBeacon;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
