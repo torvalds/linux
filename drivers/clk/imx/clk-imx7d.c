@@ -363,6 +363,17 @@ static const char *pll_video_bypass_sel[] = { "pll_video_main", "pll_video_main_
 
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clks[IMX7D_UART1_ROOT_CLK],
+	&clks[IMX7D_UART2_ROOT_CLK],
+	&clks[IMX7D_UART3_ROOT_CLK],
+	&clks[IMX7D_UART4_ROOT_CLK],
+	&clks[IMX7D_UART5_ROOT_CLK],
+	&clks[IMX7D_UART6_ROOT_CLK],
+	&clks[IMX7D_UART7_ROOT_CLK],
+	NULL
+};
+
 static void __init imx7d_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
@@ -855,6 +866,8 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	/* set uart module clock's parent clock source that must be great then 80MHz */
 	clk_set_parent(clks[IMX7D_UART1_ROOT_SRC], clks[IMX7D_OSC_24M_CLK]);
+
+	imx_register_uart_clocks(uart_clks);
 
 }
 CLK_OF_DECLARE(imx7d, "fsl,imx7d-ccm", imx7d_clocks_init);
