@@ -9,7 +9,7 @@ Required properties:
 - compatible: Should be "rockchip,display-subsystem"
 - ports: Should contain a list of phandles pointing to display interface port
   of vop devices. vop definitions as defined in
-  Documentation/devicetree/bindings/video/rockchip-vop.txt
+  Documentation/devicetree/bindings/display/rockchip/rockchip-vop.txt
 
 example:
 

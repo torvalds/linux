@@ -1,7 +1,7 @@
 Texas Instruments OMAP2 Display Subsystem
 =========================================
 
-See Documentation/devicetree/bindings/video/ti,omap-dss.txt for generic
+See Documentation/devicetree/bindings/display/ti/ti,omap-dss.txt for generic
 description about OMAP Display Subsystem bindings.
 
 DSS Core

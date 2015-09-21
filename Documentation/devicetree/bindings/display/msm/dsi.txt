@@ -28,7 +28,7 @@ Required properties:
 
 Optional properties:
 - panel@0: Node of panel connected to this DSI controller.
-  See files in Documentation/devicetree/bindings/panel/ for each supported
+  See files in Documentation/devicetree/bindings/display/panel/ for each supported
   panel.
 - qcom,dual-dsi-mode: Boolean value indicating if the DSI controller is
   driving a panel which needs 2 DSI links.

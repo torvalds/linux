@@ -63,7 +63,7 @@ Required properties:
 
 Optional properties (required if display-timings are used):
  - display-timings : A node that describes the display timings as defined in
-   Documentation/devicetree/bindings/video/display-timing.txt.
+   Documentation/devicetree/bindings/display/display-timing.txt.
  - fsl,data-mapping : should be "spwg" or "jeida"
                       This describes how the color bits are laid out in the
                       serialized LVDS signal.

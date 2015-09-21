@@ -14,8 +14,8 @@ Required properties:
 -port@[X]: SoC specific port nodes with endpoint definitions as defined
    in Documentation/devicetree/bindings/media/video-interfaces.txt,
    please refer to the SoC specific binding document:
-    * Documentation/devicetree/bindings/drm/imx/hdmi.txt
-    * Documentation/devicetree/bindings/video/dw_hdmi-rockchip.txt
+    * Documentation/devicetree/bindings/display/imx/hdmi.txt
+    * Documentation/devicetree/bindings/display/rockchip/dw_hdmi-rockchip.txt
 
 Optional properties
 - reg-io-width: the width of the reg:1,4, default set to 1 if not present

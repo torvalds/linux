@@ -49,7 +49,7 @@ Video interfaces:
       mode
     - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
 
-[1]: Documentation/devicetree/bindings/mipi/dsi/mipi-dsi-bus.txt
+[1]: Documentation/devicetree/bindings/display/mipi-dsi-bus.txt
 [2]: Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:

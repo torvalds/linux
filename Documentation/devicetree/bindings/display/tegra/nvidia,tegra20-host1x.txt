@@ -184,7 +184,7 @@ of the following host1x client modules:
   - avdd-dsi-supply: phandle of a supply that powers the DSI controller
   - nvidia,mipi-calibrate: Should contain a phandle and a specifier specifying
     which pads are used by this DSI output and need to be calibrated. See also
-    ../mipi/nvidia,tegra114-mipi.txt.
+    ../display/tegra/nvidia,tegra114-mipi.txt.
 
   Optional properties:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing

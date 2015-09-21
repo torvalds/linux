@@ -50,7 +50,7 @@ Required properties for dp-controller:
 		number of lanes supported by the panel.
 			LANE_COUNT1 = 1, LANE_COUNT2 = 2, LANE_COUNT4 = 4
 	- display-timings: timings for the connected panel as described by
-		Documentation/devicetree/bindings/video/display-timing.txt
+		Documentation/devicetree/bindings/display/display-timing.txt
 
 Optional properties for dp-controller:
 	-interlaced:
