@@ -126,6 +126,8 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 	__be32 addr;
 	int err;
 
+	iph = ip_hdr(skb); /* outer IP header... */
+
 	if (gs->collect_md) {
 		static u8 zero_vni[3];
 
@@ -133,7 +135,6 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 		addr = 0;
 	} else {
 		vni = gnvh->vni;
-		iph = ip_hdr(skb); /* Still outer IP header... */
 		addr = iph->saddr;
 	}
 
@@ -178,7 +179,6 @@ static void geneve_rx(struct geneve_sock *gs, struct sk_buff *skb)
 
 	skb_reset_network_header(skb);
 
-	iph = ip_hdr(skb); /* Now inner IP header... */
 	err = IP_ECN_decapsulate(iph, skb);
 
 	if (unlikely(err)) {
@@ -626,6 +626,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct geneve_sock *gs = geneve->sock;
 	struct ip_tunnel_info *info = NULL;
 	struct rtable *rt = NULL;
+	const struct iphdr *iip; /* interior IP header */
 	struct flowi4 fl4;
 	__u8 tos, ttl;
 	__be16 sport;
@@ -653,6 +654,8 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	sport = udp_flow_src_port(geneve->net, skb, 1, USHRT_MAX, true);
 	skb_reset_mac_header(skb);
 
+	iip = ip_hdr(skb);
+
 	if (info) {
 		const struct ip_tunnel_key *key = &info->key;
 		u8 *opts = NULL;
@@ -668,19 +671,16 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(err))
 			goto err;
 
-		tos = key->tos;
+		tos = ip_tunnel_ecn_encap(key->tos, iip, skb);
 		ttl = key->ttl;
 		df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
 	} else {
-		const struct iphdr *iip; /* interior IP header */
-
 		udp_csum = false;
 		err = geneve_build_skb(rt, skb, 0, geneve->vni,
 				       0, NULL, udp_csum);
 		if (unlikely(err))
 			goto err;
 
-		iip = ip_hdr(skb);
 		tos = ip_tunnel_ecn_encap(fl4.flowi4_tos, iip, skb);
 		ttl = geneve->ttl;
 		if (!ttl && IN_MULTICAST(ntohl(fl4.daddr)))
