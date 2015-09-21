@@ -422,12 +422,6 @@
 				status = "disabled";
 			};
 
-			touchctrl: touchctrl@02040000 {
-				compatible = "fsl,imx6ul-touchctrl";
-				reg = <0x02040000 0x4000>;
-				status = "disabled";
-			};
-
 			bee: bee@02044000 {
 				compatible = "fsl,imx6ul-bee";
 				reg = <0x02044000 0x4000>;
