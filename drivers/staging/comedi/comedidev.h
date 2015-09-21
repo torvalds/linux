@@ -243,19 +243,47 @@ enum comedi_cb {
 	COMEDI_CB_CANCEL_MASK	= (COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
 };
 
+/**
+ * struct comedi_driver - COMEDI driver registration
+ * @driver_name: Name of driver.
+ * @module: Owning module.
+ * @attach: The optional "attach" handler for manually configured COMEDI
+ *	devices.
+ * @detach: The "detach" handler for deconfiguring COMEDI devices.
+ * @auto_attach: The optional "auto_attach" handler for automatically
+ *	configured COMEDI devices.
+ * @num_names: Optional number of "board names" supported.
+ * @board_name: Optional pointer to a pointer to a board name.  The pointer
+ *	to a board name is embedded in an element of a driver-defined array
+ *	of static, read-only board type information.
+ * @offset: Optional size of each element of the driver-defined array of
+ *	static, read-only board type information, i.e. the offset between each
+ *	pointer to a board name.
+ *
+ * This is used with comedi_driver_register() and comedi_driver_unregister() to
+ * register and unregister a low-level COMEDI driver with the COMEDI core.
+ *
+ * If @num_names is non-zero, @board_name should be non-NULL, and @offset
+ * should be at least sizeof(*board_name).  These are used by the handler for
+ * the %COMEDI_DEVCONFIG ioctl to match a hardware device and its driver by
+ * board name.  If @num_names is zero, the %COMEDI_DEVCONFIG ioctl matches a
+ * hardware device and its driver by driver name.  This is only useful if the
+ * @attach handler is set.  If @num_names is non-zero, the driver's @attach
+ * handler will be called with the COMEDI device structure's board_ptr member
+ * pointing to the matched pointer to a board name within the driver's private
+ * array of static, read-only board type information.
+ */
 struct comedi_driver {
-	struct comedi_driver *next;
-
+	/* private: */
+	struct comedi_driver *next;	/* Next in list of COMEDI drivers. */
+	/* public: */
 	const char *driver_name;
 	struct module *module;
 	int (*attach)(struct comedi_device *, struct comedi_devconfig *);
 	void (*detach)(struct comedi_device *);
 	int (*auto_attach)(struct comedi_device *, unsigned long);
-
-	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
 	const char *const *board_name;
-	/* offset in bytes from one board name pointer to the next */
 	int offset;
 };
 
