@@ -148,7 +148,7 @@ static unsigned int ip_vs_conn_hashkey_conn(const struct ip_vs_conn *cp)
 {
 	struct ip_vs_conn_param p;
 
-	ip_vs_conn_fill_param(cp->ipvs->net, cp->af, cp->protocol,
+	ip_vs_conn_fill_param(cp->ipvs, cp->af, cp->protocol,
 			      &cp->caddr, cp->cport, NULL, 0, &p);
 
 	if (cp->pe) {
@@ -319,17 +319,17 @@ ip_vs_conn_fill_param_proto(int af, const struct sk_buff *skb,
 			    struct ip_vs_conn_param *p)
 {
 	__be16 _ports[2], *pptr;
-	struct net *net = skb_net(skb);
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 
 	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports, iph);
 	if (pptr == NULL)
 		return 1;
 
 	if (likely(!ip_vs_iph_inverse(iph)))
-		ip_vs_conn_fill_param(net, af, iph->protocol, &iph->saddr,
+		ip_vs_conn_fill_param(ipvs, af, iph->protocol, &iph->saddr,
 				      pptr[0], &iph->daddr, pptr[1], p);
 	else
-		ip_vs_conn_fill_param(net, af, iph->protocol, &iph->daddr,
+		ip_vs_conn_fill_param(ipvs, af, iph->protocol, &iph->daddr,
 				      pptr[1], &iph->saddr, pptr[0], p);
 	return 0;
 }

@@ -784,21 +784,21 @@ control:
  *  fill_param used by version 1
  */
 static inline int
-ip_vs_conn_fill_param_sync(struct net *net, int af, union ip_vs_sync_conn *sc,
+ip_vs_conn_fill_param_sync(struct netns_ipvs *ipvs, int af, union ip_vs_sync_conn *sc,
 			   struct ip_vs_conn_param *p,
 			   __u8 *pe_data, unsigned int pe_data_len,
 			   __u8 *pe_name, unsigned int pe_name_len)
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		ip_vs_conn_fill_param(net, af, sc->v6.protocol,
+		ip_vs_conn_fill_param(ipvs, af, sc->v6.protocol,
 				      (const union nf_inet_addr *)&sc->v6.caddr,
 				      sc->v6.cport,
 				      (const union nf_inet_addr *)&sc->v6.vaddr,
 				      sc->v6.vport, p);
 	else
 #endif
-		ip_vs_conn_fill_param(net, af, sc->v4.protocol,
+		ip_vs_conn_fill_param(ipvs, af, sc->v4.protocol,
 				      (const union nf_inet_addr *)&sc->v4.caddr,
 				      sc->v4.cport,
 				      (const union nf_inet_addr *)&sc->v4.vaddr,
@@ -953,7 +953,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 /*
  *  Process received multicast message for Version 0
  */
-static void ip_vs_process_message_v0(struct net *net, const char *buffer,
+static void ip_vs_process_message_v0(struct netns_ipvs *ipvs, const char *buffer,
 				     const size_t buflen)
 {
 	struct ip_vs_sync_mesg_v0 *m = (struct ip_vs_sync_mesg_v0 *)buffer;
@@ -1009,14 +1009,14 @@ static void ip_vs_process_message_v0(struct net *net, const char *buffer,
 			}
 		}
 
-		ip_vs_conn_fill_param(net, AF_INET, s->protocol,
+		ip_vs_conn_fill_param(ipvs, AF_INET, s->protocol,
 				      (const union nf_inet_addr *)&s->caddr,
 				      s->cport,
 				      (const union nf_inet_addr *)&s->vaddr,
 				      s->vport, &param);
 
 		/* Send timeout as Zero */
-		ip_vs_proc_conn(net, &param, flags, state, s->protocol, AF_INET,
+		ip_vs_proc_conn(ipvs->net, &param, flags, state, s->protocol, AF_INET,
 				(union nf_inet_addr *)&s->daddr, s->dport,
 				0, 0, opt);
 	}
@@ -1171,7 +1171,7 @@ static inline int ip_vs_proc_sync_conn(struct net *net, __u8 *p, __u8 *msg_end)
 			state = 0;
 		}
 	}
-	if (ip_vs_conn_fill_param_sync(net, af, s, &param, pe_data,
+	if (ip_vs_conn_fill_param_sync(net_ipvs(net), af, s, &param, pe_data,
 				       pe_data_len, pe_name, pe_name_len)) {
 		retc = 50;
 		goto out;
@@ -1268,7 +1268,7 @@ static void ip_vs_process_message(struct net *net, __u8 *buffer,
 		}
 	} else {
 		/* Old type of message */
-		ip_vs_process_message_v0(net, buffer, buflen);
+		ip_vs_process_message_v0(ipvs, buffer, buflen);
 		return;
 	}
 }

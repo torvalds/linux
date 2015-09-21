@@ -1201,14 +1201,14 @@ enum {
 	IP_VS_DIR_LAST,
 };
 
-static inline void ip_vs_conn_fill_param(struct net *net, int af, int protocol,
+static inline void ip_vs_conn_fill_param(struct netns_ipvs *ipvs, int af, int protocol,
 					 const union nf_inet_addr *caddr,
 					 __be16 cport,
 					 const union nf_inet_addr *vaddr,
 					 __be16 vport,
 					 struct ip_vs_conn_param *p)
 {
-	p->ipvs = net_ipvs(net);
+	p->ipvs = ipvs;
 	p->af = af;
 	p->protocol = protocol;
 	p->caddr = caddr;

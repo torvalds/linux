@@ -41,16 +41,16 @@ struct isakmp_hdr {
 #define PORT_ISAKMP	500
 
 static void
-ah_esp_conn_fill_param_proto(struct net *net, int af,
+ah_esp_conn_fill_param_proto(struct netns_ipvs *ipvs, int af,
 			     const struct ip_vs_iphdr *iph,
 			     struct ip_vs_conn_param *p)
 {
 	if (likely(!ip_vs_iph_inverse(iph)))
-		ip_vs_conn_fill_param(net, af, IPPROTO_UDP,
+		ip_vs_conn_fill_param(ipvs, af, IPPROTO_UDP,
 				      &iph->saddr, htons(PORT_ISAKMP),
 				      &iph->daddr, htons(PORT_ISAKMP), p);
 	else
-		ip_vs_conn_fill_param(net, af, IPPROTO_UDP,
+		ip_vs_conn_fill_param(ipvs, af, IPPROTO_UDP,
 				      &iph->daddr, htons(PORT_ISAKMP),
 				      &iph->saddr, htons(PORT_ISAKMP), p);
 }
@@ -61,9 +61,9 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb,
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_conn_param p;
-	struct net *net = skb_net(skb);
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 
-	ah_esp_conn_fill_param_proto(net, af, iph, &p);
+	ah_esp_conn_fill_param_proto(ipvs, af, iph, &p);
 	cp = ip_vs_conn_in_get(&p);
 	if (!cp) {
 		/*
@@ -88,9 +88,9 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_conn_param p;
-	struct net *net = skb_net(skb);
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 
-	ah_esp_conn_fill_param_proto(net, af, iph, &p);
+	ah_esp_conn_fill_param_proto(ipvs, af, iph, &p);
 	cp = ip_vs_conn_out_get(&p);
 	if (!cp) {
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
