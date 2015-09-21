@@ -50,3 +50,9 @@ config LCDC_RK3368
 	depends on ARM64
 	help
 	  Driver for rk3368 lcdc.There are one lcd controllers on rk3368
+
+config LCDC_RK3228
+	bool "rk3228 lcdc support"
+	depends on FB_ROCKCHIP
+	help
+	  Driver for rk3228 lcdc.There are one lcd controllers on rk3228
