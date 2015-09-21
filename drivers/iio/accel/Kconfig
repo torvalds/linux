@@ -22,6 +22,8 @@ config BMC150_ACCEL
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+	select REGMAP_I2C
 	help
 	  Say yes here to build support for the following Bosch accelerometers:
 	  BMC150, BMI055, BMA250E, BMA222E, BMA255, BMA280.
