@@ -358,7 +358,7 @@ struct timer_cb {
 };
 
 /*!
- *  @struct     tstrHostIfPowerMgmtParam
+ *  @struct     power_mgmt_param
  *  @brief		Power management message body
  *  @details
  *  @todo
@@ -367,11 +367,11 @@ struct timer_cb {
  *  @date		24 November 2012
  *  @version		1.0
  */
-typedef struct {
+struct power_mgmt_param {
 
 	bool bIsEnabled;
 	u32 u32Timeout;
-} tstrHostIfPowerMgmtParam;
+};
 
 /*!
  *  @struct             tstrHostIFSetIPAddr
@@ -430,7 +430,7 @@ union message_body {
 	struct add_sta_param strEditStaParam;                           /*!< Edit station message body */
 	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
 	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
-	tstrHostIfPowerMgmtParam strPowerMgmtparam;     /*!< Power Management message body */
+	struct power_mgmt_param strPowerMgmtparam;     /*!< Power Management message body */
 	tstrHostIfStaInactiveT strHostIfStaInactiveT;
 	tstrHostIFSetIPAddr strHostIfSetIP;
 	tstrHostIfSetDrvHandler strHostIfSetDrvHandler;
@@ -3991,7 +3991,8 @@ static void ListenTimerCB(unsigned long arg)
  *  @date
  *  @version	1.0
  */
-static void Handle_PowerManagement(tstrWILC_WFIDrv *drvHandler, tstrHostIfPowerMgmtParam *strPowerMgmtParam)
+static void Handle_PowerManagement(tstrWILC_WFIDrv *drvHandler,
+				   struct power_mgmt_param *strPowerMgmtParam)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -7217,7 +7218,7 @@ s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Ti
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	tstrHostIfPowerMgmtParam *pstrPowerMgmtParam = &msg.body.strPowerMgmtparam;
+	struct power_mgmt_param *pstrPowerMgmtParam = &msg.body.strPowerMgmtparam;
 
 	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n", bIsEnabled);
 
