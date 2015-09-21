@@ -755,19 +755,22 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 
 	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
-	if (ia->ri_id->qp) {
+	if (ia->ri_id->qp)
 		rpcrdma_ep_disconnect(ep, ia);
+
+	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
+	rpcrdma_clean_cq(ep->rep_attr.send_cq);
+
+	if (ia->ri_id->qp) {
 		rdma_destroy_qp(ia->ri_id);
 		ia->ri_id->qp = NULL;
 	}
 
-	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
 	rc = ib_destroy_cq(ep->rep_attr.recv_cq);
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, rc);
 
-	rpcrdma_clean_cq(ep->rep_attr.send_cq);
 	rc = ib_destroy_cq(ep->rep_attr.send_cq);
 	if (rc)
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
