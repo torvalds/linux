@@ -278,14 +278,14 @@ struct ba_session_info {
 	u16 u16SessionTimeout;
 };
 
-typedef struct {
+struct remain_ch {
 	u16 u16Channel;
 	u32 u32duration;
 	tWILCpfRemainOnChanExpired pRemainOnChanExpired;
 	tWILCpfRemainOnChanReady pRemainOnChanReady;
 	void *pVoid;
 	u32 u32ListenSessionID;
-} tstrHostIfRemainOnChan;
+};
 
 typedef struct {
 
@@ -318,7 +318,7 @@ typedef struct {
 	tstrWILC_UsrConnReq strWILC_UsrConnReq;
 
 	/*Remain on channel struvture*/
-	tstrHostIfRemainOnChan strHostIfRemainOnChan;
+	struct remain_ch strHostIfRemainOnChan;
 	u8 u8RemainOnChan_pendingreq;
 	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
