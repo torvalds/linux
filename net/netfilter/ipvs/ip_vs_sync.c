@@ -1946,9 +1946,8 @@ out:
 }
 
 
-int stop_sync_thread(struct net *net, int state)
+int stop_sync_thread(struct netns_ipvs *ipvs, int state)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct task_struct **array;
 	int id;
 	int retc = -EINVAL;
@@ -2030,11 +2029,11 @@ void ip_vs_sync_net_cleanup(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	mutex_lock(&ipvs->sync_mutex);
-	retc = stop_sync_thread(net, IP_VS_STATE_MASTER);
+	retc = stop_sync_thread(ipvs, IP_VS_STATE_MASTER);
 	if (retc && retc != -ESRCH)
 		pr_err("Failed to stop Master Daemon\n");
 
-	retc = stop_sync_thread(net, IP_VS_STATE_BACKUP);
+	retc = stop_sync_thread(ipvs, IP_VS_STATE_BACKUP);
 	if (retc && retc != -ESRCH)
 		pr_err("Failed to stop Backup Daemon\n");
 	mutex_unlock(&ipvs->sync_mutex);
