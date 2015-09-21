@@ -746,9 +746,11 @@ static int mrf24j40_probe(struct spi_device *spi)
 	if (!devrec->buf)
 		goto err_register_device;
 
-	spi->mode = SPI_MODE_0; /* TODO: Is this appropriate for right here? */
-	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ)
-		spi->max_speed_hz = MAX_SPI_SPEED_HZ;
+	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ) {
+		dev_warn(&spi->dev, "spi clock above possible maximum: %d",
+			 MAX_SPI_SPEED_HZ);
+		return -EINVAL;
+	}
 
 	mutex_init(&devrec->buffer_mutex);
 	init_completion(&devrec->tx_complete);
