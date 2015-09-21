@@ -808,7 +808,8 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	unsigned int mask, val, off;
 	off = win_id * 0x40;
-	if(win->win_lb_mode == 5)
+	if((win->win_lb_mode == 5) &&
+	   (dev_drv->version == VOP_FULL_RK3288_V1_0))
 		win->win_lb_mode = 4;
 
 	if(win->state == 1){
@@ -3381,13 +3382,15 @@ static int rk3288_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 		if ((win->state == 0)&&(win->last_state == 1)) {
 			switch (win->id) {
 			case 0:
-				lcdc_writel(lcdc_dev,WIN0_CTRL1,0x0);
+				if (dev_drv->version == VOP_FULL_RK3288_V1_0)
+					lcdc_writel(lcdc_dev, WIN0_CTRL1, 0x0);
 				mask =  m_WIN0_EN;
 				val  =  v_WIN0_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask,val);	
 				break;
 			case 1:
-				lcdc_writel(lcdc_dev,WIN1_CTRL1,0x0);
+				if (dev_drv->version == VOP_FULL_RK3288_V1_0)
+					lcdc_writel(lcdc_dev, WIN1_CTRL1, 0x0);
 				mask =  m_WIN1_EN;
 				val  =  v_WIN1_EN(0);
 				lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask,val);		
