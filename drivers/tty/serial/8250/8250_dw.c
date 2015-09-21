@@ -302,14 +302,6 @@ static int dw8250_probe_of(struct uart_port *p,
 	if (has_ucv)
 		dw8250_setup_port(up);
 
-	/* if we have a valid fifosize, try hooking up DMA here */
-	if (p->fifosize) {
-		up->dma = &data->dma;
-
-		up->dma->rxconf.src_maxburst = p->fifosize / 4;
-		up->dma->txconf.dst_maxburst = p->fifosize / 4;
-	}
-
 	/* get index of serial line, if found in DT aliases */
 	id = of_alias_get_id(np, "serial");
 	if (id >= 0)
@@ -347,10 +339,6 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 		data->dma.tx_param = up->port.dev->parent;
 		data->dma.fn = dw8250_idma_filter;
 	}
-
-	up->dma = &data->dma;
-	up->dma->rxconf.src_maxburst = p->fifosize / 4;
-	up->dma->txconf.dst_maxburst = p->fifosize / 4;
 
 	up->port.set_termios = dw8250_set_termios;
 
@@ -496,6 +484,13 @@ static int dw8250_probe(struct platform_device *pdev)
 	} else {
 		err = -ENODEV;
 		goto err_reset;
+	}
+
+	/* If we have a valid fifosize, try hooking up DMA */
+	if (p->fifosize) {
+		data->dma.rxconf.src_maxburst = p->fifosize / 4;
+		data->dma.txconf.dst_maxburst = p->fifosize / 4;
+		uart.dma = &data->dma;
 	}
 
 	data->line = serial8250_register_8250_port(&uart);
