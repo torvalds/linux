@@ -1615,7 +1615,7 @@ static int
 proc_do_defense_mode(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = current->nsproxy->net_ns;
+	struct netns_ipvs *ipvs = table->extra2;
 	int *valp = table->data;
 	int val = *valp;
 	int rc;
@@ -1626,7 +1626,7 @@ proc_do_defense_mode(struct ctl_table *table, int write,
 			/* Restore the correct value */
 			*valp = val;
 		} else {
-			update_defense_level(net_ipvs(net));
+			update_defense_level(ipvs);
 		}
 	}
 	return rc;
@@ -3866,6 +3866,10 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	} else
 		tbl = vs_vars;
 	/* Initialize sysctl defaults */
+	for (idx = 0; idx < ARRAY_SIZE(vs_vars); idx++) {
+		if (tbl[idx].proc_handler == proc_do_defense_mode)
+			tbl[idx].extra2 = ipvs;
+	}
 	idx = 0;
 	ipvs->sysctl_amemthresh = 1024;
 	tbl[idx++].data = &ipvs->sysctl_amemthresh;
