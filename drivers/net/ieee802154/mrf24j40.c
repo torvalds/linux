@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
+#include <linux/irq.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
 
@@ -992,6 +993,7 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 
 static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 {
+	u32 irq_type;
 	int ret;
 
 	/* Initialize the device.
@@ -1081,6 +1083,25 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 		 * From MRF24J40MC datasheet section 3.1.1
 		 */
 		regmap_write(devrec->regmap_long, REG_RFCON3, 0x28);
+	}
+
+	irq_type = irq_get_trigger_type(devrec->spi->irq);
+	if (irq_type == IRQ_TYPE_EDGE_RISING ||
+	    irq_type == IRQ_TYPE_EDGE_FALLING)
+		dev_warn(&devrec->spi->dev,
+			 "Using edge triggered irq's are not recommended, because it can cause races and result in a non-functional driver!\n");
+	switch (irq_type) {
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_LEVEL_HIGH:
+		/* set interrupt polarity to rising */
+		ret = regmap_update_bits(devrec->regmap_long, REG_SLPCON0,
+					 0x02, 0x02);
+		if (ret)
+			goto err_ret;
+		break;
+	default:
+		/* default is falling edge */
+		break;
 	}
 
 	return 0;
@@ -1182,7 +1203,7 @@ static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
 
 static int mrf24j40_probe(struct spi_device *spi)
 {
-	int ret = -ENOMEM;
+	int ret = -ENOMEM, irq_type;
 	struct ieee802154_hw *hw;
 	struct mrf24j40 *devrec;
 
@@ -1242,9 +1263,13 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	mrf24j40_phy_setup(devrec);
 
+	/* request IRQF_TRIGGER_LOW as fallback default */
+	irq_type = irq_get_trigger_type(spi->irq);
+	if (!irq_type)
+		irq_type = IRQF_TRIGGER_LOW;
+
 	ret = devm_request_irq(&spi->dev, spi->irq, mrf24j40_isr,
-			       IRQF_TRIGGER_LOW, dev_name(&spi->dev),
-			       devrec);
+			       irq_type, dev_name(&spi->dev), devrec);
 	if (ret) {
 		dev_err(printdev(devrec), "Unable to get IRQ");
 		goto err_register_device;
