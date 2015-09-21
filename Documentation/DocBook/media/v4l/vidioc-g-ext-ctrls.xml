@@ -200,6 +200,13 @@ Valid if this control is of type <constant>V4L2_CTRL_TYPE_U16</constant>.</entry
 	  </row>
 	  <row>
 	    <entry></entry>
+	    <entry>__u32 *</entry>
+	    <entry><structfield>p_u32</structfield></entry>
+	    <entry>A pointer to a matrix control of unsigned 32-bit values.
+Valid if this control is of type <constant>V4L2_CTRL_TYPE_U32</constant>.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>void *</entry>
 	    <entry><structfield>ptr</structfield></entry>
 	    <entry>A pointer to a compound type which can be an N-dimensional array and/or a
