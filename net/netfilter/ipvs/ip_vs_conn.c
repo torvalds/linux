@@ -1239,7 +1239,7 @@ static inline int todrop_entry(struct ip_vs_conn *cp)
 }
 
 /* Called from keventd and must protect itself from softirqs */
-void ip_vs_random_dropentry(struct net *net)
+void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 {
 	int idx;
 	struct ip_vs_conn *cp, *cp_c;
@@ -1255,7 +1255,7 @@ void ip_vs_random_dropentry(struct net *net)
 			if (cp->flags & IP_VS_CONN_F_TEMPLATE)
 				/* connection template */
 				continue;
-			if (!net_eq(cp->ipvs->net, net))
+			if (cp->ipvs != ipvs)
 				continue;
 			if (cp->protocol == IPPROTO_TCP) {
 				switch(cp->state) {
