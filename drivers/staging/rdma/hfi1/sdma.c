@@ -741,6 +741,7 @@ u16 sdma_get_descq_cnt(void)
 		return SDMA_DESCQ_CNT;
 	return count;
 }
+
 /**
  * sdma_select_engine_vl() - select sdma engine
  * @dd: devdata

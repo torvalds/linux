@@ -2066,6 +2066,7 @@ static const struct file_operations ui_file_ops = {
 	.open = ui_open,
 	.release = ui_release,
 };
+
 #define UI_OFFSET 192	/* device minor offset for UI devices */
 static int create_ui = 1;
 

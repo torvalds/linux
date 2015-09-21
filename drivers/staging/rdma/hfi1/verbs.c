@@ -1199,6 +1199,7 @@ pio_bail:
 	}
 	return 0;
 }
+
 /*
  * egress_pkey_matches_entry - return 1 if the pkey matches ent (ent
  * being an entry from the ingress partition key table), return 0
