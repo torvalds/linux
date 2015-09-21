@@ -793,13 +793,10 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 
 	ddc = of_parse_phandle(pdev->dev.of_node, "ddc", 0);
 	if (ddc) {
-		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
-		if (!hdmi->ddc_adapt) {
-			of_node_put(ddc);
-			return -EPROBE_DEFER;
-		}
-
+		hdmi->ddc_adapt = of_get_i2c_adapter_by_node(ddc);
 		of_node_put(ddc);
+		if (!hdmi->ddc_adapt)
+			return -EPROBE_DEFER;
 	}
 
 	hdmi->dev = pdev->dev;
@@ -888,8 +885,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sti_hdmi_ops);
 
  release_adapter:
-	if (hdmi->ddc_adapt)
-		put_device(&hdmi->ddc_adapt->dev);
+	i2c_put_adapter(hdmi->ddc_adapt);
 
 	return ret;
 }
@@ -898,10 +894,9 @@ static int sti_hdmi_remove(struct platform_device *pdev)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
-	if (hdmi->ddc_adapt)
-		put_device(&hdmi->ddc_adapt->dev);
-
+	i2c_put_adapter(hdmi->ddc_adapt);
 	component_del(&pdev->dev, &sti_hdmi_ops);
+
 	return 0;
 }
 
