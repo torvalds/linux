@@ -176,10 +176,9 @@ void ip_vs_app_inc_put(struct ip_vs_app *inc)
  *	Register an application incarnation in protocol applications
  */
 int
-register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
+register_ip_vs_app_inc(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 		       __u16 port)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	int result;
 
 	mutex_lock(&__ip_vs_app_mutex);

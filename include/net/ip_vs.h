@@ -1345,7 +1345,7 @@ struct ip_vs_app *register_ip_vs_app(struct net *net, struct ip_vs_app *app);
 void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app);
 int ip_vs_bind_app(struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 void ip_vs_unbind_app(struct ip_vs_conn *cp);
-int register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
+int register_ip_vs_app_inc(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 			   __u16 port);
 int ip_vs_app_inc_get(struct ip_vs_app *inc);
 void ip_vs_app_inc_put(struct ip_vs_app *inc);

@@ -454,7 +454,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	for (i = 0; i < ports_count; i++) {
 		if (!ports[i])
 			continue;
-		ret = register_ip_vs_app_inc(net, app, app->protocol, ports[i]);
+		ret = register_ip_vs_app_inc(ipvs, app, app->protocol, ports[i]);
 		if (ret)
 			goto err_unreg;
 		pr_info("%s: loaded support on port[%d] = %d\n",
