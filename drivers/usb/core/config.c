@@ -112,7 +112,7 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 				cfgno, inum, asnum, ep->desc.bEndpointAddress);
 		ep->ss_ep_comp.bmAttributes = 16;
 	} else if (usb_endpoint_xfer_isoc(&ep->desc) &&
-			desc->bmAttributes > 2) {
+		   USB_SS_MULT(desc->bmAttributes) > 3) {
 		dev_warn(ddev, "Isoc endpoint has Mult of %d in "
 				"config %d interface %d altsetting %d ep %d: "
 				"setting to 3\n", desc->bmAttributes + 1,
@@ -121,7 +121,8 @@ static void usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 	}
 
 	if (usb_endpoint_xfer_isoc(&ep->desc))
-		max_tx = (desc->bMaxBurst + 1) * (desc->bmAttributes + 1) *
+		max_tx = (desc->bMaxBurst + 1) *
+			(USB_SS_MULT(desc->bmAttributes)) *
 			usb_endpoint_maxp(&ep->desc);
 	else if (usb_endpoint_xfer_int(&ep->desc))
 		max_tx = usb_endpoint_maxp(&ep->desc) *
