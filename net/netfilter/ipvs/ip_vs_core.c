@@ -1388,10 +1388,9 @@ ip_vs_try_to_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
  *	Currently handles error types - unreachable, quench, ttl exceeded.
  */
 static int
-ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
+ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
+	      unsigned int hooknum)
 {
-	struct net *net = NULL;
-	struct netns_ipvs *ipvs;
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
@@ -1439,9 +1438,6 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
 	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
-
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 
 	/* Special case for errors for IPIP packets */
 	ipip = false;
@@ -1520,7 +1516,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 			skb_reset_network_header(skb);
 			IP_VS_DBG(12, "ICMP for IPIP %pI4->%pI4: mtu=%u\n",
 				&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr, mtu);
-			ipv4_update_pmtu(skb, dev_net(skb->dev),
+			ipv4_update_pmtu(skb, ipvs->net,
 					 mtu, 0, 0, 0, 0);
 			/* Client uses PMTUD? */
 			if (!(frag_off & htons(IP_DF)))
@@ -1575,11 +1571,10 @@ out:
 }
 
 #ifdef CONFIG_IP_VS_IPV6
-static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
-			    unsigned int hooknum, struct ip_vs_iphdr *iph)
+static int ip_vs_in_icmp_v6(struct netns_ipvs *ipvs, struct sk_buff *skb,
+			    int *related, unsigned int hooknum,
+			    struct ip_vs_iphdr *iph)
 {
-	struct net *net = NULL;
-	struct netns_ipvs *ipvs;
 	struct icmp6hdr	_icmph, *ic;
 	struct ip_vs_iphdr ciph = {.flags = 0, .fragoffs = 0};/*Contained IP */
 	struct ip_vs_conn *cp;
@@ -1619,8 +1614,6 @@ static int ip_vs_in_icmp_v6(struct sk_buff *skb, int *related,
 	if (!ip_vs_fill_iph_skb_icmp(AF_INET6, skb, offset, true, &ciph))
 		return NF_ACCEPT;
 
-	net = skb_net(skb);
-	ipvs = net_ipvs(net);
 	pd = ip_vs_proto_data_get(ipvs, ciph.protocol);
 	if (!pd)
 		return NF_ACCEPT;
@@ -1732,8 +1725,8 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 	if (af == AF_INET6) {
 		if (unlikely(iph.protocol == IPPROTO_ICMPV6)) {
 			int related;
-			int verdict = ip_vs_in_icmp_v6(skb, &related, hooknum,
-						       &iph);
+			int verdict = ip_vs_in_icmp_v6(ipvs, skb, &related,
+						       hooknum, &iph);
 
 			if (related)
 				return verdict;
@@ -1742,7 +1735,8 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 #endif
 		if (unlikely(iph.protocol == IPPROTO_ICMP)) {
 			int related;
-			int verdict = ip_vs_in_icmp(skb, &related, hooknum);
+			int verdict = ip_vs_in_icmp(ipvs, skb, &related,
+						    hooknum);
 
 			if (related)
 				return verdict;
@@ -1895,17 +1889,16 @@ ip_vs_forward_icmp(void *priv, struct sk_buff *skb,
 		   const struct nf_hook_state *state)
 {
 	int r;
-	struct netns_ipvs *ipvs;
+	struct netns_ipvs *ipvs = net_ipvs(state->net);
 
 	if (ip_hdr(skb)->protocol != IPPROTO_ICMP)
 		return NF_ACCEPT;
 
 	/* ipvs enabled in this netns ? */
-	ipvs = net_ipvs(state->net);
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp(skb, &r, state->hook);
+	return ip_vs_in_icmp(ipvs, skb, &r, state->hook);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -1914,7 +1907,7 @@ ip_vs_forward_icmp_v6(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
 	int r;
-	struct netns_ipvs *ipvs;
+	struct netns_ipvs *ipvs = net_ipvs(state->net);
 	struct ip_vs_iphdr iphdr;
 
 	ip_vs_fill_iph_skb(AF_INET6, skb, false, &iphdr);
@@ -1922,11 +1915,10 @@ ip_vs_forward_icmp_v6(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	/* ipvs enabled in this netns ? */
-	ipvs = net_ipvs(state->net);
 	if (unlikely(sysctl_backup_only(ipvs) || !ipvs->enable))
 		return NF_ACCEPT;
 
-	return ip_vs_in_icmp_v6(skb, &r, state->hook, &iphdr);
+	return ip_vs_in_icmp_v6(ipvs, skb, &r, state->hook, &iphdr);
 }
 #endif
 
