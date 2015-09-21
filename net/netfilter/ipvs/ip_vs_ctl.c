@@ -1033,12 +1033,10 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 /*
  *	Delete a destination (must be already unlinked from the service)
  */
-static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest,
+static void __ip_vs_del_dest(struct netns_ipvs *ipvs, struct ip_vs_dest *dest,
 			     bool cleanup)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
-
-	ip_vs_stop_estimator(net, &dest->stats);
+	ip_vs_stop_estimator(ipvs->net, &dest->stats);
 
 	/*
 	 *  Remove it from the d-linked list with the real services.
@@ -1117,7 +1115,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	/*
 	 *	Delete the destination
 	 */
-	__ip_vs_del_dest(svc->ipvs->net, dest, false);
+	__ip_vs_del_dest(svc->ipvs, dest, false);
 
 	LeaveFunction(2);
 
@@ -1402,7 +1400,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 	 */
 	list_for_each_entry_safe(dest, nxt, &svc->destinations, n_list) {
 		__ip_vs_unlink_dest(svc, dest, 0);
-		__ip_vs_del_dest(svc->ipvs->net, dest, cleanup);
+		__ip_vs_del_dest(svc->ipvs, dest, cleanup);
 	}
 
 	/*
