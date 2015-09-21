@@ -411,22 +411,21 @@ struct sta_inactive_t {
  *  @version		1.0
  */
 union message_body {
-	struct scan_attr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
-	struct connect_attr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
-	struct rcvd_net_info strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
-	struct rcvd_async_info strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
-	struct key_attr strHostIFkeyAttr;                             /*!<>*/
-	struct cfg_param_attr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
+	struct scan_attr strHostIFscanAttr;
+	struct connect_attr strHostIFconnectAttr;
+	struct rcvd_net_info strRcvdNetworkInfo;
+	struct rcvd_async_info strRcvdGnrlAsyncInfo;
+	struct key_attr strHostIFkeyAttr;
+	struct cfg_param_attr strHostIFCfgParamAttr;
 	struct set_channel strHostIFSetChan;
 	struct get_channel strHostIFGetChan;
-	struct set_beacon strHostIFSetBeacon;                 /*!< Set beacon message body */
-	struct del_beacon strHostIFDelBeacon;                 /*!< Del beacon message body */
-	struct add_sta_param strAddStaParam;                    /*!< Add station message body */
-	struct del_sta strDelStaParam;                                /*!< Del Station message body */
-	struct add_sta_param strEditStaParam;                           /*!< Edit station message body */
-	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
-	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
-	struct power_mgmt_param strPowerMgmtparam;     /*!< Power Management message body */
+	struct set_beacon strHostIFSetBeacon;
+	struct del_beacon strHostIFDelBeacon;
+	struct add_sta_param strAddStaParam;
+	struct del_sta strDelStaParam;
+	struct add_sta_param strEditStaParam;
+	struct timer_cb strTimerCb;
+	struct power_mgmt_param strPowerMgmtparam;
 	struct sta_inactive_t strHostIfStaInactiveT;
 	struct set_ip_addr strHostIfSetIP;
 	struct drv_handler strHostIfSetDrvHandler;
