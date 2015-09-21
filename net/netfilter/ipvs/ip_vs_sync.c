@@ -1549,16 +1549,15 @@ error:
 /*
  *      Set up receiving multicast socket over UDP
  */
-static struct socket *make_receive_sock(struct net *net, int id)
+static struct socket *make_receive_sock(struct netns_ipvs *ipvs, int id)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	/* multicast addr */
 	union ipvs_sockaddr mcast_addr;
 	struct socket *sock;
 	int result, salen;
 
 	/* First create a socket */
-	result = sock_create_kern(net, ipvs->bcfg.mcast_af, SOCK_DGRAM,
+	result = sock_create_kern(ipvs->net, ipvs->bcfg.mcast_af, SOCK_DGRAM,
 				  IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
@@ -1873,7 +1872,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		if (state == IP_VS_STATE_MASTER)
 			sock = make_send_sock(ipvs, id);
 		else
-			sock = make_receive_sock(ipvs->net, id);
+			sock = make_receive_sock(ipvs, id);
 		if (IS_ERR(sock)) {
 			result = PTR_ERR(sock);
 			goto outtinfo;
