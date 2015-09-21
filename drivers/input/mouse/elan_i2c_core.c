@@ -102,6 +102,7 @@ static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 		*validpage_count = 512;
 		break;
 	case 0x09:
+	case 0x03:
 		*validpage_count = 768;
 		break;
 	case 0x0D:
