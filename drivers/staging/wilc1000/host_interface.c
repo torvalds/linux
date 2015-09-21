@@ -407,7 +407,7 @@ typedef struct {
 } tstrHostIfStaInactiveT;
 /**/
 /*!
- *  @union              tuniHostIFmsgBody
+ *  @union              message_body
  *  @brief		Message body for the Host Interface message_q
  *  @details
  *  @todo
@@ -416,7 +416,7 @@ typedef struct {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef union _tuniHostIFmsgBody {
+union message_body {
 	tstrHostIFscanAttr strHostIFscanAttr;                           /*!< Host IF Scan Request Attributes message body */
 	tstrHostIFconnectAttr strHostIFconnectAttr;     /*!< Host IF Connect Request Attributes message body */
 	tstrRcvdNetworkInfo strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
@@ -445,7 +445,7 @@ typedef union _tuniHostIFmsgBody {
 	tstrHostIfRegisterFrame strHostIfRegisterFrame;
 	char *pUserData;
 	tstrHostIFDelAllSta strHostIFDelAllSta;
-} tuniHostIFmsgBody;
+};
 
 /*!
  *  @struct             struct host_if_msg
@@ -459,7 +459,7 @@ typedef union _tuniHostIFmsgBody {
  */
 struct host_if_msg {
 	u16 id;                                           /*!< Message ID */
-	tuniHostIFmsgBody uniHostIFmsgBody;             /*!< Message body */
+	union message_body uniHostIFmsgBody;             /*!< Message body */
 	tstrWILC_WFIDrv *drvHandler;
 };
 
