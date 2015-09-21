@@ -545,7 +545,7 @@ struct ip_vs_proto_data *ip_vs_proto_data_get(struct net *net,
 					      unsigned short proto);
 
 struct ip_vs_conn_param {
-	struct net			*net;
+	struct netns_ipvs		*ipvs;
 	const union nf_inet_addr	*caddr;
 	const union nf_inet_addr	*vaddr;
 	__be16				cport;
@@ -1208,7 +1208,7 @@ static inline void ip_vs_conn_fill_param(struct net *net, int af, int protocol,
 					 __be16 vport,
 					 struct ip_vs_conn_param *p)
 {
-	p->net = net;
+	p->ipvs = net_ipvs(net);
 	p->af = af;
 	p->protocol = protocol;
 	p->caddr = caddr;
