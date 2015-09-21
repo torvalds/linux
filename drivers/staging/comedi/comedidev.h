@@ -217,11 +217,40 @@ struct comedi_subdevice {
 	unsigned int *readback;
 };
 
+/**
+ * struct comedi_buf_page - Describe a page of a COMEDI buffer
+ * @virt_addr: Kernel address of page.
+ * @dma_addr: DMA address of page if in DMA coherent memory.
+ */
 struct comedi_buf_page {
 	void *virt_addr;
 	dma_addr_t dma_addr;
 };
 
+/**
+ * struct comedi_buf_map - Describe pages in a COMEDI buffer
+ * @dma_hw_dev: Low-level hardware &struct device pointer copied from the
+ *	COMEDI device's hw_dev member.
+ * @page_list: Pointer to array of &struct comedi_buf_page, one for each
+ *	page in the buffer.
+ * @n_pages: Number of pages in the buffer.
+ * @dma_dir: DMA direction used to allocate pages of DMA coherent memory,
+ *	or %DMA_NONE if pages allocated from regular memory.
+ * @refcount: &struct kref reference counter used to free the buffer.
+ *
+ * A COMEDI data buffer is allocated as individual pages, either in
+ * conventional memory or DMA coherent memory, depending on the attached,
+ * low-level hardware device.  (The buffer pages also get mapped into the
+ * kernel's contiguous virtual address space pointed to by the 'prealloc_buf'
+ * member of &struct comedi_async.)
+ *
+ * The buffer is normally freed when the COMEDI device is detached from the
+ * low-level driver (which may happen due to device removal), but if it happens
+ * to be mmapped at the time, the pages cannot be freed until the buffer has
+ * been munmapped.  That is what the reference counter is for.  (The virtual
+ * address space pointed by 'prealloc_buf' is freed when the COMEDI device is
+ * detached.)
+ */
 struct comedi_buf_map {
 	struct device *dma_hw_dev;
 	struct comedi_buf_page *page_list;
