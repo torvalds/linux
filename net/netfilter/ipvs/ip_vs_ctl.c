@@ -3119,10 +3119,9 @@ static int ip_vs_genl_parse_service(struct netns_ipvs *ipvs,
 	return 0;
 }
 
-static struct ip_vs_service *ip_vs_genl_find_service(struct net *net,
+static struct ip_vs_service *ip_vs_genl_find_service(struct netns_ipvs *ipvs,
 						     struct nlattr *nla)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_service_user_kern usvc;
 	struct ip_vs_service *svc;
 	int ret;
@@ -3203,6 +3202,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 	struct ip_vs_dest *dest;
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct net *net = skb_sknet(skb);
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	mutex_lock(&__ip_vs_mutex);
 
@@ -3212,7 +3212,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 		goto out_err;
 
 
-	svc = ip_vs_genl_find_service(net, attrs[IPVS_CMD_ATTR_SERVICE]);
+	svc = ip_vs_genl_find_service(ipvs, attrs[IPVS_CMD_ATTR_SERVICE]);
 	if (IS_ERR(svc) || svc == NULL)
 		goto out_err;
 
@@ -3668,7 +3668,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	{
 		struct ip_vs_service *svc;
 
-		svc = ip_vs_genl_find_service(net,
+		svc = ip_vs_genl_find_service(ipvs,
 					      info->attrs[IPVS_CMD_ATTR_SERVICE]);
 		if (IS_ERR(svc)) {
 			ret = PTR_ERR(svc);
