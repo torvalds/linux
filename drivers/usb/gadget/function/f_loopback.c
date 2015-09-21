@@ -431,7 +431,7 @@ static ssize_t f_lb_opts_qlen_show(struct f_lb_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->qlen);
+	result = sprintf(page, "%d\n", opts->qlen);
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -470,7 +470,7 @@ static ssize_t f_lb_opts_bulk_buflen_show(struct f_lb_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = sprintf(page, "%d", opts->bulk_buflen);
+	result = sprintf(page, "%d\n", opts->bulk_buflen);
 	mutex_unlock(&opts->lock);
 
 	return result;
