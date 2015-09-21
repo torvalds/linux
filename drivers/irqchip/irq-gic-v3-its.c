@@ -39,7 +39,8 @@
 
 #include "irq-gic-common.h"
 
-#define ITS_FLAGS_CMDQ_NEEDS_FLUSHING		(1 << 0)
+#define ITS_FLAGS_CMDQ_NEEDS_FLUSHING		(1ULL << 0)
+#define ITS_FLAGS_WORKAROUND_CAVIUM_22375	(1ULL << 1)
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING	(1 << 0)
 
@@ -816,9 +817,22 @@ static int its_alloc_tables(const char *node_name, struct its_node *its)
 	int i;
 	int psz = SZ_64K;
 	u64 shr = GITS_BASER_InnerShareable;
-	u64 cache = GITS_BASER_WaWb;
-	u64 typer = readq_relaxed(its->base + GITS_TYPER);
-	u32 ids = GITS_TYPER_DEVBITS(typer);
+	u64 cache;
+	u64 typer;
+	u32 ids;
+
+	if (its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_22375) {
+		/*
+		 * erratum 22375: only alloc 8MB table size
+		 * erratum 24313: ignore memory access type
+		 */
+		cache	= 0;
+		ids	= 0x14;			/* 20 bits, 8MB */
+	} else {
+		cache	= GITS_BASER_WaWb;
+		typer	= readq_relaxed(its->base + GITS_TYPER);
+		ids	= GITS_TYPER_DEVBITS(typer);
+	}
 
 	for (i = 0; i < GITS_BASER_NR_REGS; i++) {
 		u64 val = readq_relaxed(its->base + GITS_BASER + i * 8);
@@ -1377,7 +1391,22 @@ static int its_force_quiescent(void __iomem *base)
 	}
 }
 
+static void __maybe_unused its_enable_quirk_cavium_22375(void *data)
+{
+	struct its_node *its = data;
+
+	its->flags |= ITS_FLAGS_WORKAROUND_CAVIUM_22375;
+}
+
 static const struct gic_quirk its_quirks[] = {
+#ifdef CONFIG_CAVIUM_ERRATUM_22375
+	{
+		.desc	= "ITS: Cavium errata 22375, 24313",
+		.iidr	= 0xa100034c,	/* ThunderX pass 1.x */
+		.mask	= 0xffff0fff,
+		.init	= its_enable_quirk_cavium_22375,
+	},
+#endif
 	{
 	}
 };
