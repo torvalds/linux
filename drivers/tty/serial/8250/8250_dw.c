@@ -65,6 +65,7 @@ struct dw8250_data {
 	struct uart_8250_dma	dma;
 
 	unsigned int		skip_autocfg:1;
+	unsigned int		uart_16550_compatible:1;
 };
 
 #define BYT_PRV_CLK			0x800
@@ -317,8 +318,9 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		p->iotype = UPIO_MEM32;
 		p->regshift = 2;
 		p->serial_in = dw8250_serial_in32;
-		p->serial_out = dw8250_serial_out32;
 		p->set_termios = dw8250_set_termios;
+		/* So far none of there implement the Busy Functionality */
+		data->uart_16550_compatible = true;
 	}
 
 	/* Platforms with iDMA */
@@ -374,6 +376,9 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	data->usr_reg = DW_UART_USR;
 	p->private_data = data;
+
+	data->uart_16550_compatible = device_property_read_bool(p->dev,
+						"snps,uart-16550-compatible");
 
 	err = device_property_read_u32(p->dev, "reg-shift", &val);
 	if (!err)
@@ -460,6 +465,12 @@ static int dw8250_probe(struct platform_device *pdev)
 	data->dma.fn = dw8250_dma_filter;
 
 	dw8250_quirks(p, data);
+
+	/* If the Busy Functionality is not implemented, don't handle it */
+	if (data->uart_16550_compatible) {
+		p->serial_out = NULL;
+		p->handle_irq = NULL;
+	}
 
 	if (!data->skip_autocfg)
 		dw8250_setup_port(&uart);
