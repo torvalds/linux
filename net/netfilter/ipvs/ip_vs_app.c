@@ -75,10 +75,9 @@ static void ip_vs_app_inc_rcu_free(struct rcu_head *head)
  *	Allocate/initialize app incarnation and register it in proto apps.
  */
 static int
-ip_vs_app_inc_new(struct net *net, struct ip_vs_app *app, __u16 proto,
+ip_vs_app_inc_new(struct netns_ipvs *ipvs, struct ip_vs_app *app, __u16 proto,
 		  __u16 port)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_protocol *pp;
 	struct ip_vs_app *inc;
 	int ret;
@@ -180,11 +179,12 @@ int
 register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
 		       __u16 port)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	int result;
 
 	mutex_lock(&__ip_vs_app_mutex);
 
-	result = ip_vs_app_inc_new(net, app, proto, port);
+	result = ip_vs_app_inc_new(ipvs, app, proto, port);
 
 	mutex_unlock(&__ip_vs_app_mutex);
 
