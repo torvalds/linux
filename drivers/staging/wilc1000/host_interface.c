@@ -6355,7 +6355,6 @@ void host_int_send_network_info_to_host
  *  @date		8 March 2012
  *  @version		1.0
  */
-static u32 u32Intialized;
 static u32 clients_count;
 
 s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
@@ -6364,12 +6363,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	int err;
 
-	/*if(u32Intialized == 1)
-	 * {
-	 *      PRINT_D(HOSTINF_DBG,"Host interface is previously initialized\n");
-	 * *phWFIDrv = (WILC_WFIDrvHandle)gWFiDrvHandle; //Will be adjusted later for P2P
-	 *      return 0;
-	 * }	*/
 	PRINT_D(HOSTINF_DBG, "Initializing host interface for client %d\n", clients_count + 1);
 
 	gbScanWhileConnected = false;
@@ -6480,7 +6473,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		goto _fail_mem_;
 	}
 
-	u32Intialized = 1;
 	clients_count++; /* increase number of created entities */
 
 	return s32Error;
@@ -6520,12 +6512,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 
 	/*obtain driver handle*/
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
-	/*if(u32Intialized == 0)
-	 * {
-	 *      PRINT_ER("Host Interface is not initialized\n");
-	 *      return 0;
-	 * }*/
-
 
 	if (pstrWFIDrv == NULL)	{
 		PRINT_ER("pstrWFIDrv = NULL\n");
@@ -6599,7 +6585,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	/*Setting the gloabl driver handler with NULL*/
-	u32Intialized = 0;
 	/* gWFiDrvHandle = NULL; */
 	ret = remove_handler_in_list(pstrWFIDrv);
 	if (ret)
