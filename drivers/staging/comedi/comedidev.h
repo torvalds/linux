@@ -34,6 +34,131 @@
 
 #define COMEDI_NUM_BOARD_MINORS 0x30
 
+/**
+ * struct comedi_subdevice - Working data for a COMEDI subdevice
+ * @device: COMEDI device to which this subdevice belongs.  (Initialized by
+ *	comedi_alloc_subdevices().)
+ * @index: Index of this subdevice within device's array of subdevices.
+ *	(Initialized by comedi_alloc_subdevices().)
+ * @type: Type of subdevice from &enum comedi_subdevice_type.  (Initialized by
+ *	the low-level driver.)
+ * @n_chan: Number of channels the subdevice supports.  (Initialized by the
+ *	low-level driver.)
+ * @subdev_flags: Various "SDF" flags indicating aspects of the subdevice to
+ *	the COMEDI core and user application.  (Initialized by the low-level
+ *	driver.)
+ * @len_chanlist: Maximum length of a channel list if the subdevice supports
+ *	asynchronous acquisition commands.  (Optionally initialized by the
+ *	low-level driver, or changed from 0 to 1 during post-configuration.)
+ * @private: Private data pointer which is either set by the low-level driver
+ *	itself, or by a call to comedi_alloc_spriv() which allocates storage.
+ *	In the latter case, the storage is automatically freed after the
+ *	low-level driver's "detach" handler is called for the device.
+ *	(Initialized by the low-level driver.)
+ * @async: Pointer to &struct comedi_async id the subdevice supports
+ *	asynchronous acquisition commands.  (Allocated and initialized during
+ *	post-configuration if needed.)
+ * @lock: Pointer to a file object that performed a %COMEDI_LOCK ioctl on the
+ *	subdevice.  (Initially NULL.)
+ * @busy: Pointer to a file object that is performing an asynchronous
+ *	acquisition command on the subdevice.  (Initially NULL.)
+ * @runflags: Internal flags for use by COMEDI core, mostly indicating whether
+ *	an asynchronous acquisition command is running.
+ * @spin_lock: Generic spin-lock for use by the COMEDI core and the low-level
+ *	driver.  (Initialized by comedi_alloc_subdevices().)
+ * @io_bits: Bit-mask indicating the channel directions for a DIO subdevice
+ *	with no more than 32 channels.  A '1' at a bit position indicates the
+ *	corresponding channel is configured as an output.  (Initialized by the
+ *	low-level driver for a DIO subdevice.  Forced to all-outputs during
+ *	post-configuration for a digital output subdevice.)
+ * @maxdata: If non-zero, this is the maximum raw data value of each channel.
+ *	If zero, the maximum data value is channel-specific.  (Initialized by
+ *	the low-level driver.)
+ * @maxdata_list: If the maximum data value is channel-specific, this points
+ *	to an array of maximum data values indexed by channel index.
+ *	(Initialized by the low-level driver.)
+ * @range_table: If non-NULL, this points to a COMEDI range table for the
+ *	subdevice.  If NULL, the range table is channel-specific.  (Initialized
+ *	by the low-level driver, will be set to an "invalid" range table during
+ *	post-configuration if @range_table and @range_table_list are both
+ *	NULL.)
+ * @range_table_list: If the COMEDI range table is channel-specific, this
+ *	points to an array of pointers to COMEDI range tables indexed by
+ *	channel number.  (Initialized by the low-level driver.)
+ * @chanlist: Not used.
+ * @insn_read: Optional pointer to a handler for the %INSN_READ instruction.
+ *	(Initialized by the low-level driver, or set to a default handler
+ *	during post-configuration.)
+ * @insn_write: Optional pointer to a handler for the %INSN_WRITE instruction.
+ *	(Initialized by the low-level driver, or set to a default handler
+ *	during post-configuration.)
+ * @insn_bits: Optional pointer to a handler for the %INSN_BITS instruction
+ *	for a digital input, digital output or digital input/output subdevice.
+ *	(Initialized by the low-level driver, or set to a default handler
+ *	during post-configuration.)
+ * @insn_config: Optional pointer to a handler for the %INSN_CONFIG
+ *	instruction.  (Initialized by the low-level driver, or set to a default
+ *	handler during post-configuration.)
+ * @do_cmd: If the subdevice supports asynchronous acquisition commands, this
+ *	points to a handler to set it up in hardware.  (Initialized by the
+ *	low-level driver.)
+ * @do_cmdtest: If the subdevice supports asynchronous acquisition commands,
+ *	this points to a handler used to check and possibly tweak a prospective
+ *	acquisition command without setting it up in hardware.  (Initialized by
+ *	the low-level driver.)
+ * @poll: If the subdevice supports asynchronous acquisition commands, this
+ *	is an optional pointer to a handler for the %COMEDI_POLL ioctl which
+ *	instructs the low-level driver to synchronize buffers.  (Initialized by
+ *	the low-level driver if needed.)
+ * @cancel: If the subdevice supports asynchronous acquisition commands, this
+ *	points to a handler used to terminate a running command.  (Initialized
+ *	by the low-level driver.)
+ * @buf_change: If the subdevice supports asynchronous acquisition commands,
+ *	this is an optional pointer to a handler that is called when the data
+ *	buffer for handling asynchronous commands is allocated or reallocated.
+ *	(Initialized by the low-level driver if needed.)
+ * @munge: If the subdevice supports asynchronous acquisition commands and
+ *	uses DMA to transfer data from the hardware to the acquisition buffer,
+ *	this points to a function used to "munge" the data values from the
+ *	hardware into the format expected by COMEDI.  (Initialized by the
+ *	low-level driver if needed.)
+ * @async_dma_dir: If the subdevice supports asynchronous acquisition commands
+ *	and uses DMA to transfer data from the hardware to the acquisition
+ *	buffer, this sets the DMA direction for the buffer. (initialized to
+ *	%DMA_NONE by comedi_alloc_subdevices() and changed by the low-level
+ *	driver if necessary.)
+ * @state: Handy bit-mask indicating the output states for a DIO or digital
+ *	output subdevice with no more than 32 channels. (Initialized by the
+ *	low-level driver.)
+ * @class_dev: If the subdevice supports asynchronous acquisition commands,
+ *	this points to a sysfs comediX_subdY device where X is the minor device
+ *	number of the COMEDI device and Y is the subdevice number.  The minor
+ *	device number for the sysfs device is allocated dynamically in the
+ *	range 48 to 255.  This is used to allow the COMEDI device to be opened
+ *	with a different default read or write subdevice.  (Allocated during
+ *	post-configuration if needed.)
+ * @minor: If @class_dev is set, this is its dynamically allocated minor
+ *	device number.  (Set during post-configuration if necessary.)
+ * @readback: Optional pointer to memory allocated by
+ *	comedi_alloc_subdev_readback() used to hold the values written to
+ *	analog output channels so they can be read back.  The storage is
+ *	automatically freed after the low-level driver's "detach" handler is
+ *	called for the device.  (Initialized by the low-level driver.)
+ *
+ * This is the main control structure for a COMEDI subdevice.  If the subdevice
+ * supports asynchronous acquisition commands, additional information is stored
+ * in the &struct comedi_async pointed to by @async.
+ *
+ * Most of the subdevice is initialized by the low-level driver's "attach" or
+ * "auto_attach" handlers but parts of it are initialized by
+ * comedi_alloc_subdevices(), and other parts are initialized during
+ * post-configuration on return from that handler.
+ *
+ * A low-level driver that sets @insn_bits for a digital input, digital output,
+ * or DIO subdevice may leave @insn_read and @insn_write uninitialized, in
+ * which case they will be set to a default handler during post-configuration
+ * that uses @insn_bits to emulate the %INSN_READ and %INSN_WRITE instructions.
+ */
 struct comedi_subdevice {
 	struct comedi_device *device;
 	int index;
