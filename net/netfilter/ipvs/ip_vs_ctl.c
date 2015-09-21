@@ -2350,7 +2350,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 			cfg.syncid = dm->syncid;
 			rtnl_lock();
 			mutex_lock(&ipvs->sync_mutex);
-			ret = start_sync_thread(net, &cfg, dm->state);
+			ret = start_sync_thread(ipvs, &cfg, dm->state);
 			mutex_unlock(&ipvs->sync_mutex);
 			rtnl_unlock();
 		} else {
@@ -3432,7 +3432,7 @@ static int ip_vs_genl_new_daemon(struct netns_ipvs *ipvs, struct nlattr **attrs)
 
 	rtnl_lock();
 	mutex_lock(&ipvs->sync_mutex);
-	ret = start_sync_thread(ipvs->net, &c,
+	ret = start_sync_thread(ipvs, &c,
 				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
 	mutex_unlock(&ipvs->sync_mutex);
 	rtnl_unlock();

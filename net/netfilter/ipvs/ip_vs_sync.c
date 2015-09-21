@@ -1778,13 +1778,12 @@ static int sync_thread_backup(void *data)
 }
 
 
-int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *c,
+int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		      int state)
 {
 	struct ip_vs_sync_thread_data *tinfo;
 	struct task_struct **array = NULL, *task;
 	struct socket *sock;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct net_device *dev;
 	char *name;
 	int (*threadfn)(void *data);
@@ -1811,7 +1810,7 @@ int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *c,
 	if (!c->mcast_ttl)
 		c->mcast_ttl = 1;
 
-	dev = __dev_get_by_name(net, c->mcast_ifn);
+	dev = __dev_get_by_name(ipvs->net, c->mcast_ifn);
 	if (!dev) {
 		pr_err("Unknown mcast interface: %s\n", c->mcast_ifn);
 		return -ENODEV;
@@ -1873,9 +1872,9 @@ int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *c,
 	tinfo = NULL;
 	for (id = 0; id < count; id++) {
 		if (state == IP_VS_STATE_MASTER)
-			sock = make_send_sock(net, id);
+			sock = make_send_sock(ipvs->net, id);
 		else
-			sock = make_receive_sock(net, id);
+			sock = make_receive_sock(ipvs->net, id);
 		if (IS_ERR(sock)) {
 			result = PTR_ERR(sock);
 			goto outtinfo;
@@ -1883,7 +1882,7 @@ int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *c,
 		tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
 		if (!tinfo)
 			goto outsocket;
-		tinfo->net = net;
+		tinfo->net = ipvs->net;
 		tinfo->sock = sock;
 		if (state == IP_VS_STATE_BACKUP) {
 			tinfo->buf = kmalloc(ipvs->bcfg.sync_maxlen,
