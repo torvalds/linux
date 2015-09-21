@@ -175,11 +175,12 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 			}
 			ee_free(ee);
 		} else if (rce->rce_ops == RMT_RSETFACL) {
-			size = lustre_posix_acl_xattr_filter(
+			rc = lustre_posix_acl_xattr_filter(
 						(posix_acl_xattr_header *)value,
 						size, &new_value);
-			if (unlikely(size < 0))
-				return size;
+			if (unlikely(rc < 0))
+				return rc;
+			size = rc;
 
 			pv = (const char *)new_value;
 		} else
