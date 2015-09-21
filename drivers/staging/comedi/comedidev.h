@@ -287,6 +287,87 @@ struct comedi_driver {
 	int offset;
 };
 
+/**
+ * struct comedi_device - Working data for a COMEDI device
+ * @use_count: Number of open file objects.
+ * @driver: Low-level COMEDI driver attached to this COMEDI device.
+ * @pacer: Optional pointer to a dynamically allocated acquisition pacer
+ *	control.  It is freed automatically after the COMEDI device is
+ *	detached from the low-level driver.
+ * @private: Optional pointer to private data allocated by the low-level
+ *	driver.  It is freed automatically after the COMEDI device is
+ *	detached from the low-level driver.
+ * @class_dev: Sysfs comediX device.
+ * @minor: Minor device number of COMEDI char device (0-47).
+ * @detach_count: Counter incremented every time the COMEDI device is detached.
+ *	Used for checking a previous attachment is still valid.
+ * @hw_dev: Optional pointer to the low-level hardware &struct device.  It is
+ *	required for automatically configured COMEDI devices and optional for
+ *	COMEDI devices configured by the %COMEDI_DEVCONFIG ioctl, although
+ *	the bus-specific COMEDI functions only work if it is set correctly.
+ *	It is also passed to dma_alloc_coherent() for COMEDI subdevices that
+ *	have their 'async_dma_dir' member set to something other than
+ *	%DMA_NONE.
+ * @board_name: Pointer to a COMEDI board name or a COMEDI driver name.  When
+ *	the low-level driver's "attach" handler is called by the handler for
+ *	the %COMEDI_DEVCONFIG ioctl, it either points to a matched board name
+ *	string if the 'num_names' member of the &struct comedi_driver is
+ *	non-zero, otherwise it points to the low-level driver name string.
+ *	When the low-lever driver's "auto_attach" handler is called for an
+ *	automatically configured COMEDI device, it points to the low-level
+ *	driver name string.  The low-level driver is free to change it in its
+ *	"attach" or "auto_attach" handler if it wishes.
+ * @board_ptr: Optional pointer to private, read-only board type information in
+ *	the low-level driver.  If the 'num_names' member of the &struct
+ *	comedi_driver is non-zero, the handler for the %COMEDI_DEVCONFIG ioctl
+ *	will point it to a pointer to a matched board name string within the
+ *	driver's private array of static, read-only board type information when
+ *	calling the driver's "attach" handler.  The low-level driver is free to
+ *	change it.
+ * @attached: Flag indicating that the COMEDI device is attached to a low-level
+ *	driver.
+ * @ioenabled: Flag used to indicate that a PCI device has been enabled and
+ *	its regions requested.
+ * @spinlock: Generic spin-lock for use by the low-level driver.
+ * @mutex: Generic mutex for use by the COMEDI core module.
+ * @attach_lock: &struct rw_semaphore used to guard against the COMEDI device
+ *	being detached while an operation is in progress.  The down_write()
+ *	operation is only allowed while @mutex is held and is used when
+ *	changing @attached and @detach_count and calling the low-level driver's
+ *	"detach" handler.  The down_read() operation is generally used without
+ *	holding @mutex.
+ * @refcount: &struct kref reference counter for freeing COMEDI device.
+ * @n_subdevices: Number of COMEDI subdevices allocated by the low-level
+ *	driver for this device.
+ * @subdevices: Dynamically allocated array of COMEDI subdevices.
+ * @mmio: Optional pointer to a remapped MMIO region set by the low-level
+ *	driver.
+ * @iobase: Optional base of an I/O port region requested by the low-level
+ *	driver.
+ * @iolen: Length of I/O port region requested at @iobase.
+ * @irq: Optional IRQ number requested by the low-level driver.
+ * @read_subdev: Optional pointer to a default COMEDI subdevice operated on by
+ *	the read() file operation.  Set by the low-level driver.
+ * @write_subdev: Optional pointer to a default COMEDI subdevice operated on by
+ *	the write() file operation.  Set by the low-level driver.
+ * @async_queue: Storage for fasync_helper().
+ * @open: Optional pointer to a function set by the low-level driver to be
+ *	called when @use_count changes from 0 to 1.
+ * @close: Optional pointer to a function set by the low-level driver to be
+ *	called when @use_count changed from 1 to 0.
+ *
+ * This is the main control data structure for a COMEDI device (as far as the
+ * COMEDI core is concerned).  There are two groups of COMEDI devices -
+ * "legacy" devices that are configured by the handler for the
+ * %COMEDI_DEVCONFIG ioctl, and automatically configured devices resulting
+ * from a call to comedi_auto_config() as a result of a bus driver probe in
+ * a low-level COMEDI driver.  The "legacy" COMEDI devices are allocated
+ * during module initialization if the "comedi_num_legacy_minors" module
+ * parameter is non-zero and use minor device numbers from 0 to
+ * comedi_num_legacy_minors minus one.  The automatically configured COMEDI
+ * devices are allocated on demand and use minor device numbers from
+ * comedi_num_legacy_minors to 47.
+ */
 struct comedi_device {
 	int use_count;
 	struct comedi_driver *driver;
@@ -296,9 +377,6 @@ struct comedi_device {
 	struct device *class_dev;
 	int minor;
 	unsigned int detach_count;
-	/* hw_dev is passed to dma_alloc_coherent when allocating async buffers
-	 * for subdevices that have async_dma_dir set to something other than
-	 * DMA_NONE */
 	struct device *hw_dev;
 
 	const char *board_name;
