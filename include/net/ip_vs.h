@@ -38,28 +38,6 @@ static inline struct netns_ipvs *net_ipvs(struct net* net)
 	return net->ipvs;
 }
 
-static inline struct net *skb_sknet(const struct sk_buff *skb)
-{
-#ifdef CONFIG_NET_NS
-#ifdef CONFIG_IP_VS_DEBUG
-	/* Start with the most likely hit */
-	if (likely(skb->sk && sock_net(skb->sk)))
-		return sock_net(skb->sk);
-	WARN(skb->dev, "Maybe skb_net should be used instead in %s() line:%d\n",
-		       __func__, __LINE__);
-	if (likely(skb->dev && dev_net(skb->dev)))
-		return dev_net(skb->dev);
-	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
-		__func__, __LINE__);
-	BUG();
-#else
-	return sock_net(skb->sk);
-#endif
-#else
-	return &init_net;
-#endif
-}
-
 /* This one needed for single_open_net since net is stored directly in
  * private not as a struct i.e. seq_file_net can't be used.
  */
