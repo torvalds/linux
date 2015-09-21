@@ -631,7 +631,7 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		/* URB was never linked! or will be soon given back by
 		 * vhci_rx. */
 		spin_unlock(&the_controller->lock);
-		return 0;
+		return -EIDRM;
 	}
 
 	{
