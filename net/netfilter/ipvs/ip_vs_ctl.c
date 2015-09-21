@@ -542,10 +542,9 @@ static void ip_vs_rs_unhash(struct ip_vs_dest *dest)
 }
 
 /* Check if real service by <proto,addr,port> is present */
-bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
+bool ip_vs_has_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 			    const union nf_inet_addr *daddr, __be16 dport)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	unsigned int hash;
 	struct ip_vs_dest *dest;
 

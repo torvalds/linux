@@ -1186,6 +1186,7 @@ static unsigned int
 ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 {
 	struct net *net = NULL;
+	struct netns_ipvs *ipvs;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
@@ -1211,7 +1212,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 		return NF_ACCEPT;
 
 	net = skb_net(skb);
-	if (!net_ipvs(net)->enable)
+	ipvs = net_ipvs(net);
+	if (!ipvs->enable)
 		return NF_ACCEPT;
 
 	ip_vs_fill_iph_skb(af, skb, false, &iph);
@@ -1269,7 +1271,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					 sizeof(_ports), _ports, &iph);
 		if (pptr == NULL)
 			return NF_ACCEPT;	/* Not for me */
-		if (ip_vs_has_real_service(net, af, iph.protocol, &iph.saddr,
+		if (ip_vs_has_real_service(ipvs, af, iph.protocol, &iph.saddr,
 					   pptr[0])) {
 			/*
 			 * Notify the real server: there is no
