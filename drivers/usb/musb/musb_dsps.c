@@ -747,7 +747,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	if (!ret && val)
 		config->multipoint = true;
 
-	config->maximum_speed = of_usb_get_maximum_speed(dn);
+	config->maximum_speed = usb_get_maximum_speed(&parent->dev);
 	switch (config->maximum_speed) {
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:

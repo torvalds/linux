@@ -870,8 +870,9 @@ static int dwc3_probe(struct platform_device *pdev)
 	 */
 	hird_threshold = 12;
 
+	dwc->maximum_speed = usb_get_maximum_speed(dev);
+
 	if (node) {
-		dwc->maximum_speed = of_usb_get_maximum_speed(node);
 		dwc->has_lpm_erratum = of_property_read_bool(node,
 				"snps,has-lpm-erratum");
 		of_property_read_u8(node, "snps,lpm-nyet-threshold",
