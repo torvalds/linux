@@ -283,30 +283,6 @@ static void dw8250_setup_port(struct uart_8250_port *up)
 		up->capabilities |= UART_CAP_AFE;
 }
 
-static int dw8250_probe_of(struct uart_port *p,
-			   struct dw8250_data *data)
-{
-	struct device_node	*np = p->dev->of_node;
-	int id;
-
-#ifdef CONFIG_64BIT
-	if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
-		p->serial_in = dw8250_serial_inq;
-		p->serial_out = dw8250_serial_outq;
-		p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
-		p->type = PORT_OCTEON;
-		data->usr_reg = 0x27;
-		data->skip_autocfg = true;
-	}
-#endif
-	/* get index of serial line, if found in DT aliases */
-	id = of_alias_get_id(np, "serial");
-	if (id >= 0)
-		p->line = id;
-
-	return 0;
-}
-
 static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 {
 	struct device *dev = param;
@@ -317,27 +293,42 @@ static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static int dw8250_probe_acpi(struct uart_8250_port *up,
-			     struct dw8250_data *data)
+static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	struct uart_port *p = &up->port;
+	if (p->dev->of_node) {
+		struct device_node *np = p->dev->of_node;
+		int id;
 
-	p->iotype = UPIO_MEM32;
-	p->serial_in = dw8250_serial_in32;
-	p->serial_out = dw8250_serial_out32;
-	p->regshift = 2;
-
-	/* Platforms with iDMA */
-	if (platform_get_resource_byname(to_platform_device(up->port.dev),
-					 IORESOURCE_MEM, "lpss_priv")) {
-		data->dma.rx_param = up->port.dev->parent;
-		data->dma.tx_param = up->port.dev->parent;
-		data->dma.fn = dw8250_idma_filter;
+		/* get index of serial line, if found in DT aliases */
+		id = of_alias_get_id(np, "serial");
+		if (id >= 0)
+			p->line = id;
+#ifdef CONFIG_64BIT
+		if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
+			p->serial_in = dw8250_serial_inq;
+			p->serial_out = dw8250_serial_outq;
+			p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
+			p->type = PORT_OCTEON;
+			data->usr_reg = 0x27;
+			data->skip_autocfg = true;
+		}
+#endif
+	} else if (has_acpi_companion(p->dev)) {
+		p->iotype = UPIO_MEM32;
+		p->regshift = 2;
+		p->serial_in = dw8250_serial_in32;
+		p->serial_out = dw8250_serial_out32;
+		p->set_termios = dw8250_set_termios;
 	}
 
-	up->port.set_termios = dw8250_set_termios;
-
-	return 0;
+	/* Platforms with iDMA */
+	if (platform_get_resource_byname(to_platform_device(p->dev),
+					 IORESOURCE_MEM, "lpss_priv")) {
+		p->set_termios = dw8250_set_termios;
+		data->dma.rx_param = p->dev->parent;
+		data->dma.tx_param = p->dev->parent;
+		data->dma.fn = dw8250_idma_filter;
+	}
 }
 
 static int dw8250_probe(struct platform_device *pdev)
@@ -468,18 +459,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	data->dma.tx_param = data;
 	data->dma.fn = dw8250_dma_filter;
 
-	if (pdev->dev.of_node) {
-		err = dw8250_probe_of(p, data);
-		if (err)
-			goto err_reset;
-	} else if (ACPI_HANDLE(&pdev->dev)) {
-		err = dw8250_probe_acpi(&uart, data);
-		if (err)
-			goto err_reset;
-	} else {
-		err = -ENODEV;
-		goto err_reset;
-	}
+	dw8250_quirks(p, data);
 
 	if (!data->skip_autocfg)
 		dw8250_setup_port(&uart);
