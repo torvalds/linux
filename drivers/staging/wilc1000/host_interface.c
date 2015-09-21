@@ -458,7 +458,7 @@ typedef union _tuniHostIFmsgBody {
  *  @version		1.0
  */
 struct host_if_msg {
-	u16 u16MsgId;                                           /*!< Message ID */
+	u16 id;                                           /*!< Message ID */
 	tuniHostIFmsgBody uniHostIFmsgBody;             /*!< Message body */
 	tstrWILC_WFIDrv *drvHandler;
 };
@@ -3962,7 +3962,7 @@ static void ListenTimerCB(unsigned long arg)
 
 	/* prepare the Timer Callback message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_LISTEN_TIMER_FIRED;
+	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;
 	msg.drvHandler = pstrWFIDrv;
 	msg.uniHostIFmsgBody.strHostIfRemainOnChan.u32ListenSessionID = pstrWFIDrv->strHostIfRemainOnChan.u32ListenSessionID;
 
@@ -4290,7 +4290,7 @@ static int hostIFthread(void *pvArg)
 	while (1) {
 		wilc_mq_recv(&gMsgQHostIF, &msg, sizeof(struct host_if_msg), &u32Ret);
 		pstrWFIDrv = (tstrWILC_WFIDrv *)msg.drvHandler;
-		if (msg.u16MsgId == HOST_IF_MSG_EXIT) {
+		if (msg.id == HOST_IF_MSG_EXIT) {
 			PRINT_D(GENERIC_DBG, "THREAD: Exiting HostIfThread\n");
 			break;
 		}
@@ -4304,14 +4304,14 @@ static int hostIFthread(void *pvArg)
 			continue;
 		}
 
-		if (msg.u16MsgId == HOST_IF_MSG_CONNECT && pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult != NULL) {
+		if (msg.id == HOST_IF_MSG_CONNECT && pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult != NULL) {
 			PRINT_D(HOSTINF_DBG, "Requeue connect request till scan done received\n");
 			wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 			usleep_range(2 * 1000, 2 * 1000);
 			continue;
 		}
 
-		switch (msg.u16MsgId) {
+		switch (msg.id) {
 		case HOST_IF_MSG_Q_IDLE:
 			Handle_wait_msg_q_empty();
 			break;
@@ -4500,7 +4500,7 @@ static void TimerCB_Scan(unsigned long arg)
 	/* prepare the Timer Callback message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.drvHandler = pvArg;
-	msg.u16MsgId = HOST_IF_MSG_SCAN_TIMER_FIRED;
+	msg.id = HOST_IF_MSG_SCAN_TIMER_FIRED;
 
 	/* send the message */
 	wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4514,7 +4514,7 @@ static void TimerCB_Connect(unsigned long arg)
 	/* prepare the Timer Callback message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.drvHandler = pvArg;
-	msg.u16MsgId = HOST_IF_MSG_CONNECT_TIMER_FIRED;
+	msg.id = HOST_IF_MSG_CONNECT_TIMER_FIRED;
 
 	/* send the message */
 	wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4580,7 +4580,7 @@ s32 host_int_remove_wep_key(tstrWILC_WFIDrv *hWFIDrv, u8 u8keyIdx)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WEP;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = REMOVEKEY;
 	msg.drvHandler = hWFIDrv;
@@ -4628,7 +4628,7 @@ s32 host_int_set_WEPDefaultKeyID(tstrWILC_WFIDrv *hWFIDrv, u8 u8Index)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WEP;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = DEFAULTKEY;
 	msg.drvHandler = hWFIDrv;
@@ -4682,7 +4682,7 @@ s32 host_int_add_wep_key_bss_sta(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WEP;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY;
 	msg.drvHandler = hWFIDrv;
@@ -4748,7 +4748,7 @@ s32 host_int_add_wep_key_bss_ap(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, u
 		for (i = 0; i < u8WepKeylen; i++)
 			PRINT_INFO(HOSTAPD_DBG, "KEY is %x\n", pu8WepKey[i]);
 	}
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WEP;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY_AP;
 	msg.drvHandler = hWFIDrv;
@@ -4823,7 +4823,7 @@ s32 host_int_add_ptk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8Ptk, u8 u8PtkKeylen,
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WPAPtk;
 	if (mode == AP_MODE) {
 		msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY_AP;
@@ -4926,7 +4926,7 @@ s32 host_int_add_rx_gtk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkKe
 	}
 
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = WPARxGtk;
 	msg.drvHandler = hWFIDrv;
 
@@ -5015,7 +5015,7 @@ s32 host_int_set_pmkid_info(tstrWILC_WFIDrv *hWFIDrv, tstrHostIFpmkidAttr *pu8Pm
 	/* prepare the Key Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_KEY;
+	msg.id = HOST_IF_MSG_KEY;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.enuKeyType = PMKSA;
 	msg.uniHostIFmsgBody.strHostIFkeyAttr.u8KeyAction = ADDKEY;
 	msg.drvHandler = hWFIDrv;
@@ -5123,7 +5123,7 @@ s32 host_int_get_MacAddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8MacAddress)
 	/* prepare the Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_GET_MAC_ADDRESS;
+	msg.id = HOST_IF_MSG_GET_MAC_ADDRESS;
 	msg.uniHostIFmsgBody.strHostIfGetMacAddress.u8MacAddress = pu8MacAddress;
 	msg.drvHandler = hWFIDrv;
 	/* send the message */
@@ -5157,7 +5157,7 @@ s32 host_int_set_MacAddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8MacAddress)
 
 	/* prepare setting mac address message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_SET_MAC_ADDRESS;
+	msg.id = HOST_IF_MSG_SET_MAC_ADDRESS;
 	memcpy(msg.uniHostIFmsgBody.strHostIfSetMacAddress.u8MacAddress, pu8MacAddress, ETH_ALEN);
 	msg.drvHandler = hWFIDrv;
 
@@ -5363,7 +5363,7 @@ s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 	/* prepare the Connect Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_CONNECT;
+	msg.id = HOST_IF_MSG_CONNECT;
 
 	msg.uniHostIFmsgBody.strHostIFconnectAttr.u8security = u8security;
 	msg.uniHostIFmsgBody.strHostIFconnectAttr.tenuAuth_type = tenuAuth_type;
@@ -5442,7 +5442,7 @@ s32 host_int_flush_join_req(tstrWILC_WFIDrv *hWFIDrv)
 		return s32Error;
 	}
 
-	msg.u16MsgId = HOST_IF_MSG_FLUSH_CONNECT;
+	msg.id = HOST_IF_MSG_FLUSH_CONNECT;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -5480,7 +5480,7 @@ s32 host_int_disconnect(tstrWILC_WFIDrv *hWFIDrv, u16 u16ReasonCode)
 	/* prepare the Disconnect Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_DISCONNECT;
+	msg.id = HOST_IF_MSG_DISCONNECT;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -5663,7 +5663,7 @@ s32 host_int_set_mac_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 u8ChNum)
 
 	/* prepare the set channel message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_SET_CHANNEL;
+	msg.id = HOST_IF_MSG_SET_CHANNEL;
 	msg.uniHostIFmsgBody.strHostIFSetChan.u8SetChan = u8ChNum;
 	msg.drvHandler = hWFIDrv;
 
@@ -5686,7 +5686,7 @@ s32 host_int_wait_msg_queue_idle(void)
 	/* prepare the set driver handler message */
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_Q_IDLE;
+	msg.id = HOST_IF_MSG_Q_IDLE;
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error) {
 		PRINT_ER("wilc mq send fail\n");
@@ -5710,7 +5710,7 @@ s32 host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 	/* prepare the set driver handler message */
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_SET_WFIDRV_HANDLER;
+	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
 	msg.uniHostIFmsgBody.strHostIfSetDrvHandler.u32Address = get_id_from_handler(u32address);
 	msg.drvHandler = u32address;
 
@@ -5735,7 +5735,7 @@ s32 host_int_set_operation_mode(tstrWILC_WFIDrv *hWFIDrv, u32 u32mode)
 	/* prepare the set driver handler message */
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_SET_OPERATION_MODE;
+	msg.id = HOST_IF_MSG_SET_OPERATION_MODE;
 	msg.uniHostIFmsgBody.strHostIfSetOperationMode.u32Mode = u32mode;
 	msg.drvHandler = hWFIDrv;
 
@@ -5777,7 +5777,7 @@ s32 host_int_get_host_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8ChNo)
 	/* prepare the Get Channel Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_GET_CHNL;
+	msg.id = HOST_IF_MSG_GET_CHNL;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -5865,7 +5865,7 @@ s32 host_int_get_inactive_time(tstrWILC_WFIDrv *hWFIDrv, const u8 *mac, u32 *pu3
 	memcpy(msg.uniHostIFmsgBody.strHostIfStaInactiveT.mac,
 		    mac, ETH_ALEN);
 
-	msg.u16MsgId = HOST_IF_MSG_GET_INACTIVETIME;
+	msg.id = HOST_IF_MSG_GET_INACTIVETIME;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -5946,7 +5946,7 @@ s32 host_int_get_rssi(tstrWILC_WFIDrv *hWFIDrv, s8 *ps8Rssi)
 	/* prepare the Get RSSI Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_GET_RSSI;
+	msg.id = HOST_IF_MSG_GET_RSSI;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -5983,7 +5983,7 @@ s32 host_int_get_link_speed(tstrWILC_WFIDrv *hWFIDrv, s8 *ps8lnkspd)
 	/* prepare the Get LINKSPEED Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_GET_LINKSPEED;
+	msg.id = HOST_IF_MSG_GET_LINKSPEED;
 	msg.drvHandler = hWFIDrv;
 
 	/* send the message */
@@ -6017,7 +6017,7 @@ s32 host_int_get_statistics(tstrWILC_WFIDrv *hWFIDrv, tstrStatistics *pstrStatis
 	/* prepare the Get RSSI Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_GET_STATISTICS;
+	msg.id = HOST_IF_MSG_GET_STATISTICS;
 	msg.uniHostIFmsgBody.pUserData = (char *)pstrStatistics;
 	msg.drvHandler = hWFIDrv;
 	/* send the message */
@@ -6067,7 +6067,7 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 	/* prepare the Scan Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_SCAN;
+	msg.id = HOST_IF_MSG_SCAN;
 
 	if (pstrHiddenNetwork != NULL) {
 		msg.uniHostIFmsgBody.strHostIFscanAttr.strHiddenNetwork.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
@@ -6134,7 +6134,7 @@ s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, tstrCfgParamVal *pstrCfgParamVal)
 	}
 	/* prepare the WiphyParams Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_CFG_PARAMS;
+	msg.id = HOST_IF_MSG_CFG_PARAMS;
 	msg.uniHostIFmsgBody.strHostIFCfgParamAttr.pstrCfgParamVal = *pstrCfgParamVal;
 	msg.drvHandler = hWFIDrv;
 
@@ -6306,7 +6306,7 @@ static void GetPeriodicRSSI(unsigned long arg)
 		/* prepare the Get RSSI Message */
 		memset(&msg, 0, sizeof(struct host_if_msg));
 
-		msg.u16MsgId = HOST_IF_MSG_GET_RSSI;
+		msg.id = HOST_IF_MSG_GET_RSSI;
 		msg.drvHandler = pstrWFIDrv;
 
 		/* send the message */
@@ -6564,7 +6564,7 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 			PRINT_D(HOSTINF_DBG, ">> Connect timer is active\n");
 			/* msleep(HOST_IF_CONNECT_TIMEOUT+1000); */
 		}
-		msg.u16MsgId = HOST_IF_MSG_EXIT;
+		msg.id = HOST_IF_MSG_EXIT;
 		msg.drvHandler = hWFIDrv;
 
 
@@ -6632,7 +6632,7 @@ void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	/* prepare the Asynchronous Network Info message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-	msg.u16MsgId = HOST_IF_MSG_RCVD_NTWRK_INFO;
+	msg.id = HOST_IF_MSG_RCVD_NTWRK_INFO;
 	msg.drvHandler = pstrWFIDrv;
 
 	msg.uniHostIFmsgBody.strRcvdNetworkInfo.u32Length = u32Length;
@@ -6688,7 +6688,7 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	msg.u16MsgId = HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO;
+	msg.id = HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO;
 	msg.drvHandler = pstrWFIDrv;
 
 
@@ -6735,7 +6735,7 @@ void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length)
 		/* prepare theScan Done message */
 		memset(&msg, 0, sizeof(struct host_if_msg));
 
-		msg.u16MsgId = HOST_IF_MSG_RCVD_SCAN_COMPLETE;
+		msg.id = HOST_IF_MSG_RCVD_SCAN_COMPLETE;
 		msg.drvHandler = pstrWFIDrv;
 
 
@@ -6787,7 +6787,7 @@ s32 host_int_remain_on_channel(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID, u32 u
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_REMAIN_ON_CHAN;
+	msg.id = HOST_IF_MSG_REMAIN_ON_CHAN;
 	msg.uniHostIFmsgBody.strHostIfRemainOnChan.u16Channel = chan;
 	msg.uniHostIFmsgBody.strHostIfRemainOnChan.pRemainOnChanExpired = RemainOnChanExpired;
 	msg.uniHostIFmsgBody.strHostIfRemainOnChan.pRemainOnChanReady = RemainOnChanReady;
@@ -6833,7 +6833,7 @@ s32 host_int_ListenStateExpired(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID)
 
 	/* prepare the timer fire Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
-	msg.u16MsgId = HOST_IF_MSG_LISTEN_TIMER_FIRED;
+	msg.id = HOST_IF_MSG_LISTEN_TIMER_FIRED;
 	msg.drvHandler = hWFIDrv;
 	msg.uniHostIFmsgBody.strHostIfRemainOnChan.u32ListenSessionID = u32SessionID;
 
@@ -6866,7 +6866,7 @@ s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bRe
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_REGISTER_FRAME;
+	msg.id = HOST_IF_MSG_REGISTER_FRAME;
 	switch (u16FrameType) {
 	case ACTION:
 		PRINT_D(HOSTINF_DBG, "ACTION\n");
@@ -6927,7 +6927,7 @@ s32 host_int_add_beacon(tstrWILC_WFIDrv *hWFIDrv, u32 u32Interval,
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_ADD_BEACON;
+	msg.id = HOST_IF_MSG_ADD_BEACON;
 	msg.drvHandler = hWFIDrv;
 	pstrSetBeaconParam->u32Interval = u32Interval;
 	pstrSetBeaconParam->u32DTIMPeriod = u32DTIMPeriod;
@@ -6990,7 +6990,7 @@ s32 host_int_del_beacon(tstrWILC_WFIDrv *hWFIDrv)
 	}
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_DEL_BEACON;
+	msg.id = HOST_IF_MSG_DEL_BEACON;
 	msg.drvHandler = hWFIDrv;
 	PRINT_D(HOSTINF_DBG, "Setting deleting beacon message queue params\n");
 
@@ -7030,7 +7030,7 @@ s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSta
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_ADD_STATION;
+	msg.id = HOST_IF_MSG_ADD_STATION;
 	msg.drvHandler = hWFIDrv;
 
 	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(tstrWILC_AddStaParam));
@@ -7079,7 +7079,7 @@ s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr)
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_DEL_STATION;
+	msg.id = HOST_IF_MSG_DEL_STATION;
 	msg.drvHandler = hWFIDrv;
 
 	if (pu8MacAddr == NULL)
@@ -7122,7 +7122,7 @@ s32 host_int_del_allstation(tstrWILC_WFIDrv *hWFIDrv, u8 pu8MacAddr[][ETH_ALEN])
 	PRINT_D(HOSTINF_DBG, "Setting deauthenticating station message queue params\n");
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_DEL_ALL_STA;
+	msg.id = HOST_IF_MSG_DEL_ALL_STA;
 	msg.drvHandler = hWFIDrv;
 
 	/* Handling situation of deauthenticing all associated stations*/
@@ -7179,7 +7179,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv, tstrWILC_AddStaParam *pstrSt
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_EDIT_STATION;
+	msg.id = HOST_IF_MSG_EDIT_STATION;
 	msg.drvHandler = hWFIDrv;
 
 	memcpy(pstrAddStationMsg, pstrStaParams, sizeof(tstrWILC_AddStaParam));
@@ -7220,7 +7220,7 @@ s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Ti
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_POWER_MGMT;
+	msg.id = HOST_IF_MSG_POWER_MGMT;
 	msg.drvHandler = hWFIDrv;
 
 	pstrPowerMgmtParam->bIsEnabled = bIsEnabled;
@@ -7253,7 +7253,7 @@ s32 host_int_setup_multicast_filter(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u
 
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_SET_MULTICAST_FILTER;
+	msg.id = HOST_IF_MSG_SET_MULTICAST_FILTER;
 	msg.drvHandler = hWFIDrv;
 
 	pstrMulticastFilterParam->bIsEnabled = bIsEnabled;
@@ -7514,7 +7514,7 @@ static int host_int_addBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TI
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_ADD_BA_SESSION;
+	msg.id = HOST_IF_MSG_ADD_BA_SESSION;
 
 	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
 	pBASessionInfo->u8Ted = TID;
@@ -7545,7 +7545,7 @@ s32 host_int_delBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_DEL_BA_SESSION;
+	msg.id = HOST_IF_MSG_DEL_BA_SESSION;
 
 	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
 	pBASessionInfo->u8Ted = TID;
@@ -7575,7 +7575,7 @@ s32 host_int_del_All_Rx_BASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char T
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
+	msg.id = HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS;
 
 	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
 	pBASessionInfo->u8Ted = TID;
@@ -7615,7 +7615,7 @@ s32 host_int_setup_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *u16ipadd, u8 idx)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_SET_IPADDRESS;
+	msg.id = HOST_IF_MSG_SET_IPADDRESS;
 
 	msg.uniHostIFmsgBody.strHostIfSetIP.au8IPAddr = u16ipadd;
 	msg.drvHandler = hWFIDrv;
@@ -7652,7 +7652,7 @@ s32 host_int_get_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *u16ipadd, u8 idx)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	/* prepare the WiphyParams Message */
-	msg.u16MsgId = HOST_IF_MSG_GET_IPADDRESS;
+	msg.id = HOST_IF_MSG_GET_IPADDRESS;
 
 	msg.uniHostIFmsgBody.strHostIfSetIP.au8IPAddr = u16ipadd;
 	msg.drvHandler = hWFIDrv;
