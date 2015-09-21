@@ -212,13 +212,14 @@ static inline void maybe_update_pmtu(int skb_af, struct sk_buff *skb, int mtu)
 		ort->dst.ops->update_pmtu(&ort->dst, sk, NULL, mtu);
 }
 
-static inline bool ensure_mtu_is_adequate(int skb_af, int rt_mode,
+static inline bool ensure_mtu_is_adequate(struct netns_ipvs *ipvs, int skb_af,
+					  int rt_mode,
 					  struct ip_vs_iphdr *ipvsh,
 					  struct sk_buff *skb, int mtu)
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (skb_af == AF_INET6) {
-		struct net *net = dev_net(skb_dst(skb)->dev);
+		struct net *net = ipvs->net;
 
 		if (unlikely(__mtu_check_toobig_v6(skb, mtu))) {
 			if (!skb->dev)
@@ -233,8 +234,6 @@ static inline bool ensure_mtu_is_adequate(int skb_af, int rt_mode,
 	} else
 #endif
 	{
-		struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
-
 		/* If we're going to tunnel the packet and pmtu discovery
 		 * is disabled, we'll just fragment it anyway
 		 */
@@ -338,7 +337,7 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		maybe_update_pmtu(skb_af, skb, mtu);
 	}
 
-	if (!ensure_mtu_is_adequate(skb_af, rt_mode, ipvsh, skb, mtu))
+	if (!ensure_mtu_is_adequate(ipvs, skb_af, rt_mode, ipvsh, skb, mtu))
 		goto err_put;
 
 	skb_dst_drop(skb);
@@ -487,7 +486,7 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		maybe_update_pmtu(skb_af, skb, mtu);
 	}
 
-	if (!ensure_mtu_is_adequate(skb_af, rt_mode, ipvsh, skb, mtu))
+	if (!ensure_mtu_is_adequate(ipvs, skb_af, rt_mode, ipvsh, skb, mtu))
 		goto err_put;
 
 	skb_dst_drop(skb);
