@@ -657,9 +657,8 @@ static int sysctl_snat_reroute(struct sk_buff *skb)
 	return ipvs->sysctl_snat_reroute;
 }
 
-static int sysctl_nat_icmp_send(struct net *net)
+static int sysctl_nat_icmp_send(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	return ipvs->sysctl_nat_icmp_send;
 }
 
@@ -671,7 +670,7 @@ static int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
 #else
 
 static int sysctl_snat_reroute(struct sk_buff *skb) { return 0; }
-static int sysctl_nat_icmp_send(struct net *net) { return 0; }
+static int sysctl_nat_icmp_send(struct netns_ipvs *ipvs) { return 0; }
 static int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs) { return 0; }
 
 #endif
@@ -1252,7 +1251,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 
 	if (likely(cp))
 		return handle_response(af, skb, pd, cp, &iph, hooknum);
-	if (sysctl_nat_icmp_send(net) &&
+	if (sysctl_nat_icmp_send(ipvs) &&
 	    (pp->protocol == IPPROTO_TCP ||
 	     pp->protocol == IPPROTO_UDP ||
 	     pp->protocol == IPPROTO_SCTP)) {
