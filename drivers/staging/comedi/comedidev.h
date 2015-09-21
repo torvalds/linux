@@ -136,31 +136,36 @@ struct comedi_buf_map {
  *
  * Think of the _Count values being integers of unlimited size, indexing
  * into a buffer of infinite length (though only an advancing portion
- * of the buffer of fixed length prealloc_bufsz is accessible at any time).
- * Then:
+ * of the buffer of fixed length prealloc_bufsz is accessible at any
+ * time).  Then:
  *
  *   Buf_Read_Count <= Buf_Read_Alloc_Count <= Munge_Count <=
  *   Buf_Write_Count <= Buf_Write_Alloc_Count <=
  *   (Buf_Read_Count + prealloc_bufsz)
  *
- * (Those aren't the actual members, apart from prealloc_bufsz.) When
- * the buffer is reset, those _Count values start at 0 and only increase
- * in value, maintaining the above inequalities until the next time the
- * buffer is reset.  The buffer is divided into the following regions by
- * the inequalities:
+ * (Those aren't the actual members, apart from prealloc_bufsz.) When the
+ * buffer is reset, those _Count values start at 0 and only increase in value,
+ * maintaining the above inequalities until the next time the buffer is
+ * reset.  The buffer is divided into the following regions by the inequalities:
  *
  *   [0, Buf_Read_Count):
  *     old region no longer accessible
+ *
  *   [Buf_Read_Count, Buf_Read_Alloc_Count):
  *     filled and munged region allocated for reading but not yet read
+ *
  *   [Buf_Read_Alloc_Count, Munge_Count):
  *     filled and munged region not yet allocated for reading
+ *
  *   [Munge_Count, Buf_Write_Count):
  *     filled region not yet munged
+ *
  *   [Buf_Write_Count, Buf_Write_Alloc_Count):
  *     unfilled region allocated for writing but not yet written
+ *
  *   [Buf_Write_Alloc_Count, Buf_Read_Count + prealloc_bufsz):
  *     unfilled region not yet allocated for writing
+ *
  *   [Buf_Read_Count + prealloc_bufsz, infinity):
  *     unfilled region not yet accessible
  *
