@@ -1527,7 +1527,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	u32 target_tpt;
 	int rate_idx;
 
-	if (success_ratio > IWL_MVM_RS_SR_NO_DECREASE) {
+	if (success_ratio >= RS_PERCENT(IWL_MVM_RS_SR_NO_DECREASE)) {
 		target_tpt = 100 * expected_current_tpt;
 		IWL_DEBUG_RATE(mvm,
 			       "SR %d high. Find rate exceeding EXPECTED_CURRENT %d\n",
@@ -1535,7 +1535,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	} else {
 		target_tpt = lq_sta->last_tpt;
 		IWL_DEBUG_RATE(mvm,
-			       "SR %d not thag good. Find rate exceeding ACTUAL_TPT %d\n",
+			       "SR %d not that good. Find rate exceeding ACTUAL_TPT %d\n",
 			       success_ratio, target_tpt);
 	}
 
