@@ -1842,7 +1842,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 		pkts = atomic_add_return(1, &cp->in_pkts);
 
 	if (ipvs->sync_state & IP_VS_STATE_MASTER)
-		ip_vs_sync_conn(net, cp, pkts);
+		ip_vs_sync_conn(ipvs, cp, pkts);
 
 	ip_vs_conn_put(cp);
 	return ret;

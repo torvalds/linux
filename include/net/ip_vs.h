@@ -1452,7 +1452,7 @@ static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *cfg,
 		      int state);
 int stop_sync_thread(struct netns_ipvs *ipvs, int state);
-void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
+void ip_vs_sync_conn(struct netns_ipvs *ipvs, struct ip_vs_conn *cp, int pkts);
 
 /* IPVS rate estimator prototypes (from ip_vs_est.c) */
 void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);

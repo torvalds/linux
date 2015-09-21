@@ -801,7 +801,6 @@ static void ip_vs_conn_expire(unsigned long data)
 {
 	struct ip_vs_conn *cp = (struct ip_vs_conn *)data;
 	struct netns_ipvs *ipvs = cp->ipvs;
-	struct net *net = ipvs->net;
 
 	/*
 	 *	do I control anybody?
@@ -847,7 +846,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	cp->timeout = 60*HZ;
 
 	if (ipvs->sync_state & IP_VS_STATE_MASTER)
-		ip_vs_sync_conn(net, cp, sysctl_sync_threshold(ipvs));
+		ip_vs_sync_conn(ipvs, cp, sysctl_sync_threshold(ipvs));
 
 	ip_vs_conn_put(cp);
 }
