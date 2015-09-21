@@ -433,7 +433,7 @@ union message_body {
 	struct set_ip_addr strHostIfSetIP;
 	struct drv_handler strHostIfSetDrvHandler;
 	struct set_multicast strHostIfSetMulti;
-	tstrHostIfSetOperationMode strHostIfSetOperationMode;
+	struct op_mode strHostIfSetOperationMode;
 	tstrHostIfSetMacAddress strHostIfSetMacAddress;
 	tstrHostIfGetMacAddress strHostIfGetMacAddress;
 	tstrHostIfBASessionInfo strHostIfBASessionInfo;
@@ -708,7 +708,8 @@ static s32 Handle_SetWfiDrvHandler(tstrWILC_WFIDrv *drvHandler,
  *  @date
  *  @version	1.0
  */
-static s32 Handle_SetOperationMode(tstrWILC_WFIDrv *drvHandler, tstrHostIfSetOperationMode *pstrHostIfSetOperationMode)
+static s32 Handle_SetOperationMode(tstrWILC_WFIDrv *drvHandler,
+				   struct op_mode *pstrHostIfSetOperationMode)
 {
 
 	s32 s32Error = 0;

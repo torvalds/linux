@@ -259,9 +259,9 @@ struct drv_handler {
 	u32 u32Address;
 };
 
-typedef struct {
+struct op_mode {
 	u32 u32Mode;
-} tstrHostIfSetOperationMode;
+};
 
 typedef struct {
 	u8 u8MacAddress[ETH_ALEN];
