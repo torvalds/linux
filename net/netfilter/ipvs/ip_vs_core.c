@@ -2128,10 +2128,11 @@ static void __net_exit __ip_vs_cleanup(struct net *net)
 
 static void __net_exit __ip_vs_dev_cleanup(struct net *net)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
 	EnterFunction(2);
-	net_ipvs(net)->enable = 0;	/* Disable packet reception */
+	ipvs->enable = 0;	/* Disable packet reception */
 	smp_wmb();
-	ip_vs_sync_net_cleanup(net);
+	ip_vs_sync_net_cleanup(ipvs);
 	LeaveFunction(2);
 }
 

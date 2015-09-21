@@ -2015,10 +2015,9 @@ int __net_init ip_vs_sync_net_init(struct netns_ipvs *ipvs)
 	return 0;
 }
 
-void ip_vs_sync_net_cleanup(struct net *net)
+void ip_vs_sync_net_cleanup(struct netns_ipvs *ipvs)
 {
 	int retc;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	mutex_lock(&ipvs->sync_mutex);
 	retc = stop_sync_thread(ipvs, IP_VS_STATE_MASTER);
