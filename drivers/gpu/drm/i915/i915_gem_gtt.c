@@ -3244,15 +3244,18 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 
 }
 
-static void
-rotate_pages(dma_addr_t *in, unsigned int width, unsigned int height,
-	     struct sg_table *st)
+static struct scatterlist *
+rotate_pages(dma_addr_t *in, unsigned int offset,
+	     unsigned int width, unsigned int height,
+	     struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int column, row;
 	unsigned int src_idx;
-	struct scatterlist *sg = st->sgl;
 
-	st->nents = 0;
+	if (!sg) {
+		st->nents = 0;
+		sg = st->sgl;
+	}
 
 	for (column = 0; column < width; column++) {
 		src_idx = width * (height - 1) + column;
@@ -3263,12 +3266,14 @@ rotate_pages(dma_addr_t *in, unsigned int width, unsigned int height,
 			 * The only thing we need are DMA addresses.
 			 */
 			sg_set_page(sg, NULL, PAGE_SIZE, 0);
-			sg_dma_address(sg) = in[src_idx];
+			sg_dma_address(sg) = in[offset + src_idx];
 			sg_dma_len(sg) = PAGE_SIZE;
 			sg = sg_next(sg);
 			src_idx -= width;
 		}
 	}
+
+	return sg;
 }
 
 static struct sg_table *
@@ -3306,9 +3311,9 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	}
 
 	/* Rotate the pages. */
-	rotate_pages(page_addr_list,
+	rotate_pages(page_addr_list, 0,
 		     rot_info->width_pages, rot_info->height_pages,
-		     st);
+		     st, NULL);
 
 	DRM_DEBUG_KMS(
 		      "Created rotated page mapping for object size %zu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %u pages).\n",
