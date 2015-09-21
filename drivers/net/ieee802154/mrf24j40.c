@@ -799,6 +799,14 @@ static int mrf24j40_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id mrf24j40_of_match[] = {
+	{ .compatible = "microchip,mrf24j40", .data = (void *)MRF24J40 },
+	{ .compatible = "microchip,mrf24j40ma", .data = (void *)MRF24J40MA },
+	{ .compatible = "microchip,mrf24j40mc", .data = (void *)MRF24J40MC },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, mrf24j40_of_match);
+
 static const struct spi_device_id mrf24j40_ids[] = {
 	{ "mrf24j40", MRF24J40 },
 	{ "mrf24j40ma", MRF24J40MA },
@@ -809,6 +817,7 @@ MODULE_DEVICE_TABLE(spi, mrf24j40_ids);
 
 static struct spi_driver mrf24j40_driver = {
 	.driver = {
+		.of_match_table = of_match_ptr(mrf24j40_of_match),
 		.name = "mrf24j40",
 		.owner = THIS_MODULE,
 	},
