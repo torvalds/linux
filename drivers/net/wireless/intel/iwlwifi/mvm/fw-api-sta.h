@@ -173,7 +173,7 @@ enum iwl_sta_key_flag {
 
 /**
  * enum iwl_sta_modify_flag - indicate to the fw what flag are being changed
- * @STA_MODIFY_KEY: this command modifies %key
+ * @STA_MODIFY_QUEUE_REMOVAL: this command removes a queue
  * @STA_MODIFY_TID_DISABLE_TX: this command modifies %tid_disable_tx
  * @STA_MODIFY_TX_RATE: unused
  * @STA_MODIFY_ADD_BA_TID: this command modifies %add_immediate_ba_tid
@@ -183,7 +183,7 @@ enum iwl_sta_key_flag {
  * @STA_MODIFY_QUEUES: modify the queues used by this station
  */
 enum iwl_sta_modify_flag {
-	STA_MODIFY_KEY				= BIT(0),
+	STA_MODIFY_QUEUE_REMOVAL		= BIT(0),
 	STA_MODIFY_TID_DISABLE_TX		= BIT(1),
 	STA_MODIFY_TX_RATE			= BIT(2),
 	STA_MODIFY_ADD_BA_TID			= BIT(3),
