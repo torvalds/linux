@@ -966,10 +966,7 @@ static void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 			sde->descq = NULL;
 			sde->descq_phys = 0;
 		}
-		if (is_vmalloc_addr(sde->tx_ring))
-			vfree(sde->tx_ring);
-		else
-			kfree(sde->tx_ring);
+		kvfree(sde->tx_ring);
 		sde->tx_ring = NULL;
 	}
 	spin_lock_irq(&dd->sde_map_lock);
