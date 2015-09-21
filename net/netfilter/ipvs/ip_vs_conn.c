@@ -1309,11 +1309,10 @@ void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 /*
  *      Flush all the connection entries in the ip_vs_conn_tab
  */
-static void ip_vs_conn_flush(struct net *net)
+static void ip_vs_conn_flush(struct netns_ipvs *ipvs)
 {
 	int idx;
 	struct ip_vs_conn *cp, *cp_c;
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 flush_again:
 	rcu_read_lock();
@@ -1359,8 +1358,10 @@ int __net_init ip_vs_conn_net_init(struct net *net)
 
 void __net_exit ip_vs_conn_net_cleanup(struct net *net)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
 	/* flush all the connection entries first */
-	ip_vs_conn_flush(net);
+	ip_vs_conn_flush(ipvs);
 	remove_proc_entry("ip_vs_conn", net->proc_net);
 	remove_proc_entry("ip_vs_conn_sync", net->proc_net);
 }
