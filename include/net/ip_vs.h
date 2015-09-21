@@ -1101,6 +1101,11 @@ static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_ignore_tunneled;
 }
 
+static inline int sysctl_cache_bypass(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_cache_bypass;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1179,6 +1184,11 @@ static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
 }
 
 static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
+static inline int sysctl_cache_bypass(struct netns_ipvs *ipvs)
 {
 	return 0;
 }
