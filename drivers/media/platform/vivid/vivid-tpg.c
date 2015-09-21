@@ -193,6 +193,14 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SRGGB12:
 		tpg->interleaved = true;
 		tpg->vdownsampling[1] = 1;
 		tpg->hdownsampling[1] = 1;
@@ -348,6 +356,17 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_SRGGB8:
 		tpg->twopixelsize[0] = 2;
 		tpg->twopixelsize[1] = 2;
+		break;
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SRGGB12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SBGGR12:
+		tpg->twopixelsize[0] = 4;
+		tpg->twopixelsize[1] = 4;
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
@@ -1112,6 +1131,70 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset] = odd ? g_u : r_y;
 		buf[1][offset] = odd ? b_v : g_u;
 		break;
+	case V4L2_PIX_FMT_SBGGR10:
+		buf[0][offset] = odd ? g_u << 2 : b_v << 2;
+		buf[0][offset + 1] = odd ? g_u >> 6 : b_v >> 6;
+		buf[1][offset] = odd ? r_y << 2 : g_u << 2;
+		buf[1][offset + 1] = odd ? r_y >> 6 : g_u >> 6;
+		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
+		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
+		break;
+	case V4L2_PIX_FMT_SGBRG10:
+		buf[0][offset] = odd ? b_v << 2 : g_u << 2;
+		buf[0][offset + 1] = odd ? b_v >> 6 : g_u >> 6;
+		buf[1][offset] = odd ? g_u << 2 : r_y << 2;
+		buf[1][offset + 1] = odd ? g_u >> 6 : r_y >> 6;
+		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
+		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
+		break;
+	case V4L2_PIX_FMT_SGRBG10:
+		buf[0][offset] = odd ? r_y << 2 : g_u << 2;
+		buf[0][offset + 1] = odd ? r_y >> 6 : g_u >> 6;
+		buf[1][offset] = odd ? g_u << 2 : b_v << 2;
+		buf[1][offset + 1] = odd ? g_u >> 6 : b_v >> 6;
+		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
+		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
+		break;
+	case V4L2_PIX_FMT_SRGGB10:
+		buf[0][offset] = odd ? g_u << 2 : r_y << 2;
+		buf[0][offset + 1] = odd ? g_u >> 6 : r_y >> 6;
+		buf[1][offset] = odd ? b_v << 2 : g_u << 2;
+		buf[1][offset + 1] = odd ? b_v >> 6 : g_u >> 6;
+		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
+		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
+		break;
+	case V4L2_PIX_FMT_SBGGR12:
+		buf[0][offset] = odd ? g_u << 4 : b_v << 4;
+		buf[0][offset + 1] = odd ? g_u >> 4 : b_v >> 4;
+		buf[1][offset] = odd ? r_y << 4 : g_u << 4;
+		buf[1][offset + 1] = odd ? r_y >> 4 : g_u >> 4;
+		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
+		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
+		break;
+	case V4L2_PIX_FMT_SGBRG12:
+		buf[0][offset] = odd ? b_v << 4 : g_u << 4;
+		buf[0][offset + 1] = odd ? b_v >> 4 : g_u >> 4;
+		buf[1][offset] = odd ? g_u << 4 : r_y << 4;
+		buf[1][offset + 1] = odd ? g_u >> 4 : r_y >> 4;
+		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
+		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
+		break;
+	case V4L2_PIX_FMT_SGRBG12:
+		buf[0][offset] = odd ? r_y << 4 : g_u << 4;
+		buf[0][offset + 1] = odd ? r_y >> 4 : g_u >> 4;
+		buf[1][offset] = odd ? g_u << 4 : b_v << 4;
+		buf[1][offset + 1] = odd ? g_u >> 4 : b_v >> 4;
+		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
+		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
+		break;
+	case V4L2_PIX_FMT_SRGGB12:
+		buf[0][offset] = odd ? g_u << 4 : r_y << 4;
+		buf[0][offset + 1] = odd ? g_u >> 4 : r_y >> 4;
+		buf[1][offset] = odd ? b_v << 4 : g_u << 4;
+		buf[1][offset + 1] = odd ? b_v >> 4 : g_u >> 4;
+		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
+		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
+		break;
 	}
 }
 
@@ -1122,6 +1205,14 @@ unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line)
 	case V4L2_PIX_FMT_SGBRG8:
 	case V4L2_PIX_FMT_SGRBG8:
 	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SRGGB12:
 		return buf_line & 1;
 	default:
 		return 0;
