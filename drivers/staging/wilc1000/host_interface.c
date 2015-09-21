@@ -6356,7 +6356,6 @@ void host_int_send_network_info_to_host
  *  @version		1.0
  */
 static u32 u32Intialized;
-static u32 msgQ_created;
 static u32 clients_count;
 
 s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
@@ -6429,7 +6428,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			PRINT_ER("Failed to creat MQ\n");
 			goto _fail_;
 		}
-		msgQ_created = 1;
 		HostIFthreadHandler = kthread_run(hostIFthread, NULL, "WILC_kthread");
 		if (IS_ERR(HostIFthreadHandler)) {
 			PRINT_ER("Failed to creat Thread\n");
@@ -6596,7 +6594,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 		down(&hSemHostIFthrdEnd);
 
 		wilc_mq_destroy(&gMsgQHostIF);
-		msgQ_created = 0;
 	}
 
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
