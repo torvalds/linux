@@ -108,7 +108,7 @@ static inline void ct_write_unlock_bh(unsigned int key)
 /*
  *	Returns hash value for IPVS connection entry
  */
-static unsigned int ip_vs_conn_hashkey(struct net *net, int af, unsigned int proto,
+static unsigned int ip_vs_conn_hashkey(struct netns_ipvs *ipvs, int af, unsigned int proto,
 				       const union nf_inet_addr *addr,
 				       __be16 port)
 {
@@ -116,11 +116,11 @@ static unsigned int ip_vs_conn_hashkey(struct net *net, int af, unsigned int pro
 	if (af == AF_INET6)
 		return (jhash_3words(jhash(addr, 16, ip_vs_conn_rnd),
 				    (__force u32)port, proto, ip_vs_conn_rnd) ^
-			((size_t)net>>8)) & ip_vs_conn_tab_mask;
+			((size_t)ipvs>>8)) & ip_vs_conn_tab_mask;
 #endif
 	return (jhash_3words((__force u32)addr->ip, (__force u32)port, proto,
 			    ip_vs_conn_rnd) ^
-		((size_t)net>>8)) & ip_vs_conn_tab_mask;
+		((size_t)ipvs>>8)) & ip_vs_conn_tab_mask;
 }
 
 static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
@@ -141,7 +141,7 @@ static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
 		port = p->vport;
 	}
 
-	return ip_vs_conn_hashkey(p->ipvs->net, p->af, p->protocol, addr, port);
+	return ip_vs_conn_hashkey(p->ipvs, p->af, p->protocol, addr, port);
 }
 
 static unsigned int ip_vs_conn_hashkey_conn(const struct ip_vs_conn *cp)
