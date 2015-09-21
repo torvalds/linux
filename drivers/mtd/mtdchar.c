@@ -498,21 +498,17 @@ static int shrink_ecclayout(const struct nand_ecclayout *from,
 }
 
 static int mtdchar_blkpg_ioctl(struct mtd_info *mtd,
-			   struct blkpg_ioctl_arg __user *arg)
+			       struct blkpg_ioctl_arg *arg)
 {
-	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (copy_from_user(&a, arg, sizeof(struct blkpg_ioctl_arg)))
+	if (copy_from_user(&p, arg->data, sizeof(p)))
 		return -EFAULT;
 
-	if (copy_from_user(&p, a.data, sizeof(struct blkpg_partition)))
-		return -EFAULT;
-
-	switch (a.op) {
+	switch (arg->op) {
 	case BLKPG_ADD_PARTITION:
 
 		/* Only master mtd device must be used to add partitions */
@@ -966,8 +962,13 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 
 	case BLKPG:
 	{
-		ret = mtdchar_blkpg_ioctl(mtd,
-		      (struct blkpg_ioctl_arg __user *)arg);
+		struct blkpg_ioctl_arg __user *blk_arg = argp;
+		struct blkpg_ioctl_arg a;
+
+		if (copy_from_user(&a, blk_arg, sizeof(a)))
+			ret = -EFAULT;
+		else
+			ret = mtdchar_blkpg_ioctl(mtd, &a);
 		break;
 	}
 
@@ -1046,6 +1047,29 @@ static long mtdchar_compat_ioctl(struct file *file, unsigned int cmd,
 				&buf_user->start);
 		break;
 	}
+
+	case BLKPG:
+	{
+		/* Convert from blkpg_compat_ioctl_arg to blkpg_ioctl_arg */
+		struct blkpg_compat_ioctl_arg __user *uarg = argp;
+		struct blkpg_compat_ioctl_arg compat_arg;
+		struct blkpg_ioctl_arg a;
+
+		if (copy_from_user(&compat_arg, uarg, sizeof(compat_arg))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		memset(&a, 0, sizeof(a));
+		a.op = compat_arg.op;
+		a.flags = compat_arg.flags;
+		a.datalen = compat_arg.datalen;
+		a.data = compat_ptr(compat_arg.data);
+
+		ret = mtdchar_blkpg_ioctl(mtd, &a);
+		break;
+	}
+
 	default:
 		ret = mtdchar_ioctl(file, cmd, (unsigned long)argp);
 	}
