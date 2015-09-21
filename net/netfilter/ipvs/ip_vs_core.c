@@ -2086,7 +2086,7 @@ static int __net_init __ip_vs_init(struct net *net)
 	if (ip_vs_app_net_init(ipvs) < 0)
 		goto app_fail;
 
-	if (ip_vs_conn_net_init(net) < 0)
+	if (ip_vs_conn_net_init(ipvs) < 0)
 		goto conn_fail;
 
 	if (ip_vs_sync_net_init(ipvs) < 0)
@@ -2100,7 +2100,7 @@ static int __net_init __ip_vs_init(struct net *net)
  */
 
 sync_fail:
-	ip_vs_conn_net_cleanup(net);
+	ip_vs_conn_net_cleanup(ipvs);
 conn_fail:
 	ip_vs_app_net_cleanup(ipvs);
 app_fail:
@@ -2119,7 +2119,7 @@ static void __net_exit __ip_vs_cleanup(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_service_net_cleanup(ipvs);	/* ip_vs_flush() with locks */
-	ip_vs_conn_net_cleanup(net);
+	ip_vs_conn_net_cleanup(ipvs);
 	ip_vs_app_net_cleanup(ipvs);
 	ip_vs_protocol_net_cleanup(net);
 	ip_vs_control_net_cleanup(ipvs);
