@@ -683,8 +683,11 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
+	mutex_lock(&xhci->mutex);
+
 	if (!usb_hcd_is_primary_hcd(hcd)) {
 		xhci_only_stop_hcd(xhci->shared_hcd);
+		mutex_unlock(&xhci->mutex);
 		return;
 	}
 
@@ -723,6 +726,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"xhci_stop completed - status = %x",
 			readl(&xhci->op_regs->status));
+	mutex_unlock(&xhci->mutex);
 }
 
 /*
