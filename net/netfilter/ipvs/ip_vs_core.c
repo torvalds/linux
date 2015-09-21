@@ -179,7 +179,7 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 static inline void
 ip_vs_conn_stats(struct ip_vs_conn *cp, struct ip_vs_service *svc)
 {
-	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	struct netns_ipvs *ipvs = svc->ipvs;
 	struct ip_vs_cpu_stats *s;
 
 	s = this_cpu_ptr(cp->dest->stats.cpustats);
@@ -215,7 +215,7 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 			      const union nf_inet_addr *vaddr, __be16 vport,
 			      struct ip_vs_conn_param *p)
 {
-	ip_vs_conn_fill_param(net_ipvs(svc->net), svc->af, protocol, caddr, cport, vaddr,
+	ip_vs_conn_fill_param(svc->ipvs, svc->af, protocol, caddr, cport, vaddr,
 			      vport, p);
 	p->pe = rcu_dereference(svc->pe);
 	if (p->pe && p->pe->fill_param)
@@ -376,7 +376,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Create a new connection according to the template
 	 */
-	ip_vs_conn_fill_param(net_ipvs(svc->net), svc->af, iph->protocol, src_addr,
+	ip_vs_conn_fill_param(svc->ipvs, svc->af, iph->protocol, src_addr,
 			      src_port, dst_addr, dst_port, &param);
 
 	cp = ip_vs_conn_new(&param, dest->af, &dest->addr, dport, flags, dest,
@@ -524,7 +524,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	{
 		struct ip_vs_conn_param p;
 
-		ip_vs_conn_fill_param(net_ipvs(svc->net), svc->af, iph->protocol,
+		ip_vs_conn_fill_param(svc->ipvs, svc->af, iph->protocol,
 				      caddr, cport, vaddr, vport, &p);
 		cp = ip_vs_conn_new(&p, dest->af, &dest->addr,
 				    dest->port ? dest->port : vport,
@@ -600,7 +600,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
 		{
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(net_ipvs(svc->net), svc->af, iph->protocol,
+			ip_vs_conn_fill_param(svc->ipvs, svc->af, iph->protocol,
 					      &iph->saddr, pptr[0],
 					      &iph->daddr, pptr[1], &p);
 			cp = ip_vs_conn_new(&p, svc->af, &daddr, 0,

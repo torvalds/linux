@@ -678,7 +678,7 @@ struct ip_vs_service {
 	unsigned int		flags;	  /* service status flags */
 	unsigned int		timeout;  /* persistent timeout in ticks */
 	__be32			netmask;  /* grouping granularity, mask/plen */
-	struct net		*net;
+	struct netns_ipvs	*ipvs;
 
 	struct list_head	destinations;  /* real server d-linked list */
 	__u32			num_dests;     /* number of servers */
