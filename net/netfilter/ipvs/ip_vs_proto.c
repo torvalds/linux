@@ -307,7 +307,7 @@ ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 /*
  * per network name-space init
  */
-int __net_init ip_vs_protocol_net_init(struct net *net)
+int __net_init ip_vs_protocol_net_init(struct netns_ipvs *ipvs)
 {
 	int i, ret;
 	static struct ip_vs_protocol *protos[] = {
@@ -327,7 +327,6 @@ int __net_init ip_vs_protocol_net_init(struct net *net)
 	&ip_vs_protocol_esp,
 #endif
 	};
-	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	for (i = 0; i < ARRAY_SIZE(protos); i++) {
 		ret = register_ip_vs_proto_netns(ipvs, protos[i]);
@@ -337,13 +336,12 @@ int __net_init ip_vs_protocol_net_init(struct net *net)
 	return 0;
 
 cleanup:
-	ip_vs_protocol_net_cleanup(net);
+	ip_vs_protocol_net_cleanup(ipvs);
 	return ret;
 }
 
-void __net_exit ip_vs_protocol_net_cleanup(struct net *net)
+void __net_exit ip_vs_protocol_net_cleanup(struct netns_ipvs *ipvs)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;
 	int i;
 
