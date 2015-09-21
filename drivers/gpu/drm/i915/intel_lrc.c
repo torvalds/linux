@@ -2487,7 +2487,6 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 		if (ret) {
 			DRM_ERROR("ring create req: %d\n",
 				ret);
-			i915_gem_request_cancel(req);
 			goto error_ringbuf;
 		}
 
