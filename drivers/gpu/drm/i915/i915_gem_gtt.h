@@ -138,10 +138,13 @@ enum i915_ggtt_view_type {
 struct intel_rotation_info {
 	unsigned int height;
 	unsigned int pitch;
+	unsigned int uv_offset;
 	uint32_t pixel_format;
 	uint64_t fb_modifier;
 	unsigned int width_pages, height_pages;
 	uint64_t size;
+	unsigned int width_pages_uv, height_pages_uv;
+	uint64_t size_uv;
 };
 
 struct i915_ggtt_view {
