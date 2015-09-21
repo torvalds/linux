@@ -263,9 +263,9 @@ struct op_mode {
 	u32 u32Mode;
 };
 
-typedef struct {
+struct set_mac_addr {
 	u8 u8MacAddress[ETH_ALEN];
-} tstrHostIfSetMacAddress;
+};
 
 typedef struct {
 	u8 *u8MacAddress;
