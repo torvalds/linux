@@ -56,12 +56,11 @@ ah_esp_conn_fill_param_proto(struct netns_ipvs *ipvs, int af,
 }
 
 static struct ip_vs_conn *
-ah_esp_conn_in_get(int af, const struct sk_buff *skb,
+ah_esp_conn_in_get(struct netns_ipvs *ipvs, int af, const struct sk_buff *skb,
 		   const struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_conn_param p;
-	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 
 	ah_esp_conn_fill_param_proto(ipvs, af, iph, &p);
 	cp = ip_vs_conn_in_get(&p);

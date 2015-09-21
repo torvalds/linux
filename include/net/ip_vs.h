@@ -493,7 +493,8 @@ struct ip_vs_protocol {
 			     struct ip_vs_iphdr *iph);
 
 	struct ip_vs_conn *
-	(*conn_in_get)(int af,
+	(*conn_in_get)(struct netns_ipvs *ipvs,
+		       int af,
 		       const struct sk_buff *skb,
 		       const struct ip_vs_iphdr *iph);
 
@@ -1222,7 +1223,8 @@ static inline void ip_vs_conn_fill_param(struct netns_ipvs *ipvs, int af, int pr
 struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
 struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
-struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+struct ip_vs_conn * ip_vs_conn_in_get_proto(struct netns_ipvs *ipvs, int af,
+					    const struct sk_buff *skb,
 					    const struct ip_vs_iphdr *iph);
 
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);

@@ -335,10 +335,10 @@ ip_vs_conn_fill_param_proto(struct netns_ipvs *ipvs,
 }
 
 struct ip_vs_conn *
-ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+ip_vs_conn_in_get_proto(struct netns_ipvs *ipvs, int af,
+			const struct sk_buff *skb,
 			const struct ip_vs_iphdr *iph)
 {
-	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
 	struct ip_vs_conn_param p;
 
 	if (ip_vs_conn_fill_param_proto(ipvs, af, skb, iph, &p))
