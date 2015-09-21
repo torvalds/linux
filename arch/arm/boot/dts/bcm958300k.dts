@@ -33,6 +33,7 @@
 /dts-v1/;
 
 #include "bcm-cygnus.dtsi"
+#include "bcm9hmidc.dtsi"
 
 / {
 	model = "Cygnus SVK (BCM958300K)";
