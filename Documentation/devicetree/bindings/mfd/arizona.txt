@@ -24,7 +24,7 @@ Required properties:
   - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
     The first cell is the IRQ number.
     The second cell is the flags, encoded as the trigger masks from
-    Documentation/devicetree/bindings/interrupts.txt
+    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
   - gpio-controller : Indicates this device is a GPIO controller.
   - #gpio-cells : Must be 2. The first cell is the pin number and the
