@@ -186,7 +186,7 @@ static inline int list_is_last(const struct list_head *list,
  */
 static inline int list_empty(const struct list_head *head)
 {
-	return head->next == head;
+	return READ_ONCE(head->next) == head;
 }
 
 /**
@@ -608,7 +608,7 @@ static inline int hlist_unhashed(const struct hlist_node *h)
 
 static inline int hlist_empty(const struct hlist_head *h)
 {
-	return !h->first;
+	return !READ_ONCE(h->first);
 }
 
 static inline void __hlist_del(struct hlist_node *n)
