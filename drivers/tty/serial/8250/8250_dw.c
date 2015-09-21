@@ -260,38 +260,6 @@ static bool dw8250_fallback_dma_filter(struct dma_chan *chan, void *param)
 	return false;
 }
 
-static void dw8250_setup_port(struct uart_8250_port *up)
-{
-	struct uart_port	*p = &up->port;
-	u32			reg = readl(p->membase + DW_UART_UCV);
-
-	/*
-	 * If the Component Version Register returns zero, we know that
-	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
-	 */
-	if (!reg)
-		return;
-
-	dev_dbg_ratelimited(p->dev, "Designware UART version %c.%c%c\n",
-		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
-
-	reg = readl(p->membase + DW_UART_CPR);
-	if (!reg)
-		return;
-
-	/* Select the type based on fifo */
-	if (reg & DW_UART_CPR_FIFO_MODE) {
-		p->type = PORT_16550A;
-		p->flags |= UPF_FIXED_TYPE;
-		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
-		up->tx_loadsz = p->fifosize;
-		up->capabilities = UART_CAP_FIFO;
-	}
-
-	if (reg & DW_UART_CPR_AFCE_MODE)
-		up->capabilities |= UART_CAP_AFE;
-}
-
 static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 {
 	return param == chan->device->dev->parent;
@@ -334,6 +302,38 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 		data->dma.tx_param = p->dev->parent;
 		data->dma.fn = dw8250_idma_filter;
 	}
+}
+
+static void dw8250_setup_port(struct uart_port *p)
+{
+	struct uart_8250_port *up = up_to_u8250p(p);
+	u32 reg;
+
+	/*
+	 * If the Component Version Register returns zero, we know that
+	 * ADDITIONAL_FEATURES are not enabled. No need to go any further.
+	 */
+	reg = readl(p->membase + DW_UART_UCV);
+	if (!reg)
+		return;
+
+	dev_dbg(p->dev, "Designware UART version %c.%c%c\n",
+		(reg >> 24) & 0xff, (reg >> 16) & 0xff, (reg >> 8) & 0xff);
+
+	reg = readl(p->membase + DW_UART_CPR);
+	if (!reg)
+		return;
+
+	/* Select the type based on fifo */
+	if (reg & DW_UART_CPR_FIFO_MODE) {
+		p->type = PORT_16550A;
+		p->flags |= UPF_FIXED_TYPE;
+		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
+		up->capabilities = UART_CAP_FIFO;
+	}
+
+	if (reg & DW_UART_CPR_AFCE_MODE)
+		up->capabilities |= UART_CAP_AFE;
 }
 
 static int dw8250_probe(struct platform_device *pdev)
@@ -473,7 +473,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	}
 
 	if (!data->skip_autocfg)
-		dw8250_setup_port(&uart);
+		dw8250_setup_port(p);
 
 	/* If we have a valid fifosize, try hooking up DMA */
 	if (p->fifosize) {
