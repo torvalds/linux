@@ -390,7 +390,7 @@ typedef struct {
 } tstrHostIFSetIPAddr;
 
 /*!
- *  @struct     tstrHostIfStaInactiveT
+ *  @struct     sta_inactive_t
  *  @brief		Get station message body
  *  @details
  *  @todo
@@ -399,10 +399,9 @@ typedef struct {
  *  @date		16 April 2013
  *  @version		1.0
  */
-typedef struct {
+struct sta_inactive_t {
 	u8 mac[6];
-
-} tstrHostIfStaInactiveT;
+};
 /**/
 /*!
  *  @union              message_body
@@ -431,7 +430,7 @@ union message_body {
 	/* tstrScanComplete		strScanComplete;		/ *Received Async. Scan Complete message body* / */
 	struct timer_cb strTimerCb;                                                 /*!< Timer callback message body */
 	struct power_mgmt_param strPowerMgmtparam;     /*!< Power Management message body */
-	tstrHostIfStaInactiveT strHostIfStaInactiveT;
+	struct sta_inactive_t strHostIfStaInactiveT;
 	tstrHostIFSetIPAddr strHostIfSetIP;
 	tstrHostIfSetDrvHandler strHostIfSetDrvHandler;
 	tstrHostIFSetMulti strHostIfSetMulti;
@@ -3366,7 +3365,8 @@ s32 Handle_GetStatistics(tstrWILC_WFIDrv *drvHandler, tstrStatistics *pstrStatis
  *  @date
  *  @version	1.0
  */
-static s32 Handle_Get_InActiveTime(tstrWILC_WFIDrv *drvHandler, tstrHostIfStaInactiveT *strHostIfStaInactiveT)
+static s32 Handle_Get_InActiveTime(tstrWILC_WFIDrv *drvHandler,
+				   struct sta_inactive_t *strHostIfStaInactiveT)
 {
 
 	s32 s32Error = 0;
