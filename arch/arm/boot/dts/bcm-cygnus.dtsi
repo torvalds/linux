@@ -108,26 +108,14 @@
 			gpio-controller;
 		};
 
-		gpio_ccm: gpio@1800a000 {
-			compatible = "brcm,cygnus-ccm-gpio";
-			reg = <0x1800a000 0x50>,
-			      <0x0301d164 0x20>;
-			#gpio-cells = <2>;
-			gpio-controller;
-			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-controller;
-		};
-
-		gpio_asiu: gpio@180a5000 {
-			compatible = "brcm,cygnus-asiu-gpio";
-			reg = <0x180a5000 0x668>;
-			#gpio-cells = <2>;
-			gpio-controller;
-
-			pinmux = <&pinctrl>;
-
-			interrupt-controller;
-			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+		i2c0: i2c@18008000 {
+			compatible = "brcm,cygnus-iproc-i2c", "brcm,iproc-i2c";
+			reg = <0x18008000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+			clock-frequency = <100000>;
+			status = "disabled";
 		};
 
 		wdt0: wdt@18009000 {
@@ -138,14 +126,14 @@
 			clock-names = "apb_pclk";
 		};
 
-		i2c0: i2c@18008000 {
-			compatible = "brcm,cygnus-iproc-i2c", "brcm,iproc-i2c";
-			reg = <0x18008000 0x100>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
-			clock-frequency = <100000>;
-			status = "disabled";
+		gpio_ccm: gpio@1800a000 {
+			compatible = "brcm,cygnus-ccm-gpio";
+			reg = <0x1800a000 0x50>,
+			      <0x0301d164 0x20>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
 		};
 
 		i2c1: i2c@1800b000 {
@@ -256,6 +244,18 @@
 			#size-cells = <0>;
 
 			brcm,nand-has-wp;
+		};
+
+		gpio_asiu: gpio@180a5000 {
+			compatible = "brcm,cygnus-asiu-gpio";
+			reg = <0x180a5000 0x668>;
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			pinmux = <&pinctrl>;
+
+			interrupt-controller;
+			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 };
