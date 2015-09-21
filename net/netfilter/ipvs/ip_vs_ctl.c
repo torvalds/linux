@@ -1124,8 +1124,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 static void ip_vs_dest_trash_expire(unsigned long data)
 {
-	struct net *net = (struct net *) data;
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct netns_ipvs *ipvs = (struct netns_ipvs *)data;
 	struct ip_vs_dest *dest, *next;
 	unsigned long now = jiffies;
 
@@ -3966,7 +3965,7 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	INIT_LIST_HEAD(&ipvs->dest_trash);
 	spin_lock_init(&ipvs->dest_trash_lock);
 	setup_timer(&ipvs->dest_trash_timer, ip_vs_dest_trash_expire,
-		    (unsigned long) net);
+		    (unsigned long) ipvs);
 	atomic_set(&ipvs->ftpsvc_counter, 0);
 	atomic_set(&ipvs->nullsvc_counter, 0);
 
