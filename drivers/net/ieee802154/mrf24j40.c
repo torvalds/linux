@@ -722,6 +722,7 @@ err_ret:
 
 static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
 {
+	ieee802154_random_extended_addr(&devrec->hw->phy->perm_extended_addr);
 	devrec->hw->phy->current_channel = 11;
 }
 
