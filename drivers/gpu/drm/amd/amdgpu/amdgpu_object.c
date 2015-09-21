@@ -536,11 +536,9 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 	if (metadata == NULL)
 		return -EINVAL;
 
-	buffer = kzalloc(metadata_size, GFP_KERNEL);
+	buffer = kmemdup(metadata, metadata_size, GFP_KERNEL);
 	if (buffer == NULL)
 		return -ENOMEM;
-
-	memcpy(buffer, metadata, metadata_size);
 
 	kfree(bo->metadata);
 	bo->metadata_flags = flags;
