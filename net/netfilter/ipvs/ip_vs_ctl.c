@@ -263,7 +263,7 @@ static struct hlist_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
  *	Returns hash value for virtual service
  */
 static inline unsigned int
-ip_vs_svc_hashkey(struct net *net, int af, unsigned int proto,
+ip_vs_svc_hashkey(struct netns_ipvs *ipvs, int af, unsigned int proto,
 		  const union nf_inet_addr *addr, __be16 port)
 {
 	register unsigned int porth = ntohs(port);
@@ -276,7 +276,7 @@ ip_vs_svc_hashkey(struct net *net, int af, unsigned int proto,
 			    addr->ip6[2]^addr->ip6[3];
 #endif
 	ahash = ntohl(addr_fold);
-	ahash ^= ((size_t) net >> 8);
+	ahash ^= ((size_t) ipvs >> 8);
 
 	return (proto ^ ahash ^ (porth >> IP_VS_SVC_TAB_BITS) ^ porth) &
 	       IP_VS_SVC_TAB_MASK;
@@ -309,7 +309,7 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 		/*
 		 *  Hash it by <netns,protocol,addr,port> in ip_vs_svc_table
 		 */
-		hash = ip_vs_svc_hashkey(svc->ipvs->net, svc->af, svc->protocol,
+		hash = ip_vs_svc_hashkey(svc->ipvs, svc->af, svc->protocol,
 					 &svc->addr, svc->port);
 		hlist_add_head_rcu(&svc->s_list, &ip_vs_svc_table[hash]);
 	} else {
@@ -365,7 +365,7 @@ __ip_vs_service_find(struct net *net, int af, __u16 protocol,
 	struct ip_vs_service *svc;
 
 	/* Check for "full" addressed entries */
-	hash = ip_vs_svc_hashkey(net, af, protocol, vaddr, vport);
+	hash = ip_vs_svc_hashkey(ipvs, af, protocol, vaddr, vport);
 
 	hlist_for_each_entry_rcu(svc, &ip_vs_svc_table[hash], s_list) {
 		if ((svc->af == af)
