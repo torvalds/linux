@@ -65,7 +65,7 @@ extern u8 g_wilc_initialized;
 /*****************************************************************************/
 
 /*!
- *  @struct             tstrHostIFCfgParamAttr
+ *  @struct             cfg_param_attr
  *  @brief		Structure to hold Host IF CFG Params Attributes
  *  @details
  *  @todo
@@ -74,10 +74,9 @@ extern u8 g_wilc_initialized;
  *  @date		02 April 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFCfgParamAttr {
+struct cfg_param_attr {
 	tstrCfgParamVal pstrCfgParamVal;
-
-} tstrHostIFCfgParamAttr;
+};
 
 /*!
  *  @struct             tstrHostIFwpaAttr
@@ -421,7 +420,7 @@ union message_body {
 	struct rcvd_net_info strRcvdNetworkInfo;                 /*!< Received Asynchronous Network Info message body */
 	struct rcvd_async_info strRcvdGnrlAsyncInfo;     /*!< Received General Asynchronous Info message body */
 	struct key_attr strHostIFkeyAttr;                             /*!<>*/
-	tstrHostIFCfgParamAttr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
+	struct cfg_param_attr strHostIFCfgParamAttr;            /*! <CFG Parameter message Body> */
 	tstrHostIFSetChan strHostIFSetChan;
 	tstrHostIFGetChan strHostIFGetChan;
 	tstrHostIFSetBeacon strHostIFSetBeacon;                 /*!< Set beacon message body */
@@ -916,13 +915,14 @@ static s32 Handle_GetMacAddress(tstrWILC_WFIDrv *drvHandler, tstrHostIfGetMacAdd
 /**
  *  @brief Handle_CfgParam
  *  @details    Sending config packet to firmware to set CFG params
- *  @param[in]   tstrHostIFCfgParamAttr* strHostIFCfgParamAttr
+ *  @param[in]   struct cfg_param_attr *strHostIFCfgParamAttr
  *  @return     Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
-static s32 Handle_CfgParam(tstrWILC_WFIDrv *drvHandler, tstrHostIFCfgParamAttr *strHostIFCfgParamAttr)
+static s32 Handle_CfgParam(tstrWILC_WFIDrv *drvHandler,
+			   struct cfg_param_attr *strHostIFCfgParamAttr)
 {
 	s32 s32Error = 0;
 	tstrWID strWIDList[32];
