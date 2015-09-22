@@ -366,6 +366,8 @@ void mips_cm_error_report(void)
 				 cm3_cmd_group[cmd_group_bits],
 				 cm3_cca_bits, 1 << mcp_bits,
 				 cm3_tr[cm3_tr_bits], sched_bit);
+		} else {
+			buf[0] = 0;
 		}
 
 		pr_err("CM_ERROR=%llx %s <%s>\n", cm_error,
