@@ -352,6 +352,8 @@ retry:
 	drm_for_each_plane(plane, dev) {
 		struct drm_plane_state *plane_state;
 
+		plane->old_fb = plane->fb;
+
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -382,16 +384,27 @@ retry:
 	}
 
 	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto fail;
-
-	return 0;
 
 fail:
+	drm_for_each_plane(plane, dev) {
+		if (ret == 0) {
+			struct drm_framebuffer *new_fb = plane->state->fb;
+			if (new_fb)
+				drm_framebuffer_reference(new_fb);
+			plane->fb = new_fb;
+			plane->crtc = plane->state->crtc;
+
+			if (plane->old_fb)
+				drm_framebuffer_unreference(plane->old_fb);
+		}
+		plane->old_fb = NULL;
+	}
+
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	drm_atomic_state_free(state);
+	if (ret != 0)
+		drm_atomic_state_free(state);
 
 	return ret;
 
