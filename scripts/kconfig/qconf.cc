@@ -84,8 +84,30 @@ bool ConfigSettings::writeSizes(const QString& key, const QList<int>& value)
 	for (it = value.begin(); it != value.end(); ++it)
 		stringList.push_back(QString::number(*it));
 	setValue(key, stringList);
+
 	return true;
 }
+
+
+/*
+ * set the new data
+ * TODO check the value
+ */
+void ConfigItem::okRename(int col)
+{
+}
+
+/*
+ * update the displayed of a menu entry
+ */
+void ConfigItem::updateMenu(void)
+{
+}
+
+void ConfigItem::testUpdateMenu(bool v)
+{
+}
+
 
 /*
  * construct a menu entry
@@ -133,9 +155,92 @@ void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
 }
 
 ConfigList::ConfigList(ConfigView* p, const char *name)
-	: Parent(p)
+	: Parent(p),
+	  updateAll(false),
+	  symbolYesPix(xpm_symbol_yes), symbolModPix(xpm_symbol_mod), symbolNoPix(xpm_symbol_no),
+	  choiceYesPix(xpm_choice_yes), choiceNoPix(xpm_choice_no),
+	  menuPix(xpm_menu), menuInvPix(xpm_menu_inv), menuBackPix(xpm_menuback), voidPix(xpm_void),
+	  showName(false), showRange(false), showData(false), optMode(normalOpt),
+	  rootEntry(0), headerPopup(0)
 {
 }
+
+void ConfigList::reinit(void)
+{
+}
+
+void ConfigList::saveSettings(void)
+{
+}
+
+ConfigItem* ConfigList::findConfigItem(struct menu *menu)
+{
+}
+
+void ConfigList::updateSelection(void)
+{
+}
+
+void ConfigList::updateList(ConfigItem* item)
+{
+}
+
+void ConfigList::setValue(ConfigItem* item, tristate val)
+{
+}
+
+void ConfigList::changeValue(ConfigItem* item)
+{
+}
+
+void ConfigList::setRootMenu(struct menu *menu)
+{
+}
+
+void ConfigList::setParentMenu(void)
+{
+}
+
+/*
+ * update all the children of a menu entry
+ *   removes/adds the entries from the parent widget as necessary
+ *
+ * parent: either the menu list widget or a menu entry widget
+ * menu: entry to be updated
+ */
+template <class P>
+void ConfigList::updateMenuList(P* parent, struct menu* menu)
+{
+}
+
+void ConfigList::keyPressEvent(QKeyEvent* ev)
+{
+}
+
+void ConfigList::contentsMousePressEvent(QMouseEvent* e)
+{
+}
+
+void ConfigList::contentsMouseReleaseEvent(QMouseEvent* e)
+{
+}
+
+void ConfigList::contentsMouseMoveEvent(QMouseEvent* e)
+{
+}
+
+void ConfigList::contentsMouseDoubleClickEvent(QMouseEvent* e)
+{
+}
+
+void ConfigList::focusInEvent(QFocusEvent *e)
+{
+}
+
+void ConfigList::contextMenuEvent(QContextMenuEvent *e)
+{
+}
+
 ConfigView*ConfigView::viewList;
 QAction *ConfigView::showNormalAction;
 QAction *ConfigView::showAllAction;
@@ -206,11 +311,6 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 
 void ConfigInfoView::saveSettings(void)
 {
-	/*if (name()) {
-		configSettings->beginGroup(name());
-		configSettings->setValue("/showDebug", showDebug());
-		configSettings->endGroup();
-	}*/
 }
 
 void ConfigInfoView::setShowDebug(bool b)
@@ -480,15 +580,6 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *nam
 
 void ConfigSearchWindow::saveSettings(void)
 {
-	/*if (name()) {
-		configSettings->beginGroup(name());
-		configSettings->setValue("/window x", pos().x());
-		configSettings->setValue("/window y", pos().y());
-		configSettings->setValue("/window width", size().width());
-		configSettings->setValue("/window height", size().height());
-		configSettings->writeSizes("/split", split->sizes());
-		configSettings->endGroup();
-	}*/
 }
 
 void ConfigSearchWindow::search(void)

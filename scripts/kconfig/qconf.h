@@ -44,6 +44,81 @@ class ConfigList : public QTreeWidget {
 	typedef class QTreeWidget Parent;
 public:
 	ConfigList(ConfigView* p, const char *name = 0);
+	void reinit(void);
+	ConfigView* parent(void) const
+	{
+		return (ConfigView*)Parent::parent();
+	}
+	ConfigItem* findConfigItem(struct menu *);
+
+protected:
+	void keyPressEvent(QKeyEvent *e);
+	void contentsMousePressEvent(QMouseEvent *e);
+	void contentsMouseReleaseEvent(QMouseEvent *e);
+	void contentsMouseMoveEvent(QMouseEvent *e);
+	void contentsMouseDoubleClickEvent(QMouseEvent *e);
+	void focusInEvent(QFocusEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
+
+public slots:
+	void setRootMenu(struct menu *menu);
+
+	void updateList(ConfigItem *item);
+	void setValue(ConfigItem* item, tristate val);
+	void changeValue(ConfigItem* item);
+	void updateSelection(void);
+	void saveSettings(void);
+signals:
+	void menuChanged(struct menu *menu);
+	void menuSelected(struct menu *menu);
+	void parentSelected(void);
+	void gotFocus(struct menu *);
+
+public:
+	void updateListAll(void)
+	{
+		updateAll = true;
+		updateList(NULL);
+		updateAll = false;
+	}
+	ConfigList* listView()
+	{
+		return this;
+	}
+	ConfigItem* firstChild() const
+	{
+		// TODO: Implement me.
+		return NULL;
+	}
+	void addColumn(colIdx idx, const QString& label)
+	{
+		// TODO: Implement me.
+	}
+	void removeColumn(colIdx idx)
+	{
+		// TODO: Implement me.
+	}
+	void setAllOpen(bool open);
+	void setParentMenu(void);
+
+	bool menuSkip(struct menu *);
+
+	template <class P>
+	void updateMenuList(P*, struct menu*);
+
+	bool updateAll;
+
+	QPixmap symbolYesPix, symbolModPix, symbolNoPix;
+	QPixmap choiceYesPix, choiceNoPix;
+	QPixmap menuPix, menuInvPix, menuBackPix, voidPix;
+
+	bool showName, showRange, showData;
+	enum listMode mode;
+	enum optionMode optMode;
+	struct menu *rootEntry;
+	QPalette disabledColorGroup;
+	QPalette inactivedColorGroup;
+	QMenu* headerPopup;
 };
 
 class ConfigItem : public QTreeWidgetItem {
@@ -66,6 +141,38 @@ public:
 	}
 	~ConfigItem(void);
 	void init(void);
+	void okRename(int col);
+	void updateMenu(void);
+	void testUpdateMenu(bool v);
+	ConfigList* listView() const
+	{
+		return (ConfigList*)Parent::treeWidget();
+	}
+	ConfigItem* firstChild() const
+	{
+		return (ConfigItem *)Parent::child(0);
+	}
+	ConfigItem* nextSibling() const
+	{
+		return NULL; // TODO: Implement me
+	}
+	void setText(colIdx idx, const QString& text)
+	{
+		Parent::setText(idx, text);
+	}
+	QString text(colIdx idx) const
+	{
+		return Parent::text(idx);
+	}
+	void setPixmap(colIdx idx, const QPixmap& pm)
+	{
+		// TODO: Implement me
+	}
+	const QPixmap* pixmap(colIdx idx) const
+	{
+		return NULL; // TODO: Implement me
+	}
+	// Implement paintCell
 
 	ConfigItem* nextItem;
 	struct menu *menu;
@@ -98,9 +205,9 @@ public:
 	static void updateList(ConfigItem* item);
 	static void updateListAll(void);
 
-	bool showName(void) const { return false; } // TODO: Implement me.
-	bool showRange(void) const { return false; } // TODO: Implement me.
-	bool showData(void) const { return false; } // TODO: Implement me.
+	bool showName(void) const { return list->showName; }
+	bool showRange(void) const { return list->showRange; }
+	bool showData(void) const { return list->showData; }
 public slots:
 	void setShowName(bool);
 	void setShowRange(bool);
