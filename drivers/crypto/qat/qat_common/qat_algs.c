@@ -1212,7 +1212,7 @@ unreg_algs:
 	goto unlock;
 }
 
-int qat_algs_unregister(void)
+void qat_algs_unregister(void)
 {
 	mutex_lock(&algs_lock);
 	if (--active_devs != 0)
@@ -1223,14 +1223,4 @@ int qat_algs_unregister(void)
 
 unlock:
 	mutex_unlock(&algs_lock);
-	return 0;
-}
-
-int qat_algs_init(void)
-{
-	return 0;
-}
-
-void qat_algs_exit(void)
-{
 }
