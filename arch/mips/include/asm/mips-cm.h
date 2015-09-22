@@ -364,6 +364,10 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_Cx_OTHER register fields */
 #define CM_GCR_Cx_OTHER_CORENUM_SHF		16
 #define CM_GCR_Cx_OTHER_CORENUM_MSK		(_ULCAST_(0xffff) << 16)
+#define CM3_GCR_Cx_OTHER_CORE_SHF		8
+#define CM3_GCR_Cx_OTHER_CORE_MSK		(_ULCAST_(0x3f) << 8)
+#define CM3_GCR_Cx_OTHER_VP_SHF			0
+#define CM3_GCR_Cx_OTHER_VP_MSK			(_ULCAST_(0x7) << 0)
 
 /* GCR_Cx_RESET_BASE register fields */
 #define CM_GCR_Cx_RESET_BASE_BEVEXCBASE_SHF	12
@@ -473,5 +477,33 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 
 	return (core * mips_cm_max_vp_width()) + vp;
 }
+
+#ifdef CONFIG_MIPS_CM
+
+/**
+ * mips_cm_lock_other - lock access to another core
+ * @core: the other core to be accessed
+ * @vp: the VP within the other core to be accessed
+ *
+ * Call before operating upon a core via the 'other' register region in
+ * order to prevent the region being moved during access. Must be followed
+ * by a call to mips_cm_unlock_other.
+ */
+extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
+
+/**
+ * mips_cm_unlock_other - unlock access to another core
+ *
+ * Call after operating upon another core via the 'other' register region.
+ * Must be called after mips_cm_lock_other.
+ */
+extern void mips_cm_unlock_other(void);
+
+#else /* !CONFIG_MIPS_CM */
+
+static inline void mips_cm_lock_other(unsigned int core) { }
+static inline void mips_cm_unlock_other(void) { }
+
+#endif /* !CONFIG_MIPS_CM */
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */

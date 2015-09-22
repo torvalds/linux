@@ -9,6 +9,8 @@
  */
 
 #include <linux/errno.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
@@ -136,6 +138,9 @@ static char *cm3_causes[32] = {
 	"0x19", "0x1a", "0x1b", "0x1c", "0x1d", "0x1e", "0x1f"
 };
 
+static DEFINE_PER_CPU_ALIGNED(spinlock_t, cm_core_lock);
+static DEFINE_PER_CPU_ALIGNED(unsigned long, cm_core_lock_flags);
+
 phys_addr_t __mips_cm_phys_base(void)
 {
 	u32 config3 = read_c0_config3();
@@ -200,6 +205,7 @@ int mips_cm_probe(void)
 {
 	phys_addr_t addr;
 	u32 base_reg;
+	unsigned cpu;
 
 	/*
 	 * No need to probe again if we have already been
@@ -247,7 +253,40 @@ int mips_cm_probe(void)
 	/* determine register width for this CM */
 	mips_cm_is64 = config_enabled(CONFIG_64BIT) && (mips_cm_revision() >= CM_REV_CM3);
 
+	for_each_possible_cpu(cpu)
+		spin_lock_init(&per_cpu(cm_core_lock, cpu));
+
 	return 0;
+}
+
+void mips_cm_lock_other(unsigned int core, unsigned int vp)
+{
+	unsigned curr_core;
+	u32 val;
+
+	preempt_disable();
+	curr_core = current_cpu_data.core;
+	spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
+			  per_cpu(cm_core_lock_flags, curr_core));
+
+	if (mips_cm_revision() >= CM_REV_CM3) {
+		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
+		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+	} else {
+		BUG_ON(vp != 0);
+		val = core << CM_GCR_Cx_OTHER_CORENUM_SHF;
+	}
+
+	write_gcr_cl_other(val);
+}
+
+void mips_cm_unlock_other(void)
+{
+	unsigned curr_core = current_cpu_data.core;
+
+	spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
+			       per_cpu(cm_core_lock_flags, curr_core));
+	preempt_enable();
 }
 
 void mips_cm_error_report(void)
