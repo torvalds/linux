@@ -6395,12 +6395,12 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		sema_init(&hSemHostIntDeinit, 1);
 	}
 
-	sema_init(&(pstrWFIDrv->hSemTestKeyBlock), 0);
-	sema_init(&(pstrWFIDrv->hSemTestDisconnectBlock), 0);
-	sema_init(&(pstrWFIDrv->hSemGetRSSI), 0);
-	sema_init(&(pstrWFIDrv->hSemGetLINKSPEED), 0);
-	sema_init(&(pstrWFIDrv->hSemGetCHNL), 0);
-	sema_init(&(pstrWFIDrv->hSemInactiveTime), 0);
+	sema_init(&pstrWFIDrv->hSemTestKeyBlock, 0);
+	sema_init(&pstrWFIDrv->hSemTestDisconnectBlock, 0);
+	sema_init(&pstrWFIDrv->hSemGetRSSI, 0);
+	sema_init(&pstrWFIDrv->hSemGetLINKSPEED, 0);
+	sema_init(&pstrWFIDrv->hSemGetCHNL, 0);
+	sema_init(&pstrWFIDrv->hSemInactiveTime, 0);
 
 	PRINT_D(HOSTINF_DBG, "INIT: CLIENT COUNT %d\n", clients_count);
 
@@ -6430,7 +6430,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	setup_timer(&pstrWFIDrv->hRemainOnChannel, ListenTimerCB, 0);
 
 	sema_init(&(pstrWFIDrv->gtOsCfgValuesSem), 1);
-	down(&(pstrWFIDrv->gtOsCfgValuesSem));
+	down(&pstrWFIDrv->gtOsCfgValuesSem);
 
 	pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 
@@ -6450,14 +6450,14 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		   pstrWFIDrv->strCfgValues.active_scan_time, pstrWFIDrv->strCfgValues.passive_scan_time,
 		   pstrWFIDrv->strCfgValues.curr_tx_rate);
 
-	up(&(pstrWFIDrv->gtOsCfgValuesSem));
+	up(&pstrWFIDrv->gtOsCfgValuesSem);
 
 	clients_count++; /* increase number of created entities */
 
 	return result;
 
 _fail_timer_2:
-	up(&(pstrWFIDrv->gtOsCfgValuesSem));
+	up(&pstrWFIDrv->gtOsCfgValuesSem);
 	del_timer_sync(&pstrWFIDrv->hConnectTimer);
 	del_timer_sync(&pstrWFIDrv->hScanTimer);
 	kthread_stop(HostIFthreadHandler);
