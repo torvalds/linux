@@ -3322,7 +3322,7 @@ walk_shadow_page_get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 			break;
 
 		reserved |= is_shadow_zero_bits_set(&vcpu->arch.mmu, spte,
-						    leaf);
+						    iterator.level);
 	}
 
 	walk_shadow_page_lockless_end(vcpu);
