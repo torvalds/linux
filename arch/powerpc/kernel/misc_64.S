@@ -475,9 +475,18 @@ _GLOBAL(kexec_wait)
 #ifdef CONFIG_KEXEC		/* use no memory without kexec */
 	lwz	r4,0(r5)
 	cmpwi	0,r4,0
-	bnea	0x60
+	beq	99b
+#ifdef CONFIG_PPC_BOOK3S_64
+	li	r10,0x60
+	mfmsr	r11
+	clrrdi	r11,r11,1	/* Clear MSR_LE */
+	mtsrr0	r10
+	mtsrr1	r11
+	rfid
+#else
+	ba	0x60
 #endif
-	b	99b
+#endif
 
 /* this can be in text because we won't change it until we are
  * running in real anyways

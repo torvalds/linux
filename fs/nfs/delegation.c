@@ -175,7 +175,7 @@ void nfs_inode_reclaim_delegation(struct inode *inode, struct rpc_cred *cred,
 		if (delegation->inode != NULL) {
 			nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 			delegation->type = res->delegation_type;
-			delegation->maxsize = res->maxsize;
+			delegation->pagemod_limit = res->pagemod_limit;
 			oldcred = delegation->cred;
 			delegation->cred = get_rpccred(cred);
 			clear_bit(NFS_DELEGATION_NEED_RECLAIM,
@@ -337,7 +337,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 		return -ENOMEM;
 	nfs4_stateid_copy(&delegation->stateid, &res->delegation);
 	delegation->type = res->delegation_type;
-	delegation->maxsize = res->maxsize;
+	delegation->pagemod_limit = res->pagemod_limit;
 	delegation->change_attr = inode->i_version;
 	delegation->cred = get_rpccred(cred);
 	delegation->inode = inode;
@@ -897,6 +897,31 @@ bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode,
 		nfs4_stateid_copy(dst, &delegation->stateid);
 		nfs_mark_delegation_referenced(delegation);
 	}
+	rcu_read_unlock();
+	return ret;
+}
+
+/**
+ * nfs4_delegation_flush_on_close - Check if we must flush file on close
+ * @inode: inode to check
+ *
+ * This function checks the number of outstanding writes to the file
+ * against the delegation 'space_limit' field to see if
+ * the spec requires us to flush the file on close.
+ */
+bool nfs4_delegation_flush_on_close(const struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_delegation *delegation;
+	bool ret = true;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(nfsi->delegation);
+	if (delegation == NULL || !(delegation->type & FMODE_WRITE))
+		goto out;
+	if (nfsi->nrequests < delegation->pagemod_limit)
+		ret = false;
+out:
 	rcu_read_unlock();
 	return ret;
 }

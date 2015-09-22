@@ -50,13 +50,17 @@ struct mei_cfg {
  * struct mei_me_hw - me hw specific data
  *
  * @cfg: per device generation config and ops
- * @mem_addr:  io memory address
- * @pg_state:      power gating state
+ * @mem_addr: io memory address
+ * @intr_source: interrupt source
+ * @pg_state: power gating state
+ * @d0i3_supported: di03 support
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
+	u32 intr_source;
 	enum mei_pg_state pg_state;
+	bool d0i3_supported;
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)

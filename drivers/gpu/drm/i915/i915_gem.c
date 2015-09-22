@@ -4779,7 +4779,7 @@ int i915_gem_init(struct drm_device *dev)
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		DRM_ERROR("Failed to initialize GPU, declaring it wedged\n");
-		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
+		atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 		ret = 0;
 	}
 

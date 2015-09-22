@@ -154,6 +154,62 @@ bool of_usb_host_tpl_support(struct device_node *np)
 	return false;
 }
 EXPORT_SYMBOL_GPL(of_usb_host_tpl_support);
+
+/**
+ * of_usb_update_otg_caps - to update usb otg capabilities according to
+ * the passed properties in DT.
+ * @np: Pointer to the given device_node
+ * @otg_caps: Pointer to the target usb_otg_caps to be set
+ *
+ * The function updates the otg capabilities
+ */
+int of_usb_update_otg_caps(struct device_node *np,
+			struct usb_otg_caps *otg_caps)
+{
+	u32 otg_rev;
+
+	if (!otg_caps)
+		return -EINVAL;
+
+	if (!of_property_read_u32(np, "otg-rev", &otg_rev)) {
+		switch (otg_rev) {
+		case 0x0100:
+		case 0x0120:
+		case 0x0130:
+		case 0x0200:
+			/* Choose the lesser one if it's already been set */
+			if (otg_caps->otg_rev)
+				otg_caps->otg_rev = min_t(u16, otg_rev,
+							otg_caps->otg_rev);
+			else
+				otg_caps->otg_rev = otg_rev;
+			break;
+		default:
+			pr_err("%s: unsupported otg-rev: 0x%x\n",
+						np->full_name, otg_rev);
+			return -EINVAL;
+		}
+	} else {
+		/*
+		 * otg-rev is mandatory for otg properties, if not passed
+		 * we set it to be 0 and assume it's a legacy otg device.
+		 * Non-dt platform can set it afterwards.
+		 */
+		otg_caps->otg_rev = 0;
+	}
+
+	if (of_find_property(np, "hnp-disable", NULL))
+		otg_caps->hnp_support = false;
+	if (of_find_property(np, "srp-disable", NULL))
+		otg_caps->srp_support = false;
+	if (of_find_property(np, "adp-disable", NULL) ||
+				(otg_caps->otg_rev < 0x0200))
+		otg_caps->adp_support = false;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_usb_update_otg_caps);
+
 #endif
 
 MODULE_LICENSE("GPL");

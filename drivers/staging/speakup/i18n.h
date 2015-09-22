@@ -224,11 +224,11 @@ struct msg_group_t {
 	enum msg_index_t end;
 };
 
-extern char *spk_msg_get(enum msg_index_t index);
-extern ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length);
-extern struct msg_group_t *spk_find_msg_group(const char *group_name);
-extern void spk_reset_msg_group(struct msg_group_t *group);
-extern void spk_initialize_msgs(void);
-extern void spk_free_user_msgs(void);
+char *spk_msg_get(enum msg_index_t index);
+ssize_t spk_msg_set(enum msg_index_t index, char *text, size_t length);
+struct msg_group_t *spk_find_msg_group(const char *group_name);
+void spk_reset_msg_group(struct msg_group_t *group);
+void spk_initialize_msgs(void);
+void spk_free_user_msgs(void);
 
 #endif

@@ -457,6 +457,32 @@ static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
+#define IXGBE_RSS_L4_TYPES_MASK \
+	((1ul << IXGBE_RXDADV_RSSTYPE_IPV4_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV4_UDP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_UDP))
+
+static inline void ixgbevf_rx_hash(struct ixgbevf_ring *ring,
+				   union ixgbe_adv_rx_desc *rx_desc,
+				   struct sk_buff *skb)
+{
+	u16 rss_type;
+
+	if (!(ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	rss_type = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info) &
+		   IXGBE_RXDADV_RSSTYPE_MASK;
+
+	if (!rss_type)
+		return;
+
+	skb_set_hash(skb, le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
+		     (IXGBE_RSS_L4_TYPES_MASK & (1ul << rss_type)) ?
+		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+}
+
 /**
  * ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
  * @ring: structure containig ring specific data
@@ -506,6 +532,7 @@ static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
 				       union ixgbe_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
 {
+	ixgbevf_rx_hash(rx_ring, rx_desc, skb);
 	ixgbevf_rx_checksum(rx_ring, rx_desc, skb);
 
 	if (ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
@@ -649,46 +676,6 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 }
 
 /**
- * ixgbevf_pull_tail - ixgbevf specific version of skb_pull_tail
- * @rx_ring: rx descriptor ring packet is being transacted on
- * @skb: pointer to current skb being adjusted
- *
- * This function is an ixgbevf specific version of __pskb_pull_tail.  The
- * main difference between this version and the original function is that
- * this function can make several assumptions about the state of things
- * that allow for significant optimizations versus the standard function.
- * As a result we can do things like drop a frag and maintain an accurate
- * truesize for the skb.
- **/
-static void ixgbevf_pull_tail(struct ixgbevf_ring *rx_ring,
-			      struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned char *va;
-	unsigned int pull_len;
-
-	/* it is valid to use page_address instead of kmap since we are
-	 * working with pages allocated out of the lomem pool per
-	 * alloc_page(GFP_ATOMIC)
-	 */
-	va = skb_frag_address(frag);
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, IXGBEVF_RX_HDR_SIZE);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
-}
-
-/**
  * ixgbevf_cleanup_headers - Correct corrupted or empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
@@ -720,10 +707,6 @@ static bool ixgbevf_cleanup_headers(struct ixgbevf_ring *rx_ring,
 			return true;
 		}
 	}
-
-	/* place header in linear portion of buffer */
-	if (skb_is_nonlinear(skb))
-		ixgbevf_pull_tail(rx_ring, skb);
 
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
@@ -789,16 +772,19 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
 	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = IXGBEVF_RX_BUFSZ;
 #else
 	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
 #endif
+	unsigned int pull_len;
 
-	if ((size <= IXGBEVF_RX_HDR_SIZE) && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
 
+	if (likely(size <= IXGBEVF_RX_HDR_SIZE)) {
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* page is not reserved, we can reuse buffer as is */
@@ -810,8 +796,21 @@ static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 		return false;
 	}
 
+	/* we need the header to contain the greater of either ETH_HLEN or
+	 * 60 bytes if the skb->len is less than 60 for skb_pad.
+	 */
+	pull_len = eth_get_headlen(va, IXGBEVF_RX_HDR_SIZE);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	va += pull_len;
+	size -= pull_len;
+
+add_tail_frag:
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, truesize);
+			(unsigned long)va & ~PAGE_MASK, size, truesize);
 
 	/* avoid re-using remote pages */
 	if (unlikely(ixgbevf_page_is_reserved(page)))
@@ -1697,22 +1696,25 @@ static void ixgbevf_setup_vfmrqc(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 vfmrqc = 0, vfreta = 0;
-	u32 rss_key[10];
 	u16 rss_i = adapter->num_rx_queues;
-	int i, j;
+	u8 i, j;
 
 	/* Fill out hash function seeds */
-	netdev_rss_key_fill(rss_key, sizeof(rss_key));
-	for (i = 0; i < 10; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), rss_key[i]);
+	netdev_rss_key_fill(adapter->rss_key, sizeof(adapter->rss_key));
+	for (i = 0; i < IXGBEVF_VFRSSRK_REGS; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRSSRK(i), adapter->rss_key[i]);
 
-	/* Fill out redirection table */
-	for (i = 0, j = 0; i < 64; i++, j++) {
+	for (i = 0, j = 0; i < IXGBEVF_X550_VFRETA_SIZE; i++, j++) {
 		if (j == rss_i)
 			j = 0;
-		vfreta = (vfreta << 8) | (j * 0x1);
-		if ((i & 3) == 3)
+
+		adapter->rss_indir_tbl[i] = j;
+
+		vfreta |= j << (i & 0x3) * 8;
+		if ((i & 3) == 3) {
 			IXGBE_WRITE_REG(hw, IXGBE_VFRETA(i >> 2), vfreta);
+			vfreta = 0;
+		}
 	}
 
 	/* Perform hash on these packet types */

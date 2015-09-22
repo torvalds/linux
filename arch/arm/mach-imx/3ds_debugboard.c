@@ -85,7 +85,7 @@ static struct platform_device smsc_lan9217_device = {
 	.resource = smsc911x_resources,
 };
 
-static void mxc_expio_irq_handler(u32 irq, struct irq_desc *desc)
+static void mxc_expio_irq_handler(struct irq_desc *desc)
 {
 	u32 imr_val;
 	u32 int_valid;
@@ -195,7 +195,7 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 
 	for (i = irq_base; i < irq_base + MXC_MAX_EXP_IO_LINES; i++) {
 		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 	irq_set_irq_type(p_irq, IRQF_TRIGGER_LOW);
 	irq_set_chained_handler(p_irq, mxc_expio_irq_handler);

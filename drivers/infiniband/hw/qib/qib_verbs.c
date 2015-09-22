@@ -40,6 +40,7 @@
 #include <linux/rculist.h>
 #include <linux/mm.h>
 #include <linux/random.h>
+#include <linux/vmalloc.h>
 
 #include "qib.h"
 #include "qib_common.h"
@@ -1574,6 +1575,7 @@ static int qib_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	props->max_qp = ib_qib_max_qps;
 	props->max_qp_wr = ib_qib_max_qp_wrs;
 	props->max_sge = ib_qib_max_sges;
+	props->max_sge_rd = ib_qib_max_sges;
 	props->max_cq = ib_qib_max_cqs;
 	props->max_ah = ib_qib_max_ahs;
 	props->max_cqe = ib_qib_max_cqes;
@@ -2109,10 +2111,16 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	 * the LKEY).  The remaining bits act as a generation number or tag.
 	 */
 	spin_lock_init(&dev->lk_table.lock);
+	/* insure generation is at least 4 bits see keys.c */
+	if (ib_qib_lkey_table_size > MAX_LKEY_TABLE_BITS) {
+		qib_dev_warn(dd, "lkey bits %u too large, reduced to %u\n",
+			ib_qib_lkey_table_size, MAX_LKEY_TABLE_BITS);
+		ib_qib_lkey_table_size = MAX_LKEY_TABLE_BITS;
+	}
 	dev->lk_table.max = 1 << ib_qib_lkey_table_size;
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
 	dev->lk_table.table = (struct qib_mregion __rcu **)
-		__get_free_pages(GFP_KERNEL, get_order(lk_tab_size));
+		vmalloc(lk_tab_size);
 	if (dev->lk_table.table == NULL) {
 		ret = -ENOMEM;
 		goto err_lk;
@@ -2235,7 +2243,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->reg_phys_mr = qib_reg_phys_mr;
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
-	ibdev->alloc_fast_reg_mr = qib_alloc_fast_reg_mr;
+	ibdev->alloc_mr = qib_alloc_mr;
 	ibdev->alloc_fast_reg_page_list = qib_alloc_fast_reg_page_list;
 	ibdev->free_fast_reg_page_list = qib_free_fast_reg_page_list;
 	ibdev->alloc_fmr = qib_alloc_fmr;
@@ -2286,7 +2294,7 @@ err_tx:
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 err_hdrs:
-	free_pages((unsigned long) dev->lk_table.table, get_order(lk_tab_size));
+	vfree(dev->lk_table.table);
 err_lk:
 	kfree(dev->qp_table);
 err_qpt:
@@ -2340,8 +2348,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 					sizeof(struct qib_pio_header),
 				  dev->pio_hdrs, dev->pio_hdrs_phys);
 	lk_tab_size = dev->lk_table.max * sizeof(*dev->lk_table.table);
-	free_pages((unsigned long) dev->lk_table.table,
-		   get_order(lk_tab_size));
+	vfree(dev->lk_table.table);
 	kfree(dev->qp_table);
 }
 

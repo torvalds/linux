@@ -113,7 +113,7 @@ static int dm816x_usb_phy_init(struct phy *x)
 	return 0;
 }
 
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.init		= dm816x_usb_phy_init,
 	.owner		= THIS_MODULE,
 };

@@ -67,6 +67,10 @@ static __inline__ int atomic_##op##_return(int a, atomic_t *v)		\
 ATOMIC_OPS(add, add)
 ATOMIC_OPS(sub, subf)
 
+ATOMIC_OP(and, and)
+ATOMIC_OP(or, or)
+ATOMIC_OP(xor, xor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -304,6 +308,9 @@ static __inline__ long atomic64_##op##_return(long a, atomic64_t *v)	\
 
 ATOMIC64_OPS(add, add)
 ATOMIC64_OPS(sub, subf)
+ATOMIC64_OP(and, and)
+ATOMIC64_OP(or, or)
+ATOMIC64_OP(xor, xor)
 
 #undef ATOMIC64_OPS
 #undef ATOMIC64_OP_RETURN

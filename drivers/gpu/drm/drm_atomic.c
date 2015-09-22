@@ -1540,7 +1540,8 @@ retry:
 			copied_props++;
 		}
 
-		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props) {
+		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props &&
+		    !(arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 			plane = obj_to_plane(obj);
 			plane_mask |= (1 << drm_plane_index(plane));
 			plane->old_fb = plane->fb;
@@ -1562,10 +1563,11 @@ retry:
 	}
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
+		/*
+		 * Unlike commit, check_only does not clean up state.
+		 * Below we call drm_atomic_state_free for it.
+		 */
 		ret = drm_atomic_check_only(state);
-		/* _check_only() does not free state, unlike _commit() */
-		if (!ret)
-			drm_atomic_state_free(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_async_commit(state);
 	} else {
@@ -1592,25 +1594,30 @@ out:
 		plane->old_fb = NULL;
 	}
 
+	if (ret && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		/*
+		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually exclusive,
+		 * if they weren't, this code should be called on success
+		 * for TEST_ONLY too.
+		 */
+
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			if (!crtc_state->event)
+				continue;
+
+			destroy_vblank_event(dev, file_priv,
+					     crtc_state->event);
+		}
+	}
+
 	if (ret == -EDEADLK) {
 		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
 
-	if (ret) {
-		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-			for_each_crtc_in_state(state, crtc, crtc_state, i) {
-				if (!crtc_state->event)
-					continue;
-
-				destroy_vblank_event(dev, file_priv,
-						     crtc_state->event);
-			}
-		}
-
+	if (ret || arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
 		drm_atomic_state_free(state);
-	}
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

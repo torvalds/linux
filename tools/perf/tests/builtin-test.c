@@ -175,6 +175,10 @@ static struct test {
 		.func = test__thread_map,
 	},
 	{
+		.desc = "Test LLVM searching and compiling",
+		.func = test__llvm,
+	},
+	{
 		.func = NULL,
 	},
 };

@@ -231,8 +231,9 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, davinci_vcif_dev);
 
-	ret = snd_soc_register_component(&pdev->dev, &davinci_vcif_component,
-					 &davinci_vcif_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &davinci_vcif_component,
+					      &davinci_vcif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "could not register dai\n");
 		return ret;
@@ -241,23 +242,14 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	ret = edma_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
-		snd_soc_unregister_component(&pdev->dev);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int davinci_vcif_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
-}
-
 static struct platform_driver davinci_vcif_driver = {
 	.probe		= davinci_vcif_probe,
-	.remove		= davinci_vcif_remove,
 	.driver		= {
 		.name	= "davinci-vcif",
 	},

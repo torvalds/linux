@@ -68,11 +68,24 @@ acpi_status
 acpi_tb_find_table(char *signature,
 		   char *oem_id, char *oem_table_id, u32 *table_index)
 {
-	u32 i;
 	acpi_status status;
 	struct acpi_table_header header;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_find_table);
+
+	/* Validate the input table signature */
+
+	if (!acpi_is_valid_signature(signature)) {
+		return_ACPI_STATUS(AE_BAD_SIGNATURE);
+	}
+
+	/* Don't allow the OEM strings to be too long */
+
+	if ((strlen(oem_id) > ACPI_OEM_ID_SIZE) ||
+	    (strlen(oem_table_id) > ACPI_OEM_TABLE_ID_SIZE)) {
+		return_ACPI_STATUS(AE_AML_STRING_LIMIT);
+	}
 
 	/* Normalize the input strings */
 

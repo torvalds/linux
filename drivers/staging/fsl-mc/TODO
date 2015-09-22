@@ -1,13 +1,31 @@
-* Add README file (with ASCII art) describing relationships between
-  DPAA2 objects and how combine them to make a NIC, an LS2 switch, etc.
-  Also, define all acronyms used.
-
 * Decide if multiple root fsl-mc buses will be supported per Linux instance,
   and if so add support for this.
 
 * Add at least one device driver for a DPAA2 object (child device of the
-  fsl-mc bus).
+  fsl-mc bus).  Most likely candidate for this is adding DPAA2 Ethernet
+  driver support, which depends on drivers for several objects: DPNI,
+  DPIO, DPMAC.  Other pre-requisites include:
+
+     * interrupt support. for meaningful driver support we need
+       interrupts, and thus need message interrupt support by the bus
+       driver.
+          -Note: this has dependencies on generic MSI support work
+           in process upstream, see [1] and [2].
+
+     * Management Complex (MC) command serialization. locking mechanisms
+       are needed by drivers to serialize commands sent to the MC, including
+       from atomic context.
+
+     * MC firmware uprev.  The MC firmware upon which the fsl-mc
+       bus driver and DPAA2 object drivers are based is continuing
+       to evolve, so minor updates are needed to keep in sync with binary
+       interface changes to the MC.
+
+* Cleanup
 
 Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 german.rivera@freescale.com, devel@driverdev.osuosl.org,
 linux-kernel@vger.kernel.org
+
+[1] https://lkml.org/lkml/2015/7/9/93
+[2] https://lkml.org/lkml/2015/7/7/712

@@ -18,6 +18,21 @@
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
 
+bool policy_has_boost_freq(struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
+
+	if (!table)
+		return false;
+
+	cpufreq_for_each_valid_entry(pos, table)
+		if (pos->flags & CPUFREQ_BOOST_FREQ)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(policy_has_boost_freq);
+
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 				    struct cpufreq_frequency_table *table)
 {

@@ -85,8 +85,6 @@ enum umh_disable_depth {
 	UMH_DISABLED,
 };
 
-extern void usermodehelper_init(void);
-
 extern int __usermodehelper_disable(enum umh_disable_depth depth);
 extern void __usermodehelper_set_disable_depth(enum umh_disable_depth depth);
 

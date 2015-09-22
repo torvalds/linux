@@ -176,6 +176,41 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
+static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
+{
+	struct dsa_chip_data *cd = ds->pd;
+	struct device_node *port_dn;
+	struct phy_device *phydev;
+	int ret, port, mode;
+
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
+		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
+			continue;
+
+		port_dn = cd->port_dn[port];
+		if (of_phy_is_fixed_link(port_dn)) {
+			ret = of_phy_register_fixed_link(port_dn);
+			if (ret) {
+				netdev_err(master,
+					   "failed to register fixed PHY\n");
+				return ret;
+			}
+			phydev = of_phy_find_device(port_dn);
+
+			mode = of_get_phy_mode(port_dn);
+			if (mode < 0)
+				mode = PHY_INTERFACE_MODE_NA;
+			phydev->interface = mode;
+
+			genphy_config_init(phydev);
+			genphy_read_status(phydev);
+			if (ds->drv->adjust_link)
+				ds->drv->adjust_link(ds, port, phydev);
+		}
+	}
+	return 0;
+}
+
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
 	struct dsa_switch_driver *drv = ds->drv;
@@ -295,6 +330,14 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 				   index, i, pd->port_names[i]);
 			ret = 0;
 		}
+	}
+
+	/* Perform configuration of the CPU and DSA ports */
+	ret = dsa_cpu_dsa_setup(ds, dst->master_netdev);
+	if (ret < 0) {
+		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
+			   index);
+		ret = 0;
 	}
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -554,6 +597,31 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	return 0;
 }
 
+static int dsa_of_probe_links(struct dsa_platform_data *pd,
+			      struct dsa_chip_data *cd,
+			      int chip_index, int port_index,
+			      struct device_node *port,
+			      const char *port_name)
+{
+	struct device_node *link;
+	int link_index;
+	int ret;
+
+	for (link_index = 0;; link_index++) {
+		link = of_parse_phandle(port, "link", link_index);
+		if (!link)
+			break;
+
+		if (!strcmp(port_name, "dsa") && pd->nr_chips > 1) {
+			ret = dsa_of_setup_routing_table(pd, cd, chip_index,
+							 port_index, link);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
 static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 {
 	int i;
@@ -573,8 +641,8 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 static int dsa_of_probe(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
-	struct device_node *child, *mdio, *ethernet, *port, *link;
-	struct mii_bus *mdio_bus;
+	struct device_node *child, *mdio, *ethernet, *port;
+	struct mii_bus *mdio_bus, *mdio_bus_switch;
 	struct net_device *ethernet_dev;
 	struct dsa_platform_data *pd;
 	struct dsa_chip_data *cd;
@@ -636,6 +704,16 @@ static int dsa_of_probe(struct device *dev)
 		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
 			cd->eeprom_len = eeprom_len;
 
+		mdio = of_parse_phandle(child, "mii-bus", 0);
+		if (mdio) {
+			mdio_bus_switch = of_mdio_find_bus(mdio);
+			if (!mdio_bus_switch) {
+				ret = -EPROBE_DEFER;
+				goto out_free_chip;
+			}
+			cd->host_dev = &mdio_bus_switch->dev;
+		}
+
 		for_each_available_child_of_node(child, port) {
 			port_reg = of_get_property(port, "reg", NULL);
 			if (!port_reg)
@@ -658,15 +736,10 @@ static int dsa_of_probe(struct device *dev)
 				goto out_free_chip;
 			}
 
-			link = of_parse_phandle(port, "link", 0);
-
-			if (!strcmp(port_name, "dsa") && link &&
-					pd->nr_chips > 1) {
-				ret = dsa_of_setup_routing_table(pd, cd,
-						chip_index, port_index, link);
-				if (ret)
-					goto out_free_chip;
-			}
+			ret = dsa_of_probe_links(pd, cd, chip_index,
+						 port_index, port, port_name);
+			if (ret)
+				goto out_free_chip;
 
 		}
 	}

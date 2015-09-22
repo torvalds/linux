@@ -81,7 +81,6 @@ MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open(
 #define FESTATE_SEARCHING_SLOW (FESTATE_TUNING_SLOW | FESTATE_ZIGZAG_SLOW)
 #define FESTATE_LOSTLOCK (FESTATE_ZIGZAG_FAST | FESTATE_ZIGZAG_SLOW)
 
-#define FE_ALGO_HW		1
 /*
  * FESTATE_IDLE. No tuning parameters have been supplied and the loop is idling.
  * FESTATE_RETUNE. Parameters have been supplied, but we have not yet performed the first tune.

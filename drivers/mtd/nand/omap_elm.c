@@ -574,5 +574,5 @@ module_platform_driver(elm_driver);
 
 MODULE_DESCRIPTION("ELM driver for BCH error correction");
 MODULE_AUTHOR("Texas Instruments");
-MODULE_ALIAS("platform: elm");
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_LICENSE("GPL v2");

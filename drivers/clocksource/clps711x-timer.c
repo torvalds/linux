@@ -61,11 +61,6 @@ static irqreturn_t clps711x_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void clps711x_clockevent_set_mode(enum clock_event_mode mode,
-					 struct clock_event_device *evt)
-{
-}
-
 static int __init _clps711x_clkevt_init(struct clk *clock, void __iomem *base,
 					unsigned int irq)
 {
@@ -91,7 +86,6 @@ static int __init _clps711x_clkevt_init(struct clk *clock, void __iomem *base,
 	clkevt->name = "clps711x-clockevent";
 	clkevt->rating = 300;
 	clkevt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_C3STOP;
-	clkevt->set_mode = clps711x_clockevent_set_mode;
 	clkevt->cpumask = cpumask_of(0);
 	clockevents_config_and_register(clkevt, HZ, 0, 0);
 

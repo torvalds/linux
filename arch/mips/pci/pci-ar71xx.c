@@ -226,7 +226,7 @@ static struct pci_ops ar71xx_pci_ops = {
 	.write	= ar71xx_pci_write_config,
 };
 
-static void ar71xx_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ar71xx_pci_irq_handler(struct irq_desc *desc)
 {
 	struct ar71xx_pci_controller *apc;
 	void __iomem *base = ath79_reset_base;
@@ -312,8 +312,8 @@ static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 		irq_set_chip_data(i, apc);
 	}
 
-	irq_set_handler_data(apc->irq, apc);
-	irq_set_chained_handler(apc->irq, ar71xx_pci_irq_handler);
+	irq_set_chained_handler_and_data(apc->irq, ar71xx_pci_irq_handler,
+					 apc);
 }
 
 static void ar71xx_pci_reset(void)

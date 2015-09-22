@@ -194,10 +194,8 @@ struct g2d_cmdlist_userptr {
 	dma_addr_t		dma_addr;
 	unsigned long		userptr;
 	unsigned long		size;
-	struct page		**pages;
-	unsigned int		npages;
+	struct frame_vector	*vec;
 	struct sg_table		*sgt;
-	struct vm_area_struct	*vma;
 	atomic_t		refcount;
 	bool			in_pool;
 	bool			out_of_list;
@@ -367,6 +365,7 @@ static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
 {
 	struct g2d_cmdlist_userptr *g2d_userptr =
 					(struct g2d_cmdlist_userptr *)obj;
+	struct page **pages;
 
 	if (!obj)
 		return;
@@ -386,19 +385,21 @@ out:
 	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
 					DMA_BIDIRECTIONAL);
 
-	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
-					g2d_userptr->npages,
-					g2d_userptr->vma);
+	pages = frame_vector_pages(g2d_userptr->vec);
+	if (!IS_ERR(pages)) {
+		int i;
 
-	exynos_gem_put_vma(g2d_userptr->vma);
+		for (i = 0; i < frame_vector_count(g2d_userptr->vec); i++)
+			set_page_dirty_lock(pages[i]);
+	}
+	put_vaddr_frames(g2d_userptr->vec);
+	frame_vector_destroy(g2d_userptr->vec);
 
 	if (!g2d_userptr->out_of_list)
 		list_del_init(&g2d_userptr->list);
 
 	sg_free_table(g2d_userptr->sgt);
 	kfree(g2d_userptr->sgt);
-
-	drm_free_large(g2d_userptr->pages);
 	kfree(g2d_userptr);
 }
 
@@ -412,9 +413,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	struct exynos_drm_g2d_private *g2d_priv = file_priv->g2d_priv;
 	struct g2d_cmdlist_userptr *g2d_userptr;
 	struct g2d_data *g2d;
-	struct page **pages;
 	struct sg_table	*sgt;
-	struct vm_area_struct *vma;
 	unsigned long start, end;
 	unsigned int npages, offset;
 	int ret;
@@ -460,65 +459,40 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		return ERR_PTR(-ENOMEM);
 
 	atomic_set(&g2d_userptr->refcount, 1);
+	g2d_userptr->size = size;
 
 	start = userptr & PAGE_MASK;
 	offset = userptr & ~PAGE_MASK;
 	end = PAGE_ALIGN(userptr + size);
 	npages = (end - start) >> PAGE_SHIFT;
-	g2d_userptr->npages = npages;
-
-	pages = drm_calloc_large(npages, sizeof(struct page *));
-	if (!pages) {
-		DRM_ERROR("failed to allocate pages.\n");
+	g2d_userptr->vec = frame_vector_create(npages);
+	if (!g2d_userptr->vec) {
 		ret = -ENOMEM;
 		goto err_free;
 	}
 
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, userptr);
-	if (!vma) {
-		up_read(&current->mm->mmap_sem);
-		DRM_ERROR("failed to get vm region.\n");
-		ret = -EFAULT;
-		goto err_free_pages;
-	}
-
-	if (vma->vm_end < userptr + size) {
-		up_read(&current->mm->mmap_sem);
-		DRM_ERROR("vma is too small.\n");
-		ret = -EFAULT;
-		goto err_free_pages;
-	}
-
-	g2d_userptr->vma = exynos_gem_get_vma(vma);
-	if (!g2d_userptr->vma) {
-		up_read(&current->mm->mmap_sem);
-		DRM_ERROR("failed to copy vma.\n");
-		ret = -ENOMEM;
-		goto err_free_pages;
-	}
-
-	g2d_userptr->size = size;
-
-	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
-						npages, pages, vma);
-	if (ret < 0) {
-		up_read(&current->mm->mmap_sem);
+	ret = get_vaddr_frames(start, npages, true, true, g2d_userptr->vec);
+	if (ret != npages) {
 		DRM_ERROR("failed to get user pages from userptr.\n");
-		goto err_put_vma;
+		if (ret < 0)
+			goto err_destroy_framevec;
+		ret = -EFAULT;
+		goto err_put_framevec;
 	}
-
-	up_read(&current->mm->mmap_sem);
-	g2d_userptr->pages = pages;
+	if (frame_vector_to_pages(g2d_userptr->vec) < 0) {
+		ret = -EFAULT;
+		goto err_put_framevec;
+	}
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
 		ret = -ENOMEM;
-		goto err_free_userptr;
+		goto err_put_framevec;
 	}
 
-	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
-					size, GFP_KERNEL);
+	ret = sg_alloc_table_from_pages(sgt,
+					frame_vector_pages(g2d_userptr->vec),
+					npages, offset, size, GFP_KERNEL);
 	if (ret < 0) {
 		DRM_ERROR("failed to get sgt from pages.\n");
 		goto err_free_sgt;
@@ -553,16 +527,11 @@ err_sg_free_table:
 err_free_sgt:
 	kfree(sgt);
 
-err_free_userptr:
-	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
-					g2d_userptr->npages,
-					g2d_userptr->vma);
+err_put_framevec:
+	put_vaddr_frames(g2d_userptr->vec);
 
-err_put_vma:
-	exynos_gem_put_vma(g2d_userptr->vma);
-
-err_free_pages:
-	drm_free_large(pages);
+err_destroy_framevec:
+	frame_vector_destroy(g2d_userptr->vec);
 
 err_free:
 	kfree(g2d_userptr);

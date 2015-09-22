@@ -141,6 +141,12 @@ choice
 		depends on ARCH_AT91
 		depends on SOC_SAMA5
 
+	config AT91_DEBUG_LL_DBGU3
+		bool "Kernel low-level debugging on sama5d2"
+		select DEBUG_AT91_UART
+		depends on ARCH_AT91
+		depends on SOC_SAMA5
+
 	config DEBUG_BCM2835
 		bool "Kernel low-level debugging on BCM2835 PL011 UART"
 		depends on ARCH_BCM2835
@@ -410,6 +416,13 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX6SX.
+
+	config DEBUG_IMX6UL_UART
+		bool "i.MX6UL Debug UART"
+		depends on SOC_IMX6UL
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6UL.
 
 	config DEBUG_IMX7D_UART
 		bool "i.MX7D Debug UART"
@@ -1269,6 +1282,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX6Q_UART || \
 						DEBUG_IMX6SL_UART || \
 						DEBUG_IMX6SX_UART || \
+						DEBUG_IMX6UL_UART || \
 						DEBUG_IMX7D_UART
 	default 1
 	depends on ARCH_MXC
@@ -1320,6 +1334,7 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART || \
 				 DEBUG_IMX6SX_UART || \
+				 DEBUG_IMX6UL_UART || \
 				 DEBUG_IMX7D_UART
 	default "debug/ks8695.S" if DEBUG_KS8695_UART
 	default "debug/msm.S" if DEBUG_QCOM_UARTDM

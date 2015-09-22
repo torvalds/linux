@@ -65,18 +65,6 @@ static const struct of_device_id of_coherency_table[] = {
 int ll_enable_coherency(void);
 void ll_add_cpu_to_smp_group(void);
 
-int set_cpu_coherent(void)
-{
-	if (!coherency_base) {
-		pr_warn("Can't make current CPU cache coherent.\n");
-		pr_warn("Coherency fabric is not initialized\n");
-		return 1;
-	}
-
-	ll_add_cpu_to_smp_group();
-	return ll_enable_coherency();
-}
-
 static int mvebu_hwcc_notifier(struct notifier_block *nb,
 			       unsigned long event, void *__dev)
 {
@@ -204,6 +192,23 @@ static int coherency_type(void)
 	of_node_put(np);
 
 	return type;
+}
+
+int set_cpu_coherent(void)
+{
+	int type = coherency_type();
+
+	if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP) {
+		if (!coherency_base) {
+			pr_warn("Can't make current CPU cache coherent.\n");
+			pr_warn("Coherency fabric is not initialized\n");
+			return 1;
+		}
+		ll_add_cpu_to_smp_group();
+		return ll_enable_coherency();
+	}
+
+	return 0;
 }
 
 int coherency_available(void)

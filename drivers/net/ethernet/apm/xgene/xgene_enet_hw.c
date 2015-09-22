@@ -801,6 +801,9 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata)
 
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata)
 {
+	if (pdata->phy_dev)
+		phy_disconnect(pdata->phy_dev);
+
 	mdiobus_unregister(pdata->mdio_bus);
 	mdiobus_free(pdata->mdio_bus);
 	pdata->mdio_bus = NULL;

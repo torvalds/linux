@@ -222,18 +222,17 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	int i, ret = 0;
 	struct clk *clk;
 
-	clk = clk_get(dev, NULL);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
 	sa11xx_drv_pcmcia_ops(ops);
 
-	sinfo = kzalloc(SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
+	sinfo = devm_kzalloc(dev, SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
 	if (!sinfo)
 		return -ENOMEM;
 
 	sinfo->nskt = nr;
-	sinfo->clk = clk;
 
 	/* Initialize processor specific parameters */
 	for (i = 0; i < nr; i++) {
@@ -251,8 +250,6 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	if (ret) {
 		while (--i >= 0)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
-		clk_put(clk);
-		kfree(sinfo);
 	} else {
 		dev_set_drvdata(dev, sinfo);
 	}
@@ -260,16 +257,6 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	return ret;
 }
 EXPORT_SYMBOL(sa11xx_drv_pcmcia_probe);
-
-static int __init sa11xx_pcmcia_init(void)
-{
-	return 0;
-}
-fs_initcall(sa11xx_pcmcia_init);
-
-static void __exit sa11xx_pcmcia_exit(void) {}
-
-module_exit(sa11xx_pcmcia_exit);
 
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: SA-11xx core socket driver");

@@ -1837,7 +1837,9 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		clk_prepare_enable(wm8904->mclk);
+		ret = clk_prepare_enable(wm8904->mclk);
+		if (ret)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -2292,7 +2294,6 @@ MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);
 static struct i2c_driver wm8904_i2c_driver = {
 	.driver = {
 		.name = "wm8904",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(wm8904_of_match),
 	},
 	.probe =    wm8904_i2c_probe,

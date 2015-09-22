@@ -41,6 +41,21 @@ struct usb_otg {
 
 };
 
+/**
+ * struct usb_otg_caps - describes the otg capabilities of the device
+ * @otg_rev: The OTG revision number the device is compliant with, it's
+ *		in binary-coded decimal (i.e. 2.0 is 0200H).
+ * @hnp_support: Indicates if the device supports HNP.
+ * @srp_support: Indicates if the device supports SRP.
+ * @adp_support: Indicates if the device supports ADP.
+ */
+struct usb_otg_caps {
+	u16 otg_rev;
+	bool hnp_support;
+	bool srp_support;
+	bool adp_support;
+};
+
 extern const char *usb_otg_state_string(enum usb_otg_state state);
 
 /* Context: can sleep */

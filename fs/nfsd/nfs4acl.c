@@ -34,8 +34,10 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/nfs_fs.h>
+#include <linux/posix_acl.h>
+
 #include "nfsfh.h"
 #include "nfsd.h"
 #include "acl.h"
@@ -100,7 +102,7 @@ deny_mask_from_posix(unsigned short perm, u32 flags)
 /* We only map from NFSv4 to POSIX ACLs when setting ACLs, when we err on the
  * side of being more restrictive, so the mode bit mapping below is
  * pessimistic.  An optimistic version would be needed to handle DENY's,
- * but we espect to coalesce all ALLOWs and DENYs before mapping to mode
+ * but we expect to coalesce all ALLOWs and DENYs before mapping to mode
  * bits. */
 
 static void
@@ -458,7 +460,7 @@ init_state(struct posix_acl_state *state, int cnt)
 	state->empty = 1;
 	/*
 	 * In the worst case, each individual acl could be for a distinct
-	 * named user or group, but we don't no which, so we allocate
+	 * named user or group, but we don't know which, so we allocate
 	 * enough space for either:
 	 */
 	alloc = sizeof(struct posix_ace_state_array)

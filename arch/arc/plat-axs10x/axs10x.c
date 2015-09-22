@@ -46,7 +46,7 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	 * -------------------   -------------------
 	 * | snps,dw-apb-gpio |  | snps,dw-apb-gpio |
 	 * -------------------   -------------------
-	 *        |                         |
+	 *        | #12                     |
 	 *        |                 [ Debug UART on cpu card ]
 	 *        |
 	 * ------------------------
@@ -402,6 +402,8 @@ static void __init axs103_early_init(void)
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2)
 		arc_set_core_freq(50 * 1000000);
+	else if (num_cores == 2)
+		arc_set_core_freq(75 * 1000000);
 #endif
 
 	switch (arc_get_core_freq()/1000000) {

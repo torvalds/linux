@@ -1883,6 +1883,7 @@ struct drm_i915_private {
 	struct drm_property *force_audio_property;
 
 	/* hda/i915 audio component */
+	struct i915_audio_component *audio_component;
 	bool audio_component_registered;
 
 	uint32_t hw_context_size;
@@ -1928,6 +1929,8 @@ struct drm_i915_private {
 			struct skl_wm_values skl_hw;
 			struct vlv_wm_values vlv;
 		};
+
+		uint8_t max_level;
 	} wm;
 
 	struct i915_runtime_pm pm;
@@ -3383,13 +3386,13 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 #define I915_READ64(reg)	dev_priv->uncore.funcs.mmio_readq(dev_priv, (reg), true)
 
 #define I915_READ64_2x32(lower_reg, upper_reg) ({			\
-	u32 upper, lower, tmp;						\
-	tmp = I915_READ(upper_reg);					\
+	u32 upper, lower, old_upper, loop = 0;				\
+	upper = I915_READ(upper_reg);					\
 	do {								\
-		upper = tmp;						\
+		old_upper = upper;					\
 		lower = I915_READ(lower_reg);				\
-		tmp = I915_READ(upper_reg);				\
-	} while (upper != tmp);						\
+		upper = I915_READ(upper_reg);				\
+	} while (upper != old_upper && loop++ < 2);			\
 	(u64)upper << 32 | lower; })
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)

@@ -689,6 +689,7 @@ nvkm_device_pci_10de_11e3[] = {
 
 static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_11fc[] = {
+	{ 0x1179, 0x0001, NULL, { .War00C800_0 = true } }, /* Toshiba Tecra W50 */
 	{ 0x17aa, 0x2211, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
 	{ 0x17aa, 0x221e, NULL, { .War00C800_0 = true } }, /* Lenovo W541 */
 	{}

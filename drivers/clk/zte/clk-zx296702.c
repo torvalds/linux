@@ -36,10 +36,21 @@ static struct clk_onecell_data lsp1clk_data;
 #define CLK_MUX1		(topcrm_base + 0x8c)
 
 #define CLK_SDMMC1		(lsp0crpm_base + 0x0c)
+#define CLK_GPIO		(lsp0crpm_base + 0x2c)
+#define CLK_SPDIF0		(lsp0crpm_base + 0x10)
+#define SPDIF0_DIV		(lsp0crpm_base + 0x14)
+#define CLK_I2S0		(lsp0crpm_base + 0x18)
+#define I2S0_DIV		(lsp0crpm_base + 0x1c)
+#define CLK_I2S1		(lsp0crpm_base + 0x20)
+#define I2S1_DIV		(lsp0crpm_base + 0x24)
+#define CLK_I2S2		(lsp0crpm_base + 0x34)
+#define I2S2_DIV		(lsp0crpm_base + 0x38)
 
 #define CLK_UART0		(lsp1crpm_base + 0x20)
 #define CLK_UART1		(lsp1crpm_base + 0x24)
 #define CLK_SDMMC0		(lsp1crpm_base + 0x2c)
+#define CLK_SPDIF1		(lsp1crpm_base + 0x30)
+#define SPDIF1_DIV		(lsp1crpm_base + 0x34)
 
 static const struct zx_pll_config pll_a9_config[] = {
 	{ .rate = 700000000, .cfg0 = 0x800405d1, .cfg1 = 0x04555555 },
@@ -72,102 +83,117 @@ static const struct clk_div_table sec_wclk_divider[] = {
 	{ /* sentinel */ }
 };
 
-static const char * matrix_aclk_sel[] = {
+static const char * const matrix_aclk_sel[] = {
 	"pll_mm0_198M",
 	"osc",
 	"clk_148M5",
 	"pll_lsp_104M",
 };
 
-static const char * a9_wclk_sel[] = {
+static const char * const a9_wclk_sel[] = {
 	"pll_a9",
 	"osc",
 	"clk_500",
 	"clk_250",
 };
 
-static const char * a9_as1_aclk_sel[] = {
+static const char * const a9_as1_aclk_sel[] = {
 	"clk_250",
 	"osc",
 	"pll_mm0_396M",
 	"pll_mac_333M",
 };
 
-static const char * a9_trace_clkin_sel[] = {
+static const char * const a9_trace_clkin_sel[] = {
 	"clk_74M25",
 	"pll_mm1_108M",
 	"clk_125",
 	"clk_148M5",
 };
 
-static const char * decppu_aclk_sel[] = {
+static const char * const decppu_aclk_sel[] = {
 	"clk_250",
 	"pll_mm0_198M",
 	"pll_lsp_104M",
 	"pll_audio_294M912",
 };
 
-static const char * vou_main_wclk_sel[] = {
+static const char * const vou_main_wclk_sel[] = {
 	"clk_148M5",
 	"clk_74M25",
 	"clk_27",
 	"pll_mm1_54M",
 };
 
-static const char * vou_scaler_wclk_sel[] = {
+static const char * const vou_scaler_wclk_sel[] = {
 	"clk_250",
 	"pll_mac_333M",
 	"pll_audio_294M912",
 	"pll_mm0_198M",
 };
 
-static const char * r2d_wclk_sel[] = {
+static const char * const r2d_wclk_sel[] = {
 	"pll_audio_294M912",
 	"pll_mac_333M",
 	"pll_a9_350M",
 	"pll_mm0_396M",
 };
 
-static const char * ddr_wclk_sel[] = {
+static const char * const ddr_wclk_sel[] = {
 	"pll_mac_333M",
 	"pll_ddr_266M",
 	"pll_audio_294M912",
 	"pll_mm0_198M",
 };
 
-static const char * nand_wclk_sel[] = {
+static const char * const nand_wclk_sel[] = {
 	"pll_lsp_104M",
 	"osc",
 };
 
-static const char * lsp_26_wclk_sel[] = {
+static const char * const lsp_26_wclk_sel[] = {
 	"pll_lsp_26M",
 	"osc",
 };
 
-static const char * vl0_sel[] = {
+static const char * const vl0_sel[] = {
 	"vou_main_channel_div",
 	"vou_aux_channel_div",
 };
 
-static const char * hdmi_sel[] = {
+static const char * const hdmi_sel[] = {
 	"vou_main_channel_wclk",
 	"vou_aux_channel_wclk",
 };
 
-static const char * sdmmc0_wclk_sel[] = {
+static const char * const sdmmc0_wclk_sel[] = {
 	"lsp1_104M_wclk",
 	"lsp1_26M_wclk",
 };
 
-static const char * sdmmc1_wclk_sel[] = {
+static const char * const sdmmc1_wclk_sel[] = {
 	"lsp0_104M_wclk",
 	"lsp0_26M_wclk",
 };
 
-static const char * uart_wclk_sel[] = {
+static const char * const uart_wclk_sel[] = {
 	"lsp1_104M_wclk",
 	"lsp1_26M_wclk",
+};
+
+static const char * const spdif0_wclk_sel[] = {
+	"lsp0_104M_wclk",
+	"lsp0_26M_wclk",
+};
+
+static const char * const spdif1_wclk_sel[] = {
+	"lsp1_104M_wclk",
+	"lsp1_26M_wclk",
+};
+
+static const char * const i2s_wclk_sel[] = {
+	"lsp0_104M_wclk",
+	"lsp0_26M_wclk",
 };
 
 static inline struct clk *zx_divtbl(const char *name, const char *parent,
@@ -185,7 +211,7 @@ static inline struct clk *zx_div(const char *name, const char *parent,
 				    reg, shift, width, 0, &reg_lock);
 }
 
-static inline struct clk *zx_mux(const char *name, const char **parents,
+static inline struct clk *zx_mux(const char *name, const char * const *parents,
 		int num_parents, void __iomem *reg, u8 shift, u8 width)
 {
 	return clk_register_mux(NULL, name, parents, num_parents,
@@ -196,7 +222,7 @@ static inline struct clk *zx_gate(const char *name, const char *parent,
 				  void __iomem *reg, u8 shift)
 {
 	return clk_register_gate(NULL, name, parent, CLK_IGNORE_UNUSED,
-				 reg, shift, 0, &reg_lock);
+				 reg, shift, CLK_SET_RATE_PARENT, &reg_lock);
 }
 
 static void __init zx296702_top_clocks_init(struct device_node *np)
@@ -585,7 +611,57 @@ static void __init zx296702_lsp0_clocks_init(struct device_node *np)
 	clk[ZX296702_SDMMC1_WCLK] =
 		zx_gate("sdmmc1_wclk", "sdmmc1_wclk_div", CLK_SDMMC1, 1);
 	clk[ZX296702_SDMMC1_PCLK] =
-		zx_gate("sdmmc1_pclk", "lsp1_apb_pclk", CLK_SDMMC1, 0);
+		zx_gate("sdmmc1_pclk", "lsp0_apb_pclk", CLK_SDMMC1, 0);
+
+	clk[ZX296702_GPIO_CLK] =
+		zx_gate("gpio_clk", "lsp0_apb_pclk", CLK_GPIO, 0);
+
+	/* SPDIF */
+	clk[ZX296702_SPDIF0_WCLK_MUX] =
+		zx_mux("spdif0_wclk_mux", spdif0_wclk_sel,
+				ARRAY_SIZE(spdif0_wclk_sel), CLK_SPDIF0, 4, 1);
+	clk[ZX296702_SPDIF0_WCLK] =
+		zx_gate("spdif0_wclk", "spdif0_wclk_mux", CLK_SPDIF0, 1);
+	clk[ZX296702_SPDIF0_PCLK] =
+		zx_gate("spdif0_pclk", "lsp0_apb_pclk", CLK_SPDIF0, 0);
+
+	clk[ZX296702_SPDIF0_DIV] =
+		clk_register_zx_audio("spdif0_div", "spdif0_wclk", 0,
+				SPDIF0_DIV);
+
+	/* I2S */
+	clk[ZX296702_I2S0_WCLK_MUX] =
+		zx_mux("i2s0_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S0, 4, 1);
+	clk[ZX296702_I2S0_WCLK] =
+		zx_gate("i2s0_wclk", "i2s0_wclk_mux", CLK_I2S0, 1);
+	clk[ZX296702_I2S0_PCLK] =
+		zx_gate("i2s0_pclk", "lsp0_apb_pclk", CLK_I2S0, 0);
+
+	clk[ZX296702_I2S0_DIV] =
+		clk_register_zx_audio("i2s0_div", "i2s0_wclk", 0, I2S0_DIV);
+
+	clk[ZX296702_I2S1_WCLK_MUX] =
+		zx_mux("i2s1_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S1, 4, 1);
+	clk[ZX296702_I2S1_WCLK] =
+		zx_gate("i2s1_wclk", "i2s1_wclk_mux", CLK_I2S1, 1);
+	clk[ZX296702_I2S1_PCLK] =
+		zx_gate("i2s1_pclk", "lsp0_apb_pclk", CLK_I2S1, 0);
+
+	clk[ZX296702_I2S1_DIV] =
+		clk_register_zx_audio("i2s1_div", "i2s1_wclk", 0, I2S1_DIV);
+
+	clk[ZX296702_I2S2_WCLK_MUX] =
+		zx_mux("i2s2_wclk_mux", i2s_wclk_sel,
+				ARRAY_SIZE(i2s_wclk_sel), CLK_I2S2, 4, 1);
+	clk[ZX296702_I2S2_WCLK] =
+		zx_gate("i2s2_wclk", "i2s2_wclk_mux", CLK_I2S2, 1);
+	clk[ZX296702_I2S2_PCLK] =
+		zx_gate("i2s2_pclk", "lsp0_apb_pclk", CLK_I2S2, 0);
+
+	clk[ZX296702_I2S2_DIV] =
+		clk_register_zx_audio("i2s2_div", "i2s2_wclk", 0, I2S2_DIV);
 
 	for (i = 0; i < ARRAY_SIZE(lsp0clk); i++) {
 		if (IS_ERR(clk[i])) {
@@ -640,6 +716,18 @@ static void __init zx296702_lsp1_clocks_init(struct device_node *np)
 		zx_gate("sdmmc0_wclk", "sdmmc0_wclk_div", CLK_SDMMC0, 1);
 	clk[ZX296702_SDMMC0_PCLK] =
 		zx_gate("sdmmc0_pclk", "lsp1_apb_pclk", CLK_SDMMC0, 0);
+
+	clk[ZX296702_SPDIF1_WCLK_MUX] =
+		zx_mux("spdif1_wclk_mux", spdif1_wclk_sel,
+				ARRAY_SIZE(spdif1_wclk_sel), CLK_SPDIF1, 4, 1);
+	clk[ZX296702_SPDIF1_WCLK] =
+		zx_gate("spdif1_wclk", "spdif1_wclk_mux", CLK_SPDIF1, 1);
+	clk[ZX296702_SPDIF1_PCLK] =
+		zx_gate("spdif1_pclk", "lsp1_apb_pclk", CLK_SPDIF1, 0);
+
+	clk[ZX296702_SPDIF1_DIV] =
+		clk_register_zx_audio("spdif1_div", "spdif1_wclk", 0,
+				SPDIF1_DIV);
 
 	for (i = 0; i < ARRAY_SIZE(lsp1clk); i++) {
 		if (IS_ERR(clk[i])) {

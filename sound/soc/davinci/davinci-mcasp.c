@@ -1613,7 +1613,7 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
-	struct resource *mem, *ioarea, *res, *dat;
+	struct resource *mem, *res, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
 	char *irq_name;
@@ -1648,21 +1648,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		}
 	}
 
-	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
-			resource_size(mem), pdev->name);
-	if (!ioarea) {
-		dev_err(&pdev->dev, "Audio region already claimed\n");
-		return -EBUSY;
-	}
+	mcasp->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(mcasp->base))
+		return PTR_ERR(mcasp->base);
 
 	pm_runtime_enable(&pdev->dev);
-
-	mcasp->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
-	if (!mcasp->base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	mcasp->op_mode = pdata->op_mode;
 	/* sanity check for tdm slots parameter */

@@ -3027,8 +3027,8 @@ static int mvneta_probe(struct platform_device *pdev)
 	const char *dt_mac_addr;
 	char hw_mac_addr[ETH_ALEN];
 	const char *mac_from;
+	const char *managed;
 	int phy_mode;
-	int fixed_phy = 0;
 	int err;
 
 	/* Our multiqueue support is not complete, so for now, only
@@ -3062,7 +3062,6 @@ static int mvneta_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "cannot register fixed PHY\n");
 			goto err_free_irq;
 		}
-		fixed_phy = 1;
 
 		/* In the case of a fixed PHY, the DT node associated
 		 * to the PHY is the Ethernet MAC DT node.
@@ -3086,8 +3085,10 @@ static int mvneta_probe(struct platform_device *pdev)
 	pp = netdev_priv(dev);
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
-	pp->use_inband_status = (phy_mode == PHY_INTERFACE_MODE_SGMII) &&
-				fixed_phy;
+
+	err = of_property_read_string(dn, "managed", &managed);
+	pp->use_inband_status = (err == 0 &&
+				 strcmp(managed, "in-band-status") == 0);
 
 	pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {

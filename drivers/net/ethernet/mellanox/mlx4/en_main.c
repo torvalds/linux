@@ -224,6 +224,26 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	kfree(mdev);
 }
 
+static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
+{
+	int i;
+	struct mlx4_en_dev *mdev = ctx;
+
+	/* Create a netdev for each port */
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		mlx4_info(mdev, "Activating port:%d\n", i);
+		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
+			mdev->pndev[i] = NULL;
+	}
+
+	/* register notifier */
+	mdev->nb.notifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_notifier(&mdev->nb)) {
+		mdev->nb.notifier_call = NULL;
+		mlx4_err(mdev, "Failed to create notifier\n");
+	}
+}
+
 static void *mlx4_en_add(struct mlx4_dev *dev)
 {
 	struct mlx4_en_dev *mdev;
@@ -297,21 +317,6 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
 
-	/* Setup ports */
-
-	/* Create a netdev for each port */
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		mlx4_info(mdev, "Activating port:%d\n", i);
-		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
-			mdev->pndev[i] = NULL;
-	}
-	/* register notifier */
-	mdev->nb.notifier_call = mlx4_en_netdev_event;
-	if (register_netdevice_notifier(&mdev->nb)) {
-		mdev->nb.notifier_call = NULL;
-		mlx4_err(mdev, "Failed to create notifier\n");
-	}
-
 	return mdev;
 
 err_mr:
@@ -335,6 +340,7 @@ static struct mlx4_interface mlx4_en_interface = {
 	.event		= mlx4_en_event,
 	.get_dev	= mlx4_en_get_netdev,
 	.protocol	= MLX4_PROT_ETH,
+	.activate	= mlx4_en_activate,
 };
 
 static void mlx4_en_verify_params(void)

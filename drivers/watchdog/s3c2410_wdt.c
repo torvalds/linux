@@ -607,6 +607,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
 
 	wdt->wdt_device.bootstatus = s3c2410wdt_get_bootstatus(wdt);
+	wdt->wdt_device.parent = &pdev->dev;
 
 	ret = watchdog_register_device(&wdt->wdt_device);
 	if (ret) {

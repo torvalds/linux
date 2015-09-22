@@ -53,7 +53,7 @@ static struct devfreq *find_device_devfreq(struct device *dev)
 {
 	struct devfreq *tmp_devfreq;
 
-	if (unlikely(IS_ERR_OR_NULL(dev))) {
+	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
@@ -133,7 +133,7 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
 {
 	struct devfreq_governor *tmp_governor;
 
-	if (unlikely(IS_ERR_OR_NULL(name))) {
+	if (IS_ERR_OR_NULL(name)) {
 		pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
@@ -177,10 +177,10 @@ int update_devfreq(struct devfreq *devfreq)
 		return err;
 
 	/*
-	 * Adjust the freuqency with user freq and QoS.
+	 * Adjust the frequency with user freq and QoS.
 	 *
-	 * List from the highest proiority
-	 * max_freq (probably called by thermal when it's too hot)
+	 * List from the highest priority
+	 * max_freq
 	 * min_freq
 	 */
 
@@ -482,7 +482,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 						devfreq->profile->max_state *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
-	devfreq->time_in_state = devm_kzalloc(dev, sizeof(unsigned int) *
+	devfreq->time_in_state = devm_kzalloc(dev, sizeof(unsigned long) *
 						devfreq->profile->max_state,
 						GFP_KERNEL);
 	devfreq->last_stat_updated = jiffies;

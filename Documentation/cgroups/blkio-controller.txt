@@ -201,7 +201,7 @@ Proportional weight policy files
 	  specifies the number of bytes.
 
 - blkio.io_serviced
-	- Number of IOs completed to/from the disk by the group. These
+	- Number of IOs (bio) issued to the disk by the group. These
 	  are further divided by the type of operation - read or write, sync
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
@@ -327,18 +327,11 @@ Note: If both BW and IOPS rules are specified for a device, then IO is
       subjected to both the constraints.
 
 - blkio.throttle.io_serviced
-	- Number of IOs (bio) completed to/from the disk by the group (as
-	  seen by throttling policy). These are further divided by the type
-	  of operation - read or write, sync or async. First two fields specify
-	  the major and minor number of the device, third field specifies the
-	  operation type and the fourth field specifies the number of IOs.
-
-	  blkio.io_serviced does accounting as seen by CFQ and counts are in
-	  number of requests (struct request). On the other hand,
-	  blkio.throttle.io_serviced counts number of IO in terms of number
-	  of bios as seen by throttling policy.  These bios can later be
-	  merged by elevator and total number of requests completed can be
-	  lesser.
+	- Number of IOs (bio) issued to the disk by the group. These
+	  are further divided by the type of operation - read or write, sync
+	  or async. First two fields specify the major and minor number of the
+	  device, third field specifies the operation type and the fourth field
+	  specifies the number of IOs.
 
 - blkio.throttle.io_service_bytes
 	- Number of bytes transferred to/from the disk by the group. These
@@ -346,11 +339,6 @@ Note: If both BW and IOPS rules are specified for a device, then IO is
 	  or async. First two fields specify the major and minor number of the
 	  device, third field specifies the operation type and the fourth field
 	  specifies the number of bytes.
-
-	  These numbers should roughly be same as blkio.io_service_bytes as
-	  updated by CFQ. The difference between two is that
-	  blkio.io_service_bytes will not be updated if CFQ is not operating
-	  on request queue.
 
 Common files among various policies
 -----------------------------------

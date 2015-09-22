@@ -262,39 +262,38 @@ struct fbtft_par {
 	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
-extern void fbtft_dbg_hex(const struct device *dev,
-	int groupsize, void *buf, size_t len, const char *fmt, ...);
-extern struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
-	struct device *dev);
-extern void fbtft_framebuffer_release(struct fb_info *info);
-extern int fbtft_register_framebuffer(struct fb_info *fb_info);
-extern int fbtft_unregister_framebuffer(struct fb_info *fb_info);
-extern void fbtft_register_backlight(struct fbtft_par *par);
-extern void fbtft_unregister_backlight(struct fbtft_par *par);
-extern int fbtft_init_display(struct fbtft_par *par);
-extern int fbtft_probe_common(struct fbtft_display *display,
-	struct spi_device *sdev, struct platform_device *pdev);
-extern int fbtft_remove_common(struct device *dev, struct fb_info *info);
+void fbtft_dbg_hex(const struct device *dev, int groupsize,
+		   void *buf, size_t len, const char *fmt, ...);
+struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
+					struct device *dev,
+					struct fbtft_platform_data *pdata);
+void fbtft_framebuffer_release(struct fb_info *info);
+int fbtft_register_framebuffer(struct fb_info *fb_info);
+int fbtft_unregister_framebuffer(struct fb_info *fb_info);
+void fbtft_register_backlight(struct fbtft_par *par);
+void fbtft_unregister_backlight(struct fbtft_par *par);
+int fbtft_init_display(struct fbtft_par *par);
+int fbtft_probe_common(struct fbtft_display *display, struct spi_device *sdev,
+		       struct platform_device *pdev);
+int fbtft_remove_common(struct device *dev, struct fb_info *info);
 
 /* fbtft-io.c */
-extern int fbtft_write_spi(struct fbtft_par *par, void *buf, size_t len);
-extern int fbtft_write_spi_emulate_9(struct fbtft_par *par,
-	void *buf, size_t len);
-extern int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len);
-extern int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len);
-extern int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len);
-extern int fbtft_write_gpio16_wr_latched(struct fbtft_par *par,
-	void *buf, size_t len);
+int fbtft_write_spi(struct fbtft_par *par, void *buf, size_t len);
+int fbtft_write_spi_emulate_9(struct fbtft_par *par, void *buf, size_t len);
+int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len);
+int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len);
+int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len);
+int fbtft_write_gpio16_wr_latched(struct fbtft_par *par, void *buf, size_t len);
 
 /* fbtft-bus.c */
-extern int fbtft_write_vmem8_bus8(struct fbtft_par *par, size_t offset, size_t len);
-extern int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len);
-extern int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len);
-extern int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len);
-extern void fbtft_write_reg8_bus8(struct fbtft_par *par, int len, ...);
-extern void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
-extern void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
-extern void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
+int fbtft_write_vmem8_bus8(struct fbtft_par *par, size_t offset, size_t len);
+int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len);
+int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len);
+int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len);
+void fbtft_write_reg8_bus8(struct fbtft_par *par, int len, ...);
+void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
+void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
+void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
 
 
 #define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \

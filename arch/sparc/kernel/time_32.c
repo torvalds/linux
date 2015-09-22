@@ -101,21 +101,18 @@ irqreturn_t notrace timer_interrupt(int dummy, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void timer_ce_set_mode(enum clock_event_mode mode,
-			      struct clock_event_device *evt)
+static int timer_ce_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-		case CLOCK_EVT_MODE_PERIODIC:
-		case CLOCK_EVT_MODE_RESUME:
-			timer_ce_enabled = 1;
-			break;
-		case CLOCK_EVT_MODE_SHUTDOWN:
-			timer_ce_enabled = 0;
-			break;
-		default:
-			break;
-	}
+	timer_ce_enabled = 0;
 	smp_mb();
+	return 0;
+}
+
+static int timer_ce_set_periodic(struct clock_event_device *evt)
+{
+	timer_ce_enabled = 1;
+	smp_mb();
+	return 0;
 }
 
 static __init void setup_timer_ce(void)
@@ -127,7 +124,9 @@ static __init void setup_timer_ce(void)
 	ce->name     = "timer_ce";
 	ce->rating   = 100;
 	ce->features = CLOCK_EVT_FEAT_PERIODIC;
-	ce->set_mode = timer_ce_set_mode;
+	ce->set_state_shutdown = timer_ce_shutdown;
+	ce->set_state_periodic = timer_ce_set_periodic;
+	ce->tick_resume = timer_ce_set_periodic;
 	ce->cpumask  = cpu_possible_mask;
 	ce->shift    = 32;
 	ce->mult     = div_sc(sparc_config.clock_rate, NSEC_PER_SEC,
@@ -183,24 +182,20 @@ static __init int setup_timer_cs(void)
 }
 
 #ifdef CONFIG_SMP
-static void percpu_ce_setup(enum clock_event_mode mode,
-			struct clock_event_device *evt)
+static int percpu_ce_shutdown(struct clock_event_device *evt)
 {
 	int cpu = cpumask_first(evt->cpumask);
 
-	switch (mode) {
-		case CLOCK_EVT_MODE_PERIODIC:
-			sparc_config.load_profile_irq(cpu,
-						      SBUS_CLOCK_RATE / HZ);
-			break;
-		case CLOCK_EVT_MODE_ONESHOT:
-		case CLOCK_EVT_MODE_SHUTDOWN:
-		case CLOCK_EVT_MODE_UNUSED:
-			sparc_config.load_profile_irq(cpu, 0);
-			break;
-		default:
-			break;
-	}
+	sparc_config.load_profile_irq(cpu, 0);
+	return 0;
+}
+
+static int percpu_ce_set_periodic(struct clock_event_device *evt)
+{
+	int cpu = cpumask_first(evt->cpumask);
+
+	sparc_config.load_profile_irq(cpu, SBUS_CLOCK_RATE / HZ);
+	return 0;
 }
 
 static int percpu_ce_set_next_event(unsigned long delta,
@@ -224,7 +219,9 @@ void register_percpu_ce(int cpu)
 	ce->name           = "percpu_ce";
 	ce->rating         = 200;
 	ce->features       = features;
-	ce->set_mode       = percpu_ce_setup;
+	ce->set_state_shutdown = percpu_ce_shutdown;
+	ce->set_state_periodic = percpu_ce_set_periodic;
+	ce->set_state_oneshot = percpu_ce_shutdown;
 	ce->set_next_event = percpu_ce_set_next_event;
 	ce->cpumask        = cpumask_of(cpu);
 	ce->shift          = 32;

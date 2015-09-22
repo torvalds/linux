@@ -336,7 +336,7 @@
 
 #define TRF7970A_NFC_TARGET_LEVEL_RFDET(v)	((v) & 0x07)
 #define TRF7970A_NFC_TARGET_LEVEL_HI_RF		BIT(3)
-#define TRF7970A_NFC_TARGET_LEVEL_SDD_EN	BIT(3)
+#define TRF7970A_NFC_TARGET_LEVEL_SDD_EN	BIT(5)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_4BYTES	(0x0 << 6)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_7BYTES	(0x1 << 6)
 #define TRF7970A_NFC_TARGET_LEVEL_LD_S_10BYTES	(0x2 << 6)
@@ -629,7 +629,9 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 	}
 
 	if (trf->adjust_resp_len) {
-		skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+		if (trf->rx_skb)
+			skb_trim(trf->rx_skb, trf->rx_skb->len - 1);
+
 		trf->adjust_resp_len = false;
 	}
 

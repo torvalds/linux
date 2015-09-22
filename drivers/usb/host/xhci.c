@@ -1340,6 +1340,11 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
 		size = urb->number_of_packets;
+	else if (usb_endpoint_is_bulk_out(&urb->ep->desc) &&
+	    urb->transfer_buffer_length > 0 &&
+	    urb->transfer_flags & URB_ZERO_PACKET &&
+	    !(urb->transfer_buffer_length % usb_endpoint_maxp(&urb->ep->desc)))
+		size = 2;
 	else
 		size = 1;
 
@@ -3117,7 +3122,7 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
 }
 
 /*
- * The USB device drivers use this function (though the HCD interface in USB
+ * The USB device drivers use this function (through the HCD interface in USB
  * core) to prepare a set of bulk endpoints to use streams.  Streams are used to
  * coordinate mass storage command queueing across multiple endpoints (basically
  * a stream ID == a task ID).
@@ -4678,7 +4683,6 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 {
 	struct xhci_hcd	*xhci;
 	u16 mel;
-	int ret;
 
 	xhci = hcd_to_xhci(hcd);
 	if (!xhci || !(xhci->quirks & XHCI_LPM_SUPPORT) ||
@@ -4686,10 +4690,7 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 		return 0;
 
 	mel = calculate_max_exit_latency(udev, state, USB3_LPM_DISABLED);
-	ret = xhci_change_max_exit_latency(xhci, udev, mel);
-	if (ret)
-		return ret;
-	return 0;
+	return xhci_change_max_exit_latency(xhci, udev, mel);
 }
 #else /* CONFIG_PM */
 

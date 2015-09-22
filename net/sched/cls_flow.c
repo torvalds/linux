@@ -301,7 +301,7 @@ static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 		keymask = f->keymask;
 		if (keymask & FLOW_KEYS_NEEDED)
-			skb_flow_dissect_flow_keys(skb, &flow_keys);
+			skb_flow_dissect_flow_keys(skb, &flow_keys, 0);
 
 		for (n = 0; n < f->nkeys; n++) {
 			key = ffs(keymask) - 1;

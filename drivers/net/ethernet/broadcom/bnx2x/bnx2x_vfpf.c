@@ -1,15 +1,17 @@
-/* bnx2x_vfpf.c: Broadcom Everest network driver.
+/* bnx2x_vfpf.c: QLogic Everest network driver.
  *
  * Copyright 2009-2013 Broadcom Corporation
+ * Copyright 2014 QLogic Corporation
+ * All rights reserved
  *
- * Unless you and Broadcom execute a separate written software license
+ * Unless you and QLogic execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
  * Notwithstanding the above, under no circumstances may you combine this
- * software in any way with any other Broadcom software provided under a
- * license other than the GPL, without Broadcom's express prior written
+ * software in any way with any other QLogic software provided under a
+ * license other than the GPL, without QLogic's express prior written
  * consent.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -245,6 +247,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	req->resc_request.num_sbs = bp->igu_sb_cnt;
 	req->resc_request.num_mac_filters = VF_ACQUIRE_MAC_FILTERS;
 	req->resc_request.num_mc_filters = VF_ACQUIRE_MC_FILTERS;
+	req->resc_request.num_vlan_filters = VF_ACQUIRE_VLAN_FILTERS;
 
 	/* pf 2 vf bulletin board address */
 	req->bulletin_addr = bp->pf2vf_bulletin_mapping;
@@ -255,6 +258,8 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 
 	/* Bulletin support for bulletin board with length > legacy length */
 	req->vfdev_info.caps |= VF_CAP_SUPPORT_EXT_BULLETIN;
+	/* vlan filtering is supported */
+	req->vfdev_info.caps |= VF_CAP_SUPPORT_VLAN_FILTER;
 
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req,
@@ -373,6 +378,8 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 		NO_WOL_FLAG | NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG | NO_FCOE_FLAG;
 	bp->igu_sb_cnt = bp->acquire_resp.resc.num_sbs;
 	bp->igu_base_sb = bp->acquire_resp.resc.hw_sbs[0].hw_sb_id;
+	bp->vlan_credit = bp->acquire_resp.resc.num_vlan_filters;
+
 	strlcpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
 		sizeof(bp->fw_ver));
 
@@ -546,7 +553,7 @@ static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			   BNX2X_FILTER_MAC_PENDING,
 			   &vf->filter_state,
 			   BNX2X_OBJ_TYPE_RX_TX,
-			   &bp->macs_pool);
+			   &vf->vf_macs_pool);
 	/* vlan */
 	bnx2x_init_vlan_obj(bp, &q->vlan_obj,
 			    cl_id, q->cid, func_id,
@@ -555,8 +562,17 @@ static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			    BNX2X_FILTER_VLAN_PENDING,
 			    &vf->filter_state,
 			    BNX2X_OBJ_TYPE_RX_TX,
-			    &bp->vlans_pool);
-
+			    &vf->vf_vlans_pool);
+	/* vlan-mac */
+	bnx2x_init_vlan_mac_obj(bp, &q->vlan_mac_obj,
+				cl_id, q->cid, func_id,
+				bnx2x_vf_sp(bp, vf, vlan_mac_rdata),
+				bnx2x_vf_sp_map(bp, vf, vlan_mac_rdata),
+				BNX2X_FILTER_VLAN_MAC_PENDING,
+				&vf->filter_state,
+				BNX2X_OBJ_TYPE_RX_TX,
+				&vf->vf_macs_pool,
+				&vf->vf_vlans_pool);
 	/* mcast */
 	bnx2x_init_mcast_obj(bp, &vf->mcast_obj, cl_id,
 			     q->cid, func_id, func_id,
@@ -723,7 +739,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 
 	req->filters[0].flags = VFPF_Q_FILTER_DEST_MAC_VALID;
 	if (set)
-		req->filters[0].flags |= VFPF_Q_FILTER_SET_MAC;
+		req->filters[0].flags |= VFPF_Q_FILTER_SET;
 
 	/* sample bulletin board for new mac */
 	bnx2x_sample_bulletin(bp);
@@ -911,6 +927,67 @@ out:
 	return 0;
 }
 
+/* request pf to add a vlan for the vf */
+int bnx2x_vfpf_update_vlan(struct bnx2x *bp, u16 vid, u8 vf_qid, bool add)
+{
+	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	int rc = 0;
+
+	if (!(bp->acquire_resp.pfdev_info.pf_cap & PFVF_CAP_VLAN_FILTER)) {
+		DP(BNX2X_MSG_IOV, "HV does not support vlan filtering\n");
+		return 0;
+	}
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SET_Q_FILTERS,
+			sizeof(*req));
+
+	req->flags = VFPF_SET_Q_FILTERS_MAC_VLAN_CHANGED;
+	req->vf_qid = vf_qid;
+	req->n_mac_vlan_filters = 1;
+
+	req->filters[0].flags = VFPF_Q_FILTER_VLAN_TAG_VALID;
+
+	if (add)
+		req->filters[0].flags |= VFPF_Q_FILTER_SET;
+
+	/* sample bulletin board for hypervisor vlan */
+	bnx2x_sample_bulletin(bp);
+
+	if (bp->shadow_bulletin.content.valid_bitmap & 1 << VLAN_VALID) {
+		BNX2X_ERR("Hypervisor will dicline the request, avoiding\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	req->filters[0].vlan_tag = vid;
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	/* send message to pf */
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc) {
+		BNX2X_ERR("failed to send message to pf. rc was %d\n", rc);
+		goto out;
+	}
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("vfpf %s VLAN %d failed\n", add ? "add" : "del",
+			  vid);
+		rc = -EINVAL;
+	}
+out:
+	bnx2x_vfpf_finalize(bp, &req->first_tlv);
+
+	return rc;
+}
+
 int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
 {
 	int mode = bp->rx_mode;
@@ -934,7 +1011,12 @@ int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp)
 		req->rx_mask = VFPF_RX_MASK_ACCEPT_MATCHED_MULTICAST;
 		req->rx_mask |= VFPF_RX_MASK_ACCEPT_MATCHED_UNICAST;
 		req->rx_mask |= VFPF_RX_MASK_ACCEPT_BROADCAST;
+		if (mode == BNX2X_RX_MODE_PROMISC)
+			req->rx_mask |= VFPF_RX_MASK_ACCEPT_ANY_VLAN;
 	}
+
+	if (bp->accept_any_vlan)
+		req->rx_mask |= VFPF_RX_MASK_ACCEPT_ANY_VLAN;
 
 	req->flags |= VFPF_SET_Q_FILTERS_RX_MASK_CHANGED;
 	req->vf_qid = 0;
@@ -1188,7 +1270,8 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	resp->pfdev_info.indices_per_sb = HC_SB_MAX_INDICES_E2;
 	resp->pfdev_info.pf_cap = (PFVF_CAP_RSS |
 				   PFVF_CAP_TPA |
-				   PFVF_CAP_TPA_UPDATE);
+				   PFVF_CAP_TPA_UPDATE |
+				   PFVF_CAP_VLAN_FILTER);
 	bnx2x_fill_fw_str(bp, resp->pfdev_info.fw_ver,
 			  sizeof(resp->pfdev_info.fw_ver));
 
@@ -1203,7 +1286,7 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			bnx2x_vf_max_queue_cnt(bp, vf);
 		resc->num_sbs = vf_sb_count(vf);
 		resc->num_mac_filters = vf_mac_rules_cnt(vf);
-		resc->num_vlan_filters = vf_vlan_rules_visible_cnt(vf);
+		resc->num_vlan_filters = vf_vlan_rules_cnt(vf);
 		resc->num_mc_filters = 0;
 
 		if (status == PFVF_STATUS_SUCCESS) {
@@ -1370,6 +1453,14 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		vf->cfg_flags &= ~VF_CFG_EXT_BULLETIN;
 	}
 
+	if (acquire->vfdev_info.caps & VF_CAP_SUPPORT_VLAN_FILTER) {
+		DP(BNX2X_MSG_IOV, "VF[%d] supports vlan filtering\n",
+		   vf->abs_vfid);
+		vf->cfg_flags |= VF_CFG_VLAN_FILTER;
+	} else {
+		vf->cfg_flags &= ~VF_CFG_VLAN_FILTER;
+	}
+
 out:
 	/* response */
 	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
@@ -1382,7 +1473,6 @@ static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	int rc;
 
 	/* record ghost addresses from vf message */
-	vf->spq_map = init->spq_addr;
 	vf->fw_stat_map = init->stats_addr;
 	vf->stats_stride = init->stats_stride;
 	rc = bnx2x_vf_init(bp, vf, (dma_addr_t *)init->sb_addr);
@@ -1578,17 +1668,18 @@ static int bnx2x_vf_mbx_macvlan_list(struct bnx2x *bp,
 
 		if ((msg_filter->flags & type_flag) != type_flag)
 			continue;
-		if (type_flag == VFPF_Q_FILTER_DEST_MAC_VALID) {
+		memset(&fl->filters[j], 0, sizeof(fl->filters[j]));
+		if (type_flag & VFPF_Q_FILTER_DEST_MAC_VALID) {
 			fl->filters[j].mac = msg_filter->mac;
-			fl->filters[j].type = BNX2X_VF_FILTER_MAC;
-		} else {
-			fl->filters[j].vid = msg_filter->vlan_tag;
-			fl->filters[j].type = BNX2X_VF_FILTER_VLAN;
+			fl->filters[j].type |= BNX2X_VF_FILTER_MAC;
 		}
-		fl->filters[j].add =
-			(msg_filter->flags & VFPF_Q_FILTER_SET_MAC) ?
-			true : false;
+		if (type_flag & VFPF_Q_FILTER_VLAN_TAG_VALID) {
+			fl->filters[j].vid = msg_filter->vlan_tag;
+			fl->filters[j].type |= BNX2X_VF_FILTER_VLAN;
+		}
+		fl->filters[j].add = !!(msg_filter->flags & VFPF_Q_FILTER_SET);
 		fl->count++;
+		j++;
 	}
 	if (!fl->count)
 		kfree(fl);
@@ -1596,6 +1687,18 @@ static int bnx2x_vf_mbx_macvlan_list(struct bnx2x *bp,
 		*pfl = fl;
 
 	return 0;
+}
+
+static int bnx2x_vf_filters_contain(struct vfpf_set_q_filters_tlv *filters,
+				    u32 flags)
+{
+	int i, cnt = 0;
+
+	for (i = 0; i < filters->n_mac_vlan_filters; i++)
+		if  ((filters->filters[i].flags & flags) == flags)
+			cnt++;
+
+	return cnt;
 }
 
 static void bnx2x_vf_mbx_dp_q_filter(struct bnx2x *bp, int msglvl, int idx,
@@ -1629,6 +1732,7 @@ static void bnx2x_vf_mbx_dp_q_filters(struct bnx2x *bp, int msglvl,
 
 #define VFPF_MAC_FILTER		VFPF_Q_FILTER_DEST_MAC_VALID
 #define VFPF_VLAN_FILTER	VFPF_Q_FILTER_VLAN_TAG_VALID
+#define VFPF_VLAN_MAC_FILTER	(VFPF_VLAN_FILTER | VFPF_MAC_FILTER)
 
 static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -1639,8 +1743,26 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 	/* check for any mac/vlan changes */
 	if (msg->flags & VFPF_SET_Q_FILTERS_MAC_VLAN_CHANGED) {
-		/* build mac list */
 		struct bnx2x_vf_mac_vlan_filters *fl = NULL;
+
+		/* build vlan-mac list */
+		rc = bnx2x_vf_mbx_macvlan_list(bp, vf, msg, &fl,
+					       VFPF_VLAN_MAC_FILTER);
+		if (rc)
+			goto op_err;
+
+		if (fl) {
+
+			/* set vlan-mac list */
+			rc = bnx2x_vf_mac_vlan_config_list(bp, vf, fl,
+							   msg->vf_qid,
+							   false);
+			if (rc)
+				goto op_err;
+		}
+
+		/* build mac list */
+		fl = NULL;
 
 		rc = bnx2x_vf_mbx_macvlan_list(bp, vf, msg, &fl,
 					       VFPF_MAC_FILTER);
@@ -1648,7 +1770,6 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 			goto op_err;
 
 		if (fl) {
-
 			/* set mac list */
 			rc = bnx2x_vf_mac_vlan_config_list(bp, vf, fl,
 							   msg->vf_qid,
@@ -1657,22 +1778,6 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 				goto op_err;
 		}
 
-		/* build vlan list */
-		fl = NULL;
-
-		rc = bnx2x_vf_mbx_macvlan_list(bp, vf, msg, &fl,
-					       VFPF_VLAN_FILTER);
-		if (rc)
-			goto op_err;
-
-		if (fl) {
-			/* set vlan list */
-			rc = bnx2x_vf_mac_vlan_config_list(bp, vf, fl,
-							   msg->vf_qid,
-							   false);
-			if (rc)
-				goto op_err;
-		}
 	}
 
 	if (msg->flags & VFPF_SET_Q_FILTERS_RX_MASK_CHANGED) {
@@ -1687,11 +1792,15 @@ static int bnx2x_vf_mbx_qfilters(struct bnx2x *bp, struct bnx2x_virtf *vf)
 			__set_bit(BNX2X_ACCEPT_BROADCAST, &accept);
 		}
 
-		/* A packet arriving the vf's mac should be accepted
-		 * with any vlan, unless a vlan has already been
-		 * configured.
+		/* any_vlan is not configured if HV is forcing VLAN
+		 * any_vlan is configured if
+		 *   1. VF does not support vlan filtering
+		 *   OR
+		 *   2. VF supports vlan filtering and explicitly requested it
 		 */
-		if (!(bulletin->valid_bitmap & (1 << VLAN_VALID)))
+		if (!(bulletin->valid_bitmap & (1 << VLAN_VALID)) &&
+		    (!(vf->cfg_flags & VF_CFG_VLAN_FILTER) ||
+		     msg->rx_mask & VFPF_RX_MASK_ACCEPT_ANY_VLAN))
 			__set_bit(BNX2X_ACCEPT_ANY_VLAN, &accept);
 
 		/* set rx-mode */
@@ -1727,17 +1836,31 @@ static int bnx2x_filters_validate_mac(struct bnx2x *bp,
 	 * since queue was not set up.
 	 */
 	if (bulletin->valid_bitmap & 1 << MAC_ADDR_VALID) {
-		/* once a mac was set by ndo can only accept a single mac... */
-		if (filters->n_mac_vlan_filters > 1) {
-			BNX2X_ERR("VF[%d] requested the addition of multiple macs after set_vf_mac ndo was called\n",
-				  vf->abs_vfid);
-			rc = -EPERM;
-			goto response;
+		struct vfpf_q_mac_vlan_filter *filter = NULL;
+		int i;
+
+		for (i = 0; i < filters->n_mac_vlan_filters; i++) {
+			if (!(filters->filters[i].flags &
+			      VFPF_Q_FILTER_DEST_MAC_VALID))
+				continue;
+
+			/* once a mac was set by ndo can only accept
+			 * a single mac...
+			 */
+			if (filter) {
+				BNX2X_ERR("VF[%d] requested the addition of multiple macs after set_vf_mac ndo was called [%d filters]\n",
+					  vf->abs_vfid,
+					  filters->n_mac_vlan_filters);
+				rc = -EPERM;
+				goto response;
+			}
+
+			filter = &filters->filters[i];
 		}
 
 		/* ...and only the mac set by the ndo */
-		if (filters->n_mac_vlan_filters == 1 &&
-		    !ether_addr_equal(filters->filters->mac, bulletin->mac)) {
+		if (filter &&
+		    !ether_addr_equal(filter->mac, bulletin->mac)) {
 			BNX2X_ERR("VF[%d] requested the addition of a mac address not matching the one configured by set_vf_mac ndo\n",
 				  vf->abs_vfid);
 
@@ -1759,17 +1882,14 @@ static int bnx2x_filters_validate_vlan(struct bnx2x *bp,
 
 	/* if vlan was set by hypervisor we don't allow guest to config vlan */
 	if (bulletin->valid_bitmap & 1 << VLAN_VALID) {
-		int i;
-
 		/* search for vlan filters */
-		for (i = 0; i < filters->n_mac_vlan_filters; i++) {
-			if (filters->filters[i].flags &
-			    VFPF_Q_FILTER_VLAN_TAG_VALID) {
-				BNX2X_ERR("VF[%d] attempted to configure vlan but one was already set by Hypervisor. Aborting request\n",
-					  vf->abs_vfid);
-				rc = -EPERM;
-				goto response;
-			}
+
+		if (bnx2x_vf_filters_contain(filters,
+					     VFPF_Q_FILTER_VLAN_TAG_VALID)) {
+			BNX2X_ERR("VF[%d] attempted to configure vlan but one was already set by Hypervisor. Aborting request\n",
+				  vf->abs_vfid);
+			rc = -EPERM;
+			goto response;
 		}
 	}
 

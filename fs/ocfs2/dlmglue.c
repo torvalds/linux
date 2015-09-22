@@ -3035,8 +3035,6 @@ local:
 	ocfs2_orphan_scan_lock_res_init(&osb->osb_orphan_scan.os_lockres, osb);
 
 	osb->cconn = conn;
-
-	status = 0;
 bail:
 	if (status < 0) {
 		ocfs2_dlm_shutdown_debug(osb);

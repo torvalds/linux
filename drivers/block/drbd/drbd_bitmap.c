@@ -941,36 +941,27 @@ static void drbd_bm_aio_ctx_destroy(struct kref *kref)
 }
 
 /* bv_page may be a copy, or may be the original */
-static void drbd_bm_endio(struct bio *bio, int error)
+static void drbd_bm_endio(struct bio *bio)
 {
 	struct drbd_bm_aio_ctx *ctx = bio->bi_private;
 	struct drbd_device *device = ctx->device;
 	struct drbd_bitmap *b = device->bitmap;
 	unsigned int idx = bm_page_to_idx(bio->bi_io_vec[0].bv_page);
-	int uptodate = bio_flagged(bio, BIO_UPTODATE);
-
-
-	/* strange behavior of some lower level drivers...
-	 * fail the request by clearing the uptodate flag,
-	 * but do not return any error?!
-	 * do we want to WARN() on this? */
-	if (!error && !uptodate)
-		error = -EIO;
 
 	if ((ctx->flags & BM_AIO_COPY_PAGES) == 0 &&
 	    !bm_test_page_unchanged(b->bm_pages[idx]))
 		drbd_warn(device, "bitmap page idx %u changed during IO!\n", idx);
 
-	if (error) {
+	if (bio->bi_error) {
 		/* ctx error will hold the completed-last non-zero error code,
 		 * in case error codes differ. */
-		ctx->error = error;
+		ctx->error = bio->bi_error;
 		bm_set_page_io_err(b->bm_pages[idx]);
 		/* Not identical to on disk version of it.
 		 * Is BM_PAGE_IO_ERROR enough? */
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_err(device, "IO ERROR %d on bitmap page idx %u\n",
-					error, idx);
+					bio->bi_error, idx);
 	} else {
 		bm_clear_page_io_err(b->bm_pages[idx]);
 		dynamic_drbd_dbg(device, "bitmap page idx %u completed\n", idx);
@@ -1031,7 +1022,7 @@ static void bm_page_io_async(struct drbd_bm_aio_ctx *ctx, int page_nr) __must_ho
 
 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
 		bio->bi_rw |= rw;
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 	} else {
 		submit_bio(rw, bio);
 		/* this should not count as user activity and cause the

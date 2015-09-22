@@ -14,26 +14,14 @@
 #define WILC_OSW_INTERFACE_VER 2
 
 /* Os Configuration File */
-#include "wilc_osconfig.h"
 #include "wilc_platform.h"
-
-/* Logging Functions */
-#include "wilc_log.h"
 
 /* Error reporting and handling support */
 #include "wilc_errorsupport.h"
 
-/* Sleep support */
-#include "wilc_sleep.h"
-
-/* Timer support */
-#include "wilc_timer.h"
-
 /* Memory support */
 #include "wilc_memory.h"
 
-/* String Utilities */
-#include "wilc_strutils.h"
 
 /* Message Queue */
 #include "wilc_msgqueue.h"

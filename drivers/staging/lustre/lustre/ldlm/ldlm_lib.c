@@ -656,7 +656,8 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 }
 EXPORT_SYMBOL(target_pack_pool_reply);
 
-int target_send_reply_msg(struct ptlrpc_request *req, int rc, int fail_id)
+static int
+target_send_reply_msg(struct ptlrpc_request *req, int rc, int fail_id)
 {
 	if (OBD_FAIL_CHECK_ORSET(fail_id & ~OBD_FAIL_ONCE, OBD_FAIL_ONCE)) {
 		DEBUG_REQ(D_ERROR, req, "dropping reply");

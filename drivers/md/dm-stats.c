@@ -457,12 +457,24 @@ static int dm_stats_list(struct dm_stats *stats, const char *program,
 	list_for_each_entry(s, &stats->list, list_entry) {
 		if (!program || !strcmp(program, s->program_id)) {
 			len = s->end - s->start;
-			DMEMIT("%d: %llu+%llu %llu %s %s\n", s->id,
+			DMEMIT("%d: %llu+%llu %llu %s %s", s->id,
 				(unsigned long long)s->start,
 				(unsigned long long)len,
 				(unsigned long long)s->step,
 				s->program_id,
 				s->aux_data);
+			if (s->stat_flags & STAT_PRECISE_TIMESTAMPS)
+				DMEMIT(" precise_timestamps");
+			if (s->n_histogram_entries) {
+				unsigned i;
+				DMEMIT(" histogram:");
+				for (i = 0; i < s->n_histogram_entries; i++) {
+					if (i)
+						DMEMIT(",");
+					DMEMIT("%llu", s->histogram_boundaries[i]);
+				}
+			}
+			DMEMIT("\n");
 		}
 	}
 	mutex_unlock(&stats->mutex);

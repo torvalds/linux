@@ -130,20 +130,24 @@ static void nft_trans_destroy(struct nft_trans *trans)
 int nft_register_basechain(struct nft_base_chain *basechain,
 			   unsigned int hook_nops)
 {
+	struct net *net = read_pnet(&basechain->pnet);
+
 	if (basechain->flags & NFT_BASECHAIN_DISABLED)
 		return 0;
 
-	return nf_register_hooks(basechain->ops, hook_nops);
+	return nf_register_net_hooks(net, basechain->ops, hook_nops);
 }
 EXPORT_SYMBOL_GPL(nft_register_basechain);
 
 void nft_unregister_basechain(struct nft_base_chain *basechain,
 			      unsigned int hook_nops)
 {
+	struct net *net = read_pnet(&basechain->pnet);
+
 	if (basechain->flags & NFT_BASECHAIN_DISABLED)
 		return;
 
-	nf_unregister_hooks(basechain->ops, hook_nops);
+	nf_unregister_net_hooks(net, basechain->ops, hook_nops);
 }
 EXPORT_SYMBOL_GPL(nft_unregister_basechain);
 

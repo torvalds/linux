@@ -31,7 +31,7 @@ extern struct workqueue_struct *gfs2_control_wq;
  *
  * @delta is the difference between the current rtt sample and the
  * running average srtt. We add 1/8 of that to the srtt in order to
- * update the current srtt estimate. The varience estimate is a bit
+ * update the current srtt estimate. The variance estimate is a bit
  * more complicated. We subtract the abs value of the @delta from
  * the current variance estimate and add 1/4 of that to the running
  * total.
@@ -80,7 +80,7 @@ static inline void gfs2_update_reply_times(struct gfs2_glock *gl)
 
 	preempt_disable();
 	rtt = ktime_to_ns(ktime_sub(ktime_get_real(), gl->gl_dstamp));
-	lks = this_cpu_ptr(gl->gl_sbd->sd_lkstats);
+	lks = this_cpu_ptr(gl->gl_name.ln_sbd->sd_lkstats);
 	gfs2_update_stats(&gl->gl_stats, index, rtt);		/* Local */
 	gfs2_update_stats(&lks->lkstats[gltype], index, rtt);	/* Global */
 	preempt_enable();
@@ -108,7 +108,7 @@ static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 	dstamp = gl->gl_dstamp;
 	gl->gl_dstamp = ktime_get_real();
 	irt = ktime_to_ns(ktime_sub(gl->gl_dstamp, dstamp));
-	lks = this_cpu_ptr(gl->gl_sbd->sd_lkstats);
+	lks = this_cpu_ptr(gl->gl_name.ln_sbd->sd_lkstats);
 	gfs2_update_stats(&gl->gl_stats, GFS2_LKS_SIRT, irt);		/* Local */
 	gfs2_update_stats(&lks->lkstats[gltype], GFS2_LKS_SIRT, irt);	/* Global */
 	preempt_enable();
@@ -253,7 +253,7 @@ static void gfs2_reverse_hex(char *c, u64 value)
 static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 		     unsigned int flags)
 {
-	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
+	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
 	int req;
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
@@ -281,7 +281,7 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 
 static void gdlm_put_lock(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int lvb_needs_unlock = 0;
 	int error;
@@ -319,7 +319,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 
 static void gdlm_cancel(struct gfs2_glock *gl)
 {
-	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
+	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
 	dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_CANCEL, NULL, gl);
 }
 

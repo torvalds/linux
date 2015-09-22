@@ -70,7 +70,7 @@ struct fld_cache *fld_cache_init(const char *name,
 	LASSERT(cache_threshold < cache_size);
 
 	cache = kzalloc(sizeof(*cache), GFP_NOFS);
-	if (cache == NULL)
+	if (!cache)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&cache->fci_entries_head);

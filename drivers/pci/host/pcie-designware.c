@@ -255,7 +255,7 @@ static void dw_pcie_msi_set_irq(struct pcie_port *pp, int irq)
 static int assign_irq(int no_irqs, struct msi_desc *desc, int *pos)
 {
 	int irq, pos0, i;
-	struct pcie_port *pp = sys_to_pcie(desc->dev->bus->sysdata);
+	struct pcie_port *pp = sys_to_pcie(msi_desc_to_pci_sysdata(desc));
 
 	pos0 = bitmap_find_free_region(pp->msi_irq_in_use, MAX_MSI_IRQS,
 				       order_base_2(no_irqs));
@@ -326,8 +326,8 @@ static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 static void dw_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
-	struct msi_desc *msi = irq_data_get_msi(data);
-	struct pcie_port *pp = sys_to_pcie(msi->dev->bus->sysdata);
+	struct msi_desc *msi = irq_data_get_msi_desc(data);
+	struct pcie_port *pp = sys_to_pcie(msi_desc_to_pci_sysdata(msi));
 
 	clear_irq_range(pp, irq, 1, data->hwirq);
 }
@@ -350,7 +350,6 @@ static int dw_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &dw_msi_irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, domain->host_data);
-	set_irq_flags(irq, IRQF_VALID);
 
 	return 0;
 }
@@ -388,7 +387,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		addrp = of_get_address(np, index, NULL, NULL);
 		pp->cfg0_mod_base = of_read_number(addrp, ns);
 		pp->cfg1_mod_base = pp->cfg0_mod_base + pp->cfg0_size;
-	} else {
+	} else if (!pp->va_cfg0_base) {
 		dev_err(pp->dev, "missing *config* reg space\n");
 	}
 
@@ -526,7 +525,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 #ifdef CONFIG_PCI_MSI
 	dw_pcie_msi_chip.dev = pp->dev;
-	dw_pci.msi_ctrl = &dw_pcie_msi_chip;
 #endif
 
 	dw_pci.nr_controllers = 1;
@@ -708,8 +706,15 @@ static struct pci_bus *dw_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pcie_port *pp = sys_to_pcie(sys);
 
 	pp->root_bus_nr = sys->busnr;
-	bus = pci_scan_root_bus(pp->dev, sys->busnr,
-				  &dw_pcie_ops, sys, &sys->resources);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI))
+		bus = pci_scan_root_bus_msi(pp->dev, sys->busnr, &dw_pcie_ops,
+					    sys, &sys->resources,
+					    &dw_pcie_msi_chip);
+	else
+		bus = pci_scan_root_bus(pp->dev, sys->busnr, &dw_pcie_ops,
+					sys, &sys->resources);
+
 	if (!bus)
 		return NULL;
 

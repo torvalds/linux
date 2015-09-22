@@ -30,7 +30,7 @@
 
 #include "arizona.h"
 
-static const char *wm5102_core_supplies[] = {
+static const char * const wm5102_core_supplies[] = {
 	"AVDD",
 	"DBVDD1",
 };
@@ -146,15 +146,29 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 static irqreturn_t arizona_overclocked(int irq, void *data)
 {
 	struct arizona *arizona = data;
-	unsigned int val[2];
+	unsigned int val[3];
 	int ret;
-	
+
 	ret = regmap_bulk_read(arizona->regmap, ARIZONA_INTERRUPT_RAW_STATUS_6,
-			       &val[0], 2);
+			       &val[0], 3);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read overclock status: %d\n",
 			ret);
 		return IRQ_NONE;
+	}
+
+	switch (arizona->type) {
+	case WM8998:
+	case WM1814:
+		/* Some bits are shifted on WM8998,
+		 * rearrange to match the standard bit layout
+		 */
+		val[0] = ((val[0] & 0x60e0) >> 1) |
+			 ((val[0] & 0x1e00) >> 2) |
+			 (val[0] & 0x000f);
+		break;
+	default:
+		break;
 	}
 
 	if (val[0] & ARIZONA_PWM_OVERCLOCKED_STS)
@@ -200,6 +214,9 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 		dev_err(arizona->dev, "ISRC2 overclocked\n");
 	if (val[1] & ARIZONA_ISRC1_OVERCLOCKED_STS)
 		dev_err(arizona->dev, "ISRC1 overclocked\n");
+
+	if (val[2] & ARIZONA_SPDIF_OVERCLOCKED_STS)
+		dev_err(arizona->dev, "SPDIF overclocked\n");
 
 	return IRQ_HANDLED;
 }
@@ -392,7 +409,7 @@ err:
  * Register patch to some of the CODECs internal write sequences
  * to ensure a clean exit from the low power sleep state.
  */
-static const struct reg_default wm5110_sleep_patch[] = {
+static const struct reg_sequence wm5110_sleep_patch[] = {
 	{ 0x337A, 0xC100 },
 	{ 0x337B, 0x0041 },
 	{ 0x3300, 0xA210 },
@@ -550,9 +567,8 @@ static int arizona_runtime_resume(struct device *dev)
 		break;
 	default:
 		ret = arizona_wait_for_boot(arizona);
-		if (ret != 0) {
+		if (ret != 0)
 			goto err;
-		}
 
 		if (arizona->external_dcvdd) {
 			ret = regmap_update_bits(arizona->regmap,
@@ -759,8 +775,8 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,
 					 "wlf,gpio-defaults",
-					 arizona->pdata.gpio_defaults,
-					 ARRAY_SIZE(arizona->pdata.gpio_defaults));
+					 pdata->gpio_defaults,
+					 ARRAY_SIZE(pdata->gpio_defaults));
 	if (ret >= 0) {
 		/*
 		 * All values are literal except out of range values
@@ -768,11 +784,11 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		 * data which uses 0 as chip default and out of range
 		 * as zero.
 		 */
-		for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
-			if (arizona->pdata.gpio_defaults[i] > 0xffff)
-				arizona->pdata.gpio_defaults[i] = 0;
-			else if (arizona->pdata.gpio_defaults[i] == 0)
-				arizona->pdata.gpio_defaults[i] = 0x10000;
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+			if (pdata->gpio_defaults[i] > 0xffff)
+				pdata->gpio_defaults[i] = 0;
+			else if (pdata->gpio_defaults[i] == 0)
+				pdata->gpio_defaults[i] = 0x10000;
 		}
 	} else {
 		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
@@ -781,20 +797,20 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	of_property_for_each_u32(arizona->dev->of_node, "wlf,inmode", prop,
 				 cur, val) {
-		if (count == ARRAY_SIZE(arizona->pdata.inmode))
+		if (count == ARRAY_SIZE(pdata->inmode))
 			break;
 
-		arizona->pdata.inmode[count] = val;
+		pdata->inmode[count] = val;
 		count++;
 	}
 
 	count = 0;
 	of_property_for_each_u32(arizona->dev->of_node, "wlf,dmic-ref", prop,
 				 cur, val) {
-		if (count == ARRAY_SIZE(arizona->pdata.dmic_ref))
+		if (count == ARRAY_SIZE(pdata->dmic_ref))
 			break;
 
-		arizona->pdata.dmic_ref[count] = val;
+		pdata->dmic_ref[count] = val;
 		count++;
 	}
 
@@ -806,6 +822,8 @@ const struct of_device_id arizona_of_match[] = {
 	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
 	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
 	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
+	{ .compatible = "wlf,wm8998", .data = (void *)WM8998 },
+	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
 	{},
 };
 EXPORT_SYMBOL_GPL(arizona_of_match);
@@ -820,7 +838,7 @@ static const struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
 
-static const char *wm5102_supplies[] = {
+static const char * const wm5102_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"DBVDD3",
@@ -863,7 +881,7 @@ static const struct mfd_cell wm5110_devs[] = {
 	},
 };
 
-static const char *wm8997_supplies[] = {
+static const char * const wm8997_supplies[] = {
 	"MICVDD",
 	"DBVDD2",
 	"CPVDD",
@@ -887,11 +905,28 @@ static const struct mfd_cell wm8997_devs[] = {
 	},
 };
 
+static const struct mfd_cell wm8998_devs[] = {
+	{
+		.name = "arizona-extcon",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
+	{ .name = "arizona-gpio" },
+	{ .name = "arizona-haptics" },
+	{ .name = "arizona-pwm" },
+	{
+		.name = "wm8998-codec",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
+	},
+	{ .name = "arizona-micsupp" },
+};
+
 int arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
 	const char *type_name;
-	unsigned int reg, val;
+	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
 	int ret, i;
 
@@ -911,6 +946,8 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM5110:
 	case WM8280:
 	case WM8997:
+	case WM8998:
+	case WM1814:
 		for (i = 0; i < ARRAY_SIZE(wm5102_core_supplies); i++)
 			arizona->core_supplies[i].supply
 				= wm5102_core_supplies[i];
@@ -992,6 +1029,7 @@ int arizona_dev_init(struct arizona *arizona)
 	switch (reg) {
 	case 0x5102:
 	case 0x5110:
+	case 0x6349:
 	case 0x8997:
 		break;
 	default:
@@ -1091,6 +1129,27 @@ int arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM8997;
 		}
 		apply_patch = wm8997_patch;
+		break;
+#endif
+#ifdef CONFIG_MFD_WM8998
+	case 0x6349:
+		switch (arizona->type) {
+		case WM8998:
+			type_name = "WM8998";
+			break;
+
+		case WM1814:
+			type_name = "WM1814";
+			break;
+
+		default:
+			type_name = "WM8998";
+			dev_err(arizona->dev, "WM8998 registered as %d\n",
+				arizona->type);
+			arizona->type = WM8998;
+		}
+
+		apply_patch = wm8998_patch;
 		break;
 #endif
 	default:
@@ -1204,14 +1263,38 @@ int arizona_dev_init(struct arizona *arizona)
 			<< ARIZONA_IN1_DMIC_SUP_SHIFT;
 		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_DMIC)
 			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
-		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
-			val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
+
+		switch (arizona->type) {
+		case WM8998:
+		case WM1814:
+			regmap_update_bits(arizona->regmap,
+				ARIZONA_ADC_DIGITAL_VOLUME_1L + (i * 8),
+				ARIZONA_IN1L_SRC_SE_MASK,
+				(arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
+					<< ARIZONA_IN1L_SRC_SE_SHIFT);
+
+			regmap_update_bits(arizona->regmap,
+				ARIZONA_ADC_DIGITAL_VOLUME_1R + (i * 8),
+				ARIZONA_IN1R_SRC_SE_MASK,
+				(arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
+					<< ARIZONA_IN1R_SRC_SE_SHIFT);
+
+			mask = ARIZONA_IN1_DMIC_SUP_MASK |
+				ARIZONA_IN1_MODE_MASK;
+			break;
+		default:
+			if (arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
+				val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
+
+			mask = ARIZONA_IN1_DMIC_SUP_MASK |
+				ARIZONA_IN1_MODE_MASK |
+				ARIZONA_IN1_SINGLE_ENDED_MASK;
+			break;
+		}
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_IN1L_CONTROL + (i * 8),
-				   ARIZONA_IN1_DMIC_SUP_MASK |
-				   ARIZONA_IN1_MODE_MASK |
-				   ARIZONA_IN1_SINGLE_ENDED_MASK, val);
+				   mask, val);
 	}
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; i++) {
@@ -1272,6 +1355,11 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM8997:
 		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
 				      ARRAY_SIZE(wm8997_devs), NULL, 0, NULL);
+		break;
+	case WM8998:
+	case WM1814:
+		ret = mfd_add_devices(arizona->dev, -1, wm8998_devs,
+				      ARRAY_SIZE(wm8998_devs), NULL, 0, NULL);
 		break;
 	}
 

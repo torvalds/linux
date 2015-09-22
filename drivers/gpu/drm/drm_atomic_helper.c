@@ -790,7 +790,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
  * This function shuts down all the outputs that need to be shut down and
  * prepares them (if required) with the new mode.
  *
- * For compatability with legacy crtc helpers this should be called before
+ * For compatibility with legacy crtc helpers this should be called before
  * drm_atomic_helper_commit_planes(), which is what the default commit function
  * does. But drivers with different needs can group the modeset commits together
  * and do the plane commits at the end. This is useful for drivers doing runtime
@@ -815,7 +815,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_disables);
  * This function enables all the outputs with the new configuration which had to
  * be turned off for the update.
  *
- * For compatability with legacy crtc helpers this should be called after
+ * For compatibility with legacy crtc helpers this should be called after
  * drm_atomic_helper_commit_planes(), which is what the default commit function
  * does. But drivers with different needs can group the modeset commits together
  * and do the plane commits at the end. This is useful for drivers doing runtime

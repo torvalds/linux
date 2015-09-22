@@ -211,7 +211,6 @@ MODULE_DEVICE_TABLE(i2c, as3711_i2c_id);
 static struct i2c_driver as3711_i2c_driver = {
 	.driver = {
 		   .name = "as3711",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(as3711_of_match),
 	},
 	.probe = as3711_i2c_probe,

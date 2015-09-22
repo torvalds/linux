@@ -215,7 +215,7 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di);
 
 	di->dev = &pdev->dev;
-	di->bat_desc.name = dev_name(&pdev->dev);
+	di->bat_desc.name = "rx51-battery";
 	di->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	di->bat_desc.properties = rx51_battery_props;
 	di->bat_desc.num_properties = ARRAY_SIZE(rx51_battery_props);
