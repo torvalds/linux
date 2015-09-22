@@ -139,5 +139,4 @@ DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual (Device Tree)")
 	.init_machine	= imx7d_init_machine,
 	.init_late	= imx7d_init_late,
 	.dt_compat	= imx7d_dt_compat,
-	.restart	= mxc_restart,
 MACHINE_END
