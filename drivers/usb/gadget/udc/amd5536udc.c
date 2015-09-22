@@ -71,8 +71,6 @@ static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
 static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
 static int udc_free_dma_chain(struct udc *dev, struct udc_request *req);
-static int udc_create_dma_chain(struct udc_ep *ep, struct udc_request *req,
-				unsigned long buf_len, gfp_t gfp_flags);
 static int udc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void udc_pci_remove(struct pci_dev *pdev);
 
@@ -787,6 +785,123 @@ udc_rxfifo_read(struct udc_ep *ep, struct udc_request *req)
 	return finished;
 }
 
+/* Creates or re-inits a DMA chain */
+static int udc_create_dma_chain(
+	struct udc_ep *ep,
+	struct udc_request *req,
+	unsigned long buf_len, gfp_t gfp_flags
+)
+{
+	unsigned long bytes = req->req.length;
+	unsigned int i;
+	dma_addr_t dma_addr;
+	struct udc_data_dma	*td = NULL;
+	struct udc_data_dma	*last = NULL;
+	unsigned long txbytes;
+	unsigned create_new_chain = 0;
+	unsigned len;
+
+	VDBG(ep->dev, "udc_create_dma_chain: bytes=%ld buf_len=%ld\n",
+	     bytes, buf_len);
+	dma_addr = DMA_DONT_USE;
+
+	/* unset L bit in first desc for OUT */
+	if (!ep->in)
+		req->td_data->status &= AMD_CLEAR_BIT(UDC_DMA_IN_STS_L);
+
+	/* alloc only new desc's if not already available */
+	len = req->req.length / ep->ep.maxpacket;
+	if (req->req.length % ep->ep.maxpacket)
+		len++;
+
+	if (len > req->chain_len) {
+		/* shorter chain already allocated before */
+		if (req->chain_len > 1)
+			udc_free_dma_chain(ep->dev, req);
+		req->chain_len = len;
+		create_new_chain = 1;
+	}
+
+	td = req->td_data;
+	/* gen. required number of descriptors and buffers */
+	for (i = buf_len; i < bytes; i += buf_len) {
+		/* create or determine next desc. */
+		if (create_new_chain) {
+			td = pci_pool_alloc(ep->dev->data_requests,
+					    gfp_flags, &dma_addr);
+			if (!td)
+				return -ENOMEM;
+
+			td->status = 0;
+		} else if (i == buf_len) {
+			/* first td */
+			td = (struct udc_data_dma *)phys_to_virt(
+						req->td_data->next);
+			td->status = 0;
+		} else {
+			td = (struct udc_data_dma *)phys_to_virt(last->next);
+			td->status = 0;
+		}
+
+		if (td)
+			td->bufptr = req->req.dma + i; /* assign buffer */
+		else
+			break;
+
+		/* short packet ? */
+		if ((bytes - i) >= buf_len) {
+			txbytes = buf_len;
+		} else {
+			/* short packet */
+			txbytes = bytes - i;
+		}
+
+		/* link td and assign tx bytes */
+		if (i == buf_len) {
+			if (create_new_chain)
+				req->td_data->next = dma_addr;
+			/*
+			 * else
+			 *	req->td_data->next = virt_to_phys(td);
+			 */
+			/* write tx bytes */
+			if (ep->in) {
+				/* first desc */
+				req->td_data->status =
+					AMD_ADDBITS(req->td_data->status,
+						    ep->ep.maxpacket,
+						    UDC_DMA_IN_STS_TXBYTES);
+				/* second desc */
+				td->status = AMD_ADDBITS(td->status,
+							txbytes,
+							UDC_DMA_IN_STS_TXBYTES);
+			}
+		} else {
+			if (create_new_chain)
+				last->next = dma_addr;
+			/*
+			 * else
+			 *	last->next = virt_to_phys(td);
+			 */
+			if (ep->in) {
+				/* write tx bytes */
+				td->status = AMD_ADDBITS(td->status,
+							txbytes,
+							UDC_DMA_IN_STS_TXBYTES);
+			}
+		}
+		last = td;
+	}
+	/* set last bit */
+	if (td) {
+		td->status |= AMD_BIT(UDC_DMA_IN_STS_L);
+		/* last desc. points to itself */
+		req->td_data_last = td;
+	}
+
+	return 0;
+}
+
 /* create/re-init a DMA descriptor or a DMA descriptor chain */
 static int prep_dma(struct udc_ep *ep, struct udc_request *req, gfp_t gfp)
 {
@@ -971,125 +1086,6 @@ static u32 udc_get_ppbdu_rxbytes(struct udc_request *req)
 
 	return count;
 
-}
-
-/* Creates or re-inits a DMA chain */
-static int udc_create_dma_chain(
-	struct udc_ep *ep,
-	struct udc_request *req,
-	unsigned long buf_len, gfp_t gfp_flags
-)
-{
-	unsigned long bytes = req->req.length;
-	unsigned int i;
-	dma_addr_t dma_addr;
-	struct udc_data_dma	*td = NULL;
-	struct udc_data_dma	*last = NULL;
-	unsigned long txbytes;
-	unsigned create_new_chain = 0;
-	unsigned len;
-
-	VDBG(ep->dev, "udc_create_dma_chain: bytes=%ld buf_len=%ld\n",
-			bytes, buf_len);
-	dma_addr = DMA_DONT_USE;
-
-	/* unset L bit in first desc for OUT */
-	if (!ep->in)
-		req->td_data->status &= AMD_CLEAR_BIT(UDC_DMA_IN_STS_L);
-
-	/* alloc only new desc's if not already available */
-	len = req->req.length / ep->ep.maxpacket;
-	if (req->req.length % ep->ep.maxpacket)
-		len++;
-
-	if (len > req->chain_len) {
-		/* shorter chain already allocated before */
-		if (req->chain_len > 1)
-			udc_free_dma_chain(ep->dev, req);
-		req->chain_len = len;
-		create_new_chain = 1;
-	}
-
-	td = req->td_data;
-	/* gen. required number of descriptors and buffers */
-	for (i = buf_len; i < bytes; i += buf_len) {
-		/* create or determine next desc. */
-		if (create_new_chain) {
-
-			td = pci_pool_alloc(ep->dev->data_requests,
-					gfp_flags, &dma_addr);
-			if (!td)
-				return -ENOMEM;
-
-			td->status = 0;
-		} else if (i == buf_len) {
-			/* first td */
-			td = (struct udc_data_dma *) phys_to_virt(
-						req->td_data->next);
-			td->status = 0;
-		} else {
-			td = (struct udc_data_dma *) phys_to_virt(last->next);
-			td->status = 0;
-		}
-
-
-		if (td)
-			td->bufptr = req->req.dma + i; /* assign buffer */
-		else
-			break;
-
-		/* short packet ? */
-		if ((bytes - i) >= buf_len) {
-			txbytes = buf_len;
-		} else {
-			/* short packet */
-			txbytes = bytes - i;
-		}
-
-		/* link td and assign tx bytes */
-		if (i == buf_len) {
-			if (create_new_chain)
-				req->td_data->next = dma_addr;
-			/*
-			else
-				req->td_data->next = virt_to_phys(td);
-			*/
-			/* write tx bytes */
-			if (ep->in) {
-				/* first desc */
-				req->td_data->status =
-					AMD_ADDBITS(req->td_data->status,
-							ep->ep.maxpacket,
-							UDC_DMA_IN_STS_TXBYTES);
-				/* second desc */
-				td->status = AMD_ADDBITS(td->status,
-							txbytes,
-							UDC_DMA_IN_STS_TXBYTES);
-			}
-		} else {
-			if (create_new_chain)
-				last->next = dma_addr;
-			/*
-			else
-				last->next = virt_to_phys(td);
-			*/
-			if (ep->in) {
-				/* write tx bytes */
-				td->status = AMD_ADDBITS(td->status,
-							txbytes,
-							UDC_DMA_IN_STS_TXBYTES);
-			}
-		}
-		last = td;
-	}
-	/* set last bit */
-	if (td) {
-		td->status |= AMD_BIT(UDC_DMA_IN_STS_L);
-		/* last desc. points to itself */
-		req->td_data_last = td;
-	}
-
-	return 0;
 }
 
 /* Enabling RX DMA */
