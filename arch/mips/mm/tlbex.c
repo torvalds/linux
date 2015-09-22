@@ -1009,15 +1009,9 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	if (cpu_has_64bits) {
 		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
 		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
-		if (cpu_has_rixi) {
-			build_convert_pte_to_entrylo(p, tmp);
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			build_convert_pte_to_entrylo(p, ptep);
-		} else {
-			build_convert_pte_to_entrylo(p, tmp);
-			UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-			build_convert_pte_to_entrylo(p, ptep);
-		}
+		build_convert_pte_to_entrylo(p, tmp);
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
+		build_convert_pte_to_entrylo(p, ptep);
 		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 	} else {
 		int pte_off_even = sizeof(pte_t) / 2;
@@ -1049,21 +1043,13 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	UASM_i_LW(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 	if (r45k_bvahwbug())
 		build_tlb_probe_entry(p);
-	if (cpu_has_rixi) {
-		build_convert_pte_to_entrylo(p, tmp);
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		build_convert_pte_to_entrylo(p, ptep);
-	} else {
-		build_convert_pte_to_entrylo(p, tmp);
-		if (r4k_250MHZhwbug())
-			UASM_i_MTC0(p, 0, C0_ENTRYLO0);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		build_convert_pte_to_entrylo(p, ptep);
-		if (r45k_bvahwbug())
-			uasm_i_mfc0(p, tmp, C0_INDEX);
-	}
+	build_convert_pte_to_entrylo(p, tmp);
+	if (r4k_250MHZhwbug())
+		UASM_i_MTC0(p, 0, C0_ENTRYLO0);
+	UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
+	build_convert_pte_to_entrylo(p, ptep);
+	if (r45k_bvahwbug())
+		uasm_i_mfc0(p, tmp, C0_INDEX);
 	if (r4k_250MHZhwbug())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
