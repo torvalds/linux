@@ -14,3 +14,12 @@ config STM_DUMMY
 	  and discards your data. Use for stm class testing.
 
 	  If you don't know what this is, say N.
+
+config STM_SOURCE_CONSOLE
+	tristate "Kernel console over STM devices"
+	help
+	  This is a kernel space trace source that sends kernel log
+	  messages to trace hosts over STM devices.
+
+	  If you want to send kernel console messages over STM devices,
+	  say Y.
