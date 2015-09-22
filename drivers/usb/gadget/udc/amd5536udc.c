@@ -70,8 +70,6 @@ static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
 static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
-static int udc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void udc_pci_remove(struct pci_dev *pdev);
 
 /* description */
 static const char mod_desc[] = UDC_MOD_DESCRIPTION;
