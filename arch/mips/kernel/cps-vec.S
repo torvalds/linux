@@ -50,9 +50,7 @@
 	 * MT is not supported then branch to nomt.
 	 */
 	.macro	has_mt	dest, nomt
-	mfc0	\dest, CP0_CONFIG
-	bgez	\dest, \nomt
-	 mfc0	\dest, CP0_CONFIG, 1
+	mfc0	\dest, CP0_CONFIG, 1
 	bgez	\dest, \nomt
 	 mfc0	\dest, CP0_CONFIG, 2
 	bgez	\dest, \nomt
