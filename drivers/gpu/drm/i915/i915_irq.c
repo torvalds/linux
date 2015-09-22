@@ -713,9 +713,8 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 static u32 g4x_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int reg = PIPE_FRMCOUNT_G4X(pipe);
 
-	return I915_READ(reg);
+	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
 
 /* raw reads, only for fast reads of display block, no need for forcewake etc. */

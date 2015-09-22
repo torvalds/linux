@@ -574,8 +574,6 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 						 edp_notifier);
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_div;
-	u32 pp_ctrl_reg, pp_div_reg;
 
 	if (!is_edp(intel_dp) || code != SYS_RESTART)
 		return 0;
@@ -584,6 +582,8 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 
 	if (IS_VALLEYVIEW(dev)) {
 		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
+		u32 pp_ctrl_reg, pp_div_reg;
+		u32 pp_div;
 
 		pp_ctrl_reg = VLV_PIPE_PP_CONTROL(pipe);
 		pp_div_reg  = VLV_PIPE_PP_DIVISOR(pipe);
@@ -5536,7 +5536,6 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
 	struct intel_crtc_state *config = NULL;
 	struct intel_crtc *intel_crtc = NULL;
-	u32 reg, val;
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
 
 	if (refresh_rate <= 0) {
@@ -5598,9 +5597,10 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 			DRM_ERROR("Unsupported refreshrate type\n");
 		}
 	} else if (INTEL_INFO(dev)->gen > 6) {
-		reg = PIPECONF(intel_crtc->config->cpu_transcoder);
-		val = I915_READ(reg);
+		u32 reg = PIPECONF(intel_crtc->config->cpu_transcoder);
+		u32 val;
 
+		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
 			if (IS_VALLEYVIEW(dev))
 				val |= PIPECONF_EDP_RR_MODE_SWITCH_VLV;

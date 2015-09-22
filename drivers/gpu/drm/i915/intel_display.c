@@ -1157,12 +1157,10 @@ static const char *state_string(bool enabled)
 void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state)
 {
-	int reg;
 	u32 val;
 	bool cur_state;
 
-	reg = DPLL(pipe);
-	val = I915_READ(reg);
+	val = I915_READ(DPLL(pipe));
 	cur_state = !!(val & DPLL_VCO_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "PLL state assertion failure (expected %s, current %s)\n",
@@ -1219,20 +1217,16 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
-	int reg;
-	u32 val;
 	bool cur_state;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 
 	if (HAS_DDI(dev_priv->dev)) {
 		/* DDI does not have a specific FDI_TX register */
-		reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
-		val = I915_READ(reg);
+		u32 val = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 		cur_state = !!(val & TRANS_DDI_FUNC_ENABLE);
 	} else {
-		reg = FDI_TX_CTL(pipe);
-		val = I915_READ(reg);
+		u32 val = I915_READ(FDI_TX_CTL(pipe));
 		cur_state = !!(val & FDI_TX_ENABLE);
 	}
 	I915_STATE_WARN(cur_state != state,
@@ -1245,12 +1239,10 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
-	int reg;
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_RX_CTL(pipe);
-	val = I915_READ(reg);
+	val = I915_READ(FDI_RX_CTL(pipe));
 	cur_state = !!(val & FDI_RX_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "FDI RX state assertion failure (expected %s, current %s)\n",
@@ -1262,7 +1254,6 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
-	int reg;
 	u32 val;
 
 	/* ILK FDI PLL is always enabled */
@@ -1273,20 +1264,17 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 	if (HAS_DDI(dev_priv->dev))
 		return;
 
-	reg = FDI_TX_CTL(pipe);
-	val = I915_READ(reg);
+	val = I915_READ(FDI_TX_CTL(pipe));
 	I915_STATE_WARN(!(val & FDI_TX_PLL_ENABLE), "FDI TX PLL assertion failure, should be active but is disabled\n");
 }
 
 void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, bool state)
 {
-	int reg;
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_RX_CTL(pipe);
-	val = I915_READ(reg);
+	val = I915_READ(FDI_RX_CTL(pipe));
 	cur_state = !!(val & FDI_RX_PLL_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "FDI RX PLL assertion failure (expected %s, current %s)\n",
@@ -1356,8 +1344,6 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv,
 		 enum pipe pipe, bool state)
 {
-	int reg;
-	u32 val;
 	bool cur_state;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
@@ -1371,8 +1357,7 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
 		cur_state = false;
 	} else {
-		reg = PIPECONF(cpu_transcoder);
-		val = I915_READ(reg);
+		u32 val = I915_READ(PIPECONF(cpu_transcoder));
 		cur_state = !!(val & PIPECONF_ENABLE);
 	}
 
@@ -1384,12 +1369,10 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 static void assert_plane(struct drm_i915_private *dev_priv,
 			 enum plane plane, bool state)
 {
-	int reg;
 	u32 val;
 	bool cur_state;
 
-	reg = DSPCNTR(plane);
-	val = I915_READ(reg);
+	val = I915_READ(DSPCNTR(plane));
 	cur_state = !!(val & DISPLAY_PLANE_ENABLE);
 	I915_STATE_WARN(cur_state != state,
 	     "plane %c assertion failure (expected %s, current %s)\n",
@@ -1403,14 +1386,11 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int reg, i;
-	u32 val;
-	int cur_pipe;
+	int i;
 
 	/* Primary planes are fixed to pipes on gen4+ */
 	if (INTEL_INFO(dev)->gen >= 4) {
-		reg = DSPCNTR(pipe);
-		val = I915_READ(reg);
+		u32 val = I915_READ(DSPCNTR(pipe));
 		I915_STATE_WARN(val & DISPLAY_PLANE_ENABLE,
 		     "plane %c assertion failure, should be disabled but not\n",
 		     plane_name(pipe));
@@ -1419,9 +1399,8 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 
 	/* Need to check both planes against the pipe */
 	for_each_pipe(dev_priv, i) {
-		reg = DSPCNTR(i);
-		val = I915_READ(reg);
-		cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
+		u32 val = I915_READ(DSPCNTR(i));
+		enum pipe cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
 			DISPPLANE_SEL_PIPE_SHIFT;
 		I915_STATE_WARN((val & DISPLAY_PLANE_ENABLE) && pipe == cur_pipe,
 		     "plane %c assertion failure, should be off on pipe %c but is still active\n",
@@ -1433,33 +1412,29 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	int reg, sprite;
-	u32 val;
+	int sprite;
 
 	if (INTEL_INFO(dev)->gen >= 9) {
 		for_each_sprite(dev_priv, pipe, sprite) {
-			val = I915_READ(PLANE_CTL(pipe, sprite));
+			u32 val = I915_READ(PLANE_CTL(pipe, sprite));
 			I915_STATE_WARN(val & PLANE_CTL_ENABLE,
 			     "plane %d assertion failure, should be off on pipe %c but is still active\n",
 			     sprite, pipe_name(pipe));
 		}
 	} else if (IS_VALLEYVIEW(dev)) {
 		for_each_sprite(dev_priv, pipe, sprite) {
-			reg = SPCNTR(pipe, sprite);
-			val = I915_READ(reg);
+			u32 val = I915_READ(SPCNTR(pipe, sprite));
 			I915_STATE_WARN(val & SP_ENABLE,
 			     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 			     sprite_name(pipe, sprite), pipe_name(pipe));
 		}
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		reg = SPRCTL(pipe);
-		val = I915_READ(reg);
+		u32 val = I915_READ(SPRCTL(pipe));
 		I915_STATE_WARN(val & SPRITE_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 		     plane_name(pipe), pipe_name(pipe));
 	} else if (INTEL_INFO(dev)->gen >= 5) {
-		reg = DVSCNTR(pipe);
-		val = I915_READ(reg);
+		u32 val = I915_READ(DVSCNTR(pipe));
 		I915_STATE_WARN(val & DVS_ENABLE,
 		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
 		     plane_name(pipe), pipe_name(pipe));
@@ -1488,12 +1463,10 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
-	int reg;
 	u32 val;
 	bool enabled;
 
-	reg = PCH_TRANSCONF(pipe);
-	val = I915_READ(reg);
+	val = I915_READ(PCH_TRANSCONF(pipe));
 	enabled = !!(val & TRANS_ENABLE);
 	I915_STATE_WARN(enabled,
 	     "transcoder assertion failed, should be off on pipe %c but is still active\n",
@@ -1600,21 +1573,18 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
-	int reg;
 	u32 val;
 
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_B, TRANS_DP_PORT_SEL_B);
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_C, TRANS_DP_PORT_SEL_C);
 	assert_pch_dp_disabled(dev_priv, pipe, PCH_DP_D, TRANS_DP_PORT_SEL_D);
 
-	reg = PCH_ADPA;
-	val = I915_READ(reg);
+	val = I915_READ(PCH_ADPA);
 	I915_STATE_WARN(adpa_pipe_enabled(dev_priv, pipe, val),
 	     "PCH VGA enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
-	reg = PCH_LVDS;
-	val = I915_READ(reg);
+	val = I915_READ(PCH_LVDS);
 	I915_STATE_WARN(lvds_pipe_enabled(dev_priv, pipe, val),
 	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
@@ -14949,13 +14919,12 @@ intel_check_plane_mapping(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg, val;
+	u32 val;
 
 	if (INTEL_INFO(dev)->num_pipes == 1)
 		return true;
 
-	reg = DSPCNTR(!crtc->plane);
-	val = I915_READ(reg);
+	val = I915_READ(DSPCNTR(!crtc->plane));
 
 	if ((val & DISPLAY_PLANE_ENABLE) &&
 	    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
