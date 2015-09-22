@@ -123,7 +123,7 @@ public:
 class ConfigItem : public QTreeWidgetItem {
 	typedef class QTreeWidgetItem Parent;
 public:
-	ConfigItem(QTreeWidget *parent, ConfigItem *after, struct menu *m, bool v)
+	ConfigItem(ConfigList *parent, ConfigItem *after, struct menu *m, bool v)
 	: Parent(parent, after), nextItem(0), menu(m), visible(v), goParent(false)
 	{
 		init();
@@ -133,7 +133,7 @@ public:
 	{
 		init();
 	}
-	ConfigItem(QTreeWidget *parent, ConfigItem *after, bool v)
+	ConfigItem(ConfigList *parent, ConfigItem *after, bool v)
 	: Parent(parent, after), nextItem(0), menu(0), visible(v), goParent(true)
 	{
 		init();
