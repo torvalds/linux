@@ -6,3 +6,11 @@ config STM
 	  Examples of such devices are Intel(R) Trace Hub and Coresight STM.
 
 	  Say Y here to enable System Trace Module device support.
+
+config STM_DUMMY
+	tristate "Dummy STM driver"
+	help
+	  This is a simple dummy device that pretends to be an stm device
+	  and discards your data. Use for stm class testing.
+
+	  If you don't know what this is, say N.
