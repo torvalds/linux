@@ -119,7 +119,13 @@ static inline __wsum csum_add(__wsum csum, __wsum addend)
 {
 #ifdef __powerpc64__
 	u64 res = (__force u64)csum;
+#endif
+	if (__builtin_constant_p(csum) && csum == 0)
+		return addend;
+	if (__builtin_constant_p(addend) && addend == 0)
+		return csum;
 
+#ifdef __powerpc64__
 	res += (__force u64)addend;
 	return (__force __wsum)((u32)res + (res >> 32));
 #else
