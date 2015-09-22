@@ -469,15 +469,21 @@ static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
 }
 
 /**
- * comedi_buf_write_samples - write sample data to comedi buffer
- * @s: comedi_subdevice struct
- * @data: samples
- * @nsamples: number of samples
+ * comedi_buf_write_samples() - Write sample data to COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to source samples.
+ * @nsamples: Number of samples to write.
  *
- * Writes nsamples to the comedi buffer associated with the subdevice, marks
- * it as written and updates the acquisition scan progress.
+ * Write up to @nsamples samples to the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as written and update the
+ * acquisition scan progress.  If there is not enough room for the specified
+ * number of samples, the number of samples written is limited to the number
+ * that will fit and the %COMEDI_CB_OVERFLOW event flag is set to cause the
+ * acquisition to terminate with an overrun error.  Set the %COMEDI_CB_BLOCK
+ * event flag if any samples are written to cause waiting tasks to be woken
+ * when the event flags are processed.
  *
- * Returns the amount of data written in bytes.
+ * Return: The amount of data written in bytes.
  */
 unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 				      const void *data, unsigned int nsamples)
@@ -513,15 +519,18 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_buf_write_samples);
 
 /**
- * comedi_buf_read_samples - read sample data from comedi buffer
- * @s: comedi_subdevice struct
- * @data: destination
- * @nsamples: maximum number of samples to read
+ * comedi_buf_read_samples() - Read sample data from COMEDI buffer
+ * @s: COMEDI subdevice.
+ * @data: Pointer to destination.
+ * @nsamples: Maximum number of samples to read.
  *
- * Reads up to nsamples from the comedi buffer associated with the subdevice,
- * marks it as read and updates the acquisition scan progress.
+ * Read up to @nsamples samples from the COMEDI acquisition data buffer
+ * associated with the subdevice, mark it as read and update the acquisition
+ * scan progress.  Limit the number of samples read to the number available.
+ * Set the %COMEDI_CB_BLOCK event flag if any samples are read to cause waiting
+ * tasks to be woken when the event flags are processed.
  *
- * Returns the amount of data read in bytes.
+ * Return: The amount of data read in bytes.
  */
 unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 				     void *data, unsigned int nsamples)
