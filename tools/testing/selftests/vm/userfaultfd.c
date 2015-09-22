@@ -422,7 +422,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_register uffdio_register;
 	struct uffdio_api uffdio_api;
 	unsigned long cpu;
-	int uffd_flags;
+	int uffd_flags, err;
 	unsigned long userfaults[nr_cpus];
 
 	if (posix_memalign(&area, page_size, nr_pages * page_size)) {
@@ -499,6 +499,7 @@ static int userfaultfd_stress(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, 16*1024*1024);
 
+	err = 0;
 	while (bounces--) {
 		unsigned long expected_ioctls;
 
@@ -583,8 +584,9 @@ static int userfaultfd_stress(void)
 					    area_dst + nr * page_size,
 					    sizeof(pthread_mutex_t))) {
 					fprintf(stderr,
-						"error mutex 2 %lu\n",
+						"error mutex %lu\n",
 						nr);
+					err = 1;
 					bounces = 0;
 				}
 				if (*area_count(area_dst, nr) != count_verify[nr]) {
@@ -593,6 +595,7 @@ static int userfaultfd_stress(void)
 						*area_count(area_src, nr),
 						count_verify[nr],
 						nr);
+					err = 1;
 					bounces = 0;
 				}
 			}
@@ -609,7 +612,7 @@ static int userfaultfd_stress(void)
 		printf("\n");
 	}
 
-	return 0;
+	return err;
 }
 
 int main(int argc, char **argv)
