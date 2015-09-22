@@ -24,6 +24,16 @@ config INTEL_TH_PCI
 
 	  Say Y here to enable PCI Intel TH support.
 
+config INTEL_TH_GTH
+	tristate "Intel(R) Trace Hub Global Trace Hub"
+	help
+	  Global Trace Hub (GTH) is the central component of the
+	  Intel TH infrastructure and acts as a switch for source
+	  and output devices. This driver is required for other
+	  Intel TH subdevices to initialize.
+
+	  Say Y here to enable GTH subdevice of Intel(R) Trace Hub.
+
 config INTEL_TH_DEBUG
 	bool "Intel(R) Trace Hub debugging"
 	depends on DEBUG_FS
