@@ -327,25 +327,6 @@ static inline u16 get_asoc_id(u8 *data)
 	return asoc_id;
 }
 
-/**
- *  @brief              initializes the Core Configurator
- *  @details
- *  @return     Error code indicating success/failure
- *  @note
- *  @author	mabubakr
- *  @date		1 Mar 2012
- *  @version		1.0
- */
-
-s32 CoreConfiguratorInit(void)
-{
-	s32 s32Error = 0;
-
-	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorInit()\n");
-
-	return s32Error;
-}
-
 u8 *get_tim_elm(u8 *pu8msa, u16 u16RxLen, u16 u16TagParamOffset)
 {
 	u16 u16index = 0;

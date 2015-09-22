@@ -156,7 +156,6 @@ typedef struct wid_site_survey_reslts {
 } wid_site_survey_reslts_s;
 #endif
 
-s32 CoreConfiguratorInit(void);
 s32 CoreConfiguratorDeInit(void);
 
 s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,

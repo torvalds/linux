@@ -6467,22 +6467,11 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	/*TODO Code to setup simulation to be removed later*/
-	/*Intialize configurator module*/
-	s32Error = CoreConfiguratorInit();
-	if (s32Error < 0) {
-		PRINT_ER("Failed to initialize core configurator\n");
-		goto _fail_mem_;
-	}
 
 	clients_count++; /* increase number of created entities */
 
 	return s32Error;
 
-
-_fail_mem_:
-	if (pstrWFIDrv != NULL)
-		kfree(pstrWFIDrv);
-	del_timer_sync(&pstrWFIDrv->hRemainOnChannel);
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 	del_timer_sync(&pstrWFIDrv->hConnectTimer);
