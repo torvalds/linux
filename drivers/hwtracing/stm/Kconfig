@@ -1,0 +1,8 @@
+config STM
+	tristate "System Trace Module devices"
+	help
+	  A System Trace Module (STM) is a device exporting data in System
+	  Trace Protocol (STP) format as defined by MIPI STP standards.
+	  Examples of such devices are Intel(R) Trace Hub and Coresight STM.
+
+	  Say Y here to enable System Trace Module device support.
