@@ -74,6 +74,9 @@
 #include "uvd_v6_0.h"
 #include "vce_v3_0.h"
 #include "amdgpu_powerplay.h"
+#if defined(CONFIG_DRM_AMD_ACP)
+#include "amdgpu_acp.h"
+#endif
 
 /*
  * Indirect registers accessor
@@ -970,6 +973,15 @@ static const struct amdgpu_ip_block_version cz_ip_blocks[] =
 		.rev = 0,
 		.funcs = &vce_v3_0_ip_funcs,
 	},
+#if defined(CONFIG_DRM_AMD_ACP)
+	{
+		.type = AMD_IP_BLOCK_TYPE_ACP,
+		.major = 2,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &acp_ip_funcs,
+	},
+#endif
 };
 
 int vi_set_ip_blocks(struct amdgpu_device *adev)
