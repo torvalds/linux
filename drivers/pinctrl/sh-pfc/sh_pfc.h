@@ -98,17 +98,11 @@ struct pinmux_data_reg {
 	.enum_ids = (const u16 [r_width]) \
 
 struct pinmux_irq {
-	int irq;
 	const short *gpios;
 };
 
-#ifdef CONFIG_ARCH_MULTIPLATFORM
-#define PINMUX_IRQ(irq_nr, ids...)			   \
+#define PINMUX_IRQ(ids...)			   \
 	{ .gpios = (const short []) { ids, -1 } }
-#else
-#define PINMUX_IRQ(irq_nr, ids...)			   \
-	{ .irq = irq_nr, .gpios = (const short []) { ids, -1 } }
-#endif
 
 struct pinmux_range {
 	u16 begin;
