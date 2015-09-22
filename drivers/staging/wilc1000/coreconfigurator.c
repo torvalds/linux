@@ -488,13 +488,10 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		u16IEsLen = u16RxLen - (MAC_HDR_LEN + TIME_STAMP_LEN + BEACON_INTERVAL_LEN + CAP_INFO_LEN);
 
 		if (u16IEsLen > 0) {
-			pstrNetworkInfo->pu8IEs = kmalloc(u16IEsLen, GFP_KERNEL);
+			pstrNetworkInfo->pu8IEs = kmemdup(pu8IEs, u16IEsLen,
+							  GFP_KERNEL);
 			if (!pstrNetworkInfo->pu8IEs)
 				return -ENOMEM;
-
-			memset((void *)(pstrNetworkInfo->pu8IEs), 0, u16IEsLen);
-
-			memcpy(pstrNetworkInfo->pu8IEs, pu8IEs, u16IEsLen);
 		}
 		pstrNetworkInfo->u16IEsLen = u16IEsLen;
 
@@ -578,13 +575,10 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 		pu8IEs = &pu8Buffer[CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN];
 		u16IEsLen = u16AssocRespLen - (CAP_INFO_LEN + STATUS_CODE_LEN + AID_LEN);
 
-		pstrConnectRespInfo->pu8RespIEs = kmalloc(u16IEsLen, GFP_KERNEL);
+		pstrConnectRespInfo->pu8RespIEs = kmemdup(pu8IEs, u16IEsLen, GFP_KERNEL);
 		if (!pstrConnectRespInfo->pu8RespIEs)
 			return -ENOMEM;
 
-		memset((void *)(pstrConnectRespInfo->pu8RespIEs), 0, u16IEsLen);
-
-		memcpy(pstrConnectRespInfo->pu8RespIEs, pu8IEs, u16IEsLen);
 		pstrConnectRespInfo->u16RespIEsLen = u16IEsLen;
 	}
 
