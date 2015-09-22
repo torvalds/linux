@@ -8,7 +8,7 @@
 #include <QMainWindow>
 #include <q3vbox.h>
 #include <QList>
-#include <q3textbrowser.h>
+#include <qtextbrowser.h>
 #include <QAction>
 #include <q3header.h>
 #include <QFileDialog>
@@ -1154,22 +1154,22 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 		*text += str2;
 }
 
-Q3PopupMenu* ConfigInfoView::createPopupMenu(const QPoint& pos)
+QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
 {
-	Q3PopupMenu* popup = Parent::createPopupMenu(pos);
+	QMenu* popup = Parent::createStandardContextMenu(pos);
 	QAction* action = new QAction(_("Show Debug Info"), popup);
 	  action->setToggleAction(TRUE);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
 	  action->setOn(showDebug());
-	popup->insertSeparator();
+	popup->addSeparator();
 	action->addTo(popup);
 	return popup;
 }
 
-void ConfigInfoView::contentsContextMenuEvent(QContextMenuEvent *e)
+void ConfigInfoView::contextMenuEvent(QContextMenuEvent *e)
 {
-	Parent::contentsContextMenuEvent(e);
+	Parent::contextMenuEvent(e);
 }
 
 ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *name)

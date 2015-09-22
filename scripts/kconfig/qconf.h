@@ -232,9 +232,9 @@ public:
 	static QAction *showPromptAction;
 };
 
-class ConfigInfoView : public Q3TextBrowser {
+class ConfigInfoView : public QTextBrowser {
 	Q_OBJECT
-	typedef class Q3TextBrowser Parent;
+	typedef class QTextBrowser Parent;
 public:
 	ConfigInfoView(QWidget* parent, const char *name = 0);
 	bool showDebug(void) const { return _showDebug; }
@@ -254,8 +254,8 @@ protected:
 	QString debug_info(struct symbol *sym);
 	static QString print_filter(const QString &str);
 	static void expr_print_help(void *data, struct symbol *sym, const char *str);
-	Q3PopupMenu* createPopupMenu(const QPoint& pos);
-	void contentsContextMenuEvent(QContextMenuEvent *e);
+	QMenu *createStandardContextMenu(const QPoint & pos);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	struct symbol *sym;
 	struct menu *_menu;
