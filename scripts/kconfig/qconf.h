@@ -4,6 +4,7 @@
  */
 
 #include <q3listview.h>
+#include <QMainWindow>
 #include <qsettings.h>
 
 class ConfigView;
@@ -281,7 +282,7 @@ protected:
 	struct symbol **result;
 };
 
-class ConfigMainWindow : public Q3MainWindow {
+class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
 
 	static Q3Action *saveAction;
@@ -313,7 +314,7 @@ protected:
 	ConfigView *configView;
 	ConfigList *configList;
 	ConfigInfoView *helpText;
-	Q3ToolBar *toolBar;
+	QToolBar *toolBar;
 	Q3Action *backAction;
 	QSplitter* split1;
 	QSplitter* split2;

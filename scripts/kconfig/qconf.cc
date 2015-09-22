@@ -5,7 +5,7 @@
 
 #include <qglobal.h>
 
-#include <q3mainwindow.h>
+#include <QMainWindow>
 #include <q3vbox.h>
 #include <q3valuelist.h>
 #include <q3textbrowser.h>
@@ -1303,7 +1303,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configList->setFocus();
 
 	menu = menuBar();
-	toolBar = new Q3ToolBar("Tools", this);
+	toolBar = new QToolBar("Tools", this);
 
 	backAction = new Q3Action("Back", QPixmap(xpm_back), _("Back"), 0, this);
 	  connect(backAction, SIGNAL(activated()), SLOT(goBack()));
