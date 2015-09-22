@@ -583,6 +583,14 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		/* QH already in a schedule */
 		return 0;
 
+	if (!dwc2_frame_num_le(qh->sched_frame, hsotg->frame_number) &&
+			!hsotg->frame_number) {
+		dev_dbg(hsotg->dev,
+				"reset frame number counter\n");
+		qh->sched_frame = dwc2_frame_num_inc(hsotg->frame_number,
+				SCHEDULE_SLOP);
+	}
+
 	/* Add the new QH to the appropriate schedule */
 	if (dwc2_qh_is_non_per(qh)) {
 		/* Always start in inactive schedule */

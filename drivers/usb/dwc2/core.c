@@ -116,6 +116,7 @@ static int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
 
 	dwc2_writel(hr->hprt0, hsotg->regs + HPRT0);
 	dwc2_writel(hr->hfir, hsotg->regs + HFIR);
+	hsotg->frame_number = 0;
 
 	return 0;
 }
