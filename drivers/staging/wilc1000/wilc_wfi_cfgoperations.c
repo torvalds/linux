@@ -2589,7 +2589,7 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 /**
- *  @brief      WILC_WFI_set_cqm_rssi_config
+ *  @brief      set_cqm_rssi_config
  *  @details    Configure connection quality monitor RSSI threshold.
  *  @param[in]   struct wiphy *wiphy:
  *  @param[in]	struct net_device *dev:
@@ -2600,8 +2600,8 @@ void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
  *  @date	01 MAR 2012
  *  @version	1.0
  */
-static int    WILC_WFI_set_cqm_rssi_config(struct wiphy *wiphy,
-					   struct net_device *dev,  s32 rssi_thold, u32 rssi_hyst)
+static int set_cqm_rssi_config(struct wiphy *wiphy, struct net_device *dev,
+			       s32 rssi_thold, u32 rssi_hyst)
 {
 	PRINT_D(CFG80211_DBG, "Setting CQM RSSi Function\n");
 	return 0;
@@ -3402,7 +3402,7 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
 	.mgmt_tx = mgmt_tx,
 	.mgmt_frame_register = wilc_mgmt_frame_register,
 	.set_power_mgmt = set_power_mgmt,
-	.set_cqm_rssi_config = WILC_WFI_set_cqm_rssi_config,
+	.set_cqm_rssi_config = set_cqm_rssi_config,
 
 };
 
