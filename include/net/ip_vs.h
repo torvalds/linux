@@ -29,6 +29,9 @@
 #endif
 #include <net/net_namespace.h>		/* Netw namespace */
 
+#define IP_VS_HDR_INVERSE	1
+#define IP_VS_HDR_ICMP		2
+
 /* Generic access of ipvs struct */
 static inline struct netns_ipvs *net_ipvs(struct net* net)
 {
@@ -104,6 +107,8 @@ static inline struct net *seq_file_single_net(struct seq_file *seq)
 extern int ip_vs_conn_tab_size;
 
 struct ip_vs_iphdr {
+	int hdr_flags;	/* ipvs flags */
+	__u32 off;	/* Where IP or IPv4 header starts */
 	__u32 len;	/* IPv4 simply where L4 starts
 			 * IPv6 where L4 Transport Header starts */
 	__u16 fragoffs; /* IPv6 fragment offset, 0 if first frag (or not frag)*/
@@ -120,48 +125,89 @@ static inline void *frag_safe_skb_hp(const struct sk_buff *skb, int offset,
 	return skb_header_pointer(skb, offset, len, buffer);
 }
 
-static inline void
-ip_vs_fill_ip4hdr(const void *nh, struct ip_vs_iphdr *iphdr)
-{
-	const struct iphdr *iph = nh;
-
-	iphdr->len	= iph->ihl * 4;
-	iphdr->fragoffs	= 0;
-	iphdr->protocol	= iph->protocol;
-	iphdr->saddr.ip	= iph->saddr;
-	iphdr->daddr.ip	= iph->daddr;
-}
-
 /* This function handles filling *ip_vs_iphdr, both for IPv4 and IPv6.
  * IPv6 requires some extra work, as finding proper header position,
  * depend on the IPv6 extension headers.
  */
-static inline void
-ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, struct ip_vs_iphdr *iphdr)
+static inline int
+ip_vs_fill_iph_skb_off(int af, const struct sk_buff *skb, int offset,
+		       int hdr_flags, struct ip_vs_iphdr *iphdr)
 {
+	iphdr->hdr_flags = hdr_flags;
+	iphdr->off = offset;
+
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
-		const struct ipv6hdr *iph =
-			(struct ipv6hdr *)skb_network_header(skb);
+		struct ipv6hdr _iph;
+		const struct ipv6hdr *iph = skb_header_pointer(
+			skb, offset, sizeof(_iph), &_iph);
+		if (!iph)
+			return 0;
+
 		iphdr->saddr.in6 = iph->saddr;
 		iphdr->daddr.in6 = iph->daddr;
 		/* ipv6_find_hdr() updates len, flags */
-		iphdr->len	 = 0;
+		iphdr->len	 = offset;
 		iphdr->flags	 = 0;
 		iphdr->protocol  = ipv6_find_hdr(skb, &iphdr->len, -1,
 						 &iphdr->fragoffs,
 						 &iphdr->flags);
+		if (iphdr->protocol < 0)
+			return 0;
 	} else
 #endif
 	{
-		const struct iphdr *iph =
-			(struct iphdr *)skb_network_header(skb);
-		iphdr->len	= iph->ihl * 4;
+		struct iphdr _iph;
+		const struct iphdr *iph = skb_header_pointer(
+			skb, offset, sizeof(_iph), &_iph);
+		if (!iph)
+			return 0;
+
+		iphdr->len	= offset + iph->ihl * 4;
 		iphdr->fragoffs	= 0;
 		iphdr->protocol	= iph->protocol;
 		iphdr->saddr.ip	= iph->saddr;
 		iphdr->daddr.ip	= iph->daddr;
 	}
+
+	return 1;
+}
+
+static inline int
+ip_vs_fill_iph_skb_icmp(int af, const struct sk_buff *skb, int offset,
+			bool inverse, struct ip_vs_iphdr *iphdr)
+{
+	int hdr_flags = IP_VS_HDR_ICMP;
+
+	if (inverse)
+		hdr_flags |= IP_VS_HDR_INVERSE;
+
+	return ip_vs_fill_iph_skb_off(af, skb, offset, hdr_flags, iphdr);
+}
+
+static inline int
+ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, bool inverse,
+		   struct ip_vs_iphdr *iphdr)
+{
+	int hdr_flags = 0;
+
+	if (inverse)
+		hdr_flags |= IP_VS_HDR_INVERSE;
+
+	return ip_vs_fill_iph_skb_off(af, skb, skb_network_offset(skb),
+				      hdr_flags, iphdr);
+}
+
+static inline bool
+ip_vs_iph_inverse(const struct ip_vs_iphdr *iph)
+{
+	return !!(iph->hdr_flags & IP_VS_HDR_INVERSE);
+}
+
+static inline bool
+ip_vs_iph_icmp(const struct ip_vs_iphdr *iph)
+{
+	return !!(iph->hdr_flags & IP_VS_HDR_ICMP);
 }
 
 static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
@@ -449,14 +495,12 @@ struct ip_vs_protocol {
 	struct ip_vs_conn *
 	(*conn_in_get)(int af,
 		       const struct sk_buff *skb,
-		       const struct ip_vs_iphdr *iph,
-		       int inverse);
+		       const struct ip_vs_iphdr *iph);
 
 	struct ip_vs_conn *
 	(*conn_out_get)(int af,
 			const struct sk_buff *skb,
-			const struct ip_vs_iphdr *iph,
-			int inverse);
+			const struct ip_vs_iphdr *iph);
 
 	int (*snat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
@@ -953,6 +997,8 @@ struct netns_ipvs {
 	int			sysctl_pmtu_disc;
 	int			sysctl_backup_only;
 	int			sysctl_conn_reuse_mode;
+	int			sysctl_schedule_icmp;
+	int			sysctl_ignore_tunneled;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1071,6 +1117,16 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_conn_reuse_mode;
 }
 
+static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_schedule_icmp;
+}
+
+static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_ignore_tunneled;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1143,6 +1199,16 @@ static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
 	return 1;
 }
 
+static inline int sysctl_schedule_icmp(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
+static inline int sysctl_ignore_tunneled(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
 #endif
 
 /* IPVS core functions
@@ -1186,14 +1252,12 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
 struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
-					    const struct ip_vs_iphdr *iph,
-					    int inverse);
+					    const struct ip_vs_iphdr *iph);
 
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
-					     const struct ip_vs_iphdr *iph,
-					     int inverse);
+					     const struct ip_vs_iphdr *iph);
 
 /* Get reference to gain full access to conn.
  * By default, RCU read-side critical sections have access only to

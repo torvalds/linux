@@ -48,9 +48,7 @@ static void __nft_trace_packet(const struct nft_pktinfo *pkt,
 			       const struct nft_chain *chain,
 			       int rulenum, enum nft_trace type)
 {
-	struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
-
-	nf_log_trace(net, pkt->xt.family, pkt->ops->hooknum, pkt->skb, pkt->in,
+	nf_log_trace(pkt->net, pkt->pf, pkt->hook, pkt->skb, pkt->in,
 		     pkt->out, &trace_loginfo, "TRACE: %s:%s:%s:%u ",
 		     chain->table->name, chain->name, comments[type],
 		     rulenum);
@@ -111,10 +109,10 @@ struct nft_jumpstack {
 };
 
 unsigned int
-nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
+nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 {
-	const struct nft_chain *chain = ops->priv, *basechain = chain;
-	const struct net *net = dev_net(pkt->in ? pkt->in : pkt->out);
+	const struct nft_chain *chain = priv, *basechain = chain;
+	const struct net *net = pkt->net;
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_regs regs;

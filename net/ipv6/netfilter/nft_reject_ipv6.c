@@ -24,15 +24,14 @@ static void nft_reject_ipv6_eval(const struct nft_expr *expr,
 				 const struct nft_pktinfo *pkt)
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
-	struct net *net = dev_net((pkt->in != NULL) ? pkt->in : pkt->out);
 
 	switch (priv->type) {
 	case NFT_REJECT_ICMP_UNREACH:
-		nf_send_unreach6(net, pkt->skb, priv->icmp_code,
-				 pkt->ops->hooknum);
+		nf_send_unreach6(pkt->net, pkt->skb, priv->icmp_code,
+				 pkt->hook);
 		break;
 	case NFT_REJECT_TCP_RST:
-		nf_send_reset6(net, pkt->skb, pkt->ops->hooknum);
+		nf_send_reset6(pkt->net, pkt->skb, pkt->hook);
 		break;
 	default:
 		break;

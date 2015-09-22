@@ -53,7 +53,6 @@ extern struct xt_table *arpt_register_table(struct net *net,
 					    const struct arpt_replace *repl);
 extern void arpt_unregister_table(struct xt_table *table);
 extern unsigned int arpt_do_table(struct sk_buff *skb,
-				  unsigned int hook,
 				  const struct nf_hook_state *state,
 				  struct xt_table *table);
 
