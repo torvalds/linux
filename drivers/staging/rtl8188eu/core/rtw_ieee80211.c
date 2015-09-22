@@ -130,12 +130,12 @@ int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
 	}
 }
 
-u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *source,
-				unsigned int *frlen)
+u8 *rtw_set_fixed_ie(void *pbuf, unsigned int len, void *source,
+		     unsigned int *frlen)
 {
-	memcpy((void *)pbuf, (void *)source, len);
+	memcpy(pbuf, source, len);
 	*frlen = *frlen + len;
-	return pbuf + len;
+	return ((u8 *)pbuf) + len;
 }
 
 /*  rtw_set_ie will update frame length */
