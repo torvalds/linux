@@ -38,10 +38,24 @@ _GLOBAL(csum_partial)
 	srwi.	r6,r4,2		/* # words to do */
 	adde	r5,r5,r0
 	beq	3f
-1:	mtctr	r6
+1:	andi.	r6,r6,3		/* Prepare to handle words 4 by 4 */
+	beq	21f
+	mtctr	r6
 2:	lwzu	r0,4(r3)
 	adde	r5,r5,r0
 	bdnz	2b
+21:	srwi.	r6,r4,4		/* # blocks of 4 words to do */
+	beq	3f
+	mtctr	r6
+22:	lwz	r0,4(r3)
+	lwz	r6,8(r3)
+	lwz	r7,12(r3)
+	lwzu	r8,16(r3)
+	adde	r5,r5,r0
+	adde	r5,r5,r6
+	adde	r5,r5,r7
+	adde	r5,r5,r8
+	bdnz	22b
 3:	andi.	r0,r4,2
 	beq+	4f
 	lhz	r0,4(r3)
