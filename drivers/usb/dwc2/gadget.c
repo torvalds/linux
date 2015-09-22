@@ -3535,6 +3535,8 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	hsotg->gadget.name = dev_name(dev);
 	if (hsotg->dr_mode == USB_DR_MODE_OTG)
 		hsotg->gadget.is_otg = 1;
+	else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 
 	/* reset the system */
 
