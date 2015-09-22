@@ -642,7 +642,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 
@@ -861,7 +861,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = TNODE;
@@ -883,7 +883,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = CUNODE;
@@ -914,7 +914,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = LNODE;
@@ -933,7 +933,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = CNODE;
@@ -975,7 +975,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = MNODE;
@@ -1054,7 +1054,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = PNODE;
@@ -1076,7 +1076,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = JNODE;
@@ -1098,7 +1098,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = ANODE;
@@ -1120,7 +1120,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = INTRNODE;
@@ -1141,7 +1141,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = TSNODE;
@@ -1163,7 +1163,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = CSNODE;
@@ -1185,7 +1185,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = BSNODE;
@@ -1207,7 +1207,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = USNODE;
@@ -1229,7 +1229,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = FSNODE;
@@ -1251,7 +1251,7 @@ static int dgap_parsefile(char **in)
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
 			if (!p->next)
-				return -1;
+				return -ENOMEM;
 
 			p = p->next;
 			p->type = VSNODE;
