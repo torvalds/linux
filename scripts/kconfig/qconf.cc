@@ -856,6 +856,7 @@ ConfigView::ConfigView(QWidget* parent, const char *name)
 	: Parent(parent, name)
 {
 	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
+	verticalLayout->setContentsMargins(0, 0, 0, 0);
 
 	list = new ConfigList(this, name);
 	verticalLayout->addWidget(list);
