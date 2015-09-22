@@ -67,11 +67,9 @@
 
 LEAF(mips_cps_core_entry)
 	/*
-	 * These first 12 bytes will be patched by cps_smp_setup to load the
-	 * base address of the CM GCRs into register v1 and the CCA to use into
-	 * register s0.
+	 * These first 4 bytes will be patched by cps_smp_setup to load the
+	 * CCA to use into register s0.
 	 */
-	.quad	0
 	.word	0
 
 	/* Check whether we're here due to an NMI */
@@ -170,6 +168,12 @@ dcache_done:
 	or	t0, t0, s0
 	mtc0	t0, CP0_CONFIG
 	ehb
+
+	/* Calculate an uncached address for the CM GCRs */
+	MFC0	v1, CP0_CMGCRBASE
+	PTR_SLL	v1, v1, 4
+	PTR_LI	t0, UNCAC_BASE
+	PTR_ADDU v1, v1, t0
 
 	/* Enter the coherent domain */
 	li	t0, 0xff
