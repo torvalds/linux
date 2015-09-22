@@ -38,8 +38,9 @@ static unsigned core_vpe_count(unsigned core)
 	if (!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
 		return 1;
 
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+	mips_cm_unlock_other();
 	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
 }
 
@@ -193,7 +194,7 @@ static void boot_core(unsigned core)
 	unsigned timeout;
 
 	/* Select the appropriate core */
-	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
+	mips_cm_lock_other(core, 0);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
@@ -237,6 +238,8 @@ static void boot_core(unsigned core)
 		/* Take the core out of reset */
 		write_gcr_co_reset_release(0);
 	}
+
+	mips_cm_unlock_other();
 
 	/* The core is now powered up */
 	bitmap_set(core_power, core, 1);
