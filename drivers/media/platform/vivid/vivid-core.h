@@ -264,6 +264,7 @@ struct vivid_dev {
 	bool				vflip;
 	bool				vbi_cap_interlaced;
 	bool				loop_video;
+	bool				reduced_fps;
 
 	/* Framebuffer */
 	unsigned long			video_pbase;

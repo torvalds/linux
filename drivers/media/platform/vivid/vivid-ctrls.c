@@ -78,6 +78,7 @@
 #define VIVID_CID_TIME_WRAP		(VIVID_CID_VIVID_BASE + 39)
 #define VIVID_CID_MAX_EDID_BLOCKS	(VIVID_CID_VIVID_BASE + 40)
 #define VIVID_CID_PERCENTAGE_FILL	(VIVID_CID_VIVID_BASE + 41)
+#define VIVID_CID_REDUCED_FPS		(VIVID_CID_VIVID_BASE + 42)
 
 #define VIVID_CID_STD_SIGNAL_MODE	(VIVID_CID_VIVID_BASE + 60)
 #define VIVID_CID_STANDARD		(VIVID_CID_VIVID_BASE + 61)
@@ -424,6 +425,10 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->sensor_vflip = ctrl->val;
 		tpg_s_vflip(&dev->tpg, dev->sensor_vflip ^ dev->vflip);
 		break;
+	case VIVID_CID_REDUCED_FPS:
+		dev->reduced_fps = ctrl->val;
+		vivid_update_format_cap(dev, true);
+		break;
 	case VIVID_CID_HAS_CROP_CAP:
 		dev->has_crop_cap = ctrl->val;
 		vivid_update_format_cap(dev, true);
@@ -596,6 +601,15 @@ static const struct v4l2_ctrl_config vivid_ctrl_vflip = {
 	.ops = &vivid_vid_cap_ctrl_ops,
 	.id = VIVID_CID_VFLIP,
 	.name = "Sensor Flipped Vertically",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_reduced_fps = {
+	.ops = &vivid_vid_cap_ctrl_ops,
+	.id = VIVID_CID_REDUCED_FPS,
+	.name = "Reduced Framerate",
 	.type = V4L2_CTRL_TYPE_BOOLEAN,
 	.max = 1,
 	.step = 1,
@@ -1416,6 +1430,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_vflip, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_sav, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_eav, NULL);
+		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_reduced_fps, NULL);
 		if (show_ccs_cap) {
 			dev->ctrl_has_crop_cap = v4l2_ctrl_new_custom(hdl_vid_cap,
 				&vivid_ctrl_has_crop_cap, NULL);
