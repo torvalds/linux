@@ -12,10 +12,7 @@
 #define CORECONFIGURATOR_H
 
 #include "wilc_wlan_if.h"
-/*****************************************************************************/
-/* Constants                                                                 */
-/*****************************************************************************/
-/* Number of WID Options Supported */
+
 #define NUM_BASIC_SWITCHES      45
 #define NUM_FHSS_SWITCHES       0
 
@@ -24,12 +21,12 @@
 #ifdef MAC_802_11N
 #define NUM_11N_BASIC_SWITCHES  25
 #define NUM_11N_HUT_SWITCHES    47
-#else /* MAC_802_11N */
+#else
 #define NUM_11N_BASIC_SWITCHES  0
 #define NUM_11N_HUT_SWITCHES    0
-#endif /* MAC_802_11N */
+#endif
 
-#define MAC_HDR_LEN             24          /* No Address4 - non-ESS         */
+#define MAC_HDR_LEN             24
 #define MAX_SSID_LEN            33
 #define FCS_LEN                 4
 #define TIME_STAMP_LEN          8
@@ -39,9 +36,7 @@
 #define AID_LEN                 2
 #define IE_HDR_LEN              2
 
-/* Operating Mode: SET */
 #define SET_CFG              0
-/* Operating Mode: GET */
 #define GET_CFG              1
 
 #define MAX_STRING_LEN               256
@@ -52,16 +47,9 @@
 #define MAC_CONNECTED                1
 #define MAC_DISCONNECTED             0
 
-/*****************************************************************************/
-/* Function Macros                                                           */
-/*****************************************************************************/
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
-/*****************************************************************************/
-/* Type Definitions                                                                                                                       */
-/*****************************************************************************/
-/* Status Codes for Authentication and Association Frames */
 typedef enum {
 	SUCCESSFUL_STATUSCODE    = 0,
 	UNSPEC_FAIL              = 1,
@@ -95,7 +83,7 @@ typedef struct {
 	u8 u8Index;
 	s8 as8RSSI[NUM_RSSI];
 } tstrRSSI;
-/* This structure is used to support parsing of the received 'N' message */
+
 typedef struct {
 	s8 s8rssi;
 	u16 u16CapInfo;
@@ -105,21 +93,20 @@ typedef struct {
 	u16 u16BeaconPeriod;
 	u8 u8DtimPeriod;
 	u8 u8channel;
-	unsigned long u32TimeRcvdInScanCached; /* of type unsigned long to be accepted by the linux kernel macro time_after() */
+	unsigned long u32TimeRcvdInScanCached;
 	unsigned long u32TimeRcvdInScan;
 	bool bNewNetwork;
 #ifdef AGING_ALG
 	u8 u8Found;
 #endif
-	u32 u32Tsf; /* time-stamp [Low only 32 bit] */
+	u32 u32Tsf;
 	u8 *pu8IEs;
 	u16 u16IEsLen;
 	void *pJoinParams;
 	tstrRSSI strRssi;
-	u64 u64Tsf; /* time-stamp [Low and High 64 bit] */
+	u64 u64Tsf;
 } tstrNetworkInfo;
 
-/* This structure is used to support parsing of the received Association Response frame */
 typedef struct {
 	u16 u16capability;
 	u16 u16ConnectStatus;

@@ -9,25 +9,10 @@
  */
 
 
-/*****************************************************************************/
-/* File Includes                                                             */
-/*****************************************************************************/
 #include "coreconfigurator.h"
 #include <linux/errno.h>
-/*****************************************************************************/
-/* Constants                                                                 */
-/*****************************************************************************/
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
-
-/*****************************************************************************/
-/* Function Macros                                                           */
-/*****************************************************************************/
-
-
-/*****************************************************************************/
-/* Type Definitions                                                          */
-/*****************************************************************************/
 
 /* Basic Frame Type Codes (2-bit) */
 typedef enum {
@@ -129,25 +114,6 @@ typedef struct {
 	s32 s32BytesRead;
 	bool bRespRequired;
 } tstrConfigPktInfo;
-
-
-
-/*****************************************************************************/
-/* Extern Variable Declarations                                              */
-/*****************************************************************************/
-
-/*****************************************************************************/
-/* Global Variables                                                          */
-/*****************************************************************************/
-/*****************************************************************************/
-/* Static Function Declarations                                              */
-/*****************************************************************************/
-
-
-
-/*****************************************************************************/
-/* Functions                                                                 */
-/*****************************************************************************/
 
 /* This function extracts the beacon period field from the beacon or probe   */
 /* response frame.                                                           */
@@ -688,7 +654,6 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 }
 #endif
 
-/*Using the global handle of the driver*/
 extern wilc_wlan_oup_t *gpstrWlanOps;
 /**
  *  @brief              sends certain Configuration Packet based on the input WIDs pstrWIDs
@@ -735,9 +700,6 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 				break;
 			}
 		}
-		/**
-		 *      get the value
-		 **/
 		counter = 0;
 		for (counter = 0; counter < u32WIDsCount; counter++) {
 			pstrWIDs[counter].s32ValueSize = gpstrWlanOps->wlan_cfg_get_value(
