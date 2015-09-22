@@ -6380,9 +6380,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		goto _fail_timer_2;
 	}
 	memset(pstrWFIDrv, 0, sizeof(tstrWILC_WFIDrv));
-	/*return driver handle to user*/
 	*phWFIDrv = pstrWFIDrv;
-	/*save into globl handle*/
 	err = add_handler_in_list(pstrWFIDrv);
 	if (err) {
 		s32Error = -EFAULT;
@@ -6395,7 +6393,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	#endif
 
 	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%p\n", pstrWFIDrv);
-	/* /////////////////////////////////////// */
 	if (clients_count == 0)	{
 		sema_init(&hSemHostIFthrdEnd, 0);
 		sema_init(&hSemDeinitDrvHandle, 0);
@@ -6409,7 +6406,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	sema_init(&(pstrWFIDrv->hSemGetCHNL), 0);
 	sema_init(&(pstrWFIDrv->hSemInactiveTime), 0);
 
-	/* /////////////////////////////////////// */
 
 
 
@@ -6465,8 +6461,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
-
-	/*TODO Code to setup simulation to be removed later*/
 
 	clients_count++; /* increase number of created entities */
 
