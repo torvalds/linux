@@ -1,0 +1,24 @@
+config INTEL_TH
+	tristate "Intel(R) Trace Hub controller"
+	help
+	  Intel(R) Trace Hub (TH) is a set of hardware blocks (subdevices) that
+	  produce, switch and output trace data from multiple hardware and
+	  software sources over several types of trace output ports encoded
+	  in System Trace Protocol (MIPI STPv2) and is intended to perform
+	  full system debugging.
+
+	  This option enables intel_th bus and common code used by TH
+	  subdevices to interact with each other and hardware and for
+	  platform glue layers to drive Intel TH devices.
+
+	  Say Y here to enable Intel(R) Trace Hub controller support.
+
+if INTEL_TH
+
+config INTEL_TH_DEBUG
+	bool "Intel(R) Trace Hub debugging"
+	depends on DEBUG_FS
+	help
+	  Say Y here to enable debugging.
+
+endif
