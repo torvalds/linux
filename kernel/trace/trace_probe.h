@@ -302,15 +302,15 @@ static nokprobe_inline void call_fetch(struct fetch_param *fprm,
 }
 
 /* Check the name is good for event/group/fields */
-static inline int is_good_name(const char *name)
+static inline bool is_good_name(const char *name)
 {
 	if (!isalpha(*name) && *name != '_')
-		return 0;
+		return false;
 	while (*++name != '\0') {
 		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 static inline struct event_file_link *
