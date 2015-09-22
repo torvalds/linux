@@ -5,7 +5,7 @@
 	interrupt-parent = <&pic>;
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xfd050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug";
+		bootargs = "earlycon=uart8250,mmio32native,0xfd050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug";
 	};
 
 	memory@0 {
