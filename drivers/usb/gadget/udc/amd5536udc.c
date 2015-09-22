@@ -3169,8 +3169,7 @@ static int init_dma_pools(struct udc *dev)
 		sizeof(struct udc_data_dma), 0, 0);
 	if (!dev->data_requests) {
 		DBG(dev, "can't get request data pool\n");
-		retval = -ENOMEM;
-		goto finished;
+		return -ENOMEM;
 	}
 
 	/* EP0 in dma regs = dev control regs */
@@ -3182,14 +3181,14 @@ static int init_dma_pools(struct udc *dev)
 	if (!dev->stp_requests) {
 		DBG(dev, "can't get stp request pool\n");
 		retval = -ENOMEM;
-		goto finished;
+		goto err_create_dma_pool;
 	}
 	/* setup */
 	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_stp_dma);
 	if (td_stp == NULL) {
 		retval = -ENOMEM;
-		goto finished;
+		goto err_alloc_dma;
 	}
 	dev->ep[UDC_EP0OUT_IX].td_stp = td_stp;
 
@@ -3198,12 +3197,20 @@ static int init_dma_pools(struct udc *dev)
 				&dev->ep[UDC_EP0OUT_IX].td_phys);
 	if (td_data == NULL) {
 		retval = -ENOMEM;
-		goto finished;
+		goto err_alloc_phys;
 	}
 	dev->ep[UDC_EP0OUT_IX].td = td_data;
 	return 0;
 
-finished:
+err_alloc_phys:
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td_stp,
+		      dev->ep[UDC_EP0OUT_IX].td_stp_dma);
+err_alloc_dma:
+	dma_pool_destroy(dev->stp_requests);
+	dev->stp_requests = NULL;
+err_create_dma_pool:
+	dma_pool_destroy(dev->data_requests);
+	dev->data_requests = NULL;
 	return retval;
 }
 
