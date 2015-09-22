@@ -12,7 +12,15 @@
  *	register to be read. The return value should either be the content of
  *	the passed register or an error value.
  */
-enum bq27xxx_chip { BQ27000 = 1, BQ27500, BQ27425, BQ27742, BQ27510 };
+enum bq27xxx_chip {
+	BQ27000 = 1, /* bq27000, bq27200 */
+	BQ27010, /* bq27010, bq27210 */
+	BQ27500, /* bq27500, bq27510, bq27520 */
+	BQ27530, /* bq27530, bq27531 */
+	BQ27541, /* bq27541, bq27542, bq27546, bq27742 */
+	BQ27545, /* bq27545 */
+	BQ27421, /* bq27421, bq27425, bq27441, bq27621 */
+};
 
 struct bq27xxx_platform_data {
 	const char *name;

@@ -17,11 +17,24 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Datasheets:
- * http://focus.ti.com/docs/prod/folders/print/bq27000.html
- * http://focus.ti.com/docs/prod/folders/print/bq27500.html
+ * http://www.ti.com/product/bq27000
+ * http://www.ti.com/product/bq27200
+ * http://www.ti.com/product/bq27010
+ * http://www.ti.com/product/bq27210
+ * http://www.ti.com/product/bq27500
+ * http://www.ti.com/product/bq27510-g3
+ * http://www.ti.com/product/bq27520-g4
+ * http://www.ti.com/product/bq27530-g1
+ * http://www.ti.com/product/bq27531-g1
+ * http://www.ti.com/product/bq27541-g1
+ * http://www.ti.com/product/bq27542-g1
+ * http://www.ti.com/product/bq27546-g1
+ * http://www.ti.com/product/bq27742-g1
+ * http://www.ti.com/product/bq27545-g1
+ * http://www.ti.com/product/bq27421-g1
  * http://www.ti.com/product/bq27425-g1
- * http://www.ti.com/product/BQ27742-G1
- * http://www.ti.com/product/BQ27510-G3
+ * http://www.ti.com/product/bq27411-g1
+ * http://www.ti.com/product/bq27621-g1
  */
 
 #include <linux/device.h>
@@ -43,52 +56,55 @@
 
 #define BQ27XXX_MANUFACTURER	"Texas Instruments"
 
-#define BQ27x00_REG_TEMP	0x06
-#define BQ27x00_REG_VOLT	0x08
-#define BQ27x00_REG_AI		0x14
-#define BQ27x00_REG_FLAGS	0x0A
-#define BQ27x00_REG_TTE		0x16
-#define BQ27x00_REG_TTF		0x18
-#define BQ27x00_REG_TTECP	0x26
-#define BQ27x00_REG_NAC		0x0C /* Nominal available capacity */
-#define BQ27x00_REG_LMD		0x12 /* Last measured discharge */
-#define BQ27x00_REG_CYCT	0x2A /* Cycle count total */
-#define BQ27x00_REG_AE		0x22 /* Available energy */
-#define BQ27x00_POWER_AVG	0x24
+/* BQ27XXX Flags */
+#define BQ27XXX_FLAG_DSC	BIT(0)
+#define BQ27XXX_FLAG_SOCF	BIT(1) /* State-of-Charge threshold final */
+#define BQ27XXX_FLAG_SOC1	BIT(2) /* State-of-Charge threshold 1 */
+#define BQ27XXX_FLAG_FC		BIT(9)
+#define BQ27XXX_FLAG_OTD	BIT(14)
+#define BQ27XXX_FLAG_OTC	BIT(15)
 
-#define BQ27000_REG_RSOC	0x0B /* Relative State-of-Charge */
-#define BQ27000_REG_ILMD	0x76 /* Initial last measured discharge */
+/* BQ27000 has different layout for Flags register */
 #define BQ27000_FLAG_EDVF	BIT(0) /* Final End-of-Discharge-Voltage flag */
 #define BQ27000_FLAG_EDV1	BIT(1) /* First End-of-Discharge-Voltage flag */
 #define BQ27000_FLAG_CI		BIT(4) /* Capacity Inaccurate flag */
 #define BQ27000_FLAG_FC		BIT(5)
 #define BQ27000_FLAG_CHGS	BIT(7) /* Charge state flag */
 
-#define BQ27500_REG_SOC		0x2C
-#define BQ27500_REG_DCAP	0x3C /* Design capacity */
-#define BQ27500_FLAG_DSC	BIT(0)
-#define BQ27500_FLAG_SOCF	BIT(1) /* State-of-Charge threshold final */
-#define BQ27500_FLAG_SOC1	BIT(2) /* State-of-Charge threshold 1 */
-#define BQ27500_FLAG_FC		BIT(9)
-#define BQ27500_FLAG_OTC	BIT(15)
-
-#define BQ27742_POWER_AVG	0x76
-
-#define BQ27510_REG_SOC		0x20
-#define BQ27510_REG_DCAP	0x2E /* Design capacity */
-#define BQ27510_REG_CYCT	0x1E /* Cycle count total */
-
-/* bq27425 register addresses are same as bq27x00 addresses minus 4 */
-#define BQ27425_REG_OFFSET	0x04
-#define BQ27425_REG_SOC		(0x1C + BQ27425_REG_OFFSET)
-#define BQ27425_REG_DCAP	(0x3C + BQ27425_REG_OFFSET)
-
-#define BQ27XXX_RS			20 /* Resistor sense */
-#define BQ27XXX_POWER_CONSTANT		(256 * 29200 / 1000)
+#define BQ27XXX_RS			(20) /* Resistor sense mOhm */
+#define BQ27XXX_POWER_CONSTANT		(29200) /* 29.2 µV^2 * 1000 */
+#define BQ27XXX_CURRENT_CONSTANT	(3570) /* 3.57 µV * 1000 */
 
 struct bq27xxx_device_info;
 struct bq27xxx_access_methods {
 	int (*read)(struct bq27xxx_device_info *di, u8 reg, bool single);
+};
+
+#define INVALID_REG_ADDR	0xff
+
+/*
+ * bq27xxx_reg_index - Register names
+ *
+ * These are indexes into a device's register mapping array.
+ */
+enum bq27xxx_reg_index {
+	BQ27XXX_REG_CTRL = 0,	/* Control */
+	BQ27XXX_REG_TEMP,	/* Temperature */
+	BQ27XXX_REG_INT_TEMP,	/* Internal Temperature */
+	BQ27XXX_REG_VOLT,	/* Voltage */
+	BQ27XXX_REG_AI,		/* Average Current */
+	BQ27XXX_REG_FLAGS,	/* Flags */
+	BQ27XXX_REG_TTE,	/* Time-to-Empty */
+	BQ27XXX_REG_TTF,	/* Time-to-Full */
+	BQ27XXX_REG_TTES,	/* Time-to-Empty Standby */
+	BQ27XXX_REG_TTECP,	/* Time-to-Empty at Constant Power */
+	BQ27XXX_REG_NAC,	/* Nominal Available Capacity */
+	BQ27XXX_REG_FCC,	/* Full Charge Capacity */
+	BQ27XXX_REG_CYCT,	/* Cycle Count */
+	BQ27XXX_REG_AE,		/* Available Energy */
+	BQ27XXX_REG_SOC,	/* State-of-Charge */
+	BQ27XXX_REG_DCAP,	/* Design Capacity */
+	BQ27XXX_REG_AP,		/* Average Power */
 };
 
 struct bq27xxx_reg_cache {
@@ -121,9 +137,162 @@ struct bq27xxx_device_info {
 	struct bq27xxx_access_methods bus;
 
 	struct mutex lock;
+
+	u8 *regs;
 };
 
-static enum power_supply_property bq27x00_battery_props[] = {
+/* Register mappings */
+static u8 bq27000_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	INVALID_REG_ADDR,	/* INT TEMP - NA*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	0x18,	/* TTF		*/
+	0x1c,	/* TTES		*/
+	0x26,	/* TTECP	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x2a,	/* CYCT		*/
+	0x22,	/* AE		*/
+	0x0b,	/* SOC(RSOC)	*/
+	0x76,	/* DCAP(ILMD)	*/
+	0x24,	/* AP		*/
+};
+
+static u8 bq27010_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	INVALID_REG_ADDR,	/* INT TEMP - NA*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	0x18,	/* TTF		*/
+	0x1c,	/* TTES		*/
+	0x26,	/* TTECP	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x2a,	/* CYCT		*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x0b,	/* SOC(RSOC)	*/
+	0x76,	/* DCAP(ILMD)	*/
+	INVALID_REG_ADDR,	/* AP - NA	*/
+};
+
+static u8 bq27500_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	0x28,	/* INT TEMP	*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	INVALID_REG_ADDR,	/* TTF - NA	*/
+	0x1a,	/* TTES		*/
+	INVALID_REG_ADDR,	/* TTECP - NA	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x1e,	/* CYCT		*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x20,	/* SOC(RSOC)	*/
+	0x2e,	/* DCAP(ILMD)	*/
+	INVALID_REG_ADDR,	/* AP - NA	*/
+};
+
+static u8 bq27530_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	0x32,	/* INT TEMP	*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	INVALID_REG_ADDR,	/* TTF - NA	*/
+	INVALID_REG_ADDR,	/* TTES - NA	*/
+	INVALID_REG_ADDR,	/* TTECP - NA	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x2a,	/* CYCT		*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x2c,	/* SOC(RSOC)	*/
+	INVALID_REG_ADDR,	/* DCAP - NA	*/
+	0x24,	/* AP		*/
+};
+
+static u8 bq27541_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	0x28,	/* INT TEMP	*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	INVALID_REG_ADDR,	/* TTF - NA	*/
+	INVALID_REG_ADDR,	/* TTES - NA	*/
+	INVALID_REG_ADDR,	/* TTECP - NA	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x2a,	/* CYCT		*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x2c,	/* SOC(RSOC)	*/
+	0x3c,	/* DCAP		*/
+	0x76,	/* AP		*/
+};
+
+static u8 bq27545_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x06,	/* TEMP		*/
+	0x28,	/* INT TEMP	*/
+	0x08,	/* VOLT		*/
+	0x14,	/* AVG CURR	*/
+	0x0a,	/* FLAGS	*/
+	0x16,	/* TTE		*/
+	INVALID_REG_ADDR,	/* TTF - NA	*/
+	INVALID_REG_ADDR,	/* TTES - NA	*/
+	INVALID_REG_ADDR,	/* TTECP - NA	*/
+	0x0c,	/* NAC		*/
+	0x12,	/* LMD(FCC)	*/
+	0x2a,	/* CYCT		*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x2c,	/* SOC(RSOC)	*/
+	INVALID_REG_ADDR,	/* DCAP - NA */
+	0x24,	/* AP		*/
+};
+
+static u8 bq27421_regs[] = {
+	0x00,	/* CONTROL	*/
+	0x02,	/* TEMP		*/
+	0x1e,	/* INT TEMP	*/
+	0x04,	/* VOLT		*/
+	0x10,	/* AVG CURR	*/
+	0x06,	/* FLAGS	*/
+	INVALID_REG_ADDR,	/* TTE - NA	*/
+	INVALID_REG_ADDR,	/* TTF - NA	*/
+	INVALID_REG_ADDR,	/* TTES - NA	*/
+	INVALID_REG_ADDR,	/* TTECP - NA	*/
+	0x08,	/* NAC		*/
+	0x0e,	/* FCC		*/
+	INVALID_REG_ADDR,	/* CYCT - NA	*/
+	INVALID_REG_ADDR,	/* AE - NA	*/
+	0x1c,	/* SOC		*/
+	0x3c,	/* DCAP		*/
+	0x18,	/* AP		*/
+};
+
+static u8 *bq27xxx_regs[] = {
+	[BQ27000] = bq27000_regs,
+	[BQ27010] = bq27010_regs,
+	[BQ27500] = bq27500_regs,
+	[BQ27530] = bq27530_regs,
+	[BQ27541] = bq27541_regs,
+	[BQ27545] = bq27545_regs,
+	[BQ27421] = bq27421_regs,
+};
+
+static enum power_supply_property bq27000_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -145,7 +314,7 @@ static enum power_supply_property bq27x00_battery_props[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-static enum power_supply_property bq27425_battery_props[] = {
+static enum power_supply_property bq27010_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -153,14 +322,55 @@ static enum power_supply_property bq27425_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-static enum power_supply_property bq27742_battery_props[] = {
+static enum power_supply_property bq27500_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+};
+
+static enum power_supply_property bq27530_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_POWER_AVG,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+};
+
+static enum power_supply_property bq27541_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -179,7 +389,7 @@ static enum power_supply_property bq27742_battery_props[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-static enum power_supply_property bq27510_battery_props[] = {
+static enum power_supply_property bq27545_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -191,11 +401,44 @@ static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
-	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
+};
+
+static enum power_supply_property bq27421_battery_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+};
+
+#define BQ27XXX_PROP(_id, _prop)		\
+	[_id] = {				\
+		.props = _prop,			\
+		.size = ARRAY_SIZE(_prop),	\
+	}
+
+static struct {
+	enum power_supply_property *props;
+	size_t size;
+} bq27xxx_battery_props[] = {
+	BQ27XXX_PROP(BQ27000, bq27000_battery_props),
+	BQ27XXX_PROP(BQ27010, bq27010_battery_props),
+	BQ27XXX_PROP(BQ27500, bq27500_battery_props),
+	BQ27XXX_PROP(BQ27530, bq27530_battery_props),
+	BQ27XXX_PROP(BQ27541, bq27541_battery_props),
+	BQ27XXX_PROP(BQ27545, bq27545_battery_props),
+	BQ27XXX_PROP(BQ27421, bq27421_battery_props),
 };
 
 static unsigned int poll_interval = 360;
@@ -207,25 +450,14 @@ MODULE_PARM_DESC(poll_interval,
  * Common code for BQ27xxx devices
  */
 
-static inline int bq27xxx_read(struct bq27xxx_device_info *di, u8 reg,
+static inline int bq27xxx_read(struct bq27xxx_device_info *di, int reg_index,
 			       bool single)
 {
-	if (di->chip == BQ27425)
-		return di->bus.read(di, reg - BQ27425_REG_OFFSET, single);
-	return di->bus.read(di, reg, single);
-}
+	/* Reports EINVAL for invalid/missing registers */
+	if (!di || di->regs[reg_index] == INVALID_REG_ADDR)
+		return -EINVAL;
 
-/*
- * Higher versions of the chip like BQ27425 and BQ27500
- * differ from BQ27000 and BQ27200 in calculation of certain
- * parameters. Hence we need to check for the chip type.
- */
-static bool bq27xxx_is_chip_version_higher(struct bq27xxx_device_info *di)
-{
-	if (di->chip == BQ27425 || di->chip == BQ27500 || di->chip == BQ27742
-	    || di->chip == BQ27510)
-		return true;
-	return false;
+	return di->bus.read(di, di->regs[reg_index], single);
 }
 
 /*
@@ -236,14 +468,7 @@ static int bq27xxx_battery_read_soc(struct bq27xxx_device_info *di)
 {
 	int soc;
 
-	if (di->chip == BQ27500 || di->chip == BQ27742)
-		soc = bq27xxx_read(di, BQ27500_REG_SOC, false);
-	else if (di->chip == BQ27510)
-		soc = bq27xxx_read(di, BQ27510_REG_SOC, false);
-	else if (di->chip == BQ27425)
-		soc = bq27xxx_read(di, BQ27425_REG_SOC, false);
-	else /* for the bq27000 we read the "relative" SoC register */
-		soc = bq27xxx_read(di, BQ27000_REG_RSOC, true);
+	soc = bq27xxx_read(di, BQ27XXX_REG_SOC, false);
 
 	if (soc < 0)
 		dev_dbg(di->dev, "error reading State-of-Charge\n");
@@ -266,10 +491,10 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 		return charge;
 	}
 
-	if (bq27xxx_is_chip_version_higher(di))
-		charge *= 1000;
+	if (di->chip == BQ27000 || di->chip == BQ27010)
+		charge *= BQ27XXX_CURRENT_CONSTANT / BQ27XXX_RS;
 	else
-		charge = charge * 3570 / BQ27XXX_RS;
+		charge *= 1000;
 
 	return charge;
 }
@@ -281,57 +506,46 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di)
 {
 	int flags;
-	bool is_bq27500 = di->chip == BQ27500;
-	bool is_bq27742 = di->chip == BQ27742;
-	bool is_higher = bq27xxx_is_chip_version_higher(di);
-	bool flags_1b = !(is_bq27500 || is_bq27742);
 
-	flags = bq27xxx_read(di, BQ27x00_REG_FLAGS, flags_1b);
-	if (flags >= 0 && !is_higher && (flags & BQ27000_FLAG_CI))
-		return -ENODATA;
-
-	return bq27xxx_battery_read_charge(di, BQ27x00_REG_NAC);
-}
-
-/*
- * Return the battery Last measured discharge in µAh
- * Or < 0 if something fails.
- */
-static inline int bq27xxx_battery_read_lmd(struct bq27xxx_device_info *di)
-{
-	return bq27xxx_battery_read_charge(di, BQ27x00_REG_LMD);
-}
-
-/*
- * Return the battery Initial last measured discharge in µAh
- * Or < 0 if something fails.
- */
-static int bq27xxx_battery_read_ilmd(struct bq27xxx_device_info *di)
-{
-	int ilmd;
-
-	if (bq27xxx_is_chip_version_higher(di)) {
-		if (di->chip == BQ27425)
-			ilmd = bq27xxx_read(di, BQ27425_REG_DCAP, false);
-		else if (di->chip == BQ27510)
-			ilmd = bq27xxx_read(di, BQ27510_REG_DCAP, false);
-		else
-			ilmd = bq27xxx_read(di, BQ27500_REG_DCAP, false);
-	} else {
-		ilmd = bq27xxx_read(di, BQ27000_REG_ILMD, true);
+	if (di->chip == BQ27000 || di->chip == BQ27010) {
+		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, true);
+		if (flags >= 0 && (flags & BQ27000_FLAG_CI))
+			return -ENODATA;
 	}
 
-	if (ilmd < 0) {
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_NAC);
+}
+
+/*
+ * Return the battery Full Charge Capacity in µAh
+ * Or < 0 if something fails.
+ */
+static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di)
+{
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_FCC);
+}
+
+/*
+ * Return the Design Capacity in µAh
+ * Or < 0 if something fails.
+ */
+static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
+{
+	int dcap;
+
+	dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, false);
+
+	if (dcap < 0) {
 		dev_dbg(di->dev, "error reading initial last measured discharge\n");
-		return ilmd;
+		return dcap;
 	}
 
-	if (bq27xxx_is_chip_version_higher(di))
-		ilmd *= 1000;
+	if (di->chip == BQ27000 || di->chip == BQ27010)
+		dcap *= BQ27XXX_CURRENT_CONSTANT / BQ27XXX_RS;
 	else
-		ilmd = ilmd * 256 * 3570 / BQ27XXX_RS;
+		dcap *= 1000;
 
-	return ilmd;
+	return dcap;
 }
 
 /*
@@ -342,16 +556,16 @@ static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
 {
 	int ae;
 
-	ae = bq27xxx_read(di, BQ27x00_REG_AE, false);
+	ae = bq27xxx_read(di, BQ27XXX_REG_AE, false);
 	if (ae < 0) {
 		dev_dbg(di->dev, "error reading available energy\n");
 		return ae;
 	}
 
-	if (di->chip == BQ27500)
-		ae *= 1000;
+	if (di->chip == BQ27000 || di->chip == BQ27010)
+		ae *= BQ27XXX_POWER_CONSTANT / BQ27XXX_RS;
 	else
-		ae = ae * 29200 / BQ27XXX_RS;
+		ae *= 1000;
 
 	return ae;
 }
@@ -364,13 +578,13 @@ static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di)
 {
 	int temp;
 
-	temp = bq27xxx_read(di, BQ27x00_REG_TEMP, false);
+	temp = bq27xxx_read(di, BQ27XXX_REG_TEMP, false);
 	if (temp < 0) {
 		dev_err(di->dev, "error reading temperature\n");
 		return temp;
 	}
 
-	if (!bq27xxx_is_chip_version_higher(di))
+	if (di->chip == BQ27000 || di->chip == BQ27010)
 		temp = 5 * temp / 2;
 
 	return temp;
@@ -384,10 +598,7 @@ static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
 {
 	int cyct;
 
-	if (di->chip == BQ27510)
-		cyct = bq27xxx_read(di, BQ27510_REG_CYCT, false);
-	else
-		cyct = bq27xxx_read(di, BQ27x00_REG_CYCT, false);
+	cyct = bq27xxx_read(di, BQ27XXX_REG_CYCT, false);
 	if (cyct < 0)
 		dev_err(di->dev, "error reading cycle count total\n");
 
@@ -419,21 +630,32 @@ static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
  * Read an average power register.
  * Return < 0 if something fails.
  */
-static int bq27xxx_battery_read_pwr_avg(struct bq27xxx_device_info *di, u8 reg)
+static int bq27xxx_battery_read_pwr_avg(struct bq27xxx_device_info *di)
 {
 	int tval;
 
-	tval = bq27xxx_read(di, reg, false);
+	tval = bq27xxx_read(di, BQ27XXX_REG_AP, false);
 	if (tval < 0) {
-		dev_err(di->dev, "error reading power avg rgister  %02x: %d\n",
-			reg, tval);
+		dev_err(di->dev, "error reading average power register  %02x: %d\n",
+			BQ27XXX_REG_AP, tval);
 		return tval;
 	}
 
-	if (di->chip == BQ27500)
-		return tval;
-	else
+	if (di->chip == BQ27000 || di->chip == BQ27010)
 		return (tval * BQ27XXX_POWER_CONSTANT) / BQ27XXX_RS;
+	else
+		return tval;
+}
+
+/*
+ * Returns true if a battery over temperature condition is detected
+ */
+static int bq27xxx_battery_overtemp(struct bq27xxx_device_info *di, u16 flags)
+{
+	if (di->chip == BQ27500 || di->chip == BQ27541)
+		return flags & (BQ27XXX_FLAG_OTC | BQ27XXX_FLAG_OTD);
+	else
+		return flags & BQ27XXX_FLAG_OTC;
 }
 
 /*
@@ -442,53 +664,43 @@ static int bq27xxx_battery_read_pwr_avg(struct bq27xxx_device_info *di, u8 reg)
  */
 static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 {
-	int tval;
+	u16 tval;
 
-	tval = bq27xxx_read(di, BQ27x00_REG_FLAGS, false);
+	tval = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
 	if (tval < 0) {
 		dev_err(di->dev, "error reading flag register:%d\n", tval);
 		return tval;
 	}
 
-	if (di->chip == BQ27500) {
-		if (tval & BQ27500_FLAG_SOCF)
-			tval = POWER_SUPPLY_HEALTH_DEAD;
-		else if (tval & BQ27500_FLAG_OTC)
-			tval = POWER_SUPPLY_HEALTH_OVERHEAT;
-		else
-			tval = POWER_SUPPLY_HEALTH_GOOD;
-		return tval;
-	} else if (di->chip == BQ27510) {
-		if (tval & BQ27500_FLAG_OTC)
-			return POWER_SUPPLY_HEALTH_OVERHEAT;
-		return POWER_SUPPLY_HEALTH_GOOD;
-	} else {
+	if (di->chip == BQ27000 || di->chip == BQ27010) {
 		if (tval & BQ27000_FLAG_EDV1)
 			tval = POWER_SUPPLY_HEALTH_DEAD;
 		else
 			tval = POWER_SUPPLY_HEALTH_GOOD;
-		return tval;
+	} else {
+		if (tval & BQ27XXX_FLAG_SOCF)
+			tval = POWER_SUPPLY_HEALTH_DEAD;
+		else if (bq27xxx_battery_overtemp(di, tval))
+			tval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		else
+			tval = POWER_SUPPLY_HEALTH_GOOD;
 	}
 
-	return -1;
+	return tval;
 }
 
 static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 {
 	struct bq27xxx_reg_cache cache = {0, };
-	bool is_bq27500 = di->chip == BQ27500;
-	bool is_bq27510 = di->chip == BQ27510;
-	bool is_bq27425 = di->chip == BQ27425;
-	bool is_bq27742 = di->chip == BQ27742;
-	bool flags_1b = !(is_bq27500 || is_bq27742);
+	bool has_ci_flag = di->chip == BQ27000 || di->chip == BQ27010;
+	bool has_singe_flag = di->chip == BQ27000 || di->chip == BQ27010;
 
-	cache.flags = bq27xxx_read(di, BQ27x00_REG_FLAGS, flags_1b);
+	cache.flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, has_singe_flag);
 	if ((cache.flags & 0xff) == 0xff)
-		/* read error */
-		cache.flags = -1;
+		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
-		if (!is_bq27500 && !is_bq27425 && !is_bq27742 && !is_bq27510
-				&& (cache.flags & BQ27000_FLAG_CI)) {
+		cache.temperature = bq27xxx_battery_read_temperature(di);
+		if (has_ci_flag && (cache.flags & BQ27000_FLAG_CI)) {
 			dev_info(di->dev, "battery is not calibrated! ignoring capacity values\n");
 			cache.capacity = -ENODATA;
 			cache.energy = -ENODATA;
@@ -498,41 +710,26 @@ static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 			cache.charge_full = -ENODATA;
 			cache.health = -ENODATA;
 		} else {
+			if (di->regs[BQ27XXX_REG_TTE] != INVALID_REG_ADDR)
+				cache.time_to_empty = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE);
+			if (di->regs[BQ27XXX_REG_TTECP] != INVALID_REG_ADDR)
+				cache.time_to_empty_avg = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTECP);
+			if (di->regs[BQ27XXX_REG_TTF] != INVALID_REG_ADDR)
+				cache.time_to_full = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTF);
+			cache.charge_full = bq27xxx_battery_read_fcc(di);
 			cache.capacity = bq27xxx_battery_read_soc(di);
-			if (is_bq27742 || is_bq27510)
-				cache.time_to_empty =
-					bq27xxx_battery_read_time(di,
-							BQ27x00_REG_TTE);
-			else if (!is_bq27425) {
+			if (di->regs[BQ27XXX_REG_AE] != INVALID_REG_ADDR)
 				cache.energy = bq27xxx_battery_read_energy(di);
-				cache.time_to_empty =
-					bq27xxx_battery_read_time(di,
-							BQ27x00_REG_TTE);
-				cache.time_to_empty_avg =
-					bq27xxx_battery_read_time(di,
-							BQ27x00_REG_TTECP);
-				cache.time_to_full =
-					bq27xxx_battery_read_time(di,
-							BQ27x00_REG_TTF);
-			}
-			cache.charge_full = bq27xxx_battery_read_lmd(di);
 			cache.health = bq27xxx_battery_read_health(di);
 		}
-		cache.temperature = bq27xxx_battery_read_temperature(di);
-		if (!is_bq27425)
+		if (di->regs[BQ27XXX_REG_CYCT] != INVALID_REG_ADDR)
 			cache.cycle_count = bq27xxx_battery_read_cyct(di);
-		if (is_bq27742)
-			cache.power_avg =
-				bq27xxx_battery_read_pwr_avg(di,
-						BQ27742_POWER_AVG);
-		else
-			cache.power_avg =
-				bq27xxx_battery_read_pwr_avg(di,
-						BQ27x00_POWER_AVG);
+		if (di->regs[BQ27XXX_REG_AP] != INVALID_REG_ADDR)
+			cache.power_avg = bq27xxx_battery_read_pwr_avg(di);
 
 		/* We only have to read charge design full once */
 		if (di->charge_design_full <= 0)
-			di->charge_design_full = bq27xxx_battery_read_ilmd(di);
+			di->charge_design_full = bq27xxx_battery_read_dcap(di);
 	}
 
 	if (di->cache.capacity != cache.capacity)
@@ -547,7 +744,8 @@ static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 static void bq27xxx_battery_poll(struct work_struct *work)
 {
 	struct bq27xxx_device_info *di =
-		container_of(work, struct bq27xxx_device_info, work.work);
+			container_of(work, struct bq27xxx_device_info,
+				     work.work);
 
 	bq27xxx_battery_update(di);
 
@@ -569,23 +767,23 @@ static int bq27xxx_battery_current(struct bq27xxx_device_info *di,
 	int curr;
 	int flags;
 
-	curr = bq27xxx_read(di, BQ27x00_REG_AI, false);
+	curr = bq27xxx_read(di, BQ27XXX_REG_AI, false);
 	if (curr < 0) {
 		dev_err(di->dev, "error reading current\n");
 		return curr;
 	}
 
-	if (bq27xxx_is_chip_version_higher(di)) {
-		/* bq27500 returns signed value */
-		val->intval = (int)((s16)curr) * 1000;
-	} else {
-		flags = bq27xxx_read(di, BQ27x00_REG_FLAGS, false);
+	if (di->chip == BQ27000 || di->chip == BQ27010) {
+		flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
 		if (flags & BQ27000_FLAG_CHGS) {
 			dev_dbg(di->dev, "negative current!\n");
 			curr = -curr;
 		}
 
-		val->intval = curr * 3570 / BQ27XXX_RS;
+		val->intval = curr * BQ27XXX_CURRENT_CONSTANT / BQ27XXX_RS;
+	} else {
+		/* Other gauges return signed value */
+		val->intval = (int)((s16)curr) * 1000;
 	}
 
 	return 0;
@@ -596,14 +794,7 @@ static int bq27xxx_battery_status(struct bq27xxx_device_info *di,
 {
 	int status;
 
-	if (bq27xxx_is_chip_version_higher(di)) {
-		if (di->cache.flags & BQ27500_FLAG_FC)
-			status = POWER_SUPPLY_STATUS_FULL;
-		else if (di->cache.flags & BQ27500_FLAG_DSC)
-			status = POWER_SUPPLY_STATUS_DISCHARGING;
-		else
-			status = POWER_SUPPLY_STATUS_CHARGING;
-	} else {
+	if (di->chip == BQ27000 || di->chip == BQ27010) {
 		if (di->cache.flags & BQ27000_FLAG_FC)
 			status = POWER_SUPPLY_STATUS_FULL;
 		else if (di->cache.flags & BQ27000_FLAG_CHGS)
@@ -612,6 +803,13 @@ static int bq27xxx_battery_status(struct bq27xxx_device_info *di,
 			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else
 			status = POWER_SUPPLY_STATUS_DISCHARGING;
+	} else {
+		if (di->cache.flags & BQ27XXX_FLAG_FC)
+			status = POWER_SUPPLY_STATUS_FULL;
+		else if (di->cache.flags & BQ27XXX_FLAG_DSC)
+			status = POWER_SUPPLY_STATUS_DISCHARGING;
+		else
+			status = POWER_SUPPLY_STATUS_CHARGING;
 	}
 
 	val->intval = status;
@@ -624,21 +822,21 @@ static int bq27xxx_battery_capacity_level(struct bq27xxx_device_info *di,
 {
 	int level;
 
-	if (bq27xxx_is_chip_version_higher(di)) {
-		if (di->cache.flags & BQ27500_FLAG_FC)
-			level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
-		else if (di->cache.flags & BQ27500_FLAG_SOC1)
-			level = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
-		else if (di->cache.flags & BQ27500_FLAG_SOCF)
-			level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
-		else
-			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
-	} else {
+	if (di->chip == BQ27000 || di->chip == BQ27010) {
 		if (di->cache.flags & BQ27000_FLAG_FC)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
 		else if (di->cache.flags & BQ27000_FLAG_EDV1)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		else if (di->cache.flags & BQ27000_FLAG_EDVF)
+			level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+		else
+			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+	} else {
+		if (di->cache.flags & BQ27XXX_FLAG_FC)
+			level = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+		else if (di->cache.flags & BQ27XXX_FLAG_SOC1)
+			level = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+		else if (di->cache.flags & BQ27XXX_FLAG_SOCF)
 			level = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
 		else
 			level = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
@@ -658,7 +856,7 @@ static int bq27xxx_battery_voltage(struct bq27xxx_device_info *di,
 {
 	int volt;
 
-	volt = bq27xxx_read(di, BQ27x00_REG_VOLT, false);
+	volt = bq27xxx_read(di, BQ27XXX_REG_VOLT, false);
 	if (volt < 0) {
 		dev_err(di->dev, "error reading voltage\n");
 		return volt;
@@ -719,7 +917,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = bq27xxx_simple_value(di->cache.temperature, val);
 		if (ret == 0)
-			val->intval -= 2731;
+			val->intval -= 2731; /* convert decidegree k to c */
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = bq27xxx_simple_value(di->cache.time_to_empty, val);
@@ -785,19 +983,8 @@ static int bq27xxx_powersupply_init(struct bq27xxx_device_info *di,
 
 	psy_desc->name = name;
 	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
-	if (di->chip == BQ27425) {
-		psy_desc->properties = bq27425_battery_props;
-		psy_desc->num_properties = ARRAY_SIZE(bq27425_battery_props);
-	} else if (di->chip == BQ27742) {
-		psy_desc->properties = bq27742_battery_props;
-		psy_desc->num_properties = ARRAY_SIZE(bq27742_battery_props);
-	} else if (di->chip == BQ27510) {
-		psy_desc->properties = bq27510_battery_props;
-		psy_desc->num_properties = ARRAY_SIZE(bq27510_battery_props);
-	} else {
-		psy_desc->properties = bq27x00_battery_props;
-		psy_desc->num_properties = ARRAY_SIZE(bq27x00_battery_props);
-	}
+	psy_desc->properties = bq27xxx_battery_props[di->chip].props;
+	psy_desc->num_properties = bq27xxx_battery_props[di->chip].size;
 	psy_desc->get_property = bq27xxx_battery_get_property;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
@@ -910,10 +1097,14 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 	di->dev = &client->dev;
 	di->chip = id->driver_data;
 	di->bus.read = &bq27xxx_battery_i2c_read;
+	di->regs = bq27xxx_regs[di->chip];
 
 	retval = bq27xxx_powersupply_init(di, name);
 	if (retval)
 		goto batt_failed;
+
+	/* Schedule a polling after about 1 min */
+	schedule_delayed_work(&di->work, 60 * HZ);
 
 	i2c_set_clientdata(client, di);
 
@@ -941,11 +1132,22 @@ static int bq27xxx_battery_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq27xxx_id[] = {
-	{ "bq27200", BQ27000 },	/* bq27200 is same as bq27000, but with i2c */
+	{ "bq27200", BQ27000 },
+	{ "bq27210", BQ27010 },
 	{ "bq27500", BQ27500 },
-	{ "bq27425", BQ27425 },
-	{ "bq27742", BQ27742 },
-	{ "bq27510", BQ27510 },
+	{ "bq27510", BQ27500 },
+	{ "bq27520", BQ27500 },
+	{ "bq27530", BQ27530 },
+	{ "bq27531", BQ27530 },
+	{ "bq27541", BQ27541 },
+	{ "bq27542", BQ27541 },
+	{ "bq27546", BQ27541 },
+	{ "bq27742", BQ27541 },
+	{ "bq27545", BQ27545 },
+	{ "bq27421", BQ27421 },
+	{ "bq27425", BQ27421 },
+	{ "bq27441", BQ27421 },
+	{ "bq27621", BQ27421 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq27xxx_id);
