@@ -752,7 +752,7 @@ static int vf610_adc_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct vf610_adc *info = iio_priv(indio_dev);
 	unsigned int hc_cfg = 0;
-	int val, ret;
+	int val;
 
 	val = readl(info->regs + VF610_REG_ADC_GC);
 	val &= ~VF610_ADC_ADCON;
@@ -763,11 +763,7 @@ static int vf610_adc_buffer_predisable(struct iio_dev *indio_dev)
 
 	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
 
-	ret = iio_triggered_buffer_predisable(indio_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iio_triggered_buffer_predisable(indio_dev);
 }
 
 static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
