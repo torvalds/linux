@@ -44,6 +44,16 @@ config INTEL_TH_STH
 
 	  Say Y here to enable STH subdevice of Intel(R) Trace Hub.
 
+config INTEL_TH_MSU
+	tristate "Intel(R) Trace Hub Memory Storage Unit"
+	help
+	  Memory Storage Unit (MSU) trace output device enables
+	  storing STP traces to system memory. It supports single
+	  and multiblock modes of operation and provides read()
+	  and mmap() access to the collected data.
+
+	  Say Y here to enable MSU output device for Intel TH.
+
 config INTEL_TH_DEBUG
 	bool "Intel(R) Trace Hub debugging"
 	depends on DEBUG_FS
