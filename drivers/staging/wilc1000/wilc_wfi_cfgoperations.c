@@ -2505,9 +2505,9 @@ int mgmt_tx(struct wiphy *wiphy,
 	return s32Error;
 }
 
-int mgmt_tx_cancel_wait(struct wiphy *wiphy,
-			struct wireless_dev *wdev,
-			u64 cookie)
+static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
+			       struct wireless_dev *wdev,
+			       u64 cookie)
 {
 	struct wilc_priv *priv;
 	tstrWILC_WFIDrv *pstrWFIDrv;
