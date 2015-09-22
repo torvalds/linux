@@ -21,19 +21,25 @@
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
-static fw_memblock_t mdesc[FW_MAX_MEMBLOCKS];
-
 /* determined physical memory size, not overridden by command line args	 */
 unsigned long physical_memsize = 0L;
 
-fw_memblock_t * __init fw_getmdesc(int eva)
+static void free_init_pages_eva_malta(void *begin, void *end)
+{
+	free_init_pages("unused kernel", __pa_symbol((unsigned long *)begin),
+			__pa_symbol((unsigned long *)end));
+}
+
+void __init fw_meminit(void)
 {
 	char *memsize_str, *ememsize_str = NULL, *ptr;
 	unsigned long memsize = 0, ememsize = 0;
+	unsigned long kernel_start_phys, kernel_end_phys;
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
+	bool eva = config_enabled(CONFIG_EVA);
 	int tmp;
 
-	/* otherwise look in the environment */
+	free_init_pages_eva = eva ? free_init_pages_eva_malta : NULL;
 
 	memsize_str = fw_getenv("memsize");
 	if (memsize_str) {
@@ -92,15 +98,14 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 	if (memsize > 0x7fff0000)
 		memsize = 0x7fff0000;
 
-	memset(mdesc, 0, sizeof(mdesc));
+	add_memory_region(PHYS_OFFSET, 0x00001000, BOOT_MEM_RESERVED);
 
-	mdesc[0].type = fw_dontuse;
-	mdesc[0].base = PHYS_OFFSET;
-	mdesc[0].size = 0x00001000;
-
-	mdesc[1].type = fw_code;
-	mdesc[1].base = mdesc[0].base + 0x00001000UL;
-	mdesc[1].size = 0x000ef000;
+	/*
+	 * YAMON may still be using the region of memory from 0x1000 to 0xfffff
+	 * if it has started secondary CPUs.
+	 */
+	add_memory_region(PHYS_OFFSET + 0x00001000, 0x000ef000,
+			  BOOT_MEM_ROM_DATA);
 
 	/*
 	 * The area 0x000f0000-0x000fffff is allocated for BIOS memory by the
@@ -109,59 +114,19 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 	 * This mean that this area can't be used as DMA memory for PCI
 	 * devices.
 	 */
-	mdesc[2].type = fw_dontuse;
-	mdesc[2].base = mdesc[0].base + 0x000f0000UL;
-	mdesc[2].size = 0x00010000;
+	add_memory_region(PHYS_OFFSET + 0x000f0000, 0x00010000,
+			  BOOT_MEM_RESERVED);
 
-	mdesc[3].type = fw_dontuse;
-	mdesc[3].base = mdesc[0].base + 0x00100000UL;
-	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) -
-		0x00100000UL;
-
-	mdesc[4].type = fw_free;
-	mdesc[4].base = mdesc[0].base + CPHYSADDR(PFN_ALIGN(&_end));
-	mdesc[4].size = memsize - CPHYSADDR(mdesc[4].base);
-
-	return &mdesc[0];
-}
-
-static void free_init_pages_eva_malta(void *begin, void *end)
-{
-	free_init_pages("unused kernel", __pa_symbol((unsigned long *)begin),
-			__pa_symbol((unsigned long *)end));
-}
-
-static int __init fw_memtype_classify(unsigned int type)
-{
-	switch (type) {
-	case fw_free:
-		return BOOT_MEM_RAM;
-	case fw_code:
-		return BOOT_MEM_ROM_DATA;
-	default:
-		return BOOT_MEM_RESERVED;
-	}
-}
-
-void __init fw_meminit(void)
-{
-	fw_memblock_t *p;
-
-	p = fw_getmdesc(config_enabled(CONFIG_EVA));
-	free_init_pages_eva = (config_enabled(CONFIG_EVA) ?
-			       free_init_pages_eva_malta : NULL);
-
-	while (p->size) {
-		long type;
-		unsigned long base, size;
-
-		type = fw_memtype_classify(p->type);
-		base = p->base;
-		size = p->size;
-
-		add_memory_region(base, size, type);
-		p++;
-	}
+	/*
+	 * Reserve the memory used by kernel code, and allow the rest of RAM to
+	 * be used.
+	 */
+	kernel_start_phys = PHYS_OFFSET + 0x00100000;
+	kernel_end_phys = PHYS_OFFSET + CPHYSADDR(PFN_ALIGN(&_end));
+	add_memory_region(kernel_start_phys, kernel_end_phys,
+			  BOOT_MEM_RESERVED);
+	add_memory_region(kernel_end_phys, memsize - kernel_end_phys,
+			  BOOT_MEM_RAM);
 }
 
 void __init prom_free_prom_memory(void)
