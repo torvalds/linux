@@ -2350,7 +2350,12 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 	unsigned long flags;
 
+	/* Wait for interrupt processing to finish */
+	synchronize_irq(hcd->irq);
+
 	spin_lock_irqsave(&hsotg->lock, flags);
+	/* Ensure hcd is disconnected */
+	dwc2_hcd_disconnect(hsotg);
 	dwc2_hcd_stop(hsotg);
 	hsotg->lx_state = DWC2_L3;
 	hcd->state = HC_STATE_HALT;
