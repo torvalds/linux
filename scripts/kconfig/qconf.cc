@@ -576,9 +576,6 @@ void ConfigList::updateMenuList(P* parent, struct menu* menu)
 	enum prop_type type;
 
 	if (!menu) {
-		while ((item = parent->firstChild()))
-			item->parent()->removeChild(item);
-			delete item;
 		return;
 	}
 
