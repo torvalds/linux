@@ -387,9 +387,6 @@ static void dwc2_handle_disconnect_intr(struct dwc2_hsotg *hsotg)
 	if (hsotg->op_state == OTG_STATE_A_HOST)
 		dwc2_hcd_disconnect(hsotg);
 
-	/* Change to L3 (OFF) state */
-	hsotg->lx_state = DWC2_L3;
-
 	dwc2_writel(GINTSTS_DISCONNINT, hsotg->regs + GINTSTS);
 }
 
