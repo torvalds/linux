@@ -1137,6 +1137,10 @@ int i915_driver_unload(struct drm_device *dev)
 		dev_priv->vbt.child_dev = NULL;
 		dev_priv->vbt.child_dev_num = 0;
 	}
+	kfree(dev_priv->vbt.sdvo_lvds_vbt_mode);
+	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.lfp_lvds_vbt_mode);
+	dev_priv->vbt.lfp_lvds_vbt_mode = NULL;
 
 	vga_switcheroo_unregister_client(dev->pdev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);

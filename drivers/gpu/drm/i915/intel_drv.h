@@ -565,8 +565,12 @@ struct intel_crtc {
 
 	int scanline_offset;
 
-	unsigned start_vbl_count;
-	ktime_t start_vbl_time;
+	struct {
+		unsigned start_vbl_count;
+		ktime_t start_vbl_time;
+		int min_vbl, max_vbl;
+		int scanline_start;
+	} debug;
 
 	struct intel_crtc_atomic_commit atomic;
 

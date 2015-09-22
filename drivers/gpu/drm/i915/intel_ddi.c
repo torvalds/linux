@@ -2882,7 +2882,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	 * here just read out lanes 0/1 and output a note if lanes 2/3 differ.
 	 */
 	hw_state->pcsdw12 = I915_READ(BXT_PORT_PCS_DW12_LN01(port));
-	if (I915_READ(BXT_PORT_PCS_DW12_LN23(port) != hw_state->pcsdw12))
+	if (I915_READ(BXT_PORT_PCS_DW12_LN23(port)) != hw_state->pcsdw12)
 		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
 				 hw_state->pcsdw12,
 				 I915_READ(BXT_PORT_PCS_DW12_LN23(port)));

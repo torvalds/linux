@@ -1713,8 +1713,8 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 /**
  * i915_gem_fault - fault a page into the GTT
- * vma: VMA in question
- * vmf: fault info
+ * @vma: VMA in question
+ * @vmf: fault info
  *
  * The fault handler is set up by drm_gem_mmap() when a object is GTT mapped
  * from userspace.  The fault handler takes care of binding the object to
@@ -4985,9 +4985,9 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 
 /**
  * i915_gem_track_fb - update frontbuffer tracking
- * old: current GEM buffer for the frontbuffer slots
- * new: new GEM buffer for the frontbuffer slots
- * frontbuffer_bits: bitmask of frontbuffer slots
+ * @old: current GEM buffer for the frontbuffer slots
+ * @new: new GEM buffer for the frontbuffer slots
+ * @frontbuffer_bits: bitmask of frontbuffer slots
  *
  * This updates the frontbuffer tracking bits @frontbuffer_bits by clearing them
  * from @old and setting them in @new. Both @old and @new can be NULL.
