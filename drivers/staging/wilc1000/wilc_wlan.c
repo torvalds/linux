@@ -1710,8 +1710,8 @@ static void wilc_wlan_cleanup(void)
 		rqe = wilc_wlan_rxq_remove();
 		if (rqe == NULL)
 			break;
-#ifdef MEMORY_DYNAMIC
-		kfree(tqe->buffer);
+#ifndef MEMORY_STATIC
+		kfree(rqe->buffer);
 #endif
 		kfree(rqe);
 	} while (1);
