@@ -9,16 +9,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-/*
- * This is a version of ip_compute_csum() optimized for IP headers,
- * which always checksum on 4 octet boundaries.  ihl is the number
- * of 32-bit words and is always >= 5.
- */
 #ifdef CONFIG_GENERIC_CSUM
 #include <asm-generic/checksum.h>
 #else
-extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
-
 /*
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
@@ -135,6 +128,44 @@ static inline __wsum csum_add(__wsum csum, __wsum addend)
 	    : "+r" (csum) : "r" (addend) : "xer");
 	return csum;
 #endif
+}
+
+/*
+ * This is a version of ip_compute_csum() optimized for IP headers,
+ * which always checksum on 4 octet boundaries.  ihl is the number
+ * of 32-bit words and is always >= 5.
+ */
+static inline __wsum ip_fast_csum_nofold(const void *iph, unsigned int ihl)
+{
+	const u32 *ptr = (const u32 *)iph + 1;
+#ifdef __powerpc64__
+	unsigned int i;
+	u64 s = *(const u32 *)iph;
+
+	for (i = 0; i < ihl - 1; i++, ptr++)
+		s += *ptr;
+	s += (s >> 32);
+	return (__force __wsum)s;
+#else
+	__wsum sum, tmp;
+
+	asm("mtctr %3;"
+	    "addc %0,%4,%5;"
+	    "1: lwzu %1, 4(%2);"
+	    "adde %0,%0,%1;"
+	    "bdnz 1b;"
+	    "addze %0,%0;"
+	    : "=r" (sum), "=r" (tmp), "+b" (ptr)
+	    : "r" (ihl - 2), "r" (*(const u32 *)iph), "r" (*ptr)
+	    : "ctr", "xer", "memory");
+
+	return sum;
+#endif
+}
+
+static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
+{
+	return csum_fold(ip_fast_csum_nofold(iph, ihl));
 }
 
 #endif

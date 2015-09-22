@@ -19,7 +19,6 @@ EXPORT_SYMBOL(strncmp);
 #ifndef CONFIG_GENERIC_CSUM
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
-EXPORT_SYMBOL(ip_fast_csum);
 #endif
 
 EXPORT_SYMBOL(__copy_tofrom_user);

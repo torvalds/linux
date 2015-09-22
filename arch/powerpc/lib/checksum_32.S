@@ -20,27 +20,6 @@
 	.text
 
 /*
- * ip_fast_csum(buf, len) -- Optimized for IP header
- * len is in words and is always >= 5.
- */
-_GLOBAL(ip_fast_csum)
-	lwz	r0,0(r3)
-	lwzu	r5,4(r3)
-	addic.	r4,r4,-2
-	addc	r0,r0,r5
-	mtctr	r4
-	blelr-
-1:	lwzu	r4,4(r3)
-	adde	r0,r0,r4
-	bdnz	1b
-	addze	r0,r0		/* add in final carry */
-	rlwinm	r3,r0,16,0,31	/* fold two halves together */
-	add	r3,r0,r3
-	not	r3,r3
-	srwi	r3,r3,16
-	blr
-
-/*
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
  *
