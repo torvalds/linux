@@ -73,11 +73,9 @@
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	13
-#define IWL3165_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
 #define IWL7260_UCODE_API_MIN	13
-#define IWL3165_UCODE_API_MIN	13
 
 /* NVM versions */
 #define IWL7260_NVM_VERSION		0x0a1d
@@ -269,11 +267,6 @@ const struct iwl_cfg iwl3165_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
-	/* sparse doens't like the re-assignment but it is safe */
-#ifndef __CHECKER__
-	.ucode_api_ok = IWL3165_UCODE_API_OK,
-	.ucode_api_min = IWL3165_UCODE_API_MIN,
-#endif
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3165_NVM_VERSION,
 	.nvm_calib_ver = IWL3165_TX_POWER_VERSION,
