@@ -14,7 +14,7 @@
 #ifndef _MEDIA_VIDEOBUF2_MEMOPS_H
 #define _MEDIA_VIDEOBUF2_MEMOPS_H
 
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <linux/mm.h>
 
 /**

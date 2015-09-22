@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 
 #include <media/media-entity.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 struct vsp1_video;
 

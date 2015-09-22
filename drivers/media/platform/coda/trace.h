@@ -5,7 +5,7 @@
 #define __CODA_TRACE_H__
 
 #include <linux/tracepoint.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include "coda.h"
 

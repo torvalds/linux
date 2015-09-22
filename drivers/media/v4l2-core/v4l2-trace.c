@@ -1,6 +1,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/v4l2.h>

@@ -1,5 +1,5 @@
 /*
- * videobuf2-core.c - V4L2 driver helper framework
+ * videobuf2-core.c - video buffer 2 core framework
  *
  * Copyright (C) 2010 Samsung Electronics
  *
@@ -28,7 +28,7 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-common.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 #include <trace/events/v4l2.h>
 
@@ -1818,7 +1818,7 @@ static int vb2_start_streaming(struct vb2_queue *q)
 	/*
 	 * If you see this warning, then the driver isn't cleaning up properly
 	 * after a failed start_streaming(). See the start_streaming()
-	 * documentation in videobuf2-core.h for more information how buffers
+	 * documentation in videobuf2-v4l2.h for more information how buffers
 	 * should be returned to vb2 in start_streaming().
 	 */
 	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
@@ -2205,7 +2205,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	/*
 	 * If you see this warning, then the driver isn't cleaning up properly
 	 * in stop_streaming(). See the stop_streaming() documentation in
-	 * videobuf2-core.h for more information how buffers should be returned
+	 * videobuf2-v4l2.h for more information how buffers should be returned
 	 * to vb2 in stop_streaming().
 	 */
 	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
@@ -2739,7 +2739,7 @@ EXPORT_SYMBOL_GPL(vb2_poll);
  * responsible of clearing it's content and setting initial values for some
  * required entries before calling this function.
  * q->ops, q->mem_ops, q->type and q->io_modes are mandatory. Please refer
- * to the struct vb2_queue description in include/media/videobuf2-core.h
+ * to the struct vb2_queue description in include/media/videobuf2-v4l2.h
  * for more information.
  */
 int vb2_queue_init(struct vb2_queue *q)

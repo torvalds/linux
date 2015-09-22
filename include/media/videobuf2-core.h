@@ -1,5 +1,5 @@
 /*
- * videobuf2-core.h - V4L2 driver helper framework
+ * videobuf2-core.h - Video Buffer 2 Core Framework
  *
  * Copyright (C) 2010 Samsung Electronics
  *

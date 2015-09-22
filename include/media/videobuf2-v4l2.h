@@ -1,5 +1,5 @@
 /*
- * videobuf2-vmalloc.h - vmalloc memory allocator for videobuf2
+ * videobuf2-v4l2.h - V4L2 driver helper framework
  *
  * Copyright (C) 2010 Samsung Electronics
  *
@@ -9,12 +9,9 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  */
+#ifndef _MEDIA_VIDEOBUF2_V4L2_H
+#define _MEDIA_VIDEOBUF2_V4L2_H
 
-#ifndef _MEDIA_VIDEOBUF2_VMALLOC_H
-#define _MEDIA_VIDEOBUF2_VMALLOC_H
+#include <media/videobuf2-core.h>
 
-#include <media/videobuf2-v4l2.h>
-
-extern const struct vb2_mem_ops vb2_vmalloc_memops;
-
-#endif
+#endif /* _MEDIA_VIDEOBUF2_V4L2_H */

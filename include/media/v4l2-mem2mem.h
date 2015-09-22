@@ -17,7 +17,7 @@
 #ifndef _MEDIA_V4L2_MEM2MEM_H
 #define _MEDIA_V4L2_MEM2MEM_H
 
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 /**
  * struct v4l2_m2m_ops - mem-to-mem device driver callbacks
