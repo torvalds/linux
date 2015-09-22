@@ -2318,8 +2318,9 @@ static int _dwc2_hcd_start(struct usb_hcd *hcd)
 	dev_dbg(hsotg->dev, "DWC OTG HCD START\n");
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-
+	hsotg->lx_state = DWC2_L0;
 	hcd->state = HC_STATE_RUNNING;
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	if (dwc2_is_device_mode(hsotg)) {
 		spin_unlock_irqrestore(&hsotg->lock, flags);
@@ -2350,6 +2351,9 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	dwc2_hcd_stop(hsotg);
+	hsotg->lx_state = DWC2_L3;
+	hcd->state = HC_STATE_HALT;
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	usleep_range(1000, 3000);
