@@ -426,18 +426,7 @@ static struct usb_driver ch9200_driver = {
 	.resume = usbnet_resume,
 };
 
-static int __init ch9200_init(void)
-{
-	return usb_register(&ch9200_driver);
-}
-
-static void __exit ch9200_exit(void)
-{
-	usb_deregister(&ch9200_driver);
-}
-
-module_init(ch9200_init);
-module_exit(ch9200_exit);
+module_usb_driver(ch9200_driver);
 
 MODULE_DESCRIPTION("QinHeng CH9200 USB Network device");
 MODULE_LICENSE("GPL");
