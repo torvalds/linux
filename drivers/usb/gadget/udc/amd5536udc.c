@@ -73,7 +73,6 @@ static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
 static int udc_free_dma_chain(struct udc *dev, struct udc_request *req);
 static int udc_create_dma_chain(struct udc_ep *ep, struct udc_request *req,
 				unsigned long buf_len, gfp_t gfp_flags);
-static int udc_remote_wakeup(struct udc *dev);
 static int udc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void udc_pci_remove(struct pci_dev *pdev);
 
@@ -1450,6 +1449,26 @@ static const struct usb_ep_ops udc_ep_ops = {
 static int udc_get_frame(struct usb_gadget *gadget)
 {
 	return -EOPNOTSUPP;
+}
+
+/* Initiates a remote wakeup */
+static int udc_remote_wakeup(struct udc *dev)
+{
+	unsigned long flags;
+	u32 tmp;
+
+	DBG(dev, "UDC initiates remote wakeup\n");
+
+	spin_lock_irqsave(&dev->lock, flags);
+
+	tmp = readl(&dev->regs->ctl);
+	tmp |= AMD_BIT(UDC_DEVCTL_RES);
+	writel(tmp, &dev->regs->ctl);
+	tmp &= AMD_CLEAR_BIT(UDC_DEVCTL_RES);
+	writel(tmp, &dev->regs->ctl);
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+	return 0;
 }
 
 /* Remote wakeup gadget interface */
@@ -3382,26 +3401,6 @@ err_memreg:
 err_pcidev:
 	kfree(dev);
 	return retval;
-}
-
-/* Initiates a remote wakeup */
-static int udc_remote_wakeup(struct udc *dev)
-{
-	unsigned long flags;
-	u32 tmp;
-
-	DBG(dev, "UDC initiates remote wakeup\n");
-
-	spin_lock_irqsave(&dev->lock, flags);
-
-	tmp = readl(&dev->regs->ctl);
-	tmp |= AMD_BIT(UDC_DEVCTL_RES);
-	writel(tmp, &dev->regs->ctl);
-	tmp &= AMD_CLEAR_BIT(UDC_DEVCTL_RES);
-	writel(tmp, &dev->regs->ctl);
-
-	spin_unlock_irqrestore(&dev->lock, flags);
-	return 0;
 }
 
 /* PCI device parameters */
