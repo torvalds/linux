@@ -13,3 +13,6 @@ intel_th_sth-y			:= sth.o
 
 obj-$(CONFIG_INTEL_TH_MSU)	+= intel_th_msu.o
 intel_th_msu-y			:= msu.o
+
+obj-$(CONFIG_INTEL_TH_PTI)	+= intel_th_pti.o
+intel_th_pti-y			:= pti.o

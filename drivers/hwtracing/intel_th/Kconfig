@@ -54,6 +54,15 @@ config INTEL_TH_MSU
 
 	  Say Y here to enable MSU output device for Intel TH.
 
+config INTEL_TH_PTI
+	tristate "Intel(R) Trace Hub PTI output"
+	help
+	  Parallel Trace Interface unit (PTI) is a trace output device
+	  of Intel TH architecture that facilitates STP trace output via
+	  a PTI port.
+
+	  Say Y to enable PTI output of Intel TH data.
+
 config INTEL_TH_DEBUG
 	bool "Intel(R) Trace Hub debugging"
 	depends on DEBUG_FS
