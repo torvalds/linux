@@ -7,13 +7,14 @@
  *
  * Adjustable fractional divider clock implementation.
  * Output rate = (m / n) * parent_rate.
+ * Uses rational best approximation algorithm.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/gcd.h>
+#include <linux/rational.h>
 
 #define to_clk_fd(_hw) container_of(_hw, struct clk_fractional_divider, hw)
 
@@ -22,7 +23,8 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned long flags = 0;
-	u32 val, m, n;
+	unsigned long m, n;
+	u32 val;
 	u64 ret;
 
 	if (fd->lock)
@@ -53,20 +55,30 @@ static long clk_fd_round_rate(struct clk_hw *hw, unsigned long rate,
 			      unsigned long *parent_rate)
 {
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
-	unsigned maxn = (fd->nmask >> fd->nshift) + 1;
-	unsigned div;
+	unsigned long scale;
+	unsigned long m, n;
+	u64 ret;
 
 	if (!rate || rate >= *parent_rate)
 		return *parent_rate;
 
-	div = gcd(*parent_rate, rate);
+	/*
+	 * Get rate closer to *parent_rate to guarantee there is no overflow
+	 * for m and n. In the result it will be the nearest rate left shifted
+	 * by (scale - fd->nwidth) bits.
+	 */
+	scale = fls_long(*parent_rate / rate - 1);
+	if (scale > fd->nwidth)
+		rate <<= scale - fd->nwidth;
 
-	while ((*parent_rate / div) > maxn) {
-		div <<= 1;
-		rate <<= 1;
-	}
+	rational_best_approximation(rate, *parent_rate,
+			GENMASK(fd->mwidth - 1, 0), GENMASK(fd->nwidth - 1, 0),
+			&m, &n);
 
-	return rate;
+	ret = (u64)*parent_rate * m;
+	do_div(ret, n);
+
+	return ret;
 }
 
 static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -74,13 +86,12 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned long flags = 0;
-	unsigned long div;
-	unsigned n, m;
+	unsigned long m, n;
 	u32 val;
 
-	div = gcd(parent_rate, rate);
-	m = rate / div;
-	n = parent_rate / div;
+	rational_best_approximation(rate, parent_rate,
+			GENMASK(fd->mwidth - 1, 0), GENMASK(fd->nwidth - 1, 0),
+			&m, &n);
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
