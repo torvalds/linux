@@ -817,28 +817,28 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 
 			headerPopup = new QMenu(this);
 			action = new QAction(_("Show Name"), this);
-			  action->setToggleAction(TRUE);
+			  action->setCheckable(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowName(bool)));
 			  connect(parent(), SIGNAL(showNameChanged(bool)),
 				  action, SLOT(setOn(bool)));
-			  action->setOn(showName);
+			  action->setChecked(showName);
 			  action->addTo(headerPopup);
 			action = new QAction(_("Show Range"), this);
-			  action->setToggleAction(TRUE);
+			  action->setCheckable(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowRange(bool)));
 			  connect(parent(), SIGNAL(showRangeChanged(bool)),
 				  action, SLOT(setOn(bool)));
-			  action->setOn(showRange);
+			  action->setChecked(showRange);
 			  action->addTo(headerPopup);
 			action = new QAction( _("Show Data"), this);
-			  action->setToggleAction(TRUE);
+			  action->setCheckable(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
 				  parent(), SLOT(setShowData(bool)));
 			  connect(parent(), SIGNAL(showDataChanged(bool)),
 				  action, SLOT(setOn(bool)));
-			  action->setOn(showData);
+			  action->setChecked(showData);
 			  action->addTo(headerPopup);
 		}
 		headerPopup->exec(e->globalPos());
@@ -1161,10 +1161,10 @@ QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
 {
 	QMenu* popup = Parent::createStandardContextMenu(pos);
 	QAction* action = new QAction(_("Show Debug Info"), popup);
-	  action->setToggleAction(TRUE);
+	  action->setCheckable(TRUE);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
-	  action->setOn(showDebug());
+	  action->setChecked(showDebug());
 	popup->addSeparator();
 	action->addTo(popup);
 	return popup;
@@ -1337,20 +1337,20 @@ ConfigMainWindow::ConfigMainWindow(void)
 	  connect(fullViewAction, SIGNAL(activated()), SLOT(showFullView()));
 
 	QAction *showNameAction = new QAction(_("Show Name"), this);
-	  showNameAction->setToggleAction(TRUE);
+	  showNameAction->setCheckable(TRUE);
 	  connect(showNameAction, SIGNAL(toggled(bool)), configView, SLOT(setShowName(bool)));
 	  connect(configView, SIGNAL(showNameChanged(bool)), showNameAction, SLOT(setOn(bool)));
-	  showNameAction->setOn(configView->showName());
+	  showNameAction->setChecked(configView->showName());
 	QAction *showRangeAction = new QAction(_("Show Range"), this);
-	  showRangeAction->setToggleAction(TRUE);
+	  showRangeAction->setCheckable(TRUE);
 	  connect(showRangeAction, SIGNAL(toggled(bool)), configView, SLOT(setShowRange(bool)));
 	  connect(configView, SIGNAL(showRangeChanged(bool)), showRangeAction, SLOT(setOn(bool)));
-	  showRangeAction->setOn(configList->showRange);
+	  showRangeAction->setChecked(configList->showRange);
 	QAction *showDataAction = new QAction(_("Show Data"), this);
-	  showDataAction->setToggleAction(TRUE);
+	  showDataAction->setCheckable(TRUE);
 	  connect(showDataAction, SIGNAL(toggled(bool)), configView, SLOT(setShowData(bool)));
 	  connect(configView, SIGNAL(showDataChanged(bool)), showDataAction, SLOT(setOn(bool)));
-	  showDataAction->setOn(configList->showData);
+	  showDataAction->setChecked(configList->showData);
 
 	QActionGroup *optGroup = new QActionGroup(this);
 	optGroup->setExclusive(TRUE);
@@ -1362,18 +1362,18 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configView->showNormalAction = new QAction(_("Show Normal Options"), optGroup);
 	configView->showAllAction = new QAction(_("Show All Options"), optGroup);
 	configView->showPromptAction = new QAction(_("Show Prompt Options"), optGroup);
-	configView->showNormalAction->setToggleAction(TRUE);
-	configView->showNormalAction->setOn(configList->optMode == normalOpt);
-	configView->showAllAction->setToggleAction(TRUE);
-	configView->showAllAction->setOn(configList->optMode == allOpt);
-	configView->showPromptAction->setToggleAction(TRUE);
-	configView->showPromptAction->setOn(configList->optMode == promptOpt);
+	configView->showNormalAction->setCheckable(TRUE);
+	configView->showNormalAction->setChecked(configList->optMode == normalOpt);
+	configView->showAllAction->setCheckable(TRUE);
+	configView->showAllAction->setChecked(configList->optMode == allOpt);
+	configView->showPromptAction->setCheckable(TRUE);
+	configView->showPromptAction->setChecked(configList->optMode == promptOpt);
 
 	QAction *showDebugAction = new QAction( _("Show Debug Info"), this);
-	  showDebugAction->setToggleAction(TRUE);
+	  showDebugAction->setCheckable(TRUE);
 	  connect(showDebugAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDebug(bool)));
 	  connect(helpText, SIGNAL(showDebugChanged(bool)), showDebugAction, SLOT(setOn(bool)));
-	  showDebugAction->setOn(helpText->showDebug());
+	  showDebugAction->setChecked(helpText->showDebug());
 
 	QAction *showIntroAction = new QAction( _("Introduction"), this);
 	  connect(showIntroAction, SIGNAL(activated()), SLOT(showIntro()));
