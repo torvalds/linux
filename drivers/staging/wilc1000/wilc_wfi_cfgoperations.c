@@ -13,7 +13,7 @@
 #include "wilc_wfi_cfgoperations.h"
 #include "wilc_wlan.c"
 #ifdef WILC_SDIO
-#include "linux_wlan_sdio.h"    /* tony : for set_wiphy_dev() */
+#include "linux_wlan_sdio.h"
 #endif
 #include <linux/errno.h>
 
@@ -701,10 +701,6 @@ static int set_channel(struct wiphy *wiphy,
  *  @version	1.0
  */
 
-/*
- *	kernel version 3.8.8 supported
- *	tony, sswd, WILC-KR, 2013-10-29
- */
 static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct wilc_priv *priv;
@@ -1626,11 +1622,6 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 
 		host_int_get_statistics(priv->hWILCWFIDrv, &strStatistics);
 
-		/*
-		 * tony: 2013-11-13
-		 * tx_failed introduced more than
-		 * kernel version 3.0.0
-		 */
 		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL) |
 						BIT(NL80211_STA_INFO_RX_PACKETS) |
 						BIT(NL80211_STA_INFO_TX_PACKETS) |
@@ -2657,7 +2648,7 @@ static int dump_station(struct wiphy *wiphy, struct net_device *dev,
  *  @return     int : Return 0 on Success.
  *  @author	mdaftedar
  *  @date	01 JUL 2012
- *  @version	1.0WILC_WFI_set_cqmWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_config_rssi_config
+ *  @version	1.0
  */
 static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			  bool enabled, int timeout)
@@ -3371,7 +3362,7 @@ struct wireless_dev *add_virtual_intf(struct wiphy *wiphy, const char *name,
  *  @date	01 JUL 2012
  *  @version	1.0
  */
-int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)      /* tony for v3.8 support */
+int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	PRINT_D(HOSTAPD_DBG, "Deleting virtual interface\n");
 	return 0;
@@ -3426,7 +3417,7 @@ static struct cfg80211_ops wilc_cfg80211_ops = {
  *  @return     int : Return 0 on Success.
  *  @author	mdaftedar
  *  @date	01 MAR 2012
- *  @version	1.0WILC_WFI_set_cqmWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_configWILC_WFI_set_cqm_rssi_config_rssi_config
+ *  @version	1.0
  */
 int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 {
@@ -3573,7 +3564,7 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net)
 		   wdev->wiphy->interface_modes, wdev->iftype);
 
 	#ifdef WILC_SDIO
-	set_wiphy_dev(wdev->wiphy, &local_sdio_func->dev); /* tony */
+	set_wiphy_dev(wdev->wiphy, &local_sdio_func->dev);
 	#endif
 
 	/*Register wiphy structure*/
