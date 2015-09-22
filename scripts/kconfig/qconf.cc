@@ -270,7 +270,7 @@ ConfigItem::~ConfigItem(void)
 ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
 	: Parent(parent)
 {
-	connect(this, SIGNAL(lostFocus()), SLOT(hide()));
+	connect(this, SIGNAL(editingFinished()), SLOT(hide()));
 }
 
 void ConfigLineEdit::show(ConfigItem* i)
@@ -318,7 +318,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setSortingEnabled(-1);
 	setRootIsDecorated(true);
 
-	connect(this, SIGNAL(selectionChanged(void)),
+	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
 
 	if (name) {
