@@ -3135,15 +3135,11 @@ static void udc_pci_remove(struct pci_dev *pdev)
 
 	/* reset controller */
 	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
-	if (dev->irq_registered)
-		free_irq(pdev->irq, dev);
-	if (dev->virt_addr)
-		iounmap(dev->virt_addr);
-	if (dev->mem_region)
-		release_mem_region(pci_resource_start(pdev, 0),
-				pci_resource_len(pdev, 0));
-	if (dev->active)
-		pci_disable_device(pdev);
+	free_irq(pdev->irq, dev);
+	iounmap(dev->virt_addr);
+	release_mem_region(pci_resource_start(pdev, 0),
+			   pci_resource_len(pdev, 0));
+	pci_disable_device(pdev);
 
 	udc_remove(dev);
 }
@@ -3240,7 +3236,6 @@ static int udc_pci_probe(
 		retval = -ENODEV;
 		goto err_pcidev;
 	}
-	dev->active = 1;
 
 	/* PCI resource allocation */
 	resource = pci_resource_start(pdev, 0);
@@ -3251,7 +3246,6 @@ static int udc_pci_probe(
 		retval = -EBUSY;
 		goto err_memreg;
 	}
-	dev->mem_region = 1;
 
 	dev->virt_addr = ioremap_nocache(resource, len);
 	if (dev->virt_addr == NULL) {
@@ -3282,7 +3276,6 @@ static int udc_pci_probe(
 		retval = -EBUSY;
 		goto err_irq;
 	}
-	dev->irq_registered = 1;
 
 	pci_set_drvdata(pdev, dev);
 
