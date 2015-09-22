@@ -11,7 +11,7 @@
 #include <q3textbrowser.h>
 #include <QAction>
 #include <q3header.h>
-#include <q3filedialog.h>
+#include <QFileDialog>
 #include <q3dragobject.h>
 #include <q3popupmenu.h>
 
@@ -1457,7 +1457,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 void ConfigMainWindow::loadConfig(void)
 {
-	QString s = Q3FileDialog::getOpenFileName(conf_get_configname(), NULL, this);
+	QString s = QFileDialog::getOpenFileName(conf_get_configname(), NULL, this);
 	if (s.isNull())
 		return;
 	if (conf_read(QFile::encodeName(s)))
@@ -1476,7 +1476,7 @@ bool ConfigMainWindow::saveConfig(void)
 
 void ConfigMainWindow::saveConfigAs(void)
 {
-	QString s = Q3FileDialog::getSaveFileName(conf_get_configname(), NULL, this);
+	QString s = QFileDialog::getSaveFileName(conf_get_configname(), NULL, this);
 	if (s.isNull())
 		return;
 	saveConfig();
