@@ -199,9 +199,9 @@ public:
 	ConfigItem *item;
 };
 
-class ConfigView : public Q3VBox {
+class ConfigView : public QWidget {
 	Q_OBJECT
-	typedef class Q3VBox Parent;
+	typedef class QWidget Parent;
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
 	~ConfigView(void);

@@ -6,7 +6,6 @@
 #include <qglobal.h>
 
 #include <QMainWindow>
-#include <q3vbox.h>
 #include <QList>
 #include <qtextbrowser.h>
 #include <QAction>
