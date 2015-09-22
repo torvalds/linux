@@ -1861,8 +1861,12 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	pdata->no_bd_ram = of_property_read_bool(np, "ti,davinci-no-bd-ram");
 
 	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node)
-		pdata->phy_id = NULL;
+	if (!priv->phy_node) {
+		if (!of_phy_is_fixed_link(np))
+			pdata->phy_id = NULL;
+		else if (of_phy_register_fixed_link(np) >= 0)
+			priv->phy_node = of_node_get(np);
+	}
 
 	auxdata = pdev->dev.platform_data;
 	if (auxdata) {
