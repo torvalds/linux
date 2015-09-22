@@ -19,6 +19,7 @@
 #include <linux/magic.h>
 #include <linux/kobject.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
 #include <linux/bio.h>
 
 #ifdef CONFIG_F2FS_CHECK_FS
@@ -1584,6 +1585,26 @@ static inline bool f2fs_may_extent_tree(struct inode *inode)
 		return false;
 
 	return S_ISREG(mode);
+}
+
+static inline void *f2fs_kvmalloc(size_t size, gfp_t flags)
+{
+	void *ret;
+
+	ret = kmalloc(size, flags | __GFP_NOWARN);
+	if (!ret)
+		ret = __vmalloc(size, flags, PAGE_KERNEL);
+	return ret;
+}
+
+static inline void *f2fs_kvzalloc(size_t size, gfp_t flags)
+{
+	void *ret;
+
+	ret = kzalloc(size, flags | __GFP_NOWARN);
+	if (!ret)
+		ret = __vmalloc(size, flags | __GFP_ZERO, PAGE_KERNEL);
+	return ret;
 }
 
 #define get_inode_mode(i) \
