@@ -395,8 +395,10 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend);
 
 #ifdef CONFIG_OMAP3_THERMAL
 extern const struct ti_bandgap_data omap34xx_data;
+extern const struct ti_bandgap_data omap36xx_data;
 #else
 #define omap34xx_data					NULL
+#define omap36xx_data					NULL
 #endif
 
 #ifdef CONFIG_OMAP4_THERMAL

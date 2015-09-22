@@ -101,3 +101,76 @@ const struct ti_bandgap_data omap34xx_data = {
 	},
 	.sensor_count = 1,
 };
+
+/*
+ * OMAP36XX has one instance of thermal sensor for MPU
+ * need to describe the individual bit fields
+ */
+static struct temp_sensor_registers
+omap36xx_mpu_temp_sensor_registers = {
+	.temp_sensor_ctrl = 0,
+	.bgap_soc_mask = BIT(9),
+	.bgap_eocz_mask = BIT(8),
+	.bgap_dtemp_mask = 0xFF,
+
+	.bgap_mode_ctrl = 0,
+	.mode_ctrl_mask = BIT(10),
+};
+
+/* Thresholds and limits for OMAP36XX MPU temperature sensor */
+static struct temp_sensor_data omap36xx_mpu_temp_sensor_data = {
+	.min_freq = 32768,
+	.max_freq = 32768,
+	.max_temp = 125000,
+	.min_temp = -40000,
+	.hyst_val = 5000,
+};
+
+/*
+ * Temperature values in milli degree celsius
+ */
+static const int
+omap36xx_adc_to_temp[128] = {
+	-40000, -40000, -40000, -40000, -40000, -40000, -40000, -40000,
+	-40000, -40000, -40000,	-40000, -40000, -38000, -35000, -34000,
+	-32000, -30000, -28000, -26000, -24000, -22000,	-20000, -18500,
+	-17000, -15000, -13500, -12000, -10000, -8000, -6500, -5000, -3500,
+	-1500, 0, 2000, 3500, 5000, 6500, 8500, 10000, 12000, 13500,
+	15000, 17000, 19000, 21000, 23000, 25000, 27000, 28500, 30000,
+	32000, 33500, 35000, 37000, 38500, 40000, 42000, 43500, 45000,
+	47000, 48500, 50000, 52000, 53500, 55000, 57000, 58500, 60000,
+	62000, 64000, 66000, 68000, 70000, 71500, 73500, 75000, 77000,
+	78500, 80000, 82000, 83500, 85000, 87000, 88500, 90000, 92000,
+	93500, 95000, 97000, 98500, 100000, 102000, 103500, 105000, 107000,
+	109000, 111000, 113000, 115000, 117000, 118500, 120000, 122000,
+	123500, 125000, 125000, 125000, 125000, 125000, 125000, 125000,
+	125000, 125000, 125000, 125000, 125000, 125000, 125000, 125000,
+	125000, 125000, 125000, 125000, 125000, 125000,	125000
+};
+
+/* OMAP36XX data */
+const struct ti_bandgap_data omap36xx_data = {
+	.features = TI_BANDGAP_FEATURE_CLK_CTRL | TI_BANDGAP_FEATURE_UNRELIABLE,
+	.fclock_name = "ts_fck",
+	.div_ck_name = "ts_fck",
+	.conv_table = omap36xx_adc_to_temp,
+	.adc_start_val = 0,
+	.adc_end_val = 127,
+	.expose_sensor = ti_thermal_expose_sensor,
+	.remove_sensor = ti_thermal_remove_sensor,
+
+	.sensors = {
+		{
+		.registers = &omap36xx_mpu_temp_sensor_registers,
+		.ts_data = &omap36xx_mpu_temp_sensor_data,
+		.domain = "cpu",
+		.slope = 0,
+		.constant = 20000,
+		.slope_pcb = 0,
+		.constant_pcb = 20000,
+		.register_cooling = NULL,
+		.unregister_cooling = NULL,
+		},
+	},
+	.sensor_count = 1,
+};
