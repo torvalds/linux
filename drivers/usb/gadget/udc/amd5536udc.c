@@ -65,7 +65,6 @@
 
 static void udc_tasklet_disconnect(unsigned long);
 static void empty_req_queue(struct udc_ep *);
-static int udc_probe(struct udc *dev);
 static void udc_basic_init(struct udc *dev);
 static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
@@ -3209,6 +3208,72 @@ err_create_dma_pool:
 	return retval;
 }
 
+/* general probe */
+static int udc_probe(struct udc *dev)
+{
+	char		tmp[128];
+	u32		reg;
+	int		retval;
+
+	/* mark timer as not initialized */
+	udc_timer.data = 0;
+	udc_pollstall_timer.data = 0;
+
+	/* device struct setup */
+	dev->gadget.ops = &udc_ops;
+
+	dev_set_name(&dev->gadget.dev, "gadget");
+	dev->gadget.name = name;
+	dev->gadget.max_speed = USB_SPEED_HIGH;
+
+	/* init registers, interrupts, ... */
+	startup_registers(dev);
+
+	dev_info(&dev->pdev->dev, "%s\n", mod_desc);
+
+	snprintf(tmp, sizeof(tmp), "%d", dev->irq);
+	dev_info(&dev->pdev->dev,
+		 "irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
+		 tmp, dev->phys_addr, dev->chiprev,
+		 (dev->chiprev == UDC_HSA0_REV) ? "A0" : "B1");
+	strcpy(tmp, UDC_DRIVER_VERSION_STRING);
+	if (dev->chiprev == UDC_HSA0_REV) {
+		dev_err(&dev->pdev->dev, "chip revision is A0; too old\n");
+		retval = -ENODEV;
+		goto finished;
+	}
+	dev_info(&dev->pdev->dev,
+		 "driver version: %s(for Geode5536 B1)\n", tmp);
+	udc = dev;
+
+	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
+					    gadget_release);
+	if (retval)
+		goto finished;
+
+	/* timer init */
+	init_timer(&udc_timer);
+	udc_timer.function = udc_timer_function;
+	udc_timer.data = 1;
+	/* timer pollstall init */
+	init_timer(&udc_pollstall_timer);
+	udc_pollstall_timer.function = udc_pollstall_timer_function;
+	udc_pollstall_timer.data = 1;
+
+	/* set SD */
+	reg = readl(&dev->regs->ctl);
+	reg |= AMD_BIT(UDC_DEVCTL_SD);
+	writel(reg, &dev->regs->ctl);
+
+	/* print dev register info */
+	print_regs(dev);
+
+	return 0;
+
+finished:
+	return retval;
+}
+
 /* Called by pci bus driver to init pci context */
 static int udc_pci_probe(
 	struct pci_dev *pdev,
@@ -3316,72 +3381,6 @@ err_memreg:
 	pci_disable_device(pdev);
 err_pcidev:
 	kfree(dev);
-	return retval;
-}
-
-/* general probe */
-static int udc_probe(struct udc *dev)
-{
-	char		tmp[128];
-	u32		reg;
-	int		retval;
-
-	/* mark timer as not initialized */
-	udc_timer.data = 0;
-	udc_pollstall_timer.data = 0;
-
-	/* device struct setup */
-	dev->gadget.ops = &udc_ops;
-
-	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.name = name;
-	dev->gadget.max_speed = USB_SPEED_HIGH;
-
-	/* init registers, interrupts, ... */
-	startup_registers(dev);
-
-	dev_info(&dev->pdev->dev, "%s\n", mod_desc);
-
-	snprintf(tmp, sizeof tmp, "%d", dev->irq);
-	dev_info(&dev->pdev->dev,
-		"irq %s, pci mem %08lx, chip rev %02x(Geode5536 %s)\n",
-		tmp, dev->phys_addr, dev->chiprev,
-		(dev->chiprev == UDC_HSA0_REV) ? "A0" : "B1");
-	strcpy(tmp, UDC_DRIVER_VERSION_STRING);
-	if (dev->chiprev == UDC_HSA0_REV) {
-		dev_err(&dev->pdev->dev, "chip revision is A0; too old\n");
-		retval = -ENODEV;
-		goto finished;
-	}
-	dev_info(&dev->pdev->dev,
-		"driver version: %s(for Geode5536 B1)\n", tmp);
-	udc = dev;
-
-	retval = usb_add_gadget_udc_release(&udc->pdev->dev, &dev->gadget,
-			gadget_release);
-	if (retval)
-		goto finished;
-
-	/* timer init */
-	init_timer(&udc_timer);
-	udc_timer.function = udc_timer_function;
-	udc_timer.data = 1;
-	/* timer pollstall init */
-	init_timer(&udc_pollstall_timer);
-	udc_pollstall_timer.function = udc_pollstall_timer_function;
-	udc_pollstall_timer.data = 1;
-
-	/* set SD */
-	reg = readl(&dev->regs->ctl);
-	reg |= AMD_BIT(UDC_DEVCTL_SD);
-	writel(reg, &dev->regs->ctl);
-
-	/* print dev register info */
-	print_regs(dev);
-
-	return 0;
-
-finished:
 	return retval;
 }
 
