@@ -1118,7 +1118,6 @@ static struct i2c_driver apds9960_driver = {
 	.driver = {
 		.name	= APDS9960_DRV_NAME,
 		.pm	= &apds9960_pm_ops,
-		.owner = THIS_MODULE,
 	},
 	.probe		= apds9960_probe,
 	.remove		= apds9960_remove,
