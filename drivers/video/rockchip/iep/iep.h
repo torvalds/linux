@@ -1,6 +1,24 @@
 #ifndef _IEP_H_
 #define _IEP_H_
 
+/* Capability for current iep version
+using by userspace to determine iep features */
+struct IEP_CAP {
+	u8 scaling_supported;
+	u8 i4_deinterlace_supported;
+	u8 i2_deinterlace_supported;
+	u8 compression_noise_reduction_supported;
+	u8 sampling_noise_reduction_supported;
+	u8 hsb_enhancement_supported;
+	u8 cg_enhancement_supported;
+	u8 direct_path_supported;
+	u16 max_dynamic_width;
+	u16 max_dynamic_height;
+	u16 max_static_width;
+	u16 max_static_height;
+	u8 max_enhance_radius;
+};
+
 #define IEP_IOC_MAGIC 'i'
 
 #define IEP_SET_PARAMETER_REQ		_IOW(IEP_IOC_MAGIC, 1, unsigned long)
@@ -13,6 +31,7 @@
 #define IEP_SET_PARAMETER		_IOW(IEP_IOC_MAGIC, 8, unsigned long)
 #define IEP_RELEASE_CURRENT_TASK	_IOW(IEP_IOC_MAGIC, 9, unsigned long)
 #define IEP_GET_IOMMU_STATE		_IOR(IEP_IOC_MAGIC,10, unsigned long)
+#define IEP_QUERY_CAP			_IOR(IEP_IOC_MAGIC,11, struct IEP_CAP)
 
 #ifdef CONFIG_COMPAT
 #define COMPAT_IEP_SET_PARAMETER_REQ		_IOW(IEP_IOC_MAGIC, 1, u32)
@@ -25,6 +44,7 @@
 #define COMPAT_IEP_SET_PARAMETER		_IOW(IEP_IOC_MAGIC, 8, u32)
 #define COMPAT_IEP_RELEASE_CURRENT_TASK		_IOW(IEP_IOC_MAGIC, 9, u32)
 #define COMPAT_IEP_GET_IOMMU_STATE		_IOR(IEP_IOC_MAGIC,10, u32)
+#define COMPAT_IEP_QUERY_CAP			_IOR(IEP_IOC_MAGIC,11, struct IEP_CAP)
 #endif
 
 /* Driver information */
@@ -36,7 +56,7 @@
 #define iep_debug(level, fmt, args...)				\
 	do {							\
 		if (debug >= level)				\
-			pr_info("%s:%d: " fmt,	                \
+			pr_info("%s:%d: " fmt,			\
 				 __func__, __LINE__, ##args);	\
 	} while (0)
 #else
@@ -170,12 +190,11 @@ struct iep_img
 	u8 alpha_swap;	/* not be used */
 };
 
-
 struct IEP_MSG {
 	struct iep_img src;
 	struct iep_img dst;
 
-	struct iep_img src1;   
+	struct iep_img src1;
 	struct iep_img dst1;
 
 	struct iep_img src_itemp;

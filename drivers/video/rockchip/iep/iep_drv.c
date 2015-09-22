@@ -77,6 +77,9 @@ struct iep_drvdata {
 	atomic_t iep_int;
 	atomic_t mmu_page_fault;
 	atomic_t mmu_bus_error;
+
+	/* capability for this iep device */
+	struct IEP_CAP cap;
 };
 
 struct iep_drvdata *iep_drvdata1 = NULL;
@@ -800,6 +803,13 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 			}
 		}
 		break;
+	case IEP_QUERY_CAP:
+		if (copy_to_user((void __user *)arg, &iep_drvdata1->cap,
+			sizeof(struct IEP_CAP))) {
+			IEP_ERR("error: copy_to_user failed\n");
+			return -EFAULT;
+		}
+		break;
 	default:
 		IEP_ERR("unknown ioctl cmd!\n");
 		ret = -EINVAL;
@@ -884,6 +894,13 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 				IEP_ERR("error: copy_to_user failed\n");
 				return -EFAULT;
 			}
+		}
+		break;
+	case COMPAT_IEP_QUERY_CAP:
+		if (copy_to_user((void __user *)arg, &iep_drvdata1->cap,
+			sizeof(struct IEP_CAP))) {
+			IEP_ERR("error: copy_to_user failed\n");
+			return -EFAULT;
 		}
 		break;
 	default:
@@ -987,6 +1004,7 @@ static int iep_drv_probe(struct platform_device *pdev)
 	struct iep_drvdata *data;
 	int ret = 0;
 	struct resource *res = NULL;
+	u32 version;
 #if defined(CONFIG_IEP_IOMMU)
 	u32 iommu_en = 0;
 	struct device *mmu_dev = NULL;
@@ -1069,6 +1087,46 @@ static int iep_drv_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&iep_service.mutex);
+
+	if (of_property_read_u32(np, "version", &version)) {
+		version = 0;
+	}
+
+	data->cap.scaling_supported = 0;
+	data->cap.i4_deinterlace_supported = 1;
+	data->cap.i2_deinterlace_supported = 1;
+	data->cap.compression_noise_reduction_supported = 1;
+	data->cap.sampling_noise_reduction_supported = 1;
+	data->cap.hsb_enhancement_supported = 1;
+	data->cap.cg_enhancement_supported = 1;
+	data->cap.direct_path_supported = 1;
+	data->cap.max_dynamic_width = 1920;
+	data->cap.max_dynamic_height = 1088;
+	data->cap.max_static_width = 8192;
+	data->cap.max_static_height = 8192;
+	data->cap.max_enhance_radius = 3;
+
+	switch (version) {
+	case 0:
+		data->cap.scaling_supported = 1;
+		break;
+	case 1:
+		data->cap.compression_noise_reduction_supported = 0;
+		data->cap.sampling_noise_reduction_supported = 0;
+		if (soc_is_rk3126b()) {
+			data->cap.i4_deinterlace_supported = 0;
+			data->cap.hsb_enhancement_supported = 0;
+			data->cap.cg_enhancement_supported = 0;
+		}
+		break;
+	case 2:
+		data->cap.max_dynamic_width = 4096;
+		data->cap.max_dynamic_height = 2340;
+		data->cap.max_enhance_radius = 2;
+		break;
+	default:
+		;
+	}
 
 	platform_set_drvdata(pdev, data);
 

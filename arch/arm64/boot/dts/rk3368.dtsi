@@ -1221,6 +1221,7 @@
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates16 2>, <&clk_gates16 3>;
 		clock-names = "aclk_iep", "hclk_iep";
+		version = <2>;
 		status = "okay";
 	};
 

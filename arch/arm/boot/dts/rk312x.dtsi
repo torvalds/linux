@@ -829,6 +829,7 @@
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates9 8>, <&clk_gates9 7>;
 		clock-names = "aclk_iep", "hclk_iep";
+		version = <1>;
 		status = "okay";
 	};
 	
