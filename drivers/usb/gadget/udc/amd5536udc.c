@@ -65,7 +65,6 @@
 
 static void udc_tasklet_disconnect(unsigned long);
 static void empty_req_queue(struct udc_ep *);
-static void udc_basic_init(struct udc *dev);
 static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
@@ -1507,33 +1506,6 @@ static void make_ep_lists(struct udc *dev)
 	dev->ep[UDC_EPOUT_IX].fifo_depth = UDC_RXFIFO_SIZE;
 }
 
-/* init registers at driver load time */
-static int startup_registers(struct udc *dev)
-{
-	u32 tmp;
-
-	/* init controller by soft reset */
-	udc_soft_reset(dev);
-
-	/* mask not needed interrupts */
-	udc_mask_unused_interrupts(dev);
-
-	/* put into initial config */
-	udc_basic_init(dev);
-	/* link up all endpoints */
-	udc_setup_endpoints(dev);
-
-	/* program speed */
-	tmp = readl(&dev->regs->cfg);
-	if (use_fullspeed)
-		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_FS, UDC_DEVCFG_SPD);
-	else
-		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_HS, UDC_DEVCFG_SPD);
-	writel(tmp, &dev->regs->cfg);
-
-	return 0;
-}
-
 /* Inits UDC context */
 static void udc_basic_init(struct udc *dev)
 {
@@ -1570,6 +1542,33 @@ static void udc_basic_init(struct udc *dev)
 
 	dev->data_ep_enabled = 0;
 	dev->data_ep_queued = 0;
+}
+
+/* init registers at driver load time */
+static int startup_registers(struct udc *dev)
+{
+	u32 tmp;
+
+	/* init controller by soft reset */
+	udc_soft_reset(dev);
+
+	/* mask not needed interrupts */
+	udc_mask_unused_interrupts(dev);
+
+	/* put into initial config */
+	udc_basic_init(dev);
+	/* link up all endpoints */
+	udc_setup_endpoints(dev);
+
+	/* program speed */
+	tmp = readl(&dev->regs->cfg);
+	if (use_fullspeed)
+		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_FS, UDC_DEVCFG_SPD);
+	else
+		tmp = AMD_ADDBITS(tmp, UDC_DEVCFG_SPD_HS, UDC_DEVCFG_SPD);
+	writel(tmp, &dev->regs->cfg);
+
+	return 0;
 }
 
 /* Sets initial endpoint parameters */
