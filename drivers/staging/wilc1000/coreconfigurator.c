@@ -360,7 +360,7 @@ u8 get_current_channel(u8 *pu8msa, u16 u16RxLen)
  *  @date			1 Mar 2012
  *  @version		1.0
  */
-s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
+s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 {
 	s32 s32Error = 0;
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
