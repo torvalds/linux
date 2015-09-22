@@ -7,3 +7,6 @@ intel_th_pci-y			:= pci.o
 
 obj-$(CONFIG_INTEL_TH_GTH)	+= intel_th_gth.o
 intel_th_gth-y			:= gth.o
+
+obj-$(CONFIG_INTEL_TH_STH)	+= intel_th_sth.o
+intel_th_sth-y			:= sth.o

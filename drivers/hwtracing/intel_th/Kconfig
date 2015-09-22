@@ -34,6 +34,16 @@ config INTEL_TH_GTH
 
 	  Say Y here to enable GTH subdevice of Intel(R) Trace Hub.
 
+config INTEL_TH_STH
+	tristate "Intel(R) Trace Hub Software Trace Hub support"
+	depends on STM
+	help
+	  Software Trace Hub (STH) enables trace data from software
+	  trace sources to be sent out via Intel(R) Trace Hub. It
+	  uses stm class device to interface with its sources.
+
+	  Say Y here to enable STH subdevice of Intel(R) Trace Hub.
+
 config INTEL_TH_DEBUG
 	bool "Intel(R) Trace Hub debugging"
 	depends on DEBUG_FS
