@@ -25,6 +25,12 @@
 
 .set noreorder
 
+#ifdef CONFIG_64BIT
+# define STATUS_BITDEPS		ST0_KX
+#else
+# define STATUS_BITDEPS		0
+#endif
+
 	/*
 	 * Set dest to non-zero if the core supports the MT ASE, else zero. If
 	 * MT is not supported then branch to nomt.
@@ -71,7 +77,7 @@ not_nmi:
 	mtc0	t0, CP0_CAUSE
 
 	/* Setup Status */
-	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV
+	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
 	/*
