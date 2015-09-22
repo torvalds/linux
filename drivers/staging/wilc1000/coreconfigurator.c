@@ -439,11 +439,9 @@ s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo)
 		u32 u32Tsf_Lo;
 		u32 u32Tsf_Hi;
 
-		pstrNetworkInfo = kmalloc(sizeof(tstrNetworkInfo), GFP_KERNEL);
+		pstrNetworkInfo = kzalloc(sizeof(tstrNetworkInfo), GFP_KERNEL);
 		if (!pstrNetworkInfo)
 			return -ENOMEM;
-
-		memset((void *)(pstrNetworkInfo), 0, sizeof(tstrNetworkInfo));
 
 		pstrNetworkInfo->s8rssi = pu8WidVal[0];
 
@@ -559,11 +557,9 @@ s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 	u8 *pu8IEs = NULL;
 	u16 u16IEsLen = 0;
 
-	pstrConnectRespInfo = kmalloc(sizeof(tstrConnectRespInfo), GFP_KERNEL);
+	pstrConnectRespInfo = kzalloc(sizeof(tstrConnectRespInfo), GFP_KERNEL);
 	if (!pstrConnectRespInfo)
 		return -ENOMEM;
-
-	memset((void *)(pstrConnectRespInfo), 0, sizeof(tstrConnectRespInfo));
 
 	/* u16AssocRespLen = pu8Buffer[0]; */
 	u16AssocRespLen = (u16)u32BufferLen;
