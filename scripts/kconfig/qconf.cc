@@ -776,10 +776,26 @@ void ConfigList::mouseReleaseEvent(QMouseEvent* e)
 
 	menu = item->menu;
 	x = header()->offset() + p.x();
-	idx = header()->sectionPosition(x);
+	idx = header()->logicalIndexAt(x);
 	switch (idx) {
 	case promptColIdx:
 		icon = item->pixmap(promptColIdx);
+		if (!icon.isNull()) {
+			int off = header()->sectionPosition(0) + visualRect(indexAt(p)).x() + 4; // 4 is Hardcoded image offset. There might be a way to do it properly.
+			if (x >= off && x < off + icon.availableSizes().first().width()) {
+				if (item->goParent) {
+					emit parentSelected();
+					break;
+				} else if (!menu)
+					break;
+				ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
+				if (ptype == P_MENU && rootEntry != menu &&
+				    mode != fullMode && mode != menuMode)
+					emit menuSelected(menu);
+				else
+					changeValue(item);
+			}
+		}
 		break;
 	case noColIdx:
 		setValue(item, no);
