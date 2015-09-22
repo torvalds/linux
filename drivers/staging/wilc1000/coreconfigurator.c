@@ -700,26 +700,6 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 }
 #endif
 
-/**
- *  @brief              Deinitializes the Core Configurator
- *  @details
- *  @return     Error code indicating success/failure
- *  @note
- *  @author	mabubakr
- *  @date		1 Mar 2012
- *  @version	1.0
- */
-
-s32 CoreConfiguratorDeInit(void)
-{
-	s32 s32Error = 0;
-
-	PRINT_D(CORECONFIG_DBG, "CoreConfiguratorDeInit()\n");
-
-
-	return s32Error;
-}
-
 /*Using the global handle of the driver*/
 extern wilc_wlan_oup_t *gpstrWlanOps;
 /**

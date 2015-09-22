@@ -6527,8 +6527,6 @@ s32 host_int_deinit(tstrWILC_WFIDrv *hWFIDrv)
 
 		pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult = NULL;
 	}
-	/*deinit configurator and simulator*/
-	CoreConfiguratorDeInit();
 
 	pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 
