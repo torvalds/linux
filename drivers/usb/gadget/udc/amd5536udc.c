@@ -3127,7 +3127,8 @@ static void udc_pci_remove(struct pci_dev *pdev)
 
 	usb_del_gadget_udc(&udc->gadget);
 	/* gadget driver must not be registered */
-	BUG_ON(dev->driver != NULL);
+	if (WARN_ON(dev->driver))
+		return;
 
 	/* dma pool cleanup */
 	if (dev->data_requests)
