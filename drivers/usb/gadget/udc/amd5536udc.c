@@ -70,7 +70,6 @@ static void udc_setup_endpoints(struct udc *dev);
 static void udc_soft_reset(struct udc *dev);
 static struct udc_request *udc_alloc_bna_dummy(struct udc_ep *ep);
 static void udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq);
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req);
 static int udc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void udc_pci_remove(struct pci_dev *pdev);
 
@@ -611,6 +610,30 @@ udc_alloc_request(struct usb_ep *usbep, gfp_t gfp)
 	return &req->req;
 }
 
+/* frees pci pool descriptors of a DMA chain */
+static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
+{
+	int ret_val = 0;
+	struct udc_data_dma	*td;
+	struct udc_data_dma	*td_last = NULL;
+	unsigned int i;
+
+	DBG(dev, "free chain req = %p\n", req);
+
+	/* do not free first desc., will be done by free for request */
+	td_last = req->td_data;
+	td = phys_to_virt(td_last->next);
+
+	for (i = 1; i < req->chain_len; i++) {
+		pci_pool_free(dev->data_requests, td,
+			      (dma_addr_t)td_last->next);
+		td_last = td;
+		td = phys_to_virt(td_last->next);
+	}
+
+	return ret_val;
+}
+
 /* Frees request packet, called by gadget driver */
 static void
 udc_free_request(struct usb_ep *usbep, struct usb_request *usbreq)
@@ -1024,32 +1047,6 @@ __acquires(ep->dev->lock)
 	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&dev->lock);
 	ep->halted = halted;
-}
-
-/* frees pci pool descriptors of a DMA chain */
-static int udc_free_dma_chain(struct udc *dev, struct udc_request *req)
-{
-
-	int ret_val = 0;
-	struct udc_data_dma	*td;
-	struct udc_data_dma	*td_last = NULL;
-	unsigned int i;
-
-	DBG(dev, "free chain req = %p\n", req);
-
-	/* do not free first desc., will be done by free for request */
-	td_last = req->td_data;
-	td = phys_to_virt(td_last->next);
-
-	for (i = 1; i < req->chain_len; i++) {
-
-		pci_pool_free(dev->data_requests, td,
-				(dma_addr_t) td_last->next);
-		td_last = td;
-		td = phys_to_virt(td_last->next);
-	}
-
-	return ret_val;
 }
 
 /* Iterates to the end of a DMA chain and returns last descriptor */
