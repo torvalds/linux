@@ -166,6 +166,25 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	}
 	seq_printf(s, "signal voltage:\t%u (%s)\n", ios->chip_select, str);
 
+	switch (ios->drv_type) {
+	case MMC_SET_DRIVER_TYPE_A:
+		str = "driver type A";
+		break;
+	case MMC_SET_DRIVER_TYPE_B:
+		str = "driver type B";
+		break;
+	case MMC_SET_DRIVER_TYPE_C:
+		str = "driver type C";
+		break;
+	case MMC_SET_DRIVER_TYPE_D:
+		str = "driver type D";
+		break;
+	default:
+		str = "invalid";
+		break;
+	}
+	seq_printf(s, "driver type:\t%u (%s)\n", ios->drv_type, str);
+
 	return 0;
 }
 
