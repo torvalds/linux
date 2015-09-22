@@ -46,6 +46,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
+#include <net/dst_metadata.h>
 
 int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
@@ -118,6 +119,33 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iptunnel_pull_header);
+
+struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
+					     gfp_t flags)
+{
+	struct metadata_dst *res;
+	struct ip_tunnel_info *dst, *src;
+
+	if (!md || md->u.tun_info.mode & IP_TUNNEL_INFO_TX)
+		return NULL;
+
+	res = metadata_dst_alloc(0, flags);
+	if (!res)
+		return NULL;
+
+	dst = &res->u.tun_info;
+	src = &md->u.tun_info;
+	dst->key.tun_id = src->key.tun_id;
+	if (src->mode & IP_TUNNEL_INFO_IPV6)
+		memcpy(&dst->key.u.ipv6.dst, &src->key.u.ipv6.src,
+		       sizeof(struct in6_addr));
+	else
+		dst->key.u.ipv4.dst = src->key.u.ipv4.src;
+	dst->mode = src->mode | IP_TUNNEL_INFO_TX;
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(iptunnel_metadata_reply);
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 					 bool csum_help,
