@@ -3321,10 +3321,12 @@ static int change_station(struct wiphy *wiphy, struct net_device *dev,
  *  @date	01 JUL 2012
  *  @version	1.0
  */
-struct wireless_dev *add_virtual_intf(struct wiphy *wiphy, const char *name,
-				      unsigned char name_assign_type,
-				      enum nl80211_iftype type, u32 *flags,
-				      struct vif_params *params)
+static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
+					     const char *name,
+					     unsigned char name_assign_type,
+					     enum nl80211_iftype type,
+					     u32 *flags,
+					     struct vif_params *params)
 {
 	perInterface_wlan_t *nic;
 	struct wilc_priv *priv;
