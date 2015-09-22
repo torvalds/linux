@@ -2472,6 +2472,9 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_port_resume(hsotg);
 	} else {
+		/* Wait for controller to correctly update D+/D- level */
+		usleep_range(3000, 5000);
+
 		/*
 		 * Clear Port Enable and Port Status changes.
 		 * Enable Port Power.
@@ -2479,7 +2482,7 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		dwc2_writel(HPRT0_PWR | HPRT0_CONNDET |
 				HPRT0_ENACHG, hsotg->regs + HPRT0);
 		/* Wait for controller to detect Port Connect */
-		mdelay(5);
+		usleep_range(5000, 7000);
 	}
 
 	return ret;
