@@ -3,26 +3,8 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
-#if QT_VERSION < 0x040000
-#include <qlistview.h>
-#else
 #include <q3listview.h>
-#endif
 #include <qsettings.h>
-
-#if QT_VERSION < 0x040000
-#define Q3ValueList             QValueList
-#define Q3PopupMenu             QPopupMenu
-#define Q3ListView              QListView
-#define Q3ListViewItem          QListViewItem
-#define Q3VBox                  QVBox
-#define Q3TextBrowser           QTextBrowser
-#define Q3MainWindow            QMainWindow
-#define Q3Action                QAction
-#define Q3ToolBar               QToolBar
-#define Q3ListViewItemIterator  QListViewItemIterator
-#define Q3FileDialog            QFileDialog
-#endif
 
 class ConfigView;
 class ConfigList;

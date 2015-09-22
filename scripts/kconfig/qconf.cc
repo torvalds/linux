@@ -5,18 +5,6 @@
 
 #include <qglobal.h>
 
-#if QT_VERSION < 0x040000
-#include <stddef.h>
-#include <qmainwindow.h>
-#include <qvbox.h>
-#include <qvaluelist.h>
-#include <qtextbrowser.h>
-#include <qaction.h>
-#include <qheader.h>
-#include <qfiledialog.h>
-#include <qdragobject.h>
-#include <qpopupmenu.h>
-#else
 #include <q3mainwindow.h>
 #include <q3vbox.h>
 #include <q3valuelist.h>
@@ -26,7 +14,6 @@
 #include <q3filedialog.h>
 #include <q3dragobject.h>
 #include <q3popupmenu.h>
-#endif
 
 #include <qapplication.h>
 #include <qdesktopwidget.h>
@@ -1282,11 +1269,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	QDesktopWidget *d = configApp->desktop();
 	snprintf(title, sizeof(title), "%s%s",
 		rootmenu.prompt->text,
-#if QT_VERSION < 0x040000
-		" (Qt3)"
-#else
 		""
-#endif
 		);
 	setCaption(title);
 
@@ -1368,15 +1351,9 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(optGroup, SIGNAL(selected(QAction *)), menuView,
 		SLOT(setOptionMode(QAction *)));
 
-#if QT_VERSION >= 0x040000
 	configView->showNormalAction = new QAction(_("Show Normal Options"), optGroup);
 	configView->showAllAction = new QAction(_("Show All Options"), optGroup);
 	configView->showPromptAction = new QAction(_("Show Prompt Options"), optGroup);
-#else
-	configView->showNormalAction = new QAction(_("Show Normal Options"), 0, optGroup);
-	configView->showAllAction = new QAction(_("Show All Options"), 0, optGroup);
-	configView->showPromptAction = new QAction(_("Show Prompt Options"), 0, optGroup);
-#endif
 	configView->showNormalAction->setToggleAction(TRUE);
 	configView->showNormalAction->setOn(configList->optMode == normalOpt);
 	configView->showAllAction->setToggleAction(TRUE);
