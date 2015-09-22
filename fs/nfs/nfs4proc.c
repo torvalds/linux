@@ -2658,6 +2658,15 @@ out:
 	return err;
 }
 
+static bool
+nfs4_wait_on_layoutreturn(struct inode *inode, struct rpc_task *task)
+{
+	if (inode == NULL || !nfs_have_layout(inode))
+		return false;
+
+	return pnfs_wait_on_layoutreturn(inode, task);
+}
+
 struct nfs4_closedata {
 	struct inode *inode;
 	struct nfs4_state *state;
@@ -2774,6 +2783,11 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (!call_close) {
 		/* Note: exit _without_ calling nfs4_close_done */
 		goto out_no_action;
+	}
+
+	if (nfs4_wait_on_layoutreturn(inode, task)) {
+		nfs_release_seqid(calldata->arg.seqid);
+		goto out_wait;
 	}
 
 	if (calldata->arg.fmode == 0)
@@ -5320,6 +5334,9 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 	struct nfs4_delegreturndata *d_data;
 
 	d_data = (struct nfs4_delegreturndata *)data;
+
+	if (nfs4_wait_on_layoutreturn(d_data->inode, task))
+		return;
 
 	if (d_data->roc)
 		pnfs_roc_get_barrier(d_data->inode, &d_data->roc_barrier);
