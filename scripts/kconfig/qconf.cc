@@ -518,6 +518,7 @@ void ConfigList::changeValue(ConfigItem* item)
 	case S_INT:
 	case S_HEX:
 	case S_STRING:
+		parent()->lineEdit->show(item);
 		break;
 	}
 }
