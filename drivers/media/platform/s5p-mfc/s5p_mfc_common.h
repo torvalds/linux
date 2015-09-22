@@ -179,8 +179,8 @@ struct s5p_mfc_ctx;
  * struct s5p_mfc_buf - MFC buffer
  */
 struct s5p_mfc_buf {
+	struct vb2_v4l2_buffer *b;
 	struct list_head list;
-	struct vb2_buffer *b;
 	union {
 		struct {
 			size_t luma;

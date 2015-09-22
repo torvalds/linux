@@ -478,7 +478,7 @@ struct rcar_vin_priv {
 	struct soc_camera_host		ici;
 	struct list_head		capture;
 #define MAX_BUFFER_NUM			3
-	struct vb2_buffer		*queue_buf[MAX_BUFFER_NUM];
+	struct vb2_v4l2_buffer		*queue_buf[MAX_BUFFER_NUM];
 	struct vb2_alloc_ctx		*alloc_ctx;
 	enum v4l2_field			field;
 	unsigned int			pdata_flags;
@@ -492,7 +492,7 @@ struct rcar_vin_priv {
 #define is_continuous_transfer(priv)	(priv->vb_count > MAX_BUFFER_NUM)
 
 struct rcar_vin_buffer {
-	struct vb2_buffer		vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head		list;
 };
 
@@ -748,7 +748,7 @@ static int rcar_vin_hw_ready(struct rcar_vin_priv *priv)
 /* Moves a buffer from the queue to the HW slots */
 static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 {
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	dma_addr_t phys_addr_top;
 	int slot;
 
@@ -760,10 +760,11 @@ static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 	if (slot < 0)
 		return 0;
 
-	vb = &list_entry(priv->capture.next, struct rcar_vin_buffer, list)->vb;
-	list_del_init(to_buf_list(vb));
-	priv->queue_buf[slot] = vb;
-	phys_addr_top = vb2_dma_contig_plane_dma_addr(vb, 0);
+	vbuf = &list_entry(priv->capture.next,
+			struct rcar_vin_buffer, list)->vb;
+	list_del_init(to_buf_list(vbuf));
+	priv->queue_buf[slot] = vbuf;
+	phys_addr_top = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 	iowrite32(phys_addr_top, priv->base + VNMB_REG(slot));
 
 	return 1;
@@ -771,6 +772,7 @@ static int rcar_vin_fill_hw_slot(struct rcar_vin_priv *priv)
 
 static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
@@ -780,7 +782,7 @@ static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %lu)\n",
-			vb->v4l2_buf.index, vb2_plane_size(vb, 0), size);
+			vb->index, vb2_plane_size(vb, 0), size);
 		goto error;
 	}
 
@@ -791,14 +793,14 @@ static void rcar_vin_videobuf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irq(&priv->lock);
 
-	list_add_tail(to_buf_list(vb), &priv->capture);
+	list_add_tail(to_buf_list(vbuf), &priv->capture);
 	rcar_vin_fill_hw_slot(priv);
 
 	/* If we weren't running, and have enough buffers, start capturing! */
 	if (priv->state != RUNNING && rcar_vin_hw_ready(priv)) {
 		if (rcar_vin_setup(priv)) {
 			/* Submit error */
-			list_del_init(to_buf_list(vb));
+			list_del_init(to_buf_list(vbuf));
 			spin_unlock_irq(&priv->lock);
 			goto error;
 		}
@@ -854,7 +856,7 @@ static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 
 	for (i = 0; i < MAX_BUFFER_NUM; i++) {
 		if (priv->queue_buf[i]) {
-			vb2_buffer_done(priv->queue_buf[i],
+			vb2_buffer_done(&priv->queue_buf[i]->vb2_buf,
 					VB2_BUF_STATE_ERROR);
 			priv->queue_buf[i] = NULL;
 		}
@@ -862,7 +864,7 @@ static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 
 	list_for_each_safe(buf_head, tmp, &priv->capture) {
 		vb2_buffer_done(&list_entry(buf_head,
-					struct rcar_vin_buffer, list)->vb,
+				struct rcar_vin_buffer, list)->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 		list_del_init(buf_head);
 	}
@@ -907,10 +909,11 @@ static irqreturn_t rcar_vin_irq(int irq, void *data)
 		else
 			slot = 0;
 
-		priv->queue_buf[slot]->v4l2_buf.field = priv->field;
-		priv->queue_buf[slot]->v4l2_buf.sequence = priv->sequence++;
-		v4l2_get_timestamp(&priv->queue_buf[slot]->v4l2_buf.timestamp);
-		vb2_buffer_done(priv->queue_buf[slot], VB2_BUF_STATE_DONE);
+		priv->queue_buf[slot]->field = priv->field;
+		priv->queue_buf[slot]->sequence = priv->sequence++;
+		v4l2_get_timestamp(&priv->queue_buf[slot]->timestamp);
+		vb2_buffer_done(&priv->queue_buf[slot]->vb2_buf,
+				VB2_BUF_STATE_DONE);
 		priv->queue_buf[slot] = NULL;
 
 		if (priv->state != STOPPING)
@@ -964,7 +967,7 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	int i;
 
 	/* disable capture, disable interrupts */
@@ -978,10 +981,10 @@ static void rcar_vin_remove_device(struct soc_camera_device *icd)
 	/* make sure active buffer is cancelled */
 	spin_lock_irq(&priv->lock);
 	for (i = 0; i < MAX_BUFFER_NUM; i++) {
-		vb = priv->queue_buf[i];
-		if (vb) {
-			list_del_init(to_buf_list(vb));
-			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+		vbuf = priv->queue_buf[i];
+		if (vbuf) {
+			list_del_init(to_buf_list(vbuf));
+			vb2_buffer_done(&vbuf->vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 	}
 	spin_unlock_irq(&priv->lock);

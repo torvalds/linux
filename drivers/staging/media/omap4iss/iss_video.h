@@ -117,12 +117,12 @@ static inline int iss_pipeline_ready(struct iss_pipeline *pipe)
  */
 struct iss_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer	vb;
 	struct list_head	list;
 	dma_addr_t iss_addr;
 };
 
-#define to_iss_buffer(buf)	container_of(buf, struct iss_buffer, buffer)
+#define to_iss_buffer(buf)	container_of(buf, struct iss_buffer, vb)
 
 enum iss_video_dmaqueue_flags {
 	/* Set if DMA queue becomes empty when ISS_PIPELINE_STREAM_CONTINUOUS */

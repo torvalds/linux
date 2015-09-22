@@ -2483,6 +2483,7 @@ static int s5p_jpeg_buf_prepare(struct vb2_buffer *vb)
 
 static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct s5p_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	if (ctx->mode == S5P_JPEG_DECODE &&
@@ -2517,7 +2518,7 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 		q_data->h = tmp.h;
 	}
 
-	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
 static int s5p_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -2588,7 +2589,7 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 {
 	struct s5p_jpeg *jpeg = dev_id;
 	struct s5p_jpeg_ctx *curr_ctx;
-	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	unsigned long payload_size = 0;
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	bool enc_jpeg_too_large = false;
@@ -2622,15 +2623,15 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 		payload_size = s5p_jpeg_compressed_size(jpeg->regs);
 	}
 
-	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
-	dst_buf->v4l2_buf.timestamp = src_buf->v4l2_buf.timestamp;
-	dst_buf->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst_buf->v4l2_buf.flags |=
-		src_buf->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_buf->timecode = src_buf->timecode;
+	dst_buf->timestamp = src_buf->timestamp;
+	dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst_buf->flags |=
+		src_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	v4l2_m2m_buf_done(src_buf, state);
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
-		vb2_set_plane_payload(dst_buf, 0, payload_size);
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload_size);
 	v4l2_m2m_buf_done(dst_buf, state);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 
@@ -2645,7 +2646,7 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 {
 	unsigned int int_status;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	struct s5p_jpeg *jpeg = priv;
 	struct s5p_jpeg_ctx *curr_ctx;
 	unsigned long payload_size = 0;
@@ -2687,7 +2688,8 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 	if (jpeg->irq_ret == OK_ENC_OR_DEC) {
 		if (curr_ctx->mode == S5P_JPEG_ENCODE) {
 			payload_size = exynos4_jpeg_get_stream_size(jpeg->regs);
-			vb2_set_plane_payload(dst_vb, 0, payload_size);
+			vb2_set_plane_payload(&dst_vb->vb2_buf,
+					0, payload_size);
 		}
 		v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_DONE);
@@ -2708,7 +2710,7 @@ static irqreturn_t exynos3250_jpeg_irq(int irq, void *dev_id)
 {
 	struct s5p_jpeg *jpeg = dev_id;
 	struct s5p_jpeg_ctx *curr_ctx;
-	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	unsigned long payload_size = 0;
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	bool interrupt_timeout = false;
@@ -2752,12 +2754,12 @@ static irqreturn_t exynos3250_jpeg_irq(int irq, void *dev_id)
 	src_buf = v4l2_m2m_src_buf_remove(curr_ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->fh.m2m_ctx);
 
-	dst_buf->v4l2_buf.timecode = src_buf->v4l2_buf.timecode;
-	dst_buf->v4l2_buf.timestamp = src_buf->v4l2_buf.timestamp;
+	dst_buf->timecode = src_buf->timecode;
+	dst_buf->timestamp = src_buf->timestamp;
 
 	v4l2_m2m_buf_done(src_buf, state);
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
-		vb2_set_plane_payload(dst_buf, 0, payload_size);
+		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload_size);
 	v4l2_m2m_buf_done(dst_buf, state);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 

@@ -100,7 +100,7 @@ struct flite_frame {
  * @index: DMA start address register's index
  */
 struct flite_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 	dma_addr_t paddr;
 	unsigned short index;

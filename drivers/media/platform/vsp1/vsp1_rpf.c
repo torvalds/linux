@@ -200,10 +200,10 @@ static void rpf_vdev_queue(struct vsp1_video *video,
 
 	vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_Y,
 		       buf->addr[0] + rpf->offsets[0]);
-	if (buf->buf.num_planes > 1)
+	if (buf->buf.vb2_buf.num_planes > 1)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C0,
 			       buf->addr[1] + rpf->offsets[1]);
-	if (buf->buf.num_planes > 2)
+	if (buf->buf.vb2_buf.num_planes > 2)
 		vsp1_rpf_write(rpf, VI6_RPF_SRCM_ADDR_C1,
 			       buf->addr[2] + rpf->offsets[1]);
 }

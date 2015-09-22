@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/list.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "netup_unidvb.h"
@@ -110,7 +111,7 @@ struct netup_dma_regs {
 } __packed __aligned(1);
 
 struct netup_unidvb_buffer {
-	struct vb2_buffer	vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head	list;
 	u32			size;
 };
@@ -300,7 +301,8 @@ static int netup_unidvb_queue_setup(struct vb2_queue *vq,
 static int netup_unidvb_buf_prepare(struct vb2_buffer *vb)
 {
 	struct netup_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct netup_unidvb_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct netup_unidvb_buffer *buf = container_of(vbuf,
 				struct netup_unidvb_buffer, vb);
 
 	dev_dbg(&dma->ndev->pci_dev->dev, "%s(): buf 0x%p\n", __func__, buf);
@@ -312,7 +314,8 @@ static void netup_unidvb_buf_queue(struct vb2_buffer *vb)
 {
 	unsigned long flags;
 	struct netup_dma *dma = vb2_get_drv_priv(vb->vb2_queue);
-	struct netup_unidvb_buffer *buf = container_of(vb,
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct netup_unidvb_buffer *buf = container_of(vbuf,
 				struct netup_unidvb_buffer, vb);
 
 	dev_dbg(&dma->ndev->pci_dev->dev, "%s(): %p\n", __func__, buf);
@@ -509,7 +512,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 {
 	u32 copy_bytes, ring_bytes;
 	u32 buff_bytes = NETUP_DMA_PACKETS_COUNT * 188 - buf->size;
-	u8 *p = vb2_plane_vaddr(&buf->vb, 0);
+	u8 *p = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 	struct netup_unidvb_dev *ndev = dma->ndev;
 
 	if (p == NULL) {
@@ -579,9 +582,9 @@ static void netup_unidvb_dma_worker(struct work_struct *work)
 			dev_dbg(&ndev->pci_dev->dev,
 				"%s(): buffer %p done, size %d\n",
 				__func__, buf, buf->size);
-			v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
-			vb2_set_plane_payload(&buf->vb, 0, buf->size);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+			v4l2_get_timestamp(&buf->vb.timestamp);
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->size);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
 	}
 work_done:
@@ -599,7 +602,7 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma)
 		buf = list_first_entry(&dma->free_buffers,
 			struct netup_unidvb_buffer, list);
 		list_del(&buf->list);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&dma->lock, flags);
 }

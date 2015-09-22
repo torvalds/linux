@@ -87,33 +87,33 @@ static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 		return;
 
 	if (vid_out_buf) {
-		vid_out_buf->vb.v4l2_buf.sequence = dev->vid_out_seq_count;
+		vid_out_buf->vb.sequence = dev->vid_out_seq_count;
 		if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 			/*
-			 * The sequence counter counts frames, not fields. So divide
-			 * by two.
+			 * The sequence counter counts frames, not fields.
+			 * So divide by two.
 			 */
-			vid_out_buf->vb.v4l2_buf.sequence /= 2;
+			vid_out_buf->vb.sequence /= 2;
 		}
-		v4l2_get_timestamp(&vid_out_buf->vb.v4l2_buf.timestamp);
-		vid_out_buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
-		vb2_buffer_done(&vid_out_buf->vb, dev->dqbuf_error ?
+		v4l2_get_timestamp(&vid_out_buf->vb.timestamp);
+		vid_out_buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
+		vb2_buffer_done(&vid_out_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dprintk(dev, 2, "vid_out buffer %d done\n",
-			vid_out_buf->vb.v4l2_buf.index);
+			vid_out_buf->vb.vb2_buf.index);
 	}
 
 	if (vbi_out_buf) {
 		if (dev->stream_sliced_vbi_out)
 			vivid_sliced_vbi_out_process(dev, vbi_out_buf);
 
-		vbi_out_buf->vb.v4l2_buf.sequence = dev->vbi_out_seq_count;
-		v4l2_get_timestamp(&vbi_out_buf->vb.v4l2_buf.timestamp);
-		vbi_out_buf->vb.v4l2_buf.timestamp.tv_sec += dev->time_wrap_offset;
-		vb2_buffer_done(&vbi_out_buf->vb, dev->dqbuf_error ?
+		vbi_out_buf->vb.sequence = dev->vbi_out_seq_count;
+		v4l2_get_timestamp(&vbi_out_buf->vb.timestamp);
+		vbi_out_buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
+		vb2_buffer_done(&vbi_out_buf->vb.vb2_buf, dev->dqbuf_error ?
 				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		dprintk(dev, 2, "vbi_out buffer %d done\n",
-			vbi_out_buf->vb.v4l2_buf.index);
+			vbi_out_buf->vb.vb2_buf.index);
 	}
 	dev->dqbuf_error = false;
 }
@@ -274,9 +274,9 @@ void vivid_stop_generating_vid_out(struct vivid_dev *dev, bool *pstreaming)
 			buf = list_entry(dev->vid_out_active.next,
 					 struct vivid_buffer, list);
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			dprintk(dev, 2, "vid_out buffer %d done\n",
-				buf->vb.v4l2_buf.index);
+				buf->vb.vb2_buf.index);
 		}
 	}
 
@@ -287,9 +287,9 @@ void vivid_stop_generating_vid_out(struct vivid_dev *dev, bool *pstreaming)
 			buf = list_entry(dev->vbi_out_active.next,
 					 struct vivid_buffer, list);
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 			dprintk(dev, 2, "vbi_out buffer %d done\n",
-				buf->vb.v4l2_buf.index);
+				buf->vb.vb2_buf.index);
 		}
 	}
 

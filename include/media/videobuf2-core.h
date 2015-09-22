@@ -111,10 +111,38 @@ struct vb2_mem_ops {
 	int		(*mmap)(void *buf_priv, struct vm_area_struct *vma);
 };
 
+/**
+ * struct vb2_plane - plane information
+ * @mem_priv:	private data with this plane
+ * @dbuf:	dma_buf - shared buffer object
+ * @dbuf_mapped:	flag to show whether dbuf is mapped or not
+ * @bytesused:	number of bytes occupied by data in the plane (payload)
+ * @length:	size of this plane (NOT the payload) in bytes
+ * @mem_offset:	when memory in the associated struct vb2_buffer is
+ *		VB2_MEMORY_MMAP, equals the offset from the start of
+ *		the device memory for this plane (or is a "cookie" that
+ *		should be passed to mmap() called on the video node)
+ * @userptr:	when memory is VB2_MEMORY_USERPTR, a userspace pointer
+ *		pointing to this plane
+ * @fd:		when memory is VB2_MEMORY_DMABUF, a userspace file
+ *		descriptor associated with this plane
+ * @data_offset:	offset in the plane to the start of data; usually 0,
+ *		unless there is a header in front of the data
+ * Should contain enough information to be able to cover all the fields
+ * of struct v4l2_plane at videodev2.h
+ */
 struct vb2_plane {
 	void			*mem_priv;
 	struct dma_buf		*dbuf;
 	unsigned int		dbuf_mapped;
+	unsigned int		bytesused;
+	unsigned int		length;
+	union {
+		unsigned int	offset;
+		unsigned long	userptr;
+		int		fd;
+	} m;
+	unsigned int		data_offset;
 };
 
 /**
@@ -163,43 +191,32 @@ struct vb2_queue;
 
 /**
  * struct vb2_buffer - represents a video buffer
- * @v4l2_buf:		struct v4l2_buffer associated with this buffer; can
- *			be read by the driver and relevant entries can be
- *			changed by the driver in case of CAPTURE types
- *			(such as timestamp)
- * @v4l2_planes:	struct v4l2_planes associated with this buffer; can
- *			be read by the driver and relevant entries can be
- *			changed by the driver in case of CAPTURE types
- *			(such as bytesused); NOTE that even for single-planar
- *			types, the v4l2_planes[0] struct should be used
- *			instead of v4l2_buf for filling bytesused - drivers
- *			should use the vb2_set_plane_payload() function for that
  * @vb2_queue:		the queue to which this driver belongs
+ * @index:		id number of the buffer
+ * @type:		buffer type
+ * @memory:		the method, in which the actual data is passed
  * @num_planes:		number of planes in the buffer
  *			on an internal driver queue
+ * @planes:		private per-plane information; do not change
  * @state:		current buffer state; do not change
  * @queued_entry:	entry on the queued buffers list, which holds all
  *			buffers queued from userspace
  * @done_entry:		entry on the list that stores all buffers ready to
  *			be dequeued to userspace
- * @planes:		private per-plane information; do not change
  */
 struct vb2_buffer {
-	struct v4l2_buffer	v4l2_buf;
-	struct v4l2_plane	v4l2_planes[VIDEO_MAX_PLANES];
-
 	struct vb2_queue	*vb2_queue;
-
+	unsigned int		index;
+	unsigned int		type;
+	unsigned int		memory;
 	unsigned int		num_planes;
+	struct vb2_plane	planes[VIDEO_MAX_PLANES];
 
-/* Private: internal use only */
+	/* Private: internal use only */
 	enum vb2_buffer_state	state;
 
 	struct list_head	queued_entry;
 	struct list_head	done_entry;
-
-	struct vb2_plane	planes[VIDEO_MAX_PLANES];
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/*
 	 * Counters for how often these buffer-related ops are
@@ -354,7 +371,8 @@ struct v4l2_fh;
  * @drv_priv:	driver private data
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
- *		structure type, so sizeof(struct vb2_buffer) will is used
+ *		structure type. for example, sizeof(struct vb2_v4l2_buffer)
+ *		will be used for v4l2.
  * @timestamp_flags: Timestamp flags; V4L2_BUF_FLAG_TIMESTAMP_* and
  *		V4L2_BUF_FLAG_TSTAMP_SRC_*
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
@@ -573,7 +591,7 @@ static inline void vb2_set_plane_payload(struct vb2_buffer *vb,
 				 unsigned int plane_no, unsigned long size)
 {
 	if (plane_no < vb->num_planes)
-		vb->v4l2_planes[plane_no].bytesused = size;
+		vb->planes[plane_no].bytesused = size;
 }
 
 /**
@@ -585,7 +603,7 @@ static inline unsigned long vb2_get_plane_payload(struct vb2_buffer *vb,
 				 unsigned int plane_no)
 {
 	if (plane_no < vb->num_planes)
-		return vb->v4l2_planes[plane_no].bytesused;
+		return vb->planes[plane_no].bytesused;
 	return 0;
 }
 
@@ -598,7 +616,7 @@ static inline unsigned long
 vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_no)
 {
 	if (plane_no < vb->num_planes)
-		return vb->v4l2_planes[plane_no].length;
+		return vb->planes[plane_no].length;
 	return 0;
 }
 

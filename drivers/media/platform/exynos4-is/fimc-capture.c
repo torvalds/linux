@@ -103,7 +103,7 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 	/* Release unused buffers */
 	while (!suspend && !list_empty(&cap->pending_buf_q)) {
 		buf = fimc_pending_queue_pop(cap);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	/* If suspending put unused buffers onto pending queue */
 	while (!list_empty(&cap->active_buf_q)) {
@@ -111,7 +111,7 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 		if (suspend)
 			fimc_pending_queue_add(cap, buf);
 		else
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	fimc_hw_reset(fimc);
@@ -193,10 +193,10 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
 		v_buf = fimc_active_queue_pop(cap);
 
-		v4l2_get_timestamp(&v_buf->vb.v4l2_buf.timestamp);
-		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
+		v4l2_get_timestamp(&v_buf->vb.timestamp);
+		v_buf->vb.sequence = cap->frame_count++;
 
-		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&v_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	if (!list_empty(&cap->pending_buf_q)) {
@@ -227,7 +227,7 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 		list_for_each_entry(v_buf, &cap->active_buf_q, list) {
 			if (v_buf->index != index)
 				continue;
-			vaddr = vb2_plane_vaddr(&v_buf->vb, plane);
+			vaddr = vb2_plane_vaddr(&v_buf->vb.vb2_buf, plane);
 			v4l2_subdev_call(csis, video, s_rx_buffer,
 					 vaddr, &size);
 			break;
@@ -332,7 +332,7 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 		if (list_empty(&vid_cap->pending_buf_q))
 			break;
 		buf = fimc_pending_queue_pop(vid_cap);
-		buffer_queue(&buf->vb);
+		buffer_queue(&buf->vb.vb2_buf);
 	}
 	return 0;
 
@@ -404,8 +404,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct fimc_vid_buffer *buf
-		= container_of(vb, struct fimc_vid_buffer, vb);
+		= container_of(vbuf, struct fimc_vid_buffer, vb);
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
@@ -414,7 +415,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	int min_bufs;
 
 	spin_lock_irqsave(&fimc->slock, flags);
-	fimc_prepare_addr(ctx, &buf->vb, &ctx->d_frame, &buf->paddr);
+	fimc_prepare_addr(ctx, &buf->vb.vb2_buf, &ctx->d_frame, &buf->paddr);
 
 	if (!test_bit(ST_CAPT_SUSPENDED, &fimc->state) &&
 	    !test_bit(ST_CAPT_STREAM, &fimc->state) &&
@@ -1466,7 +1467,8 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 		if (!list_empty(&fimc->vid_cap.active_buf_q)) {
 			buf = list_entry(fimc->vid_cap.active_buf_q.next,
 					 struct fimc_vid_buffer, list);
-			vb2_set_plane_payload(&buf->vb, 0, *((u32 *)arg));
+			vb2_set_plane_payload(&buf->vb.vb2_buf, 0,
+					      *((u32 *)arg));
 		}
 		fimc_capture_irq_handler(fimc, 1);
 		fimc_deactivate_capture(fimc);

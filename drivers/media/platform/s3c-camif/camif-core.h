@@ -322,7 +322,7 @@ struct camif_addr {
  * @index: an identifier of this buffer at the DMA engine
  */
 struct camif_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 	struct camif_addr paddr;
 	unsigned int index;

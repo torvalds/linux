@@ -134,8 +134,9 @@ static int g2d_buf_prepare(struct vb2_buffer *vb)
 
 static void g2d_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct g2d_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
 static struct vb2_ops g2d_qops = {
@@ -537,7 +538,7 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 {
 	struct g2d_dev *dev = prv;
 	struct g2d_ctx *ctx = dev->curr;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 
 	g2d_clear_int(dev);
 	clk_disable(dev->gate);
@@ -550,11 +551,11 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	BUG_ON(src == NULL);
 	BUG_ON(dst == NULL);
 
-	dst->v4l2_buf.timecode = src->v4l2_buf.timecode;
-	dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
-	dst->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-	dst->v4l2_buf.flags |=
-		src->v4l2_buf.flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->timecode = src->timecode;
+	dst->timestamp = src->timestamp;
+	dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	dst->flags |=
+		src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);

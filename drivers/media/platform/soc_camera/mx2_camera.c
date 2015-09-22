@@ -225,7 +225,7 @@ struct mx2_buf_internal {
 /* buffer for one video frame */
 struct mx2_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct vb2_buffer		vb;
+	struct vb2_v4l2_buffer vb;
 	struct mx2_buf_internal		internal;
 };
 
@@ -530,11 +530,12 @@ out:
 
 static void mx2_videobuf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct soc_camera_host *ici =
 		to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
-	struct mx2_buffer *buf = container_of(vb, struct mx2_buffer, vb);
+	struct mx2_buffer *buf = container_of(vbuf, struct mx2_buffer, vb);
 	unsigned long flags;
 
 	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%p %lu\n", __func__,
@@ -664,7 +665,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	buf = list_first_entry(&pcdev->capture, struct mx2_buffer,
 			       internal.queue);
 	buf->internal.bufnum = 0;
-	vb = &buf->vb;
+	vb = &buf->vb.vb2_buf;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, buf->internal.bufnum);
@@ -673,7 +674,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 	buf = list_first_entry(&pcdev->capture, struct mx2_buffer,
 			       internal.queue);
 	buf->internal.bufnum = 1;
-	vb = &buf->vb;
+	vb = &buf->vb.vb2_buf;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, buf->internal.bufnum);
@@ -1307,6 +1308,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	struct mx2_buf_internal *ibuf;
 	struct mx2_buffer *buf;
 	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vbuf;
 	unsigned long phys;
 
 	ibuf = list_first_entry(&pcdev->active_bufs, struct mx2_buf_internal,
@@ -1323,7 +1325,8 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	} else {
 		buf = mx2_ibuf_to_buf(ibuf);
 
-		vb = &buf->vb;
+		vb = &buf->vb.vb2_buf;
+		vbuf = to_vb2_v4l2_buffer(vb);
 #ifdef DEBUG
 		phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 		if (prp->cfg.channel == 1) {
@@ -1347,8 +1350,8 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 				vb2_get_plane_payload(vb, 0));
 
 		list_del_init(&buf->internal.queue);
-		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
-		vb->v4l2_buf.sequence = pcdev->frame_count;
+		v4l2_get_timestamp(&vbuf->timestamp);
+		vbuf->sequence = pcdev->frame_count;
 		if (err)
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 		else
@@ -1380,7 +1383,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 
 	list_move_tail(pcdev->capture.next, &pcdev->active_bufs);
 
-	vb = &buf->vb;
+	vb = &buf->vb.vb2_buf;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, bufnum);

@@ -202,27 +202,28 @@ DECLARE_EVENT_CLASS(vb2_event_class,
 	),
 
 	TP_fast_assign(
+		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 		__entry->minor = q->owner ? q->owner->vdev->minor : -1;
 		__entry->queued_count = q->queued_count;
 		__entry->owned_by_drv_count =
 			atomic_read(&q->owned_by_drv_count);
-		__entry->index = vb->v4l2_buf.index;
-		__entry->type = vb->v4l2_buf.type;
-		__entry->bytesused = vb->v4l2_planes[0].bytesused;
-		__entry->flags = vb->v4l2_buf.flags;
-		__entry->field = vb->v4l2_buf.field;
-		__entry->timestamp = timeval_to_ns(&vb->v4l2_buf.timestamp);
-		__entry->timecode_type = vb->v4l2_buf.timecode.type;
-		__entry->timecode_flags = vb->v4l2_buf.timecode.flags;
-		__entry->timecode_frames = vb->v4l2_buf.timecode.frames;
-		__entry->timecode_seconds = vb->v4l2_buf.timecode.seconds;
-		__entry->timecode_minutes = vb->v4l2_buf.timecode.minutes;
-		__entry->timecode_hours = vb->v4l2_buf.timecode.hours;
-		__entry->timecode_userbits0 = vb->v4l2_buf.timecode.userbits[0];
-		__entry->timecode_userbits1 = vb->v4l2_buf.timecode.userbits[1];
-		__entry->timecode_userbits2 = vb->v4l2_buf.timecode.userbits[2];
-		__entry->timecode_userbits3 = vb->v4l2_buf.timecode.userbits[3];
-		__entry->sequence = vb->v4l2_buf.sequence;
+		__entry->index = vb->index;
+		__entry->type = vb->type;
+		__entry->bytesused = vb->planes[0].bytesused;
+		__entry->flags = vbuf->flags;
+		__entry->field = vbuf->field;
+		__entry->timestamp = timeval_to_ns(&vbuf->timestamp);
+		__entry->timecode_type = vbuf->timecode.type;
+		__entry->timecode_flags = vbuf->timecode.flags;
+		__entry->timecode_frames = vbuf->timecode.frames;
+		__entry->timecode_seconds = vbuf->timecode.seconds;
+		__entry->timecode_minutes = vbuf->timecode.minutes;
+		__entry->timecode_hours = vbuf->timecode.hours;
+		__entry->timecode_userbits0 = vbuf->timecode.userbits[0];
+		__entry->timecode_userbits1 = vbuf->timecode.userbits[1];
+		__entry->timecode_userbits2 = vbuf->timecode.userbits[2];
+		__entry->timecode_userbits3 = vbuf->timecode.userbits[3];
+		__entry->sequence = vbuf->sequence;
 	),
 
 	TP_printk("minor = %d, queued = %u, owned_by_drv = %d, index = %u, "
