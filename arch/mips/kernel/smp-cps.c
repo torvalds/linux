@@ -8,6 +8,7 @@
  * option) any later version.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
@@ -188,7 +189,8 @@ err_out:
 
 static void boot_core(unsigned core)
 {
-	u32 access;
+	u32 access, stat, seq_state;
+	unsigned timeout;
 
 	/* Select the appropriate core */
 	write_gcr_cl_other(core << CM_GCR_Cx_OTHER_CORENUM_SHF);
@@ -208,6 +210,28 @@ static void boot_core(unsigned core)
 		/* Reset the core */
 		mips_cpc_lock_other(core);
 		write_cpc_co_cmd(CPC_Cx_CMD_RESET);
+
+		timeout = 100;
+		while (true) {
+			stat = read_cpc_co_stat_conf();
+			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+
+			/* U6 == coherent execution, ie. the core is up */
+			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
+				break;
+
+			/* Delay a little while before we start warning */
+			if (timeout) {
+				timeout--;
+				mdelay(10);
+				continue;
+			}
+
+			pr_warn("Waiting for core %u to start... STAT_CONF=0x%x\n",
+				core, stat);
+			mdelay(1000);
+		}
+
 		mips_cpc_unlock_other();
 	} else {
 		/* Take the core out of reset */
