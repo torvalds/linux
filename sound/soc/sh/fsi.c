@@ -250,6 +250,7 @@ struct fsi_clk {
 
 struct fsi_priv {
 	void __iomem *base;
+	phys_addr_t phys;
 	struct fsi_master *master;
 
 	struct fsi_stream playback;
@@ -1371,13 +1372,18 @@ static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io, struct dev
 				shdma_chan_filter, (void *)io->dma_id,
 				dev, is_play ? "tx" : "rx");
 	if (io->chan) {
-		struct dma_slave_config cfg;
+		struct dma_slave_config cfg = {};
 		int ret;
 
-		cfg.slave_id	= io->dma_id;
-		cfg.dst_addr	= 0; /* use default addr */
-		cfg.src_addr	= 0; /* use default addr */
-		cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+		if (is_play) {
+			cfg.dst_addr		= fsi->phys + REG_DODT;
+			cfg.dst_addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES;
+			cfg.direction		= DMA_MEM_TO_DEV;
+		} else {
+			cfg.src_addr		= fsi->phys + REG_DIDT;
+			cfg.src_addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES;
+			cfg.direction		= DMA_DEV_TO_MEM;
+		}
 
 		ret = dmaengine_slave_config(io->chan, &cfg);
 		if (ret < 0) {
@@ -1876,7 +1882,39 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	}
 }
 
-static struct of_device_id fsi_of_match[];
+static const struct fsi_core fsi1_core = {
+	.ver	= 1,
+
+	/* Interrupt */
+	.int_st	= INT_ST,
+	.iemsk	= IEMSK,
+	.imsk	= IMSK,
+};
+
+static const struct fsi_core fsi2_core = {
+	.ver	= 2,
+
+	/* Interrupt */
+	.int_st	= CPU_INT_ST,
+	.iemsk	= CPU_IEMSK,
+	.imsk	= CPU_IMSK,
+	.a_mclk	= A_MST_CTLR,
+	.b_mclk	= B_MST_CTLR,
+};
+
+static const struct of_device_id fsi_of_match[] = {
+	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
+	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
+	{},
+};
+MODULE_DEVICE_TABLE(of, fsi_of_match);
+
+static const struct platform_device_id fsi_id_table[] = {
+	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, fsi_id_table);
+
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
@@ -1941,6 +1979,7 @@ static int fsi_probe(struct platform_device *pdev)
 	/* FSI A setting */
 	fsi		= &master->fsia;
 	fsi->base	= master->base;
+	fsi->phys	= res->start;
 	fsi->master	= master;
 	fsi_port_info_init(fsi, &info.port_a);
 	fsi_handler_init(fsi, &info.port_a);
@@ -1953,6 +1992,7 @@ static int fsi_probe(struct platform_device *pdev)
 	/* FSI B setting */
 	fsi		= &master->fsib;
 	fsi->base	= master->base + 0x40;
+	fsi->phys	= res->start + 0x40;
 	fsi->master	= master;
 	fsi_port_info_init(fsi, &info.port_b);
 	fsi_handler_init(fsi, &info.port_b);
@@ -2072,40 +2112,6 @@ static struct dev_pm_ops fsi_pm_ops = {
 	.resume			= fsi_resume,
 };
 
-static struct fsi_core fsi1_core = {
-	.ver	= 1,
-
-	/* Interrupt */
-	.int_st	= INT_ST,
-	.iemsk	= IEMSK,
-	.imsk	= IMSK,
-};
-
-static struct fsi_core fsi2_core = {
-	.ver	= 2,
-
-	/* Interrupt */
-	.int_st	= CPU_INT_ST,
-	.iemsk	= CPU_IEMSK,
-	.imsk	= CPU_IMSK,
-	.a_mclk	= A_MST_CTLR,
-	.b_mclk	= B_MST_CTLR,
-};
-
-static struct of_device_id fsi_of_match[] = {
-	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
-	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
-	{},
-};
-MODULE_DEVICE_TABLE(of, fsi_of_match);
-
-static struct platform_device_id fsi_id_table[] = {
-	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
-	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
-	{},
-};
-MODULE_DEVICE_TABLE(platform, fsi_id_table);
-
 static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "fsi-pcm-audio",
@@ -2119,7 +2125,7 @@ static struct platform_driver fsi_driver = {
 
 module_platform_driver(fsi_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip FSI audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
 MODULE_ALIAS("platform:fsi-pcm-audio");

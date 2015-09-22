@@ -26,6 +26,7 @@ counted. The following modifiers exist:
  u - user-space counting
  k - kernel counting
  h - hypervisor counting
+ I - non idle counting
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level
@@ -126,6 +127,12 @@ To limit the list use:
 
 One or more types can be used at the same time, listing the events for the
 types specified.
+
+Support raw format:
+
+. '--raw-dump', shows the raw-dump of all the events.
+. '--raw-dump [hw|sw|cache|tracepoint|pmu|event_glob]', shows the raw-dump of
+  a certain kind of events.
 
 SEE ALSO
 --------

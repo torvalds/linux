@@ -12,12 +12,9 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #include <linux/clocksource.h>
+#include <linux/sched_clock.h>
 #include <linux/init.h>
 
 #include <asm/ds1287.h>
@@ -36,6 +33,11 @@ static struct clocksource clocksource_dec = {
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static u64 notrace dec_ioasic_read_sched_clock(void)
+{
+	return ioasic_read(IO_REG_FCTR);
+}
 
 int __init dec_ioasic_clocksource_init(void)
 {
@@ -65,5 +67,8 @@ int __init dec_ioasic_clocksource_init(void)
 
 	clocksource_dec.rating = 200 + freq / 10000000;
 	clocksource_register_hz(&clocksource_dec, freq);
+
+	sched_clock_register(dec_ioasic_read_sched_clock, 32, freq);
+
 	return 0;
 }

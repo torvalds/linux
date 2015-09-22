@@ -53,11 +53,11 @@
 #include <trace/events/skb.h>
 #include "udp_impl.h"
 
-static unsigned int udp6_ehashfn(struct net *net,
-				  const struct in6_addr *laddr,
-				  const u16 lport,
-				  const struct in6_addr *faddr,
-				  const __be16 fport)
+static u32 udp6_ehashfn(const struct net *net,
+			const struct in6_addr *laddr,
+			const u16 lport,
+			const struct in6_addr *faddr,
+			const __be16 fport)
 {
 	static u32 udp6_ehash_secret __read_mostly;
 	static u32 udp_ipv6_hash_secret __read_mostly;
@@ -104,9 +104,9 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 	return 0;
 }
 
-static unsigned int udp6_portaddr_hash(struct net *net,
-				       const struct in6_addr *addr6,
-				       unsigned int port)
+static u32 udp6_portaddr_hash(const struct net *net,
+			      const struct in6_addr *addr6,
+			      unsigned int port)
 {
 	unsigned int hash, mix = net_hash_mix(net);
 
@@ -119,7 +119,6 @@ static unsigned int udp6_portaddr_hash(struct net *net,
 
 	return hash ^ port;
 }
-
 
 int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
@@ -385,14 +384,12 @@ struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be
 }
 EXPORT_SYMBOL_GPL(udp6_lib_lookup);
 
-
 /*
  *	This should be easy, if there is something there we
  *	return it, otherwise we block.
  */
 
-int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
-		  struct msghdr *msg, size_t len,
+int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		  int noblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -528,10 +525,8 @@ csum_copy_err:
 	}
 	unlock_sock_fast(sk, slow);
 
-	if (noblock)
-		return -EAGAIN;
-
-	/* starting over for a new packet */
+	/* starting over for a new packet, but check if we need to yield */
+	cond_resched();
 	msg->msg_flags &= ~MSG_TRUNC;
 	goto try_again;
 }
@@ -551,7 +546,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest,
 			       saddr, uh->source, inet6_iif(skb), udptable);
-	if (sk == NULL) {
+	if (!sk) {
 		ICMP6_INC_STATS_BH(net, __in6_dev_get(skb->dev),
 				   ICMP6_MIB_INERRORS);
 		return;
@@ -649,7 +644,7 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 		/* if we're overly short, let UDP handle it */
 		encap_rcv = ACCESS_ONCE(up->encap_rcv);
-		if (skb->len > sizeof(struct udphdr) && encap_rcv != NULL) {
+		if (skb->len > sizeof(struct udphdr) && encap_rcv) {
 			int ret;
 
 			/* Verify checksum before giving to encap */
@@ -734,7 +729,9 @@ static bool __udp_v6_is_mcast_sock(struct net *net, struct sock *sk,
 	    (inet->inet_dport && inet->inet_dport != rmt_port) ||
 	    (!ipv6_addr_any(&sk->sk_v6_daddr) &&
 		    !ipv6_addr_equal(&sk->sk_v6_daddr, rmt_addr)) ||
-	    (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif))
+	    (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif) ||
+	    (!ipv6_addr_any(&sk->sk_v6_rcv_saddr) &&
+		    !ipv6_addr_equal(&sk->sk_v6_rcv_saddr, loc_addr)))
 		return false;
 	if (!inet6_mc_check(sk, loc_addr, rmt_addr))
 		return false;
@@ -750,7 +747,7 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 	for (i = 0; i < count; i++) {
 		sk = stack[i];
-		if (likely(skb1 == NULL))
+		if (likely(!skb1))
 			skb1 = (i == final) ? skb : skb_clone(skb, GFP_ATOMIC);
 		if (!skb1) {
 			atomic_inc(&sk->sk_drops);
@@ -900,7 +897,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	 * for sock caches... i'll skip this for now.
 	 */
 	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
-	if (sk != NULL) {
+	if (sk) {
 		int ret;
 
 		if (!uh->check && !udp_sk(sk)->no_check6_rx) {
@@ -1101,8 +1098,7 @@ out:
 	return err;
 }
 
-int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
-		  struct msghdr *msg, size_t len)
+int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct ipv6_txoptions opt_space;
 	struct udp_sock *up = udp_sk(sk);
@@ -1164,12 +1160,12 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 do_udp_sendmsg:
 			if (__ipv6_only_sock(sk))
 				return -ENETUNREACH;
-			return udp_sendmsg(iocb, sk, msg, len);
+			return udp_sendmsg(sk, msg, len);
 		}
 	}
 
 	if (up->pending == AF_INET)
-		return udp_sendmsg(iocb, sk, msg, len);
+		return udp_sendmsg(sk, msg, len);
 
 	/* Rough check on arithmetic overflow,
 	   better check is made in ip6_append_data().
@@ -1209,7 +1205,7 @@ do_udp_sendmsg:
 			fl6.flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-				if (flowlabel == NULL)
+				if (!flowlabel)
 					return -EINVAL;
 			}
 		}
@@ -1257,14 +1253,14 @@ do_udp_sendmsg:
 		}
 		if ((fl6.flowlabel&IPV6_FLOWLABEL_MASK) && !flowlabel) {
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (!flowlabel)
 				return -EINVAL;
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 		connected = 0;
 	}
-	if (opt == NULL)
+	if (!opt)
 		opt = np->opt;
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
@@ -1500,7 +1496,8 @@ int __net_init udp6_proc_init(struct net *net)
 	return udp_proc_register(net, &udp6_seq_afinfo);
 }
 
-void udp6_proc_exit(struct net *net) {
+void udp6_proc_exit(struct net *net)
+{
 	udp_proc_unregister(net, &udp6_seq_afinfo);
 }
 #endif /* CONFIG_PROC_FS */
@@ -1556,7 +1553,6 @@ static struct inet_protosw udpv6_protosw = {
 	.ops =       &inet6_dgram_ops,
 	.flags =     INET_PROTOSW_PERMANENT,
 };
-
 
 int __init udpv6_init(void)
 {

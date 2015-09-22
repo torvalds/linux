@@ -61,3 +61,21 @@ As explained above, a kernel knob is provided that allows
 administrators to configure the period of the hrtimer and the perf
 event. The right value for a particular environment is a trade-off
 between fast response to lockups and detection overhead.
+
+By default, the watchdog runs on all online cores.  However, on a
+kernel configured with NO_HZ_FULL, by default the watchdog runs only
+on the housekeeping cores, not the cores specified in the "nohz_full"
+boot argument.  If we allowed the watchdog to run by default on
+the "nohz_full" cores, we would have to run timer ticks to activate
+the scheduler, which would prevent the "nohz_full" functionality
+from protecting the user code on those cores from the kernel.
+Of course, disabling it by default on the nohz_full cores means that
+when those cores do enter the kernel, by default we will not be
+able to detect if they lock up.  However, allowing the watchdog
+to continue to run on the housekeeping (non-tickless) cores means
+that we will continue to detect lockups properly on those cores.
+
+In either case, the set of cores excluded from running the watchdog
+may be adjusted via the kernel.watchdog_cpumask sysctl.  For
+nohz_full cores, this may be useful for debugging a case where the
+kernel seems to be hanging on the nohz_full cores.

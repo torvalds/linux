@@ -106,9 +106,9 @@ struct paca_struct {
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
-	u64 exgen[8] __attribute__((aligned(0x80)));
+	u64 exgen[8] __aligned(0x40);
 	/* Keep pgd in the same cacheline as the start of extlb */
-	pgd_t *pgd __attribute__((aligned(0x80))); /* Current PGD */
+	pgd_t *pgd __aligned(0x40); /* Current PGD */
 	pgd_t *kernel_pgd;		/* Kernel PGD */
 
 	/* Shared by all threads of a core -- points to tcd of first thread */

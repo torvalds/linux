@@ -30,9 +30,9 @@ if (ARCH_U8500 || ARCH_NOMADIK)
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
 	depends on ARCH_U8500 || ARCH_NOMADIK
+	depends on OF && GPIOLIB
 	select PINMUX
 	select PINCONF
-	select GPIOLIB
 	select OF_GPIO
 	select GPIOLIB_IRQCHIP
 

@@ -147,9 +147,9 @@ static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 	return ret;
 }
 
-static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
+static void dwapb_irq_handler(struct irq_desc *desc)
 {
-	struct dwapb_gpio *gpio = irq_get_handler_data(irq);
+	struct dwapb_gpio *gpio = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
 	dwapb_do_irq(gpio);
@@ -348,8 +348,8 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
 	if (!pp->irq_shared) {
-		irq_set_chained_handler(pp->irq, dwapb_irq_handler);
-		irq_set_handler_data(pp->irq, gpio);
+		irq_set_chained_handler_and_data(pp->irq, dwapb_irq_handler,
+						 gpio);
 	} else {
 		/*
 		 * Request a shared IRQ since where MFD would have devices

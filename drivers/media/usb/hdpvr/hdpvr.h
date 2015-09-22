@@ -66,7 +66,7 @@ struct hdpvr_options {
 /* Structure to hold all of our device specific stuff */
 struct hdpvr_device {
 	/* the v4l device for this device */
-	struct video_device	*video_dev;
+	struct video_device	video_dev;
 	/* the control handler for this device */
 	struct v4l2_ctrl_handler hdl;
 	/* the usb device for this device */

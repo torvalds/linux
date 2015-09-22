@@ -242,12 +242,7 @@ pci_restore_srm_config(void)
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_dev *dev = bus->self;
-
-	if (pci_has_flag(PCI_PROBE_ONLY) && dev &&
- 		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
- 		pci_read_bridge_bases(bus);
-	} 
+	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		pdev_save_srm_config(dev);
@@ -338,6 +333,8 @@ common_init_pci(void)
 
 		bus = pci_scan_root_bus(NULL, next_busno, alpha_mv.pci_ops,
 					hose, &resources);
+		if (!bus)
+			continue;
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
 		next_busno = bus->busn_res.end + 1;
@@ -353,6 +350,11 @@ common_init_pci(void)
 
 	pci_assign_unassigned_resources();
 	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);
+	for (hose = hose_head; hose; hose = hose->next) {
+		bus = hose->bus;
+		if (bus)
+			pci_bus_add_devices(bus);
+	}
 }
 
 

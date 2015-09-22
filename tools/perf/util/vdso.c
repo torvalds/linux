@@ -101,7 +101,7 @@ static char *get_file(struct vdso_file *vdso_file)
 	return vdso;
 }
 
-void vdso__exit(struct machine *machine)
+void machine__exit_vdso(struct machine *machine)
 {
 	struct vdso_info *vdso_info = machine->vdso_info;
 
@@ -120,14 +120,14 @@ void vdso__exit(struct machine *machine)
 	zfree(&machine->vdso_info);
 }
 
-static struct dso *vdso__new(struct machine *machine, const char *short_name,
-			     const char *long_name)
+static struct dso *__machine__addnew_vdso(struct machine *machine, const char *short_name,
+					  const char *long_name)
 {
 	struct dso *dso;
 
 	dso = dso__new(short_name);
 	if (dso != NULL) {
-		dsos__add(&machine->user_dsos, dso);
+		__dsos__add(&machine->dsos, dso);
 		dso__set_long_name(dso, long_name, false);
 	}
 
@@ -230,27 +230,29 @@ static const char *vdso__get_compat_file(struct vdso_file *vdso_file)
 	return vdso_file->temp_file_name;
 }
 
-static struct dso *vdso__findnew_compat(struct machine *machine,
-					struct vdso_file *vdso_file)
+static struct dso *__machine__findnew_compat(struct machine *machine,
+					     struct vdso_file *vdso_file)
 {
 	const char *file_name;
 	struct dso *dso;
 
-	dso = dsos__find(&machine->user_dsos, vdso_file->dso_name, true);
+	dso = __dsos__find(&machine->dsos, vdso_file->dso_name, true);
 	if (dso)
-		return dso;
+		goto out;
 
 	file_name = vdso__get_compat_file(vdso_file);
 	if (!file_name)
-		return NULL;
+		goto out;
 
-	return vdso__new(machine, vdso_file->dso_name, file_name);
+	dso = __machine__addnew_vdso(machine, vdso_file->dso_name, file_name);
+out:
+	return dso;
 }
 
-static int vdso__dso_findnew_compat(struct machine *machine,
-				    struct thread *thread,
-				    struct vdso_info *vdso_info,
-				    struct dso **dso)
+static int __machine__findnew_vdso_compat(struct machine *machine,
+					  struct thread *thread,
+					  struct vdso_info *vdso_info,
+					  struct dso **dso)
 {
 	enum dso_type dso_type;
 
@@ -267,10 +269,10 @@ static int vdso__dso_findnew_compat(struct machine *machine,
 
 	switch (dso_type) {
 	case DSO__TYPE_32BIT:
-		*dso = vdso__findnew_compat(machine, &vdso_info->vdso32);
+		*dso = __machine__findnew_compat(machine, &vdso_info->vdso32);
 		return 1;
 	case DSO__TYPE_X32BIT:
-		*dso = vdso__findnew_compat(machine, &vdso_info->vdsox32);
+		*dso = __machine__findnew_compat(machine, &vdso_info->vdsox32);
 		return 1;
 	case DSO__TYPE_UNKNOWN:
 	case DSO__TYPE_64BIT:
@@ -281,35 +283,37 @@ static int vdso__dso_findnew_compat(struct machine *machine,
 
 #endif
 
-struct dso *vdso__dso_findnew(struct machine *machine,
-			      struct thread *thread __maybe_unused)
+struct dso *machine__findnew_vdso(struct machine *machine,
+				  struct thread *thread __maybe_unused)
 {
 	struct vdso_info *vdso_info;
-	struct dso *dso;
+	struct dso *dso = NULL;
 
+	pthread_rwlock_wrlock(&machine->dsos.lock);
 	if (!machine->vdso_info)
 		machine->vdso_info = vdso_info__new();
 
 	vdso_info = machine->vdso_info;
 	if (!vdso_info)
-		return NULL;
+		goto out_unlock;
 
 #if BITS_PER_LONG == 64
-	if (vdso__dso_findnew_compat(machine, thread, vdso_info, &dso))
-		return dso;
+	if (__machine__findnew_vdso_compat(machine, thread, vdso_info, &dso))
+		goto out_unlock;
 #endif
 
-	dso = dsos__find(&machine->user_dsos, DSO__NAME_VDSO, true);
+	dso = __dsos__find(&machine->dsos, DSO__NAME_VDSO, true);
 	if (!dso) {
 		char *file;
 
 		file = get_file(&vdso_info->vdso);
-		if (!file)
-			return NULL;
-
-		dso = vdso__new(machine, DSO__NAME_VDSO, file);
+		if (file)
+			dso = __machine__addnew_vdso(machine, DSO__NAME_VDSO, file);
 	}
 
+out_unlock:
+	dso__get(dso);
+	pthread_rwlock_unlock(&machine->dsos.lock);
 	return dso;
 }
 

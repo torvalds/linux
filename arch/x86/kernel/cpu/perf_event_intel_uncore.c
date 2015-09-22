@@ -233,9 +233,8 @@ static enum hrtimer_restart uncore_pmu_hrtimer(struct hrtimer *hrtimer)
 
 void uncore_pmu_start_hrtimer(struct intel_uncore_box *box)
 {
-	__hrtimer_start_range_ns(&box->hrtimer,
-			ns_to_ktime(box->hrtimer_duration), 0,
-			HRTIMER_MODE_REL_PINNED, 0);
+	hrtimer_start(&box->hrtimer, ns_to_ktime(box->hrtimer_duration),
+		      HRTIMER_MODE_REL_PINNED);
 }
 
 void uncore_pmu_cancel_hrtimer(struct intel_uncore_box *box)
@@ -365,9 +364,8 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	bitmap_zero(used_mask, UNCORE_PMC_IDX_MAX);
 
 	for (i = 0, wmin = UNCORE_PMC_IDX_MAX, wmax = 0; i < n; i++) {
-		hwc = &box->event_list[i]->hw;
 		c = uncore_get_event_constraint(box, box->event_list[i]);
-		hwc->constraint = c;
+		box->event_constraint[i] = c;
 		wmin = min(wmin, c->weight);
 		wmax = max(wmax, c->weight);
 	}
@@ -375,7 +373,7 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	/* fastpath, try to reuse previous register */
 	for (i = 0; i < n; i++) {
 		hwc = &box->event_list[i]->hw;
-		c = hwc->constraint;
+		c = box->event_constraint[i];
 
 		/* never assigned */
 		if (hwc->idx == -1)
@@ -395,8 +393,8 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	}
 	/* slow path */
 	if (i != n)
-		ret = perf_assign_events(box->event_list, n,
-					 wmin, wmax, assign);
+		ret = perf_assign_events(box->event_constraint, n,
+					 wmin, wmax, n, assign);
 
 	if (!assign || ret) {
 		for (i = 0; i < n; i++)
@@ -840,6 +838,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	box->phys_id = phys_id;
 	box->pci_dev = pdev;
 	box->pmu = pmu;
+	uncore_box_init(box);
 	pci_set_drvdata(pdev, box);
 
 	raw_spin_lock(&uncore_box_lock);
@@ -912,6 +911,9 @@ static int __init uncore_pci_init(void)
 	case 63: /* Haswell-EP */
 		ret = hswep_uncore_pci_init();
 		break;
+	case 86: /* BDX-DE */
+		ret = bdx_uncore_pci_init();
+		break;
 	case 42: /* Sandy Bridge */
 		ret = snb_uncore_pci_init();
 		break;
@@ -921,6 +923,9 @@ static int __init uncore_pci_init(void)
 	case 60: /* Haswell */
 	case 69: /* Haswell Celeron */
 		ret = hsw_uncore_pci_init();
+		break;
+	case 61: /* Broadwell */
+		ret = bdw_uncore_pci_init();
 		break;
 	default:
 		return 0;
@@ -1003,8 +1008,10 @@ static int uncore_cpu_starting(int cpu)
 			pmu = &type->pmus[j];
 			box = *per_cpu_ptr(pmu->box, cpu);
 			/* called by uncore_cpu_init? */
-			if (box && box->phys_id >= 0)
+			if (box && box->phys_id >= 0) {
+				uncore_box_init(box);
 				continue;
+			}
 
 			for_each_online_cpu(k) {
 				exist = *per_cpu_ptr(pmu->box, k);
@@ -1020,8 +1027,10 @@ static int uncore_cpu_starting(int cpu)
 				}
 			}
 
-			if (box)
+			if (box) {
 				box->phys_id = phys_id;
+				uncore_box_init(box);
+			}
 		}
 	}
 	return 0;
@@ -1203,6 +1212,11 @@ static int __init uncore_cpu_init(void)
 		break;
 	case 42: /* Sandy Bridge */
 	case 58: /* Ivy Bridge */
+	case 60: /* Haswell */
+	case 69: /* Haswell */
+	case 70: /* Haswell */
+	case 61: /* Broadwell */
+	case 71: /* Broadwell */
 		snb_uncore_cpu_init();
 		break;
 	case 45: /* Sandy Bridge-EP */
@@ -1217,6 +1231,9 @@ static int __init uncore_cpu_init(void)
 		break;
 	case 63: /* Haswell-EP */
 		hswep_uncore_cpu_init();
+		break;
+	case 86: /* BDX-DE */
+		bdx_uncore_cpu_init();
 		break;
 	default:
 		return 0;

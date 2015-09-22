@@ -1293,7 +1293,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		monarch_cpu = cpu;
 		sos->monarch = 1;
 	} else {
-		cpu_set(cpu, mca_cpu);
+		cpumask_set_cpu(cpu, &mca_cpu);
 		sos->monarch = 0;
 	}
 	mprintk(KERN_INFO "Entered OS MCA handler. PSP=%lx cpu=%d "
@@ -1316,7 +1316,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 */
 		ia64_mca_wakeup_all();
 	} else {
-		while (cpu_isset(cpu, mca_cpu))
+		while (cpumask_test_cpu(cpu, &mca_cpu))
 			cpu_relax();	/* spin until monarch wakes us */
 	}
 
@@ -1355,9 +1355,9 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 * and put this cpu in the rendez loop.
 		 */
 		for_each_online_cpu(i) {
-			if (cpu_isset(i, mca_cpu)) {
+			if (cpumask_test_cpu(i, &mca_cpu)) {
 				monarch_cpu = i;
-				cpu_clear(i, mca_cpu);	/* wake next cpu */
+				cpumask_clear_cpu(i, &mca_cpu);	/* wake next cpu */
 				while (monarch_cpu != -1)
 					cpu_relax();	/* spin until last cpu leaves */
 				set_curr_task(cpu, previous_current);
@@ -1822,7 +1822,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->cpu = cpu;
 	p->stack = ti;
 	p->state = TASK_UNINTERRUPTIBLE;
-	cpu_set(cpu, p->cpus_allowed);
+	cpumask_set_cpu(cpu, &p->cpus_allowed);
 	INIT_LIST_HEAD(&p->tasks);
 	p->parent = p->real_parent = p->group_leader = p;
 	INIT_LIST_HEAD(&p->children);
@@ -2117,8 +2117,7 @@ ia64_mca_late_init(void)
 	register_hotcpu_notifier(&mca_cpu_notifier);
 
 	/* Setup the CMCI/P vector and handler */
-	init_timer(&cmc_poll_timer);
-	cmc_poll_timer.function = ia64_mca_cmc_poll;
+	setup_timer(&cmc_poll_timer, ia64_mca_cmc_poll, 0UL);
 
 	/* Unmask/enable the vector */
 	cmc_polling_enabled = 0;
@@ -2129,8 +2128,7 @@ ia64_mca_late_init(void)
 #ifdef CONFIG_ACPI
 	/* Setup the CPEI/P vector and handler */
 	cpe_vector = acpi_request_vector(ACPI_INTERRUPT_CPEI);
-	init_timer(&cpe_poll_timer);
-	cpe_poll_timer.function = ia64_mca_cpe_poll;
+	setup_timer(&cpe_poll_timer, ia64_mca_cpe_poll, 0UL);
 
 	{
 		unsigned int irq;

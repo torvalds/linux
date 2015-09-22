@@ -1,35 +1,19 @@
-/**********************************************************************
- * Author: Cavium Networks
- *
- * Contact: support@caviumnetworks.com
- * This file is part of the OCTEON SDK
+/*
+ * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2007 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- * or visit http://www.gnu.org/licenses/.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium Networks for more information
-**********************************************************************/
+ */
+
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/ratelimit.h>
 #include <linux/of_mdio.h>
-
+#include <generated/utsrelease.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>
@@ -39,15 +23,14 @@
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
 
-#include <asm/octeon/cvmx-helper-board.h>
-
+#include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "cavium-ethernet", sizeof(info->driver));
-	strlcpy(info->version, OCTEON_ETHERNET_VERSION, sizeof(info->version));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, UTS_RELEASE, sizeof(info->version));
 	strlcpy(info->bus_info, "Builtin", sizeof(info->bus_info));
 }
 
@@ -116,30 +99,17 @@ int cvm_oct_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
-static void cvm_oct_note_carrier(struct octeon_ethernet *priv,
-				 cvmx_helper_link_info_t li)
+void cvm_oct_note_carrier(struct octeon_ethernet *priv,
+			  cvmx_helper_link_info_t li)
 {
 	if (li.s.link_up) {
-		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d\n",
+		pr_notice_ratelimited("%s: %u Mbps %s duplex, port %d, queue %d\n",
 				      netdev_name(priv->netdev), li.s.speed,
 				      (li.s.full_duplex) ? "Full" : "Half",
-				      priv->port);
+				      priv->port, priv->queue);
 	} else {
 		pr_notice_ratelimited("%s: Link down\n",
 				      netdev_name(priv->netdev));
-	}
-}
-
-void cvm_oct_set_carrier(struct octeon_ethernet *priv,
-			 cvmx_helper_link_info_t link_info)
-{
-	cvm_oct_note_carrier(priv, link_info);
-	if (link_info.s.link_up) {
-		if (!netif_carrier_ok(priv->netdev))
-			netif_carrier_on(priv->netdev);
-	} else {
-		if (netif_carrier_ok(priv->netdev))
-			netif_carrier_off(priv->netdev);
 	}
 }
 
@@ -163,7 +133,14 @@ void cvm_oct_adjust_link(struct net_device *dev)
 int cvm_oct_common_stop(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
 	cvmx_helper_link_info_t link_info;
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	int index = INDEX(priv->port);
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 0;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
 	priv->poll = NULL;
 

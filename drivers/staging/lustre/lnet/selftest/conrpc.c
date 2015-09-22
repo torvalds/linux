@@ -117,8 +117,8 @@ static int
 lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, lstcon_rpc_t **crpcpp)
 {
-	lstcon_rpc_t  *crpc = NULL;
-	int	    rc;
+	lstcon_rpc_t *crpc = NULL;
+	int rc;
 
 	spin_lock(&console_session.ses_rpc_lock);
 
@@ -151,7 +151,7 @@ void
 lstcon_rpc_put(lstcon_rpc_t *crpc)
 {
 	srpc_bulk_t *bulk = &crpc->crp_rpc->crpc_bulk;
-	int	  i;
+	int i;
 
 	LASSERT(list_empty(&crpc->crp_link));
 
@@ -336,8 +336,8 @@ lstcon_rpc_trans_check(lstcon_rpc_trans_t *trans)
 int
 lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 {
-	lstcon_rpc_t  *crpc;
-	int	    rc;
+	lstcon_rpc_t *crpc;
+	int rc;
 
 	if (list_empty(&trans->tas_rpcs_list))
 		return 0;
@@ -386,8 +386,8 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 static int
 lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 {
-	lstcon_node_t	*nd  = crpc->crp_node;
-	srpc_client_rpc_t    *rpc = crpc->crp_rpc;
+	lstcon_node_t *nd  = crpc->crp_node;
+	srpc_client_rpc_t *rpc = crpc->crp_rpc;
 	srpc_generic_reply_t *rep;
 
 	LASSERT(nd != NULL && rpc != NULL);
@@ -423,9 +423,9 @@ lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 void
 lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 {
-	lstcon_rpc_t      *crpc;
-	srpc_msg_t	*rep;
-	int		error;
+	lstcon_rpc_t  *crpc;
+	srpc_msg_t *rep;
+	int error;
 
 	LASSERT(stat != NULL);
 
@@ -470,16 +470,16 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 			     struct list_head *head_up,
 			     lstcon_rpc_readent_func_t readent)
 {
-	struct list_head	    tmp;
-	struct list_head	   *next;
-	lstcon_rpc_ent_t     *ent;
+	struct list_head tmp;
+	struct list_head *next;
+	lstcon_rpc_ent_t *ent;
 	srpc_generic_reply_t *rep;
-	lstcon_rpc_t	 *crpc;
-	srpc_msg_t	   *msg;
-	lstcon_node_t	*nd;
-	long	dur;
-	struct timeval	tv;
-	int		   error;
+	lstcon_rpc_t *crpc;
+	srpc_msg_t *msg;
+	lstcon_node_t *nd;
+	long dur;
+	struct timeval tv;
+	int error;
 
 	LASSERT(head_up != NULL);
 
@@ -544,9 +544,9 @@ void
 lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 {
 	srpc_client_rpc_t *rpc;
-	lstcon_rpc_t      *crpc;
-	lstcon_rpc_t      *tmp;
-	int		count = 0;
+	lstcon_rpc_t *crpc;
+	lstcon_rpc_t *tmp;
+	int count = 0;
 
 	list_for_each_entry_safe(crpc, tmp, &trans->tas_rpcs_list,
 				 crp_link) {
@@ -601,7 +601,7 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 {
 	srpc_mksn_reqst_t *msrq;
 	srpc_rmsn_reqst_t *rsrq;
-	int		rc;
+	int rc;
 
 	switch (transop) {
 	case LST_TRANS_SESNEW:
@@ -638,7 +638,7 @@ int
 lstcon_dbgrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 {
 	srpc_debug_reqst_t *drq;
-	int		    rc;
+	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_DEBUG, feats, 0, 0, crpc);
 	if (rc != 0)
@@ -707,7 +707,7 @@ static lnet_process_id_packed_t *
 lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;
-	int		       i;
+	int i;
 
 	i = idx / SFW_ID_PER_PAGE;
 
@@ -723,11 +723,11 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
 {
 	lnet_process_id_packed_t *pid;
-	lstcon_ndlink_t	  *ndl;
-	lstcon_node_t	    *nd;
-	int		       start;
-	int		       end;
-	int		       i = 0;
+	lstcon_ndlink_t *ndl;
+	lstcon_node_t *nd;
+	int start;
+	int end;
+	int i = 0;
 
 	LASSERT(dist >= 1);
 	LASSERT(span >= 1);
@@ -777,8 +777,8 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 {
 	test_ping_req_t *prq = &req->tsr_u.ping;
 
-	prq->png_size   = param->png_size;
-	prq->png_flags  = param->png_flags;
+	prq->png_size  = param->png_size;
+	prq->png_flags = param->png_flags;
 	/* TODO dest */
 	return 0;
 }
@@ -788,9 +788,10 @@ lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 {
 	test_bulk_req_t *brq = &req->tsr_u.bulk_v0;
 
-	brq->blk_opc    = param->blk_opc;
-	brq->blk_npg    = (param->blk_size + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE;
-	brq->blk_flags  = param->blk_flags;
+	brq->blk_opc   = param->blk_opc;
+	brq->blk_npg   = (param->blk_size + PAGE_CACHE_SIZE - 1) /
+			  PAGE_CACHE_SIZE;
+	brq->blk_flags = param->blk_flags;
 
 	return 0;
 }
@@ -816,7 +817,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	lstcon_group_t    *dgrp = test->tes_dst_grp;
 	srpc_test_reqst_t *trq;
 	srpc_bulk_t       *bulk;
-	int		i;
+	int                i;
 	int		   npg = 0;
 	int		   nob = 0;
 	int		   rc  = 0;
@@ -835,8 +836,10 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	trq  = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.tes_reqst;
 
 	if (transop == LST_TRANS_TSBSRVADD) {
-		int ndist = (sgrp->grp_nnode + test->tes_dist - 1) / test->tes_dist;
-		int nspan = (dgrp->grp_nnode + test->tes_span - 1) / test->tes_span;
+		int ndist = (sgrp->grp_nnode + test->tes_dist - 1) /
+			    test->tes_dist;
+		int nspan = (dgrp->grp_nnode + test->tes_span - 1) /
+			    test->tes_span;
 		int nmax = (ndist + nspan - 1) / nspan;
 
 		trq->tsr_ndest = 0;
@@ -851,7 +854,8 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 			LASSERT(nob > 0);
 
 			len = (feats & LST_FEAT_BULK_LEN) == 0 ?
-			      PAGE_CACHE_SIZE : min_t(int, nob, PAGE_CACHE_SIZE);
+			      PAGE_CACHE_SIZE :
+			      min_t(int, nob, PAGE_CACHE_SIZE);
 			nob -= len;
 
 			bulk->bk_iovs[i].kiov_offset = 0;
@@ -883,8 +887,8 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 		trq->tsr_loop  = test->tes_loop;
 	}
 
-	trq->tsr_sid	= console_session.ses_id;
-	trq->tsr_bid	= test->tes_hdr.tsb_id;
+	trq->tsr_sid        = console_session.ses_id;
+	trq->tsr_bid        = test->tes_hdr.tsb_id;
 	trq->tsr_concur     = test->tes_concur;
 	trq->tsr_is_client  = (transop == LST_TRANS_TSBCLIADD) ? 1 : 0;
 	trq->tsr_stop_onerr = !!test->tes_stop_onerr;
@@ -966,7 +970,7 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 	srpc_batch_reply_t *bat_rep;
 	srpc_test_reply_t  *test_rep;
 	srpc_stat_reply_t  *stat_rep;
-	int		 rc = 0;
+	int                rc = 0;
 
 	switch (trans->tas_opc) {
 	case LST_TRANS_SESNEW:
@@ -1084,11 +1088,11 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			lstcon_rpc_trans_t **transpp)
 {
 	lstcon_rpc_trans_t *trans;
-	lstcon_ndlink_t    *ndl;
-	lstcon_node_t      *nd;
-	lstcon_rpc_t       *rpc;
-	unsigned	    feats;
-	int		 rc;
+	lstcon_ndlink_t *ndl;
+	lstcon_node_t *nd;
+	lstcon_rpc_t *rpc;
+	unsigned feats;
+	int rc;
 
 	/* Creating session RPG for list of nodes */
 
@@ -1165,16 +1169,16 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 static void
 lstcon_rpc_pinger(void *arg)
 {
-	stt_timer_t	*ptimer = (stt_timer_t *)arg;
+	stt_timer_t *ptimer = (stt_timer_t *)arg;
 	lstcon_rpc_trans_t *trans;
-	lstcon_rpc_t       *crpc;
-	srpc_msg_t	 *rep;
+	lstcon_rpc_t *crpc;
+	srpc_msg_t *rep;
 	srpc_debug_reqst_t *drq;
-	lstcon_ndlink_t    *ndl;
-	lstcon_node_t      *nd;
-	time_t	      intv;
-	int		 count = 0;
-	int		 rc;
+	lstcon_ndlink_t *ndl;
+	lstcon_node_t *nd;
+	time_t intv;
+	int count = 0;
+	int rc;
 
 	/* RPC pinger is a special case of transaction,
 	 * it's called by timer at 8 seconds interval.
@@ -1283,8 +1287,8 @@ lstcon_rpc_pinger(void *arg)
 int
 lstcon_rpc_pinger_start(void)
 {
-	stt_timer_t    *ptimer;
-	int	     rc;
+	stt_timer_t *ptimer;
+	int rc;
 
 	LASSERT(list_empty(&console_session.ses_rpc_freelist));
 	LASSERT(atomic_read(&console_session.ses_rpc_counter) == 0);
@@ -1324,9 +1328,9 @@ void
 lstcon_rpc_cleanup_wait(void)
 {
 	lstcon_rpc_trans_t *trans;
-	lstcon_rpc_t       *crpc;
-	struct list_head	 *pacer;
-	struct list_head	  zlist;
+	lstcon_rpc_t *crpc;
+	struct list_head *pacer;
+	struct list_head zlist;
 
 	/* Called with hold of global mutex */
 

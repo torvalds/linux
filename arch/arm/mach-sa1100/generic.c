@@ -20,8 +20,11 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/irqchip/irq-sa11x0.h>
 
 #include <video/sa1100fb.h>
+
+#include <soc/sa1100/pwer.h>
 
 #include <asm/div64.h>
 #include <asm/mach/map.h>
@@ -375,6 +378,18 @@ void __init sa1100_timer_init(void)
 	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x90000000), 3686400);
 }
 
+static struct resource irq_resource =
+	DEFINE_RES_MEM_NAMED(0x90050000, SZ_64K, "irqs");
+
+void __init sa1100_init_irq(void)
+{
+	request_resource(&iomem_resource, &irq_resource);
+
+	sa11x0_init_irq_nodt(IRQ_GPIO0_SC, irq_resource.start);
+
+	sa1100_init_gpio();
+}
+
 /*
  * Disable the memory bus request/grant signals on the SA1110 to
  * ensure that we don't receive spurious memory requests.  We set
@@ -416,3 +431,25 @@ void sa1110_mb_enable(void)
 	local_irq_restore(flags);
 }
 
+int sa11x0_gpio_set_wake(unsigned int gpio, unsigned int on)
+{
+	if (on)
+		PWER |= BIT(gpio);
+	else
+		PWER &= ~BIT(gpio);
+
+	return 0;
+}
+
+int sa11x0_sc_set_wake(unsigned int irq, unsigned int on)
+{
+	if (BIT(irq) != IC_RTCAlrm)
+		return -EINVAL;
+
+	if (on)
+		PWER |= PWER_RTC;
+	else
+		PWER &= ~PWER_RTC;
+
+	return 0;
+}

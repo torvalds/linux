@@ -53,7 +53,12 @@ typedef struct xfs_ioend {
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;
-extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
+
+int	xfs_get_blocks(struct inode *inode, sector_t offset,
+		       struct buffer_head *map_bh, int create);
+int	xfs_get_blocks_direct(struct inode *inode, sector_t offset,
+			      struct buffer_head *map_bh, int create);
+void	xfs_end_io_dax_write(struct buffer_head *bh, int uptodate);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 

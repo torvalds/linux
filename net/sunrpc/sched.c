@@ -89,8 +89,8 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 	if (!task->tk_timeout)
 		return;
 
-	dprintk("RPC: %5u setting alarm for %lu ms\n",
-			task->tk_pid, task->tk_timeout * 1000 / HZ);
+	dprintk("RPC: %5u setting alarm for %u ms\n",
+		task->tk_pid, jiffies_to_msecs(task->tk_timeout));
 
 	task->u.tk_wait.expires = jiffies + task->tk_timeout;
 	if (list_empty(&queue->timer_list.list) || time_before(task->u.tk_wait.expires, queue->timer_list.expires))
@@ -297,7 +297,7 @@ static int rpc_complete_task(struct rpc_task *task)
 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 	ret = atomic_dec_and_test(&task->tk_count);
 	if (waitqueue_active(wq))
-		__wake_up_locked_key(wq, TASK_NORMAL, &k);
+		__wake_up_locked_key(wq, TASK_NORMAL, 1, &k);
 	spin_unlock_irqrestore(&wq->lock, flags);
 	return ret;
 }

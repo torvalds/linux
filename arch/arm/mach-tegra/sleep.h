@@ -18,6 +18,7 @@
 #define __MACH_TEGRA_SLEEP_H
 
 #include "iomap.h"
+#include "irammap.h"
 
 #define TEGRA_ARM_PERIF_VIRT (TEGRA_ARM_PERIF_BASE - IO_CPU_PHYS \
 					+ IO_CPU_VIRT)
@@ -28,6 +29,9 @@
 #define TEGRA_APB_MISC_VIRT (TEGRA_APB_MISC_BASE - IO_APB_PHYS \
 					+ IO_APB_VIRT)
 #define TEGRA_PMC_VIRT	(TEGRA_PMC_BASE - IO_APB_PHYS + IO_APB_VIRT)
+
+#define TEGRA_IRAM_RESET_BASE_VIRT (IO_IRAM_VIRT + \
+				TEGRA_IRAM_RESET_HANDLER_OFFSET)
 
 /* PMC_SCRATCH37-39 and 41 are used for tegra_pen_lock and idle */
 #define PMC_SCRATCH37	0x130

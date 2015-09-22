@@ -115,10 +115,9 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
-		0b111111, 0b111111, 0b111111, 0b111111, 0b111111, 0b111111,
-		0b1111111, 0b1111111,
-		0b11111, 0b11111, 0b11111, 0b11111, 0b11111,
-		0b1111};
+		0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x7f, 0x7f, 0x1f, 0x1f,
+		0x1f, 0x1f, 0x1f, 0x0f,
+	};
 	int i, j;
 	int acc = 0;
 

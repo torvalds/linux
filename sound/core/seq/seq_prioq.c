@@ -59,10 +59,8 @@ struct snd_seq_prioq *snd_seq_prioq_new(void)
 	struct snd_seq_prioq *f;
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
-	if (f == NULL) {
-		pr_debug("ALSA: seq: malloc failed for snd_seq_prioq_new()\n");
+	if (!f)
 		return NULL;
-	}
 	
 	spin_lock_init(&f->lock);
 	f->head = NULL;

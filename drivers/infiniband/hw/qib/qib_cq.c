@@ -203,7 +203,7 @@ static void send_complete(struct kthread_work *work)
 /**
  * qib_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
- * @entries: the minimum size of the completion queue
+ * @attr: creation attributes
  * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
@@ -212,15 +212,20 @@ static void send_complete(struct kthread_work *work)
  *
  * Called by ib_create_cq() in the generic verbs code.
  */
-struct ib_cq *qib_create_cq(struct ib_device *ibdev, int entries,
-			    int comp_vector, struct ib_ucontext *context,
+struct ib_cq *qib_create_cq(struct ib_device *ibdev,
+			    const struct ib_cq_init_attr *attr,
+			    struct ib_ucontext *context,
 			    struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	struct qib_ibdev *dev = to_idev(ibdev);
 	struct qib_cq *cq;
 	struct qib_cq_wc *wc;
 	struct ib_cq *ret;
 	u32 sz;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries < 1 || entries > ib_qib_max_cqes) {
 		ret = ERR_PTR(-EINVAL);

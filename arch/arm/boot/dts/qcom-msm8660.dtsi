@@ -37,6 +37,11 @@
 		};
 	};
 
+	cpu-pmu {
+		compatible = "qcom,scorpion-mp-pmu";
+		interrupts = <1 9 0x304>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -62,15 +67,16 @@
 			cpu-offset = <0x40000>;
 		};
 
-		msmgpio: gpio@800000 {
-			compatible = "qcom,msm-gpio";
-			reg = <0x00800000 0x4000>;
+		tlmm: pinctrl@800000 {
+			compatible = "qcom,msm8660-pinctrl";
+			reg = <0x800000 0x4000>;
+
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpio = <173>;
 			interrupts = <0 16 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
 		};
 
 		gcc: clock-controller@900000 {
@@ -82,6 +88,7 @@
 
 		gsbi12: gsbi@19c00000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <12>;
 			reg = <0x19c00000 0x100>;
 			clocks = <&gcc GSBI12_H_CLK>;
 			clock-names = "iface";
@@ -89,7 +96,9 @@
 			#size-cells = <1>;
 			ranges;
 
-			serial@19c40000 {
+			syscon-tcsr = <&tcsr>;
+
+			gsbi12_serial: serial@19c40000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x19c40000 0x1000>,
 				      <0x19c00000 0x1000>;
@@ -107,7 +116,7 @@
 
 			pmicintc: pmic@0 {
 				compatible = "qcom,pm8058";
-				interrupt-parent = <&msmgpio>;
+				interrupt-parent = <&tlmm>;
 				interrupts = <88 8>;
 				#interrupt-cells = <2>;
 				interrupt-controller;
@@ -195,6 +204,11 @@
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
 			};
+		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-msm8660", "syscon";
+			reg = <0x1a400000 0x100>;
 		};
 	};
 

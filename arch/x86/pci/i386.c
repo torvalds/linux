@@ -429,12 +429,12 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
  	 * Caller can followup with UC MINUS request and add a WC mtrr if there
  	 * is a free mtrr slot.
  	 */
-	if (!pat_enabled && write_combine)
+	if (!pat_enabled() && write_combine)
 		return -EINVAL;
 
-	if (pat_enabled && write_combine)
+	if (pat_enabled() && write_combine)
 		prot |= cachemode2protval(_PAGE_CACHE_MODE_WC);
-	else if (pat_enabled || boot_cpu_data.x86 > 3)
+	else if (pat_enabled() || boot_cpu_data.x86 > 3)
 		/*
 		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
 		 * To avoid attribute conflicts, request UC MINUS here

@@ -251,7 +251,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	cd-gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
@@ -260,7 +260,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <4>;
-	cd-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v>;
 	status = "okay";

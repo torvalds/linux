@@ -266,7 +266,7 @@ struct inode *fat_rebuild_parent(struct super_block *sb, int parent_logstart)
  * Find the parent for a directory that is not currently connected to
  * the filesystem root.
  *
- * On entry, the caller holds child_dir->d_inode->i_mutex.
+ * On entry, the caller holds d_inode(child_dir)->i_mutex.
  */
 static struct dentry *fat_get_parent(struct dentry *child_dir)
 {
@@ -276,7 +276,7 @@ static struct dentry *fat_get_parent(struct dentry *child_dir)
 	struct inode *parent_inode = NULL;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
-	if (!fat_get_dotdot_entry(child_dir->d_inode, &bh, &de)) {
+	if (!fat_get_dotdot_entry(d_inode(child_dir), &bh, &de)) {
 		int parent_logstart = fat_get_start(sbi, de);
 		parent_inode = fat_dget(sb, parent_logstart);
 		if (!parent_inode && sbi->options.nfs == FAT_NFS_NOSTALE_RO)

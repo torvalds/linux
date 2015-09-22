@@ -72,6 +72,7 @@ struct dsa_platform_data {
 	 * to the root switch chip of the tree.
 	 */
 	struct device	*netdev;
+	struct net_device *of_netdev;
 
 	/*
 	 * Info structs describing each of the switch chips
@@ -128,6 +129,11 @@ struct dsa_switch {
 	int			index;
 
 	/*
+	 * Tagging protocol understood by this switch
+	 */
+	enum dsa_tag_protocol	tag_protocol;
+
+	/*
 	 * Configuration data for this switch.
 	 */
 	struct dsa_chip_data	*pd;
@@ -163,6 +169,16 @@ struct dsa_switch {
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
 	return !!(ds->index == ds->dst->cpu_switch && p == ds->dst->cpu_port);
+}
+
+static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
+{
+	return !!((ds->dsa_port_mask) & (1 << p));
+}
+
+static inline bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
+{
+	return ds->phys_port_mask & (1 << p) && ds->ports[p];
 }
 
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
@@ -275,6 +291,38 @@ struct dsa_switch_driver {
 	int	(*get_regs_len)(struct dsa_switch *ds, int port);
 	void	(*get_regs)(struct dsa_switch *ds, int port,
 			    struct ethtool_regs *regs, void *p);
+
+	/*
+	 * Bridge integration
+	 */
+	int	(*port_join_bridge)(struct dsa_switch *ds, int port,
+				    u32 br_port_mask);
+	int	(*port_leave_bridge)(struct dsa_switch *ds, int port,
+				     u32 br_port_mask);
+	int	(*port_stp_update)(struct dsa_switch *ds, int port,
+				   u8 state);
+
+	/*
+	 * VLAN support
+	 */
+	int	(*port_pvid_get)(struct dsa_switch *ds, int port, u16 *pvid);
+	int	(*port_pvid_set)(struct dsa_switch *ds, int port, u16 pvid);
+	int	(*port_vlan_add)(struct dsa_switch *ds, int port, u16 vid,
+				 bool untagged);
+	int	(*port_vlan_del)(struct dsa_switch *ds, int port, u16 vid);
+	int	(*vlan_getnext)(struct dsa_switch *ds, u16 *vid,
+				unsigned long *ports, unsigned long *untagged);
+
+	/*
+	 * Forwarding database
+	 */
+	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
+				const unsigned char *addr, u16 vid);
+	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
+				const unsigned char *addr, u16 vid);
+	int	(*port_fdb_getnext)(struct dsa_switch *ds, int port,
+				    unsigned char *addr, u16 *vid,
+				    bool *is_static);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

@@ -3,7 +3,7 @@
 CC = $(CROSS_COMPILE)gcc
 PTHREAD_LIBS = -lpthread
 WARNINGS = -Wall -Wextra
-CFLAGS = $(WARNINGS) -g $(PTHREAD_LIBS)
+CFLAGS = $(WARNINGS) -g $(PTHREAD_LIBS) $(shell getconf LFS_CFLAGS)
 
 all: hv_kvp_daemon hv_vss_daemon hv_fcopy_daemon
 %: %.c

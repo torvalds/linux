@@ -709,7 +709,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 					if (!priv->ule_dbit) {
 						 /* dest_addr buffer is only valid if priv->ule_dbit == 0 */
 						memcpy(ethh->h_dest, dest_addr, ETH_ALEN);
-						memset(ethh->h_source, 0, ETH_ALEN);
+						eth_zero_addr(ethh->h_source);
 					}
 					else /* zeroize source and dest */
 						memset( ethh, 0, ETH_ALEN*2 );
@@ -1190,7 +1190,6 @@ static int dvb_net_stop(struct net_device *dev)
 static const struct header_ops dvb_header_ops = {
 	.create		= eth_header,
 	.parse		= eth_header_parse,
-	.rebuild	= eth_rebuild_header,
 };
 
 
@@ -1462,13 +1461,15 @@ static const struct file_operations dvb_net_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct dvb_device dvbdev_net = {
+static const struct dvb_device dvbdev_net = {
 	.priv = NULL,
 	.users = 1,
 	.writers = 1,
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	.name = "dvb-net",
+#endif
 	.fops = &dvb_net_fops,
 };
-
 
 void dvb_net_release (struct dvb_net *dvbnet)
 {

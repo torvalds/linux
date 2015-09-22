@@ -608,13 +608,16 @@
 #define   SRR1_ISI_N_OR_G	0x10000000 /* ISI: Access is no-exec or G */
 #define   SRR1_ISI_PROT		0x08000000 /* ISI: Other protection fault */
 #define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
+#define   SRR1_WAKEMASK_P8	0x003c0000 /* reason for wakeup on POWER8 */
 #define   SRR1_WAKESYSERR	0x00300000 /* System error */
 #define   SRR1_WAKEEE		0x00200000 /* External interrupt */
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define	  SRR1_WAKEHMI		0x00280000 /* Hypervisor maintenance */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
+#define   SRR1_WAKEDBELL	0x00140000 /* Privileged doorbell on P8 */
 #define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
 #define	  SRR1_WAKERESET	0x00100000 /* System reset */
+#define   SRR1_WAKEHDBELL	0x000c0000 /* Hypervisor doorbell on P8 */
 #define	  SRR1_WAKESTATE	0x00030000 /* Powersave exit mask [46:47] */
 #define	  SRR1_WS_DEEPEST	0x00030000 /* Some resources not maintained,
 					  * may not be recoverable */
@@ -1190,8 +1193,7 @@
 #ifdef CONFIG_PPC_BOOK3S_64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
 				     : : "r" (v) : "memory")
-#define mtmsrd(v)	__mtmsrd((v), 0)
-#define mtmsr(v)	mtmsrd(v)
+#define mtmsr(v)	__mtmsrd((v), 0)
 #else
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
@@ -1278,6 +1280,15 @@ struct pt_regs;
 
 extern void ppc_save_regs(struct pt_regs *regs);
 
+static inline void update_power8_hid0(unsigned long hid0)
+{
+	/*
+	 *  The HID0 update on Power8 should at the very least be
+	 *  preceded by a a SYNC instruction followed by an ISYNC
+	 *  instruction
+	 */
+	asm volatile("sync; mtspr %0,%1; isync":: "i"(SPRN_HID0), "r"(hid0));
+}
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

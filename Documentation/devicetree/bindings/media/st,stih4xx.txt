@@ -1,0 +1,32 @@
+STMicroelectronics stih4xx platforms
+
+bdisp: 2D blitter for STMicroelectronics SoC.
+
+Required properties:
+- compatible: should be "st,stih407-bdisp".
+- reg: BDISP physical address location and length.
+- interrupts: BDISP interrupt number.
+- clocks: from common clock binding: handle hardware IP needed clocks, the
+  number of clocks may depend on the SoC type.
+  See ../clocks/clock-bindings.txt for details.
+- clock-names: names of the clocks listed in clocks property in the same order.
+
+Example:
+
+	bdisp0:bdisp@9f10000 {
+		compatible = "st,stih407-bdisp";
+		reg = <0x9f10000 0x1000>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
+		clock-names = "bdisp";
+		clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
+	};
+
+Aliases:
+Each BDISP should have a numbered alias in the aliases node, in the form of
+bdispN, N = 0 or 1.
+
+Example:
+
+	aliases {
+		bdisp0 = &bdisp0;
+	};

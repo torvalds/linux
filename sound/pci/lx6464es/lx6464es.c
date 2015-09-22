@@ -57,13 +57,13 @@ static const char card_name[] = "LX6464ES";
 #define PCI_DEVICE_ID_PLX_LX6464ES		PCI_DEVICE_ID_PLX_9056
 
 static const struct pci_device_id snd_lx6464es_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES),
-	  .subvendor = PCI_VENDOR_ID_DIGIGRAM,
-	  .subdevice = PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_SERIAL_SUBSYSTEM
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES,
+			 PCI_VENDOR_ID_DIGIGRAM,
+			 PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_SERIAL_SUBSYSTEM),
 	},			/* LX6464ES */
-	{ PCI_DEVICE(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES),
-	  .subvendor = PCI_VENDOR_ID_DIGIGRAM,
-	  .subdevice = PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_CAE_SERIAL_SUBSYSTEM
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_LX6464ES,
+			 PCI_VENDOR_ID_DIGIGRAM,
+			 PCI_SUBDEVICE_ID_DIGIGRAM_LX6464ES_CAE_SERIAL_SUBSYSTEM),
 	},			/* LX6464ES-CAE */
 	{ 0, },
 };
@@ -412,9 +412,9 @@ static int lx_pcm_hw_free(struct snd_pcm_substream *substream)
 	err = snd_pcm_lib_free_pages(substream);
 
 	if (is_capture)
-		chip->capture_stream.stream = 0;
+		chip->capture_stream.stream = NULL;
 	else
-		chip->playback_stream.stream = 0;
+		chip->playback_stream.stream = NULL;
 
 exit:
 	mutex_unlock(&chip->setup_mutex);
@@ -981,7 +981,7 @@ static int snd_lx6464es_create(struct snd_card *card,
 	pci_set_master(pci);
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
-	err = pci_set_dma_mask(pci, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
 	if (err < 0) {
 		dev_err(card->dev,
 			"architecture does not support 32bit PCI busmaster DMA\n");

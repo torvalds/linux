@@ -11,20 +11,13 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
  */
 
 #ifndef __DGNC_SYSFS_H
 #define __DGNC_SYSFS_H
 
-#include "dgnc_driver.h"
-
 #include <linux/device.h>
+#include "dgnc_driver.h"
 
 struct dgnc_board;
 struct channel_t;
@@ -32,18 +25,16 @@ struct un_t;
 struct pci_driver;
 struct class_device;
 
-extern void dgnc_create_ports_sysfiles(struct dgnc_board *bd);
-extern void dgnc_remove_ports_sysfiles(struct dgnc_board *bd);
+void dgnc_create_ports_sysfiles(struct dgnc_board *bd);
+void dgnc_remove_ports_sysfiles(struct dgnc_board *bd);
 
-extern void dgnc_create_driver_sysfiles(struct pci_driver *);
-extern void dgnc_remove_driver_sysfiles(struct pci_driver *);
+void dgnc_create_driver_sysfiles(struct pci_driver *);
+void dgnc_remove_driver_sysfiles(struct pci_driver *);
 
-extern int dgnc_tty_class_init(void);
-extern int dgnc_tty_class_destroy(void);
+int dgnc_tty_class_init(void);
+int dgnc_tty_class_destroy(void);
 
-extern void dgnc_create_tty_sysfs(struct un_t *un, struct device *c);
-extern void dgnc_remove_tty_sysfs(struct device *c);
-
-
+void dgnc_create_tty_sysfs(struct un_t *un, struct device *c);
+void dgnc_remove_tty_sysfs(struct device *c);
 
 #endif

@@ -918,14 +918,6 @@ enum ODM_RF_CONTENT {
 	odm_radiod_txt = 0x1003
 };
 
-enum odm_bb_config_type {
-    CONFIG_BB_PHY_REG,
-    CONFIG_BB_AGC_TAB,
-    CONFIG_BB_AGC_TAB_2G,
-    CONFIG_BB_AGC_TAB_5G,
-    CONFIG_BB_PHY_REG_PG,
-};
-
 /*  Status code */
 enum rt_status {
 	RT_STATUS_SUCCESS,
@@ -1068,7 +1060,7 @@ enum dm_swas {
 
 extern	u32 OFDMSwingTable[OFDM_TABLE_SIZE_92D];
 extern	u8 CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
-extern	u8 CCKSwingTable_Ch14 [CCK_TABLE_SIZE][8];
+extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 
 /*  check Sta pointer valid or not */
 #define IS_STA_VALID(pSta)		(pSta)

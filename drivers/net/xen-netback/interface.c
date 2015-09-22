@@ -61,6 +61,12 @@ void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
 void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
 {
 	atomic_dec(&queue->inflight_packets);
+
+	/* Wake the dealloc thread _after_ decrementing inflight_packets so
+	 * that if kthread_stop() has already been called, the dealloc thread
+	 * does not wait forever with nothing to wake it.
+	 */
+	wake_up(&queue->dealloc_wq);
 }
 
 int xenvif_schedulable(struct xenvif *vif)
@@ -164,6 +170,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    queue->dealloc_task == NULL ||
 	    !xenvif_schedulable(vif))
 		goto drop;
+
+	if (vif->multicast_control && skb->pkt_type == PACKET_MULTICAST) {
+		struct ethhdr *eth = (struct ethhdr *)skb->data;
+
+		if (!xenvif_mcast_match(vif, eth->h_dest))
+			goto drop;
+	}
 
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
@@ -421,6 +434,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->num_queues = 0;
 
 	spin_lock_init(&vif->lock);
+	INIT_LIST_HEAD(&vif->fe_mcast_addr);
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
@@ -437,7 +451,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	 * stolen by an Ethernet bridge for STP purposes.
 	 * (FE:FF:FF:FF:FF:FF)
 	 */
-	memset(dev->dev_addr, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(dev->dev_addr);
 	dev->dev_addr[0] &= ~0x01;
 
 	netif_carrier_off(dev);
@@ -463,6 +477,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	queue->credit_bytes = queue->remaining_credit = ~0UL;
 	queue->credit_usec  = 0UL;
 	init_timer(&queue->credit_timeout);
+	queue->credit_timeout.function = xenvif_tx_credit_callback;
 	queue->credit_window_start = get_jiffies_64();
 
 	queue->rx_queue_max = XENVIF_RX_QUEUE_BYTES;
@@ -654,6 +669,8 @@ void xenvif_disconnect(struct xenvif *vif)
 
 		xenvif_unmap_frontend_rings(queue);
 	}
+
+	xenvif_mcast_addr_list_free(vif);
 }
 
 /* Reverse the relevant parts of xenvif_init_queue().

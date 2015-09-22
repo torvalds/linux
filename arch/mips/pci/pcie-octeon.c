@@ -1762,14 +1762,6 @@ static int octeon_pcie_write_config(unsigned int pcie_port, struct pci_bus *bus,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
-#if PCI_CONFIG_SPACE_DELAY
-	/*
-	 * Delay on writes so that devices have time to come up. Some
-	 * bridges need this to allow time for the secondary busses to
-	 * work
-	 */
-	udelay(PCI_CONFIG_SPACE_DELAY);
-#endif
 	return PCIBIOS_SUCCESSFUL;
 }
 

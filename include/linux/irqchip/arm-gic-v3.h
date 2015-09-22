@@ -104,6 +104,8 @@
 #define GICR_SYNCR			0x00C0
 #define GICR_MOVLPIR			0x0100
 #define GICR_MOVALLR			0x0110
+#define GICR_ISACTIVER			GICD_ISACTIVER
+#define GICR_ICACTIVER			GICD_ICACTIVER
 #define GICR_IDREGS			GICD_IDREGS
 #define GICR_PIDR2			GICD_PIDR2
 
@@ -126,7 +128,22 @@
 #define GICR_PROPBASER_WaWb		(5U << 7)
 #define GICR_PROPBASER_RaWaWt		(6U << 7)
 #define GICR_PROPBASER_RaWaWb		(7U << 7)
+#define GICR_PROPBASER_CACHEABILITY_MASK (7U << 7)
 #define GICR_PROPBASER_IDBITS_MASK	(0x1f)
+
+#define GICR_PENDBASER_NonShareable	(0U << 10)
+#define GICR_PENDBASER_InnerShareable	(1U << 10)
+#define GICR_PENDBASER_OuterShareable	(2U << 10)
+#define GICR_PENDBASER_SHAREABILITY_MASK (3UL << 10)
+#define GICR_PENDBASER_nCnB		(0U << 7)
+#define GICR_PENDBASER_nC		(1U << 7)
+#define GICR_PENDBASER_RaWt		(2U << 7)
+#define GICR_PENDBASER_RaWb		(3U << 7)
+#define GICR_PENDBASER_WaWt		(4U << 7)
+#define GICR_PENDBASER_WaWb		(5U << 7)
+#define GICR_PENDBASER_RaWaWt		(6U << 7)
+#define GICR_PENDBASER_RaWaWb		(7U << 7)
+#define GICR_PENDBASER_CACHEABILITY_MASK (7U << 7)
 
 /*
  * Re-Distributor registers, offsets from SGI_base
@@ -182,6 +199,7 @@
 #define GITS_CBASER_WaWb		(5UL << 59)
 #define GITS_CBASER_RaWaWt		(6UL << 59)
 #define GITS_CBASER_RaWaWb		(7UL << 59)
+#define GITS_CBASER_CACHEABILITY_MASK	(7UL << 59)
 #define GITS_CBASER_NonShareable	(0UL << 10)
 #define GITS_CBASER_InnerShareable	(1UL << 10)
 #define GITS_CBASER_OuterShareable	(2UL << 10)
@@ -198,6 +216,7 @@
 #define GITS_BASER_WaWb			(5UL << 59)
 #define GITS_BASER_RaWaWt		(6UL << 59)
 #define GITS_BASER_RaWaWb		(7UL << 59)
+#define GITS_BASER_CACHEABILITY_MASK	(7UL << 59)
 #define GITS_BASER_TYPE_SHIFT		(56)
 #define GITS_BASER_TYPE(r)		(((r) >> GITS_BASER_TYPE_SHIFT) & 7)
 #define GITS_BASER_ENTRY_SIZE_SHIFT	(48)
@@ -251,9 +270,12 @@
 
 #define ICH_LR_EOI			(1UL << 41)
 #define ICH_LR_GROUP			(1UL << 60)
+#define ICH_LR_HW			(1UL << 61)
 #define ICH_LR_STATE			(3UL << 62)
 #define ICH_LR_PENDING_BIT		(1UL << 62)
 #define ICH_LR_ACTIVE_BIT		(1UL << 63)
+#define ICH_LR_PHYS_ID_SHIFT		32
+#define ICH_LR_PHYS_ID_MASK		(0x3ffUL << ICH_LR_PHYS_ID_SHIFT)
 
 #define ICH_MISR_EOI			(1 << 0)
 #define ICH_MISR_U			(1 << 1)
@@ -271,6 +293,7 @@
 #define ICH_VMCR_PMR_MASK		(0xffUL << ICH_VMCR_PMR_SHIFT)
 
 #define ICC_EOIR1_EL1			sys_reg(3, 0, 12, 12, 1)
+#define ICC_DIR_EL1			sys_reg(3, 0, 12, 11, 1)
 #define ICC_IAR1_EL1			sys_reg(3, 0, 12, 12, 0)
 #define ICC_SGI1R_EL1			sys_reg(3, 0, 12, 11, 5)
 #define ICC_PMR_EL1			sys_reg(3, 0, 4, 6, 0)
@@ -343,6 +366,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
+#include <asm/msi.h>
 
 /*
  * We need a value to serve as a irq-type for LPIs. Choose one that will
@@ -364,6 +388,12 @@ struct rdists {
 static inline void gic_write_eoir(u64 irq)
 {
 	asm volatile("msr_s " __stringify(ICC_EOIR1_EL1) ", %0" : : "r" (irq));
+	isb();
+}
+
+static inline void gic_write_dir(u64 irq)
+{
+	asm volatile("msr_s " __stringify(ICC_DIR_EL1) ", %0" : : "r" (irq));
 	isb();
 }
 

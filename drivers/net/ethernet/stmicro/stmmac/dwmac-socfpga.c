@@ -91,7 +91,9 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 						  STMMAC_RESOURCE_NAME);
 	if (IS_ERR(dwmac->stmmac_rst)) {
 		dev_info(dev, "Could not get reset control!\n");
-		return -EINVAL;
+		if (PTR_ERR(dwmac->stmmac_rst) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dwmac->stmmac_rst = NULL;
 	}
 
 	dwmac->interface = of_get_phy_mode(np);
@@ -173,31 +175,6 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
-static void *socfpga_dwmac_probe(struct platform_device *pdev)
-{
-	struct device		*dev = &pdev->dev;
-	int			ret;
-	struct socfpga_dwmac	*dwmac;
-
-	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return ERR_PTR(-ENOMEM);
-
-	ret = socfpga_dwmac_parse_data(dwmac, dev);
-	if (ret) {
-		dev_err(dev, "Unable to parse OF data\n");
-		return ERR_PTR(ret);
-	}
-
-	ret = socfpga_dwmac_setup(dwmac);
-	if (ret) {
-		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
-		return ERR_PTR(ret);
-	}
-
-	return dwmac;
-}
-
 static void socfpga_dwmac_exit(struct platform_device *pdev, void *priv)
 {
 	struct socfpga_dwmac	*dwmac = priv;
@@ -255,9 +232,65 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	return ret;
 }
 
-const struct stmmac_of_data socfpga_gmac_data = {
-	.setup = socfpga_dwmac_probe,
-	.init = socfpga_dwmac_init,
-	.exit = socfpga_dwmac_exit,
-	.fix_mac_speed = socfpga_dwmac_fix_mac_speed,
+static int socfpga_dwmac_probe(struct platform_device *pdev)
+{
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
+	struct device		*dev = &pdev->dev;
+	int			ret;
+	struct socfpga_dwmac	*dwmac;
+
+	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
+
+	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
+	if (!dwmac)
+		return -ENOMEM;
+
+	ret = socfpga_dwmac_parse_data(dwmac, dev);
+	if (ret) {
+		dev_err(dev, "Unable to parse OF data\n");
+		return ret;
+	}
+
+	ret = socfpga_dwmac_setup(dwmac);
+	if (ret) {
+		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
+		return ret;
+	}
+
+	plat_dat->bsp_priv = dwmac;
+	plat_dat->init = socfpga_dwmac_init;
+	plat_dat->exit = socfpga_dwmac_exit;
+	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
+
+	ret = socfpga_dwmac_init(pdev, plat_dat->bsp_priv);
+	if (ret)
+		return ret;
+
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+}
+
+static const struct of_device_id socfpga_dwmac_match[] = {
+	{ .compatible = "altr,socfpga-stmmac" },
+	{ }
 };
+MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
+
+static struct platform_driver socfpga_dwmac_driver = {
+	.probe  = socfpga_dwmac_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "socfpga-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = socfpga_dwmac_match,
+	},
+};
+module_platform_driver(socfpga_dwmac_driver);
+
+MODULE_LICENSE("GPL v2");

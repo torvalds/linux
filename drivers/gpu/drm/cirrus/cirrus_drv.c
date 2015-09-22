@@ -92,7 +92,7 @@ static int cirrus_pm_suspend(struct device *dev)
 
 	if (cdev->mode_info.gfbdev) {
 		console_lock();
-		fb_set_suspend(cdev->mode_info.gfbdev->helper.fbdev, 1);
+		drm_fb_helper_set_suspend(&cdev->mode_info.gfbdev->helper, 1);
 		console_unlock();
 	}
 
@@ -109,7 +109,7 @@ static int cirrus_pm_resume(struct device *dev)
 
 	if (cdev->mode_info.gfbdev) {
 		console_lock();
-		fb_set_suspend(cdev->mode_info.gfbdev->helper.fbdev, 0);
+		drm_fb_helper_set_suspend(&cdev->mode_info.gfbdev->helper, 0);
 		console_unlock();
 	}
 

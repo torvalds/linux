@@ -231,19 +231,24 @@ void trace_seq_terminate(struct trace_seq *s)
 	s->buffer[s->len] = 0;
 }
 
-int trace_seq_do_printf(struct trace_seq *s)
+int trace_seq_do_fprintf(struct trace_seq *s, FILE *fp)
 {
 	TRACE_SEQ_CHECK(s);
 
 	switch (s->state) {
 	case TRACE_SEQ__GOOD:
-		return printf("%.*s", s->len, s->buffer);
+		return fprintf(fp, "%.*s", s->len, s->buffer);
 	case TRACE_SEQ__BUFFER_POISONED:
-		puts("Usage of trace_seq after it was destroyed");
+		fprintf(fp, "%s\n", "Usage of trace_seq after it was destroyed");
 		break;
 	case TRACE_SEQ__MEM_ALLOC_FAILED:
-		puts("Can't allocate trace_seq buffer memory");
+		fprintf(fp, "%s\n", "Can't allocate trace_seq buffer memory");
 		break;
 	}
 	return -1;
+}
+
+int trace_seq_do_printf(struct trace_seq *s)
+{
+	return trace_seq_do_fprintf(s, stdout);
 }

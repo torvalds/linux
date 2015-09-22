@@ -151,6 +151,8 @@ struct drm_connector *msm_edp_connector_init(struct msm_edp *edp)
 	if (ret)
 		goto fail;
 
+	drm_mode_connector_attach_encoder(connector, edp->encoder);
+
 	return connector;
 
 fail:

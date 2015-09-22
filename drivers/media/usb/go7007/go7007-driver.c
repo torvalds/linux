@@ -446,7 +446,7 @@ static void go7007_motion_regions(struct go7007 *go, struct go7007_buffer *vb)
  */
 static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buffer *vb)
 {
-	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
+	u32 *bytesused;
 	struct go7007_buffer *vb_tmp = NULL;
 
 	if (vb == NULL) {
@@ -458,6 +458,7 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 		go->next_seq++;
 		return vb;
 	}
+	bytesused = &vb->vb.v4l2_planes[0].bytesused;
 
 	vb->vb.v4l2_buf.sequence = go->next_seq++;
 	if (vb->modet_active && *bytesused + 216 < GO7007_BUF_SIZE)

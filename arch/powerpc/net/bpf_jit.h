@@ -10,12 +10,25 @@
 #ifndef _BPF_JIT_H
 #define _BPF_JIT_H
 
+#ifdef CONFIG_PPC64
+#define BPF_PPC_STACK_R3_OFF	48
 #define BPF_PPC_STACK_LOCALS	32
 #define BPF_PPC_STACK_BASIC	(48+64)
 #define BPF_PPC_STACK_SAVE	(18*8)
 #define BPF_PPC_STACKFRAME	(BPF_PPC_STACK_BASIC+BPF_PPC_STACK_LOCALS+ \
 				 BPF_PPC_STACK_SAVE)
 #define BPF_PPC_SLOWPATH_FRAME	(48+64)
+#else
+#define BPF_PPC_STACK_R3_OFF	24
+#define BPF_PPC_STACK_LOCALS	16
+#define BPF_PPC_STACK_BASIC	(24+32)
+#define BPF_PPC_STACK_SAVE	(18*4)
+#define BPF_PPC_STACKFRAME	(BPF_PPC_STACK_BASIC+BPF_PPC_STACK_LOCALS+ \
+				 BPF_PPC_STACK_SAVE)
+#define BPF_PPC_SLOWPATH_FRAME	(24+32)
+#endif
+
+#define REG_SZ         (BITS_PER_LONG/8)
 
 /*
  * Generated code register usage:
@@ -57,7 +70,11 @@ DECLARE_LOAD_FUNC(sk_load_half);
 DECLARE_LOAD_FUNC(sk_load_byte);
 DECLARE_LOAD_FUNC(sk_load_byte_msh);
 
+#ifdef CONFIG_PPC64
 #define FUNCTION_DESCR_SIZE	24
+#else
+#define FUNCTION_DESCR_SIZE	0
+#endif
 
 /*
  * 16-bit immediate helper macros: HA() is for use with sign-extending instrs
@@ -86,7 +103,12 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #define PPC_LIS(r, i)		PPC_ADDIS(r, 0, i)
 #define PPC_STD(r, base, i)	EMIT(PPC_INST_STD | ___PPC_RS(r) |	      \
 				     ___PPC_RA(base) | ((i) & 0xfffc))
-
+#define PPC_STDU(r, base, i)	EMIT(PPC_INST_STDU | ___PPC_RS(r) |	      \
+				     ___PPC_RA(base) | ((i) & 0xfffc))
+#define PPC_STW(r, base, i)	EMIT(PPC_INST_STW | ___PPC_RS(r) |	      \
+				     ___PPC_RA(base) | ((i) & 0xfffc))
+#define PPC_STWU(r, base, i)	EMIT(PPC_INST_STWU | ___PPC_RS(r) |	      \
+				     ___PPC_RA(base) | ((i) & 0xfffc))
 
 #define PPC_LBZ(r, base, i)	EMIT(PPC_INST_LBZ | ___PPC_RT(r) |	      \
 				     ___PPC_RA(base) | IMM_L(i))
@@ -98,6 +120,17 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 				     ___PPC_RA(base) | IMM_L(i))
 #define PPC_LHBRX(r, base, b)	EMIT(PPC_INST_LHBRX | ___PPC_RT(r) |	      \
 				     ___PPC_RA(base) | ___PPC_RB(b))
+
+#ifdef CONFIG_PPC64
+#define PPC_BPF_LL(r, base, i) do { PPC_LD(r, base, i); } while(0)
+#define PPC_BPF_STL(r, base, i) do { PPC_STD(r, base, i); } while(0)
+#define PPC_BPF_STLU(r, base, i) do { PPC_STDU(r, base, i); } while(0)
+#else
+#define PPC_BPF_LL(r, base, i) do { PPC_LWZ(r, base, i); } while(0)
+#define PPC_BPF_STL(r, base, i) do { PPC_STW(r, base, i); } while(0)
+#define PPC_BPF_STLU(r, base, i) do { PPC_STWU(r, base, i); } while(0)
+#endif
+
 /* Convenience helpers for the above with 'far' offsets: */
 #define PPC_LBZ_OFFS(r, base, i) do { if ((i) < 32768) PPC_LBZ(r, base, i);   \
 		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
@@ -114,6 +147,29 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 #define PPC_LHZ_OFFS(r, base, i) do { if ((i) < 32768) PPC_LHZ(r, base, i);   \
 		else {	PPC_ADDIS(r, base, IMM_HA(i));			      \
 			PPC_LHZ(r, r, IMM_L(i)); } } while(0)
+
+#ifdef CONFIG_PPC64
+#define PPC_LL_OFFS(r, base, i) do { PPC_LD_OFFS(r, base, i); } while(0)
+#else
+#define PPC_LL_OFFS(r, base, i) do { PPC_LWZ_OFFS(r, base, i); } while(0)
+#endif
+
+#ifdef CONFIG_SMP
+#ifdef CONFIG_PPC64
+#define PPC_BPF_LOAD_CPU(r)		\
+	do { BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct, paca_index) != 2);	\
+		PPC_LHZ_OFFS(r, 13, offsetof(struct paca_struct, paca_index));		\
+	} while (0)
+#else
+#define PPC_BPF_LOAD_CPU(r)     \
+	do { BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info, cpu) != 4);			\
+		PPC_LHZ_OFFS(r, (1 & ~(THREAD_SIZE - 1)),							\
+				offsetof(struct thread_info, cpu));							\
+	} while(0)
+#endif
+#else
+#define PPC_BPF_LOAD_CPU(r) do { PPC_LI(r, 0); } while(0)
+#endif
 
 #define PPC_CMPWI(a, i)		EMIT(PPC_INST_CMPWI | ___PPC_RA(a) | IMM_L(i))
 #define PPC_CMPDI(a, i)		EMIT(PPC_INST_CMPDI | ___PPC_RA(a) | IMM_L(i))
@@ -195,6 +251,12 @@ DECLARE_LOAD_FUNC(sk_load_byte_msh);
 			if ((uintptr_t)(i) & 0x000000000000ffffULL)	      \
 				PPC_ORI(d, d, (uintptr_t)(i) & 0xffff);	      \
 		} } while (0);
+
+#ifdef CONFIG_PPC64
+#define PPC_FUNC_ADDR(d,i) do { PPC_LI64(d, i); } while(0)
+#else
+#define PPC_FUNC_ADDR(d,i) do { PPC_LI32(d, i); } while(0)
+#endif
 
 #define PPC_LHBRX_OFFS(r, base, i) \
 		do { PPC_LI32(r, i); PPC_LHBRX(r, r, base); } while(0)

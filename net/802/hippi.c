@@ -91,33 +91,6 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 
 
 /*
- * Rebuild the HIPPI MAC header. This is called after an ARP has
- * completed on this sk_buff. We now let ARP fill in the other fields.
- */
-
-static int hippi_rebuild_header(struct sk_buff *skb)
-{
-	struct hippi_hdr *hip = (struct hippi_hdr *)skb->data;
-
-	/*
-	 * Only IP is currently supported
-	 */
-
-	if(hip->snap.ethertype != htons(ETH_P_IP))
-	{
-		printk(KERN_DEBUG "%s: unable to resolve type %X addresses.\n",skb->dev->name,ntohs(hip->snap.ethertype));
-		return 0;
-	}
-
-	/*
-	 * We don't support dynamic ARP on HIPPI, but we use the ARP
-	 * static ARP tables to hold the I-FIELDs.
-	 */
-	return arp_find(hip->le.daddr, skb);
-}
-
-
-/*
  *	Determine the packet's protocol ID.
  */
 
@@ -186,7 +159,6 @@ EXPORT_SYMBOL(hippi_neigh_setup_dev);
 
 static const struct header_ops hippi_header_ops = {
 	.create		= hippi_header,
-	.rebuild	= hippi_rebuild_header,
 };
 
 

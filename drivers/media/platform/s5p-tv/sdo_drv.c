@@ -160,13 +160,17 @@ static int sdo_g_std_output(struct v4l2_subdev *sd, v4l2_std_id *std)
 	return 0;
 }
 
-static int sdo_g_mbus_fmt(struct v4l2_subdev *sd,
-	struct v4l2_mbus_framefmt *fmt)
+static int sdo_get_fmt(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_format *format)
 {
+	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct sdo_device *sdev = sd_to_sdev(sd);
 
 	if (!sdev->fmt)
 		return -ENXIO;
+	if (format->pad)
+		return -EINVAL;
 	/* all modes are 720 pixels wide */
 	fmt->width = 720;
 	fmt->height = sdev->fmt->height;
@@ -256,13 +260,17 @@ static const struct v4l2_subdev_video_ops sdo_sd_video_ops = {
 	.s_std_output = sdo_s_std_output,
 	.g_std_output = sdo_g_std_output,
 	.g_tvnorms_output = sdo_g_tvnorms_output,
-	.g_mbus_fmt = sdo_g_mbus_fmt,
 	.s_stream = sdo_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops sdo_sd_pad_ops = {
+	.get_fmt = sdo_get_fmt,
 };
 
 static const struct v4l2_subdev_ops sdo_sd_ops = {
 	.core = &sdo_sd_core_ops,
 	.video = &sdo_sd_video_ops,
+	.pad = &sdo_sd_pad_ops,
 };
 
 static int sdo_runtime_suspend(struct device *dev)

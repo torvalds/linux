@@ -16,6 +16,11 @@
  * this warranty disclaimer.
  **/
 
+#ifndef _NFCMRVL_H_
+#define _NFCMRVL_H_
+
+#include <linux/platform_data/nfcmrvl.h>
+
 /* Define private flags: */
 #define NFCMRVL_NCI_RUNNING			1
 
@@ -27,11 +32,49 @@
 #define NFCMRVL_GPIO_PIN_NFC_ACTIVE		0xB
 #define NFCMRVL_NCI_MAX_EVENT_SIZE		260
 
+/*
+** NCI FW Parmaters
+*/
+
+#define NFCMRVL_PB_BAIL_OUT			0x11
+
+/*
+** HCI defines
+*/
+
+#define NFCMRVL_HCI_EVENT_HEADER_SIZE		0x04
+#define NFCMRVL_HCI_EVENT_CODE			0x04
+#define NFCMRVL_HCI_NFC_EVENT_CODE		0xFF
+#define NFCMRVL_HCI_COMMAND_CODE		0x01
+#define NFCMRVL_HCI_OGF				0x81
+#define NFCMRVL_HCI_OCF				0xFE
+
+enum nfcmrvl_phy {
+	NFCMRVL_PHY_USB		= 0,
+	NFCMRVL_PHY_UART	= 1,
+};
+
+
 struct nfcmrvl_private {
-	struct nci_dev *ndev;
+
 	unsigned long flags;
+
+	/* Platform configuration */
+	struct nfcmrvl_platform_data config;
+
+	struct nci_dev *ndev;
+
+	/*
+	** PHY related information
+	*/
+
+	/* PHY driver context */
 	void *drv_data;
+	/* PHY device */
 	struct device *dev;
+	/* PHY type */
+	enum nfcmrvl_phy phy;
+	/* Low level driver ops */
 	struct nfcmrvl_if_ops *if_ops;
 };
 
@@ -42,7 +85,16 @@ struct nfcmrvl_if_ops {
 };
 
 void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv);
-int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, void *data, int count);
+int nfcmrvl_nci_recv_frame(struct nfcmrvl_private *priv, struct sk_buff *skb);
 struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
-						 struct nfcmrvl_if_ops *ops,
-						 struct device *dev);
+				struct nfcmrvl_if_ops *ops,
+				struct device *dev,
+				struct nfcmrvl_platform_data *pdata);
+
+
+void nfcmrvl_chip_reset(struct nfcmrvl_private *priv);
+
+int nfcmrvl_parse_dt(struct device_node *node,
+		     struct nfcmrvl_platform_data *pdata);
+
+#endif

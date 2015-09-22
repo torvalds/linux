@@ -142,7 +142,7 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 							   &pdev->dev);
 	const struct imx_weim_devtype *devtype = of_id->data;
 	struct device_node *child;
-	int ret;
+	int ret, have_child = 0;
 
 	if (devtype == &imx50_weim_devtype) {
 		ret = imx_weim_gpr_setup(pdev);
@@ -155,14 +155,15 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 			continue;
 
 		ret = weim_timing_setup(child, base, devtype);
-		if (ret) {
-			dev_err(&pdev->dev, "%s set timing failed.\n",
+		if (ret)
+			dev_warn(&pdev->dev, "%s set timing failed.\n",
 				child->full_name);
-			return ret;
-		}
+		else
+			have_child = 1;
 	}
 
-	ret = of_platform_populate(pdev->dev.of_node,
+	if (have_child)
+		ret = of_platform_populate(pdev->dev.of_node,
 				   of_default_bus_match_table,
 				   NULL, &pdev->dev);
 	if (ret)

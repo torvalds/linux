@@ -2,6 +2,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
+#include <dt-bindings/clock/qcom,lcc-ipq806x.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 
 / {
@@ -60,11 +61,34 @@
 		};
 	};
 
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 		compatible = "simple-bus";
+
+		lpass@28100000 {
+			compatible = "qcom,lpass-cpu";
+			status = "disabled";
+			clocks = <&lcc AHBIX_CLK>,
+					<&lcc MI2S_OSR_CLK>,
+					<&lcc MI2S_BIT_CLK>;
+			clock-names = "ahbix-clk",
+					"mi2s-osr-clk",
+					"mi2s-bit-clk";
+			interrupts = <0 85 1>;
+			interrupt-names = "lpass-irq-lpaif";
+			reg = <0x28100000 0x10000>;
+			reg-names = "lpass-lpaif";
+		};
 
 		qcom_pinmux: pinmux@800000 {
 			compatible = "qcom,ipq8064-pinctrl";
@@ -89,10 +113,14 @@
 			compatible = "qcom,kpss-timer", "qcom,msm-timer";
 			interrupts = <1 1 0x301>,
 				     <1 2 0x301>,
-				     <1 3 0x301>;
+				     <1 3 0x301>,
+				     <1 4 0x301>,
+				     <1 5 0x301>;
 			reg = <0x0200a000 0x100>;
 			clock-frequency = <25000000>,
 					  <32768>;
+			clocks = <&sleep_clk>;
+			clock-names = "sleep";
 			cpu-offset = <0x80000>;
 		};
 
@@ -120,6 +148,7 @@
 
 		gsbi2: gsbi@12480000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <2>;
 			reg = <0x12480000 0x100>;
 			clocks = <&gcc GSBI2_H_CLK>;
 			clock-names = "iface";
@@ -127,6 +156,8 @@
 			#size-cells = <1>;
 			ranges;
 			status = "disabled";
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@12490000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -155,6 +186,7 @@
 
 		gsbi4: gsbi@16300000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <4>;
 			reg = <0x16300000 0x100>;
 			clocks = <&gcc GSBI4_H_CLK>;
 			clock-names = "iface";
@@ -163,7 +195,9 @@
 			ranges;
 			status = "disabled";
 
-			serial@16340000 {
+			syscon-tcsr = <&tcsr>;
+
+			gsbi4_serial: serial@16340000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16340000 0x1000>,
 				      <0x16300000 0x1000>;
@@ -189,6 +223,7 @@
 
 		gsbi5: gsbi@1a200000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <5>;
 			reg = <0x1a200000 0x100>;
 			clocks = <&gcc GSBI5_H_CLK>;
 			clock-names = "iface";
@@ -196,6 +231,8 @@
 			#size-cells = <1>;
 			ranges;
 			status = "disabled";
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@1a240000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -279,5 +316,18 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-ipq8064", "syscon";
+			reg = <0x1a400000 0x100>;
+		};
+
+		lcc: clock-controller@28000000 {
+			compatible = "qcom,lcc-ipq8064";
+			reg = <0x28000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
 	};
 };

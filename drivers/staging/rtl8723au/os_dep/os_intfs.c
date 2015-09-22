@@ -34,7 +34,7 @@ MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B_NoBT.bin");
 
 /* module param defaults */
-static int rtw_chip_version = 0x00;
+static int rtw_chip_version;
 static int rtw_rfintfs = HWPI;
 static int rtw_debug = 1;
 
@@ -172,7 +172,7 @@ MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
 static int netdev_close(struct net_device *pnetdev);
 
-static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
+static void loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
@@ -233,7 +233,6 @@ static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 	snprintf(registry_par->if2name, 16, "%s", if2name);
 	registry_par->notch_filter = (u8)rtw_notch_filter;
 	registry_par->regulatory_tid = (u8)rtw_regulatory_id;
-	return _SUCCESS;
 }
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
@@ -342,7 +341,7 @@ int rtw_init_netdev23a_name23a(struct net_device *pnetdev, const char *ifname)
 {
 	if (dev_alloc_name(pnetdev, ifname) < 0) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("dev_alloc_name, fail!\n"));
+			 "dev_alloc_name, fail!\n");
 	}
 	netif_carrier_off(pnetdev);
 	return 0;
@@ -357,7 +356,7 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 	struct rtw_adapter *padapter;
 	struct net_device *pnetdev;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+init_net_dev\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "+init_net_dev\n");
 
 	pnetdev = alloc_etherdev_mq(sizeof(struct rtw_adapter), 4);
 	if (!pnetdev)
@@ -372,7 +371,6 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 
 	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
 
-	/* step 2. */
 	loadparam(padapter, pnetdev);
 	return pnetdev;
 }
@@ -456,11 +454,11 @@ int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 {
 	int ret8 = _SUCCESS;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_init_drv_sw23a\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "+rtw_init_drv_sw23a\n");
 
 	if (rtw_init_cmd_priv23a(&padapter->cmdpriv) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't init cmd_priv\n"));
+			 "Can't init cmd_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -469,14 +467,14 @@ int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 
 	if (rtw_init_evt_priv23a(&padapter->evtpriv) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't init evt_priv\n"));
+			 "Can't init evt_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
 
 	if (rtw_init_mlme_priv23a(padapter) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't init mlme_priv\n"));
+			 "Can't init mlme_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -484,7 +482,7 @@ int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 
 	if (init_mlme_ext_priv23a(padapter) == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("\n Can't init mlme_ext_priv\n"));
+			 "Can't init mlme_ext_priv\n");
 		ret8 = _FAIL;
 		goto exit;
 	}
@@ -521,40 +519,40 @@ int rtw_init_drv_sw23a(struct rtw_adapter *padapter)
 
 exit:
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_init_drv_sw23a\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "-rtw_init_drv_sw23a\n");
 	return ret8;
 }
 
 void rtw_cancel_all_timer23a(struct rtw_adapter *padapter)
 {
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("+rtw_cancel_all_timer23a\n"));
+		 "+rtw_cancel_all_timer23a\n");
 
 	del_timer_sync(&padapter->mlmepriv.assoc_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("%s:cancel association timer complete!\n", __func__));
+		 "%s:cancel association timer complete!\n", __func__);
 
 	del_timer_sync(&padapter->mlmepriv.scan_to_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("%s:cancel scan_to_timer!\n", __func__));
+		 "%s:cancel scan_to_timer!\n", __func__);
 
 	del_timer_sync(&padapter->mlmepriv.dynamic_chk_timer);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("%s:cancel dynamic_chk_timer!\n", __func__));
+		 "%s:cancel dynamic_chk_timer!\n", __func__);
 
 	del_timer_sync(&padapter->pwrctrlpriv.pwr_state_check_timer);
 
 	del_timer_sync(&padapter->mlmepriv.set_scan_deny_timer);
 	rtw_clear_scan_deny(padapter);
 	RT_TRACE(_module_os_intfs_c_, _drv_info_,
-		 ("%s:cancel set_scan_deny_timer!\n", __func__));
+		 "%s:cancel set_scan_deny_timer!\n", __func__);
 
 	del_timer_sync(&padapter->recvpriv.signal_stat_timer);
 }
 
 int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 {
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("==>rtw_free_drv_sw23a"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "==>rtw_free_drv_sw23a\n");
 
 	free_mlme_ext_priv23a(&padapter->mlmeextpriv);
 
@@ -574,7 +572,7 @@ int rtw_free_drv_sw23a(struct rtw_adapter *padapter)
 	kfree(padapter->HalData);
 	padapter->HalData = NULL;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-rtw_free_drv_sw23a\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "-rtw_free_drv_sw23a\n");
 	return _SUCCESS;
 }
 
@@ -594,8 +592,8 @@ static int _rtw_drv_register_netdev(struct rtw_adapter *padapter, char *name)
 		ret = _FAIL;
 		goto error_register_netdev;
 	}
-	DBG_8723A("%s, MAC Address (if%d) = " MAC_FMT "\n", __func__,
-		  (padapter->iface_id + 1), MAC_ARG(pnetdev->dev_addr));
+	DBG_8723A("%s, MAC Address (if%d) = %pM\n",
+		  __func__, padapter->iface_id + 1, pnetdev->dev_addr);
 	return ret;
 
 error_register_netdev:
@@ -647,7 +645,7 @@ int netdev_open23a(struct net_device *pnetdev)
 	int ret = 0;
 	int status;
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+871x_drv - dev_open\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "+871x_drv - dev_open\n");
 	DBG_8723A("+871x_drv - drv_open, bup =%d\n", padapter->bup);
 
 	mutex_lock(&adapter_to_dvobj(padapter)->hw_init_mutex);
@@ -662,12 +660,11 @@ int netdev_open23a(struct net_device *pnetdev)
 		status = rtl8723au_hal_init(padapter);
 		if (status == _FAIL) {
 			RT_TRACE(_module_os_intfs_c_, _drv_err_,
-				 ("rtl871x_hal_init(): Can't init h/w!\n"));
+				 "rtl871x_hal_init(): Can't init h/w!\n");
 			goto netdev_open23a_error;
 		}
 
-		DBG_8723A("MAC Address = "MAC_FMT"\n",
-			  MAC_ARG(pnetdev->dev_addr));
+		DBG_8723A("MAC Address = %pM\n", pnetdev->dev_addr);
 
 		if (init_hw_mlme_ext23a(padapter) == _FAIL) {
 			DBG_8723A("can't init mlme_ext_priv\n");
@@ -695,7 +692,7 @@ int netdev_open23a(struct net_device *pnetdev)
 	else
 		netif_tx_wake_all_queues(pnetdev);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - dev_open\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "-871x_drv - dev_open\n");
 	DBG_8723A("-871x_drv - drv_open, bup =%d\n", padapter->bup);
 exit:
 	mutex_unlock(&adapter_to_dvobj(padapter)->hw_init_mutex);
@@ -708,7 +705,7 @@ netdev_open23a_error:
 	netif_tx_stop_all_queues(pnetdev);
 
 	RT_TRACE(_module_os_intfs_c_, _drv_err_,
-		 ("-871x_drv - dev_open, fail!\n"));
+		 "-871x_drv - dev_open, fail!\n");
 	DBG_8723A("-871x_drv - drv_open fail, bup =%d\n", padapter->bup);
 
 	ret = -1;
@@ -729,7 +726,7 @@ static int ips_netdrv_open(struct rtw_adapter *padapter)
 	status = rtl8723au_hal_init(padapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_os_intfs_c_, _drv_err_,
-			 ("ips_netdrv_open(): Can't init h/w!\n"));
+			 "ips_netdrv_open(): Can't init h/w!\n");
 		goto netdev_open23a_error;
 	}
 
@@ -807,7 +804,7 @@ static int netdev_close(struct net_device *pnetdev)
 {
 	struct rtw_adapter *padapter = netdev_priv(pnetdev);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+871x_drv - drv_close\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "+871x_drv - drv_close\n");
 
 	padapter->net_closed = true;
 
@@ -835,7 +832,7 @@ static int netdev_close(struct net_device *pnetdev)
 
 	rtw_scan_abort23a(padapter);
 
-	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-871x_drv - drv_close\n"));
+	RT_TRACE(_module_os_intfs_c_, _drv_info_, "-871x_drv - drv_close\n");
 	DBG_8723A("-871x_drv - drv_close, bup =%d\n", padapter->bup);
 
 	return 0;

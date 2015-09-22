@@ -21,6 +21,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/mempool.h>
 #include <linux/bio.h>
 #include <linux/scatterlist.h>
@@ -201,6 +202,9 @@ bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 
 	if (req->nr_integrity_segments + next->nr_integrity_segments >
 	    q->limits.max_integrity_segments)
+		return false;
+
+	if (integrity_req_gap_back_merge(req, next->bio))
 		return false;
 
 	return true;

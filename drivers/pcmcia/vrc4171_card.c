@@ -84,32 +84,32 @@ MODULE_LICENSE("GPL");
 #define IO_MAX_MAPS	2
 #define MEM_MAX_MAPS	5
 
-typedef enum {
+enum vrc4171_slot {
 	SLOT_PROBE = 0,
 	SLOT_NOPROBE_IO,
 	SLOT_NOPROBE_MEM,
 	SLOT_NOPROBE_ALL,
 	SLOT_INITIALIZED,
-} vrc4171_slot_t;
+};
 
-typedef enum {
+enum vrc4171_slotb {
 	SLOTB_IS_NONE,
 	SLOTB_IS_PCCARD,
 	SLOTB_IS_CF,
 	SLOTB_IS_FLASHROM,
-} vrc4171_slotb_t;
+};
 
-typedef struct vrc4171_socket {
-	vrc4171_slot_t slot;
+struct vrc4171_socket {
+	enum vrc4171_slot slot;
 	struct pcmcia_socket pcmcia_socket;
 	char name[24];
 	int csc_irq;
 	int io_irq;
 	spinlock_t lock;
-} vrc4171_socket_t;
+};
 
-static vrc4171_socket_t vrc4171_sockets[CARD_MAX_SLOTS];
-static vrc4171_slotb_t vrc4171_slotb = SLOTB_IS_NONE;
+static struct vrc4171_socket vrc4171_sockets[CARD_MAX_SLOTS];
+static enum vrc4171_slotb vrc4171_slotb = SLOTB_IS_NONE;
 static char vrc4171_card_name[] = "NEC VRC4171 Card Controller";
 static unsigned int vrc4171_irq;
 static uint16_t vrc4171_irq_mask = 0xdeb8;
@@ -141,7 +141,7 @@ static inline uint16_t vrc4171_get_irq_status(void)
 	return inw(INTERRUPT_STATUS);
 }
 
-static inline void vrc4171_set_multifunction_pin(vrc4171_slotb_t config)
+static inline void vrc4171_set_multifunction_pin(enum vrc4171_slotb config)
 {
 	uint16_t config1;
 
@@ -234,7 +234,7 @@ static inline int search_nonuse_irq(void)
 
 static int pccard_init(struct pcmcia_socket *sock)
 {
-	vrc4171_socket_t *socket;
+	struct vrc4171_socket *socket;
 	unsigned int slot;
 
 	sock->features |= SS_CAP_PCCARD | SS_CAP_PAGE_REGS;
@@ -317,7 +317,7 @@ static inline uint8_t set_Vcc_value(u_char Vcc)
 
 static int pccard_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 {
-	vrc4171_socket_t *socket;
+	struct vrc4171_socket *socket;
 	unsigned int slot;
 	uint8_t voltage, power, control, cscint;
 
@@ -517,7 +517,7 @@ static inline unsigned int get_events(int slot)
 
 static irqreturn_t pccard_interrupt(int irq, void *dev_id)
 {
-	vrc4171_socket_t *socket;
+	struct vrc4171_socket *socket;
 	unsigned int events;
 	irqreturn_t retval = IRQ_NONE;
 	uint16_t status;
@@ -567,7 +567,7 @@ static inline void reserve_using_irq(int slot)
 
 static int vrc4171_add_sockets(void)
 {
-	vrc4171_socket_t *socket;
+	struct vrc4171_socket *socket;
 	int slot, retval;
 
 	for (slot = 0; slot < CARD_MAX_SLOTS; slot++) {
@@ -617,7 +617,7 @@ static int vrc4171_add_sockets(void)
 
 static void vrc4171_remove_sockets(void)
 {
-	vrc4171_socket_t *socket;
+	struct vrc4171_socket *socket;
 	int slot;
 
 	for (slot = 0; slot < CARD_MAX_SLOTS; slot++) {

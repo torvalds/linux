@@ -1,0 +1,23 @@
+Renesas H8S2678 PLL clock
+
+This device is Clock multiplyer
+
+Required Properties:
+
+  - compatible: Must be "renesas,h8s2678-pll-clock"
+
+  - clocks: Reference to the parent clocks
+
+  - #clock-cells: Must be 0
+
+  - reg: Two rate selector (Multiply / Divide) register address
+
+Example
+-------
+
+		pllclk: pllclk {
+			compatible = "renesas,h8s2678-pll-clock";
+			clocks = <&xclk>;
+			#clock-cells = <0>;
+			reg = <0xfee03b 2>, <0xfee045 2>;
+		};

@@ -29,7 +29,7 @@ static inline unsigned long long rdclock(void)
 	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-#define MAX_NR_CPUS			256
+#define MAX_NR_CPUS			1024
 
 extern const char *input_name;
 extern bool perf_host, perf_guest;
@@ -51,16 +51,28 @@ struct record_opts {
 	bool	     sample_address;
 	bool	     sample_weight;
 	bool	     sample_time;
+	bool	     sample_time_set;
+	bool	     callgraph_set;
 	bool	     period;
-	bool	     sample_intr_regs;
+	bool	     running_time;
+	bool	     full_auxtrace;
+	bool	     auxtrace_snapshot_mode;
+	bool	     record_switch_events;
 	unsigned int freq;
 	unsigned int mmap_pages;
+	unsigned int auxtrace_mmap_pages;
 	unsigned int user_freq;
 	u64          branch_stack;
+	u64	     sample_intr_regs;
 	u64	     default_interval;
 	u64	     user_interval;
+	size_t	     auxtrace_snapshot_size;
+	const char   *auxtrace_snapshot_opts;
 	bool	     sample_transaction;
 	unsigned     initial_delay;
+	bool         use_clockid;
+	clockid_t    clockid;
+	unsigned int proc_map_timeout;
 };
 
 struct option;

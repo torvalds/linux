@@ -197,6 +197,11 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 #define iowrite16(v, addr)	writew((v), (addr))
 #define iowrite32(v, addr)	writel((v), (addr))
 
+#define ioread16be(addr)	be16_to_cpu(readw(addr))
+#define ioread32be(addr)	be32_to_cpu(readl(addr))
+#define iowrite16be(v, addr)	writew(cpu_to_be16(v), (addr))
+#define iowrite32be(v, addr)	writel(cpu_to_be32(v), (addr))
+
 #define ioread8_rep(p, dst, count) \
 	insb((unsigned long) (p), (dst), (count))
 #define ioread16_rep(p, dst, count) \
@@ -277,6 +282,8 @@ static inline void __iomem *ioremap_nocache(unsigned long offset, unsigned long 
 }
 
 #define ioremap_wc ioremap_nocache
+#define ioremap_wt ioremap_nocache
+#define ioremap_uc ioremap_nocache
 
 static inline void iounmap(void __iomem *addr)
 {

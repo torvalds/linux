@@ -58,7 +58,7 @@ struct kuc_hdr {
 	__u8  kuc_flags;
 	__u16 kuc_msgtype;    /* Message type or opcode, transport-specific */
 	__u16 kuc_msglen;     /* Including header */
-} __attribute__((aligned(sizeof(__u64))));
+} __aligned(sizeof(__u64));
 
 #define KUC_CHANGELOG_MSG_MAXSIZE (sizeof(struct kuc_hdr)+CR_MAXSIZE)
 
@@ -107,7 +107,7 @@ typedef struct lustre_kernelcomm {
 	__u32 lk_group;
 	__u32 lk_data;
 	__u32 lk_flags;
-} __attribute__((packed)) lustre_kernelcomm;
+} __packed lustre_kernelcomm;
 
 /* Userspace methods */
 int libcfs_ukuc_start(lustre_kernelcomm *l, int groups);

@@ -403,7 +403,7 @@ next:
 	return ret;
 }
 
-struct btrfs_compress_op btrfs_zlib_compress = {
+const struct btrfs_compress_op btrfs_zlib_compress = {
 	.alloc_workspace	= zlib_alloc_workspace,
 	.free_workspace		= zlib_free_workspace,
 	.compress_pages		= zlib_compress_pages,

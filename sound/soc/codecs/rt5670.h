@@ -1950,17 +1950,20 @@ enum {
 };
 
 enum {
+	RT5670_DMIC1_DISABLED,
 	RT5670_DMIC_DATA_GPIO6,
 	RT5670_DMIC_DATA_IN2P,
 	RT5670_DMIC_DATA_GPIO7,
 };
 
 enum {
+	RT5670_DMIC2_DISABLED,
 	RT5670_DMIC_DATA_GPIO8,
 	RT5670_DMIC_DATA_IN3N,
 };
 
 enum {
+	RT5670_DMIC3_DISABLED,
 	RT5670_DMIC_DATA_GPIO9,
 	RT5670_DMIC_DATA_GPIO10,
 	RT5670_DMIC_DATA_GPIO5,
@@ -1985,6 +1988,8 @@ struct rt5670_priv {
 	struct snd_soc_codec *codec;
 	struct rt5670_platform_data pdata;
 	struct regmap *regmap;
+	struct snd_soc_jack *jack;
+	struct snd_soc_jack_gpio hp_gpio;
 
 	int sysclk;
 	int sysclk_src;
@@ -1999,6 +2004,11 @@ struct rt5670_priv {
 	int dsp_sw; /* expected parameter setting */
 	int dsp_rate;
 	int jack_type;
+	int jack_type_saved;
 };
 
+void rt5670_jack_suspend(struct snd_soc_codec *codec);
+void rt5670_jack_resume(struct snd_soc_codec *codec);
+int rt5670_set_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack);
 #endif /* __RT5670_H__ */

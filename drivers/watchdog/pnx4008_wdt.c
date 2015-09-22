@@ -167,6 +167,7 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 
 	pnx4008_wdd.bootstatus = (readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 			WDIOF_CARDRESET : 0;
+	pnx4008_wdd.parent = &pdev->dev;
 	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
 
 	pnx4008_wdt_stop(&pnx4008_wdd);	/* disable for now */
@@ -216,7 +217,7 @@ static struct platform_driver platform_wdt_driver = {
 module_platform_driver(platform_wdt_driver);
 
 MODULE_AUTHOR("MontaVista Software, Inc. <source@mvista.com>");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("PNX4008 Watchdog Driver");
 
 module_param(heartbeat, uint, 0);

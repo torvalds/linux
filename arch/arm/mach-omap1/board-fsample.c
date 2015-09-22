@@ -362,6 +362,7 @@ MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")
 	.map_io		= omap_fsample_map_io,
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= omap_fsample_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

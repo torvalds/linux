@@ -120,7 +120,7 @@ static struct dmatest_info {
 
 static int dmatest_run_set(const char *val, const struct kernel_param *kp);
 static int dmatest_run_get(char *val, const struct kernel_param *kp);
-static struct kernel_param_ops run_ops = {
+static const struct kernel_param_ops run_ops = {
 	.set = dmatest_run_set,
 	.get = dmatest_run_get,
 };
@@ -195,7 +195,7 @@ static int dmatest_wait_get(char *val, const struct kernel_param *kp)
 	return param_get_bool(val, kp);
 }
 
-static struct kernel_param_ops wait_ops = {
+static const struct kernel_param_ops wait_ops = {
 	.get = dmatest_wait_get,
 	.set = param_set_bool,
 };

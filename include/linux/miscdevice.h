@@ -52,6 +52,7 @@
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;
+struct attribute_group;
 
 struct miscdevice  {
 	int minor;
@@ -60,12 +61,13 @@ struct miscdevice  {
 	struct list_head list;
 	struct device *parent;
 	struct device *this_device;
+	const struct attribute_group **groups;
 	const char *nodename;
 	umode_t mode;
 };
 
 extern int misc_register(struct miscdevice *misc);
-extern int misc_deregister(struct miscdevice *misc);
+extern void misc_deregister(struct miscdevice *misc);
 
 #define MODULE_ALIAS_MISCDEV(minor)				\
 	MODULE_ALIAS("char-major-" __stringify(MISC_MAJOR)	\

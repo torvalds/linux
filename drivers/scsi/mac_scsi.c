@@ -483,7 +483,6 @@ static struct platform_driver mac_scsi_driver = {
 	.remove = __exit_p(mac_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

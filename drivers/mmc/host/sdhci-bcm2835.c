@@ -172,17 +172,22 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pltfm_host->clk);
 		goto err;
 	}
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable host clk\n");
+		goto err;
+	}
 
-	return sdhci_add_host(host);
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err_clk;
 
+	return 0;
+err_clk:
+	clk_disable_unprepare(pltfm_host->clk);
 err:
 	sdhci_pltfm_free(pdev);
 	return ret;
-}
-
-static int bcm2835_sdhci_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
 }
 
 static const struct of_device_id bcm2835_sdhci_of_match[] = {
@@ -198,7 +203,7 @@ static struct platform_driver bcm2835_sdhci_driver = {
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = bcm2835_sdhci_probe,
-	.remove = bcm2835_sdhci_remove,
+	.remove = sdhci_pltfm_unregister,
 };
 module_platform_driver(bcm2835_sdhci_driver);
 

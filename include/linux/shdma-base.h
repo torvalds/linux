@@ -69,6 +69,7 @@ struct shdma_chan {
 	int id;				/* Raw id of this channel */
 	int irq;			/* Channel IRQ */
 	int slave_id;			/* Client ID for slave DMA */
+	int real_slave_id;		/* argument passed to filter function */
 	int hw_req;			/* DMA request line for slave DMA - same
 					 * as MID/RID, used with DT */
 	enum shdma_pm_state pm_state;
@@ -127,7 +128,10 @@ void shdma_cleanup(struct shdma_dev *sdev);
 #if IS_ENABLED(CONFIG_SH_DMAE_BASE)
 bool shdma_chan_filter(struct dma_chan *chan, void *arg);
 #else
-#define shdma_chan_filter NULL
+static inline bool shdma_chan_filter(struct dma_chan *chan, void *arg)
+{
+	return false;
+}
 #endif
 
 #endif

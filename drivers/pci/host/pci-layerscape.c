@@ -62,22 +62,27 @@ static int ls_pcie_link_up(struct pcie_port *pp)
 	return 1;
 }
 
+static int ls_pcie_establish_link(struct pcie_port *pp)
+{
+	unsigned int retries;
+
+	for (retries = 0; retries < 200; retries++) {
+		if (dw_pcie_link_up(pp))
+			return 0;
+		usleep_range(100, 1000);
+	}
+
+	dev_err(pp->dev, "phy link never came up\n");
+	return -EINVAL;
+}
+
 static void ls_pcie_host_init(struct pcie_port *pp)
 {
 	struct ls_pcie *pcie = to_ls_pcie(pp);
-	int count = 0;
 	u32 val;
 
 	dw_pcie_setup_rc(pp);
-
-	while (!ls_pcie_link_up(pp)) {
-		usleep_range(100, 1000);
-		count++;
-		if (count >= 200) {
-			dev_err(pp->dev, "phy link never came up\n");
-			return;
-		}
-	}
+	ls_pcie_establish_link(pp);
 
 	/*
 	 * LS1021A Workaround for internal TKT228622
@@ -127,14 +132,11 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	pcie->dev = &pdev->dev;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
-	if (!dbi_base) {
-		dev_err(&pdev->dev, "missing *regs* space\n");
-		return -ENODEV;
-	}
-
 	pcie->dbi = devm_ioremap_resource(&pdev->dev, dbi_base);
-	if (IS_ERR(pcie->dbi))
+	if (IS_ERR(pcie->dbi)) {
+		dev_err(&pdev->dev, "missing *regs* space\n");
 		return PTR_ERR(pcie->dbi);
+	}
 
 	pcie->scfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						     "fsl,pcie-scfg");

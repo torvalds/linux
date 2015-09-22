@@ -772,13 +772,8 @@ static bool tegra_output_is_hdmi(struct tegra_output *output)
 	return drm_detect_hdmi_monitor(edid);
 }
 
-static void tegra_hdmi_connector_dpms(struct drm_connector *connector,
-				      int mode)
-{
-}
-
 static const struct drm_connector_funcs tegra_hdmi_connector_funcs = {
-	.dpms = tegra_hdmi_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -818,22 +813,27 @@ static const struct drm_encoder_funcs tegra_hdmi_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
-static void tegra_hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
+static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
+	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
+	u32 value;
+
+	/*
+	 * The following accesses registers of the display controller, so make
+	 * sure it's only executed when the output is attached to one.
+	 */
+	if (dc) {
+		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+		value &= ~HDMI_ENABLE;
+		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+		tegra_dc_commit(dc);
+	}
 }
 
-static void tegra_hdmi_encoder_prepare(struct drm_encoder *encoder)
+static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
-}
-
-static void tegra_hdmi_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-					struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted)
-{
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	unsigned int h_sync_width, h_front_porch, h_back_porch, i, rekey;
 	struct tegra_output *output = encoder_to_output(encoder);
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
@@ -872,13 +872,13 @@ static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 	tegra_dc_writel(dc, VSYNC_H_POSITION(1),
 			DC_DISP_DISP_TIMING_OPTIONS);
-	tegra_dc_writel(dc, DITHER_CONTROL_DISABLE | BASE_COLOR_SIZE888,
+	tegra_dc_writel(dc, DITHER_CONTROL_DISABLE | BASE_COLOR_SIZE_888,
 			DC_DISP_DISP_COLOR_CONTROL);
 
 	/* video_preamble uses h_pulse2 */
 	pulse_start = 1 + h_sync_width + h_back_porch - 10;
 
-	tegra_dc_writel(dc, H_PULSE_2_ENABLE, DC_DISP_DISP_SIGNAL_OPTIONS0);
+	tegra_dc_writel(dc, H_PULSE2_ENABLE, DC_DISP_DISP_SIGNAL_OPTIONS0);
 
 	value = PULSE_MODE_NORMAL | PULSE_POLARITY_HIGH | PULSE_QUAL_VACTIVE |
 		PULSE_LAST_END_A;
@@ -952,7 +952,7 @@ static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	tegra_hdmi_writel(hdmi,
-			  SOR_SEQ_CTL_PU_PC(0) |
+			  SOR_SEQ_PU_PC(0) |
 			  SOR_SEQ_PU_PC_ALT(0) |
 			  SOR_SEQ_PD_PC(8) |
 			  SOR_SEQ_PD_PC_ALT(8),
@@ -1035,24 +1035,6 @@ static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	/* TODO: add HDCP support */
 }
 
-static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
-{
-	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
-	u32 value;
-
-	/*
-	 * The following accesses registers of the display controller, so make
-	 * sure it's only executed when the output is attached to one.
-	 */
-	if (dc) {
-		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
-		value &= ~HDMI_ENABLE;
-		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
-
-		tegra_dc_commit(dc);
-	}
-}
-
 static int
 tegra_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 				struct drm_crtc_state *crtc_state,
@@ -1075,11 +1057,8 @@ tegra_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
-	.dpms = tegra_hdmi_encoder_dpms,
-	.prepare = tegra_hdmi_encoder_prepare,
-	.commit = tegra_hdmi_encoder_commit,
-	.mode_set = tegra_hdmi_encoder_mode_set,
 	.disable = tegra_hdmi_encoder_disable,
+	.enable = tegra_hdmi_encoder_enable,
 	.atomic_check = tegra_hdmi_encoder_atomic_check,
 };
 
@@ -1087,11 +1066,16 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_hdmi *hdmi = node->info_ent->data;
-	int err;
+	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
+	struct drm_device *drm = node->minor->dev;
+	int err = 0;
 
-	err = clk_prepare_enable(hdmi->clk);
-	if (err)
-		return err;
+	drm_modeset_lock_all(drm);
+
+	if (!crtc || !crtc->state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 #define DUMP_REG(name)						\
 	seq_printf(s, "%-56s %#05x %08x\n", #name, name,	\
@@ -1258,9 +1242,9 @@ static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
 
 #undef DUMP_REG
 
-	clk_disable_unprepare(hdmi->clk);
-
-	return 0;
+unlock:
+	drm_modeset_unlock_all(drm);
+	return err;
 }
 
 static struct drm_info_list debugfs_files[] = {
@@ -1394,8 +1378,8 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 
 	tegra_output_exit(&hdmi->output);
 
-	clk_disable_unprepare(hdmi->clk);
 	reset_control_assert(hdmi->rst);
+	clk_disable_unprepare(hdmi->clk);
 
 	regulator_disable(hdmi->vdd);
 	regulator_disable(hdmi->pll);

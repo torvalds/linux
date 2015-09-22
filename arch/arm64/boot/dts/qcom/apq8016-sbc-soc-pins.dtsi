@@ -1,0 +1,13 @@
+
+#include <dt-bindings/gpio/gpio.h>
+
+&msmgpio {
+
+	msmgpio_leds: msmgpio_leds {
+		pinconf {
+			pins = "gpio21", "gpio120";
+			function = "gpio";
+			output-low;
+		};
+	};
+};

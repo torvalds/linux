@@ -17,7 +17,10 @@ to deliver its interrupts via SPIs.
 - interrupts : Interrupt list for secure, non-secure, virtual and
   hypervisor timers, in that order.
 
-- clock-frequency : The frequency of the main counter, in Hz. Optional.
+- clock-frequency : The frequency of the main counter, in Hz. Should be present
+  only where necessary to work around broken firmware which does not configure
+  CNTFRQ on all CPUs to a uniform correct value. Use of this property is
+  strongly discouraged; fix your firmware unless absolutely impossible.
 
 - always-on : a boolean property. If present, the timer is powered through an
   always-on power domain, therefore it never loses context.
@@ -46,7 +49,8 @@ Example:
 
 - compatible : Should at least contain "arm,armv7-timer-mem".
 
-- clock-frequency : The frequency of the main counter, in Hz. Optional.
+- clock-frequency : The frequency of the main counter, in Hz. Should be present
+  only when firmware has not configured the MMIO CNTFRQ registers.
 
 - reg : The control frame base address.
 

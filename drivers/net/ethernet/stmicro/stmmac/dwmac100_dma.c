@@ -72,7 +72,7 @@ static int dwmac100_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
  * control register.
  */
 static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					int rxmode)
+					int rxmode, int rxfifosz)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 

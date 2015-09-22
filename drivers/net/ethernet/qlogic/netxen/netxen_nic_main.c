@@ -3025,9 +3025,9 @@ netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
 	u8 dw, rows, cols, banks, ranks;
 	u32 val;
 
-	if (size != sizeof(struct netxen_dimm_cfg)) {
+	if (size < attr->size) {
 		netdev_err(netdev, "Invalid size\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	memset(&dimm, 0, sizeof(struct netxen_dimm_cfg));
@@ -3137,7 +3137,7 @@ out:
 
 static struct bin_attribute bin_attr_dimm = {
 	.attr = { .name = "dimm", .mode = (S_IRUGO | S_IWUSR) },
-	.size = 0,
+	.size = sizeof(struct netxen_dimm_cfg),
 	.read = netxen_sysfs_read_dimm,
 };
 

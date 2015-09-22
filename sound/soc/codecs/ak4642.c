@@ -64,12 +64,15 @@
 #define FIL1_0		0x1c
 #define FIL1_1		0x1d
 #define FIL1_2		0x1e
-#define FIL1_3		0x1f
+#define FIL1_3		0x1f	/* The maximum valid register for ak4642 */
 #define PW_MGMT4	0x20
 #define MD_CTL5		0x21
 #define LO_MS		0x22
 #define HP_MS		0x23
-#define SPK_MS		0x24
+#define SPK_MS		0x24	/* The maximum valid register for ak4643 */
+#define EQ_FBEQAB	0x25
+#define EQ_FBEQCD	0x26
+#define EQ_FBEQE	0x27	/* The maximum valid register for ak4648 */
 
 /* PW_MGMT1*/
 #define PMVCM		(1 << 6) /* VCOM Power Management */
@@ -96,6 +99,9 @@
 #define DACL		(1 << 4) /* Switch from DAC to Stereo or Receiver */
 #define PMMP		(1 << 2) /* MPWR pin Power Management */
 #define MGAIN0		(1 << 0) /* MIC amp gain*/
+
+/* SG_SL2 */
+#define LOPS		(1 << 6) /* Stero Line-out Power Save Mode */
 
 /* TIMER */
 #define ZTM(param)	((param & 0x3) << 4) /* ALC Zero Crossing TimeOut */
@@ -168,6 +174,29 @@ static const struct snd_kcontrol_new ak4642_lout_mixer_controls[] = {
 	SOC_DAPM_SINGLE("DACL", SG_SL1, 4, 1, 0),
 };
 
+/* event handlers */
+static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMD:
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Power save mode ON */
+		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		/* Power save mode OFF */
+		mdelay(300);
+		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
 	/* Outputs */
@@ -182,12 +211,15 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 
 	SND_SOC_DAPM_PGA("DACH", MD_CTL4, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("LINEOUT Mixer", PW_MGMT1, 3, 0,
+	SND_SOC_DAPM_MIXER_E("LINEOUT Mixer", PW_MGMT1, 3, 0,
 			   &ak4642_lout_mixer_controls[0],
-			   ARRAY_SIZE(ak4642_lout_mixer_controls)),
+			   ARRAY_SIZE(ak4642_lout_mixer_controls),
+			   ak4642_lout_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
 	/* DAC */
-	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", PW_MGMT1, 2, 0),
+	SND_SOC_DAPM_DAC("DAC", NULL, PW_MGMT1, 2, 0),
 };
 
 static const struct snd_soc_dapm_route ak4642_intercon[] = {
@@ -205,12 +237,14 @@ static const struct snd_soc_dapm_route ak4642_intercon[] = {
 	{"DACH", NULL, "DAC"},
 
 	{"LINEOUT Mixer", "DACL", "DAC"},
+
+	{ "DAC", NULL, "Playback" },
 };
 
 /*
  * ak4642 register cache
  */
-static const struct reg_default ak4642_reg[] = {
+static const struct reg_default ak4643_reg[] = {
 	{  0, 0x00 }, {  1, 0x00 }, {  2, 0x01 }, {  3, 0x00 },
 	{  4, 0x02 }, {  5, 0x00 }, {  6, 0x00 }, {  7, 0x00 },
 	{  8, 0xe1 }, {  9, 0xe1 }, { 10, 0x18 }, { 11, 0x00 },
@@ -222,6 +256,14 @@ static const struct reg_default ak4642_reg[] = {
 	{ 32, 0x00 }, { 33, 0x00 }, { 34, 0x00 }, { 35, 0x00 },
 	{ 36, 0x00 },
 };
+
+/* The default settings for 0x0 ~ 0x1f registers are the same for ak4642
+   and ak4643. So we reuse the ak4643 reg_default for ak4642.
+   The valid registers for ak4642 are 0x0 ~ 0x1f which is a subset of ak4643,
+   so define NUM_AK4642_REG_DEFAULTS for ak4642.
+*/
+#define ak4642_reg ak4643_reg
+#define NUM_AK4642_REG_DEFAULTS	(FIL1_3 + 1)
 
 static const struct reg_default ak4648_reg[] = {
 	{  0, 0x00 }, {  1, 0x00 }, {  2, 0x01 }, {  3, 0x00 },
@@ -451,7 +493,6 @@ static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -468,13 +509,13 @@ static struct snd_soc_dai_driver ak4642_dai = {
 	.name = "ak4642-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
@@ -505,15 +546,23 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 static const struct regmap_config ak4642_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(ak4642_reg) + 1,
+	.max_register		= FIL1_3,
 	.reg_defaults		= ak4642_reg,
-	.num_reg_defaults	= ARRAY_SIZE(ak4642_reg),
+	.num_reg_defaults	= NUM_AK4642_REG_DEFAULTS,
+};
+
+static const struct regmap_config ak4643_regmap = {
+	.reg_bits		= 8,
+	.val_bits		= 8,
+	.max_register		= SPK_MS,
+	.reg_defaults		= ak4643_reg,
+	.num_reg_defaults	= ARRAY_SIZE(ak4643_reg),
 };
 
 static const struct regmap_config ak4648_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(ak4648_reg) + 1,
+	.max_register		= EQ_FBEQE,
 	.reg_defaults		= ak4648_reg,
 	.num_reg_defaults	= ARRAY_SIZE(ak4648_reg),
 };
@@ -523,7 +572,7 @@ static const struct ak4642_drvdata ak4642_drvdata = {
 };
 
 static const struct ak4642_drvdata ak4643_drvdata = {
-	.regmap_config = &ak4642_regmap,
+	.regmap_config = &ak4643_regmap,
 };
 
 static const struct ak4642_drvdata ak4648_drvdata = {
@@ -596,7 +645,6 @@ MODULE_DEVICE_TABLE(i2c, ak4642_i2c_id);
 static struct i2c_driver ak4642_i2c_driver = {
 	.driver = {
 		.name = "ak4642-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = ak4642_of_match,
 	},
 	.probe		= ak4642_i2c_probe,

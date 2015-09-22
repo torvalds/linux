@@ -41,61 +41,61 @@
 		compatible = "fsl,qman-portal";
 		reg = <0x0 0x4000>, <0x100000 0x1000>;
 		interrupts = <104 2 0 0>;
-		fsl,qman-channel-id = <0x0>;
+		cell-index = <0x0>;
 	};
 	qportal1: qman-portal@4000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x4000 0x4000>, <0x101000 0x1000>;
 		interrupts = <106 2 0 0>;
-		fsl,qman-channel-id = <1>;
+		cell-index = <1>;
 	};
 	qportal2: qman-portal@8000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x8000 0x4000>, <0x102000 0x1000>;
 		interrupts = <108 2 0 0>;
-		fsl,qman-channel-id = <2>;
+		cell-index = <2>;
 	};
 	qportal3: qman-portal@c000 {
 		compatible = "fsl,qman-portal";
 		reg = <0xc000 0x4000>, <0x103000 0x1000>;
 		interrupts = <110 2 0 0>;
-		fsl,qman-channel-id = <3>;
+		cell-index = <3>;
 	};
 	qportal4: qman-portal@10000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x10000 0x4000>, <0x104000 0x1000>;
 		interrupts = <112 2 0 0>;
-		fsl,qman-channel-id = <4>;
+		cell-index = <4>;
 	};
 	qportal5: qman-portal@14000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x14000 0x4000>, <0x105000 0x1000>;
 		interrupts = <114 2 0 0>;
-		fsl,qman-channel-id = <5>;
+		cell-index = <5>;
 	};
 	qportal6: qman-portal@18000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x18000 0x4000>, <0x106000 0x1000>;
 		interrupts = <116 2 0 0>;
-		fsl,qman-channel-id = <6>;
+		cell-index = <6>;
 	};
 
 	qportal7: qman-portal@1c000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x1c000 0x4000>, <0x107000 0x1000>;
 		interrupts = <118 2 0 0>;
-		fsl,qman-channel-id = <7>;
+		cell-index = <7>;
 	};
 	qportal8: qman-portal@20000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x20000 0x4000>, <0x108000 0x1000>;
 		interrupts = <120 2 0 0>;
-		fsl,qman-channel-id = <8>;
+		cell-index = <8>;
 	};
 	qportal9: qman-portal@24000 {
 		compatible = "fsl,qman-portal";
 		reg = <0x24000 0x4000>, <0x109000 0x1000>;
 		interrupts = <122 2 0 0>;
-		fsl,qman-channel-id = <9>;
+		cell-index = <9>;
 	};
 };

@@ -12,6 +12,7 @@
 extern int verbose;
 extern bool quiet, dump_trace;
 extern int debug_ordered_events;
+extern int debug_data_convert;
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
@@ -49,6 +50,7 @@ void pr_stat(const char *fmt, ...);
 
 int eprintf(int level, int var, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
+int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
 

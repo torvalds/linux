@@ -56,10 +56,8 @@ struct snd_seq_timer *snd_seq_timer_new(void)
 	struct snd_seq_timer *tmr;
 	
 	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
-	if (tmr == NULL) {
-		pr_debug("ALSA: seq: malloc failed for snd_seq_timer_new() \n");
+	if (!tmr)
 		return NULL;
-	}
 	spin_lock_init(&tmr->lock);
 
 	/* reset setup to defaults */
@@ -424,7 +422,7 @@ snd_seq_tick_time_t snd_seq_timer_get_cur_tick(struct snd_seq_timer *tmr)
 }
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /* exported to seq_info.c */
 void snd_seq_info_timer_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
@@ -451,5 +449,5 @@ void snd_seq_info_timer_read(struct snd_info_entry *entry,
 		queuefree(q);
  	}
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 

@@ -28,6 +28,7 @@ static atomic64_t virt_timer_elapsed;
 static DEFINE_PER_CPU(u64, mt_cycles[32]);
 static DEFINE_PER_CPU(u64, mt_scaling_mult) = { 1 };
 static DEFINE_PER_CPU(u64, mt_scaling_div) = { 1 };
+static DEFINE_PER_CPU(u64, mt_scaling_jiffies);
 
 static inline u64 get_vtimer(void)
 {
@@ -85,19 +86,24 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	S390_lowcore.steal_timer += S390_lowcore.last_update_clock - clock;
 
 	/* Do MT utilization calculation */
-	if (smp_cpu_mtid) {
+	if (smp_cpu_mtid &&
+	    time_after64(jiffies_64, __this_cpu_read(mt_scaling_jiffies))) {
 		u64 cycles_new[32], *cycles_old;
-		u64 delta, mult, div;
+		u64 delta, fac, mult, div;
 
 		cycles_old = this_cpu_ptr(mt_cycles);
 		if (stcctm5(smp_cpu_mtid + 1, cycles_new) < 2) {
+			fac = 1;
 			mult = div = 0;
 			for (i = 0; i <= smp_cpu_mtid; i++) {
 				delta = cycles_new[i] - cycles_old[i];
-				mult += delta;
-				div += (i + 1) * delta;
+				div += delta;
+				mult *= i + 1;
+				mult += delta * fac;
+				fac *= i + 1;
 			}
-			if (mult > 0) {
+			div *= fac;
+			if (div > 0) {
 				/* Update scaling factor */
 				__this_cpu_write(mt_scaling_mult, mult);
 				__this_cpu_write(mt_scaling_div, div);
@@ -105,6 +111,7 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 				       sizeof(u64) * (smp_cpu_mtid + 1));
 			}
 		}
+		__this_cpu_write(mt_scaling_jiffies, jiffies_64);
 	}
 
 	user = S390_lowcore.user_timer - ti->user_timer;
@@ -376,4 +383,11 @@ void vtime_init(void)
 {
 	/* set initial cpu timer */
 	set_vtimer(VTIMER_MAX_SLICE);
+	/* Setup initial MT scaling values */
+	if (smp_cpu_mtid) {
+		__this_cpu_write(mt_scaling_jiffies, jiffies);
+		__this_cpu_write(mt_scaling_mult, 1);
+		__this_cpu_write(mt_scaling_div, 1);
+		stcctm5(smp_cpu_mtid + 1, this_cpu_ptr(mt_cycles));
+	}
 }

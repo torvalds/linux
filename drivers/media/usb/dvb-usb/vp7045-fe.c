@@ -26,7 +26,8 @@ struct vp7045_fe_state {
 	struct dvb_usb_device *d;
 };
 
-static int vp7045_fe_read_status(struct dvb_frontend* fe, fe_status_t *status)
+static int vp7045_fe_read_status(struct dvb_frontend *fe,
+				 enum fe_status *status)
 {
 	struct vp7045_fe_state *state = fe->demodulator_priv;
 	u8 s0 = vp7045_read_reg(state->d,0x00),

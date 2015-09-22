@@ -41,6 +41,14 @@ enum cx25840_model {
 	CX25837,
 };
 
+enum cx25840_media_pads {
+	CX25840_PAD_INPUT,
+	CX25840_PAD_VID_OUT,
+	CX25840_PAD_VBI_OUT,
+
+	CX25840_NUM_PADS
+};
+
 struct cx25840_state {
 	struct i2c_client *c;
 	struct v4l2_subdev sd;
@@ -64,6 +72,9 @@ struct cx25840_state {
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */
 	struct cx25840_ir_state *ir_state;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad	pads[CX25840_NUM_PADS];
+#endif
 };
 
 static inline struct cx25840_state *to_state(struct v4l2_subdev *sd)

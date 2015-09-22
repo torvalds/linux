@@ -48,4 +48,7 @@ struct mic_mw {
 #define MIC_VIRTIO_PARAM_DEV_REMOVE 0x1
 #define MIC_VIRTIO_PARAM_CONFIG_CHANGED 0x2
 
+/* Maximum number of DMA channels */
+#define MIC_MAX_DMA_CHAN 4
+
 #endif

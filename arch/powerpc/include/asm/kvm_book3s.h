@@ -106,10 +106,6 @@ struct kvmppc_vcpu_book3s {
 	spinlock_t mmu_lock;
 };
 
-#define CONTEXT_HOST		0
-#define CONTEXT_GUEST		1
-#define CONTEXT_GUEST_END	2
-
 #define VSID_REAL	0x07ffffffffc00000ULL
 #define VSID_BAT	0x07ffffffffb00000ULL
 #define VSID_64K	0x0800000000000000ULL
@@ -162,6 +158,7 @@ extern pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
 			bool *writable);
 extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 			unsigned long *rmap, long pte_index, int realmode);
+extern void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize);
 extern void kvmppc_invalidate_hpte(struct kvm *kvm, __be64 *hptep,
 			unsigned long pte_index);
 void kvmppc_clear_ref_hpte(struct kvm *kvm, __be64 *hptep,
@@ -229,12 +226,12 @@ static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 	return vcpu->arch.cr;
 }
 
-static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
+static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, ulong val)
 {
 	vcpu->arch.xer = val;
 }
 
-static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
+static inline ulong kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.xer;
 }
@@ -291,6 +288,9 @@ static inline bool kvmppc_supports_magic_page(struct kvm_vcpu *vcpu)
 	/* Only PR KVM supports the magic page */
 	return !is_kvmppc_hv_enabled(vcpu->kvm);
 }
+
+extern int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu);
+extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
 
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */

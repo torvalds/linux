@@ -716,13 +716,6 @@ static int __init init_m32r_pcc(void)
 		ret = pcmcia_register_socket(&socket[i].socket);
 		if (!ret)
 			socket[i].flags |= IS_REGISTERED;
-
-#if 0	/* driver model ordering issue */
-		class_device_create_file(&socket[i].socket.dev,
-					 &class_device_attr_info);
-		class_device_create_file(&socket[i].socket.dev,
-					 &class_device_attr_exca);
-#endif
 	}
 
 	/* Finally, schedule a polling interrupt */

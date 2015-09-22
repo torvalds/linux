@@ -1,0 +1,22 @@
+max98925 audio CODEC
+
+This device supports I2C.
+
+Required properties:
+
+  - compatible : "maxim,max98925"
+
+  - vmon-slot-no : slot number used to send voltage information
+
+  - imon-slot-no : slot number used to send current information
+
+  - reg : the I2C address of the device for I2C
+
+Example:
+
+codec: max98925@1a {
+	compatible = "maxim,max98925";
+	vmon-slot-no = <0>;
+	imon-slot-no = <2>;
+	reg = <0x1a>;
+};

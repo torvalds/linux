@@ -273,7 +273,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 				tmp_false_count++;
 			}
 		}
-		if (ps.count < min_count)
+		if (ps.count <= min_count)
 			/* did not reach minimum count, drop sequence */
 			continue;
 
@@ -390,6 +390,10 @@ static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
 	if ((ts - de->last_ts) < rs->max_pri_tolerance)
 		/* if delta to last pulse is too short, don't use this pulse */
 		return NULL;
+	/* radar detector spec needs chirp, but not detected */
+	if (rs->chirp && rs->chirp != event->chirp)
+		return NULL;
+
 	de->last_ts = ts;
 
 	max_updated_seq = pseq_handler_add_to_existing_seqs(de, ts);

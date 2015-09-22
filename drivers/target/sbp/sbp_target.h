@@ -125,7 +125,7 @@ struct sbp_login_descriptor {
 	struct sbp_session *sess;
 	struct list_head link;
 
-	struct se_lun *lun;
+	u32 login_lun;
 
 	u64 status_fifo_addr;
 	int exclusive;
@@ -149,15 +149,6 @@ struct sbp_session {
 
 	int reconnect_hold;
 	u64 reconnect_expires;
-};
-
-struct sbp_nacl {
-	/* Initiator EUI-64 */
-	u64 guid;
-	/* ASCII formatted GUID for SBP Initiator port */
-	char iport_name[SBP_NAMELEN];
-	/* Returned by sbp_make_nodeacl() */
-	struct se_node_acl se_node_acl;
 };
 
 struct sbp_tpg {

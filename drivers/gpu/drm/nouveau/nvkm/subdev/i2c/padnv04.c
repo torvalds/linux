@@ -22,13 +22,15 @@
  * Authors: Ben Skeggs
  */
 #include "pad.h"
+#include "bus.h"
 
-struct nvkm_oclass
-nv04_i2c_pad_oclass = {
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_i2c_pad_ctor,
-		.dtor = _nvkm_i2c_pad_dtor,
-		.init = _nvkm_i2c_pad_init,
-		.fini = _nvkm_i2c_pad_fini,
-	},
+static const struct nvkm_i2c_pad_func
+nv04_i2c_pad_func = {
+	.bus_new_0 = nv04_i2c_bus_new,
 };
+
+int
+nv04_i2c_pad_new(struct nvkm_i2c *i2c, int id, struct nvkm_i2c_pad **ppad)
+{
+	return nvkm_i2c_pad_new_(&nv04_i2c_pad_func, i2c, id, ppad);
+}

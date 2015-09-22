@@ -28,14 +28,26 @@ static int mips_next_event(unsigned long delta,
 	return res;
 }
 
-void mips_set_clock_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
+
+/*
+ * Possibly handle a performance counter interrupt.
+ * Return true if the timer interrupt should not be checked
+ */
+static inline int handle_perf_irq(int r2)
+{
+	/*
+	 * The performance counter overflow interrupt may be shared with the
+	 * timer interrupt (cp0_perfcount_irq < 0). If it is and a
+	 * performance counter has overflowed (perf_irq() == IRQ_HANDLED)
+	 * and we can't reliably determine if a counter interrupt has also
+	 * happened (!r2) then don't check for a timer interrupt.
+	 */
+	return (cp0_perfcount_irq < 0) &&
+		perf_irq() == IRQ_HANDLED &&
+		!r2;
+}
 
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
@@ -50,27 +62,32 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 	 * the performance counter interrupt handler anyway.
 	 */
 	if (handle_perf_irq(r2))
-		goto out;
+		return IRQ_HANDLED;
 
 	/*
 	 * The same applies to performance counter interrupts.	But with the
 	 * above we now know that the reason we got here must be a timer
 	 * interrupt.  Being the paranoiacs we are we check anyway.
 	 */
-	if (!r2 || (read_c0_cause() & (1 << 30))) {
+	if (!r2 || (read_c0_cause() & CAUSEF_TI)) {
 		/* Clear Count/Compare Interrupt */
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
 		cd->event_handler(cd);
+
+		return IRQ_HANDLED;
 	}
 
-out:
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 struct irqaction c0_compare_irqaction = {
 	.handler = c0_compare_interrupt,
-	.flags = IRQF_PERCPU | IRQF_TIMER,
+	/*
+	 * IRQF_SHARED: The timer interrupt may be shared with other interrupts
+	 * such as perf counter and FDC interrupts.
+	 */
+	.flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED,
 	.name = "timer",
 };
 
@@ -151,6 +168,11 @@ int c0_compare_int_usable(void)
 	return 1;
 }
 
+unsigned int __weak get_c0_compare_int(void)
+{
+	return MIPS_CPU_IRQ_BASE + cp0_compare_irq;
+}
+
 int r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -166,11 +188,9 @@ int r4k_clockevent_init(void)
 	/*
 	 * With vectored interrupts things are getting platform specific.
 	 * get_c0_compare_int is a hook to allow a platform to return the
-	 * interrupt number of it's liking.
+	 * interrupt number of its liking.
 	 */
-	irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
-	if (get_c0_compare_int)
-		irq = get_c0_compare_int();
+	irq = get_c0_compare_int();
 
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
@@ -189,7 +209,6 @@ int r4k_clockevent_init(void)
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= mips_next_event;
-	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;
 
 	clockevents_register_device(cd);

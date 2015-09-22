@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/ktime.h>
 
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -181,20 +182,11 @@ dump_guests (struct zoran *zr)
 	}
 }
 
-static inline unsigned long
-get_time (void)
-{
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	return (1000000 * tv.tv_sec + tv.tv_usec);
-}
-
 void
 detect_guest_activity (struct zoran *zr)
 {
 	int timeout, i, j, res, guest[8], guest0[8], change[8][3];
-	unsigned long t0, t1;
+	ktime_t t0, t1;
 
 	dump_guests(zr);
 	printk(KERN_INFO "%s: Detecting guests activity, please wait...\n",
@@ -205,15 +197,15 @@ detect_guest_activity (struct zoran *zr)
 
 	timeout = 0;
 	j = 0;
-	t0 = get_time();
+	t0 = ktime_get();
 	while (timeout < 10000) {
 		udelay(10);
 		timeout++;
 		for (i = 1; (i < 8) && (j < 8); i++) {
 			res = post_office_read(zr, i, 0);
 			if (res != guest[i]) {
-				t1 = get_time();
-				change[j][0] = (t1 - t0);
+				t1 = ktime_get();
+				change[j][0] = ktime_to_us(ktime_sub(t1, t0));
 				t0 = t1;
 				change[j][1] = i;
 				change[j][2] = res;
@@ -1584,14 +1576,11 @@ zoran_init_hardware (struct zoran *zr)
 	jpeg_codec_sleep(zr, 1);
 	jpeg_codec_sleep(zr, 0);
 
-	/* set individual interrupt enables (without GIRQ1)
-	 * but don't global enable until zoran_open() */
-
-	//btwrite(IRQ_MASK & ~ZR36057_ISR_GIRQ1, ZR36057_ICR);  // SW
-	// It looks like using only JPEGRepIRQEn is not always reliable,
-	// may be when JPEG codec crashes it won't generate IRQ? So,
-	 /*CP*/			//        btwrite(IRQ_MASK, ZR36057_ICR); // Enable Vsync interrupts too. SM    WHY ? LP
-	    zr36057_init_vfe(zr);
+	/*
+	 * set individual interrupt enables (without GIRQ1)
+	 * but don't global enable until zoran_open()
+	 */
+	zr36057_init_vfe(zr);
 
 	zr36057_enable_jpg(zr, BUZ_MODE_IDLE);
 

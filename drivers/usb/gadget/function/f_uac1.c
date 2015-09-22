@@ -588,7 +588,10 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	if (intf == 1) {
 		if (alt == 1) {
-			config_ep_by_speed(cdev->gadget, f, out_ep);
+			err = config_ep_by_speed(cdev->gadget, f, out_ep);
+			if (err)
+				return err;
+
 			usb_ep_enable(out_ep);
 			out_ep->driver_data = audio;
 			audio->copy_buf = f_audio_buffer_alloc(audio_buf_size);

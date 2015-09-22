@@ -171,13 +171,13 @@ static DEFINE_MUTEX(cx24117_list_mutex);
 struct cx24117_tuning {
 	u32 frequency;
 	u32 symbol_rate;
-	fe_spectral_inversion_t inversion;
-	fe_code_rate_t fec;
+	enum fe_spectral_inversion inversion;
+	enum fe_code_rate fec;
 
-	fe_delivery_system_t delsys;
-	fe_modulation_t modulation;
-	fe_pilot_t pilot;
-	fe_rolloff_t rolloff;
+	enum fe_delivery_system delsys;
+	enum fe_modulation modulation;
+	enum fe_pilot pilot;
+	enum fe_rolloff rolloff;
 
 	/* Demod values */
 	u8 fec_val;
@@ -220,9 +220,9 @@ struct cx24117_state {
 /* modfec (modulation and FEC) lookup table */
 /* Check cx24116.c for a detailed description of each field */
 static struct cx24117_modfec {
-	fe_delivery_system_t delivery_system;
-	fe_modulation_t modulation;
-	fe_code_rate_t fec;
+	enum fe_delivery_system delivery_system;
+	enum fe_modulation modulation;
+	enum fe_code_rate fec;
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } cx24117_modfec_modes[] = {
@@ -362,7 +362,7 @@ static int cx24117_readregN(struct cx24117_state *state,
 }
 
 static int cx24117_set_inversion(struct cx24117_state *state,
-	fe_spectral_inversion_t inversion)
+	enum fe_spectral_inversion inversion)
 {
 	dev_dbg(&state->priv->i2c->dev, "%s(%d) demod%d\n",
 		__func__, inversion, state->demod);
@@ -387,7 +387,7 @@ static int cx24117_set_inversion(struct cx24117_state *state,
 }
 
 static int cx24117_lookup_fecmod(struct cx24117_state *state,
-	fe_delivery_system_t d, fe_modulation_t m, fe_code_rate_t f)
+	enum fe_delivery_system d, enum fe_modulation m, enum fe_code_rate f)
 {
 	int i, ret = -EINVAL;
 
@@ -408,7 +408,9 @@ static int cx24117_lookup_fecmod(struct cx24117_state *state,
 }
 
 static int cx24117_set_fec(struct cx24117_state *state,
-	fe_delivery_system_t delsys, fe_modulation_t mod, fe_code_rate_t fec)
+			   enum fe_delivery_system delsys,
+			   enum fe_modulation mod,
+			   enum fe_code_rate fec)
 {
 	int ret;
 
@@ -737,7 +739,7 @@ error:
 	return ret;
 }
 
-static int cx24117_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int cx24117_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	int lock;
@@ -843,7 +845,7 @@ static int cx24117_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int cx24117_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
-	fe_delivery_system_t delsys = fe->dtv_property_cache.delivery_system;
+	enum fe_delivery_system delsys = fe->dtv_property_cache.delivery_system;
 	int ret;
 	u8 buf[2];
 	u8 reg = (state->demod == 0) ?
@@ -904,7 +906,7 @@ static int cx24117_wait_for_lnb(struct dvb_frontend *fe)
 }
 
 static int cx24117_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
+			       enum fe_sec_voltage voltage)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct cx24117_cmd cmd;
@@ -956,7 +958,7 @@ static int cx24117_set_voltage(struct dvb_frontend *fe,
 }
 
 static int cx24117_set_tone(struct dvb_frontend *fe,
-	fe_sec_tone_mode_t tone)
+			    enum fe_sec_tone_mode tone)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct cx24117_cmd cmd;
@@ -1043,7 +1045,7 @@ static int cx24117_send_diseqc_msg(struct dvb_frontend *fe,
 	dev_dbg(&state->priv->i2c->dev, ")\n");
 
 	/* Validate length */
-	if (d->msg_len > 15)
+	if (d->msg_len > sizeof(d->msg))
 		return -EINVAL;
 
 	/* DiSEqC message */
@@ -1112,7 +1114,7 @@ static int cx24117_send_diseqc_msg(struct dvb_frontend *fe,
 
 /* Send DiSEqC burst */
 static int cx24117_diseqc_send_burst(struct dvb_frontend *fe,
-	fe_sec_mini_cmd_t burst)
+	enum fe_sec_mini_cmd burst)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 
@@ -1306,7 +1308,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 	struct cx24117_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24117_cmd cmd;
-	fe_status_t tunerstat;
+	enum fe_status tunerstat;
 	int i, status, ret, retune = 1;
 	u8 reg_clkdiv, reg_ratediv;
 
@@ -1537,7 +1539,7 @@ static int cx24117_set_frontend(struct dvb_frontend *fe)
 }
 
 static int cx24117_tune(struct dvb_frontend *fe, bool re_tune,
-	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
 

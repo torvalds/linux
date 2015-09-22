@@ -102,7 +102,7 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 		}
 	}
 	rtl88eu_dm_txpower_track_adjust(&hal_data->odmpriv, 1, &direction,
-				        &pwrtrac_value);
+					&pwrtrac_value);
 
 	if (direction == 1) {
 		/*  Increase TX power */
@@ -201,7 +201,7 @@ static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 			break;
 		case 2:	/*  Better regulatory */
 				/*  don't increase any power diff */
-			write_val = ((index < 2) ? powerbase0[rf] : powerbase1[rf]);
+			write_val = (index < 2) ? powerbase0[rf] : powerbase1[rf];
 			break;
 		case 3:	/*  Customer defined power diff. */
 				/*  increase power diff defined by customer. */

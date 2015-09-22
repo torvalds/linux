@@ -152,11 +152,13 @@ struct rxrpc_local {
 	struct work_struct	destroyer;	/* endpoint destroyer */
 	struct work_struct	acceptor;	/* incoming call processor */
 	struct work_struct	rejecter;	/* packet reject writer */
+	struct work_struct	event_processor; /* endpoint event processor */
 	struct list_head	services;	/* services listening on this endpoint */
 	struct list_head	link;		/* link in endpoint list */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	accept_queue;	/* incoming calls awaiting acceptance */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
+	struct sk_buff_head	event_queue;	/* endpoint event packets awaiting processing */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
 	atomic_t		usage;
@@ -548,10 +550,9 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 extern unsigned rxrpc_resend_timeout;
 
 int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
-int rxrpc_client_sendmsg(struct kiocb *, struct rxrpc_sock *,
-			 struct rxrpc_transport *, struct msghdr *, size_t);
-int rxrpc_server_sendmsg(struct kiocb *, struct rxrpc_sock *, struct msghdr *,
-			 size_t);
+int rxrpc_client_sendmsg(struct rxrpc_sock *, struct rxrpc_transport *,
+			 struct msghdr *, size_t);
+int rxrpc_server_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
  * ar-peer.c
@@ -572,8 +573,7 @@ extern const struct file_operations rxrpc_connection_seq_fops;
  * ar-recvmsg.c
  */
 void rxrpc_remove_user_ID(struct rxrpc_sock *, struct rxrpc_call *);
-int rxrpc_recvmsg(struct kiocb *, struct socket *, struct msghdr *, size_t,
-		  int);
+int rxrpc_recvmsg(struct socket *, struct msghdr *, size_t, int);
 
 /*
  * ar-security.c

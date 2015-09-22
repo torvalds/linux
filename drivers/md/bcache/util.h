@@ -4,6 +4,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/errno.h>
+#include <linux/blkdev.h>
 #include <linux/kernel.h>
 #include <linux/llist.h>
 #include <linux/ratelimit.h>
@@ -52,10 +53,7 @@ struct closure;
 
 #define free_heap(heap)							\
 do {									\
-	if (is_vmalloc_addr((heap)->data))				\
-		vfree((heap)->data);					\
-	else								\
-		kfree((heap)->data);					\
+	kvfree((heap)->data);						\
 	(heap)->data = NULL;						\
 } while (0)
 
@@ -163,10 +161,7 @@ do {									\
 
 #define free_fifo(fifo)							\
 do {									\
-	if (is_vmalloc_addr((fifo)->data))				\
-		vfree((fifo)->data);					\
-	else								\
-		kfree((fifo)->data);					\
+	kvfree((fifo)->data);						\
 	(fifo)->data = NULL;						\
 } while (0)
 
@@ -576,10 +571,10 @@ static inline sector_t bdev_sectors(struct block_device *bdev)
 	return bdev->bd_inode->i_size >> 9;
 }
 
-#define closure_bio_submit(bio, cl, dev)				\
+#define closure_bio_submit(bio, cl)					\
 do {									\
 	closure_get(cl);						\
-	bch_generic_make_request(bio, &(dev)->bio_split_hook);		\
+	generic_make_request(bio);					\
 } while (0)
 
 uint64_t bch_crc64_update(uint64_t, const void *, size_t);

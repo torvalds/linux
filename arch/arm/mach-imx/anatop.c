@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -28,6 +28,7 @@
 #define ANADIG_USB2_CHRG_DETECT	0x210
 #define ANADIG_DIGPROG		0x260
 #define ANADIG_DIGPROG_IMX6SL	0x280
+#define ANADIG_DIGPROG_IMX7D	0x800
 
 #define BM_ANADIG_REG_2P5_ENABLE_WEAK_LINREG	0x40000
 #define BM_ANADIG_REG_2P5_ENABLE_PULLDOWN	0x8
@@ -121,6 +122,8 @@ void __init imx_init_revision_from_anatop(void)
 	WARN_ON(!anatop_base);
 	if (of_device_is_compatible(np, "fsl,imx6sl-anatop"))
 		offset = ANADIG_DIGPROG_IMX6SL;
+	if (of_device_is_compatible(np, "fsl,imx7d-anatop"))
+		offset = ANADIG_DIGPROG_IMX7D;
 	digprog = readl_relaxed(anatop_base + offset);
 	iounmap(anatop_base);
 

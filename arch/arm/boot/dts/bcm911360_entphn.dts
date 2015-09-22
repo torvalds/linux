@@ -33,6 +33,7 @@
 /dts-v1/;
 
 #include "bcm-cygnus.dtsi"
+#include "dt-bindings/input/input.h"
 
 / {
 	model = "Cygnus Enterprise Phone (BCM911360_ENTPHN)";
@@ -49,5 +50,17 @@
 
 	uart3: serial@18023000 {
 		status = "okay";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hook {
+			label = "HOOK";
+			linux,code = <KEY_O>;
+			gpios = <&gpio_asiu 48 0>;
+		};
 	};
 };

@@ -510,6 +510,7 @@ static int __init maple_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->controller_ops = maple_pci_controller_ops;
 
 	disp_name = NULL;
 	if (of_device_is_compatible(dev, "u3-agp")) {
@@ -660,3 +661,6 @@ static void quirk_ipr_msi(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
 			quirk_ipr_msi);
+
+struct pci_controller_ops maple_pci_controller_ops = {
+};

@@ -217,7 +217,7 @@ static int psc_i2s_of_remove(struct platform_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id psc_i2s_match[] = {
+static const struct of_device_id psc_i2s_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-i2s", },
 	{ .compatible = "fsl,mpc5200b-psc-i2s", },
 	{}

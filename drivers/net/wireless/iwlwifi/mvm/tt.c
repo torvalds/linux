@@ -33,6 +33,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +71,7 @@
 static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
-	u32 duration = mvm->thermal_throttle.params->ct_kill_duration;
+	u32 duration = tt->params.ct_kill_duration;
 
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
 		return;
@@ -154,24 +155,20 @@ static bool iwl_mvm_temp_notif_wait(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-int iwl_mvm_temp_notif(struct iwl_mvm *mvm,
-		       struct iwl_rx_cmd_buffer *rxb,
-		       struct iwl_device_cmd *cmd)
+void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	int temp;
 
 	/* the notification is handled synchronously in ctkill, so skip here */
 	if (test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status))
-		return 0;
+		return;
 
 	temp = iwl_mvm_temp_notif_parse(mvm, pkt);
 	if (temp < 0)
-		return 0;
+		return;
 
 	iwl_mvm_tt_temp_changed(mvm, temp);
-
-	return 0;
 }
 
 static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
@@ -187,7 +184,7 @@ static int iwl_mvm_get_temp_cmd(struct iwl_mvm *mvm)
 int iwl_mvm_get_temp(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_temp_notif;
-	static const u8 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
+	static const u16 temp_notif[] = { DTS_MEASUREMENT_NOTIFICATION };
 	int ret, temp;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -223,7 +220,7 @@ static void check_exit_ctkill(struct work_struct *work)
 	tt = container_of(work, struct iwl_mvm_tt_mgmt, ct_kill_exit.work);
 	mvm = container_of(tt, struct iwl_mvm, thermal_throttle);
 
-	duration = tt->params->ct_kill_duration;
+	duration = tt->params.ct_kill_duration;
 
 	mutex_lock(&mvm->mutex);
 
@@ -247,7 +244,7 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	IWL_DEBUG_TEMP(mvm, "NIC temperature: %d\n", temp);
 
-	if (temp <= tt->params->ct_kill_exit) {
+	if (temp <= tt->params.ct_kill_exit) {
 		mutex_unlock(&mvm->mutex);
 		iwl_mvm_exit_ctkill(mvm);
 		return;
@@ -325,7 +322,7 @@ void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 {
-	const struct iwl_tt_params *params = mvm->thermal_throttle.params;
+	struct iwl_tt_params *params = &mvm->thermal_throttle.params;
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 	s32 temperature = mvm->temperature;
 	bool throttle_enable = false;
@@ -340,7 +337,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	}
 
 	if (params->support_ct_kill &&
-	    temperature <= tt->params->ct_kill_exit) {
+	    temperature <= params->ct_kill_exit) {
 		iwl_mvm_exit_ctkill(mvm);
 		return;
 	}
@@ -400,7 +397,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	}
 }
 
-static const struct iwl_tt_params iwl7000_tt_params = {
+static const struct iwl_tt_params iwl_mvm_default_tt_params = {
 	.ct_kill_entry = 118,
 	.ct_kill_exit = 96,
 	.ct_kill_duration = 5,
@@ -422,38 +419,16 @@ static const struct iwl_tt_params iwl7000_tt_params = {
 	.support_tx_backoff = true,
 };
 
-static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
-	.ct_kill_entry = 118,
-	.ct_kill_exit = 96,
-	.ct_kill_duration = 5,
-	.dynamic_smps_entry = 114,
-	.dynamic_smps_exit = 110,
-	.tx_protection_entry = 114,
-	.tx_protection_exit = 108,
-	.tx_backoff = {
-		{.temperature = 112, .backoff = 300},
-		{.temperature = 113, .backoff = 800},
-		{.temperature = 114, .backoff = 1500},
-		{.temperature = 115, .backoff = 3000},
-		{.temperature = 116, .backoff = 5000},
-		{.temperature = 117, .backoff = 10000},
-	},
-	.support_ct_kill = true,
-	.support_dynamic_smps = true,
-	.support_tx_protection = true,
-	.support_tx_backoff = true,
-};
-
 void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 
 	IWL_DEBUG_TEMP(mvm, "Initialize Thermal Throttling\n");
 
-	if (mvm->cfg->high_temp)
-		tt->params = &iwl7000_high_temp_tt_params;
+	if (mvm->cfg->thermal_params)
+		tt->params = *mvm->cfg->thermal_params;
 	else
-		tt->params = &iwl7000_tt_params;
+		tt->params = iwl_mvm_default_tt_params;
 
 	tt->throttle = false;
 	tt->dynamic_smps = false;

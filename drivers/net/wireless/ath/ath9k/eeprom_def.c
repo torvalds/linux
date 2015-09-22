@@ -466,6 +466,7 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 				  struct ar5416_eeprom_def *eep,
 				  u8 txRxAttenLocal, int regChainOffset, int i)
 {
+	ENABLE_REG_RMW_BUFFER(ah);
 	if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_3) {
 		txRxAttenLocal = pModal->txRxAttenCh[i];
 
@@ -483,16 +484,12 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 			      AR_PHY_GAIN_2GHZ_XATTEN2_DB,
 			      pModal->xatten2Db[i]);
 		} else {
-			REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_BSW_MARGIN)
-			  | SM(pModal-> bswMargin[i],
-			       AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-			REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_BSW_ATTEN)
-			  | SM(pModal->bswAtten[i],
-			       AR_PHY_GAIN_2GHZ_BSW_ATTEN));
+			REG_RMW(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+				SM(pModal-> bswMargin[i], AR_PHY_GAIN_2GHZ_BSW_MARGIN),
+				AR_PHY_GAIN_2GHZ_BSW_MARGIN);
+			REG_RMW(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+				SM(pModal->bswAtten[i], AR_PHY_GAIN_2GHZ_BSW_ATTEN),
+				AR_PHY_GAIN_2GHZ_BSW_ATTEN);
 		}
 	}
 
@@ -504,17 +501,14 @@ static void ath9k_hw_def_set_gain(struct ath_hw *ah,
 		      AR_PHY_RXGAIN + regChainOffset,
 		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[i]);
 	} else {
-		REG_WRITE(ah,
-			  AR_PHY_RXGAIN + regChainOffset,
-			  (REG_READ(ah, AR_PHY_RXGAIN + regChainOffset) &
-			   ~AR_PHY_RXGAIN_TXRX_ATTEN)
-			  | SM(txRxAttenLocal, AR_PHY_RXGAIN_TXRX_ATTEN));
-		REG_WRITE(ah,
-			  AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_RXTX_MARGIN) |
-			  SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN));
+		REG_RMW(ah, AR_PHY_RXGAIN + regChainOffset,
+			SM(txRxAttenLocal, AR_PHY_RXGAIN_TXRX_ATTEN),
+			AR_PHY_RXGAIN_TXRX_ATTEN);
+		REG_RMW(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN),
+			AR_PHY_GAIN_2GHZ_RXTX_MARGIN);
 	}
+	REG_RMW_BUFFER_FLUSH(ah);
 }
 
 static void ath9k_hw_def_set_board_values(struct ath_hw *ah,

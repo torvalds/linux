@@ -751,13 +751,13 @@ static int wm0010_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE)
 			wm0010_boot(codec);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
 			mutex_lock(&wm0010->lock);
 			wm0010_halt(codec);
 			mutex_unlock(&wm0010->lock);
@@ -766,8 +766,6 @@ static int wm0010_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -955,7 +953,7 @@ static int wm0010_spi_probe(struct spi_device *spi)
 		trigger = IRQF_TRIGGER_FALLING;
 	trigger |= IRQF_ONESHOT;
 
-	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger | IRQF_ONESHOT,
+	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger,
 				   "wm0010", wm0010);
 	if (ret) {
 		dev_err(wm0010->dev, "Failed to request IRQ %d: %d\n",
@@ -1005,7 +1003,6 @@ static int wm0010_spi_remove(struct spi_device *spi)
 static struct spi_driver wm0010_spi_driver = {
 	.driver = {
 		.name	= "wm0010",
-		.bus 	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm0010_spi_probe,

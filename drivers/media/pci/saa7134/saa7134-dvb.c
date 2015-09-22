@@ -20,6 +20,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -28,8 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/suspend.h>
 
-#include "saa7134-reg.h"
-#include "saa7134.h"
 #include <media/v4l2-common.h>
 #include "dvb-pll.h"
 #include <dvb_frontend.h>
@@ -75,18 +76,7 @@ static int use_frontend;
 module_param(use_frontend, int, 0644);
 MODULE_PARM_DESC(use_frontend,"for cards with multiple frontends (0: terrestrial, 1: satellite)");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off module debugging (default:off).");
-
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-#define dprintk(fmt, arg...)	do { if (debug) \
-	printk(KERN_DEBUG "%s/dvb: " fmt, dev->name , ## arg); } while(0)
-
-/* Print a warning */
-#define wprintk(fmt, arg...) \
-	printk(KERN_WARNING "%s/dvb: " fmt, dev->name, ## arg)
 
 /* ------------------------------------------------------------------
  * mt352 based DVB-T cards
@@ -112,7 +102,7 @@ static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 28));
 	udelay(10);
 	ok = saa_readl(SAA7134_GPIO_GPSTATUS0) & (1 << 27);
-	dprintk("%s %s\n", __func__, ok ? "on" : "off");
+	pr_debug("%s %s\n", __func__, ok ? "on" : "off");
 
 	if (!ok)
 		saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 26));
@@ -130,9 +120,8 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	static u8 gpp_ctl_cfg []   = { GPP_CTL,    0x0f };
 	static u8 scan_ctl_cfg []  = { SCAN_CTL,   0x0d };
 	static u8 irq_cfg []       = { INTERRUPT_EN_0, 0x00, 0x00, 0x00, 0x00 };
-	struct saa7134_dev *dev= fe->dvb->priv;
 
-	dprintk("%s called\n", __func__);
+	pr_debug("%s called\n", __func__);
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
 	udelay(200);
@@ -258,7 +247,7 @@ static int kworld_sbtvd_gate_ctrl(struct dvb_frontend* fe, int enable)
 	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .buf = initmsg, .len = 2};
 
 	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-		wprintk("could not access the I2C gate\n");
+		pr_warn("could not access the I2C gate\n");
 		return -EIO;
 	}
 	if (enable)
@@ -266,7 +255,7 @@ static int kworld_sbtvd_gate_ctrl(struct dvb_frontend* fe, int enable)
 	else
 		msg.buf = msg_disable;
 	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
-		wprintk("could not access the I2C gate\n");
+		pr_warn("could not access the I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -369,7 +358,7 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1) {
-		wprintk("could not write to tuner at addr: 0x%02x\n",
+		pr_warn("could not write to tuner at addr: 0x%02x\n",
 			addr << 1);
 		return -EIO;
 	}
@@ -556,8 +545,7 @@ static int tda8290_i2c_gate_ctrl( struct dvb_frontend* fe, int enable)
 		tda8290_msg.buf = tda8290_open;
 	}
 	if (i2c_transfer(state->i2c, &tda8290_msg, 1) != 1) {
-		struct saa7134_dev *dev = fe->dvb->priv;
-		wprintk("could not access tda8290 I2C gate\n");
+		pr_warn("could not access tda8290 I2C gate\n");
 		return -EIO;
 	}
 	msleep(20);
@@ -570,11 +558,14 @@ static int philips_tda827x_tuner_init(struct dvb_frontend *fe)
 	struct tda1004x_state *state = fe->demodulator_priv;
 
 	switch (state->config->antenna_switch) {
-	case 0: break;
-	case 1:	dprintk("setting GPIO21 to 0 (TV antenna?)\n");
+	case 0:
+		break;
+	case 1:
+		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
-	case 2: dprintk("setting GPIO21 to 1 (Radio antenna?)\n");
+	case 2:
+		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
 	}
@@ -587,11 +578,14 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 	struct tda1004x_state *state = fe->demodulator_priv;
 
 	switch (state->config->antenna_switch) {
-	case 0: break;
-	case 1: dprintk("setting GPIO21 to 1 (Radio antenna?)\n");
+	case 0:
+		break;
+	case 1:
+		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
-	case 2:	dprintk("setting GPIO21 to 0 (TV antenna?)\n");
+	case 2:
+		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
 	}
@@ -619,7 +613,7 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 			       &dev->i2c_adap, tuner_conf))
 			return 0;
 
-		wprintk("no tda827x tuner found at addr: %02x\n",
+		pr_warn("no tda827x tuner found at addr: %02x\n",
 				cdec_conf->tuner_address);
 	}
 	return -EINVAL;
@@ -993,7 +987,8 @@ static struct tda10086_config sd1878_4m = {
  * special case: lnb supply is connected to the gated i2c
  */
 
-static int md8800_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int md8800_set_voltage(struct dvb_frontend *fe,
+			      enum fe_sec_voltage voltage)
 {
 	int res = -EIO;
 	struct saa7134_dev *dev = fe->dvb->priv;
@@ -1019,7 +1014,8 @@ static int md8800_set_high_voltage(struct dvb_frontend *fe, long arg)
 	return res;
 };
 
-static int md8800_set_voltage2(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int md8800_set_voltage2(struct dvb_frontend *fe,
+			       enum fe_sec_voltage voltage)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	u8 wbuf[2] = { 0x1f, 00 };
@@ -1041,8 +1037,8 @@ static int md8800_set_voltage2(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 
 static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
 {
-	struct saa7134_dev *dev = fe->dvb->priv;
-	wprintk("%s: sorry can't set high LNB supply voltage from here\n", __func__);
+	pr_warn("%s: sorry can't set high LNB supply voltage from here\n",
+		__func__);
 	return -EIO;
 }
 
@@ -1222,10 +1218,10 @@ static int dvb_init(struct saa7134_dev *dev)
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
-	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
+	pr_info("%s() allocating 1 frontend\n", __func__);
 	fe0 = vb2_dvb_alloc_frontend(&dev->frontends, 1);
 	if (!fe0) {
-		printk(KERN_ERR "%s() failed to alloc\n", __func__);
+		pr_err("%s() failed to alloc\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1250,7 +1246,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
-		dprintk("pinnacle 300i dvb setup\n");
+		pr_debug("pinnacle 300i dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach, &pinnacle_300i,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
@@ -1259,7 +1255,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
-		dprintk("avertv 777 dvb setup\n");
+		pr_debug("avertv 777 dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
@@ -1269,7 +1265,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
-		dprintk("AverMedia A16D dvb setup\n");
+		pr_debug("AverMedia A16D dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 						&avermedia_xc3028_mt352_dev,
 						&dev->i2c_adap);
@@ -1401,13 +1397,15 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (fe0->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend, 0x63,
 									&dev->i2c_adap, 0) == NULL) {
-					wprintk("%s: Lifeview Trio, No tda826x found!\n", __func__);
+					pr_warn("%s: Lifeview Trio, No tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap,
 					       0x08, 0, 0, false) == NULL) {
-					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __func__);
+					pr_warn("%s: Lifeview Trio, No ISL6421 found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 			}
@@ -1422,12 +1420,12 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dvb_attach(tda827x_attach,fe0->dvb.frontend,
 				   ads_tech_duo_config.tuner_address, &dev->i2c_adap,
 								&ads_duo_cfg) == NULL) {
-				wprintk("no tda827x tuner found at addr: %02x\n",
+				pr_warn("no tda827x tuner found at addr: %02x\n",
 					ads_tech_duo_config.tuner_address);
 				goto detach_frontend;
 			}
 		} else
-			wprintk("failed to attach tda10046\n");
+			pr_warn("failed to attach tda10046\n");
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 		if (configure_tda827x_fe(dev, &tevion_dvbt220rf_config,
@@ -1450,7 +1448,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL) {
-					wprintk("%s: Medion Quadro, no tda826x "
+					pr_warn("%s: Medion Quadro, no tda826x "
 						"found !\n", __func__);
 					goto detach_frontend;
 				}
@@ -1459,7 +1457,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					fe->ops.i2c_gate_ctrl(fe, 1);
 					if (dvb_attach(isl6405_attach, fe,
 							&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-						wprintk("%s: Medion Quadro, no ISL6405 "
+						pr_warn("%s: Medion Quadro, no ISL6405 "
 							"found !\n", __func__);
 						goto detach_frontend;
 					}
@@ -1519,13 +1517,13 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			if (dvb_attach(tda826x_attach, fe0->dvb.frontend, 0x60,
 				       &dev->i2c_adap, 0) == NULL) {
-				wprintk("%s: No tda826x found!\n", __func__);
+				pr_warn("%s: No tda826x found!\n", __func__);
 				goto detach_frontend;
 			}
 			if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
 				       &dev->i2c_adap,
 				       0x08, 0, 0, false) == NULL) {
-				wprintk("%s: No ISL6421 found!\n", __func__);
+				pr_warn("%s: No ISL6421 found!\n", __func__);
 				goto detach_frontend;
 			}
 		}
@@ -1593,12 +1591,12 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			if (dvb_attach(tda826x_attach, fe0->dvb.frontend, 0x60,
 					&dev->i2c_adap, 0) == NULL) {
-				wprintk("%s: No tda826x found!\n", __func__);
+				pr_warn("%s: No tda826x found!\n", __func__);
 				goto detach_frontend;
 			}
 			if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 					&dev->i2c_adap, 0, 0) == NULL) {
-				wprintk("%s: No lnbp21 found!\n", __func__);
+				pr_warn("%s: No lnbp21 found!\n", __func__);
 				goto detach_frontend;
 			}
 		}
@@ -1614,7 +1612,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			goto detach_frontend;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
-		dprintk("AverMedia E506R dvb setup\n");
+		pr_debug("AverMedia E506R dvb setup\n");
 		saa7134_set_gpio(dev, 25, 0);
 		msleep(10);
 		saa7134_set_gpio(dev, 25, 1);
@@ -1630,7 +1628,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			struct dvb_frontend *fe;
 			if (dvb_attach(dvb_pll_attach, fe0->dvb.frontend, 0x60,
 				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL) {
-				wprintk("%s: MD7134 DVB-S, no SD1878 "
+				pr_warn("%s: MD7134 DVB-S, no SD1878 "
 					"found !\n", __func__);
 				goto detach_frontend;
 			}
@@ -1639,7 +1637,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 			if (dvb_attach(isl6405_attach, fe,
 					&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				wprintk("%s: MD7134 DVB-S, no ISL6405 "
+				pr_warn("%s: MD7134 DVB-S, no ISL6405 "
 					"found !\n", __func__);
 				goto detach_frontend;
 			}
@@ -1671,15 +1669,15 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 						fe0->dvb.frontend, 0x60,
 						&dev->i2c_adap, 0) == NULL) {
-					wprintk("%s: Asus Tiger 3in1, no "
+					pr_warn("%s: Asus Tiger 3in1, no "
 						"tda826x found!\n", __func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 						&dev->i2c_adap, 0, 0) == NULL) {
-					wprintk("%s: Asus Tiger 3in1, no lnbp21"
+					pr_warn("%s: Asus Tiger 3in1, no lnbp21"
 						" found!\n", __func__);
-				       goto detach_frontend;
+					goto detach_frontend;
 			       }
 		       }
 	       }
@@ -1696,13 +1694,13 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 					       fe0->dvb.frontend, 0x60,
 					       &dev->i2c_adap, 0) == NULL) {
-					wprintk("%s: Asus My Cinema PS3-100, no "
+					pr_warn("%s: Asus My Cinema PS3-100, no "
 						"tda826x found!\n", __func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap, 0, 0) == NULL) {
-					wprintk("%s: Asus My Cinema PS3-100, no lnbp21"
+					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21"
 						" found!\n", __func__);
 					goto detach_frontend;
 				}
@@ -1750,7 +1748,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			if (dvb_attach(zl10036_attach, fe0->dvb.frontend,
 					&avertv_a700_tuner, &dev->i2c_adap) == NULL) {
-				wprintk("%s: No zl10036 found!\n",
+				pr_warn("%s: No zl10036 found!\n",
 					__func__);
 			}
 		}
@@ -1761,7 +1759,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend)
 			if (dvb_attach(zl10039_attach, fe0->dvb.frontend,
 					0x60, &dev->i2c_adap) == NULL)
-				wprintk("%s: No zl10039 found!\n",
+				pr_warn("%s: No zl10039 found!\n",
 					__func__);
 
 		break;
@@ -1774,7 +1772,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					fe0->dvb.frontend,
 					&dev->i2c_adap,
 					&videomate_t750_qt1010_config) == NULL)
-				wprintk("error attaching QT1010\n");
+				pr_warn("error attaching QT1010\n");
 		}
 		break;
 	case SAA7134_BOARD_ZOLID_HYBRID_PCI:
@@ -1850,12 +1848,12 @@ static int dvb_init(struct saa7134_dev *dev)
 			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
 			if (dvb_attach(zl10039_attach, fe0->dvb.frontend,
 					0x60, &dev->i2c_adap) == NULL)
-				wprintk("%s: No zl10039 found!\n",
+				pr_warn("%s: No zl10039 found!\n",
 					__func__);
 		}
 		break;
 	default:
-		wprintk("Huh? unknown DVB card?\n");
+		pr_warn("Huh? unknown DVB card?\n");
 		break;
 	}
 
@@ -1871,14 +1869,14 @@ static int dvb_init(struct saa7134_dev *dev)
 
 		fe = dvb_attach(xc2028_attach, fe0->dvb.frontend, &cfg);
 		if (!fe) {
-			printk(KERN_ERR "%s/2: xc3028 attach failed\n",
+			pr_err("%s/2: xc3028 attach failed\n",
 			       dev->name);
 			goto detach_frontend;
 		}
 	}
 
 	if (NULL == fe0->dvb.frontend) {
-		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
+		pr_err("%s/dvb: frontend initialization failed\n", dev->name);
 		goto detach_frontend;
 	}
 	/* define general-purpose callback pointer */

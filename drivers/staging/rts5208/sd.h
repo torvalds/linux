@@ -287,7 +287,7 @@ int release_sd_card(struct rtsx_chip *chip);
 #ifdef SUPPORT_CPRM
 int soft_reset_sd_card(struct rtsx_chip *chip);
 int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
-		u32 arg, u8 rsp_type, u8 *rsp, int rsp_len, int special_check);
+		u32 arg, u8 rsp_type, u8 *rsp, int rsp_len, bool special_check);
 int ext_sd_get_rsp(struct rtsx_chip *chip, int len, u8 *rsp, u8 rsp_type);
 
 int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip);

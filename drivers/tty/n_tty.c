@@ -162,6 +162,17 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 	return put_user(x, ptr);
 }
 
+static inline int tty_copy_to_user(struct tty_struct *tty,
+					void __user *to,
+					const void *from,
+					unsigned long n)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	tty_audit_add_data(tty, to, n, ldata->icanon);
+	return copy_to_user(to, from, n);
+}
+
 /**
  *	n_tty_kick_worker - start input worker (if required)
  *	@tty: terminal
@@ -1097,18 +1108,28 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	Locking: ctrl_lock
  */
 
-static void isig(int sig, struct tty_struct *tty)
+static void __isig(int sig, struct tty_struct *tty)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	struct pid *tty_pgrp = tty_get_pgrp(tty);
 	if (tty_pgrp) {
 		kill_pgrp(tty_pgrp, sig, 1);
 		put_pid(tty_pgrp);
 	}
+}
 
-	if (!L_NOFLSH(tty)) {
+static void isig(int sig, struct tty_struct *tty)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+
+	if (L_NOFLSH(tty)) {
+		/* signal only */
+		__isig(sig, tty);
+
+	} else { /* signal and flush */
 		up_read(&tty->termios_rwsem);
 		down_write(&tty->termios_rwsem);
+
+		__isig(sig, tty);
 
 		/* clear echo buffer */
 		mutex_lock(&ldata->output_lock);
@@ -1179,13 +1200,12 @@ static void n_tty_receive_break(struct tty_struct *tty)
 static void n_tty_receive_overrun(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	char buf[64];
 
 	ldata->num_overrun++;
 	if (time_after(jiffies, ldata->overrun_time + HZ) ||
 			time_after(ldata->overrun_time, jiffies)) {
 		printk(KERN_WARNING "%s: %d input overrun(s)\n",
-			tty_name(tty, buf),
+			tty_name(tty),
 			ldata->num_overrun);
 		ldata->overrun_time = jiffies;
 		ldata->num_overrun = 0;
@@ -1460,8 +1480,6 @@ static void n_tty_receive_char_closing(struct tty_struct *tty, unsigned char c)
 static void
 n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 {
-	char buf[64];
-
 	switch (flag) {
 	case TTY_BREAK:
 		n_tty_receive_break(tty);
@@ -1475,7 +1493,7 @@ n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 		break;
 	default:
 		printk(KERN_ERR "%s: unknown flag %d\n",
-		       tty_name(tty, buf), flag);
+		       tty_name(tty), flag);
 		break;
 	}
 }
@@ -1949,6 +1967,18 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 		return ldata->commit_head - ldata->read_tail >= amt;
 }
 
+static inline int check_other_done(struct tty_struct *tty)
+{
+	int done = test_bit(TTY_OTHER_DONE, &tty->flags);
+	if (done) {
+		/* paired with cmpxchg() in check_other_closed(); ensures
+		 * read buffer head index is not stale
+		 */
+		smp_mb__after_atomic();
+	}
+	return done;
+}
+
 /**
  *	copy_from_read_buf	-	copy read data directly
  *	@tty: terminal device
@@ -2058,8 +2088,8 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	size = N_TTY_BUF_SIZE - tail;
 	n = eol - tail;
-	if (n > 4096)
-		n += 4096;
+	if (n > N_TTY_BUF_SIZE)
+		n += N_TTY_BUF_SIZE;
 	n += found;
 	c = n;
 
@@ -2072,12 +2102,12 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		    __func__, eol, found, n, c, size, more);
 
 	if (n > size) {
-		ret = copy_to_user(*b, read_buf_addr(ldata, tail), size);
+		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), size);
 		if (ret)
 			return -EFAULT;
-		ret = copy_to_user(*b + size, ldata->read_buf, n - size);
+		ret = tty_copy_to_user(tty, *b + size, ldata->read_buf, n - size);
 	} else
-		ret = copy_to_user(*b, read_buf_addr(ldata, tail), n);
+		ret = tty_copy_to_user(tty, *b, read_buf_addr(ldata, tail), n);
 
 	if (ret)
 		return -EFAULT;
@@ -2117,6 +2147,8 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
 
 static int job_control(struct tty_struct *tty, struct file *file)
 {
+	struct pid *pgrp;
+
 	/* Job control check -- must be done at start and after
 	   every sleep (POSIX.1 7.1.1.4). */
 	/* NOTE: not yet done after every sleep pending a thorough
@@ -2126,18 +2158,25 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	    current->signal->tty != tty)
 		return 0;
 
+	rcu_read_lock();
+	pgrp = task_pgrp(current);
+
 	spin_lock_irq(&tty->ctrl_lock);
 	if (!tty->pgrp)
 		printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
-	else if (task_pgrp(current) != tty->pgrp) {
+	else if (pgrp != tty->pgrp) {
 		spin_unlock_irq(&tty->ctrl_lock);
-		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned())
+		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned()) {
+			rcu_read_unlock();
 			return -EIO;
-		kill_pgrp(task_pgrp(current), SIGTTIN, 1);
+		}
+		kill_pgrp(pgrp, SIGTTIN, 1);
+		rcu_read_unlock();
 		set_thread_flag(TIF_SIGPENDING);
 		return -ERESTARTSYS;
 	}
 	spin_unlock_irq(&tty->ctrl_lock);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -2167,7 +2206,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned char __user *b = buf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int c;
+	int c, done;
 	int minimum, time;
 	ssize_t retval = 0;
 	long timeout;
@@ -2235,8 +2274,10 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		    ((minimum - (b - buf)) >= 1))
 			ldata->minimum_to_wake = (minimum - (b - buf));
 
+		done = check_other_done(tty);
+
 		if (!input_available_p(tty, 0)) {
-			if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
+			if (done) {
 				retval = -EIO;
 				break;
 			}
@@ -2443,12 +2484,12 @@ static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 
 	poll_wait(file, &tty->read_wait, wait);
 	poll_wait(file, &tty->write_wait, wait);
+	if (check_other_done(tty))
+		mask |= POLLHUP;
 	if (input_available_p(tty, 1))
 		mask |= POLLIN | POLLRDNORM;
 	if (tty->packet && tty->link->ctrl_status)
 		mask |= POLLPRI | POLLIN | POLLRDNORM;
-	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
-		mask |= POLLHUP;
 	if (tty_hung_up_p(file))
 		mask |= POLLHUP;
 	if (!(mask & (POLLHUP | POLLIN | POLLRDNORM))) {

@@ -126,17 +126,12 @@ static const struct snd_soc_dapm_route hx4700_audio_map[] = {
  */
 static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_jack_new(codec, "Headphone Jack",
-				SND_JACK_HEADPHONE, &hs_jack);
-	if (err)
-		return err;
-
-	err = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pin),
-					hs_jack_pin);
+	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pin,
+				    ARRAY_SIZE(hs_jack_pin));
 	if (err)
 		return err;
 

@@ -770,7 +770,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		break;
 	case NAND_CMD_READID:
 		state->buf_ptr = 0;
-		spinand_read_id(info->spi, (u8 *)state->buf);
+		spinand_read_id(info->spi, state->buf);
 		break;
 	case NAND_CMD_PARAM:
 		state->buf_ptr = 0;
@@ -948,7 +948,6 @@ static const struct of_device_id spinand_dt[] = {
 static struct spi_driver spinand_driver = {
 	.driver = {
 		.name		= "mt29f",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 		.of_match_table	= spinand_dt,
 	},

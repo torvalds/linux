@@ -106,6 +106,10 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_IRQ1) {
 		dprintk(MANTIS_DEBUG, 0, "<%s>", label[2]);
+		spin_lock(&mantis->intmask_lock);
+		mmwrite(mmread(MANTIS_INT_MASK) & ~MANTIS_INT_IRQ1,
+			MANTIS_INT_MASK);
+		spin_unlock(&mantis->intmask_lock);
 		schedule_work(&mantis->uart_work);
 	}
 	if (stat & MANTIS_INT_OCERR) {
@@ -154,6 +158,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 static int hopper_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_id)
 {
+	struct mantis_pci_drvdata *drvdata;
 	struct mantis_pci *mantis;
 	struct mantis_hwconfig *config;
 	int err = 0;
@@ -165,12 +170,16 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 		goto fail0;
 	}
 
+	drvdata			= (void *)pci_id->driver_data;
 	mantis->num		= devs;
 	mantis->verbose		= verbose;
 	mantis->pdev		= pdev;
-	config			= (struct mantis_hwconfig *) pci_id->driver_data;
+	config			= drvdata->hwconfig;
 	config->irq_handler	= &hopper_irq_handler;
 	mantis->hwconfig	= config;
+	mantis->rc_map_name	= drvdata->rc_map_name;
+
+	spin_lock_init(&mantis->intmask_lock);
 
 	err = mantis_pci_init(mantis);
 	if (err) {
@@ -247,7 +256,8 @@ static void hopper_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id hopper_pci_table[] = {
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config),
+	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config,
+		   NULL),
 	{ }
 };
 

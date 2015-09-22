@@ -23,44 +23,27 @@
 
 union ieee754dp ieee754dp_neg(union ieee754dp x)
 {
-	COMPXDP;
+	unsigned int oldrm;
+	union ieee754dp y;
 
-	EXPLODEXDP;
-	ieee754_clearcx();
-	FLUSHXDP;
-
-	/*
-	 * Invert the sign ALWAYS to prevent an endless recursion on
-	 * pow() in libc.
-	 */
-	/* quick fix up */
-	DPSIGN(x) ^= 1;
-
-	if (xc == IEEE754_CLASS_SNAN) {
-		union ieee754dp y = ieee754dp_indef();
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		DPSIGN(y) = DPSIGN(x);
-		return ieee754dp_nanxcpt(y);
-	}
-
-	return x;
+	oldrm = ieee754_csr.rm;
+	ieee754_csr.rm = FPU_CSR_RD;
+	y = ieee754dp_sub(ieee754dp_zero(0), x);
+	ieee754_csr.rm = oldrm;
+	return y;
 }
 
 union ieee754dp ieee754dp_abs(union ieee754dp x)
 {
-	COMPXDP;
+	unsigned int oldrm;
+	union ieee754dp y;
 
-	EXPLODEXDP;
-	ieee754_clearcx();
-	FLUSHXDP;
-
-	/* Clear sign ALWAYS, irrespective of NaN */
-	DPSIGN(x) = 0;
-
-	if (xc == IEEE754_CLASS_SNAN) {
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
-		return ieee754dp_nanxcpt(ieee754dp_indef());
-	}
-
-	return x;
+	oldrm = ieee754_csr.rm;
+	ieee754_csr.rm = FPU_CSR_RD;
+	if (DPSIGN(x))
+		y = ieee754dp_sub(ieee754dp_zero(0), x);
+	else
+		y = ieee754dp_add(ieee754dp_zero(0), x);
+	ieee754_csr.rm = oldrm;
+	return y;
 }

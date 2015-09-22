@@ -1744,7 +1744,8 @@ static int stv0900_send_master_cmd(struct dvb_frontend *fe,
 				state->demod);
 }
 
-static int stv0900_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t burst)
+static int stv0900_send_burst(struct dvb_frontend *fe,
+			      enum fe_sec_mini_cmd burst)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;
@@ -1793,7 +1794,8 @@ static int stv0900_recv_slave_reply(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int stv0900_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t toneoff)
+static int stv0900_set_tone(struct dvb_frontend *fe,
+			    enum fe_sec_tone_mode toneoff)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;

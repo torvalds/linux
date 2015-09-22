@@ -391,12 +391,16 @@ static void __init pcic_pbm_scan_bus(struct linux_pcic *pcic)
 	struct linux_pbm_info *pbm = &pcic->pbm;
 
 	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno, &pcic_ops, pbm);
+	if (!pbm->pci_bus)
+		return;
+
 #if 0 /* deadwood transplanted from sparc64 */
 	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);
 #endif
+	pci_bus_add_devices(pbm->pci_bus);
 }
 
 /*

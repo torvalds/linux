@@ -1,0 +1,11 @@
+config BCM47XX_NVRAM
+	bool "Broadcom NVRAM driver"
+	depends on BCM47XX || ARCH_BCM_5301X
+	help
+	  Broadcom home routers contain flash partition called "nvram" with all
+	  important hardware configuration as well as some minor user setup.
+	  NVRAM partition contains a text-like data representing name=value
+	  pairs.
+	  This driver provides an easy way to get value of requested parameter.
+	  It simply reads content of NVRAM and parses it. It doesn't control any
+	  hardware part itself.

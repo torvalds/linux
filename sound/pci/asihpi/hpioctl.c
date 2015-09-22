@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/stringify.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #ifdef MODULE_FIRMWARE
 MODULE_FIRMWARE("asihpi/dsp5000.bin");

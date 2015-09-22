@@ -566,6 +566,10 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 			ib_dma_map_single(dev, qp->sqp_proxy_rcv[i].addr,
 					  sizeof (struct mlx4_ib_proxy_sqp_hdr),
 					  DMA_FROM_DEVICE);
+		if (ib_dma_mapping_error(dev, qp->sqp_proxy_rcv[i].map)) {
+			kfree(qp->sqp_proxy_rcv[i].addr);
+			goto err;
+		}
 	}
 	return 0;
 
@@ -1288,14 +1292,18 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 		path->static_rate = 0;
 
 	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->dev->caps.gid_table_len[port]) {
+		int real_sgid_index = mlx4_ib_gid_index_to_real_index(dev,
+								      port,
+								      ah->grh.sgid_index);
+
+		if (real_sgid_index >= dev->dev->caps.gid_table_len[port]) {
 			pr_err("sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->dev->caps.gid_table_len[port] - 1);
+			       real_sgid_index, dev->dev->caps.gid_table_len[port] - 1);
 			return -1;
 		}
 
 		path->grh_mylmc |= 1 << 7;
-		path->mgid_index = ah->grh.sgid_index;
+		path->mgid_index = real_sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
 		path->tclass_flowlabel =
 			cpu_to_be32((ah->grh.traffic_class << 20) |
@@ -1535,12 +1543,13 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
-		if (dev->counters[qp->port - 1] != -1) {
+		if (dev->counters[qp->port - 1].index != -1) {
 			context->pri_path.counter_index =
-						dev->counters[qp->port - 1];
+					dev->counters[qp->port - 1].index;
 			optpar |= MLX4_QP_OPTPAR_COUNTER_INDEX;
 		} else
-			context->pri_path.counter_index = 0xff;
+			context->pri_path.counter_index =
+				MLX4_SINK_COUNTER_INDEX(dev->dev);
 
 		if (qp->flags & MLX4_IB_QP_NETIF) {
 			mlx4_ib_steer_qp_reg(dev, qp, 1);
@@ -2605,8 +2614,7 @@ static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
 
 	memcpy(wqe->header, wr->wr.ud.header, wr->wr.ud.hlen);
 
-	*lso_hdr_sz  = cpu_to_be32((wr->wr.ud.mss - wr->wr.ud.hlen) << 16 |
-				   wr->wr.ud.hlen);
+	*lso_hdr_sz  = cpu_to_be32(wr->wr.ud.mss << 16 | wr->wr.ud.hlen);
 	*lso_seg_len = halign;
 	return 0;
 }

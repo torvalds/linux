@@ -165,6 +165,7 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 		pgm_info->mon_class_nr = vcpu->arch.sie_block->mcn;
 		pgm_info->mon_code = vcpu->arch.sie_block->tecmc;
 		break;
+	case PGM_VECTOR_PROCESSING:
 	case PGM_DATA:
 		pgm_info->data_exc_code = vcpu->arch.sie_block->dxc;
 		break;
@@ -240,21 +241,6 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	return kvm_s390_inject_prog_irq(vcpu, &pgm_info);
 }
 
-static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
-{
-	int rc, rc2;
-
-	vcpu->stat.exit_instr_and_program++;
-	rc = handle_instruction(vcpu);
-	rc2 = handle_prog(vcpu);
-
-	if (rc == -EOPNOTSUPP)
-		vcpu->arch.sie_block->icptcode = 0x04;
-	if (rc)
-		return rc;
-	return rc2;
-}
-
 /**
  * handle_external_interrupt - used for external interruption interceptions
  *
@@ -319,7 +305,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	/* Make sure that the source is paged-in */
 	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg2],
-				     &srcaddr, 0);
+				     reg2, &srcaddr, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, srcaddr, 0);
@@ -328,7 +314,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	/* Make sure that the destination is paged-in */
 	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg1],
-				     &dstaddr, 1);
+				     reg1, &dstaddr, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, dstaddr, 1);
@@ -354,7 +340,6 @@ static const intercept_handler_t intercept_funcs[] = {
 	[0x00 >> 2] = handle_noop,
 	[0x04 >> 2] = handle_instruction,
 	[0x08 >> 2] = handle_prog,
-	[0x0C >> 2] = handle_instruction_and_prog,
 	[0x10 >> 2] = handle_noop,
 	[0x14 >> 2] = handle_external_interrupt,
 	[0x18 >> 2] = handle_noop,

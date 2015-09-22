@@ -1,53 +1,34 @@
-
-
 EDAC - Error Detection And Correction
-
-Written by Doug Thompson <dougthompson@xmission.com>
-7 Dec 2005
-17 Jul 2007	Updated
-
-(c) Mauro Carvalho Chehab
-05 Aug 2009	Nehalem interface
-
-EDAC is maintained and written by:
-
-	Doug Thompson, Dave Jiang, Dave Peterson et al,
-	original author: Thayne Harbaugh,
-
-Contact:
-	website:	bluesmoke.sourceforge.net
-	mailing list:	bluesmoke-devel@lists.sourceforge.net
+=====================================
 
 "bluesmoke" was the name for this device driver when it was "out-of-tree"
 and maintained at sourceforge.net.  When it was pushed into 2.6.16 for the
 first time, it was renamed to 'EDAC'.
 
-The bluesmoke project at sourceforge.net is now utilized as a 'staging area'
-for EDAC development, before it is sent upstream to kernel.org
+PURPOSE
+-------
 
-At the bluesmoke/EDAC project site is a series of quilt patches against
-recent kernels, stored in a SVN repository. For easier downloading, there
-is also a tarball snapshot available.
-
-============================================================================
-EDAC PURPOSE
-
-The 'edac' kernel module goal is to detect and report errors that occur
-within the computer system running under linux.
+The 'edac' kernel module's goal is to detect and report hardware errors
+that occur within the computer system running under linux.
 
 MEMORY
+------
 
-In the initial release, memory Correctable Errors (CE) and Uncorrectable
-Errors (UE) are the primary errors being harvested. These types of errors
-are harvested by the 'edac_mc' class of device.
+Memory Correctable Errors (CE) and Uncorrectable Errors (UE) are the
+primary errors being harvested. These types of errors are harvested by
+the 'edac_mc' device.
 
 Detecting CE events, then harvesting those events and reporting them,
-CAN be a predictor of future UE events.  With CE events, the system can
-continue to operate, but with less safety. Preventive maintenance and
-proactive part replacement of memory DIMMs exhibiting CEs can reduce
-the likelihood of the dreaded UE events and system 'panics'.
+*can* but must not necessarily be a predictor of future UE events. With
+CE events only, the system can and will continue to operate as no data
+has been damaged yet.
 
-NON-MEMORY
+However, preventive maintenance and proactive part replacement of memory
+DIMMs exhibiting CEs can reduce the likelihood of the dreaded UE events
+and system panics.
+
+OTHER HARDWARE ELEMENTS
+-----------------------
 
 A new feature for EDAC, the edac_device class of device, was added in
 the 2.6.23 version of the kernel.
@@ -56,70 +37,57 @@ This new device type allows for non-memory type of ECC hardware detectors
 to have their states harvested and presented to userspace via the sysfs
 interface.
 
-Some architectures have ECC detectors for L1, L2 and L3 caches, along with DMA
-engines, fabric switches, main data path switches, interconnections,
-and various other hardware data paths. If the hardware reports it, then
-a edac_device device probably can be constructed to harvest and present
-that to userspace.
+Some architectures have ECC detectors for L1, L2 and L3 caches,
+along with DMA engines, fabric switches, main data path switches,
+interconnections, and various other hardware data paths. If the hardware
+reports it, then a edac_device device probably can be constructed to
+harvest and present that to userspace.
 
 
 PCI BUS SCANNING
+----------------
 
-In addition, PCI Bus Parity and SERR Errors are scanned for on PCI devices
-in order to determine if errors are occurring on data transfers.
+In addition, PCI devices are scanned for PCI Bus Parity and SERR Errors
+in order to determine if errors are occurring during data transfers.
 
 The presence of PCI Parity errors must be examined with a grain of salt.
-There are several add-in adapters that do NOT follow the PCI specification
+There are several add-in adapters that do *not* follow the PCI specification
 with regards to Parity generation and reporting. The specification says
 the vendor should tie the parity status bits to 0 if they do not intend
 to generate parity.  Some vendors do not do this, and thus the parity bit
 can "float" giving false positives.
 
-In the kernel there is a PCI device attribute located in sysfs that is
-checked by the EDAC PCI scanning code. If that attribute is set,
-PCI parity/error scanning is skipped for that device. The attribute
-is:
+There is a PCI device attribute located in sysfs that is checked by
+the EDAC PCI scanning code. If that attribute is set, PCI parity/error
+scanning is skipped for that device. The attribute is:
 
 	broken_parity_status
 
-as is located in /sys/devices/pci<XXX>/0000:XX:YY.Z directories for
+and is located in /sys/devices/pci<XXX>/0000:XX:YY.Z directories for
 PCI devices.
 
-FUTURE HARDWARE SCANNING
 
-EDAC will have future error detectors that will be integrated with
-EDAC or added to it, in the following list:
-
-	MCE	Machine Check Exception
-	MCA	Machine Check Architecture
-	NMI	NMI notification of ECC errors
-	MSRs 	Machine Specific Register error cases
-	and other mechanisms.
-
-These errors are usually bus errors, ECC errors, thermal throttling
-and the like.
-
-
-============================================================================
-EDAC VERSIONING
+VERSIONING
+----------
 
 EDAC is composed of a "core" module (edac_core.ko) and several Memory
-Controller (MC) driver modules. On a given system, the CORE
-is loaded and one MC driver will be loaded. Both the CORE and
-the MC driver (or edac_device driver) have individual versions that reflect
-current release level of their respective modules.
+Controller (MC) driver modules. On a given system, the CORE is loaded
+and one MC driver will be loaded. Both the CORE and the MC driver (or
+edac_device driver) have individual versions that reflect current
+release level of their respective modules.
 
-Thus, to "report" on what version a system is running, one must report both
-the CORE's and the MC driver's versions.
+Thus, to "report" on what version a system is running, one must report
+both the CORE's and the MC driver's versions.
 
 
 LOADING
+-------
 
-If 'edac' was statically linked with the kernel then no loading is
-necessary.  If 'edac' was built as modules then simply modprobe the
-'edac' pieces that you need.  You should be able to modprobe
-hardware-specific modules and have the dependencies load the necessary core
-modules.
+If 'edac' was statically linked with the kernel then no loading
+is necessary. If 'edac' was built as modules then simply modprobe
+the 'edac' pieces that you need. You should be able to modprobe
+hardware-specific modules and have the dependencies load the necessary
+core modules.
 
 Example:
 
@@ -129,35 +97,33 @@ loads both the amd76x_edac.ko memory controller module and the edac_mc.ko
 core module.
 
 
-============================================================================
-EDAC sysfs INTERFACE
+SYSFS INTERFACE
+---------------
 
-EDAC presents a 'sysfs' interface for control, reporting and attribute
-reporting purposes.
+EDAC presents a 'sysfs' interface for control and reporting purposes. It
+lives in the /sys/devices/system/edac directory.
 
-EDAC lives in the /sys/devices/system/edac directory.
-
-Within this directory there currently reside 2 'edac' components:
+Within this directory there currently reside 2 components:
 
 	mc	memory controller(s) system
 	pci	PCI control and status system
 
 
-============================================================================
+
 Memory Controller (mc) Model
+----------------------------
 
-First a background on the memory controller's model abstracted in EDAC.
-Each 'mc' device controls a set of DIMM memory modules. These modules are
-laid out in a Chip-Select Row (csrowX) and Channel table (chX). There can
-be multiple csrows and multiple channels.
+Each 'mc' device controls a set of DIMM memory modules. These modules
+are laid out in a Chip-Select Row (csrowX) and Channel table (chX).
+There can be multiple csrows and multiple channels.
 
-Memory controllers allow for several csrows, with 8 csrows being a typical value.
-Yet, the actual number of csrows depends on the electrical "loading"
-of a given motherboard, memory controller and DIMM characteristics.
+Memory controllers allow for several csrows, with 8 csrows being a
+typical value. Yet, the actual number of csrows depends on the layout of
+a given motherboard, memory controller and DIMM characteristics.
 
-Dual channels allows for 128 bit data transfers to the CPU from memory.
-Some newer chipsets allow for more than 2 channels, like Fully Buffered DIMMs
-(FB-DIMMs). The following example will assume 2 channels:
+Dual channels allows for 128 bit data transfers to/from the CPU from/to
+memory. Some newer chipsets allow for more than 2 channels, like Fully
+Buffered DIMMs (FB-DIMMs). The following example will assume 2 channels:
 
 
 		Channel 0	Channel 1
@@ -179,12 +145,12 @@ for memory DIMMs:
 	DIMM_A1
 	DIMM_B1
 
-Labels for these slots are usually silk screened on the motherboard. Slots
-labeled 'A' are channel 0 in this example. Slots labeled 'B'
-are channel 1. Notice that there are two csrows possible on a
-physical DIMM. These csrows are allocated their csrow assignment
-based on the slot into which the memory DIMM is placed. Thus, when 1 DIMM
-is placed in each Channel, the csrows cross both DIMMs.
+Labels for these slots are usually silk-screened on the motherboard.
+Slots labeled 'A' are channel 0 in this example. Slots labeled 'B' are
+channel 1. Notice that there are two csrows possible on a physical DIMM.
+These csrows are allocated their csrow assignment based on the slot into
+which the memory DIMM is placed. Thus, when 1 DIMM is placed in each
+Channel, the csrows cross both DIMMs.
 
 Memory DIMMs come single or dual "ranked". A rank is a populated csrow.
 Thus, 2 single ranked DIMMs, placed in slots DIMM_A0 and DIMM_B0 above
@@ -193,8 +159,8 @@ when 2 dual ranked DIMMs are similarly placed, then both csrow0 and
 csrow1 will be populated. The pattern repeats itself for csrow2 and
 csrow3.
 
-The representation of the above is reflected in the directory tree
-in EDAC's sysfs interface. Starting in directory
+The representation of the above is reflected in the directory
+tree in EDAC's sysfs interface. Starting in directory
 /sys/devices/system/edac/mc each memory controller will be represented
 by its own 'mcX' directory, where 'X' is the index of the MC.
 
@@ -217,34 +183,35 @@ Under each 'mcX' directory each 'csrowX' is again represented by a
 		|->csrow3
 		....
 
-Notice that there is no csrow1, which indicates that csrow0 is
-composed of a single ranked DIMMs. This should also apply in both
-Channels, in order to have dual-channel mode be operational. Since
-both csrow2 and csrow3 are populated, this indicates a dual ranked
-set of DIMMs for channels 0 and 1.
+Notice that there is no csrow1, which indicates that csrow0 is composed
+of a single ranked DIMMs. This should also apply in both Channels, in
+order to have dual-channel mode be operational. Since both csrow2 and
+csrow3 are populated, this indicates a dual ranked set of DIMMs for
+channels 0 and 1.
 
 
-Within each of the 'mcX' and 'csrowX' directories are several
-EDAC control and attribute files.
+Within each of the 'mcX' and 'csrowX' directories are several EDAC
+control and attribute files.
 
-============================================================================
-'mcX' DIRECTORIES
 
+'mcX' directories
+-----------------
 
 In 'mcX' directories are EDAC control and attribute files for
 this 'X' instance of the memory controllers.
 
 For a description of the sysfs API, please see:
-	Documentation/ABI/testing/sysfs/devices-edac
+	Documentation/ABI/testing/sysfs-devices-edac
 
 
-============================================================================
-'csrowX' DIRECTORIES
 
-When CONFIG_EDAC_LEGACY_SYSFS is enabled, the sysfs will contain the
-csrowX directories. As this API doesn't work properly for Rambus, FB-DIMMs
-and modern Intel Memory Controllers, this is being deprecated in favor
-of dimmX directories.
+'csrowX' directories
+--------------------
+
+When CONFIG_EDAC_LEGACY_SYSFS is enabled, sysfs will contain the csrowX
+directories. As this API doesn't work properly for Rambus, FB-DIMMs and
+modern Intel Memory Controllers, this is being deprecated in favor of
+dimmX directories.
 
 In the 'csrowX' directories are EDAC control and attribute files for
 this 'X' instance of csrow:
@@ -265,18 +232,18 @@ Total Correctable Errors count attribute file:
 	'ce_count'
 
 	This attribute file displays the total count of correctable
-	errors that have occurred on this csrow. This
-	count is very important to examine. CEs provide early
-	indications that a DIMM is beginning to fail. This count
-	field should be monitored for non-zero values and report
-	such information to the system administrator.
+	errors that have occurred on this csrow. This count is very
+	important to examine. CEs provide early indications that a
+	DIMM is beginning to fail. This count field should be
+	monitored for non-zero values and report such information
+	to the system administrator.
 
 
 Total memory managed by this csrow attribute file:
 
 	'size_mb'
 
-	This attribute file displays, in count of megabytes, of memory
+	This attribute file displays, in count of megabytes, the memory
 	that this csrow contains.
 
 
@@ -377,11 +344,13 @@ Channel 1 DIMM Label control file:
 	motherboard specific and determination of this information
 	must occur in userland at this time.
 
-============================================================================
-SYSTEM LOGGING
 
-If logging for UEs and CEs are enabled then system logs will have
-error notices indicating errors that have been detected:
+
+SYSTEM LOGGING
+--------------
+
+If logging for UEs and CEs is enabled, then system logs will contain
+information indicating that errors have been detected:
 
 EDAC MC0: CE page 0x283, offset 0xce0, grain 8, syndrome 0x6ec3, row 0,
 channel 1 "DIMM_B1": amd76x_edac
@@ -404,24 +373,23 @@ The structure of the message is:
 	and then an optional, driver-specific message that may
 		have additional information.
 
-Both UEs and CEs with no info will lack all but memory controller,
-error type, a notice of "no info" and then an optional,
-driver-specific error message.
+Both UEs and CEs with no info will lack all but memory controller, error
+type, a notice of "no info" and then an optional, driver-specific error
+message.
 
 
-============================================================================
 PCI Bus Parity Detection
+------------------------
 
-
-On Header Type 00 devices the primary status is looked at
-for any parity error regardless of whether Parity is enabled on the
-device.  (The spec indicates parity is generated in some cases).
-On Header Type 01 bridges, the secondary status register is also
-looked at to see if parity occurred on the bus on the other side of
-the bridge.
+On Header Type 00 devices, the primary status is looked at for any
+parity error regardless of whether parity is enabled on the device or
+not. (The spec indicates parity is generated in some cases). On Header
+Type 01 bridges, the secondary status register is also looked at to see
+if parity occurred on the bus on the other side of the bridge.
 
 
 SYSFS CONFIGURATION
+-------------------
 
 Under /sys/devices/system/edac/pci are control and attribute files as follows:
 
@@ -450,8 +418,9 @@ Parity Count:
 	have been detected.
 
 
-============================================================================
+
 MODULE PARAMETERS
+-----------------
 
 Panic on UE control file:
 
@@ -516,7 +485,7 @@ Panic on PCI PARITY Error:
 	'panic_on_pci_parity'
 
 
-	This control files enables or disables panicking when a parity
+	This control file enables or disables panicking when a parity
 	error has been detected.
 
 
@@ -530,10 +499,8 @@ Panic on PCI PARITY Error:
 
 
 
-=======================================================================
-
-
-EDAC_DEVICE type of device
+EDAC device type
+----------------
 
 In the header file, edac_core.h, there is a series of edac_device structures
 and APIs for the EDAC_DEVICE.
@@ -573,6 +540,7 @@ The test_device_edac device adds at least one of its own custom control:
 The symlink points to the 'struct dev' that is registered for this edac_device.
 
 INSTANCES
+---------
 
 One or more instance directories are present. For the 'test_device_edac' case:
 
@@ -586,6 +554,7 @@ counter in deeper subdirectories.
 	ue_count	total of UE events of subdirectories
 
 BLOCKS
+------
 
 At the lowest directory level is the 'block' directory. There can be 0, 1
 or more blocks specified in each instance.
@@ -617,14 +586,15 @@ The 'test_device_edac' device adds 4 attributes and 1 control:
 				reset all the above counters.
 
 
-Use of the 'test_device_edac' driver should any others to create their own
+Use of the 'test_device_edac' driver should enable any others to create their own
 unique drivers for their hardware systems.
 
 The 'test_device_edac' sample driver is located at the
 bluesmoke.sourceforge.net project site for EDAC.
 
-=======================================================================
+
 NEHALEM USAGE OF EDAC APIs
+--------------------------
 
 This chapter documents some EXPERIMENTAL mappings for EDAC API to handle
 Nehalem EDAC driver. They will likely be changed on future versions
@@ -633,7 +603,7 @@ of the driver.
 Due to the way Nehalem exports Memory Controller data, some adjustments
 were done at i7core_edac driver. This chapter will cover those differences
 
-1) On Nehalem, there are one Memory Controller per Quick Patch Interconnect
+1) On Nehalem, there is one Memory Controller per Quick Patch Interconnect
    (QPI). At the driver, the term "socket" means one QPI. This is
    associated with a physical CPU socket.
 
@@ -642,7 +612,7 @@ were done at i7core_edac driver. This chapter will cover those differences
    Each channel can have up to 3 DIMMs.
 
    The minimum known unity is DIMMs. There are no information about csrows.
-   As EDAC API maps the minimum unity is csrows, the driver sequencially
+   As EDAC API maps the minimum unity is csrows, the driver sequentially
    maps channel/dimm into different csrows.
 
    For example, supposing the following layout:
@@ -664,7 +634,7 @@ exports one
 
    Each QPI is exported as a different memory controller.
 
-2) Nehalem MC has the hability to generate errors. The driver implements this
+2) Nehalem MC has the ability to generate errors. The driver implements this
    functionality via some error injection nodes:
 
    For injecting a memory error, there are some sysfs nodes, under
@@ -771,5 +741,22 @@ exports one
 
    The standard error counters are generated when an mcelog error is received
    by the driver. Since, with udimm, this is counted by software, it is
-   possible that some errors could be lost. With rdimm's, they displays the
+   possible that some errors could be lost. With rdimm's, they display the
    contents of the registers
+
+CREDITS:
+========
+
+Written by Doug Thompson <dougthompson@xmission.com>
+7 Dec 2005
+17 Jul 2007	Updated
+
+(c) Mauro Carvalho Chehab
+05 Aug 2009	Nehalem interface
+
+EDAC authors/maintainers:
+
+	Doug Thompson, Dave Jiang, Dave Peterson et al,
+	Mauro Carvalho Chehab
+	Borislav Petkov
+	original author: Thayne Harbaugh

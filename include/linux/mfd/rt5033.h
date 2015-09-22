@@ -39,7 +39,7 @@ struct rt5033_battery {
 	struct i2c_client	*client;
 	struct rt5033_dev	*rt5033;
 	struct regmap		*regmap;
-	struct power_supply	psy;
+	struct power_supply	*psy;
 };
 
 /* RT5033 charger platform data */

@@ -76,7 +76,6 @@ extern struct kmem_cache *kernfs_node_cache;
 /*
  * inode.c
  */
-struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn);
 void kernfs_evict_inode(struct inode *inode);
 int kernfs_iop_permission(struct inode *inode, int mask);
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr);

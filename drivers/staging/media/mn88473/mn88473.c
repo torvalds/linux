@@ -17,7 +17,7 @@
 #include "mn88473_priv.h"
 
 static int mn88473_get_tune_settings(struct dvb_frontend *fe,
-	struct dvb_frontend_tune_settings *s)
+				     struct dvb_frontend_tune_settings *s)
 {
 	s->min_delay_ms = 1000;
 	return 0;
@@ -30,13 +30,18 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u32 if_frequency;
+	u64 tmp;
 	u8 delivery_system_val, if_val[3], bw_val[7];
 
 	dev_dbg(&client->dev,
-			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%d stream_id=%d\n",
-			c->delivery_system, c->modulation,
-			c->frequency, c->bandwidth_hz, c->symbol_rate,
-			c->inversion, c->stream_id);
+		"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%d stream_id=%d\n",
+		c->delivery_system,
+		c->modulation,
+		c->frequency,
+		c->bandwidth_hz,
+		c->symbol_rate,
+		c->inversion,
+		c->stream_id);
 
 	if (!dev->warm) {
 		ret = -EAGAIN;
@@ -58,32 +63,13 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	switch (c->delivery_system) {
-	case SYS_DVBT:
-	case SYS_DVBT2:
-		if (c->bandwidth_hz <= 6000000) {
-			/* IF 3570000 Hz, BW 6000000 Hz */
-			memcpy(if_val, "\x24\x8e\x8a", 3);
-			memcpy(bw_val, "\xe9\x55\x55\x1c\x29\x1c\x29", 7);
-		} else if (c->bandwidth_hz <= 7000000) {
-			/* IF 4570000 Hz, BW 7000000 Hz */
-			memcpy(if_val, "\x2e\xcb\xfb", 3);
-			memcpy(bw_val, "\xc8\x00\x00\x17\x0a\x17\x0a", 7);
-		} else if (c->bandwidth_hz <= 8000000) {
-			/* IF 4570000 Hz, BW 8000000 Hz */
-			memcpy(if_val, "\x2e\xcb\xfb", 3);
-			memcpy(bw_val, "\xaf\x00\x00\x11\xec\x11\xec", 7);
-		} else {
-			ret = -EINVAL;
-			goto err;
-		}
-		break;
-	case SYS_DVBC_ANNEX_A:
-		/* IF 5070000 Hz, BW 8000000 Hz */
-		memcpy(if_val, "\x33\xea\xb3", 3);
+	if (c->bandwidth_hz <= 6000000) {
+		memcpy(bw_val, "\xe9\x55\x55\x1c\x29\x1c\x29", 7);
+	} else if (c->bandwidth_hz <= 7000000) {
+		memcpy(bw_val, "\xc8\x00\x00\x17\x0a\x17\x0a", 7);
+	} else if (c->bandwidth_hz <= 8000000) {
 		memcpy(bw_val, "\xaf\x00\x00\x11\xec\x11\xec", 7);
-		break;
-	default:
+	} else {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -105,17 +91,12 @@ static int mn88473_set_frontend(struct dvb_frontend *fe)
 		if_frequency = 0;
 	}
 
-	switch (if_frequency) {
-	case 3570000:
-	case 4570000:
-	case 5070000:
-		break;
-	default:
-		dev_err(&client->dev, "IF frequency %d not supported\n",
-				if_frequency);
-		ret = -EINVAL;
-		goto err;
-	}
+	/* Calculate IF registers ( (1<<24)*IF / Xtal ) */
+	tmp =  div_u64(if_frequency * (u64)(1<<24) + (dev->xtal / 2),
+				   dev->xtal);
+	if_val[0] = ((tmp >> 16) & 0xff);
+	if_val[1] = ((tmp >>  8) & 0xff);
+	if_val[2] = ((tmp >>  0) & 0xff);
 
 	ret = regmap_write(dev->regmap[2], 0x05, 0x00);
 	ret = regmap_write(dev->regmap[2], 0xfb, 0x13);
@@ -186,11 +167,14 @@ err:
 	return ret;
 }
 
-static int mn88473_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int mn88473_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88473_dev *dev = i2c_get_clientdata(client);
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
+	unsigned int utmp;
+	int lock = 0;
 
 	*status = 0;
 
@@ -199,8 +183,51 @@ static int mn88473_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		goto err;
 	}
 
-	*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
-			FE_HAS_SYNC | FE_HAS_LOCK;
+	switch (c->delivery_system) {
+	case SYS_DVBT:
+		ret = regmap_read(dev->regmap[0], 0x62, &utmp);
+		if (ret)
+			goto err;
+		if (!(utmp & 0xA0)) {
+			if ((utmp & 0xF) >= 0x03)
+				*status |= FE_HAS_SIGNAL;
+			if ((utmp & 0xF) >= 0x09)
+				lock = 1;
+		}
+		break;
+	case SYS_DVBT2:
+		ret = regmap_read(dev->regmap[2], 0x8B, &utmp);
+		if (ret)
+			goto err;
+		if (!(utmp & 0x40)) {
+			if ((utmp & 0xF) >= 0x07)
+				*status |= FE_HAS_SIGNAL;
+			if ((utmp & 0xF) >= 0x0a)
+				*status |= FE_HAS_CARRIER;
+			if ((utmp & 0xF) >= 0x0d)
+				*status |= FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
+		}
+		break;
+	case SYS_DVBC_ANNEX_A:
+		ret = regmap_read(dev->regmap[1], 0x85, &utmp);
+		if (ret)
+			goto err;
+		if (!(utmp & 0x40)) {
+			ret = regmap_read(dev->regmap[1], 0x89, &utmp);
+			if (ret)
+				goto err;
+			if (utmp & 0x01)
+				lock = 1;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (lock)
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
+				FE_HAS_SYNC | FE_HAS_LOCK;
 
 	return 0;
 err:
@@ -215,11 +242,23 @@ static int mn88473_init(struct dvb_frontend *fe)
 	int ret, len, remaining;
 	const struct firmware *fw = NULL;
 	u8 *fw_file = MN88473_FIRMWARE;
+	unsigned int tmp;
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->warm)
+	/* set cold state by default */
+	dev->warm = false;
+
+	/* check if firmware is already running */
+	ret = regmap_read(dev->regmap[0], 0xf5, &tmp);
+	if (ret)
+		goto err;
+
+	if (!(tmp & 0x1)) {
+		dev_info(&client->dev, "firmware already running\n");
+		dev->warm = true;
 		return 0;
+	}
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
@@ -229,7 +268,7 @@ static int mn88473_init(struct dvb_frontend *fe)
 	}
 
 	dev_info(&client->dev, "downloading firmware from file '%s'\n",
-			fw_file);
+		 fw_file);
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x03);
 	if (ret)
@@ -239,16 +278,30 @@ static int mn88473_init(struct dvb_frontend *fe)
 			remaining -= (dev->i2c_wr_max - 1)) {
 		len = remaining;
 		if (len > (dev->i2c_wr_max - 1))
-			len = (dev->i2c_wr_max - 1);
+			len = dev->i2c_wr_max - 1;
 
 		ret = regmap_bulk_write(dev->regmap[0], 0xf6,
-				&fw->data[fw->size - remaining], len);
+					&fw->data[fw->size - remaining], len);
 		if (ret) {
 			dev_err(&client->dev, "firmware download failed=%d\n",
-					ret);
+				ret);
 			goto err;
 		}
 	}
+
+	/* parity check of firmware */
+	ret = regmap_read(dev->regmap[0], 0xf8, &tmp);
+	if (ret) {
+		dev_err(&client->dev,
+				"parity reg read failed=%d\n", ret);
+		goto err;
+	}
+	if (tmp & 0x10) {
+		dev_err(&client->dev,
+				"firmware parity check failed=0x%x\n", tmp);
+		goto err;
+	}
+	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", tmp);
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x00);
 	if (ret)
@@ -293,6 +346,8 @@ static struct dvb_frontend_ops mn88473_ops = {
 	.delsys = {SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_AC},
 	.info = {
 		.name = "Panasonic MN88473",
+		.symbol_rate_min = 1000000,
+		.symbol_rate_max = 7200000,
 		.caps =	FE_CAN_FEC_1_2                 |
 			FE_CAN_FEC_2_3                 |
 			FE_CAN_FEC_3_4                 |
@@ -325,7 +380,7 @@ static struct dvb_frontend_ops mn88473_ops = {
 };
 
 static int mn88473_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct mn88473_config *config = client->dev.platform_data;
 	struct mn88473_dev *dev;
@@ -352,6 +407,10 @@ static int mn88473_probe(struct i2c_client *client,
 	}
 
 	dev->i2c_wr_max = config->i2c_wr_max;
+	if (!config->xtal)
+		dev->xtal = 25000000;
+	else
+		dev->xtal = config->xtal;
 	dev->client[0] = client;
 	dev->regmap[0] = regmap_init_i2c(dev->client[0], &regmap_config);
 	if (IS_ERR(dev->regmap[0])) {
@@ -448,7 +507,6 @@ MODULE_DEVICE_TABLE(i2c, mn88473_id_table);
 
 static struct i2c_driver mn88473_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "mn88473",
 	},
 	.probe		= mn88473_probe,

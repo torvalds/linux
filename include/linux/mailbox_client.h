@@ -40,6 +40,8 @@ struct mbox_client {
 	void (*tx_done)(struct mbox_client *cl, void *mssg, int r);
 };
 
+struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
+					      const char *name);
 struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index);
 int mbox_send_message(struct mbox_chan *chan, void *mssg);
 void mbox_client_txdone(struct mbox_chan *chan, int r); /* atomic */

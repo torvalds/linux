@@ -130,20 +130,6 @@ int kernel_ident_mapping_init(struct x86_mapping_info *info, pgd_t *pgd_page,
 	return 0;
 }
 
-static int __init parse_direct_gbpages_off(char *arg)
-{
-	direct_gbpages = 0;
-	return 0;
-}
-early_param("nogbpages", parse_direct_gbpages_off);
-
-static int __init parse_direct_gbpages_on(char *arg)
-{
-	direct_gbpages = 1;
-	return 0;
-}
-early_param("gbpages", parse_direct_gbpages_on);
-
 /*
  * NOTE: pagetable_init alloc all the fixmap pagetables contiguous on the
  * physical space so we can cache the place of the first one and move
@@ -701,11 +687,11 @@ static void  update_end_of_memory_vars(u64 start, u64 size)
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
-int arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	struct zone *zone = pgdat->node_zones +
-		zone_for_memory(nid, start, size, ZONE_NORMAL);
+		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;

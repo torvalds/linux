@@ -1482,7 +1482,7 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 }
 
 static int fimc_subdev_enum_mbus_code(struct v4l2_subdev *sd,
-				      struct v4l2_subdev_fh *fh,
+				      struct v4l2_subdev_pad_config *cfg,
 				      struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct fimc_fmt *fmt;
@@ -1495,7 +1495,7 @@ static int fimc_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int fimc_subdev_get_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
@@ -1504,7 +1504,7 @@ static int fimc_subdev_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1536,7 +1536,7 @@ static int fimc_subdev_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
@@ -1559,7 +1559,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		*mf = fmt->format;
 		return 0;
 	}
@@ -1602,7 +1602,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_fh *fh,
+				     struct v4l2_subdev_pad_config *cfg,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
@@ -1628,10 +1628,10 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 		return 0;
 
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
 		f = &ctx->d_frame;
 		break;
 	default:
@@ -1657,7 +1657,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 }
 
 static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_fh *fh,
+				     struct v4l2_subdev_pad_config *cfg,
 				     struct v4l2_subdev_selection *sel)
 {
 	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
@@ -1675,10 +1675,10 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
+		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
-		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
+		try_sel = v4l2_subdev_get_try_compose(sd, cfg, sel->pad);
 		f = &ctx->d_frame;
 		break;
 	default:

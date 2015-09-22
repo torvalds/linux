@@ -34,6 +34,7 @@
 #define RTF_PREF(pref)	((pref) << 27)
 #define RTF_PREF_MASK	0x18000000
 
+#define RTF_PCPU	0x40000000
 #define RTF_LOCAL	0x80000000
 
 

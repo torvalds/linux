@@ -18,16 +18,6 @@
 #include <asm/dis.h>
 #include <asm/ipl.h>
 
-#ifndef CONFIG_64BIT
-#define LONG "%08lx "
-#define FOURLONG "%08lx %08lx %08lx %08lx\n"
-static int kstack_depth_to_print = 12;
-#else /* CONFIG_64BIT */
-#define LONG "%016lx "
-#define FOURLONG "%016lx %016lx %016lx %016lx\n"
-static int kstack_depth_to_print = 20;
-#endif /* CONFIG_64BIT */
-
 /*
  * For show_trace we have tree different stack to consider:
  *   - the panic stack which is used if the kernel stack has overflown
@@ -115,12 +105,12 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	else
 		stack = sp;
 
-	for (i = 0; i < kstack_depth_to_print; i++) {
+	for (i = 0; i < 20; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
 		if ((i * sizeof(long) % 32) == 0)
 			printk("%s       ", i == 0 ? "" : "\n");
-		printk(LONG, *stack++);
+		printk("%016lx ", *stack++);
 	}
 	printk("\n");
 	show_trace(task, sp);
@@ -128,10 +118,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 static void show_last_breaking_event(struct pt_regs *regs)
 {
-#ifdef CONFIG_64BIT
 	printk("Last Breaking-Event-Address:\n");
 	printk(" [<%016lx>] %pSR\n", regs->args[0], (void *)regs->args[0]);
-#endif
 }
 
 static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
@@ -155,16 +143,14 @@ void show_registers(struct pt_regs *regs)
 	       mask_bits(regs, PSW_MASK_MCHECK), mask_bits(regs, PSW_MASK_WAIT),
 	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
 	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
-#ifdef CONFIG_64BIT
 	printk(" EA:%x", mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
-#endif
-	printk("\n%s GPRS: " FOURLONG, mode,
+	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[4], regs->gprs[5], regs->gprs[6], regs->gprs[7]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[8], regs->gprs[9], regs->gprs[10], regs->gprs[11]);
-	printk("           " FOURLONG,
+	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[12], regs->gprs[13], regs->gprs[14], regs->gprs[15]);
 	show_code(regs);
 }

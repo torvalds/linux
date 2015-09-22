@@ -253,7 +253,7 @@ static void briq_restart(char *cmd)
  * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
  * the the built-in serial node. Instead, a /failsafe node is created.
  */
-static void chrp_init_early(void)
+static __init void chrp_init_early(void)
 {
 	struct device_node *node;
 	const char *property;
@@ -363,7 +363,7 @@ void __init chrp_setup_arch(void)
 	if (ppc_md.progress) ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0x0);
 }
 
-static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void chrp_8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();

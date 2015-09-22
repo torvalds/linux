@@ -51,6 +51,7 @@
  */
 #define CHELSIO_T4		0x4
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 enum chip_type {
 	T4_A1 = CHELSIO_CHIP_CODE(CHELSIO_T4, 1),
@@ -156,6 +157,12 @@ struct vpd_params {
 	u32 cclk;			/* Core Clock (KHz) */
 };
 
+/* Stores chip specific parameters */
+struct arch_specific_params {
+	u32 sge_fl_db;
+	u16 mps_tcam_size;
+};
+
 /*
  * Global Receive Side Scaling (RSS) parameters in host-native format.
  */
@@ -215,6 +222,7 @@ struct adapter_params {
 	struct vpd_params vpd;		/* Vital Product Data */
 	struct rss_params rss;		/* Receive Side Scaling */
 	struct vf_resources vfres;	/* Virtual Function Resource limits */
+	struct arch_specific_params arch; /* chip specific params */
 	enum chip_type chip;		/* chip code */
 	u8 nports;			/* # of Ethernet "ports" */
 };
@@ -284,11 +292,11 @@ int t4vf_fw_reset(struct adapter *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
-int t4_bar2_sge_qregs(struct adapter *adapter,
-		      unsigned int qid,
-		      enum t4_bar2_qtype qtype,
-		      u64 *pbar2_qoffset,
-		      unsigned int *pbar2_qid);
+int t4vf_bar2_sge_qregs(struct adapter *adapter,
+			unsigned int qid,
+			enum t4_bar2_qtype qtype,
+			u64 *pbar2_qoffset,
+			unsigned int *pbar2_qid);
 
 int t4vf_get_sge_params(struct adapter *);
 int t4vf_get_vpd_params(struct adapter *);

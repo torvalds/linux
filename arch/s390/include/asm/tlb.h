@@ -118,12 +118,10 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 				unsigned long address)
 {
-#ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 31))
 		return;
 	pgtable_pmd_page_dtor(virt_to_page(pmd));
 	tlb_remove_table(tlb, pmd);
-#endif
 }
 
 /*
@@ -136,11 +134,9 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 				unsigned long address)
 {
-#ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 42))
 		return;
 	tlb_remove_table(tlb, pud);
-#endif
 }
 
 #define tlb_start_vma(tlb, vma)			do { } while (0)

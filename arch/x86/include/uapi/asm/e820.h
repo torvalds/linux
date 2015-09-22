@@ -32,7 +32,18 @@
 #define E820_ACPI	3
 #define E820_NVS	4
 #define E820_UNUSABLE	5
+#define E820_PMEM	7
 
+/*
+ * This is a non-standardized way to represent ADR or NVDIMM regions that
+ * persist over a reboot.  The kernel will ignore their special capabilities
+ * unless the CONFIG_X86_PMEM_LEGACY option is set.
+ *
+ * ( Note that older platforms also used 6 for the same type of memory,
+ *   but newer versions switched to 12 as 6 was assigned differently.  Some
+ *   time they will learn... )
+ */
+#define E820_PRAM	12
 
 /*
  * reserved RAM used by kernel itself

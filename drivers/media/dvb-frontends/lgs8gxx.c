@@ -732,7 +732,8 @@ int lgs8gxx_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int lgs8gxx_read_status(struct dvb_frontend *fe, fe_status_t *fe_status)
+static int lgs8gxx_read_status(struct dvb_frontend *fe,
+			       enum fe_status *fe_status)
 {
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 	s8 ret;

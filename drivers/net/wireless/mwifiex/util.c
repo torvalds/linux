@@ -26,6 +26,8 @@
 #include "11n.h"
 
 static struct mwifiex_debug_data items[] = {
+	{"debug_mask", item_size(debug_mask),
+	 item_addr(debug_mask), 1},
 	{"int_counter", item_size(int_counter),
 	 item_addr(int_counter), 1},
 	{"wmm_ac_vo", item_size(packets_out[WMM_AC_VO]),
@@ -124,6 +126,10 @@ static int num_of_items = ARRAY_SIZE(items);
 int mwifiex_init_fw_complete(struct mwifiex_adapter *adapter)
 {
 
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY)
+		if (adapter->if_ops.init_fw_port)
+			adapter->if_ops.init_fw_port(adapter);
+
 	adapter->init_wait_q_woken = true;
 	wake_up_interruptible(&adapter->init_wait_q);
 	return 0;
@@ -158,7 +164,8 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 	} else if (func_init_shutdown == MWIFIEX_FUNC_SHUTDOWN) {
 		cmd = HostCmd_CMD_FUNC_SHUTDOWN;
 	} else {
-		dev_err(priv->adapter->dev, "unsupported parameter\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "unsupported parameter\n");
 		return -1;
 	}
 
@@ -178,6 +185,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (info) {
+		info->debug_mask = adapter->debug_mask;
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
@@ -325,7 +333,7 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 			  struct rxpd *rx_pd)
 {
 	u16 stype;
-	u8 category, action_code;
+	u8 category, action_code, *addr2;
 	struct ieee80211_hdr *ieee_hdr = (void *)payload;
 
 	stype = (le16_to_cpu(ieee_hdr->frame_control) & IEEE80211_FCTL_STYPE);
@@ -333,21 +341,35 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 	switch (stype) {
 	case IEEE80211_STYPE_ACTION:
 		category = *(payload + sizeof(struct ieee80211_hdr));
-		action_code = *(payload + sizeof(struct ieee80211_hdr) + 1);
-		if (category == WLAN_CATEGORY_PUBLIC &&
-		    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
-			dev_dbg(priv->adapter->dev,
-				"TDLS discovery response %pM nf=%d, snr=%d\n",
-				ieee_hdr->addr2, rx_pd->nf, rx_pd->snr);
-			mwifiex_auto_tdls_update_peer_signal(priv,
-							     ieee_hdr->addr2,
-							     rx_pd->snr,
-							     rx_pd->nf);
+		switch (category) {
+		case WLAN_CATEGORY_PUBLIC:
+			action_code = *(payload + sizeof(struct ieee80211_hdr)
+					+ 1);
+			if (action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
+				addr2 = ieee_hdr->addr2;
+				mwifiex_dbg(priv->adapter, INFO,
+					    "TDLS discovery response %pM nf=%d, snr=%d\n",
+					    addr2, rx_pd->nf, rx_pd->snr);
+				mwifiex_auto_tdls_update_peer_signal(priv,
+								     addr2,
+								     rx_pd->snr,
+								     rx_pd->nf);
+			}
+			break;
+		case WLAN_CATEGORY_BACK:
+			/*we dont indicate BACK action frames to cfg80211*/
+			mwifiex_dbg(priv->adapter, INFO,
+				    "drop BACK action frames");
+			return -1;
+		default:
+			mwifiex_dbg(priv->adapter, INFO,
+				    "unknown public action frame category %d\n",
+				    category);
 		}
-		break;
 	default:
-		dev_dbg(priv->adapter->dev,
-			"unknown mgmt frame subytpe %#x\n", stype);
+		mwifiex_dbg(priv->adapter, INFO,
+		    "unknown mgmt frame subtype %#x\n", stype);
+		return 0;
 	}
 
 	return 0;
@@ -367,6 +389,13 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 	if (!skb)
 		return -1;
 
+	if (!priv->mgmt_frame_mask ||
+	    priv->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED) {
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "do not receive mgmt frames on uninitialized intf");
+		return -1;
+	}
+
 	rx_pd = (struct rxpd *)skb->data;
 
 	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
@@ -376,8 +405,9 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 
 	ieee_hdr = (void *)skb->data;
 	if (ieee80211_is_mgmt(ieee_hdr->frame_control)) {
-		mwifiex_parse_mgmt_packet(priv, (u8 *)ieee_hdr,
-					  pkt_len, rx_pd);
+		if (mwifiex_parse_mgmt_packet(priv, (u8 *)ieee_hdr,
+					      pkt_len, rx_pd))
+			return -1;
 	}
 	/* Remove address4 */
 	memmove(skb->data + sizeof(struct ieee80211_hdr_3addr),
@@ -405,11 +435,24 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
  */
 int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 {
+	struct mwifiex_sta_node *src_node;
+	struct ethhdr *p_ethhdr;
+
 	if (!skb)
 		return -1;
 
 	priv->stats.rx_bytes += skb->len;
 	priv->stats.rx_packets++;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		p_ethhdr = (void *)skb->data;
+		src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+		if (src_node) {
+			src_node->stats.last_rx = jiffies;
+			src_node->stats.rx_bytes += skb->len;
+			src_node->stats.rx_packets++;
+		}
+	}
 
 	skb->dev = priv->netdev;
 	skb->protocol = eth_type_trans(skb, priv->netdev);
@@ -457,15 +500,12 @@ int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb)
 int mwifiex_complete_cmd(struct mwifiex_adapter *adapter,
 			 struct cmd_ctrl_node *cmd_node)
 {
-	dev_dbg(adapter->dev, "cmd completed: status=%d\n",
-		adapter->cmd_wait_q.status);
+	WARN_ON(!cmd_node->wait_q_enabled);
+	mwifiex_dbg(adapter, CMD, "cmd completed: status=%d\n",
+		    adapter->cmd_wait_q.status);
 
-	*(cmd_node->condition) = true;
-
-	if (adapter->cmd_wait_q.status == -ETIMEDOUT)
-		dev_err(adapter->dev, "cmd timeout\n");
-	else
-		wake_up_interruptible(&adapter->cmd_wait_q.wait);
+	*cmd_node->condition = true;
+	wake_up_interruptible(&adapter->cmd_wait_q.wait);
 
 	return 0;
 }
@@ -489,6 +529,65 @@ mwifiex_get_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 	}
 
 	return NULL;
+}
+
+static struct mwifiex_sta_node *
+mwifiex_get_tdls_sta_entry(struct mwifiex_private *priv, u8 status)
+{
+	struct mwifiex_sta_node *node;
+
+	list_for_each_entry(node, &priv->sta_list, list) {
+		if (node->tdls_status == status)
+			return node;
+	}
+
+	return NULL;
+}
+
+/* If tdls channel switching is on-going, tx data traffic should be
+ * blocked until the switching stage completed.
+ */
+u8 mwifiex_is_tdls_chan_switching(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *sta_ptr;
+
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return false;
+
+	sta_ptr = mwifiex_get_tdls_sta_entry(priv, TDLS_CHAN_SWITCHING);
+	if (sta_ptr)
+		return true;
+
+	return false;
+}
+
+u8 mwifiex_is_tdls_off_chan(struct mwifiex_private *priv)
+{
+	struct mwifiex_sta_node *sta_ptr;
+
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return false;
+
+	sta_ptr = mwifiex_get_tdls_sta_entry(priv, TDLS_IN_OFF_CHAN);
+	if (sta_ptr)
+		return true;
+
+	return false;
+}
+
+/* If tdls channel switching is on-going or tdls operate on off-channel,
+ * cmd path should be blocked until tdls switched to base-channel.
+ */
+u8 mwifiex_is_send_cmd_allowed(struct mwifiex_private *priv)
+{
+	if (!priv || !ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return true;
+
+	if (mwifiex_is_tdls_chan_switching(priv) ||
+	    mwifiex_is_tdls_off_chan(priv))
+		return false;
+
+	return true;
 }
 
 /* This function will add a sta_node entry to associated station list
@@ -529,13 +628,16 @@ void
 mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
 		       int ies_len, struct mwifiex_sta_node *node)
 {
+	struct ieee_types_header *ht_cap_ie;
 	const struct ieee80211_ht_cap *ht_cap;
 
 	if (!ies)
 		return;
 
-	ht_cap = (void *)cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies, ies_len);
-	if (ht_cap) {
+	ht_cap_ie = (void *)cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ies,
+					     ies_len);
+	if (ht_cap_ie) {
+		ht_cap = (void *)(ht_cap_ie + 1);
 		node->is_11n_enabled = 1;
 		node->max_amsdu = le16_to_cpu(ht_cap->cap_info) &
 				  IEEE80211_HT_CAP_MAX_AMSDU ?
@@ -624,3 +726,26 @@ void mwifiex_hist_data_reset(struct mwifiex_private *priv)
 	for (ix = 0; ix < MWIFIEX_MAX_SIG_STRENGTH; ix++)
 		atomic_set(&phist_data->sig_str[ix], 0);
 }
+
+void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags)
+{
+	struct sk_buff *skb;
+	int buf_len, pad;
+
+	buf_len = rx_len + MWIFIEX_RX_HEADROOM + MWIFIEX_DMA_ALIGN_SZ;
+
+	skb = __dev_alloc_skb(buf_len, flags);
+
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, MWIFIEX_RX_HEADROOM);
+
+	pad = MWIFIEX_ALIGN_ADDR(skb->data, MWIFIEX_DMA_ALIGN_SZ) -
+	      (long)skb->data;
+
+	skb_reserve(skb, pad);
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(mwifiex_alloc_dma_align_buf);

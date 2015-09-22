@@ -5,6 +5,13 @@ OHCI
 Required properties:
  - compatible: Should be "atmel,at91rm9200-ohci" for USB controllers
    used in host mode.
+ - reg: Address and length of the register set for the device
+ - interrupts: Should contain ehci interrupt
+ - clocks: Should reference the peripheral, host and system clocks
+ - clock-names: Should contains two strings
+		"ohci_clk" for the peripheral clock
+		"hclk" for the host clock
+		"uhpck" for the system clock
  - num-ports: Number of ports.
  - atmel,vbus-gpio: If present, specifies a gpio that needs to be
    activated for the bus to be powered.
@@ -14,6 +21,8 @@ Required properties:
 usb0: ohci@00500000 {
 	compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 	reg = <0x00500000 0x100000>;
+	clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
+	clock-names = "ohci_clk", "hclk", "uhpck";
 	interrupts = <20 4>;
 	num-ports = <2>;
 };
@@ -23,11 +32,19 @@ EHCI
 Required properties:
  - compatible: Should be "atmel,at91sam9g45-ehci" for USB controllers
    used in host mode.
+ - reg: Address and length of the register set for the device
+ - interrupts: Should contain ehci interrupt
+ - clocks: Should reference the peripheral and the UTMI clocks
+ - clock-names: Should contains two strings
+		"ehci_clk" for the peripheral clock
+		"usb_clk" for the UTMI clock
 
 usb1: ehci@00800000 {
 	compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 	reg = <0x00800000 0x100000>;
 	interrupts = <22 4>;
+	clocks = <&utmi>, <&uhphs_clk>;
+	clock-names = "usb_clk", "ehci_clk";
 };
 
 AT91 USB device controller
@@ -53,6 +70,8 @@ usb1: gadget@fffa4000 {
 	compatible = "atmel,at91rm9200-udc";
 	reg = <0xfffa4000 0x4000>;
 	interrupts = <10 4>;
+	clocks = <&udc_clk>, <&udpck>;
+	clock-names = "pclk", "hclk";
 	atmel,vbus-gpio = <&pioC 5 0>;
 };
 
@@ -60,11 +79,15 @@ Atmel High-Speed USB device controller
 
 Required properties:
  - compatible: Should be one of the following
-	       "at91sam9rl-udc"
-	       "at91sam9g45-udc"
-	       "sama5d3-udc"
+	       "atmel,at91sam9rl-udc"
+	       "atmel,at91sam9g45-udc"
+	       "atmel,sama5d3-udc"
  - reg: Address and length of the register set for the device
  - interrupts: Should contain usba interrupt
+ - clocks: Should reference the peripheral and host clocks
+ - clock-names: Should contains two strings
+		"pclk" for the peripheral clock
+		"hclk" for the host clock
  - ep childnode: To specify the number of endpoints and their properties.
 
 Optional properties:
@@ -86,6 +109,8 @@ usb2: gadget@fff78000 {
 	reg = <0x00600000 0x80000
 	       0xfff78000 0x400>;
 	interrupts = <27 4 0>;
+	clocks = <&utmi>, <&udphs_clk>;
+	clock-names = "hclk", "pclk";
 	atmel,vbus-gpio = <&pioB 19 0>;
 
 	ep0 {

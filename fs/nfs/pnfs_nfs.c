@@ -124,11 +124,12 @@ pnfs_generic_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 	if (ret) {
 		cinfo->ds->nwritten -= ret;
 		cinfo->ds->ncommitting += ret;
-		bucket->clseg = bucket->wlseg;
-		if (list_empty(src))
+		if (bucket->clseg == NULL)
+			bucket->clseg = pnfs_get_lseg(bucket->wlseg);
+		if (list_empty(src)) {
+			pnfs_put_lseg_locked(bucket->wlseg);
 			bucket->wlseg = NULL;
-		else
-			pnfs_get_lseg(bucket->clseg);
+		}
 	}
 	return ret;
 }
@@ -182,19 +183,23 @@ static void pnfs_generic_retry_commit(struct nfs_commit_info *cinfo, int idx)
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 	struct pnfs_commit_bucket *bucket;
 	struct pnfs_layout_segment *freeme;
+	LIST_HEAD(pages);
 	int i;
 
+	spin_lock(cinfo->lock);
 	for (i = idx; i < fl_cinfo->nbuckets; i++) {
 		bucket = &fl_cinfo->buckets[i];
 		if (list_empty(&bucket->committing))
 			continue;
-		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo, i);
-		spin_lock(cinfo->lock);
 		freeme = bucket->clseg;
 		bucket->clseg = NULL;
+		list_splice_init(&bucket->committing, &pages);
 		spin_unlock(cinfo->lock);
+		nfs_retry_commit(&pages, freeme, cinfo, i);
 		pnfs_put_lseg(freeme);
+		spin_lock(cinfo->lock);
 	}
+	spin_unlock(cinfo->lock);
 }
 
 static unsigned int
@@ -216,10 +221,6 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 		if (!data)
 			break;
 		data->ds_commit_index = i;
-		spin_lock(cinfo->lock);
-		data->lseg = bucket->clseg;
-		bucket->clseg = NULL;
-		spin_unlock(cinfo->lock);
 		list_add(&data->pages, list);
 		nreq++;
 	}
@@ -227,6 +228,22 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 	/* Clean up on error */
 	pnfs_generic_retry_commit(cinfo, i);
 	return nreq;
+}
+
+static inline
+void pnfs_fetch_commit_bucket_list(struct list_head *pages,
+		struct nfs_commit_data *data,
+		struct nfs_commit_info *cinfo)
+{
+	struct pnfs_commit_bucket *bucket;
+
+	bucket = &cinfo->ds->buckets[data->ds_commit_index];
+	spin_lock(cinfo->lock);
+	list_splice_init(&bucket->committing, pages);
+	data->lseg = bucket->clseg;
+	bucket->clseg = NULL;
+	spin_unlock(cinfo->lock);
+
 }
 
 /* This follows nfs_commit_list pretty closely */
@@ -243,7 +260,7 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	if (!list_empty(mds_pages)) {
 		data = nfs_commitdata_alloc();
 		if (data != NULL) {
-			data->lseg = NULL;
+			data->ds_commit_index = -1;
 			list_add(&data->pages, &list);
 			nreq++;
 		} else {
@@ -265,19 +282,16 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 
 	list_for_each_entry_safe(data, tmp, &list, pages) {
 		list_del_init(&data->pages);
-		if (!data->lseg) {
+		if (data->ds_commit_index < 0) {
 			nfs_init_commit(data, mds_pages, NULL, cinfo);
 			nfs_initiate_commit(NFS_CLIENT(inode), data,
 					    NFS_PROTO(data->inode),
 					    data->mds_ops, how, 0);
 		} else {
-			struct pnfs_commit_bucket *buckets;
+			LIST_HEAD(pages);
 
-			buckets = cinfo->ds->buckets;
-			nfs_init_commit(data,
-					&buckets[data->ds_commit_index].committing,
-					data->lseg,
-					cinfo);
+			pnfs_fetch_commit_bucket_list(&pages, data, cinfo);
+			nfs_init_commit(data, &pages, data->lseg, cinfo);
 			initiate_commit(data, how);
 		}
 	}
@@ -359,26 +373,31 @@ same_sockaddr(struct sockaddr *addr1, struct sockaddr *addr2)
 	return false;
 }
 
+/*
+ * Checks if 'dsaddrs1' contains a subset of 'dsaddrs2'. If it does,
+ * declare a match.
+ */
 static bool
 _same_data_server_addrs_locked(const struct list_head *dsaddrs1,
 			       const struct list_head *dsaddrs2)
 {
 	struct nfs4_pnfs_ds_addr *da1, *da2;
+	struct sockaddr *sa1, *sa2;
+	bool match = false;
 
-	/* step through both lists, comparing as we go */
-	for (da1 = list_first_entry(dsaddrs1, typeof(*da1), da_node),
-	     da2 = list_first_entry(dsaddrs2, typeof(*da2), da_node);
-	     da1 != NULL && da2 != NULL;
-	     da1 = list_entry(da1->da_node.next, typeof(*da1), da_node),
-	     da2 = list_entry(da2->da_node.next, typeof(*da2), da_node)) {
-		if (!same_sockaddr((struct sockaddr *)&da1->da_addr,
-				   (struct sockaddr *)&da2->da_addr))
-			return false;
+	list_for_each_entry(da1, dsaddrs1, da_node) {
+		sa1 = (struct sockaddr *)&da1->da_addr;
+		match = false;
+		list_for_each_entry(da2, dsaddrs2, da_node) {
+			sa2 = (struct sockaddr *)&da2->da_addr;
+			match = same_sockaddr(sa1, sa2);
+			if (match)
+				break;
+		}
+		if (!match)
+			break;
 	}
-	if (da1 == NULL && da2 == NULL)
-		return true;
-
-	return false;
+	return match;
 }
 
 /*
@@ -561,7 +580,7 @@ static bool load_v3_ds_connect(void)
 	return(get_v3_ds_connect != NULL);
 }
 
-void __exit nfs4_pnfs_v3_ds_connect_unload(void)
+void nfs4_pnfs_v3_ds_connect_unload(void)
 {
 	if (get_v3_ds_connect) {
 		symbol_put(nfs3_set_ds_client);
@@ -863,8 +882,19 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
-	spin_unlock(cinfo->lock);
 
-	nfs_request_add_commit_list(req, list, cinfo);
+	nfs_request_add_commit_list_locked(req, list, cinfo);
+	spin_unlock(cinfo->lock);
+	nfs_mark_page_unstable(req->wb_page, cinfo);
 }
 EXPORT_SYMBOL_GPL(pnfs_layout_mark_request_commit);
+
+int
+pnfs_nfs_generic_sync(struct inode *inode, bool datasync)
+{
+	if (datasync)
+		return 0;
+	return pnfs_layoutcommit_inode(inode, true);
+}
+EXPORT_SYMBOL_GPL(pnfs_nfs_generic_sync);
+

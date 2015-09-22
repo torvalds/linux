@@ -52,6 +52,22 @@
 	.text
 
 /*
+ * Used by threads when the lock bit of core_idle_state is set.
+ * Threads will spin in HMT_LOW until the lock bit is cleared.
+ * r14 - pointer to core_idle_state
+ * r15 - used to load contents of core_idle_state
+ */
+
+core_idle_lock_held:
+	HMT_LOW
+3:	lwz	r15,0(r14)
+	andi.   r15,r15,PNV_CORE_IDLE_LOCK_BIT
+	bne	3b
+	HMT_MEDIUM
+	lwarx	r15,0,r14
+	blr
+
+/*
  * Pass requested state in r3:
  *	r3 - PNV_THREAD_NAP/SLEEP/WINKLE
  *
@@ -94,6 +110,7 @@ _GLOBAL(power7_powersave_common)
 	beq	1f
 	addi	r1,r1,INT_FRAME_SIZE
 	ld	r0,16(r1)
+	li	r3,0			/* Return 0 (no nap) */
 	mtlr	r0
 	blr
 
@@ -149,6 +166,10 @@ power7_enter_nap_mode:
 	ld	r14,PACA_CORE_IDLE_STATE_PTR(r13)
 lwarx_loop1:
 	lwarx	r15,0,r14
+
+	andi.   r9,r15,PNV_CORE_IDLE_LOCK_BIT
+	bnel	core_idle_lock_held
+
 	andc	r15,r15,r7			/* Clear thread bit */
 
 	andi.	r15,r15,PNV_CORE_IDLE_THREAD_BITS
@@ -293,7 +314,7 @@ lwarx_loop2:
 	 * workaround undo code or resyncing timebase or restoring context
 	 * In either case loop until the lock bit is cleared.
 	 */
-	bne	core_idle_lock_held
+	bnel	core_idle_lock_held
 
 	cmpwi	cr2,r15,0
 	lbz	r4,PACA_SUBCORE_SIBLING_MASK(r13)
@@ -317,15 +338,6 @@ lwarx_loop2:
 	bne-	lwarx_loop2
 	isync
 	b	common_exit
-
-core_idle_lock_held:
-	HMT_LOW
-core_idle_lock_loop:
-	lwz	r15,0(14)
-	andi.   r9,r15,PNV_CORE_IDLE_LOCK_BIT
-	bne	core_idle_lock_loop
-	HMT_MEDIUM
-	b	lwarx_loop2
 
 first_thread_in_subcore:
 	/* First thread in subcore to wakeup */
@@ -500,9 +512,11 @@ BEGIN_FTR_SECTION
 	CHECK_HMI_INTERRUPT
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	ld	r1,PACAR1(r13)
+	ld	r6,_CCR(r1)
 	ld	r4,_MSR(r1)
 	ld	r5,_NIP(r1)
 	addi	r1,r1,INT_FRAME_SIZE
+	mtcr	r6
 	mtspr	SPRN_SRR1,r4
 	mtspr	SPRN_SRR0,r5
 	rfid

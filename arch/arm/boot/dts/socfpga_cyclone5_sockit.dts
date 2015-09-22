@@ -22,7 +22,8 @@
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -58,6 +59,22 @@
 	txc-skew-ps = <2600>;
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	accel1: accelerometer@53 {
+		compatible = "adi,adxl345";
+		reg = <0x53>;
+
+		interrupt-parent = <&portc>;
+		interrupts = <3 2>;
+	};
 };
 
 &mmc0 {

@@ -47,7 +47,7 @@ PROPERTIES
 
 	For additional details about the PAMU/LIODN binding(s) see pamu.txt
 
-- fsl,qman-channel-id
+- cell-index
 	Usage:		Required
 	Value type:	<u32>
 	Definition:	The hardware index of the channel. This can also be
@@ -136,7 +136,7 @@ The example below shows a (P4080) QMan portals container/bus node with two porta
 			reg = <0x4000 0x4000>, <0x101000 0x1000>;
 			interrupts = <106 2 0 0>;
 			fsl,liodn = <3 4>;
-			fsl,qman-channel-id = <1>;
+			cell-index = <1>;
 
 			fman0 {
 				fsl,liodn = <0x22>;

@@ -67,8 +67,7 @@ TRIG_WAKE_EOS
 #include "../comedidev.h"
 
 #include "comedi_isadma.h"
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
@@ -107,11 +106,9 @@ TRIG_WAKE_EOS
 #define   IRQ_LVL_BITS(x)		(((x) & 0xf) << 4)	/*  sets irq level */
 #define   FIFO_INTR_EN_BIT		0x100	/*  enable fifo interrupts */
 #define   FIFO_INTR_FHF_BIT		0x200	/*  interrupt fifo half full */
-#define   DMA_INTR_EN_BIT 		0x800	/*  enable interrupt on dma terminal count */
+#define   DMA_INTR_EN_BIT		0x800	/*  enable interrupt on dma terminal count */
 #define   DMA_DEM_EN_BIT	0x1000	/*  enables demand mode dma */
 #define I8253_BASE_REG		0x14
-#define I8253_MODE_REG		0x17
-#define   HW_COUNT_DISABLE		0x30	/*  disable hardware counting of conversions */
 
 struct a2150_board {
 	const char *name;
@@ -267,7 +264,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    unsigned int flags)
 {
-	const struct a2150_board *thisboard = dev->board_ptr;
+	const struct a2150_board *board = dev->board_ptr;
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -276,10 +273,10 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	/*  initialize greatest lower and least upper bounds */
 	lub_divisor_shift = 3;
 	lub_index = 0;
-	lub = thisboard->clock[lub_index] * (1 << lub_divisor_shift);
+	lub = board->clock[lub_index] * (1 << lub_divisor_shift);
 	glb_divisor_shift = 0;
-	glb_index = thisboard->num_clocks - 1;
-	glb = thisboard->clock[glb_index] * (1 << glb_divisor_shift);
+	glb_index = board->num_clocks - 1;
+	glb = board->clock[glb_index] * (1 << glb_divisor_shift);
 
 	/*  make sure period is in available range */
 	if (*period < glb)
@@ -290,9 +287,9 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
 	for (i = 0; i < 4; i++) {
 		/*  there are a maximum of 4 master clocks */
-		for (j = 0; j < thisboard->num_clocks; j++) {
+		for (j = 0; j < board->num_clocks; j++) {
 			/*  temp is the period in nanosec we are evaluating */
-			temp = thisboard->clock[j] * (1 << i);
+			temp = board->clock[j] * (1 << i);
 			/*  if it is the best match yet */
 			if (temp < lub && temp >= *period) {
 				lub_divisor_shift = i;
@@ -416,25 +413,25 @@ static int a2150_ai_check_chanlist(struct comedi_device *dev,
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct a2150_board *thisboard = dev->board_ptr;
+	const struct a2150_board *board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -443,19 +440,21 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 thisboard->ai_speed);
+	if (cmd->convert_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    board->ai_speed);
+	}
 
-	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -465,7 +464,7 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		a2150_get_timing(dev, &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -488,7 +487,6 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_isadma_desc *desc = &dma->desc[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned long timer_base = dev->iobase + I8253_BASE_REG;
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
@@ -547,8 +545,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  may need to wait 72 sampling periods if timing was changed */
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE0 | I8254_BINARY);
-	i8254_write(timer_base, 0, 2, 72);
+	comedi_8254_load(dev->pacer, 2, 72, I8254_MODE0 | I8254_BINARY);
 
 	/*  setup start triggering */
 	trigger_bits = 0;
@@ -690,17 +687,19 @@ static void a2150_free_dma(struct comedi_device *dev)
 		comedi_isadma_free(devpriv->dma);
 }
 
-/* probes board type, returns offset */
-static int a2150_probe(struct comedi_device *dev)
+static const struct a2150_board *a2150_probe(struct comedi_device *dev)
 {
-	int status = inw(dev->iobase + STATUS_REG);
+	int id = ID_BITS(inw(dev->iobase + STATUS_REG));
 
-	return ID_BITS(status);
+	if (id >= ARRAY_SIZE(a2150_boards))
+		return NULL;
+
+	return &a2150_boards[id];
 }
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct a2150_board *thisboard;
+	const struct a2150_board *board;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	static const int timeout = 2000;
@@ -715,16 +714,19 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	i = a2150_probe(dev);
-	if (i >= ARRAY_SIZE(a2150_boards))
+	board = a2150_probe(dev);
+	if (!board)
 		return -ENODEV;
-
-	dev->board_ptr = a2150_boards + i;
-	thisboard = dev->board_ptr;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	/* an IRQ and DMA are required to support async commands */
 	a2150_alloc_irq_and_dma(dev, it);
+
+	dev->pacer = comedi_8254_init(dev->iobase + I8253_BASE_REG,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -746,10 +748,6 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->do_cmdtest = a2150_ai_cmdtest;
 		s->cancel = a2150_cancel;
 	}
-
-	/* need to do this for software counting of completed conversions, to
-	 * prevent hardware count from stopping acquisition */
-	outw(HW_COUNT_DISABLE, dev->iobase + I8253_MODE_REG);
 
 	/*  set card's irq and dma levels */
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);

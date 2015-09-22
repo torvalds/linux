@@ -346,15 +346,15 @@ struct ieee802154_mac_params {
 struct wpan_phy;
 
 enum {
-	IEEE802154_LLSEC_PARAM_ENABLED = 1 << 0,
-	IEEE802154_LLSEC_PARAM_FRAME_COUNTER = 1 << 1,
-	IEEE802154_LLSEC_PARAM_OUT_LEVEL = 1 << 2,
-	IEEE802154_LLSEC_PARAM_OUT_KEY = 1 << 3,
-	IEEE802154_LLSEC_PARAM_KEY_SOURCE = 1 << 4,
-	IEEE802154_LLSEC_PARAM_PAN_ID = 1 << 5,
-	IEEE802154_LLSEC_PARAM_HWADDR = 1 << 6,
-	IEEE802154_LLSEC_PARAM_COORD_HWADDR = 1 << 7,
-	IEEE802154_LLSEC_PARAM_COORD_SHORTADDR = 1 << 8,
+	IEEE802154_LLSEC_PARAM_ENABLED		= BIT(0),
+	IEEE802154_LLSEC_PARAM_FRAME_COUNTER	= BIT(1),
+	IEEE802154_LLSEC_PARAM_OUT_LEVEL	= BIT(2),
+	IEEE802154_LLSEC_PARAM_OUT_KEY		= BIT(3),
+	IEEE802154_LLSEC_PARAM_KEY_SOURCE	= BIT(4),
+	IEEE802154_LLSEC_PARAM_PAN_ID		= BIT(5),
+	IEEE802154_LLSEC_PARAM_HWADDR		= BIT(6),
+	IEEE802154_LLSEC_PARAM_COORD_HWADDR	= BIT(7),
+	IEEE802154_LLSEC_PARAM_COORD_SHORTADDR	= BIT(8),
 };
 
 struct ieee802154_llsec_ops {
@@ -422,26 +422,10 @@ struct ieee802154_mlme_ops {
 			       struct ieee802154_mac_params *params);
 
 	struct ieee802154_llsec_ops *llsec;
-
-	/* The fields below are required. */
-
-	/*
-	 * FIXME: these should become the part of PIB/MIB interface.
-	 * However we still don't have IB interface of any kind
-	 */
-	__le16 (*get_pan_id)(const struct net_device *dev);
-	__le16 (*get_short_addr)(const struct net_device *dev);
-	u8 (*get_dsn)(const struct net_device *dev);
 };
 
 static inline struct ieee802154_mlme_ops *
 ieee802154_mlme_ops(const struct net_device *dev)
-{
-	return dev->ml_priv;
-}
-
-static inline struct ieee802154_reduced_mlme_ops *
-ieee802154_reduced_mlme_ops(const struct net_device *dev)
 {
 	return dev->ml_priv;
 }

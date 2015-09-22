@@ -100,7 +100,7 @@ config RTL8821AE
 	select RTLWIFI_PCI
 	select RTLBTCOEXIST
 	---help---
-	This is the driver for Realtek RTL8i821AE/RTL8812AE 802.11av PCIe
+	This is the driver for Realtek RTL8821AE/RTL8812AE 802.11ac PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8821ae

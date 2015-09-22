@@ -207,5 +207,5 @@ static int __init intel_crc_pmic_opregion_driver_init(void)
 }
 module_init(intel_crc_pmic_opregion_driver_init);
 
-MODULE_DESCRIPTION("CrystalCove ACPI opration region driver");
+MODULE_DESCRIPTION("CrystalCove ACPI operation region driver");
 MODULE_LICENSE("GPL");

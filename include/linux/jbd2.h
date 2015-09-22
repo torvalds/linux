@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <linux/bit_spinlock.h>
 #include <crypto/hash.h>
 #endif
 
@@ -336,7 +337,45 @@ BUFFER_FNS(Freed, freed)
 BUFFER_FNS(Shadow, shadow)
 BUFFER_FNS(Verified, verified)
 
-#include <linux/jbd_common.h>
+static inline struct buffer_head *jh2bh(struct journal_head *jh)
+{
+	return jh->b_bh;
+}
+
+static inline struct journal_head *bh2jh(struct buffer_head *bh)
+{
+	return bh->b_private;
+}
+
+static inline void jbd_lock_bh_state(struct buffer_head *bh)
+{
+	bit_spin_lock(BH_State, &bh->b_state);
+}
+
+static inline int jbd_trylock_bh_state(struct buffer_head *bh)
+{
+	return bit_spin_trylock(BH_State, &bh->b_state);
+}
+
+static inline int jbd_is_locked_bh_state(struct buffer_head *bh)
+{
+	return bit_spin_is_locked(BH_State, &bh->b_state);
+}
+
+static inline void jbd_unlock_bh_state(struct buffer_head *bh)
+{
+	bit_spin_unlock(BH_State, &bh->b_state);
+}
+
+static inline void jbd_lock_bh_journal_head(struct buffer_head *bh)
+{
+	bit_spin_lock(BH_JournalHead, &bh->b_state);
+}
+
+static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
+{
+	bit_spin_unlock(BH_JournalHead, &bh->b_state);
+}
 
 #define J_ASSERT(assert)	BUG_ON(!(assert))
 
@@ -1035,15 +1074,16 @@ struct buffer_head *jbd2_journal_get_descriptor_buffer(journal_t *journal);
 int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 int jbd2_journal_get_log_tail(journal_t *journal, tid_t *tid,
 			      unsigned long *block);
-void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
+int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 void jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block);
 
 /* Commit management */
 extern void jbd2_journal_commit_transaction(journal_t *);
 
 /* Checkpoint list management */
-void __jbd2_journal_clean_checkpoint_list(journal_t *journal);
+void __jbd2_journal_clean_checkpoint_list(journal_t *journal, bool destroy);
 int __jbd2_journal_remove_checkpoint(struct journal_head *);
+void jbd2_journal_destroy_checkpoint(journal_t *journal);
 void __jbd2_journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 
@@ -1157,7 +1197,7 @@ extern int	   jbd2_journal_recover    (journal_t *journal);
 extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);
 extern void	   jbd2_journal_update_sb_errno(journal_t *);
-extern void	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
+extern int	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
 				unsigned long, int);
 extern void	   __jbd2_journal_abort_hard	(journal_t *);
 extern void	   jbd2_journal_abort      (journal_t *, int);

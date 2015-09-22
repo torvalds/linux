@@ -43,7 +43,6 @@ struct cachefiles_object {
 	loff_t				i_size;		/* object size */
 	unsigned long			flags;
 #define CACHEFILES_OBJECT_ACTIVE	0		/* T if marked active */
-#define CACHEFILES_OBJECT_BURIED	1		/* T if preemptively buried */
 	atomic_t			usage;		/* object usage count */
 	uint8_t				type;		/* object type */
 	uint8_t				new;		/* T if object new */

@@ -69,8 +69,6 @@ If you do not specify any options, they will default to
 
    13-oct-2007
      + first try
-
-
 */
 
 #include <linux/module.h>
@@ -170,7 +168,6 @@ static int adq12b_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-
 	/* only bits 0-4 have information about digital inputs */
 	data[1] = (inb(dev->iobase + ADQ12B_STINR) & ADQ12B_STINR_IN_MASK);
 

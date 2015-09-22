@@ -32,6 +32,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
 #include <linux/module.h>
+#include <linux/backing-dev.h>
 
 #include <linux/sunrpc/metrics.h>
 
@@ -258,7 +259,8 @@ filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 	    hdr->res.verf->committed != NFS_DATA_SYNC)
 		return;
 
-	pnfs_set_layoutcommit(hdr);
+	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
+			hdr->mds_offset + hdr->res.count);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
@@ -373,7 +375,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 	}
 
 	if (data->verf.committed == NFS_UNSTABLE)
-		pnfs_commit_set_layoutcommit(data);
+		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;
 }
@@ -1086,7 +1088,7 @@ filelayout_alloc_deviceid_node(struct nfs_server *server,
 }
 
 static void
-filelayout_free_deveiceid_node(struct nfs4_deviceid_node *d)
+filelayout_free_deviceid_node(struct nfs4_deviceid_node *d)
 {
 	nfs4_fl_free_deviceid(container_of(d, struct nfs4_file_layout_dsaddr, id_node));
 }
@@ -1137,7 +1139,8 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,
 	.alloc_deviceid_node	= filelayout_alloc_deviceid_node,
-	.free_deviceid_node	= filelayout_free_deveiceid_node,
+	.free_deviceid_node	= filelayout_free_deviceid_node,
+	.sync			= pnfs_nfs_generic_sync,
 };
 
 static int __init nfs4filelayout_init(void)

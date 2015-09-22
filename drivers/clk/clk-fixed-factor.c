@@ -41,12 +41,11 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_fixed_factor *fix = to_clk_fixed_factor(hw);
 
-	if (__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT) {
+	if (clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) {
 		unsigned long best_parent;
 
 		best_parent = (rate / fix->mult) * fix->div;
-		*prate = __clk_round_rate(__clk_get_parent(hw->clk),
-				best_parent);
+		*prate = clk_hw_round_rate(clk_hw_get_parent(hw), best_parent);
 	}
 
 	return (*prate / fix->div) * fix->mult;
@@ -55,10 +54,16 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_factor_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate)
 {
+	/*
+	 * We must report success but we can do so unconditionally because
+	 * clk_factor_round_rate returns values that ensure this call is a
+	 * nop.
+	 */
+
 	return 0;
 }
 
-struct clk_ops clk_fixed_factor_ops = {
+const struct clk_ops clk_fixed_factor_ops = {
 	.round_rate = clk_factor_round_rate,
 	.set_rate = clk_factor_set_rate,
 	.recalc_rate = clk_factor_recalc_rate,
@@ -74,10 +79,8 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 	struct clk *clk;
 
 	fix = kmalloc(sizeof(*fix), GFP_KERNEL);
-	if (!fix) {
-		pr_err("%s: could not allocate fixed factor clk\n", __func__);
+	if (!fix)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_fixed_factor assignments */
 	fix->mult = mult;

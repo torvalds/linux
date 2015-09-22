@@ -359,8 +359,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	    FIF_PLCPFAIL |
 	    FIF_CONTROL |
 	    FIF_PSPOLL |
-	    FIF_OTHER_BSS |
-	    FIF_PROMISC_IN_BSS;
+	    FIF_OTHER_BSS;
 
 	/*
 	 * Apply some rules to the filters:
@@ -369,9 +368,6 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * - Multicast filter seems to kill broadcast traffic so never use it.
 	 */
 	*total_flags |= FIF_ALLMULTI;
-	if (*total_flags & FIF_OTHER_BSS ||
-	    *total_flags & FIF_PROMISC_IN_BSS)
-		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
 
 	/*
 	 * If the device has a single filter for all control frames,
@@ -539,16 +535,8 @@ int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 
-	/*
-	 * If there's no space left in the device table store
-	 * -1 as wcid but tell mac80211 everything went ok.
-	 */
-	if (rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta))
-		sta_priv->wcid = -1;
-
-	return 0;
+	return rt2x00dev->ops->lib->sta_add(rt2x00dev, vif, sta);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_sta_add);
 
@@ -557,12 +545,6 @@ int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
-
-	/*
-	 * If we never sent the STA to the device no need to clean it up.
-	 */
-	if (sta_priv->wcid < 0)
-		return 0;
 
 	return rt2x00dev->ops->lib->sta_remove(rt2x00dev, sta_priv->wcid);
 }

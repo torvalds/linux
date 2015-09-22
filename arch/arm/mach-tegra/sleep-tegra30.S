@@ -223,7 +223,7 @@ wfe_war:
 	b	__cpu_reset_again
 
 	/*
-	 * 38 nop's, which fills reset of wfe cache line and
+	 * 38 nop's, which fills rest of wfe cache line and
 	 * 4 more cachelines with nop
 	 */
 	.rept 38

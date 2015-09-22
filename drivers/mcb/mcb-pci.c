@@ -56,9 +56,9 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	res = request_mem_region(priv->mapbase, CHAM_HEADER_SIZE,
 				 KBUILD_MODNAME);
-	if (IS_ERR(res)) {
+	if (!res) {
 		dev_err(&pdev->dev, "Failed to request PCI memory\n");
-		ret = PTR_ERR(res);
+		ret = -EBUSY;
 		goto out_disable;
 	}
 

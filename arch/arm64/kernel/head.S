@@ -36,7 +36,7 @@
 #include <asm/page.h>
 #include <asm/virt.h>
 
-#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
+#define __PHYS_OFFSET	(KERNEL_START - TEXT_OFFSET)
 
 #if (TEXT_OFFSET & 0xfff) != 0
 #error TEXT_OFFSET must be at least 4KB aligned
@@ -45,13 +45,6 @@
 #elif TEXT_OFFSET > 0x1fffff
 #error TEXT_OFFSET must be less than 2MB
 #endif
-
-	.macro	pgtbl, ttb0, ttb1, virt_to_phys
-	ldr	\ttb1, =swapper_pg_dir
-	ldr	\ttb0, =idmap_pg_dir
-	add	\ttb1, \ttb1, \virt_to_phys
-	add	\ttb0, \ttb0, \virt_to_phys
-	.endm
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define BLOCK_SHIFT	PAGE_SHIFT
@@ -63,19 +56,14 @@
 #define TABLE_SHIFT	PUD_SHIFT
 #endif
 
-#define KERNEL_START	KERNEL_RAM_VADDR
+#define KERNEL_START	_text
 #define KERNEL_END	_end
 
 /*
  * Initial memory map attributes.
  */
-#ifndef CONFIG_SMP
-#define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF
-#define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF
-#else
 #define PTE_FLAGS	PTE_TYPE_PAGE | PTE_AF | PTE_SHARED
 #define PMD_FLAGS	PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S
-#endif
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
@@ -240,57 +228,40 @@ section_table:
 #endif
 
 ENTRY(stext)
-	mov	x21, x0				// x21=FDT
+	bl	preserve_boot_args
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
-	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
+	adrp	x24, __PHYS_OFFSET
 	bl	set_cpu_boot_mode_flag
-	mrs	x22, midr_el1			// x22=cpuid
-	mov	x0, x22
-	bl	lookup_processor_type
-	mov	x23, x0				// x23=current cpu_table
-	/*
-	 * __error_p may end up out of range for cbz if text areas are
-	 * aligned up to section sizes.
-	 */
-	cbnz	x23, 1f				// invalid processor (x23=0)?
-	b	__error_p
-1:
-	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
-	 * The following calls CPU specific code in a position independent
-	 * manner. See arch/arm64/mm/proc.S for details. x23 = base of
-	 * cpu_info structure selected by lookup_processor_type above.
+	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
+	 * details.
 	 * On return, the CPU will be ready for the MMU to be turned on and
 	 * the TCR will have been set.
 	 */
-	ldr	x27, __switch_data		// address to jump to after
+	ldr	x27, =__mmap_switched		// address to jump to after
 						// MMU has been enabled
-	adrp	lr, __enable_mmu		// return (PIC) address
-	add	lr, lr, #:lo12:__enable_mmu
-	ldr	x12, [x23, #CPU_INFO_SETUP]
-	add	x12, x12, x28			// __virt_to_phys
-	br	x12				// initialise processor
+	adr_l	lr, __enable_mmu		// return (PIC) address
+	b	__cpu_setup			// initialise processor
 ENDPROC(stext)
 
 /*
- * Determine validity of the x21 FDT pointer.
- * The dtb must be 8-byte aligned and live in the first 512M of memory.
+ * Preserve the arguments passed by the bootloader in x0 .. x3
  */
-__vet_fdt:
-	tst	x21, #0x7
-	b.ne	1f
-	cmp	x21, x24
-	b.lt	1f
-	mov	x0, #(1 << 29)
-	add	x0, x0, x24
-	cmp	x21, x0
-	b.ge	1f
-	ret
-1:
-	mov	x21, #0
-	ret
-ENDPROC(__vet_fdt)
+preserve_boot_args:
+	mov	x21, x0				// x21=FDT
+
+	adr_l	x0, boot_args			// record the contents of
+	stp	x21, x1, [x0]			// x0 .. x3 at kernel entry
+	stp	x2, x3, [x0, #16]
+
+	dmb	sy				// needed before dc ivac with
+						// MMU off
+
+	add	x1, x0, #0x20			// 4 x 8 bytes
+	b	__inval_cache_range		// tail call
+ENDPROC(preserve_boot_args)
+
 /*
  * Macro to create a table entry to the next page.
  *
@@ -352,11 +323,11 @@ ENDPROC(__vet_fdt)
  * required to get the kernel running. The following sections are required:
  *   - identity mapping to enable the MMU (low address, TTBR0)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
- *     been enabled, including the FDT blob (TTBR1)
- *   - pgd entry for fixed mappings (TTBR1)
+ *     been enabled
  */
 __create_page_tables:
-	pgtbl	x25, x26, x28			// idmap_pg_dir and swapper_pg_dir addresses
+	adrp	x25, idmap_pg_dir
+	adrp	x26, swapper_pg_dir
 	mov	x27, lr
 
 	/*
@@ -385,12 +356,50 @@ __create_page_tables:
 	 * Create the identity mapping.
 	 */
 	mov	x0, x25				// idmap_pg_dir
-	ldr	x3, =KERNEL_START
-	add	x3, x3, x28			// __pa(KERNEL_START)
+	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
+
+#ifndef CONFIG_ARM64_VA_BITS_48
+#define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
+#define EXTRA_PTRS	(1 << (48 - EXTRA_SHIFT))
+
+	/*
+	 * If VA_BITS < 48, it may be too small to allow for an ID mapping to be
+	 * created that covers system RAM if that is located sufficiently high
+	 * in the physical address space. So for the ID map, use an extended
+	 * virtual range in that case, by configuring an additional translation
+	 * level.
+	 * First, we have to verify our assumption that the current value of
+	 * VA_BITS was chosen such that all translation levels are fully
+	 * utilised, and that lowering T0SZ will always result in an additional
+	 * translation level to be configured.
+	 */
+#if VA_BITS != EXTRA_SHIFT
+#error "Mismatch between VA_BITS and page size/number of translation levels"
+#endif
+
+	/*
+	 * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
+	 * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
+	 * this number conveniently equals the number of leading zeroes in
+	 * the physical address of __idmap_text_end.
+	 */
+	adrp	x5, __idmap_text_end
+	clz	x5, x5
+	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
+	b.ge	1f			// .. then skip additional level
+
+	adr_l	x6, idmap_t0sz
+	str	x5, [x6]
+	dmb	sy
+	dc	ivac, x6		// Invalidate potentially stale cache line
+
+	create_table_entry x0, x3, EXTRA_SHIFT, EXTRA_PTRS, x5, x6
+1:
+#endif
+
 	create_pgd_entry x0, x3, x5, x6
-	ldr	x6, =KERNEL_END
-	mov	x5, x3				// __pa(KERNEL_START)
-	add	x6, x6, x28			// __pa(KERNEL_END)
+	mov	x5, x3				// __pa(__idmap_text_start)
+	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 	create_block_map x0, x7, x3, x5, x6
 
 	/*
@@ -399,26 +408,10 @@ __create_page_tables:
 	mov	x0, x26				// swapper_pg_dir
 	mov	x5, #PAGE_OFFSET
 	create_pgd_entry x0, x5, x3, x6
-	ldr	x6, =KERNEL_END
+	ldr	x6, =KERNEL_END			// __va(KERNEL_END)
 	mov	x3, x24				// phys offset
 	create_block_map x0, x7, x3, x5, x6
 
-	/*
-	 * Map the FDT blob (maximum 2MB; must be within 512MB of
-	 * PHYS_OFFSET).
-	 */
-	mov	x3, x21				// FDT phys address
-	and	x3, x3, #~((1 << 21) - 1)	// 2MB aligned
-	mov	x6, #PAGE_OFFSET
-	sub	x5, x3, x24			// subtract PHYS_OFFSET
-	tst	x5, #~((1 << 29) - 1)		// within 512MB?
-	csel	x21, xzr, x21, ne		// zero the FDT pointer
-	b.ne	1f
-	add	x5, x5, x6			// __va(FDT blob)
-	add	x6, x5, #1 << 21		// 2MB for the FDT blob
-	sub	x6, x6, #1			// inclusive range
-	create_block_map x0, x7, x3, x5, x6
-1:
 	/*
 	 * Since the page tables have been populated with non-cacheable
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
@@ -426,6 +419,7 @@ __create_page_tables:
 	 */
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
+	dmb	sy
 	bl	__inval_cache_range
 
 	mov	lr, x27
@@ -433,37 +427,22 @@ __create_page_tables:
 ENDPROC(__create_page_tables)
 	.ltorg
 
-	.align	3
-	.type	__switch_data, %object
-__switch_data:
-	.quad	__mmap_switched
-	.quad	__bss_start			// x6
-	.quad	__bss_stop			// x7
-	.quad	processor_id			// x4
-	.quad	__fdt_pointer			// x5
-	.quad	memstart_addr			// x6
-	.quad	init_thread_union + THREAD_START_SP // sp
-
 /*
- * The following fragment of code is executed with the MMU on in MMU mode, and
- * uses absolute addresses; this is not position independent.
+ * The following fragment of code is executed with the MMU enabled.
  */
+	.set	initial_sp, init_thread_union + THREAD_START_SP
 __mmap_switched:
-	adr	x3, __switch_data + 8
+	adr_l	x6, __bss_start
+	adr_l	x7, __bss_stop
 
-	ldp	x6, x7, [x3], #16
 1:	cmp	x6, x7
 	b.hs	2f
 	str	xzr, [x6], #8			// Clear BSS
 	b	1b
 2:
-	ldp	x4, x5, [x3], #16
-	ldr	x6, [x3], #8
-	ldr	x16, [x3]
-	mov	sp, x16
-	str	x22, [x4]			// Save processor ID
-	str	x21, [x5]			// Save FDT pointer
-	str	x24, [x6]			// Save PHYS_OFFSET
+	adr_l	sp, initial_sp, x4
+	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
+	str_l	x24, memstart_addr, x6		// Save PHYS_OFFSET
 	mov	x29, #0
 	b	start_kernel
 ENDPROC(__mmap_switched)
@@ -544,6 +523,11 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* EL2 debug */
+	mrs	x0, pmcr_el0			// Disable debug access traps
+	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
+	msr	mdcr_el2, x0			// all PMU counters from EL1
+
 	/* Stage-2 translation */
 	msr	vttbr_el2, xzr
 
@@ -566,8 +550,7 @@ ENDPROC(el2_setup)
  * in x20. See arch/arm64/include/asm/virt.h for more info.
  */
 ENTRY(set_cpu_boot_mode_flag)
-	ldr	x1, =__boot_cpu_mode		// Compute __boot_cpu_mode
-	add	x1, x1, x28
+	adr_l	x1, __boot_cpu_mode
 	cmp	w20, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 	add	x1, x1, #4
@@ -588,13 +571,8 @@ ENDPROC(set_cpu_boot_mode_flag)
 	.align	L1_CACHE_SHIFT
 ENTRY(__boot_cpu_mode)
 	.long	BOOT_CPU_MODE_EL2
-	.long	0
+	.long	BOOT_CPU_MODE_EL1
 	.popsection
-
-#ifdef CONFIG_SMP
-	.align	3
-1:	.quad	.
-	.quad	secondary_holding_pen_release
 
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
@@ -602,15 +580,11 @@ ENTRY(__boot_cpu_mode)
 	 */
 ENTRY(secondary_holding_pen)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
-	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	set_cpu_boot_mode_flag
 	mrs	x0, mpidr_el1
 	ldr     x1, =MPIDR_HWID_BITMASK
 	and	x0, x0, x1
-	adr	x1, 1b
-	ldp	x2, x3, [x1]
-	sub	x1, x1, x2
-	add	x3, x3, x1
+	adr_l	x3, secondary_holding_pen_release
 pen:	ldr	x4, [x3]
 	cmp	x4, x0
 	b.eq	secondary_startup
@@ -624,7 +598,6 @@ ENDPROC(secondary_holding_pen)
 	 */
 ENTRY(secondary_entry)
 	bl	el2_setup			// Drop to EL1
-	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 ENDPROC(secondary_entry)
@@ -633,16 +606,9 @@ ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
-	mrs	x22, midr_el1			// x22=cpuid
-	mov	x0, x22
-	bl	lookup_processor_type
-	mov	x23, x0				// x23=current cpu_table
-	cbz	x23, __error_p			// invalid processor (x23=0)?
-
-	pgtbl	x25, x26, x28			// x25=TTBR0, x26=TTBR1
-	ldr	x12, [x23, #CPU_INFO_SETUP]
-	add	x12, x12, x28			// __virt_to_phys
-	blr	x12				// initialise processor
+	adrp	x25, idmap_pg_dir
+	adrp	x26, swapper_pg_dir
+	bl	__cpu_setup			// initialise processor
 
 	ldr	x21, =secondary_data
 	ldr	x27, =__secondary_switched	// address to jump to after enabling the MMU
@@ -655,104 +621,31 @@ ENTRY(__secondary_switched)
 	mov	x29, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
-#endif	/* CONFIG_SMP */
 
 /*
- * Setup common bits before finally enabling the MMU. Essentially this is just
- * loading the page table pointer and vector base registers.
+ * Enable the MMU.
  *
- * On entry to this code, x0 must contain the SCTLR_EL1 value for turning on
- * the MMU.
+ *  x0  = SCTLR_EL1 value for turning on the MMU.
+ *  x27 = *virtual* address to jump to upon completion
+ *
+ * other registers depend on the function called upon completion
  */
+	.section	".idmap.text", "ax"
 __enable_mmu:
 	ldr	x5, =vectors
 	msr	vbar_el1, x5
 	msr	ttbr0_el1, x25			// load TTBR0
 	msr	ttbr1_el1, x26			// load TTBR1
 	isb
-	b	__turn_mmu_on
-ENDPROC(__enable_mmu)
-
-/*
- * Enable the MMU. This completely changes the structure of the visible memory
- * space. You will not be able to trace execution through this.
- *
- *  x0  = system control register
- *  x27 = *virtual* address to jump to upon completion
- *
- * other registers depend on the function called upon completion
- *
- * We align the entire function to the smallest power of two larger than it to
- * ensure it fits within a single block map entry. Otherwise were PHYS_OFFSET
- * close to the end of a 512MB or 1GB block we might require an additional
- * table to map the entire function.
- */
-	.align	4
-__turn_mmu_on:
 	msr	sctlr_el1, x0
 	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
 	br	x27
-ENDPROC(__turn_mmu_on)
-
-/*
- * Calculate the start of physical memory.
- */
-__calc_phys_offset:
-	adr	x0, 1f
-	ldp	x1, x2, [x0]
-	sub	x28, x0, x1			// x28 = PHYS_OFFSET - PAGE_OFFSET
-	add	x24, x2, x28			// x24 = PHYS_OFFSET
-	ret
-ENDPROC(__calc_phys_offset)
-
-	.align 3
-1:	.quad	.
-	.quad	PAGE_OFFSET
-
-/*
- * Exception handling. Something went wrong and we can't proceed. We ought to
- * tell the user, but since we don't have any guarantee that we're even
- * running on the right architecture, we do virtually nothing.
- */
-__error_p:
-ENDPROC(__error_p)
-
-__error:
-1:	nop
-	b	1b
-ENDPROC(__error)
-
-/*
- * This function gets the processor ID in w0 and searches the cpu_table[] for
- * a match. It returns a pointer to the struct cpu_info it found. The
- * cpu_table[] must end with an empty (all zeros) structure.
- *
- * This routine can be called via C code and it needs to work with the MMU
- * both disabled and enabled (the offset is calculated automatically).
- */
-ENTRY(lookup_processor_type)
-	adr	x1, __lookup_processor_type_data
-	ldp	x2, x3, [x1]
-	sub	x1, x1, x2			// get offset between VA and PA
-	add	x3, x3, x1			// convert VA to PA
-1:
-	ldp	w5, w6, [x3]			// load cpu_id_val and cpu_id_mask
-	cbz	w5, 2f				// end of list?
-	and	w6, w6, w0
-	cmp	w5, w6
-	b.eq	3f
-	add	x3, x3, #CPU_INFO_SZ
-	b	1b
-2:
-	mov	x3, #0				// unknown processor
-3:
-	mov	x0, x3
-	ret
-ENDPROC(lookup_processor_type)
-
-	.align	3
-	.type	__lookup_processor_type_data, %object
-__lookup_processor_type_data:
-	.quad	.
-	.quad	cpu_table
-	.size	__lookup_processor_type_data, . - __lookup_processor_type_data
+ENDPROC(__enable_mmu)

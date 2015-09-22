@@ -188,7 +188,7 @@ static int pt3_set_lna(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int pt3_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t volt)
+static int pt3_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage volt)
 {
 	struct pt3_adapter *adap;
 	struct pt3_board *pt3;

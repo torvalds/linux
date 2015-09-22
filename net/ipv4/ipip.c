@@ -144,7 +144,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	err = -ENOENT;
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			     iph->daddr, iph->saddr, 0);
-	if (t == NULL)
+	if (!t)
 		goto out;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
@@ -198,7 +198,7 @@ static int ipip_rcv(struct sk_buff *skb)
 			goto drop;
 		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
-		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
+		return ip_tunnel_rcv(tunnel, skb, &tpi, NULL, log_ecn_error);
 	}
 
 	return -1;
@@ -251,7 +251,8 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EINVAL;
 	}
 
-	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
+	p.i_key = p.o_key = 0;
+	p.i_flags = p.o_flags = 0;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 
@@ -272,6 +273,7 @@ static const struct net_device_ops ipip_netdev_ops = {
 	.ndo_do_ioctl	= ipip_tunnel_ioctl,
 	.ndo_change_mtu = ip_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
+	.ndo_get_iflink = ip_tunnel_get_iflink,
 };
 
 #define IPIP_FEATURES (NETIF_F_SG |		\
@@ -286,7 +288,6 @@ static void ipip_tunnel_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_TUNNEL;
 	dev->flags		= IFF_NOARP;
-	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
 	netif_keep_dst(dev);
@@ -325,10 +326,10 @@ static void ipip_netlink_parms(struct nlattr *data[],
 		parms->link = nla_get_u32(data[IFLA_IPTUN_LINK]);
 
 	if (data[IFLA_IPTUN_LOCAL])
-		parms->iph.saddr = nla_get_be32(data[IFLA_IPTUN_LOCAL]);
+		parms->iph.saddr = nla_get_in_addr(data[IFLA_IPTUN_LOCAL]);
 
 	if (data[IFLA_IPTUN_REMOTE])
-		parms->iph.daddr = nla_get_be32(data[IFLA_IPTUN_REMOTE]);
+		parms->iph.daddr = nla_get_in_addr(data[IFLA_IPTUN_REMOTE]);
 
 	if (data[IFLA_IPTUN_TTL]) {
 		parms->iph.ttl = nla_get_u8(data[IFLA_IPTUN_TTL]);
@@ -450,8 +451,8 @@ static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	struct ip_tunnel_parm *parm = &tunnel->parms;
 
 	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
-	    nla_put_be32(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
-	    nla_put_be32(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
+	    nla_put_in_addr(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
+	    nla_put_in_addr(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->iph.ttl) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos) ||
 	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,

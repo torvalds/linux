@@ -135,12 +135,12 @@ static void init_x2apic_ldr(void)
 
 	per_cpu(x86_cpu_to_logical_apicid, this_cpu) = apic_read(APIC_LDR);
 
-	__cpu_set(this_cpu, per_cpu(cpus_in_cluster, this_cpu));
+	cpumask_set_cpu(this_cpu, per_cpu(cpus_in_cluster, this_cpu));
 	for_each_online_cpu(cpu) {
 		if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
 			continue;
-		__cpu_set(this_cpu, per_cpu(cpus_in_cluster, cpu));
-		__cpu_set(cpu, per_cpu(cpus_in_cluster, this_cpu));
+		cpumask_set_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
+		cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
 	}
 }
 
@@ -171,8 +171,8 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		for_each_online_cpu(cpu) {
 			if (x2apic_cluster(this_cpu) != x2apic_cluster(cpu))
 				continue;
-			__cpu_clear(this_cpu, per_cpu(cpus_in_cluster, cpu));
-			__cpu_clear(cpu, per_cpu(cpus_in_cluster, this_cpu));
+			cpumask_clear_cpu(this_cpu, per_cpu(cpus_in_cluster, cpu));
+			cpumask_clear_cpu(cpu, per_cpu(cpus_in_cluster, this_cpu));
 		}
 		free_cpumask_var(per_cpu(cpus_in_cluster, this_cpu));
 		free_cpumask_var(per_cpu(ipi_mask, this_cpu));
@@ -182,7 +182,7 @@ update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __refdata x2apic_cpu_notifier = {
+static struct notifier_block x2apic_cpu_notifier = {
 	.notifier_call = update_clusterinfo,
 };
 
@@ -195,7 +195,7 @@ static int x2apic_init_cpu_notifier(void)
 
 	BUG_ON(!per_cpu(cpus_in_cluster, cpu) || !per_cpu(ipi_mask, cpu));
 
-	__cpu_set(cpu, per_cpu(cpus_in_cluster, cpu));
+	cpumask_set_cpu(cpu, per_cpu(cpus_in_cluster, cpu));
 	register_hotcpu_notifier(&x2apic_cpu_notifier);
 	return 1;
 }
@@ -272,7 +272,6 @@ static struct apic apic_x2apic_cluster = {
 	.send_IPI_all			= x2apic_send_IPI_all,
 	.send_IPI_self			= x2apic_send_IPI_self,
 
-	.wait_for_init_deassert		= false,
 	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_msr_read,

@@ -293,15 +293,13 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 				return -ENOMEM;
 
 			addr_struct.s_addr = iter4->addr;
-			ret_val = nla_put(skb, NLBL_MGMT_A_IPV4ADDR,
-					  sizeof(struct in_addr),
-					  &addr_struct);
+			ret_val = nla_put_in_addr(skb, NLBL_MGMT_A_IPV4ADDR,
+						  addr_struct.s_addr);
 			if (ret_val != 0)
 				return ret_val;
 			addr_struct.s_addr = iter4->mask;
-			ret_val = nla_put(skb, NLBL_MGMT_A_IPV4MASK,
-					  sizeof(struct in_addr),
-					  &addr_struct);
+			ret_val = nla_put_in_addr(skb, NLBL_MGMT_A_IPV4MASK,
+						  addr_struct.s_addr);
 			if (ret_val != 0)
 				return ret_val;
 			map4 = netlbl_domhsh_addr4_entry(iter4);
@@ -328,14 +326,12 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 			if (nla_b == NULL)
 				return -ENOMEM;
 
-			ret_val = nla_put(skb, NLBL_MGMT_A_IPV6ADDR,
-					  sizeof(struct in6_addr),
-					  &iter6->addr);
+			ret_val = nla_put_in6_addr(skb, NLBL_MGMT_A_IPV6ADDR,
+						   &iter6->addr);
 			if (ret_val != 0)
 				return ret_val;
-			ret_val = nla_put(skb, NLBL_MGMT_A_IPV6MASK,
-					  sizeof(struct in6_addr),
-					  &iter6->mask);
+			ret_val = nla_put_in6_addr(skb, NLBL_MGMT_A_IPV6MASK,
+						   &iter6->mask);
 			if (ret_val != 0)
 				return ret_val;
 			map6 = netlbl_domhsh_addr6_entry(iter6);

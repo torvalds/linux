@@ -389,7 +389,7 @@ void vnt_update_ifs(struct vnt_private *priv)
 			}
 		}
 
-		if (ofdm_rate == true)
+		if (ofdm_rate)
 			max_min = 4;
 		else
 			max_min = 5;

@@ -84,7 +84,7 @@ static int ak4554_soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id ak4554_of_match[] = {
+static const struct of_device_id ak4554_of_match[] = {
 	{ .compatible = "asahi-kasei,ak4554" },
 	{},
 };

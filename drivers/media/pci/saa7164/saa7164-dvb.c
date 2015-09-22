@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 #include "tda10048.h"
 #include "tda18271.h"
 #include "s5h1411.h"
+#include "si2157.h"
+#include "si2168.h"
+#include "lgdt3306a.h"
 
 #define DRIVER_NAME "saa7164"
 
@@ -81,6 +84,65 @@ static struct s5h1411_config hauppauge_s5h1411_config = {
 	.status_mode   = S5H1411_DEMODLOCKING,
 	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
+
+static struct lgdt3306a_config hauppauge_hvr2255a_config = {
+	.i2c_addr               = 0xb2 >> 1,
+	.qam_if_khz             = 4000,
+	.vsb_if_khz             = 3250,
+	.deny_i2c_rptr          = 1, /* Disabled */
+	.spectral_inversion     = 0, /* Disabled */
+	.mpeg_mode              = LGDT3306A_MPEG_SERIAL,
+	.tpclk_edge             = LGDT3306A_TPCLK_RISING_EDGE,
+	.tpvalid_polarity       = LGDT3306A_TP_VALID_HIGH,
+	.xtalMHz                = 25, /* 24 or 25 */
+};
+
+static struct lgdt3306a_config hauppauge_hvr2255b_config = {
+	.i2c_addr               = 0x1c >> 1,
+	.qam_if_khz             = 4000,
+	.vsb_if_khz             = 3250,
+	.deny_i2c_rptr          = 1, /* Disabled */
+	.spectral_inversion     = 0, /* Disabled */
+	.mpeg_mode              = LGDT3306A_MPEG_SERIAL,
+	.tpclk_edge             = LGDT3306A_TPCLK_RISING_EDGE,
+	.tpvalid_polarity       = LGDT3306A_TP_VALID_HIGH,
+	.xtalMHz                = 25, /* 24 or 25 */
+};
+
+static struct si2157_config hauppauge_hvr2255_tuner_config = {
+	.inversion = 1,
+	.if_port = 1,
+};
+
+static int si2157_attach(struct saa7164_port *port, struct i2c_adapter *adapter,
+	struct dvb_frontend *fe, u8 addr8bit, struct si2157_config *cfg)
+{
+	struct i2c_board_info bi;
+	struct i2c_client *tuner;
+
+	cfg->fe = fe;
+
+	memset(&bi, 0, sizeof(bi));
+
+	strlcpy(bi.type, "si2157", I2C_NAME_SIZE);
+	bi.platform_data = cfg;
+	bi.addr = addr8bit >> 1;
+
+	request_module(bi.type);
+
+	tuner = i2c_new_device(adapter, &bi);
+	if (tuner == NULL || tuner->dev.driver == NULL)
+		return -ENODEV;
+
+	if (!try_module_get(tuner->dev.driver->owner)) {
+		i2c_unregister_device(tuner);
+		return -ENODEV;
+	}
+
+	port->i2c_client_tuner = tuner;
+
+	return 0;
+}
 
 static int saa7164_dvb_stop_port(struct saa7164_port *port)
 {
@@ -242,14 +304,16 @@ static int saa7164_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	mutex_lock(&dvb->lock);
-	if (dvb->feeding++ == 0) {
-		/* Start transport */
-		ret = saa7164_dvb_start_port(port);
+	if (dvb) {
+		mutex_lock(&dvb->lock);
+		if (dvb->feeding++ == 0) {
+			/* Start transport */
+			ret = saa7164_dvb_start_port(port);
+		}
+		mutex_unlock(&dvb->lock);
+		dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
+			__func__, port->nr, dvb->feeding);
 	}
-	mutex_unlock(&dvb->lock);
-	dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
-		__func__, port->nr, dvb->feeding);
 
 	return ret;
 }
@@ -264,14 +328,16 @@ static int saa7164_dvb_stop_feed(struct dvb_demux_feed *feed)
 
 	dprintk(DBGLVL_DVB, "%s(port=%d)\n", __func__, port->nr);
 
-	mutex_lock(&dvb->lock);
-	if (--dvb->feeding == 0) {
-		/* Stop transport */
-		ret = saa7164_dvb_stop_streaming(port);
+	if (dvb) {
+		mutex_lock(&dvb->lock);
+		if (--dvb->feeding == 0) {
+			/* Stop transport */
+			ret = saa7164_dvb_stop_streaming(port);
+		}
+		mutex_unlock(&dvb->lock);
+		dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
+			__func__, port->nr, dvb->feeding);
 	}
-	mutex_unlock(&dvb->lock);
-	dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
-		__func__, port->nr, dvb->feeding);
 
 	return ret;
 }
@@ -425,6 +491,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_buffer *b;
 	struct list_head *c, *n;
+	struct i2c_client *client;
 
 	dprintk(DBGLVL_DVB, "%s()\n", __func__);
 
@@ -442,6 +509,20 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 
 	if (dvb->frontend == NULL)
 		return 0;
+
+	/* remove I2C client for tuner */
+	client = port->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	/* remove I2C client for demodulator */
+	client = port->i2c_client_demod;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
 
 	dvb_net_release(&dvb->net);
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
@@ -462,6 +543,12 @@ int saa7164_dvb_register(struct saa7164_port *port)
 	struct saa7164_dev *dev = port->dev;
 	struct saa7164_dvb *dvb = &port->dvb;
 	struct saa7164_i2c *i2c_bus = NULL;
+	struct si2168_config si2168_config;
+	struct si2157_config si2157_config;
+	struct i2c_adapter *adapter;
+	struct i2c_board_info info;
+	struct i2c_client *client_demod;
+	struct i2c_client *client_tuner;
 	int ret;
 
 	dprintk(DBGLVL_DVB, "%s()\n", __func__);
@@ -528,6 +615,126 @@ int saa7164_dvb_register(struct saa7164_port *port)
 		}
 
 		break;
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255proto:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2255:
+		i2c_bus = &dev->i2c_bus[2];
+
+		if (port->nr == 0) {
+			port->dvb.frontend = dvb_attach(lgdt3306a_attach,
+				&hauppauge_hvr2255a_config, &i2c_bus->i2c_adap);
+		} else {
+			port->dvb.frontend = dvb_attach(lgdt3306a_attach,
+				&hauppauge_hvr2255b_config, &i2c_bus->i2c_adap);
+		}
+
+		if (port->dvb.frontend != NULL) {
+
+			if (port->nr == 0) {
+				si2157_attach(port, &dev->i2c_bus[0].i2c_adap,
+					      port->dvb.frontend, 0xc0,
+					      &hauppauge_hvr2255_tuner_config);
+			} else {
+				si2157_attach(port, &dev->i2c_bus[1].i2c_adap,
+					      port->dvb.frontend, 0xc0,
+					      &hauppauge_hvr2255_tuner_config);
+			}
+		}
+		break;
+	case SAA7164_BOARD_HAUPPAUGE_HVR2205:
+
+		if (port->nr == 0) {
+			/* attach frontend */
+			memset(&si2168_config, 0, sizeof(si2168_config));
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &port->dvb.frontend;
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0xc8 >> 1;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
+						      &info);
+			if (!client_demod || !client_demod->dev.driver)
+				goto frontend_detach;
+
+			if (!try_module_get(client_demod->dev.driver->owner)) {
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			port->i2c_client_demod = client_demod;
+
+			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.if_port = 1;
+			si2157_config.fe = port->dvb.frontend;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0xc0 >> 1;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client_tuner = i2c_new_device(&dev->i2c_bus[0].i2c_adap,
+						      &info);
+			if (!client_tuner || !client_tuner->dev.driver) {
+				module_put(client_demod->dev.driver->owner);
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			if (!try_module_get(client_tuner->dev.driver->owner)) {
+				i2c_unregister_device(client_tuner);
+				module_put(client_demod->dev.driver->owner);
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			port->i2c_client_tuner = client_tuner;
+		} else {
+			/* attach frontend */
+			memset(&si2168_config, 0, sizeof(si2168_config));
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &port->dvb.frontend;
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0xcc >> 1;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
+						      &info);
+			if (!client_demod || !client_demod->dev.driver)
+				goto frontend_detach;
+
+			if (!try_module_get(client_demod->dev.driver->owner)) {
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			port->i2c_client_demod = client_demod;
+
+			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.fe = port->dvb.frontend;
+			si2157_config.if_port = 1;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0xc0 >> 1;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client_tuner = i2c_new_device(&dev->i2c_bus[1].i2c_adap,
+						      &info);
+			if (!client_tuner || !client_tuner->dev.driver) {
+				module_put(client_demod->dev.driver->owner);
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			if (!try_module_get(client_tuner->dev.driver->owner)) {
+				i2c_unregister_device(client_tuner);
+				module_put(client_demod->dev.driver->owner);
+				i2c_unregister_device(client_demod);
+				goto frontend_detach;
+			}
+			port->i2c_client_tuner = client_tuner;
+		}
+
+		break;
 	default:
 		printk(KERN_ERR "%s: The frontend isn't supported\n",
 		       dev->name);
@@ -548,5 +755,9 @@ int saa7164_dvb_register(struct saa7164_port *port)
 	}
 
 	return 0;
+
+frontend_detach:
+	printk(KERN_ERR "%s() Frontend/I2C initialization failed\n", __func__);
+	return -1;
 }
 

@@ -445,7 +445,7 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
-	dma->assigned = 1;
+	dma->assigned = true;
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	snd_soc_set_runtime_hwparams(substream, &fsl_dma_hardware);
@@ -814,7 +814,7 @@ static int fsl_dma_close(struct snd_pcm_substream *substream)
 		substream->runtime->private_data = NULL;
 	}
 
-	dma->assigned = 0;
+	dma->assigned = false;
 
 	return 0;
 }

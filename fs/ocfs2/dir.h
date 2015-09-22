@@ -72,7 +72,7 @@ static inline int ocfs2_add_entry(handle_t *handle,
 				  struct buffer_head *parent_fe_bh,
 				  struct ocfs2_dir_lookup_result *lookup)
 {
-	return __ocfs2_add_entry(handle, dentry->d_parent->d_inode,
+	return __ocfs2_add_entry(handle, d_inode(dentry->d_parent),
 				 dentry->d_name.name, dentry->d_name.len,
 				 inode, blkno, parent_fe_bh, lookup);
 }

@@ -558,15 +558,11 @@ static int pm860x_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &pm860x_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 	return 0;
 }
 
-static struct irq_domain_ops pm860x_irq_domain_ops = {
+static const struct irq_domain_ops pm860x_irq_domain_ops = {
 	.map	= pm860x_irq_domain_map,
 	.xlate	= irq_domain_xlate_onetwocell,
 };
@@ -1258,7 +1254,6 @@ MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
-		.owner	= THIS_MODULE,
 		.pm     = &pm860x_pm_ops,
 		.of_match_table	= pm860x_dt_ids,
 	},

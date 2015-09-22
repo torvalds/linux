@@ -1216,11 +1216,12 @@ static int grcan_receive(struct net_device *dev, int budget)
 				cf->data[i] = (u8)(slot[j] >> shift);
 			}
 		}
-		netif_receive_skb(skb);
 
 		/* Update statistics and read pointer */
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_receive_skb(skb);
+
 		rd = grcan_ring_add(rd, GRCAN_MSG_SIZE, dma->rx.size);
 	}
 
@@ -1725,7 +1726,7 @@ static int grcan_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id grcan_match[] = {
+static const struct of_device_id grcan_match[] = {
 	{.name = "GAISLER_GRCAN"},
 	{.name = "01_03d"},
 	{.name = "GAISLER_GRHCAN"},

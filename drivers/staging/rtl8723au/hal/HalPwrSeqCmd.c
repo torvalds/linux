@@ -59,17 +59,15 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 		PwrCfgCmd = PwrSeqCmd[AryIdx];
 
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("HalPwrSeqCmdParsing23a: offset(%#x) cut_msk(%#x) "
-			  "fab_msk(%#x) interface_msk(%#x) base(%#x) cmd(%#x) "
-			  "msk(%#x) value(%#x)\n",
-			  GET_PWR_CFG_OFFSET(PwrCfgCmd),
-			  GET_PWR_CFG_CUT_MASK(PwrCfgCmd),
-			  GET_PWR_CFG_FAB_MASK(PwrCfgCmd),
-			  GET_PWR_CFG_INTF_MASK(PwrCfgCmd),
-			  GET_PWR_CFG_BASE(PwrCfgCmd),
-			  GET_PWR_CFG_CMD(PwrCfgCmd),
-			  GET_PWR_CFG_MASK(PwrCfgCmd),
-			  GET_PWR_CFG_VALUE(PwrCfgCmd)));
+			 "HalPwrSeqCmdParsing23a: offset(%#x) cut_msk(%#x) fab_msk(%#x) interface_msk(%#x) base(%#x) cmd(%#x) msk(%#x) value(%#x)\n",
+			 GET_PWR_CFG_OFFSET(PwrCfgCmd),
+			 GET_PWR_CFG_CUT_MASK(PwrCfgCmd),
+			 GET_PWR_CFG_FAB_MASK(PwrCfgCmd),
+			 GET_PWR_CFG_INTF_MASK(PwrCfgCmd),
+			 GET_PWR_CFG_BASE(PwrCfgCmd),
+			 GET_PWR_CFG_CMD(PwrCfgCmd),
+			 GET_PWR_CFG_MASK(PwrCfgCmd),
+			 GET_PWR_CFG_VALUE(PwrCfgCmd));
 
 		/* 2 Only Handle the command whose FAB, CUT, and Interface are
 		   matched */
@@ -79,14 +77,12 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 			switch (GET_PWR_CFG_CMD(PwrCfgCmd)) {
 			case PWR_CMD_READ:
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "PWR_CMD_READ\n"));
+					 "HalPwrSeqCmdParsing23a: PWR_CMD_READ\n");
 				break;
 
 			case PWR_CMD_WRITE:
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "PWR_CMD_WRITE\n"));
+					 "HalPwrSeqCmdParsing23a: PWR_CMD_WRITE\n");
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
 
 				/*  Read the value from system register */
@@ -96,14 +92,13 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 				value |= (GET_PWR_CFG_VALUE(PwrCfgCmd) &
 					  GET_PWR_CFG_MASK(PwrCfgCmd));
 
-				/*  Write the value back to sytem register */
+				/*  Write the value back to system register */
 				rtl8723au_write8(padapter, offset, value);
 				break;
 
 			case PWR_CMD_POLLING:
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "PWR_CMD_POLLING\n"));
+					 "HalPwrSeqCmdParsing23a: PWR_CMD_POLLING\n");
 
 				bPollingBit = false;
 				offset = GET_PWR_CFG_OFFSET(PwrCfgCmd);
@@ -131,8 +126,7 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 
 			case PWR_CMD_DELAY:
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "PWR_CMD_DELAY\n"));
+					 "HalPwrSeqCmdParsing23a: PWR_CMD_DELAY\n");
 				if (GET_PWR_CFG_VALUE(PwrCfgCmd) ==
 				    PWRSEQ_DELAY_US)
 					udelay(GET_PWR_CFG_OFFSET(PwrCfgCmd));
@@ -145,15 +139,12 @@ u8 HalPwrSeqCmdParsing23a(struct rtw_adapter *padapter, u8 CutVersion,
 				/*  When this command is parsed, end
 				    the process */
 				RT_TRACE(_module_hal_init_c_, _drv_info_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "PWR_CMD_END\n"));
+					 "HalPwrSeqCmdParsing23a: PWR_CMD_END\n");
 				return true;
-				break;
 
 			default:
 				RT_TRACE(_module_hal_init_c_, _drv_err_,
-					 ("HalPwrSeqCmdParsing23a: "
-					  "Unknown CMD!!\n"));
+					 "HalPwrSeqCmdParsing23a: Unknown CMD!!\n");
 				break;
 			}
 		}

@@ -80,7 +80,7 @@ struct ap_dump_action action_table[AP_MAX_ACTIONS];
 u32 current_action = 0;
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svxz"
+#define AP_SUPPORTED_OPTIONS        "?a:bc:f:hn:o:r:svxz"
 
 /******************************************************************************
  *
@@ -96,7 +96,6 @@ static void ap_display_usage(void)
 	ACPI_USAGE_HEADER("acpidump [options]");
 
 	ACPI_OPTION("-b", "Dump tables to binary files");
-	ACPI_OPTION("-c", "Dump customized tables");
 	ACPI_OPTION("-h -?", "This help message");
 	ACPI_OPTION("-o <File>", "Redirect output to file");
 	ACPI_OPTION("-r <Address>", "Dump tables from specified RSDP");
@@ -107,6 +106,7 @@ static void ap_display_usage(void)
 	ACPI_USAGE_TEXT("\nTable Options:\n");
 
 	ACPI_OPTION("-a <Address>", "Get table via a physical address");
+	ACPI_OPTION("-c <on|off>", "Turning on/off customized table dumping");
 	ACPI_OPTION("-f <BinaryFile>", "Get table via a binary file");
 	ACPI_OPTION("-n <Signature>", "Get table via a name/signature");
 	ACPI_OPTION("-x", "Do not use but dump XSDT");
@@ -181,7 +181,16 @@ static int ap_do_options(int argc, char **argv)
 
 		case 'c':	/* Dump customized tables */
 
-			gbl_dump_customized_tables = TRUE;
+			if (!strcmp(acpi_gbl_optarg, "on")) {
+				gbl_dump_customized_tables = TRUE;
+			} else if (!strcmp(acpi_gbl_optarg, "off")) {
+				gbl_dump_customized_tables = FALSE;
+			} else {
+				acpi_log_error
+				    ("%s: Cannot handle this switch, please use on|off\n",
+				     acpi_gbl_optarg);
+				return (-1);
+			}
 			continue;
 
 		case 'h':

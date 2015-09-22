@@ -50,113 +50,97 @@
 
 #include <linux/usb/hcd.h>
 #include <linux/usb/ch11.h>
+#include <linux/platform_device.h>
+#include <linux/usb/usb_phy_generic.h>
 
-#include "core.h"
-#include "hcd.h"
-
-#define PCI_VENDOR_ID_SYNOPSYS		0x16c3
 #define PCI_PRODUCT_ID_HAPS_HSOTG	0xabc0
 
-static const char dwc2_driver_name[] = "dwc2";
+static const char dwc2_driver_name[] = "dwc2-pci";
 
-static const struct dwc2_core_params dwc2_module_params = {
-	.otg_cap			= -1,
-	.otg_ver			= -1,
-	.dma_enable			= -1,
-	.dma_desc_enable		= 0,
-	.speed				= -1,
-	.enable_dynamic_fifo		= -1,
-	.en_multiple_tx_fifo		= -1,
-	.host_rx_fifo_size		= 1024,
-	.host_nperio_tx_fifo_size	= 256,
-	.host_perio_tx_fifo_size	= 1024,
-	.max_transfer_size		= 65535,
-	.max_packet_count		= 511,
-	.host_channels			= -1,
-	.phy_type			= -1,
-	.phy_utmi_width			= -1,
-	.phy_ulpi_ddr			= -1,
-	.phy_ulpi_ext_vbus		= -1,
-	.i2c_enable			= -1,
-	.ulpi_fs_ls			= -1,
-	.host_support_fs_ls_low_power	= -1,
-	.host_ls_low_power_phy_clk	= -1,
-	.ts_dline			= -1,
-	.reload_ctl			= -1,
-	.ahbcfg				= -1,
-	.uframe_sched			= -1,
+struct dwc2_pci_glue {
+	struct platform_device *dwc2;
+	struct platform_device *phy;
 };
 
-/**
- * dwc2_driver_remove() - Called when the DWC_otg core is unregistered with the
- * DWC_otg driver
- *
- * @dev: Bus device
- *
- * This routine is called, for example, when the rmmod command is executed. The
- * device may or may not be electrically present. If it is present, the driver
- * stops device processing. Any resources used on behalf of this device are
- * freed.
- */
-static void dwc2_driver_remove(struct pci_dev *dev)
+static void dwc2_pci_remove(struct pci_dev *pci)
 {
-	struct dwc2_hsotg *hsotg = pci_get_drvdata(dev);
+	struct dwc2_pci_glue *glue = pci_get_drvdata(pci);
 
-	dwc2_hcd_remove(hsotg);
-	pci_disable_device(dev);
+	platform_device_unregister(glue->dwc2);
+	usb_phy_generic_unregister(glue->phy);
+	kfree(glue);
+	pci_set_drvdata(pci, NULL);
 }
 
-/**
- * dwc2_driver_probe() - Called when the DWC_otg core is bound to the DWC_otg
- * driver
- *
- * @dev: Bus device
- *
- * This routine creates the driver components required to control the device
- * (core, HCD, and PCD) and initializes the device. The driver components are
- * stored in a dwc2_hsotg structure. A reference to the dwc2_hsotg is saved
- * in the device private data. This allows the driver to access the dwc2_hsotg
- * structure on subsequent calls to driver methods for this device.
- */
-static int dwc2_driver_probe(struct pci_dev *dev,
-			     const struct pci_device_id *id)
+static int dwc2_pci_probe(struct pci_dev *pci,
+		const struct pci_device_id *id)
 {
-	struct dwc2_hsotg *hsotg;
-	int retval;
+	struct resource		res[2];
+	struct platform_device	*dwc2;
+	struct platform_device	*phy;
+	int			ret;
+	struct device		*dev = &pci->dev;
+	struct dwc2_pci_glue	*glue;
 
-	hsotg = devm_kzalloc(&dev->dev, sizeof(*hsotg), GFP_KERNEL);
-	if (!hsotg)
-		return -ENOMEM;
-
-	hsotg->dev = &dev->dev;
-	hsotg->regs = devm_ioremap_resource(&dev->dev, &dev->resource[0]);
-	if (IS_ERR(hsotg->regs))
-		return PTR_ERR(hsotg->regs);
-
-	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
-		(unsigned long)pci_resource_start(dev, 0), hsotg->regs);
-
-	if (pci_enable_device(dev) < 0)
+	ret = pcim_enable_device(pci);
+	if (ret) {
+		dev_err(dev, "failed to enable pci device\n");
 		return -ENODEV;
-
-	pci_set_master(dev);
-
-	retval = devm_request_irq(hsotg->dev, dev->irq,
-				  dwc2_handle_common_intr, IRQF_SHARED,
-				  dev_name(hsotg->dev), hsotg);
-	if (retval)
-		return retval;
-
-	spin_lock_init(&hsotg->lock);
-	retval = dwc2_hcd_init(hsotg, dev->irq, &dwc2_module_params);
-	if (retval) {
-		pci_disable_device(dev);
-		return retval;
 	}
 
-	pci_set_drvdata(dev, hsotg);
+	pci_set_master(pci);
 
-	return retval;
+	dwc2 = platform_device_alloc("dwc2", PLATFORM_DEVID_AUTO);
+	if (!dwc2) {
+		dev_err(dev, "couldn't allocate dwc2 device\n");
+		return -ENOMEM;
+	}
+
+	memset(res, 0x00, sizeof(struct resource) * ARRAY_SIZE(res));
+
+	res[0].start	= pci_resource_start(pci, 0);
+	res[0].end	= pci_resource_end(pci, 0);
+	res[0].name	= "dwc2";
+	res[0].flags	= IORESOURCE_MEM;
+
+	res[1].start	= pci->irq;
+	res[1].name	= "dwc2";
+	res[1].flags	= IORESOURCE_IRQ;
+
+	ret = platform_device_add_resources(dwc2, res, ARRAY_SIZE(res));
+	if (ret) {
+		dev_err(dev, "couldn't add resources to dwc2 device\n");
+		return ret;
+	}
+
+	dwc2->dev.parent = dev;
+
+	phy = usb_phy_generic_register();
+	if (IS_ERR(phy)) {
+		dev_err(dev, "error registering generic PHY (%ld)\n",
+			PTR_ERR(phy));
+		return PTR_ERR(phy);
+	}
+
+	ret = platform_device_add(dwc2);
+	if (ret) {
+		dev_err(dev, "failed to register dwc2 device\n");
+		goto err;
+	}
+
+	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	if (!glue)
+		return -ENOMEM;
+
+	glue->phy = phy;
+	glue->dwc2 = dwc2;
+	pci_set_drvdata(pci, glue);
+
+	return 0;
+err:
+	usb_phy_generic_unregister(phy);
+	platform_device_put(dwc2);
+	return ret;
 }
 
 static const struct pci_device_id dwc2_pci_ids[] = {
@@ -174,8 +158,8 @@ MODULE_DEVICE_TABLE(pci, dwc2_pci_ids);
 static struct pci_driver dwc2_pci_driver = {
 	.name = dwc2_driver_name,
 	.id_table = dwc2_pci_ids,
-	.probe = dwc2_driver_probe,
-	.remove = dwc2_driver_remove,
+	.probe = dwc2_pci_probe,
+	.remove = dwc2_pci_remove,
 };
 
 module_pci_driver(dwc2_pci_driver);

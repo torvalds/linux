@@ -321,8 +321,11 @@
 /** hv_console_set_ipi */
 #define HV_DISPATCH_CONSOLE_SET_IPI               63
 
+/** hv_send_nmi */
+#define HV_DISPATCH_SEND_NMI                      65
+
 /** One more than the largest dispatch value */
-#define _HV_DISPATCH_END                          64
+#define _HV_DISPATCH_END                          66
 
 
 #ifndef __ASSEMBLER__
@@ -961,7 +964,11 @@ typedef enum {
   HV_INQ_TILES_HFH_CACHE       = 2,
 
   /** The set of tiles that can be legally used as a LOTAR for a PTE. */
-  HV_INQ_TILES_LOTAR           = 3
+  HV_INQ_TILES_LOTAR           = 3,
+
+  /** The set of "shared" driver tiles that the hypervisor may
+   *  periodically interrupt. */
+  HV_INQ_TILES_SHARED          = 4
 } HV_InqTileSet;
 
 /** Returns specific information about various sets of tiles within the
@@ -1249,6 +1256,11 @@ void hv_downcall_dispatch(void);
 #define INT_DMATLB_ACCESS_DWNCL  INT_DMA_CPL
 /** Device interrupt downcall interrupt vector */
 #define INT_DEV_INTR_DWNCL       INT_WORLD_ACCESS
+/** NMI downcall interrupt vector */
+#define INT_NMI_DWNCL            64
+
+#define HV_NMI_FLAG_FORCE    0x1  /**< Force an NMI downcall regardless of
+               the ICS bit of the client. */
 
 #ifndef __ASSEMBLER__
 
@@ -1774,6 +1786,56 @@ int hv_dev_poll(int devhdl, __hv32 events, HV_IntArg intarg);
  *         error code.
  */
 int hv_dev_poll_cancel(int devhdl);
+
+
+/** NMI information */
+typedef struct
+{
+  /** Result: negative error, or HV_NMI_RESULT_xxx. */
+  int result;
+
+  /** PC from interrupted remote core (if result != HV_NMI_RESULT_FAIL_HV). */
+  HV_VirtAddr pc;
+
+} HV_NMI_Info;
+
+/** NMI issued successfully. */
+#define HV_NMI_RESULT_OK        0
+
+/** NMI not issued: remote tile running at client PL with ICS set. */
+#define HV_NMI_RESULT_FAIL_ICS  1
+
+/** NMI not issued: remote tile waiting in hypervisor. */
+#define HV_NMI_RESULT_FAIL_HV   2
+
+/** Force an NMI downcall regardless of the ICS bit of the client. */
+#define HV_NMI_FLAG_FORCE    0x1
+
+/** Send an NMI interrupt request to a particular tile.
+ *
+ *  This will cause the NMI to be issued on the remote tile regardless
+ *  of the state of the client interrupt mask.  However, if the remote
+ *  tile is in the hypervisor, it will not execute the NMI, and
+ *  HV_NMI_RESULT_FAIL_HV will be returned.  Similarly, if the remote
+ *  tile is in a client interrupt critical section at the time of the
+ *  NMI, it will not execute the NMI, and HV_NMI_RESULT_FAIL_ICS will
+ *  be returned.  In this second case, however, if HV_NMI_FLAG_FORCE
+ *  is set in flags, then the remote tile will enter its NMI interrupt
+ *  vector regardless.  Forcing the NMI vector during an interrupt
+ *  critical section will mean that the client can not safely continue
+ *  execution after handling the interrupt.
+ *
+ *  @param tile Tile to which the NMI request is sent.
+ *  @param info NMI information which is defined by and interpreted by the
+ *         supervisor, is passed to the specified tile, and is
+ *         stored in the SPR register SYSTEM_SAVE_{CLIENT_PL}_2 on the
+ *         specified tile when entering the NMI handler routine.
+ *         Typically, this parameter stores the NMI type, or an aligned
+ *         VA plus some special bits, etc.
+ *  @param flags Flags (HV_NMI_FLAG_xxx).
+ *  @return Information about the requested NMI.
+ */
+HV_NMI_Info hv_send_nmi(HV_Coord tile, unsigned long info, __hv64 flags);
 
 
 /** Scatter-gather list for preada/pwritea calls. */

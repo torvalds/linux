@@ -40,7 +40,7 @@ int main(int ac, char **argv)
 		key = IPPROTO_ICMP;
 		assert(bpf_lookup_elem(map_fd[0], &key, &icmp_cnt) == 0);
 
-		printf("TCP %lld UDP %lld ICMP %lld packets\n",
+		printf("TCP %lld UDP %lld ICMP %lld bytes\n",
 		       tcp_cnt, udp_cnt, icmp_cnt);
 		sleep(1);
 	}

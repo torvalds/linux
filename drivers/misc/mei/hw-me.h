@@ -50,13 +50,17 @@ struct mei_cfg {
  * struct mei_me_hw - me hw specific data
  *
  * @cfg: per device generation config and ops
- * @mem_addr:  io memory address
- * @pg_state:      power gating state
+ * @mem_addr: io memory address
+ * @intr_source: interrupt source
+ * @pg_state: power gating state
+ * @d0i3_supported: di03 support
  */
 struct mei_me_hw {
 	const struct mei_cfg *cfg;
 	void __iomem *mem_addr;
+	u32 intr_source;
 	enum mei_pg_state pg_state;
+	bool d0i3_supported;
 };
 
 #define to_me_hw(dev) (struct mei_me_hw *)((dev)->hw)
@@ -71,8 +75,8 @@ extern const struct mei_cfg mei_me_pch8_sps_cfg;
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 				   const struct mei_cfg *cfg);
 
-int mei_me_pg_set_sync(struct mei_device *dev);
-int mei_me_pg_unset_sync(struct mei_device *dev);
+int mei_me_pg_enter_sync(struct mei_device *dev);
+int mei_me_pg_exit_sync(struct mei_device *dev);
 
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id);

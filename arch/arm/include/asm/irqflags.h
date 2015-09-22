@@ -20,6 +20,7 @@
 
 #if __LINUX_ARM_ARCH__ >= 6
 
+#define arch_local_irq_save arch_local_irq_save
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
@@ -31,6 +32,7 @@ static inline unsigned long arch_local_irq_save(void)
 	return flags;
 }
 
+#define arch_local_irq_enable arch_local_irq_enable
 static inline void arch_local_irq_enable(void)
 {
 	asm volatile(
@@ -40,6 +42,7 @@ static inline void arch_local_irq_enable(void)
 		: "memory", "cc");
 }
 
+#define arch_local_irq_disable arch_local_irq_disable
 static inline void arch_local_irq_disable(void)
 {
 	asm volatile(
@@ -56,6 +59,7 @@ static inline void arch_local_irq_disable(void)
 /*
  * Save the current interrupt enable state & disable IRQs
  */
+#define arch_local_irq_save arch_local_irq_save
 static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags, temp;
@@ -73,6 +77,7 @@ static inline unsigned long arch_local_irq_save(void)
 /*
  * Enable IRQs
  */
+#define arch_local_irq_enable arch_local_irq_enable
 static inline void arch_local_irq_enable(void)
 {
 	unsigned long temp;
@@ -88,6 +93,7 @@ static inline void arch_local_irq_enable(void)
 /*
  * Disable IRQs
  */
+#define arch_local_irq_disable arch_local_irq_disable
 static inline void arch_local_irq_disable(void)
 {
 	unsigned long temp;
@@ -135,6 +141,7 @@ static inline void arch_local_irq_disable(void)
 /*
  * Save the current interrupt enable state.
  */
+#define arch_local_save_flags arch_local_save_flags
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
@@ -147,6 +154,7 @@ static inline unsigned long arch_local_save_flags(void)
 /*
  * restore saved IRQ & FIQ state
  */
+#define arch_local_irq_restore arch_local_irq_restore
 static inline void arch_local_irq_restore(unsigned long flags)
 {
 	asm volatile(
@@ -156,10 +164,13 @@ static inline void arch_local_irq_restore(unsigned long flags)
 		: "memory", "cc");
 }
 
+#define arch_irqs_disabled_flags arch_irqs_disabled_flags
 static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return flags & IRQMASK_I_BIT;
 }
+
+#include <asm-generic/irqflags.h>
 
 #endif /* ifdef __KERNEL__ */
 #endif /* ifndef __ASM_ARM_IRQFLAGS_H */

@@ -54,7 +54,7 @@ static const struct omap_video_timings sharp_ls_timings = {
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -268,17 +268,12 @@ static  int sharp_ls_get_gpio_of(struct device *dev, int index, int val,
 	const char *desc, struct gpio_desc **gpiod)
 {
 	struct gpio_desc *gd;
-	int r;
 
 	*gpiod = NULL;
 
-	gd = devm_gpiod_get_index(dev, desc, index);
+	gd = devm_gpiod_get_index(dev, desc, index, GPIOD_OUT_LOW);
 	if (IS_ERR(gd))
-		return PTR_ERR(gd) == -ENOENT ? 0 : PTR_ERR(gd);
-
-	r = gpiod_direction_output(gd, val);
-	if (r)
-		return r;
+		return PTR_ERR(gd);
 
 	*gpiod = gd;
 	return 0;

@@ -138,8 +138,10 @@ static int timbradio_probe(struct platform_device *pdev)
 		i2c_get_adapter(pdata->i2c_adapter), pdata->tuner, NULL);
 	tr->sd_dsp = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
 		i2c_get_adapter(pdata->i2c_adapter), pdata->dsp, NULL);
-	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL)
+	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL) {
+		err = -ENODEV;
 		goto err_video_req;
+	}
 
 	tr->v4l2_dev.ctrl_handler = tr->sd_dsp->ctrl_handler;
 

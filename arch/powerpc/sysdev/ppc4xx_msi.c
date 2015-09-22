@@ -93,7 +93,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (!msi_data->msi_virqs)
 		return -ENOMEM;
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		int_no = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 		if (int_no >= 0)
 			break;
@@ -124,16 +124,17 @@ void ppc4xx_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 	struct ppc4xx_msi *msi_data = &ppc4xx_msi;
+	irq_hw_number_t hwirq;
 
 	dev_dbg(&dev->dev, "PCIE-MSI: tearing down msi irqs\n");
 
-	list_for_each_entry(entry, &dev->msi_list, list) {
+	for_each_pci_msi_entry(entry, dev) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		hwirq = virq_to_hw(entry->irq);
 		irq_set_msi_desc(entry->irq, NULL);
-		msi_bitmap_free_hwirqs(&msi_data->bitmap,
-				virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
+		msi_bitmap_free_hwirqs(&msi_data->bitmap, hwirq, 1);
 	}
 }
 
@@ -218,6 +219,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	struct ppc4xx_msi *msi;
 	struct resource res;
 	int err = 0;
+	struct pci_controller *phb;
 
 	dev_dbg(&dev->dev, "PCIE-MSI: Setting up MSI support...\n");
 
@@ -250,8 +252,10 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	}
 	ppc4xx_msi = *msi;
 
-	ppc_md.setup_msi_irqs = ppc4xx_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
+	list_for_each_entry(phb, &hose_list, list_node) {
+		phb->controller_ops.setup_msi_irqs = ppc4xx_setup_msi_irqs;
+		phb->controller_ops.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
+	}
 	return err;
 
 error_out:

@@ -263,7 +263,8 @@ static int gxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 
 	info->fix.smem_start = pci_resource_start(dev, 0);
 	info->fix.smem_len = vram ? vram : gx_frame_buffer_size();
-	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
+	info->screen_base = ioremap_wc(info->fix.smem_start,
+				       info->fix.smem_len);
 	if (!info->screen_base)
 		return -ENOMEM;
 

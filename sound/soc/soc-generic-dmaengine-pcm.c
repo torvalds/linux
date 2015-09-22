@@ -24,6 +24,12 @@
 
 #include <sound/dmaengine_pcm.h>
 
+/*
+ * The platforms dmaengine driver does not support reporting the amount of
+ * bytes that are still left to transfer.
+ */
+#define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(31)
+
 struct dmaengine_pcm {
 	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
 	const struct snd_dmaengine_pcm_config *config;
@@ -222,14 +228,18 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 	return snd_dmaengine_pcm_request_channel(fn, dma_data->filter_data);
 }
 
-static bool dmaengine_pcm_can_report_residue(struct dma_chan *chan)
+static bool dmaengine_pcm_can_report_residue(struct device *dev,
+	struct dma_chan *chan)
 {
 	struct dma_slave_caps dma_caps;
 	int ret;
 
 	ret = dma_get_slave_caps(chan, &dma_caps);
-	if (ret != 0)
-		return true;
+	if (ret != 0) {
+		dev_warn(dev, "Failed to get DMA channel capabilities, falling back to period counting: %d\n",
+			 ret);
+		return false;
+	}
 
 	if (dma_caps.residue_granularity == DMA_RESIDUE_GRANULARITY_DESCRIPTOR)
 		return false;
@@ -289,14 +299,7 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (ret)
 			return ret;
 
-		/*
-		 * This will only return false if we know for sure that at least
-		 * one channel does not support residue reporting. If the DMA
-		 * driver does not implement the slave_caps API we rely having
-		 * the NO_RESIDUE flag set manually in case residue reporting is
-		 * not supported.
-		 */
-		if (!dmaengine_pcm_can_report_residue(pcm->chan[i]))
+		if (!dmaengine_pcm_can_report_residue(dev, pcm->chan[i]))
 			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;
 	}
 

@@ -98,7 +98,8 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 			continue;
 		base = range_state[i].base_pfn;
 		if (base < (1<<(20-PAGE_SHIFT)) && mtrr_state.have_fixed &&
-		    (mtrr_state.enabled & 1)) {
+		    (mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED) &&
+		    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
 			/* Var MTRR contains UC entry below 1M? Skip it: */
 			printk(BIOS_BUG_MSG, i);
 			if (base + size <= (1<<(20-PAGE_SHIFT)))

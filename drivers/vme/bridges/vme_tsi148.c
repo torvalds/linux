@@ -587,11 +587,6 @@ static int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 		granularity = 0x10000;
 		addr |= TSI148_LCSR_ITAT_AS_A64;
 		break;
-	case VME_CRCSR:
-	case VME_USER1:
-	case VME_USER2:
-	case VME_USER3:
-	case VME_USER4:
 	default:
 		dev_err(tsi148_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
@@ -1838,24 +1833,29 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	/* Add to list */
 	list_add_tail(&entry->list, &list->entries);
 
+	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
+		&entry->descriptor,
+		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
+	if (dma_mapping_error(tsi148_bridge->parent, entry->dma_handle)) {
+		dev_err(tsi148_bridge->parent, "DMA mapping error\n");
+		retval = -EINVAL;
+		goto err_dma;
+	}
+
 	/* Fill out previous descriptors "Next Address" */
 	if (entry->list.prev != &list->entries) {
-		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
-			list);
-		/* We need the bus address for the pointer */
-		entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-			&entry->descriptor,
-			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
-
 		reg_split((unsigned long long)entry->dma_handle, &address_high,
 			&address_low);
-		entry->descriptor.dnlau = cpu_to_be32(address_high);
-		entry->descriptor.dnlal = cpu_to_be32(address_low);
+		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
+				  list);
+		prev->descriptor.dnlau = cpu_to_be32(address_high);
+		prev->descriptor.dnlal = cpu_to_be32(address_low);
 
 	}
 
 	return 0;
 
+err_dma:
 err_dest:
 err_source:
 err_align:
@@ -1892,7 +1892,7 @@ static int tsi148_dma_busy(struct vme_bridge *tsi148_bridge, int channel)
 static int tsi148_dma_list_exec(struct vme_dma_list *list)
 {
 	struct vme_dma_resource *ctrlr;
-	int channel, retval = 0;
+	int channel, retval;
 	struct tsi148_dma_entry *entry;
 	u32 bus_addr_high, bus_addr_low;
 	u32 val, dctlreg = 0;
@@ -1926,10 +1926,6 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	entry = list_first_entry(&list->entries, struct tsi148_dma_entry,
 		list);
 
-	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-		&entry->descriptor,
-		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
-
 	mutex_unlock(&ctrlr->mtx);
 
 	reg_split(entry->dma_handle, &bus_addr_high, &bus_addr_low);
@@ -1946,8 +1942,18 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	iowrite32be(dctlreg | TSI148_LCSR_DCTL_DGO, bridge->base +
 		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
 
-	wait_event_interruptible(bridge->dma_queue[channel],
+	retval = wait_event_interruptible(bridge->dma_queue[channel],
 		tsi148_dma_busy(ctrlr->parent, channel));
+
+	if (retval) {
+		iowrite32be(dctlreg | TSI148_LCSR_DCTL_ABT, bridge->base +
+			TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
+		/* Wait for the operation to abort */
+		wait_event(bridge->dma_queue[channel],
+			   tsi148_dma_busy(ctrlr->parent, channel));
+		retval = -EINTR;
+		goto exit;
+	}
 
 	/*
 	 * Read status register, this register is valid until we kick off a
@@ -1961,6 +1967,7 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 		retval = -EIO;
 	}
 
+exit:
 	/* Remove list from running list */
 	mutex_lock(&ctrlr->mtx);
 	list_del(&list->list);
@@ -2471,7 +2478,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		master_image->locked = 0;
 		master_image->number = i;
 		master_image->address_attr = VME_A16 | VME_A24 | VME_A32 |
-			VME_A64;
+			VME_A64 | VME_CRCSR | VME_USER1 | VME_USER2 |
+			VME_USER3 | VME_USER4;
 		master_image->cycle_attr = VME_SCT | VME_BLT | VME_MBLT |
 			VME_2eVME | VME_2eSST | VME_2eSSTB | VME_2eSST160 |
 			VME_2eSST267 | VME_2eSST320 | VME_SUPER | VME_USER |
@@ -2500,8 +2508,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		slave_image->locked = 0;
 		slave_image->number = i;
 		slave_image->address_attr = VME_A16 | VME_A24 | VME_A32 |
-			VME_A64 | VME_CRCSR | VME_USER1 | VME_USER2 |
-			VME_USER3 | VME_USER4;
+			VME_A64;
 		slave_image->cycle_attr = VME_SCT | VME_BLT | VME_MBLT |
 			VME_2eVME | VME_2eSST | VME_2eSSTB | VME_2eSST160 |
 			VME_2eSST267 | VME_2eSST320 | VME_SUPER | VME_USER |

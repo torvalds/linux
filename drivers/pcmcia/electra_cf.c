@@ -48,14 +48,14 @@ struct electra_cf_socket {
 
 	struct platform_device	*ofdev;
 	unsigned long		mem_phys;
-	void __iomem *		mem_base;
+	void __iomem		*mem_base;
 	unsigned long		mem_size;
-	void __iomem *		io_virt;
+	void __iomem		*io_virt;
 	unsigned int		io_base;
 	unsigned int		io_size;
 	u_int			irq;
 	struct resource		iomem;
-	void __iomem *		gpio_base;
+	void __iomem		*gpio_base;
 	int			gpio_detect;
 	int			gpio_vsense;
 	int			gpio_3v;
@@ -202,7 +202,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	if (err)
 		return -EINVAL;
 
-	cf = kzalloc(sizeof *cf, GFP_KERNEL);
+	cf = kzalloc(sizeof(*cf), GFP_KERNEL);
 	if (!cf)
 		return -ENOMEM;
 
@@ -216,8 +216,10 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	cf->io_size = PAGE_ALIGN(resource_size(&io));
 
 	area = __get_vm_area(cf->io_size, 0, PHB_IO_BASE, PHB_IO_END);
-	if (area == NULL)
-		return -ENOMEM;
+	if (area == NULL) {
+		status = -ENOMEM;
+		goto fail1;
+	}
 
 	cf->io_virt = (void __iomem *)(area->addr);
 
@@ -320,7 +322,8 @@ fail1:
 		iounmap(cf->mem_base);
 	if (cf->gpio_base)
 		iounmap(cf->gpio_base);
-	device_init_wakeup(&ofdev->dev, 0);
+	if (area)
+		device_init_wakeup(&ofdev->dev, 0);
 	kfree(cf);
 	return status;
 
@@ -369,5 +372,5 @@ static struct platform_driver electra_cf_driver = {
 module_platform_driver(electra_cf_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
+MODULE_AUTHOR("Olof Johansson <olof@lixom.net>");
 MODULE_DESCRIPTION("PA Semi Electra CF driver");

@@ -8,7 +8,7 @@
  *
  */
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
@@ -60,8 +60,9 @@ static int coalesced_mmio_has_room(struct kvm_coalesced_mmio_dev *dev)
 	return 1;
 }
 
-static int coalesced_mmio_write(struct kvm_io_device *this,
-				gpa_t addr, int len, const void *val)
+static int coalesced_mmio_write(struct kvm_vcpu *vcpu,
+				struct kvm_io_device *this, gpa_t addr,
+				int len, const void *val)
 {
 	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_ring *ring = dev->kvm->coalesced_mmio_ring;

@@ -1014,7 +1014,6 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 
 /* will exit holding res->spinlock, but may drop in function */
 void __dlm_wait_on_lockres_flags(struct dlm_lock_resource *res, int flags);
-void __dlm_wait_on_lockres_flags_set(struct dlm_lock_resource *res, int flags);
 
 /* will exit holding res->spinlock, but may drop in function */
 static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)

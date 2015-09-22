@@ -76,4 +76,7 @@
 #define SH73A0_CLK_IIC4		10
 #define SH73A0_CLK_KEYSC	3
 
+/* MSTP5 */
+#define SH73A0_CLK_INTCA0	8
+
 #endif

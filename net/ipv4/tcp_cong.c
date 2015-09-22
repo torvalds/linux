@@ -83,7 +83,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 		ret = -EEXIST;
 	} else {
 		list_add_tail_rcu(&ca->list, &tcp_cong_list);
-		pr_info("%s registered\n", ca->name);
+		pr_debug("%s registered\n", ca->name);
 	}
 	spin_unlock(&tcp_cong_list_lock);
 
@@ -114,16 +114,19 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 }
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 
-u32 tcp_ca_get_key_by_name(const char *name)
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca)
 {
 	const struct tcp_congestion_ops *ca;
-	u32 key;
+	u32 key = TCP_CA_UNSPEC;
 
 	might_sleep();
 
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
-	key = ca ? ca->key : TCP_CA_UNSPEC;
+	if (ca) {
+		key = ca->key;
+		*ecn_ca = ca->flags & TCP_CONG_NEEDS_ECN;
+	}
 	rcu_read_unlock();
 
 	return key;
@@ -187,6 +190,7 @@ static void tcp_reinit_congestion_control(struct sock *sk,
 
 	tcp_cleanup_congestion_control(sk);
 	icsk->icsk_ca_ops = ca;
+	icsk->icsk_ca_setsockopt = 1;
 
 	if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
 		icsk->icsk_ca_ops->init(sk);
@@ -335,8 +339,10 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	rcu_read_lock();
 	ca = __tcp_ca_find_autoload(name);
 	/* No change asking for existing value */
-	if (ca == icsk->icsk_ca_ops)
+	if (ca == icsk->icsk_ca_ops) {
+		icsk->icsk_ca_setsockopt = 1;
 		goto out;
+	}
 	if (!ca)
 		err = -ENOENT;
 	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
@@ -362,10 +368,8 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
  */
 u32 tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
-	u32 cwnd = tp->snd_cwnd + acked;
+	u32 cwnd = min(tp->snd_cwnd + acked, tp->snd_ssthresh);
 
-	if (cwnd > tp->snd_ssthresh)
-		cwnd = tp->snd_ssthresh + 1;
 	acked -= cwnd - tp->snd_cwnd;
 	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
 
@@ -410,7 +414,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 
 	/* In "safe" area, increase. */
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
+	if (tcp_in_slow_start(tp)) {
 		acked = tcp_slow_start(tp, acked);
 		if (!acked)
 			return;

@@ -63,10 +63,15 @@ struct ahash_request {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
+#define AHASH_REQUEST_ON_STACK(name, ahash) \
+	char __##name##_desc[sizeof(struct ahash_request) + \
+		crypto_ahash_reqsize(ahash)] CRYPTO_MINALIGN_ATTR; \
+	struct ahash_request *name = (void *)__##name##_desc
+
 /**
  * struct ahash_alg - asynchronous message digest definition
  * @init: Initialize the transformation context. Intended only to initialize the
- *	  state of the HASH transformation at the begining. This shall fill in
+ *	  state of the HASH transformation at the beginning. This shall fill in
  *	  the internal structures used during the entire duration of the whole
  *	  transformation. No data processing happens at this point.
  * @update: Push a chunk of data into the driver for transformation. This

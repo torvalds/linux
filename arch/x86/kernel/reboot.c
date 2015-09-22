@@ -183,6 +183,16 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		},
 	},
 
+	/* ASRock */
+	{	/* Handle problems with rebooting on ASRock Q1900DC-ITX */
+		.callback = set_pci_reboot,
+		.ident = "ASRock Q1900DC-ITX",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASRock"),
+			DMI_MATCH(DMI_BOARD_NAME, "Q1900DC-ITX"),
+		},
+	},
+
 	/* ASUS */
 	{	/* Handle problems with rebooting on ASUS P4S800 */
 		.callback = set_bios_reboot,
@@ -663,7 +673,7 @@ struct machine_ops machine_ops = {
 	.emergency_restart = native_machine_emergency_restart,
 	.restart = native_machine_restart,
 	.halt = native_machine_halt,
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.crash_shutdown = native_machine_crash_shutdown,
 #endif
 };
@@ -693,7 +703,7 @@ void machine_halt(void)
 	machine_ops.halt();
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	machine_ops.crash_shutdown(regs);

@@ -7,6 +7,7 @@
 #define PCI_BAR_COUNT	6
 
 #include <linux/pci.h>
+#include <linux/mutex.h>
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
@@ -44,10 +45,6 @@ struct zpci_fmb {
 	u64 rpcit_ops;
 	u64 dma_rbytes;
 	u64 dma_wbytes;
-	/* software counters */
-	atomic64_t allocated_pages;
-	atomic64_t mapped_pages;
-	atomic64_t unmapped_pages;
 } __packed __aligned(16);
 
 enum zpci_state {
@@ -80,6 +77,7 @@ struct zpci_dev {
 	u8		pft;		/* pci function type */
 	u16		domain;
 
+	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
@@ -111,6 +109,10 @@ struct zpci_dev {
 	/* Function measurement block */
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
+	/* software counters */
+	atomic64_t allocated_pages;
+	atomic64_t mapped_pages;
+	atomic64_t unmapped_pages;
 
 	enum pci_bus_speed max_bus_speed;
 
@@ -168,7 +170,11 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 #endif /* CONFIG_HOTPLUG_PCI_S390 */
 
 /* Helpers */
-struct zpci_dev *get_zdev(struct pci_dev *);
+static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
+{
+	return pdev->sysdata;
+}
+
 struct zpci_dev *get_zdev_by_fid(u32);
 
 /* DMA */
@@ -185,5 +191,21 @@ void zpci_debug_exit(void);
 void zpci_debug_init_device(struct zpci_dev *);
 void zpci_debug_exit_device(struct zpci_dev *);
 void zpci_debug_info(struct zpci_dev *, struct seq_file *);
+
+#ifdef CONFIG_NUMA
+
+/* Returns the node based on PCI bus */
+static inline int __pcibus_to_node(const struct pci_bus *bus)
+{
+	return NUMA_NO_NODE;
+}
+
+static inline const struct cpumask *
+cpumask_of_pcibus(const struct pci_bus *bus)
+{
+	return cpu_online_mask;
+}
+
+#endif /* CONFIG_NUMA */
 
 #endif

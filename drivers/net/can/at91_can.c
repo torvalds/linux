@@ -291,13 +291,13 @@ static inline unsigned int get_tx_echo_mb(const struct at91_priv *priv)
 
 static inline u32 at91_read(const struct at91_priv *priv, enum at91_reg reg)
 {
-	return __raw_readl(priv->reg_base + reg);
+	return readl_relaxed(priv->reg_base + reg);
 }
 
 static inline void at91_write(const struct at91_priv *priv, enum at91_reg reg,
 		u32 value)
 {
-	__raw_writel(value, priv->reg_base + reg);
+	writel_relaxed(value, priv->reg_base + reg);
 }
 
 static inline void set_mb_mode_prio(const struct at91_priv *priv,
@@ -577,10 +577,10 @@ static void at91_rx_overflow_err(struct net_device *dev)
 
 	cf->can_id |= CAN_ERR_CRTL;
 	cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
-	netif_receive_skb(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 }
 
 /**
@@ -642,10 +642,10 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 	}
 
 	at91_read_mb(dev, mb, cf);
-	netif_receive_skb(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
 }
@@ -802,10 +802,10 @@ static int at91_poll_err(struct net_device *dev, int quota, u32 reg_sr)
 		return 0;
 
 	at91_poll_err_frame(dev, cf, reg_sr);
-	netif_receive_skb(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
+	netif_receive_skb(skb);
 
 	return 1;
 }
@@ -1067,10 +1067,10 @@ static void at91_irq_err(struct net_device *dev)
 		return;
 
 	at91_irq_err_state(dev, cf, new_state);
-	netif_rx(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 
 	priv->can.state = new_state;
 }

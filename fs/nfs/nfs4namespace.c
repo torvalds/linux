@@ -375,7 +375,7 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 	dprintk("%s: getting locations for %pd2\n",
 		__func__, dentry);
 
-	err = nfs4_proc_fs_locations(client, parent->d_inode, &dentry->d_name, fs_locations, page);
+	err = nfs4_proc_fs_locations(client, d_inode(parent), &dentry->d_name, fs_locations, page);
 	dput(parent);
 	if (err != 0 ||
 	    fs_locations->nlocations <= 0 ||
@@ -396,7 +396,7 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 {
 	rpc_authflavor_t flavor = server->client->cl_auth->au_flavor;
 	struct dentry *parent = dget_parent(dentry);
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
 	struct vfsmount *mnt;

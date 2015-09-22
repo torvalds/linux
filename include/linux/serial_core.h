@@ -35,7 +35,7 @@
 #define uart_console(port) \
 	((port)->cons && (port)->cons->index == (port)->line)
 #else
-#define uart_console(port)      (0)
+#define uart_console(port)      ({ (void)port; 0; })
 #endif
 
 struct uart_port;
@@ -235,7 +235,9 @@ struct uart_port {
 	const struct uart_ops	*ops;
 	unsigned int		custom_divisor;
 	unsigned int		line;			/* port index */
+	unsigned int		minor;
 	resource_size_t		mapbase;		/* for ioremap */
+	resource_size_t		mapsize;
 	struct device		*dev;			/* parent device */
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
@@ -336,24 +338,29 @@ struct earlycon_device {
 	char options[16];		/* e.g., 115200n8 */
 	unsigned int baud;
 };
-int setup_earlycon(char *buf, const char *match,
-		   int (*setup)(struct earlycon_device *, const char *));
 
+struct earlycon_id {
+	char	name[16];
+	int	(*setup)(struct earlycon_device *, const char *options);
+} __aligned(32);
+
+extern int setup_earlycon(char *buf);
 extern int of_setup_earlycon(unsigned long addr,
 			     int (*setup)(struct earlycon_device *, const char *));
 
-#define EARLYCON_DECLARE(name, func) \
-static int __init name ## _setup_earlycon(char *buf) \
-{ \
-	return setup_earlycon(buf, __stringify(name), func); \
-} \
-early_param("earlycon", name ## _setup_earlycon);
+#define EARLYCON_DECLARE(_name, func)					\
+	static const struct earlycon_id __earlycon_##_name		\
+		__used __section(__earlycon_table)			\
+		 = { .name  = __stringify(_name),			\
+		     .setup = func  }
 
 #define OF_EARLYCON_DECLARE(name, compat, fn)				\
 	_OF_DECLARE(earlycon, name, compat, fn, void *)
 
 struct uart_port *uart_get_console(struct uart_port *ports, int nr,
 				   struct console *c);
+int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
+			char **options);
 void uart_parse_options(char *options, int *baud, int *parity, int *bits,
 			int *flow);
 int uart_set_options(struct uart_port *port, struct console *co, int baud,

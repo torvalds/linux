@@ -42,6 +42,10 @@
 extern struct static_key paravirt_ticketlocks_enabled;
 static __always_inline bool static_key_false(struct static_key *key);
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+#include <asm/qspinlock.h>
+#else
+
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
 static inline void __ticket_enter_slowpath(arch_spinlock_t *lock)
@@ -169,7 +173,7 @@ static inline int arch_spin_is_contended(arch_spinlock_t *lock)
 	struct __raw_tickets tmp = READ_ONCE(lock->tickets);
 
 	tmp.head &= ~TICKET_SLOWPATH_FLAG;
-	return (tmp.tail - tmp.head) > TICKET_LOCK_INC;
+	return (__ticket_t)(tmp.tail - tmp.head) > TICKET_LOCK_INC;
 }
 #define arch_spin_is_contended	arch_spin_is_contended
 
@@ -196,6 +200,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 		cpu_relax();
 	}
 }
+#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 /*
  * Read-write spinlocks, allowing multiple readers

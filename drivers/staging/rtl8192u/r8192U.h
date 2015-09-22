@@ -40,8 +40,6 @@
 #define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
 /* HW security */
-#define FALSE 0
-#define TRUE 1
 #define MAX_KEY_LEN     61
 #define KEY_BUF_SIZE    5
 
@@ -1189,7 +1187,7 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
 void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8192_set_rxconf(struct net_device *dev);
-extern void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
+void rtl819xusb_beacon_tx(struct net_device *dev, u16 tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);

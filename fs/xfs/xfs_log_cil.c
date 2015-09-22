@@ -307,7 +307,13 @@ xlog_cil_insert_items(
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
-		list_move_tail(&lip->li_cil, &cil->xc_cil);
+		/*
+		 * Only move the item if it isn't already at the tail. This is
+		 * to prevent a transient list_empty() state when reinserting
+		 * an item that is already the only item in the CIL.
+		 */
+		if (!list_is_last(&lip->li_cil, &cil->xc_cil))
+			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
 	/* account for space used by new iovec headers  */
@@ -624,7 +630,7 @@ restart:
 	spin_unlock(&cil->xc_push_lock);
 
 	/* xfs_log_done always frees the ticket on error. */
-	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
+	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, false);
 	if (commit_lsn == -1)
 		goto out_abort;
 
@@ -773,14 +779,10 @@ xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_lsn_t		*commit_lsn,
-	int			flags)
+	bool			regrant)
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
-	int			log_flags = 0;
-
-	if (flags & XFS_TRANS_RELEASE_LOG_RES)
-		log_flags = XFS_LOG_REL_PERM_RESERV;
 
 	/* lock out background commit */
 	down_read(&cil->xc_ctx_lock);
@@ -795,7 +797,7 @@ xfs_log_commit_cil(
 	if (commit_lsn)
 		*commit_lsn = tp->t_commit_lsn;
 
-	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
@@ -809,7 +811,7 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, tp->t_commit_lsn, 0);
+	xfs_trans_free_items(tp, tp->t_commit_lsn, false);
 
 	xlog_cil_push_background(log);
 

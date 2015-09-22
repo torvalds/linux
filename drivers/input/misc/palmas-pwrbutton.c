@@ -304,7 +304,7 @@ static SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
 			 palmas_pwron_suspend, palmas_pwron_resume);
 
 #ifdef CONFIG_OF
-static struct of_device_id of_palmas_pwr_match[] = {
+static const struct of_device_id of_palmas_pwr_match[] = {
 	{ .compatible = "ti,palmas-pwrbutton" },
 	{ },
 };

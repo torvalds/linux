@@ -102,7 +102,7 @@ struct pm860x_charger_info {
 	struct i2c_client *i2c_8606;
 	struct device *dev;
 
-	struct power_supply usb;
+	struct power_supply *usb;
 	struct mutex lock;
 	int irq_nums;
 	int irq[7];
@@ -296,14 +296,20 @@ static int set_charging_fsm(struct pm860x_charger_info *info)
 	psy = power_supply_get_by_name(pm860x_supplied_to[0]);
 	if (!psy)
 		return -EINVAL;
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &data);
-	if (ret)
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+			&data);
+	if (ret) {
+		power_supply_put(psy);
 		return ret;
+	}
 	vbatt = data.intval / 1000;
 
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_PRESENT, &data);
-	if (ret)
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_PRESENT, &data);
+	if (ret) {
+		power_supply_put(psy);
 		return ret;
+	}
+	power_supply_put(psy);
 
 	mutex_lock(&info->lock);
 	info->present = data.intval;
@@ -414,7 +420,7 @@ static irqreturn_t pm860x_charger_handler(int irq, void *data)
 
 	set_charging_fsm(info);
 
-	power_supply_changed(&info->usb);
+	power_supply_changed(info->usb);
 out:
 	return IRQ_HANDLED;
 }
@@ -430,7 +436,7 @@ static irqreturn_t pm860x_temp_handler(int irq, void *data)
 	psy = power_supply_get_by_name(pm860x_supplied_to[0]);
 	if (!psy)
 		goto out;
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_TEMP, &temp);
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &temp);
 	if (ret)
 		goto out;
 	value = temp.intval / 10;
@@ -446,6 +452,7 @@ static irqreturn_t pm860x_temp_handler(int irq, void *data)
 
 	set_charging_fsm(info);
 out:
+	power_supply_put(psy);
 	return IRQ_HANDLED;
 }
 
@@ -485,9 +492,10 @@ static irqreturn_t pm860x_done_handler(int irq, void *data)
 	psy = power_supply_get_by_name(pm860x_supplied_to[0]);
 	if (!psy)
 		goto out;
-	ret = psy->get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+			&val);
 	if (ret)
-		goto out;
+		goto out_psy_put;
 	vbatt = val.intval / 1000;
 	/*
 	 * CHG_DONE interrupt is faster than CHG_DET interrupt when
@@ -498,10 +506,13 @@ static irqreturn_t pm860x_done_handler(int irq, void *data)
 	 */
 	ret = pm860x_reg_read(info->i2c, PM8607_STATUS_2);
 	if (ret < 0)
-		goto out;
+		goto out_psy_put;
 	if (vbatt > CHARGE_THRESHOLD && ret & STATUS2_CHG)
-		psy->set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL, &val);
+		power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL,
+				&val);
 
+out_psy_put:
+	power_supply_put(psy);
 out:
 	mutex_unlock(&info->lock);
 	dev_dbg(info->dev, "%s, Allowed: %d\n", __func__, info->allowed);
@@ -584,8 +595,7 @@ static int pm860x_usb_get_prop(struct power_supply *psy,
 			       enum power_supply_property psp,
 			       union power_supply_propval *val)
 {
-	struct pm860x_charger_info *info =
-	    dev_get_drvdata(psy->dev->parent);
+	struct pm860x_charger_info *info = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -645,9 +655,18 @@ static struct pm860x_irq_desc {
 	{ "vchg", pm860x_vchg_handler },
 };
 
+static const struct power_supply_desc pm860x_charger_desc = {
+	.name		= "usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= pm860x_usb_props,
+	.num_properties	= ARRAY_SIZE(pm860x_usb_props),
+	.get_property	= pm860x_usb_get_prop,
+};
+
 static int pm860x_charger_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {};
 	struct pm860x_charger_info *info;
 	int ret;
 	int count;
@@ -685,16 +704,15 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	platform_set_drvdata(pdev, info);
 
-	info->usb.name = "usb";
-	info->usb.type = POWER_SUPPLY_TYPE_USB;
-	info->usb.supplied_to = pm860x_supplied_to;
-	info->usb.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
-	info->usb.properties = pm860x_usb_props;
-	info->usb.num_properties = ARRAY_SIZE(pm860x_usb_props);
-	info->usb.get_property = pm860x_usb_get_prop;
-	ret = power_supply_register(&pdev->dev, &info->usb);
-	if (ret)
+	psy_cfg.drv_data = info;
+	psy_cfg.supplied_to = pm860x_supplied_to;
+	psy_cfg.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
+	info->usb = power_supply_register(&pdev->dev, &pm860x_charger_desc,
+					  &psy_cfg);
+	if (IS_ERR(info->usb)) {
+		ret = PTR_ERR(info->usb);
 		goto out;
+	}
 
 	pm860x_init_charger(info);
 
@@ -711,7 +729,7 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	power_supply_unregister(&info->usb);
+	power_supply_unregister(info->usb);
 	while (--i >= 0)
 		free_irq(info->irq[i], info);
 out:
@@ -723,8 +741,7 @@ static int pm860x_charger_remove(struct platform_device *pdev)
 	struct pm860x_charger_info *info = platform_get_drvdata(pdev);
 	int i;
 
-	power_supply_unregister(&info->usb);
-	free_irq(info->irq[0], info);
+	power_supply_unregister(info->usb);
 	for (i = 0; i < info->irq_nums; i++)
 		free_irq(info->irq[i], info);
 	return 0;

@@ -264,7 +264,7 @@ v6_crval:
 	string	cpu_elf_name, "v6"
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 	/*
 	 * Match any ARMv6 processor core.
@@ -287,7 +287,7 @@ __v6_proc_info:
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	b	__v6_setup
+	initfn	__v6_setup, __v6_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	/* See also feat_v6_fixup() for HWCAP_TLS */

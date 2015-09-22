@@ -26,6 +26,7 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <0>;
+			enable-method = "brcm,bcm63138";
 		};
 
 		cpu@1 {
@@ -33,6 +34,8 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			reg = <1>;
+			enable-method = "brcm,bcm63138";
+			resets = <&pmb0 4 1>;
 		};
 	};
 
@@ -105,6 +108,18 @@
 			reg = <0x1e620 0x20>;
 			interrupts = <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		pmb0: reset-controller@4800c0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800c0 0x10>;
+			#reset-cells = <2>;
+		};
+
+		pmb1: reset-controller@4800e0 {
+			compatible = "brcm,bcm63138-pmb";
+			reg = <0x4800e0 0x10>;
+			#reset-cells = <2>;
+		};
 	};
 
 	/* Legacy UBUS base */
@@ -113,6 +128,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0xfffe8000 0x8100>;
+
+		timer: timer@80 {
+			compatible = "brcm,bcm6328-timer", "syscon";
+			reg = <0x80 0x3c>;
+		};
 
 		serial0: serial@600 {
 			compatible = "brcm,bcm6345-uart";
@@ -130,6 +150,29 @@
 			clocks = <&periph_clk>;
 			clock-names = "periph";
 			status = "disabled";
+		};
+
+		nand: nand@2000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,nand-bcm63138", "brcm,brcmnand-v7.0", "brcm,brcmnand";
+			reg = <0x2000 0x600>, <0xf0 0x10>;
+			reg-names = "nand", "nand-int-base";
+			status = "disabled";
+			interrupts = <GIC_SPI 38 0>;
+			interrupt-names = "nand";
+		};
+
+		bootlut: bootlut@8000 {
+			compatible = "brcm,bcm63138-bootlut";
+			reg = <0x8000 0x50>;
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&timer>;
+			offset = <0x34>;
+			mask = <1>;
 		};
 	};
 };

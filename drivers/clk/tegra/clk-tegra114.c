@@ -15,9 +15,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
@@ -940,36 +938,6 @@ static struct clk **clks;
 static unsigned long osc_freq;
 static unsigned long pll_ref_freq;
 
-static int __init tegra114_osc_clk_init(void __iomem *clk_base)
-{
-	struct clk *clk;
-	u32 val, pll_ref_div;
-
-	val = readl_relaxed(clk_base + OSC_CTRL);
-
-	osc_freq = tegra114_input_freq[val >> OSC_CTRL_OSC_FREQ_SHIFT];
-	if (!osc_freq) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	/* clk_m */
-	clk = clk_register_fixed_rate(NULL, "clk_m", NULL, CLK_IS_ROOT,
-				      osc_freq);
-	clks[TEGRA114_CLK_CLK_M] = clk;
-
-	/* pll_ref */
-	val = (val >> OSC_CTRL_PLL_REF_DIV_SHIFT) & 3;
-	pll_ref_div = 1 << val;
-	clk = clk_register_fixed_factor(NULL, "pll_ref", "clk_m",
-					CLK_SET_RATE_PARENT, 1, pll_ref_div);
-	clks[TEGRA114_CLK_PLL_REF] = clk;
-
-	pll_ref_freq = osc_freq / pll_ref_div;
-
-	return 0;
-}
-
 static void __init tegra114_fixed_clk_init(void __iomem *clk_base)
 {
 	struct clk *clk;
@@ -1263,6 +1231,7 @@ static void tegra114_wait_cpu_in_reset(u32 cpu)
 		cpu_relax();
 	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
 }
+
 static void tegra114_disable_cpu_clock(u32 cpu)
 {
 	/* flow controller would take care in the power sequence. */
@@ -1350,7 +1319,6 @@ static void __init tegra114_clock_apply_init_table(void)
 {
 	tegra_init_from_table(init_table, clks, TEGRA114_CLK_CLK_MAX);
 }
-
 
 /**
  * tegra114_car_barrier - wait for pending writes to the CAR to complete
@@ -1505,7 +1473,9 @@ static void __init tegra114_clock_init(struct device_node *np)
 	if (!clks)
 		return;
 
-	if (tegra114_osc_clk_init(clk_base) < 0)
+	if (tegra_osc_clk_init(clk_base, tegra114_clks, tegra114_input_freq,
+			       ARRAY_SIZE(tegra114_input_freq), 1, &osc_freq,
+			       &pll_ref_freq) < 0)
 		return;
 
 	tegra114_fixed_clk_init(clk_base);

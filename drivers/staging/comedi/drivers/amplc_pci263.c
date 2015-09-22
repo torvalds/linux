@@ -33,9 +33,8 @@ The state of the outputs can be read.
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 static int pci263_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,

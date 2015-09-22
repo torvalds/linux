@@ -5,7 +5,7 @@ menu "Analog digital bi-direction converters"
 
 config ADT7316
 	tristate "Analog Devices ADT7316/7/8 ADT7516/7/9 temperature sensor, ADC and DAC driver"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say yes here to build support for Analog Devices ADT7316, ADT7317, ADT7318
 	  and ADT7516, ADT7517, ADT7519 temperature sensors, ADC and DAC.

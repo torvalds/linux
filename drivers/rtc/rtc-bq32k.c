@@ -212,7 +212,7 @@ static int bq32k_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	if (client && client->dev.of_node)
+	if (client->dev.of_node)
 		trickle_charger_of_init(dev, client->dev.of_node);
 
 	rtc = devm_rtc_device_register(&client->dev, bq32k_driver.driver.name,
@@ -234,7 +234,6 @@ MODULE_DEVICE_TABLE(i2c, bq32k_id);
 static struct i2c_driver bq32k_driver = {
 	.driver = {
 		.name	= "bq32k",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= bq32k_probe,
 	.id_table	= bq32k_id,

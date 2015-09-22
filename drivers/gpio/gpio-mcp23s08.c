@@ -507,11 +507,7 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 		irq_set_chip_data(irq, mcp);
 		irq_set_chip(irq, &mcp23s08_irq_chip);
 		irq_set_nested_thread(irq, true);
-#ifdef CONFIG_ARM
-		set_irq_flags(irq, IRQF_VALID);
-#else
 		irq_set_noprobe(irq);
-#endif
 	}
 	return 0;
 }
@@ -949,10 +945,12 @@ static int mcp23s08_probe(struct spi_device *spi)
 	if (!chips)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data) + chips * sizeof(struct mcp23s08),
-			GFP_KERNEL);
+	data = devm_kzalloc(&spi->dev,
+			    sizeof(*data) + chips * sizeof(struct mcp23s08),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
 	spi_set_drvdata(spi, data);
 
 	spi->irq = irq_of_parse_and_map(spi->dev.of_node, 0);
@@ -989,7 +987,6 @@ fail:
 			continue;
 		gpiochip_remove(&data->mcp[addr]->chip);
 	}
-	kfree(data);
 	return status;
 }
 
@@ -1007,7 +1004,7 @@ static int mcp23s08_remove(struct spi_device *spi)
 			mcp23s08_irq_teardown(data->mcp[addr]);
 		gpiochip_remove(&data->mcp[addr]->chip);
 	}
-	kfree(data);
+
 	return 0;
 }
 

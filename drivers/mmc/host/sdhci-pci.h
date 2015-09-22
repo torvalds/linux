@@ -72,6 +72,10 @@ struct sdhci_pci_slot {
 	bool			cd_override_level;
 
 	void (*hw_reset)(struct sdhci_host *host);
+	int (*select_drive_strength)(struct sdhci_host *host,
+				     struct mmc_card *card,
+				     unsigned int max_dtr, int host_drv,
+				     int card_drv, int *drv_type);
 };
 
 struct sdhci_pci_chip {

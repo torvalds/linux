@@ -499,7 +499,8 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 	unsigned		i;
 	__hc32			tag;
 
-	if (!(seen = kmalloc (DBG_SCHED_LIMIT * sizeof *seen, GFP_ATOMIC)))
+	seen = kmalloc(DBG_SCHED_LIMIT * sizeof *seen, GFP_ATOMIC);
+	if (!seen)
 		return 0;
 	seen_count = 0;
 
@@ -1467,7 +1468,7 @@ fusbh200_hub_descriptor (
 	int		ports = HCS_N_PORTS (fusbh200->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* fusbh200 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -1550,10 +1551,9 @@ static int fusbh200_hub_control (
 			if ((temp & PORT_PE) == 0)
 				goto error;
 
-			/* resume signaling for 20 msec */
 			fusbh200_writel(fusbh200, temp | PORT_RESUME, status_reg);
 			fusbh200->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &fusbh200->port_c_suspend);

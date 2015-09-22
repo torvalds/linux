@@ -1455,7 +1455,7 @@ static void __handle_setup_get_version_rsp(struct ipw_hardware *hw)
 			return;
 		}
 
-		set_RTS(hw, PRIO_SETUP, channel_idx,
+		ret = set_RTS(hw, PRIO_SETUP, channel_idx,
 			(hw->control_lines [channel_idx] &
 			 IPW_CONTROL_LINE_RTS) != 0);
 		if (ret) {

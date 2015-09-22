@@ -232,9 +232,15 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 		goto end;
 	}
 
-	/* OXFW starts to transmit packets with non-zero dbc. */
+	/*
+	 * OXFW starts to transmit packets with non-zero dbc.
+	 * OXFW postpone transferring packets till handling any asynchronous
+	 * packets. As a result, next isochronous packet includes more data
+	 * blocks than IEC 61883-6 defines.
+	 */
 	if (stream == &oxfw->tx_stream)
-		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
+		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK |
+					 CIP_JUMBO_PAYLOAD;
 end:
 	return err;
 }
@@ -506,12 +512,11 @@ assume_stream_formats(struct snd_oxfw *oxfw, enum avc_general_plug_dir dir,
 	if (err < 0)
 		goto end;
 
-	formats[eid] = kmalloc(*len, GFP_KERNEL);
+	formats[eid] = kmemdup(buf, *len, GFP_KERNEL);
 	if (formats[eid] == NULL) {
 		err = -ENOMEM;
 		goto end;
 	}
-	memcpy(formats[eid], buf, *len);
 
 	/* apply the format for each available sampling rate */
 	for (i = 0; i < ARRAY_SIZE(oxfw_rate_table); i++) {
@@ -525,12 +530,11 @@ assume_stream_formats(struct snd_oxfw *oxfw, enum avc_general_plug_dir dir,
 			continue;
 
 		eid++;
-		formats[eid] = kmalloc(*len, GFP_KERNEL);
+		formats[eid] = kmemdup(buf, *len, GFP_KERNEL);
 		if (formats[eid] == NULL) {
 			err = -ENOMEM;
 			goto end;
 		}
-		memcpy(formats[eid], buf, *len);
 		formats[eid][2] = avc_stream_rate_table[i];
 	}
 
@@ -588,12 +592,11 @@ static int fill_stream_formats(struct snd_oxfw *oxfw,
 		if (err < 0)
 			break;
 
-		formats[eid] = kmalloc(len, GFP_KERNEL);
+		formats[eid] = kmemdup(buf, len, GFP_KERNEL);
 		if (formats[eid] == NULL) {
 			err = -ENOMEM;
 			break;
 		}
-		memcpy(formats[eid], buf, len);
 
 		/* get next entry */
 		len = AVC_GENERIC_FRAME_MAXIMUM_BYTES;

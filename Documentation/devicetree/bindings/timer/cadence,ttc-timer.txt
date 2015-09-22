@@ -6,6 +6,9 @@ Required properties:
 - interrupts : A list of 3 interrupts; one per timer channel.
 - clocks: phandle to the source clock
 
+Optional properties:
+- timer-width: Bit width of the timer, necessary if not 16.
+
 Example:
 
 ttc0: ttc0@f8001000 {
@@ -14,4 +17,5 @@ ttc0: ttc0@f8001000 {
 	compatible = "cdns,ttc";
 	reg = <0xF8001000 0x1000>;
 	clocks = <&cpu_clk 3>;
+	timer-width = <32>;
 };

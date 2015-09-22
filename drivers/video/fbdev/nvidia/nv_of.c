@@ -19,9 +19,6 @@
 
 #include <asm/io.h>
 
-#include <asm/prom.h>
-#include <asm/pci-bridge.h>
-
 #include "nv_type.h"
 #include "nv_local.h"
 #include "nv_proto.h"

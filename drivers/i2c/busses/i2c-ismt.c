@@ -380,6 +380,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 		       int size, union i2c_smbus_data *data)
 {
 	int ret;
+	unsigned long time_left;
 	dma_addr_t dma_addr = 0; /* address of the data buffer */
 	u8 dma_size = 0;
 	enum dma_data_direction dma_direction = 0;
@@ -578,13 +579,13 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 	ismt_submit_desc(priv);
 
 	/* Now we wait for interrupt completion, 1s */
-	ret = wait_for_completion_timeout(&priv->cmp, HZ*1);
+	time_left = wait_for_completion_timeout(&priv->cmp, HZ*1);
 
 	/* unmap the data buffer */
 	if (dma_size != 0)
 		dma_unmap_single(&adap->dev, dma_addr, dma_size, dma_direction);
 
-	if (unlikely(!ret)) {
+	if (unlikely(!time_left)) {
 		dev_err(dev, "completion wait timed out\n");
 		ret = -ETIMEDOUT;
 		goto out;

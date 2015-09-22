@@ -317,6 +317,32 @@ int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
 }
 EXPORT_SYMBOL(iov_iter_fault_in_readable);
 
+/*
+ * Fault in one or more iovecs of the given iov_iter, to a maximum length of
+ * bytes.  For each iovec, fault in each page that constitutes the iovec.
+ *
+ * Return 0 on success, or non-zero if the memory could not be accessed (i.e.
+ * because it is an invalid address).
+ */
+int iov_iter_fault_in_multipages_readable(struct iov_iter *i, size_t bytes)
+{
+	size_t skip = i->iov_offset;
+	const struct iovec *iov;
+	int err;
+	struct iovec v;
+
+	if (!(i->type & (ITER_BVEC|ITER_KVEC))) {
+		iterate_iovec(i, bytes, v, iov, skip, ({
+			err = fault_in_multipages_readable(v.iov_base,
+					v.iov_len);
+			if (unlikely(err))
+			return err;
+		0;}))
+	}
+	return 0;
+}
+EXPORT_SYMBOL(iov_iter_fault_in_multipages_readable);
+
 void iov_iter_init(struct iov_iter *i, int direction,
 			const struct iovec *iov, unsigned long nr_segs,
 			size_t count)
@@ -766,3 +792,60 @@ const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
 				   flags);
 }
 EXPORT_SYMBOL(dup_iter);
+
+int import_iovec(int type, const struct iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i)
+{
+	ssize_t n;
+	struct iovec *p;
+	n = rw_copy_check_uvector(type, uvector, nr_segs, fast_segs,
+				  *iov, &p);
+	if (n < 0) {
+		if (p != *iov)
+			kfree(p);
+		*iov = NULL;
+		return n;
+	}
+	iov_iter_init(i, type, p, nr_segs, n);
+	*iov = p == *iov ? NULL : p;
+	return 0;
+}
+EXPORT_SYMBOL(import_iovec);
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+int compat_import_iovec(int type, const struct compat_iovec __user * uvector,
+		 unsigned nr_segs, unsigned fast_segs,
+		 struct iovec **iov, struct iov_iter *i)
+{
+	ssize_t n;
+	struct iovec *p;
+	n = compat_rw_copy_check_uvector(type, uvector, nr_segs, fast_segs,
+				  *iov, &p);
+	if (n < 0) {
+		if (p != *iov)
+			kfree(p);
+		*iov = NULL;
+		return n;
+	}
+	iov_iter_init(i, type, p, nr_segs, n);
+	*iov = p == *iov ? NULL : p;
+	return 0;
+}
+#endif
+
+int import_single_range(int rw, void __user *buf, size_t len,
+		 struct iovec *iov, struct iov_iter *i)
+{
+	if (len > MAX_RW_COUNT)
+		len = MAX_RW_COUNT;
+	if (unlikely(!access_ok(!rw, buf, len)))
+		return -EFAULT;
+
+	iov->iov_base = buf;
+	iov->iov_len = len;
+	iov_iter_init(i, rw, iov, 1, len);
+	return 0;
+}

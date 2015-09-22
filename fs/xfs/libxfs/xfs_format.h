@@ -100,7 +100,7 @@ typedef struct xfs_sb {
 	xfs_rfsblock_t	sb_dblocks;	/* number of data blocks */
 	xfs_rfsblock_t	sb_rblocks;	/* number of realtime blocks */
 	xfs_rtblock_t	sb_rextents;	/* number of realtime extents */
-	uuid_t		sb_uuid;	/* file system unique id */
+	uuid_t		sb_uuid;	/* user-visible file system unique id */
 	xfs_fsblock_t	sb_logstart;	/* starting block of log if internal */
 	xfs_ino_t	sb_rootino;	/* root inode number */
 	xfs_ino_t	sb_rbmino;	/* bitmap inode for realtime extents */
@@ -170,10 +170,11 @@ typedef struct xfs_sb {
 	__uint32_t	sb_features_log_incompat;
 
 	__uint32_t	sb_crc;		/* superblock crc */
-	__uint32_t	sb_pad;
+	xfs_extlen_t	sb_spino_align;	/* sparse inode chunk alignment */
 
 	xfs_ino_t	sb_pquotino;	/* project quota inode */
 	xfs_lsn_t	sb_lsn;		/* last write sequence */
+	uuid_t		sb_meta_uuid;	/* metadata file system unique id */
 
 	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
@@ -190,7 +191,7 @@ typedef struct xfs_dsb {
 	__be64		sb_dblocks;	/* number of data blocks */
 	__be64		sb_rblocks;	/* number of realtime blocks */
 	__be64		sb_rextents;	/* number of realtime extents */
-	uuid_t		sb_uuid;	/* file system unique id */
+	uuid_t		sb_uuid;	/* user-visible file system unique id */
 	__be64		sb_logstart;	/* starting block of log if internal */
 	__be64		sb_rootino;	/* root inode number */
 	__be64		sb_rbmino;	/* bitmap inode for realtime extents */
@@ -256,75 +257,14 @@ typedef struct xfs_dsb {
 	__be32		sb_features_log_incompat;
 
 	__le32		sb_crc;		/* superblock crc */
-	__be32		sb_pad;
+	__be32		sb_spino_align;	/* sparse inode chunk alignment */
 
 	__be64		sb_pquotino;	/* project quota inode */
 	__be64		sb_lsn;		/* last write sequence */
+	uuid_t		sb_meta_uuid;	/* metadata file system unique id */
 
 	/* must be padded to 64 bit alignment */
 } xfs_dsb_t;
-
-/*
- * Sequence number values for the fields.
- */
-typedef enum {
-	XFS_SBS_MAGICNUM, XFS_SBS_BLOCKSIZE, XFS_SBS_DBLOCKS, XFS_SBS_RBLOCKS,
-	XFS_SBS_REXTENTS, XFS_SBS_UUID, XFS_SBS_LOGSTART, XFS_SBS_ROOTINO,
-	XFS_SBS_RBMINO, XFS_SBS_RSUMINO, XFS_SBS_REXTSIZE, XFS_SBS_AGBLOCKS,
-	XFS_SBS_AGCOUNT, XFS_SBS_RBMBLOCKS, XFS_SBS_LOGBLOCKS,
-	XFS_SBS_VERSIONNUM, XFS_SBS_SECTSIZE, XFS_SBS_INODESIZE,
-	XFS_SBS_INOPBLOCK, XFS_SBS_FNAME, XFS_SBS_BLOCKLOG,
-	XFS_SBS_SECTLOG, XFS_SBS_INODELOG, XFS_SBS_INOPBLOG, XFS_SBS_AGBLKLOG,
-	XFS_SBS_REXTSLOG, XFS_SBS_INPROGRESS, XFS_SBS_IMAX_PCT, XFS_SBS_ICOUNT,
-	XFS_SBS_IFREE, XFS_SBS_FDBLOCKS, XFS_SBS_FREXTENTS, XFS_SBS_UQUOTINO,
-	XFS_SBS_GQUOTINO, XFS_SBS_QFLAGS, XFS_SBS_FLAGS, XFS_SBS_SHARED_VN,
-	XFS_SBS_INOALIGNMT, XFS_SBS_UNIT, XFS_SBS_WIDTH, XFS_SBS_DIRBLKLOG,
-	XFS_SBS_LOGSECTLOG, XFS_SBS_LOGSECTSIZE, XFS_SBS_LOGSUNIT,
-	XFS_SBS_FEATURES2, XFS_SBS_BAD_FEATURES2, XFS_SBS_FEATURES_COMPAT,
-	XFS_SBS_FEATURES_RO_COMPAT, XFS_SBS_FEATURES_INCOMPAT,
-	XFS_SBS_FEATURES_LOG_INCOMPAT, XFS_SBS_CRC, XFS_SBS_PAD,
-	XFS_SBS_PQUOTINO, XFS_SBS_LSN,
-	XFS_SBS_FIELDCOUNT
-} xfs_sb_field_t;
-
-/*
- * Mask values, defined based on the xfs_sb_field_t values.
- * Only define the ones we're using.
- */
-#define	XFS_SB_MVAL(x)		(1LL << XFS_SBS_ ## x)
-#define	XFS_SB_UUID		XFS_SB_MVAL(UUID)
-#define	XFS_SB_FNAME		XFS_SB_MVAL(FNAME)
-#define	XFS_SB_ROOTINO		XFS_SB_MVAL(ROOTINO)
-#define	XFS_SB_RBMINO		XFS_SB_MVAL(RBMINO)
-#define	XFS_SB_RSUMINO		XFS_SB_MVAL(RSUMINO)
-#define	XFS_SB_VERSIONNUM	XFS_SB_MVAL(VERSIONNUM)
-#define XFS_SB_UQUOTINO		XFS_SB_MVAL(UQUOTINO)
-#define XFS_SB_GQUOTINO		XFS_SB_MVAL(GQUOTINO)
-#define XFS_SB_QFLAGS		XFS_SB_MVAL(QFLAGS)
-#define XFS_SB_SHARED_VN	XFS_SB_MVAL(SHARED_VN)
-#define XFS_SB_UNIT		XFS_SB_MVAL(UNIT)
-#define XFS_SB_WIDTH		XFS_SB_MVAL(WIDTH)
-#define XFS_SB_ICOUNT		XFS_SB_MVAL(ICOUNT)
-#define XFS_SB_IFREE		XFS_SB_MVAL(IFREE)
-#define XFS_SB_FDBLOCKS		XFS_SB_MVAL(FDBLOCKS)
-#define XFS_SB_FEATURES2	(XFS_SB_MVAL(FEATURES2) | \
-				 XFS_SB_MVAL(BAD_FEATURES2))
-#define XFS_SB_FEATURES_COMPAT	XFS_SB_MVAL(FEATURES_COMPAT)
-#define XFS_SB_FEATURES_RO_COMPAT XFS_SB_MVAL(FEATURES_RO_COMPAT)
-#define XFS_SB_FEATURES_INCOMPAT XFS_SB_MVAL(FEATURES_INCOMPAT)
-#define XFS_SB_FEATURES_LOG_INCOMPAT XFS_SB_MVAL(FEATURES_LOG_INCOMPAT)
-#define XFS_SB_CRC		XFS_SB_MVAL(CRC)
-#define XFS_SB_PQUOTINO		XFS_SB_MVAL(PQUOTINO)
-#define	XFS_SB_NUM_BITS		((int)XFS_SBS_FIELDCOUNT)
-#define	XFS_SB_ALL_BITS		((1LL << XFS_SB_NUM_BITS) - 1)
-#define	XFS_SB_MOD_BITS		\
-	(XFS_SB_UUID | XFS_SB_ROOTINO | XFS_SB_RBMINO | XFS_SB_RSUMINO | \
-	 XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO | XFS_SB_GQUOTINO | \
-	 XFS_SB_QFLAGS | XFS_SB_SHARED_VN | XFS_SB_UNIT | XFS_SB_WIDTH | \
-	 XFS_SB_ICOUNT | XFS_SB_IFREE | XFS_SB_FDBLOCKS | XFS_SB_FEATURES2 | \
-	 XFS_SB_FEATURES_COMPAT | XFS_SB_FEATURES_RO_COMPAT | \
-	 XFS_SB_FEATURES_INCOMPAT | XFS_SB_FEATURES_LOG_INCOMPAT | \
-	 XFS_SB_PQUOTINO)
 
 
 /*
@@ -519,8 +459,12 @@ xfs_sb_has_ro_compat_feature(
 }
 
 #define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)	/* filetype in dirent */
+#define XFS_SB_FEAT_INCOMPAT_SPINODES	(1 << 1)	/* sparse inode chunks */
+#define XFS_SB_FEAT_INCOMPAT_META_UUID	(1 << 2)	/* metadata UUID */
 #define XFS_SB_FEAT_INCOMPAT_ALL \
-		(XFS_SB_FEAT_INCOMPAT_FTYPE)
+		(XFS_SB_FEAT_INCOMPAT_FTYPE|	\
+		 XFS_SB_FEAT_INCOMPAT_SPINODES|	\
+		 XFS_SB_FEAT_INCOMPAT_META_UUID)
 
 #define XFS_SB_FEAT_INCOMPAT_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_ALL
 static inline bool
@@ -566,6 +510,24 @@ static inline int xfs_sb_version_hasfinobt(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) &&
 		(sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_FINOBT);
+}
+
+static inline bool xfs_sb_version_hassparseinodes(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 &&
+		xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_SPINODES);
+}
+
+/*
+ * XFS_SB_FEAT_INCOMPAT_META_UUID indicates that the metadata UUID
+ * is stored separately from the user-visible UUID; this allows the
+ * user-visible UUID to be changed on V5 filesystems which have a
+ * filesystem UUID stamped into every piece of metadata.
+ */
+static inline bool xfs_sb_version_hasmetauuid(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) &&
+		(sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID);
 }
 
 /*
@@ -819,19 +781,6 @@ typedef struct xfs_agfl {
 } xfs_agfl_t;
 
 #define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)
-
-
-#define	XFS_AG_MAXLEVELS(mp)		((mp)->m_ag_maxlevels)
-#define	XFS_MIN_FREELIST_RAW(bl,cl,mp)	\
-	(MIN(bl + 1, XFS_AG_MAXLEVELS(mp)) + MIN(cl + 1, XFS_AG_MAXLEVELS(mp)))
-#define	XFS_MIN_FREELIST(a,mp)		\
-	(XFS_MIN_FREELIST_RAW(		\
-		be32_to_cpu((a)->agf_levels[XFS_BTNUM_BNOi]), \
-		be32_to_cpu((a)->agf_levels[XFS_BTNUM_CNTi]), mp))
-#define	XFS_MIN_FREELIST_PAG(pag,mp)	\
-	(XFS_MIN_FREELIST_RAW(		\
-		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_BNOi], \
-		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_CNTi], mp))
 
 #define XFS_AGB_TO_FSB(mp,agno,agbno)	\
 	(((xfs_fsblock_t)(agno) << (mp)->m_sb.sb_agblklog) | (agbno))
@@ -1278,26 +1227,54 @@ typedef	__uint64_t	xfs_inofree_t;
 #define	XFS_INOBT_ALL_FREE		((xfs_inofree_t)-1)
 #define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
 
+#define XFS_INOBT_HOLEMASK_FULL		0	/* holemask for full chunk */
+#define XFS_INOBT_HOLEMASK_BITS		(NBBY * sizeof(__uint16_t))
+#define XFS_INODES_PER_HOLEMASK_BIT	\
+	(XFS_INODES_PER_CHUNK / (NBBY * sizeof(__uint16_t)))
+
 static inline xfs_inofree_t xfs_inobt_maskn(int i, int n)
 {
 	return ((n >= XFS_INODES_PER_CHUNK ? 0 : XFS_INOBT_MASK(n)) - 1) << i;
 }
 
 /*
- * Data record structure
+ * The on-disk inode record structure has two formats. The original "full"
+ * format uses a 4-byte freecount. The "sparse" format uses a 1-byte freecount
+ * and replaces the 3 high-order freecount bytes wth the holemask and inode
+ * count.
+ *
+ * The holemask of the sparse record format allows an inode chunk to have holes
+ * that refer to blocks not owned by the inode record. This facilitates inode
+ * allocation in the event of severe free space fragmentation.
  */
 typedef struct xfs_inobt_rec {
 	__be32		ir_startino;	/* starting inode number */
-	__be32		ir_freecount;	/* count of free inodes (set bits) */
+	union {
+		struct {
+			__be32	ir_freecount;	/* count of free inodes */
+		} f;
+		struct {
+			__be16	ir_holemask;/* hole mask for sparse chunks */
+			__u8	ir_count;	/* total inode count */
+			__u8	ir_freecount;	/* count of free inodes */
+		} sp;
+	} ir_u;
 	__be64		ir_free;	/* free inode mask */
 } xfs_inobt_rec_t;
 
 typedef struct xfs_inobt_rec_incore {
 	xfs_agino_t	ir_startino;	/* starting inode number */
-	__int32_t	ir_freecount;	/* count of free inodes (set bits) */
+	__uint16_t	ir_holemask;	/* hole mask for sparse chunks */
+	__uint8_t	ir_count;	/* total inode count */
+	__uint8_t	ir_freecount;	/* count of free inodes (set bits) */
 	xfs_inofree_t	ir_free;	/* free inode mask */
 } xfs_inobt_rec_incore_t;
 
+static inline bool xfs_inobt_issparse(uint16_t holemask)
+{
+	/* non-zero holemask represents a sparse rec. */
+	return holemask;
+}
 
 /*
  * Key structure
@@ -1515,8 +1492,8 @@ struct xfs_acl {
 		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
 
 /* On-disk XFS extended attribute names */
-#define SGI_ACL_FILE		(unsigned char *)"SGI_ACL_FILE"
-#define SGI_ACL_DEFAULT		(unsigned char *)"SGI_ACL_DEFAULT"
+#define SGI_ACL_FILE		"SGI_ACL_FILE"
+#define SGI_ACL_DEFAULT		"SGI_ACL_DEFAULT"
 #define SGI_ACL_FILE_SIZE	(sizeof(SGI_ACL_FILE)-1)
 #define SGI_ACL_DEFAULT_SIZE	(sizeof(SGI_ACL_DEFAULT)-1)
 

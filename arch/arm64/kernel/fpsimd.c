@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/cpu.h>
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -157,6 +158,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 void fpsimd_flush_thread(void)
 {
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
+	fpsimd_flush_task_state(current);
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
 }
 
@@ -296,6 +298,35 @@ static void fpsimd_pm_init(void)
 static inline void fpsimd_pm_init(void) { }
 #endif /* CONFIG_CPU_PM */
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int fpsimd_cpu_hotplug_notifier(struct notifier_block *nfb,
+				       unsigned long action,
+				       void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
+		per_cpu(fpsimd_last_state, cpu) = NULL;
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block fpsimd_cpu_hotplug_notifier_block = {
+	.notifier_call = fpsimd_cpu_hotplug_notifier,
+};
+
+static inline void fpsimd_hotplug_init(void)
+{
+	register_cpu_notifier(&fpsimd_cpu_hotplug_notifier_block);
+}
+
+#else
+static inline void fpsimd_hotplug_init(void) { }
+#endif
+
 /*
  * FP/SIMD support code initialisation.
  */
@@ -315,6 +346,7 @@ static int __init fpsimd_init(void)
 		elf_hwcap |= HWCAP_ASIMD;
 
 	fpsimd_pm_init();
+	fpsimd_hotplug_init();
 
 	return 0;
 }

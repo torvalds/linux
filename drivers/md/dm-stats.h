@@ -18,6 +18,7 @@ struct dm_stats {
 
 struct dm_stats_aux {
 	bool merged;
+	unsigned long long duration_ns;
 };
 
 void dm_stats_init(struct dm_stats *st);
@@ -30,7 +31,8 @@ int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
 			 sector_t bi_sector, unsigned bi_sectors, bool end,
-			 unsigned long duration, struct dm_stats_aux *aux);
+			 unsigned long duration_jiffies,
+			 struct dm_stats_aux *aux);
 
 static inline bool dm_stats_used(struct dm_stats *st)
 {

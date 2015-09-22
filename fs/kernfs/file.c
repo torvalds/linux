@@ -785,7 +785,6 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 	struct kernfs_node *kn = filp->f_path.dentry->d_fsdata;
 	struct kernfs_open_node *on = kn->attr.open;
 
-	/* need parent for the kobj, grab both */
 	if (!kernfs_get_active(kn))
 		goto trigger;
 

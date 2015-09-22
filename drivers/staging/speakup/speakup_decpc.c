@@ -88,8 +88,9 @@
 #define	CTRL_last_index		0x0b00	/*   get last index spoken */
 #define	CTRL_io_priority	0x0c00	/*   change i/o priority */
 #define	CTRL_free_mem		0x0d00	/*   get free paragraphs on module */
-#define	CTRL_get_lang		0x0e00	/*   return bit mask of loaded
-					 *   languages */
+#define	CTRL_get_lang		0x0e00	/* return bit mask of loaded
+						 * languages
+						 */
 #define	CMD_test			0x2000		/* self-test request */
 #define	TEST_mask		0x0F00	/* isolate test field */
 #define	TEST_null		0x0000	/* no test requested */
@@ -423,10 +424,12 @@ static void do_catch_up(struct spk_synth *synth)
 			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
 					dt_sendchar(PROCSPEECH);
-				spin_lock_irqsave(&speakup_info.spinlock, flags);
+				spin_lock_irqsave(&speakup_info.spinlock,
+							flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;
 				delay_time_val = delay_time->u.n.value;
-				spin_unlock_irqrestore(&speakup_info.spinlock, flags);
+				spin_unlock_irqrestore(&speakup_info.spinlock,
+							flags);
 				schedule_timeout(msecs_to_jiffies
 						 (delay_time_val));
 				jiff_max = jiffies + jiffy_delta_val;
@@ -491,21 +494,10 @@ module_param_named(start, synth_dec_pc.startup, short, S_IRUGO);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init decpc_init(void)
-{
-	return synth_add(&synth_dec_pc);
-}
+module_spk_synth(synth_dec_pc);
 
-static void __exit decpc_exit(void)
-{
-	synth_remove(&synth_dec_pc);
-}
-
-module_init(decpc_init);
-module_exit(decpc_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DECtalk PC synthesizers");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-

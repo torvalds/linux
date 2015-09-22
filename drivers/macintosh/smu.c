@@ -557,8 +557,7 @@ int __init smu_init (void)
 	return 0;
 
 fail_msg_node:
-	if (smu->msg_node)
-		of_node_put(smu->msg_node);
+	of_node_put(smu->msg_node);
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:

@@ -208,19 +208,9 @@ void r8712_generate_random_ibss(u8 *pibss)
 	pibss[5] = (u8)((curtime>>16) & 0xff);
 }
 
-uint r8712_get_ndis_wlan_bssid_ex_sz(struct ndis_wlan_bssid_ex *bss)
+uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
-	uint t_len;
-
-	t_len = sizeof(u32) + 6 * sizeof(unsigned long) + 2 +
-			sizeof(struct ndis_802_11_ssid) + sizeof(u32) +
-			sizeof(s32) +
-			sizeof(enum NDIS_802_11_NETWORK_TYPE) +
-			sizeof(struct NDIS_802_11_CONFIGURATION) +
-			sizeof(enum NDIS_802_11_NETWORK_INFRASTRUCTURE) +
-			sizeof(NDIS_802_11_RATES_EX) +
-			sizeof(u32) + bss->IELength;
-	return t_len;
+	return sizeof(*bss) + bss->IELength - MAX_IE_SZ;
 }
 
 u8 *r8712_get_capability_from_ie(u8 *ie)
@@ -286,8 +276,8 @@ int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
 
 }
 
-static int is_same_network(struct ndis_wlan_bssid_ex *src,
-			   struct ndis_wlan_bssid_ex *dst)
+static int is_same_network(struct wlan_bssid_ex *src,
+			   struct wlan_bssid_ex *dst)
 {
 	 u16 s_cap, d_cap;
 
@@ -332,8 +322,8 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 	return oldest;
 }
 
-static void update_network(struct ndis_wlan_bssid_ex *dst,
-			   struct ndis_wlan_bssid_ex *src,
+static void update_network(struct wlan_bssid_ex *dst,
+			   struct wlan_bssid_ex *src,
 			   struct _adapter *padapter)
 {
 	u32 last_evm = 0, tmpVal;
@@ -366,11 +356,11 @@ static void update_network(struct ndis_wlan_bssid_ex *dst,
 		src->Rssi = padapter->recvpriv.signal;
 	} else
 		src->Rssi = (src->Rssi + dst->Rssi) / 2;
-	memcpy((u8 *)dst, (u8 *)src, r8712_get_ndis_wlan_bssid_ex_sz(src));
+	memcpy((u8 *)dst, (u8 *)src, r8712_get_wlan_bssid_ex_sz(src));
 }
 
 static void update_current_network(struct _adapter *adapter,
-				   struct ndis_wlan_bssid_ex *pnetwork)
+				   struct wlan_bssid_ex *pnetwork)
 {
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
@@ -388,7 +378,7 @@ static void update_current_network(struct _adapter *adapter,
 Caller must hold pmlmepriv->lock first.
 */
 static void update_scanned_network(struct _adapter *adapter,
-			    struct ndis_wlan_bssid_ex *target)
+			    struct wlan_bssid_ex *target)
 {
 	struct list_head *plist, *phead;
 
@@ -426,7 +416,7 @@ static void update_scanned_network(struct _adapter *adapter,
 			target->Rssi = (pnetwork->network.Rssi +
 					target->Rssi) / 2;
 			memcpy(&pnetwork->network, target,
-				r8712_get_ndis_wlan_bssid_ex_sz(target));
+				r8712_get_wlan_bssid_ex_sz(target));
 			pnetwork->last_scanned = jiffies;
 		} else {
 			/* Otherwise just pull from the free list */
@@ -434,7 +424,7 @@ static void update_scanned_network(struct _adapter *adapter,
 			pnetwork = alloc_network(pmlmepriv);
 			if (pnetwork == NULL)
 				return;
-			bssid_ex_sz = r8712_get_ndis_wlan_bssid_ex_sz(target);
+			bssid_ex_sz = r8712_get_wlan_bssid_ex_sz(target);
 			target->Length = bssid_ex_sz;
 			memcpy(&pnetwork->network, target, bssid_ex_sz);
 			list_add_tail(&pnetwork->list, &queue->queue);
@@ -451,7 +441,7 @@ static void update_scanned_network(struct _adapter *adapter,
 }
 
 static void rtl8711_add_network(struct _adapter *adapter,
-			 struct ndis_wlan_bssid_ex *pnetwork)
+			 struct wlan_bssid_ex *pnetwork)
 {
 	unsigned long irqL;
 	struct mlme_priv *pmlmepriv = &(((struct _adapter *)adapter)->mlmepriv);
@@ -507,10 +497,10 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 	unsigned long flags;
 	u32 len;
-	struct ndis_wlan_bssid_ex *pnetwork;
+	struct wlan_bssid_ex *pnetwork;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
-	pnetwork = (struct ndis_wlan_bssid_ex *)pbuf;
+	pnetwork = (struct wlan_bssid_ex *)pbuf;
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
 	pnetwork->Length = le32_to_cpu(pnetwork->Length);
@@ -538,7 +528,7 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 		 le32_to_cpu(pnetwork->InfrastructureMode);
 	pnetwork->IELength = le32_to_cpu(pnetwork->IELength);
 #endif
-	len = r8712_get_ndis_wlan_bssid_ex_sz(pnetwork);
+	len = r8712_get_wlan_bssid_ex_sz(pnetwork);
 	if (len > sizeof(struct wlan_bssid_ex))
 		return;
 	spin_lock_irqsave(&pmlmepriv->lock2, flags);
@@ -582,9 +572,7 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true) {
-		u8 timer_cancelled;
-
-		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
+		del_timer(&pmlmepriv->scan_to_timer);
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	}
@@ -596,8 +584,8 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 				if (r8712_select_and_join_from_scan(pmlmepriv)
 				    == _SUCCESS)
-					_set_timer(&pmlmepriv->assoc_timer,
-						   MAX_JOIN_TIMEOUT);
+					mod_timer(&pmlmepriv->assoc_timer, jiffies +
+						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 				else {
 					struct wlan_bssid_ex *pdev_network =
 					  &(adapter->registrypriv.dev_network);
@@ -622,8 +610,8 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			if (r8712_select_and_join_from_scan(pmlmepriv) ==
 			    _SUCCESS)
-				_set_timer(&pmlmepriv->assoc_timer,
-					   MAX_JOIN_TIMEOUT);
+				mod_timer(&pmlmepriv->assoc_timer, jiffies +
+					  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 			else
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
@@ -679,7 +667,8 @@ void r8712_indicate_connect(struct _adapter *padapter)
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_LINK);
 	r8712_os_indicate_connect(padapter);
 	if (padapter->registrypriv.power_mgnt > PS_MODE_ACTIVE)
-		_set_timer(&pmlmepriv->dhcp_timer, 60000);
+		mod_timer(&pmlmepriv->dhcp_timer,
+			  jiffies + msecs_to_jiffies(60000));
 }
 
 
@@ -697,7 +686,7 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 	}
 	if (padapter->pwrctrlpriv.pwr_mode !=
 	    padapter->registrypriv.power_mgnt) {
-		_cancel_timer_ex(&pmlmepriv->dhcp_timer);
+		del_timer(&pmlmepriv->dhcp_timer);
 		r8712_set_ps_mode(padapter, padapter->registrypriv.power_mgnt,
 				  padapter->registrypriv.smart_ps);
 	}
@@ -716,7 +705,6 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 	unsigned long irqL = 0, irqL2;
-	u8 timer_cancelled;
 	struct sta_info	*ptarget_sta = NULL, *pcur_sta = NULL;
 	struct sta_priv	*pstapriv = &adapter->stapriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
@@ -727,6 +715,8 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 
 	if (sizeof(struct list_head) == 4 * sizeof(u32)) {
 		pnetwork = kmalloc(sizeof(struct wlan_network), GFP_ATOMIC);
+		if (!pnetwork)
+			return;
 		memcpy((u8 *)pnetwork+16, (u8 *)pbuf + 8,
 			sizeof(struct wlan_network) - 16);
 	} else
@@ -769,7 +759,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 	the_same_macaddr = !memcmp(pnetwork->network.MacAddress,
 				   cur_network->network.MacAddress, ETH_ALEN);
 	pnetwork->network.Length =
-		 r8712_get_ndis_wlan_bssid_ex_sz(&pnetwork->network);
+		 r8712_get_wlan_bssid_ex_sz(&pnetwork->network);
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if (pnetwork->network.Length > sizeof(struct wlan_bssid_ex))
 		goto ignore_joinbss_callback;
@@ -910,13 +900,13 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
 				== true)
 				r8712_indicate_connect(adapter);
-			_cancel_timer(&pmlmepriv->assoc_timer,
-				      &timer_cancelled);
+			del_timer(&pmlmepriv->assoc_timer);
 		} else
 			goto ignore_joinbss_callback;
 	} else {
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true) {
-			_set_timer(&pmlmepriv->assoc_timer, 1);
+			mod_timer(&pmlmepriv->assoc_timer,
+				  jiffies + msecs_to_jiffies(1));
 			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 		}
 	}
@@ -1001,7 +991,7 @@ void r8712_stadel_event_callback(struct _adapter *adapter, u8 *pbuf)
 			pdev_network = &(adapter->registrypriv.dev_network);
 			pibss = adapter->registrypriv.dev_network.MacAddress;
 			memcpy(pdev_network, &tgt_network->network,
-				r8712_get_ndis_wlan_bssid_ex_sz(&tgt_network->
+				r8712_get_wlan_bssid_ex_sz(&tgt_network->
 							network));
 			memcpy(&pdev_network->Ssid,
 				&pmlmepriv->assoc_ssid,
@@ -1599,17 +1589,15 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
 	if (iEntry < 0)
 		return ielength;
-	else {
-		if (authmode == _WPA2_IE_ID_) {
-			out_ie[ielength] = 1;
-			ielength++;
-			out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
-			ielength++;
-			memcpy(&out_ie[ielength],
-				&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
-			ielength += 16;
-			out_ie[13] += 18;/*PMKID length = 2+16*/
-		}
+	if (authmode == _WPA2_IE_ID_) {
+		out_ie[ielength] = 1;
+		ielength++;
+		out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
+		ielength++;
+		memcpy(&out_ie[ielength],
+			&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
+		ielength += 16;
+		out_ie[13] += 18;/*PMKID length = 2+16*/
 	}
 	return ielength;
 }
@@ -1670,8 +1658,7 @@ void r8712_update_registrypriv_dev_network(struct _adapter *adapter)
 	 */
 	sz = r8712_generate_ie(pregistrypriv);
 	pdev_network->IELength = sz;
-	pdev_network->Length = r8712_get_ndis_wlan_bssid_ex_sz(
-			      (struct ndis_wlan_bssid_ex *)pdev_network);
+	pdev_network->Length = r8712_get_wlan_bssid_ex_sz(pdev_network);
 }
 
 /*the function is at passive_level*/

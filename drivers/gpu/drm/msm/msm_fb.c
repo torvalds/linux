@@ -172,8 +172,8 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	struct msm_framebuffer *msm_fb;
-	struct drm_framebuffer *fb = NULL;
+	struct msm_framebuffer *msm_fb = NULL;
+	struct drm_framebuffer *fb;
 	const struct msm_format *format;
 	int ret, i, n;
 	unsigned int hsub, vsub;
@@ -239,8 +239,7 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	return fb;
 
 fail:
-	if (fb)
-		msm_framebuffer_destroy(fb);
+	kfree(msm_fb);
 
 	return ERR_PTR(ret);
 }

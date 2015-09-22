@@ -331,7 +331,7 @@ marvel_map_irq(const struct pci_dev *cdev, u8 slot, u8 pin)
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &intline);
 	irq = intline;
 
-	msi_loc = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	msi_loc = dev->msi_cap;
 	msg_ctl = 0;
 	if (msi_loc) 
 		pci_read_config_word(dev, msi_loc + PCI_MSI_FLAGS, &msg_ctl);

@@ -163,14 +163,13 @@
 
 extern u32 GlobalDebugLevel23A;
 
+__printf(3, 4)
+void rt_trace(int comp, int level, const char *fmt, ...);
 
-#define RT_TRACE(_Comp, _Level, Fmt)					\
+#define RT_TRACE(_Comp, _Level, Fmt, ...)				\
 do {									\
-	if (_Level <= GlobalDebugLevel23A) {				\
-		pr_info("%s [0x%08x,%d]", DRIVER_PREFIX,		\
-			 (unsigned int)_Comp, _Level);			\
-		pr_info Fmt;						\
-	}								\
+	if (_Level <= GlobalDebugLevel23A)				\
+		rt_trace(_Comp, _Level, Fmt, ##__VA_ARGS__);		\
 } while (0)
 
 #define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData,		\

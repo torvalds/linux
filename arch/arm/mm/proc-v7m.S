@@ -98,7 +98,7 @@ __v7m_setup:
 	str	r5, [r0, V7M_SCB_SHPR3]	@ set PendSV priority
 
 	@ SVC to run the kernel in this mode
-	adr	r1, BSYM(1f)
+	badr	r1, 1f
 	ldr	r5, [r12, #11 * 4]	@ read the SVC vector entry
 	str	r1, [r12, #11 * 4]	@ write the temporary SVC vector entry
 	mov	r6, lr			@ save LR
@@ -135,7 +135,7 @@ __v7m_setup_stack_top:
 	string cpu_elf_name "v7m"
 	string cpu_v7m_name "ARMv7-M"
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 	/*
 	 * Match any ARMv7-M processor core.
@@ -146,7 +146,7 @@ __v7m_proc_info:
 	.long	0x000f0000		@ Mask for ID
 	.long   0			@ proc_info_list.__cpu_mm_mmu_flags
 	.long   0			@ proc_info_list.__cpu_io_mmu_flags
-	b	__v7m_setup		@ proc_info_list.__cpu_flush
+	initfn	__v7m_setup, __v7m_proc_info	@ proc_info_list.__cpu_flush
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT

@@ -24,17 +24,17 @@ struct mm_struct;
 struct vm_area_struct;
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHABLE_NONCOHERENT)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | (cpu_has_rixi ? 0 : _PAGE_READ) | \
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_WRITE | _PAGE_READ | \
 				 _page_cachable_default)
-#define PAGE_COPY	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | \
-				 (cpu_has_rixi ?  _PAGE_NO_EXEC : 0) | _page_cachable_default)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | \
+#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_NO_EXEC | \
+				 _page_cachable_default)
+#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
 				 _page_cachable_default)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _CACHE_CACHABLE_NONCOHERENT)
-#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | (cpu_has_rixi ? 0 : _PAGE_READ) | _PAGE_WRITE | \
+#define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 				 _page_cachable_default)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
@@ -127,13 +127,9 @@ do {									\
 	}								\
 } while(0)
 
-
-extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-	pte_t pteval);
-
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
-#define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
+#define pte_none(pte)		(!(((pte).pte_high) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
@@ -142,18 +138,17 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
 
-	if (pte.pte_low & _PAGE_GLOBAL) {
+	if (pte.pte_high & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
-		if (pte_none(*buddy)) {
-			buddy->pte_low	|= _PAGE_GLOBAL;
+		if (pte_none(*buddy))
 			buddy->pte_high |= _PAGE_GLOBAL;
-		}
 	}
 }
+#define set_pte_at(mm, addr, ptep, pteval) set_pte(ptep, pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -161,8 +156,8 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 	htw_stop();
 	/* Preserve global status for the pair */
-	if (ptep_buddy(ptep)->pte_low & _PAGE_GLOBAL)
-		null.pte_low = null.pte_high = _PAGE_GLOBAL;
+	if (ptep_buddy(ptep)->pte_high & _PAGE_GLOBAL)
+		null.pte_high = _PAGE_GLOBAL;
 
 	set_pte_at(mm, addr, ptep, null);
 	htw_start();
@@ -187,11 +182,43 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
+#ifdef CONFIG_SMP
+		/*
+		 * For SMP, multiple CPUs can race, so we need to do
+		 * this atomically.
+		 */
+#ifdef CONFIG_64BIT
+#define LL_INSN "lld"
+#define SC_INSN "scd"
+#else /* CONFIG_32BIT */
+#define LL_INSN "ll"
+#define SC_INSN "sc"
+#endif
+		unsigned long page_global = _PAGE_GLOBAL;
+		unsigned long tmp;
+
+		__asm__ __volatile__ (
+			"	.set	push\n"
+			"	.set	noreorder\n"
+			"1:	" LL_INSN "	%[tmp], %[buddy]\n"
+			"	bnez	%[tmp], 2f\n"
+			"	 or	%[tmp], %[tmp], %[global]\n"
+			"	" SC_INSN "	%[tmp], %[buddy]\n"
+			"	beqz	%[tmp], 1b\n"
+			"	 nop\n"
+			"2:\n"
+			"	.set pop"
+			: [buddy] "+m" (buddy->pte),
+			  [tmp] "=&r" (tmp)
+			: [global] "r" (page_global));
+#else /* !CONFIG_SMP */
 		if (pte_none(*buddy))
 			pte_val(*buddy) = pte_val(*buddy) | _PAGE_GLOBAL;
+#endif /* CONFIG_SMP */
 	}
 #endif
 }
+#define set_pte_at(mm, addr, ptep, pteval) set_pte(ptep, pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -242,21 +269,21 @@ static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	pte.pte_low  &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
+	pte.pte_low  &= ~_PAGE_WRITE;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	pte.pte_low  &= ~(_PAGE_MODIFIED | _PAGE_SILENT_WRITE);
+	pte.pte_low  &= ~_PAGE_MODIFIED;
 	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	pte.pte_low  &= ~(_PAGE_ACCESSED | _PAGE_SILENT_READ);
+	pte.pte_low  &= ~_PAGE_ACCESSED;
 	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
 }
@@ -264,30 +291,24 @@ static inline pte_t pte_mkold(pte_t pte)
 static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte.pte_low |= _PAGE_WRITE;
-	if (pte.pte_low & _PAGE_MODIFIED) {
-		pte.pte_low  |= _PAGE_SILENT_WRITE;
+	if (pte.pte_low & _PAGE_MODIFIED)
 		pte.pte_high |= _PAGE_SILENT_WRITE;
-	}
 	return pte;
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
 	pte.pte_low |= _PAGE_MODIFIED;
-	if (pte.pte_low & _PAGE_WRITE) {
-		pte.pte_low  |= _PAGE_SILENT_WRITE;
+	if (pte.pte_low & _PAGE_WRITE)
 		pte.pte_high |= _PAGE_SILENT_WRITE;
-	}
 	return pte;
 }
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte.pte_low |= _PAGE_ACCESSED;
-	if (pte.pte_low & _PAGE_READ) {
-		pte.pte_low  |= _PAGE_SILENT_READ;
+	if (pte.pte_low & _PAGE_READ)
 		pte.pte_high |= _PAGE_SILENT_READ;
-	}
 	return pte;
 }
 #else
@@ -332,13 +353,13 @@ static inline pte_t pte_mkdirty(pte_t pte)
 static inline pte_t pte_mkyoung(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_ACCESSED;
-	if (cpu_has_rixi) {
-		if (!(pte_val(pte) & _PAGE_NO_READ))
-			pte_val(pte) |= _PAGE_SILENT_READ;
-	} else {
-		if (pte_val(pte) & _PAGE_READ)
-			pte_val(pte) |= _PAGE_SILENT_READ;
-	}
+#ifdef CONFIG_CPU_MIPSR2
+	if (!(pte_val(pte) & _PAGE_NO_READ))
+		pte_val(pte) |= _PAGE_SILENT_READ;
+	else
+#endif
+	if (pte_val(pte) & _PAGE_READ)
+		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
 
@@ -372,6 +393,8 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
+#define pgprot_writecombine pgprot_writecombine
+
 static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
@@ -391,10 +414,10 @@ static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	pte.pte_low  &= _PAGE_CHG_MASK;
+	pte.pte_low  &= (_PAGE_MODIFIED | _PAGE_ACCESSED | _PFNX_MASK);
 	pte.pte_high &= (_PFN_MASK | _CACHE_MASK);
-	pte.pte_low  |= pgprot_val(newprot);
-	pte.pte_high |= pgprot_val(newprot) & ~(_PFN_MASK | _CACHE_MASK);
+	pte.pte_low  |= pgprot_val(newprot) & ~_PFNX_MASK;
+	pte.pte_high |= pgprot_val(newprot) & ~_PFN_MASK;
 	return pte;
 }
 #else
@@ -407,12 +430,15 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 extern void __update_tlb(struct vm_area_struct *vma, unsigned long address,
 	pte_t pte);
+extern void __update_cache(struct vm_area_struct *vma, unsigned long address,
+	pte_t pte);
 
 static inline void update_mmu_cache(struct vm_area_struct *vma,
 	unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
 	__update_tlb(vma, address, pte);
+	__update_cache(vma, address, pte);
 }
 
 static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
@@ -534,13 +560,13 @@ static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_ACCESSED;
 
-	if (cpu_has_rixi) {
-		if (!(pmd_val(pmd) & _PAGE_NO_READ))
-			pmd_val(pmd) |= _PAGE_SILENT_READ;
-	} else {
-		if (pmd_val(pmd) & _PAGE_READ)
-			pmd_val(pmd) |= _PAGE_SILENT_READ;
-	}
+#ifdef CONFIG_CPU_MIPSR2
+	if (!(pmd_val(pmd) & _PAGE_NO_READ))
+		pmd_val(pmd) |= _PAGE_SILENT_READ;
+	else
+#endif
+	if (pmd_val(pmd) & _PAGE_READ)
+		pmd_val(pmd) |= _PAGE_SILENT_READ;
 
 	return pmd;
 }
@@ -575,12 +601,12 @@ static inline pmd_t pmd_mknotpresent(pmd_t pmd)
 }
 
 /*
- * The generic version pmdp_get_and_clear uses a version of pmd_clear() with a
+ * The generic version pmdp_huge_get_and_clear uses a version of pmd_clear() with a
  * different prototype.
  */
-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
-				       unsigned long address, pmd_t *pmdp)
+#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
+static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp)
 {
 	pmd_t old = *pmdp;
 

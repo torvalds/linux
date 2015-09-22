@@ -210,8 +210,15 @@ Suite for evaluating hash tables.
 *wake*::
 Suite for evaluating wake calls.
 
+*wake-parallel*::
+Suite for evaluating parallel wake calls.
+
 *requeue*::
 Suite for evaluating requeue calls.
+
+*lock-pi*::
+Suite for evaluating futex lock_pi calls.
+
 
 SEE ALSO
 --------

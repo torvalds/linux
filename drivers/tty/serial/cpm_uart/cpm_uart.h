@@ -19,7 +19,7 @@
 
 #if defined(CONFIG_CPM2)
 #include "cpm_uart_cpm2.h"
-#elif defined(CONFIG_8xx)
+#elif defined(CONFIG_CPM1)
 #include "cpm_uart_cpm1.h"
 #endif
 

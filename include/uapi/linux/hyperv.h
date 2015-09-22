@@ -45,6 +45,11 @@
 
 #define VSS_OP_REGISTER 128
 
+/*
+  Daemon code with full handshake support.
+ */
+#define VSS_OP_REGISTER1 129
+
 enum hv_vss_op {
 	VSS_OP_CREATE = 0,
 	VSS_OP_DELETE,
@@ -100,7 +105,8 @@ struct hv_vss_msg {
  */
 
 #define FCOPY_VERSION_0 0
-#define FCOPY_CURRENT_VERSION FCOPY_VERSION_0
+#define FCOPY_VERSION_1 1
+#define FCOPY_CURRENT_VERSION FCOPY_VERSION_1
 #define W_MAX_PATH 260
 
 enum hv_fcopy_op {

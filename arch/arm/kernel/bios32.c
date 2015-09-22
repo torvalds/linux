@@ -18,15 +18,6 @@
 
 static int debug_pci;
 
-#ifdef CONFIG_PCI_MSI
-struct msi_controller *pcibios_msi_controller(struct pci_dev *dev)
-{
-	struct pci_sys_data *sysdata = dev->bus->sysdata;
-
-	return sysdata->msi_ctrl;
-}
-#endif
-
 /*
  * We can't use pci_get_device() here since we are
  * called from interrupt context.
@@ -459,12 +450,9 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 	for (nr = busnr = 0; nr < hw->nr_controllers; nr++) {
 		sys = kzalloc(sizeof(struct pci_sys_data), GFP_KERNEL);
-		if (!sys)
-			panic("PCI: unable to allocate sys data!");
+		if (WARN(!sys, "PCI: unable to allocate sys data!"))
+			break;
 
-#ifdef CONFIG_PCI_MSI
-		sys->msi_ctrl = hw->msi_ctrl;
-#endif
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
@@ -486,11 +474,14 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 			if (hw->scan)
 				sys->bus = hw->scan(nr, sys);
 			else
-				sys->bus = pci_scan_root_bus(parent, sys->busnr,
-						hw->ops, sys, &sys->resources);
+				sys->bus = pci_scan_root_bus_msi(parent,
+					sys->busnr, hw->ops, sys,
+					&sys->resources, hw->msi_ctrl);
 
-			if (!sys->bus)
-				panic("PCI: unable to scan bus!");
+			if (WARN(!sys->bus, "PCI: unable to scan bus!")) {
+				kfree(sys);
+				break;
+			}
 
 			busnr = sys->bus->busn_res.end + 1;
 
@@ -521,6 +512,8 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 		struct pci_bus *bus = sys->bus;
 
 		if (!pci_has_flag(PCI_PROBE_ONLY)) {
+			struct pci_bus *child;
+
 			/*
 			 * Size the bridge windows.
 			 */
@@ -530,24 +523,14 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 			 * Assign resources.
 			 */
 			pci_bus_assign_resources(bus);
-		}
-
-		/*
-		 * Tell drivers about devices found.
-		 */
-		pci_bus_add_devices(bus);
-	}
-
-	list_for_each_entry(sys, &head, node) {
-		struct pci_bus *bus = sys->bus;
-
-		/* Configure PCI Express settings */
-		if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
-			struct pci_bus *child;
 
 			list_for_each_entry(child, &bus->children, node)
 				pcie_bus_configure_settings(child);
 		}
+		/*
+		 * Tell drivers about devices found.
+		 */
+		pci_bus_add_devices(bus);
 	}
 }
 
@@ -618,21 +601,15 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
-	struct pci_sys_data *root = dev->sysdata;
-	unsigned long phys;
-
-	if (mmap_state == pci_mmap_io) {
+	if (mmap_state == pci_mmap_io)
 		return -EINVAL;
-	} else {
-		phys = vma->vm_pgoff + (root->mem_offset >> PAGE_SHIFT);
-	}
 
 	/*
 	 * Mark this as IO
 	 */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (remap_pfn_range(vma, vma->vm_start, phys,
+	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			     vma->vm_end - vma->vm_start,
 			     vma->vm_page_prot))
 		return -EAGAIN;

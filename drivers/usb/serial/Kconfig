@@ -171,7 +171,7 @@ config USB_SERIAL_FTDI_SIO
 	---help---
 	  Say Y here if you want to use a FTDI SIO single port USB to serial
 	  converter device. The implementation I have is called the USC-1000.
-	  This driver has also be tested with the 245 and 232 devices.
+	  This driver has also been tested with the 245 and 232 devices.
 
 	  See <http://ftdi-usb-sio.sourceforge.net/> for more
 	  information on this driver and the device.

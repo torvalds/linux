@@ -16,8 +16,6 @@
 #ifndef __ASM_PERCPU_H
 #define __ASM_PERCPU_H
 
-#ifdef CONFIG_SMP
-
 static inline void set_my_cpu_offset(unsigned long off)
 {
 	asm volatile("msr tpidr_el1, %0" :: "r" (off) : "memory");
@@ -37,12 +35,6 @@ static inline unsigned long __my_cpu_offset(void)
 	return off;
 }
 #define __my_cpu_offset __my_cpu_offset()
-
-#else	/* !CONFIG_SMP */
-
-#define set_my_cpu_offset(x)	do { } while (0)
-
-#endif /* CONFIG_SMP */
 
 #define PERCPU_OP(op, asm_op)						\
 static inline unsigned long __percpu_##op(void *ptr,			\
@@ -204,25 +196,47 @@ static inline unsigned long __percpu_xchg(void *ptr, unsigned long val,
 	return ret;
 }
 
-#define _percpu_add(pcp, val) \
-	__percpu_add(raw_cpu_ptr(&(pcp)), val, sizeof(pcp))
+#define _percpu_read(pcp)						\
+({									\
+	typeof(pcp) __retval;						\
+	preempt_disable();						\
+	__retval = (typeof(pcp))__percpu_read(raw_cpu_ptr(&(pcp)), 	\
+					      sizeof(pcp));		\
+	preempt_enable();						\
+	__retval;							\
+})
 
-#define _percpu_add_return(pcp, val) (typeof(pcp)) (_percpu_add(pcp, val))
+#define _percpu_write(pcp, val)						\
+do {									\
+	preempt_disable();						\
+	__percpu_write(raw_cpu_ptr(&(pcp)), (unsigned long)(val), 	\
+				sizeof(pcp));				\
+	preempt_enable();						\
+} while(0)								\
+
+#define _pcp_protect(operation, pcp, val)			\
+({								\
+	typeof(pcp) __retval;					\
+	preempt_disable();					\
+	__retval = (typeof(pcp))operation(raw_cpu_ptr(&(pcp)),	\
+					  (val), sizeof(pcp));	\
+	preempt_enable();					\
+	__retval;						\
+})
+
+#define _percpu_add(pcp, val) \
+	_pcp_protect(__percpu_add, pcp, val)
+
+#define _percpu_add_return(pcp, val) _percpu_add(pcp, val)
 
 #define _percpu_and(pcp, val) \
-	__percpu_and(raw_cpu_ptr(&(pcp)), val, sizeof(pcp))
+	_pcp_protect(__percpu_and, pcp, val)
 
 #define _percpu_or(pcp, val) \
-	__percpu_or(raw_cpu_ptr(&(pcp)), val, sizeof(pcp))
-
-#define _percpu_read(pcp) (typeof(pcp))	\
-	(__percpu_read(raw_cpu_ptr(&(pcp)), sizeof(pcp)))
-
-#define _percpu_write(pcp, val) \
-	__percpu_write(raw_cpu_ptr(&(pcp)), (unsigned long)(val), sizeof(pcp))
+	_pcp_protect(__percpu_or, pcp, val)
 
 #define _percpu_xchg(pcp, val) (typeof(pcp)) \
-	(__percpu_xchg(raw_cpu_ptr(&(pcp)), (unsigned long)(val), sizeof(pcp)))
+	_pcp_protect(__percpu_xchg, pcp, (unsigned long)(val))
 
 #define this_cpu_add_1(pcp, val) _percpu_add(pcp, val)
 #define this_cpu_add_2(pcp, val) _percpu_add(pcp, val)

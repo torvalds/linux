@@ -341,28 +341,6 @@ static const struct pinctrl_pin_desc nmk_db8540_pins[] = {
 	PINCTRL_PIN(DB8540_PIN_D17, "GPIO267_D17"),
 };
 
-#define DB8540_GPIO_RANGE(a, b, c) { .name = "db8540", .id = a, .base = b, \
-			.pin_base = b, .npins = c }
-
-/*
- * This matches the 32-pin gpio chips registered by the GPIO portion. This
- * cannot be const since we assign the struct gpio_chip * pointer at runtime.
- */
-static struct pinctrl_gpio_range nmk_db8540_ranges[] = {
-	DB8540_GPIO_RANGE(0, 0, 18),
-	DB8540_GPIO_RANGE(0, 22, 7),
-	DB8540_GPIO_RANGE(1, 33, 6),
-	DB8540_GPIO_RANGE(2, 64, 4),
-	DB8540_GPIO_RANGE(2, 70, 18),
-	DB8540_GPIO_RANGE(3, 116, 12),
-	DB8540_GPIO_RANGE(4, 128, 32),
-	DB8540_GPIO_RANGE(5, 160, 9),
-	DB8540_GPIO_RANGE(6, 192, 23),
-	DB8540_GPIO_RANGE(6, 219, 5),
-	DB8540_GPIO_RANGE(7, 224, 9),
-	DB8540_GPIO_RANGE(8, 256, 12),
-};
-
 /*
  * Read the pin group names like this:
  * u0_a_1    = first groups of pins for uart0 on alt function a
@@ -1247,8 +1225,6 @@ static const u16 db8540_prcm_gpiocr_regs[] = {
 };
 
 static const struct nmk_pinctrl_soc_data nmk_db8540_soc = {
-	.gpio_ranges = nmk_db8540_ranges,
-	.gpio_num_ranges = ARRAY_SIZE(nmk_db8540_ranges),
 	.pins = nmk_db8540_pins,
 	.npins = ARRAY_SIZE(nmk_db8540_pins),
 	.functions = nmk_db8540_functions,

@@ -363,8 +363,6 @@ static int mic_setup_intx(struct mic_device *mdev, struct pci_dev *pdev)
 {
 	int rc;
 
-	pci_msi_off(pdev);
-
 	/* Enable intx */
 	pci_intx(pdev, 1);
 	rc = mic_setup_callbacks(mdev);

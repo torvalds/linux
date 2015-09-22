@@ -564,9 +564,11 @@ static int sd_major(int major_idx)
 	}
 }
 
-static struct scsi_disk *__scsi_disk_get(struct gendisk *disk)
+static struct scsi_disk *scsi_disk_get(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = NULL;
+
+	mutex_lock(&sd_ref_mutex);
 
 	if (disk->private_data) {
 		sdkp = scsi_disk(disk);
@@ -575,27 +577,6 @@ static struct scsi_disk *__scsi_disk_get(struct gendisk *disk)
 		else
 			sdkp = NULL;
 	}
-	return sdkp;
-}
-
-static struct scsi_disk *scsi_disk_get(struct gendisk *disk)
-{
-	struct scsi_disk *sdkp;
-
-	mutex_lock(&sd_ref_mutex);
-	sdkp = __scsi_disk_get(disk);
-	mutex_unlock(&sd_ref_mutex);
-	return sdkp;
-}
-
-static struct scsi_disk *scsi_disk_get_from_dev(struct device *dev)
-{
-	struct scsi_disk *sdkp;
-
-	mutex_lock(&sd_ref_mutex);
-	sdkp = dev_get_drvdata(dev);
-	if (sdkp)
-		sdkp = __scsi_disk_get(sdkp->disk);
 	mutex_unlock(&sd_ref_mutex);
 	return sdkp;
 }
@@ -609,8 +590,6 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 	scsi_device_put(sdev);
 	mutex_unlock(&sd_ref_mutex);
 }
-
-
 
 static unsigned char sd_setup_protect_cmnd(struct scsi_cmnd *scmd,
 					   unsigned int dix, unsigned int dif)
@@ -668,7 +647,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	switch (mode) {
 
 	case SD_LBP_DISABLE:
-		q->limits.max_discard_sectors = 0;
+		blk_queue_max_discard_sectors(q, 0);
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
 		return;
 
@@ -696,7 +675,7 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 		break;
 	}
 
-	q->limits.max_discard_sectors = max_blocks * (logical_block_size >> 9);
+	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 }
 
@@ -1525,12 +1504,9 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 
 static void sd_rescan(struct device *dev)
 {
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 
-	if (sdkp) {
-		revalidate_disk(sdkp->disk);
-		scsi_disk_put(sdkp);
-	}
+	revalidate_disk(sdkp->disk);
 }
 
 
@@ -1624,6 +1600,7 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 {
 	u64 start_lba = blk_rq_pos(scmd->request);
 	u64 end_lba = blk_rq_pos(scmd->request) + (scsi_bufflen(scmd) / 512);
+	u64 factor = scmd->device->sector_size / 512;
 	u64 bad_lba;
 	int info_valid;
 	/*
@@ -1645,16 +1622,9 @@ static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 	if (scsi_bufflen(scmd) <= scmd->device->sector_size)
 		return 0;
 
-	if (scmd->device->sector_size < 512) {
-		/* only legitimate sector_size here is 256 */
-		start_lba <<= 1;
-		end_lba <<= 1;
-	} else {
-		/* be careful ... don't want any overflows */
-		unsigned int factor = scmd->device->sector_size / 512;
-		do_div(start_lba, factor);
-		do_div(end_lba, factor);
-	}
+	/* be careful ... don't want any overflows */
+	do_div(start_lba, factor);
+	do_div(end_lba, factor);
 
 	/* The bad lba was reported incorrectly, we have no idea where
 	 * the error is.
@@ -2212,8 +2182,7 @@ got_data:
 	if (sector_size != 512 &&
 	    sector_size != 1024 &&
 	    sector_size != 2048 &&
-	    sector_size != 4096 &&
-	    sector_size != 256) {
+	    sector_size != 4096) {
 		sd_printk(KERN_NOTICE, sdkp, "Unsupported sector size %d.\n",
 			  sector_size);
 		/*
@@ -2235,11 +2204,11 @@ got_data:
 
 	{
 		char cap_str_2[10], cap_str_10[10];
-		u64 sz = (u64)sdkp->capacity << ilog2(sector_size);
 
-		string_get_size(sz, STRING_UNITS_2, cap_str_2,
-				sizeof(cap_str_2));
-		string_get_size(sz, STRING_UNITS_10, cap_str_10,
+		string_get_size(sdkp->capacity, sector_size,
+				STRING_UNITS_2, cap_str_2, sizeof(cap_str_2));
+		string_get_size(sdkp->capacity, sector_size,
+				STRING_UNITS_10, cap_str_10,
 				sizeof(cap_str_10));
 
 		if (sdkp->first_scan || old_capacity != sdkp->capacity) {
@@ -2268,8 +2237,6 @@ got_data:
 		sdkp->capacity <<= 2;
 	else if (sector_size == 1024)
 		sdkp->capacity <<= 1;
-	else if (sector_size == 256)
-		sdkp->capacity >>= 1;
 
 	blk_queue_physical_block_size(sdp->request_queue,
 				      sdkp->physical_block_size);
@@ -2803,9 +2770,9 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	max_xfer = sdkp->max_xfer_blocks;
 	max_xfer <<= ilog2(sdp->sector_size) - 9;
 
-	max_xfer = min_not_zero(queue_max_hw_sectors(sdkp->disk->queue),
-				max_xfer);
-	blk_queue_max_hw_sectors(sdkp->disk->queue, max_xfer);
+	sdkp->disk->queue->limits.max_sectors =
+		min_not_zero(queue_max_hw_sectors(sdkp->disk->queue), max_xfer);
+
 	set_capacity(disk, sdkp->capacity);
 	sd_config_write_same(sdkp);
 	kfree(buffer);
@@ -3021,7 +2988,8 @@ static int sd_probe(struct device *dev)
 	sdkp->dev.class = &sd_disk_class;
 	dev_set_name(&sdkp->dev, "%s", dev_name(dev));
 
-	if (device_add(&sdkp->dev))
+	error = device_add(&sdkp->dev);
+	if (error)
 		goto out_free_index;
 
 	get_device(dev);
@@ -3100,6 +3068,7 @@ static void scsi_disk_release(struct device *dev)
 	ida_remove(&sd_index_ida, sdkp->index);
 	spin_unlock(&sd_index_lock);
 
+	blk_integrity_unregister(disk);
 	disk->private_data = NULL;
 	put_disk(disk);
 	put_device(&sdkp->device->sdev_gendev);
@@ -3149,13 +3118,13 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
  */
 static void sd_shutdown(struct device *dev)
 {
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 
 	if (!sdkp)
 		return;         /* this can happen */
 
 	if (pm_runtime_suspended(dev))
-		goto exit;
+		return;
 
 	if (sdkp->WCE && sdkp->media_present) {
 		sd_printk(KERN_NOTICE, sdkp, "Synchronizing SCSI cache\n");
@@ -3166,14 +3135,11 @@ static void sd_shutdown(struct device *dev)
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		sd_start_stop_device(sdkp, 0);
 	}
-
-exit:
-	scsi_disk_put(sdkp);
 }
 
 static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 {
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
+	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (!sdkp)
@@ -3199,7 +3165,6 @@ static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
 	}
 
 done:
-	scsi_disk_put(sdkp);
 	return ret;
 }
 
@@ -3215,18 +3180,13 @@ static int sd_suspend_runtime(struct device *dev)
 
 static int sd_resume(struct device *dev)
 {
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
-	int ret = 0;
+	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 
 	if (!sdkp->device->manage_start_stop)
-		goto done;
+		return 0;
 
 	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
-	ret = sd_start_stop_device(sdkp, 1);
-
-done:
-	scsi_disk_put(sdkp);
-	return ret;
+	return sd_start_stop_device(sdkp, 1);
 }
 
 /**

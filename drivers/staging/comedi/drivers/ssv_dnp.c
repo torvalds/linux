@@ -127,7 +127,6 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 	outb(val, CSCDR);
 
 	return insn->n;
-
 }
 
 static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)

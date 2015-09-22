@@ -30,3 +30,5 @@ ptrace.txt
 	- Information on the ptrace interfaces for hardware debug registers.
 transactional_memory.txt
 	- Overview of the Power8 transactional memory support.
+dscr.txt
+	- Overview DSCR (Data Stream Control Register) support.

@@ -187,10 +187,12 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 EXPORT_SYMBOL_GPL(irq_domain_add_legacy);
 
 /**
- * irq_find_host() - Locates a domain for a given device node
+ * irq_find_matching_host() - Locates a domain for a given device node
  * @node: device-tree node of the interrupt controller
+ * @bus_token: domain-specific data
  */
-struct irq_domain *irq_find_host(struct device_node *node)
+struct irq_domain *irq_find_matching_host(struct device_node *node,
+					  enum irq_domain_bus_token bus_token)
 {
 	struct irq_domain *h, *found = NULL;
 	int rc;
@@ -199,13 +201,19 @@ struct irq_domain *irq_find_host(struct device_node *node)
 	 * it might potentially be set to match all interrupts in
 	 * the absence of a device node. This isn't a problem so far
 	 * yet though...
+	 *
+	 * bus_token == DOMAIN_BUS_ANY matches any domain, any other
+	 * values must generate an exact match for the domain to be
+	 * selected.
 	 */
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(h, &irq_domain_list, link) {
 		if (h->ops->match)
-			rc = h->ops->match(h, node);
+			rc = h->ops->match(h, node, bus_token);
 		else
-			rc = (h->of_node != NULL) && (h->of_node == node);
+			rc = ((h->of_node != NULL) && (h->of_node == node) &&
+			      ((bus_token == DOMAIN_BUS_ANY) ||
+			       (h->bus_token == bus_token)));
 
 		if (rc) {
 			found = h;
@@ -215,7 +223,7 @@ struct irq_domain *irq_find_host(struct device_node *node)
 	mutex_unlock(&irq_domain_mutex);
 	return found;
 }
-EXPORT_SYMBOL_GPL(irq_find_host);
+EXPORT_SYMBOL_GPL(irq_find_matching_host);
 
 /**
  * irq_set_default_host() - Set a "default" irq domain
@@ -830,11 +838,12 @@ static struct irq_data *irq_domain_insert_irq_data(struct irq_domain *domain,
 {
 	struct irq_data *irq_data;
 
-	irq_data = kzalloc_node(sizeof(*irq_data), GFP_KERNEL, child->node);
+	irq_data = kzalloc_node(sizeof(*irq_data), GFP_KERNEL,
+				irq_data_get_node(child));
 	if (irq_data) {
 		child->parent_data = irq_data;
 		irq_data->irq = child->irq;
-		irq_data->node = child->node;
+		irq_data->common = child->common;
 		irq_data->domain = domain;
 	}
 
@@ -1230,6 +1239,27 @@ struct irq_data *irq_domain_get_irq_data(struct irq_domain *domain,
 	struct irq_data *irq_data = irq_get_irq_data(virq);
 
 	return (irq_data && irq_data->domain == domain) ? irq_data : NULL;
+}
+
+/**
+ * irq_domain_set_info - Set the complete data for a @virq in @domain
+ * @domain:		Interrupt domain to match
+ * @virq:		IRQ number
+ * @hwirq:		The hardware interrupt number
+ * @chip:		The associated interrupt chip
+ * @chip_data:		The associated interrupt chip data
+ * @handler:		The interrupt flow handler
+ * @handler_data:	The interrupt flow handler data
+ * @handler_name:	The interrupt handler name
+ */
+void irq_domain_set_info(struct irq_domain *domain, unsigned int virq,
+			 irq_hw_number_t hwirq, struct irq_chip *chip,
+			 void *chip_data, irq_flow_handler_t handler,
+			 void *handler_data, const char *handler_name)
+{
+	irq_set_chip_and_handler_name(virq, chip, handler, handler_name);
+	irq_set_chip_data(virq, chip_data);
+	irq_set_handler_data(virq, handler_data);
 }
 
 static void irq_domain_check_hierarchy(struct irq_domain *domain)

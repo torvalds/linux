@@ -229,6 +229,29 @@ static enum bp_state reserve_additional_memory(long credit)
 	balloon_hotplug = round_up(balloon_hotplug, PAGES_PER_SECTION);
 	nid = memory_add_physaddr_to_nid(hotplug_start_paddr);
 
+#ifdef CONFIG_XEN_HAVE_PVMMU
+        /*
+         * add_memory() will build page tables for the new memory so
+         * the p2m must contain invalid entries so the correct
+         * non-present PTEs will be written.
+         *
+         * If a failure occurs, the original (identity) p2m entries
+         * are not restored since this region is now known not to
+         * conflict with any devices.
+         */ 
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long pfn, i;
+
+		pfn = PFN_DOWN(hotplug_start_paddr);
+		for (i = 0; i < balloon_hotplug; i++) {
+			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
+				pr_warn("set_phys_to_machine() failed, no memory added\n");
+				return BP_ECANCELED;
+			}
+                }
+	}
+#endif
+
 	rc = add_memory(nid, hotplug_start_paddr, balloon_hotplug << PAGE_SHIFT);
 
 	if (rc) {
@@ -418,7 +441,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	/* Update direct mapping, invalidate P2M, and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = frame_list[i];
-		frame_list[i] = pfn_to_mfn(pfn);
+		frame_list[i] = pfn_to_gfn(pfn);
 		page = pfn_to_page(pfn);
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
@@ -449,7 +472,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 }
 
 /*
- * We avoid multiple worker processes conflicting via the balloon mutex.
+ * As this is a work item it is guaranteed to run as a single instance only.
  * We may of course race updates of the target counts (which are protected
  * by the balloon lock), or with changes to the Xen hard limit, but we will
  * recover from these in time.
@@ -459,9 +482,10 @@ static void balloon_process(struct work_struct *work)
 	enum bp_state state = BP_DONE;
 	long credit;
 
-	mutex_lock(&balloon_mutex);
 
 	do {
+		mutex_lock(&balloon_mutex);
+
 		credit = current_credit();
 
 		if (credit > 0) {
@@ -476,17 +500,15 @@ static void balloon_process(struct work_struct *work)
 
 		state = update_schedule(state);
 
-#ifndef CONFIG_PREEMPT
-		if (need_resched())
-			schedule();
-#endif
+		mutex_unlock(&balloon_mutex);
+
+		cond_resched();
+
 	} while (credit && state == BP_DONE);
 
 	/* Schedule more work if there is some still to be done. */
 	if (state == BP_EAGAIN)
 		schedule_delayed_work(&balloon_worker, balloon_stats.schedule_delay * HZ);
-
-	mutex_unlock(&balloon_mutex);
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
@@ -616,9 +638,9 @@ static int __init balloon_init(void)
 	 * regions (see arch/x86/xen/setup.c).
 	 */
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++)
-		if (xen_extra_mem[i].size)
-			balloon_add_region(PFN_UP(xen_extra_mem[i].start),
-					   PFN_DOWN(xen_extra_mem[i].size));
+		if (xen_extra_mem[i].n_pfns)
+			balloon_add_region(xen_extra_mem[i].start_pfn,
+					   xen_extra_mem[i].n_pfns);
 
 	return 0;
 }

@@ -386,7 +386,7 @@ static int wm8750_pinctrl_remove(struct platform_device *pdev)
 	return wmt_pinctrl_remove(pdev);
 }
 
-static struct of_device_id wmt_pinctrl_of_match[] = {
+static const struct of_device_id wmt_pinctrl_of_match[] = {
 	{ .compatible = "wm,wm8750-pinctrl" },
 	{ /* sentinel */ },
 };

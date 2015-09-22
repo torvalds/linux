@@ -94,3 +94,5 @@
  93 -> KWorld USB ATSC TV Stick UB435-Q V3      (em2874)        [1b80:e34c]
  94 -> PCTV tripleStick (292e)                  (em28178)
  95 -> Leadtek VC100                            (em2861)        [0413:6f07]
+ 96 -> Terratec Cinergy T2 Stick HD             (em28178)
+ 97 -> Elgato EyeTV Hybrid 2008 INT             (em2884)        [0fd9:0018]

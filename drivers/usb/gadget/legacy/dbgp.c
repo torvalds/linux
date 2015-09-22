@@ -35,10 +35,10 @@ static struct dbgp {
 static struct usb_device_descriptor device_desc = {
 	.bLength = sizeof device_desc,
 	.bDescriptorType = USB_DT_DEVICE,
-	.bcdUSB = __constant_cpu_to_le16(0x0200),
+	.bcdUSB = cpu_to_le16(0x0200),
 	.bDeviceClass =	USB_CLASS_VENDOR_SPEC,
-	.idVendor = __constant_cpu_to_le16(DRIVER_VENDOR_ID),
-	.idProduct = __constant_cpu_to_le16(DRIVER_PRODUCT_ID),
+	.idVendor = cpu_to_le16(DRIVER_VENDOR_ID),
+	.idProduct = cpu_to_le16(DRIVER_PRODUCT_ID),
 	.bNumConfigurations = 1,
 };
 
@@ -251,7 +251,7 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 
 	dbgp.i_ep->driver_data = gadget;
 	i_desc.wMaxPacketSize =
-		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
 	dbgp.o_ep = usb_ep_autoconfig(gadget, &o_desc);
 	if (!dbgp.o_ep) {
@@ -262,7 +262,7 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 
 	dbgp.o_ep->driver_data = gadget;
 	o_desc.wMaxPacketSize =
-		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
 	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
 	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
@@ -284,7 +284,7 @@ fail_1:
 	return -ENODEV;
 }
 
-static int __init dbgp_bind(struct usb_gadget *gadget,
+static int dbgp_bind(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	int err, stp;
@@ -406,7 +406,7 @@ fail:
 	return err;
 }
 
-static __refdata struct usb_gadget_driver dbgp_driver = {
+static struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.max_speed = USB_SPEED_HIGH,
 	.bind = dbgp_bind,

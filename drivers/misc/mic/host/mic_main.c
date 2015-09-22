@@ -67,6 +67,8 @@ static struct ida g_mic_ida;
 static struct class *g_mic_class;
 /* Base device node number for MIC devices */
 static dev_t g_mic_devno;
+/* Track the total number of MIC devices */
+atomic_t g_num_mics;
 
 static const struct file_operations mic_fops = {
 	.open = mic_open,
@@ -408,6 +410,7 @@ static int mic_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "cdev_add err id %d rc %d\n", mdev->id, rc);
 		goto cleanup_debug_dir;
 	}
+	atomic_inc(&g_num_mics);
 	return 0;
 cleanup_debug_dir:
 	mic_delete_debug_dir(mdev);
@@ -459,6 +462,7 @@ static void mic_remove(struct pci_dev *pdev)
 		return;
 
 	mic_stop(mdev, false);
+	atomic_dec(&g_num_mics);
 	cdev_del(&mdev->cdev);
 	mic_delete_debug_dir(mdev);
 	mutex_lock(&mdev->mic_mutex);
@@ -478,6 +482,7 @@ static void mic_remove(struct pci_dev *pdev)
 	ida_simple_remove(&g_mic_ida, mdev->id);
 	kfree(mdev);
 }
+
 static struct pci_driver mic_driver = {
 	.name = mic_driver_name,
 	.id_table = mic_pci_tbl,
@@ -512,6 +517,7 @@ static int __init mic_init(void)
 	}
 	return ret;
 cleanup_debugfs:
+	ida_destroy(&g_mic_ida);
 	mic_exit_debugfs();
 	class_destroy(g_mic_class);
 cleanup_chrdev:

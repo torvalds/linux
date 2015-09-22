@@ -215,6 +215,7 @@ struct ehci_hcd {			/* one per controller */
 	/* SILICON QUIRKS */
 	unsigned		no_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
+	unsigned		has_fsl_hs_errata:1;	/* Freescale HS quirk */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
 	unsigned		big_endian_capbase:1;
@@ -686,6 +687,17 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #define	ehci_has_fsl_portno_bug(e)		(0)
 #endif
 
+#define PORTSC_FSL_PFSC	24	/* Port Force Full-Speed Connect */
+
+#if defined(CONFIG_PPC_85xx)
+/* Some Freescale processors have an erratum (USB A-005275) in which
+ * incoming packets get corrupted in HS mode
+ */
+#define ehci_has_fsl_hs_errata(e)	((e)->has_fsl_hs_errata)
+#else
+#define ehci_has_fsl_hs_errata(e)	(0)
+#endif
+
 /*
  * While most USB host controllers implement their registers in
  * little-endian format, a minority (celleb companion chip) implement
@@ -868,10 +880,13 @@ extern void	ehci_init_driver(struct hc_driver *drv,
 extern int	ehci_setup(struct usb_hcd *hcd);
 extern int	ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
 				u32 mask, u32 done, int usec);
+extern int	ehci_reset(struct ehci_hcd *ehci);
 
 #ifdef CONFIG_PM
 extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ehci_resume(struct usb_hcd *hcd, bool force_reset);
+extern void	ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
+			bool suspending, bool do_wakeup);
 #endif	/* CONFIG_PM */
 
 extern int	ehci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,

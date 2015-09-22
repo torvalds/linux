@@ -24,7 +24,6 @@
 #include "virt-dma.h"
 
 #define DRIVER_NAME		"k3-dma"
-#define DMA_ALIGN		3
 #define DMA_MAX_SIZE		0x1ffc
 
 #define INT_STAT		0x00
@@ -311,11 +310,6 @@ static void k3_dma_tasklet(unsigned long arg)
 			}
 		}
 	}
-}
-
-static int k3_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
 }
 
 static void k3_dma_free_chan_resources(struct dma_chan *chan)
@@ -654,7 +648,7 @@ static void k3_dma_free_desc(struct virt_dma_desc *vd)
 	kfree(ds);
 }
 
-static struct of_device_id k3_pdma_dt_ids[] = {
+static const struct of_device_id k3_pdma_dt_ids[] = {
 	{ .compatible = "hisilicon,k3-dma-1.0", },
 	{}
 };
@@ -728,7 +722,6 @@ static int k3_dma_probe(struct platform_device *op)
 	dma_cap_set(DMA_SLAVE, d->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, d->slave.cap_mask);
 	d->slave.dev = &op->dev;
-	d->slave.device_alloc_chan_resources = k3_dma_alloc_chan_resources;
 	d->slave.device_free_chan_resources = k3_dma_free_chan_resources;
 	d->slave.device_tx_status = k3_dma_tx_status;
 	d->slave.device_prep_dma_memcpy = k3_dma_prep_memcpy;
@@ -738,7 +731,7 @@ static int k3_dma_probe(struct platform_device *op)
 	d->slave.device_pause = k3_dma_transfer_pause;
 	d->slave.device_resume = k3_dma_transfer_resume;
 	d->slave.device_terminate_all = k3_dma_terminate_all;
-	d->slave.copy_align = DMA_ALIGN;
+	d->slave.copy_align = DMAENGINE_ALIGN_8_BYTES;
 
 	/* init virtual channel */
 	d->chans = devm_kzalloc(&op->dev,

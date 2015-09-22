@@ -95,7 +95,7 @@ temperature) and throttle appropriate devices.
 1.3 interface for binding a thermal zone device with a thermal cooling device
 1.3.1 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	int trip, struct thermal_cooling_device *cdev,
-	unsigned long upper, unsigned long lower);
+	unsigned long upper, unsigned long lower, unsigned int weight);
 
     This interface function bind a thermal cooling device to the certain trip
     point of a thermal zone device.
@@ -110,6 +110,8 @@ temperature) and throttle appropriate devices.
     lower:the Minimum cooling state can be used for this trip point.
           THERMAL_NO_LIMIT means no lower limit,
 	  and the cooling device can be in cooling state 0.
+    weight: the influence of this cooling device in this thermal
+            zone.  See 1.4.1 below for more information.
 
 1.3.2 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 		int trip, struct thermal_cooling_device *cdev);
@@ -127,9 +129,15 @@ temperature) and throttle appropriate devices.
     This structure defines the following parameters that are used to bind
     a zone with a cooling device for a particular trip point.
     .cdev: The cooling device pointer
-    .weight: The 'influence' of a particular cooling device on this zone.
-             This is on a percentage scale. The sum of all these weights
-             (for a particular zone) cannot exceed 100.
+    .weight: The 'influence' of a particular cooling device on this
+             zone. This is relative to the rest of the cooling
+             devices. For example, if all cooling devices have a
+             weight of 1, then they all contribute the same. You can
+             use percentages if you want, but it's not mandatory. A
+             weight of 0 means that this cooling device doesn't
+             contribute to the cooling of this zone unless all cooling
+             devices have a weight of 0. If all weights are 0, then
+             they all contribute the same.
     .trip_mask:This is a bit mask that gives the binding relation between
                this thermal zone and cdev, for a particular trip point.
                If nth bit is set, then the cdev and thermal zone are bound
@@ -172,10 +180,19 @@ Thermal zone device sys I/F, created once it's registered:
     |---temp:			Current temperature
     |---mode:			Working mode of the thermal zone
     |---policy:			Thermal governor used for this zone
+    |---available_policies:	Available thermal governors for this zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
     |---emul_temp:		Emulated temperature set node
+    |---sustainable_power:      Sustainable dissipatable power
+    |---k_po:                   Proportional term during temperature overshoot
+    |---k_pu:                   Proportional term during temperature undershoot
+    |---k_i:                    PID's integral term in the power allocator gov
+    |---k_d:                    PID's derivative term in the power allocator
+    |---integral_cutoff:        Offset above which errors are accumulated
+    |---slope:                  Slope constant applied as linear extrapolation
+    |---offset:                 Offset constant applied as linear extrapolation
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -192,6 +209,8 @@ thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device.
 /sys/class/thermal/thermal_zone[0-*]:
     |---cdev[0-*]:		[0-*]th cooling device in current thermal zone
     |---cdev[0-*]_trip_point:	Trip point that cdev[0-*] is associated with
+    |---cdev[0-*]_weight:       Influence of the cooling device in
+                                this thermal zone
 
 Besides the thermal zone device sysfs I/F and cooling device sysfs I/F,
 the generic thermal driver also creates a hwmon sysfs I/F for each _type_
@@ -238,6 +257,10 @@ policy
 	One of the various thermal governors used for a particular zone.
 	RW, Required
 
+available_policies
+	Available thermal governors which can be used for a particular zone.
+	RO, Required
+
 trip_point_[0-*]_temp
 	The temperature above which trip point will be fired.
 	Unit: millidegree Celsius
@@ -265,6 +288,14 @@ cdev[0-*]_trip_point
 	point.
 	RO, Optional
 
+cdev[0-*]_weight
+        The influence of cdev[0-*] in this thermal zone. This value
+        is relative to the rest of cooling devices in the thermal
+        zone. For example, if a cooling device has a weight double
+        than that of other, it's twice as effective in cooling the
+        thermal zone.
+        RW, Optional
+
 passive
 	Attribute is only present for zones in which the passive cooling
 	policy is not supported by native thermal driver. Default is zero
@@ -288,6 +319,66 @@ emul_temp
 	  WARNING: Be careful while enabling this option on production systems,
 	  because userland can easily disable the thermal policy by simply
 	  flooding this sysfs node with low temperature values.
+
+sustainable_power
+	An estimate of the sustained power that can be dissipated by
+	the thermal zone. Used by the power allocator governor. For
+	more information see Documentation/thermal/power_allocator.txt
+	Unit: milliwatts
+	RW, Optional
+
+k_po
+	The proportional term of the power allocator governor's PID
+	controller during temperature overshoot. Temperature overshoot
+	is when the current temperature is above the "desired
+	temperature" trip point. For more information see
+	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+k_pu
+	The proportional term of the power allocator governor's PID
+	controller during temperature undershoot. Temperature undershoot
+	is when the current temperature is below the "desired
+	temperature" trip point. For more information see
+	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+k_i
+	The integral term of the power allocator governor's PID
+	controller. This term allows the PID controller to compensate
+	for long term drift. For more information see
+	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+k_d
+	The derivative term of the power allocator governor's PID
+	controller. For more information see
+	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+integral_cutoff
+	Temperature offset from the desired temperature trip point
+	above which the integral term of the power allocator
+	governor's PID controller starts accumulating errors. For
+	example, if integral_cutoff is 0, then the integral term only
+	accumulates error when temperature is above the desired
+	temperature trip point. For more information see
+	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+slope
+	The slope constant used in a linear extrapolation model
+	to determine a hotspot temperature based off the sensor's
+	raw readings. It is up to the device driver to determine
+	the usage of these values.
+	RW, Optional
+
+offset
+	The offset constant used in a linear extrapolation model
+	to determine a hotspot temperature based off the sensor's
+	raw readings. It is up to the device driver to determine
+	the usage of these values.
+	RW, Optional
 
 *****************************
 * Cooling device attributes *
@@ -318,7 +409,8 @@ passive, active. If an ACPI thermal zone supports critical, passive,
 active[0] and active[1] at the same time, it may register itself as a
 thermal_zone_device (thermal_zone1) with 4 trip points in all.
 It has one processor and one fan, which are both registered as
-thermal_cooling_device.
+thermal_cooling_device. Both are considered to have the same
+effectiveness in cooling the thermal zone.
 
 If the processor is listed in _PSL method, and the fan is listed in _AL0
 method, the sys I/F structure will be built like this:
@@ -330,6 +422,7 @@ method, the sys I/F structure will be built like this:
     |---temp:			37000
     |---mode:			enabled
     |---policy:			step_wise
+    |---available_policies:	step_wise fair_share
     |---trip_point_0_temp:	100000
     |---trip_point_0_type:	critical
     |---trip_point_1_temp:	80000
@@ -340,8 +433,10 @@ method, the sys I/F structure will be built like this:
     |---trip_point_3_type:	active1
     |---cdev0:			--->/sys/class/thermal/cooling_device0
     |---cdev0_trip_point:	1	/* cdev0 can be used for passive */
+    |---cdev0_weight:           1024
     |---cdev1:			--->/sys/class/thermal/cooling_device3
     |---cdev1_trip_point:	2	/* cdev1 can be used for active[0]*/
+    |---cdev1_weight:           1024
 
 |cooling_device0:
     |---type:			Processor

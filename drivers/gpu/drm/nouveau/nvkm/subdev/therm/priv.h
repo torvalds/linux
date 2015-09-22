@@ -1,5 +1,6 @@
 #ifndef __NVTHERM_PRIV_H__
 #define __NVTHERM_PRIV_H__
+#define nvkm_therm(p) container_of((p), struct nvkm_therm, subdev)
 /*
  * Copyright 2012 The Nouveau community
  *
@@ -28,8 +29,9 @@
 #include <subdev/bios/extdev.h>
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
-#include <subdev/bios/therm.h>
-#include <subdev/timer.h>
+
+int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *,
+		    int index, struct nvkm_therm **);
 
 struct nvkm_fan {
 	struct nvkm_therm *parent;
@@ -48,59 +50,6 @@ struct nvkm_fan {
 	struct dcb_gpio_func tach;
 };
 
-enum nvkm_therm_thrs_direction {
-	NVKM_THERM_THRS_FALLING = 0,
-	NVKM_THERM_THRS_RISING = 1
-};
-
-enum nvkm_therm_thrs_state {
-	NVKM_THERM_THRS_LOWER = 0,
-	NVKM_THERM_THRS_HIGHER = 1
-};
-
-enum nvkm_therm_thrs {
-	NVKM_THERM_THRS_FANBOOST = 0,
-	NVKM_THERM_THRS_DOWNCLOCK = 1,
-	NVKM_THERM_THRS_CRITICAL = 2,
-	NVKM_THERM_THRS_SHUTDOWN = 3,
-	NVKM_THERM_THRS_NR
-};
-
-struct nvkm_therm_priv {
-	struct nvkm_therm base;
-
-	/* automatic thermal management */
-	struct nvkm_alarm alarm;
-	spinlock_t lock;
-	struct nvbios_therm_trip_point *last_trip;
-	int mode;
-	int cstate;
-	int suspend;
-
-	/* bios */
-	struct nvbios_therm_sensor bios_sensor;
-
-	/* fan priv */
-	struct nvkm_fan *fan;
-
-	/* alarms priv */
-	struct {
-		spinlock_t alarm_program_lock;
-		struct nvkm_alarm therm_poll_alarm;
-		enum nvkm_therm_thrs_state alarm_state[NVKM_THERM_THRS_NR];
-		void (*program_alarms)(struct nvkm_therm *);
-	} sensor;
-
-	/* what should be done if the card overheats */
-	struct {
-		void (*downclock)(struct nvkm_therm *, bool active);
-		void (*pause)(struct nvkm_therm *, bool active);
-	} emergency;
-
-	/* ic */
-	struct i2c_client *ic;
-};
-
 int nvkm_therm_fan_mode(struct nvkm_therm *, int mode);
 int nvkm_therm_attr_get(struct nvkm_therm *, enum nvkm_therm_attr_type);
 int nvkm_therm_attr_set(struct nvkm_therm *, enum nvkm_therm_attr_type, int);
@@ -117,8 +66,6 @@ int nvkm_therm_fan_set(struct nvkm_therm *, bool now, int percent);
 int nvkm_therm_fan_user_get(struct nvkm_therm *);
 int nvkm_therm_fan_user_set(struct nvkm_therm *, int percent);
 
-int nvkm_therm_fan_sense(struct nvkm_therm *);
-
 int nvkm_therm_preinit(struct nvkm_therm *);
 
 int  nvkm_therm_sensor_init(struct nvkm_therm *);
@@ -134,18 +81,37 @@ void nvkm_therm_sensor_event(struct nvkm_therm *, enum nvkm_therm_thrs,
 			     enum nvkm_therm_thrs_direction);
 void nvkm_therm_program_alarms_polling(struct nvkm_therm *);
 
-void nv40_therm_intr(struct nvkm_subdev *);
+struct nvkm_therm_func {
+	void (*init)(struct nvkm_therm *);
+	void (*fini)(struct nvkm_therm *);
+	void (*intr)(struct nvkm_therm *);
+
+	int (*pwm_ctrl)(struct nvkm_therm *, int line, bool);
+	int (*pwm_get)(struct nvkm_therm *, int line, u32 *, u32 *);
+	int (*pwm_set)(struct nvkm_therm *, int line, u32, u32);
+	int (*pwm_clock)(struct nvkm_therm *, int line);
+
+	int (*temp_get)(struct nvkm_therm *);
+
+	int (*fan_sense)(struct nvkm_therm *);
+
+	void (*program_alarms)(struct nvkm_therm *);
+};
+
+void nv40_therm_intr(struct nvkm_therm *);
+
 int  nv50_fan_pwm_ctrl(struct nvkm_therm *, int, bool);
 int  nv50_fan_pwm_get(struct nvkm_therm *, int, u32 *, u32 *);
 int  nv50_fan_pwm_set(struct nvkm_therm *, int, u32, u32);
 int  nv50_fan_pwm_clock(struct nvkm_therm *, int);
+
 int  g84_temp_get(struct nvkm_therm *);
 void g84_sensor_setup(struct nvkm_therm *);
-int  g84_therm_fini(struct nvkm_object *, bool suspend);
+void g84_therm_fini(struct nvkm_therm *);
 
 int gt215_therm_fan_sense(struct nvkm_therm *);
 
-int gf110_therm_init(struct nvkm_object *);
+void gf119_therm_init(struct nvkm_therm *);
 
 int nvkm_fanpwm_create(struct nvkm_therm *, struct dcb_gpio_func *);
 int nvkm_fantog_create(struct nvkm_therm *, struct dcb_gpio_func *);

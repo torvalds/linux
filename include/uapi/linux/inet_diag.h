@@ -111,9 +111,11 @@ enum {
 	INET_DIAG_SKMEMINFO,
 	INET_DIAG_SHUTDOWN,
 	INET_DIAG_DCTCPINFO,
+	INET_DIAG_PROTOCOL,  /* response attribute only */
+	INET_DIAG_SKV6ONLY,
 };
 
-#define INET_DIAG_MAX INET_DIAG_DCTCPINFO
+#define INET_DIAG_MAX INET_DIAG_SKV6ONLY
 
 /* INET_DIAG_MEM */
 
@@ -143,4 +145,8 @@ struct tcp_dctcp_info {
 	__u32	dctcp_ab_tot;
 };
 
+union tcp_cc_info {
+	struct tcpvegas_info	vegas;
+	struct tcp_dctcp_info	dctcp;
+};
 #endif /* _UAPI_INET_DIAG_H_ */

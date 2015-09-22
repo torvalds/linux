@@ -44,11 +44,7 @@
 				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
 int tipc_socket_init(void);
 void tipc_socket_stop(void);
-int tipc_sock_create_local(struct net *net, int type, struct socket **res);
-void tipc_sock_release_local(struct socket *sock);
-int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
-			   int flags);
-int tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq);
+void tipc_sk_rcv(struct net *net, struct sk_buff_head *inputq);
 void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 		       struct sk_buff_head *inputq);
 void tipc_sk_reinit(struct net *net);

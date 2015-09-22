@@ -524,12 +524,11 @@ static const struct snd_kcontrol_new twl4030_dapm_abypassv_control =
 	SOC_DAPM_SINGLE("Switch", TWL4030_REG_VDL_APGA_CTL, 2, 1, 0);
 
 /* Digital bypass gain, mute instead of -30dB */
-static const unsigned int twl4030_dapm_dbypass_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(twl4030_dapm_dbypass_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-3000, 600, 1),
 	2, 3, TLV_DB_SCALE_ITEM(-2400, 0, 0),
-	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0),
-};
+	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
+);
 
 /* Digital bypass left (TX1L -> RX2L) */
 static const struct snd_kcontrol_new twl4030_dapm_dbypassl_control =
@@ -1588,14 +1587,13 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			twl4030_codec_enable(codec, 1);
 		break;
 	case SND_SOC_BIAS_OFF:
 		twl4030_codec_enable(codec, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

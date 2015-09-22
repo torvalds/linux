@@ -3,7 +3,7 @@
  *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  */
 
-extern spinlock_t pnp_lock;
+extern struct mutex pnp_lock;
 extern const struct attribute_group *pnp_dev_groups[];
 void *pnp_alloc(long size);
 

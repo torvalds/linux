@@ -216,7 +216,7 @@ void __init plat_time_init(void)
 		ar2315_plat_time_init();
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }

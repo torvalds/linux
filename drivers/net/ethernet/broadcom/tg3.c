@@ -6217,10 +6217,9 @@ static int tg3_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int tg3_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int tg3_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	u64 ns;
-	u32 remainder;
 	struct tg3 *tp = container_of(ptp, struct tg3, ptp_info);
 
 	tg3_full_lock(tp, 0);
@@ -6228,19 +6227,18 @@ static int tg3_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 	ns += tp->ptp_adjust;
 	tg3_full_unlock(tp);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
 
 static int tg3_ptp_settime(struct ptp_clock_info *ptp,
-			   const struct timespec *ts)
+			   const struct timespec64 *ts)
 {
 	u64 ns;
 	struct tg3 *tp = container_of(ptp, struct tg3, ptp_info);
 
-	ns = timespec_to_ns(ts);
+	ns = timespec64_to_ns(ts);
 
 	tg3_full_lock(tp, 0);
 	tg3_refclk_write(tp, ns);
@@ -6320,8 +6318,8 @@ static const struct ptp_clock_info tg3_ptp_caps = {
 	.pps		= 0,
 	.adjfreq	= tg3_ptp_adjfreq,
 	.adjtime	= tg3_ptp_adjtime,
-	.gettime	= tg3_ptp_gettime,
-	.settime	= tg3_ptp_settime,
+	.gettime64	= tg3_ptp_gettime,
+	.settime64	= tg3_ptp_settime,
 	.enable		= tg3_ptp_enable,
 };
 
@@ -6620,7 +6618,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 static void tg3_frag_free(bool is_frag, void *data)
 {
 	if (is_frag)
-		put_page(virt_to_head_page(data));
+		skb_free_frag(data);
 	else
 		kfree(data);
 }
@@ -7244,7 +7242,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 			if (tnapi == &tp->napi[1] && tp->rx_refill)
 				continue;
 
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			/* Reenable interrupts. */
 			tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
 
@@ -7337,7 +7335,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 			sblk->status &= ~SD_STATUS_UPDATED;
 
 		if (likely(!tg3_has_work(tnapi))) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			tg3_int_reenable(tnapi);
 			break;
 		}
@@ -10759,7 +10757,7 @@ static ssize_t tg3_show_temp(struct device *dev,
 	tg3_ape_scratchpad_read(tp, &temperature, attr->index,
 				sizeof(temperature));
 	spin_unlock_bh(&tp->lock);
-	return sprintf(buf, "%u\n", temperature);
+	return sprintf(buf, "%u\n", temperature * 1000);
 }
 
 
@@ -18131,7 +18129,9 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
-	tp->pcierr_recovery = true;
+	/* We needn't recover from permanent error */
+	if (state == pci_channel_io_frozen)
+		tp->pcierr_recovery = true;
 
 	/* We probably don't have netdev yet */
 	if (!netdev || !netif_running(netdev))

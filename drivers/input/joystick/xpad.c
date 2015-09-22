@@ -31,12 +31,14 @@
  *  - the iForce driver    drivers/char/joystick/iforce.c
  *  - the skeleton-driver  drivers/usb/usb-skeleton.c
  *  - Xbox 360 information http://www.free60.org/wiki/Gamepad
+ *  - Xbox One information https://github.com/quantus/xbox-one-controller-protocol
  *
  * Thanks to:
  *  - ITO Takayuki for providing essential xpad information on his website
  *  - Vojtech Pavlik     - iforce driver / input subsystem
  *  - Greg Kroah-Hartman - usb-skeleton driver
  *  - XBOX Linux project - extra USB id's
+ *  - Pekka Pöyry (quantus) - Xbox One controller reverse engineering
  *
  * TODO:
  *  - fine tune axes (especially trigger axes)
@@ -342,6 +344,7 @@ struct usb_xpad {
 
 	int mapping;			/* map d-pad to buttons or to axes */
 	int xtype;			/* type of xbox device */
+	unsigned long led_no;		/* led to lit on xbox360 controllers */
 };
 
 /*
@@ -486,6 +489,8 @@ static void xpad360_process_packet(struct usb_xpad *xpad,
 	input_sync(dev);
 }
 
+static void xpad_identify_controller(struct usb_xpad *xpad);
+
 /*
  * xpad360w_process_packet
  *
@@ -508,6 +513,11 @@ static void xpad360w_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned cha
 		if (data[1] & 0x80) {
 			xpad->pad_present = 1;
 			usb_submit_urb(xpad->bulk_out, GFP_ATOMIC);
+			/*
+			 * Light up the segment corresponding to
+			 * controller number.
+			 */
+			xpad_identify_controller(xpad);
 		} else
 			xpad->pad_present = 0;
 	}
@@ -828,6 +838,23 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 
 			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
 
+		case XTYPE_XBOXONE:
+			xpad->odata[0] = 0x09; /* activate rumble */
+			xpad->odata[1] = 0x08;
+			xpad->odata[2] = 0x00;
+			xpad->odata[3] = 0x08; /* continuous effect */
+			xpad->odata[4] = 0x00; /* simple rumble mode */
+			xpad->odata[5] = 0x03; /* L and R actuator only */
+			xpad->odata[6] = 0x00; /* TODO: LT actuator */
+			xpad->odata[7] = 0x00; /* TODO: RT actuator */
+			xpad->odata[8] = strong / 256;	/* left actuator */
+			xpad->odata[9] = weak / 256;	/* right actuator */
+			xpad->odata[10] = 0x80;	/* length of pulse */
+			xpad->odata[11] = 0x00;	/* stop period of pulse */
+			xpad->irq_out->transfer_buffer_length = 12;
+
+			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
+
 		default:
 			dev_dbg(&xpad->dev->dev,
 				"%s - rumble command sent to unsupported xpad type: %d\n",
@@ -841,7 +868,7 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 
 static int xpad_init_ff(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_UNKNOWN || xpad->xtype == XTYPE_XBOXONE)
+	if (xpad->xtype == XTYPE_UNKNOWN)
 		return 0;
 
 	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);
@@ -862,17 +889,63 @@ struct xpad_led {
 	struct usb_xpad *xpad;
 };
 
+/**
+ * @param command
+ *  0: off
+ *  1: all blink, then previous setting
+ *  2: 1/top-left blink, then on
+ *  3: 2/top-right blink, then on
+ *  4: 3/bottom-left blink, then on
+ *  5: 4/bottom-right blink, then on
+ *  6: 1/top-left on
+ *  7: 2/top-right on
+ *  8: 3/bottom-left on
+ *  9: 4/bottom-right on
+ * 10: rotate
+ * 11: blink, based on previous setting
+ * 12: slow blink, based on previous setting
+ * 13: rotate with two lights
+ * 14: persistent slow all blink
+ * 15: blink once, then previous setting
+ */
 static void xpad_send_led_command(struct usb_xpad *xpad, int command)
 {
-	if (command >= 0 && command < 14) {
-		mutex_lock(&xpad->odata_mutex);
+	command %= 16;
+
+	mutex_lock(&xpad->odata_mutex);
+
+	switch (xpad->xtype) {
+	case XTYPE_XBOX360:
 		xpad->odata[0] = 0x01;
 		xpad->odata[1] = 0x03;
 		xpad->odata[2] = command;
 		xpad->irq_out->transfer_buffer_length = 3;
-		usb_submit_urb(xpad->irq_out, GFP_KERNEL);
-		mutex_unlock(&xpad->odata_mutex);
+		break;
+	case XTYPE_XBOX360W:
+		xpad->odata[0] = 0x00;
+		xpad->odata[1] = 0x00;
+		xpad->odata[2] = 0x08;
+		xpad->odata[3] = 0x40 + command;
+		xpad->odata[4] = 0x00;
+		xpad->odata[5] = 0x00;
+		xpad->odata[6] = 0x00;
+		xpad->odata[7] = 0x00;
+		xpad->odata[8] = 0x00;
+		xpad->odata[9] = 0x00;
+		xpad->odata[10] = 0x00;
+		xpad->odata[11] = 0x00;
+		xpad->irq_out->transfer_buffer_length = 12;
+		break;
 	}
+
+	usb_submit_urb(xpad->irq_out, GFP_KERNEL);
+	mutex_unlock(&xpad->odata_mutex);
+}
+
+static void xpad_identify_controller(struct usb_xpad *xpad)
+{
+	/* Light up the segment corresponding to controller number */
+	xpad_send_led_command(xpad, (xpad->led_no % 4) + 2);
 }
 
 static void xpad_led_set(struct led_classdev *led_cdev,
@@ -886,22 +959,21 @@ static void xpad_led_set(struct led_classdev *led_cdev,
 
 static int xpad_led_probe(struct usb_xpad *xpad)
 {
-	static atomic_t led_seq	= ATOMIC_INIT(-1);
-	unsigned long led_no;
+	static atomic_t led_seq = ATOMIC_INIT(-1);
 	struct xpad_led *led;
 	struct led_classdev *led_cdev;
 	int error;
 
-	if (xpad->xtype != XTYPE_XBOX360)
+	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX360W)
 		return 0;
 
 	xpad->led = led = kzalloc(sizeof(struct xpad_led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
-	led_no = atomic_inc_return(&led_seq);
+	xpad->led_no = atomic_inc_return(&led_seq);
 
-	snprintf(led->name, sizeof(led->name), "xpad%lu", led_no);
+	snprintf(led->name, sizeof(led->name), "xpad%lu", xpad->led_no);
 	led->xpad = xpad;
 
 	led_cdev = &led->led_cdev;
@@ -915,10 +987,8 @@ static int xpad_led_probe(struct usb_xpad *xpad)
 		return error;
 	}
 
-	/*
-	 * Light up the segment corresponding to controller number
-	 */
-	xpad_send_led_command(xpad, (led_no % 4) + 2);
+	/* Light up the segment corresponding to controller number */
+	xpad_identify_controller(xpad);
 
 	return 0;
 }
@@ -935,6 +1005,7 @@ static void xpad_led_disconnect(struct usb_xpad *xpad)
 #else
 static int xpad_led_probe(struct usb_xpad *xpad) { return 0; }
 static void xpad_led_disconnect(struct usb_xpad *xpad) { }
+static void xpad_identify_controller(struct usb_xpad *xpad) { }
 #endif
 
 

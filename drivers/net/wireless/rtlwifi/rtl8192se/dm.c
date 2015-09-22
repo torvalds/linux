@@ -200,7 +200,6 @@ static void _rtl92s_dm_check_txpowertracking_thermalmeter(
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	static u8 tm_trigger;
 	u8 tx_power_checkcnt = 5;
 
 	/* 2T2R TP issue */
@@ -215,13 +214,13 @@ static void _rtl92s_dm_check_txpowertracking_thermalmeter(
 		return;
 	}
 
-	if (!tm_trigger) {
+	if (!rtlpriv->dm.tm_trigger) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_T_METER,
 			      RFREG_OFFSET_MASK, 0x60);
-		tm_trigger = 1;
+		rtlpriv->dm.tm_trigger = 1;
 	} else {
 		_rtl92s_dm_txpowertracking_callback_thermalmeter(hw);
-		tm_trigger = 0;
+		rtlpriv->dm.tm_trigger = 0;
 	}
 }
 

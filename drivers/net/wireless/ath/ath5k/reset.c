@@ -1169,30 +1169,6 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	if (ah->ah_version == AR5K_AR5212)
 		ath5k_hw_set_sleep_clock(ah, false);
 
-	/*
-	 * Stop PCU
-	 */
-	ath5k_hw_stop_rx_pcu(ah);
-
-	/*
-	 * Stop DMA
-	 *
-	 * Note: If DMA didn't stop continue
-	 * since only a reset will fix it.
-	 */
-	ret = ath5k_hw_dma_stop(ah);
-
-	/* RF Bus grant won't work if we have pending
-	 * frames */
-	if (ret && fast) {
-		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
-			"DMA didn't stop, falling back to normal reset\n");
-		fast = false;
-		/* Non fatal, just continue with
-		 * normal reset */
-		ret = 0;
-	}
-
 	mode = channel->hw_value;
 	switch (mode) {
 	case AR5K_MODE_11A:

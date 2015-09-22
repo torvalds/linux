@@ -382,7 +382,7 @@ static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
 	struct device *dev = &client->dev;
-	struct max8660_platform_data *pdata = dev_get_platdata(dev);
+	struct max8660_platform_data pdata_of, *pdata = dev_get_platdata(dev);
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
@@ -391,7 +391,6 @@ static int max8660_probe(struct i2c_client *client,
 
 	if (dev->of_node && !pdata) {
 		const struct of_device_id *id;
-		struct max8660_platform_data pdata_of;
 
 		id = of_match_device(of_match_ptr(max8660_dt_ids), dev);
 		if (!id)
@@ -443,9 +442,9 @@ static int max8660_probe(struct i2c_client *client,
 	for (i = 0; i < pdata->num_subdevs; i++) {
 
 		if (!pdata->subdevs[i].platform_data)
-			return ret;
-
-		boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
+			boot_on = false;
+		else
+			boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
 
 		switch (pdata->subdevs[i].id) {
 		case MAX8660_V3:
@@ -519,7 +518,6 @@ static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= max8660_id,
 };

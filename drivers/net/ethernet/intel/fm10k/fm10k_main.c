@@ -28,7 +28,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.12.2-k"
+#define DRV_VERSION	"0.15.2-k"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
 static const char fm10k_driver_string[] =
@@ -41,6 +41,9 @@ MODULE_DESCRIPTION("Intel(R) Ethernet Switch Host Interface Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+/* single workqueue for entire fm10k driver */
+struct workqueue_struct *fm10k_workqueue = NULL;
+
 /**
  * fm10k_init_module - Driver Registration Routine
  *
@@ -51,6 +54,10 @@ static int __init fm10k_init_module(void)
 {
 	pr_info("%s - version %s\n", fm10k_driver_string, fm10k_driver_version);
 	pr_info("%s\n", fm10k_copyright);
+
+	/* create driver workqueue */
+	if (!fm10k_workqueue)
+		fm10k_workqueue = create_workqueue("fm10k");
 
 	fm10k_dbg_init();
 
@@ -69,6 +76,11 @@ static void __exit fm10k_exit_module(void)
 	fm10k_unregister_pci_driver();
 
 	fm10k_dbg_exit();
+
+	/* destroy driver workqueue */
+	flush_workqueue(fm10k_workqueue);
+	destroy_workqueue(fm10k_workqueue);
+	fm10k_workqueue = NULL;
 }
 module_exit(fm10k_exit_module);
 
@@ -204,12 +216,12 @@ static void fm10k_reuse_rx_page(struct fm10k_ring *rx_ring,
 
 static inline bool fm10k_page_is_reserved(struct page *page)
 {
-	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
+	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
 static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 				    struct page *page,
-				    unsigned int truesize)
+				    unsigned int __maybe_unused truesize)
 {
 	/* avoid re-using remote pages */
 	if (unlikely(fm10k_page_is_reserved(page)))
@@ -240,7 +252,6 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 
 /**
  * fm10k_add_rx_frag - Add contents of Rx buffer to sk_buff
- * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: buffer containing page to add
  * @rx_desc: descriptor containing length of buffer written by hardware
  * @skb: sk_buff to place the data into
@@ -253,22 +264,24 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
  * The function will then update the page offset if necessary and return
  * true if the buffer can be reused by the interface.
  **/
-static bool fm10k_add_rx_frag(struct fm10k_ring *rx_ring,
-			      struct fm10k_rx_buffer *rx_buffer,
+static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 			      union fm10k_rx_desc *rx_desc,
 			      struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
+	unsigned char *va = page_address(page) + rx_buffer->page_offset;
 	unsigned int size = le16_to_cpu(rx_desc->w.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = FM10K_RX_BUFSZ;
 #else
-	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
+	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
+	unsigned int pull_len;
 
-	if ((size <= FM10K_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
-		unsigned char *va = page_address(page) + rx_buffer->page_offset;
+	if (unlikely(skb_is_nonlinear(skb)))
+		goto add_tail_frag;
 
+	if (likely(size <= FM10K_RX_HDR_LEN)) {
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* page is not reserved, we can reuse buffer as-is */
@@ -280,8 +293,21 @@ static bool fm10k_add_rx_frag(struct fm10k_ring *rx_ring,
 		return false;
 	}
 
+	/* we need the header to contain the greater of either ETH_HLEN or
+	 * 60 bytes if the skb->len is less than 60 for skb_pad.
+	 */
+	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
+
+	/* align pull length to size of long to optimize memcpy performance */
+	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
+
+	/* update all of the pointers */
+	va += pull_len;
+	size -= pull_len;
+
+add_tail_frag:
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-			rx_buffer->page_offset, size, truesize);
+			(unsigned long)va & ~PAGE_MASK, size, truesize);
 
 	return fm10k_can_reuse_rx_page(rx_buffer, page, truesize);
 }
@@ -330,7 +356,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */
-	if (fm10k_add_rx_frag(rx_ring, rx_buffer, rx_desc, skb)) {
+	if (fm10k_add_rx_frag(rx_buffer, rx_desc, skb)) {
 		/* hand second half of page back to the ring */
 		fm10k_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
@@ -412,7 +438,7 @@ static void fm10k_rx_hwtstamp(struct fm10k_ring *rx_ring,
 }
 
 static void fm10k_type_trans(struct fm10k_ring *rx_ring,
-			     union fm10k_rx_desc *rx_desc,
+			     union fm10k_rx_desc __maybe_unused *rx_desc,
 			     struct sk_buff *skb)
 {
 	struct net_device *dev = rx_ring->netdev;
@@ -508,48 +534,6 @@ static bool fm10k_is_non_eop(struct fm10k_ring *rx_ring,
 }
 
 /**
- * fm10k_pull_tail - fm10k specific version of skb_pull_tail
- * @rx_ring: rx descriptor ring packet is being transacted on
- * @rx_desc: pointer to the EOP Rx descriptor
- * @skb: pointer to current skb being adjusted
- *
- * This function is an fm10k specific version of __pskb_pull_tail.  The
- * main difference between this version and the original function is that
- * this function can make several assumptions about the state of things
- * that allow for significant optimizations versus the standard function.
- * As a result we can do things like drop a frag and maintain an accurate
- * truesize for the skb.
- */
-static void fm10k_pull_tail(struct fm10k_ring *rx_ring,
-			    union fm10k_rx_desc *rx_desc,
-			    struct sk_buff *skb)
-{
-	struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
-	unsigned char *va;
-	unsigned int pull_len;
-
-	/* it is valid to use page_address instead of kmap since we are
-	 * working with pages allocated out of the lomem pool per
-	 * alloc_page(GFP_ATOMIC)
-	 */
-	va = skb_frag_address(frag);
-
-	/* we need the header to contain the greater of either ETH_HLEN or
-	 * 60 bytes if the skb->len is less than 60 for skb_pad.
-	 */
-	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	skb_copy_to_linear_data(skb, va, ALIGN(pull_len, sizeof(long)));
-
-	/* update all of the pointers */
-	skb_frag_size_sub(frag, pull_len);
-	frag->page_offset += pull_len;
-	skb->data_len -= pull_len;
-	skb->tail += pull_len;
-}
-
-/**
  * fm10k_cleanup_headers - Correct corrupted or empty headers
  * @rx_ring: rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
@@ -573,10 +557,6 @@ static bool fm10k_cleanup_headers(struct fm10k_ring *rx_ring,
 		rx_ring->rx_stats.errors++;
 		return true;
 	}
-
-	/* place header in linear portion of buffer */
-	if (skb_is_nonlinear(skb))
-		fm10k_pull_tail(rx_ring, rx_desc, skb);
 
 	/* if eth_skb_pad returns an error the skb was freed */
 	if (eth_skb_pad(skb))
@@ -604,7 +584,7 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 	unsigned int total_bytes = 0, total_packets = 0;
 	u16 cleaned_count = fm10k_desc_unused(rx_ring);
 
-	do {
+	while (likely(total_packets < budget)) {
 		union fm10k_rx_desc *rx_desc;
 
 		/* return some buffers to hardware, one at a time is too slow */
@@ -653,7 +633,7 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 
 		/* update budget accounting */
 		total_packets++;
-	} while (likely(total_packets < budget));
+	}
 
 	/* place incomplete frames back on ring for completion */
 	rx_ring->skb = skb;
@@ -711,10 +691,6 @@ static struct ethhdr *fm10k_gre_is_nvgre(struct sk_buff *skb)
 	if (nvgre_hdr->flags & FM10K_NVGRE_RESERVED0_FLAGS)
 		return NULL;
 
-	/* verify protocol is transparent Ethernet bridging */
-	if (nvgre_hdr->proto != htons(ETH_P_TEB))
-		return NULL;
-
 	/* report start of ethernet header */
 	if (nvgre_hdr->flags & NVGRE_TNI)
 		return (struct ethhdr *)(nvgre_hdr + 1);
@@ -722,15 +698,13 @@ static struct ethhdr *fm10k_gre_is_nvgre(struct sk_buff *skb)
 	return (struct ethhdr *)(&nvgre_hdr->tni);
 }
 
-static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
+__be16 fm10k_tx_encap_offload(struct sk_buff *skb)
 {
+	u8 l4_hdr = 0, inner_l4_hdr = 0, inner_l4_hlen;
 	struct ethhdr *eth_hdr;
-	u8 l4_hdr = 0;
 
-/* fm10k supports 184 octets of outer+inner headers. Minus 20 for inner L4. */
-#define FM10K_MAX_ENCAP_TRANSPORT_OFFSET	164
-	if (skb_inner_transport_header(skb) - skb_mac_header(skb) >
-	    FM10K_MAX_ENCAP_TRANSPORT_OFFSET)
+	if (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    skb->inner_protocol != htons(ETH_P_TEB))
 		return 0;
 
 	switch (vlan_get_protocol(skb)) {
@@ -760,11 +734,32 @@ static __be16 fm10k_tx_encap_offload(struct sk_buff *skb)
 
 	switch (eth_hdr->h_proto) {
 	case htons(ETH_P_IP):
+		inner_l4_hdr = inner_ip_hdr(skb)->protocol;
+		break;
 	case htons(ETH_P_IPV6):
+		inner_l4_hdr = inner_ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
 		return 0;
 	}
+
+	switch (inner_l4_hdr) {
+	case IPPROTO_TCP:
+		inner_l4_hlen = inner_tcp_hdrlen(skb);
+		break;
+	case IPPROTO_UDP:
+		inner_l4_hlen = 8;
+		break;
+	default:
+		return 0;
+	}
+
+	/* The hardware allows tunnel offloads only if the combined inner and
+	 * outer header is 184 bytes or less
+	 */
+	if (skb_inner_transport_header(skb) + inner_l4_hlen -
+	    skb_mac_header(skb) > FM10K_TUNNEL_HEADER_LENGTH)
+		return 0;
 
 	return eth_hdr->h_proto;
 }
@@ -934,10 +929,10 @@ static int __fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 
+	/* Memory barrier before checking head and tail */
 	smp_mb();
 
-	/* We need to check again in a case another CPU has just
-	 * made room available. */
+	/* Check again in a case another CPU has just made room available */
 	if (likely(fm10k_desc_unused(tx_ring) < size))
 		return -EBUSY;
 
@@ -1182,7 +1177,6 @@ void fm10k_tx_timeout_reset(struct fm10k_intfc *interface)
 {
 	/* Do the reset outside of interrupt context */
 	if (!test_bit(__FM10K_DOWN, &interface->state)) {
-		netdev_err(interface->netdev, "Reset interface\n");
 		interface->tx_timeout_count++;
 		interface->flags |= FM10K_FLAG_RESET_REQUESTED;
 		fm10k_service_event_schedule(interface);

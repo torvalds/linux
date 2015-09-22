@@ -24,7 +24,7 @@ The "make headers_install" command can be run in the top level directory of the
 kernel source code (or using a standard out-of-tree build).  It takes two
 optional arguments:
 
-  make headers_install ARCH=i386 INSTALL_HDR_PATH=/usr/include
+  make headers_install ARCH=i386 INSTALL_HDR_PATH=/usr
 
 ARCH indicates which architecture to produce headers for, and defaults to the
 current architecture.  The linux/asm directory of the exported kernel headers
@@ -33,8 +33,11 @@ the command:
 
   ls -d include/asm-* | sed 's/.*-//'
 
-INSTALL_HDR_PATH indicates where to install the headers.  It defaults to
-"./usr/include".
+INSTALL_HDR_PATH indicates where to install the headers. It defaults to
+"./usr".
+
+An 'include' directory is automatically created inside INSTALL_HDR_PATH and
+headers are installed in 'INSTALL_HDR_PATH/include'.
 
 The command "make headers_install_all" exports headers for all architectures
 simultaneously.  (This is mostly of interest to distribution maintainers,

@@ -32,7 +32,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/skbuff.h>
 #include <linux/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 
 #include <net/net_namespace.h>
@@ -172,7 +172,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 
-	if (sk == NULL)
+	if (!sk)
 		goto out;
 
 	net = dev_net(skb->dev);
@@ -295,7 +295,8 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 * unspecified and mapped address have a v4 equivalent.
 		 */
 		v4addr = LOOPBACK4_IPV6;
-		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
+		if (!(addr_type & IPV6_ADDR_MULTICAST) &&
+		    !sock_net(sk)->ipv6.sysctl.ip_nonlocal_bind) {
 			err = -EADDRNOTAVAIL;
 			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
@@ -367,7 +368,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
-	if (sk != NULL) {
+	if (sk) {
 		/* Note: ipv6_hdr(skb) != skb->data */
 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
 		saddr = &ip6h->saddr;
@@ -456,9 +457,8 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
  *	we return it, otherwise we block.
  */
 
-static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
-		  struct msghdr *msg, size_t len,
-		  int noblock, int flags, int *addr_len)
+static int rawv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+			 int noblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
@@ -631,7 +631,7 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 	skb = sock_alloc_send_skb(sk,
 				  length + hlen + tlen + 15,
 				  flags & MSG_DONTWAIT, &err);
-	if (skb == NULL)
+	if (!skb)
 		goto error;
 	skb_reserve(skb, hlen);
 
@@ -653,8 +653,8 @@ static int rawv6_send_hdrinc(struct sock *sk, struct msghdr *msg, int length,
 		goto error_fault;
 
 	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
-	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
-		      rt->dst.dev, dst_output);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
+		      NULL, rt->dst.dev, dst_output_sk);
 	if (err > 0)
 		err = net_xmit_errno(err);
 	if (err)
@@ -730,8 +730,7 @@ static int raw6_getfrag(void *from, char *to, int offset, int len, int odd,
 	return ip_generic_getfrag(rfv->msg, to, offset, len, odd, skb);
 }
 
-static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
-		   struct msghdr *msg, size_t len)
+static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct ipv6_txoptions opt_space;
 	DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
@@ -791,7 +790,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			fl6.flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-				if (flowlabel == NULL)
+				if (!flowlabel)
 					return -EINVAL;
 			}
 		}
@@ -833,13 +832,13 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		}
 		if ((fl6.flowlabel&IPV6_FLOWLABEL_MASK) && !flowlabel) {
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (!flowlabel)
 				return -EINVAL;
 		}
 		if (!(opt->opt_nflen|opt->opt_flen))
 			opt = NULL;
 	}
-	if (opt == NULL)
+	if (!opt)
 		opt = np->opt;
 	if (flowlabel)
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
@@ -866,6 +865,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
+
+	if (inet->hdrincl)
+		fl6.flowi6_flags |= FLOWI_FLAG_KNOWN_NH;
 
 	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
@@ -1132,7 +1134,7 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
-		if (skb != NULL)
+		if (skb)
 			amount = skb_tail_pointer(skb) -
 				skb_transport_header(skb);
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
@@ -1326,13 +1328,7 @@ static struct inet_protosw rawv6_protosw = {
 
 int __init rawv6_init(void)
 {
-	int ret;
-
-	ret = inet6_register_protosw(&rawv6_protosw);
-	if (ret)
-		goto out;
-out:
-	return ret;
+	return inet6_register_protosw(&rawv6_protosw);
 }
 
 void rawv6_exit(void)

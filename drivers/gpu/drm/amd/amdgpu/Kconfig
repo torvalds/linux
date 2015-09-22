@@ -1,0 +1,17 @@
+config DRM_AMDGPU_CIK
+	bool "Enable amdgpu support for CIK parts"
+	depends on DRM_AMDGPU
+	help
+	  Choose this option if you want to enable experimental support
+	  for CIK asics.
+
+	  CIK is already supported in radeon.  CIK support in amdgpu
+	  is for experimentation and testing.
+
+config DRM_AMDGPU_USERPTR
+	bool "Always enable userptr write support"
+	depends on DRM_AMDGPU
+	select MMU_NOTIFIER
+	help
+	  This option selects CONFIG_MMU_NOTIFIER if it isn't already
+	  selected to enabled full userptr support.

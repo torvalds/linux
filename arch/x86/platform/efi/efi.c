@@ -85,12 +85,20 @@ static efi_status_t __init phys_efi_set_virtual_address_map(
 	efi_memory_desc_t *virtual_map)
 {
 	efi_status_t status;
+	unsigned long flags;
+	pgd_t *save_pgd;
 
-	efi_call_phys_prolog();
+	save_pgd = efi_call_phys_prolog();
+
+	/* Disable interrupts around EFI calls: */
+	local_irq_save(flags);
 	status = efi_call_phys(efi_phys.set_virtual_address_map,
 			       memory_map_size, descriptor_size,
 			       descriptor_version, virtual_map);
-	efi_call_phys_epilog();
+	local_irq_restore(flags);
+
+	efi_call_phys_epilog(save_pgd);
+
 	return status;
 }
 
@@ -107,6 +115,27 @@ void efi_get_time(struct timespec *now)
 	now->tv_sec = mktime(eft.year, eft.month, eft.day, eft.hour,
 			     eft.minute, eft.second);
 	now->tv_nsec = 0;
+}
+
+void __init efi_find_mirror(void)
+{
+	void *p;
+	u64 mirror_size = 0, total_size = 0;
+
+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+		efi_memory_desc_t *md = p;
+		unsigned long long start = md->phys_addr;
+		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+
+		total_size += size;
+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
+			memblock_mark_mirror(start, size);
+			mirror_size += size;
+		}
+	}
+	if (mirror_size)
+		pr_info("Memory: %lldM/%lldM mirrored memory\n",
+			mirror_size>>20, total_size>>20);
 }
 
 /*
@@ -144,6 +173,9 @@ static void __init do_add_efi_memmap(void)
 			break;
 		case EFI_UNUSABLE_MEMORY:
 			e820_type = E820_UNUSABLE;
+			break;
+		case EFI_PERSISTENT_MEMORY:
+			e820_type = E820_PMEM;
 			break;
 		default:
 			/*
@@ -491,7 +523,10 @@ void __init efi_init(void)
 	if (efi_memmap_init())
 		return;
 
-	print_efi_memmap();
+	if (efi_enabled(EFI_DBG))
+		print_efi_memmap();
+
+	efi_esrt_init();
 }
 
 void __init efi_late_init(void)
@@ -615,7 +650,7 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 
 static void __init save_runtime_map(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *tmp, *p, *q = NULL;
 	int count = 0;
@@ -713,7 +748,7 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 
 static void __init kexec_enter_virtual_mode(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *p;
 
@@ -937,8 +972,15 @@ u64 efi_mem_attributes(unsigned long phys_addr)
 
 static int __init arch_parse_efi_cmdline(char *str)
 {
+	if (!str) {
+		pr_warn("need at least one option\n");
+		return -EINVAL;
+	}
+
 	if (parse_option_str(str, "old_map"))
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+	if (parse_option_str(str, "debug"))
+		set_bit(EFI_DBG, &efi.flags);
 
 	return 0;
 }

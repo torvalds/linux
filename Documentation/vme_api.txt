@@ -171,6 +171,12 @@ This functions by reading the offset, applying the mask. If the bits selected in
 the mask match with the values of the corresponding bits in the compare field,
 the value of swap is written the specified offset.
 
+Parts of a VME window can be mapped into user space memory using the following
+function:
+
+	int vme_master_mmap(struct vme_resource *resource,
+		struct vm_area_struct *vma)
+
 
 Slave windows
 =============

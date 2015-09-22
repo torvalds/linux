@@ -268,6 +268,8 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 
 static void a4xx_recover(struct msm_gpu *gpu)
 {
+	adreno_dump_info(gpu);
+
 	/* dump registers before resetting gpu, if enabled: */
 	if (hang_debug)
 		a4xx_dump(gpu);
@@ -505,7 +507,6 @@ static const unsigned int a4xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
 
 static void a4xx_dump(struct msm_gpu *gpu)
 {
-	adreno_dump(gpu);
 	printk("status:   %08x\n",
 			gpu_read(gpu, REG_A4XX_RBBM_STATUS));
 	adreno_dump(gpu);

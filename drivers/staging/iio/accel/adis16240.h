@@ -74,31 +74,31 @@
 
 /* MSC_CTRL */
 /* Enables sum-of-squares output (XYZPEAK_OUT) */
-#define ADIS16240_MSC_CTRL_XYZPEAK_OUT_EN	(1 << 15)
+#define ADIS16240_MSC_CTRL_XYZPEAK_OUT_EN	BIT(15)
 /* Enables peak tracking output (XPEAK_OUT, YPEAK_OUT, and ZPEAK_OUT) */
-#define ADIS16240_MSC_CTRL_X_Y_ZPEAK_OUT_EN	(1 << 14)
+#define ADIS16240_MSC_CTRL_X_Y_ZPEAK_OUT_EN	BIT(14)
 /* Self-test enable: 1 = apply electrostatic force, 0 = disabled */
-#define ADIS16240_MSC_CTRL_SELF_TEST_EN	        (1 << 8)
+#define ADIS16240_MSC_CTRL_SELF_TEST_EN	        BIT(8)
 /* Data-ready enable: 1 = enabled, 0 = disabled */
-#define ADIS16240_MSC_CTRL_DATA_RDY_EN	        (1 << 2)
+#define ADIS16240_MSC_CTRL_DATA_RDY_EN	        BIT(2)
 /* Data-ready polarity: 1 = active high, 0 = active low */
-#define ADIS16240_MSC_CTRL_ACTIVE_HIGH	        (1 << 1)
+#define ADIS16240_MSC_CTRL_ACTIVE_HIGH	        BIT(1)
 /* Data-ready line selection: 1 = DIO2, 0 = DIO1 */
-#define ADIS16240_MSC_CTRL_DATA_RDY_DIO2	(1 << 0)
+#define ADIS16240_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 
 /* DIAG_STAT */
 /* Alarm 2 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16240_DIAG_STAT_ALARM2      (1<<9)
+#define ADIS16240_DIAG_STAT_ALARM2      BIT(9)
 /* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16240_DIAG_STAT_ALARM1      (1<<8)
+#define ADIS16240_DIAG_STAT_ALARM1      BIT(8)
 /* Capture buffer full: 1 = capture buffer is full */
-#define ADIS16240_DIAG_STAT_CPT_BUF_FUL (1<<7)
+#define ADIS16240_DIAG_STAT_CPT_BUF_FUL BIT(7)
 /* Flash test, checksum flag: 1 = mismatch, 0 = match */
-#define ADIS16240_DIAG_STAT_CHKSUM      (1<<6)
+#define ADIS16240_DIAG_STAT_CHKSUM      BIT(6)
 /* Power-on, self-test flag: 1 = failure, 0 = pass */
 #define ADIS16240_DIAG_STAT_PWRON_FAIL_BIT  5
 /* Power-on self-test: 1 = in-progress, 0 = complete */
-#define ADIS16240_DIAG_STAT_PWRON_BUSY  (1<<4)
+#define ADIS16240_DIAG_STAT_PWRON_BUSY  BIT(4)
 /* SPI communications failure */
 #define ADIS16240_DIAG_STAT_SPI_FAIL_BIT	3
 /* Flash update failure */
@@ -109,11 +109,11 @@
 #define ADIS16240_DIAG_STAT_POWER_LOW_BIT	0
 
 /* GLOB_CMD */
-#define ADIS16240_GLOB_CMD_RESUME	(1<<8)
-#define ADIS16240_GLOB_CMD_SW_RESET	(1<<7)
-#define ADIS16240_GLOB_CMD_STANDBY	(1<<2)
+#define ADIS16240_GLOB_CMD_RESUME	BIT(8)
+#define ADIS16240_GLOB_CMD_SW_RESET	BIT(7)
+#define ADIS16240_GLOB_CMD_STANDBY	BIT(2)
 
-#define ADIS16240_ERROR_ACTIVE          (1<<14)
+#define ADIS16240_ERROR_ACTIVE          BIT(14)
 
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!

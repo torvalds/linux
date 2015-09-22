@@ -135,6 +135,24 @@ static unsigned long super_cache_count(struct shrinker *shrink,
 	return total_objects;
 }
 
+static void destroy_super_work(struct work_struct *work)
+{
+	struct super_block *s = container_of(work, struct super_block,
+							destroy_work);
+	int i;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++)
+		percpu_free_rwsem(&s->s_writers.rw_sem[i]);
+	kfree(s);
+}
+
+static void destroy_super_rcu(struct rcu_head *head)
+{
+	struct super_block *s = container_of(head, struct super_block, rcu);
+	INIT_WORK(&s->destroy_work, destroy_super_work);
+	schedule_work(&s->destroy_work);
+}
+
 /**
  *	destroy_super	-	frees a superblock
  *	@s: superblock to free
@@ -143,16 +161,13 @@ static unsigned long super_cache_count(struct shrinker *shrink,
  */
 static void destroy_super(struct super_block *s)
 {
-	int i;
 	list_lru_destroy(&s->s_dentry_lru);
 	list_lru_destroy(&s->s_inode_lru);
-	for (i = 0; i < SB_FREEZE_LEVELS; i++)
-		percpu_counter_destroy(&s->s_writers.counter[i]);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
 	kfree(s->s_subtype);
 	kfree(s->s_options);
-	kfree_rcu(s, rcu);
+	call_rcu(&s->rcu, destroy_super_rcu);
 }
 
 /**
@@ -178,19 +193,19 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		goto fail;
 
 	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
-		if (percpu_counter_init(&s->s_writers.counter[i], 0,
-					GFP_KERNEL) < 0)
+		if (__percpu_init_rwsem(&s->s_writers.rw_sem[i],
+					sb_writers_name[i],
+					&type->s_writers_key[i]))
 			goto fail;
-		lockdep_init_map(&s->s_writers.lock_map[i], sb_writers_name[i],
-				 &type->s_writers_key[i], 0);
 	}
-	init_waitqueue_head(&s->s_writers.wait);
 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
 	s->s_bdi = &noop_backing_dev_info;
 	s->s_flags = flags;
 	INIT_HLIST_NODE(&s->s_instances);
 	INIT_HLIST_BL_HEAD(&s->s_anon);
+	mutex_init(&s->s_sync_lock);
 	INIT_LIST_HEAD(&s->s_inodes);
+	spin_lock_init(&s->s_inode_list_lock);
 
 	if (list_lru_init_memcg(&s->s_dentry_lru))
 		goto fail;
@@ -224,7 +239,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	s->s_maxbytes = MAX_NON_LFS;
 	s->s_op = &default_op;
 	s->s_time_gran = 1000000000;
-	s->cleancache_poolid = -1;
+	s->cleancache_poolid = CLEANCACHE_NO_POOL;
 
 	s->s_shrink.seeks = DEFAULT_SEEKS;
 	s->s_shrink.scan_objects = super_cache_scan;
@@ -399,7 +414,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~MS_ACTIVE;
 
-		fsnotify_unmount_inodes(&sb->s_inodes);
+		fsnotify_unmount_inodes(sb);
 
 		evict_inodes(sb);
 
@@ -842,7 +857,7 @@ int get_anon_bdev(dev_t *p)
 	else if (error)
 		return -EAGAIN;
 
-	if (dev == (1 << MINORBITS)) {
+	if (dev >= (1 << MINORBITS)) {
 		spin_lock(&unnamed_dev_lock);
 		ida_remove(&unnamed_dev_ida, dev);
 		if (unnamed_dev_start > dev)
@@ -1146,43 +1161,9 @@ out:
  */
 void __sb_end_write(struct super_block *sb, int level)
 {
-	percpu_counter_dec(&sb->s_writers.counter[level-1]);
-	/*
-	 * Make sure s_writers are updated before we wake up waiters in
-	 * freeze_super().
-	 */
-	smp_mb();
-	if (waitqueue_active(&sb->s_writers.wait))
-		wake_up(&sb->s_writers.wait);
-	rwsem_release(&sb->s_writers.lock_map[level-1], 1, _RET_IP_);
+	percpu_up_read(sb->s_writers.rw_sem + level-1);
 }
 EXPORT_SYMBOL(__sb_end_write);
-
-#ifdef CONFIG_LOCKDEP
-/*
- * We want lockdep to tell us about possible deadlocks with freezing but
- * it's it bit tricky to properly instrument it. Getting a freeze protection
- * works as getting a read lock but there are subtle problems. XFS for example
- * gets freeze protection on internal level twice in some cases, which is OK
- * only because we already hold a freeze protection also on higher level. Due
- * to these cases we have to tell lockdep we are doing trylock when we
- * already hold a freeze protection for a higher freeze level.
- */
-static void acquire_freeze_lock(struct super_block *sb, int level, bool trylock,
-				unsigned long ip)
-{
-	int i;
-
-	if (!trylock) {
-		for (i = 0; i < level - 1; i++)
-			if (lock_is_held(&sb->s_writers.lock_map[i])) {
-				trylock = true;
-				break;
-			}
-	}
-	rwsem_acquire_read(&sb->s_writers.lock_map[level-1], 0, trylock, ip);
-}
-#endif
 
 /*
  * This is an internal function, please use sb_start_{write,pagefault,intwrite}
@@ -1190,28 +1171,36 @@ static void acquire_freeze_lock(struct super_block *sb, int level, bool trylock,
  */
 int __sb_start_write(struct super_block *sb, int level, bool wait)
 {
-retry:
-	if (unlikely(sb->s_writers.frozen >= level)) {
-		if (!wait)
-			return 0;
-		wait_event(sb->s_writers.wait_unfrozen,
-			   sb->s_writers.frozen < level);
-	}
+	bool force_trylock = false;
+	int ret = 1;
 
 #ifdef CONFIG_LOCKDEP
-	acquire_freeze_lock(sb, level, !wait, _RET_IP_);
-#endif
-	percpu_counter_inc(&sb->s_writers.counter[level-1]);
 	/*
-	 * Make sure counter is updated before we check for frozen.
-	 * freeze_super() first sets frozen and then checks the counter.
+	 * We want lockdep to tell us about possible deadlocks with freezing
+	 * but it's it bit tricky to properly instrument it. Getting a freeze
+	 * protection works as getting a read lock but there are subtle
+	 * problems. XFS for example gets freeze protection on internal level
+	 * twice in some cases, which is OK only because we already hold a
+	 * freeze protection also on higher level. Due to these cases we have
+	 * to use wait == F (trylock mode) which must not fail.
 	 */
-	smp_mb();
-	if (unlikely(sb->s_writers.frozen >= level)) {
-		__sb_end_write(sb, level);
-		goto retry;
+	if (wait) {
+		int i;
+
+		for (i = 0; i < level - 1; i++)
+			if (percpu_rwsem_is_held(sb->s_writers.rw_sem + i)) {
+				force_trylock = true;
+				break;
+			}
 	}
-	return 1;
+#endif
+	if (wait && !force_trylock)
+		percpu_down_read(sb->s_writers.rw_sem + level-1);
+	else
+		ret = percpu_down_read_trylock(sb->s_writers.rw_sem + level-1);
+
+	WARN_ON(force_trylock & !ret);
+	return ret;
 }
 EXPORT_SYMBOL(__sb_start_write);
 
@@ -1221,37 +1210,33 @@ EXPORT_SYMBOL(__sb_start_write);
  * @level: type of writers we wait for (normal vs page fault)
  *
  * This function waits until there are no writers of given type to given file
- * system. Caller of this function should make sure there can be no new writers
- * of type @level before calling this function. Otherwise this function can
- * livelock.
+ * system.
  */
 static void sb_wait_write(struct super_block *sb, int level)
 {
-	s64 writers;
-
+	percpu_down_write(sb->s_writers.rw_sem + level-1);
 	/*
-	 * We just cycle-through lockdep here so that it does not complain
-	 * about returning with lock to userspace
+	 * We are going to return to userspace and forget about this lock, the
+	 * ownership goes to the caller of thaw_super() which does unlock.
+	 *
+	 * FIXME: we should do this before return from freeze_super() after we
+	 * called sync_filesystem(sb) and s_op->freeze_fs(sb), and thaw_super()
+	 * should re-acquire these locks before s_op->unfreeze_fs(sb). However
+	 * this leads to lockdep false-positives, so currently we do the early
+	 * release right after acquire.
 	 */
-	rwsem_acquire(&sb->s_writers.lock_map[level-1], 0, 0, _THIS_IP_);
-	rwsem_release(&sb->s_writers.lock_map[level-1], 1, _THIS_IP_);
+	percpu_rwsem_release(sb->s_writers.rw_sem + level-1, 0, _THIS_IP_);
+}
 
-	do {
-		DEFINE_WAIT(wait);
+static void sb_freeze_unlock(struct super_block *sb)
+{
+	int level;
 
-		/*
-		 * We use a barrier in prepare_to_wait() to separate setting
-		 * of frozen and checking of the counter
-		 */
-		prepare_to_wait(&sb->s_writers.wait, &wait,
-				TASK_UNINTERRUPTIBLE);
+	for (level = 0; level < SB_FREEZE_LEVELS; ++level)
+		percpu_rwsem_acquire(sb->s_writers.rw_sem + level, 0, _THIS_IP_);
 
-		writers = percpu_counter_sum(&sb->s_writers.counter[level-1]);
-		if (writers)
-			schedule();
-
-		finish_wait(&sb->s_writers.wait, &wait);
-	} while (writers);
+	for (level = SB_FREEZE_LEVELS - 1; level >= 0; level--)
+		percpu_up_write(sb->s_writers.rw_sem + level);
 }
 
 /**
@@ -1310,20 +1295,14 @@ int freeze_super(struct super_block *sb)
 		return 0;
 	}
 
-	/* From now on, no new normal writers can start */
 	sb->s_writers.frozen = SB_FREEZE_WRITE;
-	smp_wmb();
-
 	/* Release s_umount to preserve sb_start_write -> s_umount ordering */
 	up_write(&sb->s_umount);
-
 	sb_wait_write(sb, SB_FREEZE_WRITE);
+	down_write(&sb->s_umount);
 
 	/* Now we go and block page faults... */
-	down_write(&sb->s_umount);
 	sb->s_writers.frozen = SB_FREEZE_PAGEFAULT;
-	smp_wmb();
-
 	sb_wait_write(sb, SB_FREEZE_PAGEFAULT);
 
 	/* All writers are done so after syncing there won't be dirty data */
@@ -1331,7 +1310,6 @@ int freeze_super(struct super_block *sb)
 
 	/* Now wait for internal filesystem counter */
 	sb->s_writers.frozen = SB_FREEZE_FS;
-	smp_wmb();
 	sb_wait_write(sb, SB_FREEZE_FS);
 
 	if (sb->s_op->freeze_fs) {
@@ -1340,7 +1318,7 @@ int freeze_super(struct super_block *sb)
 			printk(KERN_ERR
 				"VFS:Filesystem freeze failed\n");
 			sb->s_writers.frozen = SB_UNFROZEN;
-			smp_wmb();
+			sb_freeze_unlock(sb);
 			wake_up(&sb->s_writers.wait_unfrozen);
 			deactivate_locked_super(sb);
 			return ret;
@@ -1372,8 +1350,10 @@ int thaw_super(struct super_block *sb)
 		return -EINVAL;
 	}
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb->s_flags & MS_RDONLY) {
+		sb->s_writers.frozen = SB_UNFROZEN;
 		goto out;
+	}
 
 	if (sb->s_op->unfreeze_fs) {
 		error = sb->s_op->unfreeze_fs(sb);
@@ -1385,12 +1365,11 @@ int thaw_super(struct super_block *sb)
 		}
 	}
 
-out:
 	sb->s_writers.frozen = SB_UNFROZEN;
-	smp_wmb();
+	sb_freeze_unlock(sb);
+out:
 	wake_up(&sb->s_writers.wait_unfrozen);
 	deactivate_locked_super(sb);
-
 	return 0;
 }
 EXPORT_SYMBOL(thaw_super);

@@ -1173,8 +1173,10 @@ static void bnx2i_cleanup_task(struct iscsi_task *task)
 		bnx2i_send_cmd_cleanup_req(hba, task->dd_data);
 
 		spin_unlock_bh(&conn->session->back_lock);
+		spin_unlock_bh(&conn->session->frwd_lock);
 		wait_for_completion_timeout(&bnx2i_conn->cmd_cleanup_cmpl,
 				msecs_to_jiffies(ISCSI_CMD_CLEANUP_TIMEOUT));
+		spin_lock_bh(&conn->session->frwd_lock);
 		spin_lock_bh(&conn->session->back_lock);
 	}
 	bnx2i_iscsi_unmap_sg_list(task->dd_data);
@@ -2093,7 +2095,8 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	else
 		/* wait for option-2 conn teardown */
 		wait_event_interruptible(bnx2i_ep->ofld_wait,
-				 bnx2i_ep->state != EP_STATE_DISCONN_START);
+				((bnx2i_ep->state != EP_STATE_DISCONN_START)
+				&& (bnx2i_ep->state != EP_STATE_TCP_FIN_RCVD)));
 
 	if (signal_pending(current))
 		flush_signals(current);

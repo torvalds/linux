@@ -1,12 +1,12 @@
 <title>DVB Video Device</title>
 <para>The DVB video device controls the MPEG2 video decoder of the DVB hardware. It
-can be accessed through <emphasis role="tt">/dev/dvb/adapter0/video0</emphasis>. Data types and and
-ioctl definitions can be accessed by including <emphasis role="tt">linux/dvb/video.h</emphasis> in your
+can be accessed through <emphasis role="bold">/dev/dvb/adapter0/video0</emphasis>. Data types and and
+ioctl definitions can be accessed by including <emphasis role="bold">linux/dvb/video.h</emphasis> in your
 application.
 </para>
 <para>Note that the DVB video device only controls decoding of the MPEG video stream, not
 its presentation on the TV or computer screen. On PCs this is typically handled by an
-associated video4linux device, e.g. <emphasis role="tt">/dev/video</emphasis>, which allows scaling and defining output
+associated video4linux device, e.g. <emphasis role="bold">/dev/video</emphasis>, which allows scaling and defining output
 windows.
 </para>
 <para>Some DVB cards don&#8217;t have their own MPEG decoder, which results in the omission of
@@ -24,7 +24,7 @@ have been created to replace that functionality.</para>
 
 <section id="video-format-t">
 <title>video_format_t</title>
-<para>The <emphasis role="tt">video_format_t</emphasis> data type defined by
+<para>The <constant>video_format_t</constant> data type defined by
 </para>
 <programlisting>
 typedef enum {
@@ -74,7 +74,7 @@ typedef enum {
 </programlisting>
 <para>VIDEO_SOURCE_DEMUX selects the demultiplexer (fed either by the frontend or the
 DVR device) as the source of the video stream. If VIDEO_SOURCE_MEMORY
-is selected the stream comes from the application through the <emphasis role="tt">write()</emphasis> system
+is selected the stream comes from the application through the <emphasis role="bold">write()</emphasis> system
 call.
 </para>
 </section>

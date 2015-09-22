@@ -81,7 +81,7 @@ again:
 					HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir)->
 						create_date ||
 				entry.file.create_date ==
-					HFSPLUS_I(sb->s_root->d_inode)->
+					HFSPLUS_I(d_inode(sb->s_root))->
 						create_date) &&
 				HFSPLUS_SB(sb)->hidden_dir) {
 			struct qstr str;
@@ -296,8 +296,8 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 			struct dentry *dst_dentry)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dst_dir->i_sb);
-	struct inode *inode = src_dentry->d_inode;
-	struct inode *src_dir = src_dentry->d_parent->d_inode;
+	struct inode *inode = d_inode(src_dentry);
+	struct inode *src_dir = d_inode(src_dentry->d_parent);
 	struct qstr str;
 	char name[32];
 	u32 cnid, id;
@@ -353,7 +353,7 @@ out:
 static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct qstr str;
 	char name[32];
 	u32 cnid;
@@ -410,7 +410,7 @@ out:
 static int hfsplus_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int res;
 
 	if (inode->i_size != 2)
@@ -434,7 +434,7 @@ static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
 	struct inode *inode;
-	int res = -ENOSPC;
+	int res = -ENOMEM;
 
 	mutex_lock(&sbi->vh_mutex);
 	inode = hfsplus_new_inode(dir->i_sb, S_IFLNK | S_IRWXUGO);
@@ -476,7 +476,7 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(dir->i_sb);
 	struct inode *inode;
-	int res = -ENOSPC;
+	int res = -ENOMEM;
 
 	mutex_lock(&sbi->vh_mutex);
 	inode = hfsplus_new_inode(dir->i_sb, mode);
@@ -529,7 +529,7 @@ static int hfsplus_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int res;
 
 	/* Unlink destination if it already exists */
-	if (new_dentry->d_inode) {
+	if (d_really_is_positive(new_dentry)) {
 		if (d_is_dir(new_dentry))
 			res = hfsplus_rmdir(new_dir, new_dentry);
 		else

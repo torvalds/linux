@@ -13,15 +13,6 @@
 # Copyright (C) 1994 by Linus Torvalds
 #
 
-ifndef CONFIG_64BIT
-LD_BFD		:= elf32-s390
-LDFLAGS		:= -m elf_s390
-KBUILD_CFLAGS	+= -m31
-KBUILD_AFLAGS	+= -m31
-UTS_MACHINE	:= s390
-STACK_SIZE	:= 8192
-CHECKFLAGS	+= -D__s390__ -msize-long
-else
 LD_BFD		:= elf64-s390
 LDFLAGS		:= -m elf64_s390
 KBUILD_AFLAGS_MODULE += -fPIC
@@ -31,11 +22,9 @@ KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
 CHECKFLAGS	+= -D__s390__ -D__s390x__
-endif
 
 export LD_BFD
 
-mflags-$(CONFIG_MARCH_G5)     := -march=g5
 mflags-$(CONFIG_MARCH_Z900)   := -march=z900
 mflags-$(CONFIG_MARCH_Z990)   := -march=z990
 mflags-$(CONFIG_MARCH_Z9_109) := -march=z9-109
@@ -44,10 +33,11 @@ mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
 mflags-$(CONFIG_MARCH_Z13)   := -march=z13
 
+export CC_FLAGS_MARCH := $(mflags-y)
+
 aflags-y += $(mflags-y)
 cflags-y += $(mflags-y)
 
-cflags-$(CONFIG_MARCH_G5_TUNE)		+= -mtune=g5
 cflags-$(CONFIG_MARCH_Z900_TUNE)	+= -mtune=z900
 cflags-$(CONFIG_MARCH_Z990_TUNE)	+= -mtune=z990
 cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
@@ -104,7 +94,7 @@ KBUILD_AFLAGS	+= $(aflags-y)
 OBJCOPYFLAGS	:= -O binary
 
 head-y		:= arch/s390/kernel/head.o
-head-y		+= arch/s390/kernel/$(if $(CONFIG_64BIT),head64.o,head31.o)
+head-y		+= arch/s390/kernel/head64.o
 
 # See arch/s390/Kbuild for content of core part of the kernel
 core-y		+= arch/s390/
@@ -129,9 +119,7 @@ zfcpdump:
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 vdso_install:
-ifeq ($(CONFIG_64BIT),y)
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
-endif
 	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
 
 archclean:

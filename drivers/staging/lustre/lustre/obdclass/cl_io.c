@@ -612,7 +612,7 @@ EXPORT_SYMBOL(cl_io_lock_add);
 static void cl_free_io_lock_link(const struct lu_env *env,
 				 struct cl_io_lock_link *link)
 {
-	OBD_FREE_PTR(link);
+	kfree(link);
 }
 
 /**
@@ -624,7 +624,7 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 	struct cl_io_lock_link *link;
 	int result;
 
-	OBD_ALLOC_PTR(link);
+	link = kzalloc(sizeof(*link), GFP_NOFS);
 	if (link != NULL) {
 		link->cill_descr     = *descr;
 		link->cill_fini      = cl_free_io_lock_link;
@@ -1387,9 +1387,9 @@ static void cl_req_free(const struct lu_env *env, struct cl_req *req)
 				cl_object_put(env, obj);
 			}
 		}
-		OBD_FREE(req->crq_o, req->crq_nrobjs * sizeof(req->crq_o[0]));
+		kfree(req->crq_o);
 	}
-	OBD_FREE_PTR(req);
+	kfree(req);
 }
 
 static int cl_req_init(const struct lu_env *env, struct cl_req *req,
@@ -1448,7 +1448,7 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 
 	LINVRNT(nr_objects > 0);
 
-	OBD_ALLOC_PTR(req);
+	req = kzalloc(sizeof(*req), GFP_NOFS);
 	if (req != NULL) {
 		int result;
 
@@ -1456,7 +1456,8 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 		INIT_LIST_HEAD(&req->crq_pages);
 		INIT_LIST_HEAD(&req->crq_layers);
 
-		OBD_ALLOC(req->crq_o, nr_objects * sizeof(req->crq_o[0]));
+		req->crq_o = kcalloc(nr_objects, sizeof(req->crq_o[0]),
+				     GFP_NOFS);
 		if (req->crq_o != NULL) {
 			req->crq_nrobjs = nr_objects;
 			result = cl_req_init(env, req, page);

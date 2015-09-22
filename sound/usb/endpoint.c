@@ -355,8 +355,10 @@ static void snd_complete_urb(struct urb *urb)
 	if (unlikely(urb->status == -ENOENT ||		/* unlinked */
 		     urb->status == -ENODEV ||		/* device removed */
 		     urb->status == -ECONNRESET ||	/* unlinked */
-		     urb->status == -ESHUTDOWN ||	/* device disabled */
-		     ep->chip->shutdown))		/* device disconnected */
+		     urb->status == -ESHUTDOWN))	/* device disabled */
+		goto exit_clear;
+	/* device disconnected */
+	if (unlikely(atomic_read(&ep->chip->shutdown)))
 		goto exit_clear;
 
 	if (usb_pipeout(ep->pipe)) {
@@ -529,7 +531,7 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
 
-	if (!force && ep->chip->shutdown) /* to be sure... */
+	if (!force && atomic_read(&ep->chip->shutdown)) /* to be sure... */
 		return -EBADFD;
 
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
@@ -868,7 +870,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 	int err;
 	unsigned int i;
 
-	if (ep->chip->shutdown)
+	if (atomic_read(&ep->chip->shutdown))
 		return -EBADFD;
 
 	/* already running? */

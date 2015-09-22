@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -33,48 +34,51 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define P_PXO	0
-#define P_PLL8	1
-#define P_PLL2	2
-#define P_PLL3	3
-#define P_PLL15	3
+enum {
+	P_PXO,
+	P_PLL8,
+	P_PLL2,
+	P_PLL3,
+	P_PLL15,
+	P_HDMI_PLL,
+};
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
 
-static u8 mmcc_pxo_pll8_pll2_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
+static const struct parent_map mmcc_pxo_pll8_pll2_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 }
 };
 
-static const char *mmcc_pxo_pll8_pll2[] = {
+static const char * const mmcc_pxo_pll8_pll2[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
 };
 
-static u8 mmcc_pxo_pll8_pll2_pll3_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
-	[P_PLL3]	= 3,
+static const struct parent_map mmcc_pxo_pll8_pll2_pll3_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 },
+	{ P_PLL3, 3 }
 };
 
-static const char *mmcc_pxo_pll8_pll2_pll15[] = {
+static const char * const mmcc_pxo_pll8_pll2_pll15[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
 	"pll15",
 };
 
-static u8 mmcc_pxo_pll8_pll2_pll15_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL8]	= 2,
-	[P_PLL2]	= 1,
-	[P_PLL15]	= 3,
+static const struct parent_map mmcc_pxo_pll8_pll2_pll15_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL8, 2 },
+	{ P_PLL2, 1 },
+	{ P_PLL15, 3 }
 };
 
-static const char *mmcc_pxo_pll8_pll2_pll3[] = {
+static const char * const mmcc_pxo_pll8_pll2_pll3[] = {
 	"pxo",
 	"pll8_vote",
 	"pll2",
@@ -505,8 +509,7 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	int ret = 0;
 	u32 val;
 	struct clk_pix_rdi *rdi = to_clk_pix_rdi(hw);
-	struct clk *clk = hw->clk;
-	int num_parents = __clk_get_num_parents(hw->clk);
+	int num_parents = clk_hw_get_num_parents(hw);
 
 	/*
 	 * These clocks select three inputs via two muxes. One mux selects
@@ -517,7 +520,8 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	 * needs to be on at what time.
 	 */
 	for (i = 0; i < num_parents; i++) {
-		ret = clk_prepare_enable(clk_get_parent_by_index(clk, i));
+		struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
+		ret = clk_prepare_enable(p->clk);
 		if (ret)
 			goto err;
 	}
@@ -545,8 +549,10 @@ static int pix_rdi_set_parent(struct clk_hw *hw, u8 index)
 	udelay(1);
 
 err:
-	for (i--; i >= 0; i--)
-		clk_disable_unprepare(clk_get_parent_by_index(clk, i));
+	for (i--; i >= 0; i--) {
+		struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
+		clk_disable_unprepare(p->clk);
+	}
 
 	return ret;
 }
@@ -576,7 +582,7 @@ static const struct clk_ops clk_ops_pix_rdi = {
 	.determine_rate = __clk_mux_determine_rate,
 };
 
-static const char *pix_rdi_parents[] = {
+static const char * const pix_rdi_parents[] = {
 	"csi0_clk",
 	"csi1_clk",
 	"csi2_clk",
@@ -706,7 +712,7 @@ static struct clk_rcg csiphytimer_src = {
 	},
 };
 
-static const char *csixphy_timer_src[] = { "csiphytimer_src" };
+static const char * const csixphy_timer_src[] = { "csiphytimer_src" };
 
 static struct clk_branch csiphy0_timer_clk = {
 	.halt_reg = 0x01e8,
@@ -1377,14 +1383,12 @@ static struct clk_branch rot_clk = {
 	},
 };
 
-#define P_HDMI_PLL 1
-
-static u8 mmcc_pxo_hdmi_map[] = {
-	[P_PXO]		= 0,
-	[P_HDMI_PLL]	= 3,
+static const struct parent_map mmcc_pxo_hdmi_map[] = {
+	{ P_PXO, 0 },
+	{ P_HDMI_PLL, 3 }
 };
 
-static const char *mmcc_pxo_hdmi[] = {
+static const char * const mmcc_pxo_hdmi[] = {
 	"pxo",
 	"hdmi_pll",
 };
@@ -1427,7 +1431,7 @@ static struct clk_rcg tv_src = {
 	},
 };
 
-static const char *tv_src_name[] = { "tv_src" };
+static const char * const tv_src_name[] = { "tv_src" };
 
 static struct clk_branch tv_enc_clk = {
 	.halt_reg = 0x01d4,

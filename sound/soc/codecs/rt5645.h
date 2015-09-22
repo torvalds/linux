@@ -105,6 +105,7 @@
 #define RT5645_TDM_CTRL_1			0x77
 #define RT5645_TDM_CTRL_2			0x78
 #define RT5645_TDM_CTRL_3			0x79
+#define RT5650_TDM_CTRL_4			0x7a
 
 /* Function - Analog */
 #define RT5645_GLB_CLK				0x80
@@ -804,8 +805,6 @@
 #define RT5645_PWR_DAC_MF_L_BIT			10
 #define RT5645_PWR_DAC_MF_R			(0x1 << 9)
 #define RT5645_PWR_DAC_MF_R_BIT			9
-#define RT5645_PWR_ADC_S2F			(0x1 << 8)
-#define RT5645_PWR_ADC_S2F_BIT			8
 #define RT5645_PWR_PDM1				(0x1 << 7)
 #define RT5645_PWR_PDM1_BIT			7
 #define RT5645_PWR_PDM2				(0x1 << 6)
@@ -944,10 +943,6 @@
 #define RT5645_I2S2_SDI_I2S2			(0x1 << 6)
 
 /* ADC/DAC Clock Control 1 (0x73) */
-#define RT5645_I2S_BCLK_MS1_MASK		(0x1 << 15)
-#define RT5645_I2S_BCLK_MS1_SFT			15
-#define RT5645_I2S_BCLK_MS1_32			(0x0 << 15)
-#define RT5645_I2S_BCLK_MS1_64			(0x1 << 15)
 #define RT5645_I2S_PD1_MASK			(0x7 << 12)
 #define RT5645_I2S_PD1_SFT			12
 #define RT5645_I2S_PD1_1			(0x0 << 12)
@@ -1069,13 +1064,14 @@
 #define RT5645_SCLK_SRC_SFT			14
 #define RT5645_SCLK_SRC_MCLK			(0x0 << 14)
 #define RT5645_SCLK_SRC_PLL1			(0x1 << 14)
-#define RT5645_SCLK_SRC_RCCLK			(0x2 << 14) /* 15MHz */
-#define RT5645_PLL1_SRC_MASK			(0x3 << 12)
-#define RT5645_PLL1_SRC_SFT			12
-#define RT5645_PLL1_SRC_MCLK			(0x0 << 12)
-#define RT5645_PLL1_SRC_BCLK1			(0x1 << 12)
-#define RT5645_PLL1_SRC_BCLK2			(0x2 << 12)
-#define RT5645_PLL1_SRC_BCLK3			(0x3 << 12)
+#define RT5645_SCLK_SRC_RCCLK			(0x2 << 14)
+#define RT5645_PLL1_SRC_MASK			(0x7 << 11)
+#define RT5645_PLL1_SRC_SFT			11
+#define RT5645_PLL1_SRC_MCLK			(0x0 << 11)
+#define RT5645_PLL1_SRC_BCLK1			(0x1 << 11)
+#define RT5645_PLL1_SRC_BCLK2			(0x2 << 11)
+#define RT5645_PLL1_SRC_BCLK3			(0x3 << 11)
+#define RT5645_PLL1_SRC_RCCLK			(0x4 << 11)
 #define RT5645_PLL1_PD_MASK			(0x1 << 3)
 #define RT5645_PLL1_PD_SFT			3
 #define RT5645_PLL1_PD_1			(0x0 << 3)
@@ -1697,6 +1693,10 @@
 #define RT5645_GP6_PIN_SFT			6
 #define RT5645_GP6_PIN_GPIO6			(0x0 << 6)
 #define RT5645_GP6_PIN_DMIC2_SDA		(0x1 << 6)
+#define RT5645_I2S2_DAC_PIN_MASK		(0x1 << 4)
+#define RT5645_I2S2_DAC_PIN_SFT			4
+#define RT5645_I2S2_DAC_PIN_I2S			(0x0 << 4)
+#define RT5645_I2S2_DAC_PIN_GPIO		(0x1 << 4)
 #define RT5645_GP8_PIN_MASK			(0x1 << 3)
 #define RT5645_GP8_PIN_SFT			3
 #define RT5645_GP8_PIN_GPIO8			(0x0 << 3)
@@ -2115,6 +2115,7 @@ enum {
 #define RT5645_JD_PSV_MODE			(0x1 << 12)
 #define RT5645_IRQ_CLK_GATE_CTRL		(0x1 << 11)
 #define RT5645_MICINDET_MANU			(0x1 << 7)
+#define RT5645_RING2_SLEEVE_GND			(0x1 << 5)
 
 /* Vendor ID (0xfd) */
 #define RT5645_VER_C				0x2
@@ -2149,6 +2150,7 @@ enum {
 };
 
 enum {
+	RT5645_DMIC1_DISABLE,
 	RT5645_DMIC_DATA_IN2P,
 	RT5645_DMIC_DATA_GPIO6,
 	RT5645_DMIC_DATA_GPIO10,
@@ -2156,6 +2158,7 @@ enum {
 };
 
 enum {
+	RT5645_DMIC2_DISABLE,
 	RT5645_DMIC_DATA_IN2N,
 	RT5645_DMIC_DATA_GPIO5,
 	RT5645_DMIC_DATA_GPIO11,
@@ -2179,28 +2182,7 @@ enum {
 int rt5645_sel_asrc_clk_src(struct snd_soc_codec *codec,
 		unsigned int filter_mask, unsigned int clk_src);
 
-struct rt5645_priv {
-	struct snd_soc_codec *codec;
-	struct rt5645_platform_data pdata;
-	struct regmap *regmap;
-	struct i2c_client *i2c;
-	struct snd_soc_jack *hp_jack;
-	struct snd_soc_jack *mic_jack;
-	struct delayed_work jack_detect_work;
-
-	int codec_type;
-	int sysclk;
-	int sysclk_src;
-	int lrck[RT5645_AIFS];
-	int bclk[RT5645_AIFS];
-	int master[RT5645_AIFS];
-
-	int pll_src;
-	int pll_in;
-	int pll_out;
-};
-
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
-
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,
+	struct snd_soc_jack *btn_jack);
 #endif /* __RT5645_H__ */

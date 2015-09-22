@@ -35,6 +35,4 @@ extern struct platform_device jz4740_wdt_device;
 extern struct platform_device jz4740_pwm_device;
 extern struct platform_device jz4740_dma_device;
 
-void jz4740_serial_device_register(void);
-
 #endif

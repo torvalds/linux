@@ -92,7 +92,7 @@ int null_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 static
 int null_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 {
-	__u32   cksums, cksumc;
+	__u32 cksums, cksumc;
 
 	LASSERT(req->rq_repdata);
 
@@ -159,7 +159,7 @@ int null_alloc_reqbuf(struct ptlrpc_sec *sec,
 		int alloc_size = size_roundup_power2(msgsize);
 
 		LASSERT(!req->rq_pool);
-		OBD_ALLOC_LARGE(req->rq_reqbuf, alloc_size);
+		req->rq_reqbuf = libcfs_kvzalloc(alloc_size, GFP_NOFS);
 		if (!req->rq_reqbuf)
 			return -ENOMEM;
 
@@ -186,7 +186,7 @@ void null_free_reqbuf(struct ptlrpc_sec *sec,
 			 "req %p: reqlen %d should smaller than buflen %d\n",
 			 req, req->rq_reqlen, req->rq_reqbuf_len);
 
-		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
+		kvfree(req->rq_reqbuf);
 		req->rq_reqbuf = NULL;
 		req->rq_reqbuf_len = 0;
 	}
@@ -202,7 +202,7 @@ int null_alloc_repbuf(struct ptlrpc_sec *sec,
 
 	msgsize = size_roundup_power2(msgsize);
 
-	OBD_ALLOC_LARGE(req->rq_repbuf, msgsize);
+	req->rq_repbuf = libcfs_kvzalloc(msgsize, GFP_NOFS);
 	if (!req->rq_repbuf)
 		return -ENOMEM;
 
@@ -216,7 +216,7 @@ void null_free_repbuf(struct ptlrpc_sec *sec,
 {
 	LASSERT(req->rq_repbuf);
 
-	OBD_FREE_LARGE(req->rq_repbuf, req->rq_repbuf_len);
+	kvfree(req->rq_repbuf);
 	req->rq_repbuf = NULL;
 	req->rq_repbuf_len = 0;
 }
@@ -226,9 +226,9 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 			struct ptlrpc_request *req,
 			int segment, int newsize)
 {
-	struct lustre_msg      *newbuf;
-	struct lustre_msg      *oldbuf = req->rq_reqmsg;
-	int		     oldsize, newmsg_size, alloc_size;
+	struct lustre_msg *newbuf;
+	struct lustre_msg *oldbuf = req->rq_reqmsg;
+	int oldsize, newmsg_size, alloc_size;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_reqbuf == req->rq_reqmsg);
@@ -247,7 +247,7 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 	if (req->rq_reqbuf_len < newmsg_size) {
 		alloc_size = size_roundup_power2(newmsg_size);
 
-		OBD_ALLOC_LARGE(newbuf, alloc_size);
+		newbuf = libcfs_kvzalloc(alloc_size, GFP_NOFS);
 		if (newbuf == NULL)
 			return -ENOMEM;
 
@@ -261,7 +261,7 @@ int null_enlarge_reqbuf(struct ptlrpc_sec *sec,
 			spin_lock(&req->rq_import->imp_lock);
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqlen);
 
-		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
+		kvfree(req->rq_reqbuf);
 		req->rq_reqbuf = req->rq_reqmsg = newbuf;
 		req->rq_reqbuf_len = alloc_size;
 
@@ -316,7 +316,7 @@ int null_alloc_rs(struct ptlrpc_request *req, int msgsize)
 		/* pre-allocated */
 		LASSERT(rs->rs_size >= rs_size);
 	} else {
-		OBD_ALLOC_LARGE(rs, rs_size);
+		rs = libcfs_kvzalloc(rs_size, GFP_NOFS);
 		if (rs == NULL)
 			return -ENOMEM;
 
@@ -341,7 +341,7 @@ void null_free_rs(struct ptlrpc_reply_state *rs)
 	atomic_dec(&rs->rs_svc_ctx->sc_refcount);
 
 	if (!rs->rs_prealloc)
-		OBD_FREE_LARGE(rs, rs->rs_size);
+		kvfree(rs);
 }
 
 static

@@ -16,5 +16,5 @@
 libore-y := ore.o ore_raid.o
 obj-$(CONFIG_ORE) += libore.o
 
-exofs-y := inode.o file.o symlink.o namei.o dir.o super.o sys.o
+exofs-y := inode.o file.o namei.o dir.o super.o sys.o
 obj-$(CONFIG_EXOFS_FS) += exofs.o

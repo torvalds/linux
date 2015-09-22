@@ -346,6 +346,7 @@ struct rbd_device {
 	struct rbd_image_header	header;
 	unsigned long		flags;		/* possibly lock protected */
 	struct rbd_spec		*spec;
+	struct rbd_options	*opts;
 
 	char			*header_name;
 
@@ -522,6 +523,7 @@ void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
 #  define rbd_assert(expr)	((void) 0)
 #endif /* !RBD_DEBUG */
 
+static void rbd_osd_copyup_callback(struct rbd_obj_request *obj_request);
 static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request);
 static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
@@ -724,34 +726,36 @@ static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
 }
 
 /*
- * mount options
+ * (Per device) rbd map options
  */
 enum {
+	Opt_queue_depth,
 	Opt_last_int,
 	/* int args above */
 	Opt_last_string,
 	/* string args above */
 	Opt_read_only,
 	Opt_read_write,
-	/* Boolean args above */
-	Opt_last_bool,
+	Opt_err
 };
 
 static match_table_t rbd_opts_tokens = {
+	{Opt_queue_depth, "queue_depth=%d"},
 	/* int args above */
 	/* string args above */
 	{Opt_read_only, "read_only"},
 	{Opt_read_only, "ro"},		/* Alternate spelling */
 	{Opt_read_write, "read_write"},
 	{Opt_read_write, "rw"},		/* Alternate spelling */
-	/* Boolean args above */
-	{-1, NULL}
+	{Opt_err, NULL}
 };
 
 struct rbd_options {
+	int	queue_depth;
 	bool	read_only;
 };
 
+#define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
 #define RBD_READ_ONLY_DEFAULT	false
 
 static int parse_rbd_opts_token(char *c, void *private)
@@ -761,27 +765,27 @@ static int parse_rbd_opts_token(char *c, void *private)
 	int token, intval, ret;
 
 	token = match_token(c, rbd_opts_tokens, argstr);
-	if (token < 0)
-		return -EINVAL;
-
 	if (token < Opt_last_int) {
 		ret = match_int(&argstr[0], &intval);
 		if (ret < 0) {
-			pr_err("bad mount option arg (not int) "
-			       "at '%s'\n", c);
+			pr_err("bad mount option arg (not int) at '%s'\n", c);
 			return ret;
 		}
 		dout("got int token %d val %d\n", token, intval);
 	} else if (token > Opt_last_int && token < Opt_last_string) {
-		dout("got string token %d val %s\n", token,
-		     argstr[0].from);
-	} else if (token > Opt_last_string && token < Opt_last_bool) {
-		dout("got Boolean token %d\n", token);
+		dout("got string token %d val %s\n", token, argstr[0].from);
 	} else {
 		dout("got token %d\n", token);
 	}
 
 	switch (token) {
+	case Opt_queue_depth:
+		if (intval < 1) {
+			pr_err("queue_depth out of range\n");
+			return -EINVAL;
+		}
+		rbd_opts->queue_depth = intval;
+		break;
 	case Opt_read_only:
 		rbd_opts->read_only = true;
 		break;
@@ -789,9 +793,10 @@ static int parse_rbd_opts_token(char *c, void *private)
 		rbd_opts->read_only = false;
 		break;
 	default:
-		rbd_assert(false);
-		break;
+		/* libceph prints "bad option" msg */
+		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -1563,22 +1568,39 @@ static void rbd_obj_request_end(struct rbd_obj_request *obj_request)
 /*
  * Wait for an object request to complete.  If interrupted, cancel the
  * underlying osd request.
+ *
+ * @timeout: in jiffies, 0 means "wait forever"
  */
-static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
+static int __rbd_obj_request_wait(struct rbd_obj_request *obj_request,
+				  unsigned long timeout)
 {
-	int ret;
+	long ret;
 
 	dout("%s %p\n", __func__, obj_request);
-
-	ret = wait_for_completion_interruptible(&obj_request->completion);
-	if (ret < 0) {
-		dout("%s %p interrupted\n", __func__, obj_request);
+	ret = wait_for_completion_interruptible_timeout(
+					&obj_request->completion,
+					ceph_timeout_jiffies(timeout));
+	if (ret <= 0) {
+		if (ret == 0)
+			ret = -ETIMEDOUT;
 		rbd_obj_request_end(obj_request);
-		return ret;
+	} else {
+		ret = 0;
 	}
 
-	dout("%s %p done\n", __func__, obj_request);
-	return 0;
+	dout("%s %p ret %d\n", __func__, obj_request, (int)ret);
+	return ret;
+}
+
+static int rbd_obj_request_wait(struct rbd_obj_request *obj_request)
+{
+	return __rbd_obj_request_wait(obj_request, 0);
+}
+
+static int rbd_obj_request_wait_timeout(struct rbd_obj_request *obj_request,
+					unsigned long timeout)
+{
+	return __rbd_obj_request_wait(obj_request, timeout);
 }
 
 static void rbd_img_request_complete(struct rbd_img_request *img_request)
@@ -1797,6 +1819,16 @@ static void rbd_osd_stat_callback(struct rbd_obj_request *obj_request)
 	obj_request_done_set(obj_request);
 }
 
+static void rbd_osd_call_callback(struct rbd_obj_request *obj_request)
+{
+	dout("%s: obj %p\n", __func__, obj_request);
+
+	if (obj_request_img_data_test(obj_request))
+		rbd_osd_copyup_callback(obj_request);
+	else
+		obj_request_done_set(obj_request);
+}
+
 static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 				struct ceph_msg *msg)
 {
@@ -1845,6 +1877,8 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 		rbd_osd_discard_callback(obj_request);
 		break;
 	case CEPH_OSD_OP_CALL:
+		rbd_osd_call_callback(obj_request);
+		break;
 	case CEPH_OSD_OP_NOTIFY_ACK:
 	case CEPH_OSD_OP_WATCH:
 		rbd_osd_trivial_callback(obj_request);
@@ -2001,11 +2035,11 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	rbd_assert(obj_request_type_valid(type));
 
 	size = strlen(object_name) + 1;
-	name = kmalloc(size, GFP_KERNEL);
+	name = kmalloc(size, GFP_NOIO);
 	if (!name)
 		return NULL;
 
-	obj_request = kmem_cache_zalloc(rbd_obj_request_cache, GFP_KERNEL);
+	obj_request = kmem_cache_zalloc(rbd_obj_request_cache, GFP_NOIO);
 	if (!obj_request) {
 		kfree(name);
 		return NULL;
@@ -2264,6 +2298,11 @@ static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 			result, xferred);
 		if (!img_request->result)
 			img_request->result = result;
+		/*
+		 * Need to end I/O on the entire obj_request worth of
+		 * bytes in case of error.
+		 */
+		xferred = obj_request->length;
 	}
 
 	/* Image object requests don't own their page array */
@@ -2371,7 +2410,7 @@ static void rbd_img_obj_request_fill(struct rbd_obj_request *obj_request,
 	}
 
 	if (opcode == CEPH_OSD_OP_DELETE)
-		osd_req_op_init(osd_request, num_ops, opcode);
+		osd_req_op_init(osd_request, num_ops, opcode, 0);
 	else
 		osd_req_op_extent_init(osd_request, num_ops, opcode,
 				       offset, length, 0, 0);
@@ -2504,12 +2543,14 @@ out_unwind:
 }
 
 static void
-rbd_img_obj_copyup_callback(struct rbd_obj_request *obj_request)
+rbd_osd_copyup_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_img_request *img_request;
 	struct rbd_device *rbd_dev;
 	struct page **pages;
 	u32 page_count;
+
+	dout("%s: obj %p\n", __func__, obj_request);
 
 	rbd_assert(obj_request->type == OBJ_REQUEST_BIO ||
 		obj_request->type == OBJ_REQUEST_NODATA);
@@ -2537,9 +2578,7 @@ rbd_img_obj_copyup_callback(struct rbd_obj_request *obj_request)
 	if (!obj_request->result)
 		obj_request->xferred = obj_request->length;
 
-	/* Finish up with the normal image object callback */
-
-	rbd_img_obj_callback(obj_request);
+	obj_request_done_set(obj_request);
 }
 
 static void
@@ -2624,7 +2663,6 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 	/* All set, send it off. */
 
-	orig_request->callback = rbd_img_obj_copyup_callback;
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	img_result = rbd_obj_request_submit(osdc, orig_request);
 	if (!img_result)
@@ -2843,7 +2881,7 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 		goto out;
 	stat_request->callback = rbd_img_obj_exists_callback;
 
-	osd_req_op_init(stat_request->osd_req, 0, CEPH_OSD_OP_STAT);
+	osd_req_op_init(stat_request->osd_req, 0, CEPH_OSD_OP_STAT, 0);
 	osd_req_op_raw_data_in_pages(stat_request->osd_req, 0, pages, size, 0,
 					false, false);
 	rbd_osd_req_format_read(stat_request);
@@ -3117,6 +3155,7 @@ static struct rbd_obj_request *rbd_obj_watch_request_helper(
 						bool watch)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct ceph_options *opts = osdc->client->options;
 	struct rbd_obj_request *obj_request;
 	int ret;
 
@@ -3143,7 +3182,7 @@ static struct rbd_obj_request *rbd_obj_watch_request_helper(
 	if (ret)
 		goto out;
 
-	ret = rbd_obj_request_wait(obj_request);
+	ret = rbd_obj_request_wait_timeout(obj_request, opts->mount_timeout);
 	if (ret)
 		goto out;
 
@@ -3435,52 +3474,6 @@ static int rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-/*
- * a queue callback. Makes sure that we don't create a bio that spans across
- * multiple osd objects. One exception would be with a single page bios,
- * which we handle later at bio_chain_clone_range()
- */
-static int rbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd,
-			  struct bio_vec *bvec)
-{
-	struct rbd_device *rbd_dev = q->queuedata;
-	sector_t sector_offset;
-	sector_t sectors_per_obj;
-	sector_t obj_sector_offset;
-	int ret;
-
-	/*
-	 * Find how far into its rbd object the partition-relative
-	 * bio start sector is to offset relative to the enclosing
-	 * device.
-	 */
-	sector_offset = get_start_sect(bmd->bi_bdev) + bmd->bi_sector;
-	sectors_per_obj = 1 << (rbd_dev->header.obj_order - SECTOR_SHIFT);
-	obj_sector_offset = sector_offset & (sectors_per_obj - 1);
-
-	/*
-	 * Compute the number of bytes from that offset to the end
-	 * of the object.  Account for what's already used by the bio.
-	 */
-	ret = (int) (sectors_per_obj - obj_sector_offset) << SECTOR_SHIFT;
-	if (ret > bmd->bi_size)
-		ret -= bmd->bi_size;
-	else
-		ret = 0;
-
-	/*
-	 * Don't send back more than was asked for.  And if the bio
-	 * was empty, let the whole thing through because:  "Note
-	 * that a block device *must* allow a single page to be
-	 * added to an empty bio."
-	 */
-	rbd_assert(bvec->bv_len <= PAGE_SIZE);
-	if (ret > (int) bvec->bv_len || !bmd->bi_size)
-		ret = (int) bvec->bv_len;
-
-	return ret;
-}
-
 static void rbd_free_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk = rbd_dev->disk;
@@ -3745,10 +3738,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 
 	memset(&rbd_dev->tag_set, 0, sizeof(rbd_dev->tag_set));
 	rbd_dev->tag_set.ops = &rbd_mq_ops;
-	rbd_dev->tag_set.queue_depth = BLKDEV_MAX_RQ;
+	rbd_dev->tag_set.queue_depth = rbd_dev->opts->queue_depth;
 	rbd_dev->tag_set.numa_node = NUMA_NO_NODE;
-	rbd_dev->tag_set.flags =
-		BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
+	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
 	rbd_dev->tag_set.nr_hw_queues = 1;
 	rbd_dev->tag_set.cmd_size = sizeof(struct work_struct);
 
@@ -3762,12 +3754,13 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		goto out_tag_set;
 	}
 
-	/* We use the default size, but let's be explicit about it. */
-	blk_queue_physical_block_size(q, SECTOR_SIZE);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	/* QUEUE_FLAG_ADD_RANDOM is off by default for blk-mq */
 
 	/* set io sizes to object size */
 	segment_size = rbd_obj_bytes(&rbd_dev->header);
 	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_segments(q, segment_size / SECTOR_SIZE);
 	blk_queue_max_segment_size(q, segment_size);
 	blk_queue_io_min(q, segment_size);
 	blk_queue_io_opt(q, segment_size);
@@ -3776,10 +3769,9 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 	q->limits.discard_granularity = segment_size;
 	q->limits.discard_alignment = segment_size;
-	q->limits.max_discard_sectors = segment_size / SECTOR_SIZE;
+	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.discard_zeroes_data = 1;
 
-	blk_queue_merge_bvec(q, rbd_merge_bvec);
 	disk->queue = q;
 
 	q->queuedata = rbd_dev;
@@ -4039,7 +4031,8 @@ static void rbd_spec_free(struct kref *kref)
 }
 
 static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
-				struct rbd_spec *spec)
+					 struct rbd_spec *spec,
+					 struct rbd_options *opts)
 {
 	struct rbd_device *rbd_dev;
 
@@ -4053,8 +4046,9 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	INIT_LIST_HEAD(&rbd_dev->node);
 	init_rwsem(&rbd_dev->header_rwsem);
 
-	rbd_dev->spec = spec;
 	rbd_dev->rbd_client = rbdc;
+	rbd_dev->spec = spec;
+	rbd_dev->opts = opts;
 
 	/* Initialize the layout used for all rbd requests */
 
@@ -4070,6 +4064,7 @@ static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 {
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
+	kfree(rbd_dev->opts);
 	kfree(rbd_dev);
 }
 
@@ -4678,7 +4673,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 	}
 
 	ret = rbd_dev_v2_snap_context(rbd_dev);
-	dout("rbd_dev_v2_snap_context returned %d\n", ret);
+	if (ret && first_time) {
+		kfree(rbd_dev->header.object_prefix);
+		rbd_dev->header.object_prefix = NULL;
+	}
 
 	return ret;
 }
@@ -4928,6 +4926,7 @@ static int rbd_add_parse_args(const char *buf,
 		goto out_mem;
 
 	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
+	rbd_opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
 
 	copts = ceph_parse_options(options, mon_addrs,
 					mon_addrs + mon_addrs_size - 1,
@@ -4958,8 +4957,8 @@ out_err:
  */
 static int rbd_add_get_pool_id(struct rbd_client *rbdc, const char *pool_name)
 {
+	struct ceph_options *opts = rbdc->client->options;
 	u64 newest_epoch;
-	unsigned long timeout = rbdc->client->options->mount_timeout * HZ;
 	int tries = 0;
 	int ret;
 
@@ -4974,7 +4973,8 @@ again:
 		if (rbdc->client->osdc.osdmap->epoch < newest_epoch) {
 			ceph_monc_request_next_osdmap(&rbdc->client->monc);
 			(void) ceph_monc_wait_osdmap(&rbdc->client->monc,
-						     newest_epoch, timeout);
+						     newest_epoch,
+						     opts->mount_timeout);
 			goto again;
 		} else {
 			/* the osdmap we have is new enough */
@@ -5143,7 +5143,7 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 	rbdc = __rbd_get_client(rbd_dev->rbd_client);
 
 	ret = -ENOMEM;
-	parent = rbd_dev_create(rbdc, parent_spec);
+	parent = rbd_dev_create(rbdc, parent_spec, NULL);
 	if (!parent)
 		goto out_err;
 
@@ -5157,7 +5157,6 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 out_err:
 	if (parent) {
 		rbd_dev_unparent(rbd_dev);
-		kfree(rbd_dev->header_name);
 		rbd_dev_destroy(parent);
 	} else {
 		rbd_put_client(rbdc);
@@ -5301,8 +5300,13 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 
 	if (mapping) {
 		ret = rbd_dev_header_watch_sync(rbd_dev);
-		if (ret)
+		if (ret) {
+			if (ret == -ENOENT)
+				pr_info("image %s/%s does not exist\n",
+					rbd_dev->spec->pool_name,
+					rbd_dev->spec->image_name);
 			goto out_header_name;
+		}
 	}
 
 	ret = rbd_dev_header_info(rbd_dev);
@@ -5319,8 +5323,14 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 		ret = rbd_spec_fill_snap_id(rbd_dev);
 	else
 		ret = rbd_spec_fill_names(rbd_dev);
-	if (ret)
+	if (ret) {
+		if (ret == -ENOENT)
+			pr_info("snap %s/%s@%s does not exist\n",
+				rbd_dev->spec->pool_name,
+				rbd_dev->spec->image_name,
+				rbd_dev->spec->snap_name);
 		goto err_out_probe;
+	}
 
 	if (rbd_dev->header.features & RBD_FEATURE_LAYERING) {
 		ret = rbd_dev_v2_parent_info(rbd_dev);
@@ -5378,9 +5388,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	rc = rbd_add_parse_args(buf, &ceph_opts, &rbd_opts, &spec);
 	if (rc < 0)
 		goto err_out_module;
-	read_only = rbd_opts->read_only;
-	kfree(rbd_opts);
-	rbd_opts = NULL;	/* done with this */
 
 	rbdc = rbd_get_client(ceph_opts);
 	if (IS_ERR(rbdc)) {
@@ -5390,8 +5397,11 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 
 	/* pick the pool */
 	rc = rbd_add_get_pool_id(rbdc, spec->pool_name);
-	if (rc < 0)
+	if (rc < 0) {
+		if (rc == -ENOENT)
+			pr_info("pool %s does not exist\n", spec->pool_name);
 		goto err_out_client;
+	}
 	spec->pool_id = (u64)rc;
 
 	/* The ceph file layout needs to fit pool id in 32 bits */
@@ -5403,11 +5413,12 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 		goto err_out_client;
 	}
 
-	rbd_dev = rbd_dev_create(rbdc, spec);
+	rbd_dev = rbd_dev_create(rbdc, spec, rbd_opts);
 	if (!rbd_dev)
 		goto err_out_client;
 	rbdc = NULL;		/* rbd_dev now owns this */
 	spec = NULL;		/* rbd_dev now owns this */
+	rbd_opts = NULL;	/* rbd_dev now owns this */
 
 	rc = rbd_dev_image_probe(rbd_dev, true);
 	if (rc < 0)
@@ -5415,6 +5426,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 
 	/* If we are mapping a snapshot it must be marked read-only */
 
+	read_only = rbd_dev->opts->read_only;
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
 		read_only = true;
 	rbd_dev->mapping.read_only = read_only;
@@ -5439,6 +5451,7 @@ err_out_client:
 	rbd_put_client(rbdc);
 err_out_args:
 	rbd_spec_put(spec);
+	kfree(rbd_opts);
 err_out_module:
 	module_put(THIS_MODULE);
 
@@ -5673,7 +5686,7 @@ static int __init rbd_init(void)
 
 	/*
 	 * The number of active work items is limited by the number of
-	 * rbd devices, so leave @max_active at default.
+	 * rbd devices * queue depth, so leave @max_active at default.
 	 */
 	rbd_wq = alloc_workqueue(RBD_DRV_NAME, WQ_MEM_RECLAIM, 0);
 	if (!rbd_wq) {

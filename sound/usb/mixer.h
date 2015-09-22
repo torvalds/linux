@@ -33,6 +33,8 @@ enum {
 	USB_MIXER_U8,
 	USB_MIXER_S16,
 	USB_MIXER_U16,
+	USB_MIXER_S32,
+	USB_MIXER_U32,
 };
 
 typedef void (*usb_mixer_elem_dump_func_t)(struct snd_info_buffer *buffer,

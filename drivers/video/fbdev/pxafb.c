@@ -1285,7 +1285,7 @@ static int pxafb_smart_thread(void *arg)
 		mutex_unlock(&fbi->ctrlr_lock);
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(30 * HZ / 1000);
+		schedule_timeout(msecs_to_jiffies(30));
 	}
 
 	pr_debug("%s(): task ending\n", __func__);
@@ -1460,7 +1460,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 	if (fbi->lccr0 & LCCR0_LCDT) {
 		wait_for_completion_timeout(&fbi->refresh_done,
-				200 * HZ / 1000);
+				msecs_to_jiffies(200));
 		return;
 	}
 #endif
@@ -1472,7 +1472,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	lcd_writel(fbi, LCCR0, lccr0);
 	lcd_writel(fbi, LCCR0, lccr0 | LCCR0_DIS);
 
-	wait_for_completion_timeout(&fbi->disable_done, 200 * HZ / 1000);
+	wait_for_completion_timeout(&fbi->disable_done, msecs_to_jiffies(200));
 
 	/* disable LCD controller clock */
 	clk_disable_unprepare(fbi->clk);
@@ -1668,7 +1668,6 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
 
 	switch (val) {
 	case CPUFREQ_ADJUST:
-	case CPUFREQ_INCOMPATIBLE:
 		pr_debug("min dma period: %d ps, "
 			"new clock %d kHz\n", pxafb_display_dma_period(var),
 			policy->max);

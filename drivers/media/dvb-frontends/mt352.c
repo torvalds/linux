@@ -417,7 +417,7 @@ static int mt352_get_parameters(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int mt352_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int mt352_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct mt352_state* state = fe->demodulator_priv;
 	int s0, s1, s3;

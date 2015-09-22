@@ -736,6 +736,35 @@ static inline void *phys_to_virt(unsigned long address)
 }
 #endif
 
+/**
+ * DOC: ioremap() and ioremap_*() variants
+ *
+ * If you have an IOMMU your architecture is expected to have both ioremap()
+ * and iounmap() implemented otherwise the asm-generic helpers will provide a
+ * direct mapping.
+ *
+ * There are ioremap_*() call variants, if you have no IOMMU we naturally will
+ * default to direct mapping for all of them, you can override these defaults.
+ * If you have an IOMMU you are highly encouraged to provide your own
+ * ioremap variant implementation as there currently is no safe architecture
+ * agnostic default. To avoid possible improper behaviour default asm-generic
+ * ioremap_*() variants all return NULL when an IOMMU is available. If you've
+ * defined your own ioremap_*() variant you must then declare your own
+ * ioremap_*() variant as defined to itself to avoid the default NULL return.
+ */
+
+#ifdef CONFIG_MMU
+
+#ifndef ioremap_uc
+#define ioremap_uc ioremap_uc
+static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
+{
+	return NULL;
+}
+#endif
+
+#else /* !CONFIG_MMU */
+
 /*
  * Change "struct page" to physical address.
  *
@@ -743,7 +772,6 @@ static inline void *phys_to_virt(unsigned long address)
  * you'll need to provide your own definitions.
  */
 
-#ifndef CONFIG_MMU
 #ifndef ioremap
 #define ioremap ioremap
 static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
@@ -769,6 +797,14 @@ static inline void __iomem *ioremap_nocache(phys_addr_t offset, size_t size)
 }
 #endif
 
+#ifndef ioremap_uc
+#define ioremap_uc ioremap_uc
+static inline void __iomem *ioremap_uc(phys_addr_t offset, size_t size)
+{
+	return ioremap_nocache(offset, size);
+}
+#endif
+
 #ifndef ioremap_wc
 #define ioremap_wc ioremap_wc
 static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
@@ -777,8 +813,17 @@ static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
 }
 #endif
 
+#ifndef ioremap_wt
+#define ioremap_wt ioremap_wt
+static inline void __iomem *ioremap_wt(phys_addr_t offset, size_t size)
+{
+	return ioremap_nocache(offset, size);
+}
+#endif
+
 #ifndef iounmap
 #define iounmap iounmap
+
 static inline void iounmap(void __iomem *addr)
 {
 }

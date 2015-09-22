@@ -240,15 +240,12 @@ static acpi_status resource_to_window(struct acpi_resource *resource,
 	 * We're only interested in _CRS descriptors that are
 	 *	- address space descriptors for memory or I/O space
 	 *	- non-zero size
-	 *	- producers, i.e., the address space is routed downstream,
-	 *	  not consumed by the bridge itself
 	 */
 	status = acpi_resource_to_address64(resource, addr);
 	if (ACPI_SUCCESS(status) &&
 	    (addr->resource_type == ACPI_MEMORY_RANGE ||
 	     addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address.address_length &&
-	    addr->producer_consumer == ACPI_PRODUCER)
+	    addr->address.address_length)
 		return AE_OK;
 
 	return AE_ERROR;
@@ -481,9 +478,16 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	struct pci_controller *controller = bridge->bus->sysdata;
-
-	ACPI_COMPANION_SET(&bridge->dev, controller->companion);
+	/*
+	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
+	 * here, pci_create_root_bus() has been called by someone else and
+	 * sysdata is likely to be different from what we expect.  Let it go in
+	 * that case.
+	 */
+	if (!bridge->dev.parent) {
+		struct pci_controller *controller = bridge->bus->sysdata;
+		ACPI_COMPANION_SET(&bridge->dev, controller->companion);
+	}
 	return 0;
 }
 
@@ -529,10 +533,9 @@ void pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
-	if (b->self) {
-		pci_read_bridge_bases(b);
+	if (b->self)
 		pcibios_fixup_bridge_resources(b->self);
-	}
+
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 	platform_pci_fixup_bus(b);

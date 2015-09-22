@@ -18,7 +18,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_erl0.h"
@@ -67,11 +66,12 @@ int iscsit_load_discovery_tpg(void)
 		pr_err("Unable to allocate struct iscsi_portal_group\n");
 		return -1;
 	}
-
-	ret = core_tpg_register(
-			&lio_target_fabric_configfs->tf_ops,
-			NULL, &tpg->tpg_se_tpg, tpg,
-			TRANSPORT_TPG_TYPE_DISCOVERY);
+	/*
+	 * Save iscsi_ops pointer for special case discovery TPG that
+	 * doesn't exist as se_wwn->wwn_group within configfs.
+	 */
+	tpg->tpg_se_tpg.se_tpg_tfo = &iscsi_ops;
+	ret = core_tpg_register(NULL, &tpg->tpg_se_tpg, -1);
 	if (ret < 0) {
 		kfree(tpg);
 		return -1;
@@ -163,10 +163,7 @@ struct iscsi_portal_group *iscsit_get_tpg_from_np(
 int iscsit_get_tpg(
 	struct iscsi_portal_group *tpg)
 {
-	int ret;
-
-	ret = mutex_lock_interruptible(&tpg->tpg_access_lock);
-	return ((ret != 0) || signal_pending(current)) ? -1 : 0;
+	return mutex_lock_interruptible(&tpg->tpg_access_lock);
 }
 
 void iscsit_put_tpg(struct iscsi_portal_group *tpg)
@@ -228,6 +225,8 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->demo_mode_discovery = TA_DEMO_MODE_DISCOVERY;
 	a->default_erl = TA_DEFAULT_ERL;
 	a->t10_pi = TA_DEFAULT_T10_PI;
+	a->fabric_prot_type = TA_DEFAULT_FABRIC_PROT_TYPE;
+	a->tpg_enabled_sendtargets = TA_DEFAULT_TPG_ENABLED_SENDTARGETS;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -283,8 +282,6 @@ int iscsit_tpg_del_portal_group(
 		tpg->tpg_state = old_state;
 		return -EPERM;
 	}
-
-	core_tpg_clear_object_luns(&tpg->tpg_se_tpg);
 
 	if (tpg->param_list) {
 		iscsi_release_param_list(tpg->param_list);
@@ -434,7 +431,7 @@ struct iscsi_tpg_np *iscsit_tpg_locate_child_np(
 
 static bool iscsit_tpg_check_network_portal(
 	struct iscsi_tiqn *tiqn,
-	struct __kernel_sockaddr_storage *sockaddr,
+	struct sockaddr_storage *sockaddr,
 	int network_transport)
 {
 	struct iscsi_portal_group *tpg;
@@ -463,8 +460,7 @@ static bool iscsit_tpg_check_network_portal(
 
 struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	struct iscsi_portal_group *tpg,
-	struct __kernel_sockaddr_storage *sockaddr,
-	char *ip_str,
+	struct sockaddr_storage *sockaddr,
 	struct iscsi_tpg_np *tpg_np_parent,
 	int network_transport)
 {
@@ -474,8 +470,8 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	if (!tpg_np_parent) {
 		if (iscsit_tpg_check_network_portal(tpg->tpg_tiqn, sockaddr,
 				network_transport)) {
-			pr_err("Network Portal: %s already exists on a"
-				" different TPG on %s\n", ip_str,
+			pr_err("Network Portal: %pISc already exists on a"
+				" different TPG on %s\n", sockaddr,
 				tpg->tpg_tiqn->tiqn);
 			return ERR_PTR(-EEXIST);
 		}
@@ -488,7 +484,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	np = iscsit_add_np(sockaddr, ip_str, network_transport);
+	np = iscsit_add_np(sockaddr, network_transport);
 	if (IS_ERR(np)) {
 		kfree(tpg_np);
 		return ERR_CAST(np);
@@ -518,8 +514,8 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 		spin_unlock(&tpg_np_parent->tpg_np_parent_lock);
 	}
 
-	pr_debug("CORE[%s] - Added Network Portal: %s:%hu,%hu on %s\n",
-		tpg->tpg_tiqn->tiqn, np->np_ip, np->np_port, tpg->tpgt,
+	pr_debug("CORE[%s] - Added Network Portal: %pISpc,%hu on %s\n",
+		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, tpg->tpgt,
 		np->np_transport->name);
 
 	return tpg_np;
@@ -532,8 +528,8 @@ static int iscsit_tpg_release_np(
 {
 	iscsit_clear_tpg_np_login_thread(tpg_np, tpg, true);
 
-	pr_debug("CORE[%s] - Removed Network Portal: %s:%hu,%hu on %s\n",
-		tpg->tpg_tiqn->tiqn, np->np_ip, np->np_port, tpg->tpgt,
+	pr_debug("CORE[%s] - Removed Network Portal: %pISpc,%hu on %s\n",
+		tpg->tpg_tiqn->tiqn, &np->np_sockaddr, tpg->tpgt,
 		np->np_transport->name);
 
 	tpg_np->tpg_np = NULL;
@@ -875,6 +871,42 @@ int iscsit_ta_t10_pi(
 	pr_debug("iSCSI_TPG[%hu] - T10 Protection information bit:"
 		" %s\n", tpg->tpgt, (a->t10_pi) ?
 		"ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_fabric_prot_type(
+	struct iscsi_portal_group *tpg,
+	u32 prot_type)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((prot_type != 0) && (prot_type != 1) && (prot_type != 3)) {
+		pr_err("Illegal value for fabric_prot_type: %u\n", prot_type);
+		return -EINVAL;
+	}
+
+	a->fabric_prot_type = prot_type;
+	pr_debug("iSCSI_TPG[%hu] - T10 Fabric Protection Type: %u\n",
+		 tpg->tpgt, prot_type);
+
+	return 0;
+}
+
+int iscsit_ta_tpg_enabled_sendtargets(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->tpg_enabled_sendtargets = flag;
+	pr_debug("iSCSI_TPG[%hu] - TPG enabled bit required for SendTargets:"
+		" %s\n", tpg->tpgt, (a->tpg_enabled_sendtargets) ? "ON" : "OFF");
 
 	return 0;
 }

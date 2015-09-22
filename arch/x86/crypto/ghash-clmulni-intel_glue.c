@@ -19,7 +19,7 @@
 #include <crypto/cryptd.h>
 #include <crypto/gf128mul.h>
 #include <crypto/internal/hash.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 #include <asm/cpu_device_id.h>
 
 #define GHASH_BLOCK_SIZE	16
@@ -154,7 +154,8 @@ static struct shash_alg ghash_alg = {
 		.cra_name		= "__ghash",
 		.cra_driver_name	= "__ghash-pclmulqdqni",
 		.cra_priority		= 0,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
+		.cra_flags		= CRYPTO_ALG_TYPE_SHASH |
+					  CRYPTO_ALG_INTERNAL,
 		.cra_blocksize		= GHASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct ghash_ctx),
 		.cra_module		= THIS_MODULE,
@@ -261,7 +262,9 @@ static int ghash_async_init_tfm(struct crypto_tfm *tfm)
 	struct cryptd_ahash *cryptd_tfm;
 	struct ghash_async_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	cryptd_tfm = cryptd_alloc_ahash("__ghash-pclmulqdqni", 0, 0);
+	cryptd_tfm = cryptd_alloc_ahash("__ghash-pclmulqdqni",
+					CRYPTO_ALG_INTERNAL,
+					CRYPTO_ALG_INTERNAL);
 	if (IS_ERR(cryptd_tfm))
 		return PTR_ERR(cryptd_tfm);
 	ctx->cryptd_tfm = cryptd_tfm;
@@ -291,6 +294,7 @@ static struct ahash_alg ghash_async_alg = {
 			.cra_name		= "ghash",
 			.cra_driver_name	= "ghash-clmulni",
 			.cra_priority		= 400,
+			.cra_ctxsize		= sizeof(struct ghash_async_ctx),
 			.cra_flags		= CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= GHASH_BLOCK_SIZE,
 			.cra_type		= &crypto_ahash_type,

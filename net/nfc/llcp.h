@@ -225,7 +225,7 @@ void nfc_llcp_send_to_raw_sock(struct nfc_llcp_local *local,
 			       struct sk_buff *skb, u8 direction);
 
 /* Sock API */
-struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp);
+struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp, int kern);
 void nfc_llcp_sock_free(struct nfc_llcp_sock *sock);
 void nfc_llcp_accept_unlink(struct sock *sk);
 void nfc_llcp_accept_enqueue(struct sock *parent, struct sock *sk);

@@ -73,7 +73,7 @@ struct sysv_inode_info {
 
 static inline struct sysv_inode_info *SYSV_I(struct inode *inode)
 {
-	return list_entry(inode, struct sysv_inode_info, vfs_inode);
+	return container_of(inode, struct sysv_inode_info, vfs_inode);
 }
 
 static inline struct sysv_sb_info *SYSV_SB(struct super_block *sb)
@@ -161,7 +161,6 @@ extern ino_t sysv_inode_by_name(struct dentry *);
 
 extern const struct inode_operations sysv_file_inode_operations;
 extern const struct inode_operations sysv_dir_inode_operations;
-extern const struct inode_operations sysv_fast_symlink_inode_operations;
 extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
 extern const struct address_space_operations sysv_aops;

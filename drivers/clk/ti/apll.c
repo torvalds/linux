@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -26,6 +27,8 @@
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
 #include <linux/delay.h>
+
+#include "clock.h"
 
 #define APLL_FORCE_LOCK 0x1
 #define APLL_AUTO_IDLE	0x2
@@ -47,7 +50,7 @@ static int dra7_apll_enable(struct clk_hw *hw)
 	if (!ad)
 		return -EINVAL;
 
-	clk_name = __clk_get_name(clk->hw.clk);
+	clk_name = clk_hw_get_name(&clk->hw);
 
 	state <<= __ffs(ad->idlest_mask);
 
@@ -170,7 +173,6 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 	struct clk_hw_omap *clk_hw = NULL;
 	struct clk_init_data *init = NULL;
 	const char **parent_names = NULL;
-	int i;
 
 	ad = kzalloc(sizeof(*ad), GFP_KERNEL);
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
@@ -195,15 +197,14 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 	if (!parent_names)
 		goto cleanup;
 
-	for (i = 0; i < init->num_parents; i++)
-		parent_names[i] = of_clk_get_parent_name(node, i);
+	of_clk_parent_fill(node, parent_names, init->num_parents);
 
 	init->parent_names = parent_names;
 
 	ad->control_reg = ti_clk_get_reg_addr(node, 0);
 	ad->idlest_reg = ti_clk_get_reg_addr(node, 1);
 
-	if (!ad->control_reg || !ad->idlest_reg)
+	if (IS_ERR(ad->control_reg) || IS_ERR(ad->idlest_reg))
 		goto cleanup;
 
 	ad->idlest_mask = 0x1;
@@ -272,7 +273,7 @@ static int omap2_apll_enable(struct clk_hw *hw)
 
 	if (i == MAX_APLL_WAIT_TRIES) {
 		pr_warn("%s failed to transition to locked\n",
-			__clk_get_name(clk->hw.clk));
+			clk_hw_get_name(&clk->hw));
 		return -EBUSY;
 	}
 
@@ -384,7 +385,8 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	ad->autoidle_reg = ti_clk_get_reg_addr(node, 1);
 	ad->idlest_reg = ti_clk_get_reg_addr(node, 2);
 
-	if (!ad->control_reg || !ad->autoidle_reg || !ad->idlest_reg)
+	if (IS_ERR(ad->control_reg) || IS_ERR(ad->autoidle_reg) ||
+	    IS_ERR(ad->idlest_reg))
 		goto cleanup;
 
 	clk = clk_register(NULL, &clk_hw->hw);

@@ -208,19 +208,16 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 
 void qxl_bo_unref(struct qxl_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-	tbo = &((*bo)->tbo);
-	ttm_bo_unref(&tbo);
-	if (tbo == NULL)
-		*bo = NULL;
+
+	drm_gem_object_unreference_unlocked(&(*bo)->gem_base);
+	*bo = NULL;
 }
 
 struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 {
-	ttm_bo_reference(&bo->tbo);
+	drm_gem_object_reference(&bo->gem_base);
 	return bo;
 }
 
@@ -275,7 +272,6 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 		return;
 	dev_err(qdev->dev, "Userspace still has active objects !\n");
 	list_for_each_entry_safe(bo, n, &qdev->gem.objects, list) {
-		mutex_lock(&qdev->ddev->struct_mutex);
 		dev_err(qdev->dev, "%p %p %lu %lu force free\n",
 			&bo->gem_base, bo, (unsigned long)bo->gem_base.size,
 			*((unsigned long *)&bo->gem_base.refcount));
@@ -283,8 +279,7 @@ void qxl_bo_force_delete(struct qxl_device *qdev)
 		list_del_init(&bo->list);
 		mutex_unlock(&qdev->gem.mutex);
 		/* this should unref the ttm bo */
-		drm_gem_object_unreference(&bo->gem_base);
-		mutex_unlock(&qdev->ddev->struct_mutex);
+		drm_gem_object_unreference_unlocked(&bo->gem_base);
 	}
 }
 

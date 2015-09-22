@@ -17,7 +17,6 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
-#include <scsi/scsi_device.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
@@ -48,19 +47,19 @@ void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
 	 * core_set_queue_depth_for_node().
 	 */
 	sess->cmdsn_window = se_nacl->queue_depth;
-	sess->max_cmd_sn = (sess->max_cmd_sn + se_nacl->queue_depth) - 1;
+	atomic_add(se_nacl->queue_depth - 1, &sess->max_cmd_sn);
 }
 
 void iscsit_increment_maxcmdsn(struct iscsi_cmd *cmd, struct iscsi_session *sess)
 {
+	u32 max_cmd_sn;
+
 	if (cmd->immediate_cmd || cmd->maxcmdsn_inc)
 		return;
 
 	cmd->maxcmdsn_inc = 1;
 
-	mutex_lock(&sess->cmdsn_mutex);
-	sess->max_cmd_sn += 1;
-	pr_debug("Updated MaxCmdSN to 0x%08x\n", sess->max_cmd_sn);
-	mutex_unlock(&sess->cmdsn_mutex);
+	max_cmd_sn = atomic_inc_return(&sess->max_cmd_sn);
+	pr_debug("Updated MaxCmdSN to 0x%08x\n", max_cmd_sn);
 }
 EXPORT_SYMBOL(iscsit_increment_maxcmdsn);

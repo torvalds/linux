@@ -12,7 +12,7 @@
 #
 
 ifneq ($(MACHINE),)
-include $(srctree)/$(MACHINE)/Makefile.boot
+include $(MACHINE)/Makefile.boot
 endif
 
 # Note: the following conditions must always be true:

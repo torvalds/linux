@@ -30,6 +30,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>	/* TASK_* */
 #include <linux/parport.h>
+#include <linux/slab.h>
 
 #include "paride.h"
 
@@ -244,17 +245,19 @@ void paride_unregister(PIP * pr)
 
 EXPORT_SYMBOL(paride_unregister);
 
-static int pi_register_parport(PIA * pi, int verbose)
+static int pi_register_parport(PIA *pi, int verbose, int unit)
 {
 	struct parport *port;
+	struct pardev_cb par_cb;
 
 	port = parport_find_base(pi->port);
 	if (!port)
 		return 0;
-
-	pi->pardev = parport_register_device(port,
-					     pi->device, NULL,
-					     pi_wake_up, NULL, 0, (void *) pi);
+	memset(&par_cb, 0, sizeof(par_cb));
+	par_cb.wakeup = pi_wake_up;
+	par_cb.private = (void *)pi;
+	pi->pardev = parport_register_dev_model(port, pi->device, &par_cb,
+						unit);
 	parport_put_port(port);
 	if (!pi->pardev)
 		return 0;
@@ -311,7 +314,7 @@ static int pi_probe_unit(PIA * pi, int unit, char *scratch, int verbose)
 		e = pi->proto->max_units;
 	}
 
-	if (!pi_register_parport(pi, verbose))
+	if (!pi_register_parport(pi, verbose, s))
 		return 0;
 
 	if (pi->proto->test_port) {
@@ -432,3 +435,45 @@ int pi_init(PIA * pi, int autoprobe, int port, int mode,
 }
 
 EXPORT_SYMBOL(pi_init);
+
+static int pi_probe(struct pardevice *par_dev)
+{
+	struct device_driver *drv = par_dev->dev.driver;
+	int len = strlen(drv->name);
+
+	if (strncmp(par_dev->name, drv->name, len))
+		return -ENODEV;
+
+	return 0;
+}
+
+void *pi_register_driver(char *name)
+{
+	struct parport_driver *parp_drv;
+	int ret;
+
+	parp_drv = kzalloc(sizeof(*parp_drv), GFP_KERNEL);
+	if (!parp_drv)
+		return NULL;
+
+	parp_drv->name = name;
+	parp_drv->probe = pi_probe;
+	parp_drv->devmodel = true;
+
+	ret = parport_register_driver(parp_drv);
+	if (ret) {
+		kfree(parp_drv);
+		return NULL;
+	}
+	return (void *)parp_drv;
+}
+EXPORT_SYMBOL(pi_register_driver);
+
+void pi_unregister_driver(void *_drv)
+{
+	struct parport_driver *drv = _drv;
+
+	parport_unregister_driver(drv);
+	kfree(drv);
+}
+EXPORT_SYMBOL(pi_unregister_driver);

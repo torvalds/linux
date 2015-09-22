@@ -5,7 +5,8 @@
   </refmeta>
 
   <refnamediv>
-    <refname>VIDIOC_SUBSCRIBE_EVENT, VIDIOC_UNSUBSCRIBE_EVENT</refname>
+      <refname>VIDIOC_SUBSCRIBE_EVENT</refname>
+      <refname>VIDIOC_UNSUBSCRIBE_EVENT</refname>
     <refpurpose>Subscribe or unsubscribe event</refpurpose>
   </refnamediv>
 
@@ -60,7 +61,9 @@
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
-	    <entry>Type of the event.</entry>
+	    <entry>Type of the event, see <xref linkend="event-type" />. Note that
+<constant>V4L2_EVENT_ALL</constant> can be used with VIDIOC_UNSUBSCRIBE_EVENT
+for unsubscribing all events at once.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -79,113 +82,6 @@
 	    <entry><structfield>reserved</structfield>[5]</entry>
 	    <entry>Reserved for future extensions. Drivers and applications
 	    must set the array to zero.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-
-    <table frame="none" pgwide="1" id="event-type">
-      <title>Event Types</title>
-      <tgroup cols="3">
-	&cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_EVENT_ALL</constant></entry>
-	    <entry>0</entry>
-	    <entry>All events. V4L2_EVENT_ALL is valid only for
-	    VIDIOC_UNSUBSCRIBE_EVENT for unsubscribing all events at once.
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_VSYNC</constant></entry>
-	    <entry>1</entry>
-	    <entry>This event is triggered on the vertical sync.
-	    This event has a &v4l2-event-vsync; associated with it.
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_EOS</constant></entry>
-	    <entry>2</entry>
-	    <entry>This event is triggered when the end of a stream is reached.
-	    This is typically used with MPEG decoders to report to the application
-	    when the last of the MPEG stream has been decoded.
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_CTRL</constant></entry>
-	    <entry>3</entry>
-	    <entry><para>This event requires that the <structfield>id</structfield>
-		matches the control ID from which you want to receive events.
-		This event is triggered if the control's value changes, if a
-		button control is pressed or if the control's flags change.
-	    	This event has a &v4l2-event-ctrl; associated with it. This struct
-		contains much of the same information as &v4l2-queryctrl; and
-		&v4l2-control;.</para>
-
-		<para>If the event is generated due to a call to &VIDIOC-S-CTRL; or
-		&VIDIOC-S-EXT-CTRLS;, then the event will <emphasis>not</emphasis> be sent to
-		the file handle that called the ioctl function. This prevents
-		nasty feedback loops. If you <emphasis>do</emphasis> want to get the
-		event, then set the <constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant>
-		flag.
-		</para>
-
-		<para>This event type will ensure that no information is lost when
-		more events are raised than there is room internally. In that
-		case the &v4l2-event-ctrl; of the second-oldest event is kept,
-		but the <structfield>changes</structfield> field of the
-		second-oldest event is ORed with the <structfield>changes</structfield>
-		field of the oldest event.</para>
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_FRAME_SYNC</constant></entry>
-	    <entry>4</entry>
-	    <entry>
-	      <para>Triggered immediately when the reception of a
-	      frame has begun. This event has a
-	      &v4l2-event-frame-sync; associated with it.</para>
-
-	      <para>If the hardware needs to be stopped in the case of a
-	      buffer underrun it might not be able to generate this event.
-	      In such cases the <structfield>frame_sequence</structfield>
-	      field in &v4l2-event-frame-sync; will not be incremented. This
-	      causes two consecutive frame sequence numbers to have n times
-	      frame interval in between them.</para>
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_SOURCE_CHANGE</constant></entry>
-	    <entry>5</entry>
-	    <entry>
-	      <para>This event is triggered when a source parameter change is
-	       detected during runtime by the video device. It can be a
-	       runtime resolution change triggered by a video decoder or the
-	       format change happening on an input connector.
-	       This event requires that the <structfield>id</structfield>
-	       matches the input index (when used with a video device node)
-	       or the pad index (when used with a subdevice node) from which
-	       you want to receive events.</para>
-
-              <para>This event has a &v4l2-event-src-change; associated
-	      with it. The <structfield>changes</structfield> bitfield denotes
-	      what has changed for the subscribed pad. If multiple events
-	      occurred before application could dequeue them, then the changes
-	      will have the ORed value of all the events generated.</para>
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_MOTION_DET</constant></entry>
-	    <entry>6</entry>
-	    <entry>
-	      <para>Triggered whenever the motion detection state for one or more of the regions
-	      changes. This event has a &v4l2-event-motion-det; associated with it.</para>
-	    </entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
-	    <entry>0x08000000</entry>
-	    <entry>Base event number for driver-private events.</entry>
 	  </row>
 	</tbody>
       </tgroup>

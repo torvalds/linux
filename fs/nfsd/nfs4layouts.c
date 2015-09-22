@@ -118,7 +118,7 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 {
 	struct super_block *sb = exp->ex_path.mnt->mnt_sb;
 
-	if (exp->ex_flags & NFSEXP_NOPNFS)
+	if (!(exp->ex_flags & NFSEXP_PNFS))
 		return;
 
 	if (sb->s_export_op->get_uuid &&
@@ -212,6 +212,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	BUG_ON(!ls->ls_file);
 
 	if (nfsd4_layout_setlease(ls)) {
+		fput(ls->ls_file);
 		put_nfs4_file(fp);
 		kmem_cache_free(nfs4_layout_stateid_cache, ls);
 		return NULL;
@@ -440,15 +441,14 @@ nfsd4_return_file_layout(struct nfs4_layout *lp, struct nfsd4_layout_seg *seg,
 			list_move_tail(&lp->lo_perstate, reaplist);
 			return;
 		}
-		end = seg->offset;
+		lo->offset = layout_end(seg);
 	} else {
 		/* retain the whole layout segment on a split. */
 		if (layout_end(seg) < end) {
 			dprintk("%s: split not supported\n", __func__);
 			return;
 		}
-
-		lo->offset = layout_end(seg);
+		end = seg->offset;
 	}
 
 	layout_update_len(lo, end);
@@ -513,6 +513,9 @@ nfsd4_return_client_layouts(struct svc_rqst *rqstp,
 
 	spin_lock(&clp->cl_lock);
 	list_for_each_entry_safe(ls, n, &clp->cl_lo_states, ls_perclnt) {
+		if (ls->ls_layout_type != lrp->lr_layout_type)
+			continue;
+
 		if (lrp->lr_return_type == RETURN_FSID &&
 		    !fh_fsid_match(&ls->ls_stid.sc_file->fi_fhandle,
 				   &cstate->current_fh.fh_handle))
@@ -586,6 +589,8 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 	int error;
 
 	rpc_ntop((struct sockaddr *)&clp->cl_addr, addr_str, sizeof(addr_str));
+
+	trace_layout_recall_fail(&ls->ls_stid.sc_stateid);
 
 	printk(KERN_WARNING
 		"nfsd: client %s failed to respond to layout recall. "

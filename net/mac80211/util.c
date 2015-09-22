@@ -47,55 +47,6 @@ struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum nl80211_iftype type)
-{
-	__le16 fc = hdr->frame_control;
-
-	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
-	if (len < 16)
-		return NULL;
-
-	if (ieee80211_is_data(fc)) {
-		if (len < 24) /* drop incorrect hdr len (data) */
-			return NULL;
-
-		if (ieee80211_has_a4(fc))
-			return NULL;
-		if (ieee80211_has_tods(fc))
-			return hdr->addr1;
-		if (ieee80211_has_fromds(fc))
-			return hdr->addr2;
-
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_mgmt(fc)) {
-		if (len < 24) /* drop incorrect hdr len (mgmt) */
-			return NULL;
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		if (ieee80211_is_pspoll(fc))
-			return hdr->addr1;
-
-		if (ieee80211_is_back_req(fc)) {
-			switch (type) {
-			case NL80211_IFTYPE_STATION:
-				return hdr->addr2;
-			case NL80211_IFTYPE_AP:
-			case NL80211_IFTYPE_AP_VLAN:
-				return hdr->addr1;
-			default:
-				break; /* fall through to the return */
-			}
-		}
-	}
-
-	return NULL;
-}
-
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -307,6 +258,11 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 
 		for (ac = 0; ac < n_acs; ac++) {
 			int ac_queue = sdata->vif.hw_queue[ac];
+
+			if (local->ops->wake_tx_queue &&
+			    (atomic_read(&sdata->txqs_len[ac]) >
+			     local->hw.txq_ac_max_pending))
+				continue;
 
 			if (ac_queue == queue ||
 			    (sdata->vif.cab_queue == queue &&
@@ -559,7 +515,7 @@ ieee80211_get_vif_queues(struct ieee80211_local *local,
 {
 	unsigned int queues;
 
-	if (sdata && local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+	if (sdata && ieee80211_hw_check(&local->hw, QUEUE_CONTROL)) {
 		int ac;
 
 		queues = 0;
@@ -587,7 +543,7 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 	 * If no queue was set, or if the HW doesn't support
 	 * IEEE80211_HW_QUEUE_CONTROL - flush all queues
 	 */
-	if (!queues || !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+	if (!queues || !ieee80211_hw_check(&local->hw, QUEUE_CONTROL))
 		queues = ieee80211_get_vif_queues(local, sdata);
 
 	ieee80211_stop_queues_by_reason(&local->hw, queues,
@@ -625,13 +581,14 @@ void ieee80211_wake_vif_queues(struct ieee80211_local *local,
 					reason, true);
 }
 
-static void __iterate_active_interfaces(struct ieee80211_local *local,
-					u32 iter_flags,
-					void (*iterator)(void *data, u8 *mac,
-						struct ieee80211_vif *vif),
-					void *data)
+static void __iterate_interfaces(struct ieee80211_local *local,
+				 u32 iter_flags,
+				 void (*iterator)(void *data, u8 *mac,
+						  struct ieee80211_vif *vif),
+				 void *data)
 {
 	struct ieee80211_sub_if_data *sdata;
+	bool active_only = iter_flags & IEEE80211_IFACE_ITER_ACTIVE;
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
@@ -645,9 +602,9 @@ static void __iterate_active_interfaces(struct ieee80211_local *local,
 			break;
 		}
 		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
-		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+		    active_only && !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 			continue;
-		if (ieee80211_sdata_running(sdata))
+		if (ieee80211_sdata_running(sdata) || !active_only)
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
@@ -656,12 +613,12 @@ static void __iterate_active_interfaces(struct ieee80211_local *local,
 				      lockdep_is_held(&local->iflist_mtx) ||
 				      lockdep_rtnl_is_held());
 	if (sdata &&
-	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL ||
+	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL || !active_only ||
 	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
 }
 
-void ieee80211_iterate_active_interfaces(
+void ieee80211_iterate_interfaces(
 	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,
 			 struct ieee80211_vif *vif),
@@ -670,10 +627,10 @@ void ieee80211_iterate_active_interfaces(
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	mutex_lock(&local->iflist_mtx);
-	__iterate_active_interfaces(local, iter_flags, iterator, data);
+	__iterate_interfaces(local, iter_flags, iterator, data);
 	mutex_unlock(&local->iflist_mtx);
 }
-EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
+EXPORT_SYMBOL_GPL(ieee80211_iterate_interfaces);
 
 void ieee80211_iterate_active_interfaces_atomic(
 	struct ieee80211_hw *hw, u32 iter_flags,
@@ -684,7 +641,8 @@ void ieee80211_iterate_active_interfaces_atomic(
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	rcu_read_lock();
-	__iterate_active_interfaces(local, iter_flags, iterator, data);
+	__iterate_interfaces(local, iter_flags | IEEE80211_IFACE_ITER_ACTIVE,
+			     iterator, data);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_atomic);
@@ -699,7 +657,8 @@ void ieee80211_iterate_active_interfaces_rtnl(
 
 	ASSERT_RTNL();
 
-	__iterate_active_interfaces(local, iter_flags, iterator, data);
+	__iterate_interfaces(local, iter_flags | IEEE80211_IFACE_ITER_ACTIVE,
+			     iterator, data);
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_rtnl);
 
@@ -741,6 +700,23 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev)
 	return &sdata->vif;
 }
 EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
+
+struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!vif)
+		return NULL;
+
+	sdata = vif_to_sdata(vif);
+
+	if (!ieee80211_sdata_running(sdata) ||
+	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+		return NULL;
+
+	return &sdata->wdev;
+}
+EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
 
 /*
  * Nothing should have been stuffed into the workqueue during
@@ -1689,6 +1665,7 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 	local->resuming = false;
 	local->suspended = false;
 	local->started = false;
+	local->in_reconfig = false;
 
 	/* scheduled scan clearly can't be running any more, but tell
 	 * cfg80211 and clear local state
@@ -1739,16 +1716,24 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sched_scan_sdata;
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
+	bool suspended = local->suspended;
 
 	/* nothing to do if HW shouldn't run */
 	if (!local->open_count)
 		goto wake_up;
 
 #ifdef CONFIG_PM
-	if (local->suspended)
+	if (suspended)
 		local->resuming = true;
 
 	if (local->wowlan) {
+		/*
+		 * In the wowlan case, both mac80211 and the device
+		 * are functional when the resume op is called, so
+		 * clear local->suspended so the device could operate
+		 * normally (e.g. pass rx frames).
+		 */
+		local->suspended = false;
 		res = drv_resume(local);
 		local->wowlan = false;
 		if (res < 0) {
@@ -1761,8 +1746,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		/*
 		 * res is 1, which means the driver requested
 		 * to go through a regular reset on wakeup.
+		 * restore local->suspended in this case.
 		 */
 		reconfig_due_to_wowlan = true;
+		local->suspended = true;
 	}
 #endif
 
@@ -1774,7 +1761,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	res = drv_start(local);
 	if (res) {
-		if (local->suspended)
+		if (suspended)
 			WARN(1, "Hardware became unavailable upon resume. This could be a software issue prior to suspend or a hardware issue.\n");
 		else
 			WARN(1, "Hardware became unavailable during restart.\n");
@@ -1811,8 +1798,25 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-		    ieee80211_sdata_running(sdata))
+		    ieee80211_sdata_running(sdata)) {
 			res = drv_add_interface(local, sdata);
+			if (WARN_ON(res))
+				break;
+		}
+	}
+
+	/* If adding any of the interfaces failed above, roll back and
+	 * report failure.
+	 */
+	if (res) {
+		list_for_each_entry_continue_reverse(sdata, &local->interfaces,
+						     list)
+			if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+			    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+			    ieee80211_sdata_running(sdata))
+				drv_remove_interface(local, sdata);
+		ieee80211_handle_reconfig_failure(local);
+		return res;
 	}
 
 	/* add channel contexts */
@@ -1986,6 +1990,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
+		ieee80211_reset_crypto_tx_tailroom(sdata);
+
+	list_for_each_entry(sdata, &local->interfaces, list)
 		if (ieee80211_sdata_running(sdata))
 			ieee80211_enable_keys(sdata);
 
@@ -2006,7 +2013,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * about the sessions, but we and the AP still think they
 	 * are active. This is really a workaround though.
 	 */
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
 		mutex_lock(&local->sta_mtx);
 
 		list_for_each_entry(sta, &local->sta_list, list) {
@@ -2048,10 +2055,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (local->open_count && (!local->suspended || reconfig_due_to_wowlan))
+	if (local->open_count && (!suspended || reconfig_due_to_wowlan))
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_RESTART);
 
-	if (!local->suspended)
+	if (!suspended)
 		return 0;
 
 #ifdef CONFIG_PM
@@ -2156,46 +2163,6 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata)
  unlock:
 	mutex_unlock(&local->chanctx_mtx);
 }
-
-static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
-{
-	int i;
-
-	for (i = 0; i < n_ids; i++)
-		if (ids[i] == id)
-			return true;
-	return false;
-}
-
-size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
-			      const u8 *ids, int n_ids,
-			      const u8 *after_ric, int n_after_ric,
-			      size_t offset)
-{
-	size_t pos = offset;
-
-	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos])) {
-		if (ies[pos] == WLAN_EID_RIC_DATA && n_after_ric) {
-			pos += 2 + ies[pos + 1];
-
-			while (pos < ielen &&
-			       !ieee80211_id_in_list(after_ric, n_after_ric,
-						     ies[pos]))
-				pos += 2 + ies[pos + 1];
-		} else {
-			pos += 2 + ies[pos + 1];
-		}
-	}
-
-	return pos;
-}
-
-size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
-			  const u8 *ids, int n_ids, size_t offset)
-{
-	return ieee80211_ie_split_ric(ies, ielen, ids, n_ids, NULL, 0, offset);
-}
-EXPORT_SYMBOL(ieee80211_ie_split);
 
 size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset)
 {
@@ -2344,6 +2311,41 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	return pos + sizeof(struct ieee80211_ht_operation);
 }
 
+u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
+				const struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_vht_operation *vht_oper;
+
+	*pos++ = WLAN_EID_VHT_OPERATION;
+	*pos++ = sizeof(struct ieee80211_vht_operation);
+	vht_oper = (struct ieee80211_vht_operation *)pos;
+	vht_oper->center_freq_seg1_idx = ieee80211_frequency_to_channel(
+							chandef->center_freq1);
+	if (chandef->center_freq2)
+		vht_oper->center_freq_seg2_idx =
+			ieee80211_frequency_to_channel(chandef->center_freq2);
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_160:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80P80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	default:
+		vht_oper->chan_width = IEEE80211_VHT_CHANWIDTH_USE_HT;
+		break;
+	}
+
+	/* don't require special VHT peer rates */
+	vht_oper->basic_mcs_set = cpu_to_le16(0xffff);
+
+	return pos + sizeof(struct ieee80211_vht_operation);
+}
+
 void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
 				  const struct ieee80211_ht_operation *ht_oper,
 				  struct cfg80211_chan_def *chandef)
@@ -2371,6 +2373,39 @@ void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
 	}
 
 	cfg80211_chandef_create(chandef, control_chan, channel_type);
+}
+
+void ieee80211_vht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				   const struct ieee80211_vht_operation *oper,
+				   struct cfg80211_chan_def *chandef)
+{
+	if (!oper)
+		return;
+
+	chandef->chan = control_chan;
+
+	switch (oper->chan_width) {
+	case IEEE80211_VHT_CHANWIDTH_USE_HT:
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_80;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_160;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_80P80;
+		break;
+	default:
+		break;
+	}
+
+	chandef->center_freq1 =
+		ieee80211_channel_to_frequency(oper->center_freq_seg1_idx,
+					       control_chan->band);
+	chandef->center_freq2 =
+		ieee80211_channel_to_frequency(oper->center_freq_seg2_idx,
+					       control_chan->band);
 }
 
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
@@ -3251,4 +3286,21 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)
 	*buf++ = qosinfo; /* U-APSD no in use */
 
 	return buf;
+}
+
+void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
+			     struct sta_info *sta,
+			     struct txq_info *txqi, int tid)
+{
+	skb_queue_head_init(&txqi->queue);
+	txqi->txq.vif = &sdata->vif;
+
+	if (sta) {
+		txqi->txq.sta = &sta->sta;
+		sta->sta.txq[tid] = &txqi->txq;
+		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
+	} else {
+		sdata->vif.txq = &txqi->txq;
+		txqi->txq.ac = IEEE80211_AC_BE;
+	}
 }

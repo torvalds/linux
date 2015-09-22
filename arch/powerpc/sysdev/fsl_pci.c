@@ -111,6 +111,18 @@ static struct pci_ops fsl_indirect_pcie_ops =
 #define MAX_PHYS_ADDR_BITS	40
 static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
 
+#ifdef CONFIG_SWIOTLB
+static void setup_swiotlb_ops(struct pci_controller *hose)
+{
+	if (ppc_swiotlb_enable) {
+		hose->controller_ops.dma_dev_setup = pci_dma_dev_setup_swiotlb;
+		set_pci_dma_ops(&swiotlb_dma_ops);
+	}
+}
+#else
+static inline void setup_swiotlb_ops(struct pci_controller *hose) {}
+#endif
+
 static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 {
 	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
@@ -547,6 +559,9 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 
 	/* Setup PEX window registers */
 	setup_pci_atmu(hose);
+
+	/* Set up controller operations */
+	setup_swiotlb_ops(hose);
 
 	return 0;
 
@@ -1098,7 +1113,7 @@ static int fsl_pci_pme_probe(struct pci_controller *hose)
 			IRQF_SHARED,
 			"[PCI] PME", hose);
 	if (res < 0) {
-		dev_err(&dev->dev, "Unable to requiest irq %d for PME\n", pme_irq);
+		dev_err(&dev->dev, "Unable to request irq %d for PME\n", pme_irq);
 		irq_dispose_mapping(pme_irq);
 
 		return -ENODEV;

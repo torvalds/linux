@@ -89,6 +89,8 @@ struct timer_list can_stattimer;   /* timer for statistics update */
 struct s_stats    can_stats;       /* packet statistics */
 struct s_pstats   can_pstats;      /* receive list statistics */
 
+static atomic_t skbcounter = ATOMIC_INIT(0);
+
 /*
  * af_can socket functions
  */
@@ -179,7 +181,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 	sock->ops = cp->ops;
 
-	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot);
+	sk = sk_alloc(net, PF_CAN, GFP_KERNEL, cp->prot, kern);
 	if (!sk) {
 		err = -ENOMEM;
 		goto errout;
@@ -678,6 +680,10 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	/* update statistics */
 	can_stats.rx_frames++;
 	can_stats.rx_frames_delta++;
+
+	/* create non-zero unique skb identifier together with *skb */
+	while (!(can_skb_prv(skb)->skbcnt))
+		can_skb_prv(skb)->skbcnt = atomic_inc_return(&skbcounter);
 
 	rcu_read_lock();
 

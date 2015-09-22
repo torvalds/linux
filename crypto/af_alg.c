@@ -127,6 +127,7 @@ EXPORT_SYMBOL_GPL(af_alg_release);
 
 static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
+	const u32 forbidden = CRYPTO_ALG_INTERNAL;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct sockaddr_alg *sa = (void *)uaddr;
@@ -151,7 +152,9 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
-	private = type->bind(sa->salg_name, sa->salg_feat, sa->salg_mask);
+	private = type->bind(sa->salg_name,
+			     sa->salg_feat & ~forbidden,
+			     sa->salg_mask & ~forbidden);
 	if (IS_ERR(private)) {
 		module_put(type->owner);
 		return PTR_ERR(private);
@@ -244,7 +247,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 	if (!type)
 		goto unlock;
 
-	sk2 = sk_alloc(sock_net(sk), PF_ALG, GFP_KERNEL, &alg_proto);
+	sk2 = sk_alloc(sock_net(sk), PF_ALG, GFP_KERNEL, &alg_proto, 0);
 	err = -ENOMEM;
 	if (!sk2)
 		goto unlock;
@@ -324,7 +327,7 @@ static int alg_create(struct net *net, struct socket *sock, int protocol,
 		return -EPROTONOSUPPORT;
 
 	err = -ENOMEM;
-	sk = sk_alloc(net, PF_ALG, GFP_KERNEL, &alg_proto);
+	sk = sk_alloc(net, PF_ALG, GFP_KERNEL, &alg_proto, kern);
 	if (!sk)
 		goto out;
 
@@ -358,8 +361,8 @@ int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 	npages = (off + n + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (WARN_ON(npages == 0))
 		return -EINVAL;
-
-	sg_init_table(sgl->sg, npages);
+	/* Add one extra for linking */
+	sg_init_table(sgl->sg, npages + 1);
 
 	for (i = 0, len = n; i < npages; i++) {
 		int plen = min_t(int, len, PAGE_SIZE - off);
@@ -369,18 +372,26 @@ int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len)
 		off = 0;
 		len -= plen;
 	}
+	sg_mark_end(sgl->sg + npages - 1);
+	sgl->npages = npages;
+
 	return n;
 }
 EXPORT_SYMBOL_GPL(af_alg_make_sg);
+
+void af_alg_link_sg(struct af_alg_sgl *sgl_prev, struct af_alg_sgl *sgl_new)
+{
+	sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
+	sg_chain(sgl_prev->sg, sgl_prev->npages + 1, sgl_new->sg);
+}
+EXPORT_SYMBOL_GPL(af_alg_link_sg);
 
 void af_alg_free_sg(struct af_alg_sgl *sgl)
 {
 	int i;
 
-	i = 0;
-	do {
+	for (i = 0; i < sgl->npages; i++)
 		put_page(sgl->pages[i]);
-	} while (!sg_is_last(sgl->sg + (i++)));
 }
 EXPORT_SYMBOL_GPL(af_alg_free_sg);
 

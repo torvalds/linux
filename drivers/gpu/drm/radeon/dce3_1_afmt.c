@@ -173,7 +173,7 @@ void dce3_2_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,
+	WREG32(DCE3_HDMI0_ACR_PACKET_CONTROL + offset,
 		HDMI0_ACR_SOURCE |		/* select SW CTS value */
 		HDMI0_ACR_AUTO_SEND);	/* allow hw to sent ACR packets when required */
 

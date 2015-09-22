@@ -18,6 +18,7 @@
  * driver.
  */
 
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -252,8 +253,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		 * Successfully parsed an interrrupt-map translation; copy new
 		 * interrupt specifier into the out_irq structure
 		 */
-		out_irq->np = newpar;
-
 		match_array = imap - newaddrsize - newintsize;
 		for (i = 0; i < newintsize; i++)
 			out_irq->args[i] = be32_to_cpup(imap - newintsize + i);
@@ -262,6 +261,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 	skiplevel:
 		/* Iterate again with new parent */
+		out_irq->np = newpar;
 		pr_debug(" -> new parent: %s\n", of_node_full_name(newpar));
 		of_node_put(ipar);
 		ipar = newpar;
@@ -432,6 +432,7 @@ int of_irq_get_byname(struct device_node *dev, const char *name)
 
 	return of_irq_get(dev, index);
 }
+EXPORT_SYMBOL_GPL(of_irq_get_byname);
 
 /**
  * of_irq_count - Count the number of IRQs a node uses
@@ -469,7 +470,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 }
 EXPORT_SYMBOL_GPL(of_irq_to_resource_table);
 
-struct intc_desc {
+struct of_intc_desc {
 	struct list_head	list;
 	struct device_node	*dev;
 	struct device_node	*interrupt_parent;
@@ -485,7 +486,7 @@ struct intc_desc {
 void __init of_irq_init(const struct of_device_id *matches)
 {
 	struct device_node *np, *parent = NULL;
-	struct intc_desc *desc, *temp_desc;
+	struct of_intc_desc *desc, *temp_desc;
 	struct list_head intc_desc_list, intc_parent_list;
 
 	INIT_LIST_HEAD(&intc_desc_list);
@@ -496,7 +497,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 				!of_device_is_available(np))
 			continue;
 		/*
-		 * Here, we allocate and populate an intc_desc with the node
+		 * Here, we allocate and populate an of_intc_desc with the node
 		 * pointer, interrupt-parent device_node etc.
 		 */
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
@@ -576,4 +577,24 @@ err:
 		list_del(&desc->list);
 		kfree(desc);
 	}
+}
+
+/**
+ * of_msi_configure - Set the msi_domain field of a device
+ * @dev: device structure to associate with an MSI irq domain
+ * @np: device node for that device
+ */
+void of_msi_configure(struct device *dev, struct device_node *np)
+{
+	struct device_node *msi_np;
+	struct irq_domain *d;
+
+	msi_np = of_parse_phandle(np, "msi-parent", 0);
+	if (!msi_np)
+		return;
+
+	d = irq_find_matching_host(msi_np, DOMAIN_BUS_PLATFORM_MSI);
+	if (!d)
+		d = irq_find_host(msi_np);
+	dev_set_msi_domain(dev, d);
 }

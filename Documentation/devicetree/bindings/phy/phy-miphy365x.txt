@@ -20,8 +20,8 @@ Required nodes	:  A sub-node is required for each channel the controller
 Required properties (port (child) node):
 - #phy-cells 	: Should be 1 (See second example)
 		  Cell after port phandle is device type from:
-			- MIPHY_TYPE_SATA
-			- MIPHY_TYPE_PCI
+			- PHY_TYPE_SATA
+			- PHY_TYPE_PCI
 - reg        	: Address and length of register sets for each device in
 		  "reg-names"
 - reg-names     : The names of the register addresses corresponding to the
@@ -68,10 +68,10 @@ property, containing a phandle to the phy port node and a device type.
 
 Example:
 
-#include <dt-bindings/phy/phy-miphy365x.h>
+#include <dt-bindings/phy/phy.h>
 
 	sata0: sata@fe380000 {
 		...
-		phys	  = <&phy_port0 MIPHY_TYPE_SATA>;
+		phys	  = <&phy_port0 PHY_TYPE_SATA>;
 		...
 	};

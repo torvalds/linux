@@ -209,6 +209,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 
 	wdt->wdd.info = &bcm47xx_wdt_info;
 	wdt->wdd.timeout = WDT_DEFAULT_TIME;
+	wdt->wdd.parent = &pdev->dev;
 	ret = wdt->wdd.ops->set_timeout(&wdt->wdd, timeout);
 	if (ret)
 		goto err_timer;

@@ -24,9 +24,9 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include <asm/m32r.h>
-#include <asm/uaccess.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -111,10 +111,10 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	mm = tsk->mm;
 
 	/*
-	 * If we're in an interrupt or have no user context or are running in an
-	 * atomic region then we must not take the fault..
+	 * If we're in an interrupt or have no user context or have pagefaults
+	 * disabled then we must not take the fault.
 	 */
-	if (in_atomic() || !mm)
+	if (faulthandler_disabled() || !mm)
 		goto bad_area_nosemaphore;
 
 	if (error_code & ACE_USERMODE)

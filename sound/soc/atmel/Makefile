@@ -1,10 +1,8 @@
 # AT91 Platform Support
-snd-soc-atmel-pcm-objs := atmel-pcm.o
 snd-soc-atmel-pcm-pdc-objs := atmel-pcm-pdc.o
 snd-soc-atmel-pcm-dma-objs := atmel-pcm-dma.o
 snd-soc-atmel_ssc_dai-objs := atmel_ssc_dai.o
 
-obj-$(CONFIG_SND_ATMEL_SOC) += snd-soc-atmel-pcm.o
 obj-$(CONFIG_SND_ATMEL_SOC_PDC) += snd-soc-atmel-pcm-pdc.o
 obj-$(CONFIG_SND_ATMEL_SOC_DMA) += snd-soc-atmel-pcm-dma.o
 obj-$(CONFIG_SND_ATMEL_SOC_SSC) += snd-soc-atmel_ssc_dai.o

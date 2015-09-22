@@ -31,7 +31,13 @@
 #define __mtc0_tlbw_hazard						\
 	___ehb
 
+#define __mtc0_tlbr_hazard						\
+	___ehb
+
 #define __tlbw_use_hazard						\
+	___ehb
+
+#define __tlb_read_hazard						\
 	___ehb
 
 #define __tlb_probe_hazard						\
@@ -80,7 +86,18 @@ do {									\
 	___ssnop;							\
 	___ehb
 
+#define __mtc0_tlbr_hazard						\
+	___ssnop;							\
+	___ssnop;							\
+	___ehb
+
 #define __tlbw_use_hazard						\
+	___ssnop;							\
+	___ssnop;							\
+	___ssnop;							\
+	___ehb
+
+#define __tlb_read_hazard						\
 	___ssnop;							\
 	___ssnop;							\
 	___ssnop;							\
@@ -147,7 +164,11 @@ do {									\
 
 #define __mtc0_tlbw_hazard
 
+#define __mtc0_tlbr_hazard
+
 #define __tlbw_use_hazard
+
+#define __tlb_read_hazard
 
 #define __tlb_probe_hazard
 
@@ -166,7 +187,11 @@ do {									\
  */
 #define __mtc0_tlbw_hazard
 
+#define __mtc0_tlbr_hazard
+
 #define __tlbw_use_hazard
+
+#define __tlb_read_hazard
 
 #define __tlb_probe_hazard
 
@@ -196,7 +221,16 @@ do {									\
 	nop;								\
 	nop
 
+#define __mtc0_tlbr_hazard						\
+	nop;								\
+	nop
+
 #define __tlbw_use_hazard						\
+	nop;								\
+	nop;								\
+	nop
+
+#define __tlb_read_hazard						\
 	nop;								\
 	nop;								\
 	nop
@@ -267,7 +301,9 @@ do {									\
 #define _ssnop ___ssnop
 #define	_ehb ___ehb
 #define mtc0_tlbw_hazard __mtc0_tlbw_hazard
+#define mtc0_tlbr_hazard __mtc0_tlbr_hazard
 #define tlbw_use_hazard __tlbw_use_hazard
+#define tlb_read_hazard __tlb_read_hazard
 #define tlb_probe_hazard __tlb_probe_hazard
 #define irq_enable_hazard __irq_enable_hazard
 #define irq_disable_hazard __irq_disable_hazard
@@ -300,10 +336,26 @@ do {									\
 } while (0)
 
 
+#define mtc0_tlbr_hazard()						\
+do {									\
+	__asm__ __volatile__(						\
+	__stringify(__mtc0_tlbr_hazard)					\
+	);								\
+} while (0)
+
+
 #define tlbw_use_hazard()						\
 do {									\
 	__asm__ __volatile__(						\
 	__stringify(__tlbw_use_hazard)					\
+	);								\
+} while (0)
+
+
+#define tlb_read_hazard()						\
+do {									\
+	__asm__ __volatile__(						\
+	__stringify(__tlb_read_hazard)					\
 	);								\
 } while (0)
 

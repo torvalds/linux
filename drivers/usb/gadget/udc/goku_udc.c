@@ -990,6 +990,35 @@ static int goku_get_frame(struct usb_gadget *_gadget)
 	return -EOPNOTSUPP;
 }
 
+static struct usb_ep *goku_match_ep(struct usb_gadget *g,
+		struct usb_endpoint_descriptor *desc,
+		struct usb_ss_ep_comp_descriptor *ep_comp)
+{
+	struct goku_udc	*dev = to_goku_udc(g);
+	struct usb_ep *ep;
+
+	switch (usb_endpoint_type(desc)) {
+	case USB_ENDPOINT_XFER_INT:
+		/* single buffering is enough */
+		ep = &dev->ep[3].ep;
+		if (usb_gadget_ep_match_desc(g, ep, desc, ep_comp))
+			return ep;
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		if (usb_endpoint_dir_in(desc)) {
+			/* DMA may be available */
+			ep = &dev->ep[2].ep;
+			if (usb_gadget_ep_match_desc(g, ep, desc, ep_comp))
+				return ep;
+		}
+		break;
+	default:
+		/* nothing */ ;
+	}
+
+	return NULL;
+}
+
 static int goku_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 static int goku_udc_stop(struct usb_gadget *g);
@@ -998,6 +1027,7 @@ static const struct usb_gadget_ops goku_ops = {
 	.get_frame	= goku_get_frame,
 	.udc_start	= goku_udc_start,
 	.udc_stop	= goku_udc_stop,
+	.match_ep	= goku_match_ep,
 	// no remote wakeup
 	// not selfpowered
 };
@@ -1024,35 +1054,79 @@ static const char proc_node_name [] = "driver/udc";
 static void dump_intmask(struct seq_file *m, const char *label, u32 mask)
 {
 	/* int_status is the same format ... */
-	seq_printf(m,
-		"%s %05X =" FOURBITS EIGHTBITS EIGHTBITS "\n",
-		label, mask,
-		(mask & INT_PWRDETECT) ? " power" : "",
-		(mask & INT_SYSERROR) ? " sys" : "",
-		(mask & INT_MSTRDEND) ? " in-dma" : "",
-		(mask & INT_MSTWRTMOUT) ? " wrtmo" : "",
+	seq_printf(m, "%s %05X =" FOURBITS EIGHTBITS EIGHTBITS "\n",
+		   label, mask,
+		   (mask & INT_PWRDETECT) ? " power" : "",
+		   (mask & INT_SYSERROR) ? " sys" : "",
+		   (mask & INT_MSTRDEND) ? " in-dma" : "",
+		   (mask & INT_MSTWRTMOUT) ? " wrtmo" : "",
 
-		(mask & INT_MSTWREND) ? " out-dma" : "",
-		(mask & INT_MSTWRSET) ? " wrset" : "",
-		(mask & INT_ERR) ? " err" : "",
-		(mask & INT_SOF) ? " sof" : "",
+		   (mask & INT_MSTWREND) ? " out-dma" : "",
+		   (mask & INT_MSTWRSET) ? " wrset" : "",
+		   (mask & INT_ERR) ? " err" : "",
+		   (mask & INT_SOF) ? " sof" : "",
 
-		(mask & INT_EP3NAK) ? " ep3nak" : "",
-		(mask & INT_EP2NAK) ? " ep2nak" : "",
-		(mask & INT_EP1NAK) ? " ep1nak" : "",
-		(mask & INT_EP3DATASET) ? " ep3" : "",
+		   (mask & INT_EP3NAK) ? " ep3nak" : "",
+		   (mask & INT_EP2NAK) ? " ep2nak" : "",
+		   (mask & INT_EP1NAK) ? " ep1nak" : "",
+		   (mask & INT_EP3DATASET) ? " ep3" : "",
 
-		(mask & INT_EP2DATASET) ? " ep2" : "",
-		(mask & INT_EP1DATASET) ? " ep1" : "",
-		(mask & INT_STATUSNAK) ? " ep0snak" : "",
-		(mask & INT_STATUS) ? " ep0status" : "",
+		   (mask & INT_EP2DATASET) ? " ep2" : "",
+		   (mask & INT_EP1DATASET) ? " ep1" : "",
+		   (mask & INT_STATUSNAK) ? " ep0snak" : "",
+		   (mask & INT_STATUS) ? " ep0status" : "",
 
-		(mask & INT_SETUP) ? " setup" : "",
-		(mask & INT_ENDPOINT0) ? " ep0" : "",
-		(mask & INT_USBRESET) ? " reset" : "",
-		(mask & INT_SUSPEND) ? " suspend" : "");
+		   (mask & INT_SETUP) ? " setup" : "",
+		   (mask & INT_ENDPOINT0) ? " ep0" : "",
+		   (mask & INT_USBRESET) ? " reset" : "",
+		   (mask & INT_SUSPEND) ? " suspend" : "");
 }
 
+static const char *udc_ep_state(enum ep0state state)
+{
+	switch (state) {
+	case EP0_DISCONNECT:
+		return "ep0_disconnect";
+	case EP0_IDLE:
+		return "ep0_idle";
+	case EP0_IN:
+		return "ep0_in";
+	case EP0_OUT:
+		return "ep0_out";
+	case EP0_STATUS:
+		return "ep0_status";
+	case EP0_STALL:
+		return "ep0_stall";
+	case EP0_SUSPEND:
+		return "ep0_suspend";
+	}
+
+	return "ep0_?";
+}
+
+static const char *udc_ep_status(u32 status)
+{
+	switch (status & EPxSTATUS_EP_MASK) {
+	case EPxSTATUS_EP_READY:
+		return "ready";
+	case EPxSTATUS_EP_DATAIN:
+		return "packet";
+	case EPxSTATUS_EP_FULL:
+		return "full";
+	case EPxSTATUS_EP_TX_ERR:	/* host will retry */
+		return "tx_err";
+	case EPxSTATUS_EP_RX_ERR:
+		return "rx_err";
+	case EPxSTATUS_EP_BUSY:		/* ep0 only */
+		return "busy";
+	case EPxSTATUS_EP_STALL:
+		return "stall";
+	case EPxSTATUS_EP_INVALID:	/* these "can't happen" */
+		return "invalid";
+	}
+
+	return "?";
+}
 
 static int udc_proc_read(struct seq_file *m, void *v)
 {
@@ -1068,29 +1142,18 @@ static int udc_proc_read(struct seq_file *m, void *v)
 	tmp = readl(&regs->power_detect);
 	is_usb_connected = tmp & PW_DETECT;
 	seq_printf(m,
-		"%s - %s\n"
-		"%s version: %s %s\n"
-		"Gadget driver: %s\n"
-		"Host %s, %s\n"
-		"\n",
-		pci_name(dev->pdev), driver_desc,
-		driver_name, DRIVER_VERSION, dmastr(),
-		dev->driver ? dev->driver->driver.name : "(none)",
-		is_usb_connected
-			? ((tmp & PW_PULLUP) ? "full speed" : "powered")
-			: "disconnected",
-		({const char *state;
-		switch(dev->ep0state){
-		case EP0_DISCONNECT:	state = "ep0_disconnect"; break;
-		case EP0_IDLE:		state = "ep0_idle"; break;
-		case EP0_IN:		state = "ep0_in"; break;
-		case EP0_OUT:		state = "ep0_out"; break;
-		case EP0_STATUS:	state = "ep0_status"; break;
-		case EP0_STALL:		state = "ep0_stall"; break;
-		case EP0_SUSPEND:	state = "ep0_suspend"; break;
-		default:		state = "ep0_?"; break;
-		} state; })
-		);
+		   "%s - %s\n"
+		   "%s version: %s %s\n"
+		   "Gadget driver: %s\n"
+		   "Host %s, %s\n"
+		   "\n",
+		   pci_name(dev->pdev), driver_desc,
+		   driver_name, DRIVER_VERSION, dmastr(),
+		   dev->driver ? dev->driver->driver.name : "(none)",
+		   is_usb_connected
+			   ? ((tmp & PW_PULLUP) ? "full speed" : "powered")
+			   : "disconnected",
+		   udc_ep_state(dev->ep0state));
 
 	dump_intmask(m, "int_status", readl(&regs->int_status));
 	dump_intmask(m, "int_enable", readl(&regs->int_enable));
@@ -1099,31 +1162,30 @@ static int udc_proc_read(struct seq_file *m, void *v)
 		goto done;
 
 	/* registers for (active) device and ep0 */
-	if (seq_printf(m, "\nirqs %lu\ndataset %02x "
-			"single.bcs %02x.%02x state %x addr %u\n",
-			dev->irqs, readl(&regs->DataSet),
-			readl(&regs->EPxSingle), readl(&regs->EPxBCS),
-			readl(&regs->UsbState),
-			readl(&regs->address)) < 0)
+	seq_printf(m, "\nirqs %lu\ndataset %02x single.bcs %02x.%02x state %x addr %u\n",
+		   dev->irqs, readl(&regs->DataSet),
+		   readl(&regs->EPxSingle), readl(&regs->EPxBCS),
+		   readl(&regs->UsbState),
+		   readl(&regs->address));
+	if (seq_has_overflowed(m))
 		goto done;
 
 	tmp = readl(&regs->dma_master);
-	if (seq_printf(m,
-		"dma %03X =" EIGHTBITS "%s %s\n", tmp,
-		(tmp & MST_EOPB_DIS) ? " eopb-" : "",
-		(tmp & MST_EOPB_ENA) ? " eopb+" : "",
-		(tmp & MST_TIMEOUT_DIS) ? " tmo-" : "",
-		(tmp & MST_TIMEOUT_ENA) ? " tmo+" : "",
+	seq_printf(m, "dma %03X =" EIGHTBITS "%s %s\n",
+		   tmp,
+		   (tmp & MST_EOPB_DIS) ? " eopb-" : "",
+		   (tmp & MST_EOPB_ENA) ? " eopb+" : "",
+		   (tmp & MST_TIMEOUT_DIS) ? " tmo-" : "",
+		   (tmp & MST_TIMEOUT_ENA) ? " tmo+" : "",
 
-		(tmp & MST_RD_EOPB) ? " eopb" : "",
-		(tmp & MST_RD_RESET) ? " in_reset" : "",
-		(tmp & MST_WR_RESET) ? " out_reset" : "",
-		(tmp & MST_RD_ENA) ? " IN" : "",
+		   (tmp & MST_RD_EOPB) ? " eopb" : "",
+		   (tmp & MST_RD_RESET) ? " in_reset" : "",
+		   (tmp & MST_WR_RESET) ? " out_reset" : "",
+		   (tmp & MST_RD_ENA) ? " IN" : "",
 
-		(tmp & MST_WR_ENA) ? " OUT" : "",
-		(tmp & MST_CONNECTION)
-			? "ep1in/ep2out"
-			: "ep1out/ep2in") < 0)
+		   (tmp & MST_WR_ENA) ? " OUT" : "",
+		   (tmp & MST_CONNECTION) ? "ep1in/ep2out" : "ep1out/ep2in");
+	if (seq_has_overflowed(m))
 		goto done;
 
 	/* dump endpoint queues */
@@ -1135,44 +1197,23 @@ static int udc_proc_read(struct seq_file *m, void *v)
 			continue;
 
 		tmp = readl(ep->reg_status);
-		if (seq_printf(m,
-			"%s %s max %u %s, irqs %lu, "
-			"status %02x (%s) " FOURBITS "\n",
-			ep->ep.name,
-			ep->is_in ? "in" : "out",
-			ep->ep.maxpacket,
-			ep->dma ? "dma" : "pio",
-			ep->irqs,
-			tmp, ({ char *s;
-			switch (tmp & EPxSTATUS_EP_MASK) {
-			case EPxSTATUS_EP_READY:
-				s = "ready"; break;
-			case EPxSTATUS_EP_DATAIN:
-				s = "packet"; break;
-			case EPxSTATUS_EP_FULL:
-				s = "full"; break;
-			case EPxSTATUS_EP_TX_ERR:	// host will retry
-				s = "tx_err"; break;
-			case EPxSTATUS_EP_RX_ERR:
-				s = "rx_err"; break;
-			case EPxSTATUS_EP_BUSY:		/* ep0 only */
-				s = "busy"; break;
-			case EPxSTATUS_EP_STALL:
-				s = "stall"; break;
-			case EPxSTATUS_EP_INVALID:	// these "can't happen"
-				s = "invalid"; break;
-			default:
-				s = "?"; break;
-			} s; }),
-			(tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
-			(tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
-			(tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",
-			(tmp & EPxSTATUS_STAGE_ERROR) ? " ep0stat" : ""
-			) < 0)
+		seq_printf(m, "%s %s max %u %s, irqs %lu, status %02x (%s) " FOURBITS "\n",
+			   ep->ep.name,
+			   ep->is_in ? "in" : "out",
+			   ep->ep.maxpacket,
+			   ep->dma ? "dma" : "pio",
+			   ep->irqs,
+			   tmp, udc_ep_status(tmp),
+			   (tmp & EPxSTATUS_TOGGLE) ? "data1" : "data0",
+			   (tmp & EPxSTATUS_SUSPEND) ? " suspend" : "",
+			   (tmp & EPxSTATUS_FIFO_DISABLE) ? " disable" : "",
+			   (tmp & EPxSTATUS_STAGE_ERROR) ? " ep0stat" : "");
+		if (seq_has_overflowed(m))
 			goto done;
 
 		if (list_empty(&ep->queue)) {
-			if (seq_puts(m, "\t(nothing queued)\n") < 0)
+			seq_puts(m, "\t(nothing queued)\n");
+			if (seq_has_overflowed(m))
 				goto done;
 			continue;
 		}
@@ -1187,10 +1228,10 @@ static int udc_proc_read(struct seq_file *m, void *v)
 			} else
 				tmp = req->req.actual;
 
-			if (seq_printf(m,
-				"\treq %p len %u/%u buf %p\n",
-				&req->req, tmp, req->req.length,
-				req->req.buf) < 0)
+			seq_printf(m, "\treq %p len %u/%u buf %p\n",
+				   &req->req, tmp, req->req.length,
+				   req->req.buf);
+			if (seq_has_overflowed(m))
 				goto done;
 		}
 	}
@@ -1246,6 +1287,14 @@ static void udc_reinit (struct goku_udc *dev)
 		INIT_LIST_HEAD (&ep->queue);
 
 		ep_reset(NULL, ep);
+
+		if (i == 0)
+			ep->ep.caps.type_control = true;
+		else
+			ep->ep.caps.type_bulk = true;
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 
 	dev->ep[0].reg_mode = NULL;

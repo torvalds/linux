@@ -73,18 +73,11 @@ class LxLsmod(gdb.Command):
                 "        " if utils.get_long_type().sizeof == 8 else ""))
 
         for module in module_list():
-            ref = 0
-            module_refptr = module['refptr']
-            for cpu in cpus.cpu_list("cpu_possible_mask"):
-                refptr = cpus.per_cpu(module_refptr, cpu)
-                ref += refptr['incs']
-                ref -= refptr['decs']
-
             gdb.write("{address} {name:<19} {size:>8}  {ref}".format(
                 address=str(module['module_core']).split()[0],
                 name=module['name'].string(),
                 size=str(module['core_size']),
-                ref=str(ref)))
+                ref=str(module['refcnt']['counter'])))
 
             source_list = module['source_list']
             t = self._module_use_type.get_type().pointer()

@@ -828,7 +828,7 @@ void qla4_83xx_read_reset_template(struct scsi_qla_host *ha)
 	ret_val = qla4_83xx_flash_read_u32(ha, addr, p_buff,
 					   tmplt_hdr_def_size);
 	if (ret_val != QLA_SUCCESS) {
-		ql4_printk(KERN_ERR, ha, "%s: Failed to read reset tempelate\n",
+		ql4_printk(KERN_ERR, ha, "%s: Failed to read reset template\n",
 			   __func__);
 		goto exit_read_template_error;
 	}

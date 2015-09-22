@@ -99,10 +99,13 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&accel_tvk_mode>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <18 IRQ_TYPE_EDGE_RISING>,
+					     <19 IRQ_TYPE_EDGE_RISING>;
 			};
-			lsm303dlm@1e {
+			lsm303dlh@1e {
 				/* Magnetometer */
-				compatible = "st,lsm303dlm-magn";
+				compatible = "st,lsm303dlh-magn";
 				reg = <0x1e>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
 				vddio-supply = <&db8500_vsmps2_reg>;

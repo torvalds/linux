@@ -12,9 +12,12 @@ struct context_tracking {
 	 * may be further optimized using static keys.
 	 */
 	bool active;
+	int recursion;
 	enum ctx_state {
-		IN_KERNEL = 0,
-		IN_USER,
+		CONTEXT_DISABLED = -1,	/* returned by ct_state() if unknown */
+		CONTEXT_KERNEL = 0,
+		CONTEXT_USER,
+		CONTEXT_GUEST,
 	} state;
 };
 
@@ -34,11 +37,13 @@ static inline bool context_tracking_cpu_is_enabled(void)
 
 static inline bool context_tracking_in_user(void)
 {
-	return __this_cpu_read(context_tracking.state) == IN_USER;
+	return __this_cpu_read(context_tracking.state) == CONTEXT_USER;
 }
 #else
 static inline bool context_tracking_in_user(void) { return false; }
 static inline bool context_tracking_active(void) { return false; }
+static inline bool context_tracking_is_enabled(void) { return false; }
+static inline bool context_tracking_cpu_is_enabled(void) { return false; }
 #endif /* CONFIG_CONTEXT_TRACKING */
 
 #endif

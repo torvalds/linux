@@ -85,7 +85,6 @@
 extern struct kmem_cache *t10_alua_lu_gp_cache;
 extern struct kmem_cache *t10_alua_lu_gp_mem_cache;
 extern struct kmem_cache *t10_alua_tg_pt_gp_cache;
-extern struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 extern struct kmem_cache *t10_alua_lba_map_cache;
 extern struct kmem_cache *t10_alua_lba_map_mem_cache;
 
@@ -94,7 +93,7 @@ extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_report_referrals(struct se_cmd *);
 extern int core_alua_check_nonop_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
-				struct se_device *, struct se_port *,
+				struct se_device *, struct se_lun *,
 				struct se_node_acl *, int, int);
 extern char *core_alua_dump_status(int);
 extern struct t10_alua_lba_map *core_alua_allocate_lba_map(
@@ -117,14 +116,11 @@ extern void core_alua_drop_lu_gp_dev(struct se_device *);
 extern struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(
 			struct se_device *, const char *, int);
 extern int core_alua_set_tg_pt_gp_id(struct t10_alua_tg_pt_gp *, u16);
-extern struct t10_alua_tg_pt_gp_member *core_alua_allocate_tg_pt_gp_mem(
-					struct se_port *);
 extern void core_alua_free_tg_pt_gp(struct t10_alua_tg_pt_gp *);
-extern void core_alua_free_tg_pt_gp_mem(struct se_port *);
-extern void __core_alua_attach_tg_pt_gp_mem(struct t10_alua_tg_pt_gp_member *,
-					struct t10_alua_tg_pt_gp *);
-extern ssize_t core_alua_show_tg_pt_gp_info(struct se_port *, char *);
-extern ssize_t core_alua_store_tg_pt_gp_info(struct se_port *, const char *,
+extern void target_detach_tg_pt_gp(struct se_lun *);
+extern void target_attach_tg_pt_gp(struct se_lun *, struct t10_alua_tg_pt_gp *);
+extern ssize_t core_alua_show_tg_pt_gp_info(struct se_lun *, char *);
+extern ssize_t core_alua_store_tg_pt_gp_info(struct se_lun *, const char *,
 						size_t);
 extern ssize_t core_alua_show_access_type(struct t10_alua_tg_pt_gp *, char *);
 extern ssize_t core_alua_store_access_type(struct t10_alua_tg_pt_gp *,

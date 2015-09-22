@@ -37,6 +37,7 @@
 #include <asm/cpu.h>
 #include <asm/dma.h>
 #include <asm/kmap_types.h>
+#include <asm/maar.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -90,13 +91,14 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 
 	BUG_ON(Page_dcache_dirty(page));
 
+	preempt_disable();
 	pagefault_disable();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, prot);
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-	entrylo = pte.pte_high;
+	entrylo = pte_to_entrylo(pte.pte_high);
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
@@ -106,6 +108,11 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
+#ifdef CONFIG_XPA
+	entrylo = (pte.pte_low & _PFNX_MASK);
+	writex_c0_entrylo0(entrylo);
+	writex_c0_entrylo1(entrylo);
+#endif
 	tlbidx = read_c0_wired();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);
@@ -147,6 +154,7 @@ void kunmap_coherent(void)
 	write_c0_entryhi(old_ctx);
 	local_irq_restore(flags);
 	pagefault_enable();
+	preempt_enable();
 }
 
 void copy_user_highpage(struct page *to, struct page *from,
@@ -326,9 +334,40 @@ static inline void mem_init_free_highmem(void)
 #endif
 }
 
-unsigned __weak platform_maar_init(unsigned num_maars)
+unsigned __weak platform_maar_init(unsigned num_pairs)
 {
-	return 0;
+	struct maar_config cfg[BOOT_MEM_MAP_MAX];
+	unsigned i, num_configured, num_cfg = 0;
+	phys_addr_t skip;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		switch (boot_mem_map.map[i].type) {
+		case BOOT_MEM_RAM:
+		case BOOT_MEM_INIT_RAM:
+			break;
+		default:
+			continue;
+		}
+
+		skip = 0x10000 - (boot_mem_map.map[i].addr & 0xffff);
+
+		cfg[num_cfg].lower = boot_mem_map.map[i].addr;
+		cfg[num_cfg].lower += skip;
+
+		cfg[num_cfg].upper = cfg[num_cfg].lower;
+		cfg[num_cfg].upper += boot_mem_map.map[i].size - 1;
+		cfg[num_cfg].upper -= skip;
+
+		cfg[num_cfg].attrs = MIPS_MAAR_S;
+		num_cfg++;
+	}
+
+	num_configured = maar_config(cfg, num_cfg, num_pairs);
+	if (num_configured < num_cfg)
+		pr_warn("Not enough MAAR pairs (%u) for all bootmem regions (%u)\n",
+			num_pairs, num_cfg);
+
+	return num_configured;
 }
 
 static void maar_init(void)

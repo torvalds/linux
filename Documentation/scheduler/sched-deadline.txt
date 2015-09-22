@@ -8,6 +8,10 @@ CONTENTS
  1. Overview
  2. Scheduling algorithm
  3. Scheduling Real-Time Tasks
+   3.1 Definitions
+   3.2 Schedulability Analysis for Uniprocessor Systems
+   3.3 Schedulability Analysis for Multiprocessor Systems
+   3.4 Relationship with SCHED_DEADLINE Parameters
  4. Bandwidth management
    4.1 System-wide settings
    4.2 Task interface
@@ -43,7 +47,7 @@ CONTENTS
  "deadline", to schedule tasks. A SCHED_DEADLINE task should receive
  "runtime" microseconds of execution time every "period" microseconds, and
  these "runtime" microseconds are available within "deadline" microseconds
- from the beginning of the period.  In order to implement this behaviour,
+ from the beginning of the period.  In order to implement this behavior,
  every time the task wakes up, the scheduler computes a "scheduling deadline"
  consistent with the guarantee (using the CBS[2,3] algorithm). Tasks are then
  scheduled using EDF[1] on these scheduling deadlines (the task with the
@@ -52,7 +56,7 @@ CONTENTS
  "admission control" strategy (see Section "4. Bandwidth management") is used
  (clearly, if the system is overloaded this guarantee cannot be respected).
 
- Summing up, the CBS[2,3] algorithms assigns scheduling deadlines to tasks so
+ Summing up, the CBS[2,3] algorithm assigns scheduling deadlines to tasks so
  that each task runs for at most its runtime every period, avoiding any
  interference between different tasks (bandwidth isolation), while the EDF[1]
  algorithm selects the task with the earliest scheduling deadline as the one
@@ -63,7 +67,7 @@ CONTENTS
  In more details, the CBS algorithm assigns scheduling deadlines to
  tasks in the following way:
 
-  - Each SCHED_DEADLINE task is characterised by the "runtime",
+  - Each SCHED_DEADLINE task is characterized by the "runtime",
     "deadline", and "period" parameters;
 
   - The state of the task is described by a "scheduling deadline", and
@@ -78,7 +82,7 @@ CONTENTS
 
     then, if the scheduling deadline is smaller than the current time, or
     this condition is verified, the scheduling deadline and the
-    remaining runtime are re-initialised as
+    remaining runtime are re-initialized as
 
          scheduling deadline = current time + deadline
          remaining runtime = runtime
@@ -126,31 +130,37 @@ CONTENTS
  suited for periodic or sporadic real-time tasks that need guarantees on their
  timing behavior, e.g., multimedia, streaming, control applications, etc.
 
+3.1 Definitions
+------------------------
+
  A typical real-time task is composed of a repetition of computation phases
  (task instances, or jobs) which are activated on a periodic or sporadic
  fashion.
- Each job J_j (where J_j is the j^th job of the task) is characterised by an
+ Each job J_j (where J_j is the j^th job of the task) is characterized by an
  arrival time r_j (the time when the job starts), an amount of computation
  time c_j needed to finish the job, and a job absolute deadline d_j, which
  is the time within which the job should be finished. The maximum execution
- time max_j{c_j} is called "Worst Case Execution Time" (WCET) for the task.
+ time max{c_j} is called "Worst Case Execution Time" (WCET) for the task.
  A real-time task can be periodic with period P if r_{j+1} = r_j + P, or
  sporadic with minimum inter-arrival time P is r_{j+1} >= r_j + P. Finally,
  d_j = r_j + D, where D is the task's relative deadline.
- The utilisation of a real-time task is defined as the ratio between its
+ Summing up, a real-time task can be described as
+	Task = (WCET, D, P)
+
+ The utilization of a real-time task is defined as the ratio between its
  WCET and its period (or minimum inter-arrival time), and represents
  the fraction of CPU time needed to execute the task.
 
- If the total utilisation sum_i(WCET_i/P_i) is larger than M (with M equal
+ If the total utilization U=sum(WCET_i/P_i) is larger than M (with M equal
  to the number of CPUs), then the scheduler is unable to respect all the
  deadlines.
- Note that total utilisation is defined as the sum of the utilisations
+ Note that total utilization is defined as the sum of the utilizations
  WCET_i/P_i over all the real-time tasks in the system. When considering
  multiple real-time tasks, the parameters of the i-th task are indicated
  with the "_i" suffix.
- Moreover, if the total utilisation is larger than M, then we risk starving
+ Moreover, if the total utilization is larger than M, then we risk starving
  non- real-time tasks by real-time tasks.
- If, instead, the total utilisation is smaller than M, then non real-time
+ If, instead, the total utilization is smaller than M, then non real-time
  tasks will not be starved and the system might be able to respect all the
  deadlines.
  As a matter of fact, in this case it is possible to provide an upper bound
@@ -159,38 +169,119 @@ CONTENTS
  More precisely, it can be proven that using a global EDF scheduler the
  maximum tardiness of each task is smaller or equal than
 	((M − 1) · WCET_max − WCET_min)/(M − (M − 2) · U_max) + WCET_max
- where WCET_max = max_i{WCET_i} is the maximum WCET, WCET_min=min_i{WCET_i}
- is the minimum WCET, and U_max = max_i{WCET_i/P_i} is the maximum utilisation.
+ where WCET_max = max{WCET_i} is the maximum WCET, WCET_min=min{WCET_i}
+ is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum
+ utilization[12].
+
+3.2 Schedulability Analysis for Uniprocessor Systems
+------------------------
 
  If M=1 (uniprocessor system), or in case of partitioned scheduling (each
  real-time task is statically assigned to one and only one CPU), it is
  possible to formally check if all the deadlines are respected.
  If D_i = P_i for all tasks, then EDF is able to respect all the deadlines
- of all the tasks executing on a CPU if and only if the total utilisation
+ of all the tasks executing on a CPU if and only if the total utilization
  of the tasks running on such a CPU is smaller or equal than 1.
  If D_i != P_i for some task, then it is possible to define the density of
- a task as C_i/min{D_i,T_i}, and EDF is able to respect all the deadlines
- of all the tasks running on a CPU if the sum sum_i C_i/min{D_i,T_i} of the
- densities of the tasks running on such a CPU is smaller or equal than 1
- (notice that this condition is only sufficient, and not necessary).
+ a task as WCET_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
+ of all the tasks running on a CPU if the sum of the densities of the tasks
+ running on such a CPU is smaller or equal than 1:
+	sum(WCET_i / min{D_i, P_i}) <= 1
+ It is important to notice that this condition is only sufficient, and not
+ necessary: there are task sets that are schedulable, but do not respect the
+ condition. For example, consider the task set {Task_1,Task_2} composed by
+ Task_1=(50ms,50ms,100ms) and Task_2=(10ms,100ms,100ms).
+ EDF is clearly able to schedule the two tasks without missing any deadline
+ (Task_1 is scheduled as soon as it is released, and finishes just in time
+ to respect its deadline; Task_2 is scheduled immediately after Task_1, hence
+ its response time cannot be larger than 50ms + 10ms = 60ms) even if
+	50 / min{50,100} + 10 / min{100, 100} = 50 / 50 + 10 / 100 = 1.1
+ Of course it is possible to test the exact schedulability of tasks with
+ D_i != P_i (checking a condition that is both sufficient and necessary),
+ but this cannot be done by comparing the total utilization or density with
+ a constant. Instead, the so called "processor demand" approach can be used,
+ computing the total amount of CPU time h(t) needed by all the tasks to
+ respect all of their deadlines in a time interval of size t, and comparing
+ such a time with the interval size t. If h(t) is smaller than t (that is,
+ the amount of time needed by the tasks in a time interval of size t is
+ smaller than the size of the interval) for all the possible values of t, then
+ EDF is able to schedule the tasks respecting all of their deadlines. Since
+ performing this check for all possible values of t is impossible, it has been
+ proven[4,5,6] that it is sufficient to perform the test for values of t
+ between 0 and a maximum value L. The cited papers contain all of the
+ mathematical details and explain how to compute h(t) and L.
+ In any case, this kind of analysis is too complex as well as too
+ time-consuming to be performed on-line. Hence, as explained in Section
+ 4 Linux uses an admission test based on the tasks' utilizations.
+
+3.3 Schedulability Analysis for Multiprocessor Systems
+------------------------
 
  On multiprocessor systems with global EDF scheduling (non partitioned
  systems), a sufficient test for schedulability can not be based on the
- utilisations (it can be shown that task sets with utilisations slightly
- larger than 1 can miss deadlines regardless of the number of CPUs M).
- However, as previously stated, enforcing that the total utilisation is smaller
- than M is enough to guarantee that non real-time tasks are not starved and
- that the tardiness of real-time tasks has an upper bound.
+ utilizations or densities: it can be shown that even if D_i = P_i task
+ sets with utilizations slightly larger than 1 can miss deadlines regardless
+ of the number of CPUs.
 
- SCHED_DEADLINE can be used to schedule real-time tasks guaranteeing that
- the jobs' deadlines of a task are respected. In order to do this, a task
- must be scheduled by setting:
+ Consider a set {Task_1,...Task_{M+1}} of M+1 tasks on a system with M
+ CPUs, with the first task Task_1=(P,P,P) having period, relative deadline
+ and WCET equal to P. The remaining M tasks Task_i=(e,P-1,P-1) have an
+ arbitrarily small worst case execution time (indicated as "e" here) and a
+ period smaller than the one of the first task. Hence, if all the tasks
+ activate at the same time t, global EDF schedules these M tasks first
+ (because their absolute deadlines are equal to t + P - 1, hence they are
+ smaller than the absolute deadline of Task_1, which is t + P). As a
+ result, Task_1 can be scheduled only at time t + e, and will finish at
+ time t + e + P, after its absolute deadline. The total utilization of the
+ task set is U = M · e / (P - 1) + P / P = M · e / (P - 1) + 1, and for small
+ values of e this can become very close to 1. This is known as "Dhall's
+ effect"[7]. Note: the example in the original paper by Dhall has been
+ slightly simplified here (for example, Dhall more correctly computed
+ lim_{e->0}U).
+
+ More complex schedulability tests for global EDF have been developed in
+ real-time literature[8,9], but they are not based on a simple comparison
+ between total utilization (or density) and a fixed constant. If all tasks
+ have D_i = P_i, a sufficient schedulability condition can be expressed in
+ a simple way:
+	sum(WCET_i / P_i) <= M - (M - 1) · U_max
+ where U_max = max{WCET_i / P_i}[10]. Notice that for U_max = 1,
+ M - (M - 1) · U_max becomes M - M + 1 = 1 and this schedulability condition
+ just confirms the Dhall's effect. A more complete survey of the literature
+ about schedulability tests for multi-processor real-time scheduling can be
+ found in [11].
+
+ As seen, enforcing that the total utilization is smaller than M does not
+ guarantee that global EDF schedules the tasks without missing any deadline
+ (in other words, global EDF is not an optimal scheduling algorithm). However,
+ a total utilization smaller than M is enough to guarantee that non real-time
+ tasks are not starved and that the tardiness of real-time tasks has an upper
+ bound[12] (as previously noted). Different bounds on the maximum tardiness
+ experienced by real-time tasks have been developed in various papers[13,14],
+ but the theoretical result that is important for SCHED_DEADLINE is that if
+ the total utilization is smaller or equal than M then the response times of
+ the tasks are limited.
+
+3.4 Relationship with SCHED_DEADLINE Parameters
+------------------------
+
+ Finally, it is important to understand the relationship between the
+ SCHED_DEADLINE scheduling parameters described in Section 2 (runtime,
+ deadline and period) and the real-time task parameters (WCET, D, P)
+ described in this section. Note that the tasks' temporal constraints are
+ represented by its absolute deadlines d_j = r_j + D described above, while
+ SCHED_DEADLINE schedules the tasks according to scheduling deadlines (see
+ Section 2).
+ If an admission test is used to guarantee that the scheduling deadlines
+ are respected, then SCHED_DEADLINE can be used to schedule real-time tasks
+ guaranteeing that all the jobs' deadlines of a task are respected.
+ In order to do this, a task must be scheduled by setting:
 
   - runtime >= WCET
   - deadline = D
   - period <= P
 
- IOW, if runtime >= WCET and if period is >= P, then the scheduling deadlines
+ IOW, if runtime >= WCET and if period is <= P, then the scheduling deadlines
  and the absolute deadlines (d_j) coincide, so a proper admission control
  allows to respect the jobs' absolute deadlines for this task (this is what is
  called "hard schedulability property" and is an extension of Lemma 1 of [2]).
@@ -206,6 +297,39 @@ CONTENTS
       Symposium, 1998. http://retis.sssup.it/~giorgio/paps/1998/rtss98-cbs.pdf
   3 - L. Abeni. Server Mechanisms for Multimedia Applications. ReTiS Lab
       Technical Report. http://disi.unitn.it/~abeni/tr-98-01.pdf
+  4 - J. Y. Leung and M.L. Merril. A Note on Preemptive Scheduling of
+      Periodic, Real-Time Tasks. Information Processing Letters, vol. 11,
+      no. 3, pp. 115-118, 1980.
+  5 - S. K. Baruah, A. K. Mok and L. E. Rosier. Preemptively Scheduling
+      Hard-Real-Time Sporadic Tasks on One Processor. Proceedings of the
+      11th IEEE Real-time Systems Symposium, 1990.
+  6 - S. K. Baruah, L. E. Rosier and R. R. Howell. Algorithms and Complexity
+      Concerning the Preemptive Scheduling of Periodic Real-Time tasks on
+      One Processor. Real-Time Systems Journal, vol. 4, no. 2, pp 301-324,
+      1990.
+  7 - S. J. Dhall and C. L. Liu. On a real-time scheduling problem. Operations
+      research, vol. 26, no. 1, pp 127-140, 1978.
+  8 - T. Baker. Multiprocessor EDF and Deadline Monotonic Schedulability
+      Analysis. Proceedings of the 24th IEEE Real-Time Systems Symposium, 2003.
+  9 - T. Baker. An Analysis of EDF Schedulability on a Multiprocessor.
+      IEEE Transactions on Parallel and Distributed Systems, vol. 16, no. 8,
+      pp 760-768, 2005.
+  10 - J. Goossens, S. Funk and S. Baruah, Priority-Driven Scheduling of
+       Periodic Task Systems on Multiprocessors. Real-Time Systems Journal,
+       vol. 25, no. 2–3, pp. 187–205, 2003.
+  11 - R. Davis and A. Burns. A Survey of Hard Real-Time Scheduling for
+       Multiprocessor Systems. ACM Computing Surveys, vol. 43, no. 4, 2011.
+       http://www-users.cs.york.ac.uk/~robdavis/papers/MPSurveyv5.0.pdf
+  12 - U. C. Devi and J. H. Anderson. Tardiness Bounds under Global EDF
+       Scheduling on a Multiprocessor. Real-Time Systems Journal, vol. 32,
+       no. 2, pp 133-189, 2008.
+  13 - P. Valente and G. Lipari. An Upper Bound to the Lateness of Soft
+       Real-Time Tasks Scheduled by EDF on Multiprocessors. Proceedings of
+       the 26th IEEE Real-Time Systems Symposium, 2005.
+  14 - J. Erickson, U. Devi and S. Baruah. Improved tardiness bounds for
+       Global EDF. Proceedings of the 22nd Euromicro Conference on
+       Real-Time Systems, 2010.
+
 
 4. Bandwidth management
 =======================
@@ -218,10 +342,10 @@ CONTENTS
  no guarantee can be given on the actual scheduling of the -deadline tasks.
 
  As already stated in Section 3, a necessary condition to be respected to
- correctly schedule a set of real-time tasks is that the total utilisation
+ correctly schedule a set of real-time tasks is that the total utilization
  is smaller than M. When talking about -deadline tasks, this requires that
  the sum of the ratio between runtime and period for all tasks is smaller
- than M. Notice that the ratio runtime/period is equivalent to the utilisation
+ than M. Notice that the ratio runtime/period is equivalent to the utilization
  of a "traditional" real-time task, and is also often referred to as
  "bandwidth".
  The interface used to control the CPU bandwidth that can be allocated
@@ -251,7 +375,7 @@ CONTENTS
  The system wide settings are configured under the /proc virtual file system.
 
  For now the -rt knobs are used for -deadline admission control and the
- -deadline runtime is accounted against the -rt runtime. We realise that this
+ -deadline runtime is accounted against the -rt runtime. We realize that this
  isn't entirely desirable; however, it is better to have a small interface for
  now, and be able to change it easily later. The ideal situation (see 5.) is to
  run -rt tasks from a -deadline server; in which case the -rt bandwidth is a

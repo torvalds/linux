@@ -1,7 +1,7 @@
 #ifndef _ASM_X86_JUMP_LABEL_H
 #define _ASM_X86_JUMP_LABEL_H
 
-#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
 
 #include <linux/stringify.h>
 #include <linux/types.h>
@@ -16,21 +16,36 @@
 # define STATIC_KEY_INIT_NOP GENERIC_NOP5_ATOMIC
 #endif
 
-static __always_inline bool arch_static_branch(struct static_key *key)
+static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
 	asm_volatile_goto("1:"
 		".byte " __stringify(STATIC_KEY_INIT_NOP) "\n\t"
 		".pushsection __jump_table,  \"aw\" \n\t"
 		_ASM_ALIGN "\n\t"
-		_ASM_PTR "1b, %l[l_yes], %c0 \n\t"
+		_ASM_PTR "1b, %l[l_yes], %c0 + %c1 \n\t"
 		".popsection \n\t"
-		: :  "i" (key) : : l_yes);
+		: :  "i" (key), "i" (branch) : : l_yes);
+
 	return false;
 l_yes:
 	return true;
 }
 
-#endif /* __KERNEL__ */
+static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
+{
+	asm_volatile_goto("1:"
+		".byte 0xe9\n\t .long %l[l_yes] - 2f\n\t"
+		"2:\n\t"
+		".pushsection __jump_table,  \"aw\" \n\t"
+		_ASM_ALIGN "\n\t"
+		_ASM_PTR "1b, %l[l_yes], %c0 + %c1 \n\t"
+		".popsection \n\t"
+		: :  "i" (key), "i" (branch) : : l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
 
 #ifdef CONFIG_X86_64
 typedef u64 jump_label_t;
@@ -44,4 +59,5 @@ struct jump_entry {
 	jump_label_t key;
 };
 
+#endif  /* __ASSEMBLY__ */
 #endif

@@ -109,6 +109,25 @@ int of_fdt_is_compatible(const void *blob,
 }
 
 /**
+ * of_fdt_is_big_endian - Return true if given node needs BE MMIO accesses
+ * @blob: A device tree blob
+ * @node: node to test
+ *
+ * Returns true if the node has a "big-endian" property, or if the kernel
+ * was compiled for BE *and* the node has a "native-endian" property.
+ * Returns false otherwise.
+ */
+bool of_fdt_is_big_endian(const void *blob, unsigned long node)
+{
+	if (fdt_getprop(blob, node, "big-endian", NULL))
+		return true;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
+	    fdt_getprop(blob, node, "native-endian", NULL))
+		return true;
+	return false;
+}
+
+/**
  * of_fdt_match - Return true if node matches a list of compatible values
  */
 int of_fdt_match(const void *blob, unsigned long node,
@@ -145,11 +164,14 @@ static void *unflatten_dt_alloc(void **mem, unsigned long size,
  * unflatten_dt_node - Alloc and populate a device_node from the flat tree
  * @blob: The parent device tree blob
  * @mem: Memory chunk to use for allocating device nodes and properties
- * @p: pointer to node in flat tree
+ * @poffset: pointer to node in flat tree
  * @dad: Parent struct device_node
+ * @nodepp: The device_node tree created by the call
  * @fpsize: Size of the node path up at the current depth.
+ * @dryrun: If true, do not allocate device nodes but still calculate needed
+ * memory size
  */
-static void * unflatten_dt_node(void *blob,
+static void * unflatten_dt_node(const void *blob,
 				void *mem,
 				int *poffset,
 				struct device_node *dad,
@@ -172,7 +194,7 @@ static void * unflatten_dt_node(void *blob,
 	if (!pathp)
 		return mem;
 
-	allocl = l++;
+	allocl = ++l;
 
 	/* version 0x10 has a more compact unit name here instead of the full
 	 * path. we accumulate the full path size using "fpsize", we'll rebuild
@@ -359,7 +381,7 @@ static void * unflatten_dt_node(void *blob,
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
  */
-static void __unflatten_device_tree(void *blob,
+static void __unflatten_device_tree(const void *blob,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {
@@ -422,7 +444,7 @@ static void *kernel_tree_alloc(u64 size, u64 align)
  * pointers of the nodes so the normal device-tree walking functions
  * can be used.
  */
-void of_fdt_unflatten_tree(unsigned long *blob,
+void of_fdt_unflatten_tree(const unsigned long *blob,
 			struct device_node **mynodes)
 {
 	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
@@ -561,11 +583,6 @@ void __init early_init_fdt_scan_reserved_mem(void)
 	if (!initial_boot_params)
 		return;
 
-	/* Reserve the dtb region */
-	early_init_dt_reserve_memory_arch(__pa(initial_boot_params),
-					  fdt_totalsize(initial_boot_params),
-					  0);
-
 	/* Process header /memreserve/ fields */
 	for (n = 0; ; n++) {
 		fdt_get_mem_rsv(initial_boot_params, n, &base, &size);
@@ -576,6 +593,20 @@ void __init early_init_fdt_scan_reserved_mem(void)
 
 	of_scan_flat_dt(__fdt_scan_reserved_mem, NULL);
 	fdt_init_reserved_mem();
+}
+
+/**
+ * early_init_fdt_reserve_self() - reserve the memory used by the FDT blob
+ */
+void __init early_init_fdt_reserve_self(void)
+{
+	if (!initial_boot_params)
+		return;
+
+	/* Reserve the dtb region */
+	early_init_dt_reserve_memory_arch(__pa(initial_boot_params),
+					  fdt_totalsize(initial_boot_params),
+					  0);
 }
 
 /**
@@ -879,8 +910,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 
 	endp = reg + (l / sizeof(__be32));
 
-	pr_debug("memory scan node %s, reg size %d, data: %x %x %x %x,\n",
-	    uname, l, reg[0], reg[1], reg[2], reg[3]);
+	pr_debug("memory scan node %s, reg size %d,\n", uname, l);
 
 	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
 		u64 base, size;
@@ -937,7 +967,9 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 }
 
 #ifdef CONFIG_HAVE_MEMBLOCK
-#define MAX_PHYS_ADDR	((phys_addr_t)~0)
+#ifndef MAX_MEMBLOCK_ADDR
+#define MAX_MEMBLOCK_ADDR	((phys_addr_t)~0)
+#endif
 
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
@@ -954,16 +986,16 @@ void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 	}
 	size &= PAGE_MASK;
 
-	if (base > MAX_PHYS_ADDR) {
+	if (base > MAX_MEMBLOCK_ADDR) {
 		pr_warning("Ignoring memory block 0x%llx - 0x%llx\n",
 				base, base + size);
 		return;
 	}
 
-	if (base + size - 1 > MAX_PHYS_ADDR) {
+	if (base + size - 1 > MAX_MEMBLOCK_ADDR) {
 		pr_warning("Ignoring memory range 0x%llx - 0x%llx\n",
-				((u64)MAX_PHYS_ADDR) + 1, base + size);
-		size = MAX_PHYS_ADDR - base + 1;
+				((u64)MAX_MEMBLOCK_ADDR) + 1, base + size);
+		size = MAX_MEMBLOCK_ADDR - base + 1;
 	}
 
 	if (base + size < phys_offset) {
@@ -997,12 +1029,23 @@ void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
 	return __va(memblock_alloc(size, align));
 }
 #else
+void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+	WARN_ON(1);
+}
+
 int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 					phys_addr_t size, bool nomap)
 {
 	pr_err("Reserved memory not supported, ignoring range 0x%pa - 0x%pa%s\n",
 		  &base, &size, nomap ? " (nomap)" : "");
 	return -ENOSYS;
+}
+
+void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	WARN_ON(1);
+	return NULL;
 }
 #endif
 

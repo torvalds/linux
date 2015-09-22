@@ -37,7 +37,7 @@ version. Alternative binary firmware images can be found somewhere on the
 ForeThought CD-ROM supplied with your adapter by FORE Systems.
 
 You can also get the latest firmware images from FORE Systems at
-http://en.wikipedia.org/wiki/FORE_Systems. Register TACTics Online and go to
+https://en.wikipedia.org/wiki/FORE_Systems. Register TACTics Online and go to
 the 'software updates' pages. The firmware binaries are part of
 the various ForeThought software distributions.
 

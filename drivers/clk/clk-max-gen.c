@@ -31,6 +31,8 @@
 #include <linux/of.h>
 #include <linux/export.h>
 
+#include "clk-max-gen.h"
+
 struct max_gen_clk {
 	struct regmap *regmap;
 	u32 mask;

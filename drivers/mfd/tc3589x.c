@@ -215,25 +215,18 @@ static int tc3589x_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &dummy_irq_chip,
 				handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, IRQF_VALID);
-#else
 	irq_set_noprobe(virq);
-#endif
 
 	return 0;
 }
 
 static void tc3589x_irq_unmap(struct irq_domain *d, unsigned int virq)
 {
-#ifdef CONFIG_ARM
-	set_irq_flags(virq, 0);
-#endif
 	irq_set_chip_and_handler(virq, NULL, NULL);
 	irq_set_chip_data(virq, NULL);
 }
 
-static struct irq_domain_ops tc3589x_irq_ops = {
+static const struct irq_domain_ops tc3589x_irq_ops = {
 	.map    = tc3589x_irq_map,
 	.unmap  = tc3589x_irq_unmap,
 	.xlate  = irq_domain_xlate_onecell,
@@ -318,7 +311,6 @@ static int tc3589x_device_init(struct tc3589x *tc3589x)
 	return ret;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id tc3589x_match[] = {
 	/* Legacy compatible string */
 	{ .compatible = "tc3589x", .data = (void *) TC3589X_UNKNOWN },
@@ -359,14 +351,6 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 
 	return pdata;
 }
-#else
-static inline struct tc3589x_platform_data *
-tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
-{
-	dev_err(dev, "no device tree support\n");
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static int tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
@@ -501,7 +485,6 @@ MODULE_DEVICE_TABLE(i2c, tc3589x_id);
 static struct i2c_driver tc3589x_driver = {
 	.driver = {
 		.name	= "tc3589x",
-		.owner	= THIS_MODULE,
 		.pm	= &tc3589x_dev_pm_ops,
 		.of_match_table = of_match_ptr(tc3589x_match),
 	},

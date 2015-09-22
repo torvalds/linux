@@ -49,10 +49,13 @@ static const u8 REG_VOLTAGE_LIMIT_MSB_SHIFT[2][5] = {
 #define REG_VOLTAGE_LOW		0x0f
 #define REG_FANCOUNT_LOW	0x13
 #define REG_START		0x21
-#define REG_MODE		0x22
+#define REG_MODE		0x22 /* 7.2.32 Mode Selection Register */
 #define REG_PECI_ENABLE		0x23
 #define REG_FAN_ENABLE		0x24
 #define REG_VMON_ENABLE		0x25
+#define REG_PWM(x)		(0x60 + (x))
+#define REG_SMARTFAN_EN(x)      (0x64 + (x) / 2)
+#define SMARTFAN_EN_SHIFT(x)    ((x) % 2 * 4)
 #define REG_VENDOR_ID		0xfd
 #define REG_CHIP_ID		0xfe
 #define REG_VERSION_ID		0xff
@@ -65,6 +68,129 @@ struct nct7802_data {
 	struct regmap *regmap;
 	struct mutex access_lock; /* for multi-byte read and write operations */
 };
+
+static ssize_t show_temp_type(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	unsigned int mode;
+	int ret;
+
+	ret = regmap_read(data->regmap, REG_MODE, &mode);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%u\n", (mode >> (2 * sattr->index) & 3) + 2);
+}
+
+static ssize_t store_temp_type(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	unsigned int type;
+	int err;
+
+	err = kstrtouint(buf, 0, &type);
+	if (err < 0)
+		return err;
+	if (sattr->index == 2 && type != 4) /* RD3 */
+		return -EINVAL;
+	if (type < 3 || type > 4)
+		return -EINVAL;
+	err = regmap_update_bits(data->regmap, REG_MODE,
+			3 << 2 * sattr->index, (type - 2) << 2 * sattr->index);
+	return err ? : count;
+}
+
+static ssize_t show_pwm_mode(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int ret;
+
+	if (sattr->index > 1)
+		return sprintf(buf, "1\n");
+
+	ret = regmap_read(data->regmap, 0x5E, &regval);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%u\n", !(regval & (1 << sattr->index)));
+}
+
+static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr,
+			char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	unsigned int val;
+	int ret;
+
+	if (!attr->index)
+		return sprintf(buf, "255\n");
+
+	ret = regmap_read(data->regmap, attr->index, &val);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t store_pwm(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	int err;
+	u8 val;
+
+	err = kstrtou8(buf, 0, &val);
+	if (err < 0)
+		return err;
+
+	err = regmap_write(data->regmap, attr->index, val);
+	return err ? : count;
+}
+
+static ssize_t show_pwm_enable(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	unsigned int reg, enabled;
+	int ret;
+
+	ret = regmap_read(data->regmap, REG_SMARTFAN_EN(sattr->index), &reg);
+	if (ret < 0)
+		return ret;
+	enabled = reg >> SMARTFAN_EN_SHIFT(sattr->index) & 1;
+	return sprintf(buf, "%u\n", enabled + 1);
+}
+
+static ssize_t store_pwm_enable(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct nct7802_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	u8 val;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	if (val < 1 || val > 2)
+		return -EINVAL;
+	ret = regmap_update_bits(data->regmap, REG_SMARTFAN_EN(sattr->index),
+				 1 << SMARTFAN_EN_SHIFT(sattr->index),
+				 (val - 1) << SMARTFAN_EN_SHIFT(sattr->index));
+	return ret ? : count;
+}
 
 static int nct7802_read_temp(struct nct7802_data *data,
 			     u8 reg_temp, u8 reg_temp_low, int *temp)
@@ -195,7 +321,7 @@ abort:
 }
 
 static int nct7802_write_voltage(struct nct7802_data *data, int nr, int index,
-				 unsigned int voltage)
+				 unsigned long voltage)
 {
 	int shift = 8 - REG_VOLTAGE_LIMIT_MSB_SHIFT[index - 1][nr];
 	int err;
@@ -377,6 +503,8 @@ store_beep(struct device *dev, struct device_attribute *attr, const char *buf,
 	return err ? : count;
 }
 
+static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO | S_IWUSR,
+			  show_temp_type, store_temp_type, 0);
 static SENSOR_DEVICE_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, 0x01,
 			    REG_TEMP_LSB);
 static SENSOR_DEVICE_ATTR_2(temp1_min, S_IRUGO | S_IWUSR, show_temp,
@@ -386,6 +514,8 @@ static SENSOR_DEVICE_ATTR_2(temp1_max, S_IRUGO | S_IWUSR, show_temp,
 static SENSOR_DEVICE_ATTR_2(temp1_crit, S_IRUGO | S_IWUSR, show_temp,
 			    store_temp, 0x3a, 0);
 
+static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR,
+			  show_temp_type, store_temp_type, 1);
 static SENSOR_DEVICE_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, 0x02,
 			    REG_TEMP_LSB);
 static SENSOR_DEVICE_ATTR_2(temp2_min, S_IRUGO | S_IWUSR, show_temp,
@@ -395,6 +525,8 @@ static SENSOR_DEVICE_ATTR_2(temp2_max, S_IRUGO | S_IWUSR, show_temp,
 static SENSOR_DEVICE_ATTR_2(temp2_crit, S_IRUGO | S_IWUSR, show_temp,
 			    store_temp, 0x3b, 0);
 
+static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR,
+			  show_temp_type, store_temp_type, 2);
 static SENSOR_DEVICE_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 0x03,
 			    REG_TEMP_LSB);
 static SENSOR_DEVICE_ATTR_2(temp3_min, S_IRUGO | S_IWUSR, show_temp,
@@ -475,6 +607,7 @@ static SENSOR_DEVICE_ATTR_2(temp6_beep, S_IRUGO | S_IWUSR, show_beep,
 			    store_beep, 0x5c, 5);
 
 static struct attribute *nct7802_temp_attrs[] = {
+	&sensor_dev_attr_temp1_type.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -485,7 +618,8 @@ static struct attribute *nct7802_temp_attrs[] = {
 	&sensor_dev_attr_temp1_fault.dev_attr.attr,
 	&sensor_dev_attr_temp1_beep.dev_attr.attr,
 
-	&sensor_dev_attr_temp2_input.dev_attr.attr,		/* 9 */
+	&sensor_dev_attr_temp2_type.dev_attr.attr,		/* 10 */
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_crit.dev_attr.attr,
@@ -495,7 +629,8 @@ static struct attribute *nct7802_temp_attrs[] = {
 	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&sensor_dev_attr_temp2_beep.dev_attr.attr,
 
-	&sensor_dev_attr_temp3_input.dev_attr.attr,		/* 18 */
+	&sensor_dev_attr_temp3_type.dev_attr.attr,		/* 20 */
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_crit.dev_attr.attr,
@@ -505,7 +640,7 @@ static struct attribute *nct7802_temp_attrs[] = {
 	&sensor_dev_attr_temp3_fault.dev_attr.attr,
 	&sensor_dev_attr_temp3_beep.dev_attr.attr,
 
-	&sensor_dev_attr_temp4_input.dev_attr.attr,		/* 27 */
+	&sensor_dev_attr_temp4_input.dev_attr.attr,		/* 30 */
 	&sensor_dev_attr_temp4_min.dev_attr.attr,
 	&sensor_dev_attr_temp4_max.dev_attr.attr,
 	&sensor_dev_attr_temp4_crit.dev_attr.attr,
@@ -514,7 +649,7 @@ static struct attribute *nct7802_temp_attrs[] = {
 	&sensor_dev_attr_temp4_crit_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp4_beep.dev_attr.attr,
 
-	&sensor_dev_attr_temp5_input.dev_attr.attr,		/* 35 */
+	&sensor_dev_attr_temp5_input.dev_attr.attr,		/* 38 */
 	&sensor_dev_attr_temp5_min.dev_attr.attr,
 	&sensor_dev_attr_temp5_max.dev_attr.attr,
 	&sensor_dev_attr_temp5_crit.dev_attr.attr,
@@ -523,7 +658,7 @@ static struct attribute *nct7802_temp_attrs[] = {
 	&sensor_dev_attr_temp5_crit_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp5_beep.dev_attr.attr,
 
-	&sensor_dev_attr_temp6_input.dev_attr.attr,		/* 43 */
+	&sensor_dev_attr_temp6_input.dev_attr.attr,		/* 46 */
 	&sensor_dev_attr_temp6_beep.dev_attr.attr,
 
 	NULL
@@ -541,25 +676,27 @@ static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 	if (err < 0)
 		return 0;
 
-	if (index < 9 &&
+	if (index < 10 &&
 	    (reg & 03) != 0x01 && (reg & 0x03) != 0x02)		/* RD1 */
 		return 0;
-	if (index >= 9 && index < 18 &&
+
+	if (index >= 10 && index < 20 &&
 	    (reg & 0x0c) != 0x04 && (reg & 0x0c) != 0x08)	/* RD2 */
 		return 0;
-	if (index >= 18 && index < 27 && (reg & 0x30) != 0x10)	/* RD3 */
+	if (index >= 20 && index < 30 && (reg & 0x30) != 0x20)	/* RD3 */
 		return 0;
-	if (index >= 27 && index < 35)				/* local */
+
+	if (index >= 30 && index < 38)				/* local */
 		return attr->mode;
 
 	err = regmap_read(data->regmap, REG_PECI_ENABLE, &reg);
 	if (err < 0)
 		return 0;
 
-	if (index >= 35 && index < 43 && !(reg & 0x01))		/* PECI 0 */
+	if (index >= 38 && index < 46 && !(reg & 0x01))		/* PECI 0 */
 		return 0;
 
-	if (index >= 0x43 && (!(reg & 0x02)))			/* PECI 1 */
+	if (index >= 0x46 && (!(reg & 0x02)))			/* PECI 1 */
 		return 0;
 
 	return attr->mode;
@@ -687,6 +824,27 @@ static SENSOR_DEVICE_ATTR_2(fan3_alarm, S_IRUGO, show_alarm, NULL, 0x1a, 2);
 static SENSOR_DEVICE_ATTR_2(fan3_beep, S_IRUGO | S_IWUSR, show_beep, store_beep,
 			    0x5b, 2);
 
+/* 7.2.89 Fan Control Output Type */
+static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO, show_pwm_mode, NULL, 0);
+static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO, show_pwm_mode, NULL, 1);
+static SENSOR_DEVICE_ATTR(pwm3_mode, S_IRUGO, show_pwm_mode, NULL, 2);
+
+/* 7.2.91... Fan Control Output Value */
+static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, store_pwm,
+			  REG_PWM(0));
+static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, store_pwm,
+			  REG_PWM(1));
+static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO | S_IWUSR, show_pwm, store_pwm,
+			  REG_PWM(2));
+
+/* 7.2.95... Temperature to Fan mapping Relationships Register */
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR, show_pwm_enable,
+			  store_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR, show_pwm_enable,
+			  store_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO | S_IWUSR, show_pwm_enable,
+			  store_pwm_enable, 2);
+
 static struct attribute *nct7802_fan_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
@@ -725,10 +883,142 @@ static struct attribute_group nct7802_fan_group = {
 	.is_visible = nct7802_fan_is_visible,
 };
 
+static struct attribute *nct7802_pwm_attrs[] = {
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_mode.dev_attr.attr,
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm2_mode.dev_attr.attr,
+	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_mode.dev_attr.attr,
+	&sensor_dev_attr_pwm3.dev_attr.attr,
+	NULL
+};
+
+static struct attribute_group nct7802_pwm_group = {
+	.attrs = nct7802_pwm_attrs,
+};
+
+/* 7.2.115... 0x80-0x83, 0x84 Temperature (X-axis) transition */
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x80, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x81, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x82, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x83, 0);
+static SENSOR_DEVICE_ATTR_2(pwm1_auto_point5_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x84, 0);
+
+/* 7.2.120... 0x85-0x88 PWM (Y-axis) transition */
+static SENSOR_DEVICE_ATTR(pwm1_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x85);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x86);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x87);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point4_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x88);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point5_pwm, S_IRUGO, show_pwm, NULL, 0);
+
+/* 7.2.124 Table 2 X-axis Transition Point 1 Register */
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x90, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x91, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x92, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x93, 0);
+static SENSOR_DEVICE_ATTR_2(pwm2_auto_point5_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0x94, 0);
+
+/* 7.2.129 Table 2 Y-axis Transition Point 1 Register */
+static SENSOR_DEVICE_ATTR(pwm2_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x95);
+static SENSOR_DEVICE_ATTR(pwm2_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x96);
+static SENSOR_DEVICE_ATTR(pwm2_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x97);
+static SENSOR_DEVICE_ATTR(pwm2_auto_point4_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0x98);
+static SENSOR_DEVICE_ATTR(pwm2_auto_point5_pwm, S_IRUGO, show_pwm, NULL, 0);
+
+/* 7.2.133 Table 3 X-axis Transition Point 1 Register */
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point1_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0xA0, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point2_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0xA1, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point3_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0xA2, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point4_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0xA3, 0);
+static SENSOR_DEVICE_ATTR_2(pwm3_auto_point5_temp, S_IRUGO | S_IWUSR,
+			    show_temp, store_temp, 0xA4, 0);
+
+/* 7.2.138 Table 3 Y-axis Transition Point 1 Register */
+static SENSOR_DEVICE_ATTR(pwm3_auto_point1_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0xA5);
+static SENSOR_DEVICE_ATTR(pwm3_auto_point2_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0xA6);
+static SENSOR_DEVICE_ATTR(pwm3_auto_point3_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0xA7);
+static SENSOR_DEVICE_ATTR(pwm3_auto_point4_pwm, S_IRUGO | S_IWUSR,
+			  show_pwm, store_pwm, 0xA8);
+static SENSOR_DEVICE_ATTR(pwm3_auto_point5_pwm, S_IRUGO, show_pwm, NULL, 0);
+
+static struct attribute *nct7802_auto_point_attrs[] = {
+	&sensor_dev_attr_pwm1_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point4_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point5_temp.dev_attr.attr,
+
+	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point3_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point4_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point5_pwm.dev_attr.attr,
+
+	&sensor_dev_attr_pwm2_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point4_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point5_temp.dev_attr.attr,
+
+	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point3_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point4_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point5_pwm.dev_attr.attr,
+
+	&sensor_dev_attr_pwm3_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point4_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point5_temp.dev_attr.attr,
+
+	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point4_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point5_pwm.dev_attr.attr,
+
+	NULL
+};
+
+static struct attribute_group nct7802_auto_point_group = {
+	.attrs = nct7802_auto_point_attrs,
+};
+
 static const struct attribute_group *nct7802_groups[] = {
 	&nct7802_temp_group,
 	&nct7802_in_group,
 	&nct7802_fan_group,
+	&nct7802_pwm_group,
+	&nct7802_auto_point_group,
 	NULL
 };
 
@@ -776,7 +1066,8 @@ static int nct7802_detect(struct i2c_client *client,
 
 static bool nct7802_regmap_is_volatile(struct device *dev, unsigned int reg)
 {
-	return reg != REG_BANK && reg <= 0x20;
+	return (reg != REG_BANK && reg <= 0x20) ||
+		(reg >= REG_PWM(0) && reg <= REG_PWM(2));
 }
 
 static const struct regmap_config nct7802_regmap_config = {

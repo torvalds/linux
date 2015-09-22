@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -70,16 +70,16 @@ void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb)
 	 * if none are present then insert skb in tail of list
 	 */
 	skb = fm10k_ts_tx_skb(interface, FM10K_CB(clone)->fi.w.dglort);
-	if (!skb)
+	if (!skb) {
+		skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 		__skb_queue_tail(list, clone);
+	}
 
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	/* if list is already has one then we just free the clone */
 	if (skb)
-		kfree_skb(skb);
-	else
-		skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
+		dev_kfree_skb(clone);
 }
 
 void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
@@ -103,9 +103,10 @@ void fm10k_ts_tx_hwtstamp(struct fm10k_intfc *interface, __le16 dglort,
 	if (!skb)
 		return;
 
-	/* timestamp the sk_buff and return it to the socket */
+	/* timestamp the sk_buff and free out copy */
 	fm10k_systime_to_hwtstamp(interface, &shhwtstamps, systime);
-	skb_complete_tx_timestamp(skb, &shhwtstamps);
+	skb_tstamp_tx(skb, &shhwtstamps);
+	dev_kfree_skb_any(skb);
 }
 
 void fm10k_ts_tx_subtask(struct fm10k_intfc *interface)
@@ -285,7 +286,7 @@ static int fm10k_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int fm10k_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int fm10k_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct fm10k_intfc *interface;
 	unsigned long flags;
@@ -297,17 +298,17 @@ static int fm10k_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 	now = fm10k_systime_read(interface) + interface->ptp_adjust;
 	read_unlock_irqrestore(&interface->systime_lock, flags);
 
-	*ts = ns_to_timespec(now);
+	*ts = ns_to_timespec64(now);
 
 	return 0;
 }
 
 static int fm10k_ptp_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	struct fm10k_intfc *interface;
 	unsigned long flags;
-	u64 ns = timespec_to_ns(ts);
+	u64 ns = timespec64_to_ns(ts);
 
 	interface = container_of(ptp, struct fm10k_intfc, ptp_caps);
 
@@ -319,7 +320,8 @@ static int fm10k_ptp_settime(struct ptp_clock_info *ptp,
 }
 
 static int fm10k_ptp_enable(struct ptp_clock_info *ptp,
-			    struct ptp_clock_request *rq, int on)
+			    struct ptp_clock_request *rq,
+			    int __always_unused on)
 {
 	struct ptp_clock_time *t = &rq->perout.period;
 	struct fm10k_intfc *interface;
@@ -419,8 +421,8 @@ void fm10k_ptp_register(struct fm10k_intfc *interface)
 	ptp_caps->max_adj	= 976562;
 	ptp_caps->adjfreq	= fm10k_ptp_adjfreq;
 	ptp_caps->adjtime	= fm10k_ptp_adjtime;
-	ptp_caps->gettime	= fm10k_ptp_gettime;
-	ptp_caps->settime	= fm10k_ptp_settime;
+	ptp_caps->gettime64	= fm10k_ptp_gettime;
+	ptp_caps->settime64	= fm10k_ptp_settime;
 
 	/* provide pins if BAR4 is accessible */
 	if (interface->sw_addr) {

@@ -307,7 +307,7 @@ int ldlm_blocking_ast_nocheck(struct ldlm_lock *lock)
 	int do_ast;
 
 	lock->l_flags |= LDLM_FL_CBPENDING;
-	do_ast = (!lock->l_readers && !lock->l_writers);
+	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {
@@ -1462,7 +1462,7 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 			      lock->l_last_used));
 	lv = lvf * la * unused;
 
-	/* Inform pool about current CLV to see it via proc. */
+	/* Inform pool about current CLV to see it via debugfs. */
 	ldlm_pool_set_clv(pl, lv);
 
 	/* Stop when SLV is not yet come from server or lv is smaller than
@@ -1472,7 +1472,7 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 }
 
 /**
- * Callback function for proc used policy. Makes decision whether to keep
+ * Callback function for debugfs used policy. Makes decision whether to keep
  * \a lock in LRU for current \a LRU size \a unused, added in current scan \a
  * added and number of locks to be preferably canceled \a count.
  *
@@ -1779,7 +1779,6 @@ int ldlm_cancel_resource_local(struct ldlm_resource *res,
 		if (opaque != NULL && lock->l_ast_data != opaque) {
 			LDLM_ERROR(lock, "data %p doesn't match opaque %p",
 				   lock->l_ast_data, opaque);
-			//LBUG();
 			continue;
 		}
 

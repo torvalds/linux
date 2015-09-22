@@ -87,6 +87,7 @@
 
 		/* connect xtal input to 25MHz reference */
 		clocks = <&ref25>;
+		clock-names = "xtal";
 
 		/* connect xtal input as source of pll0 and pll1 */
 		silabs,pll-source = <0 0>, <1 0>;

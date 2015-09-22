@@ -1,9 +1,9 @@
 _DSD Device Properties Related to GPIO
 --------------------------------------
 
-With the release of ACPI 5.1 and the _DSD configuration objecte names
-can finally be given to GPIOs (and other things as well) returned by
-_CRS.  Previously, we were only able to use an integer index to find
+With the release of ACPI 5.1, the _DSD configuration object finally
+allows names to be given to GPIOs (and other things as well) returned
+by _CRS.  Previously, we were only able to use an integer index to find
 the corresponding GPIO, which is pretty error prone (it depends on
 the _CRS output ordering, for example).
 

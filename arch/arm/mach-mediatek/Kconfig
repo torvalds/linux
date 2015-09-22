@@ -1,7 +1,9 @@
 menuconfig ARCH_MEDIATEK
 	bool "Mediatek MT65xx & MT81xx SoC" if ARCH_MULTI_V7
 	select ARM_GIC
+	select PINCTRL
 	select MTK_TIMER
+	select MFD_SYSCON
 	help
 	  Support for Mediatek MT65xx & MT81xx SoCs
 

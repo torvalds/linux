@@ -11,7 +11,7 @@
 #ifndef __ASM_PROM_H
 #define __ASM_PROM_H
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_USE_OF
 #include <linux/bug.h>
 #include <linux/io.h>
 #include <linux/types.h>

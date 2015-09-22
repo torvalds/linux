@@ -32,7 +32,7 @@ struct mc44s803_config {
 	u8 dig_out;
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_MC44S803)
+#if IS_REACHABLE(CONFIG_MEDIA_TUNER_MC44S803)
 extern struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 	 struct i2c_adapter *i2c, struct mc44s803_config *cfg);
 #else

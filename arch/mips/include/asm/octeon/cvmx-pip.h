@@ -37,7 +37,7 @@
 #include <asm/octeon/cvmx-fpa.h>
 #include <asm/octeon/cvmx-pip-defs.h>
 
-#define CVMX_PIP_NUM_INPUT_PORTS		40
+#define CVMX_PIP_NUM_INPUT_PORTS		48
 #define CVMX_PIP_NUM_WATCHERS			4
 
 /*

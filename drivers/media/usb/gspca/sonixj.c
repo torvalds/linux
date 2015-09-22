@@ -1789,7 +1789,7 @@ static u32 expo_adjust(struct gspca_dev *gspca_dev,
 
 		if (expo > 0x03ff)
 			expo = 0x03ff;
-		 if (expo < 0x0001)
+		if (expo < 0x0001)
 			expo = 0x0001;
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);

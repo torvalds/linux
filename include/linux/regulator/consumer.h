@@ -114,7 +114,7 @@ struct regmap;
 #define REGULATOR_EVENT_OVER_TEMP		0x10
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
 #define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
-#define REGULATOR_EVENT_DISABLE 		0x80
+#define REGULATOR_EVENT_DISABLE			0x80
 #define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE	0x100
 #define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
 #define REGULATOR_EVENT_PRE_DISABLE		0x400
@@ -238,7 +238,7 @@ int regulator_get_current_limit(struct regulator *regulator);
 
 int regulator_set_mode(struct regulator *regulator, unsigned int mode);
 unsigned int regulator_get_mode(struct regulator *regulator);
-int regulator_set_optimum_mode(struct regulator *regulator, int load_uA);
+int regulator_set_load(struct regulator *regulator, int load_uA);
 
 int regulator_allow_bypass(struct regulator *regulator, bool allow);
 
@@ -252,8 +252,12 @@ int regulator_list_hardware_vsel(struct regulator *regulator,
 /* regulator notifier block */
 int regulator_register_notifier(struct regulator *regulator,
 			      struct notifier_block *nb);
+int devm_regulator_register_notifier(struct regulator *regulator,
+				     struct notifier_block *nb);
 int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb);
+void devm_regulator_unregister_notifier(struct regulator *regulator,
+					struct notifier_block *nb);
 
 /* driver data - core doesn't touch */
 void *regulator_get_drvdata(struct regulator *regulator);
@@ -479,8 +483,7 @@ static inline unsigned int regulator_get_mode(struct regulator *regulator)
 	return REGULATOR_MODE_NORMAL;
 }
 
-static inline int regulator_set_optimum_mode(struct regulator *regulator,
-					int load_uA)
+static inline int regulator_set_load(struct regulator *regulator, int load_uA)
 {
 	return REGULATOR_MODE_NORMAL;
 }
@@ -515,8 +518,20 @@ static inline int regulator_register_notifier(struct regulator *regulator,
 	return 0;
 }
 
+static inline int devm_regulator_register_notifier(struct regulator *regulator,
+						   struct notifier_block *nb)
+{
+	return 0;
+}
+
 static inline int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int devm_regulator_unregister_notifier(struct regulator *regulator,
+						     struct notifier_block *nb)
 {
 	return 0;
 }
@@ -535,7 +550,23 @@ static inline int regulator_count_voltages(struct regulator *regulator)
 {
 	return 0;
 }
+
+static inline int regulator_list_voltage(struct regulator *regulator, unsigned selector)
+{
+	return -EINVAL;
+}
+
 #endif
+
+static inline int regulator_set_voltage_triplet(struct regulator *regulator,
+						int min_uV, int target_uV,
+						int max_uV)
+{
+	if (regulator_set_voltage(regulator, target_uV, max_uV) == 0)
+		return 0;
+
+	return regulator_set_voltage(regulator, min_uV, max_uV);
+}
 
 static inline int regulator_set_voltage_tol(struct regulator *regulator,
 					    int new_uV, int tol_uV)

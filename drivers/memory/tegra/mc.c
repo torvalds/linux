@@ -13,6 +13,9 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "mc.h"
 
@@ -39,7 +42,6 @@
 #define  MC_ERR_STATUS_ADR_HI_MASK 0x3
 #define  MC_ERR_STATUS_SECURITY (1 << 17)
 #define  MC_ERR_STATUS_RW (1 << 16)
-#define  MC_ERR_STATUS_CLIENT_MASK 0x7f
 
 #define MC_ERR_ADR 0x0c
 
@@ -47,6 +49,9 @@
 #define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE(x)	(((x) & 0x1ff) << 0)
 #define  MC_EMEM_ARB_CFG_CYCLES_PER_UPDATE_MASK	0x1ff
 #define MC_EMEM_ARB_MISC0 0xd8
+
+#define MC_EMEM_ADR_CFG 0x54
+#define MC_EMEM_ADR_CFG_EMEM_NUMDEV BIT(0)
 
 static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
@@ -57,6 +62,12 @@ static const struct of_device_id tegra_mc_of_match[] = {
 #endif
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
 	{ .compatible = "nvidia,tegra124-mc", .data = &tegra124_mc_soc },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_132_SOC
+	{ .compatible = "nvidia,tegra132-mc", .data = &tegra132_mc_soc },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+	{ .compatible = "nvidia,tegra210-mc", .data = &tegra210_mc_soc },
 #endif
 	{ }
 };
@@ -87,6 +98,130 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 		value |= (la->def & la->mask) << la->shift;
 		writel(value, mc->regs + la->reg);
 	}
+
+	return 0;
+}
+
+void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
+{
+	unsigned int i;
+	struct tegra_mc_timing *timing = NULL;
+
+	for (i = 0; i < mc->num_timings; i++) {
+		if (mc->timings[i].rate == rate) {
+			timing = &mc->timings[i];
+			break;
+		}
+	}
+
+	if (!timing) {
+		dev_err(mc->dev, "no memory timing registered for rate %lu\n",
+			rate);
+		return;
+	}
+
+	for (i = 0; i < mc->soc->num_emem_regs; ++i)
+		mc_writel(mc, timing->emem_data[i], mc->soc->emem_regs[i]);
+}
+
+unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
+{
+	u8 dram_count;
+
+	dram_count = mc_readl(mc, MC_EMEM_ADR_CFG);
+	dram_count &= MC_EMEM_ADR_CFG_EMEM_NUMDEV;
+	dram_count++;
+
+	return dram_count;
+}
+
+static int load_one_timing(struct tegra_mc *mc,
+			   struct tegra_mc_timing *timing,
+			   struct device_node *node)
+{
+	int err;
+	u32 tmp;
+
+	err = of_property_read_u32(node, "clock-frequency", &tmp);
+	if (err) {
+		dev_err(mc->dev,
+			"timing %s: failed to read rate\n", node->name);
+		return err;
+	}
+
+	timing->rate = tmp;
+	timing->emem_data = devm_kcalloc(mc->dev, mc->soc->num_emem_regs,
+					 sizeof(u32), GFP_KERNEL);
+	if (!timing->emem_data)
+		return -ENOMEM;
+
+	err = of_property_read_u32_array(node, "nvidia,emem-configuration",
+					 timing->emem_data,
+					 mc->soc->num_emem_regs);
+	if (err) {
+		dev_err(mc->dev,
+			"timing %s: failed to read EMEM configuration\n",
+			node->name);
+		return err;
+	}
+
+	return 0;
+}
+
+static int load_timings(struct tegra_mc *mc, struct device_node *node)
+{
+	struct device_node *child;
+	struct tegra_mc_timing *timing;
+	int child_count = of_get_child_count(node);
+	int i = 0, err;
+
+	mc->timings = devm_kcalloc(mc->dev, child_count, sizeof(*timing),
+				   GFP_KERNEL);
+	if (!mc->timings)
+		return -ENOMEM;
+
+	mc->num_timings = child_count;
+
+	for_each_child_of_node(node, child) {
+		timing = &mc->timings[i++];
+
+		err = load_one_timing(mc, timing, child);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int tegra_mc_setup_timings(struct tegra_mc *mc)
+{
+	struct device_node *node;
+	u32 ram_code, node_ram_code;
+	int err;
+
+	ram_code = tegra_read_ram_code();
+
+	mc->num_timings = 0;
+
+	for_each_child_of_node(mc->dev->of_node, node) {
+		err = of_property_read_u32(node, "nvidia,ram-code",
+					   &node_ram_code);
+		if (err || (node_ram_code != ram_code)) {
+			of_node_put(node);
+			continue;
+		}
+
+		err = load_timings(mc, node);
+		if (err)
+			return err;
+		of_node_put(node);
+		break;
+	}
+
+	if (mc->num_timings == 0)
+		dev_warn(mc->dev,
+			 "no memory timings for RAM code %u registered\n",
+			 ram_code);
 
 	return 0;
 }
@@ -150,7 +285,7 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 		else
 			secure = "";
 
-		id = value & MC_ERR_STATUS_CLIENT_MASK;
+		id = value & mc->soc->client_id_mask;
 
 		for (i = 0; i < mc->soc->num_clients; i++) {
 			if (mc->soc->clients[i].id == id) {
@@ -248,6 +383,12 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = tegra_mc_setup_timings(mc);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to setup timings: %d\n", err);
+		return err;
+	}
+
 	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU)) {
 		mc->smmu = tegra_smmu_probe(&pdev->dev, mc->soc->smmu, mc);
 		if (IS_ERR(mc->smmu)) {
@@ -271,10 +412,12 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	WARN(!mc->soc->client_id_mask, "Missing client ID mask for this SoC\n");
+
 	value = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
 		MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
-		MC_INT_ARBITRATION_EMEM | MC_INT_SECURITY_VIOLATION |
-		MC_INT_DECERR_EMEM;
+		MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM;
+
 	mc_writel(mc, value, MC_INTMASK);
 
 	return 0;

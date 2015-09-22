@@ -223,7 +223,7 @@ FTRACE_ENTRY(bprint, bprint_entry,
 		__dynamic_array(	u32,	buf	)
 	),
 
-	F_printk("%pf: %s",
+	F_printk("%ps: %s",
 		 (void *)__entry->ip, __entry->fmt),
 
 	FILTER_OTHER
@@ -238,7 +238,7 @@ FTRACE_ENTRY(print, print_entry,
 		__dynamic_array(	char,	buf	)
 	),
 
-	F_printk("%pf: %s",
+	F_printk("%ps: %s",
 		 (void *)__entry->ip, __entry->buf),
 
 	FILTER_OTHER
@@ -253,7 +253,7 @@ FTRACE_ENTRY(bputs, bputs_entry,
 		__field(	const char *,	str	)
 	),
 
-	F_printk("%pf: %s",
+	F_printk("%ps: %s",
 		 (void *)__entry->ip, __entry->str),
 
 	FILTER_OTHER

@@ -65,8 +65,17 @@ EXPORT_SYMBOL(arch_spin_trylock);
 void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
 	u32 iterations = 0;
-	while (arch_spin_is_locked(lock))
+	int curr = READ_ONCE(lock->current_ticket);
+	int next = READ_ONCE(lock->next_ticket);
+
+	/* Return immediately if unlocked. */
+	if (next == curr)
+		return;
+
+	/* Wait until the current locker has released the lock. */
+	do {
 		delay_backoff(iterations++);
+	} while (READ_ONCE(lock->current_ticket) == curr);
 }
 EXPORT_SYMBOL(arch_spin_unlock_wait);
 

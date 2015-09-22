@@ -1336,7 +1336,10 @@ static int xc5000_release(struct dvb_frontend *fe)
 
 	if (priv) {
 		cancel_delayed_work(&priv->timer_sleep);
-		release_firmware(priv->firmware);
+		if (priv->firmware) {
+			release_firmware(priv->firmware);
+			priv->firmware = NULL;
+		}
 		hybrid_tuner_release_state(priv);
 	}
 

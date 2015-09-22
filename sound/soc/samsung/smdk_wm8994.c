@@ -86,8 +86,7 @@ static struct snd_soc_ops smdk_ops = {
 
 static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 
 	/* Other pins NC */
 	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");

@@ -4,6 +4,7 @@
 #include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
+#include "parse-events.h"
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -47,11 +48,13 @@ struct perf_pmu_alias {
 
 struct perf_pmu *perf_pmu__find(const char *name);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
-		     struct list_head *head_terms);
+		     struct list_head *head_terms,
+		     struct parse_events_error *error);
 int perf_pmu__config_terms(struct list_head *formats,
 			   struct perf_event_attr *attr,
 			   struct list_head *head_terms,
-			   bool zero);
+			   bool zero, struct parse_events_error *error);
+__u64 perf_pmu__format_bits(struct list_head *formats, const char *name);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 			  struct perf_pmu_info *info);
 struct list_head *perf_pmu__alias(struct perf_pmu *pmu,

@@ -98,7 +98,6 @@ MODULE_DEVICE_TABLE(i2c, smsc_i2c_id);
 static struct i2c_driver smsc_i2c_driver = {
 	.driver = {
 		   .name = "smsc",
-		   .owner = THIS_MODULE,
 	},
 	.probe = smsc_i2c_probe,
 	.remove = smsc_i2c_remove,

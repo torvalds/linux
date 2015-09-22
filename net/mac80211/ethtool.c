@@ -38,7 +38,7 @@ static void ieee80211_get_ringparam(struct net_device *dev,
 static const char ieee80211_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets", "rx_bytes",
 	"rx_duplicates", "rx_fragments", "rx_dropped",
-	"tx_packets", "tx_bytes", "tx_fragments",
+	"tx_packets", "tx_bytes",
 	"tx_filtered", "tx_retry_failed", "tx_retries",
 	"beacon_loss", "sta_state", "txrate", "rxrate", "signal",
 	"channel", "noise", "ch_time", "ch_time_busy",
@@ -87,7 +87,6 @@ static void ieee80211_get_stats(struct net_device *dev,
 							\
 		data[i++] += sinfo.tx_packets;		\
 		data[i++] += sinfo.tx_bytes;		\
-		data[i++] += sta->tx_fragments;		\
 		data[i++] += sta->tx_filtered_count;	\
 		data[i++] += sta->tx_retry_failed;	\
 		data[i++] += sta->tx_retry_count;	\

@@ -48,6 +48,7 @@ static void gpio_poweroff_do_poweroff(void)
 static int gpio_poweroff_probe(struct platform_device *pdev)
 {
 	bool input = false;
+	enum gpiod_flags flags;
 
 	/* If a pm_power_off function has already been added, leave it alone */
 	if (pm_power_off != NULL) {
@@ -57,25 +58,15 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	reset_gpio = devm_gpiod_get(&pdev->dev, NULL);
+	input = of_property_read_bool(pdev->dev.of_node, "input");
+	if (input)
+		flags = GPIOD_IN;
+	else
+		flags = GPIOD_OUT_LOW;
+
+	reset_gpio = devm_gpiod_get(&pdev->dev, NULL, flags);
 	if (IS_ERR(reset_gpio))
 		return PTR_ERR(reset_gpio);
-
-	input = of_property_read_bool(pdev->dev.of_node, "input");
-
-	if (input) {
-		if (gpiod_direction_input(reset_gpio)) {
-			dev_err(&pdev->dev,
-				"Could not set direction of reset GPIO to input\n");
-			return -ENODEV;
-		}
-	} else {
-		if (gpiod_direction_output(reset_gpio, 0)) {
-			dev_err(&pdev->dev,
-				"Could not set direction of reset GPIO\n");
-			return -ENODEV;
-		}
-	}
 
 	pm_power_off = &gpio_poweroff_do_poweroff;
 	return 0;

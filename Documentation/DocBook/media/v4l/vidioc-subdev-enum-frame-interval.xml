@@ -67,9 +67,9 @@
 
     <para>To enumerate frame intervals applications initialize the
     <structfield>index</structfield>, <structfield>pad</structfield>,
-    <structfield>code</structfield>, <structfield>width</structfield> and
-    <structfield>height</structfield> fields of
-    &v4l2-subdev-frame-interval-enum; and call the
+    <structfield>which</structfield>, <structfield>code</structfield>,
+    <structfield>width</structfield> and <structfield>height</structfield>
+    fields of &v4l2-subdev-frame-interval-enum; and call the
     <constant>VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL</constant> ioctl with a pointer
     to this structure. Drivers fill the rest of the structure or return
     an &EINVAL; if one of the input fields is invalid. All frame intervals are
@@ -123,7 +123,12 @@
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[9]</entry>
+	    <entry><structfield>which</structfield></entry>
+	    <entry>Frame intervals to be enumerated, from &v4l2-subdev-format-whence;.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
 	    <entry>Reserved for future extensions. Applications and drivers must
 	    set the array to zero.</entry>
 	  </row>

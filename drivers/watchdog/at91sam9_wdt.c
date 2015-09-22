@@ -17,6 +17,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -40,9 +41,9 @@
 #define DRV_NAME "AT91SAM9 Watchdog"
 
 #define wdt_read(wdt, field) \
-	__raw_readl((wdt)->base + (field))
+	readl_relaxed((wdt)->base + (field))
 #define wdt_write(wtd, field, val) \
-	__raw_writel((val), (wdt)->base + (field))
+	writel_relaxed((val), (wdt)->base + (field))
 
 /* AT91SAM9 watchdog runs a 12bit counter @ 256Hz,
  * use this to convert a watchdog
@@ -90,6 +91,7 @@ struct at91wdt {
 	unsigned long heartbeat;	/* WDT heartbeat in jiffies */
 	bool nowayout;
 	unsigned int irq;
+	struct clk *sclk;
 };
 
 /* ......................................................................... */
@@ -352,15 +354,25 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
+	wdt->sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(wdt->sclk))
+		return PTR_ERR(wdt->sclk);
+
+	err = clk_prepare_enable(wdt->sclk);
+	if (err) {
+		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		return err;
+	}
+
 	if (pdev->dev.of_node) {
 		err = of_at91wdt_init(pdev->dev.of_node, wdt);
 		if (err)
-			return err;
+			goto err_clk;
 	}
 
 	err = at91_wdt_init(pdev, wdt);
 	if (err)
-		return err;
+		goto err_clk;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -368,6 +380,11 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 		wdt->wdd.timeout, wdt->nowayout);
 
 	return 0;
+
+err_clk:
+	clk_disable_unprepare(wdt->sclk);
+
+	return err;
 }
 
 static int __exit at91wdt_remove(struct platform_device *pdev)
@@ -377,6 +394,7 @@ static int __exit at91wdt_remove(struct platform_device *pdev)
 
 	pr_warn("I quit now, hardware will probably reboot!\n");
 	del_timer(&wdt->timer);
+	clk_disable_unprepare(wdt->sclk);
 
 	return 0;
 }

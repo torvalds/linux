@@ -22,59 +22,54 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
 
 static void
-gf100_bus_intr(struct nvkm_subdev *subdev)
+gf100_bus_intr(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *pbus = nvkm_bus(subdev);
-	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
+	struct nvkm_subdev *subdev = &bus->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
 	if (stat & 0x0000000e) {
-		u32 addr = nv_rd32(pbus, 0x009084);
-		u32 data = nv_rd32(pbus, 0x009088);
+		u32 addr = nvkm_rd32(device, 0x009084);
+		u32 data = nvkm_rd32(device, 0x009088);
 
-		nv_error(pbus, "MMIO %s of 0x%08x FAULT at 0x%06x [ %s%s%s]\n",
-			 (addr & 0x00000002) ? "write" : "read", data,
-			 (addr & 0x00fffffc),
-			 (stat & 0x00000002) ? "!ENGINE " : "",
-			 (stat & 0x00000004) ? "IBUS " : "",
-			 (stat & 0x00000008) ? "TIMEOUT " : "");
+		nvkm_error(subdev,
+			   "MMIO %s of %08x FAULT at %06x [ %s%s%s]\n",
+			   (addr & 0x00000002) ? "write" : "read", data,
+			   (addr & 0x00fffffc),
+			   (stat & 0x00000002) ? "!ENGINE " : "",
+			   (stat & 0x00000004) ? "IBUS " : "",
+			   (stat & 0x00000008) ? "TIMEOUT " : "");
 
-		nv_wr32(pbus, 0x009084, 0x00000000);
-		nv_wr32(pbus, 0x001100, (stat & 0x0000000e));
+		nvkm_wr32(device, 0x009084, 0x00000000);
+		nvkm_wr32(device, 0x001100, (stat & 0x0000000e));
 		stat &= ~0x0000000e;
 	}
 
 	if (stat) {
-		nv_error(pbus, "unknown intr 0x%08x\n", stat);
-		nv_mask(pbus, 0x001140, stat, 0x00000000);
+		nvkm_error(subdev, "intr %08x\n", stat);
+		nvkm_mask(device, 0x001140, stat, 0x00000000);
 	}
 }
 
-static int
-gf100_bus_init(struct nvkm_object *object)
+static void
+gf100_bus_init(struct nvkm_bus *bus)
 {
-	struct nv04_bus_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_bus_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x001100, 0xffffffff);
-	nv_wr32(priv, 0x001140, 0x0000000e);
-	return 0;
+	struct nvkm_device *device = bus->subdev.device;
+	nvkm_wr32(device, 0x001100, 0xffffffff);
+	nvkm_wr32(device, 0x001140, 0x0000000e);
 }
 
-struct nvkm_oclass *
-gf100_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0xc0),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = gf100_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
+static const struct nvkm_bus_func
+gf100_bus = {
+	.init = gf100_bus_init,
 	.intr = gf100_bus_intr,
-}.base;
+};
+
+int
+gf100_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
+{
+	return nvkm_bus_new_(&gf100_bus, device, index, pbus);
+}

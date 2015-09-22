@@ -257,7 +257,7 @@ void hpfs_write_inode_nolock(struct inode *i)
 
 int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error = -EINVAL;
 
 	hpfs_lock(inode->i_sb);

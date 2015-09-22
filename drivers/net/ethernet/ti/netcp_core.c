@@ -34,6 +34,7 @@
 #define NETCP_SOP_OFFSET	(NET_IP_ALIGN + NET_SKB_PAD)
 #define NETCP_NAPI_WEIGHT	64
 #define NETCP_TX_TIMEOUT	(5 * HZ)
+#define NETCP_PACKET_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN)
 #define NETCP_MIN_PACKET_SIZE	ETH_ZLEN
 #define NETCP_MAX_MCAST_ADDR	16
 
@@ -50,6 +51,8 @@
 		    NETIF_MSG_TX_ERR	| NETIF_MSG_TX_DONE	|	\
 		    NETIF_MSG_PKTDATA	| NETIF_MSG_TX_QUEUED	|	\
 		    NETIF_MSG_RX_STATUS)
+
+#define NETCP_EFUSE_ADDR_SWAP	2
 
 #define knav_queue_get_id(q)	knav_queue_device_control(q, \
 				KNAV_QUEUE_GET_ID, (unsigned long)NULL)
@@ -172,12 +175,21 @@ static void set_words(u32 *words, int num_words, u32 *desc)
 }
 
 /* Read the e-fuse value as 32 bit values to be endian independent */
-static int emac_arch_get_mac_addr(char *x, void __iomem *efuse_mac)
+static int emac_arch_get_mac_addr(char *x, void __iomem *efuse_mac, u32 swap)
 {
 	unsigned int addr0, addr1;
 
 	addr1 = readl(efuse_mac + 4);
 	addr0 = readl(efuse_mac);
+
+	switch (swap) {
+	case NETCP_EFUSE_ADDR_SWAP:
+		addr0 = addr1;
+		addr1 = readl(efuse_mac);
+		break;
+	default:
+		break;
+	}
 
 	x[0] = (addr1 & 0x0000ff00) >> 8;
 	x[1] = addr1 & 0x000000ff;
@@ -537,7 +549,7 @@ int netcp_unregister_rxhook(struct netcp_intf *netcp_priv, int order,
 static void netcp_frag_free(bool is_frag, void *ptr)
 {
 	if (is_frag)
-		put_page(virt_to_head_page(ptr));
+		skb_free_frag(ptr);
 	else
 		kfree(ptr);
 }
@@ -698,7 +710,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		}
 	}
 
-	netcp->ndev->last_rx = jiffies;
 	netcp->ndev->stats.rx_packets++;
 	netcp->ndev->stats.rx_bytes += skb->len;
 
@@ -805,30 +816,28 @@ static void netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	if (likely(fdq == 0)) {
 		unsigned int primary_buf_len;
 		/* Allocate a primary receive queue entry */
-		buf_len = netcp->rx_buffer_sizes[0] + NETCP_SOP_OFFSET;
+		buf_len = NETCP_PACKET_SIZE + NETCP_SOP_OFFSET;
 		primary_buf_len = SKB_DATA_ALIGN(buf_len) +
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-		if (primary_buf_len <= PAGE_SIZE) {
-			bufptr = netdev_alloc_frag(primary_buf_len);
-			pad[1] = primary_buf_len;
-		} else {
-			bufptr = kmalloc(primary_buf_len, GFP_ATOMIC |
-					 GFP_DMA32 | __GFP_COLD);
-			pad[1] = 0;
-		}
+		bufptr = netdev_alloc_frag(primary_buf_len);
+		pad[1] = primary_buf_len;
 
 		if (unlikely(!bufptr)) {
-			dev_warn_ratelimited(netcp->ndev_dev, "Primary RX buffer alloc failed\n");
+			dev_warn_ratelimited(netcp->ndev_dev,
+					     "Primary RX buffer alloc failed\n");
 			goto fail;
 		}
 		dma = dma_map_single(netcp->dev, bufptr, buf_len,
 				     DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(netcp->dev, dma)))
+			goto fail;
+
 		pad[0] = (u32)bufptr;
 
 	} else {
 		/* Allocate a secondary receive queue entry */
-		page = alloc_page(GFP_ATOMIC | GFP_DMA32 | __GFP_COLD);
+		page = alloc_page(GFP_ATOMIC | GFP_DMA | __GFP_COLD);
 		if (unlikely(!page)) {
 			dev_warn_ratelimited(netcp->ndev_dev, "Secondary page alloc failed\n");
 			goto fail;
@@ -1011,7 +1020,7 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 
 	/* Map the linear buffer */
 	dma_addr = dma_map_single(dev, skb->data, pkt_len, DMA_TO_DEVICE);
-	if (unlikely(!dma_addr)) {
+	if (unlikely(dma_mapping_error(dev, dma_addr))) {
 		dev_err(netcp->ndev_dev, "Failed to map skb buffer\n");
 		return NULL;
 	}
@@ -1098,9 +1107,9 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 	struct netcp_tx_pipe *tx_pipe = NULL;
 	struct netcp_hook_list *tx_hook;
 	struct netcp_packet p_info;
-	u32 packet_info = 0;
 	unsigned int dma_sz;
 	dma_addr_t dma;
+	u32 tmp = 0;
 	int ret = 0;
 
 	p_info.netcp = netcp;
@@ -1140,19 +1149,26 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 		memmove(p_info.psdata, p_info.psdata + p_info.psdata_len,
 			p_info.psdata_len);
 		set_words(psdata, p_info.psdata_len, psdata);
-		packet_info |=
-			(p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
+		tmp |= (p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
 			KNAV_DMA_DESC_PSLEN_SHIFT;
 	}
 
-	packet_info |= KNAV_DMA_DESC_HAS_EPIB |
+	tmp |= KNAV_DMA_DESC_HAS_EPIB |
 		((netcp->tx_compl_qid & KNAV_DMA_DESC_RETQ_MASK) <<
-		KNAV_DMA_DESC_RETQ_SHIFT) |
-		((tx_pipe->dma_psflags & KNAV_DMA_DESC_PSFLAG_MASK) <<
-		KNAV_DMA_DESC_PSFLAG_SHIFT);
+		KNAV_DMA_DESC_RETQ_SHIFT);
 
-	set_words(&packet_info, 1, &desc->packet_info);
+	if (!(tx_pipe->flags & SWITCH_TO_PORT_IN_TAGINFO)) {
+		tmp |= ((tx_pipe->switch_to_port & KNAV_DMA_DESC_PSFLAG_MASK) <<
+			KNAV_DMA_DESC_PSFLAG_SHIFT);
+	}
+
+	set_words(&tmp, 1, &desc->packet_info);
 	set_words((u32 *)&skb, 1, &desc->pad[0]);
+
+	if (tx_pipe->flags & SWITCH_TO_PORT_IN_TAGINFO) {
+		tmp = tx_pipe->switch_to_port;
+		set_words((u32 *)&tmp, 1, &desc->tag_info);
+	}
 
 	/* submit packet descriptor */
 	ret = knav_pool_desc_map(netcp->tx_pool, desc, sizeof(*desc), &dma,
@@ -1320,7 +1336,7 @@ static struct netcp_addr *netcp_addr_add(struct netcp_intf *netcp,
 	if (addr)
 		ether_addr_copy(naddr->addr, addr);
 	else
-		memset(naddr->addr, 0, ETH_ALEN);
+		eth_zero_addr(naddr->addr);
 	list_add_tail(&naddr->node, &netcp->addr_list);
 
 	return naddr;
@@ -1540,8 +1556,8 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	knav_queue_disable_notify(netcp->rx_queue);
 
 	/* open Rx FDQs */
-	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN &&
-	     netcp->rx_queue_depths[i] && netcp->rx_buffer_sizes[i]; ++i) {
+	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN && netcp->rx_queue_depths[i];
+	     ++i) {
 		snprintf(name, sizeof(name), "rx-fdq-%s-%d", ndev->name, i);
 		netcp->rx_fdq[i] = knav_queue_open(name, KNAV_QUEUE_GP, 0);
 		if (IS_ERR_OR_NULL(netcp->rx_fdq[i])) {
@@ -1611,11 +1627,11 @@ static int netcp_ndo_open(struct net_device *ndev)
 	}
 	mutex_unlock(&netcp_modules_lock);
 
-	netcp_rxpool_refill(netcp);
 	napi_enable(&netcp->rx_napi);
 	napi_enable(&netcp->tx_napi);
 	knav_queue_enable_notify(netcp->tx_compl_q);
 	knav_queue_enable_notify(netcp->rx_queue);
+	netcp_rxpool_refill(netcp);
 	netif_tx_wake_all_queues(ndev);
 	dev_dbg(netcp->ndev_dev, "netcp device %s opened\n", ndev->name);
 	return 0;
@@ -1896,7 +1912,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 			goto quit;
 		}
 
-		emac_arch_get_mac_addr(efuse_mac_addr, efuse);
+		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
 			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
 		else
@@ -1933,14 +1949,6 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	if (ret < 0) {
 		dev_err(dev, "missing \"rx-queue-depth\" parameter\n");
 		netcp->rx_queue_depths[0] = 128;
-	}
-
-	ret = of_property_read_u32_array(node_interface, "rx-buffer-size",
-					 netcp->rx_buffer_sizes,
-					 KNAV_DMA_FDQ_PER_CHAN);
-	if (ret) {
-		dev_err(dev, "missing \"rx-buffer-size\" parameter\n");
-		netcp->rx_buffer_sizes[0] = 1536;
 	}
 
 	ret = of_property_read_u32_array(node_interface, "rx-pool", temp, 2);
@@ -2106,6 +2114,7 @@ probe_quit:
 static int netcp_remove(struct platform_device *pdev)
 {
 	struct netcp_device *netcp_device = platform_get_drvdata(pdev);
+	struct netcp_intf *netcp_intf, *netcp_tmp;
 	struct netcp_inst_modpriv *inst_modpriv, *tmp;
 	struct netcp_module *module;
 
@@ -2117,17 +2126,24 @@ static int netcp_remove(struct platform_device *pdev)
 		list_del(&inst_modpriv->inst_list);
 		kfree(inst_modpriv);
 	}
-	WARN(!list_empty(&netcp_device->interface_head), "%s interface list not empty!\n",
-	     pdev->name);
 
-	devm_kfree(&pdev->dev, netcp_device);
+	/* now that all modules are removed, clean up the interfaces */
+	list_for_each_entry_safe(netcp_intf, netcp_tmp,
+				 &netcp_device->interface_head,
+				 interface_list) {
+		netcp_delete_interface(netcp_device, netcp_intf->ndev);
+	}
+
+	WARN(!list_empty(&netcp_device->interface_head),
+	     "%s interface list not empty!\n", pdev->name);
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
-static struct of_device_id of_match[] = {
+static const struct of_device_id of_match[] = {
 	{ .compatible = "ti,netcp-1.0", },
 	{},
 };
@@ -2136,7 +2152,6 @@ MODULE_DEVICE_TABLE(of, of_match);
 static struct platform_driver netcp_driver = {
 	.driver = {
 		.name		= "netcp-1.0",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match,
 	},
 	.probe = netcp_probe,

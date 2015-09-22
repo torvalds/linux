@@ -163,7 +163,8 @@ extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
 
 extern void gpmc_cs_write_reg(int cs, int idx, u32 val);
 extern int gpmc_calc_divider(unsigned int sync_clk);
-extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t);
+extern int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
+			       const struct gpmc_settings *s);
 extern int gpmc_cs_program_settings(int cs, struct gpmc_settings *p);
 extern int gpmc_cs_request(int cs, unsigned long size, unsigned long *base);
 extern void gpmc_cs_free(int cs);

@@ -13,6 +13,9 @@ Optional properties:
 - pinctrl-names: should be "default" (see pinctrl binding [1]).
 - pinctrl-0: a phandle pointing to the pin settings for the device (see
   pinctrl binding [1]).
+- reset-gpios: reset gpio the chip is connected to.
+- vcc33-supply: a phandle for the regulator supplying 3.3V power.
+- vccio-supply: a phandle for the regulator supplying IO power.
 
 [0]: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 [1]: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt

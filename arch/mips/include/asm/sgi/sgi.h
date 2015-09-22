@@ -22,14 +22,15 @@ enum sgi_mach {
 	ip17,	/* R4K UP */
 	ip19,	/* R4K MP */
 	ip20,	/* R4K UP, Indigo */
-	ip21,	/* TFP MP */
-	ip22,	/* R4x00 UP, Indigo2 */
+	ip21,	/* R8k/TFP MP */
+	ip22,	/* R4x00 UP, Indy, Indigo2 */
 	ip25,	/* R10k MP */
-	ip26,	/* TFP UP, Indigo2 */
-	ip27,	/* R10k MP, R12k MP, Origin */
-	ip28,	/* R10k UP, Indigo2 */
-	ip30,	/* Octane */
-	ip32,	/* O2 */
+	ip26,	/* R8k/TFP UP, Indigo2 */
+	ip27,	/* R10k MP, R12k MP, R14k MP, Origin 200/2k, Onyx2 */
+	ip28,	/* R10k UP, Indigo2 Impact R10k */
+	ip30,	/* R10k MP, R12k MP, R14k MP, Octane */
+	ip32,	/* R5k UP, RM5200 UP, RM7k UP, R10k UP, R12k UP, O2 */
+	ip35,   /* R14k MP, R16k MP, Origin 300/3k, Onyx3, Fuel, Tezro */
 };
 
 extern enum sgi_mach sgimach;

@@ -492,7 +492,7 @@ unlock:
 }
 
 static int noon010_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index >= ARRAY_SIZE(noon010_formats))
@@ -502,15 +502,16 @@ static int noon010_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int noon010_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int noon010_get_fmt(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct noon010_info *info = to_noon010(sd);
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (fh) {
-			mf = v4l2_subdev_get_try_format(fh, 0);
+		if (cfg) {
+			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 			fmt->format = *mf;
 		}
 		return 0;
@@ -542,7 +543,7 @@ static const struct noon010_format *noon010_try_fmt(struct v4l2_subdev *sd,
 	return &noon010_formats[i];
 }
 
-static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct noon010_info *info = to_noon010(sd);
@@ -557,8 +558,8 @@ static int noon010_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (fh) {
-			mf = v4l2_subdev_get_try_format(fh, 0);
+		if (cfg) {
+			mf = v4l2_subdev_get_try_format(sd, cfg, 0);
 			*mf = fmt->format;
 		}
 		return 0;
@@ -640,7 +641,7 @@ static int noon010_log_status(struct v4l2_subdev *sd)
 
 static int noon010_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	mf->width = noon010_sizes[0].width;
 	mf->height = noon010_sizes[0].height;

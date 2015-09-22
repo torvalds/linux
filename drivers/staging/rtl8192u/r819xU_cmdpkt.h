@@ -182,10 +182,10 @@ typedef enum _rt_status {
 	RT_STATUS_RESOURCE
 } rt_status, *prt_status;
 
-extern u32 cmpk_message_handle_rx(struct net_device *dev,
-		struct ieee80211_rx_stats *pstats);
-extern rt_status SendTxCommandPacket(struct net_device *dev,
-		void *pData, u32 DataLen);
+u32 cmpk_message_handle_rx(struct net_device *dev,
+			   struct ieee80211_rx_stats *pstats);
+rt_status SendTxCommandPacket(struct net_device *dev,
+			      void *pData, u32 DataLen);
 
 
 #endif

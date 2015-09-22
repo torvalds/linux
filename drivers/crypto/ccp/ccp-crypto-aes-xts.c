@@ -21,7 +21,6 @@
 
 #include "ccp-crypto.h"
 
-
 struct ccp_aes_xts_def {
 	const char *name;
 	const char *drv_name;
@@ -216,7 +215,6 @@ static void ccp_aes_xts_cra_exit(struct crypto_tfm *tfm)
 	ctx->u.aes.tfm_ablkcipher = NULL;
 }
 
-
 static int ccp_register_aes_xts_alg(struct list_head *head,
 				    const struct ccp_aes_xts_def *def)
 {
@@ -255,7 +253,7 @@ static int ccp_register_aes_xts_alg(struct list_head *head,
 	ret = crypto_register_alg(alg);
 	if (ret) {
 		pr_err("%s ablkcipher algorithm registration error (%d)\n",
-			alg->cra_name, ret);
+		       alg->cra_name, ret);
 		kfree(ccp_alg);
 		return ret;
 	}

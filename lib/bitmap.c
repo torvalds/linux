@@ -42,36 +42,6 @@
  * for the best explanations of this ordering.
  */
 
-int __bitmap_empty(const unsigned long *bitmap, unsigned int bits)
-{
-	unsigned int k, lim = bits/BITS_PER_LONG;
-	for (k = 0; k < lim; ++k)
-		if (bitmap[k])
-			return 0;
-
-	if (bits % BITS_PER_LONG)
-		if (bitmap[k] & BITMAP_LAST_WORD_MASK(bits))
-			return 0;
-
-	return 1;
-}
-EXPORT_SYMBOL(__bitmap_empty);
-
-int __bitmap_full(const unsigned long *bitmap, unsigned int bits)
-{
-	unsigned int k, lim = bits/BITS_PER_LONG;
-	for (k = 0; k < lim; ++k)
-		if (~bitmap[k])
-			return 0;
-
-	if (bits % BITS_PER_LONG)
-		if (~bitmap[k] & BITMAP_LAST_WORD_MASK(bits))
-			return 0;
-
-	return 1;
-}
-EXPORT_SYMBOL(__bitmap_full);
-
 int __bitmap_equal(const unsigned long *bitmap1,
 		const unsigned long *bitmap2, unsigned int bits)
 {
@@ -397,7 +367,8 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 
 	nchunks = nbits = totaldigits = c = 0;
 	do {
-		chunk = ndigits = 0;
+		chunk = 0;
+		ndigits = totaldigits;
 
 		/* Get the next chunk of the bitmap */
 		while (buflen) {
@@ -436,9 +407,9 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 				return -EOVERFLOW;
 
 			chunk = (chunk << 4) | hex_to_bin(c);
-			ndigits++; totaldigits++;
+			totaldigits++;
 		}
-		if (ndigits == 0)
+		if (ndigits == totaldigits)
 			return -EINVAL;
 		if (nchunks == 0 && chunk == 0)
 			continue;
@@ -492,19 +463,20 @@ EXPORT_SYMBOL(bitmap_parse_user);
  * Output format is a comma-separated list of decimal numbers and
  * ranges if list is specified or hex digits grouped into comma-separated
  * sets of 8 digits/set. Returns the number of characters written to buf.
+ *
+ * It is assumed that @buf is a pointer into a PAGE_SIZE area and that
+ * sufficient storage remains at @buf to accommodate the
+ * bitmap_print_to_pagebuf() output.
  */
 int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
 			    int nmaskbits)
 {
-	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf - 2;
+	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
 	int n = 0;
 
-	if (len > 1) {
-		n = list ? scnprintf(buf, len, "%*pbl", nmaskbits, maskp) :
-			   scnprintf(buf, len, "%*pb", nmaskbits, maskp);
-		buf[n++] = '\n';
-		buf[n] = '\0';
-	}
+	if (len > 1)
+		n = list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp) :
+			   scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
 	return n;
 }
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
@@ -534,16 +506,17 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		int nmaskbits)
 {
 	unsigned a, b;
-	int c, old_c, totaldigits;
+	int c, old_c, totaldigits, ndigits;
 	const char __user __force *ubuf = (const char __user __force *)buf;
-	int exp_digit, in_range;
+	int at_start, in_range;
 
 	totaldigits = c = 0;
 	bitmap_zero(maskp, nmaskbits);
 	do {
-		exp_digit = 1;
+		at_start = 1;
 		in_range = 0;
 		a = b = 0;
+		ndigits = totaldigits;
 
 		/* Get the next cpu# or a range of cpu#'s */
 		while (buflen) {
@@ -557,24 +530,27 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 			if (isspace(c))
 				continue;
 
-			/*
-			 * If the last character was a space and the current
-			 * character isn't '\0', we've got embedded whitespace.
-			 * This is a no-no, so throw an error.
-			 */
-			if (totaldigits && c && isspace(old_c))
-				return -EINVAL;
-
 			/* A '\0' or a ',' signal the end of a cpu# or range */
 			if (c == '\0' || c == ',')
 				break;
+			/*
+			* whitespaces between digits are not allowed,
+			* but it's ok if whitespaces are on head or tail.
+			* when old_c is whilespace,
+			* if totaldigits == ndigits, whitespace is on head.
+			* if whitespace is on tail, it should not run here.
+			* as c was ',' or '\0',
+			* the last code line has broken the current loop.
+			*/
+			if ((totaldigits != ndigits) && isspace(old_c))
+				return -EINVAL;
 
 			if (c == '-') {
-				if (exp_digit || in_range)
+				if (at_start || in_range)
 					return -EINVAL;
 				b = 0;
 				in_range = 1;
-				exp_digit = 1;
+				at_start = 1;
 				continue;
 			}
 
@@ -584,9 +560,14 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 			b = b * 10 + (c - '0');
 			if (!in_range)
 				a = b;
-			exp_digit = 0;
+			at_start = 0;
 			totaldigits++;
 		}
+		if (ndigits == totaldigits)
+			continue;
+		/* if no digit is after '-', it's wrong*/
+		if (at_start && in_range)
+			return -EINVAL;
 		if (!(a <= b))
 			return -EINVAL;
 		if (b >= nmaskbits)

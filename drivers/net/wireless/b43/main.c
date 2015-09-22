@@ -3131,8 +3131,6 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 		ctl |= B43_MACCTL_KEEP_BAD;
 	if (wl->filter_flags & FIF_PLCPFAIL)
 		ctl |= B43_MACCTL_KEEP_BADPLCP;
-	if (wl->filter_flags & FIF_PROMISC_IN_BSS)
-		ctl |= B43_MACCTL_PROMISC;
 	if (wl->filter_flags & FIF_BCN_PRBRESP_PROMISC)
 		ctl |= B43_MACCTL_BEACPROMISC;
 
@@ -4132,7 +4130,7 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (conf->bssid)
 			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 		else
-			memset(wl->bssid, 0, ETH_ALEN);
+			eth_zero_addr(wl->bssid);
 	}
 
 	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
@@ -4310,16 +4308,14 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
 		goto out_unlock;
 	}
 
-	*fflags &= FIF_PROMISC_IN_BSS |
-		  FIF_ALLMULTI |
+	*fflags &= FIF_ALLMULTI |
 		  FIF_FCSFAIL |
 		  FIF_PLCPFAIL |
 		  FIF_CONTROL |
 		  FIF_OTHER_BSS |
 		  FIF_BCN_PRBRESP_PROMISC;
 
-	changed &= FIF_PROMISC_IN_BSS |
-		   FIF_ALLMULTI |
+	changed &= FIF_ALLMULTI |
 		   FIF_FCSFAIL |
 		   FIF_PLCPFAIL |
 		   FIF_CONTROL |
@@ -4819,7 +4815,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_down(dev->dev->bdev->bus);
+		bcma_host_pci_down(dev->dev->bdev->bus);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -4866,9 +4862,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_irq_ctl(&dev->dev->bdev->bus->drv_pci[0],
+		bcma_host_pci_irq_ctl(dev->dev->bdev->bus,
 				      dev->dev->bdev, true);
-		bcma_core_pci_up(dev->dev->bdev->bus);
+		bcma_host_pci_up(dev->dev->bdev->bus);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -5051,7 +5047,7 @@ static void b43_op_remove_interface(struct ieee80211_hw *hw,
 	wl->operating = false;
 
 	b43_adjust_opmode(dev);
-	memset(wl->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(wl->mac_addr);
 	b43_upload_card_macaddress(dev);
 
 	mutex_unlock(&wl->mutex);
@@ -5067,8 +5063,8 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	/* Kill all old instance specific information to make sure
 	 * the card won't use it in the short timeframe between start
 	 * and mac80211 reconfiguring it. */
-	memset(wl->bssid, 0, ETH_ALEN);
-	memset(wl->mac_addr, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
+	eth_zero_addr(wl->mac_addr);
 	wl->filter_flags = 0;
 	wl->radiotap_enabled = false;
 	b43_qos_clear(wl);
@@ -5365,6 +5361,10 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 		*have_5ghz_phy = true;
 		return;
 	case 0x4321: /* BCM4306 */
+		/* There are 14e4:4321 PCI devs with 2.4 GHz BCM4321 (N-PHY) */
+		if (dev->phy.type != B43_PHYTYPE_G)
+			break;
+		/* fall through */
 	case 0x4313: /* BCM4311 */
 	case 0x431a: /* BCM4318 */
 	case 0x432a: /* BCM4321 */
@@ -5609,8 +5609,8 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	wl = hw_to_b43_wl(hw);
 
 	/* fill hw info */
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_SIGNAL_DBM;
+	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |

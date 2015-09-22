@@ -34,19 +34,6 @@
  * IP blocks
  */
 
-/*
- * 'emif' class
- * instance(s): emif
- */
-static struct omap_hwmod_class_sysconfig am33xx_emif_sysc = {
-	.rev_offs	= 0x0000,
-};
-
-static struct omap_hwmod_class am33xx_emif_hwmod_class = {
-	.name		= "emif",
-	.sysc		= &am33xx_emif_sysc,
-};
-
 /* emif */
 static struct omap_hwmod am33xx_emif_hwmod = {
 	.name		= "emif",

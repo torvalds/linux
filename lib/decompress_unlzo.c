@@ -31,6 +31,7 @@
  */
 
 #ifdef STATIC
+#define PREBOOT
 #include "lzo/lzo1x_decompress_safe.c"
 #else
 #include <linux/decompress/unlzo.h>
@@ -287,4 +288,14 @@ exit:
 	return ret;
 }
 
-#define decompress unlzo
+#ifdef PREBOOT
+STATIC int INIT __decompress(unsigned char *buf, long len,
+			   long (*fill)(void*, unsigned long),
+			   long (*flush)(void*, unsigned long),
+			   unsigned char *out_buf, long olen,
+			   long *pos,
+			   void (*error)(char *x))
+{
+	return unlzo(buf, len, fill, flush, out_buf, pos, error);
+}
+#endif

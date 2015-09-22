@@ -106,7 +106,7 @@ void ar9003_hw_rtt_load_hist(struct ath_hw *ah)
 	int chain, i;
 
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
-		if (!(ah->rxchainmask & (1 << chain)))
+		if (!(ah->caps.rx_chainmask & (1 << chain)))
 			continue;
 		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++) {
 			ar9003_hw_rtt_load_hist_entry(ah, chain, i,
@@ -171,7 +171,7 @@ void ar9003_hw_rtt_fill_hist(struct ath_hw *ah)
 	int chain, i;
 
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
-		if (!(ah->rxchainmask & (1 << chain)))
+		if (!(ah->caps.rx_chainmask & (1 << chain)))
 			continue;
 		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++) {
 			ah->caldata->rtt_table[chain][i] =
@@ -193,7 +193,7 @@ void ar9003_hw_rtt_clear_hist(struct ath_hw *ah)
 	int chain, i;
 
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
-		if (!(ah->rxchainmask & (1 << chain)))
+		if (!(ah->caps.rx_chainmask & (1 << chain)))
 			continue;
 		for (i = 0; i < MAX_RTT_TABLE_ENTRY; i++)
 			ar9003_hw_rtt_load_hist_entry(ah, chain, i, 0);

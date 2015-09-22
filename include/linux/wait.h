@@ -147,7 +147,8 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
 
 typedef int wait_bit_action_f(struct wait_bit_key *);
 void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
-void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
+			  void *key);
 void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
 void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
 void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
@@ -179,7 +180,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
 #define wake_up_poll(x, m)						\
 	__wake_up(x, TASK_NORMAL, 1, (void *) (m))
 #define wake_up_locked_poll(x, m)					\
-	__wake_up_locked_key((x), TASK_NORMAL, (void *) (m))
+	__wake_up_locked_key((x), TASK_NORMAL, 1, (void *) (m))
 #define wake_up_interruptible_poll(x, m)				\
 	__wake_up(x, TASK_INTERRUPTIBLE, 1, (void *) (m))
 #define wake_up_interruptible_sync_poll(x, m)				\
@@ -357,6 +358,19 @@ do {									\
 		__ret = __wait_event_freezable_timeout(wq, condition, timeout);	\
 	__ret;								\
 })
+
+#define __wait_event_exclusive_cmd(wq, condition, cmd1, cmd2)		\
+	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 1, 0,	\
+			    cmd1; schedule(); cmd2)
+/*
+ * Just like wait_event_cmd(), except it sets exclusive flag
+ */
+#define wait_event_exclusive_cmd(wq, condition, cmd1, cmd2)		\
+do {									\
+	if (condition)							\
+		break;							\
+	__wait_event_exclusive_cmd(wq, condition, cmd1, cmd2);		\
+} while (0)
 
 #define __wait_event_cmd(wq, condition, cmd1, cmd2)			\
 	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
@@ -969,7 +983,7 @@ extern int bit_wait_io_timeout(struct wait_bit_key *);
  * on that signal.
  */
 static inline int
-wait_on_bit(void *word, int bit, unsigned mode)
+wait_on_bit(unsigned long *word, int bit, unsigned mode)
 {
 	might_sleep();
 	if (!test_bit(bit, word))
@@ -994,7 +1008,7 @@ wait_on_bit(void *word, int bit, unsigned mode)
  * on that signal.
  */
 static inline int
-wait_on_bit_io(void *word, int bit, unsigned mode)
+wait_on_bit_io(unsigned long *word, int bit, unsigned mode)
 {
 	might_sleep();
 	if (!test_bit(bit, word))
@@ -1020,7 +1034,8 @@ wait_on_bit_io(void *word, int bit, unsigned mode)
  * received a signal and the mode permitted wakeup on that signal.
  */
 static inline int
-wait_on_bit_timeout(void *word, int bit, unsigned mode, unsigned long timeout)
+wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
+		    unsigned long timeout)
 {
 	might_sleep();
 	if (!test_bit(bit, word))
@@ -1047,7 +1062,8 @@ wait_on_bit_timeout(void *word, int bit, unsigned mode, unsigned long timeout)
  * on that signal.
  */
 static inline int
-wait_on_bit_action(void *word, int bit, wait_bit_action_f *action, unsigned mode)
+wait_on_bit_action(unsigned long *word, int bit, wait_bit_action_f *action,
+		   unsigned mode)
 {
 	might_sleep();
 	if (!test_bit(bit, word))
@@ -1075,7 +1091,7 @@ wait_on_bit_action(void *word, int bit, wait_bit_action_f *action, unsigned mode
  * the @mode allows that signal to wake the process.
  */
 static inline int
-wait_on_bit_lock(void *word, int bit, unsigned mode)
+wait_on_bit_lock(unsigned long *word, int bit, unsigned mode)
 {
 	might_sleep();
 	if (!test_and_set_bit(bit, word))
@@ -1099,7 +1115,7 @@ wait_on_bit_lock(void *word, int bit, unsigned mode)
  * the @mode allows that signal to wake the process.
  */
 static inline int
-wait_on_bit_lock_io(void *word, int bit, unsigned mode)
+wait_on_bit_lock_io(unsigned long *word, int bit, unsigned mode)
 {
 	might_sleep();
 	if (!test_and_set_bit(bit, word))
@@ -1125,7 +1141,8 @@ wait_on_bit_lock_io(void *word, int bit, unsigned mode)
  * the @mode allows that signal to wake the process.
  */
 static inline int
-wait_on_bit_lock_action(void *word, int bit, wait_bit_action_f *action, unsigned mode)
+wait_on_bit_lock_action(unsigned long *word, int bit, wait_bit_action_f *action,
+			unsigned mode)
 {
 	might_sleep();
 	if (!test_and_set_bit(bit, word))

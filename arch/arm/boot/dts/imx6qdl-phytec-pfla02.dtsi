@@ -31,6 +31,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio4 15 0>;
+			enable-active-high;
 		};
 
 		reg_usb_h1_vbus: regulator@1 {
@@ -40,6 +41,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 0 0>;
+			enable-active-high;
 		};
 	};
 
@@ -407,8 +409,8 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio1 4 0>;
-	wp-gpios = <&gpio1 2 0>;
+	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 	status = "disabled";
 };
 
@@ -416,7 +418,7 @@
         pinctrl-names = "default";
         pinctrl-0 = <&pinctrl_usdhc3
 		     &pinctrl_usdhc3_cdwp>;
-        cd-gpios = <&gpio1 27 0>;
-        wp-gpios = <&gpio1 29 0>;
+	cd-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
         status = "disabled";
 };

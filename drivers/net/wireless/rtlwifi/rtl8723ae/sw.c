@@ -205,9 +205,9 @@ bool rtl8723e_get_btc_status(void)
 	return true;
 }
 
-static bool is_fw_header(struct rtl8723e_firmware_header *hdr)
+static bool is_fw_header(struct rtlwifi_firmware_header *hdr)
 {
-	return (hdr->signature & 0xfff0) == 0x2300;
+	return (le16_to_cpu(hdr->signature) & 0xfff0) == 0x2300;
 }
 
 static struct rtl_hal_ops rtl8723e_hal_ops = {

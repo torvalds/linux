@@ -1064,7 +1064,6 @@ static struct scsi_host_template driver_template =
      .can_queue         	= 1			/* can_queue */,        
      .this_id           	= 7			/* SCSI ID of the chip */,
      .sg_tablesize      	= 32			/*SG_ALL*/ /*SG_NONE*/, 
-     .cmd_per_lun       	= 1			/* commands per lun */, 
      .unchecked_isa_dma 	= 1			/* unchecked_isa_dma */,
      .use_clustering    	= ENABLE_CLUSTERING,
 };

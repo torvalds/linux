@@ -89,6 +89,9 @@ enum ttu_flags {
 	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
 	TTU_IGNORE_ACCESS = (1 << 9),	/* don't age */
 	TTU_IGNORE_HWPOISON = (1 << 10),/* corrupted page is recoverable */
+	TTU_BATCH_FLUSH = (1 << 11),	/* Batch TLB flushes where possible
+					 * and caller guarantees they will
+					 * do a final flush if necessary */
 };
 
 #ifdef CONFIG_MMU
@@ -103,14 +106,6 @@ static inline void put_anon_vma(struct anon_vma *anon_vma)
 {
 	if (atomic_dec_and_test(&anon_vma->refcount))
 		__put_anon_vma(anon_vma);
-}
-
-static inline struct anon_vma *page_anon_vma(struct page *page)
-{
-	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
-					    PAGE_MAPPING_ANON)
-		return NULL;
-	return page_rmapping(page);
 }
 
 static inline void vma_lock_anon_vma(struct vm_area_struct *vma)

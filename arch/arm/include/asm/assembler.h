@@ -108,33 +108,37 @@
 	.endm
 #endif
 
-	.macro asm_trace_hardirqs_off
+	.macro asm_trace_hardirqs_off, save=1
 #if defined(CONFIG_TRACE_IRQFLAGS)
+	.if \save
 	stmdb   sp!, {r0-r3, ip, lr}
+	.endif
 	bl	trace_hardirqs_off
+	.if \save
 	ldmia	sp!, {r0-r3, ip, lr}
+	.endif
 #endif
 	.endm
 
-	.macro asm_trace_hardirqs_on_cond, cond
+	.macro asm_trace_hardirqs_on, cond=al, save=1
 #if defined(CONFIG_TRACE_IRQFLAGS)
 	/*
 	 * actually the registers should be pushed and pop'd conditionally, but
 	 * after bl the flags are certainly clobbered
 	 */
+	.if \save
 	stmdb   sp!, {r0-r3, ip, lr}
+	.endif
 	bl\cond	trace_hardirqs_on
+	.if \save
 	ldmia	sp!, {r0-r3, ip, lr}
+	.endif
 #endif
 	.endm
 
-	.macro asm_trace_hardirqs_on
-	asm_trace_hardirqs_on_cond al
-	.endm
-
-	.macro disable_irq
+	.macro disable_irq, save=1
 	disable_irq_notrace
-	asm_trace_hardirqs_off
+	asm_trace_hardirqs_off \save
 	.endm
 
 	.macro enable_irq
@@ -173,9 +177,24 @@
 
 	.macro restore_irqs, oldcpsr
 	tst	\oldcpsr, #PSR_I_BIT
-	asm_trace_hardirqs_on_cond eq
+	asm_trace_hardirqs_on cond=eq
 	restore_irqs_notrace \oldcpsr
 	.endm
+
+/*
+ * Assembly version of "adr rd, BSYM(sym)".  This should only be used to
+ * reference local symbols in the same assembly file which are to be
+ * resolved by the assembler.  Other usage is undefined.
+ */
+	.irp	c,,eq,ne,cs,cc,mi,pl,vs,vc,hi,ls,ge,lt,gt,le,hs,lo
+	.macro	badr\c, rd, sym
+#ifdef CONFIG_THUMB2_KERNEL
+	adr\c	\rd, \sym + 1
+#else
+	adr\c	\rd, \sym
+#endif
+	.endm
+	.endr
 
 /*
  * Get current thread_info.
@@ -237,6 +256,9 @@
 	.pushsection ".alt.smp.init", "a"			;\
 	.long	9998b						;\
 9997:	instr							;\
+	.if . - 9997b == 2					;\
+		nop						;\
+	.endif							;\
 	.if . - 9997b != 4					;\
 		.error "ALT_UP() content must assemble to exactly 4 bytes";\
 	.endif							;\
@@ -323,7 +345,7 @@
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	bne	1f
 	orr	\reg, \reg, #PSR_A_BIT
-	adr	lr, BSYM(2f)
+	badr	lr, 2f
 	msr	spsr_cxsf, \reg
 	__MSR_ELR_HYP(14)
 	__ERET
@@ -424,6 +446,48 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	adds	\tmp, \addr, #\size - 1
 	sbcccs	\tmp, \tmp, \limit
 	bcs	\bad
+#endif
+	.endm
+
+	.macro	uaccess_disable, tmp, isb=1
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	/*
+	 * Whenever we re-enter userspace, the domains should always be
+	 * set appropriately.
+	 */
+	mov	\tmp, #DACR_UACCESS_DISABLE
+	mcr	p15, 0, \tmp, c3, c0, 0		@ Set domain register
+	.if	\isb
+	instr_sync
+	.endif
+#endif
+	.endm
+
+	.macro	uaccess_enable, tmp, isb=1
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	/*
+	 * Whenever we re-enter userspace, the domains should always be
+	 * set appropriately.
+	 */
+	mov	\tmp, #DACR_UACCESS_ENABLE
+	mcr	p15, 0, \tmp, c3, c0, 0
+	.if	\isb
+	instr_sync
+	.endif
+#endif
+	.endm
+
+	.macro	uaccess_save, tmp
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	mrc	p15, 0, \tmp, c3, c0, 0
+	str	\tmp, [sp, #S_FRAME_SIZE]
+#endif
+	.endm
+
+	.macro	uaccess_restore
+#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+	ldr	r0, [sp, #S_FRAME_SIZE]
+	mcr	p15, 0, r0, c3, c0, 0
 #endif
 	.endm
 

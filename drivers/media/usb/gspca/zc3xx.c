@@ -5942,23 +5942,23 @@ static void transfer_update(struct work_struct *work)
 	reg07 = 0;
 
 	good = 0;
-	for (;;) {
+	while (1) {
 		msleep(100);
 
 		/* To protect gspca_dev->usb_buf and gspca_dev->usb_err */
 		mutex_lock(&gspca_dev->usb_lock);
 #ifdef CONFIG_PM
 		if (gspca_dev->frozen)
-			goto err;
+			break;
 #endif
 		if (!gspca_dev->present || !gspca_dev->streaming)
-			goto err;
+			break;
 
 		/* Bit 0 of register 11 indicates FIFO overflow */
 		gspca_dev->usb_err = 0;
 		reg11 = reg_r(gspca_dev, 0x0011);
 		if (gspca_dev->usb_err)
-			goto err;
+			break;
 
 		change = reg11 & 0x01;
 		if (change) {				/* overflow */
@@ -5987,12 +5987,12 @@ static void transfer_update(struct work_struct *work)
 			gspca_dev->usb_err = 0;
 			reg_w(gspca_dev, reg07, 0x0007);
 			if (gspca_dev->usb_err)
-				goto err;
+				break;
 		}
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
-	return;
-err:
+
+	/* Something went wrong. Unlock and return */
 	mutex_unlock(&gspca_dev->usb_lock);
 }
 
@@ -6360,7 +6360,7 @@ static int zcxx_s_ctrl(struct v4l2_ctrl *ctrl)
 			if (ctrl->val <= jpeg_qual[i])
 				break;
 		}
-		if (i > 0 && i == qual && ctrl->val < jpeg_qual[i])
+		if (i == ARRAY_SIZE(jpeg_qual) || (i > 0 && i == qual && ctrl->val < jpeg_qual[i]))
 			i--;
 
 		/* With high quality settings we need max bandwidth */

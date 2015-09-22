@@ -181,7 +181,12 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (ret)
 		goto out;
 
-	trans = rds_trans_get_preferred(sin->sin_addr.s_addr);
+	if (rs->rs_transport) { /* previously bound */
+		ret = 0;
+		goto out;
+	}
+	trans = rds_trans_get_preferred(sock_net(sock->sk),
+					sin->sin_addr.s_addr);
 	if (!trans) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);

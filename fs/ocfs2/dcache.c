@@ -42,8 +42,8 @@
 void ocfs2_dentry_attach_gen(struct dentry *dentry)
 {
 	unsigned long gen =
-		OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
-	BUG_ON(dentry->d_inode);
+		OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
+	BUG_ON(d_inode(dentry));
 	dentry->d_fsdata = (void *)gen;
 }
 
@@ -57,7 +57,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	osb = OCFS2_SB(dentry->d_sb);
 
 	trace_ocfs2_dentry_revalidate(dentry, dentry->d_name.len,
@@ -71,7 +71,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 		unsigned long gen = (unsigned long) dentry->d_fsdata;
 		unsigned long pgen;
 		spin_lock(&dentry->d_lock);
-		pgen = OCFS2_I(dentry->d_parent->d_inode)->ip_dir_lock_gen;
+		pgen = OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
 		spin_unlock(&dentry->d_lock);
 		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
 						       dentry->d_name.name,
@@ -146,7 +146,7 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 	if (skip_unhashed && d_unhashed(dentry))
 		return 0;
 
-	parent = dentry->d_parent->d_inode;
+	parent = d_inode(dentry->d_parent);
 	/* Negative parent dentry? */
 	if (!parent)
 		return 0;
@@ -243,7 +243,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	if (!inode)
 		return 0;
 
-	if (!dentry->d_inode && dentry->d_fsdata) {
+	if (d_really_is_negative(dentry) && dentry->d_fsdata) {
 		/* Converting a negative dentry to positive
 		   Clear dentry->d_fsdata */
 		dentry->d_fsdata = dl = NULL;
@@ -446,7 +446,7 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(old_dir->i_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	/*
 	 * Move within the same directory, so the actual lock info won't

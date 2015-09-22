@@ -142,12 +142,27 @@ config AD7303
 	  To compile this driver as module choose M here: the module will be called
 	  ad7303.
 
-config MAX517
-	tristate "Maxim MAX517/518/519 DAC driver"
+config M62332
+	tristate "Mitsubishi M62332 DAC driver"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Maxim chips MAX517,
-	  MAX518 and MAX519 (I2C 8-Bit DACs with rail-to-rail outputs).
+	  If you say yes here you get support for the Mitsubishi M62332
+	  (I2C 8-Bit DACs with rail-to-rail outputs).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called m62332.
+
+config MAX517
+	tristate "Maxim MAX517/518/519/520/521 DAC driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for the following Maxim chips
+	  (I2C 8-Bit DACs with rail-to-rail outputs):
+	  MAX517 - Single channel, single reference
+	  MAX518 - Dual channel, ref=Vdd
+	  MAX519 - Dual channel, dual reference
+	  MAX520 - Quad channel, quad reference
+	  MAX521 - Octal channel, independent ref for ch0-3, shared ref for ch4-7
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.

@@ -13,7 +13,7 @@ src := $(obj)
 -include $(objtree)/.config
 
 include scripts/Kbuild.include
-include $(srctree)/$(obj)/Makefile
+include $(src)/Makefile
 
 include scripts/Makefile.host
 

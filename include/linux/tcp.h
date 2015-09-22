@@ -58,6 +58,7 @@ static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 struct tcp_fastopen_cookie {
 	s8	len;
 	u8	val[TCP_FASTOPEN_COOKIE_MAX];
+	bool	exp;	/* In RFC6994 experimental option format */
 };
 
 /* This defines a selective acknowledgement block. */
@@ -111,7 +112,7 @@ struct tcp_request_sock_ops;
 struct tcp_request_sock {
 	struct inet_request_sock 	req;
 	const struct tcp_request_sock_ops *af_specific;
-	struct sock			*listener; /* needed for TFO */
+	bool				tfo_listener;
 	u32				rcv_isn;
 	u32				snt_isn;
 	u32				snt_synack; /* synack sent time */
@@ -144,10 +145,25 @@ struct tcp_sock {
  *	read the code and the spec side by side (and laugh ...)
  *	See RFC793 and RFC1122. The RFC writes these in capitals.
  */
+	u64	bytes_received;	/* RFC4898 tcpEStatsAppHCThruOctetsReceived
+				 * sum(delta(rcv_nxt)), or how many bytes
+				 * were acked.
+				 */
+	u32	segs_in;	/* RFC4898 tcpEStatsPerfSegsIn
+				 * total number of segments in.
+				 */
  	u32	rcv_nxt;	/* What we want to receive next 	*/
 	u32	copied_seq;	/* Head of yet unread data		*/
 	u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
  	u32	snd_nxt;	/* Next sequence we send		*/
+	u32	segs_out;	/* RFC4898 tcpEStatsPerfSegsOut
+				 * The total number of segments sent.
+				 */
+	u64	bytes_acked;	/* RFC4898 tcpEStatsAppHCThruOctetsAcked
+				 * sum(delta(snd_una)), or how many bytes
+				 * were acked.
+				 */
+	struct u64_stats_sync syncp; /* protects 64bit vars (cf tcp_get_info()) */
 
  	u32	snd_una;	/* First byte we want an ack for	*/
  	u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
@@ -188,7 +204,9 @@ struct tcp_sock {
 	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
 		syn_data:1,	/* SYN includes data */
 		syn_fastopen:1,	/* SYN includes Fast Open option */
+		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
+		save_syn:1,	/* Save headers of SYN packet */
 		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
@@ -236,7 +254,6 @@ struct tcp_sock {
 	u32	lost_out;	/* Lost packets			*/
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
-	u32	tso_deferred;
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
@@ -317,6 +334,7 @@ struct tcp_sock {
 	 * socket. Used to retransmit SYNACKs etc.
 	 */
 	struct request_sock *fastopen_rsk;
+	u32	*saved_syn;
 };
 
 enum tsq_flags {
@@ -382,6 +400,12 @@ static inline int fastopen_init_queue(struct sock *sk, int backlog)
 	}
 	queue->fastopenq->max_qlen = backlog;
 	return 0;
+}
+
+static inline void tcp_saved_syn_free(struct tcp_sock *tp)
+{
+	kfree(tp->saved_syn);
+	tp->saved_syn = NULL;
 }
 
 #endif	/* _LINUX_TCP_H */

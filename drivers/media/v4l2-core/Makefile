@@ -13,6 +13,9 @@ endif
 ifeq ($(CONFIG_OF),y)
   videodev-objs += v4l2-of.o
 endif
+ifeq ($(CONFIG_TRACEPOINTS),y)
+  videodev-objs += v4l2-trace.o
+endif
 
 obj-$(CONFIG_VIDEO_V4L2) += videodev.o
 obj-$(CONFIG_VIDEO_V4L2) += v4l2-common.o
@@ -21,6 +24,8 @@ obj-$(CONFIG_VIDEO_V4L2) += v4l2-dv-timings.o
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
 obj-$(CONFIG_V4L2_MEM2MEM_DEV) += v4l2-mem2mem.o
+
+obj-$(CONFIG_V4L2_FLASH_LED_CLASS) += v4l2-flash-led-class.o
 
 obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o

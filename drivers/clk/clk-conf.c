@@ -13,7 +13,6 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/printk.h>
-#include "clk.h"
 
 static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 {
@@ -39,7 +38,7 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 		}
 		if (clkspec.np == node && !clk_supplier)
 			return 0;
-		pclk = of_clk_get_by_clkspec(&clkspec);
+		pclk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(pclk)) {
 			pr_warn("clk: couldn't get parent clock %d for %s\n",
 				index, node->full_name);
@@ -54,7 +53,7 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			rc = 0;
 			goto err;
 		}
-		clk = of_clk_get_by_clkspec(&clkspec);
+		clk = of_clk_get_from_provider(&clkspec);
 		if (IS_ERR(clk)) {
 			pr_warn("clk: couldn't get parent clock %d for %s\n",
 				index, node->full_name);
@@ -98,7 +97,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 			if (clkspec.np == node && !clk_supplier)
 				return 0;
 
-			clk = of_clk_get_by_clkspec(&clkspec);
+			clk = of_clk_get_from_provider(&clkspec);
 			if (IS_ERR(clk)) {
 				pr_warn("clk: couldn't get clock %d for %s\n",
 					index, node->full_name);
@@ -107,8 +106,9 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 
 			rc = clk_set_rate(clk, rate);
 			if (rc < 0)
-				pr_err("clk: couldn't set %s clock rate: %d\n",
-				       __clk_get_name(clk), rc);
+				pr_err("clk: couldn't set %s clk rate to %d (%d), current rate: %ld\n",
+				       __clk_get_name(clk), rate, rc,
+				       clk_get_rate(clk));
 			clk_put(clk);
 		}
 		index++;
@@ -125,7 +125,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
  * and sets any specified clock parents and rates. The @clk_supplier argument
  * should be set to true if @node may be also a clock supplier of any clock
  * listed in its 'assigned-clocks' or 'assigned-clock-parents' properties.
- * If @clk_supplier is false the function exits returnning 0 as soon as it
+ * If @clk_supplier is false the function exits returning 0 as soon as it
  * determines the @node is also a supplier of any of the clocks.
  */
 int of_clk_set_defaults(struct device_node *node, bool clk_supplier)

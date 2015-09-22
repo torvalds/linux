@@ -67,7 +67,7 @@
 
 /*------------------------------Define structure----------------------------*/
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
-typedef struct _dynamic_initial_gain_threshold_ {
+struct dig {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		dbg_mode;
@@ -98,7 +98,7 @@ typedef struct _dynamic_initial_gain_threshold_ {
 	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
-} dig_t;
+};
 
 typedef enum tag_dynamic_init_gain_state_definition {
 	DM_STA_DIG_OFF = 0,
@@ -163,7 +163,7 @@ typedef enum tag_dig_cck_cs_ratio_state_definition {
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
 } dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_ {
+struct dynamic_rx_path_sel {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -177,7 +177,7 @@ typedef struct _Dynamic_Rx_Path_Selection_ {
 	u8		rf_rssi[4];
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
-} DRxPathSel;
+};
 
 typedef enum tag_CCK_Rx_Path_Method_Definition {
 	CCK_Rx_Version_1 = 0,
@@ -200,9 +200,9 @@ typedef struct tag_Tx_Config_Cmd_Format {
 
 
 /*------------------------Export global variable----------------------------*/
-extern dig_t dm_digtable;
+extern struct dig dm_digtable;
 extern u8 dm_shadow[16][256];
-extern DRxPathSel DM_RxPathSelTable;
+extern struct dynamic_rx_path_sel DM_RxPathSelTable;
 /*------------------------Export global variable----------------------------*/
 
 
@@ -212,24 +212,24 @@ extern DRxPathSel DM_RxPathSelTable;
 
 
 /*--------------------------Exported Function prototype---------------------*/
-extern void init_hal_dm(struct net_device *dev);
-extern void deinit_hal_dm(struct net_device *dev);
-extern void hal_dm_watchdog(struct net_device *dev);
-extern void init_rate_adaptive(struct net_device *dev);
-extern void dm_txpower_trackingcallback(struct work_struct *work);
-extern void dm_restore_dynamic_mechanism_state(struct net_device *dev);
-extern void dm_backup_dynamic_mechanism_state(struct net_device *dev);
-extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
-					      u32 dm_type, u32 dm_value);
-extern void dm_force_tx_fw_info(struct net_device *dev,
-				u32 force_type, u32 force_value);
-extern void dm_init_edca_turbo(struct net_device *dev);
-extern void dm_rf_operation_test_callback(unsigned long data);
-extern void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-extern void dm_fsync_timer_callback(unsigned long data);
-extern void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14);
-extern void dm_shadow_init(struct net_device *dev);
-extern void dm_initialize_txpower_tracking(struct net_device *dev);
+void init_hal_dm(struct net_device *dev);
+void deinit_hal_dm(struct net_device *dev);
+void hal_dm_watchdog(struct net_device *dev);
+void init_rate_adaptive(struct net_device *dev);
+void dm_txpower_trackingcallback(struct work_struct *work);
+void dm_restore_dynamic_mechanism_state(struct net_device *dev);
+void dm_backup_dynamic_mechanism_state(struct net_device *dev);
+void dm_change_dynamic_initgain_thresh(struct net_device *dev,
+				       u32 dm_type, u32 dm_value);
+void dm_force_tx_fw_info(struct net_device *dev,
+			 u32 force_type, u32 force_value);
+void dm_init_edca_turbo(struct net_device *dev);
+void dm_rf_operation_test_callback(unsigned long data);
+void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
+void dm_fsync_timer_callback(unsigned long data);
+void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14);
+void dm_shadow_init(struct net_device *dev);
+void dm_initialize_txpower_tracking(struct net_device *dev);
 /*--------------------------Exported Function prototype---------------------*/
 
 

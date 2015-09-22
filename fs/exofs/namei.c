@@ -113,7 +113,7 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 	oi = exofs_i(inode);
 	if (l > sizeof(oi->i_data)) {
 		/* slow symlink */
-		inode->i_op = &exofs_symlink_inode_operations;
+		inode->i_op = &page_symlink_inode_operations;
 		inode->i_mapping->a_ops = &exofs_aops;
 		memset(oi->i_data, 0, sizeof(oi->i_data));
 
@@ -122,7 +122,8 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 			goto out_fail;
 	} else {
 		/* fast symlink */
-		inode->i_op = &exofs_fast_symlink_inode_operations;
+		inode->i_op = &simple_symlink_inode_operations;
+		inode->i_link = (char *)oi->i_data;
 		memcpy(oi->i_data, symname, l);
 		inode->i_size = l-1;
 	}
@@ -141,7 +142,7 @@ out_fail:
 static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 
 	inode->i_ctime = CURRENT_TIME;
 	inode_inc_link_count(inode);
@@ -191,7 +192,7 @@ out_dir:
 
 static int exofs_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct exofs_dir_entry *de;
 	struct page *page;
 	int err = -ENOENT;
@@ -213,7 +214,7 @@ out:
 
 static int exofs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int err = -ENOTEMPTY;
 
 	if (exofs_empty_dir(inode)) {
@@ -230,8 +231,8 @@ static int exofs_rmdir(struct inode *dir, struct dentry *dentry)
 static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct page *dir_page = NULL;
 	struct exofs_dir_entry *dir_de = NULL;
 	struct page *old_page;

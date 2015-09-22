@@ -130,7 +130,8 @@ static struct {
 		"decoder MPG",
 		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_MPG_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
 		&ivtv_v4l2_dec_fops
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_VBI */
@@ -151,7 +152,8 @@ static struct {
 		"decoder YUV",
 		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_YUV_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
 		&ivtv_v4l2_dec_fops
 	}
 };
@@ -159,11 +161,9 @@ static struct {
 static void ivtv_stream_init(struct ivtv *itv, int type)
 {
 	struct ivtv_stream *s = &itv->streams[type];
-	struct video_device *vdev = s->vdev;
 
 	/* we need to keep vdev, so restore it afterwards */
 	memset(s, 0, sizeof(*s));
-	s->vdev = vdev;
 
 	/* initialize ivtv_stream fields */
 	s->itv = itv;
@@ -194,10 +194,10 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 	int num_offset = ivtv_stream_info[type].num_offset;
 	int num = itv->instance + ivtv_first_minor + num_offset;
 
-	/* These four fields are always initialized. If vdev == NULL, then
+	/* These four fields are always initialized. If vdev.v4l2_dev == NULL, then
 	   this stream is not in use. In that case no other fields but these
 	   four can be used. */
-	s->vdev = NULL;
+	s->vdev.v4l2_dev = NULL;
 	s->itv = itv;
 	s->type = type;
 	s->name = ivtv_stream_info[type].name;
@@ -218,40 +218,33 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 
 	ivtv_stream_init(itv, type);
 
-	/* allocate and initialize the v4l2 video device structure */
-	s->vdev = video_device_alloc();
-	if (s->vdev == NULL) {
-		IVTV_ERR("Couldn't allocate v4l2 video_device for %s\n", s->name);
-		return -ENOMEM;
-	}
-
-	snprintf(s->vdev->name, sizeof(s->vdev->name), "%s %s",
+	snprintf(s->vdev.name, sizeof(s->vdev.name), "%s %s",
 			itv->v4l2_dev.name, s->name);
 
-	s->vdev->num = num;
-	s->vdev->v4l2_dev = &itv->v4l2_dev;
+	s->vdev.num = num;
+	s->vdev.v4l2_dev = &itv->v4l2_dev;
 	if (ivtv_stream_info[type].v4l2_caps &
 			(V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_SLICED_VBI_OUTPUT))
-		s->vdev->vfl_dir = VFL_DIR_TX;
-	s->vdev->fops = ivtv_stream_info[type].fops;
-	s->vdev->ctrl_handler = itv->v4l2_dev.ctrl_handler;
-	s->vdev->release = video_device_release;
-	s->vdev->tvnorms = V4L2_STD_ALL;
-	s->vdev->lock = &itv->serialize_lock;
+		s->vdev.vfl_dir = VFL_DIR_TX;
+	s->vdev.fops = ivtv_stream_info[type].fops;
+	s->vdev.ctrl_handler = itv->v4l2_dev.ctrl_handler;
+	s->vdev.release = video_device_release_empty;
+	s->vdev.tvnorms = V4L2_STD_ALL;
+	s->vdev.lock = &itv->serialize_lock;
 	if (s->type == IVTV_DEC_STREAM_TYPE_VBI) {
-		v4l2_disable_ioctl(s->vdev, VIDIOC_S_AUDIO);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_G_AUDIO);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_ENUMAUDIO);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_ENUMINPUT);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_S_INPUT);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_G_INPUT);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_S_FREQUENCY);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_G_FREQUENCY);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_S_TUNER);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_G_TUNER);
-		v4l2_disable_ioctl(s->vdev, VIDIOC_S_STD);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_ENUMINPUT);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_S_INPUT);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_G_INPUT);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(&s->vdev, VIDIOC_S_STD);
 	}
-	ivtv_set_funcs(s->vdev);
+	ivtv_set_funcs(&s->vdev);
 	return 0;
 }
 
@@ -266,7 +259,7 @@ int ivtv_streams_setup(struct ivtv *itv)
 		if (ivtv_prep_dev(itv, type))
 			break;
 
-		if (itv->streams[type].vdev == NULL)
+		if (itv->streams[type].vdev.v4l2_dev == NULL)
 			continue;
 
 		/* Allocate Stream */
@@ -277,7 +270,7 @@ int ivtv_streams_setup(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv, 0);
+	ivtv_streams_cleanup(itv);
 	return -ENOMEM;
 }
 
@@ -288,28 +281,26 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	const char *name;
 	int num;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return 0;
 
-	num = s->vdev->num;
+	num = s->vdev.num;
 	/* card number + user defined offset + device offset */
 	if (type != IVTV_ENC_STREAM_TYPE_MPG) {
 		struct ivtv_stream *s_mpg = &itv->streams[IVTV_ENC_STREAM_TYPE_MPG];
 
-		if (s_mpg->vdev)
-			num = s_mpg->vdev->num + ivtv_stream_info[type].num_offset;
+		if (s_mpg->vdev.v4l2_dev)
+			num = s_mpg->vdev.num + ivtv_stream_info[type].num_offset;
 	}
-	video_set_drvdata(s->vdev, s);
+	video_set_drvdata(&s->vdev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
-	if (video_register_device_no_warn(s->vdev, vfl_type, num)) {
+	if (video_register_device_no_warn(&s->vdev, vfl_type, num)) {
 		IVTV_ERR("Couldn't register v4l2 device for %s (device node number %d)\n",
 				s->name, num);
-		video_device_release(s->vdev);
-		s->vdev = NULL;
 		return -ENOMEM;
 	}
-	name = video_device_node_name(s->vdev);
+	name = video_device_node_name(&s->vdev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -346,29 +337,25 @@ int ivtv_streams_register(struct ivtv *itv)
 		return 0;
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 	return -ENOMEM;
 }
 
 /* Unregister v4l2 devices */
-void ivtv_streams_cleanup(struct ivtv *itv, int unregister)
+void ivtv_streams_cleanup(struct ivtv *itv)
 {
 	int type;
 
 	/* Teardown all streams */
 	for (type = 0; type < IVTV_MAX_STREAMS; type++) {
-		struct video_device *vdev = itv->streams[type].vdev;
+		struct video_device *vdev = &itv->streams[type].vdev;
 
-		itv->streams[type].vdev = NULL;
-		if (vdev == NULL)
+		if (vdev->v4l2_dev == NULL)
 			continue;
 
+		video_unregister_device(vdev);
 		ivtv_stream_free(&itv->streams[type]);
-		/* Unregister or release device */
-		if (unregister)
-			video_unregister_device(vdev);
-		else
-			video_device_release(vdev);
+		itv->streams[type].vdev.v4l2_dev = NULL;
 	}
 }
 
@@ -492,7 +479,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	int captype = 0, subtype = 0;
 	int enable_passthrough = 0;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	IVTV_DEBUG_INFO("Start encoder stream %s\n", s->name);
@@ -661,7 +648,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	u16 width;
 	u16 height;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
@@ -723,7 +710,7 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 	struct ivtv *itv = s->itv;
 	int rc;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	if (test_and_set_bit(IVTV_F_S_STREAMING, &s->s_flags))
@@ -778,7 +765,7 @@ void ivtv_stop_all_captures(struct ivtv *itv)
 	for (i = IVTV_MAX_STREAMS - 1; i >= 0; i--) {
 		struct ivtv_stream *s = &itv->streams[i];
 
-		if (s->vdev == NULL)
+		if (s->vdev.v4l2_dev == NULL)
 			continue;
 		if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 			ivtv_stop_v4l2_encode_stream(s, 0);
@@ -793,7 +780,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	int cap_type;
 	int stopmode;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	/* This function assumes that you are allowed to stop the capture
@@ -917,7 +904,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	};
 	struct ivtv *itv = s->itv;
 
-	if (s->vdev == NULL)
+	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	if (s->type != IVTV_DEC_STREAM_TYPE_YUV && s->type != IVTV_DEC_STREAM_TYPE_MPG)
@@ -969,7 +956,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 
 	set_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags);
 	wake_up(&itv->event_waitq);
-	v4l2_event_queue(s->vdev, &ev);
+	v4l2_event_queue(&s->vdev, &ev);
 
 	/* wake up wait queues */
 	wake_up(&s->waitq);
@@ -982,7 +969,7 @@ int ivtv_passthrough_mode(struct ivtv *itv, int enable)
 	struct ivtv_stream *yuv_stream = &itv->streams[IVTV_ENC_STREAM_TYPE_YUV];
 	struct ivtv_stream *dec_stream = &itv->streams[IVTV_DEC_STREAM_TYPE_YUV];
 
-	if (yuv_stream->vdev == NULL || dec_stream->vdev == NULL)
+	if (yuv_stream->vdev.v4l2_dev == NULL || dec_stream->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
 	IVTV_DEBUG_INFO("ivtv ioctl: Select passthrough mode\n");

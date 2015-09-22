@@ -19,6 +19,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -49,6 +50,8 @@
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
+#define VOP_SCL_SET(x, win, name, v) \
+		REG_SET(x, win->base, win->phy->scl->name, v, RELAXED)
 #define VOP_CTRL_SET(x, name, v) \
 		REG_SET(x, 0, (x)->data->ctrl->name, v, NORMAL)
 
@@ -81,7 +84,7 @@ struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
-	unsigned int dpms;
+	bool is_enabled;
 
 	int connector_type;
 	int connector_out_mode;
@@ -89,6 +92,7 @@ struct vop {
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
+	struct completion dsp_hold_completion;
 
 	const struct vop_data *data;
 
@@ -162,12 +166,43 @@ struct vop_ctrl {
 	struct vop_reg vpost_st_end;
 };
 
+struct vop_scl_regs {
+	struct vop_reg cbcr_vsd_mode;
+	struct vop_reg cbcr_vsu_mode;
+	struct vop_reg cbcr_hsd_mode;
+	struct vop_reg cbcr_ver_scl_mode;
+	struct vop_reg cbcr_hor_scl_mode;
+	struct vop_reg yrgb_vsd_mode;
+	struct vop_reg yrgb_vsu_mode;
+	struct vop_reg yrgb_hsd_mode;
+	struct vop_reg yrgb_ver_scl_mode;
+	struct vop_reg yrgb_hor_scl_mode;
+	struct vop_reg line_load_mode;
+	struct vop_reg cbcr_axi_gather_num;
+	struct vop_reg yrgb_axi_gather_num;
+	struct vop_reg vsd_cbcr_gt2;
+	struct vop_reg vsd_cbcr_gt4;
+	struct vop_reg vsd_yrgb_gt2;
+	struct vop_reg vsd_yrgb_gt4;
+	struct vop_reg bic_coe_sel;
+	struct vop_reg cbcr_axi_gather_en;
+	struct vop_reg yrgb_axi_gather_en;
+
+	struct vop_reg lb_mode;
+	struct vop_reg scale_yrgb_x;
+	struct vop_reg scale_yrgb_y;
+	struct vop_reg scale_cbcr_x;
+	struct vop_reg scale_cbcr_y;
+};
+
 struct vop_win_phy {
+	const struct vop_scl_regs *scl;
 	const uint32_t *data_formats;
 	uint32_t nformats;
 
 	struct vop_reg enable;
 	struct vop_reg format;
+	struct vop_reg rb_swap;
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;
@@ -197,8 +232,12 @@ struct vop_data {
 static const uint32_t formats_01[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_NV24,
@@ -207,15 +246,49 @@ static const uint32_t formats_01[] = {
 static const uint32_t formats_234[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+};
+
+static const struct vop_scl_regs win_full_scl = {
+	.cbcr_vsd_mode = VOP_REG(WIN0_CTRL1, 0x1, 31),
+	.cbcr_vsu_mode = VOP_REG(WIN0_CTRL1, 0x1, 30),
+	.cbcr_hsd_mode = VOP_REG(WIN0_CTRL1, 0x3, 28),
+	.cbcr_ver_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 26),
+	.cbcr_hor_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 24),
+	.yrgb_vsd_mode = VOP_REG(WIN0_CTRL1, 0x1, 23),
+	.yrgb_vsu_mode = VOP_REG(WIN0_CTRL1, 0x1, 22),
+	.yrgb_hsd_mode = VOP_REG(WIN0_CTRL1, 0x3, 20),
+	.yrgb_ver_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 18),
+	.yrgb_hor_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 16),
+	.line_load_mode = VOP_REG(WIN0_CTRL1, 0x1, 15),
+	.cbcr_axi_gather_num = VOP_REG(WIN0_CTRL1, 0x7, 12),
+	.yrgb_axi_gather_num = VOP_REG(WIN0_CTRL1, 0xf, 8),
+	.vsd_cbcr_gt2 = VOP_REG(WIN0_CTRL1, 0x1, 7),
+	.vsd_cbcr_gt4 = VOP_REG(WIN0_CTRL1, 0x1, 6),
+	.vsd_yrgb_gt2 = VOP_REG(WIN0_CTRL1, 0x1, 5),
+	.vsd_yrgb_gt4 = VOP_REG(WIN0_CTRL1, 0x1, 4),
+	.bic_coe_sel = VOP_REG(WIN0_CTRL1, 0x3, 2),
+	.cbcr_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 1),
+	.yrgb_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 0),
+	.lb_mode = VOP_REG(WIN0_CTRL0, 0x7, 5),
+	.scale_yrgb_x = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 0x0),
+	.scale_yrgb_y = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 16),
+	.scale_cbcr_x = VOP_REG(WIN0_SCL_FACTOR_CBR, 0xffff, 0x0),
+	.scale_cbcr_y = VOP_REG(WIN0_SCL_FACTOR_CBR, 0xffff, 16),
 };
 
 static const struct vop_win_phy win01_data = {
+	.scl = &win_full_scl,
 	.data_formats = formats_01,
 	.nformats = ARRAY_SIZE(formats_01),
 	.enable = VOP_REG(WIN0_CTRL0, 0x1, 0),
 	.format = VOP_REG(WIN0_CTRL0, 0x7, 1),
+	.rb_swap = VOP_REG(WIN0_CTRL0, 0x1, 12),
 	.act_info = VOP_REG(WIN0_ACT_INFO, 0x1fff1fff, 0),
 	.dsp_info = VOP_REG(WIN0_DSP_INFO, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(WIN0_DSP_ST, 0x1fff1fff, 0),
@@ -232,21 +305,13 @@ static const struct vop_win_phy win23_data = {
 	.nformats = ARRAY_SIZE(formats_234),
 	.enable = VOP_REG(WIN2_CTRL0, 0x1, 0),
 	.format = VOP_REG(WIN2_CTRL0, 0x7, 1),
+	.rb_swap = VOP_REG(WIN2_CTRL0, 0x1, 12),
 	.dsp_info = VOP_REG(WIN2_DSP_INFO0, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(WIN2_DSP_ST0, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(WIN2_MST0, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(WIN2_VIR0_1, 0x1fff, 0),
 	.src_alpha_ctl = VOP_REG(WIN2_SRC_ALPHA_CTRL, 0xff, 0),
 	.dst_alpha_ctl = VOP_REG(WIN2_DST_ALPHA_CTRL, 0xff, 0),
-};
-
-static const struct vop_win_phy cursor_data = {
-	.data_formats = formats_234,
-	.nformats = ARRAY_SIZE(formats_234),
-	.enable = VOP_REG(HWC_CTRL0, 0x1, 0),
-	.format = VOP_REG(HWC_CTRL0, 0x7, 1),
-	.dsp_st = VOP_REG(HWC_DSP_ST, 0x1fff1fff, 0),
-	.yrgb_mst = VOP_REG(HWC_MST, 0xffffffff, 0),
 };
 
 static const struct vop_ctrl ctrl_data = {
@@ -275,19 +340,25 @@ static const struct vop_reg_data vop_init_reg_table[] = {
 	{DSP_CTRL0, 0x00000000},
 	{WIN0_CTRL0, 0x00000080},
 	{WIN1_CTRL0, 0x00000080},
+	/* TODO: Win2/3 support multiple area function, but we haven't found
+	 * a suitable way to use it yet, so let's just use them as other windows
+	 * with only area 0 enabled.
+	 */
+	{WIN2_CTRL0, 0x00000010},
+	{WIN3_CTRL0, 0x00000010},
 };
 
 /*
  * Note: rk3288 has a dedicated 'cursor' window, however, that window requires
  * special support to get alpha blending working.  For now, just use overlay
- * window 1 for the drm cursor.
+ * window 3 for the drm cursor.
+ *
  */
 static const struct vop_win_data rk3288_vop_win_data[] = {
 	{ .base = 0x00, .phy = &win01_data, .type = DRM_PLANE_TYPE_PRIMARY },
-	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_CURSOR },
+	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x00, .phy = &cursor_data, .type = DRM_PLANE_TYPE_OVERLAY },
+	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_CURSOR },
 };
 
 static const struct vop_data rk3288_vop = {
@@ -350,15 +421,32 @@ static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
 	}
 }
 
+static bool has_rb_swapped(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_BGR565:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static enum vop_data_format vop_convert_format(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
 		return VOP_FMT_ARGB8888;
 	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
 		return VOP_FMT_RGB888;
 	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
 		return VOP_FMT_RGB565;
 	case DRM_FORMAT_NV12:
 		return VOP_FMT_YUV420SP;
@@ -372,20 +460,192 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	}
 }
 
-static bool is_alpha_support(uint32_t format)
+static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
-	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV24:
 		return true;
 	default:
 		return false;
 	}
 }
 
+static bool is_alpha_support(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
+				  uint32_t dst, bool is_horizontal,
+				  int vsu_mode, int *vskiplines)
+{
+	uint16_t val = 1 << SCL_FT_DEFAULT_FIXPOINT_SHIFT;
+
+	if (is_horizontal) {
+		if (mode == SCALE_UP)
+			val = GET_SCL_FT_BIC(src, dst);
+		else if (mode == SCALE_DOWN)
+			val = GET_SCL_FT_BILI_DN(src, dst);
+	} else {
+		if (mode == SCALE_UP) {
+			if (vsu_mode == SCALE_UP_BIL)
+				val = GET_SCL_FT_BILI_UP(src, dst);
+			else
+				val = GET_SCL_FT_BIC(src, dst);
+		} else if (mode == SCALE_DOWN) {
+			if (vskiplines) {
+				*vskiplines = scl_get_vskiplines(src, dst);
+				val = scl_get_bili_dn_vskip(src, dst,
+							    *vskiplines);
+			} else {
+				val = GET_SCL_FT_BILI_DN(src, dst);
+			}
+		}
+	}
+
+	return val;
+}
+
+static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
+			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
+			     uint32_t dst_h, uint32_t pixel_format)
+{
+	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
+	uint16_t cbcr_hor_scl_mode = SCALE_NONE;
+	uint16_t cbcr_ver_scl_mode = SCALE_NONE;
+	int hsub = drm_format_horz_chroma_subsampling(pixel_format);
+	int vsub = drm_format_vert_chroma_subsampling(pixel_format);
+	bool is_yuv = is_yuv_support(pixel_format);
+	uint16_t cbcr_src_w = src_w / hsub;
+	uint16_t cbcr_src_h = src_h / vsub;
+	uint16_t vsu_mode;
+	uint16_t lb_mode;
+	uint32_t val;
+	int vskiplines;
+
+	if (dst_w > 3840) {
+		DRM_ERROR("Maximum destination width (3840) exceeded\n");
+		return;
+	}
+
+	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
+	yrgb_ver_scl_mode = scl_get_scl_mode(src_h, dst_h);
+
+	if (is_yuv) {
+		cbcr_hor_scl_mode = scl_get_scl_mode(cbcr_src_w, dst_w);
+		cbcr_ver_scl_mode = scl_get_scl_mode(cbcr_src_h, dst_h);
+		if (cbcr_hor_scl_mode == SCALE_DOWN)
+			lb_mode = scl_vop_cal_lb_mode(dst_w, true);
+		else
+			lb_mode = scl_vop_cal_lb_mode(cbcr_src_w, true);
+	} else {
+		if (yrgb_hor_scl_mode == SCALE_DOWN)
+			lb_mode = scl_vop_cal_lb_mode(dst_w, false);
+		else
+			lb_mode = scl_vop_cal_lb_mode(src_w, false);
+	}
+
+	VOP_SCL_SET(vop, win, lb_mode, lb_mode);
+	if (lb_mode == LB_RGB_3840X2) {
+		if (yrgb_ver_scl_mode != SCALE_NONE) {
+			DRM_ERROR("ERROR : not allow yrgb ver scale\n");
+			return;
+		}
+		if (cbcr_ver_scl_mode != SCALE_NONE) {
+			DRM_ERROR("ERROR : not allow cbcr ver scale\n");
+			return;
+		}
+		vsu_mode = SCALE_UP_BIL;
+	} else if (lb_mode == LB_RGB_2560X4) {
+		vsu_mode = SCALE_UP_BIL;
+	} else {
+		vsu_mode = SCALE_UP_BIC;
+	}
+
+	val = scl_vop_cal_scale(yrgb_hor_scl_mode, src_w, dst_w,
+				true, 0, NULL);
+	VOP_SCL_SET(vop, win, scale_yrgb_x, val);
+	val = scl_vop_cal_scale(yrgb_ver_scl_mode, src_h, dst_h,
+				false, vsu_mode, &vskiplines);
+	VOP_SCL_SET(vop, win, scale_yrgb_y, val);
+
+	VOP_SCL_SET(vop, win, vsd_yrgb_gt4, vskiplines == 4);
+	VOP_SCL_SET(vop, win, vsd_yrgb_gt2, vskiplines == 2);
+
+	VOP_SCL_SET(vop, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
+	VOP_SCL_SET(vop, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
+	VOP_SCL_SET(vop, win, yrgb_hsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET(vop, win, yrgb_vsu_mode, vsu_mode);
+	if (is_yuv) {
+		val = scl_vop_cal_scale(cbcr_hor_scl_mode, cbcr_src_w,
+					dst_w, true, 0, NULL);
+		VOP_SCL_SET(vop, win, scale_cbcr_x, val);
+		val = scl_vop_cal_scale(cbcr_ver_scl_mode, cbcr_src_h,
+					dst_h, false, vsu_mode, &vskiplines);
+		VOP_SCL_SET(vop, win, scale_cbcr_y, val);
+
+		VOP_SCL_SET(vop, win, vsd_cbcr_gt4, vskiplines == 4);
+		VOP_SCL_SET(vop, win, vsd_cbcr_gt2, vskiplines == 2);
+		VOP_SCL_SET(vop, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
+		VOP_SCL_SET(vop, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
+		VOP_SCL_SET(vop, win, cbcr_hsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET(vop, win, cbcr_vsu_mode, vsu_mode);
+	}
+}
+
+static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(1));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
+{
+	unsigned long flags;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock_irqsave(&vop->irq_lock, flags);
+
+	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
+		       DSP_HOLD_VALID_INTR_EN(0));
+
+	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
 static void vop_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 	int ret;
+
+	if (vop->is_enabled)
+		return;
+
+	ret = pm_runtime_get_sync(vop->dev);
+	if (ret < 0) {
+		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
+		return;
+	}
 
 	ret = clk_enable(vop->hclk);
 	if (ret < 0) {
@@ -417,6 +677,12 @@ static void vop_enable(struct drm_crtc *crtc)
 		goto err_disable_aclk;
 	}
 
+	memcpy(vop->regs, vop->regsbak, vop->len);
+	/*
+	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
+	 */
+	vop->is_enabled = true;
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 0);
@@ -441,28 +707,44 @@ static void vop_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 
+	if (!vop->is_enabled)
+		return;
+
 	drm_vblank_off(crtc->dev, vop->pipe);
 
-	disable_irq(vop->irq);
-
 	/*
-	 * TODO: Since standby doesn't take effect until the next vblank,
-	 * when we turn off dclk below, the vop is probably still active.
+	 * Vop standby will take effect at end of current frame,
+	 * if dsp hold valid irq happen, it means standby complete.
+	 *
+	 * we must wait standby complete when we want to disable aclk,
+	 * if not, memory bus maybe dead.
 	 */
+	reinit_completion(&vop->dsp_hold_completion);
+	vop_dsp_hold_valid_irq_enable(vop);
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
-	/*
-	 * disable dclk to stop frame scan, so we can safely detach iommu,
-	 */
-	clk_disable(vop->dclk);
 
+	wait_for_completion(&vop->dsp_hold_completion);
+
+	vop_dsp_hold_valid_irq_disable(vop);
+
+	disable_irq(vop->irq);
+
+	vop->is_enabled = false;
+
+	/*
+	 * vop standby complete, so iommu detach is safe.
+	 */
 	rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 
+	clk_disable(vop->dclk);
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
+	pm_runtime_put(vop->dev);
 }
 
 /*
@@ -516,16 +798,22 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	struct vop *vop = to_vop(crtc);
 	struct drm_gem_object *obj;
 	struct rockchip_gem_object *rk_obj;
+	struct drm_gem_object *uv_obj;
+	struct rockchip_gem_object *rk_uv_obj;
 	unsigned long offset;
 	unsigned int actual_w;
 	unsigned int actual_h;
 	unsigned int dsp_stx;
 	unsigned int dsp_sty;
 	unsigned int y_vir_stride;
+	unsigned int uv_vir_stride = 0;
 	dma_addr_t yrgb_mst;
+	dma_addr_t uv_mst = 0;
 	enum vop_data_format format;
 	uint32_t val;
 	bool is_alpha;
+	bool rb_swap;
+	bool is_yuv;
 	bool visible;
 	int ret;
 	struct drm_rect dest = {
@@ -546,11 +834,15 @@ static int vop_update_plane_event(struct drm_plane *plane,
 		.y2 = crtc->mode.vdisplay,
 	};
 	bool can_position = plane->type != DRM_PLANE_TYPE_PRIMARY;
+	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
+					DRM_PLANE_HELPER_NO_SCALING;
+	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
+					DRM_PLANE_HELPER_NO_SCALING;
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
+					    min_scale,
+					    max_scale,
 					    can_position, false, &visible);
 	if (ret)
 		return ret;
@@ -559,6 +851,9 @@ static int vop_update_plane_event(struct drm_plane *plane,
 		return 0;
 
 	is_alpha = is_alpha_support(fb->pixel_format);
+	rb_swap = has_rb_swapped(fb->pixel_format);
+	is_yuv = is_yuv_support(fb->pixel_format);
+
 	format = vop_convert_format(fb->pixel_format);
 	if (format < 0)
 		return format;
@@ -571,19 +866,46 @@ static int vop_update_plane_event(struct drm_plane *plane,
 
 	rk_obj = to_rockchip_obj(obj);
 
+	if (is_yuv) {
+		/*
+		 * Src.x1 can be odd when do clip, but yuv plane start point
+		 * need align with 2 pixel.
+		 */
+		val = (src.x1 >> 16) % 2;
+		src.x1 += val << 16;
+		src.x2 += val << 16;
+	}
+
 	actual_w = (src.x2 - src.x1) >> 16;
 	actual_h = (src.y2 - src.y1) >> 16;
-	crtc_x = max(0, crtc_x);
-	crtc_y = max(0, crtc_y);
 
-	dsp_stx = crtc_x + crtc->mode.htotal - crtc->mode.hsync_start;
-	dsp_sty = crtc_y + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_stx = dest.x1 + crtc->mode.htotal - crtc->mode.hsync_start;
+	dsp_sty = dest.y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
 
-	offset = (src.x1 >> 16) * (fb->bits_per_pixel >> 3);
+	offset = (src.x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
 	offset += (src.y1 >> 16) * fb->pitches[0];
-	yrgb_mst = rk_obj->dma_addr + offset;
 
-	y_vir_stride = fb->pitches[0] / (fb->bits_per_pixel >> 3);
+	yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
+	y_vir_stride = fb->pitches[0] >> 2;
+
+	if (is_yuv) {
+		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
+		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+
+		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
+		if (!uv_obj) {
+			DRM_ERROR("fail to get uv object from framebuffer\n");
+			return -EINVAL;
+		}
+		rk_uv_obj = to_rockchip_obj(uv_obj);
+		uv_vir_stride = fb->pitches[1] >> 2;
+
+		offset = (src.x1 >> 16) * bpp / hsub;
+		offset += (src.y1 >> 16) * fb->pitches[1] / vsub;
+
+		uv_mst = rk_uv_obj->dma_addr + offset + fb->offsets[1];
+	}
 
 	/*
 	 * If this plane update changes the plane's framebuffer, (or more
@@ -620,13 +942,27 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, format, format);
 	VOP_WIN_SET(vop, win, yrgb_vir, y_vir_stride);
 	VOP_WIN_SET(vop, win, yrgb_mst, yrgb_mst);
+	if (is_yuv) {
+		VOP_WIN_SET(vop, win, uv_vir, uv_vir_stride);
+		VOP_WIN_SET(vop, win, uv_mst, uv_mst);
+	}
+
+	if (win->phy->scl)
+		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
+				    dest.x2 - dest.x1, dest.y2 - dest.y1,
+				    fb->pixel_format);
+
 	val = (actual_h - 1) << 16;
 	val |= (actual_w - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, act_info, val);
+
+	val = (dest.y2 - dest.y1 - 1) << 16;
+	val |= (dest.x2 - dest.x1 - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_info, val);
 	val = (dsp_sty - 1) << 16;
 	val |= (dsp_stx - 1) & 0xffff;
 	VOP_WIN_SET(vop, win, dsp_st, val);
+	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
 	if (is_alpha) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
@@ -742,7 +1078,7 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return -EPERM;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
@@ -759,8 +1095,9 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return;
+
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop_mask_write(vop, INTR_CTRL0, FS_INTR_MASK, FS_INTR_EN(0));
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
@@ -773,14 +1110,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 
 static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct vop *vop = to_vop(crtc);
-
 	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	if (vop->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
-		return;
-	}
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -795,8 +1125,6 @@ static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
-
-	vop->dpms = mode;
 }
 
 static void vop_crtc_prepare(struct drm_crtc *crtc)
@@ -847,7 +1175,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	int ret;
+	int ret, ret_clk;
 	uint32_t val;
 
 	/*
@@ -869,13 +1197,14 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n",
 			  vop->connector_type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	};
 	VOP_CTRL_SET(vop, out_mode, vop->connector_out_mode);
 
 	val = 0x8;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 1 : 0;
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? (1 << 1) : 0;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
+	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ? 0 : (1 << 1);
 	VOP_CTRL_SET(vop, pin_pol, val);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
@@ -892,7 +1221,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = vop_crtc_mode_set_base(crtc, x, y, fb);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * reset dclk, take all mode config affect, so the clk would run in
@@ -903,13 +1232,14 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	reset_control_deassert(vop->dclk_rst);
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
-	ret = clk_enable(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
-		return ret;
+out:
+	ret_clk = clk_enable(vop->dclk);
+	if (ret_clk < 0) {
+		dev_err(vop->dev, "failed to enable dclk - %d\n", ret_clk);
+		return ret_clk;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void vop_crtc_commit(struct drm_crtc *crtc)
@@ -934,9 +1264,9 @@ static int vop_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	int ret;
 
-	/* when the page flip is requested, crtc's dpms should be on */
-	if (vop->dpms > DRM_MODE_DPMS_ON) {
-		DRM_DEBUG("failed page flip request at dpms[%d].\n", vop->dpms);
+	/* when the page flip is requested, crtc should be on */
+	if (!vop->is_enabled) {
+		DRM_DEBUG("page flip request rejected because crtc is off.\n");
 		return 0;
 	}
 
@@ -1081,6 +1411,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 	struct vop *vop = data;
 	uint32_t intr0_reg, active_irqs;
 	unsigned long flags;
+	int ret = IRQ_NONE;
 
 	/*
 	 * INTR_CTRL0 register has interrupt status, enable and clear bits, we
@@ -1099,15 +1430,23 @@ static irqreturn_t vop_isr(int irq, void *data)
 	if (!active_irqs)
 		return IRQ_NONE;
 
-	/* Only Frame Start Interrupt is enabled; other irqs are spurious. */
-	if (!(active_irqs & FS_INTR)) {
-		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
-		return IRQ_NONE;
+	if (active_irqs & DSP_HOLD_VALID_INTR) {
+		complete(&vop->dsp_hold_completion);
+		active_irqs &= ~DSP_HOLD_VALID_INTR;
+		ret = IRQ_HANDLED;
 	}
 
-	drm_handle_vblank(vop->drm_dev, vop->pipe);
+	if (active_irqs & FS_INTR) {
+		drm_handle_vblank(vop->drm_dev, vop->pipe);
+		active_irqs &= ~FS_INTR;
+		ret = (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	}
 
-	return (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+	/* Unhandled irqs are spurious. */
+	if (active_irqs)
+		DRM_ERROR("Unknown VOP IRQs: %#02x\n", active_irqs);
+
+	return ret;
 }
 
 static int vop_create_crtc(struct vop *vop)
@@ -1189,6 +1528,7 @@ static int vop_create_crtc(struct vop *vop)
 		goto err_cleanup_crtc;
 	}
 
+	init_completion(&vop->dsp_hold_completion);
 	crtc->port = port;
 	vop->pipe = drm_crtc_index(crtc);
 	rockchip_register_crtc_funcs(drm_dev, &private_crtc_funcs, vop->pipe);
@@ -1302,7 +1642,7 @@ static int vop_initial(struct vop *vop)
 
 	clk_disable(vop->hclk);
 
-	vop->dpms = DRM_MODE_DPMS_OFF;
+	vop->is_enabled = false;
 
 	return 0;
 
@@ -1344,7 +1684,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct vop *vop;
 	struct resource *res;
 	size_t alloc_size;
-	int ret;
+	int ret, irq;
 
 	of_id = of_match_device(vop_driver_dt_match, dev);
 	vop_data = of_id->data;
@@ -1380,11 +1720,12 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	vop->irq = platform_get_irq(pdev, 0);
-	if (vop->irq < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(dev, "cannot find irq for vop\n");
-		return vop->irq;
+		return irq;
 	}
+	vop->irq = (unsigned int)irq;
 
 	spin_lock_init(&vop->reg_lock);
 	spin_lock_init(&vop->irq_lock);

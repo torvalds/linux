@@ -16,10 +16,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  This driver fully implements the ACPI thermal policy as described in the
@@ -529,8 +525,7 @@ static void acpi_thermal_check(void *data)
 
 /* sys I/F for generic thermal sysfs support */
 
-static int thermal_get_temp(struct thermal_zone_device *thermal,
-			    unsigned long *temp)
+static int thermal_get_temp(struct thermal_zone_device *thermal, int *temp)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int result;
@@ -637,7 +632,7 @@ static int thermal_get_trip_type(struct thermal_zone_device *thermal,
 }
 
 static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
-				 int trip, unsigned long *temp)
+				 int trip, int *temp)
 {
 	struct acpi_thermal *tz = thermal->devdata;
 	int i;
@@ -690,7 +685,8 @@ static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
 }
 
 static int thermal_get_crit_temp(struct thermal_zone_device *thermal,
-				unsigned long *temperature) {
+				int *temperature)
+{
 	struct acpi_thermal *tz = thermal->devdata;
 
 	if (tz->trips.critical.flags.valid) {
@@ -713,8 +709,8 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 		return -EINVAL;
 
 	if (type == THERMAL_TRIP_ACTIVE) {
-		unsigned long trip_temp;
-		unsigned long temp = DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(
+		int trip_temp;
+		int temp = DECI_KELVIN_TO_MILLICELSIUS_WITH_OFFSET(
 					tz->temperature, tz->kelvin_offset);
 		if (thermal_get_trip_temp(thermal, trip, &trip_temp))
 			return -EINVAL;
@@ -800,7 +796,8 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 				result =
 					thermal_zone_bind_cooling_device
 					(thermal, trip, cdev,
-					 THERMAL_NO_LIMIT, THERMAL_NO_LIMIT);
+					 THERMAL_NO_LIMIT, THERMAL_NO_LIMIT,
+					 THERMAL_WEIGHT_DEFAULT);
 			else
 				result =
 					thermal_zone_unbind_cooling_device
@@ -824,7 +821,8 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 			if (bind)
 				result = thermal_zone_bind_cooling_device
 					(thermal, trip, cdev,
-					 THERMAL_NO_LIMIT, THERMAL_NO_LIMIT);
+					 THERMAL_NO_LIMIT, THERMAL_NO_LIMIT,
+					 THERMAL_WEIGHT_DEFAULT);
 			else
 				result = thermal_zone_unbind_cooling_device
 					(thermal, trip, cdev);
@@ -841,7 +839,8 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 				result = thermal_zone_bind_cooling_device
 						(thermal, THERMAL_TRIPS_NONE,
 						 cdev, THERMAL_NO_LIMIT,
-						 THERMAL_NO_LIMIT);
+						 THERMAL_NO_LIMIT,
+						 THERMAL_WEIGHT_DEFAULT);
 			else
 				result = thermal_zone_unbind_cooling_device
 						(thermal, THERMAL_TRIPS_NONE,

@@ -863,14 +863,7 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	/* When called from the generic PCI probe, read PCI<->PCI bridge
-	 * bases. This is -not- called when generating the PCI tree from
-	 * the OF device-tree.
-	 */
-	if (bus->self != NULL)
-		pci_read_bridge_bases(bus);
-
-	/* Now fixup the bus bus */
+	/* Fixup the bus */
 	pcibios_setup_bus_self(bus);
 
 	/* Now fixup devices on that bus */
@@ -1382,6 +1375,10 @@ static int __init pcibios_init(void)
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		if (hose->bus)
+			pci_bus_add_devices(hose->bus);
+	}
 
 	return 0;
 }

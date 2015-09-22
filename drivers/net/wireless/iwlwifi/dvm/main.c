@@ -1549,7 +1549,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 				      table.blink1, table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
 				      table.gp2, table.gp3, table.ucode_ver,
-				      table.hw_ver, table.brd_ver);
+				      table.hw_ver, 0, table.brd_ver);
 	IWL_ERR(priv, "0x%08X | %-28s\n", table.error_id,
 		desc_lookup(table.error_id));
 	IWL_ERR(priv, "0x%08X | uPc\n", table.pc);
@@ -2029,17 +2029,6 @@ static bool iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	return false;
 }
 
-static void iwl_napi_add(struct iwl_op_mode *op_mode,
-			 struct napi_struct *napi,
-			 struct net_device *napi_dev,
-			 int (*poll)(struct napi_struct *, int),
-			 int weight)
-{
-	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-
-	ieee80211_napi_add(priv->hw, napi, napi_dev, poll, weight);
-}
-
 static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
@@ -2052,7 +2041,6 @@ static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.cmd_queue_full = iwl_cmd_queue_full,
 	.nic_config = iwl_nic_config,
 	.wimax_active = iwl_wimax_active,
-	.napi_add = iwl_napi_add,
 };
 
 /*****************************************************************************

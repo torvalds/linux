@@ -245,10 +245,11 @@ static int __maybe_unused regulator_haptic_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(regulator_haptic_pm_ops,
 		regulator_haptic_suspend, regulator_haptic_resume);
 
-static struct of_device_id regulator_haptic_dt_match[] = {
+static const struct of_device_id regulator_haptic_dt_match[] = {
 	{ .compatible = "regulator-haptic" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, regulator_haptic_dt_match);
 
 static struct platform_driver regulator_haptic_driver = {
 	.probe		= regulator_haptic_probe,

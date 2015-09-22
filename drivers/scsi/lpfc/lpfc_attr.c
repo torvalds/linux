@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -406,8 +406,13 @@ lpfc_option_rom_version_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+	char fwrev[FW_REV_STR_SIZE];
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", phba->OptionROMVersion);
+	if (phba->sli_rev < LPFC_SLI_REV4)
+		return snprintf(buf, PAGE_SIZE, "%s\n", phba->OptionROMVersion);
+
+	lpfc_decode_firmware_rev(phba, fwrev, 1);
+	return snprintf(buf, PAGE_SIZE, "%s\n", fwrev);
 }
 
 /**
@@ -4568,12 +4573,18 @@ LPFC_ATTR_R(multi_ring_type, FC_TYPE_IP, 1,
 
 /*
 # lpfc_fdmi_on: controls FDMI support.
-#       0 = no FDMI support
-#       1 = support FDMI without attribute of hostname
-#       2 = support FDMI with attribute of hostname
-# Value range [0,2]. Default value is 0.
+#               Set                NOT Set
+#       bit 0 = FDMI support       no FDMI support
+#           LPFC_FDMI_SUPPORT just turns basic support on/off
+#       bit 1 = Register delay     no register delay  (60 seconds)
+#           LPFC_FDMI_REG_DELAY	60 sec registration delay after FDMI login
+#       bit 2 = All attributes     Use a attribute subset
+#           LPFC_FDMI_ALL_ATTRIB applies to both port and HBA attributes
+#           Port attrutes subset: 1 thru 6 OR all: 1 thru 0xd 0x101 0x102 0x103
+#           HBA attributes subset: 1 thru 0xb OR all: 1 thru 0xc
+# Value range [0,7]. Default value is 0.
 */
-LPFC_VPORT_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
+LPFC_VPORT_ATTR_RW(fdmi_on, 0, 0, 7, "Enable FDMI support");
 
 /*
 # Specifies the maximum number of ELS cmds we can have outstanding (for

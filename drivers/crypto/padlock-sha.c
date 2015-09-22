@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
 #include <asm/cpu_device_id.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 struct padlock_sha_desc {
 	struct shash_desc fallback;

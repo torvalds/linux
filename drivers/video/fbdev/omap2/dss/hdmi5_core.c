@@ -55,7 +55,7 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 	const unsigned ss_scl_low = 4700;		/* ns */
 	const unsigned fs_scl_high = 600;		/* ns */
 	const unsigned fs_scl_low = 1300;		/* ns */
-	const unsigned sda_hold = 300;			/* ns */
+	const unsigned sda_hold = 1000;			/* ns */
 	const unsigned sfr_div = 10;
 	unsigned long long sfr;
 	unsigned v;
@@ -790,7 +790,9 @@ static void hdmi5_core_audio_infoframe_cfg(struct hdmi_core_data *core,
 
 	hdmi_write_reg(base, HDMI_CORE_FC_AUDICONF1, info_aud->db2_sf_ss);
 	hdmi_write_reg(base, HDMI_CORE_FC_AUDICONF2, info_aud->db4_ca);
-	hdmi_write_reg(base, HDMI_CORE_FC_AUDICONF3, info_aud->db5_dminh_lsv);
+	hdmi_write_reg(base, HDMI_CORE_FC_AUDICONF3,
+	  (info_aud->db5_dminh_lsv & CEA861_AUDIO_INFOFRAME_DB5_DM_INH) >> 3 |
+	  (info_aud->db5_dminh_lsv & CEA861_AUDIO_INFOFRAME_DB5_LSV));
 }
 
 int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
@@ -870,6 +872,7 @@ int hdmi5_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	audio_format.samples_per_word = HDMI_AUDIO_ONEWORD_TWOSAMPLES;
 	audio_format.sample_size = HDMI_AUDIO_SAMPLE_16BITS;
 	audio_format.justification = HDMI_AUDIO_JUSTIFY_LEFT;
+	audio_format.sample_order = HDMI_AUDIO_SAMPLE_LEFT_FIRST;
 
 	/* only LPCM atm */
 	audio_format.type = HDMI_AUDIO_TYPE_LPCM;

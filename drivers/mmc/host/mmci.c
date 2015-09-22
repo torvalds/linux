@@ -1613,7 +1613,10 @@ static int mmci_probe(struct amba_device *dev,
 	dev_dbg(mmc_dev(mmc), "clocking block at %u Hz\n", mmc->f_max);
 
 	/* Get regulators and the supported OCR mask */
-	mmc_regulator_get_supply(mmc);
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		goto clk_disable;
+
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = plat->ocr_mask;
 	else if (plat->ocr_mask)

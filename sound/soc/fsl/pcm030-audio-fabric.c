@@ -113,7 +113,7 @@ static int pcm030_fabric_remove(struct platform_device *op)
 	return ret;
 }
 
-static struct of_device_id pcm030_audio_match[] = {
+static const struct of_device_id pcm030_audio_match[] = {
 	{ .compatible = "phytec,pcm030-audio-fabric", },
 	{}
 };

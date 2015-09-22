@@ -944,12 +944,12 @@ static int wcn36xx_init_ieee80211(struct wcn36xx *wcn)
 		WLAN_CIPHER_SUITE_CCMP,
 	};
 
-	wcn->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_HAS_RATE_CONTROL |
-		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_CONNECTION_MONITOR |
-		IEEE80211_HW_AMPDU_AGGREGATION |
-		IEEE80211_HW_TIMING_BEACON_ONLY;
+	ieee80211_hw_set(wcn->hw, TIMING_BEACON_ONLY);
+	ieee80211_hw_set(wcn->hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(wcn->hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(wcn->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wcn->hw, SIGNAL_DBM);
+	ieee80211_hw_set(wcn->hw, HAS_RATE_CONTROL);
 
 	wcn->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_AP) |

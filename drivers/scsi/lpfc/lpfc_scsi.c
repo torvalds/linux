@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2014 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -3257,7 +3257,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		 */
 
 		nseg = scsi_dma_map(scsi_cmnd);
-		if (unlikely(!nseg))
+		if (unlikely(nseg <= 0))
 			return 1;
 		sgl += 1;
 		/* clear the last flag in the fcp_rsp map entry */
@@ -3844,6 +3844,49 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	cmnd->result = ScsiResult(host_status, scsi_status);
 	lpfc_send_scsi_error_event(vport->phba, vport, lpfc_cmd, rsp_iocb);
 }
+
+/**
+ * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
+ * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
+ * held.
+ * If scsi-mq is enabled, get the default block layer mapping of software queues
+ * to hardware queues. This information is saved in request tag.
+ *
+ * Return: index into SLI4 fast-path FCP queue index.
+ **/
+int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
+				  struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
+	struct lpfc_vector_map_info *cpup;
+	int chann, cpu;
+	uint32_t tag;
+	uint16_t hwq;
+
+	if (shost_use_blk_mq(cmnd->device->host)) {
+		tag = blk_mq_unique_tag(cmnd->request);
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+
+		return hwq;
+	}
+
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU
+	    && phba->cfg_fcp_io_channel > 1) {
+		cpu = smp_processor_id();
+		if (cpu < phba->sli4_hba.num_present_cpu) {
+			cpup = phba->sli4_hba.cpu_map;
+			cpup += cpu;
+			return cpup->channel_id;
+		}
+	}
+	chann = atomic_add_return(1, &phba->fcp_qidx);
+	chann = (chann % phba->cfg_fcp_io_channel);
+	return chann;
+}
+
 
 /**
  * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
@@ -4537,7 +4580,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
 
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_MISC,
 				 "0707 driver's buffer pool is empty, "
 				 "IO busied\n");
 		goto out_host_busy;
@@ -4968,13 +5011,16 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if ((status != IOCB_SUCCESS) ||
 	    (iocbqrsp->iocb.ulpStatus != IOSTAT_SUCCESS)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			 "0727 TMF %s to TGT %d LUN %llu failed (%d, %d) "
-			 "iocb_flag x%x\n",
-			 lpfc_taskmgmt_name(task_mgmt_cmd),
-			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
-			 iocbqrsp->iocb.un.ulpWord[4],
-			 iocbq->iocb_flag);
+		if (status != IOCB_SUCCESS ||
+		    iocbqrsp->iocb.ulpStatus != IOSTAT_FCP_RSP_ERROR)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+					 "0727 TMF %s to TGT %d LUN %llu "
+					 "failed (%d, %d) iocb_flag x%x\n",
+					 lpfc_taskmgmt_name(task_mgmt_cmd),
+					 tgt_id, lun_id,
+					 iocbqrsp->iocb.ulpStatus,
+					 iocbqrsp->iocb.un.ulpWord[4],
+					 iocbq->iocb_flag);
 		/* if ulpStatus != IOCB_SUCCESS, then status == IOCB_SUCCESS */
 		if (status == IOCB_SUCCESS) {
 			if (iocbqrsp->iocb.ulpStatus == IOSTAT_FCP_RSP_ERROR)
@@ -4988,7 +5034,6 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 		} else {
 			ret = FAILED;
 		}
-		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 	} else
 		ret = SUCCESS;
 
@@ -5118,9 +5163,10 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	int status;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
-	if (!rdata) {
+	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			"0798 Device Reset rport failure: rdata x%p\n", rdata);
+				 "0798 Device Reset rport failure: rdata x%p\n",
+				 rdata);
 		return FAILED;
 	}
 	pnode = rdata->pnode;
@@ -5202,10 +5248,12 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	if (status == FAILED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			"0722 Target Reset rport failure: rdata x%p\n", rdata);
-		spin_lock_irq(shost->host_lock);
-		pnode->nlp_flag &= ~NLP_NPR_ADISC;
-		pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-		spin_unlock_irq(shost->host_lock);
+		if (pnode) {
+			spin_lock_irq(shost->host_lock);
+			pnode->nlp_flag &= ~NLP_NPR_ADISC;
+			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
+			spin_unlock_irq(shost->host_lock);
+		}
 		lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
 					  LPFC_CTX_TGT);
 		return FAST_IO_FAIL;
@@ -5856,6 +5904,31 @@ lpfc_disable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 	spin_unlock_irqrestore(&phba->devicelock, flags);
 	return false;
 }
+
+struct scsi_host_template lpfc_template_s3 = {
+	.module			= THIS_MODULE,
+	.name			= LPFC_DRIVER_NAME,
+	.info			= lpfc_info,
+	.queuecommand		= lpfc_queuecommand,
+	.eh_abort_handler	= lpfc_abort_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
+	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
+	.slave_alloc		= lpfc_slave_alloc,
+	.slave_configure	= lpfc_slave_configure,
+	.slave_destroy		= lpfc_slave_destroy,
+	.scan_finished		= lpfc_scan_finished,
+	.this_id		= -1,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
+	.cmd_per_lun		= LPFC_CMD_PER_LUN,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.shost_attrs		= lpfc_hba_attrs,
+	.max_sectors		= 0xFFFF,
+	.vendor_id		= LPFC_NL_VENDOR_ID,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.use_blk_tags		= 1,
+	.track_queue_depth	= 1,
+};
 
 struct scsi_host_template lpfc_template = {
 	.module			= THIS_MODULE,

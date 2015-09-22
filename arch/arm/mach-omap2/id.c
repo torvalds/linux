@@ -52,7 +52,10 @@ EXPORT_SYMBOL(omap_rev);
 
 int omap_type(void)
 {
-	u32 val = 0;
+	static u32 val = OMAP2_DEVICETYPE_MASK;
+
+	if (val < OMAP2_DEVICETYPE_MASK)
+		return val;
 
 	if (cpu_is_omap24xx()) {
 		val = omap_ctrl_readl(OMAP24XX_CONTROL_STATUS);
@@ -720,6 +723,8 @@ static const char * __init omap_get_family(void)
 		return kasprintf(GFP_KERNEL, "OMAP4");
 	else if (soc_is_omap54xx())
 		return kasprintf(GFP_KERNEL, "OMAP5");
+	else if (soc_is_am33xx() || soc_is_am335x())
+		return kasprintf(GFP_KERNEL, "AM33xx");
 	else if (soc_is_am43xx())
 		return kasprintf(GFP_KERNEL, "AM43xx");
 	else if (soc_is_dra7xx())

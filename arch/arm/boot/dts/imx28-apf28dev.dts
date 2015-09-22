@@ -110,6 +110,13 @@
 					};
 				};
 			};
+
+			can0: can@80032000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&can0_pins_a>;
+				xceiver-supply = <&reg_can0_vcc>;
+				status = "okay";
+			};
 		};
 
 		apbx@80040000 {
@@ -130,6 +137,13 @@
 				status = "okay";
 			};
 
+			auart0: serial@8006a000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&auart0_pins_a>;
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
 			usbphy0: usbphy@8007c000 {
 				status = "okay";
 			};
@@ -143,7 +157,8 @@
 	ahb@80080000 {
 		usb0: usb@80080000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&usb0_otg_apf28dev>;
+			pinctrl-0 = <&usb0_otg_apf28dev
+					&usb0_id_pins_b>;
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};
@@ -156,7 +171,7 @@
 			phy-mode = "rmii";
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac1_pins_a>;
-			phy-reset-gpios = <&gpio0 23 0>;
+			phy-reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 			status = "okay";
 		};
 	};
@@ -174,6 +189,14 @@
 			regulator-max-microvolt = <5000000>;
 			gpio = <&gpio1 23 1>;
 			enable-active-high;
+		};
+
+		reg_can0_vcc: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "can0_vcc";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
 		};
 	};
 
@@ -200,8 +223,9 @@
 
 		user-button {
 			label = "User button";
-			gpios = <&gpio0 17 0>;
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
+			gpio-key,wakeup;
 		};
 	};
 };

@@ -46,7 +46,7 @@ static struct llog_ctxt *llog_new_ctxt(struct obd_device *obd)
 {
 	struct llog_ctxt *ctxt;
 
-	OBD_ALLOC_PTR(ctxt);
+	ctxt = kzalloc(sizeof(*ctxt), GFP_NOFS);
 	if (!ctxt)
 		return NULL;
 
@@ -66,7 +66,7 @@ static void llog_ctxt_destroy(struct llog_ctxt *ctxt)
 		class_import_put(ctxt->loc_imp);
 		ctxt->loc_imp = NULL;
 	}
-	OBD_FREE_PTR(ctxt);
+	kfree(ctxt);
 }
 
 int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt)

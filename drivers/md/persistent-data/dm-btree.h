@@ -135,6 +135,15 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root);
 
 /*
+ * Removes values between 'keys' and keys2, where keys2 is keys with the
+ * final key replaced with 'end_key'.  'end_key' is the one-past-the-end
+ * value.  'keys' may be altered.
+ */
+int dm_btree_remove_leaves(struct dm_btree_info *info, dm_block_t root,
+			   uint64_t *keys, uint64_t end_key,
+			   dm_block_t *new_root, unsigned *nr_removed);
+
+/*
  * Returns < 0 on failure.  Otherwise the number of key entries that have
  * been filled out.  Remember trees can have zero entries, and as such have
  * no lowest key.

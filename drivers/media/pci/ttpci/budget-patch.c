@@ -128,9 +128,9 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
 	return 0;
 }
 
-/* shamelessly copy/pasted from budget.c
-*/
-static int budget_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+/* shamelessly copy/pasted from budget.c */
+static int budget_set_tone(struct dvb_frontend *fe,
+			   enum fe_sec_tone_mode tone)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 
@@ -159,7 +159,8 @@ static int budget_diseqc_send_master_cmd(struct dvb_frontend* fe, struct dvb_dis
 	return 0;
 }
 
-static int budget_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd)
+static int budget_diseqc_send_burst(struct dvb_frontend *fe,
+				    enum fe_sec_mini_cmd minicmd)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 
@@ -223,7 +224,8 @@ static int av7110_send_diseqc_msg(struct budget_patch *budget, int len, u8 *msg,
 	return 0;
 }
 
-static int budget_patch_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int budget_patch_set_tone(struct dvb_frontend *fe,
+				 enum fe_sec_tone_mode tone)
 {
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
 
@@ -252,7 +254,8 @@ static int budget_patch_diseqc_send_master_cmd(struct dvb_frontend* fe, struct d
 	return 0;
 }
 
-static int budget_patch_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd)
+static int budget_patch_diseqc_send_burst(struct dvb_frontend *fe,
+					  enum fe_sec_mini_cmd minicmd)
 {
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
 

@@ -195,6 +195,8 @@ int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2
 			if (dev->radio_rx_freq >= vivid_radio_bands[band].rangelow &&
 			    dev->radio_rx_freq <= vivid_radio_bands[band].rangehigh)
 				break;
+		if (band == TOT_BANDS)
+			return -EINVAL;
 		low = vivid_radio_bands[band].rangelow;
 		high = vivid_radio_bands[band].rangehigh;
 	}

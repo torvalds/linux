@@ -67,7 +67,6 @@ static struct i2c_driver pcm512x_i2c_driver = {
 	.id_table	= pcm512x_i2c_id,
 	.driver		= {
 		.name	= "pcm512x",
-		.owner	= THIS_MODULE,
 		.of_match_table = pcm512x_of_match,
 		.pm     = &pcm512x_pm_ops,
 	},

@@ -1,6 +1,7 @@
 config NET_XGENE
 	tristate "APM X-Gene SoC Ethernet Driver"
 	depends on HAS_DMA
+	depends on ARCH_XGENE || COMPILE_TEST
 	select PHYLIB
 	help
 	  This is the Ethernet driver for the on-chip ethernet interface on the

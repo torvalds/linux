@@ -1630,7 +1630,8 @@ fail1:
 	printk(KERN_ERR "fail1\n");
 	if (dev->msi)
 		pci_disable_msi(dev->pdev);
-	free_irq(dev->pdev->irq, dev);
+	if (stat == 0)
+		free_irq(dev->pdev->irq, dev);
 fail:
 	printk(KERN_ERR "fail\n");
 	ddb_unmap(dev);

@@ -345,11 +345,29 @@ where to put them)
       that abstracts it away.
 
   * DMA_CTRL_ACK
-    - Undocumented feature
-    - No one really has an idea of what it's about, besides being
-      related to reusing the DMA transaction descriptors or having
-      additional transactions added to it in the async-tx API
-    - Useless in the case of the slave API
+    - If clear, the descriptor cannot be reused by provider until the
+      client acknowledges receipt, i.e. has has a chance to establish any
+      dependency chains
+    - This can be acked by invoking async_tx_ack()
+    - If set, does not mean descriptor can be reused
+
+  * DMA_CTRL_REUSE
+    - If set, the descriptor can be reused after being completed. It should
+      not be freed by provider if this flag is set.
+    - The descriptor should be prepared for reuse by invoking
+      dmaengine_desc_set_reuse() which will set DMA_CTRL_REUSE.
+    - dmaengine_desc_set_reuse() will succeed only when channel support
+      reusable descriptor as exhibited by capablities
+    - As a consequence, if a device driver wants to skip the dma_map_sg() and
+      dma_unmap_sg() in between 2 transfers, because the DMA'd data wasn't used,
+      it can resubmit the transfer right after its completion.
+    - Descriptor can be freed in few ways
+	- Clearing DMA_CTRL_REUSE by invoking dmaengine_desc_clear_reuse()
+	  and submitting for last txn
+	- Explicitly invoking dmaengine_desc_free(), this can succeed only
+	  when DMA_CTRL_REUSE is already set
+	- Terminating the channel
+
 
 General Design Notes
 --------------------

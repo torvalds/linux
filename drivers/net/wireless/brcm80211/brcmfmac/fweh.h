@@ -85,7 +85,6 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(IF, 54) \
 	BRCMF_ENUM_DEF(P2P_DISC_LISTEN_COMPLETE, 55) \
 	BRCMF_ENUM_DEF(RSSI, 56) \
-	BRCMF_ENUM_DEF(PFN_SCAN_COMPLETE, 57) \
 	BRCMF_ENUM_DEF(EXTLOG_MSG, 58) \
 	BRCMF_ENUM_DEF(ACTION_FRAME, 59) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_COMPLETE, 60) \
@@ -103,8 +102,7 @@ struct brcmf_event;
 	BRCMF_ENUM_DEF(FIFO_CREDIT_MAP, 74) \
 	BRCMF_ENUM_DEF(ACTION_FRAME_RX, 75) \
 	BRCMF_ENUM_DEF(TDLS_PEER_EVENT, 92) \
-	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127) \
-	BRCMF_ENUM_DEF(PSTA_PRIMARY_INTF_IND, 128)
+	BRCMF_ENUM_DEF(BCMC_CREDIT_SUPPORT, 127)
 
 #define BRCMF_ENUM_DEF(id, val) \
 	BRCMF_E_##id = (val),
@@ -112,7 +110,11 @@ struct brcmf_event;
 /* firmware event codes sent by the dongle */
 enum brcmf_fweh_event_code {
 	BRCMF_FWEH_EVENT_ENUM_DEFLIST
-	BRCMF_E_LAST
+	/* this determines event mask length which must match
+	 * minimum length check in device firmware so it is
+	 * hard-coded here.
+	 */
+	BRCMF_E_LAST = 139
 };
 #undef BRCMF_ENUM_DEF
 

@@ -1,8 +1,8 @@
 /*
  * SMI (Serial Memory Controller) device driver for Serial NOR Flash on
  * SPEAr platform
- * The serial nor interface is largely based on drivers/mtd/m25p80.c,
- * however the SPI interface has been replaced by SMI.
+ * The serial nor interface is largely based on m25p80.c, however the SPI
+ * interface has been replaced by SMI.
  *
  * Copyright © 2010 STMicroelectronics.
  * Ashish Priyadarshi

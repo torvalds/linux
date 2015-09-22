@@ -73,7 +73,7 @@ static u32 match_lookup_rt6(struct net *net, const struct net_device *dev,
 
 	if (dev == NULL && rt->rt6i_flags & RTF_LOCAL)
 		ret |= XT_ADDRTYPE_LOCAL;
-	if (rt->rt6i_flags & RTF_ANYCAST)
+	if (ipv6_anycast_destination((struct dst_entry *)rt, addr))
 		ret |= XT_ADDRTYPE_ANYCAST;
 
 	dst_release(&rt->dst);

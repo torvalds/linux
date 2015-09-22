@@ -28,7 +28,6 @@
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
 #include <linux/miscdevice.h>
-#include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
@@ -394,19 +393,6 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 
 static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
-int update_persistent_clock(struct timespec now)
-{
-	struct rtc_device *rtc = rtc_class_open("rtc0");
-	int err = -1;
-
-	if (rtc) {
-		err = rtc_set_mmss(rtc, now.tv_sec);
-		rtc_class_close(rtc);
-	}
-
-	return err;
-}
-
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
 
@@ -688,32 +674,19 @@ static int sparc64_next_event(unsigned long delta,
 	return tick_ops->add_compare(delta) ? -ETIME : 0;
 }
 
-static void sparc64_timer_setup(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int sparc64_timer_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		tick_ops->disable_irq();
-		break;
-
-	case CLOCK_EVT_MODE_PERIODIC:
-	case CLOCK_EVT_MODE_UNUSED:
-		WARN_ON(1);
-		break;
-	}
+	tick_ops->disable_irq();
+	return 0;
 }
 
 static struct clock_event_device sparc64_clockevent = {
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= sparc64_timer_setup,
-	.set_next_event	= sparc64_next_event,
-	.rating		= 100,
-	.shift		= 30,
-	.irq		= -1,
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_shutdown	= sparc64_timer_shutdown,
+	.set_next_event		= sparc64_next_event,
+	.rating			= 100,
+	.shift			= 30,
+	.irq			= -1,
 };
 static DEFINE_PER_CPU(struct clock_event_device, sparc64_events);
 

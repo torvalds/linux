@@ -1345,7 +1345,7 @@ static int param_get_vmidfilter(char *buffer, const struct kernel_param *kp)
 
 #define param_check_vmidfilter(name, p) __param_check(name, p, void)
 
-static struct kernel_param_ops param_ops_vmidfilter = {
+static const struct kernel_param_ops param_ops_vmidfilter = {
 	.set = param_set_vmidfilter,
 	.get = param_get_vmidfilter,
 };

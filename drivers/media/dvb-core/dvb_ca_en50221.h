@@ -83,27 +83,27 @@ struct dvb_ca_en50221 {
 /* Functions for reporting IRQ events */
 
 /**
- * A CAMCHANGE IRQ has occurred.
+ * dvb_ca_en50221_camchange_irq - A CAMCHANGE IRQ has occurred.
  *
- * @param ca CA instance.
- * @param slot Slot concerned.
- * @param change_type One of the DVB_CA_CAMCHANGE_* values
+ * @pubca: CA instance.
+ * @slot: Slot concerned.
+ * @change_type: One of the DVB_CA_CAMCHANGE_* values
  */
 void dvb_ca_en50221_camchange_irq(struct dvb_ca_en50221* pubca, int slot, int change_type);
 
 /**
- * A CAMREADY IRQ has occurred.
+ * dvb_ca_en50221_camready_irq - A CAMREADY IRQ has occurred.
  *
- * @param ca CA instance.
- * @param slot Slot concerned.
+ * @pubca: CA instance.
+ * @slot: Slot concerned.
  */
 void dvb_ca_en50221_camready_irq(struct dvb_ca_en50221* pubca, int slot);
 
 /**
- * An FR or a DA IRQ has occurred.
+ * dvb_ca_en50221_frda_irq - An FR or a DA IRQ has occurred.
  *
- * @param ca CA instance.
- * @param slot Slot concerned.
+ * @ca: CA instance.
+ * @slot: Slot concerned.
  */
 void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221* ca, int slot);
 
@@ -113,21 +113,21 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221* ca, int slot);
 /* Initialisation/shutdown functions */
 
 /**
- * Initialise a new DVB CA device.
+ * dvb_ca_en50221_init - Initialise a new DVB CA device.
  *
- * @param dvb_adapter DVB adapter to attach the new CA device to.
- * @param ca The dvb_ca instance.
- * @param flags Flags describing the CA device (DVB_CA_EN50221_FLAG_*).
- * @param slot_count Number of slots supported.
+ * @dvb_adapter: DVB adapter to attach the new CA device to.
+ * @ca: The dvb_ca instance.
+ * @flags: Flags describing the CA device (DVB_CA_EN50221_FLAG_*).
+ * @slot_count: Number of slots supported.
  *
  * @return 0 on success, nonzero on failure
  */
 extern int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter, struct dvb_ca_en50221* ca, int flags, int slot_count);
 
 /**
- * Release a DVB CA device.
+ * dvb_ca_en50221_release - Release a DVB CA device.
  *
- * @param ca The associated dvb_ca instance.
+ * @ca: The associated dvb_ca instance.
  */
 extern void dvb_ca_en50221_release(struct dvb_ca_en50221* ca);
 

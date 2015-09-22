@@ -264,7 +264,7 @@ int ip_options_compile(struct net *net,
 	unsigned char *iph;
 	int optlen, l;
 
-	if (skb != NULL) {
+	if (skb) {
 		rt = skb_rtable(skb);
 		optptr = (unsigned char *)&(ip_hdr(skb)[1]);
 	} else

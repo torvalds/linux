@@ -115,11 +115,7 @@
 	move.d	$r0, [$r1]	; last_refill_cause = rw_mm_cause
 
 3:	; Probably not in a loop, continue normal processing
-#ifdef CONFIG_SMP
-	move    $s7, $acr	; PGD
-#else
 	move.d  current_pgd, $acr ; PGD
-#endif
 	; Look up PMD in PGD
 	lsrq	24, $r0	; Get PMD index into PGD (bit 24-31)
 	move.d  [$acr], $acr	; PGD for the current process

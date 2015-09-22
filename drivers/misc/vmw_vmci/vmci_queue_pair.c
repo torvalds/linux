@@ -295,12 +295,20 @@ static void *qp_alloc_queue(u64 size, u32 flags)
 {
 	u64 i;
 	struct vmci_queue *queue;
-	const size_t num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
-	const size_t pas_size = num_pages * sizeof(*queue->kernel_if->u.g.pas);
-	const size_t vas_size = num_pages * sizeof(*queue->kernel_if->u.g.vas);
-	const size_t queue_size =
-		sizeof(*queue) + sizeof(*queue->kernel_if) +
-		pas_size + vas_size;
+	size_t pas_size;
+	size_t vas_size;
+	size_t queue_size = sizeof(*queue) + sizeof(*queue->kernel_if);
+	const u64 num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
+
+	if (num_pages >
+		 (SIZE_MAX - queue_size) /
+		 (sizeof(*queue->kernel_if->u.g.pas) +
+		  sizeof(*queue->kernel_if->u.g.vas)))
+		return NULL;
+
+	pas_size = num_pages * sizeof(*queue->kernel_if->u.g.pas);
+	vas_size = num_pages * sizeof(*queue->kernel_if->u.g.vas);
+	queue_size += pas_size + vas_size;
 
 	queue = vmalloc(queue_size);
 	if (!queue)
@@ -615,10 +623,15 @@ static int qp_memcpy_from_queue_iov(void *dest,
 static struct vmci_queue *qp_host_alloc_queue(u64 size)
 {
 	struct vmci_queue *queue;
-	const size_t num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
+	size_t queue_page_size;
+	const u64 num_pages = DIV_ROUND_UP(size, PAGE_SIZE) + 1;
 	const size_t queue_size = sizeof(*queue) + sizeof(*(queue->kernel_if));
-	const size_t queue_page_size =
-	    num_pages * sizeof(*queue->kernel_if->u.h.page);
+
+	if (num_pages > (SIZE_MAX - queue_size) /
+		 sizeof(*queue->kernel_if->u.h.page))
+		return NULL;
+
+	queue_page_size = num_pages * sizeof(*queue->kernel_if->u.h.page);
 
 	queue = kzalloc(queue_size + queue_page_size, GFP_KERNEL);
 	if (queue) {
@@ -737,7 +750,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 				     produce_q->kernel_if->num_pages, 1,
 				     produce_q->kernel_if->u.h.header_page);
 	if (retval < produce_q->kernel_if->num_pages) {
-		pr_warn("get_user_pages(produce) failed (retval=%d)", retval);
+		pr_debug("get_user_pages_fast(produce) failed (retval=%d)",
+			retval);
 		qp_release_pages(produce_q->kernel_if->u.h.header_page,
 				 retval, false);
 		err = VMCI_ERROR_NO_MEM;
@@ -748,7 +762,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 				     consume_q->kernel_if->num_pages, 1,
 				     consume_q->kernel_if->u.h.header_page);
 	if (retval < consume_q->kernel_if->num_pages) {
-		pr_warn("get_user_pages(consume) failed (retval=%d)", retval);
+		pr_debug("get_user_pages_fast(consume) failed (retval=%d)",
+			retval);
 		qp_release_pages(consume_q->kernel_if->u.h.header_page,
 				 retval, false);
 		qp_release_pages(produce_q->kernel_if->u.h.header_page,

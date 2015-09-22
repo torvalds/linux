@@ -33,12 +33,11 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
-#include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 #include <linux/mpage.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -215,8 +214,7 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
-			     struct iov_iter *iter,
+static ssize_t udf_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			     loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
@@ -225,8 +223,8 @@ static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, udf_get_block);
-	if (unlikely(ret < 0 && (rw & WRITE)))
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, udf_get_block);
+	if (unlikely(ret < 0 && iov_iter_rw(iter) == WRITE))
 		udf_write_failed(mapping, offset + count);
 	return ret;
 }
@@ -1637,7 +1635,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
-		return -ENOMEM;
+		return -EIO;
 	}
 
 	lock_buffer(bh);
@@ -1654,17 +1652,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		       iinfo->i_ext.i_data, inode->i_sb->s_blocksize -
 					sizeof(struct unallocSpaceEntry));
 		use->descTag.tagIdent = cpu_to_le16(TAG_IDENT_USE);
-		use->descTag.tagLocation =
-				cpu_to_le32(iinfo->i_location.logicalBlockNum);
-		crclen = sizeof(struct unallocSpaceEntry) +
-				iinfo->i_lenAlloc - sizeof(struct tag);
-		use->descTag.descCRCLength = cpu_to_le16(crclen);
-		use->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)use +
-							   sizeof(struct tag),
-							   crclen));
-		use->descTag.tagChecksum = udf_tag_checksum(&use->descTag);
+		crclen = sizeof(struct unallocSpaceEntry);
 
-		goto out;
+		goto finish;
 	}
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_FORGET))
@@ -1784,6 +1774,8 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		efe->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EFE);
 		crclen = sizeof(struct extendedFileEntry);
 	}
+
+finish:
 	if (iinfo->i_strat4096) {
 		fe->icbTag.strategyType = cpu_to_le16(4096);
 		fe->icbTag.strategyParameter = cpu_to_le16(1);
@@ -1793,7 +1785,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		fe->icbTag.numEntries = cpu_to_le16(1);
 	}
 
-	if (S_ISDIR(inode->i_mode))
+	if (iinfo->i_use)
+		fe->icbTag.fileType = ICBTAG_FILE_TYPE_USE;
+	else if (S_ISDIR(inode->i_mode))
 		fe->icbTag.fileType = ICBTAG_FILE_TYPE_DIRECTORY;
 	else if (S_ISREG(inode->i_mode))
 		fe->icbTag.fileType = ICBTAG_FILE_TYPE_REGULAR;
@@ -1830,7 +1824,6 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 						  crclen));
 	fe->descTag.tagChecksum = udf_tag_checksum(&fe->descTag);
 
-out:
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 

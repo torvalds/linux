@@ -315,7 +315,7 @@ static int controlfb_blank(int blank_mode, struct fb_info *info)
 		container_of(info, struct fb_info_control, info);
 	unsigned ctrl;
 
-	ctrl = ld_le32(CNTRL_REG(p,ctrl));
+	ctrl = le32_to_cpup(CNTRL_REG(p,ctrl));
 	if (blank_mode > 0)
 		switch (blank_mode) {
 		case FB_BLANK_VSYNC_SUSPEND:

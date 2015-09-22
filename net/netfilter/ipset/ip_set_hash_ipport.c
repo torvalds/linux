@@ -69,10 +69,10 @@ hash_ipport4_data_list(struct sk_buff *skb,
 	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
 	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
@@ -83,10 +83,8 @@ hash_ipport4_data_next(struct hash_ipport4_elem *next,
 	next->port = d->port;
 }
 
-#define MTYPE           hash_ipport4
-#define PF              4
-#define HOST_MASK       32
-#define HKEY_DATALEN	sizeof(struct hash_ipport4_elem)
+#define MTYPE		hash_ipport4
+#define HOST_MASK	32
 #include "ip_set_hash_gen.h"
 
 static int
@@ -118,29 +116,23 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE)))
-		return -IPSET_ERR_PROTOCOL;
-
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &e.ip) ||
-	      ip_set_get_extensions(set, tb, &ext);
+	if (unlikely(!tb[IPSET_ATTR_IP] ||
+		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO)))
+		return -IPSET_ERR_PROTOCOL;
+
+	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
 		return ret;
 
-	if (tb[IPSET_ATTR_PORT])
-		e.port = nla_get_be16(tb[IPSET_ATTR_PORT]);
-	else
-		return -IPSET_ERR_PROTOCOL;
+	ret = ip_set_get_extensions(set, tb, &ext);
+	if (ret)
+		return ret;
+
+	e.port = nla_get_be16(tb[IPSET_ATTR_PORT]);
 
 	if (tb[IPSET_ATTR_PROTO]) {
 		e.proto = nla_get_u8(tb[IPSET_ATTR_PROTO]);
@@ -148,8 +140,9 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (e.proto == 0)
 			return -IPSET_ERR_INVALID_PROTO;
-	} else
+	} else {
 		return -IPSET_ERR_MISSING_PROTO;
+	}
 
 	if (!(with_ports || e.proto == IPPROTO_ICMP))
 		e.port = 0;
@@ -171,7 +164,7 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
-		if (!cidr || cidr > 32)
+		if (!cidr || cidr > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
 	}
@@ -195,8 +188,8 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
-			else
-				ret = 0;
+
+			ret = 0;
 		}
 	}
 	return ret;
@@ -231,10 +224,10 @@ hash_ipport6_data_list(struct sk_buff *skb,
 	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
 	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
@@ -245,15 +238,11 @@ hash_ipport6_data_next(struct hash_ipport4_elem *next,
 }
 
 #undef MTYPE
-#undef PF
 #undef HOST_MASK
-#undef HKEY_DATALEN
 
 #define MTYPE		hash_ipport6
-#define PF		6
 #define HOST_MASK	128
-#define HKEY_DATALEN	sizeof(struct hash_ipport6_elem)
-#define	IP_SET_EMIT_CREATE
+#define IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"
 
 static int
@@ -285,31 +274,31 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 	bool with_ports = false;
 	int ret;
 
-	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBMARK) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBPRIO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_SKBQUEUE) ||
-		     tb[IPSET_ATTR_IP_TO] ||
-		     tb[IPSET_ATTR_CIDR]))
-		return -IPSET_ERR_PROTOCOL;
-
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	ret = ip_set_get_ipaddr6(tb[IPSET_ATTR_IP], &e.ip) ||
-	      ip_set_get_extensions(set, tb, &ext);
+	if (unlikely(!tb[IPSET_ATTR_IP] ||
+		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO)))
+		return -IPSET_ERR_PROTOCOL;
+	if (unlikely(tb[IPSET_ATTR_IP_TO]))
+		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
+	if (unlikely(tb[IPSET_ATTR_CIDR])) {
+		u8 cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
+
+		if (cidr != HOST_MASK)
+			return -IPSET_ERR_INVALID_CIDR;
+	}
+
+	ret = ip_set_get_ipaddr6(tb[IPSET_ATTR_IP], &e.ip);
 	if (ret)
 		return ret;
 
-	if (tb[IPSET_ATTR_PORT])
-		e.port = nla_get_be16(tb[IPSET_ATTR_PORT]);
-	else
-		return -IPSET_ERR_PROTOCOL;
+	ret = ip_set_get_extensions(set, tb, &ext);
+	if (ret)
+		return ret;
+
+	e.port = nla_get_be16(tb[IPSET_ATTR_PORT]);
 
 	if (tb[IPSET_ATTR_PROTO]) {
 		e.proto = nla_get_u8(tb[IPSET_ATTR_PROTO]);
@@ -317,8 +306,9 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (e.proto == 0)
 			return -IPSET_ERR_INVALID_PROTO;
-	} else
+	} else {
 		return -IPSET_ERR_MISSING_PROTO;
+	}
 
 	if (!(with_ports || e.proto == IPPROTO_ICMPV6))
 		e.port = 0;
@@ -341,8 +331,8 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
-		else
-			ret = 0;
+
+		ret = 0;
 	}
 	return ret;
 }
@@ -376,7 +366,8 @@ static struct ip_set_type hash_ipport_type __read_mostly = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
-		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,
+					    .len  = IPSET_MAX_COMMENT_SIZE },
 		[IPSET_ATTR_SKBMARK]	= { .type = NLA_U64 },
 		[IPSET_ATTR_SKBPRIO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_SKBQUEUE]	= { .type = NLA_U16 },
@@ -393,6 +384,7 @@ hash_ipport_init(void)
 static void __exit
 hash_ipport_fini(void)
 {
+	rcu_barrier();
 	ip_set_type_unregister(&hash_ipport_type);
 }
 

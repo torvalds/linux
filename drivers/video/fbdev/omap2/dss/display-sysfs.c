@@ -324,7 +324,7 @@ int display_init_sysfs(struct platform_device *pdev)
 
 	for_each_dss_dev(dssdev) {
 		r = kobject_init_and_add(&dssdev->kobj, &display_ktype,
-			&pdev->dev.kobj, dssdev->alias);
+			&pdev->dev.kobj, "%s", dssdev->alias);
 		if (r) {
 			DSSERR("failed to create sysfs files\n");
 			omap_dss_put_device(dssdev);

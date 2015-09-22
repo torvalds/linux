@@ -48,6 +48,71 @@
 
 #include "core_priv.h"
 
+static const char * const ib_events[] = {
+	[IB_EVENT_CQ_ERR]		= "CQ error",
+	[IB_EVENT_QP_FATAL]		= "QP fatal error",
+	[IB_EVENT_QP_REQ_ERR]		= "QP request error",
+	[IB_EVENT_QP_ACCESS_ERR]	= "QP access error",
+	[IB_EVENT_COMM_EST]		= "communication established",
+	[IB_EVENT_SQ_DRAINED]		= "send queue drained",
+	[IB_EVENT_PATH_MIG]		= "path migration successful",
+	[IB_EVENT_PATH_MIG_ERR]		= "path migration error",
+	[IB_EVENT_DEVICE_FATAL]		= "device fatal error",
+	[IB_EVENT_PORT_ACTIVE]		= "port active",
+	[IB_EVENT_PORT_ERR]		= "port error",
+	[IB_EVENT_LID_CHANGE]		= "LID change",
+	[IB_EVENT_PKEY_CHANGE]		= "P_key change",
+	[IB_EVENT_SM_CHANGE]		= "SM change",
+	[IB_EVENT_SRQ_ERR]		= "SRQ error",
+	[IB_EVENT_SRQ_LIMIT_REACHED]	= "SRQ limit reached",
+	[IB_EVENT_QP_LAST_WQE_REACHED]	= "last WQE reached",
+	[IB_EVENT_CLIENT_REREGISTER]	= "client reregister",
+	[IB_EVENT_GID_CHANGE]		= "GID changed",
+};
+
+const char *ib_event_msg(enum ib_event_type event)
+{
+	size_t index = event;
+
+	return (index < ARRAY_SIZE(ib_events) && ib_events[index]) ?
+			ib_events[index] : "unrecognized event";
+}
+EXPORT_SYMBOL(ib_event_msg);
+
+static const char * const wc_statuses[] = {
+	[IB_WC_SUCCESS]			= "success",
+	[IB_WC_LOC_LEN_ERR]		= "local length error",
+	[IB_WC_LOC_QP_OP_ERR]		= "local QP operation error",
+	[IB_WC_LOC_EEC_OP_ERR]		= "local EE context operation error",
+	[IB_WC_LOC_PROT_ERR]		= "local protection error",
+	[IB_WC_WR_FLUSH_ERR]		= "WR flushed",
+	[IB_WC_MW_BIND_ERR]		= "memory management operation error",
+	[IB_WC_BAD_RESP_ERR]		= "bad response error",
+	[IB_WC_LOC_ACCESS_ERR]		= "local access error",
+	[IB_WC_REM_INV_REQ_ERR]		= "invalid request error",
+	[IB_WC_REM_ACCESS_ERR]		= "remote access error",
+	[IB_WC_REM_OP_ERR]		= "remote operation error",
+	[IB_WC_RETRY_EXC_ERR]		= "transport retry counter exceeded",
+	[IB_WC_RNR_RETRY_EXC_ERR]	= "RNR retry counter exceeded",
+	[IB_WC_LOC_RDD_VIOL_ERR]	= "local RDD violation error",
+	[IB_WC_REM_INV_RD_REQ_ERR]	= "remote invalid RD request",
+	[IB_WC_REM_ABORT_ERR]		= "operation aborted",
+	[IB_WC_INV_EECN_ERR]		= "invalid EE context number",
+	[IB_WC_INV_EEC_STATE_ERR]	= "invalid EE context state",
+	[IB_WC_FATAL_ERR]		= "fatal error",
+	[IB_WC_RESP_TIMEOUT_ERR]	= "response timeout error",
+	[IB_WC_GENERAL_ERR]		= "general error",
+};
+
+const char *ib_wc_status_msg(enum ib_wc_status status)
+{
+	size_t index = status;
+
+	return (index < ARRAY_SIZE(wc_statuses) && wc_statuses[index]) ?
+			wc_statuses[index] : "unrecognized status";
+}
+EXPORT_SYMBOL(ib_wc_status_msg);
+
 __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
@@ -148,28 +213,79 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 
 /* Protection domains */
 
+/**
+ * ib_alloc_pd - Allocates an unused protection domain.
+ * @device: The device on which to allocate the protection domain.
+ *
+ * A protection domain object provides an association between QPs, shared
+ * receive queues, address handles, memory regions, and memory windows.
+ *
+ * Every PD has a local_dma_lkey which can be used as the lkey value for local
+ * memory operations.
+ */
 struct ib_pd *ib_alloc_pd(struct ib_device *device)
 {
 	struct ib_pd *pd;
+	struct ib_device_attr devattr;
+	int rc;
+
+	rc = ib_query_device(device, &devattr);
+	if (rc)
+		return ERR_PTR(rc);
 
 	pd = device->alloc_pd(device, NULL, NULL);
+	if (IS_ERR(pd))
+		return pd;
 
-	if (!IS_ERR(pd)) {
-		pd->device  = device;
-		pd->uobject = NULL;
-		atomic_set(&pd->usecnt, 0);
+	pd->device = device;
+	pd->uobject = NULL;
+	pd->local_mr = NULL;
+	atomic_set(&pd->usecnt, 0);
+
+	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+		pd->local_dma_lkey = device->local_dma_lkey;
+	else {
+		struct ib_mr *mr;
+
+		mr = ib_get_dma_mr(pd, IB_ACCESS_LOCAL_WRITE);
+		if (IS_ERR(mr)) {
+			ib_dealloc_pd(pd);
+			return (struct ib_pd *)mr;
+		}
+
+		pd->local_mr = mr;
+		pd->local_dma_lkey = pd->local_mr->lkey;
 	}
-
 	return pd;
 }
 EXPORT_SYMBOL(ib_alloc_pd);
 
-int ib_dealloc_pd(struct ib_pd *pd)
+/**
+ * ib_dealloc_pd - Deallocates a protection domain.
+ * @pd: The protection domain to deallocate.
+ *
+ * It is an error to call this function while any resources in the pd still
+ * exist.  The caller is responsible to synchronously destroy them and
+ * guarantee no new allocations will happen.
+ */
+void ib_dealloc_pd(struct ib_pd *pd)
 {
-	if (atomic_read(&pd->usecnt))
-		return -EBUSY;
+	int ret;
 
-	return pd->device->dealloc_pd(pd);
+	if (pd->local_mr) {
+		ret = ib_dereg_mr(pd->local_mr);
+		WARN_ON(ret);
+		pd->local_mr = NULL;
+	}
+
+	/* uverbs manipulates usecnt with proper locking, while the kabi
+	   requires the caller to guarantee we can't race here. */
+	WARN_ON(atomic_read(&pd->usecnt));
+
+	/* Making delalloc_pd a void return is a WIP, no driver should return
+	   an error here. */
+	ret = pd->device->dealloc_pd(pd);
+	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 
@@ -192,17 +308,16 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
-int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
-		       struct ib_grh *grh, struct ib_ah_attr *ah_attr)
+int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
+		       const struct ib_wc *wc, const struct ib_grh *grh,
+		       struct ib_ah_attr *ah_attr)
 {
 	u32 flow_class;
 	u16 gid_index;
 	int ret;
-	int is_eth = (rdma_port_get_link_layer(device, port_num) ==
-			IB_LINK_LAYER_ETHERNET);
 
 	memset(ah_attr, 0, sizeof *ah_attr);
-	if (is_eth) {
+	if (rdma_cap_eth_ah(device, port_num)) {
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
@@ -244,8 +359,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
 }
 EXPORT_SYMBOL(ib_init_ah_from_wc);
 
-struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
-				   struct ib_grh *grh, u8 port_num)
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
+				   const struct ib_grh *grh, u8 port_num)
 {
 	struct ib_ah_attr ah_attr;
 	int ret;
@@ -871,7 +986,7 @@ int ib_resolve_eth_l2_attrs(struct ib_qp *qp,
 	union ib_gid  sgid;
 
 	if ((*qp_attr_mask & IB_QP_AV)  &&
-	    (rdma_port_get_link_layer(qp->device, qp_attr->ah_attr.port_num) == IB_LINK_LAYER_ETHERNET)) {
+	    (rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))) {
 		ret = ib_query_gid(qp->device, qp_attr->ah_attr.port_num,
 				   qp_attr->ah_attr.grh.sgid_index, &sgid);
 		if (ret)
@@ -1012,11 +1127,12 @@ EXPORT_SYMBOL(ib_destroy_qp);
 struct ib_cq *ib_create_cq(struct ib_device *device,
 			   ib_comp_handler comp_handler,
 			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context, int cqe, int comp_vector)
+			   void *cq_context,
+			   const struct ib_cq_init_attr *cq_attr)
 {
 	struct ib_cq *cq;
 
-	cq = device->create_cq(device, cqe, comp_vector, NULL, NULL);
+	cq = device->create_cq(device, cq_attr, NULL, NULL);
 
 	if (!IS_ERR(cq)) {
 		cq->device        = device;
@@ -1079,73 +1195,6 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 }
 EXPORT_SYMBOL(ib_get_dma_mr);
 
-struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
-			     struct ib_phys_buf *phys_buf_array,
-			     int num_phys_buf,
-			     int mr_access_flags,
-			     u64 *iova_start)
-{
-	struct ib_mr *mr;
-	int err;
-
-	err = ib_check_mr_access(mr_access_flags);
-	if (err)
-		return ERR_PTR(err);
-
-	if (!pd->device->reg_phys_mr)
-		return ERR_PTR(-ENOSYS);
-
-	mr = pd->device->reg_phys_mr(pd, phys_buf_array, num_phys_buf,
-				     mr_access_flags, iova_start);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_reg_phys_mr);
-
-int ib_rereg_phys_mr(struct ib_mr *mr,
-		     int mr_rereg_mask,
-		     struct ib_pd *pd,
-		     struct ib_phys_buf *phys_buf_array,
-		     int num_phys_buf,
-		     int mr_access_flags,
-		     u64 *iova_start)
-{
-	struct ib_pd *old_pd;
-	int ret;
-
-	ret = ib_check_mr_access(mr_access_flags);
-	if (ret)
-		return ret;
-
-	if (!mr->device->rereg_phys_mr)
-		return -ENOSYS;
-
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	old_pd = mr->pd;
-
-	ret = mr->device->rereg_phys_mr(mr, mr_rereg_mask, pd,
-					phys_buf_array, num_phys_buf,
-					mr_access_flags, iova_start);
-
-	if (!ret && (mr_rereg_mask & IB_MR_REREG_PD)) {
-		atomic_dec(&old_pd->usecnt);
-		atomic_inc(&pd->usecnt);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_rereg_phys_mr);
-
 int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
 {
 	return mr->device->query_mr ?
@@ -1170,16 +1219,28 @@ int ib_dereg_mr(struct ib_mr *mr)
 }
 EXPORT_SYMBOL(ib_dereg_mr);
 
-struct ib_mr *ib_create_mr(struct ib_pd *pd,
-			   struct ib_mr_init_attr *mr_init_attr)
+/**
+ * ib_alloc_mr() - Allocates a memory region
+ * @pd:            protection domain associated with the region
+ * @mr_type:       memory region type
+ * @max_num_sg:    maximum sg entries available for registration.
+ *
+ * Notes:
+ * Memory registeration page/sg lists must not exceed max_num_sg.
+ * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
+ * max_num_sg * used_page_size.
+ *
+ */
+struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
+			  enum ib_mr_type mr_type,
+			  u32 max_num_sg)
 {
 	struct ib_mr *mr;
 
-	if (!pd->device->create_mr)
+	if (!pd->device->alloc_mr)
 		return ERR_PTR(-ENOSYS);
 
-	mr = pd->device->create_mr(pd, mr_init_attr);
-
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
@@ -1190,45 +1251,7 @@ struct ib_mr *ib_create_mr(struct ib_pd *pd,
 
 	return mr;
 }
-EXPORT_SYMBOL(ib_create_mr);
-
-int ib_destroy_mr(struct ib_mr *mr)
-{
-	struct ib_pd *pd;
-	int ret;
-
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	pd = mr->pd;
-	ret = mr->device->destroy_mr(mr);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_destroy_mr);
-
-struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
-{
-	struct ib_mr *mr;
-
-	if (!pd->device->alloc_fast_reg_mr)
-		return ERR_PTR(-ENOSYS);
-
-	mr = pd->device->alloc_fast_reg_mr(pd, max_page_list_len);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_alloc_fast_reg_mr);
+EXPORT_SYMBOL(ib_alloc_mr);
 
 struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
 							  int max_page_list_len)

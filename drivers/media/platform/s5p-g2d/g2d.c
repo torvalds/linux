@@ -787,7 +787,7 @@ static const struct of_device_id exynos_g2d_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
-static struct platform_device_id g2d_driver_ids[] = {
+static const struct platform_device_id g2d_driver_ids[] = {
 	{
 		.name = "s5p-g2d",
 		.driver_data = (unsigned long)&g2d_drvdata_v3x,

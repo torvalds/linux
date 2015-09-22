@@ -22,7 +22,7 @@ extern struct iscsi_node_attrib *iscsit_tpg_get_node_attrib(struct iscsi_session
 extern void iscsit_tpg_del_external_nps(struct iscsi_tpg_np *);
 extern struct iscsi_tpg_np *iscsit_tpg_locate_child_np(struct iscsi_tpg_np *, int);
 extern struct iscsi_tpg_np *iscsit_tpg_add_network_portal(struct iscsi_portal_group *,
-			struct __kernel_sockaddr_storage *, char *, struct iscsi_tpg_np *,
+			struct sockaddr_storage *, struct iscsi_tpg_np *,
 			int);
 extern int iscsit_tpg_del_network_portal(struct iscsi_portal_group *,
 			struct iscsi_tpg_np *);
@@ -39,5 +39,7 @@ extern int iscsit_ta_prod_mode_write_protect(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_demo_mode_discovery(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_default_erl(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_t10_pi(struct iscsi_portal_group *, u32);
+extern int iscsit_ta_fabric_prot_type(struct iscsi_portal_group *, u32);
+extern int iscsit_ta_tpg_enabled_sendtargets(struct iscsi_portal_group *, u32);
 
 #endif /* ISCSI_TARGET_TPG_H */

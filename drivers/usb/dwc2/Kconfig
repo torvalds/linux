@@ -50,20 +50,14 @@ config USB_DWC2_DUAL_ROLE
 	  option requires USB_GADGET to be enabled.
 endchoice
 
-config USB_DWC2_PLATFORM
-	tristate "DWC2 Platform"
-	default USB_DWC2_HOST || USB_DWC2_PERIPHERAL
-        help
-          The Designware USB2.0 platform interface module for
-          controllers directly connected to the CPU.
-
 config USB_DWC2_PCI
 	tristate "DWC2 PCI"
-	depends on USB_DWC2_HOST && PCI
-	default USB_DWC2_HOST
+	depends on PCI
+	default n
+	select NOP_USB_XCEIV
 	help
 	  The Designware USB2.0 PCI interface module for controllers
-	  connected to a PCI bus. This is only used for host mode.
+	  connected to a PCI bus.
 
 config USB_DWC2_DEBUG
 	bool "Enable Debugging Messages"

@@ -121,7 +121,7 @@ struct skein_ctx {
  * @param size
  *     Which Skein size to use.
  * @return
- *     SKEIN_SUCESS of SKEIN_FAIL
+ *     SKEIN_SUCCESS of SKEIN_FAIL
  */
 int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size);
 
@@ -136,7 +136,7 @@ int skein_ctx_prepare(struct skein_ctx *ctx, enum skein_size size);
  * @param hash_bit_len
  *     Number of MAC hash bits to compute
  * @return
- *     SKEIN_SUCESS of SKEIN_FAIL
+ *     SKEIN_SUCCESS of SKEIN_FAIL
  * @see skein_reset
  */
 int skein_init(struct skein_ctx *ctx, size_t hash_bit_len);
@@ -171,7 +171,7 @@ void skein_reset(struct skein_ctx *ctx);
  * @param hash_bit_len
  *     Number of MAC hash bits to compute
  * @return
- *     SKEIN_SUCESS of SKEIN_FAIL
+ *     SKEIN_SUCCESS of SKEIN_FAIL
  */
 int skein_mac_init(struct skein_ctx *ctx, const u8 *key, size_t key_len,
 		   size_t hash_bit_len);

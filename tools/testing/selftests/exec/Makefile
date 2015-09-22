@@ -1,4 +1,3 @@
-CC = $(CROSS_COMPILE)gcc
 CFLAGS = -Wall
 BINARIES = execveat
 DEPS = execveat.symlink execveat.denatured script subdir
@@ -18,8 +17,10 @@ execveat.denatured: execveat
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-run_tests: all
-	./execveat
+TEST_PROGS := execveat
+TEST_FILES := $(DEPS)
+
+include ../lib.mk
 
 clean:
 	rm -rf $(BINARIES) $(DEPS) subdir.moved execveat.moved xxxxx*

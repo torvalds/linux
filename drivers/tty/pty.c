@@ -26,6 +26,12 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 
+#undef TTY_DEBUG_HANGUP
+#ifdef TTY_DEBUG_HANGUP
+# define tty_debug_hangup(tty, f, args...)	tty_debug(tty, f, ##args)
+#else
+# define tty_debug_hangup(tty, f, args...)	do {} while (0)
+#endif
 
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;
@@ -53,9 +59,8 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	/* Review - krefs on tty_link ?? */
 	if (!tty->link)
 		return;
-	tty_flush_to_ldisc(tty->link);
 	set_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	wake_up_interruptible(&tty->link->read_wait);
+	tty_flip_buffer_push(tty->link->port);
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
@@ -243,7 +248,9 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 		goto out;
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
+	/* TTY_OTHER_CLOSED must be cleared before TTY_OTHER_DONE */
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
+	clear_bit(TTY_OTHER_DONE, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
 	return 0;
 
@@ -777,6 +784,8 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
 		goto err_release;
+
+	tty_debug_hangup(tty, "(tty count=%d)\n", tty->count);
 
 	tty_unlock(tty);
 	return 0;

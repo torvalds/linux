@@ -41,8 +41,8 @@ static int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 	return tcp_gro_complete(skb);
 }
 
-struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
-				 netdev_features_t features)
+static struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
+					netdev_features_t features)
 {
 	struct tcphdr *th;
 

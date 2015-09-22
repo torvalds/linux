@@ -73,7 +73,7 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 		c4iw_init_wr_wait(&wr_wait);
 	wr_len = roundup(sizeof(*req) + sizeof(*sgl), 16);
 
-	skb = alloc_skb(wr_len, GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -144,7 +144,7 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		if (i == (num_wqe-1)) {
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR) |
 						    FW_WR_COMPL_F);
-			req->wr.wr_lo = (__force __be64)(unsigned long) &wr_wait;
+			req->wr.wr_lo = (__force __be64)&wr_wait;
 		} else
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR));
 		req->wr.wr_mid = cpu_to_be32(
@@ -676,12 +676,12 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 	mhp->attr.zbva = 0;
 	mhp->attr.va_fbo = 0;
 	mhp->attr.page_size = 0;
-	mhp->attr.len = ~0UL;
+	mhp->attr.len = ~0ULL;
 	mhp->attr.pbl_size = 0;
 
 	ret = write_tpt_entry(&rhp->rdev, 0, &stag, 1, php->pdid,
 			      FW_RI_STAG_NSMR, mhp->attr.perms,
-			      mhp->attr.mw_bind_enable, 0, 0, ~0UL, 0, 0, 0);
+			      mhp->attr.mw_bind_enable, 0, 0, ~0ULL, 0, 0, 0);
 	if (ret)
 		goto err1;
 
@@ -853,7 +853,9 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 	return 0;
 }
 
-struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
+struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
+			    enum ib_mr_type mr_type,
+			    u32 max_num_sg)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -861,6 +863,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	u32 mmid;
 	u32 stag = 0;
 	int ret = 0;
+
+	if (mr_type != IB_MR_TYPE_MEM_REG ||
+	    max_num_sg > t4_max_fr_depth(use_dsgl))
+		return ERR_PTR(-EINVAL);
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
@@ -871,10 +877,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	}
 
 	mhp->rhp = rhp;
-	ret = alloc_pbl(mhp, pbl_depth);
+	ret = alloc_pbl(mhp, max_num_sg);
 	if (ret)
 		goto err1;
-	mhp->attr.pbl_size = pbl_depth;
+	mhp->attr.pbl_size = max_num_sg;
 	ret = allocate_stag(&rhp->rdev, &stag, php->pdid,
 				 mhp->attr.pbl_size, mhp->attr.pbl_addr);
 	if (ret)

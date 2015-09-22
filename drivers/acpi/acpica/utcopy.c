@@ -129,7 +129,7 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 	/* Always clear the external object */
 
-	ACPI_MEMSET(external_object, 0, sizeof(union acpi_object));
+	memset(external_object, 0, sizeof(union acpi_object));
 
 	/*
 	 * In general, the external object will be the same type as
@@ -149,9 +149,9 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 								  string.
 								  length + 1);
 
-		ACPI_MEMCPY((void *)data_space,
-			    (void *)internal_object->string.pointer,
-			    (acpi_size) internal_object->string.length + 1);
+		memcpy((void *)data_space,
+		       (void *)internal_object->string.pointer,
+		       (acpi_size) internal_object->string.length + 1);
 		break;
 
 	case ACPI_TYPE_BUFFER:
@@ -162,9 +162,9 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		    ACPI_ROUND_UP_TO_NATIVE_WORD(internal_object->string.
 						 length);
 
-		ACPI_MEMCPY((void *)data_space,
-			    (void *)internal_object->buffer.pointer,
-			    internal_object->buffer.length);
+		memcpy((void *)data_space,
+		       (void *)internal_object->buffer.pointer,
+		       internal_object->buffer.length);
 		break;
 
 	case ACPI_TYPE_INTEGER:
@@ -502,9 +502,9 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 			goto error_exit;
 		}
 
-		ACPI_MEMCPY(internal_object->string.pointer,
-			    external_object->string.pointer,
-			    external_object->string.length);
+		memcpy(internal_object->string.pointer,
+		       external_object->string.pointer,
+		       external_object->string.length);
 
 		internal_object->string.length = external_object->string.length;
 		break;
@@ -517,9 +517,9 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 			goto error_exit;
 		}
 
-		ACPI_MEMCPY(internal_object->buffer.pointer,
-			    external_object->buffer.pointer,
-			    external_object->buffer.length);
+		memcpy(internal_object->buffer.pointer,
+		       external_object->buffer.pointer,
+		       external_object->buffer.length);
 
 		internal_object->buffer.length = external_object->buffer.length;
 
@@ -694,8 +694,8 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		copy_size = sizeof(struct acpi_namespace_node);
 	}
 
-	ACPI_MEMCPY(ACPI_CAST_PTR(char, dest_desc),
-		    ACPI_CAST_PTR(char, source_desc), copy_size);
+	memcpy(ACPI_CAST_PTR(char, dest_desc),
+	       ACPI_CAST_PTR(char, source_desc), copy_size);
 
 	/* Restore the saved fields */
 
@@ -725,9 +725,9 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 			/* Copy the actual buffer data */
 
-			ACPI_MEMCPY(dest_desc->buffer.pointer,
-				    source_desc->buffer.pointer,
-				    source_desc->buffer.length);
+			memcpy(dest_desc->buffer.pointer,
+			       source_desc->buffer.pointer,
+			       source_desc->buffer.length);
 		}
 		break;
 
@@ -747,9 +747,9 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 			/* Copy the actual string data */
 
-			ACPI_MEMCPY(dest_desc->string.pointer,
-				    source_desc->string.pointer,
-				    (acpi_size) source_desc->string.length + 1);
+			memcpy(dest_desc->string.pointer,
+			       source_desc->string.pointer,
+			       (acpi_size) source_desc->string.length + 1);
 		}
 		break;
 

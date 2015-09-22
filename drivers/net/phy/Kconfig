@@ -14,6 +14,11 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
+config AQUANTIA_PHY
+        tristate "Drivers for the Aquantia PHYs"
+        ---help---
+          Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
+
 config AT803X_PHY
 	tristate "Drivers for Atheros AT803X PHYs"
 	---help---
@@ -23,12 +28,6 @@ config AMD_PHY
 	tristate "Drivers for the AMD PHYs"
 	---help---
 	  Currently supports the am79c874
-
-config AMD_XGBE_PHY
-	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
-	depends on (OF || ACPI) && HAS_IOMEM
-	---help---
-	  Currently supports the AMD 10GbE PHY
 
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
@@ -60,6 +59,11 @@ config VITESSE_PHY
         ---help---
           Currently supports the vsc8244
 
+config TERANETICS_PHY
+        tristate "Drivers for the Teranetics PHYs"
+        ---help---
+          Currently supports the Teranetics TN2020
+
 config SMSC_PHY
 	tristate "Drivers for SMSC PHYs"
 	---help---
@@ -68,8 +72,8 @@ config SMSC_PHY
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
 	---help---
-	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
-	  and BCM5482 PHYs.
+	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
+	  BCM5481 and BCM5482 PHYs.
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
@@ -118,6 +122,16 @@ config MICREL_PHY
 	---help---
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
+config DP83867_PHY
+	tristate "Drivers for Texas Instruments DP83867 Gigabit PHY"
+	---help---
+	  Currently supports the DP83867 PHY.
+
+config MICROCHIP_PHY
+	tristate "Drivers for Microchip PHYs"
+	help
+	  Supports the LAN88XX PHYs.
+
 config FIXED_PHY
 	tristate "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	depends on PHYLIB
@@ -146,13 +160,13 @@ config MDIO_GPIO
 	  will be called mdio-gpio.
 
 config MDIO_OCTEON
-	tristate "Support for MDIO buses on Octeon SOCs"
-	depends on CAVIUM_OCTEON_SOC
-	default y
+	tristate "Support for MDIO buses on Octeon and ThunderX SOCs"
+	depends on 64BIT
 	help
 
-	  This module provides a driver for the Octeon MDIO busses.
-	  It is required by the Octeon Ethernet device drivers.
+	  This module provides a driver for the Octeon and ThunderX MDIO
+	  busses. It is required by the Octeon and ThunderX ethernet device
+	  drivers.
 
 	  If in doubt, say Y.
 
@@ -192,7 +206,7 @@ config MDIO_BUS_MUX_GPIO
 
 config MDIO_BUS_MUX_MMIOREG
 	tristate "Support for MMIO device-controlled MDIO bus multiplexers"
-	depends on OF_MDIO
+	depends on OF_MDIO && HAS_IOMEM
 	select MDIO_BUS_MUX
 	help
 	  This module provides a driver for MDIO bus multiplexers that
@@ -211,7 +225,6 @@ config MDIO_BCM_UNIMAC
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
 	  controllers as well as some Broadcom Ethernet switches such as the
 	  Starfighter 2 switches.
-
 endif # PHYLIB
 
 config MICREL_KS8995MA

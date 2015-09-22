@@ -8,10 +8,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
-#ifdef CONFIG_PPC32
-EXPORT_SYMBOL(cacheable_memcpy);
-EXPORT_SYMBOL(cacheable_memzero);
-#endif
 
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);

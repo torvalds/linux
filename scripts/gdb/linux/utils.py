@@ -83,7 +83,7 @@ def get_target_endianness():
         elif "big endian" in endian:
             target_endianness = BIG_ENDIAN
         else:
-            raise gdb.GdgError("unknown endianness '{0}'".format(str(endian)))
+            raise gdb.GdbError("unknown endianness '{0}'".format(str(endian)))
     return target_endianness
 
 
@@ -151,6 +151,6 @@ def get_gdbserver_type():
             gdbserver_type = GDBSERVER_QEMU
         elif probe_kgdb():
             gdbserver_type = GDBSERVER_KGDB
-        if not gdbserver_type is None and hasattr(gdb, 'events'):
+        if gdbserver_type is not None and hasattr(gdb, 'events'):
             gdb.events.exited.connect(exit_handler)
     return gdbserver_type

@@ -121,12 +121,11 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 0;
 }
 
-static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
-		      struct kvm_exit_mmio *mmio)
+static int decode_hsr(struct kvm_vcpu *vcpu, bool *is_write, int *len)
 {
 	unsigned long rt;
-	int len;
-	bool is_write, sign_extend;
+	int access_size;
+	bool sign_extend;
 
 	if (kvm_vcpu_dabt_isextabt(vcpu)) {
 		/* cache operation on I/O addr, tell guest unsupported */
@@ -140,17 +139,15 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return 1;
 	}
 
-	len = kvm_vcpu_dabt_get_as(vcpu);
-	if (unlikely(len < 0))
-		return len;
+	access_size = kvm_vcpu_dabt_get_as(vcpu);
+	if (unlikely(access_size < 0))
+		return access_size;
 
-	is_write = kvm_vcpu_dabt_iswrite(vcpu);
+	*is_write = kvm_vcpu_dabt_iswrite(vcpu);
 	sign_extend = kvm_vcpu_dabt_issext(vcpu);
 	rt = kvm_vcpu_dabt_get_rd(vcpu);
 
-	mmio->is_write = is_write;
-	mmio->phys_addr = fault_ipa;
-	mmio->len = len;
+	*len = access_size;
 	vcpu->arch.mmio_decode.sign_extend = sign_extend;
 	vcpu->arch.mmio_decode.rt = rt;
 
@@ -165,20 +162,20 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 phys_addr_t fault_ipa)
 {
-	struct kvm_exit_mmio mmio;
 	unsigned long data;
 	unsigned long rt;
 	int ret;
+	bool is_write;
+	int len;
+	u8 data_buf[8];
 
 	/*
-	 * Prepare MMIO operation. First stash it in a private
-	 * structure that we can use for in-kernel emulation. If the
-	 * kernel can't handle it, copy it into run->mmio and let user
-	 * space do its magic.
+	 * Prepare MMIO operation. First decode the syndrome data we get
+	 * from the CPU. Then try if some in-kernel emulation feels
+	 * responsible, otherwise let user space do its magic.
 	 */
-
 	if (kvm_vcpu_dabt_isvalid(vcpu)) {
-		ret = decode_hsr(vcpu, fault_ipa, &mmio);
+		ret = decode_hsr(vcpu, &is_write, &len);
 		if (ret)
 			return ret;
 	} else {
@@ -188,21 +185,34 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 	rt = vcpu->arch.mmio_decode.rt;
 
-	if (mmio.is_write) {
-		data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt),
-					       mmio.len);
+	if (is_write) {
+		data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt), len);
 
-		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, mmio.len,
-			       fault_ipa, data);
-		mmio_write_buf(mmio.data, mmio.len, data);
+		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, len, fault_ipa, data);
+		mmio_write_buf(data_buf, len, data);
+
+		ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, fault_ipa, len,
+				       data_buf);
 	} else {
-		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, mmio.len,
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, len,
 			       fault_ipa, 0);
+
+		ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, fault_ipa, len,
+				      data_buf);
 	}
 
-	if (vgic_handle_mmio(vcpu, run, &mmio))
-		return 1;
+	/* Now prepare kvm_run for the potential return to userland. */
+	run->mmio.is_write	= is_write;
+	run->mmio.phys_addr	= fault_ipa;
+	run->mmio.len		= len;
+	memcpy(run->mmio.data, data_buf, len);
 
-	kvm_prepare_mmio(run, &mmio);
+	if (!ret) {
+		/* We handled the access successfully in the kernel. */
+		kvm_handle_mmio_return(vcpu, run);
+		return 1;
+	}
+
+	run->exit_reason	= KVM_EXIT_MMIO;
 	return 0;
 }

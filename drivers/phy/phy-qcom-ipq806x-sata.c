@@ -126,7 +126,7 @@ static int qcom_ipq806x_sata_phy_exit(struct phy *generic_phy)
 	return 0;
 }
 
-static struct phy_ops qcom_ipq806x_sata_phy_ops = {
+static const struct phy_ops qcom_ipq806x_sata_phy_ops = {
 	.init		= qcom_ipq806x_sata_phy_init,
 	.exit		= qcom_ipq806x_sata_phy_exit,
 	.owner		= THIS_MODULE,

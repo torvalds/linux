@@ -66,23 +66,23 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	AFFS_I(inode)->i_lastalloc = 0;
 	AFFS_I(inode)->i_pa_cnt = 0;
 
-	if (sbi->s_flags & SF_SETMODE)
+	if (affs_test_opt(sbi->s_flags, SF_SETMODE))
 		inode->i_mode = sbi->s_mode;
 	else
 		inode->i_mode = prot_to_mode(prot);
 
 	id = be16_to_cpu(tail->uid);
-	if (id == 0 || sbi->s_flags & SF_SETUID)
+	if (id == 0 || affs_test_opt(sbi->s_flags, SF_SETUID))
 		inode->i_uid = sbi->s_uid;
-	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
+	else if (id == 0xFFFF && affs_test_opt(sbi->s_flags, SF_MUFS))
 		i_uid_write(inode, 0);
 	else
 		i_uid_write(inode, id);
 
 	id = be16_to_cpu(tail->gid);
-	if (id == 0 || sbi->s_flags & SF_SETGID)
+	if (id == 0 || affs_test_opt(sbi->s_flags, SF_SETGID))
 		inode->i_gid = sbi->s_gid;
-	else if (id == 0xFFFF && sbi->s_flags & SF_MUFS)
+	else if (id == 0xFFFF && affs_test_opt(sbi->s_flags, SF_MUFS))
 		i_gid_write(inode, 0);
 	else
 		i_gid_write(inode, id);
@@ -94,7 +94,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		/* fall through */
 	case ST_USERDIR:
 		if (be32_to_cpu(tail->stype) == ST_USERDIR ||
-		    sbi->s_flags & SF_SETMODE) {
+		    affs_test_opt(sbi->s_flags, SF_SETMODE)) {
 			if (inode->i_mode & S_IRUSR)
 				inode->i_mode |= S_IXUSR;
 			if (inode->i_mode & S_IRGRP)
@@ -133,7 +133,8 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		}
 		if (tail->link_chain)
 			set_nlink(inode, 2);
-		inode->i_mapping->a_ops = (sbi->s_flags & SF_OFS) ? &affs_aops_ofs : &affs_aops;
+		inode->i_mapping->a_ops = affs_test_opt(sbi->s_flags, SF_OFS) ?
+					  &affs_aops_ofs : &affs_aops;
 		inode->i_op = &affs_file_inode_operations;
 		inode->i_fop = &affs_file_operations;
 		break;
@@ -190,15 +191,15 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		if (!(inode->i_ino == AFFS_SB(sb)->s_root_block)) {
 			uid = i_uid_read(inode);
 			gid = i_gid_read(inode);
-			if (AFFS_SB(sb)->s_flags & SF_MUFS) {
+			if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_MUFS)) {
 				if (uid == 0 || uid == 0xFFFF)
 					uid = uid ^ ~0;
 				if (gid == 0 || gid == 0xFFFF)
 					gid = gid ^ ~0;
 			}
-			if (!(AFFS_SB(sb)->s_flags & SF_SETUID))
+			if (!affs_test_opt(AFFS_SB(sb)->s_flags, SF_SETUID))
 				tail->uid = cpu_to_be16(uid);
-			if (!(AFFS_SB(sb)->s_flags & SF_SETGID))
+			if (!affs_test_opt(AFFS_SB(sb)->s_flags, SF_SETGID))
 				tail->gid = cpu_to_be16(gid);
 		}
 	}
@@ -212,7 +213,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 int
 affs_notify_change(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
@@ -221,11 +222,14 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		goto out;
 
-	if (((attr->ia_valid & ATTR_UID) && (AFFS_SB(inode->i_sb)->s_flags & SF_SETUID)) ||
-	    ((attr->ia_valid & ATTR_GID) && (AFFS_SB(inode->i_sb)->s_flags & SF_SETGID)) ||
+	if (((attr->ia_valid & ATTR_UID) &&
+	      affs_test_opt(AFFS_SB(inode->i_sb)->s_flags, SF_SETUID)) ||
+	    ((attr->ia_valid & ATTR_GID) &&
+	      affs_test_opt(AFFS_SB(inode->i_sb)->s_flags, SF_SETGID)) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
-	     (AFFS_SB(inode->i_sb)->s_flags & (SF_SETMODE | SF_IMMUTABLE)))) {
-		if (!(AFFS_SB(inode->i_sb)->s_flags & SF_QUIET))
+	     (AFFS_SB(inode->i_sb)->s_flags &
+	      (AFFS_MOUNT_SF_SETMODE | AFFS_MOUNT_SF_IMMUTABLE)))) {
+		if (!affs_test_opt(AFFS_SB(inode->i_sb)->s_flags, SF_QUIET))
 			error = -EPERM;
 		goto out;
 	}
@@ -342,7 +346,7 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *inode_bh = NULL;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	u32 block = 0;
 	int retval;
 

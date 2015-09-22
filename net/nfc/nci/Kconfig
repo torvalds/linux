@@ -19,3 +19,10 @@ config NFC_NCI_SPI
 	  an NFC Controller (NFCC) and a Device Host (DH).
 
 	  Say yes if you use an NCI driver that requires SPI link layer.
+
+config NFC_NCI_UART
+	depends on NFC_NCI && TTY
+	tristate "NCI over UART protocol support"
+	default n
+	help
+	  Say yes if you use an NCI driver that requires UART link layer.

@@ -1,6 +1,6 @@
 /// Simplify a trivial if-return sequence.  Possibly combine with a
 /// preceding function call.
-//
+///
 // Confidence: High
 // Copyright: (C) 2014 Julia Lawall, INRIA/LIP6.  GPLv2.
 // Copyright: (C) 2014 Gilles Muller, INRIA/LiP6.  GPLv2.

@@ -220,6 +220,23 @@ void __putstr(const char *s)
 	outb(0xff & (pos >> 1), vidport+1);
 }
 
+void __puthex(unsigned long value)
+{
+	char alpha[2] = "0";
+	int bits;
+
+	for (bits = sizeof(value) * 8 - 4; bits >= 0; bits -= 4) {
+		unsigned long digit = (value >> bits) & 0xf;
+
+		if (digit < 0xA)
+			alpha[0] = '0' + digit;
+		else
+			alpha[0] = 'a' + (digit - 0xA);
+
+		__putstr(alpha);
+	}
+}
+
 static void error(char *x)
 {
 	error_putstr("\n\n");
@@ -377,6 +394,9 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 
 	real_mode = rmode;
 
+	/* Clear it for solely in-kernel use */
+	real_mode->hdr.loadflags &= ~KASLR_FLAG;
+
 	sanitize_boot_params(real_mode);
 
 	if (real_mode->screen_info.orig_video_mode == 7) {
@@ -396,12 +416,19 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
+	/* Report initial kernel position details. */
+	debug_putaddr(input_data);
+	debug_putaddr(input_len);
+	debug_putaddr(output);
+	debug_putaddr(output_len);
+	debug_putaddr(run_size);
+
 	/*
 	 * The memory hole needed for the kernel is the larger of either
 	 * the entire decompressed kernel plus relocation table, or the
 	 * entire decompressed kernel plus .bss and .brk sections.
 	 */
-	output = choose_kernel_location(input_data, input_len, output,
+	output = choose_kernel_location(real_mode, input_data, input_len, output,
 					output_len > run_size ? output_len
 							      : run_size);
 
@@ -421,7 +448,8 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 #endif
 
 	debug_putstr("\nDecompressing Linux... ");
-	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
+	__decompress(input_data, input_len, NULL, NULL, output, output_len,
+			NULL, error);
 	parse_elf(output);
 	/*
 	 * 32-bit always performs relocations. 64-bit relocations are only

@@ -362,7 +362,13 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 
 static int omap_sham_hw_init(struct omap_sham_dev *dd)
 {
-	pm_runtime_get_sync(dd->dev);
+	int err;
+
+	err = pm_runtime_get_sync(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "failed to get sync: %d\n", err);
+		return err;
+	}
 
 	if (!test_bit(FLAGS_INIT, &dd->flags)) {
 		set_bit(FLAGS_INIT, &dd->flags);
@@ -582,7 +588,7 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, dma_addr_t dma_addr,
 		 * the dmaengine may try to DMA the incorrect amount of data.
 		 */
 		sg_init_table(&ctx->sgl, 1);
-		ctx->sgl.page_link = ctx->sg->page_link;
+		sg_assign_page(&ctx->sgl, sg_page(ctx->sg));
 		ctx->sgl.offset = ctx->sg->offset;
 		sg_dma_len(&ctx->sgl) = len32;
 		sg_dma_address(&ctx->sgl) = sg_dma_address(ctx->sg);
@@ -640,6 +646,7 @@ static size_t omap_sham_append_sg(struct omap_sham_reqctx *ctx)
 
 	while (ctx->sg) {
 		vaddr = kmap_atomic(sg_page(ctx->sg));
+		vaddr += ctx->sg->offset;
 
 		count = omap_sham_append_buffer(ctx,
 				vaddr + ctx->offset,
@@ -1792,6 +1799,10 @@ static const struct of_device_id omap_sham_of_match[] = {
 		.data		= &omap_sham_pdata_omap2,
 	},
 	{
+		.compatible	= "ti,omap3-sham",
+		.data		= &omap_sham_pdata_omap2,
+	},
+	{
 		.compatible	= "ti,omap4-sham",
 		.data		= &omap_sham_pdata_omap4,
 	},
@@ -1945,7 +1956,14 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->flags |= dd->pdata->flags;
 
 	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
+	pm_runtime_irq_safe(dev);
+
+	err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "failed to get sync: %d\n", err);
+		goto err_pm;
+	}
+
 	rev = omap_sham_read(dd, SHA_REG_REV(dd));
 	pm_runtime_put_sync(&pdev->dev);
 
@@ -1975,6 +1993,7 @@ err_algs:
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_ahash(
 					&dd->pdata->algs_info[i].algs_list[j]);
+err_pm:
 	pm_runtime_disable(dev);
 	if (dd->dma_lch)
 		dma_release_channel(dd->dma_lch);
@@ -2017,7 +2036,11 @@ static int omap_sham_suspend(struct device *dev)
 
 static int omap_sham_resume(struct device *dev)
 {
-	pm_runtime_get_sync(dev);
+	int err = pm_runtime_get_sync(dev);
+	if (err < 0) {
+		dev_err(dev, "failed to get sync: %d\n", err);
+		return err;
+	}
 	return 0;
 }
 #endif

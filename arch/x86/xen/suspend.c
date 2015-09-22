@@ -1,5 +1,5 @@
 #include <linux/types.h>
-#include <linux/clockchips.h>
+#include <linux/tick.h>
 
 #include <xen/interface/xen.h>
 #include <xen/grant_table.h>
@@ -11,6 +11,7 @@
 
 #include "xen-ops.h"
 #include "mmu.h"
+#include "pmu.h"
 
 static void xen_pv_pre_suspend(void)
 {
@@ -67,31 +68,48 @@ static void xen_pv_post_suspend(int suspend_cancelled)
 
 void xen_arch_pre_suspend(void)
 {
-    if (xen_pv_domain())
-        xen_pv_pre_suspend();
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		xen_pmu_finish(cpu);
+
+	if (xen_pv_domain())
+		xen_pv_pre_suspend();
 }
 
 void xen_arch_post_suspend(int cancelled)
 {
-    if (xen_pv_domain())
-        xen_pv_post_suspend(cancelled);
-    else
-        xen_hvm_post_suspend(cancelled);
+	int cpu;
+
+	if (xen_pv_domain())
+		xen_pv_post_suspend(cancelled);
+	else
+		xen_hvm_post_suspend(cancelled);
+
+	for_each_online_cpu(cpu)
+		xen_pmu_init(cpu);
 }
 
 static void xen_vcpu_notify_restore(void *data)
 {
-	unsigned long reason = (unsigned long)data;
-
 	/* Boot processor notified via generic timekeeping_resume() */
-	if ( smp_processor_id() == 0)
+	if (smp_processor_id() == 0)
 		return;
 
-	clockevents_notify(reason, NULL);
+	tick_resume_local();
+}
+
+static void xen_vcpu_notify_suspend(void *data)
+{
+	tick_suspend_local();
 }
 
 void xen_arch_resume(void)
 {
-	on_each_cpu(xen_vcpu_notify_restore,
-		    (void *)CLOCK_EVT_NOTIFY_RESUME, 1);
+	on_each_cpu(xen_vcpu_notify_restore, NULL, 1);
+}
+
+void xen_arch_suspend(void)
+{
+	on_each_cpu(xen_vcpu_notify_suspend, NULL, 1);
 }

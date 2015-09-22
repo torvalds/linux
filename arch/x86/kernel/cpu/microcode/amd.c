@@ -21,7 +21,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/firmware.h>
-#include <linux/pci_ids.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel.h>

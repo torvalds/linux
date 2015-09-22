@@ -217,7 +217,7 @@
 #define SDF_RUNNING	0x08000000	/* subdevice is acquiring data */
 #define SDF_LSAMPL	0x10000000	/* subdevice uses 32-bit samples */
 #define SDF_PACKED	0x20000000	/* subdevice can do packed DIO */
-/* re recyle these flags for PWM */
+/* re recycle these flags for PWM */
 #define SDF_PWM_COUNTER SDF_MODE0	/* PWM can automatically switch off */
 #define SDF_PWM_HBRIDGE SDF_MODE1	/* PWM is signed (H-bridge) */
 

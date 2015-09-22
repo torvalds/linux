@@ -416,7 +416,7 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
 /**
  * __vlan_get_tag - get the VLAN ID that is part of the payload
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if the skb is not of VLAN type
  */
@@ -435,7 +435,7 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 /**
  * __vlan_hwaccel_get_tag - get the VLAN ID that is in @skb->cb[]
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if @skb->vlan_tci is not set correctly
  */
@@ -456,7 +456,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 /**
  * vlan_get_tag - get the VLAN ID from the skb
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if the skb is not VLAN tagged
  */
@@ -539,7 +539,7 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 	 */
 
 	proto = vhdr->h_vlan_encapsulated_proto;
-	if (ntohs(proto) >= ETH_P_802_3_MIN) {
+	if (eth_proto_is_802_3(proto)) {
 		skb->protocol = proto;
 		return;
 	}
@@ -561,4 +561,91 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		skb->protocol = htons(ETH_P_802_2);
 }
 
+/**
+ * skb_vlan_tagged - check if skb is vlan tagged.
+ * @skb: skbuff to query
+ *
+ * Returns true if the skb is tagged, regardless of whether it is hardware
+ * accelerated or not.
+ */
+static inline bool skb_vlan_tagged(const struct sk_buff *skb)
+{
+	if (!skb_vlan_tag_present(skb) &&
+	    likely(skb->protocol != htons(ETH_P_8021Q) &&
+		   skb->protocol != htons(ETH_P_8021AD)))
+		return false;
+
+	return true;
+}
+
+/**
+ * skb_vlan_tagged_multi - check if skb is vlan tagged with multiple headers.
+ * @skb: skbuff to query
+ *
+ * Returns true if the skb is tagged with multiple vlan headers, regardless
+ * of whether it is hardware accelerated or not.
+ */
+static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
+{
+	__be16 protocol = skb->protocol;
+
+	if (!skb_vlan_tag_present(skb)) {
+		struct vlan_ethhdr *veh;
+
+		if (likely(protocol != htons(ETH_P_8021Q) &&
+			   protocol != htons(ETH_P_8021AD)))
+			return false;
+
+		veh = (struct vlan_ethhdr *)skb->data;
+		protocol = veh->h_vlan_encapsulated_proto;
+	}
+
+	if (protocol != htons(ETH_P_8021Q) && protocol != htons(ETH_P_8021AD))
+		return false;
+
+	return true;
+}
+
+/**
+ * vlan_features_check - drop unsafe features for skb with multiple tags.
+ * @skb: skbuff to query
+ * @features: features to be checked
+ *
+ * Returns features without unsafe ones if the skb has multiple tags.
+ */
+static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
+						    netdev_features_t features)
+{
+	if (skb_vlan_tagged_multi(skb))
+		features = netdev_intersect_features(features,
+						     NETIF_F_SG |
+						     NETIF_F_HIGHDMA |
+						     NETIF_F_FRAGLIST |
+						     NETIF_F_GEN_CSUM |
+						     NETIF_F_HW_VLAN_CTAG_TX |
+						     NETIF_F_HW_VLAN_STAG_TX);
+
+	return features;
+}
+
+/**
+ * compare_vlan_header - Compare two vlan headers
+ * @h1: Pointer to vlan header
+ * @h2: Pointer to vlan header
+ *
+ * Compare two vlan headers, returns 0 if equal.
+ *
+ * Please note that alignment of h1 & h2 are only guaranteed to be 16 bits.
+ */
+static inline unsigned long compare_vlan_header(const struct vlan_hdr *h1,
+						const struct vlan_hdr *h2)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return *(u32 *)h1 ^ *(u32 *)h2;
+#else
+	return ((__force u32)h1->h_vlan_TCI ^ (__force u32)h2->h_vlan_TCI) |
+	       ((__force u32)h1->h_vlan_encapsulated_proto ^
+		(__force u32)h2->h_vlan_encapsulated_proto);
+#endif
+}
 #endif /* !(_LINUX_IF_VLAN_H_) */

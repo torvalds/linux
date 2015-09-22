@@ -321,7 +321,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 	stats->rate = (u8) GET_RX_DESC_RX_MCS(pdesc);
 	stats->shortpreamble = (u16) GET_RX_DESC_SPLCP(pdesc);
 	stats->isampdu = (bool) (GET_RX_DESC_PAGGR(pdesc) == 1);
-	stats->isampdu = (bool) ((GET_RX_DESC_PAGGR(pdesc) == 1)
+	stats->isfirst_ampdu = (bool)((GET_RX_DESC_PAGGR(pdesc) == 1)
 				   && (GET_RX_DESC_FAGGR(pdesc) == 1));
 	stats->timestamp_low = GET_RX_DESC_TSFL(pdesc);
 	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);

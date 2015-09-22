@@ -208,7 +208,7 @@
 		gpios = <&pfc 166 GPIO_ACTIVE_LOW>;
 	};
 
-	wm8978: wm8978@1a {
+	wm8978: codec@1a {
 		#sound-dai-cells = <0>;
 		compatible = "wlf,wm8978";
 		reg = <0x1a>;
@@ -224,6 +224,9 @@
 };
 
 &pfc {
+	pinctrl-0 = <&lcd0_pins>;
+	pinctrl-names = "default";
+
 	ether_pins: ether {
 		renesas,groups = "gether_mii", "gether_int";
 		renesas,function = "gether";
@@ -258,6 +261,16 @@
 		renesas,groups = "fsia_sclk_in", "fsia_mclk_out",
 				 "fsia_data_in_1", "fsia_data_out_0";
 		renesas,function = "fsia";
+	};
+
+	lcd0_pins: lcd0 {
+		renesas,groups = "lcd0_data24_0", "lcd0_lclk_1", "lcd0_sync";
+		renesas,function = "lcd0";
+
+		/* DBGMD/LCDC0/FSIA MUX */
+		gpio-hog;
+		gpios = <176 0>;
+		output-high;
 	};
 };
 

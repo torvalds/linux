@@ -61,6 +61,8 @@ struct can_priv {
 	char tx_led_trig_name[CAN_LED_NAME_SZ];
 	struct led_trigger *rx_led_trig;
 	char rx_led_trig_name[CAN_LED_NAME_SZ];
+	struct led_trigger *rxtx_led_trig;
+	char rxtx_led_trig_name[CAN_LED_NAME_SZ];
 #endif
 };
 

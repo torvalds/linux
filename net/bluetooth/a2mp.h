@@ -17,8 +17,6 @@
 
 #include <net/bluetooth/l2cap.h>
 
-#define A2MP_FEAT_EXT	0x8000
-
 enum amp_mgr_state {
 	READ_LOC_AMP_INFO,
 	READ_LOC_AMP_ASSOC,
@@ -131,17 +129,30 @@ struct a2mp_physlink_rsp {
 #define A2MP_STATUS_PHYS_LINK_EXISTS		0x05
 #define A2MP_STATUS_SECURITY_VIOLATION		0x06
 
-extern struct list_head amp_mgr_list;
-extern struct mutex amp_mgr_list_lock;
-
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr);
+
+#if IS_ENABLED(CONFIG_BT_HS)
 int amp_mgr_put(struct amp_mgr *mgr);
-u8 __next_ident(struct amp_mgr *mgr);
 struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
 				       struct sk_buff *skb);
-struct amp_mgr *amp_mgr_lookup_by_state(u8 state);
-void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *data);
 void a2mp_discover_amp(struct l2cap_chan *chan);
+#else
+static inline int amp_mgr_put(struct amp_mgr *mgr)
+{
+	return 0;
+}
+
+static inline struct l2cap_chan *a2mp_channel_create(struct l2cap_conn *conn,
+						     struct sk_buff *skb)
+{
+	return NULL;
+}
+
+static inline void a2mp_discover_amp(struct l2cap_chan *chan)
+{
+}
+#endif
+
 void a2mp_send_getinfo_rsp(struct hci_dev *hdev);
 void a2mp_send_getampassoc_rsp(struct hci_dev *hdev, u8 status);
 void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status);

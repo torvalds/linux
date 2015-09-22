@@ -604,11 +604,11 @@ static void port100_recv_response(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 		nfc_err(&dev->interface->dev,
-			"The urb has been canceled (status %d)", urb->status);
+			"The urb has been canceled (status %d)\n", urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
-		nfc_err(&dev->interface->dev, "Urb failure (status %d)",
+		nfc_err(&dev->interface->dev, "Urb failure (status %d)\n",
 			urb->status);
 		goto sched_wq;
 	}
@@ -616,7 +616,7 @@ static void port100_recv_response(struct urb *urb)
 	in_frame = dev->in_urb->transfer_buffer;
 
 	if (!port100_rx_frame_is_valid(in_frame)) {
-		nfc_err(&dev->interface->dev, "Received an invalid frame");
+		nfc_err(&dev->interface->dev, "Received an invalid frame\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -626,7 +626,7 @@ static void port100_recv_response(struct urb *urb)
 
 	if (!port100_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_err(&dev->interface->dev,
-			"It's not the response to the last command");
+			"It's not the response to the last command\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -657,11 +657,11 @@ static void port100_recv_ack(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 		nfc_err(&dev->interface->dev,
-			"The urb has been stopped (status %d)", urb->status);
+			"The urb has been stopped (status %d)\n", urb->status);
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
-		nfc_err(&dev->interface->dev, "Urb failure (status %d)",
+		nfc_err(&dev->interface->dev, "Urb failure (status %d)\n",
 			urb->status);
 		goto sched_wq;
 	}
@@ -669,7 +669,7 @@ static void port100_recv_ack(struct urb *urb)
 	in_frame = dev->in_urb->transfer_buffer;
 
 	if (!port100_rx_frame_is_ack(in_frame)) {
-		nfc_err(&dev->interface->dev, "Received an invalid ack");
+		nfc_err(&dev->interface->dev, "Received an invalid ack\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -677,7 +677,7 @@ static void port100_recv_ack(struct urb *urb)
 	rc = port100_submit_urb_for_response(dev, GFP_ATOMIC);
 	if (rc) {
 		nfc_err(&dev->interface->dev,
-			"usb_submit_urb failed with result %d", rc);
+			"usb_submit_urb failed with result %d\n", rc);
 		cmd->status = rc;
 		goto sched_wq;
 	}
@@ -873,11 +873,11 @@ static void port100_send_complete(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 		nfc_err(&dev->interface->dev,
-			"The urb has been stopped (status %d)", urb->status);
+			"The urb has been stopped (status %d)\n", urb->status);
 		break;
 	case -ESHUTDOWN:
 	default:
-		nfc_err(&dev->interface->dev, "Urb failure (status %d)",
+		nfc_err(&dev->interface->dev, "Urb failure (status %d)\n",
 			urb->status);
 	}
 }
@@ -1094,7 +1094,7 @@ static void port100_in_comm_rf_complete(struct port100 *dev, void *arg,
 
 	if (resp->len < 4) {
 		nfc_err(&dev->interface->dev,
-			"Invalid packet length received.\n");
+			"Invalid packet length received\n");
 		rc = -EIO;
 		goto error;
 	}
@@ -1250,7 +1250,7 @@ static bool port100_tg_target_activated(struct port100 *dev, u8 tgt_activated)
 		       PORT100_MDAA_TGT_WAS_ACTIVATED_MASK;
 		break;
 	default:
-		nfc_err(&dev->interface->dev, "Unknonwn command type.\n");
+		nfc_err(&dev->interface->dev, "Unknown command type\n");
 		return false;
 	}
 
@@ -1481,7 +1481,7 @@ static int port100_probe(struct usb_interface *interface,
 	cmd_type_mask = port100_get_command_type_mask(dev);
 	if (!cmd_type_mask) {
 		nfc_err(&interface->dev,
-			"Could not get supported command types.\n");
+			"Could not get supported command types\n");
 		rc = -ENODEV;
 		goto error;
 	}
@@ -1494,7 +1494,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = port100_set_command_type(dev, dev->cmd_type);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"The device does not support command type %u.\n",
+			"The device does not support command type %u\n",
 			dev->cmd_type);
 		goto error;
 	}
@@ -1502,7 +1502,7 @@ static int port100_probe(struct usb_interface *interface,
 	fw_version = port100_get_firmware_version(dev);
 	if (!fw_version)
 		nfc_err(&interface->dev,
-			"Could not get device firmware version.\n");
+			"Could not get device firmware version\n");
 
 	nfc_info(&interface->dev,
 		 "Sony NFC Port-100 Series attached (firmware v%x.%02x)\n",
@@ -1515,7 +1515,7 @@ static int port100_probe(struct usb_interface *interface,
 							   dev->skb_tailroom);
 	if (!dev->nfc_digital_dev) {
 		nfc_err(&interface->dev,
-			"Could not allocate nfc_digital_dev.\n");
+			"Could not allocate nfc_digital_dev\n");
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -1526,7 +1526,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = nfc_digital_register_device(dev->nfc_digital_dev);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"Could not register digital device.\n");
+			"Could not register digital device\n");
 		goto free_nfc_dev;
 	}
 
@@ -1562,7 +1562,7 @@ static void port100_disconnect(struct usb_interface *interface)
 
 	kfree(dev->cmd);
 
-	nfc_info(&interface->dev, "Sony Port-100 NFC device disconnected");
+	nfc_info(&interface->dev, "Sony Port-100 NFC device disconnected\n");
 }
 
 static struct usb_driver port100_driver = {

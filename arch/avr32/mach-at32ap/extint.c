@@ -128,9 +128,9 @@ static int eic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
@@ -144,7 +144,7 @@ static struct irq_chip eic_chip = {
 	.irq_set_type	= eic_set_irq_type,
 };
 
-static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
+static void demux_eic_irq(struct irq_desc *desc)
 {
 	struct eic *eic = irq_desc_get_handler_data(desc);
 	unsigned long status, pending;
@@ -231,8 +231,7 @@ static int __init eic_probe(struct platform_device *pdev)
 		irq_set_chip_data(eic->first_irq + i, eic);
 	}
 
-	irq_set_chained_handler(int_irq, demux_eic_irq);
-	irq_set_handler_data(int_irq, eic);
+	irq_set_chained_handler_and_data(int_irq, demux_eic_irq, eic);
 
 	if (pdev->id == 0) {
 		nmi_eic = eic;

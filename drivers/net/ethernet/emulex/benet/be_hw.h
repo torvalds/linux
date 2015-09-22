@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -132,6 +132,18 @@
 #define DB_EQ_NUM_POPPED_SHIFT		(16)	/* bits 16 - 28 */
 /* Rearm bit */
 #define DB_EQ_REARM_SHIFT		(29)	/* bit 29 */
+/* Rearm to interrupt delay encoding */
+#define DB_EQ_R2I_DLY_SHIFT		(30)    /* bits 30 - 31 */
+
+/* Rearm to interrupt (R2I) delay multiplier encoding represents 3 different
+ * values configured in CEV_REARM2IRPT_DLY_MULT_CSR register. This value is
+ * programmed by host driver while ringing an EQ doorbell(EQ_DB) if a delay
+ * between rearming the EQ and next interrupt on this EQ is desired.
+ */
+#define	R2I_DLY_ENC_0			0	/* No delay */
+#define	R2I_DLY_ENC_1			1	/* maps to 160us EQ delay */
+#define	R2I_DLY_ENC_2			2	/* maps to 96us EQ delay */
+#define	R2I_DLY_ENC_3			3	/* maps to 48us EQ delay */
 
 /********* Compl Q door bell *************/
 #define DB_CQ_OFFSET 			0x120

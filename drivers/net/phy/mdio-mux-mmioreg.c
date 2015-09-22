@@ -145,7 +145,7 @@ static int mdio_mux_mmioreg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mdio_mux_mmioreg_match[] = {
+static const struct of_device_id mdio_mux_mmioreg_match[] = {
 	{
 		.compatible = "mdio-mux-mmioreg",
 	},

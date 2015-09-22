@@ -405,8 +405,8 @@ static int cpqarray_register_ctlr(int i, struct pci_dev *pdev)
 		goto Enomem4;
 	}
 	hba[i]->access.set_intr_mask(hba[i], 0);
-	if (request_irq(hba[i]->intr, do_ida_intr,
-		IRQF_DISABLED|IRQF_SHARED, hba[i]->devname, hba[i]))
+	if (request_irq(hba[i]->intr, do_ida_intr, IRQF_SHARED,
+			hba[i]->devname, hba[i]))
 	{
 		printk(KERN_ERR "cpqarray: Unable to get irq %d for %s\n",
 				hba[i]->intr, hba[i]->devname);

@@ -282,7 +282,7 @@ following is true:
 
 - The current CPU's queue head counter >= the recorded tail counter
   value in rps_dev_flow[i]
-- The current CPU is unset (equal to RPS_NO_CPU)
+- The current CPU is unset (>= nr_cpu_ids)
 - The current CPU is offline
 
 After this check, the packet is sent to the (possibly updated) current
@@ -421,6 +421,15 @@ best CPUs to share a given queue are probably those that share the cache
 with the CPU that processes transmit completions for that queue
 (transmit interrupts).
 
+Per TX Queue rate limitation:
+=============================
+
+These are rate-limitation mechanisms implemented by HW, where currently
+a max-rate attribute is supported, by setting a Mbps value to
+
+/sys/class/net/<dev>/queues/tx-<n>/tx_maxrate
+
+A value of zero means disabled, and this is the default.
 
 Further Information
 ===================

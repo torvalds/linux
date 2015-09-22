@@ -206,6 +206,6 @@ References
 [1] Lamport, L. "A New Solution of Dijkstra's Concurrent Programming
     Problem", Communications of the ACM 17, 8 (August 1974), 453-455.
 
-    http://en.wikipedia.org/wiki/Lamport%27s_bakery_algorithm
+    https://en.wikipedia.org/wiki/Lamport%27s_bakery_algorithm
 
 [2] linux/arch/arm/common/vlock.S, www.kernel.org.

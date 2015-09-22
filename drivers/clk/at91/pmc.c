@@ -125,7 +125,6 @@ static int pmc_irq_map(struct irq_domain *h, unsigned int virq,
 
 	irq_set_chip_and_handler(virq, &pmc_irq,
 				 handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
 	irq_set_chip_data(virq, pmc);
 
 	return 0;
@@ -153,7 +152,7 @@ static int pmc_irq_domain_xlate(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops pmc_irq_ops = {
+static const struct irq_domain_ops pmc_irq_ops = {
 	.map	= pmc_irq_map,
 	.xlate	= pmc_irq_domain_xlate,
 };

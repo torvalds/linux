@@ -44,6 +44,18 @@ static inline int __atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OP_RETURN(sub, sub, rKs21)
 ATOMIC_OP_RETURN(add, add, r)
 
+#define ATOMIC_OP(op, asm_op)						\
+ATOMIC_OP_RETURN(op, asm_op, r)						\
+static inline void atomic_##op(int i, atomic_t *v)			\
+{									\
+	(void)__atomic_##op##_return(i, v);				\
+}
+
+ATOMIC_OP(and, and)
+ATOMIC_OP(or, or)
+ATOMIC_OP(xor, eor)
+
+#undef ATOMIC_OP
 #undef ATOMIC_OP_RETURN
 
 /*

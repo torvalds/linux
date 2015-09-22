@@ -441,8 +441,7 @@ static void ipu_di_config_clock(struct ipu_di *di,
 
 			in_rate = clk_get_rate(clk);
 			div = DIV_ROUND_CLOSEST(in_rate, sig->mode.pixelclock);
-			if (div == 0)
-				div = 1;
+			div = clamp(div, 1U, 255U);
 
 			clkgen0 = div << 4;
 		}
@@ -459,8 +458,7 @@ static void ipu_di_config_clock(struct ipu_di *di,
 
 		clkrate = clk_get_rate(di->clk_ipu);
 		div = DIV_ROUND_CLOSEST(clkrate, sig->mode.pixelclock);
-		if (div == 0)
-			div = 1;
+		div = clamp(div, 1U, 255U);
 		rate = clkrate / div;
 
 		error = rate / (sig->mode.pixelclock / 1000);
@@ -483,8 +481,7 @@ static void ipu_di_config_clock(struct ipu_di *di,
 
 			in_rate = clk_get_rate(clk);
 			div = DIV_ROUND_CLOSEST(in_rate, sig->mode.pixelclock);
-			if (div == 0)
-				div = 1;
+			div = clamp(div, 1U, 255U);
 
 			clkgen0 = div << 4;
 		}

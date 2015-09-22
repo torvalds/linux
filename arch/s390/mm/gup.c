@@ -30,6 +30,9 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	do {
 		pte = *ptep;
 		barrier();
+		/* Similar to the PMD case, NUMA hinting must take slow path */
+		if (pte_protnone(pte))
+			return 0;
 		if ((pte_val(pte) & mask) != 0)
 			return 0;
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
@@ -106,11 +109,9 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 	pmd_t *pmdp, pmd;
 
 	pmdp = (pmd_t *) pudp;
-#ifdef CONFIG_64BIT
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		pmdp = (pmd_t *) pud_deref(pud);
 	pmdp += pmd_index(addr);
-#endif
 	do {
 		pmd = *pmdp;
 		barrier();
@@ -127,6 +128,13 @@ static inline int gup_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
 			return 0;
 		if (unlikely(pmd_large(pmd))) {
+			/*
+			 * NUMA hinting faults need to be handled in the GUP
+			 * slowpath for accounting purposes and so that they
+			 * can be serialised against THP migration.
+			 */
+			if (pmd_protnone(pmd))
+				return 0;
 			if (!gup_huge_pmd(pmdp, pmd, addr, next,
 					  write, pages, nr))
 				return 0;
@@ -145,11 +153,9 @@ static inline int gup_pud_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
 	pud_t *pudp, pud;
 
 	pudp = (pud_t *) pgdp;
-#ifdef CONFIG_64BIT
 	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
 		pudp = (pud_t *) pgd_deref(pgd);
 	pudp += pud_index(addr);
-#endif
 	do {
 		pud = *pudp;
 		barrier();

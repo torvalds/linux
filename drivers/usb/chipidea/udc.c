@@ -86,10 +86,8 @@ static int hw_device_state(struct ci_hdrc *ci, u32 dma)
 		/* interrupt, error, port change, reset, sleep/suspend */
 		hw_write(ci, OP_USBINTR, ~0,
 			     USBi_UI|USBi_UEI|USBi_PCI|USBi_URI|USBi_SLI);
-		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
 	} else {
 		hw_write(ci, OP_USBINTR, ~0, 0);
-		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
 	}
 	return 0;
 }
@@ -447,7 +445,7 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 		rest -= count;
 	}
 
-	if (hwreq->req.zero && hwreq->req.length
+	if (hwreq->req.zero && hwreq->req.length && hwep->dir == TX
 	    && (hwreq->req.length % hwep->ep.maxpacket == 0))
 		add_td_to_list(hwep, hwreq, 0);
 
@@ -522,6 +520,20 @@ static void free_pending_td(struct ci_hw_ep *hwep)
 	kfree(pending);
 }
 
+static int reprime_dtd(struct ci_hdrc *ci, struct ci_hw_ep *hwep,
+					   struct td_node *node)
+{
+	hwep->qh.ptr->td.next = node->dma;
+	hwep->qh.ptr->td.token &=
+		cpu_to_le32(~(TD_STATUS_HALTED | TD_STATUS_ACTIVE));
+
+	/* Synchronize before ep prime */
+	wmb();
+
+	return hw_ep_prime(ci, hwep->num, hwep->dir,
+				hwep->type == USB_ENDPOINT_XFER_CONTROL);
+}
+
 /**
  * _hardware_dequeue: handles a request at hardware level
  * @gadget: gadget
@@ -535,6 +547,7 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	struct td_node *node, *tmpnode;
 	unsigned remaining_length;
 	unsigned actual = hwreq->req.length;
+	struct ci_hdrc *ci = hwep->ci;
 
 	if (hwreq->req.status != -EALREADY)
 		return -EINVAL;
@@ -544,6 +557,11 @@ static int _hardware_dequeue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	list_for_each_entry_safe(node, tmpnode, &hwreq->tds, td) {
 		tmptoken = le32_to_cpu(node->ptr->token);
 		if ((TD_STATUS_ACTIVE & tmptoken) != 0) {
+			int n = hw_ep_bit(hwep->num, hwep->dir);
+
+			if (ci->rev == CI_REVISION_24)
+				if (!hw_read(ci, OP_ENDPTSTAT, BIT(n)))
+					reprime_dtd(ci, hwep, node);
 			hwreq->req.status = -EALREADY;
 			return -EBUSY;
 		}
@@ -1072,6 +1090,13 @@ __acquires(ci->lock)
 				if (ci_otg_is_fsm_mode(ci))
 					err = otg_a_alt_hnp_support(ci);
 				break;
+			case USB_DEVICE_A_HNP_SUPPORT:
+				if (ci_otg_is_fsm_mode(ci)) {
+					ci->gadget.a_hnp_support = 1;
+					err = isr_setup_status_phase(
+							ci);
+				}
+				break;
 			default:
 				goto delegate;
 			}
@@ -1162,10 +1187,13 @@ static int ep_enable(struct usb_ep *ep,
 
 	/* only internal SW should enable ctrl endpts */
 
-	hwep->ep.desc = desc;
-
-	if (!list_empty(&hwep->qh.queue))
+	if (!list_empty(&hwep->qh.queue)) {
 		dev_warn(hwep->ci->dev, "enabling a non-empty endpoint!\n");
+		spin_unlock_irqrestore(hwep->lock, flags);
+		return -EBUSY;
+	}
+
+	hwep->ep.desc = desc;
 
 	hwep->dir  = usb_endpoint_dir_in(desc) ? TX : RX;
 	hwep->num  = usb_endpoint_num(desc);
@@ -1485,7 +1513,9 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 			hw_device_reset(ci);
 			hw_device_state(ci, ci->ep0out->qh.dma);
 			usb_gadget_set_state(_gadget, USB_STATE_POWERED);
+			usb_udc_vbus_handler(_gadget, true);
 		} else {
+			usb_udc_vbus_handler(_gadget, false);
 			if (ci->driver)
 				ci->driver->disconnect(&ci->gadget);
 			hw_device_state(ci, 0);
@@ -1551,13 +1581,16 @@ static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 
-	if (!ci->vbus_active)
-		return -EOPNOTSUPP;
+	/* Data+ pullup controlled by OTG state machine in OTG fsm mode */
+	if (ci_otg_is_fsm_mode(ci))
+		return 0;
 
+	pm_runtime_get_sync(&ci->gadget.dev);
 	if (is_on)
 		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
 	else
 		hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+	pm_runtime_put_sync(&ci->gadget.dev);
 
 	return 0;
 }
@@ -1598,6 +1631,20 @@ static int init_eps(struct ci_hdrc *ci)
 
 			hwep->ep.name      = hwep->name;
 			hwep->ep.ops       = &usb_ep_ops;
+
+			if (i == 0) {
+				hwep->ep.caps.type_control = true;
+			} else {
+				hwep->ep.caps.type_iso = true;
+				hwep->ep.caps.type_bulk = true;
+				hwep->ep.caps.type_int = true;
+			}
+
+			if (j == TX)
+				hwep->ep.caps.dir_in = true;
+			else
+				hwep->ep.caps.dir_out = true;
+
 			/*
 			 * for ep0: maxP defined in desc, for other
 			 * eps, maxP is set by epautoconfig() called
@@ -1687,6 +1734,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 		spin_lock_irqsave(&ci->lock, flags);
 		hw_device_reset(ci);
 	} else {
+		usb_udc_vbus_handler(&ci->gadget, false);
 		pm_runtime_put_sync(&ci->gadget.dev);
 		return retval;
 	}
@@ -1800,6 +1848,7 @@ static irqreturn_t udc_irq(struct ci_hdrc *ci)
 static int udc_start(struct ci_hdrc *ci)
 {
 	struct device *dev = ci->dev;
+	struct usb_otg_caps *otg_caps = &ci->platdata->ci_otg_caps;
 	int retval = 0;
 
 	spin_lock_init(&ci->lock);
@@ -1807,8 +1856,12 @@ static int udc_start(struct ci_hdrc *ci)
 	ci->gadget.ops          = &usb_gadget_ops;
 	ci->gadget.speed        = USB_SPEED_UNKNOWN;
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
-	ci->gadget.is_otg       = ci->is_otg ? 1 : 0;
 	ci->gadget.name         = ci->platdata->name;
+	ci->gadget.otg_caps	= otg_caps;
+
+	if (ci->is_otg && (otg_caps->hnp_support || otg_caps->srp_support ||
+						otg_caps->adp_support))
+		ci->gadget.is_otg = 1;
 
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 

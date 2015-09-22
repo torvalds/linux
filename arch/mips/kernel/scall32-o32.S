@@ -73,10 +73,11 @@ NESTED(handle_sys, PT_SIZE, sp)
 	.set    noreorder
 	.set	nomacro
 
-1:	user_lw(t5, 16(t0))		# argument #5 from usp
-4:	user_lw(t6, 20(t0))		# argument #6 from usp
-3:	user_lw(t7, 24(t0))		# argument #7 from usp
-2:	user_lw(t8, 28(t0))		# argument #8 from usp
+load_a4: user_lw(t5, 16(t0))		# argument #5 from usp
+load_a5: user_lw(t6, 20(t0))		# argument #6 from usp
+load_a6: user_lw(t7, 24(t0))		# argument #7 from usp
+load_a7: user_lw(t8, 28(t0))		# argument #8 from usp
+loads_done:
 
 	sw	t5, 16(sp)		# argument #5 to ksp
 	sw	t6, 20(sp)		# argument #6 to ksp
@@ -85,10 +86,10 @@ NESTED(handle_sys, PT_SIZE, sp)
 	.set	pop
 
 	.section __ex_table,"a"
-	PTR	1b,bad_stack
-	PTR	2b,bad_stack
-	PTR	3b,bad_stack
-	PTR	4b,bad_stack
+	PTR	load_a4, bad_stack_a4
+	PTR	load_a5, bad_stack_a5
+	PTR	load_a6, bad_stack_a6
+	PTR	load_a7, bad_stack_a7
 	.previous
 
 	lw	t0, TI_FLAGS($28)	# syscall tracing enabled?
@@ -153,8 +154,8 @@ syscall_trace_entry:
 /* ------------------------------------------------------------------------ */
 
 	/*
-	 * The stackpointer for a call with more than 4 arguments is bad.
-	 * We probably should handle this case a bit more drastic.
+	 * Our open-coded access area sanity test for the stack pointer
+	 * failed. We probably should handle this case a bit more drastic.
 	 */
 bad_stack:
 	li	v0, EFAULT
@@ -162,6 +163,22 @@ bad_stack:
 	li	t0, 1				# set error flag
 	sw	t0, PT_R7(sp)
 	j	o32_syscall_exit
+
+bad_stack_a4:
+	li	t5, 0
+	b	load_a5
+
+bad_stack_a5:
+	li	t6, 0
+	b	load_a6
+
+bad_stack_a6:
+	li	t7, 0
+	b	load_a7
+
+bad_stack_a7:
+	li	t8, 0
+	b	loads_done
 
 	/*
 	 * The system call does not exist in this kernel

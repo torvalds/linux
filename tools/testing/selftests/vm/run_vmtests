@@ -75,10 +75,14 @@ else
 	echo "[PASS]"
 fi
 
+echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
+echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
+echo "      hugetlb regression testing."
+
 echo "--------------------"
-echo "running hugetlbfstest"
+echo "running userfaultfd"
 echo "--------------------"
-./hugetlbfstest
+./userfaultfd 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -90,4 +94,16 @@ fi
 umount $mnt
 rm -rf $mnt
 echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
+
+echo "-----------------------"
+echo "running compaction_test"
+echo "-----------------------"
+./compaction_test
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
 exit $exitcode

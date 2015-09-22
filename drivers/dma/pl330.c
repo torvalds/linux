@@ -556,7 +556,7 @@ static inline u32 _emit_ADDH(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAADDH;
 	buf[0] |= (da << 1);
-	*((u16 *)&buf[1]) = val;
+	*((__le16 *)&buf[1]) = cpu_to_le16(val);
 
 	PL330_DBGCMD_DUMP(SZ_DMAADDH, "\tDMAADDH %s %u\n",
 		da == 1 ? "DA" : "SA", val);
@@ -710,7 +710,7 @@ static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAMOV;
 	buf[1] = dst;
-	*((u32 *)&buf[2]) = val;
+	*((__le32 *)&buf[2]) = cpu_to_le32(val);
 
 	PL330_DBGCMD_DUMP(SZ_DMAMOV, "\tDMAMOV %s 0x%x\n",
 		dst == SAR ? "SAR" : (dst == DAR ? "DAR" : "CCR"), val);
@@ -888,7 +888,7 @@ static inline u32 _emit_GO(unsigned dry_run, u8 buf[],
 
 	buf[1] = chan & 0x7;
 
-	*((u32 *)&buf[2]) = addr;
+	*((__le32 *)&buf[2]) = cpu_to_le32(addr);
 
 	return SZ_DMAGO;
 }
@@ -928,7 +928,7 @@ static inline void _execute_DBGINSN(struct pl330_thread *thrd,
 	}
 	writel(val, regs + DBGINST0);
 
-	val = *((u32 *)&insn[2]);
+	val = le32_to_cpu(*((__le32 *)&insn[2]));
 	writel(val, regs + DBGINST1);
 
 	/* If timed out due to halted state-machine */
@@ -1198,6 +1198,9 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	unsigned lcnt0, lcnt1, ljmp0, ljmp1;
 	struct _arg_LPEND lpend;
 
+	if (*bursts == 1)
+		return _bursts(dry_run, buf, pxs, 1);
+
 	/* Max iterations possible in DMALP is 256 */
 	if (*bursts >= 256*256) {
 		lcnt1 = 256;
@@ -1424,8 +1427,8 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 		goto xfer_exit;
 
 	if (ret > pl330->mcbufsz / 2) {
-		dev_info(pl330->ddma.dev, "%s:%d Trying increasing mcbufsz\n",
-				__func__, __LINE__);
+		dev_info(pl330->ddma.dev, "%s:%d Try increasing mcbufsz (%i/%i)\n",
+				__func__, __LINE__, ret, pl330->mcbufsz / 2);
 		ret = -ENOMEM;
 		goto xfer_exit;
 	}
@@ -2127,6 +2130,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	struct pl330_dmac *pl330 = pch->dmac;
 	LIST_HEAD(list);
 
+	pm_runtime_get_sync(pl330->ddma.dev);
 	spin_lock_irqsave(&pch->lock, flags);
 	spin_lock(&pl330->lock);
 	_stop(pch->thread);
@@ -2151,6 +2155,8 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	list_splice_tail_init(&pch->work_list, &pl330->desc_pool);
 	list_splice_tail_init(&pch->completed_list, &pl330->desc_pool);
 	spin_unlock_irqrestore(&pch->lock, flags);
+	pm_runtime_mark_last_busy(pl330->ddma.dev);
+	pm_runtime_put_autosuspend(pl330->ddma.dev);
 
 	return 0;
 }
@@ -2162,7 +2168,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
  * DMA transfer again. This pause feature was implemented to
  * allow safely read residue before channel termination.
  */
-int pl330_pause(struct dma_chan *chan)
+static int pl330_pause(struct dma_chan *chan)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	struct pl330_dmac *pl330 = pch->dmac;
@@ -2203,8 +2209,8 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 	pm_runtime_put_autosuspend(pch->dmac->ddma.dev);
 }
 
-int pl330_get_current_xferred_count(struct dma_pl330_chan *pch,
-		struct dma_pl330_desc *desc)
+static int pl330_get_current_xferred_count(struct dma_pl330_chan *pch,
+					   struct dma_pl330_desc *desc)
 {
 	struct pl330_thread *thrd = pch->thread;
 	struct pl330_dmac *pl330 = pch->dmac;
@@ -2259,7 +2265,17 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 			transferred = 0;
 		residual += desc->bytes_requested - transferred;
 		if (desc->txd.cookie == cookie) {
-			ret = desc->status;
+			switch (desc->status) {
+			case DONE:
+				ret = DMA_COMPLETE;
+				break;
+			case PREP:
+			case BUSY:
+				ret = DMA_IN_PROGRESS;
+				break;
+			default:
+				WARN_ON(1);
+			}
 			break;
 		}
 		if (desc->last)
@@ -2315,7 +2331,7 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 			desc->txd.callback = last->txd.callback;
 			desc->txd.callback_param = last->txd.callback_param;
 		}
-		last->last = false;
+		desc->last = false;
 
 		dma_cookie_assign(&desc->txd);
 
@@ -2571,11 +2587,13 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 {
 	struct dma_pl330_desc *desc;
 	struct dma_pl330_chan *pch = to_pchan(chan);
-	struct pl330_dmac *pl330 = pch->dmac;
+	struct pl330_dmac *pl330;
 	int burst;
 
 	if (unlikely(!pch || !len))
 		return NULL;
+
+	pl330 = pch->dmac;
 
 	desc = __pl330_prep_dma_memcpy(pch, dst, src, len);
 	if (!desc)
@@ -2608,6 +2626,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		desc->rqcfg.brst_len = 1;
 
 	desc->rqcfg.brst_len = get_burst_len(desc, len);
+	desc->bytes_requested = len;
 
 	desc->txd.flags = flags;
 

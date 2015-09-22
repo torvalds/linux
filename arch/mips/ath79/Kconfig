@@ -71,6 +71,18 @@ config ATH79_MACH_UBNT_XM
 	  Say 'Y' here if you want your kernel to support the
 	  Ubiquiti Networks XM (rev 1.0) board.
 
+choice
+	prompt "Build a DTB in the kernel"
+	optional
+	help
+	  Select a devicetree that should be built into the kernel.
+
+	config DTB_TL_WR1043ND_V1
+		bool "TL-WR1043ND Version 1"
+		select BUILTIN_DTB
+		select SOC_AR913X
+endchoice
+
 endmenu
 
 config SOC_AR71XX

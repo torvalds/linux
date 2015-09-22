@@ -128,28 +128,43 @@ leave:
 }
 EXPORT_SYMBOL_GPL(mpi_read_from_buffer);
 
-/****************
- * Return an allocated buffer with the MPI (msb first).
- * NBYTES receives the length of this buffer. Caller must free the
- * return string (This function does return a 0 byte buffer with NBYTES
- * set to zero if the value of A is zero. If sign is not NULL, it will
- * be set to the sign of the A.
+/**
+ * mpi_read_buffer() - read MPI to a bufer provided by user (msb first)
+ *
+ * @a:		a multi precision integer
+ * @buf:	bufer to which the output will be written to. Needs to be at
+ *		leaset mpi_get_size(a) long.
+ * @buf_len:	size of the buf.
+ * @nbytes:	receives the actual length of the data written.
+ * @sign:	if not NULL, it will be set to the sign of a.
+ *
+ * Return:	0 on success or error code in case of error
  */
-void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
+int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
+		    int *sign)
 {
-	uint8_t *p, *buffer;
+	uint8_t *p;
 	mpi_limb_t alimb;
-	int i;
-	unsigned int n;
+	unsigned int n = mpi_get_size(a);
+	int i, lzeros = 0;
+
+	if (buf_len < n || !buf || !nbytes)
+		return -EINVAL;
 
 	if (sign)
 		*sign = a->sign;
-	*nbytes = n = a->nlimbs * BYTES_PER_MPI_LIMB;
-	if (!n)
-		n++;		/* avoid zero length allocation */
-	p = buffer = kmalloc(n, GFP_KERNEL);
-	if (!p)
-		return NULL;
+
+	p = (void *)&a->d[a->nlimbs] - 1;
+
+	for (i = a->nlimbs * sizeof(alimb) - 1; i >= 0; i--, p--) {
+		if (!*p)
+			lzeros++;
+		else
+			break;
+	}
+
+	p = buf;
+	*nbytes = n - lzeros;
 
 	for (i = a->nlimbs - 1; i >= 0; i--) {
 		alimb = a->d[i];
@@ -170,16 +185,62 @@ void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
 #else
 #error please implement for this limb size.
 #endif
+
+		if (lzeros > 0) {
+			if (lzeros >= sizeof(alimb)) {
+				p -= sizeof(alimb);
+			} else {
+				mpi_limb_t *limb1 = (void *)p - sizeof(alimb);
+				mpi_limb_t *limb2 = (void *)p - sizeof(alimb)
+							+ lzeros;
+				*limb1 = *limb2;
+				p -= lzeros;
+			}
+			lzeros -= sizeof(alimb);
+		}
 	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mpi_read_buffer);
 
-	/* this is sub-optimal but we need to do the shift operation
-	 * because the caller has to free the returned buffer */
-	for (p = buffer; !*p && *nbytes; p++, --*nbytes)
-		;
-	if (p != buffer)
-		memmove(buffer, p, *nbytes);
+/*
+ * mpi_get_buffer() - Returns an allocated buffer with the MPI (msb first).
+ * Caller must free the return string.
+ * This function does return a 0 byte buffer with nbytes set to zero if the
+ * value of A is zero.
+ *
+ * @a:		a multi precision integer.
+ * @nbytes:	receives the length of this buffer.
+ * @sign:	if not NULL, it will be set to the sign of the a.
+ *
+ * Return:	Pointer to MPI buffer or NULL on error
+ */
+void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign)
+{
+	uint8_t *buf;
+	unsigned int n;
+	int ret;
 
-	return buffer;
+	if (!nbytes)
+		return NULL;
+
+	n = mpi_get_size(a);
+
+	if (!n)
+		n++;
+
+	buf = kmalloc(n, GFP_KERNEL);
+
+	if (!buf)
+		return NULL;
+
+	ret = mpi_read_buffer(a, buf, n, nbytes, sign);
+
+	if (ret) {
+		kfree(buf);
+		return NULL;
+	}
+	return buf;
 }
 EXPORT_SYMBOL_GPL(mpi_get_buffer);
 

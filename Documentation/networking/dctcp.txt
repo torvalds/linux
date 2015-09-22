@@ -8,6 +8,7 @@ the data center network to provide multi-bit feedback to the end hosts.
 To enable it on end hosts:
 
   sysctl -w net.ipv4.tcp_congestion_control=dctcp
+  sysctl -w net.ipv4.tcp_ecn_fallback=0 (optional)
 
 All switches in the data center network running DCTCP must support ECN
 marking and be configured for marking when reaching defined switch buffer

@@ -15,8 +15,8 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/traps.h>
 
 /* Various important other fields */
@@ -207,7 +207,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	int fault;
 	unsigned int flags;
 
-	if (in_atomic())
+	if (faulthandler_disabled())
 		goto no_context;
 
 	tsk = current;

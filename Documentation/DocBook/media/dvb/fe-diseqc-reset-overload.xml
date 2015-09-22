@@ -1,0 +1,51 @@
+<refentry id="FE_DISEQC_RESET_OVERLOAD">
+  <refmeta>
+    <refentrytitle>ioctl FE_DISEQC_RESET_OVERLOAD</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>FE_DISEQC_RESET_OVERLOAD</refname>
+    <refpurpose>Restores the power to the antenna subsystem, if it was powered
+	off due to power overload.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>NULL</paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_DISEQC_RESET_OVERLOAD</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>If the bus has been automatically powered off due to power overload, this ioctl
+ call restores the power to the bus. The call requires read/write access to the
+ device. This call has no effect if the device is manually powered off. Not all
+ DVB adapters support this ioctl.</para>
+&return-value-dvb;
+</refsect1>
+</refentry>

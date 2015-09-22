@@ -18,7 +18,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /*
  * Note: Driver name and platform data format have been updated!

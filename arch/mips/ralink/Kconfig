@@ -7,6 +7,11 @@ config CLKEVT_RT3352
 	select CLKSRC_OF
 	select CLKSRC_MMIO
 
+config RALINK_ILL_ACC
+	bool
+	depends on SOC_RT305X
+	default y
+
 choice
 	prompt "Ralink SoC selection"
 	default SOC_RT305X

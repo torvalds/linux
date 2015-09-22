@@ -95,6 +95,7 @@ config SND_BEBOB
 	  * Tascam IF-FW/DM
 	  * Behringer XENIX UFX 1204/1604
 	  * Behringer Digital Mixer X32 series (X-UF Card)
+	  * Behringer FCA610/1616
 	  * Apogee Rosetta 200/400 (X-FireWire card)
 	  * Apogee DA/AD/DD-16X (X-FireWire card)
 	  * Apogee Ensemble
@@ -114,6 +115,7 @@ config SND_BEBOB
 	  * M-Audio FireWire410/AudioPhile/Solo
 	  * M-Audio Ozonic/NRV10/ProfireLightBridge
 	  * M-Audio FireWire 1814/ProjectMix IO
+	  * Digidesign Mbox 2 Pro
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.

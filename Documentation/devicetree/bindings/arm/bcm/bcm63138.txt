@@ -1,9 +1,0 @@
-Broadcom BCM63138 DSL System-on-a-Chip device tree bindings
------------------------------------------------------------
-
-Boards compatible with the BCM63138 DSL System-on-a-Chip should have the
-following properties:
-
-Required root node property:
-
-compatible: should be "brcm,bcm63138"

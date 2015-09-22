@@ -27,33 +27,35 @@
 #include <subdev/bios/init.h>
 
 u64
-gm107_devinit_disable(struct nvkm_devinit *devinit)
+gm107_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r021c00 = nv_rd32(priv, 0x021c00);
-	u32 r021c04 = nv_rd32(priv, 0x021c04);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r021c00 = nvkm_rd32(device, 0x021c00);
+	u32 r021c04 = nvkm_rd32(device, 0x021c04);
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)
-		disable |= (1ULL << NVDEV_ENGINE_CE0);
+		disable |= (1ULL << NVKM_ENGINE_CE0);
 	if (r021c00 & 0x00000004)
-		disable |= (1ULL << NVDEV_ENGINE_CE2);
+		disable |= (1ULL << NVKM_ENGINE_CE2);
 	if (r021c04 & 0x00000001)
-		disable |= (1ULL << NVDEV_ENGINE_DISP);
+		disable |= (1ULL << NVKM_ENGINE_DISP);
 
 	return disable;
 }
 
-struct nvkm_oclass *
-gm107_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x07),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+gm107_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = gf100_devinit_pll_set,
 	.disable = gm107_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+gm107_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&gm107_devinit, device, index, pinit);
+}

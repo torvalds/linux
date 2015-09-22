@@ -274,7 +274,6 @@ static struct scsi_host_template nsp32_template = {
 	.can_queue			= 1,
 	.sg_tablesize			= NSP32_SG_SIZE,
 	.max_sectors			= 128,
-	.cmd_per_lun			= 1,
 	.this_id			= NSP32_HOST_SCSIID,
 	.use_clustering			= DISABLE_CLUSTERING,
 	.eh_abort_handler       	= nsp32_eh_abort,

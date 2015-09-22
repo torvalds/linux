@@ -18,6 +18,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -145,8 +147,7 @@ static int twl_rtc_read_u8(u8 *data, u8 reg)
 
 	ret = twl_i2c_read_u8(TWL_MODULE_RTC, data, (rtc_reg_map[reg]));
 	if (ret < 0)
-		pr_err("twl_rtc: Could not read TWL"
-		       "register %X - error %d\n", reg, ret);
+		pr_err("Could not read TWL register %X - error %d\n", reg, ret);
 	return ret;
 }
 
@@ -159,8 +160,8 @@ static int twl_rtc_write_u8(u8 data, u8 reg)
 
 	ret = twl_i2c_write_u8(TWL_MODULE_RTC, data, (rtc_reg_map[reg]));
 	if (ret < 0)
-		pr_err("twl_rtc: Could not write TWL"
-		       "register %X - error %d\n", reg, ret);
+		pr_err("Could not write TWL register %X - error %d\n",
+		       reg, ret);
 	return ret;
 }
 

@@ -2451,7 +2451,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	astate->config = config;
 	if (!astate->config->jtag_io) {
-		dprintk(KERN_INFO "%s: using byteblaster!\n", __func__);
+		dprintk("%s: using byteblaster!\n", __func__);
 		astate->config->jtag_io = netup_jtag_io_lpt;
 	}
 

@@ -89,6 +89,10 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
+ATOMIC_OP(and)
+ATOMIC_OP(or)
+ATOMIC_OP(xor)
+
 #undef ATOMIC_OPS
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -126,73 +130,6 @@ static inline void atomic_dec(atomic_t *v)
 
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
-
-/**
- * atomic_clear_mask - Atomically clear bits in memory
- * @mask: Mask of the bits to be cleared
- * @v: pointer to word in memory
- *
- * Atomically clears the bits set in mask from the memory word specified.
- */
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
-{
-#ifdef CONFIG_SMP
-	int status;
-
-	asm volatile(
-		"1:	mov	%3,(_AAR,%2)	\n"
-		"	mov	(_ADR,%2),%0	\n"
-		"	and	%4,%0		\n"
-		"	mov	%0,(_ADR,%2)	\n"
-		"	mov	(_ADR,%2),%0	\n"	/* flush */
-		"	mov	(_ASR,%2),%0	\n"
-		"	or	%0,%0		\n"
-		"	bne	1b		\n"
-		: "=&r"(status), "=m"(*addr)
-		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(addr), "r"(~mask)
-		: "memory", "cc");
-#else
-	unsigned long flags;
-
-	mask = ~mask;
-	flags = arch_local_cli_save();
-	*addr &= mask;
-	arch_local_irq_restore(flags);
-#endif
-}
-
-/**
- * atomic_set_mask - Atomically set bits in memory
- * @mask: Mask of the bits to be set
- * @v: pointer to word in memory
- *
- * Atomically sets the bits set in mask from the memory word specified.
- */
-static inline void atomic_set_mask(unsigned long mask, unsigned long *addr)
-{
-#ifdef CONFIG_SMP
-	int status;
-
-	asm volatile(
-		"1:	mov	%3,(_AAR,%2)	\n"
-		"	mov	(_ADR,%2),%0	\n"
-		"	or	%4,%0		\n"
-		"	mov	%0,(_ADR,%2)	\n"
-		"	mov	(_ADR,%2),%0	\n"	/* flush */
-		"	mov	(_ASR,%2),%0	\n"
-		"	or	%0,%0		\n"
-		"	bne	1b		\n"
-		: "=&r"(status), "=m"(*addr)
-		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(addr), "r"(mask)
-		: "memory", "cc");
-#else
-	unsigned long flags;
-
-	flags = arch_local_cli_save();
-	*addr |= mask;
-	arch_local_irq_restore(flags);
-#endif
-}
 
 #endif /* __KERNEL__ */
 #endif /* CONFIG_SMP */

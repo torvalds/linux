@@ -146,7 +146,7 @@ static __be32 *encode_fsid(__be32 *p, struct svc_fh *fhp)
 	default:
 	case FSIDSOURCE_DEV:
 		p = xdr_encode_hyper(p, (u64)huge_encode_dev
-				     (fhp->fh_dentry->d_inode->i_sb->s_dev));
+				     (d_inode(fhp->fh_dentry)->i_sb->s_dev));
 		break;
 	case FSIDSOURCE_FSID:
 		p = xdr_encode_hyper(p, (u64) fhp->fh_export->ex_fsid);
@@ -203,14 +203,14 @@ static __be32 *
 encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 {
 	struct dentry *dentry = fhp->fh_dentry;
-	if (dentry && dentry->d_inode) {
+	if (dentry && d_really_is_positive(dentry)) {
 	        __be32 err;
 		struct kstat stat;
 
 		err = fh_getattr(fhp, &stat);
 		if (!err) {
 			*p++ = xdr_one;		/* attributes follow */
-			lease_get_mtime(dentry->d_inode, &stat.mtime);
+			lease_get_mtime(d_inode(dentry), &stat.mtime);
 			return encode_fattr3(rqstp, p, fhp, &stat);
 		}
 	}
@@ -233,7 +233,7 @@ encode_wcc_data(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp)
 {
 	struct dentry	*dentry = fhp->fh_dentry;
 
-	if (dentry && dentry->d_inode && fhp->fh_post_saved) {
+	if (dentry && d_really_is_positive(dentry) && fhp->fh_post_saved) {
 		if (fhp->fh_pre_saved) {
 			*p++ = xdr_one;
 			p = xdr_encode_hyper(p, (u64) fhp->fh_pre_size);
@@ -260,11 +260,11 @@ void fill_post_wcc(struct svc_fh *fhp)
 		printk("nfsd: inode locked twice during operation.\n");
 
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
-	fhp->fh_post_change = fhp->fh_dentry->d_inode->i_version;
+	fhp->fh_post_change = d_inode(fhp->fh_dentry)->i_version;
 	if (err) {
 		fhp->fh_post_saved = 0;
 		/* Grab the ctime anyway - set_change_info might use it */
-		fhp->fh_post_attr.ctime = fhp->fh_dentry->d_inode->i_ctime;
+		fhp->fh_post_attr.ctime = d_inode(fhp->fh_dentry)->i_ctime;
 	} else
 		fhp->fh_post_saved = 1;
 }
@@ -628,7 +628,7 @@ nfs3svc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd3_attrstat *resp)
 {
 	if (resp->status == 0) {
-		lease_get_mtime(resp->fh.fh_dentry->d_inode,
+		lease_get_mtime(d_inode(resp->fh.fh_dentry),
 				&resp->stat.mtime);
 		p = encode_fattr3(rqstp, p, &resp->fh, &resp->stat);
 	}
@@ -805,7 +805,7 @@ encode_entry_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name,
 
 static __be32
 compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
-		const char *name, int namlen)
+		 const char *name, int namlen, u64 ino)
 {
 	struct svc_export	*exp;
 	struct dentry		*dparent, *dchild;
@@ -828,7 +828,9 @@ compose_entry_fh(struct nfsd3_readdirres *cd, struct svc_fh *fhp,
 		return rv;
 	if (d_mountpoint(dchild))
 		goto out;
-	if (!dchild->d_inode)
+	if (d_really_is_negative(dchild))
+		goto out;
+	if (dchild->d_inode->i_ino != ino)
 		goto out;
 	rv = fh_compose(fhp, exp, dchild, &cd->fh);
 out:
@@ -836,13 +838,13 @@ out:
 	return rv;
 }
 
-static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen)
+static __be32 *encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p, const char *name, int namlen, u64 ino)
 {
 	struct svc_fh	*fh = &cd->scratch;
 	__be32 err;
 
 	fh_init(fh, NFS3_FHSIZE);
-	err = compose_entry_fh(cd, fh, name, namlen);
+	err = compose_entry_fh(cd, fh, name, namlen, ino);
 	if (err) {
 		*p++ = 0;
 		*p++ = 0;
@@ -927,7 +929,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		p = encode_entry_baggage(cd, p, name, namlen, ino);
 
 		if (plus)
-			p = encode_entryplus_baggage(cd, p, name, namlen);
+			p = encode_entryplus_baggage(cd, p, name, namlen, ino);
 		num_entry_words = p - cd->buffer;
 	} else if (*(page+1) != NULL) {
 		/* temporarily encode entry into next page, then move back to
@@ -941,7 +943,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		p1 = encode_entry_baggage(cd, p1, name, namlen, ino);
 
 		if (plus)
-			p1 = encode_entryplus_baggage(cd, p1, name, namlen);
+			p1 = encode_entryplus_baggage(cd, p1, name, namlen, ino);
 
 		/* determine entry word length and lengths to go in pages */
 		num_entry_words = p1 - tmp;

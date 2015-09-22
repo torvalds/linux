@@ -12,6 +12,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
@@ -103,8 +105,8 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
-		pr_warn("%s: MAX77686 RTC cannot handle the year %d."
-			"Assume it's 2000.\n", __func__, 1900 + tm->tm_year);
+		pr_warn("RTC cannot handle the year %d.  Assume it's 2000.\n",
+			1900 + tm->tm_year);
 		return -EINVAL;
 	}
 	return 0;
@@ -509,6 +511,7 @@ static const struct platform_device_id rtc_id[] = {
 	{ "max77686-rtc", 0 },
 	{},
 };
+MODULE_DEVICE_TABLE(platform, rtc_id);
 
 static struct platform_driver max77686_rtc_driver = {
 	.driver		= {

@@ -120,38 +120,52 @@ static int asm9260_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void asm9260_timer_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
+static inline void __asm9260_timer_shutdown(struct clock_event_device *evt)
 {
 	/* stop timer0 */
 	writel_relaxed(BM_C0_EN, priv.base + HW_TCR + CLR_REG);
+}
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* disable reset and stop on match */
-		writel_relaxed(BM_MCR_RES_EN(0) | BM_MCR_STOP_EN(0),
-				priv.base + HW_MCR + CLR_REG);
-		/* configure match count for TC0 */
-		writel_relaxed(priv.ticks_per_jiffy, priv.base + HW_MR0);
-		/* enable TC0 */
-		writel_relaxed(BM_C0_EN, priv.base + HW_TCR + SET_REG);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* enable reset and stop on match */
-		writel_relaxed(BM_MCR_RES_EN(0) | BM_MCR_STOP_EN(0),
-				priv.base + HW_MCR + SET_REG);
-		break;
-	default:
-		break;
-	}
+static int asm9260_timer_shutdown(struct clock_event_device *evt)
+{
+	__asm9260_timer_shutdown(evt);
+	return 0;
+}
+
+static int asm9260_timer_set_oneshot(struct clock_event_device *evt)
+{
+	__asm9260_timer_shutdown(evt);
+
+	/* enable reset and stop on match */
+	writel_relaxed(BM_MCR_RES_EN(0) | BM_MCR_STOP_EN(0),
+		       priv.base + HW_MCR + SET_REG);
+	return 0;
+}
+
+static int asm9260_timer_set_periodic(struct clock_event_device *evt)
+{
+	__asm9260_timer_shutdown(evt);
+
+	/* disable reset and stop on match */
+	writel_relaxed(BM_MCR_RES_EN(0) | BM_MCR_STOP_EN(0),
+		       priv.base + HW_MCR + CLR_REG);
+	/* configure match count for TC0 */
+	writel_relaxed(priv.ticks_per_jiffy, priv.base + HW_MR0);
+	/* enable TC0 */
+	writel_relaxed(BM_C0_EN, priv.base + HW_TCR + SET_REG);
+	return 0;
 }
 
 static struct clock_event_device event_dev = {
-	.name		= DRIVER_NAME,
-	.rating		= 200,
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_next_event	= asm9260_timer_set_next_event,
-	.set_mode	= asm9260_timer_set_mode,
+	.name			= DRIVER_NAME,
+	.rating			= 200,
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event		= asm9260_timer_set_next_event,
+	.set_state_shutdown	= asm9260_timer_shutdown,
+	.set_state_periodic	= asm9260_timer_set_periodic,
+	.set_state_oneshot	= asm9260_timer_set_oneshot,
+	.tick_resume		= asm9260_timer_shutdown,
 };
 
 static irqreturn_t asm9260_timer_interrupt(int irq, void *dev_id)
@@ -178,7 +192,7 @@ static void __init asm9260_timer_init(struct device_node *np)
 	unsigned long rate;
 
 	priv.base = of_io_request_and_map(np, 0, np->name);
-	if (!priv.base)
+	if (IS_ERR(priv.base))
 		panic("%s: unable to map resource", np->name);
 
 	clk = of_clk_get(np, 0);

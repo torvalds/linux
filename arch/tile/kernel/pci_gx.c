@@ -304,7 +304,7 @@ static struct irq_chip tilegx_legacy_irq_chip = {
  * to Linux which just calls handle_level_irq() after clearing the
  * MAC INTx Assert status bit associated with this interrupt.
  */
-static void trio_handle_level_irq(unsigned int irq, struct irq_desc *desc)
+static void trio_handle_level_irq(struct irq_desc *desc)
 {
 	struct pci_controller *controller = irq_desc_get_handler_data(desc);
 	gxio_trio_context_t *trio_context = controller->trio;
@@ -313,7 +313,7 @@ static void trio_handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	unsigned int reg_offset;
 	uint64_t level_mask;
 
-	handle_level_irq(irq, desc);
+	handle_level_irq(desc);
 
 	/*
 	 * Clear the INTx Level status, otherwise future interrupts are
@@ -1030,6 +1030,8 @@ int __init pcibios_init(void)
 alloc_mem_map_failed:
 			break;
 		}
+
+		pci_bus_add_devices(root_bus);
 	}
 
 	return 0;
@@ -1440,7 +1442,7 @@ static struct pci_ops tile_cfg_ops = {
 /* MSI support starts here. */
 static unsigned int tilegx_msi_startup(struct irq_data *d)
 {
-	if (d->msi_desc)
+	if (irq_data_get_msi_desc(d))
 		pci_msi_unmask_irq(d);
 
 	return 0;

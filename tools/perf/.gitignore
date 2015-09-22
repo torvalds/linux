@@ -1,6 +1,7 @@
 PERF-CFLAGS
 PERF-GUI-VARS
 PERF-VERSION-FILE
+FEATURE-DUMP
 perf
 perf-read-vdso32
 perf-read-vdsox32
@@ -27,3 +28,5 @@ config.mak.autogen
 *-flex.*
 *.pyc
 *.pyo
+.config-detected
+util/intel-pt-decoder/inat-tables.c

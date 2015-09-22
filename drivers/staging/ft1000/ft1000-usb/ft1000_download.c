@@ -95,7 +95,6 @@ struct dsp_file_hdr {
 	long              nDspImages;          /* Number of DSP images in file. */
 };
 
-#pragma pack(1)
 struct dsp_image_info {
 	long              coff_date;           /* Date/time when DSP Coff image was built. */
 	long              begin_offset;        /* Offset in file where image begins. */
@@ -105,7 +104,7 @@ struct dsp_image_info {
 	long              version;             /* Embedded version # of DSP code. */
 	unsigned short    checksum;            /* DSP File checksum */
 	unsigned short    pad1;
-};
+} __packed;
 
 
 /* checks if the doorbell register is cleared */
@@ -180,7 +179,8 @@ static u16 get_handshake(struct ft1000_usb *ft1000dev, u16 expected_value)
 		}
 
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
+					     DWNLD_MAG1_HANDSHAKE_LOC,
+					     (u8 *)&handshake, 1);
 		handshake = ntohs(handshake);
 
 		if (status)
@@ -230,7 +230,7 @@ static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 	while (loopcnt < 100) {
 		if (ft1000dev->usbboot == 2) {
 			status = ft1000_read_dpram32(ft1000dev, 0,
-						     (u8 *)&(ft1000dev->tempbuf[0]), 64);
+						     (u8 *)&ft1000dev->tempbuf[0], 64);
 			for (temp = 0; temp < 16; temp++) {
 				pr_debug("tempbuf %d = 0x%x\n",
 					 temp, ft1000dev->tempbuf[temp]);
@@ -281,12 +281,14 @@ static u16 get_request_type(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
+						 DWNLD_MAG1_TYPE_LOC,
+						 (u8 *)&tempx);
 		tempx = ntohl(tempx);
 	} else {
 		tempx = 0;
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_TYPE_LOC, (u8 *)&tempword, 1);
+					     DWNLD_MAG1_TYPE_LOC,
+					     (u8 *)&tempword, 1);
 		tempx |= (tempword << 16);
 		tempx = ntohl(tempx);
 	}
@@ -304,7 +306,8 @@ static u16 get_request_type_usb(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
+						 DWNLD_MAG1_TYPE_LOC,
+						 (u8 *)&tempx);
 		tempx = ntohl(tempx);
 	} else {
 		if (ft1000dev->usbboot == 2) {
@@ -332,14 +335,17 @@ static long get_request_value(struct ft1000_usb *ft1000dev)
 
 	if (ft1000dev->bootmode == 1) {
 		status = fix_ft1000_read_dpram32(ft1000dev,
-						 DWNLD_MAG1_SIZE_LOC, (u8 *)&value);
+						 DWNLD_MAG1_SIZE_LOC,
+						 (u8 *)&value);
 		value = ntohl(value);
 	} else	{
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 0);
+					     DWNLD_MAG1_SIZE_LOC,
+					     (u8 *)&tempword, 0);
 		value = tempword;
 		status = ft1000_read_dpram16(ft1000dev,
-					     DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
+					     DWNLD_MAG1_SIZE_LOC,
+					     (u8 *)&tempword, 1);
 		value |= (tempword << 16);
 		value = ntohl(value);
 	}
@@ -368,8 +374,8 @@ static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 	u16   chksum;
 
 
-	chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
-		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
+	chksum = (((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
+		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6];
 
 	return chksum;
 }
@@ -538,7 +544,7 @@ static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  usb_sndbulkpipe(ft1000dev->dev,
 					  ft1000dev->bulk_out_endpointAddr),
 			  ft1000dev->tx_buf, byte_length, usb_dnld_complete,
-			  (void *)ft1000dev);
+			  ft1000dev);
 
 	usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
 
@@ -704,7 +710,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				case REQUEST_CODE_SEGMENT:
 					status = request_code_segment(ft1000dev,
 								      &s_file, &c_file,
-								      (const u8 *)boot_end,
+								      boot_end,
 								      true);
 					break;
 				default:
@@ -799,7 +805,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 					status = request_code_segment(ft1000dev,
 								      &s_file, &c_file,
-								      (const u8 *)code_end,
+								      code_end,
 								      false);
 
 					break;
@@ -971,11 +977,11 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 				/* Get buffer for provisioning data */
 				pbuffer =
-					kmalloc((pseudo_header_len +
-						 sizeof(struct pseudo_hdr)),
+					kmalloc(pseudo_header_len +
+						 sizeof(struct pseudo_hdr),
 						GFP_ATOMIC);
 				if (pbuffer) {
-					memcpy(pbuffer, (void *)c_file,
+					memcpy(pbuffer, c_file,
 					       (u32) (pseudo_header_len +
 						      sizeof(struct
 							     pseudo_hdr)));

@@ -143,7 +143,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 		nfs_free_dname(data);
 		ret = nfs_copy_dname(alias, data);
 		spin_lock(&alias->d_lock);
-		if (ret == 0 && alias->d_inode != NULL &&
+		if (ret == 0 && d_really_is_positive(alias) &&
 		    !(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
 			devname_garbage = alias->d_fsdata;
 			alias->d_fsdata = data;
@@ -190,7 +190,7 @@ static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
 	parent = dget_parent(dentry);
 	if (parent == NULL)
 		goto out_free;
-	dir = parent->d_inode;
+	dir = d_inode(parent);
 	/* Non-exclusive lock protects against concurrent lookup() calls */
 	spin_lock(&dir->i_lock);
 	if (atomic_inc_not_zero(&NFS_I(dir)->silly_count) == 0) {
@@ -210,21 +210,21 @@ out_free:
 
 void nfs_wait_on_sillyrename(struct dentry *dentry)
 {
-	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);
+	struct nfs_inode *nfsi = NFS_I(d_inode(dentry));
 
 	wait_event(nfsi->waitqueue, atomic_read(&nfsi->silly_count) <= 1);
 }
 
 void nfs_block_sillyrename(struct dentry *dentry)
 {
-	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);
+	struct nfs_inode *nfsi = NFS_I(d_inode(dentry));
 
 	wait_event(nfsi->waitqueue, atomic_cmpxchg(&nfsi->silly_count, 1, 0) == 1);
 }
 
 void nfs_unblock_sillyrename(struct dentry *dentry)
 {
-	struct inode *dir = dentry->d_inode;
+	struct inode *dir = d_inode(dentry);
 	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_unlinkdata *data;
 
@@ -367,8 +367,8 @@ static void nfs_async_rename_release(void *calldata)
 	struct nfs_renamedata	*data = calldata;
 	struct super_block *sb = data->old_dir->i_sb;
 
-	if (data->old_dentry->d_inode)
-		nfs_mark_for_revalidate(data->old_dentry->d_inode);
+	if (d_really_is_positive(data->old_dentry))
+		nfs_mark_for_revalidate(d_inode(data->old_dentry));
 
 	dput(data->old_dentry);
 	dput(data->new_dentry);
@@ -529,10 +529,10 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out;
 
-	fileid = NFS_FILEID(dentry->d_inode);
+	fileid = NFS_FILEID(d_inode(dentry));
 
 	/* Return delegation in anticipation of the rename */
-	NFS_PROTO(dentry->d_inode)->return_delegation(dentry->d_inode);
+	NFS_PROTO(d_inode(dentry))->return_delegation(d_inode(dentry));
 
 	sdentry = NULL;
 	do {
@@ -554,7 +554,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		 */
 		if (IS_ERR(sdentry))
 			goto out;
-	} while (sdentry->d_inode != NULL); /* need negative lookup */
+	} while (d_inode(sdentry) != NULL); /* need negative lookup */
 
 	/* queue unlink first. Can't do this from rpc_release as it
 	 * has to allocate memory

@@ -140,10 +140,10 @@ static int tile_timer_set_next_event(unsigned long ticks,
  * Whenever anyone tries to change modes, we just mask interrupts
  * and wait for the next event to get set.
  */
-static void tile_timer_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int tile_timer_shutdown(struct clock_event_device *evt)
 {
 	arch_local_irq_mask_now(INT_TILE_TIMER);
+	return 0;
 }
 
 /*
@@ -157,7 +157,9 @@ static DEFINE_PER_CPU(struct clock_event_device, tile_timer) = {
 	.rating = 100,
 	.irq = -1,
 	.set_next_event = tile_timer_set_next_event,
-	.set_mode = tile_timer_set_mode,
+	.set_state_shutdown = tile_timer_shutdown,
+	.set_state_oneshot = tile_timer_shutdown,
+	.tick_resume = tile_timer_shutdown,
 };
 
 void setup_tile_timer(void)
@@ -257,34 +259,34 @@ void update_vsyscall_tz(void)
 
 void update_vsyscall(struct timekeeper *tk)
 {
-	if (tk->tkr.clock != &cycle_counter_cs)
+	if (tk->tkr_mono.clock != &cycle_counter_cs)
 		return;
 
 	write_seqcount_begin(&vdso_data->tb_seq);
 
-	vdso_data->cycle_last		= tk->tkr.cycle_last;
-	vdso_data->mask			= tk->tkr.mask;
-	vdso_data->mult			= tk->tkr.mult;
-	vdso_data->shift		= tk->tkr.shift;
+	vdso_data->cycle_last		= tk->tkr_mono.cycle_last;
+	vdso_data->mask			= tk->tkr_mono.mask;
+	vdso_data->mult			= tk->tkr_mono.mult;
+	vdso_data->shift		= tk->tkr_mono.shift;
 
 	vdso_data->wall_time_sec	= tk->xtime_sec;
-	vdso_data->wall_time_snsec	= tk->tkr.xtime_nsec;
+	vdso_data->wall_time_snsec	= tk->tkr_mono.xtime_nsec;
 
 	vdso_data->monotonic_time_sec	= tk->xtime_sec
 					+ tk->wall_to_monotonic.tv_sec;
-	vdso_data->monotonic_time_snsec	= tk->tkr.xtime_nsec
+	vdso_data->monotonic_time_snsec	= tk->tkr_mono.xtime_nsec
 					+ ((u64)tk->wall_to_monotonic.tv_nsec
-						<< tk->tkr.shift);
+						<< tk->tkr_mono.shift);
 	while (vdso_data->monotonic_time_snsec >=
-					(((u64)NSEC_PER_SEC) << tk->tkr.shift)) {
+					(((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
 		vdso_data->monotonic_time_snsec -=
-					((u64)NSEC_PER_SEC) << tk->tkr.shift;
+					((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
 		vdso_data->monotonic_time_sec++;
 	}
 
 	vdso_data->wall_time_coarse_sec	= tk->xtime_sec;
-	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr.xtime_nsec >>
-						 tk->tkr.shift);
+	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr_mono.xtime_nsec >>
+						 tk->tkr_mono.shift);
 
 	vdso_data->monotonic_time_coarse_sec =
 		vdso_data->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;

@@ -37,8 +37,6 @@
 
 #include <linux/export.h>
 
-#define FILE_DATA(_file) ((_file)->f_path.dentry->d_inode)
-
 #define DEFINE_SIMPLE_DEBUGFS_FILE(name) \
 static int name##_open(struct inode *inode, struct file *file) \
 { \

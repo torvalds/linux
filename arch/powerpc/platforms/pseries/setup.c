@@ -111,7 +111,7 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-static void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void pseries_8259_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
@@ -254,19 +254,26 @@ static void __init pseries_discover_pic(void)
 static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
-	struct device_node *np = rd->dn;
-	struct pci_dn *pci = NULL;
+	struct device_node *parent, *np = rd->dn;
+	struct pci_dn *pdn;
 	int err = NOTIFY_OK;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		pci = np->parent->data;
-		if (pci) {
-			update_dn_pci_info(np, pci->phb);
-
-			/* Create EEH device for the OF node */
-			eeh_dev_init(np, pci->phb);
+		parent = of_get_parent(np);
+		pdn = parent ? PCI_DN(parent) : NULL;
+		if (pdn) {
+			/* Create pdn and EEH device */
+			update_dn_pci_info(np, pdn->phb);
+			eeh_dev_init(PCI_DN(np), pdn->phb);
 		}
+
+		of_node_put(parent);
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		pdn = PCI_DN(np);
+		if (pdn)
+			list_del(&pdn->list);
 		break;
 	default:
 		err = NOTIFY_DONE;
@@ -460,6 +467,47 @@ static long pseries_little_endian_exceptions(void)
 	}
 }
 #endif
+
+static void __init find_and_init_phbs(void)
+{
+	struct device_node *node;
+	struct pci_controller *phb;
+	struct device_node *root = of_find_node_by_path("/");
+
+	for_each_child_of_node(root, node) {
+		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
+					   strcmp(node->type, "pciex") != 0))
+			continue;
+
+		phb = pcibios_alloc_controller(node);
+		if (!phb)
+			continue;
+		rtas_setup_phb(phb);
+		pci_process_bridge_OF_ranges(phb, node, 0);
+		isa_bridge_find_early(phb);
+		phb->controller_ops = pseries_pci_controller_ops;
+	}
+
+	of_node_put(root);
+	pci_devs_phb_init();
+
+	/*
+	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
+	 * in chosen.
+	 */
+	if (of_chosen) {
+		const int *prop;
+
+		prop = of_get_property(of_chosen,
+				"linux,pci-probe-only", NULL);
+		if (prop) {
+			if (*prop)
+				pci_add_flags(PCI_PROBE_ONLY);
+			else
+				pci_clear_flags(PCI_PROBE_ONLY);
+		}
+	}
+}
 
 static void __init pSeries_setup_arch(void)
 {
@@ -793,6 +841,10 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 void pSeries_final_fixup(void) { }
 #endif
 
+struct pci_controller_ops pseries_pci_controller_ops = {
+	.probe_mode		= pSeries_pci_probe_mode,
+};
+
 define_machine(pseries) {
 	.name			= "pSeries",
 	.probe			= pSeries_probe,
@@ -801,7 +853,6 @@ define_machine(pseries) {
 	.show_cpuinfo		= pSeries_show_cpuinfo,
 	.log_error		= pSeries_log_error,
 	.pcibios_fixup		= pSeries_final_fixup,
-	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.restart		= rtas_restart,
 	.halt			= rtas_halt,
 	.panic			= rtas_os_term,

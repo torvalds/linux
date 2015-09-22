@@ -130,11 +130,7 @@ void ctcmpc_dumpit(char *buf, int len)
 	__u32	ct, sw, rm, dup;
 	char	*ptr, *rptr;
 	char	tbuf[82], tdup[82];
-	#ifdef CONFIG_64BIT
 	char	addr[22];
-	#else
-	char	addr[12];
-	#endif
 	char	boff[12];
 	char	bhex[82], duphex[82];
 	char	basc[40];
@@ -147,11 +143,7 @@ void ctcmpc_dumpit(char *buf, int len)
 
 	for (ct = 0; ct < len; ct++, ptr++, rptr++) {
 		if (sw == 0) {
-			#ifdef CONFIG_64BIT
 			sprintf(addr, "%16.16llx", (__u64)rptr);
-			#else
-			sprintf(addr, "%8.8X", (__u32)rptr);
-			#endif
 
 			sprintf(boff, "%4.4X", (__u32)ct);
 			bhex[0] = '\0';
@@ -162,11 +154,7 @@ void ctcmpc_dumpit(char *buf, int len)
 		if (sw == 8)
 			strcat(bhex, "	");
 
-		#if CONFIG_64BIT
 		sprintf(tbuf, "%2.2llX", (__u64)*ptr);
-		#else
-		sprintf(tbuf, "%2.2X", (__u32)*ptr);
-		#endif
 
 		tbuf[2] = '\0';
 		strcat(bhex, tbuf);

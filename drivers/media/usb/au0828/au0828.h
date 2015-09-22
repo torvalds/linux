@@ -209,8 +209,8 @@ struct au0828_dev {
 	struct au0828_rc *ir;
 #endif
 
-	struct video_device *vdev;
-	struct video_device *vbi_dev;
+	struct video_device vdev;
+	struct video_device vbi_dev;
 
 	/* Videobuf2 */
 	struct vb2_queue vb_vidq;

@@ -452,6 +452,7 @@ MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= h3_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

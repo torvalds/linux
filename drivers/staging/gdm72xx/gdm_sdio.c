@@ -223,8 +223,7 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
 				dev_err(&func->dev,
-					"gdmwms: %s error: ret = %d\n",
-					__func__, ret);
+					"gdmwms:  error: ret = %d\n", ret);
 			goto end_io;
 		}
 	}
@@ -237,8 +236,7 @@ static void send_sdio_pkt(struct sdio_func *func, u8 *data, int len)
 		if (ret < 0) {
 			if (ret != -ENOMEDIUM)
 				dev_err(&func->dev,
-					"gdmwms: %s error: ret = %d\n",
-					__func__, ret);
+					"gdmwms:  error: ret = %d\n", ret);
 			goto end_io;
 		}
 	}

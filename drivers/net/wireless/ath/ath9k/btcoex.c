@@ -103,7 +103,9 @@ void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
 		return;
 	}
 
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
+		btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
+	} else if (AR_SREV_9300_20_OR_LATER(ah)) {
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
 		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
 		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;
@@ -307,6 +309,18 @@ static void ath9k_hw_btcoex_enable_mci(struct ath_hw *ah)
 	btcoex->enabled = true;
 }
 
+static void ath9k_hw_btcoex_disable_mci(struct ath_hw *ah)
+{
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	int i;
+
+	ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
+
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
+			  btcoex_hw->wlan_weight[i]);
+}
+
 void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
@@ -318,17 +332,18 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 		ath9k_hw_btcoex_enable_2wire(ah);
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
-		if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
-			ath9k_hw_btcoex_enable_mci(ah);
-			return;
-		}
 		ath9k_hw_btcoex_enable_3wire(ah);
+		break;
+	case ATH_BTCOEX_CFG_MCI:
+		ath9k_hw_btcoex_enable_mci(ah);
 		break;
 	}
 
-	REG_RMW(ah, AR_GPIO_PDPU,
-		(0x2 << (btcoex_hw->btactive_gpio * 2)),
-		(0x3 << (btcoex_hw->btactive_gpio * 2)));
+	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_MCI) {
+		REG_RMW(ah, AR_GPIO_PDPU,
+			(0x2 << (btcoex_hw->btactive_gpio * 2)),
+			(0x3 << (btcoex_hw->btactive_gpio * 2)));
+	}
 
 	ah->btcoex_hw.enabled = true;
 }
@@ -340,14 +355,14 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	int i;
 
 	btcoex_hw->enabled = false;
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
-		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
-		for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
-			REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
-				  btcoex_hw->wlan_weight[i]);
+
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_MCI) {
+		ath9k_hw_btcoex_disable_mci(ah);
 		return;
 	}
-	ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
+
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 
 	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
 			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);

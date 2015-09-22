@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
-#include <linux/resume-trace.h>
+#include <linux/pm-trace.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -272,7 +272,7 @@ static inline void pm_print_times_init(void)
 {
 	pm_print_times_enabled = !!initcall_debug;
 }
-#else /* !CONFIG_PP_SLEEP_DEBUG */
+#else /* !CONFIG_PM_SLEEP_DEBUG */
 static inline void pm_print_times_init(void) {}
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 

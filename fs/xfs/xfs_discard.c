@@ -84,7 +84,7 @@ xfs_trim_extents(
 		error = xfs_alloc_get_rec(cur, &fbno, &flen, &i);
 		if (error)
 			goto out_del_cursor;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, out_del_cursor);
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_del_cursor);
 		ASSERT(flen <= be32_to_cpu(XFS_BUF_TO_AGF(agbp)->agf_longest));
 
 		/*

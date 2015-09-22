@@ -51,10 +51,7 @@ void ceph_put_page_vector(struct page **pages, int num_pages, bool dirty)
 			set_page_dirty_lock(pages[i]);
 		put_page(pages[i]);
 	}
-	if (is_vmalloc_addr(pages))
-		vfree(pages);
-	else
-		kfree(pages);
+	kvfree(pages);
 }
 EXPORT_SYMBOL(ceph_put_page_vector);
 

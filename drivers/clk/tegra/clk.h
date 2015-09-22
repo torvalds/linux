@@ -548,7 +548,7 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 		u8 width, u8 pllx_index, u8 div2_index, spinlock_t *lock);
 
 /**
- * struct clk_init_tabel - clock initialization table
+ * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
  * @parent_id:	parent clock id as mentioned in device tree bindings
  * @rate:	rate to set
@@ -591,6 +591,9 @@ struct tegra_devclk {
 	char		*con_id;
 };
 
+void tegra_init_special_resets(unsigned int num, int (*assert)(unsigned long),
+			       int (*deassert)(unsigned long));
+
 void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 		struct clk *clks[], int clk_max);
 
@@ -615,13 +618,25 @@ void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 
 void tegra_pmc_clk_init(void __iomem *pmc_base, struct tegra_clk *tegra_clks);
 void tegra_fixed_clk_init(struct tegra_clk *tegra_clks);
-int tegra_osc_clk_init(void __iomem *clk_base, struct tegra_clk *tegra_clks,
-				unsigned long *input_freqs, int num,
-				unsigned long *osc_freq,
-				unsigned long *pll_ref_freq);
+int tegra_osc_clk_init(void __iomem *clk_base, struct tegra_clk *clks,
+		       unsigned long *input_freqs, unsigned int num,
+		       unsigned int clk_m_div, unsigned long *osc_freq,
+		       unsigned long *pll_ref_freq);
 void tegra_super_clk_gen4_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_clk_pll_params *pll_params);
+
+#ifdef CONFIG_TEGRA_CLK_EMC
+struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
+				   spinlock_t *lock);
+#else
+static inline struct clk *tegra_clk_register_emc(void __iomem *base,
+						 struct device_node *np,
+						 spinlock_t *lock)
+{
+	return NULL;
+}
+#endif
 
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);

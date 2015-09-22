@@ -20,6 +20,7 @@
 
 #include <linux/time.h>
 #include <linux/pagemap.h>
+#include <linux/dax.h>
 #include <linux/quotaops.h>
 #include "ext2.h"
 #include "xattr.h"
@@ -28,17 +29,25 @@
 #ifdef CONFIG_FS_DAX
 static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_fault(vma, vmf, ext2_get_block);
+	return dax_fault(vma, vmf, ext2_get_block, NULL);
+}
+
+static int ext2_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
+						pmd_t *pmd, unsigned int flags)
+{
+	return dax_pmd_fault(vma, addr, pmd, flags, ext2_get_block, NULL);
 }
 
 static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return dax_mkwrite(vma, vmf, ext2_get_block);
+	return dax_mkwrite(vma, vmf, ext2_get_block, NULL);
 }
 
 static const struct vm_operations_struct ext2_dax_vm_ops = {
 	.fault		= ext2_dax_fault,
+	.pmd_fault	= ext2_dax_pmd_fault,
 	.page_mkwrite	= ext2_dax_mkwrite,
+	.pfn_mkwrite	= dax_pfn_mkwrite,
 };
 
 static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
@@ -48,7 +57,7 @@ static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	file_accessed(file);
 	vma->vm_ops = &ext2_dax_vm_ops;
-	vma->vm_flags |= VM_MIXEDMAP;
+	vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	return 0;
 }
 #else
@@ -92,8 +101,6 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  */
 const struct file_operations ext2_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.unlocked_ioctl = ext2_ioctl,
@@ -107,24 +114,6 @@ const struct file_operations ext2_file_operations = {
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 };
-
-#ifdef CONFIG_FS_DAX
-const struct file_operations ext2_dax_file_operations = {
-	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
-	.read_iter	= generic_file_read_iter,
-	.write_iter	= generic_file_write_iter,
-	.unlocked_ioctl = ext2_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ext2_compat_ioctl,
-#endif
-	.mmap		= ext2_file_mmap,
-	.open		= dquot_file_open,
-	.release	= ext2_release_file,
-	.fsync		= ext2_fsync,
-};
-#endif
 
 const struct inode_operations ext2_file_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR

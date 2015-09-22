@@ -15,6 +15,7 @@
 #include <linux/clkdev.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 
 #ifdef CONFIG_PM
 
@@ -37,7 +38,7 @@ struct pm_clock_entry {
  * @dev: The device for the given clock
  * @ce: PM clock entry corresponding to the clock.
  */
-static inline int __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
+static inline void __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
 {
 	int ret;
 
@@ -49,8 +50,6 @@ static inline int __pm_clk_enable(struct device *dev, struct pm_clock_entry *ce)
 			dev_err(dev, "%s: failed to enable clk %p, error %d\n",
 				__func__, ce->clk, ret);
 	}
-
-	return ret;
 }
 
 /**
@@ -67,7 +66,8 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 	} else {
 		clk_prepare(ce->clk);
 		ce->status = PCE_STATUS_ACQUIRED;
-		dev_dbg(dev, "Clock %s managed by runtime PM.\n", ce->con_id);
+		dev_dbg(dev, "Clock %pC con_id %s managed by runtime PM.\n",
+			ce->clk, ce->con_id);
 	}
 }
 
@@ -93,7 +93,7 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 			return -ENOMEM;
 		}
 	} else {
-		if (IS_ERR(ce->clk) || !__clk_get(clk)) {
+		if (IS_ERR(clk) || !__clk_get(clk)) {
 			kfree(ce);
 			return -ENOENT;
 		}
@@ -365,6 +365,43 @@ static int pm_clk_notify(struct notifier_block *nb,
 	}
 
 	return 0;
+}
+
+int pm_clk_runtime_suspend(struct device *dev)
+{
+	int ret;
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	ret = pm_generic_runtime_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend device\n");
+		return ret;
+	}
+
+	ret = pm_clk_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend clock\n");
+		pm_generic_runtime_resume(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+int pm_clk_runtime_resume(struct device *dev)
+{
+	int ret;
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	ret = pm_clk_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume clock\n");
+		return ret;
+	}
+
+	return pm_generic_runtime_resume(dev);
 }
 
 #else /* !CONFIG_PM */

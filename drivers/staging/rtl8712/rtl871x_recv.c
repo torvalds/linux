@@ -517,8 +517,7 @@ static sint validate_recv_data_frame(struct _adapter *adapter,
 		return _FAIL;
 	if (psta == NULL)
 		return _FAIL;
-	else
-		precv_frame->u.hdr.psta = psta;
+	precv_frame->u.hdr.psta = psta;
 	pattrib->amsdu = 0;
 	/* parsing QC field */
 	if (pattrib->qos == 1) {

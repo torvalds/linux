@@ -40,6 +40,7 @@
 #include "subscr.h"
 #include "socket.h"
 #include "node.h"
+#include "bcast.h"
 
 static const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
 	[TIPC_NLA_NET_UNSPEC]	= { .type = NLA_UNSPEC },

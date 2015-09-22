@@ -375,7 +375,7 @@ xfs_compat_attrlist_by_handle(
 		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
+	error = xfs_attr_list(XFS_I(d_inode(dentry)), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -445,7 +445,7 @@ xfs_compat_attrmulti_by_handle(
 		switch (ops[i].am_opcode) {
 		case ATTR_OP_GET:
 			ops[i].am_error = xfs_attrmulti_attr_get(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					&ops[i].am_length, ops[i].am_flags);
 			break;
@@ -454,7 +454,7 @@ xfs_compat_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_set(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					ops[i].am_length, ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
@@ -464,7 +464,7 @@ xfs_compat_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_remove(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
 			break;
@@ -504,7 +504,7 @@ xfs_compat_fssetdm_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode)) {
+	if (IS_IMMUTABLE(d_inode(dentry)) || IS_APPEND(d_inode(dentry))) {
 		error = -EPERM;
 		goto out;
 	}
@@ -514,7 +514,7 @@ xfs_compat_fssetdm_by_handle(
 		goto out;
 	}
 
-	error = xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
+	error = xfs_set_dmattrs(XFS_I(d_inode(dentry)), fsd.fsd_dmevmask,
 				 fsd.fsd_dmstate);
 
 out:

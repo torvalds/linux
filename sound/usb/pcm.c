@@ -80,7 +80,7 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 	unsigned int hwptr_done;
 
 	subs = (struct snd_usb_substream *)substream->runtime->private_data;
-	if (subs->stream->chip->shutdown)
+	if (atomic_read(&subs->stream->chip->shutdown))
 		return SNDRV_PCM_POS_XRUN;
 	spin_lock(&subs->lock);
 	hwptr_done = subs->hwptr_done;
@@ -391,6 +391,20 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	 */
 	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 
+	if ((is_playback && (attr != USB_ENDPOINT_SYNC_ASYNC)) ||
+		(!is_playback && (attr != USB_ENDPOINT_SYNC_ADAPTIVE))) {
+
+		/*
+		 * In these modes the notion of sync_endpoint is irrelevant.
+		 * Reset pointers to avoid using stale data from previously
+		 * used settings, e.g. when configuration and endpoints were
+		 * changed
+		 */
+
+		subs->sync_endpoint = NULL;
+		subs->data_endpoint->sync_master = NULL;
+	}
+
 	err = set_sync_ep_implicit_fb_quirk(subs, dev, altsd, attr);
 	if (err < 0)
 		return err;
@@ -398,9 +412,16 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	if (altsd->bNumEndpoints < 2)
 		return 0;
 
-	if ((is_playback && attr != USB_ENDPOINT_SYNC_ASYNC) ||
+	if ((is_playback && (attr == USB_ENDPOINT_SYNC_SYNC ||
+			     attr == USB_ENDPOINT_SYNC_ADAPTIVE)) ||
 	    (!is_playback && attr != USB_ENDPOINT_SYNC_ADAPTIVE))
 		return 0;
+
+	/*
+	 * In case of illegal SYNC_NONE for OUT endpoint, we keep going to see
+	 * if we don't find a sync endpoint, as on M-Audio Transit. In case of
+	 * error fall back to SYNC mode and don't create sync endpoint
+	 */
 
 	/* check sync-pipe endpoint */
 	/* ... and check descriptor size before accessing bSynchAddress
@@ -415,6 +436,8 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 			   get_endpoint(alts, 1)->bmAttributes,
 			   get_endpoint(alts, 1)->bLength,
 			   get_endpoint(alts, 1)->bSynchAddress);
+		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+			return 0;
 		return -EINVAL;
 	}
 	ep = get_endpoint(alts, 1)->bEndpointAddress;
@@ -425,6 +448,8 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 			"%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
 			   fmt->iface, fmt->altsetting,
 			   is_playback, ep, get_endpoint(alts, 0)->bSynchAddress);
+		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+			return 0;
 		return -EINVAL;
 	}
 
@@ -436,8 +461,11 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 						   implicit_fb ?
 							SND_USB_ENDPOINT_TYPE_DATA :
 							SND_USB_ENDPOINT_TYPE_SYNC);
-	if (!subs->sync_endpoint)
+	if (!subs->sync_endpoint) {
+		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+			return 0;
 		return -EINVAL;
+	}
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
@@ -707,12 +735,11 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	down_read(&subs->stream->chip->shutdown_rwsem);
-	if (subs->stream->chip->shutdown)
-		ret = -ENODEV;
-	else
-		ret = set_format(subs, fmt);
-	up_read(&subs->stream->chip->shutdown_rwsem);
+	ret = snd_usb_lock_shutdown(subs->stream->chip);
+	if (ret < 0)
+		return ret;
+	ret = set_format(subs, fmt);
+	snd_usb_unlock_shutdown(subs->stream->chip);
 	if (ret < 0)
 		return ret;
 
@@ -735,13 +762,12 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
-	down_read(&subs->stream->chip->shutdown_rwsem);
-	if (!subs->stream->chip->shutdown) {
+	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
 		stop_endpoints(subs, true);
 		snd_usb_endpoint_deactivate(subs->sync_endpoint);
 		snd_usb_endpoint_deactivate(subs->data_endpoint);
+		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
-	up_read(&subs->stream->chip->shutdown_rwsem);
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -763,11 +789,9 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		return -ENXIO;
 	}
 
-	down_read(&subs->stream->chip->shutdown_rwsem);
-	if (subs->stream->chip->shutdown) {
-		ret = -ENODEV;
-		goto unlock;
-	}
+	ret = snd_usb_lock_shutdown(subs->stream->chip);
+	if (ret < 0)
+		return ret;
 	if (snd_BUG_ON(!subs->data_endpoint)) {
 		ret = -EIO;
 		goto unlock;
@@ -816,7 +840,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		ret = start_endpoints(subs, true);
 
  unlock:
-	up_read(&subs->stream->chip->shutdown_rwsem);
+	snd_usb_unlock_shutdown(subs->stream->chip);
 	return ret;
 }
 
@@ -1218,9 +1242,11 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
 
 	stop_endpoints(subs, true);
 
-	if (!as->chip->shutdown && subs->interface >= 0) {
+	if (subs->interface >= 0 &&
+	    !snd_usb_lock_shutdown(subs->stream->chip)) {
 		usb_set_interface(subs->dev, subs->interface, 0);
 		subs->interface = -1;
+		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
 
 	subs->pcm_substream = NULL;

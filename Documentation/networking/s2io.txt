@@ -38,7 +38,7 @@ The corresponding adapter's LED will blink multiple times.
 
 3.	Features supported:
 a. Jumbo frames. Xframe I/II supports MTU up to 9600 bytes,
-modifiable using ifconfig command.
+modifiable using ip command.
 
 b. Offloads. Supports checksum offload(TCP/UDP/IP) on transmit
 and receive, TSO.

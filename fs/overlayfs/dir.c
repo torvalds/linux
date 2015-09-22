@@ -222,6 +222,9 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	struct kstat stat;
 	int err;
 
+	if (WARN_ON(!workdir))
+		return ERR_PTR(-EROFS);
+
 	err = ovl_lock_rename_workdir(workdir, upperdir);
 	if (err)
 		goto out;
@@ -321,6 +324,9 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	struct dentry *upper;
 	struct dentry *newdentry;
 	int err;
+
+	if (WARN_ON(!workdir))
+		return -EROFS;
 
 	err = ovl_lock_rename_workdir(workdir, upperdir);
 	if (err)
@@ -506,11 +512,28 @@ static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
 	struct dentry *opaquedir = NULL;
 	int err;
 
-	if (is_dir && OVL_TYPE_MERGE_OR_LOWER(ovl_path_type(dentry))) {
-		opaquedir = ovl_check_empty_and_clear(dentry);
-		err = PTR_ERR(opaquedir);
-		if (IS_ERR(opaquedir))
-			goto out;
+	if (WARN_ON(!workdir))
+		return -EROFS;
+
+	if (is_dir) {
+		if (OVL_TYPE_MERGE_OR_LOWER(ovl_path_type(dentry))) {
+			opaquedir = ovl_check_empty_and_clear(dentry);
+			err = PTR_ERR(opaquedir);
+			if (IS_ERR(opaquedir))
+				goto out;
+		} else {
+			LIST_HEAD(list);
+
+			/*
+			 * When removing an empty opaque directory, then it
+			 * makes no sense to replace it with an exact replica of
+			 * itself.  But emptiness still needs to be checked.
+			 */
+			err = ovl_check_empty_dir(dentry, &list);
+			ovl_cache_free(&list);
+			if (err)
+				goto out;
+		}
 	}
 
 	err = ovl_lock_rename_workdir(workdir, upperdir);

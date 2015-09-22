@@ -128,14 +128,14 @@ static struct hypfs_dbfs_file hypfs_sprp_file = {
 
 int hypfs_sprp_init(void)
 {
-	if (!sclp_has_sprp())
+	if (!sclp.has_sprp)
 		return 0;
 	return hypfs_dbfs_create_file(&hypfs_sprp_file);
 }
 
 void hypfs_sprp_exit(void)
 {
-	if (!sclp_has_sprp())
+	if (!sclp.has_sprp)
 		return;
 	hypfs_dbfs_remove_file(&hypfs_sprp_file);
 }

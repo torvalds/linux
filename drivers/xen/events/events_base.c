@@ -39,8 +39,8 @@
 #include <asm/irq.h>
 #include <asm/idle.h>
 #include <asm/io_apic.h>
-#include <asm/xen/page.h>
 #include <asm/xen/pci.h>
+#include <xen/page.h>
 #endif
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
@@ -336,7 +336,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_get_affinity_mask(irq), cpumask_of(cpu));
 #endif
 	xen_evtchn_port_bind_to_cpu(info, cpu);
 
@@ -373,7 +373,7 @@ static void xen_irq_init(unsigned irq)
 	struct irq_info *info;
 #ifdef CONFIG_SMP
 	/* By default all event channels notify CPU#0. */
-	cpumask_copy(irq_get_irq_data(irq)->affinity, cpumask_of(0));
+	cpumask_copy(irq_get_affinity_mask(irq), cpumask_of(0));
 #endif
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -529,8 +529,8 @@ static unsigned int __startup_pirq(unsigned int irq)
 	if (rc)
 		goto err;
 
-	bind_evtchn_to_cpu(evtchn, 0);
 	info->evtchn = evtchn;
+	bind_evtchn_to_cpu(evtchn, 0);
 
 	rc = xen_evtchn_port_setup(info);
 	if (rc)
@@ -957,7 +957,7 @@ unsigned xen_evtchn_nr_channels(void)
 }
 EXPORT_SYMBOL_GPL(xen_evtchn_nr_channels);
 
-int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
+int bind_virq_to_irq(unsigned int virq, unsigned int cpu, bool percpu)
 {
 	struct evtchn_bind_virq bind_virq;
 	int evtchn, irq, ret;
@@ -971,8 +971,12 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		if (irq < 0)
 			goto out;
 
-		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
-					      handle_percpu_irq, "virq");
+		if (percpu)
+			irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
+						      handle_percpu_irq, "virq");
+		else
+			irq_set_chip_and_handler_name(irq, &xen_dynamic_chip,
+						      handle_edge_irq, "virq");
 
 		bind_virq.virq = virq;
 		bind_virq.vcpu = cpu;
@@ -1062,7 +1066,7 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 {
 	int irq, retval;
 
-	irq = bind_virq_to_irq(virq, cpu);
+	irq = bind_virq_to_irq(virq, cpu, irqflags & IRQF_PERCPU);
 	if (irq < 0)
 		return irq;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
@@ -1279,8 +1283,9 @@ void rebind_evtchn_irq(int evtchn, int irq)
 
 	mutex_unlock(&irq_mapping_update_lock);
 
-	/* new event channels are always bound to cpu 0 */
-	irq_set_affinity(irq, cpumask_of(0));
+        bind_evtchn_to_cpu(evtchn, info->cpu);
+	/* This will be deferred until interrupt is processed */
+	irq_set_affinity(irq, cpumask_of(info->cpu));
 
 	/* Unmask the event channel. */
 	enable_irq(irq);
@@ -1296,11 +1301,7 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	if (!VALID_EVTCHN(evtchn))
 		return -1;
 
-	/*
-	 * Events delivered via platform PCI interrupts are always
-	 * routed to vcpu 0 and hence cannot be rebound.
-	 */
-	if (xen_hvm_domain() && !xen_have_vector_callback)
+	if (!xen_support_evtchn_rebind())
 		return -1;
 
 	/* Send future instances of this interrupt to other vcpu. */
@@ -1687,7 +1688,7 @@ void __init xen_init_IRQ(void)
 		struct physdev_pirq_eoi_gmfn eoi_gmfn;
 
 		pirq_eoi_map = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-		eoi_gmfn.gmfn = virt_to_mfn(pirq_eoi_map);
+		eoi_gmfn.gmfn = virt_to_gfn(pirq_eoi_map);
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn_v2, &eoi_gmfn);
 		/* TODO: No PVH support for PIRQ EOI */
 		if (rc != 0) {

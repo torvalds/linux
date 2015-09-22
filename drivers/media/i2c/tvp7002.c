@@ -611,31 +611,6 @@ static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 /*
- * tvp7002_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to mediabus format structure
- *
- * Negotiate the image capture size and mediabus format.
- * There is only one possible format, so this single function works for
- * get, set and try.
- */
-static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
-{
-	struct tvp7002 *device = to_tvp7002(sd);
-	const struct v4l2_bt_timings *bt = &device->current_timings->timings.bt;
-
-	f->width = bt->width;
-	f->height = bt->height;
-	f->code = MEDIA_BUS_FMT_YUYV10_1X20;
-	f->field = device->current_timings->scanmode;
-	f->colorspace = device->current_timings->color_space;
-
-	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d",
-			f->width, f->height);
-	return 0;
-}
-
-/*
  * tvp7002_query_dv() - query DV timings
  * @sd: pointer to standard V4L2 sub-device structure
  * @index: index into the tvp7002_timings array
@@ -747,25 +722,6 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
 #endif
 
 /*
- * tvp7002_enum_mbus_fmt() - Enum supported mediabus formats
- * @sd: pointer to standard V4L2 sub-device structure
- * @index: format index
- * @code: pointer to mediabus format
- *
- * Enumerate supported mediabus formats.
- */
-
-static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
-					u32 *code)
-{
-	/* Check requested format index is within range */
-	if (index)
-		return -EINVAL;
-	*code = MEDIA_BUS_FMT_YUYV10_1X20;
-	return 0;
-}
-
-/*
  * tvp7002_s_stream() - V4L2 decoder i/f handler for s_stream
  * @sd: pointer to standard V4L2 sub-device structure
  * @enable: streaming enable or disable
@@ -846,13 +802,13 @@ static const struct v4l2_ctrl_ops tvp7002_ctrl_ops = {
 /*
  * tvp7002_enum_mbus_code() - Enum supported digital video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @fh: file handle for the subdev
+ * @cfg: pad configuration
  * @code: pointer to subdev enum mbus code struct
  *
  * Enumerate supported digital video formats for pad.
  */
 static int
-tvp7002_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+tvp7002_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_mbus_code_enum *code)
 {
 	/* Check requested format index is within range */
@@ -867,13 +823,13 @@ tvp7002_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * tvp7002_get_pad_format() - get video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @fh: file handle for the subdev
+ * @cfg: pad configuration
  * @fmt: pointer to subdev format struct
  *
  * get video format for pad.
  */
 static int
-tvp7002_get_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+tvp7002_get_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *fmt)
 {
 	struct tvp7002 *tvp7002 = to_tvp7002(sd);
@@ -890,28 +846,21 @@ tvp7002_get_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * tvp7002_set_pad_format() - set video format on pad
  * @sd: pointer to standard V4L2 sub-device structure
- * @fh: file handle for the subdev
+ * @cfg: pad configuration
  * @fmt: pointer to subdev format struct
  *
  * set video format for pad.
  */
 static int
-tvp7002_set_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+tvp7002_set_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *fmt)
 {
-	return tvp7002_get_pad_format(sd, fh, fmt);
+	return tvp7002_get_pad_format(sd, cfg, fmt);
 }
 
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.log_status = tvp7002_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp7002_g_register,
 	.s_register = tvp7002_s_register,
@@ -924,10 +873,6 @@ static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 	.s_dv_timings = tvp7002_s_dv_timings,
 	.query_dv_timings = tvp7002_query_dv_timings,
 	.s_stream = tvp7002_s_stream,
-	.g_mbus_fmt = tvp7002_mbus_fmt,
-	.try_mbus_fmt = tvp7002_mbus_fmt,
-	.s_mbus_fmt = tvp7002_mbus_fmt,
-	.enum_mbus_fmt = tvp7002_enum_mbus_fmt,
 };
 
 /* media pad related operation handlers */
@@ -1116,7 +1061,6 @@ static int tvp7002_remove(struct i2c_client *c)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&device->sd.entity);
 #endif
-	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&device->hdl);
 	return 0;
 }

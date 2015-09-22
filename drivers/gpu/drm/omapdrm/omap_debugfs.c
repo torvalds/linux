@@ -17,11 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
-
-#include "drm_fb_helper.h"
-
 
 #ifdef CONFIG_DEBUG_FS
 

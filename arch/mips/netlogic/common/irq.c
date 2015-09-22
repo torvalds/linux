@@ -87,7 +87,7 @@ struct nlm_pic_irq {
 static void xlp_pic_enable(struct irq_data *d)
 {
 	unsigned long flags;
-	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
+	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
 	BUG_ON(!pd);
 	spin_lock_irqsave(&pd->node->piclock, flags);
@@ -97,7 +97,7 @@ static void xlp_pic_enable(struct irq_data *d)
 
 static void xlp_pic_disable(struct irq_data *d)
 {
-	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
+	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
 	BUG_ON(!pd);
@@ -108,7 +108,7 @@ static void xlp_pic_disable(struct irq_data *d)
 
 static void xlp_pic_mask_ack(struct irq_data *d)
 {
-	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
+	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
 	clear_c0_eimr(pd->picirq);
 	ack_c0_eirr(pd->picirq);
@@ -116,7 +116,7 @@ static void xlp_pic_mask_ack(struct irq_data *d)
 
 static void xlp_pic_unmask(struct irq_data *d)
 {
-	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
+	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
 	BUG_ON(!pd);
 
@@ -193,7 +193,7 @@ void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
 	pic_data->picirq = picirq;
 	pic_data->node = nlm_get_node(node);
 	irq_set_chip_and_handler(xirq, &xlp_pic, handle_level_irq);
-	irq_set_handler_data(xirq, pic_data);
+	irq_set_chip_data(xirq, pic_data);
 }
 
 void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
@@ -202,7 +202,7 @@ void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
 	int xirq;
 
 	xirq = nlm_irq_to_xirq(node, irq);
-	pic_data = irq_get_handler_data(xirq);
+	pic_data = irq_get_chip_data(xirq);
 	if (WARN_ON(!pic_data))
 		return;
 	pic_data->extra_ack = xack;
@@ -230,16 +230,16 @@ static void nlm_init_node_irqs(int node)
 	}
 }
 
-void nlm_smp_irq_init(int hwcpuid)
+void nlm_smp_irq_init(int hwtid)
 {
-	int node, cpu;
+	int cpu, node;
 
-	node = nlm_cpuid_to_node(hwcpuid);
-	cpu  = hwcpuid % nlm_threads_per_node();
+	cpu = hwtid % nlm_threads_per_node();
+	node = hwtid / nlm_threads_per_node();
 
 	if (cpu == 0 && node != 0)
 		nlm_init_node_irqs(node);
-	write_c0_eimr(nlm_current_node()->irqmask);
+	write_c0_eimr(nlm_get_node(node)->irqmask);
 }
 
 asmlinkage void plat_irq_dispatch(void)

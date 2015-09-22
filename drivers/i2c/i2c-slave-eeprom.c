@@ -36,7 +36,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 	struct eeprom_data *eeprom = i2c_get_clientdata(client);
 
 	switch (event) {
-	case I2C_SLAVE_REQ_WRITE_END:
+	case I2C_SLAVE_WRITE_RECEIVED:
 		if (eeprom->first_write) {
 			eeprom->buffer_idx = *val;
 			eeprom->first_write = false;
@@ -47,17 +47,23 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 		}
 		break;
 
-	case I2C_SLAVE_REQ_READ_START:
+	case I2C_SLAVE_READ_PROCESSED:
+		/* The previous byte made it to the bus, get next one */
+		eeprom->buffer_idx++;
+		/* fallthrough */
+	case I2C_SLAVE_READ_REQUESTED:
 		spin_lock(&eeprom->buffer_lock);
 		*val = eeprom->buffer[eeprom->buffer_idx];
 		spin_unlock(&eeprom->buffer_lock);
-		break;
-
-	case I2C_SLAVE_REQ_READ_END:
-		eeprom->buffer_idx++;
+		/*
+		 * Do not increment buffer_idx here, because we don't know if
+		 * this byte will be actually used. Read Linux I2C slave docs
+		 * for details.
+		 */
 		break;
 
 	case I2C_SLAVE_STOP:
+	case I2C_SLAVE_WRITE_REQUESTED:
 		eeprom->first_write = true;
 		break;
 
@@ -74,9 +80,6 @@ static ssize_t i2c_slave_eeprom_bin_read(struct file *filp, struct kobject *kobj
 	struct eeprom_data *eeprom;
 	unsigned long flags;
 
-	if (off + count > attr->size)
-		return -EFBIG;
-
 	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	spin_lock_irqsave(&eeprom->buffer_lock, flags);
@@ -91,9 +94,6 @@ static ssize_t i2c_slave_eeprom_bin_write(struct file *filp, struct kobject *kob
 {
 	struct eeprom_data *eeprom;
 	unsigned long flags;
-
-	if (off + count > attr->size)
-		return -EFBIG;
 
 	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
@@ -157,7 +157,6 @@ MODULE_DEVICE_TABLE(i2c, i2c_slave_eeprom_id);
 static struct i2c_driver i2c_slave_eeprom_driver = {
 	.driver = {
 		.name = "i2c-slave-eeprom",
-		.owner = THIS_MODULE,
 	},
 	.probe = i2c_slave_eeprom_probe,
 	.remove = i2c_slave_eeprom_remove,

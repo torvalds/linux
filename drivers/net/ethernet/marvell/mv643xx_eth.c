@@ -1859,13 +1859,10 @@ oom:
 		return;
 	}
 
-	mc_spec = kmalloc(0x200, GFP_ATOMIC);
+	mc_spec = kzalloc(0x200, GFP_ATOMIC);
 	if (mc_spec == NULL)
 		goto oom;
 	mc_other = mc_spec + (0x100 >> 2);
-
-	memset(mc_spec, 0, 0x100);
-	memset(mc_other, 0, 0x100);
 
 	netdev_for_each_mc_addr(ha, dev) {
 		u8 *a = ha->addr;
@@ -3125,9 +3122,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	mib_counters_clear(mp);
 
-	init_timer(&mp->mib_counters_timer);
-	mp->mib_counters_timer.data = (unsigned long)mp;
-	mp->mib_counters_timer.function = mib_counters_timer_wrapper;
+	setup_timer(&mp->mib_counters_timer, mib_counters_timer_wrapper,
+		    (unsigned long)mp);
 	mp->mib_counters_timer.expires = jiffies + 30 * HZ;
 
 	spin_lock_init(&mp->mib_counters_lock);
@@ -3136,9 +3132,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, NAPI_POLL_WEIGHT);
 
-	init_timer(&mp->rx_oom);
-	mp->rx_oom.data = (unsigned long)mp;
-	mp->rx_oom.function = oom_timer_wrapper;
+	setup_timer(&mp->rx_oom, oom_timer_wrapper, (unsigned long)mp);
 
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

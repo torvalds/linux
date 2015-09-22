@@ -16,6 +16,7 @@ if STMMAC_ETH
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
+	select MFD_SYSCON
 	default y
 	---help---
 	  This selects the platform specific bus support for the stmmac driver.
@@ -25,6 +26,95 @@ config STMMAC_PLATFORM
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+if STMMAC_PLATFORM
+
+config DWMAC_GENERIC
+	tristate "Generic driver for DWMAC"
+	default STMMAC_PLATFORM
+	---help---
+	  Generic DWMAC driver for platforms that don't require any
+	  platform specific code to function or is using platform
+	  data for setup.
+
+config DWMAC_IPQ806X
+	tristate "QCA IPQ806x DWMAC support"
+	default ARCH_QCOM
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for QCA IPQ806X DWMAC Ethernet.
+
+	  This selects the IPQ806x SoC glue layer support for the stmmac
+	  device driver. This driver does not use any of the hardware
+	  acceleration features available on this SoC. Network devices
+	  will behave like standard non-accelerated ethernet interfaces.
+
+config DWMAC_LPC18XX
+	tristate "NXP LPC18xx/43xx DWMAC support"
+	default ARCH_LPC18XX
+	depends on OF
+	select MFD_SYSCON
+	---help---
+	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
+
+config DWMAC_MESON
+	tristate "Amlogic Meson dwmac support"
+	default ARCH_MESON
+	depends on OF
+	help
+	  Support for Ethernet controller on Amlogic Meson SoCs.
+
+	  This selects the Amlogic Meson SoC glue layer support for
+	  the stmmac device driver. This driver is used for Meson6 and
+	  Meson8 SoCs.
+
+config DWMAC_ROCKCHIP
+	tristate "Rockchip dwmac support"
+	default ARCH_ROCKCHIP
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for Ethernet controller on Rockchip RK3288 SoC.
+
+	  This selects the Rockchip RK3288 SoC glue layer support for
+	  the stmmac device driver.
+
+config DWMAC_SOCFPGA
+	tristate "SOCFPGA dwmac support"
+	default ARCH_SOCFPGA
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for ethernet controller on Altera SOCFPGA
+
+	  This selects the Altera SOCFPGA SoC glue layer support
+	  for the stmmac device driver. This driver is used for
+	  arria5 and cyclone5 FPGA SoCs.
+
+config DWMAC_STI
+	tristate "STi GMAC support"
+	default ARCH_STI
+	depends on OF
+	select MFD_SYSCON
+	---help---
+	  Support for ethernet controller on STi SOCs.
+
+	  This selects STi SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STi series
+	  SOCs GMAC ethernet controller.
+
+config DWMAC_SUNXI
+	tristate "Allwinner GMAC support"
+	default ARCH_SUNXI
+	depends on OF
+	---help---
+	  Support for Allwinner A20/A31 GMAC ethernet controllers.
+
+	  This selects Allwinner SoC glue layer support for the
+	  stmmac device driver. This driver is used for A20/A31
+	  GMAC ethernet controller.
+endif
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"

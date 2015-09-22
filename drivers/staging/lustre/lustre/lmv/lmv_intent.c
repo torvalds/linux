@@ -99,8 +99,8 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 		goto out;
 	}
 
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL) {
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -142,7 +142,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	it->d.lustre.it_lock_mode = pmode;
 
 out_free_op_data:
-	OBD_FREE_PTR(op_data);
+	kfree(op_data);
 out:
 	if (rc && pmode)
 		ldlm_lock_decref(&plock, pmode);

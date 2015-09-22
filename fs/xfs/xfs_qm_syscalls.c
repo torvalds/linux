@@ -38,7 +38,6 @@
 STATIC int	xfs_qm_log_quotaoff(xfs_mount_t *, xfs_qoff_logitem_t **, uint);
 STATIC int	xfs_qm_log_quotaoff_end(xfs_mount_t *, xfs_qoff_logitem_t *,
 					uint);
-STATIC uint	xfs_qm_export_flags(uint);
 
 /*
  * Turn off quota accounting and/or enforcement for all udquots and/or
@@ -240,7 +239,7 @@ xfs_qm_scall_trunc_qfile(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 		goto out_put;
 	}
@@ -253,15 +252,14 @@ xfs_qm_scall_trunc_qfile(
 
 	error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
 	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
-				     XFS_TRANS_ABORT);
+		xfs_trans_cancel(tp);
 		goto out_unlock;
 	}
 
 	ASSERT(ip->i_d.di_nextents == 0);
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp);
 
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
@@ -389,159 +387,6 @@ xfs_qm_scall_quotaon(
 	return 0;
 }
 
-
-/*
- * Return quota status information, such as uquota-off, enforcements, etc.
- * for Q_XGETQSTAT command.
- */
-int
-xfs_qm_scall_getqstat(
-	struct xfs_mount	*mp,
-	struct fs_quota_stat	*out)
-{
-	struct xfs_quotainfo	*q = mp->m_quotainfo;
-	struct xfs_inode	*uip = NULL;
-	struct xfs_inode	*gip = NULL;
-	struct xfs_inode	*pip = NULL;
-	bool                    tempuqip = false;
-	bool                    tempgqip = false;
-	bool                    temppqip = false;
-
-	memset(out, 0, sizeof(fs_quota_stat_t));
-
-	out->qs_version = FS_QSTAT_VERSION;
-	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
-							(XFS_ALL_QUOTA_ACCT|
-							 XFS_ALL_QUOTA_ENFD));
-	uip = q->qi_uquotaip;
-	gip = q->qi_gquotaip;
-	pip = q->qi_pquotaip;
-	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
-		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
-					0, 0, &uip) == 0)
-			tempuqip = true;
-	}
-	if (!gip && mp->m_sb.sb_gquotino != NULLFSINO) {
-		if (xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
-					0, 0, &gip) == 0)
-			tempgqip = true;
-	}
-	/*
-	 * Q_XGETQSTAT doesn't have room for both group and project quotas.
-	 * So, allow the project quota values to be copied out only if
-	 * there is no group quota information available.
-	 */
-	if (!gip) {
-		if (!pip && mp->m_sb.sb_pquotino != NULLFSINO) {
-			if (xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
-						0, 0, &pip) == 0)
-				temppqip = true;
-		}
-	} else
-		pip = NULL;
-	if (uip) {
-		out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
-		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
-		out->qs_uquota.qfs_nextents = uip->i_d.di_nextents;
-		if (tempuqip)
-			IRELE(uip);
-	}
-
-	if (gip) {
-		out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
-		out->qs_gquota.qfs_nblks = gip->i_d.di_nblocks;
-		out->qs_gquota.qfs_nextents = gip->i_d.di_nextents;
-		if (tempgqip)
-			IRELE(gip);
-	}
-	if (pip) {
-		out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
-		out->qs_gquota.qfs_nblks = pip->i_d.di_nblocks;
-		out->qs_gquota.qfs_nextents = pip->i_d.di_nextents;
-		if (temppqip)
-			IRELE(pip);
-	}
-	out->qs_incoredqs = q->qi_dquots;
-	out->qs_btimelimit = q->qi_btimelimit;
-	out->qs_itimelimit = q->qi_itimelimit;
-	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-	out->qs_bwarnlimit = q->qi_bwarnlimit;
-	out->qs_iwarnlimit = q->qi_iwarnlimit;
-
-	return 0;
-}
-
-/*
- * Return quota status information, such as uquota-off, enforcements, etc.
- * for Q_XGETQSTATV command, to support separate project quota field.
- */
-int
-xfs_qm_scall_getqstatv(
-	struct xfs_mount	*mp,
-	struct fs_quota_statv	*out)
-{
-	struct xfs_quotainfo	*q = mp->m_quotainfo;
-	struct xfs_inode	*uip = NULL;
-	struct xfs_inode	*gip = NULL;
-	struct xfs_inode	*pip = NULL;
-	bool                    tempuqip = false;
-	bool                    tempgqip = false;
-	bool                    temppqip = false;
-
-	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
-							(XFS_ALL_QUOTA_ACCT|
-							 XFS_ALL_QUOTA_ENFD));
-	out->qs_uquota.qfs_ino = mp->m_sb.sb_uquotino;
-	out->qs_gquota.qfs_ino = mp->m_sb.sb_gquotino;
-	out->qs_pquota.qfs_ino = mp->m_sb.sb_pquotino;
-
-	uip = q->qi_uquotaip;
-	gip = q->qi_gquotaip;
-	pip = q->qi_pquotaip;
-	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
-		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
-					0, 0, &uip) == 0)
-			tempuqip = true;
-	}
-	if (!gip && mp->m_sb.sb_gquotino != NULLFSINO) {
-		if (xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
-					0, 0, &gip) == 0)
-			tempgqip = true;
-	}
-	if (!pip && mp->m_sb.sb_pquotino != NULLFSINO) {
-		if (xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
-					0, 0, &pip) == 0)
-			temppqip = true;
-	}
-	if (uip) {
-		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
-		out->qs_uquota.qfs_nextents = uip->i_d.di_nextents;
-		if (tempuqip)
-			IRELE(uip);
-	}
-
-	if (gip) {
-		out->qs_gquota.qfs_nblks = gip->i_d.di_nblocks;
-		out->qs_gquota.qfs_nextents = gip->i_d.di_nextents;
-		if (tempgqip)
-			IRELE(gip);
-	}
-	if (pip) {
-		out->qs_pquota.qfs_nblks = pip->i_d.di_nblocks;
-		out->qs_pquota.qfs_nextents = pip->i_d.di_nextents;
-		if (temppqip)
-			IRELE(pip);
-	}
-	out->qs_incoredqs = q->qi_dquots;
-	out->qs_btimelimit = q->qi_btimelimit;
-	out->qs_itimelimit = q->qi_itimelimit;
-	out->qs_rtbtimelimit = q->qi_rtbtimelimit;
-	out->qs_bwarnlimit = q->qi_bwarnlimit;
-	out->qs_iwarnlimit = q->qi_iwarnlimit;
-
-	return 0;
-}
-
 #define XFS_QC_MASK \
 	(QC_LIMIT_MASK | QC_TIMER_MASK | QC_WARNS_MASK)
 
@@ -591,7 +436,7 @@ xfs_qm_scall_setqlim(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_setqlim, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		goto out_rele;
 	}
 
@@ -702,7 +547,7 @@ xfs_qm_scall_setqlim(
 	dqp->dq_flags |= XFS_DQ_DIRTY;
 	xfs_trans_log_dquot(tp, dqp);
 
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 
 out_rele:
 	xfs_qm_dqrele(dqp);
@@ -725,7 +570,7 @@ xfs_qm_log_quotaoff_end(
 
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_equotaoff, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -739,8 +584,7 @@ xfs_qm_log_quotaoff_end(
 	 * We don't care about quotoff's performance.
 	 */
 	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
-	return error;
+	return xfs_trans_commit(tp);
 }
 
 
@@ -759,7 +603,7 @@ xfs_qm_log_quotaoff(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_quotaoff, 0, 0);
 	if (error) {
-		xfs_trans_cancel(tp, 0);
+		xfs_trans_cancel(tp);
 		goto out;
 	}
 
@@ -778,7 +622,7 @@ xfs_qm_log_quotaoff(
 	 * We don't care about quotoff's performance.
 	 */
 	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp);
 	if (error)
 		goto out;
 
@@ -871,28 +715,6 @@ xfs_qm_scall_getquota(
 out_put:
 	xfs_qm_dqput(dqp);
 	return error;
-}
-
-STATIC uint
-xfs_qm_export_flags(
-	uint flags)
-{
-	uint uflags;
-
-	uflags = 0;
-	if (flags & XFS_UQUOTA_ACCT)
-		uflags |= FS_QUOTA_UDQ_ACCT;
-	if (flags & XFS_GQUOTA_ACCT)
-		uflags |= FS_QUOTA_GDQ_ACCT;
-	if (flags & XFS_PQUOTA_ACCT)
-		uflags |= FS_QUOTA_PDQ_ACCT;
-	if (flags & XFS_UQUOTA_ENFD)
-		uflags |= FS_QUOTA_UDQ_ENFD;
-	if (flags & XFS_GQUOTA_ENFD)
-		uflags |= FS_QUOTA_GDQ_ENFD;
-	if (flags & XFS_PQUOTA_ENFD)
-		uflags |= FS_QUOTA_PDQ_ENFD;
-	return uflags;
 }
 
 

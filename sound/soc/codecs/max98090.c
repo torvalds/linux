@@ -27,7 +27,7 @@
 #include "max98090.h"
 
 /* Allows for sparsely populated register maps */
-static struct reg_default max98090_reg[] = {
+static const struct reg_default max98090_reg[] = {
 	{ 0x00, 0x00 }, /* 00 Software Reset */
 	{ 0x03, 0x04 }, /* 03 Interrupt Masks */
 	{ 0x04, 0x00 }, /* 04 System Clock Quick */
@@ -267,75 +267,8 @@ static bool max98090_volatile_register(struct device *dev, unsigned int reg)
 static bool max98090_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case M98090_REG_DEVICE_STATUS:
-	case M98090_REG_JACK_STATUS:
-	case M98090_REG_INTERRUPT_S:
-	case M98090_REG_RESERVED:
-	case M98090_REG_LINE_INPUT_CONFIG:
-	case M98090_REG_LINE_INPUT_LEVEL:
-	case M98090_REG_INPUT_MODE:
-	case M98090_REG_MIC1_INPUT_LEVEL:
-	case M98090_REG_MIC2_INPUT_LEVEL:
-	case M98090_REG_MIC_BIAS_VOLTAGE:
-	case M98090_REG_DIGITAL_MIC_ENABLE:
-	case M98090_REG_DIGITAL_MIC_CONFIG:
-	case M98090_REG_LEFT_ADC_MIXER:
-	case M98090_REG_RIGHT_ADC_MIXER:
-	case M98090_REG_LEFT_ADC_LEVEL:
-	case M98090_REG_RIGHT_ADC_LEVEL:
-	case M98090_REG_ADC_BIQUAD_LEVEL:
-	case M98090_REG_ADC_SIDETONE:
-	case M98090_REG_SYSTEM_CLOCK:
-	case M98090_REG_CLOCK_MODE:
-	case M98090_REG_CLOCK_RATIO_NI_MSB:
-	case M98090_REG_CLOCK_RATIO_NI_LSB:
-	case M98090_REG_CLOCK_RATIO_MI_MSB:
-	case M98090_REG_CLOCK_RATIO_MI_LSB:
-	case M98090_REG_MASTER_MODE:
-	case M98090_REG_INTERFACE_FORMAT:
-	case M98090_REG_TDM_CONTROL:
-	case M98090_REG_TDM_FORMAT:
-	case M98090_REG_IO_CONFIGURATION:
-	case M98090_REG_FILTER_CONFIG:
-	case M98090_REG_DAI_PLAYBACK_LEVEL:
-	case M98090_REG_DAI_PLAYBACK_LEVEL_EQ:
-	case M98090_REG_LEFT_HP_MIXER:
-	case M98090_REG_RIGHT_HP_MIXER:
-	case M98090_REG_HP_CONTROL:
-	case M98090_REG_LEFT_HP_VOLUME:
-	case M98090_REG_RIGHT_HP_VOLUME:
-	case M98090_REG_LEFT_SPK_MIXER:
-	case M98090_REG_RIGHT_SPK_MIXER:
-	case M98090_REG_SPK_CONTROL:
-	case M98090_REG_LEFT_SPK_VOLUME:
-	case M98090_REG_RIGHT_SPK_VOLUME:
-	case M98090_REG_DRC_TIMING:
-	case M98090_REG_DRC_COMPRESSOR:
-	case M98090_REG_DRC_EXPANDER:
-	case M98090_REG_DRC_GAIN:
-	case M98090_REG_RCV_LOUTL_MIXER:
-	case M98090_REG_RCV_LOUTL_CONTROL:
-	case M98090_REG_RCV_LOUTL_VOLUME:
-	case M98090_REG_LOUTR_MIXER:
-	case M98090_REG_LOUTR_CONTROL:
-	case M98090_REG_LOUTR_VOLUME:
-	case M98090_REG_JACK_DETECT:
-	case M98090_REG_INPUT_ENABLE:
-	case M98090_REG_OUTPUT_ENABLE:
-	case M98090_REG_LEVEL_CONTROL:
-	case M98090_REG_DSP_FILTER_ENABLE:
-	case M98090_REG_BIAS_CONTROL:
-	case M98090_REG_DAC_CONTROL:
-	case M98090_REG_ADC_CONTROL:
-	case M98090_REG_DEVICE_SHUTDOWN:
-	case M98090_REG_EQUALIZER_BASE ... M98090_REG_EQUALIZER_BASE + 0x68:
-	case M98090_REG_RECORD_BIQUAD_BASE ... M98090_REG_RECORD_BIQUAD_BASE + 0x0E:
-	case M98090_REG_DMIC3_VOLUME:
-	case M98090_REG_DMIC4_VOLUME:
-	case M98090_REG_DMIC34_BQ_PREATTEN:
-	case M98090_REG_RECORD_TDM_SLOT:
-	case M98090_REG_SAMPLE_RATE:
-	case M98090_REG_DMIC34_BIQUAD_BASE ... M98090_REG_DMIC34_BIQUAD_BASE + 0x0E:
+	case M98090_REG_DEVICE_STATUS ... M98090_REG_INTERRUPT_S:
+	case M98090_REG_LINE_INPUT_CONFIG ... 0xD1:
 	case M98090_REG_REVISION_ID:
 		return true;
 	default:
@@ -360,22 +293,20 @@ static int max98090_reset(struct max98090_priv *max98090)
 	return ret;
 }
 
-static const unsigned int max98090_micboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(max98090_micboost_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 2000, 0),
-	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
-};
+	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(max98090_mic_tlv, 0, 100, 0);
 
 static const DECLARE_TLV_DB_SCALE(max98090_line_single_ended_tlv,
 	-600, 600, 0);
 
-static const unsigned int max98090_line_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(max98090_line_tlv,
 	0, 3, TLV_DB_SCALE_ITEM(-600, 300, 0),
-	4, 5, TLV_DB_SCALE_ITEM(1400, 600, 0),
-};
+	4, 5, TLV_DB_SCALE_ITEM(1400, 600, 0)
+);
 
 static const DECLARE_TLV_DB_SCALE(max98090_avg_tlv, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_av_tlv, -1200, 100, 0);
@@ -391,38 +322,34 @@ static const DECLARE_TLV_DB_SCALE(max98090_alccomp_tlv, -3100, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_drcexp_tlv, -6600, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_sdg_tlv, 50, 200, 0);
 
-static const unsigned int max98090_mixout_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(max98090_mixout_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-1200, 250, 0),
-	2, 3, TLV_DB_SCALE_ITEM(-600, 600, 0),
-};
+	2, 3, TLV_DB_SCALE_ITEM(-600, 600, 0)
+);
 
-static const unsigned int max98090_hp_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static const DECLARE_TLV_DB_RANGE(max98090_hp_tlv,
 	0, 6, TLV_DB_SCALE_ITEM(-6700, 400, 0),
 	7, 14, TLV_DB_SCALE_ITEM(-4000, 300, 0),
 	15, 21, TLV_DB_SCALE_ITEM(-1700, 200, 0),
 	22, 27, TLV_DB_SCALE_ITEM(-400, 100, 0),
-	28, 31, TLV_DB_SCALE_ITEM(150, 50, 0),
-};
+	28, 31, TLV_DB_SCALE_ITEM(150, 50, 0)
+);
 
-static const unsigned int max98090_spk_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static const DECLARE_TLV_DB_RANGE(max98090_spk_tlv,
 	0, 4, TLV_DB_SCALE_ITEM(-4800, 400, 0),
 	5, 10, TLV_DB_SCALE_ITEM(-2900, 300, 0),
 	11, 14, TLV_DB_SCALE_ITEM(-1200, 200, 0),
 	15, 29, TLV_DB_SCALE_ITEM(-500, 100, 0),
-	30, 39, TLV_DB_SCALE_ITEM(950, 50, 0),
-};
+	30, 39, TLV_DB_SCALE_ITEM(950, 50, 0)
+);
 
-static const unsigned int max98090_rcv_lout_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static const DECLARE_TLV_DB_RANGE(max98090_rcv_lout_tlv,
 	0, 6, TLV_DB_SCALE_ITEM(-6200, 400, 0),
 	7, 14, TLV_DB_SCALE_ITEM(-3500, 300, 0),
 	15, 21, TLV_DB_SCALE_ITEM(-1200, 200, 0),
 	22, 27, TLV_DB_SCALE_ITEM(100, 100, 0),
-	28, 31, TLV_DB_SCALE_ITEM(650, 50, 0),
-};
+	28, 31, TLV_DB_SCALE_ITEM(650, 50, 0)
+);
 
 static int max98090_get_enab_tlv(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -850,6 +777,19 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int max98090_shdn_event(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	if (event & SND_SOC_DAPM_POST_PMU)
+		max98090->shdn_pending = true;
+
+	return 0;
+
+}
+
 static const char *mic1_mux_text[] = { "IN12", "IN56" };
 
 static SOC_ENUM_SINGLE_DECL(mic1_mux_enum,
@@ -1158,9 +1098,11 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("SDOEN", M98090_REG_IO_CONFIGURATION,
 		M98090_SDOEN_SHIFT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("DMICL_ENA", M98090_REG_DIGITAL_MIC_ENABLE,
-		 M98090_DIGMICL_SHIFT, 0, NULL, 0),
+		 M98090_DIGMICL_SHIFT, 0, max98090_shdn_event,
+			SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("DMICR_ENA", M98090_REG_DIGITAL_MIC_ENABLE,
-		 M98090_DIGMICR_SHIFT, 0, NULL, 0),
+		 M98090_DIGMICR_SHIFT, 0, max98090_shdn_event,
+			 SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_SUPPLY("AHPF", M98090_REG_FILTER_CONFIG,
 		M98090_AHPF_SHIFT, 0, NULL, 0),
 
@@ -1205,10 +1147,12 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 		&max98090_right_adc_mixer_controls[0],
 		ARRAY_SIZE(max98090_right_adc_mixer_controls)),
 
-	SND_SOC_DAPM_ADC("ADCL", NULL, M98090_REG_INPUT_ENABLE,
-		M98090_ADLEN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("ADCR", NULL, M98090_REG_INPUT_ENABLE,
-		M98090_ADREN_SHIFT, 0),
+	SND_SOC_DAPM_ADC_E("ADCL", NULL, M98090_REG_INPUT_ENABLE,
+		M98090_ADLEN_SHIFT, 0, max98090_shdn_event,
+		SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_ADC_E("ADCR", NULL, M98090_REG_INPUT_ENABLE,
+		M98090_ADREN_SHIFT, 0, max98090_shdn_event,
+		SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_AIF_OUT("AIFOUTL", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
@@ -1500,7 +1444,7 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 static int max98090_add_widgets(struct snd_soc_codec *codec)
 {
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	snd_soc_add_codec_controls(codec, max98090_snd_controls,
 		ARRAY_SIZE(max98090_snd_controls));
@@ -1798,16 +1742,20 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (!IS_ERR(max98090->mclk)) {
-			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
-				clk_disable_unprepare(max98090->mclk);
-			else
-				clk_prepare_enable(max98090->mclk);
+		if (IS_ERR(max98090->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON) {
+			clk_disable_unprepare(max98090->mclk);
+		} else {
+			ret = clk_prepare_enable(max98090->mclk);
+			if (ret)
+				return ret;
 		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98090->regmap);
 			if (ret != 0) {
 				dev_err(codec->dev,
@@ -1824,7 +1772,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98090->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -2187,7 +2134,6 @@ static void max98090_jack_work(struct work_struct *work)
 		struct max98090_priv,
 		jack_work.work);
 	struct snd_soc_codec *codec = max98090->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int status = 0;
 	int reg;
 
@@ -2266,8 +2212,6 @@ static void max98090_jack_work(struct work_struct *work)
 
 	snd_soc_jack_report(max98090->jack, status,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
-
-	snd_soc_dapm_sync(dapm);
 }
 
 static irqreturn_t max98090_interrupt(int irq, void *data)
@@ -2386,7 +2330,7 @@ EXPORT_SYMBOL_GPL(max98090_mic_detect);
 #define MAX98090_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98090_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops max98090_dai_ops = {
+static const struct snd_soc_dai_ops max98090_dai_ops = {
 	.set_sysclk = max98090_dai_set_sysclk,
 	.set_fmt = max98090_dai_set_fmt,
 	.set_tdm_slot = max98090_set_tdm_slot,
@@ -2422,6 +2366,8 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	struct max98090_cdata *cdata;
 	enum max98090_type devtype;
 	int ret = 0;
+	int err;
+	unsigned int micbias;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
 
@@ -2506,8 +2452,17 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
 
+	err = device_property_read_u32(codec->dev, "maxim,micbias", &micbias);
+	if (err) {
+		micbias = M98090_MBVSEL_2V8;
+		dev_info(codec->dev, "use default 2.8v micbias\n");
+	} else if (micbias < M98090_MBVSEL_2V2 || micbias > M98090_MBVSEL_2V8) {
+		dev_err(codec->dev, "micbias out of range 0x%x\n", micbias);
+		micbias = M98090_MBVSEL_2V8;
+	}
+
 	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
-		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
+		M98090_MBVSEL_MASK, micbias);
 
 	max98090_add_widgets(codec);
 
@@ -2528,9 +2483,26 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static void max98090_seq_notifier(struct snd_soc_dapm_context *dapm,
+	enum snd_soc_dapm_type event, int subseq)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	if (max98090->shdn_pending) {
+		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+				M98090_SHDNN_MASK, 0);
+		msleep(40);
+		snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+				M98090_SHDNN_MASK, M98090_SHDNN_MASK);
+		max98090->shdn_pending = false;
+	}
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_max98090 = {
 	.probe   = max98090_probe,
 	.remove  = max98090_remove,
+	.seq_notifier = max98090_seq_notifier,
 	.set_bias_level = max98090_set_bias_level,
 };
 
@@ -2605,8 +2577,24 @@ err_enable:
 	return ret;
 }
 
+static void max98090_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct max98090_priv *max98090 = dev_get_drvdata(&i2c->dev);
+
+	/*
+	 * Enable volume smoothing, disable zero cross.  This will cause
+	 * a quick 40ms ramp to mute on shutdown.
+	 */
+	regmap_write(max98090->regmap,
+		M98090_REG_LEVEL_CONTROL, M98090_VSENN_MASK);
+	regmap_write(max98090->regmap,
+		M98090_REG_DEVICE_SHUTDOWN, 0x00);
+	msleep(40);
+}
+
 static int max98090_i2c_remove(struct i2c_client *client)
 {
+	max98090_i2c_shutdown(client);
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
@@ -2680,7 +2668,7 @@ static const struct of_device_id max98090_of_match[] = {
 MODULE_DEVICE_TABLE(of, max98090_of_match);
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id max98090_acpi_match[] = {
+static const struct acpi_device_id max98090_acpi_match[] = {
 	{ "193C9890", MAX98090 },
 	{ }
 };
@@ -2690,12 +2678,12 @@ MODULE_DEVICE_TABLE(acpi, max98090_acpi_match);
 static struct i2c_driver max98090_i2c_driver = {
 	.driver = {
 		.name = "max98090",
-		.owner = THIS_MODULE,
 		.pm = &max98090_pm,
 		.of_match_table = of_match_ptr(max98090_of_match),
 		.acpi_match_table = ACPI_PTR(max98090_acpi_match),
 	},
 	.probe  = max98090_i2c_probe,
+	.shutdown = max98090_i2c_shutdown,
 	.remove = max98090_i2c_remove,
 	.id_table = max98090_i2c_id,
 };

@@ -65,6 +65,7 @@
 #define AML_PACKAGE_OP              (u16) 0x12
 #define AML_VAR_PACKAGE_OP          (u16) 0x13	/* ACPI 2.0 */
 #define AML_METHOD_OP               (u16) 0x14
+#define AML_EXTERNAL_OP             (u16) 0x15	/* ACPI 6.0 */
 #define AML_DUAL_NAME_PREFIX        (u16) 0x2e
 #define AML_MULTI_NAME_PREFIX_OP    (u16) 0x2f
 #define AML_NAME_CHAR_SUBSEQ        (u16) 0x30
@@ -206,7 +207,6 @@
 #define AML_INT_RESERVEDFIELD_OP    (u16) 0x0031
 #define AML_INT_ACCESSFIELD_OP      (u16) 0x0032
 #define AML_INT_BYTELIST_OP         (u16) 0x0033
-#define AML_INT_STATICSTRING_OP     (u16) 0x0034
 #define AML_INT_METHODCALL_OP       (u16) 0x0035
 #define AML_INT_RETURN_VALUE_OP     (u16) 0x0036
 #define AML_INT_EVAL_SUBTREE_OP     (u16) 0x0037

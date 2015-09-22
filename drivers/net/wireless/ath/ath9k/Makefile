@@ -46,7 +46,8 @@ ath9k_hw-y:=	\
 ath9k_hw-$(CONFIG_ATH9K_WOW) += ar9003_wow.o
 
 ath9k_hw-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += btcoex.o \
-					   ar9003_mci.o
+					   ar9003_mci.o \
+					   ar9003_aic.o
 
 ath9k_hw-$(CONFIG_ATH9K_PCOEM) += ar9003_rtt.o
 

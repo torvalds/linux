@@ -30,9 +30,20 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000>; /* 1GB */
 	};
+
+	leds: gpio-leds {
+	};
 };
 
 &gmac1 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
 	status = "okay";
 };
 
@@ -42,6 +53,26 @@
 	rtc: rtc@68 {
 		compatible = "stm,m41t82";
 		reg = <0x68>;
+	};
+};
+
+&leds {
+	compatible = "gpio-leds";
+
+	led@0 {
+		label = "led:green:heartbeat";
+		gpios = <&porta 28 1>;
+		linux,default-trigger = "heartbeat";
+	};
+
+	led@1 {
+		label = "led:green:D7";
+		gpios = <&portb 19 1>;
+	};
+
+	led@2 {
+		label = "led:green:D8";
+		gpios = <&portb 25 1>;
 	};
 };
 

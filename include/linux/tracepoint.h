@@ -36,6 +36,12 @@ struct tracepoint {
 	struct tracepoint_func __rcu *funcs;
 };
 
+struct trace_enum_map {
+	const char		*system;
+	const char		*enum_string;
+	unsigned long		enum_value;
+};
+
 extern int
 tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data);
 extern int
@@ -86,6 +92,8 @@ extern void syscall_unregfunc(void);
 #endif /* CONFIG_HAVE_SYSCALL_TRACEPOINTS */
 
 #define PARAMS(args...) args
+
+#define TRACE_DEFINE_ENUM(x)
 
 #endif /* _LINUX_TRACEPOINT_H */
 

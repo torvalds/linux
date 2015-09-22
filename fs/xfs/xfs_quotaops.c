@@ -23,9 +23,80 @@
 #include "xfs_inode.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
+#include "xfs_trace.h"
+#include "xfs_icache.h"
 #include "xfs_qm.h"
 #include <linux/quota.h>
 
+
+static void
+xfs_qm_fill_state(
+	struct qc_type_state	*tstate,
+	struct xfs_mount	*mp,
+	struct xfs_inode	*ip,
+	xfs_ino_t		ino)
+{
+	struct xfs_quotainfo *q = mp->m_quotainfo;
+	bool tempqip = false;
+
+	tstate->ino = ino;
+	if (!ip && ino == NULLFSINO)
+		return;
+	if (!ip) {
+		if (xfs_iget(mp, NULL, ino, 0, 0, &ip))
+			return;
+		tempqip = true;
+	}
+	tstate->flags |= QCI_SYSFILE;
+	tstate->blocks = ip->i_d.di_nblocks;
+	tstate->nextents = ip->i_d.di_nextents;
+	tstate->spc_timelimit = q->qi_btimelimit;
+	tstate->ino_timelimit = q->qi_itimelimit;
+	tstate->rt_spc_timelimit = q->qi_rtbtimelimit;
+	tstate->spc_warnlimit = q->qi_bwarnlimit;
+	tstate->ino_warnlimit = q->qi_iwarnlimit;
+	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
+	if (tempqip)
+		IRELE(ip);
+}
+
+/*
+ * Return quota status information, such as enforcements, quota file inode
+ * numbers etc.
+ */
+static int
+xfs_fs_get_quota_state(
+	struct super_block	*sb,
+	struct qc_state		*state)
+{
+	struct xfs_mount *mp = XFS_M(sb);
+	struct xfs_quotainfo *q = mp->m_quotainfo;
+
+	memset(state, 0, sizeof(*state));
+	if (!XFS_IS_QUOTA_RUNNING(mp))
+		return 0;
+	state->s_incoredqs = q->qi_dquots;
+	if (XFS_IS_UQUOTA_RUNNING(mp))
+		state->s_state[USRQUOTA].flags |= QCI_ACCT_ENABLED;
+	if (XFS_IS_UQUOTA_ENFORCED(mp))
+		state->s_state[USRQUOTA].flags |= QCI_LIMITS_ENFORCED;
+	if (XFS_IS_GQUOTA_RUNNING(mp))
+		state->s_state[GRPQUOTA].flags |= QCI_ACCT_ENABLED;
+	if (XFS_IS_GQUOTA_ENFORCED(mp))
+		state->s_state[GRPQUOTA].flags |= QCI_LIMITS_ENFORCED;
+	if (XFS_IS_PQUOTA_RUNNING(mp))
+		state->s_state[PRJQUOTA].flags |= QCI_ACCT_ENABLED;
+	if (XFS_IS_PQUOTA_ENFORCED(mp))
+		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
+
+	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
+			  mp->m_sb.sb_uquotino);
+	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
+			  mp->m_sb.sb_gquotino);
+	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
+			  mp->m_sb.sb_pquotino);
+	return 0;
+}
 
 STATIC int
 xfs_quota_type(int type)
@@ -40,28 +111,40 @@ xfs_quota_type(int type)
 	}
 }
 
-STATIC int
-xfs_fs_get_xstate(
-	struct super_block	*sb,
-	struct fs_quota_stat	*fqs)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
+#define XFS_QC_SETINFO_MASK (QC_TIMER_MASK | QC_WARNS_MASK)
 
+/*
+ * Adjust quota timers & warnings
+ */
+static int
+xfs_fs_set_info(
+	struct super_block	*sb,
+	int			type,
+	struct qc_info		*info)
+{
+	struct xfs_mount *mp = XFS_M(sb);
+	struct qc_dqblk newlim;
+
+	if (sb->s_flags & MS_RDONLY)
+		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
-	return xfs_qm_scall_getqstat(mp, fqs);
-}
+	if (!XFS_IS_QUOTA_ON(mp))
+		return -ESRCH;
+	if (info->i_fieldmask & ~XFS_QC_SETINFO_MASK)
+		return -EINVAL;
+	if ((info->i_fieldmask & XFS_QC_SETINFO_MASK) == 0)
+		return 0;
 
-STATIC int
-xfs_fs_get_xstatev(
-	struct super_block	*sb,
-	struct fs_quota_statv	*fqs)
-{
-	struct xfs_mount	*mp = XFS_M(sb);
+	newlim.d_fieldmask = info->i_fieldmask;
+	newlim.d_spc_timer = info->i_spc_timelimit;
+	newlim.d_ino_timer = info->i_ino_timelimit;
+	newlim.d_rt_spc_timer = info->i_rt_spc_timelimit;
+	newlim.d_ino_warns = info->i_ino_warnlimit;
+	newlim.d_spc_warns = info->i_spc_warnlimit;
+	newlim.d_rt_spc_warns = info->i_rt_spc_warnlimit;
 
-	if (!XFS_IS_QUOTA_RUNNING(mp))
-		return -ENOSYS;
-	return xfs_qm_scall_getqstatv(mp, fqs);
+	return xfs_qm_scall_setqlim(mp, 0, xfs_quota_type(type), &newlim);
 }
 
 static unsigned int
@@ -178,8 +261,8 @@ xfs_fs_set_dqblk(
 }
 
 const struct quotactl_ops xfs_quotactl_operations = {
-	.get_xstatev		= xfs_fs_get_xstatev,
-	.get_xstate		= xfs_fs_get_xstate,
+	.get_state		= xfs_fs_get_quota_state,
+	.set_info		= xfs_fs_set_info,
 	.quota_enable		= xfs_quota_enable,
 	.quota_disable		= xfs_quota_disable,
 	.rm_xquota		= xfs_fs_rm_xquota,

@@ -187,7 +187,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 }
 
 /**
- * movt_func - Emulate a MOVT instruction
+ * movf_func - Emulate a MOVF instruction
  * @regs: Process register set
  * @ir: Instruction
  *
@@ -200,9 +200,12 @@ static int movf_func(struct pt_regs *regs, u32 ir)
 
 	csr = current->thread.fpu.fcr31;
 	cond = fpucondbit[MIPSInst_RT(ir) >> 2];
+
 	if (((csr & cond) == 0) && MIPSInst_RD(ir))
 		regs->regs[MIPSInst_RD(ir)] = regs->regs[MIPSInst_RS(ir)];
+
 	MIPS_R2_STATS(movs);
+
 	return 0;
 }
 
@@ -895,8 +898,9 @@ static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
  * mipsr2_decoder: Decode and emulate a MIPS R2 instruction
  * @regs: Process register set
  * @inst: Instruction to decode and emulate
+ * @fcr31: Floating Point Control and Status Register returned
  */
-int mipsr2_decoder(struct pt_regs *regs, u32 inst)
+int mipsr2_decoder(struct pt_regs *regs, u32 inst, unsigned long *fcr31)
 {
 	int err = 0;
 	unsigned long vaddr;
@@ -1165,6 +1169,13 @@ fpu_emul:
 
 		err = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
+		*fcr31 = current->thread.fpu.fcr31;
+
+		/*
+		 * We can't allow the emulated instruction to leave any of
+		 * the cause bits set in $fcr31.
+		 */
+		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 		/*
 		 * this is a tricky issue - lose_fpu() uses LL/SC atomics

@@ -331,13 +331,12 @@ static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
 static const DECLARE_TLV_DB_SCALE(hp_sec_tlv, -700, 100, 0);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -7200, 75, 1);
 static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -3600, 300, 0);
-static unsigned int boost_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(boost_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(0,  0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(13, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(20, 0, 0),
-	3, 3, TLV_DB_SCALE_ITEM(29, 0, 0),
-};
+	3, 3, TLV_DB_SCALE_ITEM(29, 0, 0)
+);
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -2325, 75, 0);
 
 static const struct snd_kcontrol_new wm8961_snd_controls[] = {
@@ -758,7 +757,7 @@ static int wm8961_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_STANDBY) {
 			/* Enable bias generation */
 			reg = snd_soc_read(codec, WM8961_ANTI_POP);
 			reg |= WM8961_BUFIOEN | WM8961_BUFDCOPEN;
@@ -773,7 +772,7 @@ static int wm8961_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_PREPARE) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_PREPARE) {
 			/* VREF off */
 			reg = snd_soc_read(codec, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VREF;
@@ -794,8 +793,6 @@ static int wm8961_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		break;
 	}
-
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -984,7 +981,6 @@ MODULE_DEVICE_TABLE(i2c, wm8961_i2c_id);
 static struct i2c_driver wm8961_i2c_driver = {
 	.driver = {
 		.name = "wm8961",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   wm8961_i2c_remove,

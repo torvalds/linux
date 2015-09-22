@@ -14,23 +14,6 @@
 #include <asm-generic/dma-coherent.h>
 #include <asm/cacheflush.h>
 
-#ifndef CONFIG_ARC_PLAT_NEEDS_CPU_TO_DMA
-/*
- * dma_map_* API take cpu addresses, which is kernel logical address in the
- * untranslated address space (0x8000_0000) based. The dma address (bus addr)
- * ideally needs to be 0x0000_0000 based hence these glue routines.
- * However given that intermediate bus bridges can ignore the high bit, we can
- * do with these routines being no-ops.
- * If a platform/device comes up which sriclty requires 0 based bus addr
- * (e.g. AHB-PCI bridge on Angel4 board), then it can provide it's own versions
- */
-#define plat_dma_addr_to_kernel(dev, addr) ((unsigned long)(addr))
-#define plat_kernel_addr_to_dma(dev, ptr) ((dma_addr_t)(ptr))
-
-#else
-#include <plat/dma_addr.h>
-#endif
-
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 			    dma_addr_t *dma_handle, gfp_t gfp);
 
@@ -94,7 +77,7 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	       enum dma_data_direction dir)
 {
 	_dma_cache_sync((unsigned long)cpu_addr, size, dir);
-	return plat_kernel_addr_to_dma(dev, cpu_addr);
+	return (dma_addr_t)cpu_addr;
 }
 
 static inline void
@@ -147,16 +130,14 @@ static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 			size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle), size,
-			DMA_FROM_DEVICE);
+	_dma_cache_sync(dma_handle, size, DMA_FROM_DEVICE);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
 			   size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle), size,
-			DMA_TO_DEVICE);
+	_dma_cache_sync(dma_handle, size, DMA_TO_DEVICE);
 }
 
 static inline void
@@ -164,8 +145,7 @@ dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_handle,
 			      unsigned long offset, size_t size,
 			      enum dma_data_direction direction)
 {
-	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle) + offset,
-			size, DMA_FROM_DEVICE);
+	_dma_cache_sync(dma_handle + offset, size, DMA_FROM_DEVICE);
 }
 
 static inline void
@@ -173,27 +153,28 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 				 unsigned long offset, size_t size,
 				 enum dma_data_direction direction)
 {
-	_dma_cache_sync(plat_dma_addr_to_kernel(dev, dma_handle) + offset,
-			size, DMA_TO_DEVICE);
+	_dma_cache_sync(dma_handle + offset, size, DMA_TO_DEVICE);
 }
 
 static inline void
-dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sglist, int nelems,
 		    enum dma_data_direction dir)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nelems; i++, sg++)
+	for_each_sg(sglist, sg, nelems, i)
 		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
 }
 
 static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
-		       enum dma_data_direction dir)
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sglist,
+		       int nelems, enum dma_data_direction dir)
 {
 	int i;
+	struct scatterlist *sg;
 
-	for (i = 0; i < nelems; i++, sg++)
+	for_each_sg(sglist, sg, nelems, i)
 		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
 }
 

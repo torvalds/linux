@@ -20,13 +20,12 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include "irqchip.h"
-
 
 /* The source ID bits start from 4 to 31 (total 28 bits)*/
 #define BIT_OFS			4
@@ -84,8 +83,9 @@ static void keystone_irq_ack(struct irq_data *d)
 	/* nothing to do here */
 }
 
-static void keystone_irq_handler(unsigned irq, struct irq_desc *desc)
+static void keystone_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_irq_device *kirq = irq_desc_get_handler_data(desc);
 	unsigned long pending;
 	int src, virq;
@@ -127,11 +127,11 @@ static int keystone_irq_map(struct irq_domain *h, unsigned int virq,
 
 	irq_set_chip_data(virq, kirq);
 	irq_set_chip_and_handler(virq, &kirq->chip, handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 	return 0;
 }
 
-static struct irq_domain_ops keystone_irq_ops = {
+static const struct irq_domain_ops keystone_irq_ops = {
 	.map	= keystone_irq_map,
 	.xlate	= irq_domain_xlate_onecell,
 };
@@ -184,8 +184,7 @@ static int keystone_irq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, kirq);
 
-	irq_set_chained_handler(kirq->irq, keystone_irq_handler);
-	irq_set_handler_data(kirq->irq, kirq);
+	irq_set_chained_handler_and_data(kirq->irq, keystone_irq_handler, kirq);
 
 	/* clear all source bits */
 	keystone_irq_writel(kirq, ~0x0);

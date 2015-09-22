@@ -140,7 +140,7 @@ static int at91_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id at91_poweroff_of_match[] = {
+static const struct of_device_id at91_poweroff_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-shdwc", },
 	{ .compatible = "atmel,at91sam9rl-shdwc", },
 	{ .compatible = "atmel,at91sam9x5-shdwc", },

@@ -406,7 +406,7 @@ __SYSCALL(__NR_vfork, sys_vfork)
 #define __NR_ugetrlimit 191	/* SuS compliant getrlimit */
 __SYSCALL(__NR_ugetrlimit, compat_sys_getrlimit)		/* SuS compliant getrlimit */
 #define __NR_mmap2 192
-__SYSCALL(__NR_mmap2, sys_mmap_pgoff)
+__SYSCALL(__NR_mmap2, compat_sys_mmap2_wrapper)
 #define __NR_truncate64 193
 __SYSCALL(__NR_truncate64, compat_sys_truncate64_wrapper)
 #define __NR_ftruncate64 194

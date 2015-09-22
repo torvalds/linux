@@ -55,7 +55,6 @@ struct tipc_bcbearer_pair {
 	struct tipc_bearer *secondary;
 };
 
-#define TIPC_BCLINK_RESET	1
 #define	BCBEARER		MAX_BEARERS
 
 /**
@@ -86,7 +85,6 @@ struct tipc_bcbearer {
  * @lock: spinlock governing access to structure
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
- * @flags: represent bclink states
  * @bcast_nodes: map of broadcast-capable nodes
  * @retransmit_to: node that most recently requested a retransmit
  *
@@ -96,7 +94,6 @@ struct tipc_bclink {
 	spinlock_t lock;
 	struct tipc_link link;
 	struct tipc_node node;
-	unsigned int flags;
 	struct sk_buff_head arrvq;
 	struct sk_buff_head inputq;
 	struct tipc_node_map bcast_nodes;
@@ -117,7 +114,6 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 
 int tipc_bclink_init(struct net *net);
 void tipc_bclink_stop(struct net *net);
-void tipc_bclink_set_flags(struct net *tn, unsigned int flags);
 void tipc_bclink_add_node(struct net *net, u32 addr);
 void tipc_bclink_remove_node(struct net *net, u32 addr);
 struct tipc_node *tipc_bclink_retransmit_to(struct net *tn);
@@ -135,6 +131,8 @@ uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list);
 void tipc_bclink_wakeup_users(struct net *net);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
+int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 void tipc_bclink_input(struct net *net);
+void tipc_bclink_sync_state(struct tipc_node *n, struct tipc_msg *msg);
 
 #endif

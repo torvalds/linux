@@ -257,15 +257,15 @@ static void coda_evict_inode(struct inode *inode)
 
 int coda_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	int err = coda_revalidate_inode(dentry->d_inode);
+	int err = coda_revalidate_inode(d_inode(dentry));
 	if (!err)
-		generic_fillattr(dentry->d_inode, stat);
+		generic_fillattr(d_inode(dentry), stat);
 	return err;
 }
 
 int coda_setattr(struct dentry *de, struct iattr *iattr)
 {
-	struct inode *inode = de->d_inode;
+	struct inode *inode = d_inode(de);
 	struct coda_vattr vattr;
 	int error;
 

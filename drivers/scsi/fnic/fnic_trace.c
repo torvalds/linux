@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/time.h>
+#include <linux/vmalloc.h>
 #include "fnic_io.h"
 #include "fnic.h"
 

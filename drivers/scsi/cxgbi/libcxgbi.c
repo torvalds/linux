@@ -1,7 +1,7 @@
 /*
  * libcxgbi.c: Chelsio common library for T3/T4 iSCSI driver.
  *
- * Copyright (c) 2010 Chelsio Communications, Inc.
+ * Copyright (c) 2010-2015 Chelsio Communications, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,8 +38,12 @@ static unsigned int dbg_level;
 
 #define DRV_MODULE_NAME		"libcxgbi"
 #define DRV_MODULE_DESC		"Chelsio iSCSI driver library"
-#define DRV_MODULE_VERSION	"0.9.0"
-#define DRV_MODULE_RELDATE	"Jun. 2010"
+#define DRV_MODULE_VERSION	"0.9.1-ko"
+#define DRV_MODULE_RELDATE	"Apr. 2015"
+
+static char version[] =
+	DRV_MODULE_DESC " " DRV_MODULE_NAME
+	" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Chelsio Communications, Inc.");
 MODULE_DESCRIPTION(DRV_MODULE_DESC);
@@ -728,7 +732,7 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 	}
 	ndev = n->dev;
 
-	if (ipv6_addr_is_multicast(&rt->rt6i_dst.addr)) {
+	if (ipv6_addr_is_multicast(&daddr6->sin6_addr)) {
 		pr_info("multi-cast route %pI6 port %u, dev %s.\n",
 			daddr6->sin6_addr.s6_addr,
 			ntohs(daddr6->sin6_port), ndev->name);
@@ -1126,11 +1130,11 @@ static int cxgbi_sock_send_pdus(struct cxgbi_sock *csk, struct sk_buff *skb)
 		goto out_err;
 	}
 
-	if (csk->write_seq - csk->snd_una >= cdev->snd_win) {
+	if (csk->write_seq - csk->snd_una >= csk->snd_win) {
 		log_debug(1 << CXGBI_DBG_PDU_TX,
 			"csk 0x%p,%u,0x%lx,%u, FULL %u-%u >= %u.\n",
 			csk, csk->state, csk->flags, csk->tid, csk->write_seq,
-			csk->snd_una, cdev->snd_win);
+			csk->snd_una, csk->snd_win);
 		err = -ENOBUFS;
 		goto out_err;
 	}
@@ -1885,7 +1889,7 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 		"csk 0x%p,%u,0x%lx,%u, seq %u, wup %u, thre %u, %u.\n",
 		csk, csk->state, csk->flags, csk->tid, csk->copied_seq,
 		csk->rcv_wup, cdev->rx_credit_thres,
-		cdev->rcv_win);
+		csk->rcv_win);
 
 	if (csk->state != CTP_ESTABLISHED)
 		return;
@@ -1896,7 +1900,7 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 	if (unlikely(cdev->rx_credit_thres == 0))
 		return;
 
-	must_send = credits + 16384 >= cdev->rcv_win;
+	must_send = credits + 16384 >= csk->rcv_win;
 	if (must_send || credits >= cdev->rx_credit_thres)
 		csk->rcv_wup += cdev->csk_send_rx_credits(csk, credits);
 }
@@ -2912,6 +2916,8 @@ static int __init libcxgbi_init_module(void)
 {
 	sw_tag_idx_bits = (__ilog2_u32(ISCSI_ITT_MASK)) + 1;
 	sw_tag_age_bits = (__ilog2_u32(ISCSI_AGE_MASK)) + 1;
+
+	pr_info("%s", version);
 
 	pr_info("tag itt 0x%x, %u bits, age 0x%x, %u bits.\n",
 		ISCSI_ITT_MASK, sw_tag_idx_bits,

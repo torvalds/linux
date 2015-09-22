@@ -1210,7 +1210,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 
 		if (((die_args->trapnr == X86_TRAP_MF) ||
 		     (die_args->trapnr == X86_TRAP_XF)) &&
-		    !user_mode_vm(die_args->regs))
+		    !user_mode(die_args->regs))
 			xpc_die_deactivate();
 
 		break;

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Jana Saout <jana@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006-2009 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2006-2015 Red Hat, Inc. All rights reserved.
  * Copyright (C) 2013 Milan Broz <gmazyland@gmail.com>
  *
  * This file is released under the GPL.
@@ -228,7 +228,7 @@ static struct crypto_ablkcipher *any_tfm(struct crypt_config *cc)
  *
  * tcw:  Compatible implementation of the block chaining mode used
  *       by the TrueCrypt device encryption system (prior to version 4.1).
- *       For more info see: http://www.truecrypt.org
+ *       For more info see: https://gitlab.com/cryptsetup/cryptsetup/wikis/TrueCryptOnDiskFormat
  *       It operates on full 512 byte sectors and uses CBC
  *       with an IV derived from initial key and the sector number.
  *       In addition, whitening value is applied on every sector, whitening
@@ -891,6 +891,11 @@ static void crypt_alloc_req(struct crypt_config *cc,
 		ctx->req = mempool_alloc(cc->req_pool, GFP_NOIO);
 
 	ablkcipher_request_set_tfm(ctx->req, cc->tfms[key_index]);
+
+	/*
+	 * Use REQ_MAY_BACKLOG so a cipher driver internally backlogs
+	 * requests if driver request queue is full.
+	 */
 	ablkcipher_request_set_callback(ctx->req,
 	    CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 	    kcryptd_async_done, dmreq_of_req(cc, ctx->req));
@@ -924,24 +929,32 @@ static int crypt_convert(struct crypt_config *cc,
 		r = crypt_convert_block(cc, ctx, ctx->req);
 
 		switch (r) {
-		/* async */
+		/*
+		 * The request was queued by a crypto driver
+		 * but the driver request queue is full, let's wait.
+		 */
 		case -EBUSY:
 			wait_for_completion(&ctx->restart);
 			reinit_completion(&ctx->restart);
-			/* fall through*/
+			/* fall through */
+		/*
+		 * The request is queued and processed asynchronously,
+		 * completion function kcryptd_async_done() will be called.
+		 */
 		case -EINPROGRESS:
 			ctx->req = NULL;
 			ctx->cc_sector++;
 			continue;
-
-		/* sync */
+		/*
+		 * The request was already processed (synchronously).
+		 */
 		case 0:
 			atomic_dec(&ctx->cc_pending);
 			ctx->cc_sector++;
 			cond_resched();
 			continue;
 
-		/* error */
+		/* There was an error while processing the request. */
 		default:
 			atomic_dec(&ctx->cc_pending);
 			return r;
@@ -1063,7 +1076,8 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 	if (io->ctx.req)
 		crypt_free_req(cc, io->ctx.req, base_bio);
 
-	bio_endio(base_bio, error);
+	base_bio->bi_error = error;
+	bio_endio(base_bio);
 }
 
 /*
@@ -1083,14 +1097,12 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
  * The work is done per CPU global for all dm-crypt instances.
  * They should not depend on each other and do not block.
  */
-static void crypt_endio(struct bio *clone, int error)
+static void crypt_endio(struct bio *clone)
 {
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->cc;
 	unsigned rw = bio_data_dir(clone);
-
-	if (unlikely(!bio_flagged(clone, BIO_UPTODATE) && !error))
-		error = -EIO;
+	int error;
 
 	/*
 	 * free the processed pages
@@ -1098,6 +1110,7 @@ static void crypt_endio(struct bio *clone, int error)
 	if (rw == WRITE)
 		crypt_free_buffer_pages(cc, clone);
 
+	error = clone->bi_error;
 	bio_put(clone);
 
 	if (rw == READ && !error) {
@@ -1124,15 +1137,15 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 {
 	struct crypt_config *cc = io->cc;
-	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
 
 	/*
-	 * The block layer might modify the bvec array, so always
-	 * copy the required bvecs because we need the original
-	 * one in order to decrypt the whole bio data *afterwards*.
+	 * We need the original biovec array in order to decrypt
+	 * the whole bio data *afterwards* -- thanks to immutable
+	 * biovecs we don't need to worry about the block layer
+	 * modifying the biovec array; so leverage bio_clone_fast().
 	 */
-	clone = bio_clone_bioset(base_bio, gfp, cc->bs);
+	clone = bio_clone_fast(io->base_bio, gfp, cc->bs);
 	if (!clone)
 		return 1;
 
@@ -1346,6 +1359,11 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
 	struct crypt_config *cc = io->cc;
 
+	/*
+	 * A request from crypto driver backlog is going to be processed now,
+	 * finish the completion and continue in crypt_convert().
+	 * (Callback will be called for the second time for this request.)
+	 */
 	if (error == -EINPROGRESS) {
 		complete(&ctx->restart);
 		return;
@@ -1793,11 +1811,13 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	cc->iv_offset = tmpll;
 
-	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev)) {
+	ret = dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev);
+	if (ret) {
 		ti->error = "Device lookup failed";
 		goto bad;
 	}
 
+	ret = -EINVAL;
 	if (sscanf(argv[4], "%llu%c", &tmpll, &dummy) != 1) {
 		ti->error = "Invalid device sector";
 		goto bad;
@@ -1816,6 +1836,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (ret)
 			goto bad;
 
+		ret = -EINVAL;
 		while (opt_params--) {
 			opt_string = dm_shift_arg(&as);
 			if (!opt_string) {
@@ -2016,21 +2037,6 @@ error:
 	return -EINVAL;
 }
 
-static int crypt_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		       struct bio_vec *biovec, int max_size)
-{
-	struct crypt_config *cc = ti->private;
-	struct request_queue *q = bdev_get_queue(cc->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = cc->dev->bdev;
-	bvm->bi_sector = cc->start + dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int crypt_iterate_devices(struct dm_target *ti,
 				 iterate_devices_callout_fn fn, void *data)
 {
@@ -2051,7 +2057,6 @@ static struct target_type crypt_target = {
 	.preresume = crypt_preresume,
 	.resume = crypt_resume,
 	.message = crypt_message,
-	.merge  = crypt_merge,
 	.iterate_devices = crypt_iterate_devices,
 };
 

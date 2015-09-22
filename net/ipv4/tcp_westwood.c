@@ -256,20 +256,21 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-static void tcp_westwood_info(struct sock *sk, u32 ext,
-			      struct sk_buff *skb)
+static size_t tcp_westwood_info(struct sock *sk, u32 ext, int *attr,
+				union tcp_cc_info *info)
 {
 	const struct westwood *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct tcpvegas_info info = {
-			.tcpv_enabled = 1,
-			.tcpv_rtt = jiffies_to_usecs(ca->rtt),
-			.tcpv_minrtt = jiffies_to_usecs(ca->rtt_min),
-		};
+		info->vegas.tcpv_enabled = 1;
+		info->vegas.tcpv_rttcnt	= 0;
+		info->vegas.tcpv_rtt	= jiffies_to_usecs(ca->rtt),
+		info->vegas.tcpv_minrtt	= jiffies_to_usecs(ca->rtt_min),
 
-		nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
+		*attr = INET_DIAG_VEGASINFO;
+		return sizeof(struct tcpvegas_info);
 	}
+	return 0;
 }
 
 static struct tcp_congestion_ops tcp_westwood __read_mostly = {

@@ -78,6 +78,7 @@ enum {
 	CGW_FILTER,	/* specify struct can_filter on source CAN device */
 	CGW_DELETED,	/* number of deleted CAN frames (see max_hops param) */
 	CGW_LIM_HOPS,	/* limit the number of hops of this specific rule */
+	CGW_MOD_UID,	/* user defined identifier for modification updates */
 	__CGW_MAX
 };
 
@@ -161,6 +162,10 @@ enum {
  * frame can be processed as much as 'max_hops' times (which is given at module
  * load time of the can-gw module). This value is used to reduce the number of
  * possible hops for this gateway rule to a value smaller then max_hops.
+ *
+ * CGW_MOD_UID (length 4 bytes):
+ * Optional non-zero user defined routing job identifier to alter existing
+ * modification settings at runtime.
  *
  * CGW_CS_XOR (length 4 bytes):
  * Set a simple XOR checksum starting with an initial value into

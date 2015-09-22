@@ -217,7 +217,8 @@ enumerated.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved[2]</structfield></entry>
 	    <entry></entry>
-	    <entry>Reserved space for future use.</entry>
+	    <entry>Reserved space for future use. Must be zeroed by drivers and
+	    applications.</entry>
 	  </row>
 	</tbody>
       </tgroup>

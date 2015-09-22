@@ -734,7 +734,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 
 out:
 	mutex_unlock(&efx->mac_lock);
@@ -1109,9 +1109,8 @@ static int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
 		return -EOPNOTSUPP;
 	if (!indir)
 		return 0;
-	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
-	efx->type->rx_push_rss_config(efx);
-	return 0;
+
+	return efx->type->rx_push_rss_config(efx, true, indir);
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,

@@ -204,28 +204,32 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 
 int radeon_uvd_suspend(struct radeon_device *rdev)
 {
-	unsigned size;
-	void *ptr;
-	int i;
+	int i, r;
 
 	if (rdev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
-		if (atomic_read(&rdev->uvd.handles[i]))
-			break;
+	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
+		if (handle != 0) {
+			struct radeon_fence *fence;
 
-	if (i == RADEON_MAX_UVD_HANDLES)
-		return 0;
+			radeon_uvd_note_usage(rdev);
 
-	size = radeon_bo_size(rdev->uvd.vcpu_bo);
-	size -= rdev->uvd_fw->size;
+			r = radeon_uvd_get_destroy_msg(rdev,
+				R600_RING_TYPE_UVD_INDEX, handle, &fence);
+			if (r) {
+				DRM_ERROR("Error destroying UVD (%d)!\n", r);
+				continue;
+			}
 
-	ptr = rdev->uvd.cpu_addr;
-	ptr += rdev->uvd_fw->size;
+			radeon_fence_wait(fence, false);
+			radeon_fence_unref(&fence);
 
-	rdev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
-	memcpy(rdev->uvd.saved_bo, ptr, size);
+			rdev->uvd.filp[i] = NULL;
+			atomic_set(&rdev->uvd.handles[i], 0);
+		}
+	}
 
 	return 0;
 }
@@ -246,12 +250,7 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	ptr = rdev->uvd.cpu_addr;
 	ptr += rdev->uvd_fw->size;
 
-	if (rdev->uvd.saved_bo != NULL) {
-		memcpy(ptr, rdev->uvd.saved_bo, size);
-		kfree(rdev->uvd.saved_bo);
-		rdev->uvd.saved_bo = NULL;
-	} else
-		memset(ptr, 0, size);
+	memset(ptr, 0, size);
 
 	return 0;
 }
@@ -396,6 +395,29 @@ static int radeon_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 	return 0;
 }
 
+static int radeon_uvd_validate_codec(struct radeon_cs_parser *p,
+				     unsigned stream_type)
+{
+	switch (stream_type) {
+	case 0: /* H264 */
+	case 1: /* VC1 */
+		/* always supported */
+		return 0;
+
+	case 3: /* MPEG2 */
+	case 4: /* MPEG4 */
+		/* only since UVD 3 */
+		if (p->rdev->family >= CHIP_PALM)
+			return 0;
+
+		/* fall through */
+	default:
+		DRM_ERROR("UVD codec not supported by hardware %d!\n",
+			  stream_type);
+		return -EINVAL;
+	}
+}
+
 static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 			     unsigned offset, unsigned buf_sizes[])
 {
@@ -436,50 +458,70 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
-	if (msg_type == 1) {
-		/* it's a decode msg, calc buffer sizes */
-		r = radeon_uvd_cs_msg_decode(msg, buf_sizes);
-		/* calc image size (width * height) */
-		img_size = msg[6] * msg[7];
+	switch (msg_type) {
+	case 0:
+		/* it's a create msg, calc image size (width * height) */
+		img_size = msg[7] * msg[8];
+
+		r = radeon_uvd_validate_codec(p, msg[4]);
 		radeon_bo_kunmap(bo);
 		if (r)
 			return r;
 
-	} else if (msg_type == 2) {
+		/* try to alloc a new handle */
+		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
+				DRM_ERROR("Handle 0x%x already in use!\n", handle);
+				return -EINVAL;
+			}
+
+			if (!atomic_cmpxchg(&p->rdev->uvd.handles[i], 0, handle)) {
+				p->rdev->uvd.filp[i] = p->filp;
+				p->rdev->uvd.img_size[i] = img_size;
+				return 0;
+			}
+		}
+
+		DRM_ERROR("No more free UVD handles!\n");
+		return -EINVAL;
+
+	case 1:
+		/* it's a decode msg, validate codec and calc buffer sizes */
+		r = radeon_uvd_validate_codec(p, msg[4]);
+		if (!r)
+			r = radeon_uvd_cs_msg_decode(msg, buf_sizes);
+		radeon_bo_kunmap(bo);
+		if (r)
+			return r;
+
+		/* validate the handle */
+		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
+				if (p->rdev->uvd.filp[i] != p->filp) {
+					DRM_ERROR("UVD handle collision detected!\n");
+					return -EINVAL;
+				}
+				return 0;
+			}
+		}
+
+		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
+		return -ENOENT;
+
+	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
 			atomic_cmpxchg(&p->rdev->uvd.handles[i], handle, 0);
 		radeon_bo_kunmap(bo);
 		return 0;
-	} else {
-		/* it's a create msg, calc image size (width * height) */
-		img_size = msg[7] * msg[8];
-		radeon_bo_kunmap(bo);
 
-		if (msg_type != 0) {
-			DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
-			return -EINVAL;
-		}
+	default:
 
-		/* it's a create msg, no special handling needed */
+		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
+		return -EINVAL;
 	}
 
-	/* create or decode, validate the handle */
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		if (atomic_read(&p->rdev->uvd.handles[i]) == handle)
-			return 0;
-	}
-
-	/* handle not found try to alloc a new one */
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		if (!atomic_cmpxchg(&p->rdev->uvd.handles[i], 0, handle)) {
-			p->rdev->uvd.filp[i] = p->filp;
-			p->rdev->uvd.img_size[i] = img_size;
-			return 0;
-		}
-	}
-
-	DRM_ERROR("No more free UVD handles!\n");
+	BUG();
 	return -EINVAL;
 }
 

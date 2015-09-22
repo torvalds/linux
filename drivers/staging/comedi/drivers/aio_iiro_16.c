@@ -42,8 +42,6 @@
 
 #include "../comedidev.h"
 
-#include "comedi_fc.h"
-
 #define AIO_IIRO_16_RELAY_0_7		0x00
 #define AIO_IIRO_16_INPUT_0_7		0x01
 #define AIO_IIRO_16_IRQ			0x02
@@ -116,11 +114,11 @@ static int aio_iiro_16_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -130,11 +128,12 @@ static int aio_iiro_16_cos_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;

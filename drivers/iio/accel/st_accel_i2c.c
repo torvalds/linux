@@ -21,6 +21,10 @@
 #ifdef CONFIG_OF
 static const struct of_device_id st_accel_of_match[] = {
 	{
+		.compatible = "st,lis3lv02dl-accel",
+		.data = LIS3LV02DL_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "st,lsm303dlh-accel",
 		.data = LSM303DLH_ACCEL_DEV_NAME,
 	},
@@ -45,6 +49,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.data = LSM330DLC_ACCEL_DEV_NAME,
 	},
 	{
+		.compatible = "st,lis331dl-accel",
+		.data = LIS331DL_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "st,lis331dlh-accel",
 		.data = LIS331DLH_ACCEL_DEV_NAME,
 	},
@@ -59,6 +67,10 @@ static const struct of_device_id st_accel_of_match[] = {
 	{
 		.compatible = "st,lsm330-accel",
 		.data = LSM330_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "st,lsm303agr-accel",
+		.data = LSM303AGR_ACCEL_DEV_NAME,
 	},
 	{},
 };
@@ -108,13 +120,13 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LSM303DL_ACCEL_DEV_NAME },
 	{ LSM303DLM_ACCEL_DEV_NAME },
 	{ LSM330_ACCEL_DEV_NAME },
+	{ LSM303AGR_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);
 
 static struct i2c_driver st_accel_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-accel-i2c",
 		.of_match_table = of_match_ptr(st_accel_of_match),
 	},

@@ -21,6 +21,7 @@
 #include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>
@@ -588,8 +589,7 @@ static struct kmem_cache *reiserfs_inode_cachep;
 static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 {
 	struct reiserfs_inode_info *ei;
-	ei = (struct reiserfs_inode_info *)
-	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
+	ei = kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 	atomic_set(&ei->openers, 0);
@@ -714,18 +714,20 @@ static int reiserfs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",acl");
 
 	if (REISERFS_SB(s)->s_jdev)
-		seq_printf(seq, ",jdev=%s", REISERFS_SB(s)->s_jdev);
+		seq_show_option(seq, "jdev", REISERFS_SB(s)->s_jdev);
 
 	if (journal->j_max_commit_age != journal->j_default_max_commit_age)
 		seq_printf(seq, ",commit=%d", journal->j_max_commit_age);
 
 #ifdef CONFIG_QUOTA
 	if (REISERFS_SB(s)->s_qf_names[USRQUOTA])
-		seq_printf(seq, ",usrjquota=%s", REISERFS_SB(s)->s_qf_names[USRQUOTA]);
+		seq_show_option(seq, "usrjquota",
+				REISERFS_SB(s)->s_qf_names[USRQUOTA]);
 	else if (opts & (1 << REISERFS_USRQUOTA))
 		seq_puts(seq, ",usrquota");
 	if (REISERFS_SB(s)->s_qf_names[GRPQUOTA])
-		seq_printf(seq, ",grpjquota=%s", REISERFS_SB(s)->s_qf_names[GRPQUOTA]);
+		seq_show_option(seq, "grpjquota",
+				REISERFS_SB(s)->s_qf_names[GRPQUOTA]);
 	else if (opts & (1 << REISERFS_GRPQUOTA))
 		seq_puts(seq, ",grpquota");
 	if (REISERFS_SB(s)->s_jquota_fmt) {
@@ -805,7 +807,7 @@ static const struct quotactl_ops reiserfs_qctl_operations = {
 	.quota_on = reiserfs_quota_on,
 	.quota_off = dquot_quota_off,
 	.quota_sync = dquot_quota_sync,
-	.get_info = dquot_get_dqinfo,
+	.get_state = dquot_get_state,
 	.set_info = dquot_set_dqinfo,
 	.get_dqblk = dquot_get_dqblk,
 	.set_dqblk = dquot_set_dqblk,
@@ -1687,7 +1689,7 @@ static __u32 find_hash_out(struct super_block *s)
 	__u32 hash = DEFAULT_HASH;
 	__u32 deh_hashval, teahash, r5hash, yurahash;
 
-	inode = s->s_root->d_inode;
+	inode = d_inode(s->s_root);
 
 	make_cpu_key(&key, inode, ~0, TYPE_DIRENTRY, 3);
 	retval = search_by_entry_key(s, &key, &path, &de);
@@ -2347,7 +2349,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		err = -EXDEV;
 		goto out;
 	}
-	inode = path->dentry->d_inode;
+	inode = d_inode(path->dentry);
 	/*
 	 * We must not pack tails for quota files on reiserfs for quota
 	 * IO to work

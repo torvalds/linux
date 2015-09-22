@@ -90,6 +90,17 @@ gscr
 	130:	SATA_PMP_GSCR_SII_GPIO
 	Only valid if the device is a PM.
 
+trim
+
+	Shows the DSM TRIM mode currently used by the device. Valid
+	values are:
+	unsupported:		Drive does not support DSM TRIM
+	unqueued:		Drive supports unqueued DSM TRIM only
+	queued:			Drive supports queued DSM TRIM
+	forced_unqueued:	Drive's queued DSM support is known to be
+				buggy and only unqueued TRIM commands
+				are sent
+
 spdn_cnt
 
 	Number of time libata decided to lower the speed of link due to errors.

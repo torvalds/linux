@@ -67,6 +67,7 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>
@@ -78,9 +79,13 @@
 #include <xen/balloon.h>
 #include <xen/grant_table.h>
 
-#include "p2m.h"
 #include "multicalls.h"
 #include "xen-ops.h"
+
+#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
+#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
+
+#define MAX_P2M_PFN	(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
 
 #define PMDS_PER_MID_PAGE	(P2M_MID_PER_PAGE / PTRS_PER_PTE)
 
@@ -90,6 +95,12 @@ unsigned long xen_p2m_size __read_mostly;
 EXPORT_SYMBOL_GPL(xen_p2m_size);
 unsigned long xen_max_p2m_pfn __read_mostly;
 EXPORT_SYMBOL_GPL(xen_max_p2m_pfn);
+
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+#define P2M_LIMIT CONFIG_XEN_BALLOON_MEMORY_HOTPLUG_LIMIT
+#else
+#define P2M_LIMIT 0
+#endif
 
 static DEFINE_SPINLOCK(p2m_update_lock);
 
@@ -192,7 +203,8 @@ void __ref xen_build_mfn_list_list(void)
 	unsigned int level, topidx, mididx;
 	unsigned long *mid_mfn_p;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (xen_feature(XENFEAT_auto_translated_physmap) ||
+	    xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
 		return;
 
 	/* Pre-initialize p2m_top_mfn to be completely missing */
@@ -253,9 +265,16 @@ void xen_setup_mfn_list_list(void)
 
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
-	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
-		virt_to_mfn(p2m_top_mfn);
+	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
+		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
+	else
+		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+			virt_to_mfn(p2m_top_mfn);
 	HYPERVISOR_shared_info->arch.max_pfn = xen_max_p2m_pfn;
+	HYPERVISOR_shared_info->arch.p2m_generation = 0;
+	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
+	HYPERVISOR_shared_info->arch.p2m_cr3 =
+		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
 }
 
 /* Set up p2m_top to point to the domain-builder provided p2m pages */
@@ -385,9 +404,11 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 void __init xen_vmalloc_p2m_tree(void)
 {
 	static struct vm_struct vm;
+	unsigned long p2m_limit;
 
+	p2m_limit = (phys_addr_t)P2M_LIMIT * 1024 * 1024 * 1024 / PAGE_SIZE;
 	vm.flags = VM_ALLOC;
-	vm.size = ALIGN(sizeof(unsigned long) * xen_max_p2m_pfn,
+	vm.size = ALIGN(sizeof(unsigned long) * max(xen_max_p2m_pfn, p2m_limit),
 			PMD_SIZE * PMDS_PER_MID_PAGE);
 	vm_area_register_early(&vm, PMD_SIZE * PMDS_PER_MID_PAGE);
 	pr_notice("p2m virtual area at %p, size is %lx\n", vm.addr, vm.size);
@@ -469,8 +490,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
 
 		ptechk = lookup_address(vaddr, &level);
 		if (ptechk == pte_pg) {
+			HYPERVISOR_shared_info->arch.p2m_generation++;
+			wmb(); /* Tools are synchronizing via p2m_generation. */
 			set_pmd(pmdp,
 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
+			wmb(); /* Tools are synchronizing via p2m_generation. */
+			HYPERVISOR_shared_info->arch.p2m_generation++;
 			pte_newpg[i] = NULL;
 		}
 
@@ -496,16 +521,13 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
  */
 static bool alloc_p2m(unsigned long pfn)
 {
-	unsigned topidx, mididx;
+	unsigned topidx;
 	unsigned long *top_mfn_p, *mid_mfn;
 	pte_t *ptep, *pte_pg;
 	unsigned int level;
 	unsigned long flags;
 	unsigned long addr = (unsigned long)(xen_p2m_addr + pfn);
 	unsigned long p2m_pfn;
-
-	topidx = p2m_top_index(pfn);
-	mididx = p2m_mid_index(pfn);
 
 	ptep = lookup_address(addr, &level);
 	BUG_ON(!ptep || level != PG_LEVEL_4K);
@@ -518,7 +540,8 @@ static bool alloc_p2m(unsigned long pfn)
 			return false;
 	}
 
-	if (p2m_top_mfn) {
+	if (p2m_top_mfn && pfn < MAX_P2M_PFN) {
+		topidx = p2m_top_index(pfn);
 		top_mfn_p = &p2m_top_mfn[topidx];
 		mid_mfn = ACCESS_ONCE(p2m_top_mfn_p[topidx]);
 
@@ -568,10 +591,14 @@ static bool alloc_p2m(unsigned long pfn)
 		spin_lock_irqsave(&p2m_update_lock, flags);
 
 		if (pte_pfn(*ptep) == p2m_pfn) {
+			HYPERVISOR_shared_info->arch.p2m_generation++;
+			wmb(); /* Tools are synchronizing via p2m_generation. */
 			set_pte(ptep,
 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
+			wmb(); /* Tools are synchronizing via p2m_generation. */
+			HYPERVISOR_shared_info->arch.p2m_generation++;
 			if (mid_mfn)
-				mid_mfn[mididx] = virt_to_mfn(p2m);
+				mid_mfn[p2m_mid_index(pfn)] = virt_to_mfn(p2m);
 			p2m = NULL;
 		}
 
@@ -621,6 +648,11 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		return true;
 	}
 
+	/*
+	 * The interface requires atomic updates on p2m elements.
+	 * xen_safe_write_ulong() is using __put_user which does an atomic
+	 * store via asm().
+	 */
 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
 		return true;
 

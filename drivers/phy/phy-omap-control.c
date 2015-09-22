@@ -216,7 +216,6 @@ void omap_control_usb_set_mode(struct device *dev,
 		return;
 
 	ctrl_phy = dev_get_drvdata(dev);
-
 	if (!ctrl_phy) {
 		dev_err(dev, "Invalid control phy device\n");
 		return;
@@ -240,8 +239,6 @@ void omap_control_usb_set_mode(struct device *dev,
 	}
 }
 EXPORT_SYMBOL_GPL(omap_control_usb_set_mode);
-
-#ifdef CONFIG_OF
 
 static const enum omap_control_phy_type otghs_data = OMAP_CTRL_TYPE_OTGHS;
 static const enum omap_control_phy_type usb2_data = OMAP_CTRL_TYPE_USB2;
@@ -278,8 +275,6 @@ static const struct of_device_id omap_control_phy_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_control_phy_id_table);
-#endif
-
 
 static int omap_control_phy_probe(struct platform_device *pdev)
 {
@@ -287,8 +282,7 @@ static int omap_control_phy_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct omap_control_phy *control_phy;
 
-	of_id = of_match_device(of_match_ptr(omap_control_phy_id_table),
-				&pdev->dev);
+	of_id = of_match_device(omap_control_phy_id_table, &pdev->dev);
 	if (!of_id)
 		return -EINVAL;
 
@@ -344,7 +338,7 @@ static struct platform_driver omap_control_phy_driver = {
 	.probe		= omap_control_phy_probe,
 	.driver		= {
 		.name	= "omap-control-phy",
-		.of_match_table = of_match_ptr(omap_control_phy_id_table),
+		.of_match_table = omap_control_phy_id_table,
 	},
 };
 

@@ -84,7 +84,7 @@ acpi_os_create_cache(char *cache_name,
 
 	/* Populate the cache object and return it */
 
-	ACPI_MEMSET(cache, 0, sizeof(struct acpi_memory_list));
+	memset(cache, 0, sizeof(struct acpi_memory_list));
 	cache->list_name = cache_name;
 	cache->object_size = object_size;
 	cache->max_depth = max_depth;
@@ -212,7 +212,7 @@ acpi_os_release_object(struct acpi_memory_list * cache, void *object)
 
 		/* Mark the object as cached */
 
-		ACPI_MEMSET(object, 0xCA, cache->object_size);
+		memset(object, 0xCA, cache->object_size);
 		ACPI_SET_DESCRIPTOR_TYPE(object, ACPI_DESC_TYPE_CACHED);
 
 		/* Put the object at the head of the cache list */
@@ -281,7 +281,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 
 		/* Clear (zero) the previously used Object */
 
-		ACPI_MEMSET(object, 0, cache->object_size);
+		memset(object, 0, cache->object_size);
 	} else {
 		/* The cache is empty, create a new object */
 

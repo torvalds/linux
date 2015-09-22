@@ -1,3 +1,8 @@
+config PGTABLE_LEVELS
+	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
+	range 3 4 if !IA64_PAGE_SIZE_64KB
+	default 3
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -10,6 +15,7 @@ config IA64
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
+	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
@@ -130,29 +136,6 @@ config ARCH_USES_PG_UNCACHED
 config AUDIT_ARCH
 	bool
 	default y
-
-menuconfig PARAVIRT_GUEST
-	bool "Paravirtualized guest support"
-	depends on BROKEN
-	help
-	  Say Y here to get to see options related to running Linux under
-	  various hypervisors.  This option alone does not add any kernel code.
-
-	  If you say N, all options in this submenu will be skipped and disabled.
-
-if PARAVIRT_GUEST
-
-config PARAVIRT
-	bool "Enable paravirtualization code"
-	depends on PARAVIRT_GUEST
-	default y
-	help
-	  This changes the kernel so it can modify itself when it is run
-	  under a hypervisor, potentially improving performance significantly
-	  over full virtualization.  However, when run without a hypervisor
-	  the kernel is theoretically slower and slightly larger.
-
-endif
 
 choice
 	prompt "System type"
@@ -283,19 +266,6 @@ config IA64_PAGE_SIZE_16KB
 config IA64_PAGE_SIZE_64KB
 	depends on !ITANIUM
 	bool "64KB"
-
-endchoice
-
-choice
-	prompt "Page Table Levels"
-	default PGTABLE_3
-
-config PGTABLE_3
-	bool "3 Levels"
-
-config PGTABLE_4
-	depends on !IA64_PAGE_SIZE_64KB
-	bool "4 Levels"
 
 endchoice
 
@@ -548,6 +518,7 @@ source "drivers/sn/Kconfig"
 config KEXEC
 	bool "kexec system call"
 	depends on !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

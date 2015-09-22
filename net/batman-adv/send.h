@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -18,9 +18,19 @@
 #ifndef _NET_BATMAN_ADV_SEND_H_
 #define _NET_BATMAN_ADV_SEND_H_
 
+#include "main.h"
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+
+#include "packet.h"
+
+struct sk_buff;
+struct work_struct;
+
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
-			   const uint8_t *dst_addr);
+			   const u8 *dst_addr);
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
 			    struct batadv_hard_iface *recv_if);
@@ -43,7 +53,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 			    unsigned short vid);
 int batadv_send_skb_via_tt_generic(struct batadv_priv *bat_priv,
 				   struct sk_buff *skb, int packet_type,
-				   int packet_subtype, uint8_t *dst_hint,
+				   int packet_subtype, u8 *dst_hint,
 				   unsigned short vid);
 int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid);
@@ -62,7 +72,7 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
  * Returns NET_XMIT_DROP in case of error or NET_XMIT_SUCCESS otherwise.
  */
 static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
-					 struct sk_buff *skb, uint8_t *dst_hint,
+					 struct sk_buff *skb, u8 *dst_hint,
 					 unsigned short vid)
 {
 	return batadv_send_skb_via_tt_generic(bat_priv, skb, BATADV_UNICAST, 0,
@@ -87,7 +97,7 @@ static inline int batadv_send_skb_via_tt(struct batadv_priv *bat_priv,
 static inline int batadv_send_skb_via_tt_4addr(struct batadv_priv *bat_priv,
 					       struct sk_buff *skb,
 					       int packet_subtype,
-					       uint8_t *dst_hint,
+					       u8 *dst_hint,
 					       unsigned short vid)
 {
 	return batadv_send_skb_via_tt_generic(bat_priv, skb,

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -17,6 +17,12 @@
 
 #ifndef _NET_BATMAN_ADV_ICMP_SOCKET_H_
 #define _NET_BATMAN_ADV_ICMP_SOCKET_H_
+
+#include "main.h"
+
+#include <linux/types.h>
+
+struct batadv_icmp_header;
 
 #define BATADV_ICMP_SOCKET "socket"
 

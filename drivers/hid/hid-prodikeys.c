@@ -395,11 +395,10 @@ static int pcmidi_handle_report4(struct pcmidi_snd *pm, u8 *data)
 
 	/* break keys */
 	for (bit_index = 0; bit_index < 24; bit_index++) {
-		key = pm->last_key[bit_index];
 		if (!((0x01 << bit_index) & bit_mask)) {
 			input_event(pm->input_ep82, EV_KEY,
 				pm->last_key[bit_index], 0);
-				pm->last_key[bit_index] = 0;
+			pm->last_key[bit_index] = 0;
 		}
 	}
 

@@ -92,6 +92,29 @@ int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 }
 
 /**
+ * kernfs_path_len - determine the length of the full path of a given node
+ * @kn: kernfs_node of interest
+ *
+ * The returned length doesn't include the space for the terminating '\0'.
+ */
+size_t kernfs_path_len(struct kernfs_node *kn)
+{
+	size_t len = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+
+	do {
+		len += strlen(kn->name) + 1;
+		kn = kn->parent;
+	} while (kn && kn->parent);
+
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+
+	return len;
+}
+
+/**
  * kernfs_path - build full path of a given node
  * @kn: kernfs_node of interest
  * @buf: buffer to copy @kn's name into
@@ -444,7 +467,7 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 		return -ECHILD;
 
 	/* Always perform fresh lookup for negatives */
-	if (!dentry->d_inode)
+	if (d_really_is_negative(dentry))
 		goto out_bad_unlocked;
 
 	kn = dentry->d_fsdata;
@@ -518,7 +541,14 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
+	/*
+	 * If the ino of the sysfs entry created for a kmem cache gets
+	 * allocated from an ida layer, which is accounted to the memcg that
+	 * owns the cache, the memcg will get pinned forever. So do not account
+	 * ino ida allocations.
+	 */
+	ret = ida_simple_get(&root->ino_ida, 1, 0,
+			     GFP_KERNEL | __GFP_NOACCOUNT);
 	if (ret < 0)
 		goto err_out2;
 	kn->ino = ret;
@@ -585,6 +615,9 @@ int kernfs_add_one(struct kernfs_node *kn)
 		goto out_unlock;
 
 	ret = -ENOENT;
+	if (parent->flags & KERNFS_EMPTY_DIR)
+		goto out_unlock;
+
 	if ((parent->flags & KERNFS_ACTIVATED) && !kernfs_active(parent))
 		goto out_unlock;
 
@@ -766,6 +799,38 @@ struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 	kn->dir.root = parent->dir.root;
 	kn->ns = ns;
 	kn->priv = priv;
+
+	/* link in */
+	rc = kernfs_add_one(kn);
+	if (!rc)
+		return kn;
+
+	kernfs_put(kn);
+	return ERR_PTR(rc);
+}
+
+/**
+ * kernfs_create_empty_dir - create an always empty directory
+ * @parent: parent in which to create a new directory
+ * @name: name of the new directory
+ *
+ * Returns the created node on success, ERR_PTR() value on failure.
+ */
+struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
+					    const char *name)
+{
+	struct kernfs_node *kn;
+	int rc;
+
+	/* allocate */
+	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR, KERNFS_DIR);
+	if (!kn)
+		return ERR_PTR(-ENOMEM);
+
+	kn->flags |= KERNFS_EMPTY_DIR;
+	kn->dir.root = parent->dir.root;
+	kn->ns = NULL;
+	kn->priv = NULL;
 
 	/* link in */
 	rc = kernfs_add_one(kn);
@@ -1247,7 +1312,8 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	mutex_lock(&kernfs_mutex);
 
 	error = -ENOENT;
-	if (!kernfs_active(kn) || !kernfs_active(new_parent))
+	if (!kernfs_active(kn) || !kernfs_active(new_parent) ||
+	    (new_parent->flags & KERNFS_EMPTY_DIR))
 		goto out;
 
 	error = 0;

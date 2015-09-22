@@ -43,6 +43,10 @@
 		pinctrl-names = "default";
 	};
 
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
 	fixed-rate-clocks {
 		oscclk {
 			compatible = "samsung,exynos5420-oscclk";
@@ -118,6 +122,19 @@
 		compatible = "auo,b116xw03";
 		power-supply = <&tps65090_fet6>;
 		backlight = <&backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&bridge_out>;
+			};
+		};
+	};
+
+	mmc1_pwrseq: mmc1_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpx0 0 GPIO_ACTIVE_LOW>; /* WIFI_EN */
+		clocks = <&max77802 MAX77802_CLK_32K_CP>;
+		clock-names = "ext_clock";
 	};
 };
 
@@ -137,7 +154,14 @@
 	samsung,link-rate = <0x06>;
 	samsung,lane-count = <2>;
 	samsung,hpd-gpio = <&gpx2 6 0>;
-	bridge = <&ps8625>;
+
+	ports {
+		port@0 {
+			dp_out: endpoint {
+				remote-endpoint = <&bridge_in>;
+			};
+		};
+	};
 };
 
 &fimd {
@@ -581,6 +605,8 @@
 		interrupt-parent = <&gpx0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max98090_irq>;
+		clocks = <&pmu_system_controller 0>;
+		clock-names = "mclk";
 	};
 
 	light-sensor@44 {
@@ -595,8 +621,22 @@
 		sleep-gpios = <&gpx3 5 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpy7 7 GPIO_ACTIVE_HIGH>;
 		lane-count = <2>;
-		panel = <&panel>;
 		use-external-pwm;
+
+		ports {
+			port@0 {
+				bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+
+			port@1 {
+				bridge_in: endpoint {
+					remote-endpoint = <&dp_out>;
+				};
+			};
+		};
+
 	};
 };
 
@@ -659,9 +699,31 @@
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
 	samsung,dw-mshc-ddr-timing = <0 2>;
+	samsung,dw-mshc-hs400-timing = <0 2>;
+	samsung,read-strobe-delay = <90>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8 &sd0_rclk>;
 	bus-width = <8>;
+};
+
+&mmc_1 {
+	status = "okay";
+	num-slots = <1>;
+	broken-cd;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	card-detect-delay = <200>;
+	clock-frequency = <400000000>;
+	samsung,dw-mshc-ciu-div = <1>;
+	samsung,dw-mshc-sdr-timing = <0 1>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_clk>, <&sd1_cmd>, <&sd1_int>, <&sd1_bus1>,
+		    <&sd1_bus4>, <&sd1_bus8>, <&wifi_en>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	mmc-pwrseq = <&mmc1_pwrseq>;
+	vqmmc-supply = <&buck10_reg>;
 };
 
 &mmc_2 {
@@ -674,7 +736,7 @@
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 };
 
@@ -682,6 +744,13 @@
 &pinctrl_0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mask_tpm_reset>;
+
+	wifi_en: wifi-en {
+		samsung,pins = "gpx0-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
 
 	max98090_irq: max98090-irq {
 		samsung,pins = "gpx0-2";
@@ -767,6 +836,29 @@
 		samsung,pin-function = <1>;
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
+	};
+};
+
+&pinctrl_1 {
+	/* Adjust WiFi drive strengths lower for EMI */
+	sd1_clk: sd1-clk {
+		samsung,pin-drv = <2>;
+	};
+
+	sd1_cmd: sd1-cmd {
+		samsung,pin-drv = <2>;
+	};
+
+	sd1_bus1: sd1-bus-width1 {
+		samsung,pin-drv = <2>;
+	};
+
+	sd1_bus4: sd1-bus-width4 {
+		samsung,pin-drv = <2>;
+	};
+
+	sd1_bus8: sd1-bus-width8 {
+		samsung,pin-drv = <2>;
 	};
 };
 
@@ -935,7 +1027,7 @@
 	};
 };
 
-&uart_3 {
+&serial_3 {
 	status = "okay";
 };
 

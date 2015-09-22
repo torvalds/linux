@@ -302,7 +302,7 @@ struct s5p_mfc_hw_ops {
 	void (*write_info)(struct s5p_mfc_ctx *ctx, unsigned int data,
 			unsigned int ofs);
 	unsigned int (*read_info)(struct s5p_mfc_ctx *ctx,
-			unsigned int ofs);
+			unsigned long ofs);
 	int (*get_dspl_y_adr)(struct s5p_mfc_dev *dev);
 	int (*get_dec_y_adr)(struct s5p_mfc_dev *dev);
 	int (*get_dspl_status)(struct s5p_mfc_dev *dev);
@@ -334,7 +334,7 @@ struct s5p_mfc_hw_ops {
 
 void s5p_mfc_init_hw_ops(struct s5p_mfc_dev *dev);
 void s5p_mfc_init_regs(struct s5p_mfc_dev *dev);
-int s5p_mfc_alloc_priv_buf(struct device *dev,
+int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 					struct s5p_mfc_priv_buf *b);
 void s5p_mfc_release_priv_buf(struct device *dev,
 					struct s5p_mfc_priv_buf *b);

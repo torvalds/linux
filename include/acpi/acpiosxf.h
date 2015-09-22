@@ -95,7 +95,7 @@ acpi_physical_address acpi_os_get_root_pointer(void);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_predefined_override
 acpi_status
 acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string * new_val);
+			    char **new_val);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_table_override
@@ -428,6 +428,12 @@ long acpi_os_get_file_offset(ACPI_FILE file);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
 acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
+#endif
+
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

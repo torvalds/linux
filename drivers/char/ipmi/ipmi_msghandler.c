@@ -342,7 +342,7 @@ struct ipmi_smi {
 	 * an umpreemptible region to use this.  You must fetch the
 	 * value into a local variable and make sure it is not NULL.
 	 */
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 	void                     *send_info;
 
 #ifdef CONFIG_PROC_FS
@@ -744,7 +744,13 @@ static void deliver_response(struct ipmi_recv_msg *msg)
 			ipmi_inc_stat(intf, unhandled_local_responses);
 		}
 		ipmi_free_recv_msg(msg);
-	} else {
+	} else if (!oops_in_progress) {
+		/*
+		 * If we are running in the panic context, calling the
+		 * receive handler doesn't much meaning and has a deadlock
+		 * risk.  At this moment, simply skip it in that case.
+		 */
+
 		ipmi_user_t user = msg->user;
 		user->handler->ipmi_recv_hndl(msg, user->handler_data);
 	}
@@ -1015,7 +1021,7 @@ int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
 {
 	int           rv = 0;
 	ipmi_smi_t    intf;
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 
 	mutex_lock(&ipmi_interfaces_mutex);
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
@@ -1501,7 +1507,7 @@ static struct ipmi_smi_msg *smi_add_send_msg(ipmi_smi_t intf,
 }
 
 
-static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
+static void smi_send(ipmi_smi_t intf, const struct ipmi_smi_handlers *handlers,
 		     struct ipmi_smi_msg *smi_msg, int priority)
 {
 	int run_to_completion = intf->run_to_completion;
@@ -2000,7 +2006,7 @@ static int smi_ipmb_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, " %x", intf->channels[i].address);
 	seq_putc(m, '\n');
 
-	return seq_has_overflowed(m);
+	return 0;
 }
 
 static int smi_ipmb_proc_open(struct inode *inode, struct file *file)
@@ -2023,7 +2029,7 @@ static int smi_version_proc_show(struct seq_file *m, void *v)
 		   ipmi_version_major(&intf->bmc->id),
 		   ipmi_version_minor(&intf->bmc->id));
 
-	return seq_has_overflowed(m);
+	return 0;
 }
 
 static int smi_version_proc_open(struct inode *inode, struct file *file)
@@ -2747,7 +2753,7 @@ void ipmi_poll_interface(ipmi_user_t user)
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
 
-int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
+int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *si_dev,
@@ -3959,6 +3965,10 @@ free_msg:
 
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+	/*
+	 * We can get an asynchronous event or receive message in addition
+	 * to commands we send.
+	 */
 	if (msg == intf->curr_msg)
 		intf->curr_msg = NULL;
 	if (!run_to_completion)
@@ -4015,7 +4025,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 			      unsigned int *waiting_msgs)
 {
 	struct ipmi_recv_msg     *msg;
-	struct ipmi_smi_handlers *handlers;
+	const struct ipmi_smi_handlers *handlers;
 
 	if (intf->in_shutdown)
 		return;
@@ -4082,7 +4092,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 				ipmi_inc_stat(intf,
 					      retransmitted_ipmb_commands);
 
-			smi_send(intf, intf->handlers, smi_msg, 0);
+			smi_send(intf, handlers, smi_msg, 0);
 		} else
 			ipmi_free_smi_msg(smi_msg);
 
@@ -4291,6 +4301,9 @@ static void ipmi_panic_request_and_wait(ipmi_smi_t           intf,
 			    0, 1); /* Don't retry, and don't wait. */
 	if (rv)
 		atomic_sub(2, &panic_done_count);
+	else if (intf->handlers->flush_messages)
+		intf->handlers->flush_messages(intf->send_info);
+
 	while (atomic_read(&panic_done_count) != 0)
 		ipmi_poll(intf);
 }
@@ -4364,9 +4377,7 @@ static void send_panic_events(char *str)
 			/* Interface is not ready. */
 			continue;
 
-		intf->run_to_completion = 1;
 		/* Send the event announcing the panic. */
-		intf->handlers->set_run_to_completion(intf->send_info, 1);
 		ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 
@@ -4505,6 +4516,23 @@ static int panic_event(struct notifier_block *this,
 		if (!intf->handlers)
 			/* Interface is not ready. */
 			continue;
+
+		/*
+		 * If we were interrupted while locking xmit_msgs_lock or
+		 * waiting_rcv_msgs_lock, the corresponding list may be
+		 * corrupted.  In this case, drop items on the list for
+		 * the safety.
+		 */
+		if (!spin_trylock(&intf->xmit_msgs_lock)) {
+			INIT_LIST_HEAD(&intf->xmit_msgs);
+			INIT_LIST_HEAD(&intf->hp_xmit_msgs);
+		} else
+			spin_unlock(&intf->xmit_msgs_lock);
+
+		if (!spin_trylock(&intf->waiting_rcv_msgs_lock))
+			INIT_LIST_HEAD(&intf->waiting_rcv_msgs);
+		else
+			spin_unlock(&intf->waiting_rcv_msgs_lock);
 
 		intf->run_to_completion = 1;
 		intf->handlers->set_run_to_completion(intf->send_info, 1);

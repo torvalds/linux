@@ -269,12 +269,11 @@ static DECLARE_TLV_DB_SCALE(amix_tlv, -4950, 150, 1);
  * from -66 dB in 0.5 dB steps (2 dB steps, really) and
  * from -52 dB in 0.25 dB steps
  */
-static const unsigned int mvol_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static const DECLARE_TLV_DB_RANGE(mvol_tlv,
 	0, 15, TLV_DB_SCALE_ITEM(-8200, 100, 1),
 	16, 43, TLV_DB_SCALE_ITEM(-6600, 50, 0),
-	44, 252, TLV_DB_SCALE_ITEM(-5200, 25, 0),
-};
+	44, 252, TLV_DB_SCALE_ITEM(-5200, 25, 0)
+);
 
 /*
  * from -72 dB in 1.5 dB steps (6 dB steps really),
@@ -282,13 +281,12 @@ static const unsigned int mvol_tlv[] = {
  * from -60 dB in 0.5 dB steps (2 dB steps really) and
  * from -46 dB in 0.25 dB steps
  */
-static const unsigned int vc_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(vc_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(-7800, 150, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-6600, 75, 0),
 	16, 43, TLV_DB_SCALE_ITEM(-6000, 50, 0),
-	44, 228, TLV_DB_SCALE_ITEM(-4600, 25, 0),
-};
+	44, 228, TLV_DB_SCALE_ITEM(-4600, 25, 0)
+);
 
 /* from 0 to 6 dB in 2 dB steps if SPF mode != flat */
 static DECLARE_TLV_DB_SCALE(tr_tlv, 0, 200, 0);
@@ -437,7 +435,7 @@ static int uda1380_set_dai_fmt_both(struct snd_soc_dai *codec_dai,
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
 		return -EINVAL;
 
-	uda1380_write(codec, UDA1380_IFACE, iface);
+	uda1380_write_reg_cache(codec, UDA1380_IFACE, iface);
 
 	return 0;
 }
@@ -590,9 +588,6 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 	int reg;
 	struct uda1380_platform_data *pdata = codec->dev->platform_data;
 
-	if (codec->dapm.bias_level == level)
-		return 0;
-
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
@@ -600,7 +595,7 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		uda1380_write(codec, UDA1380_PM, R02_PON_BIAS | pm);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			if (gpio_is_valid(pdata->gpio_power)) {
 				gpio_set_value(pdata->gpio_power, 1);
 				mdelay(1);
@@ -623,7 +618,6 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		for (reg = UDA1380_MVOL; reg < UDA1380_CACHEREGNUM; reg++)
 			set_bit(reg - 0x10, &uda1380_cache_dirty);
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -814,7 +808,6 @@ MODULE_DEVICE_TABLE(i2c, uda1380_i2c_id);
 static struct i2c_driver uda1380_i2c_driver = {
 	.driver = {
 		.name =  "uda1380-codec",
-		.owner = THIS_MODULE,
 	},
 	.probe =    uda1380_i2c_probe,
 	.remove =   uda1380_i2c_remove,

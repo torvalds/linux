@@ -133,6 +133,13 @@ void nfs_evict_inode(struct inode *inode)
 	nfs_clear_inode(inode);
 }
 
+int nfs_sync_inode(struct inode *inode)
+{
+	nfs_inode_dio_wait(inode);
+	return nfs_wb_all(inode);
+}
+EXPORT_SYMBOL_GPL(nfs_sync_inode);
+
 /**
  * nfs_sync_mapping - helper to flush all mmapped dirty data to disk
  */
@@ -192,7 +199,6 @@ void nfs_zap_caches(struct inode *inode)
 	nfs_zap_caches_locked(inode);
 	spin_unlock(&inode->i_lock);
 }
-EXPORT_SYMBOL_GPL(nfs_zap_caches);
 
 void nfs_zap_mapping(struct inode *inode, struct address_space *mapping)
 {
@@ -436,8 +442,9 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR);
 		if (fattr->valid & NFS_ATTR_FATTR_CHANGE)
 			inode->i_version = fattr->change_attr;
-		else if (nfs_server_capable(inode, NFS_CAP_CHANGE_ATTR))
-			nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR);
+		else
+			nfs_set_cache_invalid(inode, NFS_INO_INVALID_ATTR
+				| NFS_INO_REVAL_PAGECACHE);
 		if (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			inode->i_size = nfs_size_to_loff_t(fattr->size);
 		else
@@ -495,9 +502,9 @@ EXPORT_SYMBOL_GPL(nfs_fhget);
 int
 nfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct nfs_fattr *fattr;
-	int error = -ENOMEM;
+	int error = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSSETATTR);
 
@@ -506,15 +513,14 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		attr->ia_valid &= ~ATTR_MODE;
 
 	if (attr->ia_valid & ATTR_SIZE) {
-		loff_t i_size;
-
 		BUG_ON(!S_ISREG(inode->i_mode));
 
-		i_size = i_size_read(inode);
-		if (attr->ia_size == i_size)
+		error = inode_newsize_ok(inode, attr->ia_size);
+		if (error)
+			return error;
+
+		if (attr->ia_size == i_size_read(inode))
 			attr->ia_valid &= ~ATTR_SIZE;
-		else if (attr->ia_size < i_size && IS_SWAPFILE(inode))
-			return -ETXTBSY;
 	}
 
 	/* Optimization: if the end result is no change, don't RPC */
@@ -525,14 +531,15 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	trace_nfs_setattr_enter(inode);
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		nfs_wb_all(inode);
-	}
+	if (S_ISREG(inode->i_mode))
+		nfs_sync_inode(inode);
 
 	fattr = nfs_alloc_fattr();
-	if (fattr == NULL)
+	if (fattr == NULL) {
+		error = -ENOMEM;
 		goto out;
+	}
+
 	/*
 	 * Return any delegations if we're going to change ACLs
 	 */
@@ -621,7 +628,7 @@ static void nfs_request_parent_use_readdirplus(struct dentry *dentry)
 	struct dentry *parent;
 
 	parent = dget_parent(dentry);
-	nfs_force_use_readdirplus(parent->d_inode);
+	nfs_force_use_readdirplus(d_inode(parent));
 	dput(parent);
 }
 
@@ -637,15 +644,16 @@ static bool nfs_need_revalidate_inode(struct inode *inode)
 
 int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
 	int err = 0;
 
 	trace_nfs_getattr_enter(inode);
 	/* Flush out writes to the server in order to update c/mtime.  */
 	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		err = filemap_write_and_wait(inode->i_mapping);
+		mutex_lock(&inode->i_mutex);
+		err = nfs_sync_inode(inode);
+		mutex_unlock(&inode->i_mutex);
 		if (err)
 			goto out;
 	}
@@ -673,6 +681,8 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
+		if (S_ISDIR(inode->i_mode))
+			stat->blksize = NFS_SERVER(inode)->dtsize;
 	}
 out:
 	trace_nfs_getattr_exit(inode, err);
@@ -708,7 +718,7 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 {
 	struct nfs_lock_context *res, *new = NULL;
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = d_inode(ctx->dentry);
 
 	spin_lock(&inode->i_lock);
 	res = __nfs_find_lock_context(ctx);
@@ -736,7 +746,7 @@ EXPORT_SYMBOL_GPL(nfs_get_lock_context);
 void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 {
 	struct nfs_open_context *ctx = l_ctx->open_context;
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = d_inode(ctx->dentry);
 
 	if (!atomic_dec_and_lock(&l_ctx->count, &inode->i_lock))
 		return;
@@ -751,11 +761,13 @@ EXPORT_SYMBOL_GPL(nfs_put_lock_context);
  * @ctx: pointer to context
  * @is_sync: is this a synchronous close
  *
- * always ensure that the attributes are up to date if we're mounted
- * with close-to-open semantics
+ * Ensure that the attributes are up to date if we're mounted
+ * with close-to-open semantics and we have cached data that will
+ * need to be revalidated on open.
  */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 {
+	struct nfs_inode *nfsi;
 	struct inode *inode;
 	struct nfs_server *server;
 
@@ -763,8 +775,13 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 		return;
 	if (!is_sync)
 		return;
-	inode = ctx->dentry->d_inode;
-	if (!list_empty(&NFS_I(inode)->open_files))
+	inode = d_inode(ctx->dentry);
+	nfsi = NFS_I(inode);
+	if (inode->i_mapping->nrpages == 0)
+		return;
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+		return;
+	if (!list_empty(&nfsi->open_files))
 		return;
 	server = NFS_SERVER(inode);
 	if (server->flags & NFS_MOUNT_NOCTO)
@@ -810,7 +827,7 @@ EXPORT_SYMBOL_GPL(get_nfs_open_context);
 
 static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = d_inode(ctx->dentry);
 	struct super_block *sb = ctx->dentry->d_sb;
 
 	if (!list_empty(&ctx->list)) {
@@ -836,13 +853,18 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
 }
 EXPORT_SYMBOL_GPL(put_nfs_open_context);
 
+static void put_nfs_open_context_sync(struct nfs_open_context *ctx)
+{
+	__put_nfs_open_context(ctx, 1);
+}
+
 /*
  * Ensure that mmap has a recent RPC credential for use when writing out
  * shared pages
  */
 void nfs_inode_attach_open_context(struct nfs_open_context *ctx)
 {
-	struct inode *inode = ctx->dentry->d_inode;
+	struct inode *inode = d_inode(ctx->dentry);
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
@@ -880,18 +902,18 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 	return ctx;
 }
 
-static void nfs_file_clear_open_context(struct file *filp)
+void nfs_file_clear_open_context(struct file *filp)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(filp);
 
 	if (ctx) {
-		struct inode *inode = ctx->dentry->d_inode;
+		struct inode *inode = d_inode(ctx->dentry);
 
 		filp->private_data = NULL;
 		spin_lock(&inode->i_lock);
 		list_move_tail(&ctx->list, &NFS_I(inode)->open_files);
 		spin_unlock(&inode->i_lock);
-		__put_nfs_open_context(ctx, filp->f_flags & O_DIRECT ? 0 : 1);
+		put_nfs_open_context_sync(ctx);
 	}
 }
 
@@ -908,12 +930,6 @@ int nfs_open(struct inode *inode, struct file *filp)
 	nfs_file_set_open_context(filp, ctx);
 	put_nfs_open_context(ctx);
 	nfs_fscache_open_file(inode, filp);
-	return 0;
-}
-
-int nfs_release(struct inode *inode, struct file *filp)
-{
-	nfs_file_clear_open_context(filp);
 	return 0;
 }
 
@@ -1237,9 +1253,11 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	if (fattr->valid & NFS_ATTR_FATTR_SIZE) {
 		cur_size = i_size_read(inode);
 		new_isize = nfs_size_to_loff_t(fattr->size);
-		if (cur_size != new_isize && nfsi->nrequests == 0)
+		if (cur_size != new_isize)
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 	}
+	if (nfsi->nrequests != 0)
+		invalid &= ~NFS_INO_REVAL_PAGECACHE;
 
 	/* Have any file permissions changed? */
 	if ((fattr->valid & NFS_ATTR_FATTR_MODE) && (inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO))
@@ -1261,13 +1279,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
-}
-
-static int nfs_ctime_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
-{
-	if (!(fattr->valid & NFS_ATTR_FATTR_CTIME))
-		return 0;
-	return timespec_compare(&fattr->ctime, &inode->i_ctime) > 0;
 }
 
 static atomic_long_t nfs_attr_generation_counter;
@@ -1418,7 +1429,6 @@ static int nfs_inode_attrs_need_update(const struct inode *inode, const struct n
 	const struct nfs_inode *nfsi = NFS_I(inode);
 
 	return ((long)fattr->gencount - (long)nfsi->attr_gencount) > 0 ||
-		nfs_ctime_need_update(inode, fattr) ||
 		((long)nfsi->attr_gencount - (long)nfs_read_attr_generation_counter() > 0);
 }
 
@@ -1480,6 +1490,13 @@ EXPORT_SYMBOL_GPL(nfs_refresh_inode);
 static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
 {
 	unsigned long invalid = NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+
+	/*
+	 * Don't revalidate the pagecache if we hold a delegation, but do
+	 * force an attribute update
+	 */
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		invalid = NFS_INO_INVALID_ATTR|NFS_INO_REVAL_FORCED;
 
 	if (S_ISDIR(inode->i_mode))
 		invalid |= NFS_INO_INVALID_DATA;
@@ -1588,6 +1605,19 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 }
 EXPORT_SYMBOL_GPL(nfs_post_op_update_inode_force_wcc);
 
+
+static inline bool nfs_fileid_valid(struct nfs_inode *nfsi,
+				    struct nfs_fattr *fattr)
+{
+	bool ret1 = true, ret2 = true;
+
+	if (fattr->valid & NFS_ATTR_FATTR_FILEID)
+		ret1 = (nfsi->fileid == fattr->fileid);
+	if (fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID)
+		ret2 = (nfsi->fileid == fattr->mounted_on_fileid);
+	return ret1 || ret2;
+}
+
 /*
  * Many nfs protocol calls return the new file attributes after
  * an operation.  Here we update the inode to reflect the state
@@ -1614,7 +1644,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfs_display_fhandle_hash(NFS_FH(inode)),
 			atomic_read(&inode->i_count), fattr->valid);
 
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid) {
+	if (!nfs_fileid_valid(nfsi, fattr)) {
 		printk(KERN_ERR "NFS: server %s error: fileid changed\n"
 			"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
 			NFS_SERVER(inode)->nfs_client->cl_hostname,
@@ -1664,13 +1694,12 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			invalid |= NFS_INO_INVALID_ATTR
 				| NFS_INO_INVALID_DATA
 				| NFS_INO_INVALID_ACCESS
-				| NFS_INO_INVALID_ACL
-				| NFS_INO_REVAL_PAGECACHE;
+				| NFS_INO_INVALID_ACL;
 			if (S_ISDIR(inode->i_mode))
 				nfs_force_lookup_revalidate(inode);
 			inode->i_version = fattr->change_attr;
 		}
-	} else if (server->caps & NFS_CAP_CHANGE_ATTR)
+	} else
 		nfsi->cache_validity |= save_cache_validity;
 
 	if (fattr->valid & NFS_ATTR_FATTR_MTIME) {
@@ -1697,7 +1726,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if ((nfsi->nrequests == 0) || new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
-				invalid &= ~NFS_INO_REVAL_PAGECACHE;
 			}
 			dprintk("NFS: isize change on server for file %s/%ld "
 					"(%Ld to %Ld)\n",
@@ -1819,7 +1847,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 struct inode *nfs_alloc_inode(struct super_block *sb)
 {
 	struct nfs_inode *nfsi;
-	nfsi = (struct nfs_inode *)kmem_cache_alloc(nfs_inode_cachep, GFP_KERNEL);
+	nfsi = kmem_cache_alloc(nfs_inode_cachep, GFP_KERNEL);
 	if (!nfsi)
 		return NULL;
 	nfsi->flags = 0UL;
@@ -1990,17 +2018,15 @@ static int __init init_nfs_fs(void)
 	if (err)
 		goto out1;
 
-#ifdef CONFIG_PROC_FS
 	rpc_proc_register(&init_net, &nfs_rpcstat);
-#endif
-	if ((err = register_nfs_fs()) != 0)
+
+	err = register_nfs_fs();
+	if (err)
 		goto out0;
 
 	return 0;
 out0:
-#ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
-#endif
 	nfs_destroy_directcache();
 out1:
 	nfs_destroy_writepagecache();
@@ -2031,9 +2057,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_destroy_nfspagecache();
 	nfs_fscache_unregister();
 	unregister_pernet_subsys(&nfs_net_ops);
-#ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
-#endif
 	unregister_nfs_fs();
 	nfs_fs_proc_exit();
 	nfsiod_stop();

@@ -246,8 +246,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 		bi->start = max(bi->start, low);
 		bi->end = min(bi->end, high);
 
-		/* and there's no empty block */
-		if (bi->start >= bi->end)
+		/* and there's no empty or non-exist block */
+		if (bi->start >= bi->end ||
+		    !memblock_overlaps_region(&memblock.memory,
+			bi->start, bi->end - bi->start))
 			numa_remove_memblk_from(i--, mi);
 	}
 
@@ -482,9 +484,16 @@ static void __init numa_clear_kernel_node_hotplug(void)
 				  &memblock.reserved, mb->nid);
 	}
 
-	/* Mark all kernel nodes. */
+	/*
+	 * Mark all kernel nodes.
+	 *
+	 * When booting with mem=nn[kMG] or in a kdump kernel, numa_meminfo
+	 * may not include all the memblock.reserved memory ranges because
+	 * trim_snb_memory() reserves specific pages for Sandy Bridge graphics.
+	 */
 	for_each_memblock(reserved, r)
-		node_set(r->nid, numa_kernel_nodes);
+		if (r->nid != MAX_NUMNODES)
+			node_set(r->nid, numa_kernel_nodes);
 
 	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {

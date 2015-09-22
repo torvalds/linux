@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef __ASM_HUGETLB_H
@@ -86,10 +82,6 @@ static inline int prepare_hugepage_range(struct file *file,
 	return 0;
 }
 
-static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
-{
-}
-
 static inline int huge_pte_none(pte_t pte)
 {
 	return pte_none(pte);
@@ -98,15 +90,6 @@ static inline int huge_pte_none(pte_t pte)
 static inline pte_t huge_pte_wrprotect(pte_t pte)
 {
 	return pte_wrprotect(pte);
-}
-
-static inline int arch_prepare_hugepage(struct page *page)
-{
-	return 0;
-}
-
-static inline void arch_release_hugepage(struct page *page)
-{
 }
 
 static inline void arch_clear_hugepage_flags(struct page *page)

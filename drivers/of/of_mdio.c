@@ -16,6 +16,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/module.h>
@@ -68,6 +69,9 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 			phy->irq = mdio->irq[addr];
 	}
 
+	if (of_property_read_bool(child, "broken-turn-around"))
+		mdio->phy_ignore_ta_mask |= 1 << addr;
+
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later */
 	of_node_get(child);
@@ -88,7 +92,7 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	return 0;
 }
 
-static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
+int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 {
 	u32 addr;
 	int ret;
@@ -108,6 +112,7 @@ static int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
 
 	return addr;
 }
+EXPORT_SYMBOL(of_mdio_parse_addr);
 
 /**
  * of_mdiobus_register - Register mii_bus and create PHYs from the device tree
@@ -262,7 +267,8 @@ EXPORT_SYMBOL(of_phy_attach);
 bool of_phy_is_fixed_link(struct device_node *np)
 {
 	struct device_node *dn;
-	int len;
+	int len, err;
+	const char *managed;
 
 	/* New binding */
 	dn = of_get_child_by_name(np, "fixed-link");
@@ -270,6 +276,10 @@ bool of_phy_is_fixed_link(struct device_node *np)
 		of_node_put(dn);
 		return true;
 	}
+
+	err = of_property_read_string(np, "managed", &managed);
+	if (err == 0 && strcmp(managed, "auto") != 0)
+		return true;
 
 	/* Old binding */
 	if (of_get_property(np, "fixed-link", &len) &&
@@ -285,8 +295,19 @@ int of_phy_register_fixed_link(struct device_node *np)
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
 	const __be32 *fixed_link_prop;
-	int len;
+	int link_gpio;
+	int len, err;
 	struct phy_device *phy;
+	const char *managed;
+
+	err = of_property_read_string(np, "managed", &managed);
+	if (err == 0) {
+		if (strcmp(managed, "in-band-status") == 0) {
+			/* status is zeroed, namely its .link member */
+			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
+			return IS_ERR(phy) ? PTR_ERR(phy) : 0;
+		}
+	}
 
 	/* New binding */
 	fixed_link_node = of_get_child_by_name(np, "fixed-link");
@@ -299,8 +320,13 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.pause = of_property_read_bool(fixed_link_node, "pause");
 		status.asym_pause = of_property_read_bool(fixed_link_node,
 							  "asym-pause");
+		link_gpio = of_get_named_gpio_flags(fixed_link_node,
+						    "link-gpios", 0, NULL);
 		of_node_put(fixed_link_node);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		if (link_gpio == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
@@ -312,7 +338,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.speed = be32_to_cpu(fixed_link_prop[2]);
 		status.pause = be32_to_cpu(fixed_link_prop[3]);
 		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		phy = fixed_phy_register(PHY_POLL, &status, np);
+		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
 		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 

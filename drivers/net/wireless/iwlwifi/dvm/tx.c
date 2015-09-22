@@ -189,9 +189,9 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	 if (priv->lib->bt_params &&
-	     priv->lib->bt_params->advanced_bt_coexist &&
-	     priv->bt_full_concurrent) {
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist &&
+	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
 				first_antenna(priv->nvm_data->valid_tx_ant));
@@ -1128,8 +1128,7 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 	}
 }
 
-int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
-			       struct iwl_device_cmd *cmd)
+void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -1273,8 +1272,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		skb = __skb_dequeue(&skbs);
 		ieee80211_tx_status(priv->hw, skb);
 	}
-
-	return 0;
 }
 
 /**
@@ -1283,9 +1280,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
-				   struct iwl_rx_cmd_buffer *rxb,
-				   struct iwl_device_cmd *cmd)
+void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_compressed_ba_resp *ba_resp = (void *)pkt->data;
@@ -1306,7 +1302,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	if (scd_flow >= priv->cfg->base_params->num_of_queues) {
 		IWL_ERR(priv,
 			"BUG_ON scd_flow is bigger than number of queues\n");
-		return 0;
+		return;
 	}
 
 	sta_id = ba_resp->sta_id;
@@ -1319,7 +1315,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		if (unlikely(ba_resp->bitmap))
 			IWL_ERR(priv, "Received BA when not expected\n");
 		spin_unlock_bh(&priv->sta_lock);
-		return 0;
+		return;
 	}
 
 	if (unlikely(scd_flow != agg->txq_id)) {
@@ -1333,7 +1329,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 				    "Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
 				    scd_flow, sta_id, tid, agg->txq_id);
 		spin_unlock_bh(&priv->sta_lock);
-		return 0;
+		return;
 	}
 
 	__skb_queue_head_init(&reclaimed_skbs);
@@ -1413,6 +1409,4 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		skb = __skb_dequeue(&reclaimed_skbs);
 		ieee80211_tx_status(priv->hw, skb);
 	}
-
-	return 0;
 }

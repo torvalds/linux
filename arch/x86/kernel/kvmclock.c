@@ -24,6 +24,7 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/memblock.h>
+#include <linux/sched.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
@@ -199,7 +200,7 @@ static void kvm_setup_secondary_clock(void)
  * kind of shutdown from our side, we unregister the clock by writting anything
  * that does not have the 'enable' bit set in the msr
  */
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 static void kvm_crash_shutdown(struct pt_regs *regs)
 {
 	native_write_msr(msr_kvm_system_time, 0, 0);
@@ -217,8 +218,10 @@ static void kvm_shutdown(void)
 
 void __init kvmclock_init(void)
 {
+	struct pvclock_vcpu_time_info *vcpu_time;
 	unsigned long mem;
-	int size;
+	int size, cpu;
+	u8 flags;
 
 	size = PAGE_ALIGN(sizeof(struct pvclock_vsyscall_time_info)*NR_CPUS);
 
@@ -256,7 +259,7 @@ void __init kvmclock_init(void)
 	x86_platform.save_sched_clock_state = kvm_save_sched_clock_state;
 	x86_platform.restore_sched_clock_state = kvm_restore_sched_clock_state;
 	machine_ops.shutdown  = kvm_shutdown;
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
 #endif
 	kvm_get_preset_lpj();
@@ -264,7 +267,14 @@ void __init kvmclock_init(void)
 	pv_info.name = "KVM";
 
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
-		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
+		pvclock_set_flags(~0);
+
+	cpu = get_cpu();
+	vcpu_time = &hv_clock[cpu].pvti;
+	flags = pvclock_read_flags(vcpu_time);
+	if (flags & PVCLOCK_COUNTS_FROM_ZERO)
+		set_sched_clock_stable();
+	put_cpu();
 }
 
 int __init kvm_setup_vsyscall_timeinfo(void)

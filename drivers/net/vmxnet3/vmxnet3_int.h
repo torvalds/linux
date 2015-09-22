@@ -69,10 +69,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.3.4.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.4.2.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01030400
+#define VMXNET3_DRIVER_VERSION_NUM      0x01040200
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -211,6 +211,7 @@ struct vmxnet3_tq_driver_stats {
 
 struct vmxnet3_tx_ctx {
 	bool   ipv4;
+	bool   ipv6;
 	u16 mss;
 	u32 eth_ip_hdr_size; /* only valid for pkts requesting tso or csum
 				 * offloading
@@ -327,6 +328,10 @@ struct vmxnet3_adapter {
 
 	u8			__iomem *hw_addr0; /* for BAR 0 */
 	u8			__iomem *hw_addr1; /* for BAR 1 */
+	u8                              version;
+
+	bool				rxcsum;
+	bool				lro;
 
 #ifdef VMXNET3_RSS
 	struct UPT1_RSSConf		*rss_conf;

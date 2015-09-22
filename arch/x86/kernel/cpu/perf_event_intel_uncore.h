@@ -97,6 +97,7 @@ struct intel_uncore_box {
 	atomic_t refcnt;
 	struct perf_event *events[UNCORE_PMC_IDX_MAX];
 	struct perf_event *event_list[UNCORE_PMC_IDX_MAX];
+	struct event_constraint *event_constraint[UNCORE_PMC_IDX_MAX];
 	unsigned long active_mask[BITS_TO_LONGS(UNCORE_PMC_IDX_MAX)];
 	u64 tags[UNCORE_PMC_IDX_MAX];
 	struct pci_dev *pci_dev;
@@ -257,14 +258,6 @@ static inline int uncore_num_counters(struct intel_uncore_box *box)
 	return box->pmu->type->num_counters;
 }
 
-static inline void uncore_box_init(struct intel_uncore_box *box)
-{
-	if (!test_and_set_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
-		if (box->pmu->type->ops->init_box)
-			box->pmu->type->ops->init_box(box);
-	}
-}
-
 static inline void uncore_disable_box(struct intel_uncore_box *box)
 {
 	if (box->pmu->type->ops->disable_box)
@@ -273,8 +266,6 @@ static inline void uncore_disable_box(struct intel_uncore_box *box)
 
 static inline void uncore_enable_box(struct intel_uncore_box *box)
 {
-	uncore_box_init(box);
-
 	if (box->pmu->type->ops->enable_box)
 		box->pmu->type->ops->enable_box(box);
 }
@@ -295,6 +286,14 @@ static inline u64 uncore_read_counter(struct intel_uncore_box *box,
 				struct perf_event *event)
 {
 	return box->pmu->type->ops->read_counter(box, event);
+}
+
+static inline void uncore_box_init(struct intel_uncore_box *box)
+{
+	if (!test_and_set_bit(UNCORE_BOX_FLAG_INITIATED, &box->flags)) {
+		if (box->pmu->type->ops->init_box)
+			box->pmu->type->ops->init_box(box);
+	}
 }
 
 static inline bool uncore_box_is_fake(struct intel_uncore_box *box)
@@ -326,6 +325,7 @@ extern struct event_constraint uncore_constraint_empty;
 int snb_uncore_pci_init(void);
 int ivb_uncore_pci_init(void);
 int hsw_uncore_pci_init(void);
+int bdw_uncore_pci_init(void);
 void snb_uncore_cpu_init(void);
 void nhm_uncore_cpu_init(void);
 
@@ -336,6 +336,8 @@ int ivbep_uncore_pci_init(void);
 void ivbep_uncore_cpu_init(void);
 int hswep_uncore_pci_init(void);
 void hswep_uncore_cpu_init(void);
+int bdx_uncore_pci_init(void);
+void bdx_uncore_cpu_init(void);
 
 /* perf_event_intel_uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

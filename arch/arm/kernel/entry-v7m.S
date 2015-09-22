@@ -117,9 +117,14 @@ ENTRY(__switch_to)
 ENDPROC(__switch_to)
 
 	.data
-	.align	8
+#if CONFIG_CPU_V7M_NUM_IRQ <= 112
+	.align	9
+#else
+	.align	10
+#endif
+
 /*
- * Vector table (64 words => 256 bytes natural alignment)
+ * Vector table (Natural alignment need to be ensured)
  */
 ENTRY(vector_table)
 	.long	0			@ 0 - Reset stack pointer
@@ -138,6 +143,6 @@ ENTRY(vector_table)
 	.long	__invalid_entry		@ 13 - Reserved
 	.long	__pendsv_entry		@ 14 - PendSV
 	.long	__invalid_entry		@ 15 - SysTick
-	.rept	64 - 16
-	.long	__irq_entry		@ 16..64 - External Interrupts
+	.rept	CONFIG_CPU_V7M_NUM_IRQ
+	.long	__irq_entry		@ External Interrupts
 	.endr

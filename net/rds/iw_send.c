@@ -153,9 +153,10 @@ void rds_iw_send_init_ring(struct rds_iw_connection *ic)
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = 0;
 
-		send->s_mr = ib_alloc_fast_reg_mr(ic->i_pd, fastreg_message_size);
+		send->s_mr = ib_alloc_mr(ic->i_pd, IB_MR_TYPE_MEM_REG,
+					 fastreg_message_size);
 		if (IS_ERR(send->s_mr)) {
-			printk(KERN_WARNING "RDS/IW: ib_alloc_fast_reg_mr failed\n");
+			printk(KERN_WARNING "RDS/IW: ib_alloc_mr failed\n");
 			break;
 		}
 
@@ -581,6 +582,8 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 		ic->i_unsignaled_wrs = rds_iw_sysctl_max_unsig_wrs;
 		ic->i_unsignaled_bytes = rds_iw_sysctl_max_unsig_bytes;
 		rds_message_addref(rm);
+		rm->data.op_dmasg = 0;
+		rm->data.op_dmaoff = 0;
 		ic->i_rm = rm;
 
 		/* Finalize the header */
@@ -622,7 +625,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->data.op_sg[sg];
+	scat = &rm->data.op_sg[rm->data.op_dmasg];
 	sent = 0;
 	i = 0;
 
@@ -656,10 +659,11 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		send = &ic->i_sends[pos];
 
-		len = min(RDS_FRAG_SIZE, ib_sg_dma_len(dev, scat) - off);
+		len = min(RDS_FRAG_SIZE,
+			  ib_sg_dma_len(dev, scat) - rm->data.op_dmaoff);
 		rds_iw_xmit_populate_wr(ic, send, pos,
-				ib_sg_dma_address(dev, scat) + off, len,
-				send_flags);
+			ib_sg_dma_address(dev, scat) + rm->data.op_dmaoff, len,
+			send_flags);
 
 		/*
 		 * We want to delay signaling completions just enough to get
@@ -687,10 +691,11 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 &send->s_wr, send->s_wr.num_sge, send->s_wr.next);
 
 		sent += len;
-		off += len;
-		if (off == ib_sg_dma_len(dev, scat)) {
+		rm->data.op_dmaoff += len;
+		if (rm->data.op_dmaoff == ib_sg_dma_len(dev, scat)) {
 			scat++;
-			off = 0;
+			rm->data.op_dmaoff = 0;
+			rm->data.op_dmasg++;
 		}
 
 add_header:

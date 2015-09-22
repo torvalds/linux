@@ -74,3 +74,10 @@ void *pstack__pop(struct pstack *pstack)
 	pstack->entries[pstack->top] = NULL;
 	return ret;
 }
+
+void *pstack__peek(struct pstack *pstack)
+{
+	if (pstack->top == 0)
+		return NULL;
+	return pstack->entries[pstack->top - 1];
+}

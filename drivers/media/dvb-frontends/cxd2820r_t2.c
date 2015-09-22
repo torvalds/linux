@@ -120,7 +120,7 @@ int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 
 	num = if_freq / 1000; /* Hz => kHz */
 	num *= 0x1000000;
-	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
+	if_ctl = DIV_ROUND_CLOSEST_ULL(num, 41000);
 	buf[0] = ((if_ctl >> 16) & 0xff);
 	buf[1] = ((if_ctl >>  8) & 0xff);
 	buf[2] = ((if_ctl >>  0) & 0xff);
@@ -284,7 +284,7 @@ error:
 	return ret;
 }
 
-int cxd2820r_read_status_t2(struct dvb_frontend *fe, fe_status_t *status)
+int cxd2820r_read_status_t2(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;

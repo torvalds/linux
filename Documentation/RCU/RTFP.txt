@@ -1496,7 +1496,7 @@ Canis Rufus and Zoicon5 and Anome and Hal Eisen"
 ,month="July"
 ,day="8"
 ,year="2006"
-,note="\url{http://en.wikipedia.org/wiki/Read-copy-update}"
+,note="\url{https://en.wikipedia.org/wiki/Read-copy-update}"
 ,annotation={
 	Wikipedia RCU page as of July 8 2006.
 	[Viewed August 21, 2006]

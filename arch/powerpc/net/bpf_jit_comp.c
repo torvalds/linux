@@ -1,8 +1,9 @@
-/* bpf_jit_comp.c: BPF JIT compiler for PPC64
+/* bpf_jit_comp.c: BPF JIT compiler
  *
  * Copyright 2011 Matt Evans <matt@ozlabs.org>, IBM Corporation
  *
  * Based on the x86 BPF compiler, by Eric Dumazet (eric.dumazet@gmail.com)
+ * Ported to ppc32 by Denis Kirjanov <kda@linux-powerpc.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,11 +37,11 @@ static void bpf_jit_build_prologue(struct bpf_prog *fp, u32 *image,
 		if (ctx->seen & SEEN_DATAREF) {
 			/* If we call any helpers (for loads), save LR */
 			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
-			PPC_STD(0, 1, 16);
+			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
 
 			/* Back up non-volatile regs. */
-			PPC_STD(r_D, 1, -(8*(32-r_D)));
-			PPC_STD(r_HL, 1, -(8*(32-r_HL)));
+			PPC_BPF_STL(r_D, 1, -(REG_SZ*(32-r_D)));
+			PPC_BPF_STL(r_HL, 1, -(REG_SZ*(32-r_HL)));
 		}
 		if (ctx->seen & SEEN_MEM) {
 			/*
@@ -49,11 +50,10 @@ static void bpf_jit_build_prologue(struct bpf_prog *fp, u32 *image,
 			 */
 			for (i = r_M; i < (r_M+16); i++) {
 				if (ctx->seen & (1 << (i-r_M)))
-					PPC_STD(i, 1, -(8*(32-i)));
+					PPC_BPF_STL(i, 1, -(REG_SZ*(32-i)));
 			}
 		}
-		EMIT(PPC_INST_STDU | __PPC_RS(R1) | __PPC_RA(R1) |
-		     (-BPF_PPC_STACKFRAME & 0xfffc));
+		PPC_BPF_STLU(1, 1, -BPF_PPC_STACKFRAME);
 	}
 
 	if (ctx->seen & SEEN_DATAREF) {
@@ -67,7 +67,7 @@ static void bpf_jit_build_prologue(struct bpf_prog *fp, u32 *image,
 							 data_len));
 		PPC_LWZ_OFFS(r_HL, r_skb, offsetof(struct sk_buff, len));
 		PPC_SUB(r_HL, r_HL, r_scratch1);
-		PPC_LD_OFFS(r_D, r_skb, offsetof(struct sk_buff, data));
+		PPC_LL_OFFS(r_D, r_skb, offsetof(struct sk_buff, data));
 	}
 
 	if (ctx->seen & SEEN_XREG) {
@@ -99,16 +99,16 @@ static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	if (ctx->seen & (SEEN_MEM | SEEN_DATAREF)) {
 		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME);
 		if (ctx->seen & SEEN_DATAREF) {
-			PPC_LD(0, 1, 16);
+			PPC_BPF_LL(0, 1, PPC_LR_STKOFF);
 			PPC_MTLR(0);
-			PPC_LD(r_D, 1, -(8*(32-r_D)));
-			PPC_LD(r_HL, 1, -(8*(32-r_HL)));
+			PPC_BPF_LL(r_D, 1, -(REG_SZ*(32-r_D)));
+			PPC_BPF_LL(r_HL, 1, -(REG_SZ*(32-r_HL)));
 		}
 		if (ctx->seen & SEEN_MEM) {
 			/* Restore any saved non-vol registers */
 			for (i = r_M; i < (r_M+16); i++) {
 				if (ctx->seen & (1 << (i-r_M)))
-					PPC_LD(i, 1, -(8*(32-i)));
+					PPC_BPF_LL(i, 1, -(REG_SZ*(32-i)));
 			}
 		}
 	}
@@ -355,7 +355,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 						ifindex) != 4);
 			BUILD_BUG_ON(FIELD_SIZEOF(struct net_device,
 						type) != 2);
-			PPC_LD_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
+			PPC_LL_OFFS(r_scratch1, r_skb, offsetof(struct sk_buff,
 								dev));
 			PPC_CMPDI(r_scratch1, 0);
 			if (ctx->pc_ret0 != -1) {
@@ -411,20 +411,8 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			PPC_SRWI(r_A, r_A, 5);
 			break;
 		case BPF_ANC | SKF_AD_CPU:
-#ifdef CONFIG_SMP
-			/*
-			 * PACA ptr is r13:
-			 * raw_smp_processor_id() = local_paca->paca_index
-			 */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct paca_struct,
-						  paca_index) != 2);
-			PPC_LHZ_OFFS(r_A, 13,
-				     offsetof(struct paca_struct, paca_index));
-#else
-			PPC_LI(r_A, 0);
-#endif
+			PPC_BPF_LOAD_CPU(r_A);
 			break;
-
 			/*** Absolute loads from packet header/data ***/
 		case BPF_LD | BPF_W | BPF_ABS:
 			func = CHOOSE_LOAD_FUNC(K, sk_load_word);
@@ -437,7 +425,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		common_load:
 			/* Load from [K]. */
 			ctx->seen |= SEEN_DATAREF;
-			PPC_LI64(r_scratch1, func);
+			PPC_FUNC_ADDR(r_scratch1, func);
 			PPC_MTLR(r_scratch1);
 			PPC_LI32(r_addr, K);
 			PPC_BLRL();
@@ -463,7 +451,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			 * in the helper functions.
 			 */
 			ctx->seen |= SEEN_DATAREF | SEEN_XREG;
-			PPC_LI64(r_scratch1, func);
+			PPC_FUNC_ADDR(r_scratch1, func);
 			PPC_MTLR(r_scratch1);
 			PPC_ADDI(r_addr, r_X, IMM_L(K));
 			if (K >= 32768)
@@ -685,9 +673,11 @@ void bpf_jit_compile(struct bpf_prog *fp)
 
 	if (image) {
 		bpf_flush_icache(code_base, code_base + (proglen/4));
+#ifdef CONFIG_PPC64
 		/* Function descriptor nastiness: Address + TOC */
 		((u64 *)image)[0] = (u64)code_base;
 		((u64 *)image)[1] = local_paca->kernel_toc;
+#endif
 		fp->bpf_func = (void *)image;
 		fp->jited = true;
 	}

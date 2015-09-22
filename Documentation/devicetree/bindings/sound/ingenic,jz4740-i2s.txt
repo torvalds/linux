@@ -1,7 +1,7 @@
 Ingenic JZ4740 I2S controller
 
 Required properties:
-- compatible : "ingenic,jz4740-i2s"
+- compatible : "ingenic,jz4740-i2s" or "ingenic,jz4780-i2s"
 - reg : I2S registers location and length
 - clocks : AIC and I2S PLL clock specifiers.
 - clock-names: "aic" and "i2s"

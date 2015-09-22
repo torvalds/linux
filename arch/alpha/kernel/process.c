@@ -236,12 +236,11 @@ release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Copy an alpha thread..
+ * Copy architecture-specific thread state
  */
-
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long arg,
+	    unsigned long kthread_arg,
 	    struct task_struct *p)
 {
 	extern void ret_from_fork(void);
@@ -262,7 +261,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 		childstack->r26 = (unsigned long) ret_from_kernel_thread;
 		childstack->r9 = usp;	/* function */
-		childstack->r10 = arg;
+		childstack->r10 = kthread_arg;
 		childregs->hae = alpha_mv.hae_cache,
 		childti->pcb.usp = 0;
 		return 0;

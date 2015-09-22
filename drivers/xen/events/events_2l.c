@@ -345,6 +345,15 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void evtchn_2l_resume(void)
+{
+	int i;
+
+	for_each_online_cpu(i)
+		memset(per_cpu(cpu_evtchn_mask, i), 0, sizeof(xen_ulong_t) *
+				EVTCHN_2L_NR_CHANNELS/BITS_PER_EVTCHN_WORD);
+}
+
 static const struct evtchn_ops evtchn_ops_2l = {
 	.max_channels      = evtchn_2l_max_channels,
 	.nr_channels       = evtchn_2l_max_channels,
@@ -356,6 +365,7 @@ static const struct evtchn_ops evtchn_ops_2l = {
 	.mask              = evtchn_2l_mask,
 	.unmask            = evtchn_2l_unmask,
 	.handle_events     = evtchn_2l_handle_events,
+	.resume	           = evtchn_2l_resume,
 };
 
 void __init xen_evtchn_2l_init(void)

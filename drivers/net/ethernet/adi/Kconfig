@@ -7,8 +7,6 @@ config NET_BFIN
 	depends on BF516 || BF518 || BF526 || BF527 || BF536 || BF537
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
-	  Make sure you know the name of your card. Read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
 
 	  If unsure, say Y.
 

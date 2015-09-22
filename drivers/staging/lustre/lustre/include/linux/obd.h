@@ -43,11 +43,11 @@
 
 #include "../obd_support.h"
 
-# include <linux/fs.h>
-# include <linux/list.h>
-# include <linux/sched.h>  /* for struct task_struct, for current.h */
-# include <linux/proc_fs.h>
-# include <linux/mount.h>
+#include <linux/fs.h>
+#include <linux/list.h>
+#include <linux/sched.h>  /* for struct task_struct, for current.h */
+#include <linux/mount.h>
+
 #include "../lustre_intent.h"
 
 struct ll_iattr {

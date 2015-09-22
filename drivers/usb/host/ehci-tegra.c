@@ -304,6 +304,7 @@ struct dma_aligned_buffer {
 static void free_dma_aligned_buffer(struct urb *urb)
 {
 	struct dma_aligned_buffer *temp;
+	size_t length;
 
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
 		return;
@@ -311,9 +312,14 @@ static void free_dma_aligned_buffer(struct urb *urb)
 	temp = container_of(urb->transfer_buffer,
 		struct dma_aligned_buffer, data);
 
-	if (usb_urb_dir_in(urb))
-		memcpy(temp->old_xfer_buffer, temp->data,
-		       urb->transfer_buffer_length);
+	if (usb_urb_dir_in(urb)) {
+		if (usb_pipeisoc(urb->pipe))
+			length = urb->transfer_buffer_length;
+		else
+			length = urb->actual_length;
+
+		memcpy(temp->old_xfer_buffer, temp->data, length);
+	}
 	urb->transfer_buffer = temp->old_xfer_buffer;
 	kfree(temp->kmalloc_ptr);
 

@@ -505,7 +505,10 @@ at module load time (for a module) with:
 
 The addresses are normal I2C addresses.  The adapter is the string
 name of the adapter, as shown in /sys/class/i2c-adapter/i2c-<n>/name.
-It is *NOT* i2c-<n> itself.
+It is *NOT* i2c-<n> itself.  Also, the comparison is done ignoring
+spaces, so if the name is "This is an I2C chip" you can say
+adapter_name=ThisisanI2cchip.  This is because it's hard to pass in
+spaces in kernel parameters.
 
 The debug flags are bit flags for each BMC found, they are:
 IPMI messages: 1, driver state: 2, timing: 4, I2C probe: 8

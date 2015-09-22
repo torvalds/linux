@@ -1041,7 +1041,6 @@ void setup_graphics(struct boot_params *boot_params)
 struct boot_params *make_boot_params(struct efi_config *c)
 {
 	struct boot_params *boot_params;
-	struct sys_desc_table *sdt;
 	struct apm_bios_info *bi;
 	struct setup_header *hdr;
 	struct efi_info *efi;
@@ -1089,7 +1088,6 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	hdr = &boot_params->hdr;
 	efi = &boot_params->efi_info;
 	bi = &boot_params->apm_bios_info;
-	sdt = &boot_params->sys_desc_table;
 
 	/* Copy the second sector to boot_params */
 	memcpy(&hdr->jump, image->image_base + 512, 512);
@@ -1109,14 +1107,14 @@ struct boot_params *make_boot_params(struct efi_config *c)
 	if (!cmdline_ptr)
 		goto fail;
 	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
+	/* Fill in upper bits of command line address, NOP on 32 bit  */
+	boot_params->ext_cmd_line_ptr = (u64)(unsigned long)cmdline_ptr >> 32;
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
 	/* Clear APM BIOS info */
 	memset(bi, 0, sizeof(*bi));
-
-	memset(sdt, 0, sizeof(*sdt));
 
 	status = efi_parse_options(cmdline_ptr);
 	if (status != EFI_SUCCESS)
@@ -1191,6 +1189,10 @@ static efi_status_t setup_e820(struct boot_params *params,
 		unsigned int e820_type = 0;
 		unsigned long m = efi->efi_memmap;
 
+#ifdef CONFIG_X86_64
+		m |= (u64)efi->efi_memmap_hi << 32;
+#endif
+
 		d = (efi_memory_desc_t *)(m + (i * efi->efi_memdesc_size));
 		switch (d->type) {
 		case EFI_RESERVED_TYPE:
@@ -1220,6 +1222,10 @@ static efi_status_t setup_e820(struct boot_params *params,
 
 		case EFI_ACPI_MEMORY_NVS:
 			e820_type = E820_NVS;
+			break;
+
+		case EFI_PERSISTENT_MEMORY:
+			e820_type = E820_PMEM;
 			break;
 
 		default:

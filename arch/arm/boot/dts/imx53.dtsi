@@ -309,6 +309,7 @@
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 1>;
 				fsl,usbphy = <&usbphy1>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -318,6 +319,7 @@
 				interrupts = <16>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 2>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 
@@ -327,6 +329,7 @@
 				interrupts = <17>;
 				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
 				fsl,usbmisc = <&usbmisc 3>;
+				dr_mode = "host";
 				status = "disabled";
 			};
 

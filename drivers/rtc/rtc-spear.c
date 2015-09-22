@@ -358,12 +358,6 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	int status = 0;
 	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no resource defined\n");
-		return -EBUSY;
-	}
-
 	config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
@@ -383,6 +377,7 @@ static int spear_rtc_probe(struct platform_device *pdev)
 		return status;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	config->ioaddr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(config->ioaddr))
 		return PTR_ERR(config->ioaddr);

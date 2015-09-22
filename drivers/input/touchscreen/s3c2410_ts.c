@@ -411,7 +411,7 @@ static const struct dev_pm_ops s3c_ts_pmops = {
 };
 #endif
 
-static struct platform_device_id s3cts_driver_ids[] = {
+static const struct platform_device_id s3cts_driver_ids[] = {
 	{ "s3c2410-ts", 0 },
 	{ "s3c2440-ts", 0 },
 	{ "s3c64xx-ts", FEAT_PEN_IRQ },

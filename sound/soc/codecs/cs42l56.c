@@ -115,52 +115,7 @@ static const struct reg_default cs42l56_reg_defaults[] = {
 static bool cs42l56_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case CS42L56_CHIP_ID_1:
-	case CS42L56_CHIP_ID_2:
-	case CS42L56_PWRCTL_1:
-	case CS42L56_PWRCTL_2:
-	case CS42L56_CLKCTL_1:
-	case CS42L56_CLKCTL_2:
-	case CS42L56_SERIAL_FMT:
-	case CS42L56_CLASSH_CTL:
-	case CS42L56_MISC_CTL:
-	case CS42L56_INT_STATUS:
-	case CS42L56_PLAYBACK_CTL:
-	case CS42L56_DSP_MUTE_CTL:
-	case CS42L56_ADCA_MIX_VOLUME:
-	case CS42L56_ADCB_MIX_VOLUME:
-	case CS42L56_PCMA_MIX_VOLUME:
-	case CS42L56_PCMB_MIX_VOLUME:
-	case CS42L56_ANAINPUT_ADV_VOLUME:
-	case CS42L56_DIGINPUT_ADV_VOLUME:
-	case CS42L56_MASTER_A_VOLUME:
-	case CS42L56_MASTER_B_VOLUME:
-	case CS42L56_BEEP_FREQ_ONTIME:
-	case CS42L56_BEEP_FREQ_OFFTIME:
-	case CS42L56_BEEP_TONE_CFG:
-	case CS42L56_TONE_CTL:
-	case CS42L56_CHAN_MIX_SWAP:
-	case CS42L56_AIN_REFCFG_ADC_MUX:
-	case CS42L56_HPF_CTL:
-	case CS42L56_MISC_ADC_CTL:
-	case CS42L56_GAIN_BIAS_CTL:
-	case CS42L56_PGAA_MUX_VOLUME:
-	case CS42L56_PGAB_MUX_VOLUME:
-	case CS42L56_ADCA_ATTENUATOR:
-	case CS42L56_ADCB_ATTENUATOR:
-	case CS42L56_ALC_EN_ATTACK_RATE:
-	case CS42L56_ALC_RELEASE_RATE:
-	case CS42L56_ALC_THRESHOLD:
-	case CS42L56_NOISE_GATE_CTL:
-	case CS42L56_ALC_LIM_SFT_ZC:
-	case CS42L56_AMUTE_HPLO_MUX:
-	case CS42L56_HPA_VOLUME:
-	case CS42L56_HPB_VOLUME:
-	case CS42L56_LOA_VOLUME:
-	case CS42L56_LOB_VOLUME:
-	case CS42L56_LIM_THRESHOLD_CTL:
-	case CS42L56_LIM_CTL_RELEASE_RATE:
-	case CS42L56_LIM_ATTACK_RATE:
+	case CS42L56_CHIP_ID_1 ... CS42L56_LIM_ATTACK_RATE:
 		return true;
 	default:
 		return false;
@@ -185,21 +140,18 @@ static DECLARE_TLV_DB_SCALE(tone_tlv, -1050, 150, 0);
 static DECLARE_TLV_DB_SCALE(preamp_tlv, 0, 1000, 0);
 static DECLARE_TLV_DB_SCALE(pga_tlv, -600, 50, 0);
 
-static const unsigned int ngnb_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(ngnb_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(-8200, 600, 0),
-	2, 5, TLV_DB_SCALE_ITEM(-7600, 300, 0),
-};
-static const unsigned int ngb_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+	2, 5, TLV_DB_SCALE_ITEM(-7600, 300, 0)
+);
+static const DECLARE_TLV_DB_RANGE(ngb_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(-6400, 600, 0),
-	3, 7, TLV_DB_SCALE_ITEM(-4600, 300, 0),
-};
-static const unsigned int alc_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+	3, 7, TLV_DB_SCALE_ITEM(-4600, 300, 0)
+);
+static const DECLARE_TLV_DB_RANGE(alc_tlv,
 	0, 2, TLV_DB_SCALE_ITEM(-3000, 600, 0),
-	3, 7, TLV_DB_SCALE_ITEM(-1200, 300, 0),
-};
+	3, 7, TLV_DB_SCALE_ITEM(-1200, 300, 0)
+);
 
 static const char * const beep_config_text[] = {
 	"Off", "Single", "Multiple", "Continuous"
@@ -953,7 +905,7 @@ static int cs42l56_set_bias_level(struct snd_soc_codec *codec,
 				    CS42L56_PDN_ALL_MASK, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			regcache_cache_only(cs42l56->regmap, false);
 			regcache_sync(cs42l56->regmap);
 			ret = regulator_bulk_enable(ARRAY_SIZE(cs42l56->supplies),
@@ -978,7 +930,6 @@ static int cs42l56_set_bias_level(struct snd_soc_codec *codec,
 						    cs42l56->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -990,7 +941,7 @@ static int cs42l56_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_FMTBIT_S32_LE)
 
 
-static struct snd_soc_dai_ops cs42l56_ops = {
+static const struct snd_soc_dai_ops cs42l56_ops = {
 	.hw_params	= cs42l56_pcm_hw_params,
 	.digital_mute	= cs42l56_digital_mute,
 	.set_fmt	= cs42l56_set_dai_fmt,
@@ -1026,7 +977,7 @@ static void cs42l56_beep_work(struct work_struct *work)
 	struct cs42l56_private *cs42l56 =
 		container_of(work, struct cs42l56_private, beep_work);
 	struct snd_soc_codec *codec = cs42l56->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	int i;
 	int val = 0;
 	int best = 0;
@@ -1409,7 +1360,6 @@ MODULE_DEVICE_TABLE(i2c, cs42l56_id);
 static struct i2c_driver cs42l56_i2c_driver = {
 	.driver = {
 		.name = "cs42l56",
-		.owner = THIS_MODULE,
 		.of_match_table = cs42l56_of_match,
 	},
 	.id_table = cs42l56_id,
