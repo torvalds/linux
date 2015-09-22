@@ -285,7 +285,7 @@ protected:
 class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
 
-	static Q3Action *saveAction;
+	static QAction *saveAction;
 	static void conf_changed(void);
 public:
 	ConfigMainWindow(void);
@@ -315,7 +315,7 @@ protected:
 	ConfigList *configList;
 	ConfigInfoView *helpText;
 	QToolBar *toolBar;
-	Q3Action *backAction;
+	QAction *backAction;
 	QSplitter* split1;
 	QSplitter* split2;
 };
