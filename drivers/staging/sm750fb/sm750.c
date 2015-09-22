@@ -1,20 +1,20 @@
-#include<linux/kernel.h>
-#include<linux/module.h>
-#include<linux/errno.h>
-#include<linux/string.h>
-#include<linux/mm.h>
-#include<linux/slab.h>
-#include<linux/delay.h>
-#include<linux/fb.h>
-#include<linux/ioport.h>
-#include<linux/init.h>
-#include<linux/pci.h>
-#include<linux/mm_types.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
-#include<linux/screen_info.h>
-#include<linux/vmalloc.h>
-#include<linux/pagemap.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/fb.h>
+#include <linux/ioport.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/mm_types.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
+#include <linux/screen_info.h>
+#include <linux/vmalloc.h>
+#include <linux/pagemap.h>
 #include <linux/console.h>
 #include <asm/fb.h>
 #include "sm750.h"
