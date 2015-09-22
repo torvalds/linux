@@ -50,18 +50,18 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 }
 
 static long clk_fd_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *prate)
+			      unsigned long *parent_rate)
 {
 	struct clk_fractional_divider *fd = to_clk_fd(hw);
 	unsigned maxn = (fd->nmask >> fd->nshift) + 1;
 	unsigned div;
 
-	if (!rate || rate >= *prate)
-		return *prate;
+	if (!rate || rate >= *parent_rate)
+		return *parent_rate;
 
-	div = gcd(*prate, rate);
+	div = gcd(*parent_rate, rate);
 
-	while ((*prate / div) > maxn) {
+	while ((*parent_rate / div) > maxn) {
 		div <<= 1;
 		rate <<= 1;
 	}
