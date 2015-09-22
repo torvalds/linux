@@ -855,9 +855,13 @@ QAction *ConfigView::showPromptAction;
 ConfigView::ConfigView(QWidget* parent, const char *name)
 	: Parent(parent, name)
 {
+	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
+
 	list = new ConfigList(this, name);
+	verticalLayout->addWidget(list);
 	lineEdit = new ConfigLineEdit(this);
 	lineEdit->hide();
+	verticalLayout->addWidget(lineEdit);
 
 	this->nextView = viewList;
 	viewList = this;
@@ -1302,6 +1306,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	menu = menuBar();
 	toolBar = new QToolBar("Tools", this);
+	addToolBar(toolBar);
 
 	backAction = new QAction(QPixmap(xpm_back), _("Back"), this);
 	  connect(backAction, SIGNAL(activated()), SLOT(goBack()));
