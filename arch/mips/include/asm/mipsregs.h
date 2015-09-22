@@ -132,15 +132,9 @@
 #define R3K_ENTRYLO_N		(_ULCAST_(1) << 11)
 
 /* MIPS32/64 EntryLo bit definitions */
-#ifdef CONFIG_64BIT
-/* as read by dmfc0 */
-#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 62)
-#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 63)
-#else
-/* as read by mfc0 */
-#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << 30)
-#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << 31)
-#endif
+#define MIPS_ENTRYLO_PFN_SHIFT	6
+#define MIPS_ENTRYLO_XI		(_ULCAST_(1) << (BITS_PER_LONG - 2))
+#define MIPS_ENTRYLO_RI		(_ULCAST_(1) << (BITS_PER_LONG - 1))
 
 /*
  * Values for PageMask register
