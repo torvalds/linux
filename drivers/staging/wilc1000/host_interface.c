@@ -6433,7 +6433,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	down(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
-	/* gWFiDrvHandle->bPendingConnRequest = false; */
 
 	/*Initialize CFG WIDS Defualt Values*/
 
