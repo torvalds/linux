@@ -141,7 +141,7 @@ static inline __wsum csum_add(__wsum csum, __wsum addend)
 #else
 	asm("addc %0,%0,%1;"
 	    "addze %0,%0;"
-	    : "+r" (csum) : "r" (addend));
+	    : "+r" (csum) : "r" (addend) : "xer");
 	return csum;
 #endif
 }
