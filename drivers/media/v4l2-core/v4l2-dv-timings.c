@@ -210,7 +210,12 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 					  fnc, fnc_handle) &&
 		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i,
 					  pclock_delta)) {
+			u32 flags = t->bt.flags & V4L2_DV_FL_REDUCED_FPS;
+
 			*t = v4l2_dv_timings_presets[i];
+			if (can_reduce_fps(&t->bt))
+				t->bt.flags |= flags;
+
 			return true;
 		}
 	}

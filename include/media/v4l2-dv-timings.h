@@ -183,4 +183,25 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
  */
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
 
+/*
+ * reduce_fps - check if conditions for reduced fps are true.
+ * bt - v4l2 timing structure
+ * For different timings reduced fps is allowed if following conditions
+ * are met -
+ * For CVT timings: if reduced blanking v2 (vsync == 8) is true.
+ * For CEA861 timings: if V4L2_DV_FL_CAN_REDUCE_FPS flag is true.
+ */
+static inline  bool can_reduce_fps(struct v4l2_bt_timings *bt)
+{
+	if ((bt->standards & V4L2_DV_BT_STD_CVT) && (bt->vsync == 8))
+		return true;
+
+	if ((bt->standards & V4L2_DV_BT_STD_CEA861) &&
+	    (bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS))
+		return true;
+
+	return false;
+}
+
+
 #endif
