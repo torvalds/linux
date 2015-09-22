@@ -278,6 +278,12 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 	}
 
 	write_gcr_cl_other(val);
+
+	/*
+	 * Ensure the core-other region reflects the appropriate core &
+	 * VP before any accesses to it occur.
+	 */
+	mb();
 }
 
 void mips_cm_unlock_other(void)
