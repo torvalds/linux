@@ -435,7 +435,7 @@ void ConfigList::updateList(ConfigItem* item)
 
 	if (rootEntry != &rootmenu && (mode == singleMode ||
 	    (mode == symbolMode && rootEntry->parent != &rootmenu))) {
-		item = firstChild();
+		item = (ConfigItem *)topLevelItem(0);
 		if (!item)
 			item = new ConfigItem(this, 0, true);
 		last = item;
