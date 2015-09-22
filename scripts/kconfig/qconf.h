@@ -53,10 +53,10 @@ public:
 
 protected:
 	void keyPressEvent(QKeyEvent *e);
-	void contentsMousePressEvent(QMouseEvent *e);
-	void contentsMouseReleaseEvent(QMouseEvent *e);
-	void contentsMouseMoveEvent(QMouseEvent *e);
-	void contentsMouseDoubleClickEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseDoubleClickEvent(QMouseEvent *e);
 	void focusInEvent(QFocusEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
@@ -87,16 +87,15 @@ public:
 	}
 	ConfigItem* firstChild() const
 	{
-		// TODO: Implement me.
-		return NULL;
+		return (ConfigItem *)children().first();
 	}
-	void addColumn(colIdx idx, const QString& label)
+	void addColumn(colIdx idx)
 	{
-		// TODO: Implement me.
+		showColumn(idx);
 	}
 	void removeColumn(colIdx idx)
 	{
-		// TODO: Implement me.
+		hideColumn(idx);
 	}
 	void setAllOpen(bool open);
 	void setParentMenu(void);
@@ -124,7 +123,7 @@ public:
 class ConfigItem : public QTreeWidgetItem {
 	typedef class QTreeWidgetItem Parent;
 public:
-	ConfigItem(QTreeWidgetItem *parent, ConfigItem *after, struct menu *m, bool v)
+	ConfigItem(QTreeWidget *parent, ConfigItem *after, struct menu *m, bool v)
 	: Parent(parent, after), menu(m), visible(v), goParent(false)
 	{
 		init();
@@ -134,7 +133,7 @@ public:
 	{
 		init();
 	}
-	ConfigItem(QTreeWidgetItem *parent, ConfigItem *after, bool v)
+	ConfigItem(QTreeWidget *parent, ConfigItem *after, bool v)
 	: Parent(parent, after), menu(0), visible(v), goParent(true)
 	{
 		init();
@@ -152,9 +151,19 @@ public:
 	{
 		return (ConfigItem *)Parent::child(0);
 	}
-	ConfigItem* nextSibling() const
+	ConfigItem* nextSibling()
 	{
-		return NULL; // TODO: Implement me
+		ConfigItem *ret = NULL;
+		ConfigItem *_parent = (ConfigItem *)parent();
+
+		if(_parent) {
+		  ret = (ConfigItem *)_parent->child(_parent->indexOfChild(this)+1);
+		} else {
+		  QTreeWidget *_treeWidget = treeWidget();
+		  ret = (ConfigItem *)_treeWidget->topLevelItem(_treeWidget->indexOfTopLevelItem(this)+1);
+		}
+
+		return ret;
 	}
 	void setText(colIdx idx, const QString& text)
 	{
@@ -164,15 +173,15 @@ public:
 	{
 		return Parent::text(idx);
 	}
-	void setPixmap(colIdx idx, const QPixmap& pm)
+	void setPixmap(colIdx idx, const QIcon &icon)
 	{
-		// TODO: Implement me
+		Parent::setIcon(idx, icon);
 	}
-	const QPixmap* pixmap(colIdx idx) const
+	const QIcon pixmap(colIdx idx) const
 	{
-		return NULL; // TODO: Implement me
+		return icon(idx);
 	}
-	// Implement paintCell
+	// TODO: Implement paintCell
 
 	ConfigItem* nextItem;
 	struct menu *menu;
