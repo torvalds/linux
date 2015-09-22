@@ -332,6 +332,7 @@
 				};
 
 				esai: esai@02024000 {
+					compatible = "fsl,imx35-esai";
 					reg = <0x02024000 0x4000>;
 					interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_ESAI_IPG>,
@@ -341,6 +342,9 @@
 						 <&clks IMX6SX_CLK_SPBA>;
 					clock-names = "core", "mem", "extal",
 						      "fsys", "dma";
+					dmas = <&sdma 23 21 0>,
+					       <&sdma 24 21 0>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -799,7 +803,7 @@
 			};
 
 			sdma: sdma@020ec000 {
-				compatible = "fsl,imx6sx-sdma", "fsl,imx6q-sdma";
+				compatible = "fsl,imx6sx-sdma", "fsl,imx35-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_SDMA>,

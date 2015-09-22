@@ -14,6 +14,14 @@
 	model = "Freescale i.MX6 SoloX Sabre Auto Board";
 	compatible = "fsl,imx6sx-sabreauto", "fsl,imx6sx";
 
+	clocks {
+		codec_osc: anaclk2 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+		};
+	};
+
 	max7310_reset: max7310-reset {
 		compatible = "gpio-reset";
 		reset-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
@@ -29,6 +37,14 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		reg_audio: cs42888_supply {
+			compatible = "regulator-fixed";
+			regulator-name = "cs42888_supply";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
 
 		vcc_sd3: regulator@0 {
 			compatible = "regulator-fixed";
@@ -64,6 +80,34 @@
 			enable-active-high;
 		};
 	};
+
+	sound-cs42888 {
+		compatible = "fsl,imx6-sabreauto-cs42888",
+			   "fsl,imx-audio-cs42888";
+		model = "imx-cs42888";
+		esai-controller = <&esai>;
+		asrc-controller = <&asrc>;
+		audio-codec = <&codec>;
+	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6SX_PLL4_BYPASS_SRC>,
+			  <&clks IMX6SX_PLL4_BYPASS>,
+			  <&clks IMX6SX_CLK_PLL4_POST_DIV>;
+	assigned-clock-parents = <&clks IMX6SX_CLK_LVDS2_IN>,
+				 <&clks IMX6SX_PLL4_BYPASS_SRC>;
+	assigned-clock-rates = <0>, <0>, <24576000>;
+};
+
+&esai {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esai_2>;
+	assigned-clocks = <&clks IMX6SX_CLK_ESAI_SEL>,
+		          <&clks IMX6SX_CLK_ESAI_EXTAL>;
+	assigned-clock-parents = <&clks IMX6SX_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
 };
 
 &fec1 {
@@ -105,6 +149,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c2_1>;
 	status = "okay";
+
+	codec: cs42888@048 {
+		compatible = "cirrus,cs42888";
+		reg = <0x048>;
+		clocks = <&codec_osc 0>;
+		clock-names = "mclk";
+		VA-supply = <&reg_audio>;
+		VD-supply = <&reg_audio>;
+		VLS-supply = <&reg_audio>;
+		VLC-supply = <&reg_audio>;
+	};
 
 	max7322: gpio@68 {
 		compatible = "maxim,max7322";
@@ -240,6 +295,21 @@
 				MX6SX_PAD_RGMII2_RD2__ENET2_RX_DATA_2   0x3081
 				MX6SX_PAD_RGMII2_RD3__ENET2_RX_DATA_3   0x3081
 				MX6SX_PAD_RGMII2_RX_CTL__ENET2_RX_EN    0x3081
+			>;
+		};
+
+		pinctrl_esai_2: esaigrp-2 {
+			fsl,pins = <
+				MX6SX_PAD_CSI_DATA00__ESAI_TX_CLK   0x1b030
+				MX6SX_PAD_CSI_DATA01__ESAI_TX_FS    0x1b030
+				MX6SX_PAD_CSI_HSYNC__ESAI_TX0       0x1b030
+				MX6SX_PAD_CSI_DATA04__ESAI_TX1      0x1b030
+				MX6SX_PAD_CSI_DATA06__ESAI_TX2_RX3  0x1b030
+				MX6SX_PAD_CSI_DATA07__ESAI_TX3_RX2  0x1b030
+				MX6SX_PAD_CSI_DATA02__ESAI_RX_CLK   0x1b030
+				MX6SX_PAD_CSI_DATA03__ESAI_RX_FS    0x1b030
+				MX6SX_PAD_CSI_VSYNC__ESAI_TX5_RX0   0x1b030
+				MX6SX_PAD_CSI_DATA05__ESAI_TX4_RX1  0x1b030
 			>;
 		};
 
