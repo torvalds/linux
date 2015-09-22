@@ -12,7 +12,6 @@
 #include <QAction>
 #include <q3header.h>
 #include <QFileDialog>
-#include <q3dragobject.h>
 #include <QMenu>
 
 #include <qapplication.h>
