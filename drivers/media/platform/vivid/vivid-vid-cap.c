@@ -405,6 +405,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 {
 	struct v4l2_bt_timings *bt = &dev->dv_timings_cap.bt;
 	unsigned size;
+	u64 pixelclock;
 
 	switch (dev->input_type[dev->input]) {
 	case WEBCAM:
@@ -434,8 +435,15 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		dev->src_rect.width = bt->width;
 		dev->src_rect.height = bt->height;
 		size = V4L2_DV_BT_FRAME_WIDTH(bt) * V4L2_DV_BT_FRAME_HEIGHT(bt);
+		if (dev->reduced_fps && can_reduce_fps(bt)) {
+			pixelclock = div_u64(bt->pixelclock * 1000, 1001);
+			bt->flags |= V4L2_DV_FL_REDUCED_FPS;
+		} else {
+			pixelclock = bt->pixelclock;
+			bt->flags &= ~V4L2_DV_FL_REDUCED_FPS;
+		}
 		dev->timeperframe_vid_cap = (struct v4l2_fract) {
-			size / 100, (u32)bt->pixelclock / 100
+			size / 100, (u32)pixelclock / 100
 		};
 		if (bt->interlaced)
 			dev->field_cap = V4L2_FIELD_ALTERNATE;
