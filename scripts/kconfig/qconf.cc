@@ -13,7 +13,7 @@
 #include <q3header.h>
 #include <QFileDialog>
 #include <q3dragobject.h>
-#include <q3popupmenu.h>
+#include <QMenu>
 
 #include <qapplication.h>
 #include <qdesktopwidget.h>
@@ -817,7 +817,7 @@ void ConfigList::contextMenuEvent(QContextMenuEvent *e)
 		if (!headerPopup) {
 			QAction *action;
 
-			headerPopup = new Q3PopupMenu(this);
+			headerPopup = new QMenu(this);
 			action = new QAction(_("Show Name"), this);
 			  action->setToggleAction(TRUE);
 			  connect(action, SIGNAL(toggled(bool)),
@@ -1387,32 +1387,32 @@ ConfigMainWindow::ConfigMainWindow(void)
 	fullViewAction->addTo(toolBar);
 
 	// create config menu
-	Q3PopupMenu* config = new Q3PopupMenu(this);
+	QMenu* config = new QMenu(this);
 	menu->insertItem(_("&File"), config);
 	loadAction->addTo(config);
 	saveAction->addTo(config);
 	saveAsAction->addTo(config);
-	config->insertSeparator();
+	config->addSeparator();
 	quitAction->addTo(config);
 
 	// create edit menu
-	Q3PopupMenu* editMenu = new Q3PopupMenu(this);
+	QMenu* editMenu = new QMenu(this);
 	menu->insertItem(_("&Edit"), editMenu);
 	searchAction->addTo(editMenu);
 
 	// create options menu
-	Q3PopupMenu* optionMenu = new Q3PopupMenu(this);
+	QMenu* optionMenu = new QMenu(this);
 	menu->insertItem(_("&Option"), optionMenu);
 	showNameAction->addTo(optionMenu);
 	showRangeAction->addTo(optionMenu);
 	showDataAction->addTo(optionMenu);
-	optionMenu->insertSeparator();
+	optionMenu->addSeparator();
 	optGroup->addTo(optionMenu);
-	optionMenu->insertSeparator();
+	optionMenu->addSeparator();
 
 	// create help menu
-	Q3PopupMenu* helpMenu = new Q3PopupMenu(this);
-	menu->insertSeparator();
+	QMenu* helpMenu = new QMenu(this);
+	menu->addSeparator();
 	menu->insertItem(_("&Help"), helpMenu);
 	showIntroAction->addTo(helpMenu);
 	showAboutAction->addTo(helpMenu);

@@ -117,7 +117,7 @@ public:
 	struct menu *rootEntry;
 	QColorGroup disabledColorGroup;
 	QColorGroup inactivedColorGroup;
-	Q3PopupMenu* headerPopup;
+	QMenu* headerPopup;
 
 private:
 	int colMap[colNr];
