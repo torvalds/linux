@@ -6374,9 +6374,8 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 	/*Allocate host interface private structure*/
 	pstrWFIDrv  = kzalloc(sizeof(tstrWILC_WFIDrv), GFP_KERNEL);
-	if (pstrWFIDrv == NULL) {
+	if (!pstrWFIDrv) {
 		s32Error = -ENOMEM;
-		PRINT_ER("Failed to allocate memory\n");
 		goto _fail_timer_2;
 	}
 	*phWFIDrv = pstrWFIDrv;
