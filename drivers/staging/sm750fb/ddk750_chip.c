@@ -1,3 +1,5 @@
+#include <linux/sizes.h>
+
 #include "ddk750_help.h"
 #include "ddk750_reg.h"
 #include "ddk750_chip.h"
@@ -226,7 +228,7 @@ unsigned int ddk750_getVMSize(void)
 
 	/* sm750le only use 64 mb memory*/
 	if (getChipType() == SM750LE)
-		return MB(64);
+		return SZ_64M;
 
 	/* for 750,always use power mode0*/
 	reg = PEEK32(MODE0_GATE);
@@ -237,13 +239,13 @@ unsigned int ddk750_getVMSize(void)
 	reg = FIELD_GET(PEEK32(MISC_CTRL), MISC_CTRL, LOCALMEM_SIZE);
 	switch (reg) {
 	case MISC_CTRL_LOCALMEM_SIZE_8M:
-		data = MB(8);  break; /* 8  Mega byte */
+		data = SZ_8M;  break; /* 8  Mega byte */
 	case MISC_CTRL_LOCALMEM_SIZE_16M:
-		data = MB(16); break; /* 16 Mega byte */
+		data = SZ_16M; break; /* 16 Mega byte */
 	case MISC_CTRL_LOCALMEM_SIZE_32M:
-		data = MB(32); break; /* 32 Mega byte */
+		data = SZ_32M; break; /* 32 Mega byte */
 	case MISC_CTRL_LOCALMEM_SIZE_64M:
-		data = MB(64); break; /* 64 Mega byte */
+		data = SZ_64M; break; /* 64 Mega byte */
 	default:
 		data = 0;
 		break;

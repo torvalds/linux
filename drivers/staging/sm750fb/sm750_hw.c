@@ -18,6 +18,7 @@
 #endif
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
+#include <linux/sizes.h>
 
 #include "sm750.h"
 #include "sm750_hw.h"
@@ -34,7 +35,7 @@ int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 	ret = 0;
 
 	share->vidreg_start  = pci_resource_start(pdev, 1);
-	share->vidreg_size = MB(2);
+	share->vidreg_size = SZ_2M;
 
 	pr_info("mmio phyAddr = %lx\n", share->vidreg_start);
 
