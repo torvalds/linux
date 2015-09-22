@@ -134,6 +134,16 @@ void __init check_wait(void)
 		return;
 	}
 
+	/*
+	 * MIPSr6 specifies that masked interrupts should unblock an executing
+	 * wait instruction, and thus that it is safe for us to use
+	 * r4k_wait_irqoff. Yippee!
+	 */
+	if (cpu_has_mips_r6) {
+		cpu_wait = r4k_wait_irqoff;
+		return;
+	}
+
 	switch (current_cpu_type()) {
 	case CPU_R3081:
 	case CPU_R3081E:
@@ -196,7 +206,6 @@ void __init check_wait(void)
 	case CPU_INTERAPTIV:
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
-	case CPU_I6400:
 		cpu_wait = r4k_wait;
 		if (read_c0_config7() & MIPS_CONF7_WII)
 			cpu_wait = r4k_wait_irqoff;
