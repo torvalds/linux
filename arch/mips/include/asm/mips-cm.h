@@ -11,6 +11,7 @@
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
+#include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/types.h>
@@ -263,6 +264,8 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_ERROR_CAUSE register fields */
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_SHF		27
 #define CM_GCR_ERROR_CAUSE_ERRTYPE_MSK		(_ULCAST_(0x1f) << 27)
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF		58
+#define CM3_GCR_ERROR_CAUSE_ERRTYPE_MSK		GENMASK_ULL(63, 58)
 #define CM_GCR_ERROR_CAUSE_ERRINFO_SHF		0
 #define CM_GCR_ERROR_CAUSE_ERRINGO_MSK		(_ULCAST_(0x7ffffff) << 0)
 
