@@ -2189,6 +2189,7 @@ void dwc2_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 	}
 
 	call_gadget(hsotg, disconnect);
+	hsotg->lx_state = DWC2_L3;
 }
 
 /**
@@ -2415,6 +2416,7 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	mdelay(3);
 
 	hsotg->last_rst = jiffies;
+	hsotg->lx_state = DWC2_L0;
 }
 
 static void dwc2_hsotg_core_disconnect(struct dwc2_hsotg *hsotg)
@@ -2514,7 +2516,6 @@ irq_retry:
 				kill_all_requests(hsotg, hsotg->eps_out[0],
 							  -ECONNRESET);
 
-				hsotg->lx_state = DWC2_L0;
 				dwc2_hsotg_core_init_disconnected(hsotg, true);
 			}
 		}
@@ -3205,10 +3206,9 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 		 * If controller is hibernated, it must exit from hibernation
 		 * before being initialized
 		 */
-		if (hsotg->lx_state == DWC2_L2) {
+		if (hsotg->lx_state == DWC2_L2)
 			dwc2_exit_hibernation(hsotg, false);
-			hsotg->lx_state = DWC2_L0;
-		}
+
 		/* Kill any ep0 requests as controller will be reinitialized */
 		kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
