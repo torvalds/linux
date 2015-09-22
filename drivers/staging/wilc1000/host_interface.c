@@ -6370,8 +6370,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 	sema_init(&hWaitResponse, 0);
 
-
-
 	/*Allocate host interface private structure*/
 	pstrWFIDrv  = kzalloc(sizeof(tstrWILC_WFIDrv), GFP_KERNEL);
 	if (!pstrWFIDrv) {
@@ -6404,9 +6402,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	sema_init(&(pstrWFIDrv->hSemGetCHNL), 0);
 	sema_init(&(pstrWFIDrv->hSemInactiveTime), 0);
 
-
-
-
 	PRINT_D(HOSTINF_DBG, "INIT: CLIENT COUNT %d\n", clients_count);
 
 	if (clients_count == 0)	{
@@ -6426,7 +6421,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 			    (unsigned long)pstrWFIDrv);
 		mod_timer(&g_hPeriodicRSSI, jiffies + msecs_to_jiffies(5000));
 	}
-
 
 	setup_timer(&pstrWFIDrv->hScanTimer, TimerCB_Scan, 0);
 
@@ -6457,7 +6451,6 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		   pstrWFIDrv->strCfgValues.active_scan_time, pstrWFIDrv->strCfgValues.passive_scan_time,
 		   pstrWFIDrv->strCfgValues.curr_tx_rate);
 
-
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
 
 	clients_count++; /* increase number of created entities */
@@ -6473,7 +6466,6 @@ _fail_mq_:
 	wilc_mq_destroy(&gMsgQHostIF);
 _fail_:
 	return s32Error;
-
 
 }
 /**
