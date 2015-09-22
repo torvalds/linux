@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/power/bq27x00_battery.h>
+#include <linux/power/bq27xxx_battery.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
@@ -39,7 +39,7 @@ static int w1_bq27000_read(struct device *dev, unsigned int reg)
 	return val;
 }
 
-static struct bq27000_platform_data bq27000_battery_info = {
+static struct bq27xxx_platform_data bq27000_battery_info = {
 	.read   = w1_bq27000_read,
 	.name   = "bq27000-battery",
 };
