@@ -2350,6 +2350,9 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 	unsigned long flags;
 
+	/* Turn off all host-specific interrupts */
+	dwc2_disable_host_interrupts(hsotg);
+
 	/* Wait for interrupt processing to finish */
 	synchronize_irq(hcd->irq);
 
