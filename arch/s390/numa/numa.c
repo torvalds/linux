@@ -23,7 +23,7 @@
 pg_data_t *node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(node_data);
 
-cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
+cpumask_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
 const struct numa_mode numa_mode_plain = {
@@ -144,7 +144,7 @@ void __init numa_setup(void)
 static int __init numa_init_early(void)
 {
 	/* Attach all possible CPUs to node 0 for now. */
-	cpumask_copy(node_to_cpumask_map[0], cpu_possible_mask);
+	cpumask_copy(&node_to_cpumask_map[0], cpu_possible_mask);
 	return 0;
 }
 early_initcall(numa_init_early);
