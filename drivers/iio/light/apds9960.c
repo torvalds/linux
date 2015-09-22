@@ -983,11 +983,7 @@ static int apds9960_chip_init(struct apds9960_data *data)
 	if (ret)
 		return ret;
 
-	ret = apds9960_set_powermode(data, 1);
-	if (ret)
-		return ret;
-
-	return 0;
+	return apds9960_set_powermode(data, 1);
 }
 
 static int apds9960_probe(struct i2c_client *client,
