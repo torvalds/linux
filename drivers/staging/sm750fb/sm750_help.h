@@ -81,8 +81,6 @@ static inline unsigned int absDiff(unsigned int a, unsigned int b)
 
 /* n / d + 1 / 2 = (2n + d) / 2d */
 #define roundedDiv(num, denom)	((2 * (num) + (denom)) / (2 * (denom)))
-#define MB(x) ((x)<<20)
-#define KB(x) ((x)<<10)
 #define MHz(x) ((x) * 1000000)
 
 
