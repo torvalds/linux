@@ -226,8 +226,6 @@ static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 	[LWTUNNEL_IP_SRC]	= { .type = NLA_U32 },
 	[LWTUNNEL_IP_TTL]	= { .type = NLA_U8 },
 	[LWTUNNEL_IP_TOS]	= { .type = NLA_U8 },
-	[LWTUNNEL_IP_SPORT]	= { .type = NLA_U16 },
-	[LWTUNNEL_IP_DPORT]	= { .type = NLA_U16 },
 	[LWTUNNEL_IP_FLAGS]	= { .type = NLA_U16 },
 };
 
@@ -267,12 +265,6 @@ static int ip_tun_build_state(struct net_device *dev, struct nlattr *attr,
 	if (tb[LWTUNNEL_IP_TOS])
 		tun_info->key.tos = nla_get_u8(tb[LWTUNNEL_IP_TOS]);
 
-	if (tb[LWTUNNEL_IP_SPORT])
-		tun_info->key.tp_src = nla_get_be16(tb[LWTUNNEL_IP_SPORT]);
-
-	if (tb[LWTUNNEL_IP_DPORT])
-		tun_info->key.tp_dst = nla_get_be16(tb[LWTUNNEL_IP_DPORT]);
-
 	if (tb[LWTUNNEL_IP_FLAGS])
 		tun_info->key.tun_flags = nla_get_u16(tb[LWTUNNEL_IP_FLAGS]);
 
@@ -294,8 +286,6 @@ static int ip_tun_fill_encap_info(struct sk_buff *skb,
 	    nla_put_be32(skb, LWTUNNEL_IP_SRC, tun_info->key.u.ipv4.src) ||
 	    nla_put_u8(skb, LWTUNNEL_IP_TOS, tun_info->key.tos) ||
 	    nla_put_u8(skb, LWTUNNEL_IP_TTL, tun_info->key.ttl) ||
-	    nla_put_u16(skb, LWTUNNEL_IP_SPORT, tun_info->key.tp_src) ||
-	    nla_put_u16(skb, LWTUNNEL_IP_DPORT, tun_info->key.tp_dst) ||
 	    nla_put_u16(skb, LWTUNNEL_IP_FLAGS, tun_info->key.tun_flags))
 		return -ENOMEM;
 
@@ -309,8 +299,6 @@ static int ip_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 		+ nla_total_size(4)	/* LWTUNNEL_IP_SRC */
 		+ nla_total_size(1)	/* LWTUNNEL_IP_TOS */
 		+ nla_total_size(1)	/* LWTUNNEL_IP_TTL */
-		+ nla_total_size(2)	/* LWTUNNEL_IP_SPORT */
-		+ nla_total_size(2)	/* LWTUNNEL_IP_DPORT */
 		+ nla_total_size(2);	/* LWTUNNEL_IP_FLAGS */
 }
 
@@ -333,8 +321,6 @@ static const struct nla_policy ip6_tun_policy[LWTUNNEL_IP6_MAX + 1] = {
 	[LWTUNNEL_IP6_SRC]		= { .len = sizeof(struct in6_addr) },
 	[LWTUNNEL_IP6_HOPLIMIT]		= { .type = NLA_U8 },
 	[LWTUNNEL_IP6_TC]		= { .type = NLA_U8 },
-	[LWTUNNEL_IP6_SPORT]		= { .type = NLA_U16 },
-	[LWTUNNEL_IP6_DPORT]		= { .type = NLA_U16 },
 	[LWTUNNEL_IP6_FLAGS]		= { .type = NLA_U16 },
 };
 
@@ -374,12 +360,6 @@ static int ip6_tun_build_state(struct net_device *dev, struct nlattr *attr,
 	if (tb[LWTUNNEL_IP6_TC])
 		tun_info->key.tos = nla_get_u8(tb[LWTUNNEL_IP6_TC]);
 
-	if (tb[LWTUNNEL_IP6_SPORT])
-		tun_info->key.tp_src = nla_get_be16(tb[LWTUNNEL_IP6_SPORT]);
-
-	if (tb[LWTUNNEL_IP6_DPORT])
-		tun_info->key.tp_dst = nla_get_be16(tb[LWTUNNEL_IP6_DPORT]);
-
 	if (tb[LWTUNNEL_IP6_FLAGS])
 		tun_info->key.tun_flags = nla_get_u16(tb[LWTUNNEL_IP6_FLAGS]);
 
@@ -401,8 +381,6 @@ static int ip6_tun_fill_encap_info(struct sk_buff *skb,
 	    nla_put_in6_addr(skb, LWTUNNEL_IP6_SRC, &tun_info->key.u.ipv6.src) ||
 	    nla_put_u8(skb, LWTUNNEL_IP6_HOPLIMIT, tun_info->key.tos) ||
 	    nla_put_u8(skb, LWTUNNEL_IP6_TC, tun_info->key.ttl) ||
-	    nla_put_u16(skb, LWTUNNEL_IP6_SPORT, tun_info->key.tp_src) ||
-	    nla_put_u16(skb, LWTUNNEL_IP6_DPORT, tun_info->key.tp_dst) ||
 	    nla_put_u16(skb, LWTUNNEL_IP6_FLAGS, tun_info->key.tun_flags))
 		return -ENOMEM;
 
@@ -416,8 +394,6 @@ static int ip6_tun_encap_nlsize(struct lwtunnel_state *lwtstate)
 		+ nla_total_size(16)	/* LWTUNNEL_IP6_SRC */
 		+ nla_total_size(1)	/* LWTUNNEL_IP6_HOPLIMIT */
 		+ nla_total_size(1)	/* LWTUNNEL_IP6_TC */
-		+ nla_total_size(2)	/* LWTUNNEL_IP6_SPORT */
-		+ nla_total_size(2)	/* LWTUNNEL_IP6_DPORT */
 		+ nla_total_size(2);	/* LWTUNNEL_IP6_FLAGS */
 }
 
