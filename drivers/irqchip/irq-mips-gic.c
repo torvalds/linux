@@ -426,7 +426,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, cpumask_first(&tmp));
+	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < NR_CPUS; i++)
@@ -599,7 +599,7 @@ static __init void gic_ipi_init_one(unsigned int intr, int cpu,
 				      GIC_SHARED_TO_HWIRQ(intr));
 	int i;
 
-	gic_map_to_vpe(intr, cpu);
+	gic_map_to_vpe(intr, mips_cm_vp_id(cpu));
 	for (i = 0; i < NR_CPUS; i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
