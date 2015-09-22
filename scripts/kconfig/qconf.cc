@@ -318,6 +318,9 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setSortingEnabled(false);
 	setRootIsDecorated(true);
 
+	setVerticalScrollMode(ScrollPerPixel);
+	setHorizontalScrollMode(ScrollPerPixel);
+
 	setHeaderLabels(QStringList() << _("Option") << _("Name") << "N" << "M" << "Y" << _("Value"));
 
 	connect(this, SIGNAL(itemSelectionChanged(void)),
@@ -450,11 +453,13 @@ void ConfigList::updateList(ConfigItem* item)
 
 		updateMenuList(item, rootEntry);
 		update();
+		resizeColumnToContents(0);
 		return;
 	}
 update:
 	updateMenuList(this, rootEntry);
 	update();
+	resizeColumnToContents(0);
 }
 
 void ConfigList::setValue(ConfigItem* item, tristate val)
