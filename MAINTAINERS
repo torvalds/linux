@@ -5515,6 +5515,12 @@ F:	Documentation/networking/README.ipw2100
 F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/
 
+INTEL(R) TRACE HUB
+M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+S:	Supported
+F:	Documentation/trace/intel_th.txt
+F:	drivers/hwtracing/intel_th/
+
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
 M:	Richard L Maliszewski <richard.l.maliszewski@intel.com>
 M:	Gang Wei <gang.wei@intel.com>
