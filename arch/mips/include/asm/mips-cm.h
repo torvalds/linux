@@ -36,12 +36,12 @@ extern phys_addr_t __mips_cm_phys_base(void);
 /*
  * mips_cm_is64 - determine CM register width
  *
- * The CM register width is processor and CM specific. A 64-bit processor
- * usually has a 64-bit CM and a 32-bit one has a 32-bit CM but a 64-bit
- * processor could come with a 32-bit CM. Moreover, accesses on 64-bit CMs
- * can be done either using regular 64-bit load/store instructions, or 32-bit
- * load/store instruction on 32-bit register pairs. We opt for using 64-bit
- * accesses on 64-bit CMs and kernels and 32-bit in any other case.
+ * The CM register width is determined by the version of the CM, with CM3
+ * introducing 64 bit GCRs and all prior CM versions having 32 bit GCRs.
+ * However we may run a kernel built for MIPS32 on a system with 64 bit GCRs,
+ * or vice-versa. This variable indicates the width of the memory accesses
+ * that the kernel will perform to GCRs, which may differ from the actual
+ * width of the GCRs.
  *
  * It's set to 0 for 32-bit accesses and 1 for 64-bit accesses.
  */
