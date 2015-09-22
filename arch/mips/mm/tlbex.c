@@ -2284,6 +2284,10 @@ static void config_htw_params(void)
 	/* re-initialize the PTI field including the even/odd bit */
 	pwfield &= ~MIPS_PWFIELD_PTI_MASK;
 	pwfield |= PAGE_SHIFT << MIPS_PWFIELD_PTI_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3) {
+		pwfield &= ~MIPS_PWFIELD_MDI_MASK;
+		pwfield |= PMD_SHIFT << MIPS_PWFIELD_MDI_SHIFT;
+	}
 	/* Set the PTEI right shift */
 	ptei = _PAGE_GLOBAL_SHIFT << MIPS_PWFIELD_PTEI_SHIFT;
 	pwfield |= ptei;
@@ -2305,9 +2309,11 @@ static void config_htw_params(void)
 
 	pwsize = ilog2(PTRS_PER_PGD) << MIPS_PWSIZE_GDW_SHIFT;
 	pwsize |= ilog2(PTRS_PER_PTE) << MIPS_PWSIZE_PTW_SHIFT;
+	if (CONFIG_PGTABLE_LEVELS >= 3)
+		pwsize |= ilog2(PTRS_PER_PMD) << MIPS_PWSIZE_MDW_SHIFT;
 
 	/* If XPA has been enabled, PTEs are 64-bit in size. */
-	if (read_c0_pagegrain() & PG_ELPA)
+	if (config_enabled(CONFIG_64BITS) || (read_c0_pagegrain() & PG_ELPA))
 		pwsize |= 1;
 
 	write_c0_pwsize(pwsize);
