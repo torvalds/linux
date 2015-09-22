@@ -199,9 +199,6 @@ void ConfigItem::updateMenu(void)
 
 		data = sym_get_string_value(sym);
 
-		//int i = list->mapIdx(dataColIdx);
-		//if (i >= 0)
-		//	setRenameEnabled(i, true);
 		setText(dataColIdx, data);
 		if (type == S_STRING)
 			prompt = QString("%1: %2").arg(prompt).arg(data);
@@ -1353,7 +1350,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configList = configView->list;
 
 	helpText = new ConfigInfoView(split2, "help");
-	//helpText->setTextFormat(Qt::RichText);
 
 	setTabOrder(configList, helpText);
 	configList->setFocus();
