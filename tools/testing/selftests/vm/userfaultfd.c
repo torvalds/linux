@@ -580,15 +580,6 @@ static int userfaultfd_stress(void)
 		/* verification */
 		if (bounces & BOUNCE_VERIFY) {
 			for (nr = 0; nr < nr_pages; nr++) {
-				if (my_bcmp(area_dst,
-					    area_dst + nr * page_size,
-					    sizeof(pthread_mutex_t))) {
-					fprintf(stderr,
-						"error mutex %lu\n",
-						nr);
-					err = 1;
-					bounces = 0;
-				}
 				if (*area_count(area_dst, nr) != count_verify[nr]) {
 					fprintf(stderr,
 						"error area_count %Lu %Lu %lu\n",
