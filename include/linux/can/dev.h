@@ -14,9 +14,10 @@
 #define _CAN_DEV_H
 
 #include <linux/can.h>
-#include <linux/can/netlink.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
+#include <linux/can/netlink.h>
+#include <linux/netdevice.h>
 
 /*
  * CAN mode
