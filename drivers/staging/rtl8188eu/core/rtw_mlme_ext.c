@@ -3483,7 +3483,6 @@ static unsigned int OnAssocRsp(struct adapter *padapter,
 	pmlmeinfo->state &= (~WIFI_FW_ASSOC_STATE);
 	pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 
-	/* Update Basic Rate Table for spec, 2010-12-28 , by thomas */
 	UpdateBrateTbl(padapter, pmlmeinfo->network.SupportedRates);
 
 report_assoc_result:
