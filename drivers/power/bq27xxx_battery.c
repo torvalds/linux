@@ -48,6 +48,7 @@
 #include <linux/idr.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 #include <asm/unaligned.h>
 
 #include <linux/power/bq27xxx_battery.h>
@@ -761,6 +762,15 @@ static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 	di->last_update = jiffies;
 }
 
+static irqreturn_t bq27xxx_battery_irq_handler_thread(int irq, void *data)
+{
+	struct bq27xxx_device_info *di = data;
+
+	bq27xxx_battery_update(di);
+
+	return IRQ_HANDLED;
+}
+
 static void bq27xxx_battery_poll(struct work_struct *work)
 {
 	struct bq27xxx_device_info *di =
@@ -1127,6 +1137,19 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 	schedule_delayed_work(&di->work, 60 * HZ);
 
 	i2c_set_clientdata(client, di);
+
+	if (client->irq) {
+		retval = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, bq27xxx_battery_irq_handler_thread,
+				IRQF_ONESHOT,
+				name, di);
+		if (retval) {
+			dev_err(&client->dev,
+				"Unable to register IRQ %d error %d\n",
+				client->irq, retval);
+			return retval;
+		}
+	}
 
 	return 0;
 
