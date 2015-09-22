@@ -63,12 +63,14 @@ extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 #ifdef CONFIG_EDAC_DEBUG
 int edac_debugfs_init(void);
 void edac_debugfs_exit(void);
+int edac_create_debugfs_nodes(struct mem_ctl_info *mci);
 #else
 static inline int edac_debugfs_init(void)
 {
 	return -ENODEV;
 }
 static inline void edac_debugfs_exit(void) {}
+static inline int edac_create_debugfs_nodes(struct mem_ctl_info *mci) { return 0; }
 #endif
 
 /*
