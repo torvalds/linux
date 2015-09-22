@@ -252,7 +252,6 @@ int mips_cm_probe(void)
 
 void mips_cm_error_report(void)
 {
-	unsigned long revision = mips_cm_revision();
 	/*
 	 * CM3 has a 64-bit Error cause register with 0:57 containing the error
 	 * info and 63:58 the error type. For old CMs, everything is contained
@@ -260,17 +259,21 @@ void mips_cm_error_report(void)
 	 * though the cm_error is u64, we will simply ignore the upper word
 	 * for CM2.
 	 */
-	u64 cm_error = read_gcr_error_cause();
-	int cm_error_cause_sft = CM_GCR_ERROR_CAUSE_ERRTYPE_SHF +
-				 ((revision >= CM_REV_CM3) ? 31 : 0);
-	unsigned long cm_addr = read_gcr_error_addr();
-	unsigned long cm_other = read_gcr_error_mult();
-	int ocause, cause;
+	u64 cm_error;
+	unsigned long revision, cm_addr, cm_other;
+	int ocause, cause, cm_error_cause_sft;
 	char buf[256];
 
 	if (!mips_cm_present())
 		return;
 
+	revision = mips_cm_revision();
+	cm_error = read_gcr_error_cause();
+	cm_addr = read_gcr_error_addr();
+	cm_other = read_gcr_error_mult();
+
+	cm_error_cause_sft = CM_GCR_ERROR_CAUSE_ERRTYPE_SHF +
+				 ((revision >= CM_REV_CM3) ? 31 : 0);
 	cause = cm_error >> cm_error_cause_sft;
 
 	if (!cause)
