@@ -3131,20 +3131,7 @@ static void udc_pci_remove(struct pci_dev *pdev)
 		return;
 
 	/* dma pool cleanup */
-	if (dev->data_requests)
-		pci_pool_destroy(dev->data_requests);
-
-	if (dev->stp_requests) {
-		/* cleanup DMA desc's for ep0in */
-		pci_pool_free(dev->stp_requests,
-			dev->ep[UDC_EP0OUT_IX].td_stp,
-			dev->ep[UDC_EP0OUT_IX].td_stp_dma);
-		pci_pool_free(dev->stp_requests,
-			dev->ep[UDC_EP0OUT_IX].td,
-			dev->ep[UDC_EP0OUT_IX].td_phys);
-
-		pci_pool_destroy(dev->stp_requests);
-	}
+	free_dma_pools(dev);
 
 	/* reset controller */
 	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
