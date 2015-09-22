@@ -491,7 +491,7 @@ may be specified in any order and not all pairs have to be specified.
 	${R|W}BPS are read/write bytes per second and ${R|W}IOPS are
 	read/write IOs per second.  "max" indicates no limit.  Writing
 	to the file follows the same format but the individual
-	settings may be ommitted or specified in any order.
+	settings may be omitted or specified in any order.
 
 	This file is available only on non-root cgroups.
 
