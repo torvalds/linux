@@ -71,7 +71,7 @@ not_nmi:
 	mtc0	t0, CP0_CAUSE
 
 	/* Setup Status */
-	li	t0, ST0_CU1 | ST0_CU0
+	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV
 	mtc0	t0, CP0_STATUS
 
 	/*
