@@ -316,6 +316,9 @@ protected:
 	ConfigInfoView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;
+	QAction *singleViewAction;
+	QAction *splitViewAction;
+	QAction *fullViewAction;
 	QSplitter* split1;
 	QSplitter* split2;
 };

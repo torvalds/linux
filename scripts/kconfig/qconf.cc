@@ -1329,11 +1329,14 @@ ConfigMainWindow::ConfigMainWindow(void)
 	QAction *searchAction = new QAction(_("&Find"), this);
 	searchAction->setShortcut(Qt::CTRL + Qt::Key_F);
 	  connect(searchAction, SIGNAL(activated()), SLOT(searchConfig()));
-	QAction *singleViewAction = new QAction(QPixmap(xpm_single_view), _("Single View"), this);
+	singleViewAction = new QAction(QPixmap(xpm_single_view), _("Single View"), this);
+	singleViewAction->setCheckable(TRUE);
 	  connect(singleViewAction, SIGNAL(activated()), SLOT(showSingleView()));
-	QAction *splitViewAction = new QAction(QPixmap(xpm_split_view), _("Split View"), this);
+	splitViewAction = new QAction(QPixmap(xpm_split_view), _("Split View"), this);
+	splitViewAction->setCheckable(TRUE);
 	  connect(splitViewAction, SIGNAL(activated()), SLOT(showSplitView()));
-	QAction *fullViewAction = new QAction(QPixmap(xpm_tree_view), _("Full View"), this);
+	fullViewAction = new QAction(QPixmap(xpm_tree_view), _("Full View"), this);
+	fullViewAction->setCheckable(TRUE);
 	  connect(fullViewAction, SIGNAL(activated()), SLOT(showFullView()));
 
 	QAction *showNameAction = new QAction(_("Show Name"), this);
@@ -1579,6 +1582,13 @@ void ConfigMainWindow::goBack(void)
 
 void ConfigMainWindow::showSingleView(void)
 {
+	singleViewAction->setEnabled(false);
+	singleViewAction->setChecked(true);
+	splitViewAction->setEnabled(true);
+	splitViewAction->setChecked(false);
+	fullViewAction->setEnabled(true);
+	fullViewAction->setChecked(false);
+
 	menuView->hide();
 	menuList->setRootMenu(0);
 	configList->mode = singleMode;
@@ -1592,6 +1602,13 @@ void ConfigMainWindow::showSingleView(void)
 
 void ConfigMainWindow::showSplitView(void)
 {
+	singleViewAction->setEnabled(true);
+	singleViewAction->setChecked(false);
+	splitViewAction->setEnabled(false);
+	splitViewAction->setChecked(true);
+	fullViewAction->setEnabled(true);
+	fullViewAction->setChecked(false);
+
 	configList->mode = symbolMode;
 	if (configList->rootEntry == &rootmenu)
 		configList->updateListAll();
@@ -1608,6 +1625,13 @@ void ConfigMainWindow::showSplitView(void)
 
 void ConfigMainWindow::showFullView(void)
 {
+	singleViewAction->setEnabled(true);
+	singleViewAction->setChecked(false);
+	splitViewAction->setEnabled(true);
+	splitViewAction->setChecked(false);
+	fullViewAction->setEnabled(false);
+	fullViewAction->setChecked(true);
+
 	menuView->hide();
 	menuList->setRootMenu(0);
 	configList->mode = fullMode;
