@@ -106,6 +106,9 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 				USB_SPEED_HIGH : dev_speed, qh->ep_is_in,
 				qh->ep_type == USB_ENDPOINT_XFER_ISOC,
 				bytecount));
+
+		/* Ensure frame_number corresponds to the reality */
+		hsotg->frame_number = dwc2_hcd_get_frame_number(hsotg);
 		/* Start in a slightly future (micro)frame */
 		qh->sched_frame = dwc2_frame_num_inc(hsotg->frame_number,
 						     SCHEDULE_SLOP);
