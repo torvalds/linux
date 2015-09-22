@@ -1216,6 +1216,7 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	u32 mask, val;
 	u16 h_total,v_total;
 	int ret = 0;
+	int hdmi_dclk_out_en = 0;
 
 	if (unlikely(!lcdc_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
@@ -1282,6 +1283,7 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_YUV_420:
+			hdmi_dclk_out_en = 1;
 			face = OUT_YUV_420;
 			dclk_ddr = 1;
 			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN |
@@ -1291,6 +1293,7 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
 		case OUT_YUV_420_10BIT:
+			hdmi_dclk_out_en = 1;
 			face = OUT_YUV_420;
 			dclk_ddr = 1;
 			mask = m_DITHER_DOWN_EN | m_DITHER_UP_EN |
@@ -1323,7 +1326,9 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			v |= (lcdc_dev->id << 3);
 		        break;
 		case SCREEN_HDMI:
-			face = OUT_P101010;/*RGB 101010 output*/
+			if ((screen->face == OUT_P888) ||
+			    (screen->face == OUT_P101010))
+				face = OUT_P101010;/*RGB 101010 output*/
 			mask = m_HDMI_OUT_EN;
 			val = v_HDMI_OUT_EN(1);
 			break;
@@ -1340,6 +1345,10 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			mask = m_EDP_OUT_EN;
 			val = v_EDP_OUT_EN(1);
 			break;
+		}
+		if (dev_drv->version == VOP_FULL_RK3288_V1_1) {
+			mask |= m_HDMI_DCLK_OUT_EN;
+			val |= v_HDMI_DCLK_OUT_EN(hdmi_dclk_out_en);
 		}
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 #ifndef CONFIG_RK_FPGA
