@@ -15,6 +15,15 @@ config INTEL_TH
 
 if INTEL_TH
 
+config INTEL_TH_PCI
+	tristate "Intel(R) Trace Hub PCI controller"
+	depends on PCI
+	help
+	  Intel(R) Trace Hub may exist as a PCI device. This option enables
+	  support glue layer for PCI-based Intel TH.
+
+	  Say Y here to enable PCI Intel TH support.
+
 config INTEL_TH_DEBUG
 	bool "Intel(R) Trace Hub debugging"
 	depends on DEBUG_FS
