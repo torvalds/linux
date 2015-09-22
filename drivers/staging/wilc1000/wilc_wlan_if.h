@@ -995,5 +995,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup);
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
 u32 wilc_get_chipid(u8 update);
+extern wilc_wlan_oup_t *gpstrWlanOps;
 
 #endif

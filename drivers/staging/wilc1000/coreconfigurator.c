@@ -10,6 +10,7 @@
 
 
 #include "coreconfigurator.h"
+#include "wilc_wlan_if.h"
 #include <linux/errno.h>
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
 							BEACON_INTERVAL_LEN + CAP_INFO_LEN)
@@ -654,7 +655,6 @@ s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults)
 }
 #endif
 
-extern wilc_wlan_oup_t *gpstrWlanOps;
 /**
  *  @brief              sends certain Configuration Packet based on the input WIDs pstrWIDs
  *  using driver config layer
