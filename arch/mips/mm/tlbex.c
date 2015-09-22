@@ -1005,15 +1005,7 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	 * 64bit address support (36bit on a 32bit CPU) in a 32bit
 	 * Kernel is a special case. Only a few CPUs use it.
 	 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-	if (cpu_has_64bits) {
-		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
-		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
-		build_convert_pte_to_entrylo(p, tmp);
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		build_convert_pte_to_entrylo(p, ptep);
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-	} else {
+	if (config_enabled(CONFIG_PHYS_ADDR_T_64BIT) && !cpu_has_64bits) {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
 #ifdef CONFIG_XPA
@@ -1037,8 +1029,9 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
 		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
 #endif
+		return;
 	}
-#else
+
 	UASM_i_LW(p, tmp, 0, ptep); /* get even pte */
 	UASM_i_LW(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 	if (r45k_bvahwbug())
@@ -1053,7 +1046,6 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	if (r4k_250MHZhwbug())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
-#endif
 }
 
 struct mips_huge_tlb_info {
