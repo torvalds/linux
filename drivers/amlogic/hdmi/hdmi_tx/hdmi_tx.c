@@ -63,8 +63,6 @@ static int set_disp_mode_auto(void);
 const vinfo_t * hdmi_get_current_vinfo(void);
 
 struct hdmi_config_platform_data *hdmi_pdata;
-int dvi_mode;
-EXPORT_SYMBOL(dvi_mode);
 
 static hdmitx_dev_t hdmitx_device;
 static struct switch_dev sdev = {      // android ics switch device
@@ -428,7 +426,7 @@ static int set_disp_mode_auto(void)
 
     if((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
         hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n", __func__, vic);
-        if(dvi_mode == 1) { 
+        if (voutmode_dvi_vga()) {
 			pr_emerg("hdmi: dvi case judgement -> IEEEOUI: %d\n", hdmitx_device.RXCap.IEEEOUI);
 			hdmitx_device.RXCap.IEEEOUI = 0;
             hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_HDMI_DVI_MODE, DVI_MODE);
@@ -1955,11 +1953,20 @@ static  int __init hdmitx_boot_para_setup(char *s)
 
 __setup("hdmitx=",hdmitx_boot_para_setup);
 
+static int dvi_mode = VOUTMODE_HDMI;
+
+int odroidc_voutmode(void)
+{
+	return dvi_mode;
+}
+EXPORT_SYMBOL(odroidc_voutmode);
+
 static  int __init vout_setup(char *s) {
-	if(strcmp(s, "dvi"))
-		dvi_mode = 0;
-	else
-		dvi_mode = 1;
+	dvi_mode = VOUTMODE_HDMI;
+	if (!strcmp(s, "dvi"))
+		dvi_mode = VOUTMODE_DVI;
+	else if (!strcmp(s, "vga"))
+		dvi_mode = VOUTMODE_VGA;
 	return 0;
 }
 __setup("vout=", vout_setup);
