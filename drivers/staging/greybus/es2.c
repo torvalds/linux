@@ -136,6 +136,8 @@ static int cport_to_ep_pair(struct es1_ap_dev *es1, u16 cport_id)
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
 
+/* Disable for now until we work all of this out to keep a warning-free build */
+#if 0
 /* Test if the endpoints pair is already mapped to a cport */
 static int ep_pair_in_use(struct es1_ap_dev *es1, int ep_pair)
 {
@@ -191,6 +193,7 @@ static int unmap_cport(struct es1_ap_dev *es1, u16 cport_id)
 {
 	return map_cport_to_ep(es1, cport_id, 0);
 }
+#endif
 
 static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 {
