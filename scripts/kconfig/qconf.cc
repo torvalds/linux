@@ -823,6 +823,7 @@ QAction *ConfigView::showPromptAction;
 ConfigView::ConfigView(QWidget* parent, const char *name)
 	: Parent(parent)
 {
+	setObjectName(name);
 	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
 	verticalLayout->setContentsMargins(0, 0, 0, 0);
 
