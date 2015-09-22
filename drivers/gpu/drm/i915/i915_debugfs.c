@@ -2909,7 +2909,7 @@ static bool cursor_active(struct drm_device *dev, int pipe)
 	u32 state;
 
 	if (IS_845G(dev) || IS_I865G(dev))
-		state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
+		state = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
 	else
 		state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 

@@ -1295,7 +1295,7 @@ static void assert_cursor(struct drm_i915_private *dev_priv,
 	bool cur_state;
 
 	if (IS_845G(dev) || IS_I865G(dev))
-		cur_state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
+		cur_state = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
 	else
 		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
 
@@ -9890,13 +9890,13 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 		/* On these chipsets we can only modify the base/size/stride
 		 * whilst the cursor is disabled.
 		 */
-		I915_WRITE(_CURACNTR, 0);
-		POSTING_READ(_CURACNTR);
+		I915_WRITE(CURCNTR(PIPE_A), 0);
+		POSTING_READ(CURCNTR(PIPE_A));
 		intel_crtc->cursor_cntl = 0;
 	}
 
 	if (intel_crtc->cursor_base != base) {
-		I915_WRITE(_CURABASE, base);
+		I915_WRITE(CURBASE(PIPE_A), base);
 		intel_crtc->cursor_base = base;
 	}
 
@@ -9906,8 +9906,8 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	}
 
 	if (intel_crtc->cursor_cntl != cntl) {
-		I915_WRITE(_CURACNTR, cntl);
-		POSTING_READ(_CURACNTR);
+		I915_WRITE(CURCNTR(PIPE_A), cntl);
+		POSTING_READ(CURCNTR(PIPE_A));
 		intel_crtc->cursor_cntl = cntl;
 	}
 }
