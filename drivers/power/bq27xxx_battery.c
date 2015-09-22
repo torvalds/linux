@@ -229,26 +229,26 @@ static bool bq27xxx_is_chip_version_higher(struct bq27xxx_device_info *di)
 }
 
 /*
- * Return the battery Relative State-of-Charge
+ * Return the battery State-of-Charge
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_rsoc(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_soc(struct bq27xxx_device_info *di)
 {
-	int rsoc;
+	int soc;
 
 	if (di->chip == BQ27500 || di->chip == BQ27742)
-		rsoc = bq27xxx_read(di, BQ27500_REG_SOC, false);
+		soc = bq27xxx_read(di, BQ27500_REG_SOC, false);
 	else if (di->chip == BQ27510)
-		rsoc = bq27xxx_read(di, BQ27510_REG_SOC, false);
+		soc = bq27xxx_read(di, BQ27510_REG_SOC, false);
 	else if (di->chip == BQ27425)
-		rsoc = bq27xxx_read(di, BQ27425_REG_SOC, false);
-	else
-		rsoc = bq27xxx_read(di, BQ27000_REG_RSOC, true);
+		soc = bq27xxx_read(di, BQ27425_REG_SOC, false);
+	else /* for the bq27000 we read the "relative" SoC register */
+		soc = bq27xxx_read(di, BQ27000_REG_RSOC, true);
 
-	if (rsoc < 0)
-		dev_dbg(di->dev, "error reading relative State-of-Charge\n");
+	if (soc < 0)
+		dev_dbg(di->dev, "error reading State-of-Charge\n");
 
-	return rsoc;
+	return soc;
 }
 
 /*
@@ -275,7 +275,7 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 }
 
 /*
- * Return the battery Nominal available capaciy in µAh
+ * Return the battery Nominal available capacity in µAh
  * Or < 0 if something fails.
  */
 static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di)
@@ -416,7 +416,7 @@ static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
 }
 
 /*
- * Read a power avg register.
+ * Read an average power register.
  * Return < 0 if something fails.
  */
 static int bq27xxx_battery_read_pwr_avg(struct bq27xxx_device_info *di, u8 reg)
@@ -498,7 +498,7 @@ static void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 			cache.charge_full = -ENODATA;
 			cache.health = -ENODATA;
 		} else {
-			cache.capacity = bq27xxx_battery_read_rsoc(di);
+			cache.capacity = bq27xxx_battery_read_soc(di);
 			if (is_bq27742 || is_bq27510)
 				cache.time_to_empty =
 					bq27xxx_battery_read_time(di,
