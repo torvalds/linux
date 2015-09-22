@@ -311,12 +311,15 @@ iwl_fw_dbg_conf_usniffer(const struct iwl_fw *fw, u8 id)
 })
 
 static inline struct iwl_fw_dbg_trigger_tlv*
-iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, u8 id)
+_iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
 {
-	if (WARN_ON(id >= ARRAY_SIZE(fw->dbg_trigger_tlv)))
-		return NULL;
-
 	return fw->dbg_trigger_tlv[id];
 }
+
+#define iwl_fw_dbg_get_trigger(fw, id) ({			\
+	BUILD_BUG_ON(!__builtin_constant_p(id));		\
+	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
+	_iwl_fw_dbg_get_trigger((fw), (id));			\
+})
 
 #endif  /* __iwl_fw_h__ */
