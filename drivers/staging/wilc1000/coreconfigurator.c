@@ -644,12 +644,10 @@ s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZ
 		}
 	}
 
-	pstrSurveyResults = kmalloc_array(u32SurveyResultsCount,
-				sizeof(wid_site_survey_reslts_s), GFP_KERNEL);
+	pstrSurveyResults = kcalloc(u32SurveyResultsCount,
+				    sizeof(wid_site_survey_reslts_s), GFP_KERNEL);
 	if (!pstrSurveyResults)
 		return -ENOMEM;
-
-	memset((void *)(pstrSurveyResults), 0, u32SurveyResultsCount * sizeof(wid_site_survey_reslts_s));
 
 	u32SurveyResultsCount = 0;
 
