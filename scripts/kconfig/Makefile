@@ -226,53 +226,36 @@ $(obj)/.tmp_qtcheck: $(src)/Makefile
 
 # Qt needs some extra effort...
 $(obj)/.tmp_qtcheck:
-	@set -e; $(kecho) "  CHECK   qt"; dir=""; pkg=""; \
-	if ! pkg-config --exists QtCore 2> /dev/null; then \
-	    echo "* Unable to find the Qt4 tool qmake. Trying to use Qt3"; \
-	    pkg-config --exists qt 2> /dev/null && pkg=qt; \
-	    pkg-config --exists qt-mt 2> /dev/null && pkg=qt-mt; \
-	    if [ -n "$$pkg" ]; then \
-	      cflags="\$$(shell pkg-config $$pkg --cflags)"; \
-	      libs="\$$(shell pkg-config $$pkg --libs)"; \
-	      moc="\$$(shell pkg-config $$pkg --variable=prefix)/bin/moc"; \
-	      dir="$$(pkg-config $$pkg --variable=prefix)"; \
-	    else \
-	      for d in $$QTDIR /usr/share/qt* /usr/lib/qt*; do \
-	        if [ -f $$d/include/qconfig.h ]; then dir=$$d; break; fi; \
-	      done; \
-	      if [ -z "$$dir" ]; then \
-	        echo >&2 "*"; \
-	        echo >&2 "* Unable to find any Qt installation. Please make sure that"; \
-	        echo >&2 "* the Qt4 or Qt3 development package is correctly installed and"; \
-	        echo >&2 "* either qmake can be found or install pkg-config or set"; \
-	        echo >&2 "* the QTDIR environment variable to the correct location."; \
-	        echo >&2 "*"; \
-	        false; \
-	      fi; \
-	      libpath=$$dir/lib; lib=qt; osdir=""; \
-	      $(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
-	        osdir=x$$($(HOSTCXX) -print-multi-os-directory); \
-	      test -d $$libpath/$$osdir && libpath=$$libpath/$$osdir; \
-	      test -f $$libpath/libqt-mt.so && lib=qt-mt; \
-	      cflags="-I$$dir/include"; \
-	      libs="-L$$libpath -Wl,-rpath,$$libpath -l$$lib"; \
-	      moc="$$dir/bin/moc"; \
-	    fi; \
-	    if [ ! -x $$dir/bin/moc -a -x /usr/bin/moc ]; then \
-	      echo "*"; \
-	      echo "* Unable to find $$dir/bin/moc, using /usr/bin/moc instead."; \
-	      echo "*"; \
-	      moc="/usr/bin/moc"; \
-	    fi; \
-	else \
-	  cflags="\$$(shell pkg-config QtCore QtGui --cflags)"; \
-	  libs="\$$(shell pkg-config QtCore QtGui --libs)"; \
-	  moc="\$$(shell pkg-config QtCore --variable=moc_location)"; \
-	  [ -n "$$moc" ] || moc="\$$(shell pkg-config QtCore --variable=prefix)/bin/moc"; \
-	fi; \
+	@set -e; $(kecho) "  CHECK   qt"; \
+	qtver=`qmake -query QT_VERSION` || { \
+	    echo >&2 "*"; \
+	    echo >&2 "* qmake failed."; \
+	    echo >&2 "*"; \
+	    exit 1; \
+	}; \
+	qtlibdir=`qmake -query QT_INSTALL_LIBS`; \
+	qthdrdir=`qmake -query QT_INSTALL_HEADERS`; \
+	qtbindir=`qmake -query QT_INSTALL_BINS`; \
+	cflags="-I$$qthdrdir -I$$qthdrdir/QtCore -I$$qthdrdir/QtGui"; \
+	case "$$qtver" in \
+	5.*) \
+	    cflags="$$cflags -I$$qthdrdir/QtWidgets -std=c++11 -fPIC"; \
+	    libs="-L$$qtlibdir -lQt5Widgets -lQt5Gui -lQt5Core "; \
+	    ;; \
+	4.*) \
+	    libs="-L$$qtlibdir -lQtGui -lQtCore"; \
+	    ;; \
+	*) \
+	    echo >&2 "*"; \
+	    echo >&2 "* Found qmake but it is for Qt version $$qtver, which is not supported."; \
+	    echo >&2 "* Please install either Qt 4.8 or 5.x."; \
+	    echo >&2 "*"; \
+	    exit 1; \
+	    ;; \
+	esac; \
 	echo "KC_QT_CFLAGS=$$cflags" > $@; \
 	echo "KC_QT_LIBS=$$libs" >> $@; \
-	echo "KC_QT_MOC=$$moc" >> $@
+	echo "KC_QT_MOC=$$qtbindir/moc" >> $@
 endif
 
 $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
