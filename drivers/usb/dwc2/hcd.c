@@ -1464,11 +1464,17 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 
 	hsotg->bus_suspended = 1;
 
-	/* Suspend the Phy Clock */
-	pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
-	pcgctl |= PCGCTL_STOPPCLK;
-	dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
-	udelay(10);
+	/*
+	 * If hibernation is supported, Phy clock will be suspended
+	 * after registers are backuped.
+	 */
+	if (!hsotg->core_params->hibernation) {
+		/* Suspend the Phy Clock */
+		pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
+		pcgctl |= PCGCTL_STOPPCLK;
+		dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
+		udelay(10);
+	}
 
 	/* For HNP the bus must be suspended for at least 200ms */
 	if (dwc2_host_is_b_hnp_enabled(hsotg)) {
@@ -1491,11 +1497,16 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 	u32 hprt0;
 	u32 pcgctl;
 
-	/* Resume the Phy Clock */
-	pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
-	pcgctl &= ~PCGCTL_STOPPCLK;
-	dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
-	usleep_range(20000, 40000);
+	/*
+	 * If hibernation is supported, Phy clock is already resumed
+	 * after registers restore.
+	 */
+	if (!hsotg->core_params->hibernation) {
+		pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
+		pcgctl &= ~PCGCTL_STOPPCLK;
+		dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
+		usleep_range(20000, 40000);
+	}
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	hprt0 = dwc2_read_hprt0(hsotg);
@@ -2347,17 +2358,122 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+	unsigned long flags;
+	int ret = 0;
+	u32 hprt0;
 
+	spin_lock_irqsave(&hsotg->lock, flags);
+
+	if (hsotg->lx_state != DWC2_L0)
+		goto unlock;
+
+	if (!HCD_HW_ACCESSIBLE(hcd))
+		goto unlock;
+
+	if (!hsotg->core_params->hibernation)
+		goto skip_power_saving;
+
+	/*
+	 * Drive USB suspend and disable port Power
+	 * if usb bus is not suspended.
+	 */
+	if (!hsotg->bus_suspended) {
+		hprt0 = dwc2_read_hprt0(hsotg);
+		hprt0 |= HPRT0_SUSP;
+		hprt0 &= ~HPRT0_PWR;
+		dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	}
+
+	/* Enter hibernation */
+	ret = dwc2_enter_hibernation(hsotg);
+	if (ret) {
+		if (ret != -ENOTSUPP)
+			dev_err(hsotg->dev,
+				"enter hibernation failed\n");
+		goto skip_power_saving;
+	}
+
+	/* Ask phy to be suspended */
+	if (!IS_ERR_OR_NULL(hsotg->uphy)) {
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		usb_phy_set_suspend(hsotg->uphy, true);
+		spin_lock_irqsave(&hsotg->lock, flags);
+	}
+
+	/* After entering hibernation, hardware is no more accessible */
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+skip_power_saving:
 	hsotg->lx_state = DWC2_L2;
-	return 0;
+unlock:
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return ret;
 }
 
 static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+
+	if (hsotg->lx_state != DWC2_L2)
+		goto unlock;
+
+	if (!hsotg->core_params->hibernation) {
+		hsotg->lx_state = DWC2_L0;
+		goto unlock;
+	}
+
+	/*
+	 * Set HW accessible bit before powering on the controller
+	 * since an interrupt may rise.
+	 */
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	/*
+	 * Enable power if not already done.
+	 * This must not be spinlocked since duration
+	 * of this call is unknown.
+	 */
+	if (!IS_ERR_OR_NULL(hsotg->uphy)) {
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		usb_phy_set_suspend(hsotg->uphy, false);
+		spin_lock_irqsave(&hsotg->lock, flags);
+	}
+
+	/* Exit hibernation */
+	ret = dwc2_exit_hibernation(hsotg, true);
+	if (ret && (ret != -ENOTSUPP))
+		dev_err(hsotg->dev, "exit hibernation failed\n");
 
 	hsotg->lx_state = DWC2_L0;
-	return 0;
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	if (hsotg->bus_suspended) {
+		spin_lock_irqsave(&hsotg->lock, flags);
+		hsotg->flags.b.port_suspend_change = 1;
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		dwc2_port_resume(hsotg);
+	} else {
+		/*
+		 * Clear Port Enable and Port Status changes.
+		 * Enable Port Power.
+		 */
+		dwc2_writel(HPRT0_PWR | HPRT0_CONNDET |
+				HPRT0_ENACHG, hsotg->regs + HPRT0);
+		/* Wait for controller to detect Port Connect */
+		mdelay(5);
+	}
+
+	return ret;
+unlock:
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	return ret;
 }
 
 /* Returns the current frame number */
