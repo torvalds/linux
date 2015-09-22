@@ -892,9 +892,16 @@ static int opp_get_microvolt(struct dev_pm_opp *opp, struct device *dev)
 	u32 microvolt[3] = {0};
 	int count, ret;
 
-	count = of_property_count_u32_elems(opp->np, "opp-microvolt");
-	if (!count)
+	/* Missing property isn't a problem, but an invalid entry is */
+	if (!of_find_property(opp->np, "opp-microvolt", NULL))
 		return 0;
+
+	count = of_property_count_u32_elems(opp->np, "opp-microvolt");
+	if (count < 0) {
+		dev_err(dev, "%s: Invalid opp-microvolt property (%d)\n",
+			__func__, count);
+		return count;
+	}
 
 	/* There can be one or three elements here */
 	if (count != 1 && count != 3) {
