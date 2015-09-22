@@ -125,7 +125,17 @@ static inline u32 read32_gcr_##name(void)			\
 								\
 static inline u64 read64_gcr_##name(void)			\
 {								\
-	return __raw_readq(addr_gcr_##name());			\
+	void __iomem *addr = addr_gcr_##name();			\
+	u64 ret;						\
+								\
+	if (mips_cm_is64) {					\
+		ret = __raw_readq(addr);			\
+	} else {						\
+		ret = __raw_readl(addr);			\
+		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
+	}							\
+								\
+	return ret;						\
 }								\
 								\
 static inline unsigned long read_gcr_##name(void)		\
