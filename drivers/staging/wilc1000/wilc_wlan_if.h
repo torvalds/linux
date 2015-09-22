@@ -7,17 +7,14 @@
 /*  */
 /* ///////////////////////////////////////////////////////////////////////// */
 
-
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
 
 /* #define MEMORY_STATIC */
 /* #define USE_OLD_SPI_SW */
 
-
 #include "wilc_oswrapper.h"
 #include "linux_wlan_common.h"
-
 
 /********************************************
  *
@@ -40,7 +37,6 @@
 #define HIF_SDIO           (0)
 #define HIF_SPI            BIT(0)
 #define HIF_SDIO_GPIO_IRQ  BIT(2)
-
 
 /********************************************
  *
@@ -153,7 +149,6 @@ struct tx_complete_data {
 	u8 *pBssid;
 	struct sk_buff *skb;
 };
-
 
 typedef void (*wilc_tx_complete_func_t)(void *, int);
 
@@ -387,7 +382,6 @@ typedef enum {
 
 typedef enum {
 	WID_NIL                            = 0xffff,
-
 
 	/*  BSS Type                                                                                                                                                                            */
 	/*  --------------------------------------------------------------      */
@@ -748,7 +742,6 @@ typedef enum {
 	/*  --------------------------------------------------------------      */
 	WID_11N_TXOP_PROT_DISABLE          = 0x00B0,
 
-
 	WID_TX_POWER_LEVEL_11N             = 0x00B1,
 
 	/* Custom Character WID list */
@@ -821,7 +814,6 @@ typedef enum {
 	WID_MEMORY_ACCESS_32BIT            = 0x201F,
 	WID_RF_REG_VAL                     = 0x2021,
 
-
 	/* NMAC Integer WID list */
 	WID_11N_PHY_ACTIVE_REG_VAL         = 0x2080,
 
@@ -874,8 +866,6 @@ typedef enum {
 
 	WID_IP_ADDRESS					= 0x3999,
 
-
-
 	/* Custom String WID list */
 
 	/* EMAC Binary WID list */
@@ -889,7 +879,6 @@ typedef enum {
 
 	/* NMAC Binary WID list */
 	WID_11N_AUTORATE_TABLE             = 0x4080,
-
 
 	WID_SCAN_CHANNEL_LIST                      = 0x4084,
 
@@ -912,6 +901,5 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup);
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
 u32 wilc_get_chipid(u8 update);
-
 
 #endif
