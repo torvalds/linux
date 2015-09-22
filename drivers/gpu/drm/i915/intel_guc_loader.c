@@ -209,9 +209,10 @@ static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
 				      u32 *status)
 {
 	u32 val = I915_READ(GUC_STATUS);
+	u32 uk_val = val & GS_UKERNEL_MASK;
 	*status = val;
-	return ((val & GS_UKERNEL_MASK) == GS_UKERNEL_READY ||
-		(val & GS_UKERNEL_MASK) == GS_UKERNEL_LAPIC_DONE);
+	return (uk_val == GS_UKERNEL_READY ||
+		((val & GS_MIA_CORE_STATE) && uk_val == GS_UKERNEL_LAPIC_DONE));
 }
 
 /*

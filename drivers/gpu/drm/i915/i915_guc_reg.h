@@ -37,6 +37,7 @@
 #define   GS_UKERNEL_READY		  (0xF0 << GS_UKERNEL_SHIFT)
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
+#define   GS_MIA_CORE_STATE		  (1 << GS_MIA_SHIFT)
 
 #define SOFT_SCRATCH(n)			(0xc180 + ((n) * 4))
 
