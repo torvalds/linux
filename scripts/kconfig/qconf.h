@@ -17,6 +17,8 @@
 #include "expr.h"
 
 class ConfigView;
+class ConfigList;
+class ConfigItem;
 class ConfigLineEdit;
 class ConfigMainWindow;
 
@@ -37,6 +39,40 @@ enum optionMode {
 	normalOpt = 0, allOpt, promptOpt
 };
 
+class ConfigList : public QTreeWidget {
+	Q_OBJECT
+	typedef class QTreeWidget Parent;
+public:
+	ConfigList(ConfigView* p, const char *name = 0);
+};
+
+class ConfigItem : public QTreeWidgetItem {
+	typedef class QTreeWidgetItem Parent;
+public:
+	ConfigItem(QTreeWidgetItem *parent, ConfigItem *after, struct menu *m, bool v)
+	: Parent(parent, after), menu(m), visible(v), goParent(false)
+	{
+		init();
+	}
+	ConfigItem(ConfigItem *parent, ConfigItem *after, struct menu *m, bool v)
+	: Parent(parent, after), menu(m), visible(v), goParent(false)
+	{
+		init();
+	}
+	ConfigItem(QTreeWidgetItem *parent, ConfigItem *after, bool v)
+	: Parent(parent, after), menu(0), visible(v), goParent(true)
+	{
+		init();
+	}
+	~ConfigItem(void);
+	void init(void);
+
+	ConfigItem* nextItem;
+	struct menu *menu;
+	bool visible;
+	bool goParent;
+};
+
 class ConfigLineEdit : public QLineEdit {
 	Q_OBJECT
 	typedef class QLineEdit Parent;
@@ -46,11 +82,11 @@ public:
 	{
 		return (ConfigView*)Parent::parent();
 	}
-	void show(QTreeWidgetItem *i);
+	void show(ConfigItem *i);
 	void keyPressEvent(QKeyEvent *e);
 
 public:
-	QTreeWidgetItem *item;
+	ConfigItem *item;
 };
 
 class ConfigView : public QWidget {
@@ -59,7 +95,7 @@ class ConfigView : public QWidget {
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
 	~ConfigView(void);
-	static void updateList(QTreeWidgetItem* item);
+	static void updateList(ConfigItem* item);
 	static void updateListAll(void);
 
 	bool showName(void) const { return false; } // TODO: Implement me.
@@ -75,7 +111,7 @@ signals:
 	void showRangeChanged(bool);
 	void showDataChanged(bool);
 public:
-	QTreeWidget* list;
+	ConfigList* list;
 	ConfigLineEdit* lineEdit;
 
 	static ConfigView* viewList;
@@ -164,9 +200,9 @@ protected:
 
 	ConfigSearchWindow *searchWindow;
 	ConfigView *menuView;
-	QTreeWidget *menuList;
+	ConfigList *menuList;
 	ConfigView *configView;
-	QTreeWidget *configList;
+	ConfigList *configList;
 	ConfigInfoView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;

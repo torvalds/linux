@@ -87,13 +87,27 @@ bool ConfigSettings::writeSizes(const QString& key, const QList<int>& value)
 	return true;
 }
 
+/*
+ * construct a menu entry
+ */
+void ConfigItem::init(void)
+{
+}
+
+/*
+ * destruct a menu entry
+ */
+ConfigItem::~ConfigItem(void)
+{
+}
+
 ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
 	: Parent(parent)
 {
 	connect(this, SIGNAL(editingFinished()), SLOT(hide()));
 }
 
-void ConfigLineEdit::show(QTreeWidgetItem *i)
+void ConfigLineEdit::show(ConfigItem* i)
 {
 	item = i;
 	Parent::show();
@@ -118,6 +132,10 @@ void ConfigLineEdit::keyPressEvent(QKeyEvent* e)
 	hide();
 }
 
+ConfigList::ConfigList(ConfigView* p, const char *name)
+	: Parent(p)
+{
+}
 ConfigView*ConfigView::viewList;
 QAction *ConfigView::showNormalAction;
 QAction *ConfigView::showAllAction;
@@ -129,7 +147,7 @@ ConfigView::ConfigView(QWidget* parent, const char *name)
 	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
 	verticalLayout->setContentsMargins(0, 0, 0, 0);
 
-	list = new QTreeWidget(this);
+	list = new ConfigList(this);
 	verticalLayout->addWidget(list);
 	lineEdit = new ConfigLineEdit(this);
 	lineEdit->hide();
@@ -167,7 +185,7 @@ void ConfigView::setShowData(bool b)
 {
 }
 
-void ConfigView::updateList(QTreeWidgetItem* item)
+void ConfigView::updateList(ConfigItem* item)
 {
 }
 
