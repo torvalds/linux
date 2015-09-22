@@ -359,7 +359,7 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_SHF		10
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_MSK		(_ULCAST_(0x3) << 10)
 #define CM_GCR_Cx_CONFIG_PVPE_SHF		0
-#define CM_GCR_Cx_CONFIG_PVPE_MSK		(_ULCAST_(0x1ff) << 0)
+#define CM_GCR_Cx_CONFIG_PVPE_MSK		(_ULCAST_(0x3ff) << 0)
 
 /* GCR_Cx_OTHER register fields */
 #define CM_GCR_Cx_OTHER_CORENUM_SHF		16
