@@ -253,7 +253,17 @@ static unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
 	return free_end - async->buf_write_alloc_count;
 }
 
-/* allocates chunk for the writer from free buffer space */
+/**
+ * comedi_buf_write_alloc() - Reserve buffer space for writing
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to reserve in bytes.
+ *
+ * Reserve up to @nbytes bytes of space to be written in the COMEDI acquisition
+ * data buffer associated with the subdevice.  The amount reserved is limited
+ * by the space available.
+ *
+ * Return: The amount of space reserved in bytes.
+ */
 unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s,
 				    unsigned int nbytes)
 {
@@ -329,7 +339,21 @@ unsigned int comedi_buf_write_n_allocated(struct comedi_subdevice *s)
 	return async->buf_write_alloc_count - async->buf_write_count;
 }
 
-/* transfers a chunk from writer to filled buffer space */
+/**
+ * comedi_buf_write_free() - Free buffer space after it is written
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to free in bytes.
+ *
+ * Free up to @nbytes bytes of space previously reserved for writing in the
+ * COMEDI acquisition data buffer associated with the subdevice.  The amount of
+ * space freed is limited to the amount that was reserved.  The freed space is
+ * assumed to have been filled with sample data by the writer.
+ *
+ * If the samples in the freed space need to be "munged", do so here.  The
+ * freed space becomes available for allocation by the reader.
+ *
+ * Return: The amount of space freed in bytes.
+ */
 unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
@@ -349,6 +373,17 @@ unsigned int comedi_buf_write_free(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_free);
 
+/**
+ * comedi_buf_read_n_available() - Determine amount of readable buffer space
+ * @s: COMEDI subdevice.
+ *
+ * Determine the amount of readable buffer space in the COMEDI acquisition data
+ * buffer associated with the subdevice.  The readable buffer space is that
+ * which has been freed by the writer and "munged" to the sample data format
+ * expected by COMEDI if necessary.
+ *
+ * Return: The amount of readable buffer space.
+ */
 unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
@@ -369,7 +404,21 @@ unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL_GPL(comedi_buf_read_n_available);
 
-/* allocates a chunk for the reader from filled (and munged) buffer space */
+/**
+ * comedi_buf_read_alloc() - Reserve buffer space for reading
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to reserve in bytes.
+ *
+ * Reserve up to @nbytes bytes of previously written and "munged" buffer space
+ * for reading in the COMEDI acquisition data buffer associated with the
+ * subdevice.  The amount reserved is limited to the space available.  The
+ * reader can read from the reserved space and then free it.  A reader is also
+ * allowed to read from the space before reserving it as long as it determines
+ * the amount of readable data available, but the space needs to be marked as
+ * reserved before it can be freed.
+ *
+ * Return: The amount of space reserved in bytes.
+ */
 unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s,
 				   unsigned int nbytes)
 {
@@ -397,7 +446,19 @@ static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
 	return async->buf_read_alloc_count - async->buf_read_count;
 }
 
-/* transfers control of a chunk from reader to free buffer space */
+/**
+ * comedi_buf_read_free() - Free buffer space after it has been read
+ * @s: COMEDI subdevice.
+ * @nbytes: Maximum space to free in bytes.
+ *
+ * Free up to @nbytes bytes of buffer space previously reserved for reading in
+ * the COMEDI acquisition data buffer associated with the subdevice.  The
+ * amount of space freed is limited to the amount that was reserved.
+ *
+ * The freed space becomes available for allocation by the writer.
+ *
+ * Return: The amount of space freed in bytes.
+ */
 unsigned int comedi_buf_read_free(struct comedi_subdevice *s,
 				  unsigned int nbytes)
 {
