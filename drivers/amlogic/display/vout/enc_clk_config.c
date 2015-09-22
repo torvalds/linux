@@ -5,6 +5,7 @@
 #include <mach/am_regs.h>
 #include <mach/clock.h>
 #include <linux/amlogic/vout/enc_clk_config.h>
+#include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/mutex.h>
 
 
@@ -485,6 +486,17 @@ static void set_hpll_clk_out(unsigned clk)
             printk("error hpll clk: %d\n", clk);
             break;
     }
+#endif
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	/* Improve HDMI HPLL Long TIE
+	 * 1296MHz is only for 480cvbs/576cvbs on m8 serials
+	 * and is not suitable with 0x8a56d023
+	 *
+	 * http://forum.odroid.com/viewtopic.php?f=117&t=15860&p=104507#p104507
+	 */
+	if (voutmode_vga() && clk != 1296)
+		aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a56d023);
 #endif
     printk("config HPLL done\n");
 }
