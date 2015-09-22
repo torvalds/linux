@@ -2185,7 +2185,7 @@ static irqreturn_t udc_data_out_isr(struct udc *dev, int ep_ix)
 		}
 
 	/* DMA */
-	} else if (!ep->cancel_transfer && req != NULL) {
+	} else if (!ep->cancel_transfer && req) {
 		ret_val = IRQ_HANDLED;
 
 		/* check for DMA done */
@@ -3189,7 +3189,7 @@ static int init_dma_pools(struct udc *dev)
 	/* setup */
 	td_stp = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_stp_dma);
-	if (td_stp == NULL) {
+	if (!td_stp) {
 		retval = -ENOMEM;
 		goto err_alloc_dma;
 	}
@@ -3198,7 +3198,7 @@ static int init_dma_pools(struct udc *dev)
 	/* data: 0 packets !? */
 	td_data = dma_pool_alloc(dev->stp_requests, GFP_KERNEL,
 				&dev->ep[UDC_EP0OUT_IX].td_phys);
-	if (td_data == NULL) {
+	if (!td_data) {
 		retval = -ENOMEM;
 		goto err_alloc_phys;
 	}
@@ -3322,7 +3322,7 @@ static int udc_pci_probe(
 	}
 
 	dev->virt_addr = ioremap_nocache(resource, len);
-	if (dev->virt_addr == NULL) {
+	if (!dev->virt_addr) {
 		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
 		retval = -EFAULT;
 		goto err_ioremap;
