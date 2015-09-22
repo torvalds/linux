@@ -16,8 +16,8 @@ class ConfigMainWindow;
 class ConfigSettings : public QSettings {
 public:
 	ConfigSettings();
-	Q3ValueList<int> readSizes(const QString& key, bool *ok);
-	bool writeSizes(const QString& key, const Q3ValueList<int>& value);
+	QList<int> readSizes(const QString& key, bool *ok);
+	bool writeSizes(const QString& key, const QList<int>& value);
 };
 
 enum colIdx {

@@ -7,7 +7,7 @@
 
 #include <QMainWindow>
 #include <q3vbox.h>
-#include <q3valuelist.h>
+#include <QList>
 #include <q3textbrowser.h>
 #include <QAction>
 #include <q3header.h>
@@ -64,9 +64,9 @@ ConfigSettings::ConfigSettings()
 /**
  * Reads a list of integer values from the application settings.
  */
-Q3ValueList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
+QList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
 {
-	Q3ValueList<int> result;
+	QList<int> result;
 	QStringList entryList = readListEntry(key, ok);
 	QStringList::Iterator it;
 
@@ -79,10 +79,10 @@ Q3ValueList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
 /**
  * Writes a list of integer values to the application settings.
  */
-bool ConfigSettings::writeSizes(const QString& key, const Q3ValueList<int>& value)
+bool ConfigSettings::writeSizes(const QString& key, const QList<int>& value)
 {
 	QStringList stringList;
-	Q3ValueList<int>::ConstIterator it;
+	QList<int>::ConstIterator it;
 
 	for (it = value.begin(); it != value.end(); ++it)
 		stringList.push_back(QString::number(*it));
@@ -1214,7 +1214,7 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *nam
 			y = configSettings->readNumEntry("/window y", 0, &ok);
 		if (ok)
 			move(x, y);
-		Q3ValueList<int> sizes = configSettings->readSizes("/split", &ok);
+		QList<int> sizes = configSettings->readSizes("/split", &ok);
 		if (ok)
 			split->setSizes(sizes);
 		configSettings->endGroup();
@@ -1446,7 +1446,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 		showSplitView();
 
 	// UI setup done, restore splitter positions
-	Q3ValueList<int> sizes = configSettings->readSizes("/split1", &ok);
+	QList<int> sizes = configSettings->readSizes("/split1", &ok);
 	if (ok)
 		split1->setSizes(sizes);
 
