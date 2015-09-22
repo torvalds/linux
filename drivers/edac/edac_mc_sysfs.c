@@ -229,7 +229,7 @@ static ssize_t channel_dimm_label_show(struct device *dev,
 	if (!rank->dimm->label[0])
 		return 0;
 
-	return snprintf(data, EDAC_MC_LABEL_LEN, "%s\n",
+	return snprintf(data, sizeof(rank->dimm->label) + 1, "%s\n",
 			rank->dimm->label);
 }
 
@@ -485,7 +485,7 @@ static ssize_t dimmdev_label_show(struct device *dev,
 	if (!dimm->label[0])
 		return 0;
 
-	return snprintf(data, EDAC_MC_LABEL_LEN, "%s\n", dimm->label);
+	return snprintf(data, sizeof(dimm->label) + 1, "%s\n", dimm->label);
 }
 
 static ssize_t dimmdev_label_store(struct device *dev,
