@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  *
@@ -6,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6q-sabresd.dts"
+#include "imx6sl-evk.dts"
 
 &cpu0 {
 	arm-supply = <&reg_arm>;
@@ -16,12 +17,4 @@
 &gpc {
 	/* use ldo-enable, u-boot will check it and configure */
 	fsl,ldo-bypass = <0>;
-};
-
-&wdog1 {
-	status = "okay";
-};
-
-&wdog2 {
-	status = "disabled";
 };
