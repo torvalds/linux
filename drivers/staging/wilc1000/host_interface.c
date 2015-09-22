@@ -6360,7 +6360,7 @@ static u32 clients_count;
 
 s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 {
-	s32 s32Error = 0;
+	s32 result = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv;
 	int err;
 
@@ -6373,13 +6373,13 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	/*Allocate host interface private structure*/
 	pstrWFIDrv  = kzalloc(sizeof(tstrWILC_WFIDrv), GFP_KERNEL);
 	if (!pstrWFIDrv) {
-		s32Error = -ENOMEM;
+		result = -ENOMEM;
 		goto _fail_timer_2;
 	}
 	*phWFIDrv = pstrWFIDrv;
 	err = add_handler_in_list(pstrWFIDrv);
 	if (err) {
-		s32Error = -EFAULT;
+		result = -EFAULT;
 		goto _fail_timer_2;
 	}
 
@@ -6405,16 +6405,16 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	PRINT_D(HOSTINF_DBG, "INIT: CLIENT COUNT %d\n", clients_count);
 
 	if (clients_count == 0)	{
-		s32Error = wilc_mq_create(&gMsgQHostIF);
+		result = wilc_mq_create(&gMsgQHostIF);
 
-		if (s32Error < 0) {
+		if (result < 0) {
 			PRINT_ER("Failed to creat MQ\n");
 			goto _fail_;
 		}
 		HostIFthreadHandler = kthread_run(hostIFthread, NULL, "WILC_kthread");
 		if (IS_ERR(HostIFthreadHandler)) {
 			PRINT_ER("Failed to creat Thread\n");
-			s32Error = -EFAULT;
+			result = -EFAULT;
 			goto _fail_mq_;
 		}
 		setup_timer(&g_hPeriodicRSSI, GetPeriodicRSSI,
@@ -6454,7 +6454,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 
 	clients_count++; /* increase number of created entities */
 
-	return s32Error;
+	return result;
 
 _fail_timer_2:
 	up(&(pstrWFIDrv->gtOsCfgValuesSem));
@@ -6464,7 +6464,7 @@ _fail_timer_2:
 _fail_mq_:
 	wilc_mq_destroy(&gMsgQHostIF);
 _fail_:
-	return s32Error;
+	return result;
 
 }
 /**
