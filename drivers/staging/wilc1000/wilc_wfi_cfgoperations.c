@@ -2354,10 +2354,10 @@ void WILC_WFI_add_wilcvendorspec(u8 *buff)
  */
 extern linux_wlan_t *g_linux_wlan;
 extern bool bEnablePS;
-int mgmt_tx(struct wiphy *wiphy,
-	    struct wireless_dev *wdev,
-	    struct cfg80211_mgmt_tx_params *params,
-	    u64 *cookie)
+static int mgmt_tx(struct wiphy *wiphy,
+		   struct wireless_dev *wdev,
+		   struct cfg80211_mgmt_tx_params *params,
+		   u64 *cookie)
 {
 	struct ieee80211_channel *chan = params->chan;
 	unsigned int wait = params->wait;
