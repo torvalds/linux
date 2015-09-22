@@ -156,8 +156,8 @@ typedef struct wid_site_survey_reslts {
 } wid_site_survey_reslts_s;
 #endif
 
-s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-		  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
+s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
+		    u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
 s32 ParseNetworkInfo(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
 s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 

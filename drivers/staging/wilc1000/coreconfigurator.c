@@ -717,8 +717,8 @@ extern wilc_wlan_oup_t *gpstrWlanOps;
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-s32 SendConfigPkt(u8 u8Mode, tstrWID *pstrWIDs,
-			  u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
+s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
+		    u32 u32WIDsCount, bool bRespRequired, u32 drvHandler)
 {
 	s32 counter = 0, ret = 0;
 
