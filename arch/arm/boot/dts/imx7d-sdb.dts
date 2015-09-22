@@ -696,7 +696,6 @@
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO05__GPIO1_IO5	  0x14
 				MX7D_PAD_GPIO1_IO07__GPIO1_IO7    0x59
-				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B 0x74
 			>;
 		};
 
@@ -705,6 +704,13 @@
 				MX7D_PAD_GPIO1_IO01__PWM1_OUT	  0x110b0
 			>;
 		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO00__WDOD1_WDOG_B 0x74
+			>;
+		};
+
 	};
 };
 
@@ -785,4 +791,10 @@
 	fsl,tuning-step = <2>;
 	non-removable;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,wdog_b;
 };
