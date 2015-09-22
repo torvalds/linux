@@ -315,7 +315,7 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	int i;
 
 	setObjectName(name);
-	setSortingEnabled(-1);
+	setSortingEnabled(false);
 	setRootIsDecorated(true);
 
 	setHeaderLabels(QStringList() << _("Option") << _("Name") << "N" << "M" << "Y" << _("Value"));
