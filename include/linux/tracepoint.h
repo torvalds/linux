@@ -26,6 +26,7 @@ struct notifier_block;
 struct tracepoint_func {
 	void *func;
 	void *data;
+	int prio;
 };
 
 struct tracepoint {
@@ -42,8 +43,13 @@ struct trace_enum_map {
 	unsigned long		enum_value;
 };
 
+#define TRACEPOINT_DEFAULT_PRIO	10
+
 extern int
 tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data);
+extern int
+tracepoint_probe_register_prio(struct tracepoint *tp, void *probe, void *data,
+			       int prio);
 extern int
 tracepoint_probe_unregister(struct tracepoint *tp, void *probe, void *data);
 extern void
@@ -205,6 +211,13 @@ extern void syscall_unregfunc(void);
 	{								\
 		return tracepoint_probe_register(&__tracepoint_##name,	\
 						(void *)probe, data);	\
+	}								\
+	static inline int						\
+	register_trace_prio_##name(void (*probe)(data_proto), void *data,\
+				   int prio)				\
+	{								\
+		return tracepoint_probe_register_prio(&__tracepoint_##name, \
+					      (void *)probe, data, prio); \
 	}								\
 	static inline int						\
 	unregister_trace_##name(void (*probe)(data_proto), void *data)	\
