@@ -857,7 +857,8 @@ void dwc2_enable_host_interrupts(struct dwc2_hsotg *hsotg)
 
 	/* Enable host mode interrupts without disturbing common interrupts */
 	intmsk = dwc2_readl(hsotg->regs + GINTMSK);
-	intmsk |= GINTSTS_DISCONNINT | GINTSTS_PRTINT | GINTSTS_HCHINT;
+	intmsk |= GINTSTS_DISCONNINT | GINTSTS_PRTINT | GINTSTS_HCHINT |
+			GINTSTS_DISCONNINT;
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 }
 
@@ -872,7 +873,7 @@ void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg)
 
 	/* Disable host mode interrupts without disturbing common interrupts */
 	intmsk &= ~(GINTSTS_SOF | GINTSTS_PRTINT | GINTSTS_HCHINT |
-		    GINTSTS_PTXFEMP | GINTSTS_NPTXFEMP);
+		    GINTSTS_PTXFEMP | GINTSTS_NPTXFEMP | GINTSTS_DISCONNINT);
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 }
 
