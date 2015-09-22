@@ -27,35 +27,32 @@
  * csum_partial(buff, len, sum)
  */
 _GLOBAL(csum_partial)
-	addic	r0,r5,0
 	subi	r3,r3,4
-	srwi.	r6,r4,2
+	srawi.	r6,r4,2		/* Divide len by 4 and also clear carry */
 	beq	3f		/* if we're doing < 4 bytes */
-	andi.	r5,r3,2		/* Align buffer to longword boundary */
+	andi.	r0,r3,2		/* Align buffer to longword boundary */
 	beq+	1f
-	lhz	r5,4(r3)	/* do 2 bytes to get aligned */
-	addi	r3,r3,2
+	lhz	r0,4(r3)	/* do 2 bytes to get aligned */
 	subi	r4,r4,2
-	addc	r0,r0,r5
+	addi	r3,r3,2
 	srwi.	r6,r4,2		/* # words to do */
+	adde	r5,r5,r0
 	beq	3f
 1:	mtctr	r6
-2:	lwzu	r5,4(r3)	/* the bdnz has zero overhead, so it should */
-	adde	r0,r0,r5	/* be unnecessary to unroll this loop */
+2:	lwzu	r0,4(r3)
+	adde	r5,r5,r0
 	bdnz	2b
-	andi.	r4,r4,3
-3:	cmpwi	0,r4,2
-	blt+	4f
-	lhz	r5,4(r3)
+3:	andi.	r0,r4,2
+	beq+	4f
+	lhz	r0,4(r3)
 	addi	r3,r3,2
-	subi	r4,r4,2
-	adde	r0,r0,r5
-4:	cmpwi	0,r4,1
-	bne+	5f
-	lbz	r5,4(r3)
-	slwi	r5,r5,8		/* Upper byte of word */
-	adde	r0,r0,r5
-5:	addze	r3,r0		/* add in final carry */
+	adde	r5,r5,r0
+4:	andi.	r0,r4,1
+	beq+	5f
+	lbz	r0,4(r3)
+	slwi	r0,r0,8		/* Upper byte of word */
+	adde	r5,r5,r0
+5:	addze	r3,r5		/* add in final carry */
 	blr
 
 /*
