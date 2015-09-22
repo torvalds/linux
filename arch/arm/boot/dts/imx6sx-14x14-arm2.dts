@@ -201,7 +201,6 @@
 	fsl,cpu_pupscr_sw = <0x1>;
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
-	fsl,wdog-reset = <1>; /* watchdog select of reset source */
 	fsl,ldo-bypass = <1>; /* use ldo-bypass, u-boot will check it and configure */
 };
 
@@ -372,8 +371,6 @@
 				MX6SX_PAD_QSPI1B_SS0_B__GPIO4_IO_30     0x17059
 				/* SD2_PWROFF */
 				MX6SX_PAD_KEY_COL1__GPIO2_IO_11		0x17059
-				/* WDOG_B reset */
-				MX6SX_PAD_GPIO1_IO13__WDOG1_WDOG_ANY	0x10b0
 			>;
 		};
 	};
@@ -541,6 +538,12 @@
 	/* need hw rework to enable signal voltage switch */
 	no-1-8-v;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,wdog_b;
 };
 
 &iomuxc {
@@ -1245,6 +1248,14 @@
 				>;
 			};
 
+	};
+
+	wdog {
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO13__WDOG1_WDOG_ANY 0x10b0
+			>;
+		};
 	};
 
 	weim {

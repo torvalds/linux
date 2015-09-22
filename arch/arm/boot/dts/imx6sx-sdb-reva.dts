@@ -12,6 +12,24 @@
 	model = "Freescale i.MX6 SoloX SDB RevA Board";
 };
 
+&cpu0 {
+	operating-points = <
+		/* kHz    uV */
+		996000  1250000
+		792000  1175000
+		396000  1075000
+		>;
+	fsl,soc-operating-points = <
+		/* ARM kHz      SOC uV */
+		996000	1175000
+		792000	1175000
+		396000	1175000
+	>;
+	arm-supply = <&sw1a_reg>;
+	soc-supply = <&sw1c_reg>;
+	fsl,arm-soc-shared = <0>;
+};
+
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";

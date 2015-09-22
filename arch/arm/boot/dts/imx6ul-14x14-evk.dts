@@ -204,7 +204,6 @@
 	fsl,cpu_pupscr_sw = <0x0>;
 	fsl,cpu_pdnscr_iso2sw = <0x1>;
 	fsl,cpu_pdnscr_iso = <0x1>;
-	fsl,wdog-reset = <1>; /* watchdog select of reset source */
 	fsl,ldo-bypass = <0>; /* DCDC, ldo-enable */
 };
 
@@ -522,6 +521,12 @@
 				MX6UL_PAD_NAND_DATA03__USDHC2_DATA3 0x17059
 			>;
 		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6UL_PAD_LCD_RESET__WDOG1_WDOG_ANY    0x30b0
+			>;
+		};
 	};
 };
 
@@ -663,4 +668,10 @@
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,wdog_b;
 };
