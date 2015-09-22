@@ -42,6 +42,7 @@ static int w1_bq27000_read(struct device *dev, unsigned int reg)
 static struct bq27xxx_platform_data bq27000_battery_info = {
 	.read   = w1_bq27000_read,
 	.name   = "bq27000-battery",
+	.chip   = BQ27000,
 };
 
 static int w1_bq27000_add_slave(struct w1_slave *sl)

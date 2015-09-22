@@ -91,8 +91,6 @@ struct bq27xxx_access_methods {
 	int (*read)(struct bq27xxx_device_info *di, u8 reg, bool single);
 };
 
-enum bq27xxx_chip { BQ27000, BQ27500, BQ27425, BQ27742, BQ27510};
-
 struct bq27xxx_reg_cache {
 	int temperature;
 	int time_to_empty;
@@ -1036,6 +1034,11 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (!pdata->chip) {
+		dev_err(&pdev->dev, "no device supplied\n");
+		return -EINVAL;
+	}
+
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;
@@ -1043,7 +1046,7 @@ static int bq27xxx_battery_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di);
 
 	di->dev = &pdev->dev;
-	di->chip = BQ27000;
+	di->chip = pdata->chip;
 
 	name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = &bq27xxx_battery_platform_read;
