@@ -318,6 +318,8 @@ ConfigList::ConfigList(ConfigView* p, const char *name)
 	setSortingEnabled(-1);
 	setRootIsDecorated(true);
 
+	setHeaderLabels(QStringList() << _("Option") << _("Name") << "N" << "M" << "Y" << _("Value"));
+
 	connect(this, SIGNAL(itemSelectionChanged(void)),
 		SLOT(updateSelection(void)));
 
