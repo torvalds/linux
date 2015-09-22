@@ -134,7 +134,7 @@ static void dwc2_kill_urbs_in_qh_list(struct dwc2_hsotg *hsotg,
 	list_for_each_entry_safe(qh, qh_tmp, qh_list, qh_list_entry) {
 		list_for_each_entry_safe(qtd, qtd_tmp, &qh->qtd_list,
 					 qtd_list_entry) {
-			dwc2_host_complete(hsotg, qtd, -ETIMEDOUT);
+			dwc2_host_complete(hsotg, qtd, -ECONNRESET);
 			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		}
 	}
