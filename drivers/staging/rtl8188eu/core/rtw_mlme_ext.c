@@ -1719,13 +1719,17 @@ static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
 						  &pattrib->pktlen);
 			break;
 		case 1: /* ADDBA rsp */
+		{
+			struct ADDBA_request *ADDBA_req = &pmlmeinfo->ADDBA_req;
+
 			pframe = rtw_set_fixed_ie(pframe, 1,
-						  &pmlmeinfo->ADDBA_req.dialog_token,
+						  &ADDBA_req->dialog_token,
 						  &pattrib->pktlen);
 			pframe = rtw_set_fixed_ie(pframe, 2, &status,
 						  &pattrib->pktlen);
 
-			BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
+			BA_para_set = le16_to_cpu(ADDBA_req->BA_para_set) &
+				      0x3f;
 			rtw_hal_get_def_var(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR, &max_rx_ampdu_factor);
 			switch (max_rx_ampdu_factor) {
 			case MAX_AMPDU_FACTOR_64K:
@@ -1754,9 +1758,10 @@ static void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
 			pframe = rtw_set_fixed_ie(pframe, 2, &(le_tmp),
 						  &pattrib->pktlen);
 			pframe = rtw_set_fixed_ie(pframe, 2,
-						  &pmlmeinfo->ADDBA_req.BA_timeout_value,
+						  &ADDBA_req->BA_timeout_value,
 						  &pattrib->pktlen);
 			break;
+		}
 		case 2:/* DELBA */
 			BA_para_set = (status & 0x1F) << 3;
 			le_tmp = cpu_to_le16(BA_para_set);
