@@ -31,6 +31,20 @@
 # define STATUS_BITDEPS		0
 #endif
 
+#ifdef CONFIG_MIPS_CPS_NS16550
+
+#define DUMP_EXCEP(name)		\
+	PTR_LA	a0, 8f;			\
+	jal	mips_cps_bev_dump;	\
+	 nop;				\
+	TEXT(name)
+
+#else /* !CONFIG_MIPS_CPS_NS16550 */
+
+#define DUMP_EXCEP(name)
+
+#endif /* !CONFIG_MIPS_CPS_NS16550 */
+
 	/*
 	 * Set dest to non-zero if the core supports the MT ASE, else zero. If
 	 * MT is not supported then branch to nomt.
@@ -194,36 +208,42 @@ dcache_done:
 
 .org 0x200
 LEAF(excep_tlbfill)
+	DUMP_EXCEP("TLB Fill")
 	b	.
 	 nop
 	END(excep_tlbfill)
 
 .org 0x280
 LEAF(excep_xtlbfill)
+	DUMP_EXCEP("XTLB Fill")
 	b	.
 	 nop
 	END(excep_xtlbfill)
 
 .org 0x300
 LEAF(excep_cache)
+	DUMP_EXCEP("Cache")
 	b	.
 	 nop
 	END(excep_cache)
 
 .org 0x380
 LEAF(excep_genex)
+	DUMP_EXCEP("General")
 	b	.
 	 nop
 	END(excep_genex)
 
 .org 0x400
 LEAF(excep_intex)
+	DUMP_EXCEP("Interrupt")
 	b	.
 	 nop
 	END(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
+	DUMP_EXCEP("EJTAG")
 	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
 	 nop
