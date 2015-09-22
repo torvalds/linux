@@ -1425,6 +1425,7 @@ static void dwc2_wakeup_detected(unsigned long data)
 	dev_dbg(hsotg->dev, "Clear Resume: HPRT0=%0x\n",
 		dwc2_readl(hsotg->regs + HPRT0));
 
+	hsotg->bus_suspended = 0;
 	dwc2_hcd_rem_wakeup(hsotg);
 
 	/* Change to L0 state */
@@ -1461,8 +1462,7 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 	hprt0 |= HPRT0_SUSP;
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
 
-	/* Update lx_state */
-	hsotg->lx_state = DWC2_L2;
+	hsotg->bus_suspended = 1;
 
 	/* Suspend the Phy Clock */
 	pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
@@ -1510,6 +1510,7 @@ static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
 	hprt0 = dwc2_read_hprt0(hsotg);
 	hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
 	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	hsotg->bus_suspended = 0;
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 

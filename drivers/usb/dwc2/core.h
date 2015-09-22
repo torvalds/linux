@@ -764,6 +764,7 @@ struct dwc2_hsotg {
 	u16 frame_usecs[8];
 	u16 frame_number;
 	u16 periodic_qh_count;
+	bool bus_suspended;
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 #define FRAME_NUM_ARRAY_SIZE 1000
