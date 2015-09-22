@@ -43,7 +43,7 @@
 
 #define FIELD_CLEAR(reg, field) \
 ( \
-	~ _F_MASK(reg ## _ ## field) \
+	~_F_MASK(reg ## _ ## field) \
 )
 
 /* Field Macros */
