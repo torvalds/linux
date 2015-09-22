@@ -29,6 +29,7 @@
 #include <linux/regmap.h>
 
 #include "edac_core.h"
+#include "edac_module.h"
 
 #define EDAC_MOD_STR			"xgene_edac"
 
@@ -172,12 +173,12 @@ static void xgene_edac_mc_create_debugfs_node(struct mem_ctl_info *mci)
 {
 	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
 		return;
-#ifdef CONFIG_EDAC_DEBUG
+
 	if (!mci->debugfs)
 		return;
-	debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
-			    &xgene_edac_mc_debug_inject_fops);
-#endif
+
+	edac_debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
+				 &xgene_edac_mc_debug_inject_fops);
 }
 
 static void xgene_edac_mc_check(struct mem_ctl_info *mci)
@@ -881,7 +882,7 @@ static void xgene_edac_pmd_create_debugfs_nodes(
 	struct edac_device_ctl_info *edac_dev)
 {
 	struct xgene_edac_pmd_ctx *ctx = edac_dev->pvt_info;
-	struct dentry *edac_debugfs;
+	struct dentry *dbgfs_dir;
 	char name[30];
 
 	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
@@ -892,20 +893,19 @@ static void xgene_edac_pmd_create_debugfs_nodes(
 	 *       when available.
 	 */
 	if (!ctx->edac->dfs) {
-		ctx->edac->dfs = debugfs_create_dir(edac_dev->dev->kobj.name,
-						    NULL);
+		ctx->edac->dfs = edac_debugfs_create_dir(edac_dev->dev->kobj.name);
 		if (!ctx->edac->dfs)
 			return;
 	}
 	sprintf(name, "PMD%d", ctx->pmd);
-	edac_debugfs = debugfs_create_dir(name, ctx->edac->dfs);
-	if (!edac_debugfs)
+	dbgfs_dir = edac_debugfs_create_dir_at(name, ctx->edac->dfs);
+	if (!dbgfs_dir)
 		return;
 
-	debugfs_create_file("l1_inject_ctrl", S_IWUSR, edac_debugfs, edac_dev,
-			    &xgene_edac_pmd_debug_inject_fops[0]);
-	debugfs_create_file("l2_inject_ctrl", S_IWUSR, edac_debugfs, edac_dev,
-			    &xgene_edac_pmd_debug_inject_fops[1]);
+	edac_debugfs_create_file("l1_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
+				 &xgene_edac_pmd_debug_inject_fops[0]);
+	edac_debugfs_create_file("l2_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
+				 &xgene_edac_pmd_debug_inject_fops[1]);
 }
 
 static int xgene_edac_pmd_available(u32 efuse, int pmd)
