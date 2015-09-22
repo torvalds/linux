@@ -9,7 +9,6 @@
 #include <QList>
 #include <qtextbrowser.h>
 #include <QAction>
-#include <q3header.h>
 #include <QFileDialog>
 #include <QMenu>
 
@@ -51,7 +50,7 @@ static inline QString qgettext(const char* str)
 
 static inline QString qgettext(const QString& str)
 {
-	return QString::fromLocal8Bit(gettext(str.latin1()));
+	return QString::fromLocal8Bit(gettext(str.toLatin1()));
 }
 
 ConfigSettings::ConfigSettings()
@@ -65,7 +64,7 @@ ConfigSettings::ConfigSettings()
 QList<int> ConfigSettings::readSizes(const QString& key, bool *ok)
 {
 	QList<int> result;
-	QStringList entryList = readListEntry(key, ok);
+	QStringList entryList = value(key).toStringList();
 	QStringList::Iterator it;
 
 	for (it = entryList.begin(); it != entryList.end(); ++it)
@@ -84,7 +83,8 @@ bool ConfigSettings::writeSizes(const QString& key, const QList<int>& value)
 
 	for (it = value.begin(); it != value.end(); ++it)
 		stringList.push_back(QString::number(*it));
-	return writeEntry(key, stringList);
+	setValue(key, stringList);
+	return true;
 }
 
 ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
@@ -93,7 +93,7 @@ ConfigLineEdit::ConfigLineEdit(ConfigView* parent)
 	connect(this, SIGNAL(lostFocus()), SLOT(hide()));
 }
 
-void ConfigLineEdit::show(Q3ListViewItem *i)
+void ConfigLineEdit::show(QTreeWidgetItem *i)
 {
 	item = i;
 	Parent::show();
@@ -124,12 +124,12 @@ QAction *ConfigView::showAllAction;
 QAction *ConfigView::showPromptAction;
 
 ConfigView::ConfigView(QWidget* parent, const char *name)
-	: Parent(parent, name)
+	: Parent(parent)
 {
 	QVBoxLayout *verticalLayout = new QVBoxLayout(this);
 	verticalLayout->setContentsMargins(0, 0, 0, 0);
 
-	list = new Q3ListView(this, name);
+	list = new QTreeWidget(this);
 	verticalLayout->addWidget(list);
 	lineEdit = new ConfigLineEdit(this);
 	lineEdit->hide();
@@ -167,7 +167,7 @@ void ConfigView::setShowData(bool b)
 {
 }
 
-void ConfigView::updateList(Q3ListViewItem* item)
+void ConfigView::updateList(QTreeWidgetItem* item)
 {
 }
 
@@ -176,11 +176,11 @@ void ConfigView::updateListAll(void)
 }
 
 ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
-	: Parent(parent, name), sym(0), _menu(0)
+	: Parent(parent), sym(0), _menu(0)
 {
 	if (name) {
 		configSettings->beginGroup(name);
-		_showDebug = configSettings->readBoolEntry("/showDebug", false);
+		_showDebug = configSettings->value("/showDebug", false).toBool();
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
@@ -188,11 +188,11 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 
 void ConfigInfoView::saveSettings(void)
 {
-	if (name()) {
+	/*if (name()) {
 		configSettings->beginGroup(name());
-		configSettings->writeEntry("/showDebug", showDebug());
+		configSettings->setValue("/showDebug", showDebug());
 		configSettings->endGroup();
-	}
+	}*/
 }
 
 void ConfigInfoView::setShowDebug(bool b)
@@ -349,8 +349,8 @@ QString ConfigInfoView::print_filter(const QString &str)
 {
 	QRegExp re("[<>&\"\\n]");
 	QString res = str;
-	for (int i = 0; (i = res.find(re, i)) >= 0;) {
-		switch (res[i].latin1()) {
+	for (int i = 0; (i = res.indexOf(re, i)) >= 0;) {
+		switch (res[i].toLatin1()) {
 		case '<':
 			res.replace(i, 1, "&lt;");
 			i += 4;
@@ -393,12 +393,12 @@ QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
 {
 	QMenu* popup = Parent::createStandardContextMenu(pos);
 	QAction* action = new QAction(_("Show Debug Info"), popup);
-	  action->setCheckable(TRUE);
+	  action->setCheckable(true);
 	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
 	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
 	  action->setChecked(showDebug());
 	popup->addSeparator();
-	action->addTo(popup);
+	popup->addAction(action);
 	return popup;
 }
 
@@ -408,18 +408,22 @@ void ConfigInfoView::contextMenuEvent(QContextMenuEvent *e)
 }
 
 ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *name)
-	: Parent(parent, name), result(NULL)
+	: Parent(parent), result(NULL)
 {
-	setCaption("Search Config");
+	setWindowTitle("Search Config");
 
-	QVBoxLayout* layout1 = new QVBoxLayout(this, 11, 6);
-	QHBoxLayout* layout2 = new QHBoxLayout(0, 0, 6);
+	QVBoxLayout* layout1 = new QVBoxLayout(this);
+	layout1->setContentsMargins(11, 11, 11, 11);
+	layout1->setSpacing(6);
+	QHBoxLayout* layout2 = new QHBoxLayout(0);
+	layout2->setContentsMargins(0, 0, 0, 0);
+	layout2->setSpacing(6);
 	layout2->addWidget(new QLabel(_("Find:"), this));
 	editField = new QLineEdit(this);
 	connect(editField, SIGNAL(returnPressed()), SLOT(search()));
 	layout2->addWidget(editField);
 	searchButton = new QPushButton(_("Search"), this);
-	searchButton->setAutoDefault(FALSE);
+	searchButton->setAutoDefault(false);
 	connect(searchButton, SIGNAL(clicked()), SLOT(search()));
 	layout2->addWidget(searchButton);
 	layout1->addLayout(layout2);
@@ -436,18 +440,18 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *nam
 	layout1->addWidget(split);
 
 	if (name) {
-		int x, y, width, height;
+		QVariant x, y;
+		int width, height;
 		bool ok;
 
 		configSettings->beginGroup(name);
-		width = configSettings->readNumEntry("/window width", parent->width() / 2);
-		height = configSettings->readNumEntry("/window height", parent->height() / 2);
+		width = configSettings->value("/window width", parent->width() / 2).toInt();
+		height = configSettings->value("/window height", parent->height() / 2).toInt();
 		resize(width, height);
-		x = configSettings->readNumEntry("/window x", 0, &ok);
-		if (ok)
-			y = configSettings->readNumEntry("/window y", 0, &ok);
-		if (ok)
-			move(x, y);
+		x = configSettings->value("/window x");
+		y = configSettings->value("/window y");
+		if ((x.isValid())&&(y.isValid()))
+			move(x.toInt(), y.toInt());
 		QList<int> sizes = configSettings->readSizes("/split", &ok);
 		if (ok)
 			split->setSizes(sizes);
@@ -458,15 +462,15 @@ ConfigSearchWindow::ConfigSearchWindow(ConfigMainWindow* parent, const char *nam
 
 void ConfigSearchWindow::saveSettings(void)
 {
-	if (name()) {
+	/*if (name()) {
 		configSettings->beginGroup(name());
-		configSettings->writeEntry("/window x", pos().x());
-		configSettings->writeEntry("/window y", pos().y());
-		configSettings->writeEntry("/window width", size().width());
-		configSettings->writeEntry("/window height", size().height());
+		configSettings->setValue("/window x", pos().x());
+		configSettings->setValue("/window y", pos().y());
+		configSettings->setValue("/window width", size().width());
+		configSettings->setValue("/window height", size().height());
 		configSettings->writeSizes("/split", split->sizes());
 		configSettings->endGroup();
-	}
+	}*/
 }
 
 void ConfigSearchWindow::search(void)
@@ -481,7 +485,8 @@ ConfigMainWindow::ConfigMainWindow(void)
 {
 	QMenuBar* menu;
 	bool ok;
-	int x, y, width, height;
+	QVariant x, y;
+	int width, height;
 	char title[256];
 
 	QDesktopWidget *d = configApp->desktop();
@@ -489,16 +494,15 @@ ConfigMainWindow::ConfigMainWindow(void)
 		rootmenu.prompt->text,
 		""
 		);
-	setCaption(title);
+	setWindowTitle(title);
 
-	width = configSettings->readNumEntry("/window width", d->width() - 64);
-	height = configSettings->readNumEntry("/window height", d->height() - 64);
+	width = configSettings->value("/window width", d->width() - 64).toInt();
+	height = configSettings->value("/window height", d->height() - 64).toInt();
 	resize(width, height);
-	x = configSettings->readNumEntry("/window x", 0, &ok);
-	if (ok)
-		y = configSettings->readNumEntry("/window y", 0, &ok);
-	if (ok)
-		move(x, y);
+	x = configSettings->value("/window x");
+	y = configSettings->value("/window y");
+	if ((x.isValid())&&(y.isValid()))
+		move(x.toInt(), y.toInt());
 
 	split1 = new QSplitter(this);
 	split1->setOrientation(Qt::Horizontal);
@@ -515,7 +519,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configList = configView->list;
 
 	helpText = new ConfigInfoView(split2, "help");
-	helpText->setTextFormat(Qt::RichText);
+	//helpText->setTextFormat(Qt::RichText);
 
 	setTabOrder(configList, helpText);
 	configList->setFocus();
@@ -526,7 +530,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	backAction = new QAction(QPixmap(xpm_back), _("Back"), this);
 	  connect(backAction, SIGNAL(activated()), SLOT(goBack()));
-	  backAction->setEnabled(FALSE);
+	  backAction->setEnabled(false);
 	QAction *quitAction = new QAction(_("&Quit"), this);
 	quitAction->setShortcut(Qt::CTRL + Qt::Key_Q);
 	  connect(quitAction, SIGNAL(activated()), SLOT(close()));
@@ -545,31 +549,31 @@ ConfigMainWindow::ConfigMainWindow(void)
 	searchAction->setShortcut(Qt::CTRL + Qt::Key_F);
 	  connect(searchAction, SIGNAL(activated()), SLOT(searchConfig()));
 	singleViewAction = new QAction(QPixmap(xpm_single_view), _("Single View"), this);
-	singleViewAction->setCheckable(TRUE);
+	singleViewAction->setCheckable(true);
 	  connect(singleViewAction, SIGNAL(activated()), SLOT(showSingleView()));
 	splitViewAction = new QAction(QPixmap(xpm_split_view), _("Split View"), this);
-	splitViewAction->setCheckable(TRUE);
+	splitViewAction->setCheckable(true);
 	  connect(splitViewAction, SIGNAL(activated()), SLOT(showSplitView()));
 	fullViewAction = new QAction(QPixmap(xpm_tree_view), _("Full View"), this);
-	fullViewAction->setCheckable(TRUE);
+	fullViewAction->setCheckable(true);
 	  connect(fullViewAction, SIGNAL(activated()), SLOT(showFullView()));
 
 	QAction *showNameAction = new QAction(_("Show Name"), this);
-	  showNameAction->setCheckable(TRUE);
+	  showNameAction->setCheckable(true);
 	  connect(showNameAction, SIGNAL(toggled(bool)), configView, SLOT(setShowName(bool)));
 	  connect(configView, SIGNAL(showNameChanged(bool)), showNameAction, SLOT(setOn(bool)));
 	  showNameAction->setChecked(configView->showName());
 	QAction *showRangeAction = new QAction(_("Show Range"), this);
-	  showRangeAction->setCheckable(TRUE);
+	  showRangeAction->setCheckable(true);
 	  connect(showRangeAction, SIGNAL(toggled(bool)), configView, SLOT(setShowRange(bool)));
 	  connect(configView, SIGNAL(showRangeChanged(bool)), showRangeAction, SLOT(setOn(bool)));
 	QAction *showDataAction = new QAction(_("Show Data"), this);
-	  showDataAction->setCheckable(TRUE);
+	  showDataAction->setCheckable(true);
 	  connect(showDataAction, SIGNAL(toggled(bool)), configView, SLOT(setShowData(bool)));
 	  connect(configView, SIGNAL(showDataChanged(bool)), showDataAction, SLOT(setOn(bool)));
 
 	QActionGroup *optGroup = new QActionGroup(this);
-	optGroup->setExclusive(TRUE);
+	optGroup->setExclusive(true);
 	connect(optGroup, SIGNAL(selected(QAction *)), configView,
 		SLOT(setOptionMode(QAction *)));
 	connect(optGroup, SIGNAL(selected(QAction *)), menuView,
@@ -578,12 +582,12 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configView->showNormalAction = new QAction(_("Show Normal Options"), optGroup);
 	configView->showAllAction = new QAction(_("Show All Options"), optGroup);
 	configView->showPromptAction = new QAction(_("Show Prompt Options"), optGroup);
-	configView->showNormalAction->setCheckable(TRUE);
-	configView->showAllAction->setCheckable(TRUE);
-	configView->showPromptAction->setCheckable(TRUE);
+	configView->showNormalAction->setCheckable(true);
+	configView->showAllAction->setCheckable(true);
+	configView->showPromptAction->setCheckable(true);
 
 	QAction *showDebugAction = new QAction( _("Show Debug Info"), this);
-	  showDebugAction->setCheckable(TRUE);
+	  showDebugAction->setCheckable(true);
 	  connect(showDebugAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDebug(bool)));
 	  connect(helpText, SIGNAL(showDebugChanged(bool)), showDebugAction, SLOT(setOn(bool)));
 	  showDebugAction->setChecked(helpText->showDebug());
@@ -594,45 +598,41 @@ ConfigMainWindow::ConfigMainWindow(void)
 	  connect(showAboutAction, SIGNAL(activated()), SLOT(showAbout()));
 
 	// init tool bar
-	backAction->addTo(toolBar);
+	toolBar->addAction(backAction);
 	toolBar->addSeparator();
-	loadAction->addTo(toolBar);
-	saveAction->addTo(toolBar);
+	toolBar->addAction(loadAction);
+	toolBar->addAction(saveAction);
 	toolBar->addSeparator();
-	singleViewAction->addTo(toolBar);
-	splitViewAction->addTo(toolBar);
-	fullViewAction->addTo(toolBar);
+	toolBar->addAction(singleViewAction);
+	toolBar->addAction(splitViewAction);
+	toolBar->addAction(fullViewAction);
 
 	// create config menu
-	QMenu* config = new QMenu(this);
-	menu->insertItem(_("&File"), config);
-	loadAction->addTo(config);
-	saveAction->addTo(config);
-	saveAsAction->addTo(config);
+	QMenu* config = menu->addMenu(_("&File"));
+	config->addAction(loadAction);
+	config->addAction(saveAction);
+	config->addAction(saveAsAction);
 	config->addSeparator();
-	quitAction->addTo(config);
+	config->addAction(quitAction);
 
 	// create edit menu
-	QMenu* editMenu = new QMenu(this);
-	menu->insertItem(_("&Edit"), editMenu);
-	searchAction->addTo(editMenu);
+	QMenu* editMenu = menu->addMenu(_("&Edit"));
+	editMenu->addAction(searchAction);
 
 	// create options menu
-	QMenu* optionMenu = new QMenu(this);
-	menu->insertItem(_("&Option"), optionMenu);
-	showNameAction->addTo(optionMenu);
-	showRangeAction->addTo(optionMenu);
-	showDataAction->addTo(optionMenu);
+	QMenu* optionMenu = menu->addMenu(_("&Option"));
+	optionMenu->addAction(showNameAction);
+	optionMenu->addAction(showRangeAction);
+	optionMenu->addAction(showDataAction);
 	optionMenu->addSeparator();
-	optGroup->addTo(optionMenu);
+	optionMenu->addActions(optGroup->actions());
 	optionMenu->addSeparator();
 
 	// create help menu
-	QMenu* helpMenu = new QMenu(this);
 	menu->addSeparator();
-	menu->insertItem(_("&Help"), helpMenu);
-	showIntroAction->addTo(helpMenu);
-	showAboutAction->addTo(helpMenu);
+	QMenu* helpMenu = menu->addMenu(_("&Help"));
+	helpMenu->addAction(showIntroAction);
+	helpMenu->addAction(showAboutAction);
 
 	connect(configList, SIGNAL(menuChanged(struct menu *)),
 		helpText, SLOT(setInfo(struct menu *)));
@@ -654,7 +654,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(helpText, SIGNAL(menuSelected(struct menu *)),
 		SLOT(setMenuLink(struct menu *)));
 
-	QString listMode = configSettings->readEntry("/listMode", "symbol");
+	QString listMode = configSettings->value("/listMode", "symbol").toString();
 	if (listMode == "single")
 		showSingleView();
 	else if (listMode == "full")
@@ -674,7 +674,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 void ConfigMainWindow::loadConfig(void)
 {
-	QString s = QFileDialog::getOpenFileName(conf_get_configname(), NULL, this);
+	QString s = QFileDialog::getOpenFileName(this, "", conf_get_configname());
 	if (s.isNull())
 		return;
 	if (conf_read(QFile::encodeName(s)))
@@ -693,7 +693,7 @@ bool ConfigMainWindow::saveConfig(void)
 
 void ConfigMainWindow::saveConfigAs(void)
 {
-	QString s = QFileDialog::getSaveFileName(conf_get_configname(), NULL, this);
+	QString s = QFileDialog::getSaveFileName(this, "", conf_get_configname());
 	if (s.isNull())
 		return;
 	saveConfig();
@@ -820,14 +820,14 @@ void ConfigMainWindow::showAbout(void)
 
 void ConfigMainWindow::saveSettings(void)
 {
-	configSettings->writeEntry("/window x", pos().x());
-	configSettings->writeEntry("/window y", pos().y());
-	configSettings->writeEntry("/window width", size().width());
-	configSettings->writeEntry("/window height", size().height());
+	configSettings->setValue("/window x", pos().x());
+	configSettings->setValue("/window y", pos().y());
+	configSettings->setValue("/window width", size().width());
+	configSettings->setValue("/window height", size().height());
 
 	QString entry;
 
-	configSettings->writeEntry("/listMode", entry);
+	configSettings->setValue("/listMode", entry);
 
 	configSettings->writeSizes("/split1", split1->sizes());
 	configSettings->writeSizes("/split2", split2->sizes());
@@ -859,7 +859,7 @@ static const char *progname;
 
 static void usage(void)
 {
-	printf(_("%s [-s] <config>\n"), progname);
+	printf(_("%s [-s] <config>\n").toLatin1().constData(), progname);
 	exit(0);
 }
 
@@ -898,7 +898,6 @@ int main(int ac, char** av)
 	v = new ConfigMainWindow();
 
 	//zconfdump(stdout);
-	configApp->setMainWidget(v);
 	configApp->connect(configApp, SIGNAL(lastWindowClosed()), SLOT(quit()));
 	configApp->connect(configApp, SIGNAL(aboutToQuit()), v, SLOT(saveSettings()));
 	v->show();

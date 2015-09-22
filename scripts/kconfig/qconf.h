@@ -3,9 +3,18 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
-#include <q3listview.h>
+#include <QTextBrowser>
+#include <QTreeWidget>
 #include <QMainWindow>
+#include <QHeaderView>
 #include <qsettings.h>
+#include <QPushButton>
+#include <QSettings>
+#include <QLineEdit>
+#include <QSplitter>
+#include <QCheckBox>
+#include <QDialog>
+#include "expr.h"
 
 class ConfigView;
 class ConfigLineEdit;
@@ -37,11 +46,11 @@ public:
 	{
 		return (ConfigView*)Parent::parent();
 	}
-	void show(Q3ListViewItem *i);
+	void show(QTreeWidgetItem *i);
 	void keyPressEvent(QKeyEvent *e);
 
 public:
-	Q3ListViewItem *item;
+	QTreeWidgetItem *item;
 };
 
 class ConfigView : public QWidget {
@@ -50,7 +59,7 @@ class ConfigView : public QWidget {
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
 	~ConfigView(void);
-	static void updateList(Q3ListViewItem* item);
+	static void updateList(QTreeWidgetItem* item);
 	static void updateListAll(void);
 
 	bool showName(void) const { return false; } // TODO: Implement me.
@@ -66,7 +75,7 @@ signals:
 	void showRangeChanged(bool);
 	void showDataChanged(bool);
 public:
-	Q3ListView* list;
+	QTreeWidget* list;
 	ConfigLineEdit* lineEdit;
 
 	static ConfigView* viewList;
@@ -155,9 +164,9 @@ protected:
 
 	ConfigSearchWindow *searchWindow;
 	ConfigView *menuView;
-	Q3ListView *menuList;
+	QTreeWidget *menuList;
 	ConfigView *configView;
-	Q3ListView *configList;
+	QTreeWidget *configList;
 	ConfigInfoView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;
