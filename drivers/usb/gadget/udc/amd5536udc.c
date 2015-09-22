@@ -3107,6 +3107,17 @@ static void udc_remove(struct udc *dev)
 	udc = NULL;
 }
 
+/* free all the dma pools */
+static void free_dma_pools(struct udc *dev)
+{
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td,
+		      dev->ep[UDC_EP0OUT_IX].td_phys);
+	dma_pool_free(dev->stp_requests, dev->ep[UDC_EP0OUT_IX].td_stp,
+		      dev->ep[UDC_EP0OUT_IX].td_stp_dma);
+	dma_pool_destroy(dev->stp_requests);
+	dma_pool_destroy(dev->data_requests);
+}
+
 /* Reset all pci context */
 static void udc_pci_remove(struct pci_dev *pdev)
 {
@@ -3297,7 +3308,7 @@ static int udc_pci_probe(
 	if (use_dma) {
 		retval = init_dma_pools(dev);
 		if (retval != 0)
-			goto finished;
+			goto err_dma;
 	}
 
 	dev->phys_addr = resource;
@@ -3305,13 +3316,17 @@ static int udc_pci_probe(
 	dev->pdev = pdev;
 
 	/* general probing */
-	if (udc_probe(dev) == 0)
-		return 0;
+	if (udc_probe(dev)) {
+		retval = -ENODEV;
+		goto err_probe;
+	}
+	return 0;
 
-finished:
-	udc_pci_remove(pdev);
-	return retval;
-
+err_probe:
+	if (use_dma)
+		free_dma_pools(dev);
+err_dma:
+	free_irq(pdev->irq, dev);
 err_irq:
 	iounmap(dev->virt_addr);
 err_ioremap:
