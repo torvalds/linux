@@ -157,10 +157,10 @@ public:
 		ConfigItem *_parent = (ConfigItem *)parent();
 
 		if(_parent) {
-		  ret = (ConfigItem *)_parent->child(_parent->indexOfChild(this)+1);
+			ret = (ConfigItem *)_parent->child(_parent->indexOfChild(this)+1);
 		} else {
-		  QTreeWidget *_treeWidget = treeWidget();
-		  ret = (ConfigItem *)_treeWidget->topLevelItem(_treeWidget->indexOfTopLevelItem(this)+1);
+			QTreeWidget *_treeWidget = treeWidget();
+			ret = (ConfigItem *)_treeWidget->topLevelItem(_treeWidget->indexOfTopLevelItem(this)+1);
 		}
 
 		return ret;
