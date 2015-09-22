@@ -33,6 +33,7 @@
 #include <asm/cache.h>
 #include <asm/cdmm.h>
 #include <asm/cpu.h>
+#include <asm/debug.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>

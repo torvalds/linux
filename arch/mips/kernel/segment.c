@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <asm/cpu.h>
+#include <asm/debug.h>
 #include <asm/mipsregs.h>
 
 static void build_segment_config(char *str, unsigned int cfg)
@@ -91,7 +92,6 @@ static const struct file_operations segments_fops = {
 
 static int __init segments_info(void)
 {
-	extern struct dentry *mips_debugfs_dir;
 	struct dentry *segments;
 
 	if (cpu_has_segments) {
