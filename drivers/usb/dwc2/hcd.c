@@ -1484,6 +1484,35 @@ static void dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 	}
 }
 
+/* Must NOT be called with interrupt disabled or spinlock held */
+static void dwc2_port_resume(struct dwc2_hsotg *hsotg)
+{
+	unsigned long flags;
+	u32 hprt0;
+	u32 pcgctl;
+
+	/* Resume the Phy Clock */
+	pcgctl = dwc2_readl(hsotg->regs + PCGCTL);
+	pcgctl &= ~PCGCTL_STOPPCLK;
+	dwc2_writel(pcgctl, hsotg->regs + PCGCTL);
+	usleep_range(20000, 40000);
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	hprt0 = dwc2_read_hprt0(hsotg);
+	hprt0 |= HPRT0_RES;
+	hprt0 &= ~HPRT0_SUSP;
+	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	msleep(USB_RESUME_TIMEOUT);
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	hprt0 = dwc2_read_hprt0(hsotg);
+	hprt0 &= ~(HPRT0_RES | HPRT0_SUSP);
+	dwc2_writel(hprt0, hsotg->regs + HPRT0);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+}
+
 /* Handles hub class-specific requests */
 static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 				u16 wvalue, u16 windex, char *buf, u16 wlength)
@@ -1529,17 +1558,8 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		case USB_PORT_FEAT_SUSPEND:
 			dev_dbg(hsotg->dev,
 				"ClearPortFeature USB_PORT_FEAT_SUSPEND\n");
-			dwc2_writel(0, hsotg->regs + PCGCTL);
-			usleep_range(20000, 40000);
 
-			hprt0 = dwc2_read_hprt0(hsotg);
-			hprt0 |= HPRT0_RES;
-			dwc2_writel(hprt0, hsotg->regs + HPRT0);
-			hprt0 &= ~HPRT0_SUSP;
-			msleep(USB_RESUME_TIMEOUT);
-
-			hprt0 &= ~HPRT0_RES;
-			dwc2_writel(hprt0, hsotg->regs + HPRT0);
+			dwc2_port_resume(hsotg);
 			break;
 
 		case USB_PORT_FEAT_POWER:
