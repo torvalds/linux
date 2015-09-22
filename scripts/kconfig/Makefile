@@ -265,8 +265,8 @@ $(obj)/.tmp_qtcheck:
 	      moc="/usr/bin/moc"; \
 	    fi; \
 	else \
-	  cflags="\$$(shell pkg-config QtCore QtGui Qt3Support --cflags)"; \
-	  libs="\$$(shell pkg-config QtCore QtGui Qt3Support --libs)"; \
+	  cflags="\$$(shell pkg-config QtCore QtGui --cflags)"; \
+	  libs="\$$(shell pkg-config QtCore QtGui --libs)"; \
 	  moc="\$$(shell pkg-config QtCore --variable=moc_location)"; \
 	  [ -n "$$moc" ] || moc="\$$(shell pkg-config QtCore --variable=prefix)/bin/moc"; \
 	fi; \
