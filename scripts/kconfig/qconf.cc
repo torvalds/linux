@@ -568,8 +568,7 @@ void ConfigList::setParentMenu(void)
  * parent: either the menu list widget or a menu entry widget
  * menu: entry to be updated
  */
-template <class P>
-void ConfigList::updateMenuList(P* parent, struct menu* menu)
+void ConfigList::updateMenuList(ConfigItem *parent, struct menu* menu)
 {
 	struct menu* child;
 	ConfigItem* item;
@@ -578,6 +577,11 @@ void ConfigList::updateMenuList(P* parent, struct menu* menu)
 	enum prop_type type;
 
 	if (!menu) {
+		while (parent->childCount() > 0)
+		{
+			delete parent->takeChild(0);
+		}
+
 		return;
 	}
 
@@ -620,6 +624,71 @@ void ConfigList::updateMenuList(P* parent, struct menu* menu)
 	hide:
 		if (item && item->menu == child) {
 			last = parent->firstChild();
+			if (last == item)
+				last = 0;
+			else while (last->nextSibling() != item)
+				last = last->nextSibling();
+			delete item;
+		}
+	}
+}
+
+void ConfigList::updateMenuList(ConfigList *parent, struct menu* menu)
+{
+	struct menu* child;
+	ConfigItem* item;
+	ConfigItem* last;
+	bool visible;
+	enum prop_type type;
+
+	if (!menu) {
+		while (parent->topLevelItemCount() > 0)
+		{
+			delete parent->takeTopLevelItem(0);
+		}
+
+		return;
+	}
+
+	last = (ConfigItem*)parent->topLevelItem(0);
+	if (last && !last->goParent)
+		last = 0;
+	for (child = menu->list; child; child = child->next) {
+		item = last ? last->nextSibling() : (ConfigItem*)parent->topLevelItem(0);
+		type = child->prompt ? child->prompt->type : P_UNKNOWN;
+
+		switch (mode) {
+		case menuMode:
+			if (!(child->flags & MENU_ROOT))
+				goto hide;
+			break;
+		case symbolMode:
+			if (child->flags & MENU_ROOT)
+				goto hide;
+			break;
+		default:
+			break;
+		}
+
+		visible = menu_is_visible(child);
+		if (!menuSkip(child)) {
+			if (!child->sym && !child->list && !child->prompt)
+				continue;
+			if (!item || item->menu != child)
+				item = new ConfigItem(parent, last, child, visible);
+			else
+				item->testUpdateMenu(visible);
+
+			if (mode == fullMode || mode == menuMode || type != P_MENU)
+				updateMenuList(item, child);
+			else
+				updateMenuList(item, 0);
+			last = item;
+			continue;
+		}
+	hide:
+		if (item && item->menu == child) {
+			last = (ConfigItem*)parent->topLevelItem(0);
 			if (last == item)
 				last = 0;
 			else while (last->nextSibling() != item)

@@ -102,8 +102,8 @@ public:
 
 	bool menuSkip(struct menu *);
 
-	template <class P>
-	void updateMenuList(P*, struct menu*);
+	void updateMenuList(ConfigItem *parent, struct menu*);
+	void updateMenuList(ConfigList *parent, struct menu*);
 
 	bool updateAll;
 
