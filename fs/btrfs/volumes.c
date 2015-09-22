@@ -3542,6 +3542,15 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
 
+/* Non-zero return value signifies invalidity */
+static inline int validate_convert_profile(struct btrfs_balance_args *bctl_arg,
+		u64 allowed)
+{
+	return ((bctl_arg->flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+		(!alloc_profile_is_valid(bctl_arg->target, 1) ||
+		 (bctl_arg->target & ~allowed)));
+}
+
 /*
  * Should be called with both balance and volume mutexes held
  */
@@ -3599,27 +3608,21 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if (num_devices > 3)
 		allowed |= (BTRFS_BLOCK_GROUP_RAID10 |
 			    BTRFS_BLOCK_GROUP_RAID6);
-	if ((bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->data.target, 1) ||
-	     (bctl->data.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->data, allowed)) {
 		btrfs_err(fs_info, "unable to start balance with target "
 			   "data profile %llu",
 		       bctl->data.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->meta.target, 1) ||
-	     (bctl->meta.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->meta, allowed)) {
 		btrfs_err(fs_info,
 			   "unable to start balance with target metadata profile %llu",
 		       bctl->meta.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if ((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-	    (!alloc_profile_is_valid(bctl->sys.target, 1) ||
-	     (bctl->sys.target & ~allowed))) {
+	if (validate_convert_profile(&bctl->sys, allowed)) {
 		btrfs_err(fs_info,
 			   "unable to start balance with target system profile %llu",
 		       bctl->sys.target);
