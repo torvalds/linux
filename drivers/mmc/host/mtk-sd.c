@@ -729,7 +729,6 @@ static bool msdc_cmd_done(struct msdc_host *host, int events,
 			MSDC_INTEN_RSPCRCERR | MSDC_INTEN_CMDTMO |
 			MSDC_INTEN_ACMDRDY | MSDC_INTEN_ACMDCRCERR |
 			MSDC_INTEN_ACMDTMO);
-	writel(cmd->arg, host->base + SDC_ARG);
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -1302,6 +1301,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	mmc->f_min = host->src_clk_freq / (4 * 255);
 
 	mmc->caps |= MMC_CAP_ERASE | MMC_CAP_CMD23;
+	mmc->caps |= MMC_CAP_RUNTIME_RESUME;
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_segs = MAX_BD_NUM;
 	mmc->max_seg_size = BDMA_DESC_BUFLEN;
