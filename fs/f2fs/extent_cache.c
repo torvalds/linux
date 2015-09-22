@@ -351,8 +351,7 @@ static struct extent_node *__try_merge_extent_node(struct f2fs_sb_info *sbi,
 	}
 
 	if (en) {
-		if (en->ei.len > et->largest.len)
-			et->largest = en->ei;
+		__try_update_largest_extent(et, en);
 		et->cached_en = en;
 	}
 	return en;
@@ -389,8 +388,7 @@ do_insert:
 	if (!en)
 		return NULL;
 
-	if (en->ei.len > et->largest.len)
-		et->largest = en->ei;
+	__try_update_largest_extent(et, en);
 	et->cached_en = en;
 	return en;
 }
@@ -476,12 +474,10 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 				: NULL;
 		}
 
-		if (parts) {
-			if (en->ei.len > et->largest.len)
-				et->largest = en->ei;
-		} else {
+		if (parts)
+			__try_update_largest_extent(et, en);
+		else
 			__detach_extent_node(sbi, et, en);
-		}
 
 		/*
 		 * if original extent is split into zero or two parts, extent

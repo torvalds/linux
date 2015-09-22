@@ -492,6 +492,13 @@ static inline bool __is_front_mergeable(struct extent_info *cur,
 	return __is_extent_mergeable(cur, front);
 }
 
+static inline void __try_update_largest_extent(struct extent_tree *et,
+						struct extent_node *en)
+{
+	if (en->ei.len > et->largest.len)
+		et->largest = en->ei;
+}
+
 struct f2fs_nm_info {
 	block_t nat_blkaddr;		/* base disk address of NAT */
 	nid_t max_nid;			/* maximum possible node ids */
