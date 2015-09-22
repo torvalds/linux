@@ -6465,7 +6465,6 @@ _fail_mq_:
 	wilc_mq_destroy(&gMsgQHostIF);
 _fail_:
 	return result;
-
 }
 /**
  *  @brief              host_int_deinit
