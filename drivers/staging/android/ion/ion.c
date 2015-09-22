@@ -1,5 +1,5 @@
 /*
-
+ *
  * drivers/staging/android/ion/ion.c
  *
  * Copyright (C) 2011 Google, Inc.
@@ -244,14 +244,16 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	buffer->size = len;
 	INIT_LIST_HEAD(&buffer->vmas);
 	mutex_init(&buffer->lock);
-	/* this will set up dma addresses for the sglist -- it is not
-	   technically correct as per the dma api -- a specific
-	   device isn't really taking ownership here.  However, in practice on
-	   our systems the only dma_address space is physical addresses.
-	   Additionally, we can't afford the overhead of invalidating every
-	   allocation via dma_map_sg. The implicit contract here is that
-	   memory coming from the heaps is ready for dma, ie if it has a
-	   cached mapping that mapping has been invalidated */
+	/*
+	 * this will set up dma addresses for the sglist -- it is not
+	 * technically correct as per the dma api -- a specific
+	 * device isn't really taking ownership here.  However, in practice on
+	 * our systems the only dma_address space is physical addresses.
+	 * Additionally, we can't afford the overhead of invalidating every
+	 * allocation via dma_map_sg. The implicit contract here is that
+	 * memory coming from the heaps is ready for dma, ie if it has a
+	 * cached mapping that mapping has been invalidated
+	 */
 	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i)
 		sg_dma_address(sg) = sg_phys(sg);
 	mutex_lock(&dev->buffer_lock);
@@ -753,8 +755,10 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	get_task_struct(current->group_leader);
 	task_lock(current->group_leader);
 	pid = task_pid_nr(current->group_leader);
-	/* don't bother to store task struct for kernel threads,
-	   they can't be killed anyway */
+	/*
+	 * don't bother to store task struct for kernel threads,
+	 * they can't be killed anyway
+	 */
 	if (current->group_leader->flags & PF_KTHREAD) {
 		put_task_struct(current->group_leader);
 		task = NULL;
@@ -1521,8 +1525,10 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 
 	heap->dev = dev;
 	down_write(&dev->lock);
-	/* use negative heap->id to reverse the priority -- when traversing
-	   the list later attempt higher id numbers first */
+	/*
+	 * use negative heap->id to reverse the priority -- when traversing
+	 * the list later attempt higher id numbers first
+	 */
 	plist_node_init(&heap->node, -heap->id);
 	plist_add(&heap->node, &dev->heaps);
 	debug_file = debugfs_create_file(heap->name, 0664,
