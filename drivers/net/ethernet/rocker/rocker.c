@@ -152,8 +152,9 @@ struct rocker_fdb_tbl_entry {
 	struct hlist_node entry;
 	u32 key_crc32; /* key */
 	bool learned;
+	unsigned long touched;
 	struct rocker_fdb_tbl_key {
-		u32 pport;
+		struct rocker_port *rocker_port;
 		u8 addr[ETH_ALEN];
 		__be16 vlan_id;
 	} key;
@@ -220,6 +221,7 @@ struct rocker_port {
 	__be16 internal_vlan_id;
 	int stp_state;
 	u32 brport_flags;
+	unsigned long ageing_time;
 	bool ctrls[ROCKER_CTRL_MAX];
 	unsigned long vlan_bitmap[ROCKER_VLAN_BITMAP_LEN];
 	struct napi_struct napi_tx;
@@ -246,6 +248,7 @@ struct rocker {
 	u64 flow_tbl_next_cookie;
 	DECLARE_HASHTABLE(group_tbl, 16);
 	spinlock_t group_tbl_lock;		/* for group tbl accesses */
+	struct timer_list fdb_cleanup_timer;
 	DECLARE_HASHTABLE(fdb_tbl, 16);
 	spinlock_t fdb_tbl_lock;		/* for fdb tbl accesses */
 	unsigned long internal_vlan_bitmap[ROCKER_INTERNAL_VLAN_BITMAP_LEN];
@@ -3629,7 +3632,8 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 		return -ENOMEM;
 
 	fdb->learned = (flags & ROCKER_OP_FLAG_LEARNED);
-	fdb->key.pport = rocker_port->pport;
+	fdb->touched = jiffies;
+	fdb->key.rocker_port = rocker_port;
 	ether_addr_copy(fdb->key.addr, addr);
 	fdb->key.vlan_id = vlan_id;
 	fdb->key_crc32 = crc32(~0, &fdb->key, sizeof(fdb->key));
@@ -3638,13 +3642,17 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 
 	found = rocker_fdb_tbl_find(rocker, fdb);
 
-	if (removing && found) {
-		rocker_port_kfree(trans, fdb);
+	if (found) {
+		found->touched = jiffies;
+		if (removing) {
+			rocker_port_kfree(trans, fdb);
+			if (trans != SWITCHDEV_TRANS_PREPARE)
+				hash_del(&found->entry);
+		}
+	} else if (!removing) {
 		if (trans != SWITCHDEV_TRANS_PREPARE)
-			hash_del(&found->entry);
-	} else if (!removing && !found) {
-		if (trans != SWITCHDEV_TRANS_PREPARE)
-			hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
+			hash_add(rocker->fdb_tbl, &fdb->entry,
+				 fdb->key_crc32);
 	}
 
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
@@ -3680,7 +3688,7 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.pport != rocker_port->pport)
+		if (found->key.rocker_port != rocker_port)
 			continue;
 		if (!found->learned)
 			continue;
@@ -3697,6 +3705,41 @@ err_out:
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
 
 	return err;
+}
+
+static void rocker_fdb_cleanup(unsigned long data)
+{
+	struct rocker *rocker = (struct rocker *)data;
+	struct rocker_port *rocker_port;
+	struct rocker_fdb_tbl_entry *entry;
+	struct hlist_node *tmp;
+	unsigned long next_timer = jiffies + BR_MIN_AGEING_TIME;
+	unsigned long expires;
+	unsigned long lock_flags;
+	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE |
+		    ROCKER_OP_FLAG_LEARNED;
+	int bkt;
+
+	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
+
+	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, entry, entry) {
+		if (!entry->learned)
+			continue;
+		rocker_port = entry->key.rocker_port;
+		expires = entry->touched + rocker_port->ageing_time;
+		if (time_before_eq(expires, jiffies)) {
+			rocker_port_fdb_learn(rocker_port, SWITCHDEV_TRANS_NONE,
+					      flags, entry->key.addr,
+					      entry->key.vlan_id);
+			hash_del(&entry->entry);
+		} else if (time_before(expires, next_timer)) {
+			next_timer = expires;
+		}
+	}
+
+	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
+
+	mod_timer(&rocker->fdb_cleanup_timer, round_jiffies_up(next_timer));
 }
 
 static int rocker_port_router_mac(struct rocker_port *rocker_port,
@@ -4547,7 +4590,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.pport != rocker_port->pport)
+		if (found->key.rocker_port != rocker_port)
 			continue;
 		fdb->addr = found->key.addr;
 		fdb->ndm_state = NUD_REACHABLE;
@@ -4969,6 +5012,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port->port_number = port_number;
 	rocker_port->pport = port_number + 1;
 	rocker_port->brport_flags = BR_LEARNING | BR_LEARNING_SYNC;
+	rocker_port->ageing_time = BR_DEFAULT_AGEING_TIME;
 	INIT_LIST_HEAD(&rocker_port->trans_mem);
 
 	rocker_port_dev_addr_init(rocker_port);
@@ -5183,6 +5227,10 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_init_tbls;
 	}
 
+	setup_timer(&rocker->fdb_cleanup_timer, rocker_fdb_cleanup,
+		    (unsigned long) rocker);
+	mod_timer(&rocker->fdb_cleanup_timer, jiffies);
+
 	err = rocker_probe_ports(rocker);
 	if (err) {
 		dev_err(&pdev->dev, "failed to probe ports\n");
@@ -5195,6 +5243,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_probe_ports:
+	del_timer_sync(&rocker->fdb_cleanup_timer);
 	rocker_free_tbls(rocker);
 err_init_tbls:
 	free_irq(rocker_msix_vector(rocker, ROCKER_MSIX_VEC_EVENT), rocker);
@@ -5222,6 +5271,7 @@ static void rocker_remove(struct pci_dev *pdev)
 {
 	struct rocker *rocker = pci_get_drvdata(pdev);
 
+	del_timer_sync(&rocker->fdb_cleanup_timer);
 	rocker_free_tbls(rocker);
 	rocker_write32(rocker, CONTROL, ROCKER_CONTROL_RESET);
 	rocker_remove_ports(rocker);
