@@ -95,26 +95,16 @@ static void readdir_handle_dtor(struct pvfs2_bufmap *bufmap,
 
 /*
  * Read directory entries from an instance of an open directory.
- *
- * \note This routine was converted for the readdir to iterate change
- *       in "struct file_operations". "converted" mostly amounts to
- *       changing occurrences of "readdir" and "filldir" in the
- *       comments to "iterate" and "dir_emit". Also filldir calls
- *       were changed to dir_emit calls.
- *
- * \param dir_emit callback function called for each entry read.
- *
- * \retval 0  when directory has been completely traversed
- * \retval >0 if we don't call dir_emit for all entries
- *
- * \note If the dir_emit call-back returns non-zero, then iterate should
- *       assume that it has had enough, and should return as well.
  */
 static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct pvfs2_bufmap *bufmap = NULL;
 	int ret = 0;
 	int buffer_index;
+	/*
+	 * ptoken supports Orangefs' distributed directory logic, added
+	 * in 2.9.2.
+	 */
 	__u64 *ptoken = file->private_data;
 	__u64 pos = 0;
 	ino_t ino = 0;
@@ -129,11 +119,11 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 	char *current_entry = NULL;
 	long bytes_decoded;
 
-	gossip_ldebug(GOSSIP_DIR_DEBUG,
-		      "%s: ctx->pos:%lld, token = %llu\n",
-		      __func__,
-		      lld(ctx->pos),
-		      llu(*ptoken));
+	gossip_debug(GOSSIP_DIR_DEBUG,
+		     "%s: ctx->pos:%lld, ptoken = %llu\n",
+		     __func__,
+		     lld(ctx->pos),
+		     llu(*ptoken));
 
 	pos = (__u64) ctx->pos;
 
@@ -165,16 +155,6 @@ static int pvfs2_readdir(struct file *file, struct dir_context *ctx)
 		     __func__,
 		     &new_op->upcall.req.readdir.refn.khandle);
 
-	/*
-	 * NOTE: the position we send to the readdir upcall is out of
-	 * sync with ctx->pos since:
-	 * 1. pvfs2 doesn't include the "." and ".." entries that are
-	 *    added below.
-	 * 2. the introduction of distributed directory logic makes token no
-	 *    longer be related to f_pos and pos. Instead an independent
-	 *    variable is used inside the function and stored in the
-	 *    private_data of the file structure.
-	 */
 	new_op->upcall.req.readdir.token = *ptoken;
 
 get_new_buffer_index:
@@ -238,13 +218,18 @@ get_new_buffer_index:
 	}
 
 	if (bytes_decoded != new_op->downcall.trailer_size) {
-		gossip_err("pvfs2_readdir: # bytes decoded (%ld) != trailer size (%ld)\n",
-			bytes_decoded,
-			(long)new_op->downcall.trailer_size);
+		gossip_err("pvfs2_readdir: # bytes decoded (%ld) "
+			   "!= trailer size (%ld)\n",
+			   bytes_decoded,
+			   (long)new_op->downcall.trailer_size);
 		ret = -EINVAL;
 		goto out_destroy_handle;
 	}
 
+	/*
+	 *  pvfs2 doesn't actually store dot and dot-dot, but
+	 *  we need to have them represented.
+	 */
 	if (pos == 0) {
 		ino = get_ino_from_khandle(dentry->d_inode);
 		gossip_debug(GOSSIP_DIR_DEBUG,
@@ -252,12 +237,7 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, ".", 1, ino, DT_DIR);
-		ctx->pos++;
-		gossip_ldebug(GOSSIP_DIR_DEBUG,
-			      "%s: ctx->pos:%lld\n",
-			      __func__,
-			      lld(ctx->pos));
-		pos++;
+		pos += 1;
 	}
 
 	if (pos == 1) {
@@ -267,62 +247,55 @@ get_new_buffer_index:
 			     __func__,
 			     llu(pos));
 		ret = dir_emit(ctx, "..", 2, ino, DT_DIR);
-		ctx->pos++;
-		gossip_ldebug(GOSSIP_DIR_DEBUG,
-			      "%s: ctx->pos:%lld\n",
-			      __func__,
-			      lld(ctx->pos));
-		pos++;
+		pos += 1;
 	}
 
-	for (i = 0; i < rhandle.readdir_response.pvfs_dirent_outcount; i++) {
+	/*
+	 * we stored PVFS_ITERATE_NEXT in ctx->pos last time around
+	 * to prevent "finding" dot and dot-dot on any iteration
+	 * other than the first.
+	 */
+	if (ctx->pos == PVFS_ITERATE_NEXT)
+		ctx->pos = 0;
+
+	for (i = ctx->pos;
+	     i < rhandle.readdir_response.pvfs_dirent_outcount;
+	     i++) {
 		len = rhandle.readdir_response.dirent_array[i].d_length;
 		current_entry = rhandle.readdir_response.dirent_array[i].d_name;
 		current_ino = pvfs2_khandle_to_ino(
 			&(rhandle.readdir_response.dirent_array[i].khandle));
 
 		gossip_debug(GOSSIP_DIR_DEBUG,
-			     "calling dir_emit for %s with len %d, pos %ld\n",
+			     "calling dir_emit for %s with len %d"
+			     ", ctx->pos %ld\n",
 			     current_entry,
 			     len,
-			     (unsigned long)pos);
+			     (unsigned long)ctx->pos);
+		/*
+		 * type is unknown. We don't return object type
+		 * in the dirent_array. This leaves getdents
+		 * clueless about type.
+		 */
 		ret =
 		    dir_emit(ctx, current_entry, len, current_ino, DT_UNKNOWN);
+		if (!ret)
+			break;
 		ctx->pos++;
-		gossip_ldebug(GOSSIP_DIR_DEBUG,
+		gossip_debug(GOSSIP_DIR_DEBUG,
 			      "%s: ctx->pos:%lld\n",
 			      __func__,
 			      lld(ctx->pos));
 
-		pos++;
 	}
 
-	/* this means that all of the dir_emit calls succeeded */
-	if (i == rhandle.readdir_response.pvfs_dirent_outcount) {
-		/* update token */
+	/* 
+	 * we ran all the way through the last batch, set up for
+	 * getting another batch...
+	 */
+	if (ret) {
 		*ptoken = rhandle.readdir_response.token;
-	} else {
-		/* this means a dir_emit call failed */
-		if (rhandle.readdir_response.token == PVFS_READDIR_END) {
-			/*
-			 * If PVFS hit end of directory, then there
-			 * is no way to do math on the token that it
-			 * returned. Instead we go by ctx->pos but
-			 * back up to account for the artificial .
-			 * and .. entries.
-			 */
-			ctx->pos -= 3;
-		} else {
-			/*
-			 * this means a dir_emit call failed. !!! need to set
-			 * back to previous ctx->pos, no middle value allowed
-			 */
-			pos -= (i - 1);
-			ctx->pos -= (i - 1);
-		}
-		gossip_debug(GOSSIP_DIR_DEBUG,
-			"at least one dir_emit call failed. Setting ctx->pos to: %lld\n",
-			lld(ctx->pos));
+		ctx->pos = PVFS_ITERATE_NEXT;
 	}
 
 	/*
@@ -330,16 +303,10 @@ get_new_buffer_index:
 	 */
 	if (rhandle.readdir_response.token == PVFS_READDIR_END &&
 	    !buffer_full) {
-		gossip_debug(GOSSIP_DIR_DEBUG, "End of dir detected; setting ctx->pos to PVFS_READDIR_END.\n");
+		gossip_debug(GOSSIP_DIR_DEBUG,
+		"End of dir detected; setting ctx->pos to PVFS_READDIR_END.\n");
 		ctx->pos = PVFS_READDIR_END;
 	}
-
-	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "pos = %llu, token = %llu"
-		     ", ctx->pos should have been %lld\n",
-		     llu(pos),
-		     llu(*ptoken),
-		     lld(ctx->pos));
 
 out_destroy_handle:
 	readdir_handle_dtor(bufmap, &rhandle);
