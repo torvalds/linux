@@ -646,10 +646,14 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 	u32 ctrl, vdctrl0, vdctrl4;
 	int line_size, fb_size;
 	int reenable = 0;
+	static u32 equal_bypass = 0;
 
-	/* If parameter no change, don't reconfigure. */
-	if (mxsfb_par_equal(fb_info, host))
-		return 0;
+	if (likely(equal_bypass > 1)) {
+		/* If parameter no change, don't reconfigure. */
+		if (mxsfb_par_equal(fb_info, host))
+			return 0;
+	} else
+		equal_bypass++;
 
 	dev_dbg(&host->pdev->dev, "%s\n", __func__);
 
