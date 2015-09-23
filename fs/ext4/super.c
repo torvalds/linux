@@ -34,7 +34,6 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
-#include <linux/proc_fs.h>
 #include <linux/ctype.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
@@ -54,7 +53,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
 
-static struct proc_dir_entry *ext4_proc_root;
 static struct ext4_lazy_init *ext4_li_info;
 static struct mutex ext4_li_mtx;
 static int ext4_mballoc_ready;
@@ -797,6 +795,7 @@ static void ext4_put_super(struct super_block *sb)
 			ext4_abort(sb, "Couldn't clean up the journal");
 	}
 
+	ext4_unregister_sysfs(sb);
 	ext4_es_unregister_shrinker(sbi);
 	del_timer_sync(&sbi->s_err_report);
 	ext4_release_system_zone(sb);
@@ -810,12 +809,6 @@ static void ext4_put_super(struct super_block *sb)
 	}
 	if (!(sb->s_flags & MS_RDONLY))
 		ext4_commit_super(sb, 1);
-
-	if (sbi->s_proc) {
-		remove_proc_entry("options", sbi->s_proc);
-		remove_proc_entry(sb->s_id, ext4_proc_root);
-	}
-	kobject_del(&sbi->s_kobj);
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -1877,7 +1870,7 @@ static int ext4_show_options(struct seq_file *seq, struct dentry *root)
 	return _ext4_show_options(seq, root->d_sb, 0);
 }
 
-static int options_seq_show(struct seq_file *seq, void *offset)
+int ext4_seq_options_show(struct seq_file *seq, void *offset)
 {
 	struct super_block *sb = seq->private;
 	int rc;
@@ -1887,19 +1880,6 @@ static int options_seq_show(struct seq_file *seq, void *offset)
 	seq_puts(seq, "\n");
 	return rc;
 }
-
-static int options_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, options_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations ext4_seq_options_fops = {
-	.owner = THIS_MODULE,
-	.open = options_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			    int read_only)
@@ -3616,13 +3596,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	if (ext4_proc_root)
-		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
-
-	if (sbi->s_proc)
-		proc_create_data("options", S_IRUGO, sbi->s_proc,
-				 &ext4_seq_options_fops, sb);
-
 	bgl_lock_init(sbi->s_blockgroup_lock);
 
 	for (i = 0; i < db_count; i++) {
@@ -3960,7 +3933,7 @@ cantfind_ext4:
 
 #ifdef CONFIG_QUOTA
 failed_mount8:
-	kobject_del(&sbi->s_kobj);
+	ext4_unregister_sysfs(sb);
 #endif
 failed_mount7:
 	ext4_unregister_li_request(sb);
@@ -4000,10 +3973,6 @@ failed_mount2:
 failed_mount:
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
-	if (sbi->s_proc) {
-		remove_proc_entry("options", sbi->s_proc);
-		remove_proc_entry(sb->s_id, ext4_proc_root);
-	}
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < EXT4_MAXQUOTAS; i++)
 		kfree(sbi->s_qf_names[i]);
@@ -5264,7 +5233,6 @@ static int __init ext4_init_fs(void)
 	err = ext4_init_system_zone();
 	if (err)
 		goto out4;
-	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
 
 	err = ext4_init_sysfs();
 	if (err)
@@ -5295,8 +5263,6 @@ out1:
 out2:
 	ext4_exit_sysfs();
 out3:
-	if (ext4_proc_root)
-		remove_proc_entry("fs/ext4", NULL);
 	ext4_exit_system_zone();
 out4:
 	ext4_exit_pageio();
@@ -5316,7 +5282,6 @@ static void __exit ext4_exit_fs(void)
 	destroy_inodecache();
 	ext4_exit_mballoc();
 	ext4_exit_sysfs();
-	remove_proc_entry("fs/ext4", NULL);
 	ext4_exit_system_zone();
 	ext4_exit_pageio();
 	ext4_exit_es();

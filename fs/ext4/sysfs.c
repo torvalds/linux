@@ -34,6 +34,9 @@ typedef enum {
 	ptr_ext4_super_block_offset,
 } attr_ptr_t;
 
+static const char *proc_dirname = "fs/ext4";
+static struct proc_dir_entry *ext4_proc_root;
+
 struct ext4_attr {
 	struct attribute attr;
 	short attr_id;
@@ -347,14 +350,71 @@ static struct kobject ext4_feat = {
 	.kset	= &ext4_kset,
 };
 
+#define PROC_FILE_SHOW_DEFN(name) \
+static int name##_open(struct inode *inode, struct file *file) \
+{ \
+	return single_open(file, ext4_seq_##name##_show, PDE_DATA(inode)); \
+} \
+\
+const struct file_operations ext4_seq_##name##_fops = { \
+	.owner		= THIS_MODULE, \
+	.open		= name##_open, \
+	.read		= seq_read, \
+	.llseek		= seq_lseek, \
+	.release	= single_release, \
+}
+
+#define PROC_FILE_LIST(name) \
+	{ __stringify(name), &ext4_seq_##name##_fops }
+
+PROC_FILE_SHOW_DEFN(es_shrinker_info);
+PROC_FILE_SHOW_DEFN(options);
+
+static struct ext4_proc_files {
+	const char *name;
+	const struct file_operations *fops;
+} proc_files[] = {
+	PROC_FILE_LIST(options),
+	PROC_FILE_LIST(es_shrinker_info),
+	PROC_FILE_LIST(mb_groups),
+	{ NULL, NULL },
+};
+
 int ext4_register_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_proc_files *p;
+	int err;
 
 	sbi->s_kobj.kset = &ext4_kset;
 	init_completion(&sbi->s_kobj_unregister);
-	return kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, NULL,
-				    "%s", sb->s_id);
+	err = kobject_init_and_add(&sbi->s_kobj, &ext4_sb_ktype, NULL,
+				   "%s", sb->s_id);
+	if (err)
+		return err;
+
+	if (ext4_proc_root)
+		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
+
+	if (sbi->s_proc) {
+		for (p = proc_files; p->name; p++)
+			proc_create_data(p->name, S_IRUGO, sbi->s_proc,
+					 p->fops, sb);
+	}
+	return 0;
+}
+
+void ext4_unregister_sysfs(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_proc_files *p;
+
+	if (sbi->s_proc) {
+		for (p = proc_files; p->name; p++)
+			remove_proc_entry(p->name, sbi->s_proc);
+		remove_proc_entry(sb->s_id, ext4_proc_root);
+	}
+	kobject_del(&sbi->s_kobj);
 }
 
 int __init ext4_init_sysfs(void)
@@ -371,6 +431,8 @@ int __init ext4_init_sysfs(void)
 				   NULL, "features");
 	if (ret)
 		kset_unregister(&ext4_kset);
+	else
+		ext4_proc_root = proc_mkdir(proc_dirname, NULL);
 	return ret;
 }
 
@@ -378,5 +440,7 @@ void ext4_exit_sysfs(void)
 {
 	kobject_put(&ext4_feat);
 	kset_unregister(&ext4_kset);
+	remove_proc_entry(proc_dirname, NULL);
+	ext4_proc_root = NULL;
 }
 
