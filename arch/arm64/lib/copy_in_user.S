@@ -20,6 +20,7 @@
 
 #include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/cache.h>
 #include <asm/cpufeature.h>
 #include <asm/sysreg.h>
 
@@ -33,44 +34,52 @@
  * Returns:
  *	x0 - bytes not copied
  */
+	.macro ldrb1 ptr, regB, val
+	USER(9998f, ldrb  \ptr, [\regB], \val)
+	.endm
+
+	.macro strb1 ptr, regB, val
+	USER(9998f, strb \ptr, [\regB], \val)
+	.endm
+
+	.macro ldrh1 ptr, regB, val
+	USER(9998f, ldrh  \ptr, [\regB], \val)
+	.endm
+
+	.macro strh1 ptr, regB, val
+	USER(9998f, strh \ptr, [\regB], \val)
+	.endm
+
+	.macro ldr1 ptr, regB, val
+	USER(9998f, ldr \ptr, [\regB], \val)
+	.endm
+
+	.macro str1 ptr, regB, val
+	USER(9998f, str \ptr, [\regB], \val)
+	.endm
+
+	.macro ldp1 ptr, regB, regC, val
+	USER(9998f, ldp \ptr, \regB, [\regC], \val)
+	.endm
+
+	.macro stp1 ptr, regB, regC, val
+	USER(9998f, stp \ptr, \regB, [\regC], \val)
+	.endm
+
+end	.req	x5
 ENTRY(__copy_in_user)
 ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(0)), ARM64_HAS_PAN, \
 	    CONFIG_ARM64_PAN)
-	add	x5, x0, x2			// upper user buffer boundary
-	subs	x2, x2, #16
-	b.mi	1f
-0:
-USER(9f, ldp	x3, x4, [x1], #16)
-	subs	x2, x2, #16
-USER(9f, stp	x3, x4, [x0], #16)
-	b.pl	0b
-1:	adds	x2, x2, #8
-	b.mi	2f
-USER(9f, ldr	x3, [x1], #8	)
-	sub	x2, x2, #8
-USER(9f, str	x3, [x0], #8	)
-2:	adds	x2, x2, #4
-	b.mi	3f
-USER(9f, ldr	w3, [x1], #4	)
-	sub	x2, x2, #4
-USER(9f, str	w3, [x0], #4	)
-3:	adds	x2, x2, #2
-	b.mi	4f
-USER(9f, ldrh	w3, [x1], #2	)
-	sub	x2, x2, #2
-USER(9f, strh	w3, [x0], #2	)
-4:	adds	x2, x2, #1
-	b.mi	5f
-USER(9f, ldrb	w3, [x1]	)
-USER(9f, strb	w3, [x0]	)
-5:	mov	x0, #0
+	add	end, x0, x2
+#include "copy_template.S"
 ALTERNATIVE("nop", __stringify(SET_PSTATE_PAN(1)), ARM64_HAS_PAN, \
 	    CONFIG_ARM64_PAN)
+	mov	x0, #0
 	ret
 ENDPROC(__copy_in_user)
 
 	.section .fixup,"ax"
 	.align	2
-9:	sub	x0, x5, x0			// bytes not copied
+9998:	sub	x0, end, dst			// bytes not copied
 	ret
 	.previous
