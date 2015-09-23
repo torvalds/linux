@@ -3194,10 +3194,9 @@ static void intel_update_primary_planes(struct drm_device *dev)
 		struct intel_plane_state *plane_state;
 
 		drm_modeset_lock_crtc(crtc, &plane->base);
-
 		plane_state = to_intel_plane_state(plane->base.state);
 
-		if (plane_state->base.fb)
+		if (crtc->state->active && plane_state->base.fb)
 			plane->commit_plane(&plane->base, plane_state);
 
 		drm_modeset_unlock_crtc(crtc);
