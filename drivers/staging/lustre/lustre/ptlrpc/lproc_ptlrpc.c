@@ -420,7 +420,6 @@ LUSTRE_RW_ATTR(threads_max);
  * \addtogoup nrs
  * @{
  */
-extern struct nrs_core nrs_core;
 
 /**
  * Translates \e ptlrpc_nrs_pol_state values to human-readable strings.

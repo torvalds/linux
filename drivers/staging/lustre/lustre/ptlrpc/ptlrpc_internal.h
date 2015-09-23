@@ -47,6 +47,10 @@ struct ldlm_res_id;
 struct ptlrpc_request_set;
 extern int test_req_buffer_pressure;
 extern struct mutex ptlrpc_all_services_mutex;
+extern struct list_head ptlrpc_all_services;
+
+extern struct mutex ptlrpcd_mutex;
+extern struct mutex pinger_mutex;
 
 int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait);
 /* ptlrpcd.c */
@@ -109,6 +113,8 @@ struct nrs_core {
 	struct list_head nrs_policies;
 
 };
+
+extern struct nrs_core nrs_core;
 
 int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc);
 void ptlrpc_service_nrs_cleanup(struct ptlrpc_service *svc);

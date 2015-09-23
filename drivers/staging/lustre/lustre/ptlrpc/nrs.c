@@ -49,7 +49,6 @@
 
 /* XXX: This is just for liblustre. Remove the #if defined directive when the
  * "cfs_" prefix is dropped from cfs_list_head. */
-extern struct list_head ptlrpc_all_services;
 
 /**
  * NRS core object.
