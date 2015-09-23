@@ -329,6 +329,25 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
+static void svc_intf_remove(struct gb_connection *connection,
+			    struct gb_interface *intf)
+{
+	struct greybus_host_device *hd = connection->hd;
+	struct gb_svc *svc = connection->private;
+	u8 intf_id = intf->interface_id;
+	u8 device_id;
+
+	device_id = intf->device_id;
+	gb_interface_remove(hd, intf_id);
+
+	/*
+	 * Destroy the two-way route between the AP and the interface.
+	 */
+	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
+
+	ida_simple_remove(&svc->device_id_map, device_id);
+}
+
 /*
  * 'struct svc_hotplug' should be freed by svc_process_hotplug() before it
  * returns, irrespective of success or Failure in bringing up the module.
@@ -350,6 +369,27 @@ static void svc_process_hotplug(struct work_struct *work)
 	 * Grab the information we need.
 	 */
 	intf_id = hotplug->intf_id;
+
+	intf = gb_interface_find(hd, intf_id);
+	if (intf) {
+		/*
+		 * We have received a hotplug request for an interface that
+		 * already exists.
+		 *
+		 * This can happen in cases like:
+		 * - bootrom loading the firmware image and booting into that,
+		 *   which only generates a hotplug event. i.e. no hot-unplug
+		 *   event.
+		 * - Or the firmware on the module crashed and sent hotplug
+		 *   request again to the SVC, which got propagated to AP.
+		 *
+		 * Remove the interface and add it again, and let user know
+		 * about this with a print message.
+		 */
+		dev_info(dev, "Removed interface (%hhu) to add it again\n",
+			 intf_id);
+		svc_intf_remove(connection, intf);
+	}
 
 	intf = gb_interface_create(hd, intf_id);
 	if (!intf) {
@@ -463,8 +503,6 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	struct gb_svc_intf_hot_unplug_request *hot_unplug = request->payload;
 	struct greybus_host_device *hd = op->connection->hd;
 	struct device *dev = &op->connection->dev;
-	struct gb_svc *svc = op->connection->private;
-	u8 device_id;
 	struct gb_interface *intf;
 	u8 intf_id;
 
@@ -483,15 +521,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	device_id = intf->device_id;
-	gb_interface_remove(hd, intf_id);
-
-	/*
-	 * Destroy the two-way route between the AP and the interface.
-	 */
-	gb_svc_route_destroy(svc, hd->endo->ap_intf_id, intf_id);
-
-	ida_simple_remove(&svc->device_id_map, device_id);
+	svc_intf_remove(op->connection, intf);
 
 	return 0;
 }
