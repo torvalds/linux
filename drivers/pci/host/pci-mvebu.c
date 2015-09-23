@@ -933,7 +933,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	struct mvebu_pcie *pcie;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *child;
-	int i, ret;
+	int num, i, ret;
 
 	pcie = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pcie),
 			    GFP_KERNEL);
@@ -969,14 +969,9 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	i = 0;
-	for_each_child_of_node(pdev->dev.of_node, child) {
-		if (!of_device_is_available(child))
-			continue;
-		i++;
-	}
+	num = of_get_available_child_count(pdev->dev.of_node);
 
-	pcie->ports = devm_kzalloc(&pdev->dev, i *
+	pcie->ports = devm_kzalloc(&pdev->dev, num *
 				   sizeof(struct mvebu_pcie_port),
 				   GFP_KERNEL);
 	if (!pcie->ports)
