@@ -987,7 +987,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		if (of_property_read_u32(child, "marvell,pcie-port",
 					 &port->port)) {
 			dev_warn(&pdev->dev,
-				 "ignoring PCIe DT node, missing pcie-port property\n");
+				 "ignoring %s, missing pcie-port property\n",
+				 of_node_full_name(child));
 			continue;
 		}
 
