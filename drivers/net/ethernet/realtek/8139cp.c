@@ -157,6 +157,7 @@ enum {
 	NWayAdvert	= 0x66, /* MII ADVERTISE */
 	NWayLPAR	= 0x68, /* MII LPA */
 	NWayExpansion	= 0x6A, /* MII Expansion */
+	TxDmaOkLowDesc  = 0x82, /* Low 16 bit address of a Tx descriptor. */
 	Config5		= 0xD8,	/* Config5 */
 	TxPoll		= 0xD9,	/* Tell chip to check Tx descriptors for work */
 	RxMaxSize	= 0xDA, /* Max size of an Rx packet (8169 only) */
@@ -1234,13 +1235,24 @@ static void cp_tx_timeout(struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;
-	int rc;
+	int rc, i;
 
 	netdev_warn(dev, "Transmit timeout, status %2x %4x %4x %4x\n",
 		    cpr8(Cmd), cpr16(CpCmd),
 		    cpr16(IntrStatus), cpr16(IntrMask));
 
 	spin_lock_irqsave(&cp->lock, flags);
+
+	netif_dbg(cp, tx_err, cp->dev, "TX ring head %d tail %d desc %x\n",
+		  cp->tx_head, cp->tx_tail, cpr16(TxDmaOkLowDesc));
+	for (i = 0; i < CP_TX_RING_SIZE; i++) {
+		netif_dbg(cp, tx_err, cp->dev,
+			  "TX slot %d @%p: %08x (%08x) %08x %llx %p\n",
+			  i, &cp->tx_ring[i], le32_to_cpu(cp->tx_ring[i].opts1),
+			  cp->tx_opts[i], le32_to_cpu(cp->tx_ring[i].opts2),
+			  le64_to_cpu(cp->tx_ring[i].addr),
+			  cp->tx_skb[i]);
+	}
 
 	cp_stop_hw(cp);
 	cp_clean_rings(cp);
