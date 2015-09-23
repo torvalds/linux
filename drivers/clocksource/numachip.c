@@ -19,7 +19,7 @@
 #include <asm/numachip/numachip.h>
 #include <asm/numachip/numachip_csr.h>
 
-static DEFINE_PER_CPU(struct clock_event_device, cpu_ced);
+static DEFINE_PER_CPU(struct clock_event_device, numachip2_ced);
 
 static cycles_t numachip2_timer_read(struct clocksource *cs)
 {
@@ -56,7 +56,7 @@ static struct clock_event_device numachip2_clockevent = {
 
 static void numachip_timer_interrupt(void)
 {
-	struct clock_event_device *ced = this_cpu_ptr(&cpu_ced);
+	struct clock_event_device *ced = this_cpu_ptr(&numachip2_ced);
 
 	ced->event_handler(ced);
 }
@@ -64,7 +64,7 @@ static void numachip_timer_interrupt(void)
 static __init void numachip_timer_each(struct work_struct *work)
 {
 	unsigned local_apicid = __this_cpu_read(x86_cpu_to_apicid) & 0xff;
-	struct clock_event_device *ced = this_cpu_ptr(&cpu_ced);
+	struct clock_event_device *ced = this_cpu_ptr(&numachip2_ced);
 
 	/* Setup IPI vector to local core and relative timing mode */
 	numachip2_write64_lcsr(NUMACHIP2_TIMER_INT + numachip2_timer(),
