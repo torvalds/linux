@@ -1500,22 +1500,6 @@ static int wilc_wlan_start(void)
 	/**
 	 *      Set the host interface
 	 **/
-#ifdef OLD_FPGA_BITFILE
-	acquire_bus(ACQUIRE_ONLY);
-	ret = p->hif_func.hif_read_reg(WILC_VMM_CORE_CTL, &reg);
-	if (!ret) {
-		wilc_debug(N_ERR, "[wilc start]: fail read reg vmm_core_ctl...\n");
-		release_bus(RELEASE_ALLOW_SLEEP);
-		return ret;
-	}
-	reg |= (p->io_func.io_type << 2);
-	ret = p->hif_func.hif_write_reg(WILC_VMM_CORE_CTL, reg);
-	if (!ret) {
-		wilc_debug(N_ERR, "[wilc start]: fail write reg vmm_core_ctl...\n");
-		release_bus(RELEASE_ONLY);
-		return ret;
-	}
-#else
 	if (p->io_func.io_type == HIF_SDIO) {
 		reg = 0;
 		reg |= (1 << 3); /* bug 4456 and 4557 */
@@ -1572,8 +1556,6 @@ static int wilc_wlan_start(void)
 		ret = -5;
 		return ret;
 	}
-#endif
-
 
 	/**
 	 *      Bus related
