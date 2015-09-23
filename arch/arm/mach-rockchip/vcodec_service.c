@@ -41,9 +41,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/pmu.h>
-#ifdef CONFIG_MFD_SYSCON
 #include <linux/regmap.h>
-#endif
 #include <linux/mfd/syscon.h>
 
 #include <asm/cacheflush.h>
@@ -427,7 +425,7 @@ struct vcodec_mem_region {
 	struct list_head session_lnk;
 	unsigned long iova;	/* virtual address for iommu */
 	unsigned long len;
-        u32 reg_idx;
+	u32 reg_idx;
 	struct ion_handle *hdl;
 };
 
@@ -521,11 +519,9 @@ typedef struct vpu_service_info {
 	u32 mode_ctrl;
 	u32 *reg_base;
 	u32 ioaddr;
-#ifdef CONFIG_MFD_SYSCON
-	struct regmap *grf_base;
-#else
+	struct regmap *grf;
 	u32 *grf_base;
-#endif
+
 	char *name;
 
 	u32 subcnt;
@@ -539,7 +535,7 @@ struct vcodec_combo {
 	struct list_head running;
 	struct mutex run_lock;
 	vpu_reg *reg_codec;
-        enum vcodec_device_id current_hw_mode;
+	enum vcodec_device_id current_hw_mode;
 };
 
 struct vpu_request {
@@ -670,22 +666,40 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 #endif
 	bits = 1 << pservice->mode_bit;
 #ifdef CONFIG_MFD_SYSCON
-	regmap_read(pservice->grf_base, pservice->mode_ctrl, &raw);
+	if (pservice->grf) {
+		regmap_read(pservice->grf, pservice->mode_ctrl, &raw);
 
-	if (data->mode == VCODEC_RUNNING_MODE_HEVC)
-		regmap_write(pservice->grf_base, pservice->mode_ctrl,
-			raw | bits | (bits << 16));
-	else
-		regmap_write(pservice->grf_base, pservice->mode_ctrl,
-			(raw & (~bits)) | (bits << 16));
+		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
+			regmap_write(pservice->grf, pservice->mode_ctrl,
+				raw | bits | (bits << 16));
+		else
+			regmap_write(pservice->grf, pservice->mode_ctrl,
+				(raw & (~bits)) | (bits << 16));
+	} else if (pservice->grf_base) {
+		raw = readl_relaxed(pservice->grf_base + pservice->mode_ctrl / 4);
+		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
+			writel_relaxed(raw | bits | (bits << 16),
+				pservice->grf_base + pservice->mode_ctrl / 4);
+		else
+			writel_relaxed((raw & (~bits)) | (bits << 16),
+				pservice->grf_base + pservice->mode_ctrl / 4);
+	} else {
+		vpu_err("no grf resource define, switch decoder failed\n");
+		return;
+	}
 #else
-	raw = readl_relaxed(pservice->grf_base + pservice->mode_ctrl / 4);
-	if (data->mode == VCODEC_RUNNING_MODE_HEVC)
-		writel_relaxed(raw | bits | (bits << 16),
-			pservice->grf_base + pservice->mode_ctrl / 4);
-	else
-		writel_relaxed((raw & (~bits)) | (bits << 16),
-			pservice->grf_base + pservice->mode_ctrl / 4);
+	if (pervice->grf_base) {
+		raw = readl_relaxed(pservice->grf_base + pservice->mode_ctrl / 4);
+		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
+			writel_relaxed(raw | bits | (bits << 16),
+				pservice->grf_base + pservice->mode_ctrl / 4);
+		else
+			writel_relaxed((raw & (~bits)) | (bits << 16),
+				pservice->grf_base + pservice->mode_ctrl / 4);
+	} else {
+		vpu_err("no grf resource define, switch decoder failed\n");
+		return;
+	}
 #endif
 #if defined(CONFIG_VCODEC_MMU)
 	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
@@ -1113,10 +1127,10 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, u8 *tbl,
 			mem_region->hdl = hdl;
 			mem_region->reg_idx = tbl[i];
 			ret = ion_map_iommu(data->dev,
-                                            pservice->ion_client,
-                                            mem_region->hdl,
-                                            &mem_region->iova,
-                                            &mem_region->len);
+					    pservice->ion_client,
+					    mem_region->hdl,
+					    &mem_region->iova,
+					    &mem_region->len);
 
 			if (ret < 0) {
 				dev_err(pservice->dev, "ion map iommu failed\n");
@@ -2340,6 +2354,7 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->mode_bit = 0;
 	pservice->mode_ctrl = 0;
 	pservice->subcnt = 0;
+	pservice->grf_base = NULL;
 
 	of_property_read_u32(np, "subcnt", &pservice->subcnt);
 
@@ -2348,11 +2363,9 @@ static void vcodec_read_property(struct device_node *np,
 		of_property_read_u32(np, "mode_ctrl", &pservice->mode_ctrl);
 	}
 #ifdef CONFIG_MFD_SYSCON
-	pservice->grf_base = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-#else
-	pservice->grf_base = (u32*)RK_GRF_VIRT;
-#endif
-	if (IS_ERR(pservice->grf_base)) {
+	pservice->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR_OR_NULL(pservice->grf)) {
+		pservice->grf = NULL;
 #ifdef CONFIG_ARM
 		pservice->grf_base = RK_GRF_VIRT;
 #else
@@ -2360,6 +2373,14 @@ static void vcodec_read_property(struct device_node *np,
 		return;
 #endif
 	}
+#else
+#ifdef CONFIG_ARM
+	pservice->grf_base = RK_GRF_VIRT;
+#else
+	vpu_err("can't find vpu grf property\n");
+	return;
+#endif
+#endif
 
 #ifdef CONFIG_RESET_CONTROLLER
 	pservice->rst_a = devm_reset_control_get(pservice->dev, "video_a");
