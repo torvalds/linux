@@ -39,6 +39,9 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 {
 	int c, scn;
 
+	if (!(atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND))
+		return 0;
+
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -60,8 +63,7 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 	if (src_id)
 		*src_id = scn;
 
-	return c && atomic_read(&vcpu->arch.sie_block->cpuflags) &
-			CPUSTAT_ECALL_PEND;
+	return c;
 }
 
 static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
