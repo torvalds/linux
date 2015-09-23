@@ -90,38 +90,6 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 EXPORT_SYMBOL_GPL(gpio_to_desc);
 
 /**
- * Convert a GPIO name to its descriptor
- */
-struct gpio_desc *gpio_name_to_desc(const char * const name)
-{
-	struct gpio_chip *chip;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gpio_lock, flags);
-
-	list_for_each_entry(chip, &gpio_chips, list) {
-		int i;
-
-		for (i = 0; i != chip->ngpio; ++i) {
-			struct gpio_desc *gpio = &chip->desc[i];
-
-			if (!gpio->name)
-				continue;
-
-			if (!strcmp(gpio->name, name)) {
-				spin_unlock_irqrestore(&gpio_lock, flags);
-				return gpio;
-			}
-		}
-	}
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(gpio_name_to_desc);
-
-/**
  * Get the GPIO descriptor corresponding to the given hw number for this chip.
  */
 struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
@@ -250,6 +218,37 @@ static int gpiochip_add_to_list(struct gpio_chip *chip)
 	return err;
 }
 
+/**
+ * Convert a GPIO name to its descriptor
+ */
+static struct gpio_desc *gpio_name_to_desc(const char * const name)
+{
+	struct gpio_chip *chip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	list_for_each_entry(chip, &gpio_chips, list) {
+		int i;
+
+		for (i = 0; i != chip->ngpio; ++i) {
+			struct gpio_desc *gpio = &chip->desc[i];
+
+			if (!gpio->name)
+				continue;
+
+			if (!strcmp(gpio->name, name)) {
+				spin_unlock_irqrestore(&gpio_lock, flags);
+				return gpio;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return NULL;
+}
+
 /*
  * Takes the names from gc->names and checks if they are all unique. If they
  * are, they are assigned to their gpio descriptors.
@@ -268,11 +267,10 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 		struct gpio_desc *gpio;
 
 		gpio = gpio_name_to_desc(gc->names[i]);
-		if (gpio) {
-			dev_err(gc->dev, "Detected name collision for GPIO name '%s'\n",
-				gc->names[i]);
-			return -EEXIST;
-		}
+		if (gpio)
+			dev_warn(gc->dev, "Detected name collision for "
+				 "GPIO name '%s'\n",
+				 gc->names[i]);
 	}
 
 	/* Then add all names to the GPIO descriptors */
