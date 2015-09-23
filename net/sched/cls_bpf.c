@@ -65,11 +65,8 @@ static int cls_bpf_exec_opcode(int code)
 {
 	switch (code) {
 	case TC_ACT_OK:
-	case TC_ACT_RECLASSIFY:
 	case TC_ACT_SHOT:
-	case TC_ACT_PIPE:
 	case TC_ACT_STOLEN:
-	case TC_ACT_QUEUED:
 	case TC_ACT_REDIRECT:
 	case TC_ACT_UNSPEC:
 		return code;
