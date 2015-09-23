@@ -183,7 +183,7 @@ put_module:
 /*
  * Tear down a previously set up module.
  */
-static void interface_destroy(struct gb_interface *intf)
+void gb_interface_remove(struct gb_interface *intf)
 {
 	struct gb_module *module;
 	struct gb_bundle *bundle;
@@ -205,6 +205,14 @@ static void interface_destroy(struct gb_interface *intf)
 	module = intf->module;
 	device_unregister(&intf->dev);
 	put_device(&module->dev);
+}
+
+void gb_interfaces_remove(struct greybus_host_device *hd)
+{
+	struct gb_interface *intf, *temp;
+
+	list_for_each_entry_safe(intf, temp, &hd->interfaces, links)
+		gb_interface_remove(intf);
 }
 
 /**
@@ -272,23 +280,4 @@ int gb_interface_init(struct gb_interface *intf, u8 device_id)
 free_manifest:
 	kfree(manifest);
 	return ret;
-}
-
-void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id)
-{
-	struct gb_interface *intf = gb_interface_find(hd, interface_id);
-
-	if (intf)
-		interface_destroy(intf);
-	else
-		dev_err(hd->parent, "interface id %d not found\n",
-			interface_id);
-}
-
-void gb_interfaces_remove(struct greybus_host_device *hd)
-{
-	struct gb_interface *intf, *temp;
-
-	list_for_each_entry_safe(intf, temp, &hd->interfaces, links)
-		interface_destroy(intf);
 }

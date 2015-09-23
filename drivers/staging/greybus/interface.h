@@ -59,7 +59,7 @@ struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 					 u8 interface_id);
 void gb_interface_destroy(struct gb_interface *intf);
 int gb_interface_init(struct gb_interface *intf, u8 device_id);
-void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id);
+void gb_interface_remove(struct gb_interface *intf);
 void gb_interfaces_remove(struct greybus_host_device *hd);
 
 int gb_create_bundle_connection(struct gb_interface *intf, u8 class);

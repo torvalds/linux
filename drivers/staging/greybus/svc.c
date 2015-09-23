@@ -374,7 +374,7 @@ static void svc_intf_remove(struct gb_connection *connection,
 	u8 device_id;
 
 	device_id = intf->device_id;
-	gb_interface_remove(hd, intf_id);
+	gb_interface_remove(intf);
 
 	/*
 	 * Destroy the two-way route between the AP and the interface.
@@ -497,7 +497,7 @@ svc_id_free:
 ida_put:
 	ida_simple_remove(&svc->device_id_map, device_id);
 destroy_interface:
-	gb_interface_remove(hd, intf_id);
+	gb_interface_remove(intf);
 free_svc_hotplug:
 	kfree(svc_hotplug);
 }
