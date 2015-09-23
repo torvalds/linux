@@ -118,7 +118,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 		}
 	}
 	dist = div_u64(MAIN_SECS(sbi) * hblks_per_sec * hblks_per_sec, 100);
-	si->bimodal = div_u64(bimodal, dist);
+	si->bimodal = div64_u64(bimodal, dist);
 	if (si->dirty_count)
 		si->avg_vblocks = div_u64(total_vblocks, ndirty);
 	else
