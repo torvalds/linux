@@ -48,7 +48,7 @@ target_scsi3_ua_check(struct se_cmd *cmd)
 		return 0;
 
 	nacl = sess->se_node_acl;
-	if (!nacl)
+	if (!nacl || !nacl->device_list)
 		return 0;
 
 	deve = nacl->device_list[cmd->orig_fe_lun];
@@ -90,7 +90,7 @@ int core_scsi3_ua_allocate(
 	/*
 	 * PASSTHROUGH OPS
 	 */
-	if (!nacl)
+	if (!nacl || !nacl->device_list)
 		return -EINVAL;
 
 	ua = kmem_cache_zalloc(se_ua_cache, GFP_ATOMIC);
@@ -208,7 +208,7 @@ void core_scsi3_ua_for_check_condition(
 		return;
 
 	nacl = sess->se_node_acl;
-	if (!nacl)
+	if (!nacl || !nacl->device_list)
 		return;
 
 	spin_lock_irq(&nacl->device_list_lock);
@@ -276,7 +276,7 @@ int core_scsi3_ua_clear_for_request_sense(
 		return -EINVAL;
 
 	nacl = sess->se_node_acl;
-	if (!nacl)
+	if (!nacl || !nacl->device_list)
 		return -EINVAL;
 
 	spin_lock_irq(&nacl->device_list_lock);

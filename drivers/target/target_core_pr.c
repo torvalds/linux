@@ -328,6 +328,9 @@ static int core_scsi3_pr_seq_non_holder(
 	int legacy = 0; /* Act like a legacy device and return
 			 * RESERVATION CONFLICT on some CDBs */
 
+	if (!se_sess->se_node_acl->device_list)
+		return;
+
 	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Determine if the registration should be ignored due to
