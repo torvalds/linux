@@ -2300,6 +2300,8 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case BAMBOO_PT:
+	case BAMBOO_PEN:
+	case BAMBOO_TOUCH:
 	case INTUOSHT:
 		if (wacom_wac->data[0] == WACOM_REPORT_USB)
 			sync = wacom_status_irq(wacom_wac, len);
@@ -2387,9 +2389,8 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 
 	/* The pen and pad share the same interface on most devices */
 	if (features->type == GRAPHIRE_BT || features->type == WACOM_G4 ||
-	    features->type == DTUS || features->type == WACOM_MO ||
-	    (features->type >= INTUOS3S && features->type <= WACOM_13HD && 
-	     features->type != INTUOSHT)) {
+	    features->type == DTUS ||
+	    (features->type >= INTUOS3S && features->type <= WACOM_MO)) {
 		if (features->device_type & WACOM_DEVICETYPE_PEN)
 			features->device_type |= WACOM_DEVICETYPE_PAD;
 	}
@@ -2406,12 +2407,12 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	 * interface (PacketSize of WACOM_PKGLEN_BBTOUCH3), override the
 	 * tablet values.
 	 */
-	if ((features->type >= INTUOS5S && features->type <= INTUOSHT) ||
-		(features->type == BAMBOO_PT)) {
+	if ((features->type >= INTUOS5S && features->type <= INTUOSPL) ||
+		(features->type >= INTUOSHT && features->type <= BAMBOO_PT)) {
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			if (features->touch_max)
 				features->device_type |= WACOM_DEVICETYPE_TOUCH;
-			if (features->type == BAMBOO_PT || features->type == INTUOSHT)
+			if (features->type >= INTUOSHT || features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
 			features->x_max = 4096;
@@ -2598,6 +2599,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOSHT:
 	case BAMBOO_PT:
+	case BAMBOO_PEN:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
@@ -2693,6 +2695,7 @@ int wacom_setup_touch_input_capabilities(struct input_dev *input_dev,
 		/* fall through */
 
 	case BAMBOO_PT:
+	case BAMBOO_TOUCH:
 		if (features->pktlen == WACOM_PKGLEN_BBTOUCH3) {
 			input_set_abs_params(input_dev,
 				     ABS_MT_TOUCH_MAJOR,
@@ -2845,6 +2848,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOSHT:
 	case BAMBOO_PT:
+	case BAMBOO_TOUCH:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
 		__set_bit(BTN_LEFT, input_dev->keybit);
@@ -3235,11 +3239,10 @@ static const struct wacom_features wacom_features_0x47 =
 	{ "Wacom Intuos2 6x8", 20320, 16240, 1023, 31,
 	  INTUOS, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x84 =
-	{ "Wacom Wireless Receiver", 0, 0, 0, 0,
-	  WIRELESS, 0, 0, .touch_max = 16 };
+	{ "Wacom Wireless Receiver", .type = WIRELESS, .touch_max = 16 };
 static const struct wacom_features wacom_features_0xD0 =
 	{ "Wacom Bamboo 2FG", 14720, 9200, 1023, 31,
-	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
+	  BAMBOO_TOUCH, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD1 =
 	{ "Wacom Bamboo 2FG 4x5", 14720, 9200, 1023, 31,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
@@ -3251,10 +3254,10 @@ static const struct wacom_features wacom_features_0xD3 =
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
 static const struct wacom_features wacom_features_0xD4 =
 	{ "Wacom Bamboo Pen", 14720, 9200, 1023, 31,
-	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD5 =
 	{ "Wacom Bamboo Pen 6x8", 21648, 13700, 1023, 31,
-	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xD6 =
 	{ "Wacom BambooPT 2FG 4x5", 14720, 9200, 1023, 31,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 2 };
@@ -3281,7 +3284,7 @@ static const struct wacom_features wacom_features_0xDF =
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16 };
 static const struct wacom_features wacom_features_0x300 =
 	{ "Wacom Bamboo One S", 14720, 9225, 1023, 31,
-	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
+	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x301 =
 	{ "Wacom Bamboo One M", 21648, 13530, 1023, 31,
 	  BAMBOO_PT, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -3329,8 +3332,8 @@ static const struct wacom_features wacom_features_0x323 =
 	  INTUOSHT, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x331 =
-	{ "Wacom Express Key Remote", 0, 0, 0, 0,
-	  REMOTE, 0, 0, 18, .check_for_hid_type = true,
+	{ "Wacom Express Key Remote", .type = REMOTE,
+	  .numbered_buttons = 18, .check_for_hid_type = true,
 	  .hid_type = HID_TYPE_USBNONE };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =

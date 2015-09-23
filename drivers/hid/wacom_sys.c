@@ -211,7 +211,7 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	 * Bamboo models do not support HID_DG_CONTACTMAX.
 	 * And, Bamboo Pen only descriptor contains touch.
 	 */
-	if (features->type != BAMBOO_PT) {
+	if (features->type > BAMBOO_PT) {
 		/* ISDv4 touch devices at least supports one touch point */
 		if (finger && !features->touch_max)
 			features->touch_max = 1;
@@ -222,7 +222,8 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		features->x_max = field->logical_maximum;
 		if (finger) {
 			features->x_phy = field->physical_maximum;
-			if (features->type != BAMBOO_PT) {
+			if ((features->type != BAMBOO_PT) &&
+			    (features->type != BAMBOO_TOUCH)) {
 				features->unit = field->unit;
 				features->unitExpo = field->unit_exponent;
 			}
@@ -232,7 +233,8 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		features->y_max = field->logical_maximum;
 		if (finger) {
 			features->y_phy = field->physical_maximum;
-			if (features->type != BAMBOO_PT) {
+			if ((features->type != BAMBOO_PT) &&
+			    (features->type != BAMBOO_TOUCH)) {
 				features->unit = field->unit;
 				features->unitExpo = field->unit_exponent;
 			}
@@ -1547,15 +1549,16 @@ static void wacom_wireless_work(struct work_struct *work)
 		wacom_wac1->features =
 			*((struct wacom_features *)id->driver_data);
 		wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PEN;
-		if (wacom_wac1->features.type != INTUOSHT &&
-		    wacom_wac1->features.type != BAMBOO_PT)
-			wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PAD;
 		wacom_set_default_phy(&wacom_wac1->features);
 		wacom_calculate_res(&wacom_wac1->features);
 		snprintf(wacom_wac1->pen_name, WACOM_NAME_MAX, "%s (WL) Pen",
 			 wacom_wac1->features.name);
-		snprintf(wacom_wac1->pad_name, WACOM_NAME_MAX, "%s (WL) Pad",
-			 wacom_wac1->features.name);
+		if (wacom_wac1->features.type < BAMBOO_PEN ||
+		    wacom_wac1->features.type > BAMBOO_PT) {
+			snprintf(wacom_wac1->pad_name, WACOM_NAME_MAX, "%s (WL) Pad",
+				 wacom_wac1->features.name);
+			wacom_wac1->features.device_type |= WACOM_DEVICETYPE_PAD;
+		}
 		wacom_wac1->shared->touch_max = wacom_wac1->features.touch_max;
 		wacom_wac1->shared->type = wacom_wac1->features.type;
 		wacom_wac1->pid = wacom_wac->pid;
@@ -1575,13 +1578,14 @@ static void wacom_wireless_work(struct work_struct *work)
 			wacom_calculate_res(&wacom_wac2->features);
 			snprintf(wacom_wac2->touch_name, WACOM_NAME_MAX,
 				 "%s (WL) Finger",wacom_wac2->features.name);
-			snprintf(wacom_wac2->pad_name, WACOM_NAME_MAX,
-				 "%s (WL) Pad",wacom_wac2->features.name);
 			if (wacom_wac1->features.touch_max)
 				wacom_wac2->features.device_type |= WACOM_DEVICETYPE_TOUCH;
-			if (wacom_wac1->features.type == INTUOSHT ||
-			    wacom_wac1->features.type == BAMBOO_PT)
+			if (wacom_wac1->features.type >= INTUOSHT &&
+			    wacom_wac1->features.type <= BAMBOO_PT) {
+				snprintf(wacom_wac2->pad_name, WACOM_NAME_MAX,
+					 "%s (WL) Pad",wacom_wac2->features.name);
 				wacom_wac2->features.device_type |= WACOM_DEVICETYPE_PAD;
+			}
 			wacom_wac2->pid = wacom_wac->pid;
 			error = wacom_allocate_inputs(wacom2) ||
 				wacom_register_inputs(wacom2);
@@ -1772,6 +1776,24 @@ static int wacom_probe(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PEN;
 	}
 
+	/* Note that if query fails it is not a hard failure */
+	wacom_query_tablet_data(hdev, features);
+
+	/* touch only Bamboo doesn't support pen */
+	if ((features->type == BAMBOO_TOUCH) &&
+	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
+		error = -ENODEV;
+		goto fail_shared_data;
+	}
+
+	/* pen only Bamboo neither support touch nor pad */
+	if ((features->type == BAMBOO_PEN) &&
+	    ((features->device_type & WACOM_DEVICETYPE_TOUCH) ||
+	    (features->device_type & WACOM_DEVICETYPE_PAD))) {
+		error = -ENODEV;
+		goto fail_shared_data;
+	}
+
 	wacom_calculate_res(features);
 
 	wacom_update_name(wacom);
@@ -1808,9 +1830,6 @@ static int wacom_probe(struct hid_device *hdev,
 		hid_err(hdev, "hw start failed\n");
 		goto fail_hw_start;
 	}
-
-	/* Note that if query fails it is not a hard failure */
-	wacom_query_tablet_data(hdev, features);
 
 	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
 		error = hid_hw_open(hdev);
