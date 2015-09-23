@@ -790,7 +790,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 			  entry, skb->len);
 	} else {
 		struct cp_desc *txd;
-		u32 first_len, first_eor;
+		u32 first_len, first_eor, ctrl;
 		dma_addr_t first_mapping;
 		int frag, first_entry = entry;
 		const struct iphdr *ip = ip_hdr(skb);
@@ -810,7 +810,6 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
 			const skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
 			u32 len;
-			u32 ctrl;
 			dma_addr_t mapping;
 
 			entry = NEXT_TX(entry);
@@ -858,20 +857,19 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		txd->addr = cpu_to_le64(first_mapping);
 		wmb();
 
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		ctrl = first_eor | first_len | FirstFrag | DescOwn;
+		if (mss)
+			ctrl |= LargeSend | ((mss & MSSMask) << MSSShift);
+		else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			if (ip->protocol == IPPROTO_TCP)
-				txd->opts1 = cpu_to_le32(first_eor | first_len |
-							 FirstFrag | DescOwn |
-							 IPCS | TCPCS);
+				ctrl |= IPCS | TCPCS;
 			else if (ip->protocol == IPPROTO_UDP)
-				txd->opts1 = cpu_to_le32(first_eor | first_len |
-							 FirstFrag | DescOwn |
-							 IPCS | UDPCS);
+				ctrl |= IPCS | UDPCS;
 			else
 				BUG();
-		} else
-			txd->opts1 = cpu_to_le32(first_eor | first_len |
-						 FirstFrag | DescOwn);
+		}
+
+		txd->opts1 = cpu_to_le32(ctrl);
 		wmb();
 
 		netif_dbg(cp, tx_queued, cp->dev, "tx queued, slots %d-%d, skblen %d\n",
