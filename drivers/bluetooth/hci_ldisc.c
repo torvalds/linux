@@ -470,8 +470,6 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	INIT_WORK(&hu->init_ready, hci_uart_init_work);
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
 
-	spin_lock_init(&hu->rx_lock);
-
 	/* Flush any pending characters in the driver and line discipline. */
 
 	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
@@ -569,13 +567,13 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 	if (!test_bit(HCI_UART_PROTO_SET, &hu->flags))
 		return;
 
-	spin_lock(&hu->rx_lock);
+	/* It does not need a lock here as it is already protected by a mutex in
+	 * tty caller
+	 */
 	hu->proto->recv(hu, data, count);
 
 	if (hu->hdev)
 		hu->hdev->stat.byte_rx += count;
-
-	spin_unlock(&hu->rx_lock);
 
 	tty_unthrottle(tty);
 }
