@@ -515,8 +515,13 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		break;
 
 	default:
-		*value = 0xffffffff;
-		return PCIBIOS_BAD_REGISTER_NUMBER;
+		/*
+		 * PCI defines configuration read accesses to reserved or
+		 * unimplemented registers to read as zero and complete
+		 * normally.
+		 */
+		*value = 0;
+		return PCIBIOS_SUCCESSFUL;
 	}
 
 	if (size == 2)
