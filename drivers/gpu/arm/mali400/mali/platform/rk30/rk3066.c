@@ -7,7 +7,7 @@
  * copies and copies may only be made to the extent permitted
  * by a licensing agreement from ARM Limited.
  */
- 
+
 #include <linux/platform_device.h>
 #include <linux/version.h>
 #include <linux/pm.h>
@@ -27,6 +27,7 @@
 static int mali_runtime_suspend(struct device *device)
 {
 	int ret = 0;
+
 	MALI_DEBUG_PRINT(4, ("mali_runtime_suspend() called\n"));
 
 	if (NULL != device->driver &&
@@ -44,6 +45,7 @@ static int mali_runtime_suspend(struct device *device)
 static int mali_runtime_resume(struct device *device)
 {
 	int ret = 0;
+
 	MALI_DEBUG_PRINT(4, ("mali_runtime_resume() called\n"));
 
 	mali_platform_power_mode_change(MALI_POWER_MODE_ON);
@@ -61,6 +63,7 @@ static int mali_runtime_resume(struct device *device)
 static int mali_runtime_idle(struct device *device)
 {
 	int ret = 0;
+
 	MALI_DEBUG_PRINT(4, ("mali_runtime_idle() called\n"));
 
 	if (NULL != device->driver &&
@@ -83,7 +86,7 @@ static int mali_os_suspend(struct device *device)
 	int ret = 0;
 
 	MALI_DEBUG_PRINT(4, ("mali_os_suspend() called\n"));
-	
+
 	if (NULL != device->driver &&
 	    NULL != device->driver->pm &&
 	    NULL != device->driver->pm->suspend) {
@@ -146,8 +149,7 @@ static int mali_os_thaw(struct device *device)
 	return ret;
 }
 
-static struct dev_pm_ops mali_gpu_device_type_pm_ops =
-{
+static const struct dev_pm_ops mali_gpu_device_type_pm_ops = {
 	.suspend = mali_os_suspend,
 	.resume = mali_os_resume,
 	.freeze = mali_os_freeze,
@@ -159,18 +161,16 @@ static struct dev_pm_ops mali_gpu_device_type_pm_ops =
 #endif
 };
 
-static struct device_type mali_gpu_device_device_type =
-{
+static const struct device_type mali_gpu_device_device_type = {
 	.pm = &mali_gpu_device_type_pm_ops,
 };
 
-static struct mali_gpu_device_data mali_gpu_data =
-{
-	.shared_mem_size = 1024* 1024 * 1024, /* 1GB */
+static const struct mali_gpu_device_data mali_gpu_data = {
+	.shared_mem_size = 1024 * 1024 * 1024, /* 1GB */
 	.fb_start = 0x40000000,
 	.fb_size = 0xb1000000,
 	.max_job_runtime = 60000, /* 60 seconds */
-	//.utilization_interval = 0, /* 0ms */
+	/* .utilization_interval = 0, */ /* 0ms */
 	.utilization_callback = mali_gpu_utilization_handler,
 };
 
@@ -187,7 +187,8 @@ int mali_platform_device_init(struct platform_device *pdev)
 {
 	int err = 0;
 	int num_pp_cores = 0;
-	MALI_DEBUG_PRINT(2,("mali_platform_device_register() called\n"));
+
+	MALI_DEBUG_PRINT(2, ("mali_platform_device_register() called\n"));
 
 	if (cpu_is_rk312x())
 		num_pp_cores = 2;
@@ -203,12 +204,9 @@ int mali_platform_device_init(struct platform_device *pdev)
 	if (err == 0) {
 		err = mali_platform_init(pdev);
 		if (err == 0) {
-
 #ifdef CONFIG_PM_RUNTIME
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 			pm_runtime_set_autosuspend_delay(&(pdev->dev), 1000);
 			pm_runtime_use_autosuspend(&(pdev->dev));
-#endif
 			pm_runtime_enable(&(pdev->dev));
 #endif
 			MALI_DEBUG_ASSERT(0 < num_pp_cores);

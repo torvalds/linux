@@ -14,10 +14,14 @@
 #define levelf_max 100
 
 #define mali_dividend 7
-#define mali_fix_float(a) ((((a)*mali_dividend)%10)?((((a)*mali_dividend)/10)+1):(((a)*mali_dividend)/10))
+#define mali_fix_float(a) \
+	((((a) * mali_dividend) % 10) \
+		? ((((a) * mali_dividend) / 10) + 1) \
+		: (((a) * mali_dividend) / 10))
 
 #define work_to_dvfs(w) container_of(w, struct mali_dvfs, work)
-#define dvfs_to_drv_data(dvfs) container_of(dvfs, struct mali_platform_drv_data, dvfs)
+#define dvfs_to_drv_data(dvfs) \
+	container_of(dvfs, struct mali_platform_drv_data, dvfs)
 
 static void mali_dvfs_event_proc(struct work_struct *w)
 {
@@ -30,10 +34,10 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 
 	utilisation = utilisation * 100 / 256;
 
-	// dev_dbg(drv_data->dev, "utilisation percent = %d\n", utilisation);
+	/* dev_dbg(drv_data->dev, "utilisation percent = %d\n", utilisation); */
 
 	if (utilisation > threshold->max &&
-	    level < drv_data->fv_info_length - 1 )
+	    level < drv_data->fv_info_length - 1)
 		level += 1;
 	else if (level > 0 && utilisation < threshold->min)
 		level -= 1;
@@ -95,7 +99,8 @@ int mali_dvfs_event(struct device *dev, u32 utilisation)
 
 	return MALI_TRUE;
 }
-static void mali_dvfs_threshold(u32 div, struct mali_platform_drv_data *drv_data)
+static void mali_dvfs_threshold(u32 div,
+				struct mali_platform_drv_data *drv_data)
 {
 	int length = drv_data->fv_info_length;
 	u32 pre_level;
@@ -114,19 +119,26 @@ static void mali_dvfs_threshold(u32 div, struct mali_platform_drv_data *drv_data
 			if (level == length - 1)
 				drv_data->fv_info[level].max = levelf_max;
 			else
-				drv_data->fv_info[level].max = drv_data->fv_info[pre_level].max + div;
+				drv_data->fv_info[level].max =
+					drv_data->fv_info[pre_level].max
+					+ div;
 
-			drv_data->fv_info[level].min = drv_data->fv_info[pre_level].max *
-						       drv_data->fv_info[pre_level].freq / drv_data->fv_info[level].freq;
+			drv_data->fv_info[level].min =
+				drv_data->fv_info[pre_level].max
+				* drv_data->fv_info[pre_level].freq
+				/ drv_data->fv_info[level].freq;
 
-			tmp = drv_data->fv_info[level].max - drv_data->fv_info[level].min;
+			tmp =
+				drv_data->fv_info[level].max
+				- drv_data->fv_info[level].min;
 			drv_data->fv_info[level].min += mali_fix_float(tmp);
 		}
 
-		dev_info(drv_data->dev, "freq: %lu, min_threshold: %d, max_threshold: %d\n",
-			drv_data->fv_info[level].freq,
-			drv_data->fv_info[level].min,
-			drv_data->fv_info[level].max);
+		dev_info(drv_data->dev,
+			 "freq: %lu, min_threshold: %d, max_threshold: %d\n",
+			 drv_data->fv_info[level].freq,
+			 drv_data->fv_info[level].min,
+			 drv_data->fv_info[level].max);
 	}
 }
 
@@ -159,7 +171,7 @@ int mali_dvfs_init(struct device *dev)
 	for (i = 0; i < drv_data->fv_info_length; i++)
 		drv_data->fv_info[i].freq = freq_table[i].frequency * 1000;
 
-	if(drv_data->fv_info_length > 1)
+	if (drv_data->fv_info_length > 1)
 		div_dvfs = round_up(((levelf_max - level0_max) /
 				    (drv_data->fv_info_length-1)), 1);
 
@@ -171,8 +183,7 @@ int mali_dvfs_init(struct device *dev)
 
 	drv_data->dvfs.current_level = 0;
 
-	dev_info(dev, "initial freq = %lu\n",
-			 dvfs_clk_get_rate(drv_data->clk));
+	dev_info(dev, "initial freq = %lu\n", dvfs_clk_get_rate(drv_data->clk));
 
 	INIT_WORK(&dvfs->work, mali_dvfs_event_proc);
 	dvfs->enabled = true;

@@ -28,6 +28,7 @@ static struct work_struct wq_work;
 static void set_num_cores(struct work_struct *work)
 {
 	int err = mali_perf_set_num_pp_cores(num_cores_enabled);
+
 	MALI_DEBUG_ASSERT(0 == err);
 	MALI_IGNORE(err);
 }
@@ -61,7 +62,8 @@ static void enable_max_num_cores(void)
 	if (num_cores_enabled < num_cores_total) {
 		num_cores_enabled = num_cores_total;
 		schedule_work(&wq_work);
-		MALI_DEBUG_PRINT(3, ("Core scaling: Enabling maximum number of cores\n"));
+		MALI_DEBUG_PRINT(3,
+				 ("Core scaling: Enabling max num of cores\n"));
 	}
 
 	MALI_DEBUG_ASSERT(num_cores_total == num_cores_enabled);
@@ -103,20 +105,26 @@ void mali_core_scaling_update(struct mali_gpu_utilization_data *data)
 	 * in order to make a good core scaling algorithm.
 	 */
 
-	MALI_DEBUG_PRINT(3, ("Utilization: (%3d, %3d, %3d), cores enabled: %d/%d\n", data->utilization_gpu, data->utilization_gp, data->utilization_pp, num_cores_enabled, num_cores_total));
+	MALI_DEBUG_PRINT(3,
+			 ("Utilization:(%3d, %3d, %3d), cores enabled: %d/%d\n",
+			  data->utilization_gpu,
+			  data->utilization_gp,
+			  data->utilization_pp,
+			  num_cores_enabled,
+			  num_cores_total));
 
-	/* NOTE: this function is normally called directly from the utilization callback which is in
-	 * timer context. */
+	/* NOTE:
+	 * this function is normally called directly
+	 * from the utilization callback which is in timer context. */
 
-	if (PERCENT_OF(90, 256) < data->utilization_pp) {
+	if (PERCENT_OF(90, 256) < data->utilization_pp)
 		enable_max_num_cores();
-	} else if (PERCENT_OF(50, 256) < data->utilization_pp) {
+	else if (PERCENT_OF(50, 256) < data->utilization_pp)
 		enable_one_core();
-	} else if (PERCENT_OF(40, 256) < data->utilization_pp) {
-		/* do nothing */
-	} else if (PERCENT_OF(0, 256) < data->utilization_pp) {
+	else if (PERCENT_OF(40, 256) < data->utilization_pp)
+		MALI_DEBUG_PRINT(6, ("do nothing"));
+	else if (PERCENT_OF(0, 256) < data->utilization_pp)
 		disable_one_core();
-	} else {
-		/* do nothing */
-	}
+	else
+		MALI_DEBUG_PRINT(6, ("do nothing"));
 }

@@ -28,12 +28,11 @@ extern "C" {
 
 /** @brief description of power change reasons
  */
-typedef enum mali_power_mode_tag
-{
+enum mali_power_mode {
 	MALI_POWER_MODE_ON,           /**< Power Mali on */
 	MALI_POWER_MODE_LIGHT_SLEEP,  /**< Mali has been idle for a short time, or runtime PM suspend */
 	MALI_POWER_MODE_DEEP_SLEEP,   /**< Mali has been idle for a long time, or OS suspend */
-} mali_power_mode;
+};
 
 struct mali_fv_info {
 	unsigned long freq;
@@ -48,8 +47,8 @@ struct mali_platform_drv_data {
 	unsigned int fv_info_length;
 	struct mali_dvfs dvfs;
 	struct device *dev;
-	bool power_state;	
-	_mali_osk_mutex_t *clockSetlock;
+	bool power_state;
+	_mali_osk_mutex_t *clock_set_lock;
 };
 
 /** @brief Platform specific setup and initialisation of MALI
@@ -75,7 +74,8 @@ _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev);
  * @param power_mode defines the power modes
  * @return _MALI_OSK_ERR_OK on success otherwise, a suitable _mali_osk_errcode_t error.
  */
-_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode);
+_mali_osk_errcode_t mali_platform_power_mode_change(
+			enum mali_power_mode power_mode);
 
 
 /** @brief Platform specific handling of GPU utilization data

@@ -21,7 +21,7 @@
 #include <linux/device.h>
 #include <linux/regulator/driver.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/cpufreq.h>
 #include <linux/of.h>
 
@@ -44,19 +44,19 @@ int mali_set_level(struct device *dev, int level)
 	int ret;
 	unsigned int current_level;
 
-	_mali_osk_mutex_wait(drv_data->clockSetlock);
+	_mali_osk_mutex_wait(drv_data->clock_set_lock);
 
 	current_level = drv_data->dvfs.current_level;
 	freq = drv_data->fv_info[level].freq;
 
 	if (level == current_level) {
-		_mali_osk_mutex_signal(drv_data->clockSetlock);
+		_mali_osk_mutex_signal(drv_data->clock_set_lock);
 		return 0;
 	}
 
 	ret = dvfs_clk_set_rate(drv_data->clk, freq);
 	if (ret) {
-		_mali_osk_mutex_signal(drv_data->clockSetlock);
+		_mali_osk_mutex_signal(drv_data->clock_set_lock);
 		return ret;
 	}
 
@@ -64,7 +64,7 @@ int mali_set_level(struct device *dev, int level)
 
 	drv_data->dvfs.current_level = level;
 
-	_mali_osk_mutex_signal(drv_data->clockSetlock);
+	_mali_osk_mutex_signal(drv_data->clock_set_lock);
 
 	return 0;
 }
@@ -135,12 +135,15 @@ static ssize_t show_clock(struct device *dev,
 {
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%lu\n", dvfs_clk_get_rate(drv_data->clk));
+	return scnprintf(buf,
+			 PAGE_SIZE,
+			 "%lu\n",
+			 dvfs_clk_get_rate(drv_data->clk));
 }
 
 static ssize_t set_clock(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
-{	
+{
 	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
 	unsigned long freq;
 	ssize_t ret;
@@ -152,6 +155,7 @@ static ssize_t set_clock(struct device *dev, struct device_attribute *attr,
 
 	for (level = drv_data->fv_info_length - 1; level > 0; level--) {
 		unsigned long tmp  = drv_data->fv_info[level].freq;
+
 		if (tmp <= freq)
 			break;
 	}
@@ -166,14 +170,16 @@ static ssize_t set_clock(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t show_dvfs_enable(struct device *dev,
-			   	struct device_attribute *attr, char *buf)
+				struct device_attribute *attr,
+				char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%u\n", mali_dvfs_is_enabled(dev));
 }
 
 static ssize_t set_dvfs_enable(struct device *dev,
-			      	struct device_attribute *attr, const char *buf,
-			        size_t count)
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
 {
 	unsigned long enable;
 	ssize_t ret;
@@ -193,12 +199,15 @@ static ssize_t set_dvfs_enable(struct device *dev,
 }
 
 static ssize_t show_utilisation(struct device *dev,
-			   	struct device_attribute *attr, char *buf)
+				struct device_attribute *attr,
+				char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%u\n", mali_dvfs_utilisation(dev));
 }
 
-static int error_count_show(struct device *dev,struct device_attribute *attr, char *buf)
+static int error_count_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
 {
 	return sprintf(buf, "%d\n", mali_group_error);
 }
@@ -268,15 +277,16 @@ _mali_osk_errcode_t mali_platform_init(struct platform_device *pdev)
 	if (ret)
 		goto term_clk;
 
-	mali_drv_data->clockSetlock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,
-				_MALI_OSK_LOCK_ORDER_UTILIZATION);
+	mali_drv_data->clock_set_lock =
+		_mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,
+				     _MALI_OSK_LOCK_ORDER_UTILIZATION);
 	mali_core_scaling_enable = 1;
 
-   	return 0;
+	return 0;
 term_clk:
 	mali_clock_term(dev);
 err_init:
- 	return _MALI_OSK_ERR_FAULT;
+	return _MALI_OSK_ERR_FAULT;
 }
 
 _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
@@ -286,7 +296,7 @@ _mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
 
 	mali_core_scaling_term();
 	mali_clock_term(dev);
-	_mali_osk_mutex_term(drv_data->clockSetlock);
+	_mali_osk_mutex_term(drv_data->clock_set_lock);
 
 	return 0;
 }
@@ -312,37 +322,39 @@ _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 	return 0;
 }
 
-_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
+_mali_osk_errcode_t mali_platform_power_mode_change(
+			enum mali_power_mode power_mode)
 {
-	switch(power_mode) {
-		case MALI_POWER_MODE_ON:
-			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_ON\r\n"));
-			mali_power_domain_control(MALI_POWER_MODE_ON);
-			break;
-		case MALI_POWER_MODE_LIGHT_SLEEP:
-			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_LIGHT_SLEEP\r\n"));
-			mali_power_domain_control(MALI_POWER_MODE_LIGHT_SLEEP);
-			break;
-		case MALI_POWER_MODE_DEEP_SLEEP:
-			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_DEEP_SLEEP\r\n"));
-			mali_power_domain_control(MALI_POWER_MODE_DEEP_SLEEP);
-			break;
-		default:
-			MALI_DEBUG_PRINT(2, ("mali_platform_power_mode_change:power_mode(%d) not support \r\n",
-					 power_mode));
+	switch (power_mode) {
+	case MALI_POWER_MODE_ON:
+		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_ON\r\n"));
+		mali_power_domain_control(MALI_POWER_MODE_ON);
+		break;
+	case MALI_POWER_MODE_LIGHT_SLEEP:
+		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_LIGHT_SLEEP\r\n"));
+		mali_power_domain_control(MALI_POWER_MODE_LIGHT_SLEEP);
+		break;
+	case MALI_POWER_MODE_DEEP_SLEEP:
+		MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_DEEP_SLEEP\r\n"));
+		mali_power_domain_control(MALI_POWER_MODE_DEEP_SLEEP);
+		break;
+	default:
+		MALI_DEBUG_PRINT(2,
+				 (":power_mode(%d) not support \r\n",
+					power_mode));
 	}
-	
-    return 0;
+
+	return 0;
 }
 void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 {
-	if(data->utilization_pp > 256)
+	if (data->utilization_pp > 256)
 		return;
 
 	if (mali_core_scaling_enable)
 		mali_core_scaling_update(data);
 
-	// dev_dbg(mali_dev, "utilization:%d\r\n", data->utilization_pp);
+	/* dev_dbg(mali_dev, "utilization:%d\r\n", data->utilization_pp); */
 
 	mali_dvfs_event(mali_dev, data->utilization_pp);
 }
