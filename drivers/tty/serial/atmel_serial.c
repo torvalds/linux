@@ -2640,7 +2640,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	ret = atmel_init_gpios(port, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to initialize GPIOs.");
-		goto err;
+		goto err_clear_bit;
 	}
 
 	ret = atmel_init_port(port, pdev);
