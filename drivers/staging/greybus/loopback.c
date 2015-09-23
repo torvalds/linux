@@ -883,11 +883,10 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 		return -ENOMEM;
 	gb_loopback_reset_stats(&gb_dev);
 
-	/* If this is the first connection - create a module endo0:x entries */
+	/* If this is the first connection - create a module endo0 entry */
 	mutex_lock(&gb_dev.mutex);
 	if (!gb_dev.count) {
-		snprintf(name, sizeof(name), "raw_latency_endo0:%d",
-			 connection->bundle->intf->module->module_id);
+		snprintf(name, sizeof(name), "raw_latency_endo0");
 		gb_dev.file = debugfs_create_file(name, S_IFREG | S_IRUGO,
 						  gb_dev.root, &gb_dev,
 				  &gb_loopback_debugfs_dev_latency_ops);
