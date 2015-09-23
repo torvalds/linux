@@ -341,6 +341,7 @@ struct cp_private {
 	unsigned		tx_tail;
 	struct cp_desc		*tx_ring;
 	struct sk_buff		*tx_skb[CP_TX_RING_SIZE];
+	u32			tx_opts[CP_TX_RING_SIZE];
 
 	unsigned		rx_buf_sz;
 	unsigned		wol_enabled : 1; /* Is Wake-on-LAN enabled? */
@@ -665,7 +666,7 @@ static void cp_tx (struct cp_private *cp)
 		BUG_ON(!skb);
 
 		dma_unmap_single(&cp->pdev->dev, le64_to_cpu(txd->addr),
-				 le32_to_cpu(txd->opts1) & 0xffff,
+				 cp->tx_opts[tx_tail] & 0xffff,
 				 PCI_DMA_TODEVICE);
 
 		if (status & LastFrag) {
@@ -789,6 +790,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		wmb();
 
 		cp->tx_skb[entry] = skb;
+		cp->tx_opts[entry] = opts1;
 		netif_dbg(cp, tx_queued, cp->dev, "tx queued, slot %d, skblen %d\n",
 			  entry, skb->len);
 	} else {
@@ -839,6 +841,8 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 
 			txd->opts1 = cpu_to_le32(ctrl);
 			wmb();
+
+			cp->tx_opts[entry] = ctrl;
 			cp->tx_skb[entry] = skb;
 		}
 
@@ -851,6 +855,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		txd->opts1 = cpu_to_le32(ctrl);
 		wmb();
 
+		cp->tx_opts[first_entry] = ctrl;
 		netif_dbg(cp, tx_queued, cp->dev, "tx queued, slots %d-%d, skblen %d\n",
 			  first_entry, entry, skb->len);
 	}
@@ -1093,6 +1098,7 @@ static int cp_init_rings (struct cp_private *cp)
 {
 	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
 	cp->tx_ring[CP_TX_RING_SIZE - 1].opts1 = cpu_to_le32(RingEnd);
+	memset(cp->tx_opts, 0, sizeof(cp->tx_opts));
 
 	cp_init_rings_index(cp);
 
@@ -1150,6 +1156,7 @@ static void cp_clean_rings (struct cp_private *cp)
 
 	memset(cp->rx_ring, 0, sizeof(struct cp_desc) * CP_RX_RING_SIZE);
 	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
+	memset(cp->tx_opts, 0, sizeof(cp->tx_opts));
 
 	memset(cp->rx_skb, 0, sizeof(struct sk_buff *) * CP_RX_RING_SIZE);
 	memset(cp->tx_skb, 0, sizeof(struct sk_buff *) * CP_TX_RING_SIZE);
