@@ -593,6 +593,7 @@ static int lockd_init_net(struct net *net)
 	INIT_LIST_HEAD(&ln->lockd_manager.list);
 	ln->lockd_manager.block_opens = false;
 	spin_lock_init(&ln->nsm_clnt_lock);
+	INIT_LIST_HEAD(&ln->nsm_handles);
 	return 0;
 }
 
