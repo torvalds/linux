@@ -20,17 +20,48 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
-#include "hwmgr.h"
-#include "eventmgr.h"
+#ifndef _PP_FEATURE_H_
+#define _PP_FEATURE_H_
 
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-	struct pp_eventmgr *eventmgr;
+/**
+ * PowerPlay feature ids.
+ */
+enum pp_feature {
+	PP_Feature_PowerPlay = 0,
+	PP_Feature_User2DPerformance,
+	PP_Feature_User3DPerformance,
+	PP_Feature_VariBright,
+	PP_Feature_VariBrightOnPowerXpress,
+	PP_Feature_ReducedRefreshRate,
+	PP_Feature_GFXClockGating,
+	PP_Feature_OverdriveTest,
+	PP_Feature_OverDrive,
+	PP_Feature_PowerBudgetWaiver,
+	PP_Feature_PowerControl,
+	PP_Feature_PowerControl_2,
+	PP_Feature_MultiUVDState,
+	PP_Feature_Force3DClock,
+	PP_Feature_BACO,
+	PP_Feature_PowerDown,
+	PP_Feature_DynamicUVDState,
+	PP_Feature_VCEDPM,
+	PP_Feature_PPM,
+	PP_Feature_ACP_POWERGATING,
+	PP_Feature_FFC,
+	PP_Feature_FPS,
+	PP_Feature_ViPG,
+	PP_Feature_Max
 };
 
-#endif
+/**
+ * Struct for PowerPlay feature info.
+ */
+struct pp_feature_info {
+	bool supported;               /* feature supported by PowerPlay */
+	bool enabled;                 /* feature enabled in PowerPlay */
+	bool enabled_default;        /* default enable status of the feature */
+	uint32_t version;             /* feature version */
+};
+
+#endif /* _PP_FEATURE_H_ */

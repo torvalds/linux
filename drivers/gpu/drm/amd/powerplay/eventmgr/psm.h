@@ -20,17 +20,18 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
-
-#include "smumgr.h"
-#include "hwmgr.h"
 #include "eventmgr.h"
+#include "eventinit.h"
+#include "eventmanagement.h"
+#include "eventmanager.h"
+#include "power_state.h"
 
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-	struct pp_eventmgr *eventmgr;
-};
+int psm_get_ui_state(struct pp_eventmgr *eventmgr, enum PP_StateUILabel ui_label, unsigned long *state_id);
 
-#endif
+int psm_get_state_by_classification(struct pp_eventmgr *eventmgr, enum PP_StateClassificationFlag flag, unsigned long *state_id);
+
+int psm_set_performance_states(struct pp_eventmgr *eventmgr, unsigned long *state_id);
+
+int psm_adjust_power_state_dynamic(struct pp_eventmgr *eventmgr, bool skip);
+
+int psm_adjust_power_state_static(struct pp_eventmgr *eventmgr, bool skip);

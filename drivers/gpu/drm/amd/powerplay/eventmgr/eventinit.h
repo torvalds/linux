@@ -20,17 +20,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
-#include "hwmgr.h"
-#include "eventmgr.h"
+#ifndef _EVENTINIT_H_
+#define _EVENTINIT_H_
 
-struct pp_instance {
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-	struct pp_eventmgr *eventmgr;
-};
+#define PEM_CURRENT_POWERPLAY_FEATURE_VERSION 4
 
-#endif
+void pem_init_feature_info(struct pp_eventmgr *eventmgr);
+void pem_uninit_featureInfo(struct pp_eventmgr *eventmgr);
+int pem_register_interrupts(struct pp_eventmgr *eventmgr);
+int pem_unregister_interrupts(struct pp_eventmgr *eventmgr);
+
+#endif /* _EVENTINIT_H_ */

@@ -52,6 +52,7 @@ static int pp_sw_init(void *handle)
 		return -EINVAL;
 
 	ret = hwmgr->pptable_func->pptable_init(hwmgr);
+
 	if (ret == 0)
 		ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 
@@ -81,6 +82,7 @@ static int pp_hw_init(void *handle)
 {
 	struct pp_instance *pp_handle;
 	struct pp_smumgr *smumgr;
+	struct pp_eventmgr *eventmgr;
 	int ret = 0;
 
 	if (handle == NULL)
@@ -106,8 +108,14 @@ static int pp_hw_init(void *handle)
 		smumgr->smumgr_funcs->smu_fini(smumgr);
 		return ret;
 	}
-	hw_init_power_state_table(pp_handle->hwmgr);
 
+	hw_init_power_state_table(pp_handle->hwmgr);
+	eventmgr = pp_handle->eventmgr;
+
+	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
+		return -EINVAL;
+
+	ret = eventmgr->pp_eventmgr_init(eventmgr);
 	return 0;
 }
 
@@ -115,11 +123,17 @@ static int pp_hw_fini(void *handle)
 {
 	struct pp_instance *pp_handle;
 	struct pp_smumgr *smumgr;
+	struct pp_eventmgr *eventmgr;
 
 	if (handle == NULL)
 		return -EINVAL;
 
 	pp_handle = (struct pp_instance *)handle;
+	eventmgr = pp_handle->eventmgr;
+
+	if (eventmgr != NULL || eventmgr->pp_eventmgr_fini != NULL)
+		eventmgr->pp_eventmgr_fini(eventmgr);
+
 	smumgr = pp_handle->smu_mgr;
 
 	if (smumgr != NULL || smumgr->smumgr_funcs != NULL ||
@@ -273,9 +287,15 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (ret)
 		goto fail_hwmgr;
 
+	ret = eventmgr_init(handle);
+	if (ret)
+		goto fail_eventmgr;
+
 	amd_pp->pp_handle = handle;
 	return 0;
 
+fail_eventmgr:
+	hwmgr_fini(handle->hwmgr);
 fail_hwmgr:
 	smum_fini(handle->smu_mgr);
 fail_smum:
@@ -286,8 +306,11 @@ fail_smum:
 static int amd_pp_instance_fini(void *handle)
 {
 	struct pp_instance *instance = (struct pp_instance *)handle;
+
 	if (instance == NULL)
 		return -EINVAL;
+
+	eventmgr_fini(instance->eventmgr);
 
 	hwmgr_fini(instance->hwmgr);
 
