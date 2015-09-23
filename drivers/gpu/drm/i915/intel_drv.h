@@ -515,7 +515,6 @@ struct intel_crtc_atomic_commit {
 	bool disable_cxsr;
 	bool pre_disable_primary;
 	bool update_wm_pre, update_wm_post;
-	unsigned disabled_planes;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;

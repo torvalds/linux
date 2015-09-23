@@ -4805,17 +4805,6 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
-	struct drm_plane *p;
-
-	/* Track fb's for any planes being disabled */
-	drm_for_each_plane_mask(p, dev, atomic->disabled_planes) {
-		struct intel_plane *plane = to_intel_plane(p);
-
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_track_fb(intel_fb_obj(plane->base.fb), NULL,
-				  plane->frontbuffer_bit);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	if (atomic->wait_for_flips)
 		intel_crtc_wait_for_pending_flips(&crtc->base);
@@ -11599,14 +11588,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			return ret;
 	}
 
-	/*
-	 * Disabling a plane is always okay; we just need to update
-	 * fb tracking in a special way since cleanup_fb() won't
-	 * get called by the plane helpers.
-	 */
-	if (old_plane_state->base.fb && !fb)
-		intel_crtc->atomic.disabled_planes |= 1 << i;
-
 	was_visible = old_plane_state->visible;
 	visible = to_intel_plane_state(plane_state)->visible;
 
@@ -13354,15 +13335,17 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct drm_framebuffer *fb = new_state->fb;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
 	int ret = 0;
 
-	if (!obj)
+	if (!obj && !old_obj)
 		return 0;
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+	if (!obj) {
+		ret = 0;
+	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
@@ -13392,17 +13375,23 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		       const struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_gem_object *obj = intel_fb_obj(old_state->fb);
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
+	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
 
-	if (!obj)
+	if (!obj && !old_obj)
 		return;
 
-	if (plane->type != DRM_PLANE_TYPE_CURSOR ||
-	    !INTEL_INFO(dev)->cursor_needs_physical) {
-		mutex_lock(&dev->struct_mutex);
+	mutex_lock(&dev->struct_mutex);
+	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
+	    !INTEL_INFO(dev)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state);
-		mutex_unlock(&dev->struct_mutex);
-	}
+
+	/* prepare_fb aborted? */
+	if ((old_obj && (old_obj->frontbuffer_bits & intel_plane->frontbuffer_bit)) ||
+	    (obj && !(obj->frontbuffer_bits & intel_plane->frontbuffer_bit)))
+		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 int
