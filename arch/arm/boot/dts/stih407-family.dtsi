@@ -585,7 +585,6 @@
 		/* COMMS PWM Module */
 		pwm0: pwm@9810000 {
 			compatible	= "st,sti-pwm";
-			status		= "okay";
 			#pwm-cells	= <2>;
 			reg		= <0x9810000 0x68>;
 			pinctrl-names	= "default";
@@ -593,12 +592,13 @@
 			clock-names	= "pwm";
 			clocks		= <&clk_sysin>;
 			st,pwm-num-chan = <1>;
+
+			status		= "disabled";
 		};
 
 		/* SBC PWM Module */
 		pwm1: pwm@9510000 {
 			compatible	= "st,sti-pwm";
-			status		= "okay";
 			#pwm-cells	= <2>;
 			reg		= <0x9510000 0x68>;
 			pinctrl-names	= "default";
@@ -609,6 +609,8 @@
 			clock-names	= "pwm";
 			clocks		= <&clk_sysin>;
 			st,pwm-num-chan = <4>;
+
+			status		= "disabled";
 		};
 	};
 };
