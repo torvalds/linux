@@ -630,7 +630,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	if (error < 0)
 		return error;
 
-	error = mc_get_version(mc_io, &mc_version);
+	error = mc_get_version(mc_io, 0, &mc_version);
 	if (error != 0) {
 		dev_err(&pdev->dev,
 			"mc_get_version() failed with error %d\n", error);
@@ -661,7 +661,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	if (error < 0)
 		goto error_cleanup_mc_io;
 
-	error = dpmng_get_container_id(mc_io, &container_id);
+	error = dpmng_get_container_id(mc_io, 0, &container_id);
 	if (error < 0) {
 		dev_err(&pdev->dev,
 			"dpmng_get_container_id() failed: %d\n", error);

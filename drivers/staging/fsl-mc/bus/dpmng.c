@@ -34,14 +34,17 @@
 #include "../include/dpmng.h"
 #include "dpmng-cmd.h"
 
-int mc_get_version(struct fsl_mc_io *mc_io, struct mc_version *mc_ver_info)
+int mc_get_version(struct fsl_mc_io *mc_io,
+		   uint32_t cmd_flags,
+		   struct mc_version *mc_ver_info)
 {
 	struct mc_command cmd = { 0 };
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMNG_CMDID_GET_VERSION,
-					  MC_CMD_PRI_LOW, 0);
+					  cmd_flags,
+					  0);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -56,14 +59,17 @@ int mc_get_version(struct fsl_mc_io *mc_io, struct mc_version *mc_ver_info)
 	return 0;
 }
 
-int dpmng_get_container_id(struct fsl_mc_io *mc_io, int *container_id)
+int dpmng_get_container_id(struct fsl_mc_io *mc_io,
+			   uint32_t cmd_flags,
+			   int *container_id)
 {
 	struct mc_command cmd = { 0 };
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMNG_CMDID_GET_CONT_ID,
-					  MC_CMD_PRI_LOW, 0);
+					  cmd_flags,
+					  0);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
