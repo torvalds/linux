@@ -4230,6 +4230,7 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(uuid_root)) {
 		ret = PTR_ERR(uuid_root);
 		btrfs_abort_transaction(trans, tree_root, ret);
+		btrfs_end_transaction(trans, tree_root);
 		return ret;
 	}
 
