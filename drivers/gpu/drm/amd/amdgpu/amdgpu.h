@@ -1202,8 +1202,6 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_inst_irq;
 	/* gfx status */
 	uint32_t gfx_current_status;
-	/* sync signal for const engine */
-	unsigned ce_sync_offs;
 	/* ce ram size*/
 	unsigned ce_ram_size;
 };
