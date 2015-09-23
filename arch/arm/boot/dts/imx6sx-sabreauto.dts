@@ -89,6 +89,13 @@
 		asrc-controller = <&asrc>;
 		audio-codec = <&codec>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+	};
 };
 
 &clks {
@@ -194,6 +201,12 @@
 
 &pcie {
 	reset-gpio = <&max7310_b 3 0>;
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif_3>;
 	status = "okay";
 };
 
@@ -324,6 +337,12 @@
 			fsl,pins = <
 				MX6SX_PAD_KEY_ROW4__I2C3_SDA            0x4001b8b1
 				MX6SX_PAD_KEY_COL4__I2C3_SCL            0x4001b8b1
+			>;
+		};
+
+		pinctrl_spdif_3: spdifgrp-3 {
+			fsl,pins = <
+				MX6SX_PAD_ENET2_COL__SPDIF_IN           0x1b0b0
 			>;
 		};
 
