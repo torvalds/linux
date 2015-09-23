@@ -23,6 +23,7 @@
 #ifndef _HWMGR_H_
 #define _HWMGR_H_
 
+#include <linux/seq_file.h>
 #include "amd_powerplay.h"
 #include "pp_instance.h"
 #include "hardwaremanager.h"
@@ -84,6 +85,11 @@ typedef int (*phm_table_function)(struct pp_hwmgr *hwmgr, void *input,
 				  void *output, void *storage, int result);
 
 typedef bool (*phm_check_function)(struct pp_hwmgr *hwmgr);
+
+struct phm_set_power_state_input {
+	const struct pp_hw_power_state *pcurrent_state;
+	const struct pp_hw_power_state *pnew_state;
+};
 
 struct phm_acp_arbiter {
 	uint32_t acpclk;
@@ -252,11 +258,34 @@ struct pp_hwmgr_func {
 	int (*backend_fini)(struct pp_hwmgr *hw_mgr);
 	int (*asic_setup)(struct pp_hwmgr *hw_mgr);
 	int (*get_power_state_size)(struct pp_hwmgr *hw_mgr);
-	int (*force_dpm_level)(struct pp_hwmgr *hw_mgr, enum amd_dpm_forced_level level);
-	int (*dynamic_state_management_enable)(struct pp_hwmgr *hw_mgr);
-	int (*patch_boot_state)(struct pp_hwmgr *hwmgr, struct pp_hw_power_state *hw_ps);
-	int (*get_pp_table_entry)(struct pp_hwmgr *hwmgr, unsigned long, struct pp_power_state *);
+
+	int (*apply_state_adjust_rules)(struct pp_hwmgr *hwmgr,
+				struct pp_power_state  *prequest_ps,
+			const struct pp_power_state *pcurrent_ps);
+
+	int (*force_dpm_level)(struct pp_hwmgr *hw_mgr,
+					enum amd_dpm_forced_level level);
+
+	int (*dynamic_state_management_enable)(
+						struct pp_hwmgr *hw_mgr);
+
+	int (*patch_boot_state)(struct pp_hwmgr *hwmgr,
+				     struct pp_hw_power_state *hw_ps);
+
+	int (*get_pp_table_entry)(struct pp_hwmgr *hwmgr,
+			    unsigned long, struct pp_power_state *);
+
 	int (*get_num_of_pp_table_entries)(struct pp_hwmgr *hwmgr);
+	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
+	int (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
+	int (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	int (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
+	int (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
+	int (*power_state_set)(struct pp_hwmgr *hwmgr,
+						const void *state);
+	void (*print_current_perforce_level)(struct pp_hwmgr *hwmgr,
+							struct seq_file *m);
+	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -416,7 +445,7 @@ struct pp_hwmgr {
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
 	enum amd_dpm_forced_level dpm_level;
-
+	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
 	struct phm_acp_arbiter acp_arbiter;
 	struct phm_uvd_arbiter uvd_arbiter;
@@ -430,6 +459,8 @@ struct pp_hwmgr {
 	struct phm_runtime_table_header setup_asic;
 	struct phm_runtime_table_header disable_dynamic_state_management;
 	struct phm_runtime_table_header enable_dynamic_state_management;
+	struct phm_runtime_table_header set_power_state;
+	struct phm_runtime_table_header enable_clock_power_gatings;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;
@@ -470,6 +501,11 @@ extern void phm_wait_for_indirect_register_unequal(
 				uint32_t index,
 				uint32_t value,
 				uint32_t mask);
+
+bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr);
+bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr);
+
+#define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define PHM_FIELD_MASK(reg, field) reg##__##field##_MASK

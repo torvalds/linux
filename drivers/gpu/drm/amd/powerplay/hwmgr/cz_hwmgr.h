@@ -32,6 +32,7 @@
 #define CZ_AT_DFLT                     30
 #define CZ_MAX_HARDWARE_POWERLEVELS    8
 #define PPCZ_VOTINGRIGHTSCLIENTS_DFLT0   0x3FFFC102
+#define CZ_MIN_DEEP_SLEEP_SCLK         800
 
 /* Carrizo device IDs */
 #define DEVICE_ID_CZ_9870             0x9870
@@ -198,6 +199,9 @@ struct cz_hwmgr {
 	struct cz_sys_info sys_info;
 
 	struct cz_power_level boot_power_level;
+	struct cz_power_state *cz_current_ps;
+	struct cz_power_state *cz_requested_ps;
+
 	uint32_t mgcg_cgtt_local0;
 	uint32_t mgcg_cgtt_local1;
 
@@ -299,11 +303,15 @@ struct cz_hwmgr {
 
 	uint32_t max_sclk_level;
 	uint32_t num_of_clk_entries;
-	struct cz_power_state *cz_ps;
 };
 
 struct pp_hwmgr;
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
-
+int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr);
+int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr);
+int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr);
+int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr);
+int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
+int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr);
 #endif /* _CZ_HWMGR_H_ */

@@ -23,7 +23,12 @@
 #ifndef _HARDWARE_MANAGER_H_
 #define _HARDWARE_MANAGER_H_
 
+
+
 struct pp_hwmgr;
+struct pp_hw_power_state;
+struct pp_power_state;
+enum amd_dpm_forced_level;
 
 /* Automatic Power State Throttling */
 enum PHM_AutoThrottleSource
@@ -206,6 +211,24 @@ struct pp_hw_descriptor {
 	uint32_t hw_caps[PHM_MAX_NUM_CAPS_ULONG_ENTRIES];
 };
 
+enum PHM_PerformanceLevelDesignation {
+	PHM_PerformanceLevelDesignation_Activity,
+	PHM_PerformanceLevelDesignation_PowerContainment
+};
+
+typedef enum PHM_PerformanceLevelDesignation PHM_PerformanceLevelDesignation;
+
+struct PHM_PerformanceLevel {
+	uint32_t    coreClock;
+	uint32_t    memory_clock;
+	uint32_t  vddc;
+	uint32_t  vddci;
+	uint32_t    nonLocalMemoryFreq;
+	uint32_t nonLocalMemoryWidth;
+};
+
+typedef struct PHM_PerformanceLevel PHM_PerformanceLevel;
+
 /* Function for setting a platform cap */
 static inline void phm_cap_set(uint32_t *caps,
 			enum phm_platform_caps c)
@@ -225,6 +248,20 @@ static inline bool phm_cap_enabled(const uint32_t *caps, enum phm_platform_caps 
 	return (0 != (caps[c / PHM_MAX_NUM_CAPS_BITS_PER_FIELD] &
 		  (1UL << (c & (PHM_MAX_NUM_CAPS_BITS_PER_FIELD - 1)))));
 }
+
+#define PP_PCIEGenInvalid  0xffff
+enum PP_PCIEGen {
+	PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
+	PP_PCIEGen2,                    /*PCIE 2.0 - Transfer rate of 5.0 GT/s */
+	PP_PCIEGen3                     /*PCIE 3.0 - Transfer rate of 8.0 GT/s */
+};
+
+typedef enum PP_PCIEGen PP_PCIEGen;
+
+#define PP_Min_PCIEGen     PP_PCIEGen1
+#define PP_Max_PCIEGen     PP_PCIEGen3
+#define PP_Min_PCIELane    1
+#define PP_Max_PCIELane    32
 
 enum phm_clock_Type {
 	PHM_DispClock = 1,
@@ -273,8 +310,22 @@ struct phm_clocks {
 	uint32_t num_of_entries;
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
-
+extern int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr);
+extern int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate);
+extern int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate);
+extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
 extern void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr);
+extern bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr);
+extern int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block);
+extern int phm_set_power_state(struct pp_hwmgr *hwmgr,
+		    const struct pp_hw_power_state *pcurrent_state,
+		 const struct pp_hw_power_state *pnew_power_state);
+
+extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
+				   struct pp_power_state *adjusted_ps,
+			     const struct pp_power_state *current_ps);
+
+extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
 #endif /* _HARDWARE_MANAGER_H_ */

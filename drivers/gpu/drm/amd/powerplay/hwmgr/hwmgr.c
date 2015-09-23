@@ -201,3 +201,13 @@ void phm_wait_for_indirect_register_unequal(struct pp_hwmgr *hwmgr,
 	phm_wait_for_register_unequal(hwmgr, indirect_port + 1,
 				      value, mask);
 }
+
+bool phm_cf_want_uvd_power_gating(struct pp_hwmgr *hwmgr)
+{
+	return phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDPowerGating);
+}
+
+bool phm_cf_want_vce_power_gating(struct pp_hwmgr *hwmgr)
+{
+	return phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEPowerGating);
+}
