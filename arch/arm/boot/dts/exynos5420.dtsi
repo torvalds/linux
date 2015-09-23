@@ -1117,7 +1117,7 @@
 		interrupt-parent = <&combiner>;
 		interrupts = <3 0>;
 		clock-names = "sysmmu", "master";
-		clocks = <&clock CLK_SMMU_FIMD1M0>, <&clock CLK_FIMD1>;
+		clocks = <&clock CLK_SMMU_FIMD1M1>, <&clock CLK_FIMD1>;
 		power-domains = <&disp_pd>;
 		#iommu-cells = <0>;
 	};
