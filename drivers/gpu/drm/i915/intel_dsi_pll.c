@@ -384,6 +384,42 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
+/* Program BXT Mipi clocks and dividers */
+static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port)
+{
+	u32 tmp;
+	u32 divider;
+	u32 dsi_rate;
+	u32 pll_ratio;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Clear old configurations */
+	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);
+	tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_RX_ESCLK_FIXDIV_MASK(port));
+	tmp &= ~(BXT_MIPI_ESCLK_VAR_DIV_MASK(port));
+	tmp &= ~(BXT_MIPI_DPHY_DIVIDER_MASK(port));
+
+	/* Get the current DSI rate(actual) */
+	pll_ratio = I915_READ(BXT_DSI_PLL_CTL) &
+				BXT_DSI_PLL_RATIO_MASK;
+	dsi_rate = (BXT_REF_CLOCK_KHZ * pll_ratio) / 2;
+
+	/* Max possible output of clock is 39.5 MHz, program value -1 */
+	divider = (dsi_rate / BXT_MAX_VAR_OUTPUT_KHZ) - 1;
+	tmp |= BXT_MIPI_ESCLK_VAR_DIV(port, divider);
+
+	/*
+	 * Tx escape clock must be as close to 20MHz possible, but should
+	 * not exceed it. Hence select divide by 2
+	 */
+	tmp |= BXT_MIPI_TX_ESCLK_8XDIV_BY2(port);
+
+	tmp |= BXT_MIPI_RX_ESCLK_8X_BY3(port);
+
+	I915_WRITE(BXT_MIPI_CLOCK_CTL, tmp);
+}
+
 static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -435,6 +471,8 @@ static bool bxt_configure_dsi_pll(struct intel_encoder *encoder)
 static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
 	u32 val;
 
 	DRM_DEBUG_KMS("\n");
@@ -452,6 +490,10 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 		DRM_ERROR("Configure DSI PLL failed, abort PLL enable\n");
 		return;
 	}
+
+	/* Program TX, RX, Dphy clocks */
+	for_each_dsi_port(port, intel_dsi->ports)
+		bxt_dsi_program_clocks(encoder->base.dev, port);
 
 	/* Enable DSI PLL */
 	val = I915_READ(BXT_DSI_PLL_ENABLE);
