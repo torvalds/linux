@@ -786,7 +786,8 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		wmb();
 
 		cp->tx_skb[entry] = skb;
-		entry = NEXT_TX(entry);
+		netif_dbg(cp, tx_queued, cp->dev, "tx queued, slot %d, skblen %d\n",
+			  entry, skb->len);
 	} else {
 		struct cp_desc *txd;
 		u32 first_len, first_eor;
@@ -805,13 +806,14 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 			goto out_dma_error;
 
 		cp->tx_skb[entry] = skb;
-		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
 			const skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
 			u32 len;
 			u32 ctrl;
 			dma_addr_t mapping;
+
+			entry = NEXT_TX(entry);
 
 			len = skb_frag_size(this_frag);
 			mapping = dma_map_single(&cp->pdev->dev,
@@ -848,9 +850,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 
 			txd->opts1 = cpu_to_le32(ctrl);
 			wmb();
-
 			cp->tx_skb[entry] = skb;
-			entry = NEXT_TX(entry);
 		}
 
 		txd = &cp->tx_ring[first_entry];
@@ -873,12 +873,13 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 			txd->opts1 = cpu_to_le32(first_eor | first_len |
 						 FirstFrag | DescOwn);
 		wmb();
+
+		netif_dbg(cp, tx_queued, cp->dev, "tx queued, slots %d-%d, skblen %d\n",
+			  first_entry, entry, skb->len);
 	}
-	cp->tx_head = entry;
+	cp->tx_head = NEXT_TX(entry);
 
 	netdev_sent_queue(dev, skb->len);
-	netif_dbg(cp, tx_queued, cp->dev, "tx queued, slot %d, skblen %d\n",
-		  entry, skb->len);
 	if (TX_BUFFS_AVAIL(cp) <= (MAX_SKB_FRAGS + 1))
 		netif_stop_queue(dev);
 
