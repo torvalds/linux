@@ -48,6 +48,10 @@ config FB_MXC_EDID
      tristate "MXC EDID support"
      default y
 
+config FB_MXS_SII902X
+	tristate "Si Image SII9022 DVI/HDMI Interface Chip"
+	depends on FB_MXS && I2C
+
 config HANNSTAR_CABC
 	tristate "Hannstar CABC function"
 	help
