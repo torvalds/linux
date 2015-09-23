@@ -373,19 +373,19 @@ int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 	if (WARN_ON(!mc_dev))
 		return -EINVAL;
 
-	error = dpmcp_open(mc_io, mc_dev->obj_desc.id, &token);
+	error = dpmcp_open(mc_io, 0, mc_dev->obj_desc.id, &token);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dpmcp_open() failed: %d\n", error);
 		return error;
 	}
 
-	error = dpmcp_reset(mc_io, token);
+	error = dpmcp_reset(mc_io, 0, token);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dpmcp_reset() failed: %d\n", error);
 		return error;
 	}
 
-	error = dpmcp_close(mc_io, token);
+	error = dpmcp_close(mc_io, 0, token);
 	if (error < 0) {
 		dev_err(&mc_dev->dev, "dpmcp_close() failed: %d\n", error);
 		return error;

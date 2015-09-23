@@ -34,7 +34,7 @@
 
 /* DPMCP Version */
 #define DPMCP_VER_MAJOR				2
-#define DPMCP_VER_MINOR				0
+#define DPMCP_VER_MINOR				1
 
 /* Command IDs */
 #define DPMCP_CMDID_CLOSE				0x800
