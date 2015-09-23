@@ -234,7 +234,7 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 		case HAL_PIXEL_FORMAT_YCbCr_422_SP_10:	/* yuv444 */
 			fb_data_fmt = YUV422_A;
 			break;
-		case HAL_PIXEL_FORMAT_YCrCb_420_SP_10:	/* yuv444 */
+		case HAL_PIXEL_FORMAT_YCrCb_444_SP_10:	/* yuv444 */
 			fb_data_fmt = YUV444_A;
 			break;
 		case HAL_PIXEL_FORMAT_FBDC_RGB565:	/* fbdc rgb565*/
