@@ -105,6 +105,21 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_MAXIMUM,
 };
 
+enum cgs_system_info_id {
+	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
+	CGS_SYSTEM_INFO_ID_MAXIMUM,
+};
+
+struct cgs_system_info {
+	uint64_t       size;
+	uint64_t       info_id;
+	union {
+		void           *ptr;
+		uint64_t        value;
+	};
+	uint64_t               padding[13];
+};
+
 /**
  * struct cgs_clock_limits - Clock limits
  *
@@ -533,6 +548,10 @@ typedef int (*cgs_call_acpi_method)(void *cgs_device,
 					uint32_t output_count,
 					uint32_t input_size,
 					uint32_t output_size);
+
+typedef int (*cgs_query_system_info)(void *cgs_device,
+				struct cgs_system_info *sys_info);
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_gpu_mem_info_t gpu_mem_info;
@@ -575,6 +594,8 @@ struct cgs_ops {
 	cgs_set_clockgating_state set_clockgating_state;
 	/* ACPI */
 	cgs_call_acpi_method call_acpi_method;
+	/* get system info */
+	cgs_query_system_info query_system_info;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -663,5 +684,7 @@ struct cgs_device
 	CGS_CALL(set_clockgating_state, dev, block_type, state)
 #define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
 	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
+#define cgs_query_system_info(dev, sys_info)	\
+	CGS_CALL(query_system_info, dev, sys_info)
 
 #endif /* _CGS_COMMON_H */

@@ -736,6 +736,28 @@ static int amdgpu_cgs_get_firmware_info(void *cgs_device,
 	return 0;
 }
 
+static int amdgpu_cgs_query_system_info(void *cgs_device,
+				struct cgs_system_info *sys_info)
+{
+	CGS_FUNC_ADEV;
+
+	if (NULL == sys_info)
+		return -ENODEV;
+
+	if (sizeof(struct cgs_system_info) != sys_info->size)
+		return -ENODEV;
+
+	switch (sys_info->info_id) {
+	case CGS_SYSTEM_INFO_ADAPTER_BDF_ID:
+		sys_info->value = adev->pdev->devfn | (adev->pdev->bus->number << 8);
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 /** \brief evaluate acpi namespace object, handle or pathname must be valid
  *  \param cgs_device
  *  \param info input/output arguments for the control method
@@ -985,6 +1007,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_set_powergating_state,
 	amdgpu_cgs_set_clockgating_state,
 	amdgpu_cgs_call_acpi_method,
+	amdgpu_cgs_query_system_info,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
