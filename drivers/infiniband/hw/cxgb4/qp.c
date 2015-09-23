@@ -712,8 +712,7 @@ static int ring_kernel_sq_db(struct c4iw_qp *qhp, u16 inc)
 	spin_lock_irqsave(&qhp->rhp->lock, flags);
 	spin_lock(&qhp->lock);
 	if (qhp->rhp->db_state == NORMAL)
-		t4_ring_sq_db(&qhp->wq, inc,
-			      is_t5(qhp->rhp->rdev.lldi.adapter_type), NULL);
+		t4_ring_sq_db(&qhp->wq, inc, NULL);
 	else {
 		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
 		qhp->wq.sq.wq_pidx_inc += inc;
@@ -730,8 +729,7 @@ static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
 	spin_lock_irqsave(&qhp->rhp->lock, flags);
 	spin_lock(&qhp->lock);
 	if (qhp->rhp->db_state == NORMAL)
-		t4_ring_rq_db(&qhp->wq, inc,
-			      is_t5(qhp->rhp->rdev.lldi.adapter_type), NULL);
+		t4_ring_rq_db(&qhp->wq, inc, NULL);
 	else {
 		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
 		qhp->wq.rq.wq_pidx_inc += inc;
@@ -817,7 +815,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			fw_opcode = FW_RI_FR_NSMR_WR;
 			swsqe->opcode = FW_RI_FAST_REGISTER;
 			err = build_fastreg(&qhp->wq.sq, wqe, wr, &len16,
-					    is_t5(
+					    !is_t4(
 					    qhp->rhp->rdev.lldi.adapter_type) ?
 					    1 : 0);
 			break;
@@ -860,8 +858,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
 	if (!qhp->rhp->rdev.status_page->db_off) {
-		t4_ring_sq_db(&qhp->wq, idx,
-			      is_t5(qhp->rhp->rdev.lldi.adapter_type), wqe);
+		t4_ring_sq_db(&qhp->wq, idx, wqe);
 		spin_unlock_irqrestore(&qhp->lock, flag);
 	} else {
 		spin_unlock_irqrestore(&qhp->lock, flag);
@@ -934,8 +931,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		num_wrs--;
 	}
 	if (!qhp->rhp->rdev.status_page->db_off) {
-		t4_ring_rq_db(&qhp->wq, idx,
-			      is_t5(qhp->rhp->rdev.lldi.adapter_type), wqe);
+		t4_ring_rq_db(&qhp->wq, idx, wqe);
 		spin_unlock_irqrestore(&qhp->lock, flag);
 	} else {
 		spin_unlock_irqrestore(&qhp->lock, flag);
@@ -1875,7 +1871,7 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attrs.rq_db_inc = attr->rq_psn;
 	mask |= (attr_mask & IB_QP_SQ_PSN) ? C4IW_QP_ATTR_SQ_DB : 0;
 	mask |= (attr_mask & IB_QP_RQ_PSN) ? C4IW_QP_ATTR_RQ_DB : 0;
-	if (is_t5(to_c4iw_qp(ibqp)->rhp->rdev.lldi.adapter_type) &&
+	if (!is_t4(to_c4iw_qp(ibqp)->rhp->rdev.lldi.adapter_type) &&
 	    (mask & (C4IW_QP_ATTR_SQ_DB|C4IW_QP_ATTR_RQ_DB)))
 		return -EINVAL;
 

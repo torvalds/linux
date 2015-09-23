@@ -209,7 +209,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		if (addr >= rdev->oc_mw_pa)
 			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 		else {
-			if (is_t5(rdev->lldi.adapter_type))
+			if (!is_t4(rdev->lldi.adapter_type))
 				vma->vm_page_prot =
 					t4_pgprot_wc(vma->vm_page_prot);
 			else
