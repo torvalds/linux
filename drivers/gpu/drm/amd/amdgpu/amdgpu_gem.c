@@ -427,6 +427,10 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 					   &args->data.data_size_bytes,
 					   &args->data.flags);
 	} else if (args->op == AMDGPU_GEM_METADATA_OP_SET_METADATA) {
+		if (args->data.data_size_bytes > sizeof(args->data.data)) {
+			r = -EINVAL;
+			goto unreserve;
+		}
 		r = amdgpu_bo_set_tiling_flags(robj, args->data.tiling_info);
 		if (!r)
 			r = amdgpu_bo_set_metadata(robj, args->data.data,
@@ -434,6 +438,7 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 						   args->data.flags);
 	}
 
+unreserve:
 	amdgpu_bo_unreserve(robj);
 out:
 	drm_gem_object_unreference_unlocked(gobj);
