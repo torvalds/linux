@@ -632,7 +632,7 @@ static int stk3310_probe(struct i2c_client *client,
 		}
 	}
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk3310_irq_handler,
 						stk3310_irq_event_handler,

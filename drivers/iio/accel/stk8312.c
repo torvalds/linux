@@ -572,7 +572,7 @@ static int stk8312_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = stk8312_gpio_probe(client);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						stk8312_data_rdy_trig_poll,
 						NULL,
