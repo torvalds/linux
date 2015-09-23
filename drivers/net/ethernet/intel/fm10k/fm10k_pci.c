@@ -274,8 +274,6 @@ static void fm10k_watchdog_update_host_state(struct fm10k_intfc *interface)
  * @interface: board private structure
  *
  * This function will process both the upstream and downstream mailboxes.
- * It is necessary for us to hold the rtnl_lock while doing this as the
- * mailbox accesses are protected by this lock.
  **/
 static void fm10k_mbx_subtask(struct fm10k_intfc *interface)
 {
@@ -330,6 +328,9 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 {
 	struct net_device_stats *net_stats = &interface->netdev->stats;
 	struct fm10k_hw *hw = &interface->hw;
+	u64 hw_csum_tx_good = 0, hw_csum_rx_good = 0, rx_length_errors = 0;
+	u64 rx_switch_errors = 0, rx_drops = 0, rx_pp_errors = 0;
+	u64 rx_link_errors = 0;
 	u64 rx_errors = 0, rx_csum_errors = 0, tx_csum_errors = 0;
 	u64 restart_queue = 0, tx_busy = 0, alloc_failed = 0;
 	u64 rx_bytes_nic = 0, rx_pkts_nic = 0, rx_drops_nic = 0;
@@ -349,6 +350,7 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 		tx_csum_errors += tx_ring->tx_stats.csum_err;
 		bytes += tx_ring->stats.bytes;
 		pkts += tx_ring->stats.packets;
+		hw_csum_tx_good += tx_ring->tx_stats.csum_good;
 	}
 
 	interface->restart_queue = restart_queue;
@@ -356,6 +358,8 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 	net_stats->tx_bytes = bytes;
 	net_stats->tx_packets = pkts;
 	interface->tx_csum_errors = tx_csum_errors;
+	interface->hw_csum_tx_good = hw_csum_tx_good;
+
 	/* gather some stats to the interface struct that are per queue */
 	for (bytes = 0, pkts = 0, i = 0; i < interface->num_rx_queues; i++) {
 		struct fm10k_ring *rx_ring = interface->rx_ring[i];
@@ -365,12 +369,24 @@ void fm10k_update_stats(struct fm10k_intfc *interface)
 		alloc_failed += rx_ring->rx_stats.alloc_failed;
 		rx_csum_errors += rx_ring->rx_stats.csum_err;
 		rx_errors += rx_ring->rx_stats.errors;
+		hw_csum_rx_good += rx_ring->rx_stats.csum_good;
+		rx_switch_errors += rx_ring->rx_stats.switch_errors;
+		rx_drops += rx_ring->rx_stats.drops;
+		rx_pp_errors += rx_ring->rx_stats.pp_errors;
+		rx_link_errors += rx_ring->rx_stats.link_errors;
+		rx_length_errors += rx_ring->rx_stats.length_errors;
 	}
 
 	net_stats->rx_bytes = bytes;
 	net_stats->rx_packets = pkts;
 	interface->alloc_failed = alloc_failed;
 	interface->rx_csum_errors = rx_csum_errors;
+	interface->hw_csum_rx_good = hw_csum_rx_good;
+	interface->rx_switch_errors = rx_switch_errors;
+	interface->rx_drops = rx_drops;
+	interface->rx_pp_errors = rx_pp_errors;
+	interface->rx_link_errors = rx_link_errors;
+	interface->rx_length_errors = rx_length_errors;
 
 	hw->mac.ops.update_hw_stats(hw, &interface->stats);
 
@@ -498,7 +514,7 @@ static void fm10k_service_task(struct work_struct *work)
 
 	interface = container_of(work, struct fm10k_intfc, service_task);
 
-	/* tasks always capable of running, but must be rtnl protected */
+	/* tasks run even when interface is down */
 	fm10k_mbx_subtask(interface);
 	fm10k_detach_subtask(interface);
 	fm10k_reset_subtask(interface);

@@ -2039,14 +2039,17 @@ static struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY
 	.init			= NULL,
 	.identify		= &ixgbe_identify_phy_generic,
-	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
-	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
 };
 
 static struct ixgbe_phy_operations phy_ops_X550EM_x = {
 	X550_COMMON_PHY
 	.init			= &ixgbe_init_phy_ops_X550em,
 	.identify		= &ixgbe_identify_phy_x550em,
+	.read_i2c_combined	= &ixgbe_read_i2c_combined_generic,
+	.write_i2c_combined	= &ixgbe_write_i2c_combined_generic,
+	.read_i2c_combined_unlocked = &ixgbe_read_i2c_combined_generic_unlocked,
+	.write_i2c_combined_unlocked =
+				     &ixgbe_write_i2c_combined_generic_unlocked,
 };
 
 static const u32 ixgbe_mvals_X550[IXGBE_MVALS_IDX_LIMIT] = {
