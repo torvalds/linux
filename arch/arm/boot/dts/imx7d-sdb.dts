@@ -33,7 +33,7 @@
 	};
 
 	sound {
-	        compatible = "fsl,imx7d-evk-wm8960",
+		compatible = "fsl,imx7d-evk-wm8960",
 			     "fsl,imx-audio-wm8960";
 		model = "wm8960-audio";
 		cpu-dai = <&sai1>;
@@ -329,6 +329,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
+	sii902x: sii902x@39 {
+		compatible = "SiI,sii902x";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sii902x>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		mode_str ="1280x720M@60";
+		bits-per-pixel = <16>;
+		reg = <0x39>;
+		status = "okay";
+	};
 };
 
 &i2c4 {
@@ -530,6 +541,12 @@
 				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
 				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
 				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
+			>;
+		};
+
+		pinctrl_sii902x: hdmigrp-1 {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA13__GPIO2_IO13 0x59
 			>;
 		};
 

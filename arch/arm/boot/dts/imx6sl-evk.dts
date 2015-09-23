@@ -117,6 +117,13 @@
 		spdif-controller = <&spdif>;
 		spdif-out;
 	};
+
+	sii902x_reset: sii902x-reset {
+		compatible = "gpio-reset";
+		reset-gpios = <&gpio2 19 1>;
+		reset-delay-us = <100000>;
+		#reset-cells = <0>;
+	};
 };
 
 &audmux {
@@ -298,6 +305,16 @@
 		SPKVDD2-supply = <&reg_aud4v>;
 		amic-mono;
 	};
+
+	sii902x@39 {
+		compatible = "SiI,sii902x";
+		interrupt-parent = <&gpio2>;
+		interrupts = <10 2>;
+		mode_str ="1280x720M@60";
+		bits-per-pixel = <16>;
+		resets = <&sii902x_reset>;
+		reg = <0x39>;
+	};
 };
 
 &i2c3 {
@@ -343,7 +360,14 @@
 				MX6SL_PAD_KEY_COL4__GPIO4_IO00	0x80000000
 				MX6SL_PAD_KEY_COL5__GPIO4_IO02	0x80000000
 				MX6SL_PAD_AUD_MCLK__AUDIO_CLK_OUT 0x4130b0
+				MX6SL_PAD_ECSPI2_MISO__GPIO4_IO14 0x17000
+				MX6SL_PAD_ECSPI2_MOSI__GPIO4_IO13 0x17000
+				MX6SL_PAD_ECSPI2_SS0__GPIO4_IO15  0x17000
 				MX6SL_PAD_FEC_RX_ER__GPIO4_IO19	  0x1b0b0
+				MX6SL_PAD_EPDC_PWRCTRL3__GPIO2_IO10 0x17000
+				MX6SL_PAD_EPDC_PWRCTRL2__GPIO2_IO09 0x80000000
+				MX6SL_PAD_KEY_COL6__GPIO4_IO04    0x110b0
+				MX6SL_PAD_LCD_RESET__GPIO2_IO19   0x1b0b0
 			>;
 		};
 

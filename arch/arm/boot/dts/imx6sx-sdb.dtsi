@@ -24,11 +24,19 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
-	backlight {
+	backlight1 {
 		compatible = "pwm-backlight";
 		pwms = <&pwm3 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+		fb-names = "mxs-lcdif0";
+	};
+	backlight2 {
+		compatible = "pwm-backlight";
+		pwms = <&pwm4 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		fb-names = "mxs-lcdif1";
 	};
 
 	gpio-keys {
@@ -49,6 +57,12 @@
 		};
 	};
 
+	hannstar_cabc {
+		compatible = "hannstar,cabc";
+		lvds0 {
+			gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>;
+		};
+	};
 	regulators {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -104,6 +118,7 @@
 			regulator-name = "lcd-3v3";
 			gpio = <&gpio3 27 0>;
 			enable-active-high;
+			status = "disabled";
 		};
 
 		reg_peri_3v3: regulator@5 {
@@ -175,6 +190,14 @@
 		model = "imx-spdif";
 		spdif-controller = <&spdif>;
 		spdif-out;
+	};
+
+	sii902x_reset: sii902x-reset {
+		compatible = "gpio-reset";
+		reset-gpios = <&gpio3 27 1>;
+		reset-delay-us = <100000>;
+		#reset-cells = <0>;
+		status = "disabled";
 	};
 };
 
@@ -254,6 +277,94 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
+	pmic: pfuze100@08 {
+		compatible = "fsl,pfuze200";
+		reg = <0x08>;
+
+		regulators {
+			sw1a_reg: sw1ab {
+				regulator-min-microvolt = <300000>;
+				regulator-max-microvolt = <1875000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw2_reg: sw2 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3a_reg: sw3a {
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1975000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3b_reg: sw3b {
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1975000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			swbst_reg: swbst {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5150000>;
+			};
+
+			snvs_reg: vsnvs {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vref_reg: vrefddr {
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vgen1_reg: vgen1 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1550000>;
+				regulator-always-on;
+			};
+
+			vgen2_reg: vgen2 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1550000>;
+			};
+
+			vgen3_reg: vgen3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen4_reg: vgen4 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen5_reg: vgen5 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen6_reg: vgen6 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+		};
+	};
+
 	ov5640: ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
@@ -273,6 +384,17 @@
 				remote-endpoint = <&csi1_ep>;
 			};
 		};
+	};
+
+	sii902x@39 {
+		compatible = "SiI,sii902x";
+		interrupt-parent = <&gpio4>;
+		interrupts = <21 2>;
+		mode_str ="1280x720M@60";
+		bits-per-pixel = <16>;
+		resets = <&sii902x_reset>;
+		reg = <0x39>;
+		status = "disabled";
 	};
 };
 
@@ -337,9 +459,9 @@
 	pinctrl-0 = <&pinctrl_lcd>;
 	lcd-supply = <&reg_lcd_3v3>;
 	display = <&display0>;
-	status = "okay";
+	status = "disabled";
 
-	display0: display0 {
+	display0: display {
 		bits-per-pixel = <16>;
 		bus-width = <24>;
 
@@ -369,6 +491,39 @@
 	pinctrl-0 = <&pinctrl_pcie>;
 	reset-gpio = <&gpio2 0 0>;
 	status = "okay";
+};
+
+&lcdif2 {
+	display = <&display1>;
+	disp-dev = "ldb";
+	status = "okay";
+	display1: display {
+		bits-per-pixel = <16>;
+		bus-width = <18>;
+	};
+};
+&ldb {
+	status = "okay";
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+		crtc = "lcdif2";
+		status = "okay";
+		display-timings {
+			native-mode = <&timing1>;
+			timing1: hsd100pxn1 {
+				clock-frequency = <65000000>;
+				hactive = <1024>;
+				vactive = <768>;
+				hback-porch = <220>;
+				hfront-porch = <40>;
+				vback-porch = <21>;
+				vfront-porch = <7>;
+				hsync-len = <60>;
+				vsync-len = <10>;
+			};
+		};
+	};
 };
 
 &pwm3 {

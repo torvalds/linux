@@ -802,6 +802,30 @@
 				reg = <0x020e4000 0x4000>;
 			};
 
+			ldb: ldb@020e0014 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx6sx-ldb", "fsl,imx53-ldb";
+				gpr = <&gpr>;
+				status = "disabled";
+				clocks = <&clks IMX6SX_CLK_LDB_DI0>,
+					 <&clks IMX6SX_CLK_LCDIF1_SEL>,
+					 <&clks IMX6SX_CLK_LCDIF2_SEL>,
+					 <&clks IMX6SX_CLK_LDB_DI0_DIV_3_5>,
+					 <&clks IMX6SX_CLK_LDB_DI0_DIV_7>,
+					 <&clks IMX6SX_CLK_LDB_DI0_DIV_SEL>;
+				clock-names = "ldb_di0",
+					      "di0_sel",
+					      "di1_sel",
+					      "ldb_di0_div_3_5",
+					      "ldb_di0_div_7",
+					      "ldb_di0_div_sel";
+				lvds-channel@0 {
+					reg = <0>;
+					status = "disabled";
+				};
+			};
+
 			sdma: sdma@020ec000 {
 				compatible = "fsl,imx6sx-sdma", "fsl,imx35-sdma";
 				reg = <0x020ec000 0x4000>;
@@ -1165,7 +1189,6 @@
 						 <&clks IMX6SX_CLK_CSI>,
 						 <&clks IMX6SX_CLK_DCIC1>;
 					clock-names = "disp-axi", "csi_mclk", "disp_dcic";
-					power-domains = <&gpc 2>;
 					status = "disabled";
 				};
 
@@ -1186,7 +1209,6 @@
 						 <&clks IMX6SX_CLK_CSI>,
 						 <&clks IMX6SX_CLK_DCIC2>;
 					clock-names = "disp-axi", "csi_mclk", "disp_dcic";
-					power-domains = <&gpc 2>;
 					status = "disabled";
 				};
 
@@ -1213,11 +1235,13 @@
 				};
 
 				vadc: vadc@02228000 {
+					compatible = "fsl,imx6sx-vadc";
 					reg = <0x02228000 0x4000>, <0x0222c000 0x4000>;
 					reg-names = "vadc-vafe", "vadc-vdec";
 					clocks = <&clks IMX6SX_CLK_VADC>,
 						 <&clks IMX6SX_CLK_CSI>;
 					clock-names = "vadc", "csi";
+					gpr = <&gpr>;
 					status = "disabled";
 				};
 			};

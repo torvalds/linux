@@ -1,0 +1,35 @@
+/*
+ * Copyright (C) 2014-2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sx-sdb.dts"
+
+/ {
+	regulators {
+		reg_lcd_3v3: regulator@4 {
+			status = "okay";
+		};
+	};
+
+	sii902x_reset: sii902x-reset {
+		status = "okay";
+	};
+};
+
+&csi1 {
+	status = "disabled";
+};
+
+&lcdif1 {
+	status = "okay";
+};
+
+&i2c1 {
+	sii902x@39 {
+		status = "okay";
+	};
+};
