@@ -1090,8 +1090,6 @@ static struct sock *tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newsk->sk_v6_rcv_saddr = ireq->ir_v6_loc_addr;
 	newsk->sk_bound_dev_if = ireq->ir_iif;
 
-	newsk->sk_txhash = tcp_rsk(req)->txhash;
-
 	/* Now IPv6 options...
 
 	   First: no IPv4 options.
