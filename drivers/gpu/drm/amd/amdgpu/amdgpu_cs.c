@@ -154,42 +154,41 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
 	union drm_amdgpu_cs *cs = data;
 	uint64_t *chunk_array_user;
-	uint64_t *chunk_array = NULL;
+	uint64_t *chunk_array;
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	unsigned size, i;
-	int r = 0;
+	int ret;
 
-	if (!cs->in.num_chunks)
-		goto out;
+	if (cs->in.num_chunks == 0)
+		return 0;
+
+	chunk_array = kmalloc_array(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
+	if (!chunk_array)
+		return -ENOMEM;
 
 	p->ctx = amdgpu_ctx_get(fpriv, cs->in.ctx_id);
 	if (!p->ctx) {
-		r = -EINVAL;
-		goto out;
+		ret = -EINVAL;
+		goto free_chunk;
 	}
+
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
-	chunk_array = kmalloc_array(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
-	if (chunk_array == NULL) {
-		r = -ENOMEM;
-		goto out;
-	}
-
 	chunk_array_user = (uint64_t __user *)(cs->in.chunks);
 	if (copy_from_user(chunk_array, chunk_array_user,
 			   sizeof(uint64_t)*cs->in.num_chunks)) {
-		r = -EFAULT;
-		goto out;
+		ret = -EFAULT;
+		goto put_bo_list;
 	}
 
 	p->nchunks = cs->in.num_chunks;
 	p->chunks = kmalloc_array(p->nchunks, sizeof(struct amdgpu_cs_chunk),
 			    GFP_KERNEL);
-	if (p->chunks == NULL) {
-		r = -ENOMEM;
-		goto out;
+	if (!p->chunks) {
+		ret = -ENOMEM;
+		goto put_bo_list;
 	}
 
 	for (i = 0; i < p->nchunks; i++) {
@@ -200,8 +199,9 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 		chunk_ptr = (void __user *)chunk_array[i];
 		if (copy_from_user(&user_chunk, chunk_ptr,
 				       sizeof(struct drm_amdgpu_cs_chunk))) {
-			r = -EFAULT;
-			goto out;
+			ret = -EFAULT;
+			i--;
+			goto free_partial_kdata;
 		}
 		p->chunks[i].chunk_id = user_chunk.chunk_id;
 		p->chunks[i].length_dw = user_chunk.length_dw;
@@ -212,13 +212,14 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 
 		p->chunks[i].kdata = drm_malloc_ab(size, sizeof(uint32_t));
 		if (p->chunks[i].kdata == NULL) {
-			r = -ENOMEM;
-			goto out;
+			ret = -ENOMEM;
+			i--;
+			goto free_partial_kdata;
 		}
 		size *= sizeof(uint32_t);
 		if (copy_from_user(p->chunks[i].kdata, cdata, size)) {
-			r = -EFAULT;
-			goto out;
+			ret = -EFAULT;
+			goto free_partial_kdata;
 		}
 
 		switch (p->chunks[i].chunk_id) {
@@ -238,15 +239,15 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 				gobj = drm_gem_object_lookup(p->adev->ddev,
 							     p->filp, handle);
 				if (gobj == NULL) {
-					r = -EINVAL;
-					goto out;
+					ret = -EINVAL;
+					goto free_partial_kdata;
 				}
 
 				p->uf.bo = gem_to_amdgpu_bo(gobj);
 				p->uf.offset = fence_data->offset;
 			} else {
-				r = -EINVAL;
-				goto out;
+				ret = -EINVAL;
+				goto free_partial_kdata;
 			}
 			break;
 
@@ -254,19 +255,35 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 			break;
 
 		default:
-			r = -EINVAL;
-			goto out;
+			ret = -EINVAL;
+			goto free_partial_kdata;
 		}
 	}
 
 
 	p->ibs = kcalloc(p->num_ibs, sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!p->ibs)
-		r = -ENOMEM;
+	if (!p->ibs) {
+		ret = -ENOMEM;
+		goto free_all_kdata;
+	}
 
-out:
 	kfree(chunk_array);
-	return r;
+	return 0;
+
+free_all_kdata:
+	i = p->nchunks - 1;
+free_partial_kdata:
+	for (; i >= 0; i--)
+		drm_free_large(p->chunks[i].kdata);
+	kfree(p->chunks);
+put_bo_list:
+	if (p->bo_list)
+		amdgpu_bo_list_put(p->bo_list);
+	amdgpu_ctx_put(p->ctx);
+free_chunk:
+	kfree(chunk_array);
+
+	return ret;
 }
 
 /* Returns how many bytes TTM can move per IB.
@@ -810,7 +827,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = amdgpu_cs_parser_init(parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
-		amdgpu_cs_parser_fini(parser, r, false);
+		kfree(parser);
 		up_read(&adev->exclusive_lock);
 		r = amdgpu_cs_handle_lockup(adev, r);
 		return r;
