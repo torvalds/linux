@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - COM20020 chipset support - function declarations
- * 
+ *
  * Written 1997 by David Woodhouse.
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.
@@ -34,13 +34,6 @@ extern const struct net_device_ops com20020_netdev_ops;
 /* The number of low I/O ports used by the card. */
 #define ARCNET_TOTAL_SIZE 8
 
-/* various register addresses */
-#ifdef CONFIG_SA1100_CT6001
-#define BUS_ALIGN  2  /* 8 bit device on a 16 bit bus - needs padding */
-#else
-#define BUS_ALIGN  1
-#endif
-
 #define PLX_PCI_MAX_CARDS 2
 
 struct com20020_pci_channel_map {
@@ -71,17 +64,18 @@ struct com20020_dev {
 	int index;
 };
 
-#define _INTMASK  (ioaddr+BUS_ALIGN*0)	/* writable */
-#define _STATUS   (ioaddr+BUS_ALIGN*0)	/* readable */
-#define _COMMAND  (ioaddr+BUS_ALIGN*1)	/* standard arcnet commands */
-#define _DIAGSTAT (ioaddr+BUS_ALIGN*1)	/* diagnostic status register */
-#define _ADDR_HI  (ioaddr+BUS_ALIGN*2)	/* control registers for IO-mapped memory */
-#define _ADDR_LO  (ioaddr+BUS_ALIGN*3)
-#define _MEMDATA  (ioaddr+BUS_ALIGN*4)	/* data port for IO-mapped memory */
-#define _SUBADR   (ioaddr+BUS_ALIGN*5)	/* the extended port _XREG refers to */
-#define _CONFIG   (ioaddr+BUS_ALIGN*6)	/* configuration register */
-#define _XREG     (ioaddr+BUS_ALIGN*7)	/* extra registers (indexed by _CONFIG
-  					or _SUBADR) */
+#define COM20020_REG_W_INTMASK	0	/* writable */
+#define COM20020_REG_R_STATUS	0	/* readable */
+#define COM20020_REG_W_COMMAND	1	/* standard arcnet commands */
+#define COM20020_REG_R_DIAGSTAT	1	/* diagnostic status */
+#define COM20020_REG_W_ADDR_HI	2	/* control for IO-mapped memory */
+#define COM20020_REG_W_ADDR_LO	3
+#define COM20020_REG_RW_MEMDATA	4	/* data port for IO-mapped memory */
+#define COM20020_REG_W_SUBADR	5	/* the extended port _XREG refers to */
+#define COM20020_REG_W_CONFIG	6	/* configuration */
+#define COM20020_REG_W_XREG	7	/* extra
+					 * (indexed by _CONFIG or _SUBADDR)
+					 */
 
 /* in the ADDR_HI register */
 #define RDDATAflag	0x80	/* next access is a read (not a write) */
@@ -92,6 +86,7 @@ struct com20020_dev {
 /* in the CONFIG register */
 #define RESETcfg	0x80	/* put card in reset state */
 #define TXENcfg		0x20	/* enable TX */
+#define XTOcfg(x)	((x) << 3)	/* extended timeout */
 
 /* in SETUP register */
 #define PROMISCset	0x10	/* enable RCV_ALL */
@@ -109,37 +104,15 @@ struct com20020_dev {
 #define SUB_BUSCTL	5	/* bus control options */
 #define SUB_DMACOUNT	6	/* DMA count options */
 
-#define SET_SUBADR(x) do { \
-	if ((x) < 4) \
-	{ \
-		lp->config = (lp->config & ~0x03) | (x); \
-		SETCONF; \
-	} \
-	else \
-	{ \
-		outb(x, _SUBADR); \
-	} \
-} while (0)
-
-#undef ARCRESET
-#undef ASTATUS
-#undef ACOMMAND
-#undef AINTMASK
-
-#define ARCRESET { outb(lp->config | 0x80, _CONFIG); \
-		    udelay(5);                        \
-		    outb(lp->config , _CONFIG);       \
-                  }
-#define ARCRESET0 { outb(0x18 | 0x80, _CONFIG);   \
-		    udelay(5);                       \
-		    outb(0x18 , _CONFIG);            \
-                  }
-
-#define ASTATUS()	inb(_STATUS)
-#define ADIAGSTATUS()	inb(_DIAGSTAT)
-#define ACOMMAND(cmd)	outb((cmd),_COMMAND)
-#define AINTMASK(msk)	outb((msk),_INTMASK)
-
-#define SETCONF		outb(lp->config, _CONFIG)
+static inline void com20020_set_subaddress(struct arcnet_local *lp,
+					   int ioaddr, int val)
+{
+	if (val < 4) {
+		lp->config = (lp->config & ~0x03) | val;
+		arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+	} else {
+		arcnet_outb(val, ioaddr, COM20020_REG_W_SUBADR);
+	}
+}
 
 #endif /* __COM20020_H */

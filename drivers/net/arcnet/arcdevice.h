@@ -34,7 +34,6 @@
  */
 #define RECON_THRESHOLD 30
 
-
 /*
  * Define this to the minimum "timeout" value.  If a transmit takes longer
  * than TX_TIMEOUT jiffies, Linux will abort the TX and retry.  On a large
@@ -44,14 +43,12 @@
  */
 #define TX_TIMEOUT (HZ * 200 / 1000)
 
-
 /* Display warnings about the driver being an ALPHA version. */
 #undef ALPHA_WARNING
 
-
 /*
  * Debugging bitflags: each option can be enabled individually.
- * 
+ *
  * Note: only debug flags included in the ARCNET_DEBUG_MAX define will
  *   actually be available.  GCC will (at least, GCC 2.7.0 will) notice
  *   lines using a BUGLVL not in ARCNET_DEBUG_MAX and automatically optimize
@@ -77,35 +74,47 @@
 #endif
 
 #ifndef ARCNET_DEBUG
-#define ARCNET_DEBUG (D_NORMAL|D_EXTRA)
+#define ARCNET_DEBUG (D_NORMAL | D_EXTRA)
 #endif
 extern int arcnet_debug;
 
+#define BUGLVL(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
+
 /* macros to simplify debug checking */
-#define BUGLVL(x) if ((ARCNET_DEBUG_MAX)&arcnet_debug&(x))
-#define BUGMSG2(x,msg,args...) do { BUGLVL(x) printk(msg, ## args); } while (0)
-#define BUGMSG(x,msg,args...) \
-	BUGMSG2(x, "%s%6s: " msg, \
-            x==D_NORMAL	? KERN_WARNING \
-            		: x < D_DURING ? KERN_INFO : KERN_DEBUG, \
-	    dev->name , ## args)
+#define arc_printk(x, dev, fmt, ...)					\
+do {									\
+	if (BUGLVL(x)) {						\
+		if ((x) == D_NORMAL)					\
+			netdev_warn(dev, fmt, ##__VA_ARGS__);		\
+		else if ((x) < D_DURING)				\
+			netdev_info(dev, fmt, ##__VA_ARGS__);		\
+		else							\
+			netdev_dbg(dev, fmt, ##__VA_ARGS__);		\
+	}								\
+} while (0)
+
+#define arc_cont(x, fmt, ...)						\
+do {									\
+	if (BUGLVL(x))							\
+		pr_cont(fmt, ##__VA_ARGS__);				\
+} while (0)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
-#define TIME(name, bytes, call) BUGLVL(D_TIMING) { \
-	    unsigned long _x, _y; \
-	    _x = get_cycles(); \
-	    call; \
-	    _y = get_cycles(); \
-	    BUGMSG(D_TIMING, \
-	       "%s: %d bytes in %lu cycles == " \
-	       "%lu Kbytes/100Mcycle\n",\
-		   name, bytes, _y - _x, \
-		   100000000 / 1024 * bytes / (_y - _x + 1));\
-	} \
-	else { \
-		    call;\
-	}
-
+#define TIME(dev, name, bytes, call)					\
+do {									\
+	if (BUGLVL(D_TIMING)) {						\
+		unsigned long _x, _y;					\
+		_x = get_cycles();					\
+		call;							\
+		_y = get_cycles();					\
+		arc_printk(D_TIMING, dev,				\
+			   "%s: %d bytes in %lu cycles == %lu Kbytes/100Mcycle\n", \
+			   name, bytes, _y - _x,			\
+			   100000000 / 1024 * bytes / (_y - _x + 1));	\
+	} else {							\
+		call;							\
+	}								\
+} while (0)
 
 /*
  * Time needed to reset the card - in ms (milliseconds).  This works on my
@@ -155,6 +164,7 @@ extern int arcnet_debug;
 #define CONFIGcmd       0x05	/* define configuration */
 #define CFLAGScmd       0x06	/* clear flags */
 #define TESTcmd         0x07	/* load test flags */
+#define STARTIOcmd      0x18	/* start internal operation */
 
 /* flags for "clear flags" command */
 #define RESETclear      0x08	/* power-on-reset */
@@ -182,28 +192,26 @@ extern int arcnet_debug;
 #define ARC_CAN_10MBIT  2   /* card uses COM20022, supporting 10MBit,
 				 but default is 2.5MBit. */
 
-
 /* information needed to define an encapsulation driver */
 struct ArcProto {
 	char suffix;		/* a for RFC1201, e for ether-encap, etc. */
 	int mtu;		/* largest possible packet */
 	int is_ip;              /* This is a ip plugin - not a raw thing */
 
-	void (*rx) (struct net_device * dev, int bufnum,
-		    struct archdr * pkthdr, int length);
-	int (*build_header) (struct sk_buff * skb, struct net_device *dev,
-			     unsigned short ethproto, uint8_t daddr);
+	void (*rx)(struct net_device *dev, int bufnum,
+		   struct archdr *pkthdr, int length);
+	int (*build_header)(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short ethproto, uint8_t daddr);
 
 	/* these functions return '1' if the skb can now be freed */
-	int (*prepare_tx) (struct net_device * dev, struct archdr * pkt, int length,
-			   int bufnum);
-	int (*continue_tx) (struct net_device * dev, int bufnum);
-	int (*ack_tx) (struct net_device * dev, int acked);
+	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt,
+			  int length, int bufnum);
+	int (*continue_tx)(struct net_device *dev, int bufnum);
+	int (*ack_tx)(struct net_device *dev, int acked);
 };
 
 extern struct ArcProto *arc_proto_map[256], *arc_proto_default,
 	*arc_bcast_proto, *arc_raw_proto;
-
 
 /*
  * "Incoming" is information needed for each address that could be sending
@@ -215,7 +223,6 @@ struct Incoming {
 	uint8_t lastpacket,	/* number of last packet (from 1) */
 		numpackets;	/* number of packets in split     */
 };
-
 
 /* only needed for RFC1201 */
 struct Outgoing {
@@ -229,7 +236,6 @@ struct Outgoing {
 		segnum,		/* segment being sent */
 		numsegs;	/* number of segments */
 };
-
 
 struct arcnet_local {
 	uint8_t config,		/* current value of CONFIG register */
@@ -251,7 +257,6 @@ struct arcnet_local {
 	char *card_name;	/* card ident string */
 	int card_flags;		/* special card features */
 
-
 	/* On preemtive and SMB a lock is needed */
 	spinlock_t lock;
 
@@ -263,13 +268,13 @@ struct arcnet_local {
 	 * situations in which we (for example) want to pre-load a transmit
 	 * buffer, or start receiving while we copy a received packet to
 	 * memory.
-	 * 
+	 *
 	 * The rules: only the interrupt handler is allowed to _add_ buffers to
 	 * the queue; thus, this doesn't require a lock.  Both the interrupt
 	 * handler and the transmit function will want to _remove_ buffers, so
 	 * we need to handle the situation where they try to do it at the same
 	 * time.
-	 * 
+	 *
 	 * If next_buf == first_free_buf, the queue is empty.  Since there are
 	 * only four possible buffers, the queue should never be full.
 	 */
@@ -298,34 +303,29 @@ struct arcnet_local {
 	/* hardware-specific functions */
 	struct {
 		struct module *owner;
-		void (*command) (struct net_device * dev, int cmd);
-		int (*status) (struct net_device * dev);
-		void (*intmask) (struct net_device * dev, int mask);
-		int (*reset) (struct net_device * dev, int really_reset);
-		void (*open) (struct net_device * dev);
-		void (*close) (struct net_device * dev);
+		void (*command)(struct net_device *dev, int cmd);
+		int (*status)(struct net_device *dev);
+		void (*intmask)(struct net_device *dev, int mask);
+		int (*reset)(struct net_device *dev, int really_reset);
+		void (*open)(struct net_device *dev);
+		void (*close)(struct net_device *dev);
 
-		void (*copy_to_card) (struct net_device * dev, int bufnum, int offset,
-				      void *buf, int count);
-		void (*copy_from_card) (struct net_device * dev, int bufnum, int offset,
-					void *buf, int count);
+		void (*copy_to_card)(struct net_device *dev, int bufnum,
+				     int offset, void *buf, int count);
+		void (*copy_from_card)(struct net_device *dev, int bufnum,
+				       int offset, void *buf, int count);
 	} hw;
 
 	void __iomem *mem_start;	/* pointer to ioremap'ed MMIO */
 };
 
-
-#define ARCRESET(x)  (lp->hw.reset(dev, (x)))
-#define ACOMMAND(x)  (lp->hw.command(dev, (x)))
-#define ASTATUS()    (lp->hw.status(dev))
-#define AINTMASK(x)  (lp->hw.intmask(dev, (x)))
-
-
-
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #else
-#define arcnet_dump_skb(dev,skb,desc) ;
+static inline
+void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc)
+{
+}
 #endif
 
 void arcnet_unregister_proto(struct ArcProto *proto);
@@ -335,8 +335,34 @@ struct net_device *alloc_arcdev(const char *name);
 int arcnet_open(struct net_device *dev);
 int arcnet_close(struct net_device *dev);
 netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
-				     struct net_device *dev);
+			       struct net_device *dev);
 void arcnet_timeout(struct net_device *dev);
+
+/* I/O equivalents */
+
+#ifdef CONFIG_SA1100_CT6001
+#define BUS_ALIGN  2  /* 8 bit device on a 16 bit bus - needs padding */
+#else
+#define BUS_ALIGN  1
+#endif
+
+/* addr and offset allow register like names to define the actual IO  address.
+ * A configuration option multiplies the offset for alignment.
+ */
+#define arcnet_inb(addr, offset)					\
+	inb((addr) + BUS_ALIGN * (offset))
+#define arcnet_outb(value, addr, offset)				\
+	outb(value, (addr) + BUS_ALIGN * (offset))
+
+#define arcnet_insb(addr, offset, buffer, count)			\
+	insb((addr) + BUS_ALIGN * (offset), buffer, count)
+#define arcnet_outsb(addr, offset, buffer, count)			\
+	outsb((addr) + BUS_ALIGN * (offset), buffer, count)
+
+#define arcnet_readb(addr, offset)					\
+	readb((addr) + (offset))
+#define arcnet_writeb(value, addr, offset)				\
+	writeb(value, (addr) + (offset))
 
 #endif				/* __KERNEL__ */
 #endif				/* _LINUX_ARCDEVICE_H */

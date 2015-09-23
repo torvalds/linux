@@ -1,7 +1,7 @@
 /*
  * Linux ARCnet driver - COM20020 PCI support
  * Contemporary Controls PCI20 and SOHARD SH-ARC PCI
- * 
+ *
  * Written 1994-1999 by Avery Pennarun,
  *    based on an ISA version by David Woodhouse.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.
@@ -26,6 +26,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -36,14 +39,11 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/arcdevice.h>
-#include <linux/com20020.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
-
-
-#define VERSION "arcnet: COM20020 PCI support\n"
+#include "arcdevice.h"
+#include "com20020.h"
 
 /* Module parameters */
 
@@ -64,7 +64,8 @@ MODULE_LICENSE("GPL");
 
 static void com20020pci_remove(struct pci_dev *pdev);
 
-static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int com20020pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
 {
 	struct com20020_pci_card_info *ci;
 	struct net_device *dev;
@@ -86,7 +87,6 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	INIT_LIST_HEAD(&priv->list_dev);
 
-
 	for (i = 0; i < ci->devcount; i++) {
 		struct com20020_pci_channel_map *cm = &ci->chan_map_tbl[i];
 		struct com20020_dev *card;
@@ -101,13 +101,13 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 		lp = netdev_priv(dev);
 
-		BUGMSG(D_NORMAL, "%s Controls\n", ci->name);
+		arc_printk(D_NORMAL, dev, "%s Controls\n", ci->name);
 		ioaddr = pci_resource_start(pdev, cm->bar) + cm->offset;
 
 		r = devm_request_region(&pdev->dev, ioaddr, cm->size,
 					"com20020-pci");
 		if (!r) {
-			pr_err("IO region %xh-%xh already allocated.\n",
+			pr_err("IO region %xh-%xh already allocated\n",
 			       ioaddr, ioaddr + cm->size - 1);
 			ret = -EBUSY;
 			goto out_port;
@@ -117,8 +117,8 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		 * ARCNET controller needs
 		 * this access to detect bustype
 		 */
-		outb(0x00, ioaddr + 1);
-		inb(ioaddr + 1);
+		arcnet_outb(0x00, ioaddr, COM20020_REG_W_COMMAND);
+		arcnet_inb(ioaddr, COM20020_REG_R_DIAGSTAT);
 
 		dev->base_addr = ioaddr;
 		dev->dev_addr[0] = node;
@@ -131,7 +131,7 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		lp->timeout = timeout;
 		lp->hw.owner = THIS_MODULE;
 
-		if (ASTATUS() == 0xFF) {
+		if (arcnet_inb(ioaddr, COM20020_REG_R_STATUS) == 0xFF) {
 			pr_err("IO address %Xh is empty!\n", ioaddr);
 			ret = -EIO;
 			goto out_port;
@@ -143,10 +143,8 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 		card = devm_kzalloc(&pdev->dev, sizeof(struct com20020_dev),
 				    GFP_KERNEL);
-		if (!card) {
-			pr_err("%s out of memory!\n", __func__);
+		if (!card)
 			return -ENOMEM;
-		}
 
 		card->index = i;
 		card->pci_priv = priv;
@@ -190,7 +188,11 @@ static struct com20020_pci_card_info card_info_10mbit = {
 	.name = "ARC-PCI",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -199,7 +201,11 @@ static struct com20020_pci_card_info card_info_5mbit = {
 	.name = "ARC-PCI",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_IS_5MBIT,
 };
@@ -209,7 +215,11 @@ static struct com20020_pci_card_info card_info_sohard = {
 	.devcount = 1,
 	/* SOHARD needs PCI base addr 4 */
 	.chan_map_tbl = {
-		{4, 0x00, 0x08},
+		{
+			.bar = 4,
+			.offset = 0x00,
+			.size = 0x08
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -218,7 +228,11 @@ static struct com20020_pci_card_info card_info_eae_arc1 = {
 	.name = "EAE PLX-PCI ARC1",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -227,8 +241,15 @@ static struct com20020_pci_card_info card_info_eae_ma1 = {
 	.name = "EAE PLX-PCI MA1",
 	.devcount = 2,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
-		{ 2, 0x08, 0x08 }
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		}, {
+			.bar = 2,
+			.offset = 0x08,
+			.size = 0x08,
+		}
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -404,7 +425,8 @@ static struct pci_driver com20020pci_driver = {
 
 static int __init com20020pci_init(void)
 {
-	BUGLVL(D_NORMAL) printk(VERSION);
+	if (BUGLVL(D_NORMAL))
+		pr_info("%s\n", "COM20020 PCI support");
 	return pci_register_driver(&com20020pci_driver);
 }
 
