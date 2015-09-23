@@ -152,6 +152,7 @@ struct rocker_fdb_tbl_entry {
 	struct hlist_node entry;
 	u32 key_crc32; /* key */
 	bool learned;
+	unsigned long touched;
 	struct rocker_fdb_tbl_key {
 		u32 pport;
 		u8 addr[ETH_ALEN];
@@ -3629,6 +3630,7 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 		return -ENOMEM;
 
 	fdb->learned = (flags & ROCKER_OP_FLAG_LEARNED);
+	fdb->touched = jiffies;
 	fdb->key.pport = rocker_port->pport;
 	ether_addr_copy(fdb->key.addr, addr);
 	fdb->key.vlan_id = vlan_id;
@@ -3638,13 +3640,17 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 
 	found = rocker_fdb_tbl_find(rocker, fdb);
 
-	if (removing && found) {
-		rocker_port_kfree(trans, fdb);
+	if (found) {
+		found->touched = jiffies;
+		if (removing) {
+			rocker_port_kfree(trans, fdb);
+			if (trans != SWITCHDEV_TRANS_PREPARE)
+				hash_del(&found->entry);
+		}
+	} else if (!removing) {
 		if (trans != SWITCHDEV_TRANS_PREPARE)
-			hash_del(&found->entry);
-	} else if (!removing && !found) {
-		if (trans != SWITCHDEV_TRANS_PREPARE)
-			hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
+			hash_add(rocker->fdb_tbl, &fdb->entry,
+				 fdb->key_crc32);
 	}
 
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
