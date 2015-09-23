@@ -67,29 +67,6 @@ void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(greybus_data_rcvd);
 
-void gb_connection_push_timestamp(struct gb_connection *connection)
-{
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	kfifo_in_locked(&connection->ts_kfifo, (void *)&tv,
-			sizeof(struct timeval), &connection->lock);
-}
-EXPORT_SYMBOL_GPL(gb_connection_push_timestamp);
-
-int gb_connection_pop_timestamp(struct gb_connection *connection,
-				struct timeval *tv)
-{
-	int retval;
-
-	if (!kfifo_len(&connection->ts_kfifo))
-		return -ENOMEM;
-	retval = kfifo_out_locked(&connection->ts_kfifo, (void *)tv,
-				  sizeof(*tv), &connection->lock);
-	return retval;
-}
-EXPORT_SYMBOL_GPL(gb_connection_pop_timestamp);
-
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -138,7 +115,6 @@ static void gb_connection_release(struct device *dev)
 	struct gb_connection *connection = to_gb_connection(dev);
 
 	destroy_workqueue(connection->wq);
-	kfifo_free(&connection->ts_kfifo);
 	kfree(connection);
 }
 
@@ -234,10 +210,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	if (!connection->wq)
 		goto err_free_connection;
 
-	if (kfifo_alloc(&connection->ts_kfifo, GB_CONNECTION_TS_KFIFO_LEN,
-			GFP_KERNEL))
-		goto err_destroy_wq;
-
 	connection->dev.parent = parent;
 	connection->dev.bus = &greybus_bus_type;
 	connection->dev.type = &greybus_connection_type;
@@ -274,8 +246,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	return connection;
 
-err_destroy_wq:
-	destroy_workqueue(connection->wq);
 err_free_connection:
 	kfree(connection);
 err_remove_ida:

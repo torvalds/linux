@@ -57,7 +57,6 @@ struct gb_loopback_device {
 
 	/* Overall stats */
 	struct gb_loopback_stats latency;
-	struct gb_loopback_stats latency_gb;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
 };
@@ -76,14 +75,12 @@ struct gb_loopback {
 
 	/* Per connection stats */
 	struct gb_loopback_stats latency;
-	struct gb_loopback_stats latency_gb;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
 
 	u32 lbid;
 	u32 iteration_count;
 	u64 elapsed_nsecs;
-	u64 elapsed_nsecs_gb;
 	u32 error;
 };
 
@@ -266,9 +263,6 @@ static void gb_loopback_check_attr(struct gb_loopback_device *gb_dev,
 /* Time to send and receive one message */
 gb_loopback_stats_attrs(latency, dev, false);
 gb_loopback_stats_attrs(latency, con, true);
-/* Time to send and receive one message not including greybus */
-gb_loopback_stats_attrs(latency_gb, dev, false);
-gb_loopback_stats_attrs(latency_gb, con, true);
 /* Number of requests sent per second on this cport */
 gb_loopback_stats_attrs(requests_per_second, dev, false);
 gb_loopback_stats_attrs(requests_per_second, con, true);
@@ -303,9 +297,6 @@ static struct attribute *loopback_dev_attrs[] = {
 	&dev_attr_latency_min_dev.attr,
 	&dev_attr_latency_max_dev.attr,
 	&dev_attr_latency_avg_dev.attr,
-	&dev_attr_latency_gb_min_dev.attr,
-	&dev_attr_latency_gb_max_dev.attr,
-	&dev_attr_latency_gb_avg_dev.attr,
 	&dev_attr_requests_per_second_min_dev.attr,
 	&dev_attr_requests_per_second_max_dev.attr,
 	&dev_attr_requests_per_second_avg_dev.attr,
@@ -327,9 +318,6 @@ static struct attribute *loopback_con_attrs[] = {
 	&dev_attr_latency_min_con.attr,
 	&dev_attr_latency_max_con.attr,
 	&dev_attr_latency_avg_con.attr,
-	&dev_attr_latency_gb_min_con.attr,
-	&dev_attr_latency_gb_max_con.attr,
-	&dev_attr_latency_gb_avg_con.attr,
 	&dev_attr_requests_per_second_min_con.attr,
 	&dev_attr_requests_per_second_max_con.attr,
 	&dev_attr_requests_per_second_avg_con.attr,
@@ -422,11 +410,6 @@ error:
 	/* Calculate the total time the message took */
 	gb_loopback_push_latency_ts(gb, &ts, &te);
 	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
-
-	/* Calculate non-greybus related component of the latency */
-	gb_connection_pop_timestamp(gb->connection, &ts);
-	gb_connection_pop_timestamp(gb->connection, &te);
-	gb->elapsed_nsecs_gb = gb_loopback_calc_latency(&ts, &te);
 
 	return ret;
 }
@@ -554,8 +537,6 @@ static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 		mutex_lock(&gb->mutex);
 		memcpy(&gb->latency, &reset,
 		       sizeof(struct gb_loopback_stats));
-		memcpy(&gb->latency_gb, &reset,
-		       sizeof(struct gb_loopback_stats));
 		memcpy(&gb->throughput, &reset,
 		       sizeof(struct gb_loopback_stats));
 		memcpy(&gb->requests_per_second, &reset,
@@ -567,7 +548,6 @@ static void gb_loopback_reset_stats(struct gb_loopback_device *gb_dev)
 	memset(&gb_dev->start, 0, sizeof(struct timeval));
 	memset(&gb_dev->end, 0, sizeof(struct timeval));
 	memcpy(&gb_dev->latency, &reset, sizeof(struct gb_loopback_stats));
-	memcpy(&gb_dev->latency_gb, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->throughput, &reset, sizeof(struct gb_loopback_stats));
 	memcpy(&gb_dev->requests_per_second, &reset,
 	       sizeof(struct gb_loopback_stats));
@@ -679,7 +659,6 @@ error:
 static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 {
 	u32 lat;
-	u64 tmp;
 
 	/* Express latency in terms of microseconds */
 	lat = gb_loopback_nsec_to_usec_latency(gb->elapsed_nsecs);
@@ -694,12 +673,6 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb)
 	/* Log throughput and requests using latency as benchmark */
 	gb_loopback_throughput_update(gb, lat);
 	gb_loopback_requests_update(gb, lat);
-
-	/* Calculate the greybus related latency number in nanoseconds */
-	tmp = gb->elapsed_nsecs - gb->elapsed_nsecs_gb;
-	lat = tmp;
-	gb_loopback_update_stats(&gb_dev.latency_gb, lat);
-	gb_loopback_update_stats(&gb->latency_gb, lat);
 }
 
 static int gb_loopback_fn(void *data)

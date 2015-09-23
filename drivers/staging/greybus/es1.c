@@ -215,7 +215,6 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
-	gb_connection_push_timestamp(message->operation->connection);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);

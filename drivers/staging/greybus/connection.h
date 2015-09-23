@@ -43,7 +43,6 @@ struct gb_connection {
 	struct list_head		operations;
 
 	struct workqueue_struct		*wq;
-	struct kfifo			ts_kfifo;
 
 	atomic_t			op_cycle;
 
@@ -64,9 +63,6 @@ void gb_hd_connections_exit(struct greybus_host_device *hd);
 
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
-void gb_connection_push_timestamp(struct gb_connection *connection);
-int gb_connection_pop_timestamp(struct gb_connection *connection,
-				struct timeval *tv);
 
 int gb_connection_bind_protocol(struct gb_connection *connection);
 
