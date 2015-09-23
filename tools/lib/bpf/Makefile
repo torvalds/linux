@@ -64,8 +64,9 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
 
-FEATURE_DISPLAY = libelf libelf-getphdrnum libelf-mmap bpf
-FEATURE_TESTS = libelf bpf
+FEATURE_USER = .libbpf
+FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
+FEATURE_DISPLAY = libelf bpf
 
 INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)

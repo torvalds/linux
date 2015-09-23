@@ -167,7 +167,7 @@ static int perf_event__prepare_comm(union perf_event *event, pid_t pid,
 	return 0;
 }
 
-static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 union perf_event *event, pid_t pid,
 					 perf_event__handler_t process,
 					 struct machine *machine)

@@ -478,6 +478,11 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 				  const struct perf_sample *sample,
 				  bool swapped);
 
+pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+				  union perf_event *event, pid_t pid,
+				  perf_event__handler_t process,
+				  struct machine *machine);
+
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,
 				       pid_t pid, pid_t tgid,
