@@ -693,8 +693,10 @@ static int gb_loopback_fn(void *data)
 			break;
 
 		mutex_lock(&gb_dev.mutex);
-		if (!gb_loopback_active(gb))
+		if (!gb_loopback_active(gb)) {
+			ms_wait = 100;
 			goto unlock_continue;
+		}
 		if (gb_dev.iteration_max) {
 			/* Determine overall lowest count */
 			low_count = gb->iteration_count;
