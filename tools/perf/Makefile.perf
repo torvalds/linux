@@ -299,7 +299,7 @@ PERF_IN := $(OUTPUT)perf-in.o
 export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
 include $(srctree)/tools/build/Makefile.include
 
-$(PERF_IN): $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h FORCE
+$(PERF_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
@@ -349,27 +349,27 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-single_dep: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
 
-$(OUTPUT)%.o: %.c single_dep FORCE
+$(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.i: %.c single_dep FORCE
+$(OUTPUT)%.i: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.s: %.c single_dep FORCE
+$(OUTPUT)%.s: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%-bison.o: %.c single_dep FORCE
+$(OUTPUT)%-bison.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%-flex.o: %.c single_dep FORCE
+$(OUTPUT)%-flex.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.o: %.S single_dep FORCE
+$(OUTPUT)%.o: %.S prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
-$(OUTPUT)%.i: %.S single_dep FORCE
+$(OUTPUT)%.i: %.S prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)perf-%: %.o $(PERFLIBS)
@@ -591,6 +591,6 @@ FORCE:
 
 .PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
-.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE single_dep
+.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
 .PHONY: libtraceevent_plugins
 
