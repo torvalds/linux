@@ -47,6 +47,8 @@
 #include "../include/lustre_net.h"
 #include "../include/lustre_sec.h"
 
+#include "ptlrpc_internal.h"
+
 static struct ptlrpc_sec_policy null_policy;
 static struct ptlrpc_sec	null_sec;
 static struct ptlrpc_cli_ctx    null_cli_ctx;
