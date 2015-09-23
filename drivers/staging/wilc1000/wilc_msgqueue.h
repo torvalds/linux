@@ -10,7 +10,7 @@
  *  @version	1.0
  */
 
-#include "wilc_platform.h"
+#include <linux/semaphore.h>
 
 /* Message Queue type is a structure */
 typedef struct __Message_struct {
