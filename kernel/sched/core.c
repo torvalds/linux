@@ -1294,7 +1294,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 
 	if (task_cpu(p) != new_cpu) {
 		if (p->sched_class->migrate_task_rq)
-			p->sched_class->migrate_task_rq(p, new_cpu);
+			p->sched_class->migrate_task_rq(p);
 		p->se.nr_migrations++;
 		perf_event_task_migrate(p);
 	}

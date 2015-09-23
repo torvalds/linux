@@ -5009,7 +5009,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
  * previous cpu.  However, the caller only guarantees p->pi_lock is held; no
  * other assumptions, including the state of rq->lock, should be made.
  */
-static void migrate_task_rq_fair(struct task_struct *p, int next_cpu)
+static void migrate_task_rq_fair(struct task_struct *p)
 {
 	/*
 	 * We are supposed to update the task to "current" time, then its up to date
