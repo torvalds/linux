@@ -67,14 +67,31 @@ enum mc_cmd_status {
 	MC_CMD_STATUS_INVALID_STATE = 0xC /* Invalid state */
 };
 
+/*
+ * MC command flags
+ */
+
+/* High priority flag */
+#define MC_CMD_FLAG_PRI		0x00008000
+/* Command completion flag */
+#define MC_CMD_FLAG_INTR_DIS	0x01000000
+
+/*
+ * TODO Remove following two defines after completion of flib 8.0.0
+ * integration
+ */
+#define MC_CMD_PRI_LOW		0 /*!< Low Priority command indication */
+#define MC_CMD_PRI_HIGH		1 /*!< High Priority command indication */
+
 #define MC_CMD_HDR_CMDID_O	52	/* Command ID field offset */
 #define MC_CMD_HDR_CMDID_S	12	/* Command ID field size */
 #define MC_CMD_HDR_TOKEN_O	38	/* Token field offset */
 #define MC_CMD_HDR_TOKEN_S	10	/* Token field size */
 #define MC_CMD_HDR_STATUS_O	16	/* Status field offset */
 #define MC_CMD_HDR_STATUS_S	8	/* Status field size*/
-#define MC_CMD_HDR_PRI_O	15	/* Priority field offset */
-#define MC_CMD_HDR_PRI_S	1	/* Priority field size */
+#define MC_CMD_HDR_FLAGS_O	0	/* Flags field offset */
+#define MC_CMD_HDR_FLAGS_S	32	/* Flags field size*/
+#define MC_CMD_HDR_FLAGS_MASK	0xFF00FF00 /* Command flags mask */
 
 #define MC_CMD_HDR_READ_STATUS(_hdr) \
 	((enum mc_cmd_status)mc_dec((_hdr), \
@@ -83,8 +100,8 @@ enum mc_cmd_status {
 #define MC_CMD_HDR_READ_TOKEN(_hdr) \
 	((uint16_t)mc_dec((_hdr), MC_CMD_HDR_TOKEN_O, MC_CMD_HDR_TOKEN_S))
 
-#define MC_CMD_PRI_LOW		0 /* Low Priority command indication */
-#define MC_CMD_PRI_HIGH		1 /* High Priority command indication */
+#define MC_CMD_HDR_READ_FLAGS(_hdr) \
+	((uint32_t)mc_dec((_hdr), MC_CMD_HDR_FLAGS_O, MC_CMD_HDR_FLAGS_S))
 
 #define MC_EXT_OP(_ext, _param, _offset, _width, _type, _arg) \
 	((_ext)[_param] |= mc_enc((_offset), (_width), _arg))
@@ -96,14 +113,15 @@ enum mc_cmd_status {
 	(_arg = (_type)mc_dec(_cmd.params[_param], (_offset), (_width)))
 
 static inline uint64_t mc_encode_cmd_header(uint16_t cmd_id,
-					    uint8_t priority,
+					    uint32_t cmd_flags,
 					    uint16_t token)
 {
 	uint64_t hdr;
 
 	hdr = mc_enc(MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S, cmd_id);
+	hdr |= mc_enc(MC_CMD_HDR_FLAGS_O, MC_CMD_HDR_FLAGS_S,
+		       (cmd_flags & MC_CMD_HDR_FLAGS_MASK));
 	hdr |= mc_enc(MC_CMD_HDR_TOKEN_O, MC_CMD_HDR_TOKEN_S, token);
-	hdr |= mc_enc(MC_CMD_HDR_PRI_O, MC_CMD_HDR_PRI_S, priority);
 	hdr |= mc_enc(MC_CMD_HDR_STATUS_O, MC_CMD_HDR_STATUS_S,
 		       MC_CMD_STATUS_READY);
 
