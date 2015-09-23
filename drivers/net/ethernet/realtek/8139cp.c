@@ -733,7 +733,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned entry;
-	u32 eor, flags;
+	u32 eor, opts1;
 	unsigned long intr_flags;
 	__le32 opts2;
 	int mss = 0;
@@ -753,6 +753,21 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	mss = skb_shinfo(skb)->gso_size;
 
 	opts2 = cpu_to_le32(cp_tx_vlan_tag(skb));
+	opts1 = DescOwn;
+	if (mss)
+		opts1 |= LargeSend | ((mss & MSSMask) << MSSShift);
+	else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		const struct iphdr *ip = ip_hdr(skb);
+		if (ip->protocol == IPPROTO_TCP)
+			opts1 |= IPCS | TCPCS;
+		else if (ip->protocol == IPPROTO_UDP)
+			opts1 |= IPCS | UDPCS;
+		else {
+			WARN_ONCE(1,
+				  "Net bug: asked to checksum invalid Legacy IP packet\n");
+			goto out_dma_error;
+		}
+	}
 
 	if (skb_shinfo(skb)->nr_frags == 0) {
 		struct cp_desc *txd = &cp->tx_ring[entry];
@@ -768,21 +783,9 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		txd->addr = cpu_to_le64(mapping);
 		wmb();
 
-		flags = eor | len | DescOwn | FirstFrag | LastFrag;
+		opts1 |= eor | len | FirstFrag | LastFrag;
 
-		if (mss)
-			flags |= LargeSend | ((mss & MSSMask) << MSSShift);
-		else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			const struct iphdr *ip = ip_hdr(skb);
-			if (ip->protocol == IPPROTO_TCP)
-				flags |= IPCS | TCPCS;
-			else if (ip->protocol == IPPROTO_UDP)
-				flags |= IPCS | UDPCS;
-			else
-				WARN_ON(1);	/* we need a WARN() */
-		}
-
-		txd->opts1 = cpu_to_le32(flags);
+		txd->opts1 = cpu_to_le32(opts1);
 		wmb();
 
 		cp->tx_skb[entry] = skb;
@@ -793,7 +796,6 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		u32 first_len, first_eor, ctrl;
 		dma_addr_t first_mapping;
 		int frag, first_entry = entry;
-		const struct iphdr *ip = ip_hdr(skb);
 
 		/* We must give this initial chunk to the device last.
 		 * Otherwise we could race with the device.
@@ -825,19 +827,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 
 			eor = (entry == (CP_TX_RING_SIZE - 1)) ? RingEnd : 0;
 
-			ctrl = eor | len | DescOwn;
-
-			if (mss)
-				ctrl |= LargeSend |
-					((mss & MSSMask) << MSSShift);
-			else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-				if (ip->protocol == IPPROTO_TCP)
-					ctrl |= IPCS | TCPCS;
-				else if (ip->protocol == IPPROTO_UDP)
-					ctrl |= IPCS | UDPCS;
-				else
-					BUG();
-			}
+			ctrl = opts1 | eor | len;
 
 			if (frag == skb_shinfo(skb)->nr_frags - 1)
 				ctrl |= LastFrag;
@@ -857,18 +847,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		txd->addr = cpu_to_le64(first_mapping);
 		wmb();
 
-		ctrl = first_eor | first_len | FirstFrag | DescOwn;
-		if (mss)
-			ctrl |= LargeSend | ((mss & MSSMask) << MSSShift);
-		else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (ip->protocol == IPPROTO_TCP)
-				ctrl |= IPCS | TCPCS;
-			else if (ip->protocol == IPPROTO_UDP)
-				ctrl |= IPCS | UDPCS;
-			else
-				BUG();
-		}
-
+		ctrl = opts1 | first_eor | first_len | FirstFrag;
 		txd->opts1 = cpu_to_le32(ctrl);
 		wmb();
 
