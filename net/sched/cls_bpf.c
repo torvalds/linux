@@ -265,8 +265,7 @@ static int cls_bpf_prog_from_ops(struct nlattr **tb, struct cls_bpf_prog *prog)
 	return 0;
 }
 
-static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
-				 const struct tcf_proto *tp)
+static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog)
 {
 	struct bpf_prog *fp;
 	char *name = NULL;
@@ -339,7 +338,7 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	prog->exts_integrated = have_exts;
 
 	ret = is_bpf ? cls_bpf_prog_from_ops(tb, prog) :
-		       cls_bpf_prog_from_efd(tb, prog, tp);
+		       cls_bpf_prog_from_efd(tb, prog);
 	if (ret < 0) {
 		tcf_exts_destroy(&exts);
 		return ret;
@@ -468,6 +467,7 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 {
 	struct cls_bpf_prog *prog = (struct cls_bpf_prog *) fh;
 	struct nlattr *nest;
+	u32 bpf_flags = 0;
 	int ret;
 
 	if (prog == NULL)
@@ -490,6 +490,11 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		goto nla_put_failure;
 
 	if (tcf_exts_dump(skb, &prog->exts) < 0)
+		goto nla_put_failure;
+
+	if (prog->exts_integrated)
+		bpf_flags |= TCA_BPF_FLAG_ACT_DIRECT;
+	if (bpf_flags && nla_put_u32(skb, TCA_BPF_FLAGS, bpf_flags))
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
