@@ -1006,8 +1006,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		ret = mvebu_get_tgt_attr(np, port->devfn, IORESOURCE_MEM,
 					 &port->mem_target, &port->mem_attr);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "PCIe%d.%d: cannot get tgt/attr for mem window\n",
-				port->port, port->lane);
+			dev_err(&pdev->dev, "%s: cannot get tgt/attr for mem window\n",
+				port->name);
 			continue;
 		}
 
@@ -1025,8 +1025,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			u32 reset_udelay = 20000;
 
 			port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
-			port->reset_name = kasprintf(GFP_KERNEL,
-				     "pcie%d.%d-reset", port->port, port->lane);
+			port->reset_name = kasprintf(GFP_KERNEL, "%s-reset",
+						     port->name);
 			of_property_read_u32(child, "reset-delay-us",
 					     &reset_udelay);
 
@@ -1045,8 +1045,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 		port->clk = of_clk_get_by_name(child, NULL);
 		if (IS_ERR(port->clk)) {
-			dev_err(&pdev->dev, "PCIe%d.%d: cannot get clock\n",
-			       port->port, port->lane);
+			dev_err(&pdev->dev, "%s: cannot get clock\n",
+				port->name);
 			continue;
 		}
 
@@ -1056,8 +1056,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
 		if (IS_ERR(port->base)) {
-			dev_err(&pdev->dev, "PCIe%d.%d: cannot map registers\n",
-				port->port, port->lane);
+			dev_err(&pdev->dev, "%s: cannot map registers\n",
+				port->name);
 			port->base = NULL;
 			clk_disable_unprepare(port->clk);
 			continue;
