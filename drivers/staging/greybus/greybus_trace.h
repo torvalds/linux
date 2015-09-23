@@ -15,6 +15,7 @@
 #include <linux/tracepoint.h>
 
 struct gb_message;
+struct greybus_host_device;
 
 DECLARE_EVENT_CLASS(gb_message,
 
@@ -103,6 +104,55 @@ DEFINE_EVENT(gb_message, gb_message_cancel_incoming,
 	TP_PROTO(struct gb_message *message),
 
 	TP_ARGS(message)
+);
+
+DECLARE_EVENT_CLASS(gb_host_device,
+
+	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+		 size_t payload_size),
+
+	TP_ARGS(hd, intf_cport_id, payload_size),
+
+	TP_STRUCT__entry(
+		__string(name, dev_name(hd->parent))
+		__field(u16, intf_cport_id)
+		__field(size_t, payload_size)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev_name(hd->parent))
+		__entry->intf_cport_id = intf_cport_id;
+		__entry->payload_size = payload_size;
+	),
+
+	TP_printk("greybus:%s if_id=%04x l=%zu", __get_str(name),
+		  __entry->intf_cport_id, __entry->payload_size)
+);
+
+/*
+ * tracepoint name	greybus:gb_host_device_send
+ * description		tracepoint representing the point data are transmitted
+ * location		es1.c/es2.c:message_send
+ */
+DEFINE_EVENT(gb_host_device, gb_host_device_send,
+
+	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+		 size_t payload_size),
+
+	TP_ARGS(hd, intf_cport_id, payload_size)
+);
+
+/*
+ * tracepoint name	greybus:gb_host_device_recv
+ * description		tracepoint representing the point data are received
+ * location		es1.c/es2.c:cport_in_callback
+ */
+DEFINE_EVENT(gb_host_device, gb_host_device_recv,
+
+	TP_PROTO(struct greybus_host_device *hd, u16 intf_cport_id,
+		 size_t payload_size),
+
+	TP_ARGS(hd, intf_cport_id, payload_size)
 );
 
 #endif /* _TRACE_GREYBUS_H */
