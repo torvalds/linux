@@ -47,6 +47,7 @@
 #include "sunxi-common-regulators.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Gemei G9 Tablet";
@@ -64,7 +65,7 @@
 /*
  * TODO:
  *   2x cameras via CSI
- *   bma250 IRQs
+ *   audio
  *   AXP battery management
  *   NAND
  *   OTG
@@ -103,12 +104,8 @@
 	bma250@18 {
 		compatible = "bosch,bma250";
 		reg = <0x18>;
-
-		/*
-		 * TODO: interrupt pins:
-		 * int1 - PH00
-		 * int2 - PI10
-		 */
+		interrupt-parent = <&pio>;
+		interrupts = <7 0 IRQ_TYPE_EDGE_RISING>; /* PH00 / EINT0 */
 	};
 };
 
