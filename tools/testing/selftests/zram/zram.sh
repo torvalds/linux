@@ -1,15 +1,7 @@
 #!/bin/bash
 TCID="zram.sh"
 
-check_prereqs()
-{
-	local msg="skip all tests:"
-
-	if [ $UID != 0 ]; then
-		echo $msg must be run as root >&2
-		exit 0
-	fi
-}
+. ./zram_lib.sh
 
 run_zram () {
 echo "--------------------"
