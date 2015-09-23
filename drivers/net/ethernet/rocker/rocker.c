@@ -154,7 +154,7 @@ struct rocker_fdb_tbl_entry {
 	bool learned;
 	unsigned long touched;
 	struct rocker_fdb_tbl_key {
-		u32 pport;
+		struct rocker_port *rocker_port;
 		u8 addr[ETH_ALEN];
 		__be16 vlan_id;
 	} key;
@@ -3631,7 +3631,7 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 
 	fdb->learned = (flags & ROCKER_OP_FLAG_LEARNED);
 	fdb->touched = jiffies;
-	fdb->key.pport = rocker_port->pport;
+	fdb->key.rocker_port = rocker_port;
 	ether_addr_copy(fdb->key.addr, addr);
 	fdb->key.vlan_id = vlan_id;
 	fdb->key_crc32 = crc32(~0, &fdb->key, sizeof(fdb->key));
@@ -3686,7 +3686,7 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.pport != rocker_port->pport)
+		if (found->key.rocker_port != rocker_port)
 			continue;
 		if (!found->learned)
 			continue;
@@ -4553,7 +4553,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 
 	spin_lock_irqsave(&rocker->fdb_tbl_lock, lock_flags);
 	hash_for_each_safe(rocker->fdb_tbl, bkt, tmp, found, entry) {
-		if (found->key.pport != rocker_port->pport)
+		if (found->key.rocker_port != rocker_port)
 			continue;
 		fdb->addr = found->key.addr;
 		fdb->ndm_state = NUD_REACHABLE;
