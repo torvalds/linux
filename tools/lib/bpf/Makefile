@@ -124,7 +124,7 @@ endif
 MAKEOVERRIDES=
 
 export srctree OUTPUT CC LD CFLAGS V
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))

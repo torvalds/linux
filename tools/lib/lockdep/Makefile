@@ -94,7 +94,7 @@ else
 endif
 
 export srctree OUTPUT CC LD CFLAGS V
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\

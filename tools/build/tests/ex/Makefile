@@ -3,7 +3,8 @@ export CC      := gcc
 export LD      := ld
 export AR      := ar
 
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
+
 ex: ex-in.o libex-in.o
 	gcc -o $@ $^
 

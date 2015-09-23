@@ -297,7 +297,7 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 PERF_IN := $(OUTPUT)perf-in.o
 
 export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 $(PERF_IN): $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h FORCE
 	$(Q)$(MAKE) $(build)=perf
