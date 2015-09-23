@@ -38,7 +38,6 @@
 
 #define BMC150_ACCEL_DRV_NAME			"bmc150_accel"
 #define BMC150_ACCEL_IRQ_NAME			"bmc150_accel_event"
-#define BMC150_ACCEL_GPIO_NAME			"bmc150_accel_int"
 
 #define BMC150_ACCEL_REG_CHIP_ID		0x00
 
@@ -1360,32 +1359,6 @@ static irqreturn_t bmc150_accel_irq_handler(int irq, void *private)
 	return IRQ_NONE;
 }
 
-static int bmc150_accel_gpio_probe(struct i2c_client *client,
-				   struct bmc150_accel_data *data)
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-	int ret;
-
-	if (!client)
-		return -EINVAL;
-
-	dev = &client->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, BMC150_ACCEL_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "Failed: gpio get index\n");
-		return PTR_ERR(gpio);
-	}
-
-	ret = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio), ret);
-
-	return ret;
-}
-
 static const struct {
 	int intr;
 	const char *name;
@@ -1658,9 +1631,6 @@ static int bmc150_accel_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed: iio triggered buffer setup\n");
 		return ret;
 	}
-
-	if (client->irq < 0)
-		client->irq = bmc150_accel_gpio_probe(client, data);
 
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(
