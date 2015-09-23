@@ -6,6 +6,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/clock/hi6220-clock.h>
 
 / {
 	compatible = "hisilicon,hi6220";
@@ -565,6 +566,23 @@
 			#interrupt-cells = <2>;
 			clocks = <&ao_ctrl 2>;
 			clock-names = "apb_pclk";
+			status = "ok";
+		};
+
+		i2c2: i2c@f7102000 {
+			compatible = "snps,designware-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0xf7102000 0x0 0x1000>;
+			interrupts = <0 46 4>;
+
+			clocks = <&sys_ctrl HI6220_I2C2_CLK>;
+			clock-names = "clk_i2c2";
+			i2c-sda-hold-time-ns = <300>;
+			delay-reg = <0x0 0x0f8 0x0 4>;
+			reset-controller-reg = <0x330 0x334 0x338 3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2_pmx_func &i2c2_cfg_func>;
 			status = "ok";
 		};
 
