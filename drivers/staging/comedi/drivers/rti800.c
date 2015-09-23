@@ -57,14 +57,14 @@
  * Register map
  */
 #define RTI800_CSR		0x00
-#define RTI800_CSR_BUSY		(1 << 7)
-#define RTI800_CSR_DONE		(1 << 6)
-#define RTI800_CSR_OVERRUN	(1 << 5)
-#define RTI800_CSR_TCR		(1 << 4)
-#define RTI800_CSR_DMA_ENAB	(1 << 3)
-#define RTI800_CSR_INTR_TC	(1 << 2)
-#define RTI800_CSR_INTR_EC	(1 << 1)
-#define RTI800_CSR_INTR_OVRN	(1 << 0)
+#define RTI800_CSR_BUSY		BIT(7)
+#define RTI800_CSR_DONE		BIT(6)
+#define RTI800_CSR_OVERRUN	BIT(5)
+#define RTI800_CSR_TCR		BIT(4)
+#define RTI800_CSR_DMA_ENAB	BIT(3)
+#define RTI800_CSR_INTR_TC	BIT(2)
+#define RTI800_CSR_INTR_EC	BIT(1)
+#define RTI800_CSR_INTR_OVRN	BIT(0)
 #define RTI800_MUXGAIN		0x01
 #define RTI800_CONVERT		0x02
 #define RTI800_ADCLO		0x03
