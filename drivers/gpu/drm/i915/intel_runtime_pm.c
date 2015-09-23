@@ -1828,7 +1828,6 @@ static void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
 
 	/* Make sure we're not suspended first. */
 	pm_runtime_get_sync(device);
-	pm_runtime_disable(device);
 }
 
 /**
@@ -2119,8 +2118,6 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 
 	if (!HAS_RUNTIME_PM(dev))
 		return;
-
-	pm_runtime_set_active(device);
 
 	/*
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
