@@ -246,19 +246,11 @@ static int mt8173_rt5650_rt5676_dev_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 
-	ret = snd_soc_register_card(card);
+	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err(&pdev->dev, "%s snd_soc_register_card fail %d\n",
 			__func__, ret);
 	return ret;
-}
-
-static int mt8173_rt5650_rt5676_dev_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-	return 0;
 }
 
 static const struct of_device_id mt8173_rt5650_rt5676_dt_match[] = {
@@ -276,7 +268,6 @@ static struct platform_driver mt8173_rt5650_rt5676_driver = {
 #endif
 	},
 	.probe = mt8173_rt5650_rt5676_dev_probe,
-	.remove = mt8173_rt5650_rt5676_dev_remove,
 };
 
 module_platform_driver(mt8173_rt5650_rt5676_driver);
