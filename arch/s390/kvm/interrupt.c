@@ -839,7 +839,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	vcpu->stat.exit_wait_state++;
 
 	/* fast path */
-	if (kvm_cpu_has_pending_timer(vcpu) || kvm_arch_vcpu_runnable(vcpu))
+	if (kvm_arch_vcpu_runnable(vcpu))
 		return 0;
 
 	if (psw_interrupts_disabled(vcpu)) {
