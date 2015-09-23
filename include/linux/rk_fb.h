@@ -135,10 +135,22 @@ extern bool rk_fb_poll_wait_frame_complete(void);
 #define OUT_D888_P666       0x21	//18bit screen,connect to lcdc D2~D7, D10~D15, D18~D23
 #define OUT_D888_P565       0x22
 
+enum {
+	CSC_BT601,
+	CSC_BT709,
+	CSC_BT2020,
+};
+#define CSC_SHIFT	6
+#define CSC_MASK	(0x3 << CSC_SHIFT)
+#define CSC_FORMAT(x)	(((x) & CSC_MASK) >> CSC_SHIFT)
+
+#define BT601(x)	((CSC_BT601 << CSC_SHIFT) | ((x) & ~CSC_MASK))
+#define BT709(x)	((CSC_BT709 << CSC_SHIFT) | ((x) & ~CSC_MASK))
+#define BT2020(x)	((CSC_BT2020 << CSC_SHIFT) | ((x) & ~CSC_MASK))
+
 /**
  * pixel format definitions,this is copy from android/system/core/include/system/graphics.h
  */
-
 enum {
 	HAL_PIXEL_FORMAT_RGBA_8888 = 1,
 	HAL_PIXEL_FORMAT_RGBX_8888 = 2,
@@ -187,6 +199,10 @@ enum {
 	HAL_PIXEL_FORMAT_YV12 = 0x32315659,	// YCrCb 4:2:0 Planar
 
 	/* Legacy formats (deprecated), used by ImageFormat.java */
+
+	/*
+	 * YCbCr format default is BT601.
+	 */
 	HAL_PIXEL_FORMAT_YCbCr_422_SP = 0x10,	// NV16
 	HAL_PIXEL_FORMAT_YCrCb_420_SP = 0x11,	// NV21
 	HAL_PIXEL_FORMAT_YCbCr_422_I = 0x14,	// YUY2
@@ -202,6 +218,29 @@ enum {
 	HAL_PIXEL_FORMAT_FBDC_U8U8U8U8	= 0x27, /*ARGB888*/
 	HAL_PIXEL_FORMAT_FBDC_U8U8U8	= 0x28, /*RGBP888*/
 	HAL_PIXEL_FORMAT_FBDC_RGBA888	= 0x29, /*ABGR888*/
+
+	HAL_PIXEL_FORMAT_YCrCb_NV12_BT709 =
+			BT709(HAL_PIXEL_FORMAT_YCrCb_NV12),
+	HAL_PIXEL_FORMAT_YCrCb_NV12_VIDEO_BT709 =
+			BT709(HAL_PIXEL_FORMAT_YCrCb_NV12_VIDEO),
+	HAL_PIXEL_FORMAT_YCbCr_422_SP_BT709 =
+			BT709(HAL_PIXEL_FORMAT_YCbCr_422_SP),
+	HAL_PIXEL_FORMAT_YCrCb_444_BT709 =
+			BT709(HAL_PIXEL_FORMAT_YCrCb_444),
+
+	HAL_PIXEL_FORMAT_YCrCb_NV12_10_BT709 =
+			BT709(HAL_PIXEL_FORMAT_YCrCb_NV12_10),
+	HAL_PIXEL_FORMAT_YCbCr_422_SP_10_BT709	=
+			BT709(HAL_PIXEL_FORMAT_YCbCr_422_SP_10),
+	HAL_PIXEL_FORMAT_YCrCb_420_SP_10_BT709	=
+			BT709(HAL_PIXEL_FORMAT_YCrCb_444_SP_10),
+
+	HAL_PIXEL_FORMAT_YCrCb_NV12_10_BT2020 =
+			BT2020(HAL_PIXEL_FORMAT_YCrCb_NV12_10),
+	HAL_PIXEL_FORMAT_YCbCr_422_SP_10_BT2020	=
+			BT2020(HAL_PIXEL_FORMAT_YCbCr_422_SP_10),
+	HAL_PIXEL_FORMAT_YCrCb_420_SP_10_BT2020	=
+			BT2020(HAL_PIXEL_FORMAT_YCrCb_444_SP_10),
 };
 
 //display data format
@@ -381,6 +420,7 @@ struct rk_lcdc_win {
 	u32 pseudo_pal[16];
 	int z_order;		/*win sel layer*/
 	u8 fmt_10;
+	u8 colorspace;
 	u32 reserved;
 	u32 area_num;
 	u32 scale_yrgb_x;
@@ -571,6 +611,7 @@ struct rk_fb_reg_win_data {
 	u8 alpha_mode;
 	u16 g_alpha_val;
 	u8  mirror_en;
+	u8 colorspace;
 
 	struct rk_fb_reg_area_data reg_area_data[RK_WIN_MAX_AREA];
 };

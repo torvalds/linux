@@ -1569,6 +1569,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 		win->alpha_mode = reg_win_data->alpha_mode;
 		win->g_alpha_val = reg_win_data->g_alpha_val;
 		win->mirror_en = reg_win_data->mirror_en;
+		win->colorspace = reg_win_data->colorspace;
 		win->area[0].fbdc_en =
 			reg_win_data->reg_area_data[0].fbdc_en;
 		win->area[0].fbdc_cor_en =
@@ -2163,9 +2164,11 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 	reg_win_data->mirror_en = win_par->mirror_en;
 	for (i = 0; i < reg_win_data->area_num; i++) {
+		u8 data_format = win_par->area_par[i].data_format;
 		/*rk_fb_check_config_var(&win_par->area_par[i], screen);*/
-
-		fb_data_fmt = rk_fb_data_fmt(win_par->area_par[i].data_format, 0);
+		reg_win_data->colorspace = CSC_FORMAT(data_format);
+		data_format &= ~CSC_MASK;
+		fb_data_fmt = rk_fb_data_fmt(data_format, 0);
 		reg_win_data->reg_area_data[i].data_format = fb_data_fmt;
 		if (fb_data_fmt >= FBDC_RGB_565) {
 			reg_win_data->reg_area_data[i].fbdc_en = 1;
@@ -3110,6 +3113,8 @@ static int rk_fb_set_par(struct fb_info *info)
 		ysize = screen->mode.yres;
 	}
 
+	win->colorspace = CSC_FORMAT(data_format);
+	data_format &= ~CSC_MASK;
 	fb_data_fmt = rk_fb_data_fmt(data_format, var->bits_per_pixel);
 	if (fb_data_fmt >= FBDC_RGB_565) {
 		win->area[0].fbdc_en = 1;
