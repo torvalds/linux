@@ -777,8 +777,6 @@
 #define RT5645_PWR_CLS_D_R_BIT			9
 #define RT5645_PWR_CLS_D_L			(0x1 << 8)
 #define RT5645_PWR_CLS_D_L_BIT			8
-#define RT5645_PWR_ADC_R			(0x1 << 1)
-#define RT5645_PWR_ADC_R_BIT			1
 #define RT5645_PWR_DAC_L2			(0x1 << 7)
 #define RT5645_PWR_DAC_L2_BIT			7
 #define RT5645_PWR_DAC_R2			(0x1 << 6)
