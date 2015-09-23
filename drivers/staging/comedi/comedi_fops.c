@@ -61,12 +61,12 @@
 #define COMEDI_SRF_BUSY_MASK	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING)
 
 /**
- * struct comedi_file - per-file private data for comedi device
- * @dev: comedi_device struct
- * @read_subdev: current "read" subdevice
- * @write_subdev: current "write" subdevice
- * @last_detach_count: last known detach count
- * @last_attached: last known attached/detached state
+ * struct comedi_file - Per-file private data for COMEDI device
+ * @dev: COMEDI device.
+ * @read_subdev: Current "read" subdevice.
+ * @write_subdev: Current "write" subdevice.
+ * @last_detach_count: Last known detach count.
+ * @last_attached: Last known attached/detached state.
  */
 struct comedi_file {
 	struct comedi_device *dev;
@@ -131,15 +131,15 @@ static void comedi_dev_kref_release(struct kref *kref)
 }
 
 /**
- * comedi_dev_put - release a use of a comedi device structure
- * @dev: comedi_device struct
+ * comedi_dev_put() - Release a use of a COMEDI device
+ * @dev: COMEDI device.
  *
- * Must be called when a user of a comedi device is finished with it.
- * When the last user of the comedi device calls this function, the
- * comedi device is destroyed.
+ * Must be called when a user of a COMEDI device is finished with it.
+ * When the last user of the COMEDI device calls this function, the
+ * COMEDI device is destroyed.
  *
- * Return 1 if the comedi device is destroyed by this call or dev is
- * NULL, otherwise return 0.  Callers must not assume the comedi
+ * Return: 1 if the COMEDI device is destroyed by this call or @dev is
+ * NULL, otherwise return 0.  Callers must not assume the COMEDI
  * device is still valid if this function returns 0.
  */
 int comedi_dev_put(struct comedi_device *dev)
@@ -247,15 +247,15 @@ static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned minor)
 }
 
 /**
- * comedi_dev_get_from_minor - get comedi device by minor device number
- * @minor: minor device number
+ * comedi_dev_get_from_minor() - Get COMEDI device by minor device number
+ * @minor: Minor device number.
  *
- * Finds the comedi device associated by the minor device number, if any,
- * and increments its reference count.  The comedi device is prevented from
+ * Finds the COMEDI device associated with the minor device number, if any,
+ * and increments its reference count.  The COMEDI device is prevented from
  * being freed until a matching call is made to comedi_dev_put().
  *
- * Return a pointer to the comedi device if it exists, with its usage
- * reference incremented.  Return NULL if no comedi device exists with the
+ * Return: A pointer to the COMEDI device if it exists, with its usage
+ * reference incremented.  Return NULL if no COMEDI device exists with the
  * specified minor device number.
  */
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
@@ -665,11 +665,11 @@ static bool comedi_is_runflags_in_error(unsigned runflags)
 }
 
 /**
- * comedi_is_subdevice_running - check if async command running on subdevice
- * @s: comedi_subdevice struct
+ * comedi_is_subdevice_running() - Check if async command running on subdevice
+ * @s: COMEDI subdevice.
  *
- * Return true if an asynchronous comedi command is active on the comedi
- * subdevice, else return false.
+ * Return: %true if an asynchronous COMEDI command is active on the
+ * subdevice, else %false.
  */
 bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 {
@@ -701,11 +701,12 @@ bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 }
 
 /**
- * comedi_set_spriv_auto_free - mark subdevice private data as freeable
- * @s: comedi_subdevice struct
+ * comedi_set_spriv_auto_free() - Mark subdevice private data as freeable
+ * @s: COMEDI subdevice.
  *
  * Mark the subdevice as having a pointer to private data that can be
- * automatically freed by the comedi core during the detach.
+ * automatically freed when the COMEDI device is detached from the low-level
+ * driver.
  */
 void comedi_set_spriv_auto_free(struct comedi_subdevice *s)
 {
@@ -714,12 +715,16 @@ void comedi_set_spriv_auto_free(struct comedi_subdevice *s)
 EXPORT_SYMBOL_GPL(comedi_set_spriv_auto_free);
 
 /**
- * comedi_alloc_spriv - Allocate memory for the subdevice private data.
- * @s: comedi_subdevice struct
- * @size: size of the memory to allocate
+ * comedi_alloc_spriv - Allocate memory for the subdevice private data
+ * @s: COMEDI subdevice.
+ * @size: Size of the memory to allocate.
  *
- * This also sets the subdevice runflags to allow the core to automatically
- * free the private data during the detach.
+ * Allocate memory for the subdevice private data and point @s->private
+ * to it.  The memory will be freed automatically when the COMEDI device
+ * is detached from the low-level driver.
+ *
+ * Return: A pointer to the allocated memory @s->private on success.
+ * Return NULL on failure.
  */
 void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
@@ -2686,15 +2691,15 @@ static const struct file_operations comedi_fops = {
 };
 
 /**
- * comedi_event - handle events for asynchronous comedi command
- * @dev: comedi_device struct
- * @s: comedi_subdevice struct associated with dev
- * Context: interrupt (usually), s->spin_lock spin-lock not held
+ * comedi_event() - Handle events for asynchronous COMEDI command
+ * @dev: COMEDI device.
+ * @s: COMEDI subdevice.
+ * Context: in_interrupt() (usually), @s->spin_lock spin-lock not held.
  *
- * If an asynchronous comedi command is active on the subdevice, process
- * any COMEDI_CB_... event flags that have been set, usually by an
+ * If an asynchronous COMEDI command is active on the subdevice, process
+ * any %COMEDI_CB_... event flags that have been set, usually by an
  * interrupt handler.  These may change the run state of the asynchronous
- * command, wake a task, and/or send a SIGIO signal.
+ * command, wake a task, and/or send a %SIGIO signal.
  */
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
