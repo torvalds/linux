@@ -40,6 +40,20 @@ extern int __qcom_scm_hdcp_req(struct device *dev,
 
 extern void __qcom_scm_init(void);
 
+#define QCOM_SCM_SVC_PIL		0x2
+#define QCOM_SCM_PAS_INIT_IMAGE_CMD	0x1
+#define QCOM_SCM_PAS_MEM_SETUP_CMD	0x2
+#define QCOM_SCM_PAS_AUTH_AND_RESET_CMD	0x5
+#define QCOM_SCM_PAS_SHUTDOWN_CMD	0x6
+#define QCOM_SCM_PAS_IS_SUPPORTED_CMD	0x7
+extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
+extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
+		dma_addr_t metadata_phys);
+extern int  __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
+		phys_addr_t addr, phys_addr_t size);
+extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
+extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
+
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
 #define QCOM_SCM_ENOMEM		-5

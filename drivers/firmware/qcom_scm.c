@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
+#include <linux/dma-mapping.h>
 #include <linux/types.h>
 #include <linux/qcom_scm.h>
 #include <linux/of.h>
@@ -148,6 +149,139 @@ int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_hdcp_req);
+
+/**
+ * qcom_scm_pas_supported() - Check if the peripheral authentication service is
+ *			      available for the given peripherial
+ * @peripheral:	peripheral id
+ *
+ * Returns true if PAS is supported for this peripheral, otherwise false.
+ */
+bool qcom_scm_pas_supported(u32 peripheral)
+{
+	int ret;
+
+	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
+					   QCOM_SCM_PAS_IS_SUPPORTED_CMD);
+	if (ret <= 0)
+		return false;
+
+	return __qcom_scm_pas_supported(__scm->dev, peripheral);
+}
+EXPORT_SYMBOL(qcom_scm_pas_supported);
+
+/**
+ * qcom_scm_pas_init_image() - Initialize peripheral authentication service
+ *			       state machine for a given peripheral, using the
+ *			       metadata
+ * @peripheral: peripheral id
+ * @metadata:	pointer to memory containing ELF header, program header table
+ *		and optional blob of data used for authenticating the metadata
+ *		and the rest of the firmware
+ * @size:	size of the metadata
+ *
+ * Returns 0 on success.
+ */
+int qcom_scm_pas_init_image(u32 peripheral, const void *metadata, size_t size)
+{
+	dma_addr_t mdata_phys;
+	void *mdata_buf;
+	int ret;
+
+	/*
+	 * During the scm call memory protection will be enabled for the meta
+	 * data blob, so make sure it's physically contiguous, 4K aligned and
+	 * non-cachable to avoid XPU violations.
+	 */
+	mdata_buf = dma_alloc_coherent(__scm->dev, size, &mdata_phys,
+				       GFP_KERNEL);
+	if (!mdata_buf) {
+		dev_err(__scm->dev, "Allocation of metadata buffer failed.\n");
+		return -ENOMEM;
+	}
+	memcpy(mdata_buf, metadata, size);
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		goto free_metadata;
+
+	ret = __qcom_scm_pas_init_image(__scm->dev, peripheral, mdata_phys);
+
+	qcom_scm_clk_disable();
+
+free_metadata:
+	dma_free_coherent(__scm->dev, size, mdata_buf, mdata_phys);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pas_init_image);
+
+/**
+ * qcom_scm_pas_mem_setup() - Prepare the memory related to a given peripheral
+ *			      for firmware loading
+ * @peripheral:	peripheral id
+ * @addr:	start address of memory area to prepare
+ * @size:	size of the memory area to prepare
+ *
+ * Returns 0 on success.
+ */
+int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr, phys_addr_t size)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_pas_mem_setup(__scm->dev, peripheral, addr, size);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pas_mem_setup);
+
+/**
+ * qcom_scm_pas_auth_and_reset() - Authenticate the given peripheral firmware
+ *				   and reset the remote processor
+ * @peripheral:	peripheral id
+ *
+ * Return 0 on success.
+ */
+int qcom_scm_pas_auth_and_reset(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_pas_auth_and_reset(__scm->dev, peripheral);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pas_auth_and_reset);
+
+/**
+ * qcom_scm_pas_shutdown() - Shut down the remote processor
+ * @peripheral: peripheral id
+ *
+ * Returns 0 on success.
+ */
+int qcom_scm_pas_shutdown(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_pas_shutdown(__scm->dev, peripheral);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pas_shutdown);
 
 static int qcom_scm_probe(struct platform_device *pdev)
 {

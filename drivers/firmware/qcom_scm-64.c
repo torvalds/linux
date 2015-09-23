@@ -27,6 +27,13 @@
 #define MAX_QCOM_SCM_ARGS 10
 #define MAX_QCOM_SCM_RETS 3
 
+enum qcom_scm_arg_types {
+	QCOM_SCM_VAL,
+	QCOM_SCM_RO,
+	QCOM_SCM_RW,
+	QCOM_SCM_BUFVAL,
+};
+
 #define QCOM_SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\
 			   (((a) & 0x3) << 4) | \
 			   (((b) & 0x3) << 6) | \
@@ -252,4 +259,86 @@ void __qcom_scm_init(void)
 		qcom_smccc_convention = ARM_SMCCC_SMC_64;
 	else
 		qcom_smccc_convention = ARM_SMCCC_SMC_32;
+}
+
+bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_IS_SUPPORTED_CMD,
+				&desc, &res);
+
+	return ret ? false : !!res.a1;
+}
+
+int __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
+			      dma_addr_t metadata_phys)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = metadata_phys;
+	desc.arginfo = QCOM_SCM_ARGS(2, QCOM_SCM_VAL, QCOM_SCM_RW);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_INIT_IMAGE_CMD,
+				&desc, &res);
+
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
+			      phys_addr_t addr, phys_addr_t size)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = addr;
+	desc.args[2] = size;
+	desc.arginfo = QCOM_SCM_ARGS(3);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_MEM_SETUP_CMD,
+				&desc, &res);
+
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
+				&desc, &res);
+
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_SHUTDOWN_CMD,
+			&desc, &res);
+
+	return ret ? : res.a1;
 }
