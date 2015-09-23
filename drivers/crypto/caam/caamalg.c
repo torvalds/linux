@@ -1708,11 +1708,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 /*
  * aead_edesc - s/w-extended aead descriptor
  * @assoc_nents: number of segments in associated data (SPI+Seq) scatterlist
- * @assoc_chained: if source is chained
  * @src_nents: number of segments in input scatterlist
- * @src_chained: if source is chained
  * @dst_nents: number of segments in output scatterlist
- * @dst_chained: if destination is chained
  * @iv_dma: dma address of iv for checking continuity and link table
  * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
@@ -1721,11 +1718,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
  */
 struct aead_edesc {
 	int assoc_nents;
-	bool assoc_chained;
 	int src_nents;
-	bool src_chained;
 	int dst_nents;
-	bool dst_chained;
 	dma_addr_t iv_dma;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
@@ -1736,9 +1730,7 @@ struct aead_edesc {
 /*
  * ablkcipher_edesc - s/w-extended ablkcipher descriptor
  * @src_nents: number of segments in input scatterlist
- * @src_chained: if source is chained
  * @dst_nents: number of segments in output scatterlist
- * @dst_chained: if destination is chained
  * @iv_dma: dma address of iv for checking continuity and link table
  * @desc: h/w descriptor (variable length; must not exceed MAX_CAAM_DESCSIZE)
  * @sec4_sg_bytes: length of dma mapped sec4_sg space
@@ -1747,9 +1739,7 @@ struct aead_edesc {
  */
 struct ablkcipher_edesc {
 	int src_nents;
-	bool src_chained;
 	int dst_nents;
-	bool dst_chained;
 	dma_addr_t iv_dma;
 	int sec4_sg_bytes;
 	dma_addr_t sec4_sg_dma;
@@ -1759,18 +1749,15 @@ struct ablkcipher_edesc {
 
 static void caam_unmap(struct device *dev, struct scatterlist *src,
 		       struct scatterlist *dst, int src_nents,
-		       bool src_chained, int dst_nents, bool dst_chained,
+		       int dst_nents,
 		       dma_addr_t iv_dma, int ivsize, dma_addr_t sec4_sg_dma,
 		       int sec4_sg_bytes)
 {
 	if (dst != src) {
-		dma_unmap_sg_chained(dev, src, src_nents ? : 1, DMA_TO_DEVICE,
-				     src_chained);
-		dma_unmap_sg_chained(dev, dst, dst_nents ? : 1, DMA_FROM_DEVICE,
-				     dst_chained);
+		dma_unmap_sg(dev, src, src_nents ? : 1, DMA_TO_DEVICE);
+		dma_unmap_sg(dev, dst, dst_nents ? : 1, DMA_FROM_DEVICE);
 	} else {
-		dma_unmap_sg_chained(dev, src, src_nents ? : 1,
-				     DMA_BIDIRECTIONAL, src_chained);
+		dma_unmap_sg(dev, src, src_nents ? : 1, DMA_BIDIRECTIONAL);
 	}
 
 	if (iv_dma)
@@ -1785,8 +1772,7 @@ static void aead_unmap(struct device *dev,
 		       struct aead_request *req)
 {
 	caam_unmap(dev, req->src, req->dst,
-		   edesc->src_nents, edesc->src_chained, edesc->dst_nents,
-		   edesc->dst_chained, 0, 0,
+		   edesc->src_nents, edesc->dst_nents, 0, 0,
 		   edesc->sec4_sg_dma, edesc->sec4_sg_bytes);
 }
 
@@ -1798,8 +1784,8 @@ static void ablkcipher_unmap(struct device *dev,
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 
 	caam_unmap(dev, req->src, req->dst,
-		   edesc->src_nents, edesc->src_chained, edesc->dst_nents,
-		   edesc->dst_chained, edesc->iv_dma, ivsize,
+		   edesc->src_nents, edesc->dst_nents,
+		   edesc->iv_dma, ivsize,
 		   edesc->sec4_sg_dma, edesc->sec4_sg_bytes);
 }
 
@@ -2169,22 +2155,18 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	struct aead_edesc *edesc;
 	int sgc;
 	bool all_contig = true;
-	bool src_chained = false, dst_chained = false;
 	int sec4_sg_index, sec4_sg_len = 0, sec4_sg_bytes;
 	unsigned int authsize = ctx->authsize;
 
 	if (unlikely(req->dst != req->src)) {
-		src_nents = sg_count(req->src, req->assoclen + req->cryptlen,
-				     &src_chained);
+		src_nents = sg_count(req->src, req->assoclen + req->cryptlen);
 		dst_nents = sg_count(req->dst,
 				     req->assoclen + req->cryptlen +
-					(encrypt ? authsize : (-authsize)),
-				     &dst_chained);
+					(encrypt ? authsize : (-authsize)));
 	} else {
 		src_nents = sg_count(req->src,
 				     req->assoclen + req->cryptlen +
-					(encrypt ? authsize : 0),
-				     &src_chained);
+					(encrypt ? authsize : 0));
 	}
 
 	/* Check if data are contiguous. */
@@ -2207,37 +2189,35 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	}
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_BIDIRECTIONAL, src_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_BIDIRECTIONAL);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			kfree(edesc);
 			return ERR_PTR(-ENOMEM);
 		}
 	} else {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_TO_DEVICE, src_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_TO_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map source\n");
 			kfree(edesc);
 			return ERR_PTR(-ENOMEM);
 		}
 
-		sgc = dma_map_sg_chained(jrdev, req->dst, dst_nents ? : 1,
-					 DMA_FROM_DEVICE, dst_chained);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
+				 DMA_FROM_DEVICE);
 		if (unlikely(!sgc)) {
 			dev_err(jrdev, "unable to map destination\n");
-			dma_unmap_sg_chained(jrdev, req->src, src_nents ? : 1,
-					     DMA_TO_DEVICE, src_chained);
+			dma_unmap_sg(jrdev, req->src, src_nents ? : 1,
+				     DMA_TO_DEVICE);
 			kfree(edesc);
 			return ERR_PTR(-ENOMEM);
 		}
 	}
 
 	edesc->src_nents = src_nents;
-	edesc->src_chained = src_chained;
 	edesc->dst_nents = dst_nents;
-	edesc->dst_chained = dst_chained;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct aead_edesc) +
 			 desc_bytes;
 	*all_contig_ptr = all_contig;
@@ -2467,22 +2447,21 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	bool iv_contig = false;
 	int sgc;
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	bool src_chained = false, dst_chained = false;
 	int sec4_sg_index;
 
-	src_nents = sg_count(req->src, req->nbytes, &src_chained);
+	src_nents = sg_count(req->src, req->nbytes);
 
 	if (req->dst != req->src)
-		dst_nents = sg_count(req->dst, req->nbytes, &dst_chained);
+		dst_nents = sg_count(req->dst, req->nbytes);
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_BIDIRECTIONAL, src_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_BIDIRECTIONAL);
 	} else {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_TO_DEVICE, src_chained);
-		sgc = dma_map_sg_chained(jrdev, req->dst, dst_nents ? : 1,
-					 DMA_FROM_DEVICE, dst_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_TO_DEVICE);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
+				 DMA_FROM_DEVICE);
 	}
 
 	iv_dma = dma_map_single(jrdev, req->info, ivsize, DMA_TO_DEVICE);
@@ -2511,9 +2490,7 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	}
 
 	edesc->src_nents = src_nents;
-	edesc->src_chained = src_chained;
 	edesc->dst_nents = dst_nents;
-	edesc->dst_chained = dst_chained;
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
@@ -2646,22 +2623,21 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	bool iv_contig = false;
 	int sgc;
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
-	bool src_chained = false, dst_chained = false;
 	int sec4_sg_index;
 
-	src_nents = sg_count(req->src, req->nbytes, &src_chained);
+	src_nents = sg_count(req->src, req->nbytes);
 
 	if (unlikely(req->dst != req->src))
-		dst_nents = sg_count(req->dst, req->nbytes, &dst_chained);
+		dst_nents = sg_count(req->dst, req->nbytes);
 
 	if (likely(req->src == req->dst)) {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_BIDIRECTIONAL, src_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_BIDIRECTIONAL);
 	} else {
-		sgc = dma_map_sg_chained(jrdev, req->src, src_nents ? : 1,
-					 DMA_TO_DEVICE, src_chained);
-		sgc = dma_map_sg_chained(jrdev, req->dst, dst_nents ? : 1,
-					 DMA_FROM_DEVICE, dst_chained);
+		sgc = dma_map_sg(jrdev, req->src, src_nents ? : 1,
+				 DMA_TO_DEVICE);
+		sgc = dma_map_sg(jrdev, req->dst, dst_nents ? : 1,
+				 DMA_FROM_DEVICE);
 	}
 
 	/*
@@ -2690,9 +2666,7 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	}
 
 	edesc->src_nents = src_nents;
-	edesc->src_chained = src_chained;
 	edesc->dst_nents = dst_nents;
-	edesc->dst_chained = dst_chained;
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ablkcipher_edesc) +
 			 desc_bytes;
