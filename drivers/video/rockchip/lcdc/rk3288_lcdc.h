@@ -1185,7 +1185,7 @@
 #define WIN3_LUT_ADDR  			(0x0800)
 #define HWC_LUT_ADDR   			(0x0c00)
 #define GAMMA_LUT_ADDR 			(0x1000)
-#define CABC_LUT_ADDR			(0x1800)
+#define CABC_LUT_ADDR			(0x2000)
 #define MCU_BYPASS_WPORT 		(0x2200) 
 #define MCU_BYPASS_RPORT 		(0x2300)
 

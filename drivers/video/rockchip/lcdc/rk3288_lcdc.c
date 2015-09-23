@@ -3562,9 +3562,9 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,
 	if (!dev_drv->cabc_mode) {
 		spin_lock(&lcdc_dev->reg_lock);
 		if (lcdc_dev->clk_on) {
-			lcdc_msk_reg(lcdc_dev, CABC_CTRL0 | m_CABC_HANDLE_EN,
-				     m_CABC_EN, v_CABC_EN(0) |
-				     v_CABC_HANDLE_EN(0));
+			lcdc_msk_reg(lcdc_dev, CABC_CTRL0,
+				     m_CABC_HANDLE_EN | m_CABC_EN,
+				     v_CABC_EN(0) | v_CABC_HANDLE_EN(0));
 			lcdc_cfg_done(lcdc_dev);
 		}
 		pr_info("mode = 0, close cabc\n");
