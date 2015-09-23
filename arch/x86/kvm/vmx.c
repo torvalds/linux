@@ -1392,13 +1392,13 @@ static void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs)
 			 __loaded_vmcs_clear, loaded_vmcs, 1);
 }
 
-static inline void vpid_sync_vcpu_single(struct vcpu_vmx *vmx)
+static inline void vpid_sync_vcpu_single(int vpid)
 {
-	if (vmx->vpid == 0)
+	if (vpid == 0)
 		return;
 
 	if (cpu_has_vmx_invvpid_single())
-		__invvpid(VMX_VPID_EXTENT_SINGLE_CONTEXT, vmx->vpid, 0);
+		__invvpid(VMX_VPID_EXTENT_SINGLE_CONTEXT, vpid, 0);
 }
 
 static inline void vpid_sync_vcpu_global(void)
@@ -1407,10 +1407,10 @@ static inline void vpid_sync_vcpu_global(void)
 		__invvpid(VMX_VPID_EXTENT_ALL_CONTEXT, 0, 0);
 }
 
-static inline void vpid_sync_context(struct vcpu_vmx *vmx)
+static inline void vpid_sync_context(int vpid)
 {
 	if (cpu_has_vmx_invvpid_single())
-		vpid_sync_vcpu_single(vmx);
+		vpid_sync_vcpu_single(vpid);
 	else
 		vpid_sync_vcpu_global();
 }
@@ -3563,14 +3563,19 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 #endif
 
-static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
+static inline void __vmx_flush_tlb(struct kvm_vcpu *vcpu, int vpid)
 {
-	vpid_sync_context(to_vmx(vcpu));
+	vpid_sync_context(vpid);
 	if (enable_ept) {
 		if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 			return;
 		ept_sync_context(construct_eptp(vcpu->arch.mmu.root_hpa));
 	}
+}
+
+static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
+{
+	__vmx_flush_tlb(vcpu, to_vmx(vcpu)->vpid);
 }
 
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
@@ -4915,7 +4920,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vmx_fpu_activate(vcpu);
 	update_exception_bitmap(vcpu);
 
-	vpid_sync_context(vmx);
+	vpid_sync_context(vmx->vpid);
 }
 
 /*
