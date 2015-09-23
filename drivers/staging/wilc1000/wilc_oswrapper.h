@@ -10,8 +10,6 @@
  *  @version	1.0
  */
 
-/* OS Wrapper interface version */
-#define WILC_OSW_INTERFACE_VER 2
 
 /* Os Configuration File */
 #include "wilc_platform.h"
