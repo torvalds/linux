@@ -254,15 +254,22 @@ static int mvebu_pcie_hw_rd_conf(struct mvebu_pcie_port *port,
 				 struct pci_bus *bus,
 				 u32 devfn, int where, int size, u32 *val)
 {
+	void __iomem *conf_data = port->base + PCIE_CONF_DATA_OFF;
+
 	mvebu_writel(port, PCIE_CONF_ADDR(bus->number, devfn, where),
 		     PCIE_CONF_ADDR_OFF);
 
-	*val = mvebu_readl(port, PCIE_CONF_DATA_OFF);
-
-	if (size == 1)
-		*val = (*val >> (8 * (where & 3))) & 0xff;
-	else if (size == 2)
-		*val = (*val >> (8 * (where & 3))) & 0xffff;
+	switch (size) {
+	case 1:
+		*val = readb_relaxed(conf_data + (where & 3));
+		break;
+	case 2:
+		*val = readw_relaxed(conf_data + (where & 2));
+		break;
+	case 4:
+		*val = readl_relaxed(conf_data);
+		break;
+	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -271,22 +278,24 @@ static int mvebu_pcie_hw_wr_conf(struct mvebu_pcie_port *port,
 				 struct pci_bus *bus,
 				 u32 devfn, int where, int size, u32 val)
 {
-	u32 _val, shift = 8 * (where & 3);
+	void __iomem *conf_data = port->base + PCIE_CONF_DATA_OFF;
 
 	mvebu_writel(port, PCIE_CONF_ADDR(bus->number, devfn, where),
 		     PCIE_CONF_ADDR_OFF);
-	_val = mvebu_readl(port, PCIE_CONF_DATA_OFF);
 
-	if (size == 4)
-		_val = val;
-	else if (size == 2)
-		_val = (_val & ~(0xffff << shift)) | ((val & 0xffff) << shift);
-	else if (size == 1)
-		_val = (_val & ~(0xff << shift)) | ((val & 0xff) << shift);
-	else
+	switch (size) {
+	case 1:
+		writeb(val, conf_data + (where & 3));
+		break;
+	case 2:
+		writew(val, conf_data + (where & 2));
+		break;
+	case 4:
+		writel(val, conf_data);
+		break;
+	default:
 		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	mvebu_writel(port, _val, PCIE_CONF_DATA_OFF);
+	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
