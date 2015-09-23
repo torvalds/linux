@@ -193,7 +193,6 @@ struct gb_firmware_get_firmware_response {
 
 /* Firmware protocol Ready to boot request */
 struct gb_firmware_ready_to_boot_request {
-	__u8			stage;
 	__u8			status;
 } __packed;
 /* Firmware protocol Ready to boot response has no payload */
