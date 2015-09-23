@@ -1590,14 +1590,12 @@ static int ov5640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
  * Return 0 if successful, otherwise -EINVAL.
  */
 static int ov5640_enum_framesizes(struct v4l2_subdev *sd,
-	//	struct v4l2_frmsizeenum *fsize)
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index > ov5640_mode_MAX)
 		return -EINVAL;
 
-//	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fse->max_width =
 			max(ov5640_mode_info_data[0][fse->index].width,
 			    ov5640_mode_info_data[1][fse->index].width);
@@ -1618,7 +1616,6 @@ static int ov5640_enum_framesizes(struct v4l2_subdev *sd,
  * Return 0 if successful, otherwise -EINVAL.
  */
 static int ov5640_enum_frameintervals(struct v4l2_subdev *sd,
-		//struct v4l2_frmivalenum *fival)
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_frame_interval_enum *fie)
 {
