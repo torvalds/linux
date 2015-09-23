@@ -469,8 +469,7 @@ static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
 	u8 intf_id;
 
 	if (request->payload_size < sizeof(*hot_unplug)) {
-		dev_err(&op->connection->dev,
-			"short hot unplug request received (%zu < %zu)\n",
+		dev_err(dev, "short hot unplug request received (%zu < %zu)\n",
 			request->payload_size, sizeof(*hot_unplug));
 		return -EINVAL;
 	}
