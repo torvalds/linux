@@ -271,6 +271,7 @@ static const struct of_device_id lidar_dt_ids[] = {
 	{ .compatible = "pulsedlight,lidar-lite-v2" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, lidar_dt_ids);
 
 static struct i2c_driver lidar_driver = {
 	.driver = {
