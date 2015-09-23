@@ -754,6 +754,26 @@ static bool pixel_format_is_valid(struct drm_framebuffer *fb)
 	}
 }
 
+static bool pipe_size_is_valid(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	unsigned int max_w, max_h;
+
+	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
+		max_w = 4096;
+		max_h = 4096;
+	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
+		max_w = 4096;
+		max_h = 2048;
+	} else {
+		max_w = 2048;
+		max_h = 1536;
+	}
+
+	return crtc->config->pipe_src_w <= max_w &&
+	       crtc->config->pipe_src_h <= max_h;
+}
+
 /**
  * __intel_fbc_update - enable/disable FBC as needed, unlocked
  * @dev_priv: i915 device instance
@@ -780,7 +800,6 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
-	unsigned int max_width, max_height;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
 
@@ -829,21 +848,11 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
-		max_width = 4096;
-		max_height = 4096;
-	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
-		max_width = 4096;
-		max_height = 2048;
-	} else {
-		max_width = 2048;
-		max_height = 1536;
-	}
-	if (intel_crtc->config->pipe_src_w > max_width ||
-	    intel_crtc->config->pipe_src_h > max_height) {
+	if (!pipe_size_is_valid(intel_crtc)) {
 		set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE);
 		goto out_disable;
 	}
+
 	if ((INTEL_INFO(dev_priv)->gen < 4 || HAS_DDI(dev_priv)) &&
 	    intel_crtc->plane != PLANE_A) {
 		set_no_fbc_reason(dev_priv, FBC_BAD_PLANE);
