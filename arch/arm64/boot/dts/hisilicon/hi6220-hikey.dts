@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial3 = &uart3;
 	};
 
 	chosen {

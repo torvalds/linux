@@ -233,6 +233,14 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 
+		uart3: uart@f7113000 {
+                        compatible = "arm,pl011", "arm,primecell";
+                        reg = <0x0 0xf7113000 0x0 0x1000>;
+                        interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+                        clocks = <&sys_ctrl 19>, <&sys_ctrl 19>;
+                        clock-names = "uartclk", "apb_pclk";
+                };
+
 		pmx0: pinmux@f7010000 {
 			compatible = "pinctrl-single";
 			reg = <0x0 0xf7010000  0x0 0x27c>;
