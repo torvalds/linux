@@ -34,7 +34,7 @@
 
 /* DPCON Version */
 #define DPCON_VER_MAJOR				2
-#define DPCON_VER_MINOR				0
+#define DPCON_VER_MINOR				1
 
 /* Command IDs */
 #define DPCON_CMDID_CLOSE				0x800
