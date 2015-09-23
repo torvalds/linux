@@ -16,7 +16,5 @@
 /* Os Configuration File */
 #include "wilc_platform.h"
 
-/* Message Queue */
-#include "wilc_msgqueue.h"
 
 #endif

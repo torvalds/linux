@@ -1,6 +1,7 @@
 #include "host_interface.h"
 #include "coreconfigurator.h"
 #include "wilc_wlan_if.h"
+#include "wilc_msgqueue.h"
 
 extern u8 connecting;
 
