@@ -2832,6 +2832,9 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	} else { /* jack out */
 		rt5645->jack_type = 0;
 
+		regmap_update_bits(rt5645->regmap, RT5645_HP_VOL,
+			RT5645_L_MUTE | RT5645_R_MUTE,
+			RT5645_L_MUTE | RT5645_R_MUTE);
 		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL2,
 			RT5645_CBJ_MN_JD, RT5645_CBJ_MN_JD);
 		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
