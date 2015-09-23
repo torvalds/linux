@@ -46,6 +46,38 @@
 			regulator-always-on;
 		};
 
+		si4763_vio1: vio1_tnr {
+			compatible = "regulator-fixed";
+			regulator-name = "vio1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		si4763_vio2: vio2_tnr {
+			compatible = "regulator-fixed";
+			regulator-name = "vio2";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		si4763_vd: f3v3_tnr {
+			compatible = "regulator-fixed";
+			regulator-name = "vd";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+
+		si4763_va: f5v_tnr {
+			compatible = "regulator-fixed";
+			regulator-name = "va";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
 		vcc_sd3: regulator@0 {
 			compatible = "regulator-fixed";
 			reg = <0>;
@@ -90,12 +122,29 @@
 		audio-codec = <&codec>;
 	};
 
+	sound-fm {
+		compatible = "fsl,imx-audio-si476x",
+			   "fsl,imx-tuner-si476x";
+		model = "imx-radio-si4763";
+
+		ssi-controller = <&ssi2>;
+		fm-controller = <&si476x_codec>;
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
 		spdif-controller = <&spdif>;
 		spdif-in;
 	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_3>;
+	status = "okay";
 };
 
 &clks {
@@ -168,6 +217,20 @@
 		VLC-supply = <&reg_audio>;
 	};
 
+	si4763: si4763@63 {
+		compatible = "si4761";
+		reg = <0x63>;
+		va-supply = <&si4763_va>;
+		vd-supply = <&si4763_vd>;
+		vio1-supply = <&si4763_vio1>;
+		vio2-supply = <&si4763_vio2>;
+		revision-a10; /* set to default A10 compatible command set */
+
+		si476x_codec: si476x-codec {
+			compatible = "si476x-codec";
+		};
+	};
+
 	max7322: gpio@68 {
 		compatible = "maxim,max7322";
 		reg = <0x68>;
@@ -207,6 +270,11 @@
 &spdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spdif_3>;
+	status = "okay";
+};
+
+&ssi2 {
+	fsl,mode = "i2s-master";
 	status = "okay";
 };
 
@@ -275,6 +343,14 @@
 
 &iomuxc {
 	imx6x-sabreauto {
+		pinctrl_audmux_3: audmux-3 {
+			fsl,pins = <
+				MX6SX_PAD_SD1_CMD__AUDMUX_AUD5_RXC    0x130b0
+				MX6SX_PAD_SD1_CLK__AUDMUX_AUD5_RXFS   0x130b0
+				MX6SX_PAD_SD1_DATA3__AUDMUX_AUD5_RXD  0x130b0
+			>;
+		};
+
 		pinctrl_enet1_1: enet1grp-1 {
 			fsl,pins = <
 				MX6SX_PAD_ENET1_MDIO__ENET1_MDIO        0xa0b1
