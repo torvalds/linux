@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
+#include "../disk-io.h"
 #include "../free-space-cache.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
@@ -32,6 +33,12 @@ static struct btrfs_block_group_cache *init_test_block_group(void)
 	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
 					GFP_NOFS);
 	if (!cache->free_space_ctl) {
+		kfree(cache);
+		return NULL;
+	}
+	cache->fs_info = btrfs_alloc_dummy_fs_info();
+	if (!cache->fs_info) {
+		kfree(cache->free_space_ctl);
 		kfree(cache);
 		return NULL;
 	}
@@ -879,7 +886,8 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache)
 int btrfs_test_free_space_cache(void)
 {
 	struct btrfs_block_group_cache *cache;
-	int ret;
+	struct btrfs_root *root = NULL;
+	int ret = -ENOMEM;
 
 	test_msg("Running btrfs free space cache tests\n");
 
@@ -888,6 +896,17 @@ int btrfs_test_free_space_cache(void)
 		test_msg("Couldn't run the tests\n");
 		return 0;
 	}
+
+	root = btrfs_alloc_dummy_root();
+	if (!root)
+		goto out;
+
+	root->fs_info = btrfs_alloc_dummy_fs_info();
+	if (!root->fs_info)
+		goto out;
+
+	root->fs_info->extent_root = root;
+	cache->fs_info = root->fs_info;
 
 	ret = test_extents(cache);
 	if (ret)
@@ -904,6 +923,7 @@ out:
 	__btrfs_remove_free_space_cache(cache->free_space_ctl);
 	kfree(cache->free_space_ctl);
 	kfree(cache);
+	btrfs_free_dummy_root(root);
 	test_msg("Free space cache tests finished\n");
 	return ret;
 }

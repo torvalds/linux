@@ -1951,12 +1951,19 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		      struct btrfs_free_space *info)
 {
 	struct btrfs_block_group_cache *block_group = ctl->private;
+	bool forced = false;
+
+#ifdef CONFIG_BTRFS_DEBUG
+	if (btrfs_should_fragment_free_space(block_group->fs_info->extent_root,
+					     block_group))
+		forced = true;
+#endif
 
 	/*
 	 * If we are below the extents threshold then we can add this as an
 	 * extent, and don't have to deal with the bitmap
 	 */
-	if (ctl->free_extents < ctl->extents_thresh) {
+	if (!forced && ctl->free_extents < ctl->extents_thresh) {
 		/*
 		 * If this block group has some small extents we don't want to
 		 * use up all of our free slots in the cache with them, we want

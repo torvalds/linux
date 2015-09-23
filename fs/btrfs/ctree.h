@@ -2145,6 +2145,8 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_MOUNT_CHECK_INTEGRITY_INCLUDING_EXTENT_DATA (1 << 21)
 #define BTRFS_MOUNT_PANIC_ON_FATAL_ERROR	(1 << 22)
 #define BTRFS_MOUNT_RESCAN_UUID_TREE	(1 << 23)
+#define BTRFS_MOUNT_FRAGMENT_DATA	(1 << 24)
+#define BTRFS_MOUNT_FRAGMENT_METADATA	(1 << 25)
 
 #define BTRFS_DEFAULT_COMMIT_INTERVAL	(30)
 #define BTRFS_DEFAULT_MAX_INLINE	(8192)
@@ -2168,6 +2170,18 @@ struct btrfs_ioctl_defrag_range_args {
 		btrfs_info(root->fs_info, fmt, ##args);			\
 	btrfs_clear_opt(root->fs_info->mount_opt, opt);			\
 }
+
+#ifdef CONFIG_BTRFS_DEBUG
+static inline int
+btrfs_should_fragment_free_space(struct btrfs_root *root,
+				 struct btrfs_block_group_cache *block_group)
+{
+	return (btrfs_test_opt(root, FRAGMENT_METADATA) &&
+		block_group->flags & BTRFS_BLOCK_GROUP_METADATA) ||
+	       (btrfs_test_opt(root, FRAGMENT_DATA) &&
+		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
+}
+#endif
 
 /*
  * Requests for changes that need to be done during transaction commit.
