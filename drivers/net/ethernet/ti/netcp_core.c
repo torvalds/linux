@@ -291,13 +291,6 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 			    interface_list) {
 		struct netcp_intf_modpriv *intf_modpriv;
 
-		/* If interface not registered then register now */
-		if (!netcp_intf->netdev_registered)
-			ret = netcp_register_interface(netcp_intf);
-
-		if (ret)
-			return -ENODEV;
-
 		intf_modpriv = devm_kzalloc(dev, sizeof(*intf_modpriv),
 					    GFP_KERNEL);
 		if (!intf_modpriv)
@@ -321,6 +314,18 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 			list_del(&intf_modpriv->intf_list);
 			devm_kfree(dev, intf_modpriv);
 			continue;
+		}
+	}
+
+	/* Now register the interface with netdev */
+	list_for_each_entry(netcp_intf,
+			    &netcp_device->interface_head,
+			    interface_list) {
+		/* If interface not registered then register now */
+		if (!netcp_intf->netdev_registered) {
+			ret = netcp_register_interface(netcp_intf);
+			if (ret)
+				return -ENODEV;
 		}
 	}
 	return 0;
