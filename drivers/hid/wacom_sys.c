@@ -1569,7 +1569,8 @@ static void wacom_wireless_work(struct work_struct *work)
 
 		/* Touch interface */
 		if (wacom_wac1->features.touch_max ||
-		    wacom_wac1->features.type == INTUOSHT) {
+		    (wacom_wac1->features.type >= INTUOSHT &&
+		    wacom_wac1->features.type <= BAMBOO_PT)) {
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_data);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
@@ -1592,7 +1593,8 @@ static void wacom_wireless_work(struct work_struct *work)
 			if (error)
 				goto fail;
 
-			if (wacom_wac1->features.type == INTUOSHT &&
+			if ((wacom_wac1->features.type == INTUOSHT ||
+			    wacom_wac1->features.type == INTUOSHT2) &&
 			    wacom_wac1->features.touch_max)
 				wacom_wac->shared->touch_input = wacom_wac2->touch_input;
 		}
@@ -1834,8 +1836,9 @@ static int wacom_probe(struct hid_device *hdev,
 	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
 		error = hid_hw_open(hdev);
 
-	if (wacom_wac->features.type == INTUOSHT && 
-	    wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH) {
+	if ((wacom_wac->features.type == INTUOSHT ||
+	    wacom_wac->features.type == INTUOSHT2) &&
+	    (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)) {
 			wacom_wac->shared->touch_input = wacom_wac->touch_input;
 	}
 
