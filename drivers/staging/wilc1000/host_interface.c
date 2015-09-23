@@ -4,9 +4,7 @@
 
 extern u8 connecting;
 
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern struct timer_list hDuringIpTimer;
-#endif
 
 extern u8 g_wilc_initialized;
 /*****************************************************************************/
@@ -518,9 +516,7 @@ typedef enum {
 static tstrWILC_WFIDrv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 tstrWILC_WFIDrv *terminated_handle;
 tstrWILC_WFIDrv *gWFiDrvHandle;
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 bool g_obtainingIP = false;
-#endif
 u8 P2P_LISTEN_STATE;
 static struct task_struct *HostIFthreadHandler;
 static WILC_MsgQueueHandle gMsgQHostIF;
@@ -1307,14 +1303,12 @@ static s32 Handle_Scan(tstrWILC_WFIDrv *drvHandler,
 		goto ERRORHANDLER;
 	}
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	if (g_obtainingIP || connecting) {
 		PRINT_D(GENERIC_DBG, "[handle_scan]: Don't do obss scan until IP adresss is obtained\n");
 		PRINT_ER("Don't do obss scan\n");
 		s32Error = -EBUSY;
 		goto ERRORHANDLER;
 	}
-	#endif
 
 	PRINT_D(HOSTINF_DBG, "Setting SCAN params\n");
 
@@ -2525,20 +2519,15 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 			 *  else change state to IDLE */
 			if ((u8MacStatus == MAC_CONNECTED) &&
 			    (strConnectInfo.u16ConnectStatus == SUCCESSFUL_STATUSCODE))	{
-				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-
 				host_int_set_power_mgmt(pstrWFIDrv, 0, 0);
-				#endif
 
 				PRINT_D(HOSTINF_DBG, "MAC status : CONNECTED and Connect Status : Successful\n");
 				pstrWFIDrv->enuHostIFstate = HOST_IF_CONNECTED;
 
-				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 				PRINT_D(GENERIC_DBG, "Obtaining an IP, Disable Scan\n");
 				g_obtainingIP = true;
 				mod_timer(&hDuringIpTimer,
 					  jiffies + msecs_to_jiffies(10000));
-				#endif
 
 				#ifdef WILC_PARSE_SCAN_IN_HOST
 				/* open a BA session if possible */
@@ -2601,11 +2590,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 			strDisconnectNotifInfo.ie_len = 0;
 
 			if (pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult != NULL)	{
-				#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-
 				g_obtainingIP = false;
 				host_int_set_power_mgmt(pstrWFIDrv, 0, 0);
-				#endif
 
 				pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 										   NULL,
@@ -3076,11 +3062,8 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 
 	PRINT_D(HOSTINF_DBG, "Sending disconnect request\n");
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-
 	g_obtainingIP = false;
 	host_int_set_power_mgmt(pstrWFIDrv, 0, 0);
-	#endif
 
 	memset(u8ConnectedSSID, 0, ETH_ALEN);
 
@@ -3806,13 +3789,11 @@ static int Handle_RemainOnChan(tstrWILC_WFIDrv *drvHandler,
 		goto ERRORHANDLER;
 	}
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	if (g_obtainingIP || connecting) {
 		PRINT_D(GENERIC_DBG, "[handle_scan]: Don't do obss scan until IP adresss is obtained\n");
 		s32Error = -EBUSY;
 		goto ERRORHANDLER;
 	}
-	#endif
 
 	PRINT_D(HOSTINF_DBG, "Setting channel :%d\n", pstrHostIfRemainOnChan->u16Channel);
 
@@ -6383,10 +6364,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 		goto _fail_timer_2;
 	}
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
-
 	g_obtainingIP = false;
-	#endif
 
 	PRINT_D(HOSTINF_DBG, "Global handle pointer value=%p\n", pstrWFIDrv);
 	if (clients_count == 0)	{

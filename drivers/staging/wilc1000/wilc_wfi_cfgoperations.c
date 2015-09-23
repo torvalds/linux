@@ -30,18 +30,14 @@ extern int mac_close(struct net_device *ndev);
 
 tstrNetworkInfo astrLastScannedNtwrksShadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 u32 u32LastScannedNtwrksCountShadow;
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 struct timer_list hDuringIpTimer;
-#endif
 struct timer_list hAgingTimer;
 static u8 op_ifcs;
 extern u8 u8ConnectedSSID[6];
 
 u8 g_wilc_initialized = 1;
 extern linux_wlan_t *g_linux_wlan;
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern bool g_obtainingIP;
-#endif
 
 #define CHAN2G(_channel, _freq, _flags) {	 \
 		.band             = IEEE80211_BAND_2GHZ, \
@@ -261,13 +257,11 @@ static void remove_network_from_shadow(unsigned long arg)
 	}
 }
 
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 static void clear_duringIP(unsigned long arg)
 {
 	PRINT_D(GENERIC_DBG, "GO:IP Obtained , enable scan\n");
 	g_obtainingIP = false;
 }
-#endif
 
 int8_t is_network_in_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid)
 {
@@ -619,9 +613,7 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 					u16ConnectStatus, GFP_KERNEL);                         /* TODO: mostafa: u16ConnectStatus to */
 		/* be replaced by pstrConnectInfo->u16ConnectStatus */
 	} else if (enuConnDisconnEvent == CONN_DISCONN_EVENT_DISCONN_NOTIF)    {
-		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		g_obtainingIP = false;
-		#endif
 		PRINT_ER("Received MAC_DISCONNECTED from firmware with reason %d on dev [%p]\n",
 			 pstrDisconnectNotifInfo->u16reason, priv->dev);
 		u8P2Plocalrandom = 0x01;
@@ -2707,11 +2699,9 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 	bWilc_ie = false;
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	g_obtainingIP = false;
 	del_timer(&hDuringIpTimer);
 	PRINT_D(GENERIC_DBG, "Changing virtual interface, enable scan\n");
-	#endif
 	/*Set WILC_CHANGING_VIR_IF register to disallow adding futrue keys to CE H/W*/
 	if (g_ptk_keys_saved && g_gtk_keys_saved) {
 		Set_machw_change_vir_if(true);
@@ -2918,10 +2908,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_IFTYPE_P2P_GO:
 		PRINT_D(GENERIC_DBG, "start duringIP timer\n");
 
-		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		g_obtainingIP = true;
 		mod_timer(&hDuringIpTimer, jiffies + msecs_to_jiffies(duringIP_TIME));
-		#endif
 		host_int_set_power_mgmt(priv->hWILCWFIDrv, 0, 0);
 		/*Delete block ack has to be the latest config packet*/
 		/*sent before downloading new FW. This is because it blocks on*/
@@ -3603,9 +3591,7 @@ int wilc_init_host_int(struct net_device *net)
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
 		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
-		#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		setup_timer(&hDuringIpTimer, clear_duringIP, 0);
-		#endif
 	}
 	op_ifcs++;
 	if (s32Error < 0) {
@@ -3652,12 +3638,10 @@ int wilc_deinit_host_int(struct net_device *net)
 
 	/* Clear the Shadow scan */
 	clear_shadow_scan(priv);
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	if (op_ifcs == 0) {
 		PRINT_D(CORECONFIG_DBG, "destroy during ip\n");
 		del_timer_sync(&hDuringIpTimer);
 	}
-	#endif
 
 	if (s32Error)
 		PRINT_ER("Error while deintializing host interface\n");

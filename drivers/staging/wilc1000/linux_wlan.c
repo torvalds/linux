@@ -17,9 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/netdevice.h>
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 #include <linux/inetdevice.h>
-#endif
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -47,16 +45,12 @@
  #define _linux_wlan_device_removal()		{}
 #endif
 
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern bool g_obtainingIP;
-#endif
 extern u16 Set_machw_change_vir_if(bool bValue);
 extern void resolve_disconnect_aberration(void *drvHandler);
 extern u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
 void wilc1000_wlan_deinit(linux_wlan_t *nic);
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 extern struct timer_list hDuringIpTimer;
-#endif
 
 static int linux_wlan_device_power(int on_off)
 {
@@ -86,13 +80,11 @@ static int linux_wlan_device_detection(int on_off)
 	return 0;
 }
 
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr);
 
 static struct notifier_block g_dev_notifier = {
 	.notifier_call = dev_state_ev_handler
 };
-#endif
 
 #define wilc_wlan_deinit(nic)	{ if (&g_linux_wlan->oup != NULL)	 \
 		if (g_linux_wlan->oup.wlan_cleanup != NULL) \
@@ -196,7 +188,6 @@ static int DebuggingThreadTask(void *vp)
 }
 #endif
 
-#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
@@ -295,7 +286,6 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 	return NOTIFY_DONE;
 
 }
-#endif
 
 #if (defined WILC_SPI) || (defined WILC_SDIO_IRQ_GPIO)
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
@@ -1844,9 +1834,7 @@ int wilc_netdev_init(void)
 	if (!g_linux_wlan)
 		return -ENOMEM;
 
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	register_inetaddr_notifier(&g_dev_notifier);
-	#endif
 
 	for (i = 0; i < NUM_CONCURRENT_IFC; i++) {
 		/*allocate first ethernet device with perinterface_wlan_t as its private data*/
@@ -1970,9 +1958,7 @@ static void __exit exit_wilc_driver(void)
 
 	if ((g_linux_wlan != NULL) && (((g_linux_wlan->strInterfaceInfo[0].wilc_netdev) != NULL)
 				       || ((g_linux_wlan->strInterfaceInfo[1].wilc_netdev) != NULL))) {
-	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 		unregister_inetaddr_notifier(&g_dev_notifier);
-	#endif
 
 		for (i = 0; i < NUM_CONCURRENT_IFC; i++)
 			nic[i] = netdev_priv(g_linux_wlan->strInterfaceInfo[i].wilc_netdev);
