@@ -3706,7 +3706,7 @@ static void
 __reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
 			    int maxphyaddr, bool execonly)
 {
-	int pte;
+	u64 bad_mt_xwr;
 
 	rsvd_check->rsvd_bits_mask[0][3] =
 		rsvd_bits(maxphyaddr, 51) | rsvd_bits(3, 7);
@@ -3724,14 +3724,16 @@ __reset_rsvds_bits_mask_ept(struct rsvd_bits_validate *rsvd_check,
 		rsvd_bits(maxphyaddr, 51) | rsvd_bits(12, 20);
 	rsvd_check->rsvd_bits_mask[1][0] = rsvd_check->rsvd_bits_mask[0][0];
 
-	for (pte = 0; pte < 64; pte++) {
-		int rwx_bits = pte & 7;
-		int mt = pte >> 3;
-		if (mt == 0x2 || mt == 0x3 || mt == 0x7 ||
-				rwx_bits == 0x2 || rwx_bits == 0x6 ||
-				(rwx_bits == 0x4 && !execonly))
-			rsvd_check->bad_mt_xwr |= (1ull << pte);
+	bad_mt_xwr = 0xFFull << (2 * 8);	/* bits 3..5 must not be 2 */
+	bad_mt_xwr |= 0xFFull << (3 * 8);	/* bits 3..5 must not be 3 */
+	bad_mt_xwr |= 0xFFull << (7 * 8);	/* bits 3..5 must not be 7 */
+	bad_mt_xwr |= REPEAT_BYTE(1ull << 2);	/* bits 0..2 must not be 010 */
+	bad_mt_xwr |= REPEAT_BYTE(1ull << 6);	/* bits 0..2 must not be 110 */
+	if (!execonly) {
+		/* bits 0..2 must not be 100 unless VMX capabilities allow it */
+		bad_mt_xwr |= REPEAT_BYTE(1ull << 4);
 	}
+	rsvd_check->bad_mt_xwr = bad_mt_xwr;
 }
 
 static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
