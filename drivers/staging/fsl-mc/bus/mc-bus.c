@@ -213,14 +213,14 @@ static int get_dprc_icid(struct fsl_mc_io *mc_io,
 	struct dprc_attributes attr;
 	int error;
 
-	error = dprc_open(mc_io, container_id, &dprc_handle);
+	error = dprc_open(mc_io, 0, container_id, &dprc_handle);
 	if (error < 0) {
 		pr_err("dprc_open() failed: %d\n", error);
 		return error;
 	}
 
 	memset(&attr, 0, sizeof(attr));
-	error = dprc_get_attributes(mc_io, dprc_handle, &attr);
+	error = dprc_get_attributes(mc_io, 0, dprc_handle, &attr);
 	if (error < 0) {
 		pr_err("dprc_get_attributes() failed: %d\n", error);
 		goto common_cleanup;
@@ -230,11 +230,12 @@ static int get_dprc_icid(struct fsl_mc_io *mc_io,
 	error = 0;
 
 common_cleanup:
-	(void)dprc_close(mc_io, dprc_handle);
+	(void)dprc_close(mc_io, 0, dprc_handle);
 	return error;
 }
 
-static int translate_mc_addr(u64 mc_addr, phys_addr_t *phys_addr)
+static int translate_mc_addr(enum dprc_region_type mc_region_type,
+			     u64 mc_offset, phys_addr_t *phys_addr)
 {
 	int i;
 	struct fsl_mc *mc = dev_get_drvdata(fsl_mc_bus_type.dev_root->parent);
@@ -243,7 +244,7 @@ static int translate_mc_addr(u64 mc_addr, phys_addr_t *phys_addr)
 		/*
 		 * Do identity mapping:
 		 */
-		*phys_addr = mc_addr;
+		*phys_addr = mc_offset;
 		return 0;
 	}
 
@@ -251,10 +252,11 @@ static int translate_mc_addr(u64 mc_addr, phys_addr_t *phys_addr)
 		struct fsl_mc_addr_translation_range *range =
 			&mc->translation_ranges[i];
 
-		if (mc_addr >= range->start_mc_addr &&
-		    mc_addr < range->end_mc_addr) {
+		if (mc_region_type == range->mc_region_type &&
+		    mc_offset >= range->start_mc_offset &&
+		    mc_offset < range->end_mc_offset) {
 			*phys_addr = range->start_phys_addr +
-				     (mc_addr - range->start_mc_addr);
+				     (mc_offset - range->start_mc_offset);
 			return 0;
 		}
 	}
@@ -270,6 +272,22 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 	struct resource *regions;
 	struct dprc_obj_desc *obj_desc = &mc_dev->obj_desc;
 	struct device *parent_dev = mc_dev->dev.parent;
+	enum dprc_region_type mc_region_type;
+
+	if (strcmp(obj_desc->type, "dprc") == 0 ||
+	    strcmp(obj_desc->type, "dpmcp") == 0) {
+		mc_region_type = DPRC_REGION_TYPE_MC_PORTAL;
+	} else if (strcmp(obj_desc->type, "dpio") == 0) {
+		mc_region_type = DPRC_REGION_TYPE_QBMAN_PORTAL;
+	} else {
+		/*
+		 * This function should not have been called for this MC object
+		 * type, as this object type is not supposed to have MMIO
+		 * regions
+		 */
+		WARN_ON(true);
+		return -EINVAL;
+	}
 
 	regions = kmalloc_array(obj_desc->region_count,
 				sizeof(regions[0]), GFP_KERNEL);
@@ -280,6 +298,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		struct dprc_region_desc region_desc;
 
 		error = dprc_get_obj_region(mc_bus_dev->mc_io,
+					    0,
 					    mc_bus_dev->mc_handle,
 					    obj_desc->type,
 					    obj_desc->id, i, &region_desc);
@@ -289,14 +308,15 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 			goto error_cleanup_regions;
 		}
 
-		WARN_ON(region_desc.base_paddr == 0x0);
 		WARN_ON(region_desc.size == 0);
-		error = translate_mc_addr(region_desc.base_paddr,
+		error = translate_mc_addr(mc_region_type,
+					  region_desc.base_offset,
 					  &regions[i].start);
 		if (error < 0) {
 			dev_err(parent_dev,
-				"Invalid MC address: %#llx\n",
-				region_desc.base_paddr);
+				"Invalid MC offset: %#x (for %s.%d\'s region %d)\n",
+				region_desc.base_offset,
+				obj_desc->type, obj_desc->id, i);
 			goto error_cleanup_regions;
 		}
 
@@ -574,11 +594,13 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	for (i = 0; i < *num_ranges; ++i) {
 		struct fsl_mc_addr_translation_range *range = &(*ranges)[i];
 
-		range->start_mc_addr = of_read_number(cell, mc_addr_cells);
+		range->mc_region_type = of_read_number(cell, 1);
+		range->start_mc_offset = of_read_number(cell + 1,
+							mc_addr_cells - 1);
 		cell += mc_addr_cells;
 		range->start_phys_addr = of_read_number(cell, paddr_cells);
 		cell += paddr_cells;
-		range->end_mc_addr = range->start_mc_addr +
+		range->end_mc_offset = range->start_mc_offset +
 				     of_read_number(cell, mc_size_cells);
 
 		cell += mc_size_cells;

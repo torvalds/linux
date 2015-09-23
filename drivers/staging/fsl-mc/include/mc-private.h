@@ -29,7 +29,8 @@
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
  * @root_mc_bus_dev: MC object device representing the root DPRC
- * @addr_translation_ranges: array of bus to system address translation ranges
+ * @num_translation_ranges: number of entries in addr_translation_ranges
+ * @translation_ranges: array of bus to system address translation ranges
  */
 struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
@@ -40,14 +41,16 @@ struct fsl_mc {
 /**
  * struct fsl_mc_addr_translation_range - bus to system address translation
  * range
- * @start_mc_addr: Start MC address of the range being translated
- * @end_mc_addr: MC address of the first byte after the range (last MC
- * address of the range is end_mc_addr - 1)
+ * @mc_region_type: Type of MC region for the range being translated
+ * @start_mc_offset: Start MC offset of the range being translated
+ * @end_mc_offset: MC offset of the first byte after the range (last MC
+ * offset of the range is end_mc_offset - 1)
  * @start_phys_addr: system physical address corresponding to start_mc_addr
  */
 struct fsl_mc_addr_translation_range {
-	uint64_t start_mc_addr;
-	uint64_t end_mc_addr;
+	enum dprc_region_type mc_region_type;
+	uint64_t start_mc_offset;
+	uint64_t end_mc_offset;
 	phys_addr_t start_phys_addr;
 };
 
