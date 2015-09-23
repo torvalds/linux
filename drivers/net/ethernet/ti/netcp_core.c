@@ -801,7 +801,7 @@ static void netcp_rxpool_free(struct netcp_intf *netcp)
 	netcp->rx_pool = NULL;
 }
 
-static void netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
+static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 {
 	struct knav_dma_desc *hwdesc;
 	unsigned int buf_len, dma_sz;
@@ -815,7 +815,7 @@ static void netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	hwdesc = knav_pool_desc_get(netcp->rx_pool);
 	if (IS_ERR_OR_NULL(hwdesc)) {
 		dev_dbg(netcp->ndev_dev, "out of rx pool desc\n");
-		return;
+		return -ENOMEM;
 	}
 
 	if (likely(fdq == 0)) {
@@ -867,25 +867,26 @@ static void netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	knav_pool_desc_map(netcp->rx_pool, hwdesc, sizeof(*hwdesc), &dma,
 			   &dma_sz);
 	knav_queue_push(netcp->rx_fdq[fdq], dma, sizeof(*hwdesc), 0);
-	return;
+	return 0;
 
 fail:
 	knav_pool_desc_put(netcp->rx_pool, hwdesc);
+	return -ENOMEM;
 }
 
 /* Refill Rx FDQ with descriptors & attached buffers */
 static void netcp_rxpool_refill(struct netcp_intf *netcp)
 {
 	u32 fdq_deficit[KNAV_DMA_FDQ_PER_CHAN] = {0};
-	int i;
+	int i, ret = 0;
 
 	/* Calculate the FDQ deficit and refill */
 	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN && netcp->rx_fdq[i]; i++) {
 		fdq_deficit[i] = netcp->rx_queue_depths[i] -
 				 knav_queue_get_count(netcp->rx_fdq[i]);
 
-		while (fdq_deficit[i]--)
-			netcp_allocate_rx_buf(netcp, i);
+		while (fdq_deficit[i]-- && !ret)
+			ret = netcp_allocate_rx_buf(netcp, i);
 	} /* end for fdqs */
 }
 
