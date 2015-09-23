@@ -84,6 +84,10 @@ static u32 gpc_mf_irqs[IMR_NUM];
 static u32 gpc_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpc_lock);
 static struct notifier_block nb_pcie;
+static struct pu_domain imx6q_pu_domain;
+static bool pu_on;      /* keep always on i.mx6qp */
+static void _imx6q_pm_pu_power_off(struct generic_pm_domain *genpd);
+static void _imx6q_pm_pu_power_on(struct generic_pm_domain *genpd);
 
 void imx_gpc_add_m4_wake_up_irq(u32 hwirq, bool enable)
 {
@@ -186,6 +190,9 @@ void imx_gpc_pre_suspend(bool arm_power_off)
 	void __iomem *reg_imr1 = gpc_base + GPC_IMR1;
 	int i;
 
+	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
+		_imx6q_pm_pu_power_off(&imx6q_pu_domain.base);
+
 	/* power down the mega-fast power domain */
 	if ((cpu_is_imx6sx() || cpu_is_imx6ul()) && arm_power_off)
 		imx_gpc_mf_mix_off();
@@ -204,6 +211,9 @@ void imx_gpc_post_resume(void)
 {
 	void __iomem *reg_imr1 = gpc_base + GPC_IMR1;
 	int i;
+
+	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
+		_imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
 
 	/* Keep ARM core powered on for other low-power modes */
 	imx_gpc_set_arm_power_in_lpm(false);
@@ -541,6 +551,10 @@ static int imx6q_pm_pu_power_off(struct generic_pm_domain *genpd)
 {
 	struct pu_domain *pu = container_of(genpd, struct pu_domain, base);
 
+	if (&imx6q_pu_domain == pu && pu_on && cpu_is_imx6q() &&
+		imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)
+		return 0;
+
 	_imx6q_pm_pu_power_off(genpd);
 
 	if (pu->reg)
@@ -549,18 +563,11 @@ static int imx6q_pm_pu_power_off(struct generic_pm_domain *genpd)
 	return 0;
 }
 
-static int imx6q_pm_pu_power_on(struct generic_pm_domain *genpd)
+static void _imx6q_pm_pu_power_on(struct generic_pm_domain *genpd)
 {
 	struct pu_domain *pu = container_of(genpd, struct pu_domain, base);
-	int i, ret, sw, sw2iso;
+	int i, sw, sw2iso;
 	u32 val;
-
-	if (pu->reg)
-		ret = regulator_enable(pu->reg);
-	if (pu->reg && ret) {
-		pr_err("%s: failed to enable regulator: %d\n", __func__, ret);
-		return ret;
-	}
 
 	/* Enable reset clocks for all devices in the PU domain */
 	for (i = 0; i < pu->num_clks; i++)
@@ -585,6 +592,29 @@ static int imx6q_pm_pu_power_on(struct generic_pm_domain *genpd)
 	/* Disable reset clocks for all devices in the PU domain */
 	for (i = 0; i < pu->num_clks; i++)
 		clk_disable_unprepare(pu->clk[i]);
+}
+
+static int imx6q_pm_pu_power_on(struct generic_pm_domain *genpd)
+{
+	struct pu_domain *pu = container_of(genpd, struct pu_domain, base);
+	int ret;
+
+	if (cpu_is_imx6q() && imx_get_soc_revision() == IMX_CHIP_REVISION_2_0
+		&& &imx6q_pu_domain == pu) {
+		if (!pu_on)
+			pu_on = true;
+		else
+			return 0;
+	}
+
+	if (pu->reg)
+		ret = regulator_enable(pu->reg);
+	if (pu->reg && ret) {
+		pr_err("%s: failed to enable regulator: %d\n", __func__, ret);
+		return ret;
+	}
+
+	_imx6q_pm_pu_power_on(genpd);
 
 	return 0;
 }
@@ -718,7 +748,8 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 	imx6s_display_domain.num_clks = k;
 
 	is_off = IS_ENABLED(CONFIG_PM);
-	if (is_off) {
+	if (is_off && !(cpu_is_imx6q() &&
+		imx_get_soc_revision() == IMX_CHIP_REVISION_2_0)) {
 		_imx6q_pm_pu_power_off(&imx6q_pu_domain.base);
 	} else {
 		/*
