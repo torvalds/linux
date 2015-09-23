@@ -732,14 +732,14 @@ static const struct snd_kcontrol_new rt5645_mono_adc_r_mix[] = {
 static const struct snd_kcontrol_new rt5645_dac_l_mix[] = {
 	SOC_DAPM_SINGLE("Stereo ADC Switch", RT5645_AD_DA_MIXER,
 			RT5645_M_ADCMIX_L_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 Switch", RT5645_AD_DA_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 Switch", RT5645_AD_DA_MIXER,
 			RT5645_M_DAC1_L_SFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5645_dac_r_mix[] = {
 	SOC_DAPM_SINGLE("Stereo ADC Switch", RT5645_AD_DA_MIXER,
 			RT5645_M_ADCMIX_R_SFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC1 Switch", RT5645_AD_DA_MIXER,
+	SOC_DAPM_SINGLE_AUTODISABLE("DAC1 Switch", RT5645_AD_DA_MIXER,
 			RT5645_M_DAC1_R_SFT, 1, 1),
 };
 
