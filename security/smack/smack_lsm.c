@@ -549,7 +549,7 @@ static int smack_sb_alloc_security(struct super_block *sb)
 	sbsp->smk_floor = &smack_known_floor;
 	sbsp->smk_hat = &smack_known_hat;
 	/*
-	 * smk_initialized will be zero from kzalloc.
+	 * SMK_SB_INITIALIZED will be zero from kzalloc.
 	 */
 	sb->s_security = sbsp;
 
@@ -766,10 +766,10 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	int num_opts = opts->num_mnt_opts;
 	int transmute = 0;
 
-	if (sp->smk_initialized)
+	if (sp->smk_flags & SMK_SB_INITIALIZED)
 		return 0;
 
-	sp->smk_initialized = 1;
+	sp->smk_flags |= SMK_SB_INITIALIZED;
 
 	for (i = 0; i < num_opts; i++) {
 		switch (opts->mnt_opts_flags[i]) {
@@ -821,6 +821,17 @@ static int smack_set_mnt_opts(struct super_block *sb,
 		skp = smk_of_current();
 		sp->smk_root = skp;
 		sp->smk_default = skp;
+		/*
+		 * For a handful of fs types with no user-controlled
+		 * backing store it's okay to trust security labels
+		 * in the filesystem. The rest are untrusted.
+		 */
+		if (sb->s_user_ns != &init_user_ns &&
+		    sb->s_magic != SYSFS_MAGIC && sb->s_magic != TMPFS_MAGIC &&
+		    sb->s_magic != RAMFS_MAGIC) {
+			transmute = 1;
+			sp->smk_flags |= SMK_SB_UNTRUSTED;
+		}
 	}
 
 	/*
@@ -1203,6 +1214,7 @@ static int smack_inode_rename(struct inode *old_inode,
  */
 static int smack_inode_permission(struct inode *inode, int mask)
 {
+	struct superblock_smack *sbsp = inode->i_sb->s_security;
 	struct smk_audit_info ad;
 	int no_block = mask & MAY_NOT_BLOCK;
 	int rc;
@@ -1213,6 +1225,11 @@ static int smack_inode_permission(struct inode *inode, int mask)
 	 */
 	if (mask == 0)
 		return 0;
+
+	if (sbsp->smk_flags & SMK_SB_UNTRUSTED) {
+		if (smk_of_inode(inode) != sbsp->smk_root)
+			return -EACCES;
+	}
 
 	/* May be droppable after audit */
 	if (no_block)
@@ -3529,14 +3546,16 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			if (rc >= 0)
 				transflag = SMK_INODE_TRANSMUTE;
 		}
-		/*
-		 * Don't let the exec or mmap label be "*" or "@".
-		 */
-		skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
-		if (IS_ERR(skp) || skp == &smack_known_star ||
-		    skp == &smack_known_web)
-			skp = NULL;
-		isp->smk_task = skp;
+		if (!(sbsp->smk_flags & SMK_SB_UNTRUSTED)) {
+			/*
+			 * Don't let the exec or mmap label be "*" or "@".
+			 */
+			skp = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
+			if (IS_ERR(skp) || skp == &smack_known_star ||
+			    skp == &smack_known_web)
+				skp = NULL;
+			isp->smk_task = skp;
+		}
 
 		skp = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
 		if (IS_ERR(skp) || skp == &smack_known_star ||
