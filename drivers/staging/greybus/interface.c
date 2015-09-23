@@ -127,13 +127,6 @@ struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	struct gb_interface *intf;
 	int retval;
 
-	intf = gb_interface_find(hd, interface_id);
-	if (intf) {
-		dev_err(hd->parent, "Duplicate interface with interface-id: %d will not be created\n",
-			interface_id);
-		return NULL;
-	}
-
 	module = gb_module_find(hd, endo_get_module_id(hd->endo, interface_id));
 	if (!module)
 		return NULL;
