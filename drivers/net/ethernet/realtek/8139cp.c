@@ -1262,9 +1262,10 @@ static void cp_tx_timeout(struct net_device *dev)
 	rc = cp_init_rings(cp);
 	cp_start_hw(cp);
 	__cp_set_rx_mode(dev);
-	cp_enable_irq(cp);
+	cpw16_f(IntrMask, cp_norx_intr_mask);
 
 	netif_wake_queue(dev);
+	napi_schedule_irqoff(&cp->napi);
 
 	spin_unlock_irqrestore(&cp->lock, flags);
 }
