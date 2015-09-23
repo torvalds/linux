@@ -189,3 +189,29 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 
 	return ret;
 }
+
+int drv_ampdu_action(struct ieee80211_local *local,
+		     struct ieee80211_sub_if_data *sdata,
+		     enum ieee80211_ampdu_mlme_action action,
+		     struct ieee80211_sta *sta, u16 tid,
+		     u16 *ssn, u8 buf_size, bool amsdu)
+{
+	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_ampdu_action(local, sdata, action, sta, tid,
+			       ssn, buf_size, amsdu);
+
+	if (local->ops->ampdu_action)
+		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
+					       sta, tid, ssn, buf_size, amsdu);
+
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
