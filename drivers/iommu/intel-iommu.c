@@ -2429,17 +2429,11 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 				  DMA_PTE_READ|DMA_PTE_WRITE);
 }
 
-static int iommu_prepare_identity_map(struct device *dev,
-				      unsigned long long start,
-				      unsigned long long end)
+static int domain_prepare_identity_map(struct device *dev,
+				       struct dmar_domain *domain,
+				       unsigned long long start,
+				       unsigned long long end)
 {
-	struct dmar_domain *domain;
-	int ret;
-
-	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain)
-		return -ENOMEM;
-
 	/* For _hardware_ passthrough, don't bother. But for software
 	   passthrough, we do it anyway -- it may indicate a memory
 	   range which is reserved in E820, so which didn't get set
@@ -2459,8 +2453,7 @@ static int iommu_prepare_identity_map(struct device *dev,
 			dmi_get_system_info(DMI_BIOS_VENDOR),
 			dmi_get_system_info(DMI_BIOS_VERSION),
 		     dmi_get_system_info(DMI_PRODUCT_VERSION));
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 
 	if (end >> agaw_to_width(domain->agaw)) {
@@ -2470,18 +2463,27 @@ static int iommu_prepare_identity_map(struct device *dev,
 		     dmi_get_system_info(DMI_BIOS_VENDOR),
 		     dmi_get_system_info(DMI_BIOS_VERSION),
 		     dmi_get_system_info(DMI_PRODUCT_VERSION));
-		ret = -EIO;
-		goto error;
+		return -EIO;
 	}
 
-	ret = iommu_domain_identity_map(domain, start, end);
+	return iommu_domain_identity_map(domain, start, end);
+}
+
+static int iommu_prepare_identity_map(struct device *dev,
+				      unsigned long long start,
+				      unsigned long long end)
+{
+	struct dmar_domain *domain;
+	int ret;
+
+	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	if (!domain)
+		return -ENOMEM;
+
+	ret = domain_prepare_identity_map(dev, domain, start, end);
 	if (ret)
-		goto error;
+		domain_exit(domain);
 
-	return 0;
-
- error:
-	domain_exit(domain);
 	return ret;
 }
 
