@@ -15,36 +15,34 @@
 #include "ext4.h"
 #include "ext4_jbd2.h"
 
+typedef enum {
+	attr_noop,
+	attr_delayed_allocation_blocks,
+	attr_session_write_kbytes,
+	attr_lifetime_write_kbytes,
+	attr_reserved_clusters,
+	attr_inode_readahead,
+	attr_trigger_test_error,
+	attr_feature,
+	attr_pointer_ui,
+	attr_pointer_atomic,
+} attr_id_t;
+
+typedef enum {
+	ptr_explicit,
+	ptr_ext4_sb_info_offset,
+	ptr_ext4_super_block_offset,
+} attr_ptr_t;
+
 struct ext4_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct ext4_attr *, struct ext4_sb_info *, char *);
-	ssize_t (*store)(struct ext4_attr *, struct ext4_sb_info *,
-			 const char *, size_t);
+	short attr_id;
+	short attr_ptr;
 	union {
 		int offset;
-		int deprecated_val;
+		void *explicit_ptr;
 	} u;
 };
-
-static int parse_strtoull(const char *buf,
-		unsigned long long max, unsigned long long *value)
-{
-	int ret;
-
-	ret = kstrtoull(skip_spaces(buf), 0, value);
-	if (!ret && *value > max)
-		ret = -EINVAL;
-	return ret;
-}
-
-static ssize_t delayed_allocation_blocks_show(struct ext4_attr *a,
-					      struct ext4_sb_info *sbi,
-					      char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(s64) EXT4_C2B(sbi,
-			percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
-}
 
 static ssize_t session_write_kbytes_show(struct ext4_attr *a,
 					 struct ext4_sb_info *sbi, char *buf)
@@ -89,46 +87,6 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t sbi_ui_show(struct ext4_attr *a,
-			   struct ext4_sb_info *sbi, char *buf)
-{
-	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->u.offset);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
-}
-
-static ssize_t sbi_ui_store(struct ext4_attr *a,
-			    struct ext4_sb_info *sbi,
-			    const char *buf, size_t count)
-{
-	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->u.offset);
-	unsigned long t;
-	int ret;
-
-	ret = kstrtoul(skip_spaces(buf), 0, &t);
-	if (ret)
-		return ret;
-	*ui = t;
-	return count;
-}
-
-static ssize_t es_ui_show(struct ext4_attr *a,
-			   struct ext4_sb_info *sbi, char *buf)
-{
-
-	unsigned int *ui = (unsigned int *) (((char *) sbi->s_es) +
-			   a->u.offset);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
-}
-
-static ssize_t reserved_clusters_show(struct ext4_attr *a,
-				  struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%llu\n",
-		(unsigned long long) atomic64_read(&sbi->s_resv_clusters));
-}
-
 static ssize_t reserved_clusters_store(struct ext4_attr *a,
 				   struct ext4_sb_info *sbi,
 				   const char *buf, size_t count)
@@ -136,11 +94,10 @@ static ssize_t reserved_clusters_store(struct ext4_attr *a,
 	unsigned long long val;
 	ext4_fsblk_t clusters = (ext4_blocks_count(sbi->s_es) >>
 				 sbi->s_cluster_bits);
+	int ret;
 
-	if (parse_strtoull(buf, -1ULL, &val))
-		return -EINVAL;
-
-	if (val >= clusters)
+	ret = kstrtoull(skip_spaces(buf), 0, &val);
+	if (!ret || val >= clusters)
 		return -EINVAL;
 
 	atomic64_set(&sbi->s_resv_clusters, val);
@@ -164,60 +121,51 @@ static ssize_t trigger_test_error(struct ext4_attr *a,
 	return count;
 }
 
-static ssize_t sbi_deprecated_show(struct ext4_attr *a,
-				   struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", a->u.deprecated_val);
-}
-
-#define EXT4_ATTR_OFFSET(_name,_mode,_show,_store,_elname) \
-static struct ext4_attr ext4_attr_##_name = {			\
-	.attr = {.name = __stringify(_name), .mode = _mode },	\
-	.show	= _show,					\
-	.store	= _store,					\
-	.u = {							\
-		.offset = offsetof(struct ext4_sb_info, _elname),\
-	},							\
-}
-
-#define EXT4_ATTR_OFFSET_ES(_name,_mode,_show,_store,_elname)		\
+#define EXT4_ATTR(_name,_mode,_id)					\
 static struct ext4_attr ext4_attr_##_name = {				\
 	.attr = {.name = __stringify(_name), .mode = _mode },		\
-	.show	= _show,						\
-	.store	= _store,						\
-	.u = {								\
-		.offset = offsetof(struct ext4_super_block, _elname),	\
-	},								\
+	.attr_id = attr_##_id,						\
 }
 
-#define EXT4_ATTR(name, mode, show, store) \
-static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
+#define EXT4_ATTR_FUNC(_name,_mode)  EXT4_ATTR(_name,_mode,_name)
 
-#define EXT4_INFO_ATTR(name) EXT4_ATTR(name, 0444, NULL, NULL)
-#define EXT4_RO_ATTR(name) EXT4_ATTR(name, 0444, name##_show, NULL)
-#define EXT4_RW_ATTR(name) EXT4_ATTR(name, 0644, name##_show, name##_store)
+#define EXT4_ATTR_FEATURE(_name)   EXT4_ATTR(_name, 0444, feature)
 
-#define EXT4_RO_ATTR_ES_UI(name, elname)	\
-	EXT4_ATTR_OFFSET_ES(name, 0444, es_ui_show, NULL, elname)
-#define EXT4_RW_ATTR_SBI_UI(name, elname)	\
-	EXT4_ATTR_OFFSET(name, 0644, sbi_ui_show, sbi_ui_store, elname)
-
-#define ATTR_LIST(name) &ext4_attr_##name.attr
-#define EXT4_DEPRECATED_ATTR(_name, _val)	\
+#define EXT4_ATTR_OFFSET(_name,_mode,_id,_struct,_elname)	\
 static struct ext4_attr ext4_attr_##_name = {			\
-	.attr = {.name = __stringify(_name), .mode = 0444 },	\
-	.show	= sbi_deprecated_show,				\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.attr_id = attr_##_id,					\
+	.attr_ptr = ptr_##_struct##_offset,			\
 	.u = {							\
-		.deprecated_val = _val,				\
+		.offset = offsetof(struct _struct, _elname),\
 	},							\
 }
 
-EXT4_RO_ATTR(delayed_allocation_blocks);
-EXT4_RO_ATTR(session_write_kbytes);
-EXT4_RO_ATTR(lifetime_write_kbytes);
-EXT4_RW_ATTR(reserved_clusters);
-EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, sbi_ui_show,
-		 inode_readahead_blks_store, s_inode_readahead_blks);
+#define EXT4_RO_ATTR_ES_UI(_name,_elname)				\
+	EXT4_ATTR_OFFSET(_name, 0444, pointer_ui, ext4_super_block, _elname)
+
+#define EXT4_RW_ATTR_SBI_UI(_name,_elname)	\
+	EXT4_ATTR_OFFSET(_name, 0644, pointer_ui, ext4_sb_info, _elname)
+
+#define EXT4_ATTR_PTR(_name,_mode,_id,_ptr) \
+static struct ext4_attr ext4_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.attr_id = attr_##_id,					\
+	.attr_ptr = ptr_explicit,				\
+	.u = {							\
+		.explicit_ptr = _ptr,				\
+	},							\
+}
+
+#define ATTR_LIST(name) &ext4_attr_##name.attr
+
+EXT4_ATTR_FUNC(delayed_allocation_blocks, 0444);
+EXT4_ATTR_FUNC(session_write_kbytes, 0444);
+EXT4_ATTR_FUNC(lifetime_write_kbytes, 0444);
+EXT4_ATTR_FUNC(reserved_clusters, 0644);
+
+EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, inode_readahead,
+		 ext4_sb_info, s_inode_readahead_blks);
 EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
@@ -225,9 +173,8 @@ EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_order2_req, s_mb_order2_reqs);
 EXT4_RW_ATTR_SBI_UI(mb_stream_req, s_mb_stream_request);
 EXT4_RW_ATTR_SBI_UI(mb_group_prealloc, s_mb_group_prealloc);
-EXT4_DEPRECATED_ATTR(max_writeback_mb_bump, 128);
 EXT4_RW_ATTR_SBI_UI(extent_max_zeroout_kb, s_extent_max_zeroout_kb);
-EXT4_ATTR(trigger_fs_error, 0200, NULL, trigger_test_error);
+EXT4_ATTR(trigger_fs_error, 0200, trigger_test_error);
 EXT4_RW_ATTR_SBI_UI(err_ratelimit_interval_ms, s_err_ratelimit_state.interval);
 EXT4_RW_ATTR_SBI_UI(err_ratelimit_burst, s_err_ratelimit_state.burst);
 EXT4_RW_ATTR_SBI_UI(warning_ratelimit_interval_ms, s_warning_ratelimit_state.interval);
@@ -237,6 +184,9 @@ EXT4_RW_ATTR_SBI_UI(msg_ratelimit_burst, s_msg_ratelimit_state.burst);
 EXT4_RO_ATTR_ES_UI(errors_count, s_error_count);
 EXT4_RO_ATTR_ES_UI(first_error_time, s_first_error_time);
 EXT4_RO_ATTR_ES_UI(last_error_time, s_last_error_time);
+
+static unsigned int old_bump_val = 128;
+EXT4_ATTR_PTR(max_writeback_mb_bump, 0444, pointer_ui, &old_bump_val);
 
 static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(delayed_allocation_blocks),
@@ -267,10 +217,10 @@ static struct attribute *ext4_attrs[] = {
 };
 
 /* Features this copy of ext4 supports */
-EXT4_INFO_ATTR(lazy_itable_init);
-EXT4_INFO_ATTR(batched_discard);
-EXT4_INFO_ATTR(meta_bg_resize);
-EXT4_INFO_ATTR(encryption);
+EXT4_ATTR_FEATURE(lazy_itable_init);
+EXT4_ATTR_FEATURE(batched_discard);
+EXT4_ATTR_FEATURE(meta_bg_resize);
+EXT4_ATTR_FEATURE(encryption);
 
 static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(lazy_itable_init),
@@ -280,14 +230,56 @@ static struct attribute *ext4_feat_attrs[] = {
 	NULL,
 };
 
+static void *calc_ptr(struct ext4_attr *a, struct ext4_sb_info *sbi)
+{
+	switch (a->attr_ptr) {
+	case ptr_explicit:
+		return a->u.explicit_ptr;
+	case ptr_ext4_sb_info_offset:
+		return (void *) (((char *) sbi) + a->u.offset);
+	case ptr_ext4_super_block_offset:
+		return (void *) (((char *) sbi->s_es) + a->u.offset);
+	}
+	return NULL;
+}
+
 static ssize_t ext4_attr_show(struct kobject *kobj,
 			      struct attribute *attr, char *buf)
 {
 	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
 						s_kobj);
 	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
+	void *ptr = calc_ptr(a, sbi);
 
-	return a->show ? a->show(a, sbi, buf) : 0;
+	switch (a->attr_id) {
+	case attr_delayed_allocation_blocks:
+		return snprintf(buf, PAGE_SIZE, "%llu\n",
+				(s64) EXT4_C2B(sbi,
+		       percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
+	case attr_session_write_kbytes:
+		return session_write_kbytes_show(a, sbi, buf);
+	case attr_lifetime_write_kbytes:
+		return lifetime_write_kbytes_show(a, sbi, buf);
+	case attr_reserved_clusters:
+		return snprintf(buf, PAGE_SIZE, "%llu\n",
+				(unsigned long long)
+				atomic64_read(&sbi->s_resv_clusters));
+	case attr_inode_readahead:
+	case attr_pointer_ui:
+		if (!ptr)
+			return 0;
+		return snprintf(buf, PAGE_SIZE, "%u\n",
+				*((unsigned int *) ptr));
+	case attr_pointer_atomic:
+		if (!ptr)
+			return 0;
+		return snprintf(buf, PAGE_SIZE, "%d\n",
+				atomic_read((atomic_t *) ptr));
+	case attr_feature:
+		return snprintf(buf, PAGE_SIZE, "supported\n");
+	}
+
+	return 0;
 }
 
 static ssize_t ext4_attr_store(struct kobject *kobj,
@@ -297,8 +289,27 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
 						s_kobj);
 	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
+	void *ptr = calc_ptr(a, sbi);
+	unsigned long t;
+	int ret;
 
-	return a->store ? a->store(a, sbi, buf, len) : 0;
+	switch (a->attr_id) {
+	case attr_reserved_clusters:
+		return reserved_clusters_store(a, sbi, buf, len);
+	case attr_pointer_ui:
+		if (!ptr)
+			return 0;
+		ret = kstrtoul(skip_spaces(buf), 0, &t);
+		if (ret)
+			return ret;
+		*((unsigned int *) ptr) = t;
+		return len;
+	case attr_inode_readahead:
+		return inode_readahead_blks_store(a, sbi, buf, len);
+	case attr_trigger_test_error:
+		return trigger_test_error(a, sbi, buf, len);
+	}
+	return 0;
 }
 
 static void ext4_sb_release(struct kobject *kobj)
@@ -327,25 +338,9 @@ static struct kset ext4_kset = {
 	.kobj   = {.ktype = &ext4_ktype},
 };
 
-static ssize_t ext4_feat_show(struct kobject *kobj,
-			      struct attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "supported\n");
-}
-
-/*
- * We can not use ext4_attr_show/store because it relies on the kobject
- * being embedded in the ext4_sb_info structure which is definitely not
- * true in this case.
- */
-static const struct sysfs_ops ext4_feat_ops = {
-	.show	= ext4_feat_show,
-	.store	= NULL,
-};
-
 static struct kobj_type ext4_feat_ktype = {
 	.default_attrs	= ext4_feat_attrs,
-	.sysfs_ops	= &ext4_feat_ops,
+	.sysfs_ops	= &ext4_attr_ops,
 };
 
 static struct kobject ext4_feat = {
