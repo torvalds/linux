@@ -299,6 +299,11 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 		interface = of_parse_phandle(netcp_intf->node_interface,
 					     module->name, 0);
 
+		if (!interface) {
+			devm_kfree(dev, intf_modpriv);
+			continue;
+		}
+
 		intf_modpriv->netcp_priv = netcp_intf;
 		intf_modpriv->netcp_module = module;
 		list_add_tail(&intf_modpriv->intf_list,
