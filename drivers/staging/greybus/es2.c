@@ -16,6 +16,7 @@
 #include "greybus.h"
 #include "kernel_ver.h"
 #include "connection.h"
+#include "greybus_trace.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_GBUF_MSG_SIZE_MAX	2048
@@ -319,6 +320,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
+	trace_gb_host_device_send(hd, cport_id, buffer_size);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
@@ -478,12 +480,14 @@ static void cport_in_callback(struct urb *urb)
 	header = urb->transfer_buffer;
 	cport_id = gb_message_cport_unpack(header);
 
-	if (cport_id_valid(hd, cport_id))
+	if (cport_id_valid(hd, cport_id)) {
+		trace_gb_host_device_recv(hd, cport_id, urb->actual_length);
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
-	else
+	} else {
 		dev_err(dev, "%s: invalid cport id 0x%02x received\n",
 				__func__, cport_id);
+	}
 exit:
 	/* put our urb back in the request pool */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
