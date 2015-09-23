@@ -306,7 +306,7 @@ $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
 		$(PERF_IN) $(LIBS) -o $@
 
-$(GTK_IN): FORCE
+$(GTK_IN): fixdep FORCE
 	$(Q)$(MAKE) $(build)=gtk
 
 $(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
@@ -349,7 +349,7 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -389,7 +389,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
-$(LIBPERF_IN): FORCE
+$(LIBPERF_IN): fixdep FORCE
 	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
@@ -397,10 +397,10 @@ $(LIB_FILE): $(LIBPERF_IN)
 
 LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
 
-$(LIBTRACEEVENT): FORCE
+$(LIBTRACEEVENT): fixdep FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a
 
-libtraceevent_plugins: FORCE
+libtraceevent_plugins: fixdep FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) plugins
 
 $(LIBTRACEEVENT_DYNAMIC_LIST): libtraceevent_plugins
@@ -413,7 +413,7 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
-$(LIBAPI): FORCE
+$(LIBAPI): fixdep FORCE
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
 $(LIBAPI)-clean:

@@ -23,10 +23,12 @@ RM = rm -f
 
 API_IN := $(OUTPUT)libapi-in.o
 
+all:
+
 export srctree OUTPUT CC LD CFLAGS V
 include $(srctree)/tools/build/Makefile.include
 
-all: $(LIBFILE)
+all: fixdep $(LIBFILE)
 
 $(API_IN): FORCE
 	@$(MAKE) $(build)=libapi

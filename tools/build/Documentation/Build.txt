@@ -113,6 +113,13 @@ It defines following interface:
       make $(build)=ex
 
 
+Fixdep
+------
+It is necessary to build the fixdep helper before invoking the build.
+The Makefile.include file adds the fixdep target, that could be
+invoked by the user.
+
+
 Rules
 -----
 
