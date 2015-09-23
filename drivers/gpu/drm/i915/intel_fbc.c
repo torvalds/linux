@@ -41,6 +41,11 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+static inline bool fbc_supported(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->fbc.enable_fbc != NULL;
+}
+
 /*
  * In some platforms where the CRTC's x:0/y:0 coordinates doesn't match the
  * frontbuffer's x:0/y:0 coordinates we lie to the hardware about the plane's
@@ -439,7 +444,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
  */
 void intel_fbc_disable(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -457,7 +462,7 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -685,7 +690,7 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -948,7 +953,7 @@ out_disable:
  */
 void intel_fbc_update(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->fbc.lock);
@@ -962,7 +967,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 {
 	unsigned int fbc_bits;
 
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	if (origin == ORIGIN_GTT)
@@ -989,7 +994,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin)
 {
-	if (!dev_priv->fbc.enable_fbc)
+	if (!fbc_supported(dev_priv))
 		return;
 
 	if (origin == ORIGIN_GTT)
