@@ -631,10 +631,8 @@ static int mkpdrlist(struct pda *pda)
 		       curroff, pda->nrec);
 		return 1;
 	}
-	if (le16_to_cpu(pda16[curroff + 1]) == HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
-		(pda->nrec)++;
-	}
+	pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
+	(pda->nrec)++;
 	return result;
 }
 
