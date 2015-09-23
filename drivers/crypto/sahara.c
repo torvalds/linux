@@ -173,7 +173,6 @@ struct sahara_aes_reqctx {
  * @sg_in_idx: number of hw links
  * @in_sg: scatterlist for input data
  * @in_sg_chain: scatterlists for chained input data
- * @in_sg_chained: specifies if chained scatterlists are used or not
  * @total: total number of bytes for transfer
  * @last: is this the last block
  * @first: is this the first block
@@ -191,7 +190,6 @@ struct sahara_sha_reqctx {
 	unsigned int		sg_in_idx;
 	struct scatterlist	*in_sg;
 	struct scatterlist	in_sg_chain[2];
-	bool			in_sg_chained;
 	size_t			total;
 	unsigned int		last;
 	unsigned int		first;
@@ -801,38 +799,19 @@ static int sahara_sha_hw_links_create(struct sahara_dev *dev,
 		return -EINVAL;
 	}
 
-	if (rctx->in_sg_chained) {
-		i = start;
-		sg = dev->in_sg;
-		while (sg) {
-			ret = dma_map_sg(dev->device, sg, 1,
-					 DMA_TO_DEVICE);
-			if (!ret)
-				return -EFAULT;
+	sg = dev->in_sg;
+	ret = dma_map_sg(dev->device, dev->in_sg, dev->nb_in_sg, DMA_TO_DEVICE);
+	if (!ret)
+		return -EFAULT;
 
-			dev->hw_link[i]->len = sg->length;
-			dev->hw_link[i]->p = sg->dma_address;
+	for (i = start; i < dev->nb_in_sg + start; i++) {
+		dev->hw_link[i]->len = sg->length;
+		dev->hw_link[i]->p = sg->dma_address;
+		if (i == (dev->nb_in_sg + start - 1)) {
+			dev->hw_link[i]->next = 0;
+		} else {
 			dev->hw_link[i]->next = dev->hw_phys_link[i + 1];
 			sg = sg_next(sg);
-			i += 1;
-		}
-		dev->hw_link[i-1]->next = 0;
-	} else {
-		sg = dev->in_sg;
-		ret = dma_map_sg(dev->device, dev->in_sg, dev->nb_in_sg,
-				 DMA_TO_DEVICE);
-		if (!ret)
-			return -EFAULT;
-
-		for (i = start; i < dev->nb_in_sg + start; i++) {
-			dev->hw_link[i]->len = sg->length;
-			dev->hw_link[i]->p = sg->dma_address;
-			if (i == (dev->nb_in_sg + start - 1)) {
-				dev->hw_link[i]->next = 0;
-			} else {
-				dev->hw_link[i]->next = dev->hw_phys_link[i + 1];
-				sg = sg_next(sg);
-			}
 		}
 	}
 
@@ -980,7 +959,6 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 		rctx->total = req->nbytes + rctx->buf_cnt;
 		rctx->in_sg = rctx->in_sg_chain;
 
-		rctx->in_sg_chained = true;
 		req->src = rctx->in_sg_chain;
 	/* only data from previous operation */
 	} else if (rctx->buf_cnt) {
@@ -991,36 +969,17 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 		/* buf was copied into rembuf above */
 		sg_init_one(rctx->in_sg, rctx->rembuf, rctx->buf_cnt);
 		rctx->total = rctx->buf_cnt;
-		rctx->in_sg_chained = false;
 	/* no data from previous operation */
 	} else {
 		rctx->in_sg = req->src;
 		rctx->total = req->nbytes;
 		req->src = rctx->in_sg;
-		rctx->in_sg_chained = false;
 	}
 
 	/* on next call, we only have the remaining data in the buffer */
 	rctx->buf_cnt = hash_later;
 
 	return -EINPROGRESS;
-}
-
-static void sahara_sha_unmap_sg(struct sahara_dev *dev,
-				struct sahara_sha_reqctx *rctx)
-{
-	struct scatterlist *sg;
-
-	if (rctx->in_sg_chained) {
-		sg = dev->in_sg;
-		while (sg) {
-			dma_unmap_sg(dev->device, sg, 1, DMA_TO_DEVICE);
-			sg = sg_next(sg);
-		}
-	} else {
-		dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
-			DMA_TO_DEVICE);
-	}
 }
 
 static int sahara_sha_process(struct ahash_request *req)
@@ -1062,7 +1021,8 @@ static int sahara_sha_process(struct ahash_request *req)
 	}
 
 	if (rctx->sg_in_idx)
-		sahara_sha_unmap_sg(dev, rctx);
+		dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
+			     DMA_TO_DEVICE);
 
 	memcpy(rctx->context, dev->context_base, rctx->context_size);
 
