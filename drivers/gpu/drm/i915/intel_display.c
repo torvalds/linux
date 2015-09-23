@@ -2545,6 +2545,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 			      struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
@@ -2555,6 +2556,12 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	size_aligned -= base_aligned;
 
 	if (plane_config->size == 0)
+		return false;
+
+	/* If the FB is too big, just don't use it since fbdev is not very
+	 * important and we should probably use that space with FBC or other
+	 * features. */
+	if (size_aligned * 2 > dev_priv->gtt.stolen_usable_size)
 		return false;
 
 	obj = i915_gem_object_create_stolen_for_preallocated(dev,
