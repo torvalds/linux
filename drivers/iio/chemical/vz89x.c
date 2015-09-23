@@ -85,6 +85,21 @@ static const struct attribute_group vz89x_attrs_group = {
 	.attrs = vz89x_attributes,
 };
 
+/*
+ * Chipset sometime updates in the middle of a reading causing it to reset the
+ * data pointer, and causing invalid reading of previous data.
+ * We can check for this by reading MSB of the resistance reading that is
+ * always zero, and by also confirming the VOC_short isn't zero.
+ */
+
+static int vz89x_measurement_is_valid(struct vz89x_data *data)
+{
+	if (data->buffer[VZ89X_VOC_SHORT_IDX] == 0)
+		return 1;
+
+	return !!(data->buffer[VZ89X_REG_MEASUREMENT_SIZE - 1] > 0);
+}
+
 static int vz89x_get_measurement(struct vz89x_data *data)
 {
 	int ret;
@@ -106,6 +121,10 @@ static int vz89x_get_measurement(struct vz89x_data *data)
 		data->buffer[i] = ret;
 	}
 
+	ret = vz89x_measurement_is_valid(data);
+	if (ret)
+		return -EAGAIN;
+
 	data->last_update = jiffies;
 
 	return 0;
@@ -113,9 +132,9 @@ static int vz89x_get_measurement(struct vz89x_data *data)
 
 static int vz89x_get_resistance_reading(struct vz89x_data *data)
 {
-	u8 *buf = &data->buffer[VZ89X_VOC_TVOC_IDX];
+	u8 *buf = &data->buffer[VZ89X_VOC_RESISTANCE_IDX];
 
-	return buf[0] | (buf[1] << 8) | (buf[2] << 16);
+	return buf[0] | (buf[1] << 8);
 }
 
 static int vz89x_read_raw(struct iio_dev *indio_dev,
