@@ -2903,6 +2903,11 @@ extern const struct inode_operations ext4_encrypted_symlink_inode_operations;
 extern const struct inode_operations ext4_symlink_inode_operations;
 extern const struct inode_operations ext4_fast_symlink_inode_operations;
 
+/* sysfs.c */
+extern int ext4_register_sysfs(struct super_block *sb);
+extern int __init ext4_init_sysfs(void);
+extern void ext4_exit_sysfs(void);
+
 /* block_validity */
 extern void ext4_release_system_zone(struct super_block *sb);
 extern int ext4_setup_system_zone(struct super_block *sb);
