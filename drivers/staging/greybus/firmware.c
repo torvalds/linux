@@ -210,5 +210,6 @@ static struct gb_protocol firmware_protocol = {
 	.connection_init	= gb_firmware_connection_init,
 	.connection_exit	= gb_firmware_connection_exit,
 	.request_recv		= gb_firmware_request_recv,
+	.flags			= GB_PROTOCOL_SKIP_CONTROL_DISCONNECTED,
 };
 gb_builtin_protocol_driver(firmware_protocol);
