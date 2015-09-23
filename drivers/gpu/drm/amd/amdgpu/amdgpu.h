@@ -82,6 +82,7 @@ extern int amdgpu_vm_block_size;
 extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
+extern int amdgpu_enable_semaphores;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
@@ -432,7 +433,7 @@ int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
 
-void amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring);
+int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring);
 int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq_src,
 				   unsigned irq_type);
@@ -890,7 +891,7 @@ struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
-	struct amd_gpu_scheduler 	*scheduler;
+	struct amd_gpu_scheduler 	sched;
 
 	spinlock_t              fence_lock;
 	struct mutex		*ring_lock;
@@ -1201,8 +1202,6 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_inst_irq;
 	/* gfx status */
 	uint32_t gfx_current_status;
-	/* sync signal for const engine */
-	unsigned ce_sync_offs;
 	/* ce ram size*/
 	unsigned ce_ram_size;
 };
@@ -1274,8 +1273,10 @@ struct amdgpu_job {
 	uint32_t		num_ibs;
 	struct mutex            job_lock;
 	struct amdgpu_user_fence uf;
-	int (*free_job)(struct amdgpu_job *sched_job);
+	int (*free_job)(struct amdgpu_job *job);
 };
+#define to_amdgpu_job(sched_job)		\
+		container_of((sched_job), struct amdgpu_job, base)
 
 static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
 {
