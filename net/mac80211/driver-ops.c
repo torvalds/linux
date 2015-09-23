@@ -139,6 +139,52 @@ int drv_conf_tx(struct ieee80211_local *local,
 	return ret;
 }
 
+u64 drv_get_tsf(struct ieee80211_local *local,
+		struct ieee80211_sub_if_data *sdata)
+{
+	u64 ret = -1ULL;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return ret;
+
+	trace_drv_get_tsf(local, sdata);
+	if (local->ops->get_tsf)
+		ret = local->ops->get_tsf(&local->hw, &sdata->vif);
+	trace_drv_return_u64(local, ret);
+	return ret;
+}
+
+void drv_set_tsf(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u64 tsf)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_set_tsf(local, sdata, tsf);
+	if (local->ops->set_tsf)
+		local->ops->set_tsf(&local->hw, &sdata->vif, tsf);
+	trace_drv_return_void(local);
+}
+
+void drv_reset_tsf(struct ieee80211_local *local,
+		   struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_reset_tsf(local, sdata);
+	if (local->ops->reset_tsf)
+		local->ops->reset_tsf(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
 int drv_switch_vif_chanctx(struct ieee80211_local *local,
 			   struct ieee80211_vif_chanctx_switch *vifs,
 			   int n_vifs, enum ieee80211_chanctx_switch_mode mode)
