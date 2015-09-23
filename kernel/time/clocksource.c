@@ -595,16 +595,15 @@ static void __clocksource_select(bool skipcur)
  */
 static void clocksource_select(void)
 {
-	return __clocksource_select(false);
+	__clocksource_select(false);
 }
 
 static void clocksource_select_fallback(void)
 {
-	return __clocksource_select(true);
+	__clocksource_select(true);
 }
 
 #else /* !CONFIG_ARCH_USES_GETTIMEOFFSET */
-
 static inline void clocksource_select(void) { }
 static inline void clocksource_select_fallback(void) { }
 
