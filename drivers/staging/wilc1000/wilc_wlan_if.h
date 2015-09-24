@@ -120,7 +120,6 @@ typedef struct {
 #if defined(MEMORY_STATIC)
 	u32 rx_buffer_size;
 #endif
-	void *rxq_critical_section;
 
 	struct semaphore *cfg_wait_event;
 } wilc_wlan_os_context_t;

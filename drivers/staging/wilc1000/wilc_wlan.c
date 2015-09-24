@@ -81,7 +81,6 @@ typedef struct {
 	/**
 	 *      RX queue
 	 **/
-	struct mutex *rxq_lock;
 	struct rxq_entry_t *rxq_head;
 	struct rxq_entry_t *rxq_tail;
 	int rxq_entries;
@@ -605,7 +604,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	if (p->quit)
 		return 0;
 
-	mutex_lock(p->rxq_lock);
+	mutex_lock(&g_linux_wlan->rxq_cs);
 	if (p->rxq_head == NULL) {
 		PRINT_D(RX_DBG, "Add to Queue head\n");
 		rqe->next = NULL;
@@ -619,7 +618,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 	}
 	p->rxq_entries += 1;
 	PRINT_D(RX_DBG, "Number of queue entries: %d\n", p->rxq_entries);
-	mutex_unlock(p->rxq_lock);
+	mutex_unlock(&g_linux_wlan->rxq_cs);
 	return p->rxq_entries;
 }
 
@@ -631,12 +630,12 @@ static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
 	if (p->rxq_head) {
 		struct rxq_entry_t *rqe;
 
-		mutex_lock(p->rxq_lock);
+		mutex_lock(&g_linux_wlan->rxq_cs);
 		rqe = p->rxq_head;
 		p->rxq_head = p->rxq_head->next;
 		p->rxq_entries -= 1;
 		PRINT_D(RX_DBG, "RXQ entries decreased\n");
-		mutex_unlock(p->rxq_lock);
+		mutex_unlock(&g_linux_wlan->rxq_cs);
 		return rqe;
 	}
 	PRINT_D(RX_DBG, "Nothing to get from Q\n");
@@ -1974,7 +1973,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 	g_wlan.txq_add_to_head_lock = inp->os_context.txq_add_to_head_critical_section;
 
-	g_wlan.rxq_lock = inp->os_context.rxq_critical_section;
 	g_wlan.txq_wait = inp->os_context.txq_wait_event;
 	g_wlan.cfg_wait = inp->os_context.cfg_wait_event;
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
