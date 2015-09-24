@@ -25,9 +25,6 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
-#include <linux/skbuff.h>
-#include <linux/unaligned/memmove.h>
-#include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
 #define IEEE802154_ACK_PSDU_LEN		5
