@@ -4389,7 +4389,7 @@ static int rocker_port_attr_set(struct net_device *dev,
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	int err = 0;
 
-	switch (attr->trans_ph) {
+	switch (trans->ph) {
 	case SWITCHDEV_TRANS_PREPARE:
 		BUG_ON(!list_empty(&rocker_port->trans_mem));
 		break;
@@ -4402,12 +4402,12 @@ static int rocker_port_attr_set(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
-		err = rocker_port_stp_update(rocker_port, attr->trans_ph,
+		err = rocker_port_stp_update(rocker_port, trans->ph,
 					     ROCKER_OP_FLAG_NOWAIT,
 					     attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
-		err = rocker_port_brport_flags_set(rocker_port, attr->trans_ph,
+		err = rocker_port_brport_flags_set(rocker_port, trans->ph,
 						   attr->u.brport_flags);
 		break;
 	default:
@@ -4475,7 +4475,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 	const struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
 
-	switch (obj->trans_ph) {
+	switch (trans->ph) {
 	case SWITCHDEV_TRANS_PREPARE:
 		BUG_ON(!list_empty(&rocker_port->trans_mem));
 		break;
@@ -4488,17 +4488,17 @@ static int rocker_port_obj_add(struct net_device *dev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlans_add(rocker_port, obj->trans_ph,
+		err = rocker_port_vlans_add(rocker_port, trans->ph,
 					    &obj->u.vlan);
 		break;
 	case SWITCHDEV_OBJ_IPV4_FIB:
 		fib4 = &obj->u.ipv4_fib;
-		err = rocker_port_fib_ipv4(rocker_port, obj->trans_ph,
+		err = rocker_port_fib_ipv4(rocker_port, trans->ph,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id, 0);
 		break;
 	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_add(rocker_port, obj->trans_ph, &obj->u.fdb);
+		err = rocker_port_fdb_add(rocker_port, trans->ph, &obj->u.fdb);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4569,7 +4569,8 @@ static int rocker_port_obj_del(struct net_device *dev,
 					   ROCKER_OP_FLAG_REMOVE);
 		break;
 	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_del(rocker_port, obj->trans_ph, &obj->u.fdb);
+		err = rocker_port_fdb_del(rocker_port, SWITCHDEV_TRANS_NONE,
+					  &obj->u.fdb);
 		break;
 	default:
 		err = -EOPNOTSUPP;

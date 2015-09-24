@@ -242,7 +242,8 @@ static int dsa_bridge_check_vlan_range(struct dsa_switch *ds,
 }
 
 static int dsa_slave_port_vlan_add(struct net_device *dev,
-				   struct switchdev_obj *obj)
+				   struct switchdev_obj *obj,
+				   struct switchdev_trans *trans)
 {
 	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -250,7 +251,7 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 	u16 vid;
 	int err;
 
-	switch (obj->trans_ph) {
+	switch (trans->ph) {
 	case SWITCHDEV_TRANS_PREPARE:
 		if (!ds->drv->port_vlan_add || !ds->drv->port_pvid_set)
 			return -EOPNOTSUPP;
@@ -347,16 +348,17 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_add(struct net_device *dev,
-				  struct switchdev_obj *obj)
+				  struct switchdev_obj *obj,
+				  struct switchdev_trans *trans)
 {
 	struct switchdev_obj_fdb *fdb = &obj->u.fdb;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
 
-	if (obj->trans_ph == SWITCHDEV_TRANS_PREPARE)
+	if (trans->ph == SWITCHDEV_TRANS_PREPARE)
 		ret = ds->drv->port_fdb_add ? 0 : -EOPNOTSUPP;
-	else if (obj->trans_ph == SWITCHDEV_TRANS_COMMIT)
+	else if (trans->ph == SWITCHDEV_TRANS_COMMIT)
 		ret = ds->drv->port_fdb_add(ds, p->port, fdb->addr, fdb->vid);
 
 	return ret;
@@ -463,7 +465,7 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
-		if (attr->trans_ph == SWITCHDEV_TRANS_COMMIT)
+		if (trans->ph == SWITCHDEV_TRANS_COMMIT)
 			ret = dsa_slave_stp_update(dev, attr->u.stp_state);
 		break;
 	default:
@@ -487,10 +489,10 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
-		err = dsa_slave_port_fdb_add(dev, obj);
+		err = dsa_slave_port_fdb_add(dev, obj, trans);
 		break;
 	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = dsa_slave_port_vlan_add(dev, obj);
+		err = dsa_slave_port_vlan_add(dev, obj, trans);
 		break;
 	default:
 		err = -EOPNOTSUPP;

@@ -32,6 +32,7 @@ struct switchdev_trans_item {
 
 struct switchdev_trans {
 	struct list_head item_list;
+	enum switchdev_trans_ph ph;
 };
 
 enum switchdev_attr_id {
@@ -43,7 +44,6 @@ enum switchdev_attr_id {
 
 struct switchdev_attr {
 	enum switchdev_attr_id id;
-	enum switchdev_trans_ph trans_ph;
 	u32 flags;
 	union {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
@@ -63,7 +63,6 @@ enum switchdev_obj_id {
 
 struct switchdev_obj {
 	enum switchdev_obj_id id;
-	enum switchdev_trans_ph trans_ph;
 	int (*cb)(struct net_device *dev, struct switchdev_obj *obj);
 	union {
 		struct switchdev_obj_vlan {		/* PORT_VLAN */
