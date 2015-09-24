@@ -1062,8 +1062,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 
 	nwi->os_context.txq_add_to_head_critical_section = (void *)&g_linux_wlan->txq_add_to_head_cs;
 
-	nwi->os_context.txq_spin_lock = (void *)&g_linux_wlan->txq_spinlock;
-
 	nwi->os_context.txq_wait_event = (void *)&g_linux_wlan->txq_event;
 
 #if defined(MEMORY_STATIC)

@@ -114,7 +114,6 @@ typedef struct {
 	void *txq_critical_section;
 
 	void *txq_add_to_head_critical_section;
-	void *txq_spin_lock;
 
 	void *txq_wait_event;
 
