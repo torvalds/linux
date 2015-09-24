@@ -468,6 +468,9 @@ struct intel_crtc_state {
 
 	/* w/a for waiting 2 vblanks during crtc enable */
 	enum pipe hsw_workaround_pipe;
+
+	/* IVB sprite scaling w/a (WaCxSRDisabledForSpriteScaling:ivb) */
+	bool disable_lp_wm;
 };
 
 struct vlv_wm_state {

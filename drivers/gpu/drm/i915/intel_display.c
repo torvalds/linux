@@ -11581,16 +11581,30 @@ retry:
 static bool intel_wm_need_update(struct drm_plane *plane,
 				 struct drm_plane_state *state)
 {
-	/* Update watermarks on tiling changes. */
+	struct intel_plane_state *new = to_intel_plane_state(state);
+	struct intel_plane_state *cur = to_intel_plane_state(plane->state);
+
+	/* Update watermarks on tiling or size changes. */
 	if (!plane->state->fb || !state->fb ||
 	    plane->state->fb->modifier[0] != state->fb->modifier[0] ||
-	    plane->state->rotation != state->rotation)
-		return true;
-
-	if (plane->state->crtc_w != state->crtc_w)
+	    plane->state->rotation != state->rotation ||
+	    drm_rect_width(&new->src) != drm_rect_width(&cur->src) ||
+	    drm_rect_height(&new->src) != drm_rect_height(&cur->src) ||
+	    drm_rect_width(&new->dst) != drm_rect_width(&cur->dst) ||
+	    drm_rect_height(&new->dst) != drm_rect_height(&cur->dst))
 		return true;
 
 	return false;
+}
+
+static bool needs_scaling(struct intel_plane_state *state)
+{
+	int src_w = drm_rect_width(&state->src) >> 16;
+	int src_h = drm_rect_height(&state->src) >> 16;
+	int dst_w = drm_rect_width(&state->dst);
+	int dst_h = drm_rect_height(&state->dst);
+
+	return (src_w != dst_w || src_h != dst_h);
 }
 
 int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
@@ -11608,7 +11622,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	bool mode_changed = needs_modeset(crtc_state);
 	bool was_crtc_enabled = crtc->state->active;
 	bool is_crtc_enabled = crtc_state->active;
-
 	bool turn_off, turn_on, visible, was_visible;
 	struct drm_framebuffer *fb = plane_state->fb;
 
@@ -11718,11 +11731,23 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	case DRM_PLANE_TYPE_CURSOR:
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
-		if (turn_off && !mode_changed) {
+		/*
+		 * WaCxSRDisabledForSpriteScaling:ivb
+		 *
+		 * cstate->update_wm was already set above, so this flag will
+		 * take effect when we commit and program watermarks.
+		 */
+		if (IS_IVYBRIDGE(dev) &&
+		    needs_scaling(to_intel_plane_state(plane_state)) &&
+		    !needs_scaling(old_plane_state)) {
+			to_intel_crtc_state(crtc_state)->disable_lp_wm = true;
+		} else if (turn_off && !mode_changed) {
 			intel_crtc->atomic.wait_vblank = true;
 			intel_crtc->atomic.update_sprite_watermarks |=
 				1 << i;
 		}
+
+		break;
 	}
 	return 0;
 }

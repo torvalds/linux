@@ -3674,6 +3674,18 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 
 	WARN_ON(cstate->base.active != intel_crtc->active);
 
+	/*
+	 * IVB workaround: must disable low power watermarks for at least
+	 * one frame before enabling scaling.  LP watermarks can be re-enabled
+	 * when scaling is disabled.
+	 *
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 */
+	if (cstate->disable_lp_wm) {
+		ilk_disable_lp_wm(dev);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	}
+
 	intel_compute_pipe_wm(cstate, &pipe_wm);
 
 	if (!memcmp(&intel_crtc->wm.active, &pipe_wm, sizeof(pipe_wm)))
@@ -3703,28 +3715,6 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 	ilk_compute_wm_results(dev, best_lp_wm, partitioning, &results);
 
 	ilk_write_wm_values(dev_priv, &results);
-}
-
-static void
-ilk_update_sprite_wm(struct drm_plane *plane,
-		     struct drm_crtc *crtc,
-		     uint32_t sprite_width, uint32_t sprite_height,
-		     int pixel_size, bool enabled, bool scaled)
-{
-	struct drm_device *dev = plane->dev;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-
-	/*
-	 * IVB workaround: must disable low power watermarks for at least
-	 * one frame before enabling scaling.  LP watermarks can be re-enabled
-	 * when scaling is disabled.
-	 *
-	 * WaCxSRDisabledForSpriteScaling:ivb
-	 */
-	if (IS_IVYBRIDGE(dev) && scaled && ilk_disable_lp_wm(dev))
-		intel_wait_for_vblank(dev, intel_plane->pipe);
-
-	ilk_update_wm(crtc);
 }
 
 static void skl_pipe_wm_active_state(uint32_t val,
@@ -7040,7 +7030,6 @@ void intel_init_pm(struct drm_device *dev)
 		    (!IS_GEN5(dev) && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.update_wm = ilk_update_wm;
-			dev_priv->display.update_sprite_wm = ilk_update_sprite_wm;
 		} else {
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
