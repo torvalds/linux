@@ -17,11 +17,6 @@
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
 
-enum switchdev_trans_ph {
-	SWITCHDEV_TRANS_PREPARE,
-	SWITCHDEV_TRANS_COMMIT,
-};
-
 struct switchdev_trans_item {
 	struct list_head list;
 	void *data;
@@ -30,17 +25,17 @@ struct switchdev_trans_item {
 
 struct switchdev_trans {
 	struct list_head item_list;
-	enum switchdev_trans_ph ph;
+	bool ph_prepare;
 };
 
 static inline bool switchdev_trans_ph_prepare(struct switchdev_trans *trans)
 {
-	return trans && trans->ph == SWITCHDEV_TRANS_PREPARE;
+	return trans && trans->ph_prepare;
 }
 
 static inline bool switchdev_trans_ph_commit(struct switchdev_trans *trans)
 {
-	return trans && trans->ph == SWITCHDEV_TRANS_COMMIT;
+	return trans && !trans->ph_prepare;
 }
 
 enum switchdev_attr_id {
