@@ -3437,31 +3437,27 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					  len - baselen, false, &elems,
 					  care_about_ies, ncrc);
 
-	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK)) {
-		bool directed_tim = ieee80211_check_tim(elems.tim,
-							elems.tim_len,
-							ifmgd->aid);
-		if (directed_tim) {
-			if (local->hw.conf.dynamic_ps_timeout > 0) {
-				if (local->hw.conf.flags & IEEE80211_CONF_PS) {
-					local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-					ieee80211_hw_config(local,
-							    IEEE80211_CONF_CHANGE_PS);
-				}
-				ieee80211_send_nullfunc(local, sdata, 0);
-			} else if (!local->pspolling && sdata->u.mgd.powersave) {
-				local->pspolling = true;
-
-				/*
-				 * Here is assumed that the driver will be
-				 * able to send ps-poll frame and receive a
-				 * response even though power save mode is
-				 * enabled, but some drivers might require
-				 * to disable power save here. This needs
-				 * to be investigated.
-				 */
-				ieee80211_send_pspoll(local, sdata);
+	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
+	    ieee80211_check_tim(elems.tim, elems.tim_len, ifmgd->aid)) {
+		if (local->hw.conf.dynamic_ps_timeout > 0) {
+			if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+				ieee80211_hw_config(local,
+						    IEEE80211_CONF_CHANGE_PS);
 			}
+			ieee80211_send_nullfunc(local, sdata, 0);
+		} else if (!local->pspolling && sdata->u.mgd.powersave) {
+			local->pspolling = true;
+
+			/*
+			 * Here is assumed that the driver will be
+			 * able to send ps-poll frame and receive a
+			 * response even though power save mode is
+			 * enabled, but some drivers might require
+			 * to disable power save here. This needs
+			 * to be investigated.
+			 */
+			ieee80211_send_pspoll(local, sdata);
 		}
 	}
 
