@@ -1773,12 +1773,6 @@ struct skl_pipe_wm_parameters {
 	struct intel_plane_wm_parameters cursor;
 };
 
-struct ilk_pipe_wm_parameters {
-	bool active;
-	uint32_t pipe_htotal;
-	uint32_t pixel_rate;
-};
-
 struct ilk_wm_maximums {
 	uint16_t pri;
 	uint16_t spr;
@@ -1797,7 +1791,7 @@ struct intel_wm_config {
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_pri_wm(const struct ilk_pipe_wm_parameters *params,
+static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value,
 				   bool is_lp)
@@ -1805,16 +1799,16 @@ static uint32_t ilk_compute_pri_wm(const struct ilk_pipe_wm_parameters *params,
 	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
 	uint32_t method1, method2;
 
-	if (!params->active || !pstate->visible)
+	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	method1 = ilk_wm_method1(params->pixel_rate, bpp, mem_value);
+	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), bpp, mem_value);
 
 	if (!is_lp)
 		return method1;
 
-	method2 = ilk_wm_method2(params->pixel_rate,
-				 params->pipe_htotal,
+	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->dst),
 				 bpp,
 				 mem_value);
@@ -1826,19 +1820,19 @@ static uint32_t ilk_compute_pri_wm(const struct ilk_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_spr_wm(const struct ilk_pipe_wm_parameters *params,
+static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
 	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
 	uint32_t method1, method2;
 
-	if (!params->active || !pstate->visible)
+	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	method1 = ilk_wm_method1(params->pixel_rate, bpp, mem_value);
-	method2 = ilk_wm_method2(params->pixel_rate,
-				 params->pipe_htotal,
+	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), bpp, mem_value);
+	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+				 cstate->base.adjusted_mode.crtc_htotal,
 				 drm_rect_width(&pstate->dst),
 				 bpp,
 				 mem_value);
@@ -1849,30 +1843,30 @@ static uint32_t ilk_compute_spr_wm(const struct ilk_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_cur_wm(const struct ilk_pipe_wm_parameters *params,
+static uint32_t ilk_compute_cur_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
 	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
 
-	if (!params->active || !pstate->visible)
+	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
-	return ilk_wm_method2(params->pixel_rate,
-			      params->pipe_htotal,
+	return ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
+			      cstate->base.adjusted_mode.crtc_htotal,
 			      drm_rect_width(&pstate->dst),
 			      bpp,
 			      mem_value);
 }
 
 /* Only for WM_LP. */
-static uint32_t ilk_compute_fbc_wm(const struct ilk_pipe_wm_parameters *params,
+static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t pri_val)
 {
 	int bpp = pstate->base.fb ? pstate->base.fb->bits_per_pixel / 8 : 0;
 
-	if (!params->active || !pstate->visible)
+	if (!cstate->base.active || !pstate->visible)
 		return 0;
 
 	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->dst), bpp);
@@ -2042,7 +2036,7 @@ static bool ilk_validate_wm_level(int level,
 static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 const struct intel_crtc *intel_crtc,
 				 int level,
-				 const struct ilk_pipe_wm_parameters *p,
+				 struct intel_crtc_state *cstate,
 				 struct intel_wm_level *result)
 {
 	struct intel_plane *intel_plane;
@@ -2063,18 +2057,18 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 
 		switch (intel_plane->base.type) {
 		case DRM_PLANE_TYPE_PRIMARY:
-			result->pri_val = ilk_compute_pri_wm(p, pstate,
+			result->pri_val = ilk_compute_pri_wm(cstate, pstate,
 							     pri_latency,
 							     level);
-			result->fbc_val = ilk_compute_fbc_wm(p, pstate,
+			result->fbc_val = ilk_compute_fbc_wm(cstate, pstate,
 							     result->pri_val);
 			break;
 		case DRM_PLANE_TYPE_OVERLAY:
-			result->spr_val = ilk_compute_spr_wm(p, pstate,
+			result->spr_val = ilk_compute_spr_wm(cstate, pstate,
 							     spr_latency);
 			break;
 		case DRM_PLANE_TYPE_CURSOR:
-			result->cur_val = ilk_compute_cur_wm(p, pstate,
+			result->cur_val = ilk_compute_cur_wm(cstate, pstate,
 							     cur_latency);
 			break;
 		}
@@ -2338,19 +2332,6 @@ static void skl_setup_wm_latency(struct drm_device *dev)
 	intel_print_wm_latency(dev, "Gen9 Plane", dev_priv->wm.skl_latency);
 }
 
-static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
-				      struct ilk_pipe_wm_parameters *p)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	if (!intel_crtc->active)
-		return;
-
-	p->active = true;
-	p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
-	p->pixel_rate = ilk_pipe_pixel_rate(intel_crtc->config);
-}
-
 static void ilk_compute_wm_config(struct drm_device *dev,
 				  struct intel_wm_config *config)
 {
@@ -2370,10 +2351,10 @@ static void ilk_compute_wm_config(struct drm_device *dev,
 }
 
 /* Compute new watermarks for the pipe */
-static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
-				  const struct ilk_pipe_wm_parameters *params,
+static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
 				  struct intel_pipe_wm *pipe_wm)
 {
+	struct drm_crtc *crtc = cstate->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	const struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2398,8 +2379,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 		(drm_rect_width(&sprstate->dst) != drm_rect_width(&sprstate->src) >> 16 ||
 		drm_rect_height(&sprstate->dst) != drm_rect_height(&sprstate->src) >> 16);
 
-
-	pipe_wm->pipe_enabled = params->active;
+	pipe_wm->pipe_enabled = cstate->base.active;
 	pipe_wm->sprites_enabled = sprstate->visible;
 	pipe_wm->sprites_scaled = config.sprites_scaled;
 
@@ -2411,7 +2391,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 	if (config.sprites_scaled)
 		max_level = 0;
 
-	ilk_compute_wm_level(dev_priv, intel_crtc, 0, params, &pipe_wm->wm[0]);
+	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
@@ -2428,7 +2408,7 @@ static bool intel_compute_pipe_wm(struct drm_crtc *crtc,
 	for (level = 1; level <= max_level; level++) {
 		struct intel_wm_level wm = {};
 
-		ilk_compute_wm_level(dev_priv, intel_crtc, level, params, &wm);
+		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate, &wm);
 
 		/*
 		 * Disable any watermark level that exceeds the
@@ -3759,19 +3739,19 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct ilk_wm_maximums max;
-	struct ilk_pipe_wm_parameters params = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 	struct intel_pipe_wm pipe_wm = {};
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct intel_wm_config config = {};
 
-	ilk_compute_wm_parameters(crtc, &params);
+	WARN_ON(cstate->base.active != intel_crtc->active);
 
-	intel_compute_pipe_wm(crtc, &params, &pipe_wm);
+	intel_compute_pipe_wm(cstate, &pipe_wm);
 
 	if (!memcmp(&intel_crtc->wm.active, &pipe_wm, sizeof(pipe_wm)))
 		return;
@@ -3810,12 +3790,6 @@ ilk_update_sprite_wm(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-
-	intel_plane->wm.enabled = enabled;
-	intel_plane->wm.scaled = scaled;
-	intel_plane->wm.horiz_pixels = sprite_width;
-	intel_plane->wm.vert_pixels = sprite_width;
-	intel_plane->wm.bytes_per_pixel = pixel_size;
 
 	/*
 	 * IVB workaround: must disable low power watermarks for at least
