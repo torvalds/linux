@@ -618,7 +618,7 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 		  adjusted_mode->hdisplay,
 		  adjusted_mode->vdisplay);
 
-	if (qcrtc->index == 0)
+	if (bo->is_primary == false)
 		recreate_primary = true;
 
 	if (bo->surf.stride * bo->surf.height > qdev->vram_size) {
