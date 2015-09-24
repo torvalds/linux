@@ -4805,7 +4805,6 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_plane *plane;
 
 	if (atomic->wait_vblank)
 		intel_wait_for_vblank(dev, crtc->pipe);
@@ -4823,10 +4822,6 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 
 	if (atomic->post_enable_primary)
 		intel_post_enable_primary(&crtc->base);
-
-	drm_for_each_plane_mask(plane, dev, atomic->update_sprite_watermarks)
-		intel_update_sprite_watermarks(plane, &crtc->base,
-					       0, 0, 0, false, false);
 
 	memset(atomic, 0, sizeof(*atomic));
 }
