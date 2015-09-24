@@ -961,6 +961,10 @@ static const struct switchdev_ops dsa_slave_switchdev_ops = {
 	.switchdev_port_obj_dump	= dsa_slave_port_obj_dump,
 };
 
+static struct device_type dsa_type = {
+	.name	= "dsa",
+};
+
 static void dsa_slave_adjust_link(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -1149,6 +1153,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 	slave_dev->switchdev_ops = &dsa_slave_switchdev_ops;
+	SET_NETDEV_DEVTYPE(slave_dev, &dsa_type);
 
 	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,
 				 NULL);
