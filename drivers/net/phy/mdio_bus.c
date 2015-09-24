@@ -244,7 +244,7 @@ static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
  *
  * Returns 0 on success or < 0 on error.
  */
-int mdiobus_register(struct mii_bus *bus)
+int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 {
 	int i, err;
 
@@ -255,6 +255,7 @@ int mdiobus_register(struct mii_bus *bus)
 	BUG_ON(bus->state != MDIOBUS_ALLOCATED &&
 	       bus->state != MDIOBUS_UNREGISTERED);
 
+	bus->owner = owner;
 	bus->dev.parent = bus->parent;
 	bus->dev.class = &mdio_bus_class;
 	bus->dev.groups = NULL;
@@ -296,7 +297,7 @@ error:
 	device_del(&bus->dev);
 	return err;
 }
-EXPORT_SYMBOL(mdiobus_register);
+EXPORT_SYMBOL(__mdiobus_register);
 
 void mdiobus_unregister(struct mii_bus *bus)
 {

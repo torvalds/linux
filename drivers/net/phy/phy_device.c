@@ -582,9 +582,14 @@ EXPORT_SYMBOL(phy_init_hw);
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
+	struct mii_bus *bus = phydev->bus;
 	struct device *d = &phydev->dev;
-	struct module *bus_module;
 	int err;
+
+	if (!try_module_get(bus->owner)) {
+		dev_err(&dev->dev, "failed to get the bus module\n");
+		return -EIO;
+	}
 
 	/* Assume that if there is no driver, that it doesn't
 	 * exist, and we should use the genphy driver.
@@ -600,20 +605,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 			err = device_bind_driver(d);
 
 		if (err)
-			return err;
+			goto error;
 	}
 
 	if (phydev->attached_dev) {
 		dev_err(&dev->dev, "PHY already attached\n");
-		return -EBUSY;
-	}
-
-	/* Increment the bus module reference count */
-	bus_module = phydev->bus->dev.driver ?
-		     phydev->bus->dev.driver->owner : NULL;
-	if (!try_module_get(bus_module)) {
-		dev_err(&dev->dev, "failed to get the bus module\n");
-		return -EIO;
+		err = -EBUSY;
+		goto error;
 	}
 
 	phydev->attached_dev = dev;
@@ -635,6 +633,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	else
 		phy_resume(phydev);
 
+	return err;
+
+error:
+	module_put(bus->owner);
 	return err;
 }
 EXPORT_SYMBOL(phy_attach_direct);
@@ -680,10 +682,8 @@ EXPORT_SYMBOL(phy_attach);
  */
 void phy_detach(struct phy_device *phydev)
 {
+	struct mii_bus *bus;
 	int i;
-
-	if (phydev->bus->dev.driver)
-		module_put(phydev->bus->dev.driver->owner);
 
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
@@ -700,6 +700,10 @@ void phy_detach(struct phy_device *phydev)
 			break;
 		}
 	}
+
+	bus = phydev->bus;
+
+	module_put(bus->owner);
 }
 EXPORT_SYMBOL(phy_detach);
 
