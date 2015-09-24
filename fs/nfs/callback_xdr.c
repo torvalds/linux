@@ -699,7 +699,9 @@ static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 	if (unlikely(status != 0))
 		goto out;
 
-	encode_sessionid(xdr, &res->csr_sessionid);
+	status = encode_sessionid(xdr, &res->csr_sessionid);
+	if (status)
+		goto out;
 
 	p = xdr_reserve_space(xdr, 4 * sizeof(uint32_t));
 	if (unlikely(p == NULL))
