@@ -393,7 +393,7 @@ static int linux_wlan_lock_timeout(void *vp, u32 timeout)
 	return error;
 }
 
-static void linux_wlan_mac_indicate(int flag)
+void linux_wlan_mac_indicate(int flag)
 {
 	/*I have to do it that way becuase there is no mean to encapsulate device pointer
 	 * as a parameter
@@ -1095,7 +1095,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 
 	/*for now - to be revised*/
 	nwi->net_func.rx_complete = linux_wlan_rx_complete;
-	nwi->indicate_func.mac_indicate = linux_wlan_mac_indicate;
 }
 
 int wlan_initialize_threads(perInterface_wlan_t *nic)
