@@ -248,11 +248,8 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 		 * released.
 		 */
 
-		if (err != -EOPNOTSUPP) {
-			trans.ph = SWITCHDEV_TRANS_ABORT;
-			__switchdev_port_attr_set(dev, attr, &trans);
+		if (err != -EOPNOTSUPP)
 			switchdev_trans_items_destroy(&trans);
-		}
 
 		return err;
 	}
@@ -334,11 +331,8 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 		 * released.
 		 */
 
-		if (err != -EOPNOTSUPP) {
-			trans.ph = SWITCHDEV_TRANS_ABORT;
-			__switchdev_port_obj_add(dev, obj, &trans);
+		if (err != -EOPNOTSUPP)
 			switchdev_trans_items_destroy(&trans);
-		}
 
 		return err;
 	}
