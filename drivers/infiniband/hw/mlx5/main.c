@@ -245,7 +245,6 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_BAD_QKEY_CNTR;
 	if (MLX5_CAP_GEN(mdev, apm))
 		props->device_cap_flags |= IB_DEVICE_AUTO_PATH_MIG;
-	props->device_cap_flags |= IB_DEVICE_LOCAL_DMA_LKEY;
 	if (MLX5_CAP_GEN(mdev, xrc))
 		props->device_cap_flags |= IB_DEVICE_XRC;
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
@@ -1245,17 +1244,9 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	struct ib_srq_init_attr attr;
 	struct mlx5_ib_dev *dev;
 	struct ib_cq_init_attr cq_attr = {.cqe = 1};
-	u32 rsvd_lkey;
 	int ret = 0;
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
-
-	ret = mlx5_core_query_special_context(dev->mdev, &rsvd_lkey);
-	if (ret) {
-		pr_err("Failed to query special context %d\n", ret);
-		return ret;
-	}
-	dev->ib_dev.local_dma_lkey = rsvd_lkey;
 
 	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->p0)) {
@@ -1418,6 +1409,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	strlcpy(dev->ib_dev.name, "mlx5_%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
+	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->num_ports		= MLX5_CAP_GEN(mdev, num_ports);
 	dev->ib_dev.phys_port_cnt     = dev->num_ports;
 	dev->ib_dev.num_comp_vectors    =
