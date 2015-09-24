@@ -51,7 +51,6 @@ typedef struct {
 	 *      RX buffer
 	 **/
 	#ifdef MEMORY_STATIC
-	u32 rx_buffer_size;
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
 	#endif
@@ -1308,7 +1307,7 @@ static void wilc_wlan_handle_isr_ext(u32 int_status)
 
 	if (size > 0) {
 #ifdef MEMORY_STATIC
-		if (p->rx_buffer_size - offset < size)
+		if (LINUX_RX_SIZE - offset < size)
 			offset = 0;
 
 		if (p->rx_buffer)
@@ -1968,10 +1967,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	memcpy((void *)&g_wlan.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
-
-#if defined (MEMORY_STATIC)
-	g_wlan.rx_buffer_size = inp->os_context.rx_buffer_size;
-#endif
 	/***
 	 *      host interface init
 	 **/
@@ -2028,7 +2023,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 /* rx_buffer is not used unless we activate USE_MEM STATIC which is not applicable, allocating such memory is useless*/
 #if defined (MEMORY_STATIC)
 	if (g_wlan.rx_buffer == NULL)
-		g_wlan.rx_buffer = kmalloc(g_wlan.rx_buffer_size, GFP_KERNEL);
+		g_wlan.rx_buffer = kmalloc(LINUX_RX_SIZE, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.rx_buffer =%p\n", g_wlan.rx_buffer);
 	if (g_wlan.rx_buffer == NULL) {
 		/* ENOBUFS	105 */

@@ -108,9 +108,6 @@ typedef struct {
 typedef struct {
 	void *os_private;
 	void *txq_critical_section;
-#if defined(MEMORY_STATIC)
-	u32 rx_buffer_size;
-#endif
 } wilc_wlan_os_context_t;
 
 typedef struct {
