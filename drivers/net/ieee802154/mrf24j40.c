@@ -1239,7 +1239,7 @@ static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
 	devrec->hw->phy->supported.min_maxbe = 5;
 	devrec->hw->phy->supported.max_maxbe = 5;
 
-	devrec->hw->phy->cca.mode = NL802154_CCA_CARRIER;;
+	devrec->hw->phy->cca.mode = NL802154_CCA_CARRIER;
 	devrec->hw->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY) |
 					       BIT(NL802154_CCA_CARRIER) |
 					       BIT(NL802154_CCA_ENERGY_CARRIER);
