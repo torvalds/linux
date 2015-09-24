@@ -1,6 +1,6 @@
 /*
  * include/net/switchdev.h - Switch device API
- * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2015 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,6 +13,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
+#include <linux/list.h>
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
 
@@ -21,6 +22,16 @@ enum switchdev_trans_ph {
 	SWITCHDEV_TRANS_PREPARE,
 	SWITCHDEV_TRANS_ABORT,
 	SWITCHDEV_TRANS_COMMIT,
+};
+
+struct switchdev_trans_item {
+	struct list_head list;
+	void *data;
+	void (*destructor)(const void *data);
+};
+
+struct switchdev_trans {
+	struct list_head item_list;
 };
 
 enum switchdev_attr_id {
@@ -77,6 +88,11 @@ struct switchdev_obj {
 	} u;
 };
 
+void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
+				  void *data, void (*destructor)(void const *),
+				  struct switchdev_trans_item *tritem);
+void *switchdev_trans_item_dequeue(struct switchdev_trans *trans);
+
 /**
  * struct switchdev_ops - switchdev operations
  *
@@ -94,9 +110,11 @@ struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
-					   struct switchdev_attr *attr);
+					   struct switchdev_attr *attr,
+					   struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_add)(struct net_device *dev,
-					  struct switchdev_obj *obj);
+					  struct switchdev_obj *obj,
+					  struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_del)(struct net_device *dev,
 					  struct switchdev_obj *obj);
 	int	(*switchdev_port_obj_dump)(struct net_device *dev,
