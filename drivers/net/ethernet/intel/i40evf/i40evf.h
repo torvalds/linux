@@ -211,7 +211,6 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
 #define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
 #define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
-#define I40EVF_FLAG_IN_NETPOLL                   BIT(4)
 #define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
 #define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
@@ -224,7 +223,6 @@ struct i40evf_adapter {
 /* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		 0
 #define I40E_FLAG_DCB_ENABLED			 0
-#define I40E_FLAG_IN_NETPOLL			 I40EVF_FLAG_IN_NETPOLL
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
 #define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE

@@ -742,16 +742,11 @@ static void i40e_receive_skb(struct i40e_ring *rx_ring,
 			     struct sk_buff *skb, u16 vlan_tag)
 {
 	struct i40e_q_vector *q_vector = rx_ring->q_vector;
-	struct i40e_vsi *vsi = rx_ring->vsi;
-	u64 flags = vsi->back->flags;
 
 	if (vlan_tag & VLAN_VID_MASK)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 
-	if (flags & I40E_FLAG_IN_NETPOLL)
-		netif_rx(skb);
-	else
-		napi_gro_receive(&q_vector->napi, skb);
+	napi_gro_receive(&q_vector->napi, skb);
 }
 
 /**

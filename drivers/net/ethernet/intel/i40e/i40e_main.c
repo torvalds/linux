@@ -3574,14 +3574,12 @@ static void i40e_netpoll(struct net_device *netdev)
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
-	pf->flags |= I40E_FLAG_IN_NETPOLL;
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
 		for (i = 0; i < vsi->num_q_vectors; i++)
 			i40e_msix_clean_rings(0, vsi->q_vectors[i]);
 	} else {
 		i40e_intr(pf->pdev->irq, netdev);
 	}
-	pf->flags &= ~I40E_FLAG_IN_NETPOLL;
 }
 #endif
 
