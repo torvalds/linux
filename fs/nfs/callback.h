@@ -61,7 +61,6 @@ struct cb_compound_hdr_res {
 };
 
 struct cb_getattrargs {
-	struct sockaddr *addr;
 	struct nfs_fh fh;
 	uint32_t bitmap[2];
 };
@@ -76,7 +75,6 @@ struct cb_getattrres {
 };
 
 struct cb_recallargs {
-	struct sockaddr *addr;
 	struct nfs_fh fh;
 	nfs4_stateid stateid;
 	uint32_t truncate;
@@ -134,7 +132,6 @@ extern int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation,
 #define RCA4_TYPE_MASK_ALL 0xf31f
 
 struct cb_recallanyargs {
-	struct sockaddr	*craa_addr;
 	uint32_t	craa_objs_to_keep;
 	uint32_t	craa_type_mask;
 };
@@ -144,7 +141,6 @@ extern __be32 nfs4_callback_recallany(struct cb_recallanyargs *args,
 					struct cb_process_state *cps);
 
 struct cb_recallslotargs {
-	struct sockaddr	*crsa_addr;
 	uint32_t	crsa_target_highest_slotid;
 };
 extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
@@ -152,7 +148,6 @@ extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
 					 struct cb_process_state *cps);
 
 struct cb_layoutrecallargs {
-	struct sockaddr		*cbl_addr;
 	uint32_t		cbl_recall_type;
 	uint32_t		cbl_layout_type;
 	uint32_t		cbl_layoutchanged;
