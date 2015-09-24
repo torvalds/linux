@@ -132,6 +132,42 @@ struct intel_limit {
 	intel_p2_t	    p2;
 };
 
+/* returns HPLL frequency in kHz */
+static int valleyview_get_vco(struct drm_i915_private *dev_priv)
+{
+	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
+
+	/* Obtain SKU information */
+	mutex_lock(&dev_priv->sb_lock);
+	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
+		CCK_FUSE_HPLL_FREQ_MASK;
+	mutex_unlock(&dev_priv->sb_lock);
+
+	return vco_freq[hpll_freq] * 1000;
+}
+
+static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+				  const char *name, u32 reg)
+{
+	u32 val;
+	int divider;
+
+	if (dev_priv->hpll_freq == 0)
+		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
+
+	mutex_lock(&dev_priv->sb_lock);
+	val = vlv_cck_read(dev_priv, reg);
+	mutex_unlock(&dev_priv->sb_lock);
+
+	divider = val & CCK_FREQUENCY_VALUES;
+
+	WARN((val & CCK_FREQUENCY_STATUS) !=
+	     (divider << CCK_FREQUENCY_STATUS_SHIFT),
+	     "%s change in progress\n", name);
+
+	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
+}
+
 int
 intel_pch_rawclk(struct drm_device *dev)
 {
@@ -173,6 +209,17 @@ int intel_hrawclk(struct drm_device *dev)
 	default:
 		return 133;
 	}
+}
+
+static void intel_update_czclk(struct drm_i915_private *dev_priv)
+{
+	if (!IS_VALLEYVIEW(dev_priv))
+		return;
+
+	dev_priv->czclk_freq = vlv_get_cck_clock_hpll(dev_priv, "czclk",
+						      CCK_CZ_CLOCK_CONTROL);
+
+	DRM_DEBUG_DRIVER("CZ clock rate: %d kHz\n", dev_priv->czclk_freq);
 }
 
 static inline u32 /* units of 100MHz */
@@ -5756,20 +5803,6 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power enable timeout\n");
 }
 
-/* returns HPLL frequency in kHz */
-static int valleyview_get_vco(struct drm_i915_private *dev_priv)
-{
-	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
-
-	/* Obtain SKU information */
-	mutex_lock(&dev_priv->sb_lock);
-	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
-		CCK_FUSE_HPLL_FREQ_MASK;
-	mutex_unlock(&dev_priv->sb_lock);
-
-	return vco_freq[hpll_freq] * 1000;
-}
-
 /* Adjust CDclk dividers to allow high res or save power if possible */
 static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 {
@@ -5990,7 +6023,7 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	else
 		default_credits = PFI_CREDIT(8);
 
-	if (DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 1000) >= dev_priv->rps.cz_freq) {
+	if (dev_priv->cdclk_freq >= dev_priv->czclk_freq) {
 		/* CHV suggested value is 31 or 63 */
 		if (IS_CHERRYVIEW(dev_priv))
 			credits = PFI_CREDIT_63;
@@ -6722,24 +6755,8 @@ static int haswell_get_display_clock_speed(struct drm_device *dev)
 
 static int valleyview_get_display_clock_speed(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val;
-	int divider;
-
-	if (dev_priv->hpll_freq == 0)
-		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
-
-	mutex_lock(&dev_priv->sb_lock);
-	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
-	mutex_unlock(&dev_priv->sb_lock);
-
-	divider = val & CCK_FREQUENCY_VALUES;
-
-	WARN((val & CCK_FREQUENCY_STATUS) !=
-	     (divider << CCK_FREQUENCY_STATUS_SHIFT),
-	     "cdclk change in progress\n");
-
-	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
+	return vlv_get_cck_clock_hpll(to_i915(dev), "cdclk",
+				      CCK_DISPLAY_CLOCK_CONTROL);
 }
 
 static int ilk_get_display_clock_speed(struct drm_device *dev)
@@ -13329,8 +13346,6 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	intel_update_cdclk(dev);
-
 	if (HAS_DDI(dev))
 		intel_ddi_pll_init(dev);
 	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
@@ -14838,6 +14853,9 @@ void intel_modeset_init(struct drm_device *dev)
 					      pipe_name(pipe), sprite_name(pipe, sprite), ret);
 		}
 	}
+
+	intel_update_czclk(dev_priv);
+	intel_update_cdclk(dev);
 
 	intel_shared_dpll_init(dev);
 

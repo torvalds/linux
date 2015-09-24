@@ -5460,25 +5460,10 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 	mutex_unlock(&dev_priv->sb_lock);
 
 	switch ((val >> 2) & 0x7) {
-	case 0:
-	case 1:
-		dev_priv->rps.cz_freq = 200;
-		dev_priv->mem_freq = 1600;
-		break;
-	case 2:
-		dev_priv->rps.cz_freq = 267;
-		dev_priv->mem_freq = 1600;
-		break;
 	case 3:
-		dev_priv->rps.cz_freq = 333;
 		dev_priv->mem_freq = 2000;
 		break;
-	case 4:
-		dev_priv->rps.cz_freq = 320;
-		dev_priv->mem_freq = 1600;
-		break;
-	case 5:
-		dev_priv->rps.cz_freq = 400;
+	default:
 		dev_priv->mem_freq = 1600;
 		break;
 	}
@@ -7305,7 +7290,7 @@ static int vlv_gpu_freq_div(unsigned int czclk_freq)
 
 static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
+	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
 	div = vlv_gpu_freq_div(czclk_freq);
 	if (div < 0)
@@ -7316,7 +7301,7 @@ static int byt_gpu_freq(struct drm_i915_private *dev_priv, int val)
 
 static int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->mem_freq, 4);
+	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
 	mul = vlv_gpu_freq_div(czclk_freq);
 	if (mul < 0)
@@ -7327,7 +7312,7 @@ static int byt_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int div, czclk_freq = dev_priv->rps.cz_freq;
+	int div, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
 	div = vlv_gpu_freq_div(czclk_freq) / 2;
 	if (div < 0)
@@ -7338,7 +7323,7 @@ static int chv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 
 static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int mul, czclk_freq = dev_priv->rps.cz_freq;
+	int mul, czclk_freq = DIV_ROUND_CLOSEST(dev_priv->czclk_freq, 1000);
 
 	mul = vlv_gpu_freq_div(czclk_freq) / 2;
 	if (mul < 0)
