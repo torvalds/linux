@@ -248,7 +248,7 @@ static ssize_t channel_dimm_label_store(struct device *dev,
 	if (data[count - 1] == '\0' || data[count - 1] == '\n')
 		copy_count -= 1;
 
-	if (copy_count >= sizeof(rank->dimm->label))
+	if (copy_count == 0 || copy_count >= sizeof(rank->dimm->label))
 		return -EINVAL;
 
 	strncpy(rank->dimm->label, data, copy_count);
@@ -509,7 +509,7 @@ static ssize_t dimmdev_label_store(struct device *dev,
 	if (data[count - 1] == '\0' || data[count - 1] == '\n')
 		copy_count -= 1;
 
-	if (copy_count >= sizeof(dimm->label))
+	if (copy_count == 0 || copy_count >= sizeof(dimm->label))
 		return -EINVAL;
 
 	strncpy(dimm->label, data, copy_count);
