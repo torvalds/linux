@@ -58,8 +58,8 @@
 #define UART_UBRC	0xac
 #define UART_UTS	0xb4
 
-unsigned long iram_tlb_base_addr;
-unsigned long iram_tlb_phys_addr;
+extern unsigned long iram_tlb_base_addr;
+extern unsigned long iram_tlb_phys_addr;
 
 static unsigned int *ocram_saved_in_ddr;
 static void __iomem *ocram_base;

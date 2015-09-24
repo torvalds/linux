@@ -75,14 +75,19 @@ void imx_gpc_set_arm_power_down_timing(u32 sw2iso, u32 sw);
 unsigned int imx_gpc_is_mf_mix_off(void);
 void imx6sx_set_m4_highfreq(bool high_freq);
 void imx_mu_enable_m4_irqs_in_gic(bool enable);
+#ifdef CONFIG_HAVE_IMX_GPC
 void imx_gpc_add_m4_wake_up_irq(u32 irq, bool enable);
+unsigned int imx_gpc_is_m4_sleeping(void);
+#else
+static inline void imx_gpc_add_m4_wake_up_irq(u32 irq, bool enable) {}
+static inline unsigned int imx_gpc_is_m4_sleeping(void) { return 0; }
+#endif
 void imx_gpc_hold_m4_in_sleep(void);
 void imx_gpc_release_m4_in_sleep(void);
 int imx_update_shared_mem(struct clk_hw *hw, bool enable);
 bool imx_src_is_m4_enabled(void);
 void mcc_receive_from_mu_buffer(unsigned int index, unsigned int *data);
 void mcc_send_via_mu_buffer(unsigned int index, unsigned int data);
-unsigned int imx_gpc_is_m4_sleeping(void);
 bool imx_mu_is_m4_in_low_freq(void);
 
 enum mxc_cpu_pwr_mode {
@@ -123,13 +128,20 @@ void imx_gpc_post_resume(void);
 unsigned int imx_gpc_is_mf_mix_off(void);
 void imx_gpcv2_pre_suspend(bool arm_power_off);
 void imx_gpcv2_post_resume(void);
-void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 unsigned int imx_gpcv2_is_mf_mix_off(void);
 int imx_gpc_mf_power_on(unsigned int irq, unsigned int on);
+#ifdef CONFIG_HAVE_IMX_GPCV2
 int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on);
+void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
+#else
+static inline int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on) { return 0; }
+static inline void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn) {}
+#endif
 void __init imx_gpcv2_check_dt(void);
 void imx_gpcv2_set_lpm_mode(enum mxc_cpu_pwr_mode mode);
 void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn);
+unsigned long save_ttbr1(void);
+void restore_ttbr1(unsigned long ttbr1);
 void imx_gpc_mask_all(void);
 void imx_gpc_restore_all(void);
 void imx_gpc_hwirq_mask(unsigned int hwirq);
@@ -141,8 +153,16 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6q_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
 void imx6_enet_mac_init(const char *enet_compat, const char *ocotp_compat);
+#ifdef CONFIG_HAVE_MMDC
 int imx_mmdc_get_ddr_type(void);
+#else
+static inline int imx_mmdc_get_ddr_type(void) { return 0; }
+#endif
+#ifdef CONFIG_HAVE_DDRC
 int imx_ddrc_get_ddr_type(void);
+#else
+static inline int imx_ddrc_get_ddr_type(void) { return 0; }
+#endif
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);
 void imx_busfreq_map_io(void);

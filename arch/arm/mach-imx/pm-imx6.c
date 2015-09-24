@@ -543,27 +543,6 @@ struct imx6_cpu_pm_info {
 	u32 mmdc_val[MX6_MAX_MMDC_NUM][2];
 } __aligned(8);
 
-unsigned long save_ttbr1(void)
-{
-	unsigned long lttbr1;
-
-	asm volatile(
-		".align 4\n"
-		"mrc p15, 0, %0, c2, c0, 1\n"
-		: "=r" (lttbr1)
-	);
-	return lttbr1;
-}
-
-void restore_ttbr1(unsigned long ttbr1)
-{
-	asm volatile(
-		".align 4\n"
-		"mcr p15, 0, %0, c2, c0, 1\n"
-		: : "r" (ttbr1)
-	);
-}
-
 void imx6q_set_int_mem_clk_lpm(bool enable)
 {
 	u32 val = readl_relaxed(ccm_base + CGPR);
@@ -773,6 +752,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 	unsigned int console_saved_reg[11] = {0};
 	static unsigned int ccm_ccgr4, ccm_ccgr6;
 
+#ifdef CONFIG_SOC_IMX6SX
 	if (imx_src_is_m4_enabled()) {
 		if (imx_gpc_is_m4_sleeping() && imx_mu_is_m4_in_low_freq()) {
 			imx_gpc_hold_m4_in_sleep();
@@ -790,18 +770,23 @@ static int imx6q_pm_enter(suspend_state_t state)
 			return 0;
 		}
 	}
+#endif
 
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		imx6q_set_lpm(STOP_POWER_ON);
 		imx6q_set_int_mem_clk_lpm(true);
 		imx_gpc_pre_suspend(false);
+#ifdef CONFIG_SOC_IMX6SL
 		if (cpu_is_imx6sl())
 			imx6sl_set_wait_clk(true);
+#endif
 		/* Zzz ... */
 		cpu_do_idle();
+#ifdef CONFIG_SOC_IMX6SL
 		if (cpu_is_imx6sl())
 			imx6sl_set_wait_clk(false);
+#endif
 		imx_gpc_post_resume();
 		imx6q_set_lpm(WAIT_CLOCKED);
 		break;
@@ -868,10 +853,12 @@ static int imx6q_pm_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_SOC_IMX6SX
 	if (imx_src_is_m4_enabled()) {
 		imx_mu_enable_m4_irqs_in_gic(false);
 		imx_gpc_release_m4_in_sleep();
 	}
+#endif
 
 	return 0;
 }

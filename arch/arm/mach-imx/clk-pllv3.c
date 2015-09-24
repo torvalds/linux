@@ -109,6 +109,7 @@ static int clk_pllv3_do_hardware(struct clk_hw *hw, bool enable)
 static void clk_pllv3_do_shared_clks(struct clk_hw *hw, bool enable)
 {
 	if (imx_src_is_m4_enabled()) {
+#ifdef CONFIG_SOC_IMX6SX
 		if (!amp_power_mutex || !shared_mem) {
 			if (enable)
 				clk_pllv3_do_hardware(hw, enable);
@@ -129,6 +130,7 @@ static void clk_pllv3_do_shared_clks(struct clk_hw *hw, bool enable)
 		clk_pllv3_do_hardware(hw, enable);
 
 		imx_sema4_mutex_unlock(amp_power_mutex);
+#endif
 	} else {
 		clk_pllv3_do_hardware(hw, enable);
 	}
