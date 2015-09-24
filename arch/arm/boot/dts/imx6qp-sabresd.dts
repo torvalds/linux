@@ -28,3 +28,13 @@
 &pre4 {
 	status = "okay";
 };
+
+&prg1 {
+	memory-region = <&memory>;
+	status = "okay";
+};
+
+&prg2 {
+	memory-region = <&memory>;
+	status = "okay";
+};
