@@ -52,9 +52,13 @@ only uses one.
 
 gpio-specifier may encode: bank, pin position inside the bank,
 whether pin is open-drain and whether pin is logically inverted.
+
 Exact meaning of each specifier cell is controller specific, and must
-be documented in the device tree binding for the device. Use the macros
-defined in include/dt-bindings/gpio/gpio.h whenever possible:
+be documented in the device tree binding for the device.
+
+Most controllers are however specifying a generic flag bitfield
+in the last cell, so for these, use the macros defined in
+include/dt-bindings/gpio/gpio.h whenever possible:
 
 Example of a node using GPIOs:
 
@@ -64,6 +68,15 @@ Example of a node using GPIOs:
 
 GPIO_ACTIVE_HIGH is 0, so in this example gpio-specifier is "18 0" and encodes
 GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
+
+Optional standard bitfield specifiers for the last cell:
+
+- Bit 0: 0 means active high, 1 means active low
+- Bit 1: 1 means single-ended wiring, see:
+           https://en.wikipedia.org/wiki/Single-ended_triode
+	   When used with active-low, this means open drain/collector, see:
+           https://en.wikipedia.org/wiki/Open_collector
+	   When used with active-high, this means open source/emitter
 
 1.1) GPIO specifier best practices
 ----------------------------------
