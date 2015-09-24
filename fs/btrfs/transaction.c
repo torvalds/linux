@@ -239,10 +239,9 @@ loop:
 	 * commit the transaction.
 	 */
 	atomic_set(&cur_trans->use_count, 2);
-	cur_trans->have_free_bgs = 0;
 	atomic_set(&cur_trans->pending_ordered, 0);
+	cur_trans->flags = 0;
 	cur_trans->start_time = get_seconds();
-	cur_trans->dirty_bg_run = 0;
 
 	memset(&cur_trans->delayed_refs, 0, sizeof(cur_trans->delayed_refs));
 
@@ -1837,7 +1836,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (!cur_trans->dirty_bg_run) {
+	if (!test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &cur_trans->flags)) {
 		int run_it = 0;
 
 		/* this mutex is also taken before trying to set
@@ -1846,18 +1845,17 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 * after a extents from that block group have been
 		 * allocated for cache files.  btrfs_set_block_group_ro
 		 * will wait for the transaction to commit if it
-		 * finds dirty_bg_run = 1
+		 * finds BTRFS_TRANS_DIRTY_BG_RUN set.
 		 *
-		 * The dirty_bg_run flag is also used to make sure only
-		 * one process starts all the block group IO.  It wouldn't
+		 * The BTRFS_TRANS_DIRTY_BG_RUN flag is also used to make sure
+		 * only one process starts all the block group IO.  It wouldn't
 		 * hurt to have more than one go through, but there's no
 		 * real advantage to it either.
 		 */
 		mutex_lock(&root->fs_info->ro_block_group_mutex);
-		if (!cur_trans->dirty_bg_run) {
+		if (!test_and_set_bit(BTRFS_TRANS_DIRTY_BG_RUN,
+				      &cur_trans->flags))
 			run_it = 1;
-			cur_trans->dirty_bg_run = 1;
-		}
 		mutex_unlock(&root->fs_info->ro_block_group_mutex);
 
 		if (run_it)
@@ -2127,7 +2125,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_finish_extent_commit(trans, root);
 
-	if (cur_trans->have_free_bgs)
+	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(root->fs_info);
 
 	root->fs_info->last_trans_committed = cur_trans->transid;

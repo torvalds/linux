@@ -4066,7 +4066,8 @@ commit_trans:
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 			if (have_pinned_space >= 0 ||
-			    trans->transaction->have_free_bgs ||
+			    test_bit(BTRFS_TRANS_HAVE_FREE_BGS,
+				     &trans->transaction->flags) ||
 			    need_commit > 0) {
 				ret = btrfs_commit_transaction(trans, root);
 				if (ret)
@@ -8938,7 +8939,7 @@ again:
 	 * back off and let this transaction commit
 	 */
 	mutex_lock(&root->fs_info->ro_block_group_mutex);
-	if (trans->transaction->dirty_bg_run) {
+	if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
 		u64 transid = trans->transid;
 
 		mutex_unlock(&root->fs_info->ro_block_group_mutex);

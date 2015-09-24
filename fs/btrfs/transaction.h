@@ -32,6 +32,9 @@ enum btrfs_trans_state {
 	TRANS_STATE_MAX			= 6,
 };
 
+#define BTRFS_TRANS_HAVE_FREE_BGS	0
+#define BTRFS_TRANS_DIRTY_BG_RUN	1
+
 struct btrfs_transaction {
 	u64 transid;
 	/*
@@ -48,10 +51,7 @@ struct btrfs_transaction {
 	atomic_t use_count;
 	atomic_t pending_ordered;
 
-	/*
-	 * true if there is free bgs operations in this transaction
-	 */
-	int have_free_bgs;
+	unsigned long flags;
 
 	/* Be protected by fs_info->trans_lock when we want to change it. */
 	enum btrfs_trans_state state;
@@ -81,7 +81,6 @@ struct btrfs_transaction {
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
-	int dirty_bg_run;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)
