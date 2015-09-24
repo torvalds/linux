@@ -586,7 +586,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 
 	for (i = 0; i < info->num_muic_irqs; i++) {
 		struct muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(info->irq_data, muic_irq->irq);
 		if (virq <= 0)
