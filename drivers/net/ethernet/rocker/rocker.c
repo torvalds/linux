@@ -228,7 +228,6 @@ struct rocker_port {
 	struct napi_struct napi_rx;
 	struct rocker_dma_ring_info tx_ring;
 	struct rocker_dma_ring_info rx_ring;
-	struct list_head trans_mem;
 };
 
 struct rocker {
@@ -346,13 +345,13 @@ static void *__rocker_port_mem_alloc(struct rocker_port *rocker_port,
 				     struct switchdev_trans *trans, int flags,
 				     size_t size)
 {
-	struct list_head *elem = NULL;
+	struct switchdev_trans_item *elem = NULL;
 	gfp_t gfp_flags = (flags & ROCKER_OP_FLAG_NOWAIT) ?
 			  GFP_ATOMIC : GFP_KERNEL;
 
 	/* If in transaction prepare phase, allocate the memory
-	 * and enqueue it on a per-port list.  If in transaction
-	 * commit phase, dequeue the memory from the per-port list
+	 * and enqueue it on a transaction.  If in transaction
+	 * commit phase, dequeue the memory from the transaction
 	 * rather than re-allocating the memory.  The idea is the
 	 * driver code paths for prepare and commit are identical
 	 * so the memory allocated in the prepare phase is the
@@ -361,17 +360,13 @@ static void *__rocker_port_mem_alloc(struct rocker_port *rocker_port,
 
 	if (!trans) {
 		elem = kzalloc(size + sizeof(*elem), gfp_flags);
-		if (elem)
-			INIT_LIST_HEAD(elem);
 	} else if (switchdev_trans_ph_prepare(trans)) {
 		elem = kzalloc(size + sizeof(*elem), gfp_flags);
 		if (!elem)
 			return NULL;
-		list_add_tail(elem, &rocker_port->trans_mem);
+		switchdev_trans_item_enqueue(trans, elem, kfree, elem);
 	} else {
-		BUG_ON(list_empty(&rocker_port->trans_mem));
-		elem = rocker_port->trans_mem.next;
-		list_del_init(elem);
+		elem = switchdev_trans_item_dequeue(trans);
 	}
 
 	return elem ? elem + 1 : NULL;
@@ -393,7 +388,7 @@ static void *rocker_port_kcalloc(struct rocker_port *rocker_port,
 
 static void rocker_port_kfree(struct switchdev_trans *trans, const void *mem)
 {
-	struct list_head *elem;
+	struct switchdev_trans_item *elem;
 
 	/* Frees are ignored if in transaction prepare phase.  The
 	 * memory remains on the per-port list until freed in the
@@ -403,8 +398,7 @@ static void rocker_port_kfree(struct switchdev_trans *trans, const void *mem)
 	if (switchdev_trans_ph_prepare(trans))
 		return;
 
-	elem = (struct list_head *)mem - 1;
-	BUG_ON(!list_empty(elem));
+	elem = (struct switchdev_trans_item *) mem - 1;
 	kfree(elem);
 }
 
@@ -4349,16 +4343,6 @@ static int rocker_port_attr_get(struct net_device *dev,
 	return 0;
 }
 
-static void rocker_port_trans_abort(const struct rocker_port *rocker_port)
-{
-	struct list_head *mem, *tmp;
-
-	list_for_each_safe(mem, tmp, &rocker_port->trans_mem) {
-		list_del(mem);
-		kfree(mem);
-	}
-}
-
 static int rocker_port_brport_flags_set(struct rocker_port *rocker_port,
 					struct switchdev_trans *trans,
 					unsigned long brport_flags)
@@ -4383,17 +4367,6 @@ static int rocker_port_attr_set(struct net_device *dev,
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	int err = 0;
-
-	switch (trans->ph) {
-	case SWITCHDEV_TRANS_PREPARE:
-		BUG_ON(!list_empty(&rocker_port->trans_mem));
-		break;
-	case SWITCHDEV_TRANS_ABORT:
-		rocker_port_trans_abort(rocker_port);
-		return 0;
-	default:
-		break;
-	}
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
@@ -4470,17 +4443,6 @@ static int rocker_port_obj_add(struct net_device *dev,
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	const struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
-
-	switch (trans->ph) {
-	case SWITCHDEV_TRANS_PREPARE:
-		BUG_ON(!list_empty(&rocker_port->trans_mem));
-		break;
-	case SWITCHDEV_TRANS_ABORT:
-		rocker_port_trans_abort(rocker_port);
-		return 0;
-	default:
-		break;
-	}
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_VLAN:
@@ -5010,7 +4972,6 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port->pport = port_number + 1;
 	rocker_port->brport_flags = BR_LEARNING | BR_LEARNING_SYNC;
 	rocker_port->ageing_time = BR_DEFAULT_AGEING_TIME;
-	INIT_LIST_HEAD(&rocker_port->trans_mem);
 
 	rocker_port_dev_addr_init(rocker_port);
 	dev->netdev_ops = &rocker_port_netdev_ops;
