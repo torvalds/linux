@@ -319,7 +319,6 @@ int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 	return 0;
 }
-EXPORT_SYMBOL(sti_crtc_enable_vblank);
 
 void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 {
@@ -340,7 +339,6 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 		compo->mixer[pipe]->pending_event = NULL;
 	}
 }
-EXPORT_SYMBOL(sti_crtc_disable_vblank);
 
 static const struct drm_crtc_funcs sti_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
@@ -361,7 +359,6 @@ bool sti_crtc_is_main(struct drm_crtc *crtc)
 
 	return false;
 }
-EXPORT_SYMBOL(sti_crtc_is_main);
 
 int sti_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 		  struct drm_plane *primary, struct drm_plane *cursor)

@@ -110,7 +110,6 @@ struct sti_vtg *of_vtg_find(struct device_node *np)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(of_vtg_find);
 
 static void vtg_reset(struct sti_vtg *vtg)
 {
@@ -242,7 +241,6 @@ void sti_vtg_set_config(struct sti_vtg *vtg,
 	else
 		vtg_enable_irq(vtg);
 }
-EXPORT_SYMBOL(sti_vtg_set_config);
 
 /**
  * sti_vtg_get_line_number
@@ -265,7 +263,6 @@ u32 sti_vtg_get_line_number(struct drm_display_mode mode, int y)
 
 	return start_line + y;
 }
-EXPORT_SYMBOL(sti_vtg_get_line_number);
 
 /**
  * sti_vtg_get_pixel_number
@@ -281,7 +278,6 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 {
 	return mode.htotal - mode.hsync_start + x;
 }
-EXPORT_SYMBOL(sti_vtg_get_pixel_number);
 
 int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
 			    struct drm_crtc *crtc)
@@ -292,7 +288,6 @@ int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
 	vtg->crtc = crtc;
 	return raw_notifier_chain_register(&vtg->notifier_list, nb);
 }
-EXPORT_SYMBOL(sti_vtg_register_client);
 
 int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 {
@@ -301,7 +296,6 @@ int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 
 	return raw_notifier_chain_unregister(&vtg->notifier_list, nb);
 }
-EXPORT_SYMBOL(sti_vtg_unregister_client);
 
 static irqreturn_t vtg_irq_thread(int irq, void *arg)
 {

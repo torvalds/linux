@@ -58,7 +58,6 @@ const char *sti_mixer_to_str(struct sti_mixer *mixer)
 		return "<UNKNOWN MIXER>";
 	}
 }
-EXPORT_SYMBOL(sti_mixer_to_str);
 
 static inline u32 sti_mixer_reg_read(struct sti_mixer *mixer, u32 reg_id)
 {
