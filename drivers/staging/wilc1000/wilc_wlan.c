@@ -37,7 +37,6 @@ typedef struct {
 	 *      host interface functions
 	 **/
 	wilc_hif_func_t hif_func;
-	struct mutex *hif_lock;
 
 	/**
 	 *      configuration interface functions
@@ -120,7 +119,7 @@ static CHIP_PS_STATE_T genuChipPSstate = CHIP_WAKEDUP;
 static inline void acquire_bus(BUS_ACQUIRE_T acquire)
 {
 
-	mutex_lock(g_wlan.hif_lock);
+	mutex_lock(&g_linux_wlan->hif_cs);
 	#ifndef WILC_OPTIMIZE_SLEEP_INT
 	if (genuChipPSstate != CHIP_WAKEDUP)
 	#endif
@@ -136,7 +135,7 @@ static inline void release_bus(BUS_RELEASE_T release)
 	if (release == RELEASE_ALLOW_SLEEP)
 		chip_allow_sleep();
 	#endif
-	mutex_unlock(g_wlan.hif_lock);
+	mutex_unlock(&g_linux_wlan->hif_cs);
 }
 /********************************************
  *
@@ -1969,7 +1968,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	 **/
 	memcpy((void *)&g_wlan.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
-	g_wlan.hif_lock = inp->os_context.hif_critical_section;
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
 
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
@@ -2088,7 +2086,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 	u32 reg;
 
 	/*Reset WILC_CHANGING_VIR_IF register to allow adding futrue keys to CE H/W*/
-	mutex_lock((&g_wlan)->hif_lock);
+	mutex_lock(&g_linux_wlan->hif_cs);
 	ret = (&g_wlan)->hif_func.hif_read_reg(WILC_CHANGING_VIR_IF, &reg);
 	if (!ret) {
 		PRINT_ER("Error while Reading reg WILC_CHANGING_VIR_IF\n");
@@ -2104,7 +2102,7 @@ u16 Set_machw_change_vir_if(bool bValue)
 	if (!ret) {
 		PRINT_ER("Error while writing reg WILC_CHANGING_VIR_IF\n");
 	}
-	mutex_unlock((&g_wlan)->hif_lock);
+	mutex_unlock(&g_linux_wlan->hif_cs);
 
 	return ret;
 }
