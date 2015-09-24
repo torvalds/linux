@@ -3617,39 +3617,14 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	dev_priv->wm.skl_hw = *results;
 }
 
-static void ilk_update_wm(struct drm_crtc *crtc)
+static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct ilk_wm_maximums max;
+	struct intel_wm_config config = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
-	struct intel_pipe_wm pipe_wm = {};
-	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
-	struct intel_wm_config config = {};
-
-	WARN_ON(cstate->base.active != intel_crtc->active);
-
-	/*
-	 * IVB workaround: must disable low power watermarks for at least
-	 * one frame before enabling scaling.  LP watermarks can be re-enabled
-	 * when scaling is disabled.
-	 *
-	 * WaCxSRDisabledForSpriteScaling:ivb
-	 */
-	if (cstate->disable_lp_wm) {
-		ilk_disable_lp_wm(dev);
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-	}
-
-	intel_compute_pipe_wm(cstate, &pipe_wm);
-
-	if (!memcmp(&intel_crtc->wm.active, &pipe_wm, sizeof(pipe_wm)))
-		return;
-
-	intel_crtc->wm.active = pipe_wm;
 
 	ilk_compute_wm_config(dev, &config);
 
@@ -3673,6 +3648,37 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 	ilk_compute_wm_results(dev, best_lp_wm, partitioning, &results);
 
 	ilk_write_wm_values(dev_priv, &results);
+}
+
+static void ilk_update_wm(struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
+	struct intel_pipe_wm pipe_wm = {};
+
+	WARN_ON(cstate->base.active != intel_crtc->active);
+
+	/*
+	 * IVB workaround: must disable low power watermarks for at least
+	 * one frame before enabling scaling.  LP watermarks can be re-enabled
+	 * when scaling is disabled.
+	 *
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 */
+	if (cstate->disable_lp_wm) {
+		ilk_disable_lp_wm(crtc->dev);
+		intel_wait_for_vblank(crtc->dev, intel_crtc->pipe);
+	}
+
+	intel_compute_pipe_wm(cstate, &pipe_wm);
+
+	if (!memcmp(&intel_crtc->wm.active, &pipe_wm, sizeof(pipe_wm)))
+		return;
+
+	intel_crtc->wm.active = pipe_wm;
+
+	ilk_program_watermarks(dev_priv);
 }
 
 static void skl_pipe_wm_active_state(uint32_t val,
