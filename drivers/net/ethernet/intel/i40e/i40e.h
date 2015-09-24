@@ -243,7 +243,6 @@ struct i40e_pf {
 	struct pci_dev *pdev;
 	struct i40e_hw hw;
 	unsigned long state;
-	unsigned long link_check_timeout;
 	struct msix_entry *msix_entries;
 	bool fc_autoneg_status;
 
