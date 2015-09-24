@@ -18,19 +18,21 @@
 #include "internal.h"
 #include "nfs4session.h"
 
-#define CB_OP_TAGLEN_MAXSZ	(512)
-#define CB_OP_HDR_RES_MAXSZ	(2 + CB_OP_TAGLEN_MAXSZ)
-#define CB_OP_GETATTR_BITMAP_MAXSZ	(4)
-#define CB_OP_GETATTR_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ + \
-				CB_OP_GETATTR_BITMAP_MAXSZ + \
-				2 + 2 + 3 + 3)
-#define CB_OP_RECALL_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
+#define CB_OP_TAGLEN_MAXSZ		(512)
+#define CB_OP_HDR_RES_MAXSZ		(2 * 4) // opcode, status
+#define CB_OP_GETATTR_BITMAP_MAXSZ	(4 * 4) // bitmap length, 3 bitmaps
+#define CB_OP_GETATTR_RES_MAXSZ		(CB_OP_HDR_RES_MAXSZ + \
+					 CB_OP_GETATTR_BITMAP_MAXSZ + \
+					 /* change, size, ctime, mtime */\
+					 (2 + 2 + 3 + 3) * 4)
+#define CB_OP_RECALL_RES_MAXSZ		(CB_OP_HDR_RES_MAXSZ)
 
 #if defined(CONFIG_NFS_V4_1)
 #define CB_OP_LAYOUTRECALL_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_DEVICENOTIFY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_SEQUENCE_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ + \
-					4 + 1 + 3)
+					 NFS4_MAX_SESSIONID_LEN + \
+					 (1 + 3) * 4) // seqid, 3 slotids
 #define CB_OP_RECALLANY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_RECALLSLOT_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #endif /* CONFIG_NFS_V4_1 */
