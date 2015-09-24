@@ -250,6 +250,7 @@ struct intel_atomic_state {
 	unsigned int cdclk;
 	bool dpll_set;
 	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
+	struct intel_wm_config wm_config;
 };
 
 struct intel_plane_state {

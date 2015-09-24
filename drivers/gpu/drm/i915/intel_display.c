@@ -13050,6 +13050,45 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	return 0;
 }
 
+/*
+ * Handle calculation of various watermark data at the end of the atomic check
+ * phase.  The code here should be run after the per-crtc and per-plane 'check'
+ * handlers to ensure that all derived state has been updated.
+ */
+static void calc_watermark_data(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *cstate;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+
+	/*
+	 * Calculate watermark configuration details now that derived
+	 * plane/crtc state is all properly updated.
+	 */
+	drm_for_each_crtc(crtc, dev) {
+		cstate = drm_atomic_get_existing_crtc_state(state, crtc) ?:
+			crtc->state;
+
+		if (cstate->active)
+			intel_state->wm_config.num_pipes_active++;
+	}
+	drm_for_each_legacy_plane(plane, dev) {
+		pstate = drm_atomic_get_existing_plane_state(state, plane) ?:
+			plane->state;
+
+		if (!to_intel_plane_state(pstate)->visible)
+			continue;
+
+		intel_state->wm_config.sprites_enabled = true;
+		if (pstate->crtc_w != pstate->src_w >> 16 ||
+		    pstate->crtc_h != pstate->src_h >> 16)
+			intel_state->wm_config.sprites_scaled = true;
+	}
+}
+
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
@@ -13058,6 +13097,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 static int intel_atomic_check(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret, i;
@@ -13121,10 +13161,15 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (ret)
 			return ret;
 	} else
-		to_intel_atomic_state(state)->cdclk =
-			to_i915(state->dev)->cdclk_freq;
+		intel_state->cdclk = to_i915(state->dev)->cdclk_freq;
 
-	return drm_atomic_helper_check_planes(state->dev, state);
+	ret = drm_atomic_helper_check_planes(state->dev, state);
+	if (ret)
+		return ret;
+
+	calc_watermark_data(state);
+
+	return 0;
 }
 
 /**
@@ -13164,6 +13209,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		return ret;
 
 	drm_atomic_helper_swap_state(dev, state);
+	dev_priv->wm.config = to_intel_atomic_state(state)->wm_config;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
