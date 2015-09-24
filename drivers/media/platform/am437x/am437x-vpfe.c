@@ -2551,11 +2551,12 @@ static int vpfe_probe(struct platform_device *pdev)
 	if (IS_ERR(ccdc->ccdc_cfg.base_addr))
 		return PTR_ERR(ccdc->ccdc_cfg.base_addr);
 
-	vpfe->irq = platform_get_irq(pdev, 0);
-	if (vpfe->irq <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(&pdev->dev, "No IRQ resource\n");
 		return -ENODEV;
 	}
+	vpfe->irq = ret;
 
 	ret = devm_request_irq(vpfe->pdev, vpfe->irq, vpfe_isr, 0,
 			       "vpfe_capture0", vpfe);
