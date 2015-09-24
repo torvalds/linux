@@ -75,7 +75,6 @@ typedef struct {
 } sdio_cmd53_t;
 
 typedef struct {
-	void (*os_debug)(u8 *);
 	int (*os_wait)(void *, u32);
 } wilc_wlan_os_func_t;
 

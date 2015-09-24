@@ -219,5 +219,6 @@ extern struct net_device *WILC_WFI_devs[];
 void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset);
 void linux_wlan_mac_indicate(int flag);
 void linux_wlan_rx_complete(void);
+void linux_wlan_dbg(u8 *buff);
 
 #endif

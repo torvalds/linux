@@ -113,8 +113,7 @@ static void wilc_debug(u32 flag, char *fmt, ...)
 		vsprintf(buf, fmt, args);
 		va_end(args);
 
-		if (g_wlan.os_func.os_debug)
-			g_wlan.os_func.os_debug(buf);
+		linux_wlan_dbg(buf);
 	}
 }
 

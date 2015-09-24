@@ -376,7 +376,7 @@ static void deinit_irq(linux_wlan_t *nic)
 /*
  *      OS functions
  */
-static void linux_wlan_dbg(u8 *buff)
+void linux_wlan_dbg(u8 *buff)
 {
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
@@ -1072,7 +1072,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->os_context.rxq_critical_section = (void *)&g_linux_wlan->rxq_cs;
 	nwi->os_context.cfg_wait_event = (void *)&g_linux_wlan->cfg_event;
 
-	nwi->os_func.os_debug = linux_wlan_dbg;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
 
 #ifdef WILC_SDIO
