@@ -106,6 +106,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.add_modify = update ? 1 : 0,
 		.station_flags_msk = cpu_to_le32(STA_FLG_FAT_EN_MSK |
 						 STA_FLG_MIMO_EN_MSK),
+		.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg),
 	};
 	int ret;
 	u32 status;
@@ -622,6 +623,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 							     color));
 
 	cmd.tfd_queue_msk = cpu_to_le32(sta->tfd_queue_msk);
+	cmd.tid_disable_tx = cpu_to_le16(0xffff);
 
 	if (addr)
 		memcpy(cmd.addr, addr, ETH_ALEN);
