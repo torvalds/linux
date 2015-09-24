@@ -15175,7 +15175,7 @@ static void readout_plane_state(struct intel_crtc *crtc)
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(primary->state);
 
-	plane_state->visible =
+	plane_state->visible = crtc->active &&
 		primary_get_hw_state(to_intel_plane(primary));
 
 	if (plane_state->visible)
