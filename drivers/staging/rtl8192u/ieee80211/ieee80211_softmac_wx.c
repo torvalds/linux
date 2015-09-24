@@ -304,8 +304,8 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
 	short chan;
-	HT_EXTCHNL_OFFSET chan_offset=0;
-	HT_CHANNEL_WIDTH bandwidth=0;
+	HT_EXTCHNL_OFFSET chan_offset = 0;
+	HT_CHANNEL_WIDTH bandwidth = 0;
 	int b40M = 0;
 
 	chan = ieee->current_network.channel;
@@ -346,7 +346,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	/* To prevent the immediately calling watch_dog after scan. */
 	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 || ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
+		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
 	}
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
@@ -398,12 +398,12 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 	proto_started = ieee->proto_started;
 
 	if (wrqu->essid.length > IW_ESSID_MAX_SIZE) {
-		ret= -E2BIG;
+		ret = -E2BIG;
 		goto out;
 	}
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		ret= -1;
+		ret = -1;
 		goto out;
 	}
 
