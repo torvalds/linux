@@ -78,6 +78,7 @@ struct imx_pinctrl_soc_info {
 	struct imx_pin_reg *pin_regs;
 	struct imx_pin_group *groups;
 	unsigned int ngroups;
+	unsigned int group_index;
 	struct imx_pmx_func *functions;
 	unsigned int nfunctions;
 	unsigned int flags;
