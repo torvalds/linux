@@ -240,14 +240,21 @@ static ssize_t channel_dimm_label_store(struct device *dev,
 	struct csrow_info *csrow = to_csrow(dev);
 	unsigned chan = to_channel(mattr);
 	struct rank_info *rank = csrow->channels[chan];
+	size_t copy_count = count;
 
-	ssize_t max_size = 0;
+	if (count == 0)
+		return -EINVAL;
 
-	max_size = min((ssize_t) count, (ssize_t) EDAC_MC_LABEL_LEN - 1);
-	strncpy(rank->dimm->label, data, max_size);
-	rank->dimm->label[max_size] = '\0';
+	if (data[count - 1] == '\0' || data[count - 1] == '\n')
+		copy_count -= 1;
 
-	return max_size;
+	if (copy_count >= sizeof(rank->dimm->label))
+		return -EINVAL;
+
+	strncpy(rank->dimm->label, data, copy_count);
+	rank->dimm->label[copy_count] = '\0';
+
+	return count;
 }
 
 /* show function for dynamic chX_ce_count attribute */
@@ -494,14 +501,21 @@ static ssize_t dimmdev_label_store(struct device *dev,
 				   size_t count)
 {
 	struct dimm_info *dimm = to_dimm(dev);
+	size_t copy_count = count;
 
-	ssize_t max_size = 0;
+	if (count == 0)
+		return -EINVAL;
 
-	max_size = min((ssize_t) count, (ssize_t) EDAC_MC_LABEL_LEN - 1);
-	strncpy(dimm->label, data, max_size);
-	dimm->label[max_size] = '\0';
+	if (data[count - 1] == '\0' || data[count - 1] == '\n')
+		copy_count -= 1;
 
-	return max_size;
+	if (copy_count >= sizeof(dimm->label))
+		return -EINVAL;
+
+	strncpy(dimm->label, data, copy_count);
+	dimm->label[copy_count] = '\0';
+
+	return count;
 }
 
 static ssize_t dimmdev_size_show(struct device *dev,
