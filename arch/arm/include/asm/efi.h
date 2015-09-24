@@ -57,4 +57,27 @@ void efi_virtmap_unload(void);
 #define efi_init()
 #endif /* CONFIG_EFI */
 
+/* arch specific definitions used by the stub code */
+
+#define efi_call_early(f, ...) sys_table_arg->boottime->f(__VA_ARGS__)
+
+/*
+ * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,
+ * so we will reserve that amount of memory. We have no easy way to tell what
+ * the actuall size of code + data the uncompressed kernel will use.
+ * If this is insufficient, the decompressor will relocate itself out of the
+ * way before performing the decompression.
+ */
+#define MAX_UNCOMP_KERNEL_SIZE	SZ_32M
+
+/*
+ * The kernel zImage should preferably be located between 32 MB and 128 MB
+ * from the base of DRAM. The min address leaves space for a maximal size
+ * uncompressed image, and the max address is due to how the zImage decompressor
+ * picks a destination address.
+ */
+#define ZIMAGE_OFFSET_LIMIT	SZ_128M
+#define MIN_ZIMAGE_OFFSET	MAX_UNCOMP_KERNEL_SIZE
+#define MAX_FDT_OFFSET		ZIMAGE_OFFSET_LIMIT
+
 #endif /* _ASM_ARM_EFI_H */
