@@ -47,7 +47,6 @@ typedef struct {
 	wilc_cfg_frame_t cfg_frame;
 	u32 cfg_frame_offset;
 	int cfg_seq_no;
-	void *cfg_wait;
 
 	/**
 	 *      RX buffer
@@ -485,7 +484,7 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 	PRINT_D(TX_DBG, "Adding config packet ...\n");
 	if (p->quit) {
 		PRINT_D(TX_DBG, "Return due to clear function\n");
-		up(p->cfg_wait);
+		up(&g_linux_wlan->cfg_event);
 		return 0;
 	}
 
@@ -1137,7 +1136,7 @@ static void wilc_wlan_handle_rxq(void)
 	do {
 		if (p->quit) {
 			PRINT_D(RX_DBG, "exit 1st do-while due to Clean_UP function\n");
-			up(p->cfg_wait);
+			up(&g_linux_wlan->cfg_event);
 			break;
 		}
 		rqe = wilc_wlan_rxq_remove();
@@ -1211,7 +1210,7 @@ static void wilc_wlan_handle_rxq(void)
 						 **/
 						PRINT_D(RX_DBG, "p->cfg_seq_no = %d - rsp.seq_no = %d\n", p->cfg_seq_no, rsp.seq_no);
 						if (p->cfg_seq_no == rsp.seq_no) {
-							up(p->cfg_wait);
+							up(&g_linux_wlan->cfg_event);
 						}
 					} else if (rsp.type == WILC_CFG_RSP_STATUS) {
 						/**
@@ -1781,7 +1780,8 @@ static int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size, in
 		if (wilc_wlan_cfg_commit(WILC_CFG_SET, drvHandler))
 			ret_size = 0;
 
-		if (p->os_func.os_wait(p->cfg_wait, CFG_PKTS_TIMEOUT)) {
+		if (p->os_func.os_wait(&g_linux_wlan->cfg_event,
+				       CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Set Timed Out\n");
 			ret_size = 0;
 		}
@@ -1818,7 +1818,8 @@ static int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 			ret_size = 0;
 
 
-		if (p->os_func.os_wait(p->cfg_wait, CFG_PKTS_TIMEOUT)) {
+		if (p->os_func.os_wait(&g_linux_wlan->cfg_event,
+				       CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Get Timed Out\n");
 			ret_size = 0;
 		}
@@ -1972,7 +1973,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 	g_wlan.txq_add_to_head_lock = inp->os_context.txq_add_to_head_critical_section;
 
-	g_wlan.cfg_wait = inp->os_context.cfg_wait_event;
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
 #if defined (MEMORY_STATIC)
 	g_wlan.rx_buffer_size = inp->os_context.rx_buffer_size;
