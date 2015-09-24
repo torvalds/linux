@@ -58,27 +58,10 @@ struct mc_version {
 	uint32_t revision;
 };
 
-/**
- * mc_get_version() - Retrieves the Management Complex firmware
- *			version information
- * @mc_io:		Pointer to opaque I/O object
- * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
- * @mc_ver_info:	Returned version information structure
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int mc_get_version(struct fsl_mc_io	*mc_io,
 		   uint32_t		cmd_flags,
 		   struct mc_version	*mc_ver_info);
 
-/**
- * dpmng_get_container_id() - Get container ID associated with a given portal.
- * @mc_io:		Pointer to MC portal's I/O object
- * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
- * @container_id:	Requested container ID
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmng_get_container_id(struct fsl_mc_io	*mc_io,
 			   uint32_t		cmd_flags,
 			   int			*container_id);

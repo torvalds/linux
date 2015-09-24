@@ -38,23 +38,6 @@
 
 struct fsl_mc_io;
 
-/**
- * dpmcp_open() - Open a control session for the specified object.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @dpmcp_id:	DPMCP unique ID
- * @token:	Returned token; use in subsequent API calls
- *
- * This function can be used to open a control session for an
- * already created object; an object may have been declared in
- * the DPL or by calling the dpmcp_create function.
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent commands for
- * this specific object
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_open(struct fsl_mc_io *mc_io,
 	       uint32_t cmd_flags,
 	       int dpmcp_id,
@@ -63,17 +46,6 @@ int dpmcp_open(struct fsl_mc_io *mc_io,
 /* Get portal ID from pool */
 #define DPMCP_GET_PORTAL_ID_FROM_POOL (-1)
 
-/**
- * dpmcp_close() - Close the control session of the object
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- *
- * After this function is called, no further operations are
- * allowed on the object without opening a new control session.
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_close(struct fsl_mc_io *mc_io,
 		uint32_t cmd_flags,
 		uint16_t token);
@@ -87,52 +59,15 @@ struct dpmcp_cfg {
 	int portal_id;
 };
 
-/**
- * dpmcp_create() - Create the DPMCP object.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @cfg:	Configuration structure
- * @token:	Returned token; use in subsequent API calls
- *
- * Create the DPMCP object, allocate required resources and
- * perform required initialization.
- *
- * The object can be created either by declaring it in the
- * DPL file, or by calling this function.
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent calls to
- * this specific object. For objects that are created using the
- * DPL file, call dpmcp_open function to get an authentication
- * token first.
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_create(struct fsl_mc_io	*mc_io,
 		 uint32_t		cmd_flags,
 		 const struct dpmcp_cfg	*cfg,
 		uint16_t		*token);
 
-/**
- * dpmcp_destroy() - Destroy the DPMCP object and release all its resources.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- *
- * Return:	'0' on Success; error code otherwise.
- */
 int dpmcp_destroy(struct fsl_mc_io *mc_io,
 		  uint32_t cmd_flags,
 		  uint16_t token);
 
-/**
- * dpmcp_reset() - Reset the DPMCP, returns the object to initial state.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_reset(struct fsl_mc_io *mc_io,
 		uint32_t cmd_flags,
 		uint16_t token);
@@ -155,34 +90,12 @@ struct dpmcp_irq_cfg {
 	     int		user_irq_id;
 };
 
-/**
- * dpmcp_set_irq() - Set IRQ information for the DPMCP to trigger an interrupt.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	Identifies the interrupt index to configure
- * @irq_cfg:	IRQ configuration
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_set_irq(struct fsl_mc_io	*mc_io,
 		  uint32_t		cmd_flags,
 		  uint16_t		token,
 		 uint8_t		irq_index,
 		  struct dpmcp_irq_cfg	*irq_cfg);
 
-/**
- * dpmcp_get_irq() - Get IRQ information from the DPMCP.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @type:	Interrupt type: 0 represents message interrupt
- *		type (both irq_addr and irq_val are valid)
- * @irq_cfg:	IRQ attributes
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_get_irq(struct fsl_mc_io	*mc_io,
 		  uint32_t		cmd_flags,
 		  uint16_t		token,
@@ -190,116 +103,36 @@ int dpmcp_get_irq(struct fsl_mc_io	*mc_io,
 		 int			*type,
 		 struct dpmcp_irq_cfg	*irq_cfg);
 
-/**
- * dpmcp_set_irq_enable() - Set overall interrupt state.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @en:	Interrupt state - enable = 1, disable = 0
- *
- * Allows GPP software to control when interrupts are generated.
- * Each interrupt can have up to 32 causes.  The enable/disable control's the
- * overall interrupt state. if the interrupt is disabled no causes will cause
- * an interrupt.
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_set_irq_enable(struct fsl_mc_io	*mc_io,
 			 uint32_t		cmd_flags,
 			 uint16_t		token,
 			uint8_t			irq_index,
 			uint8_t			en);
 
-/**
- * dpmcp_get_irq_enable() - Get overall interrupt state
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @en:		Returned interrupt state - enable = 1, disable = 0
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_get_irq_enable(struct fsl_mc_io	*mc_io,
 			 uint32_t		cmd_flags,
 			 uint16_t		token,
 			uint8_t			irq_index,
 			uint8_t			*en);
 
-/**
- * dpmcp_set_irq_mask() - Set interrupt mask.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @mask:	Event mask to trigger interrupt;
- *			each bit:
- *				0 = ignore event
- *				1 = consider event for asserting IRQ
- *
- * Every interrupt can have up to 32 causes and the interrupt model supports
- * masking/unmasking each cause independently
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_set_irq_mask(struct fsl_mc_io	*mc_io,
 		       uint32_t	cmd_flags,
 		       uint16_t		token,
 		      uint8_t		irq_index,
 		      uint32_t		mask);
 
-/**
- * dpmcp_get_irq_mask() - Get interrupt mask.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @mask:	Returned event mask to trigger interrupt
- *
- * Every interrupt can have up to 32 causes and the interrupt model supports
- * masking/unmasking each cause independently
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_get_irq_mask(struct fsl_mc_io	*mc_io,
 		       uint32_t	cmd_flags,
 		       uint16_t		token,
 		      uint8_t		irq_index,
 		      uint32_t		*mask);
 
-/**
- * dpmcp_get_irq_status() - Get the current status of any pending interrupts.
- *
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @status:	Returned interrupts status - one bit per cause:
- *			0 = no interrupt pending
- *			1 = interrupt pending
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_get_irq_status(struct fsl_mc_io	*mc_io,
 			 uint32_t		cmd_flags,
 			 uint16_t		token,
 			uint8_t			irq_index,
 			uint32_t		*status);
 
-/**
- * dpmcp_clear_irq_status() - Clear a pending interrupt's status
- *
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @status:	Bits to clear (W1C) - one bit per cause:
- *					0 = don't change
- *					1 = clear status bit
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_clear_irq_status(struct fsl_mc_io	*mc_io,
 			   uint32_t		cmd_flags,
 			   uint16_t		token,
@@ -324,16 +157,6 @@ struct dpmcp_attr {
 	} version;
 };
 
-/**
- * dpmcp_get_attributes - Retrieve DPMCP attributes.
- *
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @attr:	Returned object's attributes
- *
- * Return:	'0' on Success; Error code otherwise.
- */
 int dpmcp_get_attributes(struct fsl_mc_io	*mc_io,
 			 uint32_t		cmd_flags,
 			 uint16_t		token,
