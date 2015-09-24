@@ -58,7 +58,6 @@ typedef struct {
 	/**
 	 *      TX buffer
 	 **/
-	u32 tx_buffer_size;
 	u8 *tx_buffer;
 	u32 tx_buffer_offset;
 
@@ -873,7 +872,7 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				if (vmm_sz & 0x3) {                                                                                                     /* has to be word aligned */
 					vmm_sz = (vmm_sz + 4) & ~0x3;
 				}
-				if ((sum + vmm_sz) > p->tx_buffer_size) {
+				if ((sum + vmm_sz) > LINUX_TX_SIZE) {
 					break;
 				}
 				PRINT_D(TX_DBG, "VMM Size AFTER alignment = %d\n", vmm_sz);
@@ -1970,7 +1969,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
 
-	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
 #if defined (MEMORY_STATIC)
 	g_wlan.rx_buffer_size = inp->os_context.rx_buffer_size;
 #endif
@@ -2017,7 +2015,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	 *      alloc tx, rx buffer
 	 **/
 	if (g_wlan.tx_buffer == NULL)
-		g_wlan.tx_buffer = kmalloc(g_wlan.tx_buffer_size, GFP_KERNEL);
+		g_wlan.tx_buffer = kmalloc(LINUX_TX_SIZE, GFP_KERNEL);
 	PRINT_D(TX_DBG, "g_wlan.tx_buffer = %p\n", g_wlan.tx_buffer);
 
 	if (g_wlan.tx_buffer == NULL) {

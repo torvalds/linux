@@ -107,7 +107,6 @@ typedef struct {
 
 typedef struct {
 	void *os_private;
-	u32 tx_buffer_size;
 	void *txq_critical_section;
 #if defined(MEMORY_STATIC)
 	u32 rx_buffer_size;
