@@ -1972,9 +1972,11 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 const struct intel_crtc *intel_crtc,
 				 int level,
 				 struct intel_crtc_state *cstate,
+				 struct intel_plane_state *pristate,
+				 struct intel_plane_state *sprstate,
+				 struct intel_plane_state *curstate,
 				 struct intel_wm_level *result)
 {
-	struct intel_plane *intel_plane;
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
 	uint16_t spr_latency = dev_priv->wm.spr_latency[level];
 	uint16_t cur_latency = dev_priv->wm.cur_latency[level];
@@ -1986,29 +1988,11 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 		cur_latency *= 5;
 	}
 
-	for_each_intel_plane_on_crtc(dev_priv->dev, intel_crtc, intel_plane) {
-		struct intel_plane_state *pstate =
-			to_intel_plane_state(intel_plane->base.state);
-
-		switch (intel_plane->base.type) {
-		case DRM_PLANE_TYPE_PRIMARY:
-			result->pri_val = ilk_compute_pri_wm(cstate, pstate,
-							     pri_latency,
-							     level);
-			result->fbc_val = ilk_compute_fbc_wm(cstate, pstate,
-							     result->pri_val);
-			break;
-		case DRM_PLANE_TYPE_OVERLAY:
-			result->spr_val = ilk_compute_spr_wm(cstate, pstate,
-							     spr_latency);
-			break;
-		case DRM_PLANE_TYPE_CURSOR:
-			result->cur_val = ilk_compute_cur_wm(cstate, pstate,
-							     cur_latency);
-			break;
-		}
-	}
-
+	result->pri_val = ilk_compute_pri_wm(cstate, pristate,
+					     pri_latency, level);
+	result->spr_val = ilk_compute_spr_wm(cstate, sprstate, spr_latency);
+	result->cur_val = ilk_compute_cur_wm(cstate, curstate, cur_latency);
+	result->fbc_val = ilk_compute_fbc_wm(cstate, pristate, result->pri_val);
 	result->enable = true;
 }
 
@@ -2286,15 +2270,18 @@ static void ilk_compute_wm_config(struct drm_device *dev,
 }
 
 /* Compute new watermarks for the pipe */
-static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
-				  struct intel_pipe_wm *pipe_wm)
+static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
+			       struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = cstate->base.crtc;
-	struct drm_device *dev = crtc->dev;
+	struct intel_pipe_wm *pipe_wm;
+	struct drm_device *dev = intel_crtc->base.dev;
 	const struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *cstate = NULL;
 	struct intel_plane *intel_plane;
+	struct drm_plane_state *ps;
+	struct intel_plane_state *pristate = NULL;
 	struct intel_plane_state *sprstate = NULL;
+	struct intel_plane_state *curstate = NULL;
 	int level, max_level = ilk_wm_max_level(dev);
 	/* LP0 watermark maximums depend on this pipe alone */
 	struct intel_wm_config config = {
@@ -2302,11 +2289,24 @@ static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
 	};
 	struct ilk_wm_maximums max;
 
+	cstate = intel_atomic_get_crtc_state(state, intel_crtc);
+	if (IS_ERR(cstate))
+		return PTR_ERR(cstate);
+
+	pipe_wm = &cstate->wm.optimal.ilk;
+
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-		if (intel_plane->base.type == DRM_PLANE_TYPE_OVERLAY) {
-			sprstate = to_intel_plane_state(intel_plane->base.state);
-			break;
-		}
+		ps = drm_atomic_get_plane_state(state,
+						&intel_plane->base);
+		if (IS_ERR(ps))
+			return PTR_ERR(ps);
+
+		if (intel_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+			pristate = to_intel_plane_state(ps);
+		else if (intel_plane->base.type == DRM_PLANE_TYPE_OVERLAY)
+			sprstate = to_intel_plane_state(ps);
+		else if (intel_plane->base.type == DRM_PLANE_TYPE_CURSOR)
+			curstate = to_intel_plane_state(ps);
 	}
 
 	config.sprites_enabled = sprstate->visible;
@@ -2315,7 +2315,7 @@ static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
 		drm_rect_height(&sprstate->dst) != drm_rect_height(&sprstate->src) >> 16);
 
 	pipe_wm->pipe_enabled = cstate->base.active;
-	pipe_wm->sprites_enabled = sprstate->visible;
+	pipe_wm->sprites_enabled = config.sprites_enabled;
 	pipe_wm->sprites_scaled = config.sprites_scaled;
 
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
@@ -2326,24 +2326,27 @@ static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
 	if (config.sprites_scaled)
 		max_level = 0;
 
-	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate, &pipe_wm->wm[0]);
+	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
+			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		pipe_wm->linetime = hsw_compute_linetime_wm(dev, crtc);
+		pipe_wm->linetime = hsw_compute_linetime_wm(dev,
+							    &intel_crtc->base);
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
 	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
 
 	/* At least LP0 must be valid */
 	if (!ilk_validate_wm_level(0, &max, &pipe_wm->wm[0]))
-		return false;
+		return -EINVAL;
 
 	ilk_compute_wm_reg_maximums(dev, 1, &max);
 
 	for (level = 1; level <= max_level; level++) {
 		struct intel_wm_level wm = {};
 
-		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate, &wm);
+		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate,
+				     pristate, sprstate, curstate, &wm);
 
 		/*
 		 * Disable any watermark level that exceeds the
@@ -2356,7 +2359,7 @@ static bool intel_compute_pipe_wm(struct intel_crtc_state *cstate,
 		pipe_wm->wm[level] = wm;
 	}
 
-	return true;
+	return 0;
 }
 
 /*
@@ -3673,12 +3676,6 @@ static void ilk_update_wm(struct drm_crtc *crtc)
 		ilk_disable_lp_wm(crtc->dev);
 		intel_wait_for_vblank(crtc->dev, intel_crtc->pipe);
 	}
-
-	intel_compute_pipe_wm(cstate, &cstate->wm.optimal.ilk);
-
-	if (!memcmp(&intel_crtc->wm.active.ilk,
-		    &cstate->wm.optimal.ilk,
-		    sizeof(cstate->wm.optimal.ilk)));
 
 	intel_crtc->wm.active.ilk = cstate->wm.optimal.ilk;
 
@@ -6988,6 +6985,7 @@ void intel_init_pm(struct drm_device *dev)
 		    (!IS_GEN5(dev) && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.update_wm = ilk_update_wm;
+			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
 		} else {
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
