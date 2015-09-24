@@ -29,7 +29,6 @@
 #include <sound/jack.h>
 #include <linux/workqueue.h>
 #include <sound/rt286.h>
-#include <sound/hda_verbs.h>
 
 #include "rl6347a.h"
 #include "rt286.h"
