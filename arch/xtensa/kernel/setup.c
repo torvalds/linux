@@ -190,7 +190,7 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 #ifdef CONFIG_OF
 bool __initdata dt_memory_scan = false;
 
-#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+#if !XCHAL_HAVE_PTP_MMU || XCHAL_HAVE_SPANNING_WAY
 unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
 EXPORT_SYMBOL(xtensa_kio_paddr);
 
