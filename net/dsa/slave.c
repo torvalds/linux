@@ -251,8 +251,7 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 	u16 vid;
 	int err;
 
-	switch (trans->ph) {
-	case SWITCHDEV_TRANS_PREPARE:
+	if (switchdev_trans_ph_prepare(trans)) {
 		if (!ds->drv->port_vlan_add || !ds->drv->port_pvid_set)
 			return -EOPNOTSUPP;
 
@@ -264,8 +263,7 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 						  vlan->vid_end);
 		if (err)
 			return err;
-		break;
-	case SWITCHDEV_TRANS_COMMIT:
+	} else {
 		for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
 			err = ds->drv->port_vlan_add(ds, p->port, vid,
 						     vlan->flags &
@@ -275,9 +273,6 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 			if (err)
 				return err;
 		}
-		break;
-	default:
-		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -356,9 +351,9 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
 
-	if (trans->ph == SWITCHDEV_TRANS_PREPARE)
+	if (switchdev_trans_ph_prepare(trans))
 		ret = ds->drv->port_fdb_add ? 0 : -EOPNOTSUPP;
-	else if (trans->ph == SWITCHDEV_TRANS_COMMIT)
+	else
 		ret = ds->drv->port_fdb_add(ds, p->port, fdb->addr, fdb->vid);
 
 	return ret;
@@ -465,7 +460,7 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
-		if (trans->ph == SWITCHDEV_TRANS_COMMIT)
+		if (switchdev_trans_ph_commit(trans))
 			ret = dsa_slave_stp_update(dev, attr->u.stp_state);
 		break;
 	default:
