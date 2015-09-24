@@ -3304,7 +3304,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 		 */
 		return 0;
 
-	for (i = 0; i < s->failed; i++) {
+	for (i = 0; i < s->failed && i < 2; i++) {
 		if (fdev[i]->towrite &&
 		    !test_bit(R5_UPTODATE, &fdev[i]->flags) &&
 		    !test_bit(R5_OVERWRITE, &fdev[i]->flags))
@@ -3328,7 +3328,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	    sh->sector < sh->raid_conf->mddev->recovery_cp)
 		/* reconstruct-write isn't being forced */
 		return 0;
-	for (i = 0; i < s->failed; i++) {
+	for (i = 0; i < s->failed && i < 2; i++) {
 		if (s->failed_num[i] != sh->pd_idx &&
 		    s->failed_num[i] != sh->qd_idx &&
 		    !test_bit(R5_UPTODATE, &fdev[i]->flags) &&
