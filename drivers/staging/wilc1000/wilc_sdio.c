@@ -14,7 +14,6 @@
 
 typedef struct {
 	void *os_context;
-	wilc_wlan_os_func_t os_func;
 	u32 block_size;
 	int (*sdio_cmd52)(sdio_cmd52_t *);
 	int (*sdio_cmd53)(sdio_cmd53_t *);
@@ -586,7 +585,6 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 
 	g_sdio.dPrint = func;
 	g_sdio.os_context = inp->os_context.os_private;
-	memcpy((void *)&g_sdio.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 
 	if (inp->io_func.io_init) {
 		if (!inp->io_func.io_init(g_sdio.os_context)) {

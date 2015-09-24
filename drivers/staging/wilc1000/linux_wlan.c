@@ -381,7 +381,7 @@ void linux_wlan_dbg(u8 *buff)
 	PRINT_D(INIT_DBG, "%d\n", *buff);
 }
 
-static int linux_wlan_lock_timeout(void *vp, u32 timeout)
+int linux_wlan_lock_timeout(void *vp, u32 timeout)
 {
 	int error = -1;
 
@@ -1052,7 +1052,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
 
 	nwi->os_context.os_private = (void *)nic;
-	nwi->os_func.os_wait = linux_wlan_lock_timeout;
 
 #ifdef WILC_SDIO
 	nwi->io_func.io_type = HIF_SDIO;

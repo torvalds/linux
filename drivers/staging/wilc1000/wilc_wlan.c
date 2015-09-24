@@ -30,7 +30,6 @@ typedef struct {
 	/**
 	 *      input interface functions
 	 **/
-	wilc_wlan_os_func_t os_func;
 	wilc_wlan_io_func_t io_func;
 
 	/**
@@ -223,8 +222,8 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
-	if (p->os_func.os_wait(&g_linux_wlan->txq_add_to_head_cs,
-			       CFG_PKTS_TIMEOUT))
+	if (linux_wlan_lock_timeout(&g_linux_wlan->txq_add_to_head_cs,
+				    CFG_PKTS_TIMEOUT))
 		return -1;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
@@ -452,7 +451,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 
 	while (Dropped > 0) {
 		/*consume the semaphore count of the removed packet*/
-		p->os_func.os_wait(&g_linux_wlan->txq_event, 1);
+		linux_wlan_lock_timeout(&g_linux_wlan->txq_event, 1);
 		Dropped--;
 	}
 
@@ -839,8 +838,8 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 		if (p->quit)
 			break;
 
-		p->os_func.os_wait(&g_linux_wlan->txq_add_to_head_cs,
-				   CFG_PKTS_TIMEOUT);
+		linux_wlan_lock_timeout(&g_linux_wlan->txq_add_to_head_cs,
+					CFG_PKTS_TIMEOUT);
 #ifdef	TCP_ACK_FILTER
 		wilc_wlan_txq_filter_dup_tcp_ack();
 #endif
@@ -1777,8 +1776,8 @@ static int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size, in
 		if (wilc_wlan_cfg_commit(WILC_CFG_SET, drvHandler))
 			ret_size = 0;
 
-		if (p->os_func.os_wait(&g_linux_wlan->cfg_event,
-				       CFG_PKTS_TIMEOUT)) {
+		if (linux_wlan_lock_timeout(&g_linux_wlan->cfg_event,
+					    CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Set Timed Out\n");
 			ret_size = 0;
 		}
@@ -1815,8 +1814,8 @@ static int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 			ret_size = 0;
 
 
-		if (p->os_func.os_wait(&g_linux_wlan->cfg_event,
-				       CFG_PKTS_TIMEOUT)) {
+		if (linux_wlan_lock_timeout(&g_linux_wlan->cfg_event,
+					    CFG_PKTS_TIMEOUT)) {
 			PRINT_D(TX_DBG, "Get Timed Out\n");
 			ret_size = 0;
 		}
@@ -1963,7 +1962,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      store the input
 	 **/
-	memcpy((void *)&g_wlan.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
 	/***
 	 *      host interface init
