@@ -351,7 +351,7 @@ static void smbb_set_line_flag(struct smbb_charger *chg, int irq, int flag)
 	int ret;
 
 	ret = irq_get_irqchip_state(irq, IRQCHIP_STATE_LINE_LEVEL, &state);
-	if (state < 0) {
+	if (ret < 0) {
 		dev_err(chg->dev, "failed to read irq line\n");
 		return;
 	}
