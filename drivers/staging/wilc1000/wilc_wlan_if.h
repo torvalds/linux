@@ -107,7 +107,6 @@ typedef struct {
 
 typedef struct {
 	void *os_private;
-	void *txq_critical_section;
 } wilc_wlan_os_context_t;
 
 typedef struct {

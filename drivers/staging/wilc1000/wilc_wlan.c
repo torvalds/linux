@@ -63,7 +63,6 @@ typedef struct {
 	/**
 	 *      TX queue
 	 **/
-	void *txq_lock;
 
 	unsigned long txq_spinlock_flags;
 
@@ -1966,7 +1965,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	 **/
 	memcpy((void *)&g_wlan.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
-	g_wlan.txq_lock = inp->os_context.txq_critical_section;
 	/***
 	 *      host interface init
 	 **/

@@ -169,7 +169,6 @@ typedef struct {
 	u8 u8NoIfcs;
 	tstrInterfaceInfo strInterfaceInfo[NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
-	struct mutex txq_cs;
 
 	struct semaphore txq_add_to_head_cs;
 	spinlock_t txq_spinlock;

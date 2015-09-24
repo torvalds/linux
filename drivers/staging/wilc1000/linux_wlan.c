@@ -1020,7 +1020,6 @@ int wlan_init_locks(linux_wlan_t *p_nic)
 
 	mutex_init(&g_linux_wlan->hif_cs);
 	mutex_init(&g_linux_wlan->rxq_cs);
-	mutex_init(&g_linux_wlan->txq_cs);
 
 	spin_lock_init(&g_linux_wlan->txq_spinlock);
 	sema_init(&g_linux_wlan->txq_add_to_head_cs, 1);
@@ -1045,9 +1044,6 @@ static int wlan_deinit_locks(linux_wlan_t *nic)
 	if (&g_linux_wlan->rxq_cs != NULL)
 		mutex_destroy(&g_linux_wlan->rxq_cs);
 
-	if (&g_linux_wlan->txq_cs != NULL)
-		mutex_destroy(&g_linux_wlan->txq_cs);
-
 	return 0;
 }
 void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
@@ -1056,7 +1052,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	PRINT_D(INIT_DBG, "Linux to Wlan services ...\n");
 
 	nwi->os_context.os_private = (void *)nic;
-	nwi->os_context.txq_critical_section = (void *)&g_linux_wlan->txq_cs;
 	nwi->os_func.os_wait = linux_wlan_lock_timeout;
 
 #ifdef WILC_SDIO
