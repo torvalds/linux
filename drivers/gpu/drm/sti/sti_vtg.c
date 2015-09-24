@@ -79,7 +79,7 @@ LIST_HEAD(vtg_lookup);
  * @irq: VTG irq
  * @type: VTG type (main or aux)
  * @notifier_list: notifier callback
- * @crtc_id: the crtc id for vblank event
+ * @crtc: the CRTC for vblank event
  * @slave: slave vtg
  * @link: List node to link the structure in lookup list
  */
@@ -90,7 +90,7 @@ struct sti_vtg {
 	int irq;
 	u32 irq_status;
 	struct raw_notifier_head notifier_list;
-	int crtc_id;
+	struct drm_crtc *crtc;
 	struct sti_vtg *slave;
 	struct list_head link;
 };
@@ -283,13 +283,13 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 }
 EXPORT_SYMBOL(sti_vtg_get_pixel_number);
 
-int sti_vtg_register_client(struct sti_vtg *vtg,
-		struct notifier_block *nb, int crtc_id)
+int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
+			    struct drm_crtc *crtc)
 {
 	if (vtg->slave)
-		return sti_vtg_register_client(vtg->slave, nb, crtc_id);
+		return sti_vtg_register_client(vtg->slave, nb, crtc);
 
-	vtg->crtc_id = crtc_id;
+	vtg->crtc = crtc;
 	return raw_notifier_chain_register(&vtg->notifier_list, nb);
 }
 EXPORT_SYMBOL(sti_vtg_register_client);
@@ -311,7 +311,7 @@ static irqreturn_t vtg_irq_thread(int irq, void *arg)
 	event = (vtg->irq_status & VTG_IRQ_TOP) ?
 		VTG_TOP_FIELD_EVENT : VTG_BOTTOM_FIELD_EVENT;
 
-	raw_notifier_call_chain(&vtg->notifier_list, event, &vtg->crtc_id);
+	raw_notifier_call_chain(&vtg->notifier_list, event, vtg->crtc);
 
 	return IRQ_HANDLED;
 }

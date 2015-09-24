@@ -254,15 +254,17 @@ static int sti_crtc_set_property(struct drm_crtc *crtc,
 int sti_crtc_vblank_cb(struct notifier_block *nb,
 		       unsigned long event, void *data)
 {
-	struct drm_device *drm_dev;
 	struct sti_compositor *compo =
 		container_of(nb, struct sti_compositor, vtg_vblank_nb);
-	int *crtc = data;
+	struct drm_crtc *crtc = data;
+	struct sti_mixer *mixer;
 	unsigned long flags;
 	struct sti_private *priv;
+	unsigned int pipe;
 
-	drm_dev = compo->mixer[*crtc]->drm_crtc.dev;
-	priv = drm_dev->dev_private;
+	priv = crtc->dev->dev_private;
+	pipe = drm_crtc_index(crtc);
+	mixer = compo->mixer[pipe];
 
 	if ((event != VTG_TOP_FIELD_EVENT) &&
 	    (event != VTG_BOTTOM_FIELD_EVENT)) {
@@ -270,30 +272,30 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 		return -EINVAL;
 	}
 
-	drm_handle_vblank(drm_dev, *crtc);
+	drm_crtc_handle_vblank(crtc);
 
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-	if (compo->mixer[*crtc]->pending_event) {
-		drm_send_vblank_event(drm_dev, *crtc,
-				      compo->mixer[*crtc]->pending_event);
-		drm_vblank_put(drm_dev, *crtc);
-		compo->mixer[*crtc]->pending_event = NULL;
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	if (mixer->pending_event) {
+		drm_crtc_send_vblank_event(crtc, mixer->pending_event);
+		drm_crtc_vblank_put(crtc);
+		mixer->pending_event = NULL;
 	}
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
-	if (compo->mixer[*crtc]->status == STI_MIXER_DISABLING) {
+	if (mixer->status == STI_MIXER_DISABLING) {
 		struct drm_plane *p;
 
 		/* Disable mixer only if all overlay planes (GDP and VDP)
 		 * are disabled */
-		list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
+		list_for_each_entry(p, &crtc->dev->mode_config.plane_list,
+				    head) {
 			struct sti_plane *plane = to_sti_plane(p);
 
 			if ((plane->desc & STI_PLANE_TYPE_MASK) <= STI_VDP)
 				if (plane->status != STI_PLANE_DISABLED)
 					return 0;
 		}
-		sti_crtc_disable(&compo->mixer[*crtc]->drm_crtc);
+		sti_crtc_disable(crtc);
 	}
 
 	return 0;
@@ -304,12 +306,13 @@ int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	struct sti_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 
 	DRM_DEBUG_DRIVER("\n");
 
 	if (sti_vtg_register_client(pipe == STI_MIXER_MAIN ?
 			compo->vtg_main : compo->vtg_aux,
-			vtg_vblank_nb, pipe)) {
+			vtg_vblank_nb, crtc)) {
 		DRM_ERROR("Cannot register VTG notifier\n");
 		return -EINVAL;
 	}
@@ -323,6 +326,7 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 	struct sti_private *priv = drm_dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb;
+	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -332,7 +336,7 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 
 	/* free the resources of the pending requests */
 	if (compo->mixer[pipe]->pending_event) {
-		drm_vblank_put(drm_dev, pipe);
+		drm_crtc_vblank_put(crtc);
 		compo->mixer[pipe]->pending_event = NULL;
 	}
 }

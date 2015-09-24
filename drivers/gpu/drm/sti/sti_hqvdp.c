@@ -763,7 +763,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 		/* Register VTG Vsync callback to handle bottom fields */
 		if (sti_vtg_register_client(hqvdp->vtg,
 					    &hqvdp->vtg_nb,
-					    mixer->id)) {
+					    crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
 			return;
 		}
