@@ -2533,7 +2533,6 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		 * the bound flag ourselves.
 		 */
 		vma->bound |= GLOBAL_BIND;
-
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
@@ -2657,6 +2656,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 			return ret;
 		}
 		vma->bound |= GLOBAL_BIND;
+		list_add_tail(&vma->mm_list, &ggtt_vm->inactive_list);
 	}
 
 	/* Clear any non-preallocated blocks */
