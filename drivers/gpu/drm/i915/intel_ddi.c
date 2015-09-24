@@ -2165,9 +2165,13 @@ static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
 	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
 
 	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
-	val &= ~UNIQE_TRANGE_EN_METHOD;
+	val &= ~SCALE_DCOMP_METHOD;
 	if (ddi_translations[level].enable)
-		val |= UNIQE_TRANGE_EN_METHOD;
+		val |= SCALE_DCOMP_METHOD;
+
+	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
+		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
+
 	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
 
 	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));

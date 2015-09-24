@@ -1395,7 +1395,8 @@ enum skl_disp_power_wells {
 #define BXT_PORT_TX_DW3_LN0(port)	_PORT3(port, _PORT_TX_DW3_LN0_A,  \
 						     _PORT_TX_DW3_LN0_B,  \
 						     _PORT_TX_DW3_LN0_C)
-#define   UNIQE_TRANGE_EN_METHOD	(1 << 27)
+#define   SCALE_DCOMP_METHOD		(1 << 26)
+#define   UNIQUE_TRANGE_EN_METHOD	(1 << 27)
 
 #define _PORT_TX_DW4_LN0_A		0x162510
 #define _PORT_TX_DW4_LN0_B		0x6C510
