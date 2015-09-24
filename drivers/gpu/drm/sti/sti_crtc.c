@@ -274,7 +274,7 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags);
 	if (compo->mixer[*crtc]->pending_event) {
-		drm_send_vblank_event(drm_dev, -1,
+		drm_send_vblank_event(drm_dev, *crtc,
 				      compo->mixer[*crtc]->pending_event);
 		drm_vblank_put(drm_dev, *crtc);
 		compo->mixer[*crtc]->pending_event = NULL;
