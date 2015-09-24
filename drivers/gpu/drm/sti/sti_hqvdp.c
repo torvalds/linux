@@ -1090,8 +1090,6 @@ struct platform_driver sti_hqvdp_driver = {
 	.remove = sti_hqvdp_remove,
 };
 
-module_platform_driver(sti_hqvdp_driver);
-
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");
 MODULE_LICENSE("GPL");

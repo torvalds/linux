@@ -287,7 +287,29 @@ static struct platform_driver sti_platform_driver = {
 	},
 };
 
-module_platform_driver(sti_platform_driver);
+static struct platform_driver * const drivers[] = {
+	&sti_tvout_driver,
+	&sti_vtac_driver,
+	&sti_hqvdp_driver,
+	&sti_hdmi_driver,
+	&sti_hda_driver,
+	&sti_dvo_driver,
+	&sti_vtg_driver,
+	&sti_compositor_driver,
+	&sti_platform_driver,
+};
+
+static int sti_drm_init(void)
+{
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_init(sti_drm_init);
+
+static void sti_drm_exit(void)
+{
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
+}
+module_exit(sti_drm_exit);
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");

@@ -785,8 +785,6 @@ struct platform_driver sti_hda_driver = {
 	.remove = sti_hda_remove,
 };
 
-module_platform_driver(sti_hda_driver);
-
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics SoC DRM driver");
 MODULE_LICENSE("GPL");
