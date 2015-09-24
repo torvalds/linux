@@ -99,10 +99,6 @@ typedef struct {
 	} u;
 } wilc_wlan_io_func_t;
 
-typedef struct {
-	void (*rx_complete)(void);
-} wilc_wlan_net_func_t;
-
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
 #define WILC_MAC_STATUS_READY		0
@@ -135,7 +131,6 @@ typedef struct {
 	wilc_wlan_os_context_t os_context;
 	wilc_wlan_os_func_t os_func;
 	wilc_wlan_io_func_t io_func;
-	wilc_wlan_net_func_t net_func;
 } wilc_wlan_inp_t;
 
 struct tx_complete_data {

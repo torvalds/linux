@@ -32,7 +32,6 @@ typedef struct {
 	 **/
 	wilc_wlan_os_func_t os_func;
 	wilc_wlan_io_func_t io_func;
-	wilc_wlan_net_func_t net_func;
 
 	/**
 	 *      host interface functions
@@ -1241,8 +1240,7 @@ static void wilc_wlan_handle_rxq(void)
 		kfree(rqe);
 
 		if (has_packet) {
-			if (p->net_func.rx_complete)
-				p->net_func.rx_complete();
+			linux_wlan_rx_complete();
 		}
 	} while (1);
 
@@ -1973,7 +1971,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	 **/
 	memcpy((void *)&g_wlan.os_func, (void *)&inp->os_func, sizeof(wilc_wlan_os_func_t));
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
-	memcpy((void *)&g_wlan.net_func, (void *)&inp->net_func, sizeof(wilc_wlan_net_func_t));
 	g_wlan.hif_lock = inp->os_context.hif_critical_section;
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
 

@@ -555,7 +555,7 @@ static int linux_wlan_txq_task(void *vp)
 	return 0;
 }
 
-static void linux_wlan_rx_complete(void)
+void linux_wlan_rx_complete(void)
 {
 	PRINT_D(RX_DBG, "RX completed\n");
 }
@@ -1092,9 +1092,6 @@ void linux_to_wlan(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 	nwi->io_func.u.spi.spi_trx = linux_spi_write_read;
 	nwi->io_func.u.spi.spi_max_speed = linux_spi_set_max_speed;
 #endif
-
-	/*for now - to be revised*/
-	nwi->net_func.rx_complete = linux_wlan_rx_complete;
 }
 
 int wlan_initialize_threads(perInterface_wlan_t *nic)
