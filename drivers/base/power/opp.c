@@ -1070,7 +1070,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_add);
  * share a common logic which is isolated here.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  *
  * Locking: The internal device_opp and opp structures are RCU protected.
@@ -1158,7 +1158,7 @@ unlock:
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_enable(struct device *dev, unsigned long freq)
@@ -1184,7 +1184,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_enable);
  * mutex locking or synchronize_rcu() blocking calls cannot be used.
  *
  * Return: -EINVAL for bad pointers, -ENOMEM if no memory available for the
- * copy operation, returns 0 if no modifcation was done OR modification was
+ * copy operation, returns 0 if no modification was done OR modification was
  * successful.
  */
 int dev_pm_opp_disable(struct device *dev, unsigned long freq)
