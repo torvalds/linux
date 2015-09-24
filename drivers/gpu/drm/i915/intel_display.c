@@ -12587,8 +12587,8 @@ static void check_wm_state(struct drm_device *dev)
 		}
 
 		/* cursor */
-		hw_entry = &hw_ddb.cursor[pipe];
-		sw_entry = &sw_ddb->cursor[pipe];
+		hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
+		sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
 
 		if (skl_ddb_entry_equal(hw_entry, sw_entry))
 			continue;

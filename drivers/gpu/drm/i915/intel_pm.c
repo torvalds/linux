@@ -1770,7 +1770,6 @@ struct skl_pipe_wm_parameters {
 	uint32_t pipe_htotal;
 	uint32_t pixel_rate; /* in KHz */
 	struct intel_plane_wm_parameters plane[I915_MAX_PLANES];
-	struct intel_plane_wm_parameters cursor;
 };
 
 struct ilk_wm_maximums {
@@ -2884,7 +2883,8 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 		}
 
 		val = I915_READ(CUR_BUF_CFG(pipe));
-		skl_ddb_entry_init_from_hw(&ddb->cursor[pipe], val);
+		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][PLANE_CURSOR],
+					   val);
 	}
 }
 
@@ -2953,13 +2953,14 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0) {
 		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
-		memset(&ddb->cursor[pipe], 0, sizeof(ddb->cursor[pipe]));
+		memset(&ddb->plane[pipe][PLANE_CURSOR], 0,
+		       sizeof(ddb->plane[pipe][PLANE_CURSOR]));
 		return;
 	}
 
 	cursor_blocks = skl_cursor_allocation(config);
-	ddb->cursor[pipe].start = alloc->end - cursor_blocks;
-	ddb->cursor[pipe].end = alloc->end;
+	ddb->plane[pipe][PLANE_CURSOR].start = alloc->end - cursor_blocks;
+	ddb->plane[pipe][PLANE_CURSOR].end = alloc->end;
 
 	alloc_size -= cursor_blocks;
 	alloc->end -= cursor_blocks;
@@ -3098,8 +3099,8 @@ static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
 		   sizeof(new_ddb->plane[pipe])))
 		return true;
 
-	if (memcmp(&new_ddb->cursor[pipe], &cur_ddb->cursor[pipe],
-		    sizeof(new_ddb->cursor[pipe])))
+	if (memcmp(&new_ddb->plane[pipe][PLANE_CURSOR], &cur_ddb->plane[pipe][PLANE_CURSOR],
+		    sizeof(new_ddb->plane[pipe][PLANE_CURSOR])))
 		return true;
 
 	return false;
@@ -3159,17 +3160,17 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		p->plane[0].rotation = crtc->primary->state->rotation;
 
 		fb = crtc->cursor->state->fb;
-		p->cursor.y_bytes_per_pixel = 0;
+		p->plane[PLANE_CURSOR].y_bytes_per_pixel = 0;
 		if (fb) {
-			p->cursor.enabled = true;
-			p->cursor.bytes_per_pixel = fb->bits_per_pixel / 8;
-			p->cursor.horiz_pixels = crtc->cursor->state->crtc_w;
-			p->cursor.vert_pixels = crtc->cursor->state->crtc_h;
+			p->plane[PLANE_CURSOR].enabled = true;
+			p->plane[PLANE_CURSOR].bytes_per_pixel = fb->bits_per_pixel / 8;
+			p->plane[PLANE_CURSOR].horiz_pixels = crtc->cursor->state->crtc_w;
+			p->plane[PLANE_CURSOR].vert_pixels = crtc->cursor->state->crtc_h;
 		} else {
-			p->cursor.enabled = false;
-			p->cursor.bytes_per_pixel = 0;
-			p->cursor.horiz_pixels = 64;
-			p->cursor.vert_pixels = 64;
+			p->plane[PLANE_CURSOR].enabled = false;
+			p->plane[PLANE_CURSOR].bytes_per_pixel = 0;
+			p->plane[PLANE_CURSOR].horiz_pixels = 64;
+			p->plane[PLANE_CURSOR].vert_pixels = 64;
 		}
 	}
 
@@ -3283,11 +3284,12 @@ static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 						&result->plane_res_l[i]);
 	}
 
-	ddb_blocks = skl_ddb_entry_size(&ddb->cursor[pipe]);
-	result->cursor_en = skl_compute_plane_wm(dev_priv, p, &p->cursor,
+	ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][PLANE_CURSOR]);
+	result->plane_en[PLANE_CURSOR] = skl_compute_plane_wm(dev_priv, p,
+						 &p->plane[PLANE_CURSOR],
 						 ddb_blocks, level,
-						 &result->cursor_res_b,
-						 &result->cursor_res_l);
+						 &result->plane_res_b[PLANE_CURSOR],
+						 &result->plane_res_l[PLANE_CURSOR]);
 }
 
 static uint32_t
@@ -3315,7 +3317,7 @@ static void skl_compute_transition_wm(struct drm_crtc *crtc,
 	/* Until we know more, just disable transition WMs */
 	for (i = 0; i < intel_num_planes(intel_crtc); i++)
 		trans_wm->plane_en[i] = false;
-	trans_wm->cursor_en = false;
+	trans_wm->plane_en[PLANE_CURSOR] = false;
 }
 
 static void skl_compute_pipe_wm(struct drm_crtc *crtc,
@@ -3364,13 +3366,13 @@ static void skl_compute_wm_results(struct drm_device *dev,
 
 		temp = 0;
 
-		temp |= p_wm->wm[level].cursor_res_l << PLANE_WM_LINES_SHIFT;
-		temp |= p_wm->wm[level].cursor_res_b;
+		temp |= p_wm->wm[level].plane_res_l[PLANE_CURSOR] << PLANE_WM_LINES_SHIFT;
+		temp |= p_wm->wm[level].plane_res_b[PLANE_CURSOR];
 
-		if (p_wm->wm[level].cursor_en)
+		if (p_wm->wm[level].plane_en[PLANE_CURSOR])
 			temp |= PLANE_WM_EN;
 
-		r->cursor[pipe][level] = temp;
+		r->plane[pipe][PLANE_CURSOR][level] = temp;
 
 	}
 
@@ -3386,12 +3388,12 @@ static void skl_compute_wm_results(struct drm_device *dev,
 	}
 
 	temp = 0;
-	temp |= p_wm->trans_wm.cursor_res_l << PLANE_WM_LINES_SHIFT;
-	temp |= p_wm->trans_wm.cursor_res_b;
-	if (p_wm->trans_wm.cursor_en)
+	temp |= p_wm->trans_wm.plane_res_l[PLANE_CURSOR] << PLANE_WM_LINES_SHIFT;
+	temp |= p_wm->trans_wm.plane_res_b[PLANE_CURSOR];
+	if (p_wm->trans_wm.plane_en[PLANE_CURSOR])
 		temp |= PLANE_WM_EN;
 
-	r->cursor_trans[pipe] = temp;
+	r->plane_trans[pipe][PLANE_CURSOR] = temp;
 
 	r->wm_linetime[pipe] = p_wm->linetime;
 }
@@ -3425,12 +3427,13 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				I915_WRITE(PLANE_WM(pipe, i, level),
 					   new->plane[pipe][i][level]);
 			I915_WRITE(CUR_WM(pipe, level),
-				   new->cursor[pipe][level]);
+				   new->plane[pipe][PLANE_CURSOR][level]);
 		}
 		for (i = 0; i < intel_num_planes(crtc); i++)
 			I915_WRITE(PLANE_WM_TRANS(pipe, i),
 				   new->plane_trans[pipe][i]);
-		I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
+		I915_WRITE(CUR_WM_TRANS(pipe),
+			   new->plane_trans[pipe][PLANE_CURSOR]);
 
 		for (i = 0; i < intel_num_planes(crtc); i++) {
 			skl_ddb_entry_write(dev_priv,
@@ -3442,7 +3445,7 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 		}
 
 		skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
-				    &new->ddb.cursor[pipe]);
+				    &new->ddb.plane[pipe][PLANE_CURSOR]);
 	}
 }
 
@@ -3655,10 +3658,9 @@ static void skl_clear_wm(struct skl_wm_values *watermarks, enum pipe pipe)
 	watermarks->wm_linetime[pipe] = 0;
 	memset(watermarks->plane[pipe], 0,
 	       sizeof(uint32_t) * 8 * I915_MAX_PLANES);
-	memset(watermarks->cursor[pipe], 0, sizeof(uint32_t) * 8);
 	memset(watermarks->plane_trans[pipe],
 	       0, sizeof(uint32_t) * I915_MAX_PLANES);
-	watermarks->cursor_trans[pipe] = 0;
+	watermarks->plane_trans[pipe][PLANE_CURSOR] = 0;
 
 	/* Clear ddb entries for pipe */
 	memset(&watermarks->ddb.pipe[pipe], 0, sizeof(struct skl_ddb_entry));
@@ -3666,7 +3668,8 @@ static void skl_clear_wm(struct skl_wm_values *watermarks, enum pipe pipe)
 	       sizeof(struct skl_ddb_entry) * I915_MAX_PLANES);
 	memset(&watermarks->ddb.y_plane[pipe], 0,
 	       sizeof(struct skl_ddb_entry) * I915_MAX_PLANES);
-	memset(&watermarks->ddb.cursor[pipe], 0, sizeof(struct skl_ddb_entry));
+	memset(&watermarks->ddb.plane[pipe][PLANE_CURSOR], 0,
+	       sizeof(struct skl_ddb_entry));
 
 }
 
@@ -3822,10 +3825,10 @@ static void skl_pipe_wm_active_state(uint32_t val,
 					(val >> PLANE_WM_LINES_SHIFT) &
 						PLANE_WM_LINES_MASK;
 		} else {
-			active->wm[level].cursor_en = is_enabled;
-			active->wm[level].cursor_res_b =
+			active->wm[level].plane_en[PLANE_CURSOR] = is_enabled;
+			active->wm[level].plane_res_b[PLANE_CURSOR] =
 					val & PLANE_WM_BLOCKS_MASK;
-			active->wm[level].cursor_res_l =
+			active->wm[level].plane_res_l[PLANE_CURSOR] =
 					(val >> PLANE_WM_LINES_SHIFT) &
 						PLANE_WM_LINES_MASK;
 		}
@@ -3838,10 +3841,10 @@ static void skl_pipe_wm_active_state(uint32_t val,
 					(val >> PLANE_WM_LINES_SHIFT) &
 						PLANE_WM_LINES_MASK;
 		} else {
-			active->trans_wm.cursor_en = is_enabled;
-			active->trans_wm.cursor_res_b =
+			active->trans_wm.plane_en[PLANE_CURSOR] = is_enabled;
+			active->trans_wm.plane_res_b[PLANE_CURSOR] =
 					val & PLANE_WM_BLOCKS_MASK;
-			active->trans_wm.cursor_res_l =
+			active->trans_wm.plane_res_l[PLANE_CURSOR] =
 					(val >> PLANE_WM_LINES_SHIFT) &
 						PLANE_WM_LINES_MASK;
 		}
@@ -3867,12 +3870,12 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 		for (i = 0; i < intel_num_planes(intel_crtc); i++)
 			hw->plane[pipe][i][level] =
 					I915_READ(PLANE_WM(pipe, i, level));
-		hw->cursor[pipe][level] = I915_READ(CUR_WM(pipe, level));
+		hw->plane[pipe][PLANE_CURSOR][level] = I915_READ(CUR_WM(pipe, level));
 	}
 
 	for (i = 0; i < intel_num_planes(intel_crtc); i++)
 		hw->plane_trans[pipe][i] = I915_READ(PLANE_WM_TRANS(pipe, i));
-	hw->cursor_trans[pipe] = I915_READ(CUR_WM_TRANS(pipe));
+	hw->plane_trans[pipe][PLANE_CURSOR] = I915_READ(CUR_WM_TRANS(pipe));
 
 	if (!intel_crtc->active)
 		return;
@@ -3887,7 +3890,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 			skl_pipe_wm_active_state(temp, active, false,
 						false, i, level);
 		}
-		temp = hw->cursor[pipe][level];
+		temp = hw->plane[pipe][PLANE_CURSOR][level];
 		skl_pipe_wm_active_state(temp, active, false, true, i, level);
 	}
 
@@ -3896,7 +3899,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 		skl_pipe_wm_active_state(temp, active, true, false, i, 0);
 	}
 
-	temp = hw->cursor_trans[pipe];
+	temp = hw->plane_trans[pipe][PLANE_CURSOR];
 	skl_pipe_wm_active_state(temp, active, true, true, i, 0);
 }
 
