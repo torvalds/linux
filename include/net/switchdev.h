@@ -16,7 +16,7 @@
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
 
-enum switchdev_trans {
+enum switchdev_trans_ph {
 	SWITCHDEV_TRANS_NONE,
 	SWITCHDEV_TRANS_PREPARE,
 	SWITCHDEV_TRANS_ABORT,
@@ -32,7 +32,7 @@ enum switchdev_attr_id {
 
 struct switchdev_attr {
 	enum switchdev_attr_id id;
-	enum switchdev_trans trans;
+	enum switchdev_trans_ph trans_ph;
 	u32 flags;
 	union {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
@@ -52,7 +52,7 @@ enum switchdev_obj_id {
 
 struct switchdev_obj {
 	enum switchdev_obj_id id;
-	enum switchdev_trans trans;
+	enum switchdev_trans_ph trans_ph;
 	int (*cb)(struct net_device *dev, struct switchdev_obj *obj);
 	union {
 		struct switchdev_obj_vlan {		/* PORT_VLAN */

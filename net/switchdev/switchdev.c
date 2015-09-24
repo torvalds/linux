@@ -163,7 +163,7 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 	 * but should not commit the attr.
 	 */
 
-	attr->trans = SWITCHDEV_TRANS_PREPARE;
+	attr->trans_ph = SWITCHDEV_TRANS_PREPARE;
 	err = __switchdev_port_attr_set(dev, attr);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
@@ -172,7 +172,7 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 		 */
 
 		if (err != -EOPNOTSUPP) {
-			attr->trans = SWITCHDEV_TRANS_ABORT;
+			attr->trans_ph = SWITCHDEV_TRANS_ABORT;
 			__switchdev_port_attr_set(dev, attr);
 		}
 
@@ -184,7 +184,7 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 	 * because the driver said everythings was OK in phase I.
 	 */
 
-	attr->trans = SWITCHDEV_TRANS_COMMIT;
+	attr->trans_ph = SWITCHDEV_TRANS_COMMIT;
 	err = __switchdev_port_attr_set(dev, attr);
 	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
 	     dev->name, attr->id);
@@ -243,7 +243,7 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 	 * but should not commit the obj.
 	 */
 
-	obj->trans = SWITCHDEV_TRANS_PREPARE;
+	obj->trans_ph = SWITCHDEV_TRANS_PREPARE;
 	err = __switchdev_port_obj_add(dev, obj);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
@@ -252,7 +252,7 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 		 */
 
 		if (err != -EOPNOTSUPP) {
-			obj->trans = SWITCHDEV_TRANS_ABORT;
+			obj->trans_ph = SWITCHDEV_TRANS_ABORT;
 			__switchdev_port_obj_add(dev, obj);
 		}
 
@@ -264,7 +264,7 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 	 * because the driver said everythings was OK in phase I.
 	 */
 
-	obj->trans = SWITCHDEV_TRANS_COMMIT;
+	obj->trans_ph = SWITCHDEV_TRANS_COMMIT;
 	err = __switchdev_port_obj_add(dev, obj);
 	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
 
