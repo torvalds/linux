@@ -461,7 +461,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 
 	hdr.dest.pan_id = wpan_dev->pan_id;
 	hdr.dest.mode = IEEE802154_ADDR_LONG;
-	memcpy(&hdr.dest.extended_addr, daddr, IEEE802154_EXTENDED_ADDR_LEN);
+	ieee802154_be64_to_le64(&hdr.dest.extended_addr, daddr);
 
 	hdr.source.pan_id = hdr.dest.pan_id;
 	hdr.source.mode = IEEE802154_ADDR_LONG;
@@ -469,8 +469,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 	if (!saddr)
 		hdr.source.extended_addr = wpan_dev->extended_addr;
 	else
-		memcpy(&hdr.source.extended_addr, saddr,
-		       IEEE802154_EXTENDED_ADDR_LEN);
+		ieee802154_be64_to_le64(&hdr.source.extended_addr, saddr);
 
 	hlen = ieee802154_hdr_push(skb, &hdr);
 	if (hlen < 0)
@@ -496,8 +495,7 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	}
 
 	if (hdr.source.mode == IEEE802154_ADDR_LONG) {
-		memcpy(haddr, &hdr.source.extended_addr,
-		       IEEE802154_EXTENDED_ADDR_LEN);
+		ieee802154_le64_to_be64(haddr, &hdr.source.extended_addr);
 		return IEEE802154_EXTENDED_ADDR_LEN;
 	}
 
