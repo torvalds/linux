@@ -100,7 +100,6 @@ typedef struct {
 } wilc_wlan_io_func_t;
 
 typedef struct {
-	void (*rx_indicate)(u8 *, u32, u32);
 	void (*rx_complete)(void);
 } wilc_wlan_net_func_t;
 

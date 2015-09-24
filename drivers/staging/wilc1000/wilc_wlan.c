@@ -1199,12 +1199,11 @@ static void wilc_wlan_handle_rxq(void)
 			{
 
 				if (!is_cfg_packet) {
-
-					if (p->net_func.rx_indicate) {
-						if (pkt_len > 0) {
-							p->net_func.rx_indicate(&buffer[offset], pkt_len, pkt_offset);
-							has_packet = 1;
-						}
+					if (pkt_len > 0) {
+						frmw_to_linux(&buffer[offset],
+							      pkt_len,
+							      pkt_offset);
+						has_packet = 1;
 					}
 				} else {
 					wilc_cfg_rsp_t rsp;

@@ -216,5 +216,6 @@ struct WILC_WFI_mon_priv {
 };
 
 extern struct net_device *WILC_WFI_devs[];
+void frmw_to_linux(u8 *buff, u32 size, u32 pkt_offset);
 
 #endif
