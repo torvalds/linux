@@ -326,4 +326,18 @@ int i40e_xmit_descriptor_count(struct sk_buff *skb, struct i40e_ring *tx_ring);
 int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 			       struct i40e_ring *tx_ring, u32 *flags);
 #endif
+
+/**
+ * i40e_get_head - Retrieve head from head writeback
+ * @tx_ring:  tx ring to fetch head of
+ *
+ * Returns value of Tx ring head based on value stored
+ * in head write-back location
+ **/
+static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
+{
+	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
+
+	return le32_to_cpu(*(volatile __le32 *)head);
+}
 #endif /* _I40E_TXRX_H_ */
