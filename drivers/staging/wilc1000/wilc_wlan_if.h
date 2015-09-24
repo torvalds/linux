@@ -112,9 +112,6 @@ typedef struct {
 
 	u32 tx_buffer_size;
 	void *txq_critical_section;
-
-	void *txq_add_to_head_critical_section;
-
 #if defined(MEMORY_STATIC)
 	u32 rx_buffer_size;
 #endif

@@ -68,7 +68,6 @@ typedef struct {
 	 **/
 	void *txq_lock;
 
-	struct semaphore *txq_add_to_head_lock;
 	unsigned long txq_spinlock_flags;
 
 	struct txq_entry_t *txq_head;
@@ -228,7 +227,8 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	unsigned long flags;
-	if (p->os_func.os_wait(p->txq_add_to_head_lock, CFG_PKTS_TIMEOUT))
+	if (p->os_func.os_wait(&g_linux_wlan->txq_add_to_head_cs,
+			       CFG_PKTS_TIMEOUT))
 		return -1;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
@@ -248,7 +248,7 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	PRINT_D(TX_DBG, "Number of entries in TxQ = %d\n", p->txq_entries);
 
 	spin_unlock_irqrestore(&g_linux_wlan->txq_spinlock, flags);
-	up(p->txq_add_to_head_lock);
+	up(&g_linux_wlan->txq_add_to_head_cs);
 
 
 	/**
@@ -843,7 +843,8 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 		if (p->quit)
 			break;
 
-		p->os_func.os_wait(p->txq_add_to_head_lock, CFG_PKTS_TIMEOUT);
+		p->os_func.os_wait(&g_linux_wlan->txq_add_to_head_cs,
+				   CFG_PKTS_TIMEOUT);
 #ifdef	TCP_ACK_FILTER
 		wilc_wlan_txq_filter_dup_tcp_ack();
 #endif
@@ -1112,7 +1113,7 @@ _end_:
 		if (ret != 1)
 			break;
 	} while (0);
-	up(p->txq_add_to_head_lock);
+	up(&g_linux_wlan->txq_add_to_head_cs);
 
 	p->txq_exit = 1;
 	PRINT_D(TX_DBG, "THREAD: Exiting txq\n");
@@ -1970,8 +1971,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	memcpy((void *)&g_wlan.io_func, (void *)&inp->io_func, sizeof(wilc_wlan_io_func_t));
 	g_wlan.hif_lock = inp->os_context.hif_critical_section;
 	g_wlan.txq_lock = inp->os_context.txq_critical_section;
-
-	g_wlan.txq_add_to_head_lock = inp->os_context.txq_add_to_head_critical_section;
 
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
 #if defined (MEMORY_STATIC)
