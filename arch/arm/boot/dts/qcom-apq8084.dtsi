@@ -10,6 +10,17 @@
 	compatible = "qcom,apq8084";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		smem_mem: smem_region@fa00000 {
+			reg = <0xfa00000 0x200000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -87,6 +98,15 @@
 			     <1 4 0xf08>,
 			     <1 1 0xf08>;
 		clock-frequency = <19200000>;
+	};
+
+	smem {
+		compatible = "qcom,smem";
+
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+		memory-region = <&smem_mem>;
+
+		hwlocks = <&tcsr_mutex 3>;
 	};
 
 	soc: soc {
@@ -223,6 +243,22 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 			reg = <0xfc400000 0x4000>;
+		};
+
+		tcsr_mutex_regs: syscon@fd484000 {
+			compatible = "syscon";
+			reg = <0xfd484000 0x2000>;
+		};
+
+		tcsr_mutex: hwlock {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_regs 0 0x80>;
+			#hwlock-cells = <1>;
+		};
+
+		rpm_msg_ram: memory@fc428000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0xfc428000 0x4000>;
 		};
 
 		tlmm: pinctrl@fd510000 {
