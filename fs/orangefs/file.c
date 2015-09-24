@@ -973,7 +973,7 @@ static loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
  */
 static int pvfs2_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	int rc = -ENOLCK;
+	int rc = -EINVAL;
 
 	if (PVFS2_SB(filp->f_inode->i_sb)->flags & PVFS2_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {

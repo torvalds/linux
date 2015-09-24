@@ -243,28 +243,24 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 /*
- * pvfs2_link() is only implemented here to make sure that we return a
- * reasonable error code (the kernel will return a misleading EPERM
- * otherwise).  PVFS2 does not support hard links.
+ * PVFS2 does not support hard links.
  */
 static int pvfs2_link(struct dentry *old_dentry,
 		      struct inode *dir,
 		      struct dentry *dentry)
 {
-	return -EOPNOTSUPP;
+	return -EPERM;
 }
 
 /*
- * pvfs2_mknod() is only implemented here to make sure that we return a
- * reasonable error code (the kernel will return a misleading EPERM
- * otherwise).  PVFS2 does not support special files such as fifos or devices.
+ * PVFS2 does not support special files.
  */
 static int pvfs2_mknod(struct inode *dir,
 		       struct dentry *dentry,
 		       umode_t mode,
 		       dev_t rdev)
 {
-	return -EOPNOTSUPP;
+	return -EPERM;
 }
 
 static int pvfs2_symlink(struct inode *dir,
