@@ -344,7 +344,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
 	/* To prevent the immediately calling watch_dog after scan. */
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0) {
+	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 || ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
 	}
