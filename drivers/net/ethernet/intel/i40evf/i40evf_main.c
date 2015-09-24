@@ -444,6 +444,29 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/**
+ * i40evf_netpoll - A Polling 'interrupt' handler
+ * @netdev: network interface device structure
+ *
+ * This is used by netconsole to send skbs without having to re-enable
+ * interrupts.  It's not called while the normal interrupt routine is executing.
+ **/
+static void i40evf_netpoll(struct net_device *netdev)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
+	int i;
+
+	/* if interface is down do nothing */
+	if (test_bit(__I40E_DOWN, &adapter->vsi.state))
+		return;
+
+	for (i = 0; i < q_vectors; i++)
+		i40evf_msix_clean_rings(0, adapter->q_vector[i]);
+}
+
+#endif
 /**
  * i40evf_request_traffic_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
@@ -2049,6 +2072,9 @@ static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_tx_timeout		= i40evf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40evf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40evf_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= i40evf_netpoll,
+#endif
 };
 
 /**
