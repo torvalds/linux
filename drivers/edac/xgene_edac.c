@@ -879,7 +879,7 @@ xgene_edac_pmd_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
 	if (!IS_ENABLED(CONFIG_EDAC_DEBUG) || !ctx->edac->dfs)
 		return;
 
-	sprintf(name, "PMD%d", ctx->pmd);
+	snprintf(name, sizeof(name), "PMD%d", ctx->pmd);
 	dbgfs_dir = edac_debugfs_create_dir_at(name, ctx->edac->dfs);
 	if (!dbgfs_dir)
 		return;
@@ -923,7 +923,7 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 		goto err_group;
 	}
 
-	sprintf(edac_name, "l2c%d", pmd);
+	snprintf(edac_name, sizeof(edac_name), "l2c%d", pmd);
 	edac_dev = edac_device_alloc_ctl_info(sizeof(*ctx),
 					      edac_name, 1, "l2c", 1, 2, NULL,
 					      0, edac_device_alloc_index());
