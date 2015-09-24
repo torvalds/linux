@@ -380,13 +380,12 @@ static __be32 decode_sessionid(struct xdr_stream *xdr,
 				 struct nfs4_sessionid *sid)
 {
 	__be32 *p;
-	int len = NFS4_MAX_SESSIONID_LEN;
 
-	p = read_buf(xdr, len);
+	p = read_buf(xdr, NFS4_MAX_SESSIONID_LEN);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
 
-	memcpy(sid->data, p, len);
+	memcpy(sid->data, p, NFS4_MAX_SESSIONID_LEN);
 	return 0;
 }
 
@@ -679,13 +678,12 @@ static __be32 encode_sessionid(struct xdr_stream *xdr,
 				 const struct nfs4_sessionid *sid)
 {
 	__be32 *p;
-	int len = NFS4_MAX_SESSIONID_LEN;
 
-	p = xdr_reserve_space(xdr, len);
+	p = xdr_reserve_space(xdr, NFS4_MAX_SESSIONID_LEN);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
 
-	memcpy(p, sid, len);
+	memcpy(p, sid, NFS4_MAX_SESSIONID_LEN);
 	return 0;
 }
 
