@@ -12,3 +12,19 @@
 / {
 	model = "Freescale i.MX6 Quad Plus SABRE Smart Device Board";
 };
+
+&pre1 {
+	status = "okay";
+};
+
+&pre2 {
+	status = "okay";
+};
+
+&pre3 {
+	status = "okay";
+};
+
+&pre4 {
+	status = "okay";
+};
