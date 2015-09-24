@@ -232,6 +232,7 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate;
+
 	tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
 
 	wrqu->bitrate.value = tmp_rate * 500000;
@@ -307,6 +308,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	HT_EXTCHNL_OFFSET chan_offset=0;
 	HT_CHANNEL_WIDTH bandwidth=0;
 	int b40M = 0;
+
 	chan = ieee->current_network.channel;
 	netif_carrier_off(ieee->dev);
 
@@ -517,6 +519,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 				 union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
+
 	down(&ieee->wx_sem);
 
 	if (wrqu->power.disabled) {
