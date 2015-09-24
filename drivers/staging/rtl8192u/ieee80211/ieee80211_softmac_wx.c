@@ -279,12 +279,10 @@ int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info 
 	if (wrqu->mode == ieee->iw_mode)
 		goto out;
 
-	if (wrqu->mode == IW_MODE_MONITOR) {
-
+	if (wrqu->mode == IW_MODE_MONITOR)
 		ieee->dev->type = ARPHRD_IEEE80211;
-	} else {
+	else
 		ieee->dev->type = ARPHRD_ETHER;
-	}
 
 	if (!ieee->proto_started) {
 		ieee->iw_mode = wrqu->mode;
@@ -422,8 +420,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 		strncpy(ieee->current_network.ssid, extra, len+1);
 		ieee->current_network.ssid_len = len+1;
 		ieee->ssid_set = 1;
-	}
-	else {
+	} else {
 		ieee->ssid_set = 0;
 		ieee->current_network.ssid[0] = '\0';
 		ieee->current_network.ssid_len = 0;
