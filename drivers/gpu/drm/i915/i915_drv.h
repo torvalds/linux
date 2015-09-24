@@ -131,17 +131,17 @@ enum transcoder {
 #define transcoder_name(t) ((t) + 'A')
 
 /*
- * This is the maximum (across all platforms) number of planes (primary +
- * sprites) that can be active at the same time on one pipe.
- *
- * This value doesn't count the cursor plane.
+ * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
+ * number of planes per CRTC.  Not all platforms really have this many planes,
+ * which means some arrays of size I915_MAX_PLANES may have unused entries
+ * between the topmost sprite plane and the cursor plane.
  */
-#define I915_MAX_PLANES	4
-
 enum plane {
 	PLANE_A = 0,
 	PLANE_B,
 	PLANE_C,
+	PLANE_CURSOR,
+	I915_MAX_PLANES,
 };
 #define plane_name(p) ((p) + 'A')
 
