@@ -41,10 +41,6 @@
 	model = "Broadcom Cygnus SoC";
 	interrupt-parent = <&gic>;
 
-	aliases {
-		serial0 = &uart3;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
