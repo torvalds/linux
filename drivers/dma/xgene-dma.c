@@ -1421,15 +1421,18 @@ static int xgene_dma_create_ring_one(struct xgene_dma_chan *chan,
 				     struct xgene_dma_ring *ring,
 				     enum xgene_dma_ring_cfgsize cfgsize)
 {
+	int ret;
+
 	/* Setup DMA ring descriptor variables */
 	ring->pdma = chan->pdma;
 	ring->cfgsize = cfgsize;
 	ring->num = chan->pdma->ring_num++;
 	ring->id = XGENE_DMA_RING_ID_GET(ring->owner, ring->buf_num);
 
-	ring->size = xgene_dma_get_ring_size(chan, cfgsize);
-	if (ring->size <= 0)
-		return ring->size;
+	ret = xgene_dma_get_ring_size(chan, cfgsize);
+	if (ret <= 0)
+		return ret;
+	ring->size = ret;
 
 	/* Allocate memory for DMA ring descriptor */
 	ring->desc_vaddr = dma_zalloc_coherent(chan->dev, ring->size,
