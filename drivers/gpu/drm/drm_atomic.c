@@ -438,7 +438,8 @@ EXPORT_SYMBOL(drm_atomic_crtc_set_property);
  * consistent behavior you must call this function rather than the
  * driver hook directly.
  */
-int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
+static int
+drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
 		struct drm_property *property, uint64_t *val)
 {
