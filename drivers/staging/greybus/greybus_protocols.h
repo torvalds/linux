@@ -829,6 +829,10 @@ struct gb_svc_dme_peer_set_response {
 	__le16	result_code;
 } __packed;
 
+/* Attributes for peer get/set operations */
+#define DME_ATTR_SELECTOR_INDEX		0
+#define DME_ATTR_T_TST_SRC_INCREMENT	0x4083
+
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
 	__u8	dev1_id;

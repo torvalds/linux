@@ -176,6 +176,42 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 }
 EXPORT_SYMBOL_GPL(gb_svc_dme_peer_set);
 
+/*
+ * T_TstSrcIncrement is written by the module on ES2 as a stand-in for boot
+ * status attribute. AP needs to read and clear it, after reading a non-zero
+ * value from it.
+ *
+ * FIXME: This is module-hardware dependent and needs to be extended for every
+ * type of module we want to support.
+ */
+static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
+{
+	struct greybus_host_device *hd = intf->hd;
+	int ret;
+	u32 value;
+
+	/* Read and clear boot status in T_TstSrcIncrement */
+	ret = gb_svc_dme_peer_get(hd->svc, intf->interface_id,
+				  DME_ATTR_T_TST_SRC_INCREMENT,
+				  DME_ATTR_SELECTOR_INDEX, &value);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * A nonzero boot status indicates the module has finished
+	 * booting. Clear it.
+	 */
+	if (!value) {
+		dev_err(&intf->dev, "Module not ready yet\n");
+		return -ENODEV;
+	}
+
+	return gb_svc_dme_peer_set(hd->svc, intf->interface_id,
+				   DME_ATTR_T_TST_SRC_INCREMENT,
+				   DME_ATTR_SELECTOR_INDEX, 0);
+}
+
 int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
 				u8 intf2_id, u16 cport2_id)
@@ -397,6 +433,10 @@ static void svc_process_hotplug(struct work_struct *work)
 			__func__, intf_id);
 		goto free_svc_hotplug;
 	}
+
+	ret = gb_svc_read_and_clear_module_boot_status(intf);
+	if (ret)
+		goto destroy_interface;
 
 	intf->unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
 	intf->unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
