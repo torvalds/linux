@@ -232,6 +232,7 @@ loop:
 	extwriter_counter_init(cur_trans, type);
 	init_waitqueue_head(&cur_trans->writer_wait);
 	init_waitqueue_head(&cur_trans->commit_wait);
+	init_waitqueue_head(&cur_trans->pending_wait);
 	cur_trans->state = TRANS_STATE_RUNNING;
 	/*
 	 * One for this trans handle, one so it will live on until we
@@ -239,6 +240,7 @@ loop:
 	 */
 	atomic_set(&cur_trans->use_count, 2);
 	cur_trans->have_free_bgs = 0;
+	atomic_set(&cur_trans->pending_ordered, 0);
 	cur_trans->start_time = get_seconds();
 	cur_trans->dirty_bg_run = 0;
 
@@ -266,7 +268,6 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
-	INIT_LIST_HEAD(&cur_trans->pending_ordered);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
 	INIT_LIST_HEAD(&cur_trans->io_bgs);
 	INIT_LIST_HEAD(&cur_trans->dropped_roots);
@@ -551,7 +552,6 @@ again:
 	h->can_flush_pending_bgs = true;
 	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
-	INIT_LIST_HEAD(&h->ordered);
 
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_BLOCKED &&
@@ -783,12 +783,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
-
-	if (!list_empty(&trans->ordered)) {
-		spin_lock(&info->trans_lock);
-		list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
-		spin_unlock(&info->trans_lock);
-	}
 
 	trans->delayed_ref_updates = 0;
 	if (!trans->sync) {
@@ -1788,25 +1782,10 @@ static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 }
 
 static inline void
-btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans,
-			   struct btrfs_fs_info *fs_info)
+btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans)
 {
-	struct btrfs_ordered_extent *ordered;
-
-	spin_lock(&fs_info->trans_lock);
-	while (!list_empty(&cur_trans->pending_ordered)) {
-		ordered = list_first_entry(&cur_trans->pending_ordered,
-					   struct btrfs_ordered_extent,
-					   trans_list);
-		list_del_init(&ordered->trans_list);
-		spin_unlock(&fs_info->trans_lock);
-
-		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_COMPLETE,
-						   &ordered->flags));
-		btrfs_put_ordered_extent(ordered);
-		spin_lock(&fs_info->trans_lock);
-	}
-	spin_unlock(&fs_info->trans_lock);
+	wait_event(cur_trans->pending_wait,
+		   atomic_read(&cur_trans->pending_ordered) == 0);
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -1890,7 +1869,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	spin_lock(&root->fs_info->trans_lock);
-	list_splice_init(&trans->ordered, &cur_trans->pending_ordered);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
 		spin_unlock(&root->fs_info->trans_lock);
 		atomic_inc(&cur_trans->use_count);
@@ -1949,7 +1927,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_wait_delalloc_flush(root->fs_info);
 
-	btrfs_wait_pending_ordered(cur_trans, root->fs_info);
+	btrfs_wait_pending_ordered(cur_trans);
 
 	btrfs_scrub_pause(root);
 	/*

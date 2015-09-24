@@ -46,6 +46,7 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	atomic_t use_count;
+	atomic_t pending_ordered;
 
 	/*
 	 * true if there is free bgs operations in this transaction
@@ -59,9 +60,9 @@ struct btrfs_transaction {
 	unsigned long start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
+	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
 	struct list_head pending_chunks;
-	struct list_head pending_ordered;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
 	struct list_head io_bgs;
@@ -129,7 +130,6 @@ struct btrfs_trans_handle {
 	 */
 	struct btrfs_root *root;
 	struct seq_list delayed_ref_elem;
-	struct list_head ordered;
 	struct list_head qgroup_ref_list;
 	struct list_head new_bgs;
 };
