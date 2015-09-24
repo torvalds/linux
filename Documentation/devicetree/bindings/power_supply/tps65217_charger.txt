@@ -1,0 +1,12 @@
+TPS65217 Charger
+
+Required Properties:
+-compatible: "ti,tps65217-charger"
+
+This node is a subnode of the tps65217 PMIC.
+
+Example:
+
+	tps65217-charger {
+		compatible = "ti,tps65090-charger";
+	};
