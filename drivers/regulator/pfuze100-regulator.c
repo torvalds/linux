@@ -643,7 +643,6 @@ static struct i2c_driver pfuze_driver = {
 	.id_table = pfuze_device_id,
 	.driver = {
 		.name = "pfuze100-regulator",
-		.owner = THIS_MODULE,
 		.of_match_table = pfuze_dt_ids,
 	},
 	.probe = pfuze100_regulator_probe,
@@ -653,4 +652,3 @@ module_i2c_driver(pfuze_driver);
 MODULE_AUTHOR("Robin Gong <b38343@freescale.com>");
 MODULE_DESCRIPTION("Regulator Driver for Freescale PFUZE100/PFUZE200 PMIC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:pfuze100-regulator");

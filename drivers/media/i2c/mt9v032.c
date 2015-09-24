@@ -882,7 +882,7 @@ static const struct regmap_config mt9v032_regmap_config = {
 static struct mt9v032_platform_data *
 mt9v032_get_pdata(struct i2c_client *client)
 {
-	struct mt9v032_platform_data *pdata;
+	struct mt9v032_platform_data *pdata = NULL;
 	struct v4l2_of_endpoint endpoint;
 	struct device_node *np;
 	struct property *prop;

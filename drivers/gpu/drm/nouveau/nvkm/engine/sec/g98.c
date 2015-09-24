@@ -22,47 +22,14 @@
  * Authors: Ben Skeggs
  */
 #include <engine/sec.h>
-#include <engine/falcon.h>
+#include <engine/fifo.h>
 #include "fuc/g98.fuc0s.h"
 
 #include <core/client.h>
 #include <core/enum.h>
-#include <engine/fifo.h>
+#include <core/gpuobj.h>
 
-struct g98_sec_priv {
-	struct nvkm_falcon base;
-};
-
-/*******************************************************************************
- * Crypt object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_sec_sclass[] = {
-	{ 0x88b4, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PSEC context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g98_sec_cclass = {
-	.handle = NV_ENGCTX(SEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_falcon_context_ctor,
-		.dtor = _nvkm_falcon_context_dtor,
-		.init = _nvkm_falcon_context_init,
-		.fini = _nvkm_falcon_context_fini,
-		.rd32 = _nvkm_falcon_context_rd32,
-		.wr32 = _nvkm_falcon_context_wr32,
-	},
-};
-
-/*******************************************************************************
- * PSEC engine/subdev functions
- ******************************************************************************/
+#include <nvif/class.h>
 
 static const struct nvkm_enum g98_sec_isr_error_name[] = {
 	{ 0x0000, "ILLEGAL_MTHD" },
@@ -73,77 +40,44 @@ static const struct nvkm_enum g98_sec_isr_error_name[] = {
 };
 
 static void
-g98_sec_intr(struct nvkm_subdev *subdev)
+g98_sec_intr(struct nvkm_falcon *sec, struct nvkm_fifo_chan *chan)
 {
-	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
-	struct nvkm_engine *engine = nv_engine(subdev);
-	struct nvkm_object *engctx;
-	struct g98_sec_priv *priv = (void *)subdev;
-	u32 disp = nv_rd32(priv, 0x08701c);
-	u32 stat = nv_rd32(priv, 0x087008) & disp & ~(disp >> 16);
-	u32 inst = nv_rd32(priv, 0x087050) & 0x3fffffff;
-	u32 ssta = nv_rd32(priv, 0x087040) & 0x0000ffff;
-	u32 addr = nv_rd32(priv, 0x087040) >> 16;
+	struct nvkm_subdev *subdev = &sec->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 ssta = nvkm_rd32(device, 0x087040) & 0x0000ffff;
+	u32 addr = nvkm_rd32(device, 0x087040) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_rd32(priv, 0x087044);
-	int chid;
+	u32 data = nvkm_rd32(device, 0x087044);
+	const struct nvkm_enum *en =
+		nvkm_enum_find(g98_sec_isr_error_name, ssta);
 
-	engctx = nvkm_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
-
-	if (stat & 0x00000040) {
-		nv_error(priv, "DISPATCH_ERROR [");
-		nvkm_enum_print(g98_sec_isr_error_name, ssta);
-		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, nvkm_client_name(engctx),
-		       subc, mthd, data);
-		nv_wr32(priv, 0x087004, 0x00000040);
-		stat &= ~0x00000040;
-	}
-
-	if (stat) {
-		nv_error(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x087004, stat);
-	}
-
-	nvkm_engctx_put(engctx);
+	nvkm_error(subdev, "DISPATCH_ERROR %04x [%s] ch %d [%010llx %s] "
+			   "subc %d mthd %04x data %08x\n", ssta,
+		   en ? en->name : "UNKNOWN", chan ? chan->chid : -1,
+		   chan ? chan->inst->addr : 0,
+		   chan ? chan->object.client->name : "unknown",
+		   subc, mthd, data);
 }
 
-static int
-g98_sec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
-{
-	struct g98_sec_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x087000, true,
-				 "PSEC", "sec", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00004000;
-	nv_subdev(priv)->intr = g98_sec_intr;
-	nv_engine(priv)->cclass = &g98_sec_cclass;
-	nv_engine(priv)->sclass = g98_sec_sclass;
-	nv_falcon(priv)->code.data = g98_psec_code;
-	nv_falcon(priv)->code.size = sizeof(g98_psec_code);
-	nv_falcon(priv)->data.data = g98_psec_data;
-	nv_falcon(priv)->data.size = sizeof(g98_psec_data);
-	return 0;
-}
-
-struct nvkm_oclass
-g98_sec_oclass = {
-	.handle = NV_ENGINE(SEC, 0x98),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g98_sec_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = _nvkm_falcon_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
+static const struct nvkm_falcon_func
+g98_sec = {
+	.code.data = g98_sec_code,
+	.code.size = sizeof(g98_sec_code),
+	.data.data = g98_sec_data,
+	.data.size = sizeof(g98_sec_data),
+	.pmc_enable = 0x00004000,
+	.intr = g98_sec_intr,
+	.sclass = {
+		{ -1, -1, G98_SEC },
+		{}
+	}
 };
+
+int
+g98_sec_new(struct nvkm_device *device, int index,
+	    struct nvkm_engine **pengine)
+{
+	return nvkm_falcon_new_(&g98_sec, device, index,
+				true, 0x087000, pengine);
+}

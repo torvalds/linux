@@ -1,0 +1,58 @@
+* NXP SPI Flash Interface (SPIFI)
+
+NXP SPIFI is a specialized SPI interface for serial Flash devices.
+It supports one Flash device with 1-, 2- and 4-bits width in SPI
+mode 0 or 3. The controller operates in either command or memory
+mode. In memory mode the Flash is accessible from the CPU as
+normal memory.
+
+Required properties:
+  - compatible : Should be "nxp,lpc1773-spifi"
+  - reg : the first contains the register location and length,
+          the second contains the memory mapping address and length
+  - reg-names: Should contain the reg names "spifi" and "flash"
+  - interrupts : Should contain the interrupt for the device
+  - clocks : The clocks needed by the SPIFI controller
+  - clock-names : Should contain the clock names "spifi" and "reg"
+
+Optional properties:
+ - resets : phandle + reset specifier
+
+The SPI Flash must be a child of the SPIFI node and must have a
+compatible property as specified in bindings/mtd/jedec,spi-nor.txt
+
+Optionally it can also contain the following properties.
+ - spi-cpol : Controller only supports mode 0 and 3 so either
+              both spi-cpol and spi-cpha should be present or
+              none of them
+ - spi-cpha : See above
+ - spi-rx-bus-width : Used to select how many pins that are used
+                      for input on the controller
+
+See bindings/spi/spi-bus.txt for more information.
+
+Example:
+spifi: spifi@40003000 {
+	compatible = "nxp,lpc1773-spifi";
+	reg = <0x40003000 0x1000>, <0x14000000 0x4000000>;
+	reg-names = "spifi", "flash";
+	interrupts = <30>;
+	clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
+	clock-names = "spifi", "reg";
+	resets = <&rgu 53>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-cpol;
+		spi-cpha;
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "data";
+			reg = <0 0x200000>;
+		};
+	};
+};
+

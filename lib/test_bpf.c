@@ -18,10 +18,12 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/filter.h>
+#include <linux/bpf.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/random.h>
+#include <linux/highmem.h>
 
 /* General test specific settings */
 #define MAX_SUBTESTS	3
@@ -55,6 +57,7 @@
 /* Flags that can be passed to test cases */
 #define FLAG_NO_DATA		BIT(0)
 #define FLAG_EXPECTED_FAIL	BIT(1)
+#define FLAG_SKB_FRAG		BIT(2)
 
 enum {
 	CLASSIC  = BIT(6),	/* Old BPF instructions only. */
@@ -80,6 +83,7 @@ struct bpf_test {
 		__u32 result;
 	} test[MAX_SUBTESTS];
 	int (*fill_helper)(struct bpf_test *self);
+	__u8 frag_data[MAX_DATA];
 };
 
 /* Large test cases need separate allocation and fill handler. */
@@ -353,6 +357,81 @@ static int bpf_fill_ja(struct bpf_test *self)
 {
 	/* Hits exactly 11 passes on x86_64 JIT. */
 	return __bpf_fill_ja(self, 12, 9);
+}
+
+static int bpf_fill_ld_abs_get_processor_id(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct sock_filter *insn;
+	int i;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	for (i = 0; i < len - 1; i += 2) {
+		insn[i] = __BPF_STMT(BPF_LD | BPF_B | BPF_ABS, 0);
+		insn[i + 1] = __BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+					 SKF_AD_OFF + SKF_AD_CPU);
+	}
+
+	insn[len - 1] = __BPF_STMT(BPF_RET | BPF_K, 0xbee);
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
+#define PUSH_CNT 68
+/* test: {skb->data[0], vlan_push} x 68 + {skb->data[0], vlan_pop} x 68 */
+static int bpf_fill_ld_abs_vlan_push_pop(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct bpf_insn *insn;
+	int i = 0, j, k = 0;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[i++] = BPF_MOV64_REG(R6, R1);
+loop:
+	for (j = 0; j < PUSH_CNT; j++) {
+		insn[i++] = BPF_LD_ABS(BPF_B, 0);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0x34, len - i - 2);
+		i++;
+		insn[i++] = BPF_MOV64_REG(R1, R6);
+		insn[i++] = BPF_MOV64_IMM(R2, 1);
+		insn[i++] = BPF_MOV64_IMM(R3, 2);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 bpf_skb_vlan_push_proto.func - __bpf_call_base);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0, len - i - 2);
+		i++;
+	}
+
+	for (j = 0; j < PUSH_CNT; j++) {
+		insn[i++] = BPF_LD_ABS(BPF_B, 0);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0x34, len - i - 2);
+		i++;
+		insn[i++] = BPF_MOV64_REG(R1, R6);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+					 bpf_skb_vlan_pop_proto.func - __bpf_call_base);
+		insn[i] = BPF_JMP_IMM(BPF_JNE, R0, 0, len - i - 2);
+		i++;
+	}
+	if (++k < 5)
+		goto loop;
+
+	for (; i < len - 1; i++)
+		insn[i] = BPF_ALU32_IMM(BPF_MOV, R0, 0xbef);
+
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
 }
 
 static struct bpf_test tests[] = {
@@ -3674,6 +3753,9 @@ static struct bpf_test tests[] = {
 		.u.insns_int = {
 			BPF_LD_IMM64(R0, 0x0123456789abcdefLL),
 			BPF_ENDIAN(BPF_FROM_BE, R0, 32),
+			BPF_ALU64_REG(BPF_MOV, R1, R0),
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),
+			BPF_ALU32_REG(BPF_ADD, R0, R1), /* R1 = 0 */
 			BPF_EXIT_INSN(),
 		},
 		INTERNAL,
@@ -3708,6 +3790,9 @@ static struct bpf_test tests[] = {
 		.u.insns_int = {
 			BPF_LD_IMM64(R0, 0x0123456789abcdefLL),
 			BPF_ENDIAN(BPF_FROM_LE, R0, 32),
+			BPF_ALU64_REG(BPF_MOV, R1, R0),
+			BPF_ALU64_IMM(BPF_RSH, R1, 32),
+			BPF_ALU32_REG(BPF_ADD, R0, R1), /* R1 = 0 */
 			BPF_EXIT_INSN(),
 		},
 		INTERNAL,
@@ -4392,6 +4477,618 @@ static struct bpf_test tests[] = {
 		{ { 0, 0xababcbac } },
 		.fill_helper = bpf_fill_maxinsns11,
 	},
+	{
+		"BPF_MAXINSNS: ld_abs+get_processor_id",
+		{ },
+		CLASSIC,
+		{ },
+		{ { 1, 0xbee } },
+		.fill_helper = bpf_fill_ld_abs_get_processor_id,
+	},
+	{
+		"BPF_MAXINSNS: ld_abs+vlan_push/pop",
+		{ },
+		INTERNAL,
+		{ 0x34 },
+		{ { 1, 0xbef } },
+		.fill_helper = bpf_fill_ld_abs_vlan_push_pop,
+	},
+	/*
+	 * LD_IND / LD_ABS on fragmented SKBs
+	 */
+	{
+		"LD_IND byte frag",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x40),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_B, 0x0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x42} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_IND halfword frag",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x40),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_H, 0x4),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x4344} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_IND word frag",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x40),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, 0x8),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x21071983} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_IND halfword mixed head/frag",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x40),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_H, -0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ [0x3e] = 0x25, [0x3f] = 0x05, },
+		{ {0x40, 0x0519} },
+		.frag_data = { 0x19, 0x82 },
+	},
+	{
+		"LD_IND word mixed head/frag",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x40),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, -0x2),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ [0x3e] = 0x25, [0x3f] = 0x05, },
+		{ {0x40, 0x25051982} },
+		.frag_data = { 0x19, 0x82 },
+	},
+	{
+		"LD_ABS byte frag",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_B, 0x40),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x42} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_ABS halfword frag",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_H, 0x44),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x4344} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_ABS word frag",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x48),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ },
+		{ {0x40, 0x21071983} },
+		.frag_data = {
+			0x42, 0x00, 0x00, 0x00,
+			0x43, 0x44, 0x00, 0x00,
+			0x21, 0x07, 0x19, 0x83,
+		},
+	},
+	{
+		"LD_ABS halfword mixed head/frag",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_H, 0x3f),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ [0x3e] = 0x25, [0x3f] = 0x05, },
+		{ {0x40, 0x0519} },
+		.frag_data = { 0x19, 0x82 },
+	},
+	{
+		"LD_ABS word mixed head/frag",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x3e),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_SKB_FRAG,
+		{ [0x3e] = 0x25, [0x3f] = 0x05, },
+		{ {0x40, 0x25051982} },
+		.frag_data = { 0x19, 0x82 },
+	},
+	/*
+	 * LD_IND / LD_ABS on non fragmented SKBs
+	 */
+	{
+		/*
+		 * this tests that the JIT/interpreter correctly resets X
+		 * before using it in an LD_IND instruction.
+		 */
+		"LD_IND byte default X",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_IND | BPF_B, 0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{ [0x1] = 0x42 },
+		{ {0x40, 0x42 } },
+	},
+	{
+		"LD_IND byte positive offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x3e),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_B, 0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{ [0x3c] = 0x25, [0x3d] = 0x05,  [0x3e] = 0x19, [0x3f] = 0x82 },
+		{ {0x40, 0x82 } },
+	},
+	{
+		"LD_IND byte negative offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x3e),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_B, -0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{ [0x3c] = 0x25, [0x3d] = 0x05,  [0x3e] = 0x19, [0x3f] = 0x82 },
+		{ {0x40, 0x05 } },
+	},
+	{
+		"LD_IND halfword positive offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_H, 0x2),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+		},
+		{ {0x40, 0xdd88 } },
+	},
+	{
+		"LD_IND halfword negative offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_H, -0x2),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+		},
+		{ {0x40, 0xbb66 } },
+	},
+	{
+		"LD_IND halfword unaligned",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_H, -0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+		},
+		{ {0x40, 0x66cc } },
+	},
+	{
+		"LD_IND word positive offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, 0x4),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xee99ffaa } },
+	},
+	{
+		"LD_IND word negative offset",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, -0x4),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xaa55bb66 } },
+	},
+	{
+		"LD_IND word unaligned (addr & 3 == 2)",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, -0x2),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xbb66cc77 } },
+	},
+	{
+		"LD_IND word unaligned (addr & 3 == 1)",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, -0x3),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0x55bb66cc } },
+	},
+	{
+		"LD_IND word unaligned (addr & 3 == 3)",
+		.u.insns = {
+			BPF_STMT(BPF_LDX | BPF_IMM, 0x20),
+			BPF_STMT(BPF_LD | BPF_IND | BPF_W, -0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0x66cc77dd } },
+	},
+	{
+		"LD_ABS byte",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_B, 0x20),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xcc } },
+	},
+	{
+		"LD_ABS halfword",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_H, 0x22),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xdd88 } },
+	},
+	{
+		"LD_ABS halfword unaligned",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_H, 0x25),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0x99ff } },
+	},
+	{
+		"LD_ABS word",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x1c),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xaa55bb66 } },
+	},
+	{
+		"LD_ABS word unaligned (addr & 3 == 2)",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x22),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0xdd88ee99 } },
+	},
+	{
+		"LD_ABS word unaligned (addr & 3 == 1)",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x21),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0x77dd88ee } },
+	},
+	{
+		"LD_ABS word unaligned (addr & 3 == 3)",
+		.u.insns = {
+			BPF_STMT(BPF_LD | BPF_ABS | BPF_W, 0x23),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC,
+		{
+			[0x1c] = 0xaa, [0x1d] = 0x55,
+			[0x1e] = 0xbb, [0x1f] = 0x66,
+			[0x20] = 0xcc, [0x21] = 0x77,
+			[0x22] = 0xdd, [0x23] = 0x88,
+			[0x24] = 0xee, [0x25] = 0x99,
+			[0x26] = 0xff, [0x27] = 0xaa,
+		},
+		{ {0x40, 0x88ee99ff } },
+	},
+	/*
+	 * verify that the interpreter or JIT correctly sets A and X
+	 * to 0.
+	 */
+	{
+		"ADD default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A + X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_ADD | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"ADD default A",
+		.u.insns = {
+			/*
+			 * A = A + 0x42
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"SUB default X",
+		.u.insns = {
+			/*
+			 * A = 0x66
+			 * A = A - X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x66),
+			BPF_STMT(BPF_ALU | BPF_SUB | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x66 } },
+	},
+	{
+		"SUB default A",
+		.u.insns = {
+			/*
+			 * A = A - -0x66
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_SUB | BPF_K, -0x66),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x66 } },
+	},
+	{
+		"MUL default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A * X
+			 * ret A
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_MUL | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"MUL default A",
+		.u.insns = {
+			/*
+			 * A = A * 0x66
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_MUL | BPF_K, 0x66),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"DIV default X",
+		.u.insns = {
+			/*
+			 * A = 0x42
+			 * A = A / X ; this halt the filter execution if X is 0
+			 * ret 0x42
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x42),
+			BPF_STMT(BPF_ALU | BPF_DIV | BPF_X, 0),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"DIV default A",
+		.u.insns = {
+			/*
+			 * A = A / 1
+			 * ret A
+			 */
+			BPF_STMT(BPF_ALU | BPF_DIV | BPF_K, 0x1),
+			BPF_STMT(BPF_RET | BPF_A, 0x0),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x0 } },
+	},
+	{
+		"JMP EQ default A",
+		.u.insns = {
+			/*
+			 * cmp A, 0x0, 0, 1
+			 * ret 0x42
+			 * ret 0x66
+			 */
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0x0, 0, 1),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_K, 0x66),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
+	{
+		"JMP EQ default X",
+		.u.insns = {
+			/*
+			 * A = 0x0
+			 * cmp A, X, 0, 1
+			 * ret 0x42
+			 * ret 0x66
+			 */
+			BPF_STMT(BPF_LD | BPF_IMM, 0x0),
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_X, 0x0, 0, 1),
+			BPF_STMT(BPF_RET | BPF_K, 0x42),
+			BPF_STMT(BPF_RET | BPF_K, 0x66),
+		},
+		CLASSIC | FLAG_NO_DATA,
+		{},
+		{ {0x1, 0x42 } },
+	},
 };
 
 static struct net_device dev;
@@ -4427,6 +5124,9 @@ static struct sk_buff *populate_skb(char *buf, int size)
 
 static void *generate_test_data(struct bpf_test *test, int sub)
 {
+	struct sk_buff *skb;
+	struct page *page;
+
 	if (test->aux & FLAG_NO_DATA)
 		return NULL;
 
@@ -4434,7 +5134,38 @@ static void *generate_test_data(struct bpf_test *test, int sub)
 	 * subtests generate skbs of different sizes based on
 	 * the same data.
 	 */
-	return populate_skb(test->data, test->test[sub].data_size);
+	skb = populate_skb(test->data, test->test[sub].data_size);
+	if (!skb)
+		return NULL;
+
+	if (test->aux & FLAG_SKB_FRAG) {
+		/*
+		 * when the test requires a fragmented skb, add a
+		 * single fragment to the skb, filled with
+		 * test->frag_data.
+		 */
+		void *ptr;
+
+		page = alloc_page(GFP_KERNEL);
+
+		if (!page)
+			goto err_kfree_skb;
+
+		ptr = kmap(page);
+		if (!ptr)
+			goto err_free_page;
+		memcpy(ptr, test->frag_data, MAX_DATA);
+		kunmap(page);
+		skb_add_rx_frag(skb, 0, page, 0, MAX_DATA, MAX_DATA);
+	}
+
+	return skb;
+
+err_free_page:
+	__free_page(page);
+err_kfree_skb:
+	kfree_skb(skb);
+	return NULL;
 }
 
 static void release_test_data(const struct bpf_test *test, void *data)
@@ -4515,6 +5246,8 @@ static struct bpf_prog *generate_filter(int which, int *err)
 		}
 
 		fp->len = flen;
+		/* Type doesn't really matter here as long as it's not unspec. */
+		fp->type = BPF_PROG_TYPE_SOCKET_FILTER;
 		memcpy(fp->insnsi, fptr, fp->len * sizeof(struct bpf_insn));
 
 		bpf_prog_select_runtime(fp);
@@ -4545,14 +5278,14 @@ static int __run_one(const struct bpf_prog *fp, const void *data,
 	u64 start, finish;
 	int ret = 0, i;
 
-	start = ktime_to_us(ktime_get());
+	start = ktime_get_ns();
 
 	for (i = 0; i < runs; i++)
 		ret = BPF_PROG_RUN(fp, data);
 
-	finish = ktime_to_us(ktime_get());
+	finish = ktime_get_ns();
 
-	*duration = (finish - start) * 1000ULL;
+	*duration = finish - start;
 	do_div(*duration, runs);
 
 	return ret;
@@ -4572,6 +5305,11 @@ static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 			break;
 
 		data = generate_test_data(test, i);
+		if (!data && !(test->aux & FLAG_NO_DATA)) {
+			pr_cont("data generation failed ");
+			err_cnt++;
+			break;
+		}
 		ret = __run_one(fp, data, runs, &duration);
 		release_test_data(test, data);
 
@@ -4587,9 +5325,72 @@ static int run_one(const struct bpf_prog *fp, struct bpf_test *test)
 	return err_cnt;
 }
 
+static char test_name[64];
+module_param_string(test_name, test_name, sizeof(test_name), 0);
+
+static int test_id = -1;
+module_param(test_id, int, 0);
+
+static int test_range[2] = { 0, ARRAY_SIZE(tests) - 1 };
+module_param_array(test_range, int, NULL, 0);
+
+static __init int find_test_index(const char *test_name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		if (!strcmp(tests[i].descr, test_name))
+			return i;
+	}
+	return -1;
+}
+
 static __init int prepare_bpf_tests(void)
 {
 	int i;
+
+	if (test_id >= 0) {
+		/*
+		 * if a test_id was specified, use test_range to
+		 * cover only that test.
+		 */
+		if (test_id >= ARRAY_SIZE(tests)) {
+			pr_err("test_bpf: invalid test_id specified.\n");
+			return -EINVAL;
+		}
+
+		test_range[0] = test_id;
+		test_range[1] = test_id;
+	} else if (*test_name) {
+		/*
+		 * if a test_name was specified, find it and setup
+		 * test_range to cover only that test.
+		 */
+		int idx = find_test_index(test_name);
+
+		if (idx < 0) {
+			pr_err("test_bpf: no test named '%s' found.\n",
+			       test_name);
+			return -EINVAL;
+		}
+		test_range[0] = idx;
+		test_range[1] = idx;
+	} else {
+		/*
+		 * check that the supplied test_range is valid.
+		 */
+		if (test_range[0] >= ARRAY_SIZE(tests) ||
+		    test_range[1] >= ARRAY_SIZE(tests) ||
+		    test_range[0] < 0 || test_range[1] < 0) {
+			pr_err("test_bpf: test_range is out of bound.\n");
+			return -EINVAL;
+		}
+
+		if (test_range[1] < test_range[0]) {
+			pr_err("test_bpf: test_range is ending before it starts.\n");
+			return -EINVAL;
+		}
+	}
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		if (tests[i].fill_helper &&
@@ -4610,6 +5411,11 @@ static __init void destroy_bpf_tests(void)
 	}
 }
 
+static bool exclude_test(int test_id)
+{
+	return test_id < test_range[0] || test_id > test_range[1];
+}
+
 static __init int test_bpf(void)
 {
 	int i, err_cnt = 0, pass_cnt = 0;
@@ -4618,6 +5424,9 @@ static __init int test_bpf(void)
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_prog *fp;
 		int err;
+
+		if (exclude_test(i))
+			continue;
 
 		pr_info("#%d %s ", i, tests[i].descr);
 

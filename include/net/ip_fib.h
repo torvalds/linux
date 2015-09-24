@@ -44,7 +44,9 @@ struct fib_config {
 	u32			fc_flow;
 	u32			fc_nlflags;
 	struct nl_info		fc_nlinfo;
- };
+	struct nlattr		*fc_encap;
+	u16			fc_encap_type;
+};
 
 struct fib_info;
 struct rtable;
@@ -89,6 +91,7 @@ struct fib_nh {
 	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
 	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	__rcu *nh_exceptions;
+	struct lwtunnel_state	*nh_lwtstate;
 };
 
 /*

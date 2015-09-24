@@ -20,15 +20,7 @@
 };
 
 &iomuxc {
-	i2c1 {
-		/* open drain */
-		pinctrl_i2c1_qsrb: i2c1grp-1 {
-			fsl,pins = <
-				MX53_PAD_CSI0_DAT8__I2C1_SDA      0x400001ec
-				MX53_PAD_CSI0_DAT9__I2C1_SCL      0x400001ec
-			>;
-		};
-
+	imx53-qsrb {
 		pinctrl_pmic: pmicgrp {
 			fsl,pins = <
 				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1e4 /* IRQ */
@@ -38,10 +30,6 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_qsrb>;
-	status = "okay";
-
 	pmic: mc34708@8 {
 		compatible = "fsl,mc34708";
 		pinctrl-names = "default";

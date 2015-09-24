@@ -64,7 +64,7 @@ Optional properties:
 					pendown-gpio (u32).
 	pendown-gpio			GPIO handle describing the pin the !PENIRQ
 					line is connected to.
-	linux,wakeup			use any event on touchscreen as wakeup event.
+	wakeup-source			use any event on touchscreen as wakeup event.
 
 
 Example for a TSC2046 chip connected to an McSPI controller of an OMAP SoC::

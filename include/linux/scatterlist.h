@@ -161,10 +161,6 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 			    struct scatterlist *sgl)
 {
-#ifndef CONFIG_ARCH_HAS_SG_CHAIN
-	BUG();
-#endif
-
 	/*
 	 * offset and length are unused for chain entry.  Clear them.
 	 */
@@ -251,6 +247,11 @@ struct scatterlist *sg_next(struct scatterlist *);
 struct scatterlist *sg_last(struct scatterlist *s, unsigned int);
 void sg_init_table(struct scatterlist *, unsigned int);
 void sg_init_one(struct scatterlist *, const void *, unsigned int);
+int sg_split(struct scatterlist *in, const int in_mapped_nents,
+	     const off_t skip, const int nb_splits,
+	     const size_t *split_sizes,
+	     struct scatterlist **out, int *out_mapped_nents,
+	     gfp_t gfp_mask);
 
 typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
 typedef void (sg_free_fn)(struct scatterlist *, unsigned int);

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -65,6 +65,9 @@
 #include "ixgbe_common.h"
 #include "ixgbe_dcb_82599.h"
 #include "ixgbe_sriov.h"
+#ifdef CONFIG_IXGBE_VXLAN
+#include <net/vxlan.h>
+#endif
 
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
@@ -79,7 +82,7 @@ static char ixgbe_default_device_descr[] =
 #define DRV_VERSION "4.0.1-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
-				"Copyright (c) 1999-2014 Intel Corporation.";
+				"Copyright (c) 1999-2015 Intel Corporation.";
 
 static const char ixgbe_overheat_msg[] = "Network adapter has been stopped because it has over heated. Restart the computer. If the problem persists, power off the system and replace the adapter";
 
@@ -243,13 +246,20 @@ static inline bool ixgbe_pcie_from_parent(struct ixgbe_hw *hw)
 static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
 				     int expected_gts)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	int max_gts = 0;
 	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
 	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
 	struct pci_dev *pdev;
 
-	/* determine whether to use the the parent device
+	/* Some devices are not connected over PCIe and thus do not negotiate
+	 * speed. These devices do not have valid bus info, and thus any report
+	 * we generate may not be correct.
 	 */
+	if (hw->bus.type == ixgbe_bus_type_internal)
+		return;
+
+	/* determine whether to use the parent device */
 	if (ixgbe_pcie_from_parent(&adapter->hw))
 		pdev = adapter->pdev->bus->parent->self;
 	else
@@ -1360,14 +1370,31 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 }
 
 #endif /* CONFIG_IXGBE_DCA */
+
+#define IXGBE_RSS_L4_TYPES_MASK \
+	((1ul << IXGBE_RXDADV_RSSTYPE_IPV4_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV4_UDP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_UDP))
+
 static inline void ixgbe_rx_hash(struct ixgbe_ring *ring,
 				 union ixgbe_adv_rx_desc *rx_desc,
 				 struct sk_buff *skb)
 {
-	if (ring->netdev->features & NETIF_F_RXHASH)
-		skb_set_hash(skb,
-			     le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
-			     PKT_HASH_TYPE_L3);
+	u16 rss_type;
+
+	if (!(ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	rss_type = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info) &
+		   IXGBE_RXDADV_RSSTYPE_MASK;
+
+	if (!rss_type)
+		return;
+
+	skb_set_hash(skb, le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
+		     (IXGBE_RSS_L4_TYPES_MASK & (1ul << rss_type)) ?
+		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 }
 
 #ifdef IXGBE_FCOE
@@ -1414,7 +1441,6 @@ static inline void ixgbe_rx_checksum(struct ixgbe_ring *ring,
 	    (hdr_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_TUNNEL >> 16))) {
 		encap_pkt = true;
 		skb->encapsulation = 1;
-		skb->ip_summed = CHECKSUM_NONE;
 	}
 
 	/* if IP and error */
@@ -3287,7 +3313,7 @@ u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter)
  *
  * Write the RSS redirection table stored in adapter.rss_indir_tbl[] to HW.
  */
-static void ixgbe_store_reta(struct ixgbe_adapter *adapter)
+void ixgbe_store_reta(struct ixgbe_adapter *adapter)
 {
 	u32 i, reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -4242,6 +4268,21 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 			pr_info("QV %d locked\n", q_idx);
 			usleep_range(1000, 20000);
 		}
+	}
+}
+
+static void ixgbe_clear_vxlan_port(struct ixgbe_adapter *adapter)
+{
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_X550:
+	case ixgbe_mac_X550EM_x:
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VXLANCTRL, 0);
+#ifdef CONFIG_IXGBE_VXLAN
+		adapter->vxlan_port = 0;
+#endif
+		break;
+	default:
+		break;
 	}
 }
 
@@ -5286,6 +5327,9 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCA
 		adapter->flags &= ~IXGBE_FLAG_DCA_CAPABLE;
 #endif
+#ifdef CONFIG_IXGBE_VXLAN
+		adapter->flags |= IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE;
+#endif
 		break;
 	default:
 		break;
@@ -5737,10 +5781,11 @@ static int ixgbe_open(struct net_device *netdev)
 
 	ixgbe_up_complete(adapter);
 
-#if IS_ENABLED(CONFIG_IXGBE_VXLAN)
+	ixgbe_clear_vxlan_port(adapter);
+#ifdef CONFIG_IXGBE_VXLAN
 	vxlan_get_rx_port(netdev);
-
 #endif
+
 	return 0;
 
 err_set_queues:
@@ -5761,7 +5806,15 @@ static void ixgbe_close_suspend(struct ixgbe_adapter *adapter)
 {
 	ixgbe_ptp_suspend(adapter);
 
-	ixgbe_down(adapter);
+	if (adapter->hw.phy.ops.enter_lplu) {
+		adapter->hw.phy.reset_disable = true;
+		ixgbe_down(adapter);
+		adapter->hw.phy.ops.enter_lplu(&adapter->hw);
+		adapter->hw.phy.reset_disable = false;
+	} else {
+		ixgbe_down(adapter);
+	}
+
 	ixgbe_free_irq(adapter);
 
 	ixgbe_free_all_tx_resources(adapter);
@@ -6327,6 +6380,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	struct net_device *upper;
 	struct list_head *iter;
 	u32 link_speed = adapter->link_speed;
+	const char *speed_str;
 	bool flow_rx, flow_tx;
 
 	/* only continue if link was previously down */
@@ -6364,14 +6418,24 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		ixgbe_ptp_start_cyclecounter(adapter);
 
-	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
-	       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
-	       "10 Gbps" :
-	       (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-	       "1 Gbps" :
-	       (link_speed == IXGBE_LINK_SPEED_100_FULL ?
-	       "100 Mbps" :
-	       "unknown speed"))),
+	switch (link_speed) {
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		speed_str = "10 Gbps";
+		break;
+	case IXGBE_LINK_SPEED_2_5GB_FULL:
+		speed_str = "2.5 Gbps";
+		break;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		speed_str = "1 Gbps";
+		break;
+	case IXGBE_LINK_SPEED_100_FULL:
+		speed_str = "100 Mbps";
+		break;
+	default:
+		speed_str = "unknown speed";
+		break;
+	}
+	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n", speed_str,
 	       ((flow_rx && flow_tx) ? "RX/TX" :
 	       (flow_rx ? "RX" :
 	       (flow_tx ? "TX" : "None"))));
@@ -6800,6 +6864,12 @@ static void ixgbe_service_task(struct work_struct *work)
 		ixgbe_service_event_complete(adapter);
 		return;
 	}
+#ifdef CONFIG_IXGBE_VXLAN
+	if (adapter->flags2 & IXGBE_FLAG2_VXLAN_REREG_NEEDED) {
+		adapter->flags2 &= ~IXGBE_FLAG2_VXLAN_REREG_NEEDED;
+		vxlan_get_rx_port(adapter->netdev);
+	}
+#endif /* CONFIG_IXGBE_VXLAN */
 	ixgbe_reset_subtask(adapter);
 	ixgbe_phy_interrupt_subtask(adapter);
 	ixgbe_sfp_detection_subtask(adapter);
@@ -6896,31 +6966,55 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 		if (!(first->tx_flags & IXGBE_TX_FLAGS_HW_VLAN) &&
 		    !(first->tx_flags & IXGBE_TX_FLAGS_CC))
 			return;
+		vlan_macip_lens = skb_network_offset(skb) <<
+				  IXGBE_ADVTXD_MACLEN_SHIFT;
 	} else {
 		u8 l4_hdr = 0;
-		switch (first->protocol) {
-		case htons(ETH_P_IP):
-			vlan_macip_lens |= skb_network_header_len(skb);
+		union {
+			struct iphdr *ipv4;
+			struct ipv6hdr *ipv6;
+			u8 *raw;
+		} network_hdr;
+		union {
+			struct tcphdr *tcphdr;
+			u8 *raw;
+		} transport_hdr;
+
+		if (skb->encapsulation) {
+			network_hdr.raw = skb_inner_network_header(skb);
+			transport_hdr.raw = skb_inner_transport_header(skb);
+			vlan_macip_lens = skb_inner_network_offset(skb) <<
+					  IXGBE_ADVTXD_MACLEN_SHIFT;
+		} else {
+			network_hdr.raw = skb_network_header(skb);
+			transport_hdr.raw = skb_transport_header(skb);
+			vlan_macip_lens = skb_network_offset(skb) <<
+					  IXGBE_ADVTXD_MACLEN_SHIFT;
+		}
+
+		/* use first 4 bits to determine IP version */
+		switch (network_hdr.ipv4->version) {
+		case IPVERSION:
+			vlan_macip_lens |= transport_hdr.raw - network_hdr.raw;
 			type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
-			l4_hdr = ip_hdr(skb)->protocol;
+			l4_hdr = network_hdr.ipv4->protocol;
 			break;
-		case htons(ETH_P_IPV6):
-			vlan_macip_lens |= skb_network_header_len(skb);
-			l4_hdr = ipv6_hdr(skb)->nexthdr;
+		case 6:
+			vlan_macip_lens |= transport_hdr.raw - network_hdr.raw;
+			l4_hdr = network_hdr.ipv6->nexthdr;
 			break;
 		default:
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
-				 "partial checksum but proto=%x!\n",
-				 first->protocol);
+					 "partial checksum but version=%d\n",
+					 network_hdr.ipv4->version);
 			}
-			break;
 		}
 
 		switch (l4_hdr) {
 		case IPPROTO_TCP:
 			type_tucmd |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-			mss_l4len_idx = tcp_hdrlen(skb) <<
+			mss_l4len_idx = (transport_hdr.tcphdr->doff * 4) <<
 					IXGBE_ADVTXD_L4LEN_SHIFT;
 			break;
 		case IPPROTO_SCTP:
@@ -6946,7 +7040,6 @@ static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 	}
 
 	/* vlan_macip_lens: MACLEN, VLAN tag */
-	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0,
@@ -7201,6 +7294,10 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 		struct ipv6hdr *ipv6;
 	} hdr;
 	struct tcphdr *th;
+	struct sk_buff *skb;
+#ifdef CONFIG_IXGBE_VXLAN
+	u8 encap = false;
+#endif /* CONFIG_IXGBE_VXLAN */
 	__be16 vlan_id;
 
 	/* if ring doesn't have a interrupt vector, cannot perform ATR */
@@ -7214,16 +7311,36 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	ring->atr_count++;
 
 	/* snag network header to get L4 type and address */
-	hdr.network = skb_network_header(first->skb);
+	skb = first->skb;
+	hdr.network = skb_network_header(skb);
+	if (skb->encapsulation) {
+#ifdef CONFIG_IXGBE_VXLAN
+		struct ixgbe_adapter *adapter = q_vector->adapter;
 
-	/* Currently only IPv4/IPv6 with TCP is supported */
-	if ((first->protocol != htons(ETH_P_IPV6) ||
-	     hdr.ipv6->nexthdr != IPPROTO_TCP) &&
-	    (first->protocol != htons(ETH_P_IP) ||
-	     hdr.ipv4->protocol != IPPROTO_TCP))
+		if (!adapter->vxlan_port)
+			return;
+		if (first->protocol != htons(ETH_P_IP) ||
+		    hdr.ipv4->version != IPVERSION ||
+		    hdr.ipv4->protocol != IPPROTO_UDP) {
+			return;
+		}
+		if (ntohs(udp_hdr(skb)->dest) != adapter->vxlan_port)
+			return;
+		encap = true;
+		hdr.network = skb_inner_network_header(skb);
+		th = inner_tcp_hdr(skb);
+#else
 		return;
-
-	th = tcp_hdr(first->skb);
+#endif /* CONFIG_IXGBE_VXLAN */
+	} else {
+		/* Currently only IPv4/IPv6 with TCP is supported */
+		if ((first->protocol != htons(ETH_P_IPV6) ||
+		     hdr.ipv6->nexthdr != IPPROTO_TCP) &&
+		    (first->protocol != htons(ETH_P_IP) ||
+		     hdr.ipv4->protocol != IPPROTO_TCP))
+			return;
+		th = tcp_hdr(skb);
+	}
 
 	/* skip this packet since it is invalid or the socket is closing */
 	if (!th || th->fin)
@@ -7271,6 +7388,11 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 			     hdr.ipv6->daddr.s6_addr32[2] ^
 			     hdr.ipv6->daddr.s6_addr32[3];
 	}
+
+#ifdef CONFIG_IXGBE_VXLAN
+	if (encap)
+		input.formatted.flow_type |= IXGBE_ATR_L4TYPE_TUNNEL_MASK;
+#endif /* CONFIG_IXGBE_VXLAN */
 
 	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
 	ixgbe_fdir_add_signature_filter_82599(&q_vector->adapter->hw,
@@ -7737,9 +7859,10 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	bool pools;
 
 	/* Hardware supports up to 8 traffic classes */
-	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
-	    (hw->mac.type == ixgbe_mac_82598EB &&
-	     tc < MAX_TRAFFIC_CLASS))
+	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs)
+		return -EINVAL;
+
+	if (hw->mac.type == ixgbe_mac_82598EB && tc && tc < MAX_TRAFFIC_CLASS)
 		return -EINVAL;
 
 	pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
@@ -7898,12 +8021,23 @@ static int ixgbe_set_features(struct net_device *netdev,
 		need_reset = true;
 
 	netdev->features = features;
+
+#ifdef CONFIG_IXGBE_VXLAN
+	if ((adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE)) {
+		if (features & NETIF_F_RXCSUM)
+			adapter->flags2 |= IXGBE_FLAG2_VXLAN_REREG_NEEDED;
+		else
+			ixgbe_clear_vxlan_port(adapter);
+	}
+#endif /* CONFIG_IXGBE_VXLAN */
+
 	if (need_reset)
 		ixgbe_do_reset(netdev);
 
 	return 0;
 }
 
+#ifdef CONFIG_IXGBE_VXLAN
 /**
  * ixgbe_add_vxlan_port - Get notifications about VXLAN ports that come up
  * @dev: The port's netdev
@@ -7917,17 +8051,18 @@ static void ixgbe_add_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 	struct ixgbe_hw *hw = &adapter->hw;
 	u16 new_port = ntohs(port);
 
+	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+		return;
+
 	if (sa_family == AF_INET6)
 		return;
 
-	if (adapter->vxlan_port == new_port) {
-		netdev_info(dev, "Port %d already offloaded\n", new_port);
+	if (adapter->vxlan_port == new_port)
 		return;
-	}
 
 	if (adapter->vxlan_port) {
 		netdev_info(dev,
-			    "Hit Max num of UDP ports, not adding port %d\n",
+			    "Hit Max num of VXLAN ports, not adding port %d\n",
 			    new_port);
 		return;
 	}
@@ -7946,8 +8081,10 @@ static void ixgbe_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 				 __be16 port)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	struct ixgbe_hw *hw = &adapter->hw;
 	u16 new_port = ntohs(port);
+
+	if (!(adapter->flags & IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE))
+		return;
 
 	if (sa_family == AF_INET6)
 		return;
@@ -7958,9 +8095,10 @@ static void ixgbe_del_vxlan_port(struct net_device *dev, sa_family_t sa_family,
 		return;
 	}
 
-	adapter->vxlan_port = 0;
-	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, 0);
+	ixgbe_clear_vxlan_port(adapter);
+	adapter->flags2 |= IXGBE_FLAG2_VXLAN_REREG_NEEDED;
 }
+#endif /* CONFIG_IXGBE_VXLAN */
 
 static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			     struct net_device *dev,
@@ -8135,7 +8273,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 	    (adapter->num_rx_pools > IXGBE_MAX_MACVLANS))
 		return ERR_PTR(-EBUSY);
 
-	fwd_adapter = kcalloc(1, sizeof(struct ixgbe_fwd_adapter), GFP_KERNEL);
+	fwd_adapter = kzalloc(sizeof(*fwd_adapter), GFP_KERNEL);
 	if (!fwd_adapter)
 		return ERR_PTR(-ENOMEM);
 
@@ -8191,6 +8329,21 @@ static void ixgbe_fwd_del(struct net_device *pdev, void *priv)
 	kfree(fwd_adapter);
 }
 
+#define IXGBE_MAX_TUNNEL_HDR_LEN 80
+static netdev_features_t
+ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features)
+{
+	if (!skb->encapsulation)
+		return features;
+
+	if (unlikely(skb_inner_mac_header(skb) - skb_transport_header(skb) >
+		     IXGBE_MAX_TUNNEL_HDR_LEN))
+		return features & ~NETIF_F_ALL_CSUM;
+
+	return features;
+}
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
@@ -8236,8 +8389,11 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_bridge_getlink	= ixgbe_ndo_bridge_getlink,
 	.ndo_dfwd_add_station	= ixgbe_fwd_add,
 	.ndo_dfwd_del_station	= ixgbe_fwd_del,
+#ifdef CONFIG_IXGBE_VXLAN
 	.ndo_add_vxlan_port	= ixgbe_add_vxlan_port,
 	.ndo_del_vxlan_port	= ixgbe_del_vxlan_port,
+#endif /* CONFIG_IXGBE_VXLAN */
+	.ndo_features_check	= ixgbe_features_check,
 };
 
 /**
@@ -8597,17 +8753,24 @@ skip_sriov:
 	netdev->vlan_features |= NETIF_F_IPV6_CSUM;
 	netdev->vlan_features |= NETIF_F_SG;
 
+	netdev->hw_enc_features |= NETIF_F_SG | NETIF_F_IP_CSUM |
+				   NETIF_F_IPV6_CSUM;
+
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
+#ifdef CONFIG_IXGBE_VXLAN
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
-		netdev->hw_enc_features |= NETIF_F_RXCSUM;
+		netdev->hw_enc_features |= NETIF_F_RXCSUM |
+					   NETIF_F_IP_CSUM |
+					   NETIF_F_IPV6_CSUM;
 		break;
 	default:
 		break;
 	}
+#endif /* CONFIG_IXGBE_VXLAN */
 
 #ifdef CONFIG_IXGBE_DCB
 	netdev->dcbnl_ops = &dcbnl_ops;
@@ -8694,9 +8857,10 @@ skip_sriov:
 	hw->eeprom.ops.read(hw, 0x2d, &adapter->eeprom_verl);
 
 	/* pick up the PCI bus settings for reporting later */
-	hw->mac.ops.get_bus_info(hw);
 	if (ixgbe_pcie_from_parent(hw))
 		ixgbe_get_parent_bus_info(adapter);
+	else
+		 hw->mac.ops.get_bus_info(hw);
 
 	/* calculate the expected PCIe bandwidth required for optimal
 	 * performance. Note that some older parts will never have enough
@@ -8859,12 +9023,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 
 #ifdef CONFIG_PCI_IOV
-	/*
-	 * Only disable SR-IOV on unload if the user specified the now
-	 * deprecated max_vfs module parameter.
-	 */
-	if (max_vfs)
-		ixgbe_disable_sriov(adapter);
+	ixgbe_disable_sriov(adapter);
 #endif
 	ixgbe_clear_interrupt_scheme(adapter);
 

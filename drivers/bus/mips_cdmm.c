@@ -332,6 +332,18 @@ static phys_addr_t mips_cdmm_cur_base(void)
 }
 
 /**
+ * mips_cdmm_phys_base() - Choose a physical base address for CDMM region.
+ *
+ * Picking a suitable physical address at which to map the CDMM region is
+ * platform specific, so this weak function can be overridden by platform
+ * code to pick a suitable value if none is configured by the bootloader.
+ */
+phys_addr_t __weak mips_cdmm_phys_base(void)
+{
+	return 0;
+}
+
+/**
  * mips_cdmm_setup() - Ensure the CDMM bus is initialised and usable.
  * @bus:	Pointer to bus information for current CPU.
  *		IS_ERR(bus) is checked, so no need for caller to check.
@@ -368,7 +380,7 @@ static int mips_cdmm_setup(struct mips_cdmm_bus *bus)
 	if (!bus->phys)
 		bus->phys = mips_cdmm_cur_base();
 	/* Otherwise, ask platform code for suggestions */
-	if (!bus->phys && mips_cdmm_phys_base)
+	if (!bus->phys)
 		bus->phys = mips_cdmm_phys_base();
 	/* Otherwise, copy what other CPUs have done */
 	if (!bus->phys)

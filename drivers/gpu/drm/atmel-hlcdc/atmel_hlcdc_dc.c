@@ -29,6 +29,115 @@
 
 #define ATMEL_HLCDC_LAYER_IRQS_OFFSET		8
 
+static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
+	{
+		.name = "base",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x40,
+		.id = 0,
+		.type = ATMEL_HLCDC_BASE_LAYER,
+		.nconfigs = 5,
+		.layout = {
+			.xstride = { 2 },
+			.default_color = 3,
+			.general_config = 4,
+		},
+	},
+};
+
+static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9n12 = {
+	.min_width = 0,
+	.min_height = 0,
+	.max_width = 1280,
+	.max_height = 860,
+	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9n12_layers),
+	.layers = atmel_hlcdc_at91sam9n12_layers,
+};
+
+static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
+	{
+		.name = "base",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x40,
+		.id = 0,
+		.type = ATMEL_HLCDC_BASE_LAYER,
+		.nconfigs = 5,
+		.layout = {
+			.xstride = { 2 },
+			.default_color = 3,
+			.general_config = 4,
+			.disc_pos = 5,
+			.disc_size = 6,
+		},
+	},
+	{
+		.name = "overlay1",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x100,
+		.id = 1,
+		.type = ATMEL_HLCDC_OVERLAY_LAYER,
+		.nconfigs = 10,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.xstride = { 4 },
+			.pstride = { 5 },
+			.default_color = 6,
+			.chroma_key = 7,
+			.chroma_key_mask = 8,
+			.general_config = 9,
+		},
+	},
+	{
+		.name = "high-end-overlay",
+		.formats = &atmel_hlcdc_plane_rgb_and_yuv_formats,
+		.regs_offset = 0x280,
+		.id = 2,
+		.type = ATMEL_HLCDC_OVERLAY_LAYER,
+		.nconfigs = 17,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.memsize = 4,
+			.xstride = { 5, 7 },
+			.pstride = { 6, 8 },
+			.default_color = 9,
+			.chroma_key = 10,
+			.chroma_key_mask = 11,
+			.general_config = 12,
+			.csc = 14,
+		},
+	},
+	{
+		.name = "cursor",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x340,
+		.id = 3,
+		.type = ATMEL_HLCDC_CURSOR_LAYER,
+		.nconfigs = 10,
+		.max_width = 128,
+		.max_height = 128,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.xstride = { 4 },
+			.default_color = 6,
+			.chroma_key = 7,
+			.chroma_key_mask = 8,
+			.general_config = 9,
+		},
+	},
+};
+
+static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9x5 = {
+	.min_width = 0,
+	.min_height = 0,
+	.max_width = 800,
+	.max_height = 600,
+	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9x5_layers),
+	.layers = atmel_hlcdc_at91sam9x5_layers,
+};
+
 static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d3_layers[] = {
 	{
 		.name = "base",
@@ -132,10 +241,104 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d3 = {
 	.layers = atmel_hlcdc_sama5d3_layers,
 };
 
+static const struct atmel_hlcdc_layer_desc atmel_hlcdc_sama5d4_layers[] = {
+	{
+		.name = "base",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x40,
+		.id = 0,
+		.type = ATMEL_HLCDC_BASE_LAYER,
+		.nconfigs = 7,
+		.layout = {
+			.xstride = { 2 },
+			.default_color = 3,
+			.general_config = 4,
+			.disc_pos = 5,
+			.disc_size = 6,
+		},
+	},
+	{
+		.name = "overlay1",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x140,
+		.id = 1,
+		.type = ATMEL_HLCDC_OVERLAY_LAYER,
+		.nconfigs = 10,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.xstride = { 4 },
+			.pstride = { 5 },
+			.default_color = 6,
+			.chroma_key = 7,
+			.chroma_key_mask = 8,
+			.general_config = 9,
+		},
+	},
+	{
+		.name = "overlay2",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x240,
+		.id = 2,
+		.type = ATMEL_HLCDC_OVERLAY_LAYER,
+		.nconfigs = 10,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.xstride = { 4 },
+			.pstride = { 5 },
+			.default_color = 6,
+			.chroma_key = 7,
+			.chroma_key_mask = 8,
+			.general_config = 9,
+		},
+	},
+	{
+		.name = "high-end-overlay",
+		.formats = &atmel_hlcdc_plane_rgb_and_yuv_formats,
+		.regs_offset = 0x340,
+		.id = 3,
+		.type = ATMEL_HLCDC_OVERLAY_LAYER,
+		.nconfigs = 42,
+		.layout = {
+			.pos = 2,
+			.size = 3,
+			.memsize = 4,
+			.xstride = { 5, 7 },
+			.pstride = { 6, 8 },
+			.default_color = 9,
+			.chroma_key = 10,
+			.chroma_key_mask = 11,
+			.general_config = 12,
+			.csc = 14,
+		},
+	},
+};
+
+static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d4 = {
+	.min_width = 0,
+	.min_height = 0,
+	.max_width = 2048,
+	.max_height = 2048,
+	.nlayers = ARRAY_SIZE(atmel_hlcdc_sama5d4_layers),
+	.layers = atmel_hlcdc_sama5d4_layers,
+};
 static const struct of_device_id atmel_hlcdc_of_match[] = {
+	{
+		.compatible = "atmel,at91sam9n12-hlcdc",
+		.data = &atmel_hlcdc_dc_at91sam9n12,
+	},
+	{
+		.compatible = "atmel,at91sam9x5-hlcdc",
+		.data = &atmel_hlcdc_dc_at91sam9x5,
+	},
 	{
 		.compatible = "atmel,sama5d3-hlcdc",
 		.data = &atmel_hlcdc_dc_sama5d3,
+	},
+	{
+		.compatible = "atmel,sama5d4-hlcdc",
+		.data = &atmel_hlcdc_dc_sama5d4,
 	},
 	{ /* sentinel */ },
 };
@@ -485,7 +688,9 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver atmel_hlcdc_dc_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
+	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
+			   DRIVER_MODESET | DRIVER_PRIME |
+			   DRIVER_ATOMIC,
 	.preclose = atmel_hlcdc_dc_preclose,
 	.lastclose = atmel_hlcdc_dc_lastclose,
 	.irq_handler = atmel_hlcdc_dc_irq_handler,
@@ -497,6 +702,15 @@ static struct drm_driver atmel_hlcdc_dc_driver = {
 	.disable_vblank = atmel_hlcdc_dc_disable_vblank,
 	.gem_free_object = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
+	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_vmap = drm_gem_cma_prime_vmap,
+	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
+	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,

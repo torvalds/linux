@@ -76,6 +76,7 @@ static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&stmp3xxx_wdd, &pdev->dev);
 
 	stmp3xxx_wdd.timeout = clamp_t(unsigned, heartbeat, 1, STMP3XXX_MAX_TIMEOUT);
+	stmp3xxx_wdd.parent = &pdev->dev;
 
 	ret = watchdog_register_device(&stmp3xxx_wdd);
 	if (ret < 0) {

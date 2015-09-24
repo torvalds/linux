@@ -630,7 +630,6 @@ MODULE_DEVICE_TABLE(i2c, ad5064_i2c_ids);
 static struct i2c_driver ad5064_i2c_driver = {
 	.driver = {
 		   .name = "ad5064",
-		   .owner = THIS_MODULE,
 	},
 	.probe = ad5064_i2c_probe,
 	.remove = ad5064_i2c_remove,

@@ -698,7 +698,7 @@ static void exynos_power_off(void)
 		;
 }
 
-void exynos5420_powerdown_conf(enum sys_powerdown mode)
+static void exynos5420_powerdown_conf(enum sys_powerdown mode)
 {
 	u32 this_cluster;
 
@@ -991,7 +991,6 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 static struct platform_driver exynos_pmu_driver = {
 	.driver  = {
 		.name   = "exynos-pmu",
-		.owner	= THIS_MODULE,
 		.of_match_table = exynos_pmu_of_device_ids,
 	},
 	.probe = exynos_pmu_probe,

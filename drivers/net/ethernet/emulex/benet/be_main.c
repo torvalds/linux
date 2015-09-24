@@ -681,11 +681,14 @@ void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 static void be_tx_stats_update(struct be_tx_obj *txo, struct sk_buff *skb)
 {
 	struct be_tx_stats *stats = tx_stats(txo);
+	u64 tx_pkts = skb_shinfo(skb)->gso_segs ? : 1;
 
 	u64_stats_update_begin(&stats->sync);
 	stats->tx_reqs++;
 	stats->tx_bytes += skb->len;
-	stats->tx_pkts += (skb_shinfo(skb)->gso_segs ? : 1);
+	stats->tx_pkts += tx_pkts;
+	if (skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL)
+		stats->tx_vxlan_offload_pkts += tx_pkts;
 	u64_stats_update_end(&stats->sync);
 }
 
@@ -1258,7 +1261,7 @@ static bool be_send_pkt_to_bmc(struct be_adapter *adapter,
 	if (is_udp_pkt((*skb))) {
 		struct udphdr *udp = udp_hdr((*skb));
 
-		switch (udp->dest) {
+		switch (ntohs(udp->dest)) {
 		case DHCP_CLIENT_PORT:
 			os2bmc = is_dhcp_client_filt_enabled(adapter);
 			goto done;
@@ -1961,6 +1964,8 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 	stats->rx_compl++;
 	stats->rx_bytes += rxcp->pkt_size;
 	stats->rx_pkts++;
+	if (rxcp->tunneled)
+		stats->rx_vxlan_offload_pkts++;
 	if (rxcp->pkt_type == BE_MULTICAST_PACKET)
 		stats->rx_mcast_pkts++;
 	if (rxcp->err)
@@ -3610,15 +3615,15 @@ err:
 
 static int be_setup_wol(struct be_adapter *adapter, bool enable)
 {
+	struct device *dev = &adapter->pdev->dev;
 	struct be_dma_mem cmd;
-	int status = 0;
 	u8 mac[ETH_ALEN];
+	int status;
 
 	eth_zero_addr(mac);
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
-	cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,
-				     GFP_KERNEL);
+	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
 	if (!cmd.va)
 		return -ENOMEM;
 
@@ -3627,24 +3632,18 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 						PCICFG_PM_CONTROL_OFFSET,
 						PCICFG_PM_CONTROL_MASK);
 		if (status) {
-			dev_err(&adapter->pdev->dev,
-				"Could not enable Wake-on-lan\n");
-			dma_free_coherent(&adapter->pdev->dev, cmd.size, cmd.va,
-					  cmd.dma);
-			return status;
+			dev_err(dev, "Could not enable Wake-on-lan\n");
+			goto err;
 		}
-		status = be_cmd_enable_magic_wol(adapter,
-						 adapter->netdev->dev_addr,
-						 &cmd);
-		pci_enable_wake(adapter->pdev, PCI_D3hot, 1);
-		pci_enable_wake(adapter->pdev, PCI_D3cold, 1);
 	} else {
-		status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
-		pci_enable_wake(adapter->pdev, PCI_D3hot, 0);
-		pci_enable_wake(adapter->pdev, PCI_D3cold, 0);
+		ether_addr_copy(mac, adapter->netdev->dev_addr);
 	}
 
-	dma_free_coherent(&adapter->pdev->dev, cmd.size, cmd.va, cmd.dma);
+	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
+	pci_enable_wake(adapter->pdev, PCI_D3hot, enable);
+	pci_enable_wake(adapter->pdev, PCI_D3cold, enable);
+err:
+	dma_free_coherent(dev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
@@ -4977,7 +4976,7 @@ static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 {
 	if (!fhdr) {
 		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
-		return -1;
+		return false;
 	}
 
 	/* First letter of the build version is used to identify
@@ -5132,9 +5131,6 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	int status = 0;
 	u8 hsw_mode;
 
-	if (!sriov_enabled(adapter))
-		return 0;
-
 	/* BE and Lancer chips support VEB mode only */
 	if (BEx_chip(adapter) || lancer_chip(adapter)) {
 		hsw_mode = PORT_FWD_TYPE_VEB;
@@ -5143,6 +5139,9 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 					       adapter->if_handle, &hsw_mode,
 					       NULL);
 		if (status)
+			return 0;
+
+		if (hsw_mode == PORT_FWD_TYPE_PASSTHRU)
 			return 0;
 	}
 
@@ -5278,6 +5277,27 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 }
 #endif
 
+static int be_get_phys_port_id(struct net_device *dev,
+			       struct netdev_phys_item_id *ppid)
+{
+	int i, id_len = CNTL_SERIAL_NUM_WORDS * CNTL_SERIAL_NUM_WORD_SZ + 1;
+	struct be_adapter *adapter = netdev_priv(dev);
+	u8 *id;
+
+	if (MAX_PHYS_ITEM_ID_LEN < id_len)
+		return -ENOSPC;
+
+	ppid->id[0] = adapter->hba_port_num + 1;
+	id = &ppid->id[1];
+	for (i = CNTL_SERIAL_NUM_WORDS - 1; i >= 0;
+	     i--, id += CNTL_SERIAL_NUM_WORD_SZ)
+		memcpy(id, &adapter->serial_num[i], CNTL_SERIAL_NUM_WORD_SZ);
+
+	ppid->id_len = id_len;
+
+	return 0;
+}
+
 static const struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
@@ -5308,6 +5328,7 @@ static const struct net_device_ops be_netdev_ops = {
 	.ndo_del_vxlan_port	= be_del_vxlan_port,
 	.ndo_features_check	= be_features_check,
 #endif
+	.ndo_get_phys_port_id   = be_get_phys_port_id,
 };
 
 static void be_netdev_init(struct net_device *netdev)
@@ -5866,7 +5887,6 @@ static int be_pci_resume(struct pci_dev *pdev)
 	if (status)
 		return status;
 
-	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	status = be_resume(adapter);
@@ -5946,7 +5966,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	pci_set_master(pdev);
-	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	/* Check if card is ok and fw is ready */

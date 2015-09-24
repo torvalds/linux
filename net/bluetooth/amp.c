@@ -16,6 +16,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <crypto/hash.h>
 
+#include "hci_request.h"
 #include "a2mp.h"
 #include "amp.h"
 
@@ -220,10 +221,49 @@ int phylink_gen_key(struct hci_conn *conn, u8 *data, u8 *len, u8 *type)
 	return hmac_sha256(gamp_key, HCI_AMP_LINK_KEY_SIZE, "802b", 4, data);
 }
 
+static void read_local_amp_assoc_complete(struct hci_dev *hdev, u8 status,
+					  u16 opcode, struct sk_buff *skb)
+{
+	struct hci_rp_read_local_amp_assoc *rp = (void *)skb->data;
+	struct amp_assoc *assoc = &hdev->loc_assoc;
+	size_t rem_len, frag_len;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		goto send_rsp;
+
+	frag_len = skb->len - sizeof(*rp);
+	rem_len = __le16_to_cpu(rp->rem_len);
+
+	if (rem_len > frag_len) {
+		BT_DBG("frag_len %zu rem_len %zu", frag_len, rem_len);
+
+		memcpy(assoc->data + assoc->offset, rp->frag, frag_len);
+		assoc->offset += frag_len;
+
+		/* Read other fragments */
+		amp_read_loc_assoc_frag(hdev, rp->phy_handle);
+
+		return;
+	}
+
+	memcpy(assoc->data + assoc->offset, rp->frag, rem_len);
+	assoc->len = assoc->offset + rem_len;
+	assoc->offset = 0;
+
+send_rsp:
+	/* Send A2MP Rsp when all fragments are received */
+	a2mp_send_getampassoc_rsp(hdev, rp->status);
+	a2mp_send_create_phy_link_req(hdev, rp->status);
+}
+
 void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
 {
 	struct hci_cp_read_local_amp_assoc cp;
 	struct amp_assoc *loc_assoc = &hdev->loc_assoc;
+	struct hci_request req;
+	int err = 0;
 
 	BT_DBG("%s handle %d", hdev->name, phy_handle);
 
@@ -231,12 +271,18 @@ void amp_read_loc_assoc_frag(struct hci_dev *hdev, u8 phy_handle)
 	cp.max_len = cpu_to_le16(hdev->amp_assoc_size);
 	cp.len_so_far = cpu_to_le16(loc_assoc->offset);
 
-	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	err = hci_req_run_skb(&req, read_local_amp_assoc_complete);
+	if (err < 0)
+		a2mp_send_getampassoc_rsp(hdev, A2MP_STATUS_INVALID_CTRL_ID);
 }
 
 void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 {
 	struct hci_cp_read_local_amp_assoc cp;
+	struct hci_request req;
+	int err = 0;
 
 	memset(&hdev->loc_assoc, 0, sizeof(struct amp_assoc));
 	memset(&cp, 0, sizeof(cp));
@@ -244,7 +290,11 @@ void amp_read_loc_assoc(struct hci_dev *hdev, struct amp_mgr *mgr)
 	cp.max_len = cpu_to_le16(hdev->amp_assoc_size);
 
 	set_bit(READ_LOC_AMP_ASSOC, &mgr->state);
-	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_run_skb(&req, read_local_amp_assoc_complete);
+	if (err < 0)
+		a2mp_send_getampassoc_rsp(hdev, A2MP_STATUS_INVALID_CTRL_ID);
 }
 
 void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
@@ -252,6 +302,8 @@ void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
 {
 	struct hci_cp_read_local_amp_assoc cp;
 	struct amp_mgr *mgr = hcon->amp_mgr;
+	struct hci_request req;
+	int err = 0;
 
 	cp.phy_handle = hcon->handle;
 	cp.len_so_far = cpu_to_le16(0);
@@ -260,7 +312,25 @@ void amp_read_loc_assoc_final_data(struct hci_dev *hdev,
 	set_bit(READ_LOC_AMP_ASSOC_FINAL, &mgr->state);
 
 	/* Read Local AMP Assoc final link information data */
-	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_READ_LOCAL_AMP_ASSOC, sizeof(cp), &cp);
+	hci_req_run_skb(&req, read_local_amp_assoc_complete);
+	if (err < 0)
+		a2mp_send_getampassoc_rsp(hdev, A2MP_STATUS_INVALID_CTRL_ID);
+}
+
+static void write_remote_amp_assoc_complete(struct hci_dev *hdev, u8 status,
+					    u16 opcode, struct sk_buff *skb)
+{
+	struct hci_rp_write_remote_amp_assoc *rp = (void *)skb->data;
+
+	BT_DBG("%s status 0x%2.2x phy_handle 0x%2.2x",
+	       hdev->name, rp->status, rp->phy_handle);
+
+	if (rp->status)
+		return;
+
+	amp_write_rem_assoc_continue(hdev, rp->phy_handle);
 }
 
 /* Write AMP Assoc data fragments, returns true with last fragment written*/
@@ -270,6 +340,7 @@ static bool amp_write_rem_assoc_frag(struct hci_dev *hdev,
 	struct hci_cp_write_remote_amp_assoc *cp;
 	struct amp_mgr *mgr = hcon->amp_mgr;
 	struct amp_ctrl *ctrl;
+	struct hci_request req;
 	u16 frag_len, len;
 
 	ctrl = amp_ctrl_lookup(mgr, hcon->remote_id);
@@ -307,7 +378,9 @@ static bool amp_write_rem_assoc_frag(struct hci_dev *hdev,
 
 	amp_ctrl_put(ctrl);
 
-	hci_send_cmd(hdev, HCI_OP_WRITE_REMOTE_AMP_ASSOC, len, cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_WRITE_REMOTE_AMP_ASSOC, len, cp);
+	hci_req_run_skb(&req, write_remote_amp_assoc_complete);
 
 	kfree(cp);
 
@@ -344,10 +417,37 @@ void amp_write_remote_assoc(struct hci_dev *hdev, u8 handle)
 	amp_write_rem_assoc_frag(hdev, hcon);
 }
 
+static void create_phylink_complete(struct hci_dev *hdev, u8 status,
+				    u16 opcode)
+{
+	struct hci_cp_create_phy_link *cp;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_CREATE_PHY_LINK);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	if (status) {
+		struct hci_conn *hcon;
+
+		hcon = hci_conn_hash_lookup_handle(hdev, cp->phy_handle);
+		if (hcon)
+			hci_conn_del(hcon);
+	} else {
+		amp_write_remote_assoc(hdev, cp->phy_handle);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 			struct hci_conn *hcon)
 {
 	struct hci_cp_create_phy_link cp;
+	struct hci_request req;
 
 	cp.phy_handle = hcon->handle;
 
@@ -360,13 +460,33 @@ void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 		return;
 	}
 
-	hci_send_cmd(hdev, HCI_OP_CREATE_PHY_LINK, sizeof(cp), &cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_CREATE_PHY_LINK, sizeof(cp), &cp);
+	hci_req_run(&req, create_phylink_complete);
+}
+
+static void accept_phylink_complete(struct hci_dev *hdev, u8 status,
+				    u16 opcode)
+{
+	struct hci_cp_accept_phy_link *cp;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_ACCEPT_PHY_LINK);
+	if (!cp)
+		return;
+
+	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
 void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 			struct hci_conn *hcon)
 {
 	struct hci_cp_accept_phy_link cp;
+	struct hci_request req;
 
 	cp.phy_handle = hcon->handle;
 
@@ -379,7 +499,9 @@ void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 		return;
 	}
 
-	hci_send_cmd(hdev, HCI_OP_ACCEPT_PHY_LINK, sizeof(cp), &cp);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_ACCEPT_PHY_LINK, sizeof(cp), &cp);
+	hci_req_run(&req, accept_phylink_complete);
 }
 
 void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon)

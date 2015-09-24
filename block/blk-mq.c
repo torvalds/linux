@@ -559,23 +559,9 @@ void blk_mq_abort_requeue_list(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_mq_abort_requeue_list);
 
-static inline bool is_flush_request(struct request *rq,
-		struct blk_flush_queue *fq, unsigned int tag)
-{
-	return ((rq->cmd_flags & REQ_FLUSH_SEQ) &&
-			fq->flush_rq->tag == tag);
-}
-
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
-	struct request *rq = tags->rqs[tag];
-	/* mq_ctx of flush rq is always cloned from the corresponding req */
-	struct blk_flush_queue *fq = blk_get_flush_queue(rq->q, rq->mq_ctx);
-
-	if (!is_flush_request(rq, fq, tag))
-		return rq;
-
-	return fq->flush_rq;
+	return tags->rqs[tag];
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
@@ -1199,7 +1185,7 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	struct blk_mq_alloc_data alloc_data;
 
 	if (unlikely(blk_mq_queue_enter(q, GFP_KERNEL))) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return NULL;
 	}
 
@@ -1283,9 +1269,11 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return;
 	}
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, &request_count, &same_queue_rq))
@@ -1368,9 +1356,11 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio_endio(bio, -EIO);
+		bio_io_error(bio);
 		return;
 	}
+
+	blk_queue_split(q, &bio, q->bio_split);
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, &request_count, NULL))

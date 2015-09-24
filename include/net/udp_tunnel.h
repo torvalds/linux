@@ -31,7 +31,8 @@ struct udp_port_cfg {
 	__be16			peer_udp_port;
 	unsigned int		use_udp_checksums:1,
 				use_udp6_tx_checksums:1,
-				use_udp6_rx_checksums:1;
+				use_udp6_rx_checksums:1,
+				ipv6_v6only:1;
 };
 
 int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
@@ -92,6 +93,10 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 #endif
 
 void udp_tunnel_sock_release(struct socket *sock);
+
+struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb, unsigned short family,
+				    __be16 flags, __be64 tunnel_id,
+				    int md_size);
 
 static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 							 bool udp_csum)

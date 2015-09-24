@@ -1,8 +1,10 @@
 config MIPS
 	bool
 	default y
+	select ARCH_SUPPORTS_UPROBES
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
@@ -13,7 +15,6 @@ config MIPS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT if !CPU_MICROMIPS
-	select ARCH_HAVE_CUSTOM_GPIO_H
 	select HAVE_FUNCTION_TRACER
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -118,6 +119,7 @@ config ATH25
 
 config ATH79
 	bool "Atheros AR71XX/AR724X/AR913X based boards"
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_REQUIRE_GPIOLIB
 	select BOOT_RAW
 	select CEVT_R4K
@@ -408,6 +410,7 @@ config MIPS_MALTA
 	select CEVT_R4K
 	select CSRC_R4K
 	select CLKSRC_MIPS_GIC
+	select COMMON_CLK
 	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
@@ -458,6 +461,7 @@ config MIPS_SEAD3
 	select CEVT_R4K
 	select CSRC_R4K
 	select CLKSRC_MIPS_GIC
+	select COMMON_CLK
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select DMA_NONCOHERENT
@@ -898,6 +902,7 @@ config NLM_XLP_BOARD
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select ARCH_PHYS_ADDR_T_64BIT
+	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
@@ -947,6 +952,7 @@ source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/lasat/Kconfig"
+source "arch/mips/pistachio/Kconfig"
 source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
@@ -1040,6 +1046,9 @@ config FW_CFE
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
 
+config ARCH_SUPPORTS_UPROBES
+	bool
+
 config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
 	bool
@@ -1069,10 +1078,6 @@ config HOTPLUG_CPU
 
 config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
-
-config I8259
-	bool
-	select IRQ_DOMAIN
 
 config MIPS_BONITO64
 	bool
@@ -1367,7 +1372,7 @@ config CPU_MIPS32_R2
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
 config CPU_MIPS32_R6
-	bool "MIPS32 Release 6 (EXPERIMENTAL)"
+	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
@@ -1418,7 +1423,7 @@ config CPU_MIPS64_R2
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 
 config CPU_MIPS64_R6
-	bool "MIPS64 Release 6 (EXPERIMENTAL)"
+	bool "MIPS64 Release 6"
 	depends on SYS_HAS_CPU_MIPS64_R6
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
@@ -1968,6 +1973,7 @@ config 32BIT
 	select TRAD_SIGNALS
 	help
 	  Select this option if you want to build a 32-bit kernel.
+
 config 64BIT
 	bool "64-bit kernel"
 	depends on CPU_SUPPORTS_64BIT_KERNEL && SYS_SUPPORTS_64BIT_KERNEL
@@ -2113,7 +2119,7 @@ config CPU_R4K_CACHE_TLB
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
-	depends on SYS_SUPPORTS_MULTITHREADING
+	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select SYNC_R4K
@@ -2214,7 +2220,7 @@ config MIPS_VPE_APSP_API_MT
 
 config MIPS_CMP
 	bool "MIPS CMP framework support (DEPRECATED)"
-	depends on SYS_SUPPORTS_MIPS_CMP
+	depends on SYS_SUPPORTS_MIPS_CMP && !CPU_MIPSR6
 	select MIPS_GIC_IPI
 	select SMP
 	select SYNC_R4K
@@ -2231,7 +2237,7 @@ config MIPS_CMP
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
-	depends on SYS_SUPPORTS_MIPS_CPS
+	depends on SYS_SUPPORTS_MIPS_CPS && !CPU_MIPSR6
 	select MIPS_CM
 	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
@@ -2306,7 +2312,7 @@ config CPU_MICROMIPS
 endchoice
 
 config CPU_HAS_MSA
-	bool "Support for the MIPS SIMD Architecture (EXPERIMENTAL)"
+	bool "Support for the MIPS SIMD Architecture"
 	depends on CPU_SUPPORTS_MSA
 	depends on 64BIT || MIPS_O32_FP64_SUPPORT
 	help
@@ -2591,6 +2597,7 @@ source "kernel/Kconfig.preempt"
 
 config KEXEC
 	bool "Kexec system call"
+	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -2646,7 +2653,7 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 config MIPS_O32_FP64_SUPPORT
-	bool "Support for O32 binaries using 64-bit FP (EXPERIMENTAL)"
+	bool "Support for O32 binaries using 64-bit FP"
 	depends on 32BIT || MIPS32_O32
 	help
 	  When this is enabled, the kernel will support use of 64-bit floating

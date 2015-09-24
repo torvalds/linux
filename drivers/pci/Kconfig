@@ -2,7 +2,7 @@
 # PCI configuration
 #
 config PCI_BUS_ADDR_T_64BIT
-	def_bool y if (ARCH_DMA_ADDR_T_64BIT || (64BIT && !PARISC))
+	def_bool y if (ARCH_DMA_ADDR_T_64BIT || 64BIT)
 	depends on PCI
 
 config PCI_MSI

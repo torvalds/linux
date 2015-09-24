@@ -135,9 +135,6 @@ For 32-bit we have the following conventions - kernel is built with
 	movq %rbp, 4*8+\offset(%rsp)
 	movq %rbx, 5*8+\offset(%rsp)
 	.endm
-	.macro SAVE_EXTRA_REGS_RBP offset=0
-	movq %rbp, 4*8+\offset(%rsp)
-	.endm
 
 	.macro RESTORE_EXTRA_REGS offset=0
 	movq 0*8+\offset(%rsp), %r15
@@ -192,12 +189,6 @@ For 32-bit we have the following conventions - kernel is built with
 	.endm
 	.macro RESTORE_C_REGS_EXCEPT_RCX_R11
 	RESTORE_C_REGS_HELPER 1,0,0,1,1
-	.endm
-	.macro RESTORE_RSI_RDI
-	RESTORE_C_REGS_HELPER 0,0,0,0,0
-	.endm
-	.macro RESTORE_RSI_RDI_RDX
-	RESTORE_C_REGS_HELPER 0,0,0,0,1
 	.endm
 
 	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0

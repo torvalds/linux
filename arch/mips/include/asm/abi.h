@@ -20,6 +20,10 @@ struct mips_abi {
 				     struct pt_regs *regs, sigset_t *set);
 	const unsigned long	rt_signal_return_offset;
 	const unsigned long	restart;
+
+	unsigned	off_sc_fpregs;
+	unsigned	off_sc_fpc_csr;
+	unsigned	off_sc_used_math;
 };
 
 #endif /* _ASM_ABI_H */

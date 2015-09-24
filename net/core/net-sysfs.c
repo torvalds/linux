@@ -404,6 +404,19 @@ static ssize_t group_store(struct device *dev, struct device_attribute *attr,
 NETDEVICE_SHOW(group, fmt_dec);
 static DEVICE_ATTR(netdev_group, S_IRUGO | S_IWUSR, group_show, group_store);
 
+static int change_proto_down(struct net_device *dev, unsigned long proto_down)
+{
+	return dev_change_proto_down(dev, (bool) proto_down);
+}
+
+static ssize_t proto_down_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t len)
+{
+	return netdev_store(dev, attr, buf, len, change_proto_down);
+}
+NETDEVICE_SHOW_RW(proto_down, fmt_dec);
+
 static ssize_t phys_port_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -501,6 +514,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_phys_port_id.attr,
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
+	&dev_attr_proto_down.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net_class);
@@ -675,7 +689,7 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	struct rps_map *old_map, *map;
 	cpumask_var_t mask;
 	int err, cpu, i;
-	static DEFINE_SPINLOCK(rps_map_lock);
+	static DEFINE_MUTEX(rps_map_mutex);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -708,18 +722,21 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 		map = NULL;
 	}
 
-	spin_lock(&rps_map_lock);
+	mutex_lock(&rps_map_mutex);
 	old_map = rcu_dereference_protected(queue->rps_map,
-					    lockdep_is_held(&rps_map_lock));
+					    mutex_is_locked(&rps_map_mutex));
 	rcu_assign_pointer(queue->rps_map, map);
-	spin_unlock(&rps_map_lock);
 
 	if (map)
 		static_key_slow_inc(&rps_needed);
-	if (old_map) {
-		kfree_rcu(old_map, rcu);
+	if (old_map)
 		static_key_slow_dec(&rps_needed);
-	}
+
+	mutex_unlock(&rps_map_mutex);
+
+	if (old_map)
+		kfree_rcu(old_map, rcu);
+
 	free_cpumask_var(mask);
 	return len;
 }

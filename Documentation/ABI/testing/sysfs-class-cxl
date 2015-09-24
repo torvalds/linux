@@ -223,3 +223,13 @@ Description:    write only
                 Writing 1 will issue a PERST to card which may cause the card
                 to reload the FPGA depending on load_image_on_perst.
 Users:		https://github.com/ibm-capi/libcxl
+
+What:		/sys/class/cxl/<card>/perst_reloads_same_image
+Date:		July 2015
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		Trust that when an image is reloaded via PERST, it will not
+		have changed.
+		0 = don't trust, the image may be different (default)
+		1 = trust that the image will not change.
+Users:		https://github.com/ibm-capi/libcxl

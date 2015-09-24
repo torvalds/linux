@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
 #include "trace-event.h"
+#include "machine.h"
 #include "util.h"
 
 /*
@@ -19,6 +20,7 @@
  * there.
  */
 static struct trace_event tevent;
+static bool tevent_initialized;
 
 int trace_event__init(struct trace_event *t)
 {
@@ -30,6 +32,31 @@ int trace_event__init(struct trace_event *t)
 	}
 
 	return pevent ? 0 : -1;
+}
+
+static int trace_event__init2(void)
+{
+	int be = traceevent_host_bigendian();
+	struct pevent *pevent;
+
+	if (trace_event__init(&tevent))
+		return -1;
+
+	pevent = tevent.pevent;
+	pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
+	pevent_set_file_bigendian(pevent, be);
+	pevent_set_host_bigendian(pevent, be);
+	tevent_initialized = true;
+	return 0;
+}
+
+int trace_event__register_resolver(struct machine *machine,
+				   pevent_func_resolver_t *func)
+{
+	if (!tevent_initialized && trace_event__init2())
+		return -1;
+
+	return pevent_set_function_resolver(tevent.pevent, func, machine);
 }
 
 void trace_event__cleanup(struct trace_event *t)
@@ -62,21 +89,8 @@ tp_format(const char *sys, const char *name)
 struct event_format*
 trace_event__tp_format(const char *sys, const char *name)
 {
-	static bool initialized;
-
-	if (!initialized) {
-		int be = traceevent_host_bigendian();
-		struct pevent *pevent;
-
-		if (trace_event__init(&tevent))
-			return NULL;
-
-		pevent = tevent.pevent;
-		pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
-		pevent_set_file_bigendian(pevent, be);
-		pevent_set_host_bigendian(pevent, be);
-		initialized = true;
-	}
+	if (!tevent_initialized && trace_event__init2())
+		return NULL;
 
 	return tp_format(sys, name);
 }

@@ -36,7 +36,7 @@ extern void build_tlb_refill_handler(void);
 		"nop\n\t"		\
 		".set	pop\n\t")
 
-static int r3k_have_wired_reg;			/* Should be in cpu_data? */
+int r3k_have_wired_reg;			/* Should be in cpu_data? */
 
 /* TLB operations. */
 static void local_flush_tlb_from(int entry)

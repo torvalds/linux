@@ -127,27 +127,6 @@ exit:
 	return ret;
 }
 
-u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
-{
-	u8 buf[3];
-	u8 res = _SUCCESS;
-	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
-
-	if (haldata->fw_ractrl) {
-
-		memset(buf, 0, 3);
-		put_unaligned_le32(mask, buf);
-
-		FillH2CCmd_88E(adapt, H2C_DM_MACID_CFG, 3, buf);
-	} else {
-		DBG_88E("==>%s fw dont support RA\n", __func__);
-		res = _FAIL;
-	}
-
-
-	return res;
-}
-
 /* bitmap[0:27] = tx_rate_bitmap */
 /* bitmap[28:31]= Rate Adaptive id */
 /* arg[0:4] = macid */

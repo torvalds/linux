@@ -384,25 +384,15 @@ static void fotg210_ep0_queue(struct fotg210_ep *ep,
 		return;
 	}
 	if (ep->dir_in) { /* if IN */
-		if (req->req.length) {
-			fotg210_start_dma(ep, req);
-		} else {
-			pr_err("%s : req->req.length = 0x%x\n",
-			       __func__, req->req.length);
-		}
+		fotg210_start_dma(ep, req);
 		if ((req->req.length == req->req.actual) ||
 		    (req->req.actual < ep->ep.maxpacket))
 			fotg210_done(ep, req, 0);
 	} else { /* OUT */
-		if (!req->req.length) {
-			fotg210_done(ep, req, 0);
-		} else {
-			u32 value = ioread32(ep->fotg210->reg +
-						FOTG210_DMISGR0);
+		u32 value = ioread32(ep->fotg210->reg + FOTG210_DMISGR0);
 
-			value &= ~DMISGR0_MCX_OUT_INT;
-			iowrite32(value, ep->fotg210->reg + FOTG210_DMISGR0);
-		}
+		value &= ~DMISGR0_MCX_OUT_INT;
+		iowrite32(value, ep->fotg210->reg + FOTG210_DMISGR0);
 	}
 }
 
@@ -1153,6 +1143,17 @@ static int fotg210_udc_probe(struct platform_device *pdev)
 		ep->ep.name = fotg210_ep_name[i];
 		ep->ep.ops = &fotg210_ep_ops;
 		usb_ep_set_maxpacket_limit(&ep->ep, (unsigned short) ~0);
+
+		if (i == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
 	}
 	usb_ep_set_maxpacket_limit(&fotg210->ep[0]->ep, 0x40);
 	fotg210->gadget.ep0 = &fotg210->ep[0]->ep;

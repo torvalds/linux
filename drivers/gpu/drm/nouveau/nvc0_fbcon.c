@@ -156,7 +156,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	struct nouveau_channel *chan = drm->channel;
 	int ret, format;
 
-	ret = nvif_object_init(chan->object, NULL, 0x902d, 0x902d, NULL, 0,
+	ret = nvif_object_init(&chan->user, 0x902d, 0x902d, NULL, 0,
 			       &nfbdev->twod);
 	if (ret)
 		return ret;

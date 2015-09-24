@@ -118,7 +118,7 @@ struct goldfish_mmc_host {
 	struct mmc_host		*mmc;
 	struct device		*dev;
 	unsigned char		id; /* 16xx chips have 2 MMC blocks */
-	void __iomem		*virt_base;
+	void			*virt_base;
 	unsigned int		phys_base;
 	int			irq;
 	unsigned char		bus_mode;

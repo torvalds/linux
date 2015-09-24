@@ -174,7 +174,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
 		skb->pkt_type = PACKET_OTHERHOST;
 		nf_bridge->pkt_otherhost = false;
 	}
-	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
+	nf_bridge->in_prerouting = 0;
 	if (br_nf_ipv6_daddr_was_changed(skb, nf_bridge)) {
 		skb_dst_drop(skb);
 		v6ops->route_input(skb);

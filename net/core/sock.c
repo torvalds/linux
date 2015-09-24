@@ -2078,7 +2078,7 @@ suppress_allocation:
 EXPORT_SYMBOL(__sk_mem_schedule);
 
 /**
- *	__sk_reclaim - reclaim memory_allocated
+ *	__sk_mem_reclaim - reclaim memory_allocated
  *	@sk: socket
  *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
  */

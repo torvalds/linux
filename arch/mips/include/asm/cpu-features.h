@@ -411,4 +411,8 @@
 # define cpu_has_cdmm		(cpu_data[0].options & MIPS_CPU_CDMM)
 #endif
 
+#ifndef cpu_has_small_pages
+# define cpu_has_small_pages	(cpu_data[0].options & MIPS_CPU_SP)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */

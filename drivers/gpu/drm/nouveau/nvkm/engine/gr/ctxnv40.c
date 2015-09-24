@@ -111,7 +111,6 @@
 
 #include "ctxnv40.h"
 #include "nv40.h"
-#include <core/device.h>
 
 /* TODO:
  *  - get vs count from 0x1540
@@ -583,13 +582,13 @@ nv40_gr_construct_shader(struct nvkm_grctx *ctx)
 
 	offset += 0x0280/4;
 	for (i = 0; i < 16; i++, offset += 2)
-		nv_wo32(obj, offset * 4, 0x3f800000);
+		nvkm_wo32(obj, offset * 4, 0x3f800000);
 
 	for (vs = 0; vs < vs_nr; vs++, offset += vs_len) {
 		for (i = 0; i < vs_nr_b0 * 6; i += 6)
-			nv_wo32(obj, (offset + b0_offset + i) * 4, 0x00000001);
+			nvkm_wo32(obj, (offset + b0_offset + i) * 4, 0x00000001);
 		for (i = 0; i < vs_nr_b1 * 4; i += 4)
-			nv_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
+			nvkm_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
 	}
 }
 
@@ -675,7 +674,7 @@ nv40_grctx_init(struct nvkm_device *device, u32 *size)
 	struct nvkm_grctx ctx = {
 		.device = device,
 		.mode = NVKM_GRCTX_PROG,
-		.data = ctxprog,
+		.ucode = ctxprog,
 		.ctxprog_max = 256,
 	};
 
@@ -684,9 +683,9 @@ nv40_grctx_init(struct nvkm_device *device, u32 *size)
 
 	nv40_grctx_generate(&ctx);
 
-	nv_wr32(device, 0x400324, 0);
+	nvkm_wr32(device, 0x400324, 0);
 	for (i = 0; i < ctx.ctxprog_len; i++)
-		nv_wr32(device, 0x400328, ctxprog[i]);
+		nvkm_wr32(device, 0x400328, ctxprog[i]);
 	*size = ctx.ctxvals_pos * 4;
 
 	kfree(ctxprog);

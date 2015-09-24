@@ -114,6 +114,12 @@
 				reg = <0x4c>;
 			};
 
+			current-sensor@40 {
+				compatible = "ti,ina220";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
 			eeprom@50 {
 				compatible = "atmel,24c256";
 				reg = <0x50>;

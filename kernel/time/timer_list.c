@@ -137,7 +137,7 @@ print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
 		   (unsigned long long) ktime_to_ns(base->offset));
 #endif
 	SEQ_printf(m,   "active timers:\n");
-	print_active_timers(m, base, now);
+	print_active_timers(m, base, now + ktime_to_ns(base->offset));
 }
 
 static void print_cpu(struct seq_file *m, int cpu, u64 now)
@@ -225,7 +225,7 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 		   (unsigned long long) dev->min_delta_ns);
 	SEQ_printf(m, " mult:           %u\n", dev->mult);
 	SEQ_printf(m, " shift:          %u\n", dev->shift);
-	SEQ_printf(m, " mode:           %d\n", dev->mode);
+	SEQ_printf(m, " mode:           %d\n", clockevent_get_state(dev));
 	SEQ_printf(m, " next_event:     %Ld nsecs\n",
 		   (unsigned long long) ktime_to_ns(dev->next_event));
 
@@ -233,40 +233,34 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 	print_name_offset(m, dev->set_next_event);
 	SEQ_printf(m, "\n");
 
-	if (dev->set_mode) {
-		SEQ_printf(m, " set_mode:       ");
-		print_name_offset(m, dev->set_mode);
+	if (dev->set_state_shutdown) {
+		SEQ_printf(m, " shutdown: ");
+		print_name_offset(m, dev->set_state_shutdown);
 		SEQ_printf(m, "\n");
-	} else {
-		if (dev->set_state_shutdown) {
-			SEQ_printf(m, " shutdown: ");
-			print_name_offset(m, dev->set_state_shutdown);
-			SEQ_printf(m, "\n");
-		}
+	}
 
-		if (dev->set_state_periodic) {
-			SEQ_printf(m, " periodic: ");
-			print_name_offset(m, dev->set_state_periodic);
-			SEQ_printf(m, "\n");
-		}
+	if (dev->set_state_periodic) {
+		SEQ_printf(m, " periodic: ");
+		print_name_offset(m, dev->set_state_periodic);
+		SEQ_printf(m, "\n");
+	}
 
-		if (dev->set_state_oneshot) {
-			SEQ_printf(m, " oneshot:  ");
-			print_name_offset(m, dev->set_state_oneshot);
-			SEQ_printf(m, "\n");
-		}
+	if (dev->set_state_oneshot) {
+		SEQ_printf(m, " oneshot:  ");
+		print_name_offset(m, dev->set_state_oneshot);
+		SEQ_printf(m, "\n");
+	}
 
-		if (dev->set_state_oneshot_stopped) {
-			SEQ_printf(m, " oneshot stopped: ");
-			print_name_offset(m, dev->set_state_oneshot_stopped);
-			SEQ_printf(m, "\n");
-		}
+	if (dev->set_state_oneshot_stopped) {
+		SEQ_printf(m, " oneshot stopped: ");
+		print_name_offset(m, dev->set_state_oneshot_stopped);
+		SEQ_printf(m, "\n");
+	}
 
-		if (dev->tick_resume) {
-			SEQ_printf(m, " resume:   ");
-			print_name_offset(m, dev->tick_resume);
-			SEQ_printf(m, "\n");
-		}
+	if (dev->tick_resume) {
+		SEQ_printf(m, " resume:   ");
+		print_name_offset(m, dev->tick_resume);
+		SEQ_printf(m, "\n");
 	}
 
 	SEQ_printf(m, " event_handler:  ");

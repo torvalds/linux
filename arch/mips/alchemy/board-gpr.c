@@ -34,6 +34,7 @@
 #include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/gpio-au1000.h>
 #include <prom.h>
 
 const char *get_system_type(void)

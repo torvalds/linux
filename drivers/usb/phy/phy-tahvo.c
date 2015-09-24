@@ -57,7 +57,7 @@ struct tahvo_usb {
 	struct clk		*ick;
 	int			irq;
 	int			tahvo_mode;
-	struct extcon_dev	extcon;
+	struct extcon_dev	*extcon;
 };
 
 static const unsigned int tahvo_cable[] = {
@@ -121,7 +121,7 @@ static void check_vbus_state(struct tahvo_usb *tu)
 	prev_state = tu->vbus_state;
 	tu->vbus_state = reg & TAHVO_STAT_VBUS;
 	if (prev_state != tu->vbus_state) {
-		extcon_set_cable_state(&tu->extcon, "USB", tu->vbus_state);
+		extcon_set_cable_state_(tu->extcon, EXTCON_USB, tu->vbus_state);
 		sysfs_notify(&tu->pt_dev->dev.kobj, NULL, "vbus_state");
 	}
 }
@@ -130,7 +130,7 @@ static void tahvo_usb_become_host(struct tahvo_usb *tu)
 {
 	struct retu_dev *rdev = dev_get_drvdata(tu->pt_dev->dev.parent);
 
-	extcon_set_cable_state(&tu->extcon, "USB-HOST", true);
+	extcon_set_cable_state_(tu->extcon, EXTCON_USB_HOST, true);
 
 	/* Power up the transceiver in USB host mode */
 	retu_write(rdev, TAHVO_REG_USBR, USBR_REGOUT | USBR_NSUSPEND |
@@ -149,7 +149,7 @@ static void tahvo_usb_become_peripheral(struct tahvo_usb *tu)
 {
 	struct retu_dev *rdev = dev_get_drvdata(tu->pt_dev->dev.parent);
 
-	extcon_set_cable_state(&tu->extcon, "USB-HOST", false);
+	extcon_set_cable_state_(tu->extcon, EXTCON_USB_HOST, false);
 
 	/* Power up transceiver and set it in USB peripheral mode */
 	retu_write(rdev, TAHVO_REG_USBR, USBR_SLAVE_CONTROL | USBR_REGOUT |
@@ -365,11 +365,13 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	 */
 	tu->vbus_state = retu_read(rdev, TAHVO_REG_IDSR) & TAHVO_STAT_VBUS;
 
-	tu->extcon.name = DRIVER_NAME;
-	tu->extcon.supported_cable = tahvo_cable;
-	tu->extcon.dev.parent = &pdev->dev;
+	tu->extcon = devm_extcon_dev_allocate(&pdev->dev, tahvo_cable);
+	if (IS_ERR(tu->extcon)) {
+		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
+		return -ENOMEM;
+	}
 
-	ret = extcon_dev_register(&tu->extcon);
+	ret = devm_extcon_dev_register(&pdev->dev, tu->extcon);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register extcon device: %d\n",
 			ret);
@@ -377,9 +379,9 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	}
 
 	/* Set the initial cable state. */
-	extcon_set_cable_state(&tu->extcon, "USB-HOST",
+	extcon_set_cable_state_(tu->extcon, EXTCON_USB_HOST,
 			       tu->tahvo_mode == TAHVO_MODE_HOST);
-	extcon_set_cable_state(&tu->extcon, "USB", tu->vbus_state);
+	extcon_set_cable_state_(tu->extcon, EXTCON_USB, tu->vbus_state);
 
 	/* Create OTG interface */
 	tahvo_usb_power_off(tu);
@@ -396,7 +398,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot register USB transceiver: %d\n",
 			ret);
-		goto err_extcon_unreg;
+		goto err_disable_clk;
 	}
 
 	dev_set_drvdata(&pdev->dev, tu);
@@ -424,8 +426,6 @@ err_free_irq:
 	free_irq(tu->irq, tu);
 err_remove_phy:
 	usb_remove_phy(&tu->phy);
-err_extcon_unreg:
-	extcon_dev_unregister(&tu->extcon);
 err_disable_clk:
 	if (!IS_ERR(tu->ick))
 		clk_disable(tu->ick);
@@ -440,7 +440,6 @@ static int tahvo_usb_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &tahvo_attr_group);
 	free_irq(tu->irq, tu);
 	usb_remove_phy(&tu->phy);
-	extcon_dev_unregister(&tu->extcon);
 	if (!IS_ERR(tu->ick))
 		clk_disable(tu->ick);
 

@@ -21,153 +21,47 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/ce.h>
+#include "priv.h"
 
-#include <core/engctx.h>
+#include <nvif/class.h>
 
-struct gk104_ce_priv {
-	struct nvkm_engine base;
-};
-
-/*******************************************************************************
- * Copy object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gk104_ce_sclass[] = {
-	{ 0xa0b5, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PCE context
- ******************************************************************************/
-
-static struct nvkm_ofuncs
-gk104_ce_context_ofuncs = {
-	.ctor = _nvkm_engctx_ctor,
-	.dtor = _nvkm_engctx_dtor,
-	.init = _nvkm_engctx_init,
-	.fini = _nvkm_engctx_fini,
-	.rd32 = _nvkm_engctx_rd32,
-	.wr32 = _nvkm_engctx_wr32,
-};
-
-static struct nvkm_oclass
-gk104_ce_cclass = {
-	.handle = NV_ENGCTX(CE0, 0xc0),
-	.ofuncs = &gk104_ce_context_ofuncs,
-};
-
-/*******************************************************************************
- * PCE engine/subdev functions
- ******************************************************************************/
-
-static void
-gk104_ce_intr(struct nvkm_subdev *subdev)
+void
+gk104_ce_intr(struct nvkm_engine *ce)
 {
-	const int ce = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
-	struct gk104_ce_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
-
+	const u32 base = (ce->subdev.index - NVKM_ENGINE_CE0) * 0x1000;
+	struct nvkm_subdev *subdev = &ce->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x104908 + base);
 	if (stat) {
-		nv_warn(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x104908 + (ce * 0x1000), stat);
+		nvkm_warn(subdev, "intr %08x\n", stat);
+		nvkm_wr32(device, 0x104908 + base, stat);
 	}
 }
 
-static int
-gk104_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gk104_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE0", "ce0", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = gk104_ce_intr;
-	nv_engine(priv)->cclass = &gk104_ce_cclass;
-	nv_engine(priv)->sclass = gk104_ce_sclass;
-	return 0;
-}
-
-static int
-gk104_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gk104_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE1", "ce1", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = gk104_ce_intr;
-	nv_engine(priv)->cclass = &gk104_ce_cclass;
-	nv_engine(priv)->sclass = gk104_ce_sclass;
-	return 0;
-}
-
-static int
-gk104_ce2_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gk104_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_engine_create(parent, engine, oclass, true,
-				 "PCE2", "ce2", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00200000;
-	nv_subdev(priv)->intr = gk104_ce_intr;
-	nv_engine(priv)->cclass = &gk104_ce_cclass;
-	nv_engine(priv)->sclass = gk104_ce_sclass;
-	return 0;
-}
-
-struct nvkm_oclass
-gk104_ce0_oclass = {
-	.handle = NV_ENGINE(CE0, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_ce0_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
+static const struct nvkm_engine_func
+gk104_ce = {
+	.intr = gk104_ce_intr,
+	.sclass = {
+		{ -1, -1, KEPLER_DMA_COPY_A },
+		{}
+	}
 };
 
-struct nvkm_oclass
-gk104_ce1_oclass = {
-	.handle = NV_ENGINE(CE1, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_ce1_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
-};
-
-struct nvkm_oclass
-gk104_ce2_oclass = {
-	.handle = NV_ENGINE(CE2, 0xe0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk104_ce2_ctor,
-		.dtor = _nvkm_engine_dtor,
-		.init = _nvkm_engine_init,
-		.fini = _nvkm_engine_fini,
-	},
-};
+int
+gk104_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
+{
+	if (index == NVKM_ENGINE_CE0) {
+		return nvkm_engine_new_(&gk104_ce, device, index,
+					0x00000040, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE1) {
+		return nvkm_engine_new_(&gk104_ce, device, index,
+					0x00000080, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE2) {
+		return nvkm_engine_new_(&gk104_ce, device, index,
+					0x00200000, true, pengine);
+	}
+	return -ENODEV;
+}

@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 
 #include "debugfs.h"
+#include "tracefs.h"
 
 #ifndef DEBUGFS_DEFAULT_PATH
 #define DEBUGFS_DEFAULT_PATH		"/sys/kernel/debug"
@@ -94,11 +95,21 @@ int debugfs__strerror_open(int err, char *buf, size_t size, const char *filename
 			 "Hint:\tIs the debugfs filesystem mounted?\n"
 			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
 		break;
-	case EACCES:
+	case EACCES: {
+		const char *mountpoint = debugfs_mountpoint;
+
+		if (!access(debugfs_mountpoint, R_OK) && strncmp(filename, "tracing/", 8) == 0) {
+			const char *tracefs_mntpoint = tracefs_find_mountpoint();
+
+			if (tracefs_mntpoint)
+				mountpoint = tracefs_mntpoint;
+		}
+
 		snprintf(buf, size,
 			 "Error:\tNo permissions to read %s/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			 debugfs_mountpoint, filename, debugfs_mountpoint);
+			 debugfs_mountpoint, filename, mountpoint);
+	}
 		break;
 	default:
 		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));

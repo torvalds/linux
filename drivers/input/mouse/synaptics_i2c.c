@@ -655,7 +655,6 @@ MODULE_DEVICE_TABLE(i2c, synaptics_i2c_id_table);
 static struct i2c_driver synaptics_i2c_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &synaptics_i2c_pm,
 	},
 

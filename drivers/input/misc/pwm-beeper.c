@@ -173,6 +173,7 @@ static const struct of_device_id pwm_beeper_match[] = {
 	{ .compatible = "pwm-beeper", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, pwm_beeper_match);
 #endif
 
 static struct platform_driver pwm_beeper_driver = {

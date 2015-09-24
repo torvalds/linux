@@ -118,7 +118,7 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
 
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->irq == NO_IRQ)
 			continue;
 
@@ -350,7 +350,7 @@ static int check_msix_entries(struct pci_dev *pdev)
 	 * So we must reject such requests. */
 
 	expected = 0;
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->msi_attrib.entry_nr != expected) {
 			pr_debug("rtas_msi: bad MSI-X entries.\n");
 			return -EINVAL;
@@ -462,7 +462,7 @@ again:
 	}
 
 	i = 0;
-	list_for_each_entry(entry, &pdev->msi_list, list) {
+	for_each_pci_msi_entry(entry, pdev) {
 		hwirq = rtas_query_irq_number(pdn, i++);
 		if (hwirq < 0) {
 			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);

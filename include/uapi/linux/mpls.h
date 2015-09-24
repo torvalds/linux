@@ -41,4 +41,6 @@ struct mpls_label {
 #define MPLS_LABEL_OAMALERT		14 /* RFC3429 */
 #define MPLS_LABEL_EXTENSION		15 /* RFC7274 */
 
+#define MPLS_LABEL_FIRST_UNRESERVED	16 /* RFC3032 */
+
 #endif /* _UAPI_MPLS_H */

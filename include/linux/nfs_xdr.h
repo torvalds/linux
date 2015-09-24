@@ -379,7 +379,7 @@ struct nfs_openargs {
 	struct stateowner_id	id;
 	union {
 		struct {
-			struct iattr *  attrs;    /* UNCHECKED, GUARDED */
+			struct iattr *  attrs;    /* UNCHECKED, GUARDED, EXCLUSIVE4_1 */
 			nfs4_verifier   verifier; /* EXCLUSIVE */
 		};
 		nfs4_stateid	delegation;		/* CLAIM_DELEGATE_CUR */
@@ -389,7 +389,7 @@ struct nfs_openargs {
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
 	const u32 *		open_bitmap;
-	__u32			claim;
+	enum open_claim_type4	claim;
 	enum createmode4	createmode;
 	const struct nfs4_label *label;
 };
@@ -406,8 +406,8 @@ struct nfs_openres {
 	const struct nfs_server *server;
 	fmode_t			delegation_type;
 	nfs4_stateid		delegation;
+	unsigned long		pagemod_limit;
 	__u32			do_recall;
-	__u64			maxsize;
 	__u32			attrset[NFS4_BITMAP_SIZE];
 	struct nfs4_string	*owner;
 	struct nfs4_string	*group_owner;
@@ -1057,11 +1057,13 @@ struct nfs4_statfs_res {
 struct nfs4_server_caps_arg {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh		       *fhandle;
+	const u32 *			bitmask;
 };
 
 struct nfs4_server_caps_res {
 	struct nfs4_sequence_res	seq_res;
 	u32				attr_bitmask[3];
+	u32				exclcreat_bitmask[3];
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;

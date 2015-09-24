@@ -20,4 +20,10 @@ static inline int xen_irqs_disabled(struct pt_regs *regs)
 							    atomic64_t,	\
 							    counter), (val))
 
+/* Rebind event channel is supported by default */
+static inline bool xen_support_evtchn_rebind(void)
+{
+	return true;
+}
+
 #endif /* _ASM_ARM_XEN_EVENTS_H */

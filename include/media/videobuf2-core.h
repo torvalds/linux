@@ -364,7 +364,9 @@ struct v4l2_fh;
  *		start_streaming() can be called. Used when a DMA engine
  *		cannot be started unless at least this number of buffers
  *		have been queued into the driver.
- *
+ */
+/*
+ * Private elements (won't appear at the DocBook):
  * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
@@ -407,7 +409,7 @@ struct vb2_queue {
 	gfp_t				gfp_flags;
 	u32				min_buffers_needed;
 
-/* private: internal use only */
+	/* private: internal use only */
 	struct mutex			mmap_lock;
 	enum v4l2_memory		memory;
 	struct vb2_buffer		*bufs[VIDEO_MAX_FRAME];
@@ -484,7 +486,8 @@ size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
 size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 		loff_t *ppos, int nonblock);
-/**
+
+/*
  * vb2_thread_fnc - callback function for use with vb2_thread
  *
  * This is called whenever a buffer is dequeued in the thread.
@@ -577,7 +580,6 @@ static inline void vb2_set_plane_payload(struct vb2_buffer *vb,
  * vb2_get_plane_payload() - get bytesused for the plane plane_no
  * @vb:		buffer for which plane payload should be set
  * @plane_no:	plane number for which payload should be set
- * @size:	payload in bytes
  */
 static inline unsigned long vb2_get_plane_payload(struct vb2_buffer *vb,
 				 unsigned int plane_no)

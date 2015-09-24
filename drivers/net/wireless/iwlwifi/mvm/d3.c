@@ -1145,7 +1145,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 static int iwl_mvm_enter_d0i3_sync(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_d3;
-	static const u8 d3_notif[] = { D3_CONFIG_CMD };
+	static const u16 d3_notif[] = { D3_CONFIG_CMD };
 	int ret;
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3,
@@ -1168,13 +1168,17 @@ remove_notif:
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
 
-	iwl_trans_suspend(mvm->trans);
+	ret = iwl_trans_suspend(mvm->trans);
+	if (ret)
+		return ret;
+
 	mvm->trans->wowlan_d0i3 = wowlan->any;
 	if (mvm->trans->wowlan_d0i3) {
 		/* 'any' trigger means d0i3 usage */
 		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
-			int ret = iwl_mvm_enter_d0i3_sync(mvm);
+			ret = iwl_mvm_enter_d0i3_sync(mvm);
 
 			if (ret)
 				return ret;
@@ -1183,6 +1187,9 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
+
+		iwl_trans_d3_suspend(mvm->trans, false);
+
 		return 0;
 	}
 
@@ -1935,28 +1942,59 @@ out:
 	return 1;
 }
 
+static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
+{
+	iwl_trans_resume(mvm->trans);
+
+	return __iwl_mvm_resume(mvm, false);
+}
+
+static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
+{
+	bool exit_now;
+	enum iwl_d3_status d3_status;
+
+	iwl_trans_d3_resume(mvm->trans, &d3_status, false);
+
+	/*
+	 * make sure to clear D0I3_DEFER_WAKEUP before
+	 * calling iwl_trans_resume(), which might wait
+	 * for d0i3 exit completion.
+	 */
+	mutex_lock(&mvm->d0i3_suspend_mutex);
+	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
+	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
+					&mvm->d0i3_suspend_flags);
+	mutex_unlock(&mvm->d0i3_suspend_mutex);
+	if (exit_now) {
+		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
+		_iwl_mvm_exit_d0i3(mvm);
+	}
+
+	iwl_trans_resume(mvm->trans);
+
+	if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+		int ret = iwl_mvm_exit_d0i3(mvm->hw->priv);
+
+		if (ret)
+			return ret;
+		/*
+		 * d0i3 exit will be deferred until reconfig_complete.
+		 * make sure there we are out of d0i3.
+		 */
+	}
+	return 0;
+}
+
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	iwl_trans_resume(mvm->trans);
-
-	if (mvm->hw->wiphy->wowlan_config->any) {
-		/* 'any' trigger means d0i3 usage */
-		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
-			int ret = iwl_mvm_exit_d0i3(hw->priv);
-
-			if (ret)
-				return ret;
-			/*
-			 * d0i3 exit will be deferred until reconfig_complete.
-			 * make sure there we are out of d0i3.
-			 */
-		}
-		return 0;
-	}
-
-	return __iwl_mvm_resume(mvm, false);
+	/* 'any' trigger means d0i3 was used */
+	if (hw->wiphy->wowlan_config->any)
+		return iwl_mvm_resume_d0i3(mvm);
+	else
+		return iwl_mvm_resume_d3(mvm);
 }
 
 void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)

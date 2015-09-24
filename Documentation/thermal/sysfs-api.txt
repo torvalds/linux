@@ -180,6 +180,7 @@ Thermal zone device sys I/F, created once it's registered:
     |---temp:			Current temperature
     |---mode:			Working mode of the thermal zone
     |---policy:			Thermal governor used for this zone
+    |---available_policies:	Available thermal governors for this zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
@@ -255,6 +256,10 @@ mode
 policy
 	One of the various thermal governors used for a particular zone.
 	RW, Required
+
+available_policies
+	Available thermal governors which can be used for a particular zone.
+	RO, Required
 
 trip_point_[0-*]_temp
 	The temperature above which trip point will be fired.
@@ -417,6 +422,7 @@ method, the sys I/F structure will be built like this:
     |---temp:			37000
     |---mode:			enabled
     |---policy:			step_wise
+    |---available_policies:	step_wise fair_share
     |---trip_point_0_temp:	100000
     |---trip_point_0_type:	critical
     |---trip_point_1_temp:	80000

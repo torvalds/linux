@@ -382,7 +382,9 @@ do {									\
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP	(0)
+#define ELF_HWCAP	(elf_hwcap)
+extern unsigned int elf_hwcap;
+#include <asm/hwcap.h>
 
 /*
  * This yields a string that ld.so will use to load implementation

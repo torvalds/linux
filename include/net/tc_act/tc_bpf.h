@@ -15,7 +15,7 @@
 
 struct tcf_bpf {
 	struct tcf_common	common;
-	struct bpf_prog		*filter;
+	struct bpf_prog __rcu	*filter;
 	union {
 		u32		bpf_fd;
 		u16		bpf_num_ops;

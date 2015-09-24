@@ -9,8 +9,6 @@
 #include <linux/of.h>
 #include <linux/mm.h>
 
-#include <asm/cacheflush.h>
-
 #include <dt-bindings/memory/tegra30-mc.h>
 
 #include "mc.h"
@@ -936,20 +934,6 @@ static const struct tegra_smmu_swgroup tegra30_swgroups[] = {
 	{ .name = "isp",  .swgroup = TEGRA_SWGROUP_ISP,  .reg = 0x258 },
 };
 
-static void tegra30_flush_dcache(struct page *page, unsigned long offset,
-				 size_t size)
-{
-	phys_addr_t phys = page_to_phys(page) + offset;
-	void *virt = page_address(page) + offset;
-
-	__cpuc_flush_dcache_area(virt, size);
-	outer_flush_range(phys, phys + size);
-}
-
-static const struct tegra_smmu_ops tegra30_smmu_ops = {
-	.flush_dcache = tegra30_flush_dcache,
-};
-
 static const struct tegra_smmu_soc tegra30_smmu_soc = {
 	.clients = tegra30_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra30_mc_clients),
@@ -957,8 +941,8 @@ static const struct tegra_smmu_soc tegra30_smmu_soc = {
 	.num_swgroups = ARRAY_SIZE(tegra30_swgroups),
 	.supports_round_robin_arbitration = false,
 	.supports_request_limit = false,
+	.num_tlb_lines = 16,
 	.num_asids = 4,
-	.ops = &tegra30_smmu_ops,
 };
 
 const struct tegra_mc_soc tegra30_mc_soc = {
@@ -966,5 +950,6 @@ const struct tegra_mc_soc tegra30_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra30_mc_clients),
 	.num_address_bits = 32,
 	.atom_size = 16,
+	.client_id_mask = 0x7f,
 	.smmu = &tegra30_smmu_soc,
 };

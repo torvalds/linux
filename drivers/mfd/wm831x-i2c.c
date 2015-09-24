@@ -93,7 +93,6 @@ static const struct dev_pm_ops wm831x_pm_ops = {
 static struct i2c_driver wm831x_i2c_driver = {
 	.driver = {
 		.name = "wm831x",
-		.owner = THIS_MODULE,
 		.pm = &wm831x_pm_ops,
 	},
 	.probe = wm831x_i2c_probe,

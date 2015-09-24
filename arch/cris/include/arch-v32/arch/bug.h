@@ -10,6 +10,7 @@
  * All other stuff is done out-of-band with exception handlers.
  */
 #define BUG()								\
+do {									\
 	__asm__ __volatile__ ("0: break 14\n\t"				\
 			      ".section .fixup,\"ax\"\n"		\
 			      "1:\n\t"					\
@@ -21,9 +22,15 @@
 			      ".section __ex_table,\"a\"\n\t"		\
 			      ".dword 0b, 1b\n\t"			\
 			      ".previous\n\t"				\
-			      : : "ri" (__FILE__), "i" (__LINE__))
+			      : : "ri" (__FILE__), "i" (__LINE__));	\
+	unreachable();				\
+} while (0)
 #else
-#define BUG() __asm__ __volatile__ ("break 14\n\t")
+#define BUG() 					\
+do {						\
+	__asm__ __volatile__ ("break 14\n\t");	\
+	unreachable();				\
+} while (0)
 #endif
 
 #define HAVE_ARCH_BUG

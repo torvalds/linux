@@ -250,7 +250,7 @@ struct machine *machines__findnew(struct machines *machines, pid_t pid)
 			static struct strlist *seen;
 
 			if (!seen)
-				seen = strlist__new(true, NULL);
+				seen = strlist__new(NULL, NULL);
 
 			if (!strlist__has_entry(seen, path)) {
 				pr_err("Can't access file %s\n", path);
@@ -547,6 +547,14 @@ int machine__process_itrace_start_event(struct machine *machine __maybe_unused,
 {
 	if (dump_trace)
 		perf_event__fprintf_itrace_start(event, stdout);
+	return 0;
+}
+
+int machine__process_switch_event(struct machine *machine __maybe_unused,
+				  union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_switch(event, stdout);
 	return 0;
 }
 
@@ -1467,6 +1475,9 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_itrace_start_event(machine, event); break;
 	case PERF_RECORD_LOST_SAMPLES:
 		ret = machine__process_lost_samples_event(machine, event, sample); break;
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		ret = machine__process_switch_event(machine, event); break;
 	default:
 		ret = -1;
 		break;
@@ -2008,4 +2019,18 @@ int machine__get_kernel_start(struct machine *machine)
 struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
 {
 	return dsos__findnew(&machine->dsos, filename);
+}
+
+char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)
+{
+	struct machine *machine = vmachine;
+	struct map *map;
+	struct symbol *sym = map_groups__find_symbol(&machine->kmaps, MAP__FUNCTION, *addrp, &map,  NULL);
+
+	if (sym == NULL)
+		return NULL;
+
+	*modp = __map__is_kmodule(map) ? (char *)map->dso->short_name : NULL;
+	*addrp = map->unmap_ip(map, sym->start);
+	return sym->name;
 }

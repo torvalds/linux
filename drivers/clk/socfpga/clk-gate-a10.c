@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -38,7 +39,7 @@ static unsigned long socfpga_gate_clk_recalc_rate(struct clk_hw *hwclk,
 		div = socfpgaclk->fixed_div;
 	else if (socfpgaclk->div_reg) {
 		val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
-		val &= div_mask(socfpgaclk->width);
+		val &= GENMASK(socfpgaclk->width - 1, 0);
 		div = (1 << val);
 	}
 

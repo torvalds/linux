@@ -157,7 +157,7 @@ static int  device_rx_srv(struct vnt_private *pDevice, unsigned int uIdx);
 static int  device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx);
 static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pDesc);
 static void device_init_registers(struct vnt_private *pDevice);
-static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc);
+static void device_free_tx_buf(struct vnt_private *, struct vnt_tx_desc *);
 static void device_free_td0_ring(struct vnt_private *pDevice);
 static void device_free_td1_ring(struct vnt_private *pDevice);
 static void device_free_rd0_ring(struct vnt_private *pDevice);
@@ -522,8 +522,8 @@ static bool device_init_rings(struct vnt_private *pDevice)
 	vir_pool = dma_zalloc_coherent(&pDevice->pcid->dev,
 					 pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 					 pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-					 pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-					 pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
+					 pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+					 pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc),
 					 &pDevice->pool_dma, GFP_ATOMIC);
 	if (vir_pool == NULL) {
 		dev_err(&pDevice->pcid->dev, "allocate desc dma memory failed\n");
@@ -551,8 +551,8 @@ static bool device_init_rings(struct vnt_private *pDevice)
 		dma_free_coherent(&pDevice->pcid->dev,
 				    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 				    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-				    pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-				    pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc),
+				    pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+				    pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc),
 				    vir_pool, pDevice->pool_dma
 			);
 		return false;
@@ -562,7 +562,7 @@ static bool device_init_rings(struct vnt_private *pDevice)
 		pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc);
 
 	pDevice->td1_pool_dma = pDevice->td0_pool_dma +
-		pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc);
+		pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc);
 
 	/* vir_pool: pvoid type */
 	pDevice->apTD0Rings = vir_pool
@@ -572,7 +572,7 @@ static bool device_init_rings(struct vnt_private *pDevice)
 	pDevice->apTD1Rings = vir_pool
 		+ pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc)
 		+ pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc)
-		+ pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc);
+		+ pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc);
 
 	pDevice->tx1_bufs = pDevice->tx0_bufs +
 		pDevice->sOpts.nTxDescs[0] * PKT_BUF_SZ;
@@ -597,8 +597,8 @@ static void device_free_rings(struct vnt_private *pDevice)
 	dma_free_coherent(&pDevice->pcid->dev,
 			    pDevice->sOpts.nRxDescs0 * sizeof(SRxDesc) +
 			    pDevice->sOpts.nRxDescs1 * sizeof(SRxDesc) +
-			    pDevice->sOpts.nTxDescs[0] * sizeof(STxDesc) +
-			    pDevice->sOpts.nTxDescs[1] * sizeof(STxDesc)
+			    pDevice->sOpts.nTxDescs[0] * sizeof(struct vnt_tx_desc) +
+			    pDevice->sOpts.nTxDescs[1] * sizeof(struct vnt_tx_desc)
 			    ,
 			    pDevice->aRD0Ring, pDevice->pool_dma
 		);
@@ -623,12 +623,11 @@ static void device_init_rd0_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nRxDescs0; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD0Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
-		ASSERT(pDesc->pRDInfo);
+
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
 
 		pDesc->next = &(pDevice->aRD0Ring[(i+1) % pDevice->sOpts.nRxDescs0]);
-		pDesc->pRDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
 	}
 
@@ -647,12 +646,11 @@ static void device_init_rd1_ring(struct vnt_private *pDevice)
 	for (i = 0; i < pDevice->sOpts.nRxDescs1; i ++, curr += sizeof(SRxDesc)) {
 		pDesc = &(pDevice->aRD1Ring[i]);
 		pDesc->pRDInfo = alloc_rd_info();
-		ASSERT(pDesc->pRDInfo);
+
 		if (!device_alloc_rx_buf(pDevice, pDesc))
 			dev_err(&pDevice->pcid->dev, "can not alloc rx bufs\n");
 
 		pDesc->next = &(pDevice->aRD1Ring[(i+1) % pDevice->sOpts.nRxDescs1]);
-		pDesc->pRDInfo->curr_desc = cpu_to_le32(curr);
 		pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
 	}
 
@@ -699,20 +697,20 @@ static void device_init_td0_ring(struct vnt_private *pDevice)
 {
 	int i;
 	dma_addr_t  curr;
-	PSTxDesc        pDesc;
+	struct vnt_tx_desc *pDesc;
 
 	curr = pDevice->td0_pool_dma;
-	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++, curr += sizeof(STxDesc)) {
+	for (i = 0; i < pDevice->sOpts.nTxDescs[0];
+	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		pDesc = &(pDevice->apTD0Rings[i]);
-		pDesc->pTDInfo = alloc_td_info();
-		ASSERT(pDesc->pTDInfo);
+		pDesc->td_info = alloc_td_info();
+
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->pTDInfo->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
-			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
+			pDesc->td_info->buf = pDevice->tx0_bufs + (i)*PKT_BUF_SZ;
+			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma0 + (i)*PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD0Rings[(i+1) % pDevice->sOpts.nTxDescs[0]]);
-		pDesc->pTDInfo->curr_desc = cpu_to_le32(curr);
-		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
+		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
@@ -724,21 +722,21 @@ static void device_init_td1_ring(struct vnt_private *pDevice)
 {
 	int i;
 	dma_addr_t  curr;
-	PSTxDesc    pDesc;
+	struct vnt_tx_desc *pDesc;
 
 	/* Init the TD ring entries */
 	curr = pDevice->td1_pool_dma;
-	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++, curr += sizeof(STxDesc)) {
+	for (i = 0; i < pDevice->sOpts.nTxDescs[1];
+	     i++, curr += sizeof(struct vnt_tx_desc)) {
 		pDesc = &(pDevice->apTD1Rings[i]);
-		pDesc->pTDInfo = alloc_td_info();
-		ASSERT(pDesc->pTDInfo);
+		pDesc->td_info = alloc_td_info();
+
 		if (pDevice->flags & DEVICE_FLAGS_TX_ALIGN) {
-			pDesc->pTDInfo->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
-			pDesc->pTDInfo->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
+			pDesc->td_info->buf = pDevice->tx1_bufs + (i) * PKT_BUF_SZ;
+			pDesc->td_info->buf_dma = pDevice->tx_bufs_dma1 + (i) * PKT_BUF_SZ;
 		}
 		pDesc->next = &(pDevice->apTD1Rings[(i + 1) % pDevice->sOpts.nTxDescs[1]]);
-		pDesc->pTDInfo->curr_desc = cpu_to_le32(curr);
-		pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
+		pDesc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_tx_desc));
 	}
 
 	if (i > 0)
@@ -751,17 +749,11 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[0]; i++) {
-		PSTxDesc        pDesc = &(pDevice->apTD0Rings[i]);
-		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+		struct vnt_tx_desc *pDesc = &pDevice->apTD0Rings[i];
+		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
-		if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma))
-			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-					 pTDInfo->skb->len, DMA_TO_DEVICE);
-
-		if (pTDInfo->skb)
-			dev_kfree_skb(pTDInfo->skb);
-
-		kfree(pDesc->pTDInfo);
+		dev_kfree_skb(pTDInfo->skb);
+		kfree(pDesc->td_info);
 	}
 }
 
@@ -770,17 +762,11 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 	int i;
 
 	for (i = 0; i < pDevice->sOpts.nTxDescs[1]; i++) {
-		PSTxDesc        pDesc = &(pDevice->apTD1Rings[i]);
-		PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+		struct vnt_tx_desc *pDesc = &pDevice->apTD1Rings[i];
+		struct vnt_td_info *pTDInfo = pDesc->td_info;
 
-		if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma))
-			dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-					 pTDInfo->skb->len, DMA_TO_DEVICE);
-
-		if (pTDInfo->skb)
-			dev_kfree_skb(pTDInfo->skb);
-
-		kfree(pDesc->pTDInfo);
+		dev_kfree_skb(pTDInfo->skb);
+		kfree(pDesc->td_info);
 	}
 }
 
@@ -822,7 +808,6 @@ static bool device_alloc_rx_buf(struct vnt_private *pDevice, PSRxDesc pRD)
 	pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 	if (pRDInfo->skb == NULL)
 		return false;
-	ASSERT(pRDInfo->skb);
 
 	pRDInfo->skb_dma =
 		dma_map_single(&pDevice->pcid->dev,
@@ -856,7 +841,7 @@ static const u8 fallback_rate1[5][5] = {
 };
 
 static int vnt_int_report_rate(struct vnt_private *priv,
-			       PDEVICE_TD_INFO context, u8 tsr0, u8 tsr1)
+			       struct vnt_td_info *context, u8 tsr0, u8 tsr1)
 {
 	struct vnt_tx_fifo_head *fifo_head;
 	struct ieee80211_tx_info *info;
@@ -917,23 +902,23 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 
 static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 {
-	PSTxDesc                 pTD;
+	struct vnt_tx_desc *pTD;
 	int                      works = 0;
 	unsigned char byTsr0;
 	unsigned char byTsr1;
 
 	for (pTD = pDevice->apTailTD[uIdx]; pDevice->iTDUsed[uIdx] > 0; pTD = pTD->next) {
-		if (pTD->m_td0TD0.f1Owner == OWNED_BY_NIC)
+		if (pTD->td0.owner == OWNED_BY_NIC)
 			break;
 		if (works++ > 15)
 			break;
 
-		byTsr0 = pTD->m_td0TD0.byTSR0;
-		byTsr1 = pTD->m_td0TD0.byTSR1;
+		byTsr0 = pTD->td0.tsr0;
+		byTsr1 = pTD->td0.tsr1;
 
 		/* Only the status of first TD in the chain is correct */
-		if (pTD->m_td1TD1.byTCR & TCR_STP) {
-			if ((pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB) != 0) {
+		if (pTD->td1.tcr & TCR_STP) {
+			if ((pTD->td_info->flags & TD_FLAGS_NETIF_SKB) != 0) {
 				if (!(byTsr1 & TSR1_TERR)) {
 					if (byTsr0 != 0) {
 						pr_debug(" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X]\n",
@@ -947,13 +932,13 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 			}
 
 			if (byTsr1 & TSR1_TERR) {
-				if ((pTD->pTDInfo->byFlags & TD_FLAGS_PRIV_SKB) != 0) {
+				if ((pTD->td_info->flags & TD_FLAGS_PRIV_SKB) != 0) {
 					pr_debug(" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X]\n",
 						 (int)uIdx, byTsr1, byTsr0);
 				}
 			}
 
-			vnt_int_report_rate(pDevice, pTD->pTDInfo, byTsr0, byTsr1);
+			vnt_int_report_rate(pDevice, pTD->td_info, byTsr0, byTsr1);
 
 			device_free_tx_buf(pDevice, pTD);
 			pDevice->iTDUsed[uIdx]--;
@@ -975,23 +960,17 @@ static void device_error(struct vnt_private *pDevice, unsigned short status)
 	}
 }
 
-static void device_free_tx_buf(struct vnt_private *pDevice, PSTxDesc pDesc)
+static void device_free_tx_buf(struct vnt_private *pDevice,
+			       struct vnt_tx_desc *pDesc)
 {
-	PDEVICE_TD_INFO  pTDInfo = pDesc->pTDInfo;
+	struct vnt_td_info *pTDInfo = pDesc->td_info;
 	struct sk_buff *skb = pTDInfo->skb;
-
-	/* pre-allocated buf_dma can't be unmapped. */
-	if (pTDInfo->skb_dma && (pTDInfo->skb_dma != pTDInfo->buf_dma)) {
-		dma_unmap_single(&pDevice->pcid->dev, pTDInfo->skb_dma,
-				 skb->len, DMA_TO_DEVICE);
-	}
 
 	if (skb)
 		ieee80211_tx_status_irqsafe(pDevice->hw, skb);
 
-	pTDInfo->skb_dma = 0;
 	pTDInfo->skb = NULL;
-	pTDInfo->byFlags = 0;
+	pTDInfo->flags = 0;
 }
 
 static void vnt_check_bb_vga(struct vnt_private *priv)
@@ -1180,7 +1159,7 @@ static irqreturn_t vnt_interrupt(int irq,  void *arg)
 static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	PSTxDesc head_td;
+	struct vnt_tx_desc *head_td;
 	u32 dma_idx;
 	unsigned long flags;
 
@@ -1198,12 +1177,12 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td = priv->apCurrTD[dma_idx];
 
-	head_td->m_td1TD1.byTCR = 0;
+	head_td->td1.tcr = 0;
 
-	head_td->pTDInfo->skb = skb;
+	head_td->td_info->skb = skb;
 
 	if (dma_idx == TYPE_AC0DMA)
-		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
+		head_td->td_info->flags = TD_FLAGS_NETIF_SKB;
 
 	priv->apCurrTD[dma_idx] = head_td->next;
 
@@ -1211,26 +1190,22 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	vnt_generate_fifo_header(priv, dma_idx, head_td, skb);
 
-	if (MACbIsRegBitsOn(priv->PortOffset, MAC_REG_PSCTL, PSCTL_PS))
-		MACbPSWakeup(priv->PortOffset);
-
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->bPWBitOn = false;
 
 	/* Set TSR1 & ReqCount in TxDescHead */
-	head_td->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-	head_td->m_td1TD1.wReqCount =
-			cpu_to_le16((u16)head_td->pTDInfo->dwReqCount);
+	head_td->td1.tcr |= (TCR_STP | TCR_EDP | EDMSDU);
+	head_td->td1.req_count = cpu_to_le16(head_td->td_info->req_count);
 
-	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
+	head_td->buff_addr = cpu_to_le32(head_td->td_info->buf_dma);
 
 	/* Poll Transmit the adapter */
 	wmb();
-	head_td->m_td0TD0.f1Owner = OWNED_BY_NIC;
+	head_td->td0.owner = OWNED_BY_NIC;
 	wmb(); /* second memory barrier */
 
-	if (head_td->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)
+	if (head_td->td_info->flags & TD_FLAGS_NETIF_SKB)
 		MACvTransmitAC0(priv->PortOffset);
 	else
 		MACvTransmit0(priv->PortOffset);
@@ -1775,6 +1750,12 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (dma_set_mask(&pcid->dev, DMA_BIT_MASK(32))) {
+		dev_err(&pcid->dev, ": Failed to set dma 32 bit mask\n");
+		device_free_info(priv);
+		return -ENODEV;
+	}
+
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
@@ -1812,6 +1793,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	ieee80211_hw_set(priv->hw, SIGNAL_DBM);
 	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(priv->hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(priv->hw, SUPPORTS_PS);
 
 	priv->hw->max_signal = 100;
 

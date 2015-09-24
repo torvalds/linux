@@ -166,5 +166,12 @@ config POWER_RESET_RMOBILE
 	help
 	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
 
+config POWER_RESET_ZX
+	tristate "ZTE SoCs reset driver"
+	depends on ARCH_ZX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Reboot support for ZTE SoCs.
+
 endif
 

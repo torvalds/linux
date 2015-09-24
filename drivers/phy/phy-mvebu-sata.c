@@ -75,7 +75,7 @@ static int phy_mvebu_sata_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_mvebu_sata_ops = {
+static const struct phy_ops phy_mvebu_sata_ops = {
 	.power_on	= phy_mvebu_sata_power_on,
 	.power_off	= phy_mvebu_sata_power_off,
 	.owner		= THIS_MODULE,

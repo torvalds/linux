@@ -19,8 +19,6 @@
 #ifndef __INC_FIRMWARE_H
 #define __INC_FIRMWARE_H
 
-#define RTL8190_CPU_START_OFFSET	0x80
-
 #define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8)
 
 #define RTL8192E_BOOT_IMG_FW	"RTL8192E/boot.img"
@@ -61,7 +59,7 @@ struct rt_firmware {
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
 };
 
-bool init_firmware(struct net_device *dev);
-extern void firmware_init_param(struct net_device *dev);
+bool rtl92e_init_fw(struct net_device *dev);
+void rtl92e_init_fw_param(struct net_device *dev);
 
 #endif
