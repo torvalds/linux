@@ -256,9 +256,6 @@ struct bxt_ddi_buf_trans {
 	bool default_index; /* true if the entry represents default value */
 };
 
-/* BSpec does not define separate vswing/pre-emphasis values for eDP.
- * Using DP values for eDP as well.
- */
 static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 					/* Idx	NT mV diff	db  */
 	{ 52,  0x9A, 0, 128, true  },	/* 0:	400		0   */
@@ -271,6 +268,20 @@ static const struct bxt_ddi_buf_trans bxt_ddi_translations_dp[] = {
 	{ 102, 0x9A, 0, 128, false },	/* 7:	800		0   */
 	{ 154, 0x9A, 0, 85,  false },	/* 8:	800		3.5 */
 	{ 154, 0x9A, 1, 128, false },	/* 9:	1200		0   */
+};
+
+static const struct bxt_ddi_buf_trans bxt_ddi_translations_edp[] = {
+					/* Idx	NT mV diff	db  */
+	{ 26, 0, 0, 128, false },	/* 0:	200		0   */
+	{ 38, 0, 0, 112, false },	/* 1:	200		1.5 */
+	{ 48, 0, 0, 96,  false },	/* 2:	200		4   */
+	{ 54, 0, 0, 69,  false },	/* 3:	200		6   */
+	{ 32, 0, 0, 128, false },	/* 4:	250		0   */
+	{ 48, 0, 0, 104, false },	/* 5:	250		1.5 */
+	{ 54, 0, 0, 85,  false },	/* 6:	250		4   */
+	{ 43, 0, 0, 128, false },	/* 7:	300		0   */
+	{ 54, 0, 0, 101, false },	/* 8:	300		1.5 */
+	{ 48, 0, 0, 128, false },	/* 9:	300		0   */
 };
 
 /* BSpec has 2 recommended values - entries 0 and 8.
@@ -2112,7 +2123,11 @@ static void bxt_ddi_vswing_sequence(struct drm_device *dev, u32 level,
 	u32 n_entries, i;
 	uint32_t val;
 
-	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
+	if (type == INTEL_OUTPUT_EDP && dev_priv->edp_low_vswing) {
+		n_entries = ARRAY_SIZE(bxt_ddi_translations_edp);
+		ddi_translations = bxt_ddi_translations_edp;
+	} else if (type == INTEL_OUTPUT_DISPLAYPORT
+			|| type == INTEL_OUTPUT_EDP) {
 		n_entries = ARRAY_SIZE(bxt_ddi_translations_dp);
 		ddi_translations = bxt_ddi_translations_dp;
 	} else if (type == INTEL_OUTPUT_HDMI) {
