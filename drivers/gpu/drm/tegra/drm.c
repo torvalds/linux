@@ -919,7 +919,8 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 #endif
 
 static struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
+			   DRIVER_ATOMIC,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
