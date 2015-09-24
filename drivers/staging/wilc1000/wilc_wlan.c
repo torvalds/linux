@@ -75,7 +75,6 @@ typedef struct {
 	struct txq_entry_t *txq_head;
 	struct txq_entry_t *txq_tail;
 	int txq_entries;
-	void *txq_wait;
 	int txq_exit;
 
 	/**
@@ -223,7 +222,7 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 	 **/
 	PRINT_D(TX_DBG, "Wake the txq_handling\n");
 
-	up(p->txq_wait);
+	up(&g_linux_wlan->txq_event);
 }
 
 static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
@@ -256,7 +255,7 @@ static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 	/**
 	 *      wake up TX queue
 	 **/
-	up(p->txq_wait);
+	up(&g_linux_wlan->txq_event);
 	PRINT_D(TX_DBG, "Wake up the txq_handler\n");
 
 	return 0;
@@ -458,7 +457,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 
 	while (Dropped > 0) {
 		/*consume the semaphore count of the removed packet*/
-		p->os_func.os_wait(p->txq_wait, 1);
+		p->os_func.os_wait(&g_linux_wlan->txq_event, 1);
 		Dropped--;
 	}
 
@@ -1973,7 +1972,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 
 	g_wlan.txq_add_to_head_lock = inp->os_context.txq_add_to_head_critical_section;
 
-	g_wlan.txq_wait = inp->os_context.txq_wait_event;
 	g_wlan.cfg_wait = inp->os_context.cfg_wait_event;
 	g_wlan.tx_buffer_size = inp->os_context.tx_buffer_size;
 #if defined (MEMORY_STATIC)
