@@ -40,7 +40,6 @@ typedef struct {
 	/**
 	 *      configuration interface functions
 	 **/
-	wilc_cfg_func_t cif_func;
 	int cfg_frame_in_use;
 	wilc_cfg_frame_t cfg_frame;
 	u32 cfg_frame_offset;
@@ -1199,7 +1198,7 @@ static void wilc_wlan_handle_rxq(void)
 
 
 
-					p->cif_func.rx_indicate(&buffer[pkt_offset + offset], pkt_len, &rsp);
+					mac_cfg.rx_indicate(&buffer[pkt_offset + offset], pkt_len, &rsp);
 					if (rsp.type == WILC_CFG_RSP) {
 						/**
 						 *      wake up the waiting task...
@@ -1764,7 +1763,8 @@ static int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size, in
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = p->cif_func.cfg_wid_set(p->cfg_frame.frame, offset, (u16)wid, buffer, buffer_size);
+	ret_size = mac_cfg.cfg_wid_set(p->cfg_frame.frame, offset, (u16)wid,
+				       buffer, buffer_size);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 
@@ -1803,7 +1803,7 @@ static int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = p->cif_func.cfg_wid_get(p->cfg_frame.frame, offset, (u16)wid);
+	ret_size = mac_cfg.cfg_wid_get(p->cfg_frame.frame, offset, (u16)wid);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 
@@ -1830,10 +1830,9 @@ static int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 
 static int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	int ret;
 
-	ret = p->cif_func.cfg_wid_get_val((u16)wid, buffer, buffer_size);
+	ret = mac_cfg.cfg_wid_get_val((u16)wid, buffer, buffer_size);
 
 	return ret;
 }
@@ -1999,8 +1998,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 		ret = -105;
 		goto _fail_;
 	}
-	memcpy((void *)&g_wlan.cif_func, &mac_cfg, sizeof(wilc_cfg_func_t));
-
 
 	/**
 	 *      alloc tx, rx buffer
