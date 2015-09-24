@@ -178,7 +178,7 @@ out:
 }
 EXPORT_SYMBOL(ieee80211_wx_set_wap);
 
-int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
+int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a, union iwreq_data *wrqu, char *b)
 {
 	int len, ret = 0;
 	unsigned long flags;
