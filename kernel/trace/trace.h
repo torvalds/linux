@@ -176,6 +176,12 @@ struct trace_options {
 	struct trace_option_dentry	*topts;
 };
 
+struct trace_pid_list {
+	unsigned int			nr_pids;
+	int				order;
+	pid_t				*pids;
+};
+
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
@@ -201,6 +207,7 @@ struct trace_array {
 	bool			allocated_snapshot;
 	unsigned long		max_latency;
 #endif
+	struct trace_pid_list	__rcu *filtered_pids;
 	/*
 	 * max_lock is used to protect the swapping of buffers
 	 * when taking a max snapshot. The buffers themselves are

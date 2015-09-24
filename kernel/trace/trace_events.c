@@ -15,8 +15,10 @@
 #include <linux/kthread.h>
 #include <linux/tracefs.h>
 #include <linux/uaccess.h>
+#include <linux/bsearch.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
+#include <linux/sort.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 
@@ -445,6 +447,43 @@ static void ftrace_clear_events(struct trace_array *tr)
 	mutex_unlock(&event_mutex);
 }
 
+static int cmp_pid(const void *key, const void *elt)
+{
+	const pid_t *search_pid = key;
+	const pid_t *pid = elt;
+
+	if (*search_pid == *pid)
+		return 0;
+	if (*search_pid < *pid)
+		return -1;
+	return 1;
+}
+
+static void __ftrace_clear_event_pids(struct trace_array *tr)
+{
+	struct trace_pid_list *pid_list;
+
+	pid_list = rcu_dereference_protected(tr->filtered_pids,
+					     lockdep_is_held(&event_mutex));
+	if (!pid_list)
+		return;
+
+	rcu_assign_pointer(tr->filtered_pids, NULL);
+
+	/* Wait till all users are no longer using pid filtering */
+	synchronize_sched();
+
+	free_pages((unsigned long)pid_list->pids, pid_list->order);
+	kfree(pid_list);
+}
+
+static void ftrace_clear_event_pids(struct trace_array *tr)
+{
+	mutex_lock(&event_mutex);
+	__ftrace_clear_event_pids(tr);
+	mutex_unlock(&event_mutex);
+}
+
 static void __put_system(struct event_subsystem *system)
 {
 	struct event_filter *filter = system->filter;
@@ -775,6 +814,56 @@ static int t_show(struct seq_file *m, void *v)
 static void t_stop(struct seq_file *m, void *p)
 {
 	mutex_unlock(&event_mutex);
+}
+
+static void *p_start(struct seq_file *m, loff_t *pos)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_array *tr = m->private;
+
+	/*
+	 * Grab the mutex, to keep calls to p_next() having the same
+	 * tr->filtered_pids as p_start() has.
+	 * If we just passed the tr->filtered_pids around, then RCU would
+	 * have been enough, but doing that makes things more complex.
+	 */
+	mutex_lock(&event_mutex);
+	rcu_read_lock_sched();
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	if (!pid_list || *pos >= pid_list->nr_pids)
+		return NULL;
+
+	return (void *)&pid_list->pids[*pos];
+}
+
+static void p_stop(struct seq_file *m, void *p)
+{
+	rcu_read_unlock_sched();
+	mutex_unlock(&event_mutex);
+}
+
+static void *
+p_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct trace_array *tr = m->private;
+	struct trace_pid_list *pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	(*pos)++;
+
+	if (*pos >= pid_list->nr_pids)
+		return NULL;
+
+	return (void *)&pid_list->pids[*pos];
+}
+
+static int p_show(struct seq_file *m, void *v)
+{
+	pid_t *pid = v;
+
+	seq_printf(m, "%d\n", *pid);
+	return 0;
 }
 
 static ssize_t
@@ -1334,8 +1423,165 @@ show_header(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 	return r;
 }
 
+static int max_pids(struct trace_pid_list *pid_list)
+{
+	return (PAGE_SIZE << pid_list->order) / sizeof(pid_t);
+}
+
+static ssize_t
+ftrace_event_pid_write(struct file *file, const char __user *ubuf,
+		       size_t cnt, loff_t *ppos)
+{
+	struct seq_file *m = file->private_data;
+	struct trace_array *tr = m->private;
+	struct trace_pid_list *filtered_pids = NULL;
+	struct trace_pid_list *pid_list = NULL;
+	struct trace_parser parser;
+	unsigned long val;
+	loff_t this_pos;
+	ssize_t read = 0;
+	ssize_t ret = 0;
+	pid_t pid;
+	int i;
+
+	if (!cnt)
+		return 0;
+
+	ret = tracing_update_buffers();
+	if (ret < 0)
+		return ret;
+
+	if (trace_parser_get_init(&parser, EVENT_BUF_SIZE + 1))
+		return -ENOMEM;
+
+	mutex_lock(&event_mutex);
+	/*
+	 * Load as many pids into the array before doing a
+	 * swap from the tr->filtered_pids to the new list.
+	 */
+	while (cnt > 0) {
+
+		this_pos = 0;
+
+		ret = trace_get_user(&parser, ubuf, cnt, &this_pos);
+		if (ret < 0 || !trace_parser_loaded(&parser))
+			break;
+
+		read += ret;
+		ubuf += ret;
+		cnt -= ret;
+
+		parser.buffer[parser.idx] = 0;
+
+		ret = -EINVAL;
+		if (kstrtoul(parser.buffer, 0, &val))
+			break;
+		if (val > INT_MAX)
+			break;
+
+		pid = (pid_t)val;
+
+		ret = -ENOMEM;
+		if (!pid_list) {
+			pid_list = kmalloc(sizeof(*pid_list), GFP_KERNEL);
+			if (!pid_list)
+				break;
+
+			filtered_pids = rcu_dereference_protected(tr->filtered_pids,
+							lockdep_is_held(&event_mutex));
+			if (filtered_pids)
+				pid_list->order = filtered_pids->order;
+			else
+				pid_list->order = 0;
+
+			pid_list->pids = (void *)__get_free_pages(GFP_KERNEL,
+								  pid_list->order);
+			if (!pid_list->pids)
+				break;
+
+			if (filtered_pids) {
+				pid_list->nr_pids = filtered_pids->nr_pids;
+				memcpy(pid_list->pids, filtered_pids->pids,
+				       pid_list->nr_pids * sizeof(pid_t));
+			} else
+				pid_list->nr_pids = 0;
+		}
+
+		if (pid_list->nr_pids >= max_pids(pid_list)) {
+			pid_t *pid_page;
+
+			pid_page = (void *)__get_free_pages(GFP_KERNEL,
+							    pid_list->order + 1);
+			if (!pid_page)
+				break;
+			memcpy(pid_page, pid_list->pids,
+			       pid_list->nr_pids * sizeof(pid_t));
+			free_pages((unsigned long)pid_list->pids, pid_list->order);
+
+			pid_list->order++;
+			pid_list->pids = pid_page;
+		}
+
+		pid_list->pids[pid_list->nr_pids++] = pid;
+		trace_parser_clear(&parser);
+		ret = 0;
+	}
+	trace_parser_put(&parser);
+
+	if (ret < 0) {
+		if (pid_list)
+			free_pages((unsigned long)pid_list->pids, pid_list->order);
+		kfree(pid_list);
+		mutex_unlock(&event_mutex);
+		return ret;
+	}
+
+	if (!pid_list) {
+		mutex_unlock(&event_mutex);
+		return ret;
+	}
+
+	sort(pid_list->pids, pid_list->nr_pids, sizeof(pid_t), cmp_pid, NULL);
+
+	/* Remove duplicates */
+	for (i = 1; i < pid_list->nr_pids; i++) {
+		int start = i;
+
+		while (i < pid_list->nr_pids &&
+		       pid_list->pids[i - 1] == pid_list->pids[i])
+			i++;
+
+		if (start != i) {
+			if (i < pid_list->nr_pids) {
+				memmove(&pid_list->pids[start], &pid_list->pids[i],
+					(pid_list->nr_pids - i) * sizeof(pid_t));
+				pid_list->nr_pids -= i - start;
+				i = start;
+			} else
+				pid_list->nr_pids = start;
+		}
+	}
+
+	rcu_assign_pointer(tr->filtered_pids, pid_list);
+
+	mutex_unlock(&event_mutex);
+
+	if (filtered_pids) {
+		synchronize_sched();
+
+		free_pages((unsigned long)filtered_pids->pids, filtered_pids->order);
+		kfree(filtered_pids);
+	}
+
+	ret = read;
+	*ppos += read;
+
+	return ret;
+}
+
 static int ftrace_event_avail_open(struct inode *inode, struct file *file);
 static int ftrace_event_set_open(struct inode *inode, struct file *file);
+static int ftrace_event_set_pid_open(struct inode *inode, struct file *file);
 static int ftrace_event_release(struct inode *inode, struct file *file);
 
 static const struct seq_operations show_event_seq_ops = {
@@ -1352,6 +1598,13 @@ static const struct seq_operations show_set_event_seq_ops = {
 	.stop = t_stop,
 };
 
+static const struct seq_operations show_set_pid_seq_ops = {
+	.start = p_start,
+	.next = p_next,
+	.show = p_show,
+	.stop = p_stop,
+};
+
 static const struct file_operations ftrace_avail_fops = {
 	.open = ftrace_event_avail_open,
 	.read = seq_read,
@@ -1363,6 +1616,14 @@ static const struct file_operations ftrace_set_event_fops = {
 	.open = ftrace_event_set_open,
 	.read = seq_read,
 	.write = ftrace_event_write,
+	.llseek = seq_lseek,
+	.release = ftrace_event_release,
+};
+
+static const struct file_operations ftrace_set_event_pid_fops = {
+	.open = ftrace_event_set_pid_open,
+	.read = seq_read,
+	.write = ftrace_event_pid_write,
 	.llseek = seq_lseek,
 	.release = ftrace_event_release,
 };
@@ -1470,6 +1731,26 @@ ftrace_event_set_open(struct inode *inode, struct file *file)
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC))
 		ftrace_clear_events(tr);
+
+	ret = ftrace_event_open(inode, file, seq_ops);
+	if (ret < 0)
+		trace_array_put(tr);
+	return ret;
+}
+
+static int
+ftrace_event_set_pid_open(struct inode *inode, struct file *file)
+{
+	const struct seq_operations *seq_ops = &show_set_pid_seq_ops;
+	struct trace_array *tr = inode->i_private;
+	int ret;
+
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
+	if ((file->f_mode & FMODE_WRITE) &&
+	    (file->f_flags & O_TRUNC))
+		ftrace_clear_event_pids(tr);
 
 	ret = ftrace_event_open(inode, file, seq_ops);
 	if (ret < 0)
@@ -2471,6 +2752,9 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 		return -ENOMEM;
 	}
 
+	entry = tracefs_create_file("set_event_pid", 0644, parent,
+				    tr, &ftrace_set_event_pid_fops);
+
 	/* ring buffer internal formats */
 	trace_create_file("header_page", 0444, d_events,
 			  ring_buffer_print_page_header,
@@ -2550,6 +2834,9 @@ int event_trace_del_tracer(struct trace_array *tr)
 
 	/* Disable any event triggers and associated soft-disabled events */
 	clear_event_triggers(tr);
+
+	/* Clear the pid list */
+	__ftrace_clear_event_pids(tr);
 
 	/* Disable any running events */
 	__ftrace_set_clr_event_nolock(tr, NULL, NULL, NULL, 0);
