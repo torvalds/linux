@@ -5,6 +5,8 @@ The follow error types are supported:
 
   memory controller	- Memory controller
   PMD (L1/L2)		- Processor module unit (PMD) L1/L2 cache
+  L3			- L3 cache controller
+  SoC			- SoC IP's such as Ethernet, SATA, and etc
 
 The following section describes the EDAC DT node binding.
 
@@ -29,6 +31,17 @@ Required properties for PMD subnode:
                           "apm,xgene-edac-pmd-v2".
 - reg			: First resource shall be the PMD resource.
 - pmd-controller	: Instance number of the PMD controller.
+
+Required properties for L3 subnode:
+- compatible		: Shall be "apm,xgene-edac-l3" or
+                          "apm,xgene-edac-l3-v2".
+- reg			: First resource shall be the L3 EDAC resource.
+
+Required properties for SoC subnode:
+- compatible		: Shall be "apm,xgene-edac-soc-v1" for revision 1 or
+                          "apm,xgene-edac-l3-soc" for general value reporting
+                          only.
+- reg			: First resource shall be the SoC EDAC resource.
 
 Example:
 	csw: csw@7e200000 {
@@ -75,5 +88,15 @@ Example:
 			compatible = "apm,xgene-edac-pmd";
 			reg = <0x0 0x7c000000 0x0 0x200000>;
 			pmd-controller = <0>;
+		};
+
+		edacl3@7e600000 {
+			compatible = "apm,xgene-edac-l3";
+			reg = <0x0 0x7e600000 0x0 0x1000>;
+		};
+
+		edacsoc@7e930000 {
+			compatible = "apm,xgene-edac-soc-v1";
+			reg = <0x0 0x7e930000 0x0 0x1000>;
 		};
 	};
