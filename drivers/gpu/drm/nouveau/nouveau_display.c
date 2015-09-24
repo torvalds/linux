@@ -51,12 +51,12 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 }
 
 int
-nouveau_display_vblank_enable(struct drm_device *dev, int head)
+nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_get(&nv_crtc->vblank);
 			return 0;
 		}
@@ -65,12 +65,12 @@ nouveau_display_vblank_enable(struct drm_device *dev, int head)
 }
 
 void
-nouveau_display_vblank_disable(struct drm_device *dev, int head)
+nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == head) {
+		if (nv_crtc->index == pipe) {
 			nvif_notify_put(&nv_crtc->vblank);
 			return;
 		}
@@ -132,14 +132,15 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 int
-nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
-			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			   unsigned int flags, int *vpos, int *hpos,
+			   ktime_t *stime, ktime_t *etime,
 			   const struct drm_display_mode *mode)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
 							       stime, etime);
 		}
@@ -149,15 +150,15 @@ nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
 }
 
 int
-nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
-			 struct timeval *time, unsigned flags)
+nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
+			 int *max_error, struct timeval *time, unsigned flags)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
+		if (nouveau_crtc(crtc)->index == pipe) {
 			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					head, max_error, time, flags,
+					pipe, max_error, time, flags,
 					&crtc->hwmode);
 		}
 	}

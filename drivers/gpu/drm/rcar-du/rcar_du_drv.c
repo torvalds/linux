@@ -221,20 +221,20 @@ static void rcar_du_lastclose(struct drm_device *dev)
 	drm_fbdev_cma_restore_mode(rcdu->fbdev);
 }
 
-static int rcar_du_enable_vblank(struct drm_device *dev, int crtc)
+static int rcar_du_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 
-	rcar_du_crtc_enable_vblank(&rcdu->crtcs[crtc], true);
+	rcar_du_crtc_enable_vblank(&rcdu->crtcs[pipe], true);
 
 	return 0;
 }
 
-static void rcar_du_disable_vblank(struct drm_device *dev, int crtc)
+static void rcar_du_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct rcar_du_device *rcdu = dev->dev_private;
 
-	rcar_du_crtc_enable_vblank(&rcdu->crtcs[crtc], false);
+	rcar_du_crtc_enable_vblank(&rcdu->crtcs[pipe], false);
 }
 
 static const struct file_operations rcar_du_fops = {

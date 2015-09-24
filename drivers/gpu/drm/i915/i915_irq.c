@@ -554,7 +554,7 @@ static void i915_enable_asle_pipestat(struct drm_device *dev)
  *   of horizontal active on the first line of vertical active
  */
 
-static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 i8xx_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	/* Gen2 doesn't have a hardware frame counter */
 	return 0;
@@ -563,7 +563,7 @@ static u32 i8xx_get_vblank_counter(struct drm_device *dev, int pipe)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long high_frame;
@@ -611,7 +611,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
-static u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+static u32 gm45_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int reg = PIPE_FRMCOUNT_GM45(pipe);
@@ -672,7 +672,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
+static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
 				    ktime_t *stime, ktime_t *etime,
 				    const struct drm_display_mode *mode)
@@ -809,27 +809,27 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return position;
 }
 
-static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
+static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			      int *max_error,
 			      struct timeval *vblank_time,
 			      unsigned flags)
 {
 	struct drm_crtc *crtc;
 
-	if (pipe < 0 || pipe >= INTEL_INFO(dev)->num_pipes) {
-		DRM_ERROR("Invalid crtc %d\n", pipe);
+	if (pipe >= INTEL_INFO(dev)->num_pipes) {
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get drm_crtc to timestamp: */
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 	if (crtc == NULL) {
-		DRM_ERROR("Invalid crtc %d\n", pipe);
+		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	if (!crtc->hwmode.crtc_clock) {
-		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
+		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
 		return -EBUSY;
 	}
 
@@ -2431,7 +2431,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static int i915_enable_vblank(struct drm_device *dev, int pipe)
+static int i915_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2448,7 +2448,7 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
+static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2462,7 +2462,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
+static int valleyview_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2475,7 +2475,7 @@ static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static int gen8_enable_vblank(struct drm_device *dev, int pipe)
+static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2491,7 +2491,7 @@ static int gen8_enable_vblank(struct drm_device *dev, int pipe)
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static void i915_disable_vblank(struct drm_device *dev, int pipe)
+static void i915_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2503,7 +2503,7 @@ static void i915_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
+static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2515,7 +2515,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
+static void valleyview_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
@@ -2526,7 +2526,7 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void gen8_disable_vblank(struct drm_device *dev, int pipe)
+static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;

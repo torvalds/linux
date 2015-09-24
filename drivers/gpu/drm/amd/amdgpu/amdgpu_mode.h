@@ -540,11 +540,10 @@ bool amdgpu_ddc_probe(struct amdgpu_connector *amdgpu_connector, bool use_aux);
 
 void amdgpu_encoder_set_active_device(struct drm_encoder *encoder);
 
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
-				      unsigned int flags,
-				      int *vpos, int *hpos, ktime_t *stime,
-				      ktime_t *etime,
-				      const struct drm_display_mode *mode);
+int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			       unsigned int flags, int *vpos, int *hpos,
+			       ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode);
 
 int amdgpu_framebuffer_init(struct drm_device *dev,
 			     struct amdgpu_framebuffer *rfb,

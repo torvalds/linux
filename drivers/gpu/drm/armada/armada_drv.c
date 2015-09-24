@@ -254,17 +254,17 @@ void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
 }
 
 /* These are called under the vbl_lock. */
-static int armada_drm_enable_vblank(struct drm_device *dev, int crtc)
+static int armada_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_enable_irq(priv->dcrtc[crtc], VSYNC_IRQ_ENA);
+	armada_drm_crtc_enable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
 	return 0;
 }
 
-static void armada_drm_disable_vblank(struct drm_device *dev, int crtc)
+static void armada_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct armada_private *priv = dev->dev_private;
-	armada_drm_crtc_disable_irq(priv->dcrtc[crtc], VSYNC_IRQ_ENA);
+	armada_drm_crtc_disable_irq(priv->dcrtc[pipe], VSYNC_IRQ_ENA);
 }
 
 static struct drm_ioctl_desc armada_ioctls[] = {

@@ -1263,7 +1263,7 @@ bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
+u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	return 0;
 }
@@ -1271,7 +1271,7 @@ u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-int vmw_enable_vblank(struct drm_device *dev, int crtc)
+int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	return -ENOSYS;
 }
@@ -1279,7 +1279,7 @@ int vmw_enable_vblank(struct drm_device *dev, int crtc)
 /**
  * Function called by DRM code called with vbl_lock held.
  */
-void vmw_disable_vblank(struct drm_device *dev, int crtc)
+void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 }
 

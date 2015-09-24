@@ -425,13 +425,13 @@ static void enable_vblank(struct drm_device *dev, bool enable)
 		tilcdc_clear(dev, reg, mask);
 }
 
-static int tilcdc_enable_vblank(struct drm_device *dev, int crtc)
+static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	enable_vblank(dev, true);
 	return 0;
 }
 
-static void tilcdc_disable_vblank(struct drm_device *dev, int crtc)
+static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	enable_vblank(dev, false);
 }

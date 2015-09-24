@@ -914,9 +914,9 @@ void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
-u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
-int vmw_enable_vblank(struct drm_device *dev, int crtc);
-void vmw_disable_vblank(struct drm_device *dev, int crtc);
+u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
+int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe);
+void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,

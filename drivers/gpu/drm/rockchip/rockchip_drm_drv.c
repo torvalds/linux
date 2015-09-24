@@ -103,7 +103,8 @@ static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 	return NULL;
 }
 
-static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
+static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev,
+					   unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);
@@ -115,7 +116,8 @@ static int rockchip_drm_crtc_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
-static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev, int pipe)
+static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
+					     unsigned int pipe)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = rockchip_crtc_from_pipe(dev, pipe);

@@ -140,7 +140,7 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int fsl_dcu_drm_enable_vblank(struct drm_device *dev, int crtc)
+static int fsl_dcu_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	unsigned int value;
@@ -156,7 +156,8 @@ static int fsl_dcu_drm_enable_vblank(struct drm_device *dev, int crtc)
 	return 0;
 }
 
-static void fsl_dcu_drm_disable_vblank(struct drm_device *dev, int crtc)
+static void fsl_dcu_drm_disable_vblank(struct drm_device *dev,
+				       unsigned int pipe)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 	unsigned int value;

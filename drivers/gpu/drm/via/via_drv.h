@@ -136,9 +136,9 @@ extern int via_init_context(struct drm_device *dev, int context);
 extern int via_final_context(struct drm_device *dev, int context);
 
 extern int via_do_cleanup_map(struct drm_device *dev);
-extern u32 via_get_vblank_counter(struct drm_device *dev, int crtc);
-extern int via_enable_vblank(struct drm_device *dev, int crtc);
-extern void via_disable_vblank(struct drm_device *dev, int crtc);
+extern u32 via_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
+extern int via_enable_vblank(struct drm_device *dev, unsigned int pipe);
+extern void via_disable_vblank(struct drm_device *dev, unsigned int pipe);
 
 extern irqreturn_t via_driver_irq_handler(int irq, void *arg);
 extern void via_driver_irq_preinstall(struct drm_device *dev);

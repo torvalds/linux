@@ -656,7 +656,8 @@ static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
-static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev, int crtc)
+static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev,
+					unsigned int pipe)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
@@ -666,7 +667,8 @@ static int atmel_hlcdc_dc_enable_vblank(struct drm_device *dev, int crtc)
 	return 0;
 }
 
-static void atmel_hlcdc_dc_disable_vblank(struct drm_device *dev, int crtc)
+static void atmel_hlcdc_dc_disable_vblank(struct drm_device *dev,
+					  unsigned int pipe)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 

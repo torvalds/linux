@@ -231,7 +231,7 @@ static irqreturn_t shmob_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int shmob_drm_enable_vblank(struct drm_device *dev, int crtc)
+static int shmob_drm_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct shmob_drm_device *sdev = dev->dev_private;
 
@@ -240,7 +240,7 @@ static int shmob_drm_enable_vblank(struct drm_device *dev, int crtc)
 	return 0;
 }
 
-static void shmob_drm_disable_vblank(struct drm_device *dev, int crtc)
+static void shmob_drm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct shmob_drm_device *sdev = dev->dev_private;
 

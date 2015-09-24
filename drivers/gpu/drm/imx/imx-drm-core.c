@@ -145,10 +145,10 @@ void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 }
 EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
-static int imx_drm_enable_vblank(struct drm_device *drm, int crtc)
+static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[crtc];
+	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
 	int ret;
 
 	if (!imx_drm_crtc)
@@ -163,10 +163,10 @@ static int imx_drm_enable_vblank(struct drm_device *drm, int crtc)
 	return ret;
 }
 
-static void imx_drm_disable_vblank(struct drm_device *drm, int crtc)
+static void imx_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
-	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[crtc];
+	struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[pipe];
 
 	if (!imx_drm_crtc)
 		return;
