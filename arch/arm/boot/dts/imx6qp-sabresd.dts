@@ -29,6 +29,10 @@
 	prefetch;
 };
 
+&ov564x {
+	DOVDD-supply = <&sw4_reg>; /* 1.8v */
+};
+
 &pcie {
 	power-on-gpio = <&gpio3 19 0>;
 	reset-gpio = <&gpio7 12 0>;
