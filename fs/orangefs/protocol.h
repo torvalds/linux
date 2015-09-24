@@ -572,7 +572,6 @@ struct dev_mask2_info_s {
 };
 
 /* pvfs2-util.h *************************************************************/
-#define PVFS_util_min(x1, x2) (((x1) > (x2)) ? (x2) : (x1))
 __s32 PVFS_util_translate_mode(int mode);
 
 /* pvfs2-debug.h ************************************************************/
