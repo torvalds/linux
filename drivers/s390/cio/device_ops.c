@@ -540,7 +540,7 @@ int ccw_device_stlck(struct ccw_device *cdev)
 	if (rc)
 		goto out_unlock;
 	/* Perform operation. */
-	cdev->private->state = DEV_STATE_STEAL_LOCK,
+	cdev->private->state = DEV_STATE_STEAL_LOCK;
 	ccw_device_stlck_start(cdev, &data, &buffer[0], &buffer[32]);
 	spin_unlock_irq(sch->lock);
 	/* Wait for operation to finish. */

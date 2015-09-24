@@ -23,6 +23,8 @@
 
 #define MT_VEND_DEV_MODE_RESET	1
 
+#define MT_VEND_BUF		sizeof(__le32)
+
 enum mt_vendor_req {
 	MT_VEND_DEV_MODE = 1,
 	MT_VEND_WRITE = 2,

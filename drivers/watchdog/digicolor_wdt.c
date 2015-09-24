@@ -143,6 +143,7 @@ static int dc_wdt_probe(struct platform_device *pdev)
 	}
 	dc_wdt_wdd.max_timeout = U32_MAX / clk_get_rate(wdt->clk);
 	dc_wdt_wdd.timeout = dc_wdt_wdd.max_timeout;
+	dc_wdt_wdd.parent = &pdev->dev;
 
 	spin_lock_init(&wdt->lock);
 

@@ -46,6 +46,7 @@ struct fam15h_power_data {
 	unsigned int tdp_to_watts;
 	unsigned int base_tdp;
 	unsigned int processor_pwr_watts;
+	unsigned int cpu_pwr_sample_ratio;
 };
 
 static ssize_t show_power(struct device *dev,
@@ -59,8 +60,19 @@ static ssize_t show_power(struct device *dev,
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
 				  REG_TDP_RUNNING_AVERAGE, &val);
-	running_avg_capture = (val >> 4) & 0x3fffff;
-	running_avg_capture = sign_extend32(running_avg_capture, 21);
+
+	/*
+	 * On Carrizo and later platforms, TdpRunAvgAccCap bit field
+	 * is extended to 4:31 from 4:25.
+	 */
+	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model >= 0x60) {
+		running_avg_capture = val >> 4;
+		running_avg_capture = sign_extend32(running_avg_capture, 27);
+	} else {
+		running_avg_capture = (val >> 4) & 0x3fffff;
+		running_avg_capture = sign_extend32(running_avg_capture, 21);
+	}
+
 	running_avg_range = (val & 0xf) + 1;
 
 	pci_bus_read_config_dword(f4->bus, PCI_DEVFN(PCI_SLOT(f4->devfn), 5),
@@ -117,7 +129,7 @@ static const struct attribute_group fam15h_power_group = {
 };
 __ATTRIBUTE_GROUPS(fam15h_power);
 
-static bool fam15h_power_is_internal_node0(struct pci_dev *f4)
+static bool should_load_on_this_node(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -177,7 +189,7 @@ static int fam15h_power_resume(struct pci_dev *pdev)
 static void fam15h_power_init_data(struct pci_dev *f4,
 					     struct fam15h_power_data *data)
 {
-	u32 val;
+	u32 val, eax, ebx, ecx, edx;
 	u64 tmp;
 
 	pci_read_config_dword(f4, REG_PROCESSOR_TDP, &val);
@@ -198,6 +210,19 @@ static void fam15h_power_init_data(struct pci_dev *f4,
 
 	/* convert to microWatt */
 	data->processor_pwr_watts = (tmp * 15625) >> 10;
+
+	cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+
+	/* CPUID Fn8000_0007:EDX[12] indicates to support accumulated power */
+	if (!(edx & BIT(12)))
+		return;
+
+	/*
+	 * determine the ratio of the compute unit power accumulator
+	 * sample period to the PTSC counter period by executing CPUID
+	 * Fn8000_0007:ECX
+	 */
+	data->cpu_pwr_sample_ratio = ecx;
 }
 
 static int fam15h_power_probe(struct pci_dev *pdev,
@@ -214,7 +239,7 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!fam15h_power_is_internal_node0(pdev))
+	if (!should_load_on_this_node(pdev))
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);
@@ -233,6 +258,7 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 static const struct pci_device_id fam15h_power_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M30H_NB_F4) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F4) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F4) },
 	{}

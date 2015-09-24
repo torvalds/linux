@@ -21,7 +21,7 @@ static void ui_browser__argv_write(struct ui_browser *browser,
 
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
-	slsmg_write_nstring(*arg, browser->width);
+	ui_browser__write_nstring(browser, *arg, browser->width);
 }
 
 static int popup_menu__run(struct ui_browser *menu)

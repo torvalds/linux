@@ -36,10 +36,250 @@
 	};
 };
 
-&pll1 {
-	clock-mult = <15>;
+&pinctrl {
+	emc_pins: emc-pins {
+		emc_addr0_23_cfg {
+			pins =	"p2_9",  "p2_10", "p2_11", "p2_12",
+				"p2_13", "p1_0",  "p1_1",  "p1_2",
+				"p2_8",  "p2_7",  "p2_6",  "p2_2",
+				"p2_1",  "p2_0",  "p6_8",  "p6_7",
+				"pd_16", "pd_15", "pe_0",  "pe_1",
+				"pe_2",  "pe_3",  "pe_4",  "pa_4";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_data0_15_cfg {
+			pins =	"p1_7",  "p1_8",  "p1_9",  "p1_10",
+				"p1_11", "p1_12", "p1_13", "p1_14",
+				"p5_4",  "p5_5",  "p5_6",  "p5_7",
+				"p5_0",  "p5_1",  "p5_2",  "p5_3";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_we_oe_cfg {
+			pins = "p1_6", "p1_3";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_bls0_3_cfg {
+			pins = "p1_4", "p6_6", "pd_13", "pd_10";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_cs0_cs2_cfg {
+			pins = "p1_5", "pd_12";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_sdram_dqm0_3_cfg {
+			pins = "p6_12", "p6_10", "pd_0", "pe_13";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_sdram_ras_cas_cfg {
+			pins = "p6_5", "p6_4";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_sdram_dycs0_cfg {
+			pins = "p6_9";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_sdram_cke_cfg {
+			pins = "p6_11";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		emc_sdram_clock_cfg {
+			pins = "clk0", "clk1", "clk2", "clk3";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+	};
+
+	enet_mii_pins: enet-mii-pins {
+		enet_mii_rxd0_3_cfg {
+			pins = "p1_15", "p0_0", "p9_3", "p9_2";
+			function = "enet";
+			bias-disable;
+			input-enable;
+		};
+
+		enet_mii_txd0_3_cfg {
+			pins = "p1_18", "p1_20", "p9_4", "p9_5";
+			function = "enet";
+			bias-disable;
+		};
+
+		enet_mii_crs_col_cfg {
+			pins = "p9_0", "p9_6";
+			function = "enet";
+			bias-disable;
+			input-enable;
+		};
+
+		enet_mii_rx_clk_dv_er_cfg {
+			pins = "pc_0", "p1_16", "p9_1";
+			function = "enet";
+			bias-disable;
+			input-enable;
+		};
+
+		enet_mii_tx_clk_en_cfg {
+			pins = "p1_19", "p0_1";
+			function = "enet";
+			bias-disable;
+			input-enable;
+		};
+
+		enet_mdio_cfg {
+			pins = "p1_17";
+			function = "enet";
+			bias-disable;
+			input-enable;
+		};
+
+		enet_mdc_cfg {
+			pins = "pc_1";
+			function = "enet";
+			bias-disable;
+		};
+	};
+
+	uart0_pins: uart0-pins {
+		uart0_rx_cfg {
+			pins = "pf_11";
+			function = "uart0";
+			input-schmitt-disable;
+			bias-disable;
+			input-enable;
+		};
+
+		uart0_tx_cfg {
+			pins = "pf_10";
+			function = "uart0";
+			bias-pull-down;
+		};
+	};
+};
+
+&emc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&emc_pins>;
+
+	cs0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		mpmc,cs = <0>;
+		mpmc,memory-width = <16>;
+		mpmc,byte-lane-low;
+		mpmc,write-enable-delay = <0>;
+		mpmc,output-enable-delay = <0>;
+		mpmc,read-access-delay = <70>;
+		mpmc,page-mode-read-delay = <70>;
+
+		flash@0,0 {
+			compatible = "sst,sst39vf320", "cfi-flash";
+			reg = <0 0 0x400000>;
+			bank-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x000000 0x040000>; /* 256 KiB */
+			};
+
+			partition@1 {
+				label = "kernel";
+				reg = <0x040000 0x2C0000>; /* 2.75 MiB */
+			};
+
+			partition@2 {
+				label = "rootfs";
+				reg = <0x300000 0x100000>; /* 1 MiB */
+			};
+		};
+	};
+
+	cs2 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		mpmc,cs = <2>;
+		mpmc,memory-width = <16>;
+		mpmc,byte-lane-low;
+		mpmc,write-enable-delay = <0>;
+		mpmc,output-enable-delay = <30>;
+		mpmc,read-access-delay = <90>;
+		mpmc,page-mode-read-delay = <55>;
+		mpmc,write-access-delay = <55>;
+		mpmc,turn-round-delay = <55>;
+
+		ext_sram: sram@2,0 {
+			compatible = "mmio-sram";
+			reg = <2 0 0x80000>; /* 512 KiB SRAM on IS62WV25616 */
+		};
+	};
+};
+
+&enet_tx_clk {
+	clock-frequency = <25000000>;
+};
+
+&mac {
+	status = "okay";
+	phy-mode = "mii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&enet_mii_pins>;
 };
 
 &uart0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
 };

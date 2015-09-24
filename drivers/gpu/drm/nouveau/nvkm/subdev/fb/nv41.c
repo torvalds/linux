@@ -23,46 +23,40 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
+#include "ram.h"
 
 void
-nv41_fb_tile_prog(struct nvkm_fb *pfb, int i, struct nvkm_fb_tile *tile)
+nv41_fb_tile_prog(struct nvkm_fb *fb, int i, struct nvkm_fb_tile *tile)
 {
-	nv_wr32(pfb, 0x100604 + (i * 0x10), tile->limit);
-	nv_wr32(pfb, 0x100608 + (i * 0x10), tile->pitch);
-	nv_wr32(pfb, 0x100600 + (i * 0x10), tile->addr);
-	nv_rd32(pfb, 0x100600 + (i * 0x10));
-	nv_wr32(pfb, 0x100700 + (i * 0x04), tile->zcomp);
+	struct nvkm_device *device = fb->subdev.device;
+	nvkm_wr32(device, 0x100604 + (i * 0x10), tile->limit);
+	nvkm_wr32(device, 0x100608 + (i * 0x10), tile->pitch);
+	nvkm_wr32(device, 0x100600 + (i * 0x10), tile->addr);
+	nvkm_rd32(device, 0x100600 + (i * 0x10));
+	nvkm_wr32(device, 0x100700 + (i * 0x04), tile->zcomp);
 }
 
-int
-nv41_fb_init(struct nvkm_object *object)
+void
+nv41_fb_init(struct nvkm_fb *fb)
 {
-	struct nv04_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_fb_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wr32(priv, 0x100800, 0x00000001);
-	return 0;
+	nvkm_wr32(fb->subdev.device, 0x100800, 0x00000001);
 }
 
-struct nvkm_oclass *
-nv41_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x41),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv41_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv41_ram_oclass,
+static const struct nvkm_fb_func
+nv41_fb = {
+	.init = nv41_fb_init,
 	.tile.regions = 12,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv40_fb_tile_comp,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv41_fb_tile_prog,
-}.base.base;
+	.ram_new = nv41_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv41_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv41_fb, device, index, pfb);
+}

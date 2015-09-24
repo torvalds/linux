@@ -818,26 +818,29 @@ static void _rtl92cu_init_usb_aggregation(struct ieee80211_hw *hw)
 
 static void _rtl92cu_init_wmac_setting(struct ieee80211_hw *hw)
 {
-	u16			value16;
-
+	u16 value16;
+	u32 value32;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	mac->rx_conf = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APPFCS |
-		      RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
-		      RCR_APP_MIC | RCR_APP_PHYSTS | RCR_ACRC32);
-	rtl_write_dword(rtlpriv, REG_RCR, mac->rx_conf);
+	value32 = (RCR_APM | RCR_AM | RCR_ADF | RCR_AB | RCR_APPFCS |
+		   RCR_APP_ICV | RCR_AMF | RCR_HTC_LOC_CTRL |
+		   RCR_APP_MIC | RCR_APP_PHYSTS | RCR_ACRC32);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&value32));
 	/* Accept all multicast address */
 	rtl_write_dword(rtlpriv,  REG_MAR, 0xFFFFFFFF);
 	rtl_write_dword(rtlpriv,  REG_MAR + 4, 0xFFFFFFFF);
 	/* Accept all management frames */
 	value16 = 0xFFFF;
-	rtl92c_set_mgt_filter(hw, value16);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_MGT_FILTER,
+				      (u8 *)(&value16));
 	/* Reject all control frame - default value is 0 */
-	rtl92c_set_ctrl_filter(hw, 0x0);
+	value16 = 0x0;
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_CTRL_FILTER,
+				      (u8 *)(&value16));
 	/* Accept all data frames */
 	value16 = 0xFFFF;
-	rtl92c_set_data_filter(hw, value16);
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DATA_FILTER,
+				      (u8 *)(&value16));
 }
 
 static void _rtl92cu_init_beacon_parameters(struct ieee80211_hw *hw)
@@ -988,17 +991,6 @@ static void _InitPABias(struct ieee80211_hw *hw)
 	}
 }
 
-static void _update_mac_setting(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-
-	mac->rx_conf = rtl_read_dword(rtlpriv, REG_RCR);
-	mac->rx_mgt_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP0);
-	mac->rx_ctrl_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP1);
-	mac->rx_data_filter = rtl_read_word(rtlpriv, REG_RXFLTMAP2);
-}
-
 int rtl92cu_hw_init(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1068,7 +1060,6 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 	}
 	_rtl92cu_hw_configure(hw);
 	_InitPABias(hw);
-	_update_mac_setting(hw);
 	rtl92c_dm_init(hw);
 exit:
 	local_irq_restore(flags);
@@ -1620,7 +1611,6 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	enum wireless_mode wirelessmode = mac->mode;
 	u8 idx = 0;
 
@@ -1829,63 +1819,10 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						u4b_ac_param);
 				break;
 			default:
-				RT_ASSERT(false,
-					  "SetHwReg8185(): invalid aci: %d !\n",
+				RT_ASSERT(false, "invalid aci: %d !\n",
 					  e_aci);
 				break;
 			}
-			if (rtlusb->acm_method != EACMWAY2_SW)
-				rtlpriv->cfg->ops->set_hw_reg(hw,
-					 HW_VAR_ACM_CTRL, &e_aci);
-			break;
-		}
-	case HW_VAR_ACM_CTRL:{
-			u8 e_aci = *val;
-			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)
-							(&(mac->ac[0].aifs));
-			u8 acm = p_aci_aifsn->f.acm;
-			u8 acm_ctrl = rtl_read_byte(rtlpriv, REG_ACMHWCTRL);
-
-			acm_ctrl =
-			    acm_ctrl | ((rtlusb->acm_method == 2) ? 0x0 : 0x1);
-			if (acm) {
-				switch (e_aci) {
-				case AC0_BE:
-					acm_ctrl |= AcmHw_BeqEn;
-					break;
-				case AC2_VI:
-					acm_ctrl |= AcmHw_ViqEn;
-					break;
-				case AC3_VO:
-					acm_ctrl |= AcmHw_VoqEn;
-					break;
-				default:
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-						 "HW_VAR_ACM_CTRL acm set failed: eACI is %d\n",
-						 acm);
-					break;
-				}
-			} else {
-				switch (e_aci) {
-				case AC0_BE:
-					acm_ctrl &= (~AcmHw_BeqEn);
-					break;
-				case AC2_VI:
-					acm_ctrl &= (~AcmHw_ViqEn);
-					break;
-				case AC3_VO:
-					acm_ctrl &= (~AcmHw_VoqEn);
-					break;
-				default:
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
-					break;
-				}
-			}
-			RT_TRACE(rtlpriv, COMP_QOS, DBG_TRACE,
-				 "SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n",
-				 acm_ctrl);
-			rtl_write_byte(rtlpriv, REG_ACMHWCTRL, acm_ctrl);
 			break;
 		}
 	case HW_VAR_RCR:{
@@ -1999,12 +1936,15 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_MGT_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP0, *(u16 *)val);
+		mac->rx_mgt_filter = *(u16 *)val;
 		break;
 	case HW_VAR_CTRL_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP1, *(u16 *)val);
+		mac->rx_ctrl_filter = *(u16 *)val;
 		break;
 	case HW_VAR_DATA_FILTER:
 		rtl_write_word(rtlpriv, REG_RXFLTMAP2, *(u16 *)val);
+		mac->rx_data_filter = *(u16 *)val;
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -2280,7 +2220,6 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	enum rf_pwrstate e_rfpowerstate_toset, cur_rfstate;
 	u8 u1tmp = 0;
 	bool actuallyset = false;
@@ -2357,20 +2296,7 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 		if (ppsc->pwrdown_mode && e_rfpowerstate_toset == ERFOFF) {
 			/* Enable register area 0x0-0xc. */
 			rtl_write_byte(rtlpriv, REG_RSV_CTRL, 0x0);
-			if (IS_HARDWARE_TYPE_8723U(rtlhal)) {
-				/*
-				 * We should configure HW PDn source for WiFi
-				 * ONLY, and then our HW will be set in
-				 * power-down mode if PDn source from all
-				 * functions are configured.
-				 */
-				u1tmp = rtl_read_byte(rtlpriv,
-						      REG_MULTI_FUNC_CTRL);
-				rtl_write_byte(rtlpriv, REG_MULTI_FUNC_CTRL,
-					       (u1tmp|WL_HWPDN_EN));
-			} else {
-				rtl_write_word(rtlpriv, REG_APS_FSMCO, 0x8812);
-			}
+			rtl_write_word(rtlpriv, REG_APS_FSMCO, 0x8812);
 		}
 		if (e_rfpowerstate_toset == ERFOFF) {
 			if (ppsc->reg_rfps_level  & RT_RF_OFF_LEVL_ASPM)

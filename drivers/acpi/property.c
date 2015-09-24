@@ -528,13 +528,14 @@ int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 
 	if (!val)
 		return obj->package.count;
-	else if (nval <= 0)
-		return -EINVAL;
 
 	if (nval > obj->package.count)
 		return -EOVERFLOW;
+	else if (nval <= 0)
+		return -EINVAL;
 
 	items = obj->package.elements;
+
 	switch (proptype) {
 	case DEV_PROP_U8:
 		ret = acpi_copy_property_array_u8(items, (u8 *)val, nval);

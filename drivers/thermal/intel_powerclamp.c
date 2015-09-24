@@ -340,7 +340,7 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
 
 	/* check result for the last window */
 	msr_now = pkg_state_counter();
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
@@ -482,7 +482,7 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 	u64 val64;
 
 	msr_now = pkg_state_counter();
-	rdtscll(tsc_now);
+	tsc_now = rdtsc();
 	jiffies_now = jiffies;
 
 	/* calculate pkg cstate vs tsc ratio */
@@ -693,11 +693,14 @@ static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
 	{ X86_VENDOR_INTEL, 6, 0x3f},
 	{ X86_VENDOR_INTEL, 6, 0x45},
 	{ X86_VENDOR_INTEL, 6, 0x46},
+	{ X86_VENDOR_INTEL, 6, 0x47},
 	{ X86_VENDOR_INTEL, 6, 0x4c},
 	{ X86_VENDOR_INTEL, 6, 0x4d},
+	{ X86_VENDOR_INTEL, 6, 0x4e},
 	{ X86_VENDOR_INTEL, 6, 0x4f},
 	{ X86_VENDOR_INTEL, 6, 0x56},
 	{ X86_VENDOR_INTEL, 6, 0x57},
+	{ X86_VENDOR_INTEL, 6, 0x5e},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);

@@ -150,6 +150,9 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 	if (!priv->tx_packet_sent || tx_ctrl.ct)
 		return;
 
+	/* Ack Tx ctrl register */
+	nps_enet_reg_set(priv, NPS_ENET_REG_TX_CTL, 0);
+
 	/* Check Tx transmit error */
 	if (unlikely(tx_ctrl.et)) {
 		ndev->stats.tx_errors++;
@@ -158,11 +161,7 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 		ndev->stats.tx_bytes += tx_ctrl.nt;
 	}
 
-	if (priv->tx_skb) {
-		dev_kfree_skb(priv->tx_skb);
-		priv->tx_skb = NULL;
-	}
-
+	dev_kfree_skb(priv->tx_skb);
 	priv->tx_packet_sent = false;
 
 	if (netif_queue_stopped(ndev))
@@ -180,15 +179,16 @@ static int nps_enet_poll(struct napi_struct *napi, int budget)
 {
 	struct net_device *ndev = napi->dev;
 	struct nps_enet_priv *priv = netdev_priv(ndev);
-	struct nps_enet_buf_int_enable buf_int_enable;
 	u32 work_done;
 
-	buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
-	buf_int_enable.tx_done = NPS_ENET_ENABLE;
 	nps_enet_tx_handler(ndev);
 	work_done = nps_enet_rx_handler(ndev);
 	if (work_done < budget) {
+		struct nps_enet_buf_int_enable buf_int_enable;
+
 		napi_complete(napi);
+		buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
+		buf_int_enable.tx_done = NPS_ENET_ENABLE;
 		nps_enet_reg_set(priv, NPS_ENET_REG_BUF_INT_ENABLE,
 				 buf_int_enable.value);
 	}
@@ -211,12 +211,13 @@ static irqreturn_t nps_enet_irq_handler(s32 irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
 	struct nps_enet_priv *priv = netdev_priv(ndev);
-	struct nps_enet_buf_int_cause buf_int_cause;
+	struct nps_enet_rx_ctl rx_ctrl;
+	struct nps_enet_tx_ctl tx_ctrl;
 
-	buf_int_cause.value =
-			nps_enet_reg_get(priv, NPS_ENET_REG_BUF_INT_CAUSE);
+	rx_ctrl.value = nps_enet_reg_get(priv, NPS_ENET_REG_RX_CTL);
+	tx_ctrl.value = nps_enet_reg_get(priv, NPS_ENET_REG_TX_CTL);
 
-	if (buf_int_cause.tx_done || buf_int_cause.rx_rdy)
+	if ((!tx_ctrl.ct && priv->tx_packet_sent) || rx_ctrl.cr)
 		if (likely(napi_schedule_prep(&priv->napi))) {
 			nps_enet_reg_set(priv, NPS_ENET_REG_BUF_INT_ENABLE, 0);
 			__napi_schedule(&priv->napi);
@@ -307,11 +308,8 @@ static void nps_enet_hw_enable_control(struct net_device *ndev)
 
 	/* Discard Packets bigger than max frame length */
 	max_frame_length = ETH_HLEN + ndev->mtu + ETH_FCS_LEN;
-	if (max_frame_length <= NPS_ENET_MAX_FRAME_LENGTH) {
+	if (max_frame_length <= NPS_ENET_MAX_FRAME_LENGTH)
 		ge_mac_cfg_3->max_len = max_frame_length;
-		nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_3,
-				 ge_mac_cfg_3->value);
-	}
 
 	/* Enable interrupts */
 	buf_int_enable.rx_rdy = NPS_ENET_ENABLE;
@@ -339,11 +337,14 @@ static void nps_enet_hw_enable_control(struct net_device *ndev)
 	ge_mac_cfg_0.tx_fc_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.rx_fc_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.tx_fc_retr = NPS_ENET_GE_MAC_CFG_0_TX_FC_RETR;
+	ge_mac_cfg_3->cf_drop = NPS_ENET_ENABLE;
 
 	/* Enable Rx and Tx */
 	ge_mac_cfg_0.rx_en = NPS_ENET_ENABLE;
 	ge_mac_cfg_0.tx_en = NPS_ENET_ENABLE;
 
+	nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_3,
+			 ge_mac_cfg_3->value);
 	nps_enet_reg_set(priv, NPS_ENET_REG_GE_MAC_CFG_0,
 			 ge_mac_cfg_0.value);
 }
@@ -527,9 +528,9 @@ static netdev_tx_t nps_enet_start_xmit(struct sk_buff *skb,
 	/* This driver handles one frame at a time  */
 	netif_stop_queue(ndev);
 
-	nps_enet_send_frame(ndev, skb);
-
 	priv->tx_skb = skb;
+
+	nps_enet_send_frame(ndev, skb);
 
 	return NETDEV_TX_OK;
 }

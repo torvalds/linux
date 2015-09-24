@@ -46,7 +46,7 @@
  * 
  */
 struct cache_head {
-	struct cache_head * next;
+	struct hlist_node	cache_list;
 	time_t		expiry_time;	/* After time time, don't use the data */
 	time_t		last_refresh;   /* If CACHE_PENDING, this is when upcall 
 					 * was sent, else this is when update was received
@@ -73,7 +73,7 @@ struct cache_detail_pipefs {
 struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
-	struct cache_head **	hash_table;
+	struct hlist_head *	hash_table;
 	rwlock_t		hash_lock;
 
 	atomic_t		inuse; /* active user-space update or lookup */
@@ -223,6 +223,11 @@ extern void sunrpc_destroy_cache_detail(struct cache_detail *cd);
 extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
 					umode_t, struct cache_detail *);
 extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
+
+/* Must store cache_detail in seq_file->private if using next three functions */
+extern void *cache_seq_start(struct seq_file *file, loff_t *pos);
+extern void *cache_seq_next(struct seq_file *file, void *p, loff_t *pos);
+extern void cache_seq_stop(struct seq_file *file, void *p);
 
 extern void qword_add(char **bpp, int *lp, char *str);
 extern void qword_addhex(char **bpp, int *lp, char *buf, int blen);

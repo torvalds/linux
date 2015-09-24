@@ -139,6 +139,7 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x0AF0, 0x8120)},	/* Option GTM681W */
 
 	/* non-Gobi Sierra Wireless devices */
+	{DEVICE_SWI(0x03f0, 0x4e1d)},	/* HP lt4111 LTE/EV-DO/HSPA+ Gobi 4G Module */
 	{DEVICE_SWI(0x0f3d, 0x68a2)},	/* Sierra Wireless MC7700 */
 	{DEVICE_SWI(0x114f, 0x68a2)},	/* Sierra Wireless MC7750 */
 	{DEVICE_SWI(0x1199, 0x68a2)},	/* Sierra Wireless MC7710 */

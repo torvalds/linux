@@ -176,16 +176,36 @@ void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
 
 /**
  * cpuidle_state_is_coupled - check if a state is part of a coupled set
- * @dev: struct cpuidle_device for the current cpu
  * @drv: struct cpuidle_driver for the platform
  * @state: index of the target state in drv->states
  *
  * Returns true if the target state is coupled with cpus besides this one
  */
-bool cpuidle_state_is_coupled(struct cpuidle_device *dev,
-	struct cpuidle_driver *drv, int state)
+bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state)
 {
 	return drv->states[state].flags & CPUIDLE_FLAG_COUPLED;
+}
+
+/**
+ * cpuidle_coupled_state_verify - check if the coupled states are correctly set.
+ * @drv: struct cpuidle_driver for the platform
+ *
+ * Returns 0 for valid state values, a negative error code otherwise:
+ *  * -EINVAL if any coupled state(safe_state_index) is wrongly set.
+ */
+int cpuidle_coupled_state_verify(struct cpuidle_driver *drv)
+{
+	int i;
+
+	for (i = drv->state_count - 1; i >= 0; i--) {
+		if (cpuidle_state_is_coupled(drv, i) &&
+		    (drv->safe_state_index == i ||
+		     drv->safe_state_index < 0 ||
+		     drv->safe_state_index >= drv->state_count))
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -473,7 +493,7 @@ int cpuidle_enter_state_coupled(struct cpuidle_device *dev,
 			return entered_state;
 		}
 		entered_state = cpuidle_enter_state(dev, drv,
-			dev->safe_state_index);
+			drv->safe_state_index);
 		local_irq_disable();
 	}
 
@@ -521,7 +541,7 @@ retry:
 		}
 
 		entered_state = cpuidle_enter_state(dev, drv,
-			dev->safe_state_index);
+			drv->safe_state_index);
 		local_irq_disable();
 	}
 

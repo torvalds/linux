@@ -31,11 +31,11 @@
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
+#include <asm/vm86.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
-#include <asm/sys_ia32.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
@@ -632,6 +632,9 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	bool stepping, failed;
 	struct fpu *fpu = &current->thread.fpu;
 
+	if (v8086_mode(regs))
+		save_v86_state((struct kernel_vm86_regs *) regs, VM86_SIGNAL);
+
 	/* Are we from a system call? */
 	if (syscall_get_nr(current, regs) >= 0) {
 		/* If so, check system call restarting.. */
@@ -697,7 +700,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-static void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
 	struct ksignal ksig;
 
@@ -730,32 +733,6 @@ static void do_signal(struct pt_regs *regs)
 	 * back.
 	 */
 	restore_saved_sigmask();
-}
-
-/*
- * notification of userspace execution resumption
- * - triggered by the TIF_WORK_MASK flags
- */
-__visible void
-do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
-{
-	user_exit();
-
-	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
-
-	/* deal with pending signal delivery */
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
-	if (thread_info_flags & _TIF_USER_RETURN_NOTIFY)
-		fire_user_return_notifiers();
-
-	user_enter();
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)

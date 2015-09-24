@@ -99,21 +99,13 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 
 static void hsu_dma_stop_channel(struct hsu_dma_chan *hsuc)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsuc->lock, flags);
 	hsu_chan_disable(hsuc);
 	hsu_chan_writel(hsuc, HSU_CH_DCR, 0);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
 }
 
 static void hsu_dma_start_channel(struct hsu_dma_chan *hsuc)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsuc->lock, flags);
 	hsu_dma_chan_start(hsuc);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
 }
 
 static void hsu_dma_start_transfer(struct hsu_dma_chan *hsuc)
@@ -139,9 +131,9 @@ static u32 hsu_dma_chan_get_sr(struct hsu_dma_chan *hsuc)
 	unsigned long flags;
 	u32 sr;
 
-	spin_lock_irqsave(&hsuc->lock, flags);
+	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 	sr = hsu_chan_readl(hsuc, HSU_CH_SR);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
+	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 
 	return sr;
 }
@@ -273,14 +265,11 @@ static size_t hsu_dma_active_desc_size(struct hsu_dma_chan *hsuc)
 	struct hsu_dma_desc *desc = hsuc->desc;
 	size_t bytes = hsu_dma_desc_size(desc);
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&hsuc->lock, flags);
 	i = desc->active % HSU_DMA_CHAN_NR_DESC;
 	do {
 		bytes += hsu_chan_readl(hsuc, HSU_CH_DxTSR(i));
 	} while (--i >= 0);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
 
 	return bytes;
 }
@@ -327,24 +316,6 @@ static int hsu_dma_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static void hsu_dma_chan_deactivate(struct hsu_dma_chan *hsuc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsuc->lock, flags);
-	hsu_chan_disable(hsuc);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
-}
-
-static void hsu_dma_chan_activate(struct hsu_dma_chan *hsuc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsuc->lock, flags);
-	hsu_chan_enable(hsuc);
-	spin_unlock_irqrestore(&hsuc->lock, flags);
-}
-
 static int hsu_dma_pause(struct dma_chan *chan)
 {
 	struct hsu_dma_chan *hsuc = to_hsu_dma_chan(chan);
@@ -352,7 +323,7 @@ static int hsu_dma_pause(struct dma_chan *chan)
 
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 	if (hsuc->desc && hsuc->desc->status == DMA_IN_PROGRESS) {
-		hsu_dma_chan_deactivate(hsuc);
+		hsu_chan_disable(hsuc);
 		hsuc->desc->status = DMA_PAUSED;
 	}
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
@@ -368,7 +339,7 @@ static int hsu_dma_resume(struct dma_chan *chan)
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 	if (hsuc->desc && hsuc->desc->status == DMA_PAUSED) {
 		hsuc->desc->status = DMA_IN_PROGRESS;
-		hsu_dma_chan_activate(hsuc);
+		hsu_chan_enable(hsuc);
 	}
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 
@@ -441,8 +412,6 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 
 		hsuc->direction = (i & 0x1) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 		hsuc->reg = addr + i * HSU_DMA_CHAN_LENGTH;
-
-		spin_lock_init(&hsuc->lock);
 	}
 
 	dma_cap_set(DMA_SLAVE, hsu->dma.cap_mask);

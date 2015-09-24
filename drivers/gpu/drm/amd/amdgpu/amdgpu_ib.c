@@ -73,28 +73,12 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 
 		if (!vm)
 			ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
-		else
-			ib->gpu_addr = 0;
-
-	} else {
-		ib->sa_bo = NULL;
-		ib->ptr = NULL;
-		ib->gpu_addr = 0;
 	}
 
 	amdgpu_sync_create(&ib->sync);
 
 	ib->ring = ring;
-	ib->fence = NULL;
-	ib->user = NULL;
 	ib->vm = vm;
-	ib->gds_base = 0;
-	ib->gds_size = 0;
-	ib->gws_base = 0;
-	ib->gws_size = 0;
-	ib->oa_base = 0;
-	ib->oa_size = 0;
-	ib->flags = 0;
 
 	return 0;
 }
@@ -109,8 +93,8 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
-	amdgpu_sync_free(adev, &ib->sync, ib->fence);
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, ib->fence);
+	amdgpu_sync_free(adev, &ib->sync, &ib->fence->base);
+	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
 	amdgpu_fence_unref(&ib->fence);
 }
 
@@ -156,7 +140,11 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		dev_err(adev->dev, "couldn't schedule ib\n");
 		return -EINVAL;
 	}
-
+	r = amdgpu_sync_wait(&ibs->sync);
+	if (r) {
+		dev_err(adev->dev, "IB sync failed (%d).\n", r);
+		return r;
+	}
 	r = amdgpu_ring_lock(ring, (256 + AMDGPU_NUM_SYNCS * 8) * num_ibs);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
@@ -165,9 +153,11 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 
 	if (vm) {
 		/* grab a vm id if necessary */
-		struct amdgpu_fence *vm_id_fence = NULL;
-		vm_id_fence = amdgpu_vm_grab_id(ibs->ring, ibs->vm);
-		amdgpu_sync_fence(&ibs->sync, vm_id_fence);
+		r = amdgpu_vm_grab_id(ibs->vm, ibs->ring, &ibs->sync);
+		if (r) {
+			amdgpu_ring_unlock_undo(ring);
+			return r;
+		}
 	}
 
 	r = amdgpu_sync_rings(&ibs->sync, ring);
@@ -212,11 +202,15 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return r;
 	}
 
+	if (!amdgpu_enable_scheduler && ib->ctx)
+		ib->sequence = amdgpu_ctx_add_fence(ib->ctx, ring,
+						    &ib->fence->base);
+
 	/* wrap the last IB with fence */
 	if (ib->user) {
 		uint64_t addr = amdgpu_bo_gpu_offset(ib->user->bo);
 		addr += ib->user->offset;
-		amdgpu_ring_emit_fence(ring, addr, ib->fence->seq,
+		amdgpu_ring_emit_fence(ring, addr, ib->sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
 

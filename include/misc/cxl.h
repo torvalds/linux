@@ -200,4 +200,14 @@ unsigned int cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t cxl_fd_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *off);
 
+/*
+ * For EEH, a driver may want to assert a PERST will reload the same image
+ * from flash into the FPGA.
+ *
+ * This is a property of the entire adapter, not a single AFU, so drivers
+ * should set this property with care!
+ */
+void cxl_perst_reloads_same_image(struct cxl_afu *afu,
+				  bool perst_reloads_same_image);
+
 #endif /* _MISC_CXL_H */

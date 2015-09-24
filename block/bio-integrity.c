@@ -140,6 +140,11 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	iv = bip->bip_vec + bip->bip_vcnt;
 
+	if (bip->bip_vcnt &&
+	    bvec_gap_to_prev(bdev_get_queue(bio->bi_bdev),
+			     &bip->bip_vec[bip->bip_vcnt - 1], offset))
+		return 0;
+
 	iv->bv_page = page;
 	iv->bv_len = len;
 	iv->bv_offset = offset;
@@ -355,13 +360,12 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-	int error;
 
-	error = bio_integrity_process(bio, bi->verify_fn);
+	bio->bi_error = bio_integrity_process(bio, bi->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-	bio_endio(bio, error);
+	bio_endio(bio);
 }
 
 /**
@@ -376,7 +380,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  * in process context.	This function postpones completion
  * accordingly.
  */
-void bio_integrity_endio(struct bio *bio, int error)
+void bio_integrity_endio(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 
@@ -386,9 +390,9 @@ void bio_integrity_endio(struct bio *bio, int error)
 	 * integrity metadata.  Restore original bio end_io handler
 	 * and run it.
 	 */
-	if (error) {
+	if (bio->bi_error) {
 		bio->bi_end_io = bip->bip_end_io;
-		bio_endio(bio, error);
+		bio_endio(bio);
 
 		return;
 	}

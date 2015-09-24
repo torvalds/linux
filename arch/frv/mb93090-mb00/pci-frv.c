@@ -175,14 +175,6 @@ static void __init pcibios_assign_resources(void)
 			if (!r->start && r->end)
 				pci_assign_resource(dev, idx);
 		}
-
-		if (pci_probe & PCI_ASSIGN_ROMS) {
-			r = &dev->resource[PCI_ROM_RESOURCE];
-			r->end -= r->start;
-			r->start = 0;
-			if (r->end)
-				pci_assign_resource(dev, PCI_ROM_RESOURCE);
-		}
 	}
 }
 

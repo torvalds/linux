@@ -114,7 +114,8 @@ int speakup_set_selection(struct tty_struct *tty)
 			obp = bp;
 		if (!((i + 2) % vc->vc_size_row)) {
 			/* strip trailing blanks from line and add newline,
-			   unless non-space at end of line. */
+			 * unless non-space at end of line.
+			 */
 			if (obp != bp) {
 				bp = obp;
 				*bp++ = '\r';

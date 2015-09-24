@@ -6,6 +6,14 @@
 	model = "Sony Xperia Z1";
 	compatible = "sony,xperia-honami", "qcom,msm8974";
 
+	aliases {
+		serial0 = &blsp1_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory@0 {
 		reg = <0 0x40000000>, <0x40000000 0x40000000>;
 		device_type = "memory";
@@ -15,5 +23,15 @@
 &soc {
 	serial@f991e000 {
 		status = "ok";
+	};
+};
+
+&spmi_bus {
+	pm8941@0 {
+		coincell@2800 {
+			status = "ok";
+			qcom,rset-ohms = <2100>;
+			qcom,vset-millivolts = <3000>;
+		};
 	};
 };

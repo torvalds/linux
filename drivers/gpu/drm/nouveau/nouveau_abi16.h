@@ -13,9 +13,9 @@ int nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
 
 struct nouveau_abi16_ntfy {
+	struct nvif_object object;
 	struct list_head head;
 	struct nvkm_mm_node *node;
-	u32 handle;
 };
 
 struct nouveau_abi16_chan {
@@ -37,7 +37,7 @@ struct nouveau_drm;
 struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *, struct drm_device *);
 int  nouveau_abi16_put(struct nouveau_abi16 *, int);
 void nouveau_abi16_fini(struct nouveau_abi16 *);
-u16  nouveau_abi16_swclass(struct nouveau_drm *);
+s32  nouveau_abi16_swclass(struct nouveau_drm *);
 
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)

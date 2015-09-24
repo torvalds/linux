@@ -95,7 +95,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	version = compat_alloc_user_space(sizeof(*version));
-	if (!access_ok(VERIFY_WRITE, version, sizeof(*version)))
+	if (!version)
 		return -EFAULT;
 	if (__put_user(v32.name_len, &version->name_len)
 	    || __put_user((void __user *)(unsigned long)v32.name,
@@ -142,7 +142,7 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	u = compat_alloc_user_space(sizeof(*u));
-	if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
+	if (!u)
 		return -EFAULT;
 	if (__put_user(uq32.unique_len, &u->unique_len)
 	    || __put_user((void __user *)(unsigned long)uq32.unique,
@@ -170,7 +170,7 @@ static int compat_drm_setunique(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	u = compat_alloc_user_space(sizeof(*u));
-	if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
+	if (!u)
 		return -EFAULT;
 	if (__put_user(uq32.unique_len, &u->unique_len)
 	    || __put_user((void __user *)(unsigned long)uq32.unique,
@@ -202,7 +202,7 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	map = compat_alloc_user_space(sizeof(*map));
-	if (!access_ok(VERIFY_WRITE, map, sizeof(*map)))
+	if (!map)
 		return -EFAULT;
 	if (__put_user(idx, &map->offset))
 		return -EFAULT;
@@ -239,7 +239,7 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	map = compat_alloc_user_space(sizeof(*map));
-	if (!access_ok(VERIFY_WRITE, map, sizeof(*map)))
+	if (!map)
 		return -EFAULT;
 	if (__put_user(m32.offset, &map->offset)
 	    || __put_user(m32.size, &map->size)
@@ -279,7 +279,7 @@ static int compat_drm_rmmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	map = compat_alloc_user_space(sizeof(*map));
-	if (!access_ok(VERIFY_WRITE, map, sizeof(*map)))
+	if (!map)
 		return -EFAULT;
 	if (__put_user((void *)(unsigned long)handle, &map->handle))
 		return -EFAULT;
@@ -308,7 +308,7 @@ static int compat_drm_getclient(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	client = compat_alloc_user_space(sizeof(*client));
-	if (!access_ok(VERIFY_WRITE, client, sizeof(*client)))
+	if (!client)
 		return -EFAULT;
 	if (__put_user(idx, &client->idx))
 		return -EFAULT;
@@ -347,7 +347,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 	int i, err;
 
 	stats = compat_alloc_user_space(sizeof(*stats));
-	if (!access_ok(VERIFY_WRITE, stats, sizeof(*stats)))
+	if (!stats)
 		return -EFAULT;
 
 	err = drm_ioctl(file, DRM_IOCTL_GET_STATS, (unsigned long)stats);
@@ -384,8 +384,7 @@ static int compat_drm_addbufs(struct file *file, unsigned int cmd,
 	unsigned long agp_start;
 
 	buf = compat_alloc_user_space(sizeof(*buf));
-	if (!access_ok(VERIFY_WRITE, buf, sizeof(*buf))
-	    || !access_ok(VERIFY_WRITE, argp, sizeof(*argp)))
+	if (!buf || !access_ok(VERIFY_WRITE, argp, sizeof(*argp)))
 		return -EFAULT;
 
 	if (__copy_in_user(buf, argp, offsetof(drm_buf_desc32_t, agp_start))
@@ -416,7 +415,7 @@ static int compat_drm_markbufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	buf = compat_alloc_user_space(sizeof(*buf));
-	if (!access_ok(VERIFY_WRITE, buf, sizeof(*buf)))
+	if (!buf)
 		return -EFAULT;
 
 	if (__put_user(b32.size, &buf->size)
@@ -457,7 +456,7 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 
 	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_desc);
 	request = compat_alloc_user_space(nbytes);
-	if (!access_ok(VERIFY_WRITE, request, nbytes))
+	if (!request)
 		return -EFAULT;
 	list = (struct drm_buf_desc *) (request + 1);
 
@@ -518,7 +517,7 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 		return -EINVAL;
 	nbytes = sizeof(*request) + count * sizeof(struct drm_buf_pub);
 	request = compat_alloc_user_space(nbytes);
-	if (!access_ok(VERIFY_WRITE, request, nbytes))
+	if (!request)
 		return -EFAULT;
 	list = (struct drm_buf_pub *) (request + 1);
 
@@ -565,7 +564,7 @@ static int compat_drm_freebufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)))
+	if (!request)
 		return -EFAULT;
 	if (__put_user(req32.count, &request->count)
 	    || __put_user((int __user *)(unsigned long)req32.list,
@@ -591,7 +590,7 @@ static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)))
+	if (!request)
 		return -EFAULT;
 	if (__put_user(req32.ctx_id, &request->ctx_id)
 	    || __put_user((void *)(unsigned long)req32.handle,
@@ -615,7 +614,7 @@ static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)))
+	if (!request)
 		return -EFAULT;
 	if (__put_user(ctx_id, &request->ctx_id))
 		return -EFAULT;
@@ -648,7 +647,7 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	res = compat_alloc_user_space(sizeof(*res));
-	if (!access_ok(VERIFY_WRITE, res, sizeof(*res)))
+	if (!res)
 		return -EFAULT;
 	if (__put_user(res32.count, &res->count)
 	    || __put_user((struct drm_ctx __user *) (unsigned long)res32.contexts,
@@ -691,7 +690,7 @@ static int compat_drm_dma(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	d = compat_alloc_user_space(sizeof(*d));
-	if (!access_ok(VERIFY_WRITE, d, sizeof(*d)))
+	if (!d)
 		return -EFAULT;
 
 	if (__put_user(d32.context, &d->context)
@@ -766,7 +765,7 @@ static int compat_drm_agp_info(struct file *file, unsigned int cmd,
 	int err;
 
 	info = compat_alloc_user_space(sizeof(*info));
-	if (!access_ok(VERIFY_WRITE, info, sizeof(*info)))
+	if (!info)
 		return -EFAULT;
 
 	err = drm_ioctl(file, DRM_IOCTL_AGP_INFO, (unsigned long)info);
@@ -809,7 +808,7 @@ static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	if (!request
 	    || __put_user(req32.size, &request->size)
 	    || __put_user(req32.type, &request->type))
 		return -EFAULT;
@@ -836,7 +835,7 @@ static int compat_drm_agp_free(struct file *file, unsigned int cmd,
 	u32 handle;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	if (!request
 	    || get_user(handle, &argp->handle)
 	    || __put_user(handle, &request->handle))
 		return -EFAULT;
@@ -860,7 +859,7 @@ static int compat_drm_agp_bind(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	if (!request
 	    || __put_user(req32.handle, &request->handle)
 	    || __put_user(req32.offset, &request->offset))
 		return -EFAULT;
@@ -876,7 +875,7 @@ static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
 	u32 handle;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	if (!request
 	    || get_user(handle, &argp->handle)
 	    || __put_user(handle, &request->handle))
 		return -EFAULT;
@@ -899,8 +898,7 @@ static int compat_drm_sg_alloc(struct file *file, unsigned int cmd,
 	unsigned long x;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
-	    || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
+	if (!request || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
 	    || __get_user(x, &argp->size)
 	    || __put_user(x, &request->size))
 		return -EFAULT;
@@ -925,8 +923,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 	unsigned long x;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
-	    || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
+	if (!request || !access_ok(VERIFY_WRITE, argp, sizeof(*argp))
 	    || __get_user(x, &argp->handle)
 	    || __put_user(x << PAGE_SHIFT, &request->handle))
 		return -EFAULT;
@@ -954,7 +951,7 @@ static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)) ||
+	if (!request ||
 	    __put_user(update32.handle, &request->handle) ||
 	    __put_user(update32.type, &request->type) ||
 	    __put_user(update32.num, &request->num) ||
@@ -996,7 +993,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
+	if (!request
 	    || __put_user(req32.request.type, &request->request.type)
 	    || __put_user(req32.request.sequence, &request->request.sequence)
 	    || __put_user(req32.request.signal, &request->request.signal))

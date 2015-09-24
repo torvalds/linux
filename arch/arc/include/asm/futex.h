@@ -20,6 +20,7 @@
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
 							\
+	smp_mb();					\
 	__asm__ __volatile__(				\
 	"1:	llock	%1, [%2]		\n"	\
 		insn				"\n"	\
@@ -30,7 +31,7 @@
 	"	.section .fixup,\"ax\"		\n"	\
 	"	.align  4			\n"	\
 	"4:	mov %0, %4			\n"	\
-	"	b   3b				\n"	\
+	"	j   3b				\n"	\
 	"	.previous			\n"	\
 	"	.section __ex_table,\"a\"	\n"	\
 	"	.align  4			\n"	\
@@ -40,12 +41,14 @@
 							\
 	: "=&r" (ret), "=&r" (oldval)			\
 	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
-	: "cc", "memory")
+	: "cc", "memory");				\
+	smp_mb()					\
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)\
 							\
+	smp_mb();					\
 	__asm__ __volatile__(				\
 	"1:	ld	%1, [%2]		\n"	\
 		insn				"\n"	\
@@ -55,7 +58,7 @@
 	"	.section .fixup,\"ax\"		\n"	\
 	"	.align  4			\n"	\
 	"4:	mov %0, %4			\n"	\
-	"	b   3b				\n"	\
+	"	j   3b				\n"	\
 	"	.previous			\n"	\
 	"	.section __ex_table,\"a\"	\n"	\
 	"	.align  4			\n"	\
@@ -65,7 +68,8 @@
 							\
 	: "=&r" (ret), "=&r" (oldval)			\
 	: "r" (uaddr), "r" (oparg), "ir" (-EFAULT)	\
-	: "cc", "memory")
+	: "cc", "memory");				\
+	smp_mb()					\
 
 #endif
 
@@ -83,6 +87,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
+#endif
 	pagefault_disable();
 
 	switch (op) {
@@ -90,6 +97,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 		__futex_atomic_op("mov %0, %3", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
+		/* oldval = *uaddr; *uaddr += oparg ; ret = *uaddr */
 		__futex_atomic_op("add %0, %1, %3", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
@@ -106,6 +114,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	}
 
 	pagefault_enable();
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_enable();
+#endif
 
 	if (!ret) {
 		switch (cmp) {
@@ -134,54 +145,57 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	return ret;
 }
 
-/* Compare-xchg with pagefaults disabled.
- *  Notes:
- *      -Best-Effort: Exchg happens only if compare succeeds.
- *          If compare fails, returns; leaving retry/looping to upper layers
- *      -successful cmp-xchg: return orig value in @addr (same as cmp val)
- *      -Compare fails: return orig value in @addr
- *      -user access r/w fails: return -EFAULT
+/*
+ * cmpxchg of futex (pagefaults disabled by caller)
+ * Return 0 for success, -EFAULT otherwise
  */
 static inline int
-futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval,
-					u32 newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
+			      u32 newval)
 {
-	u32 val;
+	int ret = 0;
+	u32 existval;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	pagefault_disable();
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
+#endif
+	smp_mb();
 
 	__asm__ __volatile__(
 #ifdef CONFIG_ARC_HAS_LLSC
-	"1:	llock	%0, [%3]		\n"
-	"	brne	%0, %1, 3f		\n"
-	"2:	scond	%2, [%3]		\n"
+	"1:	llock	%1, [%4]		\n"
+	"	brne	%1, %2, 3f		\n"
+	"2:	scond	%3, [%4]		\n"
 	"	bnz	1b			\n"
 #else
-	"1:	ld	%0, [%3]		\n"
-	"	brne	%0, %1, 3f		\n"
-	"2:	st	%2, [%3]		\n"
+	"1:	ld	%1, [%4]		\n"
+	"	brne	%1, %2, 3f		\n"
+	"2:	st	%3, [%4]		\n"
 #endif
 	"3:	\n"
 	"	.section .fixup,\"ax\"	\n"
-	"4:	mov %0, %4	\n"
-	"	b   3b	\n"
+	"4:	mov %0, %5	\n"
+	"	j   3b	\n"
 	"	.previous	\n"
 	"	.section __ex_table,\"a\"	\n"
 	"	.align  4	\n"
 	"	.word   1b, 4b	\n"
 	"	.word   2b, 4b	\n"
 	"	.previous\n"
-	: "=&r"(val)
-	: "r"(oldval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
+	: "+&r"(ret), "=&r"(existval)
+	: "r"(expval), "r"(newval), "r"(uaddr), "ir"(-EFAULT)
 	: "cc", "memory");
 
-	pagefault_enable();
+	smp_mb();
 
-	*uval = val;
-	return val;
+#ifndef CONFIG_ARC_HAS_LLSC
+	preempt_enable();
+#endif
+	*uval = existval;
+	return ret;
 }
 
 #endif

@@ -253,6 +253,7 @@
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 #define SCD_GP_CTRL_ENABLE_31_QUEUES		BIT(0)
+#define SCD_GP_CTRL_AUTO_ACTIVE_MODE		BIT(18)
 
 /* Context Data */
 #define SCD_CONTEXT_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x600)
@@ -290,6 +291,9 @@
 #define SCD_EN_CTRL		(SCD_BASE + 0x254)
 
 /*********************** END TX SCHEDULER *************************************/
+
+/* tcp checksum offload */
+#define RX_EN_CSUM		(0x00a00d88)
 
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)
@@ -379,11 +383,19 @@ enum aux_misc_master1_en {
 #define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
 #define RSA_ENABLE			0xA24B08
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
+#define SB_CPU_1_STATUS			0xA01E30
+#define SB_CPU_2_STATUS			0xA01E34
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
 enum {
 	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
+
+/* FW chicken bits */
+#define LMPM_PAGE_PASS_NOTIF			0xA03824
+enum {
+	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
 };
 
 #endif				/* __iwl_prph_h__ */

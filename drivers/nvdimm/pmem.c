@@ -21,18 +21,24 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/memory_hotplug.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/pmem.h>
 #include <linux/nd.h>
+#include "pfn.h"
 #include "nd.h"
 
 struct pmem_device {
 	struct request_queue	*pmem_queue;
 	struct gendisk		*pmem_disk;
+	struct nd_namespace_common *ndns;
 
 	/* One contiguous memory region per device */
 	phys_addr_t		phys_addr;
+	/* when non-zero this device is hosting a 'pfn' instance */
+	phys_addr_t		data_offset;
 	void __pmem		*virt_addr;
 	size_t			size;
 };
@@ -44,7 +50,7 @@ static void pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			sector_t sector)
 {
 	void *mem = kmap_atomic(page);
-	size_t pmem_off = sector << 9;
+	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
 	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
 
 	if (rw == READ) {
@@ -77,7 +83,7 @@ static void pmem_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_data_dir(bio))
 		wmb_pmem();
 
-	bio_endio(bio, 0);
+	bio_endio(bio);
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
@@ -86,25 +92,34 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 
 	pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	if (rw & WRITE)
+		wmb_pmem();
 	page_endio(page, rw & WRITE, 0);
 
 	return 0;
 }
 
 static long pmem_direct_access(struct block_device *bdev, sector_t sector,
-			      void **kaddr, unsigned long *pfn, long size)
+		      void __pmem **kaddr, unsigned long *pfn)
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
-	size_t offset = sector << 9;
+	resource_size_t offset = sector * 512 + pmem->data_offset;
+	resource_size_t size;
 
-	if (!pmem)
-		return -ENODEV;
+	if (pmem->data_offset) {
+		/*
+		 * Limit the direct_access() size to what is covered by
+		 * the memmap
+		 */
+		size = (pmem->size - offset) & ~ND_PFN_MASK;
+	} else
+		size = pmem->size - offset;
 
 	/* FIXME convert DAX to comprehend that this mapping has a lifetime */
-	*kaddr = (void __force *) pmem->virt_addr + offset;
+	*kaddr = pmem->virt_addr + offset;
 	*pfn = (pmem->phys_addr + offset) >> PAGE_SHIFT;
 
-	return pmem->size - offset;
+	return size;
 }
 
 static const struct block_device_operations pmem_fops = {
@@ -119,27 +134,33 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 {
 	struct pmem_device *pmem;
 
-	pmem = kzalloc(sizeof(*pmem), GFP_KERNEL);
+	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
 		return ERR_PTR(-ENOMEM);
 
 	pmem->phys_addr = res->start;
 	pmem->size = resource_size(res);
-	if (!arch_has_pmem_api())
+	if (!arch_has_wmb_pmem())
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
-	if (!request_mem_region(pmem->phys_addr, pmem->size, dev_name(dev))) {
+	if (!devm_request_mem_region(dev, pmem->phys_addr, pmem->size,
+			dev_name(dev))) {
 		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
 				&pmem->phys_addr, pmem->size);
-		kfree(pmem);
 		return ERR_PTR(-EBUSY);
 	}
 
-	pmem->virt_addr = memremap_pmem(pmem->phys_addr, pmem->size);
-	if (!pmem->virt_addr) {
-		release_mem_region(pmem->phys_addr, pmem->size);
-		kfree(pmem);
-		return ERR_PTR(-ENXIO);
+	if (pmem_should_map_pages(dev)) {
+		void *addr = devm_memremap_pages(dev, res);
+
+		if (IS_ERR(addr))
+			return addr;
+		pmem->virt_addr = (void __pmem *) addr;
+	} else {
+		pmem->virt_addr = memremap_pmem(dev, pmem->phys_addr,
+				pmem->size);
+		if (!pmem->virt_addr)
+			return ERR_PTR(-ENXIO);
 	}
 
 	return pmem;
@@ -147,13 +168,16 @@ static struct pmem_device *pmem_alloc(struct device *dev,
 
 static void pmem_detach_disk(struct pmem_device *pmem)
 {
+	if (!pmem->pmem_disk)
+		return;
+
 	del_gendisk(pmem->pmem_disk);
 	put_disk(pmem->pmem_disk);
 	blk_cleanup_queue(pmem->pmem_queue);
 }
 
-static int pmem_attach_disk(struct nd_namespace_common *ndns,
-		struct pmem_device *pmem)
+static int pmem_attach_disk(struct device *dev,
+		struct nd_namespace_common *ndns, struct pmem_device *pmem)
 {
 	struct gendisk *disk;
 
@@ -162,6 +186,7 @@ static int pmem_attach_disk(struct nd_namespace_common *ndns,
 		return -ENOMEM;
 
 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
+	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
 	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
 	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, pmem->pmem_queue);
@@ -179,8 +204,8 @@ static int pmem_attach_disk(struct nd_namespace_common *ndns,
 	disk->queue		= pmem->pmem_queue;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
-	disk->driverfs_dev = &ndns->dev;
-	set_capacity(disk, pmem->size >> 9);
+	disk->driverfs_dev = dev;
+	set_capacity(disk, (pmem->size - pmem->data_offset) / 512);
 	pmem->pmem_disk = disk;
 
 	add_disk(disk);
@@ -209,11 +234,152 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 	return 0;
 }
 
-static void pmem_free(struct pmem_device *pmem)
+static int nd_pfn_init(struct nd_pfn *nd_pfn)
 {
-	memunmap_pmem(pmem->virt_addr);
-	release_mem_region(pmem->phys_addr, pmem->size);
-	kfree(pmem);
+	struct nd_pfn_sb *pfn_sb = kzalloc(sizeof(*pfn_sb), GFP_KERNEL);
+	struct pmem_device *pmem = dev_get_drvdata(&nd_pfn->dev);
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	struct nd_region *nd_region;
+	unsigned long npfns;
+	phys_addr_t offset;
+	u64 checksum;
+	int rc;
+
+	if (!pfn_sb)
+		return -ENOMEM;
+
+	nd_pfn->pfn_sb = pfn_sb;
+	rc = nd_pfn_validate(nd_pfn);
+	if (rc == 0 || rc == -EBUSY)
+		return rc;
+
+	/* section alignment for simple hotplug */
+	if (nvdimm_namespace_capacity(ndns) < ND_PFN_ALIGN
+			|| pmem->phys_addr & ND_PFN_MASK)
+		return -ENODEV;
+
+	nd_region = to_nd_region(nd_pfn->dev.parent);
+	if (nd_region->ro) {
+		dev_info(&nd_pfn->dev,
+				"%s is read-only, unable to init metadata\n",
+				dev_name(&nd_region->dev));
+		goto err;
+	}
+
+	memset(pfn_sb, 0, sizeof(*pfn_sb));
+	npfns = (pmem->size - SZ_8K) / SZ_4K;
+	/*
+	 * Note, we use 64 here for the standard size of struct page,
+	 * debugging options may cause it to be larger in which case the
+	 * implementation will limit the pfns advertised through
+	 * ->direct_access() to those that are included in the memmap.
+	 */
+	if (nd_pfn->mode == PFN_MODE_PMEM)
+		offset = ALIGN(SZ_8K + 64 * npfns, PMD_SIZE);
+	else if (nd_pfn->mode == PFN_MODE_RAM)
+		offset = SZ_8K;
+	else
+		goto err;
+
+	npfns = (pmem->size - offset) / SZ_4K;
+	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
+	pfn_sb->dataoff = cpu_to_le64(offset);
+	pfn_sb->npfns = cpu_to_le64(npfns);
+	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
+	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
+	pfn_sb->version_major = cpu_to_le16(1);
+	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
+	pfn_sb->checksum = cpu_to_le64(checksum);
+
+	rc = nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
+	if (rc)
+		goto err;
+
+	return 0;
+ err:
+	nd_pfn->pfn_sb = NULL;
+	kfree(pfn_sb);
+	return -ENXIO;
+}
+
+static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
+{
+	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
+	struct pmem_device *pmem;
+
+	/* free pmem disk */
+	pmem = dev_get_drvdata(&nd_pfn->dev);
+	pmem_detach_disk(pmem);
+
+	/* release nd_pfn resources */
+	kfree(nd_pfn->pfn_sb);
+	nd_pfn->pfn_sb = NULL;
+
+	return 0;
+}
+
+static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
+{
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
+	struct device *dev = &nd_pfn->dev;
+	struct vmem_altmap *altmap;
+	struct nd_region *nd_region;
+	struct nd_pfn_sb *pfn_sb;
+	struct pmem_device *pmem;
+	phys_addr_t offset;
+	int rc;
+
+	if (!nd_pfn->uuid || !nd_pfn->ndns)
+		return -ENODEV;
+
+	nd_region = to_nd_region(dev->parent);
+	rc = nd_pfn_init(nd_pfn);
+	if (rc)
+		return rc;
+
+	if (PAGE_SIZE != SZ_4K) {
+		dev_err(dev, "only supported on systems with 4K PAGE_SIZE\n");
+		return -ENXIO;
+	}
+	if (nsio->res.start & ND_PFN_MASK) {
+		dev_err(dev, "%s not memory hotplug section aligned\n",
+				dev_name(&ndns->dev));
+		return -ENXIO;
+	}
+
+	pfn_sb = nd_pfn->pfn_sb;
+	offset = le64_to_cpu(pfn_sb->dataoff);
+	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
+	if (nd_pfn->mode == PFN_MODE_RAM) {
+		if (offset != SZ_8K)
+			return -EINVAL;
+		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
+		altmap = NULL;
+	} else {
+		rc = -ENXIO;
+		goto err;
+	}
+
+	/* establish pfn range for lookup, and switch to direct map */
+	pmem = dev_get_drvdata(dev);
+	memunmap_pmem(dev, pmem->virt_addr);
+	pmem->virt_addr = (void __pmem *)devm_memremap_pages(dev, &nsio->res);
+	if (IS_ERR(pmem->virt_addr)) {
+		rc = PTR_ERR(pmem->virt_addr);
+		goto err;
+	}
+
+	/* attach pmem disk in "pfn-mode" */
+	pmem->data_offset = offset;
+	rc = pmem_attach_disk(dev, ndns, pmem);
+	if (rc)
+		goto err;
+
+	return rc;
+ err:
+	nvdimm_namespace_detach_pfn(ndns);
+	return rc;
 }
 
 static int nd_pmem_probe(struct device *dev)
@@ -222,7 +388,6 @@ static int nd_pmem_probe(struct device *dev)
 	struct nd_namespace_common *ndns;
 	struct nd_namespace_io *nsio;
 	struct pmem_device *pmem;
-	int rc;
 
 	ndns = nvdimm_namespace_common_probe(dev);
 	if (IS_ERR(ndns))
@@ -233,18 +398,27 @@ static int nd_pmem_probe(struct device *dev)
 	if (IS_ERR(pmem))
 		return PTR_ERR(pmem);
 
+	pmem->ndns = ndns;
 	dev_set_drvdata(dev, pmem);
 	ndns->rw_bytes = pmem_rw_bytes;
+
 	if (is_nd_btt(dev))
-		rc = nvdimm_namespace_attach_btt(ndns);
-	else if (nd_btt_probe(ndns, pmem) == 0) {
+		return nvdimm_namespace_attach_btt(ndns);
+
+	if (is_nd_pfn(dev))
+		return nvdimm_namespace_attach_pfn(ndns);
+
+	if (nd_btt_probe(ndns, pmem) == 0) {
 		/* we'll come back as btt-pmem */
-		rc = -ENXIO;
-	} else
-		rc = pmem_attach_disk(ndns, pmem);
-	if (rc)
-		pmem_free(pmem);
-	return rc;
+		return -ENXIO;
+	}
+
+	if (nd_pfn_probe(ndns, pmem) == 0) {
+		/* we'll come back as pfn-pmem */
+		return -ENXIO;
+	}
+
+	return pmem_attach_disk(dev, ndns, pmem);
 }
 
 static int nd_pmem_remove(struct device *dev)
@@ -252,10 +426,11 @@ static int nd_pmem_remove(struct device *dev)
 	struct pmem_device *pmem = dev_get_drvdata(dev);
 
 	if (is_nd_btt(dev))
-		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
+		nvdimm_namespace_detach_btt(pmem->ndns);
+	else if (is_nd_pfn(dev))
+		nvdimm_namespace_detach_pfn(pmem->ndns);
 	else
 		pmem_detach_disk(pmem);
-	pmem_free(pmem);
 
 	return 0;
 }

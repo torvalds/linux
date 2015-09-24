@@ -1132,7 +1132,7 @@ static struct phy *miphy28lp_xlate(struct device *dev,
 	return miphy_phy->phy;
 }
 
-static struct phy_ops miphy28lp_ops = {
+static const struct phy_ops miphy28lp_ops = {
 	.init = miphy28lp_init,
 	.owner = THIS_MODULE,
 };
@@ -1268,7 +1268,6 @@ static struct platform_driver miphy28lp_driver = {
 	.probe = miphy28lp_probe,
 	.driver = {
 		.name = "miphy28lp-phy",
-		.owner = THIS_MODULE,
 		.of_match_table = miphy28lp_of_match,
 	}
 };

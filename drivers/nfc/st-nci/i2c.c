@@ -25,15 +25,15 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/st_nci.h>
+#include <linux/platform_data/st-nci.h>
 
 #include "ndlc.h"
 
-#define DRIVER_DESC "NCI NFC driver for ST21NFCB"
+#define DRIVER_DESC "NCI NFC driver for ST_NCI"
 
 /* ndlc header */
-#define ST21NFCB_FRAME_HEADROOM	1
-#define ST21NFCB_FRAME_TAILROOM 0
+#define ST_NCI_FRAME_HEADROOM	1
+#define ST_NCI_FRAME_TAILROOM 0
 
 #define ST_NCI_I2C_MIN_SIZE 4   /* PCB(1) + NCI Packet header(3) */
 #define ST_NCI_I2C_MAX_SIZE 250 /* req 4.2.1 */
@@ -118,15 +118,10 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 /*
  * Reads an ndlc frame and returns it in a newly allocated sk_buff.
  * returns:
- * frame size : if received frame is complete (find ST21NFCB_SOF_EOF at
- * end of read)
- * -EAGAIN : if received frame is incomplete (not find ST21NFCB_SOF_EOF
- * at end of read)
+ * 0 : if received frame is complete
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * (value returned from st_nci_i2c_repack)
- * -EIO : if no ST21NFCB_SOF_EOF is found after reaching
- * the read length end sequence
+ * -ENOMEM : cannot allocate skb, frame dropped
  */
 static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 				 struct sk_buff **skb)
@@ -179,7 +174,7 @@ static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 /*
  * Reads an ndlc frame from the chip.
  *
- * On ST21NFCB, IRQ goes in idle state when read starts.
+ * On ST_NCI, IRQ goes in idle state when read starts.
  */
 static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 {
@@ -325,12 +320,12 @@ static int st_nci_i2c_probe(struct i2c_client *client,
 		}
 	} else {
 		nfc_err(&client->dev,
-			"st21nfcb platform resources not available\n");
+			"st_nci platform resources not available\n");
 		return -ENODEV;
 	}
 
 	r = ndlc_probe(phy, &i2c_phy_ops, &client->dev,
-			ST21NFCB_FRAME_HEADROOM, ST21NFCB_FRAME_TAILROOM,
+			ST_NCI_FRAME_HEADROOM, ST_NCI_FRAME_TAILROOM,
 			&phy->ndlc);
 	if (r < 0) {
 		nfc_err(&client->dev, "Unable to register ndlc layer\n");

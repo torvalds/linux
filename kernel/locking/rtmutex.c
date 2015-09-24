@@ -1120,7 +1120,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 		debug_rt_mutex_print_deadlock(waiter);
 
-		schedule_rt_mutex(lock);
+		schedule();
 
 		raw_spin_lock(&lock->wait_lock);
 		set_current_state(state);

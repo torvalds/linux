@@ -685,7 +685,6 @@ MODULE_DEVICE_TABLE(i2c, sm5502_i2c_id);
 static struct i2c_driver sm5502_muic_i2c_driver = {
 	.driver		= {
 		.name	= "sm5502",
-		.owner	= THIS_MODULE,
 		.pm	= &sm5502_muic_pm_ops,
 		.of_match_table = sm5502_dt_match,
 	},

@@ -262,6 +262,11 @@ struct ip_vs_sync_mesg {
 	/* ip_vs_sync_conn entries start here */
 };
 
+union ipvs_sockaddr {
+	struct sockaddr_in	in;
+	struct sockaddr_in6	in6;
+};
+
 struct ip_vs_sync_buff {
 	struct list_head        list;
 	unsigned long           firstuse;
@@ -320,26 +325,28 @@ sb_dequeue(struct netns_ipvs *ipvs, struct ipvs_master_sync_state *ms)
  * Create a new sync buffer for Version 1 proto.
  */
 static inline struct ip_vs_sync_buff *
-ip_vs_sync_buff_create(struct netns_ipvs *ipvs)
+ip_vs_sync_buff_create(struct netns_ipvs *ipvs, unsigned int len)
 {
 	struct ip_vs_sync_buff *sb;
 
 	if (!(sb=kmalloc(sizeof(struct ip_vs_sync_buff), GFP_ATOMIC)))
 		return NULL;
 
-	sb->mesg = kmalloc(ipvs->send_mesg_maxlen, GFP_ATOMIC);
+	len = max_t(unsigned int, len + sizeof(struct ip_vs_sync_mesg),
+		    ipvs->mcfg.sync_maxlen);
+	sb->mesg = kmalloc(len, GFP_ATOMIC);
 	if (!sb->mesg) {
 		kfree(sb);
 		return NULL;
 	}
 	sb->mesg->reserved = 0;  /* old nr_conns i.e. must be zero now */
 	sb->mesg->version = SYNC_PROTO_VER;
-	sb->mesg->syncid = ipvs->master_syncid;
+	sb->mesg->syncid = ipvs->mcfg.syncid;
 	sb->mesg->size = htons(sizeof(struct ip_vs_sync_mesg));
 	sb->mesg->nr_conns = 0;
 	sb->mesg->spare = 0;
 	sb->head = (unsigned char *)sb->mesg + sizeof(struct ip_vs_sync_mesg);
-	sb->end = (unsigned char *)sb->mesg + ipvs->send_mesg_maxlen;
+	sb->end = (unsigned char *)sb->mesg + len;
 
 	sb->firstuse = jiffies;
 	return sb;
@@ -402,7 +409,7 @@ select_master_thread_id(struct netns_ipvs *ipvs, struct ip_vs_conn *cp)
  * Create a new sync buffer for Version 0 proto.
  */
 static inline struct ip_vs_sync_buff *
-ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs)
+ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs, unsigned int len)
 {
 	struct ip_vs_sync_buff *sb;
 	struct ip_vs_sync_mesg_v0 *mesg;
@@ -410,17 +417,19 @@ ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs)
 	if (!(sb=kmalloc(sizeof(struct ip_vs_sync_buff), GFP_ATOMIC)))
 		return NULL;
 
-	sb->mesg = kmalloc(ipvs->send_mesg_maxlen, GFP_ATOMIC);
+	len = max_t(unsigned int, len + sizeof(struct ip_vs_sync_mesg_v0),
+		    ipvs->mcfg.sync_maxlen);
+	sb->mesg = kmalloc(len, GFP_ATOMIC);
 	if (!sb->mesg) {
 		kfree(sb);
 		return NULL;
 	}
 	mesg = (struct ip_vs_sync_mesg_v0 *)sb->mesg;
 	mesg->nr_conns = 0;
-	mesg->syncid = ipvs->master_syncid;
+	mesg->syncid = ipvs->mcfg.syncid;
 	mesg->size = htons(sizeof(struct ip_vs_sync_mesg_v0));
 	sb->head = (unsigned char *)mesg + sizeof(struct ip_vs_sync_mesg_v0);
-	sb->end = (unsigned char *)mesg + ipvs->send_mesg_maxlen;
+	sb->end = (unsigned char *)mesg + len;
 	sb->firstuse = jiffies;
 	return sb;
 }
@@ -533,7 +542,7 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	struct ip_vs_sync_buff *buff;
 	struct ipvs_master_sync_state *ms;
 	int id;
-	int len;
+	unsigned int len;
 
 	if (unlikely(cp->af != AF_INET))
 		return;
@@ -553,17 +562,19 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	id = select_master_thread_id(ipvs, cp);
 	ms = &ipvs->ms[id];
 	buff = ms->sync_buff;
+	len = (cp->flags & IP_VS_CONN_F_SEQ_MASK) ? FULL_CONN_SIZE :
+		SIMPLE_CONN_SIZE;
 	if (buff) {
 		m = (struct ip_vs_sync_mesg_v0 *) buff->mesg;
 		/* Send buffer if it is for v1 */
-		if (!m->nr_conns) {
+		if (buff->head + len > buff->end || !m->nr_conns) {
 			sb_queue_tail(ipvs, ms);
 			ms->sync_buff = NULL;
 			buff = NULL;
 		}
 	}
 	if (!buff) {
-		buff = ip_vs_sync_buff_create_v0(ipvs);
+		buff = ip_vs_sync_buff_create_v0(ipvs, len);
 		if (!buff) {
 			spin_unlock_bh(&ipvs->sync_buff_lock);
 			pr_err("ip_vs_sync_buff_create failed.\n");
@@ -572,8 +583,6 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 		ms->sync_buff = buff;
 	}
 
-	len = (cp->flags & IP_VS_CONN_F_SEQ_MASK) ? FULL_CONN_SIZE :
-		SIMPLE_CONN_SIZE;
 	m = (struct ip_vs_sync_mesg_v0 *) buff->mesg;
 	s = (struct ip_vs_sync_conn_v0 *) buff->head;
 
@@ -597,12 +606,6 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	m->nr_conns++;
 	m->size = htons(ntohs(m->size) + len);
 	buff->head += len;
-
-	/* check if there is a space for next one */
-	if (buff->head + FULL_CONN_SIZE > buff->end) {
-		sb_queue_tail(ipvs, ms);
-		ms->sync_buff = NULL;
-	}
 	spin_unlock_bh(&ipvs->sync_buff_lock);
 
 	/* synchronize its controller if it has */
@@ -694,7 +697,7 @@ sloop:
 	}
 
 	if (!buff) {
-		buff = ip_vs_sync_buff_create(ipvs);
+		buff = ip_vs_sync_buff_create(ipvs, len);
 		if (!buff) {
 			spin_unlock_bh(&ipvs->sync_buff_lock);
 			pr_err("ip_vs_sync_buff_create failed.\n");
@@ -1219,7 +1222,7 @@ static void ip_vs_process_message(struct net *net, __u8 *buffer,
 		return;
 	}
 	/* SyncID sanity check */
-	if (ipvs->backup_syncid != 0 && m2->syncid != ipvs->backup_syncid) {
+	if (ipvs->bcfg.syncid != 0 && m2->syncid != ipvs->bcfg.syncid) {
 		IP_VS_DBG(7, "BACKUP, Ignoring syncid = %d\n", m2->syncid);
 		return;
 	}
@@ -1303,6 +1306,14 @@ static void set_mcast_loop(struct sock *sk, u_char loop)
 	/* setsockopt(sock, SOL_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)); */
 	lock_sock(sk);
 	inet->mc_loop = loop ? 1 : 0;
+#ifdef CONFIG_IP_VS_IPV6
+	if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+
+		/* IPV6_MULTICAST_LOOP */
+		np->mc_loop = loop ? 1 : 0;
+	}
+#endif
 	release_sock(sk);
 }
 
@@ -1316,6 +1327,33 @@ static void set_mcast_ttl(struct sock *sk, u_char ttl)
 	/* setsockopt(sock, SOL_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)); */
 	lock_sock(sk);
 	inet->mc_ttl = ttl;
+#ifdef CONFIG_IP_VS_IPV6
+	if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+
+		/* IPV6_MULTICAST_HOPS */
+		np->mcast_hops = ttl;
+	}
+#endif
+	release_sock(sk);
+}
+
+/* Control fragmentation of messages */
+static void set_mcast_pmtudisc(struct sock *sk, int val)
+{
+	struct inet_sock *inet = inet_sk(sk);
+
+	/* setsockopt(sock, SOL_IP, IP_MTU_DISCOVER, &val, sizeof(val)); */
+	lock_sock(sk);
+	inet->pmtudisc = val;
+#ifdef CONFIG_IP_VS_IPV6
+	if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+
+		/* IPV6_MTU_DISCOVER */
+		np->pmtudisc = val;
+	}
+#endif
 	release_sock(sk);
 }
 
@@ -1338,44 +1376,15 @@ static int set_mcast_if(struct sock *sk, char *ifname)
 	lock_sock(sk);
 	inet->mc_index = dev->ifindex;
 	/*  inet->mc_addr  = 0; */
-	release_sock(sk);
+#ifdef CONFIG_IP_VS_IPV6
+	if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
 
-	return 0;
-}
-
-
-/*
- *	Set the maximum length of sync message according to the
- *	specified interface's MTU.
- */
-static int set_sync_mesg_maxlen(struct net *net, int sync_state)
-{
-	struct netns_ipvs *ipvs = net_ipvs(net);
-	struct net_device *dev;
-	int num;
-
-	if (sync_state == IP_VS_STATE_MASTER) {
-		dev = __dev_get_by_name(net, ipvs->master_mcast_ifn);
-		if (!dev)
-			return -ENODEV;
-
-		num = (dev->mtu - sizeof(struct iphdr) -
-		       sizeof(struct udphdr) -
-		       SYNC_MESG_HEADER_LEN - 20) / SIMPLE_CONN_SIZE;
-		ipvs->send_mesg_maxlen = SYNC_MESG_HEADER_LEN +
-			SIMPLE_CONN_SIZE * min(num, MAX_CONNS_PER_SYNCBUFF);
-		IP_VS_DBG(7, "setting the maximum length of sync sending "
-			  "message %d.\n", ipvs->send_mesg_maxlen);
-	} else if (sync_state == IP_VS_STATE_BACKUP) {
-		dev = __dev_get_by_name(net, ipvs->backup_mcast_ifn);
-		if (!dev)
-			return -ENODEV;
-
-		ipvs->recv_mesg_maxlen = dev->mtu -
-			sizeof(struct iphdr) - sizeof(struct udphdr);
-		IP_VS_DBG(7, "setting the maximum length of sync receiving "
-			  "message %d.\n", ipvs->recv_mesg_maxlen);
+		/* IPV6_MULTICAST_IF */
+		np->mcast_oif = dev->ifindex;
 	}
+#endif
+	release_sock(sk);
 
 	return 0;
 }
@@ -1405,15 +1414,34 @@ join_mcast_group(struct sock *sk, struct in_addr *addr, char *ifname)
 
 	mreq.imr_ifindex = dev->ifindex;
 
-	rtnl_lock();
 	lock_sock(sk);
 	ret = ip_mc_join_group(sk, &mreq);
 	release_sock(sk);
-	rtnl_unlock();
 
 	return ret;
 }
 
+#ifdef CONFIG_IP_VS_IPV6
+static int join_mcast_group6(struct sock *sk, struct in6_addr *addr,
+			     char *ifname)
+{
+	struct net *net = sock_net(sk);
+	struct net_device *dev;
+	int ret;
+
+	dev = __dev_get_by_name(net, ifname);
+	if (!dev)
+		return -ENODEV;
+	if (sk->sk_bound_dev_if && dev->ifindex != sk->sk_bound_dev_if)
+		return -EINVAL;
+
+	lock_sock(sk);
+	ret = ipv6_sock_mc_join(sk, dev->ifindex, addr);
+	release_sock(sk);
+
+	return ret;
+}
+#endif
 
 static int bind_mcastif_addr(struct socket *sock, char *ifname)
 {
@@ -1442,6 +1470,26 @@ static int bind_mcastif_addr(struct socket *sock, char *ifname)
 	return sock->ops->bind(sock, (struct sockaddr*)&sin, sizeof(sin));
 }
 
+static void get_mcast_sockaddr(union ipvs_sockaddr *sa, int *salen,
+			       struct ipvs_sync_daemon_cfg *c, int id)
+{
+	if (AF_INET6 == c->mcast_af) {
+		sa->in6 = (struct sockaddr_in6) {
+			.sin6_family = AF_INET6,
+			.sin6_port = htons(c->mcast_port + id),
+		};
+		sa->in6.sin6_addr = c->mcast_group.in6;
+		*salen = sizeof(sa->in6);
+	} else {
+		sa->in = (struct sockaddr_in) {
+			.sin_family = AF_INET,
+			.sin_port = htons(c->mcast_port + id),
+		};
+		sa->in.sin_addr = c->mcast_group.in;
+		*salen = sizeof(sa->in);
+	}
+}
+
 /*
  *      Set up sending multicast socket over UDP
  */
@@ -1449,40 +1497,43 @@ static struct socket *make_send_sock(struct net *net, int id)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	/* multicast addr */
-	struct sockaddr_in mcast_addr = {
-		.sin_family		= AF_INET,
-		.sin_port		= cpu_to_be16(IP_VS_SYNC_PORT + id),
-		.sin_addr.s_addr	= cpu_to_be32(IP_VS_SYNC_GROUP),
-	};
+	union ipvs_sockaddr mcast_addr;
 	struct socket *sock;
-	int result;
+	int result, salen;
 
 	/* First create a socket */
-	result = sock_create_kern(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	result = sock_create_kern(net, ipvs->mcfg.mcast_af, SOCK_DGRAM,
+				  IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
 	}
-	result = set_mcast_if(sock->sk, ipvs->master_mcast_ifn);
+	result = set_mcast_if(sock->sk, ipvs->mcfg.mcast_ifn);
 	if (result < 0) {
 		pr_err("Error setting outbound mcast interface\n");
 		goto error;
 	}
 
 	set_mcast_loop(sock->sk, 0);
-	set_mcast_ttl(sock->sk, 1);
+	set_mcast_ttl(sock->sk, ipvs->mcfg.mcast_ttl);
+	/* Allow fragmentation if MTU changes */
+	set_mcast_pmtudisc(sock->sk, IP_PMTUDISC_DONT);
 	result = sysctl_sync_sock_size(ipvs);
 	if (result > 0)
 		set_sock_size(sock->sk, 1, result);
 
-	result = bind_mcastif_addr(sock, ipvs->master_mcast_ifn);
+	if (AF_INET == ipvs->mcfg.mcast_af)
+		result = bind_mcastif_addr(sock, ipvs->mcfg.mcast_ifn);
+	else
+		result = 0;
 	if (result < 0) {
 		pr_err("Error binding address of the mcast interface\n");
 		goto error;
 	}
 
+	get_mcast_sockaddr(&mcast_addr, &salen, &ipvs->mcfg, id);
 	result = sock->ops->connect(sock, (struct sockaddr *) &mcast_addr,
-			sizeof(struct sockaddr), 0);
+				    salen, 0);
 	if (result < 0) {
 		pr_err("Error connecting to the multicast addr\n");
 		goto error;
@@ -1503,16 +1554,13 @@ static struct socket *make_receive_sock(struct net *net, int id)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	/* multicast addr */
-	struct sockaddr_in mcast_addr = {
-		.sin_family		= AF_INET,
-		.sin_port		= cpu_to_be16(IP_VS_SYNC_PORT + id),
-		.sin_addr.s_addr	= cpu_to_be32(IP_VS_SYNC_GROUP),
-	};
+	union ipvs_sockaddr mcast_addr;
 	struct socket *sock;
-	int result;
+	int result, salen;
 
 	/* First create a socket */
-	result = sock_create_kern(net, PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
+	result = sock_create_kern(net, ipvs->bcfg.mcast_af, SOCK_DGRAM,
+				  IPPROTO_UDP, &sock);
 	if (result < 0) {
 		pr_err("Error during creation of socket; terminating\n");
 		return ERR_PTR(result);
@@ -1523,17 +1571,22 @@ static struct socket *make_receive_sock(struct net *net, int id)
 	if (result > 0)
 		set_sock_size(sock->sk, 0, result);
 
-	result = sock->ops->bind(sock, (struct sockaddr *) &mcast_addr,
-			sizeof(struct sockaddr));
+	get_mcast_sockaddr(&mcast_addr, &salen, &ipvs->bcfg, id);
+	result = sock->ops->bind(sock, (struct sockaddr *)&mcast_addr, salen);
 	if (result < 0) {
 		pr_err("Error binding to the multicast addr\n");
 		goto error;
 	}
 
 	/* join the multicast group */
-	result = join_mcast_group(sock->sk,
-			(struct in_addr *) &mcast_addr.sin_addr,
-			ipvs->backup_mcast_ifn);
+#ifdef CONFIG_IP_VS_IPV6
+	if (ipvs->bcfg.mcast_af == AF_INET6)
+		result = join_mcast_group6(sock->sk, &mcast_addr.in6.sin6_addr,
+					   ipvs->bcfg.mcast_ifn);
+	else
+#endif
+		result = join_mcast_group(sock->sk, &mcast_addr.in.sin_addr,
+					  ipvs->bcfg.mcast_ifn);
 	if (result < 0) {
 		pr_err("Error joining to the multicast group\n");
 		goto error;
@@ -1641,7 +1694,7 @@ static int sync_thread_master(void *data)
 
 	pr_info("sync thread started: state = MASTER, mcast_ifn = %s, "
 		"syncid = %d, id = %d\n",
-		ipvs->master_mcast_ifn, ipvs->master_syncid, tinfo->id);
+		ipvs->mcfg.mcast_ifn, ipvs->mcfg.syncid, tinfo->id);
 
 	for (;;) {
 		sb = next_sync_buff(ipvs, ms);
@@ -1695,7 +1748,7 @@ static int sync_thread_backup(void *data)
 
 	pr_info("sync thread started: state = BACKUP, mcast_ifn = %s, "
 		"syncid = %d, id = %d\n",
-		ipvs->backup_mcast_ifn, ipvs->backup_syncid, tinfo->id);
+		ipvs->bcfg.mcast_ifn, ipvs->bcfg.syncid, tinfo->id);
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(*sk_sleep(tinfo->sock->sk),
@@ -1705,7 +1758,7 @@ static int sync_thread_backup(void *data)
 		/* do we have data now? */
 		while (!skb_queue_empty(&(tinfo->sock->sk->sk_receive_queue))) {
 			len = ip_vs_receive(tinfo->sock, tinfo->buf,
-					ipvs->recv_mesg_maxlen);
+					ipvs->bcfg.sync_maxlen);
 			if (len <= 0) {
 				if (len != -EAGAIN)
 					pr_err("receiving message error\n");
@@ -1725,16 +1778,19 @@ static int sync_thread_backup(void *data)
 }
 
 
-int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
+int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *c,
+		      int state)
 {
 	struct ip_vs_sync_thread_data *tinfo;
 	struct task_struct **array = NULL, *task;
 	struct socket *sock;
 	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct net_device *dev;
 	char *name;
 	int (*threadfn)(void *data);
-	int id, count;
+	int id, count, hlen;
 	int result = -ENOMEM;
+	u16 mtu, min_mtu;
 
 	IP_VS_DBG(7, "%s(): pid %d\n", __func__, task_pid_nr(current));
 	IP_VS_DBG(7, "Each ip_vs_sync_conn entry needs %Zd bytes\n",
@@ -1746,22 +1802,46 @@ int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
 	} else
 		count = ipvs->threads_mask + 1;
 
+	if (c->mcast_af == AF_UNSPEC) {
+		c->mcast_af = AF_INET;
+		c->mcast_group.ip = cpu_to_be32(IP_VS_SYNC_GROUP);
+	}
+	if (!c->mcast_port)
+		c->mcast_port = IP_VS_SYNC_PORT;
+	if (!c->mcast_ttl)
+		c->mcast_ttl = 1;
+
+	dev = __dev_get_by_name(net, c->mcast_ifn);
+	if (!dev) {
+		pr_err("Unknown mcast interface: %s\n", c->mcast_ifn);
+		return -ENODEV;
+	}
+	hlen = (AF_INET6 == c->mcast_af) ?
+	       sizeof(struct ipv6hdr) + sizeof(struct udphdr) :
+	       sizeof(struct iphdr) + sizeof(struct udphdr);
+	mtu = (state == IP_VS_STATE_BACKUP) ?
+		  clamp(dev->mtu, 1500U, 65535U) : 1500U;
+	min_mtu = (state == IP_VS_STATE_BACKUP) ? 1024 : 1;
+
+	if (c->sync_maxlen)
+		c->sync_maxlen = clamp_t(unsigned int,
+					 c->sync_maxlen, min_mtu,
+					 65535 - hlen);
+	else
+		c->sync_maxlen = mtu - hlen;
+
 	if (state == IP_VS_STATE_MASTER) {
 		if (ipvs->ms)
 			return -EEXIST;
 
-		strlcpy(ipvs->master_mcast_ifn, mcast_ifn,
-			sizeof(ipvs->master_mcast_ifn));
-		ipvs->master_syncid = syncid;
+		ipvs->mcfg = *c;
 		name = "ipvs-m:%d:%d";
 		threadfn = sync_thread_master;
 	} else if (state == IP_VS_STATE_BACKUP) {
 		if (ipvs->backup_threads)
 			return -EEXIST;
 
-		strlcpy(ipvs->backup_mcast_ifn, mcast_ifn,
-			sizeof(ipvs->backup_mcast_ifn));
-		ipvs->backup_syncid = syncid;
+		ipvs->bcfg = *c;
 		name = "ipvs-b:%d:%d";
 		threadfn = sync_thread_backup;
 	} else {
@@ -1789,7 +1869,6 @@ int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
 		if (!array)
 			goto out;
 	}
-	set_sync_mesg_maxlen(net, state);
 
 	tinfo = NULL;
 	for (id = 0; id < count; id++) {
@@ -1807,7 +1886,7 @@ int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
 		tinfo->net = net;
 		tinfo->sock = sock;
 		if (state == IP_VS_STATE_BACKUP) {
-			tinfo->buf = kmalloc(ipvs->recv_mesg_maxlen,
+			tinfo->buf = kmalloc(ipvs->bcfg.sync_maxlen,
 					     GFP_KERNEL);
 			if (!tinfo->buf)
 				goto outtinfo;

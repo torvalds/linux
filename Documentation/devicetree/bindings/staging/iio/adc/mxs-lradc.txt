@@ -1,4 +1,4 @@
-* Freescale i.MX28 LRADC device driver
+* Freescale MXS LRADC device driver
 
 Required properties:
 - compatible: Should be "fsl,imx23-lradc" for i.MX23 SoC and "fsl,imx28-lradc"

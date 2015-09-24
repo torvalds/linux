@@ -192,13 +192,14 @@ out:
 	return ret;
 }
 
-static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
+static void timbgpio_irq(struct irq_desc *desc)
 {
-	struct timbgpio *tgpio = irq_get_handler_data(irq);
+	struct timbgpio *tgpio = irq_desc_get_handler_data(desc);
+	struct irq_data *data = irq_desc_get_irq_data(desc);
 	unsigned long ipr;
 	int offset;
 
-	desc->irq_data.chip->irq_ack(irq_get_irq_data(irq));
+	data->chip->irq_ack(data);
 	ipr = ioread32(tgpio->membase + TGPIO_IPR);
 	iowrite32(ipr, tgpio->membase + TGPIO_ICR);
 
@@ -294,13 +295,10 @@ static int timbgpio_probe(struct platform_device *pdev)
 		irq_set_chip_and_handler(tgpio->irq_base + i,
 			&timbgpio_irqchip, handle_simple_irq);
 		irq_set_chip_data(tgpio->irq_base + i, tgpio);
-#ifdef CONFIG_ARM
-		set_irq_flags(tgpio->irq_base + i, IRQF_VALID | IRQF_PROBE);
-#endif
+		irq_clear_status_flags(tgpio->irq_base + i, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
-	irq_set_handler_data(irq, tgpio);
-	irq_set_chained_handler(irq, timbgpio_irq);
+	irq_set_chained_handler_and_data(irq, timbgpio_irq, tgpio);
 
 	return 0;
 }

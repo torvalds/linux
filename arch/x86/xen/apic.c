@@ -7,6 +7,7 @@
 #include <xen/xen.h>
 #include <xen/interface/physdev.h>
 #include "xen-ops.h"
+#include "pmu.h"
 #include "smp.h"
 
 static unsigned int xen_io_apic_read(unsigned apic, unsigned reg)
@@ -72,6 +73,11 @@ static u32 xen_apic_read(u32 reg)
 
 static void xen_apic_write(u32 reg, u32 val)
 {
+	if (reg == APIC_LVTPC) {
+		(void)pmu_apic_update(reg);
+		return;
+	}
+
 	/* Warn to see if there's any stray references */
 	WARN(1,"register: %x, value: %x\n", reg, val);
 }

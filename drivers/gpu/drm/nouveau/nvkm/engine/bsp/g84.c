@@ -22,72 +22,23 @@
  * Authors: Ben Skeggs, Ilia Mirkin
  */
 #include <engine/bsp.h>
-#include <engine/xtensa.h>
 
-#include <core/engctx.h>
+#include <nvif/class.h>
 
-/*******************************************************************************
- * BSP object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_bsp_sclass[] = {
-	{ 0x74b0, &nvkm_object_ofuncs },
-	{},
+static const struct nvkm_xtensa_func
+g84_bsp = {
+	.pmc_enable = 0x04008000,
+	.fifo_val = 0x1111,
+	.unkd28 = 0x90044,
+	.sclass = {
+		{ -1, -1, NV74_BSP },
+		{}
+	}
 };
 
-/*******************************************************************************
- * BSP context
- ******************************************************************************/
-
-static struct nvkm_oclass
-g84_bsp_cclass = {
-	.handle = NV_ENGCTX(BSP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = _nvkm_xtensa_engctx_ctor,
-		.dtor = _nvkm_engctx_dtor,
-		.init = _nvkm_engctx_init,
-		.fini = _nvkm_engctx_fini,
-		.rd32 = _nvkm_engctx_rd32,
-		.wr32 = _nvkm_engctx_wr32,
-	},
-};
-
-/*******************************************************************************
- * BSP engine/subdev functions
- ******************************************************************************/
-
-static int
-g84_bsp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	     struct nvkm_oclass *oclass, void *data, u32 size,
-	     struct nvkm_object **pobject)
+int
+g84_bsp_new(struct nvkm_device *device, int index, struct nvkm_engine **pengine)
 {
-	struct nvkm_xtensa *priv;
-	int ret;
-
-	ret = nvkm_xtensa_create(parent, engine, oclass, 0x103000, true,
-				 "PBSP", "bsp", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x04008000;
-	nv_engine(priv)->cclass = &g84_bsp_cclass;
-	nv_engine(priv)->sclass = g84_bsp_sclass;
-	priv->fifo_val = 0x1111;
-	priv->unkd28 = 0x90044;
-	return 0;
+	return nvkm_xtensa_new_(&g84_bsp, device, index,
+				true, 0x103000, pengine);
 }
-
-struct nvkm_oclass
-g84_bsp_oclass = {
-	.handle = NV_ENGINE(BSP, 0x84),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = g84_bsp_ctor,
-		.dtor = _nvkm_xtensa_dtor,
-		.init = _nvkm_xtensa_init,
-		.fini = _nvkm_xtensa_fini,
-		.rd32 = _nvkm_xtensa_rd32,
-		.wr32 = _nvkm_xtensa_wr32,
-	},
-};

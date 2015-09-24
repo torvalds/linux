@@ -42,22 +42,6 @@
 
 #define	UNSET	(-1U)
 
-/* system vendor and device ID's */
-#define	PCI_VENDOR_ID_TECHWELL	0x1797
-#define	PCI_DEVICE_ID_6800	0x6800
-#define	PCI_DEVICE_ID_6801	0x6801
-#define	PCI_DEVICE_ID_AUDIO2	0x6802
-#define	PCI_DEVICE_ID_TS3	0x6803
-#define	PCI_DEVICE_ID_6804	0x6804
-#define	PCI_DEVICE_ID_AUDIO5	0x6805
-#define	PCI_DEVICE_ID_TS6	0x6806
-
-/* tw6816 based cards */
-#define	PCI_DEVICE_ID_6816_1   0x6810
-#define	PCI_DEVICE_ID_6816_2   0x6811
-#define	PCI_DEVICE_ID_6816_3   0x6812
-#define	PCI_DEVICE_ID_6816_4   0x6813
-
 #define TW68_NORMS ( \
 	V4L2_STD_NTSC    | V4L2_STD_PAL       | V4L2_STD_SECAM    | \
 	V4L2_STD_PAL_M   | V4L2_STD_PAL_Nc    | V4L2_STD_PAL_60)

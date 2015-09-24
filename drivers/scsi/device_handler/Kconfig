@@ -3,7 +3,7 @@
 #
 
 menuconfig SCSI_DH
-	tristate "SCSI Device Handlers"
+	bool "SCSI Device Handlers"
 	depends on SCSI
 	default n
 	help

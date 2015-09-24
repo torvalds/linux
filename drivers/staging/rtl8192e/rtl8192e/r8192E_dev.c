@@ -33,7 +33,7 @@
 static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI,
 			     EDCAPARA_VO};
 
-void rtl8192e_start_beacon(struct net_device *dev)
+void rtl92e_start_beacon(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	struct rtllib_network *net = &priv->rtllib->current_network;
@@ -41,21 +41,20 @@ void rtl8192e_start_beacon(struct net_device *dev)
 	u16 BcnCW = 6;
 	u16 BcnIFS = 0xf;
 
-	DMESG("Enabling beacon TX");
-	rtl8192_irq_disable(dev);
+	rtl92e_irq_disable(dev);
 
-	write_nic_word(dev, ATIMWND, 2);
+	rtl92e_writew(dev, ATIMWND, 2);
 
-	write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
-	write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
-	write_nic_word(dev, BCN_DMATIME, 256);
+	rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
+	rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
+	rtl92e_writew(dev, BCN_DMATIME, 256);
 
-	write_nic_byte(dev, BCN_ERR_THRESH, 100);
+	rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
 
 	BcnTimeCfg |= BcnCW<<BCN_TCFG_CW_SHIFT;
 	BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
-	write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
-	rtl8192_irq_enable(dev);
+	rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
+	rtl92e_irq_enable(dev);
 }
 
 static void rtl8192e_update_msr(struct net_device *dev)
@@ -64,7 +63,7 @@ static void rtl8192e_update_msr(struct net_device *dev)
 	u8 msr;
 	enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 
-	msr  = read_nic_byte(dev, MSR);
+	msr  = rtl92e_readb(dev, MSR);
 	msr &= ~MSR_LINK_MASK;
 
 	switch (priv->rtllib->iw_mode) {
@@ -91,26 +90,26 @@ static void rtl8192e_update_msr(struct net_device *dev)
 		break;
 	}
 
-	write_nic_byte(dev, MSR, msr);
+	rtl92e_writeb(dev, MSR, msr);
 	if (priv->rtllib->LedControlHandler)
 		priv->rtllib->LedControlHandler(dev, LedAction);
 }
 
-void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
+void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	switch (variable) {
 	case HW_VAR_BSSID:
-		write_nic_dword(dev, BSSIDR, ((u32 *)(val))[0]);
-		write_nic_word(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
+		rtl92e_writel(dev, BSSIDR, ((u32 *)(val))[0]);
+		rtl92e_writew(dev, BSSIDR+2, ((u16 *)(val+2))[0]);
 		break;
 
 	case HW_VAR_MEDIA_STATUS:
 	{
 		enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
 		enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
-		u8		btMsr = read_nic_byte(dev, MSR);
+		u8 btMsr = rtl92e_readb(dev, MSR);
 
 		btMsr &= 0xfc;
 
@@ -134,7 +133,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 			break;
 		}
 
-		write_nic_byte(dev, MSR, btMsr);
+		rtl92e_writeb(dev, MSR, btMsr);
 
 	}
 	break;
@@ -144,7 +143,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		u32	RegRCR, Type;
 
 		Type = ((u8 *)(val))[0];
-		RegRCR = read_nic_dword(dev, RCR);
+		RegRCR = rtl92e_readl(dev, RCR);
 		priv->ReceiveConfig = RegRCR;
 
 		if (Type == true)
@@ -152,7 +151,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		else if (Type == false)
 			RegRCR &= (~RCR_CBSSID);
 
-		write_nic_dword(dev, RCR, RegRCR);
+		rtl92e_writel(dev, RCR, RegRCR);
 		priv->ReceiveConfig = RegRCR;
 
 	}
@@ -161,7 +160,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 	case HW_VAR_SLOT_TIME:
 
 		priv->slot_time = val[0];
-		write_nic_byte(dev, SLOT_TIME, val[0]);
+		rtl92e_writeb(dev, SLOT_TIME, val[0]);
 
 		break;
 
@@ -173,12 +172,12 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		regTmp = priv->basic_rate;
 		if (priv->short_preamble)
 			regTmp |= BRSR_AckShortPmb;
-		write_nic_dword(dev, RRSR, regTmp);
+		rtl92e_writel(dev, RRSR, regTmp);
 		break;
 	}
 
 	case HW_VAR_CPU_RST:
-		write_nic_dword(dev, CPU_GEN, ((u32 *)(val))[0]);
+		rtl92e_writel(dev, CPU_GEN, ((u32 *)(val))[0]);
 		break;
 
 	case HW_VAR_AC_PARAM:
@@ -194,7 +193,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		u1bAIFS = qop->aifs[pAcParam] *
 			  ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
 
-		dm_init_edca_turbo(dev);
+		rtl92e_dm_init_edca_turbo(dev);
 
 		u4bAcParam = (le16_to_cpu(qop->tx_op_limit[pAcParam]) <<
 			      AC_PARAM_TXOP_LIMIT_OFFSET) |
@@ -208,19 +207,19 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 			 __func__, eACI, u4bAcParam);
 		switch (eACI) {
 		case AC1_BK:
-			write_nic_dword(dev, EDCAPARA_BK, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_BK, u4bAcParam);
 			break;
 
 		case AC0_BE:
-			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_BE, u4bAcParam);
 			break;
 
 		case AC2_VI:
-			write_nic_dword(dev, EDCAPARA_VI, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_VI, u4bAcParam);
 			break;
 
 		case AC3_VO:
-			write_nic_dword(dev, EDCAPARA_VO, u4bAcParam);
+			rtl92e_writel(dev, EDCAPARA_VO, u4bAcParam);
 			break;
 
 		default:
@@ -242,7 +241,7 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		union aci_aifsn *pAciAifsn = (union aci_aifsn *) &
 					      (qos_parameters->aifs[0]);
 		u8 acm = pAciAifsn->f.acm;
-		u8 AcmCtrl = read_nic_byte(dev, AcmHwCtrl);
+		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
 
 		RT_TRACE(COMP_DBG, "===========>%s():HW_VAR_ACM_CTRL:%x\n",
 			 __func__, eACI);
@@ -290,20 +289,20 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		RT_TRACE(COMP_QOS,
 			 "SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n",
 			 AcmCtrl);
-		write_nic_byte(dev, AcmHwCtrl, AcmCtrl);
+		rtl92e_writeb(dev, AcmHwCtrl, AcmCtrl);
 		break;
 	}
 
 	case HW_VAR_SIFS:
-		write_nic_byte(dev, SIFS, val[0]);
-		write_nic_byte(dev, SIFS+1, val[0]);
+		rtl92e_writeb(dev, SIFS, val[0]);
+		rtl92e_writeb(dev, SIFS+1, val[0]);
 		break;
 
 	case HW_VAR_RF_TIMING:
 	{
 		u8 Rf_Timing = *((u8 *)val);
 
-		write_nic_byte(dev, rFPGA0_RFTiming1, Rf_Timing);
+		rtl92e_writeb(dev, rFPGA0_RFTiming1, Rf_Timing);
 		break;
 	}
 
@@ -324,7 +323,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 
-	EEPROMId = eprom_read(dev, 0);
+	EEPROMId = rtl92e_eeprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
 		netdev_err(dev, "%s(): Invalid EEPROM ID: %x\n", __func__,
 			   EEPROMId);
@@ -334,12 +333,14 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	}
 
 	if (!priv->AutoloadFailFlag) {
-		priv->eeprom_vid = eprom_read(dev, EEPROM_VID >> 1);
-		priv->eeprom_did = eprom_read(dev, EEPROM_DID >> 1);
+		priv->eeprom_vid = rtl92e_eeprom_read(dev, EEPROM_VID >> 1);
+		priv->eeprom_did = rtl92e_eeprom_read(dev, EEPROM_DID >> 1);
 
-		usValue = eprom_read(dev, (u16)(EEPROM_Customer_ID>>1)) >> 8;
+		usValue = rtl92e_eeprom_read(dev,
+					     (u16)(EEPROM_Customer_ID>>1)) >> 8;
 		priv->eeprom_CustomerID = (u8)(usValue & 0xff);
-		usValue = eprom_read(dev, EEPROM_ICVersion_ChannelPlan>>1);
+		usValue = rtl92e_eeprom_read(dev,
+					     EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = (usValue & 0xff00)>>8;
 
@@ -377,7 +378,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (!priv->AutoloadFailFlag) {
 		for (i = 0; i < 6; i += 2) {
-			usValue = eprom_read(dev,
+			usValue = rtl92e_eeprom_read(dev,
 				 (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
 			*(u16 *)(&dev->dev_addr[i]) = usValue;
 		}
@@ -397,8 +398,8 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (priv->card_8192_version > VERSION_8190_BD) {
 		if (!priv->AutoloadFailFlag) {
-			tempval = (eprom_read(dev, (EEPROM_RFInd_PowerDiff >>
-					      1))) & 0xff;
+			tempval = (rtl92e_eeprom_read(dev,
+						      (EEPROM_RFInd_PowerDiff >> 1))) & 0xff;
 			priv->EEPROMLegacyHTTxPowerDiff = tempval & 0xf;
 
 			if (tempval&0x80)
@@ -412,7 +413,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			priv->EEPROMLegacyHTTxPowerDiff);
 
 		if (!priv->AutoloadFailFlag)
-			priv->EEPROMThermalMeter = (u8)(((eprom_read(dev,
+			priv->EEPROMThermalMeter = (u8)(((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
 						   0xff00)>>8);
 		else
@@ -423,7 +424,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 		if (priv->epromtype == EEPROM_93C46) {
 			if (!priv->AutoloadFailFlag) {
-				usValue = eprom_read(dev,
+				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->EEPROMAntPwDiff = (usValue&0x0fff);
 				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
@@ -441,7 +442,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
-					usValue = eprom_read(dev,
+					usValue = rtl92e_eeprom_read(dev,
 						  (u16)((EEPROM_TxPwIndex_CCK +
 						  i) >> 1));
 				else
@@ -457,7 +458,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			}
 			for (i = 0; i < 14; i += 2) {
 				if (!priv->AutoloadFailFlag)
-					usValue = eprom_read(dev,
+					usValue = rtl92e_eeprom_read(dev,
 						(u16)((EEPROM_TxPwIndex_OFDM_24G
 						+ i) >> 1));
 				else
@@ -561,7 +562,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 		RT_TRACE(COMP_INIT, "\n2T4R config\n");
 	}
 
-	init_rate_adaptive(dev);
+	rtl92e_init_adaptive_rate(dev);
 
 	priv->rf_chip = RF_8256;
 
@@ -626,13 +627,13 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	RT_TRACE(COMP_TRACE, "<==== ReadAdapterInfo\n");
 }
 
-void rtl8192_get_eeprom_size(struct net_device *dev)
+void rtl92e_get_eeprom_size(struct net_device *dev)
 {
 	u16 curCR;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	RT_TRACE(COMP_INIT, "===========>%s()\n", __func__);
-	curCR = read_nic_dword(dev, EPROM_CMD);
+	curCR = rtl92e_readl(dev, EPROM_CMD);
 	RT_TRACE(COMP_INIT, "read from Reg Cmd9346CR(%x):%x\n", EPROM_CMD,
 		 curCR);
 	priv->epromtype = (curCR & EPROM_CMD_9356SEL) ? EEPROM_93C56 :
@@ -684,26 +685,26 @@ static void rtl8192_hwconfig(struct net_device *dev)
 		break;
 	}
 
-	write_nic_byte(dev, BW_OPMODE, regBwOpMode);
+	rtl92e_writeb(dev, BW_OPMODE, regBwOpMode);
 	{
 		u32 ratr_value = 0;
 
 		ratr_value = regRATR;
 		if (priv->rf_type == RF_1T2R)
 			ratr_value &= ~(RATE_ALL_OFDM_2SS);
-		write_nic_dword(dev, RATR0, ratr_value);
-		write_nic_byte(dev, UFWP, 1);
+		rtl92e_writel(dev, RATR0, ratr_value);
+		rtl92e_writeb(dev, UFWP, 1);
 	}
-	regTmp = read_nic_byte(dev, 0x313);
+	regTmp = rtl92e_readb(dev, 0x313);
 	regRRSR = ((regTmp) << 24) | (regRRSR & 0x00ffffff);
-	write_nic_dword(dev, RRSR, regRRSR);
+	rtl92e_writel(dev, RRSR, regRRSR);
 
-	write_nic_word(dev, RETRY_LIMIT,
-			priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
-			priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
+	rtl92e_writew(dev, RETRY_LIMIT,
+		      priv->ShortRetryLimit << RETRY_LIMIT_SHORT_SHIFT |
+		      priv->LongRetryLimit << RETRY_LIMIT_LONG_SHIFT);
 }
 
-bool rtl8192_adapter_start(struct net_device *dev)
+bool rtl92e_start_adapter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ulRegRead;
@@ -719,10 +720,10 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	priv->being_init_adapter = true;
 
 start:
-	rtl8192_pci_resetdescring(dev);
+	rtl92e_reset_desc_ring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		write_nic_byte(dev, ANAPAR, 0x37);
+		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
 	}
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
@@ -730,7 +731,7 @@ start:
 	if (priv->RegRfOff)
 		priv->rtllib->eRFPowerState = eRfOff;
 
-	ulRegRead = read_nic_dword(dev, CPU_GEN);
+	ulRegRead = rtl92e_readl(dev, CPU_GEN);
 	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
 		ulRegRead |= CPU_GEN_SYSTEM_RESET;
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
@@ -739,19 +740,19 @@ start:
 		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
 			   __func__, priv->pFirmware->firmware_status);
 
-	write_nic_dword(dev, CPU_GEN, ulRegRead);
+	rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
-	ICVersion = read_nic_byte(dev, IC_VERRSION);
+	ICVersion = rtl92e_readb(dev, IC_VERRSION);
 	if (ICVersion >= 0x4) {
-		SwitchingRegulatorOutput = read_nic_byte(dev, SWREGULATOR);
+		SwitchingRegulatorOutput = rtl92e_readb(dev, SWREGULATOR);
 		if (SwitchingRegulatorOutput  != 0xb8) {
-			write_nic_byte(dev, SWREGULATOR, 0xa8);
+			rtl92e_writeb(dev, SWREGULATOR, 0xa8);
 			mdelay(1);
-			write_nic_byte(dev, SWREGULATOR, 0xb8);
+			rtl92e_writeb(dev, SWREGULATOR, 0xb8);
 		}
 	}
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
-	rtStatus = rtl8192_BBConfig(dev);
+	rtStatus = rtl92e_config_bb(dev);
 	if (!rtStatus) {
 		netdev_warn(dev, "%s(): Failed to configure BB\n", __func__);
 		return rtStatus;
@@ -760,7 +761,7 @@ start:
 
 	priv->LoopbackMode = RTL819X_NO_LOOPBACK;
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
 			ulRegRead = ((ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
 				     CPU_GEN_NO_LOOPBACK_SET);
@@ -770,73 +771,73 @@ start:
 			netdev_err(dev, "%s: Invalid loopback mode setting.\n",
 				   __func__);
 
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
 		udelay(500);
 	}
 	rtl8192_hwconfig(dev);
-	write_nic_byte(dev, CMDR, CR_RE | CR_TE);
+	rtl92e_writeb(dev, CMDR, CR_RE | CR_TE);
 
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
-		       (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
-	write_nic_dword(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
-	write_nic_word(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
-	write_nic_dword(dev, RCR, priv->ReceiveConfig);
+	rtl92e_writeb(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |
+				  (MXDMA2_NoLimit<<MXDMA2_TX_SHIFT)));
+	rtl92e_writel(dev, MAC0, ((u32 *)dev->dev_addr)[0]);
+	rtl92e_writew(dev, MAC4, ((u16 *)(dev->dev_addr + 4))[0]);
+	rtl92e_writel(dev, RCR, priv->ReceiveConfig);
 
-	write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK <<
-			RSVD_FW_QUEUE_PAGE_BK_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_BE <<
-			RSVD_FW_QUEUE_PAGE_BE_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_VI <<
-			RSVD_FW_QUEUE_PAGE_VI_SHIFT |
-			NUM_OF_PAGE_IN_FW_QUEUE_VO <<
-			RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT <<
-			RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-	write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW |
-			NUM_OF_PAGE_IN_FW_QUEUE_BCN <<
-			RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
-			NUM_OF_PAGE_IN_FW_QUEUE_PUB <<
-			RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
+	rtl92e_writel(dev, RQPN1, NUM_OF_PAGE_IN_FW_QUEUE_BK <<
+		      RSVD_FW_QUEUE_PAGE_BK_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_BE <<
+		      RSVD_FW_QUEUE_PAGE_BE_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_VI <<
+		      RSVD_FW_QUEUE_PAGE_VI_SHIFT |
+		      NUM_OF_PAGE_IN_FW_QUEUE_VO <<
+		      RSVD_FW_QUEUE_PAGE_VO_SHIFT);
+	rtl92e_writel(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT <<
+		      RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
+	rtl92e_writel(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW |
+		      NUM_OF_PAGE_IN_FW_QUEUE_BCN <<
+		      RSVD_FW_QUEUE_PAGE_BCN_SHIFT|
+		      NUM_OF_PAGE_IN_FW_QUEUE_PUB <<
+		      RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
 
-	rtl8192_tx_enable(dev);
-	rtl8192_rx_enable(dev);
-	ulRegRead = (0xFFF00000 & read_nic_dword(dev, RRSR))  |
+	rtl92e_tx_enable(dev);
+	rtl92e_rx_enable(dev);
+	ulRegRead = (0xFFF00000 & rtl92e_readl(dev, RRSR))  |
 		     RATE_ALL_OFDM_AG | RATE_ALL_CCK;
-	write_nic_dword(dev, RRSR, ulRegRead);
-	write_nic_dword(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
+	rtl92e_writel(dev, RRSR, ulRegRead);
+	rtl92e_writel(dev, RATR0+4*7, (RATE_ALL_OFDM_AG | RATE_ALL_CCK));
 
-	write_nic_byte(dev, ACK_TIMEOUT, 0x30);
+	rtl92e_writeb(dev, ACK_TIMEOUT, 0x30);
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET)
-		rtl8192_SetWirelessMode(dev, priv->rtllib->mode);
-	CamResetAllEntry(dev);
+		rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
+	rtl92e_cam_reset(dev);
 	{
 		u8 SECR_value = 0x0;
 
 		SECR_value |= SCR_TxEncEnable;
 		SECR_value |= SCR_RxDecEnable;
 		SECR_value |= SCR_NoSKMC;
-		write_nic_byte(dev, SECR, SECR_value);
+		rtl92e_writeb(dev, SECR, SECR_value);
 	}
-	write_nic_word(dev, ATIMWND, 2);
-	write_nic_word(dev, BCN_INTERVAL, 100);
+	rtl92e_writew(dev, ATIMWND, 2);
+	rtl92e_writew(dev, BCN_INTERVAL, 100);
 	{
 		int i;
 
 		for (i = 0; i < QOS_QUEUE_NUM; i++)
-			write_nic_dword(dev, WDCAPARA_ADD[i], 0x005e4332);
+			rtl92e_writel(dev, WDCAPARA_ADD[i], 0x005e4332);
 	}
-	write_nic_byte(dev, 0xbe, 0xc0);
+	rtl92e_writeb(dev, 0xbe, 0xc0);
 
-	rtl8192_phy_configmac(dev);
+	rtl92e_config_mac(dev);
 
 	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
-		rtl8192_phy_getTxPower(dev);
-		rtl8192_phy_setTxPower(dev, priv->chan);
+		rtl92e_get_tx_power(dev);
+		rtl92e_set_tx_power(dev, priv->chan);
 	}
 
-	tmpvalue = read_nic_byte(dev, IC_VERRSION);
+	tmpvalue = rtl92e_readb(dev, IC_VERRSION);
 	priv->IC_Cut = tmpvalue;
 	RT_TRACE(COMP_INIT, "priv->IC_Cut= 0x%x\n", priv->IC_Cut);
 	if (priv->IC_Cut >= IC_VersionCut_D) {
@@ -851,7 +852,7 @@ start:
 	}
 
 	RT_TRACE(COMP_INIT, "Load Firmware!\n");
-	bfirmwareok = init_firmware(dev);
+	bfirmwareok = rtl92e_init_fw(dev);
 	if (!bfirmwareok) {
 		if (retry_times < 10) {
 			retry_times++;
@@ -864,37 +865,34 @@ start:
 	RT_TRACE(COMP_INIT, "Load Firmware finished!\n");
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
-		rtStatus = rtl8192_phy_RFConfig(dev);
+		rtStatus = rtl92e_config_phy(dev);
 		if (!rtStatus) {
 			netdev_info(dev, "RF Config failed\n");
 			return rtStatus;
 		}
 		RT_TRACE(COMP_INIT, "RF Config Finished!\n");
 	}
-	rtl8192_phy_updateInitGain(dev);
 
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
-	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
+	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
 
-	write_nic_byte(dev, 0x87, 0x0);
+	rtl92e_writeb(dev, 0x87, 0x0);
 
 	if (priv->RegRfOff) {
 		RT_TRACE((COMP_INIT | COMP_RF | COMP_POWER),
 			  "%s(): Turn off RF for RegRfOff ----------\n",
 			  __func__);
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_SW, true);
+		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_SW);
 	} else if (priv->rtllib->RfOffReason > RF_CHANGE_BY_PS) {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER),
 			 "%s(): Turn off RF for RfOffReason(%d) ----------\n",
 			 __func__, priv->rtllib->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->rtllib->RfOffReason,
-				    true);
+		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason);
 	} else if (priv->rtllib->RfOffReason >= RF_CHANGE_BY_IPS) {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER),
 			 "%s(): Turn off RF for RfOffReason(%d) ----------\n",
 			 __func__, priv->rtllib->RfOffReason);
-		MgntActSet_RF_State(dev, eRfOff, priv->rtllib->RfOffReason,
-				    true);
+		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason);
 	} else {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): RF-ON\n",
 			  __func__);
@@ -908,13 +906,13 @@ start:
 		priv->Rf_Mode = RF_OP_By_SW_3wire;
 
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		dm_initialize_txpower_tracking(dev);
+		rtl92e_dm_init_txpower_tracking(dev);
 
 		if (priv->IC_Cut >= IC_VersionCut_D) {
-			tmpRegA = rtl8192_QueryBBReg(dev,
-				  rOFDM0_XATxIQImbalance, bMaskDWord);
-			tmpRegC = rtl8192_QueryBBReg(dev,
-				  rOFDM0_XCTxIQImbalance, bMaskDWord);
+			tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
+						    bMaskDWord);
+			tmpRegC = rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance,
+						    bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
 				if (tmpRegA == dm_tx_bb_gain[i]) {
 					priv->rfa_txpowertrackingindex = (u8)i;
@@ -926,8 +924,8 @@ start:
 				}
 			}
 
-			TempCCk = rtl8192_QueryBBReg(dev,
-				  rCCK0_TxFilter1, bMaskByte2);
+			TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1,
+						    bMaskByte2);
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
@@ -954,7 +952,7 @@ start:
 			priv->btxpower_tracking = false;
 		}
 	}
-	rtl8192_irq_enable(dev);
+	rtl92e_irq_enable(dev);
 end:
 	priv->being_init_adapter = false;
 	return rtStatus;
@@ -969,27 +967,27 @@ static void rtl8192_net_update(struct net_device *dev)
 	u16 rate_config = 0;
 
 	net = &priv->rtllib->current_network;
-	rtl8192_config_rate(dev, &rate_config);
+	rtl92e_config_rate(dev, &rate_config);
 	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
 	 priv->basic_rate = rate_config &= 0x15f;
-	write_nic_dword(dev, BSSIDR, ((u32 *)net->bssid)[0]);
-	write_nic_word(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
+	rtl92e_writel(dev, BSSIDR, ((u32 *)net->bssid)[0]);
+	rtl92e_writew(dev, BSSIDR+4, ((u16 *)net->bssid)[2]);
 
 	if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-		write_nic_word(dev, ATIMWND, 2);
-		write_nic_word(dev, BCN_DMATIME, 256);
-		write_nic_word(dev, BCN_INTERVAL, net->beacon_interval);
-		write_nic_word(dev, BCN_DRV_EARLY_INT, 10);
-		write_nic_byte(dev, BCN_ERR_THRESH, 100);
+		rtl92e_writew(dev, ATIMWND, 2);
+		rtl92e_writew(dev, BCN_DMATIME, 256);
+		rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
+		rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
+		rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
 
 		BcnTimeCfg |= (BcnCW<<BCN_TCFG_CW_SHIFT);
 		BcnTimeCfg |= BcnIFS<<BCN_TCFG_IFS;
 
-		write_nic_word(dev, BCN_TCFG, BcnTimeCfg);
+		rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
 	}
 }
 
-void rtl8192_link_change(struct net_device *dev)
+void rtl92e_link_change(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -1002,16 +1000,16 @@ void rtl8192_link_change(struct net_device *dev)
 		priv->ops->update_ratr_table(dev);
 		if ((KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
 		    (KEY_TYPE_WEP104 == ieee->pairwise_key_type))
-			EnableHWSecurityConfig8192(dev);
+			rtl92e_enable_hw_security_config(dev);
 	} else {
-		write_nic_byte(dev, 0x173, 0);
+		rtl92e_writeb(dev, 0x173, 0);
 	}
 	rtl8192e_update_msr(dev);
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		u32 reg = 0;
 
-		reg = read_nic_dword(dev, RCR);
+		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
 			if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn)
 				;
@@ -1020,12 +1018,12 @@ void rtl8192_link_change(struct net_device *dev)
 		} else
 			priv->ReceiveConfig = reg &= ~RCR_CBSSID;
 
-		write_nic_dword(dev, RCR, reg);
+		rtl92e_writel(dev, RCR, reg);
 	}
 }
 
-void rtl8192_AllowAllDestAddr(struct net_device *dev,
-			      bool bAllowAllDA, bool WriteIntoReg)
+void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
+			     bool WriteIntoReg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1035,7 +1033,7 @@ void rtl8192_AllowAllDestAddr(struct net_device *dev,
 		priv->ReceiveConfig &= ~RCR_AAP;
 
 	if (WriteIntoReg)
-		write_nic_dword(dev, RCR, priv->ReceiveConfig);
+		rtl92e_writel(dev, RCR, priv->ReceiveConfig);
 }
 
 static u8 MRateToHwRate8190Pci(u8 rate)
@@ -1177,8 +1175,20 @@ static u8 rtl8192_MapHwQueueToFirmwareQueue(struct net_device *dev, u8 QueueID,
 	return QueueSelect;
 }
 
-void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
-			   struct cb_desc *cb_desc, struct sk_buff *skb)
+static u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
+{
+	u8   tmp_Short;
+
+	tmp_Short = (TxHT == 1) ? ((tcb_desc->bUseShortGI) ? 1 : 0) :
+			((tcb_desc->bUseShortPreamble) ? 1 : 0);
+	if (TxHT == 1 && TxRate != DESC90_RATEMCS15)
+		tmp_Short = 0;
+
+	return tmp_Short;
+}
+
+void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
+			  struct cb_desc *cb_desc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
@@ -1286,9 +1296,8 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->TxBuffAddr = mapping;
 }
 
-void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
-			       struct tx_desc_cmd *entry,
-			       struct cb_desc *cb_desc, struct sk_buff *skb)
+void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
+			      struct cb_desc *cb_desc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
@@ -1506,8 +1515,9 @@ static void rtl8192_query_rxphystatus(
 	pstats->bPacketBeacon = precord_stats->bPacketBeacon = bPacketBeacon;
 	pstats->bToSelfBA = precord_stats->bToSelfBA = bToSelfBA;
 	if (check_reg824 == 0) {
-		reg824_bit9 = rtl8192_QueryBBReg(priv->rtllib->dev,
-			      rFPGA0_XA_HSSIParameter2, 0x200);
+		reg824_bit9 = rtl92e_get_bb_reg(priv->rtllib->dev,
+						rFPGA0_XA_HSSIParameter2,
+						0x200);
 		check_reg824 = 1;
 	}
 
@@ -1575,7 +1585,7 @@ static void rtl8192_query_rxphystatus(
 			}
 		}
 
-		pwdb_all = rtl819x_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl92e_rx_db_to_percent(rx_pwr_all);
 		pstats->RxPWDBAll = precord_stats->RxPWDBAll = pwdb_all;
 		pstats->RecvSignalPower = rx_pwr_all;
 
@@ -1615,7 +1625,7 @@ static void rtl8192_query_rxphystatus(
 			rx_snrX /= 2;
 			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
-			RSSI = rtl819x_query_rxpwrpercentage(rx_pwr[i]);
+			RSSI = rtl92e_rx_db_to_percent(rx_pwr[i]);
 			if (priv->brfpath_rxenable[i])
 				total_rssi += RSSI;
 
@@ -1628,7 +1638,7 @@ static void rtl8192_query_rxphystatus(
 
 
 		rx_pwr_all = (((pofdm_buf->pwdb_all) >> 1) & 0x7f) - 106;
-		pwdb_all = rtl819x_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl92e_rx_db_to_percent(rx_pwr_all);
 
 		pstats->RxPWDBAll = precord_stats->RxPWDBAll = pwdb_all;
 		pstats->RxPower = precord_stats->RxPower =	rx_pwr_all;
@@ -1645,7 +1655,7 @@ static void rtl8192_query_rxphystatus(
 
 			rx_evmX /= 2;
 
-			evm = rtl819x_evm_dbtopercentage(rx_evmX);
+			evm = rtl92e_evm_db_to_percent(rx_evmX);
 			if (bpacket_match_bssid) {
 				if (i == 0) {
 					pstats->SignalQuality = (u8)(evm &
@@ -1721,8 +1731,8 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		slide_rssi_index = 0;
 
 	tmp_val = priv->stats.slide_rssi_total/slide_rssi_statistics;
-	priv->stats.signal_strength = rtl819x_translate_todbm(priv,
-				      (u8)tmp_val);
+	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv,
+							      (u8)tmp_val);
 	curr_st->rssi = priv->stats.signal_strength;
 	if (!prev_st->bPacketMatchBSSID) {
 		if (!prev_st->bToSelfBA)
@@ -1732,13 +1742,10 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	if (!bcheck)
 		return;
 
-	rtl819x_process_cck_rxpathsel(priv, prev_st);
-
 	priv->stats.num_process_phyinfo++;
 	if (!prev_st->bIsCCK && prev_st->bPacketToSelf) {
 		for (rfpath = RF90_PATH_A; rfpath < RF90_PATH_C; rfpath++) {
-			if (!rtl8192_phy_CheckIsLegalRFPath(priv->rtllib->dev,
-			    rfpath))
+			if (!rtl92e_is_legal_rf_path(priv->rtllib->dev, rfpath))
 				continue;
 			RT_TRACE(COMP_DBG,
 				 "Jacken -> pPreviousstats->RxMIMOSignalStrength[rfpath]  = %d\n",
@@ -1813,7 +1820,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 					(RX_SMOOTH-1)) +
 					(prev_st->RxPWDBAll)) / (RX_SMOOTH);
 		}
-		rtl819x_update_rxsignalstatistics8190pci(priv, prev_st);
+		rtl92e_update_rx_statistics(priv, prev_st);
 	}
 
 	if (prev_st->SignalQuality != 0) {
@@ -1900,7 +1907,7 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 	rtl8192_query_rxphystatus(priv, pstats, pdesc, pdrvinfo,
 				  &previous_stats, bpacket_match_bssid,
 				  bpacket_toself, bPacketBeacon, bToSelfBA);
-	rtl8192_record_rxdesc_forlateruse(pstats, &previous_stats);
+	rtl92e_copy_mpdu_stats(pstats, &previous_stats);
 }
 
 static void rtl8192_UpdateReceivedRateHistogramStatistics(
@@ -2016,10 +2023,8 @@ static void rtl8192_UpdateReceivedRateHistogramStatistics(
 	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
 }
 
-bool rtl8192_rx_query_status_desc(struct net_device *dev,
-				  struct rtllib_rx_stats *stats,
-				  struct rx_desc *pdesc,
-				  struct sk_buff *skb)
+bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
+			 struct rx_desc *pdesc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_fwinfo *pDrvInfo = NULL;
@@ -2063,9 +2068,9 @@ bool rtl8192_rx_query_status_desc(struct net_device *dev,
 			    (pDrvInfo->FirstAGGR == 1);
 
 	stats->TimeStampLow = pDrvInfo->TSFL;
-	stats->TimeStampHigh = read_nic_dword(dev, TSFR+4);
+	stats->TimeStampHigh = rtl92e_readl(dev, TSFR+4);
 
-	rtl819x_UpdateRxPktTimeStamp(dev, stats);
+	rtl92e_update_rx_pkt_timestamp(dev, stats);
 
 	if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0)
 		stats->bShift = 1;
@@ -2089,7 +2094,7 @@ bool rtl8192_rx_query_status_desc(struct net_device *dev,
 	return true;
 }
 
-void rtl8192_halt_adapter(struct net_device *dev, bool reset)
+void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i;
@@ -2102,7 +2107,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
 		u1bTmp = 0x0;
-		write_nic_byte(dev, CMDR, u1bTmp);
+		rtl92e_writeb(dev, CMDR, u1bTmp);
 	}
 
 	mdelay(20);
@@ -2113,18 +2118,18 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 		priv->bHwRfOffAction = 2;
 
 		if (!priv->rtllib->bSupportRemoteWakeUp) {
-			PHY_SetRtl8192eRfOff(dev);
-			ulRegRead = read_nic_dword(dev, CPU_GEN);
+			rtl92e_set_rf_off(dev);
+			ulRegRead = rtl92e_readl(dev, CPU_GEN);
 			ulRegRead |= CPU_GEN_SYSTEM_RESET;
-			write_nic_dword(dev, CPU_GEN, ulRegRead);
+			rtl92e_writel(dev, CPU_GEN, ulRegRead);
 		} else {
-			write_nic_dword(dev, WFCRC0, 0xffffffff);
-			write_nic_dword(dev, WFCRC1, 0xffffffff);
-			write_nic_dword(dev, WFCRC2, 0xffffffff);
+			rtl92e_writel(dev, WFCRC0, 0xffffffff);
+			rtl92e_writel(dev, WFCRC1, 0xffffffff);
+			rtl92e_writel(dev, WFCRC2, 0xffffffff);
 
 
-			write_nic_byte(dev, PMR, 0x5);
-			write_nic_byte(dev, MacBlkCtrl, 0xa);
+			rtl92e_writeb(dev, PMR, 0x5);
+			rtl92e_writeb(dev, MacBlkCtrl, 0xa);
 		}
 	}
 
@@ -2136,7 +2141,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	skb_queue_purge(&priv->skb_queue);
 }
 
-void rtl8192_update_ratr_table(struct net_device *dev)
+void rtl92e_update_ratr_table(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -2145,7 +2150,7 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 	u16 rate_config = 0;
 	u8 rate_index = 0;
 
-	rtl8192_config_rate(dev, &rate_config);
+	rtl92e_config_rate(dev, &rate_config);
 	ratr_value = rate_config | *pMcsRate << 12;
 	switch (ieee->mode) {
 	case IEEE_A:
@@ -2179,12 +2184,12 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 	else if (!ieee->pHTInfo->bCurTxBW40MHz &&
 		  ieee->pHTInfo->bCurShortGI20MHz)
 		ratr_value |= 0x80000000;
-	write_nic_dword(dev, RATR0+rate_index*4, ratr_value);
-	write_nic_byte(dev, UFWP, 1);
+	rtl92e_writel(dev, RATR0+rate_index*4, ratr_value);
+	rtl92e_writeb(dev, UFWP, 1);
 }
 
 void
-rtl8192_InitializeVariables(struct net_device  *dev)
+rtl92e_init_variables(struct net_device  *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -2218,66 +2223,65 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 	priv->bfirst_after_down = false;
 }
 
-void rtl8192_EnableInterrupt(struct net_device *dev)
+void rtl92e_enable_irq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
 	priv->irq_enabled = 1;
 
-	write_nic_dword(dev, INTA_MASK, priv->irq_mask[0]);
+	rtl92e_writel(dev, INTA_MASK, priv->irq_mask[0]);
 
 }
 
-void rtl8192_DisableInterrupt(struct net_device *dev)
+void rtl92e_disable_irq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	write_nic_dword(dev, INTA_MASK, 0);
+	rtl92e_writel(dev, INTA_MASK, 0);
 
 	priv->irq_enabled = 0;
 }
 
-void rtl8192_ClearInterrupt(struct net_device *dev)
+void rtl92e_clear_irq(struct net_device *dev)
 {
 	u32 tmp = 0;
 
-	tmp = read_nic_dword(dev, ISR);
-	write_nic_dword(dev, ISR, tmp);
+	tmp = rtl92e_readl(dev, ISR);
+	rtl92e_writel(dev, ISR, tmp);
 }
 
 
-void rtl8192_enable_rx(struct net_device *dev)
+void rtl92e_enable_rx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-	write_nic_dword(dev, RDQDA, priv->rx_ring_dma[RX_MPDU_QUEUE]);
+	rtl92e_writel(dev, RDQDA, priv->rx_ring_dma[RX_MPDU_QUEUE]);
 }
 
 static const u32 TX_DESC_BASE[] = {
 	BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA
 };
 
-void rtl8192_enable_tx(struct net_device *dev)
+void rtl92e_enable_tx(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u32 i;
 
 	for (i = 0; i < MAX_TX_QUEUE_COUNT; i++)
-		write_nic_dword(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
+		rtl92e_writel(dev, TX_DESC_BASE[i], priv->tx_ring[i].dma);
 }
 
 
-void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta,
-				  u32 *p_intb)
+void rtl92e_ack_irq(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
-	*p_inta = read_nic_dword(dev, ISR);
-	write_nic_dword(dev, ISR, *p_inta);
+	*p_inta = rtl92e_readl(dev, ISR);
+	rtl92e_writel(dev, ISR, *p_inta);
 }
 
-bool rtl8192_HalRxCheckStuck(struct net_device *dev)
+bool rtl92e_is_rx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u16		  RegRxCounter = read_nic_word(dev, 0x130);
+	u16		  RegRxCounter = rtl92e_readw(dev, 0x130);
 	bool		  bStuck = false;
 	static u8	  rx_chk_cnt;
 	u32		SlotIndex = 0, TotalRxStuckCount = 0;
@@ -2338,11 +2342,11 @@ bool rtl8192_HalRxCheckStuck(struct net_device *dev)
 	return bStuck;
 }
 
-bool rtl8192_HalTxCheckStuck(struct net_device *dev)
+bool rtl92e_is_tx_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	bStuck = false;
-	u16	RegTxCounter = read_nic_word(dev, 0x128);
+	u16	RegTxCounter = rtl92e_readw(dev, 0x128);
 
 	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n",
 		 __func__, RegTxCounter, priv->TxCounter);
@@ -2355,7 +2359,7 @@ bool rtl8192_HalTxCheckStuck(struct net_device *dev)
 	return bStuck;
 }
 
-bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
+bool rtl92e_get_nmode_support_by_sec(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -2369,34 +2373,10 @@ bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 	}
 }
 
-bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device *dev)
+bool rtl92e_is_halfn_supported_by_ap(struct net_device *dev)
 {
-	bool Reval;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (ieee->bHalfWirelessN24GMode == true)
-		Reval = true;
-	else
-		Reval =  false;
-
-	return Reval;
-}
-
-u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
-{
-	u8   tmp_Short;
-
-	tmp_Short = (TxHT == 1) ? ((tcb_desc->bUseShortGI) ? 1 : 0) :
-			((tcb_desc->bUseShortPreamble) ? 1 : 0);
-	if (TxHT == 1 && TxRate != DESC90_RATEMCS15)
-		tmp_Short = 0;
-
-	return tmp_Short;
-}
-
-void ActUpdateChannelAccessSetting(struct net_device *dev,
-	enum wireless_mode WirelessMode,
-	struct channel_access_setting *ChnlAccessSetting)
-{
+	return ieee->bHalfWirelessN24GMode;
 }

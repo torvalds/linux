@@ -129,21 +129,4 @@ static inline void outer_resume(void) { }
 
 #endif
 
-#ifdef CONFIG_OUTER_CACHE_SYNC
-/**
- * outer_sync - perform a sync point for outer cache
- *
- * Ensure that all outer cache operations are complete and any store
- * buffers are drained.
- */
-static inline void outer_sync(void)
-{
-	if (outer_cache.sync)
-		outer_cache.sync();
-}
-#else
-static inline void outer_sync(void)
-{ }
-#endif
-
 #endif	/* __ASM_OUTERCACHE_H */

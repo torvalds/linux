@@ -82,7 +82,7 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	mutex_unlock(&adev->pm.mutex);
 
 	/* Can't set dpm state when the card is off */
-	if (!(adev->flags & AMDGPU_IS_PX) ||
+	if (!(adev->flags & AMD_IS_PX) ||
 	    (ddev->switch_power_state == DRM_SWITCH_POWER_ON))
 		amdgpu_pm_compute_clocks(adev);
 fail:
@@ -538,7 +538,7 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 		/* vce just modifies an existing state so force a change */
 		if (ps->vce_active != adev->pm.dpm.vce_active)
 			goto force;
-		if (adev->flags & AMDGPU_IS_APU) {
+		if (adev->flags & AMD_IS_APU) {
 			/* for APUs if the num crtcs changed but state is the same,
 			 * all we need to do is update the display configuration.
 			 */
@@ -580,7 +580,6 @@ force:
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&adev->ddev->struct_mutex);
 	mutex_lock(&adev->ring_lock);
 
 	/* update whether vce is active */
@@ -628,7 +627,6 @@ force:
 
 done:
 	mutex_unlock(&adev->ring_lock);
-	mutex_unlock(&adev->ddev->struct_mutex);
 }
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)

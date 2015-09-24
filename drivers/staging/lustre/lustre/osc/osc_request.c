@@ -119,7 +119,7 @@ static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 
 	if (*lmmp == NULL) {
 		*lmmp = kzalloc(lmm_size, GFP_NOFS);
-		if (*lmmp == NULL)
+		if (!*lmmp)
 			return -ENOMEM;
 	}
 
@@ -1909,7 +1909,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 		mpflag = cfs_memory_pressure_get_and_set();
 
 	crattr = kzalloc(sizeof(*crattr), GFP_NOFS);
-	if (crattr == NULL) {
+	if (!crattr) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -2665,7 +2665,7 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		buf = NULL;
 		len = 0;
-		if (obd_ioctl_getdata(&buf, &len, (void *)uarg)) {
+		if (obd_ioctl_getdata(&buf, &len, uarg)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -2695,7 +2695,7 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		memcpy(data->ioc_inlbuf2, &obd->obd_uuid, sizeof(uuid));
 
-		err = copy_to_user((void *)uarg, buf, len);
+		err = copy_to_user(uarg, buf, len);
 		if (err)
 			err = -EFAULT;
 		obd_ioctl_freedata(buf, len);

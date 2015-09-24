@@ -204,7 +204,7 @@ struct drv260x_data {
 	int overdrive_voltage;
 };
 
-static struct reg_default drv260x_reg_defs[] = {
+static const struct reg_default drv260x_reg_defs[] = {
 	{ DRV260X_STATUS, 0xe0 },
 	{ DRV260X_MODE, 0x40 },
 	{ DRV260X_RT_PB_IN, 0x00 },
@@ -720,7 +720,6 @@ static struct i2c_driver drv260x_driver = {
 	.probe		= drv260x_probe,
 	.driver		= {
 		.name	= "drv260x-haptics",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(drv260x_of_match),
 		.pm	= &drv260x_pm_ops,
 	},

@@ -110,6 +110,7 @@ struct nfsd_net {
 	unsigned int max_connections;
 
 	u32 clientid_counter;
+	u32 clverifier_counter;
 
 	struct svc_serv *nfsd_serv;
 };

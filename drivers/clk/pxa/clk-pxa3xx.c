@@ -78,7 +78,7 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 		pr_info("System bus clock: %ld.%02ldMHz\n",
 			clks[4] / 1000000, (clks[4] % 1000000) / 10000);
 	}
-	return (unsigned int)clks[0];
+	return (unsigned int)clks[0] / KHz;
 }
 
 static unsigned long clk_pxa3xx_ac97_get_rate(struct clk_hw *hw,

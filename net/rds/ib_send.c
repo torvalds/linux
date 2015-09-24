@@ -202,9 +202,9 @@ void rds_ib_send_init_ring(struct rds_ib_connection *ic)
 		sge = &send->s_sge[0];
 		sge->addr = ic->i_send_hdrs_dma + (i * sizeof(struct rds_header));
 		sge->length = sizeof(struct rds_header);
-		sge->lkey = ic->i_mr->lkey;
+		sge->lkey = ic->i_pd->local_dma_lkey;
 
-		send->s_sge[1].lkey = ic->i_mr->lkey;
+		send->s_sge[1].lkey = ic->i_pd->local_dma_lkey;
 	}
 }
 
@@ -709,6 +709,11 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	if (scat == &rm->data.op_sg[rm->data.op_count]) {
 		prev->s_op = ic->i_data_op;
 		prev->s_wr.send_flags |= IB_SEND_SOLICITED;
+		if (!(prev->s_wr.send_flags & IB_SEND_SIGNALED)) {
+			ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
+			prev->s_wr.send_flags |= IB_SEND_SIGNALED;
+			nr_sig++;
+		}
 		ic->i_data_op = NULL;
 	}
 
@@ -813,7 +818,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	/* Convert our struct scatterlist to struct ib_sge */
 	send->s_sge[0].addr = ib_sg_dma_address(ic->i_cm_id->device, op->op_sg);
 	send->s_sge[0].length = ib_sg_dma_len(ic->i_cm_id->device, op->op_sg);
-	send->s_sge[0].lkey = ic->i_mr->lkey;
+	send->s_sge[0].lkey = ic->i_pd->local_dma_lkey;
 
 	rdsdebug("rva %Lx rpa %Lx len %u\n", op->op_remote_addr,
 		 send->s_sge[0].addr, send->s_sge[0].length);
@@ -927,7 +932,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 			send->s_sge[j].addr =
 				 ib_sg_dma_address(ic->i_cm_id->device, scat);
 			send->s_sge[j].length = len;
-			send->s_sge[j].lkey = ic->i_mr->lkey;
+			send->s_sge[j].lkey = ic->i_pd->local_dma_lkey;
 
 			sent += len;
 			rdsdebug("ic %p sent %d remote_addr %llu\n", ic, sent, remote_addr);

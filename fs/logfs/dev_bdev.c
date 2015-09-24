@@ -53,16 +53,14 @@ static int bdev_readpage(void *_sb, struct page *page)
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 
-static void writeseg_end_io(struct bio *bio, int err)
+static void writeseg_end_io(struct bio *bio)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec;
 	int i;
 	struct super_block *sb = bio->bi_private;
 	struct logfs_super *super = logfs_super(sb);
 
-	BUG_ON(!uptodate); /* FIXME: Retry io or write elsewhere */
-	BUG_ON(err);
+	BUG_ON(bio->bi_error); /* FIXME: Retry io or write elsewhere */
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		end_page_writeback(bvec->bv_page);
@@ -83,7 +81,7 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages;
 	int i;
 
-	max_pages = min(nr_pages, (size_t) bio_get_nr_vecs(super->s_bdev));
+	max_pages = min(nr_pages, BIO_MAX_PAGES);
 
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);
@@ -153,14 +151,12 @@ static void bdev_writeseg(struct super_block *sb, u64 ofs, size_t len)
 }
 
 
-static void erase_end_io(struct bio *bio, int err) 
+static void erase_end_io(struct bio *bio)
 { 
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags); 
 	struct super_block *sb = bio->bi_private; 
 	struct logfs_super *super = logfs_super(sb); 
 
-	BUG_ON(!uptodate); /* FIXME: Retry io or write elsewhere */ 
-	BUG_ON(err); 
+	BUG_ON(bio->bi_error); /* FIXME: Retry io or write elsewhere */ 
 	BUG_ON(bio->bi_vcnt == 0); 
 	bio_put(bio); 
 	if (atomic_dec_and_test(&super->s_pending_writes))
@@ -175,7 +171,7 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages;
 	int i;
 
-	max_pages = min(nr_pages, (size_t) bio_get_nr_vecs(super->s_bdev));
+	max_pages = min(nr_pages, BIO_MAX_PAGES);
 
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);

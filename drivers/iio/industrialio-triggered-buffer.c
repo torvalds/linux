@@ -24,8 +24,8 @@ static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
 /**
  * iio_triggered_buffer_setup() - Setup triggered buffer and pollfunc
  * @indio_dev:		IIO device structure
- * @pollfunc_bh:	Function which will be used as pollfunc bottom half
- * @pollfunc_th:	Function which will be used as pollfunc top half
+ * @h:			Function which will be used as pollfunc top half
+ * @thread:		Function which will be used as pollfunc bottom half
  * @setup_ops:		Buffer setup functions to use for this device.
  *			If NULL the default setup functions for triggered
  *			buffers will be used.
@@ -42,8 +42,8 @@ static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
  * iio_triggered_buffer_cleanup().
  */
 int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
-	irqreturn_t (*pollfunc_bh)(int irq, void *p),
-	irqreturn_t (*pollfunc_th)(int irq, void *p),
+	irqreturn_t (*h)(int irq, void *p),
+	irqreturn_t (*thread)(int irq, void *p),
 	const struct iio_buffer_setup_ops *setup_ops)
 {
 	struct iio_buffer *buffer;
@@ -57,8 +57,8 @@ int iio_triggered_buffer_setup(struct iio_dev *indio_dev,
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
-	indio_dev->pollfunc = iio_alloc_pollfunc(pollfunc_bh,
-						 pollfunc_th,
+	indio_dev->pollfunc = iio_alloc_pollfunc(h,
+						 thread,
 						 IRQF_ONESHOT,
 						 indio_dev,
 						 "%s_consumer%d",

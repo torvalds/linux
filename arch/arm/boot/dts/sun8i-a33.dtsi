@@ -80,6 +80,39 @@
 			clock-output-names = "mbus";
 		};
 	};
+
+	soc@01c00000 {
+		usb_otg: usb@01c19000 {
+			compatible = "allwinner,sun8i-a33-musb";
+			reg = <0x01c19000 0x0400>;
+			clocks = <&ahb1_gates 24>;
+			resets = <&ahb1_rst 24>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mc";
+			phys = <&usbphy 0>;
+			phy-names = "usb";
+			extcon = <&usbphy 0>;
+			status = "disabled";
+		};
+
+		usbphy: phy@01c19400 {
+			compatible = "allwinner,sun8i-a33-usb-phy";
+			reg = <0x01c19400 0x14>,
+			      <0x01c1a800 0x4>;
+			reg-names = "phy_ctrl",
+				    "pmu1";
+			clocks = <&usb_clk 8>,
+				 <&usb_clk 9>;
+			clock-names = "usb0_phy",
+				      "usb1_phy";
+			resets = <&usb_clk 0>,
+				 <&usb_clk 1>;
+			reset-names = "usb0_reset",
+				      "usb1_reset";
+			status = "disabled";
+			#phy-cells = <1>;
+		};
+	};
 };
 
 &pio {

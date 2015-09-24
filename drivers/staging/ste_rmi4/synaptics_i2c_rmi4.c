@@ -1126,7 +1126,6 @@ MODULE_DEVICE_TABLE(i2c, synaptics_rmi4_id_table);
 static struct i2c_driver synaptics_rmi4_driver = {
 	.driver = {
 		.name	=	DRIVER_NAME,
-		.owner	=	THIS_MODULE,
 		.pm	=	&synaptics_rmi4_dev_pm_ops,
 	},
 	.probe		=	synaptics_rmi4_probe,

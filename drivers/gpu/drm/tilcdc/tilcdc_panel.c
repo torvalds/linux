@@ -375,24 +375,16 @@ static int panel_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "found backlight\n");
 	}
 
-	panel_mod->enable_gpio = devm_gpiod_get(&pdev->dev, "enable");
+	panel_mod->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
+							 GPIOD_OUT_LOW);
 	if (IS_ERR(panel_mod->enable_gpio)) {
 		ret = PTR_ERR(panel_mod->enable_gpio);
-		if (ret != -ENOENT) {
-			dev_err(&pdev->dev, "failed to request enable GPIO\n");
-			goto fail_backlight;
-		}
-
-		/* Optional GPIO is not here, continue silently. */
-		panel_mod->enable_gpio = NULL;
-	} else {
-		ret = gpiod_direction_output(panel_mod->enable_gpio, 0);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to setup GPIO\n");
-			goto fail_backlight;
-		}
-		dev_info(&pdev->dev, "found enable GPIO\n");
+		dev_err(&pdev->dev, "failed to request enable GPIO\n");
+		goto fail_backlight;
 	}
+
+	if (panel_mod->enable_gpio)
+		dev_info(&pdev->dev, "found enable GPIO\n");
 
 	mod = &panel_mod->base;
 	pdev->dev.platform_data = mod;
