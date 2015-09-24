@@ -1230,7 +1230,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.sfp_type = ixgbe_sfp_type_lr;
 		else
 			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
-	} else if (hw->mac.type == ixgbe_mac_82599EB) {
+	} else {
 		if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE) {
 			if (hw->bus.lan_id == 0)
 				hw->phy.sfp_type =
@@ -1731,6 +1731,21 @@ s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 }
 
 /**
+ * ixgbe_is_sfp_probe - Returns true if SFP is being detected
+ * @hw: pointer to hardware structure
+ * @offset: eeprom offset to be read
+ * @addr: I2C address to be read
+ */
+static bool ixgbe_is_sfp_probe(struct ixgbe_hw *hw, u8 offset, u8 addr)
+{
+	if (addr == IXGBE_I2C_EEPROM_DEV_ADDR &&
+	    offset == IXGBE_SFF_IDENTIFIER &&
+	    hw->phy.sfp_type == ixgbe_sfp_type_not_present)
+		return true;
+	return false;
+}
+
+/**
  *  ixgbe_read_i2c_byte_generic_int - Reads 8 bit word over I2C
  *  @hw: pointer to hardware structure
  *  @byte_offset: byte offset to read
@@ -1748,6 +1763,9 @@ static s32 ixgbe_read_i2c_byte_generic_int(struct ixgbe_hw *hw, u8 byte_offset,
 	u32 retry = 0;
 	u32 swfw_mask = hw->phy.phy_semaphore_mask;
 	bool nack = true;
+
+	if (ixgbe_is_sfp_probe(hw, byte_offset, dev_addr))
+		max_retry = IXGBE_SFP_DETECT_RETRIES;
 
 	*data = 0;
 
@@ -2026,6 +2044,7 @@ static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data)
 	s32 i;
 	bool bit = false;
 
+	*data = 0;
 	for (i = 7; i >= 0; i--) {
 		ixgbe_clock_in_i2c_bit(hw, &bit);
 		*data |= bit << i;
