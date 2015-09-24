@@ -5807,12 +5807,12 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 
 		/* adjust cdclk divider */
 		val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
-		val &= ~DISPLAY_FREQUENCY_VALUES;
+		val &= ~CCK_FREQUENCY_VALUES;
 		val |= divider;
 		vlv_cck_write(dev_priv, CCK_DISPLAY_CLOCK_CONTROL, val);
 
 		if (wait_for((vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL) &
-			      DISPLAY_FREQUENCY_STATUS) == (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
+			      CCK_FREQUENCY_STATUS) == (divider << CCK_FREQUENCY_STATUS_SHIFT),
 			     50))
 			DRM_ERROR("timed out waiting for CDclk change\n");
 	}
@@ -6733,10 +6733,10 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
 	mutex_unlock(&dev_priv->sb_lock);
 
-	divider = val & DISPLAY_FREQUENCY_VALUES;
+	divider = val & CCK_FREQUENCY_VALUES;
 
-	WARN((val & DISPLAY_FREQUENCY_STATUS) !=
-	     (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
+	WARN((val & CCK_FREQUENCY_STATUS) !=
+	     (divider << CCK_FREQUENCY_STATUS_SHIFT),
 	     "cdclk change in progress\n");
 
 	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
