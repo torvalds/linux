@@ -35,6 +35,16 @@ struct switchdev_trans {
 	enum switchdev_trans_ph ph;
 };
 
+static inline bool switchdev_trans_ph_prepare(struct switchdev_trans *trans)
+{
+	return trans && trans->ph == SWITCHDEV_TRANS_PREPARE;
+}
+
+static inline bool switchdev_trans_ph_commit(struct switchdev_trans *trans)
+{
+	return trans && trans->ph == SWITCHDEV_TRANS_COMMIT;
+}
+
 enum switchdev_attr_id {
 	SWITCHDEV_ATTR_UNDEFINED,
 	SWITCHDEV_ATTR_PORT_PARENT_ID,
