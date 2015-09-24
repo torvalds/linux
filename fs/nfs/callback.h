@@ -117,9 +117,6 @@ extern __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 				       struct cb_sequenceres *res,
 				       struct cb_process_state *cps);
 
-extern int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation,
-					     const nfs4_stateid *stateid);
-
 #define RCA4_TYPE_MASK_RDATA_DLG	0
 #define RCA4_TYPE_MASK_WDATA_DLG	1
 #define RCA4_TYPE_MASK_DIR_DLG         2
@@ -191,9 +188,6 @@ extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
 extern void nfs_callback_down(int minorversion, struct net *net);
-extern int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation,
-					    const nfs4_stateid *stateid);
-extern int nfs4_set_callback_sessionid(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4 */
 /*
  * nfs41: Callbacks are expected to not cause substantial latency,
