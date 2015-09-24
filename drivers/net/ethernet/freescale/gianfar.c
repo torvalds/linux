@@ -1702,7 +1702,6 @@ static void gfar_configure_serdes(struct net_device *dev)
 	tbiphy = of_phy_find_device(priv->tbi_node);
 	if (!tbiphy) {
 		dev_err(&dev->dev, "error: Could not get TBI device\n");
-		put_device(&tbiphy->dev);
 		return;
 	}
 
@@ -1711,8 +1710,10 @@ static void gfar_configure_serdes(struct net_device *dev)
 	 * everything for us?  Resetting it takes the link down and requires
 	 * several seconds for it to come back.
 	 */
-	if (phy_read(tbiphy, MII_BMSR) & BMSR_LSTATUS)
+	if (phy_read(tbiphy, MII_BMSR) & BMSR_LSTATUS) {
+		put_device(&tbiphy->dev);
 		return;
+	}
 
 	/* Single clk mode, mii mode off(for serdes communication) */
 	phy_write(tbiphy, MII_TBICON, TBICON_CLK_SELECT);

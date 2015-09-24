@@ -384,6 +384,24 @@ int phy_device_register(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_device_register);
 
 /**
+ * phy_device_remove - Remove a previously registered phy device from the MDIO bus
+ * @phydev: phy_device structure to remove
+ *
+ * This doesn't free the phy_device itself, it merely reverses the effects
+ * of phy_device_register(). Use phy_device_free() to free the device
+ * after calling this function.
+ */
+void phy_device_remove(struct phy_device *phydev)
+{
+	struct mii_bus *bus = phydev->bus;
+	int addr = phydev->addr;
+
+	device_del(&phydev->dev);
+	bus->phy_map[addr] = NULL;
+}
+EXPORT_SYMBOL(phy_device_remove);
+
+/**
  * phy_find_first - finds the first PHY device on the bus
  * @bus: the target MII bus
  */
