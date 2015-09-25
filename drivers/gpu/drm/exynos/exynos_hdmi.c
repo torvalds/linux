@@ -1569,9 +1569,7 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 	hdmiphy_wait_for_pll(hdata);
 
-	clk_disable_unprepare(hdata->res.sclk_hdmi);
 	clk_set_parent(hdata->res.mout_hdmi, hdata->res.sclk_hdmiphy);
-	clk_prepare_enable(hdata->res.sclk_hdmi);
 
 	/* enable HDMI and timing generator */
 	hdmi_start(hdata, true);
@@ -1579,9 +1577,7 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	clk_disable_unprepare(hdata->res.sclk_hdmi);
 	clk_set_parent(hdata->res.mout_hdmi, hdata->res.sclk_pixel);
-	clk_prepare_enable(hdata->res.sclk_hdmi);
 
 	/* reset hdmiphy */
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, ~0, HDMI_PHY_SW_RSTOUT);
