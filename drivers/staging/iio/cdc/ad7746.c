@@ -753,8 +753,6 @@ static int ad7746_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	dev_info(&client->dev, "%s capacitive sensor registered\n", id->name);
-
 	return 0;
 }
 
