@@ -68,12 +68,12 @@
 #define AD7746_VTSETUP_VTCHOP		(1 << 0)
 
 /* Excitation Setup Register Bit Designations (AD7746_REG_EXC_SETUP) */
-#define AD7746_EXCSETUP_CLKCTRL		(1 << 7)
-#define AD7746_EXCSETUP_EXCON		(1 << 6)
-#define AD7746_EXCSETUP_EXCB		(1 << 5)
-#define AD7746_EXCSETUP_NEXCB		(1 << 4)
-#define AD7746_EXCSETUP_EXCA		(1 << 3)
-#define AD7746_EXCSETUP_NEXCA		(1 << 2)
+#define AD7746_EXCSETUP_CLKCTRL		BIT(7)
+#define AD7746_EXCSETUP_EXCON		BIT(6)
+#define AD7746_EXCSETUP_EXCB		BIT(5)
+#define AD7746_EXCSETUP_NEXCB		BIT(4)
+#define AD7746_EXCSETUP_EXCA		BIT(3)
+#define AD7746_EXCSETUP_NEXCA		BIT(2)
 #define AD7746_EXCSETUP_EXCLVL(x)	(((x) & 0x3) << 0)
 
 /* Config Register Bit Designations (AD7746_REG_CFG) */
