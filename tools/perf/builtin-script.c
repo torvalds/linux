@@ -33,7 +33,7 @@ static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
-static unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
+unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
