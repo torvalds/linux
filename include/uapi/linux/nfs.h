@@ -31,6 +31,10 @@
 
 #define NFS_PIPE_DIRNAME "nfs"
 
+/* NFS ioctls */
+/* Let's follow btrfs lead on CLONE to avoid messing userspace */
+#define NFS_IOC_CLONE	_IOW(0x94, 9, int)
+
 /*
  * NFS stats. The good thing with these values is that NFSv3 errors are
  * a superset of NFSv2 errors (with the exception of NFSERR_WFLUSH which
