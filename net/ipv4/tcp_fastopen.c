@@ -124,10 +124,10 @@ static bool tcp_fastopen_cookie_gen(struct request_sock *req,
 	return false;
 }
 
-static bool tcp_fastopen_create_child(struct sock *sk,
-				      struct sk_buff *skb,
-				      struct dst_entry *dst,
-				      struct request_sock *req)
+static struct sock *tcp_fastopen_create_child(struct sock *sk,
+					      struct sk_buff *skb,
+					      struct dst_entry *dst,
+					      struct request_sock *req)
 {
 	struct tcp_sock *tp;
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
@@ -140,7 +140,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
 	if (!child)
-		return false;
+		return NULL;
 
 	spin_lock(&queue->fastopenq->lock);
 	queue->fastopenq->qlen++;
@@ -216,9 +216,11 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = end_seq;
 	sk->sk_data_ready(sk);
 	bh_unlock_sock(child);
-	sock_put(child);
+	/* Note: sock_put(child) will be done by tcp_conn_request()
+	 * after SYNACK packet is sent.
+	 */
 	WARN_ON(!req->sk);
-	return true;
+	return child;
 }
 
 static bool tcp_fastopen_queue_check(struct sock *sk)
@@ -261,13 +263,14 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
  * may be updated and return the client in the SYN-ACK later. E.g., Fast Open
  * cookie request (foc->len == 0).
  */
-bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
-		      struct request_sock *req,
-		      struct tcp_fastopen_cookie *foc,
-		      struct dst_entry *dst)
+struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+			      struct request_sock *req,
+			      struct tcp_fastopen_cookie *foc,
+			      struct dst_entry *dst)
 {
 	struct tcp_fastopen_cookie valid_foc = { .len = -1 };
 	bool syn_data = TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq + 1;
+	struct sock *child;
 
 	if (foc->len == 0) /* Client requests a cookie */
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENCOOKIEREQD);
@@ -276,7 +279,7 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	      (syn_data || foc->len >= 0) &&
 	      tcp_fastopen_queue_check(sk))) {
 		foc->len = -1;
-		return false;
+		return NULL;
 	}
 
 	if (syn_data && (sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_REQD))
@@ -296,11 +299,12 @@ bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 		 * data in SYN_RECV state.
 		 */
 fastopen:
-		if (tcp_fastopen_create_child(sk, skb, dst, req)) {
+		child = tcp_fastopen_create_child(sk, skb, dst, req);
+		if (child) {
 			foc->len = -1;
 			NET_INC_STATS_BH(sock_net(sk),
 					 LINUX_MIB_TCPFASTOPENPASSIVE);
-			return true;
+			return child;
 		}
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
 	} else if (foc->len > 0) /* Client presents an invalid cookie */
@@ -308,6 +312,5 @@ fastopen:
 
 	valid_foc.exp = foc->exp;
 	*foc = valid_foc;
-	return false;
+	return NULL;
 }
-EXPORT_SYMBOL(tcp_try_fastopen);

@@ -6111,14 +6111,15 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		     const struct tcp_request_sock_ops *af_ops,
 		     struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_options_received tmp_opt;
-	struct request_sock *req;
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct dst_entry *dst = NULL;
-	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
-	bool want_cookie = false, fastopen;
-	struct flowi fl;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
+	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
+	struct tcp_options_received tmp_opt;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sock *fastopen_sk = NULL;
+	struct dst_entry *dst = NULL;
+	struct request_sock *req;
+	bool want_cookie = false;
+	struct flowi fl;
 	int err;
 
 
@@ -6229,11 +6230,13 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_rsk(req)->txhash = net_tx_rndhash();
 	tcp_openreq_init_rwin(req, sk, dst);
-	fastopen = !want_cookie &&
-		   tcp_try_fastopen(sk, skb, req, &foc, dst);
-	err = af_ops->send_synack(sk, dst, &fl, req,
+	if (!want_cookie)
+		fastopen_sk = tcp_try_fastopen(sk, skb, req, &foc, dst);
+	err = af_ops->send_synack(fastopen_sk ?: sk, dst, &fl, req,
 				  skb_get_queue_mapping(skb), &foc);
-	if (!fastopen) {
+	if (fastopen_sk) {
+		sock_put(fastopen_sk);
+	} else {
 		if (err || want_cookie)
 			goto drop_and_free;
 

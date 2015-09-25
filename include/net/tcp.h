@@ -1422,10 +1422,10 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-bool tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
-		      struct request_sock *req,
-		      struct tcp_fastopen_cookie *foc,
-		      struct dst_entry *dst);
+struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
+			      struct request_sock *req,
+			      struct tcp_fastopen_cookie *foc,
+			      struct dst_entry *dst);
 void tcp_fastopen_init_key_once(bool publish);
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
