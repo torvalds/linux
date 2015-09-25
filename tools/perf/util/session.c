@@ -1101,6 +1101,9 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
+		if (tool->aux == perf_event__process_aux &&
+		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
+			evlist->stats.total_aux_lost += 1;
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1344,6 +1347,13 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
 				    drop_rate * 100.0);
 		}
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_lost != 0) {
+		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
+			    stats->total_aux_lost,
+			    stats->nr_events[PERF_RECORD_AUX]);
 	}
 
 	if (stats->nr_unknown_events != 0) {
