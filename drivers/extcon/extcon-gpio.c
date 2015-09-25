@@ -118,9 +118,9 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	if (extcon_data->irq < 0)
 		return extcon_data->irq;
 
-	ret = request_any_context_irq(extcon_data->irq, gpio_irq_handler,
-				      pdata->irq_flags, pdev->name,
-				      extcon_data);
+	ret = devm_request_any_context_irq(&pdev->dev, extcon_data->irq,
+					gpio_irq_handler, pdata->irq_flags,
+					pdev->name, extcon_data);
 	if (ret < 0)
 		return ret;
 
@@ -136,7 +136,6 @@ static int gpio_extcon_remove(struct platform_device *pdev)
 	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&extcon_data->work);
-	free_irq(extcon_data->irq, extcon_data);
 
 	return 0;
 }
