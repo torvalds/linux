@@ -1790,9 +1790,10 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
  *	@devname: An ascii name for the claiming device
  *	@dev_id: A percpu cookie passed back to the handler function
  *
- *	This call allocates interrupt resources, but doesn't
- *	automatically enable the interrupt. It has to be done on each
- *	CPU using enable_percpu_irq().
+ *	This call allocates interrupt resources and enables the
+ *	interrupt on the local CPU. If the interrupt is supposed to be
+ *	enabled on other CPUs, it has to be done on each CPU using
+ *	enable_percpu_irq().
  *
  *	Dev_id must be globally unique. It is a per-cpu variable, and
  *	the handler gets called with the interrupted CPU's instance of
