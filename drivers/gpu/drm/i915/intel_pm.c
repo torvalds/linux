@@ -127,13 +127,10 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
 
-	if (INTEL_REVID(dev) == BXT_REVID_A0) {
-		/*
-		 * Hardware specification requires this bit to be
-		 * set to 1 for A0
-		 */
+	/* WaStoreMultiplePTEenable:bxt */
+	/* This is a requirement according to Hardware specification */
+	if (INTEL_REVID(dev) == BXT_REVID_A0)
 		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
-	}
 
 	/* WaSetClckGatingDisableMedia:bxt */
 	if (INTEL_REVID(dev) == BXT_REVID_A0) {
