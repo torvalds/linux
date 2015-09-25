@@ -961,10 +961,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	}
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
-
 	/* WaDisablePartialResolveInVc:skl,bxt */
-	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
+	WA_SET_BIT_MASKED(CACHE_MODE_1, (GEN8_4x4_STC_OPTIMIZATION_DISABLE |
+					 GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE));
 
 	/* WaCcsTlbPrefetchDisable:skl,bxt */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
