@@ -819,7 +819,9 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 	 * invalidation occurs during a PSD flush.
 	 */
 	/* WaForceEnableNonCoherent:bdw,chv */
+	/* WaHdcDisableFetchWhenMasked:bdw,chv */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
 			  HDC_FORCE_NON_COHERENT);
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
@@ -873,8 +875,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
 			  /* WaForceContextSaveRestoreNonCoherent:bdw */
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
-			  /* WaHdcDisableFetchWhenMasked:bdw */
-			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
 			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
@@ -893,10 +893,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaDisableThreadStallDopClockGating:chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
-
-	/* WaHdcDisableFetchWhenMasked:chv */
-	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
 
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
