@@ -2046,15 +2046,17 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&hdata->hotplug_work);
 
+	component_del(&pdev->dev, &hdmi_component_ops);
+
+	pm_runtime_disable(&pdev->dev);
+
 	if (hdata->res.reg_hdmi_en)
 		regulator_disable(hdata->res.reg_hdmi_en);
 
 	if (hdata->hdmiphy_port)
 		put_device(&hdata->hdmiphy_port->dev);
-	put_device(&hdata->ddc_adpt->dev);
 
-	pm_runtime_disable(&pdev->dev);
-	component_del(&pdev->dev, &hdmi_component_ops);
+	put_device(&hdata->ddc_adpt->dev);
 
 	return 0;
 }
