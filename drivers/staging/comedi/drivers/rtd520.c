@@ -513,7 +513,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		unsigned fifo_status;
 		/* trigger conversion */
 		writew(0, dev->mmio + LAS0_ADC);
-		udelay(1);
+		usleep_range(1, 1000);
 		fifo_status = readl(dev->mmio + LAS0_ADC);
 		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
 			fifo_size = 2 * i;
@@ -1142,7 +1142,7 @@ static void rtd_reset(struct comedi_device *dev)
 	struct rtd_private *devpriv = dev->private;
 
 	writel(0, dev->mmio + LAS0_BOARD_RESET);
-	udelay(100);		/* needed? */
+	usleep_range(100, 1000);	/* needed? */
 	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
 	writew(0, dev->mmio + LAS0_IT);
 	writew(~0, dev->mmio + LAS0_CLEAR);
