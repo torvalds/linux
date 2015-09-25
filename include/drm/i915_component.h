@@ -24,8 +24,18 @@
 #ifndef _I915_COMPONENT_H_
 #define _I915_COMPONENT_H_
 
+/* MAX_PORT is the number of port
+ * It must be sync with I915_MAX_PORTS defined i915_drv.h
+ * 5 should be enough as only HSW, BDW, SKL need such fix.
+ */
+#define MAX_PORTS 5
+
 struct i915_audio_component {
 	struct device *dev;
+	/**
+	 * @aud_sample_rate: the array of audio sample rate per port
+	 */
+	int aud_sample_rate[MAX_PORTS];
 
 	const struct i915_audio_component_ops {
 		struct module *owner;
@@ -33,6 +43,13 @@ struct i915_audio_component {
 		void (*put_power)(struct device *);
 		void (*codec_wake_override)(struct device *, bool enable);
 		int (*get_cdclk_freq)(struct device *);
+		/**
+		 * @sync_audio_rate: set n/cts based on the sample rate
+		 *
+		 * Called from audio driver. After audio driver sets the
+		 * sample rate, it will call this function to set n/cts
+		 */
+		int (*sync_audio_rate)(struct device *, int port, int rate);
 	} *ops;
 
 	const struct i915_audio_component_audio_ops {
