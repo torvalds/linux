@@ -22,7 +22,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/platform_data/gpio-rcar.h>
 
 #include "core.h"
 #include "sh_pfc.h"

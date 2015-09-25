@@ -346,4 +346,9 @@ struct sh_pfc_soc_info {
 		}							\
 	}
 
+/*
+ * GPIO number helper macro for R-Car
+ */
+#define RCAR_GP_PIN(bank, pin)		(((bank) * 32) + (pin))
+
 #endif /* __SH_PFC_H */

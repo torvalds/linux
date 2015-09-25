@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
-#include <linux/platform_data/gpio-rcar.h>
 #include "core.h"
 #include "sh_pfc.h"
 
