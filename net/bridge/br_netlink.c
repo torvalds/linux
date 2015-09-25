@@ -21,36 +21,35 @@
 #include "br_private.h"
 #include "br_private_stp.h"
 
-static int br_get_num_vlan_infos(const struct net_port_vlans *pv,
-				 u32 filter_mask)
+static int __get_num_vlan_infos(struct net_bridge_vlan_group *vg,
+				u32 filter_mask,
+				u16 pvid)
 {
-	u16 vid_range_start = 0, vid_range_end = 0;
-	u16 vid_range_flags = 0;
-	u16 pvid, vid, flags;
+	struct net_bridge_vlan *v;
+	u16 vid_range_start = 0, vid_range_end = 0, vid_range_flags = 0;
+	u16 flags;
 	int num_vlans = 0;
-
-	if (filter_mask & RTEXT_FILTER_BRVLAN)
-		return pv->num_vlans;
 
 	if (!(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
 		return 0;
 
-	/* Count number of vlan info's
-	 */
-	pvid = br_get_pvid(pv);
-	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+	/* Count number of vlan infos */
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		flags = 0;
-		if (vid == pvid)
+		/* only a context, bridge vlan not activated */
+		if (!br_vlan_should_use(v))
+			continue;
+		if (v->vid == pvid)
 			flags |= BRIDGE_VLAN_INFO_PVID;
 
-		if (test_bit(vid, pv->untagged_bitmap))
+		if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
 			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
 		if (vid_range_start == 0) {
 			goto initvars;
-		} else if ((vid - vid_range_end) == 1 &&
+		} else if ((v->vid - vid_range_end) == 1 &&
 			flags == vid_range_flags) {
-			vid_range_end = vid;
+			vid_range_end = v->vid;
 			continue;
 		} else {
 			if ((vid_range_end - vid_range_start) > 0)
@@ -59,8 +58,8 @@ static int br_get_num_vlan_infos(const struct net_port_vlans *pv,
 				num_vlans += 1;
 		}
 initvars:
-		vid_range_start = vid;
-		vid_range_end = vid;
+		vid_range_start = v->vid;
+		vid_range_end = v->vid;
 		vid_range_flags = flags;
 	}
 
@@ -74,27 +73,39 @@ initvars:
 	return num_vlans;
 }
 
+static int br_get_num_vlan_infos(struct net_bridge_vlan_group *vg,
+				 u32 filter_mask, u16 pvid)
+{
+	if (!vg)
+		return 0;
+
+	if (filter_mask & RTEXT_FILTER_BRVLAN)
+		return vg->num_vlans;
+
+	return __get_num_vlan_infos(vg, filter_mask, pvid);
+}
+
 static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 					   u32 filter_mask)
 {
-	struct net_port_vlans *pv;
+	struct net_bridge_vlan_group *vg = NULL;
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	int num_vlan_infos;
+	u16 pvid = 0;
 
 	rcu_read_lock();
-	if (br_port_exists(dev))
-		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
-	else if (dev->priv_flags & IFF_EBRIDGE)
-		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
-	else
-		pv = NULL;
-	if (pv)
-		num_vlan_infos = br_get_num_vlan_infos(pv, filter_mask);
-	else
-		num_vlan_infos = 0;
+	if (br_port_exists(dev)) {
+		p = br_port_get_rcu(dev);
+		vg = nbp_vlan_group(p);
+		pvid = nbp_get_pvid(p);
+	} else if (dev->priv_flags & IFF_EBRIDGE) {
+		br = netdev_priv(dev);
+		vg = br_vlan_group(br);
+		pvid = br_get_pvid(br);
+	}
+	num_vlan_infos = br_get_num_vlan_infos(vg, filter_mask, pvid);
 	rcu_read_unlock();
-
-	if (!num_vlan_infos)
-		return 0;
 
 	/* Each VLAN is returned in bridge_vlan_info along with flags */
 	return num_vlan_infos * nla_total_size(sizeof(struct bridge_vlan_info));
@@ -185,31 +196,33 @@ nla_put_failure:
 }
 
 static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
-					 const struct net_port_vlans *pv)
+					 struct net_bridge_vlan_group *vg,
+					 u16 pvid)
 {
-	u16 vid_range_start = 0, vid_range_end = 0;
-	u16 vid_range_flags = 0;
-	u16 pvid, vid, flags;
+	struct net_bridge_vlan *v;
+	u16 vid_range_start = 0, vid_range_end = 0, vid_range_flags = 0;
+	u16 flags;
 	int err = 0;
 
 	/* Pack IFLA_BRIDGE_VLAN_INFO's for every vlan
 	 * and mark vlan info with begin and end flags
 	 * if vlaninfo represents a range
 	 */
-	pvid = br_get_pvid(pv);
-	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		flags = 0;
-		if (vid == pvid)
+		if (!br_vlan_should_use(v))
+			continue;
+		if (v->vid == pvid)
 			flags |= BRIDGE_VLAN_INFO_PVID;
 
-		if (test_bit(vid, pv->untagged_bitmap))
+		if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
 			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
 		if (vid_range_start == 0) {
 			goto initvars;
-		} else if ((vid - vid_range_end) == 1 &&
+		} else if ((v->vid - vid_range_end) == 1 &&
 			flags == vid_range_flags) {
-			vid_range_end = vid;
+			vid_range_end = v->vid;
 			continue;
 		} else {
 			err = br_fill_ifvlaninfo_range(skb, vid_range_start,
@@ -220,8 +233,8 @@ static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
 		}
 
 initvars:
-		vid_range_start = vid;
-		vid_range_end = vid;
+		vid_range_start = v->vid;
+		vid_range_end = v->vid;
 		vid_range_flags = flags;
 	}
 
@@ -238,19 +251,22 @@ initvars:
 }
 
 static int br_fill_ifvlaninfo(struct sk_buff *skb,
-			      const struct net_port_vlans *pv)
+			      struct net_bridge_vlan_group *vg,
+			      u16 pvid)
 {
 	struct bridge_vlan_info vinfo;
-	u16 pvid, vid;
+	struct net_bridge_vlan *v;
 
-	pvid = br_get_pvid(pv);
-	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
-		vinfo.vid = vid;
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		if (!br_vlan_should_use(v))
+			continue;
+
+		vinfo.vid = v->vid;
 		vinfo.flags = 0;
-		if (vid == pvid)
+		if (v->vid == pvid)
 			vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
 
-		if (test_bit(vid, pv->untagged_bitmap))
+		if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
 			vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
 		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
@@ -269,11 +285,11 @@ nla_put_failure:
  * Contains port and master info as well as carrier and bridge state.
  */
 static int br_fill_ifinfo(struct sk_buff *skb,
-			  const struct net_bridge_port *port,
+			  struct net_bridge_port *port,
 			  u32 pid, u32 seq, int event, unsigned int flags,
 			  u32 filter_mask, const struct net_device *dev)
 {
-	const struct net_bridge *br;
+	struct net_bridge *br;
 	struct ifinfomsg *hdr;
 	struct nlmsghdr *nlh;
 	u8 operstate = netif_running(dev) ? dev->operstate : IF_OPER_DOWN;
@@ -320,16 +336,20 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	/* Check if  the VID information is requested */
 	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
 	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
-		const struct net_port_vlans *pv;
+		struct net_bridge_vlan_group *vg;
 		struct nlattr *af;
+		u16 pvid;
 		int err;
 
-		if (port)
-			pv = nbp_get_vlan_info(port);
-		else
-			pv = br_get_vlan_info(br);
+		if (port) {
+			vg = nbp_vlan_group(port);
+			pvid = nbp_get_pvid(port);
+		} else {
+			vg = br_vlan_group(br);
+			pvid = br_get_pvid(br);
+		}
 
-		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID))
+		if (!vg || !vg->num_vlans)
 			goto done;
 
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
@@ -337,9 +357,9 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
-			err = br_fill_ifvlaninfo_compressed(skb, pv);
+			err = br_fill_ifvlaninfo_compressed(skb, vg, pvid);
 		else
-			err = br_fill_ifvlaninfo(skb, pv);
+			err = br_fill_ifvlaninfo(skb, vg, pvid);
 		if (err)
 			goto nla_put_failure;
 		nla_nest_end(skb, af);
@@ -413,14 +433,14 @@ static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
 	switch (cmd) {
 	case RTM_SETLINK:
 		if (p) {
+			/* if the MASTER flag is set this will act on the global
+			 * per-VLAN entry as well
+			 */
 			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
 			if (err)
 				break;
-
-			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-				err = br_vlan_add(p->br, vinfo->vid,
-						  vinfo->flags);
 		} else {
+			vinfo->flags |= BRIDGE_VLAN_INFO_BRENTRY;
 			err = br_vlan_add(br, vinfo->vid, vinfo->flags);
 		}
 		break;
@@ -857,20 +877,22 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 
 static size_t br_get_link_af_size(const struct net_device *dev)
 {
-	struct net_port_vlans *pv;
+	struct net_bridge_port *p;
+	struct net_bridge *br;
+	int num_vlans = 0;
 
-	if (br_port_exists(dev))
-		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
-	else if (dev->priv_flags & IFF_EBRIDGE)
-		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
-	else
-		return 0;
-
-	if (!pv)
-		return 0;
+	if (br_port_exists(dev)) {
+		p = br_port_get_rtnl(dev);
+		num_vlans = br_get_num_vlan_infos(nbp_vlan_group(p),
+						  RTEXT_FILTER_BRVLAN, 0);
+	} else if (dev->priv_flags & IFF_EBRIDGE) {
+		br = netdev_priv(dev);
+		num_vlans = br_get_num_vlan_infos(br_vlan_group(br),
+						  RTEXT_FILTER_BRVLAN, 0);
+	}
 
 	/* Each VLAN is returned in bridge_vlan_info along with flags */
-	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
+	return num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {

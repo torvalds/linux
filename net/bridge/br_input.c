@@ -36,28 +36,28 @@ static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 	struct net_bridge *br = netdev_priv(brdev);
+	struct net_bridge_vlan_group *vg;
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
-	struct net_port_vlans *pv;
 
 	u64_stats_update_begin(&brstats->syncp);
 	brstats->rx_packets++;
 	brstats->rx_bytes += skb->len;
 	u64_stats_update_end(&brstats->syncp);
 
+	vg = br_vlan_group(br);
 	/* Bridge is just like any other port.  Make sure the
 	 * packet is allowed except in promisc modue when someone
 	 * may be running packet capture.
 	 */
-	pv = br_get_vlan_info(br);
 	if (!(brdev->flags & IFF_PROMISC) &&
-	    !br_allowed_egress(br, pv, skb)) {
+	    !br_allowed_egress(vg, skb)) {
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
 
 	indev = skb->dev;
 	skb->dev = brdev;
-	skb = br_handle_vlan(br, pv, skb);
+	skb = br_handle_vlan(br, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
 
@@ -140,7 +140,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
-	if (!br_allowed_ingress(p->br, nbp_get_vlan_info(p), skb, &vid))
+	if (!nbp_allowed_ingress(p, skb, &vid))
 		goto out;
 
 	/* insert into forwarding database after filtering to avoid spoofing */
