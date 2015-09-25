@@ -106,39 +106,39 @@
  */
 #define LAS0_USER_IO		0x0008	/* User I/O */
 #define LAS0_ADC		0x0010	/* FIFO Status/Software A/D Start */
-#define FS_DAC1_NOT_EMPTY	(1 << 0)	/* DAC1 FIFO not empty */
-#define FS_DAC1_HEMPTY		(1 << 1)	/* DAC1 FIFO half empty */
-#define FS_DAC1_NOT_FULL	(1 << 2)	/* DAC1 FIFO not full */
-#define FS_DAC2_NOT_EMPTY	(1 << 4)	/* DAC2 FIFO not empty */
-#define FS_DAC2_HEMPTY		(1 << 5)	/* DAC2 FIFO half empty */
-#define FS_DAC2_NOT_FULL	(1 << 6)	/* DAC2 FIFO not full */
-#define FS_ADC_NOT_EMPTY	(1 << 8)	/* ADC FIFO not empty */
-#define FS_ADC_HEMPTY		(1 << 9)	/* ADC FIFO half empty */
-#define FS_ADC_NOT_FULL		(1 << 10)	/* ADC FIFO not full */
-#define FS_DIN_NOT_EMPTY	(1 << 12)	/* DIN FIFO not empty */
-#define FS_DIN_HEMPTY		(1 << 13)	/* DIN FIFO half empty */
-#define FS_DIN_NOT_FULL		(1 << 14)	/* DIN FIFO not full */
+#define FS_DAC1_NOT_EMPTY	BIT(0)	/* DAC1 FIFO not empty */
+#define FS_DAC1_HEMPTY		BIT(1)	/* DAC1 FIFO half empty */
+#define FS_DAC1_NOT_FULL	BIT(2)	/* DAC1 FIFO not full */
+#define FS_DAC2_NOT_EMPTY	BIT(4)	/* DAC2 FIFO not empty */
+#define FS_DAC2_HEMPTY		BIT(5)	/* DAC2 FIFO half empty */
+#define FS_DAC2_NOT_FULL	BIT(6)	/* DAC2 FIFO not full */
+#define FS_ADC_NOT_EMPTY	BIT(8)	/* ADC FIFO not empty */
+#define FS_ADC_HEMPTY		BIT(9)	/* ADC FIFO half empty */
+#define FS_ADC_NOT_FULL		BIT(10)	/* ADC FIFO not full */
+#define FS_DIN_NOT_EMPTY	BIT(12)	/* DIN FIFO not empty */
+#define FS_DIN_HEMPTY		BIT(13)	/* DIN FIFO half empty */
+#define FS_DIN_NOT_FULL		BIT(14)	/* DIN FIFO not full */
 #define LAS0_DAC1		0x0014	/* Software D/A1 Update (w) */
 #define LAS0_DAC2		0x0018	/* Software D/A2 Update (w) */
 #define LAS0_DAC		0x0024	/* Software Simultaneous Update (w) */
 #define LAS0_PACER		0x0028	/* Software Pacer Start/Stop */
 #define LAS0_TIMER		0x002c	/* Timer Status/HDIN Software Trig. */
 #define LAS0_IT			0x0030	/* Interrupt Status/Enable */
-#define IRQM_ADC_FIFO_WRITE	(1 << 0)	/* ADC FIFO Write */
-#define IRQM_CGT_RESET		(1 << 1)	/* Reset CGT */
-#define IRQM_CGT_PAUSE		(1 << 3)	/* Pause CGT */
-#define IRQM_ADC_ABOUT_CNT	(1 << 4)	/* About Counter out */
-#define IRQM_ADC_DELAY_CNT	(1 << 5)	/* Delay Counter out */
-#define IRQM_ADC_SAMPLE_CNT	(1 << 6)	/* ADC Sample Counter */
-#define IRQM_DAC1_UCNT		(1 << 7)	/* DAC1 Update Counter */
-#define IRQM_DAC2_UCNT		(1 << 8)	/* DAC2 Update Counter */
-#define IRQM_UTC1		(1 << 9)	/* User TC1 out */
-#define IRQM_UTC1_INV		(1 << 10)	/* User TC1 out, inverted */
-#define IRQM_UTC2		(1 << 11)	/* User TC2 out */
-#define IRQM_DIGITAL_IT		(1 << 12)	/* Digital Interrupt */
-#define IRQM_EXTERNAL_IT	(1 << 13)	/* External Interrupt */
-#define IRQM_ETRIG_RISING	(1 << 14)	/* Ext Trigger rising-edge */
-#define IRQM_ETRIG_FALLING	(1 << 15)	/* Ext Trigger falling-edge */
+#define IRQM_ADC_FIFO_WRITE	BIT(0)	/* ADC FIFO Write */
+#define IRQM_CGT_RESET		BIT(1)	/* Reset CGT */
+#define IRQM_CGT_PAUSE		BIT(3)	/* Pause CGT */
+#define IRQM_ADC_ABOUT_CNT	BIT(4)	/* About Counter out */
+#define IRQM_ADC_DELAY_CNT	BIT(5)	/* Delay Counter out */
+#define IRQM_ADC_SAMPLE_CNT	BIT(6)	/* ADC Sample Counter */
+#define IRQM_DAC1_UCNT		BIT(7)	/* DAC1 Update Counter */
+#define IRQM_DAC2_UCNT		BIT(8)	/* DAC2 Update Counter */
+#define IRQM_UTC1		BIT(9)	/* User TC1 out */
+#define IRQM_UTC1_INV		BIT(10)	/* User TC1 out, inverted */
+#define IRQM_UTC2		BIT(11)	/* User TC2 out */
+#define IRQM_DIGITAL_IT		BIT(12)	/* Digital Interrupt */
+#define IRQM_EXTERNAL_IT	BIT(13)	/* External Interrupt */
+#define IRQM_ETRIG_RISING	BIT(14)	/* Ext Trigger rising-edge */
+#define IRQM_ETRIG_FALLING	BIT(15)	/* Ext Trigger falling-edge */
 #define LAS0_CLEAR		0x0034	/* Clear/Set Interrupt Clear Mask */
 #define LAS0_OVERRUN		0x0038	/* Pending interrupts/Clear Overrun */
 #define LAS0_PCLK		0x0040	/* Pacer Clock (24bit) */
