@@ -28,6 +28,7 @@ struct perf_inject {
 	bool			build_ids;
 	bool			sched_stat;
 	bool			have_auxtrace;
+	bool			strip;
 	const char		*input_name;
 	struct perf_data_file	output;
 	u64			bytes_written;
@@ -175,6 +176,14 @@ static int perf_event__repipe(struct perf_tool *tool,
 			      struct machine *machine __maybe_unused)
 {
 	return perf_event__repipe_synth(tool, event);
+}
+
+static int perf_event__drop(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event __maybe_unused,
+			    struct perf_sample *sample __maybe_unused,
+			    struct machine *machine __maybe_unused)
+{
+	return 0;
 }
 
 static int perf_event__drop_aux(struct perf_tool *tool,
@@ -480,6 +489,78 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 	return 0;
 }
 
+static int drop_sample(struct perf_tool *tool __maybe_unused,
+		       union perf_event *event __maybe_unused,
+		       struct perf_sample *sample __maybe_unused,
+		       struct perf_evsel *evsel __maybe_unused,
+		       struct machine *machine __maybe_unused)
+{
+	return 0;
+}
+
+static void strip_init(struct perf_inject *inject)
+{
+	struct perf_evlist *evlist = inject->session->evlist;
+	struct perf_evsel *evsel;
+
+	inject->tool.context_switch = perf_event__drop;
+
+	evlist__for_each(evlist, evsel)
+		evsel->handler = drop_sample;
+}
+
+static bool has_tracking(struct perf_evsel *evsel)
+{
+	return evsel->attr.mmap || evsel->attr.mmap2 || evsel->attr.comm ||
+	       evsel->attr.task;
+}
+
+#define COMPAT_MASK (PERF_SAMPLE_ID | PERF_SAMPLE_TID | PERF_SAMPLE_TIME | \
+		     PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_IDENTIFIER)
+
+/*
+ * In order that the perf.data file is parsable, tracking events like MMAP need
+ * their selected event to exist, except if there is only 1 selected event left
+ * and it has a compatible sample type.
+ */
+static bool ok_to_remove(struct perf_evlist *evlist,
+			 struct perf_evsel *evsel_to_remove)
+{
+	struct perf_evsel *evsel;
+	int cnt = 0;
+	bool ok = false;
+
+	if (!has_tracking(evsel_to_remove))
+		return true;
+
+	evlist__for_each(evlist, evsel) {
+		if (evsel->handler != drop_sample) {
+			cnt += 1;
+			if ((evsel->attr.sample_type & COMPAT_MASK) ==
+			    (evsel_to_remove->attr.sample_type & COMPAT_MASK))
+				ok = true;
+		}
+	}
+
+	return ok && cnt == 1;
+}
+
+static void strip_fini(struct perf_inject *inject)
+{
+	struct perf_evlist *evlist = inject->session->evlist;
+	struct perf_evsel *evsel, *tmp;
+
+	/* Remove non-synthesized evsels if possible */
+	evlist__for_each_safe(evlist, tmp, evsel) {
+		if (evsel->handler == drop_sample &&
+		    ok_to_remove(evlist, evsel)) {
+			pr_debug("Deleting %s\n", perf_evsel__name(evsel));
+			perf_evlist__remove(evlist, evsel);
+			perf_evsel__delete(evsel);
+		}
+	}
+}
+
 static int __cmd_inject(struct perf_inject *inject)
 {
 	int ret = -EINVAL;
@@ -532,6 +613,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.ordering_requires_timestamps = true;
 		/* Allow space in the header for new attributes */
 		output_data_offset = 4096;
+		if (inject->strip)
+			strip_init(inject);
 	}
 
 	if (!inject->itrace_synth_opts.set)
@@ -570,6 +653,8 @@ static int __cmd_inject(struct perf_inject *inject)
 				perf_evlist__remove(session->evlist, evsel);
 				perf_evsel__delete(evsel);
 			}
+			if (inject->strip)
+				strip_fini(inject);
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
@@ -635,6 +720,8 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		OPT_CALLBACK_OPTARG(0, "itrace", &inject.itrace_synth_opts,
 				    NULL, "opts", "Instruction Tracing options",
 				    itrace_parse_synth_opts),
+		OPT_BOOLEAN(0, "strip", &inject.strip,
+			    "strip non-synthesized events (use with --itrace)"),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {
@@ -649,6 +736,11 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	 */
 	if (argc)
 		usage_with_options(inject_usage, options);
+
+	if (inject.strip && !inject.itrace_synth_opts.set) {
+		pr_err("--strip option requires --itrace option\n");
+		return -1;
+	}
 
 	if (perf_data_file__open(&inject.output)) {
 		perror("failed to create output file");
