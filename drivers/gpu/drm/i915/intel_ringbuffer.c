@@ -810,6 +810,10 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisableAsyncFlipPerfMode:bdw,chv */
 	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
 
+	/* WaDisablePartialInstShootdown:bdw,chv */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
+
 	return 0;
 }
 
@@ -823,11 +827,8 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
-	/* WaDisablePartialInstShootdown:bdw */
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
-	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
 	/* WaDisableDopClockGating:bdw */
 	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
@@ -889,11 +890,8 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
-	/* WaDisablePartialInstShootdown:chv */
 	/* WaDisableThreadStallDopClockGating:chv */
-	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
-			  STALL_DOP_GATING_DISABLE);
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
 	 * workaround for a possible hang in the unlikely event a TLB
