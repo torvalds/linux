@@ -209,12 +209,14 @@
 #define LAS1_HDIO_FIFO		0x0004	/* HiSpd DI FIFO (16bit) */
 #define LAS1_DAC_FIFO(x)	(0x0008 + ((x) * 0x4))	/* D/Ax FIFO (16bit) */
 
-/*======================================================================
-  Driver specific stuff (tunable)
-======================================================================*/
+/*
+ * Driver specific stuff (tunable)
+ */
 
-/* We really only need 2 buffers.  More than that means being much
-   smarter about knowing which ones are full. */
+/*
+ * We really only need 2 buffers.  More than that means being much
+ * smarter about knowing which ones are full.
+ */
 #define DMA_CHAIN_COUNT 2	/* max DMA segments/buffers in a ring (min 2) */
 
 /* Target period for periodic transfers.  This sets the user read latency. */
@@ -226,9 +228,9 @@
 /* The board support a channel list up to the FIFO length (1K or 8K) */
 #define RTD_MAX_CHANLIST	128	/* max channel list that we allow */
 
-/*======================================================================
-  Board specific stuff
-======================================================================*/
+/*
+ * Board specific stuff
+ */
 
 #define RTD_CLOCK_RATE	8000000	/* 8Mhz onboard clock */
 #define RTD_CLOCK_BASE	125	/* clock period in ns */
@@ -257,9 +259,9 @@
 /* interrupt at end of block */ | PLX_INTR_TERM_COUNT \
 /* from board to PCI */		| PLX_XFER_LOCAL_TO_PCI)
 
-/*======================================================================
-  Comedi specific stuff
-======================================================================*/
+/*
+ * Comedi specific stuff
+ */
 
 /*
  * The board has 3 input modes and the gains of 1,2,4,...32 (, 64, 128)
@@ -377,11 +379,11 @@ struct rtd_private {
 #define DMA1_ACTIVE	0x04	/* DMA1 is active */
 
 /*
-  Given a desired period and the clock period (both in ns),
-  return the proper counter value (divider-1).
-  Sets the original period to be the true value.
-  Note: you have to check if the value is larger than the counter range!
-*/
+ * Given a desired period and the clock period (both in ns), return the
+ * proper counter value (divider-1). Sets the original period to be the
+ * true value.
+ * Note: you have to check if the value is larger than the counter range!
+ */
 static int rtd_ns_to_timer_base(unsigned int *nanosec,
 				unsigned int flags, int base)
 {
@@ -402,26 +404,26 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 	if (divider < 2)
 		divider = 2;	/* min is divide by 2 */
 
-	/* Note: we don't check for max, because different timers
-	   have different ranges */
+	/*
+	 * Note: we don't check for max, because different timers
+	 * have different ranges
+	 */
 
 	*nanosec = base * divider;
 	return divider - 1;	/* countdown is divisor+1 */
 }
 
 /*
-  Given a desired period (in ns),
-  return the proper counter value (divider-1) for the internal clock.
-  Sets the original period to be the true value.
-*/
+ * Given a desired period (in ns), return the proper counter value
+ * (divider-1) for the internal clock. Sets the original period to
+ * be the true value.
+ */
 static int rtd_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	return rtd_ns_to_timer_base(ns, flags, RTD_CLOCK_BASE);
 }
 
-/*
-  Convert a single comedi channel-gain entry to a RTD520 table entry
-*/
+/* Convert a single comedi channel-gain entry to a RTD520 table entry */
 static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 					    unsigned int chanspec, int index)
 {
@@ -466,9 +468,7 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 	return r;
 }
 
-/*
-  Setup the channel-gain table from a comedi list
-*/
+/* Setup the channel-gain table from a comedi list */
 static void rtd_load_channelgain_list(struct comedi_device *dev,
 				      unsigned int n_chan, unsigned int *list)
 {
@@ -488,8 +488,10 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 	}
 }
 
-/* determine fifo size by doing adc conversions until the fifo half
-empty status flag clears */
+/*
+ * Determine fifo size by doing adc conversions until the fifo half
+ * empty status flag clears.
+ */
 static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 {
 	unsigned int chanspec = CR_PACK(0, 0, AREF_GROUND);
@@ -972,8 +974,10 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	/* end configuration */
 
-	/* This doesn't seem to work.  There is no way to clear an interrupt
-	   that the priority controller has queued! */
+	/*
+	 * This doesn't seem to work.  There is no way to clear an interrupt
+	 * that the priority controller has queued!
+	 */
 	writew(~0, dev->mmio + LAS0_CLEAR);
 	readw(dev->mmio + LAS0_CLEAR);
 
