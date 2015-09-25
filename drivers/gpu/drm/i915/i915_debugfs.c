@@ -2288,9 +2288,13 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
+		struct task_struct *task;
 
-		seq_printf(m, "\nproc: %s\n",
-			   get_pid_task(file->pid, PIDTYPE_PID)->comm);
+		task = get_pid_task(file->pid, PIDTYPE_PID);
+		if (!task)
+			return -ESRCH;
+		seq_printf(m, "\nproc: %s\n", task->comm);
+		put_task_struct(task);
 		idr_for_each(&file_priv->context_idr, per_file_ctx,
 			     (void *)(unsigned long)m);
 	}
