@@ -959,8 +959,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:	/* stop after N scans */
 		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
-		if ((devpriv->xfer_count > 0)
-		    && (devpriv->xfer_count > devpriv->ai_count)) {
+		if ((devpriv->xfer_count > 0) &&
+		    (devpriv->xfer_count > devpriv->ai_count)) {
 			devpriv->xfer_count = devpriv->ai_count;
 		}
 		break;
@@ -1074,8 +1074,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 
 		/* VERIFY: comedi range and offset conversions */
 
-		if ((range > 1)	/* bipolar */
-		    && (data[i] < 2048)) {
+		if ((range > 1) && (data[i] < 2048)) {	/* bipolar */
 			/* offset and sign extend */
 			val = (((int)data[i]) - 2048) << 3;
 		} else {	/* unipolor */
