@@ -1887,11 +1887,26 @@ enum skl_disp_power_wells {
 #define   CHV_FGT_EU_DIS_SS1_R1_MASK	(0xf << CHV_FGT_EU_DIS_SS1_R1_SHIFT)
 
 #define GEN8_FUSE2			0x9120
+#define   GEN8_F2_SS_DIS_SHIFT		21
+#define   GEN8_F2_SS_DIS_MASK		(0x7 << GEN8_F2_SS_DIS_SHIFT)
 #define   GEN8_F2_S_ENA_SHIFT		25
 #define   GEN8_F2_S_ENA_MASK		(0x7 << GEN8_F2_S_ENA_SHIFT)
 
 #define   GEN9_F2_SS_DIS_SHIFT		20
 #define   GEN9_F2_SS_DIS_MASK		(0xf << GEN9_F2_SS_DIS_SHIFT)
+
+#define GEN8_EU_DISABLE0		0x9134
+#define   GEN8_EU_DIS0_S0_MASK		0xffffff
+#define   GEN8_EU_DIS0_S1_SHIFT		24
+#define   GEN8_EU_DIS0_S1_MASK		(0xff << GEN8_EU_DIS0_S1_SHIFT)
+
+#define GEN8_EU_DISABLE1		0x9138
+#define   GEN8_EU_DIS1_S1_MASK		0xffff
+#define   GEN8_EU_DIS1_S2_SHIFT		16
+#define   GEN8_EU_DIS1_S2_MASK		(0xffff << GEN8_EU_DIS1_S2_SHIFT)
+
+#define GEN8_EU_DISABLE2		0x913c
+#define   GEN8_EU_DIS2_S2_MASK		0xff
 
 #define GEN9_EU_DISABLE(slice)		(0x9134 + (slice)*0x4)
 
@@ -6884,6 +6899,9 @@ enum skl_disp_power_wells {
 #define   GEN6_RC3			2
 #define   GEN6_RC6			3
 #define   GEN6_RC7			4
+
+#define GEN8_GT_SLICE_INFO		0x138064
+#define   GEN8_LSLICESTAT_MASK		0x7
 
 #define CHV_POWER_SS0_SIG1		0xa720
 #define CHV_POWER_SS1_SIG1		0xa728

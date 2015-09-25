@@ -5048,13 +5048,38 @@ static void gen9_sseu_device_status(struct drm_device *dev,
 	}
 }
 
+static void broadwell_sseu_device_status(struct drm_device *dev,
+					 struct sseu_dev_status *stat)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int s;
+	u32 slice_info = I915_READ(GEN8_GT_SLICE_INFO);
+
+	stat->slice_total = hweight32(slice_info & GEN8_LSLICESTAT_MASK);
+
+	if (stat->slice_total) {
+		stat->subslice_per_slice = INTEL_INFO(dev)->subslice_per_slice;
+		stat->subslice_total = stat->slice_total *
+				       stat->subslice_per_slice;
+		stat->eu_per_subslice = INTEL_INFO(dev)->eu_per_subslice;
+		stat->eu_total = stat->eu_per_subslice * stat->subslice_total;
+
+		/* subtract fused off EU(s) from enabled slice(s) */
+		for (s = 0; s < stat->slice_total; s++) {
+			u8 subslice_7eu = INTEL_INFO(dev)->subslice_7eu[s];
+
+			stat->eu_total -= hweight8(subslice_7eu);
+		}
+	}
+}
+
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct sseu_dev_status stat;
 
-	if ((INTEL_INFO(dev)->gen < 8) || IS_BROADWELL(dev))
+	if (INTEL_INFO(dev)->gen < 8)
 		return -ENODEV;
 
 	seq_puts(m, "SSEU Device Info\n");
@@ -5079,6 +5104,8 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	memset(&stat, 0, sizeof(stat));
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_sseu_device_status(dev, &stat);
+	} else if (IS_BROADWELL(dev)) {
+		broadwell_sseu_device_status(dev, &stat);
 	} else if (INTEL_INFO(dev)->gen >= 9) {
 		gen9_sseu_device_status(dev, &stat);
 	}
