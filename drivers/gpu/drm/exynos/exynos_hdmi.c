@@ -30,11 +30,11 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/hdmi.h>
 #include <linux/component.h>
 #include <linux/mfd/syscon.h>
@@ -45,8 +45,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_mixer.h"
-
-#include <linux/gpio.h>
 
 #define ctx_from_connector(c)	container_of(c, struct hdmi_context, connector)
 
@@ -129,7 +127,7 @@ struct hdmi_context {
 	struct hdmi_resources		res;
 	const struct hdmi_driver_data	*drv_data;
 
-	int				hpd_gpio;
+	struct gpio_desc 		*hpd_gpio;
 	void __iomem			*regs_hdmiphy;
 
 	struct regmap			*pmureg;
@@ -949,7 +947,7 @@ static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 {
 	struct hdmi_context *hdata = ctx_from_connector(connector);
 
-	if (gpio_get_value(hdata->hpd_gpio))
+	if (gpiod_get_value(hdata->hpd_gpio))
 		return connector_status_connected;
 
 	return connector_status_disconnected;
@@ -1748,6 +1746,17 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
 
+	hdata->hpd_gpio = devm_gpiod_get(dev, "hpd", GPIOD_IN);
+	if (IS_ERR(hdata->hpd_gpio)) {
+		DRM_ERROR("cannot get hpd gpio property\n");
+		return PTR_ERR(hdata->hpd_gpio);
+	}
+
+	hdata->irq = gpiod_to_irq(hdata->hpd_gpio);
+	if (hdata->irq < 0) {
+		DRM_ERROR("failed to get GPIO irq\n");
+		return  hdata->irq;
+	}
 	/* get clocks, power */
 	res->hdmi = devm_clk_get(dev, "hdmi");
 	if (IS_ERR(res->hdmi)) {
@@ -1909,11 +1918,6 @@ static int hdmi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hdata);
 
 	hdata->dev = dev;
-	hdata->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpio", 0);
-	if (hdata->hpd_gpio < 0) {
-		DRM_ERROR("cannot get hpd gpio property\n");
-		return hdata->hpd_gpio;
-	}
 
 	ret = hdmi_resources_init(hdata);
 	if (ret) {
@@ -1925,12 +1929,6 @@ static int hdmi_probe(struct platform_device *pdev)
 	hdata->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hdata->regs)) {
 		ret = PTR_ERR(hdata->regs);
-		return ret;
-	}
-
-	ret = devm_gpio_request(dev, hdata->hpd_gpio, "HPD");
-	if (ret) {
-		DRM_ERROR("failed to request HPD gpio\n");
 		return ret;
 	}
 
@@ -1979,13 +1977,6 @@ out_get_phy_port:
 			ret = -EPROBE_DEFER;
 			goto err_ddc;
 		}
-	}
-
-	hdata->irq = gpio_to_irq(hdata->hpd_gpio);
-	if (hdata->irq < 0) {
-		DRM_ERROR("failed to get GPIO irq\n");
-		ret = hdata->irq;
-		goto err_hdmiphy;
 	}
 
 	INIT_DELAYED_WORK(&hdata->hotplug_work, hdmi_hotplug_work_func);
