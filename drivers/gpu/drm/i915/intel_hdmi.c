@@ -2004,15 +2004,6 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 };
 
 static void
-intel_attach_aspect_ratio_property(struct drm_connector *connector)
-{
-	if (!drm_mode_create_aspect_ratio_property(connector->dev))
-		drm_object_attach_property(&connector->base,
-			connector->dev->mode_config.aspect_ratio_property,
-			DRM_MODE_PICTURE_ASPECT_NONE);
-}
-
-static void
 intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
 {
 	intel_attach_force_audio_property(connector);
