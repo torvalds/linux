@@ -118,8 +118,7 @@
 #define FS_DIN_NOT_EMPTY	BIT(12)	/* DIN FIFO not empty */
 #define FS_DIN_HEMPTY		BIT(13)	/* DIN FIFO half empty */
 #define FS_DIN_NOT_FULL		BIT(14)	/* DIN FIFO not full */
-#define LAS0_DAC1		0x0014	/* Software D/A1 Update (w) */
-#define LAS0_DAC2		0x0018	/* Software D/A2 Update (w) */
+#define LAS0_UPDATE_DAC(x)	(0x0014 + ((x) * 0x4))	/* D/Ax Update (w) */
 #define LAS0_DAC		0x0024	/* Software Simultaneous Update (w) */
 #define LAS0_PACER		0x0028	/* Software Pacer Start/Stop */
 #define LAS0_TIMER		0x002c	/* Timer Status/HDIN Software Trig. */
@@ -177,16 +176,11 @@
 #define LAS0_CGT_PAUSE		0x0144	/* Table Pause Enable */
 #define LAS0_CGT_RESET		0x0148	/* Reset Channel Gain Table */
 #define LAS0_CGT_CLEAR		0x014c	/* Clear Channel Gain Table */
-#define LAS0_DAC1_CTRL		0x0150	/* D/A1 output type/range */
-#define LAS0_DAC1_SRC		0x0154	/* D/A1 update source */
-#define LAS0_DAC1_CYCLE		0x0158	/* D/A1 cycle mode */
-#define LAS0_DAC1_RESET		0x015c	/* D/A1 FIFO reset */
-#define LAS0_DAC1_FIFO_CLEAR	0x0160	/* D/A1 FIFO clear */
-#define LAS0_DAC2_CTRL		0x0164	/* D/A2 output type/range */
-#define LAS0_DAC2_SRC		0x0168	/* D/A2 update source */
-#define LAS0_DAC2_CYCLE		0x016c	/* D/A2 cycle mode */
-#define LAS0_DAC2_RESET		0x0170	/* D/A2 FIFO reset */
-#define LAS0_DAC2_FIFO_CLEAR	0x0174	/* D/A2 FIFO clear */
+#define LAS0_DAC_CTRL(x)	(0x0150	+ ((x) * 0x14))	/* D/Ax type/range */
+#define LAS0_DAC_SRC(x)		(0x0154 + ((x) * 0x14))	/* D/Ax update source */
+#define LAS0_DAC_CYCLE(x)	(0x0158 + ((x) * 0x14))	/* D/Ax cycle mode */
+#define LAS0_DAC_RESET(x)	(0x015c + ((x) * 0x14))	/* D/Ax FIFO reset */
+#define LAS0_DAC_FIFO_CLEAR(x)	(0x0160 + ((x) * 0x14))	/* D/Ax FIFO clear */
 #define LAS0_ADC_SCNT_SRC	0x0178	/* A/D Sample Counter Source select */
 #define LAS0_PACER_SELECT	0x0180	/* Pacer Clock select */
 #define LAS0_SBUS0_SRC		0x0184	/* SyncBus 0 Source select */
@@ -213,8 +207,7 @@
  */
 #define LAS1_ADC_FIFO		0x0000	/* A/D FIFO (16bit) */
 #define LAS1_HDIO_FIFO		0x0004	/* HiSpd DI FIFO (16bit) */
-#define LAS1_DAC1_FIFO		0x0008	/* D/A1 FIFO (16bit) */
-#define LAS1_DAC2_FIFO		0x000c	/* D/A2 FIFO (16bit) */
+#define LAS1_DAC_FIFO(x)	(0x0008 + ((x) * 0x4))	/* D/Ax FIFO (16bit) */
 
 /*======================================================================
   Driver specific stuff (tunable)
@@ -1064,8 +1057,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	int ret;
 
 	/* Configure the output range (table index matches the range values) */
-	writew(range & 7,
-	       dev->mmio + ((chan == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL));
+	writew(range & 7, dev->mmio + LAS0_DAC_CTRL(chan));
 
 	for (i = 0; i < insn->n; ++i) {
 		int val = data[i] << 3;
@@ -1079,9 +1071,8 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			val = data[i] << 3;
 		}
 
-		writew(val, devpriv->las1 +
-			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
-		writew(0, dev->mmio + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
+		writew(val, devpriv->las1 + LAS1_DAC_FIFO(chan));
+		writew(0, dev->mmio + LAS0_UPDATE_DAC(chan));
 
 		s->readback[chan] = data[i];
 
@@ -1156,8 +1147,8 @@ static void rtd_init_board(struct comedi_device *dev)
 	writel(0, dev->mmio + LAS0_OVERRUN);
 	writel(0, dev->mmio + LAS0_CGT_CLEAR);
 	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
-	writel(0, dev->mmio + LAS0_DAC1_RESET);
-	writel(0, dev->mmio + LAS0_DAC2_RESET);
+	writel(0, dev->mmio + LAS0_DAC_RESET(0));
+	writel(0, dev->mmio + LAS0_DAC_RESET(1));
 	/* clear digital IO fifo */
 	writew(0, dev->mmio + LAS0_DIO_STATUS);
 	writeb((0 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
