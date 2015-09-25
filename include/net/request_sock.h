@@ -42,7 +42,7 @@ struct request_sock_ops {
 	void		(*syn_ack_timeout)(const struct request_sock *req);
 };
 
-int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
+int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req);
 
 /* struct request_sock - mini sock to represent a connection request
  */
