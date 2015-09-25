@@ -5124,6 +5124,8 @@ int __init cgroup_init_early(void)
 	return 0;
 }
 
+static unsigned long cgroup_disable_mask __initdata;
+
 /**
  * cgroup_init - cgroup initialization
  *
@@ -5170,8 +5172,12 @@ int __init cgroup_init(void)
 		 * disabled flag and cftype registration needs kmalloc,
 		 * both of which aren't available during early_init.
 		 */
-		if (!cgroup_ssid_enabled(ssid))
+		if (cgroup_disable_mask & (1 << ssid)) {
+			static_branch_disable(cgroup_subsys_enabled_key[ssid]);
+			printk(KERN_INFO "Disabling %s control group subsystem\n",
+			       ss->name);
 			continue;
+		}
 
 		cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 
@@ -5595,11 +5601,7 @@ static int __init cgroup_disable(char *str)
 			if (strcmp(token, ss->name) &&
 			    strcmp(token, ss->legacy_name))
 				continue;
-
-			static_branch_disable(cgroup_subsys_enabled_key[i]);
-			printk(KERN_INFO "Disabling %s control group subsystem\n",
-			       ss->name);
-			break;
+			cgroup_disable_mask |= 1 << i;
 		}
 	}
 	return 1;
