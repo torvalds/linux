@@ -155,12 +155,21 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 				     struct i915_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_device *dev = dev_priv->dev;
 	u32 data[2];
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
-	data[1] = (intel_enable_rc6(dev_priv->dev)) ? 1 : 0;
+	/* WaRsDisableCoarsePowerGating:skl,bxt */
+	if (!intel_enable_rc6(dev_priv->dev) ||
+	    (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
+	    (IS_SKL_GT3(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)) ||
+	    (IS_SKL_GT4(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+		data[1] = 0;
+	else
+		/* bit 0 and 1 are for Render and Media domain separately */
+		data[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
 
-	return host2guc_action(guc, data, 2);
+	return host2guc_action(guc, data, ARRAY_SIZE(data));
 }
 
 /*

@@ -218,6 +218,9 @@ struct guc_context_desc {
 	u64 desc_private;
 } __packed;
 
+#define GUC_FORCEWAKE_RENDER	(1 << 0)
+#define GUC_FORCEWAKE_MEDIA	(1 << 1)
+
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
 enum host2guc_action {
 	HOST2GUC_ACTION_DEFAULT = 0x0,
