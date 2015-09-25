@@ -551,19 +551,15 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	data->id_det_gpio = devm_gpiod_get(dev, "usb0_id_det", GPIOD_IN);
-	if (IS_ERR(data->id_det_gpio)) {
-		if (PTR_ERR(data->id_det_gpio) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		data->id_det_gpio = NULL;
-	}
+	data->id_det_gpio = devm_gpiod_get_optional(dev, "usb0_id_det",
+						    GPIOD_IN);
+	if (IS_ERR(data->id_det_gpio))
+		return PTR_ERR(data->id_det_gpio);
 
-	data->vbus_det_gpio = devm_gpiod_get(dev, "usb0_vbus_det", GPIOD_IN);
-	if (IS_ERR(data->vbus_det_gpio)) {
-		if (PTR_ERR(data->vbus_det_gpio) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		data->vbus_det_gpio = NULL;
-	}
+	data->vbus_det_gpio = devm_gpiod_get_optional(dev, "usb0_vbus_det",
+						      GPIOD_IN);
+	if (IS_ERR(data->vbus_det_gpio))
+		return PTR_ERR(data->vbus_det_gpio);
 
 	if (of_find_property(np, "usb0_vbus_power-supply", NULL)) {
 		data->vbus_power_supply = devm_power_supply_get_by_phandle(dev,
