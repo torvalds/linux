@@ -2225,6 +2225,23 @@ static void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
 		serial_port_out(port, 0x2, quot_frac);
 }
 
+static unsigned int
+serial8250_get_baud_rate(struct uart_port *port, struct ktermios *termios,
+			 struct ktermios *old)
+{
+	unsigned int tolerance = port->uartclk / 100;
+
+	/*
+	 * Ask the core to calculate the divisor for us.
+	 * Allow 1% tolerance at the upper limit so uart clks marginally
+	 * slower than nominal still match standard baud rates without
+	 * causing transmission errors.
+	 */
+	return uart_get_baud_rate(port, termios, old,
+				  port->uartclk / 16 / 0xffff,
+				  (port->uartclk + tolerance) / 16);
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          struct ktermios *old)
@@ -2236,12 +2253,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	cval = serial8250_compute_lcr(up, termios->c_cflag);
 
-	/*
-	 * Ask the core to calculate the divisor for us.
-	 */
-	baud = uart_get_baud_rate(port, termios, old,
-				  port->uartclk / 16 / 0xffff,
-				  port->uartclk / 16);
+	baud = serial8250_get_baud_rate(port, termios, old);
 	quot = serial8250_get_divisor(up, baud, &frac);
 
 	/*
@@ -2834,9 +2846,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 		if (port->state->port.tty && termios.c_cflag == 0)
 			termios.c_cflag = port->state->port.tty->termios.c_cflag;
 
-		baud = uart_get_baud_rate(port, &termios, NULL,
-					  port->uartclk / 16 / 0xffff,
-					  port->uartclk / 16);
+		baud = serial8250_get_baud_rate(port, &termios, NULL);
 		quot = serial8250_get_divisor(up, baud, &frac);
 
 		serial8250_set_divisor(port, baud, quot, frac);
