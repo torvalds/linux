@@ -152,6 +152,7 @@ static const struct of_device_id snd_soc_mop500_match[] = {
 	{ .compatible = "stericsson,snd-soc-mop500", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, snd_soc_mop500_match);
 
 static struct platform_driver snd_soc_mop500_driver = {
 	.driver = {

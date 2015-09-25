@@ -66,7 +66,7 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_ctu_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_ctu *)(priv->ctu) + id)->mod;
+	return rsnd_mod_get((struct rsnd_ctu *)(priv->ctu) + id);
 }
 
 static void rsnd_of_parse_ctu(struct platform_device *pdev,
@@ -150,7 +150,7 @@ int rsnd_ctu_probe(struct platform_device *pdev,
 
 		ctu->info = &info->ctu_info[i];
 
-		ret = rsnd_mod_init(priv, &ctu->mod, &rsnd_ctu_ops,
+		ret = rsnd_mod_init(priv, rsnd_mod_get(ctu), &rsnd_ctu_ops,
 				    clk, RSND_MOD_CTU, i);
 		if (ret)
 			return ret;
@@ -166,6 +166,6 @@ void rsnd_ctu_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_ctu(ctu, priv, i) {
-		rsnd_mod_quit(&ctu->mod);
+		rsnd_mod_quit(rsnd_mod_get(ctu));
 	}
 }
