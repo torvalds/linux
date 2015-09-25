@@ -383,15 +383,11 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	start = start_bidx_of_node(ofs_of_node(page), fi);
 	end = start + ADDRS_PER_PAGE(page, fi);
 
-	f2fs_lock_op(sbi);
-
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 
 	err = get_dnode_of_data(&dn, start, ALLOC_NODE);
-	if (err) {
-		f2fs_unlock_op(sbi);
+	if (err)
 		goto out;
-	}
 
 	f2fs_wait_on_page_writeback(dn.node_page, NODE);
 
@@ -456,7 +452,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	set_page_dirty(dn.node_page);
 err:
 	f2fs_put_dnode(&dn);
-	f2fs_unlock_op(sbi);
 out:
 	f2fs_msg(sbi->sb, KERN_NOTICE,
 		"recover_data: ino = %lx, recovered = %d blocks, err = %d",
