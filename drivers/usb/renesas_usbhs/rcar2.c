@@ -13,7 +13,6 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/phy/phy.h>
-#include <linux/platform_data/gpio-rcar.h>
 #include <linux/usb/phy.h>
 #include "common.h"
 #include "rcar2.h"
