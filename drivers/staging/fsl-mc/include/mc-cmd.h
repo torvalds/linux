@@ -35,21 +35,21 @@
 #define MC_CMD_NUM_OF_PARAMS	7
 
 #define MAKE_UMASK64(_width) \
-	((uint64_t)((_width) < 64 ? ((uint64_t)1 << (_width)) - 1 : -1))
+	((u64)((_width) < 64 ? ((u64)1 << (_width)) - 1 : -1))
 
-static inline uint64_t mc_enc(int lsoffset, int width, uint64_t val)
+static inline u64 mc_enc(int lsoffset, int width, u64 val)
 {
-	return (uint64_t)(((uint64_t)val & MAKE_UMASK64(width)) << lsoffset);
+	return (u64)(((u64)val & MAKE_UMASK64(width)) << lsoffset);
 }
 
-static inline uint64_t mc_dec(uint64_t val, int lsoffset, int width)
+static inline u64 mc_dec(u64 val, int lsoffset, int width)
 {
-	return (uint64_t)((val >> lsoffset) & MAKE_UMASK64(width));
+	return (u64)((val >> lsoffset) & MAKE_UMASK64(width));
 }
 
 struct mc_command {
-	uint64_t header;
-	uint64_t params[MC_CMD_NUM_OF_PARAMS];
+	u64 header;
+	u64 params[MC_CMD_NUM_OF_PARAMS];
 };
 
 enum mc_cmd_status {
@@ -98,10 +98,10 @@ enum mc_cmd_status {
 		MC_CMD_HDR_STATUS_O, MC_CMD_HDR_STATUS_S))
 
 #define MC_CMD_HDR_READ_TOKEN(_hdr) \
-	((uint16_t)mc_dec((_hdr), MC_CMD_HDR_TOKEN_O, MC_CMD_HDR_TOKEN_S))
+	((u16)mc_dec((_hdr), MC_CMD_HDR_TOKEN_O, MC_CMD_HDR_TOKEN_S))
 
 #define MC_CMD_HDR_READ_FLAGS(_hdr) \
-	((uint32_t)mc_dec((_hdr), MC_CMD_HDR_FLAGS_O, MC_CMD_HDR_FLAGS_S))
+	((u32)mc_dec((_hdr), MC_CMD_HDR_FLAGS_O, MC_CMD_HDR_FLAGS_S))
 
 #define MC_EXT_OP(_ext, _param, _offset, _width, _type, _arg) \
 	((_ext)[_param] |= mc_enc((_offset), (_width), _arg))
@@ -112,11 +112,11 @@ enum mc_cmd_status {
 #define MC_RSP_OP(_cmd, _param, _offset, _width, _type, _arg) \
 	(_arg = (_type)mc_dec(_cmd.params[_param], (_offset), (_width)))
 
-static inline uint64_t mc_encode_cmd_header(uint16_t cmd_id,
-					    uint32_t cmd_flags,
-					    uint16_t token)
+static inline u64 mc_encode_cmd_header(u16 cmd_id,
+				       u32 cmd_flags,
+				       u16 token)
 {
-	uint64_t hdr;
+	u64 hdr;
 
 	hdr = mc_enc(MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S, cmd_id);
 	hdr |= mc_enc(MC_CMD_HDR_FLAGS_O, MC_CMD_HDR_FLAGS_S,

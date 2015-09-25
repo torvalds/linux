@@ -45,7 +45,7 @@ struct fsl_mc_io;
  * container, in case the ICID is not selected by the user and should be
  * allocated by the DPRC from the pool of ICIDs.
  */
-#define DPRC_GET_ICID_FROM_POOL			(uint16_t)(~(0))
+#define DPRC_GET_ICID_FROM_POOL			(u16)(~(0))
 
 /**
  * Set this value as the portal_id value in dprc_cfg structure when creating a
@@ -55,13 +55,13 @@ struct fsl_mc_io;
 #define DPRC_GET_PORTAL_ID_FROM_POOL	(int)(~(0))
 
 int dprc_open(struct fsl_mc_io *mc_io,
-	      uint32_t cmd_flags,
+	      u32 cmd_flags,
 	      int container_id,
-	      uint16_t *token);
+	      u16 *token);
 
 int dprc_close(struct fsl_mc_io *mc_io,
-	       uint32_t cmd_flags,
-	       uint16_t token);
+	       u32 cmd_flags,
+	       u16 token);
 
 /**
  * Container general options
@@ -115,27 +115,27 @@ int dprc_close(struct fsl_mc_io *mc_io,
  * @label: Object's label
  */
 struct dprc_cfg {
-	uint16_t icid;
+	u16 icid;
 	int portal_id;
-	uint64_t options;
+	u64 options;
 	char label[16];
 };
 
 int dprc_create_container(struct fsl_mc_io	*mc_io,
-			  uint32_t		cmd_flags,
-			  uint16_t		token,
+			  u32		cmd_flags,
+			  u16		token,
 			  struct dprc_cfg	*cfg,
 			  int			*child_container_id,
-			  uint64_t		*child_portal_offset);
+			  u64		*child_portal_offset);
 
 int dprc_destroy_container(struct fsl_mc_io	*mc_io,
-			   uint32_t		cmd_flags,
-			   uint16_t		token,
+			   u32		cmd_flags,
+			   u16		token,
 			   int			child_container_id);
 
 int dprc_reset_container(struct fsl_mc_io *mc_io,
-			 uint32_t cmd_flags,
-			 uint16_t token,
+			 u32 cmd_flags,
+			 u16 token,
 			 int child_container_id);
 
 /* IRQ */
@@ -176,59 +176,59 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
  * @user_irq_id: A user defined number associated with this IRQ
  */
 struct dprc_irq_cfg {
-	     uint64_t		paddr;
-	     uint32_t		val;
+	     u64		paddr;
+	     u32		val;
 	     int		user_irq_id;
 };
 
 int dprc_set_irq(struct fsl_mc_io	*mc_io,
-		 uint32_t		cmd_flags,
-		 uint16_t		token,
-		 uint8_t		irq_index,
+		 u32		cmd_flags,
+		 u16		token,
+		 u8		irq_index,
 		 struct dprc_irq_cfg	*irq_cfg);
 
 int dprc_get_irq(struct fsl_mc_io	*mc_io,
-		 uint32_t		cmd_flags,
-		 uint16_t		token,
-		 uint8_t		irq_index,
+		 u32		cmd_flags,
+		 u16		token,
+		 u8		irq_index,
 		 int			*type,
 		 struct dprc_irq_cfg	*irq_cfg);
 
 int dprc_set_irq_enable(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint8_t			en);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u8			en);
 
 int dprc_get_irq_enable(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint8_t			*en);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u8			*en);
 
 int dprc_set_irq_mask(struct fsl_mc_io	*mc_io,
-		      uint32_t		cmd_flags,
-		      uint16_t		token,
-		      uint8_t		irq_index,
-		      uint32_t		mask);
+		      u32		cmd_flags,
+		      u16		token,
+		      u8		irq_index,
+		      u32		mask);
 
 int dprc_get_irq_mask(struct fsl_mc_io	*mc_io,
-		      uint32_t		cmd_flags,
-		      uint16_t		token,
-		      uint8_t		irq_index,
-		      uint32_t		*mask);
+		      u32		cmd_flags,
+		      u16		token,
+		      u8		irq_index,
+		      u32		*mask);
 
 int dprc_get_irq_status(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint32_t		*status);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u32		*status);
 
 int dprc_clear_irq_status(struct fsl_mc_io	*mc_io,
-			  uint32_t		cmd_flags,
-			  uint16_t		token,
-			  uint8_t		irq_index,
-			  uint32_t		status);
+			  u32		cmd_flags,
+			  u16		token,
+			  u8		irq_index,
+			  u32		status);
 
 /**
  * struct dprc_attributes - Container attributes
@@ -240,38 +240,38 @@ int dprc_clear_irq_status(struct fsl_mc_io	*mc_io,
  */
 struct dprc_attributes {
 	int container_id;
-	uint16_t icid;
+	u16 icid;
 	int portal_id;
-	uint64_t options;
+	u64 options;
 	/**
 	 * struct version - DPRC version
 	 * @major: DPRC major version
 	 * @minor: DPRC minor version
 	 */
 	struct {
-		uint16_t major;
-		uint16_t minor;
+		u16 major;
+		u16 minor;
 	} version;
 };
 
 int dprc_get_attributes(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
+			u32		cmd_flags,
+			u16		token,
 			struct dprc_attributes	*attributes);
 
 int dprc_set_res_quota(struct fsl_mc_io	*mc_io,
-		       uint32_t		cmd_flags,
-		       uint16_t		token,
+		       u32		cmd_flags,
+		       u16		token,
 		       int		child_container_id,
 		       char		*type,
-		       uint16_t		quota);
+		       u16		quota);
 
 int dprc_get_res_quota(struct fsl_mc_io	*mc_io,
-		       uint32_t		cmd_flags,
-		       uint16_t		token,
+		       u32		cmd_flags,
+		       u16		token,
 		       int		child_container_id,
 		       char		*type,
-		       uint16_t		*quota);
+		       u16		*quota);
 
 /* Resource request options */
 
@@ -312,37 +312,37 @@ int dprc_get_res_quota(struct fsl_mc_io	*mc_io,
  */
 struct dprc_res_req {
 	char type[16];
-	uint32_t num;
-	uint32_t options;
+	u32 num;
+	u32 options;
 	int id_base_align;
 };
 
 int dprc_assign(struct fsl_mc_io	*mc_io,
-		uint32_t		cmd_flags,
-		uint16_t		token,
+		u32		cmd_flags,
+		u16		token,
 		int			container_id,
 		struct dprc_res_req	*res_req);
 
 int dprc_unassign(struct fsl_mc_io	*mc_io,
-		  uint32_t		cmd_flags,
-		  uint16_t		token,
+		  u32		cmd_flags,
+		  u16		token,
 		  int			child_container_id,
 		  struct dprc_res_req	*res_req);
 
 int dprc_get_pool_count(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
+			u32		cmd_flags,
+			u16		token,
 			int			*pool_count);
 
 int dprc_get_pool(struct fsl_mc_io	*mc_io,
-		  uint32_t		cmd_flags,
-		  uint16_t		token,
+		  u32		cmd_flags,
+		  u16		token,
 		  int			pool_index,
 		  char			*type);
 
 int dprc_get_obj_count(struct fsl_mc_io *mc_io,
-		       uint32_t		cmd_flags,
-		       uint16_t		token,
+		       u32		cmd_flags,
+		       u16		token,
 		       int		*obj_count);
 
 /* Objects Attributes Flags */
@@ -367,48 +367,48 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 struct dprc_obj_desc {
 	char type[16];
 	int id;
-	uint16_t vendor;
-	uint16_t ver_major;
-	uint16_t ver_minor;
-	uint8_t irq_count;
-	uint8_t region_count;
-	uint32_t state;
+	u16 vendor;
+	u16 ver_major;
+	u16 ver_minor;
+	u8 irq_count;
+	u8 region_count;
+	u32 state;
 	char label[16];
 };
 
 int dprc_get_obj(struct fsl_mc_io	*mc_io,
-		 uint32_t		cmd_flags,
-		 uint16_t		token,
+		 u32		cmd_flags,
+		 u16		token,
 		 int			obj_index,
 		 struct dprc_obj_desc	*obj_desc);
 
 int dprc_get_obj_desc(struct fsl_mc_io		*mc_io,
-		      uint32_t		cmd_flags,
-			uint16_t		token,
+		      u32		cmd_flags,
+			u16		token,
 			char			*obj_type,
 			int			obj_id,
 			struct dprc_obj_desc	*obj_desc);
 
 int dprc_set_obj_irq(struct fsl_mc_io		*mc_io,
-		     uint32_t			cmd_flags,
-		     uint16_t			token,
+		     u32			cmd_flags,
+		     u16			token,
 		     char			*obj_type,
 		     int			obj_id,
-		     uint8_t			irq_index,
+		     u8			irq_index,
 		     struct dprc_irq_cfg	*irq_cfg);
 
 int dprc_get_obj_irq(struct fsl_mc_io		*mc_io,
-		     uint32_t			cmd_flags,
-		     uint16_t			token,
+		     u32			cmd_flags,
+		     u16			token,
 		     char			*obj_type,
 		     int			obj_id,
-		     uint8_t			irq_index,
+		     u8			irq_index,
 		     int			*type,
 		     struct dprc_irq_cfg	*irq_cfg);
 
 int dprc_get_res_count(struct fsl_mc_io	*mc_io,
-		       uint32_t		cmd_flags,
-		       uint16_t		token,
+		       u32		cmd_flags,
+		       u16		token,
 		       char		*type,
 		       int		*res_count);
 
@@ -440,8 +440,8 @@ struct dprc_res_ids_range_desc {
 };
 
 int dprc_get_res_ids(struct fsl_mc_io			*mc_io,
-		     uint32_t				cmd_flags,
-		     uint16_t				token,
+		     u32				cmd_flags,
+		     u16				token,
 		     char				*type,
 		     struct dprc_res_ids_range_desc	*range_desc);
 
@@ -470,23 +470,23 @@ enum dprc_region_type {
  * @type: Portal region type
  */
 struct dprc_region_desc {
-	uint32_t base_offset;
-	uint32_t size;
-	uint32_t flags;
+	u32 base_offset;
+	u32 size;
+	u32 flags;
 	enum dprc_region_type type;
 };
 
 int dprc_get_obj_region(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
+			u32		cmd_flags,
+			u16		token,
 			char			*obj_type,
 			int			obj_id,
-			uint8_t			region_index,
+			u8			region_index,
 			struct dprc_region_desc	*region_desc);
 
 int dprc_set_obj_label(struct fsl_mc_io	*mc_io,
-		       uint32_t		cmd_flags,
-		       uint16_t		token,
+		       u32		cmd_flags,
+		       u16		token,
 		       char		*obj_type,
 		       int		obj_id,
 		       char		*label);
@@ -512,25 +512,25 @@ struct dprc_endpoint {
  * @max_rate: Maximum rate (Mbits/s)
  */
 struct dprc_connection_cfg {
-	uint32_t committed_rate;
-	uint32_t max_rate;
+	u32 committed_rate;
+	u32 max_rate;
 };
 
 int dprc_connect(struct fsl_mc_io		*mc_io,
-		 uint32_t			cmd_flags,
-		 uint16_t			token,
+		 u32			cmd_flags,
+		 u16			token,
 		 const struct dprc_endpoint	*endpoint1,
 		 const struct dprc_endpoint	*endpoint2,
 		 const struct dprc_connection_cfg *cfg);
 
 int dprc_disconnect(struct fsl_mc_io		*mc_io,
-		    uint32_t			cmd_flags,
-		    uint16_t			token,
+		    u32			cmd_flags,
+		    u16			token,
 		    const struct dprc_endpoint	*endpoint);
 
 int dprc_get_connection(struct fsl_mc_io		*mc_io,
-			uint32_t			cmd_flags,
-			uint16_t			token,
+			u32			cmd_flags,
+			u16			token,
 			const struct dprc_endpoint	*endpoint1,
 			struct dprc_endpoint		*endpoint2,
 			int				*state);

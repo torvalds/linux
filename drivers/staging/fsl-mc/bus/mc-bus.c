@@ -207,7 +207,7 @@ void fsl_mc_driver_unregister(struct fsl_mc_driver *mc_driver)
 EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
-			 int container_id, uint16_t *icid)
+			 int container_id, u16 *icid)
 {
 	u16 dprc_handle;
 	struct dprc_attributes attr;
@@ -507,7 +507,7 @@ static int parse_mc_ranges(struct device *dev,
 			   int *mc_addr_cells,
 			   int *mc_size_cells,
 			   const __be32 **ranges_start,
-			   uint8_t *num_ranges)
+			   u8 *num_ranges)
 {
 	const __be32 *prop;
 	int range_tuple_cell_count;
@@ -555,7 +555,7 @@ static int parse_mc_ranges(struct device *dev,
 static int get_mc_addr_translation_ranges(struct device *dev,
 					  struct fsl_mc_addr_translation_range
 						**ranges,
-					  uint8_t *num_ranges)
+					  u8 *num_ranges)
 {
 	int error;
 	int paddr_cells;

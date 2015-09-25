@@ -39,47 +39,47 @@
 struct fsl_mc_io;
 
 int dpbp_open(struct fsl_mc_io *mc_io,
-	      uint32_t cmd_flags,
+	      u32 cmd_flags,
 	      int dpbp_id,
-	      uint16_t *token);
+	      u16 *token);
 
 int dpbp_close(struct fsl_mc_io *mc_io,
-	       uint32_t		cmd_flags,
-	       uint16_t	token);
+	       u32		cmd_flags,
+	       u16	token);
 
 /**
  * struct dpbp_cfg - Structure representing DPBP configuration
  * @options:	place holder
  */
 struct dpbp_cfg {
-	uint32_t options;
+	u32 options;
 };
 
 int dpbp_create(struct fsl_mc_io	*mc_io,
-		uint32_t		cmd_flags,
+		u32		cmd_flags,
 		const struct dpbp_cfg	*cfg,
-		uint16_t		*token);
+		u16		*token);
 
 int dpbp_destroy(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token);
+		 u32 cmd_flags,
+		 u16 token);
 
 int dpbp_enable(struct fsl_mc_io *mc_io,
-		uint32_t cmd_flags,
-		uint16_t token);
+		u32 cmd_flags,
+		u16 token);
 
 int dpbp_disable(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token);
+		 u32 cmd_flags,
+		 u16 token);
 
 int dpbp_is_enabled(struct fsl_mc_io *mc_io,
-		    uint32_t cmd_flags,
-		    uint16_t token,
+		    u32 cmd_flags,
+		    u16 token,
 		    int *en);
 
 int dpbp_reset(struct fsl_mc_io *mc_io,
-	       uint32_t cmd_flags,
-	       uint16_t token);
+	       u32 cmd_flags,
+	       u16 token);
 
 /**
  * struct dpbp_irq_cfg - IRQ configuration
@@ -88,59 +88,59 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
  * @user_irq_id: A user defined number associated with this IRQ
  */
 struct dpbp_irq_cfg {
-	     uint64_t		addr;
-	     uint32_t		val;
+	     u64		addr;
+	     u32		val;
 	     int		user_irq_id;
 };
 
 int dpbp_set_irq(struct fsl_mc_io	*mc_io,
-		 uint32_t		cmd_flags,
-		 uint16_t		token,
-		 uint8_t		irq_index,
+		 u32		cmd_flags,
+		 u16		token,
+		 u8		irq_index,
 		 struct dpbp_irq_cfg	*irq_cfg);
 
 int dpbp_get_irq(struct fsl_mc_io	*mc_io,
-		 uint32_t		cmd_flags,
-		 uint16_t		token,
-		 uint8_t		irq_index,
+		 u32		cmd_flags,
+		 u16		token,
+		 u8		irq_index,
 		 int			*type,
 		 struct dpbp_irq_cfg	*irq_cfg);
 
 int dpbp_set_irq_enable(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint8_t			en);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u8			en);
 
 int dpbp_get_irq_enable(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint8_t			*en);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u8			*en);
 
 int dpbp_set_irq_mask(struct fsl_mc_io	*mc_io,
-		      uint32_t		cmd_flags,
-		      uint16_t		token,
-		      uint8_t		irq_index,
-		      uint32_t		mask);
+		      u32		cmd_flags,
+		      u16		token,
+		      u8		irq_index,
+		      u32		mask);
 
 int dpbp_get_irq_mask(struct fsl_mc_io	*mc_io,
-		      uint32_t		cmd_flags,
-		      uint16_t		token,
-		      uint8_t		irq_index,
-		      uint32_t		*mask);
+		      u32		cmd_flags,
+		      u16		token,
+		      u8		irq_index,
+		      u32		*mask);
 
 int dpbp_get_irq_status(struct fsl_mc_io	*mc_io,
-			uint32_t		cmd_flags,
-			uint16_t		token,
-			uint8_t			irq_index,
-			uint32_t		*status);
+			u32		cmd_flags,
+			u16		token,
+			u8			irq_index,
+			u32		*status);
 
 int dpbp_clear_irq_status(struct fsl_mc_io	*mc_io,
-			  uint32_t		cmd_flags,
-			  uint16_t		token,
-			  uint8_t		irq_index,
-			  uint32_t		status);
+			  u32		cmd_flags,
+			  u16		token,
+			  u8		irq_index,
+			  u32		status);
 
 /**
  * struct dpbp_attr - Structure representing DPBP attributes
@@ -157,15 +157,15 @@ struct dpbp_attr {
 	 * @minor:	DPBP minor version
 	 */
 	struct {
-		uint16_t major;
-		uint16_t minor;
+		u16 major;
+		u16 minor;
 	} version;
-	uint16_t bpid;
+	u16 bpid;
 };
 
 int dpbp_get_attributes(struct fsl_mc_io	*mc_io,
-			uint32_t	cmd_flags,
-			uint16_t		token,
+			u32	cmd_flags,
+			u16		token,
 			struct dpbp_attr	*attr);
 
 /** @} */

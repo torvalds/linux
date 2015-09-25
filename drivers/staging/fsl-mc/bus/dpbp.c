@@ -52,9 +52,9 @@
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_open(struct fsl_mc_io *mc_io,
-	      uint32_t cmd_flags,
+	      u32 cmd_flags,
 	      int dpbp_id,
-	      uint16_t *token)
+	      u16 *token)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -88,8 +88,8 @@ EXPORT_SYMBOL(dpbp_open);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_close(struct fsl_mc_io *mc_io,
-	       uint32_t cmd_flags,
-	       uint16_t token)
+	       u32 cmd_flags,
+	       u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -124,9 +124,9 @@ EXPORT_SYMBOL(dpbp_close);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_create(struct fsl_mc_io *mc_io,
-		uint32_t cmd_flags,
+		u32 cmd_flags,
 		const struct dpbp_cfg *cfg,
-		uint16_t *token)
+		u16 *token)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -157,8 +157,8 @@ int dpbp_create(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; error code otherwise.
  */
 int dpbp_destroy(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token)
+		 u32 cmd_flags,
+		 u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -179,8 +179,8 @@ int dpbp_destroy(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_enable(struct fsl_mc_io *mc_io,
-		uint32_t cmd_flags,
-		uint16_t token)
+		u32 cmd_flags,
+		u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -202,8 +202,8 @@ EXPORT_SYMBOL(dpbp_enable);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_disable(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token)
+		 u32 cmd_flags,
+		 u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -226,8 +226,8 @@ EXPORT_SYMBOL(dpbp_disable);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_is_enabled(struct fsl_mc_io *mc_io,
-		    uint32_t cmd_flags,
-		    uint16_t token,
+		    u32 cmd_flags,
+		    u16 token,
 		    int *en)
 {
 	struct mc_command cmd = { 0 };
@@ -256,8 +256,8 @@ int dpbp_is_enabled(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_reset(struct fsl_mc_io *mc_io,
-	       uint32_t cmd_flags,
-	       uint16_t token)
+	       u32 cmd_flags,
+	       u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -280,9 +280,9 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_set_irq(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
-		 uint8_t irq_index,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
 		 struct dpbp_irq_cfg *irq_cfg)
 {
 	struct mc_command cmd = { 0 };
@@ -312,9 +312,9 @@ int dpbp_set_irq(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_get_irq(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
-		 uint8_t irq_index,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
 		 int *type,
 		 struct dpbp_irq_cfg *irq_cfg)
 {
@@ -332,8 +332,8 @@ int dpbp_get_irq(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	irq_cfg->val = (uint32_t)mc_dec(cmd.params[0], 0, 32);
-	irq_cfg->addr = (uint64_t)mc_dec(cmd.params[1], 0, 64);
+	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
+	irq_cfg->addr = (u64)mc_dec(cmd.params[1], 0, 64);
 	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
 	*type = (int)mc_dec(cmd.params[2], 32, 32);
 	return 0;
@@ -355,10 +355,10 @@ int dpbp_get_irq(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_set_irq_enable(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint8_t en)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 en)
 {
 	struct mc_command cmd = { 0 };
 
@@ -383,10 +383,10 @@ int dpbp_set_irq_enable(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_get_irq_enable(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint8_t *en)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 *en)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -402,7 +402,7 @@ int dpbp_get_irq_enable(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*en = (uint8_t)mc_dec(cmd.params[0], 0, 8);
+	*en = (u8)mc_dec(cmd.params[0], 0, 8);
 	return 0;
 }
 
@@ -423,10 +423,10 @@ int dpbp_get_irq_enable(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_set_irq_mask(struct fsl_mc_io *mc_io,
-		      uint32_t cmd_flags,
-		      uint16_t token,
-		      uint8_t irq_index,
-		      uint32_t mask)
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 mask)
 {
 	struct mc_command cmd = { 0 };
 
@@ -454,10 +454,10 @@ int dpbp_set_irq_mask(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_get_irq_mask(struct fsl_mc_io *mc_io,
-		      uint32_t cmd_flags,
-		      uint16_t token,
-		      uint8_t irq_index,
-		      uint32_t *mask)
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 *mask)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -473,7 +473,7 @@ int dpbp_get_irq_mask(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*mask = (uint32_t)mc_dec(cmd.params[0], 0, 32);
+	*mask = (u32)mc_dec(cmd.params[0], 0, 32);
 	return 0;
 }
 
@@ -491,10 +491,10 @@ int dpbp_get_irq_mask(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint32_t *status)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u32 *status)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -510,7 +510,7 @@ int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*status = (uint32_t)mc_dec(cmd.params[0], 0, 32);
+	*status = (u32)mc_dec(cmd.params[0], 0, 32);
 	return 0;
 }
 
@@ -528,10 +528,10 @@ int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_clear_irq_status(struct fsl_mc_io *mc_io,
-			  uint32_t cmd_flags,
-			  uint16_t token,
-			  uint8_t irq_index,
-			  uint32_t status)
+			  u32 cmd_flags,
+			  u16 token,
+			  u8 irq_index,
+			  u32 status)
 {
 	struct mc_command cmd = { 0 };
 
@@ -556,8 +556,8 @@ int dpbp_clear_irq_status(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpbp_get_attributes(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
+			u32 cmd_flags,
+			u16 token,
 			struct dpbp_attr *attr)
 {
 	struct mc_command cmd = { 0 };
@@ -573,10 +573,10 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	attr->bpid = (uint16_t)mc_dec(cmd.params[0], 16, 16);
+	attr->bpid = (u16)mc_dec(cmd.params[0], 16, 16);
 	attr->id = (int)mc_dec(cmd.params[0], 32, 32);
-	attr->version.major = (uint16_t)mc_dec(cmd.params[1], 0, 16);
-	attr->version.minor = (uint16_t)mc_dec(cmd.params[1], 16, 16);
+	attr->version.major = (u16)mc_dec(cmd.params[1], 0, 16);
+	attr->version.minor = (u16)mc_dec(cmd.params[1], 16, 16);
 	return 0;
 }
 EXPORT_SYMBOL(dpbp_get_attributes);

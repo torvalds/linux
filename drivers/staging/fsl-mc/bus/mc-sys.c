@@ -52,7 +52,7 @@
 #define MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS    500
 
 #define MC_CMD_HDR_READ_CMDID(_hdr) \
-	((uint16_t)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))
+	((u16)mc_dec((_hdr), MC_CMD_HDR_CMDID_O, MC_CMD_HDR_CMDID_S))
 
 /**
  * Creates an MC I/O object
@@ -69,9 +69,9 @@
  */
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
-				  uint32_t mc_portal_size,
+				  u32 mc_portal_size,
 				  struct fsl_mc_resource *resource,
-				  uint32_t flags, struct fsl_mc_io **new_mc_io)
+				  u32 flags, struct fsl_mc_io **new_mc_io)
 {
 	struct fsl_mc_io *mc_io;
 	void __iomem *mc_portal_virt_addr;

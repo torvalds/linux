@@ -277,7 +277,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
  * portal is allocated from its own MC bus.
  */
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
-					uint16_t mc_io_flags,
+					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io)
 {
 	struct fsl_mc_device *mc_bus_dev;
@@ -363,7 +363,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
 int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
 {
 	int error;
-	uint16_t token;
+	u16 token;
 	struct fsl_mc_resource *resource = mc_io->resource;
 	struct fsl_mc_device *mc_dev = resource->data;
 

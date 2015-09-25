@@ -46,9 +46,9 @@
  * @warning	Required before any operation on the object.
  */
 int dprc_open(struct fsl_mc_io *mc_io,
-	      uint32_t cmd_flags,
+	      u32 cmd_flags,
 	      int container_id,
-	      uint16_t *token)
+	      u16 *token)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -82,8 +82,8 @@ EXPORT_SYMBOL(dprc_open);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_close(struct fsl_mc_io *mc_io,
-	       uint32_t cmd_flags,
-	       uint16_t token)
+	       u32 cmd_flags,
+	       u16 token)
 {
 	struct mc_command cmd = { 0 };
 
@@ -108,11 +108,11 @@ EXPORT_SYMBOL(dprc_close);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_create_container(struct fsl_mc_io *mc_io,
-			  uint32_t cmd_flags,
-			  uint16_t token,
+			  u32 cmd_flags,
+			  u16 token,
 			  struct dprc_cfg *cfg,
 			  int *child_container_id,
-			  uint64_t *child_portal_offset)
+			  u64 *child_portal_offset)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -176,8 +176,8 @@ int dprc_create_container(struct fsl_mc_io *mc_io,
  *
  */
 int dprc_destroy_container(struct fsl_mc_io *mc_io,
-			   uint32_t cmd_flags,
-			   uint16_t token,
+			   u32 cmd_flags,
+			   u16 token,
 			   int child_container_id)
 {
 	struct mc_command cmd = { 0 };
@@ -214,8 +214,8 @@ int dprc_destroy_container(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_reset_container(struct fsl_mc_io *mc_io,
-			 uint32_t cmd_flags,
-			 uint16_t token,
+			 u32 cmd_flags,
+			 u16 token,
 			 int child_container_id)
 {
 	struct mc_command cmd = { 0 };
@@ -242,9 +242,9 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_irq(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
-		 uint8_t irq_index,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
 		 int *type,
 		 struct dprc_irq_cfg *irq_cfg)
 {
@@ -282,9 +282,9 @@ int dprc_get_irq(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_set_irq(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
-		 uint8_t irq_index,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
 		 struct dprc_irq_cfg *irq_cfg)
 {
 	struct mc_command cmd = { 0 };
@@ -313,10 +313,10 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_irq_enable(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint8_t *en)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 *en)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -353,10 +353,10 @@ int dprc_get_irq_enable(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint8_t en)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 en)
 {
 	struct mc_command cmd = { 0 };
 
@@ -384,10 +384,10 @@ int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_irq_mask(struct fsl_mc_io *mc_io,
-		      uint32_t cmd_flags,
-		      uint16_t token,
-		      uint8_t irq_index,
-		      uint32_t *mask)
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 *mask)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -425,10 +425,10 @@ int dprc_get_irq_mask(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
-		      uint32_t cmd_flags,
-		      uint16_t token,
-		      uint8_t irq_index,
-		      uint32_t mask)
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 mask)
 {
 	struct mc_command cmd = { 0 };
 
@@ -455,10 +455,10 @@ int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_irq_status(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
-			uint8_t irq_index,
-			uint32_t *status)
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u32 *status)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -492,10 +492,10 @@ int dprc_get_irq_status(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
-			  uint32_t cmd_flags,
-			  uint16_t token,
-			  uint8_t irq_index,
-			  uint32_t status)
+			  u32 cmd_flags,
+			  u16 token,
+			  u8 irq_index,
+			  u32 status)
 {
 	struct mc_command cmd = { 0 };
 
@@ -519,8 +519,8 @@ int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
  * Return:     '0' on Success; Error code otherwise.
  */
 int dprc_get_attributes(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
+			u32 cmd_flags,
+			u16 token,
 			struct dprc_attributes *attr)
 {
 	struct mc_command cmd = { 0 };
@@ -573,11 +573,11 @@ int dprc_get_attributes(struct fsl_mc_io *mc_io,
  * @warning	Only the parent container is allowed to change a child policy.
  */
 int dprc_set_res_quota(struct fsl_mc_io *mc_io,
-		       uint32_t cmd_flags,
-		       uint16_t token,
+		       u32 cmd_flags,
+		       u16 token,
 		       int child_container_id,
 		       char *type,
-		       uint16_t quota)
+		       u16 quota)
 {
 	struct mc_command cmd = { 0 };
 
@@ -623,11 +623,11 @@ int dprc_set_res_quota(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_res_quota(struct fsl_mc_io *mc_io,
-		       uint32_t cmd_flags,
-		       uint16_t token,
+		       u32 cmd_flags,
+		       u16 token,
 		       int child_container_id,
 		       char *type,
-		       uint16_t *quota)
+		       u16 *quota)
 {
 	struct mc_command cmd = { 0 };
 	int err;
@@ -697,8 +697,8 @@ int dprc_get_res_quota(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_assign(struct fsl_mc_io *mc_io,
-		uint32_t cmd_flags,
-		uint16_t token,
+		u32 cmd_flags,
+		u16 token,
 		int container_id,
 		struct dprc_res_req *res_req)
 {
@@ -748,8 +748,8 @@ int dprc_assign(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_unassign(struct fsl_mc_io *mc_io,
-		  uint32_t cmd_flags,
-		  uint16_t token,
+		  u32 cmd_flags,
+		  u16 token,
 		  int child_container_id,
 		  struct dprc_res_req *res_req)
 {
@@ -794,8 +794,8 @@ int dprc_unassign(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_pool_count(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
+			u32 cmd_flags,
+			u16 token,
 			int *pool_count)
 {
 	struct mc_command cmd = { 0 };
@@ -832,8 +832,8 @@ int dprc_get_pool_count(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_pool(struct fsl_mc_io *mc_io,
-		  uint32_t cmd_flags,
-		  uint16_t token,
+		  u32 cmd_flags,
+		  u16 token,
 		  int pool_index,
 		  char *type)
 {
@@ -882,8 +882,8 @@ int dprc_get_pool(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_obj_count(struct fsl_mc_io *mc_io,
-		       uint32_t cmd_flags,
-		       uint16_t token,
+		       u32 cmd_flags,
+		       u16 token,
 		       int *obj_count)
 {
 	struct mc_command cmd = { 0 };
@@ -921,8 +921,8 @@ EXPORT_SYMBOL(dprc_get_obj_count);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_obj(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
+		 u32 cmd_flags,
+		 u16 token,
 		 int obj_index,
 		 struct dprc_obj_desc *obj_desc)
 {
@@ -998,8 +998,8 @@ EXPORT_SYMBOL(dprc_get_obj);
  *
  */
 int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
-		      uint32_t cmd_flags,
-		      uint16_t token,
+		      u32 cmd_flags,
+		      u16 token,
 		      char *obj_type,
 		      int obj_id,
 		      struct dprc_obj_desc *obj_desc)
@@ -1036,12 +1036,12 @@ int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
 
 	/* retrieve response parameters */
 	obj_desc->id = (int)mc_dec(cmd.params[0], 32, 32);
-	obj_desc->vendor = (uint16_t)mc_dec(cmd.params[1], 0, 16);
-	obj_desc->vendor = (uint8_t)mc_dec(cmd.params[1], 16, 8);
-	obj_desc->region_count = (uint8_t)mc_dec(cmd.params[1], 24, 8);
-	obj_desc->state = (uint32_t)mc_dec(cmd.params[1], 32, 32);
-	obj_desc->ver_major = (uint16_t)mc_dec(cmd.params[2], 0, 16);
-	obj_desc->ver_minor = (uint16_t)mc_dec(cmd.params[2], 16, 16);
+	obj_desc->vendor = (u16)mc_dec(cmd.params[1], 0, 16);
+	obj_desc->vendor = (u8)mc_dec(cmd.params[1], 16, 8);
+	obj_desc->region_count = (u8)mc_dec(cmd.params[1], 24, 8);
+	obj_desc->state = (u32)mc_dec(cmd.params[1], 32, 32);
+	obj_desc->ver_major = (u16)mc_dec(cmd.params[2], 0, 16);
+	obj_desc->ver_minor = (u16)mc_dec(cmd.params[2], 16, 16);
 	obj_desc->type[0] = (char)mc_dec(cmd.params[3], 0, 8);
 	obj_desc->type[1] = (char)mc_dec(cmd.params[3], 8, 8);
 	obj_desc->type[2] = (char)mc_dec(cmd.params[3], 16, 8);
@@ -1092,11 +1092,11 @@ EXPORT_SYMBOL(dprc_get_obj_desc);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
-		     uint32_t cmd_flags,
-		     uint16_t token,
+		     u32 cmd_flags,
+		     u16 token,
 		     char *obj_type,
 		     int obj_id,
-		     uint8_t irq_index,
+		     u8 irq_index,
 		     struct dprc_irq_cfg *irq_cfg)
 {
 	struct mc_command cmd = { 0 };
@@ -1147,11 +1147,11 @@ EXPORT_SYMBOL(dprc_set_obj_irq);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
-		     uint32_t cmd_flags,
-		     uint16_t token,
+		     u32 cmd_flags,
+		     u16 token,
 		     char *obj_type,
 		     int obj_id,
-		     uint8_t irq_index,
+		     u8 irq_index,
 		     int *type,
 		     struct dprc_irq_cfg *irq_cfg)
 {
@@ -1187,8 +1187,8 @@ int dprc_get_obj_irq(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	irq_cfg->val = (uint32_t)mc_dec(cmd.params[0], 0, 32);
-	irq_cfg->paddr = (uint64_t)mc_dec(cmd.params[1], 0, 64);
+	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
+	irq_cfg->paddr = (u64)mc_dec(cmd.params[1], 0, 64);
 	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
 	*type = (int)mc_dec(cmd.params[2], 32, 32);
 
@@ -1209,8 +1209,8 @@ EXPORT_SYMBOL(dprc_get_obj_irq);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_res_count(struct fsl_mc_io *mc_io,
-		       uint32_t cmd_flags,
-		       uint16_t token,
+		       u32 cmd_flags,
+		       u16 token,
 		       char *type,
 		       int *res_count)
 {
@@ -1262,8 +1262,8 @@ EXPORT_SYMBOL(dprc_get_res_count);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_res_ids(struct fsl_mc_io *mc_io,
-		     uint32_t cmd_flags,
-		     uint16_t token,
+		     u32 cmd_flags,
+		     u16 token,
 		     char *type,
 		     struct dprc_res_ids_range_desc *range_desc)
 {
@@ -1320,11 +1320,11 @@ EXPORT_SYMBOL(dprc_get_res_ids);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_get_obj_region(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
+			u32 cmd_flags,
+			u16 token,
 			char *obj_type,
 			int obj_id,
-			uint8_t region_index,
+			u8 region_index,
 			struct dprc_region_desc *region_desc)
 {
 	struct mc_command cmd = { 0 };
@@ -1377,8 +1377,8 @@ EXPORT_SYMBOL(dprc_get_obj_region);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_set_obj_label(struct fsl_mc_io *mc_io,
-		       uint32_t cmd_flags,
-		       uint16_t  token,
+		       u32 cmd_flags,
+		       u16  token,
 		       char *obj_type,
 		       int  obj_id,
 		       char *label)
@@ -1449,8 +1449,8 @@ EXPORT_SYMBOL(dprc_set_obj_label);
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_connect(struct fsl_mc_io *mc_io,
-		 uint32_t cmd_flags,
-		 uint16_t token,
+		 u32 cmd_flags,
+		 u16 token,
 		 const struct dprc_endpoint *endpoint1,
 		 const struct dprc_endpoint *endpoint2,
 		 const struct dprc_connection_cfg *cfg)
@@ -1514,8 +1514,8 @@ int dprc_connect(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dprc_disconnect(struct fsl_mc_io *mc_io,
-		    uint32_t cmd_flags,
-		    uint16_t token,
+		    u32 cmd_flags,
+		    u16 token,
 		    const struct dprc_endpoint *endpoint)
 {
 	struct mc_command cmd = { 0 };
@@ -1560,8 +1560,8 @@ int dprc_disconnect(struct fsl_mc_io *mc_io,
 * Return:     '0' on Success; -ENAVAIL if connection does not exist.
 */
 int dprc_get_connection(struct fsl_mc_io *mc_io,
-			uint32_t cmd_flags,
-			uint16_t token,
+			u32 cmd_flags,
+			u16 token,
 			const struct dprc_endpoint *endpoint1,
 			struct dprc_endpoint *endpoint2,
 			int *state)

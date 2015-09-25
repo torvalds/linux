@@ -44,7 +44,7 @@
  * Return:	'0' on Success; Error code otherwise.
  */
 int mc_get_version(struct fsl_mc_io *mc_io,
-		   uint32_t cmd_flags,
+		   u32 cmd_flags,
 		   struct mc_version *mc_ver_info)
 {
 	struct mc_command cmd = { 0 };
@@ -77,7 +77,7 @@ int mc_get_version(struct fsl_mc_io *mc_io,
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpmng_get_container_id(struct fsl_mc_io *mc_io,
-			   uint32_t cmd_flags,
+			   u32 cmd_flags,
 			   int *container_id)
 {
 	struct mc_command cmd = { 0 };

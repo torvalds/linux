@@ -56,8 +56,8 @@ struct mc_command;
  */
 struct fsl_mc_io {
 	struct device *dev;
-	uint32_t flags;
-	uint32_t portal_size;
+	u32 flags;
+	u32 portal_size;
 	phys_addr_t portal_phys_addr;
 	void __iomem *portal_virt_addr;
 	struct fsl_mc_resource *resource;
@@ -65,9 +65,9 @@ struct fsl_mc_io {
 
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
-				  uint32_t mc_portal_size,
+				  u32 mc_portal_size,
 				  struct fsl_mc_resource *resource,
-				  uint32_t flags, struct fsl_mc_io **new_mc_io);
+				  u32 flags, struct fsl_mc_io **new_mc_io);
 
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);
 

@@ -34,7 +34,7 @@
  */
 struct fsl_mc {
 	struct fsl_mc_device *root_mc_bus_dev;
-	uint8_t num_translation_ranges;
+	u8 num_translation_ranges;
 	struct fsl_mc_addr_translation_range *translation_ranges;
 };
 
@@ -49,8 +49,8 @@ struct fsl_mc {
  */
 struct fsl_mc_addr_translation_range {
 	enum dprc_region_type mc_region_type;
-	uint64_t start_mc_offset;
-	uint64_t end_mc_offset;
+	u64 start_mc_offset;
+	u64 end_mc_offset;
 	phys_addr_t start_phys_addr;
 };
 
