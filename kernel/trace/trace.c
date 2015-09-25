@@ -1741,14 +1741,6 @@ trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
 }
 EXPORT_SYMBOL_GPL(trace_current_buffer_lock_reserve);
 
-void trace_current_buffer_unlock_commit(struct ring_buffer *buffer,
-					struct ring_buffer_event *event,
-					unsigned long flags, int pc)
-{
-	__trace_buffer_unlock_commit(buffer, event, flags, pc);
-}
-EXPORT_SYMBOL_GPL(trace_current_buffer_unlock_commit);
-
 void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
 				     unsigned long flags, int pc,
