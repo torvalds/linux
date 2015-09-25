@@ -3204,7 +3204,6 @@ int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 	int ret;
 	int event;
 
-	ret = 0;
 	event = message.event;
 
 	if (!dev->suspend_count++) {
@@ -3286,6 +3285,7 @@ int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 		}
 	}
 
+	ret = 0;
 out:
 	return ret;
 }
