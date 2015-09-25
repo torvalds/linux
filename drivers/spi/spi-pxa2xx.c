@@ -1312,8 +1312,8 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	const struct pci_device_id *pcidev_id = NULL;
 	int devid, type;
 
-	if (!ACPI_HANDLE(&pdev->dev) ||
-	    acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev))
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
 		return NULL;
 
 	if (dev_is_pci(pdev->dev.parent))
