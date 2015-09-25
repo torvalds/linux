@@ -392,13 +392,13 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = (*nanosec + base / 2) / base;
+		divider = DIV_ROUND_CLOSEST(*nanosec, base);
 		break;
 	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (*nanosec + base - 1) / base;
+		divider = DIV_ROUND_UP(*nanosec, base);
 		break;
 	}
 	if (divider < 2)
