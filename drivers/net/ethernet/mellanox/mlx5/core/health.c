@@ -130,7 +130,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	pr_info("hw_id 0x%08x\n", read_be32(&h->hw_id));
 	pr_info("irisc_index %d\n", readb(&h->irisc_index));
 	pr_info("synd 0x%x: %s\n", readb(&h->synd), hsynd_str(readb(&h->synd)));
-	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_sync));
+	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_synd));
 }
 
 static void poll_health(unsigned long data)
