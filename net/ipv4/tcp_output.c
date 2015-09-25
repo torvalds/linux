@@ -357,14 +357,10 @@ static void tcp_ecn_clear_syn(struct sock *sk, struct sk_buff *skb)
 }
 
 static void
-tcp_ecn_make_synack(const struct request_sock *req, struct tcphdr *th,
-		    struct sock *sk)
+tcp_ecn_make_synack(const struct request_sock *req, struct tcphdr *th)
 {
-	if (inet_rsk(req)->ecn_ok) {
+	if (inet_rsk(req)->ecn_ok)
 		th->ece = 1;
-		if (tcp_ca_needs_ecn(sk))
-			INET_ECN_xmit(sk);
-	}
 }
 
 /* Set up ECN state for a packet on a ESTABLISHED socket that is about to
@@ -2998,7 +2994,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	memset(th, 0, sizeof(struct tcphdr));
 	th->syn = 1;
 	th->ack = 1;
-	tcp_ecn_make_synack(req, th, sk);
+	tcp_ecn_make_synack(req, th);
 	th->source = htons(ireq->ir_num);
 	th->dest = ireq->ir_rmt_port;
 	/* Setting of flags are superfluous here for callers (and ECE is
