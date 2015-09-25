@@ -891,6 +891,9 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	union perf_event *event = ptq->event_buf;
 	struct perf_sample sample = { .ip = 0, };
 
+	if (pt->branches_filter && !(pt->branches_filter & ptq->flags))
+		return 0;
+
 	event->sample.header.type = PERF_RECORD_SAMPLE;
 	event->sample.header.misc = PERF_RECORD_MISC_USER;
 	event->sample.header.size = sizeof(struct perf_event_header);
@@ -908,9 +911,6 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	sample.cpu = ptq->cpu;
 	sample.flags = ptq->flags;
 	sample.insn_len = ptq->insn_len;
-
-	if (pt->branches_filter && !(pt->branches_filter & ptq->flags))
-		return 0;
 
 	if (pt->synth_opts.inject) {
 		ret = intel_pt_inject_event(event, &sample,
