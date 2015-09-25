@@ -94,16 +94,6 @@ struct hdmi_driver_data {
 	unsigned int is_apb_phy:1;
 };
 
-struct hdmi_resources {
-	struct clk			*hdmi;
-	struct clk			*sclk_hdmi;
-	struct clk			*sclk_pixel;
-	struct clk			*sclk_hdmiphy;
-	struct clk			*mout_hdmi;
-	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
-	struct regulator		*reg_hdmi_en;
-};
-
 struct hdmi_context {
 	struct drm_encoder		encoder;
 	struct device			*dev;
@@ -112,25 +102,25 @@ struct hdmi_context {
 	bool				hpd;
 	bool				powered;
 	bool				dvi_mode;
-
-	void __iomem			*regs;
-	int				irq;
 	struct delayed_work		hotplug_work;
-
-	struct i2c_adapter		*ddc_adpt;
-	struct i2c_client		*hdmiphy_port;
-
-	/* current hdmiphy conf regs */
 	struct drm_display_mode		current_mode;
 	u8				cea_video_id;
-
-	struct hdmi_resources		res;
 	const struct hdmi_driver_data	*drv_data;
 
-	struct gpio_desc 		*hpd_gpio;
+	void __iomem			*regs;
 	void __iomem			*regs_hdmiphy;
-
+	struct i2c_client		*hdmiphy_port;
+	struct i2c_adapter		*ddc_adpt;
+	struct gpio_desc 		*hpd_gpio;
+	int				irq;
 	struct regmap			*pmureg;
+	struct clk			*hdmi;
+	struct clk			*sclk_hdmi;
+	struct clk			*sclk_pixel;
+	struct clk			*sclk_hdmiphy;
+	struct clk			*mout_hdmi;
+	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
+	struct regulator		*reg_hdmi_en;
 };
 
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
@@ -1567,7 +1557,7 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 	hdmiphy_wait_for_pll(hdata);
 
-	clk_set_parent(hdata->res.mout_hdmi, hdata->res.sclk_hdmiphy);
+	clk_set_parent(hdata->mout_hdmi, hdata->sclk_hdmiphy);
 
 	/* enable HDMI and timing generator */
 	hdmi_start(hdata, true);
@@ -1575,7 +1565,7 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	clk_set_parent(hdata->res.mout_hdmi, hdata->res.sclk_pixel);
+	clk_set_parent(hdata->mout_hdmi, hdata->sclk_pixel);
 
 	/* reset hdmiphy */
 	hdmi_reg_writemask(hdata, HDMI_PHY_RSTOUT, ~0, HDMI_PHY_SW_RSTOUT);
@@ -1642,7 +1632,6 @@ static void hdmi_mode_set(struct drm_encoder *encoder,
 static void hdmi_enable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-	struct hdmi_resources *res = &hdata->res;
 
 	if (hdata->powered)
 		return;
@@ -1651,15 +1640,15 @@ static void hdmi_enable(struct drm_encoder *encoder)
 
 	pm_runtime_get_sync(hdata->dev);
 
-	if (regulator_bulk_enable(ARRAY_SIZE(supply), res->regul_bulk))
+	if (regulator_bulk_enable(ARRAY_SIZE(supply), hdata->regul_bulk))
 		DRM_DEBUG_KMS("failed to enable regulator bulk\n");
 
 	/* set pmu hdmiphy control bit to enable hdmiphy */
 	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
 			PMU_HDMI_PHY_ENABLE_BIT, 1);
 
-	clk_prepare_enable(res->hdmi);
-	clk_prepare_enable(res->sclk_hdmi);
+	clk_prepare_enable(hdata->hdmi);
+	clk_prepare_enable(hdata->sclk_hdmi);
 
 	hdmi_conf_apply(hdata);
 }
@@ -1667,7 +1656,6 @@ static void hdmi_enable(struct drm_encoder *encoder)
 static void hdmi_disable(struct drm_encoder *encoder)
 {
 	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-	struct hdmi_resources *res = &hdata->res;
 	struct drm_crtc *crtc = encoder->crtc;
 	const struct drm_crtc_helper_funcs *funcs = NULL;
 
@@ -1693,14 +1681,14 @@ static void hdmi_disable(struct drm_encoder *encoder)
 
 	cancel_delayed_work(&hdata->hotplug_work);
 
-	clk_disable_unprepare(res->sclk_hdmi);
-	clk_disable_unprepare(res->hdmi);
+	clk_disable_unprepare(hdata->sclk_hdmi);
+	clk_disable_unprepare(hdata->hdmi);
 
 	/* reset pmu hdmiphy control bit to disable hdmiphy */
 	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
 			PMU_HDMI_PHY_ENABLE_BIT, 0);
 
-	regulator_bulk_disable(ARRAY_SIZE(supply), res->regul_bulk);
+	regulator_bulk_disable(ARRAY_SIZE(supply), hdata->regul_bulk);
 
 	pm_runtime_put_sync(hdata->dev);
 
@@ -1741,7 +1729,6 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 static int hdmi_resources_init(struct hdmi_context *hdata)
 {
 	struct device *dev = hdata->dev;
-	struct hdmi_resources *res = &hdata->res;
 	int i, ret;
 
 	DRM_DEBUG_KMS("HDMI resource init\n");
@@ -1758,58 +1745,58 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 		return  hdata->irq;
 	}
 	/* get clocks, power */
-	res->hdmi = devm_clk_get(dev, "hdmi");
-	if (IS_ERR(res->hdmi)) {
+	hdata->hdmi = devm_clk_get(dev, "hdmi");
+	if (IS_ERR(hdata->hdmi)) {
 		DRM_ERROR("failed to get clock 'hdmi'\n");
-		ret = PTR_ERR(res->hdmi);
+		ret = PTR_ERR(hdata->hdmi);
 		goto fail;
 	}
-	res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
-	if (IS_ERR(res->sclk_hdmi)) {
+	hdata->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
+	if (IS_ERR(hdata->sclk_hdmi)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmi'\n");
-		ret = PTR_ERR(res->sclk_hdmi);
+		ret = PTR_ERR(hdata->sclk_hdmi);
 		goto fail;
 	}
-	res->sclk_pixel = devm_clk_get(dev, "sclk_pixel");
-	if (IS_ERR(res->sclk_pixel)) {
+	hdata->sclk_pixel = devm_clk_get(dev, "sclk_pixel");
+	if (IS_ERR(hdata->sclk_pixel)) {
 		DRM_ERROR("failed to get clock 'sclk_pixel'\n");
-		ret = PTR_ERR(res->sclk_pixel);
+		ret = PTR_ERR(hdata->sclk_pixel);
 		goto fail;
 	}
-	res->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
-	if (IS_ERR(res->sclk_hdmiphy)) {
+	hdata->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
+	if (IS_ERR(hdata->sclk_hdmiphy)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
-		ret = PTR_ERR(res->sclk_hdmiphy);
+		ret = PTR_ERR(hdata->sclk_hdmiphy);
 		goto fail;
 	}
-	res->mout_hdmi = devm_clk_get(dev, "mout_hdmi");
-	if (IS_ERR(res->mout_hdmi)) {
+	hdata->mout_hdmi = devm_clk_get(dev, "mout_hdmi");
+	if (IS_ERR(hdata->mout_hdmi)) {
 		DRM_ERROR("failed to get clock 'mout_hdmi'\n");
-		ret = PTR_ERR(res->mout_hdmi);
+		ret = PTR_ERR(hdata->mout_hdmi);
 		goto fail;
 	}
 
-	clk_set_parent(res->mout_hdmi, res->sclk_pixel);
+	clk_set_parent(hdata->mout_hdmi, hdata->sclk_pixel);
 
 	for (i = 0; i < ARRAY_SIZE(supply); ++i) {
-		res->regul_bulk[i].supply = supply[i];
-		res->regul_bulk[i].consumer = NULL;
+		hdata->regul_bulk[i].supply = supply[i];
+		hdata->regul_bulk[i].consumer = NULL;
 	}
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), res->regul_bulk);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), hdata->regul_bulk);
 	if (ret) {
 		DRM_ERROR("failed to get regulators\n");
 		return ret;
 	}
 
-	res->reg_hdmi_en = devm_regulator_get_optional(dev, "hdmi-en");
+	hdata->reg_hdmi_en = devm_regulator_get_optional(dev, "hdmi-en");
 
-	if (PTR_ERR(res->reg_hdmi_en) == -ENODEV)
+	if (PTR_ERR(hdata->reg_hdmi_en) == -ENODEV)
 		return 0;
 
-	if (IS_ERR(res->reg_hdmi_en))
-		return PTR_ERR(res->reg_hdmi_en);
+	if (IS_ERR(hdata->reg_hdmi_en))
+		return PTR_ERR(hdata->reg_hdmi_en);
 
-	ret = regulator_enable(res->reg_hdmi_en);
+	ret = regulator_enable(hdata->reg_hdmi_en);
 	if (ret)
 		DRM_ERROR("failed to enable hdmi-en regulator\n");
 
@@ -2028,8 +2015,8 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	if (!IS_ERR(hdata->res.reg_hdmi_en))
-		regulator_disable(hdata->res.reg_hdmi_en);
+	if (!IS_ERR(hdata->reg_hdmi_en))
+		regulator_disable(hdata->reg_hdmi_en);
 
 	if (hdata->hdmiphy_port)
 		put_device(&hdata->hdmiphy_port->dev);
