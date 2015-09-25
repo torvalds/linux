@@ -293,7 +293,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
 void dccp_destroy_sock(struct sock *sk);
 
 void dccp_close(struct sock *sk, long timeout);
-struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
+struct sk_buff *dccp_make_response(const struct sock *sk, struct dst_entry *dst,
 				   struct request_sock *req);
 
 int dccp_connect(struct sock *sk);
