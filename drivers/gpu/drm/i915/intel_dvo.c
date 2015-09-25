@@ -285,11 +285,11 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder)
 		dvo_val |= DVO_VSYNC_ACTIVE_HIGH;
 
 	/*I915_WRITE(DVOB_SRCDIM,
-	  (adjusted_mode->hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-	  (adjusted_mode->VDisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
+	  (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+	  (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));*/
 	I915_WRITE(dvo_srcdim_reg,
-		   (adjusted_mode->hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
-		   (adjusted_mode->vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));
+		   (adjusted_mode->crtc_hdisplay << DVO_SRCDIM_HORIZONTAL_SHIFT) |
+		   (adjusted_mode->crtc_vdisplay << DVO_SRCDIM_VERTICAL_SHIFT));
 	/*I915_WRITE(DVOB, dvo_val);*/
 	I915_WRITE(dvo_reg, dvo_val);
 }

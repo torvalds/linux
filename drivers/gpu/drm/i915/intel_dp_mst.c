@@ -78,7 +78,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 		return false;
 	}
 
-	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 
 	pipe_config->pbn = mst_pbn;
 	slots = drm_dp_find_vcpi_slots(&intel_dp->mst_mgr, mst_pbn);

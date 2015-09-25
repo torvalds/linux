@@ -74,13 +74,13 @@ static u32 audio_config_hdmi_pixel_clock(const struct drm_display_mode *adjusted
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_audio_clock); i++) {
-		if (adjusted_mode->clock == hdmi_audio_clock[i].clock)
+		if (adjusted_mode->crtc_clock == hdmi_audio_clock[i].clock)
 			break;
 	}
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
 		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
-			      adjusted_mode->clock);
+			      adjusted_mode->crtc_clock);
 		i = 1;
 	}
 

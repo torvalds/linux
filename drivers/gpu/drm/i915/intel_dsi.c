@@ -710,10 +710,10 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 
 	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
 
-	hactive = adjusted_mode->hdisplay;
-	hfp = adjusted_mode->hsync_start - adjusted_mode->hdisplay;
-	hsync = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
-	hbp = adjusted_mode->htotal - adjusted_mode->hsync_end;
+	hactive = adjusted_mode->crtc_hdisplay;
+	hfp = adjusted_mode->crtc_hsync_start - adjusted_mode->crtc_hdisplay;
+	hsync = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+	hbp = adjusted_mode->crtc_htotal - adjusted_mode->crtc_hsync_end;
 
 	if (intel_dsi->dual_link) {
 		hactive /= 2;
@@ -724,9 +724,9 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 		hbp /= 2;
 	}
 
-	vfp = adjusted_mode->vsync_start - adjusted_mode->vdisplay;
-	vsync = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
-	vbp = adjusted_mode->vtotal - adjusted_mode->vsync_end;
+	vfp = adjusted_mode->crtc_vsync_start - adjusted_mode->crtc_vdisplay;
+	vsync = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
+	vbp = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_end;
 
 	/* horizontal values are in terms of high speed byte clock */
 	hactive = txbyteclkhs(hactive, bpp, lane_count,
@@ -745,11 +745,11 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 			 * whereas these values should be based on resolution.
 			 */
 			I915_WRITE(BXT_MIPI_TRANS_HACTIVE(port),
-				   adjusted_mode->hdisplay);
+				   adjusted_mode->crtc_hdisplay);
 			I915_WRITE(BXT_MIPI_TRANS_VACTIVE(port),
-				   adjusted_mode->vdisplay);
+				   adjusted_mode->crtc_vdisplay);
 			I915_WRITE(BXT_MIPI_TRANS_VTOTAL(port),
-				   adjusted_mode->vtotal);
+				   adjusted_mode->crtc_vtotal);
 		}
 
 		I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);
@@ -782,7 +782,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 
 	DRM_DEBUG_KMS("pipe %c\n", pipe_name(intel_crtc->pipe));
 
-	mode_hdisplay = adjusted_mode->hdisplay;
+	mode_hdisplay = adjusted_mode->crtc_hdisplay;
 
 	if (intel_dsi->dual_link) {
 		mode_hdisplay /= 2;
@@ -832,7 +832,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		I915_WRITE(MIPI_DPHY_PARAM(port), intel_dsi->dphy_reg);
 
 		I915_WRITE(MIPI_DPI_RESOLUTION(port),
-			adjusted_mode->vdisplay << VERTICAL_ADDRESS_SHIFT |
+			adjusted_mode->crtc_vdisplay << VERTICAL_ADDRESS_SHIFT |
 			mode_hdisplay << HORIZONTAL_ADDRESS_SHIFT);
 	}
 
@@ -878,13 +878,13 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		if (is_vid_mode(intel_dsi) &&
 			intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 			I915_WRITE(MIPI_HS_TX_TIMEOUT(port),
-				txbyteclkhs(adjusted_mode->htotal, bpp,
+				txbyteclkhs(adjusted_mode->crtc_htotal, bpp,
 					    intel_dsi->lane_count,
 					    intel_dsi->burst_mode_ratio) + 1);
 		} else {
 			I915_WRITE(MIPI_HS_TX_TIMEOUT(port),
-				txbyteclkhs(adjusted_mode->vtotal *
-					    adjusted_mode->htotal,
+				txbyteclkhs(adjusted_mode->crtc_vtotal *
+					    adjusted_mode->crtc_htotal,
 					    bpp, intel_dsi->lane_count,
 					    intel_dsi->burst_mode_ratio) + 1);
 		}
