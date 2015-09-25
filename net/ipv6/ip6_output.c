@@ -150,14 +150,16 @@ int ip6_output(struct sock *sk, struct sk_buff *skb)
 }
 
 /*
- *	xmit an sk_buff (used by TCP, SCTP and DCCP)
+ * xmit an sk_buff (used by TCP, SCTP and DCCP)
+ * Note : socket lock is not held for SYNACK packets, but might be modified
+ * by calls to skb_set_owner_w() and ipv6_local_error(),
+ * which are using proper atomic operations or spinlocks.
  */
-
-int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
+int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	     struct ipv6_txoptions *opt, int tclass)
 {
 	struct net *net = sock_net(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
+	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *first_hop = &fl6->daddr;
 	struct dst_entry *dst = skb_dst(skb);
 	struct ipv6hdr *hdr;
@@ -186,7 +188,10 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 			}
 			consume_skb(skb);
 			skb = skb2;
-			skb_set_owner_w(skb, sk);
+			/* skb_set_owner_w() changes sk->sk_wmem_alloc atomically,
+			 * it is safe to call in our context (socket lock not held)
+			 */
+			skb_set_owner_w(skb, (struct sock *)sk);
 		}
 		if (opt->opt_flen)
 			ipv6_push_frag_opts(skb, opt, &proto);
@@ -224,13 +229,20 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if ((skb->len <= mtu) || skb->ignore_df || skb_is_gso(skb)) {
 		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_OUT, skb->len);
+		/* hooks should never assume socket lock is held.
+		 * we promote our socket to non const
+		 */
 		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
-			       net, sk, skb, NULL, dst->dev,
+			       net, (struct sock *)sk, skb, NULL, dst->dev,
 			       dst_output_okfn);
 	}
 
 	skb->dev = dst->dev;
-	ipv6_local_error(sk, EMSGSIZE, fl6, mtu);
+	/* ipv6_local_error() does not require socket lock,
+	 * we promote our socket to non const
+	 */
+	ipv6_local_error((struct sock *)sk, EMSGSIZE, fl6, mtu);
+
 	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_FRAGFAILS);
 	kfree_skb(skb);
 	return -EMSGSIZE;
