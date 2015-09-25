@@ -156,7 +156,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array;
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	unsigned size, i;
+	unsigned size;
+	int i;
 	int ret;
 
 	if (cs->in.num_chunks == 0)
