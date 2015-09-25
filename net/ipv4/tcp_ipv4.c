@@ -1168,7 +1168,8 @@ static bool tcp_v4_inbound_md5_hash(struct sock *sk,
 }
 #endif
 
-static void tcp_v4_init_req(struct request_sock *req, struct sock *sk_listener,
+static void tcp_v4_init_req(struct request_sock *req,
+			    const struct sock *sk_listener,
 			    struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
