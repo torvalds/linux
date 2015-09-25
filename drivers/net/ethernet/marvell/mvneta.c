@@ -32,6 +32,7 @@
 #include <linux/of_address.h>
 #include <linux/phy.h>
 #include <linux/clk.h>
+#include <linux/cpu.h>
 
 /* Registers */
 #define MVNETA_RXQ_CONFIG_REG(q)                (0x1400 + ((q) << 2))
@@ -306,6 +307,7 @@ struct mvneta_port {
 	struct mvneta_rx_queue *rxqs;
 	struct mvneta_tx_queue *txqs;
 	struct net_device *dev;
+	struct notifier_block cpu_notifier;
 
 	/* Core clock */
 	struct clk *clk;
@@ -2057,7 +2059,6 @@ static irqreturn_t mvneta_isr(int irq, void *dev_id)
 	struct mvneta_pcpu_port *port = (struct mvneta_pcpu_port *)dev_id;
 
 	disable_percpu_irq(port->pp->dev->irq);
-
 	napi_schedule(&port->napi);
 
 	return IRQ_HANDLED;
@@ -2658,6 +2659,125 @@ static void mvneta_mdio_remove(struct mvneta_port *pp)
 	pp->phy_dev = NULL;
 }
 
+static void mvneta_percpu_enable(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	enable_percpu_irq(pp->dev->irq, IRQ_TYPE_NONE);
+}
+
+static void mvneta_percpu_disable(void *arg)
+{
+	struct mvneta_port *pp = arg;
+
+	disable_percpu_irq(pp->dev->irq);
+}
+
+static void mvneta_percpu_elect(struct mvneta_port *pp)
+{
+	int online_cpu_idx, cpu, i = 0;
+
+	online_cpu_idx = rxq_def % num_online_cpus();
+
+	for_each_online_cpu(cpu) {
+		if (i == online_cpu_idx)
+			/* Enable per-CPU interrupt on the one CPU we
+			 * just elected
+			 */
+			smp_call_function_single(cpu, mvneta_percpu_enable,
+						pp, true);
+		else
+			/* Disable per-CPU interrupt on all the other CPU */
+			smp_call_function_single(cpu, mvneta_percpu_disable,
+						pp, true);
+		i++;
+	}
+};
+
+static int mvneta_percpu_notifier(struct notifier_block *nfb,
+				  unsigned long action, void *hcpu)
+{
+	struct mvneta_port *pp = container_of(nfb, struct mvneta_port,
+					      cpu_notifier);
+	int cpu = (unsigned long)hcpu, other_cpu;
+	struct mvneta_pcpu_port *port = per_cpu_ptr(pp->ports, cpu);
+
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		netif_tx_stop_all_queues(pp->dev);
+
+		/* We have to synchronise on tha napi of each CPU
+		 * except the one just being waked up
+		 */
+		for_each_online_cpu(other_cpu) {
+			if (other_cpu != cpu) {
+				struct mvneta_pcpu_port *other_port =
+					per_cpu_ptr(pp->ports, other_cpu);
+
+				napi_synchronize(&other_port->napi);
+			}
+		}
+
+		/* Mask all ethernet port interrupts */
+		mvreg_write(pp, MVNETA_INTR_NEW_MASK, 0);
+		mvreg_write(pp, MVNETA_INTR_OLD_MASK, 0);
+		mvreg_write(pp, MVNETA_INTR_MISC_MASK, 0);
+		napi_enable(&port->napi);
+
+		/* Enable per-CPU interrupt on the one CPU we care
+		 * about.
+		 */
+		mvneta_percpu_elect(pp);
+
+		/* Unmask all ethernet port interrupts */
+		mvreg_write(pp, MVNETA_INTR_NEW_MASK,
+			MVNETA_RX_INTR_MASK(rxq_number) |
+			MVNETA_TX_INTR_MASK(txq_number) |
+			MVNETA_MISCINTR_INTR_MASK);
+		mvreg_write(pp, MVNETA_INTR_MISC_MASK,
+			MVNETA_CAUSE_PHY_STATUS_CHANGE |
+			MVNETA_CAUSE_LINK_CHANGE |
+			MVNETA_CAUSE_PSC_SYNC_CHANGE);
+		netif_tx_start_all_queues(pp->dev);
+		break;
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		netif_tx_stop_all_queues(pp->dev);
+		/* Mask all ethernet port interrupts */
+		mvreg_write(pp, MVNETA_INTR_NEW_MASK, 0);
+		mvreg_write(pp, MVNETA_INTR_OLD_MASK, 0);
+		mvreg_write(pp, MVNETA_INTR_MISC_MASK, 0);
+
+		napi_synchronize(&port->napi);
+		napi_disable(&port->napi);
+		/* Disable per-CPU interrupts on the CPU that is
+		 * brought down.
+		 */
+		smp_call_function_single(cpu, mvneta_percpu_disable,
+					 pp, true);
+
+		break;
+	case CPU_DEAD:
+	case CPU_DEAD_FROZEN:
+		/* Check if a new CPU must be elected now this on is down */
+		mvneta_percpu_elect(pp);
+		/* Unmask all ethernet port interrupts */
+		mvreg_write(pp, MVNETA_INTR_NEW_MASK,
+			MVNETA_RX_INTR_MASK(rxq_number) |
+			MVNETA_TX_INTR_MASK(txq_number) |
+			MVNETA_MISCINTR_INTR_MASK);
+		mvreg_write(pp, MVNETA_INTR_MISC_MASK,
+			MVNETA_CAUSE_PHY_STATUS_CHANGE |
+			MVNETA_CAUSE_LINK_CHANGE |
+			MVNETA_CAUSE_PSC_SYNC_CHANGE);
+		netif_tx_start_all_queues(pp->dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int mvneta_open(struct net_device *dev)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
@@ -2682,6 +2802,22 @@ static int mvneta_open(struct net_device *dev)
 		netdev_err(pp->dev, "cannot request irq %d\n", pp->dev->irq);
 		goto err_cleanup_txqs;
 	}
+
+	/* Even though the documentation says that request_percpu_irq
+	 * doesn't enable the interrupts automatically, it actually
+	 * does so on the local CPU.
+	 *
+	 * Make sure it's disabled.
+	 */
+	mvneta_percpu_disable(pp);
+
+	/* Elect a CPU to handle our RX queue interrupt */
+	mvneta_percpu_elect(pp);
+
+	/* Register a CPU notifier to handle the case where our CPU
+	 * might be taken offline.
+	 */
+	register_cpu_notifier(&pp->cpu_notifier);
 
 	/* In default link is down */
 	netif_carrier_off(pp->dev);
@@ -2709,9 +2845,13 @@ err_cleanup_rxqs:
 static int mvneta_stop(struct net_device *dev)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
+	int cpu;
 
 	mvneta_stop_dev(pp);
 	mvneta_mdio_remove(pp);
+	unregister_cpu_notifier(&pp->cpu_notifier);
+	for_each_present_cpu(cpu)
+		smp_call_function_single(cpu, mvneta_percpu_disable, pp, true);
 	free_percpu_irq(dev->irq, pp->ports);
 	mvneta_cleanup_rxqs(pp);
 	mvneta_cleanup_txqs(pp);
@@ -3051,6 +3191,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = of_property_read_string(dn, "managed", &managed);
 	pp->use_inband_status = (err == 0 &&
 				 strcmp(managed, "in-band-status") == 0);
+	pp->cpu_notifier.notifier_call = mvneta_percpu_notifier;
 
 	pp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pp->clk)) {
