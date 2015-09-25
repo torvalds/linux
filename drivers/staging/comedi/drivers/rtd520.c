@@ -608,7 +608,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		unsigned int range = CR_RANGE(cmd->chanlist[async->cur_chan]);
 		unsigned short d;
 
-		if (0 == devpriv->ai_count) {	/* done */
+		if (devpriv->ai_count == 0) {	/* done */
 			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 			continue;
 		}
@@ -655,7 +655,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 
 	status = readw(dev->mmio + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
-	if (0 == status)
+	if (status == 0)
 		return IRQ_HANDLED;
 
 	if (status & IRQM_ADC_ABOUT_CNT) {	/* sample count -> read FIFO */
@@ -670,7 +670,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 			if (ai_read_n(dev, s, devpriv->fifosz / 2) < 0)
 				goto xfer_abort;
 
-			if (0 == devpriv->ai_count)
+			if (devpriv->ai_count == 0)
 				goto xfer_done;
 		} else if (devpriv->xfer_count > 0) {
 			if (fifo_status & FS_ADC_NOT_EMPTY) {
@@ -678,7 +678,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
 					goto xfer_abort;
 
-				if (0 == devpriv->ai_count)
+				if (devpriv->ai_count == 0)
 					goto xfer_done;
 			}
 		}
@@ -760,7 +760,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* Note: these are time periods, not actual rates */
-		if (1 == cmd->chanlist_len) {	/* no scanning */
+		if (cmd->chanlist_len == 1) {	/* no scanning */
 			if (comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
@@ -795,7 +795,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (1 == cmd->chanlist_len) {	/* no scanning */
+		if (cmd->chanlist_len == 1) {	/* no scanning */
 			if (comedi_check_trigger_arg_min(&cmd->convert_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
@@ -907,7 +907,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	writel((devpriv->fifosz / 2 - 1) & 0xffff, dev->mmio + LAS0_ACNT);
 
-	if (TRIG_TIMER == cmd->scan_begin_src) {
+	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* scan_begin_arg is in nanoseconds */
 		/* find out how many samples to wait before transferring */
 		if (cmd->flags & CMDF_WAKE_EOS) {
