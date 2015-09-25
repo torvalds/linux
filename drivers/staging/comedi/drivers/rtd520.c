@@ -583,12 +583,6 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-/*
-  Get what we know is there.... Fast!
-  This uses 1/2 the bus cycles of read_dregs (below).
-
-  The manual claims that we can do a lword read, but it doesn't work here.
-*/
 static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		     int count)
 {
@@ -623,12 +617,6 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/*
-  Handle all rtd520 interrupts.
-  Runs atomically and is never re-entered.
-  This is a "slow handler";  other interrupts may be active.
-  The data conversion may someday happen in a "bottom half".
-*/
 static irqreturn_t rtd_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -707,15 +695,6 @@ xfer_done:
 
 	return IRQ_HANDLED;
 }
-
-/*
-  cmdtest tests a particular command to see if it is valid.
-  Using the cmdtest ioctl, a user can create a valid cmd
-  and then have it executed by the cmd ioctl (asynchronously).
-
-  cmdtest returns 1,2,3,4 or 0, depending on which tests
-  the command passes.
-*/
 
 static int rtd_ai_cmdtest(struct comedi_device *dev,
 			  struct comedi_subdevice *s, struct comedi_cmd *cmd)
@@ -859,12 +838,6 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-  Execute a analog in command with many possible triggering options.
-  The data get stored in the async structure of the subdevice.
-  This is usually done by an interrupt handler.
-  Userland gets to the data using read calls.
-*/
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct rtd_private *devpriv = dev->private;
@@ -1014,9 +987,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
-  Stop a running data acquisition.
-*/
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct rtd_private *devpriv = dev->private;
