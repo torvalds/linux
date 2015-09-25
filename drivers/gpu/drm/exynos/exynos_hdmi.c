@@ -103,7 +103,6 @@ struct hdmi_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct drm_connector		connector;
-	bool				hpd;
 	bool				powered;
 	bool				dvi_mode;
 	struct delayed_work		hotplug_work;
