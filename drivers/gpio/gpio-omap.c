@@ -51,7 +51,7 @@ struct gpio_regs {
 struct gpio_bank {
 	struct list_head node;
 	void __iomem *base;
-	u16 irq;
+	int irq;
 	u32 non_wakeup_gpios;
 	u32 enabled_non_wakeup_gpios;
 	struct gpio_regs context;
