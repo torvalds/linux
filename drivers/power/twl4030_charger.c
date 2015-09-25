@@ -22,7 +22,7 @@
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/usb/otg.h>
-#include <linux/i2c/twl4030-madc.h>
+#include <linux/iio/consumer.h>
 
 #define TWL4030_BCIMDEN		0x00
 #define TWL4030_BCIMDKEY	0x01
@@ -91,21 +91,23 @@
 #define TWL4030_MSTATEC_COMPLETE1	0x0b
 #define TWL4030_MSTATEC_COMPLETE4	0x0e
 
-#if IS_REACHABLE(CONFIG_TWL4030_MADC)
 /*
  * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
  * then AC is available.
  */
-static inline int ac_available(void)
+static inline int ac_available(struct iio_channel *channel_vac)
 {
-	return twl4030_get_madc_conversion(11) > 4500;
+	int val, err;
+
+	if (!channel_vac)
+		return 0;
+
+	err = iio_read_channel_processed(channel_vac, &val);
+	if (err < 0)
+		return 0;
+	return val > 4500;
 }
-#else
-static inline int ac_available(void)
-{
-	return 0;
-}
-#endif
+
 static bool allow_usb;
 module_param(allow_usb, bool, 0644);
 MODULE_PARM_DESC(allow_usb, "Allow USB charge drawing default current");
@@ -128,6 +130,7 @@ struct twl4030_bci {
 	 */
 	unsigned int		ichg_eoc, ichg_lo, ichg_hi;
 	unsigned int		usb_cur, ac_cur;
+	struct iio_channel	*channel_vac;
 	bool			ac_is_active;
 	int			usb_mode, ac_mode; /* charging mode requested */
 #define	CHARGE_OFF	0
@@ -278,7 +281,7 @@ static int twl4030_charger_update_current(struct twl4030_bci *bci)
 	 * If AC (Accessory Charger) voltage exceeds 4.5V (MADC 11)
 	 * and AC is enabled, set current for 'ac'
 	 */
-	if (ac_available()) {
+	if (ac_available(bci->channel_vac)) {
 		cur = bci->ac_cur;
 		bci->ac_is_active = true;
 	} else {
@@ -1048,6 +1051,12 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	bci->channel_vac = iio_channel_get(&pdev->dev, "vac");
+	if (IS_ERR(bci->channel_vac)) {
+		bci->channel_vac = NULL;
+		dev_warn(&pdev->dev, "could not request vac iio channel");
+	}
+
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 	INIT_DELAYED_WORK(&bci->current_worker, twl4030_current_worker);
 
@@ -1069,7 +1078,7 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 			       TWL4030_INTERRUPTS_BCIIMR1A);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to unmask interrupts: %d\n", ret);
-		return ret;
+		goto fail;
 	}
 
 	reg = ~(u32)(TWL4030_VBATOV | TWL4030_VBUSOV | TWL4030_ACCHGOV);
@@ -1102,6 +1111,10 @@ static int twl4030_bci_probe(struct platform_device *pdev)
 		twl4030_charger_enable_backup(0, 0);
 
 	return 0;
+fail:
+	iio_channel_release(bci->channel_vac);
+
+	return ret;
 }
 
 static int __exit twl4030_bci_remove(struct platform_device *pdev)
@@ -1111,6 +1124,8 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	twl4030_charger_enable_ac(bci, false);
 	twl4030_charger_enable_usb(bci, false);
 	twl4030_charger_enable_backup(0, 0);
+
+	iio_channel_release(bci->channel_vac);
 
 	device_remove_file(&bci->usb->dev, &dev_attr_max_current);
 	device_remove_file(&bci->usb->dev, &dev_attr_mode);
