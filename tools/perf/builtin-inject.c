@@ -31,6 +31,7 @@ struct perf_inject {
 	const char		*input_name;
 	struct perf_data_file	output;
 	u64			bytes_written;
+	u64			aux_id;
 	struct list_head	samples;
 	struct itrace_synth_opts itrace_synth_opts;
 };
@@ -174,6 +175,19 @@ static int perf_event__repipe(struct perf_tool *tool,
 			      struct machine *machine __maybe_unused)
 {
 	return perf_event__repipe_synth(tool, event);
+}
+
+static int perf_event__drop_aux(struct perf_tool *tool,
+				union perf_event *event __maybe_unused,
+				struct perf_sample *sample,
+				struct machine *machine __maybe_unused)
+{
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+
+	if (!inject->aux_id)
+		inject->aux_id = sample->id;
+
+	return 0;
 }
 
 typedef int (*inject_handler)(struct perf_tool *tool,
@@ -512,6 +526,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.id_index	    = perf_event__repipe_id_index;
 		inject->tool.auxtrace_info  = perf_event__process_auxtrace_info;
 		inject->tool.auxtrace	    = perf_event__process_auxtrace;
+		inject->tool.aux	    = perf_event__drop_aux;
+		inject->tool.itrace_start   = perf_event__drop_aux,
 		inject->tool.ordered_events = true;
 		inject->tool.ordering_requires_timestamps = true;
 		/* Allow space in the header for new attributes */
@@ -535,14 +551,25 @@ static int __cmd_inject(struct perf_inject *inject)
 		}
 		/*
 		 * The AUX areas have been removed and replaced with
-		 * synthesized hardware events, so clear the feature flag.
+		 * synthesized hardware events, so clear the feature flag and
+		 * remove the evsel.
 		 */
 		if (inject->itrace_synth_opts.set) {
+			struct perf_evsel *evsel;
+
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);
 			if (inject->itrace_synth_opts.last_branch)
 				perf_header__set_feat(&session->header,
 						      HEADER_BRANCH_STACK);
+			evsel = perf_evlist__id2evsel_strict(session->evlist,
+							     inject->aux_id);
+			if (evsel) {
+				pr_debug("Deleting %s\n",
+					 perf_evsel__name(evsel));
+				perf_evlist__remove(session->evlist, evsel);
+				perf_evsel__delete(evsel);
+			}
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
