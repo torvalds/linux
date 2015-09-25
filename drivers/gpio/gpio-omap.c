@@ -496,9 +496,6 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 		(type & (IRQ_TYPE_LEVEL_LOW|IRQ_TYPE_LEVEL_HIGH)))
 		return -EINVAL;
 
-	if (!BANK_USED(bank))
-		pm_runtime_get_sync(bank->dev);
-
 	raw_spin_lock_irqsave(&bank->lock, flags);
 	retval = omap_set_gpio_triggering(bank, offset, type);
 	if (retval) {
@@ -521,8 +518,6 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 	return 0;
 
 error:
-	if (!BANK_USED(bank))
-		pm_runtime_put(bank->dev);
 	return retval;
 }
 
@@ -797,9 +792,6 @@ static unsigned int omap_gpio_irq_startup(struct irq_data *d)
 	unsigned long flags;
 	unsigned offset = d->hwirq;
 
-	if (!BANK_USED(bank))
-		pm_runtime_get_sync(bank->dev);
-
 	raw_spin_lock_irqsave(&bank->lock, flags);
 
 	if (!LINE_USED(bank->mod_usage, offset))
@@ -815,8 +807,6 @@ static unsigned int omap_gpio_irq_startup(struct irq_data *d)
 	return 0;
 err:
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
-	if (!BANK_USED(bank))
-		pm_runtime_put(bank->dev);
 	return -EINVAL;
 }
 
@@ -835,6 +825,19 @@ static void omap_gpio_irq_shutdown(struct irq_data *d)
 		omap_clear_gpio_debounce(bank, offset);
 	omap_disable_gpio_module(bank, offset);
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
+}
+
+static void omap_gpio_irq_bus_lock(struct irq_data *data)
+{
+	struct gpio_bank *bank = omap_irq_data_get_bank(data);
+
+	if (!BANK_USED(bank))
+		pm_runtime_get_sync(bank->dev);
+}
+
+static void gpio_irq_bus_sync_unlock(struct irq_data *data)
+{
+	struct gpio_bank *bank = omap_irq_data_get_bank(data);
 
 	/*
 	 * If this is the last IRQ to be freed in the bank,
@@ -1183,6 +1186,8 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	irqc->irq_unmask = omap_gpio_unmask_irq,
 	irqc->irq_set_type = omap_gpio_irq_type,
 	irqc->irq_set_wake = omap_gpio_wake_enable,
+	irqc->irq_bus_lock = omap_gpio_irq_bus_lock,
+	irqc->irq_bus_sync_unlock = gpio_irq_bus_sync_unlock,
 	irqc->name = dev_name(&pdev->dev);
 
 	bank->irq = platform_get_irq(pdev, 0);
