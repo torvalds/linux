@@ -52,7 +52,7 @@ static unsigned int nf_route_table_hook(void *priv,
 	     skb->mark != mark ||
 	     ipv6_hdr(skb)->hop_limit != hop_limit ||
 	     flowlabel != *((u_int32_t *)ipv6_hdr(skb))))
-		return ip6_route_me_harder(skb) == 0 ? ret : NF_DROP;
+		return ip6_route_me_harder(state->net, skb) == 0 ? ret : NF_DROP;
 
 	return ret;
 }

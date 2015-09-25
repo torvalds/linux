@@ -715,7 +715,7 @@ static int ip_vs_route_me_harder(struct netns_ipvs *ipvs, int af,
 		struct dst_entry *dst = skb_dst(skb);
 
 		if (dst->dev && !(dst->dev->flags & IFF_LOOPBACK) &&
-		    ip6_route_me_harder(skb) != 0)
+		    ip6_route_me_harder(ipvs->net, skb) != 0)
 			return 1;
 	} else
 #endif
