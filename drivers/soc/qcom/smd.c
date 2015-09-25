@@ -723,6 +723,10 @@ int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len)
 	if (channel->info_word && len % 4)
 		return -EINVAL;
 
+	/* Reject packets that are too big */
+	if (tlen >= channel->fifo_size)
+		return -EINVAL;
+
 	ret = mutex_lock_interruptible(&channel->tx_lock);
 	if (ret)
 		return ret;
