@@ -50,6 +50,14 @@
 		assigned-clock-rates = <0>, <12288000>;
 	};
 
+	sound-hdmi {
+		compatible = "fsl,imx7d-sdb-sii902x",
+			   "fsl,imx-audio-sii902x";
+		model = "sii902x-audio";
+		cpu-dai = <&sai1>;
+		hdmi-controler = <&sii902x>;
+	};
+
 	spi4 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
