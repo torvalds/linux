@@ -236,11 +236,14 @@ static inline void of_mdiobus_link_phydev(struct mii_bus *mdio,
 #endif
 
 /**
- * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
+ * __mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
+ * @owner: module containing bus accessor functions
  *
  * Description: Called by a bus driver to bring up all the PHYs
- *   on a given bus, and attach them to the bus.
+ *   on a given bus, and attach them to the bus. Drivers should use
+ *   mdiobus_register() rather than __mdiobus_register() unless they
+ *   need to pass a specific owner module.
  *
  * Returns 0 on success or < 0 on error.
  */
