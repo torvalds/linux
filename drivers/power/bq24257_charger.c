@@ -448,14 +448,13 @@ static void bq24257_handle_state_change(struct bq24257_device *bq,
 {
 	int ret;
 	struct bq24257_state old_state;
-	bool reset_iilimit = false;
-	bool config_iilimit = false;
 
 	mutex_lock(&bq->lock);
 	old_state = bq->state;
 	mutex_unlock(&bq->lock);
 
-	if (!new_state->power_good) {			     /* power removed */
+	if (!new_state->power_good) {
+		dev_dbg(bq->dev, "Power removed\n");
 		cancel_delayed_work_sync(&bq->iilimit_setup_work);
 
 		/* activate D+/D- port detection algorithm */
@@ -463,26 +462,20 @@ static void bq24257_handle_state_change(struct bq24257_device *bq,
 		if (ret < 0)
 			goto error;
 
-		reset_iilimit = true;
-	} else if (!old_state.power_good) {		    /* power inserted */
-		config_iilimit = true;
-	} else if (new_state->fault == FAULT_NO_BAT) {	   /* battery removed */
-		cancel_delayed_work_sync(&bq->iilimit_setup_work);
-
-		reset_iilimit = true;
-	} else if (old_state.fault == FAULT_NO_BAT) {    /* battery connected */
-		config_iilimit = true;
-	} else if (new_state->fault == FAULT_TIMER) { /* safety timer expired */
-		dev_err(bq->dev, "Safety timer expired! Battery dead?\n");
-	}
-
-	if (reset_iilimit) {
+		/* reset input current limit */
 		ret = bq24257_field_write(bq, F_IILIMIT, IILIMIT_500);
 		if (ret < 0)
 			goto error;
-	} else if (config_iilimit) {
+	} else if (!old_state.power_good) {
+		dev_dbg(bq->dev, "Power inserted\n");
+
+		/* configure input current limit */
 		schedule_delayed_work(&bq->iilimit_setup_work,
 				      msecs_to_jiffies(BQ24257_ILIM_SET_DELAY));
+	} else if (new_state->fault == FAULT_NO_BAT) {
+		dev_warn(bq->dev, "Battery removed\n");
+	} else if (new_state->fault == FAULT_TIMER) {
+		dev_err(bq->dev, "Safety timer expired! Battery dead?\n");
 	}
 
 	return;
