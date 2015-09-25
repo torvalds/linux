@@ -65,7 +65,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
-struct dst_entry *inet6_csk_route_req(struct sock *sk,
+struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 				      struct flowi6 *fl6,
 				      const struct request_sock *req)
 {
