@@ -163,14 +163,21 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		goto out_put;
 
-	if (sort__mode == SORT_MODE__BRANCH)
+	if (sort__mode == SORT_MODE__BRANCH) {
+		/*
+		 * A non-synthesized event might not have a branch stack if
+		 * branch stacks have been synthesized (using itrace options).
+		 */
+		if (!sample->branch_stack)
+			goto out_put;
 		iter.ops = &hist_iter_branch;
-	else if (rep->mem_mode)
+	} else if (rep->mem_mode) {
 		iter.ops = &hist_iter_mem;
-	else if (symbol_conf.cumulate_callchain)
+	} else if (symbol_conf.cumulate_callchain) {
 		iter.ops = &hist_iter_cumulative;
-	else
+	} else {
 		iter.ops = &hist_iter_normal;
+	}
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
