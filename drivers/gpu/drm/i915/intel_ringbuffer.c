@@ -1041,10 +1041,13 @@ static int skl_tune_iz_hashing(struct intel_engine_cs *ring)
 
 static int skl_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
 
 	/* WaDisablePowerCompilerClockGating:skl */
 	if (INTEL_REVID(dev) == SKL_REVID_B0)
@@ -1081,10 +1084,13 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 
 static int bxt_init_workarounds(struct intel_engine_cs *ring)
 {
+	int ret;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	gen9_init_workarounds(ring);
+	ret = gen9_init_workarounds(ring);
+	if (ret)
+		return ret;
 
 	/* WaDisableThreadStallDopClockGating:bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
