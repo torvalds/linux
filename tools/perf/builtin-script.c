@@ -1748,6 +1748,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 	}
 
+	if (itrace_synth_opts.callchain &&
+	    itrace_synth_opts.callchain_sz > scripting_max_stack)
+		scripting_max_stack = itrace_synth_opts.callchain_sz;
+
 	/* make sure PERF_EXEC_PATH is set for scripts */
 	perf_set_argv_exec_path(perf_exec_path());
 
