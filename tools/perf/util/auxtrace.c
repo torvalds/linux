@@ -950,6 +950,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 	const char *p;
 	char *endptr;
 	bool period_type_set = false;
+	bool period_set = false;
 
 	synth_opts->set = true;
 
@@ -971,6 +972,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 				p += 1;
 			if (isdigit(*p)) {
 				synth_opts->period = strtoull(p, &endptr, 10);
+				period_set = true;
 				p = endptr;
 				while (*p == ' ' || *p == ',')
 					p += 1;
@@ -1053,7 +1055,7 @@ out:
 		if (!period_type_set)
 			synth_opts->period_type =
 					PERF_ITRACE_DEFAULT_PERIOD_TYPE;
-		if (!synth_opts->period)
+		if (!period_set)
 			synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
 	}
 

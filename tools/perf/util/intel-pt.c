@@ -720,7 +720,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 
 		if (!params.period) {
 			params.period_type = INTEL_PT_PERIOD_INSTRUCTIONS;
-			params.period = 1000;
+			params.period = 1;
 		}
 	}
 

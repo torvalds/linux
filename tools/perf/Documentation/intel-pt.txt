@@ -707,6 +707,11 @@ on the sample is *not* adjusted and reflects the last known value of TSC.
 
 For Intel PT, the default period is 100us.
 
+Setting it to a zero period means "as often as possible".
+
+In the case of Intel PT that is the same as a period of 1 and a unit of
+'instructions' (i.e. --itrace=i1i).
+
 Also the call chain size (default 16, max. 1024) for instructions or
 transactions events can be specified. e.g.
 
