@@ -612,12 +612,11 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 }
 
 /* Set up TCP options for SYN-ACKs. */
-static unsigned int tcp_synack_options(struct sock *sk,
-				   struct request_sock *req,
-				   unsigned int mss, struct sk_buff *skb,
-				   struct tcp_out_options *opts,
-				   const struct tcp_md5sig_key *md5,
-				   struct tcp_fastopen_cookie *foc)
+static unsigned int tcp_synack_options(struct request_sock *req,
+				       unsigned int mss, struct sk_buff *skb,
+				       struct tcp_out_options *opts,
+				       const struct tcp_md5sig_key *md5,
+				       struct tcp_fastopen_cookie *foc)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	unsigned int remaining = MAX_TCP_OPTION_SPACE;
@@ -2989,8 +2988,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	md5 = tcp_rsk(req)->af_specific->req_md5_lookup(sk, req_to_sk(req));
 #endif
 	skb_set_hash(skb, tcp_rsk(req)->txhash, PKT_HASH_TYPE_L4);
-	tcp_header_size = tcp_synack_options(sk, req, mss, skb, &opts, md5,
-					     foc) + sizeof(*th);
+	tcp_header_size = tcp_synack_options(req, mss, skb, &opts, md5, foc) +
+			  sizeof(*th);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
