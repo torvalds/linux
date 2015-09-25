@@ -537,9 +537,13 @@ static int __cmd_inject(struct perf_inject *inject)
 		 * The AUX areas have been removed and replaced with
 		 * synthesized hardware events, so clear the feature flag.
 		 */
-		if (inject->itrace_synth_opts.set)
+		if (inject->itrace_synth_opts.set) {
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);
+			if (inject->itrace_synth_opts.last_branch)
+				perf_header__set_feat(&session->header,
+						      HEADER_BRANCH_STACK);
+		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;
 		perf_session__write_header(session, session->evlist, fd, true);
