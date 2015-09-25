@@ -220,6 +220,9 @@ static int report__setup_sample_type(struct report *rep)
 	     !session->itrace_synth_opts->set))
 		sample_type |= PERF_SAMPLE_CALLCHAIN;
 
+	if (session->itrace_synth_opts->last_branch)
+		sample_type |= PERF_SAMPLE_BRANCH_STACK;
+
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
