@@ -64,6 +64,7 @@ struct intel_pt {
 	bool data_queued;
 	bool est_tsc;
 	bool sync_switch;
+	bool mispred_all;
 	int have_sched_switch;
 	u32 pmu_type;
 	u64 kernel_start;
@@ -943,6 +944,7 @@ static void intel_pt_update_last_branch_rb(struct intel_pt_queue *ptq)
 	be->flags.abort = !!(state->flags & INTEL_PT_ABORT_TX);
 	be->flags.in_tx = !!(state->flags & INTEL_PT_IN_TX);
 	/* No support for mispredict */
+	be->flags.mispred = ptq->pt->mispred_all;
 
 	if (bs->nr < ptq->pt->synth_opts.last_branch_sz)
 		bs->nr += 1;
@@ -1967,6 +1969,16 @@ static bool intel_pt_find_switch(struct perf_evlist *evlist)
 	return false;
 }
 
+static int intel_pt_perf_config(const char *var, const char *value, void *data)
+{
+	struct intel_pt *pt = data;
+
+	if (!strcmp(var, "intel-pt.mispred-all"))
+		pt->mispred_all = perf_config_bool(var, value);
+
+	return 0;
+}
+
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
@@ -2010,6 +2022,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt = zalloc(sizeof(struct intel_pt));
 	if (!pt)
 		return -ENOMEM;
+
+	perf_config(intel_pt_perf_config, pt);
 
 	err = auxtrace_queues__init(&pt->queues);
 	if (err)

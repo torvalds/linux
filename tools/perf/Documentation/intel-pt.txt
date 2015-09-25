@@ -764,3 +764,32 @@ perf inject also accepts the --itrace option in which case tracing data is
 removed and replaced with the synthesized events. e.g.
 
 	perf inject --itrace -i perf.data -o perf.data.new
+
+Below is an example of using Intel PT with autofdo.  It requires autofdo
+(https://github.com/google/autofdo) and gcc version 5.  The bubble
+sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tutorial)
+amended to take the number of elements as a parameter.
+
+	$ gcc-5 -O3 sort.c -o sort_optimized
+	$ ./sort_optimized 30000
+	Bubble sorting array of 30000 elements
+	2254 ms
+
+	$ cat ~/.perfconfig
+	[intel-pt]
+		mispred-all
+
+	$ perf record -e intel_pt//u ./sort 3000
+	Bubble sorting array of 3000 elements
+	58 ms
+	[ perf record: Woken up 2 times to write data ]
+	[ perf record: Captured and wrote 3.939 MB perf.data ]
+	$ perf inject -i perf.data -o inj --itrace=i100usle --strip
+	$ ./create_gcov --binary=./sort --profile=inj --gcov=sort.gcov -gcov_version=1
+	$ gcc-5 -O3 -fauto-profile=sort.gcov sort.c -o sort_autofdo
+	$ ./sort_autofdo 30000
+	Bubble sorting array of 30000 elements
+	2155 ms
+
+Note there is currently no advantage to using Intel PT instead of LBR, but
+that may change in the future if greater use is made of the data.
