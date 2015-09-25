@@ -71,12 +71,6 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 	gen9_init_clock_gating(dev);
 
-	if (INTEL_REVID(dev) <= SKL_REVID_B0) {
-		/* WaDisableVFUnitClockGating:skl */
-		I915_WRITE(GEN6_UCGCTL2, I915_READ(GEN6_UCGCTL2) |
-			   GEN6_VFUNIT_CLOCK_GATE_DISABLE);
-	}
-
 	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
 		/* WaDisableHDCInvalidation:skl */
 		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
