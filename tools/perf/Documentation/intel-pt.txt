@@ -671,6 +671,7 @@ The letters are:
 	e	synthesize tracing error events
 	d	create a debug log
 	g	synthesize a call chain (use with i or x)
+	l	synthesize last branch entries (use with i or x)
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -717,6 +718,15 @@ transactions events can be specified. e.g.
 
 	--itrace=ig32
 	--itrace=xg32
+
+Also the number of last branch entries (default 64, max. 1024) for instructions or
+transactions events can be specified. e.g.
+
+       --itrace=il10
+       --itrace=xl10
+
+Note that last branch entries are cleared for each sample, so there is no overlap
+from one sample to the next.
 
 To disable trace decoding entirely, use the option --no-itrace.
 
