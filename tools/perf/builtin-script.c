@@ -33,6 +33,8 @@ static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
+static unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
+
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
 	PERF_OUTPUT_TID             = 1U << 1,
@@ -475,7 +477,7 @@ static void print_sample_bts(union perf_event *event,
 			}
 		}
 		perf_evsel__print_ip(evsel, sample, al, print_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	/* print branch_to information */
@@ -552,7 +554,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 
 		perf_evsel__print_ip(evsel, sample, al,
 				     output[attr->type].print_ip_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	if (PRINT_FIELD(IREGS))
