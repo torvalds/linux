@@ -3502,7 +3502,7 @@ void tcp_send_probe0(struct sock *sk)
 				  TCP_RTO_MAX);
 }
 
-int tcp_rtx_synack(struct sock *sk, struct request_sock *req)
+int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
 {
 	const struct tcp_request_sock_ops *af_ops = tcp_rsk(req)->af_specific;
 	struct flowi fl;
