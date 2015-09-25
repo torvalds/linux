@@ -288,14 +288,28 @@ out_drop_write:
 	mnt_drop_write_file(dst_file);
 	return ret;
 }
+
+static long nfs42_ioctl_clone_range(struct file *dst_file, void __user *argp)
+{
+	struct nfs_ioctl_clone_range_args args;
+
+	if (copy_from_user(&args, argp, sizeof(args)))
+		return -EFAULT;
+
+	return nfs42_ioctl_clone(dst_file, args.src_fd, args.src_off, args.dst_off, args.count);
+}
 #endif /* CONFIG_NFS_V4_2 */
 
 long nfs4_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
+
 	switch (cmd) {
 #ifdef CONFIG_NFS_V4_2
 	case NFS_IOC_CLONE:
 		return nfs42_ioctl_clone(file, arg, 0, 0, 0);
+	case NFS_IOC_CLONE_RANGE:
+		return nfs42_ioctl_clone_range(file, argp);
 #endif
 	}
 
