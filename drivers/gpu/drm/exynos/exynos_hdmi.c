@@ -537,7 +537,7 @@ static inline u32 hdmi_reg_read(struct hdmi_context *hdata, u32 reg_id)
 static inline void hdmi_reg_writeb(struct hdmi_context *hdata,
 				 u32 reg_id, u8 value)
 {
-	writeb(value, hdata->regs + hdmi_map_reg(hdata, reg_id));
+	writel(value, hdata->regs + hdmi_map_reg(hdata, reg_id));
 }
 
 static inline void hdmi_reg_writev(struct hdmi_context *hdata, u32 reg_id,
@@ -546,7 +546,7 @@ static inline void hdmi_reg_writev(struct hdmi_context *hdata, u32 reg_id,
 	reg_id = hdmi_map_reg(hdata, reg_id);
 
 	while (--bytes >= 0) {
-		writeb(val & 0xff, hdata->regs + reg_id);
+		writel(val & 0xff, hdata->regs + reg_id);
 		val >>= 8;
 		reg_id += 4;
 	}
@@ -579,7 +579,7 @@ static int hdmiphy_reg_write_buf(struct hdmi_context *hdata,
 	} else {
 		int i;
 		for (i = 0; i < len; i++)
-			writeb(buf[i], hdata->regs_hdmiphy +
+			writel(buf[i], hdata->regs_hdmiphy +
 				((reg_offset + i)<<2));
 		return 0;
 	}
