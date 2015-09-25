@@ -46,9 +46,6 @@ struct driver_data {
 	u32 clear_sr;
 	u32 mask_sr;
 
-	/* Maximun clock rate */
-	unsigned long max_clk_rate;
-
 	/* Message Transfer pump */
 	struct tasklet_struct pump_transfers;
 
