@@ -2803,6 +2803,27 @@ static void serial8250_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
+ *	Restore serial console when h/w power-off detected
+ */
+static void serial8250_console_restore(struct uart_8250_port *up)
+{
+	struct uart_port *port = &up->port;
+	struct ktermios termios;
+	unsigned int baud, quot, frac = 0;
+
+	termios.c_cflag = port->cons->cflag;
+	if (port->state->port.tty && termios.c_cflag == 0)
+		termios.c_cflag = port->state->port.tty->termios.c_cflag;
+
+	baud = serial8250_get_baud_rate(port, &termios, NULL);
+	quot = serial8250_get_divisor(up, baud, &frac);
+
+	serial8250_set_divisor(port, baud, quot, frac);
+	serial_port_out(port, UART_LCR, up->lcr);
+	serial_port_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
+}
+
+/*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
  *
@@ -2839,20 +2860,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 
 	/* check scratch reg to see if port powered off during system sleep */
 	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
-		struct ktermios termios;
-		unsigned int baud, quot, frac = 0;
-
-		termios.c_cflag = port->cons->cflag;
-		if (port->state->port.tty && termios.c_cflag == 0)
-			termios.c_cflag = port->state->port.tty->termios.c_cflag;
-
-		baud = serial8250_get_baud_rate(port, &termios, NULL);
-		quot = serial8250_get_divisor(up, baud, &frac);
-
-		serial8250_set_divisor(port, baud, quot, frac);
-		serial_port_out(port, UART_LCR, up->lcr);
-		serial_port_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
-
+		serial8250_console_restore(up);
 		up->canary = 0;
 	}
 
