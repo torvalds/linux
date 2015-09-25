@@ -824,6 +824,9 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 	 */
 	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
 
+	/* Wa4x4STCOptimizationDisable:bdw,chv */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+
 	return 0;
 }
 
@@ -860,10 +863,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
 			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
-
-	/* Wa4x4STCOptimizationDisable:bdw */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
 
 	/*
 	 * BSpec recommends 8x4 when MSAA is used,
@@ -902,10 +901,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
 			  HDC_FORCE_NON_COHERENT |
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
-
-	/* Wa4x4STCOptimizationDisable:chv */
-	WA_SET_BIT_MASKED(CACHE_MODE_1,
-			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
 
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
