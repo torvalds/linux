@@ -4127,14 +4127,7 @@ do {								\
 				  __LINE__, (errno));		\
 } while (0)
 
-#define btrfs_std_error(fs_info, errno)				\
-do {								\
-	if ((errno))						\
-		__btrfs_std_error((fs_info), __func__,		\
-				   __LINE__, (errno), NULL);	\
-} while (0)
-
-#define btrfs_error(fs_info, errno, fmt, args...)		\
+#define btrfs_std_error(fs_info, errno, fmt, args...)		\
 do {								\
 	__btrfs_std_error((fs_info), __func__, __LINE__,	\
 			  (errno), fmt, ##args);		\

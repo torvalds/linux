@@ -1402,7 +1402,7 @@ again:
 		extent = btrfs_item_ptr(leaf, path->slots[0],
 					struct btrfs_dev_extent);
 	} else {
-		btrfs_error(root->fs_info, ret, "Slot search failed");
+		btrfs_std_error(root->fs_info, ret, "Slot search failed");
 		goto out;
 	}
 
@@ -1410,7 +1410,7 @@ again:
 
 	ret = btrfs_del_item(trans, root, path);
 	if (ret) {
-		btrfs_error(root->fs_info, ret,
+		btrfs_std_error(root->fs_info, ret,
 			    "Failed to remove dev extent item");
 	} else {
 		trans->transaction->have_free_bgs = 1;
@@ -2368,7 +2368,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 		ret = btrfs_relocate_sys_chunks(root);
 		if (ret < 0)
-			btrfs_error(root->fs_info, ret,
+			btrfs_std_error(root->fs_info, ret,
 				    "Failed to relocate sys chunks after "
 				    "device initialization. This can be fixed "
 				    "using the \"btrfs balance\" command.");
@@ -2613,7 +2613,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 	else if (ret > 0) { /* Logic error or corruption */
-		btrfs_error(root->fs_info, -ENOENT,
+		btrfs_std_error(root->fs_info, -ENOENT,
 			    "Failed lookup while freeing chunk.");
 		ret = -ENOENT;
 		goto out;
@@ -2621,7 +2621,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_item(trans, root, path);
 	if (ret < 0)
-		btrfs_error(root->fs_info, ret,
+		btrfs_std_error(root->fs_info, ret,
 			    "Failed to delete chunk item.");
 out:
 	btrfs_free_path(path);
@@ -2806,7 +2806,7 @@ static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		btrfs_std_error(root->fs_info, ret);
+		btrfs_std_error(root->fs_info, ret, NULL);
 		return ret;
 	}
 
@@ -3461,7 +3461,7 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	unset_balance_control(fs_info);
 	ret = del_balance_item(fs_info->tree_root);
 	if (ret)
-		btrfs_std_error(fs_info, ret);
+		btrfs_std_error(fs_info, ret, NULL);
 
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
