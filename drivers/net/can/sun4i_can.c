@@ -601,7 +601,7 @@ static int sun4i_can_err(struct net_device *dev, u8 isrc, u8 status)
 		stats->tx_errors++;
 		if (likely(skb)) {
 			cf->can_id |= CAN_ERR_LOSTARB;
-			cf->data[0] = (alc & 0x1f) >> 8;
+			cf->data[0] = (alc >> 8) & 0x1f;
 		}
 	}
 
