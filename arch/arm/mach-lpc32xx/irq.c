@@ -370,7 +370,7 @@ static struct irq_chip lpc32xx_irq_chip = {
 	.irq_set_wake = lpc32xx_irq_wake
 };
 
-static void lpc32xx_sic1_handler(unsigned int irq, struct irq_desc *desc)
+static void lpc32xx_sic1_handler(struct irq_desc *desc)
 {
 	unsigned long ints = __raw_readl(LPC32XX_INTC_STAT(LPC32XX_SIC1_BASE));
 
@@ -383,7 +383,7 @@ static void lpc32xx_sic1_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void lpc32xx_sic2_handler(unsigned int irq, struct irq_desc *desc)
+static void lpc32xx_sic2_handler(struct irq_desc *desc)
 {
 	unsigned long ints = __raw_readl(LPC32XX_INTC_STAT(LPC32XX_SIC2_BASE));
 

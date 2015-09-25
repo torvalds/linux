@@ -120,7 +120,7 @@ static struct irq_chip lpd270_irq_chip = {
 	.irq_unmask	= lpd270_unmask_irq,
 };
 
-static void lpd270_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void lpd270_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq;
 	unsigned long pending;

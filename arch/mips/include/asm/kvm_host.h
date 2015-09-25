@@ -128,6 +128,7 @@ struct kvm_vcpu_stat {
 	u32 msa_disabled_exits;
 	u32 flush_dcache_exits;
 	u32 halt_successful_poll;
+	u32 halt_attempted_poll;
 	u32 halt_wakeup;
 };
 

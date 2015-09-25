@@ -370,11 +370,8 @@
 	__typeof__(_expected) __exp = (_expected); \
 	__typeof__(_seen) __seen = (_seen); \
 	if (!(__exp _t __seen)) { \
-		unsigned long long __exp_print = 0; \
-		unsigned long long __seen_print = 0; \
-		/* Avoid casting complaints the scariest way we can. */ \
-		memcpy(&__exp_print, &__exp, sizeof(__exp)); \
-		memcpy(&__seen_print, &__seen, sizeof(__seen)); \
+		unsigned long long __exp_print = (unsigned long long)__exp; \
+		unsigned long long __seen_print = (unsigned long long)__seen; \
 		__TH_LOG("Expected %s (%llu) %s %s (%llu)", \
 			 #_expected, __exp_print, #_t, \
 			 #_seen, __seen_print); \
