@@ -1067,8 +1067,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 	writew(range & 7,
 	       dev->mmio + ((chan == 0) ? LAS0_DAC1_CTRL : LAS0_DAC2_CTRL));
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; ++i) {
 		int val = data[i] << 3;
 
@@ -1081,7 +1079,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			val = data[i] << 3;
 		}
 
-		/* a typical programming sequence */
 		writew(val, devpriv->las1 +
 			((chan == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO));
 		writew(0, dev->mmio + ((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
@@ -1093,7 +1090,6 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 			return ret;
 	}
 
-	/* return the number of samples read/written */
 	return i;
 }
 
