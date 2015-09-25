@@ -1046,42 +1046,43 @@ static int rtd_ao_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int rtd_ao_winsn(struct comedi_device *dev,
-			struct comedi_subdevice *s, struct comedi_insn *insn,
-			unsigned int *data)
+static int rtd_ao_insn_write(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct rtd_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	int range = CR_RANGE(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
+	int i;
 
 	/* Configure the output range (table index matches the range values) */
 	writew(range & 7, dev->mmio + LAS0_DAC_CTRL(chan));
 
 	for (i = 0; i < insn->n; ++i) {
-		int val = data[i] << 3;
+		unsigned int val = data[i];
 
-		/* VERIFY: comedi range and offset conversions */
-
-		if ((range > 1) && (data[i] < 2048)) {	/* bipolar */
-			/* offset and sign extend */
-			val = (((int)data[i]) - 2048) << 3;
-		} else {	/* unipolor */
-			val = data[i] << 3;
+		/* bipolar uses 2's complement values with an extended sign */
+		if (comedi_range_is_bipolar(s, range)) {
+			val = comedi_offset_munge(s, val);
+			val |= (val & ((s->maxdata + 1) >> 1)) << 1;
 		}
+
+		/* shift the 12-bit data (+ sign) to match the register */
+		val <<= 3;
 
 		writew(val, devpriv->las1 + LAS1_DAC_FIFO(chan));
 		writew(0, dev->mmio + LAS0_UPDATE_DAC(chan));
 
-		s->readback[chan] = data[i];
-
 		ret = comedi_timeout(dev, s, insn, rtd_ao_eoc, 0);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = data[i];
 	}
 
-	return i;
+	return insn->n;
 }
 
 static int rtd_dio_insn_bits(struct comedi_device *dev,
@@ -1240,7 +1241,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &rtd_ao_range;
-	s->insn_write	= rtd_ao_winsn;
+	s->insn_write	= rtd_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
