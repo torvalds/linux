@@ -100,7 +100,7 @@ int igmp_mc_init(void);
  *	Functions provided by ip.c
  */
 
-int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
+int ip_build_and_send_pkt(struct sk_buff *skb, const struct sock *sk,
 			  __be32 saddr, __be32 daddr,
 			  struct ip_options_rcu *opt);
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
@@ -282,10 +282,12 @@ int ip_decrease_ttl(struct iphdr *iph)
 }
 
 static inline
-int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
+int ip_dont_fragment(const struct sock *sk, const struct dst_entry *dst)
 {
-	return  inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
-		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
+	u8 pmtudisc = READ_ONCE(inet_sk(sk)->pmtudisc);
+
+	return  pmtudisc == IP_PMTUDISC_DO ||
+		(pmtudisc == IP_PMTUDISC_WANT &&
 		 !(dst_metric_locked(dst, RTAX_MTU)));
 }
 

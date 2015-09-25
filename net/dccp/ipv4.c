@@ -498,7 +498,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 	return &rt->dst;
 }
 
-static int dccp_v4_send_response(struct sock *sk, struct request_sock *req)
+static int dccp_v4_send_response(const struct sock *sk, struct request_sock *req)
 {
 	int err = -1;
 	struct sk_buff *skb;
