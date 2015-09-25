@@ -362,27 +362,35 @@ void tcp_twsk_destructor(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+/* Warning : This function is called without sk_listener being locked.
+ * Be sure to read socket fields once, as their value could change under us.
+ */
 void tcp_openreq_init_rwin(struct request_sock *req,
-			   struct sock *sk, struct dst_entry *dst)
+			   const struct sock *sk_listener,
+			   const struct dst_entry *dst)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
-	struct tcp_sock *tp = tcp_sk(sk);
-	__u8 rcv_wscale;
+	const struct tcp_sock *tp = tcp_sk(sk_listener);
+	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
+	int full_space = tcp_full_space(sk_listener);
 	int mss = dst_metric_advmss(dst);
+	u32 window_clamp;
+	__u8 rcv_wscale;
 
-	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
-		mss = tp->rx_opt.user_mss;
+	if (user_mss && user_mss < mss)
+		mss = user_mss;
 
+	window_clamp = READ_ONCE(tp->window_clamp);
 	/* Set this up on the first call only */
-	req->window_clamp = tp->window_clamp ? : dst_metric(dst, RTAX_WINDOW);
+	req->window_clamp = window_clamp ? : dst_metric(dst, RTAX_WINDOW);
 
 	/* limit the window selection if the user enforce a smaller rx buffer */
-	if (sk->sk_userlocks & SOCK_RCVBUF_LOCK &&
-	    (req->window_clamp > tcp_full_space(sk) || req->window_clamp == 0))
-		req->window_clamp = tcp_full_space(sk);
+	if (sk_listener->sk_userlocks & SOCK_RCVBUF_LOCK &&
+	    (req->window_clamp > full_space || req->window_clamp == 0))
+		req->window_clamp = full_space;
 
 	/* tcp_full_space because it is guaranteed to be the first packet */
-	tcp_select_initial_window(tcp_full_space(sk),
+	tcp_select_initial_window(full_space,
 		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
 		&req->rcv_wnd,
 		&req->window_clamp,

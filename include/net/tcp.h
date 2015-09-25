@@ -1207,7 +1207,8 @@ static inline int tcp_full_space(const struct sock *sk)
 }
 
 extern void tcp_openreq_init_rwin(struct request_sock *req,
-				  struct sock *sk, struct dst_entry *dst);
+				  const struct sock *sk_listener,
+				  const struct dst_entry *dst);
 
 void tcp_enter_memory_pressure(struct sock *sk);
 
