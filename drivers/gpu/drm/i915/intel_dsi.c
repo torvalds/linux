@@ -698,7 +698,7 @@ static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
 }
 
 static void set_dsi_timings(struct drm_encoder *encoder,
-			    const struct drm_display_mode *mode)
+			    const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -710,10 +710,10 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 
 	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
 
-	hactive = mode->hdisplay;
-	hfp = mode->hsync_start - mode->hdisplay;
-	hsync = mode->hsync_end - mode->hsync_start;
-	hbp = mode->htotal - mode->hsync_end;
+	hactive = adjusted_mode->hdisplay;
+	hfp = adjusted_mode->hsync_start - adjusted_mode->hdisplay;
+	hsync = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
+	hbp = adjusted_mode->htotal - adjusted_mode->hsync_end;
 
 	if (intel_dsi->dual_link) {
 		hactive /= 2;
@@ -724,9 +724,9 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 		hbp /= 2;
 	}
 
-	vfp = mode->vsync_start - mode->vdisplay;
-	vsync = mode->vsync_end - mode->vsync_start;
-	vbp = mode->vtotal - mode->vsync_end;
+	vfp = adjusted_mode->vsync_start - adjusted_mode->vdisplay;
+	vsync = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
+	vbp = adjusted_mode->vtotal - adjusted_mode->vsync_end;
 
 	/* horizontal values are in terms of high speed byte clock */
 	hactive = txbyteclkhs(hactive, bpp, lane_count,
@@ -745,11 +745,11 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 			 * whereas these values should be based on resolution.
 			 */
 			I915_WRITE(BXT_MIPI_TRANS_HACTIVE(port),
-					mode->hdisplay);
+				   adjusted_mode->hdisplay);
 			I915_WRITE(BXT_MIPI_TRANS_VACTIVE(port),
-					mode->vdisplay);
+				   adjusted_mode->vdisplay);
 			I915_WRITE(BXT_MIPI_TRANS_VTOTAL(port),
-					mode->vtotal);
+				   adjusted_mode->vtotal);
 		}
 
 		I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);

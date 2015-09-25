@@ -172,46 +172,46 @@ done:
 }
 
 static void
-centre_horizontally(struct drm_display_mode *mode,
+centre_horizontally(struct drm_display_mode *adjusted_mode,
 		    int width)
 {
 	u32 border, sync_pos, blank_width, sync_width;
 
 	/* keep the hsync and hblank widths constant */
-	sync_width = mode->crtc_hsync_end - mode->crtc_hsync_start;
-	blank_width = mode->crtc_hblank_end - mode->crtc_hblank_start;
+	sync_width = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
+	blank_width = adjusted_mode->crtc_hblank_end - adjusted_mode->crtc_hblank_start;
 	sync_pos = (blank_width - sync_width + 1) / 2;
 
-	border = (mode->hdisplay - width + 1) / 2;
+	border = (adjusted_mode->hdisplay - width + 1) / 2;
 	border += border & 1; /* make the border even */
 
-	mode->crtc_hdisplay = width;
-	mode->crtc_hblank_start = width + border;
-	mode->crtc_hblank_end = mode->crtc_hblank_start + blank_width;
+	adjusted_mode->crtc_hdisplay = width;
+	adjusted_mode->crtc_hblank_start = width + border;
+	adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_hblank_start + blank_width;
 
-	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
-	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
+	adjusted_mode->crtc_hsync_start = adjusted_mode->crtc_hblank_start + sync_pos;
+	adjusted_mode->crtc_hsync_end = adjusted_mode->crtc_hsync_start + sync_width;
 }
 
 static void
-centre_vertically(struct drm_display_mode *mode,
+centre_vertically(struct drm_display_mode *adjusted_mode,
 		  int height)
 {
 	u32 border, sync_pos, blank_width, sync_width;
 
 	/* keep the vsync and vblank widths constant */
-	sync_width = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	blank_width = mode->crtc_vblank_end - mode->crtc_vblank_start;
+	sync_width = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
+	blank_width = adjusted_mode->crtc_vblank_end - adjusted_mode->crtc_vblank_start;
 	sync_pos = (blank_width - sync_width + 1) / 2;
 
-	border = (mode->vdisplay - height + 1) / 2;
+	border = (adjusted_mode->vdisplay - height + 1) / 2;
 
-	mode->crtc_vdisplay = height;
-	mode->crtc_vblank_start = height + border;
-	mode->crtc_vblank_end = mode->crtc_vblank_start + blank_width;
+	adjusted_mode->crtc_vdisplay = height;
+	adjusted_mode->crtc_vblank_start = height + border;
+	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vblank_start + blank_width;
 
-	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
-	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
+	adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vblank_start + sync_pos;
+	adjusted_mode->crtc_vsync_end = adjusted_mode->crtc_vsync_start + sync_width;
 }
 
 static inline u32 panel_fitter_scaling(u32 source, u32 target)

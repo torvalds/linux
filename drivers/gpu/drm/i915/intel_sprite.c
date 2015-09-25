@@ -53,13 +53,15 @@ format_is_yuv(uint32_t format)
 	}
 }
 
-static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
+static int usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
+			      int usecs)
 {
 	/* paranoia */
-	if (!mode->crtc_htotal)
+	if (!adjusted_mode->crtc_htotal)
 		return 1;
 
-	return DIV_ROUND_UP(usecs * mode->crtc_clock, 1000 * mode->crtc_htotal);
+	return DIV_ROUND_UP(usecs * adjusted_mode->crtc_clock,
+			    1000 * adjusted_mode->crtc_htotal);
 }
 
 /**
