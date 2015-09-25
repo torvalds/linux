@@ -279,9 +279,6 @@ typedef struct {
 struct Ack_session_info *Free_head;
 struct Ack_session_info *Alloc_head;
 
-#define TCP_FIN_MASK		(1 << 0)
-#define TCP_SYN_MASK		(1 << 1)
-#define TCP_Ack_MASK		(1 << 4)
 #define NOT_TCP_ACK			(-1)
 
 #define MAX_TCP_SESSION		25
