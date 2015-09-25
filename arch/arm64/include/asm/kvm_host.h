@@ -149,8 +149,8 @@ struct kvm_vcpu_arch {
 		u32	mdscr_el1;
 	} guest_debug_preserved;
 
-	/* Don't run the guest */
-	bool pause;
+	/* vcpu power-off state */
+	bool power_off;
 
 	/* IO related fields */
 	struct kvm_decode mmio_decode;
