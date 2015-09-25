@@ -93,7 +93,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 	}
 }
 
-static int nf_ip6_reroute(struct sk_buff *skb,
+static int nf_ip6_reroute(struct net *net, struct sk_buff *skb,
 			  const struct nf_queue_entry *entry)
 {
 	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
