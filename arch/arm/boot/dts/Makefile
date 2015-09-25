@@ -446,6 +446,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-base0033.dtb \
 	am335x-bone.dtb \
 	am335x-boneblack.dtb \
+	am335x-bonegreen.dtb \
 	am335x-sl50.dtb \
 	am335x-evm.dtb \
 	am335x-evmsk.dtb \
