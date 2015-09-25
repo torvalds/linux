@@ -72,8 +72,6 @@
  * As far as I can tell, the About interrupt doesn't work if Sample is
  * also enabled. It turns out that About really isn't needed, since
  * we always count down samples read.
- *
- * There was some timer/counter code, but it didn't follow the right API.
  */
 
 /*
@@ -99,6 +97,7 @@
 
 #include "../comedi_pci.h"
 
+#include "comedi_8254.h"
 #include "plx9080.h"
 
 /*
@@ -148,10 +147,7 @@
 #define LAS0_DCNT		0x0054	/* Delay counter (16 bit) */
 #define LAS0_ACNT		0x0058	/* About counter (16 bit) */
 #define LAS0_DAC_CLK		0x005c	/* DAC clock (16bit) */
-#define LAS0_UTC0		0x0060	/* 8254 TC Counter 0 */
-#define LAS0_UTC1		0x0064	/* 8254 TC Counter 1 */
-#define LAS0_UTC2		0x0068	/* 8254 TC Counter 2 */
-#define LAS0_UTC_CTRL		0x006c	/* 8254 TC Control */
+#define LAS0_8254_TIMER_BASE	0x0060	/* 8254 timer/counter base */
 #define LAS0_DIO0		0x0070	/* Digital I/O Port 0 */
 #define LAS0_DIO1		0x0074	/* Digital I/O Port 1 */
 #define LAS0_DIO0_CTRL		0x0078	/* Digital I/O Control */
@@ -191,12 +187,8 @@
 #define LAS0_SBUS2_ENABLE	0x019c	/* SyncBus 2 enable */
 #define LAS0_ETRG_POLARITY	0x01a4	/* Ext. Trigger polarity select */
 #define LAS0_EINT_POLARITY	0x01a8	/* Ext. Interrupt polarity select */
-#define LAS0_UTC0_CLOCK		0x01ac	/* UTC0 Clock select */
-#define LAS0_UTC0_GATE		0x01b0	/* UTC0 Gate select */
-#define LAS0_UTC1_CLOCK		0x01b4	/* UTC1 Clock select */
-#define LAS0_UTC1_GATE		0x01b8	/* UTC1 Gate select */
-#define LAS0_UTC2_CLOCK		0x01bc	/* UTC2 Clock select */
-#define LAS0_UTC2_GATE		0x01c0	/* UTC2 Gate select */
+#define LAS0_8254_CLK_SEL(x)	(0x01ac + ((x) * 0x8))	/* 8254 clock select */
+#define LAS0_8254_GATE_SEL(x)	(0x01b0 + ((x) * 0x8))	/* 8254 gate select */
 #define LAS0_UOUT0_SELECT	0x01c4	/* User Output 0 source select */
 #define LAS0_UOUT1_SELECT	0x01c8	/* User Output 1 source select */
 #define LAS0_DMA0_RESET		0x01cc	/* DMA0 Request state machine reset */
@@ -371,6 +363,10 @@ struct rtd_private {
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 	unsigned fifosz;
+
+	/* 8254 Timer/Counter gate and clock sources */
+	unsigned char timer_gate_src[3];
+	unsigned char timer_clk_src[3];
 };
 
 /* bit defines for "flags" */
@@ -1099,6 +1095,81 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int rtd_counter_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	struct rtd_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int max_src;
+	unsigned int src;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SET_GATE_SRC:
+		/*
+		 * 8254 Timer/Counter gate sources:
+		 *
+		 * 0 = Not gated, free running (reset state)
+		 * 1 = Gated, off
+		 * 2 = Ext. TC Gate 1
+		 * 3 = Ext. TC Gate 2
+		 * 4 = Previous TC out (chan 1 and 2 only)
+		 */
+		src = data[2];
+		max_src = (chan == 0) ? 3 : 4;
+		if (src > max_src)
+			return -EINVAL;
+
+		devpriv->timer_gate_src[chan] = src;
+		writeb(src, dev->mmio + LAS0_8254_GATE_SEL(chan));
+		break;
+	case INSN_CONFIG_GET_GATE_SRC:
+		data[2] = devpriv->timer_gate_src[chan];
+		break;
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		/*
+		 * 8254 Timer/Counter clock sources:
+		 *
+		 * 0 = 8 MHz (reset state)
+		 * 1 = Ext. TC Clock 1
+		 * 2 = Ext. TX Clock 2
+		 * 3 = Ext. Pacer Clock
+		 * 4 = Previous TC out (chan 1 and 2 only)
+		 * 5 = High-Speed Digital Input Sampling signal (chan 1 only)
+		 */
+		src = data[1];
+		switch (chan) {
+		case 0:
+			max_src = 3;
+			break;
+		case 1:
+			max_src = 5;
+			break;
+		case 2:
+			max_src = 4;
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (src > max_src)
+			return -EINVAL;
+
+		devpriv->timer_clk_src[chan] = src;
+		writeb(src, dev->mmio + LAS0_8254_CLK_SEL(chan));
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		src = devpriv->timer_clk_src[chan];
+		data[1] = devpriv->timer_clk_src[chan];
+		data[2] = (src == 0) ? RTD_CLOCK_BASE : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static void rtd_reset(struct comedi_device *dev)
 {
 	struct rtd_private *devpriv = dev->private;
@@ -1126,10 +1197,6 @@ static void rtd_init_board(struct comedi_device *dev)
 	writel(0, dev->mmio + LAS0_DAC_RESET(1));
 	/* clear digital IO fifo */
 	writew(0, dev->mmio + LAS0_DIO_STATUS);
-	writeb((0 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
-	writeb((1 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
-	writeb((2 << 6) | 0x30, dev->mmio + LAS0_UTC_CTRL);
-	writeb((3 << 6) | 0x00, dev->mmio + LAS0_UTC_CTRL);
 	/* TODO: set user out source ??? */
 }
 
@@ -1232,12 +1299,15 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	s->insn_bits	= rtd_dio_insn_bits;
 	s->insn_config	= rtd_dio_insn_config;
 
-	/* timer/counter subdevices (not currently supported) */
+	/* 8254 Timer/Counter subdevice */
 	s = &dev->subdevices[3];
-	s->type		= COMEDI_SUBD_COUNTER;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 3;
-	s->maxdata	= 0xffff;
+	dev->pacer = comedi_8254_mm_init(dev->mmio + LAS0_8254_TIMER_BASE,
+					 RTD_CLOCK_BASE, I8254_IO8, 2);
+	if (!dev->pacer)
+		return -ENOMEM;
+
+	comedi_8254_subdevice_init(s, dev->pacer);
+	dev->pacer->insn_config = rtd_counter_insn_config;
 
 	rtd_init_board(dev);
 

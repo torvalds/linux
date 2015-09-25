@@ -1064,6 +1064,7 @@ config COMEDI_NI_PCIMIO
 
 config COMEDI_RTD520
 	tristate "Real Time Devices PCI4520/DM7520 support"
+	select COMEDI_8254
 	---help---
 	  Enable support for Real Time Devices PCI4520/DM7520
 
