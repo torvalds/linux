@@ -165,6 +165,13 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	__perf_evlist__propagate_maps(evlist, entry);
 }
 
+void perf_evlist__remove(struct perf_evlist *evlist, struct perf_evsel *evsel)
+{
+	evsel->evlist = NULL;
+	list_del_init(&evsel->node);
+	evlist->nr_entries -= 1;
+}
+
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list)
 {
