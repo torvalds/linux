@@ -46,8 +46,6 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_mixer.h"
 
-#define ctx_from_connector(c)	container_of(c, struct hdmi_context, connector)
-
 #define HOTPLUG_DEBOUNCE_MS		1100
 
 /* AVI header and aspect ratio */
@@ -126,6 +124,11 @@ struct hdmi_context {
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
 {
 	return container_of(e, struct hdmi_context, encoder);
+}
+
+static inline struct hdmi_context *connector_to_hdmi(struct drm_connector *c)
+{
+	return container_of(c, struct hdmi_context, connector);
 }
 
 struct hdmiphy_config {
@@ -935,7 +938,7 @@ static void hdmi_reg_infoframe(struct hdmi_context *hdata,
 static enum drm_connector_status hdmi_detect(struct drm_connector *connector,
 				bool force)
 {
-	struct hdmi_context *hdata = ctx_from_connector(connector);
+	struct hdmi_context *hdata = connector_to_hdmi(connector);
 
 	if (gpiod_get_value(hdata->hpd_gpio))
 		return connector_status_connected;
@@ -961,7 +964,7 @@ static struct drm_connector_funcs hdmi_connector_funcs = {
 
 static int hdmi_get_modes(struct drm_connector *connector)
 {
-	struct hdmi_context *hdata = ctx_from_connector(connector);
+	struct hdmi_context *hdata = connector_to_hdmi(connector);
 	struct edid *edid;
 	int ret;
 
@@ -1001,7 +1004,7 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 static int hdmi_mode_valid(struct drm_connector *connector,
 			struct drm_display_mode *mode)
 {
-	struct hdmi_context *hdata = ctx_from_connector(connector);
+	struct hdmi_context *hdata = connector_to_hdmi(connector);
 	int ret;
 
 	DRM_DEBUG_KMS("xres=%d, yres=%d, refresh=%d, intl=%d clock=%d\n",
@@ -1022,7 +1025,7 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 
 static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
 {
-	struct hdmi_context *hdata = ctx_from_connector(connector);
+	struct hdmi_context *hdata = connector_to_hdmi(connector);
 
 	return &hdata->encoder;
 }
