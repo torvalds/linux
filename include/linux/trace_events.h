@@ -168,10 +168,12 @@ struct ring_buffer_event *
 trace_current_buffer_lock_reserve(struct ring_buffer **current_buffer,
 				  int type, unsigned long len,
 				  unsigned long flags, int pc);
-void trace_buffer_unlock_commit(struct ring_buffer *buffer,
+void trace_buffer_unlock_commit(struct trace_array *tr,
+				struct ring_buffer *buffer,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc);
-void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
+void trace_buffer_unlock_commit_regs(struct trace_array *tr,
+				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
 				     unsigned long flags, int pc,
 				     struct pt_regs *regs);
@@ -505,7 +507,7 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 	enum event_trigger_type tt = ETT_NONE;
 
 	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
-		trace_buffer_unlock_commit(buffer, event, irq_flags, pc);
+		trace_buffer_unlock_commit(file->tr, buffer, event, irq_flags, pc);
 
 	if (tt)
 		event_triggers_post_call(file, tt);
@@ -537,7 +539,7 @@ event_trigger_unlock_commit_regs(struct trace_event_file *file,
 	enum event_trigger_type tt = ETT_NONE;
 
 	if (!__event_trigger_test_discard(file, buffer, event, entry, &tt))
-		trace_buffer_unlock_commit_regs(buffer, event,
+		trace_buffer_unlock_commit_regs(file->tr, buffer, event,
 						irq_flags, pc, regs);
 
 	if (tt)

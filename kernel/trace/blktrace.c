@@ -103,7 +103,7 @@ record_it:
 		memcpy((void *) t + sizeof(*t), data, len);
 
 		if (blk_tracer)
-			trace_buffer_unlock_commit(buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
 	}
 }
 
@@ -278,7 +278,7 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tracer) {
-			trace_buffer_unlock_commit(buffer, event, 0, pc);
+			trace_buffer_unlock_commit(blk_tr, buffer, event, 0, pc);
 			return;
 		}
 	}

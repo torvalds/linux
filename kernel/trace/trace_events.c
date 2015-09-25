@@ -2891,7 +2891,9 @@ static __init void event_trace_self_tests(void)
 
 static DEFINE_PER_CPU(atomic_t, ftrace_test_event_disable);
 
-static void
+static struct trace_array *event_tr;
+
+static void __init
 function_test_events_call(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
@@ -2922,7 +2924,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip,
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 
-	trace_buffer_unlock_commit(buffer, event, flags, pc);
+	trace_buffer_unlock_commit(event_tr, buffer, event, flags, pc);
 
  out:
 	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));
@@ -2944,6 +2946,9 @@ static __init void event_trace_self_test_with_function(void)
 		return;
 	}
 	pr_info("Running tests again, along with the function tracer\n");
+	event_tr = top_trace_array();
+	if (WARN_ON(!event_tr))
+		return;
 	event_trace_self_tests();
 	unregister_ftrace_function(&trace_ops);
 }

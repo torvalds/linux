@@ -388,7 +388,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_cpu	= task_cpu(next);
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, flags, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, flags, pc);
 }
 
 static void
@@ -416,7 +416,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_cpu			= task_cpu(wakee);
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, flags, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, flags, pc);
 }
 
 static void notrace

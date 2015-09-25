@@ -1683,22 +1683,15 @@ __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *eve
 	ring_buffer_unlock_commit(buffer, event);
 }
 
-static inline void
-__trace_buffer_unlock_commit(struct ring_buffer *buffer,
-			     struct ring_buffer_event *event,
-			     unsigned long flags, int pc)
+void trace_buffer_unlock_commit(struct trace_array *tr,
+				struct ring_buffer *buffer,
+				struct ring_buffer_event *event,
+				unsigned long flags, int pc)
 {
 	__buffer_unlock_commit(buffer, event);
 
 	ftrace_trace_stack(buffer, flags, 6, pc);
 	ftrace_trace_userstack(buffer, flags, pc);
-}
-
-void trace_buffer_unlock_commit(struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc)
-{
-	__trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
@@ -1741,7 +1734,8 @@ trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
 }
 EXPORT_SYMBOL_GPL(trace_current_buffer_lock_reserve);
 
-void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
+void trace_buffer_unlock_commit_regs(struct trace_array *tr,
+				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
 				     unsigned long flags, int pc,
 				     struct pt_regs *regs)
