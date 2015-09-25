@@ -814,6 +814,14 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
+	/* Use Force Non-Coherent whenever executing a 3D context. This is a
+	 * workaround for for a possible hang in the unlikely event a TLB
+	 * invalidation occurs during a PSD flush.
+	 */
+	/* WaForceEnableNonCoherent:bdw,chv */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_NON_COHERENT);
+
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
 	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
 	 *  polygons in the same 8x4 pixel/sample area to be processed without
@@ -862,13 +870,7 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN8_SAMPLER_POWER_BYPASS_DIS);
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for for a possible hang in the unlikely event a TLB
-	 * invalidation occurs during a PSD flush.
-	 */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  /* WaForceEnableNonCoherent:bdw */
-			  HDC_FORCE_NON_COHERENT |
 			  /* WaForceContextSaveRestoreNonCoherent:bdw */
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
 			  /* WaHdcDisableFetchWhenMasked:bdw */
@@ -892,14 +894,8 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisableThreadStallDopClockGating:chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, STALL_DOP_GATING_DISABLE);
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for a possible hang in the unlikely event a TLB
-	 * invalidation occurs during a PSD flush.
-	 */
-	/* WaForceEnableNonCoherent:chv */
 	/* WaHdcDisableFetchWhenMasked:chv */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  HDC_FORCE_NON_COHERENT |
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
 
 	/* Improve HiZ throughput on CHV. */
