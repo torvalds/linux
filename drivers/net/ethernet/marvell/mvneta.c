@@ -478,7 +478,7 @@ struct mvneta_rx_queue {
 /* The hardware supports eight (8) rx queues, but we are only allowing
  * the first one to be used. Therefore, let's just allocate one queue.
  */
-static int rxq_number = 1;
+static int rxq_number = 8;
 static int txq_number = 8;
 
 static int rxq_def;
@@ -766,14 +766,7 @@ static void mvneta_port_up(struct mvneta_port *pp)
 	mvreg_write(pp, MVNETA_TXQ_CMD, q_map);
 
 	/* Enable all initialized RXQs. */
-	q_map = 0;
-	for (queue = 0; queue < rxq_number; queue++) {
-		struct mvneta_rx_queue *rxq = &pp->rxqs[queue];
-		if (rxq->descs != NULL)
-			q_map |= (1 << queue);
-	}
-
-	mvreg_write(pp, MVNETA_RXQ_CMD, q_map);
+	mvreg_write(pp, MVNETA_RXQ_CMD, BIT(rxq_def));
 }
 
 /* Stop the Ethernet port activity */
@@ -1434,17 +1427,6 @@ static u32 mvneta_skb_tx_csum(struct mvneta_port *pp, struct sk_buff *skb)
 	}
 
 	return MVNETA_TX_L4_CSUM_NOT;
-}
-
-/* Returns rx queue pointer (find last set bit) according to causeRxTx
- * value
- */
-static struct mvneta_rx_queue *mvneta_rx_policy(struct mvneta_port *pp,
-						u32 cause)
-{
-	int queue = fls(cause >> 8) - 1;
-
-	return (queue < 0 || queue >= rxq_number) ? NULL : &pp->rxqs[queue];
 }
 
 /* Drop packets received by the RXQ and free buffers */
@@ -2146,33 +2128,8 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	 * RX packets
 	 */
 	cause_rx_tx |= port->cause_rx_tx;
-	if (rxq_number > 1) {
-		while ((cause_rx_tx & MVNETA_RX_INTR_MASK_ALL) && (budget > 0)) {
-			int count;
-			struct mvneta_rx_queue *rxq;
-			/* get rx queue number from cause_rx_tx */
-			rxq = mvneta_rx_policy(pp, cause_rx_tx);
-			if (!rxq)
-				break;
-
-			/* process the packet in that rx queue */
-			count = mvneta_rx(pp, budget, rxq);
-			rx_done += count;
-			budget -= count;
-			if (budget > 0) {
-				/* set off the rx bit of the
-				 * corresponding bit in the cause rx
-				 * tx register, so that next iteration
-				 * will find the next rx queue where
-				 * packets are received on
-				 */
-				cause_rx_tx &= ~((1 << rxq->id) << 8);
-			}
-		}
-	} else {
-		rx_done = mvneta_rx(pp, budget, &pp->rxqs[rxq_def]);
-		budget -= rx_done;
-	}
+	rx_done = mvneta_rx(pp, budget, &pp->rxqs[rxq_def]);
+	budget -= rx_done;
 
 	if (budget > 0) {
 		cause_rx_tx = 0;
@@ -2384,26 +2341,19 @@ static void mvneta_cleanup_txqs(struct mvneta_port *pp)
 /* Cleanup all Rx queues */
 static void mvneta_cleanup_rxqs(struct mvneta_port *pp)
 {
-	int queue;
-
-	for (queue = 0; queue < rxq_number; queue++)
-		mvneta_rxq_deinit(pp, &pp->rxqs[queue]);
+	mvneta_rxq_deinit(pp, &pp->rxqs[rxq_def]);
 }
 
 
 /* Init all Rx queues */
 static int mvneta_setup_rxqs(struct mvneta_port *pp)
 {
-	int queue;
-
-	for (queue = 0; queue < rxq_number; queue++) {
-		int err = mvneta_rxq_init(pp, &pp->rxqs[queue]);
-		if (err) {
-			netdev_err(pp->dev, "%s: can't create rxq=%d\n",
-				   __func__, queue);
-			mvneta_cleanup_rxqs(pp);
-			return err;
-		}
+	int err = mvneta_rxq_init(pp, &pp->rxqs[rxq_def]);
+	if (err) {
+		netdev_err(pp->dev, "%s: can't create rxq=%d\n",
+			   __func__, rxq_def);
+		mvneta_cleanup_rxqs(pp);
+		return err;
 	}
 
 	return 0;
@@ -3050,14 +3000,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	int phy_mode;
 	int err;
 	int cpu;
-
-	/* Our multiqueue support is not complete, so for now, only
-	 * allow the usage of the first RX queue
-	 */
-	if (rxq_def != 0) {
-		dev_err(&pdev->dev, "Invalid rxq_def argument: %d\n", rxq_def);
-		return -EINVAL;
-	}
 
 	dev = alloc_etherdev_mqs(sizeof(struct mvneta_port), txq_number, rxq_number);
 	if (!dev)
