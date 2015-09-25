@@ -468,6 +468,18 @@ static inline void trace_access_lock_init(void)
 
 #endif
 
+#ifdef CONFIG_STACKTRACE
+static void __ftrace_trace_stack(struct ring_buffer *buffer,
+				 unsigned long flags,
+				 int skip, int pc, struct pt_regs *regs);
+#else
+static inline void __ftrace_trace_stack(struct ring_buffer *buffer,
+					unsigned long flags,
+					int skip, int pc, struct pt_regs *regs)
+{
+}
+#endif
+
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO | TRACE_ITER_SLEEP_TIME |
@@ -1744,7 +1756,8 @@ void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
 {
 	__buffer_unlock_commit(buffer, event);
 
-	ftrace_trace_stack_regs(buffer, flags, 0, pc, regs);
+	if (trace_flags & TRACE_ITER_STACKTRACE)
+		__ftrace_trace_stack(buffer, flags, 0, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
@@ -1871,15 +1884,6 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 	__this_cpu_dec(ftrace_stack_reserve);
 	preempt_enable_notrace();
 
-}
-
-void ftrace_trace_stack_regs(struct ring_buffer *buffer, unsigned long flags,
-			     int skip, int pc, struct pt_regs *regs)
-{
-	if (!(trace_flags & TRACE_ITER_STACKTRACE))
-		return;
-
-	__ftrace_trace_stack(buffer, flags, skip, pc, regs);
 }
 
 void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
