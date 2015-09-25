@@ -809,6 +809,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 
+	if (itrace_synth_opts.callchain &&
+	    (int)itrace_synth_opts.callchain_sz > report.max_stack)
+		report.max_stack = itrace_synth_opts.callchain_sz;
+
 	if (!input_name || !strlen(input_name)) {
 		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
 			input_name = "-";
