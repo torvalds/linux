@@ -52,3 +52,11 @@ config QCOM_SMD_RPM
 
 config QCOM_SMEM_STATE
 	bool
+
+config QCOM_SMSM
+	bool "Qualcomm Shared Memory State Machine"
+	depends on QCOM_SMEM
+	select QCOM_SMEM_STATE
+	help
+	  Say yes here to support the Qualcomm Shared Memory State Machine.
+	  The state machine is represented by bits in shared memory.
