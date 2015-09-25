@@ -352,7 +352,7 @@ struct rtd_boardinfo {
 	const struct comedi_lrange *ai_range;
 };
 
-static const struct rtd_boardinfo rtd520Boards[] = {
+static const struct rtd_boardinfo rtd520_boards[] = {
 	[BOARD_DM7520] = {
 		.name		= "DM7520",
 		.range_bip10	= 6,
@@ -1195,8 +1195,8 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	if (context < ARRAY_SIZE(rtd520Boards))
-		board = &rtd520Boards[context];
+	if (context < ARRAY_SIZE(rtd520_boards))
+		board = &rtd520_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
