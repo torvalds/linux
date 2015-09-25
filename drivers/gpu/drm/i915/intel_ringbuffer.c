@@ -802,6 +802,10 @@ static int wa_add(struct drm_i915_private *dev_priv,
 
 static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	return 0;
 }
@@ -815,8 +819,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen8_init_workarounds(ring);
 	if (ret)
 		return ret;
-
-	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:bdw */
 	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
@@ -886,8 +888,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen8_init_workarounds(ring);
 	if (ret)
 		return ret;
-
-	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
 	/* WaDisableAsyncFlipPerfMode:chv */
 	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
