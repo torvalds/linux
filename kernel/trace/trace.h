@@ -156,6 +156,8 @@ struct trace_array_cpu {
 	pid_t			pid;
 	kuid_t			uid;
 	char			comm[TASK_COMM_LEN];
+
+	bool			ignore_pid;
 };
 
 struct tracer;

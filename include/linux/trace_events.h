@@ -328,6 +328,7 @@ enum {
 	EVENT_FILE_FL_SOFT_DISABLED_BIT,
 	EVENT_FILE_FL_TRIGGER_MODE_BIT,
 	EVENT_FILE_FL_TRIGGER_COND_BIT,
+	EVENT_FILE_FL_PID_FILTER_BIT,
 };
 
 /*
@@ -341,6 +342,7 @@ enum {
  *                   tracepoint may be enabled)
  *  TRIGGER_MODE  - When set, invoke the triggers associated with the event
  *  TRIGGER_COND  - When set, one or more triggers has an associated filter
+ *  PID_FILTER    - When set, the event is filtered based on pid
  */
 enum {
 	EVENT_FILE_FL_ENABLED		= (1 << EVENT_FILE_FL_ENABLED_BIT),
@@ -351,6 +353,7 @@ enum {
 	EVENT_FILE_FL_SOFT_DISABLED	= (1 << EVENT_FILE_FL_SOFT_DISABLED_BIT),
 	EVENT_FILE_FL_TRIGGER_MODE	= (1 << EVENT_FILE_FL_TRIGGER_MODE_BIT),
 	EVENT_FILE_FL_TRIGGER_COND	= (1 << EVENT_FILE_FL_TRIGGER_COND_BIT),
+	EVENT_FILE_FL_PID_FILTER	= (1 << EVENT_FILE_FL_PID_FILTER_BIT),
 };
 
 struct trace_event_file {
@@ -429,6 +432,8 @@ extern enum event_trigger_type event_triggers_call(struct trace_event_file *file
 extern void event_triggers_post_call(struct trace_event_file *file,
 				     enum event_trigger_type tt);
 
+bool trace_event_ignore_this_pid(struct trace_event_file *trace_file);
+
 /**
  * trace_trigger_soft_disabled - do triggers and test if soft disabled
  * @file: The file pointer of the event to test
@@ -448,6 +453,8 @@ trace_trigger_soft_disabled(struct trace_event_file *file)
 			event_triggers_call(file, NULL);
 		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 			return true;
+		if (eflags & EVENT_FILE_FL_PID_FILTER)
+			return trace_event_ignore_this_pid(file);
 	}
 	return false;
 }

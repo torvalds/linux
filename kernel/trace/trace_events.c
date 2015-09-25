@@ -22,6 +22,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
+#include <trace/events/sched.h>
+
 #include <asm/setup.h>
 
 #include "trace_output.h"
@@ -212,11 +214,31 @@ int trace_event_raw_init(struct trace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
+bool trace_event_ignore_this_pid(struct trace_event_file *trace_file)
+{
+	struct trace_array *tr = trace_file->tr;
+	struct trace_array_cpu *data;
+	struct trace_pid_list *pid_list;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+	if (!pid_list)
+		return false;
+
+	data = this_cpu_ptr(tr->trace_buffer.data);
+
+	return data->ignore_pid;
+}
+EXPORT_SYMBOL_GPL(trace_event_ignore_this_pid);
+
 void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 				 struct trace_event_file *trace_file,
 				 unsigned long len)
 {
 	struct trace_event_call *event_call = trace_file->event_call;
+
+	if ((trace_file->flags & EVENT_FILE_FL_PID_FILTER) &&
+	    trace_event_ignore_this_pid(trace_file))
+		return NULL;
 
 	local_save_flags(fbuffer->flags);
 	fbuffer->pc = preempt_count();
@@ -459,14 +481,113 @@ static int cmp_pid(const void *key, const void *elt)
 	return 1;
 }
 
+static bool
+check_ignore_pid(struct trace_pid_list *filtered_pids, struct task_struct *task)
+{
+	pid_t search_pid;
+	pid_t *pid;
+
+	/*
+	 * Return false, because if filtered_pids does not exist,
+	 * all pids are good to trace.
+	 */
+	if (!filtered_pids)
+		return false;
+
+	search_pid = task->pid;
+
+	pid = bsearch(&search_pid, filtered_pids->pids,
+		      filtered_pids->nr_pids, sizeof(pid_t),
+		      cmp_pid);
+	if (!pid)
+		return true;
+
+	return false;
+}
+
+static void
+event_filter_pid_sched_switch_probe_pre(void *data,
+		    struct task_struct *prev, struct task_struct *next)
+{
+	struct trace_array *tr = data;
+	struct trace_pid_list *pid_list;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	this_cpu_write(tr->trace_buffer.data->ignore_pid,
+		       check_ignore_pid(pid_list, prev) &&
+		       check_ignore_pid(pid_list, next));
+}
+
+static void
+event_filter_pid_sched_switch_probe_post(void *data,
+		    struct task_struct *prev, struct task_struct *next)
+{
+	struct trace_array *tr = data;
+	struct trace_pid_list *pid_list;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	this_cpu_write(tr->trace_buffer.data->ignore_pid,
+		       check_ignore_pid(pid_list, next));
+}
+
+static void
+event_filter_pid_sched_wakeup_probe_pre(void *data, struct task_struct *task)
+{
+	struct trace_array *tr = data;
+	struct trace_pid_list *pid_list;
+
+	/* Nothing to do if we are already tracing */
+	if (!this_cpu_read(tr->trace_buffer.data->ignore_pid))
+		return;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	this_cpu_write(tr->trace_buffer.data->ignore_pid,
+		       check_ignore_pid(pid_list, task));
+}
+
+static void
+event_filter_pid_sched_wakeup_probe_post(void *data, struct task_struct *task)
+{
+	struct trace_array *tr = data;
+	struct trace_pid_list *pid_list;
+
+	/* Nothing to do if we are not tracing */
+	if (this_cpu_read(tr->trace_buffer.data->ignore_pid))
+		return;
+
+	pid_list = rcu_dereference_sched(tr->filtered_pids);
+
+	/* Set tracing if current is enabled */
+	this_cpu_write(tr->trace_buffer.data->ignore_pid,
+		       check_ignore_pid(pid_list, current));
+}
+
 static void __ftrace_clear_event_pids(struct trace_array *tr)
 {
 	struct trace_pid_list *pid_list;
+	struct trace_event_file *file;
+	int cpu;
 
 	pid_list = rcu_dereference_protected(tr->filtered_pids,
 					     lockdep_is_held(&event_mutex));
 	if (!pid_list)
 		return;
+
+	unregister_trace_sched_switch(event_filter_pid_sched_switch_probe_pre, tr);
+	unregister_trace_sched_switch(event_filter_pid_sched_switch_probe_post, tr);
+
+	unregister_trace_sched_wakeup(event_filter_pid_sched_wakeup_probe_pre, tr);
+	unregister_trace_sched_wakeup(event_filter_pid_sched_wakeup_probe_post, tr);
+
+	list_for_each_entry(file, &tr->events, list) {
+		clear_bit(EVENT_FILE_FL_PID_FILTER_BIT, &file->flags);
+	}
+
+	for_each_possible_cpu(cpu)
+		per_cpu_ptr(tr->trace_buffer.data, cpu)->ignore_pid = false;
 
 	rcu_assign_pointer(tr->filtered_pids, NULL);
 
@@ -1429,13 +1550,14 @@ static int max_pids(struct trace_pid_list *pid_list)
 }
 
 static ssize_t
-ftrace_event_pid_write(struct file *file, const char __user *ubuf,
+ftrace_event_pid_write(struct file *filp, const char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
-	struct seq_file *m = file->private_data;
+	struct seq_file *m = filp->private_data;
 	struct trace_array *tr = m->private;
 	struct trace_pid_list *filtered_pids = NULL;
 	struct trace_pid_list *pid_list = NULL;
+	struct trace_event_file *file;
 	struct trace_parser parser;
 	unsigned long val;
 	loff_t this_pos;
@@ -1564,14 +1686,34 @@ ftrace_event_pid_write(struct file *file, const char __user *ubuf,
 
 	rcu_assign_pointer(tr->filtered_pids, pid_list);
 
-	mutex_unlock(&event_mutex);
+	list_for_each_entry(file, &tr->events, list) {
+		set_bit(EVENT_FILE_FL_PID_FILTER_BIT, &file->flags);
+	}
 
 	if (filtered_pids) {
 		synchronize_sched();
 
 		free_pages((unsigned long)filtered_pids->pids, filtered_pids->order);
 		kfree(filtered_pids);
+	} else {
+		/*
+		 * Register a probe that is called before all other probes
+		 * to set ignore_pid if next or prev do not match.
+		 * Register a probe this is called after all other probes
+		 * to only keep ignore_pid set if next pid matches.
+		 */
+		register_trace_prio_sched_switch(event_filter_pid_sched_switch_probe_pre,
+						 tr, INT_MAX);
+		register_trace_prio_sched_switch(event_filter_pid_sched_switch_probe_post,
+						 tr, 0);
+
+		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_pre,
+						 tr, INT_MAX);
+		register_trace_prio_sched_wakeup(event_filter_pid_sched_wakeup_probe_post,
+						 tr, 0);
 	}
+
+	mutex_unlock(&event_mutex);
 
 	ret = read;
 	*ppos += read;
