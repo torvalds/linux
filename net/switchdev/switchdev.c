@@ -1,6 +1,6 @@
 /*
  * net/switchdev/switchdev.c - Switch device API
- * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2015 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,81 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/list.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
+
+/**
+ *	switchdev_trans_item_enqueue - Enqueue data item to transaction queue
+ *
+ *	@trans: transaction
+ *	@data: pointer to data being queued
+ *	@destructor: data destructor
+ *	@tritem: transaction item being queued
+ *
+ *	Enqeueue data item to transaction queue. tritem is typically placed in
+ *	cointainter pointed at by data pointer. Destructor is called on
+ *	transaction abort and after successful commit phase in case
+ *	the caller did not dequeue the item before.
+ */
+void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
+				  void *data, void (*destructor)(void const *),
+				  struct switchdev_trans_item *tritem)
+{
+	tritem->data = data;
+	tritem->destructor = destructor;
+	list_add_tail(&tritem->list, &trans->item_list);
+}
+EXPORT_SYMBOL_GPL(switchdev_trans_item_enqueue);
+
+static struct switchdev_trans_item *
+__switchdev_trans_item_dequeue(struct switchdev_trans *trans)
+{
+	struct switchdev_trans_item *tritem;
+
+	if (list_empty(&trans->item_list))
+		return NULL;
+	tritem = list_first_entry(&trans->item_list,
+				  struct switchdev_trans_item, list);
+	list_del(&tritem->list);
+	return tritem;
+}
+
+/**
+ *	switchdev_trans_item_dequeue - Dequeue data item from transaction queue
+ *
+ *	@trans: transaction
+ */
+void *switchdev_trans_item_dequeue(struct switchdev_trans *trans)
+{
+	struct switchdev_trans_item *tritem;
+
+	tritem = __switchdev_trans_item_dequeue(trans);
+	BUG_ON(!tritem);
+	return tritem->data;
+}
+EXPORT_SYMBOL_GPL(switchdev_trans_item_dequeue);
+
+static void switchdev_trans_init(struct switchdev_trans *trans)
+{
+	INIT_LIST_HEAD(&trans->item_list);
+}
+
+static void switchdev_trans_items_destroy(struct switchdev_trans *trans)
+{
+	struct switchdev_trans_item *tritem;
+
+	while ((tritem = __switchdev_trans_item_dequeue(trans)))
+		tritem->destructor(tritem->data);
+}
+
+static void switchdev_trans_items_warn_destroy(struct net_device *dev,
+					       struct switchdev_trans *trans)
+{
+	WARN(!list_empty(&trans->item_list), "%s: transaction item queue is not empty.\n",
+	     dev->name);
+	switchdev_trans_items_destroy(trans);
+}
 
 /**
  *	switchdev_port_attr_get - Get port attribute
@@ -62,7 +135,8 @@ int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 EXPORT_SYMBOL_GPL(switchdev_port_attr_get);
 
 static int __switchdev_port_attr_set(struct net_device *dev,
-				     struct switchdev_attr *attr)
+				     struct switchdev_attr *attr,
+				     struct switchdev_trans *trans)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -70,7 +144,7 @@ static int __switchdev_port_attr_set(struct net_device *dev,
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_attr_set)
-		return ops->switchdev_port_attr_set(dev, attr);
+		return ops->switchdev_port_attr_set(dev, attr, trans);
 
 	if (attr->flags & SWITCHDEV_F_NO_RECURSE)
 		return err;
@@ -81,7 +155,7 @@ static int __switchdev_port_attr_set(struct net_device *dev,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = __switchdev_port_attr_set(lower_dev, attr);
+		err = __switchdev_port_attr_set(lower_dev, attr, trans);
 		if (err)
 			break;
 	}
@@ -144,6 +218,7 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  */
 int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 {
+	struct switchdev_trans trans;
 	int err;
 
 	if (!rtnl_is_locked()) {
@@ -156,6 +231,8 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 		return switchdev_port_attr_set_defer(dev, attr);
 	}
 
+	switchdev_trans_init(&trans);
+
 	/* Phase I: prepare for attr set. Driver/device should fail
 	 * here if there are going to be issues in the commit phase,
 	 * such as lack of resources or support.  The driver/device
@@ -163,18 +240,16 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 	 * but should not commit the attr.
 	 */
 
-	attr->trans = SWITCHDEV_TRANS_PREPARE;
-	err = __switchdev_port_attr_set(dev, attr);
+	trans.ph_prepare = true;
+	err = __switchdev_port_attr_set(dev, attr, &trans);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
 		 * resources reserved in the prepare phase are
 		 * released.
 		 */
 
-		if (err != -EOPNOTSUPP) {
-			attr->trans = SWITCHDEV_TRANS_ABORT;
-			__switchdev_port_attr_set(dev, attr);
-		}
+		if (err != -EOPNOTSUPP)
+			switchdev_trans_items_destroy(&trans);
 
 		return err;
 	}
@@ -184,17 +259,19 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 	 * because the driver said everythings was OK in phase I.
 	 */
 
-	attr->trans = SWITCHDEV_TRANS_COMMIT;
-	err = __switchdev_port_attr_set(dev, attr);
+	trans.ph_prepare = false;
+	err = __switchdev_port_attr_set(dev, attr, &trans);
 	WARN(err, "%s: Commit of attribute (id=%d) failed.\n",
 	     dev->name, attr->id);
+	switchdev_trans_items_warn_destroy(dev, &trans);
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
 static int __switchdev_port_obj_add(struct net_device *dev,
-				    struct switchdev_obj *obj)
+				    struct switchdev_obj *obj,
+				    struct switchdev_trans *trans)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -202,7 +279,7 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_obj_add)
-		return ops->switchdev_port_obj_add(dev, obj);
+		return ops->switchdev_port_obj_add(dev, obj, trans);
 
 	/* Switch device port(s) may be stacked under
 	 * bond/team/vlan dev, so recurse down to add object on
@@ -210,7 +287,7 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = __switchdev_port_obj_add(lower_dev, obj);
+		err = __switchdev_port_obj_add(lower_dev, obj, trans);
 		if (err)
 			break;
 	}
@@ -232,9 +309,12 @@ static int __switchdev_port_obj_add(struct net_device *dev,
  */
 int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 {
+	struct switchdev_trans trans;
 	int err;
 
 	ASSERT_RTNL();
+
+	switchdev_trans_init(&trans);
 
 	/* Phase I: prepare for obj add. Driver/device should fail
 	 * here if there are going to be issues in the commit phase,
@@ -243,18 +323,16 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 	 * but should not commit the obj.
 	 */
 
-	obj->trans = SWITCHDEV_TRANS_PREPARE;
-	err = __switchdev_port_obj_add(dev, obj);
+	trans.ph_prepare = true;
+	err = __switchdev_port_obj_add(dev, obj, &trans);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
 		 * resources reserved in the prepare phase are
 		 * released.
 		 */
 
-		if (err != -EOPNOTSUPP) {
-			obj->trans = SWITCHDEV_TRANS_ABORT;
-			__switchdev_port_obj_add(dev, obj);
-		}
+		if (err != -EOPNOTSUPP)
+			switchdev_trans_items_destroy(&trans);
 
 		return err;
 	}
@@ -264,9 +342,10 @@ int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
 	 * because the driver said everythings was OK in phase I.
 	 */
 
-	obj->trans = SWITCHDEV_TRANS_COMMIT;
-	err = __switchdev_port_obj_add(dev, obj);
+	trans.ph_prepare = false;
+	err = __switchdev_port_obj_add(dev, obj, &trans);
 	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
+	switchdev_trans_items_warn_destroy(dev, &trans);
 
 	return err;
 }
