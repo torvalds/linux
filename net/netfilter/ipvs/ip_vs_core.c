@@ -720,7 +720,7 @@ static int ip_vs_route_me_harder(struct netns_ipvs *ipvs, int af,
 	} else
 #endif
 		if (!(skb_rtable(skb)->rt_flags & RTCF_LOCAL) &&
-		    ip_route_me_harder(skb, RTN_LOCAL) != 0)
+		    ip_route_me_harder(ipvs->net, skb, RTN_LOCAL) != 0)
 			return 1;
 
 	return 0;

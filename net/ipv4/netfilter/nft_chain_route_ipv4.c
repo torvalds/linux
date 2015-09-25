@@ -53,7 +53,7 @@ static unsigned int nf_route_table_hook(void *priv,
 		    iph->daddr != daddr ||
 		    skb->mark != mark ||
 		    iph->tos != tos)
-			if (ip_route_me_harder(skb, RTN_UNSPEC))
+			if (ip_route_me_harder(state->net, skb, RTN_UNSPEC))
 				ret = NF_DROP;
 	}
 	return ret;
