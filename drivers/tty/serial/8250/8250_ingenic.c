@@ -252,7 +252,6 @@ MODULE_DEVICE_TABLE(of, of_match);
 static struct platform_driver ingenic_uart_platform_driver = {
 	.driver = {
 		.name		= "ingenic-uart",
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match,
 	},
 	.probe			= ingenic_uart_probe,

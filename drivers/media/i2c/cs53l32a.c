@@ -228,7 +228,6 @@ MODULE_DEVICE_TABLE(i2c, cs53l32a_id);
 
 static struct i2c_driver cs53l32a_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "cs53l32a",
 	},
 	.probe		= cs53l32a_probe,

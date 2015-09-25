@@ -1148,18 +1148,31 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 {
-	int i;
+	int i, max = -1, max_offs = -1;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	i = find_first_zero_bit(mvm->fw_key_table, STA_KEY_MAX_NUM);
+	/* Pick the unused key offset with the highest 'deleted'
+	 * counter. Every time a key is deleted, all the counters
+	 * are incremented and the one that was just deleted is
+	 * reset to zero. Thus, the highest counter is the one
+	 * that was deleted longest ago. Pick that one.
+	 */
+	for (i = 0; i < STA_KEY_MAX_NUM; i++) {
+		if (test_bit(i, mvm->fw_key_table))
+			continue;
+		if (mvm->fw_key_deleted[i] > max) {
+			max = mvm->fw_key_deleted[i];
+			max_offs = i;
+		}
+	}
 
-	if (i == STA_KEY_MAX_NUM)
+	if (max_offs < 0)
 		return STA_KEY_IDX_INVALID;
 
-	__set_bit(i, mvm->fw_key_table);
+	__set_bit(max_offs, mvm->fw_key_table);
 
-	return i;
+	return max_offs;
 }
 
 static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
@@ -1277,8 +1290,6 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		const u8 *pn;
 
 		memcpy(igtk_cmd.IGTK, keyconf->key, keyconf->keylen);
-		ieee80211_aes_cmac_calculate_k1_k2(keyconf,
-						   igtk_cmd.K1, igtk_cmd.K2);
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		pn = seq.aes_cmac.pn;
 		igtk_cmd.receive_seq_cnt = cpu_to_le64(((u64) pn[5] << 0) |
@@ -1479,7 +1490,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 {
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 	u8 sta_id;
-	int ret;
+	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1497,6 +1508,13 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			keyconf->hw_key_idx);
 		return -ENOENT;
 	}
+
+	/* track which key was deleted last */
+	for (i = 0; i < STA_KEY_MAX_NUM; i++) {
+		if (mvm->fw_key_deleted[i] < U8_MAX)
+			mvm->fw_key_deleted[i]++;
+	}
+	mvm->fw_key_deleted[keyconf->hw_key_idx] = 0;
 
 	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
@@ -1661,9 +1679,8 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);
 }
 
-int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
+			   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_eosp_notification *notif = (void *)pkt->data;
@@ -1671,15 +1688,13 @@ int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
 	u32 sta_id = le32_to_cpu(notif->sta_id);
 
 	if (WARN_ON_ONCE(sta_id >= IWL_MVM_STATION_COUNT))
-		return 0;
+		return;
 
 	rcu_read_lock();
 	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 	if (!IS_ERR_OR_NULL(sta))
 		ieee80211_sta_eosp(sta);
 	rcu_read_unlock();
-
-	return 0;
 }
 
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,

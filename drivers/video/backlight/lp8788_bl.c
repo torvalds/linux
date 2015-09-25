@@ -221,8 +221,7 @@ static void lp8788_backlight_unregister(struct lp8788_bl *bl)
 {
 	struct backlight_device *bl_dev = bl->bl_dev;
 
-	if (bl_dev)
-		backlight_device_unregister(bl_dev);
+	backlight_device_unregister(bl_dev);
 }
 
 static ssize_t lp8788_get_bl_ctl_mode(struct device *dev,

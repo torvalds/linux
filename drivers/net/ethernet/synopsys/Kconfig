@@ -1,0 +1,27 @@
+#
+# Synopsys network device configuration
+#
+
+config NET_VENDOR_SYNOPSYS
+	bool "Synopsys devices"
+	default y
+	---help---
+	  If you have a network (Ethernet) device belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Synopsys devices. If you say Y, you will be asked
+	  for your specific device in the following questions.
+
+if NET_VENDOR_SYNOPSYS
+
+config SYNOPSYS_DWC_ETH_QOS
+	tristate "Sypnopsys DWC Ethernet QOS v4.10a support"
+	select PHYLIB
+	select CRC32
+	select MII
+	depends on OF && HAS_DMA
+	---help---
+	  This driver supports the DWC Ethernet QoS from Synopsys
+
+endif # NET_VENDOR_SYNOPSYS

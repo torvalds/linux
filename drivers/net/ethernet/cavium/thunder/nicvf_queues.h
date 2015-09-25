@@ -181,47 +181,6 @@ enum CQ_TX_ERROP_E {
 };
 
 struct cmp_queue_stats {
-	struct rx_stats {
-		struct {
-			u64 mac_errs;
-			u64 l2_errs;
-			u64 l3_errs;
-			u64 l4_errs;
-		} errlvl;
-		struct {
-			u64 good;
-			u64 partial_pkts;
-			u64 jabber_errs;
-			u64 fcs_errs;
-			u64 terminate_errs;
-			u64 bgx_rx_errs;
-			u64 prel2_errs;
-			u64 l2_frags;
-			u64 l2_overruns;
-			u64 l2_pfcs;
-			u64 l2_puny;
-			u64 l2_hdr_malformed;
-			u64 l2_oversize;
-			u64 l2_undersize;
-			u64 l2_len_mismatch;
-			u64 l2_pclp;
-			u64 non_ip;
-			u64 ip_csum_err;
-			u64 ip_hdr_malformed;
-			u64 ip_payload_malformed;
-			u64 ip_hop_errs;
-			u64 l3_icrc_errs;
-			u64 l3_pclp;
-			u64 l4_malformed;
-			u64 l4_csum_errs;
-			u64 udp_len_err;
-			u64 bad_l4_port;
-			u64 bad_tcp_flag;
-			u64 tcp_offset_errs;
-			u64 l4_pclp;
-			u64 pkt_truncated;
-		} errop;
-	} rx;
 	struct tx_stats {
 		u64 good;
 		u64 desc_fault;
@@ -292,6 +251,7 @@ struct cmp_queue {
 	void		*desc;
 	struct q_desc_mem   dmem;
 	struct cmp_queue_stats	stats;
+	int		irq;
 } ____cacheline_aligned_in_smp;
 
 struct snd_queue {
@@ -347,6 +307,8 @@ struct queue_set {
 
 #define	CQ_ERR_MASK	(CQ_WR_FULL | CQ_WR_DISABLE | CQ_WR_FAULT)
 
+void nicvf_config_vlan_stripping(struct nicvf *nic,
+				 netdev_features_t features);
 int nicvf_set_qset_resources(struct nicvf *nic);
 int nicvf_config_data_transfer(struct nicvf *nic, bool enable);
 void nicvf_qset_config(struct nicvf *nic, bool enable);

@@ -420,6 +420,7 @@ static const struct i2c_device_id goodix_ts_id[] = {
 	{ "GDIX1001:00", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, goodix_ts_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id goodix_acpi_match[] = {
@@ -448,7 +449,6 @@ static struct i2c_driver goodix_ts_driver = {
 	.id_table = goodix_ts_id,
 	.driver = {
 		.name = "Goodix-TS",
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(goodix_acpi_match),
 		.of_match_table = of_match_ptr(goodix_of_match),
 	},

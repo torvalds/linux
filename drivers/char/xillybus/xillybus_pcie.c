@@ -193,14 +193,16 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * In theory, an attempt to set the DMA mask to 64 and dma_using_dac=1
-	 * is the right thing. But some unclever PCIe drivers report it's OK
-	 * when the hardware drops those 64-bit PCIe packets. So trust
-	 * nobody and use 32 bits DMA addressing in any case.
+	 * Some (old and buggy?) hardware drops 64-bit addressed PCIe packets,
+	 * even when the PCIe driver claims that a 64-bit mask is OK. On the
+	 * other hand, on some architectures, 64-bit addressing is mandatory.
+	 * So go for the 64-bit mask only when failing is the other option.
 	 */
 
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		endpoint->dma_using_dac = 0;
+	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		endpoint->dma_using_dac = 1;
 	} else {
 		dev_err(endpoint->dev, "Failed to set DMA mask. Aborting.\n");
 		return -ENODEV;

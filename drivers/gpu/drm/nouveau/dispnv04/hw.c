@@ -165,8 +165,8 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 		       struct nvkm_pll_vals *pllvals)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
-	struct nvkm_bios *bios = nvxx_bios(device);
+	struct nvif_object *device = &drm->device.object;
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
 	uint32_t reg1, pll1, pll2 = 0;
 	struct nvbios_pll pll_lim;
 	int ret;
@@ -660,8 +660,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		  struct nv04_mode_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
-	struct nvkm_timer *ptimer = nvxx_timer(device);
+	struct nvif_object *device = &drm->device.object;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t reg900;
 	int i;
@@ -678,10 +677,10 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		nvif_wr32(device, NV_PVIDEO_INTR_EN, 0);
 		nvif_wr32(device, NV_PVIDEO_OFFSET_BUFF(0), 0);
 		nvif_wr32(device, NV_PVIDEO_OFFSET_BUFF(1), 0);
-		nvif_wr32(device, NV_PVIDEO_LIMIT(0), device->info.ram_size - 1);
-		nvif_wr32(device, NV_PVIDEO_LIMIT(1), device->info.ram_size - 1);
-		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), device->info.ram_size - 1);
-		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), device->info.ram_size - 1);
+		nvif_wr32(device, NV_PVIDEO_LIMIT(0), drm->device.info.ram_size - 1);
+		nvif_wr32(device, NV_PVIDEO_LIMIT(1), drm->device.info.ram_size - 1);
+		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(0), drm->device.info.ram_size - 1);
+		nvif_wr32(device, NV_PVIDEO_UVPLANE_LIMIT(1), drm->device.info.ram_size - 1);
 		nvif_wr32(device, NV_PBUS_POWERCTRL_2, 0);
 
 		NVWriteCRTC(dev, head, NV_PCRTC_CURSOR_CONFIG, regp->cursor_cfg);
@@ -741,8 +740,14 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		if (drm->device.info.family < NV_DEVICE_INFO_V0_KELVIN) {
 			/* Not waiting for vertical retrace before modifying
 			   CRE_53/CRE_54 causes lockups. */
-			nvkm_timer_wait_eq(ptimer, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x8);
-			nvkm_timer_wait_eq(ptimer, 650000000, NV_PRMCIO_INP0__COLOR, 0x8, 0x0);
+			nvif_msec(&drm->device, 650,
+				if ( (nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 8))
+					break;
+			);
+			nvif_msec(&drm->device, 650,
+				if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 8))
+					break;
+			);
 		}
 
 		wr_cio_state(dev, head, regp, NV_CIO_CRE_42);
@@ -765,7 +770,7 @@ static void
 nv_save_state_palette(struct drm_device *dev, int head,
 		      struct nv04_mode_state *state)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
@@ -784,7 +789,7 @@ void
 nouveau_hw_load_state_palette(struct drm_device *dev, int head,
 			      struct nv04_mode_state *state)
 {
-	struct nvif_device *device = &nouveau_drm(dev)->device;
+	struct nvif_object *device = &nouveau_drm(dev)->device.object;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,

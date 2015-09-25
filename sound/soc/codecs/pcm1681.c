@@ -95,17 +95,22 @@ static int pcm1681_set_deemph(struct snd_soc_codec *codec)
 	struct pcm1681_private *priv = snd_soc_codec_get_drvdata(codec);
 	int i = 0, val = -1, enable = 0;
 
-	if (priv->deemph)
-		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++)
-			if (pcm1681_deemph[i] == priv->rate)
+	if (priv->deemph) {
+		for (i = 0; i < ARRAY_SIZE(pcm1681_deemph); i++) {
+			if (pcm1681_deemph[i] == priv->rate) {
 				val = i;
+				break;
+			}
+		}
+	}
 
 	if (val != -1) {
 		regmap_update_bits(priv->regmap, PCM1681_DEEMPH_CONTROL,
 				   PCM1681_DEEMPH_RATE_MASK, val << 3);
 		enable = 1;
-	} else
+	} else {
 		enable = 0;
+	}
 
 	/* enable/disable deemphasis functionality */
 	return regmap_update_bits(priv->regmap, PCM1681_DEEMPH_CONTROL,
@@ -330,7 +335,6 @@ static int pcm1681_i2c_remove(struct i2c_client *client)
 static struct i2c_driver pcm1681_i2c_driver = {
 	.driver = {
 		.name	= "pcm1681",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pcm1681_dt_ids),
 	},
 	.id_table	= pcm1681_i2c_id,

@@ -526,6 +526,13 @@ config I2C_EG20T
 	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
+config I2C_EMEV2
+	tristate "EMMA Mobile series I2C adapter"
+	depends on HAVE_CLK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Renesas Electronics EM/EV family of processors.
+
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS && OF
@@ -611,6 +618,16 @@ config I2C_KEMPLD
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-kempld.
+
+config I2C_LPC2K
+	tristate "I2C bus support for NXP LPC2K/LPC178x/18xx/43xx"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	help
+	  This driver supports the I2C interface found several NXP
+	  devices including LPC2xxx, LPC178x/7x and LPC18xx/43xx.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-lpc2k.
 
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
@@ -1123,7 +1140,7 @@ config I2C_SIBYTE
 
 config I2C_CROS_EC_TUNNEL
 	tristate "ChromeOS EC tunnel I2C bus"
-	depends on CROS_EC_PROTO
+	depends on MFD_CROS_EC
 	help
 	  If you say yes here you get an I2C bus that will tunnel i2c commands
 	  through to the other side of the ChromeOS EC to the i2c bus

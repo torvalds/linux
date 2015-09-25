@@ -20,7 +20,7 @@
 /* #define USE_OLD_SPI_SW */
 
 
-#include "wilc_type.h"
+#include "wilc_oswrapper.h"
 #include "linux_wlan_common.h"
 
 
@@ -43,8 +43,8 @@
  ********************************************/
 
 #define HIF_SDIO           (0)
-#define HIF_SPI            (1 << 0)
-#define HIF_SDIO_GPIO_IRQ  (1 << 2)
+#define HIF_SPI            BIT(0)
+#define HIF_SDIO_GPIO_IRQ  BIT(2)
 
 
 /********************************************

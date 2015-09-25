@@ -348,8 +348,10 @@ static void klp_disable_func(struct klp_func *func)
 {
 	struct klp_ops *ops;
 
-	WARN_ON(func->state != KLP_ENABLED);
-	WARN_ON(!func->old_addr);
+	if (WARN_ON(func->state != KLP_ENABLED))
+		return;
+	if (WARN_ON(!func->old_addr))
+		return;
 
 	ops = klp_find_ops(func->old_addr);
 	if (WARN_ON(!ops))

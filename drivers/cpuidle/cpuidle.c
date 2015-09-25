@@ -123,6 +123,7 @@ static void enter_freeze_proper(struct cpuidle_driver *drv,
 	 * cpuidle mechanism enables interrupts and doing that with timekeeping
 	 * suspended is generally unsafe.
 	 */
+	stop_critical_timings();
 	drv->states[index].enter_freeze(dev, drv, index);
 	WARN_ON(!irqs_disabled());
 	/*
@@ -131,6 +132,7 @@ static void enter_freeze_proper(struct cpuidle_driver *drv,
 	 * critical sections, so tell RCU about that.
 	 */
 	RCU_NONIDLE(tick_unfreeze());
+	start_critical_timings();
 }
 
 /**
@@ -195,7 +197,9 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	trace_cpu_idle_rcuidle(index, dev->cpu);
 	time_start = ktime_get();
 
+	stop_critical_timings();
 	entered_state = target_state->enter(dev, drv, index);
+	start_critical_timings();
 
 	time_end = ktime_get();
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
@@ -210,7 +214,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 		tick_broadcast_exit();
 	}
 
-	if (!cpuidle_state_is_coupled(dev, drv, entered_state))
+	if (!cpuidle_state_is_coupled(drv, entered_state))
 		local_irq_enable();
 
 	diff = ktime_to_us(ktime_sub(time_end, time_start));
@@ -259,7 +263,7 @@ int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		  int index)
 {
-	if (cpuidle_state_is_coupled(dev, drv, index))
+	if (cpuidle_state_is_coupled(drv, index))
 		return cpuidle_enter_state_coupled(dev, drv, index);
 	return cpuidle_enter_state(dev, drv, index);
 }

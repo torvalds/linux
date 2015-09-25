@@ -163,7 +163,7 @@ static void xls_gmac_init(void)
 	switch (nlm_prom_info.board_major_version) {
 	case 12:
 		/* first block RGMII or XAUI, use RGMII */
-		ndata0.phy_interface = PHY_INTERFACE_MODE_RGMII,
+		ndata0.phy_interface = PHY_INTERFACE_MODE_RGMII;
 		ndata0.tx_stnid[0] = FMN_STNID_GMAC0_TX0;
 		ndata0.phy_addr[0] = 0;
 

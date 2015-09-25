@@ -9,8 +9,6 @@
  * Common Clock Framework support for Exynos5260 SoC.
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 

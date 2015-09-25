@@ -134,22 +134,20 @@ u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
 	return NULL;
 }
 
-static void set_supported_rate(u8 *SupportedRates, uint mode)
+static void set_supported_rate(u8 *rates, uint mode)
 {
-	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
+	memset(rates, 0, NDIS_802_11_LENGTH_RATES_EX);
 	switch (mode) {
 	case WIRELESS_11B:
-		memcpy(SupportedRates, WIFI_CCKRATES,
-			IEEE80211_CCK_RATE_LEN);
+		memcpy(rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		break;
 	case WIRELESS_11G:
 	case WIRELESS_11A:
-		memcpy(SupportedRates, WIFI_OFDMRATES,
-			IEEE80211_NUM_OFDM_RATESLEN);
+		memcpy(rates, WIFI_OFDMRATES, IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	case WIRELESS_11BG:
-		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
-		memcpy(SupportedRates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES,
+		memcpy(rates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
+		memcpy(rates + IEEE80211_CCK_RATE_LEN, WIFI_OFDMRATES,
 			IEEE80211_NUM_OFDM_RATESLEN);
 		break;
 	}
@@ -195,17 +193,16 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 	ie = r8712_set_ie(ie, _SSID_IE_, pdev_network->Ssid.SsidLength,
 		    pdev_network->Ssid.Ssid, &sz);
 	/*supported rates*/
-	set_supported_rate(pdev_network->SupportedRates,
-			   pregistrypriv->wireless_mode);
-	rateLen = r8712_get_rateset_len(pdev_network->SupportedRates);
+	set_supported_rate(pdev_network->rates, pregistrypriv->wireless_mode);
+	rateLen = r8712_get_rateset_len(pdev_network->rates);
 	if (rateLen > 8) {
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_, 8,
-			    pdev_network->SupportedRates, &sz);
+			    pdev_network->rates, &sz);
 		ie = r8712_set_ie(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
-			    (pdev_network->SupportedRates + 8), &sz);
+			    (pdev_network->rates + 8), &sz);
 	} else
 		ie = r8712_set_ie(ie, _SUPPORTEDRATES_IE_,
-			    rateLen, pdev_network->SupportedRates, &sz);
+			    rateLen, pdev_network->rates, &sz);
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
 		    (u8 *)&(pdev_network->Configuration.DSConfig), &sz);

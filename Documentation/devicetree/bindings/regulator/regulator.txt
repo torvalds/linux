@@ -42,6 +42,7 @@ Optional properties:
 - regulator-system-load: Load in uA present on regulator that is not captured by
   any consumer request.
 - regulator-pull-down: Enable pull down resistor when the regulator is disabled.
+- regulator-over-current-protection: Enable over current protection.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple

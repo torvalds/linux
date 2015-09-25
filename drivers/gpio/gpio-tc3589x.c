@@ -102,7 +102,7 @@ static struct gpio_chip template_chip = {
 static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
+	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
@@ -130,7 +130,7 @@ static int tc3589x_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void tc3589x_gpio_irq_lock(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
+	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(gc);
 
 	mutex_lock(&tc3589x_gpio->irq_lock);
 }
@@ -138,7 +138,7 @@ static void tc3589x_gpio_irq_lock(struct irq_data *d)
 static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
+	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(gc);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	static const u8 regmap[] = {
 		[REG_IBE]	= TC3589x_GPIOIBE0,
@@ -167,7 +167,7 @@ static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 static void tc3589x_gpio_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
+	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
@@ -178,7 +178,7 @@ static void tc3589x_gpio_irq_mask(struct irq_data *d)
 static void tc3589x_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct tc3589x_gpio *tc3589x_gpio = container_of(gc, struct tc3589x_gpio, chip);
+	struct tc3589x_gpio *tc3589x_gpio = to_tc3589x_gpio(gc);
 	int offset = d->hwirq;
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);

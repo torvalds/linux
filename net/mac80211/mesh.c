@@ -158,7 +158,7 @@ void mesh_sta_cleanup(struct sta_info *sta)
 	changed = mesh_accept_plinks_update(sdata);
 	if (!sdata->u.mesh.user_mpm) {
 		changed |= mesh_plink_deactivate(sta);
-		del_timer_sync(&sta->plink_timer);
+		del_timer_sync(&sta->mesh->plink_timer);
 	}
 
 	if (changed)

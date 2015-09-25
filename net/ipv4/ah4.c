@@ -360,8 +360,10 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	work_iph = ah_alloc_tmp(ahash, nfrags + sglists, ihl +
 				ahp->icv_trunc_len + seqhi_len);
-	if (!work_iph)
+	if (!work_iph) {
+		err = -ENOMEM;
 		goto out;
+	}
 
 	seqhi = (__be32 *)((char *)work_iph + ihl);
 	auth_data = ah_tmp_auth(seqhi, seqhi_len);

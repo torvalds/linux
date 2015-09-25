@@ -13,6 +13,27 @@ struct mem_cgroup;
 struct task_struct;
 
 /*
+ * Details of the page allocation that triggered the oom killer that are used to
+ * determine what should be killed.
+ */
+struct oom_control {
+	/* Used to determine cpuset */
+	struct zonelist *zonelist;
+
+	/* Used to determine mempolicy */
+	nodemask_t *nodemask;
+
+	/* Used to determine cpuset and node locality requirement */
+	const gfp_t gfp_mask;
+
+	/*
+	 * order == -1 means the oom kill is required by sysrq, otherwise only
+	 * for display purposes.
+	 */
+	const int order;
+};
+
+/*
  * Types of limitations to the nodes from which allocations may occur
  */
 enum oom_constraint {
@@ -57,21 +78,18 @@ extern unsigned long oom_badness(struct task_struct *p,
 
 extern int oom_kills_count(void);
 extern void note_oom_kill(void);
-extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+extern void oom_kill_process(struct oom_control *oc, struct task_struct *p,
 			     unsigned int points, unsigned long totalpages,
-			     struct mem_cgroup *memcg, nodemask_t *nodemask,
-			     const char *message);
+			     struct mem_cgroup *memcg, const char *message);
 
-extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
-			       int order, const nodemask_t *nodemask,
+extern void check_panic_on_oom(struct oom_control *oc,
+			       enum oom_constraint constraint,
 			       struct mem_cgroup *memcg);
 
-extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
-		unsigned long totalpages, const nodemask_t *nodemask,
-		bool force_kill);
+extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+		struct task_struct *task, unsigned long totalpages);
 
-extern bool out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
-		int order, nodemask_t *mask, bool force_kill);
+extern bool out_of_memory(struct oom_control *oc);
 
 extern void exit_oom_victim(void);
 

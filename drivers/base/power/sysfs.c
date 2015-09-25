@@ -738,6 +738,17 @@ void pm_qos_sysfs_remove_flags(struct device *dev)
 	sysfs_unmerge_group(&dev->kobj, &pm_qos_flags_attr_group);
 }
 
+int pm_qos_sysfs_add_latency_tolerance(struct device *dev)
+{
+	return sysfs_merge_group(&dev->kobj,
+				 &pm_qos_latency_tolerance_attr_group);
+}
+
+void pm_qos_sysfs_remove_latency_tolerance(struct device *dev)
+{
+	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_tolerance_attr_group);
+}
+
 void rpm_sysfs_remove(struct device *dev)
 {
 	sysfs_unmerge_group(&dev->kobj, &pm_runtime_attr_group);

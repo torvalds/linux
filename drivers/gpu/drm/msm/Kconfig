@@ -9,6 +9,7 @@ config DRM_MSM
 	select DRM_PANEL
 	select SHMEM
 	select TMPFS
+	select QCOM_SCM
 	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.
@@ -53,3 +54,17 @@ config DRM_MSM_DSI_PLL
 	help
 	  Choose this option to enable DSI PLL driver which provides DSI
 	  source clocks under common clock framework.
+
+config DRM_MSM_DSI_28NM_PHY
+	bool "Enable DSI 28nm PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 28nm DSI PHY is used on the platform.
+
+config DRM_MSM_DSI_20NM_PHY
+	bool "Enable DSI 20nm PHY driver in MSM DRM"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if the 20nm DSI PHY is used on the platform.

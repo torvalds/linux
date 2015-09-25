@@ -457,7 +457,7 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 	struct mlx5_priv *priv  = &mdev->priv;
 	struct msix_entry *msix = priv->msix_arr;
 	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
-	int numa_node           = dev_to_node(&mdev->pdev->dev);
+	int numa_node           = priv->numa_node;
 	int err;
 
 	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
@@ -656,6 +656,22 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 }
 #endif
 
+static int map_bf_area(struct mlx5_core_dev *dev)
+{
+	resource_size_t bf_start = pci_resource_start(dev->pdev, 0);
+	resource_size_t bf_len = pci_resource_len(dev->pdev, 0);
+
+	dev->priv.bf_mapping = io_mapping_create_wc(bf_start, bf_len);
+
+	return dev->priv.bf_mapping ? 0 : -ENOMEM;
+}
+
+static void unmap_bf_area(struct mlx5_core_dev *dev)
+{
+	if (dev->priv.bf_mapping)
+		io_mapping_free(dev->priv.bf_mapping);
+}
+
 static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -669,6 +685,10 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	mutex_init(&priv->pgdir_mutex);
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	spin_lock_init(&priv->mkey_lock);
+
+	mutex_init(&priv->alloc_mutex);
+
+	priv->numa_node = dev_to_node(&dev->pdev->dev);
 
 	priv->dbg_root = debugfs_create_dir(dev_name(&pdev->dev), mlx5_debugfs_root);
 	if (!priv->dbg_root)
@@ -806,10 +826,13 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		goto err_stop_eqs;
 	}
 
+	if (map_bf_area(dev))
+		dev_err(&pdev->dev, "Failed to map blue flame area\n");
+
 	err = mlx5_irq_set_affinity_hints(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to alloc affinity hint cpumask\n");
-		goto err_free_comp_eqs;
+		goto err_unmap_bf_area;
 	}
 
 	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
@@ -821,7 +844,9 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 
 	return 0;
 
-err_free_comp_eqs:
+err_unmap_bf_area:
+	unmap_bf_area(dev);
+
 	free_comp_eqs(dev);
 
 err_stop_eqs:
@@ -879,6 +904,7 @@ static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_cleanup_qp_table(dev);
 	mlx5_cleanup_cq_table(dev);
 	mlx5_irq_clear_affinity_hints(dev);
+	unmap_bf_area(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_free_uuars(dev, &priv->uuari);

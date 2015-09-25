@@ -81,7 +81,7 @@ static int ion_chunk_heap_allocate(struct ion_heap *heap,
 err:
 	sg = table->sgl;
 	for (i -= 1; i >= 0; i--) {
-		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
+		gen_pool_free(chunk_heap->pool, sg_phys(sg) & PAGE_MASK,
 			      sg->length);
 		sg = sg_next(sg);
 	}
@@ -109,7 +109,7 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 							DMA_BIDIRECTIONAL);
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
-		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
+		gen_pool_free(chunk_heap->pool, sg_phys(sg) & PAGE_MASK,
 			      sg->length);
 	}
 	chunk_heap->allocated -= allocated_size;
@@ -173,8 +173,8 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
 	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
-	pr_debug("%s: base %lu size %zu align %ld\n", __func__, chunk_heap->base,
-		heap_data->size, heap_data->align);
+	pr_debug("%s: base %lu size %zu align %ld\n", __func__,
+		chunk_heap->base, heap_data->size, heap_data->align);
 
 	return &chunk_heap->heap;
 

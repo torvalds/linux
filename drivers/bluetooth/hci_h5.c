@@ -75,7 +75,7 @@ struct h5 {
 	size_t			rx_pending;	/* Expecting more bytes */
 	u8			rx_ack;		/* Last ack number received */
 
-	int			(*rx_func) (struct hci_uart *hu, u8 c);
+	int			(*rx_func)(struct hci_uart *hu, u8 c);
 
 	struct timer_list	timer;		/* Retransmission timer */
 

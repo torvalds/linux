@@ -197,6 +197,17 @@ int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	 */
 	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, RWPF_PAD_SINK,
 					    sel->which);
+
+	/* Restrict the crop rectangle coordinates to multiples of 2 to avoid
+	 * shifting the color plane.
+	 */
+	if (format->code == MEDIA_BUS_FMT_AYUV8_1X32) {
+		sel->r.left = ALIGN(sel->r.left, 2);
+		sel->r.top = ALIGN(sel->r.top, 2);
+		sel->r.width = round_down(sel->r.width, 2);
+		sel->r.height = round_down(sel->r.height, 2);
+	}
+
 	sel->r.left = min_t(unsigned int, sel->r.left, format->width - 2);
 	sel->r.top = min_t(unsigned int, sel->r.top, format->height - 2);
 	if (rwpf->entity.type == VSP1_ENTITY_WPF) {

@@ -47,36 +47,45 @@ static void meson6_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 	writel(val, dwmac->reg);
 }
 
-static void *meson6_dwmac_setup(struct platform_device *pdev)
+static int meson6_dwmac_probe(struct platform_device *pdev)
 {
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
 	struct meson_dwmac *dwmac;
 	struct resource *res;
+	int ret;
+
+	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
+
+	plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+	if (IS_ERR(plat_dat))
+		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	dwmac->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dwmac->reg))
-		return ERR_CAST(dwmac->reg);
+		return PTR_ERR(dwmac->reg);
 
-	return dwmac;
+	plat_dat->bsp_priv = dwmac;
+	plat_dat->fix_mac_speed = meson6_dwmac_fix_mac_speed;
+
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
-static const struct stmmac_of_data meson6_dwmac_data = {
-	.setup		= meson6_dwmac_setup,
-	.fix_mac_speed	= meson6_dwmac_fix_mac_speed,
-};
-
 static const struct of_device_id meson6_dwmac_match[] = {
-	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
+	{ .compatible = "amlogic,meson6-dwmac" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, meson6_dwmac_match);
 
 static struct platform_driver meson6_dwmac_driver = {
-	.probe  = stmmac_pltfr_probe,
+	.probe  = meson6_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "meson6-dwmac",

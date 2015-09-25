@@ -98,8 +98,23 @@ ENTRY(privcmd_call)
 	mov r1, r2
 	mov r2, r3
 	ldr r3, [sp, #8]
+	/*
+	 * Privcmd calls are issued by the userspace. We need to allow the
+	 * kernel to access the userspace memory before issuing the hypercall.
+	 */
+	uaccess_enable r4
+
+	/* r4 is loaded now as we use it as scratch register before */
 	ldr r4, [sp, #4]
 	__HVC(XEN_IMM)
+
+	/*
+	 * Disable userspace access from kernel. This is fine to do it
+	 * unconditionally as no set_fs(KERNEL_DS)/set_fs(get_ds()) is
+	 * called before.
+	 */
+	uaccess_disable r4
+
 	ldm sp!, {r4}
 	ret lr
 ENDPROC(privcmd_call);

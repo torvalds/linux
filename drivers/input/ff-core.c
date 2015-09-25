@@ -343,9 +343,8 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	__set_bit(EV_FF, dev->evbit);
 
 	/* Copy "true" bits into ff device bitmap */
-	for (i = 0; i <= FF_MAX; i++)
-		if (test_bit(i, dev->ffbit))
-			__set_bit(i, ff->ffbit);
+	for_each_set_bit(i, dev->ffbit, FF_CNT)
+		__set_bit(i, ff->ffbit);
 
 	/* we can emulate RUMBLE with periodic effects */
 	if (test_bit(FF_PERIODIC, ff->ffbit))

@@ -51,6 +51,8 @@ struct fib6_config {
 	struct nlattr	*fc_mp;
 
 	struct nl_info	fc_nlinfo;
+	struct nlattr	*fc_encap;
+	u16		fc_encap_type;
 };
 
 struct fib6_node {

@@ -63,6 +63,10 @@
 	};
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &lradc {
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
@@ -113,6 +117,10 @@
 	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
+&ohci0 {
+	status = "okay";
+};
+
 &pio {
 	mmc0_cd_pin_sina33: mmc0_cd_pin@0 {
 		allwinner,pins = "PB4";
@@ -126,4 +134,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_b>;
 	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+	usb1_vbus-supply = <&reg_vcc5v0>; /* USB1 VBUS is always on */
 };

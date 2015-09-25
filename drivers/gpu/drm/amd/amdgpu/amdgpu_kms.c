@@ -34,6 +34,7 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include "amdgpu_amdkfd.h"
 
 #if defined(CONFIG_VGA_SWITCHEROO)
 bool amdgpu_has_atpx(void);
@@ -60,6 +61,8 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 		goto done_free;
 
 	pm_runtime_get_sync(dev->dev);
+
+	amdgpu_amdkfd_device_fini(adev);
 
 	amdgpu_acpi_fini(adev);
 
@@ -93,8 +96,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((amdgpu_runtime_pm != 0) &&
 	    amdgpu_has_atpx() &&
-	    ((flags & AMDGPU_IS_APU) == 0))
-		flags |= AMDGPU_IS_PX;
+	    ((flags & AMD_IS_APU) == 0))
+		flags |= AMD_IS_PX;
 
 	/* amdgpu_device_init should report only fatal error
 	 * like memory allocation failure or iomapping failure,
@@ -117,6 +120,10 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 		dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
+
+	amdgpu_amdkfd_load_interface(adev);
+	amdgpu_amdkfd_device_probe(adev);
+	amdgpu_amdkfd_device_init(adev);
 
 	if (amdgpu_device_is_px(dev)) {
 		pm_runtime_use_autosuspend(dev->dev);
@@ -444,11 +451,11 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.num_hw_gfx_contexts = adev->gfx.config.max_hw_contexts;
 		dev_info._pad = 0;
 		dev_info.ids_flags = 0;
-		if (adev->flags & AMDGPU_IS_APU)
+		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
-		dev_info.virtual_address_alignment = max(PAGE_SIZE, 0x10000UL);
+		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
 		dev_info.pte_fragment_size = (1 << AMDGPU_LOG2_PAGES_PER_FRAG) *
 					     AMDGPU_GPU_PAGE_SIZE;
 		dev_info.gart_page_size = AMDGPU_GPU_PAGE_SIZE;
@@ -520,10 +527,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init(&fpriv->bo_list_handles);
 
-	/* init context manager */
-	mutex_init(&fpriv->ctx_mgr.lock);
-	idr_init(&fpriv->ctx_mgr.ctx_handles);
-	fpriv->ctx_mgr.adev = adev;
+	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr);
 
 	file_priv->driver_priv = fpriv;
 
@@ -556,6 +560,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (!fpriv)
 		return;
 
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
@@ -563,9 +569,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);
-
-	/* release context */
-	amdgpu_ctx_fini(fpriv);
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;

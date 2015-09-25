@@ -772,7 +772,7 @@ struct smq_policy {
 	struct dm_cache_policy policy;
 
 	/* protects everything */
-	struct mutex lock;
+	spinlock_t lock;
 	dm_cblock_t cache_size;
 	sector_t cache_block_size;
 
@@ -807,13 +807,7 @@ struct smq_policy {
 	/*
 	 * Keeps track of time, incremented by the core.  We use this to
 	 * avoid attributing multiple hits within the same tick.
-	 *
-	 * Access to tick_protected should be done with the spin lock held.
-	 * It's copied to tick at the start of the map function (within the
-	 * mutex).
 	 */
-	spinlock_t tick_lock;
-	unsigned tick_protected;
 	unsigned tick;
 
 	/*
@@ -1296,46 +1290,20 @@ static void smq_destroy(struct dm_cache_policy *p)
 	kfree(mq);
 }
 
-static void copy_tick(struct smq_policy *mq)
-{
-	unsigned long flags, tick;
-
-	spin_lock_irqsave(&mq->tick_lock, flags);
-	tick = mq->tick_protected;
-	if (tick != mq->tick) {
-		update_sentinels(mq);
-		end_hotspot_period(mq);
-		end_cache_period(mq);
-		mq->tick = tick;
-	}
-	spin_unlock_irqrestore(&mq->tick_lock, flags);
-}
-
-static bool maybe_lock(struct smq_policy *mq, bool can_block)
-{
-	if (can_block) {
-		mutex_lock(&mq->lock);
-		return true;
-	} else
-		return mutex_trylock(&mq->lock);
-}
-
 static int smq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 		   bool can_block, bool can_migrate, bool fast_promote,
 		   struct bio *bio, struct policy_locker *locker,
 		   struct policy_result *result)
 {
 	int r;
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
 	result->op = POLICY_MISS;
 
-	if (!maybe_lock(mq, can_block))
-		return -EWOULDBLOCK;
-
-	copy_tick(mq);
+	spin_lock_irqsave(&mq->lock, flags);
 	r = map(mq, bio, oblock, can_migrate, fast_promote, locker, result);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return r;
 }
@@ -1343,20 +1311,18 @@ static int smq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 static int smq_lookup(struct dm_cache_policy *p, dm_oblock_t oblock, dm_cblock_t *cblock)
 {
 	int r;
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 	struct entry *e;
 
-	if (!mutex_trylock(&mq->lock))
-		return -EWOULDBLOCK;
-
+	spin_lock_irqsave(&mq->lock, flags);
 	e = h_lookup(&mq->table, oblock);
 	if (e) {
 		*cblock = infer_cblock(mq, e);
 		r = 0;
 	} else
 		r = -ENOENT;
-
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return r;
 }
@@ -1375,20 +1341,22 @@ static void __smq_set_clear_dirty(struct smq_policy *mq, dm_oblock_t oblock, boo
 
 static void smq_set_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
 {
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	__smq_set_clear_dirty(mq, oblock, true);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
 static void smq_clear_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
 {
 	struct smq_policy *mq = to_smq_policy(p);
+	unsigned long flags;
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	__smq_set_clear_dirty(mq, oblock, false);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
 static int smq_load_mapping(struct dm_cache_policy *p,
@@ -1433,13 +1401,13 @@ static int smq_walk_mappings(struct dm_cache_policy *p, policy_walk_fn fn,
 	struct smq_policy *mq = to_smq_policy(p);
 	int r = 0;
 
-	mutex_lock(&mq->lock);
-
+	/*
+	 * We don't need to lock here since this method is only called once
+	 * the IO has stopped.
+	 */
 	r = smq_save_hints(mq, &mq->clean, fn, context);
 	if (!r)
 		r = smq_save_hints(mq, &mq->dirty, fn, context);
-
-	mutex_unlock(&mq->lock);
 
 	return r;
 }
@@ -1458,10 +1426,11 @@ static void __remove_mapping(struct smq_policy *mq, dm_oblock_t oblock)
 static void smq_remove_mapping(struct dm_cache_policy *p, dm_oblock_t oblock)
 {
 	struct smq_policy *mq = to_smq_policy(p);
+	unsigned long flags;
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	__remove_mapping(mq, oblock);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
 static int __remove_cblock(struct smq_policy *mq, dm_cblock_t cblock)
@@ -1480,11 +1449,12 @@ static int __remove_cblock(struct smq_policy *mq, dm_cblock_t cblock)
 static int smq_remove_cblock(struct dm_cache_policy *p, dm_cblock_t cblock)
 {
 	int r;
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	r = __remove_cblock(mq, cblock);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return r;
 }
@@ -1537,11 +1507,12 @@ static int smq_writeback_work(struct dm_cache_policy *p, dm_oblock_t *oblock,
 			      dm_cblock_t *cblock, bool critical_only)
 {
 	int r;
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	r = __smq_writeback_work(mq, oblock, cblock, critical_only);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return r;
 }
@@ -1562,21 +1533,23 @@ static void __force_mapping(struct smq_policy *mq,
 static void smq_force_mapping(struct dm_cache_policy *p,
 			      dm_oblock_t current_oblock, dm_oblock_t new_oblock)
 {
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	__force_mapping(mq, current_oblock, new_oblock);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
 static dm_cblock_t smq_residency(struct dm_cache_policy *p)
 {
 	dm_cblock_t r;
+	unsigned long flags;
 	struct smq_policy *mq = to_smq_policy(p);
 
-	mutex_lock(&mq->lock);
+	spin_lock_irqsave(&mq->lock, flags);
 	r = to_cblock(mq->cache_alloc.nr_allocated);
-	mutex_unlock(&mq->lock);
+	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return r;
 }
@@ -1586,15 +1559,12 @@ static void smq_tick(struct dm_cache_policy *p, bool can_block)
 	struct smq_policy *mq = to_smq_policy(p);
 	unsigned long flags;
 
-	spin_lock_irqsave(&mq->tick_lock, flags);
-	mq->tick_protected++;
-	spin_unlock_irqrestore(&mq->tick_lock, flags);
-
-	if (can_block) {
-		mutex_lock(&mq->lock);
-		copy_tick(mq);
-		mutex_unlock(&mq->lock);
-	}
+	spin_lock_irqsave(&mq->lock, flags);
+	mq->tick++;
+	update_sentinels(mq);
+	end_hotspot_period(mq);
+	end_cache_period(mq);
+	spin_unlock_irqrestore(&mq->lock, flags);
 }
 
 /* Init the policy plugin interface function pointers. */
@@ -1694,10 +1664,8 @@ static struct dm_cache_policy *smq_create(dm_cblock_t cache_size,
 	} else
 		mq->cache_hit_bits = NULL;
 
-	mq->tick_protected = 0;
 	mq->tick = 0;
-	mutex_init(&mq->lock);
-	spin_lock_init(&mq->tick_lock);
+	spin_lock_init(&mq->lock);
 
 	q_init(&mq->hotspot, &mq->es, NR_HOTSPOT_LEVELS);
 	mq->hotspot.nr_top_levels = 8;

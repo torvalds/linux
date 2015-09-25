@@ -66,6 +66,11 @@
 
 #define AMDGPU_NUM_OF_VMIDS			8
 
+#define		PIPEID(x)					((x) << 0)
+#define		MEID(x)						((x) << 2)
+#define		VMID(x)						((x) << 4)
+#define		QUEUEID(x)					((x) << 8)
+
 #define RB_BITMAP_WIDTH_PER_SH     2
 
 #define MC_SEQ_MISC0__MT__MASK	0xf0000000

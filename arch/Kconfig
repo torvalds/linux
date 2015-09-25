@@ -2,6 +2,9 @@
 # General architecture dependent options
 #
 
+config KEXEC_CORE
+	bool
+
 config OPROFILE
 	tristate "OProfile system profiling"
 	depends on PROFILING
@@ -71,6 +74,12 @@ config JUMP_LABEL
 	 ( On 32-bit x86, the necessary options added to the compiler
 	   flags may increase the size of the kernel slightly. )
 
+config STATIC_KEYS_SELFTEST
+	bool "Static key selftest"
+	depends on JUMP_LABEL
+	help
+	  Boot time self-test of the branch patching code.
+
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
@@ -87,7 +96,6 @@ config KPROBES_ON_FTRACE
 
 config UPROBES
 	def_bool n
-	select PERCPU_RWSEM
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
 	  enable instrumentation applications (such as 'perf probe')

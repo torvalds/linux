@@ -203,7 +203,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	int rc;
 
 	vdv = kzalloc(sizeof(*vdv), GFP_NOFS);
-	if (vdv == NULL)
+	if (!vdv)
 		return ERR_PTR(-ENOMEM);
 
 	lud = &vdv->cdv_cl.cd_lu_dev;

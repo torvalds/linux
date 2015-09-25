@@ -227,27 +227,23 @@ static void hib_init_batch(struct hib_bio_batch *hb)
 	hb->error = 0;
 }
 
-static void hib_end_io(struct bio *bio, int error)
+static void hib_end_io(struct bio *bio)
 {
 	struct hib_bio_batch *hb = bio->bi_private;
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (!uptodate || error) {
+	if (bio->bi_error) {
 		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
 				imajor(bio->bi_bdev->bd_inode),
 				iminor(bio->bi_bdev->bd_inode),
 				(unsigned long long)bio->bi_iter.bi_sector);
-
-		if (!error)
-			error = -EIO;
 	}
 
 	if (bio_data_dir(bio) == WRITE)
 		put_page(page);
 
-	if (error && !hb->error)
-		hb->error = error;
+	if (bio->bi_error && !hb->error)
+		hb->error = bio->bi_error;
 	if (atomic_dec_and_test(&hb->count))
 		wake_up(&hb->wait);
 

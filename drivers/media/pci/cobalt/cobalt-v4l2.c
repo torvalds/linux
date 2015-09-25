@@ -28,6 +28,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-dv-timings.h>
 #include <media/adv7604.h>
 #include <media/adv7842.h>
 
@@ -641,13 +642,17 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 	struct cobalt_stream *s = video_drvdata(file);
 	int err;
 
-	if (vb2_is_busy(&s->q))
-		return -EBUSY;
-
 	if (s->input == 1) {
 		*timings = cea1080p60;
 		return 0;
 	}
+
+	if (v4l2_match_dv_timings(timings, &s->timings, 0))
+		return 0;
+
+	if (vb2_is_busy(&s->q))
+		return -EBUSY;
+
 	err = v4l2_subdev_call(s->sd,
 			video, s_dv_timings, timings);
 	if (!err) {

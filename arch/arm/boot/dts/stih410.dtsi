@@ -10,6 +10,10 @@
 #include "stih407-family.dtsi"
 #include "stih410-pinctrl.dtsi"
 / {
+	aliases {
+		bdisp0 = &bdisp0;
+	};
+
 	soc {
 		usb2_picophy1: phy2 {
 			compatible = "st,stih407-usb2-phy";
@@ -217,6 +221,14 @@
 						 <&clk_s_d2_quadfs 1>;
 				};
 			};
+		};
+
+		bdisp0:bdisp@9f10000 {
+			compatible = "st,stih407-bdisp";
+			reg = <0x9f10000 0x1000>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
+			clock-names = "bdisp";
+			clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
 		};
 	};
 };

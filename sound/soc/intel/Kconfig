@@ -26,14 +26,9 @@ config SND_SST_IPC_ACPI
 	depends on ACPI
 
 config SND_SOC_INTEL_SST
-	tristate "ASoC support for Intel(R) Smart Sound Technology"
+	tristate
 	select SND_SOC_INTEL_SST_ACPI if ACPI
 	depends on (X86 || COMPILE_TEST)
-	depends on DW_DMAC_CORE
-	help
-          This adds support for Intel(R) Smart Sound Technology (SST).
-          Say Y if you have such a device
-          If unsure select "N".
 
 config SND_SOC_INTEL_SST_ACPI
 	tristate
@@ -46,8 +41,9 @@ config SND_SOC_INTEL_BAYTRAIL
 
 config SND_SOC_INTEL_HASWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Haswell Lynxpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C && \
-		   I2C_DESIGNWARE_PLATFORM
+	depends on X86_INTEL_LPSS && I2C && I2C_DESIGNWARE_PLATFORM
+	depends on DW_DMAC_CORE
+	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT5640
 	help
@@ -58,7 +54,9 @@ config SND_SOC_INTEL_HASWELL_MACH
 
 config SND_SOC_INTEL_BYT_RT5640_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with RT5640 codec"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	depends on X86_INTEL_LPSS && I2C
+	depends on DW_DMAC_CORE
+	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_BAYTRAIL
 	select SND_SOC_RT5640
 	help
@@ -67,7 +65,9 @@ config SND_SOC_INTEL_BYT_RT5640_MACH
 
 config SND_SOC_INTEL_BYT_MAX98090_MACH
 	tristate "ASoC Audio driver for Intel Baytrail with MAX98090 codec"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && I2C
+	depends on X86_INTEL_LPSS && I2C
+	depends on DW_DMAC_CORE
+	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_BAYTRAIL
 	select SND_SOC_MAX98090
 	help
@@ -76,8 +76,10 @@ config SND_SOC_INTEL_BYT_MAX98090_MACH
 
 config SND_SOC_INTEL_BROADWELL_MACH
 	tristate "ASoC Audio DSP support for Intel Broadwell Wildcatpoint"
-	depends on SND_SOC_INTEL_SST && X86_INTEL_LPSS && DW_DMAC && \
+	depends on X86_INTEL_LPSS && I2C && DW_DMAC && \
 		   I2C_DESIGNWARE_PLATFORM
+	depends on DW_DMAC_CORE
+	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_HASWELL
 	select SND_SOC_RT286
 	help
@@ -132,3 +134,8 @@ config SND_SOC_INTEL_CHT_BSW_MAX98090_TI_MACH
       This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
       platforms with MAX98090 audio codec it also can support TI jack chip as aux device.
       If unsure select "N".
+
+config SND_SOC_INTEL_SKYLAKE
+	tristate
+	select SND_HDA_EXT_CORE
+	select SND_SOC_INTEL_SST

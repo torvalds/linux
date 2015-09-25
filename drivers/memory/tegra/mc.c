@@ -42,7 +42,6 @@
 #define  MC_ERR_STATUS_ADR_HI_MASK 0x3
 #define  MC_ERR_STATUS_SECURITY (1 << 17)
 #define  MC_ERR_STATUS_RW (1 << 16)
-#define  MC_ERR_STATUS_CLIENT_MASK 0x7f
 
 #define MC_ERR_ADR 0x0c
 
@@ -66,6 +65,9 @@ static const struct of_device_id tegra_mc_of_match[] = {
 #endif
 #ifdef CONFIG_ARCH_TEGRA_132_SOC
 	{ .compatible = "nvidia,tegra132-mc", .data = &tegra132_mc_soc },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+	{ .compatible = "nvidia,tegra210-mc", .data = &tegra210_mc_soc },
 #endif
 	{ }
 };
@@ -283,7 +285,7 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 		else
 			secure = "";
 
-		id = value & MC_ERR_STATUS_CLIENT_MASK;
+		id = value & mc->soc->client_id_mask;
 
 		for (i = 0; i < mc->soc->num_clients; i++) {
 			if (mc->soc->clients[i].id == id) {
@@ -409,6 +411,8 @@ static int tegra_mc_probe(struct platform_device *pdev)
 			err);
 		return err;
 	}
+
+	WARN(!mc->soc->client_id_mask, "Missing client ID mask for this SoC\n");
 
 	value = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
 		MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |

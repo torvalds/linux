@@ -529,7 +529,7 @@ static const struct netdev_event_work_cmd add_cmd = {
 static const struct netdev_event_work_cmd add_cmd_upper_ips = {
 	.cb = add_netdev_upper_ips, .filter = is_eth_port_of_netdev};
 
-static void netdevice_event_changeupper(struct netdev_changeupper_info *changeupper_info,
+static void netdevice_event_changeupper(struct netdev_notifier_changeupper_info *changeupper_info,
 					struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd upper_ips_del_cmd = {
@@ -537,18 +537,16 @@ static void netdevice_event_changeupper(struct netdev_changeupper_info *changeup
 	static const struct netdev_event_work_cmd bonding_default_del_cmd = {
 		.cb = del_netdev_default_ips, .filter = is_eth_port_inactive_slave};
 
-	if (changeupper_info->event ==
-	    NETDEV_CHANGEUPPER_UNLINK) {
+	if (changeupper_info->linking == false) {
 		cmds[0] = upper_ips_del_cmd;
-		cmds[0].ndev = changeupper_info->upper;
+		cmds[0].ndev = changeupper_info->upper_dev;
 		cmds[1] = add_cmd;
-	} else if (changeupper_info->event ==
-		   NETDEV_CHANGEUPPER_LINK) {
+	} else {
 		cmds[0] = bonding_default_del_cmd;
-		cmds[0].ndev = changeupper_info->upper;
+		cmds[0].ndev = changeupper_info->upper_dev;
 		cmds[1] = add_cmd_upper_ips;
-		cmds[1].ndev = changeupper_info->upper;
-		cmds[1].filter_ndev = changeupper_info->upper;
+		cmds[1].ndev = changeupper_info->upper_dev;
+		cmds[1].filter_ndev = changeupper_info->upper_dev;
 	}
 }
 
@@ -590,7 +588,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEUPPER:
 		netdevice_event_changeupper(
-			container_of(ptr, struct netdev_changeupper_info, info),
+			container_of(ptr, struct netdev_notifier_changeupper_info, info),
 			cmds);
 		break;
 

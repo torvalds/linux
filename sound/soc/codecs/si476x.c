@@ -208,7 +208,7 @@ out:
 	return err;
 }
 
-static struct snd_soc_dai_ops si476x_dai_ops = {
+static const struct snd_soc_dai_ops si476x_dai_ops = {
 	.hw_params	= si476x_codec_hw_params,
 	.set_fmt	= si476x_codec_set_dai_fmt,
 };

@@ -129,7 +129,7 @@ static void rt3883_pci_write_cfg32(struct rt3883_pci_controller *rpc,
 	rt3883_pci_w32(rpc, val, RT3883_PCI_REG_CFGDATA);
 }
 
-static void rt3883_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void rt3883_pci_irq_handler(struct irq_desc *desc)
 {
 	struct rt3883_pci_controller *rpc;
 	u32 pending;
@@ -145,7 +145,7 @@ static void rt3883_pci_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 
 	while (pending) {
-		unsigned bit = __ffs(pending);
+		unsigned irq, bit = __ffs(pending);
 
 		irq = irq_find_mapping(rpc->irq_domain, bit);
 		generic_handle_irq(irq);
@@ -225,8 +225,7 @@ static int rt3883_pci_irq_init(struct device *dev,
 		return -ENODEV;
 	}
 
-	irq_set_handler_data(irq, rpc);
-	irq_set_chained_handler(irq, rt3883_pci_irq_handler);
+	irq_set_chained_handler_and_data(irq, rt3883_pci_irq_handler, rpc);
 
 	return 0;
 }

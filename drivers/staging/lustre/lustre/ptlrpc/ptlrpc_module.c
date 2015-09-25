@@ -51,7 +51,7 @@ extern spinlock_t ptlrpc_rs_debug_lock;
 extern struct mutex pinger_mutex;
 extern struct mutex ptlrpcd_mutex;
 
-__init int ptlrpc_init(void)
+static int __init ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
 

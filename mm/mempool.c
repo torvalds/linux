@@ -150,6 +150,9 @@ static void *remove_element(mempool_t *pool)
  */
 void mempool_destroy(mempool_t *pool)
 {
+	if (unlikely(!pool))
+		return;
+
 	while (pool->curr_nr) {
 		void *element = remove_element(pool);
 		pool->free(element, pool->pool_data);

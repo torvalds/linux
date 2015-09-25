@@ -85,23 +85,13 @@ static int cp_intc_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
-/*
- * Faking this allows us to to work with suspend functions of
- * generic drivers which call {enable|disable}_irq_wake for
- * wake up interrupt sources (eg RTC on DA850).
- */
-static int cp_intc_set_wake(struct irq_data *d, unsigned int on)
-{
-	return 0;
-}
-
 static struct irq_chip cp_intc_irq_chip = {
 	.name		= "cp_intc",
 	.irq_ack	= cp_intc_ack_irq,
 	.irq_mask	= cp_intc_mask_irq,
 	.irq_unmask	= cp_intc_unmask_irq,
 	.irq_set_type	= cp_intc_set_irq_type,
-	.irq_set_wake	= cp_intc_set_wake,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static struct irq_domain *cp_intc_domain;
@@ -112,7 +102,7 @@ static int cp_intc_host_map(struct irq_domain *h, unsigned int virq,
 	pr_debug("cp_intc_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_chip(virq, &cp_intc_irq_chip);
-	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(virq);
 	irq_set_handler(virq, handle_edge_irq);
 	return 0;
 }

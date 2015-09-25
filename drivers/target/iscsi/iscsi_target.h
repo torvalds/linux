@@ -10,10 +10,10 @@ extern int iscsit_access_np(struct iscsi_np *, struct iscsi_portal_group *);
 extern void iscsit_login_kref_put(struct kref *);
 extern int iscsit_deaccess_np(struct iscsi_np *, struct iscsi_portal_group *,
 				struct iscsi_tpg_np *);
-extern bool iscsit_check_np_match(struct __kernel_sockaddr_storage *,
+extern bool iscsit_check_np_match(struct sockaddr_storage *,
 				struct iscsi_np *, int);
-extern struct iscsi_np *iscsit_add_np(struct __kernel_sockaddr_storage *,
-				char *, int);
+extern struct iscsi_np *iscsit_add_np(struct sockaddr_storage *,
+				int);
 extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 				struct iscsi_portal_group *, bool);
 extern int iscsit_del_np(struct iscsi_np *);

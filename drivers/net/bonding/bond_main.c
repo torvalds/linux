@@ -979,7 +979,6 @@ static void bond_poll_controller(struct net_device *bond_dev)
 		if (bond_3ad_get_active_agg_info(bond, &ad_info))
 			return;
 
-	rcu_read_lock_bh();
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		ops = slave->dev->netdev_ops;
 		if (!bond_slave_is_up(slave) || !ops->ndo_poll_controller)
@@ -1000,7 +999,6 @@ static void bond_poll_controller(struct net_device *bond_dev)
 		ops->ndo_poll_controller(slave->dev);
 		up(&ni->dev_lock);
 	}
-	rcu_read_unlock_bh();
 }
 
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
@@ -3097,7 +3095,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	int noff, proto = -1;
 
 	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
-		return skb_flow_dissect_flow_keys(skb, fk);
+		return skb_flow_dissect_flow_keys(skb, fk, 0);
 
 	fk->ports.ports = 0;
 	noff = skb_network_offset(skb);
@@ -3780,7 +3778,6 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 	struct slave *slave;
 	struct list_head *iter;
 	struct bond_up_slave *new_arr, *old_arr;
-	int slaves_in_agg;
 	int agg_id = 0;
 	int ret = 0;
 
@@ -3811,7 +3808,6 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 			}
 			goto out;
 		}
-		slaves_in_agg = ad_info.ports;
 		agg_id = ad_info.aggregator_id;
 	}
 	bond_for_each_slave(bond, slave, iter) {
@@ -4122,9 +4118,8 @@ void bond_setup(struct net_device *bond_dev)
 	SET_NETDEV_DEVTYPE(bond_dev, &bond_type);
 
 	/* Initialize the device options */
-	bond_dev->tx_queue_len = 0;
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
-	bond_dev->priv_flags |= IFF_BONDING | IFF_UNICAST_FLT;
+	bond_dev->priv_flags |= IFF_BONDING | IFF_UNICAST_FLT | IFF_NO_QUEUE;
 	bond_dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 
 	/* don't acquire bond device's netif_tx_lock when transmitting */

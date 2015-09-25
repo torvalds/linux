@@ -438,6 +438,14 @@ static const struct proto_ops rds_proto_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
+static void rds_sock_destruct(struct sock *sk)
+{
+	struct rds_sock *rs = rds_sk_to_rs(sk);
+
+	WARN_ON((&rs->rs_item != rs->rs_item.next ||
+		 &rs->rs_item != rs->rs_item.prev));
+}
+
 static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 {
 	struct rds_sock *rs;
@@ -445,6 +453,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	sock_init_data(sock, sk);
 	sock->ops		= &rds_proto_ops;
 	sk->sk_protocol		= protocol;
+	sk->sk_destruct		= rds_sock_destruct;
 
 	rs = rds_sk_to_rs(sk);
 	spin_lock_init(&rs->rs_lock);

@@ -146,7 +146,7 @@ xfs_da3_node_verify(
 		if (ichdr.magic != XFS_DA3_NODE_MAGIC)
 			return false;
 
-		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_uuid))
+		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
 		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
 			return false;
@@ -233,6 +233,7 @@ xfs_da3_node_read_verify(
 			bp->b_ops->verify_read(bp);
 			return;
 		default:
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			break;
 	}
 
@@ -324,7 +325,7 @@ xfs_da3_node_create(
 		ichdr.magic = XFS_DA3_NODE_MAGIC;
 		hdr3->info.blkno = cpu_to_be64(bp->b_bn);
 		hdr3->info.owner = cpu_to_be64(args->dp->i_ino);
-		uuid_copy(&hdr3->info.uuid, &mp->m_sb.sb_uuid);
+		uuid_copy(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid);
 	} else {
 		ichdr.magic = XFS_DA_NODE_MAGIC;
 	}
@@ -1822,6 +1823,7 @@ xfs_da3_path_shift(
 	struct xfs_da_args	*args;
 	struct xfs_da_node_entry *btree;
 	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_buf		*bp;
 	xfs_dablk_t		blkno = 0;
 	int			level;
 	int			error;
@@ -1866,20 +1868,24 @@ xfs_da3_path_shift(
 	 */
 	for (blk++, level++; level < path->active; blk++, level++) {
 		/*
-		 * Release the old block.
-		 * (if it's dirty, trans won't actually let go)
+		 * Read the next child block into a local buffer.
+		 */
+		error = xfs_da3_node_read(args->trans, dp, blkno, -1, &bp,
+					  args->whichfork);
+		if (error)
+			return error;
+
+		/*
+		 * Release the old block (if it's dirty, the trans doesn't
+		 * actually let go) and swap the local buffer into the path
+		 * structure. This ensures failure of the above read doesn't set
+		 * a NULL buffer in an active slot in the path.
 		 */
 		if (release)
 			xfs_trans_brelse(args->trans, blk->bp);
-
-		/*
-		 * Read the next child block.
-		 */
 		blk->blkno = blkno;
-		error = xfs_da3_node_read(args->trans, dp, blkno, -1,
-					&blk->bp, args->whichfork);
-		if (error)
-			return error;
+		blk->bp = bp;
+
 		info = blk->bp->b_addr;
 		ASSERT(info->magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 		       info->magic == cpu_to_be16(XFS_DA3_NODE_MAGIC) ||
@@ -2351,8 +2357,8 @@ xfs_da_shrink_inode(
 		 * the last block to the place we want to kill.
 		 */
 		error = xfs_bunmapi(tp, dp, dead_blkno, count,
-				    xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
-				    0, args->firstblock, args->flist, &done);
+				    xfs_bmapi_aflag(w), 0, args->firstblock,
+				    args->flist, &done);
 		if (error == -ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				break;

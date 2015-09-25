@@ -32,8 +32,6 @@
 #define INST_STW	0x15
 #define INST_LDW	0x17
 
-static unsigned long ma_user, ma_kern, ma_skipped, ma_half, ma_word;
-
 static unsigned int ma_usermode;
 #define UM_WARN		0x01
 #define UM_FIXUP	0x02
@@ -53,7 +51,6 @@ static int reg_offsets[32];
 static inline u32 get_reg_val(struct pt_regs *fp, int reg)
 {
 	u8 *p = ((u8 *)fp) + reg_offsets[reg];
-
 	return *(u32 *)p;
 }
 
@@ -71,14 +68,13 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 	u32 isn, addr, val;
 	int in_kernel;
 	u8 a, b, d0, d1, d2, d3;
-	u16 imm16;
+	s16 imm16;
 	unsigned int fault;
 
 	/* back up one instruction */
 	fp->ea -= 4;
 
 	if (fixup_exception(fp)) {
-		ma_skipped++;
 		return;
 	}
 
@@ -103,18 +99,11 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 			fault |= __get_user(d1, (u8 *)(addr+1));
 			val = (d1 << 8) | d0;
 			put_reg_val(fp, b, val);
-			ma_half++;
 			break;
 		case INST_STH:
 			val = get_reg_val(fp, b);
 			d1 = val >> 8;
 			d0 = val >> 0;
-
-			pr_debug("sth: ra=%d (%08x) rb=%d (%08x), imm16 %04x addr %08x val %08x\n",
-				a, get_reg_val(fp, a),
-				b, get_reg_val(fp, b),
-				imm16, addr, val);
-
 			if (in_kernel) {
 				*(u8 *)(addr+0) = d0;
 				*(u8 *)(addr+1) = d1;
@@ -122,14 +111,12 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 				fault |= __put_user(d0, (u8 *)(addr+0));
 				fault |= __put_user(d1, (u8 *)(addr+1));
 			}
-			ma_half++;
 			break;
 		case INST_LDH:
 			fault |= __get_user(d0, (u8 *)(addr+0));
 			fault |= __get_user(d1, (u8 *)(addr+1));
 			val = (short)((d1 << 8) | d0);
 			put_reg_val(fp, b, val);
-			ma_half++;
 			break;
 		case INST_STW:
 			val = get_reg_val(fp, b);
@@ -148,7 +135,6 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 				fault |= __put_user(d2, (u8 *)(addr+2));
 				fault |= __put_user(d3, (u8 *)(addr+3));
 			}
-			ma_word++;
 			break;
 		case INST_LDW:
 			fault |= __get_user(d0, (u8 *)(addr+0));
@@ -157,7 +143,6 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 			fault |= __get_user(d3, (u8 *)(addr+3));
 			val = (d3 << 24) | (d2 << 16) | (d1 << 8) | d0;
 			put_reg_val(fp, b, val);
-			ma_word++;
 			break;
 		}
 	}
@@ -186,7 +171,6 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 	 *  note exception and skip bad instruction (return)
 	 */
 	if (in_kernel) {
-		ma_kern++;
 		fp->ea += 4;
 
 		if (ma_usermode & KM_WARN) {
@@ -199,8 +183,6 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 
 		return;
 	}
-
-	ma_user++;
 
 	/*
 	 * user mode -

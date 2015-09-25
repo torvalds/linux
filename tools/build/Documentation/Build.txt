@@ -66,6 +66,7 @@ To follow the above example, the user provides following 'Build' files:
   ex/Build:
     ex-y += a.o
     ex-y += b.o
+    ex-y += b.o # duplicates in the lists are allowed
 
     libex-y += c.o
     libex-y += d.o
