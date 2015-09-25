@@ -617,6 +617,21 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	return NULL;
 }
 
+struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
+						u64 id)
+{
+	struct perf_sample_id *sid;
+
+	if (!id)
+		return NULL;
+
+	sid = perf_evlist__id2sid(evlist, id);
+	if (sid)
+		return sid->evsel;
+
+	return NULL;
+}
+
 static int perf_evlist__event2id(struct perf_evlist *evlist,
 				 union perf_event *event, u64 *id)
 {
