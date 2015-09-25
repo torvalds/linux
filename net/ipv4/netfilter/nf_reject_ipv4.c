@@ -99,7 +99,7 @@ void nf_reject_ip_tcphdr_put(struct sk_buff *nskb, const struct sk_buff *oldskb,
 EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_put);
 
 /* Send RST reply */
-void nf_send_reset(struct sk_buff *oldskb, int hook)
+void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
 	const struct iphdr *oiph;

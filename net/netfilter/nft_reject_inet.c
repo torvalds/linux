@@ -31,7 +31,7 @@ static void nft_reject_inet_eval(const struct nft_expr *expr,
 					pkt->hook);
 			break;
 		case NFT_REJECT_TCP_RST:
-			nf_send_reset(pkt->skb, pkt->hook);
+			nf_send_reset(pkt->net, pkt->skb, pkt->hook);
 			break;
 		case NFT_REJECT_ICMPX_UNREACH:
 			nf_send_unreach(pkt->skb,
