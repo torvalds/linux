@@ -918,11 +918,10 @@ static void rsnd_src_reconvert_update(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
 
-static int rsnd_src_pcm_new(struct rsnd_mod *mod,
+static int rsnd_src_pcm_new_gen2(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
@@ -930,12 +929,6 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	/*
 	 * enable SRC sync convert if possible
 	 */
-
-	/*
-	 * Gen1 is not supported
-	 */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	/*
 	 * SRC sync convert needs clock master
@@ -975,7 +968,7 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.start	= rsnd_src_start_gen2,
 	.stop	= rsnd_src_stop_gen2,
 	.hw_params = rsnd_src_hw_params,
-	.pcm_new = rsnd_src_pcm_new,
+	.pcm_new = rsnd_src_pcm_new_gen2,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
@@ -983,7 +976,7 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 	if (WARN_ON(id < 0 || id >= rsnd_src_nr(priv)))
 		id = 0;
 
-	return &((struct rsnd_src *)(priv->src) + id)->mod;
+	return rsnd_mod_get((struct rsnd_src *)(priv->src) + id);
 }
 
 static void rsnd_of_parse_src(struct platform_device *pdev,
@@ -1078,7 +1071,7 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 
-		ret = rsnd_mod_init(priv, &src->mod, ops, clk, RSND_MOD_SRC, i);
+		ret = rsnd_mod_init(priv, rsnd_mod_get(src), ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
 	}
@@ -1093,6 +1086,6 @@ void rsnd_src_remove(struct platform_device *pdev,
 	int i;
 
 	for_each_rsnd_src(src, priv, i) {
-		rsnd_mod_quit(&src->mod);
+		rsnd_mod_quit(rsnd_mod_get(src));
 	}
 }
