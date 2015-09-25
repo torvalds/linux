@@ -214,6 +214,12 @@ static int report__setup_sample_type(struct report *rep)
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
 	bool is_pipe = perf_data_file__is_pipe(session->file);
 
+	if (session->itrace_synth_opts->callchain ||
+	    (!is_pipe &&
+	     perf_header__has_feat(&session->header, HEADER_AUXTRACE) &&
+	     !session->itrace_synth_opts->set))
+		sample_type |= PERF_SAMPLE_CALLCHAIN;
+
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
