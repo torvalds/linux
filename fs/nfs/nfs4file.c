@@ -199,8 +199,10 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 		  u64 src_off, u64 dst_off, u64 count)
 {
 	struct inode *dst_inode = file_inode(dst_file);
+	struct nfs_server *server = NFS_SERVER(dst_inode);
 	struct fd src_file;
 	struct inode *src_inode;
+	unsigned int bs = server->clone_blksize;
 	int ret;
 
 	/* dst file must be opened for writing */
@@ -237,6 +239,15 @@ nfs42_ioctl_clone(struct file *dst_file, unsigned long srcfd,
 	if (src_file.file->f_path.mnt != dst_file->f_path.mnt ||
 	    src_inode->i_sb != dst_inode->i_sb)
 		goto out_fput;
+
+	/* check alignment w.r.t. clone_blksize */
+	ret = -EINVAL;
+	if (bs) {
+		if (!IS_ALIGNED(src_off, bs) || !IS_ALIGNED(dst_off, bs))
+			goto out_fput;
+		if (!IS_ALIGNED(count, bs) && i_size_read(src_inode) != (src_off + count))
+			goto out_fput;
+	}
 
 	/* XXX: do we lock at all? what if server needs CB_RECALL_LAYOUT? */
 	if (dst_inode < src_inode) {
