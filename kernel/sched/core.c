@@ -621,18 +621,21 @@ int get_nohz_timer_target(void)
 	int i, cpu = smp_processor_id();
 	struct sched_domain *sd;
 
-	if (!idle_cpu(cpu))
+	if (!idle_cpu(cpu) && is_housekeeping_cpu(cpu))
 		return cpu;
 
 	rcu_read_lock();
 	for_each_domain(cpu, sd) {
 		for_each_cpu(i, sched_domain_span(sd)) {
-			if (!idle_cpu(i)) {
+			if (!idle_cpu(i) && is_housekeeping_cpu(cpu)) {
 				cpu = i;
 				goto unlock;
 			}
 		}
 	}
+
+	if (!is_housekeeping_cpu(cpu))
+		cpu = housekeeping_any_cpu();
 unlock:
 	rcu_read_unlock();
 	return cpu;
@@ -2666,13 +2669,20 @@ unsigned long nr_running(void)
 
 /*
  * Check if only the current task is running on the cpu.
+ *
+ * Caution: this function does not check that the caller has disabled
+ * preemption, thus the result might have a time-of-check-to-time-of-use
+ * race.  The caller is responsible to use it correctly, for example:
+ *
+ * - from a non-preemptable section (of course)
+ *
+ * - from a thread that is bound to a single CPU
+ *
+ * - in a loop with very short iterations (e.g. a polling loop)
  */
 bool single_task_running(void)
 {
-	if (cpu_rq(smp_processor_id())->nr_running == 1)
-		return true;
-	else
-		return false;
+	return raw_rq()->nr_running == 1;
 }
 EXPORT_SYMBOL(single_task_running);
 
@@ -5178,24 +5188,47 @@ static void migrate_tasks(struct rq *dead_rq)
 			break;
 
 		/*
-		 * Ensure rq->lock covers the entire task selection
-		 * until the migration.
+		 * pick_next_task assumes pinned rq->lock.
 		 */
 		lockdep_pin_lock(&rq->lock);
 		next = pick_next_task(rq, &fake_task);
 		BUG_ON(!next);
 		next->sched_class->put_prev_task(rq, next);
 
+		/*
+		 * Rules for changing task_struct::cpus_allowed are holding
+		 * both pi_lock and rq->lock, such that holding either
+		 * stabilizes the mask.
+		 *
+		 * Drop rq->lock is not quite as disastrous as it usually is
+		 * because !cpu_active at this point, which means load-balance
+		 * will not interfere. Also, stop-machine.
+		 */
+		lockdep_unpin_lock(&rq->lock);
+		raw_spin_unlock(&rq->lock);
+		raw_spin_lock(&next->pi_lock);
+		raw_spin_lock(&rq->lock);
+
+		/*
+		 * Since we're inside stop-machine, _nothing_ should have
+		 * changed the task, WARN if weird stuff happened, because in
+		 * that case the above rq->lock drop is a fail too.
+		 */
+		if (WARN_ON(task_rq(next) != rq || !task_on_rq_queued(next))) {
+			raw_spin_unlock(&next->pi_lock);
+			continue;
+		}
+
 		/* Find suitable destination for @next, with force if needed. */
 		dest_cpu = select_fallback_rq(dead_rq->cpu, next);
 
-		lockdep_unpin_lock(&rq->lock);
 		rq = __migrate_task(rq, next, dest_cpu);
 		if (rq != dead_rq) {
 			raw_spin_unlock(&rq->lock);
 			rq = dead_rq;
 			raw_spin_lock(&rq->lock);
 		}
+		raw_spin_unlock(&next->pi_lock);
 	}
 
 	rq->stop = stop;

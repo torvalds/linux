@@ -47,7 +47,7 @@ static void ics_rtas_unmask_irq(struct irq_data *d)
 	if (hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = xics_get_irq_server(d->irq, d->affinity, 0);
+	server = xics_get_irq_server(d->irq, irq_data_get_affinity_mask(d), 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hw_irq, server,
 				DEFAULT_PRIORITY);

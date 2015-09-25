@@ -325,8 +325,11 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 static void
 cifs_show_security(struct seq_file *s, struct cifs_ses *ses)
 {
-	if (ses->sectype == Unspecified)
+	if (ses->sectype == Unspecified) {
+		if (ses->user_name == NULL)
+			seq_puts(s, ",sec=none");
 		return;
+	}
 
 	seq_puts(s, ",sec=");
 

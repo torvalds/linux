@@ -96,7 +96,7 @@ struct armctrl_ic {
 static struct armctrl_ic intc __read_mostly;
 static void __exception_irq_entry bcm2835_handle_irq(
 	struct pt_regs *regs);
-static void bcm2836_chained_handle_irq(unsigned int irq, struct irq_desc *desc);
+static void bcm2836_chained_handle_irq(struct irq_desc *desc);
 
 static void armctrl_mask_irq(struct irq_data *d)
 {
@@ -166,7 +166,7 @@ static int __init armctrl_of_init(struct device_node *node,
 			BUG_ON(irq <= 0);
 			irq_set_chip_and_handler(irq, &armctrl_chip,
 				handle_level_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_set_probe(irq);
 		}
 	}
 
@@ -245,7 +245,7 @@ static void __exception_irq_entry bcm2835_handle_irq(
 		handle_IRQ(irq_linear_revmap(intc.domain, hwirq), regs);
 }
 
-static void bcm2836_chained_handle_irq(unsigned int irq, struct irq_desc *desc)
+static void bcm2836_chained_handle_irq(struct irq_desc *desc)
 {
 	u32 hwirq;
 
