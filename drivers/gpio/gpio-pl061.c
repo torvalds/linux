@@ -181,7 +181,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 			gpioiev |= bit;
 		else
 			gpioiev &= ~bit;
-
+		irq_set_handler_locked(d, handle_level_irq);
 		dev_dbg(gc->dev, "line %d: IRQ on %s level\n",
 			offset,
 			polarity ? "HIGH" : "LOW");
@@ -190,7 +190,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		gpiois &= ~bit;
 		/* Select both edges, setting this makes GPIOEV be ignored */
 		gpioibe |= bit;
-
+		irq_set_handler_locked(d, handle_edge_irq);
 		dev_dbg(gc->dev, "line %d: IRQ on both edges\n", offset);
 	} else if ((trigger & IRQ_TYPE_EDGE_RISING) ||
 		   (trigger & IRQ_TYPE_EDGE_FALLING)) {
@@ -205,7 +205,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 			gpioiev |= bit;
 		else
 			gpioiev &= ~bit;
-
+		irq_set_handler_locked(d, handle_edge_irq);
 		dev_dbg(gc->dev, "line %d: IRQ on %s edge\n",
 			offset,
 			rising ? "RISING" : "FALLING");
@@ -214,6 +214,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		gpiois &= ~bit;
 		gpioibe &= ~bit;
 		gpioiev &= ~bit;
+		irq_set_handler_locked(d, handle_bad_irq);
 		dev_warn(gc->dev, "no trigger selected for line %d\n",
 			 offset);
 	}
@@ -238,7 +239,6 @@ static void pl061_irq_handler(struct irq_desc *desc)
 	chained_irq_enter(irqchip, desc);
 
 	pending = readb(chip->base + GPIOMIS);
-	writeb(pending, chip->base + GPIOIC);
 	if (pending) {
 		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
 			generic_handle_irq(irq_find_mapping(gc->irqdomain,
@@ -274,8 +274,28 @@ static void pl061_irq_unmask(struct irq_data *d)
 	spin_unlock(&chip->lock);
 }
 
+/**
+ * pl061_irq_ack() - ACK an edge IRQ
+ * @d: IRQ data for this IRQ
+ *
+ * This gets called from the edge IRQ handler to ACK the edge IRQ
+ * in the GPIOIC (interrupt-clear) register. For level IRQs this is
+ * not needed: these go away when the level signal goes away.
+ */
+static void pl061_irq_ack(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
+	u8 mask = BIT(irqd_to_hwirq(d) % PL061_GPIO_NR);
+
+	spin_lock(&chip->lock);
+	writeb(mask, chip->base + GPIOIC);
+	spin_unlock(&chip->lock);
+}
+
 static struct irq_chip pl061_irqchip = {
 	.name		= "pl061",
+	.irq_ack	= pl061_irq_ack,
 	.irq_mask	= pl061_irq_mask,
 	.irq_unmask	= pl061_irq_unmask,
 	.irq_set_type	= pl061_irq_type,
@@ -338,7 +358,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	ret = gpiochip_irqchip_add(&chip->gc, &pl061_irqchip,
-				   irq_base, handle_simple_irq,
+				   irq_base, handle_bad_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_info(&adev->dev, "could not add irqchip\n");
