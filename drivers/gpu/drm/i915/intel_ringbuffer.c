@@ -807,6 +807,9 @@ static int gen8_init_workarounds(struct intel_engine_cs *ring)
 
 	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
 
+	/* WaDisableAsyncFlipPerfMode:bdw,chv */
+	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
+
 	return 0;
 }
 
@@ -819,9 +822,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen8_init_workarounds(ring);
 	if (ret)
 		return ret;
-
-	/* WaDisableAsyncFlipPerfMode:bdw */
-	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
 
 	/* WaDisablePartialInstShootdown:bdw */
 	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
@@ -888,9 +888,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	ret = gen8_init_workarounds(ring);
 	if (ret)
 		return ret;
-
-	/* WaDisableAsyncFlipPerfMode:chv */
-	WA_SET_BIT_MASKED(MI_MODE, ASYNC_FLIP_PERF_DISABLE);
 
 	/* WaDisablePartialInstShootdown:chv */
 	/* WaDisableThreadStallDopClockGating:chv */
