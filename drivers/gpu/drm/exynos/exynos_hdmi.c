@@ -71,12 +71,18 @@ enum hdmi_mapped_regs {
 	HDMI_PHY_STATUS = HDMI_MAPPED_BASE,
 	HDMI_PHY_RSTOUT,
 	HDMI_ACR_CON,
+	HDMI_ACR_MCTS0,
+	HDMI_ACR_CTS0,
+	HDMI_ACR_N0
 };
 
 static const u32 hdmi_reg_map[][HDMI_TYPE_COUNT] = {
 	{ HDMI_V13_PHY_STATUS, HDMI_PHY_STATUS_0 },
 	{ HDMI_V13_PHY_RSTOUT, HDMI_V14_PHY_RSTOUT },
 	{ HDMI_V13_ACR_CON, HDMI_V14_ACR_CON },
+	{ HDMI_V13_ACR_MCTS0, HDMI_V14_ACR_MCTS0 },
+	{ HDMI_V13_ACR_CTS0, HDMI_V14_ACR_CTS0 },
+	{ HDMI_V13_ACR_N0, HDMI_V14_ACR_N0 },
 };
 
 static const char * const supply[] = {
@@ -1106,65 +1112,16 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void hdmi_set_acr(u32 freq, u8 *acr)
+static void hdmi_reg_acr(struct hdmi_context *hdata, u32 freq)
 {
 	u32 n, cts;
 
-	switch (freq) {
-	case 32000:
-		n = 4096;
-		cts = 27000;
-		break;
-	case 44100:
-		n = 6272;
-		cts = 30000;
-		break;
-	case 88200:
-		n = 12544;
-		cts = 30000;
-		break;
-	case 176400:
-		n = 25088;
-		cts = 30000;
-		break;
-	case 48000:
-		n = 6144;
-		cts = 27000;
-		break;
-	case 96000:
-		n = 12288;
-		cts = 27000;
-		break;
-	case 192000:
-		n = 24576;
-		cts = 27000;
-		break;
-	default:
-		n = 0;
-		cts = 0;
-		break;
-	}
+	cts = (freq % 9) ? 27000 : 30000;
+	n = 128 * freq / (27000000 / cts);
 
-	acr[1] = cts >> 16;
-	acr[2] = cts >> 8 & 0xff;
-	acr[3] = cts & 0xff;
-
-	acr[4] = n >> 16;
-	acr[5] = n >> 8 & 0xff;
-	acr[6] = n & 0xff;
-}
-
-static void hdmi_reg_acr(struct hdmi_context *hdata, u8 *acr)
-{
-	hdmi_reg_writeb(hdata, HDMI_ACR_N0, acr[6]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_N1, acr[5]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_N2, acr[4]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS0, acr[3]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS1, acr[2]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS2, acr[1]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_CTS0, acr[3]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_CTS1, acr[2]);
-	hdmi_reg_writeb(hdata, HDMI_ACR_CTS2, acr[1]);
+	hdmi_reg_writev(hdata, HDMI_ACR_N0, 3, n);
+	hdmi_reg_writev(hdata, HDMI_ACR_MCTS0, 3, cts);
+	hdmi_reg_writev(hdata, HDMI_ACR_CTS0, 3, cts);
 	hdmi_reg_writeb(hdata, HDMI_ACR_CON, 4);
 }
 
@@ -1173,7 +1130,6 @@ static void hdmi_audio_init(struct hdmi_context *hdata)
 	u32 sample_rate, bits_per_sample;
 	u32 data_num, bit_ch, sample_frq;
 	u32 val;
-	u8 acr[7];
 
 	sample_rate = 44100;
 	bits_per_sample = 16;
@@ -1193,8 +1149,7 @@ static void hdmi_audio_init(struct hdmi_context *hdata)
 		break;
 	}
 
-	hdmi_set_acr(sample_rate, acr);
-	hdmi_reg_acr(hdata, acr);
+	hdmi_reg_acr(hdata, sample_rate);
 
 	hdmi_reg_writeb(hdata, HDMI_I2S_MUX_CON, HDMI_I2S_IN_DISABLE
 				| HDMI_I2S_AUD_I2S | HDMI_I2S_CUV_I2S_ENABLE
