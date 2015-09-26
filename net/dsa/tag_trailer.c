@@ -78,7 +78,7 @@ static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	trailer = skb_tail_pointer(skb) - 4;
 	if (trailer[0] != 0x80 || (trailer[1] & 0xf8) != 0x00 ||
-	    (trailer[3] & 0xef) != 0x00 || trailer[3] != 0x00)
+	    (trailer[2] & 0xef) != 0x00 || trailer[3] != 0x00)
 		goto out_drop;
 
 	source_port = trailer[1] & 7;

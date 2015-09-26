@@ -582,6 +582,7 @@ struct be_adapter {
 	u16 pvid;
 	__be16 vxlan_port;
 	int vxlan_port_count;
+	int vxlan_port_aliases;
 	struct phy_info phy;
 	u8 wol_cap;
 	bool wol_en;
