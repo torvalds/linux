@@ -102,7 +102,7 @@
 #define ELAN_FW_PAGESIZE	132
 
 /* calibration timeout definition */
-#define ELAN_CALI_TIMEOUT_MSEC	10000
+#define ELAN_CALI_TIMEOUT_MSEC	12000
 
 #define ELAN_POWERON_DELAY_USEC	500
 #define ELAN_RESET_DELAY_MSEC	20

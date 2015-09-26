@@ -4673,7 +4673,10 @@ static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 	}
 
 	ret = rbd_dev_v2_snap_context(rbd_dev);
-	dout("rbd_dev_v2_snap_context returned %d\n", ret);
+	if (ret && first_time) {
+		kfree(rbd_dev->header.object_prefix);
+		rbd_dev->header.object_prefix = NULL;
+	}
 
 	return ret;
 }
@@ -5154,7 +5157,6 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 out_err:
 	if (parent) {
 		rbd_dev_unparent(rbd_dev);
-		kfree(rbd_dev->header_name);
 		rbd_dev_destroy(parent);
 	} else {
 		rbd_put_client(rbdc);

@@ -69,8 +69,7 @@ static struct platform_device *devices[] __initdata = {
 #define DEBUG_IRQ(fmt...)	while (0) {}
 #endif
 
-static void
-netx_hif_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
+static void netx_hif_demux_handler(struct irq_desc *desc)
 {
 	unsigned int irq = NETX_IRQ_HIF_CHAINED(0);
 	unsigned int stat;

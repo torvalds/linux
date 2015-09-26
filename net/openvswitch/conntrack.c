@@ -275,13 +275,15 @@ static int ovs_ct_helper(struct sk_buff *skb, u16 proto)
 	case NFPROTO_IPV6: {
 		u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 		__be16 frag_off;
+		int ofs;
 
-		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
-					   &nexthdr, &frag_off);
-		if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
+		ofs = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
+				       &frag_off);
+		if (ofs < 0 || (frag_off & htons(~0x7)) != 0) {
 			pr_debug("proto header not found\n");
 			return NF_ACCEPT;
 		}
+		protoff = ofs;
 		break;
 	}
 	default:

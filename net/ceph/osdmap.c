@@ -1300,7 +1300,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		ceph_decode_addr(&addr);
 		pr_info("osd%d up\n", osd);
 		BUG_ON(osd >= map->max_osd);
-		map->osd_state[osd] |= CEPH_OSD_UP;
+		map->osd_state[osd] |= CEPH_OSD_UP | CEPH_OSD_EXISTS;
 		map->osd_addr[osd] = addr;
 	}
 

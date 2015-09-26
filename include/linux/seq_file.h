@@ -114,13 +114,18 @@ int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);
 int seq_release(struct inode *, struct file *);
-int seq_escape(struct seq_file *, const char *, const char *);
-int seq_putc(struct seq_file *m, char c);
-int seq_puts(struct seq_file *m, const char *s);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
-__printf(2, 3) int seq_printf(struct seq_file *, const char *, ...);
-__printf(2, 0) int seq_vprintf(struct seq_file *, const char *, va_list args);
+__printf(2, 0)
+void seq_vprintf(struct seq_file *m, const char *fmt, va_list args);
+__printf(2, 3)
+void seq_printf(struct seq_file *m, const char *fmt, ...);
+void seq_putc(struct seq_file *m, char c);
+void seq_puts(struct seq_file *m, const char *s);
+void seq_put_decimal_ull(struct seq_file *m, char delimiter,
+			 unsigned long long num);
+void seq_put_decimal_ll(struct seq_file *m, char delimiter, long long num);
+void seq_escape(struct seq_file *m, const char *s, const char *esc);
 
 void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
 		  int rowsize, int groupsize, const void *buf, size_t len,
@@ -138,10 +143,6 @@ int single_release(struct inode *, struct file *);
 void *__seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_release_private(struct inode *, struct file *);
-int seq_put_decimal_ull(struct seq_file *m, char delimiter,
-			unsigned long long num);
-int seq_put_decimal_ll(struct seq_file *m, char delimiter,
-			long long num);
 
 static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
 {

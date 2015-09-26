@@ -2316,8 +2316,11 @@ static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
-	struct event_constraint *c1 = cpuc->event_constraint[idx];
+	struct event_constraint *c1 = NULL;
 	struct event_constraint *c2;
+
+	if (idx >= 0) /* fake does < 0 */
+		c1 = cpuc->event_constraint[idx];
 
 	/*
 	 * first time only

@@ -1602,6 +1602,18 @@ config PCI_QUIRKS
 	  bugs/quirks. Disable this only if your target machine is
 	  unaffected by PCI quirks.
 
+config MEMBARRIER
+	bool "Enable membarrier() system call" if EXPERT
+	default y
+	help
+	  Enable the membarrier() system call that allows issuing memory
+	  barriers across all running threads, which can be used to distribute
+	  the cost of user-space memory barriers asymmetrically by transforming
+	  pairs of memory barriers into pairs consisting of membarrier() and a
+	  compiler barrier.
+
+	  If unsure, say Y.
+
 config EMBEDDED
 	bool "Embedded system"
 	option allnoconfig_y

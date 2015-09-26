@@ -31,6 +31,7 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_dh.h>
 
 #include <trace/events/scsi.h>
 
@@ -1248,9 +1249,8 @@ static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
-	if (unlikely(sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh
-			 && sdev->scsi_dh_data->scsi_dh->prep_fn)) {
-		int ret = sdev->scsi_dh_data->scsi_dh->prep_fn(sdev, req);
+	if (unlikely(sdev->handler && sdev->handler->prep_fn)) {
+		int ret = sdev->handler->prep_fn(sdev, req);
 		if (ret != BLKPREP_OK)
 			return ret;
 	}

@@ -1191,6 +1191,7 @@ cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_save_fpu_fpc_end)
 	jhe	1f
 	lg	%r2,__LC_CURRENT
+	aghi	%r2,__TASK_thread
 0:	# Store floating-point controls
 	stfpc	__THREAD_FPU_fpc(%r2)
 1:	# Load register save area and check if VX is active
@@ -1252,6 +1253,7 @@ cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_ctl)
 	jhe	6f
 	lg	%r4,__LC_CURRENT
+	aghi	%r4,__TASK_thread
 	lfpc	__THREAD_FPU_fpc(%r4)
 	tm	__THREAD_FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area

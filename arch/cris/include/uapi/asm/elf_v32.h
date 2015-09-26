@@ -1,9 +1,10 @@
 #ifndef _ASM_CRIS_ELF_H
 #define _ASM_CRIS_ELF_H
 
-#include <arch/system.h>
-
 #define ELF_CORE_EFLAGS EF_CRIS_VARIANT_V32
+
+/* Matches struct user_regs_struct */
+#define ELF_NGREG 32
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

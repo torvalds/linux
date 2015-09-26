@@ -77,6 +77,7 @@ config DRM_EXYNOS_VIDI
 config DRM_EXYNOS_G2D
 	bool "Exynos DRM G2D"
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_G2D
+	select FRAME_VECTOR
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 

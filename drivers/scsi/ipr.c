@@ -4555,7 +4555,7 @@ static ssize_t ipr_store_raw_mode(struct device *dev,
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	res = (struct ipr_resource_entry *)sdev->hostdata;
 	if (res) {
-		if (ioa_cfg->sis64 && ipr_is_af_dasd_device(res)) {
+		if (ipr_is_af_dasd_device(res)) {
 			res->raw_mode = simple_strtoul(buf, NULL, 10);
 			len = strlen(buf);
 			if (res->sdev)
@@ -6383,8 +6383,12 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 	}
-	if (res->raw_mode && ipr_is_af_dasd_device(res))
+	if (res->raw_mode && ipr_is_af_dasd_device(res)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_PIPE;
+
+		if (scsi_cmd->underflow == 0)
+			ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
+	}
 
 	if (ioa_cfg->sis64)
 		rc = ipr_build_ioadl64(ioa_cfg, ipr_cmd);

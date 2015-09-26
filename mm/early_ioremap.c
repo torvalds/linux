@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <asm/fixmap.h>
+#include <asm/early_ioremap.h>
 
 #ifdef CONFIG_MMU
 static int early_ioremap_debug __initdata;

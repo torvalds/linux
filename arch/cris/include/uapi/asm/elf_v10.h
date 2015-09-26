@@ -1,9 +1,10 @@
 #ifndef __ASMCRIS_ARCH_ELF_H
 #define __ASMCRIS_ARCH_ELF_H
 
-#include <arch/system.h>
-
 #define ELF_MACH EF_CRIS_VARIANT_ANY_V0_V10
+
+/* Matches struct user_regs_struct */
+#define ELF_NGREG 35
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
