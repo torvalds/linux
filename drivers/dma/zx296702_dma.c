@@ -739,7 +739,7 @@ static struct dma_chan *zx_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 	struct dma_chan *chan;
 	struct zx_dma_chan *c;
 
-	if (request > d->dma_requests)
+	if (request >= d->dma_requests)
 		return NULL;
 
 	chan = dma_get_any_slave_channel(&d->slave);
