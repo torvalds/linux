@@ -717,6 +717,12 @@ struct perf_domain {
 	struct rcu_head rcu;
 };
 
+struct max_cpu_capacity {
+	raw_spinlock_t lock;
+	unsigned long val;
+	int cpu;
+};
+
 /* Scheduling group status flags */
 #define SG_OVERLOAD		0x1 /* More than one runnable task on a CPU. */
 #define SG_OVERUTILIZED		0x2 /* One or more CPUs are over-utilized. */
@@ -775,7 +781,8 @@ struct root_domain {
 	cpumask_var_t		rto_mask;
 	struct cpupri		cpupri;
 
-	unsigned long		max_cpu_capacity;
+	/* Maximum cpu capacity in the system. */
+	struct max_cpu_capacity max_cpu_capacity;
 
 	/*
 	 * NULL-terminated list of performance domains intersecting with the
@@ -785,6 +792,7 @@ struct root_domain {
 };
 
 extern void init_defrootdomain(void);
+extern void init_max_cpu_capacity(struct max_cpu_capacity *mcc);
 extern int sched_init_domains(const struct cpumask *cpu_map);
 extern void rq_attach_root(struct rq *rq, struct root_domain *rd);
 extern void sched_get_rd(struct root_domain *rd);
