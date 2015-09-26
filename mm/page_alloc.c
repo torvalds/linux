@@ -2159,13 +2159,13 @@ failed:
 static struct {
 	struct fault_attr attr;
 
-	u32 ignore_gfp_highmem;
-	u32 ignore_gfp_wait;
+	bool ignore_gfp_highmem;
+	bool ignore_gfp_wait;
 	u32 min_order;
 } fail_page_alloc = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_wait = 1,
-	.ignore_gfp_highmem = 1,
+	.ignore_gfp_wait = true,
+	.ignore_gfp_highmem = true,
 	.min_order = 1,
 };
 

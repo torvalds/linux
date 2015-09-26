@@ -439,7 +439,7 @@ ssize_t debugfs_read_file_bool(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	char buf[3];
-	u32 *val = file->private_data;
+	bool *val = file->private_data;
 
 	if (*val)
 		buf[0] = 'Y';
@@ -457,7 +457,7 @@ ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 	char buf[32];
 	size_t buf_size;
 	bool bv;
-	u32 *val = file->private_data;
+	bool *val = file->private_data;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -503,7 +503,7 @@ static const struct file_operations fops_bool = {
  * code.
  */
 struct dentry *debugfs_create_bool(const char *name, umode_t mode,
-				   struct dentry *parent, u32 *value)
+				   struct dentry *parent, bool *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_bool);
 }

@@ -3,12 +3,12 @@
 
 static struct {
 	struct fault_attr attr;
-	u32 ignore_gfp_wait;
-	int cache_filter;
+	bool ignore_gfp_wait;
+	bool cache_filter;
 } failslab = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_wait = 1,
-	.cache_filter = 0,
+	.ignore_gfp_wait = true,
+	.cache_filter = false,
 };
 
 bool should_failslab(size_t size, gfp_t gfpflags, unsigned long cache_flags)

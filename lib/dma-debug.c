@@ -100,7 +100,7 @@ static LIST_HEAD(free_entries);
 static DEFINE_SPINLOCK(free_entries_lock);
 
 /* Global disable flag - will be set in case of an error */
-static u32 global_disable __read_mostly;
+static bool global_disable __read_mostly;
 
 /* Early initialization disable flag, set at the end of dma_debug_init */
 static bool dma_debug_initialized __read_mostly;

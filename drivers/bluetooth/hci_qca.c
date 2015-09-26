@@ -80,8 +80,8 @@ struct qca_data {
 	spinlock_t hci_ibs_lock;	/* HCI_IBS state lock	*/
 	u8 tx_ibs_state;	/* HCI_IBS transmit side power state*/
 	u8 rx_ibs_state;	/* HCI_IBS receive side power state */
-	u32 tx_vote;		/* Clock must be on for TX */
-	u32 rx_vote;		/* Clock must be on for RX */
+	bool tx_vote;		/* Clock must be on for TX */
+	bool rx_vote;		/* Clock must be on for RX */
 	struct timer_list tx_idle_timer;
 	u32 tx_idle_delay;
 	struct timer_list wake_retrans_timer;

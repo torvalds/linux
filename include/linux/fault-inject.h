@@ -18,7 +18,7 @@ struct fault_attr {
 	atomic_t times;
 	atomic_t space;
 	unsigned long verbose;
-	u32 task_filter;
+	bool task_filter;
 	unsigned long stacktrace_depth;
 	unsigned long require_start;
 	unsigned long require_end;
