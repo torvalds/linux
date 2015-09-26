@@ -5888,6 +5888,8 @@ static int init_rootdomain(struct root_domain *rd)
 
 	if (cpupri_init(&rd->cpupri) != 0)
 		goto free_rto_mask;
+
+	init_max_cpu_capacity(&rd->max_cpu_capacity);
 	return 0;
 
 free_rto_mask:
@@ -7105,14 +7107,8 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 		rq = cpu_rq(i);
 		sd = *per_cpu_ptr(d.sd, i);
 		cpu_attach_domain(sd, d.rd, i);
-
-		if (rq->cpu_capacity_orig > rq->rd->max_cpu_capacity)
-			rq->rd->max_cpu_capacity = rq->cpu_capacity_orig;
 	}
 	rcu_read_unlock();
-
-	if (rq)
-		pr_info("max cpu_capacity %lu\n", rq->rd->max_cpu_capacity);
 
 	ret = 0;
 error:
