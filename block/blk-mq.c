@@ -2035,12 +2035,12 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		goto err_hctxs;
 
 	mutex_lock(&all_q_mutex);
+
 	list_add_tail(&q->all_q_node, &all_q_list);
-	mutex_unlock(&all_q_mutex);
-
 	blk_mq_add_queue_tag_set(set, q);
-
 	blk_mq_map_swqueue(q);
+
+	mutex_unlock(&all_q_mutex);
 
 	return q;
 
