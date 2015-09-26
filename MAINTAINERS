@@ -615,9 +615,8 @@ F:	Documentation/hwmon/fam15h_power
 F:	drivers/hwmon/fam15h_power.c
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
-M:	Thomas Dahlmann <dahlmann.thomas@arcor.de>
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
+S:	Orphan
 F:	drivers/usb/gadget/udc/amd5536udc.*
 
 AMD GEODE PROCESSOR/CHIPSET SUPPORT
