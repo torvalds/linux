@@ -74,6 +74,8 @@ unsigned int extra_delta_offset64;
 unsigned int aperf_mperf_multiplier = 1;
 int do_smi;
 double bclk;
+double base_hz;
+double tsc_tweak = 1.0;
 unsigned int show_pkg;
 unsigned int show_core;
 unsigned int show_cpu;
@@ -503,7 +505,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* %Busy */
 	if (has_aperf) {
 		if (!skip_c0)
-			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc);
+			outp += sprintf(outp, "%8.2f", 100.0 * t->mperf/t->tsc/tsc_tweak);
 		else
 			outp += sprintf(outp, "********");
 	}
@@ -511,7 +513,7 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	/* Bzy_MHz */
 	if (has_aperf)
 		outp += sprintf(outp, "%8.0f",
-			1.0 * t->tsc / units * t->aperf / t->mperf / interval_float);
+			1.0 * t->tsc * tsc_tweak / units * t->aperf / t->mperf / interval_float);
 
 	/* TSC_MHz */
 	outp += sprintf(outp, "%8.0f", 1.0 * t->tsc/units/interval_float);
@@ -1151,6 +1153,19 @@ int hsw_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL__3, PCL__6, PCL__7, PCL_7S,
 int slv_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCLRSV, PCLRSV, PCL__4, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int amt_pkg_cstate_limits[16] = {PCL__0, PCL__1, PCL__2, PCLRSV, PCLRSV, PCLRSV, PCL__6, PCL__7, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
 int phi_pkg_cstate_limits[16] = {PCL__0, PCL__2, PCL_6N, PCL_6R, PCLRSV, PCLRSV, PCLRSV, PCLUNL, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV, PCLRSV};
+
+
+static void
+calculate_tsc_tweak()
+{
+	unsigned long long msr;
+	unsigned int base_ratio;
+
+	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	base_ratio = (msr >> 8) & 0xFF;
+	base_hz = base_ratio * bclk * 1000000;
+	tsc_tweak = base_hz / tsc_hz;
+}
 
 static void
 dump_nhm_platform_info(void)
@@ -2772,6 +2787,9 @@ void process_cpuid()
 
 	if (debug)
 		dump_cstate_pstate_config_info();
+
+	if (has_skl_msrs(family, model))
+		calculate_tsc_tweak();
 
 	return;
 }
