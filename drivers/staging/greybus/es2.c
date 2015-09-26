@@ -506,15 +506,15 @@ static void cport_out_callback(struct urb *urb)
 
 	gb_message_cport_clear(message->header);
 
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	message->hcpriv = NULL;
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+
 	/*
 	 * Tell the submitter that the message send (attempt) is
 	 * complete, and report the status.
 	 */
 	greybus_message_sent(hd, message, status);
-
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
-	message->hcpriv = NULL;
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
 
 	free_urb(es1, urb);
 }
