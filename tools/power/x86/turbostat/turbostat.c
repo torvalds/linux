@@ -3119,7 +3119,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.7 17-June, 2015"
+	fprintf(stderr, "turbostat version 4.8 26-Sep, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
