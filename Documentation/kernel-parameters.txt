@@ -167,7 +167,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi=		[HW,ACPI,X86,ARM64]
 			Advanced Configuration and Power Interface
-			Format: { force | off | strict | noirq | rsdt }
+			Format: { force | off | strict | noirq | rsdt |
+				  copy_dsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
