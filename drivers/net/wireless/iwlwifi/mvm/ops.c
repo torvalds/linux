@@ -271,6 +271,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 static const char *const iwl_mvm_cmd_strings[REPLY_MAX + 1] = {
 	CMD(MVM_ALIVE),
 	CMD(REPLY_ERROR),
+	CMD(ECHO_CMD),
 	CMD(INIT_COMPLETE_NOTIF),
 	CMD(PHY_CONTEXT_CMD),
 	CMD(MGMT_MCAST_KEY),
@@ -1145,12 +1146,17 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
 
-	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
-	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
-				   sizeof(wowlan_config_cmd),
-				   &wowlan_config_cmd);
-	if (ret)
-		return ret;
+	/* configure wowlan configuration only if needed */
+	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
+		iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd,
+					&d0i3_iter_data);
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
+					   sizeof(wowlan_config_cmd),
+					   &wowlan_config_cmd);
+		if (ret)
+			return ret;
+	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD,
 				    flags | CMD_MAKE_TRANS_IDLE,
@@ -1257,7 +1263,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	};
 	struct iwl_wowlan_status *status;
 	int ret;
-	u32 handled_reasons, wakeup_reasons;
+	u32 handled_reasons, wakeup_reasons = 0;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
@@ -1288,6 +1294,9 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	}
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
+
+	IWL_DEBUG_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
+		       wakeup_reasons);
 
 	/* qos_seq might point inside resp_pkt, so free it only now */
 	if (get_status_cmd.resp_pkt)

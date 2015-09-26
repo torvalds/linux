@@ -1250,11 +1250,10 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 {
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	char buf[3];
+	char buf[2];
 
 	buf[0] = mvmvif->low_latency ? '1' : '0';
 	buf[1] = '\n';
-	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, sizeof(buf));
 }
 

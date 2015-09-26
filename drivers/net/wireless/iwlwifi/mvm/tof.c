@@ -178,7 +178,8 @@ int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TOF_SUPPORT))
 		return -EINVAL;
 
-	if (vif->p2p || vif->type != NL80211_IFTYPE_AP) {
+	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
+	    !mvmvif->ap_ibss_active) {
 		IWL_ERR(mvm, "Cannot start responder, not in AP mode\n");
 		return -EIO;
 	}

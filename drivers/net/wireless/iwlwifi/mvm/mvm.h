@@ -323,11 +323,11 @@ enum iwl_bt_force_ant_mode {
 struct iwl_mvm_vif_bf_data {
 	bool bf_enabled;
 	bool ba_enabled;
-	s8 ave_beacon_signal;
-	s8 last_cqm_event;
-	s8 bt_coex_min_thold;
-	s8 bt_coex_max_thold;
-	s8 last_bt_coex_event;
+	int ave_beacon_signal;
+	int last_cqm_event;
+	int bt_coex_min_thold;
+	int bt_coex_max_thold;
+	int last_bt_coex_event;
 };
 
 /**
@@ -338,6 +338,8 @@ struct iwl_mvm_vif_bf_data {
  * @bssid: BSSID for this (client) interface
  * @associated: indicates that we're currently associated, used only for
  *	managing the firmware state in iwl_mvm_bss_info_changed_station()
+ * @ap_assoc_sta_count: count of stations associated to us - valid only
+ *	if VIF type is AP
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
@@ -367,6 +369,7 @@ struct iwl_mvm_vif {
 
 	u8 bssid[ETH_ALEN];
 	bool associated;
+	u8 ap_assoc_sta_count;
 
 	bool uploaded;
 	bool ap_ibss_active;
@@ -934,11 +937,6 @@ static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
-static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
-{
-	return fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_SCD_CFG);
-}
-
 static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
@@ -1131,6 +1129,9 @@ void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif);
+int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
+			    struct ieee80211_vif *vif,
+			    u32 action);
 
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
