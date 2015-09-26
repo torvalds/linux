@@ -108,6 +108,21 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		}
 	}
 
+	if (pdev->vendor == PCI_VENDOR_ID_SYNOPSYS &&
+	    (pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3 ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI ||
+	     pdev->device == PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31)) {
+
+		struct dwc3_platform_data pdata;
+
+		memset(&pdata, 0, sizeof(pdata));
+		pdata.usb3_lpm_capable = true;
+		pdata.has_lpm_erratum = true;
+
+		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
+						sizeof(pdata));
+	}
+
 	return 0;
 }
 
