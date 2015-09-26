@@ -697,9 +697,7 @@ static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 	if (sbi->sb->s_bdi->wb.dirty_exceeded)
 		return 0;
 
-	if (type == DATA)
-		return sbi->blocks_per_seg;
-	else if (type == NODE)
+	if (type == NODE)
 		return 3 * sbi->blocks_per_seg;
 	else if (type == META)
 		return MAX_BIO_BLOCKS(sbi);
