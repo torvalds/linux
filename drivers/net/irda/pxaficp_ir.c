@@ -29,7 +29,6 @@
 
 #include <mach/dma.h>
 #include <linux/platform_data/irda-pxaficp.h>
-#include <mach/regs-ost.h>
 #include <mach/regs-uart.h>
 
 #define FICP		__REG(0x40800000)  /* Start of FICP area */
@@ -102,7 +101,7 @@
 struct pxa_irda {
 	int			speed;
 	int			newspeed;
-	unsigned long		last_oscr;
+	unsigned long long	last_clk;
 
 	unsigned char		*dma_rx_buff;
 	unsigned char		*dma_tx_buff;
@@ -292,7 +291,7 @@ static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id)
 			}
 			lsr = STLSR;
 		}
-		si->last_oscr = readl_relaxed(OSCR);
+		si->last_clk = sched_clock();
 		break;
 
 	case 0x04: /* Received Data Available */
@@ -303,7 +302,7 @@ static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id)
 		    dev->stats.rx_bytes++;
 	            async_unwrap_char(dev, &dev->stats, &si->rx_buff, STRBR);
 	  	} while (STLSR & LSR_DR);
-		si->last_oscr = readl_relaxed(OSCR);
+		si->last_clk = sched_clock();
 	  	break;
 
 	case 0x02: /* Transmit FIFO Data Request */
@@ -319,7 +318,7 @@ static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id)
                         /* We need to ensure that the transmitter has finished. */
 			while ((STLSR & LSR_TEMT) == 0)
 				cpu_relax();
-			si->last_oscr = readl_relaxed(OSCR);
+			si->last_clk = sched_clock();
 
 			/*
 		 	* Ok, we've finished transmitting.  Now enable
@@ -373,7 +372,7 @@ static void pxa_irda_fir_dma_tx_irq(int channel, void *data)
 
 	while (ICSR1 & ICSR1_TBY)
 		cpu_relax();
-	si->last_oscr = readl_relaxed(OSCR);
+	si->last_clk = sched_clock();
 
 	/*
 	 * HACK: It looks like the TBY bit is dropped too soon.
@@ -473,8 +472,8 @@ static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 
 	/* stop RX DMA */
 	DCSR(si->rxdma) &= ~DCSR_RUN;
-	si->last_oscr = readl_relaxed(OSCR);
 	icsr0 = ICSR0;
+	si->last_clk = sched_clock();
 
 	if (icsr0 & (ICSR0_FRE | ICSR0_RAB)) {
 		if (icsr0 & ICSR0_FRE) {
@@ -549,7 +548,7 @@ static int pxa_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_copy_from_linear_data(skb, si->dma_tx_buff, skb->len);
 
 		if (mtt)
-			while ((unsigned)(readl_relaxed(OSCR) - si->last_oscr)/4 < mtt)
+			while ((sched_clock() - si->last_clk) * 1000 < mtt)
 				cpu_relax();
 
 		/* stop RX DMA,  disable FICP */
