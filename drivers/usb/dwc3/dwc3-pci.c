@@ -26,14 +26,14 @@
 
 #include "platform_data.h"
 
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI 0xabce
-#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31 0xabcf
-#define PCI_DEVICE_ID_INTEL_BYT		0x0f37
-#define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
-#define PCI_DEVICE_ID_INTEL_BSW		0x22B7
-#define PCI_DEVICE_ID_INTEL_SPTLP	0x9d30
-#define PCI_DEVICE_ID_INTEL_SPTH	0xa130
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3		0xabcd
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3_AXI	0xabce
+#define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB31	0xabcf
+#define PCI_DEVICE_ID_INTEL_BYT			0x0f37
+#define PCI_DEVICE_ID_INTEL_MRFLD		0x119e
+#define PCI_DEVICE_ID_INTEL_BSW			0x22b7
+#define PCI_DEVICE_ID_INTEL_SPTLP		0x9d30
+#define PCI_DEVICE_ID_INTEL_SPTH		0xa130
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
 static const struct acpi_gpio_params cs_gpios = { 1, 0, false };
