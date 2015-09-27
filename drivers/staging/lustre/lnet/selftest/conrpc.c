@@ -1176,7 +1176,7 @@ lstcon_rpc_pinger(void *arg)
 	srpc_debug_reqst_t *drq;
 	lstcon_ndlink_t *ndl;
 	lstcon_node_t *nd;
-	time_t intv;
+	int intv;
 	int count = 0;
 	int rc;
 
@@ -1191,8 +1191,8 @@ lstcon_rpc_pinger(void *arg)
 	}
 
 	if (!console_session.ses_expired &&
-	    get_seconds() - console_session.ses_laststamp >
-	    (time_t)console_session.ses_timeout)
+	    ktime_get_real_seconds() - console_session.ses_laststamp >
+	    (time64_t)console_session.ses_timeout)
 		console_session.ses_expired = 1;
 
 	trans = console_session.ses_ping;
@@ -1248,9 +1248,8 @@ lstcon_rpc_pinger(void *arg)
 		if (nd->nd_state != LST_NODE_ACTIVE)
 			continue;
 
-		intv = cfs_duration_sec(cfs_time_sub(cfs_time_current(),
-						     nd->nd_stamp));
-		if (intv < (time_t)nd->nd_timeout / 2)
+		intv = (jiffies - nd->nd_stamp) / HZ;
+		if (intv < nd->nd_timeout / 2)
 			continue;
 
 		rc = lstcon_rpc_init(nd, SRPC_SERVICE_DEBUG,
@@ -1278,7 +1277,7 @@ lstcon_rpc_pinger(void *arg)
 
 	CDEBUG(D_NET, "Ping %d nodes in session\n", count);
 
-	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
+	ptimer->stt_expires = ktime_get_real_seconds() + LST_PING_INTERVAL;
 	stt_add_timer(ptimer);
 
 	mutex_unlock(&console_session.ses_mutex);
@@ -1301,7 +1300,7 @@ lstcon_rpc_pinger_start(void)
 	}
 
 	ptimer = &console_session.ses_ping_timer;
-	ptimer->stt_expires = (unsigned long)(get_seconds() + LST_PING_INTERVAL);
+	ptimer->stt_expires = ktime_get_real_seconds() + LST_PING_INTERVAL;
 
 	stt_add_timer(ptimer);
 

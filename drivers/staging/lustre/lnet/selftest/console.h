@@ -142,7 +142,7 @@ typedef struct {
 	int                 ses_key;          /* local session key */
 	int                 ses_state;        /* state of session */
 	int                 ses_timeout;      /* timeout in seconds */
-	time_t              ses_laststamp;    /* last operation stamp (seconds)
+	time64_t            ses_laststamp;    /* last operation stamp (seconds)
 					       */
 	unsigned            ses_features;     /* tests features of the session
 					       */
