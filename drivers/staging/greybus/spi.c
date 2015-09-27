@@ -156,7 +156,8 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 	} else {
 		pr_err("transfer operation failed (%d)\n", ret);
 	}
-	gb_operation_destroy(operation);
+
+	gb_operation_put(operation);
 
 	msg->actual_length = len;
 	msg->status = 0;

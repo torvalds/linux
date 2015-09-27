@@ -92,7 +92,8 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 		ret = len;
 	}
 
-	gb_operation_destroy(operation);
+	gb_operation_put(operation);
+
 	return ret;
 }
 

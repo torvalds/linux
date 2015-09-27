@@ -402,7 +402,8 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 				response_size);
 		}
 	}
-	gb_operation_destroy(operation);
+
+	gb_operation_put(operation);
 
 error:
 	do_gettimeofday(&te);

@@ -218,7 +218,8 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 	} else if (!gb_i2c_expected_transfer_error(ret)) {
 		pr_err("transfer operation failed (%d)\n", ret);
 	}
-	gb_operation_destroy(operation);
+
+	gb_operation_put(operation);
 
 	return ret;
 }

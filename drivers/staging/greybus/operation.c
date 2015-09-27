@@ -1035,7 +1035,8 @@ int gb_operation_sync_timeout(struct gb_connection *connection, int type,
 			       response_size);
 		}
 	}
-	gb_operation_destroy(operation);
+
+	gb_operation_put(operation);
 
 	return ret;
 }

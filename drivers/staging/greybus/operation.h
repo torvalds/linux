@@ -131,10 +131,6 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					gfp_t gfp);
 void gb_operation_get(struct gb_operation *operation);
 void gb_operation_put(struct gb_operation *operation);
-static inline void gb_operation_destroy(struct gb_operation *operation)
-{
-	gb_operation_put(operation);
-}
 
 bool gb_operation_response_alloc(struct gb_operation *operation,
 					size_t response_size, gfp_t gfp);
