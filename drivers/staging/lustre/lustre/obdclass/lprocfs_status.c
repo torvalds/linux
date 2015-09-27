@@ -264,36 +264,6 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 }
 EXPORT_SYMBOL(ldebugfs_add_simple);
 
-struct dentry *ldebugfs_add_symlink(const char *name, struct dentry *parent,
-				    const char *format, ...)
-{
-	struct dentry *entry;
-	char *dest;
-	va_list ap;
-
-	if (parent == NULL || format == NULL)
-		return NULL;
-
-	dest = kzalloc(MAX_STRING_SIZE + 1, GFP_KERNEL);
-	if (!dest)
-		return NULL;
-
-	va_start(ap, format);
-	vsnprintf(dest, MAX_STRING_SIZE, format, ap);
-	va_end(ap);
-
-	entry = debugfs_create_symlink(name, parent, dest);
-	if (IS_ERR_OR_NULL(entry)) {
-		CERROR("LdebugFS: Could not create symbolic link from %s to %s",
-			name, dest);
-		entry = NULL;
-	}
-
-	kfree(dest);
-	return entry;
-}
-EXPORT_SYMBOL(ldebugfs_add_symlink);
-
 static struct file_operations lprocfs_generic_fops = { };
 
 int ldebugfs_add_vars(struct dentry *parent,
@@ -388,41 +358,6 @@ int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 }
 EXPORT_SYMBOL(lprocfs_wr_uint);
 
-int lprocfs_rd_u64(struct seq_file *m, void *data)
-{
-	seq_printf(m, "%llu\n", *(__u64 *)data);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_u64);
-
-int lprocfs_rd_atomic(struct seq_file *m, void *data)
-{
-	atomic_t *atom = data;
-	LASSERT(atom != NULL);
-	seq_printf(m, "%d\n", atomic_read(atom));
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_atomic);
-
-int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
-		      unsigned long count, void *data)
-{
-	atomic_t *atm = data;
-	int val = 0;
-	int rc;
-
-	rc = lprocfs_write_helper(buffer, count, &val);
-	if (rc < 0)
-		return rc;
-
-	if (val <= 0)
-		return -ERANGE;
-
-	atomic_set(atm, val);
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_wr_atomic);
-
 static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
 			 char *buf)
 {
@@ -432,16 +367,6 @@ static ssize_t uuid_show(struct kobject *kobj, struct attribute *attr,
 	return sprintf(buf, "%s\n", obd->obd_uuid.uuid);
 }
 LUSTRE_RO_ATTR(uuid);
-
-int lprocfs_rd_name(struct seq_file *m, void *data)
-{
-	struct obd_device *dev = data;
-
-	LASSERT(dev != NULL);
-	seq_printf(m, "%s\n", dev->obd_name);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_name);
 
 static ssize_t blocksize_show(struct kobject *kobj, struct attribute *attr,
 			      char *buf)
@@ -1355,31 +1280,6 @@ int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_helper);
 
-int lprocfs_seq_read_frac_helper(struct seq_file *m, long val, int mult)
-{
-	long decimal_val, frac_val;
-
-	decimal_val = val / mult;
-	seq_printf(m, "%ld", decimal_val);
-	frac_val = val % mult;
-
-	if (frac_val > 0) {
-		frac_val *= 100;
-		frac_val /= mult;
-	}
-	if (frac_val > 0) {
-		/* Three cases: x0, xx, 0x */
-		if ((frac_val % 10) != 0)
-			seq_printf(m, ".%ld", frac_val);
-		else
-			seq_printf(m, ".%ld", frac_val / 10);
-	}
-
-	seq_printf(m, "\n");
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_seq_read_frac_helper);
-
 int lprocfs_write_u64_helper(const char __user *buffer, unsigned long count,
 			     __u64 *val)
 {
@@ -1566,19 +1466,6 @@ void lprocfs_oh_clear(struct obd_histogram *oh)
 	spin_unlock(&oh->oh_lock);
 }
 EXPORT_SYMBOL(lprocfs_oh_clear);
-
-int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data)
-{
-	struct obd_device *dev = data;
-	struct client_obd *cli = &dev->u.cli;
-
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	seq_printf(m, "%d\n", cli->cl_max_pages_per_rpc);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_obd_rd_max_pages_per_rpc);
 
 ssize_t lustre_attr_show(struct kobject *kobj,
 			 struct attribute *attr, char *buf)
