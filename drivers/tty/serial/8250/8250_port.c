@@ -1799,9 +1799,6 @@ int serial8250_do_startup(struct uart_port *port)
 	unsigned char lsr, iir;
 	int retval;
 
-	if (port->type == PORT_8250_CIR)
-		return -ENODEV;
-
 	if (!port->fifosize)
 		port->fifosize = uart_config[port->type].fifo_size;
 	if (!up->tx_loadsz)
@@ -2505,14 +2502,8 @@ static void serial8250_release_port(struct uart_port *port)
 static int serial8250_request_port(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int ret;
 
-	if (port->type == PORT_8250_CIR)
-		return -ENODEV;
-
-	ret = serial8250_request_std_resource(up);
-
-	return ret;
+	return serial8250_request_std_resource(up);
 }
 
 static int fcr_get_rxtrig_bytes(struct uart_8250_port *up)
@@ -2659,9 +2650,6 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	int ret;
-
-	if (port->type == PORT_8250_CIR)
-		return;
 
 	/*
 	 * Find the region that we can probe for.  This in turn
