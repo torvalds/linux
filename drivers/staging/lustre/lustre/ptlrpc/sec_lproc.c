@@ -98,9 +98,9 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 		   atomic_read(&sec->ps_refcount));
 	seq_printf(seq, "nctx:	  %d\n", atomic_read(&sec->ps_nctx));
 	seq_printf(seq, "gc internal    %ld\n", sec->ps_gc_interval);
-	seq_printf(seq, "gc next	%ld\n",
+	seq_printf(seq, "gc next	%lld\n",
 		   sec->ps_gc_interval ?
-		   sec->ps_gc_next - get_seconds() : 0);
+		   (s64)(sec->ps_gc_next - ktime_get_real_seconds()) : 0ll);
 
 	sptlrpc_sec_put(sec);
 out:

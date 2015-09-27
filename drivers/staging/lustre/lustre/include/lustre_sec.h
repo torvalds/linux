@@ -833,7 +833,7 @@ struct ptlrpc_sec {
 	 */
 	struct list_head		      ps_gc_list;
 	unsigned long		      ps_gc_interval; /* in seconds */
-	unsigned long		      ps_gc_next;     /* in seconds */
+	time64_t		      ps_gc_next;     /* in seconds */
 };
 
 static inline int sec_is_reverse(struct ptlrpc_sec *sec)
