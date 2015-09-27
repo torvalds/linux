@@ -52,7 +52,7 @@
 #define SMK_SENDING	2
 
 #ifdef SMACK_IPV6_PORT_LABELING
-LIST_HEAD(smk_ipv6_port_list);
+static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
 int smack_enabled;
