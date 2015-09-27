@@ -73,6 +73,7 @@ struct ptldebug_header {
 	__u32 ph_mask;
 	__u16 ph_cpu_id;
 	__u16 ph_type;
+	/* time_t overflow in 2106 */
 	__u32 ph_sec;
 	__u64 ph_usec;
 	__u32 ph_stack;
