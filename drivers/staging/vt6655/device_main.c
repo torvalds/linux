@@ -1105,6 +1105,7 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	if (AVAIL_TD(priv, dma_idx) < 1) {
 		spin_unlock_irqrestore(&priv->lock, flags);
+		ieee80211_stop_queues(priv->hw);
 		return -ENOMEM;
 	}
 
@@ -1156,13 +1157,8 @@ static void vnt_tx_80211(struct ieee80211_hw *hw,
 {
 	struct vnt_private *priv = hw->priv;
 
-	ieee80211_stop_queues(hw);
-
-	if (vnt_tx_packet(priv, skb)) {
+	if (vnt_tx_packet(priv, skb))
 		ieee80211_free_txskb(hw, skb);
-
-		ieee80211_wake_queues(hw);
-	}
 }
 
 static int vnt_start(struct ieee80211_hw *hw)
