@@ -463,7 +463,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		if (ret) {
 			pr_debug("unwind: access_mem %p not inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
-				 (void *) addr, start, end);
+				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
 			return ret;
 		}
@@ -473,7 +473,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	offset = addr - start;
 	*valp  = *(unw_word_t *)&stack->data[offset];
 	pr_debug("unwind: access_mem addr %p val %lx, offset %d\n",
-		 (void *) addr, (unsigned long)*valp, offset);
+		 (void *) (uintptr_t) addr, (unsigned long)*valp, offset);
 	return 0;
 }
 
