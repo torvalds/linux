@@ -31,8 +31,6 @@
 #define NIC_TX_CLEAN_MAX_NUM 256
 #define NIC_RX_CLEAN_MAX_NUM 64
 
-#define RCB_ERR_PRINT_CYCLE 1000
-
 #define RCB_IRQ_NOT_INITED 0
 #define RCB_IRQ_INITED 1
 
@@ -434,21 +432,12 @@ out_bnum_err:
 
 	if (unlikely((!desc->rx.pkt_len) ||
 		     hnae_get_bit(bnum_flag, HNS_RXD_DROP_B))) {
-		if (!(ring->stats.err_pkt_len % RCB_ERR_PRINT_CYCLE))
-			netdev_dbg(ndev,
-				   "pkt_len(%u),drop(%u),%#llx,%#llx\n",
-				   le16_to_cpu(desc->rx.pkt_len),
-				   hnae_get_bit(bnum_flag, HNS_RXD_DROP_B),
-				   ((u64 *)desc)[0], ((u64 *)desc)[1]);
 		ring->stats.err_pkt_len++;
 		dev_kfree_skb_any(skb);
 		return -EFAULT;
 	}
 
 	if (unlikely(hnae_get_bit(bnum_flag, HNS_RXD_L2E_B))) {
-		if (!(ring->stats.l2_err % RCB_ERR_PRINT_CYCLE))
-			netdev_dbg(ndev, "L2 check err,%#llx,%#llx\n",
-				   ((u64 *)desc)[0], ((u64 *)desc)[1]);
 		ring->stats.l2_err++;
 		dev_kfree_skb_any(skb);
 		return -EFAULT;
@@ -459,12 +448,6 @@ out_bnum_err:
 
 	if (unlikely(hnae_get_bit(bnum_flag, HNS_RXD_L3E_B) ||
 		     hnae_get_bit(bnum_flag, HNS_RXD_L4E_B))) {
-		if (!(ring->stats.l3l4_csum_err % RCB_ERR_PRINT_CYCLE))
-			netdev_dbg(ndev,
-				   "check err(%#x),%#llx,%#llx\n",
-				   hnae_get_bit(bnum_flag, HNS_RXD_L3E_B) |
-				   hnae_get_bit(bnum_flag, HNS_RXD_L4E_B),
-				   ((u64 *)desc)[0], ((u64 *)desc)[1]);
 		ring->stats.l3l4_csum_err++;
 		return 0;
 	}

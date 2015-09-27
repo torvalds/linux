@@ -192,8 +192,7 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 		dsaf_write_dev(q, RCB_RING_RX_RING_BASEADDR_L_REG,
 			       (u32)dma);
 		dsaf_write_dev(q, RCB_RING_RX_RING_BASEADDR_H_REG,
-			       (u32)(dma >> 32));
-
+			       (u32)((dma >> 31) >> 1));
 		dsaf_write_dev(q, RCB_RING_RX_RING_BD_LEN_REG,
 			       bd_size_type);
 		dsaf_write_dev(q, RCB_RING_RX_RING_BD_NUM_REG,
@@ -204,8 +203,7 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 		dsaf_write_dev(q, RCB_RING_TX_RING_BASEADDR_L_REG,
 			       (u32)dma);
 		dsaf_write_dev(q, RCB_RING_TX_RING_BASEADDR_H_REG,
-			       (u32)(dma >> 32));
-
+			       (u32)((dma >> 31) >> 1));
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_LEN_REG,
 			       bd_size_type);
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_NUM_REG,

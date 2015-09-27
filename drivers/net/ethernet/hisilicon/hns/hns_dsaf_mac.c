@@ -86,7 +86,7 @@ int hns_mac_get_sfp_prsnt(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	if (!mac_cb->cpld_vaddr)
 		return -ENODEV;
 
-	*sfp_prsnt = !dsaf_read_b((u64)mac_cb->cpld_vaddr
+	*sfp_prsnt = !dsaf_read_b((u8 *)mac_cb->cpld_vaddr
 					+ MAC_SFP_PORT_OFFSET);
 
 	return 0;

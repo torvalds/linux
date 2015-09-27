@@ -967,6 +967,6 @@ static inline u32 dsaf_get_reg_field(void *base, u32 reg, u32 mask, u32 shift)
 	readb((__iomem unsigned char *)(addr))
 
 #define hns_mac_reg_read64(drv, offset) \
-	readq((__iomem void *)(((u64)(drv)->io_base + 0xc00 + (offset))))
+	readq((__iomem void *)(((u8 *)(drv)->io_base + 0xc00 + (offset))))
 
 #endif	/* _DSAF_REG_H */

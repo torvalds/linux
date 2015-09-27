@@ -43,7 +43,7 @@ struct hns_mac_cb;
 #define DSAF_DUMP_REGS_NUM 504
 #define DSAF_STATIC_NUM 28
 
-#define DSAF_STATS_READ(p, offset) (*((u64 *)((u64)(p) + (offset))))
+#define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 
 enum hal_dsaf_mode {
 	HRD_DSAF_NO_DSAF_MODE	= 0x0,
@@ -302,7 +302,7 @@ struct dsaf_device {
 
 static inline void *hns_dsaf_dev_priv(const struct dsaf_device *dsaf_dev)
 {
-	return (void *)((u64)dsaf_dev + sizeof(*dsaf_dev));
+	return (void *)((u8 *)dsaf_dev + sizeof(*dsaf_dev));
 }
 
 struct dsaf_drv_tbl_tcam_key {
