@@ -178,6 +178,14 @@
 				      "base_ssp0_clk",  "base_sdio_clk";
 		};
 
+		rgu: reset-controller@40053000 {
+			compatible = "nxp,lpc1850-rgu";
+			reg = <0x40053000 0x1000>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "delay", "reg";
+			#reset-cells = <1>;
+		};
+
 		uart0: serial@40081000 {
 			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x40081000 0x1000>;
