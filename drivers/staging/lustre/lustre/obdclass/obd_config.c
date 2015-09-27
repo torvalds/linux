@@ -381,7 +381,6 @@ int class_attach(struct lustre_cfg *lcfg)
 	INIT_LIST_HEAD(&obd->obd_exports);
 	INIT_LIST_HEAD(&obd->obd_unlinked_exports);
 	INIT_LIST_HEAD(&obd->obd_delayed_exports);
-	INIT_LIST_HEAD(&obd->obd_exports_timed);
 	spin_lock_init(&obd->obd_nid_lock);
 	spin_lock_init(&obd->obd_dev_lock);
 	mutex_init(&obd->obd_dev_mutex);
@@ -518,7 +517,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 
 	obd->obd_self_export = exp;
-	list_del_init(&exp->exp_obd_chain_timed);
 	class_export_put(exp);
 
 	err = obd_setup(obd, lcfg);

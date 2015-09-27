@@ -1029,51 +1029,6 @@ static void ptlrpc_server_finish_active_request(
 }
 
 /**
- * This function makes sure dead exports are evicted in a timely manner.
- * This function is only called when some export receives a message (i.e.,
- * the network is up.)
- */
-static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
-{
-	struct obd_export *oldest_exp;
-	time_t oldest_time, new_time;
-
-	LASSERT(exp);
-
-	/* Compensate for slow machines, etc, by faking our request time
-	   into the future.  Although this can break the strict time-ordering
-	   of the list, we can be really lazy here - we don't have to evict
-	   at the exact right moment.  Eventually, all silent exports
-	   will make it to the top of the list. */
-
-	/* Do not pay attention on 1sec or smaller renewals. */
-	new_time = get_seconds() + extra_delay;
-	if (exp->exp_last_request_time + 1 /*second */ >= new_time)
-		return;
-
-	exp->exp_last_request_time = new_time;
-
-	/* exports may get disconnected from the chain even though the
-	   export has references, so we must keep the spin lock while
-	   manipulating the lists */
-	spin_lock(&exp->exp_obd->obd_dev_lock);
-
-	if (list_empty(&exp->exp_obd_chain_timed)) {
-		/* this one is not timed */
-		spin_unlock(&exp->exp_obd->obd_dev_lock);
-		return;
-	}
-
-	list_move_tail(&exp->exp_obd_chain_timed,
-			   &exp->exp_obd->obd_exports_timed);
-
-	oldest_exp = list_entry(exp->exp_obd->obd_exports_timed.next,
-				    struct obd_export, exp_obd_chain_timed);
-	oldest_time = oldest_exp->exp_last_request_time;
-	spin_unlock(&exp->exp_obd->obd_dev_lock);
-}
-
-/**
  * Sanity check request \a req.
  * Return 0 if all is ok, error code otherwise.
  */
@@ -1801,7 +1756,6 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 
 		if (rc)
 			goto err_req;
-		ptlrpc_update_export_timer(req->rq_export, 0);
 	}
 
 	/* req_in handling should/must be fast */
@@ -1910,8 +1864,6 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	if (likely(request->rq_export)) {
 		if (unlikely(ptlrpc_check_req(request)))
 			goto put_conn;
-		ptlrpc_update_export_timer(request->rq_export,
-					   timediff_usecs >> 19);
 	}
 
 	/* Discard requests queued for longer than the deadline.

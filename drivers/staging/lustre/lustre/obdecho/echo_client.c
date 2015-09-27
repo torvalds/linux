@@ -2065,12 +2065,6 @@ static int echo_client_setup(const struct lu_env *env,
 	ocd->ocd_group = FID_SEQ_ECHO;
 
 	rc = obd_connect(env, &ec->ec_exp, tgt, &echo_uuid, ocd, NULL);
-	if (rc == 0) {
-		/* Turn off pinger because it connects to tgt obd directly. */
-		spin_lock(&tgt->obd_dev_lock);
-		list_del_init(&ec->ec_exp->exp_obd_chain_timed);
-		spin_unlock(&tgt->obd_dev_lock);
-	}
 
 	kfree(ocd);
 

@@ -777,8 +777,6 @@ struct obd_device {
 	struct rw_semaphore	obd_observer_link_sem;
 	struct obd_notify_upcall obd_upcall;
 	struct obd_export       *obd_self_export;
-	/* list of exports in LRU order, for ping evictor, with obd_dev_lock */
-	struct list_head	      obd_exports_timed;
 
 	int			      obd_max_recoverable_clients;
 	atomic_t		     obd_connected_clients;

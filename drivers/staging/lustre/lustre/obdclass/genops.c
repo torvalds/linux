@@ -846,7 +846,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	INIT_LIST_HEAD(&export->exp_handle.h_link);
 	INIT_LIST_HEAD(&export->exp_hp_rpcs);
 	class_handle_hash(&export->exp_handle, &export_handle_ops);
-	export->exp_last_request_time = get_seconds();
 	spin_lock_init(&export->exp_lock);
 	spin_lock_init(&export->exp_rpc_lock);
 	INIT_HLIST_NODE(&export->exp_uuid_hash);
@@ -892,8 +891,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 
 	class_incref(obd, "export", export);
 	list_add(&export->exp_obd_chain, &export->exp_obd->obd_exports);
-	list_add_tail(&export->exp_obd_chain_timed,
-			  &export->exp_obd->obd_exports_timed);
 	export->exp_obd->obd_num_exports++;
 	spin_unlock(&obd->obd_dev_lock);
 	cfs_hash_putref(hash);
@@ -924,7 +921,6 @@ void class_unlink_export(struct obd_export *exp)
 			     &exp->exp_uuid_hash);
 
 	list_move(&exp->exp_obd_chain, &exp->exp_obd->obd_unlinked_exports);
-	list_del_init(&exp->exp_obd_chain_timed);
 	exp->exp_obd->obd_num_exports--;
 	spin_unlock(&exp->exp_obd->obd_dev_lock);
 	class_export_put(exp);

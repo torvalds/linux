@@ -148,13 +148,6 @@ struct obd_export {
 	struct list_head		exp_obd_chain;
 	struct hlist_node	  exp_uuid_hash; /** uuid-export hash*/
 	struct hlist_node	  exp_nid_hash; /** nid-export hash */
-	/**
-	 * All exports eligible for ping evictor are linked into a list
-	 * through this field in "most time since last request on this export"
-	 * order
-	 * protected by obd_dev_lock
-	 */
-	struct list_head		exp_obd_chain_timed;
 	/** Obd device of this export */
 	struct obd_device	*exp_obd;
 	/**
@@ -179,8 +172,6 @@ struct obd_export {
 	spinlock_t		  exp_uncommitted_replies_lock;
 	/** Last committed transno for this export */
 	__u64		     exp_last_committed;
-	/** When was last request received */
-	unsigned long		exp_last_request_time;
 	/** On replay all requests waiting for replay are linked here */
 	struct list_head		exp_req_replay_queue;
 	/**
@@ -263,13 +254,6 @@ static inline int exp_max_brw_size(struct obd_export *exp)
 static inline int exp_connect_multibulk(struct obd_export *exp)
 {
 	return exp_max_brw_size(exp) > ONE_MB_BRW_SIZE;
-}
-
-static inline int exp_expired(struct obd_export *exp, long age)
-{
-	LASSERT(exp->exp_delayed);
-	return time_before(cfs_time_add(exp->exp_last_request_time, age),
-			   get_seconds());
 }
 
 static inline int exp_connect_cancelset(struct obd_export *exp)
