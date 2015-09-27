@@ -59,13 +59,6 @@
 
 #include <linux/jiffies.h>
 
-
-static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
-{
-	v->tv_sec  = t->tv_sec;
-	v->tv_usec = t->tv_nsec / 1000;
-}
-
 /*
  * Generic kernel stuff
  */
@@ -73,16 +66,6 @@ static inline void cfs_fs_time_usec(struct timespec *t, struct timeval *v)
 static inline unsigned long cfs_time_current(void)
 {
 	return jiffies;
-}
-
-static inline void cfs_fs_time_current(struct timespec *t)
-{
-	*t = CURRENT_TIME;
-}
-
-static inline time_t cfs_fs_time_sec(struct timespec *t)
-{
-	return t->tv_sec;
 }
 
 static inline long cfs_time_seconds(int seconds)
