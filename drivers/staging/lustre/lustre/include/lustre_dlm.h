@@ -749,7 +749,7 @@ struct ldlm_lock {
 	 * Seconds. It will be updated if there is any activity related to
 	 * the lock, e.g. enqueue the lock or send blocking AST.
 	 */
-	unsigned long		l_last_activity;
+	time64_t		l_last_activity;
 
 	/**
 	 * Time last used by e.g. being matched by lock match.
