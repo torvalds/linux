@@ -851,7 +851,7 @@ struct vvp_io {
 			 * Inode modification time that is checked across DLM
 			 * lock request.
 			 */
-			time_t		 ft_mtime;
+			time64_t	    ft_mtime;
 			struct vm_area_struct *ft_vma;
 			/**
 			 *  locked page returned from vvp_io

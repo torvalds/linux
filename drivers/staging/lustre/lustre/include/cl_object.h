@@ -173,11 +173,11 @@ struct cl_attr {
 	 */
 	loff_t cat_kms;
 	/** Modification time. Measured in seconds since epoch. */
-	time_t cat_mtime;
+	time64_t cat_mtime;
 	/** Access time. Measured in seconds since epoch. */
-	time_t cat_atime;
+	time64_t cat_atime;
 	/** Change time. Measured in seconds since epoch. */
-	time_t cat_ctime;
+	time64_t cat_ctime;
 	/**
 	 * Blocks allocated to this cl_object on the server file system.
 	 *

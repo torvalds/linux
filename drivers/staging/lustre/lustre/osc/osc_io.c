@@ -518,7 +518,7 @@ static int osc_io_read_start(const struct lu_env *env,
 
 	if (!slice->cis_io->ci_noatime) {
 		cl_object_attr_lock(obj);
-		attr->cat_atime = LTIME_S(CURRENT_TIME);
+		attr->cat_atime = ktime_get_real_seconds();
 		rc = cl_object_attr_set(env, obj, attr, CAT_ATIME);
 		cl_object_attr_unlock(obj);
 	}
@@ -534,7 +534,7 @@ static int osc_io_write_start(const struct lu_env *env,
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_DELAY_SETTIME, 1);
 	cl_object_attr_lock(obj);
-	attr->cat_mtime = attr->cat_ctime = LTIME_S(CURRENT_TIME);
+	attr->cat_mtime = attr->cat_ctime = ktime_get_real_seconds();
 	rc = cl_object_attr_set(env, obj, attr, CAT_MTIME | CAT_CTIME);
 	cl_object_attr_unlock(obj);
 
