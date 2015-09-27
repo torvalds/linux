@@ -1300,29 +1300,6 @@ void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 }
 EXPORT_SYMBOL(lprocfs_counter_init);
 
-void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
-{
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_ENQUEUE - LDLM_FIRST_OPC,
-			     0, "ldlm_enqueue", "reqs");
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_CONVERT - LDLM_FIRST_OPC,
-			     0, "ldlm_convert", "reqs");
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_CANCEL - LDLM_FIRST_OPC,
-			     0, "ldlm_cancel", "reqs");
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_BL_CALLBACK - LDLM_FIRST_OPC,
-			     0, "ldlm_bl_callback", "reqs");
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_CP_CALLBACK - LDLM_FIRST_OPC,
-			     0, "ldlm_cp_callback", "reqs");
-	lprocfs_counter_init(ldlm_stats,
-			     LDLM_GL_CALLBACK - LDLM_FIRST_OPC,
-			     0, "ldlm_gl_callback", "reqs");
-}
-EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
-
 int lprocfs_exp_cleanup(struct obd_export *exp)
 {
 	return 0;
