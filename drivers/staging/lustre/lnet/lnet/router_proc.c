@@ -692,7 +692,7 @@ static int proc_lnet_nis(struct ctl_table *table, int write,
 		if (ni != NULL) {
 			struct lnet_tx_queue *tq;
 			char *stat;
-			long now = get_seconds();
+			time64_t now = ktime_get_real_seconds();
 			int last_alive = -1;
 			int i;
 			int j;
