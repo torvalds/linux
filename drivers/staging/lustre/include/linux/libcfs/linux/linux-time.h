@@ -90,7 +90,7 @@ static inline long cfs_time_seconds(int seconds)
 	return ((long)seconds) * HZ;
 }
 
-static inline time_t cfs_duration_sec(long d)
+static inline long cfs_duration_sec(long d)
 {
 	return d / HZ;
 }
