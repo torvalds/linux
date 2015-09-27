@@ -359,10 +359,12 @@ struct obd_histogram;
 struct dhms {
 	int d, h, m, s;
 };
-static inline void s2dhms(struct dhms *ts, time_t secs)
+
+static inline void s2dhms(struct dhms *ts, time64_t secs64)
 {
-	ts->d = secs / 86400;
-	secs = secs % 86400;
+	unsigned int secs;
+
+	ts->d = div_u64_rem(secs64, 86400, &secs);
 	ts->h = secs / 3600;
 	secs = secs % 3600;
 	ts->m = secs / 60;
