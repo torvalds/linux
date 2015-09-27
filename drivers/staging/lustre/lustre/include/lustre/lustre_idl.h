@@ -3478,6 +3478,7 @@ struct lustre_capa {
 	__u32	   lc_flags;       /** HMAC algorithm & flags */
 	__u32	   lc_keyid;       /** key# used for the capability */
 	__u32	   lc_timeout;     /** capa timeout value (sec) */
+/* FIXME: y2038 time_t overflow: */
 	__u32	   lc_expiry;      /** expiry time (sec) */
 	__u8	    lc_hmac[CAPA_HMAC_MAX_LEN];   /** HMAC */
 } __attribute__((packed));
