@@ -1998,7 +1998,7 @@ ksocknal_connect (ksock_route_t *route)
  * running out of resource.
  */
 static int
-ksocknal_connd_check_start(long sec, long *timeout)
+ksocknal_connd_check_start(time64_t sec, long *timeout)
 {
 	char name[16];
 	int rc;
@@ -2048,7 +2048,7 @@ ksocknal_connd_check_start(long sec, long *timeout)
 	/* we tried ... */
 	LASSERT(ksocknal_data.ksnd_connd_starting > 0);
 	ksocknal_data.ksnd_connd_starting--;
-	ksocknal_data.ksnd_connd_failed_stamp = get_seconds();
+	ksocknal_data.ksnd_connd_failed_stamp = ktime_get_real_seconds();
 
 	return 1;
 }
@@ -2060,7 +2060,7 @@ ksocknal_connd_check_start(long sec, long *timeout)
  * again to recheck these conditions.
  */
 static int
-ksocknal_connd_check_stop(long sec, long *timeout)
+ksocknal_connd_check_stop(time64_t sec, long *timeout)
 {
 	int val;
 
@@ -2141,7 +2141,7 @@ ksocknal_connd (void *arg)
 
 	while (!ksocknal_data.ksnd_shuttingdown) {
 		ksock_route_t *route = NULL;
-		long sec = get_seconds();
+		time64_t sec = ktime_get_real_seconds();
 		long timeout = MAX_SCHEDULE_TIMEOUT;
 		int dropped_lock = 0;
 
