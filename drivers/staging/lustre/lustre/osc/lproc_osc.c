@@ -594,18 +594,18 @@ static struct lprocfs_vars lprocfs_osc_obd_vars[] = {
 
 static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct obd_device *dev = seq->private;
 	struct client_obd *cli = &dev->u.cli;
 	unsigned long read_tot = 0, write_tot = 0, read_cum, write_cum;
 	int i;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%9lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "read RPCs in flight:  %d\n",
 		   cli->cl_r_in_flight);
 	seq_printf(seq, "write RPCs in flight: %d\n",
@@ -711,14 +711,14 @@ LPROC_SEQ_FOPS(osc_rpc_stats);
 
 static int osc_stats_seq_show(struct seq_file *seq, void *v)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct obd_device *dev = seq->private;
 	struct osc_stats *stats = &obd2osc_dev(dev)->od_stats;
 
-	do_gettimeofday(&now);
+	ktime_get_real_ts64(&now);
 
-	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
-		   now.tv_sec, (unsigned long)now.tv_usec);
+	seq_printf(seq, "snapshot_time:	 %llu.%9lu (secs.usecs)\n",
+		   (s64)now.tv_sec, (unsigned long)now.tv_nsec);
 	seq_printf(seq, "lockless_write_bytes\t\t%llu\n",
 		   stats->os_lockless_writes);
 	seq_printf(seq, "lockless_read_bytes\t\t%llu\n",
