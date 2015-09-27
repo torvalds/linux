@@ -148,7 +148,7 @@ struct obd_import_conn {
 #define IMP_STATE_HIST_LEN 16
 struct import_state_hist {
 	enum lustre_imp_state ish_state;
-	time_t		ish_time;
+	time64_t	ish_time;
 };
 
 /**
@@ -307,7 +307,7 @@ struct obd_import {
 	__u32		     imp_msghdr_flags;       /* adjusted based on server capability */
 
 	struct imp_at	     imp_at;		 /* adaptive timeout data */
-	time_t		    imp_last_reply_time;    /* for health check */
+	time64_t	     imp_last_reply_time;    /* for health check */
 };
 
 typedef void (*obd_import_callback)(struct obd_import *imp, void *closure,

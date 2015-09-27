@@ -158,7 +158,7 @@ void reply_in_callback(lnet_event_t *ev)
 			  ev->mlength, ev->offset, req->rq_replen);
 	}
 
-	req->rq_import->imp_last_reply_time = get_seconds();
+	req->rq_import->imp_last_reply_time = ktime_get_real_seconds();
 
 out_wake:
 	/* NB don't unlock till after wakeup; req can disappear under us

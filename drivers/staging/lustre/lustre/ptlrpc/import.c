@@ -79,7 +79,7 @@ static void __import_set_state(struct obd_import *imp,
 	imp->imp_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_state = state;
 	imp->imp_state_hist[imp->imp_state_hist_idx].ish_time =
-		get_seconds();
+		ktime_get_real_seconds();
 	imp->imp_state_hist_idx = (imp->imp_state_hist_idx + 1) %
 		IMP_STATE_HIST_LEN;
 }
