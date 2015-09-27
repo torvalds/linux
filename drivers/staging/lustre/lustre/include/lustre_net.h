@@ -1292,7 +1292,7 @@ struct ptlrpc_request {
 	struct ptlrpc_nrs_request rq_nrq;
 	/** @} nrs */
 	/** the index of service's srv_at_array into which request is linked */
-	time_t rq_at_index;
+	u32 rq_at_index;
 	/** Lock to protect request flags and some other important bits, like
 	 * rq_list
 	 */
