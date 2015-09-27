@@ -95,21 +95,6 @@ static inline long cfs_duration_sec(long d)
 	return d / HZ;
 }
 
-static inline void cfs_duration_usec(long d, struct timeval *s)
-{
-#if (BITS_PER_LONG == 32) && (HZ > 4096)
-	__u64 t;
-
-	s->tv_sec = d / HZ;
-	t = (d - (long)s->tv_sec * HZ) * ONE_MILLION;
-	do_div(t, HZ);
-	s->tv_usec = t;
-#else
-	s->tv_sec = d / HZ;
-	s->tv_usec = ((d - (long)s->tv_sec * HZ) * ONE_MILLION) / HZ;
-#endif
-}
-
 #define cfs_time_current_64 get_jiffies_64
 
 static inline __u64 cfs_time_add_64(__u64 t, __u64 d)

@@ -505,7 +505,7 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 
 		dur = (long)cfs_time_sub(crpc->crp_stamp,
 		      (unsigned long)console_session.ses_id.ses_stamp);
-		cfs_duration_usec(dur, &tv);
+		jiffies_to_timeval(dur, &tv);
 
 		if (copy_to_user(&ent->rpe_peer,
 				     &nd->nd_id, sizeof(lnet_process_id_t)) ||
