@@ -1324,9 +1324,9 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	}
 
 	if (attr->ia_valid & (ATTR_MTIME | ATTR_CTIME))
-		CDEBUG(D_INODE, "setting mtime %lu, ctime %lu, now = %lu\n",
+		CDEBUG(D_INODE, "setting mtime %lu, ctime %lu, now = %llu\n",
 		       LTIME_S(attr->ia_mtime), LTIME_S(attr->ia_ctime),
-		       get_seconds());
+		       (s64)ktime_get_real_seconds());
 
 	/* If we are changing file size, file content is modified, flag it. */
 	if (attr->ia_valid & ATTR_SIZE) {
