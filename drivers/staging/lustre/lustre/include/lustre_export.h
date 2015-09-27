@@ -216,7 +216,7 @@ struct obd_export {
 	enum lustre_sec_part      exp_sp_peer;
 	struct sptlrpc_flavor     exp_flvr;	     /* current */
 	struct sptlrpc_flavor     exp_flvr_old[2];      /* about-to-expire */
-	unsigned long		exp_flvr_expire[2];   /* seconds */
+	time64_t		  exp_flvr_expire[2];   /* seconds */
 
 	/** protects exp_hp_rpcs */
 	spinlock_t		  exp_rpc_lock;

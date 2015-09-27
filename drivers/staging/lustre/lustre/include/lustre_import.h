@@ -200,7 +200,7 @@ struct obd_import {
 	 */
 	struct ptlrpc_sec	*imp_sec;
 	struct mutex		  imp_sec_mutex;
-	unsigned long		imp_sec_expire;
+	time64_t		imp_sec_expire;
 	/** @} */
 
 	/** Wait queue for those who need to wait for recovery completion */

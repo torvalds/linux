@@ -871,7 +871,7 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 	if (imp) {
 		spin_lock(&imp->imp_lock);
 		if (imp->imp_sec)
-			imp->imp_sec_expire = get_seconds() +
+			imp->imp_sec_expire = ktime_get_real_seconds() +
 				SEC_ADAPT_DELAY;
 		spin_unlock(&imp->imp_lock);
 	}

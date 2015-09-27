@@ -343,7 +343,7 @@ static int import_sec_check_expire(struct obd_import *imp)
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_sec_expire &&
-	    imp->imp_sec_expire < get_seconds()) {
+	    imp->imp_sec_expire < ktime_get_real_seconds()) {
 		adapt = 1;
 		imp->imp_sec_expire = 0;
 	}
@@ -1779,7 +1779,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 		exp->exp_flvr_old[1] = exp->exp_flvr_old[0];
 		exp->exp_flvr_expire[1] = exp->exp_flvr_expire[0];
 		exp->exp_flvr_old[0] = exp->exp_flvr;
-		exp->exp_flvr_expire[0] = get_seconds() +
+		exp->exp_flvr_expire[0] = ktime_get_real_seconds() +
 					  EXP_FLVR_UPDATE_EXPIRE;
 		exp->exp_flvr = flavor;
 
@@ -1853,14 +1853,14 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	}
 
 	if (exp->exp_flvr_expire[0]) {
-		if (exp->exp_flvr_expire[0] >= get_seconds()) {
+		if (exp->exp_flvr_expire[0] >= ktime_get_real_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[0], req)) {
-				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the middle one (" CFS_DURATION_T ")\n", exp,
+				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the middle one (%lld)\n", exp,
 				       exp->exp_flvr.sf_rpc,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
-				       exp->exp_flvr_expire[0] -
-				       get_seconds());
+				       (s64)(exp->exp_flvr_expire[0] -
+				       ktime_get_real_seconds()));
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1877,15 +1877,15 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	/* now it doesn't match the current flavor, the only chance we can
 	 * accept it is match the old flavors which is not expired. */
 	if (exp->exp_flvr_changed == 0 && exp->exp_flvr_expire[1]) {
-		if (exp->exp_flvr_expire[1] >= get_seconds()) {
+		if (exp->exp_flvr_expire[1] >= ktime_get_real_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[1], req)) {
-				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the oldest one (" CFS_DURATION_T ")\n",
+				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the oldest one (%lld)\n",
 				       exp,
 				       exp->exp_flvr.sf_rpc,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
-				       exp->exp_flvr_expire[1] -
-				       get_seconds());
+				       (s64)(exp->exp_flvr_expire[1] -
+				       ktime_get_real_seconds()));
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1905,7 +1905,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 
 	spin_unlock(&exp->exp_lock);
 
-	CWARN("exp %p(%s): req %p (%u|%u|%u|%u|%u|%u) with unauthorized flavor %x, expect %x|%x(%+ld)|%x(%+ld)\n",
+	CWARN("exp %p(%s): req %p (%u|%u|%u|%u|%u|%u) with unauthorized flavor %x, expect %x|%x(%+lld)|%x(%+lld)\n",
 	      exp, exp->exp_obd->obd_name,
 	      req, req->rq_auth_gss, req->rq_ctx_init, req->rq_ctx_fini,
 	      req->rq_auth_usr_root, req->rq_auth_usr_mdt, req->rq_auth_usr_ost,
@@ -1913,12 +1913,10 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	      exp->exp_flvr.sf_rpc,
 	      exp->exp_flvr_old[0].sf_rpc,
 	      exp->exp_flvr_expire[0] ?
-	      (unsigned long) (exp->exp_flvr_expire[0] -
-			       get_seconds()) : 0,
+	      (s64)(exp->exp_flvr_expire[0] - ktime_get_real_seconds()) : 0,
 	      exp->exp_flvr_old[1].sf_rpc,
 	      exp->exp_flvr_expire[1] ?
-	      (unsigned long) (exp->exp_flvr_expire[1] -
-			       get_seconds()) : 0);
+	      (s64)(exp->exp_flvr_expire[1] - ktime_get_real_seconds()) : 0);
 	return -EACCES;
 }
 EXPORT_SYMBOL(sptlrpc_target_export_check);
