@@ -256,9 +256,9 @@ struct ldlm_pool {
 	 *  server_slv * lock_volume_factor. */
 	atomic_t		pl_lock_volume_factor;
 	/** Time when last SLV from server was obtained. */
-	time_t			pl_recalc_time;
+	time64_t		pl_recalc_time;
 	/** Recalculation period for pool. */
-	time_t			pl_recalc_period;
+	time64_t		pl_recalc_period;
 	/** Recalculation and shrink operations. */
 	const struct ldlm_pool_ops	*pl_ops;
 	/** Number of planned locks for next period. */
