@@ -61,12 +61,12 @@
 #define AT_FLG_NOHIST 0x1	  /* use last reported value only */
 
 struct adaptive_timeout {
-	time_t		at_binstart;	 /* bin start time */
+	time64_t	at_binstart;	 /* bin start time */
 	unsigned int	at_hist[AT_BINS];    /* timeout history bins */
 	unsigned int	at_flags;
 	unsigned int	at_current;	  /* current timeout value */
 	unsigned int	at_worst_ever;       /* worst-ever timeout value */
-	time_t		at_worst_time;       /* worst-ever timeout timestamp */
+	time64_t	at_worst_time;       /* worst-ever timeout timestamp */
 	spinlock_t	at_lock;
 };
 
@@ -351,7 +351,7 @@ static inline void at_reset(struct adaptive_timeout *at, int val)
 	spin_lock(&at->at_lock);
 	at->at_current = val;
 	at->at_worst_ever = val;
-	at->at_worst_time = get_seconds();
+	at->at_worst_time = ktime_get_real_seconds();
 	spin_unlock(&at->at_lock);
 }
 static inline void at_init(struct adaptive_timeout *at, int val, int flags)

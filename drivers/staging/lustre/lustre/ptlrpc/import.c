@@ -1523,12 +1523,12 @@ extern unsigned int at_min, at_max, at_history;
 int at_measured(struct adaptive_timeout *at, unsigned int val)
 {
 	unsigned int old = at->at_current;
-	time_t now = get_seconds();
-	time_t binlimit = max_t(time_t, at_history / AT_BINS, 1);
+	time64_t now = ktime_get_real_seconds();
+	long binlimit = max_t(long, at_history / AT_BINS, 1);
 
 	LASSERT(at);
 	CDEBUG(D_OTHER, "add %u to %p time=%lu v=%u (%u %u %u %u)\n",
-	       val, at, now - at->at_binstart, at->at_current,
+	       val, at, (long)(now - at->at_binstart), at->at_current,
 	       at->at_hist[0], at->at_hist[1], at->at_hist[2], at->at_hist[3]);
 
 	if (val == 0)
@@ -1553,7 +1553,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		int i, shift;
 		unsigned int maxv = val;
 		/* move bins over */
-		shift = (now - at->at_binstart) / binlimit;
+		shift = (u32)(now - at->at_binstart) / binlimit;
 		LASSERT(shift > 0);
 		for (i = AT_BINS - 1; i >= 0; i--) {
 			if (i >= shift) {
