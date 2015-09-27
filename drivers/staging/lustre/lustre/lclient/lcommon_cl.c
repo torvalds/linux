@@ -896,7 +896,6 @@ void ccc_req_completion(const struct lu_env *env,
  *
  *    - o_ioepoch,
  *
- *  and capability.
  */
 void ccc_req_attr_set(const struct lu_env *env,
 		      const struct cl_req_slice *slice,
@@ -910,12 +909,6 @@ void ccc_req_attr_set(const struct lu_env *env,
 	oa = attr->cra_oa;
 	inode = ccc_object_inode(obj);
 	valid_flags = OBD_MD_FLTYPE;
-
-	if ((flags & OBD_MD_FLOSSCAPA) != 0) {
-		LASSERT(attr->cra_capa == NULL);
-		attr->cra_capa = cl_capa_lookup(inode,
-						slice->crs_req->crq_type);
-	}
 
 	if (slice->crs_req->crq_type == CRT_WRITE) {
 		if (flags & OBD_MD_FLEPOCH) {
@@ -936,8 +929,7 @@ static const struct cl_req_operations ccc_req_ops = {
 	.cro_completion = ccc_req_completion
 };
 
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
-		   struct obd_capa *capa)
+int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 {
 	struct lu_env *env;
 	struct cl_io  *io;
@@ -956,7 +948,6 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
 	io->u.ci_setattr.sa_attr.lvb_ctime = LTIME_S(attr->ia_ctime);
 	io->u.ci_setattr.sa_attr.lvb_size = attr->ia_size;
 	io->u.ci_setattr.sa_valid = attr->ia_valid;
-	io->u.ci_setattr.sa_capa = capa;
 
 again:
 	if (cl_io_init(env, io, CIT_SETATTR, io->ci_obj) == 0) {

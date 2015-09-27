@@ -249,7 +249,6 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ptlrpc_request *req = NULL;
 	struct mdt_remote_perm *perm;
-	struct obd_capa *oc;
 	unsigned long save;
 	int i = 0, rc;
 
@@ -276,10 +275,8 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 			LBUG();
 		}
 
-		oc = ll_mdscapa_get(inode);
-		rc = md_get_remote_perm(sbi->ll_md_exp, ll_inode2fid(inode), oc,
+		rc = md_get_remote_perm(sbi->ll_md_exp, ll_inode2fid(inode),
 					ll_i2suppgid(inode), &req);
-		capa_put(oc);
 		if (rc) {
 			mutex_unlock(&lli->lli_rmtperm_mutex);
 			break;

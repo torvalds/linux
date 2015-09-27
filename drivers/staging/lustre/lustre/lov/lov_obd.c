@@ -1061,8 +1061,7 @@ do {									    \
 
 static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
 		       struct obdo *oa, struct lov_stripe_md *lsm,
-		       struct obd_trans_info *oti, struct obd_export *md_exp,
-		       void *capa)
+		       struct obd_trans_info *oti, struct obd_export *md_exp)
 {
 	struct lov_request_set *set;
 	struct obd_info oinfo;
@@ -1094,7 +1093,7 @@ static int lov_destroy(const struct lu_env *env, struct obd_export *exp,
 			oti->oti_logcookies = set->set_cookies + req->rq_stripe;
 
 		err = obd_destroy(env, lov->lov_tgts[req->rq_idx]->ltd_exp,
-				  req->rq_oi.oi_oa, NULL, oti, NULL, capa);
+				  req->rq_oi.oi_oa, NULL, oti, NULL);
 		err = lov_update_common_set(set, req, err);
 		if (err) {
 			CERROR("%s: destroying objid "DOSTID" subobj "
@@ -2067,7 +2066,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	struct lov_tgt_desc *tgt;
 	unsigned incr, check_uuid,
 		 do_inactive, no_set;
-	unsigned next_id = 0,  mds_con = 0, capa = 0;
+	unsigned next_id = 0,  mds_con = 0;
 
 	incr = check_uuid = do_inactive = no_set = 0;
 	if (set == NULL) {
@@ -2092,8 +2091,6 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		/* use defaults:  do_inactive = incr = 0; */
 	} else if (KEY_IS(KEY_MDS_CONN)) {
 		mds_con = 1;
-	} else if (KEY_IS(KEY_CAPA_KEY)) {
-		capa = 1;
 	} else if (KEY_IS(KEY_CACHE_SET)) {
 		LASSERT(lov->lov_cache == NULL);
 		lov->lov_cache = val;
@@ -2132,19 +2129,6 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 			err = obd_set_info_async(env, tgt->ltd_exp,
 					 keylen, key, vallen,
 					 ((struct obd_id_info *)val)->data, set);
-		} else if (capa) {
-			struct mds_capa_info *info = (struct mds_capa_info *)val;
-
-			LASSERT(vallen == sizeof(*info));
-
-			 /* Only want a specific OSC */
-			if (info->uuid &&
-			    !obd_uuid_equals(info->uuid, &tgt->ltd_uuid))
-				continue;
-
-			err = obd_set_info_async(env, tgt->ltd_exp, keylen,
-						 key, sizeof(*info->capa),
-						 info->capa, set);
 		} else {
 			/* Only want a specific OSC */
 			if (check_uuid &&

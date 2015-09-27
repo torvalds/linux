@@ -371,8 +371,7 @@ struct page	 *cl2vm_page      (const struct cl_page_slice *slice);
 struct inode       *ccc_object_inode(const struct cl_object *obj);
 struct ccc_object  *cl_inode2ccc    (struct inode *inode);
 
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
-		   struct obd_capa *capa);
+int cl_setattr_ost(struct inode *inode, const struct iattr *attr);
 
 struct cl_page *ccc_vmpage_page_transient(struct page *vmpage);
 int ccc_object_invariant(const struct cl_object *obj);

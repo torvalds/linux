@@ -784,25 +784,16 @@ static void sa_args_fini(struct md_enqueue_info *minfo,
 {
 	LASSERT(minfo && einfo);
 	iput(minfo->mi_dir);
-	capa_put(minfo->mi_data.op_capa1);
-	capa_put(minfo->mi_data.op_capa2);
 	kfree(minfo);
 	kfree(einfo);
 }
 
 /**
- * There is race condition between "capa_put" and "ll_statahead_interpret" for
- * accessing "op_data.op_capa[1,2]" as following:
- * "capa_put" releases "op_data.op_capa[1,2]"'s reference count after calling
- * "md_intent_getattr_async". But "ll_statahead_interpret" maybe run first, and
- * fill "op_data.op_capa[1,2]" as POISON, then cause "capa_put" access invalid
- * "ocapa". So here reserve "op_data.op_capa[1,2]" in "pcapa" before calling
- * "md_intent_getattr_async".
+ * prepare arguments for async stat RPC.
  */
 static int sa_args_init(struct inode *dir, struct inode *child,
 			struct ll_sa_entry *entry, struct md_enqueue_info **pmi,
-			struct ldlm_enqueue_info **pei,
-			struct obd_capa **pcapa)
+			struct ldlm_enqueue_info **pei)
 {
 	struct qstr	      *qstr = &entry->se_qstr;
 	struct ll_inode_info     *lli  = ll_i2info(dir);
@@ -843,8 +834,6 @@ static int sa_args_init(struct inode *dir, struct inode *child,
 
 	*pmi = minfo;
 	*pei = einfo;
-	pcapa[0] = op_data->op_capa1;
-	pcapa[1] = op_data->op_capa2;
 
 	return 0;
 }
@@ -853,20 +842,15 @@ static int do_sa_lookup(struct inode *dir, struct ll_sa_entry *entry)
 {
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
-	struct obd_capa	  *capas[2];
 	int		       rc;
 
-	rc = sa_args_init(dir, NULL, entry, &minfo, &einfo, capas);
+	rc = sa_args_init(dir, NULL, entry, &minfo, &einfo);
 	if (rc)
 		return rc;
 
 	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
-	if (!rc) {
-		capa_put(capas[0]);
-		capa_put(capas[1]);
-	} else {
+	if (rc < 0)
 		sa_args_fini(minfo, einfo);
-	}
 
 	return rc;
 }
@@ -885,7 +869,6 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 					 .d.lustre.it_lock_handle = 0 };
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
-	struct obd_capa	  *capas[2];
 	int rc;
 
 	if (unlikely(inode == NULL))
@@ -903,7 +886,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 		return 1;
 	}
 
-	rc = sa_args_init(dir, inode, entry, &minfo, &einfo, capas);
+	rc = sa_args_init(dir, inode, entry, &minfo, &einfo);
 	if (rc) {
 		entry->se_inode = NULL;
 		iput(inode);
@@ -911,10 +894,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	}
 
 	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
-	if (!rc) {
-		capa_put(capas[0]);
-		capa_put(capas[1]);
-	} else {
+	if (rc < 0) {
 		entry->se_inode = NULL;
 		iput(inode);
 		sa_args_fini(minfo, einfo);

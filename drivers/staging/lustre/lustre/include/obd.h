@@ -54,7 +54,6 @@
 #include "lustre_export.h"
 #include "lustre_fid.h"
 #include "lustre_fld.h"
-#include "lustre_capa.h"
 
 #define MAX_OBD_DEVICES 8192
 
@@ -162,9 +161,6 @@ struct obd_info {
 	 * request in osc level for enqueue requests. It is also possible to
 	 * update some caller data from LOV layer if needed. */
 	obd_enqueue_update_f    oi_cb_up;
-	/* oss capability, its type is obd_capa in client to avoid copy.
-	 * in contrary its type is lustre_capa in OSS. */
-	void		   *oi_capa;
 };
 
 void lov_stripe_lock(struct lov_stripe_md *md);
@@ -853,7 +849,6 @@ enum obd_cleanup_stage {
 #define KEY_ASYNC	       "async"
 #define KEY_BLOCKSIZE_BITS      "blocksize_bits"
 #define KEY_BLOCKSIZE	   "blocksize"
-#define KEY_CAPA_KEY	    "capa_key"
 #define KEY_CHANGELOG_CLEAR     "changelog_clear"
 #define KEY_FID2PATH	    "fid2path"
 #define KEY_CHECKSUM	    "checksum"
@@ -956,10 +951,6 @@ struct md_op_data {
 	__u64		   op_ioepoch;
 	__u32		   op_flags;
 
-	/* Capa fields */
-	struct obd_capa	*op_capa1;
-	struct obd_capa	*op_capa2;
-
 	/* Various operation flags. */
 	enum mds_op_bias        op_bias;
 
@@ -1060,14 +1051,12 @@ struct obd_ops {
 			  struct lov_stripe_md **mem_tgt,
 			  struct lov_mds_md *disk_src, int disk_len);
 	int (*o_preallocate)(struct lustre_handle *, u32 *req, u64 *ids);
-	/* FIXME: add fid capability support for create & destroy! */
 	int (*o_create)(const struct lu_env *env, struct obd_export *exp,
 			struct obdo *oa, struct lov_stripe_md **ea,
 			struct obd_trans_info *oti);
 	int (*o_destroy)(const struct lu_env *env, struct obd_export *exp,
 			 struct obdo *oa, struct lov_stripe_md *ea,
-			 struct obd_trans_info *oti, struct obd_export *md_exp,
-			 void *capa);
+			 struct obd_trans_info *oti, struct obd_export *md_exp);
 	int (*o_setattr)(const struct lu_env *, struct obd_export *exp,
 			 struct obd_info *oinfo, struct obd_trans_info *oti);
 	int (*o_setattr_async)(struct obd_export *exp, struct obd_info *oinfo,
@@ -1083,7 +1072,7 @@ struct obd_ops {
 			struct obd_export *exp, struct obdo *oa, int objcount,
 			struct obd_ioobj *obj, struct niobuf_remote *remote,
 			int *nr_pages, struct niobuf_local *local,
-			struct obd_trans_info *oti, struct lustre_capa *capa);
+			struct obd_trans_info *oti);
 	int (*o_commitrw)(const struct lu_env *env, int cmd,
 			  struct obd_export *exp, struct obdo *oa,
 			  int objcount, struct obd_ioobj *obj,
@@ -1151,8 +1140,6 @@ struct lustre_md {
 	struct posix_acl	*posix_acl;
 #endif
 	struct mdt_remote_perm  *remote_perm;
-	struct obd_capa	 *mds_capa;
-	struct obd_capa	 *oss_capa;
 };
 
 struct md_open_data {
@@ -1166,8 +1153,7 @@ struct md_open_data {
 struct lookup_intent;
 
 struct md_ops {
-	int (*m_getstatus)(struct obd_export *, struct lu_fid *,
-			   struct obd_capa **);
+	int (*m_getstatus)(struct obd_export *, struct lu_fid *);
 	int (*m_null_inode)(struct obd_export *, const struct lu_fid *);
 	int (*m_find_cbdata)(struct obd_export *, const struct lu_fid *,
 			     ldlm_iterator_t, void *);
@@ -1202,7 +1188,7 @@ struct md_ops {
 			 int, void *, int, struct ptlrpc_request **,
 			 struct md_open_data **mod);
 	int (*m_sync)(struct obd_export *, const struct lu_fid *,
-		      struct obd_capa *, struct ptlrpc_request **);
+		      struct ptlrpc_request **);
 	int (*m_readpage)(struct obd_export *, struct md_op_data *,
 			  struct page **, struct ptlrpc_request **);
 
@@ -1210,13 +1196,11 @@ struct md_ops {
 			struct ptlrpc_request **);
 
 	int (*m_setxattr)(struct obd_export *, const struct lu_fid *,
-			  struct obd_capa *, u64, const char *,
-			  const char *, int, int, int, __u32,
+			  u64, const char *, const char *, int, int, int, __u32,
 			  struct ptlrpc_request **);
 
 	int (*m_getxattr)(struct obd_export *, const struct lu_fid *,
-			  struct obd_capa *, u64, const char *,
-			  const char *, int, int, int,
+			  u64, const char *, const char *, int, int, int,
 			  struct ptlrpc_request **);
 
 	int (*m_init_ea_size)(struct obd_export *, int, int, int, int);
@@ -1242,14 +1226,9 @@ struct md_ops {
 	int (*m_cancel_unused)(struct obd_export *, const struct lu_fid *,
 			       ldlm_policy_data_t *, ldlm_mode_t,
 			       ldlm_cancel_flags_t flags, void *opaque);
-	int (*m_renew_capa)(struct obd_export *, struct obd_capa *oc,
-			    renew_capa_cb_t cb);
-	int (*m_unpack_capa)(struct obd_export *, struct ptlrpc_request *,
-			     const struct req_msg_field *, struct obd_capa **);
 
 	int (*m_get_remote_perm)(struct obd_export *, const struct lu_fid *,
-				 struct obd_capa *, __u32,
-				 struct ptlrpc_request **);
+				 __u32, struct ptlrpc_request **);
 
 	int (*m_intent_getattr_async)(struct obd_export *,
 				      struct md_enqueue_info *,
@@ -1297,11 +1276,6 @@ static inline const struct lsm_operations *lsm_op_find(int magic)
 /* Requests for obd_extent_calc() */
 #define OBD_CALC_STRIPE_START   1
 #define OBD_CALC_STRIPE_END     2
-
-static inline struct lustre_capa *oinfo_capa(struct obd_info *oinfo)
-{
-	return oinfo->oi_capa;
-}
 
 static inline struct md_open_data *obd_mod_alloc(void)
 {

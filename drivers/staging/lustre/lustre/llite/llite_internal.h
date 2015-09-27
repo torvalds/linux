@@ -134,11 +134,9 @@ struct ll_inode_info {
 	struct lu_fid		   lli_pfid;
 
 	struct list_head		      lli_close_list;
-	struct list_head		      lli_oss_capas;
 	/* open count currently used by capability only, indicate whether
 	 * capability needs renewal */
 	atomic_t		    lli_open_count;
-	struct obd_capa		*lli_mds_capa;
 	unsigned long		      lli_rmtperm_time;
 
 	/* handle is to be sent to MDS later on done_writing and setattr.
@@ -398,8 +396,8 @@ enum stats_track_type {
 #define LL_SBI_USER_XATTR	0x08 /* support user xattr */
 #define LL_SBI_ACL	       0x10 /* support ACL */
 #define LL_SBI_RMT_CLIENT	0x40 /* remote client */
-#define LL_SBI_MDS_CAPA	  0x80 /* support mds capa */
-#define LL_SBI_OSS_CAPA	 0x100 /* support oss capa */
+#define LL_SBI_MDS_CAPA		 0x80 /* support mds capa, obsolete */
+#define LL_SBI_OSS_CAPA		0x100 /* support oss capa, obsolete */
 #define LL_SBI_LOCALFLOCK       0x200 /* Local flocks support by kernel */
 #define LL_SBI_LRU_RESIZE       0x400 /* lru resize support */
 #define LL_SBI_LAZYSTATFS       0x800 /* lazystatfs mount option */
@@ -1053,25 +1051,6 @@ void free_rmtperm_hash(struct hlist_head *hash);
 int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm);
 int lustre_check_remote_perm(struct inode *inode, int mask);
 
-/* llite/llite_capa.c */
-extern struct timer_list ll_capa_timer;
-
-int ll_capa_thread_start(void);
-void ll_capa_thread_stop(void);
-void ll_capa_timer_callback(unsigned long unused);
-
-struct obd_capa *ll_add_capa(struct inode *inode, struct obd_capa *ocapa);
-
-void ll_capa_open(struct inode *inode);
-void ll_capa_close(struct inode *inode);
-
-struct obd_capa *ll_mdscapa_get(struct inode *inode);
-struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc);
-
-void ll_truncate_free_capa(struct obd_capa *ocapa);
-void ll_clear_inode_capas(struct inode *inode);
-void ll_print_capa_stat(struct ll_sb_info *sbi);
-
 /* llite/llite_cl.c */
 extern struct lu_device_type vvp_device_type;
 
@@ -1344,8 +1323,6 @@ static inline int cl_merge_lvb(const struct lu_env *env, struct inode *inode)
 #define cl_inode_atime(inode) LTIME_S((inode)->i_atime)
 #define cl_inode_ctime(inode) LTIME_S((inode)->i_ctime)
 #define cl_inode_mtime(inode) LTIME_S((inode)->i_mtime)
-
-struct obd_capa *cl_capa_lookup(struct inode *inode, enum cl_req_type crt);
 
 int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 		       enum cl_fsync_mode mode, int ignore_layout);

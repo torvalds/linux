@@ -154,14 +154,10 @@ static int __init init_lustre_lite(void)
 
 	ktime_get_ts64(&ts);
 	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
-	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
-	rc = ll_capa_thread_start();
-	if (rc != 0)
-		goto out_sysfs;
 
 	rc = vvp_global_init();
 	if (rc != 0)
-		goto out_capa;
+		goto out_sysfs;
 
 	rc = ll_xattr_init();
 	if (rc != 0)
@@ -175,9 +171,6 @@ static int __init init_lustre_lite(void)
 
 out_vvp:
 	vvp_global_fini();
-out_capa:
-	del_timer(&ll_capa_timer);
-	ll_capa_thread_stop();
 out_sysfs:
 	kset_unregister(llite_kset);
 out_debugfs:
@@ -201,11 +194,6 @@ static void __exit exit_lustre_lite(void)
 
 	ll_xattr_fini();
 	vvp_global_fini();
-	del_timer(&ll_capa_timer);
-	ll_capa_thread_stop();
-	LASSERTF(capa_count[CAPA_SITE_CLIENT] == 0,
-		 "client remaining capa count %d\n",
-		 capa_count[CAPA_SITE_CLIENT]);
 
 	kmem_cache_destroy(ll_inode_cachep);
 	kmem_cache_destroy(ll_rmtperm_hash_cachep);

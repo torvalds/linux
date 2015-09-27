@@ -479,9 +479,6 @@ static int __init init_obdclass(void)
 	int i, err;
 	int lustre_register_fs(void);
 
-	for (i = CAPA_SITE_CLIENT; i < CAPA_SITE_MAX; i++)
-		INIT_LIST_HEAD(&capa_list[i]);
-
 	LCONSOLE_INFO("Lustre: Build Version: "BUILD_VERSION"\n");
 
 	spin_lock_init(&obd_types_lock);

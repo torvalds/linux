@@ -645,8 +645,6 @@ void obd_cleanup_caches(void)
 	obdo_cachep = NULL;
 	kmem_cache_destroy(import_cachep);
 	import_cachep = NULL;
-	kmem_cache_destroy(capa_cachep);
-	capa_cachep = NULL;
 }
 
 int obd_init_caches(void)
@@ -669,12 +667,6 @@ int obd_init_caches(void)
 					     sizeof(struct obd_import),
 					     0, 0, NULL);
 	if (!import_cachep)
-		goto out;
-
-	LASSERT(!capa_cachep);
-	capa_cachep = kmem_cache_create("capa_cache",
-					   sizeof(struct obd_capa), 0, 0, NULL);
-	if (!capa_cachep)
 		goto out;
 
 	return 0;

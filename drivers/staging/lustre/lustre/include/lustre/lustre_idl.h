@@ -3509,30 +3509,6 @@ enum {
 #define CAPA_OPC_MDS_DEFAULT ~CAPA_OPC_OSS_ONLY
 #define CAPA_OPC_OSS_DEFAULT ~(CAPA_OPC_MDS_ONLY | CAPA_OPC_OSS_ONLY)
 
-/* MDS capability covers object capability for operations of body r/w
- * (dir readpage/sendpage), index lookup/insert/delete and meta data r/w,
- * while OSS capability only covers object capability for operations of
- * oss data(file content) r/w/truncate.
- */
-static inline int capa_for_mds(struct lustre_capa *c)
-{
-	return (c->lc_opc & CAPA_OPC_INDEX_LOOKUP) != 0;
-}
-
-static inline int capa_for_oss(struct lustre_capa *c)
-{
-	return (c->lc_opc & CAPA_OPC_INDEX_LOOKUP) == 0;
-}
-
-/* lustre_capa::lc_hmac_alg */
-enum {
-	CAPA_HMAC_ALG_SHA1 = 1, /**< sha1 algorithm */
-	CAPA_HMAC_ALG_MAX,
-};
-
-#define CAPA_FL_MASK	    0x00ffffff
-#define CAPA_HMAC_ALG_MASK      0xff000000
-
 struct lustre_capa_key {
 	__u64   lk_seq;       /**< mds# */
 	__u32   lk_keyid;     /**< key# */
