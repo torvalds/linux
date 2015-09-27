@@ -90,7 +90,7 @@ void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg));
 static int __init init_lustre_lite(void)
 {
 	lnet_process_id_t lnet_id;
-	struct timeval tv;
+	struct timespec64 ts;
 	int i, rc, seed[2];
 
 	CLASSERT(sizeof(LUSTRE_VOLATILE_HDR) == LUSTRE_VOLATILE_HDR_LEN + 1);
@@ -152,8 +152,8 @@ static int __init init_lustre_lite(void)
 			seed[0] ^= LNET_NIDADDR(lnet_id.nid);
 	}
 
-	do_gettimeofday(&tv);
-	cfs_srand(tv.tv_sec ^ seed[0], tv.tv_usec ^ seed[1]);
+	ktime_get_ts64(&ts);
+	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
 	rc = ll_capa_thread_start();
 	if (rc != 0)

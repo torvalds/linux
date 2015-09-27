@@ -193,7 +193,7 @@ EXPORT_SYMBOL(class_handle_free_cb);
 int class_handle_init(void)
 {
 	struct handle_bucket *bucket;
-	struct timeval tv;
+	struct timespec64 ts;
 	int seed[2];
 
 	LASSERT(handle_hash == NULL);
@@ -212,8 +212,8 @@ int class_handle_init(void)
 
 	/** bug 21430: add randomness to the initial base */
 	cfs_get_random_bytes(seed, sizeof(seed));
-	do_gettimeofday(&tv);
-	cfs_srand(tv.tv_sec ^ seed[0], tv.tv_usec ^ seed[1]);
+	ktime_get_ts64(&ts);
+	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 
 	cfs_get_random_bytes(&handle_base, sizeof(handle_base));
 	LASSERT(handle_base != 0ULL);
