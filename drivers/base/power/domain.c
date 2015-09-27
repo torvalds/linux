@@ -227,7 +227,6 @@ static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	if (ret)
 		goto err;
 
- out:
 	genpd->status = GPD_STATE_ACTIVE;
 	return 0;
 
