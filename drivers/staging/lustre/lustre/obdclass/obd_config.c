@@ -643,18 +643,6 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	LASSERT(obd->obd_self_export);
 
-	/* The three references that should be remaining are the
-	 * obd_self_export and the attach and setup references. */
-	if (atomic_read(&obd->obd_refcount) > 3) {
-		/* refcount - 3 might be the number of real exports
-		   (excluding self export). But class_incref is called
-		   by other things as well, so don't count on it. */
-		CDEBUG(D_IOCTL, "%s: forcing exports to disconnect: %d\n",
-		       obd->obd_name, atomic_read(&obd->obd_refcount) - 3);
-		dump_exports(obd, 0);
-		class_disconnect_exports(obd);
-	}
-
 	/* Precleanup, we must make sure all exports get destroyed. */
 	err = obd_precleanup(obd, OBD_CLEANUP_EXPORTS);
 	if (err)

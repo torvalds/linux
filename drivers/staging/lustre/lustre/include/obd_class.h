@@ -286,10 +286,7 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 int class_disconnect(struct obd_export *exp);
 void class_fail_export(struct obd_export *exp);
 int class_connected_export(struct obd_export *exp);
-void class_disconnect_exports(struct obd_device *obddev);
 int class_manual_cleanup(struct obd_device *obd);
-void class_disconnect_stale_exports(struct obd_device *,
-				    int (*test_export)(struct obd_export *));
 static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 {
 	return ((obd->obd_fail ? OBD_OPT_FAILOVER : 0) |
