@@ -389,9 +389,6 @@ struct lu_server_seq {
 	 */
 	struct dt_device       *lss_dev;
 
-	/* /seq file object device */
-	struct dt_object       *lss_obj;
-
 	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
 	enum lu_mgr_type       lss_type;
 

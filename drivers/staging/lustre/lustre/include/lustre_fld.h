@@ -71,10 +71,6 @@ struct lu_fld_target {
 
 struct lu_server_fld {
 	/**
-	 * /fld file object device */
-	struct dt_object	*lsf_obj;
-
-	/**
 	 * super sequence controller export, needed to forward fld
 	 * lookup  request. */
 	struct obd_export       *lsf_control_exp;
