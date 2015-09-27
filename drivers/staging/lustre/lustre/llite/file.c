@@ -916,7 +916,7 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 			  __u64 ioepoch, int sync)
 {
 	struct ptlrpc_request_set *set;
-	struct obd_info	    oinfo = { { { 0 } } };
+	struct obd_info	    oinfo = { };
 	int			rc;
 
 	LASSERT(lsm != NULL);

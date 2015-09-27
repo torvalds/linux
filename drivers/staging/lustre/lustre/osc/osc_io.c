@@ -402,7 +402,7 @@ static int osc_io_setattr_start(const struct lu_env *env,
 	__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
 	unsigned int ia_valid = io->u.ci_setattr.sa_valid;
 	int result = 0;
-	struct obd_info oinfo = { { { 0 } } };
+	struct obd_info oinfo = { };
 
 	/* truncate cache dirty pages first */
 	if (cl_io_is_trunc(io))

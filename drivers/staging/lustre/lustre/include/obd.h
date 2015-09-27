@@ -144,10 +144,6 @@ typedef int (*obd_enqueue_update_f)(void *cookie, int rc);
 
 /* obd info for a particular level (lov, osc). */
 struct obd_info {
-	/* Lock policy. It keeps an extent which is specific for a particular
-	 * OSC. (e.g. lov_prep_enqueue_set initialises extent of the policy,
-	 * and osc_enqueue passes it into ldlm_lock_match & ldlm_cli_enqueue. */
-	ldlm_policy_data_t      oi_policy;
 	/* Flags used for set request specific flags:
 	   - while lock handling, the flags obtained on the enqueue
 	   request are set here.
@@ -155,8 +151,6 @@ struct obd_info {
 	   - while setattr, the flags used for distinguish punch operation
 	 */
 	__u64		   oi_flags;
-	/* Lock handle specific for every OSC lock. */
-	struct lustre_handle   *oi_lockh;
 	/* lsm data specific for every OSC. */
 	struct lov_stripe_md   *oi_md;
 	/* obdo data specific for every OSC, if needed at all. */
@@ -171,8 +165,6 @@ struct obd_info {
 	/* oss capability, its type is obd_capa in client to avoid copy.
 	 * in contrary its type is lustre_capa in OSS. */
 	void		   *oi_capa;
-	/* transfer jobid from ost_sync() to filter_sync()... */
-	char		   *oi_jobid;
 };
 
 /* compare all relevant fields. */
@@ -455,25 +447,6 @@ struct echo_client_obd {
 	__u64		ec_unique;
 };
 
-struct lov_qos_oss {
-	struct obd_uuid     lqo_uuid;       /* ptlrpc's c_remote_uuid */
-	struct list_head	  lqo_oss_list;   /* link to lov_qos */
-	__u64	       lqo_bavail;     /* total bytes avail on OSS */
-	__u64	       lqo_penalty;    /* current penalty */
-	__u64	       lqo_penalty_per_obj;/* penalty decrease every obj*/
-	time_t	      lqo_used;       /* last used time, seconds */
-	__u32	       lqo_ost_count;  /* number of osts on this oss */
-};
-
-struct ltd_qos {
-	struct lov_qos_oss *ltq_oss;	 /* oss info */
-	__u64	       ltq_penalty;     /* current penalty */
-	__u64	       ltq_penalty_per_obj; /* penalty decrease every obj*/
-	__u64	       ltq_weight;      /* net weighting */
-	time_t	      ltq_used;	/* last used time, seconds */
-	unsigned int	ltq_usable:1;    /* usable for striping */
-};
-
 /* Generic subset of OSTs */
 struct ost_pool {
 	__u32	      *op_array;      /* array of index of
@@ -524,7 +497,6 @@ struct lov_tgt_desc {
 	struct obd_uuid     ltd_uuid;
 	struct obd_device  *ltd_obd;
 	struct obd_export  *ltd_exp;
-	struct ltd_qos      ltd_qos;     /* qos info per target */
 	__u32	       ltd_gen;
 	__u32	       ltd_index;   /* index in lov_obd->tgts */
 	unsigned long       ltd_active:1,/* is this target up for requests */
@@ -883,12 +855,7 @@ struct obd_device {
 	int			      obd_requests_queued_for_recovery;
 	wait_queue_head_t		      obd_next_transno_waitq;
 	/* protected by obd_recovery_task_lock */
-	struct timer_list	obd_recovery_timer;
-	time_t			obd_recovery_start; /* seconds */
-	time_t			obd_recovery_end; /* seconds, for lprocfs_status */
-	int			      obd_recovery_time_hard;
 	int			      obd_recovery_timeout;
-	int			      obd_recovery_ir_factor;
 
 	/* new recovery stuff from CMD2 */
 	struct target_recovery_data      obd_recovery_data;

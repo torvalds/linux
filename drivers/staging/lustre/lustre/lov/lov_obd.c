@@ -1365,7 +1365,7 @@ static int lov_statfs(const struct lu_env *env, struct obd_export *exp,
 		      struct obd_statfs *osfs, __u64 max_age, __u32 flags)
 {
 	struct ptlrpc_request_set *set = NULL;
-	struct obd_info oinfo = { { { 0 } } };
+	struct obd_info oinfo = { };
 	int rc = 0;
 
 	/* for obdclass we forbid using obd_statfs_rqset, but prefer using async

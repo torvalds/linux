@@ -1824,7 +1824,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 	}
 	case FSFILT_IOC_SETFLAGS: {
 		struct lov_stripe_md *lsm;
-		struct obd_info oinfo = { { { 0 } } };
+		struct obd_info oinfo = { };
 		struct md_op_data *op_data;
 
 		if (get_user(flags, (int *)arg))

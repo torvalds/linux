@@ -1114,7 +1114,7 @@ static inline int obd_statfs_rqset(struct obd_export *exp,
 				   __u32 flags)
 {
 	struct ptlrpc_request_set *set = NULL;
-	struct obd_info oinfo = { { { 0 } } };
+	struct obd_info oinfo = { };
 	int rc = 0;
 
 	set =  ptlrpc_prep_set();
