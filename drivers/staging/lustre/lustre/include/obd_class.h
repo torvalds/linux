@@ -98,8 +98,6 @@ int class_notify_sptlrpc_conf(const char *fsname, int namelen);
 
 char *obd_export_nid2str(struct obd_export *exp);
 
-int obd_export_evict_by_nid(struct obd_device *obd, const char *nid);
-int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid);
 int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep);
 
 int obd_zombie_impexp_init(void);
