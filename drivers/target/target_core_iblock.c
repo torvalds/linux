@@ -105,6 +105,8 @@ static int iblock_configure_device(struct se_device *dev)
 	mode = FMODE_READ|FMODE_EXCL;
 	if (!ib_dev->ibd_readonly)
 		mode |= FMODE_WRITE;
+	else
+		dev->dev_flags |= DF_READ_ONLY;
 
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
 	if (IS_ERR(bd)) {

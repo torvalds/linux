@@ -86,7 +86,7 @@ static int amdgpu_cgs_gmap_kmem(void *cgs_device, void *kmem,
 
 	struct sg_table *sg = drm_prime_pages_to_sg(&kmem_page, npages);
 	ret = amdgpu_bo_create(adev, size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, &bo);
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, NULL, &bo);
 	if (ret)
 		return ret;
 	ret = amdgpu_bo_reserve(bo, false);
@@ -197,7 +197,8 @@ static int amdgpu_cgs_alloc_gpu_mem(void *cgs_device,
 
 	ret = amdgpu_bo_create_restricted(adev, size, PAGE_SIZE,
 					  true, domain, flags,
-					  NULL, &placement, &obj);
+					  NULL, &placement, NULL,
+					  &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
