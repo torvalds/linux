@@ -275,8 +275,8 @@ static int ptlrpc_pinger_main(void *arg)
 		   next ping time to next_ping + .01 sec, which means
 		   we will SKIP the next ping at next_ping, and the
 		   ping will get sent 2 timeouts from now!  Beware. */
-		CDEBUG(D_INFO, "next wakeup in "CFS_DURATION_T" ("
-		       CFS_TIME_T")\n", time_to_next_wake,
+		CDEBUG(D_INFO, "next wakeup in " CFS_DURATION_T " (%ld)\n",
+		       time_to_next_wake,
 		       cfs_time_add(this_ping,
 				    cfs_time_seconds(PING_INTERVAL)));
 		if (time_to_next_wake > 0) {

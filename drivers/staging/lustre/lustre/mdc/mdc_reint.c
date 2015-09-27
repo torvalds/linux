@@ -144,8 +144,7 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	rpc_lock = obd->u.cli.cl_rpc_lock;
 
 	if (op_data->op_attr.ia_valid & (ATTR_MTIME | ATTR_CTIME))
-		CDEBUG(D_INODE, "setting mtime "CFS_TIME_T
-		       ", ctime "CFS_TIME_T"\n",
+		CDEBUG(D_INODE, "setting mtime %ld, ctime %ld\n",
 		       LTIME_S(op_data->op_attr.ia_mtime),
 		       LTIME_S(op_data->op_attr.ia_ctime));
 	mdc_setattr_pack(req, op_data, ea, ealen, ea2, ea2len);
