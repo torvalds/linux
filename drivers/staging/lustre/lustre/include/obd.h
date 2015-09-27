@@ -167,68 +167,6 @@ struct obd_info {
 	void		   *oi_capa;
 };
 
-/* compare all relevant fields. */
-static inline int lov_stripe_md_cmp(struct lov_stripe_md *m1,
-				    struct lov_stripe_md *m2)
-{
-	/*
-	 * ->lsm_wire contains padding, but it should be zeroed out during
-	 * allocation.
-	 */
-	return memcmp(&m1->lsm_wire, &m2->lsm_wire, sizeof(m1->lsm_wire));
-}
-
-static inline int lov_lum_lsm_cmp(struct lov_user_md *lum,
-				  struct lov_stripe_md  *lsm)
-{
-	if (lsm->lsm_magic != lum->lmm_magic)
-		return 1;
-	if ((lsm->lsm_stripe_count != 0) && (lum->lmm_stripe_count != 0) &&
-	    (lsm->lsm_stripe_count != lum->lmm_stripe_count))
-		return 2;
-	if ((lsm->lsm_stripe_size != 0) && (lum->lmm_stripe_size != 0) &&
-	    (lsm->lsm_stripe_size != lum->lmm_stripe_size))
-		return 3;
-	if ((lsm->lsm_pattern != 0) && (lum->lmm_pattern != 0) &&
-	    (lsm->lsm_pattern != lum->lmm_pattern))
-		return 4;
-	if ((lsm->lsm_magic == LOV_MAGIC_V3) &&
-	    (strncmp(lsm->lsm_pool_name,
-		     ((struct lov_user_md_v3 *)lum)->lmm_pool_name,
-		     LOV_MAXPOOLNAME) != 0))
-		return 5;
-	return 0;
-}
-
-static inline int lov_lum_swab_if_needed(struct lov_user_md_v3 *lumv3,
-					 int *lmm_magic,
-					 struct lov_user_md *lum)
-{
-	if (lum && copy_from_user(lumv3, lum, sizeof(struct lov_user_md_v1)))
-		return -EFAULT;
-
-	*lmm_magic = lumv3->lmm_magic;
-
-	if (*lmm_magic == __swab32(LOV_USER_MAGIC_V1)) {
-		lustre_swab_lov_user_md_v1((struct lov_user_md_v1 *)lumv3);
-		*lmm_magic = LOV_USER_MAGIC_V1;
-	} else if (*lmm_magic == LOV_USER_MAGIC_V3) {
-		if (lum && copy_from_user(lumv3, lum, sizeof(*lumv3)))
-			return -EFAULT;
-	} else if (*lmm_magic == __swab32(LOV_USER_MAGIC_V3)) {
-		if (lum && copy_from_user(lumv3, lum, sizeof(*lumv3)))
-			return -EFAULT;
-		lustre_swab_lov_user_md_v3(lumv3);
-		*lmm_magic = LOV_USER_MAGIC_V3;
-	} else if (*lmm_magic != LOV_USER_MAGIC_V1) {
-		CDEBUG(D_IOCTL,
-		       "bad userland LOV MAGIC: %#08x != %#08x nor %#08x\n",
-		       *lmm_magic, LOV_USER_MAGIC_V1, LOV_USER_MAGIC_V3);
-		       return -EINVAL;
-	}
-	return 0;
-}
-
 void lov_stripe_lock(struct lov_stripe_md *md);
 void lov_stripe_unlock(struct lov_stripe_md *md);
 
