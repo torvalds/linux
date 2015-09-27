@@ -35,20 +35,10 @@ logical_chip_type_t getChipType(void)
 	return chip;
 }
 
-
-inline unsigned int twoToPowerOfx(unsigned long x)
-{
-	unsigned long i;
-	unsigned long result = 1;
-
-	for (i = 1; i <= x; i++)
-		result *= 2;
-	return result;
-}
-
 inline unsigned int calcPLL(pll_value_t *pPLL)
 {
-	return (pPLL->inputFreq * pPLL->M / pPLL->N / twoToPowerOfx(pPLL->OD) / twoToPowerOfx(pPLL->POD));
+	return (pPLL->inputFreq * pPLL->M / pPLL->N / (1 << pPLL->OD) /
+		(1 << pPLL->POD));
 }
 
 unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
@@ -526,12 +516,12 @@ pll_value_t *pPLL           /* Structure to hold the value to be set in PLL */
 #endif
 
 	/* Work out 2 to the power of POD */
-	podPower = twoToPowerOfx(POD);
+	podPower = 1 << POD;
 
 	/* OD has only 2 bits [15:14] and its value must between 0 to 3 */
 	for (OD = 0; OD <= 3; OD++) {
 		/* Work out 2 to the power of OD */
-		odPower = twoToPowerOfx(OD);
+		odPower = 1 << OD;
 
 #ifdef VALIDATION_CHIP
 	if (odPower > 4)
