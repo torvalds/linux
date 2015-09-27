@@ -402,7 +402,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 		rec->sx_suppgid2 = -1;
 		rec->sx_fid    = *fid;
 		rec->sx_valid  = valid | OBD_MD_FLCTIME;
-		rec->sx_time   = get_seconds();
+		rec->sx_time   = ktime_get_real_seconds();
 		rec->sx_size   = output_size;
 		rec->sx_flags  = flags;
 
