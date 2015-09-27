@@ -901,7 +901,8 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 		if (od->hwmods[i]->flags & HWMOD_INIT_NO_IDLE)
 			return 0;
 
-	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER) {
+	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER &&
+	    od->_driver_status != BUS_NOTIFY_BIND_DRIVER) {
 		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
 			dev_warn(dev, "%s: enabled but no driver.  Idling\n",
 				 __func__);
