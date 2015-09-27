@@ -62,9 +62,6 @@ static inline int __is_po2(unsigned long long val)
 
 #include <linux/list.h>
 
-int libcfs_arch_init(void);
-void libcfs_arch_cleanup(void);
-
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
 #define LNET_ACCEPTOR_MAX_RESERVED_PORT    1023

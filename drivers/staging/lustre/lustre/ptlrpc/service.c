@@ -649,7 +649,9 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	if (array->paa_reqs_count == NULL)
 		goto free_reqs_array;
 
-	cfs_timer_init(&svcpt->scp_at_timer, ptlrpc_at_timer, svcpt);
+	setup_timer(&svcpt->scp_at_timer, ptlrpc_at_timer,
+		    (unsigned long)svcpt);
+
 	/* At SOW, service time should be quick; 10s seems generous. If client
 	 * timeout is less than this, we'll be sending an early reply. */
 	at_init(&svcpt->scp_at_estimate, 10, 0);
@@ -1124,7 +1126,7 @@ static void ptlrpc_at_set_timer(struct ptlrpc_service_part *svcpt)
 	__s32 next;
 
 	if (array->paa_count == 0) {
-		cfs_timer_disarm(&svcpt->scp_at_timer);
+		del_timer(&svcpt->scp_at_timer);
 		return;
 	}
 
@@ -1134,7 +1136,7 @@ static void ptlrpc_at_set_timer(struct ptlrpc_service_part *svcpt)
 	if (next <= 0) {
 		ptlrpc_at_timer((unsigned long)svcpt);
 	} else {
-		cfs_timer_arm(&svcpt->scp_at_timer, cfs_time_shift(next));
+		mod_timer(&svcpt->scp_at_timer, cfs_time_shift(next));
 		CDEBUG(D_INFO, "armed %s at %+ds\n",
 		       svcpt->scp_service->srv_name, next);
 	}
@@ -2840,7 +2842,7 @@ ptlrpc_service_del_atimer(struct ptlrpc_service *svc)
 	/* early disarm AT timer... */
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		if (svcpt->scp_service != NULL)
-			cfs_timer_disarm(&svcpt->scp_at_timer);
+			del_timer(&svcpt->scp_at_timer);
 	}
 }
 
@@ -2980,7 +2982,7 @@ ptlrpc_service_free(struct ptlrpc_service *svc)
 			break;
 
 		/* In case somebody rearmed this in the meantime */
-		cfs_timer_disarm(&svcpt->scp_at_timer);
+		del_timer(&svcpt->scp_at_timer);
 		array = &svcpt->scp_at_array;
 
 		kfree(array->paa_reqs_array);
