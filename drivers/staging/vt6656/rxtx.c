@@ -101,8 +101,11 @@ static struct vnt_usb_send_context
 		}
 	}
 
-	if (ii == priv->num_tx_context)
+	if (ii == priv->num_tx_context) {
 		dev_dbg(&priv->usb->dev, "%s No Free Tx Context\n", __func__);
+
+		ieee80211_stop_queues(priv->hw);
+	}
 
 	return NULL;
 }
