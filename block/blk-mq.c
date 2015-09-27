@@ -393,14 +393,16 @@ void __blk_mq_complete_request(struct request *rq)
  *	Ends all I/O on a request. It does not handle partial completions.
  *	The actual completion happens out-of-order, through a IPI handler.
  **/
-void blk_mq_complete_request(struct request *rq)
+void blk_mq_complete_request(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
 
 	if (unlikely(blk_should_fake_timeout(q)))
 		return;
-	if (!blk_mark_rq_complete(rq))
+	if (!blk_mark_rq_complete(rq)) {
+		rq->errors = error;
 		__blk_mq_complete_request(rq);
+	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
@@ -616,10 +618,8 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		 * If a request wasn't started before the queue was
 		 * marked dying, kill it here or it'll go unnoticed.
 		 */
-		if (unlikely(blk_queue_dying(rq->q))) {
-			rq->errors = -EIO;
-			blk_mq_complete_request(rq);
-		}
+		if (unlikely(blk_queue_dying(rq->q)))
+			blk_mq_complete_request(rq, -EIO);
 		return;
 	}
 	if (rq->cmd_flags & REQ_NO_TIMEOUT)
