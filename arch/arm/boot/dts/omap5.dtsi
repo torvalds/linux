@@ -185,6 +185,7 @@
 					reg = <0x5a0 0xec>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0x5a0 0xec>;
 
 					pbias_regulator: pbias_regulator {
 						compatible = "ti,pbias-omap5", "ti,pbias-omap";

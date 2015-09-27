@@ -120,6 +120,7 @@
 					reg = <0x0 0x1400>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0x0 0x1400>;
 
 					pbias_regulator: pbias_regulator {
 						compatible = "ti,pbias-dra7", "ti,pbias-omap";
