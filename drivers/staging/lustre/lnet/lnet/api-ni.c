@@ -1343,6 +1343,7 @@ LNetCtl(unsigned int cmd, void *arg)
 	lnet_process_id_t id = {0};
 	lnet_ni_t *ni;
 	int rc;
+	unsigned long secs_passed;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -1370,10 +1371,9 @@ LNetCtl(unsigned int cmd, void *arg)
 				      &data->ioc_nid, &data->ioc_flags,
 				      &data->ioc_priority);
 	case IOC_LIBCFS_NOTIFY_ROUTER:
+		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
-				   cfs_time_current() -
-				   cfs_time_seconds(get_seconds() -
-						    (time_t)data->ioc_u64[0]));
+				   jiffies - secs_passed * HZ);
 
 	case IOC_LIBCFS_PORTALS_COMPATIBILITY:
 		/* This can be removed once lustre stops calling it */
