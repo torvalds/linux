@@ -612,8 +612,6 @@ int lprocfs_at_hist_helper(struct seq_file *m, struct adaptive_timeout *at);
 int lprocfs_rd_timeouts(struct seq_file *m, void *data);
 int lprocfs_wr_timeouts(struct file *file, const char __user *buffer,
 			unsigned long count, void *data);
-int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *off);
 int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		    size_t count, loff_t *off);
 int lprocfs_wr_import(struct file *file, const char __user *buffer,

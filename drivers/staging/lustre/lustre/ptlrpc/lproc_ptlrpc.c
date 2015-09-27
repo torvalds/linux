@@ -1207,55 +1207,6 @@ void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd)
 }
 EXPORT_SYMBOL(ptlrpc_lprocfs_unregister_obd);
 
-
-#define BUFLEN (UUID_MAX + 5)
-
-int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *off)
-{
-	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
-	char *kbuf;
-	char *tmpbuf;
-
-	kbuf = kzalloc(BUFLEN, GFP_NOFS);
-	if (!kbuf)
-		return -ENOMEM;
-
-	/*
-	 * kzalloc() will zero kbuf, but we only copy BUFLEN - 1
-	 * bytes into kbuf, to ensure that the string is NUL-terminated.
-	 * UUID_MAX should include a trailing NUL already.
-	 */
-	if (copy_from_user(kbuf, buffer,
-			       min_t(unsigned long, BUFLEN - 1, count))) {
-		count = -EFAULT;
-		goto out;
-	}
-	tmpbuf = cfs_firststr(kbuf, min_t(unsigned long, BUFLEN - 1, count));
-	/* Kludge code(deadlock situation): the lprocfs lock has been held
-	 * since the client is evicted by writing client's
-	 * uuid/nid to procfs "evict_client" entry. However,
-	 * obd_export_evict_by_uuid() will call ldebugfs_remove() to destroy
-	 * the proc entries under the being destroyed export{}, so I have
-	 * to drop the lock at first here.
-	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __func__, current);
-
-	if (strncmp(tmpbuf, "nid:", 4) == 0)
-		obd_export_evict_by_nid(obd, tmpbuf + 4);
-	else if (strncmp(tmpbuf, "uuid:", 5) == 0)
-		obd_export_evict_by_uuid(obd, tmpbuf + 5);
-	else
-		obd_export_evict_by_uuid(obd, tmpbuf);
-
-	class_decref(obd, __func__, current);
-
-out:
-	kfree(kbuf);
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_wr_evict_client);
-
 #undef BUFLEN
 
 int lprocfs_wr_ping(struct file *file, const char __user *buffer,
