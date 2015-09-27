@@ -134,7 +134,7 @@ int vnt_next_tbtt_wakeup(struct vnt_private *priv)
 	struct ieee80211_conf *conf = &hw->conf;
 	int wake_up = false;
 
-	if (conf->listen_interval == 1) {
+	if (conf->listen_interval > 1) {
 		/* Turn on wake up to listen next beacon */
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
 		wake_up = true;
