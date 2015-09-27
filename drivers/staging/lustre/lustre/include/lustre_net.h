@@ -1440,7 +1440,7 @@ struct ptlrpc_request {
 
 	/* server-side... */
 	/** request arrival time */
-	struct timeval       rq_arrival_time;
+	struct timespec64	rq_arrival_time;
 	/** separated reply state */
 	struct ptlrpc_reply_state *rq_reply_state;
 	/** incoming request buffer */
@@ -1477,18 +1477,18 @@ struct ptlrpc_request {
 	/**
 	 * when request/reply sent (secs), or time when request should be sent
 	 */
-	time_t rq_sent;
+	time64_t rq_sent;
 	/** time for request really sent out */
-	time_t rq_real_sent;
+	time64_t rq_real_sent;
 
 	/** when request must finish. volatile
 	 * so that servers' early reply updates to the deadline aren't
 	 * kept in per-cpu cache */
-	volatile time_t rq_deadline;
+	volatile time64_t rq_deadline;
 	/** when req reply unlink must finish. */
-	time_t rq_reply_deadline;
+	time64_t rq_reply_deadline;
 	/** when req bulk unlink must finish. */
-	time_t rq_bulk_deadline;
+	time64_t rq_bulk_deadline;
 	/**
 	 * service time estimate (secs)
 	 * If the requestsis not served by this time, it is marked as timed out.
@@ -2323,7 +2323,7 @@ static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
 	desc = req->rq_bulk;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    req->rq_bulk_deadline > get_seconds())
+	    req->rq_bulk_deadline > ktime_get_real_seconds())
 		return 1;
 
 	if (!desc)
@@ -2727,7 +2727,7 @@ static inline int
 ptlrpc_client_early(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > get_seconds())
+	    req->rq_reply_deadline > ktime_get_real_seconds())
 		return 0;
 	return req->rq_early;
 }
@@ -2739,7 +2739,7 @@ static inline int
 ptlrpc_client_replied(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > get_seconds())
+	    req->rq_reply_deadline > ktime_get_real_seconds())
 		return 0;
 	return req->rq_replied;
 }
@@ -2749,7 +2749,7 @@ static inline int
 ptlrpc_client_recv(struct ptlrpc_request *req)
 {
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > get_seconds())
+	    req->rq_reply_deadline > ktime_get_real_seconds())
 		return 1;
 	return req->rq_receiving_reply;
 }
@@ -2761,7 +2761,7 @@ ptlrpc_client_recv_or_unlink(struct ptlrpc_request *req)
 
 	spin_lock(&req->rq_lock);
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
-	    req->rq_reply_deadline > get_seconds()) {
+	    req->rq_reply_deadline > ktime_get_real_seconds()) {
 		spin_unlock(&req->rq_lock);
 		return 1;
 	}

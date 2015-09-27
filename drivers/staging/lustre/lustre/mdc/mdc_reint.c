@@ -271,7 +271,7 @@ rebuild:
 	if (resends) {
 		req->rq_generation_set = 1;
 		req->rq_import_generation = generation;
-		req->rq_sent = get_seconds() + resends;
+		req->rq_sent = ktime_get_real_seconds() + resends;
 	}
 	level = LUSTRE_IMP_FULL;
  resend:

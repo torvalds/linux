@@ -945,13 +945,13 @@ static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 		 * must be just as careful as the service's request
 		 * parser. Currently I only print stuff here I know is OK
 		 * to look at coz it was set up in request_in_callback()!!! */
-		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%ld:%lds(%+lds) ",
+		seq_printf(s, "%lld:%s:%s:x%llu:%d:%s:%lld:%lds(%+lds) ",
 			   req->rq_history_seq, libcfs_nid2str(req->rq_self),
 			   libcfs_id2str(req->rq_peer), req->rq_xid,
 			   req->rq_reqlen, ptlrpc_rqphase2str(req),
-			   req->rq_arrival_time.tv_sec,
-			   req->rq_sent - req->rq_arrival_time.tv_sec,
-			   req->rq_sent - req->rq_deadline);
+			   (s64)req->rq_arrival_time.tv_sec,
+			   (long)(req->rq_sent - req->rq_arrival_time.tv_sec),
+			   (long)(req->rq_sent - req->rq_deadline));
 		if (svc->srv_ops.so_req_printer == NULL)
 			seq_printf(s, "\n");
 		else
