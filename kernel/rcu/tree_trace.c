@@ -1,5 +1,5 @@
 /*
- * Read-Copy Update tracing for classic implementation
+ * Read-Copy Update tracing for hierarchical implementation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2008
+ * Author: Paul E. McKenney
  *
  * Papers:  http://www.rdrop.com/users/paulmck/RCU
  *
@@ -33,9 +34,7 @@
 #include <linux/sched.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
-#include <linux/module.h>
 #include <linux/completion.h>
-#include <linux/moduleparam.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -487,16 +486,4 @@ free_out:
 	debugfs_remove_recursive(rcudir);
 	return 1;
 }
-
-static void __exit rcutree_trace_cleanup(void)
-{
-	debugfs_remove_recursive(rcudir);
-}
-
-
-module_init(rcutree_trace_init);
-module_exit(rcutree_trace_cleanup);
-
-MODULE_AUTHOR("Paul E. McKenney");
-MODULE_DESCRIPTION("Read-Copy Update tracing for hierarchical implementation");
-MODULE_LICENSE("GPL");
+device_initcall(rcutree_trace_init);
