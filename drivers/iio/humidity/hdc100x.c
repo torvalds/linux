@@ -221,8 +221,9 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = -40;
-		return IIO_VAL_INT;
+		*val = -3971;
+		*val2 = 879096;
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
