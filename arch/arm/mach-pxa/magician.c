@@ -266,10 +266,9 @@ static struct pxafb_mode_info samsung_modes[] = {
 
 static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 {
-	pr_debug("Toppoly LCD power\n");
+	pr_debug("Toppoly LCD power: %s\n", on ? "on" : "off");
 
 	if (on) {
-		pr_debug("on\n");
 		gpio_set_value(EGPIO_MAGICIAN_TOPPOLY_POWER, 1);
 		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 1);
 		udelay(2000);
@@ -281,7 +280,6 @@ static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 		udelay(2000);
 		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
 	} else {
-		pr_debug("off\n");
 		msleep(15);
 		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
 		udelay(500);
@@ -294,10 +292,9 @@ static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 
 static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 {
-	pr_debug("Samsung LCD power\n");
+	pr_debug("Samsung LCD power: %s\n", on ? "on" : "off");
 
 	if (on) {
-		pr_debug("on\n");
 		if (system_rev < 3)
 			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 1);
 		else
@@ -310,7 +307,6 @@ static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
 		mdelay(10);
 	} else {
-		pr_debug("off\n");
 		mdelay(10);
 		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
 		mdelay(30);
