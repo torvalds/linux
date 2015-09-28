@@ -127,6 +127,7 @@ static unsigned long magician_pin_config[] __initdata = {
 static struct pxaficp_platform_data magician_ficp_info = {
 	.gpio_pwdown		= GPIO83_MAGICIAN_nIR_EN,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.gpio_pwdown_inverted	= 0,
 };
 
 /*
@@ -776,7 +777,6 @@ static struct gpio magician_global_gpios[] = {
 	{ GPIO106_MAGICIAN_LCD_DCDC_NRESET, GPIOF_OUT_INIT_LOW, "LCD DCDC nreset" },
 	{ GPIO104_MAGICIAN_LCD_VOFF_EN, GPIOF_OUT_INIT_LOW, "LCD VOFF enable" },
 	{ GPIO105_MAGICIAN_LCD_VON_EN, GPIOF_OUT_INIT_LOW, "LCD VON enable" },
-	{ GPIO83_MAGICIAN_nIR_EN, GPIOF_OUT_INIT_HIGH, "nIR_EN" },
 };
 
 static void __init magician_init(void)
