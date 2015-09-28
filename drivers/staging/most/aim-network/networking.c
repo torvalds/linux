@@ -79,7 +79,6 @@ struct net_dev_context {
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct spinlock list_lock;
-static struct most_aim aim;
 
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
@@ -491,15 +490,18 @@ out:
 	return 0;
 }
 
+static struct most_aim aim = {
+	.name = "networking",
+	.probe_channel = aim_probe_channel,
+	.disconnect_channel = aim_disconnect_channel,
+	.tx_completion = aim_resume_tx_channel,
+	.rx_completion = aim_rx_data,
+};
+
 static int __init most_net_init(void)
 {
 	pr_info("most_net_init()\n");
 	spin_lock_init(&list_lock);
-	aim.name = "networking";
-	aim.probe_channel = aim_probe_channel;
-	aim.disconnect_channel = aim_disconnect_channel;
-	aim.tx_completion = aim_resume_tx_channel;
-	aim.rx_completion = aim_rx_data;
 	return most_register_aim(&aim);
 }
 

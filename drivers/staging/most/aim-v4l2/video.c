@@ -62,7 +62,6 @@ struct aim_fh {
 
 static struct list_head video_devices = LIST_HEAD_INIT(video_devices);
 static struct spinlock list_lock;
-static struct most_aim aim_info;
 
 
 static inline bool data_ready(struct most_video_dev *mdev)
@@ -590,14 +589,16 @@ static int aim_disconnect_channel(struct most_interface *iface,
 	return 0;
 }
 
+static struct most_aim aim_info = {
+	.name = "v4l",
+	.probe_channel = aim_probe_channel,
+	.disconnect_channel = aim_disconnect_channel,
+	.rx_completion = aim_rx_data,
+};
+
 static int __init aim_init(void)
 {
 	spin_lock_init(&list_lock);
-
-	aim_info.name = "v4l";
-	aim_info.probe_channel = aim_probe_channel;
-	aim_info.disconnect_channel = aim_disconnect_channel;
-	aim_info.rx_completion = aim_rx_data;
 	return most_register_aim(&aim_info);
 }
 
