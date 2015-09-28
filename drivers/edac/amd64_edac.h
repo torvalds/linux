@@ -255,6 +255,8 @@
 
 #define DCT_SEL_HI			0x114
 
+#define F15H_M60H_SCRCTRL		0x1C8
+
 /*
  * Function 3 - Misc Control
  */
