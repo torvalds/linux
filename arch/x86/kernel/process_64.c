@@ -401,14 +401,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	this_cpu_write(current_task, next_p);
 
-	/*
-	 * If it were not for PREEMPT_ACTIVE we could guarantee that the
-	 * preempt_count of all tasks was equal here and this would not be
-	 * needed.
-	 */
-	task_thread_info(prev_p)->saved_preempt_count = this_cpu_read(__preempt_count);
-	this_cpu_write(__preempt_count, task_thread_info(next_p)->saved_preempt_count);
-
 	/* Reload esp0 and ss1.  This changes current_thread_info(). */
 	load_sp0(tss, next);
 
