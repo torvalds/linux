@@ -270,22 +270,22 @@ static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 
 	if (on) {
 		gpio_set_value(EGPIO_MAGICIAN_TOPPOLY_POWER, 1);
-		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 1);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 1);
 		udelay(2000);
 		gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 1);
 		udelay(2000);
 		/* FIXME: enable LCDC here */
 		udelay(2000);
-		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 1);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 1);
 		udelay(2000);
-		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 1);
 	} else {
 		msleep(15);
-		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 0);
 		udelay(500);
-		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 0);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 0);
 		udelay(1000);
-		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 0);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 0);
 		gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 0);
 	}
 }
@@ -300,19 +300,19 @@ static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 		else
 			gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 1);
 		mdelay(10);
-		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 1);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 1);
 		mdelay(10);
-		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 1);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 1);
 		mdelay(30);
-		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 1);
 		mdelay(10);
 	} else {
 		mdelay(10);
-		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 0);
 		mdelay(30);
-		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 0);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 0);
 		mdelay(10);
-		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 0);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 0);
 		mdelay(10);
 		if (system_rev < 3)
 			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 0);
@@ -721,9 +721,11 @@ static struct platform_device *devices[] __initdata = {
 static struct gpio magician_global_gpios[] = {
 	{ GPIO13_MAGICIAN_CPLD_IRQ, GPIOF_IN, "CPLD_IRQ" },
 	{ GPIO107_MAGICIAN_DS1WM_IRQ, GPIOF_IN, "DS1WM_IRQ" },
-	{ GPIO104_MAGICIAN_LCD_POWER_1, GPIOF_OUT_INIT_LOW, "LCD power 1" },
-	{ GPIO105_MAGICIAN_LCD_POWER_2, GPIOF_OUT_INIT_LOW, "LCD power 2" },
-	{ GPIO106_MAGICIAN_LCD_POWER_3, GPIOF_OUT_INIT_LOW, "LCD power 3" },
+
+	/* NOTICE valid LCD init sequence */
+	{ GPIO106_MAGICIAN_LCD_DCDC_NRESET, GPIOF_OUT_INIT_LOW, "LCD DCDC nreset" },
+	{ GPIO104_MAGICIAN_LCD_VOFF_EN, GPIOF_OUT_INIT_LOW, "LCD VOFF enable" },
+	{ GPIO105_MAGICIAN_LCD_VON_EN, GPIOF_OUT_INIT_LOW, "LCD VON enable" },
 	{ GPIO83_MAGICIAN_nIR_EN, GPIOF_OUT_INIT_HIGH, "nIR_EN" },
 };
 
@@ -761,6 +763,7 @@ static void __init magician_init(void)
 		lcd_select = board_id & 0x8;
 		pr_info("LCD type: %s\n", lcd_select ? "Samsung" : "Toppoly");
 		if (lcd_select && (system_rev < 3))
+			/* NOTICE valid LCD init sequence */
 			gpio_request_one(GPIO75_MAGICIAN_SAMSUNG_POWER,
 				GPIOF_OUT_INIT_LOW, "Samsung LCD Power");
 		pxa_set_fb_info(NULL,
