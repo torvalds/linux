@@ -380,12 +380,30 @@ tracepoint_name
 	struct list_head *list;
 
 	ALLOC_LIST(list);
+	if (error)
+		error->idx = @1.first_column;
+
 	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
-					error)) {
-		if (error)
-			error->idx = @1.first_column;
+					error, NULL))
 		return -1;
-	}
+
+	$$ = list;
+}
+|
+tracepoint_name '/' event_config '/'
+{
+	struct parse_events_evlist *data = _data;
+	struct parse_events_error *error = data->error;
+	struct list_head *list;
+
+	ALLOC_LIST(list);
+	if (error)
+		error->idx = @1.first_column;
+
+	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
+					error, $3))
+		return -1;
+
 	$$ = list;
 }
 

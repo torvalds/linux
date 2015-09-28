@@ -27,6 +27,8 @@
 extern int parse_events_debug;
 #endif
 int parse_events_parse(void *data, void *scanner);
+static int get_config_terms(struct list_head *head_config,
+			    struct list_head *head_terms __maybe_unused);
 
 static struct perf_pmu_event_symbol *perf_pmu_events_list;
 /*
@@ -416,7 +418,8 @@ static void tracepoint_error(struct parse_events_error *error, int err,
 
 static int add_tracepoint(struct list_head *list, int *idx,
 			  char *sys_name, char *evt_name,
-			  struct parse_events_error *error __maybe_unused)
+			  struct parse_events_error *error __maybe_unused,
+			  struct list_head *head_config)
 {
 	struct perf_evsel *evsel;
 
@@ -426,13 +429,22 @@ static int add_tracepoint(struct list_head *list, int *idx,
 		return PTR_ERR(evsel);
 	}
 
+	if (head_config) {
+		LIST_HEAD(config_terms);
+
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+		list_splice(&config_terms, &evsel->config_terms);
+	}
+
 	list_add_tail(&evsel->node, list);
 	return 0;
 }
 
 static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 				      char *sys_name, char *evt_name,
-				      struct parse_events_error *error)
+				      struct parse_events_error *error,
+				      struct list_head *head_config)
 {
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
@@ -456,7 +468,8 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 		if (!strglobmatch(evt_ent->d_name, evt_name))
 			continue;
 
-		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name, error);
+		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name,
+				     error, head_config);
 	}
 
 	closedir(evt_dir);
@@ -465,16 +478,20 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 
 static int add_tracepoint_event(struct list_head *list, int *idx,
 				char *sys_name, char *evt_name,
-				struct parse_events_error *error)
+				struct parse_events_error *error,
+				struct list_head *head_config)
 {
 	return strpbrk(evt_name, "*?") ?
-	       add_tracepoint_multi_event(list, idx, sys_name, evt_name, error) :
-	       add_tracepoint(list, idx, sys_name, evt_name, error);
+	       add_tracepoint_multi_event(list, idx, sys_name, evt_name,
+					  error, head_config) :
+	       add_tracepoint(list, idx, sys_name, evt_name,
+			      error, head_config);
 }
 
 static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 				    char *sys_name, char *evt_name,
-				    struct parse_events_error *error)
+				    struct parse_events_error *error,
+				    struct list_head *head_config)
 {
 	struct dirent *events_ent;
 	DIR *events_dir;
@@ -498,21 +515,11 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 			continue;
 
 		ret = add_tracepoint_event(list, idx, events_ent->d_name,
-					   evt_name, error);
+					   evt_name, error, head_config);
 	}
 
 	closedir(events_dir);
 	return ret;
-}
-
-int parse_events_add_tracepoint(struct list_head *list, int *idx,
-				char *sys, char *event,
-				struct parse_events_error *error)
-{
-	if (strpbrk(sys, "*?"))
-		return add_tracepoint_multi_sys(list, idx, sys, event, error);
-	else
-		return add_tracepoint_event(list, idx, sys, event, error);
 }
 
 static int
@@ -680,6 +687,26 @@ static int config_term_pmu(struct perf_event_attr *attr,
 		return config_term_common(attr, term, err);
 }
 
+static int config_term_tracepoint(struct perf_event_attr *attr,
+				  struct parse_events_term *term,
+				  struct parse_events_error *err)
+{
+	switch (term->type_term) {
+	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+		return config_term_common(attr, term, err);
+	default:
+		if (err) {
+			err->idx = term->err_term;
+			err->str = strdup("unknown term");
+			err->help = strdup("valid terms: call-graph,stack-size\n");
+		}
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int config_attr(struct perf_event_attr *attr,
 		       struct list_head *head,
 		       struct parse_events_error *err,
@@ -736,6 +763,27 @@ do {								\
 	}
 #undef ADD_EVSEL_CONFIG
 	return 0;
+}
+
+int parse_events_add_tracepoint(struct list_head *list, int *idx,
+				char *sys, char *event,
+				struct parse_events_error *error,
+				struct list_head *head_config)
+{
+	if (head_config) {
+		struct perf_event_attr attr;
+
+		if (config_attr(&attr, head_config, error,
+				config_term_tracepoint))
+			return -EINVAL;
+	}
+
+	if (strpbrk(sys, "*?"))
+		return add_tracepoint_multi_sys(list, idx, sys, event,
+						error, head_config);
+	else
+		return add_tracepoint_event(list, idx, sys, event,
+					    error, head_config);
 }
 
 int parse_events_add_numeric(struct parse_events_evlist *data,
