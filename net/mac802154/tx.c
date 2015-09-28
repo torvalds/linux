@@ -71,17 +71,6 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	int ret;
 
-	/* This check is for AF_PACKET RAW socket only, which doesn't
-	 * know about the FCS which is set here or by hardware. otherwise
-	 * it should not occur in any case!
-	 *
-	 * TODO: This should be handled in AF_PACKET and return -EMSGSIZE.
-	 */
-	if (skb->len > IEEE802154_MTU - IEEE802154_FCS_LEN) {
-		netdev_warn(dev, "Frame len above MTU limit. Dropped.\n");
-		goto err_tx;
-	}
-
 	if (!(local->hw.flags & IEEE802154_HW_TX_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);
 
