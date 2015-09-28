@@ -297,10 +297,9 @@ static ssize_t bxtwc_val_store(struct device *dev,
 	unsigned int val;
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
-	if (kstrtoul(buf, 0, (unsigned long *)&val)) {
-		dev_err(dev, "Invalid register value\n");
-		return -EINVAL;
-	}
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	ret = regmap_write(pmic->regmap, bxtwc_reg_addr, val);
 	if (ret) {
