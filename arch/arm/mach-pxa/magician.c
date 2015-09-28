@@ -852,7 +852,6 @@ static void __init magician_init(void)
 	pxa_set_btuart_info(NULL);
 
 	pwm_add_table(magician_pwm_lookup, ARRAY_SIZE(magician_pwm_lookup));
-	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	pxa_set_ficp_info(&magician_ficp_info);
 	pxa27x_set_i2c_power_info(&magician_i2c_power_info);
@@ -880,6 +879,8 @@ static void __init magician_init(void)
 
 	regulator_register_always_on(0, "power", pwm_backlight_supply,
 		ARRAY_SIZE(pwm_backlight_supply), 5000000);
+
+	platform_add_devices(ARRAY_AND_SIZE(devices));
 }
 
 MACHINE_START(MAGICIAN, "HTC Magician")
