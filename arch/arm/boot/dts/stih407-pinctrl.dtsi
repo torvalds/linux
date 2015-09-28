@@ -846,6 +846,18 @@
 					};
 				};
 			};
+
+			systrace {
+				pinctrl_systrace_default: systrace-default {
+					st,pins {
+						trc_data0 = <&pio11 3 ALT5 OUT>;
+						trc_data1 = <&pio11 4 ALT5 OUT>;
+						trc_data2 = <&pio11 5 ALT5 OUT>;
+						trc_data3 = <&pio11 6 ALT5 OUT>;
+						trc_clk   = <&pio11 7 ALT5 OUT>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
