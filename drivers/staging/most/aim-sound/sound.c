@@ -629,7 +629,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->id = channel_id;
 
 	snprintf(card->driver, sizeof(card->driver), "%s", DRIVER_NAME);
-	snprintf(card->shortname, sizeof(card->shortname), "MOST:%d",
+	snprintf(card->shortname, sizeof(card->shortname), "Microchip MOST:%d",
 		 card->number);
 	snprintf(card->longname, sizeof(card->longname), "%s at %s, ch %d",
 		 card->shortname, iface->description, channel_id);
