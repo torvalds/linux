@@ -115,6 +115,13 @@ enum tpm2_startup_types {
 	TPM2_SU_STATE	= 0x0001,
 };
 
+enum tpm2_start_method {
+	TPM2_START_ACPI = 2,
+	TPM2_START_FIFO = 6,
+	TPM2_START_CRB = 7,
+	TPM2_START_CRB_WITH_ACPI = 8,
+};
+
 struct tpm_chip;
 
 struct tpm_vendor_specific {
