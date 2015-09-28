@@ -1845,6 +1845,14 @@ static int i40e_get_coalesce(struct net_device *netdev,
 
 	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
 	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	/* we use the _usecs_high to store/set the interrupt rate limit
+	 * that the hardware supports, that almost but not quite
+	 * fits the original intent of the ethtool variable,
+	 * the rx_coalesce_usecs_high limits total interrupts
+	 * per second from both tx/rx sources.
+	 */
+	ec->rx_coalesce_usecs_high = vsi->int_rate_limit;
+	ec->tx_coalesce_usecs_high = vsi->int_rate_limit;
 
 	return 0;
 }
@@ -1863,6 +1871,17 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
+	/* tx_coalesce_usecs_high is ignored, use rx-usecs-high instead */
+	if (ec->tx_coalesce_usecs_high != vsi->int_rate_limit) {
+		netif_info(pf, drv, netdev, "tx-usecs-high is not used, please program rx-usecs-high\n");
+		return -EINVAL;
+	}
+
+	if (ec->rx_coalesce_usecs_high >= INTRL_REG_TO_USEC(I40E_MAX_INTRL)) {
+		netif_info(pf, drv, netdev, "Invalid value, rx-usecs-high range is 0-235\n");
+		return -EINVAL;
+	}
+
 	vector = vsi->base_vector;
 	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
 	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
@@ -1875,6 +1894,8 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
 		return -EINVAL;
 	}
+
+	vsi->int_rate_limit = ec->rx_coalesce_usecs_high;
 
 	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
 	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
@@ -1900,11 +1921,14 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+		u16 intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
+
 		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(0, vector - 1), q_vector->rx.itr);
 		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);
 		wr32(hw, I40E_PFINT_ITRN(1, vector - 1), q_vector->tx.itr);
+		wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
 		i40e_flush(hw);
 	}
 

@@ -2901,11 +2901,9 @@ static int i40e_vsi_configure(struct i40e_vsi *vsi)
 static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	struct i40e_q_vector *q_vector;
 	struct i40e_hw *hw = &pf->hw;
 	u16 vector;
 	int i, q;
-	u32 val;
 	u32 qp;
 
 	/* The interrupt indexing is offset by 1 in the PFINT_ITRn
@@ -2915,7 +2913,8 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 	qp = vsi->base_queue;
 	vector = vsi->base_vector;
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
-		q_vector = vsi->q_vectors[i];
+		struct i40e_q_vector *q_vector = vsi->q_vectors[i];
+
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
 		q_vector->rx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1),
@@ -2924,10 +2923,14 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
 		q_vector->tx.latency_range = I40E_LOW_LATENCY;
 		wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1),
 		     q_vector->tx.itr);
+		wr32(hw, I40E_PFINT_RATEN(vector - 1),
+		     INTRL_USEC_TO_REG(vsi->int_rate_limit));
 
 		/* Linked list for the queuepairs assigned to this vector */
 		wr32(hw, I40E_PFINT_LNKLSTN(vector - 1), qp);
 		for (q = 0; q < q_vector->num_ringpairs; q++) {
+			u32 val;
+
 			val = I40E_QINT_RQCTL_CAUSE_ENA_MASK |
 			      (I40E_RX_ITR << I40E_QINT_RQCTL_ITR_INDX_SHIFT)  |
 			      (vector      << I40E_QINT_RQCTL_MSIX_INDX_SHIFT) |
@@ -7040,6 +7043,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	vsi->idx = vsi_idx;
 	vsi->rx_itr_setting = pf->rx_itr_default;
 	vsi->tx_itr_setting = pf->tx_itr_default;
+	vsi->int_rate_limit = 0;
 	vsi->rss_table_size = (vsi->type == I40E_VSI_MAIN) ?
 				pf->rss_table_size : 64;
 	vsi->netdev_registered = false;

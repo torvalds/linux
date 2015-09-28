@@ -498,6 +498,7 @@ struct i40e_vsi {
 	 */
 	u16 rx_itr_setting;
 	u16 tx_itr_setting;
+	u16 int_rate_limit;  /* value in usecs */
 
 	u16 rss_table_size;
 	u16 rss_size;
