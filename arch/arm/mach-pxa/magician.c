@@ -358,6 +358,7 @@ static int magician_backlight_init(struct device *dev)
 
 static int magician_backlight_notify(struct device *dev, int brightness)
 {
+	pr_debug("Brightness = %i\n", brightness);
 	gpio_set_value(EGPIO_MAGICIAN_BL_POWER, brightness);
 	if (brightness >= 200) {
 		gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 1);
