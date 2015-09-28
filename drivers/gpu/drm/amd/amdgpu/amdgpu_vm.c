@@ -147,8 +147,10 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	/* check if the id is still valid */
 	if (vm_id->id && vm_id->last_id_use &&
-	    vm_id->last_id_use == adev->vm_manager.active[vm_id->id])
+	    vm_id->last_id_use == adev->vm_manager.active[vm_id->id]) {
+		trace_amdgpu_vm_grab_id(vm_id->id, ring->idx);
 		return 0;
+	}
 
 	/* we definately need to flush */
 	vm_id->pd_gpu_addr = ~0ll;
