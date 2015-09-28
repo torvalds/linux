@@ -518,18 +518,59 @@ static struct platform_device gpio_vbus = {
  * External power
  */
 
-static int power_supply_init(struct device *dev)
+static int magician_supply_init(struct device *dev)
 {
-	return gpio_request(EGPIO_MAGICIAN_CABLE_TYPE, "Cable USB/AC type");
+	int ret = -1;
+
+	ret = gpio_request(EGPIO_MAGICIAN_CABLE_TYPE, "Cable is AC charger");
+	if (ret) {
+		pr_err("Cannot request AC/USB charger GPIO (%i)\n", ret);
+		goto err_ac;
+	}
+
+	ret = gpio_request(EGPIO_MAGICIAN_CABLE_INSERTED, "Cable inserted");
+	if (ret) {
+		pr_err("Cannot request cable detection GPIO (%i)\n", ret);
+		goto err_usb;
+	}
+
+	return 0;
+
+err_usb:
+	gpio_free(EGPIO_MAGICIAN_CABLE_TYPE);
+err_ac:
+	return ret;
+}
+
+static void magician_set_charge(int flags)
+{
+	if (flags & PDA_POWER_CHARGE_AC) {
+		pr_debug("Charging from AC\n");
+		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 1);
+	} else if (flags & PDA_POWER_CHARGE_USB) {
+		pr_debug("Charging from USB\n");
+		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 1);
+	} else {
+		pr_debug("Charging disabled\n");
+		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 0);
+	}
 }
 
 static int magician_is_ac_online(void)
 {
-	return gpio_get_value(EGPIO_MAGICIAN_CABLE_TYPE);
+	return gpio_get_value(EGPIO_MAGICIAN_CABLE_INSERTED) &&
+		gpio_get_value(EGPIO_MAGICIAN_CABLE_TYPE); /* AC=1 */
 }
 
-static void power_supply_exit(struct device *dev)
+static int magician_is_usb_online(void)
 {
+	return gpio_get_value(EGPIO_MAGICIAN_CABLE_INSERTED) &&
+		(!gpio_get_value(EGPIO_MAGICIAN_CABLE_TYPE)); /* USB=0 */
+}
+
+static void magician_supply_exit(struct device *dev)
+{
+	gpio_free(EGPIO_MAGICIAN_CABLE_INSERTED);
 	gpio_free(EGPIO_MAGICIAN_CABLE_TYPE);
 }
 
@@ -538,9 +579,11 @@ static char *magician_supplicants[] = {
 };
 
 static struct pda_power_pdata power_supply_info = {
-	.init			= power_supply_init,
+	.init			= magician_supply_init,
+	.exit			= magician_supply_exit,
 	.is_ac_online		= magician_is_ac_online,
-	.exit			= power_supply_exit,
+	.is_usb_online		= magician_is_usb_online,
+	.set_charge		= magician_set_charge,
 	.supplied_to		= magician_supplicants,
 	.num_supplicants	= ARRAY_SIZE(magician_supplicants),
 };
@@ -605,7 +648,7 @@ static struct gpio_regulator_config bq24022_info = {
 
 	.enable_gpio		= GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
 	.enable_high		= 0,
-	.enabled_at_boot	= 0,
+	.enabled_at_boot	= 1,
 
 	.gpios			= bq24022_gpios,
 	.nr_gpios		= ARRAY_SIZE(bq24022_gpios),
