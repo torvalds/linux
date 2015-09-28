@@ -87,7 +87,7 @@ struct i40e_vsi {
 #define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE    4096
 #define I40EVF_AQ_LEN             32
-#define I40EVF_AQ_MAX_ERR         10 /* times to try before resetting AQ */
+#define I40EVF_AQ_MAX_ERR         20 /* times to try before resetting AQ */
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
