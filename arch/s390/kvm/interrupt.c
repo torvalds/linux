@@ -51,11 +51,9 @@ static int psw_mchk_disabled(struct kvm_vcpu *vcpu)
 
 static int psw_interrupts_disabled(struct kvm_vcpu *vcpu)
 {
-	if ((vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PER) ||
-	    (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_IO) ||
-	    (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_EXT))
-		return 0;
-	return 1;
+	return psw_extint_disabled(vcpu) &&
+	       psw_ioint_disabled(vcpu) &&
+	       psw_mchk_disabled(vcpu);
 }
 
 static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
