@@ -1122,7 +1122,7 @@ static void i40e_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->driver, i40e_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, i40e_driver_version_str,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, i40e_fw_version_str(&pf->hw),
+	strlcpy(drvinfo->fw_version, i40e_nvm_version_str(&pf->hw),
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));

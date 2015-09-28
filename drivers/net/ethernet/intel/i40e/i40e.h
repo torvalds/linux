@@ -582,10 +582,10 @@ struct i40e_device {
 };
 
 /**
- * i40e_fw_version_str - format the FW and NVM version strings
+ * i40e_nvm_version_str - format the NVM version strings
  * @hw: ptr to the hardware info
  **/
-static inline char *i40e_fw_version_str(struct i40e_hw *hw)
+static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
 {
 	static char buf[32];
 

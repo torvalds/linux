@@ -6218,8 +6218,9 @@ static void i40e_config_bridge_mode(struct i40e_veb *veb)
 {
 	struct i40e_pf *pf = veb->pf;
 
-	dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
-		 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+	if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+		dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
+			 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
 	if (veb->bridge_mode & BRIDGE_MODE_VEPA)
 		i40e_disable_pf_switch_lb(pf);
 	else
@@ -9923,6 +9924,10 @@ static void i40e_print_features(struct i40e_pf *pf)
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED)
 		buf += sprintf(buf, "FCOE ");
 #endif
+	if (pf->flags & I40E_FLAG_VEB_MODE_ENABLED)
+		buf += sprintf(buf, "VEB ");
+	else
+		buf += sprintf(buf, "VEPA ");
 
 	BUG_ON(buf > (string + INFO_STRING_LEN));
 	dev_info(&pf->pdev->dev, "%s\n", string);
@@ -10062,13 +10067,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pf->hw.fc.requested_mode = I40E_FC_NONE;
 
 	err = i40e_init_adminq(hw);
-	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
 
-	/* provide additional fw info, like api and ver */
-	dev_info(&pdev->dev, "fw_version:%d.%d.%05d\n",
-		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build);
-	dev_info(&pdev->dev, "fw api version:%d.%d\n",
-		 hw->aq.api_maj_ver, hw->aq.api_min_ver);
+	/* provide nvm, fw, api versions */
+	dev_info(&pdev->dev, "fw %d.%d.%05d api %d.%d nvm %s\n",
+		 hw->aq.fw_maj_ver, hw->aq.fw_min_ver, hw->aq.fw_build,
+		 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+		 i40e_nvm_version_str(hw));
 
 	if (err) {
 		dev_info(&pdev->dev,

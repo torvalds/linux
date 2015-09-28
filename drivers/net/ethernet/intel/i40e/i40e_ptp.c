@@ -674,8 +674,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		struct timespec64 ts;
 		u32 regval;
 
-		dev_info(&pf->pdev->dev, "%s: added PHC on %s\n", __func__,
-			 netdev->name);
+		if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+			dev_info(&pf->pdev->dev, "PHC enabled\n");
 		pf->flags |= I40E_FLAG_PTP;
 
 		/* Ensure the clocks are running. */
