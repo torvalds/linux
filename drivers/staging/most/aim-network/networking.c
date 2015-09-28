@@ -356,10 +356,13 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		}
 
 		nd->dev = dev;
+		ch->ch_id = channel_idx;
+		ch->linked = true;
 
 		dev->ml_priv = nd;
 		if (register_netdev(dev)) {
 			pr_err("registering net device failed\n");
+			ch->linked = false;
 			free_netdev(dev);
 			return -EINVAL;
 		}
