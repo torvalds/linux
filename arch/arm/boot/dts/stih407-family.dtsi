@@ -409,6 +409,8 @@
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1_default>;
 
 			status = "disabled";
 		};
@@ -419,6 +421,8 @@
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi2_default>;
 
 			status = "disabled";
 		};
@@ -429,6 +433,8 @@
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi3_default>;
 
 			status = "disabled";
 		};
@@ -439,6 +445,8 @@
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_s_c0_flexgen CLK_EXT2F_A9>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi4_default>;
 
 			status = "disabled";
 		};
@@ -450,6 +458,8 @@
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi10_default>;
 
 			status = "disabled";
 		};
@@ -460,6 +470,8 @@
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi11_default>;
 
 			status = "disabled";
 		};
@@ -470,6 +482,8 @@
 			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk_sysin>;
 			clock-names = "ssc";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi12_default>;
 
 			status = "disabled";
 		};
