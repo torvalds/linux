@@ -146,17 +146,23 @@ static void wq_netinfo(struct work_struct *wq_obj);
  *
  * This is reads data from INIC's direct register communication interface
  */
-static inline int drci_rd_reg(struct usb_device *dev, u16 reg, void *buf)
+static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 {
-	return usb_control_msg(dev,
-			       usb_rcvctrlpipe(dev, 0),
-			       DRCI_READ_REQ,
-			       USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			       0x0000,
-			       reg,
-			       buf,
-			       2,
-			       5 * HZ);
+	int retval;
+	u16 *dma_buf = kzalloc(sizeof(u16), GFP_KERNEL);
+	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
+
+	if (!dma_buf)
+		return -ENOMEM;
+
+	retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+				 DRCI_READ_REQ, req_type,
+				 0x0000,
+				 reg, dma_buf, sizeof(u16), 5 * HZ);
+	*buf = *dma_buf;
+	kfree(dma_buf);
+
+	return retval;
 }
 
 /**
