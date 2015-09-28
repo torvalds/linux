@@ -121,6 +121,9 @@ static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
 static int irqc_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct irqc_priv *p = irq_data_get_irq_chip_data(d);
+	int hw_irq = irqd_to_hwirq(d);
+
+	irq_set_irq_wake(p->irq[hw_irq].requested_irq, on);
 
 	if (!p->clk)
 		return 0;
@@ -150,6 +153,12 @@ static irqreturn_t irqc_irq_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+/*
+ * This lock class tells lockdep that IRQC irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key irqc_irq_lock_class;
+
 static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
 			       irq_hw_number_t hw)
 {
@@ -157,6 +166,7 @@ static int irqc_irq_domain_map(struct irq_domain *h, unsigned int virq,
 
 	irqc_dbg(&p->irq[hw], "map");
 	irq_set_chip_data(virq, h->host_data);
+	irq_set_lockdep_class(virq, &irqc_irq_lock_class);
 	irq_set_chip_and_handler(virq, &p->irq_chip, handle_level_irq);
 	return 0;
 }

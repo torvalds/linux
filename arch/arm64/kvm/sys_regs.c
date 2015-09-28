@@ -272,7 +272,7 @@ static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 {
 	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
 
-	if (copy_from_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
 	return 0;
 }
@@ -314,7 +314,7 @@ static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 {
 	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
 
-	if (copy_from_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
 
 	return 0;
@@ -358,7 +358,7 @@ static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 {
 	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
 
-	if (copy_from_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
 	return 0;
 }
@@ -400,7 +400,7 @@ static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 {
 	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
 
-	if (copy_from_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
+	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
 	return 0;
 }
@@ -538,13 +538,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	/* DBGAUTHSTATUS_EL1 */
 	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
 	  trap_dbgauthstatus_el1 },
-
-	/* TEECR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEECR32_EL1, 0 },
-	/* TEEHBR32_EL1 */
-	{ Op0(0b10), Op1(0b010), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, TEEHBR32_EL1, 0 },
 
 	/* MDCCSR_EL1 */
 	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),

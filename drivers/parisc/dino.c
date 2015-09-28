@@ -560,6 +560,9 @@ dino_fixup_bus(struct pci_bus *bus)
 	} else if (bus->parent) {
 		int i;
 
+		pci_read_bridge_bases(bus);
+
+
 		for(i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
 			if((bus->self->resource[i].flags & 
 			    (IORESOURCE_IO | IORESOURCE_MEM)) == 0)

@@ -467,8 +467,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 	 * the fault_*wqh.
 	 */
 	spin_lock(&ctx->fault_pending_wqh.lock);
-	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, 0, &range);
-	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0, &range);
+	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &range);
+	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &range);
 	spin_unlock(&ctx->fault_pending_wqh.lock);
 
 	wake_up_poll(&ctx->fd_wqh, POLLHUP);
@@ -650,10 +650,10 @@ static void __wake_userfault(struct userfaultfd_ctx *ctx,
 	spin_lock(&ctx->fault_pending_wqh.lock);
 	/* wake all in the range and autoremove */
 	if (waitqueue_active(&ctx->fault_pending_wqh))
-		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, 0,
+		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL,
 				     range);
 	if (waitqueue_active(&ctx->fault_wqh))
-		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, 0, range);
+		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, range);
 	spin_unlock(&ctx->fault_pending_wqh.lock);
 }
 
@@ -1287,8 +1287,10 @@ static struct file *userfaultfd_file_create(int flags)
 
 	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
 				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
-	if (IS_ERR(file))
+	if (IS_ERR(file)) {
+		mmput(ctx->mm);
 		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
+	}
 out:
 	return file;
 }

@@ -166,7 +166,7 @@ static struct sa1100_port_fns neponset_port_fns = {
  * ensure that the IRQ signal is deasserted before returning.  This
  * is rather unfortunate.
  */
-static void neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void neponset_irq_handler(struct irq_desc *desc)
 {
 	struct neponset_drvdata *d = irq_desc_get_handler_data(desc);
 	unsigned int irr;

@@ -4188,6 +4188,24 @@ static void alc_fixup_disable_aamix(struct hda_codec *codec,
 	}
 }
 
+/* fixup for Thinkpad docks: add dock pins, avoid HP parser fixup */
+static void alc_fixup_tpt440_dock(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	static const struct hda_pintbl pincfgs[] = {
+		{ 0x16, 0x21211010 }, /* dock headphone */
+		{ 0x19, 0x21a11010 }, /* dock mic */
+		{ }
+	};
+	struct alc_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
+		codec->power_save_node = 0; /* avoid click noises */
+		snd_hda_apply_pincfgs(codec, pincfgs);
+	}
+}
+
 static void alc_shutup_dell_xps13(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4562,7 +4580,6 @@ enum {
 	ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC,
 	ALC293_FIXUP_DELL1_MIC_NO_PRESENCE,
 	ALC292_FIXUP_TPT440_DOCK,
-	ALC292_FIXUP_TPT440_DOCK2,
 	ALC283_FIXUP_BXBT2807_MIC,
 	ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED,
 	ALC282_FIXUP_ASPIRE_V5_PINS,
@@ -5029,17 +5046,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC292_FIXUP_TPT440_DOCK] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc269_fixup_pincfg_no_hp_to_lineout,
-		.chained = true,
-		.chain_id = ALC292_FIXUP_TPT440_DOCK2
-	},
-	[ALC292_FIXUP_TPT440_DOCK2] = {
-		.type = HDA_FIXUP_PINS,
-		.v.pins = (const struct hda_pintbl[]) {
-			{ 0x16, 0x21211010 }, /* dock headphone */
-			{ 0x19, 0x21a11010 }, /* dock mic */
-			{ }
-		},
+		.v.func = alc_fixup_tpt440_dock,
 		.chained = true,
 		.chain_id = ALC269_FIXUP_LIMIT_INT_MIC_BOOST
 	},

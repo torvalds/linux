@@ -433,7 +433,7 @@ static int bcm_kona_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void bcm_kona_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void bcm_kona_gpio_irq_handler(struct irq_desc *desc)
 {
 	void __iomem *reg_base;
 	int bit, bank_id;
