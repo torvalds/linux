@@ -14,7 +14,6 @@ Required properties:
 - interrupt-map-mask and interrupt-map: standard PCI properties
 	to define the mapping of the PCIe interface to interrupt
 	numbers.
-- num-lanes: number of lanes to use
 - clocks: Must contain an entry for each entry in clock-names.
 	See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
@@ -22,6 +21,8 @@ Required properties:
 	- "pcie_bus"
 
 Optional properties:
+- num-lanes: number of lanes to use (this property should be specified unless
+  the link is brought already up in BIOS)
 - reset-gpio: gpio pin number of power good signal
 - bus-range: PCI bus numbers covered (it is recommended for new devicetrees to
   specify this property, to keep backwards compatibility a range of 0x00-0xff

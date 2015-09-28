@@ -534,10 +534,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	if (of_property_read_u32(np, "num-lanes", &pp->lanes)) {
-		dev_err(pp->dev, "Failed to parse the number of lanes\n");
-		return -EINVAL;
-	}
+	ret = of_property_read_u32(np, "num-lanes", &pp->lanes);
+	if (ret)
+		pp->lanes = 0;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (!pp->ops->msi_host_init) {
@@ -814,6 +813,9 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	case 8:
 		val |= PORT_LINK_MODE_8_LANES;
 		break;
+	default:
+		dev_err(pp->dev, "num-lanes %u: invalid value\n", pp->lanes);
+		return;
 	}
 	dw_pcie_writel_rc(pp, val, PCIE_PORT_LINK_CONTROL);
 
