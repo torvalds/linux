@@ -1968,10 +1968,10 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 		dwc->u1u2 = 0;
 	}
 
-	if (is_xfer_complete && !usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		int ret;
 
-		ret = __dwc3_gadget_kick_transfer(dep, 0, 1);
+		ret = __dwc3_gadget_kick_transfer(dep, 0, is_xfer_complete);
 		if (!ret || ret == -EBUSY)
 			return;
 	}
