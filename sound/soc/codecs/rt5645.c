@@ -3113,7 +3113,7 @@ static struct snd_soc_dai_driver rt5645_dai[] = {
 		.capture = {
 			.stream_name = "AIF1 Capture",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = RT5645_STEREO_RATES,
 			.formats = RT5645_FORMATS,
 		},
