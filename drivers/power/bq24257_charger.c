@@ -594,10 +594,7 @@ static int bq24257_power_supply_init(struct bq24257_device *bq)
 						 &bq24257_power_supply_desc,
 						 &psy_cfg);
 
-	if (IS_ERR(bq->charger))
-		return PTR_ERR(bq->charger);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(bq->charger);
 }
 
 static int bq24257_pg_gpio_probe(struct bq24257_device *bq)
