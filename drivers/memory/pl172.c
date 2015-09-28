@@ -192,6 +192,7 @@ static int pl172_parse_cs_config(struct amba_device *adev,
 
 static const char * const pl172_revisions[] = {"r1", "r2", "r2p3", "r2p4"};
 static const char * const pl175_revisions[] = {"r1"};
+static const char * const pl176_revisions[] = {"r0"};
 
 static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 {
@@ -207,6 +208,9 @@ static int pl172_probe(struct amba_device *adev, const struct amba_id *id)
 	} else if (amba_part(adev) == 0x175) {
 		if (amba_rev(adev) < ARRAY_SIZE(pl175_revisions))
 			rev = pl175_revisions[amba_rev(adev)];
+	} else if (amba_part(adev) == 0x176) {
+		if (amba_rev(adev) < ARRAY_SIZE(pl176_revisions))
+			rev = pl176_revisions[amba_rev(adev)];
 	}
 
 	dev_info(dev, "ARM PL%x revision %s\n", amba_part(adev), rev);
@@ -292,6 +296,11 @@ static const struct amba_id pl172_ids[] = {
 	{
 		.id	= 0x07041175,
 		.mask	= 0x3f0fffff,
+	},
+	/* PrimeCell MPMC PL176 */
+	{
+		.id	= 0x89041176,
+		.mask	= 0xff0fffff,
 	},
 	{ 0, 0 },
 };
