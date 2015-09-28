@@ -229,7 +229,15 @@ struct btrfs_balance_args {
 			__u32 limit_max;
 		};
 	};
-	__u64 unused[7];
+
+	/*
+	 * Process chunks that cross stripes_min..stripes_max devices,
+	 * BTRFS_BALANCE_ARGS_STRIPES_RANGE
+	 */
+	__le32 stripes_min;
+	__le32 stripes_max;
+
+	__u64 unused[6];
 } __attribute__ ((__packed__));
 
 /* report balance progress to userspace */

@@ -3220,6 +3220,19 @@ static int chunk_vrange_filter(struct extent_buffer *leaf,
 	return 1;
 }
 
+static int chunk_stripes_range_filter(struct extent_buffer *leaf,
+			       struct btrfs_chunk *chunk,
+			       struct btrfs_balance_args *bargs)
+{
+	int num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
+
+	if (bargs->stripes_min <= num_stripes
+			&& num_stripes <= bargs->stripes_max)
+		return 0;
+
+	return 1;
+}
+
 static int chunk_soft_convert_filter(u64 chunk_type,
 				     struct btrfs_balance_args *bargs)
 {
@@ -3283,6 +3296,12 @@ static int should_balance_chunk(struct btrfs_root *root,
 	/* vrange filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_VRANGE) &&
 	    chunk_vrange_filter(leaf, chunk, chunk_offset, bargs)) {
+		return 0;
+	}
+
+	/* stripes filter */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_STRIPES_RANGE) &&
+	    chunk_stripes_range_filter(leaf, chunk, bargs)) {
 		return 0;
 	}
 
