@@ -1190,7 +1190,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 			}
 		}
 	}
-	return _FAIL;
+
 ask_for_joinbss:
 	return r8712_joinbss_cmd(adapter, pnetwork);
 }
