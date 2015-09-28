@@ -3057,7 +3057,7 @@ again:
  *
  * WARNING: must be called with preemption disabled!
  */
-static void __sched __schedule(bool preempt)
+static void __sched notrace __schedule(bool preempt)
 {
 	struct task_struct *prev, *next;
 	unsigned long *switch_count;
@@ -3203,9 +3203,9 @@ void __sched schedule_preempt_disabled(void)
 static void __sched notrace preempt_schedule_common(void)
 {
 	do {
-		preempt_disable();
+		preempt_disable_notrace();
 		__schedule(true);
-		sched_preempt_enable_no_resched();
+		preempt_enable_no_resched_notrace();
 
 		/*
 		 * Check again in case we missed a preemption opportunity
