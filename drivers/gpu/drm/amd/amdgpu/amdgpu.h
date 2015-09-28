@@ -79,6 +79,7 @@ extern int amdgpu_bapm;
 extern int amdgpu_deep_color;
 extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
+extern int amdgpu_vm_fault_stop;
 extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
@@ -959,6 +960,11 @@ struct amdgpu_ring {
 #define AMDGPU_PTE_FRAG_4KB	(0 << 7)
 #define AMDGPU_PTE_FRAG_64KB	(4 << 7)
 #define AMDGPU_LOG2_PAGES_PER_FRAG 4
+
+/* How to programm VM fault handling */
+#define AMDGPU_VM_FAULT_STOP_NEVER	0
+#define AMDGPU_VM_FAULT_STOP_FIRST	1
+#define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
 struct amdgpu_vm_pt {
 	struct amdgpu_bo		*bo;

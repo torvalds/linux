@@ -436,6 +436,33 @@ static int gmc_v7_0_gart_set_pte_pde(struct amdgpu_device *adev,
 }
 
 /**
+ * gmc_v8_0_set_fault_enable_default - update VM fault handling
+ *
+ * @adev: amdgpu_device pointer
+ * @value: true redirects VM faults to the default page
+ */
+static void gmc_v7_0_set_fault_enable_default(struct amdgpu_device *adev,
+					      bool value)
+{
+	u32 tmp;
+
+	tmp = RREG32(mmVM_CONTEXT1_CNTL);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    VALID_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    READ_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
+			    WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	WREG32(mmVM_CONTEXT1_CNTL, tmp);
+}
+
+/**
  * gmc_v7_0_gart_enable - gart enable
  *
  * @adev: amdgpu_device pointer
@@ -523,15 +550,13 @@ static int gmc_v7_0_gart_enable(struct amdgpu_device *adev)
 	tmp = RREG32(mmVM_CONTEXT1_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PDE0_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, VALID_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, READ_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
-	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
 			    amdgpu_vm_block_size - 9);
 	WREG32(mmVM_CONTEXT1_CNTL, tmp);
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
+		gmc_v7_0_set_fault_enable_default(adev, false);
+	else
+		gmc_v7_0_set_fault_enable_default(adev, true);
 
 	if (adev->asic_type == CHIP_KAVERI) {
 		tmp = RREG32(mmCHUB_CONTROL);
@@ -1267,6 +1292,9 @@ static int gmc_v7_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (!addr && !status)
 		return 0;
+
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
+		gmc_v7_0_set_fault_enable_default(adev, false);
 
 	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
 		entry->src_id, entry->src_data);
