@@ -1102,6 +1102,8 @@ static int i40e_vc_send_msg_to_vf(struct i40e_vf *vf, u32 v_opcode,
 		}
 	} else {
 		vf->num_valid_msgs++;
+		/* reset the invalid counter, if a valid message is received. */
+		vf->num_invalid_msgs = 0;
 	}
 
 	aq_ret = i40e_aq_send_msg_to_vf(hw, abs_vf_id,	v_opcode, v_retval,
