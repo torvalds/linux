@@ -256,6 +256,33 @@
 						phyclk = <&pio2 3 ALT1 OUT NICLK 0 CLK_A>;
 					};
 				};
+
+				pinctrl_rmii1: rmii1-0 {
+					st,pins {
+						txd0 = <&pio0 0 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						txd1 = <&pio0 1 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						txen = <&pio0 5 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
+						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
+						mdint = <&pio1 3 ALT1 IN BYPASS 0>;
+						rxd0 = <&pio1 4 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rxd1 = <&pio1 5 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rxdv = <&pio2 0 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rx_er = <&pio2 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+
+				pinctrl_rmii1_phyclk: rmii1_phyclk {
+					st,pins {
+						phyclk = <&pio2 3 ALT1 OUT NICLK 0 CLK_A>;
+					};
+				};
+
+				pinctrl_rmii1_phyclk_ext: rmii1_phyclk_ext {
+					st,pins {
+						phyclk = <&pio2 3 ALT2 IN NICLK 0 CLK_A>;
+					};
+				};
 			};
 
 			pwm1 {
