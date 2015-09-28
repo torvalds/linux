@@ -359,7 +359,26 @@ static int bq24257_get_chip_state(struct bq24257_device *bq,
 
 	state->fault = ret;
 
-	state->power_good = !gpiod_get_value_cansleep(bq->pg);
+	if (bq->pg)
+		state->power_good = !gpiod_get_value_cansleep(bq->pg);
+	else
+		/*
+		 * If we have a chip without a dedicated power-good GPIO or
+		 * some other explicit bit that would provide this information
+		 * assume the power is good if there is no supply related
+		 * fault - and not good otherwise. There is a possibility for
+		 * other errors to mask that power in fact is not good but this
+		 * is probably the best we can do here.
+		 */
+		switch (state->fault) {
+		case FAULT_INPUT_OVP:
+		case FAULT_INPUT_UVLO:
+		case FAULT_INPUT_LDO_LOW:
+			state->power_good = false;
+			break;
+		default:
+			state->power_good = true;
+		}
 
 	return 0;
 }
@@ -651,15 +670,21 @@ static int bq24257_power_supply_init(struct bq24257_device *bq)
 	return PTR_ERR_OR_ZERO(bq->charger);
 }
 
-static int bq24257_pg_gpio_probe(struct bq24257_device *bq)
+static void bq24257_pg_gpio_probe(struct bq24257_device *bq)
 {
-	bq->pg = devm_gpiod_get_index(bq->dev, BQ24257_PG_GPIO, 0, GPIOD_IN);
-	if (IS_ERR(bq->pg)) {
-		dev_err(bq->dev, "could not probe PG pin\n");
-		return PTR_ERR(bq->pg);
+	bq->pg = devm_gpiod_get_optional(bq->dev, BQ24257_PG_GPIO, GPIOD_IN);
+
+	if (PTR_ERR(bq->pg) == -EPROBE_DEFER) {
+		dev_info(bq->dev, "probe retry requested for PG pin\n");
+		return;
+	} else if (IS_ERR(bq->pg)) {
+		dev_err(bq->dev, "error probing PG pin\n");
+		bq->pg = NULL;
+		return;
 	}
 
-	return 0;
+	if (bq->pg)
+		dev_dbg(bq->dev, "probed PG pin = %d\n", desc_to_gpio(bq->pg));
 }
 
 static int bq24257_fw_probe(struct bq24257_device *bq)
@@ -789,10 +814,19 @@ static int bq24257_probe(struct i2c_client *client,
 		INIT_DELAYED_WORK(&bq->iilimit_setup_work,
 				  bq24257_iilimit_setup_work);
 
-	/* we can only check Power Good status by probing the PG pin */
-	ret = bq24257_pg_gpio_probe(bq);
-	if (ret < 0)
-		return ret;
+	/*
+	 * The BQ24250 doesn't have a dedicated Power Good (PG) pin so let's
+	 * not probe for it and instead use a SW-based approach to determine
+	 * the PG state. We also use a SW-based approach for all other devices
+	 * if the PG pin is either not defined or can't be probed.
+	 */
+	if (bq->chip != BQ24250)
+		bq24257_pg_gpio_probe(bq);
+
+	if (PTR_ERR(bq->pg) == -EPROBE_DEFER)
+		return PTR_ERR(bq->pg);
+	else if (!bq->pg)
+		dev_info(bq->dev, "using SW-based power-good detection\n");
 
 	/* reset all registers to defaults */
 	ret = bq24257_field_write(bq, F_RESET, 1);
