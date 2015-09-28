@@ -38,6 +38,12 @@ static struct ida mdev_id;
 static int modref;
 static int dummy_num_buffers;
 
+struct most_c_aim_obj {
+	struct most_aim *ptr;
+	int refs;
+	int num_buffers;
+};
+
 struct most_c_obj {
 	struct kobject kobj;
 	struct completion cleanup;
@@ -56,12 +62,8 @@ struct most_c_obj {
 	spinlock_t fifo_lock;
 	struct list_head halt_fifo;
 	struct list_head list;
-	struct most_aim *first_aim;
-	struct most_aim *second_aim;
-	int first_aim_refs;
-	int second_aim_refs;
-	int first_num_buffers;
-	int second_num_buffers;
+	struct most_c_aim_obj aim0;
+	struct most_c_aim_obj aim1;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	struct mutex stop_task_mutex;
@@ -557,12 +559,12 @@ create_most_c_obj(const char *name, struct kobject *parent)
  */
 static void destroy_most_c_obj(struct most_c_obj *c)
 {
-	if (c->first_aim)
-		c->first_aim->disconnect_channel(c->iface, c->channel_id);
-	if (c->second_aim)
-		c->second_aim->disconnect_channel(c->iface, c->channel_id);
-	c->first_aim = NULL;
-	c->second_aim = NULL;
+	if (c->aim0.ptr)
+		c->aim0.ptr->disconnect_channel(c->iface, c->channel_id);
+	if (c->aim1.ptr)
+		c->aim1.ptr->disconnect_channel(c->iface, c->channel_id);
+	c->aim0.ptr = NULL;
+	c->aim1.ptr = NULL;
 
 	mutex_lock(&deregister_mutex);
 	flush_trash_fifo(c);
@@ -994,10 +996,10 @@ static ssize_t store_add_link(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (!c->first_aim)
-		aim_ptr = &c->first_aim;
-	else if (!c->second_aim)
-		aim_ptr = &c->second_aim;
+	if (!c->aim0.ptr)
+		aim_ptr = &c->aim0.ptr;
+	else if (!c->aim1.ptr)
+		aim_ptr = &c->aim1.ptr;
 	else
 		return -ENOSPC;
 
@@ -1051,10 +1053,10 @@ static ssize_t store_remove_link(struct most_aim_obj *aim_obj,
 	if (IS_ERR(c))
 		return -ENODEV;
 
-	if (c->first_aim == aim_obj->driver)
-		c->first_aim = NULL;
-	if (c->second_aim == aim_obj->driver)
-		c->second_aim = NULL;
+	if (c->aim0.ptr == aim_obj->driver)
+		c->aim0.ptr = NULL;
+	if (c->aim1.ptr == aim_obj->driver)
+		c->aim1.ptr = NULL;
 	if (aim_obj->driver->disconnect_channel(c->iface, c->channel_id))
 		return -EIO;
 	return len;
@@ -1240,11 +1242,11 @@ static void arm_mbo(struct mbo *mbo)
 	list_add_tail(&mbo->list, &c->fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 
-	if (c->first_aim_refs && c->first_aim->tx_completion)
-		c->first_aim->tx_completion(c->iface, c->channel_id);
+	if (c->aim0.refs && c->aim0.ptr->tx_completion)
+		c->aim0.ptr->tx_completion(c->iface, c->channel_id);
 
-	if (c->second_aim_refs && c->second_aim->tx_completion)
-		c->second_aim->tx_completion(c->iface, c->channel_id);
+	if (c->aim1.refs && c->aim1.ptr->tx_completion)
+		c->aim1.ptr->tx_completion(c->iface, c->channel_id);
 }
 
 /**
@@ -1401,15 +1403,15 @@ struct mbo *most_get_mbo(struct most_interface *iface, int id,
 	if (unlikely(!c))
 		return NULL;
 
-	if (c->first_aim_refs && c->second_aim_refs &&
-	    ((aim == c->first_aim && c->first_num_buffers <= 0) ||
-	     (aim == c->second_aim && c->second_num_buffers <= 0)))
+	if (c->aim0.refs && c->aim1.refs &&
+	    ((aim == c->aim0.ptr && c->aim0.num_buffers <= 0) ||
+	     (aim == c->aim1.ptr && c->aim1.num_buffers <= 0)))
 		return NULL;
 
-	if (aim == c->first_aim)
-		num_buffers_ptr = &c->first_num_buffers;
-	else if (aim == c->second_aim)
-		num_buffers_ptr = &c->second_num_buffers;
+	if (aim == c->aim0.ptr)
+		num_buffers_ptr = &c->aim0.num_buffers;
+	else if (aim == c->aim1.ptr)
+		num_buffers_ptr = &c->aim1.num_buffers;
 	else
 		num_buffers_ptr = &dummy_num_buffers;
 
@@ -1485,12 +1487,12 @@ static void most_read_completion(struct mbo *mbo)
 		c->is_starving = 1;
 	}
 
-	if (c->first_aim_refs && c->first_aim->rx_completion &&
-	    c->first_aim->rx_completion(mbo) == 0)
+	if (c->aim0.refs && c->aim0.ptr->rx_completion &&
+	    c->aim0.ptr->rx_completion(mbo) == 0)
 		return;
 
-	if (c->second_aim_refs && c->second_aim->rx_completion &&
-	    c->second_aim->rx_completion(mbo) == 0)
+	if (c->aim1.refs && c->aim1.ptr->rx_completion &&
+	    c->aim1.ptr->rx_completion(mbo) == 0)
 		return;
 
 	most_put_mbo(mbo);
@@ -1517,7 +1519,7 @@ int most_start_channel(struct most_interface *iface, int id,
 		return -EINVAL;
 
 	mutex_lock(&c->start_mutex);
-	if (c->first_aim_refs + c->second_aim_refs > 0)
+	if (c->aim0.refs + c->aim1.refs > 0)
 		goto out; /* already started by other aim */
 
 	if (!try_module_get(iface->mod)) {
@@ -1553,15 +1555,15 @@ int most_start_channel(struct most_interface *iface, int id,
 		goto error;
 
 	c->is_starving = 0;
-	c->first_num_buffers = c->cfg.num_buffers / 2;
-	c->second_num_buffers = c->cfg.num_buffers - c->first_num_buffers;
+	c->aim0.num_buffers = c->cfg.num_buffers / 2;
+	c->aim1.num_buffers = c->cfg.num_buffers - c->aim0.num_buffers;
 	atomic_set(&c->mbo_ref, num_buffer);
 
 out:
-	if (aim == c->first_aim)
-		c->first_aim_refs++;
-	if (aim == c->second_aim)
-		c->second_aim_refs++;
+	if (aim == c->aim0.ptr)
+		c->aim0.refs++;
+	if (aim == c->aim1.ptr)
+		c->aim1.refs++;
 	mutex_unlock(&c->start_mutex);
 	return 0;
 
@@ -1593,7 +1595,7 @@ int most_stop_channel(struct most_interface *iface, int id,
 		return -EINVAL;
 
 	mutex_lock(&c->start_mutex);
-	if (c->first_aim_refs + c->second_aim_refs >= 2)
+	if (c->aim0.refs + c->aim1.refs >= 2)
 		goto out;
 
 	mutex_lock(&c->stop_task_mutex);
@@ -1637,10 +1639,10 @@ int most_stop_channel(struct most_interface *iface, int id,
 	c->is_poisoned = false;
 
 out:
-	if (aim == c->first_aim)
-		c->first_aim_refs--;
-	if (aim == c->second_aim)
-		c->second_aim_refs--;
+	if (aim == c->aim0.ptr)
+		c->aim0.refs--;
+	if (aim == c->aim1.ptr)
+		c->aim1.refs--;
 	mutex_unlock(&c->start_mutex);
 	return 0;
 }
@@ -1694,13 +1696,13 @@ int most_deregister_aim(struct most_aim *aim)
 	}
 	list_for_each_entry_safe(i, i_tmp, &instance_list, list) {
 		list_for_each_entry_safe(c, tmp, &i->channel_list, list) {
-			if (c->first_aim == aim || c->second_aim == aim)
+			if (c->aim0.ptr == aim || c->aim1.ptr == aim)
 				aim->disconnect_channel(
 					c->iface, c->channel_id);
-			if (c->first_aim == aim)
-				c->first_aim = NULL;
-			if (c->second_aim == aim)
-				c->second_aim = NULL;
+			if (c->aim0.ptr == aim)
+				c->aim0.ptr = NULL;
+			if (c->aim1.ptr == aim)
+				c->aim1.ptr = NULL;
 		}
 	}
 	list_del(&aim_obj->list);
@@ -1834,7 +1836,7 @@ void most_deregister_interface(struct most_interface *iface)
 	}
 
 	list_for_each_entry(c, &i->channel_list, list) {
-		if (c->first_aim_refs + c->second_aim_refs <= 0)
+		if (c->aim0.refs + c->aim1.refs <= 0)
 			continue;
 
 		mutex_lock(&c->stop_task_mutex);
