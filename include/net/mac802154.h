@@ -248,7 +248,7 @@ struct ieee802154_ops {
 static inline __le16 ieee802154_get_fc_from_skb(const struct sk_buff *skb)
 {
 	/* return some invalid fc on failure */
-	if (unlikely(skb->mac_len < 2)) {
+	if (unlikely(skb->len < 2)) {
 		WARN_ON(1);
 		return cpu_to_le16(0);
 	}
