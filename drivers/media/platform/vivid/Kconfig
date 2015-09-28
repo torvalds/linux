@@ -20,3 +20,11 @@ config VIDEO_VIVID
 
 	  Say Y here if you want to test video apps or debug V4L devices.
 	  When in doubt, say N.
+
+config VIDEO_VIVID_MAX_DEVS
+	int "Maximum number of devices"
+	depends on VIDEO_VIVID
+	default "64"
+	---help---
+	  This allows you to specify the maximum number of devices supported
+	  by the vivid driver.

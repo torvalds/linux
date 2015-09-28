@@ -51,7 +51,7 @@
 #define VIVID_MODULE_NAME "vivid"
 
 /* The maximum number of vivid devices */
-#define VIVID_MAX_DEVS 64
+#define VIVID_MAX_DEVS CONFIG_VIDEO_VIVID_MAX_DEVS
 
 MODULE_DESCRIPTION("Virtual Video Test Driver");
 MODULE_AUTHOR("Hans Verkuil");
