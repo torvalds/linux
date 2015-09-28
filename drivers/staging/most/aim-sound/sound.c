@@ -46,6 +46,7 @@ static struct most_aim audio_aim;
  */
 struct channel {
 	struct snd_pcm_substream *substream;
+	struct snd_pcm_hardware pcm_hardware;
 	struct most_interface *iface;
 	struct most_channel_config *cfg;
 	struct snd_card *card;
@@ -70,13 +71,12 @@ struct channel {
 /**
  * Initialization of struct snd_pcm_hardware
  */
-static struct snd_pcm_hardware pcm_hardware_template = {
-	.info               = MOST_PCM_INFO,
-	.rates              = SNDRV_PCM_RATE_48000,
-	.rate_min           = 48000,
-	.rate_max           = 48000,
-	.channels_min       = 1,
-	.channels_max       = 1,
+static void init_pcm_hardware(struct snd_pcm_hardware *pcm_hw)
+{
+	pcm_hw->info = MOST_PCM_INFO;
+	pcm_hw->rates = SNDRV_PCM_RATE_48000;
+	pcm_hw->rate_min = 48000;
+	pcm_hw->rate_max = 48000;
 };
 
 #define swap16(val) ( \
@@ -308,7 +308,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		return -EBUSY;
 	}
 
-	runtime->hw = pcm_hardware_template;
+	runtime->hw = channel->pcm_hardware;
 	runtime->hw.buffer_bytes_max = cfg->num_buffers * cfg->buffer_size;
 	runtime->hw.period_bytes_min = cfg->buffer_size;
 	runtime->hw.period_bytes_max = cfg->buffer_size;
@@ -357,15 +357,16 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
 	int ret;
+	struct channel *channel = substream->private_data;
 
 	pr_info("pcm_hw_params()\n");
 
-	if ((params_channels(hw_params) > pcm_hardware_template.channels_max) ||
-	    (params_channels(hw_params) < pcm_hardware_template.channels_min) ||
-	    !(params_format(hw_params) != pcm_hardware_template.formats))
+	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
+	    (params_channels(hw_params) < channel->pcm_hardware.channels_min) ||
+	    !(params_format(hw_params) != channel->pcm_hardware.formats))
 		return -EINVAL;
 	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-						params_buffer_bytes(hw_params));
+					       params_buffer_bytes(hw_params));
 
 	return ret;
 }
@@ -508,46 +509,47 @@ static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 	return 0;
 }
 
-static int audio_set_pcm_format(char *pcm_format,
+static int audio_set_pcm_format(struct snd_pcm_hardware *pcm_hw,
+				char *pcm_format,
 				struct most_channel_config *cfg)
 {
 	if (!strcmp(pcm_format, "1x8")) {
 		if (cfg->subbuffer_size != 1)
 			goto error;
 		pr_info("PCM format is 8-bit mono\n");
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S8;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S8;
 	} else if (!strcmp(pcm_format, "2x16")) {
 		if (cfg->subbuffer_size != 4)
 			goto error;
 		pr_info("PCM format is 16-bit stereo\n");
-		pcm_hardware_template.channels_min = 2;
-		pcm_hardware_template.channels_max = 2;
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S16_LE |
-						SNDRV_PCM_FMTBIT_S16_BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S16_BE;
 	} else if (!strcmp(pcm_format, "2x24")) {
 		if (cfg->subbuffer_size != 6)
 			goto error;
 		pr_info("PCM format is 24-bit stereo\n");
-		pcm_hardware_template.channels_min = 2;
-		pcm_hardware_template.channels_max = 2;
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S24_3LE |
-						SNDRV_PCM_FMTBIT_S24_3BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S24_3LE |
+				  SNDRV_PCM_FMTBIT_S24_3BE;
 	} else if (!strcmp(pcm_format, "2x32")) {
 		if (cfg->subbuffer_size != 8)
 			goto error;
 		pr_info("PCM format is 32-bit stereo\n");
-		pcm_hardware_template.channels_min = 2;
-		pcm_hardware_template.channels_max = 2;
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S32_LE |
-						SNDRV_PCM_FMTBIT_S32_BE;
+		pcm_hw->channels_min = 2;
+		pcm_hw->channels_max = 2;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S32_LE |
+				  SNDRV_PCM_FMTBIT_S32_BE;
 	} else if (!strcmp(pcm_format, "6x16")) {
 		if (cfg->subbuffer_size != 12)
 			goto error;
 		pr_info("PCM format is 16-bit 5.1 multi channel\n");
-		pcm_hardware_template.channels_min = 6;
-		pcm_hardware_template.channels_max = 6;
-		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S16_LE |
-						SNDRV_PCM_FMTBIT_S16_BE;
+		pcm_hw->channels_min = 6;
+		pcm_hw->channels_max = 6;
+		pcm_hw->formats = SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S16_BE;
 	} else {
 		pr_err("PCM format %s not supported\n", pcm_format);
 		return -EIO;
@@ -614,8 +616,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		pr_info("PCM format missing\n");
 		return ret;
 	}
-	if (audio_set_pcm_format(pcm_format, cfg))
-		return ret;
 
 	ret = snd_card_new(NULL, -1, card_name, THIS_MODULE,
 			   sizeof(*channel), &card);
@@ -627,6 +627,10 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->cfg = cfg;
 	channel->iface = iface;
 	channel->id = channel_id;
+	init_pcm_hardware(&channel->pcm_hardware);
+
+	if (audio_set_pcm_format(&channel->pcm_hardware, pcm_format, cfg))
+		goto err_free_card;
 
 	snprintf(card->driver, sizeof(card->driver), "%s", DRIVER_NAME);
 	snprintf(card->shortname, sizeof(card->shortname), "Microchip MOST:%d",
