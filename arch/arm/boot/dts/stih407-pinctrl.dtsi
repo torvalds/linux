@@ -1009,6 +1009,15 @@
 					};
 				};
 			};
+
+			serial3 {
+				pinctrl_serial3: serial3-0 {
+					st,pins {
+						tx = <&pio31 3 ALT1 OUT>;
+						rx = <&pio31 4 ALT1 IN>;
+					};
+				};
+			};
 		};
 
 		pin-controller-flash {
