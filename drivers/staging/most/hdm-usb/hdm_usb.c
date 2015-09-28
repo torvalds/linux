@@ -771,7 +771,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	    !((conf->data_type == MOST_CH_ISOC_AVP) &&
 	      (conf->packets_per_xact != 0xFF))) {
 		mdev->padding_active[channel] = false;
-		conf->extra_len = 0;
 		goto exit;
 	}
 
