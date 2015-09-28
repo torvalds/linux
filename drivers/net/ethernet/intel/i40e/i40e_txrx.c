@@ -845,10 +845,12 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	 * The math works out because the divisor is in 10^(-6) which
 	 * turns the bytes/us input value into MB/s values, but
 	 * make sure to use usecs, as the register values written
-	 * are in 2 usec increments in the ITR registers.
+	 * are in 2 usec increments in the ITR registers, and make sure
+	 * to use the smoothed values that the countdown timer gives us.
 	 */
-	usecs = (rc->itr << 1);
+	usecs = (rc->itr << 1) * ITR_COUNTDOWN_START;
 	bytes_per_int = rc->total_bytes / usecs;
+
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
 		if (bytes_per_int > 10)
@@ -1806,7 +1808,16 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 
 	vector = (q_vector->v_idx + vsi->base_vector);
 
+	/* avoid dynamic calculation if in countdown mode OR if
+	 * all dynamic is disabled
+	 */
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
+
+	if (q_vector->itr_countdown > 0 ||
+	    (!ITR_IS_DYNAMIC(vsi->rx_itr_setting) &&
+	     !ITR_IS_DYNAMIC(vsi->tx_itr_setting))) {
+		goto enable_int;
+	}
 
 	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting)) {
 		rx = i40e_set_new_dynamic_itr(&q_vector->rx);
@@ -1845,8 +1856,15 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		wr32(hw, INTREG(vector - 1), rxval);
 	}
 
+enable_int:
 	if (!test_bit(__I40E_DOWN, &vsi->state))
 		wr32(hw, INTREG(vector - 1), txval);
+
+	if (q_vector->itr_countdown)
+		q_vector->itr_countdown--;
+	else
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+
 }
 
 /**

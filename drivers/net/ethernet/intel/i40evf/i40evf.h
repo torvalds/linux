@@ -112,6 +112,8 @@ struct i40e_q_vector {
 	struct i40e_ring_container tx;
 	u32 ring_mask;
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
+#define ITR_COUNTDOWN_START 100
+	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
 	bool arm_wb_state;
