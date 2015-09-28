@@ -32,6 +32,7 @@
 
 #define V4L2_AIM_MAX_INPUT  1
 
+static struct most_aim aim_info;
 
 struct most_video_dev {
 	struct most_interface *iface;
@@ -107,7 +108,7 @@ static int aim_vdev_open(struct file *filp)
 
 	v4l2_fh_add(&fh->fh);
 
-	ret = most_start_channel(mdev->iface, mdev->ch_idx);
+	ret = most_start_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	if (ret) {
 		pr_err("most_start_channel() failed\n");
 		goto err_rm;
@@ -151,7 +152,7 @@ static int aim_vdev_close(struct file *filp)
 		spin_lock(&mdev->list_lock);
 	}
 	spin_unlock(&mdev->list_lock);
-	most_stop_channel(mdev->iface, mdev->ch_idx);
+	most_stop_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	mdev->mute = false;
 
 	v4l2_fh_del(&fh->fh);

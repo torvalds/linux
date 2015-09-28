@@ -27,6 +27,7 @@ static dev_t aim_devno;
 static struct class *aim_class;
 static struct ida minor_id;
 static unsigned int major;
+static struct most_aim cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
@@ -96,7 +97,7 @@ static int aim_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	ret = most_start_channel(channel->iface, channel->channel_id);
+	ret = most_start_channel(channel->iface, channel->channel_id, &cdev_aim);
 	if (ret)
 		atomic_dec(&channel->access_ref);
 	return ret;
@@ -134,7 +135,7 @@ static int aim_close(struct inode *inode, struct file *filp)
 		most_put_mbo(mbo);
 	if (channel->keep_mbo)
 		most_put_mbo(channel->stacked_mbo);
-	ret = most_stop_channel(channel->iface, channel->channel_id);
+	ret = most_stop_channel(channel->iface, channel->channel_id, &cdev_aim);
 	atomic_dec(&channel->access_ref);
 	wake_up_interruptible(&channel->wq);
 	return ret;

@@ -44,7 +44,7 @@ struct most_c_obj {
 	atomic_t mbo_nq_level;
 	uint16_t channel_id;
 	bool is_poisoned;
-	bool is_started;
+	struct mutex start_mutex;
 	int is_starving;
 	struct most_interface *iface;
 	struct most_inst_obj *inst;
@@ -57,6 +57,8 @@ struct most_c_obj {
 	struct list_head list;
 	struct most_aim *first_aim;
 	struct most_aim *second_aim;
+	int first_aim_refs;
+	int second_aim_refs;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	struct mutex stop_task_mutex;
@@ -1234,10 +1236,11 @@ static void arm_mbo(struct mbo *mbo)
 	list_add_tail(&mbo->list, &c->fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 
-	if (c->second_aim && c->second_aim->tx_completion)
-		c->second_aim->tx_completion(c->iface, c->channel_id);
-	if (c->first_aim && c->first_aim->tx_completion)
+	if (c->first_aim_refs && c->first_aim->tx_completion)
 		c->first_aim->tx_completion(c->iface, c->channel_id);
+
+	if (c->second_aim_refs && c->second_aim->tx_completion)
+		c->second_aim->tx_completion(c->iface, c->channel_id);
 }
 
 /**
@@ -1441,11 +1444,12 @@ EXPORT_SYMBOL_GPL(most_put_mbo);
  */
 static void most_read_completion(struct mbo *mbo)
 {
-	struct most_c_obj *c;
+	struct most_c_obj *c = mbo->context;
 
-	c = mbo->context;
-	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE)))
-		goto release_mbo;
+	if (unlikely(c->is_poisoned || (mbo->status == MBO_E_CLOSE))) {
+		trash_mbo(mbo);
+		return;
+	}
 
 	if (mbo->status == MBO_E_INVAL) {
 		nq_hdm_mbo(mbo);
@@ -1458,16 +1462,15 @@ static void most_read_completion(struct mbo *mbo)
 		c->is_starving = 1;
 	}
 
-	if (c->first_aim && c->first_aim->rx_completion &&
+	if (c->first_aim_refs && c->first_aim->rx_completion &&
 	    c->first_aim->rx_completion(mbo) == 0)
 		return;
-	if (c->second_aim && c->second_aim->rx_completion &&
+
+	if (c->second_aim_refs && c->second_aim->rx_completion &&
 	    c->second_aim->rx_completion(mbo) == 0)
 		return;
-	pr_info("WARN: no driver linked with this channel\n");
-	mbo->status = MBO_E_CLOSE;
-release_mbo:
-	trash_mbo(mbo);
+
+	most_put_mbo(mbo);
 }
 
 /**
@@ -1480,7 +1483,8 @@ release_mbo:
  *
  * Returns 0 on success or error code otherwise.
  */
-int most_start_channel(struct most_interface *iface, int id)
+int most_start_channel(struct most_interface *iface, int id,
+		       struct most_aim *aim)
 {
 	int num_buffer;
 	int ret;
@@ -1489,11 +1493,13 @@ int most_start_channel(struct most_interface *iface, int id)
 	if (unlikely(!c))
 		return -EINVAL;
 
-	if (c->is_started)
-		return -EBUSY;
+	mutex_lock(&c->start_mutex);
+	if (c->first_aim_refs + c->second_aim_refs > 0)
+		goto out; /* already started by other aim */
 
 	if (!try_module_get(iface->mod)) {
 		pr_info("failed to acquire HDM lock\n");
+		mutex_unlock(&c->start_mutex);
 		return -ENOLCK;
 	}
 	modref++;
@@ -1523,14 +1529,22 @@ int most_start_channel(struct most_interface *iface, int id)
 	if (ret)
 		goto error;
 
-	c->is_started = true;
 	c->is_starving = 0;
 	atomic_set(&c->mbo_ref, num_buffer);
+
+out:
+	if (aim == c->first_aim)
+		c->first_aim_refs++;
+	if (aim == c->second_aim)
+		c->second_aim_refs++;
+	mutex_unlock(&c->start_mutex);
 	return 0;
+
 error:
 	if (iface->mod)
 		module_put(iface->mod);
 	modref--;
+	mutex_unlock(&c->start_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(most_start_channel);
@@ -1540,7 +1554,8 @@ EXPORT_SYMBOL_GPL(most_start_channel);
  * @iface: pointer to interface instance
  * @id: channel ID
  */
-int most_stop_channel(struct most_interface *iface, int id)
+int most_stop_channel(struct most_interface *iface, int id,
+		      struct most_aim *aim)
 {
 	struct most_c_obj *c;
 
@@ -1552,8 +1567,9 @@ int most_stop_channel(struct most_interface *iface, int id)
 	if (unlikely(!c))
 		return -EINVAL;
 
-	if (!c->is_started)
-		return 0;
+	mutex_lock(&c->start_mutex);
+	if (c->first_aim_refs + c->second_aim_refs >= 2)
+		goto out;
 
 	mutex_lock(&c->stop_task_mutex);
 	if (c->hdm_enqueue_task)
@@ -1564,6 +1580,7 @@ int most_stop_channel(struct most_interface *iface, int id)
 	mutex_lock(&deregister_mutex);
 	if (atomic_read(&c->inst->tainted)) {
 		mutex_unlock(&deregister_mutex);
+		mutex_unlock(&c->start_mutex);
 		return -ENODEV;
 	}
 	mutex_unlock(&deregister_mutex);
@@ -1577,6 +1594,7 @@ int most_stop_channel(struct most_interface *iface, int id)
 	if (c->iface->poison_channel(c->iface, c->channel_id)) {
 		pr_err("Cannot stop channel %d of mdev %s\n", c->channel_id,
 		       c->iface->description);
+		mutex_unlock(&c->start_mutex);
 		return -EAGAIN;
 	}
 	flush_trash_fifo(c);
@@ -1585,13 +1603,20 @@ int most_stop_channel(struct most_interface *iface, int id)
 #ifdef CMPL_INTERRUPTIBLE
 	if (wait_for_completion_interruptible(&c->cleanup)) {
 		pr_info("Interrupted while clean up ch %d\n", c->channel_id);
+		mutex_unlock(&c->start_mutex);
 		return -EINTR;
 	}
 #else
 	wait_for_completion(&c->cleanup);
 #endif
 	c->is_poisoned = false;
-	c->is_started = false;
+
+out:
+	if (aim == c->first_aim)
+		c->first_aim_refs--;
+	if (aim == c->second_aim)
+		c->second_aim_refs--;
+	mutex_unlock(&c->start_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(most_stop_channel);
@@ -1725,7 +1750,6 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		c->keep_mbo = false;
 		c->enqueue_halt = false;
 		c->is_poisoned = false;
-		c->is_started = false;
 		c->cfg.direction = 0;
 		c->cfg.data_type = 0;
 		c->cfg.num_buffers = 0;
@@ -1738,6 +1762,7 @@ struct kobject *most_register_interface(struct most_interface *iface)
 		INIT_LIST_HEAD(&c->halt_fifo);
 		init_completion(&c->cleanup);
 		atomic_set(&c->mbo_ref, 0);
+		mutex_init(&c->start_mutex);
 		mutex_init(&c->stop_task_mutex);
 		list_add_tail(&c->list, &inst->channel_list);
 	}
@@ -1784,7 +1809,7 @@ void most_deregister_interface(struct most_interface *iface)
 	}
 
 	list_for_each_entry(c, &i->channel_list, list) {
-		if (!c->is_started)
+		if (c->first_aim_refs + c->second_aim_refs <= 0)
 			continue;
 
 		mutex_lock(&c->stop_task_mutex);

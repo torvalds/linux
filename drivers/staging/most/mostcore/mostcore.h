@@ -309,8 +309,10 @@ int most_register_aim(struct most_aim *aim);
 int most_deregister_aim(struct most_aim *aim);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx);
 void most_put_mbo(struct mbo *mbo);
-int most_start_channel(struct most_interface *iface, int channel_idx);
-int most_stop_channel(struct most_interface *iface, int channel_idx);
+int most_start_channel(struct most_interface *iface, int channel_idx,
+		       struct most_aim *);
+int most_stop_channel(struct most_interface *iface, int channel_idx,
+		      struct most_aim *);
 
 
 #endif /* MOST_CORE_H_ */

@@ -79,6 +79,7 @@ struct net_dev_context {
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct spinlock list_lock;
+static struct most_aim aim;
 
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
@@ -194,14 +195,14 @@ static int most_nd_open(struct net_device *dev)
 
 	BUG_ON(!nd->tx.linked || !nd->rx.linked);
 
-	if (most_start_channel(nd->iface, nd->rx.ch_id)) {
+	if (most_start_channel(nd->iface, nd->rx.ch_id, &aim)) {
 		netdev_err(dev, "most_start_channel() failed\n");
 		return -EBUSY;
 	}
 
-	if (most_start_channel(nd->iface, nd->tx.ch_id)) {
+	if (most_start_channel(nd->iface, nd->tx.ch_id, &aim)) {
 		netdev_err(dev, "most_start_channel() failed\n");
-		most_stop_channel(nd->iface, nd->rx.ch_id);
+		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
 		return -EBUSY;
 	}
 
@@ -227,8 +228,8 @@ static int most_nd_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	if (nd->channels_opened) {
-		most_stop_channel(nd->iface, nd->rx.ch_id);
-		most_stop_channel(nd->iface, nd->tx.ch_id);
+		most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+		most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
 		nd->channels_opened = false;
 	}
 

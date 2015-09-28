@@ -26,6 +26,7 @@
 #define DRIVER_NAME "sound"
 
 static struct list_head dev_list;
+static struct most_aim audio_aim;
 
 /**
  * struct channel - private structure to keep channel specific data
@@ -298,7 +299,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 			return PTR_ERR(channel->playback_task);
 	}
 
-	if (most_start_channel(channel->iface, channel->id)) {
+	if (most_start_channel(channel->iface, channel->id, &audio_aim)) {
 		pr_err("most_start_channel() failed!\n");
 		if (cfg->direction == MOST_CH_TX)
 			kthread_stop(channel->playback_task);
@@ -333,7 +334,7 @@ static int pcm_close(struct snd_pcm_substream *substream)
 
 	if (channel->cfg->direction == MOST_CH_TX)
 		kthread_stop(channel->playback_task);
-	most_stop_channel(channel->iface, channel->id);
+	most_stop_channel(channel->iface, channel->id, &audio_aim);
 
 	return 0;
 }
