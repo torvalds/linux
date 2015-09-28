@@ -253,7 +253,11 @@ static int obj_rank_by_stolen(void *priv,
 	struct drm_i915_gem_object *b =
 		container_of(B, struct drm_i915_gem_object, obj_exec_link);
 
-	return a->stolen->start - b->stolen->start;
+	if (a->stolen->start < b->stolen->start)
+		return -1;
+	if (a->stolen->start > b->stolen->start)
+		return 1;
+	return 0;
 }
 
 static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
