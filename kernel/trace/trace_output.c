@@ -322,8 +322,8 @@ seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 # define IP_FMT "%016lx"
 #endif
 
-int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
-		      unsigned long ip, unsigned long sym_flags)
+static int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
+			     unsigned long ip, unsigned long sym_flags)
 {
 	struct file *file = NULL;
 	unsigned long vmstart = 0;
