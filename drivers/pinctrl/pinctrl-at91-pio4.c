@@ -170,23 +170,23 @@ static int atmel_gpio_irq_set_type(struct irq_data *d, unsigned type)
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_RISING;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_FALLING;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_BOTH;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_LOW;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 		reg |= ATMEL_PIO_CFGR_EVTSEL_HIGH;
 		break;
 	case IRQ_TYPE_NONE:
