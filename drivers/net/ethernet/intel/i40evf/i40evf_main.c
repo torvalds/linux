@@ -2123,7 +2123,10 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 
 	if (adapter->vf_res->vf_offload_flags
 	    & I40E_VIRTCHNL_VF_OFFLOAD_VLAN) {
-		netdev->vlan_features = netdev->features;
+		netdev->vlan_features = netdev->features &
+					~(NETIF_F_HW_VLAN_CTAG_TX |
+					  NETIF_F_HW_VLAN_CTAG_RX |
+					  NETIF_F_HW_VLAN_CTAG_FILTER);
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
 				    NETIF_F_HW_VLAN_CTAG_RX |
 				    NETIF_F_HW_VLAN_CTAG_FILTER;
