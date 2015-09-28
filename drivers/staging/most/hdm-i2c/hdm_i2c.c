@@ -364,7 +364,7 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->polling_mode = polling_req || client->irq <= 0;
 	if (!dev->polling_mode) {
 		pr_info("Requesting IRQ: %d\n", client->irq);
-		ret = request_irq(client->irq, most_irq_handler, IRQF_SHARED,
+		ret = request_irq(client->irq, most_irq_handler, 0,
 				  client->name, dev);
 		if (ret) {
 			pr_info("IRQ request failed: %d, "
