@@ -839,7 +839,6 @@ static void __init magician_init(void)
 
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
-	pxa_set_stuart_info(NULL);
 
 	pwm_add_table(magician_pwm_lookup, ARRAY_SIZE(magician_pwm_lookup));
 	platform_add_devices(ARRAY_AND_SIZE(devices));
