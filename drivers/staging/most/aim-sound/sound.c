@@ -496,7 +496,7 @@ static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 	return 0;
 }
 
-static int audio_set_pcm_format(struct snd_pcm_hardware *pcm_hw,
+static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
 				char *pcm_format,
 				struct most_channel_config *cfg)
 {
@@ -616,7 +616,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->id = channel_id;
 	init_pcm_hardware(&channel->pcm_hardware);
 
-	if (audio_set_pcm_format(&channel->pcm_hardware, pcm_format, cfg))
+	if (audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg))
 		goto err_free_card;
 
 	snprintf(card->driver, sizeof(card->driver), "%s", DRIVER_NAME);
