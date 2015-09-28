@@ -107,14 +107,10 @@ static inline u8 int_word_to_isc(u32 int_word)
 	return (int_word & 0x38000000) >> 27;
 }
 
-static inline unsigned long pending_floating_irqs(struct kvm_vcpu *vcpu)
+static inline unsigned long pending_irqs(struct kvm_vcpu *vcpu)
 {
-	return vcpu->kvm->arch.float_int.pending_irqs;
-}
-
-static inline unsigned long pending_local_irqs(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.local_int.pending_irqs;
+	return vcpu->kvm->arch.float_int.pending_irqs |
+	       vcpu->arch.local_int.pending_irqs;
 }
 
 static unsigned long disable_iscs(struct kvm_vcpu *vcpu,
@@ -133,8 +129,7 @@ static unsigned long deliverable_irqs(struct kvm_vcpu *vcpu)
 {
 	unsigned long active_mask;
 
-	active_mask = pending_local_irqs(vcpu);
-	active_mask |= pending_floating_irqs(vcpu);
+	active_mask = pending_irqs(vcpu);
 	if (!active_mask)
 		return 0;
 
@@ -202,7 +197,7 @@ static void __set_cpuflag(struct kvm_vcpu *vcpu, u32 flag)
 
 static void set_intercept_indicators_io(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_floating_irqs(vcpu) & IRQ_PEND_IO_MASK))
+	if (!(pending_irqs(vcpu) & IRQ_PEND_IO_MASK))
 		return;
 	else if (psw_ioint_disabled(vcpu))
 		__set_cpuflag(vcpu, CPUSTAT_IO_INT);
@@ -212,7 +207,7 @@ static void set_intercept_indicators_io(struct kvm_vcpu *vcpu)
 
 static void set_intercept_indicators_ext(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_local_irqs(vcpu) & IRQ_PEND_EXT_MASK))
+	if (!(pending_irqs(vcpu) & IRQ_PEND_EXT_MASK))
 		return;
 	if (psw_extint_disabled(vcpu))
 		__set_cpuflag(vcpu, CPUSTAT_EXT_INT);
@@ -222,7 +217,7 @@ static void set_intercept_indicators_ext(struct kvm_vcpu *vcpu)
 
 static void set_intercept_indicators_mchk(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_local_irqs(vcpu) & IRQ_PEND_MCHK_MASK))
+	if (!(pending_irqs(vcpu) & IRQ_PEND_MCHK_MASK))
 		return;
 	if (psw_mchk_disabled(vcpu))
 		vcpu->arch.sie_block->ictl |= ICTL_LPSW;
