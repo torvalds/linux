@@ -1085,6 +1085,29 @@
 					};
 				};
 			};
+
+			nand {
+				pinctrl_nand: nand {
+					st,pins {
+						nand_cs1 = <&pio40 6 ALT3 OUT>;
+						nand_cs0 = <&pio40 7 ALT3 OUT>;
+						nand_d0 = <&pio41 0 ALT3 BIDIR>;
+						nand_d1 = <&pio41 1 ALT3 BIDIR>;
+						nand_d2 = <&pio41 2 ALT3 BIDIR>;
+						nand_d3 = <&pio41 3 ALT3 BIDIR>;
+						nand_d4 = <&pio41 4 ALT3 BIDIR>;
+						nand_d5 = <&pio41 5 ALT3 BIDIR>;
+						nand_d6 = <&pio41 6 ALT3 BIDIR>;
+						nand_d7 = <&pio41 7 ALT3 BIDIR>;
+						nand_we = <&pio42 0 ALT3 OUT>;
+						nand_dqs = <&pio42 1 ALT3 OUT>;
+						nand_ale = <&pio42 2 ALT3 OUT>;
+						nand_cle = <&pio42 3 ALT3 OUT>;
+						nand_rnb = <&pio42 4 ALT3 IN>;
+						nand_oe = <&pio42 5 ALT3 OUT>;
+					};
+				};
+			};
 		};
 	};
 };
