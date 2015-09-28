@@ -156,7 +156,7 @@ void led_blink_set(struct led_classdev *led_cdev,
 
 	led_blink_setup(led_cdev, delay_on, delay_off);
 }
-EXPORT_SYMBOL(led_blink_set);
+EXPORT_SYMBOL_GPL(led_blink_set);
 
 void led_blink_set_oneshot(struct led_classdev *led_cdev,
 			   unsigned long *delay_on,
@@ -177,7 +177,7 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 
 	led_blink_setup(led_cdev, delay_on, delay_off);
 }
-EXPORT_SYMBOL(led_blink_set_oneshot);
+EXPORT_SYMBOL_GPL(led_blink_set_oneshot);
 
 void led_stop_software_blink(struct led_classdev *led_cdev)
 {
@@ -212,7 +212,7 @@ void led_set_brightness(struct led_classdev *led_cdev,
 		dev_dbg(led_cdev->dev, "Setting LED brightness failed (%d)\n",
 			ret);
 }
-EXPORT_SYMBOL(led_set_brightness);
+EXPORT_SYMBOL_GPL(led_set_brightness);
 
 int led_update_brightness(struct led_classdev *led_cdev)
 {
@@ -228,7 +228,7 @@ int led_update_brightness(struct led_classdev *led_cdev)
 
 	return ret;
 }
-EXPORT_SYMBOL(led_update_brightness);
+EXPORT_SYMBOL_GPL(led_update_brightness);
 
 /* Caller must ensure led_cdev->led_access held */
 void led_sysfs_disable(struct led_classdev *led_cdev)
