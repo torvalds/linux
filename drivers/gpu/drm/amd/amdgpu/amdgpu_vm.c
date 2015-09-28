@@ -852,6 +852,14 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			return r;
 	}
 
+	if (trace_amdgpu_vm_bo_mapping_enabled()) {
+		list_for_each_entry(mapping, &bo_va->valids, list)
+			trace_amdgpu_vm_bo_mapping(mapping);
+
+		list_for_each_entry(mapping, &bo_va->invalids, list)
+			trace_amdgpu_vm_bo_mapping(mapping);
+	}
+
 	spin_lock(&vm->status_lock);
 	list_splice_init(&bo_va->invalids, &bo_va->valids);
 	list_del_init(&bo_va->vm_status);
