@@ -242,8 +242,6 @@ static int playback_thread(void *data)
 {
 	struct channel *const channel = data;
 
-	pr_info("playback thread started\n");
-
 	while (!kthread_should_stop()) {
 		struct mbo *mbo = NULL;
 		bool period_elapsed = false;
@@ -289,8 +287,6 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct most_channel_config *cfg = channel->cfg;
 
-	pr_info("pcm_open(), %s\n", substream->name);
-
 	channel->substream = substream;
 
 	if (cfg->direction == MOST_CH_TX) {
@@ -332,8 +328,6 @@ static int pcm_close(struct snd_pcm_substream *substream)
 {
 	struct channel *channel = substream->private_data;
 
-	pr_info("pcm_close(), %s\n", substream->name);
-
 	if (channel->cfg->direction == MOST_CH_TX)
 		kthread_stop(channel->playback_task);
 	most_stop_channel(channel->iface, channel->id, &audio_aim);
@@ -359,8 +353,6 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	struct channel *channel = substream->private_data;
 
-	pr_info("pcm_hw_params()\n");
-
 	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
 	    (params_channels(hw_params) < channel->pcm_hardware.channels_min) ||
 	    !(params_format(hw_params) != channel->pcm_hardware.formats))
@@ -382,8 +374,6 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
  */
 static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	pr_info("pcm_hw_free()\n");
-
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -587,8 +577,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	char *card_name;
 	char *pcm_format;
 
-	pr_info("sound_probe_channel()\n");
-
 	if (!iface)
 		return -EINVAL;
 
@@ -673,8 +661,6 @@ static int audio_disconnect_channel(struct most_interface *iface,
 				    int channel_id)
 {
 	struct channel *channel;
-
-	pr_info("sound_disconnect_channel()\n");
 
 	channel = get_channel(iface, channel_id);
 	if (!channel) {
