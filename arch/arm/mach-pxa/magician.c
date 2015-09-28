@@ -740,7 +740,7 @@ static void __init magician_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 	err = gpio_request_array(ARRAY_AND_SIZE(magician_global_gpios));
 	if (err)
-		pr_err("magician: Failed to request GPIOs: %d\n", err);
+		pr_err("magician: Failed to request global GPIOs: %d\n", err);
 
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
