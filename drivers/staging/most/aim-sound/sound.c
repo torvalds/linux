@@ -68,17 +68,6 @@ struct channel {
 		       SNDRV_PCM_INFO_INTERLEAVED | \
 		       SNDRV_PCM_INFO_BLOCK_TRANSFER)
 
-/**
- * Initialization of struct snd_pcm_hardware
- */
-static void init_pcm_hardware(struct snd_pcm_hardware *pcm_hw)
-{
-	pcm_hw->info = MOST_PCM_INFO;
-	pcm_hw->rates = SNDRV_PCM_RATE_48000;
-	pcm_hw->rate_min = 48000;
-	pcm_hw->rate_max = 48000;
-};
-
 #define swap16(val) ( \
 	(((u16)(val) << 8) & (u16)0xFF00) | \
 	(((u16)(val) >> 8) & (u16)0x00FF))
@@ -305,12 +294,6 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	runtime->hw = channel->pcm_hardware;
-	runtime->hw.buffer_bytes_max = cfg->num_buffers * cfg->buffer_size;
-	runtime->hw.period_bytes_min = cfg->buffer_size;
-	runtime->hw.period_bytes_max = cfg->buffer_size;
-	runtime->hw.periods_min = 1;
-	runtime->hw.periods_max = cfg->num_buffers;
-
 	return 0;
 }
 
@@ -500,6 +483,16 @@ static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
 				char *pcm_format,
 				struct most_channel_config *cfg)
 {
+	pcm_hw->info = MOST_PCM_INFO;
+	pcm_hw->rates = SNDRV_PCM_RATE_48000;
+	pcm_hw->rate_min = 48000;
+	pcm_hw->rate_max = 48000;
+	pcm_hw->buffer_bytes_max = cfg->num_buffers * cfg->buffer_size;
+	pcm_hw->period_bytes_min = cfg->buffer_size;
+	pcm_hw->period_bytes_max = cfg->buffer_size;
+	pcm_hw->periods_min = 1;
+	pcm_hw->periods_max = cfg->num_buffers;
+
 	if (!strcmp(pcm_format, "1x8")) {
 		if (cfg->subbuffer_size != 1)
 			goto error;
@@ -614,7 +607,6 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->cfg = cfg;
 	channel->iface = iface;
 	channel->id = channel_id;
-	init_pcm_hardware(&channel->pcm_hardware);
 
 	if (audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg))
 		goto err_free_card;
