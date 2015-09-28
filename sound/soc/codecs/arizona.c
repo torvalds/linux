@@ -316,6 +316,7 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"Tone Generator 2",
 	"Haptics",
 	"AEC",
+	"AEC2",
 	"Mic Mute Mixer",
 	"Noise Generator",
 	"IN1L",
@@ -423,6 +424,7 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x05,
 	0x06,  /* Haptics */
 	0x08,  /* AEC */
+	0x09,  /* AEC2 */
 	0x0c,  /* Noise mixer */
 	0x0d,  /* Comfort noise */
 	0x10,  /* IN1L */
@@ -526,6 +528,32 @@ EXPORT_SYMBOL_GPL(arizona_mixer_values);
 
 const DECLARE_TLV_DB_SCALE(arizona_mixer_tlv, -3200, 100, 0);
 EXPORT_SYMBOL_GPL(arizona_mixer_tlv);
+
+const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	"12kHz", "24kHz", "48kHz", "96kHz", "192kHz",
+	"11.025kHz", "22.05kHz", "44.1kHz", "88.2kHz", "176.4kHz",
+	"4kHz", "8kHz", "16kHz", "32kHz",
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_text);
+
+const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+	0x10, 0x11, 0x12, 0x13,
+};
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val);
+
+const char *arizona_sample_rate_val_to_name(unsigned int rate_val)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arizona_sample_rate_val); ++i) {
+		if (arizona_sample_rate_val[i] == rate_val)
+			return arizona_sample_rate_text[i];
+	}
+
+	return "Illegal";
+}
+EXPORT_SYMBOL_GPL(arizona_sample_rate_val_to_name);
 
 const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE] = {
 	"SYNCCLK rate", "8kHz", "16kHz", "ASYNCCLK rate",
@@ -1882,6 +1910,11 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 	case WM5110:
 	case WM8280:
 		if (fll->arizona->rev < 3 || sync)
+			return init_ratio;
+		break;
+	case WM8998:
+	case WM1814:
+		if (sync)
 			return init_ratio;
 		break;
 	default:

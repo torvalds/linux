@@ -93,7 +93,7 @@ struct arizona_priv {
 	bool dvfs_cached;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 103
+#define ARIZONA_NUM_MIXER_INPUTS 104
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
@@ -214,8 +214,12 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	 .num_regs = 1 }) }
 
 #define ARIZONA_RATE_ENUM_SIZE 4
+#define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+
 extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
+extern const char * const arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
+extern const unsigned int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
 
 extern const struct soc_enum arizona_isrc_fsl[];
 extern const struct soc_enum arizona_isrc_fsh[];
@@ -301,4 +305,5 @@ int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 
 extern bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
 
+extern const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 #endif
