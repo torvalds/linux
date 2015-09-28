@@ -107,8 +107,13 @@
 
 /* input */
 
-#define EGPIO_MAGICIAN_CABLE_STATE_AC	MAGICIAN_EGPIO(4, 0)
-#define EGPIO_MAGICIAN_CABLE_STATE_USB	MAGICIAN_EGPIO(4, 1)
+/* USB or AC charger type */
+#define EGPIO_MAGICIAN_CABLE_TYPE	MAGICIAN_EGPIO(4, 0)
+/*
+ * Vbus is detected
+ * FIXME behaves like (6,3), may differ for host/device
+ */
+#define EGPIO_MAGICIAN_CABLE_VBUS	MAGICIAN_EGPIO(4, 1)
 
 #define EGPIO_MAGICIAN_BOARD_ID0	MAGICIAN_EGPIO(5, 0)
 #define EGPIO_MAGICIAN_BOARD_ID1	MAGICIAN_EGPIO(5, 1)
@@ -118,6 +123,6 @@
 
 #define EGPIO_MAGICIAN_EP_INSERT	MAGICIAN_EGPIO(6, 1)
 /* FIXME behaves like (4,1), may differ for host/device */
-#define EGPIO_MAGICIAN_CABLE_INSERTED	MAGICIAN_EGPIO(6, 4)
+#define EGPIO_MAGICIAN_CABLE_INSERTED	MAGICIAN_EGPIO(6, 3)
 
 #endif /* _MAGICIAN_H_ */

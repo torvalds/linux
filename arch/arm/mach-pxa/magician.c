@@ -501,7 +501,7 @@ static struct resource gpio_vbus_resource = {
 
 static struct gpio_vbus_mach_info gpio_vbus_info = {
 	.gpio_pullup	= GPIO27_MAGICIAN_USBC_PUEN,
-	.gpio_vbus	= EGPIO_MAGICIAN_CABLE_STATE_USB,
+	.gpio_vbus	= EGPIO_MAGICIAN_CABLE_VBUS,
 };
 
 static struct platform_device gpio_vbus = {
@@ -520,17 +520,17 @@ static struct platform_device gpio_vbus = {
 
 static int power_supply_init(struct device *dev)
 {
-	return gpio_request(EGPIO_MAGICIAN_CABLE_STATE_AC, "CABLE_STATE_AC");
+	return gpio_request(EGPIO_MAGICIAN_CABLE_TYPE, "Cable USB/AC type");
 }
 
 static int magician_is_ac_online(void)
 {
-	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_AC);
+	return gpio_get_value(EGPIO_MAGICIAN_CABLE_TYPE);
 }
 
 static void power_supply_exit(struct device *dev)
 {
-	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_AC);
+	gpio_free(EGPIO_MAGICIAN_CABLE_TYPE);
 }
 
 static char *magician_supplicants[] = {
