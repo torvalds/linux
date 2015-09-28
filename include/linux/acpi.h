@@ -773,6 +773,61 @@ int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 
 struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 					    struct fwnode_handle *subnode);
+
+struct acpi_probe_entry;
+typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
+						 struct acpi_probe_entry *);
+
+#define ACPI_TABLE_ID_LEN	5
+
+/**
+ * struct acpi_probe_entry - boot-time probing entry
+ * @id:			ACPI table name
+ * @type:		Optional subtable type to match
+ *			(if @id contains subtables)
+ * @subtable_valid:	Optional callback to check the validity of
+ *			the subtable
+ * @probe_table:	Callback to the driver being probed when table
+ *			match is successful
+ * @probe_subtbl:	Callback to the driver being probed when table and
+ *			subtable match (and optional callback is successful)
+ * @driver_data:	Sideband data provided back to the driver
+ */
+struct acpi_probe_entry {
+	__u8 id[ACPI_TABLE_ID_LEN];
+	__u8 type;
+	acpi_probe_entry_validate_subtbl subtable_valid;
+	union {
+		acpi_tbl_table_handler probe_table;
+		acpi_tbl_entry_handler probe_subtbl;
+	};
+	kernel_ulong_t driver_data;
+};
+
+#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, valid, data, fn)	\
+	static const struct acpi_probe_entry __acpi_probe_##name	\
+		__used __section(__##table##_acpi_probe_table)		\
+		 = {							\
+			.id = table_id,					\
+			.type = subtable,				\
+			.subtable_valid = valid,			\
+			.probe_table = (acpi_tbl_table_handler)fn,	\
+			.driver_data = data, 				\
+		   }
+
+#define ACPI_PROBE_TABLE(name)		__##name##_acpi_probe_table
+#define ACPI_PROBE_TABLE_END(name)	__##name##_acpi_probe_table_end
+
+int __acpi_probe_device_table(struct acpi_probe_entry *start, int nr);
+
+#define acpi_probe_device_table(t)					\
+	({ 								\
+		extern struct acpi_probe_entry ACPI_PROBE_TABLE(t),	\
+			                       ACPI_PROBE_TABLE_END(t);	\
+		__acpi_probe_device_table(&ACPI_PROBE_TABLE(t),		\
+					  (&ACPI_PROBE_TABLE_END(t) -	\
+					   &ACPI_PROBE_TABLE(t)));	\
+	})
 #else
 static inline int acpi_dev_get_property(struct acpi_device *adev,
 					const char *name, acpi_object_type type,
@@ -831,6 +886,17 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 {
 	return NULL;
 }
+
+#define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, validate, data, fn) \
+	static const void * __acpi_table_##name[]			\
+		__attribute__((unused))					\
+		 = { (void *) table_id,					\
+		     (void *) subtable,					\
+		     (void *) valid,					\
+		     (void *) fn,					\
+		     (void *) data }
+
+#define acpi_probe_device_table(t)	({ int __r = 0; __r;})
 #endif
 
 #endif	/*_LINUX_ACPI_H*/

@@ -1913,3 +1913,42 @@ int __init acpi_scan_init(void)
 	mutex_unlock(&acpi_scan_lock);
 	return result;
 }
+
+static struct acpi_probe_entry *ape;
+static int acpi_probe_count;
+static DEFINE_SPINLOCK(acpi_probe_lock);
+
+static int __init acpi_match_madt(struct acpi_subtable_header *header,
+				  const unsigned long end)
+{
+	if (!ape->subtable_valid || ape->subtable_valid(header, ape))
+		if (!ape->probe_subtbl(header, end))
+			acpi_probe_count++;
+
+	return 0;
+}
+
+int __init __acpi_probe_device_table(struct acpi_probe_entry *ap_head, int nr)
+{
+	int count = 0;
+
+	if (acpi_disabled)
+		return 0;
+
+	spin_lock(&acpi_probe_lock);
+	for (ape = ap_head; nr; ape++, nr--) {
+		if (ACPI_COMPARE_NAME(ACPI_SIG_MADT, ape->id)) {
+			acpi_probe_count = 0;
+			acpi_table_parse_madt(ape->type, acpi_match_madt, 0);
+			count += acpi_probe_count;
+		} else {
+			int res;
+			res = acpi_table_parse(ape->id, ape->probe_table);
+			if (!res)
+				count++;
+		}
+	}
+	spin_unlock(&acpi_probe_lock);
+
+	return count;
+}
