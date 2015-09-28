@@ -1341,8 +1341,11 @@ static int vivid_remove(struct platform_device *pdev)
 	struct vivid_dev *dev;
 	unsigned i;
 
-	for (i = 0; vivid_devs[i]; i++) {
+
+	for (i = 0; i < n_devs; i++) {
 		dev = vivid_devs[i];
+		if (!dev)
+			continue;
 
 		if (dev->has_vid_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
