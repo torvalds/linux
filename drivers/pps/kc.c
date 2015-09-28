@@ -113,12 +113,10 @@ void pps_kc_event(struct pps_device *pps, struct pps_event_time *ts,
 		int event)
 {
 	unsigned long flags;
-	struct timespec64 real = timespec_to_timespec64(ts->ts_real);
-	struct timespec64 raw = timespec_to_timespec64(ts->ts_raw);
 
 	/* Pass some events to kernel consumer if activated */
 	spin_lock_irqsave(&pps_kc_hardpps_lock, flags);
 	if (pps == pps_kc_hardpps_dev && event & pps_kc_hardpps_mode)
-		hardpps(&real, &raw);
+		hardpps(&ts->ts_real, &ts->ts_raw);
 	spin_unlock_irqrestore(&pps_kc_hardpps_lock, flags);
 }

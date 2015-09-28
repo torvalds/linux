@@ -646,28 +646,28 @@ static void efx_ptp_send_times(struct efx_nic *efx,
 			       struct pps_event_time *last_time)
 {
 	struct pps_event_time now;
-	struct timespec limit;
+	struct timespec64 limit;
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	struct timespec start;
+	struct timespec64 start;
 	int *mc_running = ptp->start.addr;
 
 	pps_get_ts(&now);
 	start = now.ts_real;
 	limit = now.ts_real;
-	timespec_add_ns(&limit, SYNCHRONISE_PERIOD_NS);
+	timespec64_add_ns(&limit, SYNCHRONISE_PERIOD_NS);
 
 	/* Write host time for specified period or until MC is done */
-	while ((timespec_compare(&now.ts_real, &limit) < 0) &&
+	while ((timespec64_compare(&now.ts_real, &limit) < 0) &&
 	       ACCESS_ONCE(*mc_running)) {
-		struct timespec update_time;
+		struct timespec64 update_time;
 		unsigned int host_time;
 
 		/* Don't update continuously to avoid saturating the PCIe bus */
 		update_time = now.ts_real;
-		timespec_add_ns(&update_time, SYNCHRONISATION_GRANULARITY_NS);
+		timespec64_add_ns(&update_time, SYNCHRONISATION_GRANULARITY_NS);
 		do {
 			pps_get_ts(&now);
-		} while ((timespec_compare(&now.ts_real, &update_time) < 0) &&
+		} while ((timespec64_compare(&now.ts_real, &update_time) < 0) &&
 			 ACCESS_ONCE(*mc_running));
 
 		/* Synchronise NIC with single word of time only */
@@ -723,7 +723,7 @@ efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	u32 last_sec;
 	u32 start_sec;
-	struct timespec delta;
+	struct timespec64 delta;
 	ktime_t mc_time;
 
 	if (number_readings == 0)
