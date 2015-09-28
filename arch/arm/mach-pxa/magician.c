@@ -451,46 +451,6 @@ static struct platform_device leds_gpio = {
 };
 
 /*
- * PASIC3 LEDs
- */
-
-static struct pasic3_led pasic3_leds[] = {
-	{
-		.led = {
-			.name = "magician:red",
-			.default_trigger = "ds2760-battery.0-charging",
-		},
-		.hw_num	= 0,
-		.bit2	= PASIC3_BIT2_LED0,
-		.mask	= PASIC3_MASK_LED0,
-	},
-	{
-		.led = {
-			.name = "magician:green",
-			.default_trigger = "ds2760-battery.0-charging-or-full",
-		},
-		.hw_num	= 1,
-		.bit2	= PASIC3_BIT2_LED1,
-		.mask	= PASIC3_MASK_LED1,
-	},
-	{
-		.led = {
-			.name = "magician:blue",
-			.default_trigger = "bluetooth",
-		},
-		.hw_num	= 2,
-		.bit2	= PASIC3_BIT2_LED2,
-		.mask	= PASIC3_MASK_LED2,
-	},
-};
-
-static struct pasic3_leds_machinfo pasic3_leds_info = {
-	.num_leds	= ARRAY_SIZE(pasic3_leds),
-	.power_gpio	= EGPIO_MAGICIAN_LED_POWER,
-	.leds		= pasic3_leds,
-};
-
-/*
  * PASIC3 with DS1WM
  */
 
@@ -509,8 +469,7 @@ static struct resource pasic3_resources[] = {
 };
 
 static struct pasic3_platform_data pasic3_platform_data = {
-	.led_pdata	= &pasic3_leds_info,
-	.clock_rate	= 4000000,
+	.clock_rate = 4000000,
 };
 
 static struct platform_device pasic3 = {
