@@ -983,7 +983,8 @@ static inline bool cpu_has_vmx_virtual_intr_delivery(void)
 
 static inline bool cpu_has_vmx_posted_intr(void)
 {
-	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
+	return IS_ENABLED(CONFIG_X86_LOCAL_APIC) &&
+		vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
 }
 
 static inline bool cpu_has_vmx_apicv(void)
