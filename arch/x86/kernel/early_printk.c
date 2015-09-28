@@ -316,7 +316,7 @@ static struct console early_serial_console = {
 	.index =	-1,
 };
 
-static inline void early_console_register(struct console *con, int keep_early)
+static void early_console_register(struct console *con, int keep_early)
 {
 	if (con->index != -1) {
 		printk(KERN_CRIT "ERROR: earlyprintk= %s already used\n",
