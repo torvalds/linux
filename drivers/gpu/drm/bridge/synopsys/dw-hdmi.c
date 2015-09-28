@@ -480,7 +480,8 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 	hdmi_writeb(hdmi, 0x00, HDMI_I2CM_SOFTRSTZ);
 
 	/* Set Standard Mode speed (determined to be 100KHz on iMX6) */
-	hdmi_writeb(hdmi, 0x00, HDMI_I2CM_DIV);
+	hdmi_modb(hdmi, HDMI_I2CM_DIV_STD_MODE,
+		  HDMI_I2CM_DIV_FAST_STD_MODE, HDMI_I2CM_DIV);
 
 	/* Set done, not acknowledged and arbitration interrupt polarities */
 	hdmi_writeb(hdmi, HDMI_I2CM_INT_DONE_POL, HDMI_I2CM_INT);
