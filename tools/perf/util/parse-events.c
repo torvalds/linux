@@ -599,9 +599,13 @@ static int check_type_val(struct parse_events_term *term,
 	return -EINVAL;
 }
 
-static int config_term(struct perf_event_attr *attr,
-		       struct parse_events_term *term,
-		       struct parse_events_error *err)
+typedef int config_term_func_t(struct perf_event_attr *attr,
+			       struct parse_events_term *term,
+			       struct parse_events_error *err);
+
+static int config_term_common(struct perf_event_attr *attr,
+			      struct parse_events_term *term,
+			      struct parse_events_error *err)
 {
 #define CHECK_TYPE_VAL(type)						   \
 do {									   \
@@ -610,12 +614,6 @@ do {									   \
 } while (0)
 
 	switch (term->type_term) {
-	case PARSE_EVENTS__TERM_TYPE_USER:
-		/*
-		 * Always succeed for sysfs terms, as we dont know
-		 * at this point what type they need to have.
-		 */
-		return 0;
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 		CHECK_TYPE_VAL(NUM);
 		attr->config = term->val.num;
@@ -665,9 +663,24 @@ do {									   \
 #undef CHECK_TYPE_VAL
 }
 
+static int config_term_pmu(struct perf_event_attr *attr,
+			   struct parse_events_term *term,
+			   struct parse_events_error *err)
+{
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER)
+		/*
+		 * Always succeed for sysfs terms, as we dont know
+		 * at this point what type they need to have.
+		 */
+		return 0;
+	else
+		return config_term_common(attr, term, err);
+}
+
 static int config_attr(struct perf_event_attr *attr,
 		       struct list_head *head,
-		       struct parse_events_error *err)
+		       struct parse_events_error *err,
+		       config_term_func_t config_term)
 {
 	struct parse_events_term *term;
 
@@ -735,7 +748,8 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 	attr.config = config;
 
 	if (head_config) {
-		if (config_attr(&attr, head_config, data->error))
+		if (config_attr(&attr, head_config, data->error,
+				config_term_common))
 			return -EINVAL;
 
 		if (get_config_terms(head_config, &config_terms))
@@ -795,7 +809,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
 	 */
-	if (config_attr(&attr, head_config, data->error))
+	if (config_attr(&attr, head_config, data->error, config_term_pmu))
 		return -EINVAL;
 
 	if (get_config_terms(head_config, &config_terms))
