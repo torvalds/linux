@@ -3684,7 +3684,9 @@ int num_ioctls;</synopsis>
 	    </para></listitem>
             <listitem><para>
 	      DRM_UNLOCKED - The ioctl handler will be called without locking
-	      the DRM global mutex
+	      the DRM global mutex. This is the enforced default for kms drivers
+	      (i.e. using the DRIVER_MODESET flag) and hence shouldn't be used
+	      any more for new drivers.
 	    </para></listitem>
 	  </itemizedlist>
 	</para>
