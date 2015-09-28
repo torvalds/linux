@@ -350,17 +350,14 @@ static int pcm_close(struct snd_pcm_substream *substream)
 static int pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
-	int ret;
 	struct channel *channel = substream->private_data;
 
 	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
 	    (params_channels(hw_params) < channel->pcm_hardware.channels_min) ||
 	    !(params_format(hw_params) != channel->pcm_hardware.formats))
 		return -EINVAL;
-	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
+	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
 					       params_buffer_bytes(hw_params));
-
-	return ret;
 }
 
 /**
