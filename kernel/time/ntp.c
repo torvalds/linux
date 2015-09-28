@@ -509,7 +509,7 @@ static DECLARE_DELAYED_WORK(sync_cmos_work, sync_cmos_clock);
 static void sync_cmos_clock(struct work_struct *work)
 {
 	struct timespec64 now;
-	struct timespec next;
+	struct timespec64 next;
 	int fail = 1;
 
 	/*
@@ -559,7 +559,7 @@ static void sync_cmos_clock(struct work_struct *work)
 		next.tv_nsec -= NSEC_PER_SEC;
 	}
 	queue_delayed_work(system_power_efficient_wq,
-			   &sync_cmos_work, timespec_to_jiffies(&next));
+			   &sync_cmos_work, timespec64_to_jiffies(&next));
 }
 
 void ntp_notify_cmos_timer(void)
