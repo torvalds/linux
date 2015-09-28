@@ -590,8 +590,10 @@ static int bq24257_power_supply_init(struct bq24257_device *bq)
 	psy_cfg.supplied_to = bq24257_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq24257_charger_supplied_to);
 
-	bq->charger = power_supply_register(bq->dev, &bq24257_power_supply_desc,
-					    &psy_cfg);
+	bq->charger = devm_power_supply_register(bq->dev,
+						 &bq24257_power_supply_desc,
+						 &psy_cfg);
+
 	if (IS_ERR(bq->charger))
 		return PTR_ERR(bq->charger);
 
@@ -741,8 +743,6 @@ static int bq24257_remove(struct i2c_client *client)
 	struct bq24257_device *bq = i2c_get_clientdata(client);
 
 	cancel_delayed_work_sync(&bq->iilimit_setup_work);
-
-	power_supply_unregister(bq->charger);
 
 	bq24257_field_write(bq, F_RESET, 1); /* reset to defaults */
 
