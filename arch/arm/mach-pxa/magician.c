@@ -53,8 +53,8 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO20_nSDCS_2,
 	GPIO21_nSDCS_3,
 	GPIO15_nCS_1,
-	GPIO78_nCS_2,   /* PASIC3 */
-	GPIO79_nCS_3,   /* EGPIO CPLD */
+	GPIO78_nCS_2,	/* PASIC3 */
+	GPIO79_nCS_3,	/* EGPIO CPLD */
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
 
@@ -135,11 +135,11 @@ static struct pxaficp_platform_data magician_ficp_info = {
 
 #define INIT_KEY(_code, _gpio, _desc)	\
 	{				\
-		.code   = KEY_##_code,	\
-		.gpio   = _gpio,	\
-		.desc   = _desc,	\
-		.type   = EV_KEY,	\
-		.wakeup = 1,		\
+		.code	= KEY_##_code,	\
+		.gpio	= _gpio,	\
+		.desc	= _desc,	\
+		.type	= EV_KEY,	\
+		.wakeup	= 1,		\
 	}
 
 static struct gpio_keys_button magician_button_table[] = {
@@ -161,18 +161,17 @@ static struct gpio_keys_button magician_button_table[] = {
 };
 
 static struct gpio_keys_platform_data gpio_keys_data = {
-	.buttons  = magician_button_table,
-	.nbuttons = ARRAY_SIZE(magician_button_table),
+	.buttons	= magician_button_table,
+	.nbuttons	= ARRAY_SIZE(magician_button_table),
 };
 
 static struct platform_device gpio_keys = {
-	.name = "gpio-keys",
-	.dev  = {
+	.name	= "gpio-keys",
+	.dev	= {
 		.platform_data = &gpio_keys_data,
 	},
-	.id   = -1,
+	.id	= -1,
 };
-
 
 /*
  * EGPIO (Xilinx CPLD)
@@ -182,48 +181,48 @@ static struct platform_device gpio_keys = {
 
 static struct resource egpio_resources[] = {
 	[0] = {
-		.start = PXA_CS3_PHYS,
-		.end   = PXA_CS3_PHYS + 0x20 - 1,
-		.flags = IORESOURCE_MEM,
+		.start	= PXA_CS3_PHYS,
+		.end	= PXA_CS3_PHYS + 0x20 - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = PXA_GPIO_TO_IRQ(GPIO13_MAGICIAN_CPLD_IRQ),
-		.end   = PXA_GPIO_TO_IRQ(GPIO13_MAGICIAN_CPLD_IRQ),
-		.flags = IORESOURCE_IRQ,
+		.start	= PXA_GPIO_TO_IRQ(GPIO13_MAGICIAN_CPLD_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO13_MAGICIAN_CPLD_IRQ),
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct htc_egpio_chip egpio_chips[] = {
 	[0] = {
-		.reg_start = 0,
-		.gpio_base = MAGICIAN_EGPIO(0, 0),
-		.num_gpios = 24,
-		.direction = HTC_EGPIO_OUTPUT,
-		.initial_values = 0x40, /* EGPIO_MAGICIAN_GSM_RESET */
+		.reg_start	= 0,
+		.gpio_base	= MAGICIAN_EGPIO(0, 0),
+		.num_gpios	= 24,
+		.direction	= HTC_EGPIO_OUTPUT,
+		.initial_values	= 0x40, /* EGPIO_MAGICIAN_GSM_RESET */
 	},
 	[1] = {
-		.reg_start = 4,
-		.gpio_base = MAGICIAN_EGPIO(4, 0),
-		.num_gpios = 24,
-		.direction = HTC_EGPIO_INPUT,
+		.reg_start	= 4,
+		.gpio_base	= MAGICIAN_EGPIO(4, 0),
+		.num_gpios	= 24,
+		.direction	= HTC_EGPIO_INPUT,
 	},
 };
 
 static struct htc_egpio_platform_data egpio_info = {
-	.reg_width    = 8,
-	.bus_width    = 32,
-	.irq_base     = IRQ_BOARD_START,
-	.num_irqs     = 4,
-	.ack_register = 3,
-	.chip         = egpio_chips,
-	.num_chips    = ARRAY_SIZE(egpio_chips),
+	.reg_width	= 8,
+	.bus_width	= 32,
+	.irq_base	= IRQ_BOARD_START,
+	.num_irqs	= 4,
+	.ack_register	= 3,
+	.chip		= egpio_chips,
+	.num_chips	= ARRAY_SIZE(egpio_chips),
 };
 
 static struct platform_device egpio = {
-	.name          = "htc-egpio",
-	.id            = -1,
-	.resource      = egpio_resources,
-	.num_resources = ARRAY_SIZE(egpio_resources),
+	.name		= "htc-egpio",
+	.id		= -1,
+	.resource	= egpio_resources,
+	.num_resources	= ARRAY_SIZE(egpio_resources),
 	.dev = {
 		.platform_data = &egpio_info,
 	},
@@ -235,33 +234,33 @@ static struct platform_device egpio = {
 
 static struct pxafb_mode_info toppoly_modes[] = {
 	{
-		.pixclock     = 96153,
-		.bpp          = 16,
-		.xres         = 240,
-		.yres         = 320,
-		.hsync_len    = 11,
-		.vsync_len    = 3,
-		.left_margin  = 19,
-		.upper_margin = 2,
-		.right_margin = 10,
-		.lower_margin = 2,
-		.sync         = 0,
+		.pixclock	= 96153,
+		.bpp		= 16,
+		.xres		= 240,
+		.yres		= 320,
+		.hsync_len	= 11,
+		.vsync_len	= 3,
+		.left_margin	= 19,
+		.upper_margin	= 2,
+		.right_margin	= 10,
+		.lower_margin	= 2,
+		.sync		= 0,
 	},
 };
 
 static struct pxafb_mode_info samsung_modes[] = {
 	{
-		.pixclock     = 96153,
-		.bpp          = 16,
-		.xres         = 240,
-		.yres         = 320,
-		.hsync_len    = 8,
-		.vsync_len    = 4,
-		.left_margin  = 9,
-		.upper_margin = 4,
-		.right_margin = 9,
-		.lower_margin = 4,
-		.sync         = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.pixclock	= 96153,
+		.bpp		= 16,
+		.xres		= 240,
+		.yres		= 320,
+		.hsync_len	= 8,
+		.vsync_len	= 4,
+		.left_margin	= 9,
+		.upper_margin	= 4,
+		.right_margin	= 9,
+		.lower_margin	= 4,
+		.sync	= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -327,20 +326,20 @@ static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 }
 
 static struct pxafb_mach_info toppoly_info = {
-	.modes           = toppoly_modes,
-	.num_modes       = 1,
-	.fixed_modes     = 1,
-	.lcd_conn	= LCD_COLOR_TFT_16BPP,
-	.pxafb_lcd_power = toppoly_lcd_power,
+	.modes			= toppoly_modes,
+	.num_modes		= 1,
+	.fixed_modes		= 1,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP,
+	.pxafb_lcd_power	= toppoly_lcd_power,
 };
 
 static struct pxafb_mach_info samsung_info = {
-	.modes           = samsung_modes,
-	.num_modes       = 1,
-	.fixed_modes     = 1,
-	.lcd_conn	 = LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |\
-			   LCD_ALTERNATE_MAPPING,
-	.pxafb_lcd_power = samsung_lcd_power,
+	.modes			= samsung_modes,
+	.num_modes		= 1,
+	.fixed_modes		= 1,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+		LCD_ALTERNATE_MAPPING,
+	.pxafb_lcd_power	= samsung_lcd_power,
 };
 
 /*
@@ -353,8 +352,8 @@ static struct pwm_lookup magician_pwm_lookup[] = {
 };
 
 static struct gpio magician_bl_gpios[] = {
-	{ EGPIO_MAGICIAN_BL_POWER,  GPIOF_DIR_OUT, "Backlight power" },
-	{ EGPIO_MAGICIAN_BL_POWER2, GPIOF_DIR_OUT, "Backlight power 2" },
+	{ EGPIO_MAGICIAN_BL_POWER,	GPIOF_DIR_OUT, "Backlight power" },
+	{ EGPIO_MAGICIAN_BL_POWER2,	GPIOF_DIR_OUT, "Backlight power 2" },
 };
 
 static int magician_backlight_init(struct device *dev)
@@ -380,20 +379,20 @@ static void magician_backlight_exit(struct device *dev)
 }
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.max_brightness = 272,
-	.dft_brightness = 100,
-	.enable_gpio    = -1,
-	.init           = magician_backlight_init,
-	.notify         = magician_backlight_notify,
-	.exit           = magician_backlight_exit,
+	.max_brightness	= 272,
+	.dft_brightness	= 100,
+	.enable_gpio	= -1,
+	.init		= magician_backlight_init,
+	.notify		= magician_backlight_notify,
+	.exit		= magician_backlight_exit,
 };
 
 static struct platform_device backlight = {
-	.name = "pwm-backlight",
-	.id   = -1,
-	.dev  = {
-		.parent        = &pxa27x_device_pwm0.dev,
-		.platform_data = &backlight_data,
+	.name	= "pwm-backlight",
+	.id	= -1,
+	.dev	= {
+		.parent		= &pxa27x_device_pwm0.dev,
+		.platform_data	= &backlight_data,
 	},
 };
 
@@ -420,9 +419,9 @@ static struct gpio_led_platform_data gpio_led_info = {
 };
 
 static struct platform_device leds_gpio = {
-	.name = "leds-gpio",
-	.id   = -1,
-	.dev  = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
 		.platform_data = &gpio_led_info,
 	},
 };
@@ -430,37 +429,37 @@ static struct platform_device leds_gpio = {
 static struct pasic3_led pasic3_leds[] = {
 	{
 		.led = {
-			.name            = "magician:red",
+			.name = "magician:red",
 			.default_trigger = "ds2760-battery.0-charging",
 		},
-		.hw_num = 0,
-		.bit2   = PASIC3_BIT2_LED0,
-		.mask   = PASIC3_MASK_LED0,
+		.hw_num	= 0,
+		.bit2	= PASIC3_BIT2_LED0,
+		.mask	= PASIC3_MASK_LED0,
 	},
 	{
 		.led = {
-			.name            = "magician:green",
+			.name = "magician:green",
 			.default_trigger = "ds2760-battery.0-charging-or-full",
 		},
-		.hw_num = 1,
-		.bit2   = PASIC3_BIT2_LED1,
-		.mask   = PASIC3_MASK_LED1,
+		.hw_num	= 1,
+		.bit2	= PASIC3_BIT2_LED1,
+		.mask	= PASIC3_MASK_LED1,
 	},
 	{
 		.led = {
-			.name            = "magician:blue",
+			.name = "magician:blue",
 			.default_trigger = "bluetooth",
 		},
-		.hw_num = 2,
-		.bit2   = PASIC3_BIT2_LED2,
-		.mask   = PASIC3_MASK_LED2,
+		.hw_num	= 2,
+		.bit2	= PASIC3_BIT2_LED2,
+		.mask	= PASIC3_MASK_LED2,
 	},
 };
 
 static struct pasic3_leds_machinfo pasic3_leds_info = {
-	.num_leds   = ARRAY_SIZE(pasic3_leds),
-	.power_gpio = EGPIO_MAGICIAN_LED_POWER,
-	.leds       = pasic3_leds,
+	.num_leds	= ARRAY_SIZE(pasic3_leds),
+	.power_gpio	= EGPIO_MAGICIAN_LED_POWER,
+	.leds		= pasic3_leds,
 };
 
 /*
@@ -469,21 +468,21 @@ static struct pasic3_leds_machinfo pasic3_leds_info = {
 
 static struct resource pasic3_resources[] = {
 	[0] = {
-		.start  = PXA_CS2_PHYS,
+		.start	= PXA_CS2_PHYS,
 		.end	= PXA_CS2_PHYS + 0x1b,
-		.flags  = IORESOURCE_MEM,
+		.flags	= IORESOURCE_MEM,
 	},
 	/* No IRQ handler in the PASIC3, DS1WM needs an external IRQ */
 	[1] = {
-		.start  = PXA_GPIO_TO_IRQ(GPIO107_MAGICIAN_DS1WM_IRQ),
-		.end    = PXA_GPIO_TO_IRQ(GPIO107_MAGICIAN_DS1WM_IRQ),
-		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+		.start	= PXA_GPIO_TO_IRQ(GPIO107_MAGICIAN_DS1WM_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO107_MAGICIAN_DS1WM_IRQ),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
 static struct pasic3_platform_data pasic3_platform_data = {
-	.led_pdata  = &pasic3_leds_info,
-	.clock_rate = 4000000,
+	.led_pdata	= &pasic3_leds_info,
+	.clock_rate	= 4000000,
 };
 
 static struct platform_device pasic3 = {
@@ -501,21 +500,21 @@ static struct platform_device pasic3 = {
  */
 
 static struct resource gpio_vbus_resource = {
-	.flags = IORESOURCE_IRQ,
-	.start = IRQ_MAGICIAN_VBUS,
-	.end   = IRQ_MAGICIAN_VBUS,
+	.flags	= IORESOURCE_IRQ,
+	.start	= IRQ_MAGICIAN_VBUS,
+	.end	= IRQ_MAGICIAN_VBUS,
 };
 
 static struct gpio_vbus_mach_info gpio_vbus_info = {
-	.gpio_pullup = GPIO27_MAGICIAN_USBC_PUEN,
-	.gpio_vbus   = EGPIO_MAGICIAN_CABLE_STATE_USB,
+	.gpio_pullup	= GPIO27_MAGICIAN_USBC_PUEN,
+	.gpio_vbus	= EGPIO_MAGICIAN_CABLE_STATE_USB,
 };
 
 static struct platform_device gpio_vbus = {
-	.name          = "gpio-vbus",
-	.id            = -1,
-	.num_resources = 1,
-	.resource      = &gpio_vbus_resource,
+	.name		= "gpio-vbus",
+	.id		= -1,
+	.num_resources	= 1,
+	.resource	= &gpio_vbus_resource,
 	.dev = {
 		.platform_data = &gpio_vbus_info,
 	},
@@ -545,38 +544,38 @@ static char *magician_supplicants[] = {
 };
 
 static struct pda_power_pdata power_supply_info = {
-	.init            = power_supply_init,
-	.is_ac_online    = magician_is_ac_online,
-	.exit            = power_supply_exit,
-	.supplied_to     = magician_supplicants,
-	.num_supplicants = ARRAY_SIZE(magician_supplicants),
+	.init			= power_supply_init,
+	.is_ac_online		= magician_is_ac_online,
+	.exit			= power_supply_exit,
+	.supplied_to		= magician_supplicants,
+	.num_supplicants	= ARRAY_SIZE(magician_supplicants),
 };
 
 static struct resource power_supply_resources[] = {
 	[0] = {
-		.name  = "ac",
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-		         IORESOURCE_IRQ_LOWEDGE,
-		.start = IRQ_MAGICIAN_VBUS,
-		.end   = IRQ_MAGICIAN_VBUS,
+		.name	= "ac",
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+			IORESOURCE_IRQ_LOWEDGE,
+		.start	= IRQ_MAGICIAN_VBUS,
+		.end	= IRQ_MAGICIAN_VBUS,
 	},
 	[1] = {
-		.name  = "usb",
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-		         IORESOURCE_IRQ_LOWEDGE,
-		.start = IRQ_MAGICIAN_VBUS,
-		.end   = IRQ_MAGICIAN_VBUS,
+		.name	= "usb",
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+			IORESOURCE_IRQ_LOWEDGE,
+		.start	= IRQ_MAGICIAN_VBUS,
+		.end	= IRQ_MAGICIAN_VBUS,
 	},
 };
 
 static struct platform_device power_supply = {
-	.name = "pda-power",
-	.id   = -1,
-	.dev  = {
+	.name	= "pda-power",
+	.id	= -1,
+	.dev = {
 		.platform_data = &power_supply_info,
 	},
-	.resource      = power_supply_resources,
-	.num_resources = ARRAY_SIZE(power_supply_resources),
+	.resource	= power_supply_resources,
+	.num_resources	= ARRAY_SIZE(power_supply_resources),
 };
 
 /*
@@ -590,11 +589,12 @@ static struct regulator_consumer_supply bq24022_consumers[] = {
 
 static struct regulator_init_data bq24022_init_data = {
 	.constraints = {
-		.max_uA         = 500000,
-		.valid_ops_mask = REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS,
+		.max_uA		= 500000,
+		.valid_ops_mask	= REGULATOR_CHANGE_CURRENT |
+			REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = ARRAY_SIZE(bq24022_consumers),
-	.consumer_supplies      = bq24022_consumers,
+	.num_consumer_supplies	= ARRAY_SIZE(bq24022_consumers),
+	.consumer_supplies	= bq24022_consumers,
 };
 
 static struct gpio bq24022_gpios[] = {
@@ -607,26 +607,26 @@ static struct gpio_regulator_state bq24022_states[] = {
 };
 
 static struct gpio_regulator_config bq24022_info = {
-	.supply_name = "bq24022",
+	.supply_name		= "bq24022",
 
-	.enable_gpio = GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
-	.enable_high = 0,
-	.enabled_at_boot = 0,
+	.enable_gpio		= GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
+	.enable_high		= 0,
+	.enabled_at_boot	= 0,
 
-	.gpios = bq24022_gpios,
-	.nr_gpios = ARRAY_SIZE(bq24022_gpios),
+	.gpios			= bq24022_gpios,
+	.nr_gpios		= ARRAY_SIZE(bq24022_gpios),
 
-	.states = bq24022_states,
-	.nr_states = ARRAY_SIZE(bq24022_states),
+	.states			= bq24022_states,
+	.nr_states		= ARRAY_SIZE(bq24022_states),
 
-	.type = REGULATOR_CURRENT,
-	.init_data = &bq24022_init_data,
+	.type			= REGULATOR_CURRENT,
+	.init_data		= &bq24022_init_data,
 };
 
 static struct platform_device bq24022 = {
-	.name = "gpio-regulator",
-	.id   = -1,
-	.dev  = {
+	.name	= "gpio-regulator",
+	.id	= -1,
+	.dev	= {
 		.platform_data = &bq24022_info,
 	},
 };
@@ -636,10 +636,10 @@ static struct platform_device bq24022 = {
  */
 
 static int magician_mci_init(struct device *dev,
-				irq_handler_t detect_irq, void *data)
+	irq_handler_t detect_irq, void *data)
 {
 	return request_irq(IRQ_MAGICIAN_SD, detect_irq, 0,
-			   "mmc card detect", data);
+		"mmc card detect", data);
 }
 
 static void magician_mci_exit(struct device *dev, void *data)
@@ -648,9 +648,9 @@ static void magician_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data magician_mci_info = {
-	.ocr_mask 		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init     		= magician_mci_init,
-	.exit     		= magician_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.init			= magician_mci_init,
+	.exit			= magician_mci_exit,
 	.gpio_card_detect	= -1,
 	.gpio_card_ro		= EGPIO_MAGICIAN_nSD_READONLY,
 	.gpio_card_ro_invert	= 1,
@@ -668,7 +668,6 @@ static struct pxaohci_platform_data magician_ohci_info = {
 	.power_budget	= 0,
 };
 
-
 /*
  * StrataFlash
  */
@@ -679,21 +678,21 @@ static void magician_set_vpp(struct platform_device *pdev, int vpp)
 }
 
 static struct resource strataflash_resource = {
-	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + SZ_64M - 1,
-	.flags = IORESOURCE_MEM,
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_64M - 1,
+	.flags	= IORESOURCE_MEM,
 };
 
 static struct physmap_flash_data strataflash_data = {
-	.width = 4,
-	.set_vpp = magician_set_vpp,
+	.width		= 4,
+	.set_vpp	= magician_set_vpp,
 };
 
 static struct platform_device strataflash = {
-	.name          = "physmap-flash",
-	.id            = -1,
-	.resource      = &strataflash_resource,
-	.num_resources = 1,
+	.name		= "physmap-flash",
+	.id		= -1,
+	.resource	= &strataflash_resource,
+	.num_resources	= 1,
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
@@ -724,7 +723,7 @@ static struct platform_device *devices[] __initdata = {
 };
 
 static struct gpio magician_global_gpios[] = {
-	{ GPIO13_MAGICIAN_CPLD_IRQ,   GPIOF_IN, "CPLD_IRQ" },
+	{ GPIO13_MAGICIAN_CPLD_IRQ, GPIOF_IN, "CPLD_IRQ" },
 	{ GPIO107_MAGICIAN_DS1WM_IRQ, GPIOF_IN, "DS1WM_IRQ" },
 	{ GPIO104_MAGICIAN_LCD_POWER_1, GPIOF_OUT_INIT_LOW, "LCD power 1" },
 	{ GPIO105_MAGICIAN_LCD_POWER_2, GPIOF_OUT_INIT_LOW, "LCD power 2" },
@@ -759,27 +758,28 @@ static void __init magician_init(void)
 	/* Check LCD type we have */
 	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
 	if (cpld) {
-		u8 board_id = __raw_readb(cpld+0x14);
+		u8 board_id = __raw_readb(cpld + 0x14);
+
 		iounmap(cpld);
 		system_rev = board_id & 0x7;
 		lcd_select = board_id & 0x8;
 		pr_info("LCD type: %s\n", lcd_select ? "Samsung" : "Toppoly");
 		if (lcd_select && (system_rev < 3))
 			gpio_request_one(GPIO75_MAGICIAN_SAMSUNG_POWER,
-			                 GPIOF_OUT_INIT_LOW, "SAMSUNG_POWER");
-		pxa_set_fb_info(NULL, lcd_select ? &samsung_info : &toppoly_info);
+				GPIOF_OUT_INIT_LOW, "SAMSUNG_POWER");
+		pxa_set_fb_info(NULL,
+			lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
 }
 
-
 MACHINE_START(MAGICIAN, "HTC Magician")
-	.atag_offset = 0x100,
-	.map_io = pxa27x_map_io,
-	.nr_irqs = MAGICIAN_NR_IRQS,
-	.init_irq = pxa27x_init_irq,
-	.handle_irq = pxa27x_handle_irq,
-	.init_machine = magician_init,
+	.atag_offset	= 0x100,
+	.map_io		= pxa27x_map_io,
+	.nr_irqs	= MAGICIAN_NR_IRQS,
+	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
+	.init_machine	= magician_init,
 	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
