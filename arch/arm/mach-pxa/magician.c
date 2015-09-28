@@ -47,6 +47,10 @@
 
 #include <linux/regulator/max1586.h>
 
+#include <linux/platform_data/pxa2xx_udc.h>
+#include <mach/udc.h>
+#include <mach/pxa27x-udc.h>
+
 #include "devices.h"
 #include "generic.h"
 
@@ -520,6 +524,23 @@ static struct platform_device pasic3 = {
 };
 
 /*
+ * PXA UDC
+ */
+
+static void magician_udc_command(int cmd)
+{
+	if (cmd == PXA2XX_UDC_CMD_CONNECT)
+		UP2OCR |= UP2OCR_DPPUE | UP2OCR_DPPUBE;
+	else if (cmd == PXA2XX_UDC_CMD_DISCONNECT)
+		UP2OCR &= ~(UP2OCR_DPPUE | UP2OCR_DPPUBE);
+}
+
+static struct pxa2xx_udc_mach_info magician_udc_info __initdata = {
+	.udc_command	= magician_udc_command,
+	.gpio_pullup	= GPIO27_MAGICIAN_USBC_PUEN,
+};
+
+/*
  * USB device VBus detection
  */
 
@@ -926,6 +947,7 @@ static void __init magician_init(void)
 
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
+	pxa_set_udc_info(&magician_udc_info);
 
 	/* Check LCD type we have */
 	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
