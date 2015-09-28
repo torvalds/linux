@@ -681,6 +681,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 			 * larger than i_size.
 			 */
 			truncate_setsize(inode, attr->ia_size);
+			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		}
 	}
 
