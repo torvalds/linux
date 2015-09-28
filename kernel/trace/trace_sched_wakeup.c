@@ -40,22 +40,17 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace);
 static int save_flags;
 static bool function_enabled;
 
-#define TRACE_DISPLAY_GRAPH     1
+#define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
 
-static struct tracer_opt trace_opts[] = {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	/* display latency trace as call graph */
-	{ TRACER_OPT(display-graph, TRACE_DISPLAY_GRAPH) },
+static int wakeup_display_graph(struct trace_array *tr, int set);
+#else
+static inline int wakeup_display_graph(struct trace_array *tr, int set)
+{
+	return -EINVAL;
+}
 #endif
-	{ } /* Empty entry */
-};
 
-static struct tracer_flags tracer_flags = {
-	.val  = 0,
-	.opts = trace_opts,
-};
-
-#define is_graph() (tracer_flags.val & TRACE_DISPLAY_GRAPH)
 
 #ifdef CONFIG_FUNCTION_TRACER
 
@@ -163,12 +158,13 @@ static void unregister_wakeup_function(struct trace_array *tr, int graph)
 	function_enabled = false;
 }
 
-static void wakeup_function_set(struct trace_array *tr, int set)
+static int wakeup_function_set(struct trace_array *tr, int set)
 {
 	if (set)
 		register_wakeup_function(tr, is_graph(), 1);
 	else
 		unregister_wakeup_function(tr, is_graph());
+	return 0;
 }
 
 static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
@@ -176,7 +172,10 @@ static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 	struct tracer *tracer = tr->current_trace;
 
 	if (mask & TRACE_ITER_FUNCTION)
-		wakeup_function_set(tr, set);
+		return wakeup_function_set(tr, set);
+
+	if (mask & TRACE_ITER_DISPLAY_GRAPH)
+		return wakeup_display_graph(tr, set);
 
 	return trace_keep_overwrite(tracer, mask, set);
 }
@@ -203,13 +202,8 @@ static void stop_func_tracer(struct trace_array *tr, int graph)
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int
-wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
+static int wakeup_display_graph(struct trace_array *tr, int set)
 {
-
-	if (!(bit & TRACE_DISPLAY_GRAPH))
-		return -EINVAL;
-
 	if (!(is_graph() ^ set))
 		return 0;
 
@@ -305,12 +299,6 @@ __trace_function(struct trace_array *tr,
 }
 #else
 #define __trace_function trace_function
-
-static int
-wakeup_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
-{
-	return -EINVAL;
-}
 
 static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 {
@@ -740,8 +728,6 @@ static struct tracer wakeup_tracer __read_mostly =
 	.print_max	= true,
 	.print_header	= wakeup_print_header,
 	.print_line	= wakeup_print_line,
-	.flags		= &tracer_flags,
-	.set_flag	= wakeup_set_flag,
 	.flag_changed	= wakeup_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
@@ -762,8 +748,6 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 	.print_max	= true,
 	.print_header	= wakeup_print_header,
 	.print_line	= wakeup_print_line,
-	.flags		= &tracer_flags,
-	.set_flag	= wakeup_set_flag,
 	.flag_changed	= wakeup_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
@@ -784,8 +768,6 @@ static struct tracer wakeup_dl_tracer __read_mostly =
 	.print_max	= true,
 	.print_header	= wakeup_print_header,
 	.print_line	= wakeup_print_line,
-	.flags		= &tracer_flags,
-	.set_flag	= wakeup_set_flag,
 	.flag_changed	= wakeup_flag_changed,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,

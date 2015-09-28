@@ -882,6 +882,7 @@ static const char *trace_options[] = {
 	"irq-info",
 	"markers",
 	"function-trace",
+	"display-graph",
 	NULL
 };
 
