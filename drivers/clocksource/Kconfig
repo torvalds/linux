@@ -2,6 +2,14 @@ menu "Clock Source drivers"
 
 config CLKSRC_OF
 	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_ACPI
+	bool
+	select CLKSRC_PROBE
+
+config CLKSRC_PROBE
+	bool
 
 config CLKSRC_I8253
 	bool
