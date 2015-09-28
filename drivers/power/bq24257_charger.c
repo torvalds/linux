@@ -267,6 +267,47 @@ enum bq24257_fault {
 	FAULT_INPUT_LDO_LOW,
 };
 
+static int bq24257_get_input_current_limit(struct bq24257_device *bq,
+					   union power_supply_propval *val)
+{
+	int ret;
+
+	ret = bq24257_field_read(bq, F_IILIMIT);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * The "External ILIM" and "Production & Test" modes are not exposed
+	 * through this driver and not being covered by the lookup table.
+	 * Should such a mode have become active let's return an error rather
+	 * than exceeding the bounds of the lookup table and returning
+	 * garbage.
+	 */
+	if (ret >= BQ24257_IILIMIT_MAP_SIZE)
+		return -ENODATA;
+
+	val->intval = bq24257_iilimit_map[ret];
+
+	return 0;
+}
+
+static int bq24257_set_input_current_limit(struct bq24257_device *bq,
+					const union power_supply_propval *val)
+{
+	/*
+	 * Address the case where the user manually sets an input current limit
+	 * while the charger auto-detection mechanism is is active. In this
+	 * case we want to abort and go straight to the user-specified value.
+	 */
+	if (bq->iilimit_autoset_enable)
+		cancel_delayed_work_sync(&bq->iilimit_setup_work);
+
+	return bq24257_field_write(bq, F_IILIMIT,
+				   bq24257_find_idx(val->intval,
+						    bq24257_iilimit_map,
+						    BQ24257_IILIMIT_MAP_SIZE));
+}
+
 static int bq24257_power_supply_get_property(struct power_supply *psy,
 					     enum power_supply_property psp,
 					     union power_supply_propval *val)
@@ -351,11 +392,39 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 		val->intval = bq24257_iterm_map[bq->init_data.iterm];
 		break;
 
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return bq24257_get_input_current_limit(bq, val);
+
 	default:
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int bq24257_power_supply_set_property(struct power_supply *psy,
+					enum power_supply_property prop,
+					const union power_supply_propval *val)
+{
+	struct bq24257_device *bq = power_supply_get_drvdata(psy);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return bq24257_set_input_current_limit(bq, val);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bq24257_power_supply_property_is_writeable(struct power_supply *psy,
+					enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static int bq24257_get_chip_state(struct bq24257_device *bq,
@@ -559,13 +628,14 @@ static void bq24257_handle_state_change(struct bq24257_device *bq,
 			ret = bq24257_field_write(bq, F_DPDM_EN, 1);
 			if (ret < 0)
 				goto error;
-
-			/* reset input current limit */
-			ret = bq24257_field_write(bq, F_IILIMIT,
-						  bq->init_data.iilimit);
-			if (ret < 0)
-				goto error;
 		}
+		/*
+		 * When power is removed always return to the default input
+		 * current limit as configured during probe.
+		 */
+		ret = bq24257_field_write(bq, F_IILIMIT, bq->init_data.iilimit);
+		if (ret < 0)
+			goto error;
 	} else if (!old_state.power_good) {
 		dev_dbg(bq->dev, "Power inserted\n");
 
@@ -682,6 +752,7 @@ static enum power_supply_property bq24257_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 };
 
 static char *bq24257_charger_supplied_to[] = {
@@ -694,6 +765,8 @@ static const struct power_supply_desc bq24257_power_supply_desc = {
 	.properties = bq24257_power_supply_props,
 	.num_properties = ARRAY_SIZE(bq24257_power_supply_props),
 	.get_property = bq24257_power_supply_get_property,
+	.set_property = bq24257_power_supply_set_property,
+	.property_is_writeable = bq24257_power_supply_property_is_writeable,
 };
 
 static ssize_t bq24257_show_ovp_voltage(struct device *dev,
