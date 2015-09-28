@@ -961,6 +961,20 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	return ret;
 }
 
+static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
+{
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				   SOF_TIMESTAMPING_RX_SOFTWARE |
+				   SOF_TIMESTAMPING_SOFTWARE;
+
+	ts_info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
+				    SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	ts_info->phc_index = -1;
+
+	return 0;
+}
+
 static u32 get_rss_table_size(struct net_device *dev)
 {
 	const struct port_info *pi = netdev_priv(dev);
@@ -1095,6 +1109,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
+	.get_ts_info       = get_ts_info
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)

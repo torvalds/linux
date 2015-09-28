@@ -2959,6 +2959,30 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = t4_mdio_wr(pi->adapter, mbox, prtad, devad,
 					 data->reg_num, data->val_in);
 		break;
+	case SIOCGHWTSTAMP:
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&pi->tstamp_config, req->ifr_data,
+				   sizeof(pi->tstamp_config)))
+			return -EFAULT;
+
+		switch (pi->tstamp_config.rx_filter) {
+		case HWTSTAMP_FILTER_NONE:
+			pi->rxtstamp = false;
+			break;
+		case HWTSTAMP_FILTER_ALL:
+			pi->rxtstamp = true;
+			break;
+		default:
+			pi->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+			return -ERANGE;
+		}
+
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
 	default:
 		return -EOPNOTSUPP;
 	}
