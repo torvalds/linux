@@ -248,9 +248,10 @@ static struct irq_chip atmel_gpio_irq_chip = {
 	.irq_set_wake	= atmel_gpio_irq_set_wake,
 };
 
-static void atmel_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void atmel_gpio_irq_handler(struct irq_desc *desc)
 {
-	struct atmel_pioctrl *atmel_pioctrl = irq_get_handler_data(irq);
+	unsigned int irq = irq_desc_get_irq(desc);
+	struct atmel_pioctrl *atmel_pioctrl = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long isr;
 	int n, bank = -1;
