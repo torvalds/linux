@@ -138,14 +138,10 @@
     <para>
       At the core of every DRM driver is a <structname>drm_driver</structname>
       structure. Drivers typically statically initialize a drm_driver structure,
-      and then pass it to one of the <function>drm_*_init()</function> functions
-      to register it with the DRM subsystem.
-    </para>
-    <para>
-      Newer drivers that no longer require a <structname>drm_bus</structname>
-      structure can alternatively use the low-level device initialization and
-      registration functions such as <function>drm_dev_alloc()</function> and
-      <function>drm_dev_register()</function> directly.
+      and then pass it to <function>drm_dev_alloc()</function> to allocate a
+      device instance. After the device instance is fully initialized it can be
+      registered (which makes it accessible from userspace) using
+      <function>drm_dev_register()</function>.
     </para>
     <para>
       The <structname>drm_driver</structname> structure contains static
@@ -296,83 +292,12 @@ char *date;</synopsis>
       </sect3>
     </sect2>
     <sect2>
-      <title>Device Registration</title>
-      <para>
-        A number of functions are provided to help with device registration.
-        The functions deal with PCI and platform devices, respectively.
-      </para>
-!Edrivers/gpu/drm/drm_pci.c
-!Edrivers/gpu/drm/drm_platform.c
-      <para>
-        New drivers that no longer rely on the services provided by the
-        <structname>drm_bus</structname> structure can call the low-level
-        device registration functions directly. The
-        <function>drm_dev_alloc()</function> function can be used to allocate
-        and initialize a new <structname>drm_device</structname> structure.
-        Drivers will typically want to perform some additional setup on this
-        structure, such as allocating driver-specific data and storing a
-        pointer to it in the DRM device's <structfield>dev_private</structfield>
-        field. Drivers should also set the device's unique name using the
-        <function>drm_dev_set_unique()</function> function. After it has been
-        set up a device can be registered with the DRM subsystem by calling
-        <function>drm_dev_register()</function>. This will cause the device to
-        be exposed to userspace and will call the driver's
-        <structfield>.load()</structfield> implementation. When a device is
-        removed, the DRM device can safely be unregistered and freed by calling
-        <function>drm_dev_unregister()</function> followed by a call to
-        <function>drm_dev_unref()</function>.
-      </para>
+      <title>Device Instance and Driver Handling</title>
+!Pdrivers/gpu/drm/drm_drv.c driver instance overview
 !Edrivers/gpu/drm/drm_drv.c
     </sect2>
     <sect2>
       <title>Driver Load</title>
-      <para>
-        The <methodname>load</methodname> method is the driver and device
-        initialization entry point. The method is responsible for allocating and
-	initializing driver private data, performing resource allocation and
-	mapping (e.g. acquiring
-        clocks, mapping registers or allocating command buffers), initializing
-        the memory manager (<xref linkend="drm-memory-management"/>), installing
-        the IRQ handler (<xref linkend="drm-irq-registration"/>), setting up
-        vertical blanking handling (<xref linkend="drm-vertical-blank"/>), mode
-	setting (<xref linkend="drm-mode-setting"/>) and initial output
-	configuration (<xref linkend="drm-kms-init"/>).
-      </para>
-      <note><para>
-        If compatibility is a concern (e.g. with drivers converted over from
-        User Mode Setting to Kernel Mode Setting), care must be taken to prevent
-        device initialization and control that is incompatible with currently
-        active userspace drivers. For instance, if user level mode setting
-        drivers are in use, it would be problematic to perform output discovery
-        &amp; configuration at load time. Likewise, if user-level drivers
-        unaware of memory management are in use, memory management and command
-        buffer setup may need to be omitted. These requirements are
-        driver-specific, and care needs to be taken to keep both old and new
-        applications and libraries working.
-      </para></note>
-      <synopsis>int (*load) (struct drm_device *, unsigned long flags);</synopsis>
-      <para>
-        The method takes two arguments, a pointer to the newly created
-	<structname>drm_device</structname> and flags. The flags are used to
-	pass the <structfield>driver_data</structfield> field of the device id
-	corresponding to the device passed to <function>drm_*_init()</function>.
-	Only PCI devices currently use this, USB and platform DRM drivers have
-	their <methodname>load</methodname> method called with flags to 0.
-      </para>
-      <sect3>
-        <title>Driver Private Data</title>
-        <para>
-          The driver private hangs off the main
-          <structname>drm_device</structname> structure and can be used for
-          tracking various device-specific bits of information, like register
-          offsets, command buffer status, register state for suspend/resume, etc.
-          At load time, a driver may simply allocate one and set
-          <structname>drm_device</structname>.<structfield>dev_priv</structfield>
-          appropriately; it should be freed and
-          <structname>drm_device</structname>.<structfield>dev_priv</structfield>
-          set to NULL when the driver is unloaded.
-        </para>
-      </sect3>
       <sect3 id="drm-irq-registration">
         <title>IRQ Registration</title>
         <para>
@@ -464,6 +389,18 @@ char *date;</synopsis>
   <!--!Fdrivers/pci/rom.c pci_map_rom-->
         </para>
       </sect3>
+    </sect2>
+    <sect2>
+      <title>Bus-specific Device Registration and PCI Support</title>
+      <para>
+        A number of functions are provided to help with device registration.
+	The functions deal with PCI and platform devices respectively and are
+	only provided for historical reasons. These are all deprecated and
+	shouldn't be used in new drivers. Besides that there's a few
+	helpers for pci drivers.
+      </para>
+!Edrivers/gpu/drm/drm_pci.c
+!Edrivers/gpu/drm/drm_platform.c
     </sect2>
   </sect1>
 
