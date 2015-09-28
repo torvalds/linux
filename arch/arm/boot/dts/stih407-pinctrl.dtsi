@@ -1083,6 +1083,21 @@
 						emmc_d7 = <&pio41 7 ALT1 BIDIR_PU>;
 					};
 				};
+				pinctrl_sd0: sd0-0 {
+					st,pins {
+						sd_clk = <&pio40 6 ALT1 BIDIR>;
+						sd_cmd = <&pio40 7 ALT1 BIDIR_PU>;
+						sd_dat0 = <&pio41 0 ALT1 BIDIR_PU>;
+						sd_dat1 = <&pio41 1 ALT1 BIDIR_PU>;
+						sd_dat2 = <&pio41 2 ALT1 BIDIR_PU>;
+						sd_dat3 = <&pio41 3 ALT1 BIDIR_PU>;
+						sd_led = <&pio42 0 ALT2 OUT>;
+						sd_pwren = <&pio42 2 ALT2 OUT>;
+						sd_vsel = <&pio42 3 ALT2 OUT>;
+						sd_cd = <&pio42 4 ALT2 IN>;
+						sd_wp = <&pio42 5 ALT2 IN>;
+					};
+				};
 			};
 
 			fsm {
