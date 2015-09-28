@@ -250,7 +250,7 @@ static struct pxafb_mode_info toppoly_modes[] = {
 
 static struct pxafb_mode_info samsung_modes[] = {
 	{
-		.pixclock	= 96153,
+		.pixclock	= 226469,
 		.bpp		= 16,
 		.xres		= 240,
 		.yres		= 320,
