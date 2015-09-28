@@ -574,7 +574,8 @@ void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
 			   struct phy_device *phydev)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u32 ret, reg;
+	u32 reg;
+	int ret;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
