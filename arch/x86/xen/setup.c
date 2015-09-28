@@ -798,7 +798,7 @@ char * __init xen_memory_setup(void)
 		xen_ignore_unusable();
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
-	sanitize_e820_map(xen_e820_map, xen_e820_map_entries,
+	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
 			  &xen_e820_map_entries);
 
 	max_pages = xen_get_max_pages();
