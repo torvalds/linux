@@ -107,6 +107,14 @@
 				st,retime-pin-mask = <0x3f>;
 			};
 
+			cec0 {
+				pinctrl_cec0_default: cec0-default {
+					st,pins {
+						hdmi_cec = <&pio2 4 ALT1 BIDIR>;
+					};
+				};
+			};
+
 			rc {
 				pinctrl_ir: ir0 {
 					st,pins {
