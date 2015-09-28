@@ -691,7 +691,7 @@ static bool bq27xxx_battery_dead(struct bq27xxx_device_info *di, u16 flags)
  */
 static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
 {
-	u16 flags;
+	int flags;
 
 	flags = bq27xxx_read(di, BQ27XXX_REG_FLAGS, false);
 	if (flags < 0) {
