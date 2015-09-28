@@ -67,6 +67,7 @@ static inc_group_count(struct list_head *list,
 %type <head> event_legacy_cache
 %type <head> event_legacy_mem
 %type <head> event_legacy_tracepoint
+%type <tracepoint_name> tracepoint_name
 %type <head> event_legacy_numeric
 %type <head> event_legacy_raw
 %type <head> event_def
@@ -84,6 +85,10 @@ static inc_group_count(struct list_head *list,
 	u64 num;
 	struct list_head *head;
 	struct parse_events_term *term;
+	struct tracepoint_name {
+		char *sys;
+		char *event;
+	} tracepoint_name;
 }
 %%
 
@@ -368,36 +373,40 @@ PE_PREFIX_MEM PE_VALUE sep_dc
 }
 
 event_legacy_tracepoint:
-PE_NAME '-' PE_NAME ':' PE_NAME
+tracepoint_name
 {
 	struct parse_events_evlist *data = _data;
 	struct parse_events_error *error = data->error;
 	struct list_head *list;
-	char sys_name[128];
-	snprintf(&sys_name, 128, "%s-%s", $1, $3);
 
 	ALLOC_LIST(list);
-	if (parse_events_add_tracepoint(list, &data->idx, &sys_name, $5, error)) {
+	if (parse_events_add_tracepoint(list, &data->idx, $1.sys, $1.event,
+					error)) {
 		if (error)
 			error->idx = @1.first_column;
 		return -1;
 	}
 	$$ = list;
 }
+
+tracepoint_name:
+PE_NAME '-' PE_NAME ':' PE_NAME
+{
+	char sys_name[128];
+	struct tracepoint_name tracepoint;
+
+	snprintf(&sys_name, 128, "%s-%s", $1, $3);
+	tracepoint.sys = &sys_name;
+	tracepoint.event = $5;
+
+	$$ = tracepoint;
+}
 |
 PE_NAME ':' PE_NAME
 {
-	struct parse_events_evlist *data = _data;
-	struct parse_events_error *error = data->error;
-	struct list_head *list;
+	struct tracepoint_name tracepoint = {$1, $3};
 
-	ALLOC_LIST(list);
-	if (parse_events_add_tracepoint(list, &data->idx, $1, $3, error)) {
-		if (error)
-			error->idx = @1.first_column;
-		return -1;
-	}
-	$$ = list;
+	$$ = tracepoint;
 }
 
 event_legacy_numeric:
