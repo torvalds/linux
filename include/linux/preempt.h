@@ -126,8 +126,7 @@
  * Check whether we were atomic before we did preempt_disable():
  * (used by the scheduler)
  */
-#define in_atomic_preempt_off() \
-		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_DISABLE_OFFSET)
+#define in_atomic_preempt_off() (preempt_count() != PREEMPT_DISABLE_OFFSET)
 
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
 extern void preempt_count_add(int val);
