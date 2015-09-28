@@ -430,10 +430,22 @@
 			};
 
 			i2c3 {
-				pinctrl_i2c3_default: i2c3-default {
+				pinctrl_i2c3_default: i2c3-alt1-0 {
 					st,pins {
 						sda = <&pio18 6 ALT1 BIDIR>;
 						scl = <&pio18 5 ALT1 BIDIR>;
+					};
+				};
+				pinctrl_i2c3_alt1_1: i2c3-alt1-1 {
+					st,pins {
+						sda = <&pio17 7 ALT1 BIDIR>;
+						scl = <&pio17 6 ALT1 BIDIR>;
+					};
+				};
+				pinctrl_i2c3_alt3_0: i2c3-alt3-0 {
+					st,pins {
+						sda = <&pio13 6 ALT3 BIDIR>;
+						scl = <&pio13 5 ALT3 BIDIR>;
 					};
 				};
 			};
