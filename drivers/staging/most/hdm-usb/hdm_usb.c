@@ -159,7 +159,7 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 				 DRCI_READ_REQ, req_type,
 				 0x0000,
 				 reg, dma_buf, sizeof(u16), 5 * HZ);
-	*buf = *dma_buf;
+	*buf = le16_to_cpu(*dma_buf);
 	kfree(dma_buf);
 
 	return retval;
@@ -804,19 +804,16 @@ static int hdm_update_netinfo(struct most_dev *mdev)
 			dev_err(dev, "Vendor request \"hw_addr_hi\" failed\n");
 			return -1;
 		}
-		le16_to_cpus(&hi);
 
 		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_mid\" failed\n");
 			return -1;
 		}
-		le16_to_cpus(&mi);
 
 		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_low\" failed\n");
 			return -1;
 		}
-		le16_to_cpus(&lo);
 
 		mutex_lock(&mdev->io_mutex);
 		mdev->hw_addr[0] = hi >> 8;
@@ -832,7 +829,6 @@ static int hdm_update_netinfo(struct most_dev *mdev)
 		dev_err(dev, "Vendor request \"link status\" failed\n");
 		return -1;
 	}
-	le16_to_cpus(&link);
 
 	mutex_lock(&mdev->io_mutex);
 	mdev->link_stat = link;
@@ -1083,7 +1079,7 @@ static ssize_t show_value(struct most_dci_obj *dci_obj,
 	if (err < 0)
 		return err;
 
-	return snprintf(buf, PAGE_SIZE, "%04x\n", le16_to_cpu(tmp_val));
+	return snprintf(buf, PAGE_SIZE, "%04x\n", tmp_val);
 }
 
 static ssize_t store_value(struct most_dci_obj *dci_obj,
