@@ -9,5 +9,5 @@ extern ktime_t ntp_get_next_leap(void);
 extern int second_overflow(unsigned long secs);
 extern int ntp_validate_timex(struct timex *);
 extern int __do_adjtimex(struct timex *, struct timespec64 *, s32 *);
-extern void __hardpps(const struct timespec *, const struct timespec *);
+extern void __hardpps(const struct timespec64 *, const struct timespec64 *);
 #endif /* _LINUX_NTP_INTERNAL_H */

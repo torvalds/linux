@@ -2025,7 +2025,7 @@ int do_adjtimex(struct timex *txc)
 /**
  * hardpps() - Accessor function to NTP __hardpps function
  */
-void hardpps(const struct timespec *phase_ts, const struct timespec *raw_ts)
+void hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
 	unsigned long flags;
 
