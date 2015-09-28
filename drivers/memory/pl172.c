@@ -278,9 +278,10 @@ static int pl172_remove(struct amba_device *adev)
 }
 
 static const struct amba_id pl172_ids[] = {
+	/*  PrimeCell MPMC PL172, EMC found on NXP LPC18xx and LPC43xx */
 	{
-		.id	= 0x07341172,
-		.mask	= 0xffffffff,
+		.id	= 0x07041172,
+		.mask	= 0x3f0fffff,
 	},
 	{ 0, 0 },
 };
