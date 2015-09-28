@@ -618,7 +618,7 @@ static struct t10_pr_registration *__core_scsi3_do_alloc_registration(
 	struct se_device *dev,
 	struct se_node_acl *nacl,
 	struct se_lun *lun,
-	struct se_dev_entry *deve,
+	struct se_dev_entry *dest_deve,
 	u64 mapped_lun,
 	unsigned char *isid,
 	u64 sa_res_key,
@@ -640,7 +640,29 @@ static struct t10_pr_registration *__core_scsi3_do_alloc_registration(
 	INIT_LIST_HEAD(&pr_reg->pr_reg_atp_mem_list);
 	atomic_set(&pr_reg->pr_res_holders, 0);
 	pr_reg->pr_reg_nacl = nacl;
-	pr_reg->pr_reg_deve = deve;
+	/*
+	 * For destination registrations for ALL_TG_PT=1 and SPEC_I_PT=1,
+	 * the se_dev_entry->pr_ref will have been already obtained by
+	 * core_get_se_deve_from_rtpi() or __core_scsi3_alloc_registration().
+	 *
+	 * Otherwise, locate se_dev_entry now and obtain a reference until
+	 * registration completes in __core_scsi3_add_registration().
+	 */
+	if (dest_deve) {
+		pr_reg->pr_reg_deve = dest_deve;
+	} else {
+		rcu_read_lock();
+		pr_reg->pr_reg_deve = target_nacl_find_deve(nacl, mapped_lun);
+		if (!pr_reg->pr_reg_deve) {
+			rcu_read_unlock();
+			pr_err("Unable to locate PR deve %s mapped_lun: %llu\n",
+				nacl->initiatorname, mapped_lun);
+			kmem_cache_free(t10_pr_reg_cache, pr_reg);
+			return NULL;
+		}
+		kref_get(&pr_reg->pr_reg_deve->pr_kref);
+		rcu_read_unlock();
+	}
 	pr_reg->pr_res_mapped_lun = mapped_lun;
 	pr_reg->pr_aptpl_target_lun = lun->unpacked_lun;
 	pr_reg->tg_pt_sep_rtpi = lun->lun_rtpi;
@@ -936,17 +958,29 @@ static int __core_scsi3_check_aptpl_registration(
 		    !(strcmp(pr_reg->pr_tport, t_port)) &&
 		     (pr_reg->pr_reg_tpgt == tpgt) &&
 		     (pr_reg->pr_aptpl_target_lun == target_lun)) {
+			/*
+			 * Obtain the ->pr_reg_deve pointer + reference, that
+			 * is released by __core_scsi3_add_registration() below.
+			 */
+			rcu_read_lock();
+			pr_reg->pr_reg_deve = target_nacl_find_deve(nacl, mapped_lun);
+			if (!pr_reg->pr_reg_deve) {
+				pr_err("Unable to locate PR APTPL %s mapped_lun:"
+					" %llu\n", nacl->initiatorname, mapped_lun);
+				rcu_read_unlock();
+				continue;
+			}
+			kref_get(&pr_reg->pr_reg_deve->pr_kref);
+			rcu_read_unlock();
 
 			pr_reg->pr_reg_nacl = nacl;
 			pr_reg->tg_pt_sep_rtpi = lun->lun_rtpi;
-
 			list_del(&pr_reg->pr_reg_aptpl_list);
 			spin_unlock(&pr_tmpl->aptpl_reg_lock);
 			/*
 			 * At this point all of the pointers in *pr_reg will
 			 * be setup, so go ahead and add the registration.
 			 */
-
 			__core_scsi3_add_registration(dev, nacl, pr_reg, 0, 0);
 			/*
 			 * If this registration is the reservation holder,
@@ -1044,18 +1078,11 @@ static void __core_scsi3_add_registration(
 
 	__core_scsi3_dump_registration(tfo, dev, nacl, pr_reg, register_type);
 	spin_unlock(&pr_tmpl->registration_lock);
-
-	rcu_read_lock();
-	deve = pr_reg->pr_reg_deve;
-	if (deve)
-		set_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
-	rcu_read_unlock();
-
 	/*
 	 * Skip extra processing for ALL_TG_PT=0 or REGISTER_AND_MOVE.
 	 */
 	if (!pr_reg->pr_reg_all_tg_pt || register_move)
-		return;
+		goto out;
 	/*
 	 * Walk pr_reg->pr_reg_atp_list and add registrations for ALL_TG_PT=1
 	 * allocated in __core_scsi3_alloc_registration()
@@ -1075,19 +1102,31 @@ static void __core_scsi3_add_registration(
 		__core_scsi3_dump_registration(tfo, dev, nacl_tmp, pr_reg_tmp,
 					       register_type);
 		spin_unlock(&pr_tmpl->registration_lock);
-
+		/*
+		 * Drop configfs group dependency reference and deve->pr_kref
+		 * obtained from  __core_scsi3_alloc_registration() code.
+		 */
 		rcu_read_lock();
 		deve = pr_reg_tmp->pr_reg_deve;
-		if (deve)
+		if (deve) {
 			set_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
+			core_scsi3_lunacl_undepend_item(deve);
+			pr_reg_tmp->pr_reg_deve = NULL;
+		}
 		rcu_read_unlock();
-
-		/*
-		 * Drop configfs group dependency reference from
-		 * __core_scsi3_alloc_registration()
-		 */
-		core_scsi3_lunacl_undepend_item(pr_reg_tmp->pr_reg_deve);
 	}
+out:
+	/*
+	 * Drop deve->pr_kref obtained in __core_scsi3_do_alloc_registration()
+	 */
+	rcu_read_lock();
+	deve = pr_reg->pr_reg_deve;
+	if (deve) {
+		set_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
+		kref_put(&deve->pr_kref, target_pr_kref_release);
+		pr_reg->pr_reg_deve = NULL;
+	}
+	rcu_read_unlock();
 }
 
 static int core_scsi3_alloc_registration(
@@ -1785,9 +1824,11 @@ core_scsi3_decode_spec_i_port(
 			dest_node_acl->initiatorname, i_buf, (dest_se_deve) ?
 			dest_se_deve->mapped_lun : 0);
 
-		if (!dest_se_deve)
+		if (!dest_se_deve) {
+			kref_put(&local_pr_reg->pr_reg_deve->pr_kref,
+				 target_pr_kref_release);
 			continue;
-
+		}
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
 		core_scsi3_nodeacl_undepend_item(dest_node_acl);
 		core_scsi3_tpg_undepend_item(dest_tpg);
@@ -1823,9 +1864,11 @@ out:
 
 		kmem_cache_free(t10_pr_reg_cache, dest_pr_reg);
 
-		if (!dest_se_deve)
+		if (!dest_se_deve) {
+			kref_put(&local_pr_reg->pr_reg_deve->pr_kref,
+				 target_pr_kref_release);
 			continue;
-
+		}
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
 		core_scsi3_nodeacl_undepend_item(dest_node_acl);
 		core_scsi3_tpg_undepend_item(dest_tpg);

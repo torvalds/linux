@@ -156,6 +156,12 @@
 			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)	/* uart2_rx.uart2_rx */
 		>;
 	};
+
+	smsc9221_pins: pinmux_smsc9221_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21d2, PIN_INPUT | MUX_MODE4)	/* mcspi1_cs2.gpio_176 */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {

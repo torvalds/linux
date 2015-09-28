@@ -41,6 +41,7 @@ FEATURE_TESTS ?=			\
 	libelf-getphdrnum		\
 	libelf-mmap			\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libpython-version		\
@@ -51,7 +52,8 @@ FEATURE_TESTS ?=			\
 	timerfd				\
 	libdw-dwarf-unwind		\
 	zlib				\
-	lzma
+	lzma				\
+	get_cpuid
 
 FEATURE_DISPLAY ?=			\
 	dwarf				\
@@ -61,13 +63,15 @@ FEATURE_DISPLAY ?=			\
 	libbfd				\
 	libelf				\
 	libnuma				\
+	numa_num_possible_cpus		\
 	libperl				\
 	libpython			\
 	libslang			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib				\
-	lzma
+	lzma				\
+	get_cpuid
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
