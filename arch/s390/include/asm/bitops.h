@@ -64,7 +64,6 @@
 								\
 	typecheck(unsigned long *, (__addr));			\
 	asm volatile(						\
-		__barrier					\
 		__op_string "	%0,%2,%1\n"			\
 		__barrier					\
 		: "=d" (__old),	"+Q" (*(__addr))		\
