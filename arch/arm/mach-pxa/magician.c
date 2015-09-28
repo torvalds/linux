@@ -59,31 +59,31 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
 
-	/* I2C */
+	/* I2C UDA1380 + OV9640 */
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
 
-	/* PWM 0 */
+	/* PWM 0 - LCD backlight */
 	GPIO16_PWM0_OUT,
 
-	/* I2S */
+	/* I2S UDA1380 capture */
 	GPIO28_I2S_BITCLK_OUT,
 	GPIO29_I2S_SDATA_IN,
 	GPIO31_I2S_SYNC,
 	GPIO113_I2S_SYSCLK,
 
-	/* SSP 1 */
+	/* SSP 1 UDA1380 playback */
 	GPIO23_SSP1_SCLK,
 	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 
-	/* SSP 2 */
+	/* SSP 2 TSC2046 touchscreen */
 	GPIO19_SSP2_SCLK,
 	GPIO14_SSP2_SFRM,
 	GPIO89_SSP2_TXD,
 	GPIO88_SSP2_RXD,
 
-	/* MMC */
+	/* MMC/SD/SDHC slot */
 	GPIO32_MMC_CLK,
 	GPIO92_MMC_DAT_0,
 	GPIO109_MMC_DAT_1,
@@ -94,7 +94,7 @@ static unsigned long magician_pin_config[] __initdata = {
 	/* LCD */
 	GPIOxx_LCD_TFT_16BPP,
 
-	/* QCI */
+	/* QCI camera interface */
 	GPIO12_CIF_DD_7,
 	GPIO17_CIF_DD_6,
 	GPIO50_CIF_DD_3,
@@ -122,7 +122,7 @@ static unsigned long magician_pin_config[] __initdata = {
 };
 
 /*
- * IRDA
+ * IrDA
  */
 
 static struct pxaficp_platform_data magician_ficp_info = {
@@ -178,7 +178,9 @@ static struct platform_device gpio_keys = {
 /*
  * EGPIO (Xilinx CPLD)
  *
- * 7 32-bit aligned 8-bit registers: 3x output, 1x irq, 3x input
+ * 32-bit aligned 8-bit registers
+ * 16 possible registers (reg windows size), only 7 used:
+ * 3x output, 1x irq, 3x input
  */
 
 static struct resource egpio_resources[] = {
@@ -200,6 +202,9 @@ static struct htc_egpio_chip egpio_chips[] = {
 		.gpio_base	= MAGICIAN_EGPIO(0, 0),
 		.num_gpios	= 24,
 		.direction	= HTC_EGPIO_OUTPUT,
+		/*
+		 * Depends on modules configuration
+		 */
 		.initial_values	= 0x40, /* EGPIO_MAGICIAN_GSM_RESET */
 	},
 	[1] = {
@@ -231,7 +236,7 @@ static struct platform_device egpio = {
 };
 
 /*
- * LCD - Toppoly TD028STEB1 or Samsung LTP280QV
+ * PXAFB LCD - Toppoly TD028STEB1 or Samsung LTP280QV
  */
 
 static struct pxafb_mode_info toppoly_modes[] = {
@@ -384,6 +389,13 @@ static void magician_backlight_exit(struct device *dev)
 	gpio_free_array(ARRAY_AND_SIZE(magician_bl_gpios));
 }
 
+/*
+ * LCD PWM backlight (main)
+ *
+ * MP1521 frequency should be:
+ *	100-400 Hz = 2 .5*10^6 - 10 *10^6 ns
+ */
+
 static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness	= 272,
 	.dft_brightness	= 100,
@@ -403,7 +415,7 @@ static struct platform_device backlight = {
 };
 
 /*
- * LEDs
+ * GPIO LEDs, Phone keys backlight, vibra
  */
 
 static struct gpio_led gpio_leds[] = {
@@ -431,6 +443,10 @@ static struct platform_device leds_gpio = {
 		.platform_data = &gpio_led_info,
 	},
 };
+
+/*
+ * PASIC3 LEDs
+ */
 
 static struct pasic3_led pasic3_leds[] = {
 	{
@@ -502,7 +518,7 @@ static struct platform_device pasic3 = {
 };
 
 /*
- * USB "Transceiver"
+ * USB device VBus detection
  */
 
 static struct resource gpio_vbus_resource = {
@@ -795,7 +811,7 @@ static struct platform_device strataflash = {
 };
 
 /*
- * I2C
+ * PXA I2C main controller
  */
 
 static struct i2c_pxa_platform_data i2c_info = {
