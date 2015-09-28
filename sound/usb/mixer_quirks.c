@@ -338,7 +338,7 @@ static int snd_audigy2nx_led_put(struct snd_kcontrol *kcontrol,
 	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kcontrol);
 	struct usb_mixer_interface *mixer = list->mixer;
 	int index = kcontrol->private_value & 0xff;
-	int value = ucontrol->value.integer.value[0];
+	unsigned int value = ucontrol->value.integer.value[0];
 	int old_value = kcontrol->private_value >> 8;
 	int err;
 
