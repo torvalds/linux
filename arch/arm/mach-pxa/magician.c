@@ -299,21 +299,19 @@ static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 1);
 		else
 			gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 1);
-		mdelay(10);
+		mdelay(6);
 		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 1);
-		mdelay(10);
+		mdelay(6);	/* Avdd -> Voff >5ms */
 		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 1);
-		mdelay(30);
+		mdelay(16);	/* Voff -> Von >(5+10)ms */
 		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 1);
-		mdelay(10);
 	} else {
-		mdelay(10);
 		gpio_set_value(GPIO105_MAGICIAN_LCD_VON_EN, 0);
-		mdelay(30);
+		mdelay(16);
 		gpio_set_value(GPIO104_MAGICIAN_LCD_VOFF_EN, 0);
-		mdelay(10);
+		mdelay(6);
 		gpio_set_value(GPIO106_MAGICIAN_LCD_DCDC_NRESET, 0);
-		mdelay(10);
+		mdelay(6);
 		if (system_rev < 3)
 			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 0);
 		else
