@@ -229,6 +229,7 @@ static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"NPAR",
 	"LinkPolling",
 	"flow-director-atr",
+	"veb-stats",
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
@@ -2670,6 +2671,8 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_LINKPOLL_FLAG : 0;
 	ret_flags |= pf->flags & I40E_FLAG_FD_ATR_ENABLED ?
 		I40E_PRIV_FLAGS_FD_ATR : 0;
+	ret_flags |= pf->flags & I40E_FLAG_VEB_STATS_ENABLED ?
+		I40E_PRIV_FLAGS_VEB_STATS : 0;
 
 	return ret_flags;
 }
@@ -2700,6 +2703,11 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
 	}
+
+	if (flags & I40E_PRIV_FLAGS_VEB_STATS)
+		pf->flags |= I40E_FLAG_VEB_STATS_ENABLED;
+	else
+		pf->flags &= ~I40E_FLAG_VEB_STATS_ENABLED;
 
 	return 0;
 }
