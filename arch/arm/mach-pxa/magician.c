@@ -740,7 +740,16 @@ static struct platform_device strataflash = {
  */
 
 static struct i2c_pxa_platform_data i2c_info = {
-	.fast_mode = 1,
+	/* OV9640 I2C device doesn't support fast mode */
+	.fast_mode	= 0,
+};
+
+/*
+ * PXA I2C power controller
+ */
+
+static struct i2c_pxa_platform_data magician_i2c_power_info = {
+	.fast_mode	= 1,
 };
 
 /*
@@ -789,7 +798,7 @@ static void __init magician_init(void)
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	pxa_set_ficp_info(&magician_ficp_info);
-	pxa27x_set_i2c_power_info(NULL);
+	pxa27x_set_i2c_power_info(&magician_i2c_power_info);
 	pxa_set_i2c_info(&i2c_info);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
