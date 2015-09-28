@@ -5928,7 +5928,6 @@ static int __init fotg210_hcd_init(void)
 		goto clean;
 	return retval;
 
-	platform_driver_unregister(&fotg210_hcd_driver);
 clean:
 	debugfs_remove(fotg210_debug_root);
 	fotg210_debug_root = NULL;
