@@ -645,6 +645,7 @@ config ARCH_SHMOBILE_LEGACY
 
 config ARCH_RPC
 	bool "RiscPC"
+	depends on MMU
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
