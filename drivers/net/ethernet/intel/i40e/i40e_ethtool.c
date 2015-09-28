@@ -661,28 +661,31 @@ static int i40e_set_settings(struct net_device *netdev,
 
 	/* Check autoneg */
 	if (autoneg == AUTONEG_ENABLE) {
-		/* If autoneg is not supported, return error */
-		if (!(safe_ecmd.supported & SUPPORTED_Autoneg)) {
-			netdev_info(netdev, "Autoneg not supported on this phy\n");
-			return -EINVAL;
-		}
 		/* If autoneg was not already enabled */
 		if (!(hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED)) {
+			/* If autoneg is not supported, return error */
+			if (!(safe_ecmd.supported & SUPPORTED_Autoneg)) {
+				netdev_info(netdev, "Autoneg not supported on this phy\n");
+				return -EINVAL;
+			}
+			/* Autoneg is allowed to change */
 			config.abilities = abilities.abilities |
 					   I40E_AQ_PHY_ENABLE_AN;
 			change = true;
 		}
 	} else {
-		/* If autoneg is supported 10GBASE_T is the only phy that
-		 * can disable it, so otherwise return error
-		 */
-		if (safe_ecmd.supported & SUPPORTED_Autoneg &&
-		    hw->phy.link_info.phy_type != I40E_PHY_TYPE_10GBASE_T) {
-			netdev_info(netdev, "Autoneg cannot be disabled on this phy\n");
-			return -EINVAL;
-		}
 		/* If autoneg is currently enabled */
 		if (hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED) {
+			/* If autoneg is supported 10GBASE_T is the only PHY
+			 * that can disable it, so otherwise return error
+			 */
+			if (safe_ecmd.supported & SUPPORTED_Autoneg &&
+			    hw->phy.link_info.phy_type !=
+			    I40E_PHY_TYPE_10GBASE_T) {
+				netdev_info(netdev, "Autoneg cannot be disabled on this phy\n");
+				return -EINVAL;
+			}
+			/* Autoneg is allowed to change */
 			config.abilities = abilities.abilities &
 					   ~I40E_AQ_PHY_ENABLE_AN;
 			change = true;
