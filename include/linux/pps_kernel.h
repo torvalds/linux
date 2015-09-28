@@ -115,7 +115,12 @@ static inline void timespec_to_pps_ktime(struct pps_ktime *kt,
 
 static inline void pps_get_ts(struct pps_event_time *ts)
 {
-	getnstime_raw_and_real(&ts->ts_raw, &ts->ts_real);
+	struct timespec64 raw, real;
+
+	ktime_get_raw_and_real_ts64(&raw, &real);
+
+	ts->ts_raw = timespec64_to_timespec(raw);
+	ts->ts_real = timespec64_to_timespec(real);
 }
 
 #else /* CONFIG_NTP_PPS */
