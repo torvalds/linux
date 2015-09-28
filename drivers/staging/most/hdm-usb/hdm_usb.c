@@ -777,12 +777,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	mdev->padding_active[channel] = true;
 	temp_size = conf->buffer_size;
 
-	if ((conf->data_type != MOST_CH_SYNC) &&
-	    (conf->data_type != MOST_CH_ISOC_AVP)) {
-		dev_warn(dev, "Unsupported data type\n");
-		return -EINVAL;
-	}
-
 	frame_size = get_stream_frame_size(conf);
 	if ((frame_size == 0) || (frame_size > USB_MTU)) {
 		dev_warn(dev, "Misconfig: frame size wrong\n");
