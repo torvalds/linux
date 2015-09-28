@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <mostcore.h>
@@ -75,7 +76,7 @@ static struct snd_pcm_hardware pcm_hardware_template = {
 	.rate_min           = 48000,
 	.rate_max           = 48000,
 	.channels_min       = 1,
-	.channels_max       = 8,
+	.channels_max       = 1,
 };
 
 #define swap16(val) ( \
@@ -355,10 +356,18 @@ static int pcm_close(struct snd_pcm_substream *substream)
 static int pcm_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
+	int ret;
+
 	pr_info("pcm_hw_params()\n");
 
-	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
+	if ((params_channels(hw_params) > pcm_hardware_template.channels_max) ||
+	    (params_channels(hw_params) < pcm_hardware_template.channels_min) ||
+	    !(params_format(hw_params) != pcm_hardware_template.formats))
+		return -EINVAL;
+	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
 						params_buffer_bytes(hw_params));
+
+	return ret;
 }
 
 /**
@@ -511,20 +520,34 @@ static int audio_set_pcm_format(char *pcm_format,
 		if (cfg->subbuffer_size != 4)
 			goto error;
 		pr_info("PCM format is 16-bit stereo\n");
+		pcm_hardware_template.channels_min = 2;
+		pcm_hardware_template.channels_max = 2;
 		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S16_LE |
 						SNDRV_PCM_FMTBIT_S16_BE;
 	} else if (!strcmp(pcm_format, "2x24")) {
 		if (cfg->subbuffer_size != 6)
 			goto error;
 		pr_info("PCM format is 24-bit stereo\n");
+		pcm_hardware_template.channels_min = 2;
+		pcm_hardware_template.channels_max = 2;
 		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S24_3LE |
 						SNDRV_PCM_FMTBIT_S24_3BE;
 	} else if (!strcmp(pcm_format, "2x32")) {
 		if (cfg->subbuffer_size != 8)
 			goto error;
 		pr_info("PCM format is 32-bit stereo\n");
+		pcm_hardware_template.channels_min = 2;
+		pcm_hardware_template.channels_max = 2;
 		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S32_LE |
 						SNDRV_PCM_FMTBIT_S32_BE;
+	} else if (!strcmp(pcm_format, "6x16")) {
+		if (cfg->subbuffer_size != 12)
+			goto error;
+		pr_info("PCM format is 16-bit 5.1 multi channel\n");
+		pcm_hardware_template.channels_min = 6;
+		pcm_hardware_template.channels_max = 6;
+		pcm_hardware_template.formats = SNDRV_PCM_FMTBIT_S16_LE |
+						SNDRV_PCM_FMTBIT_S16_BE;
 	} else {
 		pr_err("PCM format %s not supported\n", pcm_format);
 		return -EIO;
