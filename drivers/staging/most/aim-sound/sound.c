@@ -239,9 +239,9 @@ static int playback_thread(void *data)
 		wait_event_interruptible(
 			channel->playback_waitq,
 			kthread_should_stop() ||
-			(mbo = most_get_mbo(channel->iface, channel->id,
-					    &audio_aim)));
-
+			(channel->is_stream_running &&
+			 (mbo = most_get_mbo(channel->iface, channel->id,
+					     &audio_aim))));
 		if (!mbo)
 			continue;
 
@@ -279,11 +279,12 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	channel->substream = substream;
 
 	if (cfg->direction == MOST_CH_TX) {
-		init_waitqueue_head(&channel->playback_waitq);
 		channel->playback_task = kthread_run(&playback_thread, channel,
 						     "most_audio_playback");
-		if (IS_ERR(channel->playback_task))
+		if (IS_ERR(channel->playback_task)) {
+			pr_err("Couldn't start thread\n");
 			return PTR_ERR(channel->playback_task);
+		}
 	}
 
 	if (most_start_channel(channel->iface, channel->id, &audio_aim)) {
@@ -336,8 +337,10 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	struct channel *channel = substream->private_data;
 
 	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
-	    (params_channels(hw_params) < channel->pcm_hardware.channels_min))
+	    (params_channels(hw_params) < channel->pcm_hardware.channels_min)) {
+		pr_err("Requested number of channels not supported.\n");
 		return -EINVAL;
+	}
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
 						params_buffer_bytes(hw_params));
 }
@@ -422,6 +425,7 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		channel->is_stream_running = true;
+		wake_up_interruptible(&channel->playback_waitq);
 		return 0;
 
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -606,6 +610,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	channel->cfg = cfg;
 	channel->iface = iface;
 	channel->id = channel_id;
+	init_waitqueue_head(&channel->playback_waitq);
 
 	if (audio_set_hw_params(&channel->pcm_hardware, pcm_format, cfg))
 		goto err_free_card;
