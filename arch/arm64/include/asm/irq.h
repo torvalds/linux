@@ -1,8 +1,6 @@
 #ifndef __ASM_IRQ_H
 #define __ASM_IRQ_H
 
-#include <linux/irqchip/arm-gic-acpi.h>
-
 #include <asm-generic/irq.h>
 
 struct pt_regs;
