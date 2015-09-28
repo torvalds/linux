@@ -504,6 +504,8 @@ static int audio_set_pcm_format(struct snd_pcm_hardware *pcm_hw,
 		if (cfg->subbuffer_size != 1)
 			goto error;
 		pr_info("PCM format is 8-bit mono\n");
+		pcm_hw->channels_min = 1;
+		pcm_hw->channels_max = 1;
 		pcm_hw->formats = SNDRV_PCM_FMTBIT_S8;
 	} else if (!strcmp(pcm_format, "2x16")) {
 		if (cfg->subbuffer_size != 4)
