@@ -76,7 +76,8 @@
 #define NDCR_ND_MODE		(0x3 << 21)
 #define NDCR_NAND_MODE   	(0x0)
 #define NDCR_CLR_PG_CNT		(0x1 << 20)
-#define NDCR_STOP_ON_UNCOR	(0x1 << 19)
+#define NFCV1_NDCR_ARB_CNTL	(0x1 << 19)
+#define NFCV2_NDCR_STOP_ON_UNCOR	(0x1 << 19)
 #define NDCR_RD_ID_CNT_MASK	(0x7 << 16)
 #define NDCR_RD_ID_CNT(x)	(((x) << 16) & NDCR_RD_ID_CNT_MASK)
 
@@ -1320,7 +1321,8 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 
 	/* Set an initial chunk size */
 	info->chunk_size = ndcr & NDCR_PAGE_SZ ? 2048 : 512;
-	info->reg_ndcr = ndcr & ~NDCR_INT_MASK;
+	info->reg_ndcr = ndcr &
+		~(NDCR_INT_MASK | NDCR_ND_ARB_EN | NFCV1_NDCR_ARB_CNTL);
 	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
 	info->ndtr1cs0 = nand_readl(info, NDTR1CS0);
 	return 0;
@@ -1553,6 +1555,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	pxa3xx_flash_ids[1].name = NULL;
 	def = pxa3xx_flash_ids;
 KEEP_CONFIG:
+	info->reg_ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
 	if (info->reg_ndcr & NDCR_DWIDTH_M)
 		chip->options |= NAND_BUSWIDTH_16;
 
@@ -1768,6 +1771,16 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 		free_irq(irq, info);
 	pxa3xx_nand_free_buff(info);
 
+	/*
+	 * In the pxa3xx case, the DFI bus is shared between the SMC and NFC.
+	 * In order to prevent a lockup of the system bus, the DFI bus
+	 * arbitration is granted to SMC upon driver removal. This is done by
+	 * setting the x_ARB_CNTL bit, which also prevents the NAND to have
+	 * access to the bus anymore.
+	 */
+	nand_writel(info, NDCR,
+		    (nand_readl(info, NDCR) & ~NDCR_ND_ARB_EN) |
+		    NFCV1_NDCR_ARB_CNTL);
 	clk_disable_unprepare(info->clk);
 
 	for (cs = 0; cs < pdata->num_cs; cs++)
