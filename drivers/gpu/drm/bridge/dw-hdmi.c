@@ -271,11 +271,11 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 
 static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 {
-	/* Set Standard Mode speed */
-	hdmi_writeb(hdmi, 0x03, HDMI_I2CM_DIV);
-
 	/* Software reset */
 	hdmi_writeb(hdmi, 0x00, HDMI_I2CM_SOFTRSTZ);
+
+	/* Set Standard Mode speed */
+	hdmi_writeb(hdmi, 0x03, HDMI_I2CM_DIV);
 
 	/* Set done, not acknowledged and arbitration interrupt polarities */
 	hdmi_writeb(hdmi, HDMI_I2CM_INT_DONE_POL, HDMI_I2CM_INT);
