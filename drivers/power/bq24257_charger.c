@@ -13,6 +13,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * Datasheets:
+ * http://www.ti.com/product/bq24250
+ * http://www.ti.com/product/bq24251
+ * http://www.ti.com/product/bq24257
  */
 
 #include <linux/module.h>
@@ -39,6 +43,22 @@
 #define BQ24257_PG_GPIO			"pg"
 
 #define BQ24257_ILIM_SET_DELAY		1000	/* msec */
+
+/*
+ * When adding support for new devices make sure that enum bq2425x_chip and
+ * bq2425x_chip_name[] always stay in sync!
+ */
+enum bq2425x_chip {
+	BQ24250,
+	BQ24251,
+	BQ24257,
+};
+
+static const char *const bq2425x_chip_name[] = {
+	"bq24250",
+	"bq24251",
+	"bq24257",
+};
 
 enum bq24257_fields {
 	F_WD_FAULT, F_WD_EN, F_STAT, F_FAULT,			    /* REG 1 */
@@ -69,6 +89,8 @@ struct bq24257_device {
 	struct i2c_client *client;
 	struct device *dev;
 	struct power_supply *charger;
+
+	enum bq2425x_chip chip;
 
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
@@ -246,6 +268,10 @@ static int bq24257_power_supply_get_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = BQ24257_MANUFACTURER;
+		break;
+
+	case POWER_SUPPLY_PROP_MODEL_NAME:
+		val->strval = bq2425x_chip_name[bq->chip];
 		break;
 
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -561,6 +587,7 @@ static int bq24257_hw_init(struct bq24257_device *bq)
 
 static enum power_supply_property bq24257_power_supply_props[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -644,6 +671,7 @@ static int bq24257_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
+	const struct acpi_device_id *acpi_id;
 	struct bq24257_device *bq;
 	int ret;
 	int i;
@@ -659,6 +687,18 @@ static int bq24257_probe(struct i2c_client *client,
 
 	bq->client = client;
 	bq->dev = dev;
+
+	if (ACPI_HANDLE(dev)) {
+		acpi_id = acpi_match_device(dev->driver->acpi_match_table,
+					    &client->dev);
+		if (!acpi_id) {
+			dev_err(dev, "Failed to match ACPI device\n");
+			return -ENODEV;
+		}
+		bq->chip = (enum bq2425x_chip)acpi_id->driver_data;
+	} else {
+		bq->chip = (enum bq2425x_chip)id->driver_data;
+	}
 
 	mutex_init(&bq->lock);
 
@@ -722,7 +762,7 @@ static int bq24257_probe(struct i2c_client *client,
 					bq24257_irq_handler_thread,
 					IRQF_TRIGGER_FALLING |
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"bq24257", bq);
+					bq2425x_chip_name[bq->chip], bq);
 	if (ret) {
 		dev_err(dev, "Failed to request IRQ #%d\n", client->irq);
 		return ret;
@@ -793,19 +833,25 @@ static const struct dev_pm_ops bq24257_pm = {
 };
 
 static const struct i2c_device_id bq24257_i2c_ids[] = {
-	{ "bq24257", 0 },
+	{ "bq24250", BQ24250 },
+	{ "bq24251", BQ24251 },
+	{ "bq24257", BQ24257 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, bq24257_i2c_ids);
 
 static const struct of_device_id bq24257_of_match[] = {
+	{ .compatible = "ti,bq24250", },
+	{ .compatible = "ti,bq24251", },
 	{ .compatible = "ti,bq24257", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq24257_of_match);
 
 static const struct acpi_device_id bq24257_acpi_match[] = {
-	{"BQ242570", 0},
+	{ "BQ242500", BQ24250 },
+	{ "BQ242510", BQ24251 },
+	{ "BQ242570", BQ24257 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, bq24257_acpi_match);
