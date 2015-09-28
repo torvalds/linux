@@ -1072,6 +1072,19 @@
 					};
 				};
 			};
+
+			fsm {
+				pinctrl_fsm: fsm {
+					st,pins {
+						spi-fsm-clk = <&pio40 1 ALT1 OUT>;
+						spi-fsm-cs = <&pio40 0 ALT1 OUT>;
+						spi-fsm-mosi = <&pio40 2 ALT1 OUT>;
+						spi-fsm-miso = <&pio40 3 ALT1 IN>;
+						spi-fsm-hol = <&pio40 5 ALT1 OUT>;
+						spi-fsm-wp = <&pio40 4 ALT1 OUT>;
+					};
+				};
+			};
 		};
 	};
 };
