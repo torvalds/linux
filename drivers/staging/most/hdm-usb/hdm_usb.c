@@ -711,7 +711,7 @@ static int hdm_enqueue(struct most_interface *iface, int channel, struct mbo *mb
 				  usb_rcvbulkpipe(mdev->usb_device,
 						  mdev->ep_address[channel]),
 				  virt_address,
-				  length,
+				  length + conf->extra_len,
 				  hdm_read_completion,
 				  mbo);
 	}
@@ -771,6 +771,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	    !((conf->data_type == MOST_CH_ISOC_AVP) &&
 	      (conf->packets_per_xact != 0xFF))) {
 		mdev->padding_active[channel] = false;
+		conf->extra_len = 0;
 		goto exit;
 	}
 
