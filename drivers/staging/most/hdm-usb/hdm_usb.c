@@ -789,26 +789,24 @@ exit:
  */
 static int hdm_update_netinfo(struct most_dev *mdev)
 {
-	struct device *dev = &mdev->usb_device->dev;
+	struct usb_device *usb_device = mdev->usb_device;
+	struct device *dev = &usb_device->dev;
 	u16 hi, mi, lo, link;
 
 	if (!is_valid_ether_addr(mdev->hw_addr)) {
-		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_HI, &hi)) {
+		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_hi\" failed\n");
 			return -1;
 		}
 		le16_to_cpus(&hi);
 
-		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_MI, &mi)) {
+		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_mid\" failed\n");
 			return -1;
 		}
 		le16_to_cpus(&mi);
 
-		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_LO, &lo)) {
+		if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo) < 0) {
 			dev_err(dev, "Vendor request \"hw_addr_low\" failed\n");
 			return -1;
 		}
@@ -822,13 +820,14 @@ static int hdm_update_netinfo(struct most_dev *mdev)
 		mdev->hw_addr[4] = lo >> 8;
 		mdev->hw_addr[5] = lo;
 		mutex_unlock(&mdev->io_mutex);
-
 	}
-	if (0 > drci_rd_reg(mdev->usb_device, DRCI_REG_NI_STATE, &link)) {
+
+	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link) < 0) {
 		dev_err(dev, "Vendor request \"link status\" failed\n");
 		return -1;
 	}
 	le16_to_cpus(&link);
+
 	mutex_lock(&mdev->io_mutex);
 	mdev->link_stat = link;
 	mutex_unlock(&mdev->io_mutex);
