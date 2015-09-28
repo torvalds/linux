@@ -317,16 +317,12 @@ static void __init parse_dt_cpu_power(void)
 		cpu_capacity(cpu) = capacity;
 	}
 
-	/* If min and max capacities are equal we bypass the update of the
-	 * cpu_scale because all CPUs have the same capacity. Otherwise, we
-	 * compute a middle_capacity factor that will ensure that the capacity
+	/* compute a middle_capacity factor that will ensure that the capacity
 	 * of an 'average' CPU of the system will be as close as possible to
 	 * SCHED_POWER_SCALE, which is the default value, but with the
 	 * constraint explained near table_efficiency[].
 	 */
-	if (min_capacity == max_capacity)
-		return;
-	else if (4 * max_capacity < (3 * (max_capacity + min_capacity)))
+	if (4 * max_capacity < (3 * (max_capacity + min_capacity)))
 		middle_capacity = (min_capacity + max_capacity)
 				>> (SCHED_POWER_SHIFT+1);
 	else

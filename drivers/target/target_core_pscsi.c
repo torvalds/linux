@@ -520,6 +520,7 @@ static int pscsi_configure_device(struct se_device *dev)
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
 				return -EINVAL;
 			}
+			pdv->pdv_lld_host = sh;
 		}
 	} else {
 		if (phv->phv_mode == PHV_VIRTUAL_HOST_ID) {
@@ -602,6 +603,8 @@ static void pscsi_free_device(struct se_device *dev)
 		if ((phv->phv_mode == PHV_LLD_SCSI_HOST_NO) &&
 		    (phv->phv_lld_host != NULL))
 			scsi_host_put(phv->phv_lld_host);
+		else if (pdv->pdv_lld_host)
+			scsi_host_put(pdv->pdv_lld_host);
 
 		if ((sd->type == TYPE_DISK) || (sd->type == TYPE_ROM))
 			scsi_device_put(sd);

@@ -2761,7 +2761,6 @@ extern void rtllib_stop_scan(struct rtllib_device *ieee);
 extern bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
 extern void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
 extern void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
-extern inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee);
 extern u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee);
 extern void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee,
 					  short pwr);
@@ -2943,12 +2942,12 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
 
 extern const long rtllib_wlan_frequencies[];
 
-extern inline void rtllib_increment_scans(struct rtllib_device *ieee)
+static inline void rtllib_increment_scans(struct rtllib_device *ieee)
 {
 	ieee->scans++;
 }
 
-extern inline int rtllib_get_scans(struct rtllib_device *ieee)
+static inline int rtllib_get_scans(struct rtllib_device *ieee)
 {
 	return ieee->scans;
 }
