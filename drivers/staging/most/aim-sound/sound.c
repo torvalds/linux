@@ -340,7 +340,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	    !(params_format(hw_params) != channel->pcm_hardware.formats))
 		return -EINVAL;
 	return snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
+						params_buffer_bytes(hw_params));
 }
 
 /**
@@ -480,8 +480,8 @@ static int split_arg_list(char *buf, char **card_name, char **pcm_format)
 }
 
 static int audio_set_hw_params(struct snd_pcm_hardware *pcm_hw,
-				char *pcm_format,
-				struct most_channel_config *cfg)
+			       char *pcm_format,
+			       struct most_channel_config *cfg)
 {
 	pcm_hw->info = MOST_PCM_INFO;
 	pcm_hw->rates = SNDRV_PCM_RATE_48000;
