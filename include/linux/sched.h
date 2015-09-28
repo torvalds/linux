@@ -599,11 +599,7 @@ struct task_cputime_atomic {
 		.sum_exec_runtime = ATOMIC64_INIT(0),		\
 	}
 
-#ifdef CONFIG_PREEMPT_COUNT
-#define PREEMPT_DISABLED	(1 + PREEMPT_ENABLED)
-#else
-#define PREEMPT_DISABLED	PREEMPT_ENABLED
-#endif
+#define PREEMPT_DISABLED	(PREEMPT_DISABLE_OFFSET + PREEMPT_ENABLED)
 
 /*
  * Disable preemption until the scheduler is running -- use an unconditional
@@ -612,6 +608,17 @@ struct task_cputime_atomic {
  * Reset by start_kernel()->sched_init()->init_idle()->init_idle_preempt_count().
  */
 #define INIT_PREEMPT_COUNT	PREEMPT_OFFSET
+
+/*
+ * Initial preempt_count value; reflects the preempt_count schedule invariant
+ * which states that during context switches:
+ *
+ *    preempt_count() == 2*PREEMPT_DISABLE_OFFSET
+ *
+ * Note: PREEMPT_DISABLE_OFFSET is 0 for !PREEMPT_COUNT kernels.
+ * Note: See finish_task_switch().
+ */
+#define FORK_PREEMPT_COUNT	(2*PREEMPT_DISABLE_OFFSET + PREEMPT_ENABLED)
 
 /**
  * struct thread_group_cputimer - thread group interval timer counts
