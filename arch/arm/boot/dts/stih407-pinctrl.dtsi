@@ -121,6 +121,24 @@
 						ir = <&pio4 0 ALT2 IN>;
 					};
 				};
+
+				pinctrl_uhf: uhf0 {
+					st,pins {
+						ir = <&pio4 1 ALT2 IN>;
+					};
+				};
+
+				pinctrl_tx: tx0 {
+					st,pins {
+						tx = <&pio4 2 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_tx_od: tx_od0 {
+					st,pins {
+						tx_od = <&pio4 3 ALT2 OUT>;
+					};
+				};
 			};
 
 			/* SBC_ASC0 - UART10 */
