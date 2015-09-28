@@ -123,6 +123,7 @@ config RENESAS_INTC_IRQPIN
 
 config RENESAS_IRQC
 	bool
+	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
 config ST_IRQCHIP
