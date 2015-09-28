@@ -10630,12 +10630,17 @@ err_dma:
 static void i40e_remove(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
+	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret_code;
 	int i;
 
 	i40e_dbg_pf_exit(pf);
 
 	i40e_ptp_stop(pf);
+
+	/* Disable RSS in hw */
+	wr32(hw, I40E_PFQF_HENA(0), 0);
+	wr32(hw, I40E_PFQF_HENA(1), 0);
 
 	/* no more scheduling of any task */
 	set_bit(__I40E_DOWN, &pf->state);
