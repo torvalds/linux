@@ -753,10 +753,8 @@ static int nl802154_new_interface(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	/* TODO add nla_get_le64 to netlink */
 	if (info->attrs[NL802154_ATTR_EXTENDED_ADDR])
-		extended_addr = (__force __le64)nla_get_u64(
-				info->attrs[NL802154_ATTR_EXTENDED_ADDR]);
+		extended_addr = nla_get_le64(info->attrs[NL802154_ATTR_EXTENDED_ADDR]);
 
 	if (!rdev->ops->add_virtual_intf)
 		return -EOPNOTSUPP;
