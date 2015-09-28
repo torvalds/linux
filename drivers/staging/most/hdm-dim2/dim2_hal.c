@@ -766,14 +766,14 @@ u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		   u16 max_buffer_size)
 {
 	return init_ctrl_async(ch, CAT_CT_VAL_CONTROL, is_tx, ch_address,
-			       max_buffer_size * 2);
+			       max_buffer_size);
 }
 
 u8 DIM_InitAsync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 		 u16 max_buffer_size)
 {
 	return init_ctrl_async(ch, CAT_CT_VAL_ASYNC, is_tx, ch_address,
-			       max_buffer_size * 2);
+			       max_buffer_size);
 }
 
 u8 DIM_InitIsoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
