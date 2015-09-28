@@ -24,7 +24,7 @@ extern struct of_device_id __clksrc_of_table[];
 static const struct of_device_id __clksrc_of_table_sentinel
 	__used __section(__clksrc_of_table_end);
 
-void __init clocksource_of_init(void)
+void __init clocksource_probe(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;
