@@ -156,5 +156,6 @@ int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
+char *parse_events_formats_error_string(char *additional_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

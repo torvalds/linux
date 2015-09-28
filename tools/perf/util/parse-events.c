@@ -656,6 +656,9 @@ do {									   \
 		CHECK_TYPE_VAL(STR);
 		break;
 	default:
+		err->str = strdup("unknown term");
+		err->idx = term->err_term;
+		err->help = parse_events_formats_error_string(NULL);
 		return -EINVAL;
 	}
 
@@ -1874,4 +1877,30 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 	err->idx = idx;
 	err->str = strdup(str);
 	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
+}
+
+/*
+ * Return string contains valid config terms of an event.
+ * @additional_terms: For terms such as PMU sysfs terms.
+ */
+char *parse_events_formats_error_string(char *additional_terms)
+{
+	char *str;
+	static const char *static_terms = "config,config1,config2,name,"
+					  "period,freq,branch_type,time,"
+					  "call-graph,stack-size\n";
+
+	/* valid terms */
+	if (additional_terms) {
+		if (!asprintf(&str, "valid terms: %s,%s",
+			      additional_terms, static_terms))
+			goto fail;
+	} else {
+		if (!asprintf(&str, "valid terms: %s", static_terms))
+			goto fail;
+	}
+	return str;
+
+fail:
+	return NULL;
 }
