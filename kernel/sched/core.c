@@ -2968,8 +2968,10 @@ static inline void schedule_debug(struct task_struct *prev)
 	BUG_ON(unlikely(task_stack_end_corrupted(prev)));
 #endif
 
-	if (unlikely(in_atomic_preempt_off()))
+	if (unlikely(in_atomic_preempt_off())) {
 		__schedule_bug(prev);
+		preempt_count_set(PREEMPT_DISABLED);
+	}
 	rcu_sleep_check();
 
 	profile_hit(SCHED_PROFILING, __builtin_return_address(0));
