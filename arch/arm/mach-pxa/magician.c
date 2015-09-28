@@ -702,8 +702,10 @@ static struct pxamci_platform_data magician_mci_info = {
 
 static struct pxaohci_platform_data magician_ohci_info = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.flags		= ENABLE_PORT1 | ENABLE_PORT3 | POWER_CONTROL_LOW,
+	/* port1: CSR Bluetooth, port2: OTG with UDC */
+	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
 	.power_budget	= 0,
+	.power_on_delay = 100,
 };
 
 /*
