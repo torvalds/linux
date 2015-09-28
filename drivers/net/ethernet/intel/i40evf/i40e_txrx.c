@@ -333,6 +333,7 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	enum i40e_latency_range new_latency_range = rc->latency_range;
 	u32 new_itr = rc->itr;
 	int bytes_per_int;
+	int usecs;
 
 	if (rc->total_packets == 0 || !rc->itr)
 		return false;
@@ -341,8 +342,14 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 	 *   0-10MB/s   lowest (100000 ints/s)
 	 *  10-20MB/s   low    (20000 ints/s)
 	 *  20-1249MB/s bulk   (8000 ints/s)
+	 *
+	 * The math works out because the divisor is in 10^(-6) which
+	 * turns the bytes/us input value into MB/s values, but
+	 * make sure to use usecs, as the register values written
+	 * are in 2 usec increments in the ITR registers.
 	 */
-	bytes_per_int = rc->total_bytes / rc->itr;
+	usecs = (rc->itr << 1);
+	bytes_per_int = rc->total_bytes / usecs;
 	switch (new_latency_range) {
 	case I40E_LOWEST_LATENCY:
 		if (bytes_per_int > 10)
