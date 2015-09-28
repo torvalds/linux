@@ -751,9 +751,9 @@ static int i40e_set_settings(struct net_device *netdev,
 
 		status = i40e_update_link_info(hw);
 		if (status)
-			netdev_info(netdev, "Updating link info failed with err %s aq_err %s\n",
-				    i40e_stat_str(hw, status),
-				    i40e_aq_str(hw, hw->aq.asq_last_status));
+			netdev_dbg(netdev, "Updating link info failed with err %s aq_err %s\n",
+				   i40e_stat_str(hw, status),
+				   i40e_aq_str(hw, hw->aq.asq_last_status));
 
 	} else {
 		netdev_info(netdev, "Nothing changed, exiting without setting anything.\n");
