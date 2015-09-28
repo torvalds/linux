@@ -27,6 +27,7 @@
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
@@ -345,6 +346,15 @@ static struct pwm_lookup magician_pwm_lookup[] = {
 	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight", NULL, 30923,
 		   PWM_POLARITY_NORMAL),
 };
+
+ /*
+ * fixed regulator for pwm_backlight
+ */
+
+static struct regulator_consumer_supply pwm_backlight_supply[] = {
+	REGULATOR_SUPPLY("power", "pwm_backlight"),
+};
+
 
 static struct gpio magician_bl_gpios[] = {
 	{ EGPIO_MAGICIAN_BL_POWER,	GPIOF_DIR_OUT, "Backlight power" },
@@ -867,6 +877,9 @@ static void __init magician_init(void)
 			lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
+
+	regulator_register_always_on(0, "power", pwm_backlight_supply,
+		ARRAY_SIZE(pwm_backlight_supply), 5000000);
 }
 
 MACHINE_START(MAGICIAN, "HTC Magician")
