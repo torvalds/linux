@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/clocksource.h>
@@ -38,6 +39,9 @@ void __init clocksource_of_init(void)
 		init_func(np);
 		clocksources++;
 	}
+
+	clocksources += acpi_probe_device_table(clksrc);
+
 	if (!clocksources)
 		pr_crit("%s: no matching clocksources found\n", __func__);
 }
