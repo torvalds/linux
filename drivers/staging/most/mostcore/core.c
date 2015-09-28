@@ -1555,11 +1555,6 @@ int most_stop_channel(struct most_interface *iface, int id)
 	if (!c->is_started)
 		return 0;
 
-	/* FIXME: we need to know calling AIM to reset only one link */
-	c->first_aim = NULL;
-	c->second_aim = NULL;
-	/* do not go into recursion calling aim->disconnect_channel */
-
 	mutex_lock(&c->stop_task_mutex);
 	if (c->hdm_enqueue_task)
 		kthread_stop(c->hdm_enqueue_task);
