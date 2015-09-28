@@ -790,29 +790,37 @@ exit:
 static int hdm_update_netinfo(struct most_dev *mdev)
 {
 	struct device *dev = &mdev->usb_device->dev;
-	int i;
-	u16 link;
-	u8 addr[6];
+	u16 hi, mi, lo, link;
 
 	if (!is_valid_ether_addr(mdev->hw_addr)) {
 		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_HI, addr)) {
+				    DRCI_REG_HW_ADDR_HI, &hi)) {
 			dev_err(dev, "Vendor request \"hw_addr_hi\" failed\n");
 			return -1;
 		}
+		le16_to_cpus(&hi);
+
 		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_MI, addr + 2)) {
+				    DRCI_REG_HW_ADDR_MI, &mi)) {
 			dev_err(dev, "Vendor request \"hw_addr_mid\" failed\n");
 			return -1;
 		}
+		le16_to_cpus(&mi);
+
 		if (0 > drci_rd_reg(mdev->usb_device,
-				    DRCI_REG_HW_ADDR_LO, addr + 4)) {
+				    DRCI_REG_HW_ADDR_LO, &lo)) {
 			dev_err(dev, "Vendor request \"hw_addr_low\" failed\n");
 			return -1;
 		}
+		le16_to_cpus(&lo);
+
 		mutex_lock(&mdev->io_mutex);
-		for (i = 0; i < 6; i++)
-			mdev->hw_addr[i] = addr[i];
+		mdev->hw_addr[0] = hi >> 8;
+		mdev->hw_addr[1] = hi;
+		mdev->hw_addr[2] = mi >> 8;
+		mdev->hw_addr[3] = mi;
+		mdev->hw_addr[4] = lo >> 8;
+		mdev->hw_addr[5] = lo;
 		mutex_unlock(&mdev->io_mutex);
 
 	}
