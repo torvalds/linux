@@ -146,18 +146,6 @@ extern void preempt_count_sub(int val);
 #define preempt_count_inc() preempt_count_add(1)
 #define preempt_count_dec() preempt_count_sub(1)
 
-#define preempt_active_enter() \
-do { \
-	preempt_count_add(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET); \
-	barrier(); \
-} while (0)
-
-#define preempt_active_exit() \
-do { \
-	barrier(); \
-	preempt_count_sub(PREEMPT_ACTIVE + PREEMPT_DISABLE_OFFSET); \
-} while (0)
-
 #ifdef CONFIG_PREEMPT_COUNT
 
 #define preempt_disable() \
