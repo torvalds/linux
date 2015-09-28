@@ -165,7 +165,7 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 	}
 	mutex_unlock(&channel->io_mutex);
 
-	mbo = most_get_mbo(channel->iface, channel->channel_id);
+	mbo = most_get_mbo(channel->iface, channel->channel_id, &cdev_aim);
 
 	if (!mbo) {
 		if ((filp->f_flags & O_NONBLOCK))
@@ -173,7 +173,8 @@ static ssize_t aim_write(struct file *filp, const char __user *buf,
 		if (wait_event_interruptible(
 			    channel->wq,
 			    (mbo = most_get_mbo(channel->iface,
-						channel->channel_id)) ||
+						channel->channel_id,
+						&cdev_aim)) ||
 			    (!channel->dev)))
 			return -ERESTARTSYS;
 	}

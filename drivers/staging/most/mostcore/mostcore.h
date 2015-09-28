@@ -190,6 +190,7 @@ struct mbo {
 	void *priv;
 	struct list_head list;
 	struct most_interface *ifp;
+	int *num_buffers_ptr;
 	u16 hdm_channel_id;
 	void *virt_address;
 	dma_addr_t bus_address;
@@ -307,7 +308,8 @@ void most_stop_enqueue(struct most_interface *iface, int channel_idx);
 void most_resume_enqueue(struct most_interface *iface, int channel_idx);
 int most_register_aim(struct most_aim *aim);
 int most_deregister_aim(struct most_aim *aim);
-struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx);
+struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
+			 struct most_aim *);
 void most_put_mbo(struct mbo *mbo);
 int most_start_channel(struct most_interface *iface, int channel_idx,
 		       struct most_aim *);

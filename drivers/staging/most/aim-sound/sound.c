@@ -251,7 +251,8 @@ static int playback_thread(void *data)
 		wait_event_interruptible(
 			channel->playback_waitq,
 			kthread_should_stop() ||
-			(mbo = most_get_mbo(channel->iface, channel->id)));
+			(mbo = most_get_mbo(channel->iface, channel->id,
+					    &audio_aim)));
 
 		if (!mbo)
 			continue;

@@ -36,6 +36,7 @@ static struct class *most_class;
 static struct device *class_glue_dir;
 static struct ida mdev_id;
 static int modref;
+static int dummy_num_buffers;
 
 struct most_c_obj {
 	struct kobject kobj;
@@ -59,6 +60,8 @@ struct most_c_obj {
 	struct most_aim *second_aim;
 	int first_aim_refs;
 	int second_aim_refs;
+	int first_num_buffers;
+	int second_num_buffers;
 	struct list_head trash_fifo;
 	struct task_struct *hdm_enqueue_task;
 	struct mutex stop_task_mutex;
@@ -1233,6 +1236,7 @@ static void arm_mbo(struct mbo *mbo)
 	}
 
 	spin_lock_irqsave(&c->fifo_lock, flags);
+	++*mbo->num_buffers_ptr;
 	list_add_tail(&mbo->list, &c->fifo);
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
 
@@ -1286,6 +1290,7 @@ static int arm_mbo_chain(struct most_c_obj *c, int dir,
 			goto _error1;
 		}
 		mbo->complete = compl;
+		mbo->num_buffers_ptr = &dummy_num_buffers;
 		if (dir == MOST_CH_RX) {
 			nq_hdm_mbo(mbo);
 			atomic_inc(&c->mbo_nq_level);
@@ -1384,22 +1389,40 @@ most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
  * This attempts to get a free buffer out of the channel fifo.
  * Returns a pointer to MBO on success or NULL otherwise.
  */
-struct mbo *most_get_mbo(struct most_interface *iface, int id)
+struct mbo *most_get_mbo(struct most_interface *iface, int id,
+			 struct most_aim *aim)
 {
 	struct mbo *mbo;
 	struct most_c_obj *c;
 	unsigned long flags;
+	int *num_buffers_ptr;
 
 	c = get_channel_by_iface(iface, id);
 	if (unlikely(!c))
 		return NULL;
+
+	if (c->first_aim_refs && c->second_aim_refs &&
+	    ((aim == c->first_aim && c->first_num_buffers <= 0) ||
+	     (aim == c->second_aim && c->second_num_buffers <= 0)))
+		return NULL;
+
+	if (aim == c->first_aim)
+		num_buffers_ptr = &c->first_num_buffers;
+	else if (aim == c->second_aim)
+		num_buffers_ptr = &c->second_num_buffers;
+	else
+		num_buffers_ptr = &dummy_num_buffers;
+
 	spin_lock_irqsave(&c->fifo_lock, flags);
 	if (list_empty(&c->fifo)) {
 		spin_unlock_irqrestore(&c->fifo_lock, flags);
 		return NULL;
 	}
 	mbo = list_pop_mbo(&c->fifo);
+	--*num_buffers_ptr;
 	spin_unlock_irqrestore(&c->fifo_lock, flags);
+
+	mbo->num_buffers_ptr = num_buffers_ptr;
 	mbo->buffer_length = c->cfg.buffer_size;
 	return mbo;
 }
@@ -1530,6 +1553,8 @@ int most_start_channel(struct most_interface *iface, int id,
 		goto error;
 
 	c->is_starving = 0;
+	c->first_num_buffers = c->cfg.num_buffers / 2;
+	c->second_num_buffers = c->cfg.num_buffers - c->first_num_buffers;
 	atomic_set(&c->mbo_ref, num_buffer);
 
 out:
