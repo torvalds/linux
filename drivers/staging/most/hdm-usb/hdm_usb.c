@@ -1077,7 +1077,7 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 			   struct most_dci_attribute *attr,
 			   const char *buf, size_t count)
 {
-	u16 v16;
+	u16 val;
 	u16 reg_addr;
 	int err;
 
@@ -1100,11 +1100,11 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 	else
 		return -EIO;
 
-	err = kstrtou16(buf, 16, &v16);
+	err = kstrtou16(buf, 16, &val);
 	if (err)
 		return err;
 
-	err = drci_wr_reg(dci_obj->usb_device, reg_addr, cpu_to_le16(v16));
+	err = drci_wr_reg(dci_obj->usb_device, reg_addr, val);
 	if (err < 0)
 		return err;
 
@@ -1295,7 +1295,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		err = drci_wr_reg(usb_dev,
 				  DRCI_REG_BASE + DRCI_COMMAND +
 				  ep_desc->bEndpointAddress * 16,
-				  cpu_to_le16(1));
+				  1);
 		if (err < 0)
 			pr_warn("DCI Sync for EP %02x failed",
 				ep_desc->bEndpointAddress);
