@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/poll.h>
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
 #include <linux/idr.h>
@@ -31,6 +32,7 @@ static struct most_aim cdev_aim;
 
 struct aim_channel {
 	wait_queue_head_t wq;
+	wait_queue_head_t poll_wq;
 	struct cdev cdev;
 	struct device *dev;
 	struct mutex io_mutex;
@@ -271,6 +273,28 @@ start_copy:
 	return retval;
 }
 
+static inline bool __must_check IS_ERR_OR_FALSE(int x)
+{
+	return x <= 0;
+}
+
+static unsigned int aim_poll(struct file *filp, poll_table *wait)
+{
+	struct aim_channel *c = filp->private_data;
+	unsigned int mask = 0;
+
+	poll_wait(filp, &c->poll_wq, wait);
+
+	if (c->cfg->direction == MOST_CH_RX) {
+		if (!kfifo_is_empty(&c->fifo))
+			mask |= POLLIN | POLLRDNORM;
+	} else {
+		if (!IS_ERR_OR_FALSE(channel_has_mbo(c->iface, c->channel_id)))
+			mask |= POLLOUT | POLLWRNORM;
+	}
+	return mask;
+}
+
 /**
  * Initialization of struct file_operations
  */
@@ -280,6 +304,7 @@ static const struct file_operations channel_fops = {
 	.write = aim_write,
 	.open = aim_open,
 	.release = aim_close,
+	.poll = aim_poll,
 };
 
 /**
@@ -434,6 +459,7 @@ static int aim_probe(struct most_interface *iface, int channel_id,
 		goto error_alloc_kfifo;
 	}
 	init_waitqueue_head(&channel->wq);
+	init_waitqueue_head(&channel->poll_wq);
 	mutex_init(&channel->io_mutex);
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
 	list_add_tail(&channel->list, &channel_list);

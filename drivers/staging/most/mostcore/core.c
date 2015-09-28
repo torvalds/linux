@@ -1383,6 +1383,22 @@ most_c_obj *get_channel_by_iface(struct most_interface *iface, int id)
 	return i->channel[id];
 }
 
+int channel_has_mbo(struct most_interface *iface, int id)
+{
+	struct most_c_obj *c = get_channel_by_iface(iface, id);
+	unsigned long flags;
+	int empty;
+
+	if (unlikely(!c))
+		return -EINVAL;
+
+	spin_lock_irqsave(&c->fifo_lock, flags);
+	empty = list_empty(&c->fifo);
+	spin_unlock_irqrestore(&c->fifo_lock, flags);
+	return !empty;
+}
+EXPORT_SYMBOL_GPL(channel_has_mbo);
+
 /**
  * most_get_mbo - get pointer to an MBO of pool
  * @iface: pointer to interface instance
