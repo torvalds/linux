@@ -59,6 +59,8 @@
 #define DRCI_REG_HW_ADDR_HI	0x0145
 #define DRCI_REG_HW_ADDR_MI	0x0146
 #define DRCI_REG_HW_ADDR_LO	0x0147
+#define DRCI_REG_BASE		0x1100
+#define DRCI_COMMAND		0x02
 #define DRCI_READ_REQ		0xA0
 #define DRCI_WRITE_REQ		0xA1
 
@@ -135,36 +137,6 @@ struct most_dev {
 static struct workqueue_struct *schedule_usb_work;
 static void wq_clear_halt(struct work_struct *wq_obj);
 static void wq_netinfo(struct work_struct *wq_obj);
-
-/**
- * trigger_resync_vr - Vendor request to trigger HW re-sync mechanism
- * @dev: usb device
- *
- */
-static void trigger_resync_vr(struct usb_device *dev)
-{
-	int retval;
-	u8 request_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
-	int *data = kzalloc(sizeof(*data), GFP_KERNEL);
-
-	if (!data)
-		goto error;
-	*data = HW_RESYNC;
-	retval = usb_control_msg(dev,
-				 usb_sndctrlpipe(dev, 0),
-				 0,
-				 request_type,
-				 0,
-				 0,
-				 data,
-				 0,
-				 5 * HZ);
-	kfree(data);
-	if (retval >= 0)
-		return;
-error:
-	dev_err(&dev->dev, "Vendor request \"stall\" failed\n");
-}
 
 /**
  * drci_rd_reg - read a DCI register
@@ -1239,6 +1211,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct usb_host_interface *usb_iface_desc;
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = 0;
+	int err;
 
 	usb_iface_desc = interface->cur_altsetting;
 	usb_dev = interface_to_usbdev(interface);
@@ -1319,6 +1292,13 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		tmp_cap++;
 		INIT_LIST_HEAD(&mdev->anchor_list[i]);
 		spin_lock_init(&mdev->anchor_list_lock[i]);
+		err = drci_wr_reg(usb_dev,
+				  DRCI_REG_BASE + DRCI_COMMAND +
+				  ep_desc->bEndpointAddress * 16,
+				  cpu_to_le16(1));
+		if (err < 0)
+			pr_warn("DCI Sync for EP %02x failed",
+				ep_desc->bEndpointAddress);
 	}
 	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
@@ -1353,7 +1333,6 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 		kobject_uevent(&mdev->dci->kobj, KOBJ_ADD);
 		mdev->dci->usb_device = mdev->usb_device;
-		trigger_resync_vr(usb_dev);
 	}
 	mutex_unlock(&mdev->io_mutex);
 	return 0;
