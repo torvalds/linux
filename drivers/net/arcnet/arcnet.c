@@ -326,7 +326,7 @@ static void arcdev_setup(struct net_device *dev)
 	dev->type = ARPHRD_ARCNET;
 	dev->netdev_ops = &arcnet_netdev_ops;
 	dev->header_ops = &arcnet_header_ops;
-	dev->hard_header_len = sizeof(struct archdr);
+	dev->hard_header_len = sizeof(struct arc_hardware);
 	dev->mtu = choose_mtu();
 
 	dev->addr_len = ARCNET_ALEN;

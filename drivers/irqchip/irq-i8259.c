@@ -352,7 +352,7 @@ void __init init_i8259_irqs(void)
 	__init_i8259_irqs(NULL);
 }
 
-static void i8259_irq_dispatch(unsigned int __irq, struct irq_desc *desc)
+static void i8259_irq_dispatch(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	int hwirq = i8259_irq();

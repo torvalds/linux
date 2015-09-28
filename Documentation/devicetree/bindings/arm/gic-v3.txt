@@ -57,6 +57,8 @@ used to route Message Signalled Interrupts (MSI) to the CPUs.
 These nodes must have the following properties:
 - compatible : Should at least contain  "arm,gic-v3-its".
 - msi-controller : Boolean property. Identifies the node as an MSI controller
+- #msi-cells: Must be <1>. The single msi-cell is the DeviceID of the device
+  which will generate the MSI.
 - reg: Specifies the base physical address and size of the ITS
   registers.
 
@@ -83,6 +85,7 @@ Examples:
 		gic-its@2c200000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0x2c200000 0 0x200000>;
 		};
 	};
@@ -107,12 +110,14 @@ Examples:
 		gic-its@2c200000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0x2c200000 0 0x200000>;
 		};
 
 		gic-its@2c400000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
+			#msi-cells = <1>;
 			reg = <0x0 0x2c400000 0 0x200000>;
 		};
 	};

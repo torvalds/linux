@@ -16,12 +16,12 @@ TARGETS += powerpc
 TARGETS += ptrace
 TARGETS += seccomp
 TARGETS += size
+TARGETS += static_keys
 TARGETS += sysctl
 ifneq (1, $(quicktest))
 TARGETS += timers
 endif
 TARGETS += user
-TARGETS += jumplabel
 TARGETS += vm
 TARGETS += x86
 TARGETS += zram
