@@ -866,7 +866,6 @@ static const char *trace_options[] = {
 	"block",
 	"stacktrace",
 	"trace_printk",
-	"ftrace_preempt",
 	"branch",
 	"annotate",
 	"userstacktrace",
