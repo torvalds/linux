@@ -2357,9 +2357,12 @@ err_alloc:
 err:
 	/* Things went into the weeds, so try again later */
 	if (++adapter->aq_wait_count > I40EVF_AQ_MAX_ERR) {
-		dev_err(&pdev->dev, "Failed to communicate with PF; giving up\n");
+		dev_err(&pdev->dev, "Failed to communicate with PF; waiting before retry\n");
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
-		return; /* do not reschedule */
+		i40evf_shutdown_adminq(hw);
+		adapter->state = __I40EVF_STARTUP;
+		schedule_delayed_work(&adapter->init_task, HZ * 5);
+		return;
 	}
 	schedule_delayed_work(&adapter->init_task, HZ);
 }
