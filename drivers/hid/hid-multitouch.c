@@ -968,6 +968,9 @@ static void mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		case HID_DG_TOUCHSCREEN:
 			/* we do not set suffix = "Touchscreen" */
 			break;
+		case HID_DG_TOUCHPAD:
+			suffix = "Touchpad";
+			break;
 		case HID_GD_SYSTEM_CONTROL:
 			suffix = "System Control";
 			break;
