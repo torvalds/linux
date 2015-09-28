@@ -802,7 +802,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 	unsigned int segno = NULL_SEGNO;
 	unsigned int i;
 	int gc_type = BG_GC;
-	int nfree = 0;
+	int sec_freed = 0;
 	int ret = -1;
 	struct cp_control cpc;
 	struct gc_inode_list gc_list = {
@@ -817,7 +817,7 @@ gc_more:
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto stop;
 
-	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, nfree)) {
+	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
 		gc_type = FG_GC;
 		if (__get_victim(sbi, &segno, gc_type) || prefree_segments(sbi))
 			write_checkpoint(sbi, &cpc);
@@ -832,13 +832,23 @@ gc_more:
 		ra_meta_pages(sbi, GET_SUM_BLOCK(sbi, segno), sbi->segs_per_sec,
 								META_SSA);
 
-	for (i = 0; i < sbi->segs_per_sec; i++)
-		nfree += do_garbage_collect(sbi, segno + i, &gc_list, gc_type);
+	for (i = 0; i < sbi->segs_per_sec; i++) {
+		/*
+		 * for FG_GC case, halt gcing left segments once failed one
+		 * of segments in selected section to avoid long latency.
+		 */
+		if (!do_garbage_collect(sbi, segno + i, &gc_list, gc_type) &&
+				gc_type == FG_GC)
+			break;
+	}
+
+	if (i == sbi->segs_per_sec && gc_type == FG_GC)
+		sec_freed++;
 
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
-	if (has_not_enough_free_secs(sbi, nfree))
+	if (has_not_enough_free_secs(sbi, sec_freed))
 		goto gc_more;
 
 	if (gc_type == FG_GC)
