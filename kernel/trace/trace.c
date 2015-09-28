@@ -472,12 +472,20 @@ static inline void trace_access_lock_init(void)
 static void __ftrace_trace_stack(struct ring_buffer *buffer,
 				 unsigned long flags,
 				 int skip, int pc, struct pt_regs *regs);
+static void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
+			       int skip, int pc);
+
 #else
 static inline void __ftrace_trace_stack(struct ring_buffer *buffer,
 					unsigned long flags,
 					int skip, int pc, struct pt_regs *regs)
 {
 }
+static inline void ftrace_trace_stack(struct ring_buffer *buffer,
+				      unsigned long flags, int skip, int pc)
+{
+}
+
 #endif
 
 /* trace_flags holds trace_options default values */
@@ -1872,7 +1880,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 
 }
 
-void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
+static void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
 			int skip, int pc)
 {
 	if (!(trace_flags & TRACE_ITER_STACKTRACE))
