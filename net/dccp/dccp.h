@@ -276,7 +276,7 @@ struct sock *dccp_create_openreq_child(const struct sock *sk,
 
 int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
+struct sock *dccp_v4_request_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				       struct request_sock *req,
 				       struct dst_entry *dst);
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
