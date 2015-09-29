@@ -273,14 +273,14 @@ int input_ff_event(struct input_dev *dev, unsigned int type,
 
 	switch (code) {
 	case FF_GAIN:
-		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_GAIN, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_gain(dev, value);
 		break;
 
 	case FF_AUTOCENTER:
-		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffff)
+		if (!test_bit(FF_AUTOCENTER, dev->ffbit) || value > 0xffffU)
 			break;
 
 		ff->set_autocenter(dev, value);
