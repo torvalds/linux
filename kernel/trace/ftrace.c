@@ -3425,27 +3425,35 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 				 inode, file);
 }
 
-static int ftrace_match(char *str, char *regex, int len, int type)
+/* Type for quick search ftrace basic regexes (globs) from filter_parse_regex */
+struct ftrace_glob {
+	char *search;
+	unsigned len;
+	int type;
+};
+
+static int ftrace_match(char *str, struct ftrace_glob *g)
 {
 	int matched = 0;
 	int slen;
 
-	switch (type) {
+	switch (g->type) {
 	case MATCH_FULL:
-		if (strcmp(str, regex) == 0)
+		if (strcmp(str, g->search) == 0)
 			matched = 1;
 		break;
 	case MATCH_FRONT_ONLY:
-		if (strncmp(str, regex, len) == 0)
+		if (strncmp(str, g->search, g->len) == 0)
 			matched = 1;
 		break;
 	case MATCH_MIDDLE_ONLY:
-		if (strstr(str, regex))
+		if (strstr(str, g->search))
 			matched = 1;
 		break;
 	case MATCH_END_ONLY:
 		slen = strlen(str);
-		if (slen >= len && memcmp(str + slen - len, regex, len) == 0)
+		if (slen >= g->len &&
+		    memcmp(str + slen - g->len, g->search, g->len) == 0)
 			matched = 1;
 		break;
 	}
@@ -3477,8 +3485,8 @@ enter_record(struct ftrace_hash *hash, struct dyn_ftrace *rec, int clear_filter)
 }
 
 static int
-ftrace_match_record(struct dyn_ftrace *rec, char *mod,
-		    char *regex, int len, int type)
+ftrace_match_record(struct dyn_ftrace *rec,
+		char *mod, struct ftrace_glob *func_g)
 {
 	char str[KSYM_SYMBOL_LEN];
 	char *modname;
@@ -3491,28 +3499,27 @@ ftrace_match_record(struct dyn_ftrace *rec, char *mod,
 			return 0;
 
 		/* blank search means to match all funcs in the mod */
-		if (!len)
+		if (!func_g->len)
 			return 1;
 	}
 
-	return ftrace_match(str, regex, len, type);
+	return ftrace_match(str, func_g);
 }
 
 static int
-match_records(struct ftrace_hash *hash, char *buff, int len, char *mod)
+match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 {
-	unsigned search_len = 0;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
-	int type = MATCH_FULL;
-	char *search = buff;
+	struct ftrace_glob func_g = { .type = MATCH_FULL };
 	int found = 0;
 	int ret;
 	int clear_filter;
 
 	if (len) {
-		type = filter_parse_regex(buff, len, &search, &clear_filter);
-		search_len = strlen(search);
+		func_g.type = filter_parse_regex(func, len, &func_g.search,
+						 &clear_filter);
+		func_g.len = strlen(func_g.search);
 	}
 
 	mutex_lock(&ftrace_lock);
@@ -3521,7 +3528,7 @@ match_records(struct ftrace_hash *hash, char *buff, int len, char *mod)
 		goto out_unlock;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		if (ftrace_match_record(rec, mod, search, search_len, type)) {
+		if (ftrace_match_record(rec, mod, &func_g)) {
 			ret = enter_record(hash, rec, clear_filter);
 			if (ret < 0) {
 				found = ret;
@@ -3682,19 +3689,20 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 {
 	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_func_probe *entry;
+	struct ftrace_glob func_g;
 	struct ftrace_hash **orig_hash = &trace_probe_ops.func_hash->filter_hash;
 	struct ftrace_hash *old_hash = *orig_hash;
 	struct ftrace_hash *hash;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
-	int type, len, not;
+	int not;
 	unsigned long key;
 	int count = 0;
-	char *search;
 	int ret;
 
-	type = filter_parse_regex(glob, strlen(glob), &search, &not);
-	len = strlen(search);
+	func_g.type = filter_parse_regex(glob, strlen(glob),
+			&func_g.search, &not);
+	func_g.len = strlen(func_g.search);
 
 	/* we do not support '!' for function probes */
 	if (WARN_ON(not))
@@ -3721,7 +3729,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (!ftrace_match_record(rec, NULL, search, len, type))
+		if (!ftrace_match_record(rec, NULL, &func_g))
 			continue;
 
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -3794,24 +3802,24 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	struct ftrace_func_entry *rec_entry;
 	struct ftrace_func_probe *entry;
 	struct ftrace_func_probe *p;
+	struct ftrace_glob func_g;
 	struct ftrace_hash **orig_hash = &trace_probe_ops.func_hash->filter_hash;
 	struct ftrace_hash *old_hash = *orig_hash;
 	struct list_head free_list;
 	struct ftrace_hash *hash;
 	struct hlist_node *tmp;
 	char str[KSYM_SYMBOL_LEN];
-	int type = MATCH_FULL;
-	int i, len = 0;
-	char *search;
-	int ret;
+	int i, ret;
 
 	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
-		glob = NULL;
+		func_g.search = NULL;
 	else if (glob) {
 		int not;
 
-		type = filter_parse_regex(glob, strlen(glob), &search, &not);
-		len = strlen(search);
+		func_g.type = filter_parse_regex(glob, strlen(glob),
+						 &func_g.search, &not);
+		func_g.len = strlen(func_g.search);
+		func_g.search = glob;
 
 		/* we do not support '!' for function probes */
 		if (WARN_ON(not))
@@ -3840,10 +3848,10 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				continue;
 
 			/* do this last, since it is the most expensive */
-			if (glob) {
+			if (func_g.search) {
 				kallsyms_lookup(entry->ip, NULL, NULL,
 						NULL, str);
-				if (!ftrace_match(str, glob, len, type))
+				if (!ftrace_match(str, &func_g))
 					continue;
 			}
 
@@ -3872,7 +3880,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		ftrace_free_entry(entry);
 	}
 	mutex_unlock(&ftrace_lock);
-		
+
  out_unlock:
 	mutex_unlock(&trace_probe_ops.func_hash->regex_lock);
 	free_ftrace_hash(hash);
@@ -4588,21 +4596,21 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 static int
 ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
 {
+	struct ftrace_glob func_g;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
-	int search_len;
 	int fail = 1;
-	int type, not;
-	char *search;
+	int not;
 	bool exists;
 	int i;
 
 	/* decode regex */
-	type = filter_parse_regex(buffer, strlen(buffer), &search, &not);
+	func_g.type = filter_parse_regex(buffer, strlen(buffer),
+					 &func_g.search, &not);
 	if (!not && *idx >= size)
 		return -EBUSY;
 
-	search_len = strlen(search);
+	func_g.len = strlen(func_g.search);
 
 	mutex_lock(&ftrace_lock);
 
@@ -4613,7 +4621,7 @@ ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (ftrace_match_record(rec, NULL, search, search_len, type)) {
+		if (ftrace_match_record(rec, NULL, &func_g)) {
 			/* if it is in the array */
 			exists = false;
 			for (i = 0; i < *idx; i++) {
