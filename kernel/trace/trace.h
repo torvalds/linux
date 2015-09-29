@@ -902,6 +902,15 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 # define BRANCH_FLAGS
 #endif
 
+#ifdef CONFIG_FUNCTION_TRACER
+# define FUNCTION_FLAGS						\
+		C(FUNCTION,		"function-trace"),
+# define FUNCTION_DEFAULT_FLAGS		TRACE_ITER_FUNCTION
+#else
+# define FUNCTION_FLAGS
+# define FUNCTION_DEFAULT_FLAGS		0UL
+#endif
+
 /*
  * trace_iterator_flags is an enumeration that defines bit
  * positions into trace_flags that controls the output.
@@ -931,7 +940,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
-		C(FUNCTION,		"function-trace"),	\
+		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
 		BRANCH_FLAGS
 

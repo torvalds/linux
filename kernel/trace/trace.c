@@ -490,11 +490,11 @@ static inline void ftrace_trace_stack(struct ring_buffer *buffer,
 
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags =
-	FUNCTION_GRAPH_DEFAULT_FLAGS |
+	FUNCTION_DEFAULT_FLAGS | FUNCTION_GRAPH_DEFAULT_FLAGS |
 	TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO |
 	TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
-	TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS | TRACE_ITER_FUNCTION
+	TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS
 	;
 
 static void tracer_tracing_on(struct trace_array *tr)

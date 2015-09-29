@@ -34,11 +34,8 @@ static arch_spinlock_t wakeup_lock =
 
 static void wakeup_reset(struct trace_array *tr);
 static void __wakeup_reset(struct trace_array *tr);
-static int wakeup_graph_entry(struct ftrace_graph_ent *trace);
-static void wakeup_graph_return(struct ftrace_graph_ret *trace);
 
 static int save_flags;
-static bool function_enabled;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int wakeup_display_graph(struct trace_array *tr, int set);
@@ -46,13 +43,18 @@ static int wakeup_display_graph(struct trace_array *tr, int set);
 #else
 static inline int wakeup_display_graph(struct trace_array *tr, int set)
 {
-	return -EINVAL;
+	return 0;
 }
 # define is_graph() false
 #endif
 
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+static int wakeup_graph_entry(struct ftrace_graph_ent *trace);
+static void wakeup_graph_return(struct ftrace_graph_ret *trace);
+
+static bool function_enabled;
 
 /*
  * Prologue for the wakeup function tracers.
@@ -123,7 +125,6 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
 	atomic_dec(&data->disabled);
 	preempt_enable_notrace();
 }
-#endif /* CONFIG_FUNCTION_TRACER */
 
 static int register_wakeup_function(struct trace_array *tr, int graph, int set)
 {
@@ -158,21 +159,35 @@ static void unregister_wakeup_function(struct trace_array *tr, int graph)
 	function_enabled = false;
 }
 
-static int wakeup_function_set(struct trace_array *tr, int set)
+static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
 {
+	if (!(mask & TRACE_ITER_FUNCTION))
+		return 0;
+
 	if (set)
 		register_wakeup_function(tr, is_graph(), 1);
 	else
 		unregister_wakeup_function(tr, is_graph());
+	return 1;
+}
+#else
+static int register_wakeup_function(struct trace_array *tr, int graph, int set)
+{
 	return 0;
 }
+static void unregister_wakeup_function(struct trace_array *tr, int graph) { }
+static int wakeup_function_set(struct trace_array *tr, u32 mask, int set)
+{
+	return 0;
+}
+#endif /* CONFIG_FUNCTION_TRACER */
 
 static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
 	struct tracer *tracer = tr->current_trace;
 
-	if (mask & TRACE_ITER_FUNCTION)
-		return wakeup_function_set(tr, set);
+	if (wakeup_function_set(tr, mask, set))
+		return 0;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (mask & TRACE_ITER_DISPLAY_GRAPH)
@@ -302,21 +317,20 @@ __trace_function(struct trace_array *tr,
 #else
 #define __trace_function trace_function
 
-static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
-{
-	return -1;
-}
-
 static enum print_line_t wakeup_print_line(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
 }
 
-static void wakeup_graph_return(struct ftrace_graph_ret *trace) { }
 static void wakeup_trace_open(struct trace_iterator *iter) { }
 static void wakeup_trace_close(struct trace_iterator *iter) { }
 
 #ifdef CONFIG_FUNCTION_TRACER
+static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
+{
+	return -1;
+}
+static void wakeup_graph_return(struct ftrace_graph_ret *trace) { }
 static void wakeup_print_header(struct seq_file *s)
 {
 	trace_default_header(s);

@@ -31,7 +31,6 @@ enum {
 static int trace_type __read_mostly;
 
 static int save_flags;
-static bool function_enabled;
 
 static void stop_irqsoff_tracer(struct trace_array *tr, int graph);
 static int start_irqsoff_tracer(struct trace_array *tr, int graph);
@@ -249,21 +248,23 @@ __trace_function(struct trace_array *tr,
 #else
 #define __trace_function trace_function
 
+#ifdef CONFIG_FUNCTION_TRACER
 static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
 {
 	return -1;
 }
+#endif
 
 static enum print_line_t irqsoff_print_line(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
 }
 
-static void irqsoff_graph_return(struct ftrace_graph_ret *trace) { }
 static void irqsoff_trace_open(struct trace_iterator *iter) { }
 static void irqsoff_trace_close(struct trace_iterator *iter) { }
 
 #ifdef CONFIG_FUNCTION_TRACER
+static void irqsoff_graph_return(struct ftrace_graph_ret *trace) { }
 static void irqsoff_print_header(struct seq_file *s)
 {
 	trace_default_header(s);
@@ -507,6 +508,9 @@ void trace_preempt_off(unsigned long a0, unsigned long a1)
 }
 #endif /* CONFIG_PREEMPT_TRACER */
 
+#ifdef CONFIG_FUNCTION_TRACER
+static bool function_enabled;
+
 static int register_irqsoff_function(struct trace_array *tr, int graph, int set)
 {
 	int ret;
@@ -540,21 +544,35 @@ static void unregister_irqsoff_function(struct trace_array *tr, int graph)
 	function_enabled = false;
 }
 
-static int irqsoff_function_set(struct trace_array *tr, int set)
+static int irqsoff_function_set(struct trace_array *tr, u32 mask, int set)
 {
+	if (!(mask & TRACE_ITER_FUNCTION))
+		return 0;
+
 	if (set)
 		register_irqsoff_function(tr, is_graph(), 1);
 	else
 		unregister_irqsoff_function(tr, is_graph());
+	return 1;
+}
+#else
+static int register_irqsoff_function(struct trace_array *tr, int graph, int set)
+{
 	return 0;
 }
+static void unregister_irqsoff_function(struct trace_array *tr, int graph) { }
+static inline int irqsoff_function_set(struct trace_array *tr, u32 mask, int set)
+{
+	return 0;
+}
+#endif /* CONFIG_FUNCTION_TRACER */
 
 static int irqsoff_flag_changed(struct trace_array *tr, u32 mask, int set)
 {
 	struct tracer *tracer = tr->current_trace;
 
-	if (mask & TRACE_ITER_FUNCTION)
-		return irqsoff_function_set(tr, set);
+	if (irqsoff_function_set(tr, mask, set))
+		return 0;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (mask & TRACE_ITER_DISPLAY_GRAPH)
