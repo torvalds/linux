@@ -24,6 +24,7 @@ Required properties:
 	ti,tca6408
 	ti,tca6416
 	ti,tca6424
+	ti,tca9539
 	exar,xra1202
 
 Example:
