@@ -353,7 +353,6 @@ static inline bool imp_connect_disp_stripe(struct obd_import *imp)
 }
 
 struct obd_export *class_conn2export(struct lustre_handle *conn);
-struct obd_device *class_conn2obd(struct lustre_handle *conn);
 
 /** @} export */
 

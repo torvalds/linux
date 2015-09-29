@@ -1996,55 +1996,6 @@ static void *__req_capsule_get(struct req_capsule *pill,
 }
 
 /**
- * Dump a request and/or reply
- */
-static void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
-{
-	const struct req_format *fmt;
-	const struct req_msg_field *field;
-	int len;
-	int i;
-
-	fmt = pill->rc_fmt;
-
-	DEBUG_REQ(D_RPCTRACE, pill->rc_req, "BEGIN REQ CAPSULE DUMP\n");
-	for (i = 0; i < fmt->rf_fields[loc].nr; ++i) {
-		field = FMT_FIELD(fmt, loc, i);
-		if (field->rmf_dumper == NULL) {
-			/*
-			 * FIXME Add a default hex dumper for fields that don't
-			 * have a specific dumper
-			 */
-			len = req_capsule_get_size(pill, field, loc);
-			CDEBUG(D_RPCTRACE, "Field %s has no dumper function; field size is %d\n",
-			       field->rmf_name, len);
-		} else {
-			/* It's the dumping side-effect that we're interested in */
-			(void) __req_capsule_get(pill, field, loc, NULL, 1);
-		}
-	}
-	CDEBUG(D_RPCTRACE, "END REQ CAPSULE DUMP\n");
-}
-
-/**
- * Dump a request.
- */
-void req_capsule_client_dump(struct req_capsule *pill)
-{
-	__req_capsule_dump(pill, RCL_CLIENT);
-}
-EXPORT_SYMBOL(req_capsule_client_dump);
-
-/**
- * Dump a reply
- */
-void req_capsule_server_dump(struct req_capsule *pill)
-{
-	__req_capsule_dump(pill, RCL_SERVER);
-}
-EXPORT_SYMBOL(req_capsule_server_dump);
-
-/**
  * Trivial wrapper around __req_capsule_get(), that returns the PTLRPC request
  * buffer corresponding to the given RMF (\a field) of a \a pill.
  */
@@ -2134,21 +2085,6 @@ void *req_capsule_server_sized_swab_get(struct req_capsule *pill,
 	return __req_capsule_get(pill, field, RCL_SERVER, swabber, 0);
 }
 EXPORT_SYMBOL(req_capsule_server_sized_swab_get);
-
-/**
- * Returns the buffer of a \a pill corresponding to the given \a field from the
- * request (if the caller is executing on the server-side) or reply (if the
- * caller is executing on the client-side).
- *
- * This function convenient for use is code that could be executed on the
- * client and server alike.
- */
-const void *req_capsule_other_get(struct req_capsule *pill,
-				  const struct req_msg_field *field)
-{
-	return __req_capsule_get(pill, field, pill->rc_loc ^ 1, NULL, 0);
-}
-EXPORT_SYMBOL(req_capsule_other_get);
 
 /**
  * Set the size of the PTLRPC request/reply (\a loc) buffer for the given \a

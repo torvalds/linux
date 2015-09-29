@@ -137,7 +137,6 @@ ptlrpc_nrs_req_get_nolock(struct ptlrpc_service_part *svcpt, bool hp,
 	return ptlrpc_nrs_req_get_nolock0(svcpt, hp, false, force);
 }
 
-void ptlrpc_nrs_req_del_nolock(struct ptlrpc_request *req);
 bool ptlrpc_nrs_req_pending_nolock(struct ptlrpc_service_part *svcpt, bool hp);
 
 int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
@@ -243,7 +242,6 @@ int ptlrpc_stop_pinger(void);
 void ptlrpc_pinger_sending_on_import(struct obd_import *imp);
 void ptlrpc_pinger_commit_expected(struct obd_import *imp);
 void ptlrpc_pinger_wake_up(void);
-void ptlrpc_ping_import_soon(struct obd_import *imp);
 
 /* sec_null.c */
 int  sptlrpc_null_init(void);

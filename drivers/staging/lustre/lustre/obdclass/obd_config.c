@@ -71,114 +71,6 @@ int class_find_param(char *buf, char *key, char **valp)
 }
 EXPORT_SYMBOL(class_find_param);
 
-/**
- * Check whether the proc parameter \a param is an old parameter or not from
- * the array \a ptr which contains the mapping from old parameters to new ones.
- * If it's an old one, then return the pointer to the cfg_interop_param struc-
- * ture which contains both the old and new parameters.
- *
- * \param param			proc parameter
- * \param ptr			an array which contains the mapping from
- *				old parameters to new ones
- *
- * \retval valid-pointer	pointer to the cfg_interop_param structure
- *				which contains the old and new parameters
- * \retval NULL			\a param or \a ptr is NULL,
- *				or \a param is not an old parameter
- */
-struct cfg_interop_param *class_find_old_param(const char *param,
-					       struct cfg_interop_param *ptr)
-{
-	char *value = NULL;
-	int   name_len = 0;
-
-	if (!param || !ptr)
-		return NULL;
-
-	value = strchr(param, '=');
-	if (!value)
-		name_len = strlen(param);
-	else
-		name_len = value - param;
-
-	while (ptr->old_param != NULL) {
-		if (strncmp(param, ptr->old_param, name_len) == 0 &&
-		    name_len == strlen(ptr->old_param))
-			return ptr;
-		ptr++;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(class_find_old_param);
-
-/**
- * Finds a parameter in \a params and copies it to \a copy.
- *
- * Leading spaces are skipped. Next space or end of string is the
- * parameter terminator with the exception that spaces inside single or double
- * quotes get included into a parameter. The parameter is copied into \a copy
- * which has to be allocated big enough by a caller, quotes are stripped in
- * the copy and the copy is terminated by 0.
- *
- * On return \a params is set to next parameter or to NULL if last
- * parameter is returned.
- *
- * \retval 0 if parameter is returned in \a copy
- * \retval 1 otherwise
- * \retval -EINVAL if unbalanced quota is found
- */
-int class_get_next_param(char **params, char *copy)
-{
-	char *q1, *q2, *str;
-	int len;
-
-	str = *params;
-	while (*str == ' ')
-		str++;
-
-	if (*str == '\0') {
-		*params = NULL;
-		return 1;
-	}
-
-	while (1) {
-		q1 = strpbrk(str, " '\"");
-		if (!q1) {
-			len = strlen(str);
-			memcpy(copy, str, len);
-			copy[len] = '\0';
-			*params = NULL;
-			return 0;
-		}
-		len = q1 - str;
-		if (*q1 == ' ') {
-			memcpy(copy, str, len);
-			copy[len] = '\0';
-			*params = str + len;
-			return 0;
-		}
-
-		memcpy(copy, str, len);
-		copy += len;
-
-		/* search for the matching closing quote */
-		str = q1 + 1;
-		q2 = strchr(str, *q1);
-		if (!q2) {
-			CERROR("Unbalanced quota in parameters: \"%s\"\n",
-			       *params);
-			return -EINVAL;
-		}
-		len = q2 - str;
-		memcpy(copy, str, len);
-		copy += len;
-		str = q2 + 1;
-	}
-	return 1;
-}
-EXPORT_SYMBOL(class_get_next_param);
-
 /* returns 0 if this is the first key in the buffer, else 1.
    valp points to first char after key. */
 int class_match_param(char *buf, char *key, char **valp)
@@ -277,52 +169,6 @@ int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh)
 	return class_parse_value(buf, CLASS_PARSE_NID, (void *)nid, endh, 1);
 }
 EXPORT_SYMBOL(class_parse_nid_quiet);
-
-int class_parse_net(char *buf, __u32 *net, char **endh)
-{
-	return class_parse_value(buf, CLASS_PARSE_NET, (void *)net, endh, 0);
-}
-EXPORT_SYMBOL(class_parse_net);
-
-/* 1 param contains key and match
- * 0 param contains key and not match
- * -1 param does not contain key
- */
-int class_match_nid(char *buf, char *key, lnet_nid_t nid)
-{
-	lnet_nid_t tmp;
-	int   rc = -1;
-
-	while (class_find_param(buf, key, &buf) == 0) {
-		/* please restrict to the nids pertaining to
-		 * the specified nids */
-		while (class_parse_nid(buf, &tmp, &buf) == 0) {
-			if (tmp == nid)
-				return 1;
-		}
-		rc = 0;
-	}
-	return rc;
-}
-EXPORT_SYMBOL(class_match_nid);
-
-int class_match_net(char *buf, char *key, __u32 net)
-{
-	__u32 tmp;
-	int   rc = -1;
-
-	while (class_find_param(buf, key, &buf) == 0) {
-		/* please restrict to the nids pertaining to
-		 * the specified networks */
-		while (class_parse_net(buf, &tmp, &buf) == 0) {
-			if (tmp == net)
-				return 1;
-		}
-		rc = 0;
-	}
-	return rc;
-}
-EXPORT_SYMBOL(class_match_net);
 
 /********************** class fns **********************/
 
@@ -925,78 +771,6 @@ void lustre_register_client_process_config(int (*cpc)(struct lustre_cfg *lcfg))
 }
 EXPORT_SYMBOL(lustre_register_client_process_config);
 
-/**
- * Rename the proc parameter in \a cfg with a new name \a new_name.
- *
- * \param cfg	   config structure which contains the proc parameter
- * \param new_name new name of the proc parameter
- *
- * \retval valid-pointer    pointer to the newly-allocated config structure
- *			    which contains the renamed proc parameter
- * \retval ERR_PTR(-EINVAL) if \a cfg or \a new_name is NULL, or \a cfg does
- *			    not contain a proc parameter
- * \retval ERR_PTR(-ENOMEM) if memory allocation failure occurs
- */
-struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
-				     const char *new_name)
-{
-	struct lustre_cfg_bufs	*bufs = NULL;
-	struct lustre_cfg	*new_cfg = NULL;
-	char			*param = NULL;
-	char			*new_param = NULL;
-	char			*value = NULL;
-	int			 name_len = 0;
-	int			 new_len = 0;
-
-	if (!cfg || !new_name)
-		return ERR_PTR(-EINVAL);
-
-	param = lustre_cfg_string(cfg, 1);
-	if (!param)
-		return ERR_PTR(-EINVAL);
-
-	value = strchr(param, '=');
-	if (!value)
-		name_len = strlen(param);
-	else
-		name_len = value - param;
-
-	new_len = LUSTRE_CFG_BUFLEN(cfg, 1) + strlen(new_name) - name_len;
-
-	new_param = kzalloc(new_len, GFP_NOFS);
-	if (!new_param)
-		return ERR_PTR(-ENOMEM);
-
-	strcpy(new_param, new_name);
-	if (value != NULL)
-		strcat(new_param, value);
-
-	bufs = kzalloc(sizeof(*bufs), GFP_NOFS);
-	if (!bufs) {
-		kfree(new_param);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	lustre_cfg_bufs_reset(bufs, NULL);
-	lustre_cfg_bufs_init(bufs, cfg);
-	lustre_cfg_bufs_set_string(bufs, 1, new_param);
-
-	new_cfg = lustre_cfg_new(cfg->lcfg_command, bufs);
-
-	kfree(new_param);
-	kfree(bufs);
-	if (!new_cfg)
-		return ERR_PTR(-ENOMEM);
-
-	new_cfg->lcfg_num = cfg->lcfg_num;
-	new_cfg->lcfg_flags = cfg->lcfg_flags;
-	new_cfg->lcfg_nid = cfg->lcfg_nid;
-	new_cfg->lcfg_nal = cfg->lcfg_nal;
-
-	return new_cfg;
-}
-EXPORT_SYMBOL(lustre_cfg_rename);
-
 static int process_param2_config(struct lustre_cfg *lcfg)
 {
 	char *param = lustre_cfg_string(lcfg, 1);
@@ -1036,12 +810,6 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 
 	return rc;
 }
-
-void lustre_register_quota_process_config(int (*qpc)(struct lustre_cfg *lcfg))
-{
-	quota_process_config = qpc;
-}
-EXPORT_SYMBOL(lustre_register_quota_process_config);
 
 /** Process configuration commands given in lustre_cfg form.
  * These may come from direct calls (e.g. class_manual_cleanup)
@@ -1632,31 +1400,6 @@ int class_config_dump_handler(const struct lu_env *env,
 	kfree(outstr);
 	return rc;
 }
-
-int class_config_dump_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   char *name, struct config_llog_instance *cfg)
-{
-	struct llog_handle	*llh;
-	int			 rc;
-
-	LCONSOLE_INFO("Dumping config log %s\n", name);
-
-	rc = llog_open(env, ctxt, &llh, NULL, name, LLOG_OPEN_EXISTS);
-	if (rc)
-		return rc;
-
-	rc = llog_init_handle(env, llh, LLOG_F_IS_PLAIN, NULL);
-	if (rc)
-		goto parse_out;
-
-	rc = llog_process(env, llh, class_config_dump_handler, cfg, NULL);
-parse_out:
-	llog_close(env, llh);
-
-	LCONSOLE_INFO("End config log %s\n", name);
-	return rc;
-}
-EXPORT_SYMBOL(class_config_dump_llog);
 
 /** Call class_cleanup and class_detach.
  * "Manual" only in the sense that we're faking lcfg commands.

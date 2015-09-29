@@ -106,8 +106,6 @@ struct llog_rec_hdr;
 typedef int (*llog_cb_t)(const struct lu_env *, struct llog_handle *,
 			 struct llog_rec_hdr *, void *);
 /* obd_config.c */
-struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
-				     const char *new_name);
 int class_process_config(struct lustre_cfg *lcfg);
 int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 			     struct lustre_cfg *lcfg, void *data);
@@ -147,9 +145,6 @@ struct config_llog_instance {
 };
 int class_config_parse_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
 			    char *name, struct config_llog_instance *cfg);
-int class_config_dump_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   char *name, struct config_llog_instance *cfg);
-
 enum {
 	CONFIG_T_CONFIG  = 0,
 	CONFIG_T_SPTLRPC = 1,
@@ -285,22 +280,11 @@ static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 struct inode;
 struct lu_attr;
 struct obdo;
-void obdo_from_la(struct obdo *dst, struct lu_attr *la, __u64 valid);
-void la_from_obdo(struct lu_attr *la, struct obdo *dst, u32 valid);
 void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid);
-void obdo_to_inode(struct inode *dst, struct obdo *src, u32 valid);
 
-void obdo_cpy_md(struct obdo *dst, struct obdo *src, u32 valid);
 void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
-void obdo_from_iattr(struct obdo *oa, struct iattr *attr,
-		     unsigned int ia_valid);
 void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid);
 void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
-void obdo_from_md(struct obdo *oa, struct md_op_data *op_data,
-		  unsigned int valid);
-
-void obdo_cpu_to_le(struct obdo *dobdo, struct obdo *sobdo);
-void obdo_le_to_cpu(struct obdo *dobdo, struct obdo *sobdo);
 
 #define OBT(dev)	(dev)->obd_type
 #define OBP(dev, op)    (dev)->obd_type->typ_dt_ops->o_ ## op

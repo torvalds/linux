@@ -44,19 +44,9 @@
 #include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
 
-static int suppress_pings;
-module_param(suppress_pings, int, 0644);
-MODULE_PARM_DESC(suppress_pings, "Suppress pings");
-
 struct mutex pinger_mutex;
 static LIST_HEAD(pinger_imports);
 static struct list_head timeout_list = LIST_HEAD_INIT(timeout_list);
-
-int ptlrpc_pinger_suppress_pings(void)
-{
-	return suppress_pings;
-}
-EXPORT_SYMBOL(ptlrpc_pinger_suppress_pings);
 
 struct ptlrpc_request *
 ptlrpc_prep_ping(struct obd_import *imp)
@@ -120,11 +110,6 @@ static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 		time = min(time, dtime);
 	}
 	imp->imp_next_ping = cfs_time_shift(time);
-}
-
-void ptlrpc_ping_import_soon(struct obd_import *imp)
-{
-	imp->imp_next_ping = cfs_time_current();
 }
 
 static inline int imp_is_deactive(struct obd_import *imp)
@@ -324,9 +309,6 @@ int ptlrpc_start_pinger(void)
 	}
 	l_wait_event(pinger_thread.t_ctl_waitq,
 		     thread_is_running(&pinger_thread), &lwi);
-
-	if (suppress_pings)
-		CWARN("Pings will be suppressed at the request of the administrator.  The configuration shall meet the additional requirements described in the manual.  (Search for the \"suppress_pings\" kernel module parameter.)\n");
 
 	return 0;
 }

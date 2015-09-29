@@ -2587,8 +2587,6 @@ struct lmv_desc {
 	struct obd_uuid ld_uuid;
 };
 
-void lustre_swab_lmv_desc(struct lmv_desc *ld);
-
 /* TODO: lmv_stripe_md should contain mds capabilities for all slave fids */
 struct lmv_stripe_md {
 	__u32	 mea_magic;
@@ -2598,8 +2596,6 @@ struct lmv_stripe_md {
 	char	  mea_pool_name[LOV_MAXPOOLNAME];
 	struct lu_fid mea_ids[0];
 };
-
-void lustre_swab_lmv_stripe_md(struct lmv_stripe_md *mea);
 
 /* lmv structures */
 #define MEA_MAGIC_LAST_CHAR      0xb2221ca1
@@ -3442,8 +3438,6 @@ struct lu_idxpage {
 	char	lip_entries[0];
 };
 
-void lustre_swab_lip_header(struct lu_idxpage *lip);
-
 #define LIP_HDR_SIZE (offsetof(struct lu_idxpage, lip_entries))
 
 /* Gather all possible type associated with a 4KB container */
@@ -3516,8 +3510,6 @@ struct lustre_capa_key {
 	__u32   lk_padding;
 	__u8    lk_key[CAPA_HMAC_KEY_MAX_LEN];    /**< key */
 } __attribute__((packed));
-
-void lustre_swab_lustre_capa_key(struct lustre_capa_key *k);
 
 /** The link ea holds 1 \a link_ea_entry for each hardlink */
 #define LINK_EA_MAGIC 0x11EAF1DFUL
