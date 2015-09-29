@@ -12,12 +12,14 @@
 #include "tracing_path.h"
 
 
+char tracing_mnt[PATH_MAX + 1]         = "/sys/kernel/debug";
 char tracing_path[PATH_MAX + 1]        = "/sys/kernel/debug/tracing";
 char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
 
 static void __tracing_path_set(const char *tracing, const char *mountpoint)
 {
+	snprintf(tracing_mnt, sizeof(tracing_mnt), "%s", mountpoint);
 	snprintf(tracing_path, sizeof(tracing_path), "%s/%s",
 		 mountpoint, tracing);
 	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s%s",
@@ -109,19 +111,10 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
 		break;
 	case EACCES: {
-		const char *mountpoint = debugfs__mountpoint();
-
-		if (!access(mountpoint, R_OK) && strncmp(filename, "tracing/", 8) == 0) {
-			const char *tracefs_mntpoint = tracefs__mountpoint();
-
-			if (tracefs_mntpoint)
-				mountpoint = tracefs__mountpoint();
-		}
-
 		snprintf(buf, size,
 			 "Error:\tNo permissions to read %s/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			 tracing_events_path, filename, mountpoint);
+			 tracing_events_path, filename, tracing_mnt);
 	}
 		break;
 	default:

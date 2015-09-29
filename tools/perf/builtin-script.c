@@ -29,8 +29,11 @@ static bool			no_callchain;
 static bool			latency_format;
 static bool			system_wide;
 static bool			print_flags;
+static bool			nanosecs;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+
+unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
@@ -415,7 +418,10 @@ static void print_sample_start(struct perf_sample *sample,
 		secs = nsecs / NSECS_PER_SEC;
 		nsecs -= secs * NSECS_PER_SEC;
 		usecs = nsecs / NSECS_PER_USEC;
-		printf("%5lu.%06lu: ", secs, usecs);
+		if (nanosecs)
+			printf("%5lu.%09llu: ", secs, nsecs);
+		else
+			printf("%5lu.%06lu: ", secs, usecs);
 	}
 }
 
@@ -471,7 +477,7 @@ static void print_sample_bts(union perf_event *event,
 			}
 		}
 		perf_evsel__print_ip(evsel, sample, al, print_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	/* print branch_to information */
@@ -548,7 +554,7 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 
 		perf_evsel__print_ip(evsel, sample, al,
 				     output[attr->type].print_ip_opts,
-				     PERF_MAX_STACK_DEPTH);
+				     scripting_max_stack);
 	}
 
 	if (PRINT_FIELD(IREGS))
@@ -1695,6 +1701,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('\0', "show-switch-events", &script.show_switch_events,
 		    "Show context switch events (if recorded)"),
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN(0, "ns", &nanosecs,
+		    "Use 9 decimal places when displaying time"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options",
 			    itrace_parse_synth_opts),
@@ -1739,6 +1747,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			return -1;
 		}
 	}
+
+	if (itrace_synth_opts.callchain &&
+	    itrace_synth_opts.callchain_sz > scripting_max_stack)
+		scripting_max_stack = itrace_synth_opts.callchain_sz;
 
 	/* make sure PERF_EXEC_PATH is set for scripts */
 	perf_set_argv_exec_path(perf_exec_path());

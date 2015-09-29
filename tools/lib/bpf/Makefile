@@ -123,8 +123,10 @@ endif
 # the same command line setup.
 MAKEOVERRIDES=
 
+all:
+
 export srctree OUTPUT CC LD CFLAGS V
-build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+include $(srctree)/tools/build/Makefile.include
 
 BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
@@ -133,7 +135,7 @@ CMD_TARGETS = $(LIB_FILE)
 
 TARGETS = $(CMD_TARGETS)
 
-all: $(VERSION_FILES) all_cmd
+all: fixdep $(VERSION_FILES) all_cmd
 
 all_cmd: $(CMD_TARGETS)
 

@@ -695,7 +695,7 @@ iter_finish_normal_entry(struct hist_entry_iter *iter,
 }
 
 static int
-iter_prepare_cumulative_entry(struct hist_entry_iter *iter __maybe_unused,
+iter_prepare_cumulative_entry(struct hist_entry_iter *iter,
 			      struct addr_location *al __maybe_unused)
 {
 	struct hist_entry **he_cache;
@@ -707,7 +707,7 @@ iter_prepare_cumulative_entry(struct hist_entry_iter *iter __maybe_unused,
 	 * cumulated only one time to prevent entries more than 100%
 	 * overhead.
 	 */
-	he_cache = malloc(sizeof(*he_cache) * (PERF_MAX_STACK_DEPTH + 1));
+	he_cache = malloc(sizeof(*he_cache) * (iter->max_stack + 1));
 	if (he_cache == NULL)
 		return -ENOMEM;
 
@@ -867,6 +867,8 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
+
+	iter->max_stack = max_stack_depth;
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)

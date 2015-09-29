@@ -319,7 +319,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	if (thread__resolve_callchain(al->thread, evsel,
 				      sample, NULL, NULL,
-				      PERF_MAX_STACK_DEPTH) != 0) {
+				      scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}

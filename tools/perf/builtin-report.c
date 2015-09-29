@@ -163,14 +163,21 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		goto out_put;
 
-	if (sort__mode == SORT_MODE__BRANCH)
+	if (sort__mode == SORT_MODE__BRANCH) {
+		/*
+		 * A non-synthesized event might not have a branch stack if
+		 * branch stacks have been synthesized (using itrace options).
+		 */
+		if (!sample->branch_stack)
+			goto out_put;
 		iter.ops = &hist_iter_branch;
-	else if (rep->mem_mode)
+	} else if (rep->mem_mode) {
 		iter.ops = &hist_iter_mem;
-	else if (symbol_conf.cumulate_callchain)
+	} else if (symbol_conf.cumulate_callchain) {
 		iter.ops = &hist_iter_cumulative;
-	else
+	} else {
 		iter.ops = &hist_iter_normal;
+	}
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
@@ -213,6 +220,15 @@ static int report__setup_sample_type(struct report *rep)
 	struct perf_session *session = rep->session;
 	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
 	bool is_pipe = perf_data_file__is_pipe(session->file);
+
+	if (session->itrace_synth_opts->callchain ||
+	    (!is_pipe &&
+	     perf_header__has_feat(&session->header, HEADER_AUXTRACE) &&
+	     !session->itrace_synth_opts->set))
+		sample_type |= PERF_SAMPLE_CALLCHAIN;
+
+	if (session->itrace_synth_opts->last_branch)
+		sample_type |= PERF_SAMPLE_BRANCH_STACK;
 
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
@@ -793,6 +809,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 
+	if (itrace_synth_opts.callchain &&
+	    (int)itrace_synth_opts.callchain_sz > report.max_stack)
+		report.max_stack = itrace_synth_opts.callchain_sz;
+
 	if (!input_name || !strlen(input_name)) {
 		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
 			input_name = "-";
@@ -819,6 +839,9 @@ repeat:
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
+
+	if (itrace_synth_opts.last_branch)
+		has_br_stack = true;
 
 	/*
 	 * Branch mode is a tristate:

@@ -1527,7 +1527,7 @@ add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 static int
 do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 {
-	struct dso *dso = act->dso;
+	struct map *map = act->ms.map;
 
 	if (browser->hists->dso_filter) {
 		pstack__remove(browser->pstack, &browser->hists->dso_filter);
@@ -1535,11 +1535,11 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 		browser->hists->dso_filter = NULL;
 		ui_helpline__pop();
 	} else {
-		if (dso == NULL)
+		if (map == NULL)
 			return 0;
 		ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
-				   dso->kernel ? "the Kernel" : dso->short_name);
-		browser->hists->dso_filter = dso;
+				   __map__is_kernel(map) ? "the Kernel" : map->dso->short_name);
+		browser->hists->dso_filter = map->dso;
 		perf_hpp__set_elide(HISTC_DSO, true);
 		pstack__push(browser->pstack, &browser->hists->dso_filter);
 	}
@@ -1551,17 +1551,18 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 
 static int
 add_dso_opt(struct hist_browser *browser, struct popup_action *act,
-	    char **optstr, struct dso *dso)
+	    char **optstr, struct map *map)
 {
-	if (dso == NULL)
+	if (map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s DSO",
 		     browser->hists->dso_filter ? "out of" : "into",
-		     dso->kernel ? "the Kernel" : dso->short_name) < 0)
+		     __map__is_kernel(map) ? "the Kernel" : map->dso->short_name) < 0)
 		return 0;
 
-	act->dso = dso;
+	act->ms.map = map;
+	act->dso = map->dso;
 	act->fn = do_zoom_dso;
 	return 1;
 }
@@ -1814,6 +1815,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	while (1) {
 		struct thread *thread = NULL;
 		struct dso *dso = NULL;
+		struct map *map = NULL;
 		int choice = 0;
 		int socked_id = -1;
 
@@ -1823,7 +1825,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
-			dso = browser->selection->map ? browser->selection->map->dso : NULL;
+			map = browser->selection->map;
+			if (map)
+				dso = map->dso;
 			socked_id = browser->he_selection->socket;
 		}
 		switch (key) {
@@ -2014,7 +2018,7 @@ skip_annotation:
 		nr_options += add_thread_opt(browser, &actions[nr_options],
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],
-					  &options[nr_options], dso);
+					  &options[nr_options], map);
 		nr_options += add_map_opt(browser, &actions[nr_options],
 					  &options[nr_options],
 					  browser->selection ?

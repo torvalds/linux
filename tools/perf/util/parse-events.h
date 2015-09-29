@@ -119,7 +119,8 @@ int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				char *sys, char *event,
-				struct parse_events_error *error);
+				struct parse_events_error *error,
+				struct list_head *head_config);
 int parse_events_add_numeric(struct parse_events_evlist *data,
 			     struct list_head *list,
 			     u32 type, u64 config,
@@ -156,5 +157,6 @@ int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
+char *parse_events_formats_error_string(char *additional_terms);
 
 #endif /* __PERF_PARSE_EVENTS_H */

@@ -655,7 +655,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 {
 	const char *name = sym->name;
 
-	if (!map->dso->kernel)
+	if (!__map__is_kernel(map))
 		return 0;
 	/*
 	 * ppc64 uses function descriptors and appends a '.' to the

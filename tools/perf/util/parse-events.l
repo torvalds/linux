@@ -174,7 +174,7 @@ modifier_bp	[rwx]{1,3}
 
 <config>{
 	/*
-	 * Please update formats_error_string any time
+	 * Please update parse_events_formats_error_string any time
 	 * new static term is added.
 	 */
 config			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG); }

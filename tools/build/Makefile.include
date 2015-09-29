@@ -1,0 +1,6 @@
+build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+
+fixdep:
+	$(Q)$(MAKE) -C $(srctree)/tools/build fixdep
+
+.PHONY: fixdep

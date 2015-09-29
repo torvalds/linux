@@ -249,6 +249,9 @@ include::itrace.txt[]
 --full-source-path::
 	Show the full path for source files for srcline output.
 
+--ns::
+	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
