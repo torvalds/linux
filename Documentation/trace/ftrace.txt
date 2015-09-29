@@ -2437,6 +2437,23 @@ The following commands are supported:
 
    echo '!writeback*:mod:ext3' >> set_ftrace_filter
 
+  Mod command supports module globbing. Disable tracing for all
+  functions except a specific module:
+
+   echo '!*:mod:!ext3' >> set_ftrace_filter
+
+  Disable tracing for all modules, but still trace kernel:
+
+   echo '!*:mod:*' >> set_ftrace_filter
+
+  Enable filter only for kernel:
+
+   echo '*write*:mod:!*' >> set_ftrace_filter
+
+  Enable filter for module globbing:
+
+   echo '*write*:mod:*snd*' >> set_ftrace_filter
+
 - traceon/traceoff
   These commands turn tracing on and off when the specified
   functions are hit. The parameter determines how many times the
