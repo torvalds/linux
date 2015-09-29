@@ -556,7 +556,7 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	/* If endpoint is stalled, we will restart request later */
 	ctrl = dwc2_readl(hsotg->regs + epctrl_reg);
 
-	if (ctrl & DXEPCTL_STALL) {
+	if (index && ctrl & DXEPCTL_STALL) {
 		dev_warn(hsotg->dev, "%s: ep%d is stalled\n", __func__, index);
 		return;
 	}
