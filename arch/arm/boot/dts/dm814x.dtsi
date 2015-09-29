@@ -181,9 +181,9 @@
 				ti,hwmods = "timer3";
 			};
 
-			control: control@160000 {
+			control: control@140000 {
 				compatible = "ti,dm814-scm", "simple-bus";
-				reg = <0x160000 0x16d000>;
+				reg = <0x140000 0x16d000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x160000 0x16d000>;
@@ -321,9 +321,9 @@
 				mac-address = [ 00 00 00 00 00 00 ];
 			};
 
-			phy_sel: cpsw-phy-sel@0x48160650 {
+			phy_sel: cpsw-phy-sel@48140650 {
 				compatible = "ti,am3352-cpsw-phy-sel";
-				reg= <0x48160650 0x4>;
+				reg= <0x48140650 0x4>;
 				reg-names = "gmii-sel";
 			};
 		};

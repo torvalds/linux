@@ -133,11 +133,11 @@ static int init_hw_info(struct snd_dice *dice,
 		   SNDRV_PCM_INFO_BLOCK_TRANSFER;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		hw->formats = AMDTP_IN_PCM_FORMAT_BITS;
+		hw->formats = AM824_IN_PCM_FORMAT_BITS;
 		stream = &dice->tx_stream;
 		pcm_channels = dice->tx_channels;
 	} else {
-		hw->formats = AMDTP_OUT_PCM_FORMAT_BITS;
+		hw->formats = AM824_OUT_PCM_FORMAT_BITS;
 		stream = &dice->rx_stream;
 		pcm_channels = dice->rx_channels;
 	}
@@ -156,7 +156,7 @@ static int init_hw_info(struct snd_dice *dice,
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_add_pcm_hw_constraints(stream, runtime);
+	err = amdtp_am824_add_pcm_hw_constraints(stream, runtime);
 end:
 	return err;
 }
@@ -243,8 +243,7 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_stream_set_pcm_format(&dice->tx_stream,
-				    params_format(hw_params));
+	amdtp_am824_set_pcm_format(&dice->tx_stream, params_format(hw_params));
 
 	return 0;
 }
@@ -265,8 +264,7 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_stream_set_pcm_format(&dice->rx_stream,
-				    params_format(hw_params));
+	amdtp_am824_set_pcm_format(&dice->rx_stream, params_format(hw_params));
 
 	return 0;
 }

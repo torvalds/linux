@@ -11,27 +11,13 @@
 #include <linux/firewire.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/rawmidi.h>
-#include "amdtp.h"
+#include "amdtp-stream.h"
 
 #define TICKS_PER_CYCLE		3072
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
-
-/*
- * Nominally 3125 bytes/second, but the MIDI port's clock might be
- * 1% too slow, and the bus clock 100 ppm too fast.
- */
-#define MIDI_BYTES_PER_SECOND	3093
-
-/*
- * Several devices look only at the first eight data blocks.
- * In any case, this is more than enough for the MIDI data rate.
- */
-#define MAX_MIDI_RX_BLOCKS	8
 
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
@@ -55,12 +41,8 @@
 #define CIP_SYT_MASK		0x0000ffff
 #define CIP_SYT_NO_INFO		0xffff
 
-/*
- * Audio and Music transfer protocol specific parameters
- * only "Clock-based rate control mode" is supported
- */
-#define CIP_FMT_AM		(0x10 << CIP_FMT_SHIFT)
-#define AMDTP_FDF_AM824		(0 << (CIP_FDF_SHIFT + 3))
+/* Audio and Music transfer protocol specific parameters */
+#define CIP_FMT_AM		0x10
 #define AMDTP_FDF_NO_DATA	0xff
 
 /* TODO: make these configurable */
@@ -78,10 +60,23 @@ static void pcm_period_tasklet(unsigned long data);
  * @unit: the target of the stream
  * @dir: the direction of stream
  * @flags: the packet transmission method to use
+ * @fmt: the value of fmt field in CIP header
+ * @process_data_blocks: callback handler to process data blocks
+ * @protocol_size: the size to allocate newly for protocol
  */
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum amdtp_stream_direction dir, enum cip_flags flags)
+		      enum amdtp_stream_direction dir, enum cip_flags flags,
+		      unsigned int fmt,
+		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      unsigned int protocol_size)
 {
+	if (process_data_blocks == NULL)
+		return -EINVAL;
+
+	s->protocol = kzalloc(protocol_size, GFP_KERNEL);
+	if (!s->protocol)
+		return -ENOMEM;
+
 	s->unit = unit;
 	s->direction = dir;
 	s->flags = flags;
@@ -94,6 +89,9 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->callbacked = false;
 	s->sync_slave = NULL;
 
+	s->fmt = fmt;
+	s->process_data_blocks = process_data_blocks;
+
 	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_init);
@@ -105,6 +103,7 @@ EXPORT_SYMBOL(amdtp_stream_init);
 void amdtp_stream_destroy(struct amdtp_stream *s)
 {
 	WARN_ON(amdtp_stream_running(s));
+	kfree(s->protocol);
 	mutex_destroy(&s->mutex);
 }
 EXPORT_SYMBOL(amdtp_stream_destroy);
@@ -140,11 +139,6 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime)
 {
 	int err;
-
-	/* AM824 in IEC 61883-6 can deliver 24bit data */
-	err = snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
-	if (err < 0)
-		goto end;
 
 	/*
 	 * Currently firewire-lib processes 16 packets in one software
@@ -190,39 +184,25 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * amdtp_stream_set_parameters - set stream parameters
  * @s: the AMDTP stream to configure
  * @rate: the sample rate
- * @pcm_channels: the number of PCM samples in each data block, to be encoded
- *                as AM824 multi-bit linear audio
- * @midi_ports: the number of MIDI ports (i.e., MPX-MIDI Data Channels)
+ * @data_block_quadlets: the size of a data block in quadlet unit
  *
  * The parameters must be set before the stream is started, and must not be
  * changed while the stream is running.
  */
-void amdtp_stream_set_parameters(struct amdtp_stream *s,
-				 unsigned int rate,
-				 unsigned int pcm_channels,
-				 unsigned int midi_ports)
+int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
+				unsigned int data_block_quadlets)
 {
-	unsigned int i, sfc, midi_channels;
+	unsigned int sfc;
 
-	midi_channels = DIV_ROUND_UP(midi_ports, 8);
-
-	if (WARN_ON(amdtp_stream_running(s)) |
-	    WARN_ON(pcm_channels > AMDTP_MAX_CHANNELS_FOR_PCM) |
-	    WARN_ON(midi_channels > AMDTP_MAX_CHANNELS_FOR_MIDI))
-		return;
-
-	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc)
+	for (sfc = 0; sfc < ARRAY_SIZE(amdtp_rate_table); ++sfc) {
 		if (amdtp_rate_table[sfc] == rate)
-			goto sfc_found;
-	WARN_ON(1);
-	return;
+			break;
+	}
+	if (sfc == ARRAY_SIZE(amdtp_rate_table))
+		return -EINVAL;
 
-sfc_found:
-	s->pcm_channels = pcm_channels;
 	s->sfc = sfc;
-	s->data_block_quadlets = s->pcm_channels + midi_channels;
-	s->midi_ports = midi_ports;
-
+	s->data_block_quadlets = data_block_quadlets;
 	s->syt_interval = amdtp_syt_intervals[sfc];
 
 	/* default buffering in the device */
@@ -231,18 +211,7 @@ sfc_found:
 		/* additional buffering needed to adjust for no-data packets */
 		s->transfer_delay += TICKS_PER_SECOND * s->syt_interval / rate;
 
-	/* init the position map for PCM and MIDI channels */
-	for (i = 0; i < pcm_channels; i++)
-		s->pcm_positions[i] = i;
-	s->midi_position = s->pcm_channels;
-
-	/*
-	 * We do not know the actual MIDI FIFO size of most devices.  Just
-	 * assume two bytes, i.e., one byte can be received over the bus while
-	 * the previous one is transmitted over MIDI.
-	 * (The value here is adjusted for midi_ratelimit_per_packet().)
-	 */
-	s->midi_fifo_limit = rate - MIDI_BYTES_PER_SECOND * s->syt_interval + 1;
+	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_set_parameters);
 
@@ -263,52 +232,6 @@ unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 	return 8 + s->syt_interval * s->data_block_quadlets * 4 * multiplier;
 }
 EXPORT_SYMBOL(amdtp_stream_get_max_payload);
-
-static void write_pcm_s16(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames);
-static void write_pcm_s32(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames);
-static void read_pcm_s32(struct amdtp_stream *s,
-			 struct snd_pcm_substream *pcm,
-			 __be32 *buffer, unsigned int frames);
-
-/**
- * amdtp_stream_set_pcm_format - set the PCM format
- * @s: the AMDTP stream to configure
- * @format: the format of the ALSA PCM device
- *
- * The sample format must be set after the other parameters (rate/PCM channels/
- * MIDI) and before the stream is started, and must not be changed while the
- * stream is running.
- */
-void amdtp_stream_set_pcm_format(struct amdtp_stream *s,
-				 snd_pcm_format_t format)
-{
-	if (WARN_ON(amdtp_stream_pcm_running(s)))
-		return;
-
-	switch (format) {
-	default:
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S16:
-		if (s->direction == AMDTP_OUT_STREAM) {
-			s->transfer_samples = write_pcm_s16;
-			break;
-		}
-		WARN_ON(1);
-		/* fall through */
-	case SNDRV_PCM_FORMAT_S32:
-		if (s->direction == AMDTP_OUT_STREAM)
-			s->transfer_samples = write_pcm_s32;
-		else
-			s->transfer_samples = read_pcm_s32;
-		break;
-	}
-}
-EXPORT_SYMBOL(amdtp_stream_set_pcm_format);
 
 /**
  * amdtp_stream_pcm_prepare - prepare PCM device for running
@@ -412,181 +335,11 @@ static unsigned int calculate_syt(struct amdtp_stream *s,
 	}
 }
 
-static void write_pcm_s32(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	const u32 *src;
-
-	channels = s->pcm_channels;
-	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			buffer[s->pcm_positions[c]] =
-					cpu_to_be32((*src >> 8) | 0x40000000);
-			src++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			src = (void *)runtime->dma_area;
-	}
-}
-
-static void write_pcm_s16(struct amdtp_stream *s,
-			  struct snd_pcm_substream *pcm,
-			  __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	const u16 *src;
-
-	channels = s->pcm_channels;
-	src = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			buffer[s->pcm_positions[c]] =
-					cpu_to_be32((*src << 8) | 0x42000000);
-			src++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			src = (void *)runtime->dma_area;
-	}
-}
-
-static void read_pcm_s32(struct amdtp_stream *s,
-			 struct snd_pcm_substream *pcm,
-			 __be32 *buffer, unsigned int frames)
-{
-	struct snd_pcm_runtime *runtime = pcm->runtime;
-	unsigned int channels, remaining_frames, i, c;
-	u32 *dst;
-
-	channels = s->pcm_channels;
-	dst  = (void *)runtime->dma_area +
-			frames_to_bytes(runtime, s->pcm_buffer_pointer);
-	remaining_frames = runtime->buffer_size - s->pcm_buffer_pointer;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < channels; ++c) {
-			*dst = be32_to_cpu(buffer[s->pcm_positions[c]]) << 8;
-			dst++;
-		}
-		buffer += s->data_block_quadlets;
-		if (--remaining_frames == 0)
-			dst = (void *)runtime->dma_area;
-	}
-}
-
-static void write_pcm_silence(struct amdtp_stream *s,
-			      __be32 *buffer, unsigned int frames)
-{
-	unsigned int i, c;
-
-	for (i = 0; i < frames; ++i) {
-		for (c = 0; c < s->pcm_channels; ++c)
-			buffer[s->pcm_positions[c]] = cpu_to_be32(0x40000000);
-		buffer += s->data_block_quadlets;
-	}
-}
-
-/*
- * To avoid sending MIDI bytes at too high a rate, assume that the receiving
- * device has a FIFO, and track how much it is filled.  This values increases
- * by one whenever we send one byte in a packet, but the FIFO empties at
- * a constant rate independent of our packet rate.  One packet has syt_interval
- * samples, so the number of bytes that empty out of the FIFO, per packet(!),
- * is MIDI_BYTES_PER_SECOND * syt_interval / sample_rate.  To avoid storing
- * fractional values, the values in midi_fifo_used[] are measured in bytes
- * multiplied by the sample rate.
- */
-static bool midi_ratelimit_per_packet(struct amdtp_stream *s, unsigned int port)
-{
-	int used;
-
-	used = s->midi_fifo_used[port];
-	if (used == 0) /* common shortcut */
-		return true;
-
-	used -= MIDI_BYTES_PER_SECOND * s->syt_interval;
-	used = max(used, 0);
-	s->midi_fifo_used[port] = used;
-
-	return used < s->midi_fifo_limit;
-}
-
-static void midi_rate_use_one_byte(struct amdtp_stream *s, unsigned int port)
-{
-	s->midi_fifo_used[port] += amdtp_rate_table[s->sfc];
-}
-
-static void write_midi_messages(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int frames)
-{
-	unsigned int f, port;
-	u8 *b;
-
-	for (f = 0; f < frames; f++) {
-		b = (u8 *)&buffer[s->midi_position];
-
-		port = (s->data_block_counter + f) % 8;
-		if (f < MAX_MIDI_RX_BLOCKS &&
-		    midi_ratelimit_per_packet(s, port) &&
-		    s->midi[port] != NULL &&
-		    snd_rawmidi_transmit(s->midi[port], &b[1], 1) == 1) {
-			midi_rate_use_one_byte(s, port);
-			b[0] = 0x81;
-		} else {
-			b[0] = 0x80;
-			b[1] = 0;
-		}
-		b[2] = 0;
-		b[3] = 0;
-
-		buffer += s->data_block_quadlets;
-	}
-}
-
-static void read_midi_messages(struct amdtp_stream *s,
-			       __be32 *buffer, unsigned int frames)
-{
-	unsigned int f, port;
-	int len;
-	u8 *b;
-
-	for (f = 0; f < frames; f++) {
-		port = (s->data_block_counter + f) % 8;
-		b = (u8 *)&buffer[s->midi_position];
-
-		len = b[0] - 0x80;
-		if ((1 <= len) &&  (len <= 3) && (s->midi[port]))
-			snd_rawmidi_receive(s->midi[port], b + 1, len);
-
-		buffer += s->data_block_quadlets;
-	}
-}
-
 static void update_pcm_pointers(struct amdtp_stream *s,
 				struct snd_pcm_substream *pcm,
 				unsigned int frames)
 {
 	unsigned int ptr;
-
-	/*
-	 * In IEC 61883-6, one data block represents one event. In ALSA, one
-	 * event equals to one PCM frame. But Dice has a quirk to transfer
-	 * two PCM frames in one data block.
-	 */
-	if (s->double_pcm_frames)
-		frames *= 2;
 
 	ptr = s->pcm_buffer_pointer + frames;
 	if (ptr >= pcm->runtime->buffer_size)
@@ -656,23 +409,19 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 {
 	__be32 *buffer;
 	unsigned int payload_length;
+	unsigned int pcm_frames;
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
+	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
+
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				s->data_block_counter);
-	buffer[1] = cpu_to_be32(CIP_EOH | CIP_FMT_AM | AMDTP_FDF_AM824 |
-				(s->sfc << CIP_FDF_SHIFT) | syt);
-	buffer += 2;
-
-	pcm = ACCESS_ONCE(s->pcm);
-	if (pcm)
-		s->transfer_samples(s, pcm, buffer, data_blocks);
-	else
-		write_pcm_silence(s, buffer, data_blocks);
-	if (s->midi_ports)
-		write_midi_messages(s, buffer, data_blocks);
+	buffer[1] = cpu_to_be32(CIP_EOH |
+				((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
+				((s->fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
+				(syt & CIP_SYT_MASK));
 
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 
@@ -680,8 +429,9 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 	if (queue_out_packet(s, payload_length, false) < 0)
 		return -EIO;
 
-	if (pcm)
-		update_pcm_pointers(s, pcm, data_blocks);
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
 
 	/* No need to return the number of handled data blocks. */
 	return 0;
@@ -689,11 +439,13 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 
 static int handle_in_packet(struct amdtp_stream *s,
 			    unsigned int payload_quadlets, __be32 *buffer,
-			    unsigned int *data_blocks)
+			    unsigned int *data_blocks, unsigned int syt)
 {
 	u32 cip_header[2];
+	unsigned int fmt, fdf;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
-	struct snd_pcm_substream *pcm = NULL;
+	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 	bool lost;
 
 	cip_header[0] = be32_to_cpu(buffer[0]);
@@ -704,19 +456,28 @@ static int handle_in_packet(struct amdtp_stream *s,
 	 * For convenience, also check FMT field is AM824 or not.
 	 */
 	if (((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
-	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH) ||
-	    ((cip_header[1] & CIP_FMT_MASK) != CIP_FMT_AM)) {
+	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) {
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
 		*data_blocks = 0;
+		pcm_frames = 0;
 		goto end;
 	}
 
+	/* Check valid protocol or not. */
+	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
+	if (fmt != s->fmt) {
+		dev_err(&s->unit->device,
+			"Detect unexpected protocol: %08x %08x\n",
+			cip_header[0], cip_header[1]);
+		return -EIO;
+	}
+
 	/* Calculate data blocks */
+	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
 	if (payload_quadlets < 3 ||
-	    ((cip_header[1] & CIP_FDF_MASK) ==
-				(AMDTP_FDF_NO_DATA << CIP_FDF_SHIFT))) {
+	    (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
 		*data_blocks = 0;
 	} else {
 		data_block_quadlets =
@@ -763,16 +524,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 		return -EIO;
 	}
 
-	if (*data_blocks > 0) {
-		buffer += 2;
-
-		pcm = ACCESS_ONCE(s->pcm);
-		if (pcm)
-			s->transfer_samples(s, pcm, buffer, *data_blocks);
-
-		if (s->midi_ports)
-			read_midi_messages(s, buffer, *data_blocks);
-	}
+	pcm_frames = s->process_data_blocks(s, buffer + 2, *data_blocks, &syt);
 
 	if (s->flags & CIP_DBC_IS_END_EVENT)
 		s->data_block_counter = data_block_counter;
@@ -783,8 +535,9 @@ end:
 	if (queue_in_packet(s) < 0)
 		return -EIO;
 
-	if (pcm)
-		update_pcm_pointers(s, pcm, *data_blocks);
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
 
 	return 0;
 }
@@ -854,15 +607,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			break;
 		}
 
+		syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 		if (handle_in_packet(s, payload_quadlets, buffer,
-							&data_blocks) < 0) {
+						&data_blocks, syt) < 0) {
 			s->packet_index = -1;
 			break;
 		}
 
 		/* Process sync slave stream */
 		if (s->sync_slave && s->sync_slave->callbacked) {
-			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 			if (handle_out_packet(s->sync_slave,
 					      data_blocks, syt) < 0) {
 				s->packet_index = -1;

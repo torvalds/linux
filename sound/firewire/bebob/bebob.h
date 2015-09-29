@@ -31,7 +31,7 @@
 #include "../fcp.h"
 #include "../packets-buffer.h"
 #include "../iso-resources.h"
-#include "../amdtp.h"
+#include "../amdtp-am824.h"
 #include "../cmp.h"
 
 /* basic register addresses on DM1000/DM1100/DM1500 */

@@ -4319,8 +4319,16 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 
 	/* RSS keys */
 	if (test_bit(BNX2X_RSS_SET_SRCH, &p->rss_flags)) {
-		memcpy(&data->rss_key[0], &p->rss_key[0],
-		       sizeof(data->rss_key));
+		u8 *dst = (u8 *)(data->rss_key) + sizeof(data->rss_key);
+		const u8 *src = (const u8 *)p->rss_key;
+		int i;
+
+		/* Apparently, bnx2x reads this array in reverse order
+		 * We need to byte swap rss_key to comply with Toeplitz specs.
+		 */
+		for (i = 0; i < sizeof(data->rss_key); i++)
+			*--dst = *src++;
+
 		caps |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
 	}
 
