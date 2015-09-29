@@ -3501,7 +3501,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 
 	default:
 		WARN(1, "Unknown event %d\n", event);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 out:
