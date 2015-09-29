@@ -425,30 +425,6 @@ struct lu_server_seq {
 	struct seq_server_site  *lss_site;
 };
 
-/* Server methods */
-
-int seq_server_init(struct lu_server_seq *seq,
-		    struct dt_device *dev,
-		    const char *prefix,
-		    enum lu_mgr_type type,
-		    struct seq_server_site *ss,
-		    const struct lu_env *env);
-
-void seq_server_fini(struct lu_server_seq *seq,
-		     const struct lu_env *env);
-
-int seq_server_alloc_super(struct lu_server_seq *seq,
-			   struct lu_seq_range *out,
-			   const struct lu_env *env);
-
-int seq_server_alloc_meta(struct lu_server_seq *seq,
-			  struct lu_seq_range *out,
-			  const struct lu_env *env);
-
-int seq_server_set_cli(struct lu_server_seq *seq,
-		       struct lu_client_seq *cli,
-		       const struct lu_env *env);
-
 /* Client methods */
 int seq_client_init(struct lu_client_seq *seq,
 		    struct obd_export *exp,
