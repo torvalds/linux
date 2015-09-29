@@ -966,7 +966,11 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 #undef C
 #define C(a, b) TRACE_ITER_##a##_BIT
 
-enum trace_iterator_bits { TRACE_FLAGS };
+enum trace_iterator_bits {
+	TRACE_FLAGS
+	/* Make sure we don't go more than we have bits for */
+	TRACE_ITER_LAST_BIT
+};
 
 /*
  * By redefining C, we can make TRACE_FLAGS a list of masks that

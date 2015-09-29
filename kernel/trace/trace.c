@@ -7046,6 +7046,12 @@ __init static int tracer_alloc_buffers(void)
 	int ring_buf_size;
 	int ret = -ENOMEM;
 
+	/*
+	 * Make sure we don't accidently add more trace options
+	 * than we have bits for.
+	 */
+	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > 32);
+
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;
 
