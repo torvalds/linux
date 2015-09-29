@@ -205,6 +205,8 @@ OPTIONS
 	beyond the specified depth will be ignored. This is a trade-off
 	between information loss and faster processing especially for
 	workloads that can have a very long callchain stack.
+	Note that when using the --itrace option the synthesized callchain size
+	will override this value if the synthesized callchain size is bigger.
 
 	Default: 127
 
