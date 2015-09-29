@@ -80,16 +80,13 @@ static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
 	if (ops->ndo_vlan_rx_add_vid) {
 		err = vlan_vid_add(dev, br->vlan_proto, vid);
 	} else {
-		struct switchdev_obj vlan_obj = {
-			.id = SWITCHDEV_OBJ_PORT_VLAN,
-			.u.vlan = {
-				.flags = flags,
-				.vid_begin = vid,
-				.vid_end = vid,
-			},
+		struct switchdev_obj_vlan v = {
+			.flags = flags,
+			.vid_begin = vid,
+			.vid_end = vid,
 		};
 
-		err = switchdev_port_obj_add(dev, &vlan_obj);
+		err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_PORT_VLAN, &v);
 		if (err == -EOPNOTSUPP)
 			err = 0;
 	}
@@ -132,15 +129,12 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 	if (ops->ndo_vlan_rx_kill_vid) {
 		vlan_vid_del(dev, br->vlan_proto, vid);
 	} else {
-		struct switchdev_obj vlan_obj = {
-			.id = SWITCHDEV_OBJ_PORT_VLAN,
-			.u.vlan = {
-				.vid_begin = vid,
-				.vid_end = vid,
-			},
+		struct switchdev_obj_vlan v = {
+			.vid_begin = vid,
+			.vid_end = vid,
 		};
 
-		err = switchdev_port_obj_del(dev, &vlan_obj);
+		err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_PORT_VLAN, &v);
 		if (err == -EOPNOTSUPP)
 			err = 0;
 	}

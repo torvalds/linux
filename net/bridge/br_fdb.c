@@ -133,15 +133,12 @@ static void fdb_del_hw_addr(struct net_bridge *br, const unsigned char *addr)
 
 static void fdb_del_external_learn(struct net_bridge_fdb_entry *f)
 {
-	struct switchdev_obj obj = {
-		.id = SWITCHDEV_OBJ_PORT_FDB,
-		.u.fdb = {
-			.addr = f->addr.addr,
-			.vid = f->vlan_id,
-		},
+	struct switchdev_obj_fdb fdb = {
+		.addr = f->addr.addr,
+		.vid = f->vlan_id,
 	};
 
-	switchdev_port_obj_del(f->dst->dev, &obj);
+	switchdev_port_obj_del(f->dst->dev, SWITCHDEV_OBJ_PORT_FDB, &fdb);
 }
 
 static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)

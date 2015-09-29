@@ -115,10 +115,12 @@ struct switchdev_ops {
 					   struct switchdev_attr *attr,
 					   struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_add)(struct net_device *dev,
-					  struct switchdev_obj *obj,
+					  enum switchdev_obj_id id,
+					  const void *obj,
 					  struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_del)(struct net_device *dev,
-					  struct switchdev_obj *obj);
+					  enum switchdev_obj_id id,
+					  const void *obj);
 	int	(*switchdev_port_obj_dump)(struct net_device *dev,
 					   enum switchdev_obj_id id, void *obj,
 					   int (*cb)(void *obj));
@@ -151,8 +153,10 @@ int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
 			    struct switchdev_attr *attr);
-int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj);
-int switchdev_port_obj_del(struct net_device *dev, struct switchdev_obj *obj);
+int switchdev_port_obj_add(struct net_device *dev, enum switchdev_obj_id id,
+			   const void *obj);
+int switchdev_port_obj_del(struct net_device *dev, enum switchdev_obj_id id,
+			   const void *obj);
 int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
 			    void *obj, int (*cb)(void *obj));
 int register_switchdev_notifier(struct notifier_block *nb);
@@ -199,13 +203,15 @@ static inline int switchdev_port_attr_set(struct net_device *dev,
 }
 
 static inline int switchdev_port_obj_add(struct net_device *dev,
-					 struct switchdev_obj *obj)
+					 enum switchdev_obj_id id,
+					 const void *obj)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int switchdev_port_obj_del(struct net_device *dev,
-					 struct switchdev_obj *obj)
+					 enum switchdev_obj_id id,
+					 const void *obj)
 {
 	return -EOPNOTSUPP;
 }

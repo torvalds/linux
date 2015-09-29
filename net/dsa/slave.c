@@ -242,10 +242,9 @@ static int dsa_bridge_check_vlan_range(struct dsa_switch *ds,
 }
 
 static int dsa_slave_port_vlan_add(struct net_device *dev,
-				   struct switchdev_obj *obj,
+				   const struct switchdev_obj_vlan *vlan,
 				   struct switchdev_trans *trans)
 {
-	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	u16 vid;
@@ -279,9 +278,8 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 }
 
 static int dsa_slave_port_vlan_del(struct net_device *dev,
-				   struct switchdev_obj *obj)
+				   const struct switchdev_obj_vlan *vlan)
 {
-	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	u16 vid;
@@ -343,10 +341,9 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_add(struct net_device *dev,
-				  struct switchdev_obj *obj,
+				  const struct switchdev_obj_fdb *fdb,
 				  struct switchdev_trans *trans)
 {
-	struct switchdev_obj_fdb *fdb = &obj->u.fdb;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
@@ -360,9 +357,8 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_del(struct net_device *dev,
-				  struct switchdev_obj *obj)
+				  const struct switchdev_obj_fdb *fdb)
 {
-	struct switchdev_obj_fdb *fdb = &obj->u.fdb;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	int ret = -EOPNOTSUPP;
@@ -473,7 +469,7 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 }
 
 static int dsa_slave_port_obj_add(struct net_device *dev,
-				  struct switchdev_obj *obj,
+				  enum switchdev_obj_id id, const void *obj,
 				  struct switchdev_trans *trans)
 {
 	int err;
@@ -483,7 +479,7 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	 * supported, return -EOPNOTSUPP.
 	 */
 
-	switch (obj->id) {
+	switch (id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
 		err = dsa_slave_port_fdb_add(dev, obj, trans);
 		break;
@@ -499,11 +495,11 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 }
 
 static int dsa_slave_port_obj_del(struct net_device *dev,
-				  struct switchdev_obj *obj)
+				  enum switchdev_obj_id id, const void *obj)
 {
 	int err;
 
-	switch (obj->id) {
+	switch (id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
 		err = dsa_slave_port_fdb_del(dev, obj);
 		break;
