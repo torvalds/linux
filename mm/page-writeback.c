@@ -1965,10 +1965,12 @@ void laptop_mode_timer_fn(unsigned long data)
 	if (!bdi_has_dirty_io(&q->backing_dev_info))
 		return;
 
+	rcu_read_lock();
 	bdi_for_each_wb(wb, &q->backing_dev_info, &iter, 0)
 		if (wb_has_dirty_io(wb))
 			wb_start_writeback(wb, nr_pages, true,
 					   WB_REASON_LAPTOP_TIMER);
+	rcu_read_unlock();
 }
 
 /*
