@@ -129,9 +129,6 @@ void req_capsule_shrink(struct req_capsule *pill,
 			const struct req_msg_field *field,
 			unsigned int newlen,
 			enum req_location loc);
-int req_capsule_server_grow(struct req_capsule *pill,
-			    const struct req_msg_field *field,
-			    unsigned int newlen);
 int  req_layout_init(void);
 void req_layout_fini(void);
 
