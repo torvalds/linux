@@ -426,14 +426,6 @@ struct lu_server_seq {
 };
 
 /* Client methods */
-int seq_client_init(struct lu_client_seq *seq,
-		    struct obd_export *exp,
-		    enum lu_cli_type type,
-		    const char *prefix,
-		    struct lu_server_seq *srv);
-
-void seq_client_fini(struct lu_client_seq *seq);
-
 void seq_client_flush(struct lu_client_seq *seq);
 
 int seq_client_alloc_fid(const struct lu_env *env, struct lu_client_seq *seq,

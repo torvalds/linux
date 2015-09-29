@@ -438,18 +438,29 @@ out_cleanup:
 	return rc;
 }
 
-int seq_client_init(struct lu_client_seq *seq,
-		    struct obd_export *exp,
-		    enum lu_cli_type type,
-		    const char *prefix,
-		    struct lu_server_seq *srv)
+static void seq_client_fini(struct lu_client_seq *seq)
+{
+	seq_client_debugfs_fini(seq);
+
+	if (seq->lcs_exp) {
+		class_export_put(seq->lcs_exp);
+		seq->lcs_exp = NULL;
+	}
+
+	seq->lcs_srv = NULL;
+}
+
+static int seq_client_init(struct lu_client_seq *seq,
+			   struct obd_export *exp,
+			   enum lu_cli_type type,
+			   const char *prefix)
 {
 	int rc;
 
 	LASSERT(seq != NULL);
 	LASSERT(prefix != NULL);
 
-	seq->lcs_srv = srv;
+	seq->lcs_srv = NULL;
 	seq->lcs_type = type;
 
 	mutex_init(&seq->lcs_mutex);
@@ -475,20 +486,6 @@ int seq_client_init(struct lu_client_seq *seq,
 		seq_client_fini(seq);
 	return rc;
 }
-EXPORT_SYMBOL(seq_client_init);
-
-void seq_client_fini(struct lu_client_seq *seq)
-{
-	seq_client_debugfs_fini(seq);
-
-	if (seq->lcs_exp != NULL) {
-		class_export_put(seq->lcs_exp);
-		seq->lcs_exp = NULL;
-	}
-
-	seq->lcs_srv = NULL;
-}
-EXPORT_SYMBOL(seq_client_fini);
 
 int client_fid_init(struct obd_device *obd,
 		    struct obd_export *exp, enum lu_cli_type type)
@@ -510,7 +507,7 @@ int client_fid_init(struct obd_device *obd,
 	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
 
 	/* Init client side sequence-manager */
-	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
+	rc = seq_client_init(cli->cl_seq, exp, type, prefix);
 	kfree(prefix);
 	if (rc)
 		goto out_free_seq;
