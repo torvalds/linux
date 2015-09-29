@@ -675,13 +675,6 @@ void ccc_lock_state(const struct lu_env *env,
  *
  */
 
-void ccc_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
-{
-	struct cl_io *io = ios->cis_io;
-
-	CLOBINVRNT(env, io->ci_obj, ccc_object_invariant(io->ci_obj));
-}
-
 int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end)

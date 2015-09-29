@@ -332,7 +332,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    const struct cl_lock_slice *slice,
 		    enum cl_lock_state state);
 
-void ccc_io_fini(const struct lu_env *env, const struct cl_io_slice *ios);
 int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 			  __u32 enqflags, enum cl_lock_mode mode,
 			  pgoff_t start, pgoff_t end);
