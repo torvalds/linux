@@ -64,30 +64,29 @@ enum switchdev_obj_id {
 	SWITCHDEV_OBJ_PORT_FDB,
 };
 
-struct switchdev_obj {
-	enum switchdev_obj_id id;
-	int (*cb)(struct switchdev_obj *obj);
-	union {
-		struct switchdev_obj_vlan {		/* PORT_VLAN */
-			u16 flags;
-			u16 vid_begin;
-			u16 vid_end;
-		} vlan;
-		struct switchdev_obj_ipv4_fib {		/* IPV4_FIB */
-			u32 dst;
-			int dst_len;
-			struct fib_info *fi;
-			u8 tos;
-			u8 type;
-			u32 nlflags;
-			u32 tb_id;
-		} ipv4_fib;
-		struct switchdev_obj_fdb {		/* PORT_FDB */
-			const unsigned char *addr;
-			u16 vid;
-			u16 ndm_state;
-		} fdb;
-	} u;
+/* SWITCHDEV_OBJ_PORT_VLAN */
+struct switchdev_obj_vlan {
+	u16 flags;
+	u16 vid_begin;
+	u16 vid_end;
+};
+
+/* SWITCHDEV_OBJ_IPV4_FIB */
+struct switchdev_obj_ipv4_fib {
+	u32 dst;
+	int dst_len;
+	struct fib_info *fi;
+	u8 tos;
+	u8 type;
+	u32 nlflags;
+	u32 tb_id;
+};
+
+/* SWITCHDEV_OBJ_PORT_FDB */
+struct switchdev_obj_fdb {
+	const unsigned char *addr;
+	u16 vid;
+	u16 ndm_state;
 };
 
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
@@ -102,11 +101,11 @@ void *switchdev_trans_item_dequeue(struct switchdev_trans *trans);
  *
  * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
  *
- * @switchdev_port_obj_add: Add an object to port (see switchdev_obj).
+ * @switchdev_port_obj_add: Add an object to port (see switchdev_obj_*).
  *
- * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj).
+ * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj_*).
  *
- * @switchdev_port_obj_dump: Dump port objects (see switchdev_obj).
+ * @switchdev_port_obj_dump: Dump port objects (see switchdev_obj_*).
  */
 struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
