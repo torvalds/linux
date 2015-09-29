@@ -561,7 +561,6 @@ static inline int vf610_nfc_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	u32 ecc_status_off = NFC_MAIN_AREA(0) + ECC_SRAM_ADDR + ECC_STATUS;
 	u8 ecc_status;
 	u8 ecc_count;
-	int flips;
 	int flips_threshold = nfc->chip.ecc.strength / 2;
 
 	ecc_status = vf610_nfc_read(nfc, ecc_status_off) & 0xff;
@@ -578,16 +577,9 @@ static inline int vf610_nfc_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	 * On an erased page, bit count (including OOB) should be zero or
 	 * at least less then half of the ECC strength.
 	 */
-	flips = count_written_bits(dat, nfc->chip.ecc.size, flips_threshold);
-	flips += count_written_bits(oob, mtd->oobsize, flips_threshold);
-
-	if (unlikely(flips > flips_threshold))
-		return -EINVAL;
-
-	/* Erased page. */
-	memset(dat, 0xff, nfc->chip.ecc.size);
-	memset(oob, 0xff, mtd->oobsize);
-	return flips;
+	return nand_check_erased_ecc_chunk(dat, nfc->chip.ecc.size, oob,
+					   mtd->oobsize, NULL, 0,
+					   flips_threshold);
 }
 
 static int vf610_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
