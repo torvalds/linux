@@ -322,8 +322,7 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 		*dig_port = NULL;
 		*port = PORT_E;
 	} else {
-		DRM_ERROR("Invalid DDI encoder type %d\n", type);
-		BUG();
+		WARN(1, "Invalid DDI encoder type %d\n", type);
 	}
 }
 
