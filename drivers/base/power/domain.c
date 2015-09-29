@@ -315,11 +315,12 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 /**
  * pm_genpd_poweroff - Remove power from a given PM domain.
  * @genpd: PM domain to power down.
+ * @is_async: PM domain is powered down from a scheduled work
  *
  * If all of the @genpd's devices have been suspended and all of its subdomains
  * have been powered down, remove power from @genpd.
  */
-static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
+static int pm_genpd_poweroff(struct generic_pm_domain *genpd, bool is_async)
 {
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
@@ -351,7 +352,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 			not_suspended++;
 	}
 
-	if (not_suspended > genpd->in_progress)
+	if (not_suspended > 1 || (not_suspended == 1 && is_async))
 		return -EBUSY;
 
 	if (genpd->gov && genpd->gov->power_down_ok) {
@@ -399,7 +400,7 @@ static void genpd_power_off_work_fn(struct work_struct *work)
 	genpd = container_of(work, struct generic_pm_domain, power_off_work);
 
 	mutex_lock(&genpd->lock);
-	pm_genpd_poweroff(genpd);
+	pm_genpd_poweroff(genpd, true);
 	mutex_unlock(&genpd->lock);
 }
 
@@ -445,9 +446,7 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 		return 0;
 
 	mutex_lock(&genpd->lock);
-	genpd->in_progress++;
-	pm_genpd_poweroff(genpd);
-	genpd->in_progress--;
+	pm_genpd_poweroff(genpd, false);
 	mutex_unlock(&genpd->lock);
 
 	return 0;
@@ -1462,7 +1461,6 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	mutex_init(&genpd->lock);
 	genpd->gov = gov;
 	INIT_WORK(&genpd->power_off_work, genpd_power_off_work_fn);
-	genpd->in_progress = 0;
 	atomic_set(&genpd->sd_count, 0);
 	genpd->status = is_off ? GPD_STATE_POWER_OFF : GPD_STATE_ACTIVE;
 	genpd->device_count = 0;
