@@ -334,7 +334,7 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 		if (test_bit(p->port, untagged))
 			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
-		err = obj->cb(dev, obj);
+		err = obj->cb(obj);
 		if (err)
 			break;
 	}
@@ -397,7 +397,7 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 		obj->u.fdb.vid = vid;
 		obj->u.fdb.ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
 
-		ret = obj->cb(dev, obj);
+		ret = obj->cb(obj);
 		if (ret < 0)
 			break;
 	}

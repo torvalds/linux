@@ -514,8 +514,7 @@ static int switchdev_port_vlan_dump_put(struct switchdev_vlan_dump *dump)
 	return 0;
 }
 
-static int switchdev_port_vlan_dump_cb(struct net_device *dev,
-				       struct switchdev_obj *obj)
+static int switchdev_port_vlan_dump_cb(struct switchdev_obj *obj)
 {
 	struct switchdev_vlan_dump *dump =
 		container_of(obj, struct switchdev_vlan_dump, obj);
@@ -864,8 +863,7 @@ struct switchdev_fdb_dump {
 	int idx;
 };
 
-static int switchdev_port_fdb_dump_cb(struct net_device *dev,
-				      struct switchdev_obj *obj)
+static int switchdev_port_fdb_dump_cb(struct switchdev_obj *obj)
 {
 	struct switchdev_fdb_dump *dump =
 		container_of(obj, struct switchdev_fdb_dump, obj);

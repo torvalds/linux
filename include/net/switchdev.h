@@ -66,7 +66,7 @@ enum switchdev_obj_id {
 
 struct switchdev_obj {
 	enum switchdev_obj_id id;
-	int (*cb)(struct net_device *dev, struct switchdev_obj *obj);
+	int (*cb)(struct switchdev_obj *obj);
 	union {
 		struct switchdev_obj_vlan {		/* PORT_VLAN */
 			u16 flags;

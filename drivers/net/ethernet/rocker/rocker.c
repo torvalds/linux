@@ -4556,7 +4556,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 		fdb->ndm_state = NUD_REACHABLE;
 		fdb->vid = rocker_port_vlan_to_vid(rocker_port,
 						   found->key.vlan_id);
-		err = obj->cb(rocker_port->dev, obj);
+		err = obj->cb(obj);
 		if (err)
 			break;
 	}
@@ -4579,7 +4579,7 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 		if (rocker_vlan_id_is_internal(htons(vid)))
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
 		vlan->vid_begin = vlan->vid_end = vid;
-		err = obj->cb(rocker_port->dev, obj);
+		err = obj->cb(obj);
 		if (err)
 			break;
 	}
