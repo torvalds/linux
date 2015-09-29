@@ -1355,6 +1355,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 						wf_otg);
 	u32 count = 0;
 	u32 gotgctl;
+	unsigned long flags;
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);
 
@@ -1382,7 +1383,9 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
+		spin_lock_irqsave(&hsotg->lock, flags);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
 		dwc2_hsotg_core_connect(hsotg);
 	} else {
 		/* A-Device connector (Host Mode) */

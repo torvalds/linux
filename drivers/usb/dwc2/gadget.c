@@ -2287,6 +2287,9 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 {
 	u32 val;
 
+	/* Kill any ep0 requests as controller will be reinitialized */
+	kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
+
 	if (!is_usb_reset)
 		if (dwc2_hsotg_corereset(hsotg))
 			return;
@@ -2514,9 +2517,6 @@ irq_retry:
 		if (usb_status & GOTGCTL_BSESVLD) {
 			if (time_after(jiffies, hsotg->last_rst +
 				       msecs_to_jiffies(200))) {
-
-				kill_all_requests(hsotg, hsotg->eps_out[0],
-							  -ECONNRESET);
 
 				dwc2_hsotg_core_init_disconnected(hsotg, true);
 			}
@@ -3296,8 +3296,6 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 		if (hsotg->lx_state == DWC2_L2)
 			dwc2_exit_hibernation(hsotg, false);
 
-		/* Kill any ep0 requests as controller will be reinitialized */
-		kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		if (hsotg->enabled)
 			dwc2_hsotg_core_connect(hsotg);
