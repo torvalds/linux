@@ -1160,13 +1160,15 @@ static void hidpp_populate_input(struct hidpp_device *hidpp,
 		m560_populate_input(hidpp, input, origin_is_hid_core);
 }
 
-static void hidpp_input_configured(struct hid_device *hdev,
+static int hidpp_input_configured(struct hid_device *hdev,
 				struct hid_input *hidinput)
 {
 	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 	struct input_dev *input = hidinput->input;
 
 	hidpp_populate_input(hidpp, input, true);
+
+	return 0;
 }
 
 static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
