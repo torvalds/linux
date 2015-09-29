@@ -672,7 +672,6 @@ void lu_object_add_top    (struct lu_object_header *h, struct lu_object *o);
 void lu_object_add	(struct lu_object *before, struct lu_object *o);
 
 void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d);
-void lu_dev_del_linkage(struct lu_site *s, struct lu_device *d);
 
 /**
  * Helpers to initialize and finalize device types.
@@ -710,7 +709,6 @@ static inline int lu_object_is_dying(const struct lu_object_header *h)
 }
 
 void lu_object_put(const struct lu_env *env, struct lu_object *o);
-void lu_object_put_nocache(const struct lu_env *env, struct lu_object *o);
 void lu_object_unhash(const struct lu_env *env, struct lu_object *o);
 
 int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr);
@@ -1241,14 +1239,6 @@ void lu_context_key_degister_many(struct lu_context_key *k, ...);
 void lu_context_key_revive_many  (struct lu_context_key *k, ...);
 void lu_context_key_quiesce_many (struct lu_context_key *k, ...);
 
-/*
- * update/clear ctx/ses tags.
- */
-void lu_context_tags_update(__u32 tags);
-void lu_context_tags_clear(__u32 tags);
-void lu_session_tags_update(__u32 tags);
-void lu_session_tags_clear(__u32 tags);
-
 /**
  * Environment.
  */
@@ -1266,7 +1256,6 @@ struct lu_env {
 int  lu_env_init  (struct lu_env *env, __u32 tags);
 void lu_env_fini  (struct lu_env *env);
 int  lu_env_refill(struct lu_env *env);
-int  lu_env_refill_by_tags(struct lu_env *env, __u32 ctags, __u32 stags);
 
 /** @} lu_context */
 
@@ -1318,22 +1307,6 @@ struct lu_kmem_descr {
 
 int  lu_kmem_init(struct lu_kmem_descr *caches);
 void lu_kmem_fini(struct lu_kmem_descr *caches);
-
-void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
-			  const struct lu_fid *fid);
-struct lu_object *lu_object_anon(const struct lu_env *env,
-				 struct lu_device *dev,
-				 const struct lu_object_conf *conf);
-
-/** null buffer */
-extern struct lu_buf LU_BUF_NULL;
-
-void lu_buf_free(struct lu_buf *buf);
-void lu_buf_alloc(struct lu_buf *buf, int size);
-void lu_buf_realloc(struct lu_buf *buf, int size);
-
-int lu_buf_check_and_grow(struct lu_buf *buf, int len);
-struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, int len);
 
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */

@@ -157,17 +157,6 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 EXPORT_SYMBOL(lu_object_put);
 
 /**
- * Put object and don't keep in cache. This is temporary solution for
- * multi-site objects when its layering is not constant.
- */
-void lu_object_put_nocache(const struct lu_env *env, struct lu_object *o)
-{
-	set_bit(LU_OBJECT_HEARD_BANSHEE, &o->lo_header->loh_flags);
-	return lu_object_put(env, o);
-}
-EXPORT_SYMBOL(lu_object_put_nocache);
-
-/**
  * Kill the object and take it out of LRU cache.
  * Currently used by client code for layout change.
  */
@@ -528,23 +517,6 @@ void lu_object_print(const struct lu_env *env, void *cookie,
 	(*printer)(env, cookie, "} header@%p\n", top);
 }
 EXPORT_SYMBOL(lu_object_print);
-
-/**
- * Check object consistency.
- */
-int lu_object_invariant(const struct lu_object *o)
-{
-	struct lu_object_header *top;
-
-	top = o->lo_header;
-	list_for_each_entry(o, &top->loh_layers, lo_linkage) {
-		if (o->lo_ops->loo_object_invariant != NULL &&
-		    !o->lo_ops->loo_object_invariant(o))
-			return 0;
-	}
-	return 1;
-}
-EXPORT_SYMBOL(lu_object_invariant);
 
 static struct lu_object *htable_lookup(struct lu_site *s,
 				       struct cfs_hash_bd *bd,
@@ -961,14 +933,6 @@ void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d)
 	spin_unlock(&s->ls_ld_lock);
 }
 EXPORT_SYMBOL(lu_dev_add_linkage);
-
-void lu_dev_del_linkage(struct lu_site *s, struct lu_device *d)
-{
-	spin_lock(&s->ls_ld_lock);
-	list_del_init(&d->ld_linkage);
-	spin_unlock(&s->ls_ld_lock);
-}
-EXPORT_SYMBOL(lu_dev_del_linkage);
 
 /**
  * Initialize site \a s, with \a d as the top level device.
@@ -1701,42 +1665,6 @@ EXPORT_SYMBOL(lu_context_refill);
 __u32 lu_context_tags_default;
 __u32 lu_session_tags_default;
 
-void lu_context_tags_update(__u32 tags)
-{
-	spin_lock(&lu_keys_guard);
-	lu_context_tags_default |= tags;
-	key_set_version++;
-	spin_unlock(&lu_keys_guard);
-}
-EXPORT_SYMBOL(lu_context_tags_update);
-
-void lu_context_tags_clear(__u32 tags)
-{
-	spin_lock(&lu_keys_guard);
-	lu_context_tags_default &= ~tags;
-	key_set_version++;
-	spin_unlock(&lu_keys_guard);
-}
-EXPORT_SYMBOL(lu_context_tags_clear);
-
-void lu_session_tags_update(__u32 tags)
-{
-	spin_lock(&lu_keys_guard);
-	lu_session_tags_default |= tags;
-	key_set_version++;
-	spin_unlock(&lu_keys_guard);
-}
-EXPORT_SYMBOL(lu_session_tags_update);
-
-void lu_session_tags_clear(__u32 tags)
-{
-	spin_lock(&lu_keys_guard);
-	lu_session_tags_default &= ~tags;
-	key_set_version++;
-	spin_unlock(&lu_keys_guard);
-}
-EXPORT_SYMBOL(lu_session_tags_clear);
-
 int lu_env_init(struct lu_env *env, __u32 tags)
 {
 	int result;
@@ -1767,31 +1695,6 @@ int lu_env_refill(struct lu_env *env)
 	return result;
 }
 EXPORT_SYMBOL(lu_env_refill);
-
-/**
- * Currently, this API will only be used by echo client.
- * Because echo client and normal lustre client will share
- * same cl_env cache. So echo client needs to refresh
- * the env context after it get one from the cache, especially
- * when normal client and echo client co-exist in the same client.
- */
-int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
-			  __u32 stags)
-{
-	if ((env->le_ctx.lc_tags & ctags) != ctags) {
-		env->le_ctx.lc_version = 0;
-		env->le_ctx.lc_tags |= ctags;
-	}
-
-	if (env->le_ses && (env->le_ses->lc_tags & stags) != stags) {
-		env->le_ses->lc_version = 0;
-		env->le_ses->lc_tags |= stags;
-	}
-
-	return lu_env_refill(env);
-}
-EXPORT_SYMBOL(lu_env_refill_by_tags);
-
 
 struct lu_site_stats {
 	unsigned	lss_populated;
@@ -1904,29 +1807,9 @@ static unsigned long lu_cache_shrink_scan(struct shrinker *sk,
 	return sc->nr_to_scan - remain;
 }
 
-/*
- * Debugging stuff.
- */
-
-/**
- * Environment to be used in debugger, contains all tags.
- */
-struct lu_env lu_debugging_env;
-
 /**
  * Debugging printer function using printk().
  */
-int lu_printk_printer(const struct lu_env *env,
-		      void *unused, const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	vprintk(format, args);
-	va_end(args);
-	return 0;
-}
-
 static struct shrinker lu_site_shrinker = {
 	.count_objects	= lu_cache_shrink_count,
 	.scan_objects	= lu_cache_shrink_scan,
@@ -2069,127 +1952,3 @@ void lu_kmem_fini(struct lu_kmem_descr *caches)
 	}
 }
 EXPORT_SYMBOL(lu_kmem_fini);
-
-/**
- * Temporary solution to be able to assign fid in ->do_create()
- * till we have fully-functional OST fids
- */
-void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
-			  const struct lu_fid *fid)
-{
-	struct lu_site		*s = o->lo_dev->ld_site;
-	struct lu_fid		*old = &o->lo_header->loh_fid;
-	struct lu_object	*shadow;
-	wait_queue_t		 waiter;
-	struct cfs_hash		*hs;
-	struct cfs_hash_bd	 bd;
-	__u64			 version = 0;
-
-	LASSERT(fid_is_zero(old));
-
-	hs = s->ls_obj_hash;
-	cfs_hash_bd_get_and_lock(hs, (void *)fid, &bd, 1);
-	shadow = htable_lookup(s, &bd, fid, &waiter, &version);
-	/* supposed to be unique */
-	LASSERT(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT);
-	*old = *fid;
-	cfs_hash_bd_add_locked(hs, &bd, &o->lo_header->loh_hash);
-	cfs_hash_bd_unlock(hs, &bd, 1);
-}
-EXPORT_SYMBOL(lu_object_assign_fid);
-
-/**
- * allocates object with 0 (non-assigned) fid
- * XXX: temporary solution to be able to assign fid in ->do_create()
- *      till we have fully-functional OST fids
- */
-struct lu_object *lu_object_anon(const struct lu_env *env,
-				 struct lu_device *dev,
-				 const struct lu_object_conf *conf)
-{
-	struct lu_fid     fid;
-	struct lu_object *o;
-
-	fid_zero(&fid);
-	o = lu_object_alloc(env, dev, &fid, conf);
-
-	return o;
-}
-EXPORT_SYMBOL(lu_object_anon);
-
-struct lu_buf LU_BUF_NULL = {
-	.lb_buf = NULL,
-	.lb_len = 0
-};
-EXPORT_SYMBOL(LU_BUF_NULL);
-
-void lu_buf_free(struct lu_buf *buf)
-{
-	LASSERT(buf);
-	if (buf->lb_buf) {
-		LASSERT(buf->lb_len > 0);
-		kvfree(buf->lb_buf);
-		buf->lb_buf = NULL;
-		buf->lb_len = 0;
-	}
-}
-EXPORT_SYMBOL(lu_buf_free);
-
-void lu_buf_alloc(struct lu_buf *buf, int size)
-{
-	LASSERT(buf);
-	LASSERT(buf->lb_buf == NULL);
-	LASSERT(buf->lb_len == 0);
-	buf->lb_buf = libcfs_kvzalloc(size, GFP_NOFS);
-	if (likely(buf->lb_buf))
-		buf->lb_len = size;
-}
-EXPORT_SYMBOL(lu_buf_alloc);
-
-void lu_buf_realloc(struct lu_buf *buf, int size)
-{
-	lu_buf_free(buf);
-	lu_buf_alloc(buf, size);
-}
-EXPORT_SYMBOL(lu_buf_realloc);
-
-struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, int len)
-{
-	if (buf->lb_buf == NULL && buf->lb_len == 0)
-		lu_buf_alloc(buf, len);
-
-	if ((len > buf->lb_len) && (buf->lb_buf != NULL))
-		lu_buf_realloc(buf, len);
-
-	return buf;
-}
-EXPORT_SYMBOL(lu_buf_check_and_alloc);
-
-/**
- * Increase the size of the \a buf.
- * preserves old data in buffer
- * old buffer remains unchanged on error
- * \retval 0 or -ENOMEM
- */
-int lu_buf_check_and_grow(struct lu_buf *buf, int len)
-{
-	char *ptr;
-
-	if (len <= buf->lb_len)
-		return 0;
-
-	ptr = libcfs_kvzalloc(len, GFP_NOFS);
-	if (ptr == NULL)
-		return -ENOMEM;
-
-	/* Free the old buf */
-	if (buf->lb_buf != NULL) {
-		memcpy(ptr, buf->lb_buf, buf->lb_len);
-		kvfree(buf->lb_buf);
-	}
-
-	buf->lb_buf = ptr;
-	buf->lb_len = len;
-	return 0;
-}
-EXPORT_SYMBOL(lu_buf_check_and_grow);
