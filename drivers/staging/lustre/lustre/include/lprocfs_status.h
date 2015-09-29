@@ -720,10 +720,6 @@ ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
 
 extern const struct sysfs_ops lustre_sysfs_ops;
 
-/* lproc_ptlrpc.c */
-struct ptlrpc_request;
-void target_print_req(void *seq_file, struct ptlrpc_request *req);
-
 /* all quota proc functions */
 int lprocfs_quota_rd_bunit(char *page, char **start,
 			   loff_t off, int count,

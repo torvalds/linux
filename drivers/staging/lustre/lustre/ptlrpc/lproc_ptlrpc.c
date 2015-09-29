@@ -890,36 +890,6 @@ ptlrpc_lprocfs_svc_req_history_next(struct seq_file *s,
 	return NULL;
 }
 
-/* common ost/mdt so_req_printer */
-void target_print_req(void *seq_file, struct ptlrpc_request *req)
-{
-	/* Called holding srv_lock with irqs disabled.
-	 * Print specific req contents and a newline.
-	 * CAVEAT EMPTOR: check request message length before printing!!!
-	 * You might have received any old crap so you must be just as
-	 * careful here as the service's request parser!!! */
-	struct seq_file *sf = seq_file;
-
-	switch (req->rq_phase) {
-	case RQ_PHASE_NEW:
-		/* still awaiting a service thread's attention, or rejected
-		 * because the generic request message didn't unpack */
-		seq_printf(sf, "<not swabbed>\n");
-		break;
-	case RQ_PHASE_INTERPRET:
-		/* being handled, so basic msg swabbed, and opc is valid
-		 * but racing with mds_handle() */
-	case RQ_PHASE_COMPLETE:
-		/* been handled by mds_handle() reply state possibly still
-		 * volatile */
-		seq_printf(sf, "opc %d\n", lustre_msg_get_opc(req->rq_reqmsg));
-		break;
-	default:
-		DEBUG_REQ(D_ERROR, req, "bad phase %d", req->rq_phase);
-	}
-}
-EXPORT_SYMBOL(target_print_req);
-
 static int ptlrpc_lprocfs_svc_req_history_show(struct seq_file *s, void *iter)
 {
 	struct ptlrpc_service *svc = s->private;
