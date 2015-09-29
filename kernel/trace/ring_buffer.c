@@ -829,7 +829,7 @@ rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
  * writer is ever on it, the previous pointer never points
  * back to the reader page.
  */
-static int rb_is_reader_page(struct buffer_page *page)
+static bool rb_is_reader_page(struct buffer_page *page)
 {
 	struct list_head *list = page->list.prev;
 
