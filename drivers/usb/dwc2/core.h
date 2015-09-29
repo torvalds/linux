@@ -688,7 +688,6 @@ struct dwc2_hregs_backup {
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
  * @test_mode:          USB test mode requested by the host
- * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
  * @g_using_dma:          Indicate if dma usage is enabled
  * @g_rx_fifo_sz:         Contains rx fifo size value
@@ -831,7 +830,6 @@ struct dwc2_hsotg {
 	struct usb_gadget gadget;
 	unsigned int enabled:1;
 	unsigned int connected:1;
-	unsigned long last_rst;
 	struct dwc2_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
 	struct dwc2_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 	u32 g_using_dma;

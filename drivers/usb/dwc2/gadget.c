@@ -2420,7 +2420,6 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	/* must be at-least 3ms to allow bus to see disconnect */
 	mdelay(3);
 
-	hsotg->last_rst = jiffies;
 	hsotg->lx_state = DWC2_L0;
 }
 
@@ -2504,6 +2503,7 @@ irq_retry:
 	if (gintsts & (GINTSTS_USBRST | GINTSTS_RESETDET)) {
 
 		u32 usb_status = dwc2_readl(hsotg->regs + GOTGCTL);
+		u32 connected = hsotg->connected;
 
 		dev_dbg(hsotg->dev, "%s: USBRst\n", __func__);
 		dev_dbg(hsotg->dev, "GNPTXSTS=%08x\n",
@@ -2514,13 +2514,8 @@ irq_retry:
 		/* Report disconnection if it is not already done. */
 		dwc2_hsotg_disconnect(hsotg);
 
-		if (usb_status & GOTGCTL_BSESVLD) {
-			if (time_after(jiffies, hsotg->last_rst +
-				       msecs_to_jiffies(200))) {
-
-				dwc2_hsotg_core_init_disconnected(hsotg, true);
-			}
-		}
+		if (usb_status & GOTGCTL_BSESVLD && connected)
+			dwc2_hsotg_core_init_disconnected(hsotg, true);
 	}
 
 	/* check both FIFOs */
