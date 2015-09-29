@@ -1267,8 +1267,10 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 					pte_t entry, int dirty)
 {
 	pgste_t pgste;
+	pte_t oldpte;
 
-	if (pte_same(*ptep, entry))
+	oldpte = *ptep;
+	if (pte_same(oldpte, entry))
 		return 0;
 	if (mm_has_pgste(vma->vm_mm)) {
 		pgste = pgste_get_lock(ptep);
@@ -1278,7 +1280,8 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 	ptep_flush_direct(vma->vm_mm, address, ptep);
 
 	if (mm_has_pgste(vma->vm_mm)) {
-		pgste_set_key(ptep, pgste, entry, vma->vm_mm);
+		if (pte_val(oldpte) & _PAGE_INVALID)
+			pgste_set_key(ptep, pgste, entry, vma->vm_mm);
 		pgste = pgste_set_pte(ptep, pgste, entry);
 		pgste_set_unlock(ptep, pgste);
 	} else
