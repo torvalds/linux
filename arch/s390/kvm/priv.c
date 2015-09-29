@@ -34,7 +34,7 @@
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu *cpup;
-	s64 hostclk, val;
+	s64 val;
 	int i, rc;
 	ar_t ar;
 	u64 op2;
@@ -49,15 +49,11 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	if (store_tod_clock(&hostclk)) {
-		kvm_s390_set_psw_cc(vcpu, 3);
-		return 0;
-	}
 	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", val);
-	val = (val - hostclk) & ~0x3fUL;
 
 	mutex_lock(&vcpu->kvm->lock);
 	preempt_disable();
+	val = (val - get_tod_clock()) & ~0x3fUL;
 	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
 		cpup->arch.sie_block->epoch = val;
 	preempt_enable();
