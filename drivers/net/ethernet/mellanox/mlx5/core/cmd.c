@@ -1136,6 +1136,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
 
+				err = err ? err : ent->status;
 				free_cmd(ent);
 				callback(err, context);
 			} else {
@@ -1363,6 +1364,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	int err;
 	int i;
 
+	memset(cmd, 0, sizeof(*cmd));
 	cmd_if_rev = cmdif_rev(dev);
 	if (cmd_if_rev != CMD_IF_REV) {
 		dev_err(&dev->pdev->dev,

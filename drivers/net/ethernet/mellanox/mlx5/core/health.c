@@ -46,12 +46,15 @@ enum {
 enum {
 	MLX5_HEALTH_SYNDR_FW_ERR		= 0x1,
 	MLX5_HEALTH_SYNDR_IRISC_ERR		= 0x7,
+	MLX5_HEALTH_SYNDR_HW_UNRECOVERABLE_ERR	= 0x8,
 	MLX5_HEALTH_SYNDR_CRC_ERR		= 0x9,
 	MLX5_HEALTH_SYNDR_FETCH_PCI_ERR		= 0xa,
 	MLX5_HEALTH_SYNDR_HW_FTL_ERR		= 0xb,
 	MLX5_HEALTH_SYNDR_ASYNC_EQ_OVERRUN_ERR	= 0xc,
 	MLX5_HEALTH_SYNDR_EQ_ERR		= 0xd,
+	MLX5_HEALTH_SYNDR_EQ_INV		= 0xe,
 	MLX5_HEALTH_SYNDR_FFSER_ERR		= 0xf,
+	MLX5_HEALTH_SYNDR_HIGH_TEMP		= 0x10
 };
 
 static DEFINE_SPINLOCK(health_lock);
@@ -88,6 +91,8 @@ static const char *hsynd_str(u8 synd)
 		return "firmware internal error";
 	case MLX5_HEALTH_SYNDR_IRISC_ERR:
 		return "irisc not responding";
+	case MLX5_HEALTH_SYNDR_HW_UNRECOVERABLE_ERR:
+		return "unrecoverable hardware error";
 	case MLX5_HEALTH_SYNDR_CRC_ERR:
 		return "firmware CRC error";
 	case MLX5_HEALTH_SYNDR_FETCH_PCI_ERR:
@@ -98,8 +103,12 @@ static const char *hsynd_str(u8 synd)
 		return "async EQ buffer overrun";
 	case MLX5_HEALTH_SYNDR_EQ_ERR:
 		return "EQ error";
+	case MLX5_HEALTH_SYNDR_EQ_INV:
+		return "Invalid EQ refrenced";
 	case MLX5_HEALTH_SYNDR_FFSER_ERR:
 		return "FFSER error";
+	case MLX5_HEALTH_SYNDR_HIGH_TEMP:
+		return "High temprature";
 	default:
 		return "unrecognized error";
 	}
@@ -130,7 +139,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	pr_info("hw_id 0x%08x\n", read_be32(&h->hw_id));
 	pr_info("irisc_index %d\n", readb(&h->irisc_index));
 	pr_info("synd 0x%x: %s\n", readb(&h->synd), hsynd_str(readb(&h->synd)));
-	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_sync));
+	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_synd));
 }
 
 static void poll_health(unsigned long data)
