@@ -115,6 +115,13 @@ config CLKSRC_PISTACHIO
 	bool
 	select CLKSRC_OF
 
+config CLKSRC_TI_32K
+	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
+	select CLKSRC_OF if OF
+	help
+	  This option enables support for Texas Instruments 32.768 Hz clocksource
+	  available on many OMAP-like platforms.
+
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
