@@ -599,33 +599,6 @@ int server_name2fsname(const char *svname, char *fsname, const char **endptr)
 }
 EXPORT_SYMBOL(server_name2fsname);
 
-/**
- * Get service name (svname) from string
- * rc < 0 on error
- * if endptr isn't NULL it is set to end of fsname *
- */
-int server_name2svname(const char *label, char *svname, const char **endptr,
-		       size_t svsize)
-{
-	int rc;
-	const char *dash;
-
-	/* We use server_name2fsname() just for parsing */
-	rc = server_name2fsname(label, NULL, &dash);
-	if (rc != 0)
-		return rc;
-
-	if (endptr != NULL)
-		*endptr = dash;
-
-	if (strlcpy(svname, dash + 1, svsize) >= svsize)
-		return -E2BIG;
-
-	return 0;
-}
-EXPORT_SYMBOL(server_name2svname);
-
-
 /* Get the index from the obd name.
    rc = server type, or
    rc < 0  on error
