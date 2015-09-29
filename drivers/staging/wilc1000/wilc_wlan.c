@@ -649,7 +649,7 @@ static inline void chip_allow_sleep(void)
 	/* Clear bit 1 */
 	g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 
-	g_wlan.hif_func.hif_write_reg(0xf0, reg & ~(1 << 0));
+	g_wlan.hif_func.hif_write_reg(0xf0, reg & ~BIT(0));
 }
 
 static inline void chip_wakeup(void)
@@ -661,10 +661,10 @@ static inline void chip_wakeup(void)
 		do {
 			g_wlan.hif_func.hif_read_reg(1, &reg);
 			/* Set bit 1 */
-			g_wlan.hif_func.hif_write_reg(1, reg | (1 << 1));
+			g_wlan.hif_func.hif_write_reg(1, reg | BIT(1));
 
 			/* Clear bit 1*/
-			g_wlan.hif_func.hif_write_reg(1, reg & ~(1 << 1));
+			g_wlan.hif_func.hif_write_reg(1, reg & ~BIT(1));
 
 			do {
 				/* Wait for the chip to stabilize*/
@@ -681,7 +681,7 @@ static inline void chip_wakeup(void)
 		g_wlan.hif_func.hif_read_reg(0xf0, &reg);
 		do {
 			/* Set bit 1 */
-			g_wlan.hif_func.hif_write_reg(0xf0, reg | (1 << 0));
+			g_wlan.hif_func.hif_write_reg(0xf0, reg | BIT(0));
 
 			/* Check the clock status */
 			g_wlan.hif_func.hif_read_reg(0xf1, &clk_status_reg);
@@ -704,7 +704,8 @@ static inline void chip_wakeup(void)
 			/* in case of failure, Reset the wakeup bit to introduce a new edge on the next loop */
 			if ((clk_status_reg & 0x1) == 0) {
 				/* Reset bit 0 */
-				g_wlan.hif_func.hif_write_reg(0xf0, reg & (~(1 << 0)));
+				g_wlan.hif_func.hif_write_reg(0xf0, reg &
+							      (~BIT(0)));
 			}
 		} while ((clk_status_reg & 0x1) == 0);
 	}
@@ -712,7 +713,7 @@ static inline void chip_wakeup(void)
 
 	if (genuChipPSstate == CHIP_SLEEPING_MANUAL) {
 		g_wlan.hif_func.hif_read_reg(0x1C0C, &reg);
-		reg &= ~(1 << 0);
+		reg &= ~BIT(0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
 		if (wilc_get_chipid(false) >= 0x1002b0) {
@@ -720,11 +721,11 @@ static inline void chip_wakeup(void)
 			u32 val32;
 
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
-			val32 |= (1 << 6);
+			val32 |= BIT(6);
 			g_wlan.hif_func.hif_write_reg(0x1e1c, val32);
 
 			g_wlan.hif_func.hif_read_reg(0x1e9c, &val32);
-			val32 |= (1 << 6);
+			val32 |= BIT(6);
 			g_wlan.hif_func.hif_write_reg(0x1e9c, val32);
 		}
 	}
@@ -739,19 +740,19 @@ static inline void chip_wakeup(void)
 		if ((g_wlan.io_func.io_type & 0x1) == HIF_SPI) {
 			g_wlan.hif_func.hif_read_reg(1, &reg);
 			/* Make sure bit 1 is 0 before we start. */
-			g_wlan.hif_func.hif_write_reg(1, reg & ~(1 << 1));
+			g_wlan.hif_func.hif_write_reg(1, reg & ~BIT(1));
 			/* Set bit 1 */
-			g_wlan.hif_func.hif_write_reg(1, reg | (1 << 1));
+			g_wlan.hif_func.hif_write_reg(1, reg | BIT(1));
 			/* Clear bit 1*/
-			g_wlan.hif_func.hif_write_reg(1, reg  & ~(1 << 1));
+			g_wlan.hif_func.hif_write_reg(1, reg  & ~BIT(1));
 		} else if ((g_wlan.io_func.io_type & 0x1) == HIF_SDIO)	 {
 			/* Make sure bit 0 is 0 before we start. */
 			g_wlan.hif_func.hif_read_reg(0xf0, &reg);
-			g_wlan.hif_func.hif_write_reg(0xf0, reg & ~(1 << 0));
+			g_wlan.hif_func.hif_write_reg(0xf0, reg & ~BIT(0));
 			/* Set bit 1 */
-			g_wlan.hif_func.hif_write_reg(0xf0, reg | (1 << 0));
+			g_wlan.hif_func.hif_write_reg(0xf0, reg | BIT(0));
 			/* Clear bit 1 */
-			g_wlan.hif_func.hif_write_reg(0xf0, reg  & ~(1 << 0));
+			g_wlan.hif_func.hif_write_reg(0xf0, reg  & ~BIT(0));
 		}
 
 		do {
@@ -769,7 +770,7 @@ static inline void chip_wakeup(void)
 
 	if (genuChipPSstate == CHIP_SLEEPING_MANUAL) {
 		g_wlan.hif_func.hif_read_reg(0x1C0C, &reg);
-		reg &= ~(1 << 0);
+		reg &= ~BIT(0);
 		g_wlan.hif_func.hif_write_reg(0x1C0C, reg);
 
 		if (wilc_get_chipid(false) >= 0x1002b0) {
@@ -777,11 +778,11 @@ static inline void chip_wakeup(void)
 			u32 val32;
 
 			g_wlan.hif_func.hif_read_reg(0x1e1c, &val32);
-			val32 |= (1 << 6);
+			val32 |= BIT(6);
 			g_wlan.hif_func.hif_write_reg(0x1e1c, val32);
 
 			g_wlan.hif_func.hif_read_reg(0x1e9c, &val32);
-			val32 |= (1 << 6);
+			val32 |= BIT(6);
 			g_wlan.hif_func.hif_write_reg(0x1e9c, val32);
 		}
 	}
@@ -873,7 +874,7 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				PRINT_D(TX_DBG, "VMMTable entry size = %d\n", vmm_table[i]);
 
 				if (tqe->type == WILC_CFG_PKT) {
-					vmm_table[i] |= (1 << 10);
+					vmm_table[i] |= BIT(10);
 					PRINT_D(TX_DBG, "VMMTable entry changed for CFG packet = %d\n", vmm_table[i]);
 				}
 #ifdef BIG_ENDIAN
@@ -998,7 +999,7 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 					wilc_debug(N_ERR, "[wilc txq]: fail can't read reg WILC_HOST_TX_CTRL..\n");
 					break;
 				}
-				reg &= ~(1ul << 0);
+				reg &= ~BIT(0);
 				ret = p->hif_func.hif_write_reg(WILC_HOST_TX_CTRL, reg);
 				if (!ret) {
 					wilc_debug(N_ERR, "[wilc txq]: fail can't write reg WILC_HOST_TX_CTRL..\n");
@@ -1039,9 +1040,9 @@ static int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 				vmm_sz *= 4;
 				header = (tqe->type << 31) | (tqe->buffer_size << 15) | vmm_sz;
 				if (tqe->type == WILC_MGMT_PKT)
-					header |= (1 << 30);
+					header |= BIT(30);
 				else
-					header &= ~(1 << 30);
+					header &= ~BIT(30);
 
 #ifdef BIG_ENDIAN
 				header = BYTE_SWAP(header);
@@ -1405,7 +1406,7 @@ static int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 	u8 *dma_buffer;
 	int ret = 0;
 
-	blksz = (1ul << 12);
+	blksz = BIT(12);
 	/* Allocate a DMA coherent  buffer. */
 
 	dma_buffer = kmalloc(blksz, GFP_KERNEL);
@@ -1482,7 +1483,7 @@ static int wilc_wlan_start(void)
 	 **/
 	if (p->io_func.io_type == HIF_SDIO) {
 		reg = 0;
-		reg |= (1 << 3); /* bug 4456 and 4557 */
+		reg |= BIT(3); /* bug 4456 and 4557 */
 	} else if (p->io_func.io_type == HIF_SPI) {
 		reg = 1;
 	}
@@ -1557,13 +1558,13 @@ static int wilc_wlan_start(void)
 
 
 	p->hif_func.hif_read_reg(WILC_GLB_RESET_0, &reg);
-	if ((reg & (1ul << 10)) == (1ul << 10)) {
-		reg &= ~(1ul << 10);
+	if ((reg & BIT(10)) == BIT(10)) {
+		reg &= ~BIT(10);
 		p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
 		p->hif_func.hif_read_reg(WILC_GLB_RESET_0, &reg);
 	}
 
-	reg |= (1ul << 10);
+	reg |= BIT(10);
 	ret = p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
 	p->hif_func.hif_read_reg(WILC_GLB_RESET_0, &reg);
 	release_bus(RELEASE_ONLY);
@@ -1598,7 +1599,7 @@ static int wilc_wlan_stop(void)
 		return ret;
 	}
 
-	reg &= ~(1 << 10);
+	reg &= ~BIT(10);
 
 
 	ret = p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
@@ -1619,9 +1620,9 @@ static int wilc_wlan_stop(void)
 		}
 		PRINT_D(GENERIC_DBG, "Read RESET Reg %x : Retry%d\n", reg, timeout);
 		/*Workaround to ensure that the chip is actually reset*/
-		if ((reg & (1 << 10))) {
+		if ((reg & BIT(10))) {
 			PRINT_D(GENERIC_DBG, "Bit 10 not reset : Retry %d\n", timeout);
-			reg &= ~(1 << 10);
+			reg &= ~BIT(10);
 			ret = p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
 			timeout--;
 		} else {
@@ -1637,10 +1638,11 @@ static int wilc_wlan_stop(void)
 		}
 
 	} while (timeout);
-	reg = ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 8) | (1 << 9) | (1 << 26) | (1 << 29) | (1 << 30) | (1 << 31));
+	reg = (BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(8) | BIT(9) | BIT(26) |
+	       BIT(29) | BIT(30) | BIT(31));
 
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
-	reg = ~(1 << 10);
+	reg = (u32)~BIT(10);
 
 	ret = p->hif_func.hif_write_reg(WILC_GLB_RESET_0, reg);
 
@@ -1868,7 +1870,7 @@ u32 init_chip(void)
 			wilc_debug(N_ERR, "[wilc start]: fail read reg 0x1118 ...\n");
 			return ret;
 		}
-		reg |= (1 << 0);
+		reg |= BIT(0);
 		ret = g_wlan.hif_func.hif_write_reg(0x1118, reg);
 		if (!ret) {
 			wilc_debug(N_ERR, "[wilc start]: fail write reg 0x1118 ...\n");

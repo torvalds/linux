@@ -44,10 +44,10 @@ void wilc_debugfs_remove(void);
 extern atomic_t REGION;
 extern atomic_t DEBUG_LEVEL;
 
-#define DEBUG           (1 << 0)
-#define INFO            (1 << 1)
-#define WRN             (1 << 2)
-#define ERR             (1 << 3)
+#define DEBUG           BIT(0)
+#define INFO            BIT(1)
+#define WRN             BIT(2)
+#define ERR             BIT(3)
 
 #define PRINT_D(region, ...)						\
 	do {								\

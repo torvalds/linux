@@ -529,7 +529,7 @@ static int sdio_sync(void)
 		return 0;
 	}
 
-	reg &= ~(1 << 8);
+	reg &= ~BIT(8);
 	if (!sdio_write_reg(WILC_MISC, reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write misc reg...\n");
 		return 0;
@@ -548,7 +548,7 @@ static int sdio_sync(void)
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
 		}
-		reg |= (1 << 8);
+		reg |= BIT(8);
 		ret = sdio_write_reg(WILC_PIN_MUX_0, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
@@ -563,7 +563,7 @@ static int sdio_sync(void)
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
 			return 0;
 		}
-		reg |= (1 << 16);
+		reg |= BIT(16);
 		ret = sdio_write_reg(WILC_INTR_ENABLE, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
@@ -756,17 +756,17 @@ static int sdio_read_int(u32 *int_status)
 	cmd.data = 0;
 	g_sdio.sdio_cmd52(&cmd);
 
-	if (cmd.data & (1 << 0))
+	if (cmd.data & BIT(0))
 		tmp |= INT_0;
-	if (cmd.data & (1 << 2))
+	if (cmd.data & BIT(2))
 		tmp |= INT_1;
-	if (cmd.data & (1 << 3))
+	if (cmd.data & BIT(3))
 		tmp |= INT_2;
-	if (cmd.data & (1 << 4))
+	if (cmd.data & BIT(4))
 		tmp |= INT_3;
-	if (cmd.data & (1 << 5))
+	if (cmd.data & BIT(5))
 		tmp |= INT_4;
-	if (cmd.data & (1 << 6))
+	if (cmd.data & BIT(6))
 		tmp |= INT_5;
 	{
 		int i;
@@ -810,7 +810,7 @@ static int sdio_clear_int_ext(u32 val)
 		{
 			u32 flags;
 
-			flags = val & ((1 << MAX_NUN_INT_THRPT_ENH2) - 1);
+			flags = val & (BIT(MAX_NUN_INT_THRPT_ENH2) - 1);
 			reg = flags;
 		}
 #else
@@ -818,13 +818,13 @@ static int sdio_clear_int_ext(u32 val)
 #endif
 		/* select VMM table 0 */
 		if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
-			reg |= (1 << 5);
+			reg |= BIT(5);
 		/* select VMM table 1 */
 		if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
-			reg |= (1 << 6);
+			reg |= BIT(6);
 		/* enable VMM */
 		if ((val & EN_VMM) == EN_VMM)
-			reg |= (1 << 7);
+			reg |= BIT(7);
 		if (reg) {
 			sdio_cmd52_t cmd;
 
@@ -848,7 +848,7 @@ static int sdio_clear_int_ext(u32 val)
 			/* Cannot clear multiple interrupts. Must clear each interrupt individually */
 			u32 flags;
 
-			flags = val & ((1 << MAX_NUM_INT) - 1);
+			flags = val & (BIT(MAX_NUM_INT) - 1);
 			if (flags) {
 				int i;
 
@@ -861,7 +861,7 @@ static int sdio_clear_int_ext(u32 val)
 						cmd.function = 0;
 						cmd.raw = 0;
 						cmd.address = 0xf8;
-						cmd.data = (1 << i);
+						cmd.data = BIT(i);
 
 						ret = g_sdio.sdio_cmd52(&cmd);
 						if (!ret) {
@@ -891,13 +891,13 @@ static int sdio_clear_int_ext(u32 val)
 			vmm_ctl = 0;
 			/* select VMM table 0 */
 			if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
-				vmm_ctl |= (1 << 0);
+				vmm_ctl |= BIT(0);
 			/* select VMM table 1 */
 			if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
-				vmm_ctl |= (1 << 1);
+				vmm_ctl |= BIT(1);
 			/* enable VMM */
 			if ((val & EN_VMM) == EN_VMM)
-				vmm_ctl |= (1 << 2);
+				vmm_ctl |= BIT(2);
 
 			if (vmm_ctl) {
 				sdio_cmd52_t cmd;
@@ -944,7 +944,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		return 0;
 	}
 
-	reg &= ~(1 << 8);
+	reg &= ~BIT(8);
 	if (!sdio_write_reg(WILC_MISC, reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write misc reg...\n");
 		return 0;
@@ -963,7 +963,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 			return 0;
 		}
-		reg |= (1 << 8);
+		reg |= BIT(8);
 		ret = sdio_write_reg(WILC_PIN_MUX_0, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
@@ -980,7 +980,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		}
 
 		for (i = 0; (i < 5) && (nint > 0); i++, nint--)
-			reg |= (1 << (27 + i));
+			reg |= BIT((27 + i));
 		ret = sdio_write_reg(WILC_INTR_ENABLE, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
@@ -994,7 +994,7 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 			}
 
 			for (i = 0; (i < 3) && (nint > 0); i++, nint--)
-				reg |= (1 << i);
+				reg |= BIT(i);
 
 			ret = sdio_read_reg(WILC_INTR2_ENABLE, &reg);
 			if (!ret) {

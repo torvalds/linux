@@ -152,7 +152,7 @@
 #endif
 
 
-#define ABORT_INT   (1 << 31)
+#define ABORT_INT   BIT(31)
 
 /*******************************************/
 /*        E0 and later Interrupt flags.    */
@@ -191,15 +191,15 @@
 /* 7: Select VMM table 2                   */
 /* 8: Enable VMM                           */
 /*******************************************/
-#define CLR_INT0             (1 << 0)
-#define CLR_INT1             (1 << 1)
-#define CLR_INT2             (1 << 2)
-#define CLR_INT3             (1 << 3)
-#define CLR_INT4             (1 << 4)
-#define CLR_INT5             (1 << 5)
-#define SEL_VMM_TBL0         (1 << 6)
-#define SEL_VMM_TBL1         (1 << 7)
-#define EN_VMM               (1 << 8)
+#define CLR_INT0             BIT(0)
+#define CLR_INT1             BIT(1)
+#define CLR_INT2             BIT(2)
+#define CLR_INT3             BIT(3)
+#define CLR_INT4             BIT(4)
+#define CLR_INT5             BIT(5)
+#define SEL_VMM_TBL0         BIT(6)
+#define SEL_VMM_TBL1         BIT(7)
+#define EN_VMM               BIT(8)
 
 #define DATA_INT_EXT	INT_0
 #define PLL_INT_EXT         INT_1

@@ -52,8 +52,8 @@
 
 /*iftype*/
 enum stats_flags {
-	WILC_WFI_RX_PKT = 1 << 0,
-	WILC_WFI_TX_PKT = 1 << 1,
+	WILC_WFI_RX_PKT = BIT(0),
+	WILC_WFI_TX_PKT = BIT(1),
 };
 
 struct WILC_WFI_stats {

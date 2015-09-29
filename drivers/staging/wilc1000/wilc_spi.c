@@ -128,7 +128,7 @@ static int spi_cmd(u8 cmd, u32 adr, u32 data, u32 sz, u8 clockless)
 	case CMD_INTERNAL_READ:                 /* internal register read */
 		bc[1] = (u8)(adr >> 8);
 		if (clockless)
-			bc[1] |= (1 << 7);
+			bc[1] |= BIT(7);
 		bc[2] = (u8)adr;
 		bc[3] = 0x00;
 		len = 5;
@@ -179,7 +179,7 @@ static int spi_cmd(u8 cmd, u32 adr, u32 data, u32 sz, u8 clockless)
 	case CMD_INTERNAL_WRITE:                /* internal register write */
 		bc[1] = (u8)(adr >> 8);
 		if (clockless)
-			bc[1] |= (1 << 7);
+			bc[1] |= BIT(7);
 		bc[2] = (u8)(adr);
 		bc[3] = (u8)(data >> 24);
 		bc[4] = (u8)(data >> 16);
@@ -288,7 +288,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 	case CMD_INTERNAL_READ:                 /* internal register read */
 		wb[1] = (u8)(adr >> 8);
 		if (clockless == 1)
-			wb[1] |= (1 << 7);
+			wb[1] |= BIT(7);
 		wb[2] = (u8)adr;
 		wb[3] = 0x00;
 		len = 5;
@@ -339,7 +339,7 @@ static int spi_cmd_complete(u8 cmd, u32 adr, u8 *b, u32 sz, u8 clockless)
 	case CMD_INTERNAL_WRITE:                /* internal register write */
 		wb[1] = (u8)(adr >> 8);
 		if (clockless == 1)
-			wb[1] |= (1 << 7);
+			wb[1] |= BIT(7);
 		wb[2] = (u8)(adr);
 		wb[3] = b[3];
 		wb[4] = b[2];
@@ -1048,7 +1048,7 @@ static int spi_sync(void)
 		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 		return 0;
 	}
-	reg |= (1 << 8);
+	reg |= BIT(8);
 	ret = spi_write_reg(WILC_PIN_MUX_0, reg);
 	if (!ret) {
 		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
@@ -1063,7 +1063,7 @@ static int spi_sync(void)
 		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_INTR_ENABLE);
 		return 0;
 	}
-	reg |= (1 << 16);
+	reg |= BIT(16);
 	ret = spi_write_reg(WILC_INTR_ENABLE, reg);
 	if (!ret) {
 		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
@@ -1254,7 +1254,7 @@ static int spi_clear_int_ext(u32 val)
 	} else {
 		u32 flags;
 
-		flags = val & ((1 << MAX_NUM_INT) - 1);
+		flags = val & (BIT(MAX_NUM_INT) - 1);
 		if (flags) {
 			int i;
 
@@ -1284,10 +1284,10 @@ static int spi_clear_int_ext(u32 val)
 			tbl_ctl = 0;
 			/* select VMM table 0 */
 			if ((val & SEL_VMM_TBL0) == SEL_VMM_TBL0)
-				tbl_ctl |= (1 << 0);
+				tbl_ctl |= BIT(0);
 			/* select VMM table 1 */
 			if ((val & SEL_VMM_TBL1) == SEL_VMM_TBL1)
-				tbl_ctl |= (1 << 1);
+				tbl_ctl |= BIT(1);
 
 			ret = spi_write_reg(WILC_VMM_TBL_CTL, tbl_ctl);
 			if (!ret) {
@@ -1331,7 +1331,7 @@ static int spi_sync_ext(int nint /*  how mant interrupts to enable. */)
 		PRINT_ER("[wilc spi]: Failed read reg (%08x)...\n", WILC_PIN_MUX_0);
 		return 0;
 	}
-	reg |= (1 << 8);
+	reg |= BIT(8);
 	ret = spi_write_reg(WILC_PIN_MUX_0, reg);
 	if (!ret) {
 		PRINT_ER("[wilc spi]: Failed write reg (%08x)...\n", WILC_PIN_MUX_0);
@@ -1348,7 +1348,7 @@ static int spi_sync_ext(int nint /*  how mant interrupts to enable. */)
 	}
 
 	for (i = 0; (i < 5) && (nint > 0); i++, nint--) {
-		reg |= (1 << (27 + i));
+		reg |= (BIT((27 + i)));
 	}
 	ret = spi_write_reg(WILC_INTR_ENABLE, reg);
 	if (!ret) {
@@ -1363,7 +1363,7 @@ static int spi_sync_ext(int nint /*  how mant interrupts to enable. */)
 		}
 
 		for (i = 0; (i < 3) && (nint > 0); i++, nint--) {
-			reg |= (1 << i);
+			reg |= BIT(i);
 		}
 
 		ret = spi_read_reg(WILC_INTR2_ENABLE, &reg);

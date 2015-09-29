@@ -7316,7 +7316,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				pNewJoinBssParam->wmm_cap = true;
 
 				/* Check if Bit 7 is set indicating U-APSD capability */
-				if (pu8IEs[index + 8] & (1 << 7))
+				if (pu8IEs[index + 8] & BIT(7))
 					pNewJoinBssParam->uapsd_cap = true;
 				index += pu8IEs[index + 1] + 2;
 				continue;
@@ -7332,7 +7332,7 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 				pNewJoinBssParam->u8Index = pu8IEs[index + 9];
 
 				/* Check if Bit 7 is set indicating Opss capability */
-				if (pu8IEs[index + 10] & (1 << 7)) {
+				if (pu8IEs[index + 10] & BIT(7)) {
 					pNewJoinBssParam->u8OppEnable = 1;
 					pNewJoinBssParam->u8CtWindow = pu8IEs[index + 10];
 				} else
