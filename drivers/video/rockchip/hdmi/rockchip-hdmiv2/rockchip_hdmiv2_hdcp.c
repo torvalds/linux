@@ -411,8 +411,11 @@ void rockchip_hdmiv2_hdcp2_enable(int enable)
 		return;
 	}
 	hdmi_dev = hdcp->hdmi->property->priv;
-	if (hdmi_dev->soctype == HDMI_SOC_RK3368 &&
-	    hdmi_dev->hdcp2_enable != enable) {
+	if ((hdmi_readl(hdmi_dev, CONFIG1_ID) & m_HDCP22) == 0) {
+		pr_err("Don't support hdcp22\n");
+		return;
+	}
+	if (hdmi_dev->hdcp2_enable != enable) {
 		hdmi_dev->hdcp2_enable = enable;
 		if (hdmi_dev->hdcp2_enable == 0) {
 			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
@@ -454,7 +457,7 @@ static void rockchip_hdmiv2_hdcp_start(struct hdmi *hdmi)
 
 	if (!hdcp->enable)
 		return;
-	if (hdmi_dev->soctype == HDMI_SOC_RK3368) {
+	if (hdmi_readl(hdmi_dev, CONFIG1_ID) & m_HDCP22) {
 		if (hdmi_dev->hdcp2_enable == 0) {
 			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
 				     m_HDCP2_OVR_EN | m_HDCP2_FORCE,

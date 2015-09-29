@@ -81,6 +81,7 @@ enum {
 #define m_HDCP			(1 << 0)
 
 #define CONFIG1_ID			0x0005
+#define m_HDCP22		(1 << 6)
 #define m_HDMI20		(1 << 5)
 #define m_CONFAPB		(1 << 1)
 
