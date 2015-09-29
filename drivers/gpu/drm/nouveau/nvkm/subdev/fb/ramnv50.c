@@ -308,8 +308,7 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	/* Always disable this bit during reclock */
 	ram_mask(hwsq, 0x100200, 0x00000800, 0x00000000);
 
-	ram_wait(hwsq, 0x01, 0x00); /* wait for !vblank */
-	ram_wait(hwsq, 0x01, 0x01); /* wait for vblank */
+	ram_wait_vblank(hwsq);
 	ram_wr32(hwsq, 0x611200, 0x00003300);
 	ram_wr32(hwsq, 0x002504, 0x00000001); /* block fifo */
 	ram_nsec(hwsq, 8000);
