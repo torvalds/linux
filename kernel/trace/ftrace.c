@@ -3485,19 +3485,37 @@ enter_record(struct ftrace_hash *hash, struct dyn_ftrace *rec, int clear_filter)
 }
 
 static int
-ftrace_match_record(struct dyn_ftrace *rec,
-		char *mod, struct ftrace_glob *func_g)
+ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
+		struct ftrace_glob *mod_g, int exclude_mod)
 {
 	char str[KSYM_SYMBOL_LEN];
 	char *modname;
 
 	kallsyms_lookup(rec->ip, NULL, NULL, &modname, str);
 
-	if (mod) {
-		/* module lookup requires matching the module */
-		if (!modname || strcmp(modname, mod))
+	if (mod_g) {
+		int mod_matches = (modname) ? ftrace_match(modname, mod_g) : 0;
+
+		/* blank module name to match all modules */
+		if (!mod_g->len) {
+			/* blank module globbing: modname xor exclude_mod */
+			if ((!exclude_mod) != (!modname))
+				goto func_match;
+			return 0;
+		}
+
+		/* not matching the module */
+		if (!modname || !mod_matches) {
+			if (exclude_mod)
+				goto func_match;
+			else
+				return 0;
+		}
+
+		if (mod_matches && exclude_mod)
 			return 0;
 
+func_match:
 		/* blank search means to match all funcs in the mod */
 		if (!func_g->len)
 			return 1;
@@ -3512,14 +3530,23 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	struct ftrace_glob func_g = { .type = MATCH_FULL };
+	struct ftrace_glob mod_g = { .type = MATCH_FULL };
+	struct ftrace_glob *mod_match = (mod) ? &mod_g : NULL;
+	int exclude_mod = 0;
 	int found = 0;
 	int ret;
 	int clear_filter;
 
-	if (len) {
+	if (func) {
 		func_g.type = filter_parse_regex(func, len, &func_g.search,
 						 &clear_filter);
 		func_g.len = strlen(func_g.search);
+	}
+
+	if (mod) {
+		mod_g.type = filter_parse_regex(mod, strlen(mod),
+				&mod_g.search, &exclude_mod);
+		mod_g.len = strlen(mod_g.search);
 	}
 
 	mutex_lock(&ftrace_lock);
@@ -3528,7 +3555,7 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 		goto out_unlock;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		if (ftrace_match_record(rec, mod, &func_g)) {
+		if (ftrace_match_record(rec, &func_g, mod_match, exclude_mod)) {
 			ret = enter_record(hash, rec, clear_filter);
 			if (ret < 0) {
 				found = ret;
@@ -3568,17 +3595,11 @@ ftrace_mod_callback(struct ftrace_hash *hash,
 	 * you can tell which command was used by the cmd
 	 * parameter.
 	 */
-
-	/* we must have a module name */
-	if (!module || !strlen(module))
-		return -EINVAL;
-
 	ret = match_records(hash, func, strlen(func), module);
 	if (!ret)
 		return -EINVAL;
 	if (ret < 0)
 		return ret;
-
 	return 0;
 }
 
@@ -3729,7 +3750,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (!ftrace_match_record(rec, NULL, &func_g))
+		if (!ftrace_match_record(rec, &func_g, NULL, 0))
 			continue;
 
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -4621,7 +4642,7 @@ ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (ftrace_match_record(rec, NULL, &func_g)) {
+		if (ftrace_match_record(rec, &func_g, NULL, 0)) {
 			/* if it is in the array */
 			exists = false;
 			for (i = 0; i < *idx; i++) {
