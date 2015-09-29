@@ -77,14 +77,6 @@ int hw_sm750_map(struct lynx_share *share, struct pci_dev *pdev)
 	share->vidmem_start, share->vidmem_size);
 
 	/* reserve the vidmem space of smi adaptor */
-#if 0
-	ret = pci_request_region(pdev, 0, _moduleName_);
-	if (ret) {
-		pr_err("Can not request PCI regions.\n");
-		goto exit;
-	}
-#endif
-
 	share->pvMem = ioremap_wc(share->vidmem_start, share->vidmem_size);
 
 	if (!share->pvMem) {
@@ -123,12 +115,6 @@ int hw_sm750_inithw(struct lynx_share *share, struct pci_dev *pdev)
 		POKE32(SYSTEM_CTRL,
 				FIELD_SET(PEEK32(SYSTEM_CTRL), SYSTEM_CTRL, PCI_BURST, ON));
 	}
-
-	/* sm750 use sii164, it can be setup with default value
-	 * by on power, so initDVIDisp can be skipped */
-#if 0
-	ddk750_initDVIDisp();
-#endif
 
 	if (getChipType() != SM750LE) {
 		/* does user need CRT ?*/

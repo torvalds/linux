@@ -90,20 +90,17 @@ static void sw_i2c_wait(void)
 	 * never finish.
 	 * use non-ultimate for loop below is safe
 	 * */
-#if 0
+
     /* Change wait algorithm to use PCI bus clock,
        it's more reliable than counter loop ..
        write 0x61 to 0x3ce and read from 0x3cf
        */
-	while (peekIO(0x3ce, 0x61) & 0x10);
-#else
 	int i, tmp;
 
 	for (i = 0; i < 600; i++) {
 		tmp = i;
 		tmp += i;
 	}
-#endif
 }
 
 /*

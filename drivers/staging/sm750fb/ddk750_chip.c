@@ -248,17 +248,6 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 {
 
 	unsigned int ulReg;
-#if 0
-	/* move the code to map regiter function. */
-	if (getChipType() == SM718) {
-		/* turn on big endian bit*/
-		ulReg = PEEK32(0x74);
-		/* now consider register definition in a big endian pattern*/
-		POKE32(0x74, ulReg|0x80000000);
-	}
-
-#endif
-
 
 	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
@@ -325,37 +314,6 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 		ulReg = FIELD_SET(ulReg, ALPHA_DISPLAY_CTRL, PLANE, DISABLE);
 		POKE32(ALPHA_DISPLAY_CTRL, ulReg);
 
-#if 0
-		/* Disable LCD hardware cursor, if a former application left it on */
-		ulReg = PEEK32(PANEL_HWC_ADDRESS);
-		ulReg = FIELD_SET(ulReg, PANEL_HWC_ADDRESS, ENABLE, DISABLE);
-		POKE32(PANEL_HWC_ADDRESS, ulReg);
-
-		/* Disable CRT hardware cursor, if a former application left it on */
-		ulReg = PEEK32(CRT_HWC_ADDRESS);
-		ulReg = FIELD_SET(ulReg, CRT_HWC_ADDRESS, ENABLE, DISABLE);
-		POKE32(CRT_HWC_ADDRESS, ulReg);
-
-		/* Disable ZV Port 0, if a former application left it on */
-		ulReg = PEEK32(ZV0_CAPTURE_CTRL);
-		ulReg = FIELD_SET(ulReg, ZV0_CAPTURE_CTRL, CAP, DISABLE);
-		POKE32(ZV0_CAPTURE_CTRL, ulReg);
-
-		/* Disable ZV Port 1, if a former application left it on */
-		ulReg = PEEK32(ZV1_CAPTURE_CTRL);
-		ulReg = FIELD_SET(ulReg, ZV1_CAPTURE_CTRL, CAP, DISABLE);
-		POKE32(ZV1_CAPTURE_CTRL, ulReg);
-
-		/* Disable ZV Port Power, if a former application left it on */
-		enableZVPort(0);
-		/* Disable DMA Channel, if a former application left it on */
-		ulReg = PEEK32(DMA_ABORT_INTERRUPT);
-		ulReg = FIELD_SET(ulReg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
-		POKE32(DMA_ABORT_INTERRUPT, ulReg);
-
-		/* Disable i2c */
-		enableI2C(0);
-#endif
 		/* Disable DMA Channel, if a former application left it on */
 		ulReg = PEEK32(DMA_ABORT_INTERRUPT);
 		ulReg = FIELD_SET(ulReg, DMA_ABORT_INTERRUPT, ABORT_1, ABORT);
@@ -370,17 +328,6 @@ int ddk750_initHw(initchip_param_t *pInitParam)
 	return 0;
 }
 
-#if 0
-
-unsigned int absDiff(unsigned int a, unsigned int b)
-{
-	if (a > b)
-		return(a - b);
-	else
-		return(b - a);
-}
-
-#endif
 /*
 	monk liu @ 4/6/2011:
 		   re-write the calculatePLL function of ddk750.

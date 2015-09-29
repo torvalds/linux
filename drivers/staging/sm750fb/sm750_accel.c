@@ -233,20 +233,10 @@ unsigned int rop2)   /* ROP value */
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
-#if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if (Bpp == 3) {
-			sx *= 3;
-			dx *= 3;
-			width *= 3;
-		write_dpr(accel, DE_PITCH,
-				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      sPitch)); /* dpr10 */
-	} else
-#endif
 	{
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, (dPitch/Bpp)) |
@@ -344,21 +334,10 @@ int hw_imageblit(struct lynx_accel *accel,
 	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
-#if 0
     /* Program pitch (distance between the 1st points of two adjacent lines).
        Note that input pitch is BYTE value, but the 2D Pitch register uses
        pixel values. Need Byte to pixel conversion.
     */
-	if (bytePerPixel == 3) {
-		dx *= 3;
-		width *= 3;
-		startBit *= 3;
-		write_dpr(accel, DE_PITCH,
-				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch) |
-				FIELD_VALUE(0, DE_PITCH, SOURCE,      dPitch)); /* dpr10 */
-
-	} else
-#endif
 	{
 		write_dpr(accel, DE_PITCH,
 				FIELD_VALUE(0, DE_PITCH, DESTINATION, dPitch/bytePerPixel) |
