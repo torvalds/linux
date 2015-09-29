@@ -423,27 +423,7 @@ static struct i2c_driver i2c_driver = {
 	.id_table = i2c_id,
 };
 
-/**
- * hdm_i2c_init - Driver Registration Routine
- */
-static int __init hdm_i2c_init(void)
-{
-	pr_info("hdm_i2c_init()\n");
-
-	return i2c_add_driver(&i2c_driver);
-}
-
-/**
- * hdm_i2c_exit - Driver Cleanup Routine
- **/
-static void __exit hdm_i2c_exit(void)
-{
-	i2c_del_driver(&i2c_driver);
-	pr_info("hdm_i2c_exit()\n");
-}
-
-module_init(hdm_i2c_init);
-module_exit(hdm_i2c_exit);
+module_i2c_driver(i2c_driver);
 
 MODULE_AUTHOR("Jain Roy Ambi <JainRoy.Ambi@microchip.com>");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
