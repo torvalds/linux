@@ -1395,13 +1395,13 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 	if (hs_req->req.status == -EINPROGRESS)
 		hs_req->req.status = result;
 
+	if (using_dma(hsotg))
+		dwc2_hsotg_unmap_dma(hsotg, hs_ep, hs_req);
+
 	dwc2_hsotg_handle_unaligned_buf_complete(hsotg, hs_ep, hs_req);
 
 	hs_ep->req = NULL;
 	list_del_init(&hs_req->queue);
-
-	if (using_dma(hsotg))
-		dwc2_hsotg_unmap_dma(hsotg, hs_ep, hs_req);
 
 	/*
 	 * call the complete request with the locks off, just in case the
