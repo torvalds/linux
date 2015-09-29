@@ -819,35 +819,6 @@ void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 	}
 }
 
-/** Change request export and move hp request from old export to new */
-void ptlrpc_request_change_export(struct ptlrpc_request *req,
-				  struct obd_export *export)
-{
-	if (req->rq_export != NULL) {
-		if (!list_empty(&req->rq_exp_list)) {
-			/* remove rq_exp_list from last export */
-			spin_lock_bh(&req->rq_export->exp_rpc_lock);
-			list_del_init(&req->rq_exp_list);
-			spin_unlock_bh(&req->rq_export->exp_rpc_lock);
-
-			/* export has one reference already, so it`s safe to
-			 * add req to export queue here and get another
-			 * reference for request later */
-			spin_lock_bh(&export->exp_rpc_lock);
-			list_add(&req->rq_exp_list, &export->exp_hp_rpcs);
-			spin_unlock_bh(&export->exp_rpc_lock);
-		}
-		class_export_rpc_dec(req->rq_export);
-		class_export_put(req->rq_export);
-	}
-
-	/* request takes one export refcount */
-	req->rq_export = class_export_get(export);
-	class_export_rpc_inc(export);
-
-	return;
-}
-
 /**
  * to finish a request: stop sending more early replies, and release
  * the request.
@@ -1328,30 +1299,6 @@ static void ptlrpc_server_hpreq_fini(struct ptlrpc_request *req)
 		spin_unlock_bh(&req->rq_export->exp_rpc_lock);
 	}
 }
-
-static int ptlrpc_hpreq_check(struct ptlrpc_request *req)
-{
-	return 1;
-}
-
-static struct ptlrpc_hpreq_ops ptlrpc_hpreq_common = {
-	.hpreq_check       = ptlrpc_hpreq_check,
-};
-
-/* Hi-Priority RPC check by RPC operation code. */
-int ptlrpc_hpreq_handler(struct ptlrpc_request *req)
-{
-	int opc = lustre_msg_get_opc(req->rq_reqmsg);
-
-	/* Check for export to let only reconnects for not yet evicted
-	 * export to become a HP rpc. */
-	if ((req->rq_export != NULL) &&
-	    (opc == OBD_PING || opc == MDS_CONNECT || opc == OST_CONNECT))
-		req->rq_ops = &ptlrpc_hpreq_common;
-
-	return 0;
-}
-EXPORT_SYMBOL(ptlrpc_hpreq_handler);
 
 static int ptlrpc_server_request_add(struct ptlrpc_service_part *svcpt,
 				     struct ptlrpc_request *req)

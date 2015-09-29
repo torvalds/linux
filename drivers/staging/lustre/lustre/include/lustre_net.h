@@ -2526,7 +2526,6 @@ struct ptlrpc_service_conf {
  */
 void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs);
 void ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs);
-int ptlrpc_hpreq_handler(struct ptlrpc_request *req);
 struct ptlrpc_service *ptlrpc_register_service(
 				struct ptlrpc_service_conf *conf,
 				struct kset *parent,
@@ -2538,8 +2537,6 @@ int ptlrpc_unregister_service(struct ptlrpc_service *service);
 int liblustre_check_services(void *arg);
 void ptlrpc_daemonize(char *name);
 void ptlrpc_server_drop_request(struct ptlrpc_request *req);
-void ptlrpc_request_change_export(struct ptlrpc_request *req,
-				  struct obd_export *export);
 
 int ptlrpc_hr_init(void);
 void ptlrpc_hr_fini(void);
