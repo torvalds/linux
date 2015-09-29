@@ -439,7 +439,7 @@ no_route:
 }
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
 
-struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
+struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 					    struct sock *newsk,
 					    const struct request_sock *req)
 {
