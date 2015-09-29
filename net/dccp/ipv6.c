@@ -462,22 +462,11 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	if (sk_acceptq_is_full(sk))
 		goto out_overflow;
 
-	if (dst == NULL) {
-		struct in6_addr *final_p, final;
+	if (!dst) {
 		struct flowi6 fl6;
 
-		memset(&fl6, 0, sizeof(fl6));
-		fl6.flowi6_proto = IPPROTO_DCCP;
-		fl6.daddr = ireq->ir_v6_rmt_addr;
-		final_p = fl6_update_dst(&fl6, np->opt, &final);
-		fl6.saddr = ireq->ir_v6_loc_addr;
-		fl6.flowi6_oif = sk->sk_bound_dev_if;
-		fl6.fl6_dport = ireq->ir_rmt_port;
-		fl6.fl6_sport = htons(ireq->ir_num);
-		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
-
-		dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
-		if (IS_ERR(dst))
+		dst = inet6_csk_route_req(sk, &fl6, req, IPPROTO_DCCP);
+		if (!dst)
 			goto out;
 	}
 

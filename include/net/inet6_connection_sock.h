@@ -26,7 +26,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 			    const struct inet_bind_bucket *tb, bool relax);
 
 struct dst_entry *inet6_csk_route_req(const struct sock *sk, struct flowi6 *fl6,
-				      const struct request_sock *req);
+				      const struct request_sock *req, u8 proto);
 
 struct request_sock *inet6_csk_search_req(struct sock *sk,
 					  const __be16 rport,
