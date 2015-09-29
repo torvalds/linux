@@ -70,17 +70,15 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 
 	if (!pdata)
 		return -EBUSY;
-	if (!pdata->irq_flags) {
-		dev_err(&pdev->dev, "IRQ flag is not specified.\n");
+	if (!pdata->irq_flags || pdata->extcon_id > EXTCON_NONE)
 		return -EINVAL;
-	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_extcon_data),
 				   GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->edev = devm_extcon_dev_allocate(&pdev->dev, NULL);
+	data->edev = devm_extcon_dev_allocate(&pdev->dev, &pdata->extcon_id);
 	if (IS_ERR(data->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;

@@ -26,6 +26,7 @@
 /**
  * struct gpio_extcon_platform_data - A simple GPIO-controlled extcon device.
  * @name:		The name of this GPIO extcon device.
+ * @extcon_id:		The unique id of specific external connector.
  * @gpio:		Corresponding GPIO.
  * @gpio_active_low:	Boolean describing whether gpio active state is 1 or 0
  *			If true, low state of gpio means active.
@@ -45,6 +46,7 @@
  */
 struct gpio_extcon_platform_data {
 	const char *name;
+	unsigned int extcon_id;
 	unsigned gpio;
 	bool gpio_active_low;
 	unsigned long debounce;
