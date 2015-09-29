@@ -184,10 +184,9 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_KEXEC_FILE
-static int get_nr_ram_ranges_callback(unsigned long start_pfn,
-				unsigned long nr_pfn, void *arg)
+static int get_nr_ram_ranges_callback(u64 start, u64 end, void *arg)
 {
-	int *nr_ranges = arg;
+	unsigned int *nr_ranges = arg;
 
 	(*nr_ranges)++;
 	return 0;
@@ -213,7 +212,7 @@ static void fill_up_crash_elf_data(struct crash_elf_data *ced,
 
 	ced->image = image;
 
-	walk_system_ram_range(0, -1, &nr_ranges,
+	walk_system_ram_res(0, -1, &nr_ranges,
 				get_nr_ram_ranges_callback);
 
 	ced->max_nr_ranges = nr_ranges;
