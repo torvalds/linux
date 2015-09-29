@@ -54,6 +54,9 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			units <<= 8;
+	} else if (IS_BROXTON(dev)) {
+		units = 1;
+		div = 1200;		/* 833.33ns */
 	}
 
 	raw_time = I915_READ(reg) * units;
