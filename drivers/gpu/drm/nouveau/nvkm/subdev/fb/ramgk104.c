@@ -673,6 +673,25 @@ gk104_ram_calc_gddr5(struct gk104_ram *ram, u32 freq)
  * DDR3
  ******************************************************************************/
 
+static void
+nvkm_sddr3_dll_reset(struct gk104_ramfuc *fuc)
+{
+	ram_nuke(fuc, mr[0]);
+	ram_mask(fuc, mr[0], 0x100, 0x100);
+	ram_mask(fuc, mr[0], 0x100, 0x000);
+}
+
+static void
+nvkm_sddr3_dll_disable(struct gk104_ramfuc *fuc)
+{
+	u32 mr1_old = ram_rd32(fuc, mr[1]);
+
+	if (!(mr1_old & 0x1)) {
+		ram_mask(fuc, mr[1], 0x1, 0x1);
+		ram_nsec(fuc, 1000);
+	}
+}
+
 static int
 gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 {
@@ -702,6 +721,10 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 		ram_mask(fuc, 0x10f808, 0x04000000, 0x04000000);
 
 	ram_wr32(fuc, 0x10f314, 0x00000001); /* PRECHARGE */
+
+	if (next->bios.ramcfg_DLLoff)
+		nvkm_sddr3_dll_disable(fuc);
+
 	ram_wr32(fuc, 0x10f210, 0x00000000); /* REFRESH_AUTO = 0 */
 	ram_wr32(fuc, 0x10f310, 0x00000001); /* REFRESH */
 	ram_mask(fuc, 0x10f200, 0x80000000, 0x80000000);
@@ -879,17 +902,20 @@ gk104_ram_calc_sddr3(struct gk104_ram *ram, u32 freq)
 	ram_wr32(fuc, 0x10f210, 0x80000000); /* REFRESH_AUTO = 1 */
 	ram_nsec(fuc, 1000);
 
-	ram_nuke(fuc, mr[0]);
-	ram_mask(fuc, mr[0], 0x100, 0x100);
-	ram_mask(fuc, mr[0], 0x100, 0x000);
+	if (!next->bios.ramcfg_DLLoff) {
+		ram_mask(fuc, mr[1], 0x1, 0x0);
+		nvkm_sddr3_dll_reset(fuc);
+	}
 
-	ram_mask(fuc, mr[2], 0xfff, ram->base.mr[2]);
+	ram_mask(fuc, mr[2], 0x00000fff, ram->base.mr[2]);
+	ram_mask(fuc, mr[1], 0xffffffff, ram->base.mr[1]);
 	ram_wr32(fuc, mr[0], ram->base.mr[0]);
 	ram_nsec(fuc, 1000);
 
-	ram_nuke(fuc, mr[0]);
-	ram_mask(fuc, mr[0], 0x100, 0x100);
-	ram_mask(fuc, mr[0], 0x100, 0x000);
+	if (!next->bios.ramcfg_DLLoff) {
+		nvkm_sddr3_dll_reset(fuc);
+		ram_nsec(fuc, 1000);
+	}
 
 	if (vc == 0 && ram_have(fuc, gpio2E)) {
 		u32 temp  = ram_mask(fuc, gpio2E, 0x3000, fuc->r_func2E[0]);
@@ -1600,6 +1626,7 @@ gk104_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		break;
 	case NVKM_RAM_TYPE_DDR3:
 		ram->fuc.r_mr[0] = ramfuc_reg(0x10f300);
+		ram->fuc.r_mr[1] = ramfuc_reg(0x10f304);
 		ram->fuc.r_mr[2] = ramfuc_reg(0x10f320);
 		break;
 	default:
