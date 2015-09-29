@@ -527,7 +527,7 @@ out:
 	return err;
 }
 
-static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
+static void dccp_v4_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 {
 	int err;
 	const struct iphdr *rxiph;

@@ -34,9 +34,9 @@ struct request_sock_ops {
 	char		*slab_name;
 	int		(*rtx_syn_ack)(const struct sock *sk,
 				       struct request_sock *req);
-	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
+	void		(*send_ack)(const struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
-	void		(*send_reset)(struct sock *sk,
+	void		(*send_reset)(const struct sock *sk,
 				      struct sk_buff *skb);
 	void		(*destructor)(struct request_sock *req);
 	void		(*syn_ack_timeout)(const struct request_sock *req);

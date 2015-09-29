@@ -236,7 +236,7 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 
 EXPORT_SYMBOL_GPL(dccp_child_process);
 
-void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk)
 {
 	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");

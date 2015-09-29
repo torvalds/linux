@@ -70,8 +70,8 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 
-static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
-static void	tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+static void	tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb);
+static void	tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
@@ -724,7 +724,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 	.queue_hash_add =	inet6_csk_reqsk_queue_hash_add,
 };
 
-static void tcp_v6_send_response(struct sock *sk, struct sk_buff *skb, u32 seq,
+static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32 seq,
 				 u32 ack, u32 win, u32 tsval, u32 tsecr,
 				 int oif, struct tcp_md5sig_key *key, int rst,
 				 u8 tclass, u32 label)
@@ -823,7 +823,7 @@ static void tcp_v6_send_response(struct sock *sk, struct sk_buff *skb, u32 seq,
 	kfree_skb(buff);
 }
 
-static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
+static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	u32 seq = 0, ack_seq = 0;
@@ -894,7 +894,7 @@ release_sk1:
 #endif
 }
 
-static void tcp_v6_send_ack(struct sock *sk, struct sk_buff *skb, u32 seq,
+static void tcp_v6_send_ack(const struct sock *sk, struct sk_buff *skb, u32 seq,
 			    u32 ack, u32 win, u32 tsval, u32 tsecr, int oif,
 			    struct tcp_md5sig_key *key, u8 tclass,
 			    u32 label)
@@ -917,7 +917,7 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	inet_twsk_put(tw);
 }
 
-static void tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+static void tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 				  struct request_sock *req)
 {
 	/* sk->sk_state == TCP_LISTEN -> for regular TCP_SYN_RECV

@@ -229,7 +229,7 @@ void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 int dccp_retransmit_skb(struct sock *sk);
 
 void dccp_send_ack(struct sock *sk);
-void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk);
 
 void dccp_send_sync(struct sock *sk, const u64 seq,
