@@ -34,9 +34,9 @@ struct request_sock_ops {
 	char		*slab_name;
 	int		(*rtx_syn_ack)(const struct sock *sk,
 				       struct request_sock *req);
-	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
+	void		(*send_ack)(const struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
-	void		(*send_reset)(struct sock *sk,
+	void		(*send_reset)(const struct sock *sk,
 				      struct sk_buff *skb);
 	void		(*destructor)(struct request_sock *req);
 	void		(*syn_ack_timeout)(const struct request_sock *req);
@@ -129,9 +129,8 @@ struct listen_sock {
 	atomic_t		qlen_dec; /* qlen = qlen_inc - qlen_dec */
 	atomic_t		young_dec;
 
-	u8			max_qlen_log ____cacheline_aligned_in_smp;
-	u8			synflood_warned;
-	/* 2 bytes hole, try to use */
+	u32			max_qlen_log ____cacheline_aligned_in_smp;
+	u32			synflood_warned;
 	u32			hash_rnd;
 	u32			nr_table_entries;
 	struct request_sock	*syn_table[0];
@@ -181,11 +180,8 @@ struct request_sock_queue {
 	struct request_sock	*rskq_accept_tail;
 	u8			rskq_defer_accept;
 	struct listen_sock	*listen_opt;
-	struct fastopen_queue	*fastopenq; /* This is non-NULL iff TFO has been
-					     * enabled on this listener. Check
-					     * max_qlen != 0 in fastopen_queue
-					     * to determine if TFO is enabled
-					     * right at this moment.
+	struct fastopen_queue	fastopenq;  /* Check max_qlen != 0 to determine
+					     * if TFO is enabled.
 					     */
 
 	/* temporary alignment, our goal is to get rid of this lock */

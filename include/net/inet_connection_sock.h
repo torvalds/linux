@@ -41,7 +41,7 @@ struct inet_connection_sock_af_ops {
 	int	    (*rebuild_header)(struct sock *sk);
 	void	    (*sk_rx_dst_set)(struct sock *sk, const struct sk_buff *skb);
 	int	    (*conn_request)(struct sock *sk, struct sk_buff *skb);
-	struct sock *(*syn_recv_sock)(struct sock *sk, struct sk_buff *skb,
+	struct sock *(*syn_recv_sock)(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req,
 				      struct dst_entry *dst);
 	u16	    net_header_len;
@@ -268,7 +268,8 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum);
 
 struct dst_entry *inet_csk_route_req(const struct sock *sk, struct flowi4 *fl4,
 				     const struct request_sock *req);
-struct dst_entry *inet_csk_route_child_sock(struct sock *sk, struct sock *newsk,
+struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
+					    struct sock *newsk,
 					    const struct request_sock *req);
 
 static inline void inet_csk_reqsk_queue_add(struct sock *sk,

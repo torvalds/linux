@@ -229,7 +229,7 @@ void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 int dccp_retransmit_skb(struct sock *sk);
 
 void dccp_send_ack(struct sock *sk);
-void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk);
 
 void dccp_send_sync(struct sock *sk, const u64 seq,
@@ -270,13 +270,13 @@ int dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
 
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_create_openreq_child(struct sock *sk,
+struct sock *dccp_create_openreq_child(const struct sock *sk,
 				       const struct request_sock *req,
 				       const struct sk_buff *skb);
 
 int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
+struct sock *dccp_v4_request_recv_sock(const struct sock *sk, struct sk_buff *skb,
 				       struct request_sock *req,
 				       struct dst_entry *dst);
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,

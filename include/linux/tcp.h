@@ -382,25 +382,11 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 		tcp_sk(sk)->fastopen_rsk != NULL);
 }
 
-extern void tcp_sock_destruct(struct sock *sk);
-
-static inline int fastopen_init_queue(struct sock *sk, int backlog)
+static inline void fastopen_queue_tune(struct sock *sk, int backlog)
 {
-	struct request_sock_queue *queue =
-	    &inet_csk(sk)->icsk_accept_queue;
+	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 
-	if (queue->fastopenq == NULL) {
-		queue->fastopenq = kzalloc(
-		    sizeof(struct fastopen_queue),
-		    sk->sk_allocation);
-		if (queue->fastopenq == NULL)
-			return -ENOMEM;
-
-		sk->sk_destruct = tcp_sock_destruct;
-		spin_lock_init(&queue->fastopenq->lock);
-	}
-	queue->fastopenq->max_qlen = backlog;
-	return 0;
+	queue->fastopenq.max_qlen = backlog;
 }
 
 static inline void tcp_saved_syn_free(struct tcp_sock *tp)

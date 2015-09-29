@@ -59,6 +59,13 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 
 	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
 	spin_lock_init(&queue->syn_wait_lock);
+
+	spin_lock_init(&queue->fastopenq.lock);
+	queue->fastopenq.rskq_rst_head = NULL;
+	queue->fastopenq.rskq_rst_tail = NULL;
+	queue->fastopenq.qlen = 0;
+	queue->fastopenq.max_qlen = 0;
+
 	queue->rskq_accept_head = NULL;
 	lopt->nr_table_entries = nr_table_entries;
 	lopt->max_qlen_log = ilog2(nr_table_entries);
@@ -174,7 +181,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	struct sock *lsk = req->rsk_listener;
 	struct fastopen_queue *fastopenq;
 
-	fastopenq = inet_csk(lsk)->icsk_accept_queue.fastopenq;
+	fastopenq = &inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
 	tcp_sk(sk)->fastopen_rsk = NULL;
 	spin_lock_bh(&fastopenq->lock);

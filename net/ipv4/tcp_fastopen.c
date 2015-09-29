@@ -142,9 +142,9 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	if (!child)
 		return NULL;
 
-	spin_lock(&queue->fastopenq->lock);
-	queue->fastopenq->qlen++;
-	spin_unlock(&queue->fastopenq->lock);
+	spin_lock(&queue->fastopenq.lock);
+	queue->fastopenq.qlen++;
+	spin_unlock(&queue->fastopenq.lock);
 
 	/* Initialize the child socket. Have to fix some values to take
 	 * into account the child is a Fast Open socket and is created
@@ -237,8 +237,8 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	 * between qlen overflow causing Fast Open to be disabled
 	 * temporarily vs a server not supporting Fast Open at all.
 	 */
-	fastopenq = inet_csk(sk)->icsk_accept_queue.fastopenq;
-	if (!fastopenq || fastopenq->max_qlen == 0)
+	fastopenq = &inet_csk(sk)->icsk_accept_queue.fastopenq;
+	if (fastopenq->max_qlen == 0)
 		return false;
 
 	if (fastopenq->qlen >= fastopenq->max_qlen) {
