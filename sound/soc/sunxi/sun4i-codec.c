@@ -283,7 +283,7 @@ static int sun4i_codec_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(rtd->card);
 	unsigned long clk_freq;
-	int hwrate;
+	int ret, hwrate;
 	u32 val;
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
@@ -293,8 +293,9 @@ static int sun4i_codec_hw_params(struct snd_pcm_substream *substream,
 	if (!clk_freq)
 		return -EINVAL;
 
-	if (clk_set_rate(scodec->clk_module, clk_freq))
-		return -EINVAL;
+	ret = clk_set_rate(scodec->clk_module, clk_freq);
+	if (ret)
+		return ret;
 
 	hwrate = sun4i_codec_get_hw_rate(params);
 	if (hwrate < 0)
