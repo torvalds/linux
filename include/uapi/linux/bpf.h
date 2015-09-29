@@ -280,6 +280,13 @@ enum bpf_func_id {
 	 * Return: TC_ACT_REDIRECT
 	 */
 	BPF_FUNC_redirect,
+
+	/**
+	 * bpf_get_route_realm(skb) - retrieve a dst's tclassid
+	 * @skb: pointer to skb
+	 * Return: realm if != 0
+	 */
+	BPF_FUNC_get_route_realm,
 	__BPF_FUNC_MAX_ID,
 };
 
