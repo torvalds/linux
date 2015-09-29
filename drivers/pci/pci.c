@@ -1710,15 +1710,7 @@ static void pci_pme_list_scan(struct work_struct *work)
 	mutex_unlock(&pci_pme_list_mutex);
 }
 
-/**
- * pci_pme_active - enable or disable PCI device's PME# function
- * @dev: PCI device to handle.
- * @enable: 'true' to enable PME# generation; 'false' to disable it.
- *
- * The caller must verify that the device is capable of generating PME# before
- * calling this function with @enable equal to 'true'.
- */
-void pci_pme_active(struct pci_dev *dev, bool enable)
+static void __pci_pme_active(struct pci_dev *dev, bool enable)
 {
 	u16 pmcsr;
 
@@ -1732,6 +1724,19 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
 
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
+}
+
+/**
+ * pci_pme_active - enable or disable PCI device's PME# function
+ * @dev: PCI device to handle.
+ * @enable: 'true' to enable PME# generation; 'false' to disable it.
+ *
+ * The caller must verify that the device is capable of generating PME# before
+ * calling this function with @enable equal to 'true'.
+ */
+void pci_pme_active(struct pci_dev *dev, bool enable)
+{
+	__pci_pme_active(dev, enable);
 
 	/*
 	 * PCI (as opposed to PCIe) PME requires that the device have
@@ -2032,17 +2037,60 @@ EXPORT_SYMBOL_GPL(pci_dev_run_wake);
  * reconfigured due to wakeup settings difference between system and runtime
  * suspend and the current power state of it is suitable for the upcoming
  * (system) transition.
+ *
+ * If the device is not configured for system wakeup, disable PME for it before
+ * returning 'true' to prevent it from waking up the system unnecessarily.
  */
 bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
 {
 	struct device *dev = &pci_dev->dev;
 
 	if (!pm_runtime_suspended(dev)
-	    || (device_can_wakeup(dev) && !device_may_wakeup(dev))
+	    || pci_target_state(pci_dev) != pci_dev->current_state
 	    || platform_pci_need_resume(pci_dev))
 		return false;
 
-	return pci_target_state(pci_dev) == pci_dev->current_state;
+	/*
+	 * At this point the device is good to go unless it's been configured
+	 * to generate PME at the runtime suspend time, but it is not supposed
+	 * to wake up the system.  In that case, simply disable PME for it
+	 * (it will have to be re-enabled on exit from system resume).
+	 *
+	 * If the device's power state is D3cold and the platform check above
+	 * hasn't triggered, the device's configuration is suitable and we don't
+	 * need to manipulate it at all.
+	 */
+	spin_lock_irq(&dev->power.lock);
+
+	if (pm_runtime_suspended(dev) && pci_dev->current_state < PCI_D3cold &&
+	    !device_may_wakeup(dev))
+		__pci_pme_active(pci_dev, false);
+
+	spin_unlock_irq(&dev->power.lock);
+	return true;
+}
+
+/**
+ * pci_dev_complete_resume - Finalize resume from system sleep for a device.
+ * @pci_dev: Device to handle.
+ *
+ * If the device is runtime suspended and wakeup-capable, enable PME for it as
+ * it might have been disabled during the prepare phase of system suspend if
+ * the device was not configured for system wakeup.
+ */
+void pci_dev_complete_resume(struct pci_dev *pci_dev)
+{
+	struct device *dev = &pci_dev->dev;
+
+	if (!pci_dev_run_wake(pci_dev))
+		return;
+
+	spin_lock_irq(&dev->power.lock);
+
+	if (pm_runtime_suspended(dev) && pci_dev->current_state < PCI_D3cold)
+		__pci_pme_active(pci_dev, true);
+
+	spin_unlock_irq(&dev->power.lock);
 }
 
 void pci_config_pm_runtime_get(struct pci_dev *pdev)
