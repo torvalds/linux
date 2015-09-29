@@ -498,6 +498,7 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	struct gt215_clk_info mclk;
+	struct nvkm_gpio *gpio = device->gpio;
 	struct nvkm_ram_data *next;
 	u8  ver, hdr, cnt, len, strap;
 	u32 data;
@@ -655,6 +656,23 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 
 	if (device->chipset == 0xa3 && freq <= 500000)
 		ram_mask(fuc, 0x100700, 0x00000006, 0x00000006);
+
+	/* Alter FBVDD/Q, apparently must be done with PLL disabled, thus
+	 * set it to bypass */
+	if (nvkm_gpio_get(gpio, 0, 0x18, DCB_GPIO_UNUSED) ==
+			next->bios.ramcfg_FBVDDQ) {
+		data = ram_rd32(fuc, 0x004000) & 0x9;
+
+		if (data == 0x1)
+			ram_mask(fuc, 0x004000, 0x8, 0x8);
+		if (data & 0x1)
+			ram_mask(fuc, 0x004000, 0x1, 0x0);
+
+		gt215_ram_gpio(fuc, 0x18, !next->bios.ramcfg_FBVDDQ);
+
+		if (data & 0x1)
+			ram_mask(fuc, 0x004000, 0x1, 0x1);
+	}
 
 	/* Fiddle with clocks */
 	/* There's 4 scenario's

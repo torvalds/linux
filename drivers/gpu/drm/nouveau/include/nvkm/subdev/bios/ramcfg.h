@@ -39,6 +39,7 @@ struct nvbios_ramcfg {
 	unsigned ramcfg_timing;
 	unsigned ramcfg_DLLoff;
 	unsigned ramcfg_RON;
+	unsigned ramcfg_FBVDDQ;
 	union {
 		struct {
 			unsigned ramcfg_00_03_01:1;
