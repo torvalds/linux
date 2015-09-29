@@ -69,8 +69,6 @@ EXPORT_SYMBOL_GPL(arizona_clk32k_enable);
 
 int arizona_clk32k_disable(struct arizona *arizona)
 {
-	int ret = 0;
-
 	mutex_lock(&arizona->clk_lock);
 
 	BUG_ON(arizona->clk32k_ref <= 0);
@@ -90,7 +88,7 @@ int arizona_clk32k_disable(struct arizona *arizona)
 
 	mutex_unlock(&arizona->clk_lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_clk32k_disable);
 
