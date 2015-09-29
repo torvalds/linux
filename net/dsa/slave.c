@@ -453,12 +453,17 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 				   struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
 {
-	int ret = 0;
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+	int ret;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
-		if (switchdev_trans_ph_commit(trans))
-			ret = dsa_slave_stp_update(dev, attr->u.stp_state);
+		if (switchdev_trans_ph_prepare(trans))
+			ret = ds->drv->port_stp_update ? 0 : -EOPNOTSUPP;
+		else
+			ret = ds->drv->port_stp_update(ds, p->port,
+						       attr->u.stp_state);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
