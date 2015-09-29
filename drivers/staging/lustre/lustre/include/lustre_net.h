@@ -429,8 +429,7 @@ struct ptlrpc_reply_state {
 	unsigned long	  rs_on_net:1;   /* reply_out_callback pending? */
 	unsigned long	  rs_prealloc:1; /* rs from prealloc list */
 	unsigned long	  rs_committed:1;/* the transaction was committed
-						 and the rs was dispatched
-						 by ptlrpc_commit_replies */
+					  * and the rs was dispatched */
 	/** Size of the state */
 	int		    rs_size;
 	/** opcode */
@@ -2525,9 +2524,6 @@ struct ptlrpc_service_conf {
  *
  * @{
  */
-void ptlrpc_save_lock(struct ptlrpc_request *req,
-		      struct lustre_handle *lock, int mode, int no_ack);
-void ptlrpc_commit_replies(struct obd_export *exp);
 void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs);
 void ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs);
 int ptlrpc_hpreq_handler(struct ptlrpc_request *req);
