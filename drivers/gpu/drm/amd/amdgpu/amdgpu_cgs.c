@@ -703,6 +703,9 @@ static int amdgpu_cgs_get_firmware_info(void *cgs_device,
 		case CHIP_TONGA:
 			strcpy(fw_name, "amdgpu/tonga_smc.bin");
 			break;
+		case CHIP_FIJI:
+			strcpy(fw_name, "amdgpu/fiji_smc.bin");
+			break;
 		default:
 			DRM_ERROR("SMC firmware not supported\n");
 			return -EINVAL;

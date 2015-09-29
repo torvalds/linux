@@ -77,6 +77,9 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		case CHIP_TONGA:
 			amd_pp->ip_funcs = &tonga_dpm_ip_funcs;
 			break;
+		case CHIP_FIJI:
+			amd_pp->ip_funcs = &fiji_dpm_ip_funcs;
+			break;
 		case CHIP_CARRIZO:
 			amd_pp->ip_funcs = &cz_dpm_ip_funcs;
 			break;
