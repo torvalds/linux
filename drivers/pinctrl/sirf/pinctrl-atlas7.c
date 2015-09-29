@@ -148,6 +148,19 @@ enum altas7_pad_type {
 #define DIV_DISABLE	0x1
 #define DIV_ENABLE	0x0
 
+/* Number of Function input disable registers */
+#define NUM_OF_IN_DISABLE_REG	0x2
+
+/* Offset of Function input disable registers */
+#define IN_DISABLE_0_REG_SET		0x0A00
+#define IN_DISABLE_0_REG_CLR		0x0A04
+#define IN_DISABLE_1_REG_SET		0x0A08
+#define IN_DISABLE_1_REG_CLR		0x0A0C
+#define IN_DISABLE_VAL_0_REG_SET	0x0A80
+#define IN_DISABLE_VAL_0_REG_CLR	0x0A84
+#define IN_DISABLE_VAL_1_REG_SET	0x0A88
+#define IN_DISABLE_VAL_1_REG_CLR	0x0A8C
+
 struct dt_params {
 	const char *property;
 	int value;
@@ -195,6 +208,16 @@ struct atlas7_pad_config {
 		.drvstr_bit = dsb,				\
 		.ad_ctrl_bit = adb,				\
 	}
+
+/**
+ * struct atlas7_pad_status - Atlas7 Pad status
+ */
+struct atlas7_pad_status {
+	u8 func;
+	u8 pull;
+	u8 dstr;
+	u8 reserved;
+};
 
 /**
  * struct atlas7_pad_mux - Atlas7 mux
@@ -285,6 +308,9 @@ struct atlas7_pinctrl_data {
 /* Platform info of atlas7 pinctrl */
 #define ATLAS7_PINCTRL_REG_BANKS	2
 #define ATLAS7_PINCTRL_BANK_0_PINS	18
+#define ATLAS7_PINCTRL_BANK_1_PINS	141
+#define ATLAS7_PINCTRL_TOTAL_PINS	\
+	(ATLAS7_PINCTRL_BANK_0_PINS + ATLAS7_PINCTRL_BANK_1_PINS)
 
 /**
  * Atlas7 GPIO Chip
@@ -316,6 +342,7 @@ struct atlas7_gpio_bank {
 	unsigned int gpio_offset;
 	unsigned int ngpio;
 	const unsigned int *gpio_pins;
+	u32 sleep_data[NGPIO_OF_BANK];
 };
 
 struct atlas7_gpio_chip {
@@ -343,6 +370,9 @@ struct atlas7_pmx {
 	struct pinctrl_desc pctl_desc;
 	struct atlas7_pinctrl_data *pctl_data;
 	void __iomem *regs[ATLAS7_PINCTRL_REG_BANKS];
+	u32 status_ds[NUM_OF_IN_DISABLE_REG];
+	u32 status_dsv[NUM_OF_IN_DISABLE_REG];
+	struct atlas7_pad_status sleep_data[ATLAS7_PINCTRL_TOTAL_PINS];
 };
 
 /*
@@ -3480,6 +3510,160 @@ struct atlas7_pinctrl_data atlas7_ioc_data = {
 	.confs_cnt = ARRAY_SIZE(atlas7_ioc_pad_confs),
 };
 
+/* Simple map data structure */
+struct map_data {
+	u8 idx;
+	u8 data;
+};
+
+/**
+ * struct atlas7_pull_info - Atlas7 Pad pull info
+ * @type:The type of this Pad.
+ * @mask:The mas value of this pin's pull bits.
+ * @v2s: The map of pull register value to pull status.
+ * @s2v: The map of pull status to pull register value.
+ */
+struct atlas7_pull_info {
+	u8 pad_type;
+	u8 mask;
+	const struct map_data *v2s;
+	const struct map_data *s2v;
+};
+
+/* Pull Register value map to status */
+static const struct map_data p4we_pull_v2s[] = {
+	{ P4WE_PULL_UP, PULL_UP },
+	{ P4WE_HIGH_HYSTERESIS, HIGH_HYSTERESIS },
+	{ P4WE_HIGH_Z, HIGH_Z },
+	{ P4WE_PULL_DOWN, PULL_DOWN },
+};
+
+static const struct map_data p16st_pull_v2s[] = {
+	{ P16ST_PULL_UP, PULL_UP },
+	{ PD, PULL_UNKNOWN },
+	{ P16ST_HIGH_Z, HIGH_Z },
+	{ P16ST_PULL_DOWN, PULL_DOWN },
+};
+
+static const struct map_data pm31_pull_v2s[] = {
+	{ PM31_PULL_DISABLED, PULL_DOWN },
+	{ PM31_PULL_ENABLED, PULL_UP },
+};
+
+static const struct map_data pangd_pull_v2s[] = {
+	{ PANGD_PULL_UP, PULL_UP },
+	{ PD, PULL_UNKNOWN },
+	{ PANGD_HIGH_Z, HIGH_Z },
+	{ PANGD_PULL_DOWN, PULL_DOWN },
+};
+
+/* Pull status map to register value */
+static const struct map_data p4we_pull_s2v[] = {
+	{ PULL_UP, P4WE_PULL_UP },
+	{ HIGH_HYSTERESIS, P4WE_HIGH_HYSTERESIS },
+	{ HIGH_Z, P4WE_HIGH_Z },
+	{ PULL_DOWN, P4WE_PULL_DOWN },
+	{ PULL_DISABLE, -1 },
+	{ PULL_ENABLE, -1 },
+};
+
+static const struct map_data p16st_pull_s2v[] = {
+	{ PULL_UP, P16ST_PULL_UP },
+	{ HIGH_HYSTERESIS, -1 },
+	{ HIGH_Z, P16ST_HIGH_Z },
+	{ PULL_DOWN, P16ST_PULL_DOWN },
+	{ PULL_DISABLE, -1 },
+	{ PULL_ENABLE, -1 },
+};
+
+static const struct map_data pm31_pull_s2v[] = {
+	{ PULL_UP, PM31_PULL_ENABLED },
+	{ HIGH_HYSTERESIS, -1 },
+	{ HIGH_Z, -1 },
+	{ PULL_DOWN, PM31_PULL_DISABLED },
+	{ PULL_DISABLE, -1 },
+	{ PULL_ENABLE, -1 },
+};
+
+static const struct map_data pangd_pull_s2v[] = {
+	{ PULL_UP, PANGD_PULL_UP },
+	{ HIGH_HYSTERESIS, -1 },
+	{ HIGH_Z, PANGD_HIGH_Z },
+	{ PULL_DOWN, PANGD_PULL_DOWN },
+	{ PULL_DISABLE, -1 },
+	{ PULL_ENABLE, -1 },
+};
+
+static const struct atlas7_pull_info atlas7_pull_map[] = {
+	{ PAD_T_4WE_PD, P4WE_PULL_MASK, p4we_pull_v2s, p4we_pull_s2v },
+	{ PAD_T_4WE_PU, P4WE_PULL_MASK, p4we_pull_v2s, p4we_pull_s2v },
+	{ PAD_T_16ST, P16ST_PULL_MASK, p16st_pull_v2s, p16st_pull_s2v },
+	{ PAD_T_M31_0204_PD, PM31_PULL_MASK, pm31_pull_v2s, pm31_pull_s2v },
+	{ PAD_T_M31_0204_PU, PM31_PULL_MASK, pm31_pull_v2s, pm31_pull_s2v },
+	{ PAD_T_M31_0610_PD, PM31_PULL_MASK, pm31_pull_v2s, pm31_pull_s2v },
+	{ PAD_T_M31_0610_PU, PM31_PULL_MASK, pm31_pull_v2s, pm31_pull_s2v },
+	{ PAD_T_AD, PANGD_PULL_MASK, pangd_pull_v2s, pangd_pull_s2v },
+};
+
+/**
+ * struct atlas7_ds_ma_info - Atlas7 Pad DriveStrength & currents info
+ * @ma:		The Drive Strength in current value .
+ * @ds_16st:	The correspond raw value of 16st pad.
+ * @ds_4we:	The correspond raw value of 4we pad.
+ * @ds_0204m31:	The correspond raw value of 0204m31 pad.
+ * @ds_0610m31:	The correspond raw value of 0610m31 pad.
+ */
+struct atlas7_ds_ma_info {
+	u32 ma;
+	u32 ds_16st;
+	u32 ds_4we;
+	u32 ds_0204m31;
+	u32 ds_0610m31;
+};
+
+static const struct atlas7_ds_ma_info atlas7_ma2ds_map[] = {
+	{ 2, DS_16ST_0, DS_4WE_0, DS_M31_0, DS_NULL },
+	{ 4, DS_16ST_1, DS_NULL, DS_M31_1, DS_NULL },
+	{ 6, DS_16ST_2, DS_NULL, DS_NULL, DS_M31_0 },
+	{ 8, DS_16ST_3, DS_4WE_1, DS_NULL, DS_NULL },
+	{ 10, DS_16ST_4, DS_NULL, DS_NULL, DS_M31_1 },
+	{ 12, DS_16ST_5, DS_NULL, DS_NULL, DS_NULL },
+	{ 14, DS_16ST_6, DS_NULL, DS_NULL, DS_NULL },
+	{ 16, DS_16ST_7, DS_4WE_2, DS_NULL, DS_NULL },
+	{ 18, DS_16ST_8, DS_NULL, DS_NULL, DS_NULL },
+	{ 20, DS_16ST_9, DS_NULL, DS_NULL, DS_NULL },
+	{ 22, DS_16ST_10, DS_NULL, DS_NULL, DS_NULL },
+	{ 24, DS_16ST_11, DS_NULL, DS_NULL, DS_NULL },
+	{ 26, DS_16ST_12, DS_NULL, DS_NULL, DS_NULL },
+	{ 28, DS_16ST_13, DS_4WE_3, DS_NULL, DS_NULL },
+	{ 30, DS_16ST_14, DS_NULL, DS_NULL, DS_NULL },
+	{ 32, DS_16ST_15, DS_NULL, DS_NULL, DS_NULL },
+};
+
+/**
+ * struct atlas7_ds_info - Atlas7 Pad DriveStrength info
+ * @type:		The type of this Pad.
+ * @mask:		The mask value of this pin's pull bits.
+ * @imval:		The immediate value of drives trength register.
+ */
+struct atlas7_ds_info {
+	u8 type;
+	u8 mask;
+	u8 imval;
+	u8 reserved;
+};
+
+static const struct atlas7_ds_info atlas7_ds_map[] = {
+	{ PAD_T_4WE_PD, DS_2BIT_MASK, DS_2BIT_IM_VAL },
+	{ PAD_T_4WE_PU, DS_2BIT_MASK, DS_2BIT_IM_VAL },
+	{ PAD_T_16ST, DS_4BIT_MASK, DS_4BIT_IM_VAL },
+	{ PAD_T_M31_0204_PD, DS_1BIT_MASK, DS_1BIT_IM_VAL },
+	{ PAD_T_M31_0204_PU, DS_1BIT_MASK, DS_1BIT_IM_VAL },
+	{ PAD_T_M31_0610_PD, DS_1BIT_MASK, DS_1BIT_IM_VAL },
+	{ PAD_T_M31_0610_PU, DS_1BIT_MASK, DS_1BIT_IM_VAL },
+	{ PAD_T_AD, DS_NULL, DS_NULL },
+};
+
 static inline u32 atlas7_pin_to_bank(u32 pin)
 {
 	return (pin >= ATLAS7_PINCTRL_BANK_0_PINS) ? 1 : 0;
@@ -3682,49 +3866,22 @@ static int atlas7_pmx_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-struct atlas7_ds_info {
-	u32 ma;
-	u32 ds_16st;
-	u32 ds_4we;
-	u32 ds_0204m31;
-	u32 ds_0610m31;
-};
-
-const struct atlas7_ds_info atlas7_ds_map[] = {
-	{ 2, DS_16ST_0, DS_4WE_0, DS_M31_0, DS_NULL},
-	{ 4, DS_16ST_1, DS_NULL, DS_M31_1, DS_NULL},
-	{ 6, DS_16ST_2, DS_NULL, DS_NULL, DS_M31_0},
-	{ 8, DS_16ST_3, DS_4WE_1, DS_NULL, DS_NULL},
-	{ 10, DS_16ST_4, DS_NULL, DS_NULL, DS_M31_1},
-	{ 12, DS_16ST_5, DS_NULL, DS_NULL, DS_NULL},
-	{ 14, DS_16ST_6, DS_NULL, DS_NULL, DS_NULL},
-	{ 16, DS_16ST_7, DS_4WE_2, DS_NULL, DS_NULL},
-	{ 18, DS_16ST_8, DS_NULL, DS_NULL, DS_NULL},
-	{ 20, DS_16ST_9, DS_NULL, DS_NULL, DS_NULL},
-	{ 22, DS_16ST_10, DS_NULL, DS_NULL, DS_NULL},
-	{ 24, DS_16ST_11, DS_NULL, DS_NULL, DS_NULL},
-	{ 26, DS_16ST_12, DS_NULL, DS_NULL, DS_NULL},
-	{ 28, DS_16ST_13, DS_4WE_3, DS_NULL, DS_NULL},
-	{ 30, DS_16ST_14, DS_NULL, DS_NULL, DS_NULL},
-	{ 32, DS_16ST_15, DS_NULL, DS_NULL, DS_NULL},
-};
-
 static u32 convert_current_to_drive_strength(u32 type, u32 ma)
 {
 	int idx;
 
-	for (idx = 0; idx < ARRAY_SIZE(atlas7_ds_map); idx++) {
-		if (atlas7_ds_map[idx].ma != ma)
+	for (idx = 0; idx < ARRAY_SIZE(atlas7_ma2ds_map); idx++) {
+		if (atlas7_ma2ds_map[idx].ma != ma)
 			continue;
 
 		if (type == PAD_T_4WE_PD || type == PAD_T_4WE_PU)
-			return atlas7_ds_map[idx].ds_4we;
+			return atlas7_ma2ds_map[idx].ds_4we;
 		else if (type == PAD_T_16ST)
-			return atlas7_ds_map[idx].ds_16st;
+			return atlas7_ma2ds_map[idx].ds_16st;
 		else if (type == PAD_T_M31_0204_PD || type == PAD_T_M31_0204_PU)
-			return atlas7_ds_map[idx].ds_0204m31;
+			return atlas7_ma2ds_map[idx].ds_0204m31;
 		else if (type == PAD_T_M31_0610_PD || type == PAD_T_M31_0610_PU)
-			return atlas7_ds_map[idx].ds_0610m31;
+			return atlas7_ma2ds_map[idx].ds_0610m31;
 	}
 
 	return DS_NULL;
@@ -3735,78 +3892,21 @@ static int altas7_pinctrl_set_pull_sel(struct pinctrl_dev *pctldev,
 {
 	struct atlas7_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct atlas7_pad_config *conf = &pmx->pctl_data->confs[pin];
-	u32 type = conf->type;
-	u32 shift = conf->pupd_bit;
-	u32 bank = atlas7_pin_to_bank(pin);
-	void __iomem *pull_sel_reg, *pull_clr_reg;
+	const struct atlas7_pull_info *pull_info;
+	u32 bank;
+	unsigned long regv;
+	void __iomem *pull_sel_reg;
 
+	bank = atlas7_pin_to_bank(pin);
+	pull_info = &atlas7_pull_map[conf->type];
 	pull_sel_reg = pmx->regs[bank] + conf->pupd_reg;
-	pull_clr_reg = CLR_REG(pull_sel_reg);
 
-	if (type == PAD_T_4WE_PD || type == PAD_T_4WE_PU) {
-		writel(P4WE_PULL_MASK << shift, pull_clr_reg);
+	/* Retrieve correspond register value from table by sel */
+	regv = pull_info->s2v[sel].data & pull_info->mask;
 
-		if (sel == PULL_UP)
-			writel(P4WE_PULL_UP << shift, pull_sel_reg);
-		else if (sel == HIGH_HYSTERESIS)
-			writel(P4WE_HIGH_HYSTERESIS << shift, pull_sel_reg);
-		else if (sel == HIGH_Z)
-			writel(P4WE_HIGH_Z << shift, pull_sel_reg);
-		else if (sel == PULL_DOWN)
-			writel(P4WE_PULL_DOWN << shift, pull_sel_reg);
-		else {
-			pr_err("Unknown Pull select type for 4WEPAD#%d\n",
-				pin);
-			return -ENOTSUPP;
-		}
-	} else if (type == PAD_T_16ST) {
-		writel(P16ST_PULL_MASK << shift, pull_clr_reg);
-
-		if (sel == PULL_UP)
-			writel(P16ST_PULL_UP << shift, pull_sel_reg);
-		else if (sel == HIGH_Z)
-			writel(P16ST_HIGH_Z << shift, pull_sel_reg);
-		else if (sel == PULL_DOWN)
-			writel(P16ST_PULL_DOWN << shift, pull_sel_reg);
-		else {
-			pr_err("Unknown Pull select type for 16STPAD#%d\n",
-				pin);
-			return -ENOTSUPP;
-		}
-	} else if (type == PAD_T_M31_0204_PD ||
-		type == PAD_T_M31_0204_PU ||
-		type == PAD_T_M31_0610_PD ||
-		type == PAD_T_M31_0610_PU) {
-		writel(PM31_PULL_MASK << shift, pull_clr_reg);
-
-		if (sel == PULL_UP)
-			writel(PM31_PULL_ENABLED << shift, pull_sel_reg);
-		else if (sel == PULL_DOWN)
-			writel(PM31_PULL_DISABLED << shift, pull_sel_reg);
-		else {
-			pr_err("Unknown Pull select type for M31PAD#%d\n",
-				pin);
-			return -ENOTSUPP;
-		}
-	} else if (type == PAD_T_AD) {
-		writel(PANGD_PULL_MASK << shift, pull_clr_reg);
-
-		if (sel == PULL_UP)
-			writel(PANGD_PULL_UP << shift, pull_sel_reg);
-		else if (sel == HIGH_Z)
-			writel(PANGD_HIGH_Z << shift, pull_sel_reg);
-		else if (sel == PULL_DOWN)
-			writel(PANGD_PULL_DOWN << shift, pull_sel_reg);
-		else {
-			pr_err("Unknown Pull select type for A/D PAD#%d\n",
-				pin);
-			return -ENOTSUPP;
-		}
-	} else {
-			pr_err("Unknown Pad type[%d] for pull select PAD#%d\n",
-				type, pin);
-			return -ENOTSUPP;
-	}
+	/* Clear & Set new value to pull register */
+	writel(pull_info->mask << conf->pupd_bit, CLR_REG(pull_sel_reg));
+	writel(regv << conf->pupd_bit, pull_sel_reg);
 
 	pr_debug("PIN_CFG ### SET PIN#%d PULL SELECTOR:%d == OK ####\n",
 		pin, sel);
@@ -3818,43 +3918,25 @@ static int __altas7_pinctrl_set_drive_strength_sel(struct pinctrl_dev *pctldev,
 {
 	struct atlas7_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct atlas7_pad_config *conf = &pmx->pctl_data->confs[pin];
-	u32 type = conf->type;
-	u32 shift = conf->drvstr_bit;
-	u32 bank = atlas7_pin_to_bank(pin);
-	void __iomem *ds_sel_reg, *ds_clr_reg;
+	const struct atlas7_ds_info *ds_info;
+	u32 bank;
+	void __iomem *ds_sel_reg;
 
+	ds_info = &atlas7_ds_map[conf->type];
+	if (sel & (~(ds_info->mask)))
+		goto unsupport;
+
+	bank = atlas7_pin_to_bank(pin);
 	ds_sel_reg = pmx->regs[bank] + conf->drvstr_reg;
-	ds_clr_reg = CLR_REG(ds_sel_reg);
-	if (type == PAD_T_4WE_PD || type == PAD_T_4WE_PU) {
-		if (sel & (~DS_2BIT_MASK))
-			goto unsupport;
 
-		writel(DS_2BIT_IM_VAL << shift, ds_clr_reg);
-		writel(sel << shift, ds_sel_reg);
+	writel(ds_info->imval << conf->drvstr_bit, CLR_REG(ds_sel_reg));
+	writel(sel << conf->drvstr_bit, ds_sel_reg);
 
-		return 0;
-	} else if (type == PAD_T_16ST) {
-		if (sel & (~DS_4BIT_MASK))
-			goto unsupport;
-
-		writel(DS_4BIT_IM_VAL << shift, ds_clr_reg);
-		writel(sel << shift, ds_sel_reg);
-
-		return 0;
-	} else if (type == PAD_T_M31_0204_PD ||	type == PAD_T_M31_0204_PU ||
-		type == PAD_T_M31_0610_PD || type == PAD_T_M31_0610_PU) {
-		if (sel & (~DS_1BIT_MASK))
-			goto unsupport;
-
-		writel(DS_1BIT_IM_VAL << shift, ds_clr_reg);
-		writel(sel << shift, ds_sel_reg);
-
-		return 0;
-	}
+	return 0;
 
 unsupport:
 	pr_err("Pad#%d type[%d] doesn't support ds code[%d]!\n",
-		pin, type, sel);
+		pin, conf->type, sel);
 	return -ENOTSUPP;
 }
 
@@ -4101,14 +4183,135 @@ unmap_io:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int atlas7_pinmux_suspend_noirq(struct device *dev)
+{
+	struct atlas7_pmx *pmx = dev_get_drvdata(dev);
+	struct atlas7_pad_status *status;
+	struct atlas7_pad_config *conf;
+	const struct atlas7_ds_info *ds_info;
+	const struct atlas7_pull_info *pull_info;
+	int idx;
+	u32 bank;
+	unsigned long regv;
+
+	for (idx = 0; idx < pmx->pctl_desc.npins; idx++) {
+		/* Get this Pad's descriptor from PINCTRL */
+		conf = &pmx->pctl_data->confs[idx];
+		bank = atlas7_pin_to_bank(idx);
+		status = &pmx->sleep_data[idx];
+
+		/* Save Function selector */
+		regv = readl(pmx->regs[bank] + conf->mux_reg);
+		status->func = (regv >> conf->mux_bit) & FUNC_CLEAR_MASK;
+
+		/* Check if Pad is in Analogue selector */
+		if (conf->ad_ctrl_reg == -1)
+			goto save_ds_sel;
+
+		regv = readl(pmx->regs[bank] + conf->ad_ctrl_reg);
+		if (!(regv & (conf->ad_ctrl_bit << ANA_CLEAR_MASK)))
+			status->func = FUNC_ANALOGUE;
+
+save_ds_sel:
+		if (conf->drvstr_reg == -1)
+			goto save_pull_sel;
+
+		/* Save Drive Strength selector */
+		ds_info = &atlas7_ds_map[conf->type];
+		regv = readl(pmx->regs[bank] + conf->drvstr_reg);
+		status->dstr = (regv >> conf->drvstr_bit) & ds_info->mask;
+
+save_pull_sel:
+		/* Save Pull selector */
+		pull_info = &atlas7_pull_map[conf->type];
+		regv = readl(pmx->regs[bank] + conf->pupd_reg);
+		regv = (regv >> conf->pupd_bit) & pull_info->mask;
+		status->pull = pull_info->v2s[regv].data;
+	}
+
+	/*
+	 * Save disable input selector, this selector is not for Pin,
+	 * but for Mux function.
+	 */
+	for (idx = 0; idx < NUM_OF_IN_DISABLE_REG; idx++) {
+		pmx->status_ds[idx] = readl(pmx->regs[BANK_DS] +
+					IN_DISABLE_0_REG_SET + 0x8 * idx);
+		pmx->status_dsv[idx] = readl(pmx->regs[BANK_DS] +
+					IN_DISABLE_VAL_0_REG_SET + 0x8 * idx);
+	}
+
+	return 0;
+}
+
+static int atlas7_pinmux_resume_noirq(struct device *dev)
+{
+	struct atlas7_pmx *pmx = dev_get_drvdata(dev);
+	struct atlas7_pad_status *status;
+	struct atlas7_pad_config *conf;
+	int idx;
+	u32 bank;
+
+	for (idx = 0; idx < pmx->pctl_desc.npins; idx++) {
+		/* Get this Pad's descriptor from PINCTRL */
+		conf = &pmx->pctl_data->confs[idx];
+		bank = atlas7_pin_to_bank(idx);
+		status = &pmx->sleep_data[idx];
+
+		/* Restore Function selector */
+		__atlas7_pmx_pin_enable(pmx, idx, (u32)status->func & 0xff);
+
+		if (FUNC_ANALOGUE == status->func)
+			goto restore_pull_sel;
+
+		/* Restore Drive Strength selector */
+		__altas7_pinctrl_set_drive_strength_sel(pmx->pctl, idx,
+						(u32)status->dstr & 0xff);
+
+restore_pull_sel:
+		/* Restore Pull selector */
+		altas7_pinctrl_set_pull_sel(pmx->pctl, idx,
+						(u32)status->pull & 0xff);
+	}
+
+	/*
+	 * Restore disable input selector, this selector is not for Pin,
+	 * but for Mux function
+	 */
+	for (idx = 0; idx < NUM_OF_IN_DISABLE_REG; idx++) {
+		writel(~0, pmx->regs[BANK_DS] +
+					IN_DISABLE_0_REG_CLR + 0x8 * idx);
+		writel(pmx->status_ds[idx], pmx->regs[BANK_DS] +
+					IN_DISABLE_0_REG_SET + 0x8 * idx);
+		writel(~0, pmx->regs[BANK_DS] +
+					IN_DISABLE_VAL_0_REG_CLR + 0x8 * idx);
+		writel(pmx->status_dsv[idx], pmx->regs[BANK_DS] +
+					IN_DISABLE_VAL_0_REG_SET + 0x8 * idx);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops atlas7_pinmux_pm_ops = {
+	.suspend_noirq = atlas7_pinmux_suspend_noirq,
+	.resume_noirq = atlas7_pinmux_resume_noirq,
+	.freeze_noirq = atlas7_pinmux_suspend_noirq,
+	.restore_noirq = atlas7_pinmux_resume_noirq,
+};
+#endif
+
 static const struct of_device_id atlas7_pinmux_ids[] = {
 	{ .compatible = "sirf,atlas7-ioc",},
+	{},
 };
 
 static struct platform_driver atlas7_pinmux_driver = {
 	.driver = {
 		.name = "atlas7-ioc",
 		.of_match_table = atlas7_pinmux_ids,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &atlas7_pinmux_pm_ops,
+#endif
 	},
 	.probe = atlas7_pinmux_probe,
 };
@@ -4286,14 +4489,15 @@ static struct irq_chip atlas7_gpio_irq_chip = {
 	.irq_set_type = atlas7_gpio_irq_type,
 };
 
-static void atlas7_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
+static void atlas7_gpio_handle_irq(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct atlas7_gpio_chip *a7gc = to_atlas7_gpio(gc);
 	struct atlas7_gpio_bank *bank = NULL;
 	u32 status, ctrl;
 	int pin_in_bank = 0, idx;
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int irq = irq_desc_get_irq(desc);
 
 	for (idx = 0; idx < a7gc->nbank; idx++) {
 		bank = &a7gc->banks[idx];
@@ -4308,7 +4512,7 @@ static void atlas7_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	if (!status) {
 		pr_warn("%s: gpio [%s] status %#x no interrupt is flaged\n",
 			__func__, gc->label, status);
-		handle_bad_irq(irq, desc);
+		handle_bad_irq(desc);
 		return;
 	}
 
@@ -4496,6 +4700,7 @@ static void atlas7_gpio_set_value(struct gpio_chip *chip,
 
 static const struct of_device_id atlas7_gpio_ids[] = {
 	{ .compatible = "sirf,atlas7-gpio", },
+	{},
 };
 
 static int atlas7_gpio_probe(struct platform_device *pdev)
@@ -4612,17 +4817,65 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 		BUG_ON(!bank->pctldev);
 	}
 
+	platform_set_drvdata(pdev, a7gc);
 	dev_info(&pdev->dev, "add to system.\n");
 	return 0;
 failed:
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int atlas7_gpio_suspend_noirq(struct device *dev)
+{
+	struct atlas7_gpio_chip *a7gc = dev_get_drvdata(dev);
+	struct atlas7_gpio_bank *bank;
+	void __iomem *ctrl_reg;
+	u32 idx, pin;
+
+	for (idx = 0; idx < a7gc->nbank; idx++) {
+		bank = &a7gc->banks[idx];
+		for (pin = 0; pin < bank->ngpio; pin++) {
+			ctrl_reg = ATLAS7_GPIO_CTRL(bank, pin);
+			bank->sleep_data[pin] = readl(ctrl_reg);
+		}
+	}
+
+	return 0;
+}
+
+static int atlas7_gpio_resume_noirq(struct device *dev)
+{
+	struct atlas7_gpio_chip *a7gc = dev_get_drvdata(dev);
+	struct atlas7_gpio_bank *bank;
+	void __iomem *ctrl_reg;
+	u32 idx, pin;
+
+	for (idx = 0; idx < a7gc->nbank; idx++) {
+		bank = &a7gc->banks[idx];
+		for (pin = 0; pin < bank->ngpio; pin++) {
+			ctrl_reg = ATLAS7_GPIO_CTRL(bank, pin);
+			writel(bank->sleep_data[pin], ctrl_reg);
+		}
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops atlas7_gpio_pm_ops = {
+	.suspend_noirq = atlas7_gpio_suspend_noirq,
+	.resume_noirq = atlas7_gpio_resume_noirq,
+	.freeze_noirq = atlas7_gpio_suspend_noirq,
+	.restore_noirq = atlas7_gpio_resume_noirq,
+};
+#endif
+
 static struct platform_driver atlas7_gpio_driver = {
 	.driver = {
 		.name = "atlas7-gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = atlas7_gpio_ids,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &atlas7_gpio_pm_ops,
+#endif
 	},
 	.probe = atlas7_gpio_probe,
 };

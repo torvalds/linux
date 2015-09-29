@@ -628,6 +628,9 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		goto bail4;
 	}
 
+	if (spareblock->n_spares_used)
+		hpfs_load_hotfix_map(s, spareblock);
+
 	/* Load bitmap directory */
 	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;
@@ -647,18 +650,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		mark_buffer_dirty(bh2);
 	}
 
-	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
-		if (errs >= 2) {
-			pr_err("Hotfixes not supported here, try chkdsk\n");
-			mark_dirty(s, 0);
-			goto bail4;
-		}
-		hpfs_error(s, "hotfixes not supported here, try chkdsk");
-		if (errs == 0)
-			pr_err("Proceeding, but your filesystem will be probably corrupted by this driver...\n");
-		else
-			pr_err("This driver may read bad files or crash when operating on disk with hotfixes.\n");
-	}
 	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
 		if (errs >= 2) {
 			pr_err("Spare dnodes used, try chkdsk\n");

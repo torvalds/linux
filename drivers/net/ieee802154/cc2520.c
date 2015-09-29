@@ -833,6 +833,7 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 		if (!spi_pdata)
 			return -ENOENT;
 		*pdata = *spi_pdata;
+		priv->fifo_pin = pdata->fifo;
 		return 0;
 	}
 
@@ -1151,7 +1152,6 @@ MODULE_DEVICE_TABLE(of, cc2520_of_ids);
 static struct spi_driver cc2520_driver = {
 	.driver = {
 		.name = "cc2520",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(cc2520_of_ids),
 	},

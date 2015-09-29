@@ -249,19 +249,23 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	xspi->tx_ptr = t->tx_buf;
 	xspi->rx_ptr = t->rx_buf;
 	remaining_words = t->len / xspi->bytes_per_word;
-	reinit_completion(&xspi->done);
 
 	if (xspi->irq >= 0 &&  remaining_words > xspi->buffer_size) {
+		u32 isr;
 		use_irq = true;
-		xspi->write_fn(XSPI_INTR_TX_EMPTY,
-				xspi->regs + XIPIF_V123B_IISR_OFFSET);
-		/* Enable the global IPIF interrupt */
-		xspi->write_fn(XIPIF_V123B_GINTR_ENABLE,
-				xspi->regs + XIPIF_V123B_DGIER_OFFSET);
 		/* Inhibit irq to avoid spurious irqs on tx_empty*/
 		cr = xspi->read_fn(xspi->regs + XSPI_CR_OFFSET);
 		xspi->write_fn(cr | XSPI_CR_TRANS_INHIBIT,
 			       xspi->regs + XSPI_CR_OFFSET);
+		/* ACK old irqs (if any) */
+		isr = xspi->read_fn(xspi->regs + XIPIF_V123B_IISR_OFFSET);
+		if (isr)
+			xspi->write_fn(isr,
+				       xspi->regs + XIPIF_V123B_IISR_OFFSET);
+		/* Enable the global IPIF interrupt */
+		xspi->write_fn(XIPIF_V123B_GINTR_ENABLE,
+				xspi->regs + XIPIF_V123B_DGIER_OFFSET);
+		reinit_completion(&xspi->done);
 	}
 
 	while (remaining_words) {
@@ -302,8 +306,10 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		remaining_words -= n_words;
 	}
 
-	if (use_irq)
+	if (use_irq) {
 		xspi->write_fn(0, xspi->regs + XIPIF_V123B_DGIER_OFFSET);
+		xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
+	}
 
 	return t->len;
 }

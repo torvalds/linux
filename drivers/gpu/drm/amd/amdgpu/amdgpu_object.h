@@ -129,12 +129,14 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u64 flags,
 			    struct sg_table *sg,
+			    struct reservation_object *resv,
 			    struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				unsigned long size, int byte_align,
 				bool kernel, u32 domain, u64 flags,
 				struct sg_table *sg,
 				struct ttm_placement *placement,
+			        struct reservation_object *resv,
 				struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);
@@ -161,7 +163,7 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *new_mem);
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct amdgpu_fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
 		     bool shared);
 
 /*
@@ -193,7 +195,7 @@ int amdgpu_sa_bo_new(struct amdgpu_device *adev,
 			    unsigned size, unsigned align);
 void amdgpu_sa_bo_free(struct amdgpu_device *adev,
 			      struct amdgpu_sa_bo **sa_bo,
-			      struct amdgpu_fence *fence);
+			      struct fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);

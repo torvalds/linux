@@ -36,9 +36,9 @@
 #define TMP006_CONFIG_DRDY_EN BIT(8)
 #define TMP006_CONFIG_DRDY BIT(7)
 
-#define TMP006_CONFIG_MOD_MASK 0x7000
+#define TMP006_CONFIG_MOD_MASK GENMASK(14, 12)
 
-#define TMP006_CONFIG_CR_MASK 0x0e00
+#define TMP006_CONFIG_CR_MASK GENMASK(11, 9)
 #define TMP006_CONFIG_CR_SHIFT 9
 
 #define TMP006_MANUFACTURER_MAGIC 0x5449
@@ -280,7 +280,6 @@ static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
 		.pm	= &tmp006_pm_ops,
-		.owner	= THIS_MODULE,
 	},
 	.probe = tmp006_probe,
 	.remove = tmp006_remove,

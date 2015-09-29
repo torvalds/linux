@@ -49,17 +49,8 @@ gm206_grctx_pack_gpc[] = {
 	{}
 };
 
-struct nvkm_oclass *
-gm206_grctx_oclass = &(struct gf100_grctx_oclass) {
-	.base.handle = NV_ENGCTX(GR, 0x26),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_context_ctor,
-		.dtor = gf100_gr_context_dtor,
-		.init = _nvkm_gr_context_init,
-		.fini = _nvkm_gr_context_fini,
-		.rd32 = _nvkm_gr_context_rd32,
-		.wr32 = _nvkm_gr_context_wr32,
-	},
+const struct gf100_grctx_func
+gm206_grctx = {
 	.main  = gm204_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gm204_grctx_pack_hub,
@@ -80,4 +71,4 @@ gm206_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
-}.base;
+};

@@ -21,11 +21,11 @@
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
-#include <asm/pmu.h>
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
 
 #include <linux/of.h>
+#include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
 
 /*

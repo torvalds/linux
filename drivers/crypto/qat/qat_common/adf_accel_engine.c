@@ -55,24 +55,36 @@ int adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	void *uof_addr;
-	uint32_t uof_size;
+	void *uof_addr, *mmp_addr;
+	u32 uof_size, mmp_size;
 
+	if (!hw_device->fw_name)
+		return 0;
+
+	if (request_firmware(&loader_data->mmp_fw, hw_device->fw_mmp_name,
+			     &accel_dev->accel_pci_dev.pci_dev->dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed to load MMP firmware %s\n",
+			hw_device->fw_mmp_name);
+		return -EFAULT;
+	}
 	if (request_firmware(&loader_data->uof_fw, hw_device->fw_name,
 			     &accel_dev->accel_pci_dev.pci_dev->dev)) {
-		dev_err(&GET_DEV(accel_dev), "Failed to load firmware %s\n",
+		dev_err(&GET_DEV(accel_dev), "Failed to load UOF firmware %s\n",
 			hw_device->fw_name);
-		return -EFAULT;
+		goto out_err;
 	}
 
 	uof_size = loader_data->uof_fw->size;
 	uof_addr = (void *)loader_data->uof_fw->data;
+	mmp_size = loader_data->mmp_fw->size;
+	mmp_addr = (void *)loader_data->mmp_fw->data;
+	qat_uclo_wr_mimage(loader_data->fw_loader, mmp_addr, mmp_size);
 	if (qat_uclo_map_uof_obj(loader_data->fw_loader, uof_addr, uof_size)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to map UOF\n");
 		goto out_err;
 	}
 	if (qat_uclo_wr_all_uimage(loader_data->fw_loader)) {
-		dev_err(&GET_DEV(accel_dev), "Failed to map UOF\n");
+		dev_err(&GET_DEV(accel_dev), "Failed to load UOF\n");
 		goto out_err;
 	}
 	return 0;
@@ -85,11 +97,17 @@ out_err:
 void adf_ae_fw_release(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+
+	if (!hw_device->fw_name)
+		return;
 
 	qat_uclo_del_uof_obj(loader_data->fw_loader);
 	qat_hal_deinit(loader_data->fw_loader);
 	release_firmware(loader_data->uof_fw);
+	release_firmware(loader_data->mmp_fw);
 	loader_data->uof_fw = NULL;
+	loader_data->mmp_fw = NULL;
 	loader_data->fw_loader = NULL;
 }
 
@@ -98,6 +116,9 @@ int adf_ae_start(struct adf_accel_dev *accel_dev)
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	uint32_t ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
+
+	if (!hw_data->fw_name)
+		return 0;
 
 	for (ae = 0, ae_ctr = 0; ae < max_aes; ae++) {
 		if (hw_data->ae_mask & (1 << ae)) {
@@ -116,6 +137,9 @@ int adf_ae_stop(struct adf_accel_dev *accel_dev)
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	uint32_t ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
+
+	if (!hw_data->fw_name)
+		return 0;
 
 	for (ae = 0, ae_ctr = 0; ae < max_aes; ae++) {
 		if (hw_data->ae_mask & (1 << ae)) {
@@ -143,6 +167,10 @@ static int adf_ae_reset(struct adf_accel_dev *accel_dev, int ae)
 int adf_ae_init(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+
+	if (!hw_device->fw_name)
+		return 0;
 
 	loader_data = kzalloc(sizeof(*loader_data), GFP_KERNEL);
 	if (!loader_data)
@@ -166,6 +194,10 @@ int adf_ae_init(struct adf_accel_dev *accel_dev)
 int adf_ae_shutdown(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+
+	if (!hw_device->fw_name)
+		return 0;
 
 	qat_hal_deinit(loader_data->fw_loader);
 	kfree(accel_dev->fw_loader);

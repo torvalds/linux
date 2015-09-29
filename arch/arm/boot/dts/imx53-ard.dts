@@ -103,8 +103,8 @@
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
-	cd-gpios = <&gpio1 1 0>;
-	wp-gpios = <&gpio1 9 0>;
+	cd-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

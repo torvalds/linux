@@ -38,7 +38,7 @@ static void resend_irqs(unsigned long arg)
 		clear_bit(irq, irqs_resend);
 		desc = irq_to_desc(irq);
 		local_irq_disable();
-		desc->handle_irq(irq, desc);
+		desc->handle_irq(desc);
 		local_irq_enable();
 	}
 }
@@ -53,7 +53,7 @@ static DECLARE_TASKLET(resend_tasklet, resend_irqs, 0);
  *
  * Is called with interrupts disabled and desc->lock held.
  */
-void check_irq_resend(struct irq_desc *desc, unsigned int irq)
+void check_irq_resend(struct irq_desc *desc)
 {
 	/*
 	 * We do not resend level type interrupts. Level type
@@ -74,6 +74,8 @@ void check_irq_resend(struct irq_desc *desc, unsigned int irq)
 		if (!desc->irq_data.chip->irq_retrigger ||
 		    !desc->irq_data.chip->irq_retrigger(&desc->irq_data)) {
 #ifdef CONFIG_HARDIRQS_SW_RESEND
+			unsigned int irq = irq_desc_get_irq(desc);
+
 			/*
 			 * If the interrupt is running in the thread
 			 * context of the parent irq we need to be

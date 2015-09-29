@@ -96,7 +96,7 @@ or single-use fields not mentioned):
 3. Per PCMCIA-device Data:
 --------------------------
 
-The "main" struct pcmcia_devie is protected as follows (read-only fields
+The "main" struct pcmcia_device is protected as follows (read-only fields
 or single-use fields not mentioned):
 
 

@@ -40,7 +40,12 @@ static void fpu__init_cpu_generic(void)
 	write_cr0(cr0);
 
 	/* Flush out any pending x87 state: */
-	asm volatile ("fninit");
+#ifdef CONFIG_MATH_EMULATION
+	if (!cpu_has_fpu)
+		fpstate_init_soft(&current->thread.fpu.state.soft);
+	else
+#endif
+		asm volatile ("fninit");
 }
 
 /*
@@ -351,9 +356,15 @@ static int __init x86_noxsave_setup(char *s)
 
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+	setup_clear_cpu_cap(X86_FEATURE_XSAVEC);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 	setup_clear_cpu_cap(X86_FEATURE_AVX);
 	setup_clear_cpu_cap(X86_FEATURE_AVX2);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
+	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
+	setup_clear_cpu_cap(X86_FEATURE_MPX);
 
 	return 1;
 }

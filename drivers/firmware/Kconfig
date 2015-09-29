@@ -5,6 +5,9 @@
 
 menu "Firmware Drivers"
 
+config ARM_PSCI_FW
+	bool
+
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
 	depends on X86
@@ -135,6 +138,14 @@ config ISCSI_IBFT
 config QCOM_SCM
 	bool
 	depends on ARM || ARM64
+
+config QCOM_SCM_32
+	def_bool y
+	depends on QCOM_SCM && ARM
+
+config QCOM_SCM_64
+	def_bool y
+	depends on QCOM_SCM && ARM64
 
 source "drivers/firmware/broadcom/Kconfig"
 source "drivers/firmware/google/Kconfig"

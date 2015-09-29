@@ -359,28 +359,7 @@ static int qat_uclo_init_umem_seg(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_init_ae_memory(struct icp_qat_fw_loader_handle *handle,
 				   struct icp_qat_uof_initmem *init_mem)
 {
-	unsigned int i;
-	struct icp_qat_uof_memvar_attr *mem_val_attr;
-
-	mem_val_attr =
-		(struct icp_qat_uof_memvar_attr *)((unsigned long)init_mem +
-		sizeof(struct icp_qat_uof_initmem));
-
 	switch (init_mem->region) {
-	case ICP_QAT_UOF_SRAM_REGION:
-		if ((init_mem->addr + init_mem->num_in_bytes) >
-		    ICP_DH895XCC_PESRAM_BAR_SIZE) {
-			pr_err("QAT: initmem on SRAM is out of range");
-			return -EINVAL;
-		}
-		for (i = 0; i < init_mem->val_attr_num; i++) {
-			qat_uclo_wr_sram_by_words(handle,
-						  init_mem->addr +
-						  mem_val_attr->offset_in_byte,
-						  &mem_val_attr->value, 4);
-			mem_val_attr++;
-		}
-		break;
 	case ICP_QAT_UOF_LMEM_REGION:
 		if (qat_uclo_init_lmem_seg(handle, init_mem))
 			return -EINVAL;
@@ -988,6 +967,12 @@ out_check_uof_aemask_err:
 out_err:
 	kfree(obj_handle->uword_buf);
 	return -EFAULT;
+}
+
+void qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
+			void *addr_ptr, int mem_size)
+{
+	qat_uclo_wr_sram_by_words(handle, 0, addr_ptr, ALIGN(mem_size, 4));
 }
 
 int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,

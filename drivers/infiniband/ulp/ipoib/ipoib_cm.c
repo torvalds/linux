@@ -332,7 +332,7 @@ static void ipoib_cm_init_rx_wr(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < priv->cm.num_frags; ++i)
-		sge[i].lkey = priv->mr->lkey;
+		sge[i].lkey = priv->pd->local_dma_lkey;
 
 	sge[0].length = IPOIB_CM_HEAD_SIZE;
 	for (i = 1; i < priv->cm.num_frags; ++i)
@@ -848,7 +848,7 @@ int ipoib_cm_dev_open(struct net_device *dev)
 	}
 
 	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
-			   0, NULL);
+			   0);
 	if (ret) {
 		printk(KERN_WARNING "%s: failed to listen on ID 0x%llx\n", priv->ca->name,
 		       IPOIB_CM_IETF_ID | priv->qp->qp_num);

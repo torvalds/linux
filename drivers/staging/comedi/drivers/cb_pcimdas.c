@@ -141,11 +141,13 @@ static const struct comedi_lrange cb_pcimdas_ai_uni_range = {
  * jumper-settable on the board. The settings are not software-readable.
  */
 static const struct comedi_lrange cb_pcimdas_ao_range = {
-	4, {
+	6, {
 		BIP_RANGE(10),
 		BIP_RANGE(5),
 		UNI_RANGE(10),
-		UNI_RANGE(5)
+		UNI_RANGE(5),
+		RANGE_ext(-1, 1),
+		RANGE_ext(0, 1)
 	}
 };
 

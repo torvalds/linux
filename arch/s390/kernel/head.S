@@ -370,6 +370,7 @@ ENTRY(startup_kdump)
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
 	xc	0xe00(256),0xe00
+	lctlg	%c0,%c15,0x200(%r0)	# initialize control registers
 	stck	__LC_LAST_UPDATE_CLOCK
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
@@ -413,9 +414,9 @@ ENTRY(startup_kdump)
 # followed by the facility words.
 
 #if defined(CONFIG_MARCH_Z13)
-	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
+	.long 2, 0xc100eff2, 0xf46cc800
 #elif defined(CONFIG_MARCH_ZEC12)
-	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
+	.long 2, 0xc100eff2, 0xf46cc800
 #elif defined(CONFIG_MARCH_Z196)
 	.long 2, 0xc100eff2, 0xf46c0000
 #elif defined(CONFIG_MARCH_Z10)

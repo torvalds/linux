@@ -82,8 +82,8 @@ static u64 start_dma_addr;
  */
 static inline dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 {
-	unsigned long mfn = pfn_to_mfn(PFN_DOWN(paddr));
-	dma_addr_t dma = (dma_addr_t)mfn << PAGE_SHIFT;
+	unsigned long bfn = pfn_to_bfn(PFN_DOWN(paddr));
+	dma_addr_t dma = (dma_addr_t)bfn << PAGE_SHIFT;
 
 	dma |= paddr & ~PAGE_MASK;
 
@@ -92,7 +92,7 @@ static inline dma_addr_t xen_phys_to_bus(phys_addr_t paddr)
 
 static inline phys_addr_t xen_bus_to_phys(dma_addr_t baddr)
 {
-	unsigned long pfn = mfn_to_pfn(PFN_DOWN(baddr));
+	unsigned long pfn = bfn_to_pfn(PFN_DOWN(baddr));
 	dma_addr_t dma = (dma_addr_t)pfn << PAGE_SHIFT;
 	phys_addr_t paddr = dma;
 
@@ -110,15 +110,15 @@ static int check_pages_physically_contiguous(unsigned long pfn,
 					     unsigned int offset,
 					     size_t length)
 {
-	unsigned long next_mfn;
+	unsigned long next_bfn;
 	int i;
 	int nr_pages;
 
-	next_mfn = pfn_to_mfn(pfn);
+	next_bfn = pfn_to_bfn(pfn);
 	nr_pages = (offset + length + PAGE_SIZE-1) >> PAGE_SHIFT;
 
 	for (i = 1; i < nr_pages; i++) {
-		if (pfn_to_mfn(++pfn) != ++next_mfn)
+		if (pfn_to_bfn(++pfn) != ++next_bfn)
 			return 0;
 	}
 	return 1;
@@ -138,8 +138,8 @@ static inline int range_straddles_page_boundary(phys_addr_t p, size_t size)
 
 static int is_xen_swiotlb_buffer(dma_addr_t dma_addr)
 {
-	unsigned long mfn = PFN_DOWN(dma_addr);
-	unsigned long pfn = mfn_to_local_pfn(mfn);
+	unsigned long bfn = PFN_DOWN(dma_addr);
+	unsigned long pfn = bfn_to_local_pfn(bfn);
 	phys_addr_t paddr;
 
 	/* If the address is outside our domain, it CAN
@@ -311,9 +311,6 @@ xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	*/
 	flags &= ~(__GFP_DMA | __GFP_HIGHMEM);
 
-	if (dma_alloc_from_coherent(hwdev, size, dma_handle, &ret))
-		return ret;
-
 	/* On ARM this function returns an ioremap'ped virtual address for
 	 * which virt_to_phys doesn't return the corresponding physical
 	 * address. In fact on ARM virt_to_phys only works for kernel direct
@@ -355,9 +352,6 @@ xen_swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 	int order = get_order(size);
 	phys_addr_t phys;
 	u64 dma_mask = DMA_BIT_MASK(32);
-
-	if (dma_release_from_coherent(hwdev, order, vaddr))
-		return;
 
 	if (hwdev && hwdev->coherent_dma_mask)
 		dma_mask = hwdev->coherent_dma_mask;

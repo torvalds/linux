@@ -873,9 +873,10 @@ static void drm_dp_destroy_port(struct kref *kref)
 		   from an EDID retrieval */
 		if (port->connector) {
 			mutex_lock(&mgr->destroy_connector_lock);
-			list_add(&port->connector->destroy_list, &mgr->destroy_connector_list);
+			list_add(&port->next, &mgr->destroy_connector_list);
 			mutex_unlock(&mgr->destroy_connector_lock);
 			schedule_work(&mgr->destroy_connector_work);
+			return;
 		}
 		drm_dp_port_teardown_pdt(port, port->pdt);
 
@@ -1294,7 +1295,6 @@ retry:
 				goto retry;
 			}
 			DRM_DEBUG_KMS("failed to dpcd write %d %d\n", tosend, ret);
-			WARN(1, "fail\n");
 
 			return -EIO;
 		}
@@ -2632,6 +2632,16 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 			seq_printf(m, "%02x ", buf[i]);
 		seq_printf(m, "\n");
 
+		/* dump the standard OUI branch header */
+		ret = drm_dp_dpcd_read(mgr->aux, DP_BRANCH_OUI, buf, DP_BRANCH_OUI_HEADER_SIZE);
+		seq_printf(m, "branch oui: ");
+		for (i = 0; i < 0x3; i++)
+			seq_printf(m, "%02x", buf[i]);
+		seq_printf(m, " devid: ");
+		for (i = 0x3; i < 0x8; i++)
+			seq_printf(m, "%c", buf[i]);
+		seq_printf(m, " revision: hw: %x.%x sw: %x.%x", buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
+		seq_printf(m, "\n");
 		bret = dump_dp_payload_table(mgr, buf);
 		if (bret == true) {
 			seq_printf(m, "payload table: ");
@@ -2660,7 +2670,7 @@ static void drm_dp_tx_work(struct work_struct *work)
 static void drm_dp_destroy_connector_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, destroy_connector_work);
-	struct drm_connector *connector;
+	struct drm_dp_mst_port *port;
 
 	/*
 	 * Not a regular list traverse as we have to drop the destroy
@@ -2669,15 +2679,21 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 	 */
 	for (;;) {
 		mutex_lock(&mgr->destroy_connector_lock);
-		connector = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_connector, destroy_list);
-		if (!connector) {
+		port = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_dp_mst_port, next);
+		if (!port) {
 			mutex_unlock(&mgr->destroy_connector_lock);
 			break;
 		}
-		list_del(&connector->destroy_list);
+		list_del(&port->next);
 		mutex_unlock(&mgr->destroy_connector_lock);
 
-		mgr->cbs->destroy_connector(mgr, connector);
+		mgr->cbs->destroy_connector(mgr, port->connector);
+
+		drm_dp_port_teardown_pdt(port, port->pdt);
+
+		if (!port->input && port->vcpi.vcpi > 0)
+			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
+		kfree(port);
 	}
 }
 

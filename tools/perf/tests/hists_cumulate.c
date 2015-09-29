@@ -279,6 +279,7 @@ static int test1(struct perf_evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = false;
 	symbol_conf.cumulate_callchain = false;
+	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting();
 	callchain_register_param(&callchain_param);
@@ -425,6 +426,7 @@ static int test2(struct perf_evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = true;
 	symbol_conf.cumulate_callchain = false;
+	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting();
 	callchain_register_param(&callchain_param);
@@ -482,6 +484,7 @@ static int test3(struct perf_evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = false;
 	symbol_conf.cumulate_callchain = true;
+	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting();
 	callchain_register_param(&callchain_param);
@@ -665,6 +668,7 @@ static int test4(struct perf_evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = true;
 	symbol_conf.cumulate_callchain = true;
+	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting();
 	callchain_register_param(&callchain_param);

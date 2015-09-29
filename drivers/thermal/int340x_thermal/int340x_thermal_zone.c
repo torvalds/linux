@@ -20,7 +20,7 @@
 #include "int340x_thermal_zone.h"
 
 static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
-					 unsigned long *temp)
+					 int *temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
 	unsigned long long tmp;
@@ -49,7 +49,7 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 }
 
 static int int340x_thermal_get_trip_temp(struct thermal_zone_device *zone,
-					 int trip, unsigned long *temp)
+					 int trip, int *temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
 	int i;
@@ -114,7 +114,7 @@ static int int340x_thermal_get_trip_type(struct thermal_zone_device *zone,
 }
 
 static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
-				      int trip, unsigned long temp)
+				      int trip, int temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
 	acpi_status status;
@@ -136,7 +136,7 @@ static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 
 
 static int int340x_thermal_get_trip_hyst(struct thermal_zone_device *zone,
-		int trip, unsigned long *temp)
+		int trip, int *temp)
 {
 	struct int34x_thermal_zone *d = zone->devdata;
 	acpi_status status;
@@ -163,7 +163,7 @@ static struct thermal_zone_device_ops int340x_thermal_zone_ops = {
 };
 
 static int int340x_thermal_get_trip_config(acpi_handle handle, char *name,
-				      unsigned long *temp)
+				      int *temp)
 {
 	unsigned long long r;
 	acpi_status status;

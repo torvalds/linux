@@ -85,6 +85,7 @@ static int debug_flag;
 
 static struct class st_sysfs_class;
 static const struct attribute_group *st_dev_groups[];
+static const struct attribute_group *st_drv_groups[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -198,15 +199,13 @@ static int sgl_unmap_user_pages(struct st_buffer *, const unsigned int, int);
 static int st_probe(struct device *);
 static int st_remove(struct device *);
 
-static int do_create_sysfs_files(void);
-static void do_remove_sysfs_files(void);
-
 static struct scsi_driver st_template = {
 	.gendrv = {
 		.name		= "st",
 		.owner		= THIS_MODULE,
 		.probe		= st_probe,
 		.remove		= st_remove,
+		.groups		= st_drv_groups,
 	},
 };
 
@@ -4404,14 +4403,8 @@ static int __init init_st(void)
 	if (err)
 		goto err_chrdev;
 
-	err = do_create_sysfs_files();
-	if (err)
-		goto err_scsidrv;
-
 	return 0;
 
-err_scsidrv:
-	scsi_unregister_driver(&st_template.gendrv);
 err_chrdev:
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
@@ -4422,11 +4415,11 @@ err_class:
 
 static void __exit exit_st(void)
 {
-	do_remove_sysfs_files();
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
 	class_unregister(&st_sysfs_class);
+	idr_destroy(&st_index_idr);
 	printk(KERN_INFO "st: Unloaded.\n");
 }
 
@@ -4435,68 +4428,38 @@ module_exit(exit_st);
 
 
 /* The sysfs driver interface. Read-only at the moment */
-static ssize_t st_try_direct_io_show(struct device_driver *ddp, char *buf)
+static ssize_t try_direct_io_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", try_direct_io);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", try_direct_io);
 }
-static DRIVER_ATTR(try_direct_io, S_IRUGO, st_try_direct_io_show, NULL);
+static DRIVER_ATTR_RO(try_direct_io);
 
-static ssize_t st_fixed_buffer_size_show(struct device_driver *ddp, char *buf)
+static ssize_t fixed_buffer_size_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", st_fixed_buffer_size);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", st_fixed_buffer_size);
 }
-static DRIVER_ATTR(fixed_buffer_size, S_IRUGO, st_fixed_buffer_size_show, NULL);
+static DRIVER_ATTR_RO(fixed_buffer_size);
 
-static ssize_t st_max_sg_segs_show(struct device_driver *ddp, char *buf)
+static ssize_t max_sg_segs_show(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", st_max_sg_segs);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", st_max_sg_segs);
 }
-static DRIVER_ATTR(max_sg_segs, S_IRUGO, st_max_sg_segs_show, NULL);
+static DRIVER_ATTR_RO(max_sg_segs);
 
-static ssize_t st_version_show(struct device_driver *ddd, char *buf)
+static ssize_t version_show(struct device_driver *ddd, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "[%s]\n", verstr);
+	return scnprintf(buf, PAGE_SIZE, "[%s]\n", verstr);
 }
-static DRIVER_ATTR(version, S_IRUGO, st_version_show, NULL);
+static DRIVER_ATTR_RO(version);
 
-static int do_create_sysfs_files(void)
-{
-	struct device_driver *sysfs = &st_template.gendrv;
-	int err;
-
-	err = driver_create_file(sysfs, &driver_attr_try_direct_io);
-	if (err)
-		return err;
-	err = driver_create_file(sysfs, &driver_attr_fixed_buffer_size);
-	if (err)
-		goto err_try_direct_io;
-	err = driver_create_file(sysfs, &driver_attr_max_sg_segs);
-	if (err)
-		goto err_attr_fixed_buf;
-	err = driver_create_file(sysfs, &driver_attr_version);
-	if (err)
-		goto err_attr_max_sg;
-
-	return 0;
-
-err_attr_max_sg:
-	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
-err_attr_fixed_buf:
-	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
-err_try_direct_io:
-	driver_remove_file(sysfs, &driver_attr_try_direct_io);
-	return err;
-}
-
-static void do_remove_sysfs_files(void)
-{
-	struct device_driver *sysfs = &st_template.gendrv;
-
-	driver_remove_file(sysfs, &driver_attr_version);
-	driver_remove_file(sysfs, &driver_attr_max_sg_segs);
-	driver_remove_file(sysfs, &driver_attr_fixed_buffer_size);
-	driver_remove_file(sysfs, &driver_attr_try_direct_io);
-}
+static struct attribute *st_drv_attrs[] = {
+	&driver_attr_try_direct_io.attr,
+	&driver_attr_fixed_buffer_size.attr,
+	&driver_attr_max_sg_segs.attr,
+	&driver_attr_version.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(st_drv);
 
 /* The sysfs simple class interface */
 static ssize_t

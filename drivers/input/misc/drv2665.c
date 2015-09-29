@@ -132,7 +132,7 @@ static void drv2665_close(struct input_dev *input)
 			"Failed to enter standby mode: %d\n", error);
 }
 
-static const struct reg_default drv2665_init_regs[] = {
+static const struct reg_sequence drv2665_init_regs[] = {
 	{ DRV2665_CTRL_2, 0 | DRV2665_10_MS_IDLE_TOUT },
 	{ DRV2665_CTRL_1, DRV2665_25_VPP_GAIN },
 };

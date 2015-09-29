@@ -139,6 +139,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_DISABLE_IBS       24
 #define KVM_REQ_APIC_PAGE_RELOAD  25
 #define KVM_REQ_SMI               26
+#define KVM_REQ_HV_CRASH          27
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -241,6 +242,7 @@ struct kvm_vcpu {
 	int sigset_active;
 	sigset_t sigset;
 	struct kvm_vcpu_stat stat;
+	unsigned int halt_poll_ns;
 
 #ifdef CONFIG_HAS_IOMEM
 	int mmio_needed;
@@ -363,9 +365,6 @@ struct kvm {
 	struct kvm_memslots *memslots[KVM_ADDRESS_SPACE_NUM];
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	u32 bsp_vcpu_id;
-#endif
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	atomic_t online_vcpus;
 	int last_boosted_vcpu;
@@ -424,8 +423,15 @@ struct kvm {
 #define vcpu_unimpl(vcpu, fmt, ...)					\
 	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
+#define vcpu_debug(vcpu, fmt, ...)					\
+	kvm_debug("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
+	/* Pairs with smp_wmb() in kvm_vm_ioctl_create_vcpu, in case
+	 * the caller has read kvm->online_vcpus before (as is the case
+	 * for kvm_for_each_vcpu, for example).
+	 */
 	smp_rmb();
 	return kvm->vcpus[i];
 }
@@ -1055,22 +1061,9 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
-static inline bool kvm_vcpu_is_reset_bsp(struct kvm_vcpu *vcpu)
-{
-	return vcpu->kvm->bsp_vcpu_id == vcpu->vcpu_id;
-}
-
-static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
-{
-	return (vcpu->arch.apic_base & MSR_IA32_APICBASE_BSP) != 0;
-}
-
 bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu);
-
 #else
-
 static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
-
 #endif
 
 static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)

@@ -92,8 +92,7 @@ static void f2fs_free_crypt_info(struct f2fs_crypt_info *ci)
 	if (!ci)
 		return;
 
-	if (ci->ci_keyring_key)
-		key_put(ci->ci_keyring_key);
+	key_put(ci->ci_keyring_key);
 	crypto_free_ablkcipher(ci->ci_ctfm);
 	kmem_cache_free(f2fs_crypt_info_cachep, ci);
 }

@@ -30,33 +30,33 @@
 #include <subdev/bios/init.h>
 
 static void
-nv10_devinit_meminit(struct nvkm_devinit *devinit)
+nv10_devinit_meminit(struct nvkm_devinit *init)
 {
-	struct nv04_devinit_priv *priv = (void *)devinit;
+	struct nvkm_subdev *subdev = &init->subdev;
+	struct nvkm_device *device = subdev->device;
 	static const int mem_width[] = { 0x10, 0x00, 0x20 };
 	int mem_width_count;
 	uint32_t patt = 0xdeadbeef;
 	struct io_mapping *fb;
 	int i, j, k;
 
-	if (nv_device(priv)->card_type >= NV_11 &&
-	    nv_device(priv)->chipset >= 0x17)
+	if (device->card_type >= NV_11 && device->chipset >= 0x17)
 		mem_width_count = 3;
 	else
 		mem_width_count = 2;
 
 	/* Map the framebuffer aperture */
-	fb = fbmem_init(nv_device(priv));
+	fb = fbmem_init(device);
 	if (!fb) {
-		nv_error(priv, "failed to map fb\n");
+		nvkm_error(subdev, "failed to map fb\n");
 		return;
 	}
 
-	nv_wr32(priv, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
+	nvkm_wr32(device, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
 
 	/* Probe memory bus width */
 	for (i = 0; i < mem_width_count; i++) {
-		nv_mask(priv, NV04_PFB_CFG0, 0x30, mem_width[i]);
+		nvkm_mask(device, NV04_PFB_CFG0, 0x30, mem_width[i]);
 
 		for (j = 0; j < 4; j++) {
 			for (k = 0; k < 4; k++)
@@ -75,7 +75,7 @@ mem_width_found:
 
 	/* Probe amount of installed memory */
 	for (i = 0; i < 4; i++) {
-		int off = nv_rd32(priv, 0x10020c) - 0x100000;
+		int off = nvkm_rd32(device, 0x10020c) - 0x100000;
 
 		fbmem_poke(fb, off, patt);
 		fbmem_poke(fb, 0, 0);
@@ -90,22 +90,24 @@ mem_width_found:
 	}
 
 	/* IC missing - disable the upper half memory space. */
-	nv_mask(priv, NV04_PFB_CFG0, 0x1000, 0);
+	nvkm_mask(device, NV04_PFB_CFG0, 0x1000, 0);
 
 amount_found:
 	fbmem_fini(fb);
 }
 
-struct nvkm_oclass *
-nv10_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0x10),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_devinit_ctor,
-		.dtor = nv04_devinit_dtor,
-		.init = nv04_devinit_init,
-		.fini = nv04_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+nv10_devinit = {
+	.dtor = nv04_devinit_dtor,
+	.preinit = nv04_devinit_preinit,
+	.post = nv04_devinit_post,
 	.meminit = nv10_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+nv10_devinit_new(struct nvkm_device *device, int index,
+		 struct nvkm_devinit **pinit)
+{
+	return nv04_devinit_new_(&nv10_devinit, device, index, pinit);
+}

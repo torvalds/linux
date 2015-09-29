@@ -512,9 +512,11 @@ struct hci_conn_params {
 		HCI_AUTO_CONN_DIRECT,
 		HCI_AUTO_CONN_ALWAYS,
 		HCI_AUTO_CONN_LINK_LOSS,
+		HCI_AUTO_CONN_EXPLICIT,
 	} auto_connect;
 
 	struct hci_conn *conn;
+	bool explicit_connect;
 };
 
 extern struct list_head hci_dev_list;
@@ -639,6 +641,7 @@ enum {
 	HCI_CONN_DROP,
 	HCI_CONN_PARAM_REMOVAL_PEND,
 	HCI_CONN_NEW_LINK_KEY,
+	HCI_CONN_SCANNING,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -808,6 +811,26 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 	return NULL;
 }
 
+static inline struct hci_conn *hci_lookup_le_connect(struct hci_dev *hdev)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn  *c;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == LE_LINK && c->state == BT_CONNECT &&
+		    !test_bit(HCI_CONN_SCANNING, &c->flags)) {
+			rcu_read_unlock();
+			return c;
+		}
+	}
+
+	rcu_read_unlock();
+
+	return NULL;
+}
+
 int hci_disconnect(struct hci_conn *conn, __u8 reason);
 bool hci_setup_sync(struct hci_conn *conn, __u16 handle);
 void hci_sco_setup(struct hci_conn *conn, __u8 status);
@@ -823,6 +846,9 @@ void hci_chan_del(struct hci_chan *chan);
 void hci_chan_list_flush(struct hci_conn *conn);
 struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle);
 
+struct hci_conn *hci_connect_le_scan(struct hci_dev *hdev, bdaddr_t *dst,
+				     u8 dst_type, u8 sec_level,
+				     u16 conn_timeout, u8 role);
 struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 				u8 dst_type, u8 sec_level, u16 conn_timeout,
 				u8 role);
@@ -988,6 +1014,9 @@ void hci_conn_params_clear_disabled(struct hci_dev *hdev);
 struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
 						  bdaddr_t *addr,
 						  u8 addr_type);
+struct hci_conn_params *hci_explicit_connect_lookup(struct hci_dev *hdev,
+						    bdaddr_t *addr,
+						    u8 addr_type);
 
 void hci_uuids_clear(struct hci_dev *hdev);
 
@@ -1297,7 +1326,7 @@ static inline int hci_check_conn_params(u16 min, u16 max, u16 latency,
 	if (max >= to_multiplier * 8)
 		return -EINVAL;
 
-	max_latency = (to_multiplier * 8 / max) - 1;
+	max_latency = (to_multiplier * 4 / max) - 1;
 	if (latency > 499 || latency > max_latency)
 		return -EINVAL;
 

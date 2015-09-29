@@ -11,6 +11,7 @@ Required properties:
 
 Optional properties:
 
+ - dmas:			dma data channel, see dma.txt binding doc
  - marvell,nand-enable-arbiter:	Set to enable the bus arbiter
  - marvell,nand-keep-config:	Set to keep the NAND controller config as set
 				by the bootloader
@@ -32,6 +33,8 @@ Example:
 		compatible = "marvell,pxa3xx-nand";
 		reg = <0x43100000 90>;
 		interrupts = <45>;
+		dmas = <&pdma 97 0>;
+		dma-names = "data";
 		#address-cells = <1>;
 
 		marvell,nand-enable-arbiter;

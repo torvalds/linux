@@ -49,6 +49,14 @@ static DEFINE_MUTEX(ibnl_mutex);
 static struct sock *nls;
 static LIST_HEAD(client_list);
 
+int ibnl_chk_listeners(unsigned int group)
+{
+	if (netlink_has_listeners(nls, group) == 0)
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL(ibnl_chk_listeners);
+
 int ibnl_add_client(int index, int nops,
 		    const struct ibnl_client_cbs cb_table[])
 {
@@ -151,6 +159,23 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			    !client->cb_table[op].dump)
 				return -EINVAL;
 
+			/*
+			 * For response or local service set_timeout request,
+			 * there is no need to use netlink_dump_start.
+			 */
+			if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
+			    (index == RDMA_NL_LS &&
+			     op == RDMA_NL_LS_OP_SET_TIMEOUT)) {
+				struct netlink_callback cb = {
+					.skb = skb,
+					.nlh = nlh,
+					.dump = client->cb_table[op].dump,
+					.module = client->cb_table[op].module,
+				};
+
+				return cb.dump(skb, &cb);
+			}
+
 			{
 				struct netlink_dump_control c = {
 					.dump = client->cb_table[op].dump,
@@ -165,9 +190,39 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return -EINVAL;
 }
 
+static void ibnl_rcv_reply_skb(struct sk_buff *skb)
+{
+	struct nlmsghdr *nlh;
+	int msglen;
+
+	/*
+	 * Process responses until there is no more message or the first
+	 * request. Generally speaking, it is not recommended to mix responses
+	 * with requests.
+	 */
+	while (skb->len >= nlmsg_total_size(0)) {
+		nlh = nlmsg_hdr(skb);
+
+		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
+			return;
+
+		/* Handle response only */
+		if (nlh->nlmsg_flags & NLM_F_REQUEST)
+			return;
+
+		ibnl_rcv_msg(skb, nlh);
+
+		msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+		if (msglen > skb->len)
+			msglen = skb->len;
+		skb_pull(skb, msglen);
+	}
+}
+
 static void ibnl_rcv(struct sk_buff *skb)
 {
 	mutex_lock(&ibnl_mutex);
+	ibnl_rcv_reply_skb(skb);
 	netlink_rcv_skb(skb, &ibnl_rcv_msg);
 	mutex_unlock(&ibnl_mutex);
 }

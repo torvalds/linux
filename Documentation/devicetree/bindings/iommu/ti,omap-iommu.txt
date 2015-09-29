@@ -8,6 +8,11 @@ Required properties:
 - ti,hwmods  : Name of the hwmod associated with the IOMMU instance
 - reg        : Address space for the configuration registers
 - interrupts : Interrupt specifier for the IOMMU instance
+- #iommu-cells : Should be 0. OMAP IOMMUs are all "single-master" devices,
+                 and needs no additional data in the pargs specifier. Please
+                 also refer to the generic bindings document for more info
+                 on this property,
+                     Documentation/devicetree/bindings/iommu/iommu.txt
 
 Optional properties:
 - ti,#tlb-entries : Number of entries in the translation look-aside buffer.
@@ -18,6 +23,7 @@ Optional properties:
 Example:
 	/* OMAP3 ISP MMU */
 	mmu_isp: mmu@480bd400 {
+		#iommu-cells = <0>;
 		compatible = "ti,omap2-iommu";
 		reg = <0x480bd400 0x80>;
 		interrupts = <24>;

@@ -301,7 +301,7 @@ out:
 EXPORT_SYMBOL(in6_pton);
 
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
-			      __be32 from, __be32 to, int pseudohdr)
+			      __be32 from, __be32 to, bool pseudohdr)
 {
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		csum_replace4(sum, from, to);
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(inet_proto_csum_replace4);
 
 void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
 			       const __be32 *from, const __be32 *to,
-			       int pseudohdr)
+			       bool pseudohdr)
 {
 	__be32 diff[] = {
 		~from[0], ~from[1], ~from[2], ~from[3],
@@ -335,6 +335,19 @@ void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
 				  csum_unfold(*sum)));
 }
 EXPORT_SYMBOL(inet_proto_csum_replace16);
+
+void inet_proto_csum_replace_by_diff(__sum16 *sum, struct sk_buff *skb,
+				     __wsum diff, bool pseudohdr)
+{
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		*sum = csum_fold(csum_add(diff, ~csum_unfold(*sum)));
+		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
+			skb->csum = ~csum_add(diff, ~skb->csum);
+	} else if (pseudohdr) {
+		*sum = ~csum_fold(csum_add(diff, csum_unfold(*sum)));
+	}
+}
+EXPORT_SYMBOL(inet_proto_csum_replace_by_diff);
 
 struct __net_random_once_work {
 	struct work_struct work;

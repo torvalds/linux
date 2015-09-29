@@ -242,7 +242,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
 	return page;
 }
 
-static inline int is_page_busy(struct dma_page *page)
+static inline bool is_page_busy(struct dma_page *page)
 {
 	return page->in_use != 0;
 }
@@ -270,6 +270,9 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
 void dma_pool_destroy(struct dma_pool *pool)
 {
 	bool empty = false;
+
+	if (unlikely(!pool))
+		return;
 
 	mutex_lock(&pools_reg_lock);
 	mutex_lock(&pools_lock);
@@ -334,7 +337,7 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 	/* pool_alloc_page() might sleep, so temporarily drop &pool->lock */
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	page = pool_alloc_page(pool, mem_flags);
+	page = pool_alloc_page(pool, mem_flags & (~__GFP_ZERO));
 	if (!page)
 		return NULL;
 
@@ -372,9 +375,14 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 			break;
 		}
 	}
-	memset(retval, POOL_POISON_ALLOCATED, pool->size);
+	if (!(mem_flags & __GFP_ZERO))
+		memset(retval, POOL_POISON_ALLOCATED, pool->size);
 #endif
 	spin_unlock_irqrestore(&pool->lock, flags);
+
+	if (mem_flags & __GFP_ZERO)
+		memset(retval, 0, pool->size);
+
 	return retval;
 }
 EXPORT_SYMBOL(dma_pool_alloc);

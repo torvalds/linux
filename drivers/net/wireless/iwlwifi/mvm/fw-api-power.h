@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -310,17 +312,22 @@ struct iwl_reduce_tx_power_cmd {
 	__le16 pwr_restriction;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
 
+enum iwl_dev_tx_power_cmd_mode {
+	IWL_TX_POWER_MODE_SET_MAC = 0,
+	IWL_TX_POWER_MODE_SET_DEVICE = 1,
+	IWL_TX_POWER_MODE_SET_CHAINS = 2,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_2 */;
+
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * REDUCE_TX_POWER_CMD = 0x9f
- * @set_mode: 0 - MAC tx power, 1 - device tx power
+ * struct iwl_dev_tx_power_cmd_v2 - TX power reduction command
+ * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
  * @mac_context_id: id of the mac ctx for which we are reducing TX power.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
  * @dev_24: device TX power restriction in 1/8 dBms
  * @dev_52_low: device TX power restriction upper band - low
  * @dev_52_high: device TX power restriction upper band - high
  */
-struct iwl_dev_tx_power_cmd {
+struct iwl_dev_tx_power_cmd_v2 {
 	__le32 set_mode;
 	__le32 mac_context_id;
 	__le16 pwr_restriction;
@@ -328,6 +335,20 @@ struct iwl_dev_tx_power_cmd {
 	__le16 dev_52_low;
 	__le16 dev_52_high;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_2 */
+
+#define IWL_NUM_CHAIN_LIMITS	2
+#define IWL_NUM_SUB_BANDS	5
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * @v2: version 2 of the command, embedded here for easier software handling
+ * @per_chain_restriction: per chain restrictions
+ */
+struct iwl_dev_tx_power_cmd {
+	/* v3 is just an extension of v2 - keep this here */
+	struct iwl_dev_tx_power_cmd_v2 v2;
+	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
 
@@ -413,7 +434,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_TEMP_FAST_FILTER_MIN 0
 
 #define IWL_BF_TEMP_SLOW_FILTER_DEFAULT 5
-#define IWL_BF_TEMP_SLOW_FILTER_D0I3 5
+#define IWL_BF_TEMP_SLOW_FILTER_D0I3 20
 #define IWL_BF_TEMP_SLOW_FILTER_MAX 255
 #define IWL_BF_TEMP_SLOW_FILTER_MIN 0
 

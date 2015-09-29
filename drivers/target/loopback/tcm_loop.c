@@ -526,7 +526,7 @@ static inline struct tcm_loop_tpg *tl_tpg(struct se_portal_group *se_tpg)
 static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
 	/*
-	 * Return the passed NAA identifier for the SAS Target Port
+	 * Return the passed NAA identifier for the Target Port
 	 */
 	return &tl_tpg(se_tpg)->tl_hba->tl_wwn_address[0];
 }
@@ -845,7 +845,7 @@ static int tcm_loop_make_nexus(
 		transport_free_session(tl_nexus->se_sess);
 		goto out;
 	}
-	/* Now, register the SAS I_T Nexus as active. */
+	/* Now, register the I_T Nexus as active. */
 	transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
 			tl_nexus->se_sess, tl_nexus);
 	tl_tpg->tl_nexus = tl_nexus;
@@ -884,7 +884,7 @@ static int tcm_loop_drop_nexus(
 		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tpg->tl_hba),
 		tl_nexus->se_sess->se_node_acl->initiatorname);
 	/*
-	 * Release the SCSI I_T Nexus to the emulated SAS Target Port
+	 * Release the SCSI I_T Nexus to the emulated Target Port
 	 */
 	transport_deregister_session(tl_nexus->se_sess);
 	tpg->tl_nexus = NULL;
@@ -1034,6 +1034,11 @@ static ssize_t tcm_loop_tpg_store_transport_status(
 	}
 	if (!strncmp(page, "offline", 7)) {
 		tl_tpg->tl_transport_status = TCM_TRANSPORT_OFFLINE;
+		if (tl_tpg->tl_nexus) {
+			struct se_session *tl_sess = tl_tpg->tl_nexus->se_sess;
+
+			core_allocate_nexus_loss_ua(tl_sess->se_node_acl);
+		}
 		return count;
 	}
 	return -EINVAL;
@@ -1077,7 +1082,7 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(
 	tl_tpg->tl_hba = tl_hba;
 	tl_tpg->tl_tpgt = tpgt;
 	/*
-	 * Register the tl_tpg as a emulated SAS TCM Target Endpoint
+	 * Register the tl_tpg as a emulated TCM Target Endpoint
 	 */
 	ret = core_tpg_register(wwn, &tl_tpg->tl_se_tpg, tl_hba->tl_proto_id);
 	if (ret < 0)
@@ -1102,11 +1107,11 @@ static void tcm_loop_drop_naa_tpg(
 	tl_hba = tl_tpg->tl_hba;
 	tpgt = tl_tpg->tl_tpgt;
 	/*
-	 * Release the I_T Nexus for the Virtual SAS link if present
+	 * Release the I_T Nexus for the Virtual target link if present
 	 */
 	tcm_loop_drop_nexus(tl_tpg);
 	/*
-	 * Deregister the tl_tpg as a emulated SAS TCM Target Endpoint
+	 * Deregister the tl_tpg as a emulated TCM Target Endpoint
 	 */
 	core_tpg_deregister(se_tpg);
 
@@ -1199,8 +1204,9 @@ static void tcm_loop_drop_scsi_hba(
 				struct tcm_loop_hba, tl_hba_wwn);
 
 	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target"
-		" SAS Address: %s at Linux/SCSI Host ID: %d\n",
-		tl_hba->tl_wwn_address, tl_hba->sh->host_no);
+		" %s Address: %s at Linux/SCSI Host ID: %d\n",
+		tcm_loop_dump_proto_id(tl_hba), tl_hba->tl_wwn_address,
+		tl_hba->sh->host_no);
 	/*
 	 * Call device_unregister() on the original tl_hba->dev.
 	 * tcm_loop_fabric_scsi.c:tcm_loop_release_adapter() will

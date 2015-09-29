@@ -1,0 +1,5 @@
+The ipath driver has been moved to staging in preparation for its removal in a
+few releases. The driver will be deleted during the 4.6 merge window.
+
+Contact Dennis Dalessandro <dennis.dalessandro@intel.com> and
+Cc: linux-rdma@vger.kernel.org

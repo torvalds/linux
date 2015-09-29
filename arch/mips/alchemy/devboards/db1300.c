@@ -24,6 +24,7 @@
 #include <linux/wm97xx.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/gpio-au1300.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
 #include <asm/mach-au1x00/au1200fb.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>

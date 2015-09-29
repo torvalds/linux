@@ -339,6 +339,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_bridge_getlink	 = br_getlink,
 	.ndo_bridge_setlink	 = br_setlink,
 	.ndo_bridge_dellink	 = br_dellink,
+	.ndo_features_check	 = passthru_features_check,
 };
 
 static void br_dev_free(struct net_device *dev)
@@ -364,8 +365,7 @@ void br_dev_setup(struct net_device *dev)
 	dev->destructor = br_dev_free;
 	dev->ethtool_ops = &br_ethtool_ops;
 	SET_NETDEV_DEVTYPE(dev, &br_type);
-	dev->tx_queue_len = 0;
-	dev->priv_flags = IFF_EBRIDGE;
+	dev->priv_flags = IFF_EBRIDGE | IFF_NO_QUEUE;
 
 	dev->features = COMMON_FEATURES | NETIF_F_LLTX | NETIF_F_NETNS_LOCAL |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;

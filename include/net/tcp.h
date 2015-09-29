@@ -281,6 +281,8 @@ extern unsigned int sysctl_tcp_notsent_lowat;
 extern int sysctl_tcp_min_tso_segs;
 extern int sysctl_tcp_autocorking;
 extern int sysctl_tcp_invalid_ratelimit;
+extern int sysctl_tcp_pacing_ss_ratio;
+extern int sysctl_tcp_pacing_ca_ratio;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -886,7 +888,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked);
 extern struct tcp_congestion_ops tcp_reno;
 
 struct tcp_congestion_ops *tcp_ca_find_key(u32 key);
-u32 tcp_ca_get_key_by_name(const char *name);
+u32 tcp_ca_get_key_by_name(const char *name, bool *ecn_ca);
 #ifdef CONFIG_INET
 char *tcp_ca_get_name_by_key(u32 key, char *buffer);
 #else
@@ -989,6 +991,11 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 
 #define TCP_INFINITE_SSTHRESH	0x7fffffff
 
+static inline bool tcp_in_slow_start(const struct tcp_sock *tp)
+{
+	return tp->snd_cwnd < tp->snd_ssthresh;
+}
+
 static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
 {
 	return tp->snd_ssthresh >= TCP_INFINITE_SSTHRESH;
@@ -1065,7 +1072,7 @@ static inline bool tcp_is_cwnd_limited(const struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	/* If in slow start, ensure cwnd grows to twice what was ACKed. */
-	if (tp->snd_cwnd <= tp->snd_ssthresh)
+	if (tcp_in_slow_start(tp))
 		return tp->snd_cwnd < 2 * tp->max_packets_out;
 
 	return tp->is_cwnd_limited;
@@ -1160,6 +1167,19 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 }
 
 u32 tcp_default_init_rwnd(u32 mss);
+void tcp_cwnd_restart(struct sock *sk, s32 delta);
+
+static inline void tcp_slow_start_after_idle_check(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	s32 delta;
+
+	if (!sysctl_tcp_slow_start_after_idle || tp->packets_out)
+		return;
+	delta = tcp_time_stamp - tp->lsndtime;
+	if (delta > inet_csk(sk)->icsk_rto)
+		tcp_cwnd_restart(sk, delta);
+}
 
 /* Determine a window scaling and initial window to offer. */
 void tcp_select_initial_window(int __space, __u32 mss, __u32 *rcv_wnd,

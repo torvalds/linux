@@ -78,7 +78,7 @@ static int eps_acpi_init(void)
 static int eps_acpi_exit(struct cpufreq_policy *policy)
 {
 	if (eps_acpi_cpu_perf) {
-		acpi_processor_unregister_performance(eps_acpi_cpu_perf, 0);
+		acpi_processor_unregister_performance(0);
 		free_cpumask_var(eps_acpi_cpu_perf->shared_cpu_map);
 		kfree(eps_acpi_cpu_perf);
 		eps_acpi_cpu_perf = NULL;

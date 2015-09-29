@@ -165,7 +165,24 @@ static struct clockdomain default_l3_slow_816x_clkdm = {
 	.flags		= CLKDM_CAN_SWSUP,
 };
 
-static struct clockdomain *clockdomains_ti81xx[] __initdata = {
+static struct clockdomain *clockdomains_ti814x[] __initdata = {
+	&alwon_l3_slow_81xx_clkdm,
+	&alwon_l3_med_81xx_clkdm,
+	&alwon_l3_fast_81xx_clkdm,
+	&alwon_ethernet_81xx_clkdm,
+	&mmu_81xx_clkdm,
+	&mmu_cfg_81xx_clkdm,
+	NULL,
+};
+
+void __init ti814x_clockdomains_init(void)
+{
+	clkdm_register_platform_funcs(&am33xx_clkdm_operations);
+	clkdm_register_clkdms(clockdomains_ti814x);
+	clkdm_complete_init();
+}
+
+static struct clockdomain *clockdomains_ti816x[] __initdata = {
 	&alwon_mpu_816x_clkdm,
 	&alwon_l3_slow_81xx_clkdm,
 	&alwon_l3_med_81xx_clkdm,
@@ -185,10 +202,10 @@ static struct clockdomain *clockdomains_ti81xx[] __initdata = {
 	NULL,
 };
 
-void __init ti81xx_clockdomains_init(void)
+void __init ti816x_clockdomains_init(void)
 {
 	clkdm_register_platform_funcs(&am33xx_clkdm_operations);
-	clkdm_register_clkdms(clockdomains_ti81xx);
+	clkdm_register_clkdms(clockdomains_ti816x);
 	clkdm_complete_init();
 }
 #endif

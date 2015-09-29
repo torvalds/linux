@@ -175,16 +175,15 @@ static int seccomp_check_filter(struct sock_filter *filter, unsigned int flen)
  */
 static u32 seccomp_run_filters(struct seccomp_data *sd)
 {
-	struct seccomp_filter *f = ACCESS_ONCE(current->seccomp.filter);
 	struct seccomp_data sd_local;
 	u32 ret = SECCOMP_RET_ALLOW;
+	/* Make sure cross-thread synced filter points somewhere sane. */
+	struct seccomp_filter *f =
+			lockless_dereference(current->seccomp.filter);
 
 	/* Ensure unexpected behavior doesn't result in failing open. */
 	if (unlikely(WARN_ON(f == NULL)))
 		return SECCOMP_RET_KILL;
-
-	/* Make sure cross-thread synced filter points somewhere sane. */
-	smp_read_barrier_depends();
 
 	if (!sd) {
 		populate_seccomp_data(&sd_local);
@@ -549,7 +548,11 @@ void secure_computing_strict(int this_syscall)
 {
 	int mode = current->seccomp.mode;
 
-	if (mode == 0)
+	if (config_enabled(CONFIG_CHECKPOINT_RESTORE) &&
+	    unlikely(current->ptrace & PT_SUSPEND_SECCOMP))
+		return;
+
+	if (mode == SECCOMP_MODE_DISABLED)
 		return;
 	else if (mode == SECCOMP_MODE_STRICT)
 		__secure_computing_strict(this_syscall);
@@ -649,6 +652,10 @@ u32 seccomp_phase1(struct seccomp_data *sd)
 	int mode = current->seccomp.mode;
 	int this_syscall = sd ? sd->nr :
 		syscall_get_nr(current, task_pt_regs(current));
+
+	if (config_enabled(CONFIG_CHECKPOINT_RESTORE) &&
+	    unlikely(current->ptrace & PT_SUSPEND_SECCOMP))
+		return SECCOMP_PHASE1_OK;
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:

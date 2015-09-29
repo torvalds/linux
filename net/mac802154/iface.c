@@ -30,7 +30,7 @@
 #include "ieee802154_i.h"
 #include "driver-ops.h"
 
-static int mac802154_wpan_update_llsec(struct net_device *dev)
+int mac802154_wpan_update_llsec(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
@@ -125,12 +125,27 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	/* lowpan need to be down for update
+	 * SLAAC address after ifup
+	 */
+	if (sdata->wpan_dev.lowpan_dev) {
+		if (netif_running(sdata->wpan_dev.lowpan_dev))
+			return -EBUSY;
+	}
+
 	ieee802154_be64_to_le64(&extended_addr, addr->sa_data);
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr))
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	sdata->wpan_dev.extended_addr = extended_addr;
+
+	/* update lowpan interface mac address when
+	 * wpan mac has been changed
+	 */
+	if (sdata->wpan_dev.lowpan_dev)
+		memcpy(sdata->wpan_dev.lowpan_dev->dev_addr, dev->dev_addr,
+		       dev->addr_len);
 
 	return mac802154_wpan_update_llsec(dev);
 }
@@ -314,11 +329,8 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (!local->open_count) {
-		flush_workqueue(local->workqueue);
-		hrtimer_cancel(&local->ifs_timer);
-		drv_stop(local);
-	}
+	if (!local->open_count)
+		ieee802154_stop_device(local);
 
 	return 0;
 }
@@ -471,6 +483,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		       enum nl802154_iftype type)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	int ret;
 	u8 tmp;
 
 	/* set some type-dependent values */
@@ -485,8 +498,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	wpan_dev->min_be = 3;
 	wpan_dev->max_be = 5;
 	wpan_dev->csma_retries = 4;
-	/* for compatibility, actual default is 3 */
-	wpan_dev->frame_retries = -1;
+	wpan_dev->frame_retries = 3;
 
 	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
@@ -505,6 +517,10 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		mutex_init(&sdata->sec_mtx);
 
 		mac802154_llsec_init(&sdata->sec);
+		ret = mac802154_wpan_update_llsec(sdata->dev);
+		if (ret < 0)
+			return ret;
+
 		break;
 	case NL802154_IFTYPE_MONITOR:
 		sdata->dev->destructor = free_netdev;

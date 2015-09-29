@@ -1,0 +1,408 @@
+/*
+ * Copyright (C) 2015, Wang Nan <wangnan0@huawei.com>
+ * Copyright (C) 2015, Huawei Inc.
+ */
+
+#include <stdio.h>
+#include <sys/utsname.h>
+#include "util.h"
+#include "debug.h"
+#include "llvm-utils.h"
+#include "cache.h"
+
+#define CLANG_BPF_CMD_DEFAULT_TEMPLATE				\
+		"$CLANG_EXEC -D__KERNEL__ $CLANG_OPTIONS "	\
+		"$KERNEL_INC_OPTIONS -Wno-unused-value "	\
+		"-Wno-pointer-sign -working-directory "		\
+		"$WORKING_DIR -c \"$CLANG_SOURCE\" -target bpf -O2 -o -"
+
+struct llvm_param llvm_param = {
+	.clang_path = "clang",
+	.clang_bpf_cmd_template = CLANG_BPF_CMD_DEFAULT_TEMPLATE,
+	.clang_opt = NULL,
+	.kbuild_dir = NULL,
+	.kbuild_opts = NULL,
+	.user_set_param = false,
+};
+
+int perf_llvm_config(const char *var, const char *value)
+{
+	if (prefixcmp(var, "llvm."))
+		return 0;
+	var += sizeof("llvm.") - 1;
+
+	if (!strcmp(var, "clang-path"))
+		llvm_param.clang_path = strdup(value);
+	else if (!strcmp(var, "clang-bpf-cmd-template"))
+		llvm_param.clang_bpf_cmd_template = strdup(value);
+	else if (!strcmp(var, "clang-opt"))
+		llvm_param.clang_opt = strdup(value);
+	else if (!strcmp(var, "kbuild-dir"))
+		llvm_param.kbuild_dir = strdup(value);
+	else if (!strcmp(var, "kbuild-opts"))
+		llvm_param.kbuild_opts = strdup(value);
+	else
+		return -1;
+	llvm_param.user_set_param = true;
+	return 0;
+}
+
+static int
+search_program(const char *def, const char *name,
+	       char *output)
+{
+	char *env, *path, *tmp = NULL;
+	char buf[PATH_MAX];
+	int ret;
+
+	output[0] = '\0';
+	if (def && def[0] != '\0') {
+		if (def[0] == '/') {
+			if (access(def, F_OK) == 0) {
+				strlcpy(output, def, PATH_MAX);
+				return 0;
+			}
+		} else if (def[0] != '\0')
+			name = def;
+	}
+
+	env = getenv("PATH");
+	if (!env)
+		return -1;
+	env = strdup(env);
+	if (!env)
+		return -1;
+
+	ret = -ENOENT;
+	path = strtok_r(env, ":",  &tmp);
+	while (path) {
+		scnprintf(buf, sizeof(buf), "%s/%s", path, name);
+		if (access(buf, F_OK) == 0) {
+			strlcpy(output, buf, PATH_MAX);
+			ret = 0;
+			break;
+		}
+		path = strtok_r(NULL, ":", &tmp);
+	}
+
+	free(env);
+	return ret;
+}
+
+#define READ_SIZE	4096
+static int
+read_from_pipe(const char *cmd, void **p_buf, size_t *p_read_sz)
+{
+	int err = 0;
+	void *buf = NULL;
+	FILE *file = NULL;
+	size_t read_sz = 0, buf_sz = 0;
+
+	file = popen(cmd, "r");
+	if (!file) {
+		pr_err("ERROR: unable to popen cmd: %s\n",
+		       strerror(errno));
+		return -EINVAL;
+	}
+
+	while (!feof(file) && !ferror(file)) {
+		/*
+		 * Make buf_sz always have obe byte extra space so we
+		 * can put '\0' there.
+		 */
+		if (buf_sz - read_sz < READ_SIZE + 1) {
+			void *new_buf;
+
+			buf_sz = read_sz + READ_SIZE + 1;
+			new_buf = realloc(buf, buf_sz);
+
+			if (!new_buf) {
+				pr_err("ERROR: failed to realloc memory\n");
+				err = -ENOMEM;
+				goto errout;
+			}
+
+			buf = new_buf;
+		}
+		read_sz += fread(buf + read_sz, 1, READ_SIZE, file);
+	}
+
+	if (buf_sz - read_sz < 1) {
+		pr_err("ERROR: internal error\n");
+		err = -EINVAL;
+		goto errout;
+	}
+
+	if (ferror(file)) {
+		pr_err("ERROR: error occurred when reading from pipe: %s\n",
+		       strerror(errno));
+		err = -EIO;
+		goto errout;
+	}
+
+	err = WEXITSTATUS(pclose(file));
+	file = NULL;
+	if (err) {
+		err = -EINVAL;
+		goto errout;
+	}
+
+	/*
+	 * If buf is string, give it terminal '\0' to make our life
+	 * easier. If buf is not string, that '\0' is out of space
+	 * indicated by read_sz so caller won't even notice it.
+	 */
+	((char *)buf)[read_sz] = '\0';
+
+	if (!p_buf)
+		free(buf);
+	else
+		*p_buf = buf;
+
+	if (p_read_sz)
+		*p_read_sz = read_sz;
+	return 0;
+
+errout:
+	if (file)
+		pclose(file);
+	free(buf);
+	if (p_buf)
+		*p_buf = NULL;
+	if (p_read_sz)
+		*p_read_sz = 0;
+	return err;
+}
+
+static inline void
+force_set_env(const char *var, const char *value)
+{
+	if (value) {
+		setenv(var, value, 1);
+		pr_debug("set env: %s=%s\n", var, value);
+	} else {
+		unsetenv(var);
+		pr_debug("unset env: %s\n", var);
+	}
+}
+
+static void
+version_notice(void)
+{
+	pr_err(
+"     \tLLVM 3.7 or newer is required. Which can be found from http://llvm.org\n"
+"     \tYou may want to try git trunk:\n"
+"     \t\tgit clone http://llvm.org/git/llvm.git\n"
+"     \t\t     and\n"
+"     \t\tgit clone http://llvm.org/git/clang.git\n\n"
+"     \tOr fetch the latest clang/llvm 3.7 from pre-built llvm packages for\n"
+"     \tdebian/ubuntu:\n"
+"     \t\thttp://llvm.org/apt\n\n"
+"     \tIf you are using old version of clang, change 'clang-bpf-cmd-template'\n"
+"     \toption in [llvm] section of ~/.perfconfig to:\n\n"
+"     \t  \"$CLANG_EXEC $CLANG_OPTIONS $KERNEL_INC_OPTIONS \\\n"
+"     \t     -working-directory $WORKING_DIR -c $CLANG_SOURCE \\\n"
+"     \t     -emit-llvm -o - | /path/to/llc -march=bpf -filetype=obj -o -\"\n"
+"     \t(Replace /path/to/llc with path to your llc)\n\n"
+);
+}
+
+static int detect_kbuild_dir(char **kbuild_dir)
+{
+	const char *test_dir = llvm_param.kbuild_dir;
+	const char *prefix_dir = "";
+	const char *suffix_dir = "";
+
+	char *autoconf_path;
+	struct utsname utsname;
+
+	int err;
+
+	if (!test_dir) {
+		err = uname(&utsname);
+		if (err) {
+			pr_warning("uname failed: %s\n", strerror(errno));
+			return -EINVAL;
+		}
+
+		test_dir = utsname.release;
+		prefix_dir = "/lib/modules/";
+		suffix_dir = "/build";
+	}
+
+	err = asprintf(&autoconf_path, "%s%s%s/include/generated/autoconf.h",
+		       prefix_dir, test_dir, suffix_dir);
+	if (err < 0)
+		return -ENOMEM;
+
+	if (access(autoconf_path, R_OK) == 0) {
+		free(autoconf_path);
+
+		err = asprintf(kbuild_dir, "%s%s%s", prefix_dir, test_dir,
+			       suffix_dir);
+		if (err < 0)
+			return -ENOMEM;
+		return 0;
+	}
+	free(autoconf_path);
+	return -ENOENT;
+}
+
+static const char *kinc_fetch_script =
+"#!/usr/bin/env sh\n"
+"if ! test -d \"$KBUILD_DIR\"\n"
+"then\n"
+"	exit -1\n"
+"fi\n"
+"if ! test -f \"$KBUILD_DIR/include/generated/autoconf.h\"\n"
+"then\n"
+"	exit -1\n"
+"fi\n"
+"TMPDIR=`mktemp -d`\n"
+"if test -z \"$TMPDIR\"\n"
+"then\n"
+"    exit -1\n"
+"fi\n"
+"cat << EOF > $TMPDIR/Makefile\n"
+"obj-y := dummy.o\n"
+"\\$(obj)/%.o: \\$(src)/%.c\n"
+"\t@echo -n \"\\$(NOSTDINC_FLAGS) \\$(LINUXINCLUDE) \\$(EXTRA_CFLAGS)\"\n"
+"EOF\n"
+"touch $TMPDIR/dummy.c\n"
+"make -s -C $KBUILD_DIR M=$TMPDIR $KBUILD_OPTS dummy.o 2>/dev/null\n"
+"RET=$?\n"
+"rm -rf $TMPDIR\n"
+"exit $RET\n";
+
+static inline void
+get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
+{
+	int err;
+
+	if (!kbuild_dir || !kbuild_include_opts)
+		return;
+
+	*kbuild_dir = NULL;
+	*kbuild_include_opts = NULL;
+
+	if (llvm_param.kbuild_dir && !llvm_param.kbuild_dir[0]) {
+		pr_debug("[llvm.kbuild-dir] is set to \"\" deliberately.\n");
+		pr_debug("Skip kbuild options detection.\n");
+		return;
+	}
+
+	err = detect_kbuild_dir(kbuild_dir);
+	if (err) {
+		pr_warning(
+"WARNING:\tunable to get correct kernel building directory.\n"
+"Hint:\tSet correct kbuild directory using 'kbuild-dir' option in [llvm]\n"
+"     \tsection of ~/.perfconfig or set it to \"\" to suppress kbuild\n"
+"     \tdetection.\n\n");
+		return;
+	}
+
+	pr_debug("Kernel build dir is set to %s\n", *kbuild_dir);
+	force_set_env("KBUILD_DIR", *kbuild_dir);
+	force_set_env("KBUILD_OPTS", llvm_param.kbuild_opts);
+	err = read_from_pipe(kinc_fetch_script,
+			     (void **)kbuild_include_opts,
+			     NULL);
+	if (err) {
+		pr_warning(
+"WARNING:\tunable to get kernel include directories from '%s'\n"
+"Hint:\tTry set clang include options using 'clang-bpf-cmd-template'\n"
+"     \toption in [llvm] section of ~/.perfconfig and set 'kbuild-dir'\n"
+"     \toption in [llvm] to \"\" to suppress this detection.\n\n",
+			*kbuild_dir);
+
+		free(*kbuild_dir);
+		*kbuild_dir = NULL;
+		return;
+	}
+
+	pr_debug("include option is set to %s\n", *kbuild_include_opts);
+}
+
+int llvm__compile_bpf(const char *path, void **p_obj_buf,
+		      size_t *p_obj_buf_sz)
+{
+	int err;
+	char clang_path[PATH_MAX];
+	const char *clang_opt = llvm_param.clang_opt;
+	const char *template = llvm_param.clang_bpf_cmd_template;
+	char *kbuild_dir = NULL, *kbuild_include_opts = NULL;
+	void *obj_buf = NULL;
+	size_t obj_buf_sz;
+
+	if (!template)
+		template = CLANG_BPF_CMD_DEFAULT_TEMPLATE;
+
+	err = search_program(llvm_param.clang_path,
+			     "clang", clang_path);
+	if (err) {
+		pr_err(
+"ERROR:\tunable to find clang.\n"
+"Hint:\tTry to install latest clang/llvm to support BPF. Check your $PATH\n"
+"     \tand 'clang-path' option in [llvm] section of ~/.perfconfig.\n");
+		version_notice();
+		return -ENOENT;
+	}
+
+	/*
+	 * This is an optional work. Even it fail we can continue our
+	 * work. Needn't to check error return.
+	 */
+	get_kbuild_opts(&kbuild_dir, &kbuild_include_opts);
+
+	force_set_env("CLANG_EXEC", clang_path);
+	force_set_env("CLANG_OPTIONS", clang_opt);
+	force_set_env("KERNEL_INC_OPTIONS", kbuild_include_opts);
+	force_set_env("WORKING_DIR", kbuild_dir ? : ".");
+
+	/*
+	 * Since we may reset clang's working dir, path of source file
+	 * should be transferred into absolute path, except we want
+	 * stdin to be source file (testing).
+	 */
+	force_set_env("CLANG_SOURCE",
+		      (path[0] == '-') ? path :
+		      make_nonrelative_path(path));
+
+	pr_debug("llvm compiling command template: %s\n", template);
+	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);
+	if (err) {
+		pr_err("ERROR:\tunable to compile %s\n", path);
+		pr_err("Hint:\tCheck error message shown above.\n");
+		pr_err("Hint:\tYou can also pre-compile it into .o using:\n");
+		pr_err("     \t\tclang -target bpf -O2 -c %s\n", path);
+		pr_err("     \twith proper -I and -D options.\n");
+		goto errout;
+	}
+
+	free(kbuild_dir);
+	free(kbuild_include_opts);
+	if (!p_obj_buf)
+		free(obj_buf);
+	else
+		*p_obj_buf = obj_buf;
+
+	if (p_obj_buf_sz)
+		*p_obj_buf_sz = obj_buf_sz;
+	return 0;
+errout:
+	free(kbuild_dir);
+	free(kbuild_include_opts);
+	free(obj_buf);
+	if (p_obj_buf)
+		*p_obj_buf = NULL;
+	if (p_obj_buf_sz)
+		*p_obj_buf_sz = 0;
+	return err;
+}
+
+int llvm__search_clang(void)
+{
+	char clang_path[PATH_MAX];
+
+	return search_program(llvm_param.clang_path, "clang", clang_path);
+}

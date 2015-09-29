@@ -205,7 +205,7 @@ static void tgfx_attach(struct parport *pp)
 		if (n_buttons[i] < 1)
 			continue;
 
-		if (n_buttons[i] > 6) {
+		if (n_buttons[i] > ARRAY_SIZE(tgfx_buttons)) {
 			printk(KERN_ERR "turbografx.c: Invalid number of buttons %d\n", n_buttons[i]);
 			goto err_unreg_devs;
 		}

@@ -808,7 +808,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg,
 			     struct cfg80211_chan_def chandef)
 {
-	u8 config_bands = 0;
+	u8 config_bands = 0, old_bands = priv->adapter->config_bands;
 
 	priv->bss_chandef = chandef;
 
@@ -834,6 +834,11 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 	}
 
 	priv->adapter->config_bands = config_bands;
+
+	if (old_bands != config_bands) {
+		mwifiex_send_domain_info_cmd_fw(priv->adapter->wiphy);
+		mwifiex_dnld_txpwr_table(priv);
+	}
 }
 
 int mwifiex_config_start_uap(struct mwifiex_private *priv,

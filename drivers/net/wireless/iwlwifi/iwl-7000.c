@@ -69,14 +69,14 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	15
+#define IWL7260_UCODE_API_MAX	17
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	12
 #define IWL3165_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	10
+#define IWL7260_UCODE_API_MIN	12
 #define IWL3165_UCODE_API_MIN	13
 
 /* NVM versions */

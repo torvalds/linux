@@ -128,6 +128,12 @@ void exynos_firmware_init(void);
 
 /* CPU BOOT mode flag for Exynos3250 SoC bootloader */
 #define C2_STATE	(1 << 3)
+/*
+ * Magic values for bootloader indicating chosen low power mode.
+ * See also Documentation/arm/Samsung/Bootloader-interface.txt
+ */
+#define EXYNOS_SLEEP_MAGIC	0x00000bad
+#define EXYNOS_AFTR_MAGIC	0xfcba0d10
 
 void exynos_set_boot_flag(unsigned int cpu, unsigned int mode);
 void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode);

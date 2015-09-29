@@ -2245,7 +2245,7 @@ static int snd_echo_resume(struct device *dev)
 
 #ifdef ECHOCARD_HAS_MIDI
 	if (chip->midi_input_enabled)
-		enable_midi_input(chip, TRUE);
+		enable_midi_input(chip, true);
 	if (chip->midi_out)
 		snd_echo_midi_output_trigger(chip->midi_out, 1);
 #endif

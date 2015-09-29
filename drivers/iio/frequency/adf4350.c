@@ -72,7 +72,6 @@ static int adf4350_sync_config(struct adf4350_state *st)
 	for (i = ADF4350_REG5; i >= ADF4350_REG0; i--) {
 		if ((st->regs_hw[i] != st->regs[i]) ||
 			((i == ADF4350_REG0) && doublebuf)) {
-
 			switch (i) {
 			case ADF4350_REG1:
 			case ADF4350_REG4:

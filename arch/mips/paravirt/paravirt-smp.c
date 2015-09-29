@@ -114,7 +114,7 @@ static irqreturn_t paravirt_reched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t paravirt_function_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	return IRQ_HANDLED;
 }
 

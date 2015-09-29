@@ -807,7 +807,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	}
 
 	if (bpf_jit_enable > 1)
-		bpf_jit_dump(flen, proglen, pass, image);
+		bpf_jit_dump(flen, proglen, pass + 1, image);
 
 	if (image) {
 		bpf_flush_icache(image, image + proglen);
