@@ -161,15 +161,19 @@ static void percpu_ref_noop_confirm_switch(struct percpu_ref *ref)
 static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 					  percpu_ref_func_t *confirm_switch)
 {
+	/*
+	 * If the previous ATOMIC switching hasn't finished yet, wait for
+	 * its completion.  If the caller ensures that ATOMIC switching
+	 * isn't in progress, this function can be called from any context.
+	 * Do an extra confirm_switch test to circumvent the unconditional
+	 * might_sleep() in wait_event().
+	 */
+	if (ref->confirm_switch)
+		wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+
 	if (ref->percpu_count_ptr & __PERCPU_REF_ATOMIC) {
-		if (confirm_switch) {
-			/*
-			 * Somebody else already set ATOMIC.  Wait for its
-			 * completion and invoke @confirm_switch() directly.
-			 */
-			wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+		if (confirm_switch)
 			confirm_switch(ref);
-		}
 		return;
 	}
 
@@ -180,7 +184,6 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 	 * Non-NULL ->confirm_switch is used to indicate that switching is
 	 * in progress.  Use noop one if unspecified.
 	 */
-	WARN_ON_ONCE(ref->confirm_switch);
 	ref->confirm_switch = confirm_switch ?: percpu_ref_noop_confirm_switch;
 
 	percpu_ref_get(ref);	/* put after confirmation */
@@ -192,12 +195,20 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
 	int cpu;
 
+	/*
+	 * If the previous ATOMIC switching hasn't finished yet, wait for
+	 * its completion.  If the caller ensures that ATOMIC switching
+	 * isn't in progress, this function can be called from any context.
+	 * Do an extra confirm_switch test to circumvent the unconditional
+	 * might_sleep() in wait_event().
+	 */
+	if (ref->confirm_switch)
+		wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+
 	BUG_ON(!percpu_count);
 
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
 		return;
-
-	wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
 
 	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
 
