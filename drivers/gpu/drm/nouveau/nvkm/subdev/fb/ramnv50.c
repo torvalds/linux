@@ -302,6 +302,9 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		return ret;
 	}
 
+	if (subdev->device->chipset <= 0x96 && !next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x100710, 0x00000200, 0x00000000);
+
 	/* Always disable this bit during reclock */
 	ram_mask(hwsq, 0x100200, 0x00000800, 0x00000000);
 
@@ -353,8 +356,11 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 			next->bios.rammap_00_16_40 << 14);
 	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
 	ram_mask(hwsq, 0x004008, 0x91ff0000, r004008);
-	if (subdev->device->chipset >= 0x96)
+
+	/* XXX: GDDR3 only? */
+	if (subdev->device->chipset >= 0x92)
 		ram_wr32(hwsq, 0x100da0, r100da0);
+
 	nv50_ram_gpio(hwsq, 0x18, !next->bios.ramcfg_FBVDDQ);
 	ram_nsec(hwsq, 64000); /*XXX*/
 	ram_nsec(hwsq, 32000); /*XXX*/
@@ -397,19 +403,33 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100200, 0x00001000, !next->bios.ramcfg_00_04_02 << 12);
 
 	/* XXX: A lot of this could be "chipset"/"ram type" specific stuff */
-	unk710  = ram_rd32(hwsq, 0x100710) & ~0x00000101;
+	unk710  = ram_rd32(hwsq, 0x100710) & ~0x00000100;
 	unk714  = ram_rd32(hwsq, 0x100714) & ~0xf0000020;
 	unk718  = ram_rd32(hwsq, 0x100718) & ~0x00000100;
 	unk71c  = ram_rd32(hwsq, 0x10071c) & ~0x00000100;
+	if (subdev->device->chipset <= 0x96) {
+		unk710 &= ~0x0000006e;
+		unk714 &= ~0x00000100;
+
+		if (!next->bios.ramcfg_00_03_08)
+			unk710 |= 0x00000060;
+		if (!next->bios.ramcfg_FBVDDQ)
+			unk714 |= 0x00000100;
+		if ( next->bios.ramcfg_00_04_04)
+			unk710 |= 0x0000000e;
+	} else {
+		unk710 &= ~0x00000001;
+
+		if (!next->bios.ramcfg_00_03_08)
+			unk710 |= 0x00000001;
+	}
 
 	if ( next->bios.ramcfg_00_03_01)
 		unk71c |= 0x00000100;
 	if ( next->bios.ramcfg_00_03_02)
 		unk710 |= 0x00000100;
-	if (!next->bios.ramcfg_00_03_08) {
-		unk710 |= 0x1;
-		unk714 |= 0x20;
-	}
+	if (!next->bios.ramcfg_00_03_08)
+		unk714 |= 0x00000020;
 	if ( next->bios.ramcfg_00_04_04)
 		unk714 |= 0x70000000;
 	if ( next->bios.ramcfg_00_04_20)
@@ -420,6 +440,8 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100718, 0xffffffff, unk718);
 	ram_mask(hwsq, 0x100710, 0xffffffff, unk710);
 
+	/* XXX: G94 does not even test these regs in trace. Harmless we do it,
+	 * but why is it omitted? */
 	if (next->bios.rammap_00_16_20) {
 		ram_wr32(hwsq, 0x1005a0, next->bios.ramcfg_00_07 << 16 |
 					 next->bios.ramcfg_00_06 << 8 |
@@ -450,6 +472,8 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_mask(hwsq, 0x004008, 0x00004000, 0x00000000);
 	if (next->bios.ramcfg_00_03_02)
 		ram_mask(hwsq, 0x10021c, 0x00010000, 0x00010000);
+	if (subdev->device->chipset <= 0x96 && next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x100710, 0x00000200, 0x00000200);
 
 	return 0;
 }
