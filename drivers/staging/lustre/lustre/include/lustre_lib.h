@@ -100,7 +100,6 @@ struct obd_client_handle {
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 /* statfs_pack.c */
-void statfs_pack(struct obd_statfs *osfs, struct kstatfs *sfs);
 void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
 
 /*
