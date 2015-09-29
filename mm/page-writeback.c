@@ -145,9 +145,6 @@ struct dirty_throttle_control {
 	unsigned long		pos_ratio;
 };
 
-#define DTC_INIT_COMMON(__wb)	.wb = (__wb),				\
-				.wb_completions = &(__wb)->completions
-
 /*
  * Length of period for aging writeout fractions of bdis. This is an
  * arbitrarily chosen number. The longer the period, the slower fractions will
@@ -157,12 +154,16 @@ struct dirty_throttle_control {
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-#define GDTC_INIT(__wb)		.dom = &global_wb_domain,		\
-				DTC_INIT_COMMON(__wb)
+#define GDTC_INIT(__wb)		.wb = (__wb),				\
+				.dom = &global_wb_domain,		\
+				.wb_completions = &(__wb)->completions
+
 #define GDTC_INIT_NO_WB		.dom = &global_wb_domain
-#define MDTC_INIT(__wb, __gdtc)	.dom = mem_cgroup_wb_domain(__wb),	\
-				.gdtc = __gdtc,				\
-				DTC_INIT_COMMON(__wb)
+
+#define MDTC_INIT(__wb, __gdtc)	.wb = (__wb),				\
+				.dom = mem_cgroup_wb_domain(__wb),	\
+				.wb_completions = &(__wb)->memcg_completions, \
+				.gdtc = __gdtc
 
 static bool mdtc_valid(struct dirty_throttle_control *dtc)
 {
@@ -213,7 +214,8 @@ static void wb_min_max_ratio(struct bdi_writeback *wb,
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-#define GDTC_INIT(__wb)		DTC_INIT_COMMON(__wb)
+#define GDTC_INIT(__wb)		.wb = (__wb),                           \
+				.wb_completions = &(__wb)->completions
 #define GDTC_INIT_NO_WB
 #define MDTC_INIT(__wb, __gdtc)
 
