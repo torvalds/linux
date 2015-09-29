@@ -134,19 +134,6 @@ void class_handle_unhash(struct portals_handle *h)
 }
 EXPORT_SYMBOL(class_handle_unhash);
 
-void class_handle_hash_back(struct portals_handle *h)
-{
-	struct handle_bucket *bucket;
-
-	bucket = handle_hash + (h->h_cookie & HANDLE_HASH_MASK);
-
-	spin_lock(&bucket->lock);
-	list_add_rcu(&h->h_link, &bucket->head);
-	h->h_in = 1;
-	spin_unlock(&bucket->lock);
-}
-EXPORT_SYMBOL(class_handle_hash_back);
-
 void *class_handle2object(__u64 cookie)
 {
 	struct handle_bucket *bucket;

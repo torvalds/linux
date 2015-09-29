@@ -86,7 +86,6 @@ struct portals_handle {
 void class_handle_hash(struct portals_handle *,
 		       struct portals_handle_ops *ops);
 void class_handle_unhash(struct portals_handle *);
-void class_handle_hash_back(struct portals_handle *);
 void *class_handle2object(__u64 cookie);
 void class_handle_free_cb(struct rcu_head *rcu);
 int class_handle_init(void);
