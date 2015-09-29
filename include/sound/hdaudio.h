@@ -21,22 +21,12 @@ struct hdac_stream;
 struct hdac_device;
 struct hdac_driver;
 struct hdac_widget_tree;
+struct hda_device_id;
 
 /*
  * exported bus type
  */
 extern struct bus_type snd_hda_bus_type;
-
-/*
- * HDA device table
- */
-struct hda_device_id {
-	__u32 vendor_id;
-	__u32 rev_id;
-	__u8 api_version;
-	const char *name;
-	unsigned long driver_data;
-};
 
 /*
  * generic arrays
