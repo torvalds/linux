@@ -880,6 +880,22 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	size_t cnt, loff_t *ppos);
 
 /*
+ * Only create function graph options if function graph is configured.
+ */
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+# define FGRAPH_FLAGS						\
+		C(SLEEP_TIME,		"sleep-time"),		\
+		C(GRAPH_TIME,		"graph-time"),		\
+		C(DISPLAY_GRAPH,	"display-graph"),
+/* Initially set for trace_flags */
+# define FUNCTION_GRAPH_DEFAULT_FLAGS \
+	(TRACE_ITER_SLEEP_TIME | TRACE_ITER_GRAPH_TIME)
+#else
+# define FGRAPH_FLAGS
+# define FUNCTION_GRAPH_DEFAULT_FLAGS  0UL
+#endif
+
+/*
  * trace_iterator_flags is an enumeration that defines bit
  * positions into trace_flags that controls the output.
  *
@@ -904,15 +920,13 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(PRINTK_MSGONLY,	"printk-msg-only"),	\
 		C(CONTEXT_INFO,		"context-info"),   /* Print pid/cpu/time */ \
 		C(LATENCY_FMT,		"latency-format"),	\
-		C(SLEEP_TIME,		"sleep-time"),		\
-		C(GRAPH_TIME,		"graph-time"),		\
 		C(RECORD_CMD,		"record-cmd"),		\
 		C(OVERWRITE,		"overwrite"),		\
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
 		C(FUNCTION,		"function-trace"),	\
-		C(DISPLAY_GRAPH,	"display-graph"),
+		FGRAPH_FLAGS
 
 /*
  * By defining C, we can make TRACE_FLAGS a list of bit names

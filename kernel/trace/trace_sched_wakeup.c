@@ -40,15 +40,15 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace);
 static int save_flags;
 static bool function_enabled;
 
-#define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int wakeup_display_graph(struct trace_array *tr, int set);
+# define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
 #else
 static inline int wakeup_display_graph(struct trace_array *tr, int set)
 {
 	return -EINVAL;
 }
+# define is_graph() false
 #endif
 
 
@@ -174,8 +174,10 @@ static int wakeup_flag_changed(struct trace_array *tr, u32 mask, int set)
 	if (mask & TRACE_ITER_FUNCTION)
 		return wakeup_function_set(tr, set);
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (mask & TRACE_ITER_DISPLAY_GRAPH)
 		return wakeup_display_graph(tr, set);
+#endif
 
 	return trace_keep_overwrite(tracer, mask, set);
 }

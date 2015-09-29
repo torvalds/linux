@@ -57,15 +57,15 @@ irq_trace(void)
 # define irq_trace() (0)
 #endif
 
-#define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
-
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int irqsoff_display_graph(struct trace_array *tr, int set);
+# define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
 #else
 static inline int irqsoff_display_graph(struct trace_array *tr, int set)
 {
 	return -EINVAL;
 }
+# define is_graph() false
 #endif
 
 /*
@@ -556,8 +556,10 @@ static int irqsoff_flag_changed(struct trace_array *tr, u32 mask, int set)
 	if (mask & TRACE_ITER_FUNCTION)
 		return irqsoff_function_set(tr, set);
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (mask & TRACE_ITER_DISPLAY_GRAPH)
 		return irqsoff_display_graph(tr, set);
+#endif
 
 	return trace_keep_overwrite(tracer, mask, set);
 }
