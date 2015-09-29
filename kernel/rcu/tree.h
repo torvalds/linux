@@ -178,6 +178,8 @@ struct rcu_node {
 				/*  beginning of each expedited GP. */
 	unsigned long expmaskinitnext;
 				/* Online CPUs for next expedited GP. */
+				/*  Any CPU that has ever been online will */
+				/*  have its bit set. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
