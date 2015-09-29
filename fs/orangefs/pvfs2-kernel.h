@@ -649,9 +649,9 @@ void pvfs2_op_initialize(struct pvfs2_kernel_op_s *op);
 
 void pvfs2_make_bad_inode(struct inode *inode);
 
-void mask_blocked_signals(sigset_t *orig_sigset);
+void block_signals(sigset_t *);
 
-void unmask_blocked_signals(sigset_t *orig_sigset);
+void set_signals(sigset_t *);
 
 int pvfs2_unmount_sb(struct super_block *sb);
 

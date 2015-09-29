@@ -80,7 +80,7 @@ retry_servicing:
 
 	/* mask out signals if this operation is not to be interrupted */
 	if (!(flags & PVFS2_OP_INTERRUPTIBLE))
-		mask_blocked_signals(&orig_sigset);
+		block_signals(&orig_sigset);
 
 	if (!(flags & PVFS2_OP_NO_SEMAPHORE)) {
 		ret = mutex_lock_interruptible(&request_mutex);
@@ -90,7 +90,7 @@ retry_servicing:
 		 */
 		if (ret < 0) {
 			if (!(flags & PVFS2_OP_INTERRUPTIBLE))
-				unmask_blocked_signals(&orig_sigset);
+				set_signals(&orig_sigset);
 			op->downcall.status = ret;
 			gossip_debug(GOSSIP_WAIT_DEBUG,
 				     "pvfs2: service_operation interrupted.\n");
@@ -160,7 +160,7 @@ retry_servicing:
 	}
 
 	if (!(flags & PVFS2_OP_INTERRUPTIBLE))
-		unmask_blocked_signals(&orig_sigset);
+		set_signals(&orig_sigset);
 
 	BUG_ON(ret != op->downcall.status);
 	/* retry if operation has not been serviced and if requested */

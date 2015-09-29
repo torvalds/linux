@@ -632,36 +632,25 @@ void pvfs2_make_bad_inode(struct inode *inode)
 	}
 }
 
-/* this code is based on linux/net/sunrpc/clnt.c:rpc_clnt_sigmask */
-void mask_blocked_signals(sigset_t *orig_sigset)
+/* Block all blockable signals... */
+void block_signals(sigset_t *orig_sigset)
 {
-	unsigned long sigallow = sigmask(SIGKILL);
-	unsigned long irqflags = 0;
-	struct k_sigaction *action = pvfs2_current_sigaction;
+	sigset_t mask;
 
-	sigallow |= ((action[SIGINT - 1].sa.sa_handler == SIG_DFL) ?
-		     sigmask(SIGINT) :
-		     0);
-	sigallow |= ((action[SIGQUIT - 1].sa.sa_handler == SIG_DFL) ?
-		     sigmask(SIGQUIT) :
-		     0);
+	/*
+	 * Initialize all entries in the signal set to the
+	 * inverse of the given mask.
+	 */
+	siginitsetinv(&mask, sigmask(SIGKILL));
 
-	spin_lock_irqsave(&pvfs2_current_signal_lock, irqflags);
-	*orig_sigset = current->blocked;
-	siginitsetinv(&current->blocked, sigallow & ~orig_sigset->sig[0]);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
+	/* Block 'em Danno... */
+	sigprocmask(SIG_BLOCK, &mask, orig_sigset);
 }
 
-/* this code is based on linux/net/sunrpc/clnt.c:rpc_clnt_sigunmask */
-void unmask_blocked_signals(sigset_t *orig_sigset)
+/* set the signal mask to the given template... */
+void set_signals(sigset_t *sigset)
 {
-	unsigned long irqflags = 0;
-
-	spin_lock_irqsave(&pvfs2_current_signal_lock, irqflags);
-	current->blocked = *orig_sigset;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&pvfs2_current_signal_lock, irqflags);
+	sigprocmask(SIG_SETMASK, sigset, NULL);
 }
 
 __u64 pvfs2_convert_time_field(void *time_ptr)
