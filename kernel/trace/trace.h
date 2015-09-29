@@ -333,6 +333,13 @@ struct tracer_flags {
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
 
+struct trace_option_dentry {
+	struct tracer_opt		*opt;
+	struct tracer_flags		*flags;
+	struct trace_array		*tr;
+	struct dentry			*entry;
+};
+
 /**
  * struct tracer - a specific tracer and its callbacks to interact with tracefs
  * @name: the name chosen to select it on the available_tracers file
@@ -387,6 +394,7 @@ struct tracer {
 						u32 mask, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
+	struct trace_option_dentry *topts;
 	int			enabled;
 	int			ref;
 	bool			print_max;

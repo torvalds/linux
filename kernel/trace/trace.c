@@ -1213,6 +1213,8 @@ static inline int run_tracer_selftest(struct tracer *type)
 }
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
+static void add_tracer_options(struct trace_array *tr, struct tracer *t);
+
 /**
  * register_tracer - register a tracer with the ftrace system.
  * @type - the plugin for the tracer
@@ -1262,6 +1264,7 @@ int register_tracer(struct tracer *type)
 
 	type->next = trace_types;
 	trace_types = type;
+	add_tracer_options(&global_trace, type);
 
  out:
 	tracing_selftest_running = false;
@@ -4287,9 +4290,6 @@ struct trace_option_dentry;
 static struct trace_option_dentry *
 create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
 
-static void
-destroy_trace_option_files(struct trace_option_dentry *topts);
-
 /*
  * Used to clear out the tracer before deletion of an instance.
  * Must have trace_types_lock held.
@@ -4307,10 +4307,8 @@ static void tracing_set_nop(struct trace_array *tr)
 	tr->current_trace = &nop_trace;
 }
 
-static void update_tracer_options(struct trace_array *tr, struct tracer *t)
+static void add_tracer_options(struct trace_array *tr, struct tracer *t)
 {
-	static struct trace_option_dentry *topts;
-
 	/* Only enable if the directory has been created already. */
 	if (!tr->dir)
 		return;
@@ -4319,8 +4317,11 @@ static void update_tracer_options(struct trace_array *tr, struct tracer *t)
 	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL))
 		return;
 
-	destroy_trace_option_files(topts);
-	topts = create_trace_option_files(tr, t);
+	/* Ignore if they were already created */
+	if (t->topts)
+		return;
+
+	t->topts = create_trace_option_files(tr, t);
 }
 
 static int tracing_set_tracer(struct trace_array *tr, const char *buf)
@@ -4389,7 +4390,6 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		free_snapshot(tr);
 	}
 #endif
-	update_tracer_options(tr, t);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (t->use_max_tr && !had_max_tr) {
@@ -6119,13 +6119,6 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 #include "trace_selftest.c"
 #endif
 
-struct trace_option_dentry {
-	struct tracer_opt		*opt;
-	struct tracer_flags		*flags;
-	struct trace_array		*tr;
-	struct dentry			*entry;
-};
-
 static ssize_t
 trace_options_read(struct file *filp, char __user *ubuf, size_t cnt,
 			loff_t *ppos)
@@ -6310,25 +6303,15 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 	if (!topts)
 		return NULL;
 
-	for (cnt = 0; opts[cnt].name; cnt++)
+	for (cnt = 0; opts[cnt].name; cnt++) {
 		create_trace_option_file(tr, &topts[cnt], flags,
 					 &opts[cnt]);
+		WARN_ONCE(topts[cnt].entry == NULL,
+			  "Failed to create trace option: %s",
+			  opts[cnt].name);
+	}
 
 	return topts;
-}
-
-static void
-destroy_trace_option_files(struct trace_option_dentry *topts)
-{
-	int cnt;
-
-	if (!topts)
-		return;
-
-	for (cnt = 0; topts[cnt].opt; cnt++)
-		tracefs_remove(topts[cnt].entry);
-
-	kfree(topts);
 }
 
 static struct dentry *
@@ -6812,6 +6795,7 @@ static struct notifier_block trace_module_nb = {
 static __init int tracer_init_tracefs(void)
 {
 	struct dentry *d_tracer;
+	struct tracer *t;
 
 	trace_access_lock_init();
 
@@ -6850,9 +6834,10 @@ static __init int tracer_init_tracefs(void)
 
 	create_trace_options_dir(&global_trace);
 
-	/* If the tracer was started via cmdline, create options for it here */
-	if (global_trace.current_trace != &nop_trace)
-		update_tracer_options(&global_trace, global_trace.current_trace);
+	mutex_lock(&trace_types_lock);
+	for (t = trace_types; t; t = t->next)
+		add_tracer_options(&global_trace, t);
+	mutex_unlock(&trace_types_lock);
 
 	return 0;
 }
