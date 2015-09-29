@@ -3555,8 +3555,10 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 #endif
 	}
 
-	if (mask == TRACE_ITER_PRINTK)
+	if (mask == TRACE_ITER_PRINTK) {
 		trace_printk_start_stop_comm(enabled);
+		trace_printk_control(enabled);
+	}
 
 	return 0;
 }
