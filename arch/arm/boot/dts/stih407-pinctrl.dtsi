@@ -53,7 +53,7 @@
 			reg = <0x0961f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 188 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09610000 0x6000>;
 
 			pio0: gpio@09610000 {
@@ -368,7 +368,7 @@
 			reg = <0x0920f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 189 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09200000 0x10000>;
 
 			pio10: pio@09200000 {
@@ -913,7 +913,7 @@
 			reg = <0x0921f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
 
 			tsin4 {
@@ -946,7 +946,7 @@
 			reg = <0x0922f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 191 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09220000 0x6000>;
 
 			pio30: gpio@09220000 {
