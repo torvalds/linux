@@ -399,8 +399,8 @@ static void read_midi_messages(struct amdtp_stream *s,
 	}
 }
 
-unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
-				    unsigned int data_blocks, unsigned int *syt)
+static unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
+					   unsigned int data_blocks, unsigned int *syt)
 {
 	struct amdtp_am824 *p = s->protocol;
 	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
@@ -420,8 +420,8 @@ unsigned int process_rx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
 	return pcm_frames;
 }
 
-unsigned int process_tx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
-				    unsigned int data_blocks, unsigned int *syt)
+static unsigned int process_tx_data_blocks(struct amdtp_stream *s, __be32 *buffer,
+					   unsigned int data_blocks, unsigned int *syt)
 {
 	struct amdtp_am824 *p = s->protocol;
 	struct snd_pcm_substream *pcm = ACCESS_ONCE(s->pcm);
