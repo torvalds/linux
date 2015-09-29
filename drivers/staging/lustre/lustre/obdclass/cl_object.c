@@ -98,16 +98,6 @@ int cl_object_header_init(struct cl_object_header *h)
 EXPORT_SYMBOL(cl_object_header_init);
 
 /**
- * Finalize cl_object_header.
- */
-void cl_object_header_fini(struct cl_object_header *h)
-{
-	LASSERT(list_empty(&h->coh_locks));
-	lu_object_header_fini(&h->coh_lu);
-}
-EXPORT_SYMBOL(cl_object_header_fini);
-
-/**
  * Returns a cl_object with a given \a fid.
  *
  * Returns either cached or newly created object. Additional reference on the
@@ -362,22 +352,6 @@ void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
 	cl_locks_prune(env, obj, 1);
 }
 EXPORT_SYMBOL(cl_object_prune);
-
-/**
- * Check if the object has locks.
- */
-int cl_object_has_locks(struct cl_object *obj)
-{
-	struct cl_object_header *head = cl_object_header(obj);
-	int has;
-
-	spin_lock(&head->coh_lock_guard);
-	has = list_empty(&head->coh_locks);
-	spin_unlock(&head->coh_lock_guard);
-
-	return (has == 0);
-}
-EXPORT_SYMBOL(cl_object_has_locks);
 
 void cache_stats_init(struct cache_stats *cs, const char *name)
 {
@@ -927,21 +901,6 @@ void cl_env_nested_put(struct cl_env_nest *nest, struct lu_env *env)
 	cl_env_reexit(nest->cen_cookie);
 }
 EXPORT_SYMBOL(cl_env_nested_put);
-
-/**
- * Converts struct cl_attr to struct ost_lvb.
- *
- * \see cl_lvb2attr
- */
-void cl_attr2lvb(struct ost_lvb *lvb, const struct cl_attr *attr)
-{
-	lvb->lvb_size   = attr->cat_size;
-	lvb->lvb_mtime  = attr->cat_mtime;
-	lvb->lvb_atime  = attr->cat_atime;
-	lvb->lvb_ctime  = attr->cat_ctime;
-	lvb->lvb_blocks = attr->cat_blocks;
-}
-EXPORT_SYMBOL(cl_attr2lvb);
 
 /**
  * Converts struct ost_lvb to struct cl_attr.

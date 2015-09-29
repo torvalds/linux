@@ -2733,7 +2733,6 @@ struct cl_object *cl_object_find(const struct lu_env *env, struct cl_device *cd,
 				 const struct cl_object_conf *c);
 
 int  cl_object_header_init(struct cl_object_header *h);
-void cl_object_header_fini(struct cl_object_header *h);
 void cl_object_put	(const struct lu_env *env, struct cl_object *o);
 void cl_object_get	(struct cl_object *o);
 void cl_object_attr_lock  (struct cl_object *o);
@@ -2748,7 +2747,6 @@ int  cl_conf_set	  (const struct lu_env *env, struct cl_object *obj,
 			   const struct cl_object_conf *conf);
 void cl_object_prune      (const struct lu_env *env, struct cl_object *obj);
 void cl_object_kill       (const struct lu_env *env, struct cl_object *obj);
-int  cl_object_has_locks  (struct cl_object *obj);
 
 /**
  * Returns true, iff \a o0 and \a o1 are slices of the same object.
@@ -2935,10 +2933,6 @@ void  cl_lock_release   (const struct lu_env *env, struct cl_lock *lock,
 void  cl_lock_user_add  (const struct lu_env *env, struct cl_lock *lock);
 void  cl_lock_user_del  (const struct lu_env *env, struct cl_lock *lock);
 
-enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
-				     struct cl_lock *lock);
-void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
-		       enum cl_lock_state state);
 int cl_lock_is_intransit(struct cl_lock *lock);
 
 int cl_lock_enqueue_wait(const struct lu_env *env, struct cl_lock *lock,
@@ -2976,8 +2970,6 @@ int cl_lock_enqueue_wait(const struct lu_env *env, struct cl_lock *lock,
  *
  * @{ */
 
-int   cl_enqueue    (const struct lu_env *env, struct cl_lock *lock,
-		     struct cl_io *io, __u32 flags);
 int   cl_wait       (const struct lu_env *env, struct cl_lock *lock);
 void  cl_unuse      (const struct lu_env *env, struct cl_lock *lock);
 int   cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
@@ -2996,7 +2988,6 @@ int  cl_queue_match      (const struct list_head *queue,
 			  const struct cl_lock_descr *need);
 
 void cl_lock_mutex_get  (const struct lu_env *env, struct cl_lock *lock);
-int  cl_lock_mutex_try  (const struct lu_env *env, struct cl_lock *lock);
 void cl_lock_mutex_put  (const struct lu_env *env, struct cl_lock *lock);
 int  cl_lock_is_mutexed (struct cl_lock *lock);
 int  cl_lock_nr_mutexed (const struct lu_env *env);
@@ -3062,10 +3053,6 @@ int   cl_io_submit_rw    (const struct lu_env *env, struct cl_io *io,
 int   cl_io_submit_sync  (const struct lu_env *env, struct cl_io *io,
 			  enum cl_req_type iot, struct cl_2queue *queue,
 			  long timeout);
-void  cl_io_rw_advance   (const struct lu_env *env, struct cl_io *io,
-			  size_t nob);
-int   cl_io_cancel       (const struct lu_env *env, struct cl_io *io,
-			  struct cl_page_list *queue);
 int   cl_io_is_going     (const struct lu_env *env);
 
 /**
@@ -3096,9 +3083,6 @@ static inline int cl_io_is_trunc(const struct cl_io *io)
 }
 
 struct cl_io *cl_io_top(struct cl_io *io);
-
-void cl_io_print(const struct lu_env *env, void *cookie,
-		 lu_printer_t printer, const struct cl_io *io);
 
 #define CL_IO_SLICE_CLEAN(foo_io, base)					\
 do {									\
@@ -3145,21 +3129,13 @@ void cl_page_list_del    (const struct lu_env *env,
 			  struct cl_page_list *plist, struct cl_page *page);
 void cl_page_list_disown (const struct lu_env *env,
 			  struct cl_io *io, struct cl_page_list *plist);
-int  cl_page_list_own    (const struct lu_env *env,
-			  struct cl_io *io, struct cl_page_list *plist);
-void cl_page_list_assume (const struct lu_env *env,
-			  struct cl_io *io, struct cl_page_list *plist);
 void cl_page_list_discard(const struct lu_env *env,
-			  struct cl_io *io, struct cl_page_list *plist);
-int  cl_page_list_unmap  (const struct lu_env *env,
 			  struct cl_io *io, struct cl_page_list *plist);
 void cl_page_list_fini   (const struct lu_env *env, struct cl_page_list *plist);
 
 void cl_2queue_init     (struct cl_2queue *queue);
 void cl_2queue_add      (struct cl_2queue *queue, struct cl_page *page);
 void cl_2queue_disown   (const struct lu_env *env,
-			 struct cl_io *io, struct cl_2queue *queue);
-void cl_2queue_assume   (const struct lu_env *env,
 			 struct cl_io *io, struct cl_2queue *queue);
 void cl_2queue_discard  (const struct lu_env *env,
 			 struct cl_io *io, struct cl_2queue *queue);
@@ -3253,7 +3229,6 @@ struct cl_env_nest {
 	void *cen_cookie;
 };
 
-struct lu_env *cl_env_peek       (int *refcheck);
 struct lu_env *cl_env_get	(int *refcheck);
 struct lu_env *cl_env_alloc      (int *refcheck, __u32 tags);
 struct lu_env *cl_env_nested_get (struct cl_env_nest *nest);
@@ -3269,7 +3244,6 @@ void	   cl_env_unplant    (struct lu_env *env, int *refcheck);
 /*
  * Misc
  */
-void cl_attr2lvb(struct ost_lvb *lvb, const struct cl_attr *attr);
 void cl_lvb2attr(struct cl_attr *attr, const struct ost_lvb *lvb);
 
 struct cl_device *cl_type_setup(const struct lu_env *env, struct lu_site *site,

@@ -1276,32 +1276,6 @@ static int cl_enqueue_locked(const struct lu_env *env, struct cl_lock *lock,
 }
 
 /**
- * Enqueues a lock.
- *
- * \pre current thread or io owns a hold on lock.
- *
- * \post ergo(result == 0, lock->users increased)
- * \post ergo(result == 0, lock->cll_state == CLS_ENQUEUED ||
- *			 lock->cll_state == CLS_HELD)
- */
-int cl_enqueue(const struct lu_env *env, struct cl_lock *lock,
-	       struct cl_io *io, __u32 enqflags)
-{
-	int result;
-
-	cl_lock_lockdep_acquire(env, lock, enqflags);
-	cl_lock_mutex_get(env, lock);
-	result = cl_enqueue_locked(env, lock, io, enqflags);
-	cl_lock_mutex_put(env, lock);
-	if (result != 0)
-		cl_lock_lockdep_release(env, lock);
-	LASSERT(ergo(result == 0, lock->cll_state == CLS_ENQUEUED ||
-		     lock->cll_state == CLS_HELD));
-	return result;
-}
-EXPORT_SYMBOL(cl_enqueue);
-
-/**
  * Tries to unlock a lock.
  *
  * This function is called to release underlying resource:
