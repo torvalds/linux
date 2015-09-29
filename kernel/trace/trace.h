@@ -873,7 +873,7 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 #define ftrace_destroy_filter_files(ops) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER && CONFIG_DYNAMIC_FTRACE */
 
-int ftrace_event_is_function(struct trace_event_call *call);
+bool ftrace_event_is_function(struct trace_event_call *call);
 
 /*
  * struct trace_parser - servers for reading the user input separated by spaces
