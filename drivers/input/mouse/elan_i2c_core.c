@@ -98,15 +98,24 @@ static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 			   u16 *signature_address)
 {
 	switch (iap_version) {
+	case 0x00:
+	case 0x06:
 	case 0x08:
 		*validpage_count = 512;
 		break;
-	case 0x09:
 	case 0x03:
+	case 0x07:
+	case 0x09:
+	case 0x0A:
+	case 0x0B:
+	case 0x0C:
 		*validpage_count = 768;
 		break;
 	case 0x0D:
 		*validpage_count = 896;
+		break;
+	case 0x0E:
+		*validpage_count = 640;
 		break;
 	default:
 		/* unknown ic type clear value */
