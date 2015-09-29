@@ -161,28 +161,57 @@ static void percpu_ref_noop_confirm_switch(struct percpu_ref *ref)
 static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 					  percpu_ref_func_t *confirm_switch)
 {
-	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC)) {
-		/* switching from percpu to atomic */
-		ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
-
-		/*
-		 * Non-NULL ->confirm_switch is used to indicate that
-		 * switching is in progress.  Use noop one if unspecified.
-		 */
-		WARN_ON_ONCE(ref->confirm_switch);
-		ref->confirm_switch =
-			confirm_switch ?: percpu_ref_noop_confirm_switch;
-
-		percpu_ref_get(ref);	/* put after confirmation */
-		call_rcu_sched(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
-	} else if (confirm_switch) {
-		/*
-		 * Somebody else already set ATOMIC.  Wait for its
-		 * completion and invoke @confirm_switch() directly.
-		 */
-		wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
-		confirm_switch(ref);
+	if (ref->percpu_count_ptr & __PERCPU_REF_ATOMIC) {
+		if (confirm_switch) {
+			/*
+			 * Somebody else already set ATOMIC.  Wait for its
+			 * completion and invoke @confirm_switch() directly.
+			 */
+			wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+			confirm_switch(ref);
+		}
+		return;
 	}
+
+	/* switching from percpu to atomic */
+	ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
+
+	/*
+	 * Non-NULL ->confirm_switch is used to indicate that switching is
+	 * in progress.  Use noop one if unspecified.
+	 */
+	WARN_ON_ONCE(ref->confirm_switch);
+	ref->confirm_switch = confirm_switch ?: percpu_ref_noop_confirm_switch;
+
+	percpu_ref_get(ref);	/* put after confirmation */
+	call_rcu_sched(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
+}
+
+static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
+{
+	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
+	int cpu;
+
+	BUG_ON(!percpu_count);
+
+	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
+		return;
+
+	wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
+
+	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
+
+	/*
+	 * Restore per-cpu operation.  smp_store_release() is paired with
+	 * smp_read_barrier_depends() in __ref_is_percpu() and guarantees
+	 * that the zeroing is visible to all percpu accesses which can see
+	 * the following __PERCPU_REF_ATOMIC clearing.
+	 */
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(percpu_count, cpu) = 0;
+
+	smp_store_release(&ref->percpu_count_ptr,
+			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC);
 }
 
 /**
@@ -211,33 +240,6 @@ void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 {
 	ref->force_atomic = true;
 	__percpu_ref_switch_to_atomic(ref, confirm_switch);
-}
-
-static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
-{
-	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
-	int cpu;
-
-	BUG_ON(!percpu_count);
-
-	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
-		return;
-
-	wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
-
-	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
-
-	/*
-	 * Restore per-cpu operation.  smp_store_release() is paired with
-	 * smp_read_barrier_depends() in __ref_is_percpu() and guarantees
-	 * that the zeroing is visible to all percpu accesses which can see
-	 * the following __PERCPU_REF_ATOMIC clearing.
-	 */
-	for_each_possible_cpu(cpu)
-		*per_cpu_ptr(percpu_count, cpu) = 0;
-
-	smp_store_release(&ref->percpu_count_ptr,
-			  ref->percpu_count_ptr & ~__PERCPU_REF_ATOMIC);
 }
 
 /**
