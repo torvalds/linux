@@ -63,8 +63,7 @@ static bool __read_mostly rcu_nocb_poll;    /* Offload kthread are to poll. */
 
 /*
  * Check the RCU kernel configuration parameters and print informative
- * messages about anything out of the ordinary.  If you like #ifdef, you
- * will love this function.
+ * messages about anything out of the ordinary.
  */
 static void __init rcu_bootup_announce_oddness(void)
 {
