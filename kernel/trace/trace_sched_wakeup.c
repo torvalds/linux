@@ -346,16 +346,16 @@ static void wakeup_print_header(struct seq_file *s)
 /*
  * Should this new latency be reported/recorded?
  */
-static int report_latency(struct trace_array *tr, cycle_t delta)
+static bool report_latency(struct trace_array *tr, cycle_t delta)
 {
 	if (tracing_thresh) {
 		if (delta < tracing_thresh)
-			return 0;
+			return false;
 	} else {
 		if (delta <= tr->max_latency)
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 static void
