@@ -177,17 +177,11 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 		call_rcu_sched(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
 	} else if (confirm_switch) {
 		/*
-		 * Somebody already set ATOMIC.  Switching may still be in
-		 * progress.  @confirm_switch must be invoked after the
-		 * switching is complete and a full sched RCU grace period
-		 * has passed.  Wait synchronously for the previous
-		 * switching and schedule @confirm_switch invocation.
+		 * Somebody else already set ATOMIC.  Wait for its
+		 * completion and invoke @confirm_switch() directly.
 		 */
 		wait_event(percpu_ref_switch_waitq, !ref->confirm_switch);
-		ref->confirm_switch = confirm_switch;
-
-		percpu_ref_get(ref);	/* put after confirmation */
-		call_rcu_sched(&ref->rcu, percpu_ref_call_confirm_rcu);
+		confirm_switch(ref);
 	}
 }
 
@@ -211,10 +205,6 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
  * but it may block if @confirm_kill is specified and @ref is already in
  * the process of switching to atomic mode.  In such cases, @confirm_switch
  * will be invoked after the switching is complete.
- *
- * Due to the way percpu_ref is implemented, @confirm_switch will be called
- * after at least one full sched RCU grace period has passed but this is an
- * implementation detail and must not be depended upon.
  */
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch)
@@ -290,11 +280,7 @@ void percpu_ref_switch_to_percpu(struct percpu_ref *ref)
  *
  * This function normally doesn't block and can be called from any context
  * but it may block if @confirm_kill is specified and @ref is in the
- * process of switching to atomic mode by percpu_ref_switch_atomic().
- *
- * Due to the way percpu_ref is implemented, @confirm_switch will be called
- * after at least one full sched RCU grace period has passed but this is an
- * implementation detail and must not be depended upon.
+ * process of switching to atomic mode by percpu_ref_switch_to_atomic().
  */
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
