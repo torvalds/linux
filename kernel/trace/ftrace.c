@@ -3454,13 +3454,13 @@ static int ftrace_match(char *str, char *regex, int len, int type)
 }
 
 static int
-enter_record(struct ftrace_hash *hash, struct dyn_ftrace *rec, int not)
+enter_record(struct ftrace_hash *hash, struct dyn_ftrace *rec, int clear_filter)
 {
 	struct ftrace_func_entry *entry;
 	int ret = 0;
 
 	entry = ftrace_lookup_ip(hash, rec->ip);
-	if (not) {
+	if (clear_filter) {
 		/* Do nothing if it doesn't exist */
 		if (!entry)
 			return 0;
@@ -3499,8 +3499,7 @@ ftrace_match_record(struct dyn_ftrace *rec, char *mod,
 }
 
 static int
-match_records(struct ftrace_hash *hash, char *buff,
-	      int len, char *mod, int not)
+match_records(struct ftrace_hash *hash, char *buff, int len, char *mod)
 {
 	unsigned search_len = 0;
 	struct ftrace_page *pg;
@@ -3509,9 +3508,10 @@ match_records(struct ftrace_hash *hash, char *buff,
 	char *search = buff;
 	int found = 0;
 	int ret;
+	int clear_filter;
 
 	if (len) {
-		type = filter_parse_regex(buff, len, &search, &not);
+		type = filter_parse_regex(buff, len, &search, &clear_filter);
 		search_len = strlen(search);
 	}
 
@@ -3522,7 +3522,7 @@ match_records(struct ftrace_hash *hash, char *buff,
 
 	do_for_each_ftrace_rec(pg, rec) {
 		if (ftrace_match_record(rec, mod, search, search_len, type)) {
-			ret = enter_record(hash, rec, not);
+			ret = enter_record(hash, rec, clear_filter);
 			if (ret < 0) {
 				found = ret;
 				goto out_unlock;
@@ -3539,26 +3539,9 @@ match_records(struct ftrace_hash *hash, char *buff,
 static int
 ftrace_match_records(struct ftrace_hash *hash, char *buff, int len)
 {
-	return match_records(hash, buff, len, NULL, 0);
+	return match_records(hash, buff, len, NULL);
 }
 
-static int
-ftrace_match_module_records(struct ftrace_hash *hash, char *buff, char *mod)
-{
-	int not = 0;
-
-	/* blank or '*' mean the same */
-	if (strcmp(buff, "*") == 0)
-		buff[0] = 0;
-
-	/* handle the case of 'dont filter this module' */
-	if (strcmp(buff, "!") == 0 || strcmp(buff, "!*") == 0) {
-		buff[0] = 0;
-		not = 1;
-	}
-
-	return match_records(hash, buff, strlen(buff), mod, not);
-}
 
 /*
  * We register the module command as a template to show others how
@@ -3567,7 +3550,7 @@ ftrace_match_module_records(struct ftrace_hash *hash, char *buff, char *mod)
 
 static int
 ftrace_mod_callback(struct ftrace_hash *hash,
-		    char *func, char *cmd, char *param, int enable)
+		    char *func, char *cmd, char *module, int enable)
 {
 	int ret;
 
@@ -3580,10 +3563,10 @@ ftrace_mod_callback(struct ftrace_hash *hash,
 	 */
 
 	/* we must have a module name */
-	if (!param || !strlen(param))
+	if (!module || !strlen(module))
 		return -EINVAL;
 
-	ret = ftrace_match_module_records(hash, func, param);
+	ret = match_records(hash, func, strlen(func), module);
 	if (!ret)
 		return -EINVAL;
 	if (ret < 0)
