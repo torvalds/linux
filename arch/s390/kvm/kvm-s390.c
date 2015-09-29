@@ -568,9 +568,7 @@ static int kvm_s390_get_tod_low(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	u64 gtod;
 
-	preempt_disable();
-	gtod = get_tod_clock() + kvm->arch.epoch;
-	preempt_enable();
+	gtod = kvm_s390_get_tod_clock_fast(kvm);
 	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
 		return -EFAULT;
 	VM_EVENT(kvm, 3, "QUERY: TOD base: 0x%llx\n", gtod);

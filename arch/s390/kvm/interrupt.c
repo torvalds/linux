@@ -69,13 +69,8 @@ static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
 
 static int ckc_irq_pending(struct kvm_vcpu *vcpu)
 {
-	preempt_disable();
-	if (!(vcpu->arch.sie_block->ckc <
-	      get_tod_clock_fast() + vcpu->arch.sie_block->epoch)) {
-		preempt_enable();
+	if (vcpu->arch.sie_block->ckc >= kvm_s390_get_tod_clock_fast(vcpu->kvm))
 		return 0;
-	}
-	preempt_enable();
 	return ckc_interrupts_enabled(vcpu);
 }
 
@@ -851,9 +846,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		goto no_timer;
 	}
 
-	preempt_disable();
-	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
-	preempt_enable();
+	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
 	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
 
 	/* underflow */
@@ -892,9 +885,7 @@ enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 	u64 now, sltime;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	preempt_disable();
-	now = get_tod_clock_fast() + vcpu->arch.sie_block->epoch;
-	preempt_enable();
+	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
 	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
 
 	/*

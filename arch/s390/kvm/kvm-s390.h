@@ -271,6 +271,16 @@ static inline void kvm_s390_vcpu_unblock_all(struct kvm *kvm)
 		kvm_s390_vcpu_unblock(vcpu);
 }
 
+static inline u64 kvm_s390_get_tod_clock_fast(struct kvm *kvm)
+{
+	u64 rc;
+
+	preempt_disable();
+	rc = get_tod_clock_fast() + kvm->arch.epoch;
+	preempt_enable();
+	return rc;
+}
+
 /**
  * kvm_s390_inject_prog_cond - conditionally inject a program check
  * @vcpu: virtual cpu
