@@ -14,7 +14,6 @@
 /* #define USE_OLD_SPI_SW */
 
 #include <linux/semaphore.h>
-#include "wilc_oswrapper.h"
 #include "linux_wlan_common.h"
 
 /********************************************
