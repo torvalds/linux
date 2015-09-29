@@ -150,19 +150,15 @@ int seq_client_alloc_super(struct lu_client_seq *seq,
 
 	mutex_lock(&seq->lcs_mutex);
 
-	if (seq->lcs_srv) {
-		rc = 0;
-	} else {
-		/* Check whether the connection to seq controller has been
-		 * setup (lcs_exp != NULL) */
-		if (seq->lcs_exp == NULL) {
-			mutex_unlock(&seq->lcs_mutex);
-			return -EINPROGRESS;
-		}
-
-		rc = seq_client_rpc(seq, &seq->lcs_space,
-				    SEQ_ALLOC_SUPER, "super");
+	/* Check whether the connection to seq controller has been
+	 * setup (lcs_exp != NULL) */
+	if (!seq->lcs_exp) {
+		mutex_unlock(&seq->lcs_mutex);
+		return -EINPROGRESS;
 	}
+
+	rc = seq_client_rpc(seq, &seq->lcs_space,
+			    SEQ_ALLOC_SUPER, "super");
 	mutex_unlock(&seq->lcs_mutex);
 	return rc;
 }
@@ -173,18 +169,14 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 {
 	int rc;
 
-	if (seq->lcs_srv) {
-		rc = 0;
-	} else {
-		do {
-			/* If meta server return -EINPROGRESS or EAGAIN,
-			 * it means meta server might not be ready to
-			 * allocate super sequence from sequence controller
-			 * (MDT0)yet */
-			rc = seq_client_rpc(seq, &seq->lcs_space,
-					    SEQ_ALLOC_META, "meta");
-		} while (rc == -EINPROGRESS || rc == -EAGAIN);
-	}
+	do {
+		/* If meta server return -EINPROGRESS or EAGAIN,
+		 * it means meta server might not be ready to
+		 * allocate super sequence from sequence controller
+		 * (MDT0)yet */
+		rc = seq_client_rpc(seq, &seq->lcs_space,
+				    SEQ_ALLOC_META, "meta");
+	} while (rc == -EINPROGRESS || rc == -EAGAIN);
 
 	return rc;
 }
@@ -395,8 +387,6 @@ static void seq_client_fini(struct lu_client_seq *seq)
 		class_export_put(seq->lcs_exp);
 		seq->lcs_exp = NULL;
 	}
-
-	seq->lcs_srv = NULL;
 }
 
 static int seq_client_init(struct lu_client_seq *seq,
@@ -409,7 +399,6 @@ static int seq_client_init(struct lu_client_seq *seq,
 	LASSERT(seq != NULL);
 	LASSERT(prefix != NULL);
 
-	seq->lcs_srv = NULL;
 	seq->lcs_type = type;
 
 	mutex_init(&seq->lcs_mutex);
@@ -422,10 +411,7 @@ static int seq_client_init(struct lu_client_seq *seq,
 	/* Make sure that things are clear before work is started. */
 	seq_client_flush(seq);
 
-	if (exp != NULL)
-		seq->lcs_exp = class_export_get(exp);
-	else if (type == LUSTRE_SEQ_METADATA)
-		LASSERT(seq->lcs_srv != NULL);
+	seq->lcs_exp = class_export_get(exp);
 
 	snprintf(seq->lcs_name, sizeof(seq->lcs_name),
 		 "cli-%s", prefix);

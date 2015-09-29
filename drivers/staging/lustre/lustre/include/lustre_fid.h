@@ -330,8 +330,6 @@ enum lu_mgr_type {
 	LUSTRE_SEQ_CONTROLLER
 };
 
-struct lu_server_seq;
-
 /* Client sequence manager interface. */
 struct lu_client_seq {
 	/* Sequence-controller export. */
@@ -365,9 +363,6 @@ struct lu_client_seq {
 	 * sequence. Default value for it is LUSTRE_SEQ_MAX_WIDTH.
 	 */
 	__u64		   lcs_width;
-
-	/* Seq-server for direct talking */
-	struct lu_server_seq   *lcs_srv;
 
 	/* wait queue for fid allocation and update indicator */
 	wait_queue_head_t	     lcs_waitq;

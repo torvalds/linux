@@ -204,8 +204,6 @@ ldebugfs_fid_server_seq_show(struct seq_file *m, void *unused)
 	if (seq->lcs_exp != NULL) {
 		cli = &seq->lcs_exp->exp_obd->u.cli;
 		seq_printf(m, "%s\n", cli->cl_target_uuid.uuid);
-	} else {
-		seq_printf(m, "%s\n", seq->lcs_srv->lss_name);
 	}
 
 	return 0;
