@@ -139,8 +139,10 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
+extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
+	.fpu.regs = (void *)&init_task_fpu_regs,			\
 }
 
 /*

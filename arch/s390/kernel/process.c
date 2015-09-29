@@ -23,6 +23,7 @@
 #include <linux/kprobes.h>
 #include <linux/random.h>
 #include <linux/module.h>
+#include <linux/init_task.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
@@ -35,6 +36,9 @@
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
+
+/* FPU save area for the init task */
+__vector128 init_task_fpu_regs[__NUM_VXRS] __init_task_data;
 
 /*
  * Return saved PC of a blocked thread. used in kernel/sched.

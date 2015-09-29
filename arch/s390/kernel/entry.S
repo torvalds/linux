@@ -762,8 +762,6 @@ ENTRY(save_fpu_regs)
 	stfpc	__THREAD_FPU_fpc(%r2)
 .Lsave_fpu_regs_fpc_end:
 	lg	%r3,__THREAD_FPU_regs(%r2)
-	ltgr	%r3,%r3
-	jz	.Lsave_fpu_regs_done	  # no save area -> set CIF_FPU
 	tm	__LC_MACHINE_FLAGS+5,4	  # MACHINE_HAS_VX
 	jz	.Lsave_fpu_regs_fp	  # no -> store FP regs
 .Lsave_fpu_regs_vx_low:
@@ -1193,8 +1191,6 @@ cleanup_critical:
 	stfpc	__THREAD_FPU_fpc(%r2)
 1:	# Load register save area and check if VX is active
 	lg	%r3,__THREAD_FPU_regs(%r2)
-	ltgr	%r3,%r3
-	jz	5f			  # no save area -> set CIF_FPU
 	tm	__LC_MACHINE_FLAGS+5,4	  # MACHINE_HAS_VX
 	jz	4f			  # no VX -> store FP regs
 2:	# Store vector registers (V0-V15)
