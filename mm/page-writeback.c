@@ -684,13 +684,19 @@ static unsigned long hard_dirty_limit(struct wb_domain *dom,
 	return max(thresh, dom->dirty_limit);
 }
 
-/* memory available to a memcg domain is capped by system-wide clean memory */
-static void mdtc_cap_avail(struct dirty_throttle_control *mdtc)
+/*
+ * Memory which can be further allocated to a memcg domain is capped by
+ * system-wide clean memory excluding the amount being used in the domain.
+ */
+static void mdtc_calc_avail(struct dirty_throttle_control *mdtc,
+			    unsigned long filepages, unsigned long headroom)
 {
 	struct dirty_throttle_control *gdtc = mdtc_gdtc(mdtc);
-	unsigned long clean = gdtc->avail - min(gdtc->avail, gdtc->dirty);
+	unsigned long clean = filepages - min(filepages, mdtc->dirty);
+	unsigned long global_clean = gdtc->avail - min(gdtc->avail, gdtc->dirty);
+	unsigned long other_clean = global_clean - min(global_clean, clean);
 
-	mdtc->avail = min(mdtc->avail, clean);
+	mdtc->avail = filepages + min(headroom, other_clean);
 }
 
 /**
@@ -1564,16 +1570,16 @@ static void balance_dirty_pages(struct address_space *mapping,
 		}
 
 		if (mdtc) {
-			unsigned long writeback;
+			unsigned long filepages, headroom, writeback;
 
 			/*
 			 * If @wb belongs to !root memcg, repeat the same
 			 * basic calculations for the memcg domain.
 			 */
-			mem_cgroup_wb_stats(wb, &mdtc->avail, &mdtc->dirty,
-					    &writeback);
-			mdtc_cap_avail(mdtc);
+			mem_cgroup_wb_stats(wb, &filepages, &headroom,
+					    &mdtc->dirty, &writeback);
 			mdtc->dirty += writeback;
+			mdtc_calc_avail(mdtc, filepages, headroom);
 
 			domain_dirty_limits(mdtc);
 
@@ -1895,10 +1901,11 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 		return true;
 
 	if (mdtc) {
-		unsigned long writeback;
+		unsigned long filepages, headroom, writeback;
 
-		mem_cgroup_wb_stats(wb, &mdtc->avail, &mdtc->dirty, &writeback);
-		mdtc_cap_avail(mdtc);
+		mem_cgroup_wb_stats(wb, &filepages, &headroom, &mdtc->dirty,
+				    &writeback);
+		mdtc_calc_avail(mdtc, filepages, headroom);
 		domain_dirty_limits(mdtc);	/* ditto, ignore writeback */
 
 		if (mdtc->dirty > mdtc->bg_thresh)
