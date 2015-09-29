@@ -406,12 +406,6 @@ int ccc_lock_init(const struct lu_env *env,
 	return result;
 }
 
-int ccc_attr_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_attr *attr, unsigned valid)
-{
-	return 0;
-}
-
 int ccc_object_glimpse(const struct lu_env *env,
 		       const struct cl_object *obj, struct ost_lvb *lvb)
 {
@@ -427,15 +421,6 @@ int ccc_object_glimpse(const struct lu_env *env,
 	 */
 	if (lvb->lvb_size > 0 && lvb->lvb_blocks == 0)
 		lvb->lvb_blocks = dirty_cnt(inode);
-	return 0;
-}
-
-
-
-int ccc_conf_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_object_conf *conf)
-{
-	/* TODO: destroy all pages attached to this object. */
 	return 0;
 }
 

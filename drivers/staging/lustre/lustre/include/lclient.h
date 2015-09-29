@@ -289,12 +289,8 @@ void ccc_object_free(const struct lu_env *env, struct lu_object *obj);
 int ccc_lock_init(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_lock *lock, const struct cl_io *io,
 		  const struct cl_lock_operations *lkops);
-int ccc_attr_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_attr *attr, unsigned valid);
 int ccc_object_glimpse(const struct lu_env *env,
 		       const struct cl_object *obj, struct ost_lvb *lvb);
-int ccc_conf_set(const struct lu_env *env, struct cl_object *obj,
-		 const struct cl_object_conf *conf);
 struct page *ccc_page_vmpage(const struct lu_env *env,
 			    const struct cl_page_slice *slice);
 int ccc_page_is_under_lock(const struct lu_env *env,
