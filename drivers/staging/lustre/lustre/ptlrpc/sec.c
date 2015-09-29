@@ -297,46 +297,6 @@ void sptlrpc_cli_ctx_put(struct ptlrpc_cli_ctx *ctx, int sync)
 }
 EXPORT_SYMBOL(sptlrpc_cli_ctx_put);
 
-/**
- * Expire the client context immediately.
- *
- * \pre Caller must hold at least 1 reference on the \a ctx.
- */
-void sptlrpc_cli_ctx_expire(struct ptlrpc_cli_ctx *ctx)
-{
-	LASSERT(ctx->cc_ops->force_die);
-	ctx->cc_ops->force_die(ctx, 0);
-}
-EXPORT_SYMBOL(sptlrpc_cli_ctx_expire);
-
-/**
- * To wake up the threads who are waiting for this client context. Called
- * after some status change happened on \a ctx.
- */
-void sptlrpc_cli_ctx_wakeup(struct ptlrpc_cli_ctx *ctx)
-{
-	struct ptlrpc_request *req, *next;
-
-	spin_lock(&ctx->cc_lock);
-	list_for_each_entry_safe(req, next, &ctx->cc_req_list,
-				     rq_ctx_chain) {
-		list_del_init(&req->rq_ctx_chain);
-		ptlrpc_client_wake_req(req);
-	}
-	spin_unlock(&ctx->cc_lock);
-}
-EXPORT_SYMBOL(sptlrpc_cli_ctx_wakeup);
-
-int sptlrpc_cli_ctx_display(struct ptlrpc_cli_ctx *ctx, char *buf, int bufsize)
-{
-	LASSERT(ctx->cc_ops);
-
-	if (ctx->cc_ops->display == NULL)
-		return 0;
-
-	return ctx->cc_ops->display(ctx, buf, bufsize);
-}
-
 static int import_sec_check_expire(struct obd_import *imp)
 {
 	int adapt = 0;
@@ -1229,12 +1189,6 @@ static void sec_cop_destroy_sec(struct ptlrpc_sec *sec)
 	sptlrpc_policy_put(policy);
 }
 
-void sptlrpc_sec_destroy(struct ptlrpc_sec *sec)
-{
-	sec_cop_destroy_sec(sec);
-}
-EXPORT_SYMBOL(sptlrpc_sec_destroy);
-
 static void sptlrpc_sec_kill(struct ptlrpc_sec *sec)
 {
 	LASSERT_ATOMIC_POS(&sec->ps_refcount);
@@ -1507,13 +1461,6 @@ static void import_flush_ctx_common(struct obd_import *imp,
 	sptlrpc_sec_put(sec);
 }
 
-void sptlrpc_import_flush_root_ctx(struct obd_import *imp)
-{
-	/* it's important to use grace mode, see explain in
-	 * sptlrpc_req_refresh_ctx() */
-	import_flush_ctx_common(imp, 0, 1, 1);
-}
-
 void sptlrpc_import_flush_my_ctx(struct obd_import *imp)
 {
 	import_flush_ctx_common(imp, from_kuid(&init_user_ns, current_uid()),
@@ -1695,16 +1642,6 @@ void sptlrpc_cli_free_repbuf(struct ptlrpc_request *req)
 	policy = ctx->cc_sec->ps_policy;
 	policy->sp_cops->free_repbuf(ctx->cc_sec, req);
 	req->rq_repmsg = NULL;
-}
-
-int sptlrpc_cli_install_rvs_ctx(struct obd_import *imp,
-				struct ptlrpc_cli_ctx *ctx)
-{
-	struct ptlrpc_sec_policy *policy = ctx->cc_sec->ps_policy;
-
-	if (!policy->sp_cops->install_rctx)
-		return 0;
-	return policy->sp_cops->install_rctx(imp, ctx->cc_sec, ctx);
 }
 
 int sptlrpc_svc_install_rvs_ctx(struct obd_import *imp,
@@ -1920,46 +1857,6 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	return -EACCES;
 }
 EXPORT_SYMBOL(sptlrpc_target_export_check);
-
-void sptlrpc_target_update_exp_flavor(struct obd_device *obd,
-				      struct sptlrpc_rule_set *rset)
-{
-	struct obd_export *exp;
-	struct sptlrpc_flavor new_flvr;
-
-	LASSERT(obd);
-
-	spin_lock(&obd->obd_dev_lock);
-
-	list_for_each_entry(exp, &obd->obd_exports, exp_obd_chain) {
-		if (exp->exp_connection == NULL)
-			continue;
-
-		/* note if this export had just been updated flavor
-		 * (exp_flvr_changed == 1), this will override the
-		 * previous one. */
-		spin_lock(&exp->exp_lock);
-		sptlrpc_target_choose_flavor(rset, exp->exp_sp_peer,
-					     exp->exp_connection->c_peer.nid,
-					     &new_flvr);
-		if (exp->exp_flvr_changed ||
-		    !flavor_equal(&new_flvr, &exp->exp_flvr)) {
-			exp->exp_flvr_old[1] = new_flvr;
-			exp->exp_flvr_expire[1] = 0;
-			exp->exp_flvr_changed = 1;
-			exp->exp_flvr_adapt = 1;
-
-			CDEBUG(D_SEC, "exp %p (%s): updated flavor %x->%x\n",
-			       exp, sptlrpc_part2name(exp->exp_sp_peer),
-			       exp->exp_flvr.sf_rpc,
-			       exp->exp_flvr_old[1].sf_rpc);
-		}
-		spin_unlock(&exp->exp_lock);
-	}
-
-	spin_unlock(&obd->obd_dev_lock);
-}
-EXPORT_SYMBOL(sptlrpc_target_update_exp_flavor);
 
 static int sptlrpc_svc_check_from(struct ptlrpc_request *req, int svc_rc)
 {
@@ -2182,19 +2079,6 @@ void sptlrpc_svc_ctx_decref(struct ptlrpc_request *req)
 	}
 	req->rq_svc_ctx = NULL;
 }
-
-void sptlrpc_svc_ctx_invalidate(struct ptlrpc_request *req)
-{
-	struct ptlrpc_svc_ctx *ctx = req->rq_svc_ctx;
-
-	if (ctx == NULL)
-		return;
-
-	LASSERT_ATOMIC_POS(&ctx->sc_refcount);
-	if (ctx->sc_policy->sp_sops->invalidate_ctx)
-		ctx->sc_policy->sp_sops->invalidate_ctx(ctx);
-}
-EXPORT_SYMBOL(sptlrpc_svc_ctx_invalidate);
 
 /****************************************
  * bulk security			*

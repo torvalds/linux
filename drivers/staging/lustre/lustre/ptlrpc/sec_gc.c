@@ -103,21 +103,6 @@ void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec)
 }
 EXPORT_SYMBOL(sptlrpc_gc_del_sec);
 
-void sptlrpc_gc_add_ctx(struct ptlrpc_cli_ctx *ctx)
-{
-	LASSERT(list_empty(&ctx->cc_gc_chain));
-
-	CDEBUG(D_SEC, "hand over ctx %p(%u->%s)\n",
-	       ctx, ctx->cc_vcred.vc_uid, sec2target_str(ctx->cc_sec));
-	spin_lock(&sec_gc_ctx_list_lock);
-	list_add(&ctx->cc_gc_chain, &sec_gc_ctx_list);
-	spin_unlock(&sec_gc_ctx_list_lock);
-
-	thread_add_flags(&sec_gc_thread, SVC_SIGNAL);
-	wake_up(&sec_gc_thread.t_ctl_waitq);
-}
-EXPORT_SYMBOL(sptlrpc_gc_add_ctx);
-
 static void sec_process_ctx_list(void)
 {
 	struct ptlrpc_cli_ctx *ctx;

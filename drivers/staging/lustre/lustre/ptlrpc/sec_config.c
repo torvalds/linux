@@ -48,27 +48,6 @@
 
 #include "ptlrpc_internal.h"
 
-const char *sptlrpc_part2name(enum lustre_sec_part part)
-{
-	switch (part) {
-	case LUSTRE_SP_CLI:
-		return "cli";
-	case LUSTRE_SP_MDT:
-		return "mdt";
-	case LUSTRE_SP_OST:
-		return "ost";
-	case LUSTRE_SP_MGC:
-		return "mgc";
-	case LUSTRE_SP_MGS:
-		return "mgs";
-	case LUSTRE_SP_ANY:
-		return "any";
-	default:
-		return "err";
-	}
-}
-EXPORT_SYMBOL(sptlrpc_part2name);
-
 enum lustre_sec_part sptlrpc_target_sec_part(struct obd_device *obd)
 {
 	const char *type = obd->obd_type->typ_name;
@@ -429,19 +408,6 @@ int sptlrpc_rule_set_choose(struct sptlrpc_rule_set *rset,
 	return 0;
 }
 EXPORT_SYMBOL(sptlrpc_rule_set_choose);
-
-void sptlrpc_rule_set_dump(struct sptlrpc_rule_set *rset)
-{
-	struct sptlrpc_rule *r;
-	int n;
-
-	for (n = 0; n < rset->srs_nrule; n++) {
-		r = &rset->srs_rules[n];
-		CDEBUG(D_SEC, "<%02d> from %x to %x, net %x, rpc %x\n", n,
-		       r->sr_from, r->sr_to, r->sr_netid, r->sr_flvr.sf_rpc);
-	}
-}
-EXPORT_SYMBOL(sptlrpc_rule_set_dump);
 
 /**********************************
  * sptlrpc configuration support  *
@@ -835,20 +801,6 @@ out:
 
 	flavor_set_flags(sf, from, to, 1);
 }
-
-/**
- * called by target devices, determine the expected flavor from
- * certain peer (from, nid).
- */
-void sptlrpc_target_choose_flavor(struct sptlrpc_rule_set *rset,
-				  enum lustre_sec_part from,
-				  lnet_nid_t nid,
-				  struct sptlrpc_flavor *sf)
-{
-	if (sptlrpc_rule_set_choose(rset, from, LUSTRE_SP_ANY, nid, sf) == 0)
-		get_default_flavor(sf);
-}
-EXPORT_SYMBOL(sptlrpc_target_choose_flavor);
 
 #define SEC_ADAPT_DELAY	 (10)
 
