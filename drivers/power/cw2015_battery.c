@@ -355,6 +355,7 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
 		dev_info(&cw_bat->client->dev,
 			 "report battery capacity error1");
 		if_quickstart = 1;
+		msleep(200);
 	} else
 		dev_dbg(&cw_bat->client->dev,
 			"the cw201x capacity is %d, funciton: %s\n",
