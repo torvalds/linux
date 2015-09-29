@@ -926,12 +926,12 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		 */
 		if ((ar9003_hw_get_rx_gain_idx(ah) == 2) ||
 		    (ar9003_hw_get_rx_gain_idx(ah) == 3)) {
-			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_xlna,
 					modesIndex, regWrites);
 		}
 
 		if (AR_SREV_9561(ah) && (ar9003_hw_get_rx_gain_idx(ah) == 0))
-			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_5g_xlna,
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_xlna,
 					modesIndex, regWrites);
 	}
 
