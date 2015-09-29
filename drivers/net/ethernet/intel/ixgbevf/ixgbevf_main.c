@@ -1138,7 +1138,7 @@ static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 		if (q_vector->tx.ring && !q_vector->rx.ring) {
 			/* Tx only vector */
 			if (adapter->tx_itr_setting == 1)
-				q_vector->itr = IXGBE_10K_ITR;
+				q_vector->itr = IXGBE_12K_ITR;
 			else
 				q_vector->itr = adapter->tx_itr_setting;
 		} else {
@@ -1196,7 +1196,7 @@ static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
 	/* simple throttle rate management
 	 *    0-20MB/s lowest (100000 ints/s)
 	 *   20-100MB/s low   (20000 ints/s)
-	 *  100-1249MB/s bulk (8000 ints/s)
+	 *  100-1249MB/s bulk (12000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
 	timepassed_us = q_vector->itr >> 2;
@@ -1247,7 +1247,7 @@ static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 		break;
 	case bulk_latency:
 	default:
-		new_itr = IXGBE_8K_ITR;
+		new_itr = IXGBE_12K_ITR;
 		break;
 	}
 
