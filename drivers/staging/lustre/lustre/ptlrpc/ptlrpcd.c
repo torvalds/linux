@@ -196,48 +196,6 @@ ptlrpcd_select_pc(struct ptlrpc_request *req)
 }
 
 /**
- * Move all request from an existing request set to the ptlrpcd queue.
- * All requests from the set must be in phase RQ_PHASE_NEW.
- */
-void ptlrpcd_add_rqset(struct ptlrpc_request_set *set)
-{
-	struct list_head *tmp, *pos;
-	struct ptlrpcd_ctl *pc;
-	struct ptlrpc_request_set *new;
-	int count, i;
-
-	pc = ptlrpcd_select_pc(NULL);
-	new = pc->pc_set;
-
-	list_for_each_safe(pos, tmp, &set->set_requests) {
-		struct ptlrpc_request *req =
-			list_entry(pos, struct ptlrpc_request,
-				       rq_set_chain);
-
-		LASSERT(req->rq_phase == RQ_PHASE_NEW);
-		req->rq_set = new;
-		req->rq_queued_time = cfs_time_current();
-	}
-
-	spin_lock(&new->set_new_req_lock);
-	list_splice_init(&set->set_requests, &new->set_new_requests);
-	i = atomic_read(&set->set_remaining);
-	count = atomic_add_return(i, &new->set_new_count);
-	atomic_set(&set->set_remaining, 0);
-	spin_unlock(&new->set_new_req_lock);
-	if (count == i) {
-		wake_up(&new->set_waitq);
-
-		/* XXX: It maybe unnecessary to wakeup all the partners. But to
-		 *      guarantee the async RPC can be processed ASAP, we have
-		 *      no other better choice. It maybe fixed in future. */
-		for (i = 0; i < pc->pc_npartners; i++)
-			wake_up(&pc->pc_partners[i]->pc_set->set_waitq);
-	}
-}
-EXPORT_SYMBOL(ptlrpcd_add_rqset);
-
-/**
  * Return transferred RPCs count.
  */
 static int ptlrpcd_steal_rqset(struct ptlrpc_request_set *des,
