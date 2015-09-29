@@ -272,7 +272,6 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 	struct spi_transfer	*t = NULL;
 	unsigned		cs_change;
 	int			status;
-	int			do_setup = -1;
 	struct spi_device	*spi = m->spi;
 
 	bitbang = spi_master_get_devdata(master);
@@ -288,19 +287,10 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 
-		/* override speed or wordsize? */
-		if (t->speed_hz || t->bits_per_word)
-			do_setup = 1;
-
-		/* init (-1) or override (1) transfer params */
-		if (do_setup != 0) {
-			if (bitbang->setup_transfer) {
-				status = bitbang->setup_transfer(spi, t);
-				if (status < 0)
-					break;
-			}
-			if (do_setup == -1)
-				do_setup = 0;
+		if (bitbang->setup_transfer) {
+			status = bitbang->setup_transfer(spi, t);
+			if (status < 0)
+				break;
 		}
 
 		/* set up default clock polarity, and activate chip;
