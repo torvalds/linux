@@ -129,9 +129,8 @@ struct listen_sock {
 	atomic_t		qlen_dec; /* qlen = qlen_inc - qlen_dec */
 	atomic_t		young_dec;
 
-	u8			max_qlen_log ____cacheline_aligned_in_smp;
-	u8			synflood_warned;
-	/* 2 bytes hole, try to use */
+	u32			max_qlen_log ____cacheline_aligned_in_smp;
+	u32			synflood_warned;
 	u32			hash_rnd;
 	u32			nr_table_entries;
 	struct request_sock	*syn_table[0];
