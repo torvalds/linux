@@ -1,3 +1,7 @@
+#include <linux/slab.h>
+#include <linux/time.h>
+#include <linux/kthread.h>
+#include <linux/delay.h>
 #include "host_interface.h"
 #include "coreconfigurator.h"
 #include "wilc_wlan_if.h"

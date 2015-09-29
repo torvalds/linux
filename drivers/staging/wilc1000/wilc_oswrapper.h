@@ -11,8 +11,6 @@
  */
 
 
-/* Os Configuration File */
-#include "wilc_platform.h"
 
 
 #endif
