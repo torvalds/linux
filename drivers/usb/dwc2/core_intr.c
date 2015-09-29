@@ -313,16 +313,28 @@ static void dwc2_handle_conn_id_status_change_intr(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 {
-	dev_dbg(hsotg->dev, "++Session Request Interrupt++\n");
+	int ret;
+
+	dev_dbg(hsotg->dev, "Session request interrupt - lx_state=%d\n",
+							hsotg->lx_state);
 
 	/* Clear interrupt */
 	dwc2_writel(GINTSTS_SESSREQINT, hsotg->regs + GINTSTS);
 
-	/*
-	 * Report disconnect if there is any previous session established
-	 */
-	if (dwc2_is_device_mode(hsotg))
+	if (dwc2_is_device_mode(hsotg)) {
+		if (hsotg->lx_state == DWC2_L2) {
+			ret = dwc2_exit_hibernation(hsotg, true);
+			if (ret && (ret != -ENOTSUPP))
+				dev_err(hsotg->dev,
+					"exit hibernation failed\n");
+		}
+
+		/*
+		 * Report disconnect if there is any previous session
+		 * established
+		 */
 		dwc2_hsotg_disconnect(hsotg);
+	}
 }
 
 /*
