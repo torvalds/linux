@@ -854,34 +854,18 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
 	return nsecs / 1000;
 }
 
+/*
+ * TRACE_FLAGS is defined as a tuple matching bit masks with strings.
+ * It uses C(a, b) where 'a' is the enum name and 'b' is the string that
+ * matches it. By defining "C(a, b) b", TRACE_FLAGS becomes a list
+ * of strings in the order that the enums were defined.
+ */
+#undef C
+#define C(a, b) b
+
 /* These must match the bit postions in trace_iterator_flags */
 static const char *trace_options[] = {
-	"print-parent",
-	"sym-offset",
-	"sym-addr",
-	"verbose",
-	"raw",
-	"hex",
-	"bin",
-	"block",
-	"stacktrace",
-	"trace_printk",
-	"branch",
-	"annotate",
-	"userstacktrace",
-	"sym-userobj",
-	"printk-msg-only",
-	"context-info",
-	"latency-format",
-	"sleep-time",
-	"graph-time",
-	"record-cmd",
-	"overwrite",
-	"disable_on_free",
-	"irq-info",
-	"markers",
-	"function-trace",
-	"display-graph",
+	TRACE_FLAGS
 	NULL
 };
 

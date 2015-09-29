@@ -884,65 +884,53 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
  * positions into trace_flags that controls the output.
  *
  * NOTE: These bits must match the trace_options array in
- *       trace.c.
+ *       trace.c (this macro guarantees it).
  */
-enum trace_iterator_bits {
-	TRACE_ITER_PRINT_PARENT_BIT	= 0,
-	TRACE_ITER_SYM_OFFSET_BIT,
-	TRACE_ITER_SYM_ADDR_BIT,
-	TRACE_ITER_VERBOSE_BIT,
-	TRACE_ITER_RAW_BIT,
-	TRACE_ITER_HEX_BIT,
-	TRACE_ITER_BIN_BIT,
-	TRACE_ITER_BLOCK_BIT,
-	TRACE_ITER_STACKTRACE_BIT,
-	TRACE_ITER_PRINTK_BIT,
-	TRACE_ITER_BRANCH_BIT,
-	TRACE_ITER_ANNOTATE_BIT,
-	TRACE_ITER_USERSTACKTRACE_BIT,
-	TRACE_ITER_SYM_USEROBJ_BIT,
-	TRACE_ITER_PRINTK_MSGONLY_BIT,
-	TRACE_ITER_CONTEXT_INFO_BIT,	/* Print pid/cpu/time */
-	TRACE_ITER_LATENCY_FMT_BIT,
-	TRACE_ITER_SLEEP_TIME_BIT,
-	TRACE_ITER_GRAPH_TIME_BIT,
-	TRACE_ITER_RECORD_CMD_BIT,
-	TRACE_ITER_OVERWRITE_BIT,
-	TRACE_ITER_STOP_ON_FREE_BIT,
-	TRACE_ITER_IRQ_INFO_BIT,
-	TRACE_ITER_MARKERS_BIT,
-	TRACE_ITER_FUNCTION_BIT,
-	TRACE_ITER_DISPLAY_GRAPH_BIT,
-};
+#define TRACE_FLAGS						\
+		C(PRINT_PARENT,		"print-parent"),	\
+		C(SYM_OFFSET,		"sym-offset"),		\
+		C(SYM_ADDR,		"sym-addr"),		\
+		C(VERBOSE,		"verbose"),		\
+		C(RAW,			"raw"),			\
+		C(HEX,			"hex"),			\
+		C(BIN,			"bin"),			\
+		C(BLOCK,		"block"),		\
+		C(STACKTRACE,		"stacktrace"),		\
+		C(PRINTK,		"trace_printk"),	\
+		C(BRANCH,		"branch"),		\
+		C(ANNOTATE,		"annotate"),		\
+		C(USERSTACKTRACE,	"userstacktrace"),	\
+		C(SYM_USEROBJ,		"sym-userobj"),		\
+		C(PRINTK_MSGONLY,	"printk-msg-only"),	\
+		C(CONTEXT_INFO,		"context-info"),   /* Print pid/cpu/time */ \
+		C(LATENCY_FMT,		"latency-format"),	\
+		C(SLEEP_TIME,		"sleep-time"),		\
+		C(GRAPH_TIME,		"graph-time"),		\
+		C(RECORD_CMD,		"record-cmd"),		\
+		C(OVERWRITE,		"overwrite"),		\
+		C(STOP_ON_FREE,		"disable_on_free"),	\
+		C(IRQ_INFO,		"irq-info"),		\
+		C(MARKERS,		"markers"),		\
+		C(FUNCTION,		"function-trace"),	\
+		C(DISPLAY_GRAPH,	"display-graph"),
 
-enum trace_iterator_flags {
-	TRACE_ITER_PRINT_PARENT		= (1 << TRACE_ITER_PRINT_PARENT_BIT),
-	TRACE_ITER_SYM_OFFSET		= (1 << TRACE_ITER_SYM_OFFSET_BIT),
-	TRACE_ITER_SYM_ADDR		= (1 << TRACE_ITER_SYM_ADDR_BIT),
-	TRACE_ITER_VERBOSE		= (1 << TRACE_ITER_VERBOSE_BIT),
-	TRACE_ITER_RAW			= (1 << TRACE_ITER_RAW_BIT),
-	TRACE_ITER_HEX			= (1 << TRACE_ITER_HEX_BIT),
-	TRACE_ITER_BIN			= (1 << TRACE_ITER_BIN_BIT),
-	TRACE_ITER_BLOCK		= (1 << TRACE_ITER_BLOCK_BIT),
-	TRACE_ITER_STACKTRACE		= (1 << TRACE_ITER_STACKTRACE_BIT),
-	TRACE_ITER_PRINTK		= (1 << TRACE_ITER_PRINTK_BIT),
-	TRACE_ITER_BRANCH		= (1 << TRACE_ITER_BRANCH_BIT),
-	TRACE_ITER_ANNOTATE		= (1 << TRACE_ITER_ANNOTATE_BIT),
-	TRACE_ITER_USERSTACKTRACE       = (1 << TRACE_ITER_USERSTACKTRACE_BIT),
-	TRACE_ITER_SYM_USEROBJ          = (1 << TRACE_ITER_SYM_USEROBJ_BIT),
-	TRACE_ITER_PRINTK_MSGONLY	= (1 << TRACE_ITER_PRINTK_MSGONLY_BIT),
-	TRACE_ITER_CONTEXT_INFO		= (1 << TRACE_ITER_CONTEXT_INFO_BIT),
-	TRACE_ITER_LATENCY_FMT		= (1 << TRACE_ITER_LATENCY_FMT_BIT),
-	TRACE_ITER_SLEEP_TIME		= (1 << TRACE_ITER_SLEEP_TIME_BIT),
-	TRACE_ITER_GRAPH_TIME		= (1 << TRACE_ITER_GRAPH_TIME_BIT),
-	TRACE_ITER_RECORD_CMD		= (1 << TRACE_ITER_RECORD_CMD_BIT),
-	TRACE_ITER_OVERWRITE		= (1 << TRACE_ITER_OVERWRITE_BIT),
-	TRACE_ITER_STOP_ON_FREE		= (1 << TRACE_ITER_STOP_ON_FREE_BIT),
-	TRACE_ITER_IRQ_INFO		= (1 << TRACE_ITER_IRQ_INFO_BIT),
-	TRACE_ITER_MARKERS		= (1 << TRACE_ITER_MARKERS_BIT),
-	TRACE_ITER_FUNCTION		= (1 << TRACE_ITER_FUNCTION_BIT),
-	TRACE_ITER_DISPLAY_GRAPH	= (1 << TRACE_ITER_DISPLAY_GRAPH_BIT),
-};
+/*
+ * By defining C, we can make TRACE_FLAGS a list of bit names
+ * that will define the bits for the flag masks.
+ */
+#undef C
+#define C(a, b) TRACE_ITER_##a##_BIT
+
+enum trace_iterator_bits { TRACE_FLAGS };
+
+/*
+ * By redefining C, we can make TRACE_FLAGS a list of masks that
+ * use the bits as defined above.
+ */
+#undef C
+#define C(a, b) TRACE_ITER_##a = (1 << TRACE_ITER_##a##_BIT)
+
+enum trace_iterator_flags { TRACE_FLAGS };
 
 /*
  * TRACE_ITER_SYM_MASK masks the options in trace_flags that
