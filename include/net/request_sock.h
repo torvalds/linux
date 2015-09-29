@@ -180,11 +180,8 @@ struct request_sock_queue {
 	struct request_sock	*rskq_accept_tail;
 	u8			rskq_defer_accept;
 	struct listen_sock	*listen_opt;
-	struct fastopen_queue	*fastopenq; /* This is non-NULL iff TFO has been
-					     * enabled on this listener. Check
-					     * max_qlen != 0 in fastopen_queue
-					     * to determine if TFO is enabled
-					     * right at this moment.
+	struct fastopen_queue	fastopenq;  /* Check max_qlen != 0 to determine
+					     * if TFO is enabled.
 					     */
 
 	/* temporary alignment, our goal is to get rid of this lock */

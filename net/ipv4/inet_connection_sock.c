@@ -335,9 +335,8 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 
 	sk_acceptq_removed(sk);
 	if (sk->sk_protocol == IPPROTO_TCP &&
-	    tcp_rsk(req)->tfo_listener &&
-	    queue->fastopenq) {
-		spin_lock_bh(&queue->fastopenq->lock);
+	    tcp_rsk(req)->tfo_listener) {
+		spin_lock_bh(&queue->fastopenq.lock);
 		if (tcp_rsk(req)->tfo_listener) {
 			/* We are still waiting for the final ACK from 3WHS
 			 * so can't free req now. Instead, we set req->sk to
@@ -348,7 +347,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 			req->sk = NULL;
 			req = NULL;
 		}
-		spin_unlock_bh(&queue->fastopenq->lock);
+		spin_unlock_bh(&queue->fastopenq.lock);
 	}
 out:
 	release_sock(sk);
@@ -886,12 +885,12 @@ void inet_csk_listen_stop(struct sock *sk)
 		sk_acceptq_removed(sk);
 		reqsk_put(req);
 	}
-	if (queue->fastopenq) {
+	if (queue->fastopenq.rskq_rst_head) {
 		/* Free all the reqs queued in rskq_rst_head. */
-		spin_lock_bh(&queue->fastopenq->lock);
-		acc_req = queue->fastopenq->rskq_rst_head;
-		queue->fastopenq->rskq_rst_head = NULL;
-		spin_unlock_bh(&queue->fastopenq->lock);
+		spin_lock_bh(&queue->fastopenq.lock);
+		acc_req = queue->fastopenq.rskq_rst_head;
+		queue->fastopenq.rskq_rst_head = NULL;
+		spin_unlock_bh(&queue->fastopenq.lock);
 		while ((req = acc_req) != NULL) {
 			acc_req = req->dl_next;
 			reqsk_put(req);
