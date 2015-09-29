@@ -571,11 +571,7 @@ static int rtsx_pci_set_pull_ctl(struct rtsx_pcr *pcr, const u32 *tbl)
 		tbl++;
 	}
 
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 int rtsx_pci_card_pull_ctl_enable(struct rtsx_pcr *pcr, int card)
