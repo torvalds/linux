@@ -493,7 +493,7 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		return NULL;
 
 	dparam = &info->driver_param;
-	dparam->type = of_id ? (u32)of_id->data : 0;
+	dparam->type = of_id ? (uintptr_t)of_id->data : 0;
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
 	gpio = of_get_named_gpio_flags(dev->of_node, "renesas,enable-gpio", 0,
