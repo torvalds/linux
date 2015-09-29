@@ -243,7 +243,6 @@ struct i40e_pf {
 	struct pci_dev *pdev;
 	struct i40e_hw hw;
 	unsigned long state;
-	unsigned long link_check_timeout;
 	struct msix_entry *msix_entries;
 	bool fc_autoneg_status;
 
@@ -667,7 +666,7 @@ struct i40e_mac_filter *i40e_add_filter(struct i40e_vsi *vsi,
 					bool is_vf, bool is_netdev);
 void i40e_del_filter(struct i40e_vsi *vsi, u8 *macaddr, s16 vlan,
 		     bool is_vf, bool is_netdev);
-int i40e_sync_vsi_filters(struct i40e_vsi *vsi);
+int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl);
 struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 				u16 uplink, u32 param1);
 int i40e_vsi_release(struct i40e_vsi *vsi);

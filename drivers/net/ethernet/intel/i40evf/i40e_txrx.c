@@ -140,65 +140,6 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
 	return le32_to_cpu(*(volatile __le32 *)head);
 }
 
-/**
- * i40e_get_tx_pending - how many tx descriptors not processed
- * @tx_ring: the ring of descriptors
- *
- * Since there is no access to the ring head register
- * in XL710, we need to use our local copies
- **/
-static u32 i40e_get_tx_pending(struct i40e_ring *ring)
-{
-	u32 head, tail;
-
-	head = i40e_get_head(ring);
-	tail = readl(ring->tail);
-
-	if (head != tail)
-		return (head < tail) ?
-			tail - head : (tail + ring->count - head);
-
-	return 0;
-}
-
-/**
- * i40e_check_tx_hang - Is there a hang in the Tx queue
- * @tx_ring: the ring of descriptors
- **/
-static bool i40e_check_tx_hang(struct i40e_ring *tx_ring)
-{
-	u32 tx_done = tx_ring->stats.packets;
-	u32 tx_done_old = tx_ring->tx_stats.tx_done_old;
-	u32 tx_pending = i40e_get_tx_pending(tx_ring);
-	bool ret = false;
-
-	clear_check_for_tx_hang(tx_ring);
-
-	/* Check for a hung queue, but be thorough. This verifies
-	 * that a transmit has been completed since the previous
-	 * check AND there is at least one packet pending. The
-	 * ARMED bit is set to indicate a potential hang. The
-	 * bit is cleared if a pause frame is received to remove
-	 * false hang detection due to PFC or 802.3x frames. By
-	 * requiring this to fail twice we avoid races with
-	 * PFC clearing the ARMED bit and conditions where we
-	 * run the check_tx_hang logic with a transmit completion
-	 * pending but without time to complete it yet.
-	 */
-	if ((tx_done_old == tx_done) && tx_pending) {
-		/* make sure it is true for two checks in a row */
-		ret = test_and_set_bit(__I40E_HANG_CHECK_ARMED,
-				       &tx_ring->state);
-	} else if (tx_done_old == tx_done &&
-		   (tx_pending < I40E_MIN_DESC_PENDING) && (tx_pending > 0)) {
-		/* update completed stats and disarm the hang check */
-		tx_ring->tx_stats.tx_done_old = tx_done;
-		clear_bit(__I40E_HANG_CHECK_ARMED, &tx_ring->state);
-	}
-
-	return ret;
-}
-
 #define WB_STRIDE 0x3
 
 /**
@@ -304,6 +245,10 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_packets += total_packets;
 
+	/* check to see if there are any non-cache aligned descriptors
+	 * waiting to be written back, and kick the hardware to force
+	 * them to be written back in case of napi polling
+	 */
 	if (budget &&
 	    !((i & WB_STRIDE) == WB_STRIDE) &&
 	    !test_bit(__I40E_DOWN, &tx_ring->vsi->state) &&
@@ -311,29 +256,6 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		tx_ring->arm_wb = true;
 	else
 		tx_ring->arm_wb = false;
-
-	if (check_for_tx_hang(tx_ring) && i40e_check_tx_hang(tx_ring)) {
-		/* schedule immediate reset if we believe we hung */
-		dev_info(tx_ring->dev, "Detected Tx Unit Hang\n"
-			 "  VSI                  <%d>\n"
-			 "  Tx Queue             <%d>\n"
-			 "  next_to_use          <%x>\n"
-			 "  next_to_clean        <%x>\n",
-			 tx_ring->vsi->seid,
-			 tx_ring->queue_index,
-			 tx_ring->next_to_use, i);
-
-		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
-
-		dev_info(tx_ring->dev,
-			 "tx hang detected on queue %d, resetting adapter\n",
-			 tx_ring->queue_index);
-
-		tx_ring->netdev->netdev_ops->ndo_tx_timeout(tx_ring->netdev);
-
-		/* the adapter is about to reset, no point in enabling stuff */
-		return true;
-	}
 
 	netdev_tx_completed_queue(netdev_get_tx_queue(tx_ring->netdev,
 						      tx_ring->queue_index),
@@ -355,16 +277,16 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		}
 	}
 
-	return budget > 0;
+	return !!budget;
 }
 
 /**
- * i40e_force_wb -Arm hardware to do a wb on noncache aligned descriptors
+ * i40evf_force_wb -Arm hardware to do a wb on noncache aligned descriptors
  * @vsi: the VSI we care about
  * @q_vector: the vector  on which to force writeback
  *
  **/
-static void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
+static void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
 	u16 flags = q_vector->tx.ring[0].flags;
 
@@ -1385,7 +1307,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
 		if (arm_wb)
-			i40e_force_wb(vsi, q_vector);
+			i40evf_force_wb(vsi, q_vector);
 		return budget;
 	}
 

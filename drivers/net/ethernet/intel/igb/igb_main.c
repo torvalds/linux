@@ -2986,6 +2986,9 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	}
 #endif /* CONFIG_PCI_IOV */
 
+	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
+	adapter->flags |= IGB_FLAG_HAS_MSIX;
+
 	igb_probe_vfs(adapter);
 
 	igb_init_queue_configuration(adapter);
