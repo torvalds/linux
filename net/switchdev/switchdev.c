@@ -386,9 +386,12 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
  *	switchdev_port_obj_dump - Dump port objects
  *
  *	@dev: port device
+ *	@id: object ID
  *	@obj: object to dump
+ *	@cb: function to call with a filled object
  */
-int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj)
+int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
+			    void *obj, int (*cb)(void *obj))
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -396,7 +399,7 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj)
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_obj_dump)
-		return ops->switchdev_port_obj_dump(dev, obj);
+		return ops->switchdev_port_obj_dump(dev, id, obj, cb);
 
 	/* Switch device port(s) may be stacked under
 	 * bond/team/vlan dev, so recurse down to dump objects on
@@ -404,7 +407,7 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj)
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_obj_dump(lower_dev, obj);
+		err = switchdev_port_obj_dump(lower_dev, id, obj, cb);
 		break;
 	}
 
@@ -476,7 +479,7 @@ int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
 
 struct switchdev_vlan_dump {
-	struct switchdev_obj obj;
+	struct switchdev_obj_vlan vlan;
 	struct sk_buff *skb;
 	u32 filter_mask;
 	u16 flags;
@@ -514,11 +517,11 @@ static int switchdev_port_vlan_dump_put(struct switchdev_vlan_dump *dump)
 	return 0;
 }
 
-static int switchdev_port_vlan_dump_cb(struct switchdev_obj *obj)
+static int switchdev_port_vlan_dump_cb(void *obj)
 {
+	struct switchdev_obj_vlan *vlan = obj;
 	struct switchdev_vlan_dump *dump =
-		container_of(obj, struct switchdev_vlan_dump, obj);
-	struct switchdev_obj_vlan *vlan = &dump->obj.u.vlan;
+		container_of(vlan, struct switchdev_vlan_dump, vlan);
 	int err = 0;
 
 	if (vlan->vid_begin > vlan->vid_end)
@@ -570,10 +573,6 @@ static int switchdev_port_vlan_fill(struct sk_buff *skb, struct net_device *dev,
 				    u32 filter_mask)
 {
 	struct switchdev_vlan_dump dump = {
-		.obj = {
-			.id = SWITCHDEV_OBJ_PORT_VLAN,
-			.cb = switchdev_port_vlan_dump_cb,
-		},
 		.skb = skb,
 		.filter_mask = filter_mask,
 	};
@@ -581,7 +580,9 @@ static int switchdev_port_vlan_fill(struct sk_buff *skb, struct net_device *dev,
 
 	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
 	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
-		err = switchdev_port_obj_dump(dev, &dump.obj);
+		err = switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_PORT_VLAN,
+					      &dump.vlan,
+					      switchdev_port_vlan_dump_cb);
 		if (err)
 			goto err_out;
 		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
@@ -856,17 +857,18 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
 
 struct switchdev_fdb_dump {
-	struct switchdev_obj obj;
+	struct switchdev_obj_fdb fdb;
 	struct net_device *dev;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	int idx;
 };
 
-static int switchdev_port_fdb_dump_cb(struct switchdev_obj *obj)
+static int switchdev_port_fdb_dump_cb(void *obj)
 {
+	struct switchdev_obj_fdb *fdb = obj;
 	struct switchdev_fdb_dump *dump =
-		container_of(obj, struct switchdev_fdb_dump, obj);
+		container_of(fdb, struct switchdev_fdb_dump, fdb);
 	u32 portid = NETLINK_CB(dump->cb->skb).portid;
 	u32 seq = dump->cb->nlh->nlmsg_seq;
 	struct nlmsghdr *nlh;
@@ -887,12 +889,12 @@ static int switchdev_port_fdb_dump_cb(struct switchdev_obj *obj)
 	ndm->ndm_flags   = NTF_SELF;
 	ndm->ndm_type    = 0;
 	ndm->ndm_ifindex = dump->dev->ifindex;
-	ndm->ndm_state   = obj->u.fdb.ndm_state;
+	ndm->ndm_state   = fdb->ndm_state;
 
-	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, obj->u.fdb.addr))
+	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, fdb->addr))
 		goto nla_put_failure;
 
-	if (obj->u.fdb.vid && nla_put_u16(dump->skb, NDA_VLAN, obj->u.fdb.vid))
+	if (fdb->vid && nla_put_u16(dump->skb, NDA_VLAN, fdb->vid))
 		goto nla_put_failure;
 
 	nlmsg_end(dump->skb, nlh);
@@ -922,17 +924,14 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *filter_dev, int idx)
 {
 	struct switchdev_fdb_dump dump = {
-		.obj = {
-			.id = SWITCHDEV_OBJ_PORT_FDB,
-			.cb = switchdev_port_fdb_dump_cb,
-		},
 		.dev = dev,
 		.skb = skb,
 		.cb = cb,
 		.idx = idx,
 	};
 
-	switchdev_port_obj_dump(dev, &dump.obj);
+	switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_PORT_FDB, &dump.fdb,
+				switchdev_port_fdb_dump_cb);
 	return dump.idx;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);

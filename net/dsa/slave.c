@@ -300,9 +300,9 @@ static int dsa_slave_port_vlan_del(struct net_device *dev,
 }
 
 static int dsa_slave_port_vlan_dump(struct net_device *dev,
-				    struct switchdev_obj *obj)
+				    struct switchdev_obj_vlan *vlan,
+				    int (*cb)(void *obj))
 {
-	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 	DECLARE_BITMAP(members, DSA_MAX_PORTS);
@@ -334,7 +334,7 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 		if (test_bit(p->port, untagged))
 			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
 
-		err = obj->cb(obj);
+		err = cb(vlan);
 		if (err)
 			break;
 	}
@@ -374,7 +374,8 @@ static int dsa_slave_port_fdb_del(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_dump(struct net_device *dev,
-				   struct switchdev_obj *obj)
+				   struct switchdev_obj_fdb *fdb,
+				   int (*cb)(void *obj))
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
@@ -393,11 +394,11 @@ static int dsa_slave_port_fdb_dump(struct net_device *dev,
 		if (ret < 0)
 			break;
 
-		obj->u.fdb.addr = addr;
-		obj->u.fdb.vid = vid;
-		obj->u.fdb.ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
+		fdb->addr = addr;
+		fdb->vid = vid;
+		fdb->ndm_state = is_static ? NUD_NOARP : NUD_REACHABLE;
 
-		ret = obj->cb(obj);
+		ret = cb(fdb);
 		if (ret < 0)
 			break;
 	}
@@ -518,16 +519,17 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 }
 
 static int dsa_slave_port_obj_dump(struct net_device *dev,
-				   struct switchdev_obj *obj)
+				   enum switchdev_obj_id id, void *obj,
+				   int (*cb)(void *obj))
 {
 	int err;
 
-	switch (obj->id) {
+	switch (id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
-		err = dsa_slave_port_fdb_dump(dev, obj);
+		err = dsa_slave_port_fdb_dump(dev, obj, cb);
 		break;
 	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = dsa_slave_port_vlan_dump(dev, obj);
+		err = dsa_slave_port_vlan_dump(dev, obj, cb);
 		break;
 	default:
 		err = -EOPNOTSUPP;

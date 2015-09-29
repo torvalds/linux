@@ -4538,10 +4538,10 @@ static int rocker_port_obj_del(struct net_device *dev,
 }
 
 static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
-				struct switchdev_obj *obj)
+				struct switchdev_obj_fdb *fdb,
+				int (*cb)(void *obj))
 {
 	struct rocker *rocker = rocker_port->rocker;
-	struct switchdev_obj_fdb *fdb = &obj->u.fdb;
 	struct rocker_fdb_tbl_entry *found;
 	struct hlist_node *tmp;
 	unsigned long lock_flags;
@@ -4556,7 +4556,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 		fdb->ndm_state = NUD_REACHABLE;
 		fdb->vid = rocker_port_vlan_to_vid(rocker_port,
 						   found->key.vlan_id);
-		err = obj->cb(obj);
+		err = cb(fdb);
 		if (err)
 			break;
 	}
@@ -4566,9 +4566,9 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 }
 
 static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
-				 struct switchdev_obj *obj)
+				 struct switchdev_obj_vlan *vlan,
+				int (*cb)(void *obj))
 {
-	struct switchdev_obj_vlan *vlan = &obj->u.vlan;
 	u16 vid;
 	int err = 0;
 
@@ -4579,7 +4579,7 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 		if (rocker_vlan_id_is_internal(htons(vid)))
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
 		vlan->vid_begin = vlan->vid_end = vid;
-		err = obj->cb(obj);
+		err = cb(vlan);
 		if (err)
 			break;
 	}
@@ -4588,17 +4588,18 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 }
 
 static int rocker_port_obj_dump(struct net_device *dev,
-				struct switchdev_obj *obj)
+				enum switchdev_obj_id id, void *obj,
+				int (*cb)(void *obj))
 {
 	const struct rocker_port *rocker_port = netdev_priv(dev);
 	int err = 0;
 
-	switch (obj->id) {
+	switch (id) {
 	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_dump(rocker_port, obj);
+		err = rocker_port_fdb_dump(rocker_port, obj, cb);
 		break;
 	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlan_dump(rocker_port, obj);
+		err = rocker_port_vlan_dump(rocker_port, obj, cb);
 		break;
 	default:
 		err = -EOPNOTSUPP;

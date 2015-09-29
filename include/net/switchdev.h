@@ -120,7 +120,8 @@ struct switchdev_ops {
 	int	(*switchdev_port_obj_del)(struct net_device *dev,
 					  struct switchdev_obj *obj);
 	int	(*switchdev_port_obj_dump)(struct net_device *dev,
-					  struct switchdev_obj *obj);
+					   enum switchdev_obj_id id, void *obj,
+					   int (*cb)(void *obj));
 };
 
 enum switchdev_notifier_type {
@@ -152,7 +153,8 @@ int switchdev_port_attr_set(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj);
 int switchdev_port_obj_del(struct net_device *dev, struct switchdev_obj *obj);
-int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj);
+int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
+			    void *obj, int (*cb)(void *obj));
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
@@ -209,7 +211,8 @@ static inline int switchdev_port_obj_del(struct net_device *dev,
 }
 
 static inline int switchdev_port_obj_dump(struct net_device *dev,
-					  struct switchdev_obj *obj)
+					  enum switchdev_obj_id id, void *obj,
+					  int (*cb)(void *obj))
 {
 	return -EOPNOTSUPP;
 }
