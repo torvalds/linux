@@ -33,6 +33,7 @@
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
 #include <subdev/clk/pll.h>
+#include <subdev/gpio.h>
 
 struct nv50_ramseq {
 	struct hwsq base;
@@ -59,6 +60,7 @@ struct nv50_ramseq {
 	struct hwsq_reg r_0x611200;
 	struct hwsq_reg r_timing[9];
 	struct hwsq_reg r_mr[4];
+	struct hwsq_reg r_gpio[4];
 };
 
 struct nv50_ram {
@@ -152,6 +154,33 @@ nvkm_sddr2_dll_reset(struct nv50_ramseq *hwsq)
 	ram_mask(hwsq, mr[0], 0x100, 0x100);
 	ram_mask(hwsq, mr[0], 0x100, 0x000);
 	ram_nsec(hwsq, 24000);
+}
+
+static void
+nv50_ram_gpio(struct nv50_ramseq *hwsq, u8 tag, u32 val)
+{
+	struct nvkm_gpio *gpio = hwsq->base.subdev->device->gpio;
+	struct dcb_gpio_func func;
+	u32 reg, sh, gpio_val;
+	int ret;
+
+	if (nvkm_gpio_get(gpio, 0, tag, DCB_GPIO_UNUSED) != val) {
+		ret = nvkm_gpio_find(gpio, 0, tag, DCB_GPIO_UNUSED, &func);
+		if (ret)
+			return;
+
+		reg = func.line >> 3;
+		sh = (func.line & 0x7) << 2;
+		gpio_val = ram_rd32(hwsq, gpio[reg]);
+
+		if (gpio_val & (8 << sh))
+			val = !val;
+		if (!(func.log[1] & 1))
+			val = !val;
+
+		ram_mask(hwsq, gpio[reg], (0x3 << sh), ((val | 0x2) << sh));
+		ram_nsec(hwsq, 20000);
+	}
 }
 
 static int
@@ -250,6 +279,9 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_wait(hwsq, 0x00, 0x01); /* wait for fb disabled */
 	ram_nsec(hwsq, 2000);
 
+	if (next->bios.timing_10_ODT)
+		nv50_ram_gpio(hwsq, 0x2e, 1);
+
 	ram_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge */
 	ram_wr32(hwsq, 0x1002d0, 0x00000001); /* refresh */
 	ram_wr32(hwsq, 0x1002d0, 0x00000001); /* refresh */
@@ -288,6 +320,7 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x004008, 0x91ff0000, r004008);
 	if (subdev->device->chipset >= 0x96)
 		ram_wr32(hwsq, 0x100da0, r100da0);
+	nv50_ram_gpio(hwsq, 0x18, !next->bios.ramcfg_FBVDDQ);
 	ram_nsec(hwsq, 64000); /*XXX*/
 	ram_nsec(hwsq, 32000); /*XXX*/
 
@@ -363,6 +396,9 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 		ram_mask(hwsq, 0x10053c, 0x00001000, 0x00001000);
 	}
 	ram_mask(hwsq, mr[1], 0xffffffff, ram->base.mr[1]);
+
+	if (!next->bios.timing_10_ODT)
+		nv50_ram_gpio(hwsq, 0x2e, 0);
 
 	/* Reset DLL */
 	if (!next->bios.ramcfg_DLLoff)
@@ -633,6 +669,11 @@ nv50_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		ram->hwsq.r_mr[2] = hwsq_reg(0x1002e0);
 		ram->hwsq.r_mr[3] = hwsq_reg(0x1002e4);
 	}
+
+	ram->hwsq.r_gpio[0] = hwsq_reg(0x00e104);
+	ram->hwsq.r_gpio[1] = hwsq_reg(0x00e108);
+	ram->hwsq.r_gpio[2] = hwsq_reg(0x00e120);
+	ram->hwsq.r_gpio[3] = hwsq_reg(0x00e124);
 
 	return 0;
 }
