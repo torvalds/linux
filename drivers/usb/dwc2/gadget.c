@@ -1206,9 +1206,10 @@ static void dwc2_hsotg_process_control(struct dwc2_hsotg *hsotg,
 	int ret = 0;
 	u32 dcfg;
 
-	dev_dbg(hsotg->dev, "ctrl Req=%02x, Type=%02x, V=%04x, L=%04x\n",
-		 ctrl->bRequest, ctrl->bRequestType,
-		 ctrl->wValue, ctrl->wLength);
+	dev_dbg(hsotg->dev,
+		"ctrl Type=%02x, Req=%02x, V=%04x, I=%04x, L=%04x\n",
+		ctrl->bRequestType, ctrl->bRequest, ctrl->wValue,
+		ctrl->wIndex, ctrl->wLength);
 
 	if (ctrl->wLength == 0) {
 		ep0->dir_in = 1;
