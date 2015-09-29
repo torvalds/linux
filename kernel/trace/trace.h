@@ -895,6 +895,13 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 # define FUNCTION_GRAPH_DEFAULT_FLAGS  0UL
 #endif
 
+#ifdef CONFIG_BRANCH_TRACER
+# define BRANCH_FLAGS					\
+		C(BRANCH,		"branch"),
+#else
+# define BRANCH_FLAGS
+#endif
+
 /*
  * trace_iterator_flags is an enumeration that defines bit
  * positions into trace_flags that controls the output.
@@ -913,7 +920,6 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(BLOCK,		"block"),		\
 		C(STACKTRACE,		"stacktrace"),		\
 		C(PRINTK,		"trace_printk"),	\
-		C(BRANCH,		"branch"),		\
 		C(ANNOTATE,		"annotate"),		\
 		C(USERSTACKTRACE,	"userstacktrace"),	\
 		C(SYM_USEROBJ,		"sym-userobj"),		\
@@ -926,7 +932,8 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(IRQ_INFO,		"irq-info"),		\
 		C(MARKERS,		"markers"),		\
 		C(FUNCTION,		"function-trace"),	\
-		FGRAPH_FLAGS
+		FGRAPH_FLAGS					\
+		BRANCH_FLAGS
 
 /*
  * By defining C, we can make TRACE_FLAGS a list of bit names
