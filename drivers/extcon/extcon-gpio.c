@@ -1,7 +1,5 @@
 /*
- *  drivers/extcon/extcon_gpio.c
- *
- *  Single-state GPIO extcon driver based on extcon class
+ * extcon_gpio.c - Single-state GPIO extcon driver based on extcon class
  *
  * Copyright (C) 2008 Google, Inc.
  * Author: Mike Lockwood <lockwood@android.com>
@@ -17,8 +15,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
-*/
+ */
 
 #include <linux/extcon.h>
 #include <linux/extcon/extcon-gpio.h>
@@ -37,7 +34,7 @@ struct gpio_extcon_data {
 	struct delayed_work work;
 	unsigned long debounce_jiffies;
 
-	struct gpio_extcon_platform_data *pdata;
+	struct gpio_extcon_pdata *pdata;
 };
 
 static void gpio_extcon_work(struct work_struct *work)
@@ -64,7 +61,7 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 
 static int gpio_extcon_probe(struct platform_device *pdev)
 {
-	struct gpio_extcon_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct gpio_extcon_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct gpio_extcon_data *data;
 	int ret;
 
