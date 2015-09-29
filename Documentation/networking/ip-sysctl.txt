@@ -1199,7 +1199,8 @@ tag - INTEGER
 xfrm4_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
-	refuse new allocations.
+	refuse new allocations. The value must be set below the flowcache
+	limit (4096 * number of online cpus) to take effect.
 
 igmp_link_local_mcast_reports - BOOLEAN
 	Enable IGMP reports for link local multicast groups in the
@@ -1645,7 +1646,8 @@ ratelimit - INTEGER
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
-	refuse new allocations.
+	refuse new allocations. The value must be set below the flowcache
+	limit (4096 * number of online cpus) to take effect.
 
 
 IPv6 Update by:
