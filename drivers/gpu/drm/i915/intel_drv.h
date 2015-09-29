@@ -834,8 +834,8 @@ struct intel_unpin_work {
 	u32 flip_count;
 	u32 gtt_offset;
 	struct drm_i915_gem_request *flip_queued_req;
-	int flip_queued_vblank;
-	int flip_ready_vblank;
+	u32 flip_queued_vblank;
+	u32 flip_ready_vblank;
 	bool enable_stall_check;
 };
 
@@ -1038,10 +1038,8 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe);
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 void intel_check_page_flip(struct drm_device *dev, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
-			   struct drm_framebuffer *fb,
 			   const struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
-			    struct drm_framebuffer *fb,
 			    const struct drm_plane_state *old_state);
 int intel_plane_atomic_get_property(struct drm_plane *plane,
 				    const struct drm_plane_state *state,

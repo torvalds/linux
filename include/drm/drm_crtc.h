@@ -210,8 +210,6 @@ struct drm_framebuffer {
 	int flags;
 	uint32_t pixel_format; /* fourcc format */
 	struct list_head filp_head;
-	/* if you are using the helper */
-	void *helper_private;
 };
 
 struct drm_property_blob {
@@ -415,9 +413,6 @@ struct drm_crtc_funcs {
  * @funcs: CRTC control functions
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
- * @framedur_ns: precise frame timing
- * @linedur_ns: precise line timing
- * @pixeldur_ns: precise pixel timing
  * @helper_private: mid-layer private data
  * @properties: property tracking for this CRTC
  * @state: current atomic state for this CRTC
@@ -469,9 +464,6 @@ struct drm_crtc {
 	/* CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
-
-	/* Constants needed for precise vblank and swap timestamping. */
-	int framedur_ns, linedur_ns, pixeldur_ns;
 
 	/* if you are using the helper */
 	const void *helper_private;
@@ -913,7 +905,6 @@ struct drm_bridge_funcs {
  * @next: the next bridge in the encoder chain
  * @of_node: device node pointer to the bridge
  * @list: to keep track of all added bridges
- * @base: base mode object
  * @funcs: control functions
  * @driver_private: pointer to the bridge driver's internal context
  */
@@ -1390,7 +1381,7 @@ extern int drm_property_add_enum(struct drm_property *property, int index,
 extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
 extern int drm_mode_create_tv_properties(struct drm_device *dev,
 					 unsigned int num_modes,
-					 char *modes[]);
+					 const char * const modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);

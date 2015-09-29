@@ -404,7 +404,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	enum port port = intel_dig_port->port;
 
-	connector = drm_select_eld(encoder, mode);
+	connector = drm_select_eld(encoder);
 	if (!connector)
 		return;
 

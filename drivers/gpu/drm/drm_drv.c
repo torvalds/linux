@@ -55,7 +55,6 @@ module_param_named(debug, drm_debug, int, 0600);
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
 
-struct class *drm_class;
 static struct dentry *drm_debugfs_root;
 
 void drm_err(const char *format, ...)
@@ -566,6 +565,8 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		ret = drm_minor_alloc(dev, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_minors;
+
+		WARN_ON(driver->suspend || driver->resume);
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_RENDER)) {
@@ -839,10 +840,9 @@ static int __init drm_core_init(void)
 	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
 		goto err_p1;
 
-	drm_class = drm_sysfs_create(THIS_MODULE, "drm");
-	if (IS_ERR(drm_class)) {
+	ret = drm_sysfs_init();
+	if (ret < 0) {
 		printk(KERN_ERR "DRM: Error creating drm class.\n");
-		ret = PTR_ERR(drm_class);
 		goto err_p2;
 	}
 

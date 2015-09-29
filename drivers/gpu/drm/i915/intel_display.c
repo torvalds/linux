@@ -13313,10 +13313,10 @@ static void intel_shared_dpll_init(struct drm_device *dev)
  */
 int
 intel_prepare_plane_fb(struct drm_plane *plane,
-		       struct drm_framebuffer *fb,
 		       const struct drm_plane_state *new_state)
 {
 	struct drm_device *dev = plane->dev;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
@@ -13354,19 +13354,18 @@ intel_prepare_plane_fb(struct drm_plane *plane,
  */
 void
 intel_cleanup_plane_fb(struct drm_plane *plane,
-		       struct drm_framebuffer *fb,
 		       const struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *obj = intel_fb_obj(old_state->fb);
 
-	if (WARN_ON(!obj))
+	if (!obj)
 		return;
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical) {
 		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(fb, old_state);
+		intel_unpin_fb_obj(old_state->fb, old_state);
 		mutex_unlock(&dev->struct_mutex);
 	}
 }

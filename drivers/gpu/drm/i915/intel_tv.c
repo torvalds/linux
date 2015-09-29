@@ -1579,7 +1579,7 @@ intel_tv_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	char *tv_format_names[ARRAY_SIZE(tv_modes)];
+	const char *tv_format_names[ARRAY_SIZE(tv_modes)];
 	int i, initial_mode = 0;
 
 	if ((I915_READ(TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
@@ -1677,7 +1677,7 @@ intel_tv_init(struct drm_device *dev)
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++)
-		tv_format_names[i] = (char *)tv_modes[i].name;
+		tv_format_names[i] = tv_modes[i].name;
 	drm_mode_create_tv_properties(dev,
 				      ARRAY_SIZE(tv_modes),
 				      tv_format_names);

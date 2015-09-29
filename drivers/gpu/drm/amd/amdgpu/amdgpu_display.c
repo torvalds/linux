@@ -745,7 +745,8 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *
  */
 int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int flags,
-			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode)
 {
 	u32 vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
@@ -781,7 +782,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	}
 	else {
 		/* No: Fake something reasonable which gives at least ok results. */
-		vbl_start = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
+		vbl_start = mode->crtc_vdisplay;
 		vbl_end = 0;
 	}
 
@@ -797,7 +798,7 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
 	if (in_vbl && (*vpos >= vbl_start)) {
-		vtotal = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vtotal = mode->crtc_vtotal;
 		*vpos = *vpos - vtotal;
 	}
 
@@ -819,8 +820,8 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
 	 */
 	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !in_vbl) {
-		vbl_start = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
-		vtotal = adev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vbl_start = mode->crtc_vdisplay;
+		vtotal = mode->crtc_vtotal;
 
 		if (vbl_start - *vpos < vtotal / 100) {
 			*vpos -= vtotal;

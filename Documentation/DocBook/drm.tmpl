@@ -3646,7 +3646,7 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
 	plane properties to default value, so that a subsequent open of the
 	device will not inherit state from the previous user. It can also be
 	used to execute delayed power switching state changes, e.g. in
-	conjunction with the vga-switcheroo infrastructure. Beyond that KMS
+	conjunction with the vga_switcheroo infrastructure. Beyond that KMS
 	drivers should not do any further cleanup. Only legacy UMS drivers might
 	need to clean up device state so that the vga console or an independent
 	fbdev driver could take over.

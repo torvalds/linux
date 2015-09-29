@@ -674,12 +674,12 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime)
+				    ktime_t *stime, ktime_t *etime,
+				    const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -836,7 +836,6 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     crtc,
 						     &crtc->hwmode);
 }
 

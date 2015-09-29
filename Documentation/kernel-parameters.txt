@@ -929,11 +929,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The filter can be disabled or changed to another
 			driver later using sysfs.
 
-	drm_kms_helper.edid_firmware=[<connector>:]<file>
-			Broken monitors, graphic adapters and KVMs may
-			send no or incorrect EDID data sets. This parameter
-			allows to specify an EDID data set in the
-			/lib/firmware directory that is used instead.
+	drm_kms_helper.edid_firmware=[<connector>:]<file>[,[<connector>:]<file>]
+			Broken monitors, graphic adapters, KVMs and EDIDless
+			panels may send no or incorrect EDID data sets.
+			This parameter allows to specify an EDID data sets
+			in the /lib/firmware directory that are used instead.
 			Generic built-in EDID data sets are used, if one of
 			edid/1024x768.bin, edid/1280x1024.bin,
 			edid/1680x1050.bin, or edid/1920x1080.bin is given
@@ -942,7 +942,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			available in Documentation/EDID/HOWTO.txt. An EDID
 			data set will only be used for a particular connector,
 			if its name and a colon are prepended to the EDID
-			name.
+			name. Each connector may use a unique EDID data
+			set by separating the files with a comma.  An EDID
+			data set with no connector name will be used for
+			any connectors not explicitly specified.
 
 	dscc4.setup=	[NET]
 
