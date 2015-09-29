@@ -48,7 +48,6 @@
 #include "llog_internal.h"
 
 static cfs_hash_ops_t uuid_hash_ops;
-static cfs_hash_ops_t nid_hash_ops;
 
 /*********** string parsing utils *********/
 
@@ -327,7 +326,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	   other fns check that status, and we're not actually set up yet. */
 	obd->obd_starting = 1;
 	obd->obd_uuid_hash = NULL;
-	obd->obd_nid_hash = NULL;
 	spin_unlock(&obd->obd_dev_lock);
 
 	/* create an uuid-export lustre hash */
@@ -339,19 +337,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 					     CFS_HASH_MAX_THETA,
 					     &uuid_hash_ops, CFS_HASH_DEFAULT);
 	if (!obd->obd_uuid_hash) {
-		err = -ENOMEM;
-		goto err_hash;
-	}
-
-	/* create a nid-export lustre hash */
-	obd->obd_nid_hash = cfs_hash_create("NID_HASH",
-					    HASH_NID_CUR_BITS,
-					    HASH_NID_MAX_BITS,
-					    HASH_NID_BKT_BITS, 0,
-					    CFS_HASH_MIN_THETA,
-					    CFS_HASH_MAX_THETA,
-					    &nid_hash_ops, CFS_HASH_DEFAULT);
-	if (!obd->obd_nid_hash) {
 		err = -ENOMEM;
 		goto err_hash;
 	}
@@ -389,10 +374,6 @@ err_hash:
 	if (obd->obd_uuid_hash) {
 		cfs_hash_putref(obd->obd_uuid_hash);
 		obd->obd_uuid_hash = NULL;
-	}
-	if (obd->obd_nid_hash) {
-		cfs_hash_putref(obd->obd_nid_hash);
-		obd->obd_nid_hash = NULL;
 	}
 	obd->obd_starting = 0;
 	CERROR("setup %s failed (%d)\n", obd->obd_name, err);
@@ -497,12 +478,6 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	if (obd->obd_uuid_hash) {
 		cfs_hash_putref(obd->obd_uuid_hash);
 		obd->obd_uuid_hash = NULL;
-	}
-
-	/* destroy a nid-export hash body */
-	if (obd->obd_nid_hash) {
-		cfs_hash_putref(obd->obd_nid_hash);
-		obd->obd_nid_hash = NULL;
 	}
 
 	class_decref(obd, "setup", obd);
@@ -1515,74 +1490,4 @@ static cfs_hash_ops_t uuid_hash_ops = {
 	.hs_object      = uuid_export_object,
 	.hs_get	 = uuid_export_get,
 	.hs_put_locked  = uuid_export_put_locked,
-};
-
-
-/*
- * nid<->export hash operations
- */
-
-static unsigned
-nid_hash(struct cfs_hash *hs, const void *key, unsigned mask)
-{
-	return cfs_hash_djb2_hash(key, sizeof(lnet_nid_t), mask);
-}
-
-static void *
-nid_key(struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-
-	return &exp->exp_connection->c_peer.nid;
-}
-
-/*
- * NOTE: It is impossible to find an export that is in failed
- *       state with this function
- */
-static int
-nid_kepcmp(const void *key, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	LASSERT(key);
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-
-	return exp->exp_connection->c_peer.nid == *(lnet_nid_t *)key &&
-	       !exp->exp_failed;
-}
-
-static void *
-nid_export_object(struct hlist_node *hnode)
-{
-	return hlist_entry(hnode, struct obd_export, exp_nid_hash);
-}
-
-static void
-nid_export_get(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-	class_export_get(exp);
-}
-
-static void
-nid_export_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
-{
-	struct obd_export *exp;
-
-	exp = hlist_entry(hnode, struct obd_export, exp_nid_hash);
-	class_export_put(exp);
-}
-
-static cfs_hash_ops_t nid_hash_ops = {
-	.hs_hash	= nid_hash,
-	.hs_key	 = nid_key,
-	.hs_keycmp      = nid_kepcmp,
-	.hs_object      = nid_export_object,
-	.hs_get	 = nid_export_get,
-	.hs_put_locked  = nid_export_put_locked,
 };

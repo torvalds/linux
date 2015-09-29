@@ -746,8 +746,6 @@ struct obd_device {
 	unsigned long obd_recovery_expired:1;
 	/* uuid-export hash body */
 	struct cfs_hash	     *obd_uuid_hash;
-	/* nid-export hash body */
-	struct cfs_hash	     *obd_nid_hash;
 	atomic_t	    obd_refcount;
 	wait_queue_head_t	     obd_refcount_waitq;
 	struct list_head	      obd_exports;

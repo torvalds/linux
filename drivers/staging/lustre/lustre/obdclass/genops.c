@@ -757,7 +757,6 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	spin_lock_init(&export->exp_lock);
 	spin_lock_init(&export->exp_rpc_lock);
 	INIT_HLIST_NODE(&export->exp_uuid_hash);
-	INIT_HLIST_NODE(&export->exp_nid_hash);
 	spin_lock_init(&export->exp_bl_list_lock);
 	INIT_LIST_HEAD(&export->exp_bl_list);
 
@@ -1103,18 +1102,11 @@ int class_disconnect(struct obd_export *export)
 	/* class_cleanup(), abort_recovery(), and class_fail_export()
 	 * all end up in here, and if any of them race we shouldn't
 	 * call extra class_export_puts(). */
-	if (already_disconnected) {
-		LASSERT(hlist_unhashed(&export->exp_nid_hash));
+	if (already_disconnected)
 		goto no_disconn;
-	}
 
 	CDEBUG(D_IOCTL, "disconnect: cookie %#llx\n",
 	       export->exp_handle.h_cookie);
-
-	if (!hlist_unhashed(&export->exp_nid_hash))
-		cfs_hash_del(export->exp_obd->obd_nid_hash,
-			     &export->exp_connection->c_peer.nid,
-			     &export->exp_nid_hash);
 
 	class_export_recovery_cleanup(export);
 	class_unlink_export(export);

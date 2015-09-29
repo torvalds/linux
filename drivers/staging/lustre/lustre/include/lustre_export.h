@@ -147,7 +147,6 @@ struct obd_export {
 	/** To link all exports on an obd device */
 	struct list_head		exp_obd_chain;
 	struct hlist_node	  exp_uuid_hash; /** uuid-export hash*/
-	struct hlist_node	  exp_nid_hash; /** nid-export hash */
 	/** Obd device of this export */
 	struct obd_device	*exp_obd;
 	/**
