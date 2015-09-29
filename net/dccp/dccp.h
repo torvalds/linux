@@ -270,7 +270,7 @@ int dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
 
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
-struct sock *dccp_create_openreq_child(struct sock *sk,
+struct sock *dccp_create_openreq_child(const struct sock *sk,
 				       const struct request_sock *req,
 				       const struct sk_buff *skb);
 
