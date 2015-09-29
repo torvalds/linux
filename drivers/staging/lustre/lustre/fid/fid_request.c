@@ -248,57 +248,6 @@ static void seq_fid_alloc_fini(struct lu_client_seq *seq)
 	wake_up(&seq->lcs_waitq);
 }
 
-/**
- * Allocate the whole seq to the caller.
- **/
-int seq_client_get_seq(const struct lu_env *env,
-		       struct lu_client_seq *seq, u64 *seqnr)
-{
-	wait_queue_t link;
-	int rc;
-
-	LASSERT(seqnr != NULL);
-	mutex_lock(&seq->lcs_mutex);
-	init_waitqueue_entry(&link, current);
-
-	while (1) {
-		rc = seq_fid_alloc_prep(seq, &link);
-		if (rc == 0)
-			break;
-	}
-
-	rc = seq_client_alloc_seq(env, seq, seqnr);
-	if (rc) {
-		CERROR("%s: Can't allocate new sequence, rc %d\n",
-		       seq->lcs_name, rc);
-		seq_fid_alloc_fini(seq);
-		mutex_unlock(&seq->lcs_mutex);
-		return rc;
-	}
-
-	CDEBUG(D_INFO, "%s: allocate sequence [0x%16.16Lx]\n",
-	       seq->lcs_name, *seqnr);
-
-	/* Since the caller require the whole seq,
-	 * so marked this seq to be used */
-	if (seq->lcs_type == LUSTRE_SEQ_METADATA)
-		seq->lcs_fid.f_oid = LUSTRE_METADATA_SEQ_MAX_WIDTH;
-	else
-		seq->lcs_fid.f_oid = LUSTRE_DATA_SEQ_MAX_WIDTH;
-
-	seq->lcs_fid.f_seq = *seqnr;
-	seq->lcs_fid.f_ver = 0;
-	/*
-	 * Inform caller that sequence switch is performed to allow it
-	 * to setup FLD for it.
-	 */
-	seq_fid_alloc_fini(seq);
-	mutex_unlock(&seq->lcs_mutex);
-
-	return rc;
-}
-EXPORT_SYMBOL(seq_client_get_seq);
-
 /* Allocate new fid on passed client @seq and save it to @fid. */
 int seq_client_alloc_fid(const struct lu_env *env,
 			 struct lu_client_seq *seq, struct lu_fid *fid)

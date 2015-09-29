@@ -430,9 +430,6 @@ void seq_client_flush(struct lu_client_seq *seq);
 
 int seq_client_alloc_fid(const struct lu_env *env, struct lu_client_seq *seq,
 			 struct lu_fid *fid);
-int seq_client_get_seq(const struct lu_env *env, struct lu_client_seq *seq,
-		       u64 *seqnr);
-int seq_site_fini(const struct lu_env *env, struct seq_server_site *ss);
 /* Fids common stuff */
 int fid_is_local(const struct lu_env *env,
 		 struct lu_site *site, const struct lu_fid *fid);
