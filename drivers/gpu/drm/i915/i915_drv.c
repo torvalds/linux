@@ -1053,9 +1053,19 @@ static int i915_pm_resume(struct device *dev)
 
 static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 {
+	enum csr_state state;
 	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
 
 	skl_uninit_cdclk(dev_priv);
+
+	/* TODO: wait for a completion event or
+	 * similar here instead of busy
+	 * waiting using wait_for function.
+	 */
+	wait_for((state = intel_csr_load_status_get(dev_priv)) !=
+			FW_UNINITIALIZED, 1000);
+	if (state == FW_LOADED)
+		skl_enable_dc6(dev_priv);
 
 	return 0;
 }
@@ -1102,6 +1112,9 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 static int skl_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+
+	if (intel_csr_load_status_get(dev_priv) == FW_LOADED)
+		skl_disable_dc6(dev_priv);
 
 	skl_init_cdclk(dev_priv);
 	intel_csr_load_program(dev);
