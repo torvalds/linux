@@ -120,7 +120,7 @@
 
 /* gcc builtin sr needs reg param to be long immediate */
 #define write_aux_reg(reg_immed, val)		\
-		__builtin_arc_sr((unsigned int)val, reg_immed)
+		__builtin_arc_sr((unsigned int)(val), reg_immed)
 
 #else
 
