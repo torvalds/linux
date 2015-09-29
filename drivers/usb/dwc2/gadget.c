@@ -3209,6 +3209,7 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	if (is_active) {
+		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		/*
 		 * If controller is hibernated, it must exit from hibernation
 		 * before being initialized
