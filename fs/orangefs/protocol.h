@@ -70,30 +70,21 @@ static inline int PVFS_khandle_cmp(const struct pvfs2_khandle *kh1,
 	return 0;
 }
 
-/* copy a khandle to a field of arbitrary size */
 static inline void PVFS_khandle_to(const struct pvfs2_khandle *kh,
 				   void *p, int size)
 {
-	int i;
-	unsigned char *c = p;
 
 	memset(p, 0, size);
+	memcpy(p, kh->u, 16);
 
-	for (i = 0; i < 16 && i < size; i++)
-		c[i] = kh->u[i];
 }
 
-/* copy a khandle from a field of arbitrary size */
 static inline void PVFS_khandle_from(struct pvfs2_khandle *kh,
 				     void *p, int size)
 {
-	int i;
-	unsigned char *c = p;
-
 	memset(kh, 0, 16);
+	memcpy(kh->u, p, 16);
 
-	for (i = 0; i < 16 && i < size; i++)
-		kh->u[i] = c[i];
 }
 
 /* pvfs2-types.h ************************************************************/
