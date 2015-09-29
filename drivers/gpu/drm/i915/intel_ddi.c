@@ -309,20 +309,26 @@ static void ddi_get_encoder_port(struct intel_encoder *intel_encoder,
 				 enum port *port)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	int type = intel_encoder->type;
 
-	if (type == INTEL_OUTPUT_DP_MST) {
+	switch (intel_encoder->type) {
+	case INTEL_OUTPUT_DP_MST:
 		*dig_port = enc_to_mst(encoder)->primary;
 		*port = (*dig_port)->port;
-	} else if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP ||
-	    type == INTEL_OUTPUT_HDMI || type == INTEL_OUTPUT_UNKNOWN) {
+		break;
+	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_EDP:
+	case INTEL_OUTPUT_HDMI:
+	case INTEL_OUTPUT_UNKNOWN:
 		*dig_port = enc_to_dig_port(encoder);
 		*port = (*dig_port)->port;
-	} else if (type == INTEL_OUTPUT_ANALOG) {
+		break;
+	case INTEL_OUTPUT_ANALOG:
 		*dig_port = NULL;
 		*port = PORT_E;
-	} else {
-		WARN(1, "Invalid DDI encoder type %d\n", type);
+		break;
+	default:
+		WARN(1, "Invalid DDI encoder type %d\n", intel_encoder->type);
+		break;
 	}
 }
 
