@@ -221,6 +221,17 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		(unsigned long)res->start, hsotg->regs);
 
 	hsotg->dr_mode = usb_get_dr_mode(&dev->dev);
+	if (IS_ENABLED(CONFIG_USB_DWC2_HOST) &&
+			hsotg->dr_mode != USB_DR_MODE_HOST) {
+		hsotg->dr_mode = USB_DR_MODE_HOST;
+		dev_warn(hsotg->dev,
+			"Configuration mismatch. Forcing host mode\n");
+	} else if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) &&
+			hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		hsotg->dr_mode = USB_DR_MODE_PERIPHERAL;
+		dev_warn(hsotg->dev,
+			"Configuration mismatch. Forcing peripheral mode\n");
+	}
 
 	/*
 	 * Attempt to find a generic PHY, then look for an old style
