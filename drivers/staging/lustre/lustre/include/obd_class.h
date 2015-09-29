@@ -64,7 +64,6 @@ extern struct obd_device *obd_devs[MAX_OBD_DEVICES];
 extern rwlock_t obd_dev_lock;
 
 /* OBD Operations Declarations */
-struct obd_device *class_conn2obd(struct lustre_handle *);
 struct obd_device *class_exp2obd(struct obd_export *);
 int class_handle_ioctl(unsigned int cmd, unsigned long arg);
 int lustre_get_jobid(char *jobid);
@@ -84,15 +83,12 @@ void class_release_dev(struct obd_device *obd);
 int class_name2dev(const char *name);
 struct obd_device *class_name2obd(const char *name);
 int class_uuid2dev(struct obd_uuid *uuid);
-struct obd_device *class_uuid2obd(struct obd_uuid *uuid);
-void class_obd_list(void);
 struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
 					  const char *typ_name,
 					  struct obd_uuid *grp_uuid);
 struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid,
 					   int *next);
 struct obd_device *class_num2obd(int num);
-int get_devices_count(void);
 
 int class_notify_sptlrpc_conf(const char *fsname, int namelen);
 
@@ -104,12 +100,6 @@ int obd_zombie_impexp_init(void);
 void obd_zombie_impexp_stop(void);
 void obd_zombie_impexp_cull(void);
 void obd_zombie_barrier(void);
-void obd_exports_barrier(struct obd_device *obd);
-int kuc_len(int payload_len);
-struct kuc_hdr *kuc_ptr(void *p);
-int kuc_ispayload(void *p);
-void *kuc_alloc(int payload_len, int transport, int type);
-void kuc_free(void *p, int payload_len);
 
 struct llog_handle;
 struct llog_rec_hdr;
@@ -283,7 +273,6 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 		  struct obd_uuid *cluuid);
 int class_disconnect(struct obd_export *exp);
 void class_fail_export(struct obd_export *exp);
-int class_connected_export(struct obd_export *exp);
 int class_manual_cleanup(struct obd_device *obd);
 static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 {

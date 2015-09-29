@@ -374,7 +374,6 @@ extern unsigned int at_max;
 /* genops.c */
 struct obd_export;
 struct obd_import *class_exp2cliimp(struct obd_export *);
-struct obd_import *class_conn2cliimp(struct lustre_handle *);
 
 /** @} import */
 
