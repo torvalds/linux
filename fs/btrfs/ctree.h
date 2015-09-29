@@ -1154,6 +1154,10 @@ struct btrfs_space_info {
 				   delalloc/allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
 
+	u64 max_extent_size;	/* This will hold the maximum extent size of
+				   the space info if we had an ENOSPC in the
+				   allocator. */
+
 	unsigned int full:1;	/* indicates that we cannot allocate any more
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */

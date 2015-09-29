@@ -3810,6 +3810,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_readonly = 0;
 	found->bytes_may_use = 0;
 	found->full = 0;
+	found->max_extent_size = 0;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	found->chunk_alloc = 0;
 	found->flush = 0;
@@ -6158,6 +6159,7 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		spin_lock(&cache->lock);
 		cache->pinned -= len;
 		space_info->bytes_pinned -= len;
+		space_info->max_extent_size = 0;
 		percpu_counter_add(&space_info->total_bytes_pinned, -len);
 		if (cache->ro) {
 			space_info->bytes_readonly += len;
@@ -6915,6 +6917,29 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	}
 
 	/*
+	 * If our free space is heavily fragmented we may not be able to make
+	 * big contiguous allocations, so instead of doing the expensive search
+	 * for free space, simply return ENOSPC with our max_extent_size so we
+	 * can go ahead and search for a more manageable chunk.
+	 *
+	 * If our max_extent_size is large enough for our allocation simply
+	 * disable clustering since we will likely not be able to find enough
+	 * space to create a cluster and induce latency trying.
+	 */
+	if (unlikely(space_info->max_extent_size)) {
+		spin_lock(&space_info->lock);
+		if (space_info->max_extent_size &&
+		    num_bytes > space_info->max_extent_size) {
+			ins->offset = space_info->max_extent_size;
+			spin_unlock(&space_info->lock);
+			return -ENOSPC;
+		} else if (space_info->max_extent_size) {
+			use_cluster = false;
+		}
+		spin_unlock(&space_info->lock);
+	}
+
+	/*
 	 * If the space info is for both data and metadata it means we have a
 	 * small filesystem and we can't use the clustering stuff.
 	 */
@@ -7287,8 +7312,12 @@ loop:
 		ret = 0;
 	}
 out:
-	if (ret == -ENOSPC)
+	if (ret == -ENOSPC) {
+		spin_lock(&space_info->lock);
+		space_info->max_extent_size = max_extent_size;
+		spin_unlock(&space_info->lock);
 		ins->offset = max_extent_size;
+	}
 	return ret;
 }
 
