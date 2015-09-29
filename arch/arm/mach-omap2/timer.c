@@ -592,16 +592,6 @@ static inline void __init realtime_counter_init(void)
 {}
 #endif
 
-static void __init __omap_gptimer_init(int clkev_nr, const char *clkev_src,
-		const char *clkev_prop, int clksrc_nr, const char *clksrc_src,
-		const char *clksrc_prop)
-{
-	omap_clk_init();
-	omap_dmtimer_init();
-	omap2_gp_clockevent_init(clkev_nr, clkev_src, clkev_prop);
-	omap2_gptimer_clocksource_init(clksrc_nr, clksrc_src, clksrc_prop);
-}
-
 static void __init __omap_sync32k_timer_init(int clkev_nr, const char *clkev_src,
 		const char *clkev_prop, int clksrc_nr, const char *clksrc_src,
 		const char *clksrc_prop, bool gptimer)
@@ -643,8 +633,8 @@ void __init omap3_secure_sync32k_timer_init(void)
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
 void __init omap3_gptimer_timer_init(void)
 {
-	__omap_gptimer_init(2, "timer_sys_ck", NULL,
-		       1, "timer_sys_ck", "ti,timer-alwon");
+	__omap_sync32k_timer_init(2, "timer_sys_ck", NULL,
+			1, "timer_sys_ck", "ti,timer-alwon", true);
 }
 #endif
 
