@@ -3285,14 +3285,15 @@ static int dwc2_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	dev_dbg(hsotg->dev, "%s: is_active: %d\n", __func__, is_active);
 	spin_lock_irqsave(&hsotg->lock, flags);
 
+	/*
+	 * If controller is hibernated, it must exit from hibernation
+	 * before being initialized / de-initialized
+	 */
+	if (hsotg->lx_state == DWC2_L2)
+		dwc2_exit_hibernation(hsotg, false);
+
 	if (is_active) {
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
-		/*
-		 * If controller is hibernated, it must exit from hibernation
-		 * before being initialized
-		 */
-		if (hsotg->lx_state == DWC2_L2)
-			dwc2_exit_hibernation(hsotg, false);
 
 		dwc2_hsotg_core_init_disconnected(hsotg, false);
 		if (hsotg->enabled)
