@@ -911,6 +911,13 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 # define FUNCTION_DEFAULT_FLAGS		0UL
 #endif
 
+#ifdef CONFIG_STACKTRACE
+# define STACK_FLAGS				\
+		C(STACKTRACE,		"stacktrace"),
+#else
+# define STACK_FLAGS
+#endif
+
 /*
  * trace_iterator_flags is an enumeration that defines bit
  * positions into trace_flags that controls the output.
@@ -927,7 +934,6 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(HEX,			"hex"),			\
 		C(BIN,			"bin"),			\
 		C(BLOCK,		"block"),		\
-		C(STACKTRACE,		"stacktrace"),		\
 		C(PRINTK,		"trace_printk"),	\
 		C(ANNOTATE,		"annotate"),		\
 		C(USERSTACKTRACE,	"userstacktrace"),	\
@@ -942,6 +948,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(MARKERS,		"markers"),		\
 		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
+		STACK_FLAGS					\
 		BRANCH_FLAGS
 
 /*
