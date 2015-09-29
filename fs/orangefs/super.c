@@ -422,7 +422,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	struct pvfs2_kernel_op_s *new_op;
 	struct pvfs2_mount_sb_info_s mount_sb_info;
-	struct dentry *mnt_sb_d = ERR_PTR(-EINVAL);
+	struct dentry *d = ERR_PTR(-EINVAL);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "pvfs2_mount: called with devname %s\n",
@@ -464,23 +464,21 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	mount_sb_info.fs_id = new_op->downcall.resp.fs_mount.fs_id;
 	mount_sb_info.id = new_op->downcall.resp.fs_mount.id;
 
-	/*
-	 * the mount_sb_info structure looks odd, but it's used because
-	 * the private sb info isn't allocated until we call
-	 * pvfs2_fill_sb, yet we have the info we need to fill it with
-	 * here.  so we store it temporarily and pass all of the info
-	 * to fill_sb where it's properly copied out
-	 */
-	mnt_sb_d = mount_nodev(fst,
-			       flags,
-			       (void *)&mount_sb_info,
-			       pvfs2_fill_sb);
-	if (IS_ERR(mnt_sb_d)) {
-		sb = ERR_CAST(mnt_sb_d);
+	sb = sget(fst, NULL, set_anon_super, flags, NULL);
+
+	if (IS_ERR(sb)) {
+		d = ERR_CAST(sb);
 		goto free_op;
 	}
 
-	sb = mnt_sb_d->d_sb;
+	ret = pvfs2_fill_sb(sb,
+	      (void *)&mount_sb_info,
+	      flags & MS_SILENT ? 1 : 0);
+
+	if (ret) {
+		d = ERR_PTR(ret);
+		goto free_op;
+	}
 
 	/*
 	 * on successful mount, store the devname and data
@@ -499,7 +497,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	 */
 	add_pvfs2_sb(sb);
 	op_release(new_op);
-	return mnt_sb_d;
+	return dget(sb->s_root);
 
 free_op:
 	gossip_err("pvfs2_mount: mount request failed with %d\n", ret);
@@ -510,10 +508,7 @@ free_op:
 
 	op_release(new_op);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "pvfs2_mount: returning dentry %p\n",
-		     mnt_sb_d);
-	return mnt_sb_d;
+	return d;
 }
 
 void pvfs2_kill_sb(struct super_block *sb)
