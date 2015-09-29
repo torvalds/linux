@@ -3569,8 +3569,7 @@ static int
 ftrace_mod_callback(struct ftrace_hash *hash,
 		    char *func, char *cmd, char *param, int enable)
 {
-	char *mod;
-	int ret = -EINVAL;
+	int ret;
 
 	/*
 	 * cmd == 'mod' because we only registered this func
@@ -3581,16 +3580,12 @@ ftrace_mod_callback(struct ftrace_hash *hash,
 	 */
 
 	/* we must have a module name */
-	if (!param)
-		return ret;
+	if (!param || !strlen(param))
+		return -EINVAL;
 
-	mod = strsep(&param, ":");
-	if (!strlen(mod))
-		return ret;
-
-	ret = ftrace_match_module_records(hash, func, mod);
+	ret = ftrace_match_module_records(hash, func, param);
 	if (!ret)
-		ret = -EINVAL;
+		return -EINVAL;
 	if (ret < 0)
 		return ret;
 
