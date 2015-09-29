@@ -771,39 +771,43 @@ gt215_ram_calc(struct nvkm_ram *base, u32 freq)
 	unk71c  = ram_rd32(fuc, 0x10071c) & ~0x00000100;
 	r111100 = ram_rd32(fuc, 0x111100) & ~0x3a800000;
 
-	if (next->bios.ramcfg_10_02_04) {
-		switch (ram->base.type) {
-		case NVKM_RAM_TYPE_DDR3:
-			if (device->chipset != 0xa8)
-				r111100 |= 0x00000004;
-			/* no break */
-		case NVKM_RAM_TYPE_DDR2:
-			r111100 |= 0x08000000;
-			break;
-		default:
-			break;
-		}
+	/* NVA8 seems to skip various bits related to ramcfg_10_02_04 */
+	if (device->chipset == 0xa8) {
+		r111100 |= 0x08000000;
+		if (!next->bios.ramcfg_10_02_04)
+			unk714  |= 0x00000010;
 	} else {
-		switch (ram->base.type) {
-		case NVKM_RAM_TYPE_DDR2:
-			r111100 |= 0x1a800000;
-			unk714  |= 0x00000010;
-			break;
-		case NVKM_RAM_TYPE_DDR3:
-			if (device->chipset == 0xa8) {
-				r111100 |=  0x08000000;
-			} else {
-				r111100 &= ~0x00000004;
-				r111100 |=  0x12800000;
+		if (next->bios.ramcfg_10_02_04) {
+			switch (ram->base.type) {
+			case NVKM_RAM_TYPE_DDR2:
+			case NVKM_RAM_TYPE_DDR3:
+				r111100 &= ~0x00000020;
+				if (next->bios.ramcfg_10_02_10)
+					r111100 |= 0x08000004;
+				else
+					r111100 |= 0x00000024;
+				break;
+			default:
+				break;
 			}
-			unk714  |= 0x00000010;
-			break;
-		case NVKM_RAM_TYPE_GDDR3:
-			r111100 |= 0x30000000;
-			unk714  |= 0x00000020;
-			break;
-		default:
-			break;
+		} else {
+			switch (ram->base.type) {
+			case NVKM_RAM_TYPE_DDR2:
+			case NVKM_RAM_TYPE_DDR3:
+				r111100 &= ~0x00000024;
+				r111100 |=  0x12800000;
+
+				if (next->bios.ramcfg_10_02_10)
+					r111100 |= 0x08000000;
+				unk714  |= 0x00000010;
+				break;
+			case NVKM_RAM_TYPE_GDDR3:
+				r111100 |= 0x30000000;
+				unk714  |= 0x00000020;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
