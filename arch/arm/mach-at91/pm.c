@@ -35,6 +35,8 @@
 #include "generic.h"
 #include "pm.h"
 
+static void __iomem *pmc;
+
 /*
  * FIXME: this is needed to communicate between the pinctrl driver and
  * the PM implementation in the machine. Possibly part of the PM
@@ -87,7 +89,7 @@ static int at91_pm_verify_clocks(void)
 	unsigned long scsr;
 	int i;
 
-	scsr = at91_pmc_read(AT91_PMC_SCSR);
+	scsr = readl(pmc + AT91_PMC_SCSR);
 
 	/* USB must not be using PLLB */
 	if ((scsr & at91_pm_data.uhp_udp_mask) != 0) {
@@ -101,8 +103,7 @@ static int at91_pm_verify_clocks(void)
 
 		if ((scsr & (AT91_PMC_PCK0 << i)) == 0)
 			continue;
-
-		css = at91_pmc_read(AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
+		css = readl(pmc + AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
 		if (css != AT91_PMC_CSS_SLOW) {
 			pr_err("AT91: PM - Suspend-to-RAM with PCK%d src %d\n", i, css);
 			return 0;
@@ -145,8 +146,8 @@ static void at91_pm_suspend(suspend_state_t state)
 	flush_cache_all();
 	outer_disable();
 
-	at91_suspend_sram_fn(at91_pmc_base, at91_ramc_base[0],
-				at91_ramc_base[1], pm_data);
+	at91_suspend_sram_fn(pmc, at91_ramc_base[0],
+			     at91_ramc_base[1], pm_data);
 
 	outer_resume();
 }
@@ -399,12 +400,32 @@ static void __init at91_pm_sram_init(void)
 			&at91_pm_suspend_in_sram, at91_pm_suspend_in_sram_sz);
 }
 
+static const struct of_device_id atmel_pmc_ids[] __initconst = {
+	{ .compatible = "atmel,at91rm9200-pmc"  },
+	{ .compatible = "atmel,at91sam9260-pmc" },
+	{ .compatible = "atmel,at91sam9g45-pmc" },
+	{ .compatible = "atmel,at91sam9n12-pmc" },
+	{ .compatible = "atmel,at91sam9x5-pmc" },
+	{ .compatible = "atmel,sama5d3-pmc" },
+	{ .compatible = "atmel,sama5d2-pmc" },
+	{ /* sentinel */ },
+};
+
 static void __init at91_pm_init(void)
 {
-	at91_pm_sram_init();
+	struct device_node *pmc_np;
 
 	if (at91_cpuidle_device.dev.platform_data)
 		platform_device_register(&at91_cpuidle_device);
+
+	pmc_np = of_find_matching_node(NULL, atmel_pmc_ids);
+	pmc = of_iomap(pmc_np, 0);
+	if (!pmc) {
+		pr_err("AT91: PM not supported, PMC not found\n");
+		return;
+	}
+
+	at91_pm_sram_init();
 
 	if (at91_suspend_sram_fn)
 		suspend_set_ops(&at91_pm_ops);
