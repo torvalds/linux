@@ -802,48 +802,6 @@ struct ptlrpc_request *ptlrpc_request_alloc_pack(struct obd_import *imp,
 EXPORT_SYMBOL(ptlrpc_request_alloc_pack);
 
 /**
- * Prepare request (fetched from pool \a pool if not NULL) on import \a imp
- * for operation \a opcode. Request would contain \a count buffers.
- * Sizes of buffers are described in array \a lengths and buffers themselves
- * are provided by a pointer \a bufs.
- * Returns prepared request structure pointer or NULL on error.
- */
-struct ptlrpc_request *
-ptlrpc_prep_req_pool(struct obd_import *imp,
-		     __u32 version, int opcode,
-		     int count, __u32 *lengths, char **bufs,
-		     struct ptlrpc_request_pool *pool)
-{
-	struct ptlrpc_request *request;
-	int rc;
-
-	request = __ptlrpc_request_alloc(imp, pool);
-	if (!request)
-		return NULL;
-
-	rc = __ptlrpc_request_bufs_pack(request, version, opcode, count,
-					lengths, bufs, NULL);
-	if (rc) {
-		ptlrpc_request_free(request);
-		request = NULL;
-	}
-	return request;
-}
-EXPORT_SYMBOL(ptlrpc_prep_req_pool);
-
-/**
- * Same as ptlrpc_prep_req_pool, but without pool
- */
-struct ptlrpc_request *
-ptlrpc_prep_req(struct obd_import *imp, __u32 version, int opcode, int count,
-		__u32 *lengths, char **bufs)
-{
-	return ptlrpc_prep_req_pool(imp, version, opcode, count, lengths, bufs,
-				    NULL);
-}
-EXPORT_SYMBOL(ptlrpc_prep_req);
-
-/**
  * Allocate and initialize new request set structure on the current CPT.
  * Returns a pointer to the newly allocated set structure or NULL on error.
  */
@@ -957,28 +915,6 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 	ptlrpc_reqset_put(set);
 }
 EXPORT_SYMBOL(ptlrpc_set_destroy);
-
-/**
- * Add a callback function \a fn to the set.
- * This function would be called when all requests on this set are completed.
- * The function will be passed \a data argument.
- */
-int ptlrpc_set_add_cb(struct ptlrpc_request_set *set,
-		      set_interpreter_func fn, void *data)
-{
-	struct ptlrpc_set_cbdata *cbdata;
-
-	cbdata = kzalloc(sizeof(*cbdata), GFP_NOFS);
-	if (!cbdata)
-		return -ENOMEM;
-
-	cbdata->psc_interpret = fn;
-	cbdata->psc_data = data;
-	list_add_tail(&cbdata->psc_item, &set->set_cblist);
-
-	return 0;
-}
-EXPORT_SYMBOL(ptlrpc_set_add_cb);
 
 /**
  * Add a new request to the general purpose request set.
@@ -2282,18 +2218,6 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 		ptlrpc_request_cache_free(request);
 }
 
-static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked);
-/**
- * Drop one request reference. Must be called with import imp_lock held.
- * When reference count drops to zero, request is freed.
- */
-void ptlrpc_req_finished_with_imp_lock(struct ptlrpc_request *request)
-{
-	assert_spin_locked(&request->rq_import->imp_lock);
-	(void)__ptlrpc_req_finished(request, 1);
-}
-EXPORT_SYMBOL(ptlrpc_req_finished_with_imp_lock);
-
 /**
  * Helper function
  * Drops one reference count for request \a request.
@@ -2535,11 +2459,6 @@ free_req:
 	}
 }
 
-void ptlrpc_cleanup_client(struct obd_import *imp)
-{
-}
-EXPORT_SYMBOL(ptlrpc_cleanup_client);
-
 /**
  * Schedule previously sent request for resend.
  * For bulk requests we assign new xid (to avoid problems with
@@ -2577,20 +2496,6 @@ void ptlrpc_resend_req(struct ptlrpc_request *req)
 	spin_unlock(&req->rq_lock);
 }
 EXPORT_SYMBOL(ptlrpc_resend_req);
-
-/* XXX: this function and rq_status are currently unused */
-void ptlrpc_restart_req(struct ptlrpc_request *req)
-{
-	DEBUG_REQ(D_HA, req, "restarting (possibly-)completed request");
-	req->rq_status = -ERESTARTSYS;
-
-	spin_lock(&req->rq_lock);
-	req->rq_restart = 1;
-	req->rq_timedout = 0;
-	ptlrpc_client_wake_req(req);
-	spin_unlock(&req->rq_lock);
-}
-EXPORT_SYMBOL(ptlrpc_restart_req);
 
 /**
  * Grab additional reference on a request \a req

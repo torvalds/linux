@@ -142,7 +142,6 @@ void deuuidify(char *uuid, const char *prefix, char **uuid_start, int *uuid_len)
 		    UUID_STR, strlen(UUID_STR)))
 		*uuid_len -= strlen(UUID_STR);
 }
-EXPORT_SYMBOL(deuuidify);
 
 /**
  * Returns true if import was FULL, false if import was already not
@@ -1502,16 +1501,6 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_disconnect_import);
-
-void ptlrpc_cleanup_imp(struct obd_import *imp)
-{
-	spin_lock(&imp->imp_lock);
-	IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_CLOSED);
-	imp->imp_generation++;
-	spin_unlock(&imp->imp_lock);
-	ptlrpc_abort_inflight(imp);
-}
-EXPORT_SYMBOL(ptlrpc_cleanup_imp);
 
 /* Adaptive Timeout utils */
 extern unsigned int at_min, at_max, at_history;
