@@ -183,25 +183,10 @@ struct obd_export {
 	struct obd_connect_data   exp_connect_data;
 	enum obd_option	   exp_flags;
 	unsigned long	     exp_failed:1,
-				  exp_in_recovery:1,
 				  exp_disconnected:1,
 				  exp_connecting:1,
-				  /** VBR: export missed recovery */
-				  exp_delayed:1,
-				  /** VBR: failed version checking */
-				  exp_vbr_failed:1,
-				  exp_req_replay_needed:1,
-				  exp_lock_replay_needed:1,
-				  exp_need_sync:1,
 				  exp_flvr_changed:1,
-				  exp_flvr_adapt:1,
-				  exp_libclient:1, /* liblustre client? */
-				  /* client timed out and tried to reconnect,
-				   * but couldn't because of active rpcs */
-				  exp_abort_active_req:1,
-				  /* if to swap nidtbl entries for 2.2 clients.
-				   * Only used by the MGS to fix LU-1644. */
-				  exp_need_mne_swab:1;
+				  exp_flvr_adapt:1;
 	/* also protected by exp_lock */
 	enum lustre_sec_part      exp_sp_peer;
 	struct sptlrpc_flavor     exp_flvr;	     /* current */

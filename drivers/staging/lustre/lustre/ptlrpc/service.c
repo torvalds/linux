@@ -880,18 +880,16 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 		       req, (obd != NULL) ? obd->obd_name : "unknown");
 		rc = -ENODEV;
 	} else if (lustre_msg_get_flags(req->rq_reqmsg) &
-		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE) &&
-		   !obd->obd_recovering) {
-			DEBUG_REQ(D_ERROR, req,
-				  "Invalid replay without recovery");
-			class_fail_export(req->rq_export);
-			rc = -ENODEV;
-	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0 &&
-		   !obd->obd_recovering) {
-			DEBUG_REQ(D_ERROR, req, "Invalid req with transno %llu without recovery",
-				  lustre_msg_get_transno(req->rq_reqmsg));
-			class_fail_export(req->rq_export);
-			rc = -ENODEV;
+		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE)) {
+		DEBUG_REQ(D_ERROR, req, "Invalid replay without recovery");
+		class_fail_export(req->rq_export);
+		rc = -ENODEV;
+	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0) {
+		DEBUG_REQ(D_ERROR, req,
+			  "Invalid req with transno %llu without recovery",
+			  lustre_msg_get_transno(req->rq_reqmsg));
+		class_fail_export(req->rq_export);
+		rc = -ENODEV;
 	}
 
 	if (unlikely(rc < 0)) {
@@ -1030,34 +1028,20 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return -ENOSYS;
 	}
 
-	if (req->rq_export &&
-	    lustre_msg_get_flags(req->rq_reqmsg) &
-	    (MSG_REPLAY | MSG_REQ_REPLAY_DONE | MSG_LOCK_REPLAY_DONE)) {
-		/* During recovery, we don't want to send too many early
-		 * replies, but on the other hand we want to make sure the
-		 * client has enough time to resend if the rpc is lost. So
-		 * during the recovery period send at least 4 early replies,
-		 * spacing them every at_extra if we can. at_estimate should
-		 * always equal this fixed value during recovery. */
-		at_measured(&svcpt->scp_at_estimate, min(at_extra,
-			    req->rq_export->exp_obd->obd_recovery_timeout / 4));
-	} else {
-		/* Fake our processing time into the future to ask the clients
-		 * for some extra amount of time */
-		at_measured(&svcpt->scp_at_estimate, at_extra +
-			    ktime_get_real_seconds() -
-			    req->rq_arrival_time.tv_sec);
+	/* Fake our processing time into the future to ask the clients
+	 * for some extra amount of time */
+	at_measured(&svcpt->scp_at_estimate, at_extra +
+		    ktime_get_real_seconds() - req->rq_arrival_time.tv_sec);
 
-		/* Check to see if we've actually increased the deadline -
-		 * we may be past adaptive_max */
-		if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
-		    at_get(&svcpt->scp_at_estimate)) {
-			DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%lld), not sending early reply\n",
-				  olddl, req->rq_arrival_time.tv_sec +
-				  at_get(&svcpt->scp_at_estimate) -
-				  ktime_get_real_seconds());
-			return -ETIMEDOUT;
-		}
+	/* Check to see if we've actually increased the deadline -
+	 * we may be past adaptive_max */
+	if (req->rq_deadline >= req->rq_arrival_time.tv_sec +
+	    at_get(&svcpt->scp_at_estimate)) {
+		DEBUG_REQ(D_WARNING, req, "Couldn't add any time (%ld/%lld), not sending early reply\n",
+			  olddl, req->rq_arrival_time.tv_sec +
+			  at_get(&svcpt->scp_at_estimate) -
+			  ktime_get_real_seconds());
+		return -ETIMEDOUT;
 	}
 	newdl = ktime_get_real_seconds() + at_get(&svcpt->scp_at_estimate);
 

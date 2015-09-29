@@ -1034,51 +1034,6 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 }
 EXPORT_SYMBOL(class_connect);
 
-/* if export is involved in recovery then clean up related things */
-static void class_export_recovery_cleanup(struct obd_export *exp)
-{
-	struct obd_device *obd = exp->exp_obd;
-
-	spin_lock(&obd->obd_recovery_task_lock);
-	if (exp->exp_delayed)
-		obd->obd_delayed_clients--;
-	if (obd->obd_recovering) {
-		if (exp->exp_in_recovery) {
-			spin_lock(&exp->exp_lock);
-			exp->exp_in_recovery = 0;
-			spin_unlock(&exp->exp_lock);
-			LASSERT_ATOMIC_POS(&obd->obd_connected_clients);
-			atomic_dec(&obd->obd_connected_clients);
-		}
-
-		/* if called during recovery then should update
-		 * obd_stale_clients counter,
-		 * lightweight exports are not counted */
-		if (exp->exp_failed &&
-		    (exp_connect_flags(exp) & OBD_CONNECT_LIGHTWEIGHT) == 0)
-			exp->exp_obd->obd_stale_clients++;
-	}
-	spin_unlock(&obd->obd_recovery_task_lock);
-
-	spin_lock(&exp->exp_lock);
-	/** Cleanup req replay fields */
-	if (exp->exp_req_replay_needed) {
-		exp->exp_req_replay_needed = 0;
-
-		LASSERT(atomic_read(&obd->obd_req_replay_clients));
-		atomic_dec(&obd->obd_req_replay_clients);
-	}
-
-	/** Cleanup lock replay data */
-	if (exp->exp_lock_replay_needed) {
-		exp->exp_lock_replay_needed = 0;
-
-		LASSERT(atomic_read(&obd->obd_lock_replay_clients));
-		atomic_dec(&obd->obd_lock_replay_clients);
-	}
-	spin_unlock(&exp->exp_lock);
-}
-
 /* This function removes 1-3 references from the export:
  * 1 - for export pointer passed
  * and if disconnect really need
@@ -1108,7 +1063,6 @@ int class_disconnect(struct obd_export *export)
 	CDEBUG(D_IOCTL, "disconnect: cookie %#llx\n",
 	       export->exp_handle.h_cookie);
 
-	class_export_recovery_cleanup(export);
 	class_unlink_export(export);
 no_disconn:
 	class_export_put(export);
@@ -1184,13 +1138,13 @@ static void print_export_data(struct obd_export *exp, const char *status,
 	}
 	spin_unlock(&exp->exp_lock);
 
-	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d %d: %p %s %llu\n",
+	CDEBUG(D_HA, "%s: %s %p %s %s %d (%d %d %d) %d %d %d: %p %s %llu\n",
 	       exp->exp_obd->obd_name, status, exp, exp->exp_client_uuid.uuid,
 	       obd_export_nid2str(exp), atomic_read(&exp->exp_refcount),
 	       atomic_read(&exp->exp_rpc_count),
 	       atomic_read(&exp->exp_cb_count),
 	       atomic_read(&exp->exp_locks_count),
-	       exp->exp_disconnected, exp->exp_delayed, exp->exp_failed,
+	       exp->exp_disconnected, exp->exp_failed,
 	       nreplies, first_reply, nreplies > 3 ? "..." : "",
 	       exp->exp_last_committed);
 #if LUSTRE_TRACKS_LOCK_EXP_REFS

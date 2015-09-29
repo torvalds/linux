@@ -273,7 +273,6 @@ static inline enum obd_option exp_flags_from_obd(struct obd_device *obd)
 {
 	return ((obd->obd_fail ? OBD_OPT_FAILOVER : 0) |
 		(obd->obd_force ? OBD_OPT_FORCE : 0) |
-		(obd->obd_abort_recovery ? OBD_OPT_ABORT_RECOV : 0) |
 		0);
 }
 

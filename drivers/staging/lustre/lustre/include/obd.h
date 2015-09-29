@@ -725,8 +725,6 @@ struct obd_device {
 	/* bitfield modification is protected by obd_dev_lock */
 	unsigned long obd_attached:1,      /* finished attach */
 		      obd_set_up:1,	/* finished setup */
-		      obd_recovering:1,    /* there are recoverable clients */
-		      obd_abort_recovery:1,/* recovery expired */
 		      obd_version_recov:1, /* obd uses version checking */
 		      obd_replayable:1,    /* recovery is enabled; inform clients */
 		      obd_no_transno:1,    /* no committed-transno notification */
@@ -768,31 +766,6 @@ struct obd_device {
 	struct rw_semaphore	obd_observer_link_sem;
 	struct obd_notify_upcall obd_upcall;
 	struct obd_export       *obd_self_export;
-
-	int			      obd_max_recoverable_clients;
-	atomic_t		     obd_connected_clients;
-	int			      obd_stale_clients;
-	int			      obd_delayed_clients;
-	/* this lock protects all recovery list_heads, timer and
-	 * obd_next_recovery_transno value */
-	spinlock_t			 obd_recovery_task_lock;
-	__u64			    obd_next_recovery_transno;
-	int			      obd_replayed_requests;
-	int			      obd_requests_queued_for_recovery;
-	wait_queue_head_t		      obd_next_transno_waitq;
-	/* protected by obd_recovery_task_lock */
-	int			      obd_recovery_timeout;
-
-	/* new recovery stuff from CMD2 */
-	struct target_recovery_data      obd_recovery_data;
-	int			      obd_replayed_locks;
-	atomic_t		     obd_req_replay_clients;
-	atomic_t		     obd_lock_replay_clients;
-	/* all lists are protected by obd_recovery_task_lock */
-	struct list_head		       obd_req_replay_queue;
-	struct list_head		       obd_lock_replay_queue;
-	struct list_head		       obd_final_req_queue;
-	int			      obd_recovery_stage;
 
 	union {
 		struct client_obd cli;
