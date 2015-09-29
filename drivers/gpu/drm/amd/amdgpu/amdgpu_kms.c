@@ -390,7 +390,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_READ_MMR_REG: {
-		unsigned n, alloc_size = info->read_mmr_reg.count * 4;
+		unsigned n, alloc_size;
 		uint32_t *regs;
 		unsigned se_num = (info->read_mmr_reg.instance >>
 				   AMDGPU_INFO_MMR_SE_INDEX_SHIFT) &
@@ -406,9 +406,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
 
-		regs = kmalloc(alloc_size, GFP_KERNEL);
+		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs), GFP_KERNEL);
 		if (!regs)
 			return -ENOMEM;
+		alloc_size = info->read_mmr_reg.count * sizeof(*regs);
 
 		for (i = 0; i < info->read_mmr_reg.count; i++)
 			if (amdgpu_asic_read_register(adev, se_num, sh_num,

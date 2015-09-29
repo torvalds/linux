@@ -276,6 +276,8 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
 int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, u8 proto,
 		  u8 tos, u8 ttl, __be16 df, bool xnet);
+struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
+					     gfp_t flags);
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);

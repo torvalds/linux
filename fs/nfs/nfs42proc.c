@@ -175,10 +175,12 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 {
 	struct nfs_server *server = NFS_SERVER(file_inode(filep));
 	struct nfs4_exception exception = { };
-	int err;
+	loff_t err;
 
 	do {
 		err = _nfs42_proc_llseek(filep, offset, whence);
+		if (err >= 0)
+			break;
 		if (err == -ENOTSUPP)
 			return -EOPNOTSUPP;
 		err = nfs4_handle_exception(server, err, &exception);

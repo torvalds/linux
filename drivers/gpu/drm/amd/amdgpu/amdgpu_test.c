@@ -59,8 +59,9 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		goto out_cleanup;
 	}
 
-	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM, 0,
-			     NULL, &vram_obj);
+	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
+			     AMDGPU_GEM_DOMAIN_VRAM, 0,
+			     NULL, NULL, &vram_obj);
 	if (r) {
 		DRM_ERROR("Failed to create VRAM object\n");
 		goto out_cleanup;
@@ -80,7 +81,8 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		struct fence *fence = NULL;
 
 		r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, gtt_obj + i);
+				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+				     NULL, gtt_obj + i);
 		if (r) {
 			DRM_ERROR("Failed to create GTT object %d\n", i);
 			goto out_lclean;
