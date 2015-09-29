@@ -183,7 +183,8 @@ static struct device_node * __init omap_get_timer_dt(const struct of_device_id *
 				  of_get_property(np, "ti,timer-secure", NULL)))
 			continue;
 
-		of_add_property(np, &device_disabled);
+		if (!of_device_is_compatible(np, "ti,omap-counter32k"))
+			of_add_property(np, &device_disabled);
 		return np;
 	}
 
@@ -394,7 +395,6 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 	int ret;
 	struct device_node *np = NULL;
 	struct omap_hwmod *oh;
-	void __iomem *vbase;
 	const char *oh_name = "counter_32k";
 
 	/*
@@ -420,18 +420,6 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 
 	omap_hwmod_setup_one(oh_name);
 
-	if (np) {
-		vbase = of_iomap(np, 0);
-		of_node_put(np);
-	} else {
-		vbase = omap_hwmod_get_mpu_rt_va(oh);
-	}
-
-	if (!vbase) {
-		pr_warn("%s: failed to get counter_32k resource\n", __func__);
-		return -ENXIO;
-	}
-
 	ret = omap_hwmod_enable(oh);
 	if (ret) {
 		pr_warn("%s: failed to enable counter_32k module (%d)\n",
@@ -439,13 +427,18 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 		return ret;
 	}
 
-	ret = omap_init_clocksource_32k(vbase);
-	if (ret) {
-		pr_warn("%s: failed to initialize counter_32k as a clocksource (%d)\n",
-							__func__, ret);
-		omap_hwmod_idle(oh);
-	}
+	if (!of_have_populated_dt()) {
+		void __iomem *vbase;
 
+		vbase = omap_hwmod_get_mpu_rt_va(oh);
+
+		ret = omap_init_clocksource_32k(vbase);
+		if (ret) {
+			pr_warn("%s: failed to initialize counter_32k as a clocksource (%d)\n",
+					__func__, ret);
+			omap_hwmod_idle(oh);
+		}
+	}
 	return ret;
 }
 
