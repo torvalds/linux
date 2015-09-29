@@ -24,9 +24,9 @@ Required properties:
 Optional properties:
   - interrupts: Must contain a list of interrupt specifiers for memory
 		controller interrupts, if available.
-  - interrupts-names: Must contain a list of interrupt names corresponding to
-		      the interrupts in the interrupts property, if available.
-		      Valid interrupt names are:
+  - interrupt-names: Must contain a list of interrupt names corresponding to
+		     the interrupts in the interrupts property, if available.
+		     Valid interrupt names are:
 			- "sec" (secure interrupt)
 			- "temp" (normal (temperature) interrupt)
   - power-domains: Must contain a reference to the PM domain that the memory
