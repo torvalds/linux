@@ -389,8 +389,7 @@ static struct snd_soc_dai_driver sun4i_codec_dai = {
 		.rate_max	= 192000,
 		.rates		= SNDRV_PCM_RATE_8000_48000 |
 				  SNDRV_PCM_RATE_96000 |
-				  SNDRV_PCM_RATE_192000 |
-				  SNDRV_PCM_RATE_KNOT,
+				  SNDRV_PCM_RATE_192000,
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 		.sig_bits	= 24,
