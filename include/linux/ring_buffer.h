@@ -154,8 +154,8 @@ ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 }
 #endif
 
-int ring_buffer_empty(struct ring_buffer *buffer);
-int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
+bool ring_buffer_empty(struct ring_buffer *buffer);
+bool ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu);
 
 void ring_buffer_record_disable(struct ring_buffer *buffer);
 void ring_buffer_record_enable(struct ring_buffer *buffer);
