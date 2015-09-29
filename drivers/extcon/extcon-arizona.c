@@ -477,9 +477,6 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 			   arizona_hpdet_b_ranges[range].factor_a);
 		break;
 
-	default:
-		dev_warn(arizona->dev, "Unknown HPDET IP revision %d\n",
-			 info->hpdet_ip_version);
 	case 2:
 		if (!(val & ARIZONA_HP_DONE_B)) {
 			dev_err(arizona->dev, "HPDET did not complete: %x\n",
@@ -516,6 +513,12 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 				arizona_hpdet_c_ranges[range].min);
 			val = arizona_hpdet_c_ranges[range].min;
 		}
+		break;
+
+	default:
+		dev_warn(arizona->dev, "Unknown HPDET IP revision %d\n",
+			 info->hpdet_ip_version);
+		return -EINVAL;
 	}
 
 	dev_dbg(arizona->dev, "HP impedance %d ohms\n", val);
