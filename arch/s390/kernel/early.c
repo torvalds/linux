@@ -329,9 +329,19 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 	if (test_facility(51))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
-	if (test_facility(129))
+	if (test_facility(129)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
+		__ctl_set_bit(0, 17);
+	}
 }
+
+static int __init disable_vector_extension(char *str)
+{
+	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
+	__ctl_clear_bit(0, 17);
+	return 1;
+}
+early_param("novx", disable_vector_extension);
 
 static int __init cad_setup(char *str)
 {

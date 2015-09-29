@@ -20,7 +20,6 @@
 #include <asm/page.h>
 #include <asm/sigp.h>
 #include <asm/irq.h>
-#include <asm/fpu-internal.h>
 #include <asm/vx-insn.h>
 
 __PT_R0      =	__PT_GPRS
@@ -748,15 +747,12 @@ ENTRY(psw_idle)
 	br	%r14
 .Lpsw_idle_end:
 
-/* Store floating-point controls and floating-point or vector extension
- * registers instead.  A critical section cleanup assures that the registers
- * are stored even if interrupted for some other work.	The register %r2
- * designates a struct fpu to store register contents.	If the specified
- * structure does not contain a register save area, the register store is
- * omitted (see also comments in arch_dup_task_struct()).
- *
- * The CIF_FPU flag is set in any case.  The CIF_FPU triggers a lazy restore
- * of the register contents at system call or io return.
+/*
+ * Store floating-point controls and floating-point or vector register
+ * depending whether the vector facility is available.	A critical section
+ * cleanup assures that the registers are stored even if interrupted for
+ * some other work.  The CIF_FPU flag is set to trigger a lazy restore
+ * of the register contents at return from io or a system call.
  */
 ENTRY(save_fpu_regs)
 	lg	%r2,__LC_CURRENT
@@ -768,7 +764,7 @@ ENTRY(save_fpu_regs)
 	lg	%r3,__THREAD_FPU_regs(%r2)
 	ltgr	%r3,%r3
 	jz	.Lsave_fpu_regs_done	  # no save area -> set CIF_FPU
-	tm	__THREAD_FPU_flags+3(%r2),FPU_USE_VX
+	tm	__LC_MACHINE_FLAGS+5,4	  # MACHINE_HAS_VX
 	jz	.Lsave_fpu_regs_fp	  # no -> store FP regs
 .Lsave_fpu_regs_vx_low:
 	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
@@ -797,15 +793,15 @@ ENTRY(save_fpu_regs)
 	br	%r14
 .Lsave_fpu_regs_end:
 
-/* Load floating-point controls and floating-point or vector extension
- * registers.  A critical section cleanup assures that the register contents
- * are loaded even if interrupted for some other work.	Depending on the saved
- * FP/VX state, the vector-enablement control, CR0.46, is either set or cleared.
+/*
+ * Load floating-point controls and floating-point or vector registers.
+ * A critical section cleanup assures that the register contents are
+ * loaded even if interrupted for some other work.
  *
  * There are special calling conventions to fit into sysc and io return work:
  *	%r15:	<kernel stack>
  * The function requires:
- *	%r4 and __SF_EMPTY+32(%r15)
+ *	%r4
  */
 load_fpu_regs:
 	lg	%r4,__LC_CURRENT
@@ -813,25 +809,14 @@ load_fpu_regs:
 	tm	__LC_CPU_FLAGS+7,_CIF_FPU
 	bnor	%r14
 	lfpc	__THREAD_FPU_fpc(%r4)
-	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
-	tm	__THREAD_FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
+	tm	__LC_MACHINE_FLAGS+5,4		# MACHINE_HAS_VX
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
-	jz	.Lload_fpu_regs_fp_ctl		# -> no VX, load FP regs
-.Lload_fpu_regs_vx_ctl:
-	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
-	jo	.Lload_fpu_regs_vx
-	oi	__SF_EMPTY+32+5(%r15),2		# set VX control
-	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
+	jz	.Lload_fpu_regs_fp		# -> no VX, load FP regs
 .Lload_fpu_regs_vx:
 	VLM	%v0,%v15,0,%r4
 .Lload_fpu_regs_vx_high:
 	VLM	%v16,%v31,256,%r4
 	j	.Lload_fpu_regs_done
-.Lload_fpu_regs_fp_ctl:
-	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
-	jz	.Lload_fpu_regs_fp
-	ni	__SF_EMPTY+32+5(%r15),253	# clear VX control
-	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
 .Lload_fpu_regs_fp:
 	ld	0,0(%r4)
 	ld	1,8(%r4)
@@ -853,16 +838,6 @@ load_fpu_regs:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
 	br	%r14
 .Lload_fpu_regs_end:
-
-/* Test and set the vector enablement control in CR0.46 */
-ENTRY(__ctl_set_vx)
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	tm	__SF_EMPTY+5(%r15),2
-	bor	%r14
-	oi	__SF_EMPTY+5(%r15),2
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
-	br	%r14
-.L__ctl_set_vx_end:
 
 .L__critical_end:
 
@@ -1019,10 +994,6 @@ cleanup_critical:
 	jl	0f
 	clg	%r9,BASED(.Lcleanup_table+104)	# .Lload_fpu_regs_end
 	jl	.Lcleanup_load_fpu_regs
-	clg	%r9,BASED(.Lcleanup_table+112)	# __ctl_set_vx
-	jl	0f
-	clg	%r9,BASED(.Lcleanup_table+120)	# .L__ctl_set_vx_end
-	jl	.Lcleanup___ctl_set_vx
 0:	br	%r14
 
 	.align	8
@@ -1041,8 +1012,6 @@ cleanup_critical:
 	.quad	.Lsave_fpu_regs_end
 	.quad	load_fpu_regs
 	.quad	.Lload_fpu_regs_end
-	.quad	__ctl_set_vx
-	.quad	.L__ctl_set_vx_end
 
 #if IS_ENABLED(CONFIG_KVM)
 .Lcleanup_table_sie:
@@ -1226,7 +1195,7 @@ cleanup_critical:
 	lg	%r3,__THREAD_FPU_regs(%r2)
 	ltgr	%r3,%r3
 	jz	5f			  # no save area -> set CIF_FPU
-	tm	__THREAD_FPU_flags+3(%r2),FPU_USE_VX
+	tm	__LC_MACHINE_FLAGS+5,4	  # MACHINE_HAS_VX
 	jz	4f			  # no VX -> store FP regs
 2:	# Store vector registers (V0-V15)
 	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
@@ -1272,37 +1241,21 @@ cleanup_critical:
 	jhe	1f
 	clg	%r9,BASED(.Lcleanup_load_fpu_regs_fp)
 	jhe	2f
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_fp_ctl)
-	jhe	3f
 	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_high)
-	jhe	4f
+	jhe	3f
 	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx)
-	jhe	5f
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_ctl)
-	jhe	6f
+	jhe	4f
 	lg	%r4,__LC_CURRENT
 	aghi	%r4,__TASK_thread
 	lfpc	__THREAD_FPU_fpc(%r4)
-	tm	__THREAD_FPU_flags+3(%r4),FPU_USE_VX	# VX-enabled task ?
+	tm	__LC_MACHINE_FLAGS+5,4		# MACHINE_HAS_VX
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
-	jz	3f				# -> no VX, load FP regs
-6:	# Set VX-enablement control
-	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
-	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
-	jo	5f
-	oi	__SF_EMPTY+32+5(%r15),2		# set VX control
-	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
-5:	# Load V0 ..V15 registers
+	jz	2f				# -> no VX, load FP regs
+4:	# Load V0 ..V15 registers
 	VLM	%v0,%v15,0,%r4
-4:	# Load V16..V31 registers
+3:	# Load V16..V31 registers
 	VLM	%v16,%v31,256,%r4
 	j	1f
-3:	# Clear VX-enablement control for FP
-	stctg	%c0,%c0,__SF_EMPTY+32(%r15)	# store CR0
-	tm	__SF_EMPTY+32+5(%r15),2		# test VX control
-	jz	2f
-	ni	__SF_EMPTY+32+5(%r15),253	# clear VX control
-	lctlg	%c0,%c0,__SF_EMPTY+32(%r15)
 2:	# Load floating-point registers
 	ld	0,0(%r4)
 	ld	1,8(%r4)
@@ -1324,27 +1277,14 @@ cleanup_critical:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
 	lg	%r9,48(%r11)		# return from load_fpu_regs
 	br	%r14
-.Lcleanup_load_fpu_regs_vx_ctl:
-	.quad	.Lload_fpu_regs_vx_ctl
 .Lcleanup_load_fpu_regs_vx:
 	.quad	.Lload_fpu_regs_vx
 .Lcleanup_load_fpu_regs_vx_high:
 	.quad	.Lload_fpu_regs_vx_high
-.Lcleanup_load_fpu_regs_fp_ctl:
-	.quad	.Lload_fpu_regs_fp_ctl
 .Lcleanup_load_fpu_regs_fp:
 	.quad	.Lload_fpu_regs_fp
 .Lcleanup_load_fpu_regs_done:
 	.quad	.Lload_fpu_regs_done
-
-.Lcleanup___ctl_set_vx:
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	tm	__SF_EMPTY+5(%r15),2
-	bor	%r14
-	oi	__SF_EMPTY+5(%r15),2
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
-	lg	%r9,48(%r11)		# return from __ctl_set_vx
-	br	%r14
 
 /*
  * Integer constants

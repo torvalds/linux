@@ -29,7 +29,6 @@ int main(void)
 	BLANK();
 	DEFINE(__THREAD_ksp, offsetof(struct thread_struct, ksp));
 	DEFINE(__THREAD_FPU_fpc, offsetof(struct thread_struct, fpu.fpc));
-	DEFINE(__THREAD_FPU_flags, offsetof(struct thread_struct, fpu.flags));
 	DEFINE(__THREAD_FPU_regs, offsetof(struct thread_struct, fpu.regs));
 	DEFINE(__THREAD_per_cause, offsetof(struct thread_struct, per_event.cause));
 	DEFINE(__THREAD_per_address, offsetof(struct thread_struct, per_event.address));
