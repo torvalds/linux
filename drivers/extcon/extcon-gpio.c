@@ -33,14 +33,11 @@
 
 struct gpio_extcon_data {
 	struct extcon_dev *edev;
-	unsigned gpio;
-	bool gpio_active_low;
-	const char *state_on;
-	const char *state_off;
 	int irq;
 	struct delayed_work work;
 	unsigned long debounce_jiffies;
-	bool check_on_resume;
+
+	struct gpio_extcon_platform_data *pdata;
 };
 
 static void gpio_extcon_work(struct work_struct *work)
@@ -50,25 +47,25 @@ static void gpio_extcon_work(struct work_struct *work)
 		container_of(to_delayed_work(work), struct gpio_extcon_data,
 			     work);
 
-	state = gpio_get_value(data->gpio);
-	if (data->gpio_active_low)
+	state = gpio_get_value(data->pdata->gpio);
+	if (data->pdata->gpio_active_low)
 		state = !state;
 	extcon_set_state(data->edev, state);
 }
 
 static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 {
-	struct gpio_extcon_data *extcon_data = dev_id;
+	struct gpio_extcon_data *data = dev_id;
 
-	queue_delayed_work(system_power_efficient_wq, &extcon_data->work,
-			      extcon_data->debounce_jiffies);
+	queue_delayed_work(system_power_efficient_wq, &data->work,
+			      data->debounce_jiffies);
 	return IRQ_HANDLED;
 }
 
 static int gpio_extcon_probe(struct platform_device *pdev)
 {
 	struct gpio_extcon_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct gpio_extcon_data *extcon_data;
+	struct gpio_extcon_data *data;
 	int ret;
 
 	if (!pdata)
@@ -78,64 +75,59 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	extcon_data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_extcon_data),
+	data = devm_kzalloc(&pdev->dev, sizeof(struct gpio_extcon_data),
 				   GFP_KERNEL);
-	if (!extcon_data)
+	if (!data)
 		return -ENOMEM;
 
-	extcon_data->edev = devm_extcon_dev_allocate(&pdev->dev, NULL);
-	if (IS_ERR(extcon_data->edev)) {
+	data->edev = devm_extcon_dev_allocate(&pdev->dev, NULL);
+	if (IS_ERR(data->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
+	data->pdata = pdata;
 
-	extcon_data->gpio = pdata->gpio;
-	extcon_data->gpio_active_low = pdata->gpio_active_low;
-	extcon_data->state_on = pdata->state_on;
-	extcon_data->state_off = pdata->state_off;
-	extcon_data->check_on_resume = pdata->check_on_resume;
-
-	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
+	ret = devm_gpio_request_one(&pdev->dev, data->pdata->gpio, GPIOF_DIR_IN,
 				    pdev->name);
 	if (ret < 0)
 		return ret;
 
 	if (pdata->debounce) {
-		ret = gpio_set_debounce(extcon_data->gpio,
+		ret = gpio_set_debounce(data->pdata->gpio,
 					pdata->debounce * 1000);
 		if (ret < 0)
-			extcon_data->debounce_jiffies =
+			data->debounce_jiffies =
 				msecs_to_jiffies(pdata->debounce);
 	}
 
-	ret = devm_extcon_dev_register(&pdev->dev, extcon_data->edev);
+	ret = devm_extcon_dev_register(&pdev->dev, data->edev);
 	if (ret < 0)
 		return ret;
 
-	INIT_DELAYED_WORK(&extcon_data->work, gpio_extcon_work);
+	INIT_DELAYED_WORK(&data->work, gpio_extcon_work);
 
-	extcon_data->irq = gpio_to_irq(extcon_data->gpio);
-	if (extcon_data->irq < 0)
-		return extcon_data->irq;
+	data->irq = gpio_to_irq(data->pdata->gpio);
+	if (data->irq < 0)
+		return data->irq;
 
-	ret = devm_request_any_context_irq(&pdev->dev, extcon_data->irq,
+	ret = devm_request_any_context_irq(&pdev->dev, data->irq,
 					gpio_irq_handler, pdata->irq_flags,
-					pdev->name, extcon_data);
+					pdev->name, data);
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, extcon_data);
+	platform_set_drvdata(pdev, data);
 	/* Perform initial detection */
-	gpio_extcon_work(&extcon_data->work.work);
+	gpio_extcon_work(&data->work.work);
 
 	return 0;
 }
 
 static int gpio_extcon_remove(struct platform_device *pdev)
 {
-	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
+	struct gpio_extcon_data *data = platform_get_drvdata(pdev);
 
-	cancel_delayed_work_sync(&extcon_data->work);
+	cancel_delayed_work_sync(&data->work);
 
 	return 0;
 }
@@ -143,12 +135,12 @@ static int gpio_extcon_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int gpio_extcon_resume(struct device *dev)
 {
-	struct gpio_extcon_data *extcon_data;
+	struct gpio_extcon_data *data;
 
-	extcon_data = dev_get_drvdata(dev);
-	if (extcon_data->check_on_resume)
+	data = dev_get_drvdata(dev);
+	if (data->pdata->check_on_resume)
 		queue_delayed_work(system_power_efficient_wq,
-			&extcon_data->work, extcon_data->debounce_jiffies);
+			&data->work, data->debounce_jiffies);
 
 	return 0;
 }
