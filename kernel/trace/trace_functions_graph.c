@@ -83,13 +83,18 @@ static struct tracer_opt trace_opts[] = {
 	{ TRACER_OPT(funcgraph-irqs, TRACE_GRAPH_PRINT_IRQS) },
 	/* Display function name after trailing } */
 	{ TRACER_OPT(funcgraph-tail, TRACE_GRAPH_PRINT_TAIL) },
+	/* Include sleep time (scheduled out) between entry and return */
+	{ TRACER_OPT(sleep-time, TRACE_GRAPH_SLEEP_TIME) },
+	/* Include time within nested functions */
+	{ TRACER_OPT(graph-time, TRACE_GRAPH_GRAPH_TIME) },
 	{ } /* Empty entry */
 };
 
 static struct tracer_flags tracer_flags = {
 	/* Don't display overruns, proc, or tail by default */
 	.val = TRACE_GRAPH_PRINT_CPU | TRACE_GRAPH_PRINT_OVERHEAD |
-	       TRACE_GRAPH_PRINT_DURATION | TRACE_GRAPH_PRINT_IRQS,
+	       TRACE_GRAPH_PRINT_DURATION | TRACE_GRAPH_PRINT_IRQS |
+	       TRACE_GRAPH_SLEEP_TIME | TRACE_GRAPH_GRAPH_TIME,
 	.opts = trace_opts
 };
 
@@ -1361,6 +1366,12 @@ func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	if (bit == TRACE_GRAPH_PRINT_IRQS)
 		ftrace_graph_skip_irqs = !set;
+
+	if (bit == TRACE_GRAPH_SLEEP_TIME)
+		ftrace_graph_sleep_time_control(set);
+
+	if (bit == TRACE_GRAPH_GRAPH_TIME)
+		ftrace_graph_graph_time_control(set);
 
 	return 0;
 }

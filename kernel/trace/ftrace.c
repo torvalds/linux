@@ -243,6 +243,11 @@ static void ftrace_sync_ipi(void *data)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static void update_function_graph_func(void);
+
+/* Both enabled by default (can be cleared by function_graph tracer flags */
+static bool fgraph_sleep_time = true;
+static bool fgraph_graph_time = true;
+
 #else
 static inline void update_function_graph_func(void) { }
 #endif
@@ -917,7 +922,7 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 
 	calltime = trace->rettime - trace->calltime;
 
-	if (!(trace_flags & TRACE_ITER_GRAPH_TIME)) {
+	if (!fgraph_graph_time) {
 		int index;
 
 		index = trace->depth;
@@ -5639,6 +5644,16 @@ static struct ftrace_ops graph_ops = {
 	ASSIGN_OPS_HASH(graph_ops, &global_ops.local_hash)
 };
 
+void ftrace_graph_sleep_time_control(bool enable)
+{
+	fgraph_sleep_time = enable;
+}
+
+void ftrace_graph_graph_time_control(bool enable)
+{
+	fgraph_graph_time = enable;
+}
+
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
 {
 	return 0;
@@ -5707,7 +5722,7 @@ ftrace_graph_probe_sched_switch(void *ignore,
 	 * Does the user want to count the time a function was asleep.
 	 * If so, do not update the time stamps.
 	 */
-	if (trace_flags & TRACE_ITER_SLEEP_TIME)
+	if (fgraph_sleep_time)
 		return;
 
 	timestamp = trace_clock_local();

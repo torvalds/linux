@@ -714,8 +714,13 @@ extern char trace_find_mark(unsigned long long duration);
 #define TRACE_GRAPH_PRINT_ABS_TIME      0x20
 #define TRACE_GRAPH_PRINT_IRQS          0x40
 #define TRACE_GRAPH_PRINT_TAIL          0x80
+#define TRACE_GRAPH_SLEEP_TIME		0x100
+#define TRACE_GRAPH_GRAPH_TIME		0x200
 #define TRACE_GRAPH_PRINT_FILL_SHIFT	28
 #define TRACE_GRAPH_PRINT_FILL_MASK	(0x3 << TRACE_GRAPH_PRINT_FILL_SHIFT)
+
+extern void ftrace_graph_sleep_time_control(bool enable);
+extern void ftrace_graph_graph_time_control(bool enable);
 
 extern enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags);
@@ -892,15 +897,9 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
  */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 # define FGRAPH_FLAGS						\
-		C(SLEEP_TIME,		"sleep-time"),		\
-		C(GRAPH_TIME,		"graph-time"),		\
 		C(DISPLAY_GRAPH,	"display-graph"),
-/* Initially set for trace_flags */
-# define FUNCTION_GRAPH_DEFAULT_FLAGS \
-	(TRACE_ITER_SLEEP_TIME | TRACE_ITER_GRAPH_TIME)
 #else
 # define FGRAPH_FLAGS
-# define FUNCTION_GRAPH_DEFAULT_FLAGS  0UL
 #endif
 
 #ifdef CONFIG_BRANCH_TRACER
