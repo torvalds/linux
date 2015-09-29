@@ -3170,7 +3170,14 @@ static int dwc2_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
 	unsigned long flags = 0;
 
-	dev_dbg(hsotg->dev, "%s: is_on: %d\n", __func__, is_on);
+	dev_dbg(hsotg->dev, "%s: is_on: %d op_state: %d\n", __func__, is_on,
+			hsotg->op_state);
+
+	/* Don't modify pullup state while in host mode */
+	if (hsotg->op_state != OTG_STATE_B_PERIPHERAL) {
+		hsotg->enabled = is_on;
+		return 0;
+	}
 
 	mutex_lock(&hsotg->init_mutex);
 	spin_lock_irqsave(&hsotg->lock, flags);
