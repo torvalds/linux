@@ -3822,6 +3822,10 @@ void synchronize_sched_expedited(void)
 	struct rcu_node *rnp;
 	struct rcu_state *rsp = &rcu_sched_state;
 
+	/* If only one CPU, this is automatically a grace period. */
+	if (rcu_blocking_is_gp())
+		return;
+
 	/* Take a snapshot of the sequence number.  */
 	s = rcu_exp_gp_seq_snap(rsp);
 
