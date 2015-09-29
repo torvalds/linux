@@ -1288,7 +1288,7 @@ static irqreturn_t ixgbevf_msix_clean_rings(int irq, void *data)
 
 	/* EIAM disabled interrupts (on this vector) for us */
 	if (q_vector->rx.ring || q_vector->tx.ring)
-		napi_schedule(&q_vector->napi);
+		napi_schedule_irqoff(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
