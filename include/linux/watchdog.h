@@ -119,8 +119,15 @@ static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool noway
 /* Use the following function to check if a timeout value is invalid */
 static inline bool watchdog_timeout_invalid(struct watchdog_device *wdd, unsigned int t)
 {
-	return ((wdd->max_timeout != 0) &&
-		(t < wdd->min_timeout || t > wdd->max_timeout));
+	/*
+	 * The timeout is invalid if
+	 * - the requested value is smaller than the configured minimum timeout,
+	 * or
+	 * - a maximum timeout is configured, and the requested value is larger
+	 *   than the maximum timeout.
+	 */
+	return t < wdd->min_timeout ||
+		(wdd->max_timeout && t > wdd->max_timeout);
 }
 
 /* Use the following functions to manipulate watchdog driver specific data */
