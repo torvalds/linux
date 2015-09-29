@@ -449,19 +449,13 @@ void rcu_read_unlock_special(struct task_struct *t)
 
 		/*
 		 * Remove this task from the list it blocked on.  The task
-		 * now remains queued on the rcu_node corresponding to
-		 * the CPU it first blocked on, so the first attempt to
-		 * acquire the task's rcu_node's ->lock will succeed.
-		 * Keep the loop and add a WARN_ON() out of sheer paranoia.
+		 * now remains queued on the rcu_node corresponding to the
+		 * CPU it first blocked on, so there is no longer any need
+		 * to loop.  Retain a WARN_ON_ONCE() out of sheer paranoia.
 		 */
-		for (;;) {
-			rnp = t->rcu_blocked_node;
-			raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
-			if (rnp == t->rcu_blocked_node)
-				break;
-			WARN_ON_ONCE(1);
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-		}
+		rnp = t->rcu_blocked_node;
+		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
+		WARN_ON_ONCE(rnp != t->rcu_blocked_node);
 		empty_norm = !rcu_preempt_blocked_readers_cgp(rnp);
 		empty_exp = sync_rcu_preempt_exp_done(rnp);
 		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
