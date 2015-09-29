@@ -488,54 +488,6 @@ int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
 	return 0;
 }
 
-void ccc_transient_page_verify(const struct cl_page *page)
-{
-}
-
-int ccc_transient_page_own(const struct lu_env *env,
-				   const struct cl_page_slice *slice,
-				   struct cl_io *unused,
-				   int nonblock)
-{
-	ccc_transient_page_verify(slice->cpl_page);
-	return 0;
-}
-
-void ccc_transient_page_assume(const struct lu_env *env,
-				      const struct cl_page_slice *slice,
-				      struct cl_io *unused)
-{
-	ccc_transient_page_verify(slice->cpl_page);
-}
-
-void ccc_transient_page_unassume(const struct lu_env *env,
-					const struct cl_page_slice *slice,
-					struct cl_io *unused)
-{
-	ccc_transient_page_verify(slice->cpl_page);
-}
-
-void ccc_transient_page_disown(const struct lu_env *env,
-				      const struct cl_page_slice *slice,
-				      struct cl_io *unused)
-{
-	ccc_transient_page_verify(slice->cpl_page);
-}
-
-void ccc_transient_page_discard(const struct lu_env *env,
-				       const struct cl_page_slice *slice,
-				       struct cl_io *unused)
-{
-	struct cl_page *page = slice->cpl_page;
-
-	ccc_transient_page_verify(slice->cpl_page);
-
-	/*
-	 * For transient pages, remove it from the radix tree.
-	 */
-	cl_page_delete(env, page);
-}
-
 int ccc_transient_page_prep(const struct lu_env *env,
 				   const struct cl_page_slice *slice,
 				   struct cl_io *unused)
