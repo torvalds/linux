@@ -858,6 +858,7 @@ EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
 
 struct switchdev_fdb_dump {
 	struct switchdev_obj obj;
+	struct net_device *dev;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	int idx;
@@ -887,7 +888,7 @@ static int switchdev_port_fdb_dump_cb(struct net_device *dev,
 	ndm->ndm_pad2    = 0;
 	ndm->ndm_flags   = NTF_SELF;
 	ndm->ndm_type    = 0;
-	ndm->ndm_ifindex = dev->ifindex;
+	ndm->ndm_ifindex = dump->dev->ifindex;
 	ndm->ndm_state   = obj->u.fdb.ndm_state;
 
 	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, obj->u.fdb.addr))
@@ -927,6 +928,7 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			.id = SWITCHDEV_OBJ_PORT_FDB,
 			.cb = switchdev_port_fdb_dump_cb,
 		},
+		.dev = dev,
 		.skb = skb,
 		.cb = cb,
 		.idx = idx,
