@@ -806,7 +806,7 @@ static int rk_usb_update_online(struct cw_battery *cw_bat)
 
 	} else if (usb_status == 0 && cw_bat->usb_online != 0) {
 		if (gpio_is_valid(gpio)) {
-			if (gpio_get_value(gpio == value))
+			if (gpio_get_value(gpio) == value)
 				gpio_direction_output(gpio, !value);
 		}
 
