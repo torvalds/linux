@@ -81,6 +81,25 @@ static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
 	return NULL;
 }
 
+static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
+{
+	struct net_device *dev;
+	bool rc = false;
+
+	if (ifindex == 0)
+		return false;
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	if (dev)
+		rc = netif_is_l3_master(dev);
+
+	rcu_read_unlock();
+
+	return rc;
+}
+
 #else
 
 static inline int l3mdev_master_ifindex_rcu(struct net_device *dev)
@@ -118,6 +137,11 @@ static inline struct rtable *l3mdev_get_rtable(const struct net_device *dev,
 					       const struct flowi4 *fl4)
 {
 	return NULL;
+}
+
+static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
+{
+	return false;
 }
 
 #endif

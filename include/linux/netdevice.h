@@ -3840,27 +3840,6 @@ static inline bool netif_is_ovs_master(const struct net_device *dev)
 	return dev->priv_flags & IFF_OPENVSWITCH;
 }
 
-static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
-{
-	bool rc = false;
-
-#if IS_ENABLED(CONFIG_NET_VRF)
-	struct net_device *dev;
-
-	if (ifindex == 0)
-		return false;
-
-	rcu_read_lock();
-
-	dev = dev_get_by_index_rcu(net, ifindex);
-	if (dev)
-		rc = netif_is_l3_master(dev);
-
-	rcu_read_unlock();
-#endif
-	return rc;
-}
-
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
 static inline void netif_keep_dst(struct net_device *dev)
 {
