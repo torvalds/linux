@@ -74,8 +74,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int i, j;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
-
 	start_line = offset / par->info->fix.line_length;
 	end_line = start_line + (len / par->info->fix.line_length) - 1;
 
@@ -112,8 +110,6 @@ static int write_vmem_8bit(struct fbtft_par *par, size_t offset, size_t len)
 	u8 *buf8 = par->txbuf.buf + 10;
 	int i, j;
 	int ret = 0;
-
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
 	start_line = offset / par->info->fix.line_length;
 	end_line = start_line + (len / par->info->fix.line_length) - 1;

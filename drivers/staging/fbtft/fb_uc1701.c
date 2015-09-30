@@ -146,8 +146,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int x, y, i;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
-
 	for (y = 0; y < PAGES; y++) {
 		buf = par->txbuf.buf;
 		for (x = 0; x < WIDTH; x++) {
