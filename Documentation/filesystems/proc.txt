@@ -140,7 +140,8 @@ Table 1-1: Process specific entries in /proc
  stat		Process status
  statm		Process memory status information
  status		Process status in human readable form
- wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ wchan		Present with CONFIG_KALLSYMS=y: it shows the kernel function
+		symbol the task is blocked in - or "0" if not blocked.
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
@@ -309,7 +310,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   blocked       bitmap of blocked signals
   sigign        bitmap of ignored signals
   sigcatch      bitmap of caught signals
-  wchan         address where process went to sleep
+  0		(place holder, used to be the wchan address, use /proc/PID/wchan instead)
   0             (place holder)
   0             (place holder)
   exit_signal   signal to send to parent thread on exit
