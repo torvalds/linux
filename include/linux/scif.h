@@ -93,6 +93,27 @@ enum {
 #define SCIF_PORT_RSVD		1088
 
 typedef struct scif_endpt *scif_epd_t;
+typedef struct scif_pinned_pages *scif_pinned_pages_t;
+
+/**
+ * struct scif_range - SCIF registered range used in kernel mode
+ * @cookie: cookie used internally by SCIF
+ * @nr_pages: number of pages of PAGE_SIZE
+ * @prot_flags: R/W protection
+ * @phys_addr: Array of bus addresses
+ * @va: Array of kernel virtual addresses backed by the pages in the phys_addr
+ *	array. The va is populated only when called on the host for a remote
+ *	SCIF connection on MIC. This is required to support the use case of DMA
+ *	between MIC and another device which is not a SCIF node e.g., an IB or
+ *	ethernet NIC.
+ */
+struct scif_range {
+	void *cookie;
+	int nr_pages;
+	int prot_flags;
+	dma_addr_t *phys_addr;
+	void __iomem **va;
+};
 
 /**
  * struct scif_pollepd - SCIF endpoint to be monitored via scif_poll
@@ -389,7 +410,6 @@ int scif_close(scif_epd_t epd);
  * Errors:
  * EBADF, ENOTTY - epd is not a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EFAULT - An invalid address was specified for a parameter
  * EINVAL - flags is invalid, or len is negative
  * ENODEV - The remote node is lost or existed, but is not currently in the
  * network since it may have crashed
@@ -442,7 +462,6 @@ int scif_send(scif_epd_t epd, void *msg, int len, int flags);
  * EAGAIN - The destination node is returning from a low power state
  * EBADF, ENOTTY - epd is not a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EFAULT - An invalid address was specified for a parameter
  * EINVAL - flags is invalid, or len is negative
  * ENODEV - The remote node is lost or existed, but is not currently in the
  * network since it may have crashed
@@ -505,9 +524,6 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags);
  * SCIF_PROT_READ - allow read operations from the window
  * SCIF_PROT_WRITE - allow write operations to the window
  *
- * The map_flags argument can be set to SCIF_MAP_FIXED which interprets a
- * fixed offset.
- *
  * Return:
  * Upon successful completion, scif_register() returns the offset at which the
  * mapping was placed (po); otherwise in user mode SCIF_REGISTER_FAILED (that
@@ -520,7 +536,6 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags);
  * EAGAIN - The mapping could not be performed due to lack of resources
  * EBADF, ENOTTY - epd is not a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EFAULT - Addresses in the range [addr, addr + len - 1] are invalid
  * EINVAL - map_flags is invalid, or prot_flags is invalid, or SCIF_MAP_FIXED is
  * set in flags, and offset is not a multiple of the page size, or addr is not a
  * multiple of the page size, or len is not a multiple of the page size, or is
@@ -803,7 +818,6 @@ int scif_writeto(scif_epd_t epd, off_t loffset, size_t len, off_t
  * EACCESS - Attempt to write to a read-only range
  * EBADF, ENOTTY - epd is not a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EFAULT - Addresses in the range [addr, addr + len - 1] are invalid
  * EINVAL - rma_flags is invalid
  * ENODEV - The remote node is lost or existed, but is not currently in the
  * network since it may have crashed
@@ -884,7 +898,6 @@ int scif_vreadfrom(scif_epd_t epd, void *addr, size_t len, off_t roffset,
  * EACCESS - Attempt to write to a read-only range
  * EBADF, ENOTTY - epd is not a valid endpoint descriptor
  * ECONNRESET - Connection reset by peer
- * EFAULT - Addresses in the range [addr, addr + len - 1] are invalid
  * EINVAL - rma_flags is invalid
  * ENODEV - The remote node is lost or existed, but is not currently in the
  * network since it may have crashed
@@ -1028,11 +1041,212 @@ int scif_fence_signal(scif_epd_t epd, off_t loff, u64 lval, off_t roff,
  * online nodes in the SCIF network including 'self'; otherwise in user mode
  * -1 is returned and errno is set to indicate the error; in kernel mode no
  * errors are returned.
- *
- * Errors:
- * EFAULT - Bad address
  */
 int scif_get_node_ids(u16 *nodes, int len, u16 *self);
+
+/**
+ * scif_pin_pages() - Pin a set of pages
+ * @addr:		Virtual address of range to pin
+ * @len:		Length of range to pin
+ * @prot_flags:		Page protection flags
+ * @map_flags:		Page classification flags
+ * @pinned_pages:	Handle to pinned pages
+ *
+ * scif_pin_pages() pins (locks in physical memory) the physical pages which
+ * back the range of virtual address pages starting at addr and continuing for
+ * len bytes. addr and len are constrained to be multiples of the page size. A
+ * successful scif_pin_pages() call returns a handle to pinned_pages which may
+ * be used in subsequent calls to scif_register_pinned_pages().
+ *
+ * The pages will remain pinned as long as there is a reference against the
+ * scif_pinned_pages_t value returned by scif_pin_pages() and until
+ * scif_unpin_pages() is called, passing the scif_pinned_pages_t value. A
+ * reference is added to a scif_pinned_pages_t value each time a window is
+ * created by calling scif_register_pinned_pages() and passing the
+ * scif_pinned_pages_t value. A reference is removed from a
+ * scif_pinned_pages_t value each time such a window is deleted.
+ *
+ * Subsequent operations which change the memory pages to which virtual
+ * addresses are mapped (such as mmap(), munmap()) have no effect on the
+ * scif_pinned_pages_t value or windows created against it.
+ *
+ * If the process will fork(), it is recommended that the registered
+ * virtual address range be marked with MADV_DONTFORK. Doing so will prevent
+ * problems due to copy-on-write semantics.
+ *
+ * The prot_flags argument is formed by OR'ing together one or more of the
+ * following values.
+ * SCIF_PROT_READ - allow read operations against the pages
+ * SCIF_PROT_WRITE - allow write operations against the pages
+ * The map_flags argument can be set as SCIF_MAP_KERNEL to interpret addr as a
+ * kernel space address. By default, addr is interpreted as a user space
+ * address.
+ *
+ * Return:
+ * Upon successful completion, scif_pin_pages() returns 0; otherwise the
+ * negative of one of the following errors is returned.
+ *
+ * Errors:
+ * EINVAL - prot_flags is invalid, map_flags is invalid, or offset is negative
+ * ENOMEM - Not enough space
+ */
+int scif_pin_pages(void *addr, size_t len, int prot_flags, int map_flags,
+		   scif_pinned_pages_t *pinned_pages);
+
+/**
+ * scif_unpin_pages() - Unpin a set of pages
+ * @pinned_pages:	Handle to pinned pages to be unpinned
+ *
+ * scif_unpin_pages() prevents scif_register_pinned_pages() from registering new
+ * windows against pinned_pages. The physical pages represented by pinned_pages
+ * will remain pinned until all windows previously registered against
+ * pinned_pages are deleted (the window is scif_unregister()'d and all
+ * references to the window are removed (see scif_unregister()).
+ *
+ * pinned_pages must have been obtain from a previous call to scif_pin_pages().
+ * After calling scif_unpin_pages(), it is an error to pass pinned_pages to
+ * scif_register_pinned_pages().
+ *
+ * Return:
+ * Upon successful completion, scif_unpin_pages() returns 0; otherwise the
+ * negative of one of the following errors is returned.
+ *
+ * Errors:
+ * EINVAL - pinned_pages is not valid
+ */
+int scif_unpin_pages(scif_pinned_pages_t pinned_pages);
+
+/**
+ * scif_register_pinned_pages() - Mark a memory region for remote access.
+ * @epd:		endpoint descriptor
+ * @pinned_pages:	Handle to pinned pages
+ * @offset:		Registered address space offset
+ * @map_flags:		Flags which control where pages are mapped
+ *
+ * The scif_register_pinned_pages() function opens a window, a range of whole
+ * pages of the registered address space of the endpoint epd, starting at
+ * offset po. The value of po, further described below, is a function of the
+ * parameters offset and pinned_pages, and the value of map_flags. Each page of
+ * the window represents a corresponding physical memory page of the range
+ * represented by pinned_pages; the length of the window is the same as the
+ * length of range represented by pinned_pages. A successful
+ * scif_register_pinned_pages() call returns po as the return value.
+ *
+ * When SCIF_MAP_FIXED is set in the map_flags argument, po will be offset
+ * exactly, and offset is constrained to be a multiple of the page size. The
+ * mapping established by scif_register_pinned_pages() will not replace any
+ * existing registration; an error is returned if any page of the new window
+ * would intersect an existing window.
+ *
+ * When SCIF_MAP_FIXED is not set, the implementation uses offset in an
+ * implementation-defined manner to arrive at po. The po so chosen will be an
+ * area of the registered address space that the implementation deems suitable
+ * for a mapping of the required size. An offset value of 0 is interpreted as
+ * granting the implementation complete freedom in selecting po, subject to
+ * constraints described below. A non-zero value of offset is taken to be a
+ * suggestion of an offset near which the mapping should be placed. When the
+ * implementation selects a value for po, it does not replace any extant
+ * window. In all cases, po will be a multiple of the page size.
+ *
+ * The physical pages which are so represented by a window are available for
+ * access in calls to scif_get_pages(), scif_readfrom(), scif_writeto(),
+ * scif_vreadfrom(), and scif_vwriteto(). While a window is registered, the
+ * physical pages represented by the window will not be reused by the memory
+ * subsystem for any other purpose. Note that the same physical page may be
+ * represented by multiple windows.
+ *
+ * Windows created by scif_register_pinned_pages() are unregistered by
+ * scif_unregister().
+ *
+ * The map_flags argument can be set to SCIF_MAP_FIXED which interprets a
+ * fixed offset.
+ *
+ * Return:
+ * Upon successful completion, scif_register_pinned_pages() returns the offset
+ * at which the mapping was placed (po); otherwise the negative of one of the
+ * following errors is returned.
+ *
+ * Errors:
+ * EADDRINUSE - SCIF_MAP_FIXED is set in map_flags and pages in the new window
+ * would intersect an existing window
+ * EAGAIN - The mapping could not be performed due to lack of resources
+ * ECONNRESET - Connection reset by peer
+ * EINVAL - map_flags is invalid, or SCIF_MAP_FIXED is set in map_flags, and
+ * offset is not a multiple of the page size, or offset is negative
+ * ENODEV - The remote node is lost or existed, but is not currently in the
+ * network since it may have crashed
+ * ENOMEM - Not enough space
+ * ENOTCONN - The endpoint is not connected
+ */
+off_t scif_register_pinned_pages(scif_epd_t epd,
+				 scif_pinned_pages_t pinned_pages,
+				 off_t offset, int map_flags);
+
+/**
+ * scif_get_pages() - Add references to remote registered pages
+ * @epd:	endpoint descriptor
+ * @offset:	remote registered offset
+ * @len:	length of range of pages
+ * @pages:	returned scif_range structure
+ *
+ * scif_get_pages() returns the addresses of the physical pages represented by
+ * those pages of the registered address space of the peer of epd, starting at
+ * offset and continuing for len bytes. offset and len are constrained to be
+ * multiples of the page size.
+ *
+ * All of the pages in the specified range [offset, offset + len - 1] must be
+ * within a single window of the registered address space of the peer of epd.
+ *
+ * The addresses are returned as a virtually contiguous array pointed to by the
+ * phys_addr component of the scif_range structure whose address is returned in
+ * pages. The nr_pages component of scif_range is the length of the array. The
+ * prot_flags component of scif_range holds the protection flag value passed
+ * when the pages were registered.
+ *
+ * Each physical page whose address is returned by scif_get_pages() remains
+ * available and will not be released for reuse until the scif_range structure
+ * is returned in a call to scif_put_pages(). The scif_range structure returned
+ * by scif_get_pages() must be unmodified.
+ *
+ * It is an error to call scif_close() on an endpoint on which a scif_range
+ * structure of that endpoint has not been returned to scif_put_pages().
+ *
+ * Return:
+ * Upon successful completion, scif_get_pages() returns 0; otherwise the
+ * negative of one of the following errors is returned.
+ * Errors:
+ * ECONNRESET - Connection reset by peer.
+ * EINVAL - offset is not a multiple of the page size, or offset is negative, or
+ * len is not a multiple of the page size
+ * ENODEV - The remote node is lost or existed, but is not currently in the
+ * network since it may have crashed
+ * ENOTCONN - The endpoint is not connected
+ * ENXIO - Offsets in the range [offset, offset + len - 1] are invalid
+ * for the registered address space of the peer epd
+ */
+int scif_get_pages(scif_epd_t epd, off_t offset, size_t len,
+		   struct scif_range **pages);
+
+/**
+ * scif_put_pages() - Remove references from remote registered pages
+ * @pages:	pages to be returned
+ *
+ * scif_put_pages() releases a scif_range structure previously obtained by
+ * calling scif_get_pages(). The physical pages represented by pages may
+ * be reused when the window which represented those pages is unregistered.
+ * Therefore, those pages must not be accessed after calling scif_put_pages().
+ *
+ * Return:
+ * Upon successful completion, scif_put_pages() returns 0; otherwise the
+ * negative of one of the following errors is returned.
+ * Errors:
+ * EINVAL - pages does not point to a valid scif_range structure, or
+ * the scif_range structure pointed to by pages was already returned
+ * ENODEV - The remote node is lost or existed, but is not currently in the
+ * network since it may have crashed
+ * ENOTCONN - The endpoint is not connected
+ */
+int scif_put_pages(struct scif_range *pages);
 
 /**
  * scif_poll() - Wait for some event on an endpoint
