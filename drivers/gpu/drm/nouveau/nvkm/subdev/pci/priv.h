@@ -16,4 +16,6 @@ struct nvkm_pci_func {
 u32 nv40_pci_rd32(struct nvkm_pci *, u16);
 void nv40_pci_wr08(struct nvkm_pci *, u16, u8);
 void nv40_pci_wr32(struct nvkm_pci *, u16, u32);
+
+void nv50_pci_msi_rearm(struct nvkm_pci *);
 #endif
