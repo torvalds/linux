@@ -394,7 +394,7 @@ union message_body {
 	struct beacon_attr beacon_info;
 	struct add_sta_param add_sta_info;
 	struct del_sta del_sta_info;
-	struct add_sta_param strEditStaParam;
+	struct add_sta_param edit_sta_info;
 	struct timer_cb strTimerCb;
 	struct power_mgmt_param strPowerMgmtparam;
 	struct sta_inactive_t strHostIfStaInactiveT;
@@ -4150,7 +4150,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_EDIT_STATION:
-			Handle_EditStation(msg.drvHandler, &msg.body.strEditStaParam);
+			Handle_EditStation(msg.drvHandler, &msg.body.edit_sta_info);
 			break;
 
 		case HOST_IF_MSG_GET_INACTIVETIME:
