@@ -20,6 +20,7 @@
 #include <drv_types.h>
 #include <rtw_recv.h>
 #include <rtw_xmit.h>
+#include <mon.h>
 
 /**
  * unprotect_frame() - unset Protected flag and strip off IV and ICV/MIC
