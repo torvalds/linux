@@ -120,4 +120,19 @@ config SND_BEBOB
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.
 
+config SND_FIREWIRE_DIGI00X
+	tristate "Digidesign Digi 002/003 family support"
+	select SND_FIREWIRE_LIB
+	select SND_HWDEP
+	help
+	 Say Y here to include support for Digidesign Digi 002/003 family.
+	  * Digi 002 Console
+	  * Digi 002 Rack
+	  * Digi 003 Console
+	  * Digi 003 Rack
+	  * Digi 003 Rack+
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-digi00x.
+
 endif # SND_FIREWIRE
