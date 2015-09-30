@@ -222,7 +222,7 @@ int __init efi_memblock_x86_reserve_range(void)
 	return 0;
 }
 
-static void __init print_efi_memmap(void)
+void __init efi_print_memmap(void)
 {
 #ifdef EFI_DEBUG
 	efi_memory_desc_t *md;
@@ -524,7 +524,7 @@ void __init efi_init(void)
 		return;
 
 	if (efi_enabled(EFI_DBG))
-		print_efi_memmap();
+		efi_print_memmap();
 
 	efi_esrt_init();
 }
