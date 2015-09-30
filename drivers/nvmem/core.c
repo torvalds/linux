@@ -938,7 +938,7 @@ int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len)
 	rc = regmap_raw_write(nvmem->regmap, cell->offset, buf, cell->bytes);
 
 	/* free the tmp buffer */
-	if (cell->bit_offset)
+	if (cell->bit_offset || cell->nbits)
 		kfree(buf);
 
 	if (IS_ERR_VALUE(rc))
