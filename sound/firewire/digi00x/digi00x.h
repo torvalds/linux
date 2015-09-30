@@ -119,4 +119,7 @@ void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x);
 
 void snd_dg00x_proc_init(struct snd_dg00x *dg00x);
+
+int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x);
+
 #endif
