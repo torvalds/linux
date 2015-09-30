@@ -131,8 +131,8 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 
 static int
 lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
-		       const struct ieee802154_hdr *wpan_hdr, u16 dgram_size,
-		       u16 dgram_offset)
+		       const struct ieee802154_hdr *wpan_hdr,
+		       unsigned int dgram_size, unsigned int dgram_offset)
 {
 	__be16 frag_tag;
 	u8 frag_hdr[5];
@@ -194,7 +194,7 @@ err:
 }
 
 static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
-			 u16 *dgram_size, u16 *dgram_offset)
+			 unsigned int *dgram_size, unsigned int *dgram_offset)
 {
 	struct wpan_dev *wpan_dev = lowpan_dev_info(ldev)->wdev->ieee802154_ptr;
 	struct ieee802154_addr sa, da;
@@ -244,7 +244,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 {
 	struct ieee802154_hdr wpan_hdr;
 	int max_single, ret;
-	u16 dgram_size, dgram_offset;
+	unsigned int dgram_size, dgram_offset;
 
 	pr_debug("package xmit\n");
 

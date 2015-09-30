@@ -18,7 +18,7 @@ typedef unsigned __bitwise__ lowpan_rx_result;
 
 struct lowpan_create_arg {
 	u16 tag;
-	u16 d_size;
+	unsigned int d_size;
 	const struct ieee802154_addr *src;
 	const struct ieee802154_addr *dst;
 };
@@ -29,7 +29,7 @@ struct lowpan_frag_queue {
 	struct inet_frag_queue	q;
 
 	u16			tag;
-	u16			d_size;
+	unsigned int		d_size;
 	struct ieee802154_addr	saddr;
 	struct ieee802154_addr	daddr;
 };
