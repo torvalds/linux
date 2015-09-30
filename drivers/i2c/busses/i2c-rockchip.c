@@ -92,6 +92,7 @@ struct rockchip_i2c {
 	struct device		*dev;
 	struct resource		*ioarea;
 	struct i2c_adapter	adap;
+	struct mutex 		suspend_lock;
 
 	unsigned long		scl_rate;
 	unsigned long		i2c_rate;
@@ -626,6 +627,7 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	int msleep_time = 400 * 1000 / i2c->scl_rate;	// ms
 	int can_sleep = !(in_atomic() || irqs_disabled());
 
+	mutex_lock(&i2c->suspend_lock);
 	if (i2c->suspended) {
 		dev_err(i2c->dev, "i2c is suspended\n");
 		return -EIO;
@@ -722,6 +724,8 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	if (error == -EAGAIN)
 		i2c_dbg(i2c->dev, "No ack(complete_what: 0x%x), Maybe slave(addr: 0x%04x) not exist or abnormal power-on\n",
 			i2c->complete_what, i2c->addr);
+	mutex_unlock(&i2c->suspend_lock);
+
 	return error;
 }
 
@@ -920,6 +924,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s: Rockchip I2C adapter\n", dev_name(&i2c->adap.dev));
 
 	of_i2c_register_devices(&i2c->adap);
+	mutex_init(&i2c->suspend_lock);
 
 	return 0;
 }
@@ -933,10 +938,26 @@ static int rockchip_i2c_remove(struct platform_device *pdev)
 {
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
+	mutex_lock(&i2c->suspend_lock);
+	i2c->suspended = 1;
 	i2c_del_adapter(&i2c->adap);
 	clk_unprepare(i2c->clk);
+	mutex_unlock(&i2c->suspend_lock);
 
 	return 0;
+}
+
+/* rockchip_i2c_shutdown
+ *
+ * called when device is shutdown from the bus
+*/
+static void rockchip_i2c_shutdown(struct platform_device *pdev)
+{
+	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
+
+	mutex_lock(&i2c->suspend_lock);
+	i2c->suspended = 1;
+	mutex_unlock(&i2c->suspend_lock);
 }
 
 #ifdef CONFIG_PM
@@ -945,8 +966,10 @@ static int rockchip_i2c_suspend_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
+	mutex_lock(&i2c->suspend_lock);
 	i2c->suspended = 1;
 	pinctrl_pm_select_sleep_state(dev);
+	mutex_unlock(&i2c->suspend_lock);
 
 	return 0;
 }
@@ -956,9 +979,11 @@ static int rockchip_i2c_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
+	mutex_lock(&i2c->suspend_lock);
 	pinctrl_pm_select_default_state(dev);
 	rockchip_i2c_init_hw(i2c, i2c->scl_rate);
 	i2c->suspended = 0;
+	mutex_unlock(&i2c->suspend_lock);
 
 	return 0;
 }
@@ -982,6 +1007,7 @@ MODULE_DEVICE_TABLE(of, rockchip_i2c_of_match);
 static struct platform_driver rockchip_i2c_driver = {
 	.probe		= rockchip_i2c_probe,
 	.remove		= rockchip_i2c_remove,
+	.shutdown	= rockchip_i2c_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "rockchip_i2c",
