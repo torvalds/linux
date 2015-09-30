@@ -365,17 +365,15 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	p = 0;
 	mutex_lock(&map->cache_lock);
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
-		entry_len = snprintf(entry, PAGE_SIZE, "%x-%x",
+		entry_len = snprintf(entry, PAGE_SIZE, "%x-%x\n",
 				     c->base_reg, c->max_reg);
 		if (p >= *ppos) {
-			if (buf_pos + 1 + entry_len > count)
+			if (buf_pos + entry_len > count)
 				break;
 			memcpy(buf + buf_pos, entry, entry_len);
 			buf_pos += entry_len;
-			buf[buf_pos] = '\n';
-			buf_pos++;
 		}
-		p += entry_len + 1;
+		p += entry_len;
 	}
 	mutex_unlock(&map->cache_lock);
 
