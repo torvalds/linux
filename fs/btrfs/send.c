@@ -2343,8 +2343,14 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	}
 
 	TLV_PUT_STRING(sctx, BTRFS_SEND_A_PATH, name, namelen);
-	TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
-			sctx->send_root->root_item.uuid);
+
+	if (!btrfs_is_empty_uuid(sctx->send_root->root_item.received_uuid))
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
+			    sctx->send_root->root_item.received_uuid);
+	else
+		TLV_PUT_UUID(sctx, BTRFS_SEND_A_UUID,
+			    sctx->send_root->root_item.uuid);
+
 	TLV_PUT_U64(sctx, BTRFS_SEND_A_CTRANSID,
 		    le64_to_cpu(sctx->send_root->root_item.ctransid));
 	if (parent_root) {
