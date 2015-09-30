@@ -871,7 +871,7 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 		return;
 
 	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
-	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
+	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
 static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
