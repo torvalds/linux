@@ -130,19 +130,6 @@ typedef struct {
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
-#ifndef CONNECT_DIRECT
-typedef struct wid_site_survey_reslts {
-	char SSID[MAX_SSID_LEN];
-	u8 BssType;
-	u8 Channel;
-	u8 SecurityStatus;
-	u8 BSSID[6];
-	char RxPower;
-	u8 Reserved;
-
-} wid_site_survey_reslts_s;
-#endif
-
 s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 		    u32 u32WIDsCount, bool bRespRequired, u32 drvHandler);
 s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
@@ -151,13 +138,6 @@ s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
 s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
 		       tstrConnectRespInfo **ppstrConnectRespInfo);
 s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
-
-#ifndef CONNECT_DIRECT
-s32 ParseSurveyResults(u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-		       wid_site_survey_reslts_s **ppstrSurveyResults,
-		       u32 *pu32SurveyResultsCount);
-s32 DeallocateSurveyResults(wid_site_survey_reslts_s *pstrSurveyResults);
-#endif
 
 void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
 void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);

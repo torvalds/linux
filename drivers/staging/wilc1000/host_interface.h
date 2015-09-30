@@ -322,11 +322,6 @@ typedef struct {
 
 	tenuHostIFstate enuHostIFstate;
 
-	#ifndef CONNECT_DIRECT
-	u32 u32SurveyResultsCount;
-	wid_site_survey_reslts_s astrSurveyResults[MAX_NUM_SCANNED_NETWORKS];
-	#endif
-
 	u8 au8AssociatedBSSID[ETH_ALEN];
 	tstrCfgParamVal strCfgValues;
 /* semaphores */
@@ -657,41 +652,6 @@ s32 host_int_set_MacAddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8MacAddress);
  *  @version		1.0
  */
 s32 host_int_wait_msg_queue_idle(void);
-
-/**
- *  @brief              gets the site survey results
- *  @details
- *  @param[in,out] handle to the wifi driver,
- *                                Message containing  site survey results in the
- *                                following formate
- *|---------------------------------------------------|
- | MsgLength | fragNo.	| MsgBodyLength	| MsgBody	|
- ||-----------|-----------|---------------|-----------|
- |	 1		|	  1		|		1		|	 1		|
- | -----------------------------------------	 |  ----------------
- |
- ||---------------------------------------|
- | Network1 | Netweork2 | ... | Network5 |
- ||---------------------------------------|
- |	44	   |	44	   | ... |	 44		|
- | -------------------------- | ---------------------------------------
- |
- ||---------------------------------------------------------------------|
- | SSID | BSS Type | Channel | Security Status| BSSID | RSSI |Reserved |
- ||------|----------|---------|----------------|-------|------|---------|
- |  33  |	 1	  |	  1		|		1		 |	  6	 |	 1	|	 1	  |
- ||---------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-#ifndef CONNECT_DIRECT
-s32 host_int_get_site_survey_results(tstrWILC_WFIDrv *hWFIDrv,
-					     u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-					     u32 u32MaxSiteSrvyFragLen);
-#endif
 
 /**
  *  @brief              sets a start scan request

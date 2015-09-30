@@ -459,13 +459,11 @@ struct host_if_msg {
 	tstrWILC_WFIDrv *drvHandler;
 };
 
-#ifdef CONNECT_DIRECT
 typedef struct _tstrWidJoinReqExt {
 	char SSID[MAX_SSID_LEN];
 	u8 u8channel;
 	u8 BSSID[6];
 } tstrWidJoinReqExt;
-#endif
 
 /*Struct containg joinParam of each AP*/
 typedef struct _tstrJoinBssParam {
@@ -533,10 +531,6 @@ struct timer_list g_hPeriodicRSSI;
 
 
 u8 gau8MulticastMacAddrList[WILC_MULTICAST_TABLE_SIZE][ETH_ALEN];
-
-#ifndef CONNECT_DIRECT
-static u8 gapu8RcvdSurveyResults[2][MAX_SURVEY_RESULT_FRAG_SIZE];
-#endif
 
 static u8 gapu8RcvdAssocResp[MAX_ASSOC_RESP_FRAME_SIZE];
 
@@ -1510,173 +1504,10 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 	tstrWID strWIDList[8];
 	u32 u32WidsCount = 0, dummyval = 0;
 	/* char passphrase[] = "12345678"; */
-	#ifndef CONNECT_DIRECT
-	s32 s32Err = 0;
-	u32 i;
-	u8 u8bssDscListIndex;
-	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
-	#else
 	u8 *pu8CurrByte = NULL;
 	tstrJoinBssParam *ptstrJoinBssParam;
-	#endif
 
 	PRINT_D(GENERIC_DBG, "Handling connect request\n");
-
-	#ifndef CONNECT_DIRECT
-	memset(gapu8RcvdSurveyResults, 0, sizeof(gapu8RcvdSurveyResults));
-
-
-	PRINT_D(HOSTINF_DBG, "Getting site survey results\n");
-	s32Err = host_int_get_site_survey_results(pstrWFIDrv,
-						  gapu8RcvdSurveyResults,
-						  MAX_SURVEY_RESULT_FRAG_SIZE);
-	if (s32Err) {
-		PRINT_ER("Failed to get site survey results\n");
-		s32Error = -EFAULT;
-		goto ERRORHANDLER;
-	}
-	s32Err = ParseSurveyResults(gapu8RcvdSurveyResults, &pstrSurveyResults,
-				    &pstrWFIDrv->u32SurveyResultsCount);
-
-
-	if (s32Err == 0) {
-		/* use the parsed info in pstrSurveyResults, then deallocate it */
-		PRINT_D(HOSTINF_DBG, "Copying site survey results in global structure, then deallocate\n");
-		for (i = 0; i < pstrWFIDrv->u32SurveyResultsCount; i++)	{
-			memcpy(&pstrWFIDrv->astrSurveyResults[i], &pstrSurveyResults[i],
-				    sizeof(wid_site_survey_reslts_s));
-		}
-
-		DeallocateSurveyResults(pstrSurveyResults);
-	} else {
-		PRINT_ER("ParseSurveyResults() Error\n");
-		s32Error = -EFAULT;
-		goto ERRORHANDLER;
-	}
-
-
-	for (i = 0; i < pstrWFIDrv->u32SurveyResultsCount; i++)	{
-		if (memcmp(pstrWFIDrv->astrSurveyResults[i].SSID,
-				pstrHostIFconnectAttr->pu8ssid,
-				pstrHostIFconnectAttr->ssidLen) == 0) {
-			PRINT_INFO(HOSTINF_DBG, "Network with required SSID is found %s\n", pstrHostIFconnectAttr->pu8ssid);
-			if (pstrHostIFconnectAttr->pu8bssid == NULL) {
-				/* BSSID is not passed from the user, so decision of matching
-				 * is done by SSID only */
-				PRINT_INFO(HOSTINF_DBG, "BSSID is not passed from the user\n");
-				break;
-			} else {
-				/* BSSID is also passed from the user, so decision of matching
-				 * should consider also this passed BSSID */
-
-				if (memcmp(pstrWFIDrv->astrSurveyResults[i].BSSID,
-						pstrHostIFconnectAttr->pu8bssid,
-						6) == 0) {
-					PRINT_INFO(HOSTINF_DBG, "BSSID is passed from the user and matched\n");
-					break;
-				}
-			}
-		}
-	}
-
-	if (i < pstrWFIDrv->u32SurveyResultsCount) {
-		u8bssDscListIndex = i;
-
-		PRINT_INFO(HOSTINF_DBG, "Connecting to network of Bss Idx%d and SSID %s and channel%d\n",
-			   u8bssDscListIndex, pstrWFIDrv->astrSurveyResults[u8bssDscListIndex].SSID,
-			   pstrWFIDrv->astrSurveyResults[u8bssDscListIndex].Channel);
-
-		PRINT_INFO(HOSTINF_DBG, "Saving connection parameters in global structure\n");
-
-		if (pstrHostIFconnectAttr->pu8bssid != NULL) {
-			pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = kmalloc(6, GFP_KERNEL);
-			memcpy(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid, pstrHostIFconnectAttr->pu8bssid, 6);
-		}
-
-		pstrWFIDrv->strWILC_UsrConnReq.ssidLen = pstrHostIFconnectAttr->ssidLen;
-		if (pstrHostIFconnectAttr->pu8ssid != NULL) {
-			pstrWFIDrv->strWILC_UsrConnReq.pu8ssid = kmalloc(pstrHostIFconnectAttr->ssidLen + 1, GFP_KERNEL);
-			memcpy(pstrWFIDrv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->pu8ssid,
-				    pstrHostIFconnectAttr->ssidLen);
-			pstrWFIDrv->strWILC_UsrConnReq.pu8ssid[pstrHostIFconnectAttr->ssidLen] = '\0';
-		}
-
-		pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen = pstrHostIFconnectAttr->IEsLen;
-		if (pstrHostIFconnectAttr->pu8IEs != NULL) {
-			pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = kmalloc(pstrHostIFconnectAttr->IEsLen, GFP_KERNEL);
-			memcpy(pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs, pstrHostIFconnectAttr->pu8IEs,
-				    pstrHostIFconnectAttr->IEsLen);
-		}
-
-		pstrWFIDrv->strWILC_UsrConnReq.u8security = pstrHostIFconnectAttr->u8security;
-		pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type = pstrHostIFconnectAttr->tenuAuth_type;
-		pstrWFIDrv->strWILC_UsrConnReq.pfUserConnectResult = pstrHostIFconnectAttr->pfConnectResult;
-		pstrWFIDrv->strWILC_UsrConnReq.u32UserConnectPvoid = pstrHostIFconnectAttr->pvUserArg;
-
-
-		/* if((gWFiDrvHandle->strWILC_UsrConnReq.pu8ConnReqIEs != NULL) && */
-		/* (gWFiDrvHandle->strWILC_UsrConnReq.ConnReqIEsLen != 0)) */
-		{
-			/* IEs to be inserted in Association Request */
-			strWIDList[u32WidsCount].u16WIDid = WID_INFO_ELEMENT_ASSOCIATE;
-			strWIDList[u32WidsCount].enuWIDtype = WID_BIN_DATA;
-			strWIDList[u32WidsCount].ps8WidVal = pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs;
-			strWIDList[u32WidsCount].s32ValueSize = pstrWFIDrv->strWILC_UsrConnReq.ConnReqIEsLen;
-			u32WidsCount++;
-		}
-		strWIDList[u32WidsCount].u16WIDid = (u16)WID_11I_MODE;
-		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
-		strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&(pstrWFIDrv->strWILC_UsrConnReq.u8security));
-		u32WidsCount++;
-
-		PRINT_INFO(HOSTINF_DBG, "Encrypt Mode = %x\n", pstrWFIDrv->strWILC_UsrConnReq.u8security);
-
-		strWIDList[u32WidsCount].u16WIDid = (u16)WID_AUTH_TYPE;
-		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
-		strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
-		u32WidsCount++;
-
-		PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n", pstrWFIDrv->strWILC_UsrConnReq.tenuAuth_type);
-		/*
-		 * strWIDList[u32WidsCount].u16WIDid = (u16)WID_11I_PSK;
-		 * strWIDList[u32WidsCount].enuWIDtype = WID_STR;
-		 * strWIDList[u32WidsCount].s32ValueSize = sizeof(passphrase);
-		 * strWIDList[u32WidsCount].ps8WidVal = (s8*)(passphrase);
-		 * u32WidsCount++;
-		 */
-
-		strWIDList[u32WidsCount].u16WIDid = (u16)WID_JOIN_REQ;
-		strWIDList[u32WidsCount].enuWIDtype = WID_CHAR;
-		strWIDList[u32WidsCount].s32ValueSize = sizeof(char);
-		strWIDList[u32WidsCount].ps8WidVal = (s8 *)&u8bssDscListIndex;
-		u32WidsCount++;
-
-		/* A temporary workaround to avoid handling the misleading MAC_DISCONNECTED raised from the
-		 *   firmware at chip reset when processing the WIDs of the Connect Request.
-		 *   (This workaround should be removed in the future when the Chip reset of the Connect WIDs is disabled) */
-		/* ////////////////////// */
-		gu32WidConnRstHack = 0;
-		/* ////////////////////// */
-
-		s32Error = send_config_pkt(SET_CFG, strWIDList, u32WidsCount, false,
-					   get_id_from_handler(pstrWFIDrv));
-		if (s32Error) {
-			PRINT_ER("failed to send config packet\n");
-			s32Error = -EINVAL;
-			goto ERRORHANDLER;
-		} else {
-			pstrWFIDrv->enuHostIFstate = HOST_IF_WAITING_CONN_RESP;
-		}
-
-	} else {
-		PRINT_ER("Required BSSID not found\n");
-		s32Error = -ENOENT;
-		goto ERRORHANDLER;
-	}
-
-	#else
 
 	/* if we try to connect to an already connected AP then discard the request */
 
@@ -1952,7 +1783,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 		PRINT_D(GENERIC_DBG, "set HOST_IF_WAITING_CONN_RESP\n");
 		pstrWFIDrv->enuHostIFstate = HOST_IF_WAITING_CONN_RESP;
 	}
-	#endif
 
 ERRORHANDLER:
 	if (s32Error) {
@@ -5149,69 +4979,6 @@ s32 host_int_get_RSNAConfigPSKPassPhrase(tstrWILC_WFIDrv *hWFIDrv,
 
 	return s32Error;
 }
-
-/**
- *  @brief                      host_int_get_site_survey_results
- *  @details            gets the site survey results
- *  @param[in,out] handle to the wifi driver,
- *                                Message containing  site survey results in the
- *                                following format
- *|---------------------------------------------------|
- | MsgLength | fragNo.	| MsgBodyLength	| MsgBody	|
- ||-----------|-----------|---------------|-----------|
- |	 1		|	  1		|		1		|	 1		|
- | -----------------------------------------	 |  ----------------
- |
- ||---------------------------------------|
- | Network1 | Netweork2 | ... | Network5 |
- ||---------------------------------------|
- |	44	   |	44	   | ... |	 44		|
- | -------------------------- | ---------------------------------------
- |
- ||---------------------------------------------------------------------|
- | SSID | BSS Type | Channel | Security Status| BSSID | RSSI |Reserved |
- |
- |
- ||------|----------|---------|----------------|-------|------|---------|
- |  33  |	 1	  |	  1		|		1		 |	  6	 |	 1	|	 1	  |
- ||---------------------------------------------------------------------|
- *  @return             Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-#ifndef CONNECT_DIRECT
-s32 host_int_get_site_survey_results(tstrWILC_WFIDrv *hWFIDrv,
-					     u8 ppu8RcvdSiteSurveyResults[][MAX_SURVEY_RESULT_FRAG_SIZE],
-					     u32 u32MaxSiteSrvyFragLen)
-{
-	s32 s32Error = 0;
-	tstrWID astrWIDList[2];
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
-
-	astrWIDList[0].u16WIDid = (u16)WID_SITE_SURVEY_RESULTS;
-	astrWIDList[0].enuWIDtype = WID_STR;
-	astrWIDList[0].ps8WidVal = ppu8RcvdSiteSurveyResults[0];
-	astrWIDList[0].s32ValueSize = u32MaxSiteSrvyFragLen;
-
-	astrWIDList[1].u16WIDid = (u16)WID_SITE_SURVEY_RESULTS;
-	astrWIDList[1].enuWIDtype = WID_STR;
-	astrWIDList[1].ps8WidVal = ppu8RcvdSiteSurveyResults[1];
-	astrWIDList[1].s32ValueSize = u32MaxSiteSrvyFragLen;
-
-	s32Error = send_config_pkt(GET_CFG, astrWIDList, 2, true,
-				   get_id_from_handler(pstrWFIDrv));
-
-	/*get the value by searching the local copy*/
-	if (s32Error) {
-		PRINT_ER("Failed to send config packet to get survey results\n");
-		s32Error = -EINVAL;
-	}
-
-	return s32Error;
-}
-#endif
 
 /**
  *  @brief              sets a start scan request
