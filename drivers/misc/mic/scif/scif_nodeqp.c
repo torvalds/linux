@@ -260,6 +260,11 @@ int scif_setup_qp_connect_response(struct scif_dev *scifdev,
 		     r_buf,
 		     get_count_order(remote_size));
 	/*
+	 * Because the node QP may already be processing an INIT message, set
+	 * the read pointer so the cached read offset isn't lost
+	 */
+	qp->remote_qp->local_read = qp->inbound_q.current_read_offset;
+	/*
 	 * resetup the inbound_q now that we know where the
 	 * inbound_read really is.
 	 */
@@ -529,27 +534,6 @@ static void scif_p2p_setup(void)
 	}
 }
 
-void scif_qp_response_ack(struct work_struct *work)
-{
-	struct scif_dev *scifdev = container_of(work, struct scif_dev,
-						init_msg_work);
-	struct scif_peer_dev *spdev;
-
-	/* Drop the INIT message if it has already been received */
-	if (_scifdev_alive(scifdev))
-		return;
-
-	spdev = scif_peer_register_device(scifdev);
-	if (IS_ERR(spdev))
-		return;
-
-	if (scif_is_mgmt_node()) {
-		mutex_lock(&scif_info.conflock);
-		scif_p2p_setup();
-		mutex_unlock(&scif_info.conflock);
-	}
-}
-
 static char *message_types[] = {"BAD",
 				"INIT",
 				"EXIT",
@@ -682,13 +666,14 @@ scif_init(struct scif_dev *scifdev, struct scifmsg *msg)
 	 * address to complete initializing the inbound_q.
 	 */
 	flush_delayed_work(&scifdev->qp_dwork);
-	/*
-	 * Delegate the peer device registration to a workqueue, otherwise if
-	 * SCIF client probe (called during peer device registration) calls
-	 * scif_connect(..), it will block the message processing thread causing
-	 * a deadlock.
-	 */
-	schedule_work(&scifdev->init_msg_work);
+
+	scif_peer_register_device(scifdev);
+
+	if (scif_is_mgmt_node()) {
+		mutex_lock(&scif_info.conflock);
+		scif_p2p_setup();
+		mutex_unlock(&scif_info.conflock);
+	}
 }
 
 /**
@@ -838,13 +823,13 @@ void scif_poll_qp_state(struct work_struct *work)
 				      msecs_to_jiffies(SCIF_NODE_QP_TIMEOUT));
 		return;
 	}
-	scif_peer_register_device(peerdev);
 	return;
 timeout:
 	dev_err(&peerdev->sdev->dev,
 		"%s %d remote node %d offline,  state = 0x%x\n",
 		__func__, __LINE__, peerdev->node, qp->qp_state);
 	qp->remote_qp->qp_state = SCIF_QP_OFFLINE;
+	scif_peer_unregister_device(peerdev);
 	scif_cleanup_scifdev(peerdev);
 }
 
@@ -894,6 +879,9 @@ scif_node_add_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 		goto local_error;
 	peerdev->rdb = msg->payload[2];
 	qp->remote_qp->qp_state = SCIF_QP_ONLINE;
+
+	scif_peer_register_device(peerdev);
+
 	schedule_delayed_work(&peerdev->p2p_dwork, 0);
 	return;
 local_error:
@@ -1169,7 +1157,6 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 	int err = 0;
 	void *local_q;
 	struct scif_qp *qp;
-	struct scif_peer_dev *spdev;
 
 	err = scif_setup_intr_wq(scifdev);
 	if (err)
@@ -1216,15 +1203,11 @@ int scif_setup_loopback_qp(struct scif_dev *scifdev)
 		     &qp->local_write,
 		     local_q, get_count_order(SCIF_NODE_QP_SIZE));
 	scif_info.nodeid = scifdev->node;
-	spdev = scif_peer_register_device(scifdev);
-	if (IS_ERR(spdev)) {
-		err = PTR_ERR(spdev);
-		goto free_local_q;
-	}
+
+	scif_peer_register_device(scifdev);
+
 	scif_info.loopb_dev = scifdev;
 	return err;
-free_local_q:
-	kfree(local_q);
 free_qpairs:
 	kfree(scifdev->qpairs);
 destroy_loopb_wq:
@@ -1243,13 +1226,7 @@ exit:
  */
 int scif_destroy_loopback_qp(struct scif_dev *scifdev)
 {
-	struct scif_peer_dev *spdev;
-
-	rcu_read_lock();
-	spdev = rcu_dereference(scifdev->spdev);
-	rcu_read_unlock();
-	if (spdev)
-		scif_peer_unregister_device(spdev);
+	scif_peer_unregister_device(scifdev);
 	destroy_workqueue(scif_info.loopb_wq);
 	scif_destroy_intr_wq(scifdev);
 	kfree(scifdev->qpairs->outbound_q.rb_base);

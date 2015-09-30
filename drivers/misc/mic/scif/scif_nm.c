@@ -147,14 +147,8 @@ void scif_cleanup_scifdev(struct scif_dev *dev)
 void scif_handle_remove_node(int node)
 {
 	struct scif_dev *scifdev = &scif_dev[node];
-	struct scif_peer_dev *spdev;
 
-	rcu_read_lock();
-	spdev = rcu_dereference(scifdev->spdev);
-	rcu_read_unlock();
-	if (spdev)
-		scif_peer_unregister_device(spdev);
-	else
+	if (scif_peer_unregister_device(scifdev))
 		scif_send_acks(scifdev);
 }
 

@@ -140,7 +140,7 @@ struct scif_p2p_info {
  * @db: doorbell the peer will trigger to generate an interrupt on self
  * @rdb: Doorbell to trigger on the peer to generate an interrupt on the peer
  * @cookie: Cookie received while registering the interrupt handler
- * init_msg_work: work scheduled for SCIF_INIT message processing
+ * @peer_add_work: Work for handling device_add for peer devices
  * @p2p_dwork: Delayed work to enable polling for P2P state
  * @qp_dwork: Delayed work for enabling polling for remote QP information
  * @p2p_retry: Number of times to retry polling of P2P state
@@ -166,7 +166,7 @@ struct scif_dev {
 	int db;
 	int rdb;
 	struct mic_irq *cookie;
-	struct work_struct init_msg_work;
+	struct work_struct peer_add_work;
 	struct delayed_work p2p_dwork;
 	struct delayed_work qp_dwork;
 	int p2p_retry;
@@ -183,6 +183,7 @@ struct scif_dev {
 
 extern struct scif_info scif_info;
 extern struct idr scif_ports;
+extern struct bus_type scif_peer_bus;
 extern struct scif_dev *scif_dev;
 extern const struct file_operations scif_fops;
 extern const struct file_operations scif_anon_fops;

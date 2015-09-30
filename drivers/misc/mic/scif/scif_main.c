@@ -80,35 +80,6 @@ irqreturn_t scif_intr_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int scif_peer_probe(struct scif_peer_dev *spdev)
-{
-	struct scif_dev *scifdev = &scif_dev[spdev->dnode];
-
-	mutex_lock(&scif_info.conflock);
-	scif_info.total++;
-	scif_info.maxid = max_t(u32, spdev->dnode, scif_info.maxid);
-	mutex_unlock(&scif_info.conflock);
-	rcu_assign_pointer(scifdev->spdev, spdev);
-
-	/* In the future SCIF kernel client devices will be added here */
-	return 0;
-}
-
-static void scif_peer_remove(struct scif_peer_dev *spdev)
-{
-	struct scif_dev *scifdev = &scif_dev[spdev->dnode];
-
-	/* In the future SCIF kernel client devices will be removed here */
-	spdev = rcu_dereference(scifdev->spdev);
-	if (spdev)
-		RCU_INIT_POINTER(scifdev->spdev, NULL);
-	synchronize_rcu();
-
-	mutex_lock(&scif_info.conflock);
-	scif_info.total--;
-	mutex_unlock(&scif_info.conflock);
-}
-
 static void scif_qp_setup_handler(struct work_struct *work)
 {
 	struct scif_dev *scifdev = container_of(work, struct scif_dev,
@@ -139,20 +110,13 @@ static void scif_qp_setup_handler(struct work_struct *work)
 	}
 }
 
-static int scif_setup_scifdev(struct scif_hw_dev *sdev)
+static int scif_setup_scifdev(void)
 {
+	/* We support a maximum of 129 SCIF nodes including the mgmt node */
+#define MAX_SCIF_NODES 129
 	int i;
-	u8 num_nodes;
+	u8 num_nodes = MAX_SCIF_NODES;
 
-	if (sdev->snode) {
-		struct mic_bootparam __iomem *bp = sdev->rdp;
-
-		num_nodes = ioread8(&bp->tot_nodes);
-	} else {
-		struct mic_bootparam *bp = sdev->dp;
-
-		num_nodes = bp->tot_nodes;
-	}
 	scif_dev = kcalloc(num_nodes, sizeof(*scif_dev), GFP_KERNEL);
 	if (!scif_dev)
 		return -ENOMEM;
@@ -163,7 +127,7 @@ static int scif_setup_scifdev(struct scif_hw_dev *sdev)
 		scifdev->exit = OP_IDLE;
 		init_waitqueue_head(&scifdev->disconn_wq);
 		mutex_init(&scifdev->lock);
-		INIT_WORK(&scifdev->init_msg_work, scif_qp_response_ack);
+		INIT_WORK(&scifdev->peer_add_work, scif_add_peer_device);
 		INIT_DELAYED_WORK(&scifdev->p2p_dwork,
 				  scif_poll_qp_state);
 		INIT_DELAYED_WORK(&scifdev->qp_dwork,
@@ -181,27 +145,21 @@ static void scif_destroy_scifdev(void)
 
 static int scif_probe(struct scif_hw_dev *sdev)
 {
-	struct scif_dev *scifdev;
+	struct scif_dev *scifdev = &scif_dev[sdev->dnode];
 	int rc;
 
 	dev_set_drvdata(&sdev->dev, sdev);
-	if (1 == atomic_add_return(1, &g_loopb_cnt)) {
-		struct scif_dev *loopb_dev;
+	scifdev->sdev = sdev;
 
-		rc = scif_setup_scifdev(sdev);
-		if (rc)
-			goto exit;
-		scifdev = &scif_dev[sdev->dnode];
-		scifdev->sdev = sdev;
-		loopb_dev = &scif_dev[sdev->snode];
+	if (1 == atomic_add_return(1, &g_loopb_cnt)) {
+		struct scif_dev *loopb_dev = &scif_dev[sdev->snode];
+
 		loopb_dev->sdev = sdev;
 		rc = scif_setup_loopback_qp(loopb_dev);
 		if (rc)
-			goto free_sdev;
-	} else {
-		scifdev = &scif_dev[sdev->dnode];
-		scifdev->sdev = sdev;
+			goto exit;
 	}
+
 	rc = scif_setup_intr_wq(scifdev);
 	if (rc)
 		goto destroy_loopb;
@@ -237,8 +195,6 @@ destroy_intr:
 destroy_loopb:
 	if (atomic_dec_and_test(&g_loopb_cnt))
 		scif_destroy_loopback_qp(&scif_dev[sdev->snode]);
-free_sdev:
-	scif_destroy_scifdev();
 exit:
 	return rc;
 }
@@ -290,13 +246,6 @@ static void scif_remove(struct scif_hw_dev *sdev)
 	scifdev->sdev = NULL;
 }
 
-static struct scif_peer_driver scif_peer_driver = {
-	.driver.name =	KBUILD_MODNAME,
-	.driver.owner =	THIS_MODULE,
-	.probe = scif_peer_probe,
-	.remove = scif_peer_remove,
-};
-
 static struct scif_hw_dev_id id_table[] = {
 	{ MIC_SCIF_DEV, SCIF_DEV_ANY_ID },
 	{ 0 },
@@ -312,6 +261,8 @@ static struct scif_driver scif_driver = {
 
 static int _scif_init(void)
 {
+	int rc;
+
 	spin_lock_init(&scif_info.eplock);
 	spin_lock_init(&scif_info.nb_connect_lock);
 	spin_lock_init(&scif_info.port_lock);
@@ -326,10 +277,15 @@ static int _scif_init(void)
 	init_waitqueue_head(&scif_info.exitwq);
 	scif_info.en_msg_log = 0;
 	scif_info.p2p_enable = 1;
+	rc = scif_setup_scifdev();
+	if (rc)
+		goto error;
 	INIT_WORK(&scif_info.misc_work, scif_misc_handler);
 	INIT_WORK(&scif_info.conn_work, scif_conn_handler);
 	idr_init(&scif_ports);
 	return 0;
+error:
+	return rc;
 }
 
 static void _scif_exit(void)
@@ -347,12 +303,9 @@ static int __init scif_init(void)
 	rc = scif_peer_bus_init();
 	if (rc)
 		goto exit;
-	rc = scif_peer_register_driver(&scif_peer_driver);
-	if (rc)
-		goto peer_bus_exit;
 	rc = scif_register_driver(&scif_driver);
 	if (rc)
-		goto unreg_scif_peer;
+		goto peer_bus_exit;
 	rc = misc_register(mdev);
 	if (rc)
 		goto unreg_scif;
@@ -360,8 +313,6 @@ static int __init scif_init(void)
 	return 0;
 unreg_scif:
 	scif_unregister_driver(&scif_driver);
-unreg_scif_peer:
-	scif_peer_unregister_driver(&scif_peer_driver);
 peer_bus_exit:
 	scif_peer_bus_exit();
 exit:
@@ -374,7 +325,6 @@ static void __exit scif_exit(void)
 	scif_exit_debugfs();
 	misc_deregister(&scif_info.mdev);
 	scif_unregister_driver(&scif_driver);
-	scif_peer_unregister_driver(&scif_peer_driver);
 	scif_peer_bus_exit();
 	_scif_exit();
 }

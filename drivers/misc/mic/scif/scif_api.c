@@ -1430,3 +1430,46 @@ int scif_get_node_ids(u16 *nodes, int len, u16 *self)
 	return online;
 }
 EXPORT_SYMBOL_GPL(scif_get_node_ids);
+
+static int scif_add_client_dev(struct device *dev, struct subsys_interface *si)
+{
+	struct scif_client *client =
+		container_of(si, struct scif_client, si);
+	struct scif_peer_dev *spdev =
+		container_of(dev, struct scif_peer_dev, dev);
+
+	if (client->probe)
+		client->probe(spdev);
+	return 0;
+}
+
+static void scif_remove_client_dev(struct device *dev,
+				   struct subsys_interface *si)
+{
+	struct scif_client *client =
+		container_of(si, struct scif_client, si);
+	struct scif_peer_dev *spdev =
+		container_of(dev, struct scif_peer_dev, dev);
+
+	if (client->remove)
+		client->remove(spdev);
+}
+
+void scif_client_unregister(struct scif_client *client)
+{
+	subsys_interface_unregister(&client->si);
+}
+EXPORT_SYMBOL_GPL(scif_client_unregister);
+
+int scif_client_register(struct scif_client *client)
+{
+	struct subsys_interface *si = &client->si;
+
+	si->name = client->name;
+	si->subsys = &scif_peer_bus;
+	si->add_dev = scif_add_client_dev;
+	si->remove_dev = scif_remove_client_dev;
+
+	return subsys_interface_register(&client->si);
+}
+EXPORT_SYMBOL_GPL(scif_client_register);

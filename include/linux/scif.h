@@ -55,6 +55,7 @@
 
 #include <linux/types.h>
 #include <linux/poll.h>
+#include <linux/device.h>
 #include <linux/scif_ioctl.h>
 
 #define SCIF_ACCEPT_SYNC	1
@@ -103,6 +104,37 @@ struct scif_pollepd {
 	scif_epd_t epd;
 	short events;
 	short revents;
+};
+
+/**
+ * scif_peer_dev - representation of a peer SCIF device
+ *
+ * Peer devices show up as PCIe devices for the mgmt node but not the cards.
+ * The mgmt node discovers all the cards on the PCIe bus and informs the other
+ * cards about their peers. Upon notification of a peer a node adds a peer
+ * device to the peer bus to maintain symmetry in the way devices are
+ * discovered across all nodes in the SCIF network.
+ *
+ * @dev: underlying device
+ * @dnode - The destination node which this device will communicate with.
+ */
+struct scif_peer_dev {
+	struct device dev;
+	u8 dnode;
+};
+
+/**
+ * scif_client - representation of a SCIF client
+ * @name: client name
+ * @probe - client method called when a peer device is registered
+ * @remove - client method called when a peer device is unregistered
+ * @si - subsys_interface used internally for implementing SCIF clients
+ */
+struct scif_client {
+	const char *name;
+	void (*probe)(struct scif_peer_dev *spdev);
+	void (*remove)(struct scif_peer_dev *spdev);
+	struct subsys_interface si;
 };
 
 #define SCIF_OPEN_FAILED ((scif_epd_t)-1)
@@ -1063,5 +1095,31 @@ int scif_get_node_ids(u16 *nodes, int len, u16 *self);
  * ENOMEM - There was no space to allocate file descriptor tables
  */
 int scif_poll(struct scif_pollepd *epds, unsigned int nepds, long timeout);
+
+/**
+ * scif_client_register() - Register a SCIF client
+ * @client:	client to be registered
+ *
+ * scif_client_register() registers a SCIF client. The probe() method
+ * of the client is called when SCIF peer devices come online and the
+ * remove() method is called when the peer devices disappear.
+ *
+ * Return:
+ * Upon successful completion, scif_client_register() returns a non-negative
+ * value. Otherwise the return value is the same as subsys_interface_register()
+ * in the kernel.
+ */
+int scif_client_register(struct scif_client *client);
+
+/**
+ * scif_client_unregister() - Unregister a SCIF client
+ * @client:	client to be unregistered
+ *
+ * scif_client_unregister() unregisters a SCIF client.
+ *
+ * Return:
+ * None
+ */
+void scif_client_unregister(struct scif_client *client);
 
 #endif /* __SCIF_H__ */
