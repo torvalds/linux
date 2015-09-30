@@ -38,14 +38,14 @@ struct dwav_raw {               /* Total 25 bytes */
     unsigned short  y1;         /* 1st y */
     unsigned char   end;        /* 1st touch finish flags 0xBB, RPI only uses the first 7 bytes */
     unsigned char   ids;        /* touch ID(bit field) */ 
-    unsigned short  x2;
     unsigned short  y2;
-    unsigned short  x3;
+    unsigned short  x2;
     unsigned short  y3;
-    unsigned short  x4;
+    unsigned short  x3;
     unsigned short  y4;
-    unsigned short  x5;
+    unsigned short  x4;
     unsigned short  y5;
+    unsigned short  x5;
     unsigned char   tail;       /* frame end 0xCC */
 };
 
@@ -87,6 +87,9 @@ static void dwav_usb_mt_report(struct dwav_usb_mt *dwav_usb_mt)
 	for(id = 0; id < DWAV_TOUCH_MAX_ID; id++)	{
 
 		if(dwav_usb_mt->finger[id].status == TS_EVENT_UNKNOWN)  continue;
+
+		if( dwav_usb_mt->finger[id].x >= DWAV_TOUCH_MAX_X ||
+			dwav_usb_mt->finger[id].y >= DWAV_TOUCH_MAX_Y  )	continue;
 
     	input_mt_slot(dwav_usb_mt->input, id);
 
@@ -303,10 +306,6 @@ static int dwav_usb_mt_init (struct dwav_usb_mt *dwav_usb_mt, void *dev)
 	input_dev->close    = dwav_usb_mt_close;
 
 	input_dev->id.bustype 	= BUS_USB;
-
-	input_dev->id.vendor 	= 0x0EEE;
-	input_dev->id.product 	= 0x0005;
-	input_dev->id.version 	= 0x0101;
 
     // single touch
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
