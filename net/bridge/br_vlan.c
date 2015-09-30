@@ -476,13 +476,15 @@ bool br_allowed_egress(struct net_bridge_vlan_group *vg,
 /* Called under RCU */
 bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 {
+	struct net_bridge_vlan_group *vg;
 	struct net_bridge *br = p->br;
 
 	/* If filtering was disabled at input, let it pass. */
 	if (!br->vlan_enabled)
 		return true;
 
-	if (!p->vlgrp->num_vlans)
+	vg = p->vlgrp;
+	if (!vg || !vg->num_vlans)
 		return false;
 
 	if (!br_vlan_get_tag(skb, vid) && skb->vlan_proto != br->vlan_proto)
