@@ -58,13 +58,13 @@ irq_trace(void)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int irqsoff_display_graph(struct trace_array *tr, int set);
-# define is_graph() (trace_flags & TRACE_ITER_DISPLAY_GRAPH)
+# define is_graph(tr) ((tr)->trace_flags & TRACE_ITER_DISPLAY_GRAPH)
 #else
 static inline int irqsoff_display_graph(struct trace_array *tr, int set)
 {
 	return -EINVAL;
 }
-# define is_graph() false
+# define is_graph(tr) false
 #endif
 
 /*
@@ -149,7 +149,7 @@ static int irqsoff_display_graph(struct trace_array *tr, int set)
 {
 	int cpu;
 
-	if (!(is_graph() ^ set))
+	if (!(is_graph(tr) ^ set))
 		return 0;
 
 	stop_irqsoff_tracer(irqsoff_trace, !set);
@@ -198,7 +198,7 @@ static void irqsoff_graph_return(struct ftrace_graph_ret *trace)
 
 static void irqsoff_trace_open(struct trace_iterator *iter)
 {
-	if (is_graph())
+	if (is_graph(iter->tr))
 		graph_trace_open(iter);
 
 }
@@ -220,7 +220,7 @@ static enum print_line_t irqsoff_print_line(struct trace_iterator *iter)
 	 * In graph mode call the graph tracer output function,
 	 * otherwise go with the TRACE_FN event handler
 	 */
-	if (is_graph())
+	if (is_graph(iter->tr))
 		return print_graph_function_flags(iter, GRAPH_TRACER_FLAGS);
 
 	return TRACE_TYPE_UNHANDLED;
@@ -228,7 +228,9 @@ static enum print_line_t irqsoff_print_line(struct trace_iterator *iter)
 
 static void irqsoff_print_header(struct seq_file *s)
 {
-	if (is_graph())
+	struct trace_array *tr = irqsoff_trace;
+
+	if (is_graph(tr))
 		print_graph_headers_flags(s, GRAPH_TRACER_FLAGS);
 	else
 		trace_default_header(s);
@@ -239,7 +241,7 @@ __trace_function(struct trace_array *tr,
 		 unsigned long ip, unsigned long parent_ip,
 		 unsigned long flags, int pc)
 {
-	if (is_graph())
+	if (is_graph(tr))
 		trace_graph_function(tr, ip, parent_ip, flags, pc);
 	else
 		trace_function(tr, ip, parent_ip, flags, pc);
@@ -516,7 +518,7 @@ static int register_irqsoff_function(struct trace_array *tr, int graph, int set)
 	int ret;
 
 	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
-	if (function_enabled || (!set && !(trace_flags & TRACE_ITER_FUNCTION)))
+	if (function_enabled || (!set && !(tr->trace_flags & TRACE_ITER_FUNCTION)))
 		return 0;
 
 	if (graph)
@@ -550,9 +552,9 @@ static int irqsoff_function_set(struct trace_array *tr, u32 mask, int set)
 		return 0;
 
 	if (set)
-		register_irqsoff_function(tr, is_graph(), 1);
+		register_irqsoff_function(tr, is_graph(tr), 1);
 	else
-		unregister_irqsoff_function(tr, is_graph());
+		unregister_irqsoff_function(tr, is_graph(tr));
 	return 1;
 }
 #else
@@ -610,7 +612,7 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 	if (irqsoff_busy)
 		return -EBUSY;
 
-	save_flags = trace_flags;
+	save_flags = tr->trace_flags;
 
 	/* non overwrite screws up the latency tracers */
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
@@ -626,7 +628,7 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 
 	/* Only toplevel instance supports graph tracing */
 	if (start_irqsoff_tracer(tr, (tr->flags & TRACE_ARRAY_FL_GLOBAL &&
-				      is_graph())))
+				      is_graph(tr))))
 		printk(KERN_ERR "failed to start irqsoff tracer\n");
 
 	irqsoff_busy = true;
@@ -638,7 +640,7 @@ static void irqsoff_tracer_reset(struct trace_array *tr)
 	int lat_flag = save_flags & TRACE_ITER_LATENCY_FMT;
 	int overwrite_flag = save_flags & TRACE_ITER_OVERWRITE;
 
-	stop_irqsoff_tracer(tr, is_graph());
+	stop_irqsoff_tracer(tr, is_graph(tr));
 
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, lat_flag);
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, overwrite_flag);

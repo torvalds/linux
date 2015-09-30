@@ -217,6 +217,7 @@ struct trace_array {
 	int			stop_count;
 	int			clock_id;
 	struct tracer		*current_trace;
+	unsigned int		trace_flags;
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
 	struct dentry		*dir;
@@ -698,8 +699,6 @@ int trace_array_printk_buf(struct ring_buffer *buffer,
 void trace_printk_seq(struct trace_seq *s);
 enum print_line_t print_trace_line(struct trace_iterator *iter);
 
-extern unsigned long trace_flags;
-
 extern char trace_find_mark(unsigned long long duration);
 
 /* Standard output formatting function used for function return traces */
@@ -994,7 +993,7 @@ extern int enable_branch_tracing(struct trace_array *tr);
 extern void disable_branch_tracing(void);
 static inline int trace_branch_enable(struct trace_array *tr)
 {
-	if (trace_flags & TRACE_ITER_BRANCH)
+	if (tr->trace_flags & TRACE_ITER_BRANCH)
 		return enable_branch_tracing(tr);
 	return 0;
 }

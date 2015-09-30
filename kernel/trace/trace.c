@@ -250,6 +250,14 @@ unsigned long long ns2usecs(cycle_t nsec)
 	return nsec;
 }
 
+/* trace_flags holds trace_options default values */
+#define TRACE_DEFAULT_FLAGS						\
+	(FUNCTION_DEFAULT_FLAGS |					\
+	 TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |			\
+	 TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO |		\
+	 TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |			\
+	 TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS)
+
 /*
  * The global_trace is the descriptor that holds the tracing
  * buffers for the live tracing. For each CPU, it contains
@@ -262,7 +270,9 @@ unsigned long long ns2usecs(cycle_t nsec)
  * pages for the buffer for that CPU. Each CPU has the same number
  * of pages allocated for its buffer.
  */
-static struct trace_array	global_trace;
+static struct trace_array global_trace = {
+	.trace_flags = TRACE_DEFAULT_FLAGS,
+};
 
 LIST_HEAD(ftrace_trace_arrays);
 
@@ -490,15 +500,6 @@ static inline void ftrace_trace_stack(struct ring_buffer *buffer,
 
 #endif
 
-/* trace_flags holds trace_options default values */
-unsigned long trace_flags =
-	FUNCTION_DEFAULT_FLAGS |
-	TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
-	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO |
-	TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
-	TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS
-	;
-
 static void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->trace_buffer.buffer)
@@ -543,7 +544,7 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 	int alloc;
 	int pc;
 
-	if (!(trace_flags & TRACE_ITER_PRINTK))
+	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	pc = preempt_count();
@@ -593,7 +594,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	int size = sizeof(struct bputs_entry);
 	int pc;
 
-	if (!(trace_flags & TRACE_ITER_PRINTK))
+	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	pc = preempt_count();
@@ -1875,7 +1876,7 @@ static inline void ftrace_trace_stack(struct ring_buffer *buffer,
 				      unsigned long flags,
 				      int skip, int pc, struct pt_regs *regs)
 {
-	if (!(trace_flags & TRACE_ITER_STACKTRACE))
+	if (!(global_trace.trace_flags & TRACE_ITER_STACKTRACE))
 		return;
 
 	__ftrace_trace_stack(buffer, flags, skip, pc, regs);
@@ -1919,7 +1920,7 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	struct userstack_entry *entry;
 	struct stack_trace trace;
 
-	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
+	if (!(global_trace.trace_flags & TRACE_ITER_USERSTACKTRACE))
 		return;
 
 	/*
@@ -2236,7 +2237,7 @@ int trace_array_printk(struct trace_array *tr,
 	int ret;
 	va_list ap;
 
-	if (!(trace_flags & TRACE_ITER_PRINTK))
+	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	va_start(ap, fmt);
@@ -2251,7 +2252,7 @@ int trace_array_printk_buf(struct ring_buffer *buffer,
 	int ret;
 	va_list ap;
 
-	if (!(trace_flags & TRACE_ITER_PRINTK))
+	if (!(global_trace.trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
 	va_start(ap, fmt);
@@ -2592,7 +2593,7 @@ static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file
 void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 {
-	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
+	unsigned long sym_flags = (global_trace.trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_buffer *buf = iter->trace_buffer;
 	struct trace_array_cpu *data = per_cpu_ptr(buf->data, buf->cpu);
 	struct tracer *type = iter->trace;
@@ -2654,8 +2655,9 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 static void test_cpu_buff_start(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
+	struct trace_array *tr = iter->tr;
 
-	if (!(trace_flags & TRACE_ITER_ANNOTATE))
+	if (!(tr->trace_flags & TRACE_ITER_ANNOTATE))
 		return;
 
 	if (!(iter->iter_flags & TRACE_FILE_ANNOTATE))
@@ -2677,8 +2679,9 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
-	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
+	unsigned long sym_flags = (tr->trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_entry *entry;
 	struct trace_event *event;
 
@@ -2688,7 +2691,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 	event = ftrace_find_event(entry->type);
 
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+	if (tr->trace_flags & TRACE_ITER_CONTEXT_INFO) {
 		if (iter->iter_flags & TRACE_FILE_LAT_FMT)
 			trace_print_lat_context(iter);
 		else
@@ -2708,13 +2711,14 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
 	struct trace_event *event;
 
 	entry = iter->ent;
 
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO)
+	if (tr->trace_flags & TRACE_ITER_CONTEXT_INFO)
 		trace_seq_printf(s, "%d %d %llu ",
 				 entry->pid, iter->cpu, iter->ts);
 
@@ -2732,6 +2736,7 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 
 static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	unsigned char newline = '\n';
 	struct trace_entry *entry;
@@ -2739,7 +2744,7 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 	entry = iter->ent;
 
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+	if (tr->trace_flags & TRACE_ITER_CONTEXT_INFO) {
 		SEQ_PUT_HEX_FIELD(s, entry->pid);
 		SEQ_PUT_HEX_FIELD(s, iter->cpu);
 		SEQ_PUT_HEX_FIELD(s, iter->ts);
@@ -2761,13 +2766,14 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
 	struct trace_event *event;
 
 	entry = iter->ent;
 
-	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+	if (tr->trace_flags & TRACE_ITER_CONTEXT_INFO) {
 		SEQ_PUT_FIELD(s, entry->pid);
 		SEQ_PUT_FIELD(s, iter->cpu);
 		SEQ_PUT_FIELD(s, iter->ts);
@@ -2816,6 +2822,8 @@ int trace_empty(struct trace_iterator *iter)
 /*  Called with trace_event_read_lock() held. */
 enum print_line_t print_trace_line(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
+	unsigned long trace_flags = tr->trace_flags;
 	enum print_line_t ret;
 
 	if (iter->lost_events) {
@@ -2861,6 +2869,7 @@ enum print_line_t print_trace_line(struct trace_iterator *iter)
 void trace_latency_header(struct seq_file *m)
 {
 	struct trace_iterator *iter = m->private;
+	struct trace_array *tr = iter->tr;
 
 	/* print nothing if the buffers are empty */
 	if (trace_empty(iter))
@@ -2869,13 +2878,15 @@ void trace_latency_header(struct seq_file *m)
 	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
 		print_trace_header(m, iter);
 
-	if (!(trace_flags & TRACE_ITER_VERBOSE))
+	if (!(tr->trace_flags & TRACE_ITER_VERBOSE))
 		print_lat_help_header(m);
 }
 
 void trace_default_header(struct seq_file *m)
 {
 	struct trace_iterator *iter = m->private;
+	struct trace_array *tr = iter->tr;
+	unsigned long trace_flags = tr->trace_flags;
 
 	if (!(trace_flags & TRACE_ITER_CONTEXT_INFO))
 		return;
@@ -3220,7 +3231,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 		iter = __tracing_open(inode, file, false);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
-		else if (trace_flags & TRACE_ITER_LATENCY_FMT)
+		else if (tr->trace_flags & TRACE_ITER_LATENCY_FMT)
 			iter->iter_flags |= TRACE_FILE_LAT_FMT;
 	}
 
@@ -3467,7 +3478,7 @@ static int tracing_trace_options_show(struct seq_file *m, void *v)
 	trace_opts = tr->current_trace->flags->opts;
 
 	for (i = 0; trace_options[i]; i++) {
-		if (trace_flags & (1 << i))
+		if (tr->trace_flags & (1 << i))
 			seq_printf(m, "%s\n", trace_options[i]);
 		else
 			seq_printf(m, "no%s\n", trace_options[i]);
@@ -3532,7 +3543,7 @@ int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set)
 int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 {
 	/* do nothing if flag is already set */
-	if (!!(trace_flags & mask) == !!enabled)
+	if (!!(tr->trace_flags & mask) == !!enabled)
 		return 0;
 
 	/* Give the tracer a chance to approve the change */
@@ -3541,9 +3552,9 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 			return -EINVAL;
 
 	if (enabled)
-		trace_flags |= mask;
+		tr->trace_flags |= mask;
 	else
-		trace_flags &= ~mask;
+		tr->trace_flags &= ~mask;
 
 	if (mask == TRACE_ITER_RECORD_CMD)
 		trace_event_enable_cmd_record(enabled);
@@ -4558,7 +4569,7 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	/* trace pipe does not show start of buffer */
 	cpumask_setall(iter->started);
 
-	if (trace_flags & TRACE_ITER_LATENCY_FMT)
+	if (tr->trace_flags & TRACE_ITER_LATENCY_FMT)
 		iter->iter_flags |= TRACE_FILE_LAT_FMT;
 
 	/* Output in nanoseconds only if we are using a clock in nanoseconds. */
@@ -4615,11 +4626,13 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 static unsigned int
 trace_poll(struct trace_iterator *iter, struct file *filp, poll_table *poll_table)
 {
+	struct trace_array *tr = iter->tr;
+
 	/* Iterators are static, they should be filled or empty */
 	if (trace_buffer_iter(iter, iter->cpu_file))
 		return POLLIN | POLLRDNORM;
 
-	if (trace_flags & TRACE_ITER_BLOCK)
+	if (tr->trace_flags & TRACE_ITER_BLOCK)
 		/*
 		 * Always select as readable when in blocking mode
 		 */
@@ -5036,7 +5049,7 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 	struct trace_array *tr = inode->i_private;
 
 	/* disable tracing ? */
-	if (trace_flags & TRACE_ITER_STOP_ON_FREE)
+	if (tr->trace_flags & TRACE_ITER_STOP_ON_FREE)
 		tracer_tracing_off(tr);
 	/* resize the ring buffer to 0 */
 	tracing_resize_ring_buffer(tr, 0, RING_BUFFER_ALL_CPUS);
@@ -5069,7 +5082,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (tracing_disabled)
 		return -EINVAL;
 
-	if (!(trace_flags & TRACE_ITER_MARKERS))
+	if (!(tr->trace_flags & TRACE_ITER_MARKERS))
 		return -EINVAL;
 
 	if (cnt > TRACE_BUF_SIZE)
@@ -6180,7 +6193,7 @@ trace_options_core_read(struct file *filp, char __user *ubuf, size_t cnt,
 	long index = (long)filp->private_data;
 	char *buf;
 
-	if (trace_flags & (1 << index))
+	if (global_trace.trace_flags & (1 << index))
 		buf = "1\n";
 	else
 		buf = "0\n";
@@ -6407,7 +6420,7 @@ allocate_trace_buffer(struct trace_array *tr, struct trace_buffer *buf, int size
 {
 	enum ring_buffer_flags rb_flags;
 
-	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
+	rb_flags = tr->trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
 
 	buf->tr = tr;
 
@@ -6501,6 +6514,8 @@ static int instance_mkdir(const char *name)
 
 	if (!alloc_cpumask_var(&tr->tracing_cpumask, GFP_KERNEL))
 		goto out_free_tr;
+
+	tr->trace_flags = global_trace.trace_flags;
 
 	cpumask_copy(tr->tracing_cpumask, cpu_all_mask);
 
@@ -6938,6 +6953,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
 	static atomic_t dump_running;
+	struct trace_array *tr = &global_trace;
 	unsigned int old_userobj;
 	unsigned long flags;
 	int cnt = 0, cpu;
@@ -6967,10 +6983,10 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 		atomic_inc(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
 	}
 
-	old_userobj = trace_flags & TRACE_ITER_SYM_USEROBJ;
+	old_userobj = tr->trace_flags & TRACE_ITER_SYM_USEROBJ;
 
 	/* don't look at user memory in panic mode */
-	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
+	tr->trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
 	switch (oops_dump_mode) {
 	case DUMP_ALL:
@@ -7033,7 +7049,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 		printk(KERN_TRACE "---------------------------------\n");
 
  out_enable:
-	trace_flags |= old_userobj;
+	tr->trace_flags |= old_userobj;
 
 	for_each_tracing_cpu(cpu) {
 		atomic_dec(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);

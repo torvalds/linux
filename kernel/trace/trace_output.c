@@ -476,7 +476,8 @@ char trace_find_mark(unsigned long long d)
 static int
 lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 {
-	unsigned long verbose = trace_flags & TRACE_ITER_VERBOSE;
+	struct trace_array *tr = iter->tr;
+	unsigned long verbose = tr->trace_flags & TRACE_ITER_VERBOSE;
 	unsigned long in_ns = iter->iter_flags & TRACE_FILE_TIME_IN_NS;
 	unsigned long long abs_ts = iter->ts - iter->trace_buffer->time_start;
 	unsigned long long rel_ts = next_ts - iter->ts;
@@ -519,6 +520,7 @@ lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 
 int trace_print_context(struct trace_iterator *iter)
 {
+	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent;
 	unsigned long long t;
@@ -530,7 +532,7 @@ int trace_print_context(struct trace_iterator *iter)
 	trace_seq_printf(s, "%16s-%-5d [%03d] ",
 			       comm, entry->pid, iter->cpu);
 
-	if (trace_flags & TRACE_ITER_IRQ_INFO)
+	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);
 
 	if (iter->iter_flags & TRACE_FILE_TIME_IN_NS) {
@@ -546,14 +548,15 @@ int trace_print_context(struct trace_iterator *iter)
 
 int trace_print_lat_context(struct trace_iterator *iter)
 {
-	u64 next_ts;
+	struct trace_array *tr = iter->tr;
 	/* trace_find_next_entry will reset ent_size */
 	int ent_size = iter->ent_size;
 	struct trace_seq *s = &iter->seq;
+	u64 next_ts;
 	struct trace_entry *entry = iter->ent,
 			   *next_entry = trace_find_next_entry(iter, NULL,
 							       &next_ts);
-	unsigned long verbose = (trace_flags & TRACE_ITER_VERBOSE);
+	unsigned long verbose = (tr->trace_flags & TRACE_ITER_VERBOSE);
 
 	/* Restore the original ent_size */
 	iter->ent_size = ent_size;
@@ -1035,6 +1038,7 @@ static struct trace_event trace_stack_event = {
 static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 						int flags, struct trace_event *event)
 {
+	struct trace_array *tr = iter->tr;
 	struct userstack_entry *field;
 	struct trace_seq *s = &iter->seq;
 	struct mm_struct *mm = NULL;
@@ -1044,7 +1048,7 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_seq_puts(s, "<user stack trace>\n");
 
-	if (trace_flags & TRACE_ITER_SYM_USEROBJ) {
+	if (tr->trace_flags & TRACE_ITER_SYM_USEROBJ) {
 		struct task_struct *task;
 		/*
 		 * we do the lookup on the thread group leader,
