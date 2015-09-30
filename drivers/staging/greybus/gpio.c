@@ -384,7 +384,7 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	}
 
 	local_irq_disable();
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 2, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
 	generic_handle_irq_desc(irq, desc);
 #else
 	generic_handle_irq_desc(desc);
