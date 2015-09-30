@@ -122,50 +122,6 @@ void enable2DEngine(unsigned int enable)
 	setCurrentGate(gate);
 }
 
-
-/*
- * This function enable/disable the ZV Port.
- */
-void enableZVPort(unsigned int enable)
-{
-	uint32_t gate;
-
-	/* Enable ZV Port Gate */
-	gate = PEEK32(CURRENT_GATE);
-	if (enable) {
-		gate = FIELD_SET(gate, CURRENT_GATE, ZVPORT, ON);
-#if 1
-		/* Using Software I2C */
-		gate = FIELD_SET(gate, CURRENT_GATE, GPIO, ON);
-#else
-		/* Using Hardware I2C */
-		gate = FIELD_SET(gate, CURRENT_GATE, I2C,    ON);
-#endif
-	} else {
-		/* Disable ZV Port Gate. There is no way to know whether the
-		GPIO pins are being used or not. Therefore, do not disable the
-		GPIO gate. */
-		gate = FIELD_SET(gate, CURRENT_GATE, ZVPORT, OFF);
-	}
-
-	setCurrentGate(gate);
-}
-
-
-void enableSSP(unsigned int enable)
-{
-	uint32_t gate;
-
-	/* Enable SSP Gate */
-	gate = PEEK32(CURRENT_GATE);
-	if (enable)
-		gate = FIELD_SET(gate, CURRENT_GATE, SSP, ON);
-	else
-		gate = FIELD_SET(gate, CURRENT_GATE, SSP, OFF);
-
-	setCurrentGate(gate);
-}
-
 void enableDMA(unsigned int enable)
 {
 	uint32_t gate;
@@ -193,23 +149,6 @@ void enableGPIO(unsigned int enable)
 		gate = FIELD_SET(gate, CURRENT_GATE, GPIO, ON);
 	else
 		gate = FIELD_SET(gate, CURRENT_GATE, GPIO, OFF);
-
-	setCurrentGate(gate);
-}
-
-/*
- * This function enable/disable the PWM Engine
- */
-void enablePWM(unsigned int enable)
-{
-	uint32_t gate;
-
-	/* Enable PWM Gate */
-	gate = PEEK32(CURRENT_GATE);
-	if (enable)
-		gate = FIELD_SET(gate, CURRENT_GATE, PWM, ON);
-	else
-		gate = FIELD_SET(gate, CURRENT_GATE, PWM, OFF);
 
 	setCurrentGate(gate);
 }
