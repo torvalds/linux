@@ -192,6 +192,8 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 		}
 	} while (skb_unprocessed > frag_cap);
 
+	ldev->stats.tx_packets++;
+	ldev->stats.tx_bytes += dgram_size;
 	consume_skb(skb);
 	return NET_XMIT_SUCCESS;
 
@@ -277,6 +279,8 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 
 	if (skb_tail_pointer(skb) - skb_network_header(skb) <= max_single) {
 		skb->dev = lowpan_dev_info(ldev)->wdev;
+		ldev->stats.tx_packets++;
+		ldev->stats.tx_bytes += dgram_size;
 		return dev_queue_xmit(skb);
 	} else {
 		netdev_tx_t rc;
