@@ -38,7 +38,7 @@
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/bitops.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
