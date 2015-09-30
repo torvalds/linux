@@ -1402,6 +1402,41 @@ int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 	return (ret < 0) ? ret : af.nvls;
 }
 
+/* For the kernel module, we need a special code to get a DIE */
+static int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs)
+{
+	int n, i;
+	Elf32_Word shndx;
+	Elf_Scn *scn;
+	Elf *elf;
+	GElf_Shdr mem, *shdr;
+	const char *p;
+
+	elf = dwfl_module_getelf(dbg->mod, &dbg->bias);
+	if (!elf)
+		return -EINVAL;
+
+	/* Get the number of relocations */
+	n = dwfl_module_relocations(dbg->mod);
+	if (n < 0)
+		return -ENOENT;
+	/* Search the relocation related .text section */
+	for (i = 0; i < n; i++) {
+		p = dwfl_module_relocation_info(dbg->mod, i, &shndx);
+		if (strcmp(p, ".text") == 0) {
+			/* OK, get the section header */
+			scn = elf_getscn(elf, shndx);
+			if (!scn)
+				return -ENOENT;
+			shdr = gelf_getshdr(scn, &mem);
+			if (!shdr)
+				return -ENOENT;
+			*offs = shdr->sh_addr;
+		}
+	}
+	return 0;
+}
+
 /* Reverse search */
 int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 				struct perf_probe_point *ppt)
@@ -1410,9 +1445,16 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 	Dwarf_Addr _addr = 0, baseaddr = 0;
 	const char *fname = NULL, *func = NULL, *basefunc = NULL, *tmp;
 	int baseline = 0, lineno = 0, ret = 0;
+	bool reloc = false;
 
+retry:
 	/* Find cu die */
 	if (!dwarf_addrdie(dbg->dbg, (Dwarf_Addr)addr, &cudie)) {
+		if (!reloc && debuginfo__get_text_offset(dbg, &baseaddr) == 0) {
+			addr += baseaddr;
+			reloc = true;
+			goto retry;
+		}
 		pr_warning("Failed to find debug information for address %lx\n",
 			   addr);
 		ret = -EINVAL;

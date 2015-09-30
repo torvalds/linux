@@ -137,7 +137,8 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 	return kmap->ref_reloc_sym;
 }
 
-static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
+static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
+					     bool reloc, bool reladdr)
 {
 	struct ref_reloc_sym *reloc_sym;
 	struct symbol *sym;
@@ -146,12 +147,14 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 	/* ref_reloc_sym is just a label. Need a special fix*/
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (reloc_sym && strcmp(name, reloc_sym->name) == 0)
-		return (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
+		*addr = (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
 	else {
 		sym = __find_kernel_function_by_name(name, &map);
-		if (sym)
-			return map->unmap_ip(map, sym->start) -
-				((reloc) ? 0 : map->reloc);
+		if (!sym)
+			return -ENOENT;
+		*addr = map->unmap_ip(map, sym->start) -
+			((reloc) ? 0 : map->reloc) -
+			((reladdr) ? map->start : 0);
 	}
 	return 0;
 }
@@ -245,12 +248,14 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 static bool kprobe_blacklist__listed(unsigned long address);
 static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 {
-	u64 etext_addr;
+	u64 etext_addr = 0;
+	int ret;
 
 	/* Get the address of _etext for checking non-probable text symbol */
-	etext_addr = kernel_get_symbol_address_by_name("_etext", false);
+	ret = kernel_get_symbol_address_by_name("_etext", &etext_addr,
+						false, false);
 
-	if (etext_addr != 0 && etext_addr < address)
+	if (ret == 0 && etext_addr < address)
 		pr_warning("%s is out of .text, skip it.\n", symbol);
 	else if (kprobe_blacklist__listed(address))
 		pr_warning("%s is blacklisted function, skip it.\n", symbol);
@@ -517,8 +522,10 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 			goto error;
 		addr += stext;
 	} else if (tp->symbol) {
-		addr = kernel_get_symbol_address_by_name(tp->symbol, false);
-		if (addr == 0)
+		/* If the module is given, this returns relative address */
+		ret = kernel_get_symbol_address_by_name(tp->symbol, &addr,
+							false, !!tp->module);
+		if (ret != 0)
 			goto error;
 		addr += tp->offset;
 	}
@@ -1884,8 +1891,12 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 			goto out;
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
-		if (tp->symbol)
-			addr = kernel_get_symbol_address_by_name(tp->symbol, true);
+		if (tp->symbol && !addr) {
+			ret = kernel_get_symbol_address_by_name(tp->symbol,
+							&addr, true, false);
+			if (ret < 0)
+				goto out;
+		}
 		if (addr) {
 			addr += tp->offset;
 			sym = __find_kernel_function(addr, &map);
