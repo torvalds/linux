@@ -35,6 +35,7 @@
 #include <net/route.h>
 #include <net/addrconf.h>
 #include <net/vrf.h>
+#include <net/l3mdev.h>
 
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
@@ -529,6 +530,33 @@ static const struct net_device_ops vrf_netdev_ops = {
 	.ndo_del_slave		= vrf_del_slave,
 };
 
+static u32 vrf_fib_table(const struct net_device *dev)
+{
+	struct net_vrf *vrf = netdev_priv(dev);
+
+	return vrf->tb_id;
+}
+
+static struct rtable *vrf_get_rtable(const struct net_device *dev,
+				     const struct flowi4 *fl4)
+{
+	struct rtable *rth = NULL;
+
+	if (!(fl4->flowi4_flags & FLOWI_FLAG_VRFSRC)) {
+		struct net_vrf *vrf = netdev_priv(dev);
+
+		rth = vrf->rth;
+		atomic_inc(&rth->dst.__refcnt);
+	}
+
+	return rth;
+}
+
+static const struct l3mdev_ops vrf_l3mdev_ops = {
+	.l3mdev_fib_table	= vrf_fib_table,
+	.l3mdev_get_rtable	= vrf_get_rtable,
+};
+
 static void vrf_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
@@ -546,6 +574,7 @@ static void vrf_setup(struct net_device *dev)
 
 	/* Initialize the device structure. */
 	dev->netdev_ops = &vrf_netdev_ops;
+	dev->l3mdev_ops = &vrf_l3mdev_ops;
 	dev->ethtool_ops = &vrf_ethtool_ops;
 	dev->destructor = free_netdev;
 
