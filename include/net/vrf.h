@@ -32,26 +32,4 @@ struct net_vrf {
 	u32			tb_id;
 };
 
-
-#if IS_ENABLED(CONFIG_NET_VRF)
-/* caller has already checked netif_is_l3_master(dev) */
-static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
-{
-	struct rtable *rth = ERR_PTR(-ENETUNREACH);
-	struct net_vrf *vrf = netdev_priv(dev);
-
-	if (vrf) {
-		rth = vrf->rth;
-		atomic_inc(&rth->dst.__refcnt);
-	}
-	return rth;
-}
-
-#else
-static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
-{
-	return ERR_PTR(-ENETUNREACH);
-}
-#endif
-
 #endif /* __LINUX_NET_VRF_H */
