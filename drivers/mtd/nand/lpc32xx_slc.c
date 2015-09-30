@@ -95,7 +95,7 @@
 * slc_tac register definitions
 **********************************************************************/
 /* Computation of clock cycles on basis of controller and device clock rates */
-#define SLCTAC_CLOCKS(c, n, s)	(((1 + (c / n)) & 0xF) << s)
+#define SLCTAC_CLOCKS(c, n, s)	(min_t(u32, 1 + (c / n), 0xF) << s)
 
 /* Clock setting for RDY write sample wait time in 2*n clocks */
 #define SLCTAC_WDR(n)		(((n) & 0xF) << 28)
