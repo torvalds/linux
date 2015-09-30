@@ -362,6 +362,7 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *,
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
+	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -680,6 +681,12 @@ struct address_space_operations {
   	device.  The swap system does not go through the filesystem
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
+
+  dentry_open: this is an alternative to f_op->open(), the difference is that
+	this method may open a file not necessarily originating from the same
+	filesystem as the one i_op->open() was called on.  It may be
+	useful for stacking filesystems which want to allow native I/O directly
+	on underlying files.
 
 
   invalidatepage: If a page has PagePrivate set, then invalidatepage
