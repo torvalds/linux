@@ -2224,7 +2224,7 @@ static u64 xgbe_mmc_read(struct xgbe_prv_data *pdata, unsigned int reg_lo)
 
 	default:
 		read_hi = false;
-	};
+	}
 
 	val = XGMAC_IOREAD(pdata, reg_lo);
 
