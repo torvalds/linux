@@ -22,16 +22,18 @@
 #include <linux/pci.h>
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>
+#include <linux/iova.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/vmalloc.h>
 #include <linux/scif.h>
-
 #include "../common/mic_dev.h"
 
 #define SCIF_MGMT_NODE 0
 #define SCIF_DEFAULT_WATCHDOG_TO 30
 #define SCIF_NODE_ACCEPT_TIMEOUT (3 * HZ)
 #define SCIF_NODE_ALIVE_TIMEOUT (SCIF_DEFAULT_WATCHDOG_TO * HZ)
+#define SCIF_RMA_TEMP_CACHE_LIMIT 0x20000
 
 /*
  * Generic state used for certain node QP message exchanges
@@ -74,13 +76,21 @@ enum scif_msg_state {
  * @loopb_work: Used for submitting work to loopb_wq
  * @loopb_recv_q: List of messages received on the loopb_wq
  * @card_initiated_exit: set when the card has initiated the exit
+ * @rmalock: Synchronize access to RMA operations
+ * @fencelock: Synchronize access to list of remote fences requested.
+ * @rma: List of temporary registered windows to be destroyed.
+ * @rma_tc: List of temporary registered & cached Windows to be destroyed
+ * @fence: List of remote fence requests
+ * @mmu_notif_work: Work for registration caching MMU notifier workqueue
+ * @mmu_notif_cleanup: List of temporary cached windows for reg cache
+ * @rma_tc_limit: RMA temporary cache limit
  */
 struct scif_info {
 	u8 nodeid;
 	u8 maxid;
 	u8 total;
 	u32 nr_zombies;
-	spinlock_t eplock;
+	struct mutex eplock;
 	struct mutex connlock;
 	spinlock_t nb_connect_lock;
 	spinlock_t port_lock;
@@ -103,6 +113,14 @@ struct scif_info {
 	struct work_struct loopb_work;
 	struct list_head loopb_recv_q;
 	bool card_initiated_exit;
+	spinlock_t rmalock;
+	struct mutex fencelock;
+	struct list_head rma;
+	struct list_head rma_tc;
+	struct list_head fence;
+	struct work_struct mmu_notif_work;
+	struct list_head mmu_notif_cleanup;
+	unsigned long rma_tc_limit;
 };
 
 /*
@@ -153,6 +171,8 @@ struct scif_p2p_info {
  * @disconn_rescnt: Keeps track of number of node remove requests sent
  * @exit: Status of exit message
  * @qp_dma_addr: Queue pair DMA address passed to the peer
+ * @dma_ch_idx: Round robin index for DMA channels
+ * @signal_pool: DMA pool used for scheduling scif_fence_signal DMA's
 */
 struct scif_dev {
 	u8 node;
@@ -179,8 +199,12 @@ struct scif_dev {
 	atomic_t disconn_rescnt;
 	enum scif_msg_state exit;
 	dma_addr_t qp_dma_addr;
+	int dma_ch_idx;
+	struct dma_pool *signal_pool;
 };
 
+extern bool scif_reg_cache_enable;
+extern bool scif_ulimit_check;
 extern struct scif_info scif_info;
 extern struct idr scif_ports;
 extern struct bus_type scif_peer_bus;
@@ -192,6 +216,8 @@ extern const struct file_operations scif_anon_fops;
 #define SCIF_NODE_QP_SIZE 0x10000
 
 #include "scif_nodeqp.h"
+#include "scif_rma.h"
+#include "scif_rma_list.h"
 
 /*
  * scifdev_self:

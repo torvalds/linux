@@ -75,6 +75,7 @@ comment "SCIF Driver"
 config SCIF
 	tristate "SCIF Driver"
 	depends on 64BIT && PCI && X86 && SCIF_BUS
+	select IOMMU_IOVA
 	help
 	  This enables SCIF Driver support for the Intel Many Integrated
 	  Core (MIC) family of PCIe form factor coprocessor devices that

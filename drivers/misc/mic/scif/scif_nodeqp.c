@@ -105,18 +105,22 @@
 int scif_setup_qp_connect(struct scif_qp *qp, dma_addr_t *qp_offset,
 			  int local_size, struct scif_dev *scifdev)
 {
-	void *local_q = NULL;
+	void *local_q = qp->inbound_q.rb_base;
 	int err = 0;
 	u32 tmp_rd = 0;
 
 	spin_lock_init(&qp->send_lock);
 	spin_lock_init(&qp->recv_lock);
 
-	local_q = kzalloc(local_size, GFP_KERNEL);
+	/* Allocate rb only if not already allocated */
 	if (!local_q) {
-		err = -ENOMEM;
-		return err;
+		local_q = kzalloc(local_size, GFP_KERNEL);
+		if (!local_q) {
+			err = -ENOMEM;
+			return err;
+		}
 	}
+
 	err = scif_map_single(&qp->local_buf, local_q, scifdev, local_size);
 	if (err)
 		goto kfree;
@@ -552,7 +556,29 @@ static char *message_types[] = {"BAD",
 				"DISCNT_ACK",
 				"CLIENT_SENT",
 				"CLIENT_RCVD",
-				"SCIF_GET_NODE_INFO"};
+				"SCIF_GET_NODE_INFO",
+				"REGISTER",
+				"REGISTER_ACK",
+				"REGISTER_NACK",
+				"UNREGISTER",
+				"UNREGISTER_ACK",
+				"UNREGISTER_NACK",
+				"ALLOC_REQ",
+				"ALLOC_GNT",
+				"ALLOC_REJ",
+				"FREE_PHYS",
+				"FREE_VIRT",
+				"MUNMAP",
+				"MARK",
+				"MARK_ACK",
+				"MARK_NACK",
+				"WAIT",
+				"WAIT_ACK",
+				"WAIT_NACK",
+				"SIGNAL_LOCAL",
+				"SIGNAL_REMOTE",
+				"SIG_ACK",
+				"SIG_NACK"};
 
 static void
 scif_display_message(struct scif_dev *scifdev, struct scifmsg *msg,
@@ -646,10 +672,16 @@ int scif_nodeqp_send(struct scif_dev *scifdev, struct scifmsg *msg)
  *
  * Work queue handler for servicing miscellaneous SCIF tasks.
  * Examples include:
- * 1) Cleanup of zombie endpoints.
+ * 1) Remote fence requests.
+ * 2) Destruction of temporary registered windows
+ *    created during scif_vreadfrom()/scif_vwriteto().
+ * 3) Cleanup of zombie endpoints.
  */
 void scif_misc_handler(struct work_struct *work)
 {
+	scif_rma_handle_remote_fences();
+	scif_rma_destroy_windows();
+	scif_rma_destroy_tcw_invalid();
 	scif_cleanup_zombie_epd();
 }
 
@@ -995,6 +1027,27 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_clientsend,	/* SCIF_CLIENT_SENT */
 	scif_clientrcvd,	/* SCIF_CLIENT_RCVD */
 	scif_get_node_info_resp,/* SCIF_GET_NODE_INFO */
+	scif_recv_reg,		/* SCIF_REGISTER */
+	scif_recv_reg_ack,	/* SCIF_REGISTER_ACK */
+	scif_recv_reg_nack,	/* SCIF_REGISTER_NACK */
+	scif_recv_unreg,	/* SCIF_UNREGISTER */
+	scif_recv_unreg_ack,	/* SCIF_UNREGISTER_ACK */
+	scif_recv_unreg_nack,	/* SCIF_UNREGISTER_NACK */
+	scif_alloc_req,		/* SCIF_ALLOC_REQ */
+	scif_alloc_gnt_rej,	/* SCIF_ALLOC_GNT */
+	scif_alloc_gnt_rej,	/* SCIF_ALLOC_REJ */
+	scif_free_virt,		/* SCIF_FREE_VIRT */
+	scif_recv_munmap,	/* SCIF_MUNMAP */
+	scif_recv_mark,		/* SCIF_MARK */
+	scif_recv_mark_resp,	/* SCIF_MARK_ACK */
+	scif_recv_mark_resp,	/* SCIF_MARK_NACK */
+	scif_recv_wait,		/* SCIF_WAIT */
+	scif_recv_wait_resp,	/* SCIF_WAIT_ACK */
+	scif_recv_wait_resp,	/* SCIF_WAIT_NACK */
+	scif_recv_sig_local,	/* SCIF_SIG_LOCAL */
+	scif_recv_sig_remote,	/* SCIF_SIG_REMOTE */
+	scif_recv_sig_resp,	/* SCIF_SIG_ACK */
+	scif_recv_sig_resp,	/* SCIF_SIG_NACK */
 };
 
 /**

@@ -70,6 +70,7 @@ scif_epd_t scif_open(void)
 	mutex_init(&ep->sendlock);
 	mutex_init(&ep->recvlock);
 
+	scif_rma_ep_init(ep);
 	ep->state = SCIFEP_UNBOUND;
 	dev_dbg(scif_info.mdev.this_device,
 		"SCIFAPI open: ep %p success\n", ep);
@@ -184,8 +185,11 @@ int scif_close(scif_epd_t epd)
 
 	switch (oldstate) {
 	case SCIFEP_ZOMBIE:
+		dev_err(scif_info.mdev.this_device,
+			"SCIFAPI close: zombie state unexpected\n");
 	case SCIFEP_DISCONNECTED:
 		spin_unlock(&ep->lock);
+		scif_unregister_all_windows(epd);
 		/* Remove from the disconnected list */
 		mutex_lock(&scif_info.connlock);
 		list_for_each_safe(pos, tmpq, &scif_info.disconnected) {
@@ -207,6 +211,7 @@ int scif_close(scif_epd_t epd)
 	case SCIFEP_CLOSING:
 	{
 		spin_unlock(&ep->lock);
+		scif_unregister_all_windows(epd);
 		scif_disconnect_ep(ep);
 		break;
 	}
@@ -218,7 +223,7 @@ int scif_close(scif_epd_t epd)
 		struct scif_endpt *aep;
 
 		spin_unlock(&ep->lock);
-		spin_lock(&scif_info.eplock);
+		mutex_lock(&scif_info.eplock);
 
 		/* remove from listen list */
 		list_for_each_safe(pos, tmpq, &scif_info.listen) {
@@ -240,7 +245,7 @@ int scif_close(scif_epd_t epd)
 					break;
 				}
 			}
-			spin_unlock(&scif_info.eplock);
+			mutex_unlock(&scif_info.eplock);
 			mutex_lock(&scif_info.connlock);
 			list_for_each_safe(pos, tmpq, &scif_info.connected) {
 				tmpep = list_entry(pos,
@@ -260,13 +265,13 @@ int scif_close(scif_epd_t epd)
 			}
 			mutex_unlock(&scif_info.connlock);
 			scif_teardown_ep(aep);
-			spin_lock(&scif_info.eplock);
+			mutex_lock(&scif_info.eplock);
 			scif_add_epd_to_zombie_list(aep, SCIF_EPLOCK_HELD);
 			ep->acceptcnt--;
 		}
 
 		spin_lock(&ep->lock);
-		spin_unlock(&scif_info.eplock);
+		mutex_unlock(&scif_info.eplock);
 
 		/* Remove and reject any pending connection requests. */
 		while (ep->conreqcnt) {
@@ -428,9 +433,9 @@ int scif_listen(scif_epd_t epd, int backlog)
 	scif_teardown_ep(ep);
 	ep->qp_info.qp = NULL;
 
-	spin_lock(&scif_info.eplock);
+	mutex_lock(&scif_info.eplock);
 	list_add_tail(&ep->list, &scif_info.listen);
-	spin_unlock(&scif_info.eplock);
+	mutex_unlock(&scif_info.eplock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(scif_listen);
@@ -469,6 +474,13 @@ static int scif_conn_func(struct scif_endpt *ep)
 	struct scifmsg msg;
 	struct device *spdev;
 
+	err = scif_reserve_dma_chan(ep);
+	if (err) {
+		dev_err(&ep->remote_dev->sdev->dev,
+			"%s %d err %d\n", __func__, __LINE__, err);
+		ep->state = SCIFEP_BOUND;
+		goto connect_error_simple;
+	}
 	/* Initiate the first part of the endpoint QP setup */
 	err = scif_setup_qp_connect(ep->qp_info.qp, &ep->qp_info.qp_offset,
 				    SCIF_ENDPT_QP_SIZE, ep->remote_dev);
@@ -803,6 +815,15 @@ retry_connection:
 	cep->state = SCIFEP_CONNECTING;
 	cep->remote_dev = &scif_dev[peer->node];
 	cep->remote_ep = conreq->msg.payload[0];
+
+	scif_rma_ep_init(cep);
+
+	err = scif_reserve_dma_chan(cep);
+	if (err) {
+		dev_err(scif_info.mdev.this_device,
+			"%s %d err %d\n", __func__, __LINE__, err);
+		goto scif_accept_error_qpalloc;
+	}
 
 	cep->qp_info.qp = kzalloc(sizeof(*cep->qp_info.qp), GFP_KERNEL);
 	if (!cep->qp_info.qp) {

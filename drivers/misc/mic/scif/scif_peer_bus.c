@@ -72,6 +72,7 @@ err:
 static int scif_peer_add_device(struct scif_dev *scifdev)
 {
 	struct scif_peer_dev *spdev = rcu_dereference(scifdev->spdev);
+	char pool_name[16];
 	int ret;
 
 	ret = device_add(&spdev->dev);
@@ -81,8 +82,21 @@ static int scif_peer_add_device(struct scif_dev *scifdev)
 			"dnode %d: peer device_add failed\n", scifdev->node);
 		goto put_spdev;
 	}
+
+	scnprintf(pool_name, sizeof(pool_name), "scif-%d", spdev->dnode);
+	scifdev->signal_pool = dmam_pool_create(pool_name, &scifdev->sdev->dev,
+						sizeof(struct scif_status), 1,
+						0);
+	if (!scifdev->signal_pool) {
+		dev_err(&scifdev->sdev->dev,
+			"dnode %d: dmam_pool_create failed\n", scifdev->node);
+		ret = -ENOMEM;
+		goto del_spdev;
+	}
 	dev_dbg(&spdev->dev, "Added peer dnode %d\n", spdev->dnode);
 	return 0;
+del_spdev:
+	device_del(&spdev->dev);
 put_spdev:
 	RCU_INIT_POINTER(scifdev->spdev, NULL);
 	synchronize_rcu();
