@@ -319,6 +319,9 @@ static int pxa2xx_i2s_probe(struct snd_soc_dai *dai)
 	/* Along with FIFO servicing */
 	SAIMR &= ~(SAIMR_RFS | SAIMR_TFS);
 
+	snd_soc_dai_init_dma_data(dai, &pxa2xx_i2s_pcm_stereo_out,
+		&pxa2xx_i2s_pcm_stereo_in);
+
 	return 0;
 }
 
