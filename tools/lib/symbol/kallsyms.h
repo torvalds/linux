@@ -9,7 +9,7 @@
 #define KSYM_NAME_LEN 256
 #endif
 
-static inline u8 kallsyms2elf_type(char type)
+static inline u8 kallsyms2elf_binding(char type)
 {
 	if (type == 'W')
 		return STB_WEAK;
