@@ -28,8 +28,8 @@
  * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pci_dev.
  *
- * Returns: Attached PCI device if @dev->hw_dev is non-%NULL.
- * Returns %NULL if @dev->hw_dev is %NULL.
+ * Return: Attached PCI device if @dev->hw_dev is non-%NULL.
+ * Return %NULL if @dev->hw_dev is %NULL.
  */
 struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
 {
@@ -48,7 +48,7 @@ EXPORT_SYMBOL_GPL(comedi_to_pci_dev);
  *
  * Calls to comedi_pci_enable() and comedi_pci_disable() cannot be nested.
  *
- * Returns:
+ * Return:
  *	0 on success,
  *	-%ENODEV if @dev->hw_dev is %NULL,
  *	-%EBUSY if regions busy,
@@ -143,7 +143,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_detach);
  * "auto_attach" handler.  The "auto_attach" handler may call
  * comedi_to_pci_dev() on the passed in COMEDI device to recover @pcidev.
  *
- * Returns: The result of calling comedi_auto_config() (0 on success, or
+ * Return: The result of calling comedi_auto_config() (0 on success, or
  * a negative error number on failure).
  */
 int comedi_pci_auto_config(struct pci_dev *pcidev,
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
  * to register the COMEDI driver and the PCI driver.  Do not call it directly,
  * use the module_comedi_pci_driver() helper macro instead.
  *
- * Returns: 0 on success, or a negative error number on failure.
+ * Return: 0 on success, or a negative error number on failure.
  */
 int comedi_pci_driver_register(struct comedi_driver *comedi_driver,
 			       struct pci_driver *pci_driver)
