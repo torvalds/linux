@@ -69,7 +69,7 @@ static int rockchip_mmc_get_phase(struct clk_hw *hw)
 
 		delay_num = (raw_value & ROCKCHIP_MMC_DELAYNUM_MASK);
 		delay_num >>= ROCKCHIP_MMC_DELAYNUM_OFFSET;
-		degrees += delay_num * factor / 10000;
+		degrees += DIV_ROUND_CLOSEST(delay_num * factor, 10000);
 	}
 
 	return degrees % 360;
@@ -82,7 +82,7 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	u8 nineties, remainder;
 	u8 delay_num;
 	u32 raw_value;
-	u64 delay;
+	u32 delay;
 
 	nineties = degrees / 90;
 	remainder = (degrees % 90);
@@ -110,12 +110,13 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 	 * Convert to delay; do a little extra work to make sure we
 	 * don't overflow 32-bit / 64-bit numbers.
 	 */
-	delay = PSECS_PER_SEC;
+	delay = 10000000; /* PSECS_PER_SEC / 10000 / 10 */
 	delay *= remainder;
-	do_div(delay, 10000);
-	do_div(delay, (rate / 1000) * 36 * ROCKCHIP_MMC_DELAY_ELEMENT_PSEC);
+	delay = DIV_ROUND_CLOSEST(delay,
+			(rate / 1000) * 36 *
+				(ROCKCHIP_MMC_DELAY_ELEMENT_PSEC / 10));
 
-	delay_num = (u8) min(delay, 255ULL);
+	delay_num = (u8) min_t(u32, delay, 255);
 
 	raw_value = delay_num ? ROCKCHIP_MMC_DELAY_SEL : 0;
 	raw_value |= delay_num << ROCKCHIP_MMC_DELAYNUM_OFFSET;
