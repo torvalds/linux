@@ -250,36 +250,3 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 	if (output & DPMS_USAGE)
 		ddk750_setDPMS((output & DPMS_MASK) >> DPMS_OFFSET);
 }
-
-
-int ddk750_initDVIDisp(void)
-{
-	/* Initialize DVI. If the dviInit fail and the VendorID or the DeviceID are
-	   not zeroed, then set the failure flag. If it is zeroe, it might mean
-	   that the system is in Dual CRT Monitor configuration. */
-
-	/* De-skew enabled with default 111b value.
-	   This will fix some artifacts problem in some mode on board 2.2.
-	   Somehow this fix does not affect board 2.1.
-	 */
-	if ((dviInit(1,  /* Select Rising Edge */
-		     1,  /* Select 24-bit bus */
-		     0,  /* Select Single Edge clock */
-		     1,  /* Enable HSync as is */
-		     1,  /* Enable VSync as is */
-		     1,  /* Enable De-skew */
-		     7,  /* Set the de-skew setting to maximum setup */
-		     1,  /* Enable continuous Sync */
-		     1,  /* Enable PLL Filter */
-		     4   /* Use the recommended value for PLL Filter value */
-		     ) != 0) && (dviGetVendorID() != 0x0000) && (dviGetDeviceID() != 0x0000)) {
-		return (-1);
-	}
-
-	/* TODO: Initialize other display component */
-
-	/* Success */
-	return 0;
-
-}
-

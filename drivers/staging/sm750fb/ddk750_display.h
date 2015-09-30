@@ -100,6 +100,5 @@ typedef enum _disp_output_t {
 disp_output_t;
 
 void ddk750_setLogicalDispOut(disp_output_t);
-int ddk750_initDVIDisp(void);
 
 #endif
