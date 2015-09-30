@@ -101,7 +101,7 @@ static struct regmap_bus rockchip_efuse_bus = {
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
-struct regmap_config rockchip_efuse_regmap_config = {
+static struct regmap_config rockchip_efuse_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 1,
 	.val_bits = 8,
@@ -119,7 +119,7 @@ static const struct of_device_id rockchip_efuse_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_efuse_match);
 
-int rockchip_efuse_probe(struct platform_device *pdev)
+static int rockchip_efuse_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -165,7 +165,7 @@ int rockchip_efuse_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int rockchip_efuse_remove(struct platform_device *pdev)
+static int rockchip_efuse_remove(struct platform_device *pdev)
 {
 	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
 
