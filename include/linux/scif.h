@@ -93,6 +93,18 @@ enum {
 
 typedef struct scif_endpt *scif_epd_t;
 
+/**
+ * struct scif_pollepd - SCIF endpoint to be monitored via scif_poll
+ * @epd: SCIF endpoint
+ * @events: requested events
+ * @revents: returned events
+ */
+struct scif_pollepd {
+	scif_epd_t epd;
+	short events;
+	short revents;
+};
+
 #define SCIF_OPEN_FAILED ((scif_epd_t)-1)
 #define SCIF_REGISTER_FAILED ((off_t)-1)
 #define SCIF_MMAP_FAILED ((void *)-1)
@@ -989,5 +1001,67 @@ int scif_fence_signal(scif_epd_t epd, off_t loff, u64 lval, off_t roff,
  * EFAULT - Bad address
  */
 int scif_get_node_ids(u16 *nodes, int len, u16 *self);
+
+/**
+ * scif_poll() - Wait for some event on an endpoint
+ * @epds:	Array of endpoint descriptors
+ * @nepds:	Length of epds
+ * @timeout:	Upper limit on time for which scif_poll() will block
+ *
+ * scif_poll() waits for one of a set of endpoints to become ready to perform
+ * an I/O operation.
+ *
+ * The epds argument specifies the endpoint descriptors to be examined and the
+ * events of interest for each endpoint descriptor. epds is a pointer to an
+ * array with one member for each open endpoint descriptor of interest.
+ *
+ * The number of items in the epds array is specified in nepds. The epd field
+ * of scif_pollepd is an endpoint descriptor of an open endpoint. The field
+ * events is a bitmask specifying the events which the application is
+ * interested in. The field revents is an output parameter, filled by the
+ * kernel with the events that actually occurred. The bits returned in revents
+ * can include any of those specified in events, or one of the values POLLERR,
+ * POLLHUP, or POLLNVAL. (These three bits are meaningless in the events
+ * field, and will be set in the revents field whenever the corresponding
+ * condition is true.)
+ *
+ * If none of the events requested (and no error) has occurred for any of the
+ * endpoint descriptors, then scif_poll() blocks until one of the events occurs.
+ *
+ * The timeout argument specifies an upper limit on the time for which
+ * scif_poll() will block, in milliseconds. Specifying a negative value in
+ * timeout means an infinite timeout.
+ *
+ * The following bits may be set in events and returned in revents.
+ * POLLIN - Data may be received without blocking. For a connected
+ * endpoint, this means that scif_recv() may be called without blocking. For a
+ * listening endpoint, this means that scif_accept() may be called without
+ * blocking.
+ * POLLOUT - Data may be sent without blocking. For a connected endpoint, this
+ * means that scif_send() may be called without blocking. POLLOUT may also be
+ * used to block waiting for a non-blocking connect to complete. This bit value
+ * has no meaning for a listening endpoint and is ignored if specified.
+ *
+ * The following bits are only returned in revents, and are ignored if set in
+ * events.
+ * POLLERR - An error occurred on the endpoint
+ * POLLHUP - The connection to the peer endpoint was disconnected
+ * POLLNVAL - The specified endpoint descriptor is invalid.
+ *
+ * Return:
+ * Upon successful completion, scif_poll() returns a non-negative value. A
+ * positive value indicates the total number of endpoint descriptors that have
+ * been selected (that is, endpoint descriptors for which the revents member is
+ * non-zero). A value of 0 indicates that the call timed out and no endpoint
+ * descriptors have been selected. Otherwise in user mode -1 is returned and
+ * errno is set to indicate the error; in kernel mode the negative of one of
+ * the following errors is returned.
+ *
+ * Errors:
+ * EINTR - A signal occurred before any requested event
+ * EINVAL - The nepds argument is greater than {OPEN_MAX}
+ * ENOMEM - There was no space to allocate file descriptor tables
+ */
+int scif_poll(struct scif_pollepd *epds, unsigned int nepds, long timeout);
 
 #endif /* __SCIF_H__ */

@@ -37,9 +37,21 @@ enum conn_async_state {
 	ASYNC_CONN_FLUSH_WORK	/* async work flush in progress  */
 };
 
+/*
+ * File operations for anonymous inode file associated with a SCIF endpoint,
+ * used in kernel mode SCIF poll. Kernel mode SCIF poll calls portions of the
+ * poll API in the kernel and these take in a struct file *. Since a struct
+ * file is not available to kernel mode SCIF, it uses an anonymous file for
+ * this purpose.
+ */
+const struct file_operations scif_anon_fops = {
+	.owner = THIS_MODULE,
+};
+
 scif_epd_t scif_open(void)
 {
 	struct scif_endpt *ep;
+	int err;
 
 	might_sleep();
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
@@ -50,6 +62,10 @@ scif_epd_t scif_open(void)
 	if (!ep->qp_info.qp)
 		goto err_qp_alloc;
 
+	err = scif_anon_inode_getfile(ep);
+	if (err)
+		goto err_anon_inode;
+
 	spin_lock_init(&ep->lock);
 	mutex_init(&ep->sendlock);
 	mutex_init(&ep->recvlock);
@@ -59,6 +75,8 @@ scif_epd_t scif_open(void)
 		"SCIFAPI open: ep %p success\n", ep);
 	return ep;
 
+err_anon_inode:
+	kfree(ep->qp_info.qp);
 err_qp_alloc:
 	kfree(ep);
 err_ep_alloc:
@@ -279,6 +297,7 @@ int scif_close(scif_epd_t epd)
 	}
 	}
 	scif_put_port(ep->port.port);
+	scif_anon_inode_fput(ep);
 	scif_teardown_ep(ep);
 	scif_add_epd_to_zombie_list(ep, !SCIF_EPLOCK_HELD);
 	return 0;
@@ -558,8 +577,10 @@ void scif_conn_handler(struct work_struct *work)
 			list_del(&ep->conn_list);
 		}
 		spin_unlock(&scif_info.nb_connect_lock);
-		if (ep)
+		if (ep) {
 			ep->conn_err = scif_conn_func(ep);
+			wake_up_interruptible(&ep->conn_pend_wq);
+		}
 	} while (ep);
 }
 
@@ -660,6 +681,7 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 	ep->remote_dev = &scif_dev[dst->node];
 	ep->qp_info.qp->magic = SCIFEP_MAGIC;
 	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+		init_waitqueue_head(&ep->conn_pend_wq);
 		spin_lock(&scif_info.nb_connect_lock);
 		list_add_tail(&ep->conn_list, &scif_info.nb_connect_list);
 		spin_unlock(&scif_info.nb_connect_lock);
@@ -788,6 +810,10 @@ retry_connection:
 		goto scif_accept_error_qpalloc;
 	}
 
+	err = scif_anon_inode_getfile(cep);
+	if (err)
+		goto scif_accept_error_anon_inode;
+
 	cep->qp_info.qp->magic = SCIFEP_MAGIC;
 	spdev = scif_get_peer_dev(cep->remote_dev);
 	if (IS_ERR(spdev)) {
@@ -858,6 +884,8 @@ retry:
 	spin_unlock(&cep->lock);
 	return 0;
 scif_accept_error_map:
+	scif_anon_inode_fput(cep);
+scif_accept_error_anon_inode:
 	scif_teardown_ep(cep);
 scif_accept_error_qpalloc:
 	kfree(cep);
@@ -1246,6 +1274,134 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scif_recv);
+
+static inline void _scif_poll_wait(struct file *f, wait_queue_head_t *wq,
+				   poll_table *p, struct scif_endpt *ep)
+{
+	/*
+	 * Because poll_wait makes a GFP_KERNEL allocation, give up the lock
+	 * and regrab it afterwards. Because the endpoint state might have
+	 * changed while the lock was given up, the state must be checked
+	 * again after re-acquiring the lock. The code in __scif_pollfd(..)
+	 * does this.
+	 */
+	spin_unlock(&ep->lock);
+	poll_wait(f, wq, p);
+	spin_lock(&ep->lock);
+}
+
+unsigned int
+__scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
+{
+	unsigned int mask = 0;
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI pollfd: ep %p %s\n", ep, scif_ep_states[ep->state]);
+
+	spin_lock(&ep->lock);
+
+	/* Endpoint is waiting for a non-blocking connect to complete */
+	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+		_scif_poll_wait(f, &ep->conn_pend_wq, wait, ep);
+		if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
+			if (ep->state == SCIFEP_CONNECTED ||
+			    ep->state == SCIFEP_DISCONNECTED ||
+			    ep->conn_err)
+				mask |= POLLOUT;
+			goto exit;
+		}
+	}
+
+	/* Endpoint is listening for incoming connection requests */
+	if (ep->state == SCIFEP_LISTENING) {
+		_scif_poll_wait(f, &ep->conwq, wait, ep);
+		if (ep->state == SCIFEP_LISTENING) {
+			if (ep->conreqcnt)
+				mask |= POLLIN;
+			goto exit;
+		}
+	}
+
+	/* Endpoint is connected or disconnected */
+	if (ep->state == SCIFEP_CONNECTED || ep->state == SCIFEP_DISCONNECTED) {
+		if (poll_requested_events(wait) & POLLIN)
+			_scif_poll_wait(f, &ep->recvwq, wait, ep);
+		if (poll_requested_events(wait) & POLLOUT)
+			_scif_poll_wait(f, &ep->sendwq, wait, ep);
+		if (ep->state == SCIFEP_CONNECTED ||
+		    ep->state == SCIFEP_DISCONNECTED) {
+			/* Data can be read without blocking */
+			if (scif_rb_count(&ep->qp_info.qp->inbound_q, 1))
+				mask |= POLLIN;
+			/* Data can be written without blocking */
+			if (scif_rb_space(&ep->qp_info.qp->outbound_q))
+				mask |= POLLOUT;
+			/* Return POLLHUP if endpoint is disconnected */
+			if (ep->state == SCIFEP_DISCONNECTED)
+				mask |= POLLHUP;
+			goto exit;
+		}
+	}
+
+	/* Return POLLERR if the endpoint is in none of the above states */
+	mask |= POLLERR;
+exit:
+	spin_unlock(&ep->lock);
+	return mask;
+}
+
+/**
+ * scif_poll() - Kernel mode SCIF poll
+ * @ufds: Array of scif_pollepd structures containing the end points
+ *	  and events to poll on
+ * @nfds: Size of the ufds array
+ * @timeout_msecs: Timeout in msecs, -ve implies infinite timeout
+ *
+ * The code flow in this function is based on do_poll(..) in select.c
+ *
+ * Returns the number of endpoints which have pending events or 0 in
+ * the event of a timeout. If a signal is used for wake up, -EINTR is
+ * returned.
+ */
+int
+scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
+{
+	struct poll_wqueues table;
+	poll_table *pt;
+	int i, mask, count = 0, timed_out = timeout_msecs == 0;
+	u64 timeout = timeout_msecs < 0 ? MAX_SCHEDULE_TIMEOUT
+		: msecs_to_jiffies(timeout_msecs);
+
+	poll_initwait(&table);
+	pt = &table.pt;
+	while (1) {
+		for (i = 0; i < nfds; i++) {
+			pt->_key = ufds[i].events | POLLERR | POLLHUP;
+			mask = __scif_pollfd(ufds[i].epd->anon,
+					     pt, ufds[i].epd);
+			mask &= ufds[i].events | POLLERR | POLLHUP;
+			if (mask) {
+				count++;
+				pt->_qproc = NULL;
+			}
+			ufds[i].revents = mask;
+		}
+		pt->_qproc = NULL;
+		if (!count) {
+			count = table.error;
+			if (signal_pending(current))
+				count = -EINTR;
+		}
+		if (count || timed_out)
+			break;
+
+		if (!schedule_timeout_interruptible(timeout))
+			timed_out = 1;
+	}
+	poll_freewait(&table);
+	return count;
+}
+EXPORT_SYMBOL_GPL(scif_poll);
 
 int scif_get_node_ids(u16 *nodes, int len, u16 *self)
 {

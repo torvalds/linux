@@ -34,6 +34,13 @@ static int scif_fdclose(struct inode *inode, struct file *f)
 	return scif_close(priv);
 }
 
+static unsigned int scif_fdpoll(struct file *f, poll_table *wait)
+{
+	struct scif_endpt *priv = f->private_data;
+
+	return __scif_pollfd(f, wait, priv);
+}
+
 static int scif_fdflush(struct file *f, fl_owner_t id)
 {
 	struct scif_endpt *ep = f->private_data;
@@ -193,6 +200,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		spin_unlock(&scif_info.eplock);
 
 		/* Free the resources automatically created from the open. */
+		scif_anon_inode_fput(priv);
 		scif_teardown_ep(priv);
 		scif_add_epd_to_zombie_list(priv, !SCIF_EPLOCK_HELD);
 		f->private_data = newep;
@@ -298,6 +306,7 @@ const struct file_operations scif_fops = {
 	.open = scif_fdopen,
 	.release = scif_fdclose,
 	.unlocked_ioctl = scif_fdioctl,
+	.poll = scif_fdpoll,
 	.flush = scif_fdflush,
 	.owner = THIS_MODULE,
 };

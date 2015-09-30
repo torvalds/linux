@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>
+#include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/scif.h>
 
@@ -184,6 +185,7 @@ extern struct scif_info scif_info;
 extern struct idr scif_ports;
 extern struct scif_dev *scif_dev;
 extern const struct file_operations scif_fops;
+extern const struct file_operations scif_anon_fops;
 
 /* Size of the RB for the Node QP */
 #define SCIF_NODE_QP_SIZE 0x10000
