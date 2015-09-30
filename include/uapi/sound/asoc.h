@@ -224,8 +224,6 @@ struct snd_soc_tplg_stream {
 	__le32 period_bytes;	/* size of period in bytes */
 	__le32 buffer_bytes;	/* size of buffer in bytes */
 	__le32 channels;	/* channels */
-	__le32 tdm_slot;	/* optional BE bitmask of supported TDM slots */
-	__le32 dai_fmt;		/* SND_SOC_DAIFMT_  */
 } __attribute__((packed));
 
 /*
