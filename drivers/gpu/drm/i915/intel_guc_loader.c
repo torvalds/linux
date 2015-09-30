@@ -383,7 +383,6 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
 
 	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_NONE)
 		return 0;
@@ -433,6 +432,9 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
+		/* The execbuf_client will be recreated. Release it first. */
+		i915_guc_submission_disable(dev);
+
 		err = i915_guc_submission_enable(dev);
 		if (err)
 			goto fail;

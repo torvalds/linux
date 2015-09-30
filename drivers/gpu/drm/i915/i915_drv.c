@@ -638,6 +638,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 		return error;
 	}
 
+	intel_guc_suspend(dev);
+
 	intel_suspend_gt_powersave(dev);
 
 	/*
@@ -766,6 +768,8 @@ static int i915_drm_resume(struct drm_device *dev)
 			atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_guc_resume(dev);
 
 	intel_modeset_init_hw(dev);
 
@@ -1500,6 +1504,8 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
+	intel_guc_suspend(dev);
+
 	intel_suspend_gt_powersave(dev);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
@@ -1558,6 +1564,8 @@ static int intel_runtime_resume(struct device *device)
 
 	intel_opregion_notify_adapter(dev, PCI_D0);
 	dev_priv->pm.suspended = false;
+
+	intel_guc_resume(dev);
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
