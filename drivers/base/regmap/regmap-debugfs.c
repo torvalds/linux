@@ -370,8 +370,7 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 		if (p >= *ppos) {
 			if (buf_pos + 1 + entry_len > count)
 				break;
-			snprintf(buf + buf_pos, count - buf_pos,
-				 "%s", entry);
+			memcpy(buf + buf_pos, entry, entry_len);
 			buf_pos += entry_len;
 			buf[buf_pos] = '\n';
 			buf_pos++;
