@@ -147,7 +147,6 @@ typedef struct {
 
 #define INFINITE_SLEEP_TIME	((u32)0xFFFFFFFF)
 
-#ifdef WILC_PARSE_SCAN_IN_HOST
 typedef enum {
 	SUPP_RATES_IE		= 1,
 	EXT_SUPP_RATES_IE	= 50,
@@ -157,7 +156,7 @@ typedef enum {
 	WMM_IE			= 221,
 	P2P_IE			= 221,
 } BEACON_IE;
-#endif
+
 typedef enum {
 	INFRASTRUCTURE		= 0,
 	INDEPENDENT,

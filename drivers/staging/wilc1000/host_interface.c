@@ -467,7 +467,6 @@ typedef struct _tstrWidJoinReqExt {
 } tstrWidJoinReqExt;
 #endif
 
-#ifdef WILC_PARSE_SCAN_IN_HOST
 /*Struct containg joinParam of each AP*/
 typedef struct _tstrJoinBssParam {
 	BSSTYPE_T bss_type;
@@ -504,7 +503,6 @@ typedef struct _tstrBssTable {
 	tstrJoinBssParam *head;
 	tstrJoinBssParam *tail;
 } tstrBssTable;
-#endif /*WILC_PARSE_SCAN_IN_HOST*/
 
 typedef enum {
 	SCAN_TIMER = 0,
@@ -564,9 +562,7 @@ tstrWILC_WFIDrv *gu8FlushedJoinReqDrvHandler;
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79     /* Position the byte indicating flushing in the flushed request */
 
-#ifdef WILC_PARSE_SCAN_IN_HOST
 static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo);
-#endif /*WILC_PARSE_SCAN_IN_HOST*/
 
 extern void chip_sleep_manually(u32 u32SleepTime);
 extern int linux_wlan_get_num_conn_ifcs(void);
@@ -1521,10 +1517,7 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 	wid_site_survey_reslts_s *pstrSurveyResults = NULL;
 	#else
 	u8 *pu8CurrByte = NULL;
-	#ifdef WILC_PARSE_SCAN_IN_HOST
 	tstrJoinBssParam *ptstrJoinBssParam;
-	#endif /*WILC_PARSE_SCAN_IN_HOST*/
-
 	#endif
 
 	PRINT_D(GENERIC_DBG, "Handling connect request\n");
@@ -1696,14 +1689,12 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 
 	PRINT_INFO(HOSTINF_DBG, "Saving connection parameters in global structure\n");
 
-	#ifdef WILC_PARSE_SCAN_IN_HOST
 	ptstrJoinBssParam = (tstrJoinBssParam *)pstrHostIFconnectAttr->pJoinParams;
 	if (ptstrJoinBssParam == NULL) {
 		PRINT_ER("Required BSSID not found\n");
 		s32Error = -ENOENT;
 		goto ERRORHANDLER;
 	}
-	#endif /*WILC_PARSE_SCAN_IN_HOST*/
 
 	if (pstrHostIFconnectAttr->pu8bssid != NULL) {
 		pstrWFIDrv->strWILC_UsrConnReq.pu8bssid = kmalloc(6, GFP_KERNEL);
@@ -1798,40 +1789,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 
 	PRINT_D(HOSTINF_DBG, "Connecting to network of SSID %s on channel %d\n",
 		pstrWFIDrv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->u8channel);
-
-
-#ifndef WILC_PARSE_SCAN_IN_HOST
-	strWIDList[u32WidsCount].u16WIDid = (u16)WID_JOIN_REQ_EXTENDED;
-	strWIDList[u32WidsCount].enuWIDtype = WID_STR;
-	strWIDList[u32WidsCount].s32ValueSize = MAX_SSID_LEN + 7;
-	strWIDList[u32WidsCount].ps8WidVal = kmalloc(strWIDList[u32WidsCount].s32ValueSize, GFP_KERNEL);
-
-	if (strWIDList[u32WidsCount].ps8WidVal == NULL) {
-		s32Error = -EFAULT;
-		goto ERRORHANDLER;
-	}
-
-	pu8CurrByte = strWIDList[u32WidsCount].ps8WidVal;
-
-	if (pstrHostIFconnectAttr->pu8ssid != NULL) {
-		memcpy(pu8CurrByte, pstrHostIFconnectAttr->pu8ssid, pstrHostIFconnectAttr->ssidLen);
-		pu8CurrByte[pstrHostIFconnectAttr->ssidLen] = '\0';
-	}
-	pu8CurrByte += MAX_SSID_LEN;
-	if ((pstrHostIFconnectAttr->u8channel >= 1) && (pstrHostIFconnectAttr->u8channel <= 14)) {
-		*(pu8CurrByte++) = pstrHostIFconnectAttr->u8channel;
-	} else {
-		PRINT_ER("Channel out of range\n");
-		*(pu8CurrByte++) = 0xFF;
-	}
-	if (pstrHostIFconnectAttr->pu8bssid != NULL)
-		memcpy(pu8CurrByte, pstrHostIFconnectAttr->pu8bssid, 6);
-	pu8CurrByte += 6;
-
-	/* keep the buffer at the start of the allocated pointer to use it with the free*/
-	pu8CurrByte = strWIDList[u32WidsCount].ps8WidVal;
-
-	#else
 
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_JOIN_REQ_EXTENDED;
 	strWIDList[u32WidsCount].enuWIDtype = WID_STR;
@@ -1962,9 +1919,6 @@ static s32 Handle_Connect(tstrWILC_WFIDrv *drvHandler,
 
 	/* keep the buffer at the start of the allocated pointer to use it with the free*/
 	pu8CurrByte = strWIDList[u32WidsCount].ps8WidVal;
-
-
-	#endif /* #ifdef WILC_PARSE_SCAN_IN_HOST*/
 	u32WidsCount++;
 
 	/* A temporary workaround to avoid handling the misleading MAC_DISCONNECTED raised from the
@@ -2104,8 +2058,6 @@ static s32 Handle_FlushConnect(tstrWILC_WFIDrv *drvHandler)
 	strWIDList[u32WidsCount].ps8WidVal = (s8 *)(&gu8FlushedAuthType);
 	u32WidsCount++;
 
-
-	#ifdef WILC_PARSE_SCAN_IN_HOST
 	strWIDList[u32WidsCount].u16WIDid = (u16)WID_JOIN_REQ_EXTENDED;
 	strWIDList[u32WidsCount].enuWIDtype = WID_STR;
 	strWIDList[u32WidsCount].s32ValueSize = gu32FlushedJoinReqSize;
@@ -2116,8 +2068,6 @@ static s32 Handle_FlushConnect(tstrWILC_WFIDrv *drvHandler)
 	*(pu8CurrByte) = FLUSHED_JOIN_REQ;
 
 	u32WidsCount++;
-
-	#endif
 
 	s32Error = send_config_pkt(SET_CFG, strWIDList, u32WidsCount, false,
 				   get_id_from_handler(gu8FlushedJoinReqDrvHandler));
@@ -2318,9 +2268,7 @@ static s32 Handle_RcvdNtwrkInfo(tstrWILC_WFIDrv *drvHandler,
 
 					pstrNetworkInfo->bNewNetwork = true;
 					/* add new BSS to JoinBssTable */
-				#ifdef WILC_PARSE_SCAN_IN_HOST
 					pJoinParams = host_int_ParseJoinBssParam(pstrNetworkInfo);
-				#endif /*WILC_PARSE_SCAN_IN_HOST*/
 
 					pstrWFIDrv->strWILC_UsrScanReq.pfUserScanResult(SCAN_EVENT_NETWORK_FOUND, pstrNetworkInfo,
 											pstrWFIDrv->strWILC_UsrScanReq.u32UserScanPvoid,
@@ -2534,12 +2482,8 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 				mod_timer(&hDuringIpTimer,
 					  jiffies + msecs_to_jiffies(10000));
 
-				#ifdef WILC_PARSE_SCAN_IN_HOST
 				/* open a BA session if possible */
 				/* if(pstrWFIDrv->strWILC_UsrConnReq.IsHTCapable) */
-
-				#endif
-
 				/* host_int_addBASession(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid,0, */
 				/* BA_SESSION_DEFAULT_BUFFER_SIZE,BA_SESSION_DEFAULT_TIMEOUT); */
 			} else {
@@ -7223,10 +7167,6 @@ s32 host_int_setup_multicast_filter(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u
 	return s32Error;
 }
 
-
-
-#ifdef WILC_PARSE_SCAN_IN_HOST
-
 /**
  *  @brief              host_int_ParseJoinBssParam
  *  @details            Parse Needed Join Parameters and save it in a new JoinBssParam entry
@@ -7444,8 +7384,6 @@ void host_int_freeJoinParams(void *pJoinParams)
 	else
 		PRINT_ER("Unable to FREE null pointer\n");
 }
-#endif  /*WILC_PARSE_SCAN_IN_HOST*/
-
 
 /**
  *  @brief              host_int_addBASession
