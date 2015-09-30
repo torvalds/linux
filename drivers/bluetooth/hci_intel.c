@@ -1165,22 +1165,6 @@ static const struct acpi_device_id intel_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, intel_acpi_match);
-
-static int intel_acpi_probe(struct intel_device *idev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(intel_acpi_match, &idev->pdev->dev);
-	if (!id)
-		return -ENODEV;
-
-	return 0;
-}
-#else
-static int intel_acpi_probe(struct intel_device *idev)
-{
-	return -ENODEV;
-}
 #endif
 
 #ifdef CONFIG_PM
@@ -1247,14 +1231,6 @@ static int intel_probe(struct platform_device *pdev)
 	mutex_init(&idev->hu_lock);
 
 	idev->pdev = pdev;
-
-	if (ACPI_HANDLE(&pdev->dev)) {
-		int err = intel_acpi_probe(idev);
-		if (err)
-			return err;
-	} else {
-		return -ENODEV;
-	}
 
 	idev->reset = devm_gpiod_get_optional(&pdev->dev, "reset",
 					      GPIOD_OUT_LOW);
