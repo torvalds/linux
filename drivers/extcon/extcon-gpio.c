@@ -20,6 +20,7 @@
 #include <linux/extcon.h>
 #include <linux/extcon/extcon-gpio.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -34,6 +35,7 @@ struct gpio_extcon_data {
 	struct delayed_work work;
 	unsigned long debounce_jiffies;
 
+	struct gpio_desc *id_gpiod;
 	struct gpio_extcon_pdata *pdata;
 };
 
@@ -44,7 +46,7 @@ static void gpio_extcon_work(struct work_struct *work)
 		container_of(to_delayed_work(work), struct gpio_extcon_data,
 			     work);
 
-	state = gpio_get_value(data->pdata->gpio);
+	state = gpiod_get_value_cansleep(data->id_gpiod);
 	if (data->pdata->gpio_active_low)
 		state = !state;
 	extcon_set_state(data->edev, state);
@@ -57,6 +59,35 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 	queue_delayed_work(system_power_efficient_wq, &data->work,
 			      data->debounce_jiffies);
 	return IRQ_HANDLED;
+}
+
+static int gpio_extcon_init(struct device *dev, struct gpio_extcon_data *data)
+{
+	struct gpio_extcon_pdata *pdata = data->pdata;
+	int ret;
+
+	ret = devm_gpio_request_one(dev, pdata->gpio, GPIOF_DIR_IN,
+				dev_name(dev));
+	if (ret < 0)
+		return ret;
+
+	data->id_gpiod = gpio_to_desc(pdata->gpio);
+	if (!data->id_gpiod)
+		return -EINVAL;
+
+	if (pdata->debounce) {
+		ret = gpiod_set_debounce(data->id_gpiod,
+					pdata->debounce * 1000);
+		if (ret < 0)
+			data->debounce_jiffies =
+				msecs_to_jiffies(pdata->debounce);
+	}
+
+	data->irq = gpiod_to_irq(data->id_gpiod);
+	if (data->irq < 0)
+		return data->irq;
+
+	return 0;
 }
 
 static int gpio_extcon_probe(struct platform_device *pdev)
@@ -74,25 +105,18 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+	data->pdata = pdata;
 
+	/* Initialize the gpio */
+	ret = gpio_extcon_init(&pdev->dev, data);
+	if (ret < 0)
+		return ret;
+
+	/* Allocate the memory of extcon devie and register extcon device */
 	data->edev = devm_extcon_dev_allocate(&pdev->dev, &pdata->extcon_id);
 	if (IS_ERR(data->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
-	}
-	data->pdata = pdata;
-
-	ret = devm_gpio_request_one(&pdev->dev, data->pdata->gpio, GPIOF_DIR_IN,
-				    pdev->name);
-	if (ret < 0)
-		return ret;
-
-	if (pdata->debounce) {
-		ret = gpio_set_debounce(data->pdata->gpio,
-					pdata->debounce * 1000);
-		if (ret < 0)
-			data->debounce_jiffies =
-				msecs_to_jiffies(pdata->debounce);
 	}
 
 	ret = devm_extcon_dev_register(&pdev->dev, data->edev);
@@ -101,10 +125,10 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&data->work, gpio_extcon_work);
 
-	data->irq = gpio_to_irq(data->pdata->gpio);
-	if (data->irq < 0)
-		return data->irq;
-
+	/*
+	 * Request the interrput of gpio to detect whether external connector
+	 * is attached or detached.
+	 */
 	ret = devm_request_any_context_irq(&pdev->dev, data->irq,
 					gpio_irq_handler, pdata->irq_flags,
 					pdev->name, data);
