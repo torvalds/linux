@@ -594,6 +594,7 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 /* Convert subprogram DIE to trace point */
 static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 				  Dwarf_Addr paddr, bool retprobe,
+				  const char *function,
 				  struct probe_trace_point *tp)
 {
 	Dwarf_Addr eaddr, highaddr;
@@ -637,8 +638,10 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 	/* Return probe must be on the head of a subprogram */
 	if (retprobe) {
 		if (eaddr != paddr) {
-			pr_warning("Return probe must be on the head of"
-				   " a real function.\n");
+			pr_warning("Failed to find \"%s%%return\",\n"
+				   " because %s is an inlined function and"
+				   " has no return point.\n", function,
+				   function);
 			return -EINVAL;
 		}
 		tp->retprobe = true;
@@ -1178,6 +1181,7 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	struct trace_event_finder *tf =
 			container_of(pf, struct trace_event_finder, pf);
+	struct perf_probe_point *pp = &pf->pev->point;
 	struct probe_trace_event *tev;
 	struct perf_probe_arg *args;
 	int ret, i;
@@ -1192,7 +1196,7 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 
 	/* Trace point should be converted from subprogram DIE */
 	ret = convert_to_trace_point(&pf->sp_die, tf->mod, pf->addr,
-				     pf->pev->point.retprobe, &tev->point);
+				     pp->retprobe, pp->function, &tev->point);
 	if (ret < 0)
 		return ret;
 
@@ -1322,6 +1326,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	struct available_var_finder *af =
 			container_of(pf, struct available_var_finder, pf);
+	struct perf_probe_point *pp = &pf->pev->point;
 	struct variable_list *vl;
 	Dwarf_Die die_mem;
 	int ret;
@@ -1335,7 +1340,7 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 
 	/* Trace point should be converted from subprogram DIE */
 	ret = convert_to_trace_point(&pf->sp_die, af->mod, pf->addr,
-				     pf->pev->point.retprobe, &vl->point);
+				     pp->retprobe, pp->function, &vl->point);
 	if (ret < 0)
 		return ret;
 
