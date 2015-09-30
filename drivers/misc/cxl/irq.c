@@ -414,7 +414,7 @@ void cxl_release_psl_irq(struct cxl_afu *afu)
 	kfree(afu->psl_irq_name);
 }
 
-static void afu_irq_name_free(struct cxl_context *ctx)
+void afu_irq_name_free(struct cxl_context *ctx)
 {
 	struct cxl_irq_name *irq_name, *tmp;
 
