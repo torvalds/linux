@@ -42,7 +42,8 @@ static void __init r8a7778_timer_init(void)
 
 #define INT2NTSR0	0x00018 /* 0xfe700018 */
 #define INT2NTSR1	0x0002c /* 0xfe70002c */
-void __init r8a7778_init_irq_dt(void)
+
+static void __init r8a7778_init_irq_dt(void)
 {
 	void __iomem *base = ioremap_nocache(0xfe700000, 0x00100000);
 
