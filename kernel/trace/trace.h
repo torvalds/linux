@@ -168,6 +168,8 @@ struct trace_buffer {
 	int				cpu;
 };
 
+#define TRACE_FLAGS_MAX_SIZE		32
+
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
@@ -218,6 +220,7 @@ struct trace_array {
 	int			clock_id;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
+	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
 	struct dentry		*dir;

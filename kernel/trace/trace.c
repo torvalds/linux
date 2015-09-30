@@ -6186,14 +6186,51 @@ static const struct file_operations trace_options_fops = {
 	.llseek	= generic_file_llseek,
 };
 
+/*
+ * In order to pass in both the trace_array descriptor as well as the index
+ * to the flag that the trace option file represents, the trace_array
+ * has a character array of trace_flags_index[], which holds the index
+ * of the bit for the flag it represents. index[0] == 0, index[1] == 1, etc.
+ * The address of this character array is passed to the flag option file
+ * read/write callbacks.
+ *
+ * In order to extract both the index and the trace_array descriptor,
+ * get_tr_index() uses the following algorithm.
+ *
+ *   idx = *ptr;
+ *
+ * As the pointer itself contains the address of the index (remember
+ * index[1] == 1).
+ *
+ * Then to get the trace_array descriptor, by subtracting that index
+ * from the ptr, we get to the start of the index itself.
+ *
+ *   ptr - idx == &index[0]
+ *
+ * Then a simple container_of() from that pointer gets us to the
+ * trace_array descriptor.
+ */
+static void get_tr_index(void *data, struct trace_array **ptr,
+			 unsigned int *pindex)
+{
+	*pindex = *(unsigned char *)data;
+
+	*ptr = container_of(data - *pindex, struct trace_array,
+			    trace_flags_index);
+}
+
 static ssize_t
 trace_options_core_read(struct file *filp, char __user *ubuf, size_t cnt,
 			loff_t *ppos)
 {
-	long index = (long)filp->private_data;
+	void *tr_index = filp->private_data;
+	struct trace_array *tr;
+	unsigned int index;
 	char *buf;
 
-	if (global_trace.trace_flags & (1 << index))
+	get_tr_index(tr_index, &tr, &index);
+
+	if (tr->trace_flags & (1 << index))
 		buf = "1\n";
 	else
 		buf = "0\n";
@@ -6205,10 +6242,13 @@ static ssize_t
 trace_options_core_write(struct file *filp, const char __user *ubuf, size_t cnt,
 			 loff_t *ppos)
 {
-	struct trace_array *tr = &global_trace;
-	long index = (long)filp->private_data;
+	void *tr_index = filp->private_data;
+	struct trace_array *tr;
+	unsigned int index;
 	unsigned long val;
 	int ret;
+
+	get_tr_index(tr_index, &tr, &index);
 
 	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
 	if (ret)
@@ -6339,8 +6379,9 @@ create_trace_option_core_file(struct trace_array *tr,
 	if (!t_options)
 		return NULL;
 
-	return trace_create_file(option, 0644, t_options, (void *)index,
-				    &trace_options_core_fops);
+	return trace_create_file(option, 0644, t_options,
+				 (void *)&tr->trace_flags_index[index],
+				 &trace_options_core_fops);
 }
 
 static __init void create_trace_options_dir(struct trace_array *tr)
@@ -6490,6 +6531,15 @@ static void free_trace_buffers(struct trace_array *tr)
 #endif
 }
 
+static void init_trace_flags_index(struct trace_array *tr)
+{
+	int i;
+
+	/* Used by the trace options files */
+	for (i = 0; i < TRACE_FLAGS_MAX_SIZE; i++)
+		tr->trace_flags_index[i] = i;
+}
+
 static int instance_mkdir(const char *name)
 {
 	struct trace_array *tr;
@@ -6542,6 +6592,7 @@ static int instance_mkdir(const char *name)
 	}
 
 	init_tracer_tracefs(tr, tr->dir);
+	init_trace_flags_index(tr);
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
@@ -7068,7 +7119,7 @@ __init static int tracer_alloc_buffers(void)
 	 * Make sure we don't accidently add more trace options
 	 * than we have bits for.
 	 */
-	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > 32);
+	BUILD_BUG_ON(TRACE_ITER_LAST_BIT > TRACE_FLAGS_MAX_SIZE);
 
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;
@@ -7127,6 +7178,8 @@ __init static int tracer_alloc_buffers(void)
 	global_trace.max_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 	ftrace_init_global_array_ops(&global_trace);
+
+	init_trace_flags_index(&global_trace);
 
 	register_tracer(&nop_trace);
 
