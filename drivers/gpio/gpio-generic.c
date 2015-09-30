@@ -582,9 +582,7 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 			       resource_size_t sane_sz,
 			       int *err)
 {
-	struct device *dev = &pdev->dev;
 	struct resource *r;
-	resource_size_t start;
 	resource_size_t sz;
 	void __iomem *ret;
 
@@ -602,15 +600,9 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 		return NULL;
 	}
 
-	start = r->start;
-	if (!devm_request_mem_region(dev, start, sz, r->name)) {
-		*err = -EBUSY;
-		return NULL;
-	}
-
-	ret = devm_ioremap(dev, start, sz);
-	if (!ret) {
-		*err = -ENOMEM;
+	ret = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(ret)) {
+		*err = PTR_ERR(ret);
 		return NULL;
 	}
 
