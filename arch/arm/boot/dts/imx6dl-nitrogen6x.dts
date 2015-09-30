@@ -46,6 +46,6 @@
 #include "imx6qdl-nitrogen6x.dtsi"
 
 / {
-	model = "Freescale i.MX6 DualLite Nitrogen6x Board";
-	compatible = "fsl,imx6dl-nitrogen6x", "fsl,imx6dl";
+	model = "Boundary Devices i.MX6 DualLite Nitrogen6x Board";
+	compatible = "boundary,imx6dl-nitrogen6x", "fsl,imx6dl";
 };
