@@ -162,13 +162,6 @@ struct lynxfb_par {
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
-
-#define PS_TO_HZ(ps)	\
-			({ \
-			unsigned long long hz = 1000*1000*1000*1000ULL;	\
-			do_div(hz, ps);	\
-			(unsigned long)hz; })
-
 static inline unsigned long ps_to_hz(unsigned int psvalue)
 {
 	unsigned long long numerator = 1000*1000*1000*1000ULL;
