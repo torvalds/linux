@@ -592,6 +592,8 @@ int cxl_sysfs_afu_add(struct cxl_afu *afu)
 
 	/* conditionally create the add the binary file for error info buffer */
 	if (afu->eb_len) {
+		sysfs_attr_init(&afu->attr_eb.attr);
+
 		afu->attr_eb.attr.name = "afu_err_buff";
 		afu->attr_eb.attr.mode = S_IRUGO;
 		afu->attr_eb.size = afu->eb_len;

@@ -88,6 +88,9 @@ static void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	struct pci_dev *parent = pdev->bus->self;
 	uint16_t bridge_ctl = 0;
 
+	if (accel_dev->is_vf)
+		return;
+
 	dev_info(&GET_DEV(accel_dev), "Resetting device qat_dev%d\n",
 		 accel_dev->accel_id);
 

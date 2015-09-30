@@ -187,5 +187,5 @@ core_delete_hba(struct se_hba *hba)
 
 bool target_sense_desc_format(struct se_device *dev)
 {
-	return dev->transport->get_blocks(dev) > U32_MAX;
+	return (dev) ? dev->transport->get_blocks(dev) > U32_MAX : false;
 }

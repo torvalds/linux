@@ -5,7 +5,8 @@
 config OPENVSWITCH
 	tristate "Open vSwitch"
 	depends on INET
-	depends on (!NF_CONNTRACK || NF_CONNTRACK)
+	depends on !NF_CONNTRACK || \
+		   (NF_CONNTRACK && (!NF_DEFRAG_IPV6 || NF_DEFRAG_IPV6))
 	select LIBCRC32C
 	select MPLS
 	select NET_MPLS_GSO

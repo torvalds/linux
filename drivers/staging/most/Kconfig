@@ -1,5 +1,6 @@
 menuconfig MOST
         tristate "MOST driver"
+	depends on HAS_DMA
         select MOSTCORE
         default n
         ---help---

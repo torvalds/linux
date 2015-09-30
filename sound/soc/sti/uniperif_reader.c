@@ -316,7 +316,11 @@ static int uni_reader_parse_dt(struct platform_device *pdev,
 	if (!info)
 		return -ENOMEM;
 
-	of_property_read_u32(node, "version", &reader->ver);
+	if (of_property_read_u32(node, "version", &reader->ver) ||
+	    reader->ver == SND_ST_UNIPERIF_VERSION_UNKNOWN) {
+		dev_err(&pdev->dev, "Unknown uniperipheral version ");
+		return -EINVAL;
+	}
 
 	/* Save the info structure */
 	reader->info = info;

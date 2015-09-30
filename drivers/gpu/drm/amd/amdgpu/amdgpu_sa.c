@@ -64,8 +64,8 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 		INIT_LIST_HEAD(&sa_manager->flist[i]);
 	}
 
-	r = amdgpu_bo_create(adev, size, align, true,
-			     domain, 0, NULL, &sa_manager->bo);
+	r = amdgpu_bo_create(adev, size, align, true, domain,
+			     0, NULL, NULL, &sa_manager->bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;
@@ -145,8 +145,13 @@ static uint32_t amdgpu_sa_get_ring_from_fence(struct fence *f)
 	struct amd_sched_fence *s_fence;
 
 	s_fence = to_amd_sched_fence(f);
-	if (s_fence)
-		return s_fence->scheduler->ring_id;
+	if (s_fence) {
+		struct amdgpu_ring *ring;
+
+		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
+		return ring->idx;
+	}
+
 	a_fence = to_amdgpu_fence(f);
 	if (a_fence)
 		return a_fence->ring->idx;
@@ -412,6 +417,26 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 }
 
 #if defined(CONFIG_DEBUG_FS)
+
+static void amdgpu_sa_bo_dump_fence(struct fence *fence, struct seq_file *m)
+{
+	struct amdgpu_fence *a_fence = to_amdgpu_fence(fence);
+	struct amd_sched_fence *s_fence = to_amd_sched_fence(fence);
+
+	if (a_fence)
+		seq_printf(m, " protected by 0x%016llx on ring %d",
+			   a_fence->seq, a_fence->ring->idx);
+
+	if (s_fence) {
+		struct amdgpu_ring *ring;
+
+
+		ring = container_of(s_fence->sched, struct amdgpu_ring, sched);
+		seq_printf(m, " protected by 0x%016x on ring %d",
+			   s_fence->base.seqno, ring->idx);
+	}
+}
+
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 				  struct seq_file *m)
 {
@@ -428,18 +453,8 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 		}
 		seq_printf(m, "[0x%010llx 0x%010llx] size %8lld",
 			   soffset, eoffset, eoffset - soffset);
-		if (i->fence) {
-			struct amdgpu_fence *a_fence = to_amdgpu_fence(i->fence);
-			struct amd_sched_fence *s_fence = to_amd_sched_fence(i->fence);
-			if (a_fence)
-				seq_printf(m, " protected by 0x%016llx on ring %d",
-					   a_fence->seq, a_fence->ring->idx);
-			if (s_fence)
-				seq_printf(m, " protected by 0x%016x on ring %d",
-					   s_fence->base.seqno,
-					   s_fence->scheduler->ring_id);
-
-		}
+		if (i->fence)
+			amdgpu_sa_bo_dump_fence(i->fence, m);
 		seq_printf(m, "\n");
 	}
 	spin_unlock(&sa_manager->wq.lock);
