@@ -391,7 +391,7 @@ union message_body {
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
-	struct beacon_attr strHostIFSetBeacon;
+	struct beacon_attr beacon_info;
 	struct add_sta_param strAddStaParam;
 	struct del_sta strDelStaParam;
 	struct add_sta_param strEditStaParam;
@@ -4134,7 +4134,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_ADD_BEACON:
-			Handle_AddBeacon(msg.drvHandler, &msg.body.strHostIFSetBeacon);
+			Handle_AddBeacon(msg.drvHandler, &msg.body.beacon_info);
 			break;
 
 		case HOST_IF_MSG_DEL_BEACON:
@@ -6548,7 +6548,7 @@ s32 host_int_add_beacon(tstrWILC_WFIDrv *hWFIDrv, u32 u32Interval,
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct beacon_attr *pstrSetBeaconParam = &msg.body.strHostIFSetBeacon;
+	struct beacon_attr *pstrSetBeaconParam = &msg.body.beacon_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
