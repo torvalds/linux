@@ -393,7 +393,7 @@ union message_body {
 	struct channel_attr channel_info;
 	struct beacon_attr beacon_info;
 	struct add_sta_param add_sta_info;
-	struct del_sta strDelStaParam;
+	struct del_sta del_sta_info;
 	struct add_sta_param strEditStaParam;
 	struct timer_cb strTimerCb;
 	struct power_mgmt_param strPowerMgmtparam;
@@ -4146,7 +4146,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_DEL_STATION:
-			Handle_DelStation(msg.drvHandler, &msg.body.strDelStaParam);
+			Handle_DelStation(msg.drvHandler, &msg.body.del_sta_info);
 			break;
 
 		case HOST_IF_MSG_EDIT_STATION:
@@ -6700,7 +6700,7 @@ s32 host_int_del_station(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8MacAddr)
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct del_sta *pstrDelStationMsg = &msg.body.strDelStaParam;
+	struct del_sta *pstrDelStationMsg = &msg.body.del_sta_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
