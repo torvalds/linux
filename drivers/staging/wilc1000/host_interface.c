@@ -218,7 +218,7 @@ struct rcvd_async_info {
 };
 
 /*!
- *  @struct             set_channel
+ *  @struct		channel_attr
  *  @brief		Set Channel  message body
  *  @details
  *  @todo
@@ -227,7 +227,7 @@ struct rcvd_async_info {
  *  @date		25 March 2012
  *  @version		1.0
  */
-struct set_channel {
+struct channel_attr {
 	u8 u8SetChan;
 };
 
@@ -406,7 +406,7 @@ union message_body {
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
-	struct set_channel strHostIFSetChan;
+	struct channel_attr strHostIFSetChan;
 	struct set_beacon strHostIFSetBeacon;
 	struct del_beacon strHostIFDelBeacon;
 	struct add_sta_param strAddStaParam;
@@ -599,14 +599,14 @@ static tstrWILC_WFIDrv *get_handler_from_id(int id)
 /**
  *  @brief Handle_SetChannel
  *  @details    Sending config packet to firmware to set channel
- *  @param[in]   struct set_channel *pstrHostIFSetChan
+ *  @param[in]   struct channel_attr *pstrHostIFSetChan
  *  @return     Error code.
  *  @author
  *  @date
  *  @version	1.0
  */
 static s32 Handle_SetChannel(tstrWILC_WFIDrv *drvHandler,
-			     struct set_channel *pstrHostIFSetChan)
+			     struct channel_attr *pstrHostIFSetChan)
 {
 
 	s32 s32Error = 0;
