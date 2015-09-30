@@ -470,6 +470,7 @@ static const struct of_device_id abx500_temp_match[] = {
 	{ .compatible = "stericsson,abx500-temp" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, abx500_temp_match);
 #endif
 
 static struct platform_driver abx500_temp_driver = {
