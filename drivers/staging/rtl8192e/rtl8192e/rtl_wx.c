@@ -1225,7 +1225,7 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 	if (ieee->state < RTLLIB_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
-		wstats->qual.noise = -100;
+		wstats->qual.noise = 0x100 - 100;	/* -100 dBm */
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		return wstats;
 	}
