@@ -315,20 +315,6 @@ struct del_sta {
 };
 
 /*!
- *  @struct             timer_cb
- *  @brief		Timer callback message body
- *  @details
- *  @todo
- *  @sa
- *  @author		Mostafa Abu Bakr
- *  @date		25 March 2012
- *  @version		1.0
- */
-struct timer_cb {
-	void *pvUsrArg;                 /*!< Private data passed at timer start */
-};
-
-/*!
  *  @struct     power_mgmt_param
  *  @brief		Power management message body
  *  @details
@@ -395,7 +381,6 @@ union message_body {
 	struct add_sta_param add_sta_info;
 	struct del_sta del_sta_info;
 	struct add_sta_param edit_sta_info;
-	struct timer_cb strTimerCb;
 	struct power_mgmt_param strPowerMgmtparam;
 	struct sta_inactive_t strHostIfStaInactiveT;
 	struct set_ip_addr strHostIfSetIP;
