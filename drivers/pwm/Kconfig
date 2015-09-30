@@ -277,6 +277,17 @@ config PWM_PXA
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pxa.
 
+config PWM_RCAR
+	tristate "Renesas R-Car PWM support"
+	depends on ARCH_RCAR_GEN1 || ARCH_RCAR_GEN2 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the PWM Timer controller found in Renesas
+	  R-Car chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-rcar.
+
 config PWM_RENESAS_TPU
 	tristate "Renesas TPU PWM support"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
