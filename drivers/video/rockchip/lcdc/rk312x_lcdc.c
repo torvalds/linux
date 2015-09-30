@@ -1190,8 +1190,8 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		/* Select output color domain */
-		/*dev_drv->output_color = screen->color_mode;
-		if (lcdc_dev->soc_type == VOP_RK312X) {
+		dev_drv->output_color = screen->color_mode;
+		/*if (lcdc_dev->soc_type == VOP_RK312X) {
 			if (dev_drv->output_color == COLOR_YCBCR)
 				dev_drv->overlay_mode = VOP_YUV_DOMAIN;
 			else
