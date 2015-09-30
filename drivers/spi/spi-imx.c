@@ -207,7 +207,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
 	if (spi_imx->dma_is_inited &&
-		(transfer->len > spi_imx_get_fifosize(spi_imx))
+		(transfer->len > spi_imx_get_fifosize(spi_imx)))
 		return true;
 	return false;
 }
