@@ -388,7 +388,7 @@ union message_body {
 	struct set_multicast multicast_info;
 	struct op_mode mode;
 	struct set_mac_addr set_mac_info;
-	struct get_mac_addr strHostIfGetMacAddress;
+	struct get_mac_addr get_mac_info;
 	struct ba_session_info strHostIfBASessionInfo;
 	struct remain_ch strHostIfRemainOnChan;
 	struct reg_frame strHostIfRegisterFrame;
@@ -4181,7 +4181,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_GET_MAC_ADDRESS:
-			Handle_GetMacAddress(msg.drvHandler, &msg.body.strHostIfGetMacAddress);
+			Handle_GetMacAddress(msg.drvHandler, &msg.body.get_mac_info);
 			break;
 
 		case HOST_IF_MSG_REMAIN_ON_CHAN:
@@ -4858,7 +4858,7 @@ s32 host_int_get_MacAddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8MacAddress)
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_GET_MAC_ADDRESS;
-	msg.body.strHostIfGetMacAddress.u8MacAddress = pu8MacAddress;
+	msg.body.get_mac_info.u8MacAddress = pu8MacAddress;
 	msg.drvHandler = hWFIDrv;
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
