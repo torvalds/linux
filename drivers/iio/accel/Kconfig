@@ -100,13 +100,13 @@ config KXCJK1013
 	  be called kxcjk-1013.
 
 config MMA8452
-	tristate "Freescale MMA8452Q Accelerometer Driver"
+	tristate "Freescale MMA8452Q and similar Accelerometers Driver"
 	depends on I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the Freescale MMA8452Q 3-axis
-	  accelerometer.
+	  Say yes here to build support for the following Freescale 3-axis
+	  accelerometers: MMA8452Q, MMA8453Q, MMA8652FC, MMA8653FC.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma8452.
@@ -136,6 +136,19 @@ config MMA9553
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma9553.
+
+config MXC4005
+	tristate "Memsic MXC4005XC 3-Axis Accelerometer Driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the Memsic MXC4005XC 3-axis
+	  accelerometer.
+
+	  To compile this driver as a module, choose M. The module will be
+	  called mxc4005.
 
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"

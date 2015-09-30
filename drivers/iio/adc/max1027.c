@@ -508,6 +508,7 @@ static int max1027_remove(struct spi_device *spi)
 static struct spi_driver max1027_driver = {
 	.driver = {
 		.name	= "max1027",
+		.of_match_table = of_match_ptr(max1027_adc_dt_ids),
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max1027_probe,

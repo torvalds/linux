@@ -577,7 +577,7 @@ int hmc5843_common_resume(struct device *dev)
 EXPORT_SYMBOL(hmc5843_common_resume);
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
-			 enum hmc5843_ids id)
+			 enum hmc5843_ids id, const char *name)
 {
 	struct hmc5843_data *data;
 	struct iio_dev *indio_dev;
@@ -597,7 +597,7 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 	mutex_init(&data->lock);
 
 	indio_dev->dev.parent = dev;
-	indio_dev->name = dev->driver->name;
+	indio_dev->name = name;
 	indio_dev->info = &hmc5843_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = data->variant->channels;
