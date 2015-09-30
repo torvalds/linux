@@ -68,6 +68,8 @@
 
 	L2_CA57: cache-controller@0 {
 		compatible = "cache";
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	extal_clk: extal {
