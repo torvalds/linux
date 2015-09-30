@@ -96,9 +96,7 @@ typedef struct {
 	unsigned long u32TimeRcvdInScanCached;
 	unsigned long u32TimeRcvdInScan;
 	bool bNewNetwork;
-#ifdef AGING_ALG
 	u8 u8Found;
-#endif
 	u32 u32Tsf;
 	u8 *pu8IEs;
 	u16 u16IEsLen;
