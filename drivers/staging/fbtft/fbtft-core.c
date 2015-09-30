@@ -266,8 +266,6 @@ static int fbtft_backlight_get_brightness(struct backlight_device *bd)
 
 void fbtft_unregister_backlight(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
-
 	if (par->info->bl_dev) {
 		par->info->bl_dev->props.power = FB_BLANK_POWERDOWN;
 		backlight_update_status(par->info->bl_dev);
@@ -285,8 +283,6 @@ void fbtft_register_backlight(struct fbtft_par *par)
 {
 	struct backlight_device *bd;
 	struct backlight_properties bl_props = { 0, };
-
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
 
 	if (par->gpio.led[0] == -1) {
 		fbtft_par_dbg(DEBUG_BACKLIGHT, par,

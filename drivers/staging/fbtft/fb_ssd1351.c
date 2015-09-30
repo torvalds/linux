@@ -206,8 +206,6 @@ static void register_onboard_backlight(struct fbtft_par *par)
 	struct backlight_device *bd;
 	struct backlight_properties bl_props = { 0, };
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
-
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.power = FB_BLANK_POWERDOWN;
 
