@@ -232,20 +232,6 @@ struct set_channel {
 };
 
 /*!
- *  @struct             get_channel
- *  @brief		Get Channel  message body
- *  @details
- *  @todo
- *  @sa
- *  @author		Mai Daftedar
- *  @date		01 Jule 2012
- *  @version		1.0
- */
-struct get_channel {
-	u8 u8GetChan;
-};
-
-/*!
  *  @struct             tstrScanComplete
  *  @brief			hold received Async. Scan Complete message body
  *  @details
@@ -421,7 +407,6 @@ union message_body {
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
 	struct set_channel strHostIFSetChan;
-	struct get_channel strHostIFGetChan;
 	struct set_beacon strHostIFSetBeacon;
 	struct del_beacon strHostIFDelBeacon;
 	struct add_sta_param strAddStaParam;
