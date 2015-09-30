@@ -46,8 +46,8 @@
 #include "imx6qdl-nitrogen6x.dtsi"
 
 / {
-	model = "Freescale i.MX6 Quad Nitrogen6x Board";
-	compatible = "fsl,imx6q-nitrogen6x", "fsl,imx6q";
+	model = "Boundary Devices i.MX6 Quad Nitrogen6x Board";
+	compatible = "boundary,imx6q-nitrogen6x", "fsl,imx6q";
 };
 
 &sata {
