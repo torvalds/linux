@@ -180,8 +180,6 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		dcdc1-supply = <&vcc_3v0>;
-		dcdc5-supply = <&vcc_dram>;
 
 		regulators {
 			x-powers,dcdc-freq = <3000>;
