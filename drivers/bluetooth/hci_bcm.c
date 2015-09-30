@@ -706,6 +706,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		return 0;
 
 	acpi_dev_get_resources(adev, &resources, bcm_resource, dev);
+	acpi_dev_free_resource_list(&resources);
 
 	dmi_id = dmi_first_match(bcm_wrong_irq_dmi_table);
 	if (dmi_id) {
