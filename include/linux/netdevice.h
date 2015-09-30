@@ -1587,6 +1587,9 @@ struct net_device {
 #ifdef CONFIG_NET_SWITCHDEV
 	const struct switchdev_ops *switchdev_ops;
 #endif
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	const struct l3mdev_ops	*l3mdev_ops;
+#endif
 
 	const struct header_ops *header_ops;
 
