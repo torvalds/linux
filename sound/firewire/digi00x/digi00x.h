@@ -19,6 +19,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
@@ -84,6 +85,12 @@ enum snd_dg00x_clock {
 	SND_DG00X_CLOCK_COUNT,
 };
 
+enum snd_dg00x_optical_mode {
+	SND_DG00X_OPT_IFACE_MODE_ADAT = 0,
+	SND_DG00X_OPT_IFACE_MODE_SPDIF,
+	SND_DG00X_OPT_IFACE_MODE_COUNT,
+};
+
 int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		   enum amdtp_stream_direction dir);
 int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
@@ -111,4 +118,5 @@ void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x);
 
+void snd_dg00x_proc_init(struct snd_dg00x *dg00x);
 #endif
