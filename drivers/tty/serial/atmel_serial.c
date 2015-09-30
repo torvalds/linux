@@ -927,7 +927,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	sg_set_page(&atmel_port->sg_tx,
 			virt_to_page(port->state->xmit.buf),
 			UART_XMIT_SIZE,
-			(int)port->state->xmit.buf & ~PAGE_MASK);
+			(unsigned long)port->state->xmit.buf & ~PAGE_MASK);
 	nent = dma_map_sg(port->dev,
 				&atmel_port->sg_tx,
 				1,
@@ -937,10 +937,10 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %x\n", __func__,
+		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
 			sg_dma_len(&atmel_port->sg_tx),
 			port->state->xmit.buf,
-			sg_dma_address(&atmel_port->sg_tx));
+			&sg_dma_address(&atmel_port->sg_tx));
 	}
 
 	/* Configure the slave DMA */
@@ -1109,7 +1109,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	sg_set_page(&atmel_port->sg_rx,
 		    virt_to_page(ring->buf),
 		    sizeof(struct atmel_uart_char) * ATMEL_SERIAL_RINGSIZE,
-		    (int)ring->buf & ~PAGE_MASK);
+		    (unsigned long)ring->buf & ~PAGE_MASK);
 	nent = dma_map_sg(port->dev,
 			  &atmel_port->sg_rx,
 			  1,
@@ -1119,10 +1119,10 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %x\n", __func__,
+		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
 			sg_dma_len(&atmel_port->sg_rx),
 			ring->buf,
-			sg_dma_address(&atmel_port->sg_rx));
+			&sg_dma_address(&atmel_port->sg_rx));
 	}
 
 	/* Configure the slave DMA */
