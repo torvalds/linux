@@ -1610,8 +1610,10 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rk3288_lcdc_reg_update(dev_drv);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
-			if (dev_drv->mmu_dev)
+			if (dev_drv->mmu_dev) {
 				rockchip_iovmm_deactivate(dev_drv->dev);
+				lcdc_dev->iommu_status = 0;
+			}
 		}
 #endif
 		rk3288_lcdc_clk_disable(lcdc_dev);
