@@ -20,20 +20,11 @@
 #include <asm/cacheflush.h>
 #include <asm/ftrace.h>
 #include <asm/sections.h>
+#include <asm/insn.h>
 
 #include <arch/opcode.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-
-static inline tilegx_bundle_bits NOP(void)
-{
-	return create_UnaryOpcodeExtension_X0(FNOP_UNARY_OPCODE_X0) |
-		create_RRROpcodeExtension_X0(UNARY_RRR_0_OPCODE_X0) |
-		create_Opcode_X0(RRR_0_OPCODE_X0) |
-		create_UnaryOpcodeExtension_X1(NOP_UNARY_OPCODE_X1) |
-		create_RRROpcodeExtension_X1(UNARY_RRR_0_OPCODE_X1) |
-		create_Opcode_X1(RRR_0_OPCODE_X1);
-}
 
 static int machine_stopped __read_mostly;
 
