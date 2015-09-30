@@ -392,7 +392,7 @@ union message_body {
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
 	struct beacon_attr beacon_info;
-	struct add_sta_param strAddStaParam;
+	struct add_sta_param add_sta_info;
 	struct del_sta strDelStaParam;
 	struct add_sta_param strEditStaParam;
 	struct timer_cb strTimerCb;
@@ -4142,7 +4142,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_ADD_STATION:
-			Handle_AddStation(msg.drvHandler, &msg.body.strAddStaParam);
+			Handle_AddStation(msg.drvHandler, &msg.body.add_sta_info);
 			break;
 
 		case HOST_IF_MSG_DEL_STATION:
@@ -6651,7 +6651,7 @@ s32 host_int_add_station(tstrWILC_WFIDrv *hWFIDrv,
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct add_sta_param *pstrAddStationMsg = &msg.body.strAddStaParam;
+	struct add_sta_param *pstrAddStationMsg = &msg.body.add_sta_info;
 
 
 	if (pstrWFIDrv == NULL) {
@@ -6802,7 +6802,7 @@ s32 host_int_edit_station(tstrWILC_WFIDrv *hWFIDrv,
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct add_sta_param *pstrAddStationMsg = &msg.body.strAddStaParam;
+	struct add_sta_param *pstrAddStationMsg = &msg.body.add_sta_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
