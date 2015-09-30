@@ -385,7 +385,7 @@ union message_body {
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
-	struct set_multicast strHostIfSetMulti;
+	struct set_multicast multicast_info;
 	struct op_mode strHostIfSetOperationMode;
 	struct set_mac_addr strHostIfSetMacAddress;
 	struct get_mac_addr strHostIfGetMacAddress;
@@ -4200,7 +4200,7 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_SET_MULTICAST_FILTER:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_MULTICAST_FILTER\n");
-			Handle_SetMulticastFilter(msg.drvHandler, &msg.body.strHostIfSetMulti);
+			Handle_SetMulticastFilter(msg.drvHandler, &msg.body.multicast_info);
 			break;
 
 		case HOST_IF_MSG_ADD_BA_SESSION:
@@ -6860,7 +6860,7 @@ s32 host_int_setup_multicast_filter(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u
 
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct set_multicast *pstrMulticastFilterParam = &msg.body.strHostIfSetMulti;
+	struct set_multicast *pstrMulticastFilterParam = &msg.body.multicast_info;
 
 
 	if (pstrWFIDrv == NULL) {
