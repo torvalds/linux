@@ -473,8 +473,10 @@ static void pxad_free_phy(struct pxad_chan *chan)
 		return;
 
 	/* clear the channel mapping in DRCMR */
-	reg = pxad_drcmr(chan->drcmr);
-	writel_relaxed(0, chan->phy->base + reg);
+	if (chan->drcmr <= DRCMR_CHLNUM) {
+		reg = pxad_drcmr(chan->drcmr);
+		writel_relaxed(0, chan->phy->base + reg);
+	}
 
 	spin_lock_irqsave(&pdev->phy_lock, flags);
 	for (i = 0; i < 32; i++)
@@ -516,8 +518,10 @@ static void phy_enable(struct pxad_phy *phy, bool misaligned)
 		"%s(); phy=%p(%d) misaligned=%d\n", __func__,
 		phy, phy->idx, misaligned);
 
-	reg = pxad_drcmr(phy->vchan->drcmr);
-	writel_relaxed(DRCMR_MAPVLD | phy->idx, phy->base + reg);
+	if (phy->vchan->drcmr <= DRCMR_CHLNUM) {
+		reg = pxad_drcmr(phy->vchan->drcmr);
+		writel_relaxed(DRCMR_MAPVLD | phy->idx, phy->base + reg);
+	}
 
 	dalgn = phy_readl_relaxed(phy, DALGN);
 	if (misaligned)
@@ -911,14 +915,18 @@ static void pxad_get_config(struct pxad_chan *chan,
 		width = chan->cfg.src_addr_width;
 		dev_addr = chan->cfg.src_addr;
 		*dev_src = dev_addr;
-		*dcmd |= PXA_DCMD_INCTRGADDR | PXA_DCMD_FLOWSRC;
+		*dcmd |= PXA_DCMD_INCTRGADDR;
+		if (chan->drcmr <= DRCMR_CHLNUM)
+			*dcmd |= PXA_DCMD_FLOWSRC;
 	}
 	if (dir == DMA_MEM_TO_DEV) {
 		maxburst = chan->cfg.dst_maxburst;
 		width = chan->cfg.dst_addr_width;
 		dev_addr = chan->cfg.dst_addr;
 		*dev_dst = dev_addr;
-		*dcmd |= PXA_DCMD_INCSRCADDR | PXA_DCMD_FLOWTRG;
+		*dcmd |= PXA_DCMD_INCSRCADDR;
+		if (chan->drcmr <= DRCMR_CHLNUM)
+			*dcmd |= PXA_DCMD_FLOWTRG;
 	}
 	if (dir == DMA_MEM_TO_MEM)
 		*dcmd |= PXA_DCMD_BURST32 | PXA_DCMD_INCTRGADDR |
