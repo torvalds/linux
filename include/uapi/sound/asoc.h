@@ -395,4 +395,21 @@ struct snd_soc_tplg_pcm {
 	struct snd_soc_tplg_stream_caps caps[2]; /* playback and capture for DAI */
 } __attribute__((packed));
 
+
+/*
+ * Describes the BE or CC link runtime supported configs or params
+ *
+ * File block representation for BE/CC link config :-
+ * +-----------------------------------+-----+
+ * | struct snd_soc_tplg_hdr           |  1  |
+ * +-----------------------------------+-----+
+ * | struct snd_soc_tplg_link_config   |  N  |
+ * +-----------------------------------+-----+
+ */
+struct snd_soc_tplg_link_config {
+	__le32 size;            /* in bytes of this structure */
+	__le32 id;              /* unique ID - used to match */
+	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* supported configs playback and captrure */
+	__le32 num_streams;     /* number of streams */
+} __attribute__((packed));
 #endif
