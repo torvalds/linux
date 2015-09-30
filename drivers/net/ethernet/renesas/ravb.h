@@ -766,6 +766,11 @@ struct ravb_ptp {
 	struct ravb_ptp_perout perout[N_PER_OUT];
 };
 
+enum ravb_chip_id {
+	RCAR_GEN2,
+	RCAR_GEN3,
+};
+
 struct ravb_private {
 	struct net_device *ndev;
 	struct platform_device *pdev;
@@ -806,6 +811,8 @@ struct ravb_private {
 	int msg_enable;
 	int speed;
 	int duplex;
+	int emac_irq;
+	enum ravb_chip_id chip_id;
 
 	unsigned no_avb_link:1;
 	unsigned avb_link_active_low:1;
