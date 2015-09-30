@@ -432,11 +432,33 @@ static int _rgb_to_yuv(int n, int red, int green, int blue)
  * Column is for FG:	RGB2YUV YUV2RGB RGB2RGB YUV2YUV CSC_NONE
  */
 static struct dp_csc_param_t dp_csc_array[CSC_NUM][CSC_NUM] = {
-{{DP_COM_CONF_CSC_DEF_BOTH, &rgb2ycbcr_coeff}, {0, 0}, {0, 0}, {DP_COM_CONF_CSC_DEF_BG, &rgb2ycbcr_coeff}, {DP_COM_CONF_CSC_DEF_BG, &rgb2ycbcr_coeff} },
-{{0, 0}, {DP_COM_CONF_CSC_DEF_BOTH, &ycbcr2rgb_coeff}, {DP_COM_CONF_CSC_DEF_BG, &ycbcr2rgb_coeff}, {0, 0}, {DP_COM_CONF_CSC_DEF_BG, &ycbcr2rgb_coeff} },
-{{0, 0}, {DP_COM_CONF_CSC_DEF_FG, &ycbcr2rgb_coeff}, {0, 0}, {0, 0}, {0, 0} },
-{{DP_COM_CONF_CSC_DEF_FG, &rgb2ycbcr_coeff}, {0, 0}, {0, 0}, {0, 0}, {0, 0} },
-{{DP_COM_CONF_CSC_DEF_FG, &rgb2ycbcr_coeff}, {DP_COM_CONF_CSC_DEF_FG, &ycbcr2rgb_coeff}, {0, 0}, {0, 0}, {0, 0} }
+{
+	{DP_COM_CONF_CSC_DEF_BOTH, (void *)&rgb2ycbcr_coeff},
+	{0, 0}, {0, 0},
+	{DP_COM_CONF_CSC_DEF_BG, (void *)&rgb2ycbcr_coeff},
+	{DP_COM_CONF_CSC_DEF_BG, (void *)&rgb2ycbcr_coeff}
+},
+{
+	{0, 0},
+	{DP_COM_CONF_CSC_DEF_BOTH, (void *)&ycbcr2rgb_coeff},
+	{DP_COM_CONF_CSC_DEF_BG, (void *)&ycbcr2rgb_coeff},
+	{0, 0},
+	{DP_COM_CONF_CSC_DEF_BG, (void *)&ycbcr2rgb_coeff}
+},
+{
+	{0, 0},
+	{DP_COM_CONF_CSC_DEF_FG, (void *)&ycbcr2rgb_coeff},
+	{0, 0}, {0, 0}, {0, 0}
+},
+{
+	{DP_COM_CONF_CSC_DEF_FG, (void *)&rgb2ycbcr_coeff},
+	{0, 0}, {0, 0}, {0, 0}, {0, 0}
+},
+{
+	{DP_COM_CONF_CSC_DEF_FG, (void *)&rgb2ycbcr_coeff},
+	{DP_COM_CONF_CSC_DEF_FG, (void *)&ycbcr2rgb_coeff},
+	{0, 0}, {0, 0}, {0, 0}
+}
 };
 
 void __ipu_dp_csc_setup(struct ipu_soc *ipu,
