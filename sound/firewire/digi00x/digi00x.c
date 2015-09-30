@@ -72,6 +72,8 @@ static int snd_dg00x_probe(struct fw_unit *unit,
 	dg00x->unit = fw_unit_get(unit);
 
 	mutex_init(&dg00x->mutex);
+	spin_lock_init(&dg00x->lock);
+	init_waitqueue_head(&dg00x->hwdep_wait);
 
 	err = name_card(dg00x);
 	if (err < 0)
@@ -84,6 +86,10 @@ static int snd_dg00x_probe(struct fw_unit *unit,
 	snd_dg00x_proc_init(dg00x);
 
 	err = snd_dg00x_create_pcm_devices(dg00x);
+	if (err < 0)
+		goto error;
+
+	err = snd_dg00x_create_hwdep_device(dg00x);
 	if (err < 0)
 		goto error;
 

@@ -123,6 +123,7 @@ config SND_BEBOB
 config SND_FIREWIRE_DIGI00X
 	tristate "Digidesign Digi 002/003 family support"
 	select SND_FIREWIRE_LIB
+	select SND_HWDEP
 	help
 	 Say Y here to include support for Digidesign Digi 002/003 family.
 	  * Digi 002 Console

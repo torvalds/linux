@@ -118,21 +118,25 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	unsigned int rate;
 	int err;
 
+	err = snd_dg00x_stream_lock_try(dg00x);
+	if (err < 0)
+		goto end;
+
 	err = pcm_init_hw_params(dg00x, substream);
 	if (err < 0)
-		return err;
+		goto err_locked;
 
 	/* Check current clock source. */
 	err = snd_dg00x_stream_get_clock(dg00x, &clock);
 	if (err < 0)
-		return err;
+		goto err_locked;
 	if (clock != SND_DG00X_CLOCK_INTERNAL) {
 		err = snd_dg00x_stream_check_external_clock(dg00x, &detect);
 		if (err < 0)
-			return err;
+			goto err_locked;
 		if (!detect) {
 			err = -EBUSY;
-			return err;
+			goto err_locked;
 		}
 	}
 
@@ -141,18 +145,25 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	    amdtp_stream_pcm_running(&dg00x->tx_stream)) {
 		err = snd_dg00x_stream_get_external_rate(dg00x, &rate);
 		if (err < 0)
-			return err;
+			goto err_locked;
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
 	}
 
 	snd_pcm_set_sync(substream);
-
+end:
+	return err;
+err_locked:
+	snd_dg00x_stream_lock_release(dg00x);
 	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_dg00x *dg00x = substream->private_data;
+
+	snd_dg00x_stream_lock_release(dg00x);
+
 	return 0;
 }
 

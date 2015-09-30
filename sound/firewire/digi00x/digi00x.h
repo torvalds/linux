@@ -22,6 +22,8 @@
 #include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/firewire.h>
+#include <sound/hwdep.h>
 
 #include "../lib.h"
 #include "../iso-resources.h"
@@ -32,6 +34,7 @@ struct snd_dg00x {
 	struct fw_unit *unit;
 
 	struct mutex mutex;
+	spinlock_t lock;
 
 	struct amdtp_stream tx_stream;
 	struct fw_iso_resources tx_resources;
@@ -40,6 +43,12 @@ struct snd_dg00x {
 	struct fw_iso_resources rx_resources;
 
 	unsigned int substreams_counter;
+
+	/* for uapi */
+	int dev_lock_count;
+	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
+
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
@@ -118,8 +127,13 @@ void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x);
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x);
 
+void snd_dg00x_stream_lock_changed(struct snd_dg00x *dg00x);
+int snd_dg00x_stream_lock_try(struct snd_dg00x *dg00x);
+void snd_dg00x_stream_lock_release(struct snd_dg00x *dg00x);
+
 void snd_dg00x_proc_init(struct snd_dg00x *dg00x);
 
 int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x);
 
+int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x);
 #endif

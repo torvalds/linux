@@ -379,3 +379,42 @@ void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x)
 	amdtp_stream_update(&dg00x->tx_stream);
 	amdtp_stream_update(&dg00x->rx_stream);
 }
+
+void snd_dg00x_stream_lock_changed(struct snd_dg00x *dg00x)
+{
+	dg00x->dev_lock_changed = true;
+	wake_up(&dg00x->hwdep_wait);
+}
+
+int snd_dg00x_stream_lock_try(struct snd_dg00x *dg00x)
+{
+	int err;
+
+	spin_lock_irq(&dg00x->lock);
+
+	/* user land lock this */
+	if (dg00x->dev_lock_count < 0) {
+		err = -EBUSY;
+		goto end;
+	}
+
+	/* this is the first time */
+	if (dg00x->dev_lock_count++ == 0)
+		snd_dg00x_stream_lock_changed(dg00x);
+	err = 0;
+end:
+	spin_unlock_irq(&dg00x->lock);
+	return err;
+}
+
+void snd_dg00x_stream_lock_release(struct snd_dg00x *dg00x)
+{
+	spin_lock_irq(&dg00x->lock);
+
+	if (WARN_ON(dg00x->dev_lock_count <= 0))
+		goto end;
+	if (--dg00x->dev_lock_count == 0)
+		snd_dg00x_stream_lock_changed(dg00x);
+end:
+	spin_unlock_irq(&dg00x->lock);
+}
