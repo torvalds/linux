@@ -72,6 +72,12 @@
 		cache-level = <2>;
 	};
 
+	L2_CA53: cache-controller@1 {
+		compatible = "cache";
+		cache-unified;
+		cache-level = <2>;
+	};
+
 	extal_clk: extal {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
