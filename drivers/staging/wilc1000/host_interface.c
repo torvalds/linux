@@ -383,7 +383,7 @@ union message_body {
 	struct add_sta_param edit_sta_info;
 	struct power_mgmt_param pwr_mgmt_info;
 	struct sta_inactive_t mac_info;
-	struct set_ip_addr strHostIfSetIP;
+	struct set_ip_addr ip_info;
 	struct drv_handler drv;
 	struct set_multicast strHostIfSetMulti;
 	struct op_mode strHostIfSetOperationMode;
@@ -4168,12 +4168,12 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_SET_IPADDRESS:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_IPADDRESS\n");
-			Handle_set_IPAddress(msg.drvHandler, msg.body.strHostIfSetIP.au8IPAddr, msg.body.strHostIfSetIP.idx);
+			Handle_set_IPAddress(msg.drvHandler, msg.body.ip_info.au8IPAddr, msg.body.ip_info.idx);
 			break;
 
 		case HOST_IF_MSG_GET_IPADDRESS:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_SET_IPADDRESS\n");
-			Handle_get_IPAddress(msg.drvHandler, msg.body.strHostIfSetIP.au8IPAddr, msg.body.strHostIfSetIP.idx);
+			Handle_get_IPAddress(msg.drvHandler, msg.body.ip_info.au8IPAddr, msg.body.ip_info.idx);
 			break;
 
 		case HOST_IF_MSG_SET_MAC_ADDRESS:
@@ -7232,9 +7232,9 @@ s32 host_int_setup_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *u16ipadd, u8 idx)
 	/* prepare the WiphyParams Message */
 	msg.id = HOST_IF_MSG_SET_IPADDRESS;
 
-	msg.body.strHostIfSetIP.au8IPAddr = u16ipadd;
+	msg.body.ip_info.au8IPAddr = u16ipadd;
 	msg.drvHandler = hWFIDrv;
-	msg.body.strHostIfSetIP.idx = idx;
+	msg.body.ip_info.idx = idx;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
@@ -7269,9 +7269,9 @@ s32 host_int_get_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *u16ipadd, u8 idx)
 	/* prepare the WiphyParams Message */
 	msg.id = HOST_IF_MSG_GET_IPADDRESS;
 
-	msg.body.strHostIfSetIP.au8IPAddr = u16ipadd;
+	msg.body.ip_info.au8IPAddr = u16ipadd;
 	msg.drvHandler = hWFIDrv;
-	msg.body.strHostIfSetIP.idx = idx;
+	msg.body.ip_info.idx = idx;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
