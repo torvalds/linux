@@ -398,6 +398,22 @@ static inline void gic_write_dir(u64 irq)
 	isb();
 }
 
+static inline bool gic_enable_sre(void)
+{
+	u64 val;
+
+	asm volatile("mrs_s %0, " __stringify(ICC_SRE_EL1) : "=r" (val));
+	if (val & ICC_SRE_EL1_SRE)
+		return true;
+
+	val |= ICC_SRE_EL1_SRE;
+	asm volatile("msr_s " __stringify(ICC_SRE_EL1) ", %0" : : "r" (val));
+	isb();
+	asm volatile("mrs_s %0, " __stringify(ICC_SRE_EL1) : "=r" (val));
+
+	return !!(val & ICC_SRE_EL1_SRE);
+}
+
 struct irq_domain;
 int its_cpu_init(void);
 int its_init(struct device_node *node, struct rdists *rdists,
