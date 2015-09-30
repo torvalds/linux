@@ -969,8 +969,8 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	uint32_t cfgcr1_val, cfgcr2_val;
 	uint32_t p0, p1, p2, dco_freq;
 
-	cfgcr1_reg = GET_CFG_CR1_REG(dpll);
-	cfgcr2_reg = GET_CFG_CR2_REG(dpll);
+	cfgcr1_reg = DPLL_CFGCR1(dpll);
+	cfgcr2_reg = DPLL_CFGCR2(dpll);
 
 	cfgcr1_val = I915_READ(cfgcr1_reg);
 	cfgcr2_val = I915_READ(cfgcr2_reg);
@@ -2504,20 +2504,20 @@ static const struct skl_dpll_regs skl_dpll_regs[3] = {
 	{
 		/* DPLL 1 */
 		.ctl = LCPLL2_CTL,
-		.cfgcr1 = DPLL1_CFGCR1,
-		.cfgcr2 = DPLL1_CFGCR2,
+		.cfgcr1 = DPLL_CFGCR1(SKL_DPLL1),
+		.cfgcr2 = DPLL_CFGCR2(SKL_DPLL1),
 	},
 	{
 		/* DPLL 2 */
 		.ctl = WRPLL_CTL1,
-		.cfgcr1 = DPLL2_CFGCR1,
-		.cfgcr2 = DPLL2_CFGCR2,
+		.cfgcr1 = DPLL_CFGCR1(SKL_DPLL2),
+		.cfgcr2 = DPLL_CFGCR2(SKL_DPLL2),
 	},
 	{
 		/* DPLL 3 */
 		.ctl = WRPLL_CTL2,
-		.cfgcr1 = DPLL3_CFGCR1,
-		.cfgcr2 = DPLL3_CFGCR2,
+		.cfgcr1 = DPLL_CFGCR1(SKL_DPLL3),
+		.cfgcr2 = DPLL_CFGCR2(SKL_DPLL3),
 	},
 };
 

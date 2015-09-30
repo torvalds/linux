@@ -7438,8 +7438,8 @@ enum skl_disp_power_wells {
 #define  DPLL_CFGCR2_PDIV_7 (4<<2)
 #define  DPLL_CFGCR2_CENTRAL_FREQ_MASK	(3)
 
-#define GET_CFG_CR1_REG(id) (DPLL1_CFGCR1 + (id - SKL_DPLL1) * 8)
-#define GET_CFG_CR2_REG(id) (DPLL1_CFGCR2 + (id - SKL_DPLL1) * 8)
+#define DPLL_CFGCR1(id) (DPLL1_CFGCR1 + ((id) - SKL_DPLL1) * 8)
+#define DPLL_CFGCR2(id) (DPLL1_CFGCR2 + ((id) - SKL_DPLL1) * 8)
 
 /* BXT display engine PLL */
 #define BXT_DE_PLL_CTL			0x6d000
