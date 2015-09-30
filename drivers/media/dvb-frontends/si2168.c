@@ -457,6 +457,10 @@ static int si2168_init(struct dvb_frontend *fe)
 		/* firmware is in the new format */
 		for (remaining = fw->size; remaining > 0; remaining -= 17) {
 			len = fw->data[fw->size - remaining];
+			if (len > SI2168_ARGLEN) {
+				ret = -EINVAL;
+				break;
+			}
 			memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
 			cmd.wlen = len;
 			cmd.rlen = 1;
