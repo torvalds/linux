@@ -94,22 +94,25 @@
 /**********************************************************************
 * slc_tac register definitions
 **********************************************************************/
+/* Computation of clock cycles on basis of controller and device clock rates */
+#define SLCTAC_CLOCKS(c, n, s)	(((1 + (c / n)) & 0xF) << s)
+
 /* Clock setting for RDY write sample wait time in 2*n clocks */
 #define SLCTAC_WDR(n)		(((n) & 0xF) << 28)
 /* Write pulse width in clock cycles, 1 to 16 clocks */
-#define SLCTAC_WWIDTH(n)	(((n) & 0xF) << 24)
+#define SLCTAC_WWIDTH(c, n)	(SLCTAC_CLOCKS(c, n, 24))
 /* Write hold time of control and data signals, 1 to 16 clocks */
-#define SLCTAC_WHOLD(n)		(((n) & 0xF) << 20)
+#define SLCTAC_WHOLD(c, n)	(SLCTAC_CLOCKS(c, n, 20))
 /* Write setup time of control and data signals, 1 to 16 clocks */
-#define SLCTAC_WSETUP(n)	(((n) & 0xF) << 16)
+#define SLCTAC_WSETUP(c, n)	(SLCTAC_CLOCKS(c, n, 16))
 /* Clock setting for RDY read sample wait time in 2*n clocks */
 #define SLCTAC_RDR(n)		(((n) & 0xF) << 12)
 /* Read pulse width in clock cycles, 1 to 16 clocks */
-#define SLCTAC_RWIDTH(n)	(((n) & 0xF) << 8)
+#define SLCTAC_RWIDTH(c, n)	(SLCTAC_CLOCKS(c, n, 8))
 /* Read hold time of control and data signals, 1 to 16 clocks */
-#define SLCTAC_RHOLD(n)		(((n) & 0xF) << 4)
+#define SLCTAC_RHOLD(c, n)	(SLCTAC_CLOCKS(c, n, 4))
 /* Read setup time of control and data signals, 1 to 16 clocks */
-#define SLCTAC_RSETUP(n)	(((n) & 0xF) << 0)
+#define SLCTAC_RSETUP(c, n)	(SLCTAC_CLOCKS(c, n, 0))
 
 /**********************************************************************
 * slc_ecc register definitions
@@ -240,13 +243,13 @@ static void lpc32xx_nand_setup(struct lpc32xx_nand_host *host)
 
 	/* Compute clock setup values */
 	tmp = SLCTAC_WDR(host->ncfg->wdr_clks) |
-		SLCTAC_WWIDTH(1 + (clkrate / host->ncfg->wwidth)) |
-		SLCTAC_WHOLD(1 + (clkrate / host->ncfg->whold)) |
-		SLCTAC_WSETUP(1 + (clkrate / host->ncfg->wsetup)) |
+		SLCTAC_WWIDTH(clkrate, host->ncfg->wwidth) |
+		SLCTAC_WHOLD(clkrate, host->ncfg->whold) |
+		SLCTAC_WSETUP(clkrate, host->ncfg->wsetup) |
 		SLCTAC_RDR(host->ncfg->rdr_clks) |
-		SLCTAC_RWIDTH(1 + (clkrate / host->ncfg->rwidth)) |
-		SLCTAC_RHOLD(1 + (clkrate / host->ncfg->rhold)) |
-		SLCTAC_RSETUP(1 + (clkrate / host->ncfg->rsetup));
+		SLCTAC_RWIDTH(clkrate, host->ncfg->rwidth) |
+		SLCTAC_RHOLD(clkrate, host->ncfg->rhold) |
+		SLCTAC_RSETUP(clkrate, host->ncfg->rsetup);
 	writel(tmp, SLC_TAC(host->io_base));
 }
 
