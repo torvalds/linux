@@ -879,7 +879,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 				      oob_chunk_size);
 
 		/* the last chunk */
-		memcpy16_toio(&s[oob_chunk_size * sparebuf_size],
+		memcpy16_toio(&s[i * sparebuf_size],
 			      &d[i * oob_chunk_size],
 			      host->used_oobsize - i * oob_chunk_size);
 	}
