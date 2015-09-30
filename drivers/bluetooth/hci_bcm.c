@@ -647,7 +647,6 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 static int bcm_acpi_probe(struct bcm_device *dev)
 {
 	struct platform_device *pdev = dev->pdev;
-	struct acpi_device *adev;
 	LIST_HEAD(resources);
 	const struct dmi_system_id *dmi_id;
 	int ret;
@@ -696,11 +695,8 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	}
 
 	/* Retrieve UART ACPI info */
-	adev = ACPI_COMPANION(&dev->pdev->dev);
-	if (!adev)
-		return 0;
-
-	ret = acpi_dev_get_resources(adev, &resources, bcm_resource, dev);
+	ret = acpi_dev_get_resources(ACPI_COMPANION(&dev->pdev->dev),
+				     &resources, bcm_resource, dev);
 	if (ret < 0)
 		return ret;
 	acpi_dev_free_resource_list(&resources);
