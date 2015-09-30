@@ -360,6 +360,9 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 			}
 		}
 
+		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
+			pdata->ext_stats.rx_buffer_unavailable++;
+
 		/* Restart the device on a Fatal Bus Error */
 		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
 			schedule_work(&pdata->restart_work);

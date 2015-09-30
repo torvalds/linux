@@ -582,6 +582,7 @@ struct xgbe_mmc_stats {
 struct xgbe_ext_stats {
 	u64 tx_tso_packets;
 	u64 rx_split_header_packets;
+	u64 rx_buffer_unavailable;
 };
 
 struct xgbe_hw_if {
