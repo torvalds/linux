@@ -396,18 +396,15 @@ static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
 
 static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct net_vrf_dev *vrf_ptr = kmalloc(sizeof(*vrf_ptr), GFP_KERNEL);
 	struct slave *slave = kzalloc(sizeof(*slave), GFP_KERNEL);
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct slave_queue *queue = &vrf->queue;
 	int ret = -ENOMEM;
 
-	if (!slave || !vrf_ptr)
+	if (!slave)
 		goto out_fail;
 
 	slave->dev = port_dev;
-	vrf_ptr->ifindex = dev->ifindex;
-	vrf_ptr->tb_id = vrf->tb_id;
 
 	/* register the packet handler for slave ports */
 	ret = netdev_rx_handler_register(port_dev, vrf_handle_frame, dev);
@@ -424,7 +421,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 
 	port_dev->flags |= IFF_SLAVE;
 	__vrf_insert_slave(queue, slave);
-	rcu_assign_pointer(port_dev->vrf_ptr, vrf_ptr);
 	cycle_netdev(port_dev);
 
 	return 0;
@@ -432,7 +428,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 out_unregister:
 	netdev_rx_handler_unregister(port_dev);
 out_fail:
-	kfree(vrf_ptr);
 	kfree(slave);
 	return ret;
 }
@@ -448,20 +443,14 @@ static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 /* inverse of do_vrf_add_slave */
 static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct net_vrf_dev *vrf_ptr = rtnl_dereference(port_dev->vrf_ptr);
 	struct net_vrf *vrf = netdev_priv(dev);
 	struct slave_queue *queue = &vrf->queue;
 	struct slave *slave;
-
-	RCU_INIT_POINTER(port_dev->vrf_ptr, NULL);
 
 	netdev_upper_dev_unlink(port_dev, dev);
 	port_dev->flags &= ~IFF_SLAVE;
 
 	netdev_rx_handler_unregister(port_dev);
-
-	/* after netdev_rx_handler_unregister for synchronize_rcu */
-	kfree(vrf_ptr);
 
 	cycle_netdev(port_dev);
 
@@ -601,10 +590,6 @@ static int vrf_validate(struct nlattr *tb[], struct nlattr *data[])
 
 static void vrf_dellink(struct net_device *dev, struct list_head *head)
 {
-	struct net_vrf_dev *vrf_ptr = rtnl_dereference(dev->vrf_ptr);
-
-	RCU_INIT_POINTER(dev->vrf_ptr, NULL);
-	kfree_rcu(vrf_ptr, rcu);
 	unregister_netdevice_queue(dev, head);
 }
 
@@ -612,7 +597,6 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		       struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	struct net_vrf_dev *vrf_ptr;
 	int err;
 
 	if (!data || !data[IFLA_VRF_TABLE])
@@ -622,24 +606,13 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
-	err = -ENOMEM;
-	vrf_ptr = kmalloc(sizeof(*dev->vrf_ptr), GFP_KERNEL);
-	if (!vrf_ptr)
-		goto out_fail;
-
-	vrf_ptr->ifindex = dev->ifindex;
-	vrf_ptr->tb_id = vrf->tb_id;
-
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out_fail;
 
-	rcu_assign_pointer(dev->vrf_ptr, vrf_ptr);
-
 	return 0;
 
 out_fail:
-	kfree(vrf_ptr);
 	free_netdev(dev);
 	return err;
 }
@@ -683,10 +656,9 @@ static int vrf_device_event(struct notifier_block *unused,
 
 	/* only care about unregister events to drop slave references */
 	if (event == NETDEV_UNREGISTER) {
-		struct net_vrf_dev *vrf_ptr = rtnl_dereference(dev->vrf_ptr);
 		struct net_device *vrf_dev;
 
-		if (!vrf_ptr || netif_is_l3_master(dev))
+		if (netif_is_l3_master(dev))
 			goto out;
 
 		vrf_dev = netdev_master_upper_dev_get(dev);

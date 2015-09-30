@@ -11,12 +11,6 @@
 #ifndef __LINUX_NET_VRF_H
 #define __LINUX_NET_VRF_H
 
-struct net_vrf_dev {
-	struct rcu_head		rcu;
-	int                     ifindex; /* ifindex of master dev */
-	u32                     tb_id;   /* table id for VRF */
-};
-
 struct slave {
 	struct list_head	list;
 	struct net_device	*dev;
