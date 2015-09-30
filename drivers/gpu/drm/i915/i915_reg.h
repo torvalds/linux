@@ -1593,14 +1593,16 @@ enum skl_disp_power_wells {
 #endif
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
-#define INSTDONE_I965	0x0206c
-#define GEN7_INSTDONE_1		0x0206c
 #define GEN7_SC_INSTDONE	0x07100
 #define GEN7_SAMPLER_INSTDONE	0x0e160
 #define GEN7_ROW_INSTDONE	0x0e164
 #define I915_NUM_INSTDONE_REG	4
 #define RING_IPEIR(base)	((base)+0x64)
 #define RING_IPEHR(base)	((base)+0x68)
+/*
+ * On GEN4, only the render ring INSTDONE exists and has a different
+ * layout than the GEN7+ version.
+ */
 #define RING_INSTDONE(base)	((base)+0x6c)
 #define RING_INSTPS(base)	((base)+0x70)
 #define RING_DMA_FADD(base)	((base)+0x78)
