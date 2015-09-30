@@ -414,7 +414,7 @@ struct sta_inactive_t {
  *  @version		1.0
  */
 union message_body {
-	struct scan_attr strHostIFscanAttr;
+	struct scan_attr scan_info;
 	struct connect_attr strHostIFconnectAttr;
 	struct rcvd_net_info strRcvdNetworkInfo;
 	struct rcvd_async_info strRcvdGnrlAsyncInfo;
@@ -4099,7 +4099,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SCAN:
-			Handle_Scan(msg.drvHandler, &msg.body.strHostIFscanAttr);
+			Handle_Scan(msg.drvHandler, &msg.body.scan_info);
 			break;
 
 		case HOST_IF_MSG_CONNECT:
@@ -5789,26 +5789,26 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 	msg.id = HOST_IF_MSG_SCAN;
 
 	if (pstrHiddenNetwork != NULL) {
-		msg.body.strHostIFscanAttr.strHiddenNetwork.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
-		msg.body.strHostIFscanAttr.strHiddenNetwork.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
+		msg.body.scan_info.strHiddenNetwork.pstrHiddenNetworkInfo = pstrHiddenNetwork->pstrHiddenNetworkInfo;
+		msg.body.scan_info.strHiddenNetwork.u8ssidnum = pstrHiddenNetwork->u8ssidnum;
 
 	} else
 		PRINT_D(HOSTINF_DBG, "pstrHiddenNetwork IS EQUAL TO NULL\n");
 
 	msg.drvHandler = hWFIDrv;
-	msg.body.strHostIFscanAttr.u8ScanSource = u8ScanSource;
-	msg.body.strHostIFscanAttr.u8ScanType = u8ScanType;
-	msg.body.strHostIFscanAttr.pfScanResult = ScanResult;
-	msg.body.strHostIFscanAttr.pvUserArg = pvUserArg;
+	msg.body.scan_info.u8ScanSource = u8ScanSource;
+	msg.body.scan_info.u8ScanType = u8ScanType;
+	msg.body.scan_info.pfScanResult = ScanResult;
+	msg.body.scan_info.pvUserArg = pvUserArg;
 
-	msg.body.strHostIFscanAttr.u8ChnlListLen = u8ChnlListLen;
-	msg.body.strHostIFscanAttr.pu8ChnlFreqList = kmalloc(u8ChnlListLen, GFP_KERNEL);        /* will be deallocated by the receiving thread */
-	memcpy(msg.body.strHostIFscanAttr.pu8ChnlFreqList,
+	msg.body.scan_info.u8ChnlListLen = u8ChnlListLen;
+	msg.body.scan_info.pu8ChnlFreqList = kmalloc(u8ChnlListLen, GFP_KERNEL);        /* will be deallocated by the receiving thread */
+	memcpy(msg.body.scan_info.pu8ChnlFreqList,
 		    pu8ChnlFreqList, u8ChnlListLen);
 
-	msg.body.strHostIFscanAttr.IEsLen = IEsLen;
-	msg.body.strHostIFscanAttr.pu8IEs = kmalloc(IEsLen, GFP_KERNEL);        /* will be deallocated by the receiving thread */
-	memcpy(msg.body.strHostIFscanAttr.pu8IEs,
+	msg.body.scan_info.IEsLen = IEsLen;
+	msg.body.scan_info.pu8IEs = kmalloc(IEsLen, GFP_KERNEL);        /* will be deallocated by the receiving thread */
+	memcpy(msg.body.scan_info.pu8IEs,
 		    pu8IEs, IEsLen);
 
 	/* send the message */
