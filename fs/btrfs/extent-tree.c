@@ -337,8 +337,8 @@ static void put_caching_control(struct btrfs_caching_control *ctl)
  * we need to check the pinned_extents for any extents that can't be used yet
  * since their free space will be released as soon as the transaction commits.
  */
-static u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
-			      struct btrfs_fs_info *info, u64 start, u64 end)
+u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
+		       struct btrfs_fs_info *info, u64 start, u64 end)
 {
 	u64 extent_start, extent_end, size, total_added = 0;
 	int ret;
@@ -9381,6 +9381,7 @@ btrfs_create_block_group_cache(struct btrfs_root *root, u64 start, u64 size)
 	INIT_LIST_HEAD(&cache->io_list);
 	btrfs_init_free_space_ctl(cache);
 	atomic_set(&cache->trimming, 0);
+	mutex_init(&cache->free_space_lock);
 
 	return cache;
 }
