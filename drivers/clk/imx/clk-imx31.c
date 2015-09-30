@@ -72,7 +72,7 @@ static struct clk ** const uart_clks[] __initconst = {
 	NULL
 };
 
-int __init mx31_clocks_init(unsigned long fref)
+static void __init _mx31_clocks_init(unsigned long fref)
 {
 	void __iomem *base;
 	struct device_node *np;
@@ -142,6 +142,12 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
+	clk_set_parent(clk[csi], clk[upll]);
+	clk_prepare_enable(clk[emi_gate]);
+	clk_prepare_enable(clk[iim_gate]);
+	mx31_revision();
+	clk_disable_unprepare(clk[iim_gate]);
+
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
 
 	if (np) {
@@ -149,6 +155,13 @@ int __init mx31_clocks_init(unsigned long fref)
 		clk_data.clk_num = ARRAY_SIZE(clk);
 		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	}
+}
+
+int __init mx31_clocks_init(void)
+{
+	u32 fref = 26000000; /* default */
+
+	_mx31_clocks_init(fref);
 
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
@@ -204,14 +217,8 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx31-sdma");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 
-	clk_set_parent(clk[csi], clk[upll]);
-	clk_prepare_enable(clk[emi_gate]);
-	clk_prepare_enable(clk[iim_gate]);
-	mx31_revision();
-	clk_disable_unprepare(clk[iim_gate]);
 
 	imx_register_uart_clocks(uart_clks);
-
 	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
@@ -230,5 +237,7 @@ int __init mx31_clocks_init_dt(void)
 			break;
 	}
 
-	return mx31_clocks_init(fref);
+	_mx31_clocks_init(fref);
+
+	return 0;
 }
