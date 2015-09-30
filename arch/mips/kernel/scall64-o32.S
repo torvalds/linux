@@ -584,4 +584,6 @@ EXPORT(sys32_call_table)
 	PTR	sys_memfd_create
 	PTR	sys_bpf				/* 4355 */
 	PTR	compat_sys_execveat
+	PTR	sys_userfaultfd
+	PTR	sys_membarrier
 	.size	sys32_call_table,.-sys32_call_table
