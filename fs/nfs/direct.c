@@ -721,14 +721,8 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_direct_write_complete(dreq, data->inode);
 }
 
-static void nfs_direct_error_cleanup(struct nfs_inode *nfsi)
-{
-	/* There is no lock to clear */
-}
-
 static const struct nfs_commit_completion_ops nfs_direct_commit_completion_ops = {
 	.completion = nfs_direct_commit_complete,
-	.error_cleanup = nfs_direct_error_cleanup,
 };
 
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)

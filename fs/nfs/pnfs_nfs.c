@@ -266,17 +266,14 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		} else {
 			nfs_retry_commit(mds_pages, NULL, cinfo, 0);
 			pnfs_generic_retry_commit(cinfo, 0);
-			cinfo->completion_ops->error_cleanup(NFS_I(inode));
 			return -ENOMEM;
 		}
 	}
 
 	nreq += pnfs_generic_alloc_ds_commits(cinfo, &list);
 
-	if (nreq == 0) {
-		cinfo->completion_ops->error_cleanup(NFS_I(inode));
+	if (nreq == 0)
 		goto out;
-	}
 
 	atomic_add(nreq, &cinfo->mds->rpcs_out);
 
