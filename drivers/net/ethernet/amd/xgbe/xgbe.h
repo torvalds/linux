@@ -459,7 +459,6 @@ struct xgbe_channel {
 
 enum xgbe_state {
 	XGBE_DOWN,
-	XGBE_LINK,
 	XGBE_LINK_INIT,
 	XGBE_LINK_ERR,
 };
