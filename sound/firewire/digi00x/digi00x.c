@@ -46,6 +46,7 @@ static void dg00x_card_free(struct snd_card *card)
 	struct snd_dg00x *dg00x = card->private_data;
 
 	snd_dg00x_stream_destroy_duplex(dg00x);
+	snd_dg00x_transaction_unregister(dg00x);
 
 	fw_unit_put(dg00x->unit);
 
@@ -93,6 +94,10 @@ static int snd_dg00x_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
+	err = snd_dg00x_transaction_register(dg00x);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
@@ -108,6 +113,8 @@ error:
 static void snd_dg00x_update(struct fw_unit *unit)
 {
 	struct snd_dg00x *dg00x = dev_get_drvdata(&unit->device);
+
+	snd_dg00x_transaction_reregister(dg00x);
 
 	mutex_lock(&dg00x->mutex);
 	snd_dg00x_stream_update_duplex(dg00x);

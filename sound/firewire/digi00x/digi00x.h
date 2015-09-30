@@ -49,6 +49,9 @@ struct snd_dg00x {
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
 
+	/* For asynchronous messages. */
+	struct fw_address_handler async_handler;
+	u32 msg;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
@@ -109,6 +112,10 @@ void amdtp_dot_reset(struct amdtp_stream *s);
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime);
 void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
+
+int snd_dg00x_transaction_register(struct snd_dg00x *dg00x);
+int snd_dg00x_transaction_reregister(struct snd_dg00x *dg00x);
+void snd_dg00x_transaction_unregister(struct snd_dg00x *dg00x);
 
 extern const unsigned int snd_dg00x_stream_rates[SND_DG00X_RATE_COUNT];
 extern const unsigned int snd_dg00x_stream_pcm_channels[SND_DG00X_RATE_COUNT];

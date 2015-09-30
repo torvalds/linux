@@ -12,6 +12,7 @@
  * 1.get firewire node information
  * 2.get notification about starting/stopping stream
  * 3.lock/unlock stream
+ * 4.get asynchronous messaging
  */
 
 #include "digi00x.h"
@@ -25,7 +26,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 
 	spin_lock_irq(&dg00x->lock);
 
-	while (!dg00x->dev_lock_changed) {
+	while (!dg00x->dev_lock_changed && dg00x->msg == 0) {
 		prepare_to_wait(&dg00x->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&dg00x->lock);
 		schedule();
@@ -42,6 +43,13 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 		dg00x->dev_lock_changed = false;
 
 		count = min_t(long, count, sizeof(event.lock_status));
+	} else {
+		event.digi00x_message.type =
+					SNDRV_FIREWIRE_EVENT_DIGI00X_MESSAGE;
+		event.digi00x_message.message = dg00x->msg;
+		dg00x->msg = 0;
+
+		count = min_t(long, count, sizeof(event.digi00x_message));
 	}
 
 	spin_unlock_irq(&dg00x->lock);
@@ -61,7 +69,7 @@ static unsigned int hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &dg00x->hwdep_wait, wait);
 
 	spin_lock_irq(&dg00x->lock);
-	if (dg00x->dev_lock_changed)
+	if (dg00x->dev_lock_changed || dg00x->msg)
 		events = POLLIN | POLLRDNORM;
 	else
 		events = 0;
