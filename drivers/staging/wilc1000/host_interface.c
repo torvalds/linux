@@ -406,7 +406,7 @@ union message_body {
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
-	struct channel_attr strHostIFSetChan;
+	struct channel_attr channel_info;
 	struct set_beacon strHostIFSetBeacon;
 	struct del_beacon strHostIFDelBeacon;
 	struct add_sta_param strAddStaParam;
@@ -4113,7 +4113,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_SET_CHANNEL:
-			Handle_SetChannel(msg.drvHandler, &msg.body.strHostIFSetChan);
+			Handle_SetChannel(msg.drvHandler, &msg.body.channel_info);
 			break;
 
 		case HOST_IF_MSG_DISCONNECT:
@@ -5368,7 +5368,7 @@ s32 host_int_set_mac_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 u8ChNum)
 	/* prepare the set channel message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_CHANNEL;
-	msg.body.strHostIFSetChan.u8SetChan = u8ChNum;
+	msg.body.channel_info.u8SetChan = u8ChNum;
 	msg.drvHandler = hWFIDrv;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
