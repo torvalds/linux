@@ -2289,36 +2289,41 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 			      struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
-	char *p;
+	char *p, *nbase;
 
 	if (*base == '.')
 		base++;
+	nbase = strdup(base);
+	if (!nbase)
+		return -ENOMEM;
 
-	/* Try no suffix */
-	ret = e_snprintf(buf, len, "%s", base);
+	/* Cut off the dot suffixes (e.g. .const, .isra)*/
+	p = strchr(nbase, '.');
+	if (p && p != nbase)
+		*p = '\0';
+
+	/* Try no suffix number */
+	ret = e_snprintf(buf, len, "%s", nbase);
 	if (ret < 0) {
 		pr_debug("snprintf() failed: %d\n", ret);
-		return ret;
+		goto out;
 	}
-	/* Cut off the postfixes (e.g. .const, .isra)*/
-	p = strchr(buf, '.');
-	if (p && p != buf)
-		*p = '\0';
 	if (!strlist__has_entry(namelist, buf))
-		return 0;
+		goto out;
 
 	if (!allow_suffix) {
 		pr_warning("Error: event \"%s\" already exists. "
-			   "(Use -f to force duplicates.)\n", base);
-		return -EEXIST;
+			   "(Use -f to force duplicates.)\n", buf);
+		ret = -EEXIST;
+		goto out;
 	}
 
 	/* Try to add suffix */
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
-		ret = e_snprintf(buf, len, "%s_%d", base, i);
+		ret = e_snprintf(buf, len, "%s_%d", nbase, i);
 		if (ret < 0) {
 			pr_debug("snprintf() failed: %d\n", ret);
-			return ret;
+			goto out;
 		}
 		if (!strlist__has_entry(namelist, buf))
 			break;
@@ -2328,6 +2333,8 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		ret = -ERANGE;
 	}
 
+out:
+	free(nbase);
 	return ret;
 }
 
