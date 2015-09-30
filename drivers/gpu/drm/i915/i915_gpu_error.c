@@ -1391,7 +1391,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 		instdone[0] = I915_READ(GEN2_INSTDONE);
 	else if (IS_GEN4(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
 		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
-		instdone[1] = I915_READ(INSTDONE1);
+		instdone[1] = I915_READ(GEN4_INSTDONE1);
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);

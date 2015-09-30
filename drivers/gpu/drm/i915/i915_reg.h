@@ -1611,7 +1611,7 @@ enum skl_disp_power_wells {
 #define RING_INSTPM(base)	((base)+0xc0)
 #define RING_MI_MODE(base)	((base)+0x9c)
 #define INSTPS		0x02070 /* 965+ only */
-#define INSTDONE1	0x0207c /* 965+ only */
+#define GEN4_INSTDONE1	0x0207c /* 965+ only, aka INSTDONE_2 on SNB */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
 #define HWS_ADDRESS_MASK	0xfffff000
