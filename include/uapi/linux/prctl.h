@@ -201,6 +201,6 @@ struct prctl_mm_map {
  * arg2 slack value, 0 means "use default"
  * arg3 pid of the thread whose timer slack needs to be set
  */
-#define PR_SET_TIMERSLACK_PID 47
+#define PR_SET_TIMERSLACK_PID	127
 
 #endif /* _LINUX_PRCTL_H */
