@@ -35,13 +35,13 @@ logical_chip_type_t getChipType(void)
 	return chip;
 }
 
-inline unsigned int calcPLL(pll_value_t *pPLL)
+static inline unsigned int calcPLL(pll_value_t *pPLL)
 {
 	return (pPLL->inputFreq * pPLL->M / pPLL->N / (1 << pPLL->OD) /
 		(1 << pPLL->POD));
 }
 
-unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
+static unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
 {
 	unsigned int ulPllReg = 0;
 
@@ -75,7 +75,7 @@ unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
 }
 
 
-unsigned int getChipClock(void)
+static unsigned int getChipClock(void)
 {
 	pll_value_t pll;
 #if 1
@@ -92,7 +92,7 @@ unsigned int getChipClock(void)
  *
  * Input: Frequency to be set.
  */
-void setChipClock(unsigned int frequency)
+static void setChipClock(unsigned int frequency)
 {
 	pll_value_t pll;
 	unsigned int ulActualMxClk;
@@ -123,7 +123,7 @@ void setChipClock(unsigned int frequency)
 
 
 
-void setMemoryClock(unsigned int frequency)
+static void setMemoryClock(unsigned int frequency)
 {
 	unsigned int ulReg, divisor;
  #if 1
@@ -171,7 +171,7 @@ void setMemoryClock(unsigned int frequency)
  * NOTE:
  *      The maximum frequency the engine can run is 168MHz.
  */
-void setMasterClock(unsigned int frequency)
+static void setMasterClock(unsigned int frequency)
 {
 	unsigned int ulReg, divisor;
 #if 1
