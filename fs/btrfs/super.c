@@ -2212,6 +2212,9 @@ static int btrfs_run_sanity_tests(void)
 	if (ret)
 		goto out;
 	ret = btrfs_test_qgroups();
+	if (ret)
+		goto out;
+	ret = btrfs_test_free_space_tree();
 out:
 	btrfs_destroy_test_fs();
 	return ret;
