@@ -4308,7 +4308,7 @@ int tracing_update_buffers(void)
 
 struct trace_option_dentry;
 
-static struct trace_option_dentry *
+static void
 create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
 
 /*
@@ -4334,15 +4334,7 @@ static void add_tracer_options(struct trace_array *tr, struct tracer *t)
 	if (!tr->dir)
 		return;
 
-	/* Currently, only the top instance has options */
-	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL))
-		return;
-
-	/* Ignore if they were already created */
-	if (t->topts)
-		return;
-
-	t->topts = create_trace_option_files(tr, t);
+	create_trace_option_files(tr, t);
 }
 
 static int tracing_set_tracer(struct trace_array *tr, const char *buf)
@@ -6341,21 +6333,39 @@ create_trace_option_file(struct trace_array *tr,
 
 }
 
-static struct trace_option_dentry *
+static void
 create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 {
 	struct trace_option_dentry *topts;
+	struct trace_options *tr_topts;
 	struct tracer_flags *flags;
 	struct tracer_opt *opts;
 	int cnt;
+	int i;
 
 	if (!tracer)
-		return NULL;
+		return;
 
 	flags = tracer->flags;
 
 	if (!flags || !flags->opts)
-		return NULL;
+		return;
+
+	/*
+	 * If this is an instance, only create flags for tracers
+	 * the instance may have.
+	 */
+	if (!trace_ok_for_array(tracer, tr))
+		return;
+
+	for (i = 0; i < tr->nr_topts; i++) {
+		/*
+		 * Check if these flags have already been added.
+		 * Some tracers share flags.
+		 */
+		if (tr->topts[i].tracer->flags == tracer->flags)
+			return;
+	}
 
 	opts = flags->opts;
 
@@ -6364,7 +6374,19 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 
 	topts = kcalloc(cnt + 1, sizeof(*topts), GFP_KERNEL);
 	if (!topts)
-		return NULL;
+		return;
+
+	tr_topts = krealloc(tr->topts, sizeof(*tr->topts) * (tr->nr_topts + 1),
+			    GFP_KERNEL);
+	if (!tr_topts) {
+		kfree(topts);
+		return;
+	}
+
+	tr->topts = tr_topts;
+	tr->topts[tr->nr_topts].tracer = tracer;
+	tr->topts[tr->nr_topts].topts = topts;
+	tr->nr_topts++;
 
 	for (cnt = 0; opts[cnt].name; cnt++) {
 		create_trace_option_file(tr, &topts[cnt], flags,
@@ -6373,8 +6395,6 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 			  "Failed to create trace option: %s",
 			  opts[cnt].name);
 	}
-
-	return topts;
 }
 
 static struct dentry *
@@ -6552,6 +6572,21 @@ static void init_trace_flags_index(struct trace_array *tr)
 		tr->trace_flags_index[i] = i;
 }
 
+static void __update_tracer_options(struct trace_array *tr)
+{
+	struct tracer *t;
+
+	for (t = trace_types; t; t = t->next)
+		add_tracer_options(tr, t);
+}
+
+static void update_tracer_options(struct trace_array *tr)
+{
+	mutex_lock(&trace_types_lock);
+	__update_tracer_options(tr);
+	mutex_unlock(&trace_types_lock);
+}
+
 static int instance_mkdir(const char *name)
 {
 	struct trace_array *tr;
@@ -6605,6 +6640,7 @@ static int instance_mkdir(const char *name)
 
 	init_tracer_tracefs(tr, tr->dir);
 	init_trace_flags_index(tr);
+	__update_tracer_options(tr);
 
 	list_add(&tr->list, &ftrace_trace_arrays);
 
@@ -6630,6 +6666,7 @@ static int instance_rmdir(const char *name)
 	struct trace_array *tr;
 	int found = 0;
 	int ret;
+	int i;
 
 	mutex_lock(&trace_types_lock);
 
@@ -6654,6 +6691,11 @@ static int instance_rmdir(const char *name)
 	ftrace_destroy_function_files(tr);
 	debugfs_remove_recursive(tr->dir);
 	free_trace_buffers(tr);
+
+	for (i = 0; i < tr->nr_topts; i++) {
+		kfree(tr->topts[i].topts);
+	}
+	kfree(tr->topts);
 
 	kfree(tr->name);
 	kfree(tr);
@@ -6877,7 +6919,6 @@ static struct notifier_block trace_module_nb = {
 static __init int tracer_init_tracefs(void)
 {
 	struct dentry *d_tracer;
-	struct tracer *t;
 
 	trace_access_lock_init();
 
@@ -6914,10 +6955,7 @@ static __init int tracer_init_tracefs(void)
 
 	create_trace_instances(d_tracer);
 
-	mutex_lock(&trace_types_lock);
-	for (t = trace_types; t; t = t->next)
-		add_tracer_options(&global_trace, t);
-	mutex_unlock(&trace_types_lock);
+	update_tracer_options(&global_trace);
 
 	return 0;
 }

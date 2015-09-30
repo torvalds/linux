@@ -159,6 +159,7 @@ struct trace_array_cpu {
 };
 
 struct tracer;
+struct trace_option_dentry;
 
 struct trace_buffer {
 	struct trace_array		*tr;
@@ -169,6 +170,11 @@ struct trace_buffer {
 };
 
 #define TRACE_FLAGS_MAX_SIZE		32
+
+struct trace_options {
+	struct tracer			*tracer;
+	struct trace_option_dentry	*topts;
+};
 
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
@@ -218,6 +224,7 @@ struct trace_array {
 #endif
 	int			stop_count;
 	int			clock_id;
+	int			nr_topts;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
@@ -227,6 +234,7 @@ struct trace_array {
 	struct dentry		*options;
 	struct dentry		*percpu_dir;
 	struct dentry		*event_dir;
+	struct trace_options	*topts;
 	struct list_head	systems;
 	struct list_head	events;
 	cpumask_var_t		tracing_cpumask; /* only trace on set CPUs */
@@ -398,7 +406,6 @@ struct tracer {
 						u32 mask, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
-	struct trace_option_dentry *topts;
 	int			enabled;
 	int			ref;
 	bool			print_max;
