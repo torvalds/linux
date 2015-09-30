@@ -70,6 +70,7 @@ static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 	if (!dbg->dwfl)
 		goto error;
 
+	dwfl_report_begin(dbg->dwfl);
 	dbg->mod = dwfl_report_offline(dbg->dwfl, "", "", fd);
 	if (!dbg->mod)
 		goto error;
@@ -77,6 +78,8 @@ static int debuginfo__init_offline_dwarf(struct debuginfo *dbg,
 	dbg->dbg = dwfl_module_getdwarf(dbg->mod, &dbg->bias);
 	if (!dbg->dbg)
 		goto error;
+
+	dwfl_report_end(dbg->dwfl, NULL, NULL);
 
 	return 0;
 error:
