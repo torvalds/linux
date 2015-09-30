@@ -232,10 +232,11 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 
 	/*
 	 * Only reinitialize corresponding vblank timestamp if high-precision query
-	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
-	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
+	 * available and didn't fail, or we were called from the vblank interrupt.
+	 * Otherwise reinitialize delayed at next vblank interrupt and assign 0
+	 * for now, to mark the vblanktimestamp as invalid.
 	 */
-	if (!rc)
+	if (!rc && (flags & DRM_CALLED_FROM_VBLIRQ) == 0)
 		t_vblank = (struct timeval) {0, 0};
 
 	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);
