@@ -473,7 +473,7 @@ static int do_test_code_reading(bool try_kcore)
 		symbol_conf.kallsyms_name = "/proc/kallsyms";
 
 	/* Load kernel map */
-	map = machine__kernel_map(machine, MAP__FUNCTION);
+	map = machine__kernel_map(machine);
 	ret = map__load(map, NULL);
 	if (ret < 0) {
 		pr_debug("map__load failed\n");

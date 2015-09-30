@@ -235,7 +235,7 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
  */
 bool __map__is_kernel(const struct map *map)
 {
-	return machine__kernel_map(map->groups->machine, map->type) == map;
+	return __machine__kernel_map(map->groups->machine, map->type) == map;
 }
 
 static void map__exit(struct map *map)
