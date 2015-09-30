@@ -201,7 +201,7 @@ static int vic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 		return -EPERM;
 	irq_set_chip_and_handler(irq, &vic_chip, handle_level_irq);
 	irq_set_chip_data(irq, v->base);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 	return handled;
 }
 
-static void vic_handle_irq_cascaded(unsigned int irq, struct irq_desc *desc)
+static void vic_handle_irq_cascaded(struct irq_desc *desc)
 {
 	u32 stat, hwirq;
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);

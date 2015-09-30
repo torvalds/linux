@@ -304,17 +304,16 @@ static struct irq_chip tilegx_legacy_irq_chip = {
  * to Linux which just calls handle_level_irq() after clearing the
  * MAC INTx Assert status bit associated with this interrupt.
  */
-static void trio_handle_level_irq(unsigned int __irq, struct irq_desc *desc)
+static void trio_handle_level_irq(struct irq_desc *desc)
 {
 	struct pci_controller *controller = irq_desc_get_handler_data(desc);
 	gxio_trio_context_t *trio_context = controller->trio;
 	uint64_t intx = (uint64_t)irq_desc_get_chip_data(desc);
-	unsigned int irq = irq_desc_get_irq(desc);
 	int mac = controller->mac;
 	unsigned int reg_offset;
 	uint64_t level_mask;
 
-	handle_level_irq(irq, desc);
+	handle_level_irq(desc);
 
 	/*
 	 * Clear the INTx Level status, otherwise future interrupts are

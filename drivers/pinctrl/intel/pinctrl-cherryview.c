@@ -1414,7 +1414,7 @@ static struct irq_chip chv_gpio_irqchip = {
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static void chv_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct chv_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
