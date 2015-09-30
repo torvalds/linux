@@ -421,7 +421,7 @@ msm_find_best_baud(struct uart_port *port, unsigned int baud)
 
 static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
-	unsigned int rxstale, watermark;
+	unsigned int rxstale, watermark, mask;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 	const struct msm_baud_map *entry;
 
@@ -432,8 +432,15 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 	/* RX stale watermark */
 	rxstale = entry->rxstale;
 	watermark = UART_IPR_STALE_LSB & rxstale;
-	watermark |= UART_IPR_RXSTALE_LAST;
-	watermark |= UART_IPR_STALE_TIMEOUT_MSB & (rxstale << 2);
+	if (msm_port->is_uartdm) {
+		mask = UART_DM_IPR_STALE_TIMEOUT_MSB;
+	} else {
+		watermark |= UART_IPR_RXSTALE_LAST;
+		mask = UART_IPR_STALE_TIMEOUT_MSB;
+	}
+
+	watermark |= mask & (rxstale << 2);
+
 	msm_write(port, watermark, UART_IPR);
 
 	/* set RX watermark */
@@ -476,7 +483,7 @@ static void msm_init_clock(struct uart_port *port)
 static int msm_startup(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
-	unsigned int data, rfr_level;
+	unsigned int data, rfr_level, mask;
 	int ret;
 
 	snprintf(msm_port->name, sizeof(msm_port->name),
@@ -496,11 +503,18 @@ static int msm_startup(struct uart_port *port)
 
 	/* set automatic RFR level */
 	data = msm_read(port, UART_MR1);
-	data &= ~UART_MR1_AUTO_RFR_LEVEL1;
+
+	if (msm_port->is_uartdm)
+		mask = UART_DM_MR1_AUTO_RFR_LEVEL1;
+	else
+		mask = UART_MR1_AUTO_RFR_LEVEL1;
+
+	data &= ~mask;
 	data &= ~UART_MR1_AUTO_RFR_LEVEL0;
-	data |= UART_MR1_AUTO_RFR_LEVEL1 & (rfr_level << 2);
+	data |= mask & (rfr_level << 2);
 	data |= UART_MR1_AUTO_RFR_LEVEL0 & rfr_level;
 	msm_write(port, data, UART_MR1);
+
 	return 0;
 }
 
