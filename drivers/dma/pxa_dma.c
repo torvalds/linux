@@ -1186,6 +1186,16 @@ static unsigned int pxad_residue(struct pxad_chan *chan,
 	else
 		curr = phy_readl_relaxed(chan->phy, DTADR);
 
+	/*
+	 * curr has to be actually read before checking descriptor
+	 * completion, so that a curr inside a status updater
+	 * descriptor implies the following test returns true, and
+	 * preventing reordering of curr load and the test.
+	 */
+	rmb();
+	if (is_desc_completed(vd))
+		goto out;
+
 	for (i = 0; i < sw_desc->nb_desc - 1; i++) {
 		hw_desc = sw_desc->hw_desc[i];
 		if (sw_desc->hw_desc[0]->dcmd & PXA_DCMD_INCSRCADDR)
