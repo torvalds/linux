@@ -36,7 +36,7 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_pager();
 
-	if (!raw_dump)
+	if (!raw_dump && pager_in_use())
 		printf("\nList of pre-defined events (to be used in -e):\n\n");
 
 	if (argc == 0) {

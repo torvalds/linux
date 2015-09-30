@@ -1534,7 +1534,7 @@ restart:
 		printf("  %-50s [%s]\n", evt_list[evt_i++],
 				event_type_descriptors[PERF_TYPE_TRACEPOINT]);
 	}
-	if (evt_num)
+	if (evt_num && pager_in_use())
 		printf("\n");
 
 out_free:
@@ -1690,7 +1690,7 @@ restart:
 		printf("  %-50s [%s]\n", evt_list[evt_i++],
 				event_type_descriptors[PERF_TYPE_HW_CACHE]);
 	}
-	if (evt_num)
+	if (evt_num && pager_in_use())
 		printf("\n");
 
 out_free:
@@ -1763,7 +1763,7 @@ restart:
 		}
 		printf("  %-50s [%s]\n", evt_list[evt_i++], event_type_descriptors[type]);
 	}
-	if (evt_num)
+	if (evt_num && pager_in_use())
 		printf("\n");
 
 out_free:
@@ -1804,13 +1804,14 @@ void print_events(const char *event_glob, bool name_only)
 		printf("  %-50s [%s]\n",
 		       "cpu/t1=v1[,t2=v2,t3 ...]/modifier",
 		       event_type_descriptors[PERF_TYPE_RAW]);
-		printf("   (see 'man perf-list' on how to encode it)\n");
-		printf("\n");
+		if (pager_in_use())
+			printf("   (see 'man perf-list' on how to encode it)\n\n");
 
 		printf("  %-50s [%s]\n",
 		       "mem:<addr>[/len][:access]",
 			event_type_descriptors[PERF_TYPE_BREAKPOINT]);
-		printf("\n");
+		if (pager_in_use())
+			printf("\n");
 	}
 
 	print_tracepoint_events(NULL, NULL, name_only);
