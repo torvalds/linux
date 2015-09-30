@@ -119,6 +119,7 @@ struct net_bridge_vlan {
  * @vlan_hash: VLAN entry rhashtable
  * @vlan_list: sorted VLAN entry list
  * @num_vlans: number of total VLAN entries
+ * @pvid: PVID VLAN id
  *
  * IMPORTANT: Be careful when checking if there're VLAN entries using list
  *            primitives because the bridge can have entries in its list which
@@ -130,6 +131,7 @@ struct net_bridge_vlan_group {
 	struct rhashtable		vlan_hash;
 	struct list_head		vlan_list;
 	u16				num_vlans;
+	u16				pvid;
 };
 
 struct net_bridge_fdb_entry
@@ -228,7 +230,6 @@ struct net_bridge_port
 #endif
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	*vlgrp;
-	u16				pvid;
 #endif
 };
 
@@ -340,7 +341,6 @@ struct net_bridge
 	u8				vlan_enabled;
 	__be16				vlan_proto;
 	u16				default_pvid;
-	u16				pvid;
 #endif
 };
 
@@ -670,10 +670,10 @@ static inline void br_mdb_uninit(void)
 
 /* br_vlan.c */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
-bool br_allowed_ingress(struct net_bridge *br, struct sk_buff *skb, u16 *vid);
-bool nbp_allowed_ingress(struct net_bridge_port *p, struct sk_buff *skb,
-			 u16 *vid);
-bool br_allowed_egress(struct net_bridge_vlan_group *br,
+bool br_allowed_ingress(const struct net_bridge *br,
+			struct net_bridge_vlan_group *vg, struct sk_buff *skb,
+			u16 *vid);
+bool br_allowed_egress(struct net_bridge_vlan_group *vg,
 		       const struct sk_buff *skb);
 bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid);
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
@@ -725,22 +725,13 @@ static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
 	return err;
 }
 
-static inline u16 br_get_pvid(const struct net_bridge *br)
+static inline u16 br_get_pvid(const struct net_bridge_vlan_group *vg)
 {
-	if (!br)
+	if (!vg)
 		return 0;
 
 	smp_rmb();
-	return br->pvid;
-}
-
-static inline u16 nbp_get_pvid(const struct net_bridge_port *p)
-{
-	if (!p)
-		return 0;
-
-	smp_rmb();
-	return p->pvid;
+	return vg->pvid;
 }
 
 static inline int br_vlan_enabled(struct net_bridge *br)
@@ -748,16 +739,10 @@ static inline int br_vlan_enabled(struct net_bridge *br)
 	return br->vlan_enabled;
 }
 #else
-static inline bool br_allowed_ingress(struct net_bridge *br,
+static inline bool br_allowed_ingress(const struct net_bridge *br,
+				      struct net_bridge_vlan_group *vg,
 				      struct sk_buff *skb,
 				      u16 *vid)
-{
-	return true;
-}
-
-static inline bool nbp_allowed_ingress(struct net_bridge_port *p,
-				       struct sk_buff *skb,
-				       u16 *vid)
 {
 	return true;
 }
@@ -834,12 +819,7 @@ static inline u16 br_vlan_get_tag(const struct sk_buff *skb, u16 *tag)
 	return 0;
 }
 
-static inline u16 br_get_pvid(const struct net_bridge *br)
-{
-	return 0;
-}
-
-static inline u16 nbp_get_pvid(const struct net_bridge_port *p)
+static inline u16 br_get_pvid(const struct net_bridge_vlan_group *vg)
 {
 	return 0;
 }

@@ -22,17 +22,17 @@
 #include "br_private_stp.h"
 
 static int __get_num_vlan_infos(struct net_bridge_vlan_group *vg,
-				u32 filter_mask,
-				u16 pvid)
+				u32 filter_mask)
 {
 	struct net_bridge_vlan *v;
 	u16 vid_range_start = 0, vid_range_end = 0, vid_range_flags = 0;
-	u16 flags;
+	u16 flags, pvid;
 	int num_vlans = 0;
 
 	if (!(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
 		return 0;
 
+	pvid = br_get_pvid(vg);
 	/* Count number of vlan infos */
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		flags = 0;
@@ -74,7 +74,7 @@ initvars:
 }
 
 static int br_get_num_vlan_infos(struct net_bridge_vlan_group *vg,
-				 u32 filter_mask, u16 pvid)
+				 u32 filter_mask)
 {
 	if (!vg)
 		return 0;
@@ -82,7 +82,7 @@ static int br_get_num_vlan_infos(struct net_bridge_vlan_group *vg,
 	if (filter_mask & RTEXT_FILTER_BRVLAN)
 		return vg->num_vlans;
 
-	return __get_num_vlan_infos(vg, filter_mask, pvid);
+	return __get_num_vlan_infos(vg, filter_mask);
 }
 
 static size_t br_get_link_af_size_filtered(const struct net_device *dev,
@@ -92,19 +92,16 @@ static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 	struct net_bridge_port *p;
 	struct net_bridge *br;
 	int num_vlan_infos;
-	u16 pvid = 0;
 
 	rcu_read_lock();
 	if (br_port_exists(dev)) {
 		p = br_port_get_rcu(dev);
 		vg = nbp_vlan_group(p);
-		pvid = nbp_get_pvid(p);
 	} else if (dev->priv_flags & IFF_EBRIDGE) {
 		br = netdev_priv(dev);
 		vg = br_vlan_group(br);
-		pvid = br_get_pvid(br);
 	}
-	num_vlan_infos = br_get_num_vlan_infos(vg, filter_mask, pvid);
+	num_vlan_infos = br_get_num_vlan_infos(vg, filter_mask);
 	rcu_read_unlock();
 
 	/* Each VLAN is returned in bridge_vlan_info along with flags */
@@ -196,18 +193,18 @@ nla_put_failure:
 }
 
 static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
-					 struct net_bridge_vlan_group *vg,
-					 u16 pvid)
+					 struct net_bridge_vlan_group *vg)
 {
 	struct net_bridge_vlan *v;
 	u16 vid_range_start = 0, vid_range_end = 0, vid_range_flags = 0;
-	u16 flags;
+	u16 flags, pvid;
 	int err = 0;
 
 	/* Pack IFLA_BRIDGE_VLAN_INFO's for every vlan
 	 * and mark vlan info with begin and end flags
 	 * if vlaninfo represents a range
 	 */
+	pvid = br_get_pvid(vg);
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		flags = 0;
 		if (!br_vlan_should_use(v))
@@ -251,12 +248,13 @@ initvars:
 }
 
 static int br_fill_ifvlaninfo(struct sk_buff *skb,
-			      struct net_bridge_vlan_group *vg,
-			      u16 pvid)
+			      struct net_bridge_vlan_group *vg)
 {
 	struct bridge_vlan_info vinfo;
 	struct net_bridge_vlan *v;
+	u16 pvid;
 
+	pvid = br_get_pvid(vg);
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		if (!br_vlan_should_use(v))
 			continue;
@@ -338,16 +336,12 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
 		struct net_bridge_vlan_group *vg;
 		struct nlattr *af;
-		u16 pvid;
 		int err;
 
-		if (port) {
+		if (port)
 			vg = nbp_vlan_group(port);
-			pvid = nbp_get_pvid(port);
-		} else {
+		else
 			vg = br_vlan_group(br);
-			pvid = br_get_pvid(br);
-		}
 
 		if (!vg || !vg->num_vlans)
 			goto done;
@@ -357,9 +351,9 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
-			err = br_fill_ifvlaninfo_compressed(skb, vg, pvid);
+			err = br_fill_ifvlaninfo_compressed(skb, vg);
 		else
-			err = br_fill_ifvlaninfo(skb, vg, pvid);
+			err = br_fill_ifvlaninfo(skb, vg);
 		if (err)
 			goto nla_put_failure;
 		nla_nest_end(skb, af);
@@ -884,11 +878,11 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	if (br_port_exists(dev)) {
 		p = br_port_get_rtnl(dev);
 		num_vlans = br_get_num_vlan_infos(nbp_vlan_group(p),
-						  RTEXT_FILTER_BRVLAN, 0);
+						  RTEXT_FILTER_BRVLAN);
 	} else if (dev->priv_flags & IFF_EBRIDGE) {
 		br = netdev_priv(dev);
 		num_vlans = br_get_num_vlan_infos(br_vlan_group(br),
-						  RTEXT_FILTER_BRVLAN, 0);
+						  RTEXT_FILTER_BRVLAN);
 	}
 
 	/* Each VLAN is returned in bridge_vlan_info along with flags */
