@@ -726,7 +726,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 	edesc = echan->edesc;
 
 	/* Pause the channel for non-cyclic */
-	if (!edesc || (edesc && !edesc->cyclic))
+	if (!edesc || !edesc->cyclic)
 		edma_pause(echan->ch_num);
 
 	switch (ch_status) {
