@@ -389,7 +389,7 @@ union message_body {
 	struct op_mode mode;
 	struct set_mac_addr set_mac_info;
 	struct get_mac_addr get_mac_info;
-	struct ba_session_info strHostIfBASessionInfo;
+	struct ba_session_info session_info;
 	struct remain_ch strHostIfRemainOnChan;
 	struct reg_frame strHostIfRegisterFrame;
 	char *pUserData;
@@ -4204,11 +4204,11 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_ADD_BA_SESSION:
-			Handle_AddBASession(msg.drvHandler, &msg.body.strHostIfBASessionInfo);
+			Handle_AddBASession(msg.drvHandler, &msg.body.session_info);
 			break;
 
 		case HOST_IF_MSG_DEL_ALL_RX_BA_SESSIONS:
-			Handle_DelAllRxBASessions(msg.drvHandler, &msg.body.strHostIfBASessionInfo);
+			Handle_DelAllRxBASessions(msg.drvHandler, &msg.body.session_info);
 			break;
 
 		case HOST_IF_MSG_DEL_ALL_STA:
@@ -7119,7 +7119,7 @@ static int host_int_addBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TI
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
@@ -7150,7 +7150,7 @@ s32 host_int_delBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID)
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
@@ -7180,7 +7180,7 @@ s32 host_int_del_All_Rx_BASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char T
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.strHostIfBASessionInfo;
+	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
 
 	if (pstrWFIDrv == NULL) {
 		PRINT_ER("driver is null\n");
