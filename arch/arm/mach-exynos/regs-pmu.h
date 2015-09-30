@@ -513,6 +513,12 @@ static inline unsigned int exynos_pmu_cpunr(unsigned int mpidr)
 #define SPREAD_ENABLE						0xF
 #define SPREAD_USE_STANDWFI					0xF
 
+#define EXYNOS5420_KFC_CORE_RESET0				BIT(8)
+#define EXYNOS5420_KFC_ETM_RESET0				BIT(20)
+
+#define EXYNOS5420_KFC_CORE_RESET(_nr)				\
+	((EXYNOS5420_KFC_CORE_RESET0 | EXYNOS5420_KFC_ETM_RESET0) << (_nr))
+
 #define EXYNOS5420_BB_CON1					0x0784
 #define EXYNOS5420_BB_SEL_EN					BIT(31)
 #define EXYNOS5420_BB_PMOS_EN					BIT(7)
