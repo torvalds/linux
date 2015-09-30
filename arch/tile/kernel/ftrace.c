@@ -117,7 +117,7 @@ static int ftrace_modify_code(unsigned long pc, unsigned long old,
 		return -EINVAL;
 
 	/* Operate on writable kernel text mapping. */
-	pc_wr = pc - MEM_SV_START + PAGE_OFFSET;
+	pc_wr = ktext_writable_addr(pc);
 
 	if (probe_kernel_write((void *)pc_wr, &new, MCOUNT_INSN_SIZE))
 		return -EPERM;
