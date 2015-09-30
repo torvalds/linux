@@ -964,6 +964,9 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
+	if (perf_session__register_idle_thread(top->session) == NULL)
+		goto out_delete;
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
 
