@@ -197,7 +197,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 		masterv = br_vlan_find(br->vlgrp, v->vid);
 		if (!masterv) {
 			/* missing global ctx, create it now */
-			err = br_vlan_add(br, v->vid, master_flags);
+			err = br_vlan_add(br, v->vid, 0);
 			if (err)
 				goto out_filt;
 			masterv = br_vlan_find(br->vlgrp, v->vid);
