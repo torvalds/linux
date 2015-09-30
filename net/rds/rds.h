@@ -86,7 +86,9 @@ struct rds_connection {
 	struct hlist_node	c_hash_node;
 	__be32			c_laddr;
 	__be32			c_faddr;
-	unsigned int		c_loopback:1;
+	unsigned int		c_loopback:1,
+				c_outgoing:1,
+				c_pad_to_32:30;
 	struct rds_connection	*c_passive;
 
 	struct rds_cong_map	*c_lcong;
