@@ -283,7 +283,7 @@ struct nf_afinfo {
 				 struct flowi *fl, bool strict);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
-	int		(*reroute)(struct sk_buff *skb,
+	int		(*reroute)(struct net *net, struct sk_buff *skb,
 				   const struct nf_queue_entry *entry);
 	int		route_key_size;
 };

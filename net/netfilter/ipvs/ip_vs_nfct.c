@@ -161,7 +161,7 @@ static void ip_vs_nfct_expect_callback(struct nf_conn *ct,
 
 	/* RS->CLIENT */
 	orig = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	ip_vs_conn_fill_param(net, exp->tuple.src.l3num, orig->dst.protonum,
+	ip_vs_conn_fill_param(net_ipvs(net), exp->tuple.src.l3num, orig->dst.protonum,
 			      &orig->src.u3, orig->src.u.tcp.port,
 			      &orig->dst.u3, orig->dst.u.tcp.port, &p);
 	cp = ip_vs_conn_out_get(&p);
@@ -274,8 +274,7 @@ void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 		" for conn " FMT_CONN "\n",
 		__func__, ARG_TUPLE(&tuple), ARG_CONN(cp));
 
-	h = nf_conntrack_find_get(ip_vs_conn_net(cp), &nf_ct_zone_dflt,
-				  &tuple);
+	h = nf_conntrack_find_get(cp->ipvs->net, &nf_ct_zone_dflt, &tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		/* Show what happens instead of calling nf_ct_kill() */

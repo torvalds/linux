@@ -189,10 +189,9 @@ static inline void nf_bridge_pull_encap_header_rcsum(struct sk_buff *skb)
  * expected format
  */
 
-static int br_validate_ipv4(struct sk_buff *skb)
+static int br_validate_ipv4(struct net *net, struct sk_buff *skb)
 {
 	const struct iphdr *iph;
-	struct net_device *dev = skb->dev;
 	u32 len;
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
@@ -213,13 +212,13 @@ static int br_validate_ipv4(struct sk_buff *skb)
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len) {
-		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INTRUNCATEDPKTS);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_INTRUNCATEDPKTS);
 		goto drop;
 	} else if (len < (iph->ihl*4))
 		goto inhdr_error;
 
 	if (pskb_trim_rcsum(skb, len)) {
-		IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INDISCARDS);
+		IP_INC_STATS_BH(net, IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
 
@@ -232,7 +231,7 @@ static int br_validate_ipv4(struct sk_buff *skb)
 	return 0;
 
 inhdr_error:
-	IP_INC_STATS_BH(dev_net(dev), IPSTATS_MIB_INHDRERRORS);
+	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
 drop:
 	return -1;
 }
@@ -497,7 +496,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 
 	nf_bridge_pull_encap_header_rcsum(skb);
 
-	if (br_validate_ipv4(skb))
+	if (br_validate_ipv4(state->net, skb))
 		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
@@ -609,13 +608,13 @@ static unsigned int br_nf_forward_ip(void *priv,
 	}
 
 	if (pf == NFPROTO_IPV4) {
-		if (br_validate_ipv4(skb))
+		if (br_validate_ipv4(state->net, skb))
 			return NF_DROP;
 		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
 	}
 
 	if (pf == NFPROTO_IPV6) {
-		if (br_validate_ipv6(skb))
+		if (br_validate_ipv6(state->net, skb))
 			return NF_DROP;
 		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
 	}
@@ -747,7 +746,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 	if (skb->protocol == htons(ETH_P_IP)) {
 		struct brnf_frag_data *data;
 
-		if (br_validate_ipv4(skb))
+		if (br_validate_ipv4(net, skb))
 			goto drop;
 
 		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
@@ -772,7 +771,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 		const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 		struct brnf_frag_data *data;
 
-		if (br_validate_ipv6(skb))
+		if (br_validate_ipv6(net, skb))
 			goto drop;
 
 		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
