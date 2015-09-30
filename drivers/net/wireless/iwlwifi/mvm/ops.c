@@ -589,6 +589,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	ieee80211_unregister_hw(mvm->hw);
 	iwl_mvm_leds_exit(mvm);
  out_free:
+	flush_delayed_work(&mvm->fw_dump_wk);
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
 	if (!cfg->no_power_up_nic_in_init || !mvm->nvm_file_name)
