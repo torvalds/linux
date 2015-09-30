@@ -337,6 +337,7 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	char *buf;
 	char *entry;
 	int ret;
+	unsigned entry_len;
 
 	if (*ppos < 0 || !count)
 		return -EINVAL;
@@ -364,18 +365,18 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	p = 0;
 	mutex_lock(&map->cache_lock);
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
-		snprintf(entry, PAGE_SIZE, "%x-%x",
-			 c->base_reg, c->max_reg);
+		entry_len = snprintf(entry, PAGE_SIZE, "%x-%x",
+				     c->base_reg, c->max_reg);
 		if (p >= *ppos) {
-			if (buf_pos + 1 + strlen(entry) > count)
+			if (buf_pos + 1 + entry_len > count)
 				break;
 			snprintf(buf + buf_pos, count - buf_pos,
 				 "%s", entry);
-			buf_pos += strlen(entry);
+			buf_pos += entry_len;
 			buf[buf_pos] = '\n';
 			buf_pos++;
 		}
-		p += strlen(entry) + 1;
+		p += entry_len + 1;
 	}
 	mutex_unlock(&map->cache_lock);
 
