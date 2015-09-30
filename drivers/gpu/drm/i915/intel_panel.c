@@ -536,9 +536,10 @@ static u32 vlv_get_backlight(struct intel_connector *connector)
 static u32 bxt_get_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
+	struct intel_panel *panel = &connector->panel;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	return I915_READ(BXT_BLC_PWM_DUTY1);
+	return I915_READ(BXT_BLC_PWM_DUTY(panel->backlight.controller));
 }
 
 static u32 pwm_get_backlight(struct intel_connector *connector)
@@ -634,8 +635,9 @@ static void bxt_set_backlight(struct intel_connector *connector, u32 level)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_panel *panel = &connector->panel;
 
-	I915_WRITE(BXT_BLC_PWM_DUTY1, level);
+	I915_WRITE(BXT_BLC_PWM_DUTY(panel->backlight.controller), level);
 }
 
 static void pwm_set_backlight(struct intel_connector *connector, u32 level)
@@ -786,12 +788,20 @@ static void bxt_disable_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 tmp;
+	struct intel_panel *panel = &connector->panel;
+	u32 tmp, val;
 
 	intel_panel_actually_set_backlight(connector, 0);
 
-	tmp = I915_READ(BXT_BLC_PWM_CTL1);
-	I915_WRITE(BXT_BLC_PWM_CTL1, tmp & ~BXT_BLC_PWM_ENABLE);
+	tmp = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+			tmp & ~BXT_BLC_PWM_ENABLE);
+
+	if (panel->backlight.controller == 1) {
+		val = I915_READ(UTIL_PIN_CTL);
+		val &= ~UTIL_PIN_ENABLE;
+		I915_WRITE(UTIL_PIN_CTL, val);
+	}
 }
 
 static void pwm_disable_backlight(struct intel_connector *connector)
@@ -1023,16 +1033,38 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
-	u32 pwm_ctl;
+	enum pipe pipe = intel_get_pipe_from_connector(connector);
+	u32 pwm_ctl, val;
 
-	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL1);
+	/* To use 2nd set of backlight registers, utility pin has to be
+	 * enabled with PWM mode.
+	 * The field should only be changed when the utility pin is disabled
+	 */
+	if (panel->backlight.controller == 1) {
+		val = I915_READ(UTIL_PIN_CTL);
+		if (val & UTIL_PIN_ENABLE) {
+			DRM_DEBUG_KMS("util pin already enabled\n");
+			val &= ~UTIL_PIN_ENABLE;
+			I915_WRITE(UTIL_PIN_CTL, val);
+		}
+
+		val = 0;
+		if (panel->backlight.util_pin_active_low)
+			val |= UTIL_PIN_POLARITY;
+		I915_WRITE(UTIL_PIN_CTL, val | UTIL_PIN_PIPE(pipe) |
+				UTIL_PIN_MODE_PWM | UTIL_PIN_ENABLE);
+	}
+
+	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
 	if (pwm_ctl & BXT_BLC_PWM_ENABLE) {
 		DRM_DEBUG_KMS("backlight already enabled\n");
 		pwm_ctl &= ~BXT_BLC_PWM_ENABLE;
-		I915_WRITE(BXT_BLC_PWM_CTL1, pwm_ctl);
+		I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+				pwm_ctl);
 	}
 
-	I915_WRITE(BXT_BLC_PWM_FREQ1, panel->backlight.max);
+	I915_WRITE(BXT_BLC_PWM_FREQ(panel->backlight.controller),
+			panel->backlight.max);
 
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
 
@@ -1040,9 +1072,10 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 	if (panel->backlight.active_low_pwm)
 		pwm_ctl |= BXT_BLC_PWM_POLARITY;
 
-	I915_WRITE(BXT_BLC_PWM_CTL1, pwm_ctl);
-	POSTING_READ(BXT_BLC_PWM_CTL1);
-	I915_WRITE(BXT_BLC_PWM_CTL1, pwm_ctl | BXT_BLC_PWM_ENABLE);
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller), pwm_ctl);
+	POSTING_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+	I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
+			pwm_ctl | BXT_BLC_PWM_ENABLE);
 }
 
 static void pwm_enable_backlight(struct intel_connector *connector)
@@ -1562,10 +1595,28 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	struct intel_panel *panel = &connector->panel;
 	u32 pwm_ctl, val;
 
-	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL1);
-	panel->backlight.active_low_pwm = pwm_ctl & BXT_BLC_PWM_POLARITY;
+	/*
+	 * For BXT hard coding the Backlight controller to 0.
+	 * TODO : Read the controller value from VBT and generalize
+	 */
+	panel->backlight.controller = 0;
 
-	panel->backlight.max = I915_READ(BXT_BLC_PWM_FREQ1);
+	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
+
+	/* Keeping the check if controller 1 is to be programmed.
+	 * This will come into affect once the VBT parsing
+	 * is fixed for controller selection, and controller 1 is used
+	 * for a prticular display configuration.
+	 */
+	if (panel->backlight.controller == 1) {
+		val = I915_READ(UTIL_PIN_CTL);
+		panel->backlight.util_pin_active_low =
+					val & UTIL_PIN_POLARITY;
+	}
+
+	panel->backlight.active_low_pwm = pwm_ctl & BXT_BLC_PWM_POLARITY;
+	panel->backlight.max =
+		I915_READ(BXT_BLC_PWM_FREQ(panel->backlight.controller));
 
 	if (!panel->backlight.max)
 		panel->backlight.max = get_backlight_max_vbt(connector);

@@ -3627,17 +3627,29 @@ enum skl_disp_power_wells {
 #define UTIL_PIN_CTL		0x48400
 #define   UTIL_PIN_ENABLE	(1 << 31)
 
+#define   UTIL_PIN_PIPE(x)     ((x) << 29)
+#define   UTIL_PIN_PIPE_MASK   (3 << 29)
+#define   UTIL_PIN_MODE_PWM    (1 << 24)
+#define   UTIL_PIN_MODE_MASK   (0xf << 24)
+#define   UTIL_PIN_POLARITY    (1 << 22)
+
 /* BXT backlight register definition. */
-#define BXT_BLC_PWM_CTL1			0xC8250
+#define _BXT_BLC_PWM_CTL1			0xC8250
 #define   BXT_BLC_PWM_ENABLE			(1 << 31)
 #define   BXT_BLC_PWM_POLARITY			(1 << 29)
-#define BXT_BLC_PWM_FREQ1			0xC8254
-#define BXT_BLC_PWM_DUTY1			0xC8258
+#define _BXT_BLC_PWM_FREQ1			0xC8254
+#define _BXT_BLC_PWM_DUTY1			0xC8258
 
-#define BXT_BLC_PWM_CTL2			0xC8350
-#define BXT_BLC_PWM_FREQ2			0xC8354
-#define BXT_BLC_PWM_DUTY2			0xC8358
+#define _BXT_BLC_PWM_CTL2			0xC8350
+#define _BXT_BLC_PWM_FREQ2			0xC8354
+#define _BXT_BLC_PWM_DUTY2			0xC8358
 
+#define BXT_BLC_PWM_CTL(controller)    _PIPE(controller, \
+					_BXT_BLC_PWM_CTL1, _BXT_BLC_PWM_CTL2)
+#define BXT_BLC_PWM_FREQ(controller)   _PIPE(controller, \
+					_BXT_BLC_PWM_FREQ1, _BXT_BLC_PWM_FREQ2)
+#define BXT_BLC_PWM_DUTY(controller)   _PIPE(controller, \
+					_BXT_BLC_PWM_DUTY1, _BXT_BLC_PWM_DUTY2)
 
 #define PCH_GTC_CTL		0xe7000
 #define   PCH_GTC_ENABLE	(1 << 31)

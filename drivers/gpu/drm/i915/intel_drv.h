@@ -179,6 +179,8 @@ struct intel_panel {
 		bool active_low_pwm;
 
 		/* PWM chip */
+		bool util_pin_active_low;	/* bxt+ */
+		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
 
 		struct backlight_device *device;
