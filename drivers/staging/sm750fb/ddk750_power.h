@@ -19,8 +19,6 @@ DPMS_t;
 
 void ddk750_setDPMS(DPMS_t);
 
-unsigned int getPowerMode(void);
-
 /*
  * This function sets the current power mode
  */
