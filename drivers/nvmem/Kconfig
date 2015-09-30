@@ -36,4 +36,14 @@ config NVMEM_SUNXI_SID
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
 
+config NVMEM_VF610_OCOTP
+	tristate "VF610 SoC OCOTP support"
+	depends on SOC_VF610 || COMPILE_TEST
+	help
+	  This is a driver for the 'OCOTP' peripheral available on Vybrid
+	  devices like VF5xx and VF6xx.
+
+	  This driver can also be build as a module. If so, the module will
+	  be called nvmem-vf610-ocotp.
+
 endif
