@@ -258,6 +258,11 @@ unsigned long long ns2usecs(cycle_t nsec)
 	 TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |			\
 	 TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS)
 
+/* trace_options that are only supported by global_trace */
+#define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER_PRINTK |			\
+	       TRACE_ITER_PRINTK_MSGONLY | TRACE_ITER_RECORD_CMD)
+
+
 /*
  * The global_trace is the descriptor that holds the tracing
  * buffers for the live tracing. For each CPU, it contains
@@ -6387,17 +6392,21 @@ create_trace_option_core_file(struct trace_array *tr,
 				 &trace_options_core_fops);
 }
 
-static __init void create_trace_options_dir(struct trace_array *tr)
+static void create_trace_options_dir(struct trace_array *tr)
 {
 	struct dentry *t_options;
+	bool top_level = tr == &global_trace;
 	int i;
 
 	t_options = trace_options_init_dentry(tr);
 	if (!t_options)
 		return;
 
-	for (i = 0; trace_options[i]; i++)
-		create_trace_option_core_file(tr, trace_options[i], i);
+	for (i = 0; trace_options[i]; i++) {
+		if (top_level ||
+		    !((1 << i) & TOP_LEVEL_TRACE_FLAGS))
+			create_trace_option_core_file(tr, trace_options[i], i);
+	}
 }
 
 static ssize_t
@@ -6707,6 +6716,8 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("tracing_on", 0644, d_tracer,
 			  tr, &rb_simple_fops);
 
+	create_trace_options_dir(tr);
+
 #ifdef CONFIG_TRACER_MAX_TRACE
 	trace_create_file("tracing_max_latency", 0644, d_tracer,
 			&tr->max_latency, &tracing_max_lat_fops);
@@ -6902,8 +6913,6 @@ static __init int tracer_init_tracefs(void)
 #endif
 
 	create_trace_instances(d_tracer);
-
-	create_trace_options_dir(&global_trace);
 
 	mutex_lock(&trace_types_lock);
 	for (t = trace_types; t; t = t->next)
