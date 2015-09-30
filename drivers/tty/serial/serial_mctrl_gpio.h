@@ -65,7 +65,8 @@ struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
  * Returns a pointer to the allocated mctrl structure if ok, -ENOMEM on
  * allocation error.
  */
-struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx);
+struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev,
+					   unsigned int idx);
 
 /*
  * Free the mctrl_gpios structure.
@@ -95,7 +96,7 @@ struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
 }
 
 static inline
-struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
+struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 {
 	return ERR_PTR(-ENOSYS);
 }

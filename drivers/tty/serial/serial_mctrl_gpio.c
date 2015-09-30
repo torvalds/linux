@@ -82,7 +82,7 @@ unsigned int mctrl_gpio_get(struct mctrl_gpios *gpios, unsigned int *mctrl)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_get);
 
-struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
+struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
@@ -110,7 +110,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
 
 	return gpios;
 }
-EXPORT_SYMBOL_GPL(mctrl_gpio_init);
+EXPORT_SYMBOL_GPL(mctrl_gpio_init_noauto);
 
 void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
 {

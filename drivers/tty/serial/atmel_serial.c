@@ -2692,7 +2692,7 @@ static int atmel_init_gpios(struct atmel_uart_port *p, struct device *dev)
 	enum mctrl_gpio_idx i;
 	struct gpio_desc *gpiod;
 
-	p->gpios = mctrl_gpio_init(dev, 0);
+	p->gpios = mctrl_gpio_init_noauto(dev, 0);
 	if (IS_ERR(p->gpios))
 		return PTR_ERR(p->gpios);
 
