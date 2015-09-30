@@ -25,6 +25,17 @@ config NVMEM_IMX_OCOTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-imx-ocotp.
 
+config NVMEM_MXS_OCOTP
+	tristate "Freescale MXS On-Chip OTP Memory Support"
+	depends on ARCH_MXS || COMPILE_TEST
+	help
+	  If you say Y here, you will get readonly access to the
+	  One Time Programmable memory pages that are stored
+	  on the Freescale i.MX23/i.MX28 processor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-mxs-ocotp.
+
 config QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
