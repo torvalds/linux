@@ -1258,7 +1258,7 @@ struct net_device_ops {
  * @IFF_LIVE_ADDR_CHANGE: device supports hardware address
  *	change when it's running
  * @IFF_MACVLAN: Macvlan device
- * @IFF_VRF_MASTER: device is a VRF master
+ * @IFF_L3MDEV_MASTER: device is an L3 master device
  * @IFF_NO_QUEUE: device can run without qdisc attached
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
  */
@@ -1283,7 +1283,7 @@ enum netdev_priv_flags {
 	IFF_XMIT_DST_RELEASE_PERM	= 1<<17,
 	IFF_IPVLAN_MASTER		= 1<<18,
 	IFF_IPVLAN_SLAVE		= 1<<19,
-	IFF_VRF_MASTER			= 1<<20,
+	IFF_L3MDEV_MASTER		= 1<<20,
 	IFF_NO_QUEUE			= 1<<21,
 	IFF_OPENVSWITCH			= 1<<22,
 };
@@ -1308,7 +1308,7 @@ enum netdev_priv_flags {
 #define IFF_XMIT_DST_RELEASE_PERM	IFF_XMIT_DST_RELEASE_PERM
 #define IFF_IPVLAN_MASTER		IFF_IPVLAN_MASTER
 #define IFF_IPVLAN_SLAVE		IFF_IPVLAN_SLAVE
-#define IFF_VRF_MASTER			IFF_VRF_MASTER
+#define IFF_L3MDEV_MASTER		IFF_L3MDEV_MASTER
 #define IFF_NO_QUEUE			IFF_NO_QUEUE
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
 
@@ -1427,7 +1427,6 @@ enum netdev_priv_flags {
  *	@dn_ptr:	DECnet specific data
  *	@ip6_ptr:	IPv6 specific data
  *	@ax25_ptr:	AX.25 specific data
- *	@vrf_ptr:	VRF specific data
  *	@ieee80211_ptr:	IEEE 802.11 specific data, assign before registering
  *
  *	@last_rx:	Time of last Rx
@@ -1587,6 +1586,9 @@ struct net_device {
 #ifdef CONFIG_NET_SWITCHDEV
 	const struct switchdev_ops *switchdev_ops;
 #endif
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	const struct l3mdev_ops	*l3mdev_ops;
+#endif
 
 	const struct header_ops *header_ops;
 
@@ -1646,7 +1648,6 @@ struct net_device {
 	struct dn_dev __rcu     *dn_ptr;
 	struct inet6_dev __rcu	*ip6_ptr;
 	void			*ax25_ptr;
-	struct net_vrf_dev __rcu *vrf_ptr;
 	struct wireless_dev	*ieee80211_ptr;
 	struct wpan_dev		*ieee802154_ptr;
 #if IS_ENABLED(CONFIG_MPLS_ROUTING)
@@ -3824,9 +3825,9 @@ static inline bool netif_supports_nofcs(struct net_device *dev)
 	return dev->priv_flags & IFF_SUPP_NOFCS;
 }
 
-static inline bool netif_is_vrf(const struct net_device *dev)
+static inline bool netif_is_l3_master(const struct net_device *dev)
 {
-	return dev->priv_flags & IFF_VRF_MASTER;
+	return dev->priv_flags & IFF_L3MDEV_MASTER;
 }
 
 static inline bool netif_is_bridge_master(const struct net_device *dev)
@@ -3837,27 +3838,6 @@ static inline bool netif_is_bridge_master(const struct net_device *dev)
 static inline bool netif_is_ovs_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_OPENVSWITCH;
-}
-
-static inline bool netif_index_is_vrf(struct net *net, int ifindex)
-{
-	bool rc = false;
-
-#if IS_ENABLED(CONFIG_NET_VRF)
-	struct net_device *dev;
-
-	if (ifindex == 0)
-		return false;
-
-	rcu_read_lock();
-
-	dev = dev_get_by_index_rcu(net, ifindex);
-	if (dev)
-		rc = netif_is_vrf(dev);
-
-	rcu_read_unlock();
-#endif
-	return rc;
 }
 
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
