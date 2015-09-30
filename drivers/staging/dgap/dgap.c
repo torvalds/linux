@@ -672,6 +672,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.portstr);
 			p->u.board.portstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtol(s, 0, &p->u.board.port)) {
 				pr_err("bad number for IO port");
@@ -690,6 +691,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.addrstr);
 			p->u.board.addrstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.addr)) {
 				pr_err("bad number for memory address");
@@ -708,6 +710,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.pcibusstr);
 			p->u.board.pcibusstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcibus)) {
 				pr_err("bad number for pci bus");
@@ -719,6 +722,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.pcislotstr);
 			p->u.board.pcislotstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcislot)) {
 				pr_err("bad number for pci slot");
@@ -737,6 +741,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.method);
 			p->u.board.method = kstrdup(s, GFP_KERNEL);
 			p->u.board.v_method = 1;
 			break;
@@ -751,6 +756,7 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
+			kfree(p->u.board.status);
 			p->u.board.status = kstrdup(s, GFP_KERNEL);
 			break;
 
@@ -800,13 +806,15 @@ static int dgap_parsefile(char **in)
 				pr_err("unexpected end of file");
 				return -1;
 			}
-
+			kfree(p->u.board.status);
 			p->u.board.status = kstrdup(s, GFP_KERNEL);
 
 			if (p->type == CNODE) {
+				kfree(p->u.conc.id);
 				p->u.conc.id = kstrdup(s, GFP_KERNEL);
 				p->u.conc.v_id = 1;
 			} else if (p->type == MNODE) {
+				kfree(p->u.module.id);
 				p->u.module.id = kstrdup(s, GFP_KERNEL);
 				p->u.module.v_id = 1;
 			} else {
@@ -1003,6 +1011,7 @@ static int dgap_parsefile(char **in)
 					pr_err("unexpected end of file");
 					return -1;
 				}
+				kfree(p->u.line.cable);
 				p->u.line.cable = kstrdup(s, GFP_KERNEL);
 				p->u.line.v_cable = 1;
 			}
@@ -1044,6 +1053,7 @@ static int dgap_parsefile(char **in)
 					pr_err("unexpected end of file");
 					return -1;
 				}
+				kfree(p->u.conc.connect);
 				p->u.conc.connect = kstrdup(s, GFP_KERNEL);
 				p->u.conc.v_connect = 1;
 			}
