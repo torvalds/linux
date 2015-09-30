@@ -171,6 +171,16 @@ config HID_CHICONY
 	---help---
 	Support for Chicony Tactical pad.
 
+config HID_CORSAIR
+	tristate "Corsair devices"
+	depends on HID && USB && LEDS_CLASS
+	---help---
+	Support for Corsair devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Vengeance K90
+
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on HID && SND
