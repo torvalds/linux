@@ -3131,27 +3131,19 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					       fb->pixel_format);
 	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj, 0);
 
-	/*
-	 * FIXME: intel_plane_state->src, dst aren't set when transitional
-	 * update_plane helpers are called from legacy paths.
-	 * Once full atomic crtc is available, below check can be avoided.
-	 */
-	if (drm_rect_width(&plane_state->src)) {
-		scaler_id = plane_state->scaler_id;
-		src_x = plane_state->src.x1 >> 16;
-		src_y = plane_state->src.y1 >> 16;
-		src_w = drm_rect_width(&plane_state->src) >> 16;
-		src_h = drm_rect_height(&plane_state->src) >> 16;
-		dst_x = plane_state->dst.x1;
-		dst_y = plane_state->dst.y1;
-		dst_w = drm_rect_width(&plane_state->dst);
-		dst_h = drm_rect_height(&plane_state->dst);
+	WARN_ON(drm_rect_width(&plane_state->src) == 0);
 
-		WARN_ON(x != src_x || y != src_y);
-	} else {
-		src_w = intel_crtc->config->pipe_src_w;
-		src_h = intel_crtc->config->pipe_src_h;
-	}
+	scaler_id = plane_state->scaler_id;
+	src_x = plane_state->src.x1 >> 16;
+	src_y = plane_state->src.y1 >> 16;
+	src_w = drm_rect_width(&plane_state->src) >> 16;
+	src_h = drm_rect_height(&plane_state->src) >> 16;
+	dst_x = plane_state->dst.x1;
+	dst_y = plane_state->dst.y1;
+	dst_w = drm_rect_width(&plane_state->dst);
+	dst_h = drm_rect_height(&plane_state->dst);
+
+	WARN_ON(x != src_x || y != src_y);
 
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
