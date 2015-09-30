@@ -415,7 +415,7 @@ struct sta_inactive_t {
  */
 union message_body {
 	struct scan_attr scan_info;
-	struct connect_attr strHostIFconnectAttr;
+	struct connect_attr con_info;
 	struct rcvd_net_info strRcvdNetworkInfo;
 	struct rcvd_async_info strRcvdGnrlAsyncInfo;
 	struct key_attr strHostIFkeyAttr;
@@ -4103,7 +4103,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_CONNECT:
-			Handle_Connect(msg.drvHandler, &msg.body.strHostIFconnectAttr);
+			Handle_Connect(msg.drvHandler, &msg.body.con_info);
 			break;
 
 		case HOST_IF_MSG_FLUSH_CONNECT:
@@ -5084,32 +5084,32 @@ s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 
 	msg.id = HOST_IF_MSG_CONNECT;
 
-	msg.body.strHostIFconnectAttr.u8security = u8security;
-	msg.body.strHostIFconnectAttr.tenuAuth_type = tenuAuth_type;
-	msg.body.strHostIFconnectAttr.u8channel = u8channel;
-	msg.body.strHostIFconnectAttr.pfConnectResult = pfConnectResult;
-	msg.body.strHostIFconnectAttr.pvUserArg = pvUserArg;
-	msg.body.strHostIFconnectAttr.pJoinParams = pJoinParams;
+	msg.body.con_info.u8security = u8security;
+	msg.body.con_info.tenuAuth_type = tenuAuth_type;
+	msg.body.con_info.u8channel = u8channel;
+	msg.body.con_info.pfConnectResult = pfConnectResult;
+	msg.body.con_info.pvUserArg = pvUserArg;
+	msg.body.con_info.pJoinParams = pJoinParams;
 	msg.drvHandler = hWFIDrv;
 
 	if (pu8bssid != NULL) {
-		msg.body.strHostIFconnectAttr.pu8bssid = kmalloc(6, GFP_KERNEL); /* will be deallocated by the receiving thread */
-		memcpy(msg.body.strHostIFconnectAttr.pu8bssid,
+		msg.body.con_info.pu8bssid = kmalloc(6, GFP_KERNEL); /* will be deallocated by the receiving thread */
+		memcpy(msg.body.con_info.pu8bssid,
 			    pu8bssid, 6);
 	}
 
 	if (pu8ssid != NULL) {
-		msg.body.strHostIFconnectAttr.ssidLen = ssidLen;
-		msg.body.strHostIFconnectAttr.pu8ssid = kmalloc(ssidLen, GFP_KERNEL); /* will be deallocated by the receiving thread */
-		memcpy(msg.body.strHostIFconnectAttr.pu8ssid,
+		msg.body.con_info.ssidLen = ssidLen;
+		msg.body.con_info.pu8ssid = kmalloc(ssidLen, GFP_KERNEL); /* will be deallocated by the receiving thread */
+		memcpy(msg.body.con_info.pu8ssid,
 
 			    pu8ssid, ssidLen);
 	}
 
 	if (pu8IEs != NULL) {
-		msg.body.strHostIFconnectAttr.IEsLen = IEsLen;
-		msg.body.strHostIFconnectAttr.pu8IEs = kmalloc(IEsLen, GFP_KERNEL); /* will be deallocated by the receiving thread */
-		memcpy(msg.body.strHostIFconnectAttr.pu8IEs,
+		msg.body.con_info.IEsLen = IEsLen;
+		msg.body.con_info.pu8IEs = kmalloc(IEsLen, GFP_KERNEL); /* will be deallocated by the receiving thread */
+		memcpy(msg.body.con_info.pu8IEs,
 			    pu8IEs, IEsLen);
 	}
 	if (pstrWFIDrv->enuHostIFstate < HOST_IF_CONNECTING)
