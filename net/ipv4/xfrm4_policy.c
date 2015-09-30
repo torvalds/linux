@@ -15,7 +15,7 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
-#include <net/vrf.h>
+#include <net/l3mdev.h>
 
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
@@ -111,10 +111,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	struct flowi4 *fl4 = &fl->u.ip4;
 	int oif = 0;
 
-	if (skb_dst(skb)) {
-		oif = vrf_master_ifindex(skb_dst(skb)->dev) ?
-			: skb_dst(skb)->dev->ifindex;
-	}
+	if (skb_dst(skb))
+		oif = l3mdev_fib_oif(skb_dst(skb)->dev);
 
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;
