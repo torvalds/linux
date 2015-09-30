@@ -882,6 +882,7 @@ msm_find_best_baud(struct uart_port *port, unsigned int baud)
 		{    3, 0xdd,  8 },
 		{    2, 0xee, 16 },
 		{    1, 0xff, 31 },
+		{    0, 0xff, 31 },
 	};
 
 	divisor = uart_get_divisor(port, baud);
@@ -893,15 +894,28 @@ msm_find_best_baud(struct uart_port *port, unsigned int baud)
 	return entry; /* Default to smallest divider */
 }
 
-static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
+static int msm_set_baud_rate(struct uart_port *port, unsigned int baud,
+			     unsigned long *saved_flags)
 {
 	unsigned int rxstale, watermark, mask;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 	const struct msm_baud_map *entry;
+	unsigned long flags;
 
 	entry = msm_find_best_baud(port, baud);
 
 	msm_write(port, entry->code, UART_CSR);
+
+	if (baud > 460800)
+		port->uartclk = baud * 16;
+
+	flags = *saved_flags;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	clk_set_rate(msm_port->clk, port->uartclk);
+
+	spin_lock_irqsave(&port->lock, flags);
+	*saved_flags = flags;
 
 	/* RX stale watermark */
 	rxstale = entry->rxstale;
@@ -1026,8 +1040,8 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 		msm_stop_dma(port, dma);
 
 	/* calculate and set baud rate */
-	baud = uart_get_baud_rate(port, termios, old, 300, 115200);
-	baud = msm_set_baud_rate(port, baud);
+	baud = uart_get_baud_rate(port, termios, old, 300, 4000000);
+	baud = msm_set_baud_rate(port, baud, &flags);
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
 
