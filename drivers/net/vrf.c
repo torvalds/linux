@@ -34,7 +34,6 @@
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/addrconf.h>
-#include <net/vrf.h>
 #include <net/l3mdev.h>
 
 #define DRV_NAME	"vrf"
@@ -44,6 +43,21 @@
 
 #define vrf_master_get_rcu(dev) \
 	((struct net_device *)rcu_dereference(dev->rx_handler_data))
+
+struct slave {
+	struct list_head        list;
+	struct net_device       *dev;
+};
+
+struct slave_queue {
+	struct list_head        all_slaves;
+};
+
+struct net_vrf {
+	struct slave_queue      queue;
+	struct rtable           *rth;
+	u32                     tb_id;
+};
 
 struct pcpu_dstats {
 	u64			tx_pkts;
