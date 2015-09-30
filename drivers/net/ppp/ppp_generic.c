@@ -283,6 +283,8 @@ static int unit_set(struct idr *p, void *ptr, int n);
 static void unit_put(struct idr *p, int n);
 static void *unit_find(struct idr *p, int n);
 
+static const struct net_device_ops ppp_netdev_ops;
+
 static struct class *ppp_class;
 
 /* per net-namespace data */
@@ -919,13 +921,22 @@ static __net_init int ppp_init_net(struct net *net)
 static __net_exit void ppp_exit_net(struct net *net)
 {
 	struct ppp_net *pn = net_generic(net, ppp_net_id);
+	struct net_device *dev;
+	struct net_device *aux;
 	struct ppp *ppp;
 	LIST_HEAD(list);
 	int id;
 
 	rtnl_lock();
+	for_each_netdev_safe(net, dev, aux) {
+		if (dev->netdev_ops == &ppp_netdev_ops)
+			unregister_netdevice_queue(dev, &list);
+	}
+
 	idr_for_each_entry(&pn->units_idr, ppp, id)
-		unregister_netdevice_queue(ppp->dev, &list);
+		/* Skip devices already unregistered by previous loop */
+		if (!net_eq(dev_net(ppp->dev), net))
+			unregister_netdevice_queue(ppp->dev, &list);
 
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
@@ -1017,6 +1028,7 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	proto = npindex_to_proto[npi];
 	put_unaligned_be16(proto, pp);
 
+	skb_scrub_packet(skb, !net_eq(ppp->ppp_net, dev_net(dev)));
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
 	return NETDEV_TX_OK;
@@ -1137,7 +1149,6 @@ static void ppp_setup(struct net_device *dev)
 	dev->tx_queue_len = 3;
 	dev->type = ARPHRD_PPP;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-	dev->features |= NETIF_F_NETNS_LOCAL;
 	netif_keep_dst(dev);
 }
 
@@ -1900,6 +1911,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			skb->dev = ppp->dev;
 			skb->protocol = htons(npindex_to_ethertype[npi]);
 			skb_reset_mac_header(skb);
+			skb_scrub_packet(skb, !net_eq(ppp->ppp_net,
+						      dev_net(ppp->dev)));
 			netif_rx(skb);
 		}
 	}
@@ -2742,6 +2755,7 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 	 */
 	dev_net_set(dev, net);
 
+	rtnl_lock();
 	mutex_lock(&pn->all_ppp_mutex);
 
 	if (unit < 0) {
@@ -2772,7 +2786,7 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 	ppp->file.index = unit;
 	sprintf(dev->name, "ppp%d", unit);
 
-	ret = register_netdev(dev);
+	ret = register_netdevice(dev);
 	if (ret != 0) {
 		unit_put(&pn->units_idr, unit);
 		netdev_err(ppp->dev, "PPP: couldn't register device %s (%d)\n",
@@ -2784,6 +2798,7 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 
 	atomic_inc(&ppp_unit_count);
 	mutex_unlock(&pn->all_ppp_mutex);
+	rtnl_unlock();
 
 	*retp = 0;
 	return ppp;

@@ -51,7 +51,7 @@ static int armada375_usb_phy_init(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops armada375_usb_phy_ops = {
+static const struct phy_ops armada375_usb_phy_ops = {
 	.init = armada375_usb_phy_init,
 	.owner = THIS_MODULE,
 };
@@ -149,7 +149,6 @@ static struct platform_driver armada375_usb_phy_driver = {
 	.driver = {
 		.of_match_table	= of_usb_cluster_table,
 		.name  = "armada-375-usb-cluster",
-		.owner = THIS_MODULE,
 	}
 };
 module_platform_driver(armada375_usb_phy_driver);

@@ -155,7 +155,7 @@ static void etm4_enable_hw(void *info)
 			       drvdata->base + TRCACATRn(i));
 	}
 	for (i = 0; i < drvdata->numcidc; i++)
-		writeq_relaxed(drvdata->ctxid_val[i],
+		writeq_relaxed(drvdata->ctxid_pid[i],
 			       drvdata->base + TRCCIDCVRn(i));
 	writel_relaxed(drvdata->ctxid_mask0, drvdata->base + TRCCIDCCTLR0);
 	writel_relaxed(drvdata->ctxid_mask1, drvdata->base + TRCCIDCCTLR1);
@@ -506,8 +506,11 @@ static ssize_t reset_store(struct device *dev,
 	}
 
 	drvdata->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->numcidc; i++)
-		drvdata->ctxid_val[i] = 0x0;
+	for (i = 0; i < drvdata->numcidc; i++) {
+		drvdata->ctxid_pid[i] = 0x0;
+		drvdata->ctxid_vpid[i] = 0x0;
+	}
+
 	drvdata->ctxid_mask0 = 0x0;
 	drvdata->ctxid_mask1 = 0x0;
 
@@ -1815,7 +1818,7 @@ static ssize_t ctxid_idx_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(ctxid_idx);
 
-static ssize_t ctxid_val_show(struct device *dev,
+static ssize_t ctxid_pid_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
@@ -1825,17 +1828,17 @@ static ssize_t ctxid_val_show(struct device *dev,
 
 	spin_lock(&drvdata->spinlock);
 	idx = drvdata->ctxid_idx;
-	val = (unsigned long)drvdata->ctxid_val[idx];
+	val = (unsigned long)drvdata->ctxid_vpid[idx];
 	spin_unlock(&drvdata->spinlock);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
 
-static ssize_t ctxid_val_store(struct device *dev,
+static ssize_t ctxid_pid_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size)
 {
 	u8 idx;
-	unsigned long val;
+	unsigned long vpid, pid;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	/*
@@ -1845,16 +1848,19 @@ static ssize_t ctxid_val_store(struct device *dev,
 	 */
 	if (!drvdata->ctxid_size || !drvdata->numcidc)
 		return -EINVAL;
-	if (kstrtoul(buf, 16, &val))
+	if (kstrtoul(buf, 16, &vpid))
 		return -EINVAL;
+
+	pid = coresight_vpid_to_pid(vpid);
 
 	spin_lock(&drvdata->spinlock);
 	idx = drvdata->ctxid_idx;
-	drvdata->ctxid_val[idx] = (u64)val;
+	drvdata->ctxid_pid[idx] = (u64)pid;
+	drvdata->ctxid_vpid[idx] = (u64)vpid;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
-static DEVICE_ATTR_RW(ctxid_val);
+static DEVICE_ATTR_RW(ctxid_pid);
 
 static ssize_t ctxid_masks_show(struct device *dev,
 				struct device_attribute *attr,
@@ -1949,7 +1955,7 @@ static ssize_t ctxid_masks_store(struct device *dev,
 		 */
 		for (j = 0; j < 8; j++) {
 			if (maskbyte & 1)
-				drvdata->ctxid_val[i] &= ~(0xFF << (j * 8));
+				drvdata->ctxid_pid[i] &= ~(0xFF << (j * 8));
 			maskbyte >>= 1;
 		}
 		/* Select the next ctxid comparator mask value */
@@ -2193,7 +2199,7 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_res_idx.attr,
 	&dev_attr_res_ctrl.attr,
 	&dev_attr_ctxid_idx.attr,
-	&dev_attr_ctxid_val.attr,
+	&dev_attr_ctxid_pid.attr,
 	&dev_attr_ctxid_masks.attr,
 	&dev_attr_vmid_idx.attr,
 	&dev_attr_vmid_val.attr,
@@ -2513,8 +2519,11 @@ static void etm4_init_default_data(struct etmv4_drvdata *drvdata)
 		drvdata->addr_type[1] = ETM_ADDR_TYPE_RANGE;
 	}
 
-	for (i = 0; i < drvdata->numcidc; i++)
-		drvdata->ctxid_val[i] = 0x0;
+	for (i = 0; i < drvdata->numcidc; i++) {
+		drvdata->ctxid_pid[i] = 0x0;
+		drvdata->ctxid_vpid[i] = 0x0;
+	}
+
 	drvdata->ctxid_mask0 = 0x0;
 	drvdata->ctxid_mask1 = 0x0;
 

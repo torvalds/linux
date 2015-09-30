@@ -180,8 +180,8 @@ config VXLAN
 	  will be called vxlan.
 
 config GENEVE
-       tristate "Generic Network Virtualization Encapsulation netdev"
-       depends on INET && GENEVE_CORE
+       tristate "Generic Network Virtualization Encapsulation"
+       depends on INET && NET_UDP_TUNNEL
        select NET_IP_TUNNEL
        ---help---
 	  This allows one to create geneve virtual interfaces that provide
@@ -282,7 +282,6 @@ config VETH
 config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
-	select AVERAGE
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -296,6 +295,13 @@ config NLMON
 	  messages if they tap into the netlink device, record pcaps for further
 	  diagnostics, etc. This is mostly intended for developers or support
 	  to debug netlink issues. If unsure, say N.
+
+config NET_VRF
+	tristate "Virtual Routing and Forwarding (Lite)"
+	depends on IP_MULTIPLE_TABLES && IPV6_MULTIPLE_TABLES
+	---help---
+	  This option enables the support for mapping interfaces into VRF's. The
+	  support enables VRF devices.
 
 endif # NET_CORE
 
@@ -406,6 +412,13 @@ config VMXNET3
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmxnet3.
+
+config FUJITSU_ES
+	tristate "FUJITSU Extended Socket Network Device driver"
+	depends on ACPI
+	help
+	  This driver provides support for Extended Socket network device
+          on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
 source "drivers/net/hyperv/Kconfig"
 

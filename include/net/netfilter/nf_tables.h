@@ -125,7 +125,7 @@ static inline enum nft_data_types nft_dreg_to_type(enum nft_registers reg)
 
 static inline enum nft_registers nft_type_to_reg(enum nft_data_types type)
 {
-	return type == NFT_DATA_VERDICT ? NFT_REG_VERDICT : NFT_REG_1;
+	return type == NFT_DATA_VERDICT ? NFT_REG_VERDICT : NFT_REG_1 * NFT_REG_SIZE / NFT_REG32_SIZE;
 }
 
 unsigned int nft_parse_register(const struct nlattr *attr);

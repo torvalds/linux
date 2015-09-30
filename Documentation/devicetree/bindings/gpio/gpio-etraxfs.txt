@@ -2,8 +2,9 @@ Axis ETRAX FS General I/O controller bindings
 
 Required properties:
 
-- compatible:
+- compatible: one of:
   - "axis,etraxfs-gio"
+  - "axis,artpec3-gio"
 - reg: Physical base address and length of the controller's registers.
 - #gpio-cells: Should be 3
   - The first cell is the gpio offset number.

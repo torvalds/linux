@@ -280,4 +280,15 @@ config XEN_ACPI
 	def_bool y
 	depends on X86 && ACPI
 
+config XEN_SYMS
+       bool "Xen symbols"
+       depends on X86 && XEN_DOM0 && XENFS
+       default y if KALLSYMS
+       help
+          Exports hypervisor symbols (along with their types and addresses) via
+          /proc/xen/xensyms file, similar to /proc/kallsyms
+
+config XEN_HAVE_VPMU
+       bool
+
 endmenu

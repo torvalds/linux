@@ -476,7 +476,7 @@ static void __init bootmem_init(void)
  *  o bootmem_init()
  *  o sparse_init()
  *  o paging_init()
- *  o dma_continguous_reserve()
+ *  o dma_contiguous_reserve()
  *
  * At this stage the bootmem allocator is ready to use.
  *

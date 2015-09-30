@@ -319,7 +319,6 @@ MODULE_DEVICE_TABLE(i2c, wm8728_i2c_id);
 static struct i2c_driver wm8728_i2c_driver = {
 	.driver = {
 		.name = "wm8728",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8728_of_match,
 	},
 	.probe =    wm8728_i2c_probe,

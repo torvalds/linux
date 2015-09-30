@@ -13,6 +13,7 @@
 #include <linux/kdev_t.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
+#include <linux/percpu-refcount.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -124,7 +125,7 @@ struct hd_struct {
 #else
 	struct disk_stats dkstats;
 #endif
-	atomic_t ref;
+	struct percpu_ref ref;
 	struct rcu_head rcu_head;
 };
 
@@ -611,7 +612,7 @@ extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     sector_t len, int flags,
 						     struct partition_meta_info
 						       *info);
-extern void __delete_partition(struct hd_struct *);
+extern void __delete_partition(struct percpu_ref *);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
@@ -640,27 +641,39 @@ extern ssize_t part_fail_store(struct device *dev,
 			       const char *buf, size_t count);
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
-static inline void hd_ref_init(struct hd_struct *part)
+static inline int hd_ref_init(struct hd_struct *part)
 {
-	atomic_set(&part->ref, 1);
-	smp_mb();
+	if (percpu_ref_init(&part->ref, __delete_partition, 0,
+				GFP_KERNEL))
+		return -ENOMEM;
+	return 0;
 }
 
 static inline void hd_struct_get(struct hd_struct *part)
 {
-	atomic_inc(&part->ref);
-	smp_mb__after_atomic();
+	percpu_ref_get(&part->ref);
 }
 
 static inline int hd_struct_try_get(struct hd_struct *part)
 {
-	return atomic_inc_not_zero(&part->ref);
+	return percpu_ref_tryget_live(&part->ref);
 }
 
 static inline void hd_struct_put(struct hd_struct *part)
 {
-	if (atomic_dec_and_test(&part->ref))
-		__delete_partition(part);
+	percpu_ref_put(&part->ref);
+}
+
+static inline void hd_struct_kill(struct hd_struct *part)
+{
+	percpu_ref_kill(&part->ref);
+}
+
+static inline void hd_free_part(struct hd_struct *part)
+{
+	free_part_stats(part);
+	free_part_info(part);
+	percpu_ref_exit(&part->ref);
 }
 
 /*

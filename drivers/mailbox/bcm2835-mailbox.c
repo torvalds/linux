@@ -204,7 +204,6 @@ MODULE_DEVICE_TABLE(of, bcm2835_mbox_of_match);
 static struct platform_driver bcm2835_mbox_driver = {
 	.driver = {
 		.name = "bcm2835-mbox",
-		.owner = THIS_MODULE,
 		.of_match_table = bcm2835_mbox_of_match,
 	},
 	.probe		= bcm2835_mbox_probe,

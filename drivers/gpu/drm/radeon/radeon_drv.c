@@ -126,8 +126,9 @@ struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
 					int flags);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,
-				      int *vpos, int *hpos, ktime_t *stime,
-				      ktime_t *etime);
+				      int *vpos, int *hpos,
+				      ktime_t *stime, ktime_t *etime,
+				      const struct drm_display_mode *mode);
 extern bool radeon_is_px(struct drm_device *dev);
 extern const struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;

@@ -678,6 +678,12 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 					continue;
 				if (nla_put_string(skb, i + 1, name))
 					goto nla_put_failure;
+			} else if (i == RTAX_FEATURES - 1) {
+				u32 user_features = metrics[i] & RTAX_FEATURE_MASK;
+
+				BUILD_BUG_ON(RTAX_FEATURE_MASK & DST_FEATURE_MASK);
+				if (nla_put_u32(skb, i + 1, user_features))
+					goto nla_put_failure;
 			} else {
 				if (nla_put_u32(skb, i + 1, metrics[i]))
 					goto nla_put_failure;
@@ -896,7 +902,9 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + rtnl_link_get_size(dev) /* IFLA_LINKINFO */
 	       + rtnl_link_get_af_size(dev) /* IFLA_AF_SPEC */
 	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_PORT_ID */
-	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN); /* IFLA_PHYS_SWITCH_ID */
+	       + nla_total_size(MAX_PHYS_ITEM_ID_LEN) /* IFLA_PHYS_SWITCH_ID */
+	       + nla_total_size(1); /* IFLA_PROTO_DOWN */
+
 }
 
 static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
@@ -1082,7 +1090,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    (dev->ifalias &&
 	     nla_put_string(skb, IFLA_IFALIAS, dev->ifalias)) ||
 	    nla_put_u32(skb, IFLA_CARRIER_CHANGES,
-			atomic_read(&dev->carrier_changes)))
+			atomic_read(&dev->carrier_changes)) ||
+	    nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down))
 		goto nla_put_failure;
 
 	if (1) {
@@ -1319,6 +1328,7 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_CARRIER_CHANGES]	= { .type = NLA_U32 },  /* ignored */
 	[IFLA_PHYS_SWITCH_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_ITEM_ID_LEN },
 	[IFLA_LINK_NETNSID]	= { .type = NLA_S32 },
+	[IFLA_PROTO_DOWN]	= { .type = NLA_U8 },
 };
 
 static const struct nla_policy ifla_info_policy[IFLA_INFO_MAX+1] = {
@@ -1861,6 +1871,14 @@ static int do_setlink(const struct sk_buff *skb,
 	}
 	err = 0;
 
+	if (tb[IFLA_PROTO_DOWN]) {
+		err = dev_change_proto_down(dev,
+					    nla_get_u8(tb[IFLA_PROTO_DOWN]));
+		if (err)
+			goto errout;
+		status |= DO_SETLINK_NOTIFY;
+	}
+
 errout:
 	if (status & DO_SETLINK_MODIFIED) {
 		if (status & DO_SETLINK_NOTIFY)
@@ -1951,16 +1969,30 @@ static int rtnl_group_dellink(const struct net *net, int group)
 	return 0;
 }
 
+int rtnl_delete_link(struct net_device *dev)
+{
+	const struct rtnl_link_ops *ops;
+	LIST_HEAD(list_kill);
+
+	ops = dev->rtnl_link_ops;
+	if (!ops || !ops->dellink)
+		return -EOPNOTSUPP;
+
+	ops->dellink(dev, &list_kill);
+	unregister_netdevice_many(&list_kill);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rtnl_delete_link);
+
 static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
-	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
 	char ifname[IFNAMSIZ];
 	struct nlattr *tb[IFLA_MAX+1];
 	int err;
-	LIST_HEAD(list_kill);
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
@@ -1982,13 +2014,7 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!dev)
 		return -ENODEV;
 
-	ops = dev->rtnl_link_ops;
-	if (!ops || !ops->dellink)
-		return -EOPNOTSUPP;
-
-	ops->dellink(dev, &list_kill);
-	unregister_netdevice_many(&list_kill);
-	return 0;
+	return rtnl_delete_link(dev);
 }
 
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
@@ -3021,6 +3047,7 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 portid = NETLINK_CB(cb->skb).portid;
 	u32 seq = cb->nlh->nlmsg_seq;
 	u32 filter_mask = 0;
+	int err;
 
 	if (nlmsg_len(cb->nlh) > sizeof(struct ifinfomsg)) {
 		struct nlattr *extfilt;
@@ -3041,20 +3068,25 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
 
 		if (br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
-			if (idx >= cb->args[0] &&
-			    br_dev->netdev_ops->ndo_bridge_getlink(
-				    skb, portid, seq, dev, filter_mask,
-				    NLM_F_MULTI) < 0)
-				break;
+			if (idx >= cb->args[0]) {
+				err = br_dev->netdev_ops->ndo_bridge_getlink(
+						skb, portid, seq, dev,
+						filter_mask, NLM_F_MULTI);
+				if (err < 0 && err != -EOPNOTSUPP)
+					break;
+			}
 			idx++;
 		}
 
 		if (ops->ndo_bridge_getlink) {
-			if (idx >= cb->args[0] &&
-			    ops->ndo_bridge_getlink(skb, portid, seq, dev,
-						    filter_mask,
-						    NLM_F_MULTI) < 0)
-				break;
+			if (idx >= cb->args[0]) {
+				err = ops->ndo_bridge_getlink(skb, portid,
+							      seq, dev,
+							      filter_mask,
+							      NLM_F_MULTI);
+				if (err < 0 && err != -EOPNOTSUPP)
+					break;
+			}
 			idx++;
 		}
 	}

@@ -41,6 +41,15 @@ void cpu_init(void)
 }
 
 /*
+ * cpu_have_feature - Test CPU features on module initialization
+ */
+int cpu_have_feature(unsigned int num)
+{
+	return elf_hwcap & (1UL << num);
+}
+EXPORT_SYMBOL(cpu_have_feature);
+
+/*
  * show_cpuinfo - Get information on one CPU for use by procfs.
  */
 static int show_cpuinfo(struct seq_file *m, void *v)

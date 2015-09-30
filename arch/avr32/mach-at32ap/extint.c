@@ -128,9 +128,9 @@ static int eic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
-		__irq_set_handler_locked(irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 	else
-		__irq_set_handler_locked(irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
@@ -144,7 +144,7 @@ static struct irq_chip eic_chip = {
 	.irq_set_type	= eic_set_irq_type,
 };
 
-static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
+static void demux_eic_irq(struct irq_desc *desc)
 {
 	struct eic *eic = irq_desc_get_handler_data(desc);
 	unsigned long status, pending;

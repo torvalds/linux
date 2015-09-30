@@ -19,50 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "gf100.h"
+#include "priv.h"
 
-struct gk20a_fb_priv {
-	struct nvkm_fb base;
+static void
+gk20a_fb_init(struct nvkm_fb *fb)
+{
+	struct nvkm_device *device = fb->subdev.device;
+	nvkm_mask(device, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
+}
+
+static const struct nvkm_fb_func
+gk20a_fb = {
+	.init = gk20a_fb_init,
+	.memtype_valid = gf100_fb_memtype_valid,
 };
 
-static int
-gk20a_fb_init(struct nvkm_object *object)
+int
+gk20a_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	struct gk20a_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_fb_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
-	return 0;
+	return nvkm_fb_new_(&gk20a_fb, device, index, pfb);
 }
-
-static int
-gk20a_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
-{
-	struct gk20a_fb_priv *priv;
-	int ret;
-
-	ret = nvkm_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-struct nvkm_oclass *
-gk20a_fb_oclass = &(struct nvkm_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0xea),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = gk20a_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.memtype = gf100_fb_memtype_valid,
-}.base;

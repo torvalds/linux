@@ -82,8 +82,9 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 }
 
 /* IRQ_IPI_SMP_FUNCTION Handler */
-void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
+void nlm_smp_function_ipi_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	clear_c0_eimr(irq);
 	ack_c0_eirr(irq);
 	generic_smp_call_function_interrupt();
@@ -91,8 +92,9 @@ void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
-void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
+void nlm_smp_resched_ipi_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	clear_c0_eimr(irq);
 	ack_c0_eirr(irq);
 	scheduler_ipi();

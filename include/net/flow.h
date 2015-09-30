@@ -10,6 +10,7 @@
 #include <linux/socket.h>
 #include <linux/in6.h>
 #include <linux/atomic.h>
+#include <net/flow_dissector.h>
 
 /*
  * ifindex generation is per-net namespace, and loopback is
@@ -18,6 +19,10 @@
  */
 
 #define LOOPBACK_IFINDEX	1
+
+struct flowi_tunnel {
+	__be64			tun_id;
+};
 
 struct flowi_common {
 	int	flowic_oif;
@@ -29,7 +34,10 @@ struct flowi_common {
 	__u8	flowic_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
 #define FLOWI_FLAG_KNOWN_NH		0x02
+#define FLOWI_FLAG_VRFSRC		0x04
+#define FLOWI_FLAG_SKIP_NH_OIF		0x08
 	__u32	flowic_secid;
+	struct flowi_tunnel flowic_tun_key;
 };
 
 union flowi_uli {
@@ -66,6 +74,7 @@ struct flowi4 {
 #define flowi4_proto		__fl_common.flowic_proto
 #define flowi4_flags		__fl_common.flowic_flags
 #define flowi4_secid		__fl_common.flowic_secid
+#define flowi4_tun_key		__fl_common.flowic_tun_key
 
 	/* (saddr,daddr) must be grouped, same order as in IP header */
 	__be32			saddr;
@@ -95,6 +104,7 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 	fl4->flowi4_proto = proto;
 	fl4->flowi4_flags = flags;
 	fl4->flowi4_secid = 0;
+	fl4->flowi4_tun_key.tun_id = 0;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 	fl4->fl4_dport = dport;
@@ -122,6 +132,7 @@ struct flowi6 {
 #define flowi6_proto		__fl_common.flowic_proto
 #define flowi6_flags		__fl_common.flowic_flags
 #define flowi6_secid		__fl_common.flowic_secid
+#define flowi6_tun_key		__fl_common.flowic_tun_key
 	struct in6_addr		daddr;
 	struct in6_addr		saddr;
 	__be32			flowlabel;
@@ -165,6 +176,7 @@ struct flowi {
 #define flowi_proto	u.__fl_common.flowic_proto
 #define flowi_flags	u.__fl_common.flowic_flags
 #define flowi_secid	u.__fl_common.flowic_secid
+#define flowi_tun_key	u.__fl_common.flowic_tun_key
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 static inline struct flowi *flowi4_to_flowi(struct flowi4 *fl4)
@@ -232,5 +244,23 @@ void flow_cache_fini(struct net *net);
 void flow_cache_flush(struct net *net);
 void flow_cache_flush_deferred(struct net *net);
 extern atomic_t flow_cache_genid;
+
+__u32 __get_hash_from_flowi6(const struct flowi6 *fl6, struct flow_keys *keys);
+
+static inline __u32 get_hash_from_flowi6(const struct flowi6 *fl6)
+{
+	struct flow_keys keys;
+
+	return __get_hash_from_flowi6(fl6, &keys);
+}
+
+__u32 __get_hash_from_flowi4(const struct flowi4 *fl4, struct flow_keys *keys);
+
+static inline __u32 get_hash_from_flowi4(const struct flowi4 *fl4)
+{
+	struct flow_keys keys;
+
+	return __get_hash_from_flowi4(fl4, &keys);
+}
 
 #endif

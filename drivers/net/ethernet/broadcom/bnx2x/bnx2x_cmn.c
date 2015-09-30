@@ -1,6 +1,8 @@
-/* bnx2x_cmn.c: Broadcom Everest network driver.
+/* bnx2x_cmn.c: QLogic Everest network driver.
  *
  * Copyright (c) 2007-2013 Broadcom Corporation
+ * Copyright (c) 2014 QLogic Corporation
+ * All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1188,7 +1190,7 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
 		/* Calculate the current MAX line speed limit for the MF
 		 * devices
 		 */
-		if (IS_MF_SI(bp))
+		if (IS_MF_PERCENT_BW(bp))
 			line_speed = (line_speed * maxCfg) / 100;
 		else { /* SD mode */
 			u16 vn_max_rate = maxCfg * 100;
@@ -2103,9 +2105,14 @@ int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 		if (rss_obj->udp_rss_v6)
 			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
 
-		if (!CHIP_IS_E1x(bp))
+		if (!CHIP_IS_E1x(bp)) {
+			/* valid only for TUNN_MODE_VXLAN tunnel mode */
+			__set_bit(BNX2X_RSS_IPV4_VXLAN, &params.rss_flags);
+			__set_bit(BNX2X_RSS_IPV6_VXLAN, &params.rss_flags);
+
 			/* valid only for TUNN_MODE_GRE tunnel mode */
-			__set_bit(BNX2X_RSS_GRE_INNER_HDRS, &params.rss_flags);
+			__set_bit(BNX2X_RSS_TUNN_INNER_HDRS, &params.rss_flags);
+		}
 	} else {
 		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
 	}
@@ -2510,6 +2517,20 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 		fp->mode = TPA_MODE_DISABLED;
 }
 
+void bnx2x_set_os_driver_state(struct bnx2x *bp, u32 state)
+{
+	u32 cur;
+
+	if (!IS_MF_BD(bp) || !SHMEM2_HAS(bp, os_driver_state) || IS_VF(bp))
+		return;
+
+	cur = SHMEM2_RD(bp, os_driver_state[BP_FW_MB_IDX(bp)]);
+	DP(NETIF_MSG_IFUP, "Driver state %08x-->%08x\n",
+	   cur, state);
+
+	SHMEM2_WR(bp, os_driver_state[BP_FW_MB_IDX(bp)], state);
+}
+
 int bnx2x_load_cnic(struct bnx2x *bp)
 {
 	int i, rc, port = BP_PORT(bp);
@@ -2827,6 +2848,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Start fast path */
 
+	/* Re-configure vlan filters */
+	rc = bnx2x_vlan_reconfigure_vid(bp);
+	if (rc)
+		LOAD_ERROR_EXIT(bp, load_error3);
+
 	/* Initialize Rx filter. */
 	bnx2x_set_rx_mode_inner(bp);
 
@@ -2873,6 +2899,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		/* mark driver is loaded in shmem2 */
 		u32 val;
 		val = SHMEM2_RD(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)]);
+		val &= ~DRV_FLAGS_MTU_MASK;
+		val |= (bp->dev->mtu << DRV_FLAGS_MTU_SHIFT);
 		SHMEM2_WR(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)],
 			  val | DRV_FLAGS_CAPABILITIES_LOADED_SUPPORTED |
 			  DRV_FLAGS_CAPABILITIES_LOADED_L2);
@@ -2885,9 +2913,16 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		return -EBUSY;
 	}
 
+	/* Update driver data for On-Chip MFW dump. */
+	if (IS_PF(bp))
+		bnx2x_update_mfw_dump(bp);
+
 	/* If PMF - send ADMIN DCBX msg to MFW to initiate DCBX FSM */
 	if (bp->port.pmf && (bp->state != BNX2X_STATE_DIAG))
 		bnx2x_dcbx_init(bp, false);
+
+	if (!IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp))
+		bnx2x_set_os_driver_state(bp, OS_DRIVER_STATE_ACTIVE);
 
 	DP(NETIF_MSG_IFUP, "Ending successfully NIC load\n");
 
@@ -2955,6 +2990,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	bool global = false;
 
 	DP(NETIF_MSG_IFUP, "Starting NIC unload\n");
+
+	if (!IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp))
+		bnx2x_set_os_driver_state(bp, OS_DRIVER_STATE_DISABLED);
 
 	/* mark driver is unloaded in shmem2 */
 	if (IS_PF(bp) && SHMEM2_HAS(bp, drv_capabilities_flag)) {
@@ -3677,7 +3715,7 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 		pbd2->fw_ip_hdr_to_payload_w =
 			hlen_w - ((sizeof(struct ipv6hdr)) >> 1);
 		pbd_e2->data.tunnel_data.flags |=
-			ETH_TUNNEL_DATA_IP_HDR_TYPE_OUTER;
+			ETH_TUNNEL_DATA_IPV6_OUTER;
 	}
 
 	pbd2->tcp_send_seq = bswab32(inner_tcp_hdr(skb)->seq);
@@ -4184,6 +4222,41 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+void bnx2x_get_c2s_mapping(struct bnx2x *bp, u8 *c2s_map, u8 *c2s_default)
+{
+	int mfw_vn = BP_FW_MB_IDX(bp);
+	u32 tmp;
+
+	/* If the shmem shouldn't affect configuration, reflect */
+	if (!IS_MF_BD(bp)) {
+		int i;
+
+		for (i = 0; i < BNX2X_MAX_PRIORITY; i++)
+			c2s_map[i] = i;
+		*c2s_default = 0;
+
+		return;
+	}
+
+	tmp = SHMEM2_RD(bp, c2s_pcp_map_lower[mfw_vn]);
+	tmp = (__force u32)be32_to_cpu((__force __be32)tmp);
+	c2s_map[0] = tmp & 0xff;
+	c2s_map[1] = (tmp >> 8) & 0xff;
+	c2s_map[2] = (tmp >> 16) & 0xff;
+	c2s_map[3] = (tmp >> 24) & 0xff;
+
+	tmp = SHMEM2_RD(bp, c2s_pcp_map_upper[mfw_vn]);
+	tmp = (__force u32)be32_to_cpu((__force __be32)tmp);
+	c2s_map[4] = tmp & 0xff;
+	c2s_map[5] = (tmp >> 8) & 0xff;
+	c2s_map[6] = (tmp >> 16) & 0xff;
+	c2s_map[7] = (tmp >> 24) & 0xff;
+
+	tmp = SHMEM2_RD(bp, c2s_pcp_map_default[mfw_vn]);
+	tmp = (__force u32)be32_to_cpu((__force __be32)tmp);
+	*c2s_default = (tmp >> (8 * mfw_vn)) & 0xff;
+}
+
 /**
  * bnx2x_setup_tc - routine to configure net_device for multi tc
  *
@@ -4194,8 +4267,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
  */
 int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 {
-	int cos, prio, count, offset;
 	struct bnx2x *bp = netdev_priv(dev);
+	u8 c2s_map[BNX2X_MAX_PRIORITY], c2s_def;
+	int cos, prio, count, offset;
 
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
@@ -4219,12 +4293,16 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 		return -EINVAL;
 	}
 
+	bnx2x_get_c2s_mapping(bp, c2s_map, &c2s_def);
+
 	/* configure priority to traffic class mapping */
 	for (prio = 0; prio < BNX2X_MAX_PRIORITY; prio++) {
-		netdev_set_prio_tc_map(dev, prio, bp->prio_to_cos[prio]);
+		int outer_prio = c2s_map[prio];
+
+		netdev_set_prio_tc_map(dev, prio, bp->prio_to_cos[outer_prio]);
 		DP(BNX2X_MSG_SP | NETIF_MSG_IFUP,
 		   "mapping priority %d to tc %d\n",
-		   prio, bp->prio_to_cos[prio]);
+		   outer_prio, bp->prio_to_cos[outer_prio]);
 	}
 
 	/* Use this configuration to differentiate tc0 from other COSes
@@ -4277,6 +4355,9 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 
 	if (netif_running(dev))
 		rc = bnx2x_set_eth_mac(bp, true);
+
+	if (IS_PF(bp) && SHMEM2_HAS(bp, curr_cfg))
+		SHMEM2_WR(bp, curr_cfg, CURR_CFG_MET_OS);
 
 	return rc;
 }
@@ -4830,6 +4911,9 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	 * only updated as part of load
 	 */
 	dev->mtu = new_mtu;
+
+	if (IS_PF(bp) && SHMEM2_HAS(bp, curr_cfg))
+		SHMEM2_WR(bp, curr_cfg, CURR_CFG_MET_OS);
 
 	return bnx2x_reload_if_running(dev);
 }

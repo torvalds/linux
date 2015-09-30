@@ -21,11 +21,10 @@
 #define RTL8225H
 
 #define RTL819X_TOTAL_RF_PATH 2
-extern void PHY_SetRF8256Bandwidth(struct net_device *dev,
-				   enum ht_channel_width Bandwidth);
-extern bool PHY_RF8256_Config(struct net_device *dev);
-extern bool phy_RF8256_Config_ParaFile(struct net_device *dev);
-extern void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8	powerlevel);
-extern void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel);
+void rtl92e_set_bandwidth(struct net_device *dev,
+			  enum ht_channel_width Bandwidth);
+bool rtl92e_config_rf(struct net_device *dev);
+void rtl92e_set_cck_tx_power(struct net_device *dev, u8	powerlevel);
+void rtl92e_set_ofdm_tx_power(struct net_device *dev, u8 powerlevel);
 
 #endif

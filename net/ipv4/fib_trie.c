@@ -81,6 +81,7 @@
 #include <net/sock.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
+#include <trace/events/fib.h>
 #include "fib_lookup.h"
 
 #define MAX_STAT_DEPTH 32
@@ -1278,6 +1279,8 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 	unsigned long index;
 	t_key cindex;
 
+	trace_fib_table_lookup(tb->tb_id, flp);
+
 	pn = t->kv;
 	cindex = 0;
 
@@ -1423,8 +1426,11 @@ found:
 			    nh->nh_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
-			if (flp->flowi4_oif && flp->flowi4_oif != nh->nh_oif)
-				continue;
+			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
+				if (flp->flowi4_oif &&
+				    flp->flowi4_oif != nh->nh_oif)
+					continue;
+			}
 
 			if (!(fib_flags & FIB_LOOKUP_NOREF))
 				atomic_inc(&fi->fib_clntref);
@@ -1439,6 +1445,8 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
+			trace_fib_table_lookup_nh(nh);
+
 			return err;
 		}
 	}

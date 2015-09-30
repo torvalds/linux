@@ -323,7 +323,8 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	 */
 	if (update_pending &&
 	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id, 0,
-							       &vpos, &hpos, NULL, NULL)) &&
+							       &vpos, &hpos, NULL, NULL,
+							       &rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
 	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
 	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
@@ -1799,7 +1800,8 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *
  */
 int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int flags,
-			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+			       int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+			       const struct drm_display_mode *mode)
 {
 	u32 stat_crtc = 0, vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
@@ -1914,7 +1916,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	}
 	else {
 		/* No: Fake something reasonable which gives at least ok results. */
-		vbl_start = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
+		vbl_start = mode->crtc_vdisplay;
 		vbl_end = 0;
 	}
 
@@ -1930,7 +1932,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
 	if (in_vbl && (*vpos >= vbl_start)) {
-		vtotal = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vtotal = mode->crtc_vtotal;
 		*vpos = *vpos - vtotal;
 	}
 
@@ -1952,8 +1954,8 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 	 * We only do this if DRM_CALLED_FROM_VBLIRQ.
 	 */
 	if ((flags & DRM_CALLED_FROM_VBLIRQ) && !in_vbl) {
-		vbl_start = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vdisplay;
-		vtotal = rdev->mode_info.crtcs[crtc]->base.hwmode.crtc_vtotal;
+		vbl_start = mode->crtc_vdisplay;
+		vtotal = mode->crtc_vtotal;
 
 		if (vbl_start - *vpos < vtotal / 100) {
 			*vpos -= vtotal;

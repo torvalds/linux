@@ -261,16 +261,8 @@ xfs_parseargs(
 			mp->m_rtname = kstrndup(value, MAXNAMELEN, GFP_KERNEL);
 			if (!mp->m_rtname)
 				return -ENOMEM;
-		} else if (!strcmp(this_char, MNTOPT_BIOSIZE)) {
-			if (!value || !*value) {
-				xfs_warn(mp, "%s option requires an argument",
-					this_char);
-				return -EINVAL;
-			}
-			if (kstrtoint(value, 10, &iosize))
-				return -EINVAL;
-			iosizelog = ffs(iosize) - 1;
-		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
+		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE) ||
+			   !strcmp(this_char, MNTOPT_BIOSIZE)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
 					this_char);
@@ -511,9 +503,9 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_LOGBSIZE "=%dk", mp->m_logbsize >> 10);
 
 	if (mp->m_logname)
-		seq_printf(m, "," MNTOPT_LOGDEV "=%s", mp->m_logname);
+		seq_show_option(m, MNTOPT_LOGDEV, mp->m_logname);
 	if (mp->m_rtname)
-		seq_printf(m, "," MNTOPT_RTDEV "=%s", mp->m_rtname);
+		seq_show_option(m, MNTOPT_RTDEV, mp->m_rtname);
 
 	if (mp->m_dalign > 0)
 		seq_printf(m, "," MNTOPT_SUNIT "=%d",
@@ -1527,6 +1519,10 @@ xfs_fs_fill_super(
 			mp->m_flags &= ~XFS_MOUNT_DAX;
 		}
 	}
+
+	if (xfs_sb_version_hassparseinodes(&mp->m_sb))
+		xfs_alert(mp,
+	"EXPERIMENTAL sparse inode feature enabled. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)

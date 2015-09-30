@@ -438,7 +438,8 @@ EXPORT_SYMBOL(drm_atomic_crtc_set_property);
  * consistent behavior you must call this function rather than the
  * driver hook directly.
  */
-int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
+static int
+drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
 		struct drm_property *property, uint64_t *val)
 {
@@ -663,6 +664,25 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 	return 0;
 }
 
+static bool
+plane_switching_crtc(struct drm_atomic_state *state,
+		     struct drm_plane *plane,
+		     struct drm_plane_state *plane_state)
+{
+	if (!plane->state->crtc || !plane_state->crtc)
+		return false;
+
+	if (plane->state->crtc == plane_state->crtc)
+		return false;
+
+	/* This could be refined, but currently there's no helper or driver code
+	 * to implement direct switching of active planes nor userspace to take
+	 * advantage of more direct plane switching without the intermediate
+	 * full OFF state.
+	 */
+	return true;
+}
+
 /**
  * drm_atomic_plane_check - check plane state
  * @plane: plane to check
@@ -732,6 +752,12 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
 				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10);
 		return -ENOSPC;
+	}
+
+	if (plane_switching_crtc(state->state, plane, state)) {
+		DRM_DEBUG_ATOMIC("[PLANE:%d] switching CRTC directly\n",
+				 plane->base.id);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1230,9 +1256,6 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	if (ret == 0)
-		ww_acquire_done(&state->acquire_ctx->ww_ctx);
-
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_check_only);
@@ -1518,7 +1541,8 @@ retry:
 			copied_props++;
 		}
 
-		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props) {
+		if (obj->type == DRM_MODE_OBJECT_PLANE && count_props &&
+		    !(arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)) {
 			plane = obj_to_plane(obj);
 			plane_mask |= (1 << drm_plane_index(plane));
 			plane->old_fb = plane->fb;
@@ -1540,10 +1564,11 @@ retry:
 	}
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
+		/*
+		 * Unlike commit, check_only does not clean up state.
+		 * Below we call drm_atomic_state_free for it.
+		 */
 		ret = drm_atomic_check_only(state);
-		/* _check_only() does not free state, unlike _commit() */
-		if (!ret)
-			drm_atomic_state_free(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_async_commit(state);
 	} else {
@@ -1570,25 +1595,30 @@ out:
 		plane->old_fb = NULL;
 	}
 
+	if (ret && arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		/*
+		 * TEST_ONLY and PAGE_FLIP_EVENT are mutually exclusive,
+		 * if they weren't, this code should be called on success
+		 * for TEST_ONLY too.
+		 */
+
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			if (!crtc_state->event)
+				continue;
+
+			destroy_vblank_event(dev, file_priv,
+					     crtc_state->event);
+		}
+	}
+
 	if (ret == -EDEADLK) {
 		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
 
-	if (ret) {
-		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-			for_each_crtc_in_state(state, crtc, crtc_state, i) {
-				if (!crtc_state->event)
-					continue;
-
-				destroy_vblank_event(dev, file_priv,
-						     crtc_state->event);
-			}
-		}
-
+	if (ret || arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
 		drm_atomic_state_free(state);
-	}
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

@@ -487,6 +487,7 @@
 					 (((op) & 0xFF) << 0))
 /* sDMA opcodes */
 #define	SDMA_OPCODE_NOP					  0
+#	define SDMA_NOP_COUNT(x)			  (((x) & 0x3FFF) << 16)
 #define	SDMA_OPCODE_COPY				  1
 #       define SDMA_COPY_SUB_OPCODE_LINEAR                0
 #       define SDMA_COPY_SUB_OPCODE_TILED                 1

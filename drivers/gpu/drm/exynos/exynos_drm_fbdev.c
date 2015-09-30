@@ -21,7 +21,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
-#include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
 
 #define MAX_CONNECTOR		4
@@ -32,7 +31,7 @@
 
 struct exynos_drm_fbdev {
 	struct drm_fb_helper		drm_fb_helper;
-	struct exynos_drm_gem_obj	*exynos_gem_obj;
+	struct exynos_drm_gem_obj	*obj;
 };
 
 static int exynos_drm_fb_mmap(struct fb_info *info,
@@ -40,7 +39,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 {
 	struct drm_fb_helper *helper = info->par;
 	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(helper);
-	struct exynos_drm_gem_obj *obj = exynos_fbd->exynos_gem_obj;
+	struct exynos_drm_gem_obj *obj = exynos_fbd->obj;
 	unsigned long vm_size;
 	int ret;
 
@@ -75,24 +74,27 @@ static struct fb_ops exynos_drm_fb_ops = {
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
-				     struct drm_fb_helper_surface_size *sizes,
-				     struct drm_framebuffer *fb)
+				   struct drm_fb_helper_surface_size *sizes,
+				   struct exynos_drm_gem_obj *obj)
 {
-	struct fb_info *fbi = helper->fbdev;
-	struct exynos_drm_gem_obj *obj;
+	struct fb_info *fbi;
+	struct drm_framebuffer *fb = helper->fb;
 	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned int nr_pages;
 	unsigned long offset;
 
+	fbi = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(fbi)) {
+		DRM_ERROR("failed to allocate fb info.\n");
+		return PTR_ERR(fbi);
+	}
+
+	fbi->par = helper;
+	fbi->flags = FBINFO_FLAG_DEFAULT;
+	fbi->fbops = &exynos_drm_fb_ops;
+
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
-
-	/* RGB formats use only one buffer */
-	obj = exynos_drm_fb_gem_obj(fb, 0);
-	if (!obj) {
-		DRM_DEBUG_KMS("gem object is null.\n");
-		return -EFAULT;
-	}
 
 	nr_pages = obj->size >> PAGE_SHIFT;
 
@@ -100,11 +102,9 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 			pgprot_writecombine(PAGE_KERNEL));
 	if (!obj->kvaddr) {
 		DRM_ERROR("failed to map pages to kernel space.\n");
+		drm_fb_helper_release_fbi(helper);
 		return -EIO;
 	}
-
-	/* buffer count to framebuffer always is 1 at booting time. */
-	exynos_drm_fb_set_buf_cnt(fb, 1);
 
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
 	offset += fbi->var.yoffset * fb->pitches[0];
@@ -120,9 +120,8 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 				    struct drm_fb_helper_surface_size *sizes)
 {
 	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
-	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct exynos_drm_gem_obj *obj;
 	struct drm_device *dev = helper->dev;
-	struct fb_info *fbi;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct platform_device *pdev = dev->platformdev;
 	unsigned long size;
@@ -140,47 +139,34 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
-	fbi = drm_fb_helper_alloc_fbi(helper);
-	if (IS_ERR(fbi)) {
-		DRM_ERROR("failed to allocate fb info.\n");
-		ret = PTR_ERR(fbi);
-		goto out;
-	}
-
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
+	obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
 	/*
 	 * If physically contiguous memory allocation fails and if IOMMU is
 	 * supported then try to get buffer from non physically contiguous
 	 * memory area.
 	 */
-	if (IS_ERR(exynos_gem_obj) && is_drm_iommu_supported(dev)) {
+	if (IS_ERR(obj) && is_drm_iommu_supported(dev)) {
 		dev_warn(&pdev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
-		exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
-							size);
+		obj = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG, size);
 	}
 
-	if (IS_ERR(exynos_gem_obj)) {
-		ret = PTR_ERR(exynos_gem_obj);
-		goto err_release_fbi;
+	if (IS_ERR(obj)) {
+		ret = PTR_ERR(obj);
+		goto out;
 	}
 
-	exynos_fbdev->exynos_gem_obj = exynos_gem_obj;
+	exynos_fbdev->obj = obj;
 
-	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd,
-			&exynos_gem_obj->base);
+	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd, &obj, 1);
 	if (IS_ERR(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
 	}
 
-	fbi->par = helper;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
-	fbi->fbops = &exynos_drm_fb_ops;
-
-	ret = exynos_drm_fbdev_update(helper, sizes, helper->fb);
+	ret = exynos_drm_fbdev_update(helper, sizes, obj);
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
@@ -190,9 +176,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 err_destroy_framebuffer:
 	drm_framebuffer_cleanup(helper->fb);
 err_destroy_gem:
-	exynos_drm_gem_destroy(exynos_gem_obj);
-err_release_fbi:
-	drm_fb_helper_release_fbi(helper);
+	exynos_drm_gem_destroy(obj);
 
 /*
  * if failed, all resources allocated above would be released by
@@ -285,11 +269,11 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 				      struct drm_fb_helper *fb_helper)
 {
 	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(fb_helper);
-	struct exynos_drm_gem_obj *exynos_gem_obj = exynos_fbd->exynos_gem_obj;
+	struct exynos_drm_gem_obj *obj = exynos_fbd->obj;
 	struct drm_framebuffer *fb;
 
-	if (exynos_gem_obj->kvaddr)
-		vunmap(exynos_gem_obj->kvaddr);
+	if (obj->kvaddr)
+		vunmap(obj->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {

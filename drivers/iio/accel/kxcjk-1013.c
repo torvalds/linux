@@ -658,10 +658,8 @@ static int kxcjk1013_set_scale(struct kxcjk1013_data *data, int val)
 	int ret, i;
 	enum kxcjk1013_mode store_mode;
 
-
 	for (i = 0; i < ARRAY_SIZE(KXCJK1013_scale_table); ++i) {
 		if (KXCJK1013_scale_table[i].scale == val) {
-
 			ret = kxcjk1013_get_mode(data, &store_mode);
 			if (ret < 0)
 				return ret;
@@ -820,7 +818,6 @@ static int kxcjk1013_read_event_config(struct iio_dev *indio_dev,
 					  enum iio_event_type type,
 					  enum iio_event_direction dir)
 {
-
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
 
 	return data->ev_enable_state;
@@ -1243,7 +1240,7 @@ static int kxcjk1013_probe(struct i2c_client *client,
 	if (client->irq < 0)
 		client->irq = kxcjk1013_gpio_probe(client, data);
 
-	if (client->irq >= 0) {
+	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						kxcjk1013_data_rdy_trig_poll,
 						kxcjk1013_event_handler,

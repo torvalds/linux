@@ -41,7 +41,7 @@ static int check_asic_status(struct echoaudio *chip)
 		return -EIO;
 
 	chip->comm_page->ext_box_status = cpu_to_le32(E3G_ASIC_NOT_LOADED);
-	chip->asic_loaded = FALSE;
+	chip->asic_loaded = false;
 	clear_handshake(chip);
 	send_vector(chip, DSP_VC_TEST_ASIC);
 
@@ -55,7 +55,7 @@ static int check_asic_status(struct echoaudio *chip)
 	if (box_status == E3G_ASIC_NOT_LOADED)
 		return -ENODEV;
 
-	chip->asic_loaded = TRUE;
+	chip->asic_loaded = true;
 	return box_status & E3G_BOX_TYPE_MASK;
 }
 
@@ -243,7 +243,7 @@ static int load_asic(struct echoaudio *chip)
 	 * 48 kHz, internal clock, S/PDIF RCA mode */
 	if (box_type >= 0) {
 		err = write_control_reg(chip, E3G_48KHZ,
-					E3G_FREQ_REG_DEFAULT, TRUE);
+					E3G_FREQ_REG_DEFAULT, true);
 		if (err < 0)
 			return err;
 	}
@@ -378,16 +378,16 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	int err, incompatible_clock;
 
 	/* Set clock to "internal" if it's not compatible with the new mode */
-	incompatible_clock = FALSE;
+	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
 	case DIGITAL_MODE_SPDIF_RCA:
 		if (chip->input_clock == ECHO_CLOCK_ADAT)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		break;
 	case DIGITAL_MODE_ADAT:
 		if (chip->input_clock == ECHO_CLOCK_SPDIF)
-			incompatible_clock = TRUE;
+			incompatible_clock = true;
 		break;
 	default:
 		dev_err(chip->card->dev,

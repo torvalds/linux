@@ -189,17 +189,24 @@ config ACPI_DOCK
 	  This driver supports ACPI-controlled docking stations and removable
 	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
 
+config ACPI_CPU_FREQ_PSS
+	bool
+	select THERMAL
+
+config ACPI_PROCESSOR_IDLE
+	bool
+	select CPU_IDLE
+
 config ACPI_PROCESSOR
 	tristate "Processor"
-	select THERMAL
-	select CPU_IDLE
 	depends on X86 || IA64
+	select ACPI_PROCESSOR_IDLE
+	select ACPI_CPU_FREQ_PSS
 	default y
 	help
-	  This driver installs ACPI as the idle handler for Linux and uses
-	  ACPI C2 and C3 processor states to save power on systems that
-	  support it.  It is required by several flavors of cpufreq
-	  performance-state drivers.
+	  This driver adds support for the ACPI Processor package. It is required
+	  by several flavors of cpufreq performance-state, thermal, throttling and
+	  idle drivers.
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
@@ -410,6 +417,7 @@ config ACPI_NFIT
 	tristate "ACPI NVDIMM Firmware Interface Table (NFIT)"
 	depends on PHYS_ADDR_T_64BIT
 	depends on BLK_DEV
+	depends on ARCH_HAS_MMIO_FLUSH
 	select LIBNVDIMM
 	help
 	  Infrastructure to probe ACPI 6 compliant platforms for

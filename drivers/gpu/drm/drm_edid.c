@@ -2044,7 +2044,7 @@ mode_in_range(const struct drm_display_mode *mode, struct edid *edid,
 static bool valid_inferred_mode(const struct drm_connector *connector,
 				const struct drm_display_mode *mode)
 {
-	struct drm_display_mode *m;
+	const struct drm_display_mode *m;
 	bool ok = false;
 
 	list_for_each_entry(m, &connector->probed_modes, head) {
@@ -3361,7 +3361,7 @@ EXPORT_SYMBOL(drm_edid_to_speaker_allocation);
  * the sink doesn't support audio or video.
  */
 int drm_av_sync_delay(struct drm_connector *connector,
-		      struct drm_display_mode *mode)
+		      const struct drm_display_mode *mode)
 {
 	int i = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	int a, v;
@@ -3396,7 +3396,6 @@ EXPORT_SYMBOL(drm_av_sync_delay);
 /**
  * drm_select_eld - select one ELD from multiple HDMI/DP sinks
  * @encoder: the encoder just changed display mode
- * @mode: the adjusted display mode
  *
  * It's possible for one encoder to be associated with multiple HDMI/DP sinks.
  * The policy is now hard coded to simply use the first HDMI/DP sink's ELD.
@@ -3404,8 +3403,7 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  * Return: The connector associated with the first HDMI/DP sink that has ELD
  * attached to it.
  */
-struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode)
+struct drm_connector *drm_select_eld(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;

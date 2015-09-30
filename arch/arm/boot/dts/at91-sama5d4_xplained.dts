@@ -131,6 +131,15 @@
 			};
 
 			adc0: adc@fc034000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <
+					/* external trigger conflicts with USBA_VBUS */
+					&pinctrl_adc0_ad0
+					&pinctrl_adc0_ad1
+					&pinctrl_adc0_ad2
+					&pinctrl_adc0_ad3
+					&pinctrl_adc0_ad4
+					>;
 				atmel,adc-vref = <3300>;
 				status = "okay";
 			};

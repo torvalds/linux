@@ -49,9 +49,10 @@
 /*
  * KMS wrapper.
  * - 3.0.0 - initial driver
+ * - 3.1.0 - allow reading more status registers (GRBM, SRBM, SDMA, CP)
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	0
+#define KMS_DRIVER_MINOR	1
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -78,6 +79,7 @@ int amdgpu_exp_hw_support = 0;
 int amdgpu_enable_scheduler = 0;
 int amdgpu_sched_jobs = 16;
 int amdgpu_sched_hw_submission = 2;
+int amdgpu_enable_semaphores = 1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -150,6 +152,9 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
+
+MODULE_PARM_DESC(enable_semaphores, "Enable semaphores (1 = enable (default), 0 = disable)");
+module_param_named(enable_semaphores, amdgpu_enable_semaphores, int, 0644);
 
 static struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

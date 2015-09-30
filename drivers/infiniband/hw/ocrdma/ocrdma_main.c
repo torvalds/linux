@@ -67,8 +67,6 @@ static LIST_HEAD(ocrdma_dev_list);
 static DEFINE_SPINLOCK(ocrdma_devlist_lock);
 static DEFINE_IDR(ocrdma_dev_id);
 
-static union ib_gid ocrdma_zero_sgid;
-
 void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 {
 	u8 mac_addr[6];
@@ -83,135 +81,6 @@ void ocrdma_get_guid(struct ocrdma_dev *dev, u8 *guid)
 	guid[6] = mac_addr[4];
 	guid[7] = mac_addr[5];
 }
-
-static bool ocrdma_add_sgid(struct ocrdma_dev *dev, union ib_gid *new_sgid)
-{
-	int i;
-	unsigned long flags;
-
-	memset(&ocrdma_zero_sgid, 0, sizeof(union ib_gid));
-
-
-	spin_lock_irqsave(&dev->sgid_lock, flags);
-	for (i = 0; i < OCRDMA_MAX_SGID; i++) {
-		if (!memcmp(&dev->sgid_tbl[i], &ocrdma_zero_sgid,
-			    sizeof(union ib_gid))) {
-			/* found free entry */
-			memcpy(&dev->sgid_tbl[i], new_sgid,
-			       sizeof(union ib_gid));
-			spin_unlock_irqrestore(&dev->sgid_lock, flags);
-			return true;
-		} else if (!memcmp(&dev->sgid_tbl[i], new_sgid,
-				   sizeof(union ib_gid))) {
-			/* entry already present, no addition is required. */
-			spin_unlock_irqrestore(&dev->sgid_lock, flags);
-			return false;
-		}
-	}
-	spin_unlock_irqrestore(&dev->sgid_lock, flags);
-	return false;
-}
-
-static bool ocrdma_del_sgid(struct ocrdma_dev *dev, union ib_gid *sgid)
-{
-	int found = false;
-	int i;
-	unsigned long flags;
-
-
-	spin_lock_irqsave(&dev->sgid_lock, flags);
-	/* first is default sgid, which cannot be deleted. */
-	for (i = 1; i < OCRDMA_MAX_SGID; i++) {
-		if (!memcmp(&dev->sgid_tbl[i], sgid, sizeof(union ib_gid))) {
-			/* found matching entry */
-			memset(&dev->sgid_tbl[i], 0, sizeof(union ib_gid));
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&dev->sgid_lock, flags);
-	return found;
-}
-
-static int ocrdma_addr_event(unsigned long event, struct net_device *netdev,
-			     union ib_gid *gid)
-{
-	struct ib_event gid_event;
-	struct ocrdma_dev *dev;
-	bool found = false;
-	bool updated = false;
-	bool is_vlan = false;
-
-	is_vlan = netdev->priv_flags & IFF_802_1Q_VLAN;
-	if (is_vlan)
-		netdev = rdma_vlan_dev_real_dev(netdev);
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(dev, &ocrdma_dev_list, entry) {
-		if (dev->nic_info.netdev == netdev) {
-			found = true;
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	if (!found)
-		return NOTIFY_DONE;
-
-	mutex_lock(&dev->dev_lock);
-	switch (event) {
-	case NETDEV_UP:
-		updated = ocrdma_add_sgid(dev, gid);
-		break;
-	case NETDEV_DOWN:
-		updated = ocrdma_del_sgid(dev, gid);
-		break;
-	default:
-		break;
-	}
-	if (updated) {
-		/* GID table updated, notify the consumers about it */
-		gid_event.device = &dev->ibdev;
-		gid_event.element.port_num = 1;
-		gid_event.event = IB_EVENT_GID_CHANGE;
-		ib_dispatch_event(&gid_event);
-	}
-	mutex_unlock(&dev->dev_lock);
-	return NOTIFY_OK;
-}
-
-static int ocrdma_inetaddr_event(struct notifier_block *notifier,
-				  unsigned long event, void *ptr)
-{
-	struct in_ifaddr *ifa = ptr;
-	union ib_gid gid;
-	struct net_device *netdev = ifa->ifa_dev->dev;
-
-	ipv6_addr_set_v4mapped(ifa->ifa_address, (struct in6_addr *)&gid);
-	return ocrdma_addr_event(event, netdev, &gid);
-}
-
-static struct notifier_block ocrdma_inetaddr_notifier = {
-	.notifier_call = ocrdma_inetaddr_event
-};
-
-#if IS_ENABLED(CONFIG_IPV6)
-
-static int ocrdma_inet6addr_event(struct notifier_block *notifier,
-				  unsigned long event, void *ptr)
-{
-	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
-	union  ib_gid *gid = (union ib_gid *)&ifa->addr;
-	struct net_device *netdev = ifa->idev->dev;
-	return ocrdma_addr_event(event, netdev, gid);
-}
-
-static struct notifier_block ocrdma_inet6addr_notifier = {
-	.notifier_call = ocrdma_inet6addr_event
-};
-
-#endif /* IPV6 and VLAN */
-
 static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
 					      u8 port_num)
 {
@@ -280,6 +149,9 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.query_port = ocrdma_query_port;
 	dev->ibdev.modify_port = ocrdma_modify_port;
 	dev->ibdev.query_gid = ocrdma_query_gid;
+	dev->ibdev.get_netdev = ocrdma_get_netdev;
+	dev->ibdev.add_gid = ocrdma_add_gid;
+	dev->ibdev.del_gid = ocrdma_del_gid;
 	dev->ibdev.get_link_layer = ocrdma_link_layer;
 	dev->ibdev.alloc_pd = ocrdma_alloc_pd;
 	dev->ibdev.dealloc_pd = ocrdma_dealloc_pd;
@@ -309,7 +181,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
 
-	dev->ibdev.alloc_fast_reg_mr = ocrdma_alloc_frmr;
+	dev->ibdev.alloc_mr = ocrdma_alloc_mr;
 	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
 	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
 
@@ -342,12 +214,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 {
 	mutex_init(&dev->dev_lock);
-	dev->sgid_tbl = kzalloc(sizeof(union ib_gid) *
-				OCRDMA_MAX_SGID, GFP_KERNEL);
-	if (!dev->sgid_tbl)
-		goto alloc_err;
-	spin_lock_init(&dev->sgid_lock);
-
 	dev->cq_tbl = kzalloc(sizeof(struct ocrdma_cq *) *
 			      OCRDMA_MAX_CQ, GFP_KERNEL);
 	if (!dev->cq_tbl)
@@ -379,7 +245,6 @@ static void ocrdma_free_resources(struct ocrdma_dev *dev)
 	kfree(dev->stag_arr);
 	kfree(dev->qp_tbl);
 	kfree(dev->cq_tbl);
-	kfree(dev->sgid_tbl);
 }
 
 /* OCRDMA sysfs interface */
@@ -425,68 +290,6 @@ static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
 		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
 }
 
-static void ocrdma_add_default_sgid(struct ocrdma_dev *dev)
-{
-	/* GID Index 0 - Invariant manufacturer-assigned EUI-64 */
-	union ib_gid *sgid = &dev->sgid_tbl[0];
-
-	sgid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
-	ocrdma_get_guid(dev, &sgid->raw[8]);
-}
-
-static void ocrdma_init_ipv4_gids(struct ocrdma_dev *dev,
-				  struct net_device *net)
-{
-	struct in_device *in_dev;
-	union ib_gid gid;
-	in_dev = in_dev_get(net);
-	if (in_dev) {
-		for_ifa(in_dev) {
-			ipv6_addr_set_v4mapped(ifa->ifa_address,
-					       (struct in6_addr *)&gid);
-			ocrdma_add_sgid(dev, &gid);
-		}
-		endfor_ifa(in_dev);
-		in_dev_put(in_dev);
-	}
-}
-
-static void ocrdma_init_ipv6_gids(struct ocrdma_dev *dev,
-				  struct net_device *net)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	struct inet6_dev *in6_dev;
-	union ib_gid  *pgid;
-	struct inet6_ifaddr *ifp;
-	in6_dev = in6_dev_get(net);
-	if (in6_dev) {
-		read_lock_bh(&in6_dev->lock);
-		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
-			pgid = (union ib_gid *)&ifp->addr;
-			ocrdma_add_sgid(dev, pgid);
-		}
-		read_unlock_bh(&in6_dev->lock);
-		in6_dev_put(in6_dev);
-	}
-#endif
-}
-
-static void ocrdma_init_gid_table(struct ocrdma_dev *dev)
-{
-	struct  net_device *net_dev;
-
-	for_each_netdev(&init_net, net_dev) {
-		struct net_device *real_dev = rdma_vlan_dev_real_dev(net_dev) ?
-				rdma_vlan_dev_real_dev(net_dev) : net_dev;
-
-		if (real_dev == dev->nic_info.netdev) {
-			ocrdma_add_default_sgid(dev);
-			ocrdma_init_ipv4_gids(dev, net_dev);
-			ocrdma_init_ipv6_gids(dev, net_dev);
-		}
-	}
-}
-
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
 	int status = 0, i;
@@ -515,7 +318,6 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		goto alloc_err;
 
 	ocrdma_init_service_level(dev);
-	ocrdma_init_gid_table(dev);
 	status = ocrdma_register_device(dev);
 	if (status)
 		goto alloc_err;
@@ -662,33 +464,11 @@ static struct ocrdma_driver ocrdma_drv = {
 	.be_abi_version		= OCRDMA_BE_ROCE_ABI_VERSION,
 };
 
-static void ocrdma_unregister_inet6addr_notifier(void)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&ocrdma_inet6addr_notifier);
-#endif
-}
-
-static void ocrdma_unregister_inetaddr_notifier(void)
-{
-	unregister_inetaddr_notifier(&ocrdma_inetaddr_notifier);
-}
-
 static int __init ocrdma_init_module(void)
 {
 	int status;
 
 	ocrdma_init_debugfs();
-
-	status = register_inetaddr_notifier(&ocrdma_inetaddr_notifier);
-	if (status)
-		return status;
-
-#if IS_ENABLED(CONFIG_IPV6)
-	status = register_inet6addr_notifier(&ocrdma_inet6addr_notifier);
-	if (status)
-		goto err_notifier6;
-#endif
 
 	status = be_roce_register_driver(&ocrdma_drv);
 	if (status)
@@ -697,19 +477,13 @@ static int __init ocrdma_init_module(void)
 	return 0;
 
 err_be_reg:
-#if IS_ENABLED(CONFIG_IPV6)
-	ocrdma_unregister_inet6addr_notifier();
-err_notifier6:
-#endif
-	ocrdma_unregister_inetaddr_notifier();
+
 	return status;
 }
 
 static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
-	ocrdma_unregister_inet6addr_notifier();
-	ocrdma_unregister_inetaddr_notifier();
 	ocrdma_rem_debugfs();
 	idr_destroy(&ocrdma_dev_id);
 }

@@ -469,13 +469,6 @@ int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 }
 
 /*
- * get widget information
- */
-const char *snd_hda_get_jack_connectivity(u32 cfg);
-const char *snd_hda_get_jack_type(u32 cfg);
-const char *snd_hda_get_jack_location(u32 cfg);
-
-/*
  * power saving
  */
 #define snd_hda_power_up(codec)		snd_hdac_power_up(&(codec)->core)

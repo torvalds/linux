@@ -9,7 +9,7 @@ struct iscsit_transport {
 	int priv_size;
 	struct module *owner;
 	struct list_head t_node;
-	int (*iscsit_setup_np)(struct iscsi_np *, struct __kernel_sockaddr_storage *);
+	int (*iscsit_setup_np)(struct iscsi_np *, struct sockaddr_storage *);
 	int (*iscsit_accept_np)(struct iscsi_np *, struct iscsi_conn *);
 	void (*iscsit_free_np)(struct iscsi_np *);
 	void (*iscsit_wait_conn)(struct iscsi_conn *);

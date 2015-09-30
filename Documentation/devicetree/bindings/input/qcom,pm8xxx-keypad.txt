@@ -33,7 +33,7 @@ PROPERTIES
 	Value type: <bool>
 	Definition: don't enable autorepeat feature.
 
-- linux,keypad-wakeup:
+- wakeup-source:
 	Usage: optional
 	Value type: <bool>
 	Definition: use any event on keypad as wakeup event.

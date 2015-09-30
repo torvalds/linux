@@ -347,7 +347,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	tcbpwm->duty = duty;
 
 	/* If the PWM is enabled, call enable to apply the new conf */
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		atmel_tcb_pwm_enable(chip, pwm);
 
 	return 0;

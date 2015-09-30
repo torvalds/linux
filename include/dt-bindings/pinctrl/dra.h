@@ -30,6 +30,26 @@
 #define MUX_MODE14	0xe
 #define MUX_MODE15	0xf
 
+/* Certain pins need virtual mode, but note: they may glitch */
+#define MUX_VIRTUAL_MODE0	(MODE_SELECT | (0x0 << 4))
+#define MUX_VIRTUAL_MODE1	(MODE_SELECT | (0x1 << 4))
+#define MUX_VIRTUAL_MODE2	(MODE_SELECT | (0x2 << 4))
+#define MUX_VIRTUAL_MODE3	(MODE_SELECT | (0x3 << 4))
+#define MUX_VIRTUAL_MODE4	(MODE_SELECT | (0x4 << 4))
+#define MUX_VIRTUAL_MODE5	(MODE_SELECT | (0x5 << 4))
+#define MUX_VIRTUAL_MODE6	(MODE_SELECT | (0x6 << 4))
+#define MUX_VIRTUAL_MODE7	(MODE_SELECT | (0x7 << 4))
+#define MUX_VIRTUAL_MODE8	(MODE_SELECT | (0x8 << 4))
+#define MUX_VIRTUAL_MODE9	(MODE_SELECT | (0x9 << 4))
+#define MUX_VIRTUAL_MODE10	(MODE_SELECT | (0xa << 4))
+#define MUX_VIRTUAL_MODE11	(MODE_SELECT | (0xb << 4))
+#define MUX_VIRTUAL_MODE12	(MODE_SELECT | (0xc << 4))
+#define MUX_VIRTUAL_MODE13	(MODE_SELECT | (0xd << 4))
+#define MUX_VIRTUAL_MODE14	(MODE_SELECT | (0xe << 4))
+#define MUX_VIRTUAL_MODE15	(MODE_SELECT | (0xf << 4))
+
+#define MODE_SELECT		(1 << 8)
+
 #define PULL_ENA		(0 << 16)
 #define PULL_DIS		(1 << 16)
 #define PULL_UP			(1 << 17)

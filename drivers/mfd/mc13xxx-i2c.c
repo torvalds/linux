@@ -96,7 +96,6 @@ static int mc13xxx_i2c_remove(struct i2c_client *client)
 static struct i2c_driver mc13xxx_i2c_driver = {
 	.id_table = mc13xxx_i2c_device_id,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "mc13xxx",
 		.of_match_table = mc13xxx_dt_ids,
 	},

@@ -147,12 +147,12 @@ static int phy_berlin_usb_power_on(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_berlin_usb_ops = {
+static const struct phy_ops phy_berlin_usb_ops = {
 	.power_on	= phy_berlin_usb_power_on,
 	.owner		= THIS_MODULE,
 };
 
-static const struct of_device_id phy_berlin_sata_of_match[] = {
+static const struct of_device_id phy_berlin_usb_of_match[] = {
 	{
 		.compatible = "marvell,berlin2-usb-phy",
 		.data = &phy_berlin_pll_dividers[0],
@@ -163,12 +163,12 @@ static const struct of_device_id phy_berlin_sata_of_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, phy_berlin_sata_of_match);
+MODULE_DEVICE_TABLE(of, phy_berlin_usb_of_match);
 
 static int phy_berlin_usb_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match =
-		of_match_device(phy_berlin_sata_of_match, &pdev->dev);
+		of_match_device(phy_berlin_usb_of_match, &pdev->dev);
 	struct phy_berlin_usb_priv *priv;
 	struct resource *res;
 	struct phy *phy;
@@ -207,9 +207,8 @@ static struct platform_driver phy_berlin_usb_driver = {
 	.probe	= phy_berlin_usb_probe,
 	.driver	= {
 		.name		= "phy-berlin-usb",
-		.owner		= THIS_MODULE,
-		.of_match_table	= phy_berlin_sata_of_match,
-	 },
+		.of_match_table	= phy_berlin_usb_of_match,
+	},
 };
 module_platform_driver(phy_berlin_usb_driver);
 

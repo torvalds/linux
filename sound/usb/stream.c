@@ -377,7 +377,15 @@ int snd_usb_add_audio_stream(struct snd_usb_audio *chip,
 
 	snd_usb_init_substream(as, stream, fp);
 
-	list_add(&as->list, &chip->pcm_list);
+	/*
+	 * Keep using head insertion for M-Audio Audiophile USB (tm) which has a
+	 * fix to swap capture stream order in conf/cards/USB-audio.conf
+	 */
+	if (chip->usb_id == USB_ID(0x0763, 0x2003))
+		list_add(&as->list, &chip->pcm_list);
+	else
+		list_add_tail(&as->list, &chip->pcm_list);
+
 	chip->pcm_devs++;
 
 	snd_usb_proc_pcm_format_add(as);

@@ -43,7 +43,7 @@
 #include "ptlrpc_internal.h"
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
-int test_req_buffer_pressure = 0;
+int test_req_buffer_pressure;
 module_param(test_req_buffer_pressure, int, 0444);
 MODULE_PARM_DESC(test_req_buffer_pressure, "set non-zero to put pressure on request buffer pools");
 module_param(at_min, int, 0644);
@@ -69,7 +69,7 @@ LIST_HEAD(ptlrpc_all_services);
 /** Used to protect the \e ptlrpc_all_services list */
 struct mutex ptlrpc_all_services_mutex;
 
-struct ptlrpc_request_buffer_desc *
+static struct ptlrpc_request_buffer_desc *
 ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_service *svc = svcpt->scp_service;
@@ -101,7 +101,7 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	return rqbd;
 }
 
-void
+static void
 ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 {
 	struct ptlrpc_service_part *svcpt = rqbd->rqbd_svcpt;
@@ -118,7 +118,7 @@ ptlrpc_free_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	kfree(rqbd);
 }
 
-int
+static int
 ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 {
 	struct ptlrpc_service *svc = svcpt->scp_service;
@@ -732,7 +732,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 
 	service = kzalloc(offsetof(struct ptlrpc_service, srv_parts[ncpts]),
 			  GFP_NOFS);
-	if (service == NULL) {
+	if (!service) {
 		kfree(cpts);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -2298,7 +2298,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	env = kzalloc(sizeof(*env), GFP_NOFS);
-	if (env == NULL) {
+	if (!env) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
 	}
@@ -2826,9 +2826,7 @@ void ptlrpc_hr_fini(void)
 	ptlrpc_stop_hr_threads();
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
-		if (hrp->hrp_thrs != NULL) {
-			kfree(hrp->hrp_thrs);
-		}
+		kfree(hrp->hrp_thrs);
 	}
 
 	cfs_percpt_free(ptlrpc_hr.hr_partitions);
@@ -3054,7 +3052,7 @@ EXPORT_SYMBOL(ptlrpc_unregister_service);
  * Right now, it just checks to make sure that requests aren't languishing
  * in the queue.  We'll use this health check to govern whether a node needs
  * to be shot, so it's intentionally non-aggressive. */
-int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
+static int ptlrpc_svcpt_health_check(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_request *request = NULL;
 	struct timeval right_now;

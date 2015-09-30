@@ -167,7 +167,7 @@ unsigned long decompress_kernel(void)
 #endif
 
 	puts("Uncompressing Linux... ");
-	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
+	__decompress(input_data, input_len, NULL, NULL, output, 0, NULL, error);
 	puts("Ok, booting the kernel.\n");
 	return (unsigned long) output;
 }

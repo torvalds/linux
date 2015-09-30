@@ -244,8 +244,9 @@ static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 
 	if (adev->vram_scratch.robj == NULL) {
 		r = amdgpu_bo_create(adev, AMDGPU_GPU_PAGE_SIZE,
-				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM, 0,
-				     NULL, &adev->vram_scratch.robj);
+				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				     NULL, NULL, &adev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -448,7 +449,8 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 
 	if (adev->wb.wb_obj == NULL) {
 		r = amdgpu_bo_create(adev, AMDGPU_MAX_WB * 4, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, &adev->wb.wb_obj);
+				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, NULL,
+				     &adev->wb.wb_obj);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create WB bo failed\n", r);
 			return r;
@@ -1649,9 +1651,11 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	drm_kms_helper_poll_disable(dev);
 
 	/* turn off display hw */
+	drm_modeset_lock_all(dev);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	}
+	drm_modeset_unlock_all(dev);
 
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -1746,9 +1750,11 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	if (fbcon) {
 		drm_helper_resume_force_mode(dev);
 		/* turn on display hw */
+		drm_modeset_lock_all(dev);
 		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
 		}
+		drm_modeset_unlock_all(dev);
 	}
 
 	drm_kms_helper_poll_enable(dev);

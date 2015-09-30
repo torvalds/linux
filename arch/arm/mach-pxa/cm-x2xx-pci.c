@@ -29,12 +29,12 @@
 void __iomem *it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
-static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void cmx2xx_it8152_irq_demux(struct irq_desc *desc)
 {
 	/* clear our parent irq */
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
-	it8152_irq_demux(irq, desc);
+	it8152_irq_demux(desc);
 }
 
 void __cmx2xx_pci_init_irq(int irq_gpio)

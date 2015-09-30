@@ -377,7 +377,6 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 	unsigned int data_len = scsi_bufflen(sc);
 	unsigned int data_grants = 0, seg_grants = 0;
 	struct scatterlist *sg;
-	unsigned long mfn;
 	struct scsiif_request_segment *seg;
 
 	ring_req->nr_segments = 0;
@@ -420,9 +419,9 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 			ref = gnttab_claim_grant_reference(&gref_head);
 			BUG_ON(ref == -ENOSPC);
 
-			mfn = pfn_to_mfn(page_to_pfn(page));
 			gnttab_grant_foreign_access_ref(ref,
-				info->dev->otherend_id, mfn, 1);
+				info->dev->otherend_id,
+				xen_page_to_gfn(page), 1);
 			shadow->gref[ref_cnt] = ref;
 			ring_req->seg[ref_cnt].gref   = ref;
 			ring_req->seg[ref_cnt].offset = (uint16_t)off;
@@ -454,9 +453,10 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 			ref = gnttab_claim_grant_reference(&gref_head);
 			BUG_ON(ref == -ENOSPC);
 
-			mfn = pfn_to_mfn(page_to_pfn(page));
 			gnttab_grant_foreign_access_ref(ref,
-				info->dev->otherend_id, mfn, grant_ro);
+				info->dev->otherend_id,
+				xen_page_to_gfn(page),
+				grant_ro);
 
 			shadow->gref[ref_cnt] = ref;
 			seg->gref   = ref;

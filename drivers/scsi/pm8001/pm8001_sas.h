@@ -58,7 +58,7 @@
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm80xx"
-#define DRV_VERSION		"0.1.37"
+#define DRV_VERSION		"0.1.38"
 #define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
@@ -241,7 +241,7 @@ struct pm8001_chip_info {
 struct pm8001_port {
 	struct asd_sas_port	sas_port;
 	u8			port_attached;
-	u8			wide_port_phymap;
+	u16			wide_port_phymap;
 	u8			port_state;
 	struct list_head	list;
 };
@@ -569,6 +569,14 @@ struct pm8001_fw_image_header {
 #define	NCQ_READ_LOG_FLAG			0x80000000
 #define	NCQ_ABORT_ALL_FLAG			0x40000000
 #define	NCQ_2ND_RLE_FLAG			0x20000000
+
+/* Device states */
+#define DS_OPERATIONAL				0x01
+#define DS_PORT_IN_RESET			0x02
+#define DS_IN_RECOVERY				0x03
+#define DS_IN_ERROR				0x04
+#define DS_NON_OPERATIONAL			0x07
+
 /**
  * brief param structure for firmware flash update.
  */

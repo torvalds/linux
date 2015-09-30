@@ -141,7 +141,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	/* allocate firmware, stack and heap BO */
 
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->vce.vcpu_bo);
+			     AMDGPU_GEM_DOMAIN_VRAM,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     NULL, NULL, &adev->vce.vcpu_bo);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;
@@ -340,10 +342,10 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 }
 
 static int amdgpu_vce_free_job(
-	struct amdgpu_cs_parser *sched_job)
+	struct amdgpu_job *job)
 {
-	amdgpu_ib_free(sched_job->adev, sched_job->ibs);
-	kfree(sched_job->ibs);
+	amdgpu_ib_free(job->adev, job->ibs);
+	kfree(job->ibs);
 	return 0;
 }
 
@@ -835,6 +837,10 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct fence *fence = NULL;
 	int r;
+
+	/* skip vce ring1 ib test for now, since it's not reliable */
+	if (ring == &ring->adev->vce.ring[1])
+		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
 	if (r) {

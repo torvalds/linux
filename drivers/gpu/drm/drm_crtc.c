@@ -538,7 +538,12 @@ EXPORT_SYMBOL(drm_framebuffer_reference);
  */
 void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
@@ -589,11 +594,16 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  */
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
+	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	struct drm_mode_set set;
 	int ret;
+
+	if (!fb)
+		return;
+
+	dev = fb->dev;
 
 	WARN_ON(!list_empty(&fb->filp_head));
 
@@ -1509,7 +1519,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  */
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
-				  char *modes[])
+				  const char * const modes[])
 {
 	struct drm_property *tv_selector;
 	struct drm_property *tv_subconnector;
@@ -3310,14 +3320,11 @@ int drm_mode_rmfb(struct drm_device *dev,
 	if (!found)
 		goto fail_lookup;
 
-	/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-	__drm_framebuffer_unregister(dev, fb);
-
 	list_del_init(&fb->filp_head);
 	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
-	drm_framebuffer_remove(fb);
+	drm_framebuffer_unreference(fb);
 
 	return 0;
 
@@ -3484,7 +3491,6 @@ out_err1:
  */
 void drm_fb_release(struct drm_file *priv)
 {
-	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 
 	/*
@@ -3498,16 +3504,10 @@ void drm_fb_release(struct drm_file *priv)
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-
-		mutex_lock(&dev->mode_config.fb_lock);
-		/* Mark fb as reaped, we still have a ref from fpriv->fbs. */
-		__drm_framebuffer_unregister(dev, fb);
-		mutex_unlock(&dev->mode_config.fb_lock);
-
 		list_del_init(&fb->filp_head);
 
-		/* This will also drop the fpriv->fbs reference. */
-		drm_framebuffer_remove(fb);
+		/* This drops the fpriv->fbs reference. */
+		drm_framebuffer_unreference(fb);
 	}
 }
 
@@ -5732,7 +5732,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_remove(fb);
+		drm_framebuffer_free(&fb->refcount);
 	}
 
 	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,

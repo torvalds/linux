@@ -125,6 +125,7 @@ struct neigh_statistics {
 	unsigned long forced_gc_runs;	/* number of forced GC runs */
 
 	unsigned long unres_discards;	/* number of unresolved drops */
+	unsigned long table_fulls;      /* times even gc couldn't help */
 };
 
 #define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)

@@ -96,7 +96,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state, false);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	omap_atomic_wait_for_completion(dev, old_state);
@@ -753,7 +753,7 @@ static void dev_lastclose(struct drm_device *dev)
 {
 	int i;
 
-	/* we don't support vga-switcheroo.. so just make sure the fbdev
+	/* we don't support vga_switcheroo.. so just make sure the fbdev
 	 * mode is active
 	 */
 	struct omap_drm_private *priv = dev->dev_private;

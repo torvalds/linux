@@ -47,55 +47,6 @@ struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum nl80211_iftype type)
-{
-	__le16 fc = hdr->frame_control;
-
-	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
-	if (len < 16)
-		return NULL;
-
-	if (ieee80211_is_data(fc)) {
-		if (len < 24) /* drop incorrect hdr len (data) */
-			return NULL;
-
-		if (ieee80211_has_a4(fc))
-			return NULL;
-		if (ieee80211_has_tods(fc))
-			return hdr->addr1;
-		if (ieee80211_has_fromds(fc))
-			return hdr->addr2;
-
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_mgmt(fc)) {
-		if (len < 24) /* drop incorrect hdr len (mgmt) */
-			return NULL;
-		return hdr->addr3;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		if (ieee80211_is_pspoll(fc))
-			return hdr->addr1;
-
-		if (ieee80211_is_back_req(fc)) {
-			switch (type) {
-			case NL80211_IFTYPE_STATION:
-				return hdr->addr2;
-			case NL80211_IFTYPE_AP:
-			case NL80211_IFTYPE_AP_VLAN:
-				return hdr->addr1;
-			default:
-				break; /* fall through to the return */
-			}
-		}
-	}
-
-	return NULL;
-}
-
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -752,7 +703,12 @@ EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
 {
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!vif)
+		return NULL;
+
+	sdata = vif_to_sdata(vif);
 
 	if (!ieee80211_sdata_running(sdata) ||
 	    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
@@ -1709,6 +1665,7 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 	local->resuming = false;
 	local->suspended = false;
 	local->started = false;
+	local->in_reconfig = false;
 
 	/* scheduled scan clearly can't be running any more, but tell
 	 * cfg80211 and clear local state
@@ -1759,16 +1716,24 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sched_scan_sdata;
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
+	bool suspended = local->suspended;
 
 	/* nothing to do if HW shouldn't run */
 	if (!local->open_count)
 		goto wake_up;
 
 #ifdef CONFIG_PM
-	if (local->suspended)
+	if (suspended)
 		local->resuming = true;
 
 	if (local->wowlan) {
+		/*
+		 * In the wowlan case, both mac80211 and the device
+		 * are functional when the resume op is called, so
+		 * clear local->suspended so the device could operate
+		 * normally (e.g. pass rx frames).
+		 */
+		local->suspended = false;
 		res = drv_resume(local);
 		local->wowlan = false;
 		if (res < 0) {
@@ -1781,8 +1746,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		/*
 		 * res is 1, which means the driver requested
 		 * to go through a regular reset on wakeup.
+		 * restore local->suspended in this case.
 		 */
 		reconfig_due_to_wowlan = true;
+		local->suspended = true;
 	}
 #endif
 
@@ -1794,7 +1761,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 */
 	res = drv_start(local);
 	if (res) {
-		if (local->suspended)
+		if (suspended)
 			WARN(1, "Hardware became unavailable upon resume. This could be a software issue prior to suspend or a hardware issue.\n");
 		else
 			WARN(1, "Hardware became unavailable during restart.\n");
@@ -2088,10 +2055,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (local->open_count && (!local->suspended || reconfig_due_to_wowlan))
+	if (local->open_count && (!suspended || reconfig_due_to_wowlan))
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_RESTART);
 
-	if (!local->suspended)
+	if (!suspended)
 		return 0;
 
 #ifdef CONFIG_PM

@@ -390,7 +390,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				    min((size_t)size, sizeof(vram_gtt))) ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_READ_MMR_REG: {
-		unsigned n, alloc_size = info->read_mmr_reg.count * 4;
+		unsigned n, alloc_size;
 		uint32_t *regs;
 		unsigned se_num = (info->read_mmr_reg.instance >>
 				   AMDGPU_INFO_MMR_SE_INDEX_SHIFT) &
@@ -406,9 +406,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
 
-		regs = kmalloc(alloc_size, GFP_KERNEL);
+		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs), GFP_KERNEL);
 		if (!regs)
 			return -ENOMEM;
+		alloc_size = info->read_mmr_reg.count * sizeof(*regs);
 
 		for (i = 0; i < info->read_mmr_reg.count; i++)
 			if (amdgpu_asic_read_register(adev, se_num, sh_num,
@@ -560,6 +561,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (!fpriv)
 		return;
 
+	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
+
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
@@ -567,8 +570,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	idr_destroy(&fpriv->bo_list_handles);
 	mutex_destroy(&fpriv->bo_list_lock);
-
-	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
@@ -681,7 +682,7 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
 						     vblank_time, flags,
-						     drmcrtc, &drmcrtc->hwmode);
+						     &drmcrtc->hwmode);
 }
 
 const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {

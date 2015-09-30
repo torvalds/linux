@@ -21,146 +21,60 @@
  *
  * Authors: Ben Skeggs
  */
-#include <engine/ce.h>
-#include <engine/falcon.h>
+#include "priv.h"
 #include "fuc/gf100.fuc3.h"
 
-struct gf100_ce_priv {
-	struct nvkm_falcon base;
-};
+#include <nvif/class.h>
 
-/*******************************************************************************
- * Copy object classes
- ******************************************************************************/
-
-static struct nvkm_oclass
-gf100_ce0_sclass[] = {
-	{ 0x90b5, &nvkm_object_ofuncs },
-	{},
-};
-
-static struct nvkm_oclass
-gf100_ce1_sclass[] = {
-	{ 0x90b8, &nvkm_object_ofuncs },
-	{},
-};
-
-/*******************************************************************************
- * PCE context
- ******************************************************************************/
-
-static struct nvkm_ofuncs
-gf100_ce_context_ofuncs = {
-	.ctor = _nvkm_falcon_context_ctor,
-	.dtor = _nvkm_falcon_context_dtor,
-	.init = _nvkm_falcon_context_init,
-	.fini = _nvkm_falcon_context_fini,
-	.rd32 = _nvkm_falcon_context_rd32,
-	.wr32 = _nvkm_falcon_context_wr32,
-};
-
-static struct nvkm_oclass
-gf100_ce0_cclass = {
-	.handle = NV_ENGCTX(CE0, 0xc0),
-	.ofuncs = &gf100_ce_context_ofuncs,
-};
-
-static struct nvkm_oclass
-gf100_ce1_cclass = {
-	.handle = NV_ENGCTX(CE1, 0xc0),
-	.ofuncs = &gf100_ce_context_ofuncs,
-};
-
-/*******************************************************************************
- * PCE engine/subdev functions
- ******************************************************************************/
-
-static int
-gf100_ce_init(struct nvkm_object *object)
+static void
+gf100_ce_init(struct nvkm_falcon *ce)
 {
-	struct gf100_ce_priv *priv = (void *)object;
-	int ret;
-
-	ret = nvkm_falcon_init(&priv->base);
-	if (ret)
-		return ret;
-
-	nv_wo32(priv, 0x084, nv_engidx(&priv->base.base) - NVDEV_ENGINE_CE0);
-	return 0;
+	struct nvkm_device *device = ce->engine.subdev.device;
+	const int index = ce->engine.subdev.index - NVKM_ENGINE_CE0;
+	nvkm_wr32(device, ce->addr + 0x084, index);
 }
 
-static int
-gf100_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gf100_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x104000, true,
-				 "PCE0", "ce0", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = gt215_ce_intr;
-	nv_engine(priv)->cclass = &gf100_ce0_cclass;
-	nv_engine(priv)->sclass = gf100_ce0_sclass;
-	nv_falcon(priv)->code.data = gf100_pce_code;
-	nv_falcon(priv)->code.size = sizeof(gf100_pce_code);
-	nv_falcon(priv)->data.data = gf100_pce_data;
-	nv_falcon(priv)->data.size = sizeof(gf100_pce_data);
-	return 0;
-}
-
-static int
-gf100_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct gf100_ce_priv *priv;
-	int ret;
-
-	ret = nvkm_falcon_create(parent, engine, oclass, 0x105000, true,
-				 "PCE1", "ce1", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = gt215_ce_intr;
-	nv_engine(priv)->cclass = &gf100_ce1_cclass;
-	nv_engine(priv)->sclass = gf100_ce1_sclass;
-	nv_falcon(priv)->code.data = gf100_pce_code;
-	nv_falcon(priv)->code.size = sizeof(gf100_pce_code);
-	nv_falcon(priv)->data.data = gf100_pce_data;
-	nv_falcon(priv)->data.size = sizeof(gf100_pce_data);
-	return 0;
-}
-
-struct nvkm_oclass
-gf100_ce0_oclass = {
-	.handle = NV_ENGINE(CE0, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_ce0_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gf100_ce_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
+static const struct nvkm_falcon_func
+gf100_ce0 = {
+	.code.data = gf100_ce_code,
+	.code.size = sizeof(gf100_ce_code),
+	.data.data = gf100_ce_data,
+	.data.size = sizeof(gf100_ce_data),
+	.pmc_enable = 0x00000040,
+	.init = gf100_ce_init,
+	.intr = gt215_ce_intr,
+	.sclass = {
+		{ -1, -1, FERMI_DMA },
+		{}
+	}
 };
 
-struct nvkm_oclass
-gf100_ce1_oclass = {
-	.handle = NV_ENGINE(CE1, 0xc0),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_ce1_ctor,
-		.dtor = _nvkm_falcon_dtor,
-		.init = gf100_ce_init,
-		.fini = _nvkm_falcon_fini,
-		.rd32 = _nvkm_falcon_rd32,
-		.wr32 = _nvkm_falcon_wr32,
-	},
+static const struct nvkm_falcon_func
+gf100_ce1 = {
+	.code.data = gf100_ce_code,
+	.code.size = sizeof(gf100_ce_code),
+	.data.data = gf100_ce_data,
+	.data.size = sizeof(gf100_ce_data),
+	.pmc_enable = 0x00000080,
+	.init = gf100_ce_init,
+	.intr = gt215_ce_intr,
+	.sclass = {
+		{ -1, -1, FERMI_DECOMPRESS },
+		{}
+	}
 };
+
+int
+gf100_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
+{
+	if (index == NVKM_ENGINE_CE0) {
+		return nvkm_falcon_new_(&gf100_ce0, device, index, true,
+					0x104000, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE1) {
+		return nvkm_falcon_new_(&gf100_ce1, device, index, true,
+					0x105000, pengine);
+	}
+	return -ENODEV;
+}

@@ -33,28 +33,12 @@ enum aggr_mode {
 	AGGR_THREAD,
 };
 
-struct perf_counts_values {
-	union {
-		struct {
-			u64 val;
-			u64 ena;
-			u64 run;
-		};
-		u64 values[3];
-	};
+struct perf_stat_config {
+	enum aggr_mode	aggr_mode;
+	bool		scale;
+	FILE		*output;
+	unsigned int	interval;
 };
-
-struct perf_counts {
-	s8			  scaled;
-	struct perf_counts_values aggr;
-	struct xyarray		  *values;
-};
-
-static inline struct perf_counts_values*
-perf_counts(struct perf_counts *counts, int cpu, int thread)
-{
-	return xyarray__entry(counts->values, cpu, thread);
-}
 
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
@@ -89,13 +73,6 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 void perf_stat__print_shadow_stats(FILE *out, struct perf_evsel *evsel,
 				   double avg, int cpu, enum aggr_mode aggr);
 
-struct perf_counts *perf_counts__new(int ncpus, int nthreads);
-void perf_counts__delete(struct perf_counts *counts);
-
-void perf_evsel__reset_counts(struct perf_evsel *evsel);
-int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus, int nthreads);
-void perf_evsel__free_counts(struct perf_evsel *evsel);
-
 void perf_evsel__reset_stat_priv(struct perf_evsel *evsel);
 int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel);
 void perf_evsel__free_stat_priv(struct perf_evsel *evsel);
@@ -109,4 +86,7 @@ int perf_evsel__alloc_stats(struct perf_evsel *evsel, bool alloc_raw);
 int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
 void perf_evlist__free_stats(struct perf_evlist *evlist);
 void perf_evlist__reset_stats(struct perf_evlist *evlist);
+
+int perf_stat_process_counter(struct perf_stat_config *config,
+			      struct perf_evsel *counter);
 #endif

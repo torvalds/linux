@@ -431,7 +431,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 		return -ENAMETOOLONG;
 
 	new_pool = kzalloc(sizeof(*new_pool), GFP_NOFS);
-	if (new_pool == NULL)
+	if (!new_pool)
 		return -ENOMEM;
 
 	strncpy(new_pool->pool_name, poolname, LOV_MAXPOOLNAME);

@@ -1,9 +1,12 @@
-ldflags-y += --wrap=ioremap_wt
 ldflags-y += --wrap=ioremap_wc
+ldflags-y += --wrap=memremap
 ldflags-y += --wrap=devm_ioremap_nocache
-ldflags-y += --wrap=ioremap_cache
+ldflags-y += --wrap=devm_memremap
+ldflags-y += --wrap=devm_memunmap
 ldflags-y += --wrap=ioremap_nocache
 ldflags-y += --wrap=iounmap
+ldflags-y += --wrap=memunmap
+ldflags-y += --wrap=__devm_request_region
 ldflags-y += --wrap=__request_region
 ldflags-y += --wrap=__release_region
 
@@ -15,6 +18,7 @@ obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
 obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o
 obj-$(CONFIG_ND_BTT) += nd_btt.o
 obj-$(CONFIG_ND_BLK) += nd_blk.o
+obj-$(CONFIG_X86_PMEM_LEGACY) += nd_e820.o
 obj-$(CONFIG_ACPI_NFIT) += nfit.o
 
 nfit-y := $(ACPI_SRC)/nfit.o
@@ -29,6 +33,9 @@ nd_btt-y += config_check.o
 nd_blk-y := $(NVDIMM_SRC)/blk.o
 nd_blk-y += config_check.o
 
+nd_e820-y := $(NVDIMM_SRC)/e820.o
+nd_e820-y += config_check.o
+
 libnvdimm-y := $(NVDIMM_SRC)/core.o
 libnvdimm-y += $(NVDIMM_SRC)/bus.o
 libnvdimm-y += $(NVDIMM_SRC)/dimm_devs.o
@@ -37,7 +44,9 @@ libnvdimm-y += $(NVDIMM_SRC)/region_devs.o
 libnvdimm-y += $(NVDIMM_SRC)/region.o
 libnvdimm-y += $(NVDIMM_SRC)/namespace_devs.o
 libnvdimm-y += $(NVDIMM_SRC)/label.o
+libnvdimm-$(CONFIG_ND_CLAIM) += $(NVDIMM_SRC)/claim.o
 libnvdimm-$(CONFIG_BTT) += $(NVDIMM_SRC)/btt_devs.o
+libnvdimm-$(CONFIG_NVDIMM_PFN) += $(NVDIMM_SRC)/pfn_devs.o
 libnvdimm-y += config_check.o
 
 obj-m += test/

@@ -615,14 +615,14 @@ xfs_default_resblks(xfs_mount_t *mp)
  */
 int
 xfs_mountfs(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_sb_t	*sbp = &(mp->m_sb);
-	xfs_inode_t	*rip;
-	__uint64_t	resblks;
-	uint		quotamount = 0;
-	uint		quotaflags = 0;
-	int		error = 0;
+	struct xfs_sb		*sbp = &(mp->m_sb);
+	struct xfs_inode	*rip;
+	__uint64_t		resblks;
+	uint			quotamount = 0;
+	uint			quotaflags = 0;
+	int			error = 0;
 
 	xfs_sb_mount_common(mp, sbp);
 
@@ -799,7 +799,9 @@ xfs_mountfs(
 	}
 
 	/*
-	 * log's mount-time initialization. Perform 1st part recovery if needed
+	 * Log's mount-time initialization. The first part of recovery can place
+	 * some items on the AIL, to be handled when recovery is finished or
+	 * cancelled.
 	 */
 	error = xfs_log_mount(mp, mp->m_logdev_targp,
 			      XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
@@ -910,9 +912,9 @@ xfs_mountfs(
 	}
 
 	/*
-	 * Finish recovering the file system.  This part needed to be
-	 * delayed until after the root and real-time bitmap inodes
-	 * were consistently read in.
+	 * Finish recovering the file system.  This part needed to be delayed
+	 * until after the root and real-time bitmap inodes were consistently
+	 * read in.
 	 */
 	error = xfs_log_mount_finish(mp);
 	if (error) {
@@ -955,8 +957,10 @@ xfs_mountfs(
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
+	cancel_delayed_work_sync(&mp->m_reclaim_work);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
  out_log_dealloc:
-	xfs_log_unmount(mp);
+	xfs_log_mount_cancel(mp);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_wait_buftarg(mp->m_logdev_targp);

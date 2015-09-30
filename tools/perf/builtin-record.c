@@ -27,8 +27,10 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/data.h"
+#include "util/perf_regs.h"
 #include "util/auxtrace.h"
 #include "util/parse-branch-options.h"
+#include "util/parse-regs-options.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -279,7 +281,7 @@ static int record__open(struct record *rec)
 
 	evlist__for_each(evlist, pos) {
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
+		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose)
 					ui__warning("%s\n", msg);
@@ -771,12 +773,14 @@ static void callchain_debug(void)
 			 callchain_param.dump_size);
 }
 
-int record_parse_callchain_opt(const struct option *opt __maybe_unused,
+int record_parse_callchain_opt(const struct option *opt,
 			       const char *arg,
 			       int unset)
 {
 	int ret;
+	struct record_opts *record = (struct record_opts *)opt->value;
 
+	record->callgraph_set = true;
 	callchain_param.enabled = !unset;
 
 	/* --no-call-graph */
@@ -786,17 +790,20 @@ int record_parse_callchain_opt(const struct option *opt __maybe_unused,
 		return 0;
 	}
 
-	ret = parse_callchain_record_opt(arg);
+	ret = parse_callchain_record_opt(arg, &callchain_param);
 	if (!ret)
 		callchain_debug();
 
 	return ret;
 }
 
-int record_callchain_opt(const struct option *opt __maybe_unused,
+int record_callchain_opt(const struct option *opt,
 			 const char *arg __maybe_unused,
 			 int unset __maybe_unused)
 {
+	struct record_opts *record = (struct record_opts *)opt->value;
+
+	record->callgraph_set = true;
 	callchain_param.enabled = true;
 
 	if (callchain_param.record_mode == CALLCHAIN_NONE)
@@ -1003,6 +1010,9 @@ struct option __record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
+	OPT_CALLBACK_NOOPT(0, "exclude-perf", &record.evlist,
+			   NULL, "don't record events from perf itself",
+			   exclude_perf),
 	OPT_STRING('p', "pid", &record.opts.target.pid, "pid",
 		    "record events on existing process id"),
 	OPT_STRING('t', "tid", &record.opts.target.tid, "tid",
@@ -1041,7 +1051,9 @@ struct option __record_options[] = {
 	OPT_BOOLEAN('s', "stat", &record.opts.inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
-	OPT_BOOLEAN('T', "timestamp", &record.opts.sample_time, "Record the sample timestamps"),
+	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
+			&record.opts.sample_time_set,
+			"Record the sample timestamps"),
 	OPT_BOOLEAN('P', "period", &record.opts.period, "Record the sample period"),
 	OPT_BOOLEAN('n', "no-samples", &record.opts.no_samples,
 		    "don't sample"),
@@ -1070,8 +1082,9 @@ struct option __record_options[] = {
 		    "sample transaction flags (special events only)"),
 	OPT_BOOLEAN(0, "per-thread", &record.opts.target.per_thread,
 		    "use per-thread mmaps"),
-	OPT_BOOLEAN('I', "intr-regs", &record.opts.sample_intr_regs,
-		    "Sample machine registers on interrupt"),
+	OPT_CALLBACK_OPTARG('I', "intr-regs", &record.opts.sample_intr_regs, NULL, "any register",
+		    "sample selected machine registers on interrupt,"
+		    " use -I ? to list register names", parse_regs),
 	OPT_BOOLEAN(0, "running-time", &record.opts.running_time,
 		    "Record running/enabled time of read (:S) events"),
 	OPT_CALLBACK('k', "clockid", &record.opts,
@@ -1081,6 +1094,8 @@ struct option __record_options[] = {
 			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_BOOLEAN(0, "switch-events", &record.opts.record_switch_events,
+		    "Record context switch events"),
 	OPT_END()
 };
 
@@ -1106,6 +1121,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (nr_cgroups && !rec->opts.target.system_wide) {
 		ui__error("cgroup monitoring only available in"
 			  " system-wide mode\n");
+		usage_with_options(record_usage, record_options);
+	}
+	if (rec->opts.record_switch_events &&
+	    !perf_can_record_switch_events()) {
+		ui__error("kernel does not support recording context switch events (--switch-events option)\n");
 		usage_with_options(record_usage, record_options);
 	}
 

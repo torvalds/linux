@@ -41,6 +41,7 @@
 #include "target_core_internal.h"
 #include "target_core_alua.h"
 #include "target_core_pr.h"
+#include "target_core_ua.h"
 
 extern struct se_device *g_lun0_dev;
 
@@ -82,6 +83,22 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 	return acl;
 }
 EXPORT_SYMBOL(core_tpg_get_initiator_node_acl);
+
+void core_allocate_nexus_loss_ua(
+	struct se_node_acl *nacl)
+{
+	struct se_dev_entry *deve;
+
+	if (!nacl)
+		return;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link)
+		core_scsi3_ua_allocate(deve, 0x29,
+			ASCQ_29H_NEXUS_LOSS_OCCURRED);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(core_allocate_nexus_loss_ua);
 
 /*	core_tpg_add_node_to_devs():
  *
@@ -651,7 +668,10 @@ int core_tpg_add_lun(
 	list_add_tail(&lun->lun_dev_link, &dev->dev_sep_list);
 	spin_unlock(&dev->se_port_lock);
 
-	lun->lun_access = lun_access;
+	if (dev->dev_flags & DF_READ_ONLY)
+		lun->lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
+	else
+		lun->lun_access = lun_access;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
 	mutex_unlock(&tpg->tpg_lun_mutex);

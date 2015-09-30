@@ -102,38 +102,38 @@ static int omap2_gp_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
+static int omap2_gp_timer_shutdown(struct clock_event_device *evt)
+{
+	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
+	return 0;
+}
+
+static int omap2_gp_timer_set_periodic(struct clock_event_device *evt)
 {
 	u32 period;
 
 	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		period = clkev.rate / HZ;
-		period -= 1;
-		/* Looks like we need to first set the load value separately */
-		__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG,
-				      0xffffffff - period, OMAP_TIMER_POSTED);
-		__omap_dm_timer_load_start(&clkev,
-					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
-					0xffffffff - period, OMAP_TIMER_POSTED);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	period = clkev.rate / HZ;
+	period -= 1;
+	/* Looks like we need to first set the load value separately */
+	__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG, 0xffffffff - period,
+			      OMAP_TIMER_POSTED);
+	__omap_dm_timer_load_start(&clkev,
+				   OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
+				   0xffffffff - period, OMAP_TIMER_POSTED);
+	return 0;
 }
 
 static struct clock_event_device clockevent_gpt = {
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 300,
-	.set_next_event	= omap2_gp_timer_set_next_event,
-	.set_mode	= omap2_gp_timer_set_mode,
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 300,
+	.set_next_event		= omap2_gp_timer_set_next_event,
+	.set_state_shutdown	= omap2_gp_timer_shutdown,
+	.set_state_periodic	= omap2_gp_timer_set_periodic,
+	.set_state_oneshot	= omap2_gp_timer_shutdown,
+	.tick_resume		= omap2_gp_timer_shutdown,
 };
 
 static struct property device_disabled = {
@@ -208,8 +208,7 @@ static void __init omap_dmtimer_init(void)
 	/* If we are a secure device, remove any secure timer nodes */
 	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)) {
 		np = omap_get_timer_dt(omap_timer_match, "ti,timer-secure");
-		if (np)
-			of_node_put(np);
+		of_node_put(np);
 	}
 }
 
@@ -298,12 +297,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (IS_ERR(src))
 		return PTR_ERR(src);
 
-	r = clk_set_parent(timer->fclk, src);
-	if (r < 0) {
-		pr_warn("%s: %s cannot set source\n", __func__, oh->name);
-		clk_put(src);
-		return r;
-	}
+	WARN(clk_set_parent(timer->fclk, src) < 0,
+	     "Cannot set timer parent clock, no PLL clock driver?");
 
 	clk_put(src);
 
@@ -649,23 +644,10 @@ static OMAP_SYS_32K_TIMER_INIT(4, 1, "timer_32k_ck", "ti,timer-alwon",
 
 #ifdef CONFIG_ARCH_OMAP4
 #ifdef CONFIG_HAVE_ARM_TWD
-static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, OMAP44XX_LOCAL_TWD_BASE, 29);
 void __init omap4_local_timer_init(void)
 {
 	omap4_sync32k_timer_init();
-	/* Local timers are not supprted on OMAP4430 ES1.0 */
-	if (omap_rev() != OMAP4430_REV_ES1_0) {
-		int err;
-
-		if (of_have_populated_dt()) {
-			clocksource_of_init();
-			return;
-		}
-
-		err = twd_local_timer_register(&twd_local_timer);
-		if (err)
-			pr_err("twd_local_timer_register failed %d\n", err);
-	}
+	clocksource_of_init();
 }
 #else
 void __init omap4_local_timer_init(void)

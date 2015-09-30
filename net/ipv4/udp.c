@@ -1013,11 +1013,32 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (!rt) {
 		struct net *net = sock_net(sk);
+		__u8 flow_flags = inet_sk_flowi_flags(sk);
 
 		fl4 = &fl4_stack;
+
+		/* unconnected socket. If output device is enslaved to a VRF
+		 * device lookup source address from VRF table. This mimics
+		 * behavior of ip_route_connect{_init}.
+		 */
+		if (netif_index_is_vrf(net, ipc.oif)) {
+			flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
+					   RT_SCOPE_UNIVERSE, sk->sk_protocol,
+					   (flow_flags | FLOWI_FLAG_VRFSRC |
+					    FLOWI_FLAG_SKIP_NH_OIF),
+					   faddr, saddr, dport,
+					   inet->inet_sport);
+
+			rt = ip_route_output_flow(net, fl4, sk);
+			if (!IS_ERR(rt)) {
+				saddr = fl4->saddr;
+				ip_rt_put(rt);
+			}
+		}
+
 		flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-				   inet_sk_flowi_flags(sk),
+				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport);
 
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));

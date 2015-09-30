@@ -420,8 +420,8 @@ EXPORT_SYMBOL_GPL(dm_btree_lookup);
  *
  * Where A* is a shadow of A.
  */
-static int btree_split_sibling(struct shadow_spine *s, dm_block_t root,
-			       unsigned parent_index, uint64_t key)
+static int btree_split_sibling(struct shadow_spine *s, unsigned parent_index,
+			       uint64_t key)
 {
 	int r;
 	size_t size;
@@ -625,7 +625,7 @@ static int btree_insert_raw(struct shadow_spine *s, dm_block_t root,
 			if (top)
 				r = btree_split_beneath(s, key);
 			else
-				r = btree_split_sibling(s, root, i, key);
+				r = btree_split_sibling(s, i, key);
 
 			if (r < 0)
 				return r;

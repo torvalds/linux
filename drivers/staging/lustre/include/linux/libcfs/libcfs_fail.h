@@ -79,14 +79,16 @@ static inline int cfs_fail_check_set(__u32 id, __u32 value,
 {
 	int ret = 0;
 
-	if (unlikely(CFS_FAIL_PRECHECK(id) &&
-		     (ret = __cfs_fail_check_set(id, value, set)))) {
-		if (quiet) {
-			CDEBUG(D_INFO, "*** cfs_fail_loc=%x, val=%u***\n",
-			       id, value);
-		} else {
-			LCONSOLE_INFO("*** cfs_fail_loc=%x, val=%u***\n",
-				      id, value);
+	if (unlikely(CFS_FAIL_PRECHECK(id))) {
+		ret = __cfs_fail_check_set(id, value, set);
+		if (ret) {
+			if (quiet) {
+				CDEBUG(D_INFO, "*** cfs_fail_loc=%x, val=%u***\n",
+				       id, value);
+			} else {
+				LCONSOLE_INFO("*** cfs_fail_loc=%x, val=%u***\n",
+					      id, value);
+			}
 		}
 	}
 

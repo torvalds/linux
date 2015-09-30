@@ -33,7 +33,7 @@
 
 
 /* Register default values for ISABELLE driver. */
-static struct reg_default isabelle_reg_defs[] = {
+static const struct reg_default isabelle_reg_defs[] = {
 	{ 0, 0x00 },
 	{ 1, 0x00 },
 	{ 2, 0x00 },
@@ -1016,25 +1016,25 @@ static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 #define ISABELLE_FORMATS (SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops isabelle_hs_dai_ops = {
+static const struct snd_soc_dai_ops isabelle_hs_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
 	.digital_mute	= isabelle_hs_mute,
 };
 
-static struct snd_soc_dai_ops isabelle_hf_dai_ops = {
+static const struct snd_soc_dai_ops isabelle_hf_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
 	.digital_mute	= isabelle_hf_mute,
 };
 
-static struct snd_soc_dai_ops isabelle_line_dai_ops = {
+static const struct snd_soc_dai_ops isabelle_line_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
 	.digital_mute	= isabelle_line_mute,
 };
 
-static struct snd_soc_dai_ops isabelle_ul_dai_ops = {
+static const struct snd_soc_dai_ops isabelle_ul_dai_ops = {
 	.hw_params	= isabelle_hw_params,
 	.set_fmt	= isabelle_set_dai_fmt,
 };
@@ -1149,7 +1149,6 @@ MODULE_DEVICE_TABLE(i2c, isabelle_i2c_id);
 static struct i2c_driver isabelle_i2c_driver = {
 	.driver = {
 		.name = "isabelle",
-		.owner = THIS_MODULE,
 	},
 	.probe = isabelle_i2c_probe,
 	.remove = isabelle_i2c_remove,

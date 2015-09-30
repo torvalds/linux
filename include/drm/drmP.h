@@ -482,6 +482,7 @@ struct drm_driver {
 	 *               scanout position query. Can be NULL to skip timestamp.
 	 * \param *etime Target location for timestamp taken immediately after
 	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param mode Current display timings.
 	 *
 	 * Returns vpos as a positive number while in active scanout area.
 	 * Returns vpos as a negative number inside vblank, counting the number
@@ -499,8 +500,9 @@ struct drm_driver {
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
 				     unsigned int flags,
-				     int *vpos, int *hpos, ktime_t *stime,
-				     ktime_t *etime);
+				     int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
@@ -701,6 +703,8 @@ struct drm_vblank_crtc {
 	u32 last_wait;			/* Last vblank seqno waited per CRTC */
 	unsigned int inmodeset;		/* Display driver is setting mode */
 	unsigned int pipe;		/* crtc index */
+	int framedur_ns;		/* frame/field duration in ns */
+	int linedur_ns;			/* line duration in ns */
 	bool enabled;			/* so we don't call enable more than
 					   once per disable */
 };
@@ -928,6 +932,8 @@ extern u32 drm_vblank_count(struct drm_device *dev, int pipe);
 extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
 extern u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 				     struct timeval *vblanktime);
+extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
+					  struct timeval *vblanktime);
 extern void drm_send_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  struct drm_pending_vblank_event *e);
 extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
@@ -951,7 +957,6 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 unsigned int pipe, int *max_error,
 						 struct timeval *vblank_time,
 						 unsigned flags,
-						 const struct drm_crtc *refcrtc,
 						 const struct drm_display_mode *mode);
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode);

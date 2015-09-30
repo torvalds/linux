@@ -93,7 +93,7 @@ xfs_dir3_free_verify(
 
 		if (hdr3->magic != cpu_to_be32(XFS_DIR3_FREE_MAGIC))
 			return false;
-		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_uuid))
+		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return false;
@@ -226,7 +226,7 @@ xfs_dir3_free_get_buf(
 
 		hdr3->hdr.blkno = cpu_to_be64(bp->b_bn);
 		hdr3->hdr.owner = cpu_to_be64(dp->i_ino);
-		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_uuid);
+		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_meta_uuid);
 	} else
 		hdr.magic = XFS_DIR2_FREE_MAGIC;
 	dp->d_ops->free_hdr_to_disk(bp->b_addr, &hdr);
@@ -1845,8 +1845,7 @@ xfs_dir2_node_addname_int(
 
 			if (dp->d_ops->db_to_fdb(args->geo, dbno) != fbno) {
 				xfs_alert(mp,
-			"%s: dir ino %llu needed freesp block %lld for\n"
-			"  data block %lld, got %lld ifbno %llu lastfbno %d",
+"%s: dir ino %llu needed freesp block %lld for data block %lld, got %lld ifbno %llu lastfbno %d",
 					__func__, (unsigned long long)dp->i_ino,
 					(long long)dp->d_ops->db_to_fdb(
 								args->geo, dbno),
@@ -2132,6 +2131,7 @@ xfs_dir2_node_replace(
 	int			error;		/* error return value */
 	int			i;		/* btree level */
 	xfs_ino_t		inum;		/* new inode number */
+	int			ftype;		/* new file type */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry being changed */
 	int			rval;		/* internal return value */
@@ -2145,7 +2145,14 @@ xfs_dir2_node_replace(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
+
+	/*
+	 * We have to save new inode number and ftype since
+	 * xfs_da3_node_lookup_int() is going to overwrite them
+	 */
 	inum = args->inumber;
+	ftype = args->filetype;
+
 	/*
 	 * Lookup the entry to change in the btree.
 	 */
@@ -2183,7 +2190,7 @@ xfs_dir2_node_replace(
 		 * Fill in the new inode number and log the entry.
 		 */
 		dep->inumber = cpu_to_be64(inum);
-		args->dp->d_ops->data_put_ftype(dep, args->filetype);
+		args->dp->d_ops->data_put_ftype(dep, ftype);
 		xfs_dir2_data_log_entry(args, state->extrablk.bp, dep);
 		rval = 0;
 	}

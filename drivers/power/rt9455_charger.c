@@ -973,7 +973,6 @@ static int rt9455_irq_handler_check_irq2_register(struct rt9455_info *info,
 
 	if (irq2 & GET_MASK(F_CHRVPI)) {
 		dev_dbg(dev, "Charger fault occurred\n");
-		alert_userspace = true;
 		/*
 		 * CHRVPI bit is set in 2 cases:
 		 * 1. when the power source is connected to the charger.
@@ -981,6 +980,9 @@ static int rt9455_irq_handler_check_irq2_register(struct rt9455_info *info,
 		 * To identify the case, PWR_RDY bit is checked. Because
 		 * PWR_RDY bit is set / cleared after CHRVPI interrupt is
 		 * triggered, it is used delayed_work to later read PWR_RDY bit.
+		 * Also, do not set to true alert_userspace, because there is no
+		 * need to notify userspace when CHRVPI interrupt has occurred.
+		 * Userspace will be notified after PWR_RDY bit is read.
 		 */
 		queue_delayed_work(system_power_efficient_wq,
 				   &info->pwr_rdy_work,
@@ -1178,7 +1180,7 @@ static irqreturn_t rt9455_irq_handler_thread(int irq, void *data)
 		/*
 		 * Sometimes, an interrupt occurs while rt9455_probe() function
 		 * is executing and power_supply_register() is not yet called.
-		 * Do not call power_supply_charged() in this case.
+		 * Do not call power_supply_changed() in this case.
 		 */
 		if (info->charger)
 			power_supply_changed(info->charger);
@@ -1478,6 +1480,11 @@ static void rt9455_pwr_rdy_work_callback(struct work_struct *work)
 				   RT9455_MAX_CHARGING_TIME * HZ);
 		break;
 	}
+	/*
+	 * Notify userspace that the charger has been either connected to or
+	 * disconnected from the power source.
+	 */
+	power_supply_changed(info->charger);
 }
 
 static void rt9455_max_charging_time_work_callback(struct work_struct *work)
@@ -1533,6 +1540,11 @@ static void rt9455_batt_presence_work_callback(struct work_struct *work)
 			if (ret)
 				dev_err(dev, "Failed to unmask BATAB interrupt\n");
 		}
+		/*
+		 * Notify userspace that the battery is now connected to the
+		 * charger.
+		 */
+		power_supply_changed(info->charger);
 	}
 }
 

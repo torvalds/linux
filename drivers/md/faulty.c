@@ -70,7 +70,7 @@
 #include <linux/seq_file.h>
 
 
-static void faulty_fail(struct bio *bio, int error)
+static void faulty_fail(struct bio *bio)
 {
 	struct bio *b = bio->bi_private;
 
@@ -181,7 +181,7 @@ static void make_request(struct mddev *mddev, struct bio *bio)
 			/* special case - don't decrement, don't generic_make_request,
 			 * just fail immediately
 			 */
-			bio_endio(bio, -EIO);
+			bio_io_error(bio);
 			return;
 		}
 

@@ -804,6 +804,8 @@ done:
 
 static void printer_reset_interface(struct printer_dev *dev)
 {
+	unsigned long	flags;
+
 	if (dev->interface < 0)
 		return;
 
@@ -815,9 +817,11 @@ static void printer_reset_interface(struct printer_dev *dev)
 	if (dev->out_ep->desc)
 		usb_ep_disable(dev->out_ep);
 
+	spin_lock_irqsave(&dev->lock, flags);
 	dev->in_ep->desc = NULL;
 	dev->out_ep->desc = NULL;
 	dev->interface = -1;
+	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 /* Change our operational Interface. */
@@ -1131,13 +1135,10 @@ static int printer_func_set_alt(struct usb_function *f,
 static void printer_func_disable(struct usb_function *f)
 {
 	struct printer_dev *dev = func_to_printer(f);
-	unsigned long		flags;
 
 	DBG(dev, "%s\n", __func__);
 
-	spin_lock_irqsave(&dev->lock, flags);
 	printer_reset_interface(dev);
-	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 static inline struct f_printer_opts

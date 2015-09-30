@@ -27,27 +27,21 @@
 #include <linux/sched.h>
 
 #include "../comedi_pci.h"
+#include "addi_tcw.h"
 #include "amcc_s5933.h"
 
 /*
  * PCI bar 1 register I/O map
  */
 #define APCI3501_AO_CTRL_STATUS_REG		0x00
-#define APCI3501_AO_CTRL_BIPOLAR		(1 << 0)
-#define APCI3501_AO_STATUS_READY		(1 << 8)
+#define APCI3501_AO_CTRL_BIPOLAR		BIT(0)
+#define APCI3501_AO_STATUS_READY		BIT(8)
 #define APCI3501_AO_DATA_REG			0x04
 #define APCI3501_AO_DATA_CHAN(x)		((x) << 0)
 #define APCI3501_AO_DATA_VAL(x)			((x) << 8)
-#define APCI3501_AO_DATA_BIPOLAR		(1 << 31)
+#define APCI3501_AO_DATA_BIPOLAR		BIT(31)
 #define APCI3501_AO_TRIG_SCS_REG		0x08
-#define APCI3501_TIMER_SYNC_REG			0x20
-#define APCI3501_TIMER_RELOAD_REG		0x24
-#define APCI3501_TIMER_TIMEBASE_REG		0x28
-#define APCI3501_TIMER_CTRL_REG			0x2c
-#define APCI3501_TIMER_STATUS_REG		0x30
-#define APCI3501_TIMER_IRQ_REG			0x34
-#define APCI3501_TIMER_WARN_RELOAD_REG		0x38
-#define APCI3501_TIMER_WARN_TIMEBASE_REG	0x3c
+#define APCI3501_TIMER_BASE			0x20
 #define APCI3501_DO_REG				0x40
 #define APCI3501_DI_REG				0x50
 
@@ -72,9 +66,10 @@
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
 struct apci3501_private {
-	int i_IobaseAmcc;
+	unsigned long amcc;
+	unsigned long tcw;
 	struct task_struct *tsk_Current;
-	unsigned char b_TimerSelectMode;
+	unsigned char timer_mode;
 };
 
 static struct comedi_lrange apci3501_ao_range = {
@@ -222,11 +217,10 @@ static unsigned short apci3501_eeprom_readw(unsigned long iobase,
 static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
 {
 	struct apci3501_private *devpriv = dev->private;
-	unsigned long iobase = devpriv->i_IobaseAmcc;
 	unsigned char nfuncs;
 	int i;
 
-	nfuncs = apci3501_eeprom_readw(iobase, 10) & 0xff;
+	nfuncs = apci3501_eeprom_readw(devpriv->amcc, 10) & 0xff;
 
 	/* Read functionality details */
 	for (i = 0; i < nfuncs; i++) {
@@ -235,11 +229,11 @@ static int apci3501_eeprom_get_ao_n_chan(struct comedi_device *dev)
 		unsigned char func;
 		unsigned short val;
 
-		func = apci3501_eeprom_readw(iobase, 12 + offset) & 0x3f;
-		addr = apci3501_eeprom_readw(iobase, 14 + offset);
+		func = apci3501_eeprom_readw(devpriv->amcc, 12 + offset) & 0x3f;
+		addr = apci3501_eeprom_readw(devpriv->amcc, 14 + offset);
 
 		if (func == EEPROM_ANALOGOUTPUT) {
-			val = apci3501_eeprom_readw(iobase, addr + 10);
+			val = apci3501_eeprom_readw(devpriv->amcc, addr + 10);
 			return (val >> 4) & 0x3ff;
 		}
 	}
@@ -254,7 +248,7 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 	struct apci3501_private *devpriv = dev->private;
 	unsigned short addr = CR_CHAN(insn->chanspec);
 
-	data[0] = apci3501_eeprom_readw(devpriv->i_IobaseAmcc, 2 * addr);
+	data[0] = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
 
 	return insn->n;
 }
@@ -263,26 +257,29 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct apci3501_private *devpriv = dev->private;
-	unsigned int ui_Timer_AOWatchdog;
-	unsigned long ul_Command1;
+	unsigned int status;
+	unsigned int ctrl;
 
 	/*  Disable Interrupt */
-	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = ul_Command1 & 0xFFFFF9FDul;
-	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_IRQ_ENA);
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
 
-	ui_Timer_AOWatchdog = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
-	if ((!ui_Timer_AOWatchdog)) {
+	status = inl(devpriv->tcw + ADDI_TCW_IRQ_REG);
+	if (!(status & ADDI_TCW_IRQ)) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
 	}
 
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
-	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul) | 1 << 1;
-	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
-	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
+	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
+	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
+		  ADDI_TCW_CTRL_IRQ_ENA);
+	ctrl |= ADDI_TCW_CTRL_IRQ_ENA;
+	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
+	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
 
 	return IRQ_HANDLED;
 }
@@ -334,8 +331,9 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	devpriv->amcc = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->tcw = dev->iobase + APCI3501_TIMER_BASE;
 
 	ao_n_chan = apci3501_eeprom_get_ao_n_chan(dev);
 

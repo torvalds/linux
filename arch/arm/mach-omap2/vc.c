@@ -300,7 +300,7 @@ static void __init omap3_vc_init_pmic_signaling(struct voltagedomain *voltdm)
 
 	val = voltdm->read(OMAP3_PRM_POLCTRL_OFFSET);
 	if (!(val & OMAP3430_PRM_POLCTRL_CLKREQ_POL) ||
-	    (val & OMAP3430_PRM_POLCTRL_CLKREQ_POL)) {
+	    (val & OMAP3430_PRM_POLCTRL_OFFMODE_POL)) {
 		val |= OMAP3430_PRM_POLCTRL_CLKREQ_POL;
 		val &= ~OMAP3430_PRM_POLCTRL_OFFMODE_POL;
 		pr_debug("PM: fixing sys_clkreq and sys_off_mode polarity to 0x%x\n",
@@ -563,7 +563,7 @@ struct i2c_init_data {
 	u8 hsscll_12;
 };
 
-static const __initdata struct i2c_init_data omap4_i2c_timing_data[] = {
+static const struct i2c_init_data const omap4_i2c_timing_data[] __initconst = {
 	{
 		.load = 50,
 		.loadbits = 0x3,

@@ -735,6 +735,32 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 		position = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 
 	/*
+	 * On HSW, the DSL reg (0x70000) appears to return 0 if we
+	 * read it just before the start of vblank.  So try it again
+	 * so we don't accidentally end up spanning a vblank frame
+	 * increment, causing the pipe_update_end() code to squak at us.
+	 *
+	 * The nature of this problem means we can't simply check the ISR
+	 * bit and return the vblank start value; nor can we use the scanline
+	 * debug register in the transcoder as it appears to have the same
+	 * problem.  We may need to extend this to include other platforms,
+	 * but so far testing only shows the problem on HSW.
+	 */
+	if (IS_HASWELL(dev) && !position) {
+		int i, temp;
+
+		for (i = 0; i < 100; i++) {
+			udelay(1);
+			temp = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) &
+				DSL_LINEMASK_GEN3;
+			if (temp != position) {
+				position = temp;
+				break;
+			}
+		}
+	}
+
+	/*
 	 * See update_scanline_offset() for the details on the
 	 * scanline_offset adjustment.
 	 */
@@ -743,12 +769,12 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime)
+				    ktime_t *stime, ktime_t *etime,
+				    const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -905,7 +931,6 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     crtc,
 						     &crtc->hwmode);
 }
 
@@ -1692,9 +1717,8 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 
 		if (hotplug_trigger) {
 			intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
-					   hotplug_trigger, hpd_status_g4x,
+					   hotplug_trigger, hpd_status_i915,
 					   i9xx_port_hotplug_long_detect);
-
 			intel_hpd_irq_handler(dev, pin_mask, long_mask);
 		}
 	}
@@ -2434,7 +2458,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 			kobject_uevent_env(&dev->primary->kdev->kobj,
 					   KOBJ_CHANGE, reset_done_event);
 		} else {
-			atomic_set_mask(I915_WEDGED, &error->reset_counter);
+			atomic_or(I915_WEDGED, &error->reset_counter);
 		}
 
 		/*
@@ -2562,7 +2586,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		atomic_set_mask(I915_RESET_IN_PROGRESS_FLAG,
+		atomic_or(I915_RESET_IN_PROGRESS_FLAG,
 				&dev_priv->gpu_error.reset_counter);
 
 		/*

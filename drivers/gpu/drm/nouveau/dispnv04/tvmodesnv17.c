@@ -32,7 +32,7 @@
 #include "hw.h"
 #include "tvnv17.h"
 
-char *nv17_tv_norm_names[NUM_TV_NORMS] = {
+const char * const nv17_tv_norm_names[NUM_TV_NORMS] = {
 	[TV_NORM_PAL] = "PAL",
 	[TV_NORM_PAL_M] = "PAL-M",
 	[TV_NORM_PAL_N] = "PAL-N",

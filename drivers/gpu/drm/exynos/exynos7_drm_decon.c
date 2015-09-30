@@ -70,6 +70,18 @@ static const struct of_device_id decon_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
 
+static const uint32_t decon_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+};
+
 static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
@@ -383,6 +395,17 @@ static void decon_shadow_protect_win(struct decon_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
+static void decon_atomic_begin(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, true);
+}
+
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			       struct exynos_drm_plane *plane)
 {
@@ -409,9 +432,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	 * wouldn't be updated at vsync also but updated once unprotect window
 	 * is set.
 	 */
-
-	/* protect windows */
-	decon_shadow_protect_win(ctx, win, true);
 
 	/* buffer start address */
 	val = (unsigned long)plane->dma_addr[0];
@@ -510,12 +530,20 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	val &= ~WINCONx_ENWIN;
 	writel(val, ctx->regs + WINCON(win));
 
-	/* unprotect windows */
-	decon_shadow_protect_win(ctx, win, false);
-
 	val = readl(ctx->regs + DECON_UPDATE);
 	val |= DECON_UPDATE_STANDALONE_F;
 	writel(val, ctx->regs + DECON_UPDATE);
+}
+
+static void decon_atomic_flush(struct exynos_drm_crtc *crtc,
+					struct exynos_drm_plane *plane)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (ctx->suspended)
+		return;
+
+	decon_shadow_protect_win(ctx, plane->zpos, false);
 }
 
 static void decon_init(struct decon_context *ctx)
@@ -614,8 +642,10 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.wait_for_vblank = decon_wait_for_vblank,
+	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
 	.disable_plane = decon_disable_plane,
+	.atomic_flush = decon_atomic_flush,
 };
 
 
@@ -623,6 +653,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = (struct decon_context *)dev_id;
 	u32 val, clear_bit;
+	int win;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -636,7 +667,14 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 
 	if (!ctx->i80_if) {
 		drm_crtc_handle_vblank(&ctx->crtc->base);
-		exynos_drm_crtc_finish_pageflip(ctx->crtc);
+		for (win = 0 ; win < WINDOWS_NR ; win++) {
+			struct exynos_drm_plane *plane = &ctx->planes[win];
+
+			if (!plane->pending_fb)
+				continue;
+
+			exynos_drm_crtc_finish_update(ctx->crtc, plane);
+		}
 
 		/* set wait vsync event to zero and wake up queue. */
 		if (atomic_read(&ctx->wait_vsync_event)) {
@@ -667,7 +705,8 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		type = (zpos == ctx->default_win) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		ret = exynos_plane_init(drm_dev, &ctx->planes[zpos],
-					1 << ctx->pipe, type, zpos);
+					1 << ctx->pipe, type, decon_formats,
+					ARRAY_SIZE(decon_formats), zpos);
 		if (ret)
 			return ret;
 	}

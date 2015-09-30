@@ -26,6 +26,8 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_AUX]			= "AUX",
 	[PERF_RECORD_ITRACE_START]		= "ITRACE_START",
 	[PERF_RECORD_LOST_SAMPLES]		= "LOST_SAMPLES",
+	[PERF_RECORD_SWITCH]			= "SWITCH",
+	[PERF_RECORD_SWITCH_CPU_WIDE]		= "SWITCH_CPU_WIDE",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -749,6 +751,14 @@ int perf_event__process_lost_samples(struct perf_tool *tool __maybe_unused,
 	return machine__process_lost_samples_event(machine, event, sample);
 }
 
+int perf_event__process_switch(struct perf_tool *tool __maybe_unused,
+			       union perf_event *event,
+			       struct perf_sample *sample __maybe_unused,
+			       struct machine *machine)
+{
+	return machine__process_switch_event(machine, event);
+}
+
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
 {
 	return fprintf(fp, " %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %c %s\n",
@@ -827,6 +837,20 @@ size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
 		       event->itrace_start.pid, event->itrace_start.tid);
 }
 
+size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
+{
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	const char *in_out = out ? "OUT" : "IN ";
+
+	if (event->header.type == PERF_RECORD_SWITCH)
+		return fprintf(fp, " %s\n", in_out);
+
+	return fprintf(fp, " %s  %s pid/tid: %5u/%-5u\n",
+		       in_out, out ? "next" : "prev",
+		       event->context_switch.next_prev_pid,
+		       event->context_switch.next_prev_tid);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -851,6 +875,10 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_ITRACE_START:
 		ret += perf_event__fprintf_itrace_start(event, fp);
+		break;
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		ret += perf_event__fprintf_switch(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");

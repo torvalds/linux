@@ -120,9 +120,10 @@
 					reg = <0x0 0x1400>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0x0 0x1400>;
 
 					pbias_regulator: pbias_regulator {
-						compatible = "ti,pbias-omap";
+						compatible = "ti,pbias-dra7", "ti,pbias-omap";
 						reg = <0xe00 0x4>;
 						syscon = <&scm_conf>;
 						pbias_mmc_reg: pbias_mmc_omap5 {
@@ -141,13 +142,18 @@
 				dra7_pmx_core: pinmux@1400 {
 					compatible = "ti,dra7-padconf",
 						     "pinctrl-single";
-					reg = <0x1400 0x0464>;
+					reg = <0x1400 0x0468>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x3fffffff>;
+				};
+
+				scm_conf1: scm_conf@1c04 {
+					compatible = "syscon";
+					reg = <0x1c04 0x0020>;
 				};
 			};
 
@@ -211,7 +217,7 @@
 			#address-cells = <1>;
 			ranges = <0x51000000 0x51000000 0x3000
 				  0x0	     0x20000000 0x10000000>;
-			pcie@51000000 {
+			pcie1: pcie@51000000 {
 				compatible = "ti,dra7-pcie";
 				reg = <0x51000000 0x2000>, <0x51002000 0x14c>, <0x1000 0x2000>;
 				reg-names = "rc_dbics", "ti_conf", "config";
@@ -286,16 +292,6 @@
 				#thermal-sensor-cells = <1>;
 		};
 
-		dra7_ctrl_core: ctrl_core@4a002000 {
-			compatible = "syscon";
-			reg = <0x4a002000 0x6d0>;
-		};
-
-		dra7_ctrl_general: tisyscon@4a002e00 {
-			compatible = "syscon";
-			reg = <0x4a002e00 0x7c>;
-		};
-
 		sdma: dma-controller@4a056000 {
 			compatible = "ti,omap4430-sdma";
 			reg = <0x4a056000 0x1000>;
@@ -306,6 +302,15 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <127>;
+		};
+
+		sdma_xbar: dma-router@4a002b78 {
+			compatible = "ti,dra7-dma-crossbar";
+			reg = <0x4a002b78 0xfc>;
+			#dma-cells = <1>;
+			dma-requests = <205>;
+			ti,dma-safe-map = <0>;
+			dma-masters = <&sdma>;
 		};
 
 		gpio1: gpio@4ae10000 {
@@ -397,73 +402,73 @@
 		};
 
 		uart1: serial@4806a000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806a000 0x100>;
 			interrupts-extended = <&crossbar_mpu GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 			status = "disabled";
-			dmas = <&sdma 49>, <&sdma 50>;
+			dmas = <&sdma_xbar 49>, <&sdma_xbar 50>;
 			dma-names = "tx", "rx";
 		};
 
 		uart2: serial@4806c000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806c000 0x100>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 			status = "disabled";
-			dmas = <&sdma 51>, <&sdma 52>;
+			dmas = <&sdma_xbar 51>, <&sdma_xbar 52>;
 			dma-names = "tx", "rx";
 		};
 
 		uart3: serial@48020000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48020000 0x100>;
 			interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 			status = "disabled";
-			dmas = <&sdma 53>, <&sdma 54>;
+			dmas = <&sdma_xbar 53>, <&sdma_xbar 54>;
 			dma-names = "tx", "rx";
 		};
 
 		uart4: serial@4806e000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4806e000 0x100>;
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
                         status = "disabled";
-			dmas = <&sdma 55>, <&sdma 56>;
+			dmas = <&sdma_xbar 55>, <&sdma_xbar 56>;
 			dma-names = "tx", "rx";
 		};
 
 		uart5: serial@48066000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48066000 0x100>;
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
 			status = "disabled";
-			dmas = <&sdma 63>, <&sdma 64>;
+			dmas = <&sdma_xbar 63>, <&sdma_xbar 64>;
 			dma-names = "tx", "rx";
 		};
 
 		uart6: serial@48068000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48068000 0x100>;
 			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
 			status = "disabled";
-			dmas = <&sdma 79>, <&sdma 80>;
+			dmas = <&sdma_xbar 79>, <&sdma_xbar 80>;
 			dma-names = "tx", "rx";
 		};
 
 		uart7: serial@48420000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48420000 0x100>;
 			interrupts = <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart7";
@@ -472,7 +477,7 @@
 		};
 
 		uart8: serial@48422000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48422000 0x100>;
 			interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart8";
@@ -481,7 +486,7 @@
 		};
 
 		uart9: serial@48424000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x48424000 0x100>;
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart9";
@@ -490,7 +495,7 @@
 		};
 
 		uart10: serial@4ae2b000 {
-			compatible = "ti,omap4-uart";
+			compatible = "ti,dra742-uart", "ti,omap4-uart";
 			reg = <0x4ae2b000 0x100>;
 			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart10";
@@ -867,7 +872,7 @@
 			ti,hwmods = "mmc1";
 			ti,dual-volt;
 			ti,needs-special-reset;
-			dmas = <&sdma 61>, <&sdma 62>;
+			dmas = <&sdma_xbar 61>, <&sdma_xbar 62>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 			pbias-supply = <&pbias_mmc_reg>;
@@ -879,7 +884,7 @@
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mmc2";
 			ti,needs-special-reset;
-			dmas = <&sdma 47>, <&sdma 48>;
+			dmas = <&sdma_xbar 47>, <&sdma_xbar 48>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
@@ -890,7 +895,7 @@
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mmc3";
 			ti,needs-special-reset;
-			dmas = <&sdma 77>, <&sdma 78>;
+			dmas = <&sdma_xbar 77>, <&sdma_xbar 78>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
@@ -901,7 +906,7 @@
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mmc4";
 			ti,needs-special-reset;
-			dmas = <&sdma 57>, <&sdma 58>;
+			dmas = <&sdma_xbar 57>, <&sdma_xbar 58>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
@@ -1046,14 +1051,14 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi1";
 			ti,spi-num-cs = <4>;
-			dmas = <&sdma 35>,
-			       <&sdma 36>,
-			       <&sdma 37>,
-			       <&sdma 38>,
-			       <&sdma 39>,
-			       <&sdma 40>,
-			       <&sdma 41>,
-			       <&sdma 42>;
+			dmas = <&sdma_xbar 35>,
+			       <&sdma_xbar 36>,
+			       <&sdma_xbar 37>,
+			       <&sdma_xbar 38>,
+			       <&sdma_xbar 39>,
+			       <&sdma_xbar 40>,
+			       <&sdma_xbar 41>,
+			       <&sdma_xbar 42>;
 			dma-names = "tx0", "rx0", "tx1", "rx1",
 				    "tx2", "rx2", "tx3", "rx3";
 			status = "disabled";
@@ -1067,10 +1072,10 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi2";
 			ti,spi-num-cs = <2>;
-			dmas = <&sdma 43>,
-			       <&sdma 44>,
-			       <&sdma 45>,
-			       <&sdma 46>;
+			dmas = <&sdma_xbar 43>,
+			       <&sdma_xbar 44>,
+			       <&sdma_xbar 45>,
+			       <&sdma_xbar 46>;
 			dma-names = "tx0", "rx0", "tx1", "rx1";
 			status = "disabled";
 		};
@@ -1083,7 +1088,7 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi3";
 			ti,spi-num-cs = <2>;
-			dmas = <&sdma 15>, <&sdma 16>;
+			dmas = <&sdma_xbar 15>, <&sdma_xbar 16>;
 			dma-names = "tx0", "rx0";
 			status = "disabled";
 		};
@@ -1096,7 +1101,7 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi4";
 			ti,spi-num-cs = <1>;
-			dmas = <&sdma 70>, <&sdma 71>;
+			dmas = <&sdma_xbar 70>, <&sdma_xbar 71>;
 			dma-names = "tx0", "rx0";
 			status = "disabled";
 		};
@@ -1296,7 +1301,12 @@
 			usb1: usb@48890000 {
 				compatible = "snps,dwc3";
 				reg = <0x48890000 0x17000>;
-				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
 				phys = <&usb2_phy1>, <&usb3_phy1>;
 				phy-names = "usb2-phy", "usb3-phy";
 				tx-fifo-resize;
@@ -1319,7 +1329,12 @@
 			usb2: usb@488d0000 {
 				compatible = "snps,dwc3";
 				reg = <0x488d0000 0x17000>;
-				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";
 				tx-fifo-resize;
@@ -1344,7 +1359,12 @@
 			usb3: usb@48910000 {
 				compatible = "snps,dwc3";
 				reg = <0x48910000 0x17000>;
-				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
 				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
@@ -1398,8 +1418,8 @@
 			ti,irqs-safe-map = <0>;
 		};
 
-		mac: ethernet@4a100000 {
-			compatible = "ti,cpsw";
+		mac: ethernet@48484000 {
+			compatible = "ti,dra7-cpsw","ti,cpsw";
 			ti,hwmods = "gmac";
 			clocks = <&dpll_gmac_ck>, <&gmac_gmii_ref_clk_div>;
 			clock-names = "fck", "cpts";

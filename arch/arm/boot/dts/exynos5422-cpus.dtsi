@@ -1,0 +1,81 @@
+/*
+ * SAMSUNG EXYNOS5422 SoC cpu device tree source
+ *
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * The only difference between EXYNOS5422 and EXYNOS5800 is cpu ordering. The
+ * EXYNOS5422 is booting from Cortex-A7 core while the EXYNOS5800 is booting
+ * from Cortex-A15 core.
+ *
+ * EXYNOS5422 based board files can include this file to provide cpu ordering
+ * which could boot a cortex-a7 from cpu0.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+&cpu0 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a7";
+	reg = <0x100>;
+	clock-frequency = <1000000000>;
+	cci-control-port = <&cci_control0>;
+};
+
+&cpu1 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a7";
+	reg = <0x101>;
+	clock-frequency = <1000000000>;
+	cci-control-port = <&cci_control0>;
+};
+
+&cpu2 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a7";
+	reg = <0x102>;
+	clock-frequency = <1000000000>;
+	cci-control-port = <&cci_control0>;
+};
+
+&cpu3 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a7";
+	reg = <0x103>;
+	clock-frequency = <1000000000>;
+	cci-control-port = <&cci_control0>;
+};
+
+&cpu4 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a15";
+	reg = <0x0>;
+	clock-frequency = <1800000000>;
+	cci-control-port = <&cci_control1>;
+};
+
+&cpu5 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a15";
+	reg = <0x1>;
+	clock-frequency = <1800000000>;
+	cci-control-port = <&cci_control1>;
+};
+
+&cpu6 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a15";
+	reg = <0x2>;
+	clock-frequency = <1800000000>;
+	cci-control-port = <&cci_control1>;
+};
+
+&cpu7 {
+	device_type = "cpu";
+	compatible = "arm,cortex-a15";
+	reg = <0x3>;
+	clock-frequency = <1800000000>;
+	cci-control-port = <&cci_control1>;
+};

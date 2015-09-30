@@ -48,6 +48,9 @@
 #define WM8960_DISOP     0x40
 #define WM8960_DRES_MASK 0x30
 
+static bool is_pll_freq_available(unsigned int source, unsigned int target);
+static int wm8960_set_pll(struct snd_soc_codec *codec,
+		unsigned int freq_in, unsigned int freq_out);
 /*
  * wm8960 register cache
  * We can't read the WM8960 register space when we are
@@ -126,9 +129,12 @@ struct wm8960_priv {
 	struct snd_soc_dapm_widget *rout1;
 	struct snd_soc_dapm_widget *out3;
 	bool deemph;
-	int playback_fs;
+	int lrclk;
 	int bclk;
 	int sysclk;
+	int clk_id;
+	int freq_in;
+	bool is_stream_in_use[2];
 	struct wm8960_data pdata;
 };
 
@@ -164,8 +170,8 @@ static int wm8960_set_deemph(struct snd_soc_codec *codec)
 	if (wm8960->deemph) {
 		best = 1;
 		for (i = 2; i < ARRAY_SIZE(deemph_settings); i++) {
-			if (abs(deemph_settings[i] - wm8960->playback_fs) <
-			    abs(deemph_settings[best] - wm8960->playback_fs))
+			if (abs(deemph_settings[i] - wm8960->lrclk) <
+			    abs(deemph_settings[best] - wm8960->lrclk))
 				best = i;
 		}
 
@@ -205,28 +211,38 @@ static int wm8960_put_deemph(struct snd_kcontrol *kcontrol,
 	return wm8960_set_deemph(codec);
 }
 
-static const DECLARE_TLV_DB_SCALE(adc_tlv, -9700, 50, 0);
-static const DECLARE_TLV_DB_SCALE(dac_tlv, -12700, 50, 1);
+static const DECLARE_TLV_DB_SCALE(adc_tlv, -9750, 50, 1);
+static const DECLARE_TLV_DB_SCALE(inpga_tlv, -1725, 75, 0);
+static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(bypass_tlv, -2100, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
-static const DECLARE_TLV_DB_SCALE(boost_tlv, -1200, 300, 1);
+static const DECLARE_TLV_DB_SCALE(lineinboost_tlv, -1500, 300, 1);
+static const unsigned int micboost_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 1, TLV_DB_SCALE_ITEM(0, 1300, 0),
+	2, 3, TLV_DB_SCALE_ITEM(2000, 900, 0),
+};
 
 static const struct snd_kcontrol_new wm8960_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Capture Volume", WM8960_LINVOL, WM8960_RINVOL,
-		 0, 63, 0, adc_tlv),
+		 0, 63, 0, inpga_tlv),
 SOC_DOUBLE_R("Capture Volume ZC Switch", WM8960_LINVOL, WM8960_RINVOL,
 	6, 1, 0),
 SOC_DOUBLE_R("Capture Switch", WM8960_LINVOL, WM8960_RINVOL,
 	7, 1, 0),
 
 SOC_SINGLE_TLV("Right Input Boost Mixer RINPUT3 Volume",
-	       WM8960_INBMIX1, 4, 7, 0, boost_tlv),
+	       WM8960_INBMIX1, 4, 7, 0, lineinboost_tlv),
 SOC_SINGLE_TLV("Right Input Boost Mixer RINPUT2 Volume",
-	       WM8960_INBMIX1, 1, 7, 0, boost_tlv),
+	       WM8960_INBMIX1, 1, 7, 0, lineinboost_tlv),
 SOC_SINGLE_TLV("Left Input Boost Mixer LINPUT3 Volume",
-	       WM8960_INBMIX2, 4, 7, 0, boost_tlv),
+	       WM8960_INBMIX2, 4, 7, 0, lineinboost_tlv),
 SOC_SINGLE_TLV("Left Input Boost Mixer LINPUT2 Volume",
-	       WM8960_INBMIX2, 1, 7, 0, boost_tlv),
+	       WM8960_INBMIX2, 1, 7, 0, lineinboost_tlv),
+SOC_SINGLE_TLV("Right Input Boost Mixer RINPUT1 Volume",
+		WM8960_RINPATH, 4, 3, 0, micboost_tlv),
+SOC_SINGLE_TLV("Left Input Boost Mixer LINPUT1 Volume",
+		WM8960_LINPATH, 4, 3, 0, micboost_tlv),
 
 SOC_DOUBLE_R_TLV("Playback Volume", WM8960_LDAC, WM8960_RDAC,
 		 0, 255, 0, dac_tlv),
@@ -565,6 +581,9 @@ static struct {
 	{  8000, 5 },
 };
 
+/* -1 for reserved value */
+static const int sysclk_divs[] = { 1, -1, 2, -1 };
+
 /* Multiply 256 for internal 256 div */
 static const int dac_divs[] = { 256, 384, 512, 768, 1024, 1408, 1536 };
 
@@ -574,61 +593,110 @@ static const int bclk_divs[] = {
 	120, 160, 220, 240, 320, 320, 320
 };
 
-static void wm8960_configure_clocking(struct snd_soc_codec *codec,
-		bool tx, int lrclk)
+static int wm8960_configure_clocking(struct snd_soc_codec *codec)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	int sysclk, bclk, lrclk, freq_out, freq_in;
 	u16 iface1 = snd_soc_read(codec, WM8960_IFACE1);
-	u16 iface2 = snd_soc_read(codec, WM8960_IFACE2);
-	u32 sysclk;
-	int i, j;
+	int i, j, k;
 
 	if (!(iface1 & (1<<6))) {
 		dev_dbg(codec->dev,
 			"Codec is slave mode, no need to configure clock\n");
-		return;
+		return 0;
 	}
 
-	if (!wm8960->sysclk) {
-		dev_dbg(codec->dev, "No SYSCLK configured\n");
-		return;
+	if (wm8960->clk_id != WM8960_SYSCLK_MCLK && !wm8960->freq_in) {
+		dev_err(codec->dev, "No MCLK configured\n");
+		return -EINVAL;
 	}
 
-	if (!wm8960->bclk || !lrclk) {
-		dev_dbg(codec->dev, "No audio clocks configured\n");
-		return;
+	freq_in = wm8960->freq_in;
+	bclk = wm8960->bclk;
+	lrclk = wm8960->lrclk;
+	/*
+	 * If it's sysclk auto mode, check if the MCLK can provide sysclk or
+	 * not. If MCLK can provide sysclk, using MCLK to provide sysclk
+	 * directly. Otherwise, auto select a available pll out frequency
+	 * and set PLL.
+	 */
+	if (wm8960->clk_id == WM8960_SYSCLK_AUTO) {
+		/* disable the PLL and using MCLK to provide sysclk */
+		wm8960_set_pll(codec, 0, 0);
+		freq_out = freq_in;
+	} else if (wm8960->sysclk) {
+		freq_out = wm8960->sysclk;
+	} else {
+		dev_err(codec->dev, "No SYSCLK configured\n");
+		return -EINVAL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(dac_divs); ++i) {
-		if (wm8960->sysclk == lrclk * dac_divs[i]) {
-			for (j = 0; j < ARRAY_SIZE(bclk_divs); ++j) {
-				sysclk = wm8960->bclk * bclk_divs[j] / 10;
-				if (wm8960->sysclk == sysclk)
+	/* check if the sysclk frequency is available. */
+	for (i = 0; i < ARRAY_SIZE(sysclk_divs); ++i) {
+		if (sysclk_divs[i] == -1)
+			continue;
+		sysclk = freq_out / sysclk_divs[i];
+		for (j = 0; j < ARRAY_SIZE(dac_divs); ++j) {
+			if (sysclk == dac_divs[j] * lrclk) {
+				for (k = 0; k < ARRAY_SIZE(bclk_divs); ++k)
+					if (sysclk == bclk * bclk_divs[k] / 10)
+						break;
+				if (k != ARRAY_SIZE(bclk_divs))
 					break;
 			}
-			if(j != ARRAY_SIZE(bclk_divs))
+		}
+		if (j != ARRAY_SIZE(dac_divs))
+			break;
+	}
+
+	if (i != ARRAY_SIZE(sysclk_divs)) {
+		goto configure_clock;
+	} else if (wm8960->clk_id != WM8960_SYSCLK_AUTO) {
+		dev_err(codec->dev, "failed to configure clock\n");
+		return -EINVAL;
+	}
+	/* get a available pll out frequency and set pll */
+	for (i = 0; i < ARRAY_SIZE(sysclk_divs); ++i) {
+		if (sysclk_divs[i] == -1)
+			continue;
+		for (j = 0; j < ARRAY_SIZE(dac_divs); ++j) {
+			sysclk = lrclk * dac_divs[j];
+			freq_out = sysclk * sysclk_divs[i];
+
+			for (k = 0; k < ARRAY_SIZE(bclk_divs); ++k) {
+				if (sysclk == bclk * bclk_divs[k] / 10 &&
+				    is_pll_freq_available(freq_in, freq_out)) {
+					wm8960_set_pll(codec,
+						       freq_in, freq_out);
+					break;
+				} else {
+					continue;
+				}
+			}
+			if (k != ARRAY_SIZE(bclk_divs))
 				break;
 		}
+		if (j != ARRAY_SIZE(dac_divs))
+			break;
 	}
 
-	if (i == ARRAY_SIZE(dac_divs)) {
-		dev_err(codec->dev, "Unsupported sysclk %d\n", wm8960->sysclk);
-		return;
+	if (i == ARRAY_SIZE(sysclk_divs)) {
+		dev_err(codec->dev, "failed to configure clock\n");
+		return -EINVAL;
 	}
 
-	/*
-	 * configure frame clock. If ADCLRC configure as GPIO pin, DACLRC
-	 * pin is used as a frame clock for ADCs and DACs.
-	 */
-	if (iface2 & (1<<6))
-		snd_soc_update_bits(codec, WM8960_CLOCK1, 0x7 << 3, i << 3);
-	else if (tx)
-		snd_soc_update_bits(codec, WM8960_CLOCK1, 0x7 << 3, i << 3);
-	else if (!tx)
-		snd_soc_update_bits(codec, WM8960_CLOCK1, 0x7 << 6, i << 6);
+configure_clock:
+	/* configure sysclk clock */
+	snd_soc_update_bits(codec, WM8960_CLOCK1, 3 << 1, i << 1);
+
+	/* configure frame clock */
+	snd_soc_update_bits(codec, WM8960_CLOCK1, 0x7 << 3, j << 3);
+	snd_soc_update_bits(codec, WM8960_CLOCK1, 0x7 << 6, j << 6);
 
 	/* configure bit clock */
-	snd_soc_update_bits(codec, WM8960_CLOCK2, 0xf, j);
+	snd_soc_update_bits(codec, WM8960_CLOCK2, 0xf, k);
+
+	return 0;
 }
 
 static int wm8960_hw_params(struct snd_pcm_substream *substream,
@@ -667,9 +735,9 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	wm8960->lrclk = params_rate(params);
 	/* Update filters for the new rate */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		wm8960->playback_fs = params_rate(params);
+	if (tx) {
 		wm8960_set_deemph(codec);
 	} else {
 		for (i = 0; i < ARRAY_SIZE(alc_rates); i++)
@@ -682,7 +750,23 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	/* set iface */
 	snd_soc_write(codec, WM8960_IFACE1, iface);
 
-	wm8960_configure_clocking(codec, tx, params_rate(params));
+	wm8960->is_stream_in_use[tx] = true;
+
+	if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON &&
+	    !wm8960->is_stream_in_use[!tx])
+		return wm8960_configure_clocking(codec);
+
+	return 0;
+}
+
+static int wm8960_hw_free(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
+	wm8960->is_stream_in_use[tx] = false;
 
 	return 0;
 }
@@ -702,6 +786,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 				      enum snd_soc_bias_level level)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	u16 pm2 = snd_soc_read(codec, WM8960_POWER2);
 	int ret;
 
 	switch (level) {
@@ -721,11 +806,22 @@ static int wm8960_set_bias_level_out3(struct snd_soc_codec *codec,
 				}
 			}
 
+			ret = wm8960_configure_clocking(codec);
+			if (ret)
+				return ret;
+
 			/* Set VMID to 2x50k */
 			snd_soc_update_bits(codec, WM8960_POWER1, 0x180, 0x80);
 			break;
 
 		case SND_SOC_BIAS_ON:
+			/*
+			 * If it's sysclk auto mode, and the pll is enabled,
+			 * disable the pll
+			 */
+			if (wm8960->clk_id == WM8960_SYSCLK_AUTO && (pm2 & 0x1))
+				wm8960_set_pll(codec, 0, 0);
+
 			if (!IS_ERR(wm8960->mclk))
 				clk_disable_unprepare(wm8960->mclk);
 			break;
@@ -780,6 +876,7 @@ static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 					 enum snd_soc_bias_level level)
 {
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+	u16 pm2 = snd_soc_read(codec, WM8960_POWER2);
 	int reg, ret;
 
 	switch (level) {
@@ -831,9 +928,21 @@ static int wm8960_set_bias_level_capless(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
+
+			ret = wm8960_configure_clocking(codec);
+			if (ret)
+				return ret;
+
 			break;
 
 		case SND_SOC_BIAS_ON:
+			/*
+			 * If it's sysclk auto mode, and the pll is enabled,
+			 * disable the pll
+			 */
+			if (wm8960->clk_id == WM8960_SYSCLK_AUTO && (pm2 & 0x1))
+				wm8960_set_pll(codec, 0, 0);
+
 			if (!IS_ERR(wm8960->mclk))
 				clk_disable_unprepare(wm8960->mclk);
 
@@ -892,6 +1001,28 @@ struct _pll_div {
 	u32 k:24;
 };
 
+static bool is_pll_freq_available(unsigned int source, unsigned int target)
+{
+	unsigned int Ndiv;
+
+	if (source == 0 || target == 0)
+		return false;
+
+	/* Scale up target to PLL operating frequency */
+	target *= 4;
+	Ndiv = target / source;
+
+	if (Ndiv < 6) {
+		source >>= 1;
+		Ndiv = target / source;
+	}
+
+	if ((Ndiv < 6) || (Ndiv > 12))
+		return false;
+
+	return true;
+}
+
 /* The size in bits of the pll divide multiplied by 10
  * to allow rounding later */
 #define FIXED_PLL_SIZE ((1 << 24) * 10)
@@ -943,10 +1074,9 @@ static int pll_factors(unsigned int source, unsigned int target,
 	return 0;
 }
 
-static int wm8960_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
-		int source, unsigned int freq_in, unsigned int freq_out)
+static int wm8960_set_pll(struct snd_soc_codec *codec,
+		unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
 	static struct _pll_div pll_div;
 	int ret;
@@ -984,6 +1114,20 @@ static int wm8960_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_update_bits(codec, WM8960_CLOCK1, 0x1, 0x1);
 
 	return 0;
+}
+
+static int wm8960_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
+
+	wm8960->freq_in = freq_in;
+
+	if (pll_id == WM8960_SYSCLK_AUTO)
+		return 0;
+
+	return wm8960_set_pll(codec, freq_in, freq_out);
 }
 
 static int wm8960_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
@@ -1043,11 +1187,14 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 		snd_soc_update_bits(codec, WM8960_CLOCK1,
 					0x1, WM8960_SYSCLK_PLL);
 		break;
+	case WM8960_SYSCLK_AUTO:
+		break;
 	default:
 		return -EINVAL;
 	}
 
 	wm8960->sysclk = freq;
+	wm8960->clk_id = clk_id;
 
 	return 0;
 }
@@ -1060,6 +1207,7 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 static const struct snd_soc_dai_ops wm8960_dai_ops = {
 	.hw_params = wm8960_hw_params,
+	.hw_free = wm8960_hw_free,
 	.digital_mute = wm8960_mute,
 	.set_fmt = wm8960_set_dai_fmt,
 	.set_clkdiv = wm8960_set_dai_clkdiv,
@@ -1216,7 +1364,6 @@ MODULE_DEVICE_TABLE(of, wm8960_of_match);
 static struct i2c_driver wm8960_i2c_driver = {
 	.driver = {
 		.name = "wm8960",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8960_of_match,
 	},
 	.probe =    wm8960_i2c_probe,
