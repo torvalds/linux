@@ -611,7 +611,9 @@ static int sunxi_nfc_hw_ecc_read_chunk(struct mtd_info *mtd,
 	sunxi_nfc_read_buf(mtd, oob, ecc->bytes + 4);
 
 	if (status & NFC_ECC_ERR(0)) {
-		ret = -EIO;
+		ret = nand_check_erased_ecc_chunk(data,	ecc->size,
+						  oob, ecc->bytes + 4,
+						  NULL, 0, ecc->strength);
 	} else {
 		/*
 		 * The engine protects 4 bytes of OOB data per chunk.
