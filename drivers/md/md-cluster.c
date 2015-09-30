@@ -774,12 +774,32 @@ err:
 	return ret;
 }
 
+static void resync_bitmap(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg = {0};
+	int err;
+
+	cmsg.type = cpu_to_le32(BITMAP_NEEDS_SYNC);
+	err = sendmsg(cinfo, &cmsg);
+	if (err)
+		pr_err("%s:%d: failed to send BITMAP_NEEDS_SYNC message (%d)\n",
+			__func__, __LINE__, err);
+}
+
 static int leave(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
 	if (!cinfo)
 		return 0;
+
+	/* BITMAP_NEEDS_SYNC message should be sent when node
+	 * is leaving the cluster with dirty bitmap, also we
+	 * can only deliver it when dlm connection is available */
+	if (cinfo->slot_number > 0 && mddev->recovery_cp != MaxSector)
+		resync_bitmap(mddev);
+
 	md_unregister_thread(&cinfo->recovery_thread);
 	md_unregister_thread(&cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
