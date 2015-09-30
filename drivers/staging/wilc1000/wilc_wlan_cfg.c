@@ -7,6 +7,7 @@
 /*  */
 /* ///////////////////////////////////////////////////////////////////////// */
 
+#include <linux/string.h>
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 #include "wilc_wlan_cfg.h"
