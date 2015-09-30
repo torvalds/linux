@@ -417,7 +417,7 @@ union message_body {
 	struct scan_attr scan_info;
 	struct connect_attr con_info;
 	struct rcvd_net_info net_info;
-	struct rcvd_async_info strRcvdGnrlAsyncInfo;
+	struct rcvd_async_info async_info;
 	struct key_attr strHostIFkeyAttr;
 	struct cfg_param_attr strHostIFCfgParamAttr;
 	struct set_channel strHostIFSetChan;
@@ -4115,7 +4115,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO:
-			Handle_RcvdGnrlAsyncInfo(msg.drvHandler, &msg.body.strRcvdGnrlAsyncInfo);
+			Handle_RcvdGnrlAsyncInfo(msg.drvHandler, &msg.body.async_info);
 			break;
 
 		case HOST_IF_MSG_KEY:
@@ -6359,9 +6359,9 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	msg.drvHandler = pstrWFIDrv;
 
 
-	msg.body.strRcvdGnrlAsyncInfo.u32Length = u32Length;
-	msg.body.strRcvdGnrlAsyncInfo.pu8Buffer = kmalloc(u32Length, GFP_KERNEL); /* will be deallocated by the receiving thread */
-	memcpy(msg.body.strRcvdGnrlAsyncInfo.pu8Buffer,
+	msg.body.async_info.u32Length = u32Length;
+	msg.body.async_info.pu8Buffer = kmalloc(u32Length, GFP_KERNEL); /* will be deallocated by the receiving thread */
+	memcpy(msg.body.async_info.pu8Buffer,
 		    pu8Buffer, u32Length);
 
 	/* send the message */
