@@ -126,11 +126,12 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 {
 	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
 	struct kmap *kmap;
+	struct map *map = machine__kernel_map(host_machine, MAP__FUNCTION);
 
-	if (map__load(host_machine->vmlinux_maps[MAP__FUNCTION], NULL) < 0)
+	if (map__load(map, NULL) < 0)
 		return NULL;
 
-	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	kmap = map__kmap(map);
 	if (!kmap)
 		return NULL;
 	return kmap->ref_reloc_sym;
@@ -281,7 +282,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 		return -ENOENT;
 	}
 
-	map = host_machine->vmlinux_maps[MAP__FUNCTION];
+	map = machine__kernel_map(host_machine, MAP__FUNCTION);
 	dso = map->dso;
 
 	vmlinux_name = symbol_conf.vmlinux_name;

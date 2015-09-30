@@ -649,12 +649,12 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	size_t size;
 	const char *mmap_name;
 	char name_buff[PATH_MAX];
-	struct map *map;
+	struct map *map = machine__kernel_map(machine, MAP__FUNCTION);
 	struct kmap *kmap;
 	int err;
 	union perf_event *event;
 
-	if (machine->vmlinux_maps[0] == NULL)
+	if (map == NULL)
 		return -1;
 
 	/*
@@ -680,7 +680,6 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 	}
 
-	map = machine->vmlinux_maps[MAP__FUNCTION];
 	kmap = map__kmap(map);
 	size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
 			"%s%s", mmap_name, kmap->ref_reloc_sym->name) + 1;
@@ -1008,7 +1007,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	 * it now.
 	 */
 	if (cpumode == PERF_RECORD_MISC_KERNEL &&
-	    machine->vmlinux_maps[MAP__FUNCTION] == NULL)
+	    machine__kernel_map(machine, MAP__FUNCTION) == NULL)
 		machine__create_kernel_maps(machine);
 
 	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, sample->ip, al);
