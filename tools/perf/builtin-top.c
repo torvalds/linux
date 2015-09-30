@@ -857,9 +857,12 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			 * TODO: we don't process guest user from host side
 			 * except simple counting.
 			 */
-			/* Fall thru */
-		default:
 			goto next_event;
+		default:
+			if (event->header.type == PERF_RECORD_SAMPLE)
+				goto next_event;
+			machine = &session->machines.host;
+			break;
 		}
 
 
