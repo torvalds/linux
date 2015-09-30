@@ -724,7 +724,6 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 static int bcm_probe(struct platform_device *pdev)
 {
 	struct bcm_device *dev;
-	struct acpi_device_id *pdata = pdev->dev.platform_data;
 	int ret;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -733,15 +732,9 @@ static int bcm_probe(struct platform_device *pdev)
 
 	dev->pdev = pdev;
 
-	if (ACPI_HANDLE(&pdev->dev)) {
-		ret = bcm_acpi_probe(dev);
-		if (ret)
-			return ret;
-	} else if (pdata) {
-		dev->name = pdata->id;
-	} else {
-		return -ENODEV;
-	}
+	ret = bcm_acpi_probe(dev);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, dev);
 
