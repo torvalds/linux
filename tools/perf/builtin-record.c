@@ -637,17 +637,25 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * Let the child rip
 	 */
 	if (forks) {
-		union perf_event event;
+		union perf_event *event;
+
+		event = malloc(sizeof(event->comm) + machine->id_hdr_size);
+		if (event == NULL) {
+			err = -ENOMEM;
+			goto out_child;
+		}
+
 		/*
 		 * Some H/W events are generated before COMM event
 		 * which is emitted during exec(), so perf script
 		 * cannot see a correct process name for those events.
 		 * Synthesize COMM event to prevent it.
 		 */
-		perf_event__synthesize_comm(tool, &event,
+		perf_event__synthesize_comm(tool, event,
 					    rec->evlist->workload.pid,
 					    process_synthesized_event,
 					    machine);
+		free(event);
 
 		perf_evlist__start_workload(rec->evlist);
 	}
