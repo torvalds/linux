@@ -419,7 +419,7 @@ union message_body {
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
-	struct cfg_param_attr strHostIFCfgParamAttr;
+	struct cfg_param_attr cfg_info;
 	struct set_channel strHostIFSetChan;
 	struct get_channel strHostIFGetChan;
 	struct set_beacon strHostIFSetBeacon;
@@ -4124,7 +4124,7 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_CFG_PARAMS:
 
-			Handle_CfgParam(msg.drvHandler, &msg.body.strHostIFCfgParamAttr);
+			Handle_CfgParam(msg.drvHandler, &msg.body.cfg_info);
 			break;
 
 		case HOST_IF_MSG_SET_CHANNEL:
@@ -5854,7 +5854,7 @@ s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, tstrCfgParamVal *pstrCfgParamVal)
 	/* prepare the WiphyParams Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_CFG_PARAMS;
-	msg.body.strHostIFCfgParamAttr.pstrCfgParamVal = *pstrCfgParamVal;
+	msg.body.cfg_info.pstrCfgParamVal = *pstrCfgParamVal;
 	msg.drvHandler = hWFIDrv;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
