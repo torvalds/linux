@@ -144,7 +144,7 @@ static uint32_t audio_config_setup_n_reg(int n, uint32_t val)
 
 /* check whether N/CTS/M need be set manually */
 static bool audio_rate_need_prog(struct intel_crtc *crtc,
-					struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	if (((mode->clock == TMDS_297M) ||
 		 (mode->clock == TMDS_296M)) &&
