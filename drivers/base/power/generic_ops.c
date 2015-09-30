@@ -296,11 +296,5 @@ void pm_generic_complete(struct device *dev)
 
 	if (drv && drv->pm && drv->pm->complete)
 		drv->pm->complete(dev);
-
-	/*
-	 * Let runtime PM try to suspend devices that haven't been in use before
-	 * going into the system-wide sleep state we're resuming from.
-	 */
-	pm_request_idle(dev);
 }
 #endif /* CONFIG_PM_SLEEP */

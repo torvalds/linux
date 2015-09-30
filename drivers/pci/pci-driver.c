@@ -686,13 +686,8 @@ static int pci_pm_prepare(struct device *dev)
 
 static void pci_pm_complete(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-
-	pci_dev_complete_resume(pci_dev);
-
-	if (drv && drv->pm && drv->pm->complete)
-		drv->pm->complete(dev);
+	pci_dev_complete_resume(to_pci_dev(dev));
+	pm_generic_complete(dev);
 }
 
 #else /* !CONFIG_PM_SLEEP */
