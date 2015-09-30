@@ -382,7 +382,7 @@ union message_body {
 	struct del_sta del_sta_info;
 	struct add_sta_param edit_sta_info;
 	struct power_mgmt_param pwr_mgmt_info;
-	struct sta_inactive_t strHostIfStaInactiveT;
+	struct sta_inactive_t mac_info;
 	struct set_ip_addr strHostIfSetIP;
 	struct drv_handler strHostIfSetDrvHandler;
 	struct set_multicast strHostIfSetMulti;
@@ -4139,7 +4139,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_GET_INACTIVETIME:
-			Handle_Get_InActiveTime(msg.drvHandler, &msg.body.strHostIfStaInactiveT);
+			Handle_Get_InActiveTime(msg.drvHandler, &msg.body.mac_info);
 			break;
 
 		case HOST_IF_MSG_SCAN_TIMER_FIRED:
@@ -5533,7 +5533,7 @@ s32 host_int_get_inactive_time(tstrWILC_WFIDrv *hWFIDrv, const u8 *mac, u32 *pu3
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 
-	memcpy(msg.body.strHostIfStaInactiveT.mac,
+	memcpy(msg.body.mac_info.mac,
 		    mac, ETH_ALEN);
 
 	msg.id = HOST_IF_MSG_GET_INACTIVETIME;
