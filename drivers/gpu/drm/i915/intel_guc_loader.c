@@ -90,9 +90,6 @@ static void direct_interrupts_to_host(struct drm_i915_private *dev_priv)
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MODE_GEN7(ring), irqs);
 
-	/* tell DE to send nothing to GuC */
-	I915_WRITE(DE_GUCRMR, ~0);
-
 	/* route all GT interrupts to the host */
 	I915_WRITE(GUC_BCS_RCS_IER, 0);
 	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
@@ -109,13 +106,6 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	irqs |= _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MODE_GEN7(ring), irqs);
-
-	/* tell DE to send (all) flip_done to GuC */
-	irqs = DERRMR_PIPEA_PRI_FLIP_DONE | DERRMR_PIPEA_SPR_FLIP_DONE |
-	       DERRMR_PIPEB_PRI_FLIP_DONE | DERRMR_PIPEB_SPR_FLIP_DONE |
-	       DERRMR_PIPEC_PRI_FLIP_DONE | DERRMR_PIPEC_SPR_FLIP_DONE;
-	/* Unmasked bits will cause GuC response message to be sent */
-	I915_WRITE(DE_GUCRMR, ~irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
 	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
