@@ -886,7 +886,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->faddr = I915_READ(DMA_FADD_I8XX);
 		ering->ipeir = I915_READ(IPEIR);
 		ering->ipehr = I915_READ(IPEHR);
-		ering->instdone = I915_READ(INSTDONE);
+		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
 	ering->waiting = waitqueue_active(&ring->irq_queue);
@@ -1388,7 +1388,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
 
 	if (IS_GEN2(dev) || IS_GEN3(dev))
-		instdone[0] = I915_READ(INSTDONE);
+		instdone[0] = I915_READ(GEN2_INSTDONE);
 	else if (IS_GEN4(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
 		instdone[0] = I915_READ(RING_INSTDONE(RENDER_RING_BASE));
 		instdone[1] = I915_READ(INSTDONE1);

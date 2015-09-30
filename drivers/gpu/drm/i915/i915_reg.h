@@ -1602,6 +1602,7 @@ enum skl_disp_power_wells {
 /*
  * On GEN4, only the render ring INSTDONE exists and has a different
  * layout than the GEN7+ version.
+ * The GEN2 counterpart of this register is GEN2_INSTDONE.
  */
 #define RING_INSTDONE(base)	((base)+0x6c)
 #define RING_INSTPS(base)	((base)+0x70)
@@ -1619,7 +1620,7 @@ enum skl_disp_power_wells {
 #define   PWRCTX_EN	(1<<0)
 #define IPEIR		0x02088
 #define IPEHR		0x0208c
-#define INSTDONE	0x02090
+#define GEN2_INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define DMA_FADD_I8XX	0x020d0
