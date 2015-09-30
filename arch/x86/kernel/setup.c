@@ -1104,8 +1104,10 @@ void __init setup_arch(char **cmdline_p)
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
 
-	if (efi_enabled(EFI_BOOT))
+	if (efi_enabled(EFI_BOOT)) {
+		efi_fake_memmap();
 		efi_find_mirror();
+	}
 
 	/*
 	 * The EFI specification says that boot service code won't be called
