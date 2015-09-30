@@ -785,6 +785,7 @@ static int marvell_read_status(struct phy_device *phydev)
 	int adv;
 	int err;
 	int lpa;
+	int lpagb;
 	int status = 0;
 
 	/* Update the link, but return if there
@@ -802,9 +803,16 @@ static int marvell_read_status(struct phy_device *phydev)
 		if (lpa < 0)
 			return lpa;
 
+		lpagb = phy_read(phydev, MII_STAT1000);
+		if (lpagb < 0)
+			return lpagb;
+
 		adv = phy_read(phydev, MII_ADVERTISE);
 		if (adv < 0)
 			return adv;
+
+		phydev->lp_advertising = mii_stat1000_to_ethtool_lpa_t(lpagb) |
+					 mii_lpa_to_ethtool_lpa_t(lpa);
 
 		lpa &= adv;
 
@@ -853,6 +861,7 @@ static int marvell_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_10;
 
 		phydev->pause = phydev->asym_pause = 0;
+		phydev->lp_advertising = 0;
 	}
 
 	return 0;
