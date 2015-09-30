@@ -356,11 +356,11 @@ struct snd_soc_tplg_dapm_widget {
 	__le32 shift;		/* bits to shift */
 	__le32 mask;		/* non-shifted mask */
 	__le32 subseq;		/* sort within widget type */
-	__u32 invert;		/* invert the power bit */
-	__u32 ignore_suspend;	/* kept enabled over suspend */
-	__u16 event_flags;
-	__u16 event_type;
-	__u16 num_kcontrols;
+	__le32 invert;		/* invert the power bit */
+	__le32 ignore_suspend;	/* kept enabled over suspend */
+	__le16 event_flags;
+	__le16 event_type;
+	__le32 num_kcontrols;
 	struct snd_soc_tplg_private priv;
 	/*
 	 * kcontrols that relate to this widget
