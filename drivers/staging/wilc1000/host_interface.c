@@ -381,7 +381,7 @@ union message_body {
 	struct add_sta_param add_sta_info;
 	struct del_sta del_sta_info;
 	struct add_sta_param edit_sta_info;
-	struct power_mgmt_param strPowerMgmtparam;
+	struct power_mgmt_param pwr_mgmt_info;
 	struct sta_inactive_t strHostIfStaInactiveT;
 	struct set_ip_addr strHostIfSetIP;
 	struct drv_handler strHostIfSetDrvHandler;
@@ -4154,7 +4154,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_POWER_MGMT:
-			Handle_PowerManagement(msg.drvHandler, &msg.body.strPowerMgmtparam);
+			Handle_PowerManagement(msg.drvHandler, &msg.body.pwr_mgmt_info);
 			break;
 
 		case HOST_IF_MSG_SET_WFIDRV_HANDLER:
@@ -6826,7 +6826,7 @@ s32 host_int_set_power_mgmt(tstrWILC_WFIDrv *hWFIDrv, bool bIsEnabled, u32 u32Ti
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct power_mgmt_param *pstrPowerMgmtParam = &msg.body.strPowerMgmtparam;
+	struct power_mgmt_param *pstrPowerMgmtParam = &msg.body.pwr_mgmt_info;
 
 	PRINT_INFO(HOSTINF_DBG, "\n\n>> Setting PS to %d <<\n\n", bIsEnabled);
 
