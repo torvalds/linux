@@ -493,7 +493,9 @@ struct smb_vol {
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	bool multiuser:1;
 	bool rwpidforward:1; /* pid forward for read/write operations */
-	bool nosharesock;
+	bool nosharesock:1;
+	bool persistent:1;
+	bool nopersistent:1;
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;

@@ -87,6 +87,7 @@ enum {
 	Opt_sign, Opt_seal, Opt_noac,
 	Opt_fsc, Opt_mfsymlinks,
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
+	Opt_persistent, Opt_nopersistent,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -169,6 +170,8 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_multiuser, "multiuser" },
 	{ Opt_sloppy, "sloppy" },
 	{ Opt_nosharesock, "nosharesock" },
+	{ Opt_persistent, "persistenthandles"},
+	{ Opt_nopersistent, "nopersistenthandles"},
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -1496,6 +1499,22 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_nosharesock:
 			vol->nosharesock = true;
+			break;
+		case Opt_nopersistent:
+			vol->nopersistent = true;
+			if (vol->persistent) {
+				cifs_dbg(VFS,
+				  "persistenthandles mount options conflict\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_persistent:
+			vol->persistent = true;
+			if (vol->nopersistent) {
+				cifs_dbg(VFS,
+				  "persistenthandles mount options conflict\n");
+				goto cifs_parse_mount_err;
+			}
 			break;
 
 		/* Numeric Values */
