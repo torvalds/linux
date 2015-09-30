@@ -34,66 +34,6 @@ struct net_vrf {
 
 
 #if IS_ENABLED(CONFIG_NET_VRF)
-/* called with rcu_read_lock */
-static inline u32 vrf_dev_table_rcu(const struct net_device *dev)
-{
-	u32 tb_id = 0;
-
-	if (dev) {
-		struct net_vrf_dev *vrf_ptr;
-
-		vrf_ptr = rcu_dereference(dev->vrf_ptr);
-		if (vrf_ptr)
-			tb_id = vrf_ptr->tb_id;
-	}
-	return tb_id;
-}
-
-static inline u32 vrf_dev_table(const struct net_device *dev)
-{
-	u32 tb_id;
-
-	rcu_read_lock();
-	tb_id = vrf_dev_table_rcu(dev);
-	rcu_read_unlock();
-
-	return tb_id;
-}
-
-static inline u32 vrf_dev_table_ifindex(struct net *net, int ifindex)
-{
-	struct net_device *dev;
-	u32 tb_id = 0;
-
-	if (!ifindex)
-		return 0;
-
-	rcu_read_lock();
-
-	dev = dev_get_by_index_rcu(net, ifindex);
-	if (dev)
-		tb_id = vrf_dev_table_rcu(dev);
-
-	rcu_read_unlock();
-
-	return tb_id;
-}
-
-/* called with rtnl */
-static inline u32 vrf_dev_table_rtnl(const struct net_device *dev)
-{
-	u32 tb_id = 0;
-
-	if (dev) {
-		struct net_vrf_dev *vrf_ptr;
-
-		vrf_ptr = rtnl_dereference(dev->vrf_ptr);
-		if (vrf_ptr)
-			tb_id = vrf_ptr->tb_id;
-	}
-	return tb_id;
-}
-
 /* caller has already checked netif_is_l3_master(dev) */
 static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
 {
@@ -108,26 +48,6 @@ static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
 }
 
 #else
-static inline u32 vrf_dev_table_rcu(const struct net_device *dev)
-{
-	return 0;
-}
-
-static inline u32 vrf_dev_table(const struct net_device *dev)
-{
-	return 0;
-}
-
-static inline u32 vrf_dev_table_ifindex(struct net *net, int ifindex)
-{
-	return 0;
-}
-
-static inline u32 vrf_dev_table_rtnl(const struct net_device *dev)
-{
-	return 0;
-}
-
 static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
 {
 	return ERR_PTR(-ENETUNREACH);
