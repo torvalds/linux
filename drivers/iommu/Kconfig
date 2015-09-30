@@ -12,6 +12,9 @@ menuconfig IOMMU_SUPPORT
 	  remap DMA requests and/or remap interrupts from other devices on the
 	  system.
 
+config IOMMU_IOVA
+	tristate
+
 if IOMMU_SUPPORT
 
 menu "Generic IOMMU Pagetable Support"
@@ -41,9 +44,6 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST
 	  If unsure, say N here.
 
 endmenu
-
-config IOMMU_IOVA
-	tristate
 
 config OF_IOMMU
        def_bool y
