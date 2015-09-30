@@ -853,7 +853,9 @@ static int pvfs2_file_mmap(struct file *file, struct vm_area_struct *vma)
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
 	vma->vm_flags &= ~VM_RAND_READ;
-	return generic_file_mmap(file, vma);
+
+	/* Use readonly mmap since we cannot support writable maps. */
+	return generic_file_readonly_mmap(file, vma);
 }
 
 #define mapping_nrpages(idata) ((idata)->nrpages)
