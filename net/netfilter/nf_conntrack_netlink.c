@@ -2162,8 +2162,19 @@ ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
 	       ;
 }
 
-static int
-ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
+static struct nf_conn *ctnetlink_nfqueue_get_ct(struct sk_buff *skb,
+						enum ip_conntrack_info *ctinfo)
+{
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, ctinfo);
+	if (ct && nf_ct_is_untracked(ct))
+		ct = NULL;
+
+	return ct;
+}
+
+static int __ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
 {
 	const struct nf_conntrack_zone *zone;
 	struct nlattr *nest_parms;
@@ -2232,6 +2243,31 @@ ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
 
 nla_put_failure:
 	rcu_read_unlock();
+	return -ENOSPC;
+}
+
+static int
+ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct,
+			enum ip_conntrack_info ctinfo,
+			u_int16_t ct_attr, u_int16_t ct_info_attr)
+{
+	struct nlattr *nest_parms;
+
+	nest_parms = nla_nest_start(skb, ct_attr | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
+
+	if (__ctnetlink_nfqueue_build(skb, ct) < 0)
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest_parms);
+
+	if (nla_put_be32(skb, ct_info_attr, htonl(ctinfo)))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
 	return -ENOSPC;
 }
 
@@ -2350,12 +2386,22 @@ ctnetlink_nfqueue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 	return 0;
 }
 
+static void ctnetlink_nfqueue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
+				     enum ip_conntrack_info ctinfo, int diff)
+{
+	if (!(ct->status & IPS_NAT_MASK))
+		return;
+
+	nf_ct_tcp_seqadj_set(skb, ct, ctinfo, diff);
+}
+
 static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
+	.get_ct		= ctnetlink_nfqueue_get_ct,
 	.build_size	= ctnetlink_nfqueue_build_size,
 	.build		= ctnetlink_nfqueue_build,
 	.parse		= ctnetlink_nfqueue_parse,
 	.attach_expect	= ctnetlink_nfqueue_attach_expect,
-	.seq_adjust	= nf_ct_tcp_seqadj_set,
+	.seq_adjust	= ctnetlink_nfqueue_seqadj,
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 
