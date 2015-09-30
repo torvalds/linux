@@ -854,16 +854,20 @@ err_rhtbl:
 
 int nbp_vlan_init(struct net_bridge_port *p)
 {
+	struct net_bridge_vlan_group *vg;
 	int ret = -ENOMEM;
 
-	p->vlgrp = kzalloc(sizeof(struct net_bridge_vlan_group), GFP_KERNEL);
-	if (!p->vlgrp)
+	vg = kzalloc(sizeof(struct net_bridge_vlan_group), GFP_KERNEL);
+	if (!vg)
 		goto out;
 
-	ret = rhashtable_init(&p->vlgrp->vlan_hash, &br_vlan_rht_params);
+	ret = rhashtable_init(&vg->vlan_hash, &br_vlan_rht_params);
 	if (ret)
 		goto err_rhtbl;
-	INIT_LIST_HEAD(&p->vlgrp->vlan_list);
+	INIT_LIST_HEAD(&vg->vlan_list);
+	/* Make sure everything's committed before publishing vg */
+	smp_wmb();
+	p->vlgrp = vg;
 	if (p->br->default_pvid) {
 		ret = nbp_vlan_add(p, p->br->default_pvid,
 				   BRIDGE_VLAN_INFO_PVID |
@@ -875,9 +879,9 @@ out:
 	return ret;
 
 err_vlan_add:
-	rhashtable_destroy(&p->vlgrp->vlan_hash);
+	rhashtable_destroy(&vg->vlan_hash);
 err_rhtbl:
-	kfree(p->vlgrp);
+	kfree(vg);
 
 	goto out;
 }
