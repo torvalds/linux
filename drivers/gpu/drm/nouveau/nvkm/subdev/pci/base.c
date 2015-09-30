@@ -111,6 +111,9 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
+	if (pci->func->init)
+		pci->func->init(pci);
+
 	ret = request_irq(pdev->irq, nvkm_pci_intr, IRQF_SHARED, "nvkm", pci);
 	if (ret)
 		return ret;

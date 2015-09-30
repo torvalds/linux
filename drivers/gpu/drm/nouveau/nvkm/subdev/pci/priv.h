@@ -7,6 +7,7 @@ int nvkm_pci_new_(const struct nvkm_pci_func *, struct nvkm_device *,
 		  int index, struct nvkm_pci **);
 
 struct nvkm_pci_func {
+	void (*init)(struct nvkm_pci *);
 	u32 (*rd32)(struct nvkm_pci *, u16 addr);
 	void (*wr08)(struct nvkm_pci *, u16 addr, u8 data);
 	void (*wr32)(struct nvkm_pci *, u16 addr, u32 data);
