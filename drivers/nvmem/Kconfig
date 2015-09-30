@@ -14,6 +14,17 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_IMX_OCOTP
+	tristate "i.MX6 On-Chip OTP Controller support"
+	depends on SOC_IMX6
+	help
+	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
+	  i.MX6 SoCs, providing access to 4 Kbits of one-time programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-ocotp.
+
 config QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
