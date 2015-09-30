@@ -388,6 +388,20 @@ static void xgbe_get_drvinfo(struct net_device *netdev,
 	drvinfo->n_stats = XGBE_STATS_COUNT;
 }
 
+static u32 xgbe_get_msglevel(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return pdata->msg_enable;
+}
+
+static void xgbe_set_msglevel(struct net_device *netdev, u32 msglevel)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	pdata->msg_enable = msglevel;
+}
+
 static int xgbe_get_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec)
 {
@@ -594,6 +608,8 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_settings = xgbe_get_settings,
 	.set_settings = xgbe_set_settings,
 	.get_drvinfo = xgbe_get_drvinfo,
+	.get_msglevel = xgbe_get_msglevel,
+	.set_msglevel = xgbe_set_msglevel,
 	.get_link = ethtool_op_get_link,
 	.get_coalesce = xgbe_get_coalesce,
 	.set_coalesce = xgbe_set_coalesce,
