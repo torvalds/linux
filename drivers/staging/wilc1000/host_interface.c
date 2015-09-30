@@ -269,22 +269,6 @@ struct set_beacon {
 											*                              after the TIM inormation element	*/
 };
 
-
-
-/*!
- *  @struct             del_beacon
- *  @brief		Del Beacon  message body
- *  @details
- *  @todo
- *  @sa
- *  @author		Adham Abozaeid
- *  @date		15 July 2012
- *  @version		1.0
- */
-struct del_beacon {
-	u8 u8dummy;
-};
-
 /*!
  *  @struct             set_multicast
  *  @brief		set Multicast filter Address
@@ -408,7 +392,6 @@ union message_body {
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
 	struct set_beacon strHostIFSetBeacon;
-	struct del_beacon strHostIFDelBeacon;
 	struct add_sta_param strAddStaParam;
 	struct del_sta strDelStaParam;
 	struct add_sta_param strEditStaParam;
@@ -3244,14 +3227,13 @@ ERRORHANDLER:
 /**
  *  @brief Handle_AddBeacon
  *  @details       Sending config packet to delete beacon
- *  @param[in]   struct del_beacon *pstrDelBeacon
+ *  @param[in]	tstrWILC_WFIDrv *drvHandler
  *  @return         NONE
  *  @author
  *  @date
  *  @version	1.0
  */
-static void Handle_DelBeacon(tstrWILC_WFIDrv *drvHandler,
-			     struct del_beacon *pstrDelBeacon)
+static void Handle_DelBeacon(tstrWILC_WFIDrv *drvHandler)
 {
 	s32 s32Error = 0;
 	tstrWID strWID;
@@ -4156,7 +4138,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_DEL_BEACON:
-			Handle_DelBeacon(msg.drvHandler, &msg.body.strHostIFDelBeacon);
+			Handle_DelBeacon(msg.drvHandler);
 			break;
 
 		case HOST_IF_MSG_ADD_STATION:
