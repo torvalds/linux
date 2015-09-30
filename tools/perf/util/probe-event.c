@@ -441,19 +441,22 @@ static char *debuginfo_cache_path;
 
 static struct debuginfo *debuginfo_cache__open(const char *module, bool silent)
 {
-	if ((debuginfo_cache_path && !strcmp(debuginfo_cache_path, module)) ||
-	    (!debuginfo_cache_path && !module && debuginfo_cache))
+	const char *path = module;
+
+	/* If the module is NULL, it should be the kernel. */
+	if (!module)
+		path = "kernel";
+
+	if (debuginfo_cache_path && !strcmp(debuginfo_cache_path, path))
 		goto out;
 
 	/* Copy module path */
 	free(debuginfo_cache_path);
-	if (module) {
-		debuginfo_cache_path = strdup(module);
-		if (!debuginfo_cache_path) {
-			debuginfo__delete(debuginfo_cache);
-			debuginfo_cache = NULL;
-			goto out;
-		}
+	debuginfo_cache_path = strdup(path);
+	if (!debuginfo_cache_path) {
+		debuginfo__delete(debuginfo_cache);
+		debuginfo_cache = NULL;
+		goto out;
 	}
 
 	debuginfo_cache = open_debuginfo(module, silent);
