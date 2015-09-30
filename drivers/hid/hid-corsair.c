@@ -28,7 +28,7 @@ struct k90_led {
 	struct led_classdev cdev;
 	int brightness;
 	struct work_struct work;
-	int removed;
+	bool removed;
 };
 
 struct k90_drvdata {
@@ -410,7 +410,7 @@ static int k90_init_backlight(struct hid_device *dev)
 	}
 	snprintf(name, name_sz, "%s" K90_BACKLIGHT_LED_SUFFIX,
 		 dev_name(&dev->dev));
-	drvdata->backlight->removed = 0;
+	drvdata->backlight->removed = false;
 	drvdata->backlight->cdev.name = name;
 	drvdata->backlight->cdev.max_brightness = 3;
 	drvdata->backlight->cdev.brightness_set = k90_brightness_set;
@@ -455,7 +455,7 @@ static int k90_init_macro_functions(struct hid_device *dev)
 	}
 	snprintf(name, name_sz, "%s" K90_RECORD_LED_SUFFIX,
 		 dev_name(&dev->dev));
-	k90->record_led.removed = 0;
+	k90->record_led.removed = false;
 	k90->record_led.cdev.name = name;
 	k90->record_led.cdev.max_brightness = 1;
 	k90->record_led.cdev.brightness_set = k90_brightness_set;
@@ -474,7 +474,7 @@ static int k90_init_macro_functions(struct hid_device *dev)
 	return 0;
 
 fail_sysfs:
-	k90->record_led.removed = 1;
+	k90->record_led.removed = true;
 	led_classdev_unregister(&k90->record_led.cdev);
 	cancel_work_sync(&k90->record_led.work);
 fail_record_led:
@@ -491,7 +491,7 @@ static void k90_cleanup_backlight(struct hid_device *dev)
 	struct corsair_drvdata *drvdata = hid_get_drvdata(dev);
 
 	if (drvdata->backlight) {
-		drvdata->backlight->removed = 1;
+		drvdata->backlight->removed = true;
 		led_classdev_unregister(&drvdata->backlight->cdev);
 		cancel_work_sync(&drvdata->backlight->work);
 		kfree(drvdata->backlight->cdev.name);
@@ -507,7 +507,7 @@ static void k90_cleanup_macro_functions(struct hid_device *dev)
 	if (k90) {
 		sysfs_remove_group(&dev->dev.kobj, &k90_attr_group);
 
-		k90->record_led.removed = 1;
+		k90->record_led.removed = true;
 		led_classdev_unregister(&k90->record_led.cdev);
 		cancel_work_sync(&k90->record_led.work);
 		kfree(k90->record_led.cdev.name);
