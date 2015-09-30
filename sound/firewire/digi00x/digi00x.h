@@ -19,8 +19,12 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
 
 #include "../lib.h"
+#include "../iso-resources.h"
+#include "../amdtp-stream.h"
 
 struct snd_dg00x {
 	struct snd_card *card;
@@ -28,5 +32,15 @@ struct snd_dg00x {
 
 	struct mutex mutex;
 };
+
+int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
+		   enum amdtp_stream_direction dir);
+int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
+			     unsigned int pcm_channels,
+			     unsigned int midi_ports);
+void amdtp_dot_reset(struct amdtp_stream *s);
+int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
+				     struct snd_pcm_runtime *runtime);
+void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
 
 #endif
