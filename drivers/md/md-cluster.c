@@ -55,6 +55,7 @@ struct md_cluster_info {
 	struct completion completion;
 	struct mutex sb_mutex;
 	struct dlm_lock_resource *bitmap_lockres;
+	struct dlm_lock_resource *resync_lockres;
 	struct list_head suspend_list;
 	spinlock_t suspend_lock;
 	struct md_thread *recovery_thread;
@@ -384,6 +385,8 @@ static void process_suspend_info(struct mddev *mddev,
 
 	if (!hi) {
 		remove_suspend_info(mddev, slot);
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
 		return;
 	}
 	s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
@@ -758,6 +761,10 @@ static int join(struct mddev *mddev, int nodes)
 		goto err;
 	}
 
+	cinfo->resync_lockres = lockres_init(mddev, "resync", NULL, 0);
+	if (!cinfo->resync_lockres)
+		goto err;
+
 	ret = gather_all_resync_info(mddev, nodes);
 	if (ret)
 		goto err;
@@ -768,6 +775,7 @@ err:
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
 	lockres_free(cinfo->no_new_dev_lockres);
+	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	if (cinfo->lockspace)
 		dlm_release_lockspace(cinfo->lockspace, 2);
@@ -861,6 +869,13 @@ static int metadata_update_cancel(struct mddev *mddev)
 	return dlm_unlock_sync(cinfo->token_lockres);
 }
 
+static int resync_start(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	cinfo->resync_lockres->flags |= DLM_LKF_NOQUEUE;
+	return dlm_lock_sync(cinfo->resync_lockres, DLM_LOCK_EX);
+}
+
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -870,14 +885,20 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 	add_resync_info(mddev, cinfo->bitmap_lockres, lo, hi);
 	/* Re-acquire the lock to refresh LVB */
 	dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW);
-	pr_info("%s:%d lo: %llu hi: %llu\n", __func__, __LINE__,
-			(unsigned long long)lo,
-			(unsigned long long)hi);
 	cmsg.type = cpu_to_le32(RESYNCING);
 	cmsg.slot = cpu_to_le32(slot);
 	cmsg.low = cpu_to_le64(lo);
 	cmsg.high = cpu_to_le64(hi);
+
 	return sendmsg(cinfo, &cmsg);
+}
+
+static int resync_finish(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	cinfo->resync_lockres->flags &= ~DLM_LKF_NOQUEUE;
+	dlm_unlock_sync(cinfo->resync_lockres);
+	return resync_info_update(mddev, 0, 0);
 }
 
 static int area_resyncing(struct mddev *mddev, int direction,
@@ -995,6 +1016,8 @@ static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
+	.resync_start = resync_start,
+	.resync_finish = resync_finish,
 	.resync_info_update = resync_info_update,
 	.metadata_update_start = metadata_update_start,
 	.metadata_update_finish = metadata_update_finish,

@@ -2503,8 +2503,6 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 		if (mddev_is_clustered(mddev)) {
 			conf->cluster_sync_low = 0;
 			conf->cluster_sync_high = 0;
-			/* Send zeros to mark end of resync */
-			md_cluster_ops->resync_info_update(mddev, 0, 0);
 		}
 		return 0;
 	}
