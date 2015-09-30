@@ -438,7 +438,7 @@ out_fail:
 
 static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	if (netif_is_vrf(port_dev) || vrf_is_slave(port_dev))
+	if (netif_is_l3_master(port_dev) || vrf_is_slave(port_dev))
 		return -EINVAL;
 
 	return do_vrf_add_slave(dev, port_dev);
@@ -591,7 +591,7 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 
 	vrf->tb_id = nla_get_u32(data[IFLA_VRF_TABLE]);
 
-	dev->priv_flags |= IFF_VRF_MASTER;
+	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
 	err = -ENOMEM;
 	vrf_ptr = kmalloc(sizeof(*dev->vrf_ptr), GFP_KERNEL);
@@ -657,7 +657,7 @@ static int vrf_device_event(struct notifier_block *unused,
 		struct net_vrf_dev *vrf_ptr = rtnl_dereference(dev->vrf_ptr);
 		struct net_device *vrf_dev;
 
-		if (!vrf_ptr || netif_is_vrf(dev))
+		if (!vrf_ptr || netif_is_l3_master(dev))
 			goto out;
 
 		vrf_dev = netdev_master_upper_dev_get(dev);

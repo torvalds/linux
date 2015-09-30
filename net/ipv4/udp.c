@@ -1021,7 +1021,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		 * device lookup source address from VRF table. This mimics
 		 * behavior of ip_route_connect{_init}.
 		 */
-		if (netif_index_is_vrf(net, ipc.oif)) {
+		if (netif_index_is_l3_master(net, ipc.oif)) {
 			flowi4_init_output(fl4, ipc.oif, sk->sk_mark, tos,
 					   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 					   (flow_flags | FLOWI_FLAG_VRFSRC |

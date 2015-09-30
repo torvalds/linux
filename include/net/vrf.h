@@ -43,7 +43,7 @@ static inline int vrf_master_ifindex_rcu(const struct net_device *dev)
 	if (!dev)
 		return 0;
 
-	if (netif_is_vrf(dev)) {
+	if (netif_is_l3_master(dev)) {
 		ifindex = dev->ifindex;
 	} else {
 		vrf_ptr = rcu_dereference(dev->vrf_ptr);
@@ -125,7 +125,7 @@ static inline u32 vrf_dev_table_rtnl(const struct net_device *dev)
 	return tb_id;
 }
 
-/* caller has already checked netif_is_vrf(dev) */
+/* caller has already checked netif_is_l3_master(dev) */
 static inline struct rtable *vrf_dev_get_rth(const struct net_device *dev)
 {
 	struct rtable *rth = ERR_PTR(-ENETUNREACH);
