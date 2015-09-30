@@ -18,6 +18,7 @@
  */
 
 #include <linux/iova.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 void
@@ -559,3 +560,6 @@ error:
 		free_iova_mem(prev);
 	return NULL;
 }
+
+MODULE_AUTHOR("Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>");
+MODULE_LICENSE("GPL");
