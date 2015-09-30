@@ -579,34 +579,20 @@ EXPORT_SYMBOL_GPL(bgpio_init);
 
 static void __iomem *bgpio_map(struct platform_device *pdev,
 			       const char *name,
-			       resource_size_t sane_sz,
-			       int *err)
+			       resource_size_t sane_sz)
 {
 	struct resource *r;
 	resource_size_t sz;
-	void __iomem *ret;
-
-	*err = 0;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	if (!r) {
-		*err = -EINVAL;
-		return NULL;
-	}
+	if (!r)
+		return IOMEM_ERR_PTR(-EINVAL);
 
 	sz = resource_size(r);
-	if (sz != sane_sz) {
-		*err = -EINVAL;
-		return NULL;
-	}
+	if (sz != sane_sz)
+		return IOMEM_ERR_PTR(-EINVAL);
 
-	ret = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(ret)) {
-		*err = PTR_ERR(ret);
-		return NULL;
-	}
-
-	return ret;
+	return devm_ioremap_resource(&pdev->dev, r);
 }
 
 static int bgpio_pdev_probe(struct platform_device *pdev)
@@ -630,25 +616,25 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 
 	sz = resource_size(r);
 
-	dat = bgpio_map(pdev, "dat", sz, &err);
-	if (err)
-		return err;
+	dat = bgpio_map(pdev, "dat", sz);
+	if (IS_ERR(dat))
+		return PTR_ERR(dat);
 
-	set = bgpio_map(pdev, "set", sz, &err);
-	if (err)
-		return err;
+	set = bgpio_map(pdev, "set", sz);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
 
-	clr = bgpio_map(pdev, "clr", sz, &err);
-	if (err)
-		return err;
+	clr = bgpio_map(pdev, "clr", sz);
+	if (IS_ERR(clr))
+		return PTR_ERR(clr);
 
-	dirout = bgpio_map(pdev, "dirout", sz, &err);
-	if (err)
-		return err;
+	dirout = bgpio_map(pdev, "dirout", sz);
+	if (IS_ERR(dirout))
+		return PTR_ERR(dirout);
 
-	dirin = bgpio_map(pdev, "dirin", sz, &err);
-	if (err)
-		return err;
+	dirin = bgpio_map(pdev, "dirin", sz);
+	if (IS_ERR(dirin))
+		return PTR_ERR(dirin);
 
 	bgc = devm_kzalloc(&pdev->dev, sizeof(*bgc), GFP_KERNEL);
 	if (!bgc)
