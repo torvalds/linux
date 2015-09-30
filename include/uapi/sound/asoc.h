@@ -83,7 +83,7 @@
 #define SND_SOC_TPLG_NUM_TEXTS		16
 
 /* ABI version */
-#define SND_SOC_TPLG_ABI_VERSION	0x3
+#define SND_SOC_TPLG_ABI_VERSION	0x4
 
 /* Max size of TLV data */
 #define SND_SOC_TPLG_TLV_SIZE		32
@@ -378,30 +378,29 @@ struct snd_soc_tplg_dapm_widget {
 	 */
 } __attribute__((packed));
 
-struct snd_soc_tplg_pcm_cfg_caps {
-	struct snd_soc_tplg_stream_caps caps;
-	struct snd_soc_tplg_stream_config configs[SND_SOC_TPLG_STREAM_CONFIG_MAX];
-	__le32 num_configs;	/* number of configs */
-} __attribute__((packed));
 
 /*
- * Describes SW/FW specific features of PCM or DAI link.
+ * Describes SW/FW specific features of PCM (FE DAI & DAI link).
  *
- * File block representation for PCM/DAI-Link :-
+ * File block representation for PCM :-
  * +-----------------------------------+-----+
  * | struct snd_soc_tplg_hdr           |  1  |
  * +-----------------------------------+-----+
- * | struct snd_soc_tplg_dapm_pcm_dai  |  N  |
+ * | struct snd_soc_tplg_pcm           |  N  |
  * +-----------------------------------+-----+
  */
-struct snd_soc_tplg_pcm_dai {
+struct snd_soc_tplg_pcm {
 	__le32 size;		/* in bytes of this structure */
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-	__le32 id;			/* unique ID - used to match */
-	__le32 playback;		/* supports playback mode */
-	__le32 capture;			/* supports capture mode */
-	__le32 compress;		/* 1 = compressed; 0 = PCM */
-	struct snd_soc_tplg_pcm_cfg_caps capconf[2];	/* capabilities and configs */
+	char pcm_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	__le32 pcm_id;		/* unique ID - used to match */
+	__le32 dai_id;		/* unique ID - used to match */
+	__le32 playback;	/* supports playback mode */
+	__le32 capture;		/* supports capture mode */
+	__le32 compress;	/* 1 = compressed; 0 = PCM */
+	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* for DAI link */
+	__le32 num_streams;	/* number of streams */
+	struct snd_soc_tplg_stream_caps caps[2]; /* playback and capture for DAI */
 } __attribute__((packed));
 
 #endif
