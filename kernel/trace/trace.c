@@ -482,7 +482,8 @@ static inline void trace_access_lock_init(void)
 static void __ftrace_trace_stack(struct ring_buffer *buffer,
 				 unsigned long flags,
 				 int skip, int pc, struct pt_regs *regs);
-static inline void ftrace_trace_stack(struct ring_buffer *buffer,
+static inline void ftrace_trace_stack(struct trace_array *tr,
+				      struct ring_buffer *buffer,
 				      unsigned long flags,
 				      int skip, int pc, struct pt_regs *regs);
 
@@ -492,7 +493,8 @@ static inline void __ftrace_trace_stack(struct ring_buffer *buffer,
 					int skip, int pc, struct pt_regs *regs)
 {
 }
-static inline void ftrace_trace_stack(struct ring_buffer *buffer,
+static inline void ftrace_trace_stack(struct trace_array *tr,
+				      struct ring_buffer *buffer,
 				      unsigned long flags,
 				      int skip, int pc, struct pt_regs *regs)
 {
@@ -574,7 +576,7 @@ int __trace_puts(unsigned long ip, const char *str, int size)
 		entry->buf[size] = '\0';
 
 	__buffer_unlock_commit(buffer, event);
-	ftrace_trace_stack(buffer, irq_flags, 4, pc, NULL);
+	ftrace_trace_stack(&global_trace, buffer, irq_flags, 4, pc, NULL);
 
 	return size;
 }
@@ -614,7 +616,7 @@ int __trace_bputs(unsigned long ip, const char *str)
 	entry->str			= str;
 
 	__buffer_unlock_commit(buffer, event);
-	ftrace_trace_stack(buffer, irq_flags, 4, pc, NULL);
+	ftrace_trace_stack(&global_trace, buffer, irq_flags, 4, pc, NULL);
 
 	return 1;
 }
@@ -1691,7 +1693,7 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 {
 	__buffer_unlock_commit(buffer, event);
 
-	ftrace_trace_stack(buffer, flags, 6, pc, NULL);
+	ftrace_trace_stack(tr, buffer, flags, 6, pc, NULL);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
@@ -1743,7 +1745,7 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 {
 	__buffer_unlock_commit(buffer, event);
 
-	ftrace_trace_stack(buffer, flags, 6, pc, regs);
+	ftrace_trace_stack(tr, buffer, flags, 6, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
@@ -1872,11 +1874,12 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 
 }
 
-static inline void ftrace_trace_stack(struct ring_buffer *buffer,
+static inline void ftrace_trace_stack(struct trace_array *tr,
+				      struct ring_buffer *buffer,
 				      unsigned long flags,
 				      int skip, int pc, struct pt_regs *regs)
 {
-	if (!(global_trace.trace_flags & TRACE_ITER_STACKTRACE))
+	if (!(tr->trace_flags & TRACE_ITER_STACKTRACE))
 		return;
 
 	__ftrace_trace_stack(buffer, flags, skip, pc, regs);
@@ -2164,7 +2167,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	memcpy(entry->buf, tbuffer, sizeof(u32) * len);
 	if (!call_filter_check_discard(call, entry, buffer, event)) {
 		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(buffer, flags, 6, pc, NULL);
+		ftrace_trace_stack(tr, buffer, flags, 6, pc, NULL);
 	}
 
 out:
@@ -2216,7 +2219,7 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 	memcpy(&entry->buf, tbuffer, len + 1);
 	if (!call_filter_check_discard(call, entry, buffer, event)) {
 		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(buffer, flags, 6, pc, NULL);
+		ftrace_trace_stack(&global_trace, buffer, flags, 6, pc, NULL);
 	}
  out:
 	preempt_enable_notrace();
