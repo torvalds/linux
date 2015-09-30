@@ -384,7 +384,7 @@ union message_body {
 	struct power_mgmt_param pwr_mgmt_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr strHostIfSetIP;
-	struct drv_handler strHostIfSetDrvHandler;
+	struct drv_handler drv;
 	struct set_multicast strHostIfSetMulti;
 	struct op_mode strHostIfSetOperationMode;
 	struct set_mac_addr strHostIfSetMacAddress;
@@ -4159,7 +4159,7 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_SET_WFIDRV_HANDLER:
 			Handle_SetWfiDrvHandler(msg.drvHandler,
-						&msg.body.strHostIfSetDrvHandler);
+						&msg.body.drv);
 			break;
 
 		case HOST_IF_MSG_SET_OPERATION_MODE:
@@ -5382,7 +5382,7 @@ s32 host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
-	msg.body.strHostIfSetDrvHandler.u32Address = get_id_from_handler(u32address);
+	msg.body.drv.u32Address = get_id_from_handler(u32address);
 	msg.drvHandler = u32address;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
