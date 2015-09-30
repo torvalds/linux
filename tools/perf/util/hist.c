@@ -1151,7 +1151,7 @@ void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 	struct perf_evsel *evsel = hists_to_evsel(hists);
 	bool use_callchain;
 
-	if (evsel && !symbol_conf.show_ref_callgraph)
+	if (evsel && symbol_conf.use_callchain && !symbol_conf.show_ref_callgraph)
 		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
 	else
 		use_callchain = symbol_conf.use_callchain;
