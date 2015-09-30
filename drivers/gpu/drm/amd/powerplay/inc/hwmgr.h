@@ -288,6 +288,9 @@ struct pp_hwmgr_func {
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
+	int (*disable_clock_power_gating)(struct pp_hwmgr *hwmgr);
+	int (*update_clock_gatings)(struct pp_hwmgr *hwmgr,
+						const uint32_t *msg_id);
 };
 
 struct pp_table_func {
