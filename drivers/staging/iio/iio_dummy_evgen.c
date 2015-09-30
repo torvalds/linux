@@ -86,7 +86,7 @@ static void iio_dummy_work_handler(struct irq_work *work)
 	struct iio_dummy_handle_irq *irq_handler;
 
 	irq_handler = container_of(work, struct iio_dummy_handle_irq, work);
-	handle_simple_irq(irq_handler->irq, irq_to_desc(irq_handler->irq));
+	handle_simple_irq(irq_to_desc(irq_handler->irq));
 }
 
 static int iio_dummy_evgen_create(void)
