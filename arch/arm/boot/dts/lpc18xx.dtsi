@@ -249,6 +249,9 @@
 			interrupts = <22>;
 			clocks = <&ccu2 CLK_APB0_SSP0>, <&ccu1 CLK_CPU_SSP0>;
 			clock-names = "sspclk", "apb_pclk";
+			dmas = <&dmamux  9 0 2
+				&dmamux 10 0 2>;
+			dma-names = "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -326,6 +329,16 @@
 			interrupts = <23>;
 			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
 			clock-names = "sspclk", "apb_pclk";
+			dmas = <&dmamux 11 2 2
+				&dmamux 12 2 2
+				&dmamux  3 3 2
+				&dmamux  4 3 2
+				&dmamux  5 2 2
+				&dmamux  6 2 2
+				&dmamux 13 2 2
+				&dmamux 14 2 2>;
+			dma-names = "rx", "tx", "tx", "rx",
+				    "tx", "rx", "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
