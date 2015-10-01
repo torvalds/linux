@@ -115,7 +115,6 @@ struct visornic_devdata {
 					 * IOPART
 					 */
 	struct visor_device *dev;
-	struct list_head list_all;   /* < link within list_all_devices list */
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
 	atomic_t interrupt_rcvd;
@@ -196,12 +195,6 @@ struct visornic_devdata {
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
 
-
-/* List of all visornic_devdata structs,
- * linked via the list_all member
- */
-static LIST_HEAD(list_all_devices);
-static DEFINE_SPINLOCK(lock_all_devices);
 static int visornic_poll(struct napi_struct *napi, int budget);
 static void poll_for_irq(unsigned long v);
 
@@ -1372,9 +1365,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 		return NULL;
 	memset(devdata, '\0', sizeof(struct visornic_devdata));
 	devdata->dev = dev;
-	spin_lock(&lock_all_devices);
-	list_add_tail(&devdata->list_all, &list_all_devices);
-	spin_unlock(&lock_all_devices);
 	return devdata;
 }
 
@@ -1387,9 +1377,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
  */
 static void devdata_release(struct visornic_devdata *devdata)
 {
-	spin_lock(&lock_all_devices);
-	list_del(&devdata->list_all);
-	spin_unlock(&lock_all_devices);
 	kfree(devdata->rcvbuf);
 	kfree(devdata->cmdrsp_rcv);
 	kfree(devdata->xmit_cmdrsp);
