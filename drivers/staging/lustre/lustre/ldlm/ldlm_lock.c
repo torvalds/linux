@@ -644,8 +644,9 @@ static void ldlm_add_cp_work_item(struct ldlm_lock *lock,
  * adding function.
  * Must be called with lr_lock held.
  */
-void ldlm_add_ast_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
-			    struct list_head *work_list)
+static void ldlm_add_ast_work_item(struct ldlm_lock *lock,
+				   struct ldlm_lock *new,
+				   struct list_head *work_list)
 {
 	check_res_locked(lock->l_resource);
 	if (new)
