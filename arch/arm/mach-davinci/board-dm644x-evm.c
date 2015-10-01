@@ -546,9 +546,7 @@ static int dm6444evm_msp430_get_pins(void)
 	if (status < 0)
 		return status;
 
-	dev_dbg(&dm6446evm_msp->dev,
-		"PINS: %02x %02x %02x %02x\n",
-		buf[0], buf[1], buf[2], buf[3]);
+	dev_dbg(&dm6446evm_msp->dev, "PINS: %4ph\n", buf);
 
 	return (buf[3] << 8) | buf[2];
 }
