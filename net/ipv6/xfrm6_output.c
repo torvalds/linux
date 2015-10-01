@@ -134,6 +134,7 @@ int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
+
 	return x->outer_mode->afinfo->output_finish(sk, skb);
 }
 
