@@ -313,10 +313,7 @@ irqreturn_t isr_bh_routine(int irq, void *userdata)
 	}
 
 	PRINT_D(INT_DBG, "Interrupt received BH\n");
-	if (g_linux_wlan->oup.wlan_handle_rx_isr != 0)
-		g_linux_wlan->oup.wlan_handle_rx_isr();
-	else
-		PRINT_ER("wlan_handle_rx_isr() hasn't been initialized\n");
+	wilc_handle_isr();
 
 	return IRQ_HANDLED;
 }
