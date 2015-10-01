@@ -32,8 +32,6 @@
 
 #define ETH_CONFIG_PKT_HDR_OFFSET (ETH_ETHERNET_HDR_OFFSET + \
 				   ETH_CONFIG_PKT_HDR_LEN)
-#define   ACTION         0xD0
-#define   PROBE_REQ   0x40
 
 /********************************************
  *
