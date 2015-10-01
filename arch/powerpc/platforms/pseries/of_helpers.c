@@ -15,7 +15,7 @@
  */
 struct device_node *pseries_of_derive_parent(const char *path)
 {
-	struct device_node *parent = NULL;
+	struct device_node *parent;
 	char *parent_path = "/";
 	size_t parent_path_len = strrchr(path, '/') - path + 1;
 
@@ -30,9 +30,7 @@ struct device_node *pseries_of_derive_parent(const char *path)
 		strlcpy(parent_path, path, parent_path_len);
 	}
 	parent = of_find_node_by_path(parent_path);
-	if (!parent)
-		return ERR_PTR(-EINVAL);
 	if (strcmp(parent_path, "/"))
 		kfree(parent_path);
-	return parent;
+	return parent ? parent : ERR_PTR(-EINVAL);
 }
