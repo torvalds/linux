@@ -35,7 +35,7 @@ config ION_TEGRA
 
 config ION_POOL_CACHE_POLICY
 	bool "Ion set page pool cache policy"
-	depends on ION
+	depends on ION && X86
 	default y if X86
 	help
 	  Choose this option if need to explicity set cache policy of the
