@@ -1300,16 +1300,16 @@ static int jpu_release(struct file *file)
 	struct jpu *jpu = video_drvdata(file);
 	struct jpu_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mutex_lock(&jpu->mutex);
-	if (--jpu->ref_count == 0)
-		clk_disable_unprepare(jpu->clk);
-	mutex_unlock(&jpu->mutex);
-
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
+
+	mutex_lock(&jpu->mutex);
+	if (--jpu->ref_count == 0)
+		clk_disable_unprepare(jpu->clk);
+	mutex_unlock(&jpu->mutex);
 
 	return 0;
 }
