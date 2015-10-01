@@ -135,4 +135,15 @@ config SND_FIREWIRE_DIGI00X
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-digi00x.
 
+config SND_FIREWIRE_TASCAM
+	tristate "TASCAM FireWire series support"
+	select SND_FIREWIRE_LIB
+	help
+	 Say Y here to include support for TASCAM.
+	  * FW-1884
+	  * FW-1082
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called snd-firewire-tascam.
+
 endif # SND_FIREWIRE
