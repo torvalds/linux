@@ -571,25 +571,25 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	struct get_pages_work *work = container_of(_work, typeof(*work), work);
 	struct drm_i915_gem_object *obj = work->obj;
 	struct drm_device *dev = obj->base.dev;
-	const int num_pages = obj->base.size >> PAGE_SHIFT;
+	const int npages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	int pinned, ret;
 
 	ret = -ENOMEM;
 	pinned = 0;
 
-	pvec = kmalloc(num_pages*sizeof(struct page *),
+	pvec = kmalloc(npages*sizeof(struct page *),
 		       GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 	if (pvec == NULL)
-		pvec = drm_malloc_ab(num_pages, sizeof(struct page *));
+		pvec = drm_malloc_ab(npages, sizeof(struct page *));
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 
 		down_read(&mm->mmap_sem);
-		while (pinned < num_pages) {
+		while (pinned < npages) {
 			ret = get_user_pages(work->task, mm,
 					     obj->userptr.ptr + pinned * PAGE_SIZE,
-					     num_pages - pinned,
+					     npages - pinned,
 					     !obj->userptr.read_only, 0,
 					     pvec + pinned, NULL);
 			if (ret < 0)
@@ -601,20 +601,20 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	if (obj->userptr.work != &work->work) {
-		ret = 0;
-	} else if (pinned == num_pages) {
-		ret = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
-		if (ret == 0) {
-			list_add_tail(&obj->global_list, &to_i915(dev)->mm.unbound_list);
-			obj->get_page.sg = obj->pages->sgl;
-			obj->get_page.last = 0;
-
-			pinned = 0;
+	if (obj->userptr.work == &work->work) {
+		if (pinned == npages) {
+			ret = __i915_gem_userptr_set_pages(obj, pvec, npages);
+			if (ret == 0) {
+				list_add_tail(&obj->global_list,
+					      &to_i915(dev)->mm.unbound_list);
+				obj->get_page.sg = obj->pages->sgl;
+				obj->get_page.last = 0;
+				pinned = 0;
+			}
 		}
+		obj->userptr.work = ERR_PTR(ret);
 	}
 
-	obj->userptr.work = ERR_PTR(ret);
 	obj->userptr.workers--;
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
