@@ -38,8 +38,6 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-grace=120
-
 T=/tmp/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 touch $T
@@ -214,7 +212,7 @@ then
 		else
 			break
 		fi
-		if test $kruntime -ge $((seconds + grace))
+		if test $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
