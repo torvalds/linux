@@ -36,10 +36,10 @@ struct vb2_v4l2_buffer {
 	__u32			sequence;
 };
 
-/**
+/*
  * to_vb2_v4l2_buffer() - cast struct vb2_buffer * to struct vb2_v4l2_buffer *
  */
 #define to_vb2_v4l2_buffer(vb) \
-	(container_of(vb, struct vb2_v4l2_buffer, vb2_buf))
+	container_of(vb, struct vb2_v4l2_buffer, vb2_buf)
 
 #endif /* _MEDIA_VIDEOBUF2_V4L2_H */
