@@ -713,7 +713,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 			status |= USB_PORT_STAT_SUSPEND;
 	}
 	if ((raw_port_status & PORT_PLS_MASK) == XDEV_RESUME &&
-			!DEV_SUPERSPEED(raw_port_status)) {
+		!DEV_SUPERSPEED_ANY(raw_port_status)) {
 		if ((raw_port_status & PORT_RESET) ||
 				!(raw_port_status & PORT_PE))
 			return 0xffffffff;
@@ -1311,14 +1311,14 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 		u32 temp;
 
 		temp = readl(port_array[port_index]);
-		if (DEV_SUPERSPEED(temp))
+		if (DEV_SUPERSPEED_ANY(temp))
 			temp &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
 		else
 			temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		if (test_bit(port_index, &bus_state->bus_suspended) &&
 		    (temp & PORT_PLS_MASK)) {
 			set_bit(port_index, &port_was_suspended);
-			if (!DEV_SUPERSPEED(temp)) {
+			if (!DEV_SUPERSPEED_ANY(temp)) {
 				xhci_set_link_state(xhci, port_array,
 						port_index, XDEV_RESUME);
 				need_usb2_u3_exit = true;

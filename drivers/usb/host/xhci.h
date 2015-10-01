@@ -327,11 +327,15 @@ struct xhci_op_regs {
 #define	XDEV_LS			(0x2 << 10)
 #define	XDEV_HS			(0x3 << 10)
 #define	XDEV_SS			(0x4 << 10)
+#define	XDEV_SSP		(0x5 << 10)
 #define DEV_UNDEFSPEED(p)	(((p) & DEV_SPEED_MASK) == (0x0<<10))
 #define DEV_FULLSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_FS)
 #define DEV_LOWSPEED(p)		(((p) & DEV_SPEED_MASK) == XDEV_LS)
 #define DEV_HIGHSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_HS)
 #define DEV_SUPERSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_SS)
+#define DEV_SUPERSPEEDPLUS(p)	(((p) & DEV_SPEED_MASK) == XDEV_SSP)
+#define DEV_SUPERSPEED_ANY(p)	(((p) & DEV_SPEED_MASK) >= XDEV_SS)
+
 /* Bits 20:23 in the Slot Context are the speed for the device */
 #define	SLOT_SPEED_FS		(XDEV_FS << 10)
 #define	SLOT_SPEED_LS		(XDEV_LS << 10)

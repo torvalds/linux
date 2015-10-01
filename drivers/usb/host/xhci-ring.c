@@ -1567,7 +1567,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			goto cleanup;
 		}
 
-		if (DEV_SUPERSPEED(temp)) {
+		if (DEV_SUPERSPEED_ANY(temp)) {
 			xhci_dbg(xhci, "remote wake SS port %d\n", port_id);
 			/* Set a flag to say the port signaled remote wakeup,
 			 * so we can tell the difference between the end of
@@ -1595,7 +1595,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	}
 
 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_U0 &&
-			DEV_SUPERSPEED(temp)) {
+			DEV_SUPERSPEED_ANY(temp)) {
 		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
 		/* We've just brought the device into U0 through either the
 		 * Resume state after a device remote wakeup, or through the
@@ -1625,7 +1625,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	 * RExit to a disconnect state).  If so, let the the driver know it's
 	 * out of the RExit state.
 	 */
-	if (!DEV_SUPERSPEED(temp) &&
+	if (!DEV_SUPERSPEED_ANY(temp) &&
 			test_and_clear_bit(faked_port_index,
 				&bus_state->rexit_ports)) {
 		complete(&bus_state->rexit_done[faked_port_index]);
