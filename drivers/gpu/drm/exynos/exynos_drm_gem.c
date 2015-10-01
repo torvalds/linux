@@ -307,7 +307,7 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 	drm_gem_object_unreference_unlocked(obj);
 }
 
-int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
+static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
 				      struct vm_area_struct *vma)
 {
 	struct drm_device *drm_dev = exynos_gem_obj->base.dev;
