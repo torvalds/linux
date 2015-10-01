@@ -65,7 +65,7 @@ enum switchdev_obj_id {
 };
 
 /* SWITCHDEV_OBJ_ID_PORT_VLAN */
-struct switchdev_obj_vlan {
+struct switchdev_obj_port_vlan {
 	u16 flags;
 	u16 vid_begin;
 	u16 vid_end;

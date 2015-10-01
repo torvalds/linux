@@ -483,7 +483,7 @@ int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
 
 struct switchdev_vlan_dump {
-	struct switchdev_obj_vlan vlan;
+	struct switchdev_obj_port_vlan vlan;
 	struct sk_buff *skb;
 	u32 filter_mask;
 	u16 flags;
@@ -523,7 +523,7 @@ static int switchdev_port_vlan_dump_put(struct switchdev_vlan_dump *dump)
 
 static int switchdev_port_vlan_dump_cb(void *obj)
 {
-	struct switchdev_obj_vlan *vlan = obj;
+	struct switchdev_obj_port_vlan *vlan = obj;
 	struct switchdev_vlan_dump *dump =
 		container_of(vlan, struct switchdev_vlan_dump, vlan);
 	int err = 0;
@@ -704,7 +704,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 {
 	struct nlattr *attr;
 	struct bridge_vlan_info *vinfo;
-	struct switchdev_obj_vlan vlan = { 0 };
+	struct switchdev_obj_port_vlan vlan = { 0 };
 	int rem;
 	int err;
 

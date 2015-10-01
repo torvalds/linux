@@ -242,7 +242,7 @@ static int dsa_bridge_check_vlan_range(struct dsa_switch *ds,
 }
 
 static int dsa_slave_port_vlan_add(struct net_device *dev,
-				   const struct switchdev_obj_vlan *vlan,
+				   const struct switchdev_obj_port_vlan *vlan,
 				   struct switchdev_trans *trans)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -278,7 +278,7 @@ static int dsa_slave_port_vlan_add(struct net_device *dev,
 }
 
 static int dsa_slave_port_vlan_del(struct net_device *dev,
-				   const struct switchdev_obj_vlan *vlan)
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
@@ -298,7 +298,7 @@ static int dsa_slave_port_vlan_del(struct net_device *dev,
 }
 
 static int dsa_slave_port_vlan_dump(struct net_device *dev,
-				    struct switchdev_obj_vlan *vlan,
+				    struct switchdev_obj_port_vlan *vlan,
 				    int (*cb)(void *obj))
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);

@@ -82,7 +82,7 @@ static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
 	if (ops->ndo_vlan_rx_add_vid) {
 		err = vlan_vid_add(dev, br->vlan_proto, vid);
 	} else {
-		struct switchdev_obj_vlan v = {
+		struct switchdev_obj_port_vlan v = {
 			.flags = flags,
 			.vid_begin = vid,
 			.vid_end = vid,
@@ -132,7 +132,7 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 	if (ops->ndo_vlan_rx_kill_vid) {
 		vlan_vid_del(dev, br->vlan_proto, vid);
 	} else {
-		struct switchdev_obj_vlan v = {
+		struct switchdev_obj_port_vlan v = {
 			.vid_begin = vid,
 			.vid_end = vid,
 		};
