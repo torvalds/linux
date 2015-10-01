@@ -469,12 +469,24 @@ static const DECLARE_TLV_DB_RANGE(bst_tlv,
 	8, 8, TLV_DB_SCALE_ITEM(5200, 0, 0)
 );
 
+/* {-6, -4.5, -3, -1.5, 0, 0.82, 1.58, 2.28} dB */
+static const DECLARE_TLV_DB_RANGE(spk_clsd_tlv,
+	0, 4, TLV_DB_SCALE_ITEM(-600, 150, 0),
+	5, 5, TLV_DB_SCALE_ITEM(82, 0, 0),
+	6, 6, TLV_DB_SCALE_ITEM(158, 0, 0),
+	7, 7, TLV_DB_SCALE_ITEM(228, 0, 0)
+);
+
 static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 	/* Speaker Output Volume */
 	SOC_DOUBLE("Speaker Channel Switch", RT5645_SPK_VOL,
 		RT5645_VOL_L_SFT, RT5645_VOL_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("Speaker Playback Volume", RT5645_SPK_VOL,
 		RT5645_L_VOL_SFT, RT5645_R_VOL_SFT, 39, 1, out_vol_tlv),
+
+	/* ClassD modulator Speaker Gain Ratio */
+	SOC_SINGLE_TLV("Speaker ClassD Playback Volume", RT5645_SPO_CLSD_RATIO,
+		RT5645_SPK_G_CLSD_SFT, 7, 0, spk_clsd_tlv),
 
 	/* Headphone Output Volume */
 	SOC_DOUBLE("Headphone Channel Switch", RT5645_HP_VOL,

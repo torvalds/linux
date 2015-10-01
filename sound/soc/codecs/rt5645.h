@@ -668,6 +668,10 @@
 #define RT5645_M_SV_R_SPM_R			(0x1 << 0)
 #define RT5645_M_SV_R_SPM_R_SFT			0
 
+/* SPOMIX Ratio Control (0x4a) */
+#define RT5645_SPK_G_CLSD_MASK			(0x7 << 0)
+#define RT5645_SPK_G_CLSD_SFT			0
+
 /* Mono Output Mixer Control (0x4c) */
 #define RT5645_M_OV_L_MM			(0x1 << 9)
 #define RT5645_M_OV_L_MM_SFT			9
