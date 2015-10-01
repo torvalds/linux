@@ -3246,14 +3246,6 @@ static void analyze_sbs(struct mddev *mddev)
 				md_kick_rdev_from_array(rdev);
 				continue;
 			}
-			/* No device should have a Candidate flag
-			 * when reading devices
-			 */
-			if (test_bit(Candidate, &rdev->flags)) {
-				pr_info("md: kicking Cluster Candidate %s from array!\n",
-					bdevname(rdev->bdev, b));
-				md_kick_rdev_from_array(rdev);
-			}
 		}
 		if (mddev->level == LEVEL_MULTIPATH) {
 			rdev->desc_nr = i++;
@@ -5950,19 +5942,12 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 		 * check whether the device shows up in other nodes
 		 */
 		if (mddev_is_clustered(mddev)) {
-			if (info->state & (1 << MD_DISK_CANDIDATE)) {
-				/* Through --cluster-confirm */
+			if (info->state & (1 << MD_DISK_CANDIDATE))
 				set_bit(Candidate, &rdev->flags);
-				err = md_cluster_ops->new_disk_ack(mddev, true);
-				if (err) {
-					export_rdev(rdev);
-					return err;
-				}
-			} else if (info->state & (1 << MD_DISK_CLUSTER_ADD)) {
+			else if (info->state & (1 << MD_DISK_CLUSTER_ADD)) {
 				/* --add initiated by this node */
-				err = md_cluster_ops->add_new_disk_start(mddev, rdev);
+				err = md_cluster_ops->add_new_disk(mddev, rdev);
 				if (err) {
-					md_cluster_ops->add_new_disk_finish(mddev);
 					export_rdev(rdev);
 					return err;
 				}
@@ -5971,13 +5956,23 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 
 		rdev->raid_disk = -1;
 		err = bind_rdev_to_array(rdev, mddev);
+
 		if (err)
 			export_rdev(rdev);
-		else
+
+		if (mddev_is_clustered(mddev)) {
+			if (info->state & (1 << MD_DISK_CANDIDATE))
+				md_cluster_ops->new_disk_ack(mddev, (err == 0));
+			else {
+				if (err)
+					md_cluster_ops->add_new_disk_cancel(mddev);
+				else
+					err = add_bound_rdev(rdev);
+			}
+
+		} else if (!err)
 			err = add_bound_rdev(rdev);
-		if (mddev_is_clustered(mddev) &&
-				(info->state & (1 << MD_DISK_CLUSTER_ADD)))
-			md_cluster_ops->add_new_disk_finish(mddev);
+
 		return err;
 	}
 
@@ -8055,6 +8050,8 @@ static int remove_and_add_spares(struct mddev *mddev,
 	rdev_for_each(rdev, mddev) {
 		if (this && this != rdev)
 			continue;
+		if (test_bit(Candidate, &rdev->flags))
+			continue;
 		if (rdev->raid_disk >= 0 &&
 		    !test_bit(In_sync, &rdev->flags) &&
 		    !test_bit(Faulty, &rdev->flags))
@@ -8972,6 +8969,17 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 
 		/* Check if the roles changed */
 		role = le16_to_cpu(sb->dev_roles[rdev2->desc_nr]);
+
+		if (test_bit(Candidate, &rdev2->flags)) {
+			if (role == 0xfffe) {
+				pr_info("md: Removing Candidate device %s because add failed\n", bdevname(rdev2->bdev,b));
+				md_kick_rdev_from_array(rdev2);
+				continue;
+			}
+			else
+				clear_bit(Candidate, &rdev2->flags);
+		}
+
 		if (role != rdev2->raid_disk) {
 			/* got activated */
 			if (rdev2->raid_disk == -1 && role != 0xffff) {

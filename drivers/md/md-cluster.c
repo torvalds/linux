@@ -28,6 +28,7 @@ struct dlm_lock_resource {
 	struct completion completion; /* completion for synchronized locking */
 	void (*bast)(void *arg, int mode); /* blocking AST function pointer*/
 	struct mddev *mddev; /* pointing back to mddev. */
+	int mode;
 };
 
 struct suspend_info {
@@ -107,6 +108,8 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 	if (ret)
 		return ret;
 	wait_for_completion(&res->completion);
+	if (res->lksb.sb_status == 0)
+		res->mode = mode;
 	return res->lksb.sb_status;
 }
 
@@ -128,6 +131,7 @@ static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 	init_completion(&res->completion);
 	res->ls = cinfo->lockspace;
 	res->mddev = mddev;
+	res->mode = DLM_LOCK_IV;
 	namelen = strlen(name);
 	res->name = kzalloc(namelen + 1, GFP_KERNEL);
 	if (!res->name) {
@@ -536,10 +540,16 @@ static void recv_daemon(struct md_thread *thread)
 /* lock_comm()
  * Takes the lock on the TOKEN lock resource so no other
  * node can communicate while the operation is underway.
+ * If called again, and the TOKEN lock is alread in EX mode
+ * return success. However, care must be taken that unlock_comm()
+ * is called only once.
  */
 static int lock_comm(struct md_cluster_info *cinfo)
 {
 	int error;
+
+	if (cinfo->token_lockres->mode == DLM_LOCK_EX)
+		return 0;
 
 	error = dlm_lock_sync(cinfo->token_lockres, DLM_LOCK_EX);
 	if (error)
@@ -550,6 +560,7 @@ static int lock_comm(struct md_cluster_info *cinfo)
 
 static void unlock_comm(struct md_cluster_info *cinfo)
 {
+	WARN_ON(cinfo->token_lockres->mode != DLM_LOCK_EX);
 	dlm_unlock_sync(cinfo->token_lockres);
 }
 
@@ -862,11 +873,10 @@ static int metadata_update_finish(struct mddev *mddev)
 	return ret;
 }
 
-static int metadata_update_cancel(struct mddev *mddev)
+static void metadata_update_cancel(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-
-	return dlm_unlock_sync(cinfo->token_lockres);
+	unlock_comm(cinfo);
 }
 
 static int resync_start(struct mddev *mddev)
@@ -925,7 +935,11 @@ out:
 	return ret;
 }
 
-static int add_new_disk_start(struct mddev *mddev, struct md_rdev *rdev)
+/* add_new_disk() - initiates a disk add
+ * However, if this fails before writing md_update_sb(),
+ * add_new_disk_cancel() must be called to release token lock
+ */
+static int add_new_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct cluster_msg cmsg;
@@ -947,16 +961,17 @@ static int add_new_disk_start(struct mddev *mddev, struct md_rdev *rdev)
 	/* Some node does not "see" the device */
 	if (ret == -EAGAIN)
 		ret = -ENOENT;
+	if (ret)
+		unlock_comm(cinfo);
 	else
 		dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
 	return ret;
 }
 
-static int add_new_disk_finish(struct mddev *mddev)
+static void add_new_disk_cancel(struct mddev *mddev)
 {
-	/* Write sb and inform others */
-	md_update_sb(mddev, 1);
-	return metadata_update_finish(mddev);
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	unlock_comm(cinfo);
 }
 
 static int new_disk_ack(struct mddev *mddev, bool ack)
@@ -1023,8 +1038,8 @@ static struct md_cluster_operations cluster_ops = {
 	.metadata_update_finish = metadata_update_finish,
 	.metadata_update_cancel = metadata_update_cancel,
 	.area_resyncing = area_resyncing,
-	.add_new_disk_start = add_new_disk_start,
-	.add_new_disk_finish = add_new_disk_finish,
+	.add_new_disk = add_new_disk,
+	.add_new_disk_cancel = add_new_disk_cancel,
 	.new_disk_ack = new_disk_ack,
 	.remove_disk = remove_disk,
 	.gather_bitmaps = gather_bitmaps,
