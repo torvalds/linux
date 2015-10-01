@@ -1598,8 +1598,6 @@ static int pxa2xx_spi_resume(struct device *dev)
 	struct ssp_device *ssp = drv_data->ssp;
 	int status = 0;
 
-	pxa2xx_spi_dma_resume(drv_data);
-
 	/* Enable the SSP clock */
 	if (!pm_runtime_suspended(dev))
 		clk_prepare_enable(ssp->clk);
