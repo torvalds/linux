@@ -2543,7 +2543,6 @@ static void pp_stats_header(struct seq_file *m)
 static int pp_stats_line(struct seq_file *m, struct tag_stat *ts_entry,
 			 int cnt_set)
 {
-	int ret;
 	struct data_counters *cnts;
 	tag_t tag = ts_entry->tn.tag;
 	uid_t stat_uid = get_uid_from_tag(tag);
@@ -2562,7 +2561,7 @@ static int pp_stats_line(struct seq_file *m, struct tag_stat *ts_entry,
 	}
 	ppi->item_index++;
 	cnts = &ts_entry->counters;
-	ret = seq_printf(m, "%d %s 0x%llx %u %u "
+	seq_printf(m, "%d %s 0x%llx %u %u "
 		"%llu %llu "
 		"%llu %llu "
 		"%llu %llu "
@@ -2592,7 +2591,7 @@ static int pp_stats_line(struct seq_file *m, struct tag_stat *ts_entry,
 		cnts->bpc[cnt_set][IFS_TX][IFS_UDP].packets,
 		cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].bytes,
 		cnts->bpc[cnt_set][IFS_TX][IFS_PROTO_OTHER].packets);
-	return ret ?: 1;
+	return seq_has_overflowed(m) ? -ENOSPC : 1;
 }
 
 static bool pp_sets(struct seq_file *m, struct tag_stat *ts_entry)
