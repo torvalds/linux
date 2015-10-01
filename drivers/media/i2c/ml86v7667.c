@@ -437,7 +437,6 @@ MODULE_DEVICE_TABLE(i2c, ml86v7667_id);
 static struct i2c_driver ml86v7667_i2c_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ml86v7667_probe,
 	.remove		= ml86v7667_remove,
