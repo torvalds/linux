@@ -5629,7 +5629,8 @@ unsigned int drm_rotation_simplify(unsigned int rotation,
 {
 	if (rotation & ~supported_rotations) {
 		rotation ^= BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y);
-		rotation = (rotation & ~0xf) | BIT((ffs(rotation & 0xf) + 1) % 4);
+		rotation = (rotation & DRM_REFLECT_MASK) |
+		           BIT((ffs(rotation & DRM_ROTATE_MASK) + 1) % 4);
 	}
 
 	return rotation;
