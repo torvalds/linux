@@ -523,7 +523,6 @@ reprocess:
 	/* At this point we're granting the lock request. */
 	req->l_granted_mode = req->l_req_mode;
 
-	/* Add req to the granted queue before calling ldlm_reprocess_all(). */
 	if (!added) {
 		list_del_init(&req->l_res_link);
 		/* insert new lock before ownlocks in list. */

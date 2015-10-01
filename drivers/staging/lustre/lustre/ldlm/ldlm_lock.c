@@ -1786,54 +1786,6 @@ out:
 	return rc;
 }
 
-static int reprocess_one_queue(struct ldlm_resource *res, void *closure)
-{
-	ldlm_reprocess_all(res);
-	return LDLM_ITER_CONTINUE;
-}
-
-static int ldlm_reprocess_res(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-			      struct hlist_node *hnode, void *arg)
-{
-	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
-	int    rc;
-
-	rc = reprocess_one_queue(res, arg);
-
-	return rc == LDLM_ITER_STOP;
-}
-
-/**
- * Iterate through all resources on a namespace attempting to grant waiting
- * locks.
- */
-void ldlm_reprocess_all_ns(struct ldlm_namespace *ns)
-{
-	if (ns != NULL) {
-		cfs_hash_for_each_nolock(ns->ns_rs_hash,
-					 ldlm_reprocess_res, NULL);
-	}
-}
-EXPORT_SYMBOL(ldlm_reprocess_all_ns);
-
-/**
- * Try to grant all waiting locks on a resource.
- *
- * Calls ldlm_reprocess_queue on converting and waiting queues.
- *
- * Typically called after some resource locks are cancelled to see
- * if anything could be granted as a result of the cancellation.
- */
-void ldlm_reprocess_all(struct ldlm_resource *res)
-{
-	LIST_HEAD(rpc_list);
-
-	if (!ns_is_client(ldlm_res_to_ns(res))) {
-		CERROR("This is client-side-only module, cannot handle LDLM_NAMESPACE_SERVER resource type lock.\n");
-		LBUG();
-	}
-}
-
 /**
  * Helper function to call blocking AST for LDLM lock \a lock in a
  * "cancelling" mode.

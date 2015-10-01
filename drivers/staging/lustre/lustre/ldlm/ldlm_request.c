@@ -188,7 +188,6 @@ int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data)
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, going forward");
-	ldlm_reprocess_all(lock->l_resource);
 	return 0;
 }
 EXPORT_SYMBOL(ldlm_completion_ast_async);
@@ -892,9 +891,6 @@ static __u64 ldlm_cli_cancel_local(struct ldlm_lock *lock)
 			LDLM_ERROR(lock, "Trying to cancel local lock");
 			LBUG();
 		}
-		LDLM_DEBUG(lock, "server-side local cancel");
-		ldlm_lock_cancel(lock);
-		ldlm_reprocess_all(lock->l_resource);
 	}
 
 	return rc;
