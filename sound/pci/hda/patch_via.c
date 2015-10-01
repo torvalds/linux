@@ -785,21 +785,11 @@ static int patch_vt1708S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* correct names for VT1708BCE */
-	if (get_codec_type(codec) == VT1708BCE)	{
-		kfree(codec->core.chip_name);
-		codec->core.chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
-		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername),
-			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
-	}
+	if (get_codec_type(codec) == VT1708BCE)
+		snd_hda_codec_set_name(codec, "VT1708BCE");
 	/* correct names for VT1705 */
-	if (codec->core.vendor_id == 0x11064397) {
-		kfree(codec->core.chip_name);
-		codec->core.chip_name = kstrdup("VT1705", GFP_KERNEL);
-		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername),
-			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
-	}
+	if (codec->core.vendor_id == 0x11064397)
+		snd_hda_codec_set_name(codec, "VT1705");
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);

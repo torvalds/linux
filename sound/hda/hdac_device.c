@@ -164,6 +164,28 @@ void snd_hdac_device_unregister(struct hdac_device *codec)
 EXPORT_SYMBOL_GPL(snd_hdac_device_unregister);
 
 /**
+ * snd_hdac_device_set_chip_name - set/update the codec name
+ * @codec: the HDAC device
+ * @name: name string to set
+ *
+ * Returns 0 if the name is set or updated, or a negative error code.
+ */
+int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name)
+{
+	char *newname;
+
+	if (!name)
+		return 0;
+	newname = kstrdup(name, GFP_KERNEL);
+	if (!newname)
+		return -ENOMEM;
+	kfree(codec->chip_name);
+	codec->chip_name = newname;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_device_set_chip_name);
+
+/**
  * snd_hdac_make_cmd - compose a 32bit command word to be sent to the
  *	HD-audio controller
  * @codec: the codec object

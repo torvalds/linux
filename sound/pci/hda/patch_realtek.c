@@ -822,17 +822,7 @@ static const struct hda_codec_ops alc_patch_ops = {
 };
 
 
-/* replace the codec chip_name with the given string */
-static int alc_codec_rename(struct hda_codec *codec, const char *name)
-{
-	kfree(codec->core.chip_name);
-	codec->core.chip_name = kstrdup(name, GFP_KERNEL);
-	if (!codec->core.chip_name) {
-		alc_free(codec);
-		return -ENOMEM;
-	}
-	return 0;
-}
+#define alc_codec_rename(codec, name) snd_hda_codec_set_name(codec, name)
 
 /*
  * Rename codecs appropriately from COEF value or subvendor id

@@ -45,15 +45,31 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 		codec->patch_ops.unsol_event(codec, ev);
 }
 
-/* reset the codec name from the preset */
-static int codec_refresh_name(struct hda_codec *codec, const char *name)
+/**
+ * snd_hda_codec_set_name - set the codec name
+ * @codec: the HDA codec
+ * @name: name string to set
+ */
+int snd_hda_codec_set_name(struct hda_codec *codec, const char *name)
 {
-	if (name) {
-		kfree(codec->core.chip_name);
-		codec->core.chip_name = kstrdup(name, GFP_KERNEL);
+	int err;
+
+	if (!name)
+		return 0;
+	err = snd_hdac_device_set_chip_name(&codec->core, name);
+	if (err < 0)
+		return err;
+
+	/* update the mixer name */
+	if (!*codec->card->mixername) {
+		snprintf(codec->card->mixername,
+			 sizeof(codec->card->mixername), "%s %s",
+			 codec->core.vendor_name, codec->core.chip_name);
 	}
-	return codec->core.chip_name ? 0 : -ENOMEM;
+
+	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_hda_codec_set_name);
 
 static int hda_codec_driver_probe(struct device *dev)
 {
@@ -64,7 +80,7 @@ static int hda_codec_driver_probe(struct device *dev)
 	if (WARN_ON(!codec->preset))
 		return -EINVAL;
 
-	err = codec_refresh_name(codec, codec->preset->name);
+	err = snd_hda_codec_set_name(codec, codec->preset->name);
 	if (err < 0)
 		goto error;
 	err = snd_hdac_regmap_init(&codec->core);
@@ -251,11 +267,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		}
 	}
 
-	/* audio codec should override the mixer name */
-	if (codec->core.afg || !*codec->card->mixername)
-		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername), "%s %s",
-			 codec->core.vendor_name, codec->core.chip_name);
 	return 0;
 
  error:

@@ -463,6 +463,8 @@ void snd_hda_unlock_devices(struct hda_bus *bus);
 void snd_hda_bus_reset(struct hda_bus *bus);
 void snd_hda_bus_reset_codecs(struct hda_bus *bus);
 
+int snd_hda_codec_set_name(struct hda_codec *codec, const char *name);
+
 /*
  * power management
  */
