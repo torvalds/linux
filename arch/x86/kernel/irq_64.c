@@ -72,7 +72,7 @@ bool handle_irq(struct irq_desc *desc, struct pt_regs *regs)
 {
 	stack_overflow_check(regs);
 
-	if (unlikely(IS_ERR_OR_NULL(desc)))
+	if (IS_ERR_OR_NULL(desc))
 		return false;
 
 	generic_handle_irq_desc(desc);
