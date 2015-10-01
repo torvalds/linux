@@ -2079,6 +2079,7 @@ static const struct of_device_id bcm_sysport_of_match[] = {
 	{ .compatible = "brcm,systemport" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, bcm_sysport_of_match);
 
 static struct platform_driver bcm_sysport_driver = {
 	.probe	= bcm_sysport_probe,
