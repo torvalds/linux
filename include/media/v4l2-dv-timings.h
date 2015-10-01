@@ -23,7 +23,7 @@
 
 #include <linux/videodev2.h>
 
-/**
+/*
  * v4l2_dv_timings_presets: list of all dv_timings presets.
  */
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
