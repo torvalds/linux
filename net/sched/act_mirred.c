@@ -107,10 +107,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	} else {
 		if (bind)
 			return 0;
-		if (!ovr) {
-			tcf_hash_release(a, bind);
+
+		tcf_hash_release(a, bind);
+		if (!ovr)
 			return -EEXIST;
-		}
 	}
 	m = to_mirred(a);
 
