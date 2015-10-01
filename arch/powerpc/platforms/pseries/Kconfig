@@ -43,11 +43,6 @@ config DTL
 
 	  Say N if you are unsure.
 
-config PSERIES_MSI
-       bool
-       depends on PCI_MSI && PPC_PSERIES && EEH
-       default y
-
 config PSERIES_ENERGY
 	tristate "pSeries energy management capabilities driver"
 	depends on PPC_PSERIES
