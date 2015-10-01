@@ -37,9 +37,6 @@
  */
 #define MAX_BUF 163840
 
-static spinlock_t dev_num_pool_lock;
-static void *dev_num_pool;	/**< pool to grab device numbers from */
-
 static int visornic_probe(struct visor_device *dev);
 static void visornic_remove(struct visor_device *dev);
 static int visornic_pause(struct visor_device *dev,
@@ -113,7 +110,6 @@ struct chanstat {
 };
 
 struct visornic_devdata {
-	int devnum;
 	unsigned short enabled;		/* 0 disabled 1 enabled to receive */
 	unsigned short enab_dis_acked;	/* NET_RCV_ENABLE/DISABLE acked by
 					 * IOPART
@@ -1372,20 +1368,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	int devnum = -1;
-
 	if (!devdata)
 		return NULL;
 	memset(devdata, '\0', sizeof(struct visornic_devdata));
-	spin_lock(&dev_num_pool_lock);
-	devnum = find_first_zero_bit(dev_num_pool, MAXDEVICES);
-	set_bit(devnum, dev_num_pool);
-	spin_unlock(&dev_num_pool_lock);
-	if (devnum == MAXDEVICES)
-		devnum = -1;
-	if (devnum < 0)
-		return NULL;
-	devdata->devnum = devnum;
 	devdata->dev = dev;
 	spin_lock(&lock_all_devices);
 	list_add_tail(&devdata->list_all, &list_all_devices);
@@ -1402,9 +1387,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
  */
 static void devdata_release(struct visornic_devdata *devdata)
 {
-	spin_lock(&dev_num_pool_lock);
-	clear_bit(devdata->devnum, dev_num_pool);
-	spin_unlock(&dev_num_pool_lock);
 	spin_lock(&lock_all_devices);
 	list_del(&devdata->list_all);
 	spin_unlock(&lock_all_devices);
@@ -2123,11 +2105,6 @@ static int visornic_init(void)
 	if (!visornic_timeout_reset_workqueue)
 		goto cleanup_workqueue;
 
-	spin_lock_init(&dev_num_pool_lock);
-	dev_num_pool = kzalloc(BITS_TO_LONGS(MAXDEVICES), GFP_KERNEL);
-	if (!dev_num_pool)
-		goto cleanup_workqueue;
-
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (!err)
 		return 0;
@@ -2157,9 +2134,6 @@ static void visornic_cleanup(void)
 		destroy_workqueue(visornic_timeout_reset_workqueue);
 	}
 	debugfs_remove_recursive(visornic_debugfs_dir);
-
-	kfree(dev_num_pool);
-	dev_num_pool = NULL;
 }
 
 module_init(visornic_init);
