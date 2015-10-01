@@ -614,19 +614,14 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 	} else {
 		PRINT_D(CORECONFIG_DBG, "Net Dev is initialized\n");
 	}
-	if (gpstrWlanOps->wlan_cfg_get == NULL)	{
-		PRINT_D(CORECONFIG_DBG, "Set and Get is still not initialized\n");
-		return 1;
-	} else {
-		PRINT_D(CORECONFIG_DBG, "SET is initialized\n");
-	}
 	if (u8Mode == GET_CFG) {
 		for (counter = 0; counter < u32WIDsCount; counter++) {
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,
 				   (counter == u32WIDsCount - 1));
-			if (!gpstrWlanOps->wlan_cfg_get(!counter,
-							pstrWIDs[counter].u16WIDid,
-							(counter == u32WIDsCount - 1), drvHandler)) {
+			if (!wilc_wlan_cfg_get(!counter,
+					       pstrWIDs[counter].u16WIDid,
+					       (counter == u32WIDsCount - 1),
+					       drvHandler)) {
 				ret = -1;
 				printk("[Sendconfigpkt]Get Timed out\n");
 				break;
