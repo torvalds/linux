@@ -1869,6 +1869,8 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	data->rpc_done = 0;
 	data->rpc_status = 0;
 	data->timestamp = jiffies;
+	if (data->is_recover)
+		nfs4_set_sequence_privileged(&data->c_arg.seq_args);
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
