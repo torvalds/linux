@@ -6837,6 +6837,15 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
 		ret = i40e_setup_misc_vector(pf);
 
+	/* Add a filter to drop all Flow control frames from any VSI from being
+	 * transmitted. By doing so we stop a malicious VF from sending out
+	 * PAUSE or PFC frames and potentially controlling traffic for other
+	 * PF/VF VSIs.
+	 * The FW can still send Flow control frames if enabled.
+	 */
+	i40e_add_filter_to_drop_tx_flow_control_frames(&pf->hw,
+						       pf->main_vsi_seid);
+
 	/* restart the VSIs that were rebuilt and running before the reset */
 	i40e_pf_unquiesce_all_vsi(pf);
 
@@ -10584,6 +10593,15 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			i40e_stat_str(&pf->hw, err),
 			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 	pf->hw.phy.phy_types = le32_to_cpu(abilities.phy_type);
+
+	/* Add a filter to drop all Flow control frames from any VSI from being
+	 * transmitted. By doing so we stop a malicious VF from sending out
+	 * PAUSE or PFC frames and potentially controlling traffic for other
+	 * PF/VF VSIs.
+	 * The FW can still send Flow control frames if enabled.
+	 */
+	i40e_add_filter_to_drop_tx_flow_control_frames(&pf->hw,
+						       pf->main_vsi_seid);
 
 	/* print a string summarizing features */
 	i40e_print_features(pf);
