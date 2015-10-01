@@ -253,6 +253,7 @@ static const struct of_device_id a21_wdt_ids[] = {
 	{ .compatible = "men,a021-wdt" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, a21_wdt_ids);
 
 static struct platform_driver a21_wdt_driver = {
 	.probe = a21_wdt_probe,
