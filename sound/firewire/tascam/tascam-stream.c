@@ -455,3 +455,42 @@ void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 	finish_session(tscm);
 	release_resources(tscm);
 }
+
+void snd_tscm_stream_lock_changed(struct snd_tscm *tscm)
+{
+	tscm->dev_lock_changed = true;
+	wake_up(&tscm->hwdep_wait);
+}
+
+int snd_tscm_stream_lock_try(struct snd_tscm *tscm)
+{
+	int err;
+
+	spin_lock_irq(&tscm->lock);
+
+	/* user land lock this */
+	if (tscm->dev_lock_count < 0) {
+		err = -EBUSY;
+		goto end;
+	}
+
+	/* this is the first time */
+	if (tscm->dev_lock_count++ == 0)
+		snd_tscm_stream_lock_changed(tscm);
+	err = 0;
+end:
+	spin_unlock_irq(&tscm->lock);
+	return err;
+}
+
+void snd_tscm_stream_lock_release(struct snd_tscm *tscm)
+{
+	spin_lock_irq(&tscm->lock);
+
+	if (WARN_ON(tscm->dev_lock_count <= 0))
+		goto end;
+	if (--tscm->dev_lock_count == 0)
+		snd_tscm_stream_lock_changed(tscm);
+end:
+	spin_unlock_irq(&tscm->lock);
+}

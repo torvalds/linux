@@ -72,9 +72,13 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	unsigned int rate;
 	int err;
 
+	err = snd_tscm_stream_lock_try(tscm);
+	if (err < 0)
+		goto end;
+
 	err = pcm_init_hw_params(tscm, substream);
 	if (err < 0)
-		return err;
+		goto err_locked;
 
 	err = snd_tscm_stream_get_clock(tscm, &clock);
 	if (clock != SND_TSCM_CLOCK_INTERNAL ||
@@ -82,18 +86,25 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	    amdtp_stream_pcm_running(&tscm->tx_stream)) {
 		err = snd_tscm_stream_get_rate(tscm, &rate);
 		if (err < 0)
-			return err;
+			goto err_locked;
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
 	}
 
 	snd_pcm_set_sync(substream);
-
+end:
+	return err;
+err_locked:
+	snd_tscm_stream_lock_release(tscm);
 	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_tscm *tscm = substream->private_data;
+
+	snd_tscm_stream_lock_release(tscm);
+
 	return 0;
 }
 

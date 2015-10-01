@@ -23,6 +23,8 @@
 #include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/firewire.h>
+#include <sound/hwdep.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
@@ -44,6 +46,7 @@ struct snd_tscm {
 	struct fw_unit *unit;
 
 	struct mutex mutex;
+	spinlock_t lock;
 
 	const struct snd_tscm_spec *spec;
 
@@ -52,6 +55,10 @@ struct snd_tscm {
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
 	unsigned int substreams_counter;
+
+	int dev_lock_count;
+	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
@@ -97,8 +104,14 @@ void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm);
 int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate);
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 
+void snd_tscm_stream_lock_changed(struct snd_tscm *tscm);
+int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
+void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
+
 void snd_tscm_proc_init(struct snd_tscm *tscm);
 
 int snd_tscm_create_pcm_devices(struct snd_tscm *tscm);
+
+int snd_tscm_create_hwdep_device(struct snd_tscm *tscm);
 
 #endif

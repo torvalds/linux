@@ -110,6 +110,8 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	tscm->spec = (const struct snd_tscm_spec *)entry->driver_data;
 
 	mutex_init(&tscm->mutex);
+	spin_lock_init(&tscm->lock);
+	init_waitqueue_head(&tscm->hwdep_wait);
 
 	err = check_name(tscm);
 	if (err < 0)
@@ -122,6 +124,10 @@ static int snd_tscm_probe(struct fw_unit *unit,
 		goto error;
 
 	err = snd_tscm_create_pcm_devices(tscm);
+	if (err < 0)
+		goto error;
+
+	err = snd_tscm_create_hwdep_device(tscm);
 	if (err < 0)
 		goto error;
 
