@@ -23,11 +23,24 @@
 
 #include "../lib.h"
 
+struct snd_tscm_spec {
+	const char *const name;
+	bool has_adat;
+	bool has_spdif;
+	unsigned int pcm_capture_analog_channels;
+	unsigned int pcm_playback_analog_channels;
+	unsigned int midi_capture_ports;
+	unsigned int midi_playback_ports;
+	bool is_controller;
+};
+
 struct snd_tscm {
 	struct snd_card *card;
 	struct fw_unit *unit;
 
 	struct mutex mutex;
+
+	const struct snd_tscm_spec *spec;
 };
 
 #endif

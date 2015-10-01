@@ -12,6 +12,39 @@ MODULE_DESCRIPTION("TASCAM FireWire series Driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
 MODULE_LICENSE("GPL v2");
 
+static struct snd_tscm_spec model_specs[] = {
+	{
+		.name = "FW-1884",
+		.has_adat = true,
+		.has_spdif = true,
+		.pcm_capture_analog_channels = 8,
+		.pcm_playback_analog_channels = 8,
+		.midi_capture_ports = 4,
+		.midi_playback_ports = 4,
+		.is_controller = true,
+	},
+	{
+		.name = "FW-1804",
+		.has_adat = true,
+		.has_spdif = true,
+		.pcm_capture_analog_channels = 8,
+		.pcm_playback_analog_channels = 2,
+		.midi_capture_ports = 2,
+		.midi_playback_ports = 4,
+		.is_controller = false,
+	},
+	{
+		.name = "FW-1082",
+		.has_adat = false,
+		.has_spdif = true,
+		.pcm_capture_analog_channels = 8,
+		.pcm_playback_analog_channels = 2,
+		.midi_capture_ports = 2,
+		.midi_playback_ports = 2,
+		.is_controller = true,
+	},
+};
+
 static int check_name(struct snd_tscm *tscm)
 {
 	struct fw_device *fw_dev = fw_parent_device(tscm->unit);
@@ -72,6 +105,7 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	tscm = card->private_data;
 	tscm->card = card;
 	tscm->unit = fw_unit_get(unit);
+	tscm->spec = (const struct snd_tscm_spec *)entry->driver_data;
 
 	mutex_init(&tscm->mutex);
 
@@ -113,6 +147,7 @@ static const struct ieee1394_device_id snd_tscm_id_table[] = {
 		.vendor_id = 0x00022e,
 		.specifier_id = 0x00022e,
 		.version = 0x800003,
+		.driver_data = (kernel_ulong_t)&model_specs[2],
 	},
 	/* FW-1884 */
 	{
@@ -122,6 +157,7 @@ static const struct ieee1394_device_id snd_tscm_id_table[] = {
 		.vendor_id = 0x00022e,
 		.specifier_id = 0x00022e,
 		.version = 0x800000,
+		.driver_data = (kernel_ulong_t)&model_specs[0],
 	},
 	/* FW-1804 mey be supported if IDs are clear. */
 	/* FE-08 requires reverse-engineering because it just has faders. */
