@@ -275,7 +275,7 @@ static void link_report(struct net_device *dev)
 	else {
 		static const char *fc[] = { "no", "Rx", "Tx", "Tx/Rx" };
 
-		const char *s = "10Mbps";
+		const char *s;
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
@@ -291,6 +291,10 @@ static void link_report(struct net_device *dev)
 		case 40000:
 			s = "40Gbps";
 			break;
+		default:
+			pr_info("%s: unsupported speed: %d\n",
+				dev->name, p->link_cfg.speed);
+			return;
 		}
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s,
