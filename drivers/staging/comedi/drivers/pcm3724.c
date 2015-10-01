@@ -222,5 +222,5 @@ static struct comedi_driver pcm3724_driver = {
 module_comedi_driver(pcm3724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Advantech PCM-3724 Digital I/O board");
 MODULE_LICENSE("GPL");
