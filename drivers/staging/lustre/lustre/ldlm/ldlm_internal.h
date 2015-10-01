@@ -116,8 +116,6 @@ int ldlm_get_enq_timeout(struct ldlm_lock *lock);
 
 /* ldlm_resource.c */
 int ldlm_resource_putref_locked(struct ldlm_resource *res);
-void ldlm_resource_insert_lock_after(struct ldlm_lock *original,
-				     struct ldlm_lock *new);
 void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 			       struct obd_import *imp, int force);
 void ldlm_namespace_free_post(struct ldlm_namespace *ns);

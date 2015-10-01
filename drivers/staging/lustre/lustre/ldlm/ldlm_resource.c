@@ -1281,32 +1281,6 @@ void ldlm_resource_add_lock(struct ldlm_resource *res, struct list_head *head,
 	list_add_tail(&lock->l_res_link, head);
 }
 
-/**
- * Insert a lock into resource after specified lock.
- *
- * Obtain resource description from the lock we are inserting after.
- */
-void ldlm_resource_insert_lock_after(struct ldlm_lock *original,
-				     struct ldlm_lock *new)
-{
-	struct ldlm_resource *res = original->l_resource;
-
-	check_res_locked(res);
-
-	ldlm_resource_dump(D_INFO, res);
-	LDLM_DEBUG(new, "About to insert this lock after %p:\n", original);
-
-	if (new->l_flags & LDLM_FL_DESTROYED) {
-		CDEBUG(D_OTHER, "Lock destroyed, not adding to resource\n");
-		goto out;
-	}
-
-	LASSERT(list_empty(&new->l_res_link));
-
-	list_add(&new->l_res_link, &original->l_res_link);
- out:;
-}
-
 void ldlm_resource_unlink_lock(struct ldlm_lock *lock)
 {
 	int type = lock->l_resource->lr_type;
