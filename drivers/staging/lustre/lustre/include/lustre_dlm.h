@@ -1216,7 +1216,6 @@ int  ldlm_lock_addref_try(struct lustre_handle *lockh, __u32 mode);
 void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode);
 void ldlm_lock_decref_and_cancel(struct lustre_handle *lockh, __u32 mode);
 void ldlm_lock_fail_match_locked(struct ldlm_lock *lock);
-void ldlm_lock_fail_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match_locked(struct ldlm_lock *lock);
 ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
