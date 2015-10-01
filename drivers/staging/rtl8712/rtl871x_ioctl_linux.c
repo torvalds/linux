@@ -72,32 +72,6 @@ static const char * const iw_operation_mode[] = {
 	 "Monitor"
 };
 
-/**
- * hwaddr_aton - Convert ASCII string to MAC address
- * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
- * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
- * Returns: 0 on success, -1 on failure (e.g., string not a MAC address)
- */
-static int hwaddr_aton_i(const char *txt, u8 *addr)
-{
-	int i;
-
-	for (i = 0; i < 6; i++) {
-		int a, b;
-
-		a = hex_to_bin(*txt++);
-		if (a < 0)
-			return -1;
-		b = hex_to_bin(*txt++);
-		if (b < 0)
-			return -1;
-		*addr++ = (a << 4) | b;
-		if (i < 5 && *txt++ != ':')
-			return -1;
-	}
-	return 0;
-}
-
 void r8712_indicate_wx_assoc_event(struct _adapter *padapter)
 {
 	union iwreq_data wrqu;
@@ -2000,7 +1974,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 		if (end_of_queue_search(phead, plist) == true)
 			break;
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
-		if (hwaddr_aton_i(data, bssid)) {
+		if (!mac_pton(data, bssid)) {
 			netdev_info(dev, "r8712u: Invalid BSSID '%s'.\n",
 				    (u8 *)data);
 			spin_unlock_irqrestore(&(pmlmepriv->scanned_queue.lock),
