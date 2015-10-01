@@ -347,11 +347,12 @@ static void gxt4500_unpack_pixfmt(struct fb_var_screeninfo *var,
 		break;
 	}
 	if (pixfmt != DFA_PIX_8BIT) {
-		var->green.offset = var->red.length;
-		var->blue.offset = var->green.offset + var->green.length;
+		var->blue.offset = 0;
+		var->green.offset = var->blue.length;
+		var->red.offset = var->green.offset + var->green.length;
 		if (var->transp.length)
 			var->transp.offset =
-				var->blue.offset + var->blue.length;
+				var->red.offset + var->red.length;
 	}
 }
 
