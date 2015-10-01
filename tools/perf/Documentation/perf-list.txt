@@ -125,6 +125,8 @@ To limit the list use:
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.
 
+. As a last resort, it will do a substring search in all event names.
+
 One or more types can be used at the same time, listing the events for the
 types specified.
 
