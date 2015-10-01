@@ -3177,7 +3177,6 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  unsigned long end,
 					  unsigned flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
-int i915_gem_evict_everything(struct drm_device *dev);
 
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_device *dev)
