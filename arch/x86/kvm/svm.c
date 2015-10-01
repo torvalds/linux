@@ -1167,11 +1167,14 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	u8 mtrr;
 
 	/*
-	 * 1. MMIO: trust guest MTRR, so same as item 3.
+	 * 1. MMIO: always map as UC
 	 * 2. No passthrough: always map as WB, and force guest PAT to WB as well
 	 * 3. Passthrough: can't guarantee the result, try to trust guest.
 	 */
-	if (!is_mmio && !kvm_arch_has_assigned_device(vcpu->kvm))
+	if (is_mmio)
+		return _PAGE_NOCACHE;
+
+	if (!kvm_arch_has_assigned_device(vcpu->kvm))
 		return 0;
 
 	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED) &&
