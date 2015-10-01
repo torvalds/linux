@@ -294,7 +294,7 @@ size_t ovs_key_attr_size(void)
 		+ nla_total_size(1)   /* OVS_KEY_ATTR_CT_STATE */
 		+ nla_total_size(2)   /* OVS_KEY_ATTR_CT_ZONE */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_CT_MARK */
-		+ nla_total_size(16)  /* OVS_KEY_ATTR_CT_LABEL */
+		+ nla_total_size(16)  /* OVS_KEY_ATTR_CT_LABELS */
 		+ nla_total_size(12)  /* OVS_KEY_ATTR_ETHERNET */
 		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_VLAN */
@@ -352,7 +352,7 @@ static const struct ovs_len_tbl ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_CT_STATE]	 = { .len = sizeof(u8) },
 	[OVS_KEY_ATTR_CT_ZONE]	 = { .len = sizeof(u16) },
 	[OVS_KEY_ATTR_CT_MARK]	 = { .len = sizeof(u32) },
-	[OVS_KEY_ATTR_CT_LABEL]	 = { .len = sizeof(struct ovs_key_ct_label) },
+	[OVS_KEY_ATTR_CT_LABELS] = { .len = sizeof(struct ovs_key_ct_labels) },
 };
 
 static bool check_attr_len(unsigned int attr_len, unsigned int expected_len)
@@ -833,14 +833,14 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 		SW_FLOW_KEY_PUT(match, ct.mark, mark, is_mask);
 		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_MARK);
 	}
-	if (*attrs & (1 << OVS_KEY_ATTR_CT_LABEL) &&
-	    ovs_ct_verify(net, OVS_KEY_ATTR_CT_LABEL)) {
-		const struct ovs_key_ct_label *cl;
+	if (*attrs & (1 << OVS_KEY_ATTR_CT_LABELS) &&
+	    ovs_ct_verify(net, OVS_KEY_ATTR_CT_LABELS)) {
+		const struct ovs_key_ct_labels *cl;
 
-		cl = nla_data(a[OVS_KEY_ATTR_CT_LABEL]);
-		SW_FLOW_KEY_MEMCPY(match, ct.label, cl->ct_label,
+		cl = nla_data(a[OVS_KEY_ATTR_CT_LABELS]);
+		SW_FLOW_KEY_MEMCPY(match, ct.labels, cl->ct_labels,
 				   sizeof(*cl), is_mask);
-		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_LABEL);
+		*attrs &= ~(1ULL << OVS_KEY_ATTR_CT_LABELS);
 	}
 	return 0;
 }
@@ -1973,7 +1973,7 @@ static int validate_set(const struct nlattr *a,
 	case OVS_KEY_ATTR_PRIORITY:
 	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_CT_MARK:
-	case OVS_KEY_ATTR_CT_LABEL:
+	case OVS_KEY_ATTR_CT_LABELS:
 	case OVS_KEY_ATTR_ETHERNET:
 		break;
 
