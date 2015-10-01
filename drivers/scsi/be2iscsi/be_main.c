@@ -2726,8 +2726,10 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 	phwi_ctrlr->wrb_context = kzalloc(sizeof(struct hwi_wrb_context) *
 					  phba->params.cxns_per_ctrl,
 					  GFP_KERNEL);
-	if (!phwi_ctrlr->wrb_context)
+	if (!phwi_ctrlr->wrb_context) {
+		kfree(phba->phwi_ctrlr);
 		return -ENOMEM;
+	}
 
 	phba->init_mem = kcalloc(SE_MEM_MAX, sizeof(*mem_descr),
 				 GFP_KERNEL);
