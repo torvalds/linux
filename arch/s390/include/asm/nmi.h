@@ -11,7 +11,15 @@
 #ifndef _ASM_S390_NMI_H
 #define _ASM_S390_NMI_H
 
+#include <linux/const.h>
 #include <linux/types.h>
+
+#define MCCK_CODE_SYSTEM_DAMAGE		_BITUL(63)
+#define MCCK_CODE_CPU_TIMER_VALID	_BITUL(63 - 46)
+#define MCCK_CODE_PSW_MWP_VALID		_BITUL(63 - 20)
+#define MCCK_CODE_PSW_IA_VALID		_BITUL(63 - 23)
+
+#ifndef __ASSEMBLY__
 
 struct mci {
 	__u32 sd :  1; /* 00 system damage */
@@ -63,4 +71,5 @@ struct pt_regs;
 extern void s390_handle_mcck(void);
 extern void s390_do_machine_check(struct pt_regs *regs);
 
+#endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_NMI_H */
