@@ -86,8 +86,8 @@ bool visor_periodic_work_nextperiod(struct periodic_work *pw)
 		pw->want_to_stop = false;
 		rc = true;  /* yes, true; see visor_periodic_work_stop() */
 		goto unlock;
-	} else if (queue_delayed_work(pw->workqueue, &pw->work,
-				      pw->jiffy_interval) < 0) {
+	} else if (!queue_delayed_work(pw->workqueue, &pw->work,
+				       pw->jiffy_interval)) {
 		pw->is_scheduled = false;
 		rc = false;
 		goto unlock;
@@ -117,8 +117,8 @@ bool visor_periodic_work_start(struct periodic_work *pw)
 		goto unlock;
 	}
 	INIT_DELAYED_WORK(&pw->work, &periodic_work_func);
-	if (queue_delayed_work(pw->workqueue, &pw->work,
-			       pw->jiffy_interval) < 0) {
+	if (!queue_delayed_work(pw->workqueue, &pw->work,
+				pw->jiffy_interval)) {
 		rc = false;
 		goto unlock;
 	}
