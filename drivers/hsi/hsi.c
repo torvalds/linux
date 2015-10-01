@@ -300,7 +300,6 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 	if (device_register(&cl->device) < 0) {
 		pr_err("hsi: failed to register client: %s\n", name);
 		put_device(&cl->device);
-		goto err3;
 	}
 
 	return;
