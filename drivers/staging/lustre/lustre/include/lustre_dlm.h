@@ -271,10 +271,6 @@ struct ldlm_pool {
 	struct completion	 pl_kobj_unregister;
 };
 
-typedef int (*ldlm_res_policy)(struct ldlm_namespace *, struct ldlm_lock **,
-			       void *req_cookie, ldlm_mode_t mode, __u64 flags,
-			       void *data);
-
 typedef int (*ldlm_cancel_for_recovery)(struct ldlm_lock *lock);
 
 /**
@@ -426,9 +422,6 @@ struct ldlm_namespace {
 	 * it is called.
 	 */
 	unsigned long		ns_next_dump;
-
-	/** "policy" function that does actual lock conflict determination */
-	ldlm_res_policy		ns_policy;
 
 	/**
 	 * LVB operations for this namespace.
@@ -1113,7 +1106,6 @@ void ldlm_put_ref(void);
 struct ldlm_lock *ldlm_request_lock(struct ptlrpc_request *req);
 
 /* ldlm_lock.c */
-void ldlm_register_intent(struct ldlm_namespace *ns, ldlm_res_policy arg);
 void ldlm_lock2handle(const struct ldlm_lock *lock,
 		      struct lustre_handle *lockh);
 struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *, __u64 flags);
