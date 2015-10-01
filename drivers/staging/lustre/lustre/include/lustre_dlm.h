@@ -1108,8 +1108,6 @@ struct ldlm_callback_suite {
 };
 
 /* ldlm_lockd.c */
-int ldlm_del_waiting_lock(struct ldlm_lock *lock);
-int ldlm_refresh_waiting_lock(struct ldlm_lock *lock, int timeout);
 int ldlm_get_ref(void);
 void ldlm_put_ref(void);
 struct ldlm_lock *ldlm_request_lock(struct ptlrpc_request *req);

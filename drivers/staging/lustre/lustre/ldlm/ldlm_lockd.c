@@ -111,19 +111,6 @@ struct ldlm_bl_work_item {
 	int		     blwi_mem_pressure;
 };
 
-
-int ldlm_del_waiting_lock(struct ldlm_lock *lock)
-{
-	return 0;
-}
-
-int ldlm_refresh_waiting_lock(struct ldlm_lock *lock, int timeout)
-{
-	return 0;
-}
-
-
-
 /**
  * Callback handler for receiving incoming blocking ASTs.
  *
