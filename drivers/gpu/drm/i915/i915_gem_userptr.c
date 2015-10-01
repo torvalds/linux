@@ -59,6 +59,7 @@ struct i915_mmu_object {
 	struct interval_tree_node it;
 	struct list_head link;
 	struct drm_i915_gem_object *obj;
+	bool active;
 	bool is_linear;
 };
 
@@ -114,7 +115,8 @@ restart:
 
 		obj = mo->obj;
 
-		if (!kref_get_unless_zero(&obj->base.refcount))
+		if (!mo->active ||
+		    !kref_get_unless_zero(&obj->base.refcount))
 			continue;
 
 		spin_unlock(&mn->lock);
@@ -151,7 +153,8 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		else
 			it = interval_tree_iter_first(&mn->objects, start, end);
 		if (it != NULL) {
-			obj = container_of(it, struct i915_mmu_object, it)->obj;
+			struct i915_mmu_object *mo =
+				container_of(it, struct i915_mmu_object, it);
 
 			/* The mmu_object is released late when destroying the
 			 * GEM object so it is entirely possible to gain a
@@ -160,11 +163,9 @@ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 			 * the struct_mutex - and consequently use it after it
 			 * is freed and then double free it.
 			 */
-			if (!kref_get_unless_zero(&obj->base.refcount)) {
-				spin_unlock(&mn->lock);
-				serial = 0;
-				continue;
-			}
+			if (mo->active &&
+			    kref_get_unless_zero(&mo->obj->base.refcount))
+				obj = mo->obj;
 
 			serial = mn->serial;
 		}
@@ -566,6 +567,30 @@ __i915_gem_userptr_set_pages(struct drm_i915_gem_object *obj,
 }
 
 static void
+__i915_gem_userptr_set_active(struct drm_i915_gem_object *obj,
+			      bool value)
+{
+	/* During mm_invalidate_range we need to cancel any userptr that
+	 * overlaps the range being invalidated. Doing so requires the
+	 * struct_mutex, and that risks recursion. In order to cause
+	 * recursion, the user must alias the userptr address space with
+	 * a GTT mmapping (possible with a MAP_FIXED) - then when we have
+	 * to invalidate that mmaping, mm_invalidate_range is called with
+	 * the userptr address *and* the struct_mutex held.  To prevent that
+	 * we set a flag under the i915_mmu_notifier spinlock to indicate
+	 * whether this object is valid.
+	 */
+#if defined(CONFIG_MMU_NOTIFIER)
+	if (obj->userptr.mmu_object == NULL)
+		return;
+
+	spin_lock(&obj->userptr.mmu_object->mn->lock);
+	obj->userptr.mmu_object->active = value;
+	spin_unlock(&obj->userptr.mmu_object->mn->lock);
+#endif
+}
+
+static void
 __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
 	struct get_pages_work *work = container_of(_work, typeof(*work), work);
@@ -613,6 +638,8 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			}
 		}
 		obj->userptr.work = ERR_PTR(ret);
+		if (ret)
+			__i915_gem_userptr_set_active(obj, false);
 	}
 
 	obj->userptr.workers--;
@@ -627,11 +654,60 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 }
 
 static int
+__i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj,
+				      bool *active)
+{
+	struct get_pages_work *work;
+
+	/* Spawn a worker so that we can acquire the
+	 * user pages without holding our mutex. Access
+	 * to the user pages requires mmap_sem, and we have
+	 * a strict lock ordering of mmap_sem, struct_mutex -
+	 * we already hold struct_mutex here and so cannot
+	 * call gup without encountering a lock inversion.
+	 *
+	 * Userspace will keep on repeating the operation
+	 * (thanks to EAGAIN) until either we hit the fast
+	 * path or the worker completes. If the worker is
+	 * cancelled or superseded, the task is still run
+	 * but the results ignored. (This leads to
+	 * complications that we may have a stray object
+	 * refcount that we need to be wary of when
+	 * checking for existing objects during creation.)
+	 * If the worker encounters an error, it reports
+	 * that error back to this function through
+	 * obj->userptr.work = ERR_PTR.
+	 */
+	if (obj->userptr.workers >= I915_GEM_USERPTR_MAX_WORKERS)
+		return -EAGAIN;
+
+	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	if (work == NULL)
+		return -ENOMEM;
+
+	obj->userptr.work = &work->work;
+	obj->userptr.workers++;
+
+	work->obj = obj;
+	drm_gem_object_reference(&obj->base);
+
+	work->task = current;
+	get_task_struct(work->task);
+
+	INIT_WORK(&work->work, __i915_gem_userptr_get_pages_worker);
+	schedule_work(&work->work);
+
+	*active = true;
+	return -EAGAIN;
+}
+
+static int
 i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
 	const int num_pages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	int pinned, ret;
+	bool active;
 
 	/* If userspace should engineer that these pages are replaced in
 	 * the vma between us binding this page into the GTT and completion
@@ -649,6 +725,18 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	 * to the vma (discard or cloning) which should prevent the more
 	 * egregious cases from causing harm.
 	 */
+	if (IS_ERR(obj->userptr.work)) {
+		/* active flag will have been dropped already by the worker */
+		ret = PTR_ERR(obj->userptr.work);
+		obj->userptr.work = NULL;
+		return ret;
+	}
+	if (obj->userptr.work)
+		/* active flag should still be held for the pending work */
+		return -EAGAIN;
+
+	/* Let the mmu-notifier know that we have begun and need cancellation */
+	__i915_gem_userptr_set_active(obj, true);
 
 	pvec = NULL;
 	pinned = 0;
@@ -657,73 +745,27 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 			       GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 		if (pvec == NULL) {
 			pvec = drm_malloc_ab(num_pages, sizeof(struct page *));
-			if (pvec == NULL)
+			if (pvec == NULL) {
+				__i915_gem_userptr_set_active(obj, false);
 				return -ENOMEM;
+			}
 		}
 
 		pinned = __get_user_pages_fast(obj->userptr.ptr, num_pages,
 					       !obj->userptr.read_only, pvec);
 	}
-	if (pinned < num_pages) {
-		if (pinned < 0) {
-			ret = pinned;
-			pinned = 0;
-		} else {
-			/* Spawn a worker so that we can acquire the
-			 * user pages without holding our mutex. Access
-			 * to the user pages requires mmap_sem, and we have
-			 * a strict lock ordering of mmap_sem, struct_mutex -
-			 * we already hold struct_mutex here and so cannot
-			 * call gup without encountering a lock inversion.
-			 *
-			 * Userspace will keep on repeating the operation
-			 * (thanks to EAGAIN) until either we hit the fast
-			 * path or the worker completes. If the worker is
-			 * cancelled or superseded, the task is still run
-			 * but the results ignored. (This leads to
-			 * complications that we may have a stray object
-			 * refcount that we need to be wary of when
-			 * checking for existing objects during creation.)
-			 * If the worker encounters an error, it reports
-			 * that error back to this function through
-			 * obj->userptr.work = ERR_PTR.
-			 */
-			ret = -EAGAIN;
-			if (obj->userptr.work == NULL &&
-			    obj->userptr.workers < I915_GEM_USERPTR_MAX_WORKERS) {
-				struct get_pages_work *work;
 
-				work = kmalloc(sizeof(*work), GFP_KERNEL);
-				if (work != NULL) {
-					obj->userptr.work = &work->work;
-					obj->userptr.workers++;
-
-					work->obj = obj;
-					drm_gem_object_reference(&obj->base);
-
-					work->task = current;
-					get_task_struct(work->task);
-
-					INIT_WORK(&work->work, __i915_gem_userptr_get_pages_worker);
-					schedule_work(&work->work);
-				} else
-					ret = -ENOMEM;
-			} else {
-				if (IS_ERR(obj->userptr.work)) {
-					ret = PTR_ERR(obj->userptr.work);
-					obj->userptr.work = NULL;
-				}
-			}
-		}
-	} else {
+	active = false;
+	if (pinned < 0)
+		ret = pinned, pinned = 0;
+	else if (pinned < num_pages)
+		ret = __i915_gem_userptr_get_pages_schedule(obj, &active);
+	else
 		ret = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
-		if (ret == 0) {
-			obj->userptr.work = NULL;
-			pinned = 0;
-		}
+	if (ret) {
+		__i915_gem_userptr_set_active(obj, active);
+		release_pages(pvec, pinned, 0);
 	}
-
-	release_pages(pvec, pinned, 0);
 	drm_free_large(pvec);
 	return ret;
 }
@@ -734,6 +776,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
 	struct sg_page_iter sg_iter;
 
 	BUG_ON(obj->userptr.work != NULL);
+	__i915_gem_userptr_set_active(obj, false);
 
 	if (obj->madv != I915_MADV_WILLNEED)
 		obj->dirty = 0;
