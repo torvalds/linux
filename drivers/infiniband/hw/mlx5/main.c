@@ -245,7 +245,6 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_BAD_QKEY_CNTR;
 	if (MLX5_CAP_GEN(mdev, apm))
 		props->device_cap_flags |= IB_DEVICE_AUTO_PATH_MIG;
-	props->device_cap_flags |= IB_DEVICE_LOCAL_DMA_LKEY;
 	if (MLX5_CAP_GEN(mdev, xrc))
 		props->device_cap_flags |= IB_DEVICE_XRC;
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
@@ -795,53 +794,6 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 	return 0;
 }
 
-static int alloc_pa_mkey(struct mlx5_ib_dev *dev, u32 *key, u32 pdn)
-{
-	struct mlx5_create_mkey_mbox_in *in;
-	struct mlx5_mkey_seg *seg;
-	struct mlx5_core_mr mr;
-	int err;
-
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	seg = &in->seg;
-	seg->flags = MLX5_PERM_LOCAL_READ | MLX5_ACCESS_MODE_PA;
-	seg->flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
-	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
-	seg->start_addr = 0;
-
-	err = mlx5_core_create_mkey(dev->mdev, &mr, in, sizeof(*in),
-				    NULL, NULL, NULL);
-	if (err) {
-		mlx5_ib_warn(dev, "failed to create mkey, %d\n", err);
-		goto err_in;
-	}
-
-	kfree(in);
-	*key = mr.key;
-
-	return 0;
-
-err_in:
-	kfree(in);
-
-	return err;
-}
-
-static void free_pa_mkey(struct mlx5_ib_dev *dev, u32 key)
-{
-	struct mlx5_core_mr mr;
-	int err;
-
-	memset(&mr, 0, sizeof(mr));
-	mr.key = key;
-	err = mlx5_core_destroy_mkey(dev->mdev, &mr);
-	if (err)
-		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x\n", key);
-}
-
 static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 				      struct ib_ucontext *context,
 				      struct ib_udata *udata)
@@ -867,13 +819,6 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 			kfree(pd);
 			return ERR_PTR(-EFAULT);
 		}
-	} else {
-		err = alloc_pa_mkey(to_mdev(ibdev), &pd->pa_lkey, pd->pdn);
-		if (err) {
-			mlx5_core_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn);
-			kfree(pd);
-			return ERR_PTR(err);
-		}
 	}
 
 	return &pd->ibpd;
@@ -883,9 +828,6 @@ static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
 {
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
-
-	if (!pd->uobject)
-		free_pa_mkey(mdev, mpd->pa_lkey);
 
 	mlx5_core_dealloc_pd(mdev->mdev, mpd->pdn);
 	kfree(mpd);
@@ -1245,17 +1187,9 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	struct ib_srq_init_attr attr;
 	struct mlx5_ib_dev *dev;
 	struct ib_cq_init_attr cq_attr = {.cqe = 1};
-	u32 rsvd_lkey;
 	int ret = 0;
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
-
-	ret = mlx5_core_query_special_context(dev->mdev, &rsvd_lkey);
-	if (ret) {
-		pr_err("Failed to query special context %d\n", ret);
-		return ret;
-	}
-	dev->ib_dev.local_dma_lkey = rsvd_lkey;
 
 	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->p0)) {
@@ -1418,6 +1352,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	strlcpy(dev->ib_dev.name, "mlx5_%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
+	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->num_ports		= MLX5_CAP_GEN(mdev, num_ports);
 	dev->ib_dev.phys_port_cnt     = dev->num_ports;
 	dev->ib_dev.num_comp_vectors    =

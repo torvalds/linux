@@ -402,17 +402,6 @@ struct mlx5_cmd_teardown_hca_mbox_out {
 	u8			rsvd[8];
 };
 
-struct mlx5_cmd_query_special_contexts_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_cmd_query_special_contexts_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32                  dump_fill_mkey;
-	__be32                  resd_lkey;
-};
-
 struct mlx5_cmd_layout {
 	u8		type;
 	u8		rsvd0[3];
