@@ -1264,9 +1264,6 @@ int ldlm_expired_completion_wait(void *data);
  * also used by client-side lock handlers to perform minimum level base
  * processing.
  * @{ */
-int ldlm_blocking_ast_nocheck(struct ldlm_lock *lock);
-int ldlm_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
-		      void *data, int flag);
 int ldlm_completion_ast_async(struct ldlm_lock *lock, __u64 flags, void *data);
 int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 /** @} ldlm_local_ast */
