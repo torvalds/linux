@@ -307,10 +307,10 @@ awk < $T/cfgcpu.pack \
 }
 
 # Dump out the scripting required to run one test batch.
-function dump(first, pastlast)
+function dump(first, pastlast, batchnum)
 {
-	print "echo ----Start batch: `date`";
-	print "echo ----Start batch: `date` >> " rd "/log";
+	print "echo ----Start batch " batchnum ": `date`";
+	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -371,25 +371,28 @@ END {
 	njobs = i;
 	nc = ncpus;
 	first = 0;
+	batchnum = 1;
 
 	# Each pass through the following loop considers one test.
 	for (i = 0; i < njobs; i++) {
 		if (ncpus == 0) {
 			# Sequential test specified, each test its own batch.
-			dump(i, i + 1);
+			dump(i, i + 1, batchnum);
 			first = i;
+			batchnum++;
 		} else if (nc < cpus[i] && i != 0) {
 			# Out of CPUs, dump out a batch.
-			dump(first, i);
+			dump(first, i, batchnum);
 			first = i;
 			nc = ncpus;
+			batchnum++;
 		}
 		# Account for the CPUs needed by the current test.
 		nc -= cpus[i];
 	}
 	# Dump the last batch.
 	if (ncpus != 0)
-		dump(first, i);
+		dump(first, i, batchnum);
 }' >> $T/script
 
 cat << ___EOF___ >> $T/script
