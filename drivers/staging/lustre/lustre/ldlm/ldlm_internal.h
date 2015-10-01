@@ -188,8 +188,6 @@ void ldlm_extent_unlink_lock(struct ldlm_lock *lock);
 int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
 			    int first_enq, ldlm_error_t *err,
 			    struct list_head *work_list);
-int ldlm_init_flock_export(struct obd_export *exp);
-void ldlm_destroy_flock_export(struct obd_export *exp);
 
 /* l_lock.c */
 void l_check_ns_lock(struct ldlm_namespace *ns);
