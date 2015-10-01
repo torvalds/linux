@@ -178,13 +178,15 @@ static int enic_wq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 	return 0;
 }
 
-static void enic_log_q_error(struct enic *enic)
+static bool enic_log_q_error(struct enic *enic)
 {
 	unsigned int i;
 	u32 error_status;
+	bool err = false;
 
 	for (i = 0; i < enic->wq_count; i++) {
 		error_status = vnic_wq_error_status(&enic->wq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "WQ[%d] error_status %d\n",
 				i, error_status);
@@ -192,10 +194,13 @@ static void enic_log_q_error(struct enic *enic)
 
 	for (i = 0; i < enic->rq_count; i++) {
 		error_status = vnic_rq_error_status(&enic->rq[i]);
+		err |= error_status;
 		if (error_status)
 			netdev_err(enic->netdev, "RQ[%d] error_status %d\n",
 				i, error_status);
 	}
+
+	return err;
 }
 
 static void enic_msglvl_check(struct enic *enic)
@@ -333,10 +338,9 @@ static irqreturn_t enic_isr_msix_err(int irq, void *data)
 
 	vnic_intr_return_all_credits(&enic->intr[intr]);
 
-	enic_log_q_error(enic);
-
-	/* schedule recovery from WQ/RQ error */
-	schedule_work(&enic->reset);
+	if (enic_log_q_error(enic))
+		/* schedule recovery from WQ/RQ error */
+		schedule_work(&enic->reset);
 
 	return IRQ_HANDLED;
 }
