@@ -3585,7 +3585,7 @@ static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
  */
 static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 {
-	struct rcu_data *rdp;
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	struct rcu_node *rnp0;
 	struct rcu_node *rnp1 = NULL;
 
@@ -3599,7 +3599,7 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	if (!mutex_is_locked(&rnp0->exp_funnel_mutex)) {
 		if (mutex_trylock(&rnp0->exp_funnel_mutex)) {
 			if (sync_exp_work_done(rsp, rnp0, NULL,
-					       &rsp->expedited_workdone0, s))
+					       &rdp->expedited_workdone0, s))
 				return NULL;
 			return rnp0;
 		}
@@ -3613,14 +3613,13 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	 * can be inexact, as it is just promoting locality and is not
 	 * strictly needed for correctness.
 	 */
-	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
-	if (sync_exp_work_done(rsp, NULL, NULL, &rsp->expedited_workdone1, s))
+	if (sync_exp_work_done(rsp, NULL, NULL, &rdp->expedited_workdone1, s))
 		return NULL;
 	mutex_lock(&rdp->exp_funnel_mutex);
 	rnp0 = rdp->mynode;
 	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
 		if (sync_exp_work_done(rsp, rnp1, rdp,
-				       &rsp->expedited_workdone2, s))
+				       &rdp->expedited_workdone2, s))
 			return NULL;
 		mutex_lock(&rnp0->exp_funnel_mutex);
 		if (rnp1)
@@ -3630,7 +3629,7 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 		rnp1 = rnp0;
 	}
 	if (sync_exp_work_done(rsp, rnp1, rdp,
-			       &rsp->expedited_workdone3, s))
+			       &rdp->expedited_workdone3, s))
 		return NULL;
 	return rnp1;
 }
