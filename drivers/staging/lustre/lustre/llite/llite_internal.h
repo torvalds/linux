@@ -687,7 +687,6 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 int ll_md_blocking_ast(struct ldlm_lock *, struct ldlm_lock_desc *,
 		       void *data, int flag);
 struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de);
-int ll_rmdir_entry(struct inode *dir, char *name, int namelen);
 
 /* llite/rw.c */
 int ll_prepare_write(struct file *, struct page *, unsigned from, unsigned to);
