@@ -81,6 +81,7 @@ struct iommu_domain {
 	iommu_fault_handler_t handler;
 	void *handler_token;
 	struct iommu_domain_geometry geometry;
+	void *iova_cookie;
 };
 
 enum iommu_cap {

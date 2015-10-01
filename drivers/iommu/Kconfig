@@ -49,6 +49,13 @@ config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
 
+# IOMMU-agnostic DMA-mapping layer
+config IOMMU_DMA
+	bool
+	depends on NEED_SG_DMA_LENGTH
+	select IOMMU_API
+	select IOMMU_IOVA
+
 config FSL_PAMU
 	bool "Freescale IOMMU support"
 	depends on PPC32
