@@ -54,6 +54,8 @@
 	compatible = "merrii,a31-hummingbird", "allwinner,sun6i-a31";
 
 	aliases {
+		rtc0 = &pcf8563;
+		rtc1 = &rtc;
 		serial0 = &uart0;
 	};
 
