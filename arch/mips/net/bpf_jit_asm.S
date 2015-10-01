@@ -57,8 +57,7 @@
 
 LEAF(sk_load_word)
 	is_offset_negative(word)
-	.globl sk_load_word_positive
-sk_load_word_positive:
+FEXPORT(sk_load_word_positive)
 	is_offset_in_header(4, word)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
@@ -85,8 +84,7 @@ sk_load_word_positive:
 
 LEAF(sk_load_half)
 	is_offset_negative(half)
-	.globl sk_load_half_positive
-sk_load_half_positive:
+FEXPORT(sk_load_half_positive)
 	is_offset_in_header(2, half)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
@@ -109,8 +107,7 @@ sk_load_half_positive:
 
 LEAF(sk_load_byte)
 	is_offset_negative(byte)
-	.globl sk_load_byte_positive
-sk_load_byte_positive:
+FEXPORT(sk_load_byte_positive)
 	is_offset_in_header(1, byte)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
