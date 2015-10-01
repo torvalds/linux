@@ -30,7 +30,7 @@ g84_pci_func = {
 	.rd32 = nv40_pci_rd32,
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,
-	.msi_rearm = nv50_pci_msi_rearm,
+	.msi_rearm = nv46_pci_msi_rearm,
 };
 
 int
