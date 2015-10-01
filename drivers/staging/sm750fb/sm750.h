@@ -113,7 +113,6 @@ struct lynxfb_crtc {
 
 	int (*proc_checkMode)(struct lynxfb_crtc*, struct fb_var_screeninfo*);
 	int (*proc_setColReg)(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
-	void (*clear)(struct lynxfb_crtc *);
 	/* pan display */
 	int (*proc_panDisplay)(struct lynxfb_crtc *,
 			       const struct fb_var_screeninfo *,
@@ -144,7 +143,6 @@ struct lynxfb_output {
 						struct fb_fix_screeninfo*);
 
 	int (*proc_setBLANK)(struct lynxfb_output*, int);
-	void  (*clear)(struct lynxfb_output *);
 };
 
 struct lynxfb_par {

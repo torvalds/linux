@@ -680,7 +680,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	crtc->proc_checkMode = hw_sm750_crtc_checkMode;
 	crtc->proc_setColReg = hw_sm750_setColReg;
 	crtc->proc_panDisplay = hw_sm750_pan_display;
-	crtc->clear = hw_sm750_crtc_clear;
 	crtc->line_pad = 16;
 	crtc->xpanstep = 8;
 	crtc->ypanstep = 1;
@@ -690,7 +689,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 
 	output->proc_setBLANK = (share->revid == SM750LE_REVISION_ID) ?
 				 hw_sm750le_setBLANK : hw_sm750_setBLANK;
-	output->clear = hw_sm750_output_clear;
 	/* chip specific phase */
 	share->accel.de_wait = (share->revid == SM750LE_REVISION_ID) ?
 				hw_sm750le_deWait : hw_sm750_deWait;
@@ -1219,9 +1217,6 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 		par = info->par;
 
 		unregister_framebuffer(info);
-		/* clean crtc & output allocations */
-		par->crtc.clear(&par->crtc);
-		par->output.clear(&par->output);
 		/* release frame buffer */
 		framebuffer_release(info);
 	}

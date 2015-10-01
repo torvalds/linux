@@ -91,8 +91,6 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc*, struct fb_var_screeninfo*, struct
 int hw_sm750_setColReg(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
 int hw_sm750_setBLANK(struct lynxfb_output*, int);
 int hw_sm750le_setBLANK(struct lynxfb_output*, int);
-void hw_sm750_crtc_clear(struct lynxfb_crtc *);
-void hw_sm750_output_clear(struct lynxfb_output *);
 int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 			 const struct fb_var_screeninfo *var,
 			 const struct fb_info *info);

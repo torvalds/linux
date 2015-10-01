@@ -232,12 +232,6 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 	return ret;
 }
 
-void hw_sm750_output_clear(struct lynxfb_output *output)
-{
-
-	return;
-}
-
 int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc, struct fb_var_screeninfo *var)
 {
 	struct lynx_share *share;
@@ -385,12 +379,6 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 
 exit:
 	return ret;
-}
-
-void hw_sm750_crtc_clear(struct lynxfb_crtc *crtc)
-{
-
-	return;
 }
 
 int hw_sm750_setColReg(struct lynxfb_crtc *crtc, ushort index,
