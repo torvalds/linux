@@ -698,16 +698,61 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->fbc.lock);
 }
 
-static int intel_fbc_setup_cfb(struct drm_i915_private *dev_priv, int size,
-			       int fb_cpp)
+/*
+ * For SKL+, the plane source size used by the hardware is based on the value we
+ * write to the PLANE_SIZE register. For BDW-, the hardware looks at the value
+ * we wrote to PIPESRC.
+ */
+static void intel_fbc_get_plane_source_size(struct intel_crtc *crtc,
+					    int *width, int *height)
 {
+	struct intel_plane_state *plane_state =
+			to_intel_plane_state(crtc->base.primary->state);
+	int w, h;
+
+	if (intel_rotation_90_or_270(plane_state->base.rotation)) {
+		w = drm_rect_height(&plane_state->src) >> 16;
+		h = drm_rect_width(&plane_state->src) >> 16;
+	} else {
+		w = drm_rect_width(&plane_state->src) >> 16;
+		h = drm_rect_height(&plane_state->src) >> 16;
+	}
+
+	if (width)
+		*width = w;
+	if (height)
+		*height = h;
+}
+
+static int intel_fbc_calculate_cfb_size(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
+	int lines;
+
+	intel_fbc_get_plane_source_size(crtc, NULL, &lines);
+	if (INTEL_INFO(dev_priv)->gen >= 7)
+		lines = min(lines, 2048);
+
+	return lines * fb->pitches[0];
+}
+
+static int intel_fbc_setup_cfb(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_framebuffer *fb = crtc->base.primary->fb;
+	int size, cpp;
+
+	size = intel_fbc_calculate_cfb_size(crtc);
+	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
 	if (size <= dev_priv->fbc.uncompressed_size)
 		return 0;
 
 	/* Release any current block */
 	__intel_fbc_cleanup_cfb(dev_priv);
 
-	return intel_fbc_alloc_cfb(dev_priv, size, fb_cpp);
+	return intel_fbc_alloc_cfb(dev_priv, size, cpp);
 }
 
 static bool stride_is_valid(struct drm_i915_private *dev_priv,
@@ -897,8 +942,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (intel_fbc_setup_cfb(dev_priv, obj->base.size,
-				drm_format_plane_cpp(fb->pixel_format, 0))) {
+	if (intel_fbc_setup_cfb(intel_crtc)) {
 		set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL);
 		goto out_disable;
 	}
