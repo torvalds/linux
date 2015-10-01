@@ -619,6 +619,7 @@ struct regmap *__regmap_init(struct device *dev,
 		goto skip_format_initialization;
 	} else {
 		map->reg_read  = _regmap_bus_read;
+		map->reg_update_bits = bus->reg_update_bits;
 	}
 
 	reg_endian = regmap_get_reg_endian(bus, config);
@@ -2509,20 +2510,26 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 	int ret;
 	unsigned int tmp, orig;
 
-	ret = _regmap_read(map, reg, &orig);
-	if (ret != 0)
-		return ret;
+	if (change)
+		*change = false;
 
-	tmp = orig & ~mask;
-	tmp |= val & mask;
-
-	if (force_write || (tmp != orig)) {
-		ret = _regmap_write(map, reg, tmp);
-		if (change)
+	if (regmap_volatile(map, reg) && map->reg_update_bits) {
+		ret = map->reg_update_bits(map->bus_context, reg, mask, val);
+		if (ret == 0 && change)
 			*change = true;
 	} else {
-		if (change)
-			*change = false;
+		ret = _regmap_read(map, reg, &orig);
+		if (ret != 0)
+			return ret;
+
+		tmp = orig & ~mask;
+		tmp |= val & mask;
+
+		if (force_write || (tmp != orig)) {
+			ret = _regmap_write(map, reg, tmp);
+			if (ret == 0 && change)
+				*change = true;
+		}
 	}
 
 	return ret;
