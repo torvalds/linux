@@ -417,30 +417,6 @@ void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar)
 	spin_unlock(&ras->ras_lock);
 }
 
-static struct ll_ra_read *ll_ra_read_get_locked(struct ll_readahead_state *ras)
-{
-	struct ll_ra_read *scan;
-
-	list_for_each_entry(scan, &ras->ras_read_beads, lrr_linkage) {
-		if (scan->lrr_reader == current)
-			return scan;
-	}
-	return NULL;
-}
-
-struct ll_ra_read *ll_ra_read_get(struct file *f)
-{
-	struct ll_readahead_state *ras;
-	struct ll_ra_read	 *bead;
-
-	ras = ll_ras_get(f);
-
-	spin_lock(&ras->ras_lock);
-	bead = ll_ra_read_get_locked(ras);
-	spin_unlock(&ras->ras_lock);
-	return bead;
-}
-
 static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 			      struct cl_page_list *queue, struct cl_page *page,
 			      struct page *vmpage)

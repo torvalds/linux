@@ -657,7 +657,6 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 
 void ll_ra_read_in(struct file *f, struct ll_ra_read *rar);
 void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar);
-struct ll_ra_read *ll_ra_read_get(struct file *f);
 
 /* llite/lproc_llite.c */
 int ldebugfs_register_mountpoint(struct dentry *parent,
