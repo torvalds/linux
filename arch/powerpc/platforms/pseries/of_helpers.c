@@ -24,10 +24,9 @@ struct device_node *pseries_of_derive_parent(const char *path)
 		return ERR_PTR(-EINVAL);
 
 	if (strrchr(path, '/') != path) {
-		parent_path = kmalloc(parent_path_len, GFP_KERNEL);
+		parent_path = kstrndup(path, parent_path_len, GFP_KERNEL);
 		if (!parent_path)
 			return ERR_PTR(-ENOMEM);
-		strlcpy(parent_path, path, parent_path_len);
 	}
 	parent = of_find_node_by_path(parent_path);
 	if (strcmp(parent_path, "/"))
