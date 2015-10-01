@@ -36,6 +36,8 @@ struct vb2_threadio_data;
  *		no other users of this buffer are present); the buf_priv
  *		argument is the allocator private per-buffer structure
  *		previously returned from the alloc callback.
+ * @get_dmabuf: acquire userspace memory for a hardware operation; used for
+ *		 DMABUF memory types.
  * @get_userptr: acquire userspace memory for a hardware operation; used for
  *		 USERPTR memory types; vaddr is the address passed to the
  *		 videobuf layer when queuing a video buffer of USERPTR type;
@@ -118,7 +120,7 @@ struct vb2_mem_ops {
  * @dbuf_mapped:	flag to show whether dbuf is mapped or not
  * @bytesused:	number of bytes occupied by data in the plane (payload)
  * @length:	size of this plane (NOT the payload) in bytes
- * @mem_offset:	when memory in the associated struct vb2_buffer is
+ * @offset:	when memory in the associated struct vb2_buffer is
  *		VB2_MEMORY_MMAP, equals the offset from the start of
  *		the device memory for this plane (or is a "cookie" that
  *		should be passed to mmap() called on the video node)
@@ -126,6 +128,8 @@ struct vb2_mem_ops {
  *		pointing to this plane
  * @fd:		when memory is VB2_MEMORY_DMABUF, a userspace file
  *		descriptor associated with this plane
+ * @m:		Union with memtype-specific data (@offset, @userptr or
+ *		@fd).
  * @data_offset:	offset in the plane to the start of data; usually 0,
  *		unless there is a header in front of the data
  * Should contain enough information to be able to cover all the fields
