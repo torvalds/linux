@@ -214,6 +214,22 @@ static inline int ldlm_pool_t2gsp(unsigned int t)
 }
 
 /**
+ * Returns current \a pl limit.
+ */
+static __u32 ldlm_pool_get_limit(struct ldlm_pool *pl)
+{
+	return atomic_read(&pl->pl_limit);
+}
+
+/**
+ * Sets passed \a limit to \a pl.
+ */
+static void ldlm_pool_set_limit(struct ldlm_pool *pl, __u32 limit)
+{
+	atomic_set(&pl->pl_limit, limit);
+}
+
+/**
  * Recalculates next stats on passed \a pl.
  *
  * \pre ->pl_lock is locked.
@@ -358,7 +374,7 @@ static const struct ldlm_pool_ops ldlm_cli_pool_ops = {
  * Pool recalc wrapper. Will call either client or server pool recalc callback
  * depending what pool \a pl is used.
  */
-int ldlm_pool_recalc(struct ldlm_pool *pl)
+static int ldlm_pool_recalc(struct ldlm_pool *pl)
 {
 	u32 recalc_interval_sec;
 	int count;
@@ -407,8 +423,7 @@ int ldlm_pool_recalc(struct ldlm_pool *pl)
  * depending what pool pl is used. When nr == 0, just return the number of
  * freeable locks. Otherwise, return the number of canceled locks.
  */
-int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
-		     gfp_t gfp_mask)
+static int ldlm_pool_shrink(struct ldlm_pool *pl, int nr, gfp_t gfp_mask)
 {
 	int cancel = 0;
 
@@ -427,7 +442,6 @@ int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
 	}
 	return cancel;
 }
-EXPORT_SYMBOL(ldlm_pool_shrink);
 
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
@@ -763,7 +777,6 @@ __u64 ldlm_pool_get_slv(struct ldlm_pool *pl)
 	spin_unlock(&pl->pl_lock);
 	return slv;
 }
-EXPORT_SYMBOL(ldlm_pool_get_slv);
 
 /**
  * Sets passed \a clv to \a pl.
@@ -776,25 +789,6 @@ void ldlm_pool_set_clv(struct ldlm_pool *pl, __u64 clv)
 	pl->pl_client_lock_volume = clv;
 	spin_unlock(&pl->pl_lock);
 }
-EXPORT_SYMBOL(ldlm_pool_set_clv);
-
-/**
- * Returns current \a pl limit.
- */
-__u32 ldlm_pool_get_limit(struct ldlm_pool *pl)
-{
-	return atomic_read(&pl->pl_limit);
-}
-EXPORT_SYMBOL(ldlm_pool_get_limit);
-
-/**
- * Sets passed \a limit to \a pl.
- */
-void ldlm_pool_set_limit(struct ldlm_pool *pl, __u32 limit)
-{
-	atomic_set(&pl->pl_limit, limit);
-}
-EXPORT_SYMBOL(ldlm_pool_set_limit);
 
 /**
  * Returns current LVF from \a pl.
@@ -803,7 +797,6 @@ __u32 ldlm_pool_get_lvf(struct ldlm_pool *pl)
 {
 	return atomic_read(&pl->pl_lock_volume_factor);
 }
-EXPORT_SYMBOL(ldlm_pool_get_lvf);
 
 static int ldlm_pool_granted(struct ldlm_pool *pl)
 {

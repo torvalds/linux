@@ -60,9 +60,6 @@
 struct obd_ops;
 struct obd_device;
 
-extern struct kset *ldlm_ns_kset;
-extern struct kset *ldlm_svc_kset;
-
 #define OBD_LDLM_DEVICENAME  "ldlm"
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
@@ -561,9 +558,6 @@ typedef union {
 	struct ldlm_inodebits l_inodebits;
 } ldlm_policy_data_t;
 
-void ldlm_convert_policy_to_wire(ldlm_type_t type,
-				 const ldlm_policy_data_t *lpolicy,
-				 ldlm_wire_policy_data_t *wpolicy);
 void ldlm_convert_policy_to_local(struct obd_export *exp, ldlm_type_t type,
 				  const ldlm_wire_policy_data_t *wpolicy,
 				  ldlm_policy_data_t *lpolicy);
@@ -980,7 +974,6 @@ struct ldlm_enqueue_info {
 extern struct obd_ops ldlm_obd_ops;
 
 extern char *ldlm_lockname[];
-extern char *ldlm_typename[];
 char *ldlm_it2str(int it);
 
 /**
@@ -1051,10 +1044,6 @@ typedef int (*ldlm_res_iterator_t)(struct ldlm_resource *, void *);
  * LDLM provides for a way to iterate through every lock on a resource or
  * namespace or every resource in a namespace.
  * @{ */
-int ldlm_resource_foreach(struct ldlm_resource *res, ldlm_iterator_t iter,
-			  void *closure);
-void ldlm_namespace_foreach(struct ldlm_namespace *ns, ldlm_iterator_t iter,
-			    void *closure);
 int ldlm_resource_iterate(struct ldlm_namespace *, const struct ldlm_res_id *,
 			  ldlm_iterator_t iter, void *data);
 /** @} ldlm_iterator */
@@ -1172,7 +1161,6 @@ do {					    \
 
 struct ldlm_lock *ldlm_lock_get(struct ldlm_lock *lock);
 void ldlm_lock_put(struct ldlm_lock *lock);
-void ldlm_lock_destroy(struct ldlm_lock *lock);
 void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc);
 void ldlm_lock_addref(struct lustre_handle *lockh, __u32 mode);
 int  ldlm_lock_addref_try(struct lustre_handle *lockh, __u32 mode);
@@ -1197,8 +1185,6 @@ ldlm_namespace_new(struct obd_device *obd, char *name,
 		   ldlm_side_t client, ldlm_appetite_t apt,
 		   ldlm_ns_type_t ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
-void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
-void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
 int ldlm_debugfs_setup(void);
@@ -1209,7 +1195,6 @@ struct ldlm_resource *ldlm_resource_get(struct ldlm_namespace *ns,
 					struct ldlm_resource *parent,
 					const struct ldlm_res_id *,
 					ldlm_type_t type, int create);
-struct ldlm_resource *ldlm_resource_getref(struct ldlm_resource *res);
 int ldlm_resource_putref(struct ldlm_resource *res);
 void ldlm_resource_add_lock(struct ldlm_resource *res,
 			    struct list_head *head,
@@ -1231,7 +1216,6 @@ int ldlm_lock_change_resource(struct ldlm_namespace *, struct ldlm_lock *,
 } while (0)
 
 /* ldlm_request.c */
-int ldlm_expired_completion_wait(void *data);
 /** \defgroup ldlm_local_ast Default AST handlers for local locks
  * These AST handlers are typically used for server-side local locks and are
  * also used by client-side lock handlers to perform minimum level base
@@ -1275,8 +1259,6 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    ldlm_mode_t mode,
 				    ldlm_cancel_flags_t flags,
 				    void *opaque);
-int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *head,
-			int count, ldlm_cancel_flags_t flags);
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
 			       ldlm_policy_data_t *policy,
@@ -1351,15 +1333,7 @@ void ldlm_pools_fini(void);
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client);
-int ldlm_pool_shrink(struct ldlm_pool *pl, int nr,
-		     gfp_t gfp_mask);
 void ldlm_pool_fini(struct ldlm_pool *pl);
-int ldlm_pool_recalc(struct ldlm_pool *pl);
-__u32 ldlm_pool_get_lvf(struct ldlm_pool *pl);
-__u64 ldlm_pool_get_slv(struct ldlm_pool *pl);
-__u32 ldlm_pool_get_limit(struct ldlm_pool *pl);
-void ldlm_pool_set_clv(struct ldlm_pool *pl, __u64 clv);
-void ldlm_pool_set_limit(struct ldlm_pool *pl, __u32 limit);
 void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock);
 void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock);
 /** @} */

@@ -87,7 +87,7 @@ struct ldlm_async_args {
 	struct lustre_handle lock_handle;
 };
 
-int ldlm_expired_completion_wait(void *data)
+static int ldlm_expired_completion_wait(void *data)
 {
 	struct lock_wait_data *lwd = data;
 	struct ldlm_lock *lock = lwd->lwd_lock;
@@ -126,11 +126,10 @@ int ldlm_expired_completion_wait(void *data)
 
 	return 0;
 }
-EXPORT_SYMBOL(ldlm_expired_completion_wait);
 
 /* We use the same basis for both server side and client side functions
    from a single node. */
-int ldlm_get_enq_timeout(struct ldlm_lock *lock)
+static int ldlm_get_enq_timeout(struct ldlm_lock *lock)
 {
 	int timeout = at_get(ldlm_lock_to_ns_at(lock));
 
@@ -142,7 +141,6 @@ int ldlm_get_enq_timeout(struct ldlm_lock *lock)
 	timeout = min_t(int, at_max, timeout + (timeout >> 1)); /* 150% */
 	return max(timeout, ldlm_enqueue_min);
 }
-EXPORT_SYMBOL(ldlm_get_enq_timeout);
 
 /**
  * Helper function for ldlm_completion_ast(), updating timings when lock is
@@ -861,8 +859,9 @@ static void ldlm_cancel_pack(struct ptlrpc_request *req,
 /**
  * Prepare and send a batched cancel RPC. It will include \a count lock
  * handles of locks given in \a cancels list. */
-int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
-			int count, ldlm_cancel_flags_t flags)
+static int ldlm_cli_cancel_req(struct obd_export *exp,
+			       struct list_head *cancels,
+			       int count, ldlm_cancel_flags_t flags)
 {
 	struct ptlrpc_request *req = NULL;
 	struct obd_import *imp;
@@ -944,7 +943,6 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 out:
 	return sent ? sent : rc;
 }
-EXPORT_SYMBOL(ldlm_cli_cancel_req);
 
 static inline struct ldlm_pool *ldlm_imp2pl(struct obd_import *imp)
 {
@@ -1425,9 +1423,9 @@ static int ldlm_prepare_lru_list(struct ldlm_namespace *ns,
 	return added;
 }
 
-int ldlm_cancel_lru_local(struct ldlm_namespace *ns, struct list_head *cancels,
-			  int count, int max, ldlm_cancel_flags_t cancel_flags,
-			  int flags)
+int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
+			  struct list_head *cancels, int count, int max,
+			  ldlm_cancel_flags_t cancel_flags, int flags)
 {
 	int added;
 
@@ -1664,8 +1662,8 @@ EXPORT_SYMBOL(ldlm_cli_cancel_unused);
 
 /* Lock iterators. */
 
-int ldlm_resource_foreach(struct ldlm_resource *res, ldlm_iterator_t iter,
-			  void *closure)
+static int ldlm_resource_foreach(struct ldlm_resource *res,
+				 ldlm_iterator_t iter, void *closure)
 {
 	struct list_head *tmp, *next;
 	struct ldlm_lock *lock;
@@ -1696,7 +1694,6 @@ int ldlm_resource_foreach(struct ldlm_resource *res, ldlm_iterator_t iter,
 	unlock_res(res);
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_resource_foreach);
 
 struct iter_helper_data {
 	ldlm_iterator_t iter;
@@ -1720,8 +1717,8 @@ static int ldlm_res_iter_helper(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	       LDLM_ITER_STOP;
 }
 
-void ldlm_namespace_foreach(struct ldlm_namespace *ns,
-			    ldlm_iterator_t iter, void *closure)
+static void ldlm_namespace_foreach(struct ldlm_namespace *ns,
+				   ldlm_iterator_t iter, void *closure)
 
 {
 	struct iter_helper_data helper = {
@@ -1733,7 +1730,6 @@ void ldlm_namespace_foreach(struct ldlm_namespace *ns,
 				 ldlm_res_iter_helper, &helper);
 
 }
-EXPORT_SYMBOL(ldlm_namespace_foreach);
 
 /* non-blocking function to manipulate a lock whose cb_data is being put away.
  * return  0:  find no resource

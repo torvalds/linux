@@ -58,9 +58,9 @@ MODULE_PARM_DESC(ldlm_cpts, "CPU partitions ldlm threads should run on");
 static struct mutex	ldlm_ref_mutex;
 static int ldlm_refcount;
 
-struct kobject *ldlm_kobj;
+static struct kobject *ldlm_kobj;
 struct kset *ldlm_ns_kset;
-struct kset *ldlm_svc_kset;
+static struct kset *ldlm_svc_kset;
 
 struct ldlm_cb_async_args {
 	struct ldlm_cb_set_arg *ca_set_arg;

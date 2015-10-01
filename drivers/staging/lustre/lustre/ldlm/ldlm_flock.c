@@ -239,9 +239,9 @@ static void ldlm_flock_cancel_on_deadlock(struct ldlm_lock *lock,
  *   - blocking ASTs have not been sent yet, so list of conflicting locks
  *     would be collected and ASTs sent.
  */
-int
-ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
-			ldlm_error_t *err, struct list_head *work_list)
+static int ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags,
+				   int first_enq, ldlm_error_t *err,
+				   struct list_head *work_list)
 {
 	struct ldlm_resource *res = req->l_resource;
 	struct ldlm_namespace *ns = ldlm_res_to_ns(res);

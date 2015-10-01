@@ -67,7 +67,7 @@ struct dentry *ldlm_svc_debugfs_dir;
 
 /* during debug dump certain amount of granted locks for one resource to avoid
  * DDOS. */
-unsigned int ldlm_dump_granted_max = 256;
+static unsigned int ldlm_dump_granted_max = 256;
 
 static ssize_t
 lprocfs_wr_dump_ns(struct file *file, const char __user *buffer,
@@ -383,13 +383,13 @@ static void ldlm_namespace_debugfs_unregister(struct ldlm_namespace *ns)
 		lprocfs_free_stats(&ns->ns_stats);
 }
 
-void ldlm_namespace_sysfs_unregister(struct ldlm_namespace *ns)
+static void ldlm_namespace_sysfs_unregister(struct ldlm_namespace *ns)
 {
 	kobject_put(&ns->ns_kobj);
 	wait_for_completion(&ns->ns_kobj_unregister);
 }
 
-int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
+static int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
 {
 	int err;
 
@@ -427,6 +427,16 @@ static int ldlm_namespace_debugfs_register(struct ldlm_namespace *ns)
 	return 0;
 }
 #undef MAX_STRING_SIZE
+
+static struct ldlm_resource *ldlm_resource_getref(struct ldlm_resource *res)
+{
+	LASSERT(res);
+	LASSERT(res != LP_POISON);
+	atomic_inc(&res->lr_refcount);
+	CDEBUG(D_INFO, "getref res: %p count: %d\n", res,
+	       atomic_read(&res->lr_refcount));
+	return res;
+}
 
 static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
 				  const void *key, unsigned mask)
@@ -519,7 +529,7 @@ static void ldlm_res_hop_put(struct cfs_hash *hs, struct hlist_node *hnode)
 	ldlm_resource_putref(res);
 }
 
-cfs_hash_ops_t ldlm_ns_hash_ops = {
+static cfs_hash_ops_t ldlm_ns_hash_ops = {
 	.hs_hash	= ldlm_res_hop_hash,
 	.hs_key	 = ldlm_res_hop_key,
 	.hs_keycmp      = ldlm_res_hop_keycmp,
@@ -530,7 +540,7 @@ cfs_hash_ops_t ldlm_ns_hash_ops = {
 	.hs_put	 = ldlm_res_hop_put
 };
 
-cfs_hash_ops_t ldlm_ns_fid_hash_ops = {
+static cfs_hash_ops_t ldlm_ns_fid_hash_ops = {
 	.hs_hash	= ldlm_res_hop_fid_hash,
 	.hs_key	 = ldlm_res_hop_key,
 	.hs_keycmp      = ldlm_res_hop_keycmp,
@@ -551,7 +561,7 @@ struct ldlm_ns_hash_def {
 	cfs_hash_ops_t *nsd_hops;
 };
 
-struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {
+static struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {
 	{
 		.nsd_type       = LDLM_NS_TYPE_MDC,
 		.nsd_bkt_bits   = 11,
@@ -592,6 +602,17 @@ struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {
 		.nsd_type       = LDLM_NS_TYPE_UNKNOWN,
 	},
 };
+
+/** Register \a ns in the list of namespaces */
+static void ldlm_namespace_register(struct ldlm_namespace *ns,
+				    ldlm_side_t client)
+{
+	mutex_lock(ldlm_namespace_lock(client));
+	LASSERT(list_empty(&ns->ns_list_chain));
+	list_add(&ns->ns_list_chain, ldlm_namespace_inactive_list(client));
+	ldlm_namespace_nr_inc(client);
+	mutex_unlock(ldlm_namespace_lock(client));
+}
 
 /**
  * Create and initialize new empty namespace.
@@ -912,6 +933,20 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 	}
 }
 
+/** Unregister \a ns from the list of namespaces. */
+static void ldlm_namespace_unregister(struct ldlm_namespace *ns,
+				      ldlm_side_t client)
+{
+	mutex_lock(ldlm_namespace_lock(client));
+	LASSERT(!list_empty(&ns->ns_list_chain));
+	/* Some asserts and possibly other parts of the code are still
+	 * using list_empty(&ns->ns_list_chain). This is why it is
+	 * important to use list_del_init() here. */
+	list_del_init(&ns->ns_list_chain);
+	ldlm_namespace_nr_dec(client);
+	mutex_unlock(ldlm_namespace_lock(client));
+}
+
 /**
  * Performs freeing memory structures related to \a ns. This is only done
  * when ldlm_namespce_free_prior() successfully removed all resources
@@ -947,7 +982,7 @@ void ldlm_namespace_get(struct ldlm_namespace *ns)
 EXPORT_SYMBOL(ldlm_namespace_get);
 
 /* This is only for callers that care about refcount */
-int ldlm_namespace_get_return(struct ldlm_namespace *ns)
+static int ldlm_namespace_get_return(struct ldlm_namespace *ns)
 {
 	return atomic_inc_return(&ns->ns_bref);
 }
@@ -960,29 +995,6 @@ void ldlm_namespace_put(struct ldlm_namespace *ns)
 	}
 }
 EXPORT_SYMBOL(ldlm_namespace_put);
-
-/** Register \a ns in the list of namespaces */
-void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client)
-{
-	mutex_lock(ldlm_namespace_lock(client));
-	LASSERT(list_empty(&ns->ns_list_chain));
-	list_add(&ns->ns_list_chain, ldlm_namespace_inactive_list(client));
-	ldlm_namespace_nr_inc(client);
-	mutex_unlock(ldlm_namespace_lock(client));
-}
-
-/** Unregister \a ns from the list of namespaces. */
-void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client)
-{
-	mutex_lock(ldlm_namespace_lock(client));
-	LASSERT(!list_empty(&ns->ns_list_chain));
-	/* Some asserts and possibly other parts of the code are still
-	 * using list_empty(&ns->ns_list_chain). This is why it is
-	 * important to use list_del_init() here. */
-	list_del_init(&ns->ns_list_chain);
-	ldlm_namespace_nr_dec(client);
-	mutex_unlock(ldlm_namespace_lock(client));
-}
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
 void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *ns,
@@ -1166,16 +1178,6 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	return res;
 }
 EXPORT_SYMBOL(ldlm_resource_get);
-
-struct ldlm_resource *ldlm_resource_getref(struct ldlm_resource *res)
-{
-	LASSERT(res != NULL);
-	LASSERT(res != LP_POISON);
-	atomic_inc(&res->lr_refcount);
-	CDEBUG(D_INFO, "getref res: %p count: %d\n", res,
-	       atomic_read(&res->lr_refcount));
-	return res;
-}
 
 static void __ldlm_resource_putref_final(struct cfs_hash_bd *bd,
 					 struct ldlm_resource *res)

@@ -60,13 +60,12 @@ char *ldlm_lockname[] = {
 };
 EXPORT_SYMBOL(ldlm_lockname);
 
-char *ldlm_typename[] = {
+static char *ldlm_typename[] = {
 	[LDLM_PLAIN]	= "PLN",
 	[LDLM_EXTENT]	= "EXT",
 	[LDLM_FLOCK]	= "FLK",
 	[LDLM_IBITS]	= "IBT",
 };
-EXPORT_SYMBOL(ldlm_typename);
 
 static ldlm_policy_wire_to_local_t ldlm_policy_wire18_to_local[] = {
 	[LDLM_PLAIN - LDLM_MIN_TYPE]	= ldlm_plain_policy_wire_to_local,
@@ -92,9 +91,9 @@ static ldlm_policy_local_to_wire_t ldlm_policy_local_to_wire[] = {
 /**
  * Converts lock policy from local format to on the wire lock_desc format
  */
-void ldlm_convert_policy_to_wire(ldlm_type_t type,
-				 const ldlm_policy_data_t *lpolicy,
-				 ldlm_wire_policy_data_t *wpolicy)
+static void ldlm_convert_policy_to_wire(ldlm_type_t type,
+					const ldlm_policy_data_t *lpolicy,
+					ldlm_wire_policy_data_t *wpolicy)
 {
 	ldlm_policy_local_to_wire_t convert;
 
@@ -246,7 +245,7 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 /**
  * Adds LDLM lock \a lock to namespace LRU. Assumes LRU is already locked.
  */
-void ldlm_lock_add_to_lru_nolock(struct ldlm_lock *lock)
+static void ldlm_lock_add_to_lru_nolock(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
@@ -264,7 +263,7 @@ void ldlm_lock_add_to_lru_nolock(struct ldlm_lock *lock)
  * Adds LDLM lock \a lock to namespace LRU. Obtains necessary LRU locks
  * first.
  */
-void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
+static void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
@@ -277,7 +276,7 @@ void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
  * Moves LDLM lock \a lock that is already in namespace LRU to the tail of
  * the LRU. Performs necessary LRU locking
  */
-void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
+static void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
@@ -308,7 +307,7 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
  * ldlm_lock_destroy, you can never drop your final references on this lock.
  * Because it's not in the hash table anymore.  -phil
  */
-int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
+static int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 {
 	if (lock->l_readers || lock->l_writers) {
 		LDLM_ERROR(lock, "lock still has references");
@@ -355,7 +354,7 @@ int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 /**
  * Destroys a LDLM lock \a lock. Performs necessary locking first.
  */
-void ldlm_lock_destroy(struct ldlm_lock *lock)
+static void ldlm_lock_destroy(struct ldlm_lock *lock)
 {
 	int first;
 
@@ -397,7 +396,7 @@ static void lock_handle_free(void *lock, int size)
 	OBD_SLAB_FREE(lock, ldlm_lock_slab, size);
 }
 
-struct portals_handle_ops lock_handle_ops = {
+static struct portals_handle_ops lock_handle_ops = {
 	.hop_addref = lock_handle_addref,
 	.hop_free   = lock_handle_free,
 };
@@ -606,8 +605,8 @@ EXPORT_SYMBOL(ldlm_lock2desc);
  *
  * Only add if we have not sent a blocking AST to the lock yet.
  */
-void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
-			   struct list_head *work_list)
+static void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
+				  struct list_head *work_list)
 {
 	if ((lock->l_flags & LDLM_FL_AST_SENT) == 0) {
 		LDLM_DEBUG(lock, "lock incompatible; sending blocking AST.");
@@ -627,7 +626,8 @@ void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 /**
  * Add a lock to list of just granted locks to send completion AST to.
  */
-void ldlm_add_cp_work_item(struct ldlm_lock *lock, struct list_head *work_list)
+static void ldlm_add_cp_work_item(struct ldlm_lock *lock,
+				  struct list_head *work_list)
 {
 	if ((lock->l_flags & LDLM_FL_CP_REQD) == 0) {
 		lock->l_flags |= LDLM_FL_CP_REQD;
@@ -1673,7 +1673,7 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 /**
  * Process a call to glimpse AST callback for a lock in ast_work list
  */
-int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
+static int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 {
 	struct ldlm_cb_set_arg		*arg = opaq;
 	struct ldlm_glimpse_work	*gl_work;
