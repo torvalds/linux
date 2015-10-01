@@ -670,8 +670,15 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, info);
 
+#ifdef __BIG_ENDIAN
 	/* Set byte-swapping for DFA aperture for all pixel sizes */
 	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x333300);
+#else /* __LITTLE_ENDIAN */
+	/* not sure what this means but fgl23 driver does that */
+	pci_write_config_dword(pdev, CFG_ENDIAN0, 0x2300);
+/*	pci_write_config_dword(pdev, CFG_ENDIAN0 + 4, 0x400000);*/
+	pci_write_config_dword(pdev, CFG_ENDIAN0 + 8, 0x98530000);
+#endif
 
 	info->fbops = &gxt4500_ops;
 	info->flags = FBINFO_FLAG_DEFAULT;
