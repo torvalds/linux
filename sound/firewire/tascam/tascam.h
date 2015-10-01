@@ -20,6 +20,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/info.h>
 
 #include "../lib.h"
 
@@ -42,5 +43,14 @@ struct snd_tscm {
 
 	const struct snd_tscm_spec *spec;
 };
+
+#define TSCM_ADDR_BASE			0xffff00000000ull
+
+#define TSCM_OFFSET_FIRMWARE_REGISTER	0x0000
+#define TSCM_OFFSET_FIRMWARE_FPGA	0x0004
+#define TSCM_OFFSET_FIRMWARE_ARM	0x0008
+#define TSCM_OFFSET_FIRMWARE_HW		0x000c
+
+void snd_tscm_proc_init(struct snd_tscm *tscm);
 
 #endif

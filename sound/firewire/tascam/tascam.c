@@ -113,6 +113,8 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
+	snd_tscm_proc_init(tscm);
+
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
