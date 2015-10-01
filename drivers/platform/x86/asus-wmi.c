@@ -1318,7 +1318,7 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	if (err < 0)
 		return err;
 
-	value = KELVIN_TO_CELSIUS((value & 0xFFFF)) * 1000;
+	value = DECI_KELVIN_TO_CELSIUS((value & 0xFFFF)) * 1000;
 
 	return sprintf(buf, "%d\n", value);
 }
