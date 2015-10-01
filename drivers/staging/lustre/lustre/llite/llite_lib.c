@@ -604,32 +604,6 @@ int ll_get_default_mdsize(struct ll_sb_info *sbi, int *lmmsize)
 	return rc;
 }
 
-int ll_get_max_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
-{
-	int size, rc;
-
-	size = sizeof(int);
-	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_MAX_COOKIESIZE),
-			  KEY_MAX_COOKIESIZE, &size, lmmsize, NULL);
-	if (rc)
-		CERROR("Get max cookiesize error rc %d\n", rc);
-
-	return rc;
-}
-
-int ll_get_default_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
-{
-	int size, rc;
-
-	size = sizeof(int);
-	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_DEFAULT_COOKIESIZE),
-			  KEY_DEFAULT_COOKIESIZE, &size, lmmsize, NULL);
-	if (rc)
-		CERROR("Get default cookiesize error rc %d\n", rc);
-
-	return rc;
-}
-
 static void client_common_put_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
