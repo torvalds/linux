@@ -659,6 +659,22 @@ static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
 	}
 }
 
+static u32 xhci_get_ext_port_status(u32 raw_port_status, u32 port_li)
+{
+	u32 ext_stat = 0;
+	int speed_id;
+
+	/* only support rx and tx lane counts of 1 in usb3.1 spec */
+	speed_id = DEV_PORT_SPEED(raw_port_status);
+	ext_stat |= speed_id;		/* bits 3:0, RX speed id */
+	ext_stat |= speed_id << 4;	/* bits 7:4, TX speed id */
+
+	ext_stat |= PORT_RX_LANES(port_li) << 8;  /* bits 11:8 Rx lane count */
+	ext_stat |= PORT_TX_LANES(port_li) << 12; /* bits 15:12 Tx lane count */
+
+	return ext_stat;
+}
+
 /*
  * Converts a raw xHCI port status into the format that external USB 2.0 or USB
  * 3.0 hubs use.
@@ -874,6 +890,19 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
+		/* if USB 3.1 extended port status return additional 4 bytes */
+		if (wValue == 0x02) {
+			u32 port_li;
+
+			if (hcd->speed < HCD_USB31 || wLength != 8) {
+				xhci_err(xhci, "get ext port status invalid parameter\n");
+				retval = -EINVAL;
+				break;
+			}
+			port_li = readl(port_array[wIndex] + PORTLI);
+			status = xhci_get_ext_port_status(temp, port_li);
+			put_unaligned_le32(cpu_to_le32(status), &buf[4]);
+		}
 		break;
 	case SetPortFeature:
 		if (wValue == USB_PORT_FEAT_LINK_STATE)
