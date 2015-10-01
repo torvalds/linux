@@ -126,6 +126,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			    obj->madv != I915_MADV_DONTNEED)
 				continue;
 
+			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
+				continue;
+
 			drm_gem_object_reference(&obj->base);
 
 			/* For the unbound phase, this should be a no-op! */
@@ -164,7 +167,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	return i915_gem_shrink(dev_priv, -1UL,
-			       I915_SHRINK_BOUND | I915_SHRINK_UNBOUND);
+			       I915_SHRINK_BOUND |
+			       I915_SHRINK_UNBOUND |
+			       I915_SHRINK_ACTIVE);
 }
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
@@ -217,7 +222,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (obj->pages_pin_count == num_vma_bound(obj))
+		if (!obj->active && obj->pages_pin_count == num_vma_bound(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 
