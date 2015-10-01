@@ -86,6 +86,8 @@ config MS5637
 	help
 	  If you say yes here you get support for the Measurement Specialties
 	  MS5637 pressure and temperature sensor.
+	  This driver is also used for MS8607 temperature, pressure & humidity
+	  sensor
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ms5637.

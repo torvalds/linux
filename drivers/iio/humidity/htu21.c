@@ -1,6 +1,7 @@
 /*
  * htu21.c - Support for Measurement-Specialties
  *           htu21 temperature & humidity sensor
+ *	     and humidity part of MS8607 sensor
  *
  * Copyright (c) 2014 Measurement-Specialties
  *
@@ -10,6 +11,8 @@
  *
  * Datasheet:
  *  http://www.meas-spec.com/downloads/HTU21D.pdf
+ * Datasheet:
+ *  http://www.meas-spec.com/downloads/MS8607-02BA01.pdf
  */
 
 #include <linux/init.h>
@@ -23,6 +26,11 @@
 #include "../common/ms_sensors/ms_sensors_i2c.h"
 
 #define HTU21_RESET				0xFE
+
+enum {
+	HTU21,
+	MS8607
+};
 
 static const int htu21_samp_freq[4] = { 20, 40, 70, 120 };
 /* String copy of the above const for readability purpose */
@@ -99,6 +107,18 @@ static const struct iio_chan_spec htu21_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_PROCESSED),
 		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	 },
+	{
+		.type = IIO_HUMIDITYRELATIVE,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_PROCESSED),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+	 }
+};
+
+/*
+ * Meas Spec recommendation is to not read temperature
+ * on this driver part for MS8607
+ */
+static const struct iio_chan_spec ms8607_channels[] = {
 	{
 		.type = IIO_HUMIDITYRELATIVE,
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_PROCESSED),
@@ -188,8 +208,14 @@ static int htu21_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = htu21_channels;
-	indio_dev->num_channels = ARRAY_SIZE(htu21_channels);
+
+	if (id->driver_data == MS8607) {
+		indio_dev->channels = ms8607_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ms8607_channels);
+	} else {
+		indio_dev->channels = htu21_channels;
+		indio_dev->num_channels = ARRAY_SIZE(htu21_channels);
+	}
 
 	i2c_set_clientdata(client, indio_dev);
 
@@ -206,7 +232,8 @@ static int htu21_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id htu21_id[] = {
-	{"htu21", 0},
+	{"htu21", HTU21},
+	{"ms8607-humidity", MS8607},
 	{}
 };
 

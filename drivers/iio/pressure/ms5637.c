@@ -1,5 +1,5 @@
 /*
- * ms5637.c - Support for Measurement-Specialties ms5637
+ * ms5637.c - Support for Measurement-Specialties ms5637 and ms8607
  *            pressure & temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
@@ -10,7 +10,10 @@
  *
  * Datasheet:
  *  http://www.meas-spec.com/downloads/MS5637-02BA03.pdf
+ * Datasheet:
+ *  http://www.meas-spec.com/downloads/MS8607-02BA01.pdf
  */
+
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -167,6 +170,7 @@ static int ms5637_probe(struct i2c_client *client,
 
 static const struct i2c_device_id ms5637_id[] = {
 	{"ms5637", 0},
+	{"ms8607-temppressure", 1},
 	{}
 };
 
