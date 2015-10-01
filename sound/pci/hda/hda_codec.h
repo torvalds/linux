@@ -22,6 +22,7 @@
 #define __SOUND_HDA_CODEC_H
 
 #include <linux/kref.h>
+#include <linux/mod_devicetable.h>
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -80,19 +81,21 @@ struct hda_bus {
  * Known codecs have the patch to build and set up the controls/PCMs
  * better than the generic parser.
  */
-struct hda_codec_preset {
-	unsigned int id;
-	unsigned int rev;
-	const char *name;
-	int (*patch)(struct hda_codec *codec);
-};
+typedef int (*hda_codec_patch_t)(struct hda_codec *);
 	
 #define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
 #define HDA_CODEC_ID_GENERIC		0x00000201
 
+#define HDA_CODEC_REV_ENTRY(_vid, _rev, _name, _patch) \
+	{ .vendor_id = (_vid), .rev_id = (_rev), .name = (_name), \
+	  .api_version = HDA_DEV_LEGACY, \
+	  .driver_data = (unsigned long)(_patch) }
+#define HDA_CODEC_ENTRY(_vid, _name, _patch) \
+	HDA_CODEC_REV_ENTRY(_vid, 0, _name, _patch)
+
 struct hda_codec_driver {
 	struct hdac_driver core;
-	const struct hda_codec_preset *preset;
+	const struct hda_device_id *id;
 };
 
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
@@ -183,7 +186,7 @@ struct hda_codec {
 	u32 probe_id; /* overridden id for probing */
 
 	/* detected preset */
-	const struct hda_codec_preset *preset;
+	const struct hda_device_id *preset;
 	const char *modelname;	/* model name for preset */
 
 	/* set by patch */

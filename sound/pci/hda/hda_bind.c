@@ -15,21 +15,22 @@
 #include "hda_local.h"
 
 /*
- * find a matching codec preset
+ * find a matching codec id
  */
 static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 	struct hda_codec_driver *driver =
 		container_of(drv, struct hda_codec_driver, core);
-	const struct hda_codec_preset *preset;
+	const struct hda_device_id *list;
 	/* check probe_id instead of vendor_id if set */
 	u32 id = codec->probe_id ? codec->probe_id : codec->core.vendor_id;
+	u32 rev_id = codec->core.revision_id;
 
-	for (preset = driver->preset; preset->id; preset++) {
-		if (preset->id == id &&
-		    (!preset->rev || preset->rev == codec->core.revision_id)) {
-			codec->preset = preset;
+	for (list = driver->id; list->vendor_id; list++) {
+		if (list->vendor_id == id &&
+		    (!list->rev_id || list->rev_id == rev_id)) {
+			codec->preset = list;
 			return 1;
 		}
 	}
@@ -77,6 +78,7 @@ static int hda_codec_driver_probe(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 	struct module *owner = dev->driver->owner;
+	hda_codec_patch_t patch;
 	int err;
 
 	if (WARN_ON(!codec->preset))
@@ -94,9 +96,12 @@ static int hda_codec_driver_probe(struct device *dev)
 		goto error;
 	}
 
-	err = codec->preset->patch(codec);
-	if (err < 0)
-		goto error_module;
+	patch = (hda_codec_patch_t)codec->preset->driver_data;
+	if (patch) {
+		err = patch(codec);
+		if (err < 0)
+			goto error_module;
+	}
 
 	err = snd_hda_codec_build_pcms(codec);
 	if (err < 0)
@@ -173,11 +178,10 @@ static inline bool codec_probed(struct hda_codec *codec)
 static void codec_bind_module(struct hda_codec *codec)
 {
 #ifdef MODULE
-	request_module("snd-hda-codec-id:%08x", codec->core.vendor_id);
-	if (codec_probed(codec))
-		return;
-	request_module("snd-hda-codec-id:%04x*",
-		       (codec->core.vendor_id >> 16) & 0xffff);
+	char modalias[32];
+
+	snd_hdac_codec_modalias(&codec->core, modalias, sizeof(modalias));
+	request_module(modalias);
 	if (codec_probed(codec))
 		return;
 #endif
