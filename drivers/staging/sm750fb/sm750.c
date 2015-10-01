@@ -539,18 +539,6 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 
 	switch (var->bits_per_pixel) {
 	case 8:
-	case 16:
-	case 24: /* support 24 bpp for only lynx712/722/720 */
-	case 32:
-		break;
-	default:
-		pr_err("bpp %d not supported\n", var->bits_per_pixel);
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	switch (var->bits_per_pixel) {
-	case 8:
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 		var->red.offset = 0;
 		var->red.length = 8;
@@ -583,8 +571,8 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	default:
-		ret = -EINVAL;
-		break;
+		pr_err("bpp %d not supported\n", var->bits_per_pixel);
+		return -EINVAL;
 	}
 	var->height = var->width = -1;
 	var->accel_flags = 0;/* FB_ACCELF_TEXT; */
@@ -603,7 +591,6 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	ret = output->proc_checkMode(output, var);
 	if (!ret)
 		ret = crtc->proc_checkMode(crtc, var);
-exit:
 	return ret;
 }
 
