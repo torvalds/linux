@@ -1196,12 +1196,15 @@ static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
 
 	j = jiffies;
 	gpa = READ_ONCE(rsp->gp_activity);
-	if (j - gpa > 2 * HZ)
+	if (j - gpa > 2 * HZ) {
 		pr_err("%s kthread starved for %ld jiffies! g%lu c%lu f%#x s%d ->state=%#lx\n",
 		       rsp->name, j - gpa,
 		       rsp->gpnum, rsp->completed,
 		       rsp->gp_flags, rsp->gp_state,
 		       rsp->gp_kthread ? rsp->gp_kthread->state : ~0);
+		if (rsp->gp_kthread)
+			sched_show_task(rsp->gp_kthread);
+	}
 }
 
 /*
