@@ -56,6 +56,7 @@
  * @hcc_params:		HCCPARAMS - Capability Parameters
  * @db_off:		DBOFF - Doorbell array offset
  * @run_regs_off:	RTSOFF - Runtime register space offset
+ * @hcc_params2:	HCCPARAMS2 Capability Parameters 2, xhci 1.1 only
  */
 struct xhci_cap_regs {
 	__le32	hc_capbase;
@@ -65,6 +66,7 @@ struct xhci_cap_regs {
 	__le32	hcc_params;
 	__le32	db_off;
 	__le32	run_regs_off;
+	__le32	hcc_params2; /* xhci 1.1 */
 	/* Reserved up to (CAPLENGTH - 0x1C) */
 };
 
@@ -134,6 +136,21 @@ struct xhci_cap_regs {
 /* run_regs_off bitmask - bits 0:4 reserved */
 #define	RTSOFF_MASK	(~0x1f)
 
+/* HCCPARAMS2 - hcc_params2 - bitmasks */
+/* true: HC supports U3 entry Capability */
+#define	HCC2_U3C(p)		((p) & (1 << 0))
+/* true: HC supports Configure endpoint command Max exit latency too large */
+#define	HCC2_CMC(p)		((p) & (1 << 1))
+/* true: HC supports Force Save context Capability */
+#define	HCC2_FSC(p)		((p) & (1 << 2))
+/* true: HC supports Compliance Transition Capability */
+#define	HCC2_CTC(p)		((p) & (1 << 3))
+/* true: HC support Large ESIT payload Capability > 48k */
+#define	HCC2_LEC(p)		((p) & (1 << 4))
+/* true: HC support Configuration Information Capability */
+#define	HCC2_CIC(p)		((p) & (1 << 5))
+/* true: HC support Extended TBC Capability, Isoc burst count > 65535 */
+#define	HCC2_ETC(p)		((p) & (1 << 6))
 
 /* Number of registers per port */
 #define	NUM_PORT_REGS	4
@@ -269,7 +286,11 @@ struct xhci_op_regs {
 /* CONFIG - Configure Register - config_reg bitmasks */
 /* bits 0:7 - maximum number of device slots enabled (NumSlotsEn) */
 #define MAX_DEVS(p)	((p) & 0xff)
-/* bits 8:31 - reserved and should be preserved */
+/* bit 8: U3 Entry Enabled, assert PLC when root port enters U3, xhci 1.1 */
+#define CONFIG_U3E		(1 << 8)
+/* bit 9: Configuration Information Enable, xhci 1.1 */
+#define CONFIG_CIE		(1 << 9)
+/* bits 10:31 - reserved and should be preserved */
 
 /* PORTSC - Port Status and Control Register - port_status_base bitmasks */
 /* true: device connected */
@@ -1465,6 +1486,7 @@ struct xhci_hcd {
 	__u32		hcs_params2;
 	__u32		hcs_params3;
 	__u32		hcc_params;
+	__u32		hcc_params2;
 
 	spinlock_t	lock;
 
