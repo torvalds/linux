@@ -1223,7 +1223,7 @@ static int nfs_can_extend_write(struct file *file, struct page *page, struct ino
 		return 1;
 	if (!flctx || (list_empty_careful(&flctx->flc_flock) &&
 		       list_empty_careful(&flctx->flc_posix)))
-		return 0;
+		return 1;
 
 	/* Check to see if there are whole file write locks */
 	ret = 0;
