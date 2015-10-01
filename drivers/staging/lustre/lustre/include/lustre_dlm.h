@@ -1307,7 +1307,6 @@ int ldlm_prep_elc_req(struct obd_export *exp,
 		      int version, int opc, int canceloff,
 		      struct list_head *cancels, int count);
 
-struct ptlrpc_request *ldlm_enqueue_pack(struct obd_export *exp, int lvb_len);
 int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  ldlm_type_t type, __u8 with_policy, ldlm_mode_t mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
