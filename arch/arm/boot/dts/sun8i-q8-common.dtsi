@@ -90,6 +90,10 @@
 	};
 };
 
+&r_rsb {
+	status = "okay";
+};
+
 &r_uart {
 	pinctrl-names = "default";
 	pinctrl-0 = <&r_uart_pins_a>;
