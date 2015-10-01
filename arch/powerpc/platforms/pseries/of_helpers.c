@@ -17,14 +17,14 @@ struct device_node *pseries_of_derive_parent(const char *path)
 {
 	struct device_node *parent;
 	char *parent_path = "/";
-	size_t parent_path_len = strrchr(path, '/') - path + 1;
+	const char *tail = kbasename(path);
 
 	/* reject if path is "/" */
 	if (!strcmp(path, "/"))
 		return ERR_PTR(-EINVAL);
 
-	if (strrchr(path, '/') != path) {
-		parent_path = kstrndup(path, parent_path_len, GFP_KERNEL);
+	if (tail > path + 1) {
+		parent_path = kstrndup(path, tail - path, GFP_KERNEL);
 		if (!parent_path)
 			return ERR_PTR(-ENOMEM);
 	}
