@@ -672,7 +672,7 @@ static int vrf_device_event(struct notifier_block *unused,
 	if (event == NETDEV_UNREGISTER) {
 		struct net_device *vrf_dev;
 
-		if (netif_is_l3_master(dev))
+		if (!vrf_is_slave(dev) || netif_is_l3_master(dev))
 			goto out;
 
 		vrf_dev = netdev_master_upper_dev_get(dev);
