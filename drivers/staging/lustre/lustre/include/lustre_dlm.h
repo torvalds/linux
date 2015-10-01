@@ -1161,8 +1161,7 @@ static inline int ldlm_res_lvbo_update(struct ldlm_resource *res,
 }
 
 int ldlm_error2errno(ldlm_error_t error);
-ldlm_error_t ldlm_errno2error(int err_no); /* don't call it `errno': this
-					    * confuses user-space. */
+
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void ldlm_dump_export_locks(struct obd_export *exp);
 #endif
