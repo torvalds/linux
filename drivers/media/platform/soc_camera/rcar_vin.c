@@ -1603,8 +1603,8 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 		field = pix->field;
 		break;
 	case V4L2_FIELD_INTERLACED:
-		/* Get the last standard if not explicitly mentioned _TB/_BT */
-		ret = v4l2_subdev_call(sd, video, g_std, &std);
+		/* Query for standard if not explicitly mentioned _TB/_BT */
+		ret = v4l2_subdev_call(sd, video, querystd, &std);
 		if (ret == -ENOIOCTLCMD) {
 			field = V4L2_FIELD_NONE;
 		} else if (ret < 0) {
