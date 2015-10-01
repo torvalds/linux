@@ -213,13 +213,14 @@ static unsigned char visorkbd_keycode[256] = {	/* American layout */
 /* This maps the <xx> in extended scancodes of the form "0xE0 <xx>" into
  * keycodes.
  */
-static unsigned char ext_keycode[256] = {
+static unsigned char visorkbd_ext_keycode[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x00 */
 	0, 0, 0, 0, 0, 0, 0, 0,					    /* 0x10 */
 	0, 0, 0, 0, KEY_KPENTER, KEY_RIGHTCTRL, 0, 0,		    /* 0x18 */
 	0, 0, 0, 0, 0, 0, 0, 0,					    /* 0x20 */
 	KEY_RIGHTALT, 0, 0, 0, 0, 0, 0, 0,			    /* 0x28 */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x30 */
+	0, 0, 0, 0, 0, 0, 0, 0,					    /* 0x30 */
+	KEY_RIGHTALT /* AltGr */, 0, 0, 0, 0, 0, 0, 0,		    /* 0x38 */
 	0, 0, 0, 0, 0, 0, 0, KEY_HOME,				    /* 0x40 */
 	KEY_UP, KEY_PAGEUP, 0, KEY_LEFT, 0, KEY_RIGHT, 0, KEY_END,  /* 0x48 */
 	KEY_DOWN, KEY_PAGEDOWN, KEY_INSERT, KEY_DELETE, 0, 0, 0, 0, /* 0x50 */
@@ -348,6 +349,9 @@ register_client_keyboard(void)
 	for (i = 1; i < ARRAY_SIZE(visorkbd_keycode); i++)
 		set_bit(visorkbd_keycode[i], visorinput_dev->keybit);
 
+	for (i = 1; i < ARRAY_SIZE(visorkbd_ext_keycode); i++)
+		set_bit(visorkbd_ext_keycode[i], visorinput_dev->keybit);
+
 	error = input_register_device(visorinput_dev);
 	if (error) {
 		input_free_device(visorinput_dev);
@@ -469,7 +473,7 @@ scancode_to_keycode(int scancode)
 	int keycode;
 
 	if (scancode > 0xff)
-		keycode = ext_keycode[(scancode >> 8) & 0xff];
+		keycode = visorkbd_ext_keycode[(scancode >> 8) & 0xff];
 	else
 		keycode = visorkbd_keycode[scancode];
 	return keycode;
