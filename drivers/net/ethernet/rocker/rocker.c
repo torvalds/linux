@@ -4445,16 +4445,16 @@ static int rocker_port_obj_add(struct net_device *dev,
 	int err = 0;
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = rocker_port_vlans_add(rocker_port, trans, obj);
 		break;
-	case SWITCHDEV_OBJ_IPV4_FIB:
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
 		fib4 = obj;
 		err = rocker_port_fib_ipv4(rocker_port, trans,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id, 0);
 		break;
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_port_fdb_add(rocker_port, trans, obj);
 		break;
 	default:
@@ -4515,17 +4515,17 @@ static int rocker_port_obj_del(struct net_device *dev,
 	int err = 0;
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = rocker_port_vlans_del(rocker_port, obj);
 		break;
-	case SWITCHDEV_OBJ_IPV4_FIB:
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
 		fib4 = obj;
 		err = rocker_port_fib_ipv4(rocker_port, NULL,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id,
 					   ROCKER_OP_FLAG_REMOVE);
 		break;
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_port_fdb_del(rocker_port, NULL, obj);
 		break;
 	default:
@@ -4594,10 +4594,10 @@ static int rocker_port_obj_dump(struct net_device *dev,
 	int err = 0;
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_port_fdb_dump(rocker_port, obj, cb);
 		break;
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = rocker_port_vlan_dump(rocker_port, obj, cb);
 		break;
 	default:

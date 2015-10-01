@@ -58,20 +58,20 @@ struct switchdev_attr {
 struct fib_info;
 
 enum switchdev_obj_id {
-	SWITCHDEV_OBJ_UNDEFINED,
-	SWITCHDEV_OBJ_PORT_VLAN,
-	SWITCHDEV_OBJ_IPV4_FIB,
-	SWITCHDEV_OBJ_PORT_FDB,
+	SWITCHDEV_OBJ_ID_UNDEFINED,
+	SWITCHDEV_OBJ_ID_PORT_VLAN,
+	SWITCHDEV_OBJ_ID_IPV4_FIB,
+	SWITCHDEV_OBJ_ID_PORT_FDB,
 };
 
-/* SWITCHDEV_OBJ_PORT_VLAN */
+/* SWITCHDEV_OBJ_ID_PORT_VLAN */
 struct switchdev_obj_vlan {
 	u16 flags;
 	u16 vid_begin;
 	u16 vid_end;
 };
 
-/* SWITCHDEV_OBJ_IPV4_FIB */
+/* SWITCHDEV_OBJ_ID_IPV4_FIB */
 struct switchdev_obj_ipv4_fib {
 	u32 dst;
 	int dst_len;
@@ -82,7 +82,7 @@ struct switchdev_obj_ipv4_fib {
 	u32 tb_id;
 };
 
-/* SWITCHDEV_OBJ_PORT_FDB */
+/* SWITCHDEV_OBJ_ID_PORT_FDB */
 struct switchdev_obj_fdb {
 	const unsigned char *addr;
 	u16 vid;

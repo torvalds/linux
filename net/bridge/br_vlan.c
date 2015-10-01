@@ -88,7 +88,8 @@ static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
 			.vid_end = vid,
 		};
 
-		err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_PORT_VLAN, &v);
+		err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_ID_PORT_VLAN,
+					     &v);
 		if (err == -EOPNOTSUPP)
 			err = 0;
 	}
@@ -136,7 +137,8 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 			.vid_end = vid,
 		};
 
-		err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_PORT_VLAN, &v);
+		err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_ID_PORT_VLAN,
+					     &v);
 		if (err == -EOPNOTSUPP)
 			err = 0;
 	}

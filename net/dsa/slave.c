@@ -485,10 +485,10 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	 */
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = dsa_slave_port_fdb_add(dev, obj, trans);
 		break;
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_port_vlan_add(dev, obj, trans);
 		break;
 	default:
@@ -505,10 +505,10 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 	int err;
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = dsa_slave_port_fdb_del(dev, obj);
 		break;
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_port_vlan_del(dev, obj);
 		break;
 	default:
@@ -526,10 +526,10 @@ static int dsa_slave_port_obj_dump(struct net_device *dev,
 	int err;
 
 	switch (id) {
-	case SWITCHDEV_OBJ_PORT_FDB:
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = dsa_slave_port_fdb_dump(dev, obj, cb);
 		break;
-	case SWITCHDEV_OBJ_PORT_VLAN:
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_port_vlan_dump(dev, obj, cb);
 		break;
 	default:

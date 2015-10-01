@@ -584,7 +584,7 @@ static int switchdev_port_vlan_fill(struct sk_buff *skb, struct net_device *dev,
 
 	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
 	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
-		err = switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_PORT_VLAN,
+		err = switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_ID_PORT_VLAN,
 					      &dump.vlan,
 					      switchdev_port_vlan_dump_cb);
 		if (err)
@@ -725,7 +725,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 			vlan.vid_end = vinfo->vid;
 			if (vlan.vid_end <= vlan.vid_begin)
 				return -EINVAL;
-			err = f(dev, SWITCHDEV_OBJ_PORT_VLAN, &vlan);
+			err = f(dev, SWITCHDEV_OBJ_ID_PORT_VLAN, &vlan);
 			if (err)
 				return err;
 			memset(&vlan, 0, sizeof(vlan));
@@ -734,7 +734,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 				return -EINVAL;
 			vlan.vid_begin = vinfo->vid;
 			vlan.vid_end = vinfo->vid;
-			err = f(dev, SWITCHDEV_OBJ_PORT_VLAN, &vlan);
+			err = f(dev, SWITCHDEV_OBJ_ID_PORT_VLAN, &vlan);
 			if (err)
 				return err;
 			memset(&vlan, 0, sizeof(vlan));
@@ -824,7 +824,7 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		.vid = vid,
 	};
 
-	return switchdev_port_obj_add(dev, SWITCHDEV_OBJ_PORT_FDB, &fdb);
+	return switchdev_port_obj_add(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &fdb);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_add);
 
@@ -848,7 +848,7 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		.vid = vid,
 	};
 
-	return switchdev_port_obj_del(dev, SWITCHDEV_OBJ_PORT_FDB, &fdb);
+	return switchdev_port_obj_del(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &fdb);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
 
@@ -926,7 +926,7 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		.idx = idx,
 	};
 
-	switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_PORT_FDB, &dump.fdb,
+	switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &dump.fdb,
 				switchdev_port_fdb_dump_cb);
 	return dump.idx;
 }
@@ -1033,7 +1033,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	if (!dev)
 		return 0;
 
-	err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_IPV4_FIB, &ipv4_fib);
+	err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_ID_IPV4_FIB, &ipv4_fib);
 	if (!err)
 		fi->fib_flags |= RTNH_F_OFFLOAD;
 
@@ -1075,7 +1075,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	if (!dev)
 		return 0;
 
-	err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_IPV4_FIB, &ipv4_fib);
+	err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_ID_IPV4_FIB, &ipv4_fib);
 	if (!err)
 		fi->fib_flags &= ~RTNH_F_OFFLOAD;
 
