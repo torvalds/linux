@@ -86,6 +86,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	unsigned long count = 0;
 
 	trace_i915_gem_shrink(dev_priv, target, flags);
+	i915_gem_retire_requests(dev_priv->dev);
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
@@ -141,6 +142,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		list_splice(&still_in_list, phase->list);
 	}
 
+	i915_gem_retire_requests(dev_priv->dev);
+
 	return count;
 }
 
@@ -160,7 +163,6 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
  */
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	i915_gem_evict_everything(dev_priv->dev);
 	return i915_gem_shrink(dev_priv, -1UL,
 			       I915_SHRINK_BOUND | I915_SHRINK_UNBOUND);
 }
