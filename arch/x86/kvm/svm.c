@@ -1177,10 +1177,6 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	if (!kvm_arch_has_assigned_device(vcpu->kvm))
 		return 0;
 
-	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED) &&
-	    kvm_read_cr0(vcpu) & X86_CR0_CD)
-		return _PAGE_NOCACHE;
-
 	mtrr = kvm_mtrr_get_guest_memory_type(vcpu, gfn);
 	return mtrr2protval[mtrr];
 }
@@ -1676,10 +1672,13 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	if (!vcpu->fpu_active)
 		cr0 |= X86_CR0_TS;
-
-	/* These are emulated via page tables.  */
-	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
-
+	/*
+	 * re-enable caching here because the QEMU bios
+	 * does not do it - this results in some delay at
+	 * reboot
+	 */
+	if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
+		cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
 	svm->vmcb->save.cr0 = cr0;
 	mark_dirty(svm->vmcb, VMCB_CR);
 	update_cr0_intercept(svm);
