@@ -73,7 +73,7 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
  */
 unsigned long
 i915_gem_shrink(struct drm_i915_private *dev_priv,
-		long target, unsigned flags)
+		unsigned long target, unsigned flags)
 {
 	const struct {
 		struct list_head *list;
@@ -159,7 +159,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	i915_gem_evict_everything(dev_priv->dev);
-	return i915_gem_shrink(dev_priv, LONG_MAX,
+	return i915_gem_shrink(dev_priv, -1UL,
 			       I915_SHRINK_BOUND | I915_SHRINK_UNBOUND);
 }
 

@@ -3203,7 +3203,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
-			      long target,
+			      unsigned long target,
 			      unsigned flags);
 #define I915_SHRINK_PURGEABLE 0x1
 #define I915_SHRINK_UNBOUND 0x2
