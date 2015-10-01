@@ -82,6 +82,8 @@ static void tscm_card_free(struct snd_card *card)
 {
 	struct snd_tscm *tscm = card->private_data;
 
+	snd_tscm_stream_destroy_duplex(tscm);
+
 	fw_unit_put(tscm->unit);
 
 	mutex_destroy(&tscm->mutex);
@@ -115,6 +117,10 @@ static int snd_tscm_probe(struct fw_unit *unit,
 
 	snd_tscm_proc_init(tscm);
 
+	err = snd_tscm_stream_init_duplex(tscm);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
@@ -129,7 +135,11 @@ error:
 
 static void snd_tscm_update(struct fw_unit *unit)
 {
-	return;
+	struct snd_tscm *tscm = dev_get_drvdata(&unit->device);
+
+	mutex_lock(&tscm->mutex);
+	snd_tscm_stream_update_duplex(tscm);
+	mutex_unlock(&tscm->mutex);
 }
 
 static void snd_tscm_remove(struct fw_unit *unit)
