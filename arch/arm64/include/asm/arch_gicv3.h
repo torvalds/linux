@@ -163,5 +163,8 @@ static inline void gic_write_sre(u32 val)
 	isb();
 }
 
+#define gic_read_typer(c)		readq_relaxed(c)
+#define gic_write_irouter(v, c)		writeq_relaxed(v, c)
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_ARCH_GICV3_H */
