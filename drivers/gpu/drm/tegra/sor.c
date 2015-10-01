@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -170,6 +171,7 @@ struct tegra_sor {
 
 	struct reset_control *rst;
 	struct clk *clk_parent;
+	struct clk *clk_brick;
 	struct clk *clk_safe;
 	struct clk *clk_dp;
 	struct clk *clk;
@@ -253,6 +255,101 @@ static int tegra_sor_set_parent_clock(struct tegra_sor *sor, struct clk *parent)
 		return err;
 
 	return 0;
+}
+
+struct tegra_clk_sor_brick {
+	struct clk_hw hw;
+	struct tegra_sor *sor;
+};
+
+static inline struct tegra_clk_sor_brick *to_brick(struct clk_hw *hw)
+{
+	return container_of(hw, struct tegra_clk_sor_brick, hw);
+}
+
+static const char * const tegra_clk_sor_brick_parents[] = {
+	"pll_d2_out0", "pll_dp"
+};
+
+static int tegra_clk_sor_brick_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct tegra_clk_sor_brick *brick = to_brick(hw);
+	struct tegra_sor *sor = brick->sor;
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
+
+	switch (index) {
+	case 0:
+		value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK;
+		break;
+
+	case 1:
+		value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_DPCLK;
+		break;
+	}
+
+	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
+
+	return 0;
+}
+
+static u8 tegra_clk_sor_brick_get_parent(struct clk_hw *hw)
+{
+	struct tegra_clk_sor_brick *brick = to_brick(hw);
+	struct tegra_sor *sor = brick->sor;
+	u8 parent = U8_MAX;
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+
+	switch (value & SOR_CLK_CNTRL_DP_CLK_SEL_MASK) {
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_PCLK:
+		parent = 0;
+		break;
+
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_DPCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_DPCLK:
+		parent = 1;
+		break;
+	}
+
+	return parent;
+}
+
+static const struct clk_ops tegra_clk_sor_brick_ops = {
+	.set_parent = tegra_clk_sor_brick_set_parent,
+	.get_parent = tegra_clk_sor_brick_get_parent,
+};
+
+static struct clk *tegra_clk_sor_brick_register(struct tegra_sor *sor,
+						const char *name)
+{
+	struct tegra_clk_sor_brick *brick;
+	struct clk_init_data init;
+	struct clk *clk;
+
+	brick = devm_kzalloc(sor->dev, sizeof(*brick), GFP_KERNEL);
+	if (!brick)
+		return ERR_PTR(-ENOMEM);
+
+	brick->sor = sor;
+
+	init.name = name;
+	init.flags = 0;
+	init.parent_names = tegra_clk_sor_brick_parents;
+	init.num_parents = ARRAY_SIZE(tegra_clk_sor_brick_parents);
+	init.ops = &tegra_clk_sor_brick_ops;
+
+	brick->hw.init = &init;
+
+	clk = devm_clk_register(sor->dev, &brick->hw);
+	if (IS_ERR(clk))
+		kfree(brick);
+
+	return clk;
 }
 
 static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
@@ -2521,6 +2618,16 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sor);
 	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get_sync(&pdev->dev);
+	sor->clk_brick = tegra_clk_sor_brick_register(sor, "sor1_brick");
+	pm_runtime_put(&pdev->dev);
+
+	if (IS_ERR(sor->clk_brick)) {
+		err = PTR_ERR(sor->clk_brick);
+		dev_err(&pdev->dev, "failed to register SOR clock: %d\n", err);
+		goto remove;
+	}
 
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;
