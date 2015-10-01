@@ -420,7 +420,7 @@ config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
 	depends on ((X86 && PCI) || (ARM64 && (OF_ADDRESS || ACPI))) && HAS_IOMEM
 	help
-	  The AMD Cryptographic Coprocessor provides hardware support
+	  The AMD Cryptographic Coprocessor provides hardware offload support
 	  for encryption, hashing and related operations.
 
 if CRYPTO_DEV_CCP
