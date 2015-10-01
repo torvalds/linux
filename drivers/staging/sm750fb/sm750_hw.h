@@ -85,7 +85,6 @@ int hw_sm750_deWait(void);
 int hw_sm750le_deWait(void);
 
 resource_size_t hw_sm750_getVMSize(struct lynx_share *);
-int hw_sm750_output_checkMode(struct lynxfb_output*, struct fb_var_screeninfo*);
 int hw_sm750_output_setMode(struct lynxfb_output*, struct fb_var_screeninfo*, struct fb_fix_screeninfo*);
 int hw_sm750_crtc_checkMode(struct lynxfb_crtc*, struct fb_var_screeninfo*);
 int hw_sm750_crtc_setMode(struct lynxfb_crtc*, struct fb_var_screeninfo*, struct fb_fix_screeninfo*);

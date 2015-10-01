@@ -588,10 +588,7 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		return -ENOMEM;
 	}
 
-	ret = output->proc_checkMode(output, var);
-	if (!ret)
-		ret = crtc->proc_checkMode(crtc, var);
-	return ret;
+	return crtc->proc_checkMode(crtc, var);
 }
 
 static int lynxfb_ops_setcolreg(unsigned regno,
@@ -690,7 +687,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	crtc->ywrapstep = 0;
 
 	output->proc_setMode = hw_sm750_output_setMode;
-	output->proc_checkMode = hw_sm750_output_checkMode;
 
 	output->proc_setBLANK = (share->revid == SM750LE_REVISION_ID) ?
 				 hw_sm750le_setBLANK : hw_sm750_setBLANK;

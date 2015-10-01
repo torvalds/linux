@@ -190,15 +190,6 @@ resource_size_t hw_sm750_getVMSize(struct lynx_share *share)
 	return ret;
 }
 
-
-
-int hw_sm750_output_checkMode(struct lynxfb_output *output, struct fb_var_screeninfo *var)
-{
-
-	return 0;
-}
-
-
 int hw_sm750_output_setMode(struct lynxfb_output *output,
 									struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix)
 {
