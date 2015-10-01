@@ -429,7 +429,7 @@ LU_KEY_INIT_FINI(lu_global, struct lu_cdebug_data);
  * Key, holding temporary buffer. This key is registered very early by
  * lu_global_init().
  */
-struct lu_context_key lu_global_key = {
+static struct lu_context_key lu_global_key = {
 	.lct_tags = LCT_MD_THREAD | LCT_DT_THREAD |
 		    LCT_MG_THREAD | LCT_CL_THREAD | LCT_LOCAL,
 	.lct_init = lu_global_key_init,
