@@ -119,7 +119,6 @@ struct visornic_devdata {
 					 * IOPART
 					 */
 	struct visor_device *dev;
-	char name[99];
 	struct list_head list_all;   /* < link within list_all_devices list */
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
@@ -1388,7 +1387,6 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 		return NULL;
 	devdata->devnum = devnum;
 	devdata->dev = dev;
-	strncpy(devdata->name, dev_name(&dev->device), sizeof(devdata->name));
 	spin_lock(&lock_all_devices);
 	list_add_tail(&devdata->list_all, &list_all_devices);
 	spin_unlock(&lock_all_devices);
@@ -1964,7 +1962,6 @@ static void host_side_disappeared(struct visornic_devdata *devdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	sprintf(devdata->name, "<dev#%d-history>", devdata->devnum);
 	devdata->dev = NULL;   /* indicate device destroyed */
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
