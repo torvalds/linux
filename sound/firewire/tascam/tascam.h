@@ -99,4 +99,6 @@ void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm);
 
 void snd_tscm_proc_init(struct snd_tscm *tscm);
 
+int snd_tscm_create_pcm_devices(struct snd_tscm *tscm);
+
 #endif
