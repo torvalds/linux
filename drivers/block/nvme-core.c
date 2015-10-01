@@ -1943,6 +1943,18 @@ static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 #define nvme_compat_ioctl	NULL
 #endif
 
+static void nvme_free_ns(struct kref *kref)
+{
+	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
+
+	spin_lock(&dev_list_lock);
+	ns->disk->private_data = NULL;
+	spin_unlock(&dev_list_lock);
+
+	put_disk(ns->disk);
+	kfree(ns);
+}
+
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret = 0;
@@ -1952,21 +1964,25 @@ static int nvme_open(struct block_device *bdev, fmode_t mode)
 	ns = bdev->bd_disk->private_data;
 	if (!ns)
 		ret = -ENXIO;
-	else if (!kref_get_unless_zero(&ns->dev->kref))
+	else if (!kref_get_unless_zero(&ns->kref))
 		ret = -ENXIO;
+	else if (!kref_get_unless_zero(&ns->dev->kref)) {
+		kref_put(&ns->kref, nvme_free_ns);
+		ret = -ENXIO;
+	}
 	spin_unlock(&dev_list_lock);
 
 	return ret;
 }
 
 static void nvme_free_dev(struct kref *kref);
-
 static void nvme_release(struct gendisk *disk, fmode_t mode)
 {
 	struct nvme_ns *ns = disk->private_data;
 	struct nvme_dev *dev = ns->dev;
 
 	kref_put(&dev->kref, nvme_free_dev);
+	kref_put(&ns->kref, nvme_free_ns);
 }
 
 static int nvme_getgeo(struct block_device *bd, struct hd_geometry *geo)
@@ -2126,6 +2142,7 @@ static void nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid)
 	if (!disk)
 		goto out_free_queue;
 
+	kref_init(&ns->kref);
 	ns->ns_id = nsid;
 	ns->disk = disk;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
@@ -2360,13 +2377,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 static void nvme_free_namespace(struct nvme_ns *ns)
 {
 	list_del(&ns->list);
-
-	spin_lock(&dev_list_lock);
-	ns->disk->private_data = NULL;
-	spin_unlock(&dev_list_lock);
-
-	put_disk(ns->disk);
-	kfree(ns);
+	kref_put(&ns->kref, nvme_free_ns);
 }
 
 static int ns_cmp(void *priv, struct list_head *a, struct list_head *b)

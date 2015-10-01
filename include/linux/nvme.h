@@ -135,6 +135,7 @@ struct nvme_ns {
 	struct nvme_dev *dev;
 	struct request_queue *queue;
 	struct gendisk *disk;
+	struct kref kref;
 
 	unsigned ns_id;
 	int lba_shift;
