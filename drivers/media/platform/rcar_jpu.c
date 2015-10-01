@@ -1147,9 +1147,9 @@ static void jpu_buf_finish(struct vb2_buffer *vb)
 	buffer = vb2_plane_vaddr(vb, 0);
 
 	memcpy(buffer, jpeg_hdrs[jpu_buf->compr_quality], JPU_JPEG_HDR_SIZE);
-	*(u16 *)(buffer + JPU_JPEG_HEIGHT_OFFSET) =
+	*(__be16 *)(buffer + JPU_JPEG_HEIGHT_OFFSET) =
 					cpu_to_be16(q_data->format.height);
-	*(u16 *)(buffer + JPU_JPEG_WIDTH_OFFSET) =
+	*(__be16 *)(buffer + JPU_JPEG_WIDTH_OFFSET) =
 					cpu_to_be16(q_data->format.width);
 	*(buffer + JPU_JPEG_SUBS_OFFSET) = q_data->fmtinfo->subsampling;
 }
