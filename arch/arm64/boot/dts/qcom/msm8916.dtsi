@@ -99,6 +99,7 @@
 			compatible = "qcom,gcc-msm8916";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			#power-domain-cells = <1>;
 			reg = <0x1800000 0x80000>;
 		};
 
