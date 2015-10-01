@@ -2444,7 +2444,7 @@ static struct intel_uncore_type *bdx_pci_uncores[] = {
 	NULL,
 };
 
-static DEFINE_PCI_DEVICE_TABLE(bdx_uncore_pci_ids) = {
+static const struct pci_device_id bdx_uncore_pci_ids[] = {
 	{ /* Home Agent 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f30),
 		.driver_data = UNCORE_PCI_DEV_DATA(BDX_PCI_UNCORE_HA, 0),
