@@ -1137,7 +1137,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		f = i40e_add_filter(vsi, ma, vlan, false, false);
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
 		ret = i40e_sync_vsi_filters(vsi, true);
 		if (f && !ret)
 			dev_info(&pf->pdev->dev,
@@ -1174,7 +1176,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
+		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_del_filter(vsi, ma, vlan, false, false);
+		spin_unlock_bh(&vsi->mac_filter_list_lock);
 		ret = i40e_sync_vsi_filters(vsi, true);
 		if (!ret)
 			dev_info(&pf->pdev->dev,
