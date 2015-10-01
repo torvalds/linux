@@ -4329,11 +4329,11 @@ static int rocker_port_attr_get(struct net_device *dev,
 	const struct rocker *rocker = rocker_port->rocker;
 
 	switch (attr->id) {
-	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
 		attr->u.ppid.id_len = sizeof(rocker->hw.id);
 		memcpy(&attr->u.ppid.id, &rocker->hw.id, attr->u.ppid.id_len);
 		break;
-	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		attr->u.brport_flags = rocker_port->brport_flags;
 		break;
 	default:
@@ -4369,12 +4369,12 @@ static int rocker_port_attr_set(struct net_device *dev,
 	int err = 0;
 
 	switch (attr->id) {
-	case SWITCHDEV_ATTR_PORT_STP_STATE:
+	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		err = rocker_port_stp_update(rocker_port, trans,
 					     ROCKER_OP_FLAG_NOWAIT,
 					     attr->u.stp_state);
 		break;
-	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		err = rocker_port_brport_flags_set(rocker_port, trans,
 						   attr->u.brport_flags);
 		break;

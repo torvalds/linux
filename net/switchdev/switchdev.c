@@ -104,7 +104,7 @@ int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	struct switchdev_attr first = {
-		.id = SWITCHDEV_ATTR_UNDEFINED
+		.id = SWITCHDEV_ATTR_ID_UNDEFINED
 	};
 	int err = -EOPNOTSUPP;
 
@@ -124,7 +124,7 @@ int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 		err = switchdev_port_attr_get(lower_dev, attr);
 		if (err)
 			break;
-		if (first.id == SWITCHDEV_ATTR_UNDEFINED)
+		if (first.id == SWITCHDEV_ATTR_ID_UNDEFINED)
 			first = *attr;
 		else if (memcmp(&first, attr, sizeof(*attr)))
 			return -ENODATA;
@@ -611,7 +611,7 @@ int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				  int nlflags)
 {
 	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS,
+		.id = SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
 	};
 	u16 mode = BRIDGE_MODE_UNDEF;
 	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
@@ -632,7 +632,7 @@ static int switchdev_port_br_setflag(struct net_device *dev,
 				     unsigned long brport_flag)
 {
 	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS,
+		.id = SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
 	};
 	u8 flag = nla_get_u8(nlattr);
 	int err;
@@ -958,7 +958,7 @@ static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 {
 	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 	};
 	struct switchdev_attr prev_attr;
 	struct net_device *dev = NULL;
@@ -1107,11 +1107,11 @@ static bool switchdev_port_same_parent_id(struct net_device *a,
 					  struct net_device *b)
 {
 	struct switchdev_attr a_attr = {
-		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 	struct switchdev_attr b_attr = {
-		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 
