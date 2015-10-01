@@ -85,6 +85,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	}, *phase;
 	unsigned long count = 0;
 
+	trace_i915_gem_shrink(dev_priv, target, flags);
+
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
 	 * (due to retiring requests) we have to strictly process only
