@@ -903,12 +903,6 @@ static void nfs_pageio_cleanup_mirroring(struct nfs_pageio_descriptor *pgio)
 	pgio->pg_mirrors_dynamic = NULL;
 }
 
-static bool nfs_match_open_context(const struct nfs_open_context *ctx1,
-		const struct nfs_open_context *ctx2)
-{
-	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
-}
-
 static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
 		const struct nfs_lock_context *l2)
 {

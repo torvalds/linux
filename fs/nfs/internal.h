@@ -264,6 +264,12 @@ static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
 	return desc->pg_mirror_count > 1;
 }
 
+static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
+		const struct nfs_open_context *ctx2)
+{
+	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
+}
+
 /* nfs2xdr.c */
 extern struct rpc_procinfo nfs_procedures[];
 extern int nfs2_decode_dirent(struct xdr_stream *,

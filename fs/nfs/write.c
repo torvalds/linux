@@ -1130,7 +1130,8 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		if (req == NULL)
 			return 0;
 		l_ctx = req->wb_lock_context;
-		do_flush = req->wb_page != page || req->wb_context != ctx;
+		do_flush = req->wb_page != page ||
+			!nfs_match_open_context(req->wb_context, ctx);
 		/* for now, flush if more than 1 request in page_group */
 		do_flush |= req->wb_this_page != req;
 		if (l_ctx && flctx &&
