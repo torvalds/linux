@@ -792,7 +792,6 @@ static int ldlm_resource_clean(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	__u64 flags = *(__u64 *)arg;
 
 	cleanup_resource(res, &res->lr_granted, flags);
-	cleanup_resource(res, &res->lr_converting, flags);
 	cleanup_resource(res, &res->lr_waiting, flags);
 
 	return 0;
@@ -1059,7 +1058,6 @@ static struct ldlm_resource *ldlm_resource_new(void)
 		return NULL;
 
 	INIT_LIST_HEAD(&res->lr_granted);
-	INIT_LIST_HEAD(&res->lr_converting);
 	INIT_LIST_HEAD(&res->lr_waiting);
 
 	/* Initialize interval trees for each lock mode. */
@@ -1220,11 +1218,6 @@ static void __ldlm_resource_putref_final(struct cfs_hash_bd *bd,
 	struct ldlm_ns_bucket *nsb = res->lr_ns_bucket;
 
 	if (!list_empty(&res->lr_granted)) {
-		ldlm_resource_dump(D_ERROR, res);
-		LBUG();
-	}
-
-	if (!list_empty(&res->lr_converting)) {
 		ldlm_resource_dump(D_ERROR, res);
 		LBUG();
 	}
@@ -1450,11 +1443,6 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 				break;
 			}
 		}
-	}
-	if (!list_empty(&res->lr_converting)) {
-		CDEBUG(level, "Converting locks:\n");
-		list_for_each_entry(lock, &res->lr_converting, l_res_link)
-			LDLM_DEBUG_LIMIT(level, lock, "###");
 	}
 	if (!list_empty(&res->lr_waiting)) {
 		CDEBUG(level, "Waiting locks:\n");

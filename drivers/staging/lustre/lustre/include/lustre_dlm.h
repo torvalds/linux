@@ -883,8 +883,6 @@ struct ldlm_resource {
 	 * @{ */
 	/** List of locks in granted state */
 	struct list_head		lr_granted;
-	/** List of locks waiting to change their granted mode (converted) */
-	struct list_head		lr_converting;
 	/**
 	 * List of locks that could not be granted due to conflicts and
 	 * that are waiting for conflicts to go away */

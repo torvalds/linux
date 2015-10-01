@@ -1260,12 +1260,6 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 		rc = 0;
 		goto out;
 	}
-	lock = search_queue(&res->lr_converting, &mode, policy, old_lock,
-			    flags, unref);
-	if (lock != NULL) {
-		rc = 1;
-		goto out;
-	}
 	lock = search_queue(&res->lr_waiting, &mode, policy, old_lock,
 			    flags, unref);
 	if (lock != NULL) {
@@ -1634,9 +1628,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	 * FIXME (bug 268): Detect obvious lies by checking compatibility in
 	 * granted/converting queues. */
 	if (local) {
-		if (*flags & LDLM_FL_BLOCK_CONV)
-			ldlm_resource_add_lock(res, &res->lr_converting, lock);
-		else if (*flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED))
+		if (*flags & (LDLM_FL_BLOCK_WAIT | LDLM_FL_BLOCK_GRANTED))
 			ldlm_resource_add_lock(res, &res->lr_waiting, lock);
 		else
 			ldlm_grant_lock(lock, NULL);

@@ -1878,15 +1878,6 @@ int ldlm_resource_foreach(struct ldlm_resource *res, ldlm_iterator_t iter,
 		}
 	}
 
-	list_for_each_safe(tmp, next, &res->lr_converting) {
-		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
-
-		if (iter(lock, closure) == LDLM_ITER_STOP) {
-			rc = LDLM_ITER_STOP;
-			goto out;
-		}
-	}
-
 	list_for_each_safe(tmp, next, &res->lr_waiting) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
