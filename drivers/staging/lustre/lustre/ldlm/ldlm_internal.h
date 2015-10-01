@@ -42,7 +42,6 @@ extern struct mutex ldlm_srv_namespace_lock;
 extern struct list_head ldlm_srv_namespace_list;
 extern struct mutex ldlm_cli_namespace_lock;
 extern struct list_head ldlm_cli_active_namespace_list;
-extern struct list_head ldlm_cli_inactive_namespace_list;
 
 static inline int ldlm_namespace_nr_read(ldlm_side_t client)
 {
@@ -70,12 +69,6 @@ static inline struct list_head *ldlm_namespace_list(ldlm_side_t client)
 {
 	return client == LDLM_NAMESPACE_SERVER ?
 		&ldlm_srv_namespace_list : &ldlm_cli_active_namespace_list;
-}
-
-static inline struct list_head *ldlm_namespace_inactive_list(ldlm_side_t client)
-{
-	return client == LDLM_NAMESPACE_SERVER ?
-		&ldlm_srv_namespace_list : &ldlm_cli_inactive_namespace_list;
 }
 
 static inline struct mutex *ldlm_namespace_lock(ldlm_side_t client)

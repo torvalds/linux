@@ -59,7 +59,7 @@ struct mutex ldlm_cli_namespace_lock;
  * inactive list */
 LIST_HEAD(ldlm_cli_active_namespace_list);
 /* Client namespaces that don't have any locks in them */
-LIST_HEAD(ldlm_cli_inactive_namespace_list);
+static LIST_HEAD(ldlm_cli_inactive_namespace_list);
 
 static struct dentry *ldlm_debugfs_dir;
 static struct dentry *ldlm_ns_debugfs_dir;
@@ -609,7 +609,7 @@ static void ldlm_namespace_register(struct ldlm_namespace *ns,
 {
 	mutex_lock(ldlm_namespace_lock(client));
 	LASSERT(list_empty(&ns->ns_list_chain));
-	list_add(&ns->ns_list_chain, ldlm_namespace_inactive_list(client));
+	list_add(&ns->ns_list_chain, &ldlm_cli_inactive_namespace_list);
 	ldlm_namespace_nr_inc(client);
 	mutex_unlock(ldlm_namespace_lock(client));
 }
@@ -1011,8 +1011,7 @@ void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *ns,
 {
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
-	list_move_tail(&ns->ns_list_chain,
-		       ldlm_namespace_inactive_list(client));
+	list_move_tail(&ns->ns_list_chain, &ldlm_cli_inactive_namespace_list);
 }
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
