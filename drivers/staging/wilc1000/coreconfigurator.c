@@ -11,6 +11,7 @@
 
 #include "coreconfigurator.h"
 #include "wilc_wlan_if.h"
+#include "wilc_wlan.h"
 #include <linux/errno.h>
 #include <linux/slab.h>
 #define TAG_PARAM_OFFSET	(MAC_HDR_LEN + TIME_STAMP_LEN + \
@@ -613,8 +614,7 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 	} else {
 		PRINT_D(CORECONFIG_DBG, "Net Dev is initialized\n");
 	}
-	if (gpstrWlanOps->wlan_cfg_set == NULL ||
-	    gpstrWlanOps->wlan_cfg_get == NULL)	{
+	if (gpstrWlanOps->wlan_cfg_get == NULL)	{
 		PRINT_D(CORECONFIG_DBG, "Set and Get is still not initialized\n");
 		return 1;
 	} else {
@@ -642,10 +642,12 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 	} else if (u8Mode == SET_CFG) {
 		for (counter = 0; counter < u32WIDsCount; counter++) {
 			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", pstrWIDs[counter].u16WIDid);
-			if (!gpstrWlanOps->wlan_cfg_set(!counter,
-							pstrWIDs[counter].u16WIDid, pstrWIDs[counter].ps8WidVal,
-							pstrWIDs[counter].s32ValueSize,
-							(counter == u32WIDsCount - 1), drvHandler)) {
+			if (!wilc_wlan_cfg_set(!counter,
+					       pstrWIDs[counter].u16WIDid,
+					       pstrWIDs[counter].ps8WidVal,
+					       pstrWIDs[counter].s32ValueSize,
+					       (counter == u32WIDsCount - 1),
+					       drvHandler)) {
 				ret = -1;
 				printk("[Sendconfigpkt]Set Timed out\n");
 				break;

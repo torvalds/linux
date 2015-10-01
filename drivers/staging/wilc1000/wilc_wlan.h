@@ -311,4 +311,6 @@ int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size,
 int wilc_wlan_handle_txq(u32 *pu32TxqCount);
 void wilc_handle_isr(void);
 void wilc_wlan_cleanup(void);
+int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
+		      int commit, u32 drvHandler);
 #endif

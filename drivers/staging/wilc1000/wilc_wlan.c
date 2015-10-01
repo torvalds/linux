@@ -1748,7 +1748,8 @@ static int wilc_wlan_cfg_commit(int type, u32 drvHandler)
 	return 0;
 }
 
-static int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size, int commit, u32 drvHandler)
+int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
+		      int commit, u32 drvHandler)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	u32 offset;
@@ -2028,7 +2029,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      export functions
 	 **/
-	oup->wlan_cfg_set = wilc_wlan_cfg_set;
 	oup->wlan_cfg_get = wilc_wlan_cfg_get;
 	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;
 
