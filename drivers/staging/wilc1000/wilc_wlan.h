@@ -305,4 +305,5 @@ typedef struct {
 	int (*cfg_init)(wilc_debug_func);
 } wilc_cfg_func_t;
 
+int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
 #endif

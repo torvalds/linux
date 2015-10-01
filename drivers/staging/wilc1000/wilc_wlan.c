@@ -1398,7 +1398,7 @@ void wilc_handle_isr(void)
  *      Firmware download
  *
  ********************************************/
-static int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
+int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	u32 offset;
@@ -2027,7 +2027,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      export functions
 	 **/
-	oup->wlan_firmware_download = wilc_wlan_firmware_download;
 	oup->wlan_start = wilc_wlan_start;
 	oup->wlan_stop = wilc_wlan_stop;
 	oup->wlan_add_to_tx_que = wilc_wlan_txq_add_net_pkt;

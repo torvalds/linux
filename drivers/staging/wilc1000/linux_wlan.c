@@ -670,7 +670,8 @@ static int linux_wlan_firmware_download(linux_wlan_t *p_nic)
 	 *      do the firmware download
 	 **/
 	PRINT_D(INIT_DBG, "Downloading Firmware ...\n");
-	ret = g_linux_wlan->oup.wlan_firmware_download(g_linux_wlan->wilc_firmware->data, g_linux_wlan->wilc_firmware->size);
+	ret = wilc_wlan_firmware_download(g_linux_wlan->wilc_firmware->data,
+					  g_linux_wlan->wilc_firmware->size);
 	if (ret < 0)
 		goto _FAIL_;
 
