@@ -319,7 +319,7 @@ static const struct pci_device_id ccp_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, ccp_pci_table);
 
 static struct pci_driver ccp_pci_driver = {
-	.name = "AMD Cryptographic Coprocessor",
+	.name = "ccp",
 	.id_table = ccp_pci_table,
 	.probe = ccp_pci_probe,
 	.remove = ccp_pci_remove,

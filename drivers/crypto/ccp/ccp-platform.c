@@ -225,7 +225,7 @@ MODULE_DEVICE_TABLE(of, ccp_of_match);
 
 static struct platform_driver ccp_platform_driver = {
 	.driver = {
-		.name = "AMD Cryptographic Coprocessor",
+		.name = "ccp",
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ccp_acpi_match,
 #endif
