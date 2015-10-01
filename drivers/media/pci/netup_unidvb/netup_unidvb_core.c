@@ -190,12 +190,10 @@ static void netup_unidvb_dma_enable(struct netup_dma *dma, int enable)
 		"%s(): DMA%d enable %d\n", __func__, dma->num, enable);
 	if (enable) {
 		writel(BIT_DMA_RUN, &dma->regs->ctrlstat_set);
-		writew(irq_mask,
-			(u16 *)(dma->ndev->bmmio0 + REG_IMASK_SET));
+		writew(irq_mask, dma->ndev->bmmio0 + REG_IMASK_SET);
 	} else {
 		writel(BIT_DMA_RUN, &dma->regs->ctrlstat_clear);
-		writew(irq_mask,
-			(u16 *)(dma->ndev->bmmio0 + REG_IMASK_CLEAR));
+		writew(irq_mask, dma->ndev->bmmio0 + REG_IMASK_CLEAR);
 	}
 }
 
@@ -525,7 +523,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 		ring_bytes = dma->ring_buffer_size - dma->data_offset;
 		copy_bytes = (ring_bytes > buff_bytes) ?
 			buff_bytes : ring_bytes;
-		memcpy_fromio(p, dma->addr_virt + dma->data_offset, copy_bytes);
+		memcpy_fromio(p, (u8 __iomem *)(dma->addr_virt + dma->data_offset), copy_bytes);
 		p += copy_bytes;
 		buf->size += copy_bytes;
 		buff_bytes -= copy_bytes;
@@ -538,7 +536,7 @@ static int netup_unidvb_ring_copy(struct netup_dma *dma,
 		ring_bytes = dma->data_size;
 		copy_bytes = (ring_bytes > buff_bytes) ?
 				buff_bytes : ring_bytes;
-		memcpy_fromio(p, dma->addr_virt + dma->data_offset, copy_bytes);
+		memcpy_fromio(p, (u8 __iomem *)(dma->addr_virt + dma->data_offset), copy_bytes);
 		buf->size += copy_bytes;
 		dma->data_size -= copy_bytes;
 		dma->data_offset += copy_bytes;
@@ -644,10 +642,10 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 		__func__, num, dma->addr_virt,
 		(unsigned long long)dma->addr_phys,
 		dma->ring_buffer_size);
-	memset_io(dma->addr_virt, 0, dma->ring_buffer_size);
+	memset_io((u8 __iomem *)dma->addr_virt, 0, dma->ring_buffer_size);
 	dma->addr_last = dma->addr_phys;
 	dma->high_addr = (u32)(dma->addr_phys & 0xC0000000);
-	dma->regs = (struct netup_dma_regs *)(num == 0 ?
+	dma->regs = (struct netup_dma_regs __iomem *)(num == 0 ?
 		ndev->bmmio0 + NETUP_DMA0_ADDR :
 		ndev->bmmio0 + NETUP_DMA1_ADDR);
 	writel((NETUP_DMA_BLOCKS_COUNT << 24) |
