@@ -948,33 +948,6 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	ldlm_put_ref();
 }
 
-/**
- * Cleanup the resource, and free namespace.
- * bug 12864:
- * Deadlock issue:
- * proc1: destroy import
- *	class_disconnect_export(grab cl_sem) ->
- *	      -> ldlm_namespace_free ->
- *	      -> ldebugfs_remove(grab _lprocfs_lock).
- * proc2: read proc info
- *	lprocfs_fops_read(grab _lprocfs_lock) ->
- *	      -> osc_rd_active, etc(grab cl_sem).
- *
- * So that I have to split the ldlm_namespace_free into two parts - the first
- * part ldlm_namespace_free_prior is used to cleanup the resource which is
- * being used; the 2nd part ldlm_namespace_free_post is used to unregister the
- * lprocfs entries, and then free memory. It will be called w/o cli->cl_sem
- * held.
- */
-void ldlm_namespace_free(struct ldlm_namespace *ns,
-			 struct obd_import *imp,
-			 int force)
-{
-	ldlm_namespace_free_prior(ns, imp, force);
-	ldlm_namespace_free_post(ns);
-}
-EXPORT_SYMBOL(ldlm_namespace_free);
-
 void ldlm_namespace_get(struct ldlm_namespace *ns)
 {
 	atomic_inc(&ns->ns_bref);
