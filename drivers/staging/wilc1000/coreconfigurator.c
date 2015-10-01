@@ -629,9 +629,10 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 		}
 		counter = 0;
 		for (counter = 0; counter < u32WIDsCount; counter++) {
-			pstrWIDs[counter].s32ValueSize = gpstrWlanOps->wlan_cfg_get_value(
+			pstrWIDs[counter].s32ValueSize = wilc_wlan_cfg_get_val(
 					pstrWIDs[counter].u16WIDid,
-					pstrWIDs[counter].ps8WidVal, pstrWIDs[counter].s32ValueSize);
+					pstrWIDs[counter].ps8WidVal,
+					pstrWIDs[counter].s32ValueSize);
 
 		}
 	} else if (u8Mode == SET_CFG) {

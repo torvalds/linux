@@ -395,7 +395,7 @@ void linux_wlan_mac_indicate(int flag)
 	int status;
 
 	if (flag == WILC_MAC_INDICATE_STATUS) {
-		pd->oup.wlan_cfg_get_value(WID_STATUS, (unsigned char *)&status, 4);
+		wilc_wlan_cfg_get_val(WID_STATUS, (unsigned char *)&status, 4);
 		if (pd->mac_status == WILC_MAC_STATUS_INIT) {
 			pd->mac_status = status;
 			up(&pd->sync_event);
@@ -1288,7 +1288,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 			int size;
 			char Firmware_ver[20];
 
-			size = g_linux_wlan->oup.wlan_cfg_get_value(
+			size = wilc_wlan_cfg_get_val(
 					WID_FIRMWARE_VERSION,
 					Firmware_ver, sizeof(Firmware_ver));
 			Firmware_ver[size] = '\0';

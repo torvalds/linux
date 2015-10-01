@@ -314,4 +314,5 @@ void wilc_wlan_cleanup(void);
 int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 		      int commit, u32 drvHandler);
 int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler);
+int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size);
 #endif

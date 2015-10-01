@@ -1828,7 +1828,7 @@ int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 	return ret_size;
 }
 
-static int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
+int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 {
 	int ret;
 
@@ -2029,8 +2029,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      export functions
 	 **/
-	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;
-
 	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
 
 	if (!init_chip()) {
