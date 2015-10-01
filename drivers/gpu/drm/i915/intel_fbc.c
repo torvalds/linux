@@ -799,10 +799,16 @@ static bool pixel_format_is_valid(struct drm_framebuffer *fb)
 	}
 }
 
-static bool pipe_size_is_valid(struct intel_crtc *crtc)
+/*
+ * For some reason, the hardware tracking starts looking at whatever we
+ * programmed as the display plane base address register. It does not look at
+ * the X and Y offset registers. That's why we look at the crtc->adjusted{x,y}
+ * variables instead of just looking at the pipe/plane size.
+ */
+static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-	unsigned int max_w, max_h;
+	unsigned int effective_w, effective_h, max_w, max_h;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8 || IS_HASWELL(dev_priv)) {
 		max_w = 4096;
@@ -815,8 +821,11 @@ static bool pipe_size_is_valid(struct intel_crtc *crtc)
 		max_h = 1536;
 	}
 
-	return crtc->config->pipe_src_w <= max_w &&
-	       crtc->config->pipe_src_h <= max_h;
+	intel_fbc_get_plane_source_size(crtc, &effective_w, &effective_h);
+	effective_w += crtc->adjusted_x;
+	effective_h += crtc->adjusted_y;
+
+	return effective_w <= max_w && effective_h <= max_h;
 }
 
 /**
@@ -893,7 +902,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 		goto out_disable;
 	}
 
-	if (!pipe_size_is_valid(intel_crtc)) {
+	if (!intel_fbc_hw_tracking_covers_screen(intel_crtc)) {
 		set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE);
 		goto out_disable;
 	}
