@@ -3973,7 +3973,7 @@ int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
 	__le32 __iomem *addr;
 	int raw_port;
 
-	if (hcd->speed != HCD_USB3)
+	if (hcd->speed < HCD_USB3)
 		addr = xhci->usb2_ports[port1 - 1];
 	else
 		addr = xhci->usb3_ports[port1 - 1];
@@ -4124,7 +4124,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	int		hird, exit_latency;
 	int		ret;
 
-	if (hcd->speed == HCD_USB3 || !xhci->hw_lpm_support ||
+	if (hcd->speed >= HCD_USB3 || !xhci->hw_lpm_support ||
 			!udev->lpm_capable)
 		return -EPERM;
 
@@ -4241,7 +4241,7 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int		portnum = udev->portnum - 1;
 
-	if (hcd->speed == HCD_USB3 || !xhci->sw_lpm_support ||
+	if (hcd->speed >= HCD_USB3 || !xhci->sw_lpm_support ||
 			!udev->lpm_capable)
 		return 0;
 
@@ -4841,8 +4841,9 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	/* XHCI controllers don't stop the ep queue on short packets :| */
 	hcd->self.no_stop_on_short = 1;
 
+	xhci = hcd_to_xhci(hcd);
+
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		xhci = hcd_to_xhci(hcd);
 		xhci->main_hcd = hcd;
 		/* Mark the first roothub as being USB 2.0.
 		 * The xHCI driver will register the USB 3.0 roothub.
@@ -4856,6 +4857,10 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		 */
 		hcd->has_tt = 1;
 	} else {
+		if (xhci->sbrn == 0x31) {
+			xhci_info(xhci, "Host supports USB 3.1 Enhanced SuperSpeed\n");
+			hcd->speed = HCD_USB31;
+		}
 		/* xHCI private pointer was set in xhci_pci_probe for the second
 		 * registered roothub.
 		 */

@@ -262,7 +262,7 @@ static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		struct usb_hub_descriptor *desc)
 {
 
-	if (hcd->speed == HCD_USB3)
+	if (hcd->speed >= HCD_USB3)
 		xhci_usb3_hub_descriptor(hcd, xhci, desc);
 	else
 		xhci_usb2_hub_descriptor(hcd, xhci, desc);
@@ -351,7 +351,7 @@ int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		if (!xhci->devs[i])
 			continue;
 		speed = xhci->devs[i]->udev->speed;
-		if (((speed == USB_SPEED_SUPER) == (hcd->speed == HCD_USB3))
+		if (((speed >= USB_SPEED_SUPER) == (hcd->speed >= HCD_USB3))
 				&& xhci->devs[i]->fake_port == port) {
 			slot_id = i;
 			break;
@@ -440,7 +440,7 @@ static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		u16 wIndex, __le32 __iomem *addr, u32 port_status)
 {
 	/* Don't allow the USB core to disable SuperSpeed ports. */
-	if (hcd->speed == HCD_USB3) {
+	if (hcd->speed >= HCD_USB3) {
 		xhci_dbg(xhci, "Ignoring request to disable "
 				"SuperSpeed port.\n");
 		return;
@@ -508,7 +508,7 @@ static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
 	int max_ports;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 
-	if (hcd->speed == HCD_USB3) {
+	if (hcd->speed >= HCD_USB3) {
 		max_ports = xhci->num_usb3_ports;
 		*port_array = xhci->usb3_ports;
 	} else {
@@ -691,7 +691,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	if ((raw_port_status & PORT_RC))
 		status |= USB_PORT_STAT_C_RESET << 16;
 	/* USB3.0 only */
-	if (hcd->speed == HCD_USB3) {
+	if (hcd->speed >= HCD_USB3) {
 		/* Port link change with port in resume state should not be
 		 * reported to usbcore, as this is an internal state to be
 		 * handled by xhci driver. Reporting PLC to usbcore may
@@ -707,7 +707,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 			status |= USB_PORT_STAT_C_CONFIG_ERROR << 16;
 	}
 
-	if (hcd->speed != HCD_USB3) {
+	if (hcd->speed < HCD_USB3) {
 		if ((raw_port_status & PORT_PLS_MASK) == XDEV_U3
 				&& (raw_port_status & PORT_POWER))
 			status |= USB_PORT_STAT_SUSPEND;
@@ -770,7 +770,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 			&& (raw_port_status & PORT_POWER)
 			&& (bus_state->suspended_ports & (1 << wIndex))) {
 		bus_state->suspended_ports &= ~(1 << wIndex);
-		if (hcd->speed != HCD_USB3)
+		if (hcd->speed < HCD_USB3)
 			bus_state->port_c_suspend |= 1 << wIndex;
 	}
 	if (raw_port_status & PORT_CONNECT) {
@@ -784,13 +784,13 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	if (raw_port_status & PORT_RESET)
 		status |= USB_PORT_STAT_RESET;
 	if (raw_port_status & PORT_POWER) {
-		if (hcd->speed == HCD_USB3)
+		if (hcd->speed >= HCD_USB3)
 			status |= USB_SS_PORT_STAT_POWER;
 		else
 			status |= USB_PORT_STAT_POWER;
 	}
 	/* Update Port Link State */
-	if (hcd->speed == HCD_USB3) {
+	if (hcd->speed >= HCD_USB3) {
 		xhci_hub_report_usb3_link_state(xhci, &status, raw_port_status);
 		/*
 		 * Verify if all USB3 Ports Have entered U0 already.
@@ -835,7 +835,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		 * descriptor for the USB 3.0 roothub.  If not, we stall the
 		 * endpoint, like external hubs do.
 		 */
-		if (hcd->speed == HCD_USB3 &&
+		if (hcd->speed >= HCD_USB3 &&
 				(wLength < USB_DT_SS_HUB_SIZE ||
 				 wValue != (USB_DT_SS_HUB << 8))) {
 			xhci_dbg(xhci, "Wrong hub descriptor type for "
@@ -1040,7 +1040,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp = readl(port_array[wIndex]);
 			break;
 		case USB_PORT_FEAT_U1_TIMEOUT:
-			if (hcd->speed != HCD_USB3)
+			if (hcd->speed < HCD_USB3)
 				goto error;
 			temp = readl(port_array[wIndex] + PORTPMSC);
 			temp &= ~PORT_U1_TIMEOUT_MASK;
@@ -1048,7 +1048,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			writel(temp, port_array[wIndex] + PORTPMSC);
 			break;
 		case USB_PORT_FEAT_U2_TIMEOUT:
-			if (hcd->speed != HCD_USB3)
+			if (hcd->speed < HCD_USB3)
 				goto error;
 			temp = readl(port_array[wIndex] + PORTPMSC);
 			temp &= ~PORT_U2_TIMEOUT_MASK;
