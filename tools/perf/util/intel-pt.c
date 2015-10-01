@@ -1268,7 +1268,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	if (ptss_ip)
 		*ptss_ip = 0;
 
-	map = machine__kernel_map(machine, MAP__FUNCTION);
+	map = machine__kernel_map(machine);
 	if (!map)
 		return 0;
 

@@ -205,6 +205,20 @@ void perf_evlist__set_leader(struct perf_evlist *evlist)
 	}
 }
 
+static void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
+{
+	attr->precise_ip = 3;
+
+	while (attr->precise_ip != 0) {
+		int fd = sys_perf_event_open(attr, 0, -1, -1, 0);
+		if (fd != -1) {
+			close(fd);
+			break;
+		}
+		--attr->precise_ip;
+	}
+}
+
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
 	struct perf_event_attr attr = {
@@ -215,13 +229,15 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 
 	event_attr_init(&attr);
 
+	perf_event_attr__set_max_precise_ip(&attr);
+
 	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto error;
 
-	/* use strdup() because free(evsel) assumes name is allocated */
-	evsel->name = strdup("cycles");
-	if (!evsel->name)
+	/* use asprintf() because free(evsel) assumes name is allocated */
+	if (asprintf(&evsel->name, "cycles%.*s",
+		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
 		goto error_free;
 
 	perf_evlist__add(evlist, evsel);

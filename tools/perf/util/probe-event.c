@@ -126,17 +126,19 @@ static struct ref_reloc_sym *kernel_get_ref_reloc_sym(void)
 {
 	/* kmap->ref_reloc_sym should be set if host_machine is initialized */
 	struct kmap *kmap;
+	struct map *map = machine__kernel_map(host_machine);
 
-	if (map__load(host_machine->vmlinux_maps[MAP__FUNCTION], NULL) < 0)
+	if (map__load(map, NULL) < 0)
 		return NULL;
 
-	kmap = map__kmap(host_machine->vmlinux_maps[MAP__FUNCTION]);
+	kmap = map__kmap(map);
 	if (!kmap)
 		return NULL;
 	return kmap->ref_reloc_sym;
 }
 
-static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
+static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
+					     bool reloc, bool reladdr)
 {
 	struct ref_reloc_sym *reloc_sym;
 	struct symbol *sym;
@@ -145,12 +147,14 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 	/* ref_reloc_sym is just a label. Need a special fix*/
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (reloc_sym && strcmp(name, reloc_sym->name) == 0)
-		return (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
+		*addr = (reloc) ? reloc_sym->addr : reloc_sym->unrelocated_addr;
 	else {
 		sym = __find_kernel_function_by_name(name, &map);
-		if (sym)
-			return map->unmap_ip(map, sym->start) -
-				((reloc) ? 0 : map->reloc);
+		if (!sym)
+			return -ENOENT;
+		*addr = map->unmap_ip(map, sym->start) -
+			((reloc) ? 0 : map->reloc) -
+			((reladdr) ? map->start : 0);
 	}
 	return 0;
 }
@@ -244,12 +248,14 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 static bool kprobe_blacklist__listed(unsigned long address);
 static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 {
-	u64 etext_addr;
+	u64 etext_addr = 0;
+	int ret;
 
 	/* Get the address of _etext for checking non-probable text symbol */
-	etext_addr = kernel_get_symbol_address_by_name("_etext", false);
+	ret = kernel_get_symbol_address_by_name("_etext", &etext_addr,
+						false, false);
 
-	if (etext_addr != 0 && etext_addr < address)
+	if (ret == 0 && etext_addr < address)
 		pr_warning("%s is out of .text, skip it.\n", symbol);
 	else if (kprobe_blacklist__listed(address))
 		pr_warning("%s is blacklisted function, skip it.\n", symbol);
@@ -281,7 +287,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 		return -ENOENT;
 	}
 
-	map = host_machine->vmlinux_maps[MAP__FUNCTION];
+	map = machine__kernel_map(host_machine);
 	dso = map->dso;
 
 	vmlinux_name = symbol_conf.vmlinux_name;
@@ -435,19 +441,22 @@ static char *debuginfo_cache_path;
 
 static struct debuginfo *debuginfo_cache__open(const char *module, bool silent)
 {
-	if ((debuginfo_cache_path && !strcmp(debuginfo_cache_path, module)) ||
-	    (!debuginfo_cache_path && !module && debuginfo_cache))
+	const char *path = module;
+
+	/* If the module is NULL, it should be the kernel. */
+	if (!module)
+		path = "kernel";
+
+	if (debuginfo_cache_path && !strcmp(debuginfo_cache_path, path))
 		goto out;
 
 	/* Copy module path */
 	free(debuginfo_cache_path);
-	if (module) {
-		debuginfo_cache_path = strdup(module);
-		if (!debuginfo_cache_path) {
-			debuginfo__delete(debuginfo_cache);
-			debuginfo_cache = NULL;
-			goto out;
-		}
+	debuginfo_cache_path = strdup(path);
+	if (!debuginfo_cache_path) {
+		debuginfo__delete(debuginfo_cache);
+		debuginfo_cache = NULL;
+		goto out;
 	}
 
 	debuginfo_cache = open_debuginfo(module, silent);
@@ -516,8 +525,10 @@ static int find_perf_probe_point_from_dwarf(struct probe_trace_point *tp,
 			goto error;
 		addr += stext;
 	} else if (tp->symbol) {
-		addr = kernel_get_symbol_address_by_name(tp->symbol, false);
-		if (addr == 0)
+		/* If the module is given, this returns relative address */
+		ret = kernel_get_symbol_address_by_name(tp->symbol, &addr,
+							false, !!tp->module);
+		if (ret != 0)
 			goto error;
 		addr += tp->offset;
 	}
@@ -1883,8 +1894,12 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 			goto out;
 		sym = map__find_symbol(map, addr, NULL);
 	} else {
-		if (tp->symbol)
-			addr = kernel_get_symbol_address_by_name(tp->symbol, true);
+		if (tp->symbol && !addr) {
+			ret = kernel_get_symbol_address_by_name(tp->symbol,
+							&addr, true, false);
+			if (ret < 0)
+				goto out;
+		}
 		if (addr) {
 			addr += tp->offset;
 			sym = __find_kernel_function(addr, &map);
@@ -2288,36 +2303,41 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 			      struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
-	char *p;
+	char *p, *nbase;
 
 	if (*base == '.')
 		base++;
+	nbase = strdup(base);
+	if (!nbase)
+		return -ENOMEM;
 
-	/* Try no suffix */
-	ret = e_snprintf(buf, len, "%s", base);
+	/* Cut off the dot suffixes (e.g. .const, .isra)*/
+	p = strchr(nbase, '.');
+	if (p && p != nbase)
+		*p = '\0';
+
+	/* Try no suffix number */
+	ret = e_snprintf(buf, len, "%s", nbase);
 	if (ret < 0) {
 		pr_debug("snprintf() failed: %d\n", ret);
-		return ret;
+		goto out;
 	}
-	/* Cut off the postfixes (e.g. .const, .isra)*/
-	p = strchr(buf, '.');
-	if (p && p != buf)
-		*p = '\0';
 	if (!strlist__has_entry(namelist, buf))
-		return 0;
+		goto out;
 
 	if (!allow_suffix) {
 		pr_warning("Error: event \"%s\" already exists. "
-			   "(Use -f to force duplicates.)\n", base);
-		return -EEXIST;
+			   "(Use -f to force duplicates.)\n", buf);
+		ret = -EEXIST;
+		goto out;
 	}
 
 	/* Try to add suffix */
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
-		ret = e_snprintf(buf, len, "%s_%d", base, i);
+		ret = e_snprintf(buf, len, "%s_%d", nbase, i);
 		if (ret < 0) {
 			pr_debug("snprintf() failed: %d\n", ret);
-			return ret;
+			goto out;
 		}
 		if (!strlist__has_entry(namelist, buf))
 			break;
@@ -2327,6 +2347,8 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 		ret = -ERANGE;
 	}
 
+out:
+	free(nbase);
 	return ret;
 }
 

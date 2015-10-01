@@ -1026,7 +1026,7 @@ void print_pmu_events(const char *event_glob, bool name_only)
 		printf("  %-50s [Kernel PMU event]\n", aliases[j]);
 		printed++;
 	}
-	if (printed)
+	if (printed && pager_in_use())
 		printf("\n");
 out_free:
 	for (j = 0; j < len; j++)
