@@ -659,14 +659,14 @@ int vnic_dev_open_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
-static int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
+int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
 {
 	u64 a0 = (u32)arg, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_SOFT_RESET, &a0, &a1, wait);
 }
 
-static int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
+int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
