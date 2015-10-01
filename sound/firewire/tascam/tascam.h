@@ -21,8 +21,11 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/info.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
 
 #include "../lib.h"
+#include "../amdtp-stream.h"
 
 struct snd_tscm_spec {
 	const char *const name;
@@ -50,6 +53,13 @@ struct snd_tscm {
 #define TSCM_OFFSET_FIRMWARE_FPGA	0x0004
 #define TSCM_OFFSET_FIRMWARE_ARM	0x0008
 #define TSCM_OFFSET_FIRMWARE_HW		0x000c
+
+int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
+		  enum amdtp_stream_direction dir, unsigned int pcm_channels);
+int amdtp_tscm_set_parameters(struct amdtp_stream *s, unsigned int rate);
+int amdtp_tscm_add_pcm_hw_constraints(struct amdtp_stream *s,
+				      struct snd_pcm_runtime *runtime);
+void amdtp_tscm_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
 
 void snd_tscm_proc_init(struct snd_tscm *tscm);
 
