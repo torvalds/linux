@@ -358,34 +358,6 @@ int ldlm_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 }
 EXPORT_SYMBOL(ldlm_blocking_ast);
 
-/**
- * ->l_glimpse_ast() for DLM extent locks acquired on the server-side. See
- * comment in filter_intent_policy() on why you may need this.
- */
-int ldlm_glimpse_ast(struct ldlm_lock *lock, void *reqp)
-{
-	/*
-	 * Returning -ELDLM_NO_LOCK_DATA actually works, but the reason for
-	 * that is rather subtle: with OST-side locking, it may so happen that
-	 * _all_ extent locks are held by the OST. If client wants to obtain
-	 * current file size it calls ll{,u}_glimpse_size(), and (as locks are
-	 * on the server), dummy glimpse callback fires and does
-	 * nothing. Client still receives correct file size due to the
-	 * following fragment in filter_intent_policy():
-	 *
-	 * rc = l->l_glimpse_ast(l, NULL); // this will update the LVB
-	 * if (rc != 0 && res->lr_namespace->ns_lvbo &&
-	 *     res->lr_namespace->ns_lvbo->lvbo_update) {
-	 *	 res->lr_namespace->ns_lvbo->lvbo_update(res, NULL, 0, 1);
-	 * }
-	 *
-	 * that is, after glimpse_ast() fails, filter_lvbo_update() runs, and
-	 * returns correct file size to the client.
-	 */
-	return -ELDLM_NO_LOCK_DATA;
-}
-EXPORT_SYMBOL(ldlm_glimpse_ast);
-
 static void failed_lock_cleanup(struct ldlm_namespace *ns,
 				struct ldlm_lock *lock, int mode)
 {
