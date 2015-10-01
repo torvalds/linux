@@ -983,10 +983,7 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 		PRINT_D(INIT_DBG, "Deinitializing IRQ\n");
 		deinit_irq(g_linux_wlan);
 
-		if (&g_linux_wlan->oup != NULL) {
-			if (g_linux_wlan->oup.wlan_stop != NULL)
-				g_linux_wlan->oup.wlan_stop();
-		}
+		wilc_wlan_stop();
 
 		PRINT_D(INIT_DBG, "Deinitializing WILC Wlan\n");
 		wilc_wlan_deinit(nic);
@@ -1322,10 +1319,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		return 0; /*success*/
 
 _fail_fw_start_:
-		if (&g_linux_wlan->oup != NULL) {
-			if (g_linux_wlan->oup.wlan_stop != NULL)
-				g_linux_wlan->oup.wlan_stop();
-		}
+		wilc_wlan_stop();
 
 _fail_irq_enable_:
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)

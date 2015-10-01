@@ -1581,7 +1581,7 @@ void wilc_wlan_global_reset(void)
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, 0x0);
 	release_bus(RELEASE_ONLY);
 }
-static int wilc_wlan_stop(void)
+int wilc_wlan_stop(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	u32 reg = 0;
@@ -2027,7 +2027,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      export functions
 	 **/
-	oup->wlan_stop = wilc_wlan_stop;
 	oup->wlan_add_to_tx_que = wilc_wlan_txq_add_net_pkt;
 	oup->wlan_handle_tx_que = wilc_wlan_handle_txq;
 	oup->wlan_handle_rx_isr = wilc_handle_isr;
