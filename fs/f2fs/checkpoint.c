@@ -257,7 +257,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 						long nr_to_write)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
-	pgoff_t index = 0, end = LONG_MAX;
+	pgoff_t index = 0, end = LONG_MAX, prev = LONG_MAX;
 	struct pagevec pvec;
 	long nwritten = 0;
 	struct writeback_control wbc = {
@@ -276,6 +276,13 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
+
+			if (prev == LONG_MAX)
+				prev = page->index - 1;
+			if (nr_to_write != LONG_MAX && page->index != prev + 1) {
+				pagevec_release(&pvec);
+				goto stop;
+			}
 
 			lock_page(page);
 
@@ -297,13 +304,14 @@ continue_unlock:
 				break;
 			}
 			nwritten++;
+			prev = page->index;
 			if (unlikely(nwritten >= nr_to_write))
 				break;
 		}
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-
+stop:
 	if (nwritten)
 		f2fs_submit_merged_bio(sbi, type, WRITE);
 
