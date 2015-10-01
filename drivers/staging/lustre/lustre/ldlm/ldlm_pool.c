@@ -1023,22 +1023,6 @@ void ldlm_pool_set_slv(struct ldlm_pool *pl, __u64 slv)
 EXPORT_SYMBOL(ldlm_pool_set_slv);
 
 /**
- * Returns current \a pl CLV.
- *
- * \pre ->pl_lock is not locked.
- */
-__u64 ldlm_pool_get_clv(struct ldlm_pool *pl)
-{
-	__u64 slv;
-
-	spin_lock(&pl->pl_lock);
-	slv = pl->pl_client_lock_volume;
-	spin_unlock(&pl->pl_lock);
-	return slv;
-}
-EXPORT_SYMBOL(ldlm_pool_get_clv);
-
-/**
  * Sets passed \a clv to \a pl.
  *
  * \pre ->pl_lock is not locked.
