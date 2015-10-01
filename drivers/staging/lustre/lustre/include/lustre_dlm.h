@@ -1308,25 +1308,10 @@ int ldlm_prep_elc_req(struct obd_export *exp,
 		      struct list_head *cancels, int count);
 
 struct ptlrpc_request *ldlm_enqueue_pack(struct obd_export *exp, int lvb_len);
-int ldlm_handle_enqueue0(struct ldlm_namespace *ns, struct ptlrpc_request *req,
-			 const struct ldlm_request *dlm_req,
-			 const struct ldlm_callback_suite *cbs);
 int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  ldlm_type_t type, __u8 with_policy, ldlm_mode_t mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
 			  struct lustre_handle *lockh, int rc);
-int ldlm_cli_enqueue_local(struct ldlm_namespace *ns,
-			   const struct ldlm_res_id *res_id,
-			   ldlm_type_t type, ldlm_policy_data_t *policy,
-			   ldlm_mode_t mode, __u64 *flags,
-			   ldlm_blocking_callback blocking,
-			   ldlm_completion_callback completion,
-			   ldlm_glimpse_callback glimpse,
-			   void *data, __u32 lvb_len, enum lvb_type lvb_type,
-			   const __u64 *client_cookie,
-			   struct lustre_handle *lockh);
-int ldlm_server_ast(struct lustre_handle *lockh, struct ldlm_lock_desc *new,
-		    void *data, __u32 data_len);
 int ldlm_cli_update_pool(struct ptlrpc_request *req);
 int ldlm_cli_cancel(struct lustre_handle *lockh,
 		    ldlm_cancel_flags_t cancel_flags);
