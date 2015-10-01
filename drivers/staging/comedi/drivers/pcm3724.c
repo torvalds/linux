@@ -1,31 +1,25 @@
 /*
-    comedi/drivers/pcm724.c
+ * pcm3724.c
+ * Comedi driver for Advantech PCM-3724 Digital I/O board
+ *
+ * Drew Csillag <drew_csillag@yahoo.com>
+ */
 
-    Drew Csillag <drew_csillag@yahoo.com>
-
-    hardware driver for Advantech card:
-     card:   PCM-3724
-     driver: pcm3724
-
-    Options for PCM-3724
-     [0] - IO Base
-*/
 /*
-Driver: pcm3724
-Description: Advantech PCM-3724
-Author: Drew Csillag <drew_csillag@yahoo.com>
-Devices: [Advantech] PCM-3724 (pcm724)
-Status: tested
-
-This is driver for digital I/O boards PCM-3724 with 48 DIO.
-It needs 8255.o for operations and only immediate mode is supported.
-See the source for configuration details.
-
-Copy/pasted/hacked from pcm724.c
-*/
-/*
- * check_driver overrides:
- *   struct comedi_insn
+ * Driver: pcm3724
+ * Description: Advantech PCM-3724
+ * Devices: [Advantech] PCM-3724 (pcm3724)
+ * Author: Drew Csillag <drew_csillag@yahoo.com>
+ * Status: tested
+ *
+ * This is driver for digital I/O boards PCM-3724 with 48 DIO.
+ * It needs 8255.o for operations and only immediate mode is supported.
+ * See the source for configuration details.
+ *
+ * Copy/pasted/hacked from pcm724.c
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
  */
 
 #include <linux/module.h>
