@@ -886,15 +886,12 @@ static void exynos4_jpeg_parse_decode_q_tbl(struct s5p_jpeg_ctx *ctx)
 	struct s5p_jpeg *jpeg = ctx->jpeg;
 	struct vb2_buffer *vb = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	struct s5p_jpeg_buffer jpeg_buffer;
-	unsigned int word;
 	int c, x, components;
 
 	jpeg_buffer.size = ctx->out_q.sof_len;
 	jpeg_buffer.data =
 		(unsigned long)vb2_plane_vaddr(vb, 0) + ctx->out_q.sof;
 	jpeg_buffer.curr = 0;
-
-	word = 0;
 
 	skip(&jpeg_buffer, 5); /* P, Y, X */
 	components = get_byte(&jpeg_buffer);
