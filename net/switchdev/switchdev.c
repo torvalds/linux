@@ -270,7 +270,6 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
 static int __switchdev_port_obj_add(struct net_device *dev,
-				    enum switchdev_obj_id id,
 				    const struct switchdev_obj *obj,
 				    struct switchdev_trans *trans)
 {
@@ -280,7 +279,7 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_obj_add)
-		return ops->switchdev_port_obj_add(dev, id, obj, trans);
+		return ops->switchdev_port_obj_add(dev, obj, trans);
 
 	/* Switch device port(s) may be stacked under
 	 * bond/team/vlan dev, so recurse down to add object on
@@ -288,7 +287,7 @@ static int __switchdev_port_obj_add(struct net_device *dev,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = __switchdev_port_obj_add(lower_dev, id, obj, trans);
+		err = __switchdev_port_obj_add(lower_dev, obj, trans);
 		if (err)
 			break;
 	}
@@ -309,7 +308,7 @@ static int __switchdev_port_obj_add(struct net_device *dev,
  *
  *	rtnl_lock must be held.
  */
-int switchdev_port_obj_add(struct net_device *dev, enum switchdev_obj_id id,
+int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj)
 {
 	struct switchdev_trans trans;
@@ -327,7 +326,7 @@ int switchdev_port_obj_add(struct net_device *dev, enum switchdev_obj_id id,
 	 */
 
 	trans.ph_prepare = true;
-	err = __switchdev_port_obj_add(dev, id, obj, &trans);
+	err = __switchdev_port_obj_add(dev, obj, &trans);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
 		 * resources reserved in the prepare phase are
@@ -346,8 +345,8 @@ int switchdev_port_obj_add(struct net_device *dev, enum switchdev_obj_id id,
 	 */
 
 	trans.ph_prepare = false;
-	err = __switchdev_port_obj_add(dev, id, obj, &trans);
-	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, id);
+	err = __switchdev_port_obj_add(dev, obj, &trans);
+	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
 	switchdev_trans_items_warn_destroy(dev, &trans);
 
 	return err;
@@ -361,7 +360,7 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
  *	@id: object ID
  *	@obj: object to delete
  */
-int switchdev_port_obj_del(struct net_device *dev, enum switchdev_obj_id id,
+int switchdev_port_obj_del(struct net_device *dev,
 			   const struct switchdev_obj *obj)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
@@ -370,7 +369,7 @@ int switchdev_port_obj_del(struct net_device *dev, enum switchdev_obj_id id,
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_obj_del)
-		return ops->switchdev_port_obj_del(dev, id, obj);
+		return ops->switchdev_port_obj_del(dev, obj);
 
 	/* Switch device port(s) may be stacked under
 	 * bond/team/vlan dev, so recurse down to delete object on
@@ -378,7 +377,7 @@ int switchdev_port_obj_del(struct net_device *dev, enum switchdev_obj_id id,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_obj_del(lower_dev, id, obj);
+		err = switchdev_port_obj_del(lower_dev, obj);
 		if (err)
 			break;
 	}
@@ -395,8 +394,7 @@ EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
  *	@obj: object to dump
  *	@cb: function to call with a filled object
  */
-int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
-			    struct switchdev_obj *obj,
+int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 			    switchdev_obj_dump_cb_t *cb)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
@@ -405,7 +403,7 @@ int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
 	int err = -EOPNOTSUPP;
 
 	if (ops && ops->switchdev_port_obj_dump)
-		return ops->switchdev_port_obj_dump(dev, id, obj, cb);
+		return ops->switchdev_port_obj_dump(dev, obj, cb);
 
 	/* Switch device port(s) may be stacked under
 	 * bond/team/vlan dev, so recurse down to dump objects on
@@ -413,7 +411,7 @@ int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
 	 */
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_obj_dump(lower_dev, id, obj, cb);
+		err = switchdev_port_obj_dump(lower_dev, obj, cb);
 		break;
 	}
 
@@ -579,6 +577,7 @@ static int switchdev_port_vlan_fill(struct sk_buff *skb, struct net_device *dev,
 				    u32 filter_mask)
 {
 	struct switchdev_vlan_dump dump = {
+		.vlan.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
 		.skb = skb,
 		.filter_mask = filter_mask,
 	};
@@ -586,8 +585,7 @@ static int switchdev_port_vlan_fill(struct sk_buff *skb, struct net_device *dev,
 
 	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
 	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
-		err = switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_ID_PORT_VLAN,
-					      &dump.vlan.obj,
+		err = switchdev_port_obj_dump(dev, &dump.vlan.obj,
 					      switchdev_port_vlan_dump_cb);
 		if (err)
 			goto err_out;
@@ -701,12 +699,13 @@ static int switchdev_port_br_setlink_protinfo(struct net_device *dev,
 static int switchdev_port_br_afspec(struct net_device *dev,
 				    struct nlattr *afspec,
 				    int (*f)(struct net_device *dev,
-					     enum switchdev_obj_id id,
 					     const struct switchdev_obj *obj))
 {
 	struct nlattr *attr;
 	struct bridge_vlan_info *vinfo;
-	struct switchdev_obj_port_vlan vlan = { {}, 0 };
+	struct switchdev_obj_port_vlan vlan = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+	};
 	int rem;
 	int err;
 
@@ -727,7 +726,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 			vlan.vid_end = vinfo->vid;
 			if (vlan.vid_end <= vlan.vid_begin)
 				return -EINVAL;
-			err = f(dev, SWITCHDEV_OBJ_ID_PORT_VLAN, &vlan.obj);
+			err = f(dev, &vlan.obj);
 			if (err)
 				return err;
 			memset(&vlan, 0, sizeof(vlan));
@@ -736,7 +735,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 				return -EINVAL;
 			vlan.vid_begin = vinfo->vid;
 			vlan.vid_end = vinfo->vid;
-			err = f(dev, SWITCHDEV_OBJ_ID_PORT_VLAN, &vlan.obj);
+			err = f(dev, &vlan.obj);
 			if (err)
 				return err;
 			memset(&vlan, 0, sizeof(vlan));
@@ -822,11 +821,12 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   u16 vid, u16 nlm_flags)
 {
 	struct switchdev_obj_port_fdb fdb = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_FDB,
 		.addr = addr,
 		.vid = vid,
 	};
 
-	return switchdev_port_obj_add(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &fdb.obj);
+	return switchdev_port_obj_add(dev, &fdb.obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_add);
 
@@ -846,11 +846,12 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   u16 vid)
 {
 	struct switchdev_obj_port_fdb fdb = {
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_FDB,
 		.addr = addr,
 		.vid = vid,
 	};
 
-	return switchdev_port_obj_del(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &fdb.obj);
+	return switchdev_port_obj_del(dev, &fdb.obj);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
 
@@ -922,14 +923,14 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *filter_dev, int idx)
 {
 	struct switchdev_fdb_dump dump = {
+		.fdb.obj.id = SWITCHDEV_OBJ_ID_PORT_FDB,
 		.dev = dev,
 		.skb = skb,
 		.cb = cb,
 		.idx = idx,
 	};
 
-	switchdev_port_obj_dump(dev, SWITCHDEV_OBJ_ID_PORT_FDB, &dump.fdb.obj,
-				switchdev_port_fdb_dump_cb);
+	switchdev_port_obj_dump(dev, &dump.fdb.obj, switchdev_port_fdb_dump_cb);
 	return dump.idx;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
@@ -1008,6 +1009,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
 {
 	struct switchdev_obj_ipv4_fib ipv4_fib = {
+		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fi,
@@ -1035,8 +1037,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	if (!dev)
 		return 0;
 
-	err = switchdev_port_obj_add(dev, SWITCHDEV_OBJ_ID_IPV4_FIB,
-				     &ipv4_fib.obj);
+	err = switchdev_port_obj_add(dev, &ipv4_fib.obj);
 	if (!err)
 		fi->fib_flags |= RTNH_F_OFFLOAD;
 
@@ -1060,6 +1061,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 tb_id)
 {
 	struct switchdev_obj_ipv4_fib ipv4_fib = {
+		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
 		.fi = fi,
@@ -1078,8 +1080,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	if (!dev)
 		return 0;
 
-	err = switchdev_port_obj_del(dev, SWITCHDEV_OBJ_ID_IPV4_FIB,
-				     &ipv4_fib.obj);
+	err = switchdev_port_obj_del(dev, &ipv4_fib.obj);
 	if (!err)
 		fi->fib_flags &= ~RTNH_F_OFFLOAD;
 
