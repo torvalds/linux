@@ -195,7 +195,8 @@ __lis3l02dq_write_data_ready_config(struct iio_dev *indio_dev, bool state)
 	/* Enable requested */
 	} else if (state && !currentlyset) {
 		/* If not set, enable requested
-		 * first disable all events */
+		 * first disable all events
+		 */
 		ret = lis3l02dq_disable_all_events(indio_dev);
 		if (ret < 0)
 			goto error_ret;
@@ -255,7 +256,8 @@ static int lis3l02dq_trig_try_reen(struct iio_trigger *trig)
 	int i;
 
 	/* If gpio still high (or high again)
-	 * In theory possible we will need to do this several times */
+	 * In theory possible we will need to do this several times
+	 */
 	for (i = 0; i < 5; i++)
 		if (gpio_get_value(st->gpio))
 			lis3l02dq_read_all(indio_dev, NULL);
