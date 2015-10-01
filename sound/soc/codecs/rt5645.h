@@ -39,8 +39,8 @@
 #define RT5645_STO1_ADC_DIG_VOL			0x1c
 #define RT5645_MONO_ADC_DIG_VOL			0x1d
 #define RT5645_ADC_BST_VOL1			0x1e
-/* Mixer - D-D */
 #define RT5645_ADC_BST_VOL2			0x20
+/* Mixer - D-D */
 #define RT5645_STO1_ADC_MIXER			0x27
 #define RT5645_MONO_ADC_MIXER			0x28
 #define RT5645_AD_DA_MIXER			0x29
@@ -315,12 +315,14 @@
 #define RT5645_STO1_ADC_R_BST_SFT		12
 #define RT5645_STO1_ADC_COMP_MASK		(0x3 << 10)
 #define RT5645_STO1_ADC_COMP_SFT		10
-#define RT5645_STO2_ADC_L_BST_MASK		(0x3 << 8)
-#define RT5645_STO2_ADC_L_BST_SFT		8
-#define RT5645_STO2_ADC_R_BST_MASK		(0x3 << 6)
-#define RT5645_STO2_ADC_R_BST_SFT		6
-#define RT5645_STO2_ADC_COMP_MASK		(0x3 << 4)
-#define RT5645_STO2_ADC_COMP_SFT		4
+
+/* ADC Boost Volume Control (0x20) */
+#define RT5645_MONO_ADC_L_BST_MASK		(0x3 << 14)
+#define RT5645_MONO_ADC_L_BST_SFT		14
+#define RT5645_MONO_ADC_R_BST_MASK		(0x3 << 12)
+#define RT5645_MONO_ADC_R_BST_SFT		12
+#define RT5645_MONO_ADC_COMP_MASK		(0x3 << 10)
+#define RT5645_MONO_ADC_COMP_SFT		10
 
 /* Stereo2 ADC Mixer Control (0x26) */
 #define RT5645_STO2_ADC_SRC_MASK		(0x1 << 15)
