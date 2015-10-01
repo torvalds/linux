@@ -122,7 +122,6 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define WILC_TX_ERR_NO_BUF	(-2)
 
 typedef struct {
-	int (*wlan_add_to_tx_que)(void *, u8 *, u32, wilc_tx_complete_func_t);
 	int (*wlan_handle_tx_que)(u32 *);
 	void (*wlan_handle_rx_isr)(void);
 	void (*wlan_cleanup)(void);
