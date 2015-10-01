@@ -24,7 +24,6 @@
 #include <linux/fb.h>
 #include <linux/fs.h>
 #include <linux/input.h>
-#include <linux/serio.h>
 #include <linux/uaccess.h>
 
 #include "keyboardchannel.h"
