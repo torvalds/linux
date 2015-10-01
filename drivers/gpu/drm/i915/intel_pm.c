@@ -4730,7 +4730,6 @@ static void gen9_enable_rc6(struct drm_device *dev)
 		I915_WRITE(GUC_MAX_IDLE_COUNT, 0xA);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
-	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
 
 	/* 2c: Program Coarse Power Gating Policies. */
 	I915_WRITE(GEN9_MEDIA_PG_IDLE_HYSTERESIS, 25);
@@ -4741,16 +4740,19 @@ static void gen9_enable_rc6(struct drm_device *dev)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
 	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
 			"on" : "off");
-
+	/* WaRsUseTimeoutMode */
 	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_D0) ||
-	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A0))
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) <= BXT_REVID_A0)) {
+		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us */
 		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
 			   GEN7_RC_CTL_TO_MODE |
 			   rc6_mask);
-	else
+	} else {
+		I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
 		I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
 			   GEN6_RC_CTL_EI_MODE(1) |
 			   rc6_mask);
+	}
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
