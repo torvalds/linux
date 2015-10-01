@@ -108,37 +108,7 @@ static void gic_redist_wait_for_rwp(void)
 	gic_do_wait_for_rwp(gic_data_rdist_rd_base());
 }
 
-/* Low level accessors */
-static u64 gic_read_iar_common(void)
-{
-	u64 irqstat;
-
-	asm volatile("mrs_s %0, " __stringify(ICC_IAR1_EL1) : "=r" (irqstat));
-	return irqstat;
-}
-
-/*
- * Cavium ThunderX erratum 23154
- *
- * The gicv3 of ThunderX requires a modified version for reading the
- * IAR status to ensure data synchronization (access to icc_iar1_el1
- * is not sync'ed before and after).
- */
-static u64 gic_read_iar_cavium_thunderx(void)
-{
-	u64 irqstat;
-
-	asm volatile(
-		"nop;nop;nop;nop\n\t"
-		"nop;nop;nop;nop\n\t"
-		"mrs_s %0, " __stringify(ICC_IAR1_EL1) "\n\t"
-		"nop;nop;nop;nop"
-		: "=r" (irqstat));
-	mb();
-
-	return irqstat;
-}
-
+#ifdef CONFIG_ARM64
 static DEFINE_STATIC_KEY_FALSE(is_cavium_thunderx);
 
 static u64 __maybe_unused gic_read_iar(void)
@@ -148,28 +118,7 @@ static u64 __maybe_unused gic_read_iar(void)
 	else
 		return gic_read_iar_common();
 }
-
-static void __maybe_unused gic_write_pmr(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
-}
-
-static void __maybe_unused gic_write_ctlr(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
-	isb();
-}
-
-static void __maybe_unused gic_write_grpen1(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
-	isb();
-}
-
-static void __maybe_unused gic_write_sgi1r(u64 val)
-{
-	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
-}
+#endif
 
 static void gic_enable_redist(bool enable)
 {
@@ -856,8 +805,10 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 
 static void gicv3_enable_quirks(void)
 {
+#ifdef CONFIG_ARM64
 	if (cpus_have_cap(ARM64_WORKAROUND_CAVIUM_23154))
 		static_branch_enable(&is_cavium_thunderx);
+#endif
 }
 
 static int __init gic_of_init(struct device_node *node, struct device_node *parent)
