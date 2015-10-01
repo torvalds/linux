@@ -2490,7 +2490,9 @@ static int mgmt_tx(struct wiphy *wiphy,
 
 		}
 
-		g_linux_wlan->oup.wlan_add_mgmt_to_tx_que(mgmt_tx, mgmt_tx->buff, mgmt_tx->size, WILC_WFI_mgmt_tx_complete);
+		wilc_wlan_txq_add_mgmt_pkt(mgmt_tx, mgmt_tx->buff,
+					   mgmt_tx->size,
+					   WILC_WFI_mgmt_tx_complete);
 	} else {
 		PRINT_D(GENERIC_DBG, "This function transmits only management frames\n");
 	}

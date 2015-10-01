@@ -121,11 +121,6 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 
 #define WILC_TX_ERR_NO_BUF	(-2)
 
-typedef struct {
-	int (*wlan_add_mgmt_to_tx_que)(void *, u8 *, u32,
-				       wilc_tx_complete_func_t);
-} wilc_wlan_oup_t;
-
 /********************************************
  *
  *      Wlan Configuration ID
@@ -946,11 +941,10 @@ typedef enum {
 	WID_MAX				= 0xFFFF
 } WID_T;
 
-int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup);
+int wilc_wlan_init(wilc_wlan_inp_t *inp);
 
 void wilc_bus_set_max_speed(void);
 void wilc_bus_set_default_speed(void);
 u32 wilc_get_chipid(u8 update);
-extern wilc_wlan_oup_t *gpstrWlanOps;
 
 #endif

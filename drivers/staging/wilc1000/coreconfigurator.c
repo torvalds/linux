@@ -608,12 +608,6 @@ s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
 {
 	s32 counter = 0, ret = 0;
 
-	if (gpstrWlanOps == NULL) {
-		PRINT_D(CORECONFIG_DBG, "Net Dev is still not initialized\n");
-		return 1;
-	} else {
-		PRINT_D(CORECONFIG_DBG, "Net Dev is initialized\n");
-	}
 	if (u8Mode == GET_CFG) {
 		for (counter = 0; counter < u32WIDsCount; counter++) {
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,

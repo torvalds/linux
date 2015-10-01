@@ -115,7 +115,6 @@ static void wilc_set_multicast_list(struct net_device *dev);
  * and this data should be pointer to net device
  */
 linux_wlan_t *g_linux_wlan;
-wilc_wlan_oup_t *gpstrWlanOps;
 bool bEnablePS = true;
 
 static const struct net_device_ops wilc_netdev_ops = {
@@ -1117,7 +1116,7 @@ extern u8 core_11b_ready(void);
 
 #define READY_CHECK_THRESHOLD		30
 extern void wilc_wlan_global_reset(void);
-u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_wlan_t *nic)
+u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi, linux_wlan_t *nic)
 {
 	u8 trials = 0;
 
@@ -1140,7 +1139,7 @@ u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_w
 		probe = 0;
 		g_linux_wlan->wilc_sdio_func = local_sdio_func;
 		linux_to_wlan(nwi, nic);
-		wilc_wlan_init(nwi, nwo);
+		wilc_wlan_init(nwi);
 	}
 
 	if (READY_CHECK_THRESHOLD <= trials)
@@ -1154,7 +1153,6 @@ int repeat_power_cycle(perInterface_wlan_t *nic)
 {
 	int ret = 0;
 	wilc_wlan_inp_t nwi;
-	wilc_wlan_oup_t nwo;
 
 	sdio_unregister_driver(&wilc_bus);
 
@@ -1174,7 +1172,7 @@ int repeat_power_cycle(perInterface_wlan_t *nic)
 	probe = 0;
 	g_linux_wlan->wilc_sdio_func = local_sdio_func;
 	linux_to_wlan(&nwi, g_linux_wlan);
-	ret = wilc_wlan_init(&nwi, &nwo);
+	ret = wilc_wlan_init(&nwi);
 
 	g_linux_wlan->mac_status = WILC_MAC_STATUS_INIT;
 	#if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
@@ -1205,7 +1203,6 @@ __fail__:
 int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 {
 	wilc_wlan_inp_t nwi;
-	wilc_wlan_oup_t nwo;
 	perInterface_wlan_t *nic = p_nic;
 	int ret = 0;
 
@@ -1218,16 +1215,12 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 
 		linux_to_wlan(&nwi, g_linux_wlan);
 
-		ret = wilc_wlan_init(&nwi, &nwo);
+		ret = wilc_wlan_init(&nwi);
 		if (ret < 0) {
 			PRINT_ER("Initializing WILC_Wlan FAILED\n");
 			ret = -EIO;
 			goto _fail_locks_;
 		}
-		memcpy(&g_linux_wlan->oup, &nwo, sizeof(wilc_wlan_oup_t));
-
-		/*Save the oup structre into global pointer*/
-		gpstrWlanOps = &g_linux_wlan->oup;
 
 		ret = wlan_initialize_threads(nic);
 		if (ret < 0) {
@@ -1237,7 +1230,7 @@ int wilc1000_wlan_init(struct net_device *dev, perInterface_wlan_t *p_nic)
 		}
 
 #if (defined WILC_SDIO) && (defined COMPLEMENT_BOOT)
-		if (wilc1000_prepare_11b_core(&nwi, &nwo, g_linux_wlan)) {
+		if (wilc1000_prepare_11b_core(&nwi, g_linux_wlan)) {
 			PRINT_ER("11b Core is not ready\n");
 			ret = -EIO;
 			goto _fail_threads_;

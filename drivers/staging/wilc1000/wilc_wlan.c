@@ -1949,7 +1949,7 @@ u8 core_11b_ready(void)
 }
 #endif
 
-int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
+int wilc_wlan_init(wilc_wlan_inp_t *inp)
 {
 
 	int ret = 0;
@@ -2025,11 +2025,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 		goto _fail_;
 	}
 #endif
-
-	/**
-	 *      export functions
-	 **/
-	oup->wlan_add_mgmt_to_tx_que = wilc_wlan_txq_add_mgmt_pkt;
 
 	if (!init_chip()) {
 		/* EIO	5 */
