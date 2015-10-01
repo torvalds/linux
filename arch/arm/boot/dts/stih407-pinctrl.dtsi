@@ -216,9 +216,9 @@
 						rxd2 = <&pio1 6 ALT1 IN DE_IO 0 CLK_A>;
 						rxd3 = <&pio1 7 ALT1 IN DE_IO 0 CLK_A>;
 						rxdv = <&pio2 0 ALT1 IN DE_IO 0 CLK_A>;
-						rxclk = <&pio2 2 ALT1 IN NICLK 500 CLK_A>;
+						rxclk = <&pio2 2 ALT1 IN NICLK 0 CLK_A>;
 						clk125 = <&pio3 7 ALT4 IN NICLK 0 CLK_A>;
-						phyclk = <&pio2 3 ALT4 OUT NICLK 1750 CLK_B>;
+						phyclk = <&pio2 3 ALT4 OUT NICLK 1250 CLK_B>;
 					};
 				};
 
