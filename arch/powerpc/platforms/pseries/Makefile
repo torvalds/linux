@@ -4,12 +4,11 @@ ccflags-$(CONFIG_PPC_PSERIES_DEBUG)	+= -DDEBUG
 obj-y			:= lpar.o hvCall.o nvram.o reconfig.o \
 			   of_helpers.o \
 			   setup.o iommu.o event_sources.o ras.o \
-			   firmware.o power.o dlpar.o mobility.o rng.o
+			   firmware.o power.o dlpar.o mobility.o rng.o \
+			   pci.o pci_dlpar.o eeh_pseries.o
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_SCANLOG)	+= scanlog.o
-obj-$(CONFIG_EEH)	+= eeh_pseries.o
 obj-$(CONFIG_KEXEC)	+= kexec.o
-obj-$(CONFIG_PCI)	+= pci.o pci_dlpar.o
 obj-$(CONFIG_PSERIES_MSI)	+= msi.o
 obj-$(CONFIG_PSERIES_ENERGY)	+= pseries_energy.o
 
