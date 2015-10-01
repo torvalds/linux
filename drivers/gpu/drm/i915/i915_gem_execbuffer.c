@@ -590,10 +590,17 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 		flags |= PIN_GLOBAL;
 
 	if (!drm_mm_node_allocated(&vma->node)) {
+		/* Wa32bitGeneralStateOffset & Wa32bitInstructionBaseOffset,
+		 * limit address to the first 4GBs for unflagged objects.
+		 */
+		if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0)
+			flags |= PIN_ZONE_4G;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
 			flags |= PIN_GLOBAL | PIN_MAPPABLE;
 		if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
 			flags |= BATCH_OFFSET_BIAS | PIN_OFFSET_BIAS;
+		if ((flags & PIN_MAPPABLE) == 0)
+			flags |= PIN_HIGH;
 	}
 
 	ret = i915_gem_object_pin(obj, vma->vm, entry->alignment, flags);
@@ -670,6 +677,10 @@ eb_vma_misplaced(struct i915_vma *vma)
 	/* avoid costly ping-pong once a batch bo ended up non-mappable */
 	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP && !obj->map_and_fenceable)
 		return !only_mappable_for_reloc(entry->flags);
+
+	if ((entry->flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS) == 0 &&
+	    (vma->node.start + vma->node.size - 1) >> 32)
+		return true;
 
 	return false;
 }

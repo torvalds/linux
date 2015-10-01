@@ -2819,6 +2819,8 @@ void i915_gem_vma_destroy(struct i915_vma *vma);
 #define PIN_OFFSET_BIAS	(1<<3)
 #define PIN_USER	(1<<4)
 #define PIN_UPDATE	(1<<5)
+#define PIN_ZONE_4G	(1<<6)
+#define PIN_HIGH	(1<<7)
 #define PIN_OFFSET_MASK (~4095)
 int __must_check
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
