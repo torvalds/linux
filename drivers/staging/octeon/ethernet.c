@@ -382,11 +382,11 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	    && (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int i;
-		uint8_t *ptr = dev->dev_addr;
-		uint64_t mac = 0;
+		u8 *ptr = dev->dev_addr;
+		u64 mac = 0;
 
 		for (i = 0; i < 6; i++)
-			mac = (mac << 8) | (uint64_t)ptr[i];
+			mac = (mac << 8) | (u64)ptr[i];
 
 		gmx_cfg.u64 =
 		    cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
@@ -835,7 +835,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 				cvm_oct_device[priv->port] = dev;
 				fau -=
 				    cvmx_pko_get_num_queues(priv->port) *
-				    sizeof(uint32_t);
+				    sizeof(u32);
 				queue_delayed_work(cvm_oct_poll_queue,
 						&priv->port_periodic_work, HZ);
 			}

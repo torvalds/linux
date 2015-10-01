@@ -43,7 +43,7 @@ struct octeon_ethernet {
 	struct phy_device *phydev;
 	unsigned int last_link;
 	/* Last negotiated link state */
-	uint64_t link_info;
+	u64 link_info;
 	/* Called periodically to check link status */
 	void (*poll)(struct net_device *dev);
 	struct delayed_work	port_periodic_work;
