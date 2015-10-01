@@ -1652,7 +1652,7 @@ int wilc_wlan_stop(void)
 	return ret;
 }
 
-static void wilc_wlan_cleanup(void)
+void wilc_wlan_cleanup(void)
 {
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
 	struct txq_entry_t *tqe;
@@ -2028,7 +2028,6 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp, wilc_wlan_oup_t *oup)
 	/**
 	 *      export functions
 	 **/
-	oup->wlan_cleanup = wilc_wlan_cleanup;
 	oup->wlan_cfg_set = wilc_wlan_cfg_set;
 	oup->wlan_cfg_get = wilc_wlan_cfg_get;
 	oup->wlan_cfg_get_value = wilc_wlan_cfg_get_val;

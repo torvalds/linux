@@ -86,10 +86,6 @@ static struct notifier_block g_dev_notifier = {
 	.notifier_call = dev_state_ev_handler
 };
 
-#define wilc_wlan_deinit(nic)	{ if (&g_linux_wlan->oup != NULL)	 \
-		if (g_linux_wlan->oup.wlan_cleanup != NULL) \
-			g_linux_wlan->oup.wlan_cleanup(); }
-
 #define IRQ_WAIT	1
 #define IRQ_NO_WAIT	0
 /*
@@ -983,7 +979,7 @@ void wilc1000_wlan_deinit(linux_wlan_t *nic)
 		wilc_wlan_stop();
 
 		PRINT_D(INIT_DBG, "Deinitializing WILC Wlan\n");
-		wilc_wlan_deinit(nic);
+		wilc_wlan_cleanup();
 #if (defined WILC_SDIO) && (!defined WILC_SDIO_IRQ_GPIO)
   #if defined(PLAT_ALLWINNER_A20) || defined(PLAT_ALLWINNER_A23) || defined(PLAT_ALLWINNER_A31)
 		PRINT_D(INIT_DBG, "Disabling IRQ 2\n");
@@ -1132,7 +1128,7 @@ u8 wilc1000_prepare_11b_core(wilc_wlan_inp_t *nwi,	wilc_wlan_oup_t *nwo, linux_w
 
 	while ((core_11b_ready() && (READY_CHECK_THRESHOLD > (trials++)))) {
 		PRINT_D(INIT_DBG, "11b core not ready yet: %u\n", trials);
-		wilc_wlan_deinit(nic);
+		wilc_wlan_cleanup();
 		wilc_wlan_global_reset();
 		sdio_unregister_driver(&wilc_bus);
 
@@ -1330,7 +1326,7 @@ _fail_irq_init_:
 _fail_threads_:
 		wlan_deinitialize_threads(g_linux_wlan);
 _fail_wilc_wlan_:
-		wilc_wlan_deinit(g_linux_wlan);
+		wilc_wlan_cleanup();
 _fail_locks_:
 		wlan_deinit_locks(g_linux_wlan);
 		PRINT_ER("WLAN Iinitialization FAILED\n");
