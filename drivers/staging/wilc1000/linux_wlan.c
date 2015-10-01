@@ -622,7 +622,7 @@ static int linux_wlan_start_firmware(perInterface_wlan_t *nic)
 	int ret = 0;
 	/* start firmware */
 	PRINT_D(INIT_DBG, "Starting Firmware ...\n");
-	ret = g_linux_wlan->oup.wlan_start();
+	ret = wilc_wlan_start();
 	if (ret < 0) {
 		PRINT_ER("Failed to start Firmware\n");
 		goto _fail_;

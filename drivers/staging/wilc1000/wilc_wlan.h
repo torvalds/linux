@@ -306,4 +306,5 @@ typedef struct {
 } wilc_cfg_func_t;
 
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
+int wilc_wlan_start(void);
 #endif
