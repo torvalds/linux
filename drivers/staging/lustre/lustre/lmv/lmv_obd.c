@@ -2322,8 +2322,6 @@ static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
 		return -EINVAL;
 	} else if (KEY_IS(KEY_MAX_EASIZE) ||
 		   KEY_IS(KEY_DEFAULT_EASIZE) ||
-		   KEY_IS(KEY_MAX_COOKIESIZE) ||
-		   KEY_IS(KEY_DEFAULT_COOKIESIZE) ||
 		   KEY_IS(KEY_CONN_DATA)) {
 		rc = lmv_check_connect(obd);
 		if (rc)

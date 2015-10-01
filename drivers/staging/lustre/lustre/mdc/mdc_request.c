@@ -2124,26 +2124,6 @@ static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 		default_easize = val;
 		*default_easize = exp->exp_obd->u.cli.cl_default_mds_easize;
 		return 0;
-	} else if (KEY_IS(KEY_MAX_COOKIESIZE)) {
-		int mdsize, *max_cookiesize;
-
-		if (*vallen != sizeof(int))
-			return -EINVAL;
-		mdsize = *(int *)val;
-		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_cookiesize)
-			exp->exp_obd->u.cli.cl_max_mds_cookiesize = mdsize;
-		max_cookiesize = val;
-		*max_cookiesize = exp->exp_obd->u.cli.cl_max_mds_cookiesize;
-		return 0;
-	} else if (KEY_IS(KEY_DEFAULT_COOKIESIZE)) {
-		int *default_cookiesize;
-
-		if (*vallen != sizeof(int))
-			return -EINVAL;
-		default_cookiesize = val;
-		*default_cookiesize =
-			exp->exp_obd->u.cli.cl_default_mds_cookiesize;
-		return 0;
 	} else if (KEY_IS(KEY_CONN_DATA)) {
 		struct obd_import *imp = class_exp2cliimp(exp);
 		struct obd_connect_data *data = val;
