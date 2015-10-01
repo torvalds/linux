@@ -86,10 +86,12 @@ static inline uint64_t I642U64(int64_t val)
 }
 
 /* rotation property bits */
+#define DRM_ROTATE_MASK 0x0f
 #define DRM_ROTATE_0	0
 #define DRM_ROTATE_90	1
 #define DRM_ROTATE_180	2
 #define DRM_ROTATE_270	3
+#define DRM_REFLECT_MASK (~DRM_ROTATE_MASK)
 #define DRM_REFLECT_X	4
 #define DRM_REFLECT_Y	5
 
