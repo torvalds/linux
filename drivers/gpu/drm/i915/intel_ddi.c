@@ -558,8 +558,10 @@ void intel_prepare_ddi(struct drm_device *dev)
 		enum port port;
 		bool supports_hdmi;
 
-		ddi_get_encoder_port(intel_encoder, &intel_dig_port, &port);
+		if (intel_encoder->type == INTEL_OUTPUT_DSI)
+			continue;
 
+		ddi_get_encoder_port(intel_encoder, &intel_dig_port, &port);
 		if (visited[port])
 			continue;
 
@@ -2043,7 +2045,8 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
