@@ -138,7 +138,8 @@ static void fdb_del_external_learn(struct net_bridge_fdb_entry *f)
 		.vid = f->vlan_id,
 	};
 
-	switchdev_port_obj_del(f->dst->dev, SWITCHDEV_OBJ_ID_PORT_FDB, &fdb);
+	switchdev_port_obj_del(f->dst->dev, SWITCHDEV_OBJ_ID_PORT_FDB,
+			       &fdb.obj);
 }
 
 static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
