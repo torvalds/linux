@@ -2012,56 +2012,6 @@ struct export_cl_data {
 };
 
 /**
- * Iterator function for ldlm_cancel_locks_for_export.
- * Cancels passed locks.
- */
-int ldlm_cancel_locks_for_export_cb(struct cfs_hash *hs, struct cfs_hash_bd *bd,
-				    struct hlist_node *hnode, void *data)
-
-{
-	struct export_cl_data	*ecl = (struct export_cl_data *)data;
-	struct obd_export	*exp  = ecl->ecl_exp;
-	struct ldlm_lock     *lock = cfs_hash_object(hs, hnode);
-	struct ldlm_resource *res;
-
-	res = ldlm_resource_getref(lock->l_resource);
-	LDLM_LOCK_GET(lock);
-
-	LDLM_DEBUG(lock, "export %p", exp);
-	ldlm_res_lvbo_update(res, NULL, 1);
-	ldlm_lock_cancel(lock);
-	ldlm_reprocess_all(res);
-	ldlm_resource_putref(res);
-	LDLM_LOCK_RELEASE(lock);
-
-	ecl->ecl_loop++;
-	if ((ecl->ecl_loop & -ecl->ecl_loop) == ecl->ecl_loop) {
-		CDEBUG(D_INFO,
-		       "Cancel lock %p for export %p (loop %d), still have %d locks left on hash table.\n",
-		       lock, exp, ecl->ecl_loop,
-		       atomic_read(&hs->hs_count));
-	}
-
-	return 0;
-}
-
-/**
- * Cancel all locks for given export.
- *
- * Typically called on client disconnection/eviction
- */
-void ldlm_cancel_locks_for_export(struct obd_export *exp)
-{
-	struct export_cl_data	ecl = {
-		.ecl_exp	= exp,
-		.ecl_loop	= 0,
-	};
-
-	cfs_hash_for_each_empty(exp->exp_lock_hash,
-				ldlm_cancel_locks_for_export_cb, &ecl);
-}
-
-/**
  * Downgrade an exclusive lock.
  *
  * A fast variant of ldlm_lock_convert for conversion of exclusive

@@ -164,8 +164,6 @@ void ldlm_lock_add_to_lru(struct ldlm_lock *lock);
 void ldlm_lock_touch_in_lru(struct ldlm_lock *lock);
 void ldlm_lock_destroy_nolock(struct ldlm_lock *lock);
 
-void ldlm_cancel_locks_for_export(struct obd_export *export);
-
 /* ldlm_lockd.c */
 int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 			   struct ldlm_lock *lock);
