@@ -4425,7 +4425,7 @@ static int rocker_port_vlans_add(struct rocker_port *rocker_port,
 
 static int rocker_port_fdb_add(struct rocker_port *rocker_port,
 			       struct switchdev_trans *trans,
-			       const struct switchdev_obj_fdb *fdb)
+			       const struct switchdev_obj_port_fdb *fdb)
 {
 	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
 	int flags = 0;
@@ -4496,7 +4496,7 @@ static int rocker_port_vlans_del(struct rocker_port *rocker_port,
 
 static int rocker_port_fdb_del(struct rocker_port *rocker_port,
 			       struct switchdev_trans *trans,
-			       const struct switchdev_obj_fdb *fdb)
+			       const struct switchdev_obj_port_fdb *fdb)
 {
 	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
 	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
@@ -4537,7 +4537,7 @@ static int rocker_port_obj_del(struct net_device *dev,
 }
 
 static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
-				struct switchdev_obj_fdb *fdb,
+				struct switchdev_obj_port_fdb *fdb,
 				int (*cb)(void *obj))
 {
 	struct rocker *rocker = rocker_port->rocker;

@@ -819,7 +819,7 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev, const unsigned char *addr,
 			   u16 vid, u16 nlm_flags)
 {
-	struct switchdev_obj_fdb fdb = {
+	struct switchdev_obj_port_fdb fdb = {
 		.addr = addr,
 		.vid = vid,
 	};
@@ -843,7 +843,7 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev, const unsigned char *addr,
 			   u16 vid)
 {
-	struct switchdev_obj_fdb fdb = {
+	struct switchdev_obj_port_fdb fdb = {
 		.addr = addr,
 		.vid = vid,
 	};
@@ -853,7 +853,7 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
 
 struct switchdev_fdb_dump {
-	struct switchdev_obj_fdb fdb;
+	struct switchdev_obj_port_fdb fdb;
 	struct net_device *dev;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
@@ -862,7 +862,7 @@ struct switchdev_fdb_dump {
 
 static int switchdev_port_fdb_dump_cb(void *obj)
 {
-	struct switchdev_obj_fdb *fdb = obj;
+	struct switchdev_obj_port_fdb *fdb = obj;
 	struct switchdev_fdb_dump *dump =
 		container_of(fdb, struct switchdev_fdb_dump, fdb);
 	u32 portid = NETLINK_CB(dump->cb->skb).portid;

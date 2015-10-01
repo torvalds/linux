@@ -83,7 +83,7 @@ struct switchdev_obj_ipv4_fib {
 };
 
 /* SWITCHDEV_OBJ_ID_PORT_FDB */
-struct switchdev_obj_fdb {
+struct switchdev_obj_port_fdb {
 	const unsigned char *addr;
 	u16 vid;
 	u16 ndm_state;

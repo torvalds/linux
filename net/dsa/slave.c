@@ -341,7 +341,7 @@ static int dsa_slave_port_vlan_dump(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_add(struct net_device *dev,
-				  const struct switchdev_obj_fdb *fdb,
+				  const struct switchdev_obj_port_fdb *fdb,
 				  struct switchdev_trans *trans)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
@@ -357,7 +357,7 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_del(struct net_device *dev,
-				  const struct switchdev_obj_fdb *fdb)
+				  const struct switchdev_obj_port_fdb *fdb)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
@@ -370,7 +370,7 @@ static int dsa_slave_port_fdb_del(struct net_device *dev,
 }
 
 static int dsa_slave_port_fdb_dump(struct net_device *dev,
-				   struct switchdev_obj_fdb *fdb,
+				   struct switchdev_obj_port_fdb *fdb,
 				   int (*cb)(void *obj))
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
