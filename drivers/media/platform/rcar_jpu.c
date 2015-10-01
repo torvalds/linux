@@ -1563,9 +1563,6 @@ static irqreturn_t jpu_irq_handler(int irq, void *dev_id)
 		dst_buf->timestamp = src_buf->timestamp;
 		if (src_buf->flags & V4L2_BUF_FLAG_TIMECODE)
 			dst_buf->timecode = src_buf->timecode;
-		dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst_buf->flags |= src_buf->flags &
-					V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 		dst_buf->flags = src_buf->flags &
 			(V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_KEYFRAME |
 			 V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME |
