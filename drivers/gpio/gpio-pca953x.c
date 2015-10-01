@@ -21,6 +21,7 @@
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
 #endif
+#include <linux/acpi.h>
 
 #define PCA953X_INPUT		0
 #define PCA953X_OUTPUT		1
@@ -75,6 +76,12 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
+
+static const struct acpi_device_id pca953x_acpi_ids[] = {
+	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT, },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
 
 #define MAX_BANK 5
 #define BANK_SZ 8
@@ -680,7 +687,18 @@ static int pca953x_probe(struct i2c_client *client,
 
 	chip->client = client;
 
-	chip->driver_data = id->driver_data;
+	if (id) {
+		chip->driver_data = id->driver_data;
+	} else {
+		const struct acpi_device_id *id;
+
+		id = acpi_match_device(pca953x_acpi_ids, &client->dev);
+		if (!id)
+			return -ENODEV;
+
+		chip->driver_data = id->driver_data;
+	}
+
 	chip->chip_type = PCA_CHIP_TYPE(chip->driver_data);
 
 	mutex_init(&chip->i2c_lock);
@@ -773,6 +791,7 @@ static struct i2c_driver pca953x_driver = {
 	.driver = {
 		.name	= "pca953x",
 		.of_match_table = pca953x_dt_ids,
+		.acpi_match_table = ACPI_PTR(pca953x_acpi_ids),
 	},
 	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
