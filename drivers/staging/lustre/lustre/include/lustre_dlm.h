@@ -465,19 +465,6 @@ struct ldlm_namespace {
 };
 
 /**
- * Returns 1 if namespace \a ns is a server namespace.
- */
-static inline int ns_is_server(struct ldlm_namespace *ns)
-{
-	LASSERT(ns != NULL);
-	LASSERT(!(ns->ns_client & ~(LDLM_NAMESPACE_CLIENT |
-				    LDLM_NAMESPACE_SERVER)));
-	LASSERT(ns->ns_client == LDLM_NAMESPACE_CLIENT ||
-		ns->ns_client == LDLM_NAMESPACE_SERVER);
-	return ns->ns_client == LDLM_NAMESPACE_SERVER;
-}
-
-/**
  * Returns 1 if namespace \a ns supports early lock cancel (ELC).
  */
 static inline int ns_connect_cancelset(struct ldlm_namespace *ns)

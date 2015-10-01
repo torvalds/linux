@@ -237,11 +237,6 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 	int rc;
 
-	if (lock->l_flags & LDLM_FL_NS_SRV) {
-		LASSERT(list_empty(&lock->l_lru));
-		return 0;
-	}
-
 	spin_lock(&ns->ns_lock);
 	rc = ldlm_lock_remove_from_lru_nolock(lock);
 	spin_unlock(&ns->ns_lock);
@@ -285,11 +280,6 @@ void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
 void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
-
-	if (lock->l_flags & LDLM_FL_NS_SRV) {
-		LASSERT(list_empty(&lock->l_lru));
-		return;
-	}
 
 	spin_lock(&ns->ns_lock);
 	if (!list_empty(&lock->l_lru)) {
@@ -799,8 +789,6 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	    (lock->l_flags & LDLM_FL_CBPENDING)) {
 		/* If we received a blocked AST and this was the last reference,
 		 * run the callback. */
-		if ((lock->l_flags & LDLM_FL_NS_SRV) && lock->l_export)
-			CERROR("FL_CBPENDING set on non-local lock--just a warning\n");
 
 		LDLM_DEBUG(lock, "final decref done on cbpending lock");
 
@@ -1486,8 +1474,6 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	lock->l_req_mode = mode;
 	lock->l_ast_data = data;
 	lock->l_pid = current_pid();
-	if (ns_is_server(ns))
-		lock->l_flags |= LDLM_FL_NS_SRV;
 	if (cbs) {
 		lock->l_blocking_ast = cbs->lcs_blocking;
 		lock->l_completion_ast = cbs->lcs_completion;

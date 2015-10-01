@@ -656,8 +656,8 @@ EXPORT_SYMBOL(ldlm_pool_setup);
 
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
-	int granted, grant_rate, cancel_rate, grant_step;
-	int grant_speed, grant_plan, lvf;
+	int granted, grant_rate, cancel_rate;
+	int grant_speed, lvf;
 	struct ldlm_pool *pl = m->private;
 	__u64 slv, clv;
 	__u32 limit;
@@ -666,13 +666,11 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 	slv = pl->pl_server_lock_volume;
 	clv = pl->pl_client_lock_volume;
 	limit = ldlm_pool_get_limit(pl);
-	grant_plan = pl->pl_grant_plan;
 	granted = atomic_read(&pl->pl_granted);
 	grant_rate = atomic_read(&pl->pl_grant_rate);
 	cancel_rate = atomic_read(&pl->pl_cancel_rate);
 	grant_speed = grant_rate - cancel_rate;
 	lvf = atomic_read(&pl->pl_lock_volume_factor);
-	grant_step = ldlm_pool_t2gsp(pl->pl_recalc_period);
 	spin_unlock(&pl->pl_lock);
 
 	seq_printf(m, "LDLM pool state (%s):\n"
@@ -681,11 +679,6 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 		      "  LVF: %d\n",
 		      pl->pl_name, slv, clv, lvf);
 
-	if (ns_is_server(ldlm_pl2ns(pl))) {
-		seq_printf(m, "  GSP: %d%%\n"
-			      "  GP:  %d\n",
-			      grant_step, grant_plan);
-	}
 	seq_printf(m, "  GR:  %d\n  CR:  %d\n  GS:  %d\n"
 		      "  G:   %d\n  L:   %d\n",
 		      grant_rate, cancel_rate, grant_speed,
@@ -966,8 +959,6 @@ void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock)
 	 * enqueue/cancel rpc. Also we do not want to run out of stack
 	 * with too long call paths.
 	 */
-	if (ns_is_server(ldlm_pl2ns(pl)))
-		ldlm_pool_recalc(pl);
 }
 EXPORT_SYMBOL(ldlm_pool_add);
 
@@ -987,9 +978,6 @@ void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock)
 	atomic_inc(&pl->pl_cancel_rate);
 
 	lprocfs_counter_incr(pl->pl_stats, LDLM_POOL_CANCEL_STAT);
-
-	if (ns_is_server(ldlm_pl2ns(pl)))
-		ldlm_pool_recalc(pl);
 }
 EXPORT_SYMBOL(ldlm_pool_del);
 
