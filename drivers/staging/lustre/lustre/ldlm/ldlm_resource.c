@@ -718,11 +718,12 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			     __u64 flags)
 {
 	struct list_head *tmp;
-	int rc = 0, client = ns_is_client(ldlm_res_to_ns(res));
+	int rc = 0;
 	bool local_only = !!(flags & LDLM_FL_LOCAL_ONLY);
 
 	do {
 		struct ldlm_lock *lock = NULL;
+		struct lustre_handle lockh;
 
 		/* First, we look for non-cleaned-yet lock
 		 * all cleaned locks are marked by CLEANED flag. */
@@ -767,20 +768,11 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			continue;
 		}
 
-		if (client) {
-			struct lustre_handle lockh;
-
-			unlock_res(res);
-			ldlm_lock2handle(lock, &lockh);
-			rc = ldlm_cli_cancel(&lockh, LCF_ASYNC);
-			if (rc)
-				CERROR("ldlm_cli_cancel: %d\n", rc);
-		} else {
-			ldlm_resource_unlink_lock(lock);
-			unlock_res(res);
-			LDLM_DEBUG(lock, "Freeing a lock still held by a client node");
-			ldlm_lock_destroy(lock);
-		}
+		unlock_res(res);
+		ldlm_lock2handle(lock, &lockh);
+		rc = ldlm_cli_cancel(&lockh, LCF_ASYNC);
+		if (rc)
+			CERROR("ldlm_cli_cancel: %d\n", rc);
 		LDLM_LOCK_RELEASE(lock);
 	} while (1);
 }
@@ -1165,7 +1157,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	 * namespace. If so, and this is a client namespace, we need to move
 	 * the namespace into the active namespaces list to be patrolled by
 	 * the ldlm_poold. */
-	if (ns_is_client(ns) && ns_refcount == 1) {
+	if (ns_refcount == 1) {
 		mutex_lock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
 		ldlm_namespace_move_to_active_locked(ns, LDLM_NAMESPACE_CLIENT);
 		mutex_unlock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
@@ -1346,9 +1338,8 @@ void ldlm_namespace_dump(int level, struct ldlm_namespace *ns)
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
-	CDEBUG(level, "--- Namespace: %s (rc: %d, side: %s)\n",
-	       ldlm_ns_name(ns), atomic_read(&ns->ns_bref),
-	       ns_is_client(ns) ? "client" : "server");
+	CDEBUG(level, "--- Namespace: %s (rc: %d, side: client)\n",
+	       ldlm_ns_name(ns), atomic_read(&ns->ns_bref));
 
 	if (time_before(cfs_time_current(), ns->ns_next_dump))
 		return;

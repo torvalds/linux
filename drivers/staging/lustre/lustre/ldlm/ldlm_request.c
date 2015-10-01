@@ -266,8 +266,7 @@ noreproc:
 		spin_unlock(&imp->imp_lock);
 	}
 
-	if (ns_is_client(ldlm_lock_to_ns(lock)) &&
-	    OBD_FAIL_CHECK_RESET(OBD_FAIL_LDLM_INTR_CP_AST,
+	if (OBD_FAIL_CHECK_RESET(OBD_FAIL_LDLM_INTR_CP_AST,
 				 OBD_FAIL_LDLM_CP_BL_RACE | OBD_FAIL_ONCE)) {
 		lock->l_flags |= LDLM_FL_FAIL_LOC;
 		rc = -EINTR;
@@ -817,10 +816,8 @@ static __u64 ldlm_cli_cancel_local(struct ldlm_lock *lock)
 		}
 		ldlm_lock_cancel(lock);
 	} else {
-		if (ns_is_client(ldlm_lock_to_ns(lock))) {
-			LDLM_ERROR(lock, "Trying to cancel local lock");
-			LBUG();
-		}
+		LDLM_ERROR(lock, "Trying to cancel local lock");
+		LBUG();
 	}
 
 	return rc;

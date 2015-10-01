@@ -480,8 +480,6 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	struct ldlm_resource *newres;
 	int type;
 
-	LASSERT(ns_is_client(ns));
-
 	lock_res_and_lock(lock);
 	if (memcmp(new_resid, &lock->l_resource->lr_name,
 		   sizeof(lock->l_resource->lr_name)) == 0) {
@@ -816,8 +814,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 		if ((lock->l_flags & LDLM_FL_ATOMIC_CB) ||
 		    ldlm_bl_to_thread_lock(ns, NULL, lock) != 0)
 			ldlm_handle_bl_callback(ns, NULL, lock);
-	} else if (ns_is_client(ns) &&
-		   !lock->l_readers && !lock->l_writers &&
+	} else if (!lock->l_readers && !lock->l_writers &&
 		   !(lock->l_flags & LDLM_FL_NO_LRU) &&
 		   !(lock->l_flags & LDLM_FL_BL_AST)) {
 

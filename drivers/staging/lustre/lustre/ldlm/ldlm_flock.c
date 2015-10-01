@@ -63,9 +63,6 @@
 #include <linux/list.h>
 #include "ldlm_internal.h"
 
-int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
-			    void *data, int flag);
-
 /**
  * list_for_remaining_safe - iterate over the remaining entries in a list
  *	      and safeguard against removal of a list entry.
@@ -254,7 +251,6 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	struct ldlm_lock *new = req;
 	struct ldlm_lock *new2 = NULL;
 	ldlm_mode_t mode = req->l_req_mode;
-	int local = ns_is_client(ns);
 	int added = (mode == LCK_NL);
 	int overlaps = 0;
 	int splitted = 0;
@@ -269,14 +265,9 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 
 	*err = ELDLM_OK;
 
-	if (local) {
-		/* No blocking ASTs are sent to the clients for
-		 * Posix file & record locks */
-		req->l_blocking_ast = NULL;
-	} else {
-		/* Called on the server for lock cancels. */
-		req->l_blocking_ast = ldlm_flock_blocking_ast;
-	}
+	/* No blocking ASTs are sent to the clients for
+	 * Posix file & record locks */
+	req->l_blocking_ast = NULL;
 
 reprocess:
 	if ((*flags == LDLM_FL_WAIT_NOREPROC) || (mode == LCK_NL)) {
@@ -707,19 +698,6 @@ granted:
 	return rc;
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
-
-int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
-			    void *data, int flag)
-{
-	LASSERT(lock);
-	LASSERT(flag == LDLM_CB_CANCELING);
-
-	/* take lock off the deadlock detection hash list. */
-	lock_res_and_lock(lock);
-	ldlm_flock_blocking_unlink(lock);
-	unlock_res_and_lock(lock);
-	return 0;
-}
 
 void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
 				       ldlm_policy_data_t *lpolicy)
