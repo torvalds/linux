@@ -319,11 +319,11 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 	return 0;
 }
 
-static u64 gic_mpidr_to_affinity(u64 mpidr)
+static u64 gic_mpidr_to_affinity(unsigned long mpidr)
 {
 	u64 aff;
 
-	aff = (MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
+	aff = ((u64)MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 1) << 8  |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 0));
@@ -333,7 +333,7 @@ static u64 gic_mpidr_to_affinity(u64 mpidr)
 
 static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 {
-	u64 irqnr;
+	u32 irqnr;
 
 	do {
 		irqnr = gic_read_iar();
@@ -397,7 +397,7 @@ static void __init gic_dist_init(void)
 
 static int gic_populate_rdist(void)
 {
-	u64 mpidr = cpu_logical_map(smp_processor_id());
+	unsigned long mpidr = cpu_logical_map(smp_processor_id());
 	u64 typer;
 	u32 aff;
 	int i;
@@ -428,10 +428,9 @@ static int gic_populate_rdist(void)
 				u64 offset = ptr - gic_data.redist_regions[i].redist_base;
 				gic_data_rdist_rd_base() = ptr;
 				gic_data_rdist()->phys_base = gic_data.redist_regions[i].phys_base + offset;
-				pr_info("CPU%d: found redistributor %llx region %d:%pa\n",
-					smp_processor_id(),
-					(unsigned long long)mpidr,
-					i, &gic_data_rdist()->phys_base);
+				pr_info("CPU%d: found redistributor %lx region %d:%pa\n",
+					smp_processor_id(), mpidr, i,
+					&gic_data_rdist()->phys_base);
 				return 0;
 			}
 
@@ -446,8 +445,8 @@ static int gic_populate_rdist(void)
 	}
 
 	/* We couldn't even deal with ourselves... */
-	WARN(true, "CPU%d: mpidr %llx has no re-distributor!\n",
-	     smp_processor_id(), (unsigned long long)mpidr);
+	WARN(true, "CPU%d: mpidr %lx has no re-distributor!\n",
+	     smp_processor_id(), mpidr);
 	return -ENODEV;
 }
 
@@ -524,10 +523,10 @@ static struct notifier_block gic_cpu_notifier = {
 };
 
 static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
-				   u64 cluster_id)
+				   unsigned long cluster_id)
 {
 	int cpu = *base_cpu;
-	u64 mpidr = cpu_logical_map(cpu);
+	unsigned long mpidr = cpu_logical_map(cpu);
 	u16 tlist = 0;
 
 	while (cpu < nr_cpu_ids) {
@@ -588,7 +587,7 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	smp_wmb();
 
 	for_each_cpu(cpu, mask) {
-		u64 cluster_id = cpu_logical_map(cpu) & ~0xffUL;
+		unsigned long cluster_id = cpu_logical_map(cpu) & ~0xffUL;
 		u16 tlist;
 
 		tlist = gic_compute_target_list(&cpu, mask, cluster_id);

@@ -78,17 +78,22 @@
 
 #include <linux/stringify.h>
 
-/* Low level accessors */
+/*
+ * Low-level accessors
+ *
+ * These system registers are 32 bits, but we make sure that the compiler
+ * sets the GP register's most significant bits to 0 with an explicit cast.
+ */
 
-static inline void gic_write_eoir(u64 irq)
+static inline void gic_write_eoir(u32 irq)
 {
-	asm volatile("msr_s " __stringify(ICC_EOIR1_EL1) ", %0" : : "r" (irq));
+	asm volatile("msr_s " __stringify(ICC_EOIR1_EL1) ", %0" : : "r" ((u64)irq));
 	isb();
 }
 
-static inline void gic_write_dir(u64 irq)
+static inline void gic_write_dir(u32 irq)
 {
-	asm volatile("msr_s " __stringify(ICC_DIR_EL1) ", %0" : : "r" (irq));
+	asm volatile("msr_s " __stringify(ICC_DIR_EL1) ", %0" : : "r" ((u64)irq));
 	isb();
 }
 
@@ -122,20 +127,20 @@ static inline u64 gic_read_iar_cavium_thunderx(void)
 	return irqstat;
 }
 
-static inline void gic_write_pmr(u64 val)
+static inline void gic_write_pmr(u32 val)
 {
-	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
+	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" ((u64)val));
 }
 
-static inline void gic_write_ctlr(u64 val)
+static inline void gic_write_ctlr(u32 val)
 {
-	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
+	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" ((u64)val));
 	isb();
 }
 
-static inline void gic_write_grpen1(u64 val)
+static inline void gic_write_grpen1(u32 val)
 {
-	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
+	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" ((u64)val));
 	isb();
 }
 
@@ -144,7 +149,7 @@ static inline void gic_write_sgi1r(u64 val)
 	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
 }
 
-static inline u64 gic_read_sre(void)
+static inline u32 gic_read_sre(void)
 {
 	u64 val;
 
@@ -152,9 +157,9 @@ static inline u64 gic_read_sre(void)
 	return val;
 }
 
-static inline void gic_write_sre(u64 val)
+static inline void gic_write_sre(u32 val)
 {
-	asm volatile("msr_s " __stringify(ICC_SRE_EL1) ", %0" : : "r" (val));
+	asm volatile("msr_s " __stringify(ICC_SRE_EL1) ", %0" : : "r" ((u64)val));
 	isb();
 }
 

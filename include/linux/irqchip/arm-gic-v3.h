@@ -265,16 +265,16 @@
 /*
  * Hypervisor interface registers (SRE only)
  */
-#define ICH_LR_VIRTUAL_ID_MASK		((1UL << 32) - 1)
+#define ICH_LR_VIRTUAL_ID_MASK		((1ULL << 32) - 1)
 
-#define ICH_LR_EOI			(1UL << 41)
-#define ICH_LR_GROUP			(1UL << 60)
-#define ICH_LR_HW			(1UL << 61)
-#define ICH_LR_STATE			(3UL << 62)
-#define ICH_LR_PENDING_BIT		(1UL << 62)
-#define ICH_LR_ACTIVE_BIT		(1UL << 63)
+#define ICH_LR_EOI			(1ULL << 41)
+#define ICH_LR_GROUP			(1ULL << 60)
+#define ICH_LR_HW			(1ULL << 61)
+#define ICH_LR_STATE			(3ULL << 62)
+#define ICH_LR_PENDING_BIT		(1ULL << 62)
+#define ICH_LR_ACTIVE_BIT		(1ULL << 63)
 #define ICH_LR_PHYS_ID_SHIFT		32
-#define ICH_LR_PHYS_ID_MASK		(0x3ffUL << ICH_LR_PHYS_ID_SHIFT)
+#define ICH_LR_PHYS_ID_MASK		(0x3ffULL << ICH_LR_PHYS_ID_SHIFT)
 
 #define ICH_MISR_EOI			(1 << 0)
 #define ICH_MISR_U			(1 << 1)
