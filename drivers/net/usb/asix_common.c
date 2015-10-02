@@ -61,21 +61,19 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		unsigned char *data;
 
 		if (!rx->remaining) {
-			if ((skb->len - offset == sizeof(u16)) ||
-			    rx->split_head) {
-				if(!rx->split_head) {
-					rx->header = get_unaligned_le16(
-							skb->data + offset);
-					rx->split_head = true;
-					offset += sizeof(u16);
-					break;
-				} else {
-					rx->header |= (get_unaligned_le16(
-							skb->data + offset)
-							<< 16);
-					rx->split_head = false;
-					offset += sizeof(u16);
-				}
+			if (skb->len - offset == sizeof(u16)) {
+				rx->header = get_unaligned_le16(
+						skb->data + offset);
+				rx->split_head = true;
+				offset += sizeof(u16);
+				break;
+			}
+
+			if (rx->split_head == true) {
+				rx->header |= (get_unaligned_le16(
+						skb->data + offset) << 16);
+				rx->split_head = false;
+				offset += sizeof(u16);
 			} else {
 				rx->header = get_unaligned_le32(skb->data +
 								offset);
