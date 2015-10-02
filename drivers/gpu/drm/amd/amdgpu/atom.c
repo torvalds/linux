@@ -1026,6 +1026,13 @@ static void atom_op_debug(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("DEBUG output: 0x%02X\n", val);
 }
 
+static void atom_op_processds(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint16_t val = U16(*ptr);
+	(*ptr) += val + 2;
+	SDEBUG("PROCESSDS output: 0x%02X\n", val);
+}
+
 static struct {
 	void (*func) (atom_exec_context *, int *, int);
 	int arg;
@@ -1152,7 +1159,9 @@ static struct {
 	atom_op_shr, ATOM_ARG_FB}, {
 	atom_op_shr, ATOM_ARG_PLL}, {
 	atom_op_shr, ATOM_ARG_MC}, {
-atom_op_debug, 0},};
+	atom_op_debug, 0}, {
+	atom_op_processds, 0},
+};
 
 static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
 {
