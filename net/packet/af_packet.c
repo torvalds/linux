@@ -1567,7 +1567,7 @@ static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
 	if (copy_from_user(&fprog, data, len))
 		return -EFAULT;
 
-	ret = bpf_prog_create_from_user(&new, &fprog, NULL);
+	ret = bpf_prog_create_from_user(&new, &fprog, NULL, false);
 	if (ret)
 		return ret;
 

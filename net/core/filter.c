@@ -1084,16 +1084,18 @@ EXPORT_SYMBOL_GPL(bpf_prog_create);
  *	@pfp: the unattached filter that is created
  *	@fprog: the filter program
  *	@trans: post-classic verifier transformation handler
+ *	@save_orig: save classic BPF program
  *
  * This function effectively does the same as bpf_prog_create(), only
  * that it builds up its insns buffer from user space provided buffer.
  * It also allows for passing a bpf_aux_classic_check_t handler.
  */
 int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
-			      bpf_aux_classic_check_t trans)
+			      bpf_aux_classic_check_t trans, bool save_orig)
 {
 	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct bpf_prog *fp;
+	int err;
 
 	/* Make sure new filter is there and in the right amounts. */
 	if (fprog->filter == NULL)
@@ -1109,11 +1111,15 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 	}
 
 	fp->len = fprog->len;
-	/* Since unattached filters are not copied back to user
-	 * space through sk_get_filter(), we do not need to hold
-	 * a copy here, and can spare us the work.
-	 */
 	fp->orig_prog = NULL;
+
+	if (save_orig) {
+		err = bpf_prog_store_orig_filter(fp, fprog);
+		if (err) {
+			__bpf_prog_free(fp);
+			return -ENOMEM;
+		}
+	}
 
 	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
