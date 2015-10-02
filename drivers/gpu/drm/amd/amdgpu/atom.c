@@ -788,6 +788,20 @@ static void atom_op_mul(atom_exec_context *ctx, int *ptr, int arg)
 	ctx->ctx->divmul[0] = dst * src;
 }
 
+static void atom_op_mul32(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint64_t val64;
+	uint8_t attr = U8((*ptr)++);
+	uint32_t dst, src;
+	SDEBUG("   src1: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
+	SDEBUG("   src2: ");
+	src = atom_get_src(ctx, attr, ptr);
+	val64 = (uint64_t)dst * (uint64_t)src;
+	ctx->ctx->divmul[0] = lower_32_bits(val64);
+	ctx->ctx->divmul[1] = upper_32_bits(val64);
+}
+
 static void atom_op_nop(atom_exec_context *ctx, int *ptr, int arg)
 {
 	/* nothing */
@@ -1160,7 +1174,9 @@ static struct {
 	atom_op_shr, ATOM_ARG_PLL}, {
 	atom_op_shr, ATOM_ARG_MC}, {
 	atom_op_debug, 0}, {
-	atom_op_processds, 0},
+	atom_op_processds, 0}, {
+	atom_op_mul32, ATOM_ARG_PS}, {
+	atom_op_mul32, ATOM_ARG_WS},
 };
 
 static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
