@@ -93,7 +93,8 @@ struct sw_flow *ovs_flow_alloc(void)
 
 	/* Initialize the default stat node. */
 	stats = kmem_cache_alloc_node(flow_stats_cache,
-				      GFP_KERNEL | __GFP_ZERO, 0);
+				      GFP_KERNEL | __GFP_ZERO,
+				      node_online(0) ? 0 : NUMA_NO_NODE);
 	if (!stats)
 		goto err;
 
