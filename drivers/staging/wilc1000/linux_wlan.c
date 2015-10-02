@@ -1879,28 +1879,26 @@ static void __exit exit_wilc_driver(void)
 		}
 	}
 
-	{
-	#ifndef WILC_SDIO
-		PRINT_D(INIT_DBG, "SPI unregsiter...\n");
-		spi_unregister_driver(&wilc_bus);
-	#else
-		PRINT_D(INIT_DBG, "SDIO unregsiter...\n");
-		sdio_unregister_driver(&wilc_bus);
-	#endif
-
-		if (g_linux_wlan != NULL) {
-			kfree(g_linux_wlan);
-			g_linux_wlan = NULL;
-		}
-		printk("Module_exit Done.\n");
-
-#if defined(WILC_DEBUGFS)
-		wilc_debugfs_remove();
+#ifndef WILC_SDIO
+	PRINT_D(INIT_DBG, "SPI unregsiter...\n");
+	spi_unregister_driver(&wilc_bus);
+#else
+	PRINT_D(INIT_DBG, "SDIO unregsiter...\n");
+	sdio_unregister_driver(&wilc_bus);
 #endif
 
-		linux_wlan_device_detection(0);
-		linux_wlan_device_power(0);
+	if (g_linux_wlan != NULL) {
+		kfree(g_linux_wlan);
+		g_linux_wlan = NULL;
 	}
+	printk("Module_exit Done.\n");
+
+#if defined(WILC_DEBUGFS)
+	wilc_debugfs_remove();
+#endif
+
+	linux_wlan_device_detection(0);
+	linux_wlan_device_power(0);
 }
 module_exit(exit_wilc_driver);
 
