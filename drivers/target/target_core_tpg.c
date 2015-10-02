@@ -668,7 +668,10 @@ int core_tpg_add_lun(
 	list_add_tail(&lun->lun_dev_link, &dev->dev_sep_list);
 	spin_unlock(&dev->se_port_lock);
 
-	lun->lun_access = lun_access;
+	if (dev->dev_flags & DF_READ_ONLY)
+		lun->lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
+	else
+		lun->lun_access = lun_access;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
 	mutex_unlock(&tpg->tpg_lun_mutex);

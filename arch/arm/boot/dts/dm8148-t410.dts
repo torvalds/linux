@@ -8,7 +8,7 @@
 #include "dm814x.dtsi"
 
 / {
-	model = "DM8148 EVM";
+	model = "HP t410 Smart Zero Client";
 	compatible = "hp,t410", "ti,dm8148";
 
 	memory {
@@ -19,10 +19,10 @@
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
-	phy-mode = "mii";
+	phy-mode = "rgmii";
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
-	phy-mode = "mii";
+	phy-mode = "rgmii";
 };

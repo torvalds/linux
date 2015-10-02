@@ -19,6 +19,7 @@ FILES=					\
 	test-libelf-getphdrnum.bin	\
 	test-libelf-mmap.bin		\
 	test-libnuma.bin		\
+	test-numa_num_possible_cpus.bin	\
 	test-libperl.bin		\
 	test-libpython.bin		\
 	test-libpython-version.bin	\
@@ -34,7 +35,8 @@ FILES=					\
 	test-compile-x32.bin		\
 	test-zlib.bin			\
 	test-lzma.bin			\
-	test-bpf.bin
+	test-bpf.bin			\
+	test-get_cpuid.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -85,6 +87,9 @@ test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
 test-libnuma.bin:
+	$(BUILD) -lnuma
+
+test-numa_num_possible_cpus.bin:
 	$(BUILD) -lnuma
 
 test-libunwind.bin:
@@ -161,6 +166,9 @@ test-zlib.bin:
 
 test-lzma.bin:
 	$(BUILD) -llzma
+
+test-get_cpuid.bin:
+	$(BUILD)
 
 test-bpf.bin:
 	$(BUILD)

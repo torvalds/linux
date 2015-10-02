@@ -1149,6 +1149,9 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 	unsigned long dt;
 	unsigned long flags;
 	int i;
+	LIST_HEAD(remove_list);
+	struct ipoib_mcast *mcast, *tmcast;
+	struct net_device *dev = priv->dev;
 
 	if (test_bit(IPOIB_STOP_NEIGH_GC, &priv->flags))
 		return;
@@ -1176,6 +1179,19 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 							  lockdep_is_held(&priv->lock))) != NULL) {
 			/* was the neigh idle for two GC periods */
 			if (time_after(neigh_obsolete, neigh->alive)) {
+				u8 *mgid = neigh->daddr + 4;
+
+				/* Is this multicast ? */
+				if (*mgid == 0xff) {
+					mcast = __ipoib_mcast_find(dev, mgid);
+
+					if (mcast && test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
+						list_del(&mcast->list);
+						rb_erase(&mcast->rb_node, &priv->multicast_tree);
+						list_add_tail(&mcast->list, &remove_list);
+					}
+				}
+
 				rcu_assign_pointer(*np,
 						   rcu_dereference_protected(neigh->hnext,
 									     lockdep_is_held(&priv->lock)));
@@ -1191,6 +1207,8 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 
 out_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
+	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
+		ipoib_mcast_leave(dev, mcast);
 }
 
 static void ipoib_reap_neigh(struct work_struct *work)

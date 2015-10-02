@@ -39,25 +39,6 @@ static int
 fmr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	    struct rpcrdma_create_data_internal *cdata)
 {
-	struct ib_device_attr *devattr = &ia->ri_devattr;
-	struct ib_mr *mr;
-
-	/* Obtain an lkey to use for the regbufs, which are
-	 * protected from remote access.
-	 */
-	if (devattr->device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY) {
-		ia->ri_dma_lkey = ia->ri_device->local_dma_lkey;
-	} else {
-		mr = ib_get_dma_mr(ia->ri_pd, IB_ACCESS_LOCAL_WRITE);
-		if (IS_ERR(mr)) {
-			pr_err("%s: ib_get_dma_mr for failed with %lX\n",
-			       __func__, PTR_ERR(mr));
-			return -ENOMEM;
-		}
-		ia->ri_dma_lkey = ia->ri_dma_mr->lkey;
-		ia->ri_dma_mr = mr;
-	}
-
 	return 0;
 }
 
