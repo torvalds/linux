@@ -30,6 +30,7 @@ struct iotlb_entry {
 struct omap_iommu {
 	const char	*name;
 	void __iomem	*regbase;
+	struct regmap	*syscfg;
 	struct device	*dev;
 	struct iommu_domain *domain;
 	struct dentry	*debug_dir;
@@ -48,6 +49,7 @@ struct omap_iommu {
 	void *ctx; /* iommu context: registres saved area */
 
 	int has_bus_err_back;
+	u32 id;
 };
 
 struct cr_regs {
@@ -157,6 +159,13 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 	 ((pgsz) == MMU_CAM_PGSZ_1M)  ? 0xfff00000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_64K) ? 0xffff0000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_4K)  ? 0xfffff000 : 0)
+
+/*
+ * DSP_SYSTEM registers and bit definitions (applicable only for DRA7xx DSP)
+ */
+#define DSP_SYS_REVISION		0x00
+#define DSP_SYS_MMU_CONFIG		0x18
+#define DSP_SYS_MMU_CONFIG_EN_SHIFT	4
 
 /*
  * utilities for super page(16MB, 1MB, 64KB and 4KB)
