@@ -26,6 +26,23 @@ struct clk;
 
 #define MHZ (1000 * 1000)
 
+struct mtk_fixed_clk {
+	int id;
+	const char *name;
+	const char *parent;
+	unsigned long rate;
+};
+
+#define FIXED_CLK(_id, _name, _parent, _rate) {		\
+		.id = _id,				\
+		.name = _name,				\
+		.parent = _parent,			\
+		.rate = _rate,				\
+	}
+
+void mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks,
+		int num, struct clk_onecell_data *clk_data);
+
 struct mtk_fixed_factor {
 	int id;
 	const char *name;
@@ -42,7 +59,7 @@ struct mtk_fixed_factor {
 		.div = _div,				\
 	}
 
-extern void mtk_clk_register_factors(const struct mtk_fixed_factor *clks,
+void mtk_clk_register_factors(const struct mtk_fixed_factor *clks,
 		int num, struct clk_onecell_data *clk_data);
 
 struct mtk_composite {
@@ -159,9 +176,12 @@ struct mtk_pll_data {
 	const struct mtk_pll_div_table *div_table;
 };
 
-void __init mtk_clk_register_plls(struct device_node *node,
+void mtk_clk_register_plls(struct device_node *node,
 		const struct mtk_pll_data *plls, int num_plls,
 		struct clk_onecell_data *clk_data);
+
+struct clk *mtk_clk_register_ref2usb_tx(const char *name,
+			const char *parent_name, void __iomem *reg);
 
 #ifdef CONFIG_RESET_CONTROLLER
 void mtk_register_reset_controller(struct device_node *np,
