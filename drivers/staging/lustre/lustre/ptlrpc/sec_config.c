@@ -285,8 +285,8 @@ static inline int rule_match_net(struct sptlrpc_rule *r1,
  * merge @rule into @rset.
  * the @rset slots might be expanded.
  */
-int sptlrpc_rule_set_merge(struct sptlrpc_rule_set *rset,
-			   struct sptlrpc_rule *rule)
+static int sptlrpc_rule_set_merge(struct sptlrpc_rule_set *rset,
+				  struct sptlrpc_rule *rule)
 {
 	struct sptlrpc_rule *p = rset->srs_rules;
 	int spec_dir, spec_net;
@@ -370,8 +370,6 @@ int sptlrpc_rule_set_merge(struct sptlrpc_rule_set *rset,
 
 	return 0;
 }
-EXPORT_SYMBOL(sptlrpc_rule_set_merge);
-
 /**
  * given from/to/nid, determine a matching flavor in ruleset.
  * return 1 if a match found, otherwise return 0.
