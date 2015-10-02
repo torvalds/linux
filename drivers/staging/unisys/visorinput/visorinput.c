@@ -14,7 +14,8 @@
  * details.
  */
 
-/* This driver lives in a generic guest Linux partition, and registers to
+/*
+ * This driver lives in a generic guest Linux partition, and registers to
  * receive keyboard and mouse channels from the visorbus driver.  It reads
  * inputs from such channels, and delivers it to the Linux OS in the
  * standard way the Linux expects for input drivers.
@@ -55,14 +56,14 @@ enum visorinput_device_type {
 	visorinput_mouse,
 };
 
-/*  This is the private data that we store for each device.
- *  A pointer to this struct is maintained via
- *  dev_get_drvdata() / dev_set_drvdata() for each struct device.
+/*
+ * This is the private data that we store for each device.
+ * A pointer to this struct is maintained via
+ * dev_get_drvdata() / dev_set_drvdata() for each struct device.
  */
 struct visorinput_devdata {
 	struct visor_device *dev;
-	/** lock for dev */
-	struct rw_semaphore lock_visor_dev;
+	struct rw_semaphore lock_visor_dev; /* lock for dev */
 	struct input_dev *visorinput_dev;
 	bool paused;
 	unsigned int keycode_table_bytes; /* size of following array */
@@ -75,8 +76,10 @@ static const uuid_le spar_keyboard_channel_protocol_uuid =
 static const uuid_le spar_mouse_channel_protocol_uuid =
 	SPAR_MOUSE_CHANNEL_PROTOCOL_UUID;
 
-/* Borrowed from drivers/input/keyboard/atakbd.c */
-/* This maps 1-byte scancodes to keycodes. */
+/*
+ * Borrowed from drivers/input/keyboard/atakbd.c
+ * This maps 1-byte scancodes to keycodes.
+ */
 static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
 	/* American layout */
 	[0] = KEY_GRAVE,
@@ -193,7 +196,8 @@ static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
 	[113] = KEY_MUTE
 };
 
-/* This maps the <xx> in extended scancodes of the form "0xE0 <xx>" into
+/*
+ * This maps the <xx> in extended scancodes of the form "0xE0 <xx>" into
  * keycodes.
  */
 static const unsigned char visorkbd_ext_keycode[KEYCODE_TABLE_BYTES] = {
@@ -212,7 +216,8 @@ static const unsigned char visorkbd_ext_keycode[KEYCODE_TABLE_BYTES] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x70 */
 };
 
-/* register_client_keyboard() initializes and returns a Linux gizmo that we
+/*
+ * register_client_keyboard() initializes and returns a Linux gizmo that we
  * can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
  */
@@ -299,7 +304,8 @@ register_client_mouse(void)
 		return NULL;
 	}
 
-	/* Sending top-left and bottom-right positions is ABSOLUTELY
+	/*
+	 * Sending top-left and bottom-right positions is ABSOLUTELY
 	 * REQUIRED if we want X to move the mouse to the exact points
 	 * we tell it.  I have NO IDEA why.
 	 */
@@ -329,7 +335,8 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 		return NULL;
 	devdata->dev = dev;
 
-	/* This is an input device in a client guest partition,
+	/*
+	 * This is an input device in a client guest partition,
 	 * so we need to create whatever gizmos are necessary to
 	 * deliver our inputs to the guest OS.
 	 */
@@ -400,9 +407,10 @@ visorinput_remove(struct visor_device *dev)
 
 	visorbus_disable_channel_interrupts(dev);
 
-	/* due to above, at this time no thread of execution will be
-	* in visorinput_channel_interrupt()
-	*/
+	/*
+	 * due to above, at this time no thread of execution will be
+	 * in visorinput_channel_interrupt()
+	 */
 
 	down_write(&devdata->lock_visor_dev);
 	dev_set_drvdata(&dev->device, NULL);
@@ -417,7 +425,8 @@ do_key(struct input_dev *inpt, int keycode, int down)
 	input_report_key(inpt, keycode, down);
 }
 
-/* Make it so the current locking state of the locking key indicated by
+/*
+ * Make it so the current locking state of the locking key indicated by
  * <keycode> is as indicated by <desired_state> (1=locked, 0=unlocked).
  */
 static void
@@ -457,7 +466,8 @@ handle_locking_key(struct input_dev *visorinput_dev,
 	}
 }
 
-/* <scancode> is either a 1-byte scancode, or an extended 16-bit scancode
+/*
+ * <scancode> is either a 1-byte scancode, or an extended 16-bit scancode
  * with 0xE0 in the low byte and the extended scancode value in the next
  * higher byte.
  */
@@ -488,7 +498,8 @@ calc_button(int x)
 	}
 }
 
-/* This is used only when this driver is active as an input driver in the
+/*
+ * This is used only when this driver is active as an input driver in the
  * client guest partition.  It is called periodically so we can obtain inputs
  * from the channel, and deliver them to the guest OS.
  */
