@@ -561,15 +561,6 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		mutex_lock(&devfreq->lock);
 	}
 
-	devfreq->trans_table =	devm_kzalloc(dev, sizeof(unsigned int) *
-						devfreq->profile->max_state *
-						devfreq->profile->max_state,
-						GFP_KERNEL);
-	devfreq->time_in_state = devm_kzalloc(dev, sizeof(unsigned long) *
-						devfreq->profile->max_state,
-						GFP_KERNEL);
-	devfreq->last_stat_updated = jiffies;
-
 	dev_set_name(&devfreq->dev, "%s", dev_name(dev));
 	err = device_register(&devfreq->dev);
 	if (err) {
@@ -577,6 +568,15 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		mutex_unlock(&devfreq->lock);
 		goto err_out;
 	}
+
+	devfreq->trans_table =	devm_kzalloc(&devfreq->dev, sizeof(unsigned int) *
+						devfreq->profile->max_state *
+						devfreq->profile->max_state,
+						GFP_KERNEL);
+	devfreq->time_in_state = devm_kzalloc(&devfreq->dev, sizeof(unsigned long) *
+						devfreq->profile->max_state,
+						GFP_KERNEL);
+	devfreq->last_stat_updated = jiffies;
 
 	srcu_init_notifier_head(&devfreq->transition_notifier_list);
 
