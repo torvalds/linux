@@ -1203,6 +1203,11 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
 
+	/* Flush the hw queues, in case something got queued during entry */
+	ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm), flags);
+	if (ret)
+		return ret;
+
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
 		iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd,
