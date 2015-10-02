@@ -460,6 +460,33 @@ static int wm5102_clear_write_sequencer(struct arizona *arizona)
 }
 
 #ifdef CONFIG_PM
+static int arizona_isolate_dcvdd(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_ISOLATION_CONTROL,
+				 ARIZONA_ISOLATE_DCVDD1,
+				 ARIZONA_ISOLATE_DCVDD1);
+	if (ret != 0)
+		dev_err(arizona->dev, "Failed to isolate DCVDD: %d\n", ret);
+
+	return ret;
+}
+
+static int arizona_connect_dcvdd(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_update_bits(arizona->regmap,
+				 ARIZONA_ISOLATION_CONTROL,
+				 ARIZONA_ISOLATE_DCVDD1, 0);
+	if (ret != 0)
+		dev_err(arizona->dev, "Failed to connect DCVDD: %d\n", ret);
+
+	return ret;
+}
+
 static int arizona_runtime_resume(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -499,14 +526,9 @@ static int arizona_runtime_resume(struct device *dev)
 	switch (arizona->type) {
 	case WM5102:
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret != 0) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		}
 
 		ret = wm5102_patch(arizona);
@@ -531,14 +553,9 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		} else {
 			/*
 			 * As this is only called for the internal regulator
@@ -569,14 +586,9 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 
 		if (arizona->external_dcvdd) {
-			ret = regmap_update_bits(arizona->regmap,
-						 ARIZONA_ISOLATION_CONTROL,
-						 ARIZONA_ISOLATE_DCVDD1, 0);
-			if (ret != 0) {
-				dev_err(arizona->dev,
-					"Failed to connect DCVDD: %d\n", ret);
+			ret = arizona_connect_dcvdd(arizona);
+			if (ret != 0)
 				goto err;
-			}
 		}
 		break;
 	}
@@ -609,37 +621,36 @@ static int arizona_runtime_suspend(struct device *dev)
 		return ret;
 	}
 
-	if (arizona->external_dcvdd) {
-		ret = regmap_update_bits(arizona->regmap,
-					 ARIZONA_ISOLATION_CONTROL,
-					 ARIZONA_ISOLATE_DCVDD1,
-					 ARIZONA_ISOLATE_DCVDD1);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to isolate DCVDD: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
 	switch (arizona->type) {
 	case WM5110:
 	case WM8280:
-		if (arizona->external_dcvdd)
-			break;
-
-		/*
-		 * As this is only called for the internal regulator
-		 * (where we know voltage ranges available) it is ok
-		 * to request an exact range.
-		 */
-		ret = regulator_set_voltage(arizona->dcvdd, 1175000, 1175000);
-		if (ret < 0) {
-			dev_err(arizona->dev,
-				"Failed to set suspend voltage: %d\n", ret);
-			return ret;
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		} else {
+			/*
+			 * As this is only called for the internal regulator
+			 * (where we know voltage ranges available) it is ok
+			 * to request an exact range.
+			 */
+			ret = regulator_set_voltage(arizona->dcvdd,
+						    1175000, 1175000);
+			if (ret < 0) {
+				dev_err(arizona->dev,
+					"Failed to set suspend voltage: %d\n",
+					ret);
+				return ret;
+			}
 		}
 		break;
 	case WM5102:
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		}
+
 		if (!(val & ARIZONA_JD1_ENA)) {
 			ret = regmap_write(arizona->regmap,
 					   ARIZONA_WRITE_SEQUENCER_CTRL_3, 0x0);
@@ -652,6 +663,11 @@ static int arizona_runtime_suspend(struct device *dev)
 		}
 		break;
 	default:
+		if (arizona->external_dcvdd) {
+			ret = arizona_isolate_dcvdd(arizona);
+			if (ret != 0)
+				return ret;
+		}
 		break;
 	}
 
