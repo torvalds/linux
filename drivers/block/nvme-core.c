@@ -42,6 +42,7 @@
 #include <scsi/sg.h>
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 
+#include <uapi/linux/nvme_ioctl.h>
 #include "nvme.h"
 
 #define NVME_MINORS		(1U << MINORBITS)
