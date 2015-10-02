@@ -234,7 +234,7 @@ register_client_keyboard(unsigned char *keycode_table)
 
 	visorinput_dev->name = "visor Keyboard";
 	visorinput_dev->phys = "visorkbd:input0";
-	visorinput_dev->id.bustype = BUS_HOST;
+	visorinput_dev->id.bustype = BUS_VIRTUAL;
 	visorinput_dev->id.vendor = 0x0001;
 	visorinput_dev->id.product = 0x0001;
 	visorinput_dev->id.version = 0x0100;
@@ -277,7 +277,7 @@ register_client_mouse(void)
 
 	visorinput_dev->name = "visor Mouse";
 	visorinput_dev->phys = "visormou:input0";
-	visorinput_dev->id.bustype = BUS_HOST;
+	visorinput_dev->id.bustype = BUS_VIRTUAL;
 	visorinput_dev->id.vendor = 0x0001;
 	visorinput_dev->id.product = 0x0002;
 	visorinput_dev->id.version = 0x0100;
