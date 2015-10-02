@@ -5362,7 +5362,6 @@ int host_int_wait_msg_queue_idle(void)
 	down(&hWaitResponse);
 
 	return result;
-
 }
 
 s32 host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
