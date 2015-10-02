@@ -663,7 +663,7 @@ static int set_channel(struct wiphy *wiphy,
 {
 	u32 channelnum = 0;
 	struct wilc_priv *priv;
-	int s32Error = 0;
+	int result = 0;
 
 	priv = wiphy_priv(wiphy);
 
@@ -671,12 +671,12 @@ static int set_channel(struct wiphy *wiphy,
 	PRINT_D(CFG80211_DBG, "Setting channel %d with frequency %d\n", channelnum, chandef->chan->center_freq);
 
 	u8CurrChannel = channelnum;
-	s32Error   = host_int_set_mac_chnl_num(priv->hWILCWFIDrv, channelnum);
+	result = host_int_set_mac_chnl_num(priv->hWILCWFIDrv, channelnum);
 
-	if (s32Error != 0)
+	if (result != 0)
 		PRINT_ER("Error in setting channel %d\n", channelnum);
 
-	return s32Error;
+	return result;
 }
 
 /**
