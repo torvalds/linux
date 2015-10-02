@@ -72,7 +72,7 @@ EXPORT_SYMBOL(class_find_param);
 
 /* returns 0 if this is the first key in the buffer, else 1.
    valp points to first char after key. */
-int class_match_param(char *buf, char *key, char **valp)
+static int class_match_param(char *buf, char *key, char **valp)
 {
 	if (!buf)
 		return 1;
@@ -85,7 +85,6 @@ int class_match_param(char *buf, char *key, char **valp)
 
 	return 0;
 }
-EXPORT_SYMBOL(class_match_param);
 
 static int parse_nid(char *buf, void *value, int quiet)
 {
@@ -175,7 +174,7 @@ EXPORT_SYMBOL(class_parse_nid_quiet);
  * Create a new obd device and set the type, name and uuid.  If successful,
  * the new device can be accessed by either name or uuid.
  */
-int class_attach(struct lustre_cfg *lcfg)
+static int class_attach(struct lustre_cfg *lcfg)
 {
 	struct obd_device *obd = NULL;
 	char *typename, *name, *uuid;
@@ -278,12 +277,11 @@ int class_attach(struct lustre_cfg *lcfg)
 	}
 	return rc;
 }
-EXPORT_SYMBOL(class_attach);
 
 /** Create hashes, self-export, and call type-specific setup.
  * Setup is effectively the "start this obd" call.
  */
-int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	struct obd_export *exp;
@@ -373,12 +371,11 @@ err_hash:
 	CERROR("setup %s failed (%d)\n", obd->obd_name, err);
 	return err;
 }
-EXPORT_SYMBOL(class_setup);
 
 /** We have finished using this obd and are ready to destroy it.
  * There can be no more references to this obd.
  */
-int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	if (obd->obd_set_up) {
 		CERROR("OBD device %d still set up\n", obd->obd_minor);
@@ -400,13 +397,12 @@ int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 	class_decref(obd, "attach", obd);
 	return 0;
 }
-EXPORT_SYMBOL(class_detach);
 
 /** Start shutting down the obd.  There may be in-progress ops when
  * this is called.  We tell them to start shutting down with a call
  * to class_disconnect_exports().
  */
-int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	char *flag;
@@ -479,7 +475,6 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	return 0;
 }
-EXPORT_SYMBOL(class_cleanup);
 
 struct obd_device *class_incref(struct obd_device *obd,
 				const char *scope, const void *source)
@@ -543,7 +538,7 @@ EXPORT_SYMBOL(class_decref);
 /** Add a failover nid location.
  * Client obd types contact server obd types using this nid list.
  */
-int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct obd_import *imp;
 	struct obd_uuid uuid;
@@ -574,11 +569,10 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	return rc;
 }
-EXPORT_SYMBOL(class_add_conn);
 
 /** Remove a failover nid location.
  */
-int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
+static int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct obd_import *imp;
 	struct obd_uuid uuid;
@@ -626,8 +620,8 @@ EXPORT_SYMBOL(class_get_profile);
  * This defines the mdc and osc names to use for a client.
  * This also is used to define the lov to be used by a mdt.
  */
-int class_add_profile(int proflen, char *prof, int osclen, char *osc,
-		      int mdclen, char *mdc)
+static int class_add_profile(int proflen, char *prof, int osclen, char *osc,
+			     int mdclen, char *mdc)
 {
 	struct lustre_profile *lprof;
 	int err = 0;
@@ -1303,7 +1297,8 @@ EXPORT_SYMBOL(class_config_parse_llog);
  * This is separated from class_config_dump_handler() to use
  * for ioctl needs as well
  */
-int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf, int size)
+static int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf,
+				  int size)
 {
 	struct lustre_cfg	*lcfg = (struct lustre_cfg *)(rec + 1);
 	char			*ptr = buf;

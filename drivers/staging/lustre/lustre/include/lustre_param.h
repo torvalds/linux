@@ -56,7 +56,6 @@ struct cfg_interop_param {
 
 /* obd_config.c */
 int class_find_param(char *buf, char *key, char **valp);
-int class_match_param(char *buf, char *key, char **valp);
 int class_parse_nid(char *buf, lnet_nid_t *nid, char **endh);
 int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh);
 /* obd_mount.c */
