@@ -218,7 +218,11 @@ static struct atmel_tdes_dev *atmel_tdes_find_dev(struct atmel_tdes_ctx *ctx)
 
 static int atmel_tdes_hw_init(struct atmel_tdes_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(dd->flags & TDES_FLAGS_INIT)) {
 		atmel_tdes_write(dd, TDES_CR, TDES_CR_SWRST);

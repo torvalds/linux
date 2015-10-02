@@ -794,7 +794,11 @@ static void atmel_sha_finish_req(struct ahash_request *req, int err)
 
 static int atmel_sha_hw_init(struct atmel_sha_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(SHA_FLAGS_INIT & dd->flags)) {
 		atmel_sha_write(dd, SHA_CR, SHA_CR_SWRST);

@@ -260,7 +260,11 @@ static struct atmel_aes_dev *atmel_aes_find_dev(struct atmel_aes_ctx *ctx)
 
 static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 {
-	clk_prepare_enable(dd->iclk);
+	int err;
+
+	err = clk_prepare_enable(dd->iclk);
+	if (err)
+		return err;
 
 	if (!(dd->flags & AES_FLAGS_INIT)) {
 		atmel_aes_write(dd, AES_CR, AES_CR_SWRST);
