@@ -66,6 +66,7 @@ struct visorinput_devdata {
 	struct rw_semaphore lock_visor_dev; /* lock for dev */
 	struct input_dev *visorinput_dev;
 	bool paused;
+	unsigned int opened;
 	unsigned int keycode_table_bytes; /* size of following array */
 	/* for keyboard devices: visorkbd_keycode[] + visorkbd_ext_keycode[] */
 	unsigned char keycode_table[0];
@@ -216,13 +217,50 @@ static const unsigned char visorkbd_ext_keycode[KEYCODE_TABLE_BYTES] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x70 */
 };
 
+static int visorinput_open(struct input_dev *visorinput_dev)
+{
+	struct visorinput_devdata *devdata = input_get_drvdata(visorinput_dev);
+
+	if (!devdata) {
+		pr_err("%s input_get_drvdata(%p) returned NULL\n",
+		       __func__, visorinput_dev);
+		return -EINVAL;
+	}
+	devdata->opened++;
+	dev_dbg(&visorinput_dev->dev, "%s opened %d\n", __func__,
+		devdata->opened);
+	if (devdata->opened == 1)
+		visorbus_enable_channel_interrupts(devdata->dev);
+	return 0;
+}
+
+static void visorinput_close(struct input_dev *visorinput_dev)
+{
+	struct visorinput_devdata *devdata = input_get_drvdata(visorinput_dev);
+
+	if (!devdata) {
+		pr_err("%s input_get_drvdata(%p) returned NULL\n",
+		       __func__, visorinput_dev);
+		return;
+	}
+	if (devdata->opened) {
+		devdata->opened--;
+		dev_dbg(&visorinput_dev->dev, "%s closed %d\n", __func__,
+			devdata->opened);
+		if (devdata->opened == 0)
+			visorbus_disable_channel_interrupts(devdata->dev);
+	} else
+		dev_err(&visorinput_dev->dev, "%s not open\n", __func__);
+}
+
 /*
  * register_client_keyboard() initializes and returns a Linux input node that
  * we can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *
-register_client_keyboard(unsigned char *keycode_table)
+register_client_keyboard(void *devdata,  /* opaque on purpose */
+			 unsigned char *keycode_table)
 
 {
 	int i, error;
@@ -255,6 +293,10 @@ register_client_keyboard(unsigned char *keycode_table)
 		set_bit(keycode_table[i + KEYCODE_TABLE_BYTES],
 			visorinput_dev->keybit);
 
+	visorinput_dev->open = visorinput_open;
+	visorinput_dev->close = visorinput_close;
+	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
+
 	error = input_register_device(visorinput_dev);
 	if (error) {
 		input_free_device(visorinput_dev);
@@ -264,7 +306,7 @@ register_client_keyboard(unsigned char *keycode_table)
 }
 
 static struct input_dev *
-register_client_mouse(void)
+register_client_mouse(void *devdata /* opaque on purpose */)
 {
 	int error;
 	struct input_dev *visorinput_dev = NULL;
@@ -297,6 +339,10 @@ register_client_mouse(void)
 	}
 	input_set_abs_params(visorinput_dev, ABS_X, 0, xres, 0, 0);
 	input_set_abs_params(visorinput_dev, ABS_Y, 0, yres, 0, 0);
+
+	visorinput_dev->open = visorinput_open;
+	visorinput_dev->close = visorinput_close;
+	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
 
 	error = input_register_device(visorinput_dev);
 	if (error) {
@@ -348,12 +394,12 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 		memcpy(devdata->keycode_table + KEYCODE_TABLE_BYTES,
 		       visorkbd_ext_keycode, KEYCODE_TABLE_BYTES);
 		devdata->visorinput_dev = register_client_keyboard
-			(devdata->keycode_table);
+			(devdata, devdata->keycode_table);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
 	case visorinput_mouse:
-		devdata->visorinput_dev = register_client_mouse();
+		devdata->visorinput_dev = register_client_mouse(devdata);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
@@ -386,7 +432,6 @@ visorinput_probe(struct visor_device *dev)
 	if (!devdata)
 		return -ENOMEM;
 	dev_set_drvdata(&dev->device, devdata);
-	visorbus_enable_channel_interrupts(dev);
 	return 0;
 }
 
