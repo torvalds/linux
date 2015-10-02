@@ -229,7 +229,7 @@ static void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 /*
  * return 0 if the rule set could accommodate one more rule.
  */
-int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
+static int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 {
 	struct sptlrpc_rule *rules;
 	int nslot;
