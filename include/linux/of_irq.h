@@ -49,6 +49,8 @@ extern int of_irq_to_resource_table(struct device_node *dev,
 extern struct irq_domain *of_msi_get_domain(struct device *dev,
 					    struct device_node *np,
 					    enum irq_domain_bus_token token);
+extern struct irq_domain *of_msi_map_get_device_domain(struct device *dev,
+						       u32 rid);
 #else
 static inline int of_irq_count(struct device_node *dev)
 {
@@ -70,6 +72,11 @@ static inline int of_irq_to_resource_table(struct device_node *dev,
 static inline struct irq_domain *of_msi_get_domain(struct device *dev,
 						   struct device_node *np,
 						   enum irq_domain_bus_token token)
+{
+	return NULL;
+}
+static inline struct irq_domain *of_msi_map_get_device_domain(struct device *dev,
+							      u32 rid)
 {
 	return NULL;
 }

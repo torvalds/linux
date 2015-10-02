@@ -689,6 +689,24 @@ static struct irq_domain *__of_get_msi_domain(struct device_node *np,
 }
 
 /**
+ * of_msi_map_get_device_domain - Use msi-map to find the relevant MSI domain
+ * @dev: device for which the mapping is to be done.
+ * @rid: Requester ID for the device.
+ *
+ * Walk up the device hierarchy looking for devices with a "msi-map"
+ * property.
+ *
+ * Returns: the MSI domain for this device (or NULL on failure)
+ */
+struct irq_domain *of_msi_map_get_device_domain(struct device *dev, u32 rid)
+{
+	struct device_node *np = NULL;
+
+	__of_msi_map_rid(dev, &np, rid);
+	return __of_get_msi_domain(np, DOMAIN_BUS_PCI_MSI);
+}
+
+/**
  * of_msi_get_domain - Use msi-parent to find the relevant MSI domain
  * @dev: device for which the domain is requested
  * @np: device node for @dev
