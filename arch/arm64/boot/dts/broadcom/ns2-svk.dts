@@ -52,6 +52,14 @@
 	};
 
 	soc: soc {
+		i2c0: i2c@66080000 {
+			status = "ok";
+		};
+
+		i2c1: i2c@660b0000 {
+			status = "ok";
+		};
+
 		uart3: serial@66130000 {
 			status = "ok";
 		};
