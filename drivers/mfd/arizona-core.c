@@ -1130,8 +1130,8 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x5102:
 		type_name = "WM5102";
 		if (arizona->type != WM5102) {
-			dev_err(arizona->dev, "WM5102 registered as %d\n",
-				arizona->type);
+			dev_warn(arizona->dev, "WM5102 registered as %d\n",
+				 arizona->type);
 			arizona->type = WM5102;
 		}
 		apply_patch = wm5102_patch;
@@ -1149,8 +1149,8 @@ int arizona_dev_init(struct arizona *arizona)
 			break;
 		default:
 			type_name = "WM5110";
-			dev_err(arizona->dev, "WM5110 registered as %d\n",
-				arizona->type);
+			dev_warn(arizona->dev, "WM5110 registered as %d\n",
+				 arizona->type);
 			arizona->type = WM5110;
 			break;
 		}
@@ -1161,8 +1161,8 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x8997:
 		type_name = "WM8997";
 		if (arizona->type != WM8997) {
-			dev_err(arizona->dev, "WM8997 registered as %d\n",
-				arizona->type);
+			dev_warn(arizona->dev, "WM8997 registered as %d\n",
+				 arizona->type);
 			arizona->type = WM8997;
 		}
 		apply_patch = wm8997_patch;
@@ -1181,8 +1181,8 @@ int arizona_dev_init(struct arizona *arizona)
 
 		default:
 			type_name = "WM8998";
-			dev_err(arizona->dev, "WM8998 registered as %d\n",
-				arizona->type);
+			dev_warn(arizona->dev, "WM8998 registered as %d\n",
+				 arizona->type);
 			arizona->type = WM8998;
 		}
 
