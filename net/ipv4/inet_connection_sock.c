@@ -809,6 +809,7 @@ void inet_csk_listen_stop(struct sock *sk)
 		sock_put(child);
 
 		reqsk_put(req);
+		cond_resched();
 	}
 	if (queue->fastopenq.rskq_rst_head) {
 		/* Free all the reqs queued in rskq_rst_head. */
