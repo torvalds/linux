@@ -4708,8 +4708,6 @@ static __init int smack_init(void)
 	if (!security_module_enable("smack"))
 		return 0;
 
-	smack_enabled = 1;
-
 	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
 	if (!smack_inode_cache)
 		return -ENOMEM;
@@ -4720,6 +4718,8 @@ static __init int smack_init(void)
 		kmem_cache_destroy(smack_inode_cache);
 		return -ENOMEM;
 	}
+
+	smack_enabled = 1;
 
 	pr_info("Smack:  Initializing.\n");
 #ifdef CONFIG_SECURITY_SMACK_NETFILTER
