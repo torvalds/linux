@@ -266,8 +266,4 @@ static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
 	return reqsk_queue_len(queue) >> queue->listen_opt->max_qlen_log;
 }
 
-void reqsk_queue_hash_req(struct request_sock_queue *queue,
-			  u32 hash, struct request_sock *req,
-			  unsigned long timeout);
-
 #endif /* _REQUEST_SOCK_H */

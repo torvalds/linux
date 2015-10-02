@@ -99,35 +99,9 @@ static inline struct listen_sock *reqsk_queue_yank_listen_sk(
 
 void reqsk_queue_destroy(struct request_sock_queue *queue)
 {
-	/* make all the listen_opt local to us */
 	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
 
-	if (reqsk_queue_len(queue) != 0) {
-		unsigned int i;
-
-		for (i = 0; i < lopt->nr_table_entries; i++) {
-			struct request_sock *req;
-
-			spin_lock_bh(&queue->syn_wait_lock);
-			while ((req = lopt->syn_table[i]) != NULL) {
-				lopt->syn_table[i] = req->dl_next;
-				/* Because of following del_timer_sync(),
-				 * we must release the spinlock here
-				 * or risk a dead lock.
-				 */
-				spin_unlock_bh(&queue->syn_wait_lock);
-				atomic_dec(&queue->qlen);
-				if (del_timer_sync(&req->rsk_timer))
-					reqsk_put(req);
-				reqsk_put(req);
-				spin_lock_bh(&queue->syn_wait_lock);
-			}
-			spin_unlock_bh(&queue->syn_wait_lock);
-		}
-	}
-
-	if (WARN_ON(reqsk_queue_len(queue) != 0))
-		pr_err("qlen %u\n", reqsk_queue_len(queue));
+	/* cleaning is done by req timers */
 	kvfree(lopt);
 }
 

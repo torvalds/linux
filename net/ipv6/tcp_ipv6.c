@@ -727,7 +727,6 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 	.route_req	=	tcp_v6_route_req,
 	.init_seq	=	tcp_v6_init_sequence,
 	.send_synack	=	tcp_v6_send_synack,
-	.queue_hash_add =	inet6_csk_reqsk_queue_hash_add,
 };
 
 static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32 seq,
@@ -938,37 +937,11 @@ static void tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 }
 
 
-static struct sock *tcp_v6_hnd_req(struct sock *sk, struct sk_buff *skb)
+static struct sock *tcp_v6_cookie_check(struct sock *sk, struct sk_buff *skb)
 {
-	const struct tcphdr *th = tcp_hdr(skb);
-	struct request_sock *req;
-	struct sock *nsk;
-
-	/* Find possible connection requests. */
-	req = inet6_csk_search_req(sk, th->source,
-				   &ipv6_hdr(skb)->saddr,
-				   &ipv6_hdr(skb)->daddr, tcp_v6_iif(skb));
-	if (req) {
-		nsk = tcp_check_req(sk, skb, req, false);
-		if (!nsk || nsk == sk)
-			reqsk_put(req);
-		return nsk;
-	}
-	nsk = __inet6_lookup_established(sock_net(sk), &tcp_hashinfo,
-					 &ipv6_hdr(skb)->saddr, th->source,
-					 &ipv6_hdr(skb)->daddr, ntohs(th->dest),
-					 tcp_v6_iif(skb));
-
-	if (nsk) {
-		if (nsk->sk_state != TCP_TIME_WAIT) {
-			bh_lock_sock(nsk);
-			return nsk;
-		}
-		inet_twsk_put(inet_twsk(nsk));
-		return NULL;
-	}
-
 #ifdef CONFIG_SYN_COOKIES
+	const struct tcphdr *th = tcp_hdr(skb);
+
 	if (!th->syn)
 		sk = cookie_v6_check(sk, skb);
 #endif
@@ -1258,15 +1231,11 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 		goto csum_err;
 
 	if (sk->sk_state == TCP_LISTEN) {
-		struct sock *nsk = tcp_v6_hnd_req(sk, skb);
+		struct sock *nsk = tcp_v6_cookie_check(sk, skb);
+
 		if (!nsk)
 			goto discard;
 
-		/*
-		 * Queue it on the new socket if the new socket is active,
-		 * otherwise we just shortcircuit this and continue with
-		 * the new socket..
-		 */
 		if (nsk != sk) {
 			sock_rps_save_rxhash(nsk, skb);
 			sk_mark_napi_id(nsk, skb);
@@ -1402,6 +1371,33 @@ process:
 	if (sk->sk_state == TCP_TIME_WAIT)
 		goto do_time_wait;
 
+	if (sk->sk_state == TCP_NEW_SYN_RECV) {
+		struct request_sock *req = inet_reqsk(sk);
+		struct sock *nsk = NULL;
+
+		sk = req->rsk_listener;
+		tcp_v6_fill_cb(skb, hdr, th);
+		if (tcp_v6_inbound_md5_hash(sk, skb)) {
+			reqsk_put(req);
+			goto discard_it;
+		}
+		if (sk->sk_state == TCP_LISTEN)
+			nsk = tcp_check_req(sk, skb, req, false);
+		if (!nsk) {
+			reqsk_put(req);
+			goto discard_it;
+		}
+		if (nsk == sk) {
+			sock_hold(sk);
+			reqsk_put(req);
+			tcp_v6_restore_cb(skb);
+		} else if (tcp_child_process(sk, nsk, skb)) {
+			tcp_v6_send_reset(nsk, skb);
+			goto discard_it;
+		} else {
+			return 0;
+		}
+	}
 	if (hdr->hop_limit < inet6_sk(sk)->min_hopcount) {
 		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
 		goto discard_and_relse;
@@ -1765,18 +1761,12 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
 	}
 	st = seq->private;
 
-	switch (st->state) {
-	case TCP_SEQ_STATE_LISTENING:
-	case TCP_SEQ_STATE_ESTABLISHED:
-		if (sk->sk_state == TCP_TIME_WAIT)
-			get_timewait6_sock(seq, v, st->num);
-		else
-			get_tcp6_sock(seq, v, st->num);
-		break;
-	case TCP_SEQ_STATE_OPENREQ:
+	if (sk->sk_state == TCP_TIME_WAIT)
+		get_timewait6_sock(seq, v, st->num);
+	else if (sk->sk_state == TCP_NEW_SYN_RECV)
 		get_openreq6(seq, v, st->num);
-		break;
-	}
+	else
+		get_tcp6_sock(seq, v, st->num);
 out:
 	return 0;
 }

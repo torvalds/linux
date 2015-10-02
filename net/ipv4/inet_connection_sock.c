@@ -476,64 +476,11 @@ no_route:
 }
 EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 
-static inline u32 inet_synq_hash(const __be32 raddr, const __be16 rport,
-				 const u32 rnd, const u32 synq_hsize)
-{
-	return jhash_2words((__force u32)raddr, (__force u32)rport, rnd) & (synq_hsize - 1);
-}
-
 #if IS_ENABLED(CONFIG_IPV6)
 #define AF_INET_FAMILY(fam) ((fam) == AF_INET)
 #else
 #define AF_INET_FAMILY(fam) true
 #endif
-
-/* Note: this is temporary :
- * req sock will no longer be in listener hash table
-*/
-struct request_sock *inet_csk_search_req(struct sock *sk,
-					 const __be16 rport,
-					 const __be32 raddr,
-					 const __be32 laddr)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req;
-	u32 hash = inet_synq_hash(raddr, rport, lopt->hash_rnd,
-				  lopt->nr_table_entries);
-
-	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
-	for (req = lopt->syn_table[hash]; req != NULL; req = req->dl_next) {
-		const struct inet_request_sock *ireq = inet_rsk(req);
-
-		if (ireq->ir_rmt_port == rport &&
-		    ireq->ir_rmt_addr == raddr &&
-		    ireq->ir_loc_addr == laddr &&
-		    AF_INET_FAMILY(req->rsk_ops->family)) {
-			atomic_inc(&req->rsk_refcnt);
-			WARN_ON(req->sk);
-			break;
-		}
-	}
-	spin_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
-
-	return req;
-}
-EXPORT_SYMBOL_GPL(inet_csk_search_req);
-
-void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
-				   unsigned long timeout)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	const u32 h = inet_synq_hash(inet_rsk(req)->ir_rmt_addr,
-				     inet_rsk(req)->ir_rmt_port,
-				     lopt->hash_rnd, lopt->nr_table_entries);
-
-	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, timeout);
-	inet_csk_reqsk_queue_added(sk);
-}
-EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
 /* Only thing we need from tcp.h */
 extern int sysctl_tcp_synack_retries;
@@ -571,26 +518,20 @@ int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
 }
 EXPORT_SYMBOL(inet_rtx_syn_ack);
 
-/* return true if req was found in the syn_table[] */
+/* return true if req was found in the ehash table */
 static bool reqsk_queue_unlink(struct request_sock_queue *queue,
 			       struct request_sock *req)
 {
-	struct listen_sock *lopt = queue->listen_opt;
-	struct request_sock **prev;
-	bool found = false;
+	struct inet_hashinfo *hashinfo = req_to_sk(req)->sk_prot->h.hashinfo;
+	spinlock_t *lock;
+	bool found;
 
-	spin_lock(&queue->syn_wait_lock);
+	lock = inet_ehash_lockp(hashinfo, req->rsk_hash);
 
-	for (prev = &lopt->syn_table[req->rsk_hash]; *prev != NULL;
-	     prev = &(*prev)->dl_next) {
-		if (*prev == req) {
-			*prev = req->dl_next;
-			found = true;
-			break;
-		}
-	}
+	spin_lock(lock);
+	found = __sk_nulls_del_node_init_rcu(req_to_sk(req));
+	spin_unlock(lock);
 
-	spin_unlock(&queue->syn_wait_lock);
 	if (timer_pending(&req->rsk_timer) && del_timer_sync(&req->rsk_timer))
 		reqsk_put(req);
 	return found;
@@ -616,10 +557,8 @@ static void reqsk_timer_handler(unsigned long data)
 	int max_retries, thresh;
 	u8 defer_accept;
 
-	if (sk_listener->sk_state != TCP_LISTEN || !lopt) {
-		reqsk_put(req);
-		return;
-	}
+	if (sk_listener->sk_state != TCP_LISTEN || !lopt)
+		goto drop;
 
 	max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
 	thresh = max_retries;
@@ -669,36 +608,36 @@ static void reqsk_timer_handler(unsigned long data)
 		mod_timer_pinned(&req->rsk_timer, jiffies + timeo);
 		return;
 	}
+drop:
 	inet_csk_reqsk_queue_drop(sk_listener, req);
 	reqsk_put(req);
 }
 
-void reqsk_queue_hash_req(struct request_sock_queue *queue,
-			  u32 hash, struct request_sock *req,
-			  unsigned long timeout)
+static void reqsk_queue_hash_req(struct request_sock *req,
+				 unsigned long timeout)
 {
-	struct listen_sock *lopt = queue->listen_opt;
-
 	req->num_retrans = 0;
 	req->num_timeout = 0;
 	req->sk = NULL;
 
 	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
 	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
-	req->rsk_hash = hash;
 
+	inet_ehash_insert(req_to_sk(req), NULL);
 	/* before letting lookups find us, make sure all req fields
 	 * are committed to memory and refcnt initialized.
 	 */
 	smp_wmb();
 	atomic_set(&req->rsk_refcnt, 2);
-
-	spin_lock(&queue->syn_wait_lock);
-	req->dl_next = lopt->syn_table[hash];
-	lopt->syn_table[hash] = req;
-	spin_unlock(&queue->syn_wait_lock);
 }
-EXPORT_SYMBOL(reqsk_queue_hash_req);
+
+void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
+				   unsigned long timeout)
+{
+	reqsk_queue_hash_req(req, timeout);
+	inet_csk_reqsk_queue_added(sk);
+}
+EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
 /**
  *	inet_csk_clone_lock - clone an inet socket, and lock its clone

@@ -1618,7 +1618,6 @@ static inline bool tcp_stream_is_thin(struct tcp_sock *tp)
 /* /proc */
 enum tcp_seq_states {
 	TCP_SEQ_STATE_LISTENING,
-	TCP_SEQ_STATE_OPENREQ,
 	TCP_SEQ_STATE_ESTABLISHED,
 };
 
@@ -1717,8 +1716,6 @@ struct tcp_request_sock_ops {
 	int (*send_synack)(const struct sock *sk, struct dst_entry *dst,
 			   struct flowi *fl, struct request_sock *req,
 			   u16 queue_mapping, struct tcp_fastopen_cookie *foc);
-	void (*queue_hash_add)(struct sock *sk, struct request_sock *req,
-			       const unsigned long timeout);
 };
 
 #ifdef CONFIG_SYN_COOKIES

@@ -444,36 +444,6 @@ put_and_exit:
 }
 EXPORT_SYMBOL_GPL(dccp_v4_request_recv_sock);
 
-static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
-{
-	const struct dccp_hdr *dh = dccp_hdr(skb);
-	const struct iphdr *iph = ip_hdr(skb);
-	struct sock *nsk;
-	/* Find possible connection requests. */
-	struct request_sock *req = inet_csk_search_req(sk, dh->dccph_sport,
-						       iph->saddr, iph->daddr);
-	if (req) {
-		nsk = dccp_check_req(sk, skb, req);
-		if (!nsk)
-			reqsk_put(req);
-		return nsk;
-	}
-	nsk = inet_lookup_established(sock_net(sk), &dccp_hashinfo,
-				      iph->saddr, dh->dccph_sport,
-				      iph->daddr, dh->dccph_dport,
-				      inet_iif(skb));
-	if (nsk != NULL) {
-		if (nsk->sk_state != DCCP_TIME_WAIT) {
-			bh_lock_sock(nsk);
-			return nsk;
-		}
-		inet_twsk_put(inet_twsk(nsk));
-		return NULL;
-	}
-
-	return sk;
-}
-
 static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 					   struct sk_buff *skb)
 {
@@ -705,18 +675,6 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	 * NOTE: the check for the packet types is done in
 	 *	 dccp_rcv_state_process
 	 */
-	if (sk->sk_state == DCCP_LISTEN) {
-		struct sock *nsk = dccp_v4_hnd_req(sk, skb);
-
-		if (nsk == NULL)
-			goto discard;
-
-		if (nsk != sk) {
-			if (dccp_child_process(sk, nsk, skb))
-				goto reset;
-			return 0;
-		}
-	}
 
 	if (dccp_rcv_state_process(sk, skb, dh, skb->len))
 		goto reset;
@@ -724,7 +682,6 @@ int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 
 reset:
 	dccp_v4_ctl_send_reset(sk, skb);
-discard:
 	kfree_skb(skb);
 	return 0;
 }
@@ -868,6 +825,27 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 		goto no_dccp_socket;
 	}
 
+	if (sk->sk_state == DCCP_NEW_SYN_RECV) {
+		struct request_sock *req = inet_reqsk(sk);
+		struct sock *nsk = NULL;
+
+		sk = req->rsk_listener;
+		if (sk->sk_state == DCCP_LISTEN)
+			nsk = dccp_check_req(sk, skb, req);
+		if (!nsk) {
+			reqsk_put(req);
+			goto discard_it;
+		}
+		if (nsk == sk) {
+			sock_hold(sk);
+			reqsk_put(req);
+		} else if (dccp_child_process(sk, nsk, skb)) {
+			dccp_v4_ctl_send_reset(sk, skb);
+			goto discard_it;
+		} else {
+			return 0;
+		}
+	}
 	/*
 	 * RFC 4340, sec. 9.2.1: Minimum Checksum Coverage
 	 *	o if MinCsCov = 0, only packets with CsCov = 0 are accepted
