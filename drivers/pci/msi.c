@@ -1359,4 +1359,21 @@ u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
 
 	return rid;
 }
+
+/**
+ * pci_msi_get_device_domain - Get the MSI domain for a given PCI device
+ * @pdev:	The PCI device
+ *
+ * Use the firmware data to find a device-specific MSI domain
+ * (i.e. not one that is ste as a default).
+ *
+ * Returns: The coresponding MSI domain or NULL if none has been found.
+ */
+struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
+{
+	u32 rid = 0;
+
+	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
+	return of_msi_map_get_device_domain(&pdev->dev, rid);
+}
 #endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */

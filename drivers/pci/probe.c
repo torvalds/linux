@@ -1639,6 +1639,14 @@ static struct irq_domain *pci_dev_msi_domain(struct pci_dev *dev)
 	if (d)
 		return d;
 
+	/*
+	 * Let's see if we have a firmware interface able to provide
+	 * the domain.
+	 */
+	d = pci_msi_get_device_domain(dev);
+	if (d)
+		return d;
+
 	return NULL;
 }
 
