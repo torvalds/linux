@@ -37,7 +37,6 @@
  * DECON stands for Display and Enhancement controller.
  */
 
-#define DECON_DEFAULT_FRAMERATE 60
 #define MIN_FB_WIDTH_FOR_16WORD_BURST 128
 
 #define WINDOWS_NR	2
@@ -163,16 +162,6 @@ static u32 decon_calc_clkdiv(struct decon_context *ctx,
 	clkdiv = DIV_ROUND_UP(clk_get_rate(ctx->vclk), ideal_clk);
 
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
-}
-
-static bool decon_mode_fixup(struct exynos_drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	if (adjusted_mode->vrefresh == 0)
-		adjusted_mode->vrefresh = DECON_DEFAULT_FRAMERATE;
-
-	return true;
 }
 
 static void decon_commit(struct exynos_drm_crtc *crtc)
@@ -637,7 +626,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable = decon_enable,
 	.disable = decon_disable,
-	.mode_fixup = decon_mode_fixup,
 	.commit = decon_commit,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
