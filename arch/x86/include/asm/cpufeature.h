@@ -241,6 +241,7 @@
 #define X86_FEATURE_AVX512PF	( 9*32+26) /* AVX-512 Prefetch */
 #define X86_FEATURE_AVX512ER	( 9*32+27) /* AVX-512 Exponential and Reciprocal */
 #define X86_FEATURE_AVX512CD	( 9*32+28) /* AVX-512 Conflict Detection */
+#define X86_FEATURE_SHA_NI	( 9*32+29) /* SHA1/SHA256 Instruction Extensions */
 
 /* Extended state features, CPUID level 0x0000000d:1 (eax), word 10 */
 #define X86_FEATURE_XSAVEOPT	(10*32+ 0) /* XSAVEOPT */

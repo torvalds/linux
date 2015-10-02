@@ -91,7 +91,7 @@ static int gef_pic_cascade_irq;
  * should be masked out.
  */
 
-void gef_pic_cascade(unsigned int irq, struct irq_desc *desc)
+static void gef_pic_cascade(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq;

@@ -37,6 +37,8 @@ static int visorbus_debugref;
 #define POLLJIFFIES_TESTWORK         100
 #define POLLJIFFIES_NORMALCHANNEL     10
 
+static int busreg_rc = -ENODEV; /* stores the result from bus registration */
+
 static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env);
 static int visorbus_match(struct device *xdev, struct device_driver *xdrv);
 static void fix_vbus_dev_info(struct visor_device *visordev);
@@ -863,6 +865,9 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 {
 	int rc = 0;
 
+	if (busreg_rc < 0)
+		return -ENODEV; /*can't register on a nonexistent bus*/
+
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
 	drv->driver.probe = visordriver_probe_device;
@@ -885,6 +890,8 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	if (rc < 0)
 		return rc;
 	rc = register_driver_attributes(drv);
+	if (rc < 0)
+		driver_unregister(&drv->driver);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
@@ -1260,10 +1267,8 @@ remove_bus_instance(struct visor_device *dev)
 static int
 create_bus_type(void)
 {
-	int rc = 0;
-
-	rc = bus_register(&visorbus_type);
-	return rc;
+	busreg_rc = bus_register(&visorbus_type);
+	return busreg_rc;
 }
 
 /** Remove the one-and-only one instance of the visor bus type (visorbus_type).

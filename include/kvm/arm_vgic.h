@@ -35,11 +35,7 @@
 #define VGIC_V3_MAX_LRS		16
 #define VGIC_MAX_IRQS		1024
 #define VGIC_V2_MAX_CPUS	8
-
-/* Sanity checks... */
-#if (KVM_MAX_VCPUS > 255)
-#error Too many KVM VCPUs, the VGIC only supports up to 255 VCPUs for now
-#endif
+#define VGIC_V3_MAX_CPUS	255
 
 #if (VGIC_NR_IRQS_LEGACY & 31)
 #error "VGIC_NR_IRQS must be a multiple of 32"

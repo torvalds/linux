@@ -1189,15 +1189,15 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	spin_lock_irqsave(&devdata->priv_lock, flags);
 	atomic_dec(&devdata->num_rcvbuf_in_iovm);
 
-	/* update rcv stats - call it with priv_lock held */
-	devdata->net_stats.rx_packets++;
-	devdata->net_stats.rx_bytes = skb->len;
-
 	/* set length to how much was ACTUALLY received -
 	 * NOTE: rcv_done_len includes actual length of data rcvd
 	 * including ethhdr
 	 */
 	skb->len = cmdrsp->net.rcv.rcv_done_len;
+
+	/* update rcv stats - call it with priv_lock held */
+	devdata->net_stats.rx_packets++;
+	devdata->net_stats.rx_bytes += skb->len;
 
 	/* test enabled while holding lock */
 	if (!(devdata->enabled && devdata->enab_dis_acked)) {
@@ -1924,12 +1924,15 @@ static int visornic_probe(struct visor_device *dev)
 			"%s debugfs_create_dir %s failed\n",
 			__func__, netdev->name);
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_register_netdev;
 	}
 
 	dev_info(&dev->device, "%s success netdev=%s\n",
 		 __func__, netdev->name);
 	return 0;
+
+cleanup_register_netdev:
+	unregister_netdev(netdev);
 
 cleanup_napi_add:
 	del_timer_sync(&devdata->irq_poll_timer);
@@ -2128,8 +2131,9 @@ static int visornic_init(void)
 	if (!dev_num_pool)
 		goto cleanup_workqueue;
 
-	visorbus_register_visor_driver(&visornic_driver);
-	return 0;
+	err = visorbus_register_visor_driver(&visornic_driver);
+	if (!err)
+		return 0;
 
 cleanup_workqueue:
 	if (visornic_timeout_reset_workqueue) {

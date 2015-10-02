@@ -42,6 +42,7 @@ struct perf_evlist {
 	int		 nr_mmaps;
 	bool		 overwrite;
 	bool		 enabled;
+	bool		 has_user_cpus;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
@@ -155,9 +156,8 @@ int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 void perf_evlist__set_selected(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
 
-int perf_evlist__set_maps(struct perf_evlist *evlist,
-			  struct cpu_map *cpus,
-			  struct thread_map *threads);
+void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
+			   struct thread_map *threads);
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel);
 
@@ -179,8 +179,7 @@ bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist);
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-				   struct list_head *list,
-				   int nr_entries);
+				   struct list_head *list);
 
 static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
 {

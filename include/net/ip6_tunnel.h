@@ -32,6 +32,12 @@ struct __ip6_tnl_parm {
 	__be32			o_key;
 };
 
+struct ip6_tnl_dst {
+	seqlock_t lock;
+	struct dst_entry __rcu *dst;
+	u32 cookie;
+};
+
 /* IPv6 tunnel */
 struct ip6_tnl {
 	struct ip6_tnl __rcu *next;	/* next tunnel in list */
@@ -39,8 +45,7 @@ struct ip6_tnl {
 	struct net *net;	/* netns for packet i/o */
 	struct __ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */
-	struct dst_entry *dst_cache;    /* cached dst */
-	u32 dst_cookie;
+	struct ip6_tnl_dst __percpu *dst_cache;	/* cached dst */
 
 	int err_count;
 	unsigned long err_time;
@@ -60,9 +65,11 @@ struct ipv6_tlv_tnl_enc_lim {
 	__u8 encap_limit;	/* tunnel encapsulation limit   */
 } __packed;
 
-struct dst_entry *ip6_tnl_dst_check(struct ip6_tnl *t);
+struct dst_entry *ip6_tnl_dst_get(struct ip6_tnl *t);
+int ip6_tnl_dst_init(struct ip6_tnl *t);
+void ip6_tnl_dst_destroy(struct ip6_tnl *t);
 void ip6_tnl_dst_reset(struct ip6_tnl *t);
-void ip6_tnl_dst_store(struct ip6_tnl *t, struct dst_entry *dst);
+void ip6_tnl_dst_set(struct ip6_tnl *t, struct dst_entry *dst);
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
 int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
@@ -79,7 +86,7 @@ static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 	struct net_device_stats *stats = &dev->stats;
 	int pkt_len, err;
 
-	pkt_len = skb->len;
+	pkt_len = skb->len - skb_inner_network_offset(skb);
 	err = ip6_local_out_sk(sk, skb);
 
 	if (net_xmit_eval(err) == 0) {

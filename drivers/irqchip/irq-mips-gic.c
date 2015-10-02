@@ -546,7 +546,7 @@ static void __gic_irq_dispatch(void)
 	gic_handle_shared_int(false);
 }
 
-static void gic_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void gic_irq_dispatch(struct irq_desc *desc)
 {
 	gic_handle_local_int(true);
 	gic_handle_shared_int(true);
