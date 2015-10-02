@@ -161,13 +161,13 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tp->snd_wnd = ntohs(tcp_hdr(skb)->window);
 
 	/* Activate the retrans timer so that SYNACK can be retransmitted.
-	 * The request socket is not added to the SYN table of the parent
+	 * The request socket is not added to the ehash
 	 * because it's been added to the accept queue directly.
 	 */
 	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
 				  TCP_TIMEOUT_INIT, TCP_RTO_MAX);
 
-	atomic_set(&req->rsk_refcnt, 1);
+	atomic_set(&req->rsk_refcnt, 2);
 	/* Add the child socket directly into the accept queue */
 	inet_csk_reqsk_queue_add(sk, req, child);
 

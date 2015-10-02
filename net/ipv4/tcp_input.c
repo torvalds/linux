@@ -6120,8 +6120,6 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	struct request_sock *req;
 	bool want_cookie = false;
 	struct flowi fl;
-	int err;
-
 
 	/* TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -6230,21 +6228,24 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_rsk(req)->txhash = net_tx_rndhash();
 	tcp_openreq_init_rwin(req, sk, dst);
-	if (!want_cookie)
+	if (!want_cookie) {
 		fastopen_sk = tcp_try_fastopen(sk, skb, req, &foc, dst);
-	err = af_ops->send_synack(fastopen_sk ?: sk, dst, &fl, req,
-				  skb_get_queue_mapping(skb), &foc);
+		tcp_reqsk_record_syn(sk, req, skb);
+	}
 	if (fastopen_sk) {
+		af_ops->send_synack(fastopen_sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, false);
 		sock_put(fastopen_sk);
 	} else {
-		if (err || want_cookie)
-			goto drop_and_free;
-
 		tcp_rsk(req)->tfo_listener = false;
-		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+		if (!want_cookie)
+			inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+		af_ops->send_synack(sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, !want_cookie);
+		if (want_cookie)
+			goto drop_and_free;
 	}
-	tcp_reqsk_record_syn(sk, req, skb);
-
+	reqsk_put(req);
 	return 0;
 
 drop_and_release:

@@ -628,7 +628,7 @@ static void reqsk_queue_hash_req(struct request_sock *req,
 	 * are committed to memory and refcnt initialized.
 	 */
 	smp_wmb();
-	atomic_set(&req->rsk_refcnt, 2);
+	atomic_set(&req->rsk_refcnt, 2 + 1);
 }
 
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
