@@ -187,7 +187,6 @@ typedef struct {
 
 	const struct firmware *wilc_firmware;
 
-	struct net_device *real_ndev;
 #ifdef WILC_SDIO
 	struct sdio_func *wilc_sdio_func;
 #else
