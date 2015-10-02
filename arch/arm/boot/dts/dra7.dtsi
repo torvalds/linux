@@ -292,6 +292,11 @@
 				#thermal-sensor-cells = <1>;
 		};
 
+		dsp1_system: dsp_system@40d00000 {
+			compatible = "syscon";
+			reg = <0x40d00000 0x100>;
+		};
+
 		sdma: dma-controller@4a056000 {
 			compatible = "ti,omap4430-sdma";
 			reg = <0x4a056000 0x1000>;
