@@ -229,8 +229,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 
 	hdr = (struct rtl_80211_hdr_4addr *) skb->data;
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		int blocks, last, len;
 		u8 *mic;
 		u8 *b0 = key->tx_b0;
@@ -320,8 +319,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;
 	}
-	if (!tcb_desc->bHwSec)
-	{
+	if (!tcb_desc->bHwSec) {
 		size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN - CCMP_MIC_LEN;
 		u8 *mic = skb->data + skb->len - CCMP_MIC_LEN;
 		u8 *b0 = key->rx_b0;
