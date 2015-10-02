@@ -125,7 +125,6 @@ struct wilc_priv {
 	struct net_device *dev;
 	struct napi_struct napi;
 	tstrWILC_WFIDrv *hWILCWFIDrv;
-	WILC_WFIDrvHandle hWILCWFIDrv_2;
 	tstrHostIFpmkidAttr pmkid_list;
 	struct WILC_WFI_stats netstats;
 	u8 WILC_WFI_wep_default;
@@ -190,7 +189,6 @@ typedef struct {
 
 	struct net_device *real_ndev;
 #ifdef WILC_SDIO
-	int already_claim;
 	struct sdio_func *wilc_sdio_func;
 #else
 	struct spi_device *wilc_spidev;
