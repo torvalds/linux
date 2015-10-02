@@ -329,12 +329,6 @@ static inline void sptlrpc_rule_set_init(struct sptlrpc_rule_set *set)
 	memset(set, 0, sizeof(*set));
 }
 
-int sptlrpc_rule_set_choose(struct sptlrpc_rule_set *rset,
-			    enum lustre_sec_part from,
-			    enum lustre_sec_part to,
-			    lnet_nid_t nid,
-			    struct sptlrpc_flavor *sf);
-
 int  sptlrpc_process_config(struct lustre_cfg *lcfg);
 void sptlrpc_conf_log_start(const char *logname);
 void sptlrpc_conf_log_stop(const char *logname);
