@@ -128,15 +128,14 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	nr = drm_format_num_planes(state->fb->pixel_format);
 	for (i = 0; i < nr; i++) {
-		struct exynos_drm_gem_obj *obj =
-					exynos_drm_fb_gem_obj(state->fb, i);
-
-		if (!obj) {
+		struct exynos_drm_gem *exynos_gem =
+					exynos_drm_fb_gem(state->fb, i);
+		if (!exynos_gem) {
 			DRM_DEBUG_KMS("gem object is null\n");
 			return -EFAULT;
 		}
 
-		exynos_plane->dma_addr[i] = obj->dma_addr +
+		exynos_plane->dma_addr[i] = exynos_gem->dma_addr +
 					    state->fb->offsets[i];
 
 		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
