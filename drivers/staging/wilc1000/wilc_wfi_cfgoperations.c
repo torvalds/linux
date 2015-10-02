@@ -661,7 +661,6 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 static int set_channel(struct wiphy *wiphy,
 		       struct cfg80211_chan_def *chandef)
 {
-
 	u32 channelnum = 0;
 	struct wilc_priv *priv;
 	s32 s32Error = 0;
