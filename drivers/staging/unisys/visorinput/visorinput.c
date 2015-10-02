@@ -452,12 +452,6 @@ visorinput_remove(struct visor_device *dev)
 	kfree(devdata);
 }
 
-static void
-do_key(struct input_dev *inpt, int keycode, int down)
-{
-	input_report_key(inpt, keycode, down);
-}
-
 /*
  * Make it so the current locking state of the locking key indicated by
  * <keycode> is as indicated by <desired_state> (1=locked, 0=unlocked).
@@ -490,9 +484,9 @@ handle_locking_key(struct input_dev *visorinput_dev,
 		int old_state = (test_bit(led, visorinput_dev->led) != 0);
 
 		if (old_state != desired_state) {
-			do_key(visorinput_dev, keycode, 1);
+			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
-			do_key(visorinput_dev, keycode, 0);
+			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			__change_bit(led, visorinput_dev->led);
 		}
@@ -563,17 +557,17 @@ visorinput_channel_interrupt(struct visor_device *dev)
 		keycode = scancode_to_keycode(scancode);
 		switch (r.activity.action) {
 		case inputaction_key_down:
-			do_key(visorinput_dev, keycode, 1);
+			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
 			break;
 		case inputaction_key_up:
-			do_key(visorinput_dev, keycode, 0);
+			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
 		case inputaction_key_down_up:
-			do_key(visorinput_dev, keycode, 1);
+			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
-			do_key(visorinput_dev, keycode, 0);
+			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
 		case inputaction_set_locking_key_state:
