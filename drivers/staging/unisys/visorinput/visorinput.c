@@ -350,18 +350,6 @@ register_client_mouse(void *devdata /* opaque on purpose */)
 		return NULL;
 	}
 
-	/*
-	 * Sending top-left and bottom-right positions is ABSOLUTELY
-	 * REQUIRED if we want X to move the mouse to the exact points
-	 * we tell it.  I have NO IDEA why.
-	 */
-	input_report_abs(visorinput_dev, ABS_X, 0);
-	input_report_abs(visorinput_dev, ABS_Y, 0);
-	input_sync(visorinput_dev);
-	input_report_abs(visorinput_dev, ABS_X, xres - 1);
-	input_report_abs(visorinput_dev, ABS_Y, yres - 1);
-	input_sync(visorinput_dev);
-
 	input_set_capability(visorinput_dev, EV_REL, REL_WHEEL);
 
 	return visorinput_dev;
