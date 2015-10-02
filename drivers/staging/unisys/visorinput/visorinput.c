@@ -1,4 +1,4 @@
-/* visorhid.c
+/* visorinput.c
  *
  * Copyright (C) 2011 - 2015 UNISYS CORPORATION
  * All rights reserved.
@@ -38,24 +38,24 @@ static const uuid_le spar_keyboard_channel_protocol_uuid =
 	SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID;
 static const uuid_le spar_mouse_channel_protocol_uuid =
 	SPAR_MOUSE_CHANNEL_PROTOCOL_UUID;
-static int visorhid_probe(struct visor_device *dev);
-static void visorhid_remove(struct visor_device *dev);
-static void visorhid_channel_interrupt(struct visor_device *dev);
-static int visorhid_pause(struct visor_device *dev,
+static int visorinput_probe(struct visor_device *dev);
+static void visorinput_remove(struct visor_device *dev);
+static void visorinput_channel_interrupt(struct visor_device *dev);
+static int visorinput_pause(struct visor_device *dev,
 			  visorbus_state_complete_func complete_func);
-static int visorhid_resume(struct visor_device *dev,
+static int visorinput_resume(struct visor_device *dev,
 			   visorbus_state_complete_func complete_func);
 static struct input_dev *register_client_keyboard(void);
 static struct input_dev *register_client_mouse(void);
 static void unregister_client_input(struct input_dev *visorinput_dev);
 
 /* GUIDS for all channel types supported by this driver. */
-static struct visor_channeltype_descriptor visorhid_channel_types[] = {
+static struct visor_channeltype_descriptor visorinput_channel_types[] = {
 	{ SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID, "keyboard"},
 	{ SPAR_MOUSE_CHANNEL_PROTOCOL_UUID, "mouse"},
 	{ NULL_UUID_LE, NULL }
 };
-MODULE_DEVICE_TABLE(visorbus, visorhid_channel_types);
+MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
 MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
 MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
 
@@ -63,28 +63,28 @@ MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
  *  we support, and what functions to call when a visor device that we support
  *  is attached or removed.
  */
-static struct visor_driver visorhid_driver = {
-	.name = "visorhid",
+static struct visor_driver visorinput_driver = {
+	.name = "visorinput",
 	.vertag = NULL,
 	.owner = THIS_MODULE,
-	.channel_types = visorhid_channel_types,
-	.probe = visorhid_probe,
-	.remove = visorhid_remove,
-	.channel_interrupt = visorhid_channel_interrupt,
-	.pause = visorhid_pause,
-	.resume = visorhid_resume,
+	.channel_types = visorinput_channel_types,
+	.probe = visorinput_probe,
+	.remove = visorinput_remove,
+	.channel_interrupt = visorinput_channel_interrupt,
+	.pause = visorinput_pause,
+	.resume = visorinput_resume,
 };
 
-enum visorhid_device_type {
-	visorhid_keyboard,
-	visorhid_mouse,
+enum visorinput_device_type {
+	visorinput_keyboard,
+	visorinput_mouse,
 };
 
 /*  This is the private data that we store for each device.
  *  A pointer to this struct is maintained via
  *  dev_get_drvdata() / dev_set_drvdata() for each struct device.
  */
-struct visorhid_devdata {
+struct visorinput_devdata {
 	struct visor_device *dev;
 	/** lock for dev */
 	struct rw_semaphore lock_visor_dev;
@@ -228,10 +228,10 @@ static unsigned char visorkbd_ext_keycode[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x70 */
 };
 
-static struct visorhid_devdata *
-devdata_create(struct visor_device *dev, enum visorhid_device_type devtype)
+static struct visorinput_devdata *
+devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 {
-	struct visorhid_devdata *devdata = NULL;
+	struct visorinput_devdata *devdata = NULL;
 
 	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
 	if (!devdata)
@@ -243,12 +243,12 @@ devdata_create(struct visor_device *dev, enum visorhid_device_type devtype)
 	 * deliver our inputs to the guest OS.
 	 */
 	switch (devtype) {
-	case visorhid_keyboard:
+	case visorinput_keyboard:
 		devdata->visorinput_dev = register_client_keyboard();
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
-	case visorhid_mouse:
+	case visorinput_mouse:
 		devdata->visorinput_dev = register_client_mouse();
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
@@ -265,17 +265,17 @@ cleanups_register:
 }
 
 static int
-visorhid_probe(struct visor_device *dev)
+visorinput_probe(struct visor_device *dev)
 {
-	struct visorhid_devdata *devdata = NULL;
+	struct visorinput_devdata *devdata = NULL;
 	uuid_le guid;
-	enum visorhid_device_type devtype;
+	enum visorinput_device_type devtype;
 
 	guid = visorchannel_get_uuid(dev->visorchannel);
 	if (uuid_le_cmp(guid, spar_mouse_channel_protocol_uuid) == 0)
-		devtype = visorhid_mouse;
+		devtype = visorinput_mouse;
 	else if (uuid_le_cmp(guid, spar_keyboard_channel_protocol_uuid) == 0)
-		devtype = visorhid_keyboard;
+		devtype = visorinput_keyboard;
 	else
 		return -ENODEV;
 	devdata = devdata_create(dev, devtype);
@@ -287,9 +287,9 @@ visorhid_probe(struct visor_device *dev)
 }
 
 static void
-visorhid_remove(struct visor_device *dev)
+visorinput_remove(struct visor_device *dev)
 {
-	struct visorhid_devdata *devdata = dev_get_drvdata(&dev->device);
+	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
 	if (!devdata)
 		return;
@@ -297,7 +297,7 @@ visorhid_remove(struct visor_device *dev)
 	visorbus_disable_channel_interrupts(dev);
 
 	/* due to above, at this time no thread of execution will be
-	* in visorhid_channel_interrupt()
+	* in visorinput_channel_interrupt()
 	*/
 
 	down_write(&devdata->lock_visor_dev);
@@ -498,7 +498,7 @@ calc_button(int x)
  * from the channel, and deliver them to the guest OS.
  */
 static void
-visorhid_channel_interrupt(struct visor_device *dev)
+visorinput_channel_interrupt(struct visor_device *dev)
 {
 	struct ultra_inputreport r;
 	int scancode, keycode;
@@ -506,7 +506,7 @@ visorhid_channel_interrupt(struct visor_device *dev)
 	int xmotion, ymotion, zmotion, button;
 	int i;
 
-	struct visorhid_devdata *devdata = dev_get_drvdata(&dev->device);
+	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
 	if (!devdata)
 		return;
@@ -600,11 +600,11 @@ out_locked:
 }
 
 static int
-visorhid_pause(struct visor_device *dev,
+visorinput_pause(struct visor_device *dev,
 	       visorbus_state_complete_func complete_func)
 {
 	int rc;
-	struct visorhid_devdata *devdata = dev_get_drvdata(&dev->device);
+	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
 	if (!devdata) {
 		rc = -ENODEV;
@@ -626,11 +626,11 @@ out:
 }
 
 static int
-visorhid_resume(struct visor_device *dev,
+visorinput_resume(struct visor_device *dev,
 		visorbus_state_complete_func complete_func)
 {
 	int rc;
-	struct visorhid_devdata *devdata = dev_get_drvdata(&dev->device);
+	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
 	if (!devdata) {
 		rc = -ENODEV;
@@ -651,19 +651,19 @@ out:
 }
 
 static int
-visorhid_init(void)
+visorinput_init(void)
 {
-	return visorbus_register_visor_driver(&visorhid_driver);
+	return visorbus_register_visor_driver(&visorinput_driver);
 }
 
 static void
-visorhid_cleanup(void)
+visorinput_cleanup(void)
 {
-	visorbus_unregister_visor_driver(&visorhid_driver);
+	visorbus_unregister_visor_driver(&visorinput_driver);
 }
 
-module_init(visorhid_init);
-module_exit(visorhid_cleanup);
+module_init(visorinput_init);
+module_exit(visorinput_cleanup);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");

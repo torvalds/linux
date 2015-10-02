@@ -12,7 +12,7 @@ normally be unsharable, specifically:
 
 * visornic - network interface
 * visorhba - scsi disk adapter
-* visorhid - keyboard and mouse
+* visorinput - keyboard and mouse
 
 These drivers conform to the standard Linux bus/device model described
 within Documentation/driver-model/, and utilize a driver named visorbus to
@@ -44,7 +44,7 @@ NOT covered in this document:
 * Because the s-Par back-end provides a standard EFI framebuffer to each
   guest, the already-existing efifb Linux driver is used to provide guest
   video access. Thus, the only s-Par-unique support that is necessary to
-  provide a guest graphics console are for keyboard and mouse (via visorhid).
+  provide a guest graphics console are for keyboard and mouse (via visorinput).
 
 
 2. Driver Descriptions
@@ -296,13 +296,13 @@ i.e.:
     alias visorbus:8cd5994d-c58e-11da-95a9-00e08161165f visornic
 
 
-2.4. visorhid
--------------
+2.4. visorinput
+---------------
 
-The visorhid driver registers with visorbus as the function driver to
+The visorinput driver registers with visorbus as the function driver to
 handle human input devices, specified using the
 SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID and SPAR_MOUSE_CHANNEL_PROTOCOL_UUID
-types in the visorbus_register_visor_driver() call. visorhid uses
+types in the visorbus_register_visor_driver() call. visorinput uses
 input_register_device() to expose devices of class input
 (e.g., /sys/class/input/) for virtual keyboard and virtual mouse devices.
 A s-Par virtual keyboard device maps 1-to-1 with a Linux input device
@@ -312,7 +312,7 @@ devices created for it: 1 named "visor Wheel", and 1 named "visor Mouse".
 By registering as input class devices, modern versions of X will
 automatically find and properly use s-Par virtual keyboard and mouse devices.
 As the s-Par back-end reports keyboard and mouse activity via events on the
-virtual device channel, the visorhid driver delivers the activity to the
+virtual device channel, the visorinput driver delivers the activity to the
 Linux environment by calling input_report_key() and input_report_abs().
 
 You can interact with the guest console using the usyscon Partition Desktop
@@ -322,7 +322,7 @@ usyscon_partitiondesktop-*.rpm, or into a Windows environment via
 PartitionDesktop.msi, you will be able to launch a console for your guest
 Linux environment by clicking the console icon in the s-Par web UI.
 
-When compiled as a module, visorhid can be autoloaded by visorbus in
+When compiled as a module, visorinput can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
@@ -331,8 +331,8 @@ definition:
 
 i.e.:
 
-    alias visorbus:c73416d0-b0b8-44af-b304-9d2ae99f1b3d visorhid
-    alias visorbus:addf07d4-94a9-46e2-81c3-61abcdbdbd87 visorhid
+    alias visorbus:c73416d0-b0b8-44af-b304-9d2ae99f1b3d visorinput
+    alias visorbus:addf07d4-94a9-46e2-81c3-61abcdbdbd87 visorinput
 
 
 3. Minimum Required Driver Set
@@ -352,5 +352,5 @@ the s-Par back-end, which is the default configuration.  However, for
 configurations where the Linux guest is provided with an SR-IOV NIC
 for example, visornic is not technically required.
 
-visorhid is only required for a Linux guest running under s-Par if you
+visorinput is only required for a Linux guest running under s-Par if you
 require graphics-mode access to your guest console.
