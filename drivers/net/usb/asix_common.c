@@ -74,12 +74,14 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		if (size != ((~rx->header >> 16) & 0x7ff)) {
 			netdev_err(dev->net, "asix_rx_fixup() Data Header synchronisation was lost, remaining %d\n",
 				   rx->remaining);
-			kfree_skb(rx->ax_skb);
-			rx->ax_skb = NULL;
-			/* Discard the incomplete netdev Ethernet frame and
-			 * assume the Data header is at the start of the current
-			 * URB socket buffer.
-			 */
+			if (rx->ax_skb) {
+				kfree_skb(rx->ax_skb);
+				rx->ax_skb = NULL;
+				/* Discard the incomplete netdev Ethernet frame
+				 * and assume the Data header is at the start of
+				 * the current URB socket buffer.
+				 */
+			}
 			rx->remaining = 0;
 		}
 	}
@@ -121,9 +123,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 				return 0;
 			}
 
+			/* Sometimes may fail to get a netdev socket buffer but
+			 * continue to process the URB socket buffer so that
+			 * synchronisation of the Ethernet frame Data header
+			 * word is maintained.
+			 */
 			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net, size);
-			if (!rx->ax_skb)
-				return 0;
 
 			rx->remaining = size;
 		}
@@ -136,10 +141,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			rx->remaining = 0;
 		}
 
-		data = skb_put(rx->ax_skb, copy_length);
-		memcpy(data, skb->data + offset, copy_length);
-		if (!rx->remaining)
-			usbnet_skb_return(dev, rx->ax_skb);
+		if (rx->ax_skb) {
+			data = skb_put(rx->ax_skb, copy_length);
+			memcpy(data, skb->data + offset, copy_length);
+			if (!rx->remaining)
+				usbnet_skb_return(dev, rx->ax_skb);
+		}
 
 		offset += (copy_length + 1) & 0xfffe;
 	}
