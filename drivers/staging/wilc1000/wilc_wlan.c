@@ -1833,7 +1833,7 @@ int wilc_wlan_cfg_get_val(u32 wid, u8 *buffer, u32 buffer_size)
 {
 	int ret;
 
-	ret = mac_cfg.cfg_wid_get_val((u16)wid, buffer, buffer_size);
+	ret = wilc_wlan_cfg_get_wid_value((u16)wid, buffer, buffer_size);
 
 	return ret;
 }
