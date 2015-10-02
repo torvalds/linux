@@ -800,9 +800,7 @@ static int mmc_sd_get_ro(struct mmc_host *host)
 	if (!host->ops->get_ro)
 		return -1;
 
-	mmc_host_clk_hold(host);
 	ro = host->ops->get_ro(host);
-	mmc_host_clk_release(host);
 
 	return ro;
 }

@@ -1931,14 +1931,12 @@ static int mmc_reset(struct mmc_host *host)
 	if (!mmc_can_reset(card))
 		return -EOPNOTSUPP;
 
-	mmc_host_clk_hold(host);
 	mmc_set_clock(host, host->f_init);
 
 	host->ops->hw_reset(host);
 
 	/* Set initial state and call mmc_set_ios */
 	mmc_set_initial_state(host);
-	mmc_host_clk_release(host);
 
 	return mmc_init_card(host, card->ocr, card);
 }
