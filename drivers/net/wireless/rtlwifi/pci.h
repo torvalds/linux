@@ -247,6 +247,8 @@ struct rtl_pci {
 	/* MSI support */
 	bool msi_support;
 	bool using_msi;
+	/* interrupt clear before set */
+	bool int_clear;
 };
 
 struct mp_adapter {
