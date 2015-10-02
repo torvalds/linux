@@ -339,6 +339,14 @@ configured less than Maximum supported fifo bytes */
 				  UART_FCR7_64BYTE,
 		.flags		= UART_CAP_FIFO,
 	},
+	[PORT_RT2880] = {
+		.name		= "Palmchip BK-3103",
+		.fifo_size	= 16,
+		.tx_loadsz	= 16,
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
+		.rxtrig_bytes	= {1, 4, 8, 14},
+		.flags		= UART_CAP_FIFO,
+	},
 };
 
 /* Uart divisor latch read */
