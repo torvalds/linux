@@ -127,11 +127,12 @@ static struct platform_driver mvebu_cpuidle_driver = {
 	.probe = mvebu_v7_cpuidle_probe,
 	.driver = {
 		.name = "cpuidle-mbevu",
+		.suppress_bind_attrs = true,
 	},
 	.id_table = mvebu_cpuidle_ids,
 };
 
-module_platform_driver(mvebu_cpuidle_driver);
+builtin_platform_driver(mvebu_cpuidle_driver);
 
 MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
 MODULE_DESCRIPTION("Marvell EBU v7 cpuidle driver");
