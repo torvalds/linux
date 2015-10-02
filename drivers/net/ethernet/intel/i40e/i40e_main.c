@@ -2672,7 +2672,8 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		rx_ctx.lrxqthresh = 2;
 	rx_ctx.crcstrip = 1;
 	rx_ctx.l2tsel = 1;
-	rx_ctx.showiv = 1;
+	/* this controls whether VLAN is stripped from inner headers */
+	rx_ctx.showiv = 0;
 #ifdef I40E_FCOE
 	rx_ctx.fc_ena = (vsi->type == I40E_VSI_FCOE);
 #endif
