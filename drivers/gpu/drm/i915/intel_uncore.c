@@ -52,8 +52,7 @@ static const char * const forcewake_domain_names[] = {
 const char *
 intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 {
-	BUILD_BUG_ON((sizeof(forcewake_domain_names)/sizeof(const char *)) !=
-		     FW_DOMAIN_ID_COUNT);
+	BUILD_BUG_ON(ARRAY_SIZE(forcewake_domain_names) != FW_DOMAIN_ID_COUNT);
 
 	if (id >= 0 && id < FW_DOMAIN_ID_COUNT)
 		return forcewake_domain_names[id];
@@ -770,6 +769,7 @@ static u##x \
 gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)))	\
 		fw_engine = 0; \
 	else if (FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg))	\
@@ -783,6 +783,7 @@ gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	if (fw_engine) \
 		__force_wake_get(dev_priv, fw_engine); \
 	val = __raw_i915_read##x(dev_priv, reg); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
 	GEN6_READ_FOOTER; \
 }
 
@@ -983,6 +984,7 @@ gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 		bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)) ||	\
 	    is_gen9_shadowed(dev_priv, reg)) \
 		fw_engine = 0; \
@@ -997,6 +999,8 @@ gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 	if (fw_engine) \
 		__force_wake_get(dev_priv, fw_engine); \
 	__raw_i915_write##x(dev_priv, reg, val); \
+	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
+	hsw_unclaimed_reg_detect(dev_priv); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -1198,8 +1202,6 @@ void intel_uncore_init(struct drm_device *dev)
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
-		MISSING_CASE(INTEL_INFO(dev)->gen);
-		return;
 	case 9:
 		ASSIGN_WRITE_MMIO_VFUNCS(gen9);
 		ASSIGN_READ_MMIO_VFUNCS(gen9);

@@ -201,6 +201,8 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int target_clock = mode->clock;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -212,7 +214,12 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 		if (mode->vdisplay > intel_dvo->panel_fixed_mode->vdisplay)
 			return MODE_PANEL;
+
+		target_clock = intel_dvo->panel_fixed_mode->clock;
 	}
+
+	if (target_clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	return intel_dvo->dev.dev_ops->mode_valid(&intel_dvo->dev, mode);
 }

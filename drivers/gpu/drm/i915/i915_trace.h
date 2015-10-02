@@ -186,31 +186,47 @@ DEFINE_EVENT(i915_va, i915_va_alloc,
 	     TP_ARGS(vm, start, length, name)
 );
 
-DECLARE_EVENT_CLASS(i915_page_table_entry,
-	TP_PROTO(struct i915_address_space *vm, u32 pde, u64 start, u64 pde_shift),
-	TP_ARGS(vm, pde, start, pde_shift),
+DECLARE_EVENT_CLASS(i915_px_entry,
+	TP_PROTO(struct i915_address_space *vm, u32 px, u64 start, u64 px_shift),
+	TP_ARGS(vm, px, start, px_shift),
 
 	TP_STRUCT__entry(
 		__field(struct i915_address_space *, vm)
-		__field(u32, pde)
+		__field(u32, px)
 		__field(u64, start)
 		__field(u64, end)
 	),
 
 	TP_fast_assign(
 		__entry->vm = vm;
-		__entry->pde = pde;
+		__entry->px = px;
 		__entry->start = start;
-		__entry->end = ((start + (1ULL << pde_shift)) & ~((1ULL << pde_shift)-1)) - 1;
+		__entry->end = ((start + (1ULL << px_shift)) & ~((1ULL << px_shift)-1)) - 1;
 	),
 
 	TP_printk("vm=%p, pde=%d (0x%llx-0x%llx)",
-		  __entry->vm, __entry->pde, __entry->start, __entry->end)
+		  __entry->vm, __entry->px, __entry->start, __entry->end)
 );
 
-DEFINE_EVENT(i915_page_table_entry, i915_page_table_entry_alloc,
+DEFINE_EVENT(i915_px_entry, i915_page_table_entry_alloc,
 	     TP_PROTO(struct i915_address_space *vm, u32 pde, u64 start, u64 pde_shift),
 	     TP_ARGS(vm, pde, start, pde_shift)
+);
+
+DEFINE_EVENT_PRINT(i915_px_entry, i915_page_directory_entry_alloc,
+		   TP_PROTO(struct i915_address_space *vm, u32 pdpe, u64 start, u64 pdpe_shift),
+		   TP_ARGS(vm, pdpe, start, pdpe_shift),
+
+		   TP_printk("vm=%p, pdpe=%d (0x%llx-0x%llx)",
+			     __entry->vm, __entry->px, __entry->start, __entry->end)
+);
+
+DEFINE_EVENT_PRINT(i915_px_entry, i915_page_directory_pointer_entry_alloc,
+		   TP_PROTO(struct i915_address_space *vm, u32 pml4e, u64 start, u64 pml4e_shift),
+		   TP_ARGS(vm, pml4e, start, pml4e_shift),
+
+		   TP_printk("vm=%p, pml4e=%d (0x%llx-0x%llx)",
+			     __entry->vm, __entry->px, __entry->start, __entry->end)
 );
 
 /* Avoid extra math because we only support two sizes. The format is defined by

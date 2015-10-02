@@ -289,11 +289,14 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
+	int max_pixclk = to_i915(connector->dev)->max_dotclk_freq;
 
 	if (mode->hdisplay > fixed_mode->hdisplay)
 		return MODE_PANEL;
 	if (mode->vdisplay > fixed_mode->vdisplay)
 		return MODE_PANEL;
+	if (fixed_mode->clock > max_pixclk)
+		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
@@ -952,7 +955,7 @@ void intel_lvds_init(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(PCH_PP_CONTROL,
 			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
-	} else {
+	} else if (INTEL_INFO(dev_priv)->gen < 5) {
 		I915_WRITE(PP_CONTROL,
 			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 	}
@@ -980,6 +983,18 @@ void intel_lvds_init(struct drm_device *dev)
 			return;
 		}
 		DRM_DEBUG_KMS("LVDS is not present in VBT, but enabled anyway\n");
+	}
+
+	 /* Set the Panel Power On/Off timings if uninitialized. */
+	if (INTEL_INFO(dev_priv)->gen < 5 &&
+	    I915_READ(PP_ON_DELAYS) == 0 && I915_READ(PP_OFF_DELAYS) == 0) {
+		/* Set T2 to 40ms and T5 to 200ms */
+		I915_WRITE(PP_ON_DELAYS, 0x019007d0);
+
+		/* Set T3 to 35ms and Tx to 200ms */
+		I915_WRITE(PP_OFF_DELAYS, 0x015e07d0);
+
+		DRM_DEBUG_KMS("Panel power timings uninitialized, setting defaults\n");
 	}
 
 	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);

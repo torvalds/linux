@@ -352,8 +352,8 @@
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*(x)-1)
 #define   MI_LRI_FORCE_POSTED		(1<<12)
-#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*(x)-1)
-#define MI_STORE_REGISTER_MEM_GEN8(x) MI_INSTR(0x24, 3*(x)-1)
+#define MI_STORE_REGISTER_MEM        MI_INSTR(0x24, 1)
+#define MI_STORE_REGISTER_MEM_GEN8   MI_INSTR(0x24, 2)
 #define   MI_SRM_LRM_GLOBAL_GTT		(1<<22)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
@@ -364,8 +364,8 @@
 #define   MI_INVALIDATE_BSD		(1<<7)
 #define   MI_FLUSH_DW_USE_GTT		(1<<2)
 #define   MI_FLUSH_DW_USE_PPGTT		(0<<2)
-#define MI_LOAD_REGISTER_MEM(x) MI_INSTR(0x29, 2*(x)-1)
-#define MI_LOAD_REGISTER_MEM_GEN8(x) MI_INSTR(0x29, 3*(x)-1)
+#define MI_LOAD_REGISTER_MEM	   MI_INSTR(0x29, 1)
+#define MI_LOAD_REGISTER_MEM_GEN8  MI_INSTR(0x29, 2)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE		(1)
 /* for snb/ivb/vlv this also means "batch in ppgtt" when ppgtt is enabled. */
@@ -1099,6 +1099,12 @@ enum skl_disp_power_wells {
 #define  DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE	1 /* 1: coarse & 0 : fine  */
 #define CHV_PLL_DW9(ch) _PIPE(ch, _CHV_PLL_DW9_CH0, _CHV_PLL_DW9_CH1)
 
+#define _CHV_CMN_DW0_CH0               0x8100
+#define   DPIO_ALLDL_POWERDOWN_SHIFT_CH0	19
+#define   DPIO_ANYDL_POWERDOWN_SHIFT_CH0	18
+#define   DPIO_ALLDL_POWERDOWN			(1 << 1)
+#define   DPIO_ANYDL_POWERDOWN			(1 << 0)
+
 #define _CHV_CMN_DW5_CH0               0x8114
 #define   CHV_BUFRIGHTENA1_DISABLE	(0 << 20)
 #define   CHV_BUFRIGHTENA1_NORMAL	(1 << 20)
@@ -1135,10 +1141,23 @@ enum skl_disp_power_wells {
 
 #define _CHV_CMN_DW19_CH0		0x814c
 #define _CHV_CMN_DW6_CH1		0x8098
+#define   DPIO_ALLDL_POWERDOWN_SHIFT_CH1	30 /* CL2 DW6 only */
+#define   DPIO_ANYDL_POWERDOWN_SHIFT_CH1	29 /* CL2 DW6 only */
+#define   DPIO_DYNPWRDOWNEN_CH1		(1 << 28) /* CL2 DW6 only */
 #define   CHV_CMN_USEDCLKCHANNEL	(1 << 13)
+
 #define CHV_CMN_DW19(ch) _PIPE(ch, _CHV_CMN_DW19_CH0, _CHV_CMN_DW6_CH1)
 
+#define CHV_CMN_DW28			0x8170
+#define   DPIO_CL1POWERDOWNEN		(1 << 23)
+#define   DPIO_DYNPWRDOWNEN_CH0		(1 << 22)
+#define   DPIO_SUS_CLK_CONFIG_ON		(0 << 0)
+#define   DPIO_SUS_CLK_CONFIG_CLKREQ		(1 << 0)
+#define   DPIO_SUS_CLK_CONFIG_GATE		(2 << 0)
+#define   DPIO_SUS_CLK_CONFIG_GATE_CLKREQ	(3 << 0)
+
 #define CHV_CMN_DW30			0x8178
+#define   DPIO_CL2_LDOFUSE_PWRENB	(1 << 6)
 #define   DPIO_LRC_BYPASS		(1 << 3)
 
 #define _TXLANE(ch, lane, offset) ((ch ? 0x2400 : 0) + \
@@ -1674,11 +1693,18 @@ enum skl_disp_power_wells {
 #define GFX_MODE_GEN7	0x0229c
 #define RING_MODE_GEN7(ring)	((ring)->mmio_base+0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
+#define   GFX_INTERRUPT_STEERING	(1<<14)
 #define   GFX_TLB_INVALIDATE_EXPLICIT	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
 #define   GFX_REPLAY_MODE		(1<<11)
 #define   GFX_PSMI_GRANULARITY		(1<<10)
 #define   GFX_PPGTT_ENABLE		(1<<9)
+#define   GEN8_GFX_PPGTT_48B		(1<<7)
+
+#define   GFX_FORWARD_VBLANK_MASK	(3<<5)
+#define   GFX_FORWARD_VBLANK_NEVER	(0<<5)
+#define   GFX_FORWARD_VBLANK_ALWAYS	(1<<5)
+#define   GFX_FORWARD_VBLANK_COND	(2<<5)
 
 #define VLV_DISPLAY_BASE 0x180000
 #define VLV_MIPI_BASE VLV_DISPLAY_BASE
@@ -2185,16 +2211,20 @@ enum skl_disp_power_wells {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
+#define   PHY_CH_POWER_DOWN_OVRD_EN(phy, ch)	(1 << (2*(phy)+(ch)+27))
 #define   PHY_LDO_DELAY_0NS			0x0
 #define   PHY_LDO_DELAY_200NS			0x1
 #define   PHY_LDO_DELAY_600NS			0x2
 #define   PHY_LDO_SEQ_DELAY(delay, phy)		((delay) << (2*(phy)+23))
+#define   PHY_CH_POWER_DOWN_OVRD(mask, phy, ch)	((mask) << (8*(phy)+4*(ch)+11))
 #define   PHY_CH_SU_PSR				0x1
 #define   PHY_CH_DEEP_PSR			0x7
 #define   PHY_CH_POWER_MODE(mode, phy, ch)	((mode) << (6*(phy)+3*(ch)+2))
 #define   PHY_COM_LANE_RESET_DEASSERT(phy)	(1 << (phy))
 #define DISPLAY_PHY_STATUS (VLV_DISPLAY_BASE + 0x60104)
 #define   PHY_POWERGOOD(phy)	(((phy) == DPIO_PHY0) ? (1<<31) : (1<<30))
+#define   PHY_STATUS_CMN_LDO(phy, ch)                   (1 << (6-(6*(phy)+3*(ch))))
+#define   PHY_STATUS_SPLINE_LDO(phy, ch, spline)        (1 << (8-(6*(phy)+3*(ch)+(spline))))
 
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
@@ -4107,6 +4137,7 @@ enum skl_disp_power_wells {
 /* How many wires to use. I guess 3 was too hard */
 #define   DP_PORT_WIDTH(width)		(((width) - 1) << 19)
 #define   DP_PORT_WIDTH_MASK		(7 << 19)
+#define   DP_PORT_WIDTH_SHIFT		19
 
 /* Mystic DPCD version 1.1 special mode */
 #define   DP_ENHANCED_FRAMING		(1 << 18)
@@ -4617,6 +4648,7 @@ enum skl_disp_power_wells {
 
 #define CBR1_VLV			(VLV_DISPLAY_BASE + 0x70400)
 #define  CBR_PND_DEADLINE_DISABLE	(1<<31)
+#define  CBR_PWM_CLOCK_MUX_SELECT	(1<<30)
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
@@ -5363,15 +5395,17 @@ enum skl_disp_power_wells {
 
 #define CPU_VGACNTRL	0x41000
 
-#define DIGITAL_PORT_HOTPLUG_CNTRL      0x44030
-#define  DIGITAL_PORTA_HOTPLUG_ENABLE           (1 << 4)
-#define  DIGITAL_PORTA_SHORT_PULSE_2MS          (0 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_4_5MS        (1 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_6MS          (2 << 2)
-#define  DIGITAL_PORTA_SHORT_PULSE_100MS        (3 << 2)
-#define  DIGITAL_PORTA_NO_DETECT                (0 << 0)
-#define  DIGITAL_PORTA_LONG_PULSE_DETECT_MASK   (1 << 1)
-#define  DIGITAL_PORTA_SHORT_PULSE_DETECT_MASK  (1 << 0)
+#define DIGITAL_PORT_HOTPLUG_CNTRL	0x44030
+#define  DIGITAL_PORTA_HOTPLUG_ENABLE		(1 << 4)
+#define  DIGITAL_PORTA_PULSE_DURATION_2ms	(0 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_4_5ms	(1 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_6ms	(2 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_100ms	(3 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_PULSE_DURATION_MASK	(3 << 2) /* pre-HSW */
+#define  DIGITAL_PORTA_HOTPLUG_STATUS_MASK	(3 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_NO_DETECT	(0 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_SHORT_DETECT	(1 << 0)
+#define  DIGITAL_PORTA_HOTPLUG_LONG_DETECT	(2 << 0)
 
 /* refresh rate hardware control */
 #define RR_HW_CTL       0x45300
@@ -5693,11 +5727,12 @@ enum skl_disp_power_wells {
 #define GEN8_GT_IIR(which) (0x44308 + (0x10 * (which)))
 #define GEN8_GT_IER(which) (0x4430c + (0x10 * (which)))
 
-#define GEN8_BCS_IRQ_SHIFT 16
 #define GEN8_RCS_IRQ_SHIFT 0
-#define GEN8_VCS2_IRQ_SHIFT 16
+#define GEN8_BCS_IRQ_SHIFT 16
 #define GEN8_VCS1_IRQ_SHIFT 0
+#define GEN8_VCS2_IRQ_SHIFT 16
 #define GEN8_VECS_IRQ_SHIFT 0
+#define GEN8_WD_IRQ_SHIFT 16
 
 #define GEN8_DE_PIPE_ISR(pipe) (0x44400 + (0x10 * (pipe)))
 #define GEN8_DE_PIPE_IMR(pipe) (0x44404 + (0x10 * (pipe)))
@@ -5762,21 +5797,6 @@ enum skl_disp_power_wells {
 #define GEN8_PCU_IMR 0x444e4
 #define GEN8_PCU_IIR 0x444e8
 #define GEN8_PCU_IER 0x444ec
-
-/* BXT hotplug control */
-#define BXT_HOTPLUG_CTL			0xC4030
-#define   BXT_DDIA_HPD_ENABLE		(1 << 28)
-#define   BXT_DDIA_HPD_STATUS		(3 << 24)
-#define   BXT_DDIC_HPD_ENABLE		(1 << 12)
-#define   BXT_DDIC_HPD_STATUS		(3 << 8)
-#define   BXT_DDIB_HPD_ENABLE		(1 << 4)
-#define   BXT_DDIB_HPD_STATUS		(3 << 0)
-#define   BXT_HOTPLUG_CTL_MASK		(BXT_DDIA_HPD_ENABLE | \
-					 BXT_DDIB_HPD_ENABLE | \
-					 BXT_DDIC_HPD_ENABLE)
-#define   BXT_HPD_STATUS_MASK		(BXT_DDIA_HPD_STATUS | \
-					 BXT_DDIB_HPD_STATUS | \
-					 BXT_DDIC_HPD_STATUS)
 
 #define ILK_DISPLAY_CHICKEN2	0x42004
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
@@ -5950,6 +5970,7 @@ enum skl_disp_power_wells {
 #define SDE_AUXB_CPT		(1 << 25)
 #define SDE_AUX_MASK_CPT	(7 << 25)
 #define SDE_PORTE_HOTPLUG_SPT	(1 << 25)
+#define SDE_PORTA_HOTPLUG_SPT	(1 << 24)
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
@@ -5963,7 +5984,8 @@ enum skl_disp_power_wells {
 #define SDE_HOTPLUG_MASK_SPT	(SDE_PORTE_HOTPLUG_SPT |	\
 				 SDE_PORTD_HOTPLUG_CPT |	\
 				 SDE_PORTC_HOTPLUG_CPT |	\
-				 SDE_PORTB_HOTPLUG_CPT)
+				 SDE_PORTB_HOTPLUG_CPT |	\
+				 SDE_PORTA_HOTPLUG_SPT)
 #define SDE_GMBUS_CPT		(1 << 17)
 #define SDE_ERROR_CPT		(1 << 16)
 #define SDE_AUDIO_CP_REQ_C_CPT	(1 << 10)
@@ -5998,46 +6020,46 @@ enum skl_disp_power_wells {
 #define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 /* digital port hotplug */
-#define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */
-#define BXT_PORTA_HOTPLUG_ENABLE	(1 << 28)
-#define BXT_PORTA_HOTPLUG_STATUS_MASK	(0x3 << 24)
-#define  BXT_PORTA_HOTPLUG_NO_DETECT	(0 << 24)
-#define  BXT_PORTA_HOTPLUG_SHORT_DETECT	(1 << 24)
-#define  BXT_PORTA_HOTPLUG_LONG_DETECT	(2 << 24)
-#define PORTD_HOTPLUG_ENABLE            (1 << 20)
-#define PORTD_PULSE_DURATION_2ms        (0)
-#define PORTD_PULSE_DURATION_4_5ms      (1 << 18)
-#define PORTD_PULSE_DURATION_6ms        (2 << 18)
-#define PORTD_PULSE_DURATION_100ms      (3 << 18)
-#define PORTD_PULSE_DURATION_MASK	(3 << 18)
-#define PORTD_HOTPLUG_STATUS_MASK	(0x3 << 16)
+#define PCH_PORT_HOTPLUG		0xc4030	/* SHOTPLUG_CTL */
+#define  PORTA_HOTPLUG_ENABLE		(1 << 28) /* LPT:LP+ & BXT */
+#define  PORTA_HOTPLUG_STATUS_MASK	(3 << 24) /* SPT+ & BXT */
+#define  PORTA_HOTPLUG_NO_DETECT	(0 << 24) /* SPT+ & BXT */
+#define  PORTA_HOTPLUG_SHORT_DETECT	(1 << 24) /* SPT+ & BXT */
+#define  PORTA_HOTPLUG_LONG_DETECT	(2 << 24) /* SPT+ & BXT */
+#define  PORTD_HOTPLUG_ENABLE		(1 << 20)
+#define  PORTD_PULSE_DURATION_2ms	(0 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_4_5ms	(1 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_6ms	(2 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_100ms	(3 << 18) /* pre-LPT */
+#define  PORTD_PULSE_DURATION_MASK	(3 << 18) /* pre-LPT */
+#define  PORTD_HOTPLUG_STATUS_MASK	(3 << 16)
 #define  PORTD_HOTPLUG_NO_DETECT	(0 << 16)
 #define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
 #define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
-#define PORTC_HOTPLUG_ENABLE            (1 << 12)
-#define PORTC_PULSE_DURATION_2ms        (0)
-#define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
-#define PORTC_PULSE_DURATION_6ms        (2 << 10)
-#define PORTC_PULSE_DURATION_100ms      (3 << 10)
-#define PORTC_PULSE_DURATION_MASK	(3 << 10)
-#define PORTC_HOTPLUG_STATUS_MASK	(0x3 << 8)
+#define  PORTC_HOTPLUG_ENABLE		(1 << 12)
+#define  PORTC_PULSE_DURATION_2ms	(0 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_4_5ms	(1 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_6ms	(2 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_100ms	(3 << 10) /* pre-LPT */
+#define  PORTC_PULSE_DURATION_MASK	(3 << 10) /* pre-LPT */
+#define  PORTC_HOTPLUG_STATUS_MASK	(3 << 8)
 #define  PORTC_HOTPLUG_NO_DETECT	(0 << 8)
 #define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
 #define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
-#define PORTB_HOTPLUG_ENABLE            (1 << 4)
-#define PORTB_PULSE_DURATION_2ms        (0)
-#define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
-#define PORTB_PULSE_DURATION_6ms        (2 << 2)
-#define PORTB_PULSE_DURATION_100ms      (3 << 2)
-#define PORTB_PULSE_DURATION_MASK	(3 << 2)
-#define PORTB_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define  PORTB_HOTPLUG_ENABLE		(1 << 4)
+#define  PORTB_PULSE_DURATION_2ms	(0 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_4_5ms	(1 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_6ms	(2 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_100ms	(3 << 2) /* pre-LPT */
+#define  PORTB_PULSE_DURATION_MASK	(3 << 2) /* pre-LPT */
+#define  PORTB_HOTPLUG_STATUS_MASK	(3 << 0)
 #define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
 
-#define PCH_PORT_HOTPLUG2        0xc403C		/* SHOTPLUG_CTL2 */
-#define PORTE_HOTPLUG_ENABLE            (1 << 4)
-#define PORTE_HOTPLUG_STATUS_MASK	(0x3 << 0)
+#define PCH_PORT_HOTPLUG2		0xc403C	/* SHOTPLUG_CTL2 SPT+ */
+#define  PORTE_HOTPLUG_ENABLE		(1 << 4)
+#define  PORTE_HOTPLUG_STATUS_MASK	(3 << 0)
 #define  PORTE_HOTPLUG_NO_DETECT	(0 << 0)
 #define  PORTE_HOTPLUG_SHORT_DETECT	(1 << 0)
 #define  PORTE_HOTPLUG_LONG_DETECT	(2 << 0)
@@ -6304,9 +6326,11 @@ enum skl_disp_power_wells {
 #define  FDI_PHASE_SYNC_OVR(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_OVR - ((pipe) * 2)))
 #define  FDI_PHASE_SYNC_EN(pipe) (1<<(FDIA_PHASE_SYNC_SHIFT_EN - ((pipe) * 2)))
 #define  FDI_BC_BIFURCATION_SELECT	(1 << 12)
+#define  SPT_PWM_GRANULARITY		(1<<0)
 #define SOUTH_CHICKEN2		0xc2004
 #define  FDI_MPHY_IOSFSB_RESET_STATUS	(1<<13)
 #define  FDI_MPHY_IOSFSB_RESET_CTL	(1<<12)
+#define  LPT_PWM_GRANULARITY		(1<<5)
 #define  DPLS_EDP_PPS_FIX_DIS		(1<<0)
 
 #define _FDI_RXA_CHICKEN         0xc200c
@@ -6870,7 +6894,9 @@ enum skl_disp_power_wells {
 #define   GEN9_PGCTL_SSB_EU311_ACK	(1 << 14)
 
 #define GEN7_MISCCPCTL			(0x9424)
-#define   GEN7_DOP_CLOCK_GATE_ENABLE	(1<<0)
+#define   GEN7_DOP_CLOCK_GATE_ENABLE		(1<<0)
+#define   GEN8_DOP_CLOCK_GATE_CFCLK_ENABLE	(1<<2)
+#define   GEN8_DOP_CLOCK_GATE_GUC_ENABLE	(1<<4)
 
 #define GEN8_GARBCNTL                   0xB004
 #define   GEN9_GAPS_TSV_CREDIT_DISABLE  (1<<7)
@@ -7159,6 +7185,8 @@ enum skl_disp_power_wells {
 #define  DDI_BUF_IS_IDLE			(1<<7)
 #define  DDI_A_4_LANES				(1<<4)
 #define  DDI_PORT_WIDTH(width)			(((width) - 1) << 1)
+#define  DDI_PORT_WIDTH_MASK			(7 << 1)
+#define  DDI_PORT_WIDTH_SHIFT			1
 #define  DDI_INIT_DISPLAY_DETECTED		(1<<0)
 
 /* DDI Buffer Translations */

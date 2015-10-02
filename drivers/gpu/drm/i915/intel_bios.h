@@ -588,7 +588,6 @@ struct bdb_psr {
 	struct psr_table psr_table[16];
 } __packed;
 
-void intel_setup_bios(struct drm_device *dev);
 int intel_parse_bios(struct drm_device *dev);
 
 /*

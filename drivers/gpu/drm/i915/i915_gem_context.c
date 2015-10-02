@@ -332,6 +332,13 @@ int i915_gem_context_init(struct drm_device *dev)
 	if (WARN_ON(dev_priv->ring[RCS].default_context))
 		return 0;
 
+	if (intel_vgpu_active(dev) && HAS_LOGICAL_RING_CONTEXTS(dev)) {
+		if (!i915.enable_execlists) {
+			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
+			return -EINVAL;
+		}
+	}
+
 	if (i915.enable_execlists) {
 		/* NB: intentionally left blank. We will allocate our own
 		 * backing objects as we need them, thank you very much */

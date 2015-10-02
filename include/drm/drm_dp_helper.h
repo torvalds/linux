@@ -634,6 +634,13 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		(dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP);
 }
 
+static inline bool
+drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x12 &&
+		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
 /*
  * DisplayPort AUX channel
  */

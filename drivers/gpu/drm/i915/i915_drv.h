@@ -50,13 +50,14 @@
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
+#include "intel_guc.h"
 
 /* General customization:
  */
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150731"
+#define DRIVER_DATE		"20150911"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -67,11 +68,11 @@
 		BUILD_BUG_ON(__i915_warn_cond); \
 	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
 #else
-#define WARN_ON(x) WARN((x), "WARN_ON(" #x ")")
+#define WARN_ON(x) WARN((x), "WARN_ON(%s)", #x )
 #endif
 
 #undef WARN_ON_ONCE
-#define WARN_ON_ONCE(x) WARN_ONCE((x), "WARN_ON_ONCE(" #x ")")
+#define WARN_ON_ONCE(x) WARN_ONCE((x), "WARN_ON_ONCE(%s)", #x )
 
 #define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
 			     (long) (x), __func__);
@@ -104,6 +105,11 @@
 	}								\
 	unlikely(__ret_warn_on);					\
 })
+
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
 
 enum pipe {
 	INVALID_PIPE = -1,
@@ -549,7 +555,7 @@ struct drm_i915_error_state {
 
 		struct drm_i915_error_object {
 			int page_count;
-			u32 gtt_offset;
+			u64 gtt_offset;
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
@@ -575,7 +581,7 @@ struct drm_i915_error_state {
 		u32 size;
 		u32 name;
 		u32 rseqno[I915_NUM_RINGS], wseqno;
-		u32 gtt_offset;
+		u64 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
 		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
@@ -665,6 +671,8 @@ struct drm_i915_display_funcs {
 			      uint32_t level);
 	void (*disable_backlight)(struct intel_connector *connector);
 	void (*enable_backlight)(struct intel_connector *connector);
+	uint32_t (*backlight_hz_to_pwm)(struct intel_connector *connector,
+					uint32_t hz);
 };
 
 enum forcewake_domain_id {
@@ -1693,7 +1701,7 @@ struct i915_execbuffer_params {
 	struct drm_file                 *file;
 	uint32_t                        dispatch_flags;
 	uint32_t                        args_batch_start_offset;
-	uint32_t                        batch_obj_vm_offset;
+	uint64_t                        batch_obj_vm_offset;
 	struct intel_engine_cs          *ring;
 	struct drm_i915_gem_object      *batch_obj;
 	struct intel_context            *ctx;
@@ -1715,6 +1723,8 @@ struct drm_i915_private {
 	struct intel_uncore uncore;
 
 	struct i915_virtual_gpu vgpu;
+
+	struct intel_guc guc;
 
 	struct intel_csr csr;
 
@@ -1796,6 +1806,7 @@ struct drm_i915_private {
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_boot_cdclk;
 	unsigned int cdclk_freq, max_cdclk_freq;
+	unsigned int max_dotclk_freq;
 	unsigned int hpll_freq;
 
 	/**
@@ -1961,6 +1972,11 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 static inline struct drm_i915_private *dev_to_i915(struct device *dev)
 {
 	return to_i915(dev_get_drvdata(dev));
+}
+
+static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
+{
+	return container_of(guc, struct drm_i915_private, guc);
 }
 
 /* Iterate over initialised rings */
@@ -2520,7 +2536,8 @@ struct drm_i915_cmd_table {
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
 #define HAS_LOGICAL_RING_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 8)
 #define USES_PPGTT(dev)		(i915.enable_ppgtt)
-#define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt == 2)
+#define USES_FULL_PPGTT(dev)	(i915.enable_ppgtt >= 2)
+#define USES_FULL_48BIT_PPGTT(dev)	(i915.enable_ppgtt == 3)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
@@ -2566,6 +2583,9 @@ struct drm_i915_cmd_table {
 
 #define HAS_CSR(dev)	(IS_SKYLAKE(dev))
 
+#define HAS_GUC_UCODE(dev)	(IS_GEN9(dev))
+#define HAS_GUC_SCHED(dev)	(IS_GEN9(dev))
+
 #define HAS_RESOURCE_STREAMER(dev) (IS_HASWELL(dev) || \
 				    INTEL_INFO(dev)->gen >= 8)
 
@@ -2584,6 +2604,7 @@ struct drm_i915_cmd_table {
 #define INTEL_PCH_TYPE(dev) (__I915__(dev)->pch_type)
 #define HAS_PCH_SPT(dev) (INTEL_PCH_TYPE(dev) == PCH_SPT)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
+#define HAS_PCH_LPT_LP(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)
@@ -2603,8 +2624,8 @@ struct drm_i915_cmd_table {
 extern const struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 
-extern int i915_suspend_legacy(struct drm_device *dev, pm_message_t state);
-extern int i915_resume_legacy(struct drm_device *dev);
+extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
+extern int i915_resume_switcheroo(struct drm_device *dev);
 
 /* i915_params.c */
 struct i915_params {
@@ -2637,6 +2658,7 @@ struct i915_params {
 	int use_mmio_flip;
 	int mmio_debug;
 	bool verbose_state_checks;
+	bool nuclear_pageflip;
 	int edp_vswing;
 };
 extern struct i915_params i915 __read_mostly;
@@ -2986,13 +3008,11 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-unsigned long
-i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-			      const struct i915_ggtt_view *view);
-unsigned long
-i915_gem_obj_offset(struct drm_i915_gem_object *o,
-		    struct i915_address_space *vm);
-static inline unsigned long
+u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
+				  const struct i915_ggtt_view *view);
+u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
+			struct i915_address_space *vm);
+static inline u64
 i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
 {
 	return i915_gem_obj_ggtt_offset_view(o, &i915_ggtt_view_normal);

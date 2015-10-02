@@ -364,12 +364,12 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(dev->pdev, PCI_D0);
-		i915_resume_legacy(dev);
+		i915_resume_switcheroo(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		pr_err("switched off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		i915_suspend_legacy(dev, pmm);
+		i915_suspend_switcheroo(dev, pmm);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -435,6 +435,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
+	/* intel_guc_ucode_init() needs the mutex to allocate GEM objects */
+	mutex_lock(&dev->struct_mutex);
+	intel_guc_ucode_init(dev);
+	mutex_unlock(&dev->struct_mutex);
+
 	ret = i915_gem_init(dev);
 	if (ret)
 		goto cleanup_irq;
@@ -476,6 +481,9 @@ cleanup_gem:
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 cleanup_irq:
+	mutex_lock(&dev->struct_mutex);
+	intel_guc_ucode_fini(dev);
+	mutex_unlock(&dev->struct_mutex);
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
@@ -791,6 +799,24 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			 info->has_eu_pg ? "y" : "n");
 }
 
+static void intel_init_dpio(struct drm_i915_private *dev_priv)
+{
+	if (!IS_VALLEYVIEW(dev_priv))
+		return;
+
+	/*
+	 * IOSF_PORT_DPIO is used for VLV x2 PHY (DP/HDMI B and C),
+	 * CHV x1 PHY (DP/HDMI D)
+	 * IOSF_PORT_DPIO_2 is used for CHV x2 PHY (DP/HDMI B and C)
+	 */
+	if (IS_CHERRYVIEW(dev_priv)) {
+		DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO_2;
+		DPIO_PHY_IOSF_PORT(DPIO_PHY1) = IOSF_PORT_DPIO;
+	} else {
+		DPIO_PHY_IOSF_PORT(DPIO_PHY0) = IOSF_PORT_DPIO;
+	}
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -971,8 +997,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
 
-	intel_setup_bios(dev);
-
 	i915_gem_load(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
@@ -990,6 +1014,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		pci_enable_msi(dev->pdev);
 
 	intel_device_info_runtime_init(dev);
+
+	intel_init_dpio(dev_priv);
 
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
@@ -1128,6 +1154,7 @@ int i915_driver_unload(struct drm_device *dev)
 	flush_workqueue(dev_priv->wq);
 
 	mutex_lock(&dev->struct_mutex);
+	intel_guc_ucode_fini(dev);
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
