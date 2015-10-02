@@ -1128,79 +1128,92 @@ int arizona_dev_init(struct arizona *arizona)
 	arizona->rev &= ARIZONA_DEVICE_REVISION_MASK;
 
 	switch (reg) {
-#ifdef CONFIG_MFD_WM5102
 	case 0x5102:
-		type_name = "WM5102";
-		if (arizona->type != WM5102) {
-			dev_warn(arizona->dev, "WM5102 registered as %d\n",
-				 arizona->type);
-			arizona->type = WM5102;
+		if (IS_ENABLED(CONFIG_MFD_WM5102)) {
+			type_name = "WM5102";
+			if (arizona->type != WM5102) {
+				dev_warn(arizona->dev,
+					 "WM5102 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM5102;
+			}
+
+			apply_patch = wm5102_patch;
+			arizona->rev &= 0x7;
+			subdevs = wm5102_devs;
+			n_subdevs = ARRAY_SIZE(wm5102_devs);
 		}
-		apply_patch = wm5102_patch;
-		arizona->rev &= 0x7;
-		subdevs = wm5102_devs;
-		n_subdevs = ARRAY_SIZE(wm5102_devs);
 		break;
-#endif
-#ifdef CONFIG_MFD_WM5110
 	case 0x5110:
-		switch (arizona->type) {
-		case WM5110:
-			type_name = "WM5110";
-			break;
-		case WM8280:
-			type_name = "WM8280";
-			break;
-		default:
-			type_name = "WM5110";
-			dev_warn(arizona->dev, "WM5110 registered as %d\n",
-				 arizona->type);
-			arizona->type = WM5110;
-			break;
+		if (IS_ENABLED(CONFIG_MFD_WM5110)) {
+			switch (arizona->type) {
+			case WM5110:
+				type_name = "WM5110";
+				break;
+			case WM8280:
+				type_name = "WM8280";
+				break;
+			default:
+				type_name = "WM5110";
+				dev_warn(arizona->dev,
+					 "WM5110 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM5110;
+				break;
+			}
+
+			apply_patch = wm5110_patch;
+			subdevs = wm5110_devs;
+			n_subdevs = ARRAY_SIZE(wm5110_devs);
 		}
-		apply_patch = wm5110_patch;
-		subdevs = wm5110_devs;
-		n_subdevs = ARRAY_SIZE(wm5110_devs);
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8997
 	case 0x8997:
-		type_name = "WM8997";
-		if (arizona->type != WM8997) {
-			dev_warn(arizona->dev, "WM8997 registered as %d\n",
-				 arizona->type);
-			arizona->type = WM8997;
+		if (IS_ENABLED(CONFIG_MFD_WM8997)) {
+			type_name = "WM8997";
+			if (arizona->type != WM8997) {
+				dev_warn(arizona->dev,
+					 "WM8997 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM8997;
+			}
+
+			apply_patch = wm8997_patch;
+			subdevs = wm8997_devs;
+			n_subdevs = ARRAY_SIZE(wm8997_devs);
 		}
-		apply_patch = wm8997_patch;
-		subdevs = wm8997_devs;
-		n_subdevs = ARRAY_SIZE(wm8997_devs);
 		break;
-#endif
-#ifdef CONFIG_MFD_WM8998
 	case 0x6349:
-		switch (arizona->type) {
-		case WM8998:
-			type_name = "WM8998";
-			break;
+		if (IS_ENABLED(CONFIG_MFD_WM8998)) {
+			switch (arizona->type) {
+			case WM8998:
+				type_name = "WM8998";
+				break;
 
-		case WM1814:
-			type_name = "WM1814";
-			break;
+			case WM1814:
+				type_name = "WM1814";
+				break;
 
-		default:
-			type_name = "WM8998";
-			dev_warn(arizona->dev, "WM8998 registered as %d\n",
-				 arizona->type);
-			arizona->type = WM8998;
+			default:
+				type_name = "WM8998";
+				dev_warn(arizona->dev,
+					 "WM8998 registered as %d\n",
+					 arizona->type);
+				arizona->type = WM8998;
+			}
+
+			apply_patch = wm8998_patch;
+			subdevs = wm8998_devs;
+			n_subdevs = ARRAY_SIZE(wm8998_devs);
 		}
-
-		apply_patch = wm8998_patch;
-		subdevs = wm8998_devs;
-		n_subdevs = ARRAY_SIZE(wm8998_devs);
 		break;
-#endif
 	default:
 		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
+		goto err_reset;
+	}
+
+	if (!subdevs) {
+		dev_err(arizona->dev,
+			"No kernel support for device ID %x\n", reg);
 		goto err_reset;
 	}
 
