@@ -362,7 +362,7 @@ static int rcar_pcie_setup(int nr, struct list_head *resource, struct rcar_pcie 
 	struct resource *res;
 	int i;
 
-	pcie->root_bus_nr = -1;
+	pcie->root_bus_nr = pcie->busn.start;
 
 	/* Setup PCI resources */
 	for (i = 0; i < RCAR_PCI_MAX_RESOURCES; i++) {
