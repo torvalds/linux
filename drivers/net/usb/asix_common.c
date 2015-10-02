@@ -54,12 +54,13 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			   struct asix_rx_fixup_info *rx)
 {
 	int offset = 0;
+	u16 size;
 
 	while (offset + sizeof(u16) <= skb->len) {
-		u16 remaining = 0;
+		u16 copy_length;
 		unsigned char *data;
 
-		if (!rx->size) {
+		if (!rx->remaining) {
 			if ((skb->len - offset == sizeof(u16)) ||
 			    rx->split_head) {
 				if(!rx->split_head) {
@@ -81,42 +82,42 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 				offset += sizeof(u32);
 			}
 
-			/* get the packet length */
-			rx->size = (u16) (rx->header & 0x7ff);
-			if (rx->size != ((~rx->header >> 16) & 0x7ff)) {
+			/* take frame length from Data header 32-bit word */
+			size = (u16)(rx->header & 0x7ff);
+			if (size != ((~rx->header >> 16) & 0x7ff)) {
 				netdev_err(dev->net, "asix_rx_fixup() Bad Header Length 0x%x, offset %d\n",
 					   rx->header, offset);
-				rx->size = 0;
 				return 0;
 			}
-			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net,
-							       rx->size);
+			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net, size);
 			if (!rx->ax_skb)
 				return 0;
+			rx->remaining = size;
 		}
 
-		if (rx->size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
+		if (rx->remaining > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
-				   rx->size);
+				   rx->remaining);
 			kfree_skb(rx->ax_skb);
 			rx->ax_skb = NULL;
-			rx->size = 0U;
-
+			rx->remaining = 0;
 			return 0;
 		}
 
-		if (rx->size > skb->len - offset) {
-			remaining = rx->size - (skb->len - offset);
-			rx->size = skb->len - offset;
+		if (rx->remaining > skb->len - offset) {
+			copy_length = skb->len - offset;
+			rx->remaining -= copy_length;
+		} else {
+			copy_length = rx->remaining;
+			rx->remaining = 0;
 		}
 
-		data = skb_put(rx->ax_skb, rx->size);
-		memcpy(data, skb->data + offset, rx->size);
-		if (!remaining)
+		data = skb_put(rx->ax_skb, copy_length);
+		memcpy(data, skb->data + offset, copy_length);
+		if (!rx->remaining)
 			usbnet_skb_return(dev, rx->ax_skb);
 
-		offset += (rx->size + 1) & 0xfffe;
-		rx->size = remaining;
+		offset += (copy_length + 1) & 0xfffe;
 	}
 
 	if (skb->len != offset) {
