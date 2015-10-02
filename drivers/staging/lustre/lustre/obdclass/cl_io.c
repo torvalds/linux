@@ -570,7 +570,8 @@ EXPORT_SYMBOL(cl_io_iter_fini);
 /**
  * Records that read or write io progressed \a nob bytes forward.
  */
-void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io, size_t nob)
+static void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io,
+			     size_t nob)
 {
 	const struct cl_io_slice *scan;
 
@@ -589,7 +590,6 @@ void cl_io_rw_advance(const struct lu_env *env, struct cl_io *io, size_t nob)
 								   nob);
 	}
 }
-EXPORT_SYMBOL(cl_io_rw_advance);
 
 /**
  * Adds a lock to a lockset.
@@ -936,8 +936,8 @@ EXPORT_SYMBOL(cl_io_submit_sync);
 /**
  * Cancel an IO which has been submitted by cl_io_submit_rw.
  */
-int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
-		 struct cl_page_list *queue)
+static int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
+			struct cl_page_list *queue)
 {
 	struct cl_page *page;
 	int result = 0;
@@ -952,7 +952,6 @@ int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
 	}
 	return result;
 }
-EXPORT_SYMBOL(cl_io_cancel);
 
 /**
  * Main io loop.
@@ -1076,8 +1075,8 @@ EXPORT_SYMBOL(cl_page_list_add);
 /**
  * Removes a page from a page list.
  */
-void cl_page_list_del(const struct lu_env *env,
-		      struct cl_page_list *plist, struct cl_page *page)
+static void cl_page_list_del(const struct lu_env *env,
+			     struct cl_page_list *plist, struct cl_page *page)
 {
 	LASSERT(plist->pl_nr > 0);
 	LINVRNT(plist->pl_owner == current);
@@ -1090,7 +1089,6 @@ void cl_page_list_del(const struct lu_env *env,
 	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
 }
-EXPORT_SYMBOL(cl_page_list_del);
 
 /**
  * Moves a page from one page list to another.
@@ -1167,7 +1165,8 @@ EXPORT_SYMBOL(cl_page_list_disown);
 /**
  * Releases pages from queue.
  */
-void cl_page_list_fini(const struct lu_env *env, struct cl_page_list *plist)
+static void cl_page_list_fini(const struct lu_env *env,
+			      struct cl_page_list *plist)
 {
 	struct cl_page *page;
 	struct cl_page *temp;
@@ -1178,13 +1177,12 @@ void cl_page_list_fini(const struct lu_env *env, struct cl_page_list *plist)
 		cl_page_list_del(env, plist, page);
 	LASSERT(plist->pl_nr == 0);
 }
-EXPORT_SYMBOL(cl_page_list_fini);
 
 /**
  * Assumes all pages in a queue.
  */
-void cl_page_list_assume(const struct lu_env *env,
-			 struct cl_io *io, struct cl_page_list *plist)
+static void cl_page_list_assume(const struct lu_env *env,
+				struct cl_io *io, struct cl_page_list *plist)
 {
 	struct cl_page *page;
 
@@ -1193,13 +1191,12 @@ void cl_page_list_assume(const struct lu_env *env,
 	cl_page_list_for_each(page, plist)
 		cl_page_assume(env, io, page);
 }
-EXPORT_SYMBOL(cl_page_list_assume);
 
 /**
  * Discards all pages in a queue.
  */
-void cl_page_list_discard(const struct lu_env *env, struct cl_io *io,
-			  struct cl_page_list *plist)
+static void cl_page_list_discard(const struct lu_env *env, struct cl_io *io,
+				 struct cl_page_list *plist)
 {
 	struct cl_page *page;
 
@@ -1207,7 +1204,6 @@ void cl_page_list_discard(const struct lu_env *env, struct cl_io *io,
 	cl_page_list_for_each(page, plist)
 		cl_page_discard(env, io, page);
 }
-EXPORT_SYMBOL(cl_page_list_discard);
 
 /**
  * Initialize dual page queue.
