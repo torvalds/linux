@@ -2543,7 +2543,8 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		goto out;
 	}
 
-	if (!pev->uprobes && !pp->retprobe) {
+	/* Note that the symbols in the kmodule are not relocated */
+	if (!pev->uprobes && !pp->retprobe && !pev->target) {
 		reloc_sym = kernel_get_ref_reloc_sym();
 		if (!reloc_sym) {
 			pr_warning("Relocated base symbol is not found!\n");
@@ -2580,8 +2581,9 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		}
 		/* Add one probe point */
 		tp->address = map->unmap_ip(map, sym->start) + pp->offset;
-		/* If we found a wrong one, mark it by NULL symbol */
-		if (!pev->uprobes &&
+
+		/* Check the kprobe (not in module) is within .text  */
+		if (!pev->uprobes && !pev->target &&
 		    kprobe_warn_out_range(sym->name, tp->address)) {
 			tp->symbol = NULL;	/* Skip it */
 			skipped++;
