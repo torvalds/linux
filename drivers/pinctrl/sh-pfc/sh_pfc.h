@@ -98,17 +98,11 @@ struct pinmux_data_reg {
 	.enum_ids = (const u16 [r_width]) \
 
 struct pinmux_irq {
-	int irq;
 	const short *gpios;
 };
 
-#ifdef CONFIG_ARCH_MULTIPLATFORM
-#define PINMUX_IRQ(irq_nr, ids...)			   \
+#define PINMUX_IRQ(ids...)			   \
 	{ .gpios = (const short []) { ids, -1 } }
-#else
-#define PINMUX_IRQ(irq_nr, ids...)			   \
-	{ .irq = irq_nr, .gpios = (const short []) { ids, -1 } }
-#endif
 
 struct pinmux_range {
 	u16 begin;
@@ -143,8 +137,10 @@ struct sh_pfc_soc_info {
 	const struct sh_pfc_function *functions;
 	unsigned int nr_functions;
 
+#ifdef CONFIG_SUPERH
 	const struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
+#endif
 
 	const struct pinmux_cfg_reg *cfg_regs;
 	const struct pinmux_data_reg *data_regs;
@@ -177,8 +173,6 @@ struct sh_pfc_soc_info {
 #define PINMUX_IPSR_NOFN(ipsr, fn, ms)					\
 	PINMUX_DATA(fn##_MARK, FN_##ipsr, FN_##ms)
 #define PINMUX_IPSR_MSEL(ipsr, fn, ms)					\
-	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr, FN_##ms)
-#define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms)				\
 	PINMUX_DATA(fn##_MARK, FN_##ms, FN_##ipsr, FN_##fn)
 
 /*
