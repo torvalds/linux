@@ -1635,7 +1635,7 @@ static void tcp_v6_destroy_sock(struct sock *sk)
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCPv6 sock list dumping. */
 static void get_openreq6(struct seq_file *seq,
-			 struct request_sock *req, int i, kuid_t uid)
+			 const struct request_sock *req, int i)
 {
 	long ttd = req->rsk_timer.expires - jiffies;
 	const struct in6_addr *src = &inet_rsk(req)->ir_v6_loc_addr;
@@ -1659,7 +1659,8 @@ static void get_openreq6(struct seq_file *seq,
 		   1,   /* timers active (only the expire timer) */
 		   jiffies_to_clock_t(ttd),
 		   req->num_timeout,
-		   from_kuid_munged(seq_user_ns(seq), uid),
+		   from_kuid_munged(seq_user_ns(seq),
+				    sock_i_uid(req->rsk_listener)),
 		   0,  /* non standard timer */
 		   0, /* open_requests have no inode */
 		   0, req);
@@ -1773,7 +1774,7 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
 			get_tcp6_sock(seq, v, st->num);
 		break;
 	case TCP_SEQ_STATE_OPENREQ:
-		get_openreq6(seq, v, st->num, st->uid);
+		get_openreq6(seq, v, st->num);
 		break;
 	}
 out:

@@ -1871,7 +1871,6 @@ get_sk:
 		spin_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		if (reqsk_queue_len(&icsk->icsk_accept_queue)) {
 start_req:
-			st->uid		= sock_i_uid(sk);
 			st->syn_wait_sk = sk;
 			st->state	= TCP_SEQ_STATE_OPENREQ;
 			st->sbucket	= 0;
@@ -2151,7 +2150,7 @@ void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 EXPORT_SYMBOL(tcp_proc_unregister);
 
 static void get_openreq4(const struct request_sock *req,
-			 struct seq_file *f, int i, kuid_t uid)
+			 struct seq_file *f, int i)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	long delta = req->rsk_timer.expires - jiffies;
@@ -2168,7 +2167,8 @@ static void get_openreq4(const struct request_sock *req,
 		1,    /* timers active (only the expire timer) */
 		jiffies_delta_to_clock_t(delta),
 		req->num_timeout,
-		from_kuid_munged(seq_user_ns(f), uid),
+		from_kuid_munged(seq_user_ns(f),
+				 sock_i_uid(req->rsk_listener)),
 		0,  /* non standard timer */
 		0, /* open_requests have no inode */
 		0,
@@ -2278,7 +2278,7 @@ static int tcp4_seq_show(struct seq_file *seq, void *v)
 			get_tcp4_sock(v, seq, st->num);
 		break;
 	case TCP_SEQ_STATE_OPENREQ:
-		get_openreq4(v, seq, st->num, st->uid);
+		get_openreq4(v, seq, st->num);
 		break;
 	}
 out:
