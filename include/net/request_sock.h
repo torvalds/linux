@@ -69,6 +69,16 @@ struct request_sock {
 	u32				peer_secid;
 };
 
+static inline struct request_sock *inet_reqsk(struct sock *sk)
+{
+	return (struct request_sock *)sk;
+}
+
+static inline struct sock *req_to_sk(struct request_sock *req)
+{
+	return (struct sock *)req;
+}
+
 static inline struct request_sock *
 reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 {
@@ -78,6 +88,8 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		req->rsk_ops = ops;
 		sock_hold(sk_listener);
 		req->rsk_listener = sk_listener;
+		req_to_sk(req)->sk_prot = sk_listener->sk_prot;
+		sk_node_init(&req_to_sk(req)->sk_node);
 		req->saved_syn = NULL;
 		/* Following is temporary. It is coupled with debugging
 		 * helpers in reqsk_put() & reqsk_free()
@@ -85,16 +97,6 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		atomic_set(&req->rsk_refcnt, 0);
 	}
 	return req;
-}
-
-static inline struct request_sock *inet_reqsk(struct sock *sk)
-{
-	return (struct request_sock *)sk;
-}
-
-static inline struct sock *req_to_sk(struct request_sock *req)
-{
-	return (struct sock *)req;
 }
 
 static inline void reqsk_free(struct request_sock *req)
