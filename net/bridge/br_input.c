@@ -140,7 +140,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
-	if (!nbp_allowed_ingress(p, skb, &vid))
+	if (!br_allowed_ingress(p->br, nbp_vlan_group(p), skb, &vid))
 		goto out;
 
 	/* insert into forwarding database after filtering to avoid spoofing */
