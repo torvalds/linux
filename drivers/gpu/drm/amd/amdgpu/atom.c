@@ -1022,7 +1022,8 @@ static void atom_op_xor(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_debug(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	uint8_t val = U8((*ptr)++);
+	SDEBUG("DEBUG output: 0x%02X\n", val);
 }
 
 static struct {
