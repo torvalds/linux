@@ -84,7 +84,6 @@ static wait_queue_head_t nvme_kthread_wait;
 
 static struct class *nvme_class;
 
-static void nvme_reset_failed_dev(struct work_struct *ws);
 static int nvme_reset(struct nvme_dev *dev);
 static int nvme_process_cq(struct nvme_queue *nvmeq);
 
@@ -3053,8 +3052,9 @@ static void nvme_dead_ctrl(struct nvme_dev *dev)
 	}
 }
 
-static void nvme_dev_reset(struct nvme_dev *dev)
+static void nvme_reset_work(struct work_struct *ws)
 {
+	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
 	bool in_probe = work_busy(&dev->probe_work);
 
 	nvme_dev_shutdown(dev);
@@ -3072,12 +3072,6 @@ static void nvme_dev_reset(struct nvme_dev *dev)
 	/* Schedule device resume asynchronously so the reset work is available
 	 * to cleanup errors that may occur during reinitialization */
 	schedule_work(&dev->probe_work);
-}
-
-static void nvme_reset_failed_dev(struct work_struct *ws)
-{
-	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
-	nvme_dev_reset(dev);
 }
 
 static int nvme_reset(struct nvme_dev *dev)
@@ -3142,7 +3136,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free;
 
 	INIT_LIST_HEAD(&dev->namespaces);
-	INIT_WORK(&dev->reset_work, nvme_reset_failed_dev);
+	INIT_WORK(&dev->reset_work, nvme_reset_work);
 	dev->dev = get_device(&pdev->dev);
 	pci_set_drvdata(pdev, dev);
 	result = nvme_set_instance(dev);
