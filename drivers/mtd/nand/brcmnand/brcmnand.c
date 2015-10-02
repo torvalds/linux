@@ -1544,9 +1544,9 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 
 	dev_dbg(ctrl->dev, "write %llx <- %p\n", (unsigned long long)addr, buf);
 
-	if (unlikely((u32)buf & 0x03)) {
+	if (unlikely((unsigned long)buf & 0x03)) {
 		dev_warn(ctrl->dev, "unaligned buffer: %p\n", buf);
-		buf = (u32 *)((u32)buf & ~0x03);
+		buf = (u32 *)((unsigned long)buf & ~0x03);
 	}
 
 	brcmnand_wp(mtd, 0);
