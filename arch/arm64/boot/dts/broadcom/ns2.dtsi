@@ -187,5 +187,10 @@
 			clock-frequency = <23961600>;
 			status = "disabled";
 		};
+
+		hwrng: hwrng@66220000 {
+			compatible = "brcm,iproc-rng200";
+			reg = <0x66220000 0x28>;
+		};
 	};
 };
