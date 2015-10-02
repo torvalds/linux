@@ -159,7 +159,7 @@ static void sptlrpc_rule_init(struct sptlrpc_rule *rule)
 /*
  * format: network[.direction]=flavor
  */
-int sptlrpc_parse_rule(char *param, struct sptlrpc_rule *rule)
+static int sptlrpc_parse_rule(char *param, struct sptlrpc_rule *rule)
 {
 	char *flavor, *dir;
 	int rc;
@@ -213,7 +213,6 @@ int sptlrpc_parse_rule(char *param, struct sptlrpc_rule *rule)
 
 	return 0;
 }
-EXPORT_SYMBOL(sptlrpc_parse_rule);
 
 static void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 {
