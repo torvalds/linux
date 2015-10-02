@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/filter.h>
+#include <linux/perf_event.h>
 
 /* Called from syscall */
 static struct bpf_map *array_map_alloc(union bpf_attr *attr)
