@@ -361,5 +361,24 @@
 #define __NR_memfd_create	353
 #define __NR_bpf		354
 #define __NR_execveat		355
+#define __NR_socket		356
+#define __NR_socketpair		357
+#define __NR_bind		358
+#define __NR_connect		359
+#define __NR_listen		360
+#define __NR_accept4		361
+#define __NR_getsockopt		362
+#define __NR_setsockopt		363
+#define __NR_getsockname	364
+#define __NR_getpeername	365
+#define __NR_sendto		366
+#define __NR_sendmsg		367
+#define __NR_recvfrom		368
+#define __NR_recvmsg		369
+#define __NR_shutdown		370
+#define __NR_recvmmsg		371
+#define __NR_sendmmsg		372
+#define __NR_userfaultfd	373
+#define __NR_membarrier		374
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */
