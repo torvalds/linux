@@ -215,7 +215,7 @@ int sptlrpc_parse_rule(char *param, struct sptlrpc_rule *rule)
 }
 EXPORT_SYMBOL(sptlrpc_parse_rule);
 
-void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
+static void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 {
 	LASSERT(rset->srs_nslot ||
 		(rset->srs_nrule == 0 && rset->srs_rules == NULL));
@@ -225,7 +225,6 @@ void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 		sptlrpc_rule_set_init(rset);
 	}
 }
-EXPORT_SYMBOL(sptlrpc_rule_set_free);
 
 /*
  * return 0 if the rule set could accommodate one more rule.
