@@ -1738,6 +1738,16 @@ static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 	unsigned long next_zero;
 	unsigned long extent_bits;
 
+	/*
+	 * Skip searching the bitmap if we don't have a contiguous section that
+	 * is large enough for this allocation.
+	 */
+	if (bitmap_info->max_extent_size &&
+	    bitmap_info->max_extent_size < *bytes) {
+		*bytes = bitmap_info->max_extent_size;
+		return -1;
+	}
+
 	i = offset_to_bit(bitmap_info->offset, ctl->unit,
 			  max_t(u64, *offset, bitmap_info->offset));
 	bits = bytes_to_bits(*bytes, ctl->unit);
@@ -1762,6 +1772,7 @@ static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 	}
 
 	*bytes = (u64)(max_bits) * ctl->unit;
+	bitmap_info->max_extent_size = *bytes;
 	return -1;
 }
 
@@ -1942,6 +1953,12 @@ static u64 add_bytes_to_bitmap(struct btrfs_free_space_ctl *ctl,
 	bytes_to_set = min(end - offset, bytes);
 
 	bitmap_set_bits(ctl, info, offset, bytes_to_set);
+
+	/*
+	 * We set some bytes, we have no idea what the max extent size is
+	 * anymore.
+	 */
+	info->max_extent_size = 0;
 
 	return bytes_to_set;
 
@@ -2782,6 +2799,7 @@ static int btrfs_bitmap_cluster(struct btrfs_block_group_cache *block_group,
 	unsigned long want_bits;
 	unsigned long min_bits;
 	unsigned long found_bits;
+	unsigned long max_bits = 0;
 	unsigned long start = 0;
 	unsigned long total_found = 0;
 	int ret;
@@ -2791,6 +2809,13 @@ static int btrfs_bitmap_cluster(struct btrfs_block_group_cache *block_group,
 	want_bits = bytes_to_bits(bytes, ctl->unit);
 	min_bits = bytes_to_bits(min_bytes, ctl->unit);
 
+	/*
+	 * Don't bother looking for a cluster in this bitmap if it's heavily
+	 * fragmented.
+	 */
+	if (entry->max_extent_size &&
+	    entry->max_extent_size < cont1_bytes)
+		return -ENOSPC;
 again:
 	found_bits = 0;
 	for_each_set_bit_from(i, entry->bitmap, BITS_PER_BITMAP) {
@@ -2798,13 +2823,19 @@ again:
 					       BITS_PER_BITMAP, i);
 		if (next_zero - i >= min_bits) {
 			found_bits = next_zero - i;
+			if (found_bits > max_bits)
+				max_bits = found_bits;
 			break;
 		}
+		if (next_zero - i > max_bits)
+			max_bits = next_zero - i;
 		i = next_zero;
 	}
 
-	if (!found_bits)
+	if (!found_bits) {
+		entry->max_extent_size = (u64)max_bits * ctl->unit;
 		return -ENOSPC;
+	}
 
 	if (!total_found) {
 		start = i;
@@ -3540,6 +3571,7 @@ again:
 		spin_lock(&ctl->tree_lock);
 		info->offset = offset;
 		info->bytes = bytes;
+		info->max_extent_size = 0;
 		ret = link_free_space(ctl, info);
 		spin_unlock(&ctl->tree_lock);
 		if (ret)
@@ -3567,6 +3599,11 @@ again:
 	}
 
 	bytes_added = add_bytes_to_bitmap(ctl, bitmap_info, offset, bytes);
+
+	/* We used the newly allocated info, set the max_extent_size to bytes */
+	if (!info)
+		bitmap_info->max_extent_size = bytes_added;
+
 	bytes -= bytes_added;
 	offset += bytes_added;
 	spin_unlock(&ctl->tree_lock);
