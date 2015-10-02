@@ -128,60 +128,6 @@ static const struct net_device_ops wilc_netdev_ops = {
 
 };
 
-#ifdef DEBUG_MODE
-
-extern volatile int timeNo;
-
-#define DEGUG_BUFFER_LENGTH 1000
-volatile int WatchDogdebuggerCounter;
-char DebugBuffer[DEGUG_BUFFER_LENGTH + 20] = {0};
-static char *ps8current = DebugBuffer;
-
-void printk_later(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	ps8current += vsprintf(ps8current, format, args);
-	va_end(args);
-	if ((ps8current - DebugBuffer) > DEGUG_BUFFER_LENGTH)
-		ps8current = DebugBuffer;
-
-}
-
-void dump_logs(void)
-{
-	if (DebugBuffer[0]) {
-		DebugBuffer[DEGUG_BUFFER_LENGTH] = 0;
-		PRINT_INFO(GENERIC_DBG, "early printed\n");
-		PRINT_D(GENERIC_DBG, ps8current + 1);
-		ps8current[1] = 0;
-		PRINT_INFO(GENERIC_DBG, "latest printed\n");
-		PRINT_D(GENERIC_DBG, DebugBuffer);
-		DebugBuffer[0] = 0;
-		ps8current = DebugBuffer;
-	}
-}
-
-void Reset_WatchDogdebugger(void)
-{
-	WatchDogdebuggerCounter = 0;
-}
-
-static int DebuggingThreadTask(void *vp)
-{
-	while (1) {
-		while (!WatchDogdebuggerCounter) {
-			PRINT_D(GENERIC_DBG, "Debug Thread Running %d\n", timeNo);
-			WatchDogdebuggerCounter = 1;
-			msleep(10000);
-		}
-		dump_logs();
-		WatchDogdebuggerCounter = 0;
-	}
-}
-#endif
-
 static int dev_state_ev_handler(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
@@ -1072,15 +1018,6 @@ int wlan_initialize_threads(perInterface_wlan_t *nic)
 		ret = -ENOBUFS;
 		goto _fail_2;
 	}
-#ifdef DEBUG_MODE
-	PRINT_D(INIT_DBG, "Creating kthread for Debugging\n");
-	g_linux_wlan->txq_thread = kthread_run(DebuggingThreadTask, (void *)g_linux_wlan, "DebugThread");
-	if (g_linux_wlan->txq_thread == 0) {
-		PRINT_ER("couldn't create TXQ thread\n");
-		ret = -ENOBUFS;
-		goto _fail_2;
-	}
-#endif
 	/* wait for TXQ task to start. */
 	down(&g_linux_wlan->txq_thread_started);
 
