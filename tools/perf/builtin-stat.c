@@ -1179,7 +1179,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING(0, "post", &post_cmd, "command",
 			"command to run after to the measured command"),
 	OPT_UINTEGER('I', "interval-print", &stat_config.interval,
-		    "print counts at regular interval in ms (>= 100)"),
+		    "print counts at regular interval in ms (>= 10)"),
 	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
@@ -1332,9 +1332,14 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		thread_map__read_comms(evsel_list->threads);
 
 	if (interval && interval < 100) {
-		pr_err("print interval must be >= 100ms\n");
-		parse_options_usage(stat_usage, options, "I", 1);
-		goto out;
+		if (interval < 10) {
+			pr_err("print interval must be >= 10ms\n");
+			parse_options_usage(stat_usage, options, "I", 1);
+			goto out;
+		} else
+			pr_warning("print interval < 100ms. "
+				   "The overhead percentage could be high in some cases. "
+				   "Please proceed with caution.\n");
 	}
 
 	if (perf_evlist__alloc_stats(evsel_list, interval))
