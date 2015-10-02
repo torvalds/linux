@@ -444,12 +444,9 @@ static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,
 	len = min(len, sizeof(joydev->abspam));
 
 	/* Validate the map. */
-	abspam = kmalloc(len, GFP_KERNEL);
-	if (!abspam)
-		return -ENOMEM;
-
-	if (copy_from_user(abspam, argp, len)) {
-		retval = -EFAULT;
+	abspam = memdup_user(argp, len);
+	if (IS_ERR(abspam)) {
+		retval = PTR_ERR(abspam);
 		goto out;
 	}
 
@@ -480,12 +477,9 @@ static int joydev_handle_JSIOCSBTNMAP(struct joydev *joydev,
 	len = min(len, sizeof(joydev->keypam));
 
 	/* Validate the map. */
-	keypam = kmalloc(len, GFP_KERNEL);
-	if (!keypam)
-		return -ENOMEM;
-
-	if (copy_from_user(keypam, argp, len)) {
-		retval = -EFAULT;
+	keypam = memdup_user(argp, len);
+	if (IS_ERR(keypam)) {
+		retval = PTR_ERR(keypam);
 		goto out;
 	}
 
