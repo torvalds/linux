@@ -240,9 +240,10 @@ static void tlb_entry_insert(unsigned int pd0, unsigned int pd1)
 
 noinline void local_flush_tlb_all(void)
 {
+	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 	unsigned long flags;
 	unsigned int entry;
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	int num_tlb = mmu->sets * mmu->ways;
 
 	local_irq_save(flags);
 
@@ -250,7 +251,7 @@ noinline void local_flush_tlb_all(void)
 	write_aux_reg(ARC_REG_TLBPD1, 0);
 	write_aux_reg(ARC_REG_TLBPD0, 0);
 
-	for (entry = 0; entry < mmu->num_tlb; entry++) {
+	for (entry = 0; entry < num_tlb; entry++) {
 		/* write this entry to the TLB */
 		write_aux_reg(ARC_REG_TLBINDEX, entry);
 		write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
@@ -767,8 +768,6 @@ void read_decode_mmu_bcr(void)
 		mmu->u_dtlb = mmu4->u_dtlb * 4;
 		mmu->u_itlb = mmu4->u_itlb * 4;
 	}
-
-	mmu->num_tlb = mmu->sets * mmu->ways;
 }
 
 char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
@@ -785,7 +784,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	n += scnprintf(buf + n, len - n,
 		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
 		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
-		       p_mmu->num_tlb, p_mmu->sets, p_mmu->ways,
+		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
 		       p_mmu->u_dtlb, p_mmu->u_itlb,
 		       IS_ENABLED(CONFIG_ARC_MMU_SASID) ? ",SASID" : "");
 
