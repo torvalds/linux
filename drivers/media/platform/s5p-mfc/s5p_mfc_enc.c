@@ -1826,7 +1826,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (ctx->state != MFCINST_GOT_INST) {
-			mfc_err("inavlid state: %d\n", ctx->state);
+			mfc_err("invalid state: %d\n", ctx->state);
 			return -EINVAL;
 		}
 
@@ -1866,7 +1866,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 				ctx->dev->alloc_ctx[MFC_BANK2_ALLOC_CTX];
 		}
 	} else {
-		mfc_err("inavlid queue type: %d\n", vq->type);
+		mfc_err("invalid queue type: %d\n", vq->type);
 		return -EINVAL;
 	}
 	return 0;
@@ -1901,7 +1901,7 @@ static int s5p_mfc_buf_init(struct vb2_buffer *vb)
 					vb2_dma_contig_plane_dma_addr(vb, 1);
 		ctx->src_bufs_cnt++;
 	} else {
-		mfc_err("inavlid queue type: %d\n", vq->type);
+		mfc_err("invalid queue type: %d\n", vq->type);
 		return -EINVAL;
 	}
 	return 0;
@@ -1937,7 +1937,7 @@ static int s5p_mfc_buf_prepare(struct vb2_buffer *vb)
 			return -EINVAL;
 		}
 	} else {
-		mfc_err("inavlid queue type: %d\n", vq->type);
+		mfc_err("invalid queue type: %d\n", vq->type);
 		return -EINVAL;
 	}
 	return 0;
