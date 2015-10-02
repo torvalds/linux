@@ -48,6 +48,7 @@
 
 #define PIXELS_ACROSS_DEFAULT	800
 #define PIXELS_DOWN_DEFAULT	600
+#define KEYCODE_TABLE_BYTES	256
 
 enum visorinput_device_type {
 	visorinput_keyboard,
@@ -64,6 +65,9 @@ struct visorinput_devdata {
 	struct rw_semaphore lock_visor_dev;
 	struct input_dev *visorinput_dev;
 	bool paused;
+	unsigned int keycode_table_bytes; /* size of following array */
+	/* for keyboard devices: visorkbd_keycode[] + visorkbd_ext_keycode[] */
+	unsigned char keycode_table[0];
 };
 
 static const uuid_le spar_keyboard_channel_protocol_uuid =
@@ -73,7 +77,8 @@ static const uuid_le spar_mouse_channel_protocol_uuid =
 
 /* Borrowed from drivers/input/keyboard/atakbd.c */
 /* This maps 1-byte scancodes to keycodes. */
-static unsigned char visorkbd_keycode[256] = {	/* American layout */
+static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
+	/* American layout */
 	[0] = KEY_GRAVE,
 	[1] = KEY_ESC,
 	[2] = KEY_1,
@@ -191,7 +196,7 @@ static unsigned char visorkbd_keycode[256] = {	/* American layout */
 /* This maps the <xx> in extended scancodes of the form "0xE0 <xx>" into
  * keycodes.
  */
-static unsigned char visorkbd_ext_keycode[256] = {
+static const unsigned char visorkbd_ext_keycode[KEYCODE_TABLE_BYTES] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x00 */
 	0, 0, 0, 0, 0, 0, 0, 0,					    /* 0x10 */
 	0, 0, 0, 0, KEY_KPENTER, KEY_RIGHTCTRL, 0, 0,		    /* 0x18 */
@@ -212,7 +217,8 @@ static unsigned char visorkbd_ext_keycode[256] = {
  * we see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *
-register_client_keyboard(void)
+register_client_keyboard(unsigned char *keycode_table)
+
 {
 	int i, error;
 	struct input_dev *visorinput_dev = NULL;
@@ -234,15 +240,15 @@ register_client_keyboard(void)
 	visorinput_dev->ledbit[0] = BIT_MASK(LED_CAPSL) |
 				    BIT_MASK(LED_SCROLLL) |
 				    BIT_MASK(LED_NUML);
-	visorinput_dev->keycode = visorkbd_keycode;
-	visorinput_dev->keycodesize = sizeof(unsigned char);
-	visorinput_dev->keycodemax = ARRAY_SIZE(visorkbd_keycode);
+	visorinput_dev->keycode = keycode_table;
+	visorinput_dev->keycodesize = 1; /* sizeof(unsigned char) */
+	visorinput_dev->keycodemax = KEYCODE_TABLE_BYTES;
 
-	for (i = 1; i < ARRAY_SIZE(visorkbd_keycode); i++)
-		set_bit(visorkbd_keycode[i], visorinput_dev->keybit);
-
-	for (i = 1; i < ARRAY_SIZE(visorkbd_ext_keycode); i++)
-		set_bit(visorkbd_ext_keycode[i], visorinput_dev->keybit);
+	for (i = 1; i < visorinput_dev->keycodemax; i++)
+		set_bit(keycode_table[i], visorinput_dev->keybit);
+	for (i = 1; i < visorinput_dev->keycodemax; i++)
+		set_bit(keycode_table[i + KEYCODE_TABLE_BYTES],
+			visorinput_dev->keybit);
 
 	error = input_register_device(visorinput_dev);
 	if (error) {
@@ -313,8 +319,12 @@ static struct visorinput_devdata *
 devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 {
 	struct visorinput_devdata *devdata = NULL;
+	unsigned int extra_bytes = 0;
 
-	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+	if (devtype == visorinput_keyboard)
+		/* allocate room for devdata->keycode_table, filled in below */
+		extra_bytes = KEYCODE_TABLE_BYTES * 2;
+	devdata = kzalloc(sizeof(*devdata) + extra_bytes, GFP_KERNEL);
 	if (!devdata)
 		return NULL;
 	devdata->dev = dev;
@@ -325,7 +335,13 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 	 */
 	switch (devtype) {
 	case visorinput_keyboard:
-		devdata->visorinput_dev = register_client_keyboard();
+		devdata->keycode_table_bytes = extra_bytes;
+		memcpy(devdata->keycode_table, visorkbd_keycode,
+		       KEYCODE_TABLE_BYTES);
+		memcpy(devdata->keycode_table + KEYCODE_TABLE_BYTES,
+		       visorkbd_ext_keycode, KEYCODE_TABLE_BYTES);
+		devdata->visorinput_dev = register_client_keyboard
+			(devdata->keycode_table);
 		if (!devdata->visorinput_dev)
 			goto cleanups_register;
 		break;
