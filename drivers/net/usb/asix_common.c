@@ -56,6 +56,34 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 	int offset = 0;
 	u16 size;
 
+	/* When an Ethernet frame spans multiple URB socket buffers,
+	 * do a sanity test for the Data header synchronisation.
+	 * Attempt to detect the situation of the previous socket buffer having
+	 * been truncated or a socket buffer was missing. These situations
+	 * cause a discontinuity in the data stream and therefore need to avoid
+	 * appending bad data to the end of the current netdev socket buffer.
+	 * Also avoid unnecessarily discarding a good current netdev socket
+	 * buffer.
+	 */
+	if (rx->remaining && (rx->remaining + sizeof(u32) <= skb->len)) {
+		offset = ((rx->remaining + 1) & 0xfffe) + sizeof(u32);
+		rx->header = get_unaligned_le32(skb->data + offset);
+		offset = 0;
+
+		size = (u16)(rx->header & 0x7ff);
+		if (size != ((~rx->header >> 16) & 0x7ff)) {
+			netdev_err(dev->net, "asix_rx_fixup() Data Header synchronisation was lost, remaining %d\n",
+				   rx->remaining);
+			kfree_skb(rx->ax_skb);
+			rx->ax_skb = NULL;
+			/* Discard the incomplete netdev Ethernet frame and
+			 * assume the Data header is at the start of the current
+			 * URB socket buffer.
+			 */
+			rx->remaining = 0;
+		}
+	}
+
 	while (offset + sizeof(u16) <= skb->len) {
 		u16 copy_length;
 		unsigned char *data;
