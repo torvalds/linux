@@ -49,47 +49,6 @@
 #define PIXELS_ACROSS_DEFAULT	800
 #define PIXELS_DOWN_DEFAULT	600
 
-static const uuid_le spar_keyboard_channel_protocol_uuid =
-	SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID;
-static const uuid_le spar_mouse_channel_protocol_uuid =
-	SPAR_MOUSE_CHANNEL_PROTOCOL_UUID;
-static int visorinput_probe(struct visor_device *dev);
-static void visorinput_remove(struct visor_device *dev);
-static void visorinput_channel_interrupt(struct visor_device *dev);
-static int visorinput_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visorinput_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
-static struct input_dev *register_client_keyboard(void);
-static struct input_dev *register_client_mouse(void);
-static void unregister_client_input(struct input_dev *visorinput_dev);
-
-/* GUIDS for all channel types supported by this driver. */
-static struct visor_channeltype_descriptor visorinput_channel_types[] = {
-	{ SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID, "keyboard"},
-	{ SPAR_MOUSE_CHANNEL_PROTOCOL_UUID, "mouse"},
-	{ NULL_UUID_LE, NULL }
-};
-MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
-MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
-MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
-
-/** This is used to tell the visor bus driver which types of visor devices
- *  we support, and what functions to call when a visor device that we support
- *  is attached or removed.
- */
-static struct visor_driver visorinput_driver = {
-	.name = "visorinput",
-	.vertag = NULL,
-	.owner = THIS_MODULE,
-	.channel_types = visorinput_channel_types,
-	.probe = visorinput_probe,
-	.remove = visorinput_remove,
-	.channel_interrupt = visorinput_channel_interrupt,
-	.pause = visorinput_pause,
-	.resume = visorinput_resume,
-};
-
 enum visorinput_device_type {
 	visorinput_keyboard,
 	visorinput_mouse,
@@ -106,6 +65,11 @@ struct visorinput_devdata {
 	struct input_dev *visorinput_dev;
 	bool paused;
 };
+
+static const uuid_le spar_keyboard_channel_protocol_uuid =
+	SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID;
+static const uuid_le spar_mouse_channel_protocol_uuid =
+	SPAR_MOUSE_CHANNEL_PROTOCOL_UUID;
 
 /* Borrowed from drivers/input/keyboard/atakbd.c */
 /* This maps 1-byte scancodes to keycodes. */
@@ -243,92 +207,6 @@ static unsigned char visorkbd_ext_keycode[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		    /* 0x70 */
 };
 
-static struct visorinput_devdata *
-devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
-{
-	struct visorinput_devdata *devdata = NULL;
-
-	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
-	if (!devdata)
-		return NULL;
-	devdata->dev = dev;
-
-	/* This is an input device in a client guest partition,
-	 * so we need to create whatever gizmos are necessary to
-	 * deliver our inputs to the guest OS.
-	 */
-	switch (devtype) {
-	case visorinput_keyboard:
-		devdata->visorinput_dev = register_client_keyboard();
-		if (!devdata->visorinput_dev)
-			goto cleanups_register;
-		break;
-	case visorinput_mouse:
-		devdata->visorinput_dev = register_client_mouse();
-		if (!devdata->visorinput_dev)
-			goto cleanups_register;
-		break;
-	}
-
-	init_rwsem(&devdata->lock_visor_dev);
-
-	return devdata;
-
-cleanups_register:
-	kfree(devdata);
-	return NULL;
-}
-
-static int
-visorinput_probe(struct visor_device *dev)
-{
-	struct visorinput_devdata *devdata = NULL;
-	uuid_le guid;
-	enum visorinput_device_type devtype;
-
-	guid = visorchannel_get_uuid(dev->visorchannel);
-	if (uuid_le_cmp(guid, spar_mouse_channel_protocol_uuid) == 0)
-		devtype = visorinput_mouse;
-	else if (uuid_le_cmp(guid, spar_keyboard_channel_protocol_uuid) == 0)
-		devtype = visorinput_keyboard;
-	else
-		return -ENODEV;
-	devdata = devdata_create(dev, devtype);
-	if (!devdata)
-		return -ENOMEM;
-	dev_set_drvdata(&dev->device, devdata);
-	visorbus_enable_channel_interrupts(dev);
-	return 0;
-}
-
-static void
-visorinput_remove(struct visor_device *dev)
-{
-	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
-
-	if (!devdata)
-		return;
-
-	visorbus_disable_channel_interrupts(dev);
-
-	/* due to above, at this time no thread of execution will be
-	* in visorinput_channel_interrupt()
-	*/
-
-	down_write(&devdata->lock_visor_dev);
-	dev_set_drvdata(&dev->device, NULL);
-	unregister_client_input(devdata->visorinput_dev);
-	up_write(&devdata->lock_visor_dev);
-	kfree(devdata);
-}
-
-static void
-unregister_client_input(struct input_dev *visorinput_dev)
-{
-	if (visorinput_dev)
-		input_unregister_device(visorinput_dev);
-}
-
 /* register_client_keyboard() initializes and returns a Linux gizmo that we
  * can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
@@ -429,6 +307,92 @@ register_client_mouse(void)
 	input_set_capability(visorinput_dev, EV_REL, REL_WHEEL);
 
 	return visorinput_dev;
+}
+
+static struct visorinput_devdata *
+devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
+{
+	struct visorinput_devdata *devdata = NULL;
+
+	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+	if (!devdata)
+		return NULL;
+	devdata->dev = dev;
+
+	/* This is an input device in a client guest partition,
+	 * so we need to create whatever gizmos are necessary to
+	 * deliver our inputs to the guest OS.
+	 */
+	switch (devtype) {
+	case visorinput_keyboard:
+		devdata->visorinput_dev = register_client_keyboard();
+		if (!devdata->visorinput_dev)
+			goto cleanups_register;
+		break;
+	case visorinput_mouse:
+		devdata->visorinput_dev = register_client_mouse();
+		if (!devdata->visorinput_dev)
+			goto cleanups_register;
+		break;
+	}
+
+	init_rwsem(&devdata->lock_visor_dev);
+
+	return devdata;
+
+cleanups_register:
+	kfree(devdata);
+	return NULL;
+}
+
+static int
+visorinput_probe(struct visor_device *dev)
+{
+	struct visorinput_devdata *devdata = NULL;
+	uuid_le guid;
+	enum visorinput_device_type devtype;
+
+	guid = visorchannel_get_uuid(dev->visorchannel);
+	if (uuid_le_cmp(guid, spar_mouse_channel_protocol_uuid) == 0)
+		devtype = visorinput_mouse;
+	else if (uuid_le_cmp(guid, spar_keyboard_channel_protocol_uuid) == 0)
+		devtype = visorinput_keyboard;
+	else
+		return -ENODEV;
+	devdata = devdata_create(dev, devtype);
+	if (!devdata)
+		return -ENOMEM;
+	dev_set_drvdata(&dev->device, devdata);
+	visorbus_enable_channel_interrupts(dev);
+	return 0;
+}
+
+static void
+unregister_client_input(struct input_dev *visorinput_dev)
+{
+	if (visorinput_dev)
+		input_unregister_device(visorinput_dev);
+}
+
+static void
+visorinput_remove(struct visor_device *dev)
+{
+	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
+
+	if (!devdata)
+		return;
+
+	visorbus_disable_channel_interrupts(dev);
+
+	/* due to above, at this time no thread of execution will be
+	* in visorinput_channel_interrupt()
+	*/
+
+	down_write(&devdata->lock_visor_dev);
+	dev_set_drvdata(&dev->device, NULL);
+	unregister_client_input(devdata->visorinput_dev);
+	up_write(&devdata->lock_visor_dev);
+	kfree(devdata);
 }
 
 static void
@@ -665,6 +629,25 @@ out:
 	return rc;
 }
 
+/* GUIDS for all channel types supported by this driver. */
+static struct visor_channeltype_descriptor visorinput_channel_types[] = {
+	{ SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID, "keyboard"},
+	{ SPAR_MOUSE_CHANNEL_PROTOCOL_UUID, "mouse"},
+	{ NULL_UUID_LE, NULL }
+};
+
+static struct visor_driver visorinput_driver = {
+	.name = "visorinput",
+	.vertag = NULL,
+	.owner = THIS_MODULE,
+	.channel_types = visorinput_channel_types,
+	.probe = visorinput_probe,
+	.remove = visorinput_remove,
+	.channel_interrupt = visorinput_channel_interrupt,
+	.pause = visorinput_pause,
+	.resume = visorinput_resume,
+};
+
 static int
 visorinput_init(void)
 {
@@ -680,7 +663,12 @@ visorinput_cleanup(void)
 module_init(visorinput_init);
 module_exit(visorinput_cleanup);
 
+MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
+
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("s-Par human input driver for guest Linux");
 MODULE_VERSION(VERSION);
+
+MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
+MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
