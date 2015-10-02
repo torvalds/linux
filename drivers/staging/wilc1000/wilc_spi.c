@@ -756,22 +756,6 @@ static int spi_internal_write(u32 adr, u32 dat)
 {
 	int result;
 
-#if defined USE_OLD_SPI_SW
-	/**
-	 *      Command
-	 **/
-	result = spi_cmd(CMD_INTERNAL_WRITE, adr, dat, 4, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal write cmd...\n");
-		return 0;
-	}
-
-	result = spi_cmd_rsp(CMD_INTERNAL_WRITE, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal write cmd response...\n");
-	}
-#else
-
 #ifdef BIG_ENDIAN
 	dat = BYTE_SWAP(dat);
 #endif
@@ -780,7 +764,6 @@ static int spi_internal_write(u32 adr, u32 dat)
 		PRINT_ER("[wilc spi]: Failed internal write cmd...\n");
 	}
 
-#endif
 	return result;
 }
 
@@ -788,35 +771,11 @@ static int spi_internal_read(u32 adr, u32 *data)
 {
 	int result;
 
-#if defined USE_OLD_SPI_SW
-	result = spi_cmd(CMD_INTERNAL_READ, adr, 0, 4, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal read cmd...\n");
-		return 0;
-	}
-
-	result = spi_cmd_rsp(CMD_INTERNAL_READ, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal read cmd response...\n");
-		return 0;
-	}
-
-	/**
-	 *      Data
-	 **/
-	result = spi_data_read((u8 *)data, 4);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed internal read data...\n");
-		return 0;
-	}
-#else
 	result = spi_cmd_complete(CMD_INTERNAL_READ, adr, (u8 *)data, 4, 0);
 	if (result != N_OK) {
 		PRINT_ER("[wilc spi]: Failed internal read cmd...\n");
 		return 0;
 	}
-#endif
-
 
 #ifdef BIG_ENDIAN
 	*data = BYTE_SWAP(*data);
@@ -837,24 +796,6 @@ static int spi_write_reg(u32 addr, u32 data)
 	u8 cmd = CMD_SINGLE_WRITE;
 	u8 clockless = 0;
 
-
-#if defined USE_OLD_SPI_SW
-	{
-		result = spi_cmd(cmd, addr, data, 4, 0);
-		if (result != N_OK) {
-			PRINT_ER("[wilc spi]: Failed cmd, write reg (%08x)...\n", addr);
-			return 0;
-		}
-
-		result = spi_cmd_rsp(cmd, 0);
-		if (result != N_OK) {
-			PRINT_ER("[wilc spi]: Failed cmd response, write reg (%08x)...\n", addr);
-			return 0;
-		}
-
-		return 1;
-	}
-#else
 #ifdef BIG_ENDIAN
 	data = BYTE_SWAP(data);
 #endif
@@ -870,8 +811,6 @@ static int spi_write_reg(u32 addr, u32 data)
 	}
 
 	return result;
-#endif
-
 }
 
 static int spi_write(u32 addr, u8 *buf, u32 size)
@@ -885,28 +824,11 @@ static int spi_write(u32 addr, u8 *buf, u32 size)
 	if (size <= 4)
 		return 0;
 
-#if defined USE_OLD_SPI_SW
-	/**
-	 *      Command
-	 **/
-	result = spi_cmd(cmd, addr, 0, size, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, write block (%08x)...\n", addr);
-		return 0;
-	}
-
-	result = spi_cmd_rsp(cmd, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi ]: Failed cmd response, write block (%08x)...\n", addr);
-		return 0;
-	}
-#else
 	result = spi_cmd_complete(cmd, addr, NULL, size, 0);
 	if (result != N_OK) {
 		PRINT_ER("[wilc spi]: Failed cmd, write block (%08x)...\n", addr);
 		return 0;
 	}
-#endif
 
 	/**
 	 *      Data
@@ -925,24 +847,6 @@ static int spi_read_reg(u32 addr, u32 *data)
 	u8 cmd = CMD_SINGLE_READ;
 	u8 clockless = 0;
 
-#if defined USE_OLD_SPI_SW
-	result = spi_cmd(cmd, addr, 0, 4, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, read reg (%08x)...\n", addr);
-		return 0;
-	}
-	result = spi_cmd_rsp(cmd, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd response, read reg (%08x)...\n", addr);
-		return 0;
-	}
-
-	result = spi_data_read((u8 *)data, 4);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed data read...\n");
-		return 0;
-	}
-#else
 	if (addr < 0x30) {
 		/* PRINT_ER("***** read addr %d\n\n", addr); */
 		/* Clockless register*/
@@ -955,8 +859,6 @@ static int spi_read_reg(u32 addr, u32 *data)
 		PRINT_ER("[wilc spi]: Failed cmd, read reg (%08x)...\n", addr);
 		return 0;
 	}
-#endif
-
 
 #ifdef BIG_ENDIAN
 	*data = BYTE_SWAP(*data);
@@ -973,38 +875,11 @@ static int spi_read(u32 addr, u8 *buf, u32 size)
 	if (size <= 4)
 		return 0;
 
-#if defined USE_OLD_SPI_SW
-	/**
-	 *      Command
-	 **/
-	result = spi_cmd(cmd, addr, 0, size, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd, read block (%08x)...\n", addr);
-		return 0;
-	}
-
-	result = spi_cmd_rsp(cmd, 0);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed cmd response, read block (%08x)...\n", addr);
-		return 0;
-	}
-
-	/**
-	 *      Data
-	 **/
-	result = spi_data_read(buf, size);
-	if (result != N_OK) {
-		PRINT_ER("[wilc spi]: Failed block data read...\n");
-		return 0;
-	}
-#else
 	result = spi_cmd_complete(cmd, addr, buf, size, 0);
 	if (result != N_OK) {
 		PRINT_ER("[wilc spi]: Failed cmd, read block (%08x)...\n", addr);
 		return 0;
 	}
-#endif
-
 
 	return 1;
 }
