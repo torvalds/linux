@@ -30,4 +30,6 @@ typedef struct {
 	u8 *str;
 } wilc_cfg_str_t;
 
+int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size);
+
 #endif

@@ -9,6 +9,7 @@
 
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
+#include "wilc_wlan_cfg.h"
 
 /********************************************
  *
@@ -1763,8 +1764,8 @@ int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = mac_cfg.cfg_wid_set(p->cfg_frame.frame, offset, (u16)wid,
-				       buffer, buffer_size);
+	ret_size = wilc_wlan_cfg_set_wid(p->cfg_frame.frame, offset, (u16)wid,
+					 buffer, buffer_size);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 
