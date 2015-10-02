@@ -144,6 +144,18 @@
 			mmu-masters;
 		};
 
+		crmu: crmu@65024000 {
+			compatible = "syscon";
+			reg = <0x65024000 0x100>;
+		};
+
+		reboot@65024000 {
+			compatible ="syscon-reboot";
+			regmap = <&crmu>;
+			offset = <0x90>;
+			mask = <0xfffffffd>;
+		};
+
 		gic: interrupt-controller@65210000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
