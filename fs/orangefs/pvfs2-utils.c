@@ -662,20 +662,45 @@ __u64 pvfs2_convert_time_field(void *time_ptr)
 	return pvfs2_time;
 }
 
-/* macro defined in include/pvfs2-types.h */
-DECLARE_ERRNO_MAPPING_AND_FN();
+/* The following is a very dirty hack that is now a permanent part of the
+ * PVFS2 protocol. See protocol.h for more error definitions. */
+
+/* The order matches include/pvfs2-types.h in the OrangeFS source. */
+static int PINT_errno_mapping[] = {
+        0, EPERM, ENOENT, EINTR, EIO, ENXIO, EBADF, EAGAIN, ENOMEM,
+        EFAULT, EBUSY, EEXIST, ENODEV, ENOTDIR, EISDIR, EINVAL, EMFILE,
+        EFBIG, ENOSPC, EROFS, EMLINK, EPIPE, EDEADLK, ENAMETOOLONG,
+        ENOLCK, ENOSYS, ENOTEMPTY, ELOOP, EWOULDBLOCK, ENOMSG, EUNATCH,
+        EBADR, EDEADLOCK, ENODATA, ETIME, ENONET, EREMOTE, ECOMM,
+        EPROTO, EBADMSG, EOVERFLOW, ERESTART, EMSGSIZE, EPROTOTYPE,
+        ENOPROTOOPT, EPROTONOSUPPORT, EOPNOTSUPP, EADDRINUSE,
+        EADDRNOTAVAIL, ENETDOWN, ENETUNREACH, ENETRESET, ENOBUFS,
+        ETIMEDOUT, ECONNREFUSED, EHOSTDOWN, EHOSTUNREACH, EALREADY,
+        EACCES, ECONNRESET, ERANGE
+};
 
 int pvfs2_normalize_to_errno(__s32 error_code)
 {
-	if (error_code > 0) {
+	/* Success */
+	if (error_code == 0) {
+		return 0;
+	/* This shouldn't ever happen. If it does it should be fixed on the
+	 * server. */
+	} else if (error_code > 0) {
 		gossip_err("pvfs2: error status receieved.\n");
 		gossip_err("pvfs2: assuming error code is inverted.\n");
 		error_code = -error_code;
 	}
 
-	/* convert any error codes that are in pvfs2 format */
-	if (IS_PVFS_NON_ERRNO_ERROR(-error_code)) {
-		if (PVFS_NON_ERRNO_ERROR_CODE(-error_code) == PVFS_ECANCEL) {
+	/* XXX: This is very bad since error codes from PVFS2 may not be
+	 * suitable for return into userspace. */
+
+	/* Convert PVFS2 error values into errno values suitable for return
+	 * from the kernel. */
+	if ((-error_code) & PVFS_NON_ERRNO_ERROR_BIT) {
+		if (((-error_code) &
+		    (PVFS_ERROR_NUMBER_BITS|PVFS_NON_ERRNO_ERROR_BIT|
+		    PVFS_ERROR_BIT)) == PVFS_ECANCEL) {
 			/*
 			 * cancellation error codes generally correspond to
 			 * a timeout from the client's perspective
@@ -683,12 +708,25 @@ int pvfs2_normalize_to_errno(__s32 error_code)
 			error_code = -ETIMEDOUT;
 		} else {
 			/* assume a default error code */
-			gossip_err("pvfs2: warning: got error code without errno equivalent: %d.\n",
-				   error_code);
+			gossip_err("pvfs2: warning: got error code without "
+			    "errno equivalent: %d.\n", error_code);
 			error_code = -EINVAL;
 		}
-	} else if (IS_PVFS_ERROR(-error_code)) {
-		error_code = -PVFS_ERROR_TO_ERRNO(-error_code);
+
+	/* Convert PVFS2 encoded errno values into regular errno values. */
+	} else if ((-error_code) & PVFS_ERROR_BIT) {
+		__u32 i;
+		i = (-error_code) & ~(PVFS_ERROR_BIT|PVFS_ERROR_CLASS_BITS);
+		if (i < sizeof PINT_errno_mapping/sizeof *PINT_errno_mapping)
+			error_code = -PINT_errno_mapping[i];
+		else
+			error_code = -EINVAL;
+
+	/* Only PVFS2 protocol error codes should ever come here. Otherwise
+	 * there is a bug somewhere. */
+	} else {
+		gossip_err("pvfs2: pvfs2_normalize_to_errno: got error code"
+		    "which is not from PVFS2.\n");
 	}
 	return error_code;
 }

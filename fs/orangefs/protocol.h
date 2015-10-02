@@ -100,262 +100,40 @@ typedef __s32 PVFS_error;
 typedef __s64 PVFS_offset;
 
 #define PVFS2_SUPER_MAGIC 0x20030528
-#define PVFS_ERROR_BIT           (1 << 30)
+
+/* PVFS2 error codes are a signed 32-bit integer. Error codes are negative, but
+ * the sign is stripped before decoding. */
+
+/* Bit 31 is not used since it is the sign. */
+
+/* Bit 30 specifies that this is a PVFS2 error. A PVFS2 error is either an
+ * encoded errno value or a PVFS2 protocol error. */
+#define PVFS_ERROR_BIT (1 << 30)
+
+/* Bit 29 specifies that this is a PVFS2 protocol error and not an encoded
+ * errno value. */
 #define PVFS_NON_ERRNO_ERROR_BIT (1 << 29)
-#define IS_PVFS_ERROR(__error)   ((__error)&(PVFS_ERROR_BIT))
-#define IS_PVFS_NON_ERRNO_ERROR(__error)  \
-(((__error)&(PVFS_NON_ERRNO_ERROR_BIT)) && IS_PVFS_ERROR(__error))
-#define PVFS_ERROR_TO_ERRNO(__error) PVFS_get_errno_mapping(__error)
 
-/* 7 bits are used for the errno mapped error codes */
-#define PVFS_ERROR_CODE(__error) \
-((__error) & (__s32)(0x7f|PVFS_ERROR_BIT))
-#define PVFS_ERROR_CLASS(__error) \
-((__error) & ~((__s32)(0x7f|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT)))
-#define PVFS_NON_ERRNO_ERROR_CODE(__error) \
-((__error) & (__s32)(127|PVFS_ERROR_BIT|PVFS_NON_ERRNO_ERROR_BIT))
+/* Bits 9, 8, and 7 specify the error class, which encodes the section of
+ * server code the error originated in for logging purposes. It is not used
+ * in the kernel except to be masked out. */
+#define PVFS_ERROR_CLASS_BITS 0x380
 
-/* PVFS2 error codes, compliments of asm/errno.h */
-#define PVFS_EPERM            E(1)	/* Operation not permitted */
-#define PVFS_ENOENT           E(2)	/* No such file or directory */
-#define PVFS_EINTR            E(3)	/* Interrupted system call */
-#define PVFS_EIO              E(4)	/* I/O error */
-#define PVFS_ENXIO            E(5)	/* No such device or address */
-#define PVFS_EBADF            E(6)	/* Bad file number */
-#define PVFS_EAGAIN           E(7)	/* Try again */
-#define PVFS_ENOMEM           E(8)	/* Out of memory */
-#define PVFS_EFAULT           E(9)	/* Bad address */
-#define PVFS_EBUSY           E(10)	/* Device or resource busy */
-#define PVFS_EEXIST          E(11)	/* File exists */
-#define PVFS_ENODEV          E(12)	/* No such device */
-#define PVFS_ENOTDIR         E(13)	/* Not a directory */
-#define PVFS_EISDIR          E(14)	/* Is a directory */
-#define PVFS_EINVAL          E(15)	/* Invalid argument */
-#define PVFS_EMFILE          E(16)	/* Too many open files */
-#define PVFS_EFBIG           E(17)	/* File too large */
-#define PVFS_ENOSPC          E(18)	/* No space left on device */
-#define PVFS_EROFS           E(19)	/* Read-only file system */
-#define PVFS_EMLINK          E(20)	/* Too many links */
-#define PVFS_EPIPE           E(21)	/* Broken pipe */
-#define PVFS_EDEADLK         E(22)	/* Resource deadlock would occur */
-#define PVFS_ENAMETOOLONG    E(23)	/* File name too long */
-#define PVFS_ENOLCK          E(24)	/* No record locks available */
-#define PVFS_ENOSYS          E(25)	/* Function not implemented */
-#define PVFS_ENOTEMPTY       E(26)	/* Directory not empty */
-					/*
-#define PVFS_ELOOP           E(27)	 * Too many symbolic links encountered
-					 */
-#define PVFS_EWOULDBLOCK     E(28)	/* Operation would block */
-#define PVFS_ENOMSG          E(29)	/* No message of desired type */
-#define PVFS_EUNATCH         E(30)	/* Protocol driver not attached */
-#define PVFS_EBADR           E(31)	/* Invalid request descriptor */
-#define PVFS_EDEADLOCK       E(32)
-#define PVFS_ENODATA         E(33)	/* No data available */
-#define PVFS_ETIME           E(34)	/* Timer expired */
-#define PVFS_ENONET          E(35)	/* Machine is not on the network */
-#define PVFS_EREMOTE         E(36)	/* Object is remote */
-#define PVFS_ECOMM           E(37)	/* Communication error on send */
-#define PVFS_EPROTO          E(38)	/* Protocol error */
-#define PVFS_EBADMSG         E(39)	/* Not a data message */
-					/*
-#define PVFS_EOVERFLOW       E(40)	 * Value too large for defined data
-					 * type
-					 */
-					/*
-#define PVFS_ERESTART        E(41)	 * Interrupted system call should be
-					 * restarted
-					 */
-#define PVFS_EMSGSIZE        E(42)	/* Message too long */
-#define PVFS_EPROTOTYPE      E(43)	/* Protocol wrong type for socket */
-#define PVFS_ENOPROTOOPT     E(44)	/* Protocol not available */
-#define PVFS_EPROTONOSUPPORT E(45)	/* Protocol not supported */
-					/*
-#define PVFS_EOPNOTSUPP      E(46)	 * Operation not supported on transport
-					 * endpoint
-					 */
-#define PVFS_EADDRINUSE      E(47)	/* Address already in use */
-#define PVFS_EADDRNOTAVAIL   E(48)	/* Cannot assign requested address */
-#define PVFS_ENETDOWN        E(49)	/* Network is down */
-#define PVFS_ENETUNREACH     E(50)	/* Network is unreachable */
-					/*
-#define PVFS_ENETRESET       E(51)	 * Network dropped connection because
-					 * of reset
-					 */
-#define PVFS_ENOBUFS         E(52)	/* No buffer space available */
-#define PVFS_ETIMEDOUT       E(53)	/* Connection timed out */
-#define PVFS_ECONNREFUSED    E(54)	/* Connection refused */
-#define PVFS_EHOSTDOWN       E(55)	/* Host is down */
-#define PVFS_EHOSTUNREACH    E(56)	/* No route to host */
-#define PVFS_EALREADY        E(57)	/* Operation already in progress */
-#define PVFS_EACCES          E(58)	/* Access not allowed */
-#define PVFS_ECONNRESET      E(59)	/* Connection reset by peer */
-#define PVFS_ERANGE          E(60)	/* Math out of range or buf too small */
+/* Bits 6 - 0 are reserved for the actual error code. */
+#define PVFS_ERROR_NUMBER_BITS 0x7f
 
-/***************** non-errno/pvfs2 specific error codes *****************/
-#define PVFS_ECANCEL    (1|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_EDEVINIT   (2|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_EDETAIL    (3|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_EHOSTNTFD  (4|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_EADDRNTFD  (5|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_ENORECVR   (6|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_ETRYAGAIN  (7|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_ENOTPVFS   (8|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
-#define PVFS_ESECURITY  (9|(PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT))
+/* Encoded errno values are decoded by PINT_errno_mapping in pvfs2-utils.c. */
 
-/*
- * NOTE: PLEASE DO NOT ARBITRARILY ADD NEW ERRNO ERROR CODES!
- *
- * IF YOU CHOOSE TO ADD A NEW ERROR CODE (DESPITE OUR PLEA), YOU ALSO
- * NEED TO INCREMENT PVFS_ERRNO MAX (BELOW) AND ADD A MAPPING TO A
- * UNIX ERRNO VALUE IN THE MACROS BELOW (USED IN
- * src/common/misc/errno-mapping.c and the kernel module)
- */
-#define PVFS_ERRNO_MAX          61
-
-#define PVFS_ERROR_BMI    (1 << 7)	/* BMI-specific error */
-#define PVFS_ERROR_TROVE  (2 << 7)	/* Trove-specific error */
-#define PVFS_ERROR_FLOW   (3 << 7)
-#define PVFS_ERROR_SM     (4 << 7)	/* state machine specific error */
-#define PVFS_ERROR_SCHED  (5 << 7)
-#define PVFS_ERROR_CLIENT (6 << 7)
-#define PVFS_ERROR_DEV    (7 << 7)	/* device file interaction */
-
-#define PVFS_ERROR_CLASS_BITS	\
-	(PVFS_ERROR_BMI    |	\
-	 PVFS_ERROR_TROVE  |	\
-	 PVFS_ERROR_FLOW   |	\
-	 PVFS_ERROR_SM     |	\
-	 PVFS_ERROR_SCHED  |	\
-	 PVFS_ERROR_CLIENT |	\
-	 PVFS_ERROR_DEV)
-
-#define DECLARE_ERRNO_MAPPING()                       \
-__s32 PINT_errno_mapping[PVFS_ERRNO_MAX + 1] = { \
-	0,     /* leave this one empty */                 \
-	EPERM, /* 1 */                                    \
-	ENOENT,                                           \
-	EINTR,                                            \
-	EIO,                                              \
-	ENXIO,                                            \
-	EBADF,                                            \
-	EAGAIN,                                           \
-	ENOMEM,                                           \
-	EFAULT,                                           \
-	EBUSY, /* 10 */                                   \
-	EEXIST,                                           \
-	ENODEV,                                           \
-	ENOTDIR,                                          \
-	EISDIR,                                           \
-	EINVAL,                                           \
-	EMFILE,                                           \
-	EFBIG,                                            \
-	ENOSPC,                                           \
-	EROFS,                                            \
-	EMLINK, /* 20 */                                  \
-	EPIPE,                                            \
-	EDEADLK,                                          \
-	ENAMETOOLONG,                                     \
-	ENOLCK,                                           \
-	ENOSYS,                                           \
-	ENOTEMPTY,                                        \
-	ELOOP,                                            \
-	EWOULDBLOCK,                                      \
-	ENOMSG,                                           \
-	EUNATCH, /* 30 */                                 \
-	EBADR,                                            \
-	EDEADLOCK,                                        \
-	ENODATA,                                          \
-	ETIME,                                            \
-	ENONET,                                           \
-	EREMOTE,                                          \
-	ECOMM,                                            \
-	EPROTO,                                           \
-	EBADMSG,                                          \
-	EOVERFLOW, /* 40 */                               \
-	ERESTART,                                         \
-	EMSGSIZE,                                         \
-	EPROTOTYPE,                                       \
-	ENOPROTOOPT,                                      \
-	EPROTONOSUPPORT,                                  \
-	EOPNOTSUPP,                                       \
-	EADDRINUSE,                                       \
-	EADDRNOTAVAIL,                                    \
-	ENETDOWN,                                         \
-	ENETUNREACH, /* 50 */                             \
-	ENETRESET,                                        \
-	ENOBUFS,                                          \
-	ETIMEDOUT,                                        \
-	ECONNREFUSED,                                     \
-	EHOSTDOWN,                                        \
-	EHOSTUNREACH,                                     \
-	EALREADY,                                         \
-	EACCES,                                           \
-	ECONNRESET,   /* 59 */                            \
-	ERANGE,                                           \
-	0         /* PVFS_ERRNO_MAX */                    \
-};                                                    \
-const char *PINT_non_errno_strerror_mapping[] = {     \
-	"Success", /* 0 */                                \
-	"Operation cancelled (possibly due to timeout)",  \
-	"Device initialization failed",                   \
-	"Detailed per-server errors are available",       \
-	"Unknown host",                                   \
-	"No address associated with name",                \
-	"Unknown server error",                           \
-	"Host name lookup failure",                       \
-	"Path contains non-PVFS elements",                \
-	"Security error",                                 \
-};                                                    \
-__s32 PINT_non_errno_mapping[] = {               \
-	0,     /* leave this one empty */                 \
-	PVFS_ECANCEL,   /* 1 */                           \
-	PVFS_EDEVINIT,  /* 2 */                           \
-	PVFS_EDETAIL,   /* 3 */                           \
-	PVFS_EHOSTNTFD, /* 4 */                           \
-	PVFS_EADDRNTFD, /* 5 */                           \
-	PVFS_ENORECVR,  /* 6 */                           \
-	PVFS_ETRYAGAIN, /* 7 */                           \
-	PVFS_ENOTPVFS,  /* 8 */                           \
-	PVFS_ESECURITY, /* 9 */                           \
-}
-
-/*
- *   NOTE: PVFS_get_errno_mapping will convert a PVFS_ERROR_CODE to an
- *   errno value.  If the error code is a pvfs2 specific error code
- *   (i.e. a PVFS_NON_ERRNO_ERROR_CODE), PVFS_get_errno_mapping will
- *   return an index into the PINT_non_errno_strerror_mapping array which
- *   can be used for getting the pvfs2 specific strerror message given
- *   the error code.  if the value is not a recognized error code, the
- *   passed in value will be returned unchanged.
- */
-#define DECLARE_ERRNO_MAPPING_AND_FN()					\
-extern __s32 PINT_errno_mapping[];					\
-extern __s32 PINT_non_errno_mapping[];				\
-extern const char *PINT_non_errno_strerror_mapping[];			\
-static __s32 PVFS_get_errno_mapping(__s32 error)			\
-{									\
-	__s32 ret = error, mask = 0;				\
-	__s32 positive = ((error > -1) ? 1 : 0);			\
-	if (IS_PVFS_NON_ERRNO_ERROR((positive ? error : -error))) {	\
-		mask = (PVFS_NON_ERRNO_ERROR_BIT |			\
-			PVFS_ERROR_BIT |				\
-			PVFS_ERROR_CLASS_BITS);				\
-		ret = PVFS_NON_ERRNO_ERROR_CODE(((positive ?		\
-						     error :		\
-						     abs(error))) &	\
-						 ~mask);		\
-	}								\
-	else if (IS_PVFS_ERROR((positive ? error : -error))) {		\
-		mask = (PVFS_ERROR_BIT |				\
-			PVFS_ERROR_CLASS_BITS);				\
-		ret = PINT_errno_mapping[PVFS_ERROR_CODE(((positive ?	\
-								error :	\
-								abs(error))) & \
-							  ~mask)];	\
-	}								\
-	return ret;							\
-}									\
-DECLARE_ERRNO_MAPPING()
+/* Our own PVFS2 protocol error codes. */
+#define PVFS_ECANCEL    (1|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_EDEVINIT   (2|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_EDETAIL    (3|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_EHOSTNTFD  (4|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_EADDRNTFD  (5|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_ENORECVR   (6|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_ETRYAGAIN  (7|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_ENOTPVFS   (8|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
+#define PVFS_ESECURITY  (9|PVFS_NON_ERRNO_ERROR_BIT|PVFS_ERROR_BIT)
 
 /* permission bits */
 #define PVFS_O_EXECUTE (1 << 0)
