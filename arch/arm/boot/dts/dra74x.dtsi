@@ -52,6 +52,11 @@
 	};
 
 	ocp {
+		dsp2_system: dsp_system@41500000 {
+			compatible = "syscon";
+			reg = <0x41500000 0x100>;
+		};
+
 		omap_dwc3_4: omap_dwc3_4@48940000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss4";
