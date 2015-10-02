@@ -58,6 +58,7 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 		return -ENOMEM;
 
 	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
+	spin_lock_init(&queue->rskq_lock);
 	spin_lock_init(&queue->syn_wait_lock);
 
 	spin_lock_init(&queue->fastopenq.lock);

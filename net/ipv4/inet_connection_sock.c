@@ -330,10 +330,9 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 		if (error)
 			goto out_err;
 	}
-	req = reqsk_queue_remove(queue);
+	req = reqsk_queue_remove(queue, sk);
 	newsk = req->sk;
 
-	sk_acceptq_removed(sk);
 	if (sk->sk_protocol == IPPROTO_TCP &&
 	    tcp_rsk(req)->tfo_listener) {
 		spin_lock_bh(&queue->fastopenq.lock);
@@ -832,11 +831,7 @@ void inet_csk_listen_stop(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
-	struct request_sock *acc_req;
-	struct request_sock *req;
-
-	/* make all the listen_opt local to us */
-	acc_req = reqsk_queue_yank_acceptq(queue);
+	struct request_sock *next, *req;
 
 	/* Following specs, it would be better either to send FIN
 	 * (and enter FIN-WAIT-1, it is normal close)
@@ -848,10 +843,8 @@ void inet_csk_listen_stop(struct sock *sk)
 	 */
 	reqsk_queue_destroy(queue);
 
-	while ((req = acc_req) != NULL) {
+	while ((req = reqsk_queue_remove(queue, sk)) != NULL) {
 		struct sock *child = req->sk;
-
-		acc_req = req->dl_next;
 
 		local_bh_disable();
 		bh_lock_sock(child);
@@ -882,18 +875,18 @@ void inet_csk_listen_stop(struct sock *sk)
 		local_bh_enable();
 		sock_put(child);
 
-		sk_acceptq_removed(sk);
 		reqsk_put(req);
 	}
 	if (queue->fastopenq.rskq_rst_head) {
 		/* Free all the reqs queued in rskq_rst_head. */
 		spin_lock_bh(&queue->fastopenq.lock);
-		acc_req = queue->fastopenq.rskq_rst_head;
+		req = queue->fastopenq.rskq_rst_head;
 		queue->fastopenq.rskq_rst_head = NULL;
 		spin_unlock_bh(&queue->fastopenq.lock);
-		while ((req = acc_req) != NULL) {
-			acc_req = req->dl_next;
+		while (req != NULL) {
+			next = req->dl_next;
 			reqsk_put(req);
+			req = next;
 		}
 	}
 	WARN_ON(sk->sk_ack_backlog);

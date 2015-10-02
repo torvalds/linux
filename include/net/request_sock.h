@@ -176,9 +176,11 @@ struct fastopen_queue {
  *
  */
 struct request_sock_queue {
+	spinlock_t		rskq_lock;
+	u8			rskq_defer_accept;
+
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
-	u8			rskq_defer_accept;
 	struct listen_sock	*listen_opt;
 	struct fastopen_queue	fastopenq;  /* Check max_qlen != 0 to determine
 					     * if TFO is enabled.
@@ -196,16 +198,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue);
 void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 			   bool reset);
 
-static inline struct request_sock *
-	reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
-{
-	struct request_sock *req = queue->rskq_accept_head;
-
-	queue->rskq_accept_head = NULL;
-	return req;
-}
-
-static inline int reqsk_queue_empty(struct request_sock_queue *queue)
+static inline bool reqsk_queue_empty(const struct request_sock_queue *queue)
 {
 	return queue->rskq_accept_head == NULL;
 }
@@ -215,6 +208,7 @@ static inline void reqsk_queue_add(struct request_sock_queue *queue,
 				   struct sock *parent,
 				   struct sock *child)
 {
+	spin_lock(&queue->rskq_lock);
 	req->sk = child;
 	sk_acceptq_added(parent);
 
@@ -225,18 +219,23 @@ static inline void reqsk_queue_add(struct request_sock_queue *queue,
 
 	queue->rskq_accept_tail = req;
 	req->dl_next = NULL;
+	spin_unlock(&queue->rskq_lock);
 }
 
-static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue *queue)
+static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue *queue,
+						      struct sock *parent)
 {
-	struct request_sock *req = queue->rskq_accept_head;
+	struct request_sock *req;
 
-	WARN_ON(req == NULL);
-
-	queue->rskq_accept_head = req->dl_next;
-	if (queue->rskq_accept_head == NULL)
-		queue->rskq_accept_tail = NULL;
-
+	spin_lock_bh(&queue->rskq_lock);
+	req = queue->rskq_accept_head;
+	if (req) {
+		sk_acceptq_removed(parent);
+		queue->rskq_accept_head = req->dl_next;
+		if (queue->rskq_accept_head == NULL)
+			queue->rskq_accept_tail = NULL;
+	}
+	spin_unlock_bh(&queue->rskq_lock);
 	return req;
 }
 
