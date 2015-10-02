@@ -5321,7 +5321,7 @@ int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 u8ChNum)
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
 
-	if (pstrWFIDrv == NULL) {
+	if (!pstrWFIDrv) {
 		PRINT_ER("driver is null\n");
 		return -EFAULT;
 	}
