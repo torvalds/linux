@@ -282,8 +282,7 @@ static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				   unsigned long timeout);
 
-static inline void inet_csk_reqsk_queue_added(struct sock *sk,
-					      const unsigned long timeout)
+static inline void inet_csk_reqsk_queue_added(struct sock *sk)
 {
 	reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue);
 }

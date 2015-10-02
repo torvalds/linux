@@ -531,7 +531,7 @@ void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				     lopt->hash_rnd, lopt->nr_table_entries);
 
 	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, timeout);
-	inet_csk_reqsk_queue_added(sk, timeout);
+	inet_csk_reqsk_queue_added(sk);
 }
 EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_hash_add);
 
