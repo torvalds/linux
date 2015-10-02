@@ -47,8 +47,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 			regmap_config = &wm5110_spi_regmap;
 		break;
 	default:
-		dev_err(&spi->dev, "Unknown device type %ld\n",
-			id->driver_data);
+		dev_err(&spi->dev, "Unknown device type %ld\n", type);
 		return -EINVAL;
 	}
 
@@ -70,7 +69,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	arizona->type = id->driver_data;
+	arizona->type = type;
 	arizona->dev = &spi->dev;
 	arizona->irq = spi->irq;
 
