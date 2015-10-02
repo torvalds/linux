@@ -210,7 +210,7 @@ struct usbdux_private {
 	unsigned int ai_interval;
 	/* commands */
 	u8 *dux_commands;
-	struct semaphore sem;
+	struct mutex mut;
 };
 
 static void usbdux_unlink_urbs(struct urb **urbs, int num_urbs)
@@ -237,10 +237,10 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 
 	/* prevent other CPUs from submitting new commands just now */
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	/* unlink only if the urb really has been submitted */
 	usbdux_ai_stop(dev, devpriv->ai_cmd_running);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return 0;
 }
@@ -365,10 +365,10 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 
 	/* prevent other CPUs from submitting a command just now */
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	/* unlink only if it is really running */
 	usbdux_ao_stop(dev, devpriv->ao_cmd_running);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return 0;
 }
@@ -646,7 +646,7 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
@@ -662,7 +662,7 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 	}
 
 ai_trig_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 	return ret;
 }
 
@@ -675,7 +675,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int i;
 
 	/* block other CPUs from starting an ai_cmd */
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (devpriv->ai_cmd_running)
 		goto ai_cmd_exit;
@@ -736,7 +736,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 ai_cmd_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -754,7 +754,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	int ret = -EBUSY;
 	int i;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (devpriv->ai_cmd_running)
 		goto ai_read_exit;
@@ -782,7 +782,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	}
 
 ai_read_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret ? ret : insn->n;
 }
@@ -795,9 +795,9 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = comedi_readback_insn_read(dev, s, insn, data);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -814,7 +814,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 	int ret = -EBUSY;
 	int i;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (devpriv->ao_cmd_running)
 		goto ao_write_exit;
@@ -838,7 +838,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 	}
 
 ao_write_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret ? ret : insn->n;
 }
@@ -854,7 +854,7 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (!devpriv->ao_cmd_running) {
 		devpriv->ao_cmd_running = 1;
@@ -870,7 +870,7 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 	}
 
 ao_trig_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 	return ret;
 }
 
@@ -960,7 +960,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int ret = -EBUSY;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (devpriv->ao_cmd_running)
 		goto ao_cmd_exit;
@@ -1002,7 +1002,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 ao_cmd_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -1033,7 +1033,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	comedi_dio_update_state(s, data);
 
@@ -1055,7 +1055,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	data[1] = le16_to_cpu(devpriv->insn_buf[1]);
 
 dio_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret ? ret : insn->n;
 }
@@ -1070,7 +1070,7 @@ static int usbdux_counter_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	for (i = 0; i < insn->n; i++) {
 		ret = send_dux_commands(dev, USBDUX_CMD_TIMER_RD);
@@ -1084,7 +1084,7 @@ static int usbdux_counter_read(struct comedi_device *dev,
 	}
 
 counter_read_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret ? ret : insn->n;
 }
@@ -1100,7 +1100,7 @@ static int usbdux_counter_write(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	devpriv->dux_commands[1] = chan;
 
@@ -1112,7 +1112,7 @@ static int usbdux_counter_write(struct comedi_device *dev,
 			break;
 	}
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret ? ret : insn->n;
 }
@@ -1148,11 +1148,11 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	/* unlink only if it is really running */
 	usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
 	ret = send_dux_commands(dev, USBDUX_CMD_PWM_OFF);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -1257,7 +1257,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 	struct usbdux_private *devpriv = dev->private;
 	int ret = 0;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	if (devpriv->pwm_cmd_running)
 		goto pwm_start_exit;
@@ -1276,7 +1276,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 		devpriv->pwm_cmd_running = 0;
 
 pwm_start_exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -1576,7 +1576,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 
 	usb_set_intfdata(intf, devpriv);
 
@@ -1691,7 +1691,7 @@ static void usbdux_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	/* force unlink all urbs */
 	usbdux_pwm_stop(dev, 1);
@@ -1700,7 +1700,7 @@ static void usbdux_detach(struct comedi_device *dev)
 
 	usbdux_free_usb_buffers(dev);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver usbdux_driver = {
