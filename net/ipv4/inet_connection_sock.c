@@ -552,12 +552,11 @@ static void reqsk_timer_handler(unsigned long data)
 	struct sock *sk_listener = req->rsk_listener;
 	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
-	struct listen_sock *lopt = queue->listen_opt;
 	int qlen, expire = 0, resend = 0;
 	int max_retries, thresh;
 	u8 defer_accept;
 
-	if (sk_listener->sk_state != TCP_LISTEN || !lopt)
+	if (sk_listener->sk_state != TCP_LISTEN)
 		goto drop;
 
 	max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
@@ -580,7 +579,7 @@ static void reqsk_timer_handler(unsigned long data)
 	 * ones are about to clog our table.
 	 */
 	qlen = reqsk_queue_len(queue);
-	if (qlen >> (lopt->max_qlen_log - 1)) {
+	if (qlen >> (queue->max_qlen_log - 1)) {
 		int young = reqsk_queue_len_young(queue) << 1;
 
 		while (thresh > 2) {
@@ -730,12 +729,10 @@ EXPORT_SYMBOL(inet_csk_prepare_forced_close);
 
 int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	int rc = reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
+	struct inet_sock *inet = inet_sk(sk);
 
-	if (rc != 0)
-		return rc;
+	reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
 
 	sk->sk_max_ack_backlog = 0;
 	sk->sk_ack_backlog = 0;
@@ -757,7 +754,6 @@ int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 	}
 
 	sk->sk_state = TCP_CLOSE;
-	__reqsk_queue_destroy(&icsk->icsk_accept_queue);
 	return -EADDRINUSE;
 }
 EXPORT_SYMBOL_GPL(inet_csk_listen_start);
@@ -780,8 +776,6 @@ void inet_csk_listen_stop(struct sock *sk)
 	 * To be honest, we are not able to make either
 	 * of the variants now.			--ANK
 	 */
-	reqsk_queue_destroy(queue);
-
 	while ((req = reqsk_queue_remove(queue, sk)) != NULL) {
 		struct sock *child = req->sk;
 

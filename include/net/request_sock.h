@@ -119,14 +119,6 @@ static inline void reqsk_put(struct request_sock *req)
 
 extern int sysctl_max_syn_backlog;
 
-/** struct listen_sock - listen state
- *
- * @max_qlen_log - log_2 of maximal queued SYNs/REQUESTs
- */
-struct listen_sock {
-	u32			max_qlen_log;
-};
-
 /*
  * For a TCP Fast Open listener -
  *	lock - protects the access to all the reqsk, which is co-owned by
@@ -160,36 +152,26 @@ struct fastopen_queue {
  * @rskq_accept_head - FIFO head of established children
  * @rskq_accept_tail - FIFO tail of established children
  * @rskq_defer_accept - User waits for some data after accept()
- * @syn_wait_lock - serializer
- *
- * %syn_wait_lock is necessary only to avoid proc interface having to grab the main
- * lock sock while browsing the listening hash (otherwise it's deadlock prone).
  *
  */
 struct request_sock_queue {
 	spinlock_t		rskq_lock;
 	u8			rskq_defer_accept;
+	u8			max_qlen_log;
 	u32			synflood_warned;
-
 	atomic_t		qlen;
 	atomic_t		young;
 
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
-	struct listen_sock	*listen_opt;
 	struct fastopen_queue	fastopenq;  /* Check max_qlen != 0 to determine
 					     * if TFO is enabled.
 					     */
-
-	/* temporary alignment, our goal is to get rid of this lock */
-	spinlock_t		syn_wait_lock ____cacheline_aligned_in_smp;
 };
 
-int reqsk_queue_alloc(struct request_sock_queue *queue,
-		      unsigned int nr_table_entries);
+void reqsk_queue_alloc(struct request_sock_queue *queue,
+		       unsigned int nr_table_entries);
 
-void __reqsk_queue_destroy(struct request_sock_queue *queue);
-void reqsk_queue_destroy(struct request_sock_queue *queue);
 void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 			   bool reset);
 
@@ -260,7 +242,7 @@ static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 
 static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
 {
-	return reqsk_queue_len(queue) >> queue->listen_opt->max_qlen_log;
+	return reqsk_queue_len(queue) >> queue->max_qlen_log;
 }
 
 #endif /* _REQUEST_SOCK_H */

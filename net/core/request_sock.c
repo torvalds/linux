@@ -37,22 +37,14 @@
 int sysctl_max_syn_backlog = 256;
 EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
-int reqsk_queue_alloc(struct request_sock_queue *queue,
-		      unsigned int nr_table_entries)
+void reqsk_queue_alloc(struct request_sock_queue *queue,
+		       unsigned int nr_table_entries)
 {
-	size_t lopt_size = sizeof(struct listen_sock);
-	struct listen_sock *lopt = NULL;
-
 	nr_table_entries = min_t(u32, nr_table_entries, sysctl_max_syn_backlog);
 	nr_table_entries = max_t(u32, nr_table_entries, 8);
 	nr_table_entries = roundup_pow_of_two(nr_table_entries + 1);
 
-	lopt = kzalloc(lopt_size, GFP_KERNEL);
-	if (!lopt)
-		return -ENOMEM;
-
 	spin_lock_init(&queue->rskq_lock);
-	spin_lock_init(&queue->syn_wait_lock);
 
 	spin_lock_init(&queue->fastopenq.lock);
 	queue->fastopenq.rskq_rst_head = NULL;
@@ -61,40 +53,7 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 	queue->fastopenq.max_qlen = 0;
 
 	queue->rskq_accept_head = NULL;
-	lopt->max_qlen_log = ilog2(nr_table_entries);
-
-	spin_lock_bh(&queue->syn_wait_lock);
-	queue->listen_opt = lopt;
-	spin_unlock_bh(&queue->syn_wait_lock);
-
-	return 0;
-}
-
-void __reqsk_queue_destroy(struct request_sock_queue *queue)
-{
-	/* This is an error recovery path only, no locking needed */
-	kfree(queue->listen_opt);
-}
-
-static inline struct listen_sock *reqsk_queue_yank_listen_sk(
-		struct request_sock_queue *queue)
-{
-	struct listen_sock *lopt;
-
-	spin_lock_bh(&queue->syn_wait_lock);
-	lopt = queue->listen_opt;
-	queue->listen_opt = NULL;
-	spin_unlock_bh(&queue->syn_wait_lock);
-
-	return lopt;
-}
-
-void reqsk_queue_destroy(struct request_sock_queue *queue)
-{
-	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
-
-	/* cleaning is done by req timers */
-	kfree(lopt);
+	queue->max_qlen_log = ilog2(nr_table_entries);
 }
 
 /*
