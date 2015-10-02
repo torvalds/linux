@@ -256,23 +256,29 @@ static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 	struct drm_connector *connector = to_drm_connector(connector_dev);
 	unsigned char *edid;
 	size_t size;
+	ssize_t ret = 0;
 
+	mutex_lock(&connector->dev->mode_config.mutex);
 	if (!connector->edid_blob_ptr)
-		return 0;
+		goto unlock;
 
 	edid = connector->edid_blob_ptr->data;
 	size = connector->edid_blob_ptr->length;
 	if (!edid)
-		return 0;
+		goto unlock;
 
 	if (off >= size)
-		return 0;
+		goto unlock;
 
 	if (off + count > size)
 		count = size - off;
 	memcpy(buf, edid + off, count);
 
-	return count;
+	ret = count;
+unlock:
+	mutex_unlock(&connector->dev->mode_config.mutex);
+
+	return ret;
 }
 
 static ssize_t modes_show(struct device *device,
@@ -283,10 +289,12 @@ static ssize_t modes_show(struct device *device,
 	struct drm_display_mode *mode;
 	int written = 0;
 
+	mutex_lock(&connector->dev->mode_config.mutex);
 	list_for_each_entry(mode, &connector->modes, head) {
 		written += snprintf(buf + written, PAGE_SIZE - written, "%s\n",
 				    mode->name);
 	}
+	mutex_unlock(&connector->dev->mode_config.mutex);
 
 	return written;
 }
