@@ -1285,7 +1285,6 @@ static void nvme_abort_req(struct request *req)
 		list_del_init(&dev->node);
 		dev_warn(dev->dev, "I/O %d QID %d timeout, reset controller\n",
 							req->tag, nvmeq->qid);
-		dev->reset_workfn = nvme_reset_failed_dev;
 		queue_work(nvme_workq, &dev->reset_work);
  out:
 		spin_unlock_irqrestore(&dev_list_lock, flags);
@@ -2089,7 +2088,6 @@ static int nvme_kthread(void *data)
 				dev_warn(dev->dev,
 					"Failed status: %x, reset controller\n",
 					readl(&dev->bar->csts));
-				dev->reset_workfn = nvme_reset_failed_dev;
 				queue_work(nvme_workq, &dev->reset_work);
 				continue;
 			}
@@ -3025,14 +3023,6 @@ static int nvme_remove_dead_ctrl(void *arg)
 	return 0;
 }
 
-static void nvme_remove_disks(struct work_struct *ws)
-{
-	struct nvme_dev *dev = container_of(ws, struct nvme_dev, reset_work);
-
-	nvme_free_queues(dev, 1);
-	nvme_dev_remove(dev);
-}
-
 static int nvme_dev_resume(struct nvme_dev *dev)
 {
 	int ret;
@@ -3041,10 +3031,9 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 	if (ret)
 		return ret;
 	if (dev->online_queues < 2) {
-		spin_lock(&dev_list_lock);
-		dev->reset_workfn = nvme_remove_disks;
-		queue_work(nvme_workq, &dev->reset_work);
-		spin_unlock(&dev_list_lock);
+		dev_warn(dev->dev, "IO queues not created\n");
+		nvme_free_queues(dev, 1);
+		nvme_dev_remove(dev);
 	} else {
 		nvme_unfreeze_queues(dev);
 		nvme_dev_add(dev);
@@ -3091,12 +3080,6 @@ static void nvme_reset_failed_dev(struct work_struct *ws)
 	nvme_dev_reset(dev);
 }
 
-static void nvme_reset_workfn(struct work_struct *work)
-{
-	struct nvme_dev *dev = container_of(work, struct nvme_dev, reset_work);
-	dev->reset_workfn(work);
-}
-
 static int nvme_reset(struct nvme_dev *dev)
 {
 	int ret = -EBUSY;
@@ -3106,7 +3089,6 @@ static int nvme_reset(struct nvme_dev *dev)
 
 	spin_lock(&dev_list_lock);
 	if (!work_pending(&dev->reset_work)) {
-		dev->reset_workfn = nvme_reset_failed_dev;
 		queue_work(nvme_workq, &dev->reset_work);
 		ret = 0;
 	}
@@ -3159,8 +3141,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto free;
 
 	INIT_LIST_HEAD(&dev->namespaces);
-	dev->reset_workfn = nvme_reset_failed_dev;
-	INIT_WORK(&dev->reset_work, nvme_reset_workfn);
+	INIT_WORK(&dev->reset_work, nvme_reset_failed_dev);
 	dev->dev = get_device(&pdev->dev);
 	pci_set_drvdata(pdev, dev);
 	result = nvme_set_instance(dev);
@@ -3223,7 +3204,7 @@ static void nvme_reset_notify(struct pci_dev *pdev, bool prepare)
 	if (prepare)
 		nvme_dev_shutdown(dev);
 	else
-		nvme_dev_resume(dev);
+		schedule_work(&dev->probe_work);
 }
 
 static void nvme_shutdown(struct pci_dev *pdev)
@@ -3277,10 +3258,7 @@ static int nvme_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct nvme_dev *ndev = pci_get_drvdata(pdev);
 
-	if (nvme_dev_resume(ndev) && !work_busy(&ndev->reset_work)) {
-		ndev->reset_workfn = nvme_reset_failed_dev;
-		queue_work(nvme_workq, &ndev->reset_work);
-	}
+	schedule_work(&ndev->probe_work);
 	return 0;
 }
 #endif

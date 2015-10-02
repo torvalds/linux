@@ -104,7 +104,6 @@ struct nvme_dev {
 	struct list_head namespaces;
 	struct kref kref;
 	struct device *device;
-	work_func_t reset_workfn;
 	struct work_struct reset_work;
 	struct work_struct probe_work;
 	struct work_struct scan_work;
