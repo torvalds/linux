@@ -23,7 +23,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
-#include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
 
 /* set up by the platform code */
@@ -391,9 +390,6 @@ int __init twd_local_timer_register(struct twd_local_timer *tlt)
 static void __init twd_local_timer_of_register(struct device_node *np)
 {
 	int err;
-
-	if (!is_smp() || !setup_max_cpus)
-		return;
 
 	twd_ppi = irq_of_parse_and_map(np, 0);
 	if (!twd_ppi) {
