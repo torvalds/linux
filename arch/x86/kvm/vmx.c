@@ -8617,17 +8617,22 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	u64 ipat = 0;
 
 	/* For VT-d and EPT combination
-	 * 1. MMIO: guest may want to apply WC, trust it.
+	 * 1. MMIO: always map as UC
 	 * 2. EPT with VT-d:
 	 *   a. VT-d without snooping control feature: can't guarantee the
-	 *	result, try to trust guest.  So the same as item 1.
+	 *	result, try to trust guest.
 	 *   b. VT-d with snooping control feature: snooping control feature of
 	 *	VT-d engine can guarantee the cache correctness. Just set it
 	 *	to WB to keep consistent with host. So the same as item 3.
 	 * 3. EPT without VT-d: always map as WB and set IPAT=1 to keep
 	 *    consistent with host MTRR
 	 */
-	if (!is_mmio && !kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
+	if (is_mmio) {
+		cache = MTRR_TYPE_UNCACHABLE;
+		goto exit;
+	}
+
+	if (!kvm_arch_has_noncoherent_dma(vcpu->kvm)) {
 		ipat = VMX_EPT_IPAT_BIT;
 		cache = MTRR_TYPE_WRBACK;
 		goto exit;
