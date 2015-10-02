@@ -97,7 +97,7 @@ struct p2p_mgmt_data {
 /*Global variable used to state the current  connected STA channel*/
 u8 u8WLANChannel = INVALID_CHANNEL;
 
-u8 u8CurrChannel;
+u8 curr_channel;
 
 u8 u8P2P_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 u8 u8P2Plocalrandom = 0x01;
@@ -670,7 +670,7 @@ static int set_channel(struct wiphy *wiphy,
 	channelnum = ieee80211_frequency_to_channel(chandef->chan->center_freq);
 	PRINT_D(CFG80211_DBG, "Setting channel %d with frequency %d\n", channelnum, chandef->chan->center_freq);
 
-	u8CurrChannel = channelnum;
+	curr_channel = channelnum;
 	result = host_int_set_mac_chnl_num(priv->hWILCWFIDrv, channelnum);
 
 	if (result != 0)
@@ -996,7 +996,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	PRINT_INFO(CFG80211_DBG, "Group encryption value = %s\n Cipher Group = %s\n WPA version = %s\n",
 		   pcgroup_encrypt_val, pccipher_group, pcwpa_version);
 
-	u8CurrChannel = pstrNetworkInfo->u8channel;
+	curr_channel = pstrNetworkInfo->u8channel;
 
 	if (!pstrWFIDrv->u8P2PConnect) {
 		u8WLANChannel = pstrNetworkInfo->u8channel;
@@ -2093,7 +2093,7 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 		PRINT_D(GENERIC_DBG, "Rx Frame Type:%x\n", buff[FRAME_TYPE_ID]);
 
 		/*Upper layer is informed that the frame is received on this freq*/
-		s32Freq = ieee80211_channel_to_frequency(u8CurrChannel, IEEE80211_BAND_2GHZ);
+		s32Freq = ieee80211_channel_to_frequency(curr_channel, IEEE80211_BAND_2GHZ);
 
 		if (ieee80211_is_action(buff[FRAME_TYPE_ID])) {
 			PRINT_D(GENERIC_DBG, "Rx Action Frame Type: %x %x\n", buff[ACTION_SUBTYPE_ID], buff[P2P_PUB_ACTION_SUBTYPE]);
@@ -2273,7 +2273,7 @@ static int remain_on_channel(struct wiphy *wiphy,
 		return s32Error;
 	}
 
-	u8CurrChannel = chan->hw_value;
+	curr_channel = chan->hw_value;
 
 	/*Setting params needed by WILC_WFI_RemainOnChannelExpired()*/
 	priv->strRemainOnChanParams.pstrListenChan = chan;
@@ -2394,7 +2394,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 			PRINT_D(GENERIC_DBG, "Setting channel: %d\n", chan->hw_value);
 			host_int_set_mac_chnl_num(priv->hWILCWFIDrv, chan->hw_value);
 			/*Save the current channel after we tune to it*/
-			u8CurrChannel = chan->hw_value;
+			curr_channel = chan->hw_value;
 		} else if (ieee80211_is_action(mgmt->frame_control))   {
 			PRINT_D(GENERIC_DBG, "ACTION FRAME:%x\n", (u16)mgmt->frame_control);
 
@@ -2409,7 +2409,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 					PRINT_D(GENERIC_DBG, "Setting channel: %d\n", chan->hw_value);
 					host_int_set_mac_chnl_num(priv->hWILCWFIDrv, chan->hw_value);
 					/*Save the current channel after we tune to it*/
-					u8CurrChannel = chan->hw_value;
+					curr_channel = chan->hw_value;
 				}
 				switch (buf[ACTION_SUBTYPE_ID])	{
 				case GAS_INTIAL_REQ:
