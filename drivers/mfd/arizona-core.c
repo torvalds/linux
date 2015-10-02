@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
@@ -965,7 +966,8 @@ int arizona_dev_init(struct arizona *arizona)
 	const char *type_name;
 	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
-	int ret, i;
+	const struct mfd_cell *subdevs = NULL;
+	int n_subdevs, ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
@@ -1136,6 +1138,8 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 		apply_patch = wm5102_patch;
 		arizona->rev &= 0x7;
+		subdevs = wm5102_devs;
+		n_subdevs = ARRAY_SIZE(wm5102_devs);
 		break;
 #endif
 #ifdef CONFIG_MFD_WM5110
@@ -1155,6 +1159,8 @@ int arizona_dev_init(struct arizona *arizona)
 			break;
 		}
 		apply_patch = wm5110_patch;
+		subdevs = wm5110_devs;
+		n_subdevs = ARRAY_SIZE(wm5110_devs);
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8997
@@ -1166,6 +1172,8 @@ int arizona_dev_init(struct arizona *arizona)
 			arizona->type = WM8997;
 		}
 		apply_patch = wm8997_patch;
+		subdevs = wm8997_devs;
+		n_subdevs = ARRAY_SIZE(wm8997_devs);
 		break;
 #endif
 #ifdef CONFIG_MFD_WM8998
@@ -1187,6 +1195,8 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 
 		apply_patch = wm8998_patch;
+		subdevs = wm8998_devs;
+		n_subdevs = ARRAY_SIZE(wm8998_devs);
 		break;
 #endif
 	default:
@@ -1379,28 +1389,10 @@ int arizona_dev_init(struct arizona *arizona)
 	arizona_request_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, "Underclocked",
 			    arizona_underclocked, arizona);
 
-	switch (arizona->type) {
-	case WM5102:
-		ret = mfd_add_devices(arizona->dev, -1, wm5102_devs,
-				      ARRAY_SIZE(wm5102_devs), NULL, 0, NULL);
-		break;
-	case WM5110:
-	case WM8280:
-		ret = mfd_add_devices(arizona->dev, -1, wm5110_devs,
-				      ARRAY_SIZE(wm5110_devs), NULL, 0, NULL);
-		break;
-	case WM8997:
-		ret = mfd_add_devices(arizona->dev, -1, wm8997_devs,
-				      ARRAY_SIZE(wm8997_devs), NULL, 0, NULL);
-		break;
-	case WM8998:
-	case WM1814:
-		ret = mfd_add_devices(arizona->dev, -1, wm8998_devs,
-				      ARRAY_SIZE(wm8998_devs), NULL, 0, NULL);
-		break;
-	}
+	ret = mfd_add_devices(arizona->dev, PLATFORM_DEVID_NONE,
+			      subdevs, n_subdevs, NULL, 0, NULL);
 
-	if (ret != 0) {
+	if (ret) {
 		dev_err(arizona->dev, "Failed to add subdevices: %d\n", ret);
 		goto err_irq;
 	}
