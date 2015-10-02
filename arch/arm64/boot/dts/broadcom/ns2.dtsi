@@ -44,7 +44,7 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		A57_0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 0>;
@@ -53,7 +53,7 @@
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
-		cpu@1 {
+		A57_1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 1>;
@@ -62,7 +62,7 @@
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
-		cpu@2 {
+		A57_2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 2>;
@@ -71,7 +71,7 @@
 			next-level-cache = <&CLUSTER0_L2>;
 		};
 
-		cpu@3 {
+		A57_3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0 3>;
@@ -95,6 +95,18 @@
 			      IRQ_TYPE_EDGE_RISING)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_RAW(0xff) |
 			      IRQ_TYPE_EDGE_RISING)>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&A57_0>,
+				     <&A57_1>,
+				     <&A57_2>,
+				     <&A57_3>;
 	};
 
 	soc: soc {
