@@ -1232,6 +1232,9 @@ struct btrfs_free_cluster {
 	/* first extent starting offset */
 	u64 window_start;
 
+	/* We did a full search and couldn't create a cluster */
+	bool fragmented;
+
 	struct btrfs_block_group_cache *block_group;
 	/*
 	 * when a cluster is allocated from a block group, we put the

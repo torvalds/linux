@@ -6142,6 +6142,34 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	update_global_block_rsv(fs_info);
 }
 
+/*
+ * Returns the free cluster for the given space info and sets empty_cluster to
+ * what it should be based on the mount options.
+ */
+static struct btrfs_free_cluster *
+fetch_cluster_info(struct btrfs_root *root, struct btrfs_space_info *space_info,
+		   u64 *empty_cluster)
+{
+	struct btrfs_free_cluster *ret = NULL;
+	bool ssd = btrfs_test_opt(root, SSD);
+
+	*empty_cluster = 0;
+	if (btrfs_mixed_space_info(space_info))
+		return ret;
+
+	if (ssd)
+		*empty_cluster = 2 * 1024 * 1024;
+	if (space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
+		ret = &root->fs_info->meta_alloc_cluster;
+		if (!ssd)
+			*empty_cluster = 64 * 1024;
+	} else if ((space_info->flags & BTRFS_BLOCK_GROUP_DATA) && ssd) {
+		ret = &root->fs_info->data_alloc_cluster;
+	}
+
+	return ret;
+}
+
 static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 			      const bool return_free_space)
 {
@@ -6149,7 +6177,10 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 	struct btrfs_block_group_cache *cache = NULL;
 	struct btrfs_space_info *space_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+	struct btrfs_free_cluster *cluster = NULL;
 	u64 len;
+	u64 total_unpinned = 0;
+	u64 empty_cluster = 0;
 	bool readonly;
 
 	while (start <= end) {
@@ -6158,8 +6189,14 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		    start >= cache->key.objectid + cache->key.offset) {
 			if (cache)
 				btrfs_put_block_group(cache);
+			total_unpinned = 0;
 			cache = btrfs_lookup_block_group(fs_info, start);
 			BUG_ON(!cache); /* Logic error */
+
+			cluster = fetch_cluster_info(root,
+						     cache->space_info,
+						     &empty_cluster);
+			empty_cluster <<= 1;
 		}
 
 		len = cache->key.objectid + cache->key.offset - start;
@@ -6172,7 +6209,21 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 		}
 
 		start += len;
+		total_unpinned += len;
 		space_info = cache->space_info;
+
+		/*
+		 * If this space cluster has been marked as fragmented and we've
+		 * unpinned enough in this block group to potentially allow a
+		 * cluster to be created inside of it go ahead and clear the
+		 * fragmented check.
+		 */
+		if (cluster && cluster->fragmented &&
+		    total_unpinned > empty_cluster) {
+			spin_lock(&cluster->lock);
+			cluster->fragmented = 0;
+			spin_unlock(&cluster->lock);
+		}
 
 		spin_lock(&space_info->lock);
 		spin_lock(&cache->lock);
@@ -6911,7 +6962,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	struct btrfs_block_group_cache *block_group = NULL;
 	u64 search_start = 0;
 	u64 max_extent_size = 0;
-	int empty_cluster = 2 * 1024 * 1024;
+	u64 empty_cluster = 0;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
 	int index = __get_raid_index(flags);
@@ -6959,37 +7010,25 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 		spin_unlock(&space_info->lock);
 	}
 
-	/*
-	 * If the space info is for both data and metadata it means we have a
-	 * small filesystem and we can't use the clustering stuff.
-	 */
-	if (btrfs_mixed_space_info(space_info))
-		use_cluster = false;
-
-	if (flags & BTRFS_BLOCK_GROUP_METADATA && use_cluster) {
-		last_ptr = &root->fs_info->meta_alloc_cluster;
-		if (!btrfs_test_opt(root, SSD))
-			empty_cluster = 64 * 1024;
-	}
-
-	if ((flags & BTRFS_BLOCK_GROUP_DATA) && use_cluster &&
-	    btrfs_test_opt(root, SSD)) {
-		last_ptr = &root->fs_info->data_alloc_cluster;
-	}
-
+	last_ptr = fetch_cluster_info(orig_root, space_info, &empty_cluster);
 	if (last_ptr) {
 		spin_lock(&last_ptr->lock);
 		if (last_ptr->block_group)
 			hint_byte = last_ptr->window_start;
+		if (last_ptr->fragmented) {
+			/*
+			 * We still set window_start so we can keep track of the
+			 * last place we found an allocation to try and save
+			 * some time.
+			 */
+			hint_byte = last_ptr->window_start;
+			use_cluster = false;
+		}
 		spin_unlock(&last_ptr->lock);
 	}
 
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
-
-	if (!last_ptr)
-		empty_cluster = 0;
-
 	if (search_start == hint_byte) {
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
@@ -7074,7 +7113,7 @@ have_block_group:
 		 * Ok we want to try and use the cluster allocator, so
 		 * lets look there
 		 */
-		if (last_ptr) {
+		if (last_ptr && use_cluster) {
 			struct btrfs_block_group_cache *used_block_group;
 			unsigned long aligned_cluster;
 			/*
@@ -7200,6 +7239,16 @@ refill_cluster:
 		}
 
 unclustered_alloc:
+		/*
+		 * We are doing an unclustered alloc, set the fragmented flag so
+		 * we don't bother trying to setup a cluster again until we get
+		 * more space.
+		 */
+		if (unlikely(last_ptr)) {
+			spin_lock(&last_ptr->lock);
+			last_ptr->fragmented = 1;
+			spin_unlock(&last_ptr->lock);
+		}
 		spin_lock(&block_group->free_space_ctl->tree_lock);
 		if (cached &&
 		    block_group->free_space_ctl->free_space <
@@ -7361,6 +7410,11 @@ loop:
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
 	} else if (ins->objectid) {
+		if (!use_cluster && last_ptr) {
+			spin_lock(&last_ptr->lock);
+			last_ptr->window_start = ins->objectid;
+			spin_unlock(&last_ptr->lock);
+		}
 		ret = 0;
 	}
 out:
