@@ -35,7 +35,6 @@ static struct dentry *lowpan_enable_debugfs;
 static struct dentry *lowpan_control_debugfs;
 
 #define IFACE_NAME_TEMPLATE "bt%d"
-#define EUI64_ADDR_LEN 8
 
 struct skb_cb {
 	struct in6_addr addr;
@@ -674,13 +673,8 @@ static struct header_ops header_ops = {
 
 static void netdev_setup(struct net_device *dev)
 {
-	dev->addr_len		= EUI64_ADDR_LEN;
-	dev->type		= ARPHRD_6LOWPAN;
-
 	dev->hard_header_len	= 0;
 	dev->needed_tailroom	= 0;
-	dev->mtu		= IPV6_MIN_MTU;
-	dev->tx_queue_len	= 0;
 	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT |
 				  IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;

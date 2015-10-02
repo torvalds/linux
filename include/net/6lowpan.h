@@ -61,6 +61,8 @@
 #define UIP_PROTO_UDP			17 /* ipv6 next header value for UDP */
 #define UIP_FRAGH_LEN			8  /* ipv6 fragment header size */
 
+#define EUI64_ADDR_LEN		8
+
 #define LOWPAN_NHC_MAX_ID_LEN	1
 /* Max IPHC Header len without IPv6 hdr specific inline data.
  * Useful for getting the "extra" bytes we need at worst case compression.
