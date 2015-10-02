@@ -125,9 +125,6 @@ extern int sysctl_max_syn_backlog;
  */
 struct listen_sock {
 	u32			max_qlen_log;
-	u32			hash_rnd;
-	u32			nr_table_entries;
-	struct request_sock	*syn_table[0];
 };
 
 /*

@@ -46,18 +46,11 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 	nr_table_entries = min_t(u32, nr_table_entries, sysctl_max_syn_backlog);
 	nr_table_entries = max_t(u32, nr_table_entries, 8);
 	nr_table_entries = roundup_pow_of_two(nr_table_entries + 1);
-	lopt_size += nr_table_entries * sizeof(struct request_sock *);
 
-	if (lopt_size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
-		lopt = kzalloc(lopt_size, GFP_KERNEL |
-					  __GFP_NOWARN |
-					  __GFP_NORETRY);
-	if (!lopt)
-		lopt = vzalloc(lopt_size);
+	lopt = kzalloc(lopt_size, GFP_KERNEL);
 	if (!lopt)
 		return -ENOMEM;
 
-	get_random_bytes(&lopt->hash_rnd, sizeof(lopt->hash_rnd));
 	spin_lock_init(&queue->rskq_lock);
 	spin_lock_init(&queue->syn_wait_lock);
 
@@ -68,7 +61,6 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 	queue->fastopenq.max_qlen = 0;
 
 	queue->rskq_accept_head = NULL;
-	lopt->nr_table_entries = nr_table_entries;
 	lopt->max_qlen_log = ilog2(nr_table_entries);
 
 	spin_lock_bh(&queue->syn_wait_lock);
@@ -81,7 +73,7 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 void __reqsk_queue_destroy(struct request_sock_queue *queue)
 {
 	/* This is an error recovery path only, no locking needed */
-	kvfree(queue->listen_opt);
+	kfree(queue->listen_opt);
 }
 
 static inline struct listen_sock *reqsk_queue_yank_listen_sk(
@@ -102,7 +94,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
 
 	/* cleaning is done by req timers */
-	kvfree(lopt);
+	kfree(lopt);
 }
 
 /*
