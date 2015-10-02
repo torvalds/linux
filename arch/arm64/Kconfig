@@ -454,12 +454,8 @@ config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
 
 config HW_PERF_EVENTS
-	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS
-	default y
-	help
-	  Enable hardware performance counter support for perf events. If
-	  disabled, perf events will use software events only.
+	def_bool y
+	depends on ARM_PMU
 
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
