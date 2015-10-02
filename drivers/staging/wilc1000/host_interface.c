@@ -5344,7 +5344,7 @@ int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *wfi_drv, u8 channel)
 
 int host_int_wait_msg_queue_idle(void)
 {
-	int s32Error = 0;
+	int result = 0;
 
 	struct host_if_msg msg;
 
@@ -5352,16 +5352,16 @@ int host_int_wait_msg_queue_idle(void)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_Q_IDLE;
-	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
-	if (s32Error) {
+	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
+	if (result) {
 		PRINT_ER("wilc mq send fail\n");
-		s32Error = -EINVAL;
+		result = -EINVAL;
 	}
 
 	/* wait untill MSG Q is empty */
 	down(&hWaitResponse);
 
-	return s32Error;
+	return result;
 
 }
 
