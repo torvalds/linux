@@ -113,7 +113,6 @@ struct obd_device *class_incref(struct obd_device *obd,
 				const char *scope, const void *source);
 void class_decref(struct obd_device *obd,
 		  const char *scope, const void *source);
-void dump_exports(struct obd_device *obd, int locks);
 int class_config_llog_handler(const struct lu_env *env,
 			      struct llog_handle *handle,
 			      struct llog_rec_hdr *rec, void *data);
