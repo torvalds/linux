@@ -183,7 +183,6 @@ typedef struct {
 	struct task_struct *txq_thread;
 
 	unsigned char eth_src_address[NUM_CONCURRENT_IFC][6];
-	/* unsigned char eth_dst_address[6]; */
 
 	const struct firmware *wilc_firmware;
 

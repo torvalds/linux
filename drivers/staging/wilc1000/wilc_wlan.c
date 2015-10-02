@@ -142,7 +142,6 @@ static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 {
 
 	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
-	/* unsigned long flags; */
 	if (tqe == p->txq_head)	{
 
 		p->txq_head = tqe->next;
@@ -849,8 +848,6 @@ int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 		i = 0;
 		sum = 0;
 		do {
-			/* if ((tqe != NULL) && (i < (8)) && */
-			/* if ((tqe != NULL) && (i < (WILC_VMM_TBL_SIZE-1)) && */
 			if ((tqe != NULL) && (i < (WILC_VMM_TBL_SIZE - 1)) /* reserve last entry to 0 */) {
 
 				if (tqe->type == WILC_CFG_PKT) {
@@ -973,7 +970,6 @@ int wilc_wlan_handle_txq(u32 *pu32TxqCount)
 					 *      Get the entries
 					 **/
 					entries = ((reg >> 3) & 0x3f);
-					/* entries = ((reg>>3)&0x2f); */
 					break;
 				} else {
 					release_bus(RELEASE_ALLOW_SLEEP);

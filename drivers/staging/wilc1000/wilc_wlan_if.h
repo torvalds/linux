@@ -10,9 +10,6 @@
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
 
-/* #define MEMORY_STATIC */
-/* #define USE_OLD_SPI_SW */
-
 #include <linux/semaphore.h>
 #include "linux_wlan_common.h"
 

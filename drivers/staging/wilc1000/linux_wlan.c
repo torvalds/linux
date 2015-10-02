@@ -1879,9 +1879,6 @@ static void __exit exit_wilc_driver(void)
 		}
 	}
 
-	/* WILC_WFI_deinit_mon_interface(); */
-
-	/* if(g_linux_wlan->open_ifcs==0) */
 	{
 	#ifndef WILC_SDIO
 		PRINT_D(INIT_DBG, "SPI unregsiter...\n");
