@@ -1,6 +1,7 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
- *    Copyright 2000, 2014 Hewlett-Packard Development Company, L.P.
+ *    Copyright 2014-2015 PMC-Sierra, Inc.
+ *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -11,11 +12,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *    Questions/Comments/Bugfixes to iss_storagedev@hp.com
+ *    Questions/Comments/Bugfixes to storagedev@pmcs.com
  *
  */
 
@@ -132,6 +129,11 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSI,     0x103C, 0x21CD},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSI,     0x103C, 0x21CE},
 	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0580},
+	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0581},
+	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0582},
+	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0583},
+	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0584},
+	{PCI_VENDOR_ID_ADAPTEC2, 0x0290, 0x9005, 0x0585},
 	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x0076},
 	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x0087},
 	{PCI_VENDOR_ID_HP_3PAR, 0x0075, 0x1590, 0x007D},
@@ -190,6 +192,11 @@ static struct board_type products[] = {
 	{0x21CD103C, "Smart Array", &SA5_access},
 	{0x21CE103C, "Smart HBA", &SA5_access},
 	{0x05809005, "SmartHBA-SA", &SA5_access},
+	{0x05819005, "SmartHBA-SA 8i", &SA5_access},
+	{0x05829005, "SmartHBA-SA 8i8e", &SA5_access},
+	{0x05839005, "SmartHBA-SA 8e", &SA5_access},
+	{0x05849005, "SmartHBA-SA 16i", &SA5_access},
+	{0x05859005, "SmartHBA-SA 4i4e", &SA5_access},
 	{0x00761590, "HP Storage P1224 Array Controller", &SA5_access},
 	{0x00871590, "HP Storage P1224e Array Controller", &SA5_access},
 	{0x007D1590, "HP Storage P1228 Array Controller", &SA5_access},
@@ -267,6 +274,7 @@ static int hpsa_scsi_ioaccel_queue_command(struct ctlr_info *h,
 static void hpsa_command_resubmit_worker(struct work_struct *work);
 static u32 lockup_detected(struct ctlr_info *h);
 static int detect_controller_lockup(struct ctlr_info *h);
+static int is_ext_target(struct ctlr_info *h, struct hpsa_scsi_dev_t *device);
 
 static inline struct ctlr_info *sdev_to_hba(struct scsi_device *sdev)
 {
@@ -325,7 +333,7 @@ static int check_for_unit_attention(struct ctlr_info *h,
 
 	decode_sense_data(c->err_info->SenseInfo, sense_len,
 				&sense_key, &asc, &ascq);
-	if (sense_key != UNIT_ATTENTION || asc == -1)
+	if (sense_key != UNIT_ATTENTION || asc == 0xff)
 		return 0;
 
 	switch (asc) {
@@ -717,12 +725,107 @@ static ssize_t host_show_hp_ssd_smart_path_enabled(struct device *dev,
 	return snprintf(buf, 20, "%d\n", offload_enabled);
 }
 
+#define MAX_PATHS 8
+#define PATH_STRING_LEN 50
+
+static ssize_t path_info_show(struct device *dev,
+	     struct device_attribute *attr, char *buf)
+{
+	struct ctlr_info *h;
+	struct scsi_device *sdev;
+	struct hpsa_scsi_dev_t *hdev;
+	unsigned long flags;
+	int i;
+	int output_len = 0;
+	u8 box;
+	u8 bay;
+	u8 path_map_index = 0;
+	char *active;
+	unsigned char phys_connector[2];
+	unsigned char path[MAX_PATHS][PATH_STRING_LEN];
+
+	memset(path, 0, MAX_PATHS * PATH_STRING_LEN);
+	sdev = to_scsi_device(dev);
+	h = sdev_to_hba(sdev);
+	spin_lock_irqsave(&h->devlock, flags);
+	hdev = sdev->hostdata;
+	if (!hdev) {
+		spin_unlock_irqrestore(&h->devlock, flags);
+		return -ENODEV;
+	}
+
+	bay = hdev->bay;
+	for (i = 0; i < MAX_PATHS; i++) {
+		path_map_index = 1<<i;
+		if (i == hdev->active_path_index)
+			active = "Active";
+		else if (hdev->path_map & path_map_index)
+			active = "Inactive";
+		else
+			continue;
+
+		output_len = snprintf(path[i],
+				PATH_STRING_LEN, "[%d:%d:%d:%d] %20.20s ",
+				h->scsi_host->host_no,
+				hdev->bus, hdev->target, hdev->lun,
+				scsi_device_type(hdev->devtype));
+
+		if (is_ext_target(h, hdev) ||
+			(hdev->devtype == TYPE_RAID) ||
+			is_logical_dev_addr_mode(hdev->scsi3addr)) {
+			output_len += snprintf(path[i] + output_len,
+						PATH_STRING_LEN, "%s\n",
+						active);
+			continue;
+		}
+
+		box = hdev->box[i];
+		memcpy(&phys_connector, &hdev->phys_connector[i],
+			sizeof(phys_connector));
+		if (phys_connector[0] < '0')
+			phys_connector[0] = '0';
+		if (phys_connector[1] < '0')
+			phys_connector[1] = '0';
+		if (hdev->phys_connector[i] > 0)
+			output_len += snprintf(path[i] + output_len,
+				PATH_STRING_LEN,
+				"PORT: %.2s ",
+				phys_connector);
+		if (hdev->devtype == TYPE_DISK &&
+			hdev->expose_state != HPSA_DO_NOT_EXPOSE) {
+			if (box == 0 || box == 0xFF) {
+				output_len += snprintf(path[i] + output_len,
+					PATH_STRING_LEN,
+					"BAY: %hhu %s\n",
+					bay, active);
+			} else {
+				output_len += snprintf(path[i] + output_len,
+					PATH_STRING_LEN,
+					"BOX: %hhu BAY: %hhu %s\n",
+					box, bay, active);
+			}
+		} else if (box != 0 && box != 0xFF) {
+			output_len += snprintf(path[i] + output_len,
+				PATH_STRING_LEN, "BOX: %hhu %s\n",
+				box, active);
+		} else
+			output_len += snprintf(path[i] + output_len,
+				PATH_STRING_LEN, "%s\n", active);
+	}
+
+	spin_unlock_irqrestore(&h->devlock, flags);
+	return snprintf(buf, output_len+1, "%s%s%s%s%s%s%s%s",
+		path[0], path[1], path[2], path[3],
+		path[4], path[5], path[6], path[7]);
+}
+
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
 static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
 static DEVICE_ATTR(unique_id, S_IRUGO, unique_id_show, NULL);
 static DEVICE_ATTR(rescan, S_IWUSR, NULL, host_store_rescan);
 static DEVICE_ATTR(hp_ssd_smart_path_enabled, S_IRUGO,
 			host_show_hp_ssd_smart_path_enabled, NULL);
+static DEVICE_ATTR(path_info, S_IRUGO, path_info_show, NULL);
 static DEVICE_ATTR(hp_ssd_smart_path_status, S_IWUSR|S_IRUGO|S_IROTH,
 		host_show_hp_ssd_smart_path_status,
 		host_store_hp_ssd_smart_path_status);
@@ -744,6 +847,7 @@ static struct device_attribute *hpsa_sdev_attrs[] = {
 	&dev_attr_lunid,
 	&dev_attr_unique_id,
 	&dev_attr_hp_ssd_smart_path_enabled,
+	&dev_attr_path_info,
 	&dev_attr_lockup_detected,
 	NULL,
 };
@@ -1083,17 +1187,19 @@ static int hpsa_scsi_add_entry(struct ctlr_info *h, int hostno,
 
 	/* This is a non-zero lun of a multi-lun device.
 	 * Search through our list and find the device which
-	 * has the same 8 byte LUN address, excepting byte 4.
+	 * has the same 8 byte LUN address, excepting byte 4 and 5.
 	 * Assign the same bus and target for this new LUN.
 	 * Use the logical unit number from the firmware.
 	 */
 	memcpy(addr1, device->scsi3addr, 8);
 	addr1[4] = 0;
+	addr1[5] = 0;
 	for (i = 0; i < n; i++) {
 		sd = h->dev[i];
 		memcpy(addr2, sd->scsi3addr, 8);
 		addr2[4] = 0;
-		/* differ only in byte 4? */
+		addr2[5] = 0;
+		/* differ only in byte 4 and 5? */
 		if (memcmp(addr1, addr2, 8) == 0) {
 			device->bus = sd->bus;
 			device->target = sd->target;
@@ -1286,8 +1392,9 @@ static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
 		return 1;
 	if (dev1->offload_enabled != dev2->offload_enabled)
 		return 1;
-	if (dev1->queue_depth != dev2->queue_depth)
-		return 1;
+	if (!is_logical_dev_addr_mode(dev1->scsi3addr))
+		if (dev1->queue_depth != dev2->queue_depth)
+			return 1;
 	return 0;
 }
 
@@ -1376,17 +1483,23 @@ static void hpsa_show_volume_status(struct ctlr_info *h,
 			h->scsi_host->host_no,
 			sd->bus, sd->target, sd->lun);
 		break;
+	case HPSA_LV_NOT_AVAILABLE:
+		dev_info(&h->pdev->dev,
+			"C%d:B%d:T%d:L%d Volume is waiting for transforming volume.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
+		break;
 	case HPSA_LV_UNDERGOING_RPI:
 		dev_info(&h->pdev->dev,
-			"C%d:B%d:T%d:L%d Volume is undergoing rapid parity initialization process.\n",
+			"C%d:B%d:T%d:L%d Volume is undergoing rapid parity init.\n",
 			h->scsi_host->host_no,
 			sd->bus, sd->target, sd->lun);
 		break;
 	case HPSA_LV_PENDING_RPI:
 		dev_info(&h->pdev->dev,
-				"C%d:B%d:T%d:L%d Volume is queued for rapid parity initialization process.\n",
-				h->scsi_host->host_no,
-				sd->bus, sd->target, sd->lun);
+			"C%d:B%d:T%d:L%d Volume is queued for rapid parity initialization process.\n",
+			h->scsi_host->host_no,
+			sd->bus, sd->target, sd->lun);
 		break;
 	case HPSA_LV_ENCRYPTED_NO_KEY:
 		dev_info(&h->pdev->dev,
@@ -2585,34 +2698,6 @@ out:
 	return rc;
 }
 
-static int hpsa_bmic_ctrl_mode_sense(struct ctlr_info *h,
-		unsigned char *scsi3addr, unsigned char page,
-		struct bmic_controller_parameters *buf, size_t bufsize)
-{
-	int rc = IO_OK;
-	struct CommandList *c;
-	struct ErrorInfo *ei;
-
-	c = cmd_alloc(h);
-	if (fill_cmd(c, BMIC_SENSE_CONTROLLER_PARAMETERS, h, buf, bufsize,
-			page, scsi3addr, TYPE_CMD)) {
-		rc = -1;
-		goto out;
-	}
-	rc = hpsa_scsi_do_simple_cmd_with_retry(h, c,
-			PCI_DMA_FROMDEVICE, NO_TIMEOUT);
-	if (rc)
-		goto out;
-	ei = c->err_info;
-	if (ei->CommandStatus != 0 && ei->CommandStatus != CMD_DATA_UNDERRUN) {
-		hpsa_scsi_interpret_error(h, c);
-		rc = -1;
-	}
-out:
-	cmd_free(h, c);
-	return rc;
-}
-
 static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr,
 	u8 reset_type, int reply_queue)
 {
@@ -2749,11 +2834,10 @@ static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
 			lockup_detected(h));
 
 	if (unlikely(lockup_detected(h))) {
-			dev_warn(&h->pdev->dev,
-				 "Controller lockup detected during reset wait\n");
-			mutex_unlock(&h->reset_mutex);
-			rc = -ENODEV;
-		}
+		dev_warn(&h->pdev->dev,
+			 "Controller lockup detected during reset wait\n");
+		rc = -ENODEV;
+	}
 
 	if (unlikely(rc))
 		atomic_set(&dev->reset_cmds_out, 0);
@@ -3186,6 +3270,7 @@ static int hpsa_volume_offline(struct ctlr_info *h,
 	/* Keep volume offline in certain cases: */
 	switch (ldstat) {
 	case HPSA_LV_UNDERGOING_ERASE:
+	case HPSA_LV_NOT_AVAILABLE:
 	case HPSA_LV_UNDERGOING_RPI:
 	case HPSA_LV_PENDING_RPI:
 	case HPSA_LV_ENCRYPTED_NO_KEY:
@@ -3562,29 +3647,6 @@ static u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position,
 	return NULL;
 }
 
-static int hpsa_hba_mode_enabled(struct ctlr_info *h)
-{
-	int rc;
-	int hba_mode_enabled;
-	struct bmic_controller_parameters *ctlr_params;
-	ctlr_params = kzalloc(sizeof(struct bmic_controller_parameters),
-		GFP_KERNEL);
-
-	if (!ctlr_params)
-		return -ENOMEM;
-	rc = hpsa_bmic_ctrl_mode_sense(h, RAID_CTLR_LUNID, 0, ctlr_params,
-		sizeof(struct bmic_controller_parameters));
-	if (rc) {
-		kfree(ctlr_params);
-		return rc;
-	}
-
-	hba_mode_enabled =
-		((ctlr_params->nvram_flags & HBA_MODE_ENABLED_FLAG) != 0);
-	kfree(ctlr_params);
-	return hba_mode_enabled;
-}
-
 /* get physical drive ioaccel handle and queue depth */
 static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 		struct hpsa_scsi_dev_t *dev,
@@ -3615,6 +3677,31 @@ static void hpsa_get_ioaccel_drive_info(struct ctlr_info *h,
 	atomic_set(&dev->reset_cmds_out, 0);
 }
 
+static void hpsa_get_path_info(struct hpsa_scsi_dev_t *this_device,
+	u8 *lunaddrbytes,
+	struct bmic_identify_physical_device *id_phys)
+{
+	if (PHYS_IOACCEL(lunaddrbytes)
+		&& this_device->ioaccel_handle)
+		this_device->hba_ioaccel_enabled = 1;
+
+	memcpy(&this_device->active_path_index,
+		&id_phys->active_path_number,
+		sizeof(this_device->active_path_index));
+	memcpy(&this_device->path_map,
+		&id_phys->redundant_path_present_map,
+		sizeof(this_device->path_map));
+	memcpy(&this_device->box,
+		&id_phys->alternate_paths_phys_box_on_port,
+		sizeof(this_device->box));
+	memcpy(&this_device->phys_connector,
+		&id_phys->alternate_paths_phys_connector,
+		sizeof(this_device->phys_connector));
+	memcpy(&this_device->bay,
+		&id_phys->phys_bay_in_box,
+		sizeof(this_device->bay));
+}
+
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 {
 	/* the idea here is we could get notified
@@ -3637,7 +3724,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	int ncurrent = 0;
 	int i, n_ext_target_devs, ndevs_to_allocate;
 	int raid_ctlr_position;
-	int rescan_hba_mode;
 	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
@@ -3652,17 +3738,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		goto out;
 	}
 	memset(lunzerobits, 0, sizeof(lunzerobits));
-
-	rescan_hba_mode = hpsa_hba_mode_enabled(h);
-	if (rescan_hba_mode < 0)
-		goto out;
-
-	if (!h->hba_mode_enabled && rescan_hba_mode)
-		dev_warn(&h->pdev->dev, "HBA mode enabled\n");
-	else if (h->hba_mode_enabled && !rescan_hba_mode)
-		dev_warn(&h->pdev->dev, "HBA mode disabled\n");
-
-	h->hba_mode_enabled = rescan_hba_mode;
 
 	if (hpsa_gather_lun_info(h, physdev_list, &nphysicals,
 			logdev_list, &nlogicals))
@@ -3739,9 +3814,6 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		/* do not expose masked devices */
 		if (MASKED_DEVICE(lunaddrbytes) &&
 			i < nphysicals + (raid_ctlr_position == 0)) {
-			if (h->hba_mode_enabled)
-				dev_warn(&h->pdev->dev,
-					"Masked physical device detected\n");
 			this_device->expose_state = HPSA_DO_NOT_EXPOSE;
 		} else {
 			this_device->expose_state =
@@ -3761,30 +3833,21 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 				ncurrent++;
 			break;
 		case TYPE_DISK:
-			if (i >= nphysicals) {
-				ncurrent++;
-				break;
-			}
-
-			if (h->hba_mode_enabled)
-				/* never use raid mapper in HBA mode */
+			if (i < nphysicals + (raid_ctlr_position == 0)) {
+				/* The disk is in HBA mode. */
+				/* Never use RAID mapper in HBA mode. */
 				this_device->offload_enabled = 0;
-			else if (!(h->transMethod & CFGTBL_Trans_io_accel1 ||
-				h->transMethod & CFGTBL_Trans_io_accel2))
-				break;
-
-			hpsa_get_ioaccel_drive_info(h, this_device,
-						lunaddrbytes, id_phys);
-			atomic_set(&this_device->ioaccel_cmds_out, 0);
+				hpsa_get_ioaccel_drive_info(h, this_device,
+					lunaddrbytes, id_phys);
+				hpsa_get_path_info(this_device, lunaddrbytes,
+							id_phys);
+			}
 			ncurrent++;
 			break;
 		case TYPE_TAPE:
 		case TYPE_MEDIUM_CHANGER:
-			ncurrent++;
-			break;
 		case TYPE_ENCLOSURE:
-			if (h->hba_mode_enabled)
-				ncurrent++;
+			ncurrent++;
 			break;
 		case TYPE_RAID:
 			/* Only present the Smartarray HBA as a RAID controller.
@@ -5104,7 +5167,7 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	int rc;
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;
-	char msg[40];
+	char msg[48];
 
 	/* find the controller to which the command to be aborted was sent */
 	h = sdev_to_hba(scsicmd->device);
@@ -5122,16 +5185,18 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 
 	/* if controller locked up, we can guarantee command won't complete */
 	if (lockup_detected(h)) {
-		sprintf(msg, "cmd %d RESET FAILED, lockup detected",
-				hpsa_get_cmd_index(scsicmd));
+		snprintf(msg, sizeof(msg),
+			 "cmd %d RESET FAILED, lockup detected",
+			 hpsa_get_cmd_index(scsicmd));
 		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
 
 	/* this reset request might be the result of a lockup; check */
 	if (detect_controller_lockup(h)) {
-		sprintf(msg, "cmd %d RESET FAILED, new lockup detected",
-				hpsa_get_cmd_index(scsicmd));
+		snprintf(msg, sizeof(msg),
+			 "cmd %d RESET FAILED, new lockup detected",
+			 hpsa_get_cmd_index(scsicmd));
 		hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 		return FAILED;
 	}
@@ -5145,7 +5210,8 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	/* send a reset to the SCSI LUN which the command was sent to */
 	rc = hpsa_do_reset(h, dev, dev->scsi3addr, HPSA_RESET_TYPE_LUN,
 			   DEFAULT_REPLY_QUEUE);
-	sprintf(msg, "reset %s", rc == 0 ? "completed successfully" : "failed");
+	snprintf(msg, sizeof(msg), "reset %s",
+		 rc == 0 ? "completed successfully" : "failed");
 	hpsa_show_dev_msg(KERN_WARNING, h, dev, msg);
 	return rc == 0 ? SUCCESS : FAILED;
 }
@@ -7989,7 +8055,6 @@ reinit_after_soft_reset:
 
 	pci_set_drvdata(pdev, h);
 	h->ndevices = 0;
-	h->hba_mode_enabled = 0;
 
 	spin_lock_init(&h->devlock);
 	rc = hpsa_put_ctlr_into_performant_mode(h);
@@ -8054,7 +8119,7 @@ reinit_after_soft_reset:
 		rc = hpsa_kdump_soft_reset(h);
 		if (rc)
 			/* Neither hard nor soft reset worked, we're hosed. */
-			goto clean9;
+			goto clean7;
 
 		dev_info(&h->pdev->dev, "Board READY.\n");
 		dev_info(&h->pdev->dev,
@@ -8100,8 +8165,6 @@ reinit_after_soft_reset:
 				h->heartbeat_sample_interval);
 	return 0;
 
-clean9: /* wq, sh, perf, sg, cmd, irq, shost, pci, lu, aer/h */
-	kfree(h->hba_inquiry_data);
 clean7: /* perf, sg, cmd, irq, shost, pci, lu, aer/h */
 	hpsa_free_performant_mode(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
@@ -8209,6 +8272,14 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 	destroy_workqueue(h->rescan_ctlr_wq);
 	destroy_workqueue(h->resubmit_wq);
 
+	/*
+	 * Call before disabling interrupts.
+	 * scsi_remove_host can trigger I/O operations especially
+	 * when multipath is enabled. There can be SYNCHRONIZE CACHE
+	 * operations which cannot complete and will hang the system.
+	 */
+	if (h->scsi_host)
+		scsi_remove_host(h->scsi_host);		/* init_one 8 */
 	/* includes hpsa_free_irqs - init_one 4 */
 	/* includes hpsa_disable_interrupt_mode - pci_init 2 */
 	hpsa_shutdown(pdev);
@@ -8217,8 +8288,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 
 	kfree(h->hba_inquiry_data);			/* init_one 10 */
 	h->hba_inquiry_data = NULL;			/* init_one 10 */
-	if (h->scsi_host)
-		scsi_remove_host(h->scsi_host);		/* init_one 8 */
 	hpsa_free_ioaccel2_sg_chain_blocks(h);
 	hpsa_free_performant_mode(h);			/* init_one 7 */
 	hpsa_free_sg_chain_blocks(h);			/* init_one 6 */

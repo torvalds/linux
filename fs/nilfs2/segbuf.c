@@ -338,12 +338,11 @@ void nilfs_add_checksums_on_logs(struct list_head *logs, u32 seed)
 /*
  * BIO operations
  */
-static void nilfs_end_bio_write(struct bio *bio, int err)
+static void nilfs_end_bio_write(struct bio *bio)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (!uptodate)
+	if (bio->bi_error)
 		atomic_inc(&segbuf->sb_err);
 
 	bio_put(bio);
@@ -415,7 +414,7 @@ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
 {
 	wi->bio = NULL;
 	wi->rest_blocks = segbuf->sb_sum.nblocks;
-	wi->max_pages = bio_get_nr_vecs(wi->nilfs->ns_bdev);
+	wi->max_pages = BIO_MAX_PAGES;
 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
 	wi->start = wi->end = 0;
 	wi->blocknr = segbuf->sb_pseg_start;

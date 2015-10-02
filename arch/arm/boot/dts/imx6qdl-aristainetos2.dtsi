@@ -392,7 +392,7 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	cd-gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio1 27 GPIO_ACTIVE_LOW>;
 	no-1-8-v;
 	status = "okay";
 };
@@ -400,7 +400,7 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
 	no-1-8-v;
 	status = "okay";

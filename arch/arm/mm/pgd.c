@@ -84,6 +84,16 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		if (!new_pte)
 			goto no_pte;
 
+#ifndef CONFIG_ARM_LPAE
+		/*
+		 * Modify the PTE pointer to have the correct domain.  This
+		 * needs to be the vectors domain to avoid the low vectors
+		 * being unmapped.
+		 */
+		pmd_val(*new_pmd) &= ~PMD_DOMAIN_MASK;
+		pmd_val(*new_pmd) |= PMD_DOMAIN(DOMAIN_VECTORS);
+#endif
+
 		init_pud = pud_offset(init_pgd, 0);
 		init_pmd = pmd_offset(init_pud, 0);
 		init_pte = pte_offset_map(init_pmd, 0);

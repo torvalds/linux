@@ -22,6 +22,7 @@
 #include <linux/time.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
+#include <linux/dax.h>
 #include <linux/quotaops.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
@@ -1323,7 +1324,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 					     unsigned int offset,
 					     unsigned int length)
 {
-	int to_release = 0;
+	int to_release = 0, contiguous_blks = 0;
 	struct buffer_head *head, *bh;
 	unsigned int curr_off = 0;
 	struct inode *inode = page->mapping->host;
@@ -1344,14 +1345,23 @@ static void ext4_da_page_release_reservation(struct page *page,
 
 		if ((offset <= curr_off) && (buffer_delay(bh))) {
 			to_release++;
+			contiguous_blks++;
 			clear_buffer_delay(bh);
+		} else if (contiguous_blks) {
+			lblk = page->index <<
+			       (PAGE_CACHE_SHIFT - inode->i_blkbits);
+			lblk += (curr_off >> inode->i_blkbits) -
+				contiguous_blks;
+			ext4_es_remove_extent(inode, lblk, contiguous_blks);
+			contiguous_blks = 0;
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
 
-	if (to_release) {
+	if (contiguous_blks) {
 		lblk = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-		ext4_es_remove_extent(inode, lblk, to_release);
+		lblk += (curr_off >> inode->i_blkbits) - contiguous_blks;
+		ext4_es_remove_extent(inode, lblk, contiguous_blks);
 	}
 
 	/* If we have released all the blocks belonging to a cluster, then we
@@ -3011,6 +3021,17 @@ static int ext4_get_block_write_nolock(struct inode *inode, sector_t iblock,
 			       EXT4_GET_BLOCKS_NO_LOCK);
 }
 
+int ext4_get_block_dax(struct inode *inode, sector_t iblock,
+		   struct buffer_head *bh_result, int create)
+{
+	int flags = EXT4_GET_BLOCKS_PRE_IO | EXT4_GET_BLOCKS_UNWRIT_EXT;
+	if (create)
+		flags |= EXT4_GET_BLOCKS_CREATE;
+	ext4_debug("ext4_get_block_dax: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
+	return _ext4_get_block(inode, iblock, bh_result, flags);
+}
+
 static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private)
 {
@@ -4344,7 +4365,12 @@ static void ext4_update_other_inodes_time(struct super_block *sb,
 	int inode_size = EXT4_INODE_SIZE(sb);
 
 	oi.orig_ino = orig_ino;
-	ino = (orig_ino & ~(inodes_per_block - 1)) + 1;
+	/*
+	 * Calculate the first inode in the inode table block.  Inode
+	 * numbers are one-based.  That is, the first inode in a block
+	 * (assuming 4k blocks and 256 byte inodes) is (n*16 + 1).
+	 */
+	ino = ((orig_ino - 1) & ~(inodes_per_block - 1)) + 1;
 	for (i = 0; i < inodes_per_block; i++, ino++, buf += inode_size) {
 		if (ino == orig_ino)
 			continue;
@@ -4647,8 +4673,11 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
-	if (is_quota_modification(inode, attr))
-		dquot_initialize(inode);
+	if (is_quota_modification(inode, attr)) {
+		error = dquot_initialize(inode);
+		if (error)
+			return error;
+	}
 	if ((ia_valid & ATTR_UID && !uid_eq(attr->ia_uid, inode->i_uid)) ||
 	    (ia_valid & ATTR_GID && !gid_eq(attr->ia_gid, inode->i_gid))) {
 		handle_t *handle;
@@ -4710,6 +4739,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			if (ext4_handle_valid(handle) && shrink) {
 				error = ext4_orphan_add(handle, inode);
 				orphan = 1;
+			}
+			/*
+			 * Update c/mtime on truncate up, ext4_truncate() will
+			 * update c/mtime in shrink case below
+			 */
+			if (!shrink) {
+				inode->i_mtime = ext4_current_time(inode);
+				inode->i_ctime = inode->i_mtime;
 			}
 			down_write(&EXT4_I(inode)->i_data_sem);
 			EXT4_I(inode)->i_disksize = attr->ia_size;

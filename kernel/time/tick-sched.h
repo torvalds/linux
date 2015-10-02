@@ -71,4 +71,14 @@ extern void tick_cancel_sched_timer(int cpu);
 static inline void tick_cancel_sched_timer(int cpu) { }
 #endif
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+extern int __tick_broadcast_oneshot_control(enum tick_broadcast_state state);
+#else
+static inline int
+__tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+{
+	return -EBUSY;
+}
+#endif
+
 #endif

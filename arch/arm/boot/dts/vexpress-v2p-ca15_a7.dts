@@ -150,6 +150,16 @@
 			interface-type = "ace";
 			reg = <0x5000 0x1000>;
 		};
+
+		pmu@9000 {
+			 compatible = "arm,cci-400-pmu,r0";
+			 reg = <0x9000 0x5000>;
+			 interrupts = <0 105 4>,
+				      <0 101 4>,
+				      <0 102 4>,
+				      <0 103 4>,
+				      <0 104 4>;
+		};
 	};
 
 	memory-controller@7ffd0000 {
@@ -187,11 +197,22 @@
 			     <1 10 0xf08>;
 	};
 
-	pmu {
+	pmu_a15 {
 		compatible = "arm,cortex-a15-pmu";
 		interrupts = <0 68 4>,
 			     <0 69 4>;
-		interrupt-affinity = <&cpu0>, <&cpu1>;
+		interrupt-affinity = <&cpu0>,
+				     <&cpu1>;
+	};
+
+	pmu_a7 {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <0 128 4>,
+			     <0 129 4>,
+			     <0 130 4>;
+		interrupt-affinity = <&cpu2>,
+				     <&cpu3>,
+				     <&cpu4>;
 	};
 
 	oscclk6a: oscclk6a {

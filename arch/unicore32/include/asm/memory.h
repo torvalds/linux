@@ -61,12 +61,6 @@
 #endif
 
 /*
- * Convert a physical address to a Page Frame Number and back
- */
-#define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
-#define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
-
-/*
  * Convert a page to/from a physical address
  */
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))

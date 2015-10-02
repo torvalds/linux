@@ -72,7 +72,7 @@ static void __init bockw_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *bockw_boards_compat_dt[] __initdata = {
+static const char *const bockw_boards_compat_dt[] __initconst = {
 	"renesas,bockw-reference",
 	NULL,
 };

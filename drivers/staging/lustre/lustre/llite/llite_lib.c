@@ -60,9 +60,6 @@ struct kmem_cache *ll_file_data_slab;
 struct dentry *llite_root;
 struct kset *llite_kset;
 
-static LIST_HEAD(ll_super_blocks);
-static DEFINE_SPINLOCK(ll_sb_lock);
-
 #ifndef log2
 #define log2(n) ffz(~(n))
 #endif
@@ -112,10 +109,6 @@ static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 	class_uuid_unparse(uuid, &sbi->ll_sb_uuid);
 	CDEBUG(D_CONFIG, "generated uuid: %s\n", sbi->ll_sb_uuid.uuid);
 
-	spin_lock(&ll_sb_lock);
-	list_add_tail(&sbi->ll_list, &ll_super_blocks);
-	spin_unlock(&ll_sb_lock);
-
 	sbi->ll_flags |= LL_SBI_VERBOSE;
 	sbi->ll_flags |= LL_SBI_CHECKSUM;
 
@@ -144,12 +137,7 @@ static void ll_free_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	if (sbi != NULL) {
-		spin_lock(&ll_sb_lock);
-		list_del(&sbi->ll_list);
-		spin_unlock(&ll_sb_lock);
-		kfree(sbi);
-	}
+	kfree(sbi);
 }
 
 static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
@@ -1114,7 +1102,7 @@ void ll_clear_inode(struct inode *inode)
 	if (lli->lli_mds_read_och)
 		ll_md_real_close(inode, FMODE_READ);
 
-	if (S_ISLNK(inode->i_mode) && lli->lli_symlink_name) {
+	if (S_ISLNK(inode->i_mode)) {
 		kfree(lli->lli_symlink_name);
 		lli->lli_symlink_name = NULL;
 	}
@@ -1149,6 +1137,8 @@ void ll_clear_inode(struct inode *inode)
 	cl_inode_fini(inode);
 	lli->lli_has_smd = false;
 }
+
+#define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
 
 static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		  struct md_open_data **mod)
@@ -1354,11 +1344,8 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	if (!op_data)
 		return -ENOMEM;
 
-	if (!S_ISDIR(inode->i_mode)) {
-		if (attr->ia_valid & ATTR_SIZE)
-			inode_dio_write_done(inode);
+	if (!S_ISDIR(inode->i_mode))
 		mutex_unlock(&inode->i_mutex);
-	}
 
 	memcpy(&op_data->op_attr, attr, sizeof(*attr));
 

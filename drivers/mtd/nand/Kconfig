@@ -42,23 +42,20 @@ config MTD_SM_COMMON
 	default n
 
 config MTD_NAND_DENALI
-        tristate "Support Denali NAND controller"
-        depends on HAS_DMA
-        help
-	  Enable support for the Denali NAND controller.  This should be
-	  combined with either the PCI or platform drivers to provide device
-	  registration.
+	tristate
 
 config MTD_NAND_DENALI_PCI
         tristate "Support Denali NAND controller on Intel Moorestown"
-	depends on PCI && MTD_NAND_DENALI
+	select MTD_NAND_DENALI
+	depends on HAS_DMA && PCI
         help
           Enable the driver for NAND flash on Intel Moorestown, using the
           Denali NAND controller core.
 
 config MTD_NAND_DENALI_DT
 	tristate "Support Denali NAND controller as a DT device"
-	depends on HAVE_CLK && MTD_NAND_DENALI
+	select MTD_NAND_DENALI
+	depends on HAS_DMA && HAVE_CLK
 	help
 	  Enable the driver for NAND flash on platforms using a Denali NAND
 	  controller as a DT device.

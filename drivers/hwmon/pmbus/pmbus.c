@@ -129,6 +129,7 @@ static int pmbus_identify(struct i2c_client *client,
 				break;
 			case 1:
 				info->format[PSC_VOLTAGE_OUT] = vid;
+				info->vrm_version = vr11;
 				break;
 			case 2:
 				info->format[PSC_VOLTAGE_OUT] = direct;
@@ -193,6 +194,10 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"pdt012", 1},
 	{"pmbus", 0},
 	{"tps40400", 1},
+	{"tps544b20", 1},
+	{"tps544b25", 1},
+	{"tps544c20", 1},
+	{"tps544c25", 1},
 	{"udt020", 1},
 	{}
 };

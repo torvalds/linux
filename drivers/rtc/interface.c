@@ -564,7 +564,7 @@ enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer)
 void rtc_update_irq(struct rtc_device *rtc,
 		unsigned long num, unsigned long events)
 {
-	if (unlikely(IS_ERR_OR_NULL(rtc)))
+	if (IS_ERR_OR_NULL(rtc))
 		return;
 
 	pm_stay_awake(rtc->dev.parent);

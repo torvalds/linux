@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/can/platform/mcp251x.h>
+#include <linux/regulator/machine.h>
 
 #include "generic.h"
 
@@ -185,6 +186,8 @@ static void __init icontrol_init(void)
 	mxm_8x10_mmc_init();
 
 	icontrol_can_init();
+
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(ICONTROL, "iControl/SafeTcam boards using Embedian MXM-8x10 CoM")

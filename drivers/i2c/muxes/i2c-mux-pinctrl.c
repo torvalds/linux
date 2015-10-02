@@ -111,6 +111,7 @@ static int i2c_mux_pinctrl_parse_dt(struct i2c_mux_pinctrl *mux,
 		return -ENODEV;
 	}
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
+	of_node_put(adapter_np);
 	if (!adapter) {
 		dev_err(mux->dev, "Cannot find parent bus\n");
 		return -EPROBE_DEFER;

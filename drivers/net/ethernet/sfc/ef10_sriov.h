@@ -65,5 +65,11 @@ int efx_ef10_vswitching_restore_pf(struct efx_nic *efx);
 int efx_ef10_vswitching_restore_vf(struct efx_nic *efx);
 void efx_ef10_vswitching_remove_pf(struct efx_nic *efx);
 void efx_ef10_vswitching_remove_vf(struct efx_nic *efx);
+int efx_ef10_vport_add_mac(struct efx_nic *efx,
+			   unsigned int port_id, u8 *mac);
+int efx_ef10_vport_del_mac(struct efx_nic *efx,
+			   unsigned int port_id, u8 *mac);
+int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id);
+int efx_ef10_vadaptor_free(struct efx_nic *efx, unsigned int port_id);
 
 #endif /* EF10_SRIOV_H */

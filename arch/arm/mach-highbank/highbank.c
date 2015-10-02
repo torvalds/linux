@@ -28,8 +28,8 @@
 #include <linux/reboot.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
+#include <linux/psci.h>
 
-#include <asm/psci.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

@@ -46,8 +46,8 @@ struct si_sm_data;
  * this interface.
  */
 struct si_sm_io {
-	unsigned char (*inputb)(struct si_sm_io *io, unsigned int offset);
-	void (*outputb)(struct si_sm_io *io,
+	unsigned char (*inputb)(const struct si_sm_io *io, unsigned int offset);
+	void (*outputb)(const struct si_sm_io *io,
 			unsigned int  offset,
 			unsigned char b);
 
@@ -135,7 +135,7 @@ struct si_sm_handlers {
 };
 
 /* Current state machines that we can use. */
-extern struct si_sm_handlers kcs_smi_handlers;
-extern struct si_sm_handlers smic_smi_handlers;
-extern struct si_sm_handlers bt_smi_handlers;
+extern const struct si_sm_handlers kcs_smi_handlers;
+extern const struct si_sm_handlers smic_smi_handlers;
+extern const struct si_sm_handlers bt_smi_handlers;
 

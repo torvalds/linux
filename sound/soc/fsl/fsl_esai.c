@@ -517,7 +517,7 @@ static int fsl_esai_hw_params(struct snd_pcm_substream *substream,
 	u32 bclk, mask, val;
 	int ret;
 
-	/* Override slot_width if being specifially set */
+	/* Override slot_width if being specifically set */
 	if (esai_priv->slot_width)
 		slot_width = esai_priv->slot_width;
 
@@ -839,7 +839,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = imx_pcm_dma_init(pdev);
+	ret = imx_pcm_dma_init(pdev, IMX_ESAI_DMABUF_SIZE);
 	if (ret)
 		dev_err(&pdev->dev, "failed to init imx pcm dma: %d\n", ret);
 

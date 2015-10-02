@@ -53,7 +53,7 @@ static int tusb1210_power_off(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops phy_ops = {
+static const struct phy_ops phy_ops = {
 	.power_on = tusb1210_power_on,
 	.power_off = tusb1210_power_off,
 	.owner = THIS_MODULE,
@@ -61,32 +61,26 @@ static struct phy_ops phy_ops = {
 
 static int tusb1210_probe(struct ulpi *ulpi)
 {
-	struct gpio_desc *gpio;
 	struct tusb1210 *tusb;
 	u8 val, reg;
-	int ret;
 
 	tusb = devm_kzalloc(&ulpi->dev, sizeof(*tusb), GFP_KERNEL);
 	if (!tusb)
 		return -ENOMEM;
 
-	gpio = devm_gpiod_get(&ulpi->dev, "reset");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		gpiod_set_value_cansleep(gpio, 1);
-		tusb->gpio_reset = gpio;
-	}
+	tusb->gpio_reset = devm_gpiod_get_optional(&ulpi->dev, "reset",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(tusb->gpio_reset))
+		return PTR_ERR(tusb->gpio_reset);
 
-	gpio = devm_gpiod_get(&ulpi->dev, "cs");
-	if (!IS_ERR(gpio)) {
-		ret = gpiod_direction_output(gpio, 0);
-		if (ret)
-			return ret;
-		gpiod_set_value_cansleep(gpio, 1);
-		tusb->gpio_cs = gpio;
-	}
+	gpiod_set_value_cansleep(tusb->gpio_reset, 1);
+
+	tusb->gpio_cs = devm_gpiod_get_optional(&ulpi->dev, "cs",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(tusb->gpio_cs))
+		return PTR_ERR(tusb->gpio_cs);
+
+	gpiod_set_value_cansleep(tusb->gpio_cs, 1);
 
 	/*
 	 * VENDOR_SPECIFIC2 register in TUSB1210 can be used for configuring eye

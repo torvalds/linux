@@ -17,8 +17,7 @@ This driver implements support for the Nuvoton NCT7802Y hardware monitoring
 chip. NCT7802Y supports 6 temperature sensors, 5 voltage sensors, and 3 fan
 speed sensors.
 
-The chip also supports intelligent fan speed control. This functionality is
-not currently supported by the driver.
+Smart Fan™ speed control is available via pwmX_auto_point attributes.
 
 Tested Boards and BIOS Versions
 -------------------------------

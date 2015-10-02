@@ -660,6 +660,9 @@ struct cpl_tx_pkt {
 #define TXPKT_OVLAN_IDX_S    12
 #define TXPKT_OVLAN_IDX_V(x) ((x) << TXPKT_OVLAN_IDX_S)
 
+#define TXPKT_T5_OVLAN_IDX_S	12
+#define TXPKT_T5_OVLAN_IDX_V(x)	((x) << TXPKT_T5_OVLAN_IDX_S)
+
 #define TXPKT_INTF_S    16
 #define TXPKT_INTF_V(x) ((x) << TXPKT_INTF_S)
 

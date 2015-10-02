@@ -89,13 +89,14 @@ int get_c0_perfcount_int(void)
 {
 	return rt_perfcount_irq;
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }
 
-static void ralink_intc_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ralink_intc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = rt_intc_r32(INTC_REG_STATUS0);
 

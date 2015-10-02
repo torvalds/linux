@@ -213,28 +213,79 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
 
 /* Protection domains */
 
+/**
+ * ib_alloc_pd - Allocates an unused protection domain.
+ * @device: The device on which to allocate the protection domain.
+ *
+ * A protection domain object provides an association between QPs, shared
+ * receive queues, address handles, memory regions, and memory windows.
+ *
+ * Every PD has a local_dma_lkey which can be used as the lkey value for local
+ * memory operations.
+ */
 struct ib_pd *ib_alloc_pd(struct ib_device *device)
 {
 	struct ib_pd *pd;
+	struct ib_device_attr devattr;
+	int rc;
+
+	rc = ib_query_device(device, &devattr);
+	if (rc)
+		return ERR_PTR(rc);
 
 	pd = device->alloc_pd(device, NULL, NULL);
+	if (IS_ERR(pd))
+		return pd;
 
-	if (!IS_ERR(pd)) {
-		pd->device  = device;
-		pd->uobject = NULL;
-		atomic_set(&pd->usecnt, 0);
+	pd->device = device;
+	pd->uobject = NULL;
+	pd->local_mr = NULL;
+	atomic_set(&pd->usecnt, 0);
+
+	if (devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
+		pd->local_dma_lkey = device->local_dma_lkey;
+	else {
+		struct ib_mr *mr;
+
+		mr = ib_get_dma_mr(pd, IB_ACCESS_LOCAL_WRITE);
+		if (IS_ERR(mr)) {
+			ib_dealloc_pd(pd);
+			return (struct ib_pd *)mr;
+		}
+
+		pd->local_mr = mr;
+		pd->local_dma_lkey = pd->local_mr->lkey;
 	}
-
 	return pd;
 }
 EXPORT_SYMBOL(ib_alloc_pd);
 
-int ib_dealloc_pd(struct ib_pd *pd)
+/**
+ * ib_dealloc_pd - Deallocates a protection domain.
+ * @pd: The protection domain to deallocate.
+ *
+ * It is an error to call this function while any resources in the pd still
+ * exist.  The caller is responsible to synchronously destroy them and
+ * guarantee no new allocations will happen.
+ */
+void ib_dealloc_pd(struct ib_pd *pd)
 {
-	if (atomic_read(&pd->usecnt))
-		return -EBUSY;
+	int ret;
 
-	return pd->device->dealloc_pd(pd);
+	if (pd->local_mr) {
+		ret = ib_dereg_mr(pd->local_mr);
+		WARN_ON(ret);
+		pd->local_mr = NULL;
+	}
+
+	/* uverbs manipulates usecnt with proper locking, while the kabi
+	   requires the caller to guarantee we can't race here. */
+	WARN_ON(atomic_read(&pd->usecnt));
+
+	/* Making delalloc_pd a void return is a WIP, no driver should return
+	   an error here. */
+	ret = pd->device->dealloc_pd(pd);
+	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 
@@ -1144,73 +1195,6 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 }
 EXPORT_SYMBOL(ib_get_dma_mr);
 
-struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
-			     struct ib_phys_buf *phys_buf_array,
-			     int num_phys_buf,
-			     int mr_access_flags,
-			     u64 *iova_start)
-{
-	struct ib_mr *mr;
-	int err;
-
-	err = ib_check_mr_access(mr_access_flags);
-	if (err)
-		return ERR_PTR(err);
-
-	if (!pd->device->reg_phys_mr)
-		return ERR_PTR(-ENOSYS);
-
-	mr = pd->device->reg_phys_mr(pd, phys_buf_array, num_phys_buf,
-				     mr_access_flags, iova_start);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_reg_phys_mr);
-
-int ib_rereg_phys_mr(struct ib_mr *mr,
-		     int mr_rereg_mask,
-		     struct ib_pd *pd,
-		     struct ib_phys_buf *phys_buf_array,
-		     int num_phys_buf,
-		     int mr_access_flags,
-		     u64 *iova_start)
-{
-	struct ib_pd *old_pd;
-	int ret;
-
-	ret = ib_check_mr_access(mr_access_flags);
-	if (ret)
-		return ret;
-
-	if (!mr->device->rereg_phys_mr)
-		return -ENOSYS;
-
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	old_pd = mr->pd;
-
-	ret = mr->device->rereg_phys_mr(mr, mr_rereg_mask, pd,
-					phys_buf_array, num_phys_buf,
-					mr_access_flags, iova_start);
-
-	if (!ret && (mr_rereg_mask & IB_MR_REREG_PD)) {
-		atomic_dec(&old_pd->usecnt);
-		atomic_inc(&pd->usecnt);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_rereg_phys_mr);
-
 int ib_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
 {
 	return mr->device->query_mr ?
@@ -1235,16 +1219,28 @@ int ib_dereg_mr(struct ib_mr *mr)
 }
 EXPORT_SYMBOL(ib_dereg_mr);
 
-struct ib_mr *ib_create_mr(struct ib_pd *pd,
-			   struct ib_mr_init_attr *mr_init_attr)
+/**
+ * ib_alloc_mr() - Allocates a memory region
+ * @pd:            protection domain associated with the region
+ * @mr_type:       memory region type
+ * @max_num_sg:    maximum sg entries available for registration.
+ *
+ * Notes:
+ * Memory registeration page/sg lists must not exceed max_num_sg.
+ * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
+ * max_num_sg * used_page_size.
+ *
+ */
+struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
+			  enum ib_mr_type mr_type,
+			  u32 max_num_sg)
 {
 	struct ib_mr *mr;
 
-	if (!pd->device->create_mr)
+	if (!pd->device->alloc_mr)
 		return ERR_PTR(-ENOSYS);
 
-	mr = pd->device->create_mr(pd, mr_init_attr);
-
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
@@ -1255,45 +1251,7 @@ struct ib_mr *ib_create_mr(struct ib_pd *pd,
 
 	return mr;
 }
-EXPORT_SYMBOL(ib_create_mr);
-
-int ib_destroy_mr(struct ib_mr *mr)
-{
-	struct ib_pd *pd;
-	int ret;
-
-	if (atomic_read(&mr->usecnt))
-		return -EBUSY;
-
-	pd = mr->pd;
-	ret = mr->device->destroy_mr(mr);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_destroy_mr);
-
-struct ib_mr *ib_alloc_fast_reg_mr(struct ib_pd *pd, int max_page_list_len)
-{
-	struct ib_mr *mr;
-
-	if (!pd->device->alloc_fast_reg_mr)
-		return ERR_PTR(-ENOSYS);
-
-	mr = pd->device->alloc_fast_reg_mr(pd, max_page_list_len);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		atomic_set(&mr->usecnt, 0);
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_alloc_fast_reg_mr);
+EXPORT_SYMBOL(ib_alloc_mr);
 
 struct ib_fast_reg_page_list *ib_alloc_fast_reg_page_list(struct ib_device *device,
 							  int max_page_list_len)

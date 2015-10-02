@@ -103,7 +103,6 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 		.name = "MAX98090 Playback",
 		.stream_name = "MAX98090 Playback",
 		.cpu_dai_name = "DL1",
-		.platform_name = "11220000.mt8173-afe-pcm",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
@@ -114,7 +113,6 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 		.name = "MAX98090 Capture",
 		.stream_name = "MAX98090 Capture",
 		.cpu_dai_name = "VUL",
-		.platform_name = "11220000.mt8173-afe-pcm",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
@@ -125,7 +123,6 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 	{
 		.name = "Codec",
 		.cpu_dai_name = "I2S",
-		.platform_name = "11220000.mt8173-afe-pcm",
 		.no_pcm = 1,
 		.codec_dai_name = "HiFi",
 		.init = mt8173_max98090_init,
@@ -139,6 +136,7 @@ static struct snd_soc_dai_link mt8173_max98090_dais[] = {
 
 static struct snd_soc_card mt8173_max98090_card = {
 	.name = "mt8173-max98090",
+	.owner = THIS_MODULE,
 	.dai_link = mt8173_max98090_dais,
 	.num_links = ARRAY_SIZE(mt8173_max98090_dais),
 	.controls = mt8173_max98090_controls,
@@ -152,8 +150,20 @@ static struct snd_soc_card mt8173_max98090_card = {
 static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_max98090_card;
-	struct device_node *codec_node;
+	struct device_node *codec_node, *platform_node;
 	int ret, i;
+
+	platform_node = of_parse_phandle(pdev->dev.of_node,
+					 "mediatek,platform", 0);
+	if (!platform_node) {
+		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
+		return -EINVAL;
+	}
+	for (i = 0; i < card->num_links; i++) {
+		if (mt8173_max98090_dais[i].platform_name)
+			continue;
+		mt8173_max98090_dais[i].platform_of_node = platform_node;
+	}
 
 	codec_node = of_parse_phandle(pdev->dev.of_node,
 				      "mediatek,audio-codec", 0);
@@ -193,7 +203,6 @@ MODULE_DEVICE_TABLE(of, mt8173_max98090_dt_match);
 static struct platform_driver mt8173_max98090_driver = {
 	.driver = {
 		   .name = "mt8173-max98090",
-		   .owner = THIS_MODULE,
 		   .of_match_table = mt8173_max98090_dt_match,
 #ifdef CONFIG_PM
 		   .pm = &snd_soc_pm_ops,

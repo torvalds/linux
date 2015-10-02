@@ -33,7 +33,6 @@
 
 struct sst_device *sst;
 static DEFINE_MUTEX(sst_lock);
-extern struct snd_compr_ops sst_platform_compr_ops;
 
 int sst_register_dsp(struct sst_device *dev)
 {

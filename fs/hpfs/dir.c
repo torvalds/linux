@@ -327,4 +327,5 @@ const struct file_operations hpfs_dir_ops =
 	.iterate	= hpfs_readdir,
 	.release	= hpfs_dir_release,
 	.fsync		= hpfs_file_fsync,
+	.unlocked_ioctl	= hpfs_ioctl,
 };

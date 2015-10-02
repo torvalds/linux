@@ -391,7 +391,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 			      union iwreq_data *wrqu, char *extra)
 {
 
-	int ret=0,len;
+	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
 

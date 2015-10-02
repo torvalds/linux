@@ -29,7 +29,7 @@ extern void show_trace(struct task_struct *t, struct pt_regs *regs,
 extern void __show_regs(struct pt_regs *regs, int all);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 extern int in_crash_kexec;
 #else
 /* no crash dump is ever in progress if no crash kernel can be kexec'd */

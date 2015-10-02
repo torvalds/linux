@@ -22,8 +22,6 @@
 #include <core/ramht.h>
 #include <core/engine.h>
 
-#include <subdev/bar.h>
-
 static u32
 nvkm_ramht_hash(struct nvkm_ramht *ramht, int chid, u32 handle)
 {
@@ -35,72 +33,130 @@ nvkm_ramht_hash(struct nvkm_ramht *ramht, int chid, u32 handle)
 	}
 
 	hash ^= chid << (ramht->bits - 4);
-	hash  = hash << 3;
 	return hash;
 }
 
-int
-nvkm_ramht_insert(struct nvkm_ramht *ramht, int chid, u32 handle, u32 context)
+struct nvkm_gpuobj *
+nvkm_ramht_search(struct nvkm_ramht *ramht, int chid, u32 handle)
 {
-	struct nvkm_bar *bar = nvkm_bar(ramht);
 	u32 co, ho;
 
 	co = ho = nvkm_ramht_hash(ramht, chid, handle);
 	do {
-		if (!nv_ro32(ramht, co + 4)) {
-			nv_wo32(ramht, co + 0, handle);
-			nv_wo32(ramht, co + 4, context);
-			if (bar)
-				bar->flush(bar);
-			return co;
+		if (ramht->data[co].chid == chid) {
+			if (ramht->data[co].handle == handle)
+				return ramht->data[co].inst;
 		}
 
-		co += 8;
-		if (co >= nv_gpuobj(ramht)->size)
+		if (++co >= ramht->size)
 			co = 0;
 	} while (co != ho);
 
-	return -ENOMEM;
+	return NULL;
+}
+
+static int
+nvkm_ramht_update(struct nvkm_ramht *ramht, int co, struct nvkm_object *object,
+		  int chid, int addr, u32 handle, u32 context)
+{
+	struct nvkm_ramht_data *data = &ramht->data[co];
+	u64 inst = 0x00000040; /* just non-zero for <=g8x fifo ramht */
+	int ret;
+
+	nvkm_gpuobj_del(&data->inst);
+	data->chid = chid;
+	data->handle = handle;
+
+	if (object) {
+		ret = nvkm_object_bind(object, ramht->parent, 16, &data->inst);
+		if (ret) {
+			if (ret != -ENODEV) {
+				data->chid = -1;
+				return ret;
+			}
+			data->inst = NULL;
+		}
+
+		if (data->inst) {
+			if (ramht->device->card_type >= NV_50)
+				inst = data->inst->node->offset;
+			else
+				inst = data->inst->addr;
+		}
+
+		if (addr < 0) context |= inst << -addr;
+		else          context |= inst >>  addr;
+	}
+
+	nvkm_kmap(ramht->gpuobj);
+	nvkm_wo32(ramht->gpuobj, (co << 3) + 0, handle);
+	nvkm_wo32(ramht->gpuobj, (co << 3) + 4, context);
+	nvkm_done(ramht->gpuobj);
+	return co + 1;
 }
 
 void
 nvkm_ramht_remove(struct nvkm_ramht *ramht, int cookie)
 {
-	struct nvkm_bar *bar = nvkm_bar(ramht);
-	nv_wo32(ramht, cookie + 0, 0x00000000);
-	nv_wo32(ramht, cookie + 4, 0x00000000);
-	if (bar)
-		bar->flush(bar);
+	if (--cookie >= 0)
+		nvkm_ramht_update(ramht, cookie, NULL, -1, 0, 0, 0);
 }
 
-static struct nvkm_oclass
-nvkm_ramht_oclass = {
-	.handle = 0x0000abcd,
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = NULL,
-		.dtor = _nvkm_gpuobj_dtor,
-		.init = _nvkm_gpuobj_init,
-		.fini = _nvkm_gpuobj_fini,
-		.rd32 = _nvkm_gpuobj_rd32,
-		.wr32 = _nvkm_gpuobj_wr32,
-	},
-};
+int
+nvkm_ramht_insert(struct nvkm_ramht *ramht, struct nvkm_object *object,
+		  int chid, int addr, u32 handle, u32 context)
+{
+	u32 co, ho;
+
+	if (nvkm_ramht_search(ramht, chid, handle))
+		return -EEXIST;
+
+	co = ho = nvkm_ramht_hash(ramht, chid, handle);
+	do {
+		if (ramht->data[co].chid < 0) {
+			return nvkm_ramht_update(ramht, co, object, chid,
+						 addr, handle, context);
+		}
+
+		if (++co >= ramht->size)
+			co = 0;
+	} while (co != ho);
+
+	return -ENOSPC;
+}
+
+void
+nvkm_ramht_del(struct nvkm_ramht **pramht)
+{
+	struct nvkm_ramht *ramht = *pramht;
+	if (ramht) {
+		nvkm_gpuobj_del(&ramht->gpuobj);
+		kfree(*pramht);
+		*pramht = NULL;
+	}
+}
 
 int
-nvkm_ramht_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
-	       u32 size, u32 align, struct nvkm_ramht **pramht)
+nvkm_ramht_new(struct nvkm_device *device, u32 size, u32 align,
+	       struct nvkm_gpuobj *parent, struct nvkm_ramht **pramht)
 {
 	struct nvkm_ramht *ramht;
-	int ret;
+	int ret, i;
 
-	ret = nvkm_gpuobj_create(parent, parent->engine ?
-				 &parent->engine->subdev.object : parent, /* <nv50 ramht */
-				 &nvkm_ramht_oclass, 0, pargpu, size,
-				 align, NVOBJ_FLAG_ZERO_ALLOC, &ramht);
-	*pramht = ramht;
+	if (!(ramht = *pramht = kzalloc(sizeof(*ramht) + (size >> 3) *
+					sizeof(*ramht->data), GFP_KERNEL)))
+		return -ENOMEM;
+
+	ramht->device = device;
+	ramht->parent = parent;
+	ramht->size = size >> 3;
+	ramht->bits = order_base_2(ramht->size);
+	for (i = 0; i < ramht->size; i++)
+		ramht->data[i].chid = -1;
+
+	ret = nvkm_gpuobj_new(ramht->device, size, align, true,
+			      ramht->parent, &ramht->gpuobj);
 	if (ret)
-		return ret;
-
-	ramht->bits = order_base_2(nv_gpuobj(ramht)->size >> 3);
-	return 0;
+		nvkm_ramht_del(pramht);
+	return ret;
 }

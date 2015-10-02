@@ -696,7 +696,9 @@ cifs_echo_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->callback_data;
 
+	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
+	mutex_unlock(&server->srv_mutex);
 	add_credits(server, 1, CIFS_ECHO_OP);
 }
 
@@ -1572,7 +1574,9 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	}
 
 	queue_work(cifsiod_wq, &rdata->work);
+	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
+	mutex_unlock(&server->srv_mutex);
 	add_credits(server, 1, 0);
 }
 
@@ -2032,6 +2036,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 {
 	struct cifs_writedata *wdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int written;
 	WRITE_RSP *smb = (WRITE_RSP *)mid->resp_buf;
 
@@ -2068,7 +2073,9 @@ cifs_writev_callback(struct mid_q_entry *mid)
 	}
 
 	queue_work(cifsiod_wq, &wdata->work);
+	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
+	mutex_unlock(&server->srv_mutex);
 	add_credits(tcon->ses->server, 1, 0);
 }
 

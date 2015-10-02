@@ -402,6 +402,17 @@ struct mlx5_cmd_teardown_hca_mbox_out {
 	u8			rsvd[8];
 };
 
+struct mlx5_cmd_query_special_contexts_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_cmd_query_special_contexts_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	__be32                  dump_fill_mkey;
+	__be32                  resd_lkey;
+};
+
 struct mlx5_cmd_layout {
 	u8		type;
 	u8		rsvd0[3];
@@ -1180,6 +1191,16 @@ enum {
 	MLX5_CMD_STAT_BAD_QP_STATE_ERR		= 0x10,
 	MLX5_CMD_STAT_BAD_PKT_ERR		= 0x30,
 	MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR	= 0x40,
+};
+
+enum {
+	MLX5_IEEE_802_3_COUNTERS_GROUP	      = 0x0,
+	MLX5_RFC_2863_COUNTERS_GROUP	      = 0x1,
+	MLX5_RFC_2819_COUNTERS_GROUP	      = 0x2,
+	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
+	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
+	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
+	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)

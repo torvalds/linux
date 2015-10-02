@@ -44,12 +44,12 @@
  *   0x48 - 0x64  Timer 12-Bit
  */
 #define APCI1564_EEPROM_REG			0x00
-#define APCI1564_EEPROM_VCC_STATUS		(1 << 8)
+#define APCI1564_EEPROM_VCC_STATUS		BIT(8)
 #define APCI1564_EEPROM_TO_REV(x)		(((x) >> 4) & 0xf)
-#define APCI1564_EEPROM_DI			(1 << 3)
-#define APCI1564_EEPROM_DO			(1 << 2)
-#define APCI1564_EEPROM_CS			(1 << 1)
-#define APCI1564_EEPROM_CLK			(1 << 0)
+#define APCI1564_EEPROM_DI			BIT(3)
+#define APCI1564_EEPROM_DO			BIT(2)
+#define APCI1564_EEPROM_CS			BIT(1)
+#define APCI1564_EEPROM_CLK			BIT(0)
 #define APCI1564_REV1_TIMER_IOBASE		0x04
 #define APCI1564_REV2_MAIN_IOBASE		0x04
 #define APCI1564_REV2_TIMER_IOBASE		0x48
@@ -79,10 +79,17 @@
 #define APCI1564_DI_INT_MODE2_REG		0x08
 #define APCI1564_DI_INT_STATUS_REG		0x0c
 #define APCI1564_DI_IRQ_REG			0x10
+#define APCI1564_DI_IRQ_ENA			BIT(2)
+#define APCI1564_DI_IRQ_MODE			BIT(1)	/* 1=AND, 0=OR */
 #define APCI1564_DO_REG				0x14
 #define APCI1564_DO_INT_CTRL_REG		0x18
+#define APCI1564_DO_INT_CTRL_CC_INT_ENA		BIT(1)
+#define APCI1564_DO_INT_CTRL_VCC_INT_ENA	BIT(0)
 #define APCI1564_DO_INT_STATUS_REG		0x1c
+#define APCI1564_DO_INT_STATUS_CC		BIT(1)
+#define APCI1564_DO_INT_STATUS_VCC		BIT(0)
 #define APCI1564_DO_IRQ_REG			0x20
+#define APCI1564_DO_IRQ_INTR			BIT(0)
 #define APCI1564_WDOG_REG			0x24
 #define APCI1564_WDOG_RELOAD_REG		0x28
 #define APCI1564_WDOG_TIMEBASE_REG		0x2c
@@ -159,9 +166,9 @@ static irqreturn_t apci1564_interrupt(int irq, void *d)
 	unsigned int chan;
 
 	status = inl(dev->iobase + APCI1564_DI_IRQ_REG);
-	if (status & APCI1564_DI_INT_ENABLE) {
+	if (status & APCI1564_DI_IRQ_ENA) {
 		/* disable the interrupt */
-		outl(status & APCI1564_DI_INT_DISABLE,
+		outl(status & ~APCI1564_DI_IRQ_ENA,
 		     dev->iobase + APCI1564_DI_IRQ_REG);
 
 		s->state = inl(dev->iobase + APCI1564_DI_INT_STATUS_REG) &
@@ -300,11 +307,9 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 			outl(0x0, dev->iobase + APCI1564_DI_INT_MODE2_REG);
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
-			if (devpriv->ctrl != (APCI1564_DI_INT_ENABLE |
-					      APCI1564_DI_INT_OR)) {
+			if (devpriv->ctrl != APCI1564_DI_IRQ_ENA) {
 				/* switching to 'OR' mode */
-				devpriv->ctrl = APCI1564_DI_INT_ENABLE |
-						APCI1564_DI_INT_OR;
+				devpriv->ctrl = APCI1564_DI_IRQ_ENA;
 				/* wipe old channels */
 				devpriv->mode1 = 0;
 				devpriv->mode2 = 0;
@@ -318,11 +323,11 @@ static int apci1564_cos_insn_config(struct comedi_device *dev,
 			devpriv->mode2 |= data[5] << shift;
 			break;
 		case COMEDI_DIGITAL_TRIG_ENABLE_LEVELS:
-			if (devpriv->ctrl != (APCI1564_DI_INT_ENABLE |
-					      APCI1564_DI_INT_AND)) {
+			if (devpriv->ctrl != (APCI1564_DI_IRQ_ENA |
+					      APCI1564_DI_IRQ_MODE)) {
 				/* switching to 'AND' mode */
-				devpriv->ctrl = APCI1564_DI_INT_ENABLE |
-						APCI1564_DI_INT_AND;
+				devpriv->ctrl = APCI1564_DI_IRQ_ENA |
+						APCI1564_DI_IRQ_MODE;
 				/* wipe old channels */
 				devpriv->mode1 = 0;
 				devpriv->mode2 = 0;

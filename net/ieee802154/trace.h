@@ -40,6 +40,28 @@
  *			rdev->ops traces		     *
  *************************************************************/
 
+DECLARE_EVENT_CLASS(wpan_phy_only_evt,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+	),
+	TP_printk(WPAN_PHY_PR_FMT, WPAN_PHY_PR_ARG)
+);
+
+DEFINE_EVENT(wpan_phy_only_evt, 802154_rdev_suspend,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy)
+);
+
+DEFINE_EVENT(wpan_phy_only_evt, 802154_rdev_resume,
+	TP_PROTO(struct wpan_phy *wpan_phy),
+	TP_ARGS(wpan_phy)
+);
+
 TRACE_EVENT(802154_rdev_add_virtual_intf,
 	TP_PROTO(struct wpan_phy *wpan_phy, char *name,
 		 enum nl802154_iftype type, __le64 extended_addr),
@@ -251,6 +273,25 @@ TRACE_EVENT(802154_rdev_set_lbt_mode,
 	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT
 		", lbt mode: %s", WPAN_PHY_PR_ARG,
 		WPAN_DEV_PR_ARG, BOOL_TO_STR(__entry->mode))
+);
+
+TRACE_EVENT(802154_rdev_set_ackreq_default,
+	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+		 bool ackreq),
+	TP_ARGS(wpan_phy, wpan_dev, ackreq),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		WPAN_DEV_ENTRY
+		__field(bool, ackreq)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		WPAN_DEV_ASSIGN;
+		__entry->ackreq = ackreq;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT
+		", ackreq default: %s", WPAN_PHY_PR_ARG,
+		WPAN_DEV_PR_ARG, BOOL_TO_STR(__entry->ackreq))
 );
 
 TRACE_EVENT(802154_rdev_return_int,

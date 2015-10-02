@@ -521,10 +521,10 @@ enabling hardware LPM, the host can automatically put the device into
 lower power state(L1 for usb2.0 devices, or U1/U2 for usb3.0 devices),
 which state device can enter and resume very quickly.
 
-The user interface for controlling USB2 hardware LPM is located in the
+The user interface for controlling hardware LPM is located in the
 power/ subdirectory of each USB device's sysfs directory, that is, in
 /sys/bus/usb/devices/.../power/ where "..." is the device's ID. The
-relevant attribute files is usb2_hardware_lpm.
+relevant attribute files are usb2_hardware_lpm and usb3_hardware_lpm.
 
 	power/usb2_hardware_lpm
 
@@ -537,6 +537,17 @@ relevant attribute files is usb2_hardware_lpm.
 		can write y/Y/1 or n/N/0 to the file to	enable/disable
 		USB2 hardware LPM manually. This is for	test purpose mainly.
 
+	power/usb3_hardware_lpm
+
+		When a USB 3.0 lpm-capable device is plugged in to a
+		xHCI host which supports link PM, it will check if U1
+		and U2 exit latencies have been set in the BOS
+		descriptor; if the check is is passed and the host
+		supports USB3 hardware LPM, USB3 hardware LPM will be
+		enabled for the device and this file will be created.
+		The file holds a string value (enable or disable)
+		indicating whether or not USB3 hardware LPM is
+		enabled for the device.
 
 	USB Port Power Control
 	----------------------

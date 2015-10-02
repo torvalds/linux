@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 		if (res > 0) {
 			atomic_set(&requeued, 1);
 			break;
-		} else if (res > 0) {
+		} else if (res < 0) {
 			error("FUTEX_CMP_REQUEUE_PI failed\n", errno);
 			ret = RET_ERROR;
 			break;

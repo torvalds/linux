@@ -22,82 +22,32 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "rootnv50.h"
 
-#include <nvif/class.h>
-
-/*******************************************************************************
- * Base display object
- ******************************************************************************/
-
-static struct nvkm_oclass
-gm107_disp_sclass[] = {
-	{ GM107_DISP_CORE_CHANNEL_DMA, &gf110_disp_core_ofuncs.base },
-	{ GK110_DISP_BASE_CHANNEL_DMA, &gf110_disp_base_ofuncs.base },
-	{ GK104_DISP_OVERLAY_CONTROL_DMA, &gf110_disp_ovly_ofuncs.base },
-	{ GK104_DISP_OVERLAY, &gf110_disp_oimm_ofuncs.base },
-	{ GK104_DISP_CURSOR, &gf110_disp_curs_ofuncs.base },
-	{}
+static const struct nv50_disp_func
+gm107_disp = {
+	.intr = gf119_disp_intr,
+	.uevent = &gf119_disp_chan_uevent,
+	.super = gf119_disp_intr_supervisor,
+	.root = &gm107_disp_root_oclass,
+	.head.vblank_init = gf119_disp_vblank_init,
+	.head.vblank_fini = gf119_disp_vblank_fini,
+	.head.scanoutpos = gf119_disp_root_scanoutpos,
+	.outp.internal.crt = nv50_dac_output_new,
+	.outp.internal.tmds = nv50_sor_output_new,
+	.outp.internal.lvds = nv50_sor_output_new,
+	.outp.internal.dp = gf119_sor_dp_new,
+	.dac.nr = 3,
+	.dac.power = nv50_dac_power,
+	.dac.sense = nv50_dac_sense,
+	.sor.nr = 4,
+	.sor.power = nv50_sor_power,
+	.sor.hda_eld = gf119_hda_eld,
+	.sor.hdmi = gk104_hdmi_ctrl,
 };
 
-static struct nvkm_oclass
-gm107_disp_main_oclass[] = {
-	{ GM107_DISP, &gf110_disp_main_ofuncs },
-	{}
-};
-
-/*******************************************************************************
- * Display engine implementation
- ******************************************************************************/
-
-static int
-gm107_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	struct nv50_disp_priv *priv;
-	int heads = nv_rd32(parent, 0x022448);
-	int ret;
-
-	ret = nvkm_disp_create(parent, engine, oclass, heads,
-			       "PDISP", "display", &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &priv->uevent);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->sclass = gm107_disp_main_oclass;
-	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = gf110_disp_intr;
-	INIT_WORK(&priv->supervisor, gf110_disp_intr_supervisor);
-	priv->sclass = gm107_disp_sclass;
-	priv->head.nr = heads;
-	priv->dac.nr = 3;
-	priv->sor.nr = 4;
-	priv->dac.power = nv50_dac_power;
-	priv->dac.sense = nv50_dac_sense;
-	priv->sor.power = nv50_sor_power;
-	priv->sor.hda_eld = gf110_hda_eld;
-	priv->sor.hdmi = gk104_hdmi_ctrl;
-	return 0;
+	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
 }
-
-struct nvkm_oclass *
-gm107_disp_oclass = &(struct nv50_disp_impl) {
-	.base.base.handle = NV_ENGINE(DISP, 0x07),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gm107_disp_ctor,
-		.dtor = _nvkm_disp_dtor,
-		.init = _nvkm_disp_init,
-		.fini = _nvkm_disp_fini,
-	},
-	.base.vblank = &gf110_disp_vblank_func,
-	.base.outp =  gf110_disp_outp_sclass,
-	.mthd.core = &gk104_disp_core_mthd_chan,
-	.mthd.base = &gf110_disp_base_mthd_chan,
-	.mthd.ovly = &gk104_disp_ovly_mthd_chan,
-	.mthd.prev = -0x020000,
-	.head.scanoutpos = gf110_disp_main_scanoutpos,
-}.base.base;

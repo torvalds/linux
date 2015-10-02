@@ -606,8 +606,6 @@ static void
 tda998x_write_if(struct tda998x_priv *priv, uint8_t bit, uint16_t addr,
 		 uint8_t *buf, size_t size)
 {
-	buf[PB(0)] = tda998x_cksum(buf, size);
-
 	reg_clear(priv, REG_DIP_IF_FLAGS, bit);
 	reg_write_range(priv, addr, buf, size);
 	reg_set(priv, REG_DIP_IF_FLAGS, bit);
@@ -626,6 +624,8 @@ tda998x_write_aif(struct tda998x_priv *priv, struct tda998x_encoder_params *p)
 	buf[PB(2)] = p->audio_frame[2] & 0x1c; /* SF */
 	buf[PB(4)] = p->audio_frame[4];
 	buf[PB(5)] = p->audio_frame[5] & 0xf8; /* DM_INH + LSV */
+
+	buf[PB(0)] = tda998x_cksum(buf, sizeof(buf));
 
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF4, REG_IF4_HB0, buf,
 			 sizeof(buf));

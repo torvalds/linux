@@ -97,9 +97,7 @@ struct at86rf230_local {
 
 	struct at86rf230_state_change irq;
 
-	bool tx_aret;
 	unsigned long cal_timeout;
-	s8 max_frame_retries;
 	bool is_tx;
 	bool is_tx_from_off;
 	u8 tx_retry;
@@ -545,7 +543,9 @@ at86rf230_async_state_delay(void *context)
 	}
 
 	/* Default delay is 1us in the most cases */
-	tim = ktime_set(0, NSEC_PER_USEC);
+	udelay(1);
+	at86rf230_async_state_timer(&ctx->timer);
+	return;
 
 change:
 	hrtimer_start(&ctx->timer, tim, HRTIMER_MODE_REL);
@@ -649,7 +649,7 @@ at86rf230_tx_complete(void *context)
 
 	enable_irq(ctx->irq);
 
-	ieee802154_xmit_complete(lp->hw, lp->tx_skb, !lp->tx_aret);
+	ieee802154_xmit_complete(lp->hw, lp->tx_skb, false);
 }
 
 static void
@@ -758,17 +758,10 @@ at86rf230_irq_trx_end(struct at86rf230_local *lp)
 {
 	if (lp->is_tx) {
 		lp->is_tx = 0;
-
-		if (lp->tx_aret)
-			at86rf230_async_state_change(lp, &lp->irq,
-						     STATE_FORCE_TX_ON,
-						     at86rf230_tx_trac_status,
-						     true);
-		else
-			at86rf230_async_state_change(lp, &lp->irq,
-						     STATE_RX_AACK_ON,
-						     at86rf230_tx_complete,
-						     true);
+		at86rf230_async_state_change(lp, &lp->irq,
+					     STATE_FORCE_TX_ON,
+					     at86rf230_tx_trac_status,
+					     true);
 	} else {
 		at86rf230_async_read_reg(lp, RG_TRX_STATE, &lp->irq,
 					 at86rf230_rx_trac_check, true);
@@ -874,24 +867,16 @@ at86rf230_xmit_start(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
-	/* In ARET mode we need to go into STATE_TX_ARET_ON after we
-	 * are in STATE_TX_ON. The pfad differs here, so we change
-	 * the complete handler.
-	 */
-	if (lp->tx_aret) {
-		if (lp->is_tx_from_off) {
-			lp->is_tx_from_off = false;
-			at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
-						     at86rf230_write_frame,
-						     false);
-		} else {
-			at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-						     at86rf230_xmit_tx_on,
-						     false);
-		}
+	/* check if we change from off state */
+	if (lp->is_tx_from_off) {
+		lp->is_tx_from_off = false;
+		at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
+					     at86rf230_write_frame,
+					     false);
 	} else {
 		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-					     at86rf230_write_frame, false);
+					     at86rf230_xmit_tx_on,
+					     false);
 	}
 }
 
@@ -1265,15 +1250,8 @@ static int
 at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 {
 	struct at86rf230_local *lp = hw->priv;
-	int rc = 0;
 
-	lp->tx_aret = retries >= 0;
-	lp->max_frame_retries = retries;
-
-	if (retries >= 0)
-		rc = at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, retries);
-
-	return rc;
+	return at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, retries);
 }
 
 static int

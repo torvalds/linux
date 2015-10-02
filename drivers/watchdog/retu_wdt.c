@@ -127,6 +127,7 @@ static int retu_wdt_probe(struct platform_device *pdev)
 	retu_wdt->timeout	= RETU_WDT_MAX_TIMER;
 	retu_wdt->min_timeout	= 0;
 	retu_wdt->max_timeout	= RETU_WDT_MAX_TIMER;
+	retu_wdt->parent	= &pdev->dev;
 
 	watchdog_set_drvdata(retu_wdt, wdev);
 	watchdog_set_nowayout(retu_wdt, nowayout);

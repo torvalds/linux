@@ -540,13 +540,11 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 		hw_addr = (const u8 *)(mac_override +
 				 MAC_ADDRESS_OVERRIDE_FAMILY_8000);
 
-		/* The byte order is little endian 16 bit, meaning 214365 */
-		data->hw_addr[0] = hw_addr[1];
-		data->hw_addr[1] = hw_addr[0];
-		data->hw_addr[2] = hw_addr[3];
-		data->hw_addr[3] = hw_addr[2];
-		data->hw_addr[4] = hw_addr[5];
-		data->hw_addr[5] = hw_addr[4];
+		/*
+		 * Store the MAC address from MAO section.
+		 * No byte swapping is required in MAO section
+		 */
+		memcpy(data->hw_addr, hw_addr, ETH_ALEN);
 
 		/*
 		 * Force the use of the OTP MAC address in case of reserved MAC

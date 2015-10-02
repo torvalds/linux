@@ -300,6 +300,6 @@ void __init init_cpu_topology(void)
 	 * Discard anything that was parsed if we hit an error so we
 	 * don't use partial information.
 	 */
-	if (parse_dt_topology())
+	if (of_have_populated_dt() && parse_dt_topology())
 		reset_cpu_topology();
 }

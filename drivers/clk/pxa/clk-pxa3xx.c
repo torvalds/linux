@@ -126,7 +126,7 @@ PARENTS(pxa3xx_ac97_bus) = { "ring_osc_60mhz", "ac97" };
 PARENTS(pxa3xx_sbus) = { "ring_osc_60mhz", "system_bus" };
 PARENTS(pxa3xx_smemcbus) = { "ring_osc_60mhz", "smemc" };
 
-#define CKEN_AB(bit) ((CKEN_ ## bit > 31) ? &CKENA : &CKENB)
+#define CKEN_AB(bit) ((CKEN_ ## bit > 31) ? &CKENB : &CKENA)
 #define PXA3XX_CKEN(dev_id, con_id, parents, mult_lp, div_lp, mult_hp,	\
 		    div_hp, bit, is_lp, flags)				\
 	PXA_CKEN(dev_id, con_id, bit, parents, mult_lp, div_lp,		\

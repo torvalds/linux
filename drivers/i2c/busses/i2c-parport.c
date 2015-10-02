@@ -20,6 +20,8 @@
    GNU General Public License for more details.
  * ------------------------------------------------------------------------ */
 
+#define pr_fmt(fmt) "i2c-parport: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -176,26 +178,24 @@ static void i2c_parport_attach(struct parport *port)
 			break;
 	}
 	if (i == MAX_DEVICE) {
-		pr_debug("i2c-parport: Not using parport%d.\n", port->number);
+		pr_debug("Not using parport%d.\n", port->number);
 		return;
 	}
 
 	adapter = kzalloc(sizeof(struct i2c_par), GFP_KERNEL);
-	if (adapter == NULL) {
-		printk(KERN_ERR "i2c-parport: Failed to kzalloc\n");
+	if (!adapter)
 		return;
-	}
 	memset(&i2c_parport_cb, 0, sizeof(i2c_parport_cb));
 	i2c_parport_cb.flags = PARPORT_FLAG_EXCL;
 	i2c_parport_cb.irq_func = i2c_parport_irq;
 	i2c_parport_cb.private = adapter;
 
-	pr_debug("i2c-parport: attaching to %s\n", port->name);
+	pr_debug("attaching to %s\n", port->name);
 	parport_disable_irq(port);
 	adapter->pdev = parport_register_dev_model(port, "i2c-parport",
 						   &i2c_parport_cb, i);
 	if (!adapter->pdev) {
-		printk(KERN_ERR "i2c-parport: Unable to register with parport\n");
+		pr_err("Unable to register with parport\n");
 		goto err_free;
 	}
 
@@ -215,7 +215,8 @@ static void i2c_parport_attach(struct parport *port)
 	adapter->adapter.dev.parent = port->physport->dev;
 
 	if (parport_claim_or_block(adapter->pdev) < 0) {
-		printk(KERN_ERR "i2c-parport: Could not claim parallel port\n");
+		dev_err(&adapter->pdev->dev,
+			"Could not claim parallel port\n");
 		goto err_unregister;
 	}
 
@@ -230,7 +231,7 @@ static void i2c_parport_attach(struct parport *port)
 	}
 
 	if (i2c_bit_add_bus(&adapter->adapter) < 0) {
-		printk(KERN_ERR "i2c-parport: Unable to register with I2C\n");
+		dev_err(&adapter->pdev->dev, "Unable to register with I2C\n");
 		goto err_unregister;
 	}
 
@@ -242,8 +243,8 @@ static void i2c_parport_attach(struct parport *port)
 		if (adapter->ara)
 			parport_enable_irq(port);
 		else
-			printk(KERN_WARNING "i2c-parport: Failed to register "
-			       "ARA client\n");
+			dev_warn(&adapter->pdev->dev,
+				 "Failed to register ARA client\n");
 	}
 
 	/* Add the new adapter to the list */
@@ -298,12 +299,12 @@ static struct parport_driver i2c_parport_driver = {
 static int __init i2c_parport_init(void)
 {
 	if (type < 0) {
-		printk(KERN_WARNING "i2c-parport: adapter type unspecified\n");
+		pr_warn("adapter type unspecified\n");
 		return -ENODEV;
 	}
 
 	if (type >= ARRAY_SIZE(adapter_parm)) {
-		printk(KERN_WARNING "i2c-parport: invalid type (%d)\n", type);
+		pr_warn("invalid type (%d)\n", type);
 		return -ENODEV;
 	}
 

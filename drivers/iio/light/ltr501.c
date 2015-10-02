@@ -1302,7 +1302,7 @@ static int ltr501_init(struct ltr501_data *data)
 	if (ret < 0)
 		return ret;
 
-	data->als_contr = ret | data->chip_info->als_mode_active;
+	data->als_contr = status | data->chip_info->als_mode_active;
 
 	ret = regmap_read(data->regmap, LTR501_PS_CONTR, &status);
 	if (ret < 0)
@@ -1551,7 +1551,6 @@ static struct i2c_driver ltr501_driver = {
 		.name   = LTR501_DRV_NAME,
 		.pm	= &ltr501_pm_ops,
 		.acpi_match_table = ACPI_PTR(ltr_acpi_match),
-		.owner  = THIS_MODULE,
 	},
 	.probe  = ltr501_probe,
 	.remove	= ltr501_remove,

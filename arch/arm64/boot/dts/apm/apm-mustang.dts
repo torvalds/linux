@@ -23,6 +23,16 @@
 		device_type = "memory";
 		reg = < 0x1 0x00000000 0x0 0x80000000 >; /* Updated by bootloader */
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		button@1 {
+			label = "POWER";
+			linux,code = <116>;
+			linux,input-type = <0x1>;
+			interrupts = <0x0 0x2d 0x1>;
+		};
+	};
 };
 
 &pcie0clk {

@@ -8,5 +8,6 @@ nvkm-y += nvkm/subdev/clk/mcp77.o
 nvkm-y += nvkm/subdev/clk/gf100.o
 nvkm-y += nvkm/subdev/clk/gk104.o
 nvkm-y += nvkm/subdev/clk/gk20a.o
+
 nvkm-y += nvkm/subdev/clk/pllnv04.o
 nvkm-y += nvkm/subdev/clk/pllgt215.o

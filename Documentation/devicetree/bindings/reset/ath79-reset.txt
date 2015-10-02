@@ -1,0 +1,20 @@
+Binding for Qualcomm Atheros AR7xxx/AR9XXX reset controller
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required Properties:
+- compatible: has to be "qca,<soctype>-reset", "qca,ar7100-reset"
+              as fallback
+- reg: Base address and size of the controllers memory area
+- #reset-cells : Specifies the number of cells needed to encode reset
+                 line, should be 1
+
+Example:
+
+	reset-controller@1806001c {
+		compatible = "qca,ar9132-reset", "qca,ar7100-reset";
+		reg = <0x1806001c 0x4>;
+
+		#reset-cells = <1>;
+	};

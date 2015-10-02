@@ -812,7 +812,7 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 			else
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 
-			if ((adev->flags & AMDGPU_IS_APU) &&
+			if ((adev->flags & AMD_IS_APU) &&
 			    (amdgpu_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
 				if (is_dp ||
 				    !amdgpu_dig_monitor_is_duallink(encoder, amdgpu_encoder->pixel_clock)) {

@@ -46,6 +46,8 @@ static inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 	__ctl_load(reg, cr, cr);
 }
 
+void __ctl_set_vx(void);
+
 void smp_ctl_set_bit(int cr, int bit);
 void smp_ctl_clear_bit(int cr, int bit);
 
@@ -57,7 +59,10 @@ union ctlreg0 {
 		unsigned long lap  : 1; /* Low-address-protection control */
 		unsigned long	   : 4;
 		unsigned long edat : 1; /* Enhanced-DAT-enablement control */
-		unsigned long	   : 23;
+		unsigned long	   : 4;
+		unsigned long afp  : 1; /* AFP-register control */
+		unsigned long vx   : 1; /* Vector enablement control */
+		unsigned long	   : 17;
 	};
 };
 

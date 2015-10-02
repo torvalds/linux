@@ -17,6 +17,8 @@ properties:
   enabled.
 * 'asym-pause' (boolean, optional), to indicate that asym_pause should
   be enabled.
+* 'link-gpios' ('gpio-list', optional), to indicate if a gpio can be read
+  to determine if the link is up.
 
 Old, deprecated 'fixed-link' binding:
 
@@ -30,13 +32,23 @@ Old, deprecated 'fixed-link' binding:
   - e: asymmetric pause configuration: 0 for no asymmetric pause, 1 for
     asymmetric pause
 
-Example:
+Examples:
 
 ethernet@0 {
 	...
 	fixed-link {
 	      speed = <1000>;
 	      full-duplex;
+	};
+	...
+};
+
+ethernet@1 {
+	...
+	fixed-link {
+	      speed = <1000>;
+	      pause;
+	      link-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 	};
 	...
 };

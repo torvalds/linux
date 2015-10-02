@@ -226,8 +226,7 @@ obj-$(CONFIG_SOC_DRA7XX)		+= omap_hwmod_7xx_data.o
 # EMU peripherals
 obj-$(CONFIG_HW_PERF_EVENTS)		+= pmu.o
 
-iommu-$(CONFIG_OMAP_IOMMU)		:= omap-iommu.o
-obj-y					+= $(iommu-m) $(iommu-y)
+obj-$(CONFIG_OMAP_IOMMU)		+= omap-iommu.o
 
 # OMAP2420 MSDI controller integration support ("MMC")
 obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o
@@ -235,9 +234,6 @@ obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o pdata-quirks.o
 obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o
-obj-$(CONFIG_MACH_OMAP3530_LV_SOM)      += board-omap3logic.o
-obj-$(CONFIG_MACH_OMAP3_TORPEDO)        += board-omap3logic.o
-obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o
 obj-$(CONFIG_MACH_NOKIA_N8X0)		+= board-n8x0.o
 obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o sdram-nokia.o
 obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51-peripherals.o

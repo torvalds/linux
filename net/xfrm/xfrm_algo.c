@@ -31,7 +31,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 64,
 		}
 	},
@@ -50,7 +50,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 96,
 		}
 	},
@@ -69,7 +69,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},
@@ -88,7 +88,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 64,
 		}
 	},
@@ -107,7 +107,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 96,
 		}
 	},
@@ -126,7 +126,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},
@@ -164,7 +164,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 	.uinfo = {
 		.aead = {
-			.geniv = "seqniv",
+			.geniv = "seqiv",
 			.icv_truncbits = 128,
 		}
 	},

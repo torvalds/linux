@@ -23,8 +23,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-struct batadv_priv;
-struct batadv_softif_vlan;
 struct kobject;
 struct net_device;
 

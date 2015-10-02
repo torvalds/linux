@@ -381,11 +381,11 @@ static int i40evf_get_rss_hash_opts(struct i40evf_adapter *adapter,
 
 	switch (cmd->flow_type) {
 	case TCP_V4_FLOW:
-		if (hena & ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP))
+		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP))
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case UDP_V4_FLOW:
-		if (hena & ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP))
+		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP))
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 
@@ -397,11 +397,11 @@ static int i40evf_get_rss_hash_opts(struct i40evf_adapter *adapter,
 		break;
 
 	case TCP_V6_FLOW:
-		if (hena & ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP))
+		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP))
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case UDP_V6_FLOW:
-		if (hena & ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP))
+		if (hena & BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP))
 			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 
@@ -479,10 +479,10 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 	case TCP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
 			break;
 		default:
 			return -EINVAL;
@@ -491,10 +491,10 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 	case TCP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+			hena &= ~BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+			hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
 			break;
 		default:
 			return -EINVAL;
@@ -503,12 +503,12 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 	case UDP_V4_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
-				 ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4));
+			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
+				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 			break;
 		default:
 			return -EINVAL;
@@ -517,12 +517,12 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 	case UDP_V6_FLOW:
 		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		case 0:
-			hena &= ~(((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				  ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena &= ~(BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				  BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
-			hena |= (((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
-				 ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6));
+			hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_UDP) |
+				 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 			break;
 		default:
 			return -EINVAL;
@@ -535,7 +535,7 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 		if ((nfc->data & RXH_L4_B_0_1) ||
 		    (nfc->data & RXH_L4_B_2_3))
 			return -EINVAL;
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
 		break;
 	case AH_ESP_V6_FLOW:
 	case AH_V6_FLOW:
@@ -544,15 +544,15 @@ static int i40evf_set_rss_hash_opt(struct i40evf_adapter *adapter,
 		if ((nfc->data & RXH_L4_B_0_1) ||
 		    (nfc->data & RXH_L4_B_2_3))
 			return -EINVAL;
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+		hena |= BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
 		break;
 	case IPV4_FLOW:
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV4);
+		hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_OTHER) |
+			 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV4));
 		break;
 	case IPV6_FLOW:
-		hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
-			((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
+		hena |= (BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
+			 BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6));
 		break;
 	default:
 		return -EINVAL;

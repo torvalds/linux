@@ -317,24 +317,33 @@ xfs_file_read_iter(
 		return -EIO;
 
 	/*
-	 * Locking is a bit tricky here. If we take an exclusive lock
-	 * for direct IO, we effectively serialise all new concurrent
-	 * read IO to this file and block it behind IO that is currently in
-	 * progress because IO in progress holds the IO lock shared. We only
-	 * need to hold the lock exclusive to blow away the page cache, so
-	 * only take lock exclusively if the page cache needs invalidation.
-	 * This allows the normal direct IO case of no page cache pages to
-	 * proceeed concurrently without serialisation.
+	 * Locking is a bit tricky here. If we take an exclusive lock for direct
+	 * IO, we effectively serialise all new concurrent read IO to this file
+	 * and block it behind IO that is currently in progress because IO in
+	 * progress holds the IO lock shared. We only need to hold the lock
+	 * exclusive to blow away the page cache, so only take lock exclusively
+	 * if the page cache needs invalidation. This allows the normal direct
+	 * IO case of no page cache pages to proceeed concurrently without
+	 * serialisation.
 	 */
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
 	if ((ioflags & XFS_IO_ISDIRECT) && inode->i_mapping->nrpages) {
 		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
+		/*
+		 * The generic dio code only flushes the range of the particular
+		 * I/O. Because we take an exclusive lock here, this whole
+		 * sequence is considerably more expensive for us. This has a
+		 * noticeable performance impact for any file with cached pages,
+		 * even when outside of the range of the particular I/O.
+		 *
+		 * Hence, amortize the cost of the lock against a full file
+		 * flush and reduce the chances of repeated iolock cycles going
+		 * forward.
+		 */
 		if (inode->i_mapping->nrpages) {
-			ret = filemap_write_and_wait_range(
-							VFS_I(ip)->i_mapping,
-							pos, pos + size - 1);
+			ret = filemap_write_and_wait(VFS_I(ip)->i_mapping);
 			if (ret) {
 				xfs_rw_iunlock(ip, XFS_IOLOCK_EXCL);
 				return ret;
@@ -345,9 +354,7 @@ xfs_file_read_iter(
 			 * we fail to invalidate a page, but this should never
 			 * happen on XFS. Warn if it does fail.
 			 */
-			ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
-					pos >> PAGE_CACHE_SHIFT,
-					(pos + size - 1) >> PAGE_CACHE_SHIFT);
+			ret = invalidate_inode_pages2(VFS_I(ip)->i_mapping);
 			WARN_ON_ONCE(ret);
 			ret = 0;
 		}
@@ -733,19 +740,19 @@ xfs_file_dio_aio_write(
 	pos = iocb->ki_pos;
 	end = pos + count - 1;
 
+	/*
+	 * See xfs_file_read_iter() for why we do a full-file flush here.
+	 */
 	if (mapping->nrpages) {
-		ret = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-						   pos, end);
+		ret = filemap_write_and_wait(VFS_I(ip)->i_mapping);
 		if (ret)
 			goto out;
 		/*
-		 * Invalidate whole pages. This can return an error if
-		 * we fail to invalidate a page, but this should never
-		 * happen on XFS. Warn if it does fail.
+		 * Invalidate whole pages. This can return an error if we fail
+		 * to invalidate a page, but this should never happen on XFS.
+		 * Warn if it does fail.
 		 */
-		ret = invalidate_inode_pages2_range(VFS_I(ip)->i_mapping,
-					pos >> PAGE_CACHE_SHIFT,
-					end >> PAGE_CACHE_SHIFT);
+		ret = invalidate_inode_pages2(VFS_I(ip)->i_mapping);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}
@@ -1514,24 +1521,61 @@ xfs_filemap_fault(
 	struct vm_area_struct	*vma,
 	struct vm_fault		*vmf)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(vma->vm_file));
+	struct inode		*inode = file_inode(vma->vm_file);
 	int			ret;
 
-	trace_xfs_filemap_fault(ip);
+	trace_xfs_filemap_fault(XFS_I(inode));
 
 	/* DAX can shortcut the normal fault path on write faults! */
-	if ((vmf->flags & FAULT_FLAG_WRITE) && IS_DAX(VFS_I(ip)))
+	if ((vmf->flags & FAULT_FLAG_WRITE) && IS_DAX(inode))
 		return xfs_filemap_page_mkwrite(vma, vmf);
 
-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	ret = filemap_fault(vma, vmf);
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	if (IS_DAX(inode)) {
+		/*
+		 * we do not want to trigger unwritten extent conversion on read
+		 * faults - that is unnecessary overhead and would also require
+		 * changes to xfs_get_blocks_direct() to map unwritten extent
+		 * ioend for conversion on read-only mappings.
+		 */
+		ret = __dax_fault(vma, vmf, xfs_get_blocks_direct, NULL);
+	} else
+		ret = filemap_fault(vma, vmf);
+	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+
+	return ret;
+}
+
+STATIC int
+xfs_filemap_pmd_fault(
+	struct vm_area_struct	*vma,
+	unsigned long		addr,
+	pmd_t			*pmd,
+	unsigned int		flags)
+{
+	struct inode		*inode = file_inode(vma->vm_file);
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			ret;
+
+	if (!IS_DAX(inode))
+		return VM_FAULT_FALLBACK;
+
+	trace_xfs_filemap_pmd_fault(ip);
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vma->vm_file);
+	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	ret = __dax_pmd_fault(vma, addr, pmd, flags, xfs_get_blocks_direct,
+				    xfs_end_io_dax_write);
+	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	sb_end_pagefault(inode->i_sb);
 
 	return ret;
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
 	.fault		= xfs_filemap_fault,
+	.pmd_fault	= xfs_filemap_pmd_fault,
 	.map_pages	= filemap_map_pages,
 	.page_mkwrite	= xfs_filemap_page_mkwrite,
 };
@@ -1544,7 +1588,7 @@ xfs_file_mmap(
 	file_accessed(filp);
 	vma->vm_ops = &xfs_file_vm_ops;
 	if (IS_DAX(file_inode(filp)))
-		vma->vm_flags |= VM_MIXEDMAP;
+		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
 	return 0;
 }
 

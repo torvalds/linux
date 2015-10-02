@@ -202,7 +202,7 @@ config ETRAX_PA_CHANGEABLE_DIR
 	default "0x00" if ETRAXFS
 	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (8 bits) with information of what bits in PA that a
+	  This is a bitmask with information of what bits in PA that a
 	  user can change direction on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 0 here, but it depends on your hardware.
@@ -213,7 +213,7 @@ config ETRAX_PA_CHANGEABLE_BITS
 	default "0x00" if ETRAXFS
 	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (8 bits) with information of what bits in PA
+	  This is a bitmask with information of what bits in PA
 	  that a user can change the value on using ioctl's.
 	  Bit set = changeable.
 
@@ -223,7 +223,7 @@ config ETRAX_PB_CHANGEABLE_DIR
 	default "0x00000" if ETRAXFS
 	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (18 bits) with information of what bits in PB
+	  This is a bitmask with information of what bits in PB
 	  that a user can change direction on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 0 here, but it depends on your hardware.
@@ -234,7 +234,7 @@ config ETRAX_PB_CHANGEABLE_BITS
 	default "0x00000" if ETRAXFS
 	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (18 bits) with information of what bits in PB
+	  This is a bitmask with information of what bits in PB
 	  that a user can change the value on using ioctl's.
 	  Bit set = changeable.
 
@@ -244,7 +244,7 @@ config ETRAX_PC_CHANGEABLE_DIR
 	default "0x00000" if ETRAXFS
 	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (18 bits) with information of what bits in PC
+	  This is a bitmask with information of what bits in PC
 	  that a user can change direction on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 0 here, but it depends on your hardware.
@@ -253,9 +253,9 @@ config ETRAX_PC_CHANGEABLE_BITS
 	hex "PC user changeable bits mask"
 	depends on ETRAX_GPIO
 	default "0x00000" if ETRAXFS
-	default "0x00000000" if ETRAXFS
+	default "0x00000000" if !ETRAXFS
 	help
-	  This is a bitmask (18 bits) with information of what bits in PC
+	  This is a bitmask with information of what bits in PC
 	  that a user can change the value on using ioctl's.
 	  Bit set = changeable.
 
@@ -264,7 +264,7 @@ config ETRAX_PD_CHANGEABLE_DIR
 	depends on ETRAX_GPIO && ETRAXFS
 	default "0x00000"
 	help
-	  This is a bitmask (18 bits) with information of what bits in PD
+	  This is a bitmask with information of what bits in PD
 	  that a user can change direction on using ioctl's.
 	  Bit set = changeable.
 	  You probably want 0x00000 here, but it depends on your hardware.

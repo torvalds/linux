@@ -1223,7 +1223,7 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
 	spin_unlock_irq(&callback_lock);
 
 	/* use trialcs->mems_allowed as a temp variable */
-	update_nodemasks_hier(cs, &cs->mems_allowed);
+	update_nodemasks_hier(cs, &trialcs->mems_allowed);
 done:
 	return retval;
 }

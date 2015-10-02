@@ -18,6 +18,8 @@ struct trace_event {
 
 int trace_event__init(struct trace_event *t);
 void trace_event__cleanup(struct trace_event *t);
+int trace_event__register_resolver(struct machine *machine,
+				   pevent_func_resolver_t *func);
 struct event_format*
 trace_event__tp_format(const char *sys, const char *name);
 

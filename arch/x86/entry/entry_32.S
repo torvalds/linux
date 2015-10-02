@@ -45,16 +45,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-/* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
-#include <linux/elf-em.h>
-#define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
-#define __AUDIT_ARCH_LE		0x40000000
-
-#ifndef CONFIG_AUDITSYSCALL
-# define sysenter_audit		syscall_trace_entry
-# define sysexit_audit		syscall_exit_work
-#endif
-
 	.section .entry.text, "ax"
 
 /*
@@ -266,14 +256,10 @@ ret_from_intr:
 
 ENTRY(resume_userspace)
 	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	andl	$_TIF_WORK_MASK, %ecx		# is there any work to be done on
-						# int/exception return?
-	jne	work_pending
+	movl	%esp, %eax
+	call	prepare_exit_to_usermode
 	jmp	restore_all
 END(ret_from_exception)
 
@@ -339,7 +325,7 @@ sysenter_past_esp:
 	GET_THREAD_INFO(%ebp)
 
 	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	sysenter_audit
+	jnz	syscall_trace_entry
 sysenter_do_call:
 	cmpl	$(NR_syscalls), %eax
 	jae	sysenter_badsys
@@ -351,7 +337,7 @@ sysenter_after_call:
 	TRACE_IRQS_OFF
 	movl	TI_flags(%ebp), %ecx
 	testl	$_TIF_ALLWORK_MASK, %ecx
-	jnz	sysexit_audit
+	jnz	syscall_exit_work_irqs_off
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
 	movl	PT_EIP(%esp), %edx
@@ -361,40 +347,6 @@ sysenter_exit:
 1:	mov	PT_FS(%esp), %fs
 	PTGS_TO_GS
 	ENABLE_INTERRUPTS_SYSEXIT
-
-#ifdef CONFIG_AUDITSYSCALL
-sysenter_audit:
-	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), TI_flags(%ebp)
-	jnz	syscall_trace_entry
-	/* movl	PT_EAX(%esp), %eax already set, syscall number: 1st arg to audit */
-	movl	PT_EBX(%esp), %edx		/* ebx/a0: 2nd arg to audit */
-	/* movl	PT_ECX(%esp), %ecx already set, a1: 3nd arg to audit */
-	pushl	PT_ESI(%esp)			/* a3: 5th arg */
-	pushl	PT_EDX+4(%esp)			/* a2: 4th arg */
-	call	__audit_syscall_entry
-	popl	%ecx				/* get that remapped edx off the stack */
-	popl	%ecx				/* get that remapped esi off the stack */
-	movl	PT_EAX(%esp), %eax		/* reload syscall number */
-	jmp	sysenter_do_call
-
-sysexit_audit:
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jnz	syscall_exit_work
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)
-	movl	%eax, %edx			/* second arg, syscall return value */
-	cmpl	$-MAX_ERRNO, %eax		/* is it an error ? */
-	setbe %al				/* 1 if so, 0 if not */
-	movzbl %al, %eax			/* zero-extend that */
-	call	__audit_syscall_exit
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
-	jnz	syscall_exit_work
-	movl	PT_EAX(%esp), %eax		/* reload syscall return value */
-	jmp	sysenter_exit
-#endif
 
 .pushsection .fixup, "ax"
 2:	movl	$0, PT_FS(%esp)
@@ -421,13 +373,7 @@ syscall_after_call:
 	movl	%eax, PT_EAX(%esp)		# store the return value
 syscall_exit:
 	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$_TIF_ALLWORK_MASK, %ecx	# current->work
-	jnz	syscall_exit_work
+	jmp	syscall_exit_work
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -504,57 +450,6 @@ ldt_ss:
 #endif
 ENDPROC(entry_INT80_32)
 
-	# perform work that needs to be done immediately before resumption
-	ALIGN
-work_pending:
-	testb	$_TIF_NEED_RESCHED, %cl
-	jz	work_notifysig
-work_resched:
-	call	schedule
-	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)		# make sure we don't miss an interrupt
-						# setting need_resched or sigpending
-						# between sampling and the iret
-	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	andl	$_TIF_WORK_MASK, %ecx		# is there any work to be done other
-						# than syscall tracing?
-	jz	restore_all
-	testb	$_TIF_NEED_RESCHED, %cl
-	jnz	work_resched
-
-work_notifysig:					# deal with pending signals and
-						# notify-resume requests
-#ifdef CONFIG_VM86
-	testl	$X86_EFLAGS_VM, PT_EFLAGS(%esp)
-	movl	%esp, %eax
-	jnz	work_notifysig_v86		# returning to kernel-space or
-						# vm86-space
-1:
-#else
-	movl	%esp, %eax
-#endif
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movb	PT_CS(%esp), %bl
-	andb	$SEGMENT_RPL_MASK, %bl
-	cmpb	$USER_RPL, %bl
-	jb	resume_kernel
-	xorl	%edx, %edx
-	call	do_notify_resume
-	jmp	resume_userspace
-
-#ifdef CONFIG_VM86
-	ALIGN
-work_notifysig_v86:
-	pushl	%ecx				# save ti_flags for do_notify_resume
-	call	save_v86_state			# %eax contains pt_regs pointer
-	popl	%ecx
-	movl	%eax, %esp
-	jmp	1b
-#endif
-END(work_pending)
-
 	# perform syscall exit tracing
 	ALIGN
 syscall_trace_entry:
@@ -569,15 +464,14 @@ END(syscall_trace_entry)
 
 	# perform syscall exit tracing
 	ALIGN
-syscall_exit_work:
-	testl	$_TIF_WORK_SYSCALL_EXIT, %ecx
-	jz	work_pending
+syscall_exit_work_irqs_off:
 	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)		# could let syscall_trace_leave() call
-						# schedule() instead
+	ENABLE_INTERRUPTS(CLBR_ANY)
+
+syscall_exit_work:
 	movl	%esp, %eax
-	call	syscall_trace_leave
-	jmp	resume_userspace
+	call	syscall_return_slowpath
+	jmp	restore_all
 END(syscall_exit_work)
 
 syscall_fault:

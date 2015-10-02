@@ -35,11 +35,11 @@ temp1_input		Local temperature (1/1000 degree,
 temp[2-9]_input		CPU temperatures (1/1000 degree,
 			0.125 degree resolution)
 
-fan[1-4]_mode		R/W, 0/1 for manual or SmartFan mode
+pwm[1-4]_enable		R/W, 1/2 for manual or SmartFan mode
 			Setting SmartFan mode is supported only if it has been
 			previously configured by BIOS (or configuration EEPROM)
 
-fan[1-4]_pwm		R/O in SmartFan mode, R/W in manual control mode
+pwm[1-4]		R/O in SmartFan mode, R/W in manual control mode
 
 The driver checks sensor control registers and does not export the sensors
 that are not enabled. Anyway, a sensor that is enabled may actually be not

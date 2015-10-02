@@ -598,6 +598,7 @@ static const struct of_device_id wm8510_of_match[] = {
 	{ .compatible = "wlf,wm8510" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, wm8510_of_match);
 
 static const struct regmap_config wm8510_regmap = {
 	.reg_bits = 7,
@@ -690,7 +691,6 @@ MODULE_DEVICE_TABLE(i2c, wm8510_i2c_id);
 static struct i2c_driver wm8510_i2c_driver = {
 	.driver = {
 		.name = "wm8510",
-		.owner = THIS_MODULE,
 		.of_match_table = wm8510_of_match,
 	},
 	.probe =    wm8510_i2c_probe,

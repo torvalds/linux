@@ -46,7 +46,7 @@ static ssize_t pwm_period_show(struct device *child,
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
 
-	return sprintf(buf, "%u\n", pwm->period);
+	return sprintf(buf, "%u\n", pwm_get_period(pwm));
 }
 
 static ssize_t pwm_period_store(struct device *child,
@@ -61,7 +61,7 @@ static ssize_t pwm_period_store(struct device *child,
 	if (ret)
 		return ret;
 
-	ret = pwm_config(pwm, pwm->duty_cycle, val);
+	ret = pwm_config(pwm, pwm_get_duty_cycle(pwm), val);
 
 	return ret ? : size;
 }
@@ -72,7 +72,7 @@ static ssize_t pwm_duty_cycle_show(struct device *child,
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
 
-	return sprintf(buf, "%u\n", pwm->duty_cycle);
+	return sprintf(buf, "%u\n", pwm_get_duty_cycle(pwm));
 }
 
 static ssize_t pwm_duty_cycle_store(struct device *child,
@@ -87,7 +87,7 @@ static ssize_t pwm_duty_cycle_store(struct device *child,
 	if (ret)
 		return ret;
 
-	ret = pwm_config(pwm, val, pwm->period);
+	ret = pwm_config(pwm, val, pwm_get_period(pwm));
 
 	return ret ? : size;
 }
@@ -97,7 +97,7 @@ static ssize_t pwm_enable_show(struct device *child,
 			       char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
-	int enabled = test_bit(PWMF_ENABLED, &pwm->flags);
+	int enabled = pwm_is_enabled(pwm);
 
 	return sprintf(buf, "%d\n", enabled);
 }
@@ -133,8 +133,19 @@ static ssize_t pwm_polarity_show(struct device *child,
 				 char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
+	const char *polarity = "unknown";
 
-	return sprintf(buf, "%s\n", pwm->polarity ? "inversed" : "normal");
+	switch (pwm_get_polarity(pwm)) {
+	case PWM_POLARITY_NORMAL:
+		polarity = "normal";
+		break;
+
+	case PWM_POLARITY_INVERSED:
+		polarity = "inversed";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", polarity);
 }
 
 static ssize_t pwm_polarity_store(struct device *child,
@@ -301,9 +312,9 @@ static struct attribute *pwm_chip_attrs[] = {
 ATTRIBUTE_GROUPS(pwm_chip);
 
 static struct class pwm_class = {
-	.name		= "pwm",
-	.owner		= THIS_MODULE,
-	.dev_groups	= pwm_chip_groups,
+	.name = "pwm",
+	.owner = THIS_MODULE,
+	.dev_groups = pwm_chip_groups,
 };
 
 static int pwmchip_sysfs_match(struct device *parent, const void *data)

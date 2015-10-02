@@ -153,9 +153,10 @@ void rds_iw_send_init_ring(struct rds_iw_connection *ic)
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = 0;
 
-		send->s_mr = ib_alloc_fast_reg_mr(ic->i_pd, fastreg_message_size);
+		send->s_mr = ib_alloc_mr(ic->i_pd, IB_MR_TYPE_MEM_REG,
+					 fastreg_message_size);
 		if (IS_ERR(send->s_mr)) {
-			printk(KERN_WARNING "RDS/IW: ib_alloc_fast_reg_mr failed\n");
+			printk(KERN_WARNING "RDS/IW: ib_alloc_mr failed\n");
 			break;
 		}
 

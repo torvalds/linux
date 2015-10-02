@@ -24,55 +24,6 @@ config ARM_VEXPRESS_SPC_CPUFREQ
           This add the CPUfreq driver support for Versatile Express
 	  big.LITTLE platforms using SPC for power management.
 
-
-config ARM_EXYNOS_CPUFREQ
-	tristate "SAMSUNG EXYNOS CPUfreq Driver"
-	depends on CPU_EXYNOS4210 || SOC_EXYNOS4212 || SOC_EXYNOS4412 || SOC_EXYNOS5250
-	depends on THERMAL
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS platforms.
-	  Supported SoC versions are:
-	     Exynos4210, Exynos4212, Exynos4412, and Exynos5250.
-
-	  If in doubt, say N.
-
-config ARM_EXYNOS4X12_CPUFREQ
-	bool "SAMSUNG EXYNOS4x12"
-	depends on SOC_EXYNOS4212 || SOC_EXYNOS4412
-	depends on ARM_EXYNOS_CPUFREQ
-	default y
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS4X12
-	  SoC (EXYNOS4212 or EXYNOS4412).
-
-	  If in doubt, say N.
-
-config ARM_EXYNOS5250_CPUFREQ
-	bool "SAMSUNG EXYNOS5250"
-	depends on SOC_EXYNOS5250
-	depends on ARM_EXYNOS_CPUFREQ
-	default y
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS5250
-	  SoC.
-
-	  If in doubt, say N.
-
-config ARM_EXYNOS_CPU_FREQ_BOOST_SW
-	bool "EXYNOS Frequency Overclocking - Software"
-	depends on ARM_EXYNOS_CPUFREQ && THERMAL
-	select CPU_FREQ_BOOST_SW
-	select EXYNOS_THERMAL
-	help
-	  This driver supports software managed overclocking (BOOST).
-	  It allows usage of special frequencies for Samsung Exynos
-	  processors if thermal conditions are appropriate.
-
-	  It requires, for safe operation, thermal framework with properly
-	  defined trip points.
-
-	  If in doubt, say N.
-
 config ARM_EXYNOS5440_CPUFREQ
 	tristate "SAMSUNG EXYNOS5440"
 	depends on SOC_EXYNOS5440
@@ -129,6 +80,14 @@ config ARM_KIRKWOOD_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
+
+config ARM_MT8173_CPUFREQ
+	bool "Mediatek MT8173 CPUFreq support"
+	depends on ARCH_MEDIATEK && REGULATOR
+	depends on !CPU_THERMAL || THERMAL=y
+	select PM_OPP
+	help
+	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.
 
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
@@ -247,12 +206,19 @@ config ARM_SPEAR_CPUFREQ
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
 
-config ARM_TEGRA_CPUFREQ
-	bool "TEGRA CPUFreq support"
+config ARM_TEGRA20_CPUFREQ
+	bool "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
 	default y
 	help
-	  This adds the CPUFreq driver support for TEGRA SOCs.
+	  This adds the CPUFreq driver support for Tegra20 SOCs.
+
+config ARM_TEGRA124_CPUFREQ
+	tristate "Tegra124 CPUFreq support"
+	depends on ARCH_TEGRA && CPUFREQ_DT
+	default y
+	help
+	  This adds the CPUFreq driver support for Tegra124 SOCs.
 
 config ARM_PXA2xx_CPUFREQ
 	tristate "Intel PXA2xx CPUfreq driver"

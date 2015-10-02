@@ -161,11 +161,16 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 
 		if (!gpio_request(reset_gpio, "mdio-reset")) {
 			gpio_direction_output(reset_gpio, active_low ? 1 : 0);
-			udelay(data->delays[0]);
+			if (data->delays[0])
+				msleep(DIV_ROUND_UP(data->delays[0], 1000));
+
 			gpio_set_value(reset_gpio, active_low ? 0 : 1);
-			udelay(data->delays[1]);
+			if (data->delays[1])
+				msleep(DIV_ROUND_UP(data->delays[1], 1000));
+
 			gpio_set_value(reset_gpio, active_low ? 1 : 0);
-			udelay(data->delays[2]);
+			if (data->delays[2])
+				msleep(DIV_ROUND_UP(data->delays[2], 1000));
 		}
 	}
 #endif

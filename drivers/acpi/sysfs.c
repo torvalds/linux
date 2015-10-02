@@ -69,6 +69,8 @@ static const struct acpi_dlevel acpi_debug_levels[] = {
 	ACPI_DEBUG_INIT(ACPI_LV_INIT),
 	ACPI_DEBUG_INIT(ACPI_LV_DEBUG_OBJECT),
 	ACPI_DEBUG_INIT(ACPI_LV_INFO),
+	ACPI_DEBUG_INIT(ACPI_LV_REPAIR),
+	ACPI_DEBUG_INIT(ACPI_LV_TRACE_POINT),
 
 	ACPI_DEBUG_INIT(ACPI_LV_INIT_NAMES),
 	ACPI_DEBUG_INIT(ACPI_LV_PARSE),
@@ -162,55 +164,116 @@ static const struct kernel_param_ops param_ops_debug_level = {
 module_param_cb(debug_layer, &param_ops_debug_layer, &acpi_dbg_layer, 0644);
 module_param_cb(debug_level, &param_ops_debug_level, &acpi_dbg_level, 0644);
 
-static char trace_method_name[6];
-module_param_string(trace_method_name, trace_method_name, 6, 0644);
-static unsigned int trace_debug_layer;
-module_param(trace_debug_layer, uint, 0644);
-static unsigned int trace_debug_level;
-module_param(trace_debug_level, uint, 0644);
+static char trace_method_name[1024];
+
+int param_set_trace_method_name(const char *val, const struct kernel_param *kp)
+{
+	u32 saved_flags = 0;
+	bool is_abs_path = true;
+
+	if (*val != '\\')
+		is_abs_path = false;
+
+	if ((is_abs_path && strlen(val) > 1023) ||
+	    (!is_abs_path && strlen(val) > 1022)) {
+		pr_err("%s: string parameter too long\n", kp->name);
+		return -ENOSPC;
+	}
+
+	/*
+	 * It's not safe to update acpi_gbl_trace_method_name without
+	 * having the tracer stopped, so we save the original tracer
+	 * state and disable it.
+	 */
+	saved_flags = acpi_gbl_trace_flags;
+	(void)acpi_debug_trace(NULL,
+			       acpi_gbl_trace_dbg_level,
+			       acpi_gbl_trace_dbg_layer,
+			       0);
+
+	/* This is a hack.  We can't kmalloc in early boot. */
+	if (is_abs_path)
+		strcpy(trace_method_name, val);
+	else {
+		trace_method_name[0] = '\\';
+		strcpy(trace_method_name+1, val);
+	}
+
+	/* Restore the original tracer state */
+	(void)acpi_debug_trace(trace_method_name,
+			       acpi_gbl_trace_dbg_level,
+			       acpi_gbl_trace_dbg_layer,
+			       saved_flags);
+
+	return 0;
+}
+
+static int param_get_trace_method_name(char *buffer, const struct kernel_param *kp)
+{
+	return scnprintf(buffer, PAGE_SIZE, "%s", acpi_gbl_trace_method_name);
+}
+
+static const struct kernel_param_ops param_ops_trace_method = {
+	.set = param_set_trace_method_name,
+	.get = param_get_trace_method_name,
+};
+
+static const struct kernel_param_ops param_ops_trace_attrib = {
+	.set = param_set_uint,
+	.get = param_get_uint,
+};
+
+module_param_cb(trace_method_name, &param_ops_trace_method, &trace_method_name, 0644);
+module_param_cb(trace_debug_layer, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_layer, 0644);
+module_param_cb(trace_debug_level, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_level, 0644);
 
 static int param_set_trace_state(const char *val, struct kernel_param *kp)
 {
-	int result = 0;
+	acpi_status status;
+	const char *method = trace_method_name;
+	u32 flags = 0;
 
-	if (!strncmp(val, "enable", sizeof("enable") - 1)) {
-		result = acpi_debug_trace(trace_method_name, trace_debug_level,
-					  trace_debug_layer, 0);
-		if (result)
-			result = -EBUSY;
-		goto exit;
-	}
+/* So "xxx-once" comparison should go prior than "xxx" comparison */
+#define acpi_compare_param(val, key)	\
+	strncmp((val), (key), sizeof(key) - 1)
 
-	if (!strncmp(val, "disable", sizeof("disable") - 1)) {
-		int name = 0;
-		result = acpi_debug_trace((char *)&name, trace_debug_level,
-					  trace_debug_layer, 0);
-		if (result)
-			result = -EBUSY;
-		goto exit;
-	}
+	if (!acpi_compare_param(val, "enable")) {
+		method = NULL;
+		flags = ACPI_TRACE_ENABLED;
+	} else if (!acpi_compare_param(val, "disable"))
+		method = NULL;
+	else if (!acpi_compare_param(val, "method-once"))
+		flags = ACPI_TRACE_ENABLED | ACPI_TRACE_ONESHOT;
+	else if (!acpi_compare_param(val, "method"))
+		flags = ACPI_TRACE_ENABLED;
+	else if (!acpi_compare_param(val, "opcode-once"))
+		flags = ACPI_TRACE_ENABLED | ACPI_TRACE_ONESHOT | ACPI_TRACE_OPCODE;
+	else if (!acpi_compare_param(val, "opcode"))
+		flags = ACPI_TRACE_ENABLED | ACPI_TRACE_OPCODE;
+	else
+		return -EINVAL;
 
-	if (!strncmp(val, "1", 1)) {
-		result = acpi_debug_trace(trace_method_name, trace_debug_level,
-					  trace_debug_layer, 1);
-		if (result)
-			result = -EBUSY;
-		goto exit;
-	}
+	status = acpi_debug_trace(method,
+				  acpi_gbl_trace_dbg_level,
+				  acpi_gbl_trace_dbg_layer,
+				  flags);
+	if (ACPI_FAILURE(status))
+		return -EBUSY;
 
-	result = -EINVAL;
-exit:
-	return result;
+	return 0;
 }
 
 static int param_get_trace_state(char *buffer, struct kernel_param *kp)
 {
-	if (!acpi_gbl_trace_method_name)
+	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED))
 		return sprintf(buffer, "disable");
 	else {
-		if (acpi_gbl_trace_flags & 1)
-			return sprintf(buffer, "1");
-		else
+		if (acpi_gbl_trace_method_name) {
+			if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT)
+				return sprintf(buffer, "method-once");
+			else
+				return sprintf(buffer, "method");
+		} else
 			return sprintf(buffer, "enable");
 	}
 	return 0;

@@ -329,6 +329,10 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	unsigned i;
 	int err;
 
+	/* For Control Device interface we do nothing */
+	if (intf == 0)
+		return 0;
+
 	err = f_midi_start_ep(midi, f, midi->in_ep);
 	if (err)
 		return err;
@@ -1145,7 +1149,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	if (opts->id && !midi->id) {
 		status = -ENOMEM;
 		mutex_unlock(&opts->lock);
-		goto kstrdup_fail;
+		goto setup_fail;
 	}
 	midi->in_ports = opts->in_ports;
 	midi->out_ports = opts->out_ports;
@@ -1164,8 +1168,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 
 	return &midi->func;
 
-kstrdup_fail:
-	f_midi_unregister_card(midi);
 setup_fail:
 	for (--i; i >= 0; i--)
 		kfree(midi->in_port[i]);

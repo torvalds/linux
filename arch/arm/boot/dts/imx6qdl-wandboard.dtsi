@@ -9,6 +9,8 @@
  *
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	regulators {
 		compatible = "simple-bus";
@@ -250,13 +252,13 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	cd-gpios = <&gpio1 2 0>;
+	cd-gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
-	cd-gpios = <&gpio3 9 0>;
+	cd-gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };

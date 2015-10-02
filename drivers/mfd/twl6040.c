@@ -86,7 +86,7 @@ static const struct reg_default twl6040_defaults[] = {
 	{ 0x2E, 0x00 }, /* REG_STATUS	(ro) */
 };
 
-static struct reg_default twl6040_patch[] = {
+static struct reg_sequence twl6040_patch[] = {
 	/*
 	 * Select I2C bus access to dual access registers
 	 * Interrupt register is cleared on read
@@ -801,7 +801,6 @@ MODULE_DEVICE_TABLE(i2c, twl6040_i2c_id);
 static struct i2c_driver twl6040_driver = {
 	.driver = {
 		.name = "twl6040",
-		.owner = THIS_MODULE,
 	},
 	.probe		= twl6040_probe,
 	.remove		= twl6040_remove,

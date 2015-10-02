@@ -291,6 +291,14 @@ struct vring_tx_dma {
 	__le16 length;
 } __packed;
 
+/* TSO type used in dma descriptor d0 bits 11-12 */
+enum {
+	wil_tso_type_hdr = 0,
+	wil_tso_type_first = 1,
+	wil_tso_type_mid  = 2,
+	wil_tso_type_lst  = 3,
+};
+
 /* Rx descriptor - MAC part
  * [dword 0]
  * bit  0.. 3 : tid:4 The QoS (b3-0) TID Field

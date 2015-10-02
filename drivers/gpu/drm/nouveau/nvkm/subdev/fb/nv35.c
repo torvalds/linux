@@ -23,15 +23,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
+#include "ram.h"
 
 static void
-nv35_fb_tile_comp(struct nvkm_fb *pfb, int i, u32 size, u32 flags,
+nv35_fb_tile_comp(struct nvkm_fb *fb, int i, u32 size, u32 flags,
 		  struct nvkm_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
-	u32 tags  = round_up(tiles / pfb->ram->parts, 0x40);
-	if (!nvkm_mm_head(&pfb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
+	u32 tags  = round_up(tiles / fb->ram->parts, 0x40);
+	if (!nvkm_mm_head(&fb->ram->tags, 0, 1, tags, tags, 1, &tile->tag)) {
 		if (flags & 2) tile->zcomp |= 0x04000000; /* Z16 */
 		else           tile->zcomp |= 0x08000000; /* Z24S8 */
 		tile->zcomp |= ((tile->tag->offset           ) >> 6);
@@ -42,20 +43,20 @@ nv35_fb_tile_comp(struct nvkm_fb *pfb, int i, u32 size, u32 flags,
 	}
 }
 
-struct nvkm_oclass *
-nv35_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x35),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv30_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv20_ram_oclass,
+static const struct nvkm_fb_func
+nv35_fb = {
+	.init = nv30_fb_init,
 	.tile.regions = 8,
 	.tile.init = nv30_fb_tile_init,
 	.tile.comp = nv35_fb_tile_comp,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv20_fb_tile_prog,
-}.base.base;
+	.ram_new = nv20_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv35_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv35_fb, device, index, pfb);
+}

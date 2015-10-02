@@ -119,12 +119,6 @@
 #endif
 
 /*
- * Convert a physical address to a Page Frame Number and back
- */
-#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
-#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
-
-/*
  * Convert a page to/from a physical address
  */
 #define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
@@ -275,7 +269,7 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
-#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+#define pfn_to_kaddr(pfn)	__va((phys_addr_t)(pfn) << PAGE_SHIFT)
 
 extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
 
@@ -286,7 +280,7 @@ extern phys_addr_t (*arch_virt_to_idmap)(unsigned long x);
  */
 static inline phys_addr_t __virt_to_idmap(unsigned long x)
 {
-	if (arch_virt_to_idmap)
+	if (IS_ENABLED(CONFIG_MMU) && arch_virt_to_idmap)
 		return arch_virt_to_idmap(x);
 	else
 		return __virt_to_phys(x);

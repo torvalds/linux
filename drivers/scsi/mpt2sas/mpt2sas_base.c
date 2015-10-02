@@ -112,9 +112,12 @@ _scsih_set_fwfault_debug(const char *val, struct kernel_param *kp)
 	if (ret)
 		return ret;
 
+	/* global ioc spinlock to protect controller list on list operations */
 	printk(KERN_INFO "setting fwfault_debug(%d)\n", mpt2sas_fwfault_debug);
+	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt2sas_ioc_list, list)
 		ioc->fwfault_debug = mpt2sas_fwfault_debug;
+	spin_unlock(&gioc_lock);
 	return 0;
 }
 
@@ -1557,7 +1560,8 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
-	for (i = 0, memap_sz = 0, pio_sz = 0 ; i < DEVICE_COUNT_RESOURCE; i++) {
+	for (i = 0, memap_sz = 0, pio_sz = 0; (i < DEVICE_COUNT_RESOURCE) &&
+	     (!memap_sz || !pio_sz); i++) {
 		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
 			if (pio_sz)
 				continue;
@@ -1572,14 +1576,15 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 				chip_phys = (u64)ioc->chip_phys;
 				memap_sz = pci_resource_len(pdev, i);
 				ioc->chip = ioremap(ioc->chip_phys, memap_sz);
-				if (ioc->chip == NULL) {
-					printk(MPT2SAS_ERR_FMT "unable to map "
-					    "adapter memory!\n", ioc->name);
-					r = -EINVAL;
-					goto out_fail;
-				}
 			}
 		}
+	}
+
+	if (ioc->chip == NULL) {
+		printk(MPT2SAS_ERR_FMT "unable to map adapter memory! "
+		       "or resource not found\n", ioc->name);
+		r = -EINVAL;
+		goto out_fail;
 	}
 
 	_base_mask_interrupts(ioc);
@@ -4435,6 +4440,8 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	dexitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
 
+	/* synchronizing freeing resource with pci_access_mutex lock */
+	mutex_lock(&ioc->pci_access_mutex);
 	if (ioc->chip_phys && ioc->chip) {
 		_base_mask_interrupts(ioc);
 		ioc->shost_recovery = 1;
@@ -4454,6 +4461,7 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 		pci_disable_pcie_error_reporting(pdev);
 		pci_disable_device(pdev);
 	}
+	mutex_unlock(&ioc->pci_access_mutex);
 	return;
 }
 

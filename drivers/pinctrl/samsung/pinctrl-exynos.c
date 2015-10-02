@@ -148,9 +148,9 @@ static int exynos_irq_set_type(struct irq_data *irqd, unsigned int type)
 	}
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
-		__irq_set_handler_locked(irqd->irq, handle_edge_irq);
+		irq_set_handler_locked(irqd, handle_edge_irq);
 	else
-		__irq_set_handler_locked(irqd->irq, handle_level_irq);
+		irq_set_handler_locked(irqd, handle_level_irq);
 
 	con = readl(d->virt_base + reg_con);
 	con &= ~(EXYNOS_EINT_CON_MASK << shift);
@@ -256,7 +256,6 @@ static int exynos_eint_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_data(virq, b);
 	irq_set_chip_and_handler(virq, &b->irq_chip->chip,
 					handle_level_irq);
-	set_irq_flags(virq, IRQF_VALID);
 	return 0;
 }
 
@@ -420,11 +419,11 @@ static const struct of_device_id exynos_wkup_irq_ids[] = {
 };
 
 /* interrupt handler for wakeup interrupts 0..15 */
-static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
+static void exynos_irq_eint0_15(struct irq_desc *desc)
 {
-	struct exynos_weint_data *eintd = irq_get_handler_data(irq);
+	struct exynos_weint_data *eintd = irq_desc_get_handler_data(desc);
 	struct samsung_pin_bank *bank = eintd->bank;
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int eint_irq;
 
 	chained_irq_enter(chip, desc);
@@ -452,10 +451,10 @@ static inline void exynos_irq_demux_eint(unsigned long pend,
 }
 
 /* interrupt handler for wakeup interrupt 16 */
-static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
+static void exynos_irq_demux_eint16_31(struct irq_desc *desc)
 {
-	struct irq_chip *chip = irq_get_chip(irq);
-	struct exynos_muxed_weint_data *eintd = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct exynos_muxed_weint_data *eintd = irq_desc_get_handler_data(desc);
 	struct samsung_pinctrl_drv_data *d = eintd->banks[0]->drvdata;
 	unsigned long pend;
 	unsigned long mask;
@@ -542,8 +541,9 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			}
 			weint_data[idx].irq = idx;
 			weint_data[idx].bank = bank;
-			irq_set_handler_data(irq, &weint_data[idx]);
-			irq_set_chained_handler(irq, exynos_irq_eint0_15);
+			irq_set_chained_handler_and_data(irq,
+							 exynos_irq_eint0_15,
+							 &weint_data[idx]);
 		}
 	}
 

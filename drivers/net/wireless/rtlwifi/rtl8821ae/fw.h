@@ -34,10 +34,10 @@
 #define FW_8821AE_POLLING_TIMEOUT_COUNT	6000
 
 #define IS_FW_HEADER_EXIST_8812(_pfwhdr)	\
-	((_pfwhdr->signature&0xFFF0) == 0x9500)
+	((le16_to_cpu(_pfwhdr->signature) & 0xFFF0) == 0x9500)
 
 #define IS_FW_HEADER_EXIST_8821(_pfwhdr)	\
-	((_pfwhdr->signature&0xFFF0) == 0x2100)
+	((le16_to_cpu(_pfwhdr->signature) & 0xFFF0) == 0x2100)
 
 #define USE_OLD_WOWLAN_DEBUG_FW 0
 
@@ -136,25 +136,6 @@
 
 #define	FW_PWR_STATE_ACTIVE	((FW_PS_RF_ON) | (FW_PS_REGISTER_ACTIVE))
 #define	FW_PWR_STATE_RF_OFF	0
-
-struct rtl8821a_firmware_header {
-	u16 signature;
-	u8 category;
-	u8 function;
-	u16 version;
-	u8 subversion;
-	u8 rsvd1;
-	u8 month;
-	u8 date;
-	u8 hour;
-	u8 minute;
-	u16 ramcodeSize;
-	u16 rsvd2;
-	u32 svnindex;
-	u32 rsvd3;
-	u32 rsvd4;
-	u32 rsvd5;
-};
 
 enum rtl8812_c2h_evt {
 	C2H_8812_DBG = 0,

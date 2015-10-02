@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 
+#include "../skylake/skl-sst-dsp.h"
+
 struct sst_mem_block;
 struct sst_module;
 struct sst_fw;
@@ -258,6 +260,8 @@ struct sst_mem_block {
  */
 struct sst_dsp {
 
+	/* Shared for all platforms */
+
 	/* runtime */
 	struct sst_dsp_device *sst_dev;
 	spinlock_t spinlock;	/* IPC locking */
@@ -267,10 +271,6 @@ struct sst_dsp {
 	void *thread_context;
 	int irq;
 	u32 id;
-
-	/* list of free and used ADSP memory blocks */
-	struct list_head used_block_list;
-	struct list_head free_block_list;
 
 	/* operations */
 	struct sst_ops *ops;
@@ -283,6 +283,12 @@ struct sst_dsp {
 
 	/* mailbox */
 	struct sst_mailbox mailbox;
+
+	/* HSW/Byt data */
+
+	/* list of free and used ADSP memory blocks */
+	struct list_head used_block_list;
+	struct list_head free_block_list;
 
 	/* SST FW files loaded and their modules */
 	struct list_head module_list;
@@ -299,6 +305,15 @@ struct sst_dsp {
 	/* DMA FW loading */
 	struct sst_dma *dma;
 	bool fw_use_dma;
+
+	/* SKL data */
+
+	/* To allocate CL dma buffers */
+	struct skl_dsp_loader_ops dsp_ops;
+	struct skl_dsp_fw_ops fw_ops;
+	int sst_state;
+	struct skl_cl_dev cl_dev;
+	u32 intr_status;
 };
 
 /* Size optimised DRAM/IRAM memcpy */

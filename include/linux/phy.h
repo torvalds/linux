@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mod_devicetable.h>
@@ -153,6 +154,7 @@ struct sk_buff;
  * PHYs should register using this structure
  */
 struct mii_bus {
+	struct module *owner;
 	const char *name;
 	char id[MII_BUS_ID_SIZE];
 	void *priv;
@@ -198,7 +200,8 @@ static inline struct mii_bus *mdiobus_alloc(void)
 	return mdiobus_alloc_size(0);
 }
 
-int mdiobus_register(struct mii_bus *bus);
+int __mdiobus_register(struct mii_bus *bus, struct module *owner);
+#define mdiobus_register(bus) __mdiobus_register(bus, THIS_MODULE)
 void mdiobus_unregister(struct mii_bus *bus);
 void mdiobus_free(struct mii_bus *bus);
 struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv);
@@ -330,6 +333,7 @@ struct phy_c45_device_ids {
  * c45_ids: 802.3-c45 Device Identifers if is_c45.
  * is_c45:  Set to true if this phy uses clause 45 addressing.
  * is_internal: Set to true if this phy is internal to a MAC.
+ * is_pseudo_fixed_link: Set to true if this phy is an Ethernet switch, etc.
  * has_fixups: Set to true if this phy has fixups/quirks.
  * suspended: Set to true if this phy has been suspended successfully.
  * state: state of the PHY for management purposes
@@ -368,6 +372,7 @@ struct phy_device {
 	struct phy_c45_device_ids c45_ids;
 	bool is_c45;
 	bool is_internal;
+	bool is_pseudo_fixed_link;
 	bool has_fixups;
 	bool suspended;
 
@@ -423,6 +428,8 @@ struct phy_device {
 	struct mutex lock;
 
 	struct net_device *attached_dev;
+
+	u8 mdix;
 
 	void (*adjust_link)(struct net_device *dev);
 };
@@ -686,6 +693,16 @@ static inline bool phy_interface_is_rgmii(struct phy_device *phydev)
 {
 	return phydev->interface >= PHY_INTERFACE_MODE_RGMII &&
 		phydev->interface <= PHY_INTERFACE_MODE_RGMII_TXID;
+};
+
+/*
+ * phy_is_pseudo_fixed_link - Convenience function for testing if this
+ * PHY is the CPU port facing side of an Ethernet switch, or similar.
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_is_pseudo_fixed_link(struct phy_device *phydev)
+{
+	return phydev->is_pseudo_fixed_link;
 }
 
 /**
@@ -728,6 +745,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     struct phy_c45_device_ids *c45_ids);
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
+void phy_device_remove(struct phy_device *phydev);
 int phy_init_hw(struct phy_device *phydev);
 int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);

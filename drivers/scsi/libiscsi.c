@@ -853,12 +853,9 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				     SAM_STAT_CHECK_CONDITION;
 			scsi_build_sense_buffer(1, sc->sense_buffer,
 						ILLEGAL_REQUEST, 0x10, ascq);
-			sc->sense_buffer[7] = 0xc; /* Additional sense length */
-			sc->sense_buffer[8] = 0;   /* Information desc type */
-			sc->sense_buffer[9] = 0xa; /* Additional desc length */
-			sc->sense_buffer[10] = 0x80; /* Validity bit */
-
-			put_unaligned_be64(sector, &sc->sense_buffer[12]);
+			scsi_set_sense_information(sc->sense_buffer,
+						   SCSI_SENSE_BUFFERSIZE,
+						   sector);
 			goto out;
 		}
 	}
@@ -2941,10 +2938,10 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
-	unsigned long flags;
 
 	del_timer_sync(&conn->transport_timer);
 
+	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
 	conn->c_stage = ISCSI_CONN_CLEANUP_WAIT;
 	if (session->leadconn == conn) {
@@ -2955,28 +2952,6 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		wake_up(&conn->ehwait);
 	}
 	spin_unlock_bh(&session->frwd_lock);
-
-	/*
-	 * Block until all in-progress commands for this connection
-	 * time out or fail.
-	 */
-	for (;;) {
-		spin_lock_irqsave(session->host->host_lock, flags);
-		if (!atomic_read(&session->host->host_busy)) { /* OK for ERL == 0 */
-			spin_unlock_irqrestore(session->host->host_lock, flags);
-			break;
-		}
-		spin_unlock_irqrestore(session->host->host_lock, flags);
-		msleep_interruptible(500);
-		iscsi_conn_printk(KERN_INFO, conn, "iscsi conn_destroy(): "
-				  "host_busy %d host_failed %d\n",
-				  atomic_read(&session->host->host_busy),
-				  session->host->host_failed);
-		/*
-		 * force eh_abort() to unblock
-		 */
-		wake_up(&conn->ehwait);
-	}
 
 	/* flush queued up work because we free the connection below */
 	iscsi_suspend_tx(conn);
@@ -2994,6 +2969,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	if (session->leadconn == conn)
 		session->leadconn = NULL;
 	spin_unlock_bh(&session->frwd_lock);
+	mutex_unlock(&session->eh_mutex);
 
 	iscsi_destroy_conn(cls_conn);
 }

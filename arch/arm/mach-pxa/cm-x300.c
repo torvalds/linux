@@ -835,6 +835,8 @@ static void __init cm_x300_init(void)
 	cm_x300_init_ac97();
 	cm_x300_init_wi2wi();
 	cm_x300_init_bl();
+
+	regulator_has_full_constraints();
 }
 
 static void __init cm_x300_fixup(struct tag *tags, char **cmdline)

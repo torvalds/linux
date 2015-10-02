@@ -66,8 +66,17 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-static unsigned int halt_poll_ns;
+/* Architectures should define their poll value according to the halt latency */
+static unsigned int halt_poll_ns = KVM_HALT_POLL_NS_DEFAULT;
 module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
+
+/* Default doubles per-vcpu halt_poll_ns. */
+static unsigned int halt_poll_ns_grow = 2;
+module_param(halt_poll_ns_grow, int, S_IRUGO);
+
+/* Default resets per-vcpu halt_poll_ns . */
+static unsigned int halt_poll_ns_shrink;
+module_param(halt_poll_ns_shrink, int, S_IRUGO);
 
 /*
  * Ordering of locks:
@@ -217,6 +226,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
 	vcpu->pid = NULL;
+	vcpu->halt_poll_ns = 0;
 	init_waitqueue_head(&vcpu->wq);
 	kvm_async_pf_vcpu_init(vcpu);
 
@@ -387,6 +397,36 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
 	return young;
 }
 
+static int kvm_mmu_notifier_clear_young(struct mmu_notifier *mn,
+					struct mm_struct *mm,
+					unsigned long start,
+					unsigned long end)
+{
+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+	int young, idx;
+
+	idx = srcu_read_lock(&kvm->srcu);
+	spin_lock(&kvm->mmu_lock);
+	/*
+	 * Even though we do not flush TLB, this will still adversely
+	 * affect performance on pre-Haswell Intel EPT, where there is
+	 * no EPT Access Bit to clear so that we have to tear down EPT
+	 * tables instead. If we find this unacceptable, we can always
+	 * add a parameter to kvm_age_hva so that it effectively doesn't
+	 * do anything on clear_young.
+	 *
+	 * Also note that currently we never issue secondary TLB flushes
+	 * from clear_young, leaving this job up to the regular system
+	 * cadence. If we find this inaccurate, we might come up with a
+	 * more sophisticated heuristic later.
+	 */
+	young = kvm_age_hva(kvm, start, end);
+	spin_unlock(&kvm->mmu_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
+
+	return young;
+}
+
 static int kvm_mmu_notifier_test_young(struct mmu_notifier *mn,
 				       struct mm_struct *mm,
 				       unsigned long address)
@@ -419,6 +459,7 @@ static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+	.clear_young		= kvm_mmu_notifier_clear_young,
 	.test_young		= kvm_mmu_notifier_test_young,
 	.change_pte		= kvm_mmu_notifier_change_pte,
 	.release		= kvm_mmu_notifier_release,
@@ -1906,6 +1947,35 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
 
+static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
+{
+	int old, val;
+
+	old = val = vcpu->halt_poll_ns;
+	/* 10us base */
+	if (val == 0 && halt_poll_ns_grow)
+		val = 10000;
+	else
+		val *= halt_poll_ns_grow;
+
+	vcpu->halt_poll_ns = val;
+	trace_kvm_halt_poll_ns_grow(vcpu->vcpu_id, val, old);
+}
+
+static void shrink_halt_poll_ns(struct kvm_vcpu *vcpu)
+{
+	int old, val;
+
+	old = val = vcpu->halt_poll_ns;
+	if (halt_poll_ns_shrink == 0)
+		val = 0;
+	else
+		val /= halt_poll_ns_shrink;
+
+	vcpu->halt_poll_ns = val;
+	trace_kvm_halt_poll_ns_shrink(vcpu->vcpu_id, val, old);
+}
+
 static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
 {
 	if (kvm_arch_vcpu_runnable(vcpu)) {
@@ -1928,11 +1998,13 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	ktime_t start, cur;
 	DEFINE_WAIT(wait);
 	bool waited = false;
+	u64 block_ns;
 
 	start = cur = ktime_get();
-	if (halt_poll_ns) {
-		ktime_t stop = ktime_add_ns(ktime_get(), halt_poll_ns);
+	if (vcpu->halt_poll_ns) {
+		ktime_t stop = ktime_add_ns(ktime_get(), vcpu->halt_poll_ns);
 
+		++vcpu->stat.halt_attempted_poll;
 		do {
 			/*
 			 * This sets KVM_REQ_UNHALT if an interrupt
@@ -1960,7 +2032,22 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	cur = ktime_get();
 
 out:
-	trace_kvm_vcpu_wakeup(ktime_to_ns(cur) - ktime_to_ns(start), waited);
+	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
+
+	if (halt_poll_ns) {
+		if (block_ns <= vcpu->halt_poll_ns)
+			;
+		/* we had a long block, shrink polling */
+		else if (vcpu->halt_poll_ns && block_ns > halt_poll_ns)
+			shrink_halt_poll_ns(vcpu);
+		/* we had a short halt and our poll time is too small */
+		else if (vcpu->halt_poll_ns < halt_poll_ns &&
+			block_ns < halt_poll_ns)
+			grow_halt_poll_ns(vcpu);
+	} else
+		vcpu->halt_poll_ns = 0;
+
+	trace_kvm_vcpu_wakeup(block_ns, waited);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
@@ -2206,6 +2293,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	}
 
 	kvm->vcpus[atomic_read(&kvm->online_vcpus)] = vcpu;
+
+	/*
+	 * Pairs with smp_rmb() in kvm_get_vcpu.  Write kvm->vcpus
+	 * before kvm->online_vcpu's incremented value.
+	 */
 	smp_wmb();
 	atomic_inc(&kvm->online_vcpus);
 
@@ -2618,9 +2710,6 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
 	case KVM_CAP_JOIN_MEMORY_REGIONS_WORKS:
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	case KVM_CAP_SET_BOOT_CPU_ID:
-#endif
 	case KVM_CAP_INTERNAL_ERROR_DATA:
 #ifdef CONFIG_HAVE_KVM_MSI
 	case KVM_CAP_SIGNAL_MSI:
@@ -2716,17 +2805,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		r = kvm_ioeventfd(kvm, &data);
 		break;
 	}
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	case KVM_SET_BOOT_CPU_ID:
-		r = 0;
-		mutex_lock(&kvm->lock);
-		if (atomic_read(&kvm->online_vcpus) != 0)
-			r = -EBUSY;
-		else
-			kvm->bsp_vcpu_id = arg;
-		mutex_unlock(&kvm->lock);
-		break;
-#endif
 #ifdef CONFIG_HAVE_KVM_MSI
 	case KVM_SIGNAL_MSI: {
 		struct kvm_msi msi;
@@ -3080,10 +3158,25 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 static inline int kvm_io_bus_cmp(const struct kvm_io_range *r1,
 				 const struct kvm_io_range *r2)
 {
-	if (r1->addr < r2->addr)
+	gpa_t addr1 = r1->addr;
+	gpa_t addr2 = r2->addr;
+
+	if (addr1 < addr2)
 		return -1;
-	if (r1->addr + r1->len > r2->addr + r2->len)
+
+	/* If r2->len == 0, match the exact address.  If r2->len != 0,
+	 * accept any overlapping write.  Any order is acceptable for
+	 * overlapping ranges, because kvm_io_bus_get_first_dev ensures
+	 * we process all of them.
+	 */
+	if (r2->len) {
+		addr1 += r1->len;
+		addr2 += r2->len;
+	}
+
+	if (addr1 > addr2)
 		return 1;
+
 	return 0;
 }
 

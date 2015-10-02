@@ -701,7 +701,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	priv->current_aid = conf->aid;
 
-	if (changed & BSS_CHANGED_BSSID)
+	if (changed & BSS_CHANGED_BSSID && conf->bssid)
 		vnt_mac_set_bssid_addr(priv, (u8 *)conf->bssid);
 
 

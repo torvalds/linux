@@ -523,12 +523,40 @@ static int do_serio_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("serio", serio_device_id, do_serio_entry);
 
-/* looks like: "acpi:ACPI0003 or acpi:PNP0C0B" or "acpi:LNXVIDEO" */
+/* looks like: "acpi:ACPI0003" or "acpi:PNP0C0B" or "acpi:LNXVIDEO" or
+ *             "acpi:bbsspp" (bb=base-class, ss=sub-class, pp=prog-if)
+ *
+ * NOTE: Each driver should use one of the following : _HID, _CIDs
+ *       or _CLS. Also, bb, ss, and pp can be substituted with ??
+ *       as don't care byte.
+ */
 static int do_acpi_entry(const char *filename,
 			void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, acpi_device_id, id);
-	sprintf(alias, "acpi*:%s:*", *id);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls);
+	DEF_FIELD_ADDR(symval, acpi_device_id, cls_msk);
+
+	if (id && strlen((const char *)*id))
+		sprintf(alias, "acpi*:%s:*", *id);
+	else if (cls) {
+		int i, byte_shift, cnt = 0;
+		unsigned int msk;
+
+		sprintf(&alias[cnt], "acpi*:");
+		cnt = 6;
+		for (i = 1; i <= 3; i++) {
+			byte_shift = 8 * (3-i);
+			msk = (*cls_msk >> byte_shift) & 0xFF;
+			if (msk)
+				sprintf(&alias[cnt], "%02x",
+					(*cls >> byte_shift) & 0xFF);
+			else
+				sprintf(&alias[cnt], "??");
+			cnt += 2;
+		}
+		sprintf(&alias[cnt], ":*");
+	}
 	return 1;
 }
 ADD_TO_DEVTABLE("acpi", acpi_device_id, do_acpi_entry);

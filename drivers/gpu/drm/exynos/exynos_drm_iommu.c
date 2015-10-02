@@ -87,10 +87,8 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	struct device *dev = drm_dev->dev;
 	int ret;
 
-	if (!dev->archdata.mapping) {
-		DRM_ERROR("iommu_mapping is null.\n");
-		return -EFAULT;
-	}
+	if (!dev->archdata.mapping)
+		return 0;
 
 	subdrv_dev->dma_parms = devm_kzalloc(subdrv_dev,
 					sizeof(*subdrv_dev->dma_parms),
@@ -143,18 +141,4 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 
 	iommu_detach_device(mapping->domain, subdrv_dev);
 	drm_release_iommu_mapping(drm_dev);
-}
-
-int drm_iommu_attach_device_if_possible(struct exynos_drm_crtc *exynos_crtc,
-			struct drm_device *drm_dev, struct device *subdrv_dev)
-{
-	int ret = 0;
-
-	if (is_drm_iommu_supported(drm_dev)) {
-		if (exynos_crtc->ops->clear_channels)
-			exynos_crtc->ops->clear_channels(exynos_crtc);
-		return drm_iommu_attach_device(drm_dev, subdrv_dev);
-	}
-
-	return ret;
 }

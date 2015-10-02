@@ -639,6 +639,12 @@ int smack_privileged(int cap)
 	struct smack_known *skp = smk_of_current();
 	struct smack_onlycap *sop;
 
+	/*
+	 * All kernel tasks are privileged
+	 */
+	if (unlikely(current->flags & PF_KTHREAD))
+		return 1;
+
 	if (!capable(cap))
 		return 0;
 

@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
@@ -36,8 +37,6 @@
 
 #include <asm/exception.h>
 #include <asm/irq.h>
-
-#include "irqchip.h"
 
 #define VIC_IRQ_STATUS			0x00
 #define VIC_FIQ_STATUS			0x04
@@ -202,7 +201,7 @@ static int vic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 		return -EPERM;
 	irq_set_chip_and_handler(irq, &vic_chip, handle_level_irq);
 	irq_set_chip_data(irq, v->base);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_probe(irq);
 	return 0;
 }
 
@@ -226,7 +225,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 	return handled;
 }
 
-static void vic_handle_irq_cascaded(unsigned int irq, struct irq_desc *desc)
+static void vic_handle_irq_cascaded(struct irq_desc *desc)
 {
 	u32 stat, hwirq;
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
@@ -297,8 +296,8 @@ static void __init vic_register(void __iomem *base, unsigned int parent_irq,
 	vic_id++;
 
 	if (parent_irq) {
-		irq_set_handler_data(parent_irq, v);
-		irq_set_chained_handler(parent_irq, vic_handle_irq_cascaded);
+		irq_set_chained_handler_and_data(parent_irq,
+						 vic_handle_irq_cascaded, v);
 	}
 
 	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,

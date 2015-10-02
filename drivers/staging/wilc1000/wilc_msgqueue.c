@@ -8,8 +8,7 @@
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
-			       tstrWILC_MsgQueueAttrs *pstrAttrs)
+WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle)
 {
 	spin_lock_init(&pHandle->strCriticalSection);
 	sema_init(&pHandle->hSem, 0);
@@ -25,8 +24,7 @@ WILC_ErrNo WILC_MsgQueueCreate(WILC_MsgQueueHandle *pHandle,
  *  @note		copied from FLO glue implementatuion
  *  @version		1.0
  */
-WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
-				tstrWILC_MsgQueueAttrs *pstrAttrs)
+WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle)
 {
 
 	pHandle->bExiting = true;
@@ -39,7 +37,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
 
 	while (pHandle->pstrMessageList != NULL) {
 		Message *pstrMessge = pHandle->pstrMessageList->pstrNext;
-		WILC_FREE(pHandle->pstrMessageList);
+		kfree(pHandle->pstrMessageList);
 		pHandle->pstrMessageList = pstrMessge;
 	}
 
@@ -53,8 +51,7 @@ WILC_ErrNo WILC_MsgQueueDestroy(WILC_MsgQueueHandle *pHandle,
  *  @version		1.0
  */
 WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
-			     const void *pvSendBuffer, u32 u32SendBufferSize,
-			     tstrWILC_MsgQueueAttrs *pstrAttrs)
+			     const void *pvSendBuffer, u32 u32SendBufferSize)
 {
 	WILC_ErrNo s32RetStatus = WILC_SUCCESS;
 	unsigned long flags;
@@ -71,13 +68,13 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 	spin_lock_irqsave(&pHandle->strCriticalSection, flags);
 
 	/* construct a new message */
-	pstrMessage = WILC_NEW(Message, 1);
+	pstrMessage = kmalloc(sizeof(Message), GFP_ATOMIC);
 	WILC_NULLCHECK(s32RetStatus, pstrMessage);
 	pstrMessage->u32Length = u32SendBufferSize;
 	pstrMessage->pstrNext = NULL;
 	pstrMessage->pvBuffer = WILC_MALLOC(u32SendBufferSize);
 	WILC_NULLCHECK(s32RetStatus, pstrMessage->pvBuffer);
-	WILC_memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
+	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
 
 	/* add it to the message queue */
@@ -100,9 +97,9 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
 		/* error occured, free any allocations */
 		if (pstrMessage != NULL) {
 			if (pstrMessage->pvBuffer != NULL) {
-				WILC_FREE(pstrMessage->pvBuffer);
+				kfree(pstrMessage->pvBuffer);
 			}
-			WILC_FREE(pstrMessage);
+			kfree(pstrMessage);
 		}
 	}
 
@@ -119,8 +116,7 @@ WILC_ErrNo WILC_MsgQueueSend(WILC_MsgQueueHandle *pHandle,
  */
 WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 			     void *pvRecvBuffer, u32 u32RecvBufferSize,
-			     u32 *pu32ReceivedLength,
-			     tstrWILC_MsgQueueAttrs *pstrAttrs)
+			     u32 *pu32ReceivedLength)
 {
 
 	Message *pstrMessage;
@@ -170,13 +166,13 @@ WILC_ErrNo WILC_MsgQueueRecv(WILC_MsgQueueHandle *pHandle,
 
 		/* consume the message */
 		pHandle->u32ReceiversCount--;
-		WILC_memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
+		memcpy(pvRecvBuffer, pstrMessage->pvBuffer, pstrMessage->u32Length);
 		*pu32ReceivedLength = pstrMessage->u32Length;
 
 		pHandle->pstrMessageList = pstrMessage->pstrNext;
 
-		WILC_FREE(pstrMessage->pvBuffer);
-		WILC_FREE(pstrMessage);
+		kfree(pstrMessage->pvBuffer);
+		kfree(pstrMessage);
 
 		spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 

@@ -289,7 +289,8 @@ int pxa_request_dma (char *name, pxa_dma_prio prio,
 		/* try grabbing a DMA channel with the requested priority */
 		for (i = 0; i < num_dma_channels; i++) {
 			if ((dma_channels[i].prio == prio) &&
-			    !dma_channels[i].name) {
+			    !dma_channels[i].name &&
+			    !pxad_toggle_reserved_channel(i)) {
 				found = 1;
 				break;
 			}
@@ -326,13 +327,14 @@ void pxa_free_dma (int dma_ch)
 	local_irq_save(flags);
 	DCSR(dma_ch) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
 	dma_channels[dma_ch].name = NULL;
+	pxad_toggle_reserved_channel(dma_ch);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(pxa_free_dma);
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
-	int i, dint = DINT;
+	int i, dint = DINT, done = 0;
 	struct dma_channel *channel;
 
 	while (dint) {
@@ -341,16 +343,13 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 		channel = &dma_channels[i];
 		if (channel->name && channel->irq_handler) {
 			channel->irq_handler(i, channel->data);
-		} else {
-			/*
-			 * IRQ for an unregistered DMA channel:
-			 * let's clear the interrupts and disable it.
-			 */
-			printk (KERN_WARNING "spurious IRQ for DMA channel %d\n", i);
-			DCSR(i) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
+			done++;
 		}
 	}
-	return IRQ_HANDLED;
+	if (done)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
 }
 
 int __init pxa_init_dma(int irq, int num_ch)
@@ -372,7 +371,8 @@ int __init pxa_init_dma(int irq, int num_ch)
 		spin_lock_init(&dma_channels[i].lock);
 	}
 
-	ret = request_irq(irq, dma_irq_handler, 0, "DMA", NULL);
+	ret = request_irq(irq, dma_irq_handler, IRQF_SHARED, "DMA",
+			  dma_channels);
 	if (ret) {
 		printk (KERN_CRIT "Wow!  Can't register IRQ for DMA\n");
 		kfree(dma_channels);

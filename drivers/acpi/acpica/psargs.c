@@ -287,7 +287,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 				  "Control Method - %p Desc %p Path=%p\n", node,
 				  method_desc, path));
 
-		name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
+		name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP, start);
 		if (!name_op) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -484,7 +484,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 						       *parser_state)
 {
-	u32 aml_offset;
+	u8 *aml;
 	union acpi_parse_object *field;
 	union acpi_parse_object *arg = NULL;
 	u16 opcode;
@@ -498,8 +498,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 	ACPI_FUNCTION_TRACE(ps_get_next_field);
 
-	aml_offset =
-	    (u32)ACPI_PTR_DIFF(parser_state->aml, parser_state->aml_start);
+	aml = parser_state->aml;
 
 	/* Determine field type */
 
@@ -536,12 +535,10 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 	/* Allocate a new field op */
 
-	field = acpi_ps_alloc_op(opcode);
+	field = acpi_ps_alloc_op(opcode, aml);
 	if (!field) {
 		return_PTR(NULL);
 	}
-
-	field->common.aml_offset = aml_offset;
 
 	/* Decode the field type */
 
@@ -604,6 +601,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		 * Argument for Connection operator can be either a Buffer
 		 * (resource descriptor), or a name_string.
 		 */
+		aml = parser_state->aml;
 		if (ACPI_GET8(parser_state->aml) == AML_BUFFER_OP) {
 			parser_state->aml++;
 
@@ -616,7 +614,8 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 				/* Non-empty list */
 
-				arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP);
+				arg =
+				    acpi_ps_alloc_op(AML_INT_BYTELIST_OP, aml);
 				if (!arg) {
 					acpi_ps_free_op(field);
 					return_PTR(NULL);
@@ -665,7 +664,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 			parser_state->aml = pkg_end;
 		} else {
-			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
+			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP, aml);
 			if (!arg) {
 				acpi_ps_free_op(field);
 				return_PTR(NULL);
@@ -730,7 +729,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		/* Constants, strings, and namestrings are all the same size */
 
-		arg = acpi_ps_alloc_op(AML_BYTE_OP);
+		arg = acpi_ps_alloc_op(AML_BYTE_OP, parser_state->aml);
 		if (!arg) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -777,7 +776,8 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 			/* Non-empty list */
 
-			arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP);
+			arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP,
+					       parser_state->aml);
 			if (!arg) {
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
@@ -807,7 +807,9 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 			/* null_name or name_string */
 
-			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
+			arg =
+			    acpi_ps_alloc_op(AML_INT_NAMEPATH_OP,
+					     parser_state->aml);
 			if (!arg) {
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}

@@ -209,6 +209,9 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			acpi_ut_delete_object_desc(object->method.mutex);
 			object->method.mutex = NULL;
 		}
+		if (object->method.node) {
+			object->method.node = NULL;
+		}
 		break;
 
 	case ACPI_TYPE_REGION:

@@ -11,6 +11,7 @@
 struct ring_buffer {
 	atomic_t			refcount;
 	struct rcu_head			rcu_head;
+	struct irq_work			irq_work;
 #ifdef CONFIG_PERF_USE_VMALLOC
 	struct work_struct		work;
 	int				page_order;	/* allocation order  */
@@ -55,6 +56,15 @@ struct ring_buffer {
 };
 
 extern void rb_free(struct ring_buffer *rb);
+
+static inline void rb_free_rcu(struct rcu_head *rcu_head)
+{
+	struct ring_buffer *rb;
+
+	rb = container_of(rcu_head, struct ring_buffer, rcu_head);
+	rb_free(rb);
+}
+
 extern struct ring_buffer *
 rb_alloc(int nr_pages, long watermark, int cpu, int flags);
 extern void perf_event_wakeup(struct perf_event *event);
