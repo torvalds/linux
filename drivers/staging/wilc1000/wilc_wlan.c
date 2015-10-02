@@ -1165,7 +1165,6 @@ static void wilc_wlan_handle_rxq(void)
 				break;
 			}
 
-/*bug 3887: [AP] Allow Management frames to be passed to the host*/
 			#define IS_MANAGMEMENT				0x100
 			#define IS_MANAGMEMENT_CALLBACK			0x080
 			#define IS_MGMT_STATUS_SUCCES			0x040
@@ -1177,7 +1176,6 @@ static void wilc_wlan_handle_rxq(void)
 
 				WILC_WFI_mgmt_rx(&buffer[offset + HOST_HDR_OFFSET], pkt_len);
 			}
-			/* BUG4530 fix */
 			else
 			{
 

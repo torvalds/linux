@@ -11,9 +11,6 @@
 #define HOST_INT_H
 
 #include "coreconfigurator.h"
-/*****************************************************************************/
-/*								Macros                                       */
-/*****************************************************************************/
 
 #define IP_ALEN  4
 
@@ -38,10 +35,10 @@
 #define REMOVEKEY				0x2
 #define DEFAULTKEY				0x4
 #define ADDKEY_AP				0x8
-#define MAX_NUM_SCANNED_NETWORKS		100 /* 30		// rachel */
+#define MAX_NUM_SCANNED_NETWORKS		100
 #define MAX_NUM_SCANNED_NETWORKS_SHADOW		130
-#define MAX_NUM_PROBED_SSID			10  /*One more than the number of scanned ssids*/
-#define CHANNEL_SCAN_TIME			250 /* 250 */
+#define MAX_NUM_PROBED_SSID			10
+#define CHANNEL_SCAN_TIME			250
 
 #define TX_MIC_KEY_LEN				8
 #define RX_MIC_KEY_LEN				8
@@ -56,7 +53,7 @@
 #define PMKID_LEN				16
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_SUPP_MCS_SET_SIZE			16
-#define WILC_ADD_STA_LENGTH			40 /* Not including the rates field cause it has variable length*/
+#define WILC_ADD_STA_LENGTH			40
 #define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC			2
 
@@ -1202,9 +1199,4 @@ void host_int_freeJoinParams(void *pJoinParams);
 
 s32 host_int_get_statistics(tstrWILC_WFIDrv *hWFIDrv, tstrStatistics *pstrStatistics);
 
-/*****************************************************************************/
-/*																			 */
-/*									EOF										 */
-/*																			 */
-/*****************************************************************************/
 #endif

@@ -8,12 +8,10 @@
 #ifndef WILC_WFI_NETDEVICE
 #define WILC_WFI_NETDEVICE
 
-/* These are the flags in the statusword */
 #define WILC_WFI_RX_INTR 0x0001
 #define WILC_WFI_TX_INTR 0x0002
 
-/* Default timeout period */
-#define WILC_WFI_TIMEOUT 5   /* In jiffies */
+#define WILC_WFI_TIMEOUT 5
 #define WILC_MAX_NUM_PMKIDS  16
 #define PMKID_LEN  16
 #define PMKID_FOUND 1
@@ -24,16 +22,16 @@
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/slab.h> /* kmalloc() */
-#include <linux/errno.h>  /* error codes */
-#include <linux/types.h>  /* size_t */
-#include <linux/interrupt.h> /* mark_bh */
+#include <linux/slab.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/in.h>
-#include <linux/netdevice.h>   /* struct device, and other headers */
-#include <linux/etherdevice.h> /* eth_type_trans */
-#include <linux/ip.h>          /* struct iphdr */
-#include <linux/tcp.h>         /* struct tcphdr */
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -45,12 +43,11 @@
 #include <asm/checksum.h>
 #include "host_interface.h"
 #include "wilc_wlan.h"
-#include <linux/wireless.h>     /* tony, 2013-06-12 */
+#include <linux/wireless.h>
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
 
-/*iftype*/
 enum stats_flags {
 	WILC_WFI_RX_PKT = BIT(0),
 	WILC_WFI_TX_PKT = BIT(1),

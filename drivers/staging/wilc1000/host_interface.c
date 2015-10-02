@@ -12,9 +12,6 @@ extern u8 connecting;
 extern struct timer_list hDuringIpTimer;
 
 extern u8 g_wilc_initialized;
-/*****************************************************************************/
-/*								Macros                                       */
-/*****************************************************************************/
 
 /* Message types of the Host IF Message Queue*/
 #define HOST_IF_MSG_SCAN                        0
@@ -63,9 +60,6 @@ extern u8 g_wilc_initialized;
 #define BA_SESSION_DEFAULT_BUFFER_SIZE          16
 #define BA_SESSION_DEFAULT_TIMEOUT              1000
 #define BLOCK_ACK_REQ_SIZE                      0x14
-/*****************************************************************************/
-/*								Type Definitions							 */
-/*****************************************************************************/
 
 /*!
  *  @struct             cfg_param_attr
