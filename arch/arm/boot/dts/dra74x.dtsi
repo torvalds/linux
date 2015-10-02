@@ -81,6 +81,26 @@
 				dr_mode = "otg";
 			};
 		};
+
+		mmu0_dsp2: mmu@41501000 {
+			compatible = "ti,dra7-dsp-iommu";
+			reg = <0x41501000 0x100>;
+			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu0_dsp2";
+			#iommu-cells = <0>;
+			ti,syscon-mmuconfig = <&dsp2_system 0x0>;
+			status = "disabled";
+		};
+
+		mmu1_dsp2: mmu@41502000 {
+			compatible = "ti,dra7-dsp-iommu";
+			reg = <0x41502000 0x100>;
+			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "mmu1_dsp2";
+			#iommu-cells = <0>;
+			ti,syscon-mmuconfig = <&dsp2_system 0x1>;
+			status = "disabled";
+		};
 	};
 };
 
