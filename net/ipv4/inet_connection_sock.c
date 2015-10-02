@@ -579,7 +579,7 @@ static void reqsk_timer_handler(unsigned long data)
 	 * ones are about to clog our table.
 	 */
 	qlen = reqsk_queue_len(queue);
-	if (qlen >> (queue->max_qlen_log - 1)) {
+	if ((qlen << 1) > sk_listener->sk_max_ack_backlog) {
 		int young = reqsk_queue_len_young(queue) << 1;
 
 		while (thresh > 2) {
@@ -732,7 +732,7 @@ int inet_csk_listen_start(struct sock *sk, const int nr_table_entries)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 
-	reqsk_queue_alloc(&icsk->icsk_accept_queue, nr_table_entries);
+	reqsk_queue_alloc(&icsk->icsk_accept_queue);
 
 	sk->sk_max_ack_backlog = 0;
 	sk->sk_ack_backlog = 0;

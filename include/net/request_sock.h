@@ -157,7 +157,7 @@ struct fastopen_queue {
 struct request_sock_queue {
 	spinlock_t		rskq_lock;
 	u8			rskq_defer_accept;
-	u8			max_qlen_log;
+
 	u32			synflood_warned;
 	atomic_t		qlen;
 	atomic_t		young;
@@ -169,8 +169,7 @@ struct request_sock_queue {
 					     */
 };
 
-void reqsk_queue_alloc(struct request_sock_queue *queue,
-		       unsigned int nr_table_entries);
+void reqsk_queue_alloc(struct request_sock_queue *queue);
 
 void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 			   bool reset);
@@ -238,11 +237,6 @@ static inline int reqsk_queue_len(const struct request_sock_queue *queue)
 static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 {
 	return atomic_read(&queue->young);
-}
-
-static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
-{
-	return reqsk_queue_len(queue) >> queue->max_qlen_log;
 }
 
 #endif /* _REQUEST_SOCK_H */

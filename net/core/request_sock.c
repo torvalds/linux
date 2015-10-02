@@ -37,13 +37,8 @@
 int sysctl_max_syn_backlog = 256;
 EXPORT_SYMBOL(sysctl_max_syn_backlog);
 
-void reqsk_queue_alloc(struct request_sock_queue *queue,
-		       unsigned int nr_table_entries)
+void reqsk_queue_alloc(struct request_sock_queue *queue)
 {
-	nr_table_entries = min_t(u32, nr_table_entries, sysctl_max_syn_backlog);
-	nr_table_entries = max_t(u32, nr_table_entries, 8);
-	nr_table_entries = roundup_pow_of_two(nr_table_entries + 1);
-
 	spin_lock_init(&queue->rskq_lock);
 
 	spin_lock_init(&queue->fastopenq.lock);
@@ -53,7 +48,6 @@ void reqsk_queue_alloc(struct request_sock_queue *queue,
 	queue->fastopenq.max_qlen = 0;
 
 	queue->rskq_accept_head = NULL;
-	queue->max_qlen_log = ilog2(nr_table_entries);
 }
 
 /*
