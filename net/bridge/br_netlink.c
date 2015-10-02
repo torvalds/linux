@@ -34,7 +34,7 @@ static int __get_num_vlan_infos(struct net_bridge_vlan_group *vg,
 
 	pvid = br_get_pvid(vg);
 	/* Count number of vlan infos */
-	list_for_each_entry(v, &vg->vlan_list, vlist) {
+	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
 		flags = 0;
 		/* only a context, bridge vlan not activated */
 		if (!br_vlan_should_use(v))
@@ -76,13 +76,19 @@ initvars:
 static int br_get_num_vlan_infos(struct net_bridge_vlan_group *vg,
 				 u32 filter_mask)
 {
+	int num_vlans;
+
 	if (!vg)
 		return 0;
 
 	if (filter_mask & RTEXT_FILTER_BRVLAN)
 		return vg->num_vlans;
 
-	return __get_num_vlan_infos(vg, filter_mask);
+	rcu_read_lock();
+	num_vlans = __get_num_vlan_infos(vg, filter_mask);
+	rcu_read_unlock();
+
+	return num_vlans;
 }
 
 static size_t br_get_link_af_size_filtered(const struct net_device *dev,

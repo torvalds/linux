@@ -111,12 +111,12 @@ static void __vlan_add_list(struct net_bridge_vlan *v)
 		else
 			break;
 	}
-	list_add(&v->vlist, hpos);
+	list_add_rcu(&v->vlist, hpos);
 }
 
 static void __vlan_del_list(struct net_bridge_vlan *v)
 {
-	list_del(&v->vlist);
+	list_del_rcu(&v->vlist);
 }
 
 static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
