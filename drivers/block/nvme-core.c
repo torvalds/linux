@@ -84,6 +84,7 @@ static wait_queue_head_t nvme_kthread_wait;
 
 static struct class *nvme_class;
 
+static int __nvme_reset(struct nvme_dev *dev);
 static int nvme_reset(struct nvme_dev *dev);
 static int nvme_process_cq(struct nvme_queue *nvmeq);
 
@@ -1276,17 +1277,13 @@ static void nvme_abort_req(struct request *req)
 	struct nvme_command cmd;
 
 	if (!nvmeq->qid || cmd_rq->aborted) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev_list_lock, flags);
-		if (work_busy(&dev->reset_work))
-			goto out;
-		list_del_init(&dev->node);
-		dev_warn(dev->dev, "I/O %d QID %d timeout, reset controller\n",
-							req->tag, nvmeq->qid);
-		queue_work(nvme_workq, &dev->reset_work);
- out:
-		spin_unlock_irqrestore(&dev_list_lock, flags);
+		spin_lock(&dev_list_lock);
+		if (!__nvme_reset(dev)) {
+			dev_warn(dev->dev,
+				 "I/O %d QID %d timeout, reset controller\n",
+				 req->tag, nvmeq->qid);
+		}
+		spin_unlock(&dev_list_lock);
 		return;
 	}
 
@@ -2081,13 +2078,11 @@ static int nvme_kthread(void *data)
 
 			if ((dev->subsystem && (csts & NVME_CSTS_NSSRO)) ||
 							csts & NVME_CSTS_CFS) {
-				if (work_busy(&dev->reset_work))
-					continue;
-				list_del_init(&dev->node);
-				dev_warn(dev->dev,
-					"Failed status: %x, reset controller\n",
-					readl(&dev->bar->csts));
-				queue_work(nvme_workq, &dev->reset_work);
+				if (!__nvme_reset(dev)) {
+					dev_warn(dev->dev,
+						"Failed status: %x, reset controller\n",
+						readl(&dev->bar->csts));
+				}
 				continue;
 			}
 			for (i = 0; i < dev->queue_count; i++) {
@@ -3074,19 +3069,24 @@ static void nvme_reset_work(struct work_struct *ws)
 	schedule_work(&dev->probe_work);
 }
 
+static int __nvme_reset(struct nvme_dev *dev)
+{
+	if (work_pending(&dev->reset_work))
+		return -EBUSY;
+	list_del_init(&dev->node);
+	queue_work(nvme_workq, &dev->reset_work);
+	return 0;
+}
+
 static int nvme_reset(struct nvme_dev *dev)
 {
-	int ret = -EBUSY;
+	int ret;
 
 	if (!dev->admin_q || blk_queue_dying(dev->admin_q))
 		return -ENODEV;
 
 	spin_lock(&dev_list_lock);
-	if (!work_pending(&dev->reset_work)) {
-		list_del_init(&dev->node);
-		queue_work(nvme_workq, &dev->reset_work);
-		ret = 0;
-	}
+	ret = __nvme_reset(dev);
 	spin_unlock(&dev_list_lock);
 
 	if (!ret) {
