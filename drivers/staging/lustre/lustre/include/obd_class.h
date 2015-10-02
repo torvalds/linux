@@ -256,8 +256,6 @@ void class_import_put(struct obd_import *);
 struct obd_import *class_new_import(struct obd_device *obd);
 void class_destroy_import(struct obd_import *exp);
 
-struct obd_type *class_search_type(const char *name);
-struct obd_type *class_get_type(const char *name);
 void class_put_type(struct obd_type *type);
 int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 		  struct obd_uuid *cluuid);

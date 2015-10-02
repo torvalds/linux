@@ -90,7 +90,7 @@ static void obd_device_free(struct obd_device *obd)
 	OBD_SLAB_FREE_PTR(obd, obd_device_cachep);
 }
 
-struct obd_type *class_search_type(const char *name)
+static struct obd_type *class_search_type(const char *name)
 {
 	struct list_head *tmp;
 	struct obd_type *type;
@@ -106,9 +106,8 @@ struct obd_type *class_search_type(const char *name)
 	spin_unlock(&obd_types_lock);
 	return NULL;
 }
-EXPORT_SYMBOL(class_search_type);
 
-struct obd_type *class_get_type(const char *name)
+static struct obd_type *class_get_type(const char *name)
 {
 	struct obd_type *type = class_search_type(name);
 
@@ -140,7 +139,6 @@ struct obd_type *class_get_type(const char *name)
 	}
 	return type;
 }
-EXPORT_SYMBOL(class_get_type);
 
 void class_put_type(struct obd_type *type)
 {
