@@ -1534,6 +1534,7 @@ static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 
 	if (!attrs[NL802154_KEY_ATTR_USAGE_FRAMES] ||
 	    !attrs[NL802154_KEY_ATTR_BYTES])
+		return -EINVAL;
 
 	if (ieee802154_llsec_parse_key_id(attrs[NL802154_KEY_ATTR_ID], &id) < 0)
 		return -ENOBUFS;
