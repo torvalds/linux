@@ -3089,6 +3089,7 @@ static int nvme_reset(struct nvme_dev *dev)
 
 	spin_lock(&dev_list_lock);
 	if (!work_pending(&dev->reset_work)) {
+		list_del_init(&dev->node);
 		queue_work(nvme_workq, &dev->reset_work);
 		ret = 0;
 	}
