@@ -72,6 +72,7 @@
 #define MLX90614_CONST_SCALE 20 /* Scale in milliKelvin (0.02 * 1000) */
 #define MLX90614_CONST_RAW_EMISSIVITY_MAX 65535 /* max value for emissivity */
 #define MLX90614_CONST_EMISSIVITY_RESOLUTION 15259 /* 1/65535 ~ 0.000015259 */
+#define MLX90614_CONST_FIR 0x7 /* Fixed value for FIR part of low pass filter */
 
 struct mlx90614_data {
 	struct i2c_client *client;
@@ -156,15 +157,16 @@ static inline s32 mlx90614_iir_search(const struct i2c_client *client,
 	 * changes
 	 */
 	ret = i2c_smbus_read_word_data(client, MLX90614_CONFIG);
-	if (ret > 0)
+	if (ret < 0)
 		return ret;
 
+	ret &= ~MLX90614_CONFIG_FIR_MASK;
+	ret |= MLX90614_CONST_FIR << MLX90614_CONFIG_FIR_SHIFT;
+	ret &= ~MLX90614_CONFIG_IIR_MASK;
+	ret |= i << MLX90614_CONFIG_IIR_SHIFT;
+
 	/* Write changed values */
-	ret = mlx90614_write_word(client, MLX90614_CONFIG,
-			(i << MLX90614_CONFIG_IIR_SHIFT) |
-			(((u16) ((0x7 << MLX90614_CONFIG_FIR_SHIFT) |
-			((u16) ret & (~((u16) MLX90614_CONFIG_FIR_MASK))))) &
-			(~(u16) MLX90614_CONFIG_IIR_MASK)));
+	ret = mlx90614_write_word(client, MLX90614_CONFIG, ret);
 	return ret;
 }
 
