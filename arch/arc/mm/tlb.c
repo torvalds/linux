@@ -723,10 +723,10 @@ void read_decode_mmu_bcr(void)
 
 	struct bcr_mmu_3 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, ways:4, sets:4, osm:1, reserv:3, pg_sz:4,
+	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
 		     u_itlb:4, u_dtlb:4;
 #else
-	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4,
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, sasid:1, res:3, sets:4,
 		     ways:4, ver:8;
 #endif
 	} *mmu3;
@@ -747,7 +747,7 @@ void read_decode_mmu_bcr(void)
 
 	if (mmu->ver <= 2) {
 		mmu2 = (struct bcr_mmu_1_2 *)&tmp;
-		mmu->pg_sz_k = TO_KB(PAGE_SIZE);
+		mmu->pg_sz_k = TO_KB(0x2000);
 		mmu->sets = 1 << mmu2->sets;
 		mmu->ways = 1 << mmu2->ways;
 		mmu->u_dtlb = mmu2->u_dtlb;
@@ -759,6 +759,7 @@ void read_decode_mmu_bcr(void)
 		mmu->ways = 1 << mmu3->ways;
 		mmu->u_dtlb = mmu3->u_dtlb;
 		mmu->u_itlb = mmu3->u_itlb;
+		mmu->sasid = mmu3->sasid;
 	} else {
 		mmu4 = (struct bcr_mmu_4 *)&tmp;
 		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
@@ -767,6 +768,8 @@ void read_decode_mmu_bcr(void)
 		mmu->ways = mmu4->n_ways * 2;
 		mmu->u_dtlb = mmu4->u_dtlb * 4;
 		mmu->u_itlb = mmu4->u_itlb * 4;
+		mmu->sasid = mmu4->sasid;
+		mmu->pae = mmu4->pae;
 	}
 }
 
@@ -782,11 +785,10 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
+		      "MMU [v%x]\t: %dK PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d\n",
 		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
 		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
-		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       IS_ENABLED(CONFIG_ARC_MMU_SASID) ? ",SASID" : "");
+		       p_mmu->u_dtlb, p_mmu->u_itlb);
 
 	return buf;
 }
