@@ -810,7 +810,6 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 			    cfile->fid.volatile_fid, cfile->pid, &eof, false);
 }
 
-#ifdef CONFIG_CIFS_SMB311
 static int
 smb2_duplicate_extents(const unsigned int xid,
 			struct cifsFileInfo *srcfile,
@@ -854,8 +853,6 @@ smb2_duplicate_extents(const unsigned int xid,
 duplicate_extents_out:
 	return rc;
 }
-#endif /* CONFIG_CIFS_SMB311 */
-
 
 static int
 smb2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
@@ -1703,6 +1700,7 @@ struct smb_version_operations smb30_operations = {
 	.create_lease_buf = smb3_create_lease_buf,
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.duplicate_extents = smb2_duplicate_extents,
 	.validate_negotiate = smb3_validate_negotiate,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
