@@ -123,7 +123,6 @@ extern int sysctl_max_syn_backlog;
  */
 struct listen_sock {
 	u32			max_qlen_log;
-	u32			synflood_warned;
 	u32			hash_rnd;
 	u32			nr_table_entries;
 	struct request_sock	*syn_table[0];
@@ -171,6 +170,7 @@ struct fastopen_queue {
 struct request_sock_queue {
 	spinlock_t		rskq_lock;
 	u8			rskq_defer_accept;
+	u32			synflood_warned;
 
 	atomic_t		qlen;
 	atomic_t		young;
