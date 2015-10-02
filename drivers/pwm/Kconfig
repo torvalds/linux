@@ -92,6 +92,15 @@ config PWM_BCM2835
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bcm2835.
 
+config PWM_BERLIN
+	tristate "Marvell Berlin PWM support"
+	depends on ARCH_BERLIN
+	help
+	  PWM framework driver for Marvell Berlin SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-berlin.
+
 config PWM_BFIN
 	tristate "Blackfin PWM support"
 	depends on BFIN_GPTIMERS
