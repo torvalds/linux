@@ -753,7 +753,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	lopt = icsk->icsk_accept_queue.listen_opt;
-	if (!lopt || !listen_sock_qlen(lopt))
+	if (!lopt || !reqsk_queue_len(&icsk->icsk_accept_queue))
 		goto out;
 
 	if (bc) {

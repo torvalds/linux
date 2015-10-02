@@ -102,7 +102,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 	/* make all the listen_opt local to us */
 	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
 
-	if (listen_sock_qlen(lopt) != 0) {
+	if (reqsk_queue_len(queue) != 0) {
 		unsigned int i;
 
 		for (i = 0; i < lopt->nr_table_entries; i++) {
@@ -116,7 +116,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 				 * or risk a dead lock.
 				 */
 				spin_unlock_bh(&queue->syn_wait_lock);
-				atomic_inc(&lopt->qlen_dec);
+				atomic_dec(&queue->qlen);
 				if (del_timer_sync(&req->rsk_timer))
 					reqsk_put(req);
 				reqsk_put(req);
@@ -126,8 +126,8 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 		}
 	}
 
-	if (WARN_ON(listen_sock_qlen(lopt) != 0))
-		pr_err("qlen %u\n", listen_sock_qlen(lopt));
+	if (WARN_ON(reqsk_queue_len(queue) != 0))
+		pr_err("qlen %u\n", reqsk_queue_len(queue));
 	kvfree(lopt);
 }
 

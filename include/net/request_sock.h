@@ -122,14 +122,7 @@ extern int sysctl_max_syn_backlog;
  * @max_qlen_log - log_2 of maximal queued SYNs/REQUESTs
  */
 struct listen_sock {
-	int			qlen_inc; /* protected by listener lock */
-	int			young_inc;/* protected by listener lock */
-
-	/* following fields can be updated by timer */
-	atomic_t		qlen_dec; /* qlen = qlen_inc - qlen_dec */
-	atomic_t		young_dec;
-
-	u32			max_qlen_log ____cacheline_aligned_in_smp;
+	u32			max_qlen_log;
 	u32			synflood_warned;
 	u32			hash_rnd;
 	u32			nr_table_entries;
@@ -178,6 +171,9 @@ struct fastopen_queue {
 struct request_sock_queue {
 	spinlock_t		rskq_lock;
 	u8			rskq_defer_accept;
+
+	atomic_t		qlen;
+	atomic_t		young;
 
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
@@ -242,41 +238,25 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 static inline void reqsk_queue_removed(struct request_sock_queue *queue,
 				       const struct request_sock *req)
 {
-	struct listen_sock *lopt = queue->listen_opt;
-
 	if (req->num_timeout == 0)
-		atomic_inc(&lopt->young_dec);
-	atomic_inc(&lopt->qlen_dec);
+		atomic_dec(&queue->young);
+	atomic_dec(&queue->qlen);
 }
 
 static inline void reqsk_queue_added(struct request_sock_queue *queue)
 {
-	struct listen_sock *lopt = queue->listen_opt;
-
-	lopt->young_inc++;
-	lopt->qlen_inc++;
-}
-
-static inline int listen_sock_qlen(const struct listen_sock *lopt)
-{
-	return lopt->qlen_inc - atomic_read(&lopt->qlen_dec);
-}
-
-static inline int listen_sock_young(const struct listen_sock *lopt)
-{
-	return lopt->young_inc - atomic_read(&lopt->young_dec);
+	atomic_inc(&queue->young);
+	atomic_inc(&queue->qlen);
 }
 
 static inline int reqsk_queue_len(const struct request_sock_queue *queue)
 {
-	const struct listen_sock *lopt = queue->listen_opt;
-
-	return lopt ? listen_sock_qlen(lopt) : 0;
+	return atomic_read(&queue->qlen);
 }
 
 static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 {
-	return listen_sock_young(queue->listen_opt);
+	return atomic_read(&queue->young);
 }
 
 static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)

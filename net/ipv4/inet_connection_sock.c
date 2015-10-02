@@ -640,9 +640,9 @@ static void reqsk_timer_handler(unsigned long data)
 	 * embrions; and abort old ones without pity, if old
 	 * ones are about to clog our table.
 	 */
-	qlen = listen_sock_qlen(lopt);
+	qlen = reqsk_queue_len(queue);
 	if (qlen >> (lopt->max_qlen_log - 1)) {
-		int young = listen_sock_young(lopt) << 1;
+		int young = reqsk_queue_len_young(queue) << 1;
 
 		while (thresh > 2) {
 			if (qlen < young)
@@ -664,7 +664,7 @@ static void reqsk_timer_handler(unsigned long data)
 		unsigned long timeo;
 
 		if (req->num_timeout++ == 0)
-			atomic_inc(&lopt->young_dec);
+			atomic_dec(&queue->young);
 		timeo = min(TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
 		mod_timer_pinned(&req->rsk_timer, jiffies + timeo);
 		return;
