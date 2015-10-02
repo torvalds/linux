@@ -61,7 +61,9 @@ FEXPORT(sk_load_word_positive)
 	is_offset_in_header(4, word)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
+	.set	reorder
 	lw	$r_A, 0(t1)
+	.set	noreorder
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 # if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_A
@@ -88,7 +90,9 @@ FEXPORT(sk_load_half_positive)
 	is_offset_in_header(2, half)
 	/* Offset within header boundaries */
 	PTR_ADDU t1, $r_skb_data, offset
+	.set	reorder
 	lh	$r_A, 0(t1)
+	.set	noreorder
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 # if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
 	wsbh	t0, $r_A
