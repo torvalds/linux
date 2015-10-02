@@ -5342,9 +5342,9 @@ int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *wfi_drv, u8 channel)
 }
 
 
-s32 host_int_wait_msg_queue_idle(void)
+int host_int_wait_msg_queue_idle(void)
 {
-	s32 s32Error = 0;
+	int s32Error = 0;
 
 	struct host_if_msg msg;
 

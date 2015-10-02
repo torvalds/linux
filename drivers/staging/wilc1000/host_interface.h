@@ -648,7 +648,7 @@ s32 host_int_set_MacAddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8MacAddress);
  *  @date		19 march 2014
  *  @version		1.0
  */
-s32 host_int_wait_msg_queue_idle(void);
+int host_int_wait_msg_queue_idle(void);
 
 /**
  *  @brief              sets a start scan request
