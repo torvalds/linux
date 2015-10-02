@@ -26,11 +26,39 @@ show_result() { # result_value
     fi
 }
 
+check_files_exist() { # type of pstorefs file
+    if [ -e ${1}-${backend}-0 ]; then
+	prlog "ok"
+	for f in `ls ${1}-${backend}-*`; do
+            prlog -e "\t${f}"
+	done
+    else
+	prlog "FAIL"
+	rc=1
+    fi
+}
+
+operate_files() { # tested value, files, operation
+    if [ $1 -eq 0 ]; then
+	prlog
+	for f in $2; do
+	    prlog -ne "\t${f} ... "
+	    # execute operation
+	    $3 $f
+	    show_result $?
+	done
+    else
+	prlog " ... FAIL"
+	rc=1
+    fi
+}
+
 # Parameters
 TEST_STRING_PATTERN="Testing pstore: uuid="
 UUID=`cat /proc/sys/kernel/random/uuid`
 TOP_DIR=`absdir $0`
 LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`_${UUID}/
+REBOOT_FLAG=$TOP_DIR/reboot_flag
 
 # Preparing logs
 LOG_FILE=$LOG_DIR/`basename $0`.log

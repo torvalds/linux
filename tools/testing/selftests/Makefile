@@ -66,6 +66,9 @@ clean_hotplug:
 		make -C $$TARGET clean; \
 	done;
 
+run_pstore_crash:
+	make -C pstore run_crash
+
 INSTALL_PATH ?= install
 INSTALL_PATH := $(abspath $(INSTALL_PATH))
 ALL_SCRIPT := $(INSTALL_PATH)/run_kselftest.sh
