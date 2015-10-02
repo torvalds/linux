@@ -3417,7 +3417,6 @@ int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 	struct wilc_priv *priv;
 
 	priv = wiphy_priv(wiphy);
-#if 1
 	switch (changed) {
 
 	case WILC_WFI_RX_PKT:
@@ -3440,7 +3439,6 @@ int WILC_WFI_update_stats(struct wiphy *wiphy, u32 pktlen, u8 changed)
 	default:
 		break;
 	}
-#endif
 	return 0;
 }
 
