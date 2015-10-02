@@ -403,8 +403,8 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
  * \post state: CLS_INTRANSIT
  * \see CLS_INTRANSIT
  */
-enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
-				     struct cl_lock *lock)
+static enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
+					    struct cl_lock *lock)
 {
 	enum cl_lock_state state = lock->cll_state;
 
@@ -418,13 +418,12 @@ enum cl_lock_state cl_lock_intransit(const struct lu_env *env,
 	cl_lock_hold_add(env, lock, "intransit", current);
 	return state;
 }
-EXPORT_SYMBOL(cl_lock_intransit);
 
 /**
  *  Exit the intransit state and restore the lock state to the original state
  */
-void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
-		       enum cl_lock_state state)
+static void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
+			      enum cl_lock_state state)
 {
 	LASSERT(cl_lock_is_mutexed(lock));
 	LASSERT(lock->cll_state == CLS_INTRANSIT);
@@ -435,7 +434,6 @@ void cl_lock_extransit(const struct lu_env *env, struct cl_lock *lock,
 	cl_lock_state_set(env, lock, state);
 	cl_lock_unhold(env, lock, "intransit", current);
 }
-EXPORT_SYMBOL(cl_lock_extransit);
 
 /**
  * Checking whether the lock is intransit state
