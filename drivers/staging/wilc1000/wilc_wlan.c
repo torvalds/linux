@@ -18,7 +18,6 @@
  ********************************************/
 extern wilc_hif_func_t hif_sdio;
 extern wilc_hif_func_t hif_spi;
-extern wilc_cfg_func_t mac_cfg;
 extern void WILC_WFI_mgmt_rx(u8 *buff, u32 size);
 u32 wilc_get_chipid(u8 update);
 u16 Set_machw_change_vir_if(bool bValue);
@@ -1994,7 +1993,7 @@ int wilc_wlan_init(wilc_wlan_inp_t *inp)
 	/***
 	 *      mac interface init
 	 **/
-	if (!mac_cfg.cfg_init(wilc_debug)) {
+	if (!wilc_wlan_cfg_init(wilc_debug)) {
 		/* ENOBUFS	105 */
 		ret = -105;
 		goto _fail_;

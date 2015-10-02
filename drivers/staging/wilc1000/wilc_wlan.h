@@ -295,10 +295,6 @@ typedef struct {
 	u32 seq_no;
 } wilc_cfg_rsp_t;
 
-typedef struct {
-	int (*cfg_init)(wilc_debug_func);
-} wilc_cfg_func_t;
-
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size);
 int wilc_wlan_start(void);
 int wilc_wlan_stop(void);

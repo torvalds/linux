@@ -558,13 +558,9 @@ int wilc_wlan_cfg_indicate_rx(u8 *frame, int size, wilc_cfg_rsp_t *rsp)
 	return ret;
 }
 
-static int wilc_wlan_cfg_init(wilc_debug_func func)
+int wilc_wlan_cfg_init(wilc_debug_func func)
 {
 	memset((void *)&g_mac, 0, sizeof(wilc_mac_cfg_t));
 	g_mac.dPrint = func;
 	return 1;
 }
-
-wilc_cfg_func_t mac_cfg = {
-	wilc_wlan_cfg_init,
-};
