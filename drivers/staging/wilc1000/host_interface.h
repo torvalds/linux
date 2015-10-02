@@ -819,7 +819,7 @@ s32 host_int_get_rx_power_level(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8RxPowerLevel,
  *  @date		8 March 2012
  *  @version		1.0
  */
-int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 channel);
+int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *wfi_drv, u8 channel);
 
 /**
  *  @brief              gets the current channel index
