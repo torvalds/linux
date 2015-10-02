@@ -1093,7 +1093,6 @@ MODULE_DEVICE_TABLE(of, nau8825_of_ids);
 static struct i2c_driver nau8825_driver = {
 	.driver = {
 		.name = "nau8825",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(nau8825_of_ids),
 	},
 	.probe = nau8825_i2c_probe,
