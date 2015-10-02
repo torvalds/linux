@@ -110,14 +110,6 @@ enum info_element_id {
 	INFOELEM_ID_FORCE_32BIT  = 0xFFFFFFFF
 };
 
-
-typedef struct {
-	char *pcRespBuffer;
-	s32 s32MaxRespBuffLen;
-	s32 s32BytesRead;
-	bool bRespRequired;
-} tstrConfigPktInfo;
-
 /* This function extracts the beacon period field from the beacon or probe   */
 /* response frame.                                                           */
 static inline u16 get_beacon_period(u8 *data)
