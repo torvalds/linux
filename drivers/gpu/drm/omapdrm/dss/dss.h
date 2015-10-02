@@ -206,8 +206,6 @@ int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
 /* display */
-int dss_suspend_all_devices(void);
-int dss_resume_all_devices(void);
 void dss_disable_all_devices(void);
 
 int display_init_sysfs(struct platform_device *pdev);

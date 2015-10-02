@@ -900,11 +900,51 @@ static int pdev_remove(struct platform_device *device)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int omap_drm_suspend_all_displays(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+			dssdev->driver->disable(dssdev);
+			dssdev->activate_after_resume = true;
+		} else {
+			dssdev->activate_after_resume = false;
+		}
+	}
+
+	return 0;
+}
+
+static int omap_drm_resume_all_displays(void)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->activate_after_resume) {
+			dssdev->driver->enable(dssdev);
+			dssdev->activate_after_resume = false;
+		}
+	}
+
+	return 0;
+}
+
 static int omap_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	drm_kms_helper_poll_disable(drm_dev);
+
+	drm_modeset_lock_all(drm_dev);
+	omap_drm_suspend_all_displays();
+	drm_modeset_unlock_all(drm_dev);
 
 	return 0;
 }
@@ -912,6 +952,10 @@ static int omap_drm_suspend(struct device *dev)
 static int omap_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	drm_modeset_lock_all(drm_dev);
+	omap_drm_resume_all_displays();
+	drm_modeset_unlock_all(drm_dev);
 
 	drm_kms_helper_poll_enable(drm_dev);
 
