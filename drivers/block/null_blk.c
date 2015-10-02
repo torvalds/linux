@@ -289,7 +289,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (queue_mode)  {
 		case NULL_Q_MQ:
-			blk_mq_complete_request(cmd->rq);
+			blk_mq_complete_request(cmd->rq, cmd->rq->errors);
 			break;
 		case NULL_Q_RQ:
 			blk_complete_request(cmd->rq);
