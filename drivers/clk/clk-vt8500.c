@@ -384,7 +384,8 @@ static void vt8500_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 static void wm8650_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 				u32 *multiplier, u32 *divisor1, u32 *divisor2)
 {
-	u32 mul, div1, div2;
+	u32 mul, div1;
+	int div2;
 	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
@@ -452,7 +453,8 @@ static u32 wm8750_get_filter(u32 parent_rate, u32 divisor1)
 static void wm8750_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 				u32 *filter, u32 *multiplier, u32 *divisor1, u32 *divisor2)
 {
-	u32 mul, div1, div2;
+	u32 mul;
+	int div1, div2;
 	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
@@ -496,7 +498,8 @@ static void wm8750_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 static void wm8850_find_pll_bits(unsigned long rate, unsigned long parent_rate,
 				u32 *multiplier, u32 *divisor1, u32 *divisor2)
 {
-	u32 mul, div1, div2;
+	u32 mul;
+	int div1, div2;
 	u32 best_mul, best_div1, best_div2;
 	unsigned long tclk, rate_err, best_err;
 
