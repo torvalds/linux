@@ -1804,7 +1804,7 @@ int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 		p->cfg_frame_offset = 0;
 
 	offset = p->cfg_frame_offset;
-	ret_size = mac_cfg.cfg_wid_get(p->cfg_frame.frame, offset, (u16)wid);
+	ret_size = wilc_wlan_cfg_get_wid(p->cfg_frame.frame, offset, (u16)wid);
 	offset += ret_size;
 	p->cfg_frame_offset = offset;
 

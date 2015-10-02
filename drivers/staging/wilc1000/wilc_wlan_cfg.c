@@ -411,7 +411,7 @@ int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size)
 	return ret;
 }
 
-static int wilc_wlan_cfg_get_wid(u8 *frame, u32 offset, u16 id)
+int wilc_wlan_cfg_get_wid(u8 *frame, u32 offset, u16 id)
 {
 	u8 *buf;
 
@@ -566,7 +566,6 @@ static int wilc_wlan_cfg_init(wilc_debug_func func)
 }
 
 wilc_cfg_func_t mac_cfg = {
-	wilc_wlan_cfg_get_wid,
 	wilc_wlan_cfg_get_wid_value,
 	wilc_wlan_cfg_indicate_rx,
 	wilc_wlan_cfg_init,
