@@ -20,8 +20,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 
-#define DRV_VERSION "0.0.1"
-
 #define PCF2127_REG_CTRL1       (0x00)  /* Control Register 1 */
 #define PCF2127_REG_CTRL2       (0x01)  /* Control Register 2 */
 
@@ -207,8 +205,6 @@ static int pcf2127_probe(struct i2c_client *client,
 	if (!pcf2127)
 		return -ENOMEM;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	i2c_set_clientdata(client, pcf2127);
 
 	pcf2127->rtc = devm_rtc_device_register(&client->dev,
@@ -246,4 +242,3 @@ module_i2c_driver(pcf2127_driver);
 MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
 MODULE_DESCRIPTION("NXP PCF2127 RTC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DRV_VERSION);
