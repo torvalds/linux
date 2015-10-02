@@ -400,7 +400,7 @@ static inline bool br_vlan_is_brentry(const struct net_bridge_vlan *v)
 	return v->flags & BRIDGE_VLAN_INFO_BRENTRY;
 }
 
-/* check if we should use the vlan entry is usable */
+/* check if we should use the vlan entry, returns false if it's only context */
 static inline bool br_vlan_should_use(const struct net_bridge_vlan *v)
 {
 	if (br_vlan_is_master(v)) {

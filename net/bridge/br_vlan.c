@@ -195,7 +195,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 {
 	struct net_bridge_vlan *masterv = NULL;
 	struct net_bridge_port *p = NULL;
-	struct rhashtable *tbl;
+	struct net_bridge_vlan_group *vg;
 	struct net_device *dev;
 	struct net_bridge *br;
 	int err;
@@ -203,12 +203,12 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 	if (br_vlan_is_master(v)) {
 		br = v->br;
 		dev = br->dev;
-		tbl = &br->vlgrp->vlan_hash;
+		vg = br->vlgrp;
 	} else {
 		p = v->port;
 		br = p->br;
 		dev = p->dev;
-		tbl = &p->vlgrp->vlan_hash;
+		vg = p->vlgrp;
 	}
 
 	if (p) {
@@ -234,32 +234,31 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 		v->brvlan = masterv;
 	}
 
-	/* Add the dev mac only if it's a usable vlan */
+	/* Add the dev mac and count the vlan only if it's usable */
 	if (br_vlan_should_use(v)) {
 		err = br_fdb_insert(br, p, dev->dev_addr, v->vid);
 		if (err) {
 			br_err(br, "failed insert local address into bridge forwarding table\n");
 			goto out_filt;
 		}
+		vg->num_vlans++;
 	}
 
-	err = rhashtable_lookup_insert_fast(tbl, &v->vnode, br_vlan_rht_params);
+	err = rhashtable_lookup_insert_fast(&vg->vlan_hash, &v->vnode,
+					    br_vlan_rht_params);
 	if (err)
 		goto out_fdb_insert;
 
 	__vlan_add_list(v);
 	__vlan_add_flags(v, flags);
-	if (br_vlan_is_master(v)) {
-		if (br_vlan_is_brentry(v))
-			br->vlgrp->num_vlans++;
-	} else {
-		p->vlgrp->num_vlans++;
-	}
 out:
 	return err;
 
 out_fdb_insert:
-	br_fdb_find_delete_local(br, p, br->dev->dev_addr, v->vid);
+	if (br_vlan_should_use(v)) {
+		br_fdb_find_delete_local(br, p, dev->dev_addr, v->vid);
+		vg->num_vlans--;
+	}
 
 out_filt:
 	if (p) {
@@ -278,15 +277,12 @@ static int __vlan_del(struct net_bridge_vlan *v)
 	struct net_bridge_vlan *masterv = v;
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_port *p = NULL;
-	struct net_bridge *br;
 	int err = 0;
 
 	if (br_vlan_is_master(v)) {
-		br = v->br;
 		vg = v->br->vlgrp;
 	} else {
 		p = v->port;
-		br = p->br;
 		vg = v->port->vlgrp;
 		masterv = v->brvlan;
 	}
@@ -298,13 +294,9 @@ static int __vlan_del(struct net_bridge_vlan *v)
 			goto out;
 	}
 
-	if (br_vlan_is_master(v)) {
-		if (br_vlan_is_brentry(v)) {
-			v->flags &= ~BRIDGE_VLAN_INFO_BRENTRY;
-			br->vlgrp->num_vlans--;
-		}
-	} else {
-		p->vlgrp->num_vlans--;
+	if (br_vlan_should_use(v)) {
+		v->flags &= ~BRIDGE_VLAN_INFO_BRENTRY;
+		vg->num_vlans--;
 	}
 
 	if (masterv != v) {
