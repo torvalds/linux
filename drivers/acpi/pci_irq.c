@@ -372,6 +372,7 @@ static int acpi_isa_register_gsi(struct pci_dev *dev)
 
 	/* Interrupt Line values above 0xF are forbidden */
 	if (dev->irq > 0 && (dev->irq <= 0xF) &&
+	    acpi_isa_irq_available(dev->irq) &&
 	    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
 		dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
 			 pin_name(dev->pin), dev->irq);
