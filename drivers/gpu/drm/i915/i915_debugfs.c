@@ -2298,18 +2298,21 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		struct task_struct *task;
 
 		task = get_pid_task(file->pid, PIDTYPE_PID);
-		if (!task)
-			return -ESRCH;
+		if (!task) {
+			ret = -ESRCH;
+			goto out_put;
+		}
 		seq_printf(m, "\nproc: %s\n", task->comm);
 		put_task_struct(task);
 		idr_for_each(&file_priv->context_idr, per_file_ctx,
 			     (void *)(unsigned long)m);
 	}
 
+out_put:
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 static int count_irq_waiters(struct drm_i915_private *i915)
