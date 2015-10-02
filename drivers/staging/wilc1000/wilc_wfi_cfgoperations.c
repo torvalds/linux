@@ -663,7 +663,7 @@ static int set_channel(struct wiphy *wiphy,
 {
 	u32 channelnum = 0;
 	struct wilc_priv *priv;
-	s32 s32Error = 0;
+	int s32Error = 0;
 
 	priv = wiphy_priv(wiphy);
 
