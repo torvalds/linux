@@ -87,19 +87,17 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 					   rx->header, offset);
 				return 0;
 			}
+			if (size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
+				netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
+					   size);
+				return 0;
+			}
+
 			rx->ax_skb = netdev_alloc_skb_ip_align(dev->net, size);
 			if (!rx->ax_skb)
 				return 0;
-			rx->remaining = size;
-		}
 
-		if (rx->remaining > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
-			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
-				   rx->remaining);
-			kfree_skb(rx->ax_skb);
-			rx->ax_skb = NULL;
-			rx->remaining = 0;
-			return 0;
+			rx->remaining = size;
 		}
 
 		if (rx->remaining > skb->len - offset) {
