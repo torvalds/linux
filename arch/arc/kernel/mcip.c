@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 #include <asm/mcip.h>
+#include <asm/setup.h>
 
 static char smp_cpuinfo_buf[128];
 static int idu_detected;
@@ -122,8 +123,6 @@ struct plat_smp_ops plat_smp_ops = {
 
 void mcip_init_early_smp(void)
 {
-#define IS_AVAIL1(var, str)    ((var) ? str : "")
-
 	struct mcip_bcr {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 		unsigned int pad3:8,

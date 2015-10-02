@@ -37,7 +37,6 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	int n = 0;
 	struct cpuinfo_arc_cache *p;
 
-#define IS_USED_RUN(v)		((v) ? "" : "(disabled) ")
 #define PR_CACHE(p, cfg, str)						\
 	if (!(p)->ver)							\
 		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
@@ -47,7 +46,7 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 			(p)->sz_k, (p)->assoc, (p)->line_len,		\
 			(p)->vipt ? "VIPT" : "PIPT",			\
 			(p)->alias ? " aliasing" : "",			\
-			IS_ENABLED(cfg) ? "" : " (not used)");
+			IS_USED_CFG(cfg));
 
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
@@ -63,7 +62,7 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 
 	if (ioc_exists)
 		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
-				IS_USED_RUN(ioc_enable));
+				IS_DISABLED_RUN(ioc_enable));
 
 	return buf;
 }

@@ -779,7 +779,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	if (p_mmu->s_pg_sz_m)
 		scnprintf(super_pg, 64, "%dM Super Page%s, ",
 			  p_mmu->s_pg_sz_m,
-			  IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) ? "" : " (not used)");
+			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
 
 	n += scnprintf(buf + n, len - n,
 		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
