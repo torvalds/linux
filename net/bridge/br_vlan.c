@@ -212,8 +212,6 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 	}
 
 	if (p) {
-		u16 master_flags = flags;
-
 		/* Add VLAN to the device filter if it is supported.
 		 * This ensures tagged traffic enters the bridge when
 		 * promiscuous mode is disabled by br_manage_promisc().
@@ -224,8 +222,8 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 
 		/* need to work on the master vlan too */
 		if (flags & BRIDGE_VLAN_INFO_MASTER) {
-			master_flags |= BRIDGE_VLAN_INFO_BRENTRY;
-			err = br_vlan_add(br, v->vid, master_flags);
+			err = br_vlan_add(br, v->vid, flags |
+						      BRIDGE_VLAN_INFO_BRENTRY);
 			if (err)
 				goto out_filt;
 		}
