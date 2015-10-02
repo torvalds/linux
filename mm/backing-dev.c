@@ -480,6 +480,10 @@ static void cgwb_release_workfn(struct work_struct *work)
 						release_work);
 	struct backing_dev_info *bdi = wb->bdi;
 
+	spin_lock_irq(&cgwb_lock);
+	list_del_rcu(&wb->bdi_node);
+	spin_unlock_irq(&cgwb_lock);
+
 	wb_shutdown(wb);
 
 	css_put(wb->memcg_css);
@@ -575,6 +579,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
 		if (!ret) {
 			atomic_inc(&bdi->usage_cnt);
+			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
 			list_add(&wb->memcg_node, memcg_cgwb_list);
 			list_add(&wb->blkcg_node, blkcg_cgwb_list);
 			css_get(memcg_css);
@@ -764,15 +769,22 @@ static void cgwb_bdi_destroy(struct backing_dev_info *bdi) { }
 
 int bdi_init(struct backing_dev_info *bdi)
 {
+	int ret;
+
 	bdi->dev = NULL;
 
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
 	bdi->max_prop_frac = FPROP_FRAC_BASE;
 	INIT_LIST_HEAD(&bdi->bdi_list);
+	INIT_LIST_HEAD(&bdi->wb_list);
 	init_waitqueue_head(&bdi->wb_waitq);
 
-	return cgwb_bdi_init(bdi);
+	ret = cgwb_bdi_init(bdi);
+
+	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+
+	return ret;
 }
 EXPORT_SYMBOL(bdi_init);
 

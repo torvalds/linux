@@ -408,61 +408,6 @@ static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
 	rcu_read_unlock();
 }
 
-struct wb_iter {
-	int			start_memcg_id;
-	struct radix_tree_iter	tree_iter;
-	void			**slot;
-};
-
-static inline struct bdi_writeback *__wb_iter_next(struct wb_iter *iter,
-						   struct backing_dev_info *bdi)
-{
-	struct radix_tree_iter *titer = &iter->tree_iter;
-
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	if (iter->start_memcg_id >= 0) {
-		iter->slot = radix_tree_iter_init(titer, iter->start_memcg_id);
-		iter->start_memcg_id = -1;
-	} else {
-		iter->slot = radix_tree_next_slot(iter->slot, titer, 0);
-	}
-
-	if (!iter->slot)
-		iter->slot = radix_tree_next_chunk(&bdi->cgwb_tree, titer, 0);
-	if (iter->slot)
-		return *iter->slot;
-	return NULL;
-}
-
-static inline struct bdi_writeback *__wb_iter_init(struct wb_iter *iter,
-						   struct backing_dev_info *bdi,
-						   int start_memcg_id)
-{
-	iter->start_memcg_id = start_memcg_id;
-
-	if (start_memcg_id)
-		return __wb_iter_next(iter, bdi);
-	else
-		return &bdi->wb;
-}
-
-/**
- * bdi_for_each_wb - walk all wb's of a bdi in ascending memcg ID order
- * @wb_cur: cursor struct bdi_writeback pointer
- * @bdi: bdi to walk wb's of
- * @iter: pointer to struct wb_iter to be used as iteration buffer
- * @start_memcg_id: memcg ID to start iteration from
- *
- * Iterate @wb_cur through the wb's (bdi_writeback's) of @bdi in ascending
- * memcg ID order starting from @start_memcg_id.  @iter is struct wb_iter
- * to be used as temp storage during iteration.  rcu_read_lock() must be
- * held throughout iteration.
- */
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_memcg_id)		\
-	for ((wb_cur) = __wb_iter_init(iter, bdi, start_memcg_id);	\
-	     (wb_cur); (wb_cur) = __wb_iter_next(iter, bdi))
-
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static inline bool inode_cgwb_enabled(struct inode *inode)
@@ -521,14 +466,6 @@ static inline void wb_memcg_offline(struct mem_cgroup *memcg)
 static inline void wb_blkcg_offline(struct blkcg *blkcg)
 {
 }
-
-struct wb_iter {
-	int		next_id;
-};
-
-#define bdi_for_each_wb(wb_cur, bdi, iter, start_blkcg_id)		\
-	for ((iter)->next_id = (start_blkcg_id);			\
-	     ({	(wb_cur) = !(iter)->next_id++ ? &(bdi)->wb : NULL; }); )
 
 static inline int inode_congested(struct inode *inode, int cong_bits)
 {

@@ -1956,7 +1956,6 @@ void laptop_mode_timer_fn(unsigned long data)
 	int nr_pages = global_page_state(NR_FILE_DIRTY) +
 		global_page_state(NR_UNSTABLE_NFS);
 	struct bdi_writeback *wb;
-	struct wb_iter iter;
 
 	/*
 	 * We want to write everything out, not just down to the dirty
@@ -1966,7 +1965,7 @@ void laptop_mode_timer_fn(unsigned long data)
 		return;
 
 	rcu_read_lock();
-	bdi_for_each_wb(wb, &q->backing_dev_info, &iter, 0)
+	list_for_each_entry_rcu(wb, &q->backing_dev_info.wb_list, bdi_node)
 		if (wb_has_dirty_io(wb))
 			wb_start_writeback(wb, nr_pages, true,
 					   WB_REASON_LAPTOP_TIMER);
