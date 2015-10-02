@@ -217,8 +217,8 @@ static const unsigned char visorkbd_ext_keycode[KEYCODE_TABLE_BYTES] = {
 };
 
 /*
- * register_client_keyboard() initializes and returns a Linux gizmo that we
- * can use to deliver keyboard inputs to Linux.  We of course do this when
+ * register_client_keyboard() initializes and returns a Linux input node that
+ * we can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
  */
 static struct input_dev *
@@ -337,7 +337,7 @@ devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
 
 	/*
 	 * This is an input device in a client guest partition,
-	 * so we need to create whatever gizmos are necessary to
+	 * so we need to create whatever input nodes are necessary to
 	 * deliver our inputs to the guest OS.
 	 */
 	switch (devtype) {
