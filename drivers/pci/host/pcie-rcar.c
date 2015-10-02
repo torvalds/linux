@@ -373,8 +373,9 @@ static int rcar_pcie_setup(int nr, struct pci_sys_data *sys)
 		if (res->flags & IORESOURCE_IO) {
 			phys_addr_t io_start = pci_pio_to_address(res->start);
 			pci_ioremap_io(nr * SZ_64K, io_start);
-		} else
-			pci_add_resource(&sys->resources, res);
+		}
+
+		pci_add_resource(&sys->resources, res);
 	}
 	pci_add_resource(&sys->resources, &pcie->busn);
 
