@@ -732,15 +732,15 @@ static int device_rx_srv(struct vnt_private *priv, unsigned int uIdx)
 static bool device_alloc_rx_buf(struct vnt_private *priv,
 				struct vnt_rx_desc *pRD)
 {
-	struct vnt_rd_info *pRDInfo = pRD->rd_info;
+	struct vnt_rd_info *rd_info = pRD->rd_info;
 
-	pRDInfo->skb = dev_alloc_skb((int)priv->rx_buf_sz);
-	if (pRDInfo->skb == NULL)
+	rd_info->skb = dev_alloc_skb((int)priv->rx_buf_sz);
+	if (rd_info->skb == NULL)
 		return false;
 
-	pRDInfo->skb_dma =
+	rd_info->skb_dma =
 		dma_map_single(&priv->pcid->dev,
-			       skb_put(pRDInfo->skb, skb_tailroom(pRDInfo->skb)),
+			       skb_put(rd_info->skb, skb_tailroom(rd_info->skb)),
 			       priv->rx_buf_sz, DMA_FROM_DEVICE);
 
 	*((unsigned int *)&pRD->rd0) = 0; /* FIX cast */
@@ -748,7 +748,7 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 	pRD->rd0.res_count = cpu_to_le16(priv->rx_buf_sz);
 	pRD->rd0.owner = OWNED_BY_NIC;
 	pRD->rd1.req_count = cpu_to_le16(priv->rx_buf_sz);
-	pRD->buff_addr = cpu_to_le32(pRDInfo->skb_dma);
+	pRD->buff_addr = cpu_to_le32(rd_info->skb_dma);
 
 	return true;
 }
