@@ -87,6 +87,9 @@ void	target_free_device(struct se_device *);
 /* target_core_configfs.c */
 void	target_setup_backend_cits(struct target_backend *);
 
+/* target_core_fabric_configfs.c */
+int	target_fabric_setup_cits(struct target_fabric_configfs *);
+
 /* target_core_fabric_lib.c */
 int	target_get_pr_transport_id_len(struct se_node_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code);

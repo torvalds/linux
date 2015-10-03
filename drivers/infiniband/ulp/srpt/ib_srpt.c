@@ -43,9 +43,7 @@
 #include <linux/atomic.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/scsi_tcq.h>
-#include <target/configfs_macros.h>
 #include <target/target_core_base.h>
-#include <target/target_core_fabric_configfs.h>
 #include <target/target_core_fabric.h>
 #include "ib_srpt.h"
 
@@ -3545,20 +3543,19 @@ static void srpt_cleanup_nodeacl(struct se_node_acl *se_nacl)
 	spin_unlock_irq(&sport->port_acl_lock);
 }
 
-static ssize_t srpt_tpg_attrib_show_srp_max_rdma_size(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t srpt_tpg_attrib_srp_max_rdma_size_show(struct config_item *item,
+		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 
 	return sprintf(page, "%u\n", sport->port_attrib.srp_max_rdma_size);
 }
 
-static ssize_t srpt_tpg_attrib_store_srp_max_rdma_size(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t srpt_tpg_attrib_srp_max_rdma_size_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 	unsigned long val;
 	int ret;
@@ -3583,22 +3580,19 @@ static ssize_t srpt_tpg_attrib_store_srp_max_rdma_size(
 	return count;
 }
 
-TF_TPG_ATTRIB_ATTR(srpt, srp_max_rdma_size, S_IRUGO | S_IWUSR);
-
-static ssize_t srpt_tpg_attrib_show_srp_max_rsp_size(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t srpt_tpg_attrib_srp_max_rsp_size_show(struct config_item *item,
+		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 
 	return sprintf(page, "%u\n", sport->port_attrib.srp_max_rsp_size);
 }
 
-static ssize_t srpt_tpg_attrib_store_srp_max_rsp_size(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t srpt_tpg_attrib_srp_max_rsp_size_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 	unsigned long val;
 	int ret;
@@ -3623,22 +3617,19 @@ static ssize_t srpt_tpg_attrib_store_srp_max_rsp_size(
 	return count;
 }
 
-TF_TPG_ATTRIB_ATTR(srpt, srp_max_rsp_size, S_IRUGO | S_IWUSR);
-
-static ssize_t srpt_tpg_attrib_show_srp_sq_size(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t srpt_tpg_attrib_srp_sq_size_show(struct config_item *item,
+		char *page)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 
 	return sprintf(page, "%u\n", sport->port_attrib.srp_sq_size);
 }
 
-static ssize_t srpt_tpg_attrib_store_srp_sq_size(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t srpt_tpg_attrib_srp_sq_size_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = attrib_to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 	unsigned long val;
 	int ret;
@@ -3663,29 +3654,29 @@ static ssize_t srpt_tpg_attrib_store_srp_sq_size(
 	return count;
 }
 
-TF_TPG_ATTRIB_ATTR(srpt, srp_sq_size, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(srpt_tpg_attrib_,  srp_max_rdma_size);
+CONFIGFS_ATTR(srpt_tpg_attrib_,  srp_max_rsp_size);
+CONFIGFS_ATTR(srpt_tpg_attrib_,  srp_sq_size);
 
 static struct configfs_attribute *srpt_tpg_attrib_attrs[] = {
-	&srpt_tpg_attrib_srp_max_rdma_size.attr,
-	&srpt_tpg_attrib_srp_max_rsp_size.attr,
-	&srpt_tpg_attrib_srp_sq_size.attr,
+	&srpt_tpg_attrib_attr_srp_max_rdma_size,
+	&srpt_tpg_attrib_attr_srp_max_rsp_size,
+	&srpt_tpg_attrib_attr_srp_sq_size,
 	NULL,
 };
 
-static ssize_t srpt_tpg_show_enable(
-	struct se_portal_group *se_tpg,
-	char *page)
+static ssize_t srpt_tpg_enable_show(struct config_item *item, char *page)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 
 	return snprintf(page, PAGE_SIZE, "%d\n", (sport->enabled) ? 1: 0);
 }
 
-static ssize_t srpt_tpg_store_enable(
-	struct se_portal_group *se_tpg,
-	const char *page,
-	size_t count)
+static ssize_t srpt_tpg_enable_store(struct config_item *item,
+		const char *page, size_t count)
 {
+	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = container_of(se_tpg, struct srpt_port, port_tpg_1);
 	unsigned long tmp;
         int ret;
@@ -3708,10 +3699,10 @@ static ssize_t srpt_tpg_store_enable(
 	return count;
 }
 
-TF_TPG_BASE_ATTR(srpt, enable, S_IRUGO | S_IWUSR);
+CONFIGFS_ATTR(srpt_tpg_, enable);
 
 static struct configfs_attribute *srpt_tpg_attrs[] = {
-	&srpt_tpg_enable.attr,
+	&srpt_tpg_attr_enable,
 	NULL,
 };
 
@@ -3781,16 +3772,15 @@ static void srpt_drop_tport(struct se_wwn *wwn)
 	pr_debug("drop_tport(%s\n", config_item_name(&sport->port_wwn.wwn_group.cg_item));
 }
 
-static ssize_t srpt_wwn_show_attr_version(struct target_fabric_configfs *tf,
-					      char *buf)
+static ssize_t srpt_wwn_version_show(struct config_item *item, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%s\n", DRV_VERSION);
 }
 
-TF_WWN_ATTR_RO(srpt, version);
+CONFIGFS_ATTR_RO(srpt_wwn_, version);
 
 static struct configfs_attribute *srpt_wwn_attrs[] = {
-	&srpt_wwn_version.attr,
+	&srpt_wwn_attr_version,
 	NULL,
 };
 
