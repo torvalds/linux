@@ -928,7 +928,6 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 				    unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp;
-	struct ntb_transport_mw *mw;
 	phys_addr_t mw_base;
 	resource_size_t mw_size;
 	unsigned int num_qps_mw, tx_size;
@@ -939,7 +938,6 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp_count = nt->qp_count;
 
 	mw_num = QP_TO_MW(nt, qp_num);
-	mw = &nt->mw_vec[mw_num];
 
 	qp = &nt->qp_vec[qp_num];
 	qp->qp_num = qp_num;
@@ -1930,13 +1928,11 @@ EXPORT_SYMBOL_GPL(ntb_transport_link_up);
  */
 void ntb_transport_link_down(struct ntb_transport_qp *qp)
 {
-	struct pci_dev *pdev;
 	int val;
 
 	if (!qp)
 		return;
 
-	pdev = qp->ndev->pdev;
 	qp->client_ready = false;
 
 	val = ntb_spad_read(qp->ndev, QP_LINKS);
