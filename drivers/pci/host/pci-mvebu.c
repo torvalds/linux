@@ -794,17 +794,6 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	if (!mvebu_pcie_link_up(port))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	/*
-	 * On the secondary bus, we don't want to expose any other
-	 * device than the device physically connected in the PCIe
-	 * slot, visible in slot 0. In slot 1, there's a special
-	 * Marvell device that only makes sense when the Armada is
-	 * used as a PCIe endpoint.
-	 */
-	if (bus->number == port->bridge.secondary_bus &&
-	    PCI_SLOT(devfn) != 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
 	/* Access the real PCIe interface */
 	ret = mvebu_pcie_hw_wr_conf(port, bus, devfn,
 				    where, size, val);
@@ -831,19 +820,6 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 		return mvebu_sw_pci_bridge_read(port, where, size, val);
 
 	if (!mvebu_pcie_link_up(port)) {
-		*val = 0xffffffff;
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
-
-	/*
-	 * On the secondary bus, we don't want to expose any other
-	 * device than the device physically connected in the PCIe
-	 * slot, visible in slot 0. In slot 1, there's a special
-	 * Marvell device that only makes sense when the Armada is
-	 * used as a PCIe endpoint.
-	 */
-	if (bus->number == port->bridge.secondary_bus &&
-	    PCI_SLOT(devfn) != 0) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
