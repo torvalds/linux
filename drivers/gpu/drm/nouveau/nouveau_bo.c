@@ -321,7 +321,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype, bool contig)
 		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
 			if (bo->mem.mem_type == TTM_PL_VRAM) {
 				struct nvkm_mem *mem = bo->mem.mm_node;
-				if (!list_is_singular(&mem->regions))
+				if (!nvkm_mm_contiguous(mem->mem))
 					evict = true;
 			}
 			nvbo->tile_flags &= ~NOUVEAU_GEM_TILE_NONCONTIG;
