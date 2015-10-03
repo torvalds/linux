@@ -359,7 +359,7 @@ static struct ib_mr *c2_reg_phys_mr(struct ib_pd *ib_pd,
 
 	for (i = 0; i < num_phys_buf; i++) {
 
-		if (buffer_list[i].addr & ~PAGE_MASK) {
+		if (offset_in_page(buffer_list[i].addr)) {
 			pr_debug("Unaligned Memory Buffer: 0x%x\n",
 				(unsigned int) buffer_list[i].addr);
 			return ERR_PTR(-EINVAL);

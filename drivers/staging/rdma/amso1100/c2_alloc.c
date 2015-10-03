@@ -131,7 +131,7 @@ void c2_free_mqsp(__be16 *mqsp)
 	*mqsp = (__force __be16) head->head;
 
 	/* Compute the shared_ptr index */
-	idx = ((unsigned long) mqsp & ~PAGE_MASK) >> 1;
+	idx = (offset_in_page(mqsp)) >> 1;
 	idx -= (unsigned long) &(((struct sp_chunk *) 0)->shared_ptr[0]) >> 1;
 
 	/* Point this index at the head */
