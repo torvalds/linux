@@ -168,7 +168,7 @@ enum mmap_types {
 	HFI1_MMAP_TOKEN_SET(TYPE, type) | \
 	HFI1_MMAP_TOKEN_SET(CTXT, ctxt) | \
 	HFI1_MMAP_TOKEN_SET(SUBCTXT, subctxt) | \
-	HFI1_MMAP_TOKEN_SET(OFFSET, ((unsigned long)addr & ~PAGE_MASK)))
+	HFI1_MMAP_TOKEN_SET(OFFSET, (offset_in_page(addr))))
 
 #define EXP_TID_SET(field, value)			\
 	(((value) & EXP_TID_TID##field##_MASK) <<	\
@@ -1335,9 +1335,9 @@ static int get_base_info(struct file *fp, void __user *ubase, __u32 len)
 	 */
 	binfo.user_regbase = HFI1_MMAP_TOKEN(UREGS, uctxt->ctxt,
 					    subctxt_fp(fp), 0);
-	offset = ((((uctxt->ctxt - dd->first_user_ctxt) *
+	offset = offset_in_page((((uctxt->ctxt - dd->first_user_ctxt) *
 		    HFI1_MAX_SHARED_CTXTS) + subctxt_fp(fp)) *
-		  sizeof(*dd->events)) & ~PAGE_MASK;
+		  sizeof(*dd->events));
 	binfo.events_bufbase = HFI1_MMAP_TOKEN(EVENTS, uctxt->ctxt,
 					      subctxt_fp(fp),
 					      offset);
@@ -1573,7 +1573,7 @@ static int exp_tid_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 
 	vaddr = tinfo->vaddr;
 
-	if (vaddr & ~PAGE_MASK) {
+	if (offset_in_page(vaddr)) {
 		ret = -EINVAL;
 		goto bail;
 	}
