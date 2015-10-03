@@ -3558,6 +3558,9 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		max_zeroout = sbi->s_extent_max_zeroout_kb >>
 			(inode->i_sb->s_blocksize_bits - 10);
 
+	if (ext4_encrypted_inode(inode))
+		max_zeroout = 0;
+
 	/* If extent is less than s_max_zeroout_kb, zeroout directly */
 	if (max_zeroout && (ee_len <= max_zeroout)) {
 		err = ext4_ext_zeroout(inode, ex);

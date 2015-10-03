@@ -392,7 +392,13 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	ext4_lblk_t		lblk = ex->ee_block;
 	ext4_fsblk_t		pblk = ext4_ext_pblock(ex);
 	unsigned int		len = ext4_ext_get_actual_len(ex);
-	int			err = 0;
+	int			ret, err = 0;
+
+#if 0
+	ext4_msg(inode->i_sb, KERN_CRIT,
+		 "ext4_encrypted_zeroout ino %lu lblk %u len %u",
+		 (unsigned long) inode->i_ino, lblk, len);
+#endif
 
 	BUG_ON(inode->i_sb->s_blocksize != PAGE_CACHE_SIZE);
 
@@ -418,17 +424,26 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 			goto errout;
 		}
 		bio->bi_bdev = inode->i_sb->s_bdev;
-		bio->bi_iter.bi_sector = pblk;
-		err = bio_add_page(bio, ciphertext_page,
+		bio->bi_iter.bi_sector =
+			pblk << (inode->i_sb->s_blocksize_bits - 9);
+		ret = bio_add_page(bio, ciphertext_page,
 				   inode->i_sb->s_blocksize, 0);
-		if (err) {
+		if (ret != inode->i_sb->s_blocksize) {
+			/* should never happen! */
+			ext4_msg(inode->i_sb, KERN_ERR,
+				 "bio_add_page failed: %d", ret);
+			WARN_ON(1);
 			bio_put(bio);
+			err = -EIO;
 			goto errout;
 		}
 		err = submit_bio_wait(WRITE, bio);
+		if ((err == 0) && bio->bi_error)
+			err = -EIO;
 		bio_put(bio);
 		if (err)
 			goto errout;
+		lblk++; pblk++;
 	}
 	err = 0;
 errout:
