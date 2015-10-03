@@ -475,12 +475,18 @@ EXPORT_SYMBOL_GPL(btbcm_setup_patchram);
 int btbcm_setup_apple(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
+	int err;
+
+	/* Reset */
+	err = btbcm_reset(hdev);
+	if (err)
+		return err;
 
 	/* Read Verbose Config Version Info */
 	skb = btbcm_read_verbose_config(hdev);
 	if (!IS_ERR(skb)) {
-		BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name, skb->data[1],
-			get_unaligned_le16(skb->data + 5));
+		BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name,
+			skb->data[1], get_unaligned_le16(skb->data + 5));
 		kfree_skb(skb);
 	}
 
