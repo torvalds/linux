@@ -1239,6 +1239,44 @@ static int gen10g_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	/* The default values for phydev->supported are provided by the PHY
+	 * driver "features" member, we want to reset to sane defaults first
+	 * before supporting higher speeds.
+	 */
+	phydev->supported &= PHY_DEFAULT_FEATURES;
+
+	switch (max_speed) {
+	default:
+		return -ENOTSUPP;
+	case SPEED_1000:
+		phydev->supported |= PHY_1000BT_FEATURES;
+		/* fall through */
+	case SPEED_100:
+		phydev->supported |= PHY_100BT_FEATURES;
+		/* fall through */
+	case SPEED_10:
+		phydev->supported |= PHY_10BT_FEATURES;
+	}
+
+	return 0;
+}
+
+int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
+{
+	int err;
+
+	err = __set_phy_supported(phydev, max_speed);
+	if (err)
+		return err;
+
+	phydev->advertising = phydev->supported;
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_set_max_speed);
+
 static void of_set_phy_supported(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->dev.of_node;
@@ -1250,25 +1288,8 @@ static void of_set_phy_supported(struct phy_device *phydev)
 	if (!node)
 		return;
 
-	if (!of_property_read_u32(node, "max-speed", &max_speed)) {
-		/* The default values for phydev->supported are provided by the PHY
-		 * driver "features" member, we want to reset to sane defaults fist
-		 * before supporting higher speeds.
-		 */
-		phydev->supported &= PHY_DEFAULT_FEATURES;
-
-		switch (max_speed) {
-		default:
-			return;
-
-		case SPEED_1000:
-			phydev->supported |= PHY_1000BT_FEATURES;
-		case SPEED_100:
-			phydev->supported |= PHY_100BT_FEATURES;
-		case SPEED_10:
-			phydev->supported |= PHY_10BT_FEATURES;
-		}
-	}
+	if (!of_property_read_u32(node, "max-speed", &max_speed))
+		__set_phy_supported(phydev, max_speed);
 }
 
 /**
