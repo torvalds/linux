@@ -82,7 +82,9 @@ static inline struct sock *req_to_sk(struct request_sock *req)
 static inline struct request_sock *
 reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 {
-	struct request_sock *req = kmem_cache_alloc(ops->slab, GFP_ATOMIC);
+	struct request_sock *req;
+
+	req = kmem_cache_alloc(ops->slab, GFP_ATOMIC | __GFP_NOWARN);
 
 	if (req) {
 		req->rsk_ops = ops;
