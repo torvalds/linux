@@ -1398,12 +1398,10 @@ static void dgnc_tty_hangup(struct tty_struct *tty)
  */
 static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 {
-	struct ktermios *ts;
 	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	unsigned long flags;
-	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -1419,8 +1417,6 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-
-	ts = &tty->termios;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -1484,7 +1480,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		/* wait for output to drain */
 		/* This will also return if we take an interrupt */
 
-		rc = bd->bd_ops->drain(tty, 0);
+		bd->bd_ops->drain(tty, 0);
 
 		dgnc_tty_flush_buffer(tty);
 		tty_ldisc_flush(tty);
@@ -1737,7 +1733,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
 	int bufcount = 0, n = 0;
-	int orig_count = 0;
 	unsigned long flags;
 	ushort head;
 	ushort tail;
@@ -1763,7 +1758,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 * This helps to figure out if we should ask the FEP
 	 * to send us an event when it has more space available.
 	 */
-	orig_count = count;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
@@ -2031,7 +2025,6 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
@@ -2048,7 +2041,7 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	rc = bd->bd_ops->drain(tty, 0);
+	bd->bd_ops->drain(tty, 0);
 }
 
 

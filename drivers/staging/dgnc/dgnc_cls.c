@@ -854,10 +854,8 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * Discard character if we are ignoring the error mask.
 		*/
 		if (linestatus & error_mask)  {
-			unsigned char discard;
-
 			linestatus = 0;
-			discard = readb(&ch->ch_cls_uart->txrx);
+			readb(&ch->ch_cls_uart->txrx);
 			continue;
 		}
 
