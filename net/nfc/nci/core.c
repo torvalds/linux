@@ -540,7 +540,7 @@ static void nci_nfcee_discover_req(struct nci_dev *ndev, unsigned long opt)
 
 int nci_nfcee_discover(struct nci_dev *ndev, u8 action)
 {
-	return nci_request(ndev, nci_nfcee_discover_req, action,
+	return __nci_request(ndev, nci_nfcee_discover_req, action,
 				msecs_to_jiffies(NCI_CMD_TIMEOUT));
 }
 EXPORT_SYMBOL(nci_nfcee_discover);
@@ -561,8 +561,9 @@ int nci_nfcee_mode_set(struct nci_dev *ndev, u8 nfcee_id, u8 nfcee_mode)
 	cmd.nfcee_id = nfcee_id;
 	cmd.nfcee_mode = nfcee_mode;
 
-	return nci_request(ndev, nci_nfcee_mode_set_req, (unsigned long)&cmd,
-			   msecs_to_jiffies(NCI_CMD_TIMEOUT));
+	return __nci_request(ndev, nci_nfcee_mode_set_req,
+			     (unsigned long)&cmd,
+			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
 }
 EXPORT_SYMBOL(nci_nfcee_mode_set);
 
@@ -612,8 +613,8 @@ static void nci_core_conn_close_req(struct nci_dev *ndev, unsigned long opt)
 
 int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id)
 {
-	return nci_request(ndev, nci_core_conn_close_req, conn_id,
-				msecs_to_jiffies(NCI_CMD_TIMEOUT));
+	return __nci_request(ndev, nci_core_conn_close_req, conn_id,
+			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
 }
 EXPORT_SYMBOL(nci_core_conn_close);
 
