@@ -39,7 +39,6 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  */
 static int		dgnc_start(void);
 static int		dgnc_finalize_board_init(struct dgnc_board *brd);
-static void		dgnc_init_globals(void);
 static int		dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
@@ -216,8 +215,8 @@ static int dgnc_start(void)
 	unsigned long flags;
 	struct device *dev;
 
-	/* make sure that the globals are init'd before we do anything else */
-	dgnc_init_globals();
+	/* make sure timer is initialized before we do anything else */
+	init_timer(&dgnc_poll_timer);
 
 	/*
 	 * Register our base character device into the kernel.
@@ -698,16 +697,3 @@ static void dgnc_poll_handler(ulong dummy)
 	if (!dgnc_poll_stop)
 		add_timer(&dgnc_poll_timer);
 }
-
-/*
- * dgnc_init_globals()
- *
- * This is where we initialize the globals from the static insmod
- * configuration variables.  These are declared near the head of
- * this file.
- */
-static void dgnc_init_globals(void)
-{
-	init_timer(&dgnc_poll_timer);
-}
-
