@@ -43,7 +43,7 @@
  * @unpinned_list:	The list of all ashmem areas
  * @file:		The shmem-based backing file
  * @size:		The size of the mapping, in bytes
- * @prot_masks:		The allowed protection bits, as vm_flags
+ * @prot_mask:		The allowed protection bits, as vm_flags
  *
  * The lifecycle of this structure is from our parent file's open() until
  * its release(). It is also protected by 'ashmem_mutex'
