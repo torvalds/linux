@@ -49,6 +49,8 @@ static struct napi_struct cvm_oct_napi;
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
+ * @cpl: Interrupt number. Unused
+ * @dev_id: Cookie to identify the device. Unused
  *
  * The interrupt occurs whenever the POW has packets in our group.
  *
