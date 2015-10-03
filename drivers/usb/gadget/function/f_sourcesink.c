@@ -898,9 +898,6 @@ static inline struct f_ss_opts *to_f_ss_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_ss_opts);
-CONFIGFS_ATTR_OPS(f_ss_opts);
-
 static void ss_attr_release(struct config_item *item)
 {
 	struct f_ss_opts *ss_opts = to_f_ss_opts(item);
@@ -910,12 +907,11 @@ static void ss_attr_release(struct config_item *item)
 
 static struct configfs_item_operations ss_item_ops = {
 	.release		= ss_attr_release,
-	.show_attribute		= f_ss_opts_attr_show,
-	.store_attribute	= f_ss_opts_attr_store,
 };
 
-static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_pattern_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -925,9 +921,10 @@ static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_pattern_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_pattern_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -953,13 +950,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_pattern =
-	__CONFIGFS_ATTR(pattern, S_IRUGO | S_IWUSR,
-			f_ss_opts_pattern_show,
-			f_ss_opts_pattern_store);
+CONFIGFS_ATTR(f_ss_opts_, pattern);
 
-static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_interval_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -969,9 +964,10 @@ static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_interval_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_interval_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -997,13 +993,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_interval =
-	__CONFIGFS_ATTR(isoc_interval, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_interval_show,
-			f_ss_opts_isoc_interval_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_interval);
 
-static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_maxpacket_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1013,9 +1007,10 @@ static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_maxpacket_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_maxpacket_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u16 num;
 
@@ -1041,13 +1036,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_maxpacket =
-	__CONFIGFS_ATTR(isoc_maxpacket, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_maxpacket_show,
-			f_ss_opts_isoc_maxpacket_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_maxpacket);
 
-static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_mult_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1057,9 +1050,10 @@ static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_mult_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_mult_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -1085,13 +1079,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_mult =
-	__CONFIGFS_ATTR(isoc_mult, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_mult_show,
-			f_ss_opts_isoc_mult_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_mult);
 
-static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_isoc_maxburst_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1101,9 +1093,10 @@ static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_isoc_maxburst_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_isoc_maxburst_store(struct config_item *item,
 				       const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u8 num;
 
@@ -1129,13 +1122,11 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_isoc_maxburst =
-	__CONFIGFS_ATTR(isoc_maxburst, S_IRUGO | S_IWUSR,
-			f_ss_opts_isoc_maxburst_show,
-			f_ss_opts_isoc_maxburst_store);
+CONFIGFS_ATTR(f_ss_opts_, isoc_maxburst);
 
-static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
+static ssize_t f_ss_opts_bulk_buflen_show(struct config_item *item, char *page)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -1145,9 +1136,10 @@ static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_ss_opts_bulk_buflen_store(struct f_ss_opts *opts,
+static ssize_t f_ss_opts_bulk_buflen_store(struct config_item *item,
 					   const char *page, size_t len)
 {
+	struct f_ss_opts *opts = to_f_ss_opts(item);
 	int ret;
 	u32 num;
 
@@ -1168,18 +1160,15 @@ end:
 	return ret;
 }
 
-static struct f_ss_opts_attribute f_ss_opts_bulk_buflen =
-	__CONFIGFS_ATTR(buflen, S_IRUGO | S_IWUSR,
-			f_ss_opts_bulk_buflen_show,
-			f_ss_opts_bulk_buflen_store);
+CONFIGFS_ATTR(f_ss_opts_, bulk_buflen);
 
 static struct configfs_attribute *ss_attrs[] = {
-	&f_ss_opts_pattern.attr,
-	&f_ss_opts_isoc_interval.attr,
-	&f_ss_opts_isoc_maxpacket.attr,
-	&f_ss_opts_isoc_mult.attr,
-	&f_ss_opts_isoc_maxburst.attr,
-	&f_ss_opts_bulk_buflen.attr,
+	&f_ss_opts_attr_pattern,
+	&f_ss_opts_attr_isoc_interval,
+	&f_ss_opts_attr_isoc_maxpacket,
+	&f_ss_opts_attr_isoc_mult,
+	&f_ss_opts_attr_isoc_maxburst,
+	&f_ss_opts_attr_bulk_buflen,
 	NULL,
 };
 
