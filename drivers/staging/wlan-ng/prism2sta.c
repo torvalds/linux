@@ -1490,7 +1490,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 	 */
 
 	for (i = 0; i < hw->authlist.cnt; i++)
-		if (memcmp(rec.sta_addr, hw->authlist.addr[i], ETH_ALEN) == 0)
+		if (ether_addr_equal(rec.sta_addr, hw->authlist.addr[i]))
 			break;
 
 	if (i >= hw->authlist.cnt) {
@@ -1572,8 +1572,8 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 		 */
 
 		for (i = 0; i < hw->authlist.cnt; i++)
-			if (memcmp(rec.address, hw->authlist.addr[i],
-				   ETH_ALEN) == 0) {
+			if (ether_addr_equal(rec.address,
+					     hw->authlist.addr[i])) {
 				rec.status = P80211ENUM_status_successful;
 				break;
 			}
@@ -1610,7 +1610,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 		}
 
 		for (i = 0; i < cnt; i++, addr += ETH_ALEN)
-			if (memcmp(rec.address, addr, ETH_ALEN) == 0) {
+			if (ether_addr_equal(rec.address, addr)) {
 				rec.status = P80211ENUM_status_successful;
 				break;
 			}
@@ -1640,7 +1640,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 		rec.status = P80211ENUM_status_successful;
 
 		for (i = 0; i < cnt; i++, addr += ETH_ALEN)
-			if (memcmp(rec.address, addr, ETH_ALEN) == 0) {
+			if (ether_addr_equal(rec.address, addr)) {
 				rec.status = P80211ENUM_status_unspec_failure;
 				break;
 			}
@@ -1661,8 +1661,8 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 
 	if (rec.status == P80211ENUM_status_successful) {
 		for (i = 0; i < hw->authlist.cnt; i++)
-			if (memcmp(rec.address, hw->authlist.addr[i], ETH_ALEN)
-			    == 0)
+			if (ether_addr_equal(rec.address,
+					     hw->authlist.addr[i]))
 				break;
 
 		if (i >= hw->authlist.cnt) {
