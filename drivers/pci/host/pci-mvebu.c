@@ -119,8 +119,7 @@ struct mvebu_pcie_port {
 	unsigned int io_target;
 	unsigned int io_attr;
 	struct clk *clk;
-	int reset_gpio;
-	int reset_active_low;
+	struct gpio_desc *reset_gpio;
 	char *reset_name;
 	struct mvebu_sw_pci_bridge bridge;
 	struct device_node *dn;
@@ -940,7 +939,7 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 {
 	struct device *dev = &pcie->pdev->dev;
 	enum of_gpio_flags flags;
-	int ret;
+	int reset_gpio, ret;
 
 	port->pcie = pcie;
 
@@ -980,15 +979,15 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 		port->io_attr = -1;
 	}
 
-	port->reset_gpio = of_get_named_gpio_flags(child, "reset-gpios", 0,
-						   &flags);
-	if (port->reset_gpio == -EPROBE_DEFER) {
-		ret = port->reset_gpio;
+	reset_gpio = of_get_named_gpio_flags(child, "reset-gpios", 0, &flags);
+	if (reset_gpio == -EPROBE_DEFER) {
+		ret = reset_gpio;
 		goto err;
 	}
 
-	if (gpio_is_valid(port->reset_gpio)) {
-		port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
+	if (gpio_is_valid(reset_gpio)) {
+		unsigned long gpio_flags;
+
 		port->reset_name = devm_kasprintf(dev, GFP_KERNEL, "%s-reset",
 						  port->name);
 		if (!port->reset_name) {
@@ -996,13 +995,24 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 			goto err;
 		}
 
-		ret = devm_gpio_request_one(dev, port->reset_gpio,
-					    GPIOF_DIR_OUT, port->reset_name);
+		if (flags & OF_GPIO_ACTIVE_LOW) {
+			dev_info(dev, "%s: reset gpio is active low\n",
+				 of_node_full_name(child));
+			gpio_flags = GPIOF_ACTIVE_LOW |
+				     GPIOF_OUT_INIT_LOW;
+		} else {
+			gpio_flags = GPIOF_OUT_INIT_HIGH;
+		}
+
+		ret = devm_gpio_request_one(dev, reset_gpio, gpio_flags,
+					    port->reset_name);
 		if (ret) {
 			if (ret == -EPROBE_DEFER)
 				goto err;
 			goto skip;
 		}
+
+		port->reset_gpio = gpio_to_desc(reset_gpio);
 	}
 
 	port->clk = of_clk_get_by_name(child, NULL);
@@ -1104,15 +1114,14 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		if (!child)
 			continue;
 
-		if (gpio_is_valid(port->reset_gpio)) {
+		if (port->reset_gpio) {
 			u32 reset_udelay = 20000;
 
 			of_property_read_u32(child, "reset-delay-us",
 					     &reset_udelay);
 
-			gpio_set_value_cansleep(port->reset_gpio,
-						!!port->reset_active_low);
-			msleep(reset_udelay/1000);
+			gpiod_set_value_cansleep(port->reset_gpio, 0);
+			msleep(reset_udelay / 1000);
 		}
 
 		ret = clk_prepare_enable(port->clk);
