@@ -25,7 +25,7 @@ Example:
 		/* Cypress Gen3 touchpad */
 		touchpad@67 {
 			compatible = "cypress,cyapa";
-			reg = <0x24>;
+			reg = <0x67>;
 			interrupt-parent = <&gpio>;
 			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;	/* GPIO 2 */
 			wakeup-source;
