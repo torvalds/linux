@@ -666,9 +666,9 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * other reset is possible.
 		 */
 		dd->ipath_flags &= ~IPATH_INITTED;
-	}
-	else
+	} else {
 		*msg = 0; /* recovered from all of them */
+	}
 	if (*msg)
 		ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg)
@@ -1134,8 +1134,7 @@ static void ipath_setup_ht_setextled(struct ipath_devdata *dd,
 			extctl &= ~INFINIPATH_EXTC_LEDGBLERR_OFF;
 		if (lst == INFINIPATH_IBCS_L_STATE_ACTIVE)
 			extctl |= INFINIPATH_EXTC_LEDGBLOK_ON;
-	}
-	else {
+	} else {
 		extctl = dd->ipath_extctrl &
 			~(INFINIPATH_EXTC_LED1PRIPORT_ON |
 			  INFINIPATH_EXTC_LED2PRIPORT_ON);

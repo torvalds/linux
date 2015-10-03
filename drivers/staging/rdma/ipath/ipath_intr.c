@@ -514,15 +514,14 @@ static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 			*noprint = 1;
 			if (!supp_msgs++)
 				nextmsg_time = nc + HZ * 3;
-		}
-		else if (supp_msgs) {
+		} else if (supp_msgs) {
 			handle_supp_msgs(dd, supp_msgs, msg, msgsz);
 			supp_msgs = 0;
 			nmsgs = 0;
 		}
-	}
-	else if (!nmsgs++ || time_after(nc, nextmsg_time))
+	} else if (!nmsgs++ || time_after(nc, nextmsg_time)) {
 		nextmsg_time = nc + HZ / 2;
+	}
 
 	return supp_msgs;
 }

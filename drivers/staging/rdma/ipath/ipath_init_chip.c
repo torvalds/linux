@@ -324,10 +324,10 @@ static int init_chip_first(struct ipath_devdata *dd)
 			  dd->ipath_pio2kbase, dd->ipath_piobcnt4k,
 			  dd->ipath_piosize4k, dd->ipath_pio4kbase,
 			  dd->ipath_4kalign);
+	} else {
+		ipath_dbg("%u 2k piobufs @ %p\n",
+			  dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
 	}
-	else ipath_dbg("%u 2k piobufs @ %p\n",
-		       dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
-
 done:
 	return ret;
 }
@@ -903,9 +903,9 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		ipath_dev_err(dd, "failed to allocate kernel port's "
 			      "rcvhdrq and/or egr bufs\n");
 		goto done;
-	}
-	else
+	} else {
 		enable_chip(dd, reinit);
+	}
 
 	/* after enable_chip, so pioavailshadow setup */
 	ipath_chg_pioavailkernel(dd, 0, piobufs, 1);

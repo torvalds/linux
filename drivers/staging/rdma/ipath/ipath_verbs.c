@@ -739,9 +739,9 @@ static void ipath_ib_timer(struct ipath_ibdev *dev)
 			dev->ipath_spkts = tc - dev->ipath_spkts;
 			dev->ipath_rpkts = td - dev->ipath_rpkts;
 			dev->ipath_xmit_wait = te - dev->ipath_xmit_wait;
-		}
-		else
+		} else {
 			dev->pma_sample_interval--;
+		}
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 

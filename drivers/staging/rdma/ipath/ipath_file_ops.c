@@ -825,13 +825,13 @@ static void ipath_clean_part_key(struct ipath_portdata *pd,
 				ipath_stats.sps_pkeys[j] =
 					dd->ipath_pkeys[j] = 0;
 				pchanged++;
+			} else {
+				ipath_cdbg(VERBOSE, "p%u key %x matches #%d, "
+					   "but ref still %d\n", pd->port_port,
+					   pd->port_pkeys[i], j,
+					   atomic_read(&dd->ipath_pkeyrefs[j]));
+				break;
 			}
-			else ipath_cdbg(
-				VERBOSE, "p%u key %x matches #%d, "
-				"but ref still %d\n", pd->port_port,
-				pd->port_pkeys[i], j,
-				atomic_read(&dd->ipath_pkeyrefs[j]));
-			break;
 		}
 		pd->port_pkeys[i] = 0;
 	}
