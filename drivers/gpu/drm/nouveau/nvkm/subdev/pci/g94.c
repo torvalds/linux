@@ -25,6 +25,7 @@
 
 static const struct nvkm_pci_func
 g94_pci_func = {
+	.init = g84_pci_init,
 	.rd32 = nv40_pci_rd32,
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,

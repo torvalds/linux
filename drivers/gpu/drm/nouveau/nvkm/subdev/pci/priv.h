@@ -20,4 +20,6 @@ void nv40_pci_wr32(struct nvkm_pci *, u16, u32);
 void nv40_pci_msi_rearm(struct nvkm_pci *);
 
 void nv46_pci_msi_rearm(struct nvkm_pci *);
+
+void g84_pci_init(struct nvkm_pci *pci);
 #endif
