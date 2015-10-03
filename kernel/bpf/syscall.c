@@ -402,6 +402,8 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 			 */
 			BUG_ON(!prog->aux->ops->get_func_proto);
 
+			if (insn->imm == BPF_FUNC_get_route_realm)
+				prog->dst_needed = 1;
 			if (insn->imm == BPF_FUNC_tail_call) {
 				/* mark bpf_tail_call as different opcode
 				 * to avoid conditional branch in
@@ -553,10 +555,10 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	prog->orig_prog = NULL;
-	prog->jited = false;
+	prog->jited = 0;
 
 	atomic_set(&prog->aux->refcnt, 1);
-	prog->gpl_compatible = is_gpl;
+	prog->gpl_compatible = is_gpl ? 1 : 0;
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
