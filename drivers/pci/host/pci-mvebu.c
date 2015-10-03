@@ -1111,8 +1111,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			of_property_read_u32(child, "reset-delay-us",
 					     &reset_udelay);
 
-			gpio_set_value(port->reset_gpio,
-				       (port->reset_active_low) ? 1 : 0);
+			gpio_set_value_cansleep(port->reset_gpio,
+						!!port->reset_active_low);
 			msleep(reset_udelay/1000);
 		}
 
