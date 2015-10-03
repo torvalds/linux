@@ -118,6 +118,7 @@ static int dwc3_pci_quirks(struct pci_dev *pdev)
 		memset(&pdata, 0, sizeof(pdata));
 		pdata.usb3_lpm_capable = true;
 		pdata.has_lpm_erratum = true;
+		pdata.dis_enblslpm_quirk = true;
 
 		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
 						sizeof(pdata));
