@@ -137,9 +137,9 @@ static const int arizona_micd_levels[] = {
 
 static const unsigned int arizona_cable[] = {
 	EXTCON_MECHANICAL,
-	EXTCON_MICROPHONE,
-	EXTCON_HEADPHONE,
-	EXTCON_LINE_OUT,
+	EXTCON_JACK_MICROPHONE,
+	EXTCON_JACK_HEADPHONE,
+	EXTCON_JACK_LINE_OUT,
 	EXTCON_NONE,
 };
 
@@ -600,7 +600,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
-	unsigned int report = EXTCON_HEADPHONE;
+	unsigned int report = EXTCON_JACK_HEADPHONE;
 	int ret, reading;
 	bool mic = false;
 
@@ -645,9 +645,9 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 
 	/* Report high impedence cables as line outputs */
 	if (reading >= 5000)
-		report = EXTCON_LINE_OUT;
+		report = EXTCON_JACK_LINE_OUT;
 	else
-		report = EXTCON_HEADPHONE;
+		report = EXTCON_JACK_HEADPHONE;
 
 	ret = extcon_set_cable_state_(info->edev, report, true);
 	if (ret != 0)
@@ -732,7 +732,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev, EXTCON_HEADPHONE, true);
+	ret = extcon_set_cable_state_(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -789,7 +789,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev, EXTCON_HEADPHONE, true);
+	ret = extcon_set_cable_state_(info->edev, EXTCON_JACK_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -915,7 +915,7 @@ static void arizona_micd_detect(struct work_struct *work)
 		arizona_identify_headphone(info);
 
 		ret = extcon_set_cable_state_(info->edev,
-					      EXTCON_MICROPHONE, true);
+					      EXTCON_JACK_MICROPHONE, true);
 		if (ret != 0)
 			dev_err(arizona->dev, "Headset report failed: %d\n",
 				ret);

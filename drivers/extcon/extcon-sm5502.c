@@ -95,7 +95,7 @@ static struct reg_data sm5502_reg_data[] = {
 static const unsigned int sm5502_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_TA,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_NONE,
 };
 
@@ -389,7 +389,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT_WITH_USB;
 		break;
 	case SM5502_MUIC_ADC_OPEN_TA:
-		id	= EXTCON_TA;
+		id	= EXTCON_CHG_USB_DCP;
 		con_sw	= DM_DP_SWITCH_OPEN;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT;
 		break;

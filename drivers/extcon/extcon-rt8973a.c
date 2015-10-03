@@ -93,7 +93,7 @@ static struct reg_data rt8973a_reg_data[] = {
 static const unsigned int rt8973a_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_TA,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_JIG,
 	EXTCON_NONE,
 };
@@ -333,7 +333,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_TA:
-		id = EXTCON_TA;
+		id = EXTCON_CHG_USB_DCP;
 		con_sw = DM_DP_SWITCH_OPEN;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_USB:

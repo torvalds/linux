@@ -102,9 +102,9 @@ enum axp288_extcon_irq {
 };
 
 static const unsigned int axp288_extcon_cables[] = {
-	EXTCON_SLOW_CHARGER,
-	EXTCON_CHARGE_DOWNSTREAM,
-	EXTCON_FAST_CHARGER,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_CDP,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_NONE,
 };
 
@@ -192,18 +192,18 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		dev_dbg(info->dev, "sdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = EXTCON_SLOW_CHARGER;
+		cable = EXTCON_CHG_USB_SDP;
 		break;
 	case DET_STAT_CDP:
 		dev_dbg(info->dev, "cdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = EXTCON_CHARGE_DOWNSTREAM;
+		cable = EXTCON_CHG_USB_CDP;
 		break;
 	case DET_STAT_DCP:
 		dev_dbg(info->dev, "dcp cable is connecetd\n");
 		notify_charger = true;
-		cable = EXTCON_FAST_CHARGER;
+		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
 		dev_warn(info->dev,
