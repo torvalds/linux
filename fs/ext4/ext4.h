@@ -2063,8 +2063,7 @@ void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx);
 void ext4_restore_control_page(struct page *data_page);
 struct page *ext4_encrypt(struct inode *inode,
 			  struct page *plaintext_page);
-int ext4_decrypt(struct ext4_crypto_ctx *ctx, struct page *page);
-int ext4_decrypt_one(struct inode *inode, struct page *page);
+int ext4_decrypt(struct page *page);
 int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex);
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION

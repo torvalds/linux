@@ -253,8 +253,7 @@ typedef enum {
 	EXT4_ENCRYPT,
 } ext4_direction_t;
 
-static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
-			    struct inode *inode,
+static int ext4_page_crypto(struct inode *inode,
 			    ext4_direction_t rw,
 			    pgoff_t index,
 			    struct page *src_page,
@@ -353,7 +352,7 @@ struct page *ext4_encrypt(struct inode *inode,
 	if (IS_ERR(ciphertext_page))
 		goto errout;
 	ctx->w.control_page = plaintext_page;
-	err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, plaintext_page->index,
+	err = ext4_page_crypto(inode, EXT4_ENCRYPT, plaintext_page->index,
 			       plaintext_page, ciphertext_page);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
@@ -378,29 +377,12 @@ struct page *ext4_encrypt(struct inode *inode,
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int ext4_decrypt(struct ext4_crypto_ctx *ctx, struct page *page)
+int ext4_decrypt(struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 
-	return ext4_page_crypto(ctx, page->mapping->host,
+	return ext4_page_crypto(page->mapping->host,
 				EXT4_DECRYPT, page->index, page, page);
-}
-
-/*
- * Convenience function which takes care of allocating and
- * deallocating the encryption context
- */
-int ext4_decrypt_one(struct inode *inode, struct page *page)
-{
-	int ret;
-
-	struct ext4_crypto_ctx *ctx = ext4_get_crypto_ctx(inode);
-
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ret = ext4_decrypt(ctx, page);
-	ext4_release_crypto_ctx(ctx);
-	return ret;
 }
 
 int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
@@ -426,7 +408,7 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	}
 
 	while (len--) {
-		err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, lblk,
+		err = ext4_page_crypto(inode, EXT4_ENCRYPT, lblk,
 				       ZERO_PAGE(0), ciphertext_page);
 		if (err)
 			goto errout;

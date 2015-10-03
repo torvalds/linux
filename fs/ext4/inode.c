@@ -965,7 +965,7 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	if (unlikely(err))
 		page_zero_new_buffers(page, from, to);
 	else if (decrypt)
-		err = ext4_decrypt_one(inode, page);
+		err = ext4_decrypt(page);
 	return err;
 }
 #endif
@@ -3404,7 +3404,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 			/* We expect the key to be set. */
 			BUG_ON(!ext4_has_encryption_key(inode));
 			BUG_ON(blocksize != PAGE_CACHE_SIZE);
-			WARN_ON_ONCE(ext4_decrypt_one(inode, page));
+			WARN_ON_ONCE(ext4_decrypt(page));
 		}
 	}
 	if (ext4_should_journal_data(inode)) {
