@@ -1307,6 +1307,5 @@ static void cls_vpd(struct dgnc_board *brd)
 	}
 	pr_info("\n");
 
-	if (re_map_vpdbase)
-		iounmap(re_map_vpdbase);
+	iounmap(re_map_vpdbase);
 }
