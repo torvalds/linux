@@ -413,9 +413,6 @@ static inline struct f_lb_opts *to_f_lb_opts(struct config_item *item)
 			    func_inst.group);
 }
 
-CONFIGFS_ATTR_STRUCT(f_lb_opts);
-CONFIGFS_ATTR_OPS(f_lb_opts);
-
 static void lb_attr_release(struct config_item *item)
 {
 	struct f_lb_opts *lb_opts = to_f_lb_opts(item);
@@ -425,12 +422,11 @@ static void lb_attr_release(struct config_item *item)
 
 static struct configfs_item_operations lb_item_ops = {
 	.release		= lb_attr_release,
-	.show_attribute		= f_lb_opts_attr_show,
-	.store_attribute	= f_lb_opts_attr_store,
 };
 
-static ssize_t f_lb_opts_qlen_show(struct f_lb_opts *opts, char *page)
+static ssize_t f_lb_opts_qlen_show(struct config_item *item, char *page)
 {
+	struct f_lb_opts *opts = to_f_lb_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -440,9 +436,10 @@ static ssize_t f_lb_opts_qlen_show(struct f_lb_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_lb_opts_qlen_store(struct f_lb_opts *opts,
+static ssize_t f_lb_opts_qlen_store(struct config_item *item,
 				    const char *page, size_t len)
 {
+	struct f_lb_opts *opts = to_f_lb_opts(item);
 	int ret;
 	u32 num;
 
@@ -463,13 +460,11 @@ end:
 	return ret;
 }
 
-static struct f_lb_opts_attribute f_lb_opts_qlen =
-	__CONFIGFS_ATTR(qlen, S_IRUGO | S_IWUSR,
-			f_lb_opts_qlen_show,
-			f_lb_opts_qlen_store);
+CONFIGFS_ATTR(f_lb_opts_, qlen);
 
-static ssize_t f_lb_opts_bulk_buflen_show(struct f_lb_opts *opts, char *page)
+static ssize_t f_lb_opts_bulk_buflen_show(struct config_item *item, char *page)
 {
+	struct f_lb_opts *opts = to_f_lb_opts(item);
 	int result;
 
 	mutex_lock(&opts->lock);
@@ -479,9 +474,10 @@ static ssize_t f_lb_opts_bulk_buflen_show(struct f_lb_opts *opts, char *page)
 	return result;
 }
 
-static ssize_t f_lb_opts_bulk_buflen_store(struct f_lb_opts *opts,
+static ssize_t f_lb_opts_bulk_buflen_store(struct config_item *item,
 				    const char *page, size_t len)
 {
+	struct f_lb_opts *opts = to_f_lb_opts(item);
 	int ret;
 	u32 num;
 
@@ -502,14 +498,11 @@ end:
 	return ret;
 }
 
-static struct f_lb_opts_attribute f_lb_opts_bulk_buflen =
-	__CONFIGFS_ATTR(buflen, S_IRUGO | S_IWUSR,
-			f_lb_opts_bulk_buflen_show,
-			f_lb_opts_bulk_buflen_store);
+CONFIGFS_ATTR(f_lb_opts_, bulk_buflen);
 
 static struct configfs_attribute *lb_attrs[] = {
-	&f_lb_opts_qlen.attr,
-	&f_lb_opts_bulk_buflen.attr,
+	&f_lb_opts_attr_qlen,
+	&f_lb_opts_attr_bulk_buflen,
 	NULL,
 };
 
