@@ -254,8 +254,6 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	    !test_bit(__I40E_DOWN, &tx_ring->vsi->state) &&
 	    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 		tx_ring->arm_wb = true;
-	else
-		tx_ring->arm_wb = false;
 
 	netdev_tx_completed_queue(netdev_get_tx_queue(tx_ring->netdev,
 						      tx_ring->queue_index),
@@ -1288,6 +1286,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
 		arm_wb |= ring->arm_wb;
+		ring->arm_wb = false;
 	}
 
 	/* We attempt to distribute budget to each Rx queue fairly, but don't

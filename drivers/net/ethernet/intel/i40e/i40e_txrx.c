@@ -923,6 +923,8 @@ int i40e_setup_tx_descriptors(struct i40e_ring *tx_ring)
 	if (!dev)
 		return -ENOMEM;
 
+	/* warn if we are about to overwrite the pointer */
+	WARN_ON(tx_ring->tx_bi);
 	bi_size = sizeof(struct i40e_tx_buffer) * tx_ring->count;
 	tx_ring->tx_bi = kzalloc(bi_size, GFP_KERNEL);
 	if (!tx_ring->tx_bi)
@@ -1083,6 +1085,8 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	struct device *dev = rx_ring->dev;
 	int bi_size;
 
+	/* warn if we are about to overwrite the pointer */
+	WARN_ON(rx_ring->rx_bi);
 	bi_size = sizeof(struct i40e_rx_buffer) * rx_ring->count;
 	rx_ring->rx_bi = kzalloc(bi_size, GFP_KERNEL);
 	if (!rx_ring->rx_bi)
@@ -1783,8 +1787,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		if (!test_bit(__I40E_DOWN, &vsi->state))
 			wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
 	} else {
-		i40e_irq_dynamic_enable(vsi,
-					q_vector->v_idx + vsi->base_vector);
+		i40e_irq_dynamic_enable(vsi, q_vector->v_idx);
 	}
 	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting)) {
 		old_itr = q_vector->tx.itr;
@@ -1806,8 +1809,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 			wr32(hw, I40E_PFINT_DYN_CTLN(q_vector->v_idx +
 			      vsi->base_vector - 1), val);
 	} else {
-		i40e_irq_dynamic_enable(vsi,
-					q_vector->v_idx + vsi->base_vector);
+		i40e_irq_dynamic_enable(vsi, q_vector->v_idx);
 	}
 }
 
@@ -1842,6 +1844,7 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
 		arm_wb |= ring->arm_wb;
+		ring->arm_wb = false;
 	}
 
 	/* We attempt to distribute budget to each Rx queue fairly, but don't
