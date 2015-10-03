@@ -4329,11 +4329,11 @@ static int rocker_port_attr_get(struct net_device *dev,
 	const struct rocker *rocker = rocker_port->rocker;
 
 	switch (attr->id) {
-	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
 		attr->u.ppid.id_len = sizeof(rocker->hw.id);
 		memcpy(&attr->u.ppid.id, &rocker->hw.id, attr->u.ppid.id_len);
 		break;
-	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		attr->u.brport_flags = rocker_port->brport_flags;
 		break;
 	default:
@@ -4369,12 +4369,12 @@ static int rocker_port_attr_set(struct net_device *dev,
 	int err = 0;
 
 	switch (attr->id) {
-	case SWITCHDEV_ATTR_PORT_STP_STATE:
+	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		err = rocker_port_stp_update(rocker_port, trans,
 					     ROCKER_OP_FLAG_NOWAIT,
 					     attr->u.stp_state);
 		break;
-	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		err = rocker_port_brport_flags_set(rocker_port, trans,
 						   attr->u.brport_flags);
 		break;
@@ -4408,7 +4408,7 @@ static int rocker_port_vlan_add(struct rocker_port *rocker_port,
 
 static int rocker_port_vlans_add(struct rocker_port *rocker_port,
 				 struct switchdev_trans *trans,
-				 const struct switchdev_obj_vlan *vlan)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	u16 vid;
 	int err;
@@ -4425,7 +4425,7 @@ static int rocker_port_vlans_add(struct rocker_port *rocker_port,
 
 static int rocker_port_fdb_add(struct rocker_port *rocker_port,
 			       struct switchdev_trans *trans,
-			       const struct switchdev_obj_fdb *fdb)
+			       const struct switchdev_obj_port_fdb *fdb)
 {
 	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
 	int flags = 0;
@@ -4437,25 +4437,27 @@ static int rocker_port_fdb_add(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_obj_add(struct net_device *dev,
-			       enum switchdev_obj_id id, const void *obj,
+			       const struct switchdev_obj *obj,
 			       struct switchdev_trans *trans)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	const struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
 
-	switch (id) {
-	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlans_add(rocker_port, trans, obj);
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		err = rocker_port_vlans_add(rocker_port, trans,
+					    SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
-	case SWITCHDEV_OBJ_IPV4_FIB:
-		fib4 = obj;
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
+		fib4 = SWITCHDEV_OBJ_IPV4_FIB(obj);
 		err = rocker_port_fib_ipv4(rocker_port, trans,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id, 0);
 		break;
-	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_add(rocker_port, trans, obj);
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
+		err = rocker_port_fdb_add(rocker_port, trans,
+					  SWITCHDEV_OBJ_PORT_FDB(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4480,7 +4482,7 @@ static int rocker_port_vlan_del(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_vlans_del(struct rocker_port *rocker_port,
-				 const struct switchdev_obj_vlan *vlan)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	u16 vid;
 	int err;
@@ -4496,7 +4498,7 @@ static int rocker_port_vlans_del(struct rocker_port *rocker_port,
 
 static int rocker_port_fdb_del(struct rocker_port *rocker_port,
 			       struct switchdev_trans *trans,
-			       const struct switchdev_obj_fdb *fdb)
+			       const struct switchdev_obj_port_fdb *fdb)
 {
 	__be16 vlan_id = rocker_port_vid_to_vlan(rocker_port, fdb->vid, NULL);
 	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE;
@@ -4508,25 +4510,27 @@ static int rocker_port_fdb_del(struct rocker_port *rocker_port,
 }
 
 static int rocker_port_obj_del(struct net_device *dev,
-			       enum switchdev_obj_id id, const void *obj)
+			       const struct switchdev_obj *obj)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	const struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
 
-	switch (id) {
-	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlans_del(rocker_port, obj);
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		err = rocker_port_vlans_del(rocker_port,
+					    SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
-	case SWITCHDEV_OBJ_IPV4_FIB:
-		fib4 = obj;
+	case SWITCHDEV_OBJ_ID_IPV4_FIB:
+		fib4 = SWITCHDEV_OBJ_IPV4_FIB(obj);
 		err = rocker_port_fib_ipv4(rocker_port, NULL,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id,
 					   ROCKER_OP_FLAG_REMOVE);
 		break;
-	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_del(rocker_port, NULL, obj);
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
+		err = rocker_port_fdb_del(rocker_port, NULL,
+					  SWITCHDEV_OBJ_PORT_FDB(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4537,8 +4541,8 @@ static int rocker_port_obj_del(struct net_device *dev,
 }
 
 static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
-				struct switchdev_obj_fdb *fdb,
-				int (*cb)(void *obj))
+				struct switchdev_obj_port_fdb *fdb,
+				switchdev_obj_dump_cb_t *cb)
 {
 	struct rocker *rocker = rocker_port->rocker;
 	struct rocker_fdb_tbl_entry *found;
@@ -4555,7 +4559,7 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 		fdb->ndm_state = NUD_REACHABLE;
 		fdb->vid = rocker_port_vlan_to_vid(rocker_port,
 						   found->key.vlan_id);
-		err = cb(fdb);
+		err = cb(&fdb->obj);
 		if (err)
 			break;
 	}
@@ -4565,8 +4569,8 @@ static int rocker_port_fdb_dump(const struct rocker_port *rocker_port,
 }
 
 static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
-				 struct switchdev_obj_vlan *vlan,
-				int (*cb)(void *obj))
+				 struct switchdev_obj_port_vlan *vlan,
+				 switchdev_obj_dump_cb_t *cb)
 {
 	u16 vid;
 	int err = 0;
@@ -4578,7 +4582,7 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 		if (rocker_vlan_id_is_internal(htons(vid)))
 			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
 		vlan->vid_begin = vlan->vid_end = vid;
-		err = cb(vlan);
+		err = cb(&vlan->obj);
 		if (err)
 			break;
 	}
@@ -4587,18 +4591,20 @@ static int rocker_port_vlan_dump(const struct rocker_port *rocker_port,
 }
 
 static int rocker_port_obj_dump(struct net_device *dev,
-				enum switchdev_obj_id id, void *obj,
-				int (*cb)(void *obj))
+				struct switchdev_obj *obj,
+				switchdev_obj_dump_cb_t *cb)
 {
 	const struct rocker_port *rocker_port = netdev_priv(dev);
 	int err = 0;
 
-	switch (id) {
-	case SWITCHDEV_OBJ_PORT_FDB:
-		err = rocker_port_fdb_dump(rocker_port, obj, cb);
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_ID_PORT_FDB:
+		err = rocker_port_fdb_dump(rocker_port,
+					   SWITCHDEV_OBJ_PORT_FDB(obj), cb);
 		break;
-	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlan_dump(rocker_port, obj, cb);
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		err = rocker_port_vlan_dump(rocker_port,
+					    SWITCHDEV_OBJ_PORT_VLAN(obj), cb);
 		break;
 	default:
 		err = -EOPNOTSUPP;

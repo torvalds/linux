@@ -39,10 +39,10 @@ static inline bool switchdev_trans_ph_commit(struct switchdev_trans *trans)
 }
 
 enum switchdev_attr_id {
-	SWITCHDEV_ATTR_UNDEFINED,
-	SWITCHDEV_ATTR_PORT_PARENT_ID,
-	SWITCHDEV_ATTR_PORT_STP_STATE,
-	SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS,
+	SWITCHDEV_ATTR_ID_UNDEFINED,
+	SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
+	SWITCHDEV_ATTR_ID_PORT_STP_STATE,
+	SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS,
 };
 
 struct switchdev_attr {
@@ -58,21 +58,30 @@ struct switchdev_attr {
 struct fib_info;
 
 enum switchdev_obj_id {
-	SWITCHDEV_OBJ_UNDEFINED,
-	SWITCHDEV_OBJ_PORT_VLAN,
-	SWITCHDEV_OBJ_IPV4_FIB,
-	SWITCHDEV_OBJ_PORT_FDB,
+	SWITCHDEV_OBJ_ID_UNDEFINED,
+	SWITCHDEV_OBJ_ID_PORT_VLAN,
+	SWITCHDEV_OBJ_ID_IPV4_FIB,
+	SWITCHDEV_OBJ_ID_PORT_FDB,
 };
 
-/* SWITCHDEV_OBJ_PORT_VLAN */
-struct switchdev_obj_vlan {
+struct switchdev_obj {
+	enum switchdev_obj_id id;
+};
+
+/* SWITCHDEV_OBJ_ID_PORT_VLAN */
+struct switchdev_obj_port_vlan {
+	struct switchdev_obj obj;
 	u16 flags;
 	u16 vid_begin;
 	u16 vid_end;
 };
 
-/* SWITCHDEV_OBJ_IPV4_FIB */
+#define SWITCHDEV_OBJ_PORT_VLAN(obj) \
+	container_of(obj, struct switchdev_obj_port_vlan, obj)
+
+/* SWITCHDEV_OBJ_ID_IPV4_FIB */
 struct switchdev_obj_ipv4_fib {
+	struct switchdev_obj obj;
 	u32 dst;
 	int dst_len;
 	struct fib_info *fi;
@@ -82,17 +91,26 @@ struct switchdev_obj_ipv4_fib {
 	u32 tb_id;
 };
 
-/* SWITCHDEV_OBJ_PORT_FDB */
-struct switchdev_obj_fdb {
+#define SWITCHDEV_OBJ_IPV4_FIB(obj) \
+	container_of(obj, struct switchdev_obj_ipv4_fib, obj)
+
+/* SWITCHDEV_OBJ_ID_PORT_FDB */
+struct switchdev_obj_port_fdb {
+	struct switchdev_obj obj;
 	const unsigned char *addr;
 	u16 vid;
 	u16 ndm_state;
 };
 
+#define SWITCHDEV_OBJ_PORT_FDB(obj) \
+	container_of(obj, struct switchdev_obj_port_fdb, obj)
+
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
 				  void *data, void (*destructor)(void const *),
 				  struct switchdev_trans_item *tritem);
 void *switchdev_trans_item_dequeue(struct switchdev_trans *trans);
+
+typedef int switchdev_obj_dump_cb_t(struct switchdev_obj *obj);
 
 /**
  * struct switchdev_ops - switchdev operations
@@ -114,15 +132,13 @@ struct switchdev_ops {
 					   struct switchdev_attr *attr,
 					   struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_add)(struct net_device *dev,
-					  enum switchdev_obj_id id,
-					  const void *obj,
+					  const struct switchdev_obj *obj,
 					  struct switchdev_trans *trans);
 	int	(*switchdev_port_obj_del)(struct net_device *dev,
-					  enum switchdev_obj_id id,
-					  const void *obj);
+					  const struct switchdev_obj *obj);
 	int	(*switchdev_port_obj_dump)(struct net_device *dev,
-					   enum switchdev_obj_id id, void *obj,
-					   int (*cb)(void *obj));
+					   struct switchdev_obj *obj,
+					   switchdev_obj_dump_cb_t *cb);
 };
 
 enum switchdev_notifier_type {
@@ -152,12 +168,12 @@ int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
 			    struct switchdev_attr *attr);
-int switchdev_port_obj_add(struct net_device *dev, enum switchdev_obj_id id,
-			   const void *obj);
-int switchdev_port_obj_del(struct net_device *dev, enum switchdev_obj_id id,
-			   const void *obj);
-int switchdev_port_obj_dump(struct net_device *dev, enum switchdev_obj_id id,
-			    void *obj, int (*cb)(void *obj));
+int switchdev_port_obj_add(struct net_device *dev,
+			   const struct switchdev_obj *obj);
+int switchdev_port_obj_del(struct net_device *dev,
+			   const struct switchdev_obj *obj);
+int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
+			    switchdev_obj_dump_cb_t *cb);
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
@@ -202,22 +218,20 @@ static inline int switchdev_port_attr_set(struct net_device *dev,
 }
 
 static inline int switchdev_port_obj_add(struct net_device *dev,
-					 enum switchdev_obj_id id,
-					 const void *obj)
+					 const struct switchdev_obj *obj)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int switchdev_port_obj_del(struct net_device *dev,
-					 enum switchdev_obj_id id,
-					 const void *obj)
+					 const struct switchdev_obj *obj)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int switchdev_port_obj_dump(struct net_device *dev,
-					  enum switchdev_obj_id id, void *obj,
-					  int (*cb)(void *obj))
+					  const struct switchdev_obj *obj,
+					  switchdev_obj_dump_cb_t *cb)
 {
 	return -EOPNOTSUPP;
 }
