@@ -1008,7 +1008,8 @@ void print_pmu_events(const char *event_glob, bool name_only)
 				goto out_enomem;
 			j++;
 		}
-		if (pmu->selectable) {
+		if (pmu->selectable &&
+		    (event_glob == NULL || strglobmatch(pmu->name, event_glob))) {
 			char *s;
 			if (asprintf(&s, "%s//", pmu->name) < 0)
 				goto out_enomem;

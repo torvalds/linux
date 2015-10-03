@@ -1831,7 +1831,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain->nr > PERF_MAX_STACK_DEPTH) {
+	if (chain->nr > PERF_MAX_STACK_DEPTH && (int)chain->nr > max_stack) {
 		pr_warning("corrupted callchain. skipping...\n");
 		return 0;
 	}

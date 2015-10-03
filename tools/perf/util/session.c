@@ -1311,7 +1311,7 @@ struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 	return machine__findnew_thread(&session->machines.host, -1, pid);
 }
 
-static struct thread *perf_session__register_idle_thread(struct perf_session *session)
+struct thread *perf_session__register_idle_thread(struct perf_session *session)
 {
 	struct thread *thread;
 

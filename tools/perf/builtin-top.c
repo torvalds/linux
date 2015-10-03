@@ -857,9 +857,12 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			 * TODO: we don't process guest user from host side
 			 * except simple counting.
 			 */
-			/* Fall thru */
-		default:
 			goto next_event;
+		default:
+			if (event->header.type == PERF_RECORD_SAMPLE)
+				goto next_event;
+			machine = &session->machines.host;
+			break;
 		}
 
 
@@ -959,6 +962,9 @@ static int __cmd_top(struct perf_top *top)
 
 	ret = perf_top__setup_sample_type(top);
 	if (ret)
+		goto out_delete;
+
+	if (perf_session__register_idle_thread(top->session) == NULL)
 		goto out_delete;
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
