@@ -926,26 +926,7 @@ static struct platform_driver dim2_driver = {
 	},
 };
 
-/**
- * dim2_hdm_init - Driver Registration Routine
- */
-static int __init dim2_hdm_init(void)
-{
-	pr_info("dim2_hdm_init()\n");
-	return platform_driver_register(&dim2_driver);
-}
-
-/**
- * dim2_hdm_exit - Driver Cleanup Routine
- **/
-static void __exit dim2_hdm_exit(void)
-{
-	pr_info("dim2_hdm_exit()\n");
-	platform_driver_unregister(&dim2_driver);
-}
-
-module_init(dim2_hdm_init);
-module_exit(dim2_hdm_exit);
+module_platform_driver(dim2_driver);
 
 MODULE_AUTHOR("Jain Roy Ambi <JainRoy.Ambi@microchip.com>");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
