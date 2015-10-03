@@ -1774,7 +1774,7 @@ has been called, this interface is completely emulated within the kernel.
 To use this to emulate the LINT1 input with KVM_CREATE_IRQCHIP, use the
 following algorithm:
 
-  - pause the vpcu
+  - pause the vcpu
   - read the local APIC's state (KVM_GET_LAPIC)
   - check whether changing LINT1 will queue an NMI (see the LVT entry for LINT1)
   - if so, issue KVM_NMI
@@ -2798,7 +2798,7 @@ Returns: = 0 on success,
          < 0 on generic error (e.g. -EFAULT or -ENOMEM),
          > 0 if an exception occurred while walking the page tables
 
-Read or write data from/to the logical (virtual) memory of a VPCU.
+Read or write data from/to the logical (virtual) memory of a VCPU.
 
 Parameters are specified via the following structure:
 
