@@ -1042,6 +1042,46 @@ err:
 	return ret;
 }
 
+/*
+ * Power up a PCIe port.  PCIe requires the refclk to be stable for 100µs
+ * prior to releasing PERST.  See table 2-4 in section 2.6.2 AC Specifications
+ * of the PCI Express Card Electromechanical Specification, 1.1.
+ */
+static int mvebu_pcie_powerup(struct mvebu_pcie_port *port)
+{
+	int ret;
+
+	ret = clk_prepare_enable(port->clk);
+	if (ret < 0)
+		return ret;
+
+	if (port->reset_gpio) {
+		u32 reset_udelay = 20000;
+
+		of_property_read_u32(port->dn, "reset-delay-us",
+				     &reset_udelay);
+
+		udelay(100);
+
+		gpiod_set_value_cansleep(port->reset_gpio, 0);
+		msleep(reset_udelay / 1000);
+	}
+
+	return 0;
+}
+
+/*
+ * Power down a PCIe port.  Strictly, PCIe requires us to place the card
+ * in D3hot state before asserting PERST#.
+ */
+static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
+{
+	if (port->reset_gpio)
+		gpiod_set_value_cansleep(port->reset_gpio, 1);
+
+	clk_disable_unprepare(port->clk);
+}
+
 static int mvebu_pcie_probe(struct platform_device *pdev)
 {
 	struct mvebu_pcie *pcie;
@@ -1114,18 +1154,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		if (!child)
 			continue;
 
-		if (port->reset_gpio) {
-			u32 reset_udelay = 20000;
-
-			of_property_read_u32(child, "reset-delay-us",
-					     &reset_udelay);
-
-			gpiod_set_value_cansleep(port->reset_gpio, 0);
-			msleep(reset_udelay / 1000);
-		}
-
-		ret = clk_prepare_enable(port->clk);
-		if (ret)
+		ret = mvebu_pcie_powerup(port);
+		if (ret < 0)
 			continue;
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
@@ -1133,7 +1163,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "%s: cannot map registers\n",
 				port->name);
 			port->base = NULL;
-			clk_disable_unprepare(port->clk);
+			mvebu_pcie_powerdown(port);
 			continue;
 		}
 
