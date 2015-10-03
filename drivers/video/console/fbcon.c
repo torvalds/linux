@@ -416,6 +416,8 @@ static void fbcon_add_cursor_timer(struct fb_info *info)
 			INIT_WORK(&info->queue, fb_flashcursor);
 
 		init_timer(&ops->cursor_timer);
+		if (ops->cur_blink_jiffies < 1)
+			ops->cur_blink_jiffies = msecs_to_jiffies(200);
 		ops->cursor_timer.function = cursor_timer_handler;
 		ops->cursor_timer.expires = jiffies + ops->cur_blink_jiffies;
 		ops->cursor_timer.data = (unsigned long ) info;
