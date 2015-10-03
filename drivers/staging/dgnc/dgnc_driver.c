@@ -708,13 +708,6 @@ static void dgnc_poll_handler(ulong dummy)
  */
 static void dgnc_init_globals(void)
 {
-	int i = 0;
-
-	dgnc_NumBoards		= 0;
-
-	for (i = 0; i < MAXBOARDS; i++)
-		dgnc_Board[i] = NULL;
-
 	init_timer(&dgnc_poll_timer);
 }
 
