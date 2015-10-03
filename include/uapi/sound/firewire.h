@@ -64,6 +64,7 @@ union snd_firewire_event {
 #define SNDRV_FIREWIRE_TYPE_BEBOB	3
 #define SNDRV_FIREWIRE_TYPE_OXFW	4
 #define SNDRV_FIREWIRE_TYPE_DIGI00X	5
+#define SNDRV_FIREWIRE_TYPE_TASCAM	6
 /* RME, MOTU, ... */
 
 struct snd_firewire_get_info {
