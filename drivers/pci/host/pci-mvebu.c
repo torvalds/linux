@@ -928,6 +928,13 @@ static int mvebu_pcie_resume(struct device *dev)
 	return 0;
 }
 
+static void mvebu_pcie_port_clk_put(void *data)
+{
+	struct mvebu_pcie_port *port = data;
+
+	clk_put(port->clk);
+}
+
 static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	struct mvebu_pcie_port *port, struct device_node *child)
 {
@@ -946,7 +953,12 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	if (of_property_read_u32(child, "marvell,pcie-lane", &port->lane))
 		port->lane = 0;
 
-	port->name = kasprintf(GFP_KERNEL, "pcie%d.%d", port->port, port->lane);
+	port->name = devm_kasprintf(dev, GFP_KERNEL, "pcie%d.%d", port->port,
+				    port->lane);
+	if (!port->name) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	port->devfn = of_pci_get_devfn(child);
 	if (port->devfn < 0)
@@ -960,20 +972,29 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 		goto skip;
 	}
 
-	if (resource_size(&pcie->io) != 0)
+	if (resource_size(&pcie->io) != 0) {
 		mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_IO,
 				   &port->io_target, &port->io_attr);
-	else {
+	} else {
 		port->io_target = -1;
 		port->io_attr = -1;
 	}
 
 	port->reset_gpio = of_get_named_gpio_flags(child, "reset-gpios", 0,
 						   &flags);
+	if (port->reset_gpio == -EPROBE_DEFER) {
+		ret = port->reset_gpio;
+		goto err;
+	}
+
 	if (gpio_is_valid(port->reset_gpio)) {
 		port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
-		port->reset_name = kasprintf(GFP_KERNEL, "%s-reset",
-					     port->name);
+		port->reset_name = devm_kasprintf(dev, GFP_KERNEL, "%s-reset",
+						  port->name);
+		if (!port->reset_name) {
+			ret = -ENOMEM;
+			goto err;
+		}
 
 		ret = devm_gpio_request_one(dev, port->reset_gpio,
 					    GPIOF_DIR_OUT, port->reset_name);
@@ -990,10 +1011,23 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 		goto skip;
 	}
 
+	ret = devm_add_action(dev, mvebu_pcie_port_clk_put, port);
+	if (ret < 0) {
+		clk_put(port->clk);
+		goto err;
+	}
+
 	return 1;
 
 skip:
 	ret = 0;
+
+	/* In the case of skipping, we need to free these */
+	devm_kfree(dev, port->reset_name);
+	port->reset_name = NULL;
+	devm_kfree(dev, port->name);
+	port->name = NULL;
+
 err:
 	return ret;
 }
@@ -1052,10 +1086,12 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		struct mvebu_pcie_port *port = &pcie->ports[i];
 
 		ret = mvebu_pcie_parse_port(pcie, port, child);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(child);
 			return ret;
-		else if (ret == 0)
+		} else if (ret == 0) {
 			continue;
+		}
 
 		if (gpio_is_valid(port->reset_gpio)) {
 			u32 reset_udelay = 20000;
