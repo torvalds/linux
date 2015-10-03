@@ -28,15 +28,6 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 struct dst_entry *inet6_csk_route_req(const struct sock *sk, struct flowi6 *fl6,
 				      const struct request_sock *req, u8 proto);
 
-struct request_sock *inet6_csk_search_req(struct sock *sk,
-					  const __be16 rport,
-					  const struct in6_addr *raddr,
-					  const struct in6_addr *laddr,
-					  const int iif);
-
-void inet6_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
-				    const unsigned long timeout);
-
 void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
 int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);

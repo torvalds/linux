@@ -258,10 +258,6 @@ inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
 
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
-struct request_sock *inet_csk_search_req(struct sock *sk,
-					 const __be16 rport,
-					 const __be32 raddr,
-					 const __be32 laddr);
 int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb, bool relax);
 int inet_csk_get_port(struct sock *sk, unsigned short snum);
@@ -282,8 +278,7 @@ static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 				   unsigned long timeout);
 
-static inline void inet_csk_reqsk_queue_added(struct sock *sk,
-					      const unsigned long timeout)
+static inline void inet_csk_reqsk_queue_added(struct sock *sk)
 {
 	reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue);
 }
@@ -300,7 +295,7 @@ static inline int inet_csk_reqsk_queue_young(const struct sock *sk)
 
 static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
 {
-	return reqsk_queue_is_full(&inet_csk(sk)->icsk_accept_queue);
+	return inet_csk_reqsk_queue_len(sk) >= sk->sk_max_ack_backlog;
 }
 
 void inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req);

@@ -6068,9 +6068,9 @@ static bool tcp_syn_flood_action(const struct sock *sk,
 				 const struct sk_buff *skb,
 				 const char *proto)
 {
+	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	const char *msg = "Dropping request";
 	bool want_cookie = false;
-	struct listen_sock *lopt;
 
 #ifdef CONFIG_SYN_COOKIES
 	if (sysctl_tcp_syncookies) {
@@ -6081,10 +6081,9 @@ static bool tcp_syn_flood_action(const struct sock *sk,
 #endif
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDROP);
 
-	lopt = inet_csk(sk)->icsk_accept_queue.listen_opt;
-	if (!lopt->synflood_warned &&
+	if (!queue->synflood_warned &&
 	    sysctl_tcp_syncookies != 2 &&
-	    xchg(&lopt->synflood_warned, 1) == 0)
+	    xchg(&queue->synflood_warned, 1) == 0)
 		pr_info("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
 			proto, ntohs(tcp_hdr(skb)->dest), msg);
 
@@ -6121,8 +6120,6 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	struct request_sock *req;
 	bool want_cookie = false;
 	struct flowi fl;
-	int err;
-
 
 	/* TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -6231,21 +6228,24 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_rsk(req)->txhash = net_tx_rndhash();
 	tcp_openreq_init_rwin(req, sk, dst);
-	if (!want_cookie)
+	if (!want_cookie) {
 		fastopen_sk = tcp_try_fastopen(sk, skb, req, &foc, dst);
-	err = af_ops->send_synack(fastopen_sk ?: sk, dst, &fl, req,
-				  skb_get_queue_mapping(skb), &foc);
+		tcp_reqsk_record_syn(sk, req, skb);
+	}
 	if (fastopen_sk) {
+		af_ops->send_synack(fastopen_sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, false);
 		sock_put(fastopen_sk);
 	} else {
-		if (err || want_cookie)
-			goto drop_and_free;
-
 		tcp_rsk(req)->tfo_listener = false;
-		af_ops->queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+		if (!want_cookie)
+			inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+		af_ops->send_synack(sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, !want_cookie);
+		if (want_cookie)
+			goto drop_and_free;
 	}
-	tcp_reqsk_record_syn(sk, req, skb);
-
+	reqsk_put(req);
 	return 0;
 
 drop_and_release:
