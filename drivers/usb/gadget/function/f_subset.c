@@ -413,10 +413,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(gether);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(gether);
 
 static struct configfs_attribute *gether_attrs[] = {
-	&f_gether_opts_dev_addr.attr,
-	&f_gether_opts_host_addr.attr,
-	&f_gether_opts_qmult.attr,
-	&f_gether_opts_ifname.attr,
+	&gether_opts_attr_dev_addr,
+	&gether_opts_attr_host_addr,
+	&gether_opts_attr_qmult,
+	&gether_opts_attr_ifname,
 	NULL,
 };
 

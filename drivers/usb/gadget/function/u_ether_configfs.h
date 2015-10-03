@@ -17,9 +17,6 @@
 #define __U_ETHER_CONFIGFS_H
 
 #define USB_ETHERNET_CONFIGFS_ITEM(_f_)					\
-	CONFIGFS_ATTR_STRUCT(f_##_f_##_opts);				\
-	CONFIGFS_ATTR_OPS(f_##_f_##_opts);				\
-									\
 	static void _f_##_attr_release(struct config_item *item)	\
 	{								\
 		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
@@ -29,14 +26,13 @@
 									\
 	static struct configfs_item_operations _f_##_item_ops = {	\
 		.release	= _f_##_attr_release,			\
-		.show_attribute = f_##_f_##_opts_attr_show,		\
-		.store_attribute = f_##_f_##_opts_attr_store,		\
 	}
 
 #define USB_ETHERNET_CONFIGFS_ITEM_ATTR_DEV_ADDR(_f_)			\
-	static ssize_t _f_##_opts_dev_addr_show(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_dev_addr_show(struct config_item *item, \
 						char *page)		\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int result;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -46,9 +42,10 @@
 		return result;						\
 	}								\
 									\
-	static ssize_t _f_##_opts_dev_addr_store(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_dev_addr_store(struct config_item *item, \
 						 const char *page, size_t len)\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int ret;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -64,15 +61,13 @@
 		return ret;						\
 	}								\
 									\
-	static struct f_##_f_##_opts_attribute f_##_f_##_opts_dev_addr = \
-		__CONFIGFS_ATTR(dev_addr, S_IRUGO | S_IWUSR,		\
-				_f_##_opts_dev_addr_show,		\
-				_f_##_opts_dev_addr_store)
+	CONFIGFS_ATTR(_f_##_opts_, dev_addr)
 
 #define USB_ETHERNET_CONFIGFS_ITEM_ATTR_HOST_ADDR(_f_)			\
-	static ssize_t _f_##_opts_host_addr_show(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_host_addr_show(struct config_item *item, \
 						 char *page)		\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int result;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -82,9 +77,10 @@
 		return result;						\
 	}								\
 									\
-	static ssize_t _f_##_opts_host_addr_store(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_host_addr_store(struct config_item *item, \
 						  const char *page, size_t len)\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int ret;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -100,15 +96,13 @@
 		return ret;						\
 	}								\
 									\
-	static struct f_##_f_##_opts_attribute f_##_f_##_opts_host_addr = \
-		__CONFIGFS_ATTR(host_addr, S_IRUGO | S_IWUSR,		\
-				_f_##_opts_host_addr_show,		\
-				_f_##_opts_host_addr_store)
+	CONFIGFS_ATTR(_f_##_opts_, host_addr)
 
 #define USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(_f_)			\
-	static ssize_t _f_##_opts_qmult_show(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_qmult_show(struct config_item *item,	\
 					     char *page)		\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		unsigned qmult;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -117,9 +111,10 @@
 		return sprintf(page, "%d", qmult);			\
 	}								\
 									\
-	static ssize_t _f_##_opts_qmult_store(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_qmult_store(struct config_item *item, \
 					      const char *page, size_t len)\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		u8 val;							\
 		int ret;						\
 									\
@@ -140,15 +135,13 @@ out:									\
 		return ret;						\
 	}								\
 									\
-	static struct f_##_f_##_opts_attribute f_##_f_##_opts_qmult =	\
-		__CONFIGFS_ATTR(qmult, S_IRUGO | S_IWUSR,		\
-				_f_##_opts_qmult_show,		\
-				_f_##_opts_qmult_store)
+	CONFIGFS_ATTR(_f_##_opts_, qmult)
 
 #define USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(_f_)			\
-	static ssize_t _f_##_opts_ifname_show(struct f_##_f_##_opts *opts, \
+	static ssize_t _f_##_opts_ifname_show(struct config_item *item, \
 					      char *page)		\
 	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
 		int ret;						\
 									\
 		mutex_lock(&opts->lock);				\
@@ -158,7 +151,6 @@ out:									\
 		return ret;						\
 	}								\
 									\
-	static struct f_##_f_##_opts_attribute f_##_f_##_opts_ifname =	\
-		__CONFIGFS_ATTR_RO(ifname, _f_##_opts_ifname_show)
+	CONFIGFS_ATTR_RO(_f_##_opts_, ifname)
 
 #endif /* __U_ETHER_CONFIGFS_H */

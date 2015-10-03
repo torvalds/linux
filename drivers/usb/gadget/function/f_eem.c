@@ -555,10 +555,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(eem);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(eem);
 
 static struct configfs_attribute *eem_attrs[] = {
-	&f_eem_opts_dev_addr.attr,
-	&f_eem_opts_host_addr.attr,
-	&f_eem_opts_qmult.attr,
-	&f_eem_opts_ifname.attr,
+	&eem_opts_attr_dev_addr,
+	&eem_opts_attr_host_addr,
+	&eem_opts_attr_qmult,
+	&eem_opts_attr_ifname,
 	NULL,
 };
 

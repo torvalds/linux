@@ -1503,10 +1503,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(ncm);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(ncm);
 
 static struct configfs_attribute *ncm_attrs[] = {
-	&f_ncm_opts_dev_addr.attr,
-	&f_ncm_opts_host_addr.attr,
-	&f_ncm_opts_qmult.attr,
-	&f_ncm_opts_ifname.attr,
+	&ncm_opts_attr_dev_addr,
+	&ncm_opts_attr_host_addr,
+	&ncm_opts_attr_qmult,
+	&ncm_opts_attr_ifname,
 	NULL,
 };
 

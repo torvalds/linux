@@ -878,10 +878,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(rndis);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(rndis);
 
 static struct configfs_attribute *rndis_attrs[] = {
-	&f_rndis_opts_dev_addr.attr,
-	&f_rndis_opts_host_addr.attr,
-	&f_rndis_opts_qmult.attr,
-	&f_rndis_opts_ifname.attr,
+	&rndis_opts_attr_dev_addr,
+	&rndis_opts_attr_host_addr,
+	&rndis_opts_attr_qmult,
+	&rndis_opts_attr_ifname,
 	NULL,
 };
 
