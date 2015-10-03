@@ -928,6 +928,76 @@ static int mvebu_pcie_resume(struct device *dev)
 	return 0;
 }
 
+static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
+	struct mvebu_pcie_port *port, struct device_node *child)
+{
+	struct device *dev = &pcie->pdev->dev;
+	enum of_gpio_flags flags;
+	int ret;
+
+	port->pcie = pcie;
+
+	if (of_property_read_u32(child, "marvell,pcie-port", &port->port)) {
+		dev_warn(dev, "ignoring %s, missing pcie-port property\n",
+			 of_node_full_name(child));
+		goto skip;
+	}
+
+	if (of_property_read_u32(child, "marvell,pcie-lane", &port->lane))
+		port->lane = 0;
+
+	port->name = kasprintf(GFP_KERNEL, "pcie%d.%d", port->port, port->lane);
+
+	port->devfn = of_pci_get_devfn(child);
+	if (port->devfn < 0)
+		goto skip;
+
+	ret = mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_MEM,
+				 &port->mem_target, &port->mem_attr);
+	if (ret < 0) {
+		dev_err(dev, "%s: cannot get tgt/attr for mem window\n",
+			port->name);
+		goto skip;
+	}
+
+	if (resource_size(&pcie->io) != 0)
+		mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_IO,
+				   &port->io_target, &port->io_attr);
+	else {
+		port->io_target = -1;
+		port->io_attr = -1;
+	}
+
+	port->reset_gpio = of_get_named_gpio_flags(child, "reset-gpios", 0,
+						   &flags);
+	if (gpio_is_valid(port->reset_gpio)) {
+		port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
+		port->reset_name = kasprintf(GFP_KERNEL, "%s-reset",
+					     port->name);
+
+		ret = devm_gpio_request_one(dev, port->reset_gpio,
+					    GPIOF_DIR_OUT, port->reset_name);
+		if (ret) {
+			if (ret == -EPROBE_DEFER)
+				goto err;
+			goto skip;
+		}
+	}
+
+	port->clk = of_clk_get_by_name(child, NULL);
+	if (IS_ERR(port->clk)) {
+		dev_err(dev, "%s: cannot get clock\n", port->name);
+		goto skip;
+	}
+
+	return 1;
+
+skip:
+	ret = 0;
+err:
+	return ret;
+}
+
 static int mvebu_pcie_probe(struct platform_device *pdev)
 {
 	struct mvebu_pcie *pcie;
@@ -980,74 +1050,22 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	i = 0;
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
-		enum of_gpio_flags flags;
 
-		port->pcie = pcie;
-
-		if (of_property_read_u32(child, "marvell,pcie-port",
-					 &port->port)) {
-			dev_warn(&pdev->dev,
-				 "ignoring %s, missing pcie-port property\n",
-				 of_node_full_name(child));
-			continue;
-		}
-
-		if (of_property_read_u32(child, "marvell,pcie-lane",
-					 &port->lane))
-			port->lane = 0;
-
-		port->name = kasprintf(GFP_KERNEL, "pcie%d.%d",
-				       port->port, port->lane);
-
-		port->devfn = of_pci_get_devfn(child);
-		if (port->devfn < 0)
+		ret = mvebu_pcie_parse_port(pcie, port, child);
+		if (ret < 0)
+			return ret;
+		else if (ret == 0)
 			continue;
 
-		ret = mvebu_get_tgt_attr(np, port->devfn, IORESOURCE_MEM,
-					 &port->mem_target, &port->mem_attr);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "%s: cannot get tgt/attr for mem window\n",
-				port->name);
-			continue;
-		}
-
-		if (resource_size(&pcie->io) != 0)
-			mvebu_get_tgt_attr(np, port->devfn, IORESOURCE_IO,
-					   &port->io_target, &port->io_attr);
-		else {
-			port->io_target = -1;
-			port->io_attr = -1;
-		}
-
-		port->reset_gpio = of_get_named_gpio_flags(child,
-						   "reset-gpios", 0, &flags);
 		if (gpio_is_valid(port->reset_gpio)) {
 			u32 reset_udelay = 20000;
 
-			port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
-			port->reset_name = kasprintf(GFP_KERNEL, "%s-reset",
-						     port->name);
 			of_property_read_u32(child, "reset-delay-us",
 					     &reset_udelay);
-
-			ret = devm_gpio_request_one(&pdev->dev,
-			    port->reset_gpio, GPIOF_DIR_OUT, port->reset_name);
-			if (ret) {
-				if (ret == -EPROBE_DEFER)
-					return ret;
-				continue;
-			}
 
 			gpio_set_value(port->reset_gpio,
 				       (port->reset_active_low) ? 1 : 0);
 			msleep(reset_udelay/1000);
-		}
-
-		port->clk = of_clk_get_by_name(child, NULL);
-		if (IS_ERR(port->clk)) {
-			dev_err(&pdev->dev, "%s: cannot get clock\n",
-				port->name);
-			continue;
 		}
 
 		ret = clk_prepare_enable(port->clk);
