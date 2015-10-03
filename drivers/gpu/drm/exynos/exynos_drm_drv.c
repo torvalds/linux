@@ -304,6 +304,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int exynos_drm_suspend(struct drm_device *dev, pm_message_t state)
 {
 	struct drm_connector *connector;
@@ -340,6 +341,7 @@ static int exynos_drm_resume(struct drm_device *dev)
 
 	return 0;
 }
+#endif
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
