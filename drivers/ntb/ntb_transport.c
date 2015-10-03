@@ -1080,7 +1080,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 				  GFP_KERNEL, node);
 	if (!nt->qp_vec) {
 		rc = -ENOMEM;
-		goto err2;
+		goto err1;
 	}
 
 	if (nt_debugfs_dir) {
@@ -1092,7 +1092,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	for (i = 0; i < qp_count; i++) {
 		rc = ntb_transport_init_queue(nt, i);
 		if (rc)
-			goto err3;
+			goto err2;
 	}
 
 	INIT_DELAYED_WORK(&nt->link_work, ntb_transport_link_work);
@@ -1100,12 +1100,12 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	rc = ntb_set_ctx(ndev, nt, &ntb_transport_ops);
 	if (rc)
-		goto err3;
+		goto err2;
 
 	INIT_LIST_HEAD(&nt->client_devs);
 	rc = ntb_bus_init(nt);
 	if (rc)
-		goto err4;
+		goto err3;
 
 	nt->link_is_up = false;
 	ntb_link_enable(ndev, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
@@ -1113,17 +1113,16 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	return 0;
 
-err4:
-	ntb_clear_ctx(ndev);
 err3:
-	kfree(nt->qp_vec);
+	ntb_clear_ctx(ndev);
 err2:
-	kfree(nt->mw_vec);
+	kfree(nt->qp_vec);
 err1:
 	while (i--) {
 		mw = &nt->mw_vec[i];
 		iounmap(mw->vbase);
 	}
+	kfree(nt->mw_vec);
 err:
 	kfree(nt);
 	return rc;
