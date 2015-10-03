@@ -531,7 +531,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		/* CAPDAC Scale = 21pF_typ / 127
 		 * CIN Scale = 8.192pF / 2^24
 		 * Offset Scale = CAPDAC Scale / CIN Scale = 338646
-		 * */
+		 */
 
 		val /= 338646;
 
