@@ -1093,6 +1093,18 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			continue;
 		}
 
+		port->dn = child;
+		i++;
+	}
+	pcie->nports = i;
+
+	for (i = 0; i < pcie->nports; i++) {
+		struct mvebu_pcie_port *port = &pcie->ports[i];
+
+		child = port->dn;
+		if (!child)
+			continue;
+
 		if (gpio_is_valid(port->reset_gpio)) {
 			u32 reset_udelay = 20000;
 
@@ -1118,10 +1130,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		}
 
 		mvebu_pcie_set_local_dev_nr(port, 1);
-
-		port->dn = child;
 		mvebu_sw_pci_bridge_init(port);
-		i++;
 	}
 
 	pcie->nports = i;
