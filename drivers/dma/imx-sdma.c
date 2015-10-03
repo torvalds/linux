@@ -1826,8 +1826,6 @@ static int sdma_probe(struct platform_device *pdev)
 		of_node_put(spba_bus);
 	}
 
-	dev_info(sdma->dev, "initialized\n");
-
 	return 0;
 
 err_register:
@@ -1852,7 +1850,6 @@ static int sdma_remove(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, NULL);
-	dev_info(&pdev->dev, "Removed...\n");
 	return 0;
 }
 
