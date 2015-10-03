@@ -678,9 +678,9 @@ static void device_free_td0_ring(struct vnt_private *priv)
 
 	for (i = 0; i < priv->sOpts.nTxDescs[0]; i++) {
 		struct vnt_tx_desc *desc = &priv->apTD0Rings[i];
-		struct vnt_td_info *pTDInfo = desc->td_info;
+		struct vnt_td_info *td_info = desc->td_info;
 
-		dev_kfree_skb(pTDInfo->skb);
+		dev_kfree_skb(td_info->skb);
 		kfree(desc->td_info);
 	}
 }
@@ -691,9 +691,9 @@ static void device_free_td1_ring(struct vnt_private *priv)
 
 	for (i = 0; i < priv->sOpts.nTxDescs[1]; i++) {
 		struct vnt_tx_desc *desc = &priv->apTD1Rings[i];
-		struct vnt_td_info *pTDInfo = desc->td_info;
+		struct vnt_td_info *td_info = desc->td_info;
 
-		dev_kfree_skb(pTDInfo->skb);
+		dev_kfree_skb(td_info->skb);
 		kfree(desc->td_info);
 	}
 }
@@ -892,14 +892,14 @@ static void device_error(struct vnt_private *priv, unsigned short status)
 static void device_free_tx_buf(struct vnt_private *priv,
 			       struct vnt_tx_desc *desc)
 {
-	struct vnt_td_info *pTDInfo = desc->td_info;
-	struct sk_buff *skb = pTDInfo->skb;
+	struct vnt_td_info *td_info = desc->td_info;
+	struct sk_buff *skb = td_info->skb;
 
 	if (skb)
 		ieee80211_tx_status_irqsafe(priv->hw, skb);
 
-	pTDInfo->skb = NULL;
-	pTDInfo->flags = 0;
+	td_info->skb = NULL;
+	td_info->flags = 0;
 }
 
 static void vnt_check_bb_vga(struct vnt_private *priv)
