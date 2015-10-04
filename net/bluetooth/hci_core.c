@@ -1385,6 +1385,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		goto done;
 	}
 
+	hci_notify(hdev, HCI_DEV_OPEN);
+
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
 
@@ -1465,6 +1467,8 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 			kfree_skb(hdev->sent_cmd);
 			hdev->sent_cmd = NULL;
 		}
+
+		hci_notify(hdev, HCI_DEV_CLOSE);
 
 		hdev->close(hdev);
 		hdev->flags &= BIT(HCI_RAW);
@@ -1648,6 +1652,8 @@ int hci_dev_do_close(struct hci_dev *hdev)
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
+
+	hci_notify(hdev, HCI_DEV_CLOSE);
 
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */

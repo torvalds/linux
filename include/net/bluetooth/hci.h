@@ -44,6 +44,8 @@
 #define HCI_DEV_DOWN			4
 #define HCI_DEV_SUSPEND			5
 #define HCI_DEV_RESUME			6
+#define HCI_DEV_OPEN			7
+#define HCI_DEV_CLOSE			8
 
 /* HCI notify events */
 #define HCI_NOTIFY_CONN_ADD		1
