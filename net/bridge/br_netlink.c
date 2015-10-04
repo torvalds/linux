@@ -859,6 +859,9 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		br_recalculate_fwd_mask(br);
 	}
 
+	if (data[IFLA_BR_FDB_FLUSH])
+		br_fdb_flush(br);
+
 	return 0;
 }
 
