@@ -727,13 +727,18 @@ static void br_vlan_disable_default_pvid(struct net_bridge *br)
 	br->default_pvid = 0;
 }
 
-static int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid)
+int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid)
 {
 	const struct net_bridge_vlan *pvent;
 	struct net_bridge_port *p;
 	u16 old_pvid;
 	int err = 0;
 	unsigned long *changed;
+
+	if (!pvid) {
+		br_vlan_disable_default_pvid(br);
+		return 0;
+	}
 
 	changed = kcalloc(BITS_TO_LONGS(BR_MAX_PORTS), sizeof(unsigned long),
 			  GFP_KERNEL);
@@ -825,12 +830,7 @@ int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val)
 		err = -EPERM;
 		goto unlock;
 	}
-
-	if (!pvid)
-		br_vlan_disable_default_pvid(br);
-	else
-		err = __br_vlan_set_default_pvid(br, pvid);
-
+	err = __br_vlan_set_default_pvid(br, pvid);
 unlock:
 	rtnl_unlock();
 	return err;
