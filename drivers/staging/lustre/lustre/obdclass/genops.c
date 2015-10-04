@@ -1104,14 +1104,13 @@ void class_fail_export(struct obd_export *exp)
 }
 EXPORT_SYMBOL(class_fail_export);
 
-char *obd_export_nid2str(struct obd_export *exp)
+static char *obd_export_nid2str(struct obd_export *exp)
 {
 	if (exp->exp_connection != NULL)
 		return libcfs_nid2str(exp->exp_connection->c_peer.nid);
 
 	return "(no nid)";
 }
-EXPORT_SYMBOL(obd_export_nid2str);
 
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void (*class_export_dump_hook)(struct obd_export *) = NULL;
@@ -1125,7 +1124,7 @@ static int zombies_count;
 /**
  * kill zombie imports and exports
  */
-void obd_zombie_impexp_cull(void)
+static void obd_zombie_impexp_cull(void)
 {
 	struct obd_import *import;
 	struct obd_export *export;

@@ -92,13 +92,10 @@ struct obd_device *class_num2obd(int num);
 
 int class_notify_sptlrpc_conf(const char *fsname, int namelen);
 
-char *obd_export_nid2str(struct obd_export *exp);
-
 int obd_connect_flags2str(char *page, int count, __u64 flags, char *sep);
 
 int obd_zombie_impexp_init(void);
 void obd_zombie_impexp_stop(void);
-void obd_zombie_impexp_cull(void);
 void obd_zombie_barrier(void);
 
 struct llog_handle;
