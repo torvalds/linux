@@ -422,17 +422,12 @@ static int bfusb_open(struct hci_dev *hdev)
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	write_lock_irqsave(&data->lock, flags);
 
 	err = bfusb_rx_submit(data, NULL);
 	if (!err) {
 		for (i = 1; i < BFUSB_MAX_BULK_RX; i++)
 			bfusb_rx_submit(data, NULL);
-	} else {
-		clear_bit(HCI_RUNNING, &hdev->flags);
 	}
 
 	write_unlock_irqrestore(&data->lock, flags);
@@ -457,9 +452,6 @@ static int bfusb_close(struct hci_dev *hdev)
 	unsigned long flags;
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	write_lock_irqsave(&data->lock, flags);
 	write_unlock_irqrestore(&data->lock, flags);

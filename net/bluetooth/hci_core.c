@@ -1385,6 +1385,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		goto done;
 	}
 
+	set_bit(HCI_RUNNING, &hdev->flags);
 	hci_notify(hdev, HCI_DEV_OPEN);
 
 	atomic_set(&hdev->cmd_cnt, 1);
@@ -1468,6 +1469,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 			hdev->sent_cmd = NULL;
 		}
 
+		clear_bit(HCI_RUNNING, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_CLOSE);
 
 		hdev->close(hdev);
@@ -1653,6 +1655,7 @@ int hci_dev_do_close(struct hci_dev *hdev)
 		hdev->sent_cmd = NULL;
 	}
 
+	clear_bit(HCI_RUNNING, &hdev->flags);
 	hci_notify(hdev, HCI_DEV_CLOSE);
 
 	/* After this point our queues are empty

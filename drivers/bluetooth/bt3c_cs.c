@@ -270,7 +270,6 @@ static void bt3c_receive(struct bt3c_info *info)
 				/* Unknown packet */
 				BT_ERR("Unknown HCI packet with type 0x%02x received", bt_cb(info->rx_skb)->pkt_type);
 				info->hdev->stat.err_rx++;
-				clear_bit(HCI_RUNNING, &(info->hdev->flags));
 
 				kfree_skb(info->rx_skb);
 				info->rx_skb = NULL;
@@ -395,17 +394,12 @@ static int bt3c_hci_flush(struct hci_dev *hdev)
 
 static int bt3c_hci_open(struct hci_dev *hdev)
 {
-	set_bit(HCI_RUNNING, &(hdev->flags));
-
 	return 0;
 }
 
 
 static int bt3c_hci_close(struct hci_dev *hdev)
 {
-	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
-
 	bt3c_hci_flush(hdev);
 
 	return 0;

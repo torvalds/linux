@@ -304,9 +304,6 @@ static int bpa10x_open(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
-
 	err = bpa10x_submit_intr_urb(hdev);
 	if (err < 0)
 		goto error;
@@ -320,8 +317,6 @@ static int bpa10x_open(struct hci_dev *hdev)
 error:
 	usb_kill_anchored_urbs(&data->rx_anchor);
 
-	clear_bit(HCI_RUNNING, &hdev->flags);
-
 	return err;
 }
 
@@ -330,9 +325,6 @@ static int bpa10x_close(struct hci_dev *hdev)
 	struct bpa10x_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	usb_kill_anchored_urbs(&data->rx_anchor);
 

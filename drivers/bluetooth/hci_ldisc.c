@@ -208,9 +208,6 @@ static int hci_uart_open(struct hci_dev *hdev)
 	BT_DBG("%s %p", hdev->name, hdev);
 
 	/* Nothing to do for UART driver */
-
-	set_bit(HCI_RUNNING, &hdev->flags);
-
 	return 0;
 }
 
@@ -240,9 +237,6 @@ static int hci_uart_flush(struct hci_dev *hdev)
 static int hci_uart_close(struct hci_dev *hdev)
 {
 	BT_DBG("hdev %p", hdev);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	hci_uart_flush(hdev);
 	hdev->flush = NULL;
