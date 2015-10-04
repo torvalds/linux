@@ -39,7 +39,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	bool major_version_mismatch = false;
 	bool minor_version_mismatch = false;
 
-	if (WARN_ON(!fsl_mc_bus_type.dev_root))
+	if (WARN_ON(!fsl_mc_bus_exists()))
 		goto out;
 
 	if (!mc_drv->match_id_table)
@@ -205,6 +205,15 @@ void fsl_mc_driver_unregister(struct fsl_mc_driver *mc_driver)
 	driver_unregister(&mc_driver->driver);
 }
 EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
+
+/**
+ * fsl_mc_bus_exists - check if a root dprc exists
+ */
+bool fsl_mc_bus_exists(void)
+{
+	return fsl_mc_bus_type.dev_root;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_bus_exists);
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
 			 int container_id, u16 *icid)
@@ -407,7 +416,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 
 			mc_io2 = mc_io;
 
-			if (!fsl_mc_bus_type.dev_root)
+			if (!fsl_mc_bus_exists())
 				fsl_mc_bus_type.dev_root = &mc_dev->dev;
 		}
 
