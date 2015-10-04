@@ -96,7 +96,7 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	void __user *uarg = (void __user *) arg;
+	void __user *uarg = (void __user *)arg;
 
 	switch (cmd) {
 	case DIGI_GETDD:
@@ -142,8 +142,8 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		di.info_bdtype = dgnc_Board[brd]->dpatype;
 		di.info_bdstate = dgnc_Board[brd]->dpastatus;
 		di.info_ioport = 0;
-		di.info_physaddr = (ulong) dgnc_Board[brd]->membase;
-		di.info_physsize = (ulong) dgnc_Board[brd]->membase
+		di.info_physaddr = (ulong)dgnc_Board[brd]->membase;
+		di.info_physsize = (ulong)dgnc_Board[brd]->membase
 			- dgnc_Board[brd]->membase_end;
 		if (dgnc_Board[brd]->state != BOARD_FAILED)
 			di.info_nports = dgnc_Board[brd]->nasync;

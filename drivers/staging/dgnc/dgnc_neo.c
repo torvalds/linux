@@ -590,7 +590,7 @@ static void neo_param(struct tty_struct *tty)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
@@ -828,7 +828,7 @@ static void neo_param(struct tty_struct *tty)
  */
 static void neo_tasklet(unsigned long data)
 {
-	struct dgnc_board *bd = (struct dgnc_board *) data;
+	struct dgnc_board *bd = (struct dgnc_board *)data;
 	struct channel_t *ch;
 	unsigned long flags;
 	int i;
@@ -1151,7 +1151,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 			break;
 
 		/* Make sure we don't go over the end of our queue */
-		n = min(((uint) total), (RQUEUESIZE - (uint) head));
+		n = min(((uint)total), (RQUEUESIZE - (uint)head));
 
 		/*
 		 * Cut down n even further if needed, this is to fix
@@ -1256,7 +1256,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		}
 
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, 1);
-		ch->ch_equeue[head] = (unsigned char) linestatus;
+		ch->ch_equeue[head] = (unsigned char)linestatus;
 
 		/* Ditch any remaining linestatus value. */
 		linestatus = 0;
@@ -1291,7 +1291,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return -ENXIO;
 
@@ -1447,7 +1447,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 		n = readb(&ch->ch_neo_uart->tfifo);
 
-		if ((unsigned int) n > ch->ch_t_tlevel)
+		if ((unsigned int)n > ch->ch_t_tlevel)
 			goto exit_unlock;
 
 		n = UART_17158_TX_FIFOSIZE - ch->ch_t_tlevel;

@@ -1440,7 +1440,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 */
 		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int) ch->ch_digi.digi_offlen);
+				(int)ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
 		}
 
@@ -1487,7 +1487,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 */
 		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int) ch->ch_digi.digi_offlen);
+				(int)ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
 		}
 	}
@@ -1756,7 +1756,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if ((un->un_type == DGNC_PRINT) && !(ch->ch_flags & CH_PRON)) {
 		dgnc_wmove(ch, ch->ch_digi.digi_onstr,
-		    (int) ch->ch_digi.digi_onlen);
+		    (int)ch->ch_digi.digi_onlen);
 		head = (ch->ch_w_head) & tmask;
 		ch->ch_flags |= CH_PRON;
 	}
@@ -1767,7 +1767,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if ((un->un_type != DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 		dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-			(int) ch->ch_digi.digi_offlen);
+			(int)ch->ch_digi.digi_offlen);
 		head = (ch->ch_w_head) & tmask;
 		ch->ch_flags &= ~CH_PRON;
 	}
@@ -2554,7 +2554,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	struct un_t *un;
 	int rc;
 	unsigned long flags;
-	void __user *uarg = (void __user *) arg;
+	void __user *uarg = (void __user *)arg;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENODEV;
@@ -2660,13 +2660,13 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 		rc = put_user(C_CLOCAL(tty) ? 1 : 0,
-			      (unsigned long __user *) arg);
+			      (unsigned long __user *)arg);
 		return rc;
 
 	case TIOCSSOFTCAR:
 
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = get_user(arg, (unsigned long __user *) arg);
+		rc = get_user(arg, (unsigned long __user *)arg);
 		if (rc)
 			return rc;
 
@@ -2814,7 +2814,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			 * could sleep
 			*/
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			rc = get_user(loopback, (unsigned int __user *) arg);
+			rc = get_user(loopback, (unsigned int __user *)arg);
 			if (rc)
 				return rc;
 			spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2832,7 +2832,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case DIGI_GETCUSTOMBAUD:
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = put_user(ch->ch_custom_speed, (unsigned int __user *) arg);
+		rc = put_user(ch->ch_custom_speed, (unsigned int __user *)arg);
 		return rc;
 
 	case DIGI_SETCUSTOMBAUD:
@@ -2840,7 +2840,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		int new_rate;
 		/* Let go of locks when accessing user space, could sleep */
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = get_user(new_rate, (int __user *) arg);
+		rc = get_user(new_rate, (int __user *)arg);
 		if (rc)
 			return rc;
 		spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2862,7 +2862,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		unsigned char c;
 
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = get_user(c, (unsigned char __user *) arg);
+		rc = get_user(c, (unsigned char __user *)arg);
 		if (rc)
 			return rc;
 		spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2919,7 +2919,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			events |= (EV_IPU | EV_IPS);
 
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		rc = put_user(events, (unsigned int __user *) arg);
+		rc = put_user(events, (unsigned int __user *)arg);
 		return rc;
 	}
 

@@ -452,7 +452,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 		brd->iobase	= pci_resource_start(pdev, 1);
 		brd->iobase_end = pci_resource_end(pdev, 1);
-		brd->iobase	= ((unsigned int) (brd->iobase)) & 0xFFFE;
+		brd->iobase	= ((unsigned int)(brd->iobase)) & 0xFFFE;
 
 		/* Assign the board_ops struct */
 		brd->bd_ops = &dgnc_cls_ops;
@@ -559,7 +559,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet,
 		     brd->bd_ops->tasklet,
-		     (unsigned long) brd);
+		     (unsigned long)brd);
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
@@ -672,7 +672,7 @@ static void dgnc_poll_handler(ulong dummy)
 
 	new_time = dgnc_poll_time - jiffies;
 
-	if ((ulong) new_time >= 2 * dgnc_poll_tick)
+	if ((ulong)new_time >= 2 * dgnc_poll_tick)
 		dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 
 	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);

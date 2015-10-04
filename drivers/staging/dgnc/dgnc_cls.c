@@ -438,7 +438,7 @@ static void cls_param(struct tty_struct *tty)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
@@ -676,7 +676,7 @@ static void cls_param(struct tty_struct *tty)
  */
 static void cls_tasklet(unsigned long data)
 {
-	struct dgnc_board *bd = (struct dgnc_board *) data;
+	struct dgnc_board *bd = (struct dgnc_board *)data;
 	struct channel_t *ch;
 	unsigned long flags;
 	int i;
@@ -904,7 +904,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
 
-	un = (struct un_t *) tty->driver_data;
+	un = (struct un_t *)tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return -ENXIO;
 
