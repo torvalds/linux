@@ -790,6 +790,30 @@ EXPORT_SYMBOL(generic_listxattr);
 EXPORT_SYMBOL(generic_setxattr);
 EXPORT_SYMBOL(generic_removexattr);
 
+/**
+ * xattr_full_name  -  Compute full attribute name from suffix
+ *
+ * @handler:	handler of the xattr_handler operation
+ * @name:	name passed to the xattr_handler operation
+ *
+ * The get and set xattr handler operations are called with the remainder of
+ * the attribute name after skipping the handler's prefix: for example, "foo"
+ * is passed to the get operation of a handler with prefix "user." to get
+ * attribute "user.foo".  The full name is still "there" in the name though.
+ *
+ * Note: the list xattr handler operation when called from the vfs is passed a
+ * NULL name; some file systems use this operation internally, with varying
+ * semantics.
+ */
+const char *xattr_full_name(const struct xattr_handler *handler,
+			    const char *name)
+{
+	size_t prefix_len = strlen(handler->prefix);
+
+	return name - prefix_len;
+}
+EXPORT_SYMBOL(xattr_full_name);
+
 /*
  * Allocate new xattr and copy in the value; but leave the name to callers.
  */
