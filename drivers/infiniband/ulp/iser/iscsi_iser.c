@@ -111,7 +111,7 @@ module_param_named(pi_guard, iser_pi_guard, int, S_IRUGO);
 MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
 
 /*
- * iscsi_iser_recv() - Process a successfull recv completion
+ * iscsi_iser_recv() - Process a successful recv completion
  * @conn:         iscsi connection
  * @hdr:          iscsi header
  * @rx_data:      buffer containing receive data payload
