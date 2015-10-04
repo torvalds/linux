@@ -218,11 +218,34 @@ bool fsl_mc_bus_exists(void)
 EXPORT_SYMBOL_GPL(fsl_mc_bus_exists);
 
 /**
+* fsl_mc_get_root_dprc - function to traverse to the root dprc
+*/
+static void fsl_mc_get_root_dprc(struct device *dev,
+				 struct device **root_dprc_dev)
+{
+	if (WARN_ON(!dev)) {
+		*root_dprc_dev = NULL;
+	} else if (WARN_ON(dev->bus != &fsl_mc_bus_type)) {
+		*root_dprc_dev = NULL;
+	} else {
+		*root_dprc_dev = dev;
+		while ((*root_dprc_dev)->parent->bus == &fsl_mc_bus_type)
+			*root_dprc_dev = (*root_dprc_dev)->parent;
+	}
+}
+
+/**
  * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
  */
 static bool fsl_mc_is_root_dprc(struct device *dev)
 {
-	return dev == fsl_mc_bus_type.dev_root;
+	struct device *root_dprc_dev;
+
+	fsl_mc_get_root_dprc(dev, &root_dprc_dev);
+	if (!root_dprc_dev)
+		return false;
+	else
+		return dev == root_dprc_dev;
 }
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
@@ -253,11 +276,18 @@ common_cleanup:
 	return error;
 }
 
-static int translate_mc_addr(enum dprc_region_type mc_region_type,
+static int translate_mc_addr(struct fsl_mc_device *mc_dev,
+			     enum dprc_region_type mc_region_type,
 			     u64 mc_offset, phys_addr_t *phys_addr)
 {
 	int i;
-	struct fsl_mc *mc = dev_get_drvdata(fsl_mc_bus_type.dev_root->parent);
+	struct device *root_dprc_dev;
+	struct fsl_mc *mc;
+
+	fsl_mc_get_root_dprc(&mc_dev->dev, &root_dprc_dev);
+	if (WARN_ON(!root_dprc_dev))
+		return -EINVAL;
+	mc = dev_get_drvdata(root_dprc_dev->parent);
 
 	if (mc->num_translation_ranges == 0) {
 		/*
@@ -328,7 +358,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		}
 
 		WARN_ON(region_desc.size == 0);
-		error = translate_mc_addr(mc_region_type,
+		error = translate_mc_addr(mc_dev, mc_region_type,
 					  region_desc.base_offset,
 					  &regions[i].start);
 		if (error < 0) {
