@@ -365,12 +365,12 @@ int dgnc_tty_init(struct dgnc_board *brd)
 			struct device *classp;
 
 			classp = tty_register_device(&brd->SerialDriver, i,
-						     &(ch->ch_bd->pdev->dev));
+						     &ch->ch_bd->pdev->dev);
 			ch->ch_tun.un_sysfs = classp;
 			dgnc_create_tty_sysfs(&ch->ch_tun, classp);
 
 			classp = tty_register_device(&brd->PrintDriver, i,
-						     &(ch->ch_bd->pdev->dev));
+						     &ch->ch_bd->pdev->dev);
 			ch->ch_pun.un_sysfs = classp;
 			dgnc_create_tty_sysfs(&ch->ch_pun, classp);
 		}
@@ -710,7 +710,7 @@ void dgnc_carrier(struct channel_t *ch)
 		 * for carrier in the open routine.
 		 */
 
-		if (waitqueue_active(&(ch->ch_flags_wait)))
+		if (waitqueue_active(&ch->ch_flags_wait))
 			wake_up_interruptible(&ch->ch_flags_wait);
 	}
 
@@ -723,7 +723,7 @@ void dgnc_carrier(struct channel_t *ch)
 		 * for carrier in the open routine.
 		 */
 
-		if (waitqueue_active(&(ch->ch_flags_wait)))
+		if (waitqueue_active(&ch->ch_flags_wait))
 			wake_up_interruptible(&ch->ch_flags_wait);
 	}
 
@@ -750,7 +750,7 @@ void dgnc_carrier(struct channel_t *ch)
 		 *
 		 *   Enable all select calls.
 		 */
-		if (waitqueue_active(&(ch->ch_flags_wait)))
+		if (waitqueue_active(&ch->ch_flags_wait))
 			wake_up_interruptible(&ch->ch_flags_wait);
 
 		if (ch->ch_tun.un_open_count > 0)
@@ -936,7 +936,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 		    ch->ch_tun.un_tty->ldisc->ops->write_wakeup) {
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
+			ch->ch_tun.un_tty->ldisc->ops->write_wakeup(ch->ch_tun.un_tty);
 			spin_lock_irqsave(&ch->ch_lock, flags);
 		}
 
@@ -978,7 +978,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 		    ch->ch_pun.un_tty->ldisc->ops->write_wakeup) {
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
+			ch->ch_pun.un_tty->ldisc->ops->write_wakeup(ch->ch_pun.un_tty);
 			spin_lock_irqsave(&ch->ch_lock, flags);
 		}
 

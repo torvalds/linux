@@ -1792,6 +1792,6 @@ static void neo_vpd(struct dgnc_board *brd)
 		/* Search for the serial number */
 		for (i = 0; i < NEO_VPD_IMAGEBYTES - 3; i++)
 			if (brd->vpd[i] == 'S' && brd->vpd[i + 1] == 'N')
-				strncpy(brd->serial_num, &(brd->vpd[i + 3]), 9);
+				strncpy(brd->serial_num, &brd->vpd[i + 3], 9);
 	}
 }

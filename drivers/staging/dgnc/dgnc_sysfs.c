@@ -343,18 +343,18 @@ void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
 	int rc = 0;
 
 	dev_set_drvdata(&bd->pdev->dev, bd);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_state);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_baud);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_msignals);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_iflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_cflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_oflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_lflag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_digi_flag);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_rxcount);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_txcount);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_vpd);
-	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_serial_number);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_state);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_baud);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_msignals);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_iflag);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_cflag);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_oflag);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_lflag);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_digi_flag);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_rxcount);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_ports_txcount);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_vpd);
+	rc |= device_create_file(&bd->pdev->dev, &dev_attr_serial_number);
 	if (rc)
 		dev_err(&bd->pdev->dev, "dgnc: sysfs device_create_file failed!\n");
 }
@@ -362,18 +362,18 @@ void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
 /* removes all the sys files created for that port */
 void dgnc_remove_ports_sysfiles(struct dgnc_board *bd)
 {
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_state);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_baud);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_msignals);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_iflag);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_cflag);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_oflag);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_lflag);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_digi_flag);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_rxcount);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_ports_txcount);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_vpd);
-	device_remove_file(&(bd->pdev->dev), &dev_attr_serial_number);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_state);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_baud);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_msignals);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_iflag);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_cflag);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_oflag);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_lflag);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_digi_flag);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_rxcount);
+	device_remove_file(&bd->pdev->dev, &dev_attr_ports_txcount);
+	device_remove_file(&bd->pdev->dev, &dev_attr_vpd);
+	device_remove_file(&bd->pdev->dev, &dev_attr_serial_number);
 }
 
 static ssize_t dgnc_tty_state_show(struct device *d,
