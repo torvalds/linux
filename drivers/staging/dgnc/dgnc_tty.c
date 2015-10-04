@@ -63,7 +63,6 @@ static struct digi_t dgnc_digi_init = {
 	.digi_term =	"ansi"		/* default terminal type	*/
 };
 
-
 /*
  * Define a local default termios struct. All ports will be created
  * with this termios initially.
@@ -79,7 +78,6 @@ static struct ktermios DgncDefaultTermios = {
 	.c_cc =		INIT_C_CC,
 	.c_line =	0,
 };
-
 
 /* Our function prototypes */
 static int dgnc_tty_open(struct tty_struct *tty, struct file *file);
@@ -116,7 +114,6 @@ static int dgnc_tty_write(struct tty_struct *tty, const unsigned char *buf,
 static void dgnc_tty_set_termios(struct tty_struct *tty,
 				 struct ktermios *old_termios);
 static void dgnc_tty_send_xchar(struct tty_struct *tty, char ch);
-
 
 static const struct tty_operations dgnc_tty_ops = {
 	.open = dgnc_tty_open,
@@ -171,7 +168,6 @@ int dgnc_tty_preinit(void)
 
 	return 0;
 }
-
 
 /*
  * dgnc_tty_register()
@@ -296,7 +292,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	return rc;
 }
 
-
 /*
  * dgnc_tty_init()
  *
@@ -392,7 +387,6 @@ err_free_channels:
 	return -ENOMEM;
 }
 
-
 /*
  * dgnc_tty_post_uninit()
  *
@@ -403,7 +397,6 @@ void dgnc_tty_post_uninit(void)
 	kfree(dgnc_TmpWriteBuf);
 	dgnc_TmpWriteBuf = NULL;
 }
-
 
 /*
  * dgnc_tty_uninit()
@@ -496,9 +489,6 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 	head &= WQUEUEMASK;
 	ch->ch_w_head = head;
 }
-
-
-
 
 /*=======================================================================
  *
@@ -685,7 +675,6 @@ exit_unlock:
 		tty_ldisc_deref(ld);
 }
 
-
 /************************************************************************
  * Determines when CARRIER changes state and takes appropriate
  * action.
@@ -852,7 +841,6 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 	ch->ch_custom_speed = newrate;
 }
 
-
 void dgnc_check_queue_flow_control(struct channel_t *ch)
 {
 	int qleft = 0;
@@ -926,7 +914,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 		}
 	}
 }
-
 
 void dgnc_wakeup_writes(struct channel_t *ch)
 {
@@ -1017,8 +1004,6 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
-
 
 /************************************************************************
  *
@@ -1126,10 +1111,8 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-
 	/* Store our unit into driver_data, so we always have it available. */
 	tty->driver_data = un;
-
 
 	/*
 	 * Initialize tty's
@@ -1140,7 +1123,6 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 
 		/* Maybe do something here to the TTY struct as well? */
 	}
-
 
 	/*
 	 * Allocate channel buffers for read/write/error.
@@ -1230,7 +1212,6 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 
 	return rc;
 }
-
 
 /*
  * dgnc_block_til_ready()
@@ -1369,7 +1350,6 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 	return 0;
 }
 
-
 /*
  * dgnc_tty_hangup()
  *
@@ -1390,7 +1370,6 @@ static void dgnc_tty_hangup(struct tty_struct *tty)
 	dgnc_tty_flush_buffer(tty);
 
 }
-
 
 /*
  * dgnc_tty_close()
@@ -1456,7 +1435,6 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	un->un_flags |= UN_CLOSING;
 
 	tty->closing = 1;
-
 
 	/*
 	 * Only officially close channel if count is 0 and
@@ -1534,7 +1512,6 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 /*
  * dgnc_tty_chars_in_buffer()
  *
@@ -1583,7 +1560,6 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 
 	return chars;
 }
-
 
 /*
  * dgnc_maxcps_room
@@ -1641,7 +1617,6 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 
 	return bytes_available;
 }
-
 
 /*
  * dgnc_tty_write_room()
@@ -1703,7 +1678,6 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 	return ret;
 }
 
-
 /*
  * dgnc_tty_put_char()
  *
@@ -1719,7 +1693,6 @@ static int dgnc_tty_put_char(struct tty_struct *tty, unsigned char c)
 	dgnc_tty_write(tty, &c, 1);
 	return 1;
 }
-
 
 /*
  * dgnc_tty_write()
@@ -1864,7 +1837,6 @@ exit_retry:
 	return 0;
 }
 
-
 /*
  * Return modem signals to ld.
  */
@@ -1911,7 +1883,6 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 
 	return result;
 }
-
 
 /*
  * dgnc_tty_tiocmset()
@@ -1964,7 +1935,6 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-
 /*
  * dgnc_tty_send_break()
  *
@@ -2014,7 +1984,6 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 
 }
 
-
 /*
  * dgnc_tty_wait_until_sent()
  *
@@ -2043,7 +2012,6 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 
 	bd->bd_ops->drain(tty, 0);
 }
-
 
 /*
  * dgnc_send_xchar()
@@ -2081,9 +2049,6 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 	dev_dbg(tty->dev, "dgnc_tty_send_xchar finish\n");
 }
 
-
-
-
 /*
  * Return modem signals to ld.
  */
@@ -2120,8 +2085,6 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 	return result;
 }
 
-
-
 /*
  * Return modem signals to ld.
  */
@@ -2140,7 +2103,6 @@ static int dgnc_get_modem_info(struct channel_t *ch,
 
 	return put_user(result, value);
 }
-
 
 /*
  * dgnc_set_modem_info()
@@ -2223,7 +2185,6 @@ static int dgnc_set_modem_info(struct tty_struct *tty,
 	return 0;
 }
 
-
 /*
  * dgnc_tty_digigeta()
  *
@@ -2265,7 +2226,6 @@ static int dgnc_tty_digigeta(struct tty_struct *tty,
 
 	return 0;
 }
-
 
 /*
  * dgnc_tty_digiseta()
@@ -2354,7 +2314,6 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 	return 0;
 }
 
-
 /*
  * dgnc_set_termios()
  */
@@ -2396,7 +2355,6 @@ static void dgnc_tty_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 static void dgnc_tty_throttle(struct tty_struct *tty)
 {
 	struct channel_t *ch;
@@ -2421,7 +2379,6 @@ static void dgnc_tty_throttle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 static void dgnc_tty_unthrottle(struct tty_struct *tty)
 {
 	struct channel_t *ch;
@@ -2445,7 +2402,6 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
 
 static void dgnc_tty_start(struct tty_struct *tty)
 {
@@ -2476,7 +2432,6 @@ static void dgnc_tty_start(struct tty_struct *tty)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 static void dgnc_tty_stop(struct tty_struct *tty)
 {
 	struct dgnc_board *bd;
@@ -2505,7 +2460,6 @@ static void dgnc_tty_stop(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
 
 /*
  * dgnc_tty_flush_chars()
@@ -2548,8 +2502,6 @@ static void dgnc_tty_flush_chars(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
-
 
 /*
  * dgnc_tty_flush_buffer()
@@ -2594,8 +2546,6 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
-
 
 /*****************************************************************************
  *
@@ -2671,7 +2621,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 		return 0;
-
 
 	case TCSBRKP:
 		/* support for POSIX tcsendbreak()

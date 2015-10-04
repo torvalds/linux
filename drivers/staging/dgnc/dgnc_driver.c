@@ -13,7 +13,6 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -56,7 +55,6 @@ static const struct file_operations dgnc_BoardFops = {
 	.release	=	dgnc_mgmt_close
 };
 
-
 /*
  * Globals
  */
@@ -78,7 +76,6 @@ static struct class *dgnc_class;
 static ulong		dgnc_poll_time; /* Time of next poll */
 static uint		dgnc_poll_stop; /* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
-
 
 static const struct pci_device_id dgnc_pci_tbl[] = {
 	{PCI_DEVICE(DIGI_VID, PCI_DEVICE_CLASSIC_4_DID),     .driver_data = 0},
@@ -354,12 +351,10 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 		}
 	}
 
-
 	dgnc_Board[brd->boardnum] = NULL;
 
 	kfree(brd);
 }
-
 
 /*
  * dgnc_found_board()
@@ -421,7 +416,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	pci_irq = pdev->irq;
 	brd->irq = pci_irq;
 
-
 	switch (brd->device) {
 
 	case PCI_DEVICE_CLASSIC_4_DID:
@@ -440,7 +434,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		 * 3	Memory Mapped VPD
 		 * 4	Memory Mapped UARTs and Status
 		 */
-
 
 		/* get the PCI Base Address Registers */
 		brd->membase = pci_resource_start(pdev, 4);
@@ -481,7 +474,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		outb(0x43, brd->iobase + 0x4c);
 
 		break;
-
 
 	case PCI_DEVICE_NEO_4_DID:
 	case PCI_DEVICE_NEO_8_DID:
@@ -592,7 +584,6 @@ failed:
 
 }
 
-
 static int dgnc_finalize_board_init(struct dgnc_board *brd)
 {
 	int rc = 0;
@@ -626,7 +617,6 @@ static void dgnc_do_remap(struct dgnc_board *brd)
 
 	brd->re_map_membase = ioremap(brd->membase, 0x1000);
 }
-
 
 /*****************************************************************************
 *

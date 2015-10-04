@@ -32,10 +32,8 @@
 #include "dgnc_pci.h"
 #include "dgnc_mgmt.h"
 
-
 /* Our "in use" variables, to enforce 1 open only */
 static int dgnc_mgmt_in_use[MAXMGMTDEVICES];
-
 
 /*
  * dgnc_mgmt_open()
@@ -67,7 +65,6 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-
 /*
  * dgnc_mgmt_close()
  *
@@ -89,7 +86,6 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-
 
 /*
  * dgnc_mgmt_ioctl()
@@ -255,7 +251,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
-
 
 	}
 
