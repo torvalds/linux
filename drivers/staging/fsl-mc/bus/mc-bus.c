@@ -458,9 +458,6 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 
 			mc_io2 = mc_io;
 
-			if (!fsl_mc_bus_exists())
-				fsl_mc_bus_type.dev_root = &mc_dev->dev;
-
 			atomic_inc(&root_dprc_count);
 		}
 
@@ -545,7 +542,6 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 		}
 
 		if (fsl_mc_is_root_dprc(&mc_dev->dev)) {
-			fsl_mc_bus_type.dev_root = NULL;
 			if (atomic_read(&root_dprc_count) > 0)
 				atomic_dec(&root_dprc_count);
 			else
