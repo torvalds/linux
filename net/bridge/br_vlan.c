@@ -111,12 +111,12 @@ static void __vlan_add_list(struct net_bridge_vlan *v)
 		else
 			break;
 	}
-	list_add(&v->vlist, hpos);
+	list_add_rcu(&v->vlist, hpos);
 }
 
 static void __vlan_del_list(struct net_bridge_vlan *v)
 {
-	list_del(&v->vlist);
+	list_del_rcu(&v->vlist);
 }
 
 static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
@@ -146,6 +146,40 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 	return err;
 }
 
+/* Returns a master vlan, if it didn't exist it gets created. In all cases a
+ * a reference is taken to the master vlan before returning.
+ */
+static struct net_bridge_vlan *br_vlan_get_master(struct net_bridge *br, u16 vid)
+{
+	struct net_bridge_vlan *masterv;
+
+	masterv = br_vlan_find(br->vlgrp, vid);
+	if (!masterv) {
+		/* missing global ctx, create it now */
+		if (br_vlan_add(br, vid, 0))
+			return NULL;
+		masterv = br_vlan_find(br->vlgrp, vid);
+		if (WARN_ON(!masterv))
+			return NULL;
+	}
+	atomic_inc(&masterv->refcnt);
+
+	return masterv;
+}
+
+static void br_vlan_put_master(struct net_bridge_vlan *masterv)
+{
+	if (!br_vlan_is_master(masterv))
+		return;
+
+	if (atomic_dec_and_test(&masterv->refcnt)) {
+		rhashtable_remove_fast(&masterv->br->vlgrp->vlan_hash,
+				       &masterv->vnode, br_vlan_rht_params);
+		__vlan_del_list(masterv);
+		kfree_rcu(masterv, rcu);
+	}
+}
+
 /* This is the shared VLAN add function which works for both ports and bridge
  * devices. There are four possible calls to this function in terms of the
  * vlan entry type:
@@ -161,7 +195,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 {
 	struct net_bridge_vlan *masterv = NULL;
 	struct net_bridge_port *p = NULL;
-	struct rhashtable *tbl;
+	struct net_bridge_vlan_group *vg;
 	struct net_device *dev;
 	struct net_bridge *br;
 	int err;
@@ -169,17 +203,15 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 	if (br_vlan_is_master(v)) {
 		br = v->br;
 		dev = br->dev;
-		tbl = &br->vlgrp->vlan_hash;
+		vg = br->vlgrp;
 	} else {
 		p = v->port;
 		br = p->br;
 		dev = p->dev;
-		tbl = &p->vlgrp->vlan_hash;
+		vg = p->vlgrp;
 	}
 
 	if (p) {
-		u16 master_flags = flags;
-
 		/* Add VLAN to the device filter if it is supported.
 		 * This ensures tagged traffic enters the bridge when
 		 * promiscuous mode is disabled by br_manage_promisc().
@@ -190,57 +222,49 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 
 		/* need to work on the master vlan too */
 		if (flags & BRIDGE_VLAN_INFO_MASTER) {
-			master_flags |= BRIDGE_VLAN_INFO_BRENTRY;
-			err = br_vlan_add(br, v->vid, master_flags);
+			err = br_vlan_add(br, v->vid, flags |
+						      BRIDGE_VLAN_INFO_BRENTRY);
 			if (err)
 				goto out_filt;
 		}
 
-		masterv = br_vlan_find(br->vlgrp, v->vid);
-		if (!masterv) {
-			/* missing global ctx, create it now */
-			err = br_vlan_add(br, v->vid, 0);
-			if (err)
-				goto out_filt;
-			masterv = br_vlan_find(br->vlgrp, v->vid);
-			WARN_ON(!masterv);
-		}
-		atomic_inc(&masterv->refcnt);
+		masterv = br_vlan_get_master(br, v->vid);
+		if (!masterv)
+			goto out_filt;
 		v->brvlan = masterv;
 	}
 
-	/* Add the dev mac only if it's a usable vlan */
+	/* Add the dev mac and count the vlan only if it's usable */
 	if (br_vlan_should_use(v)) {
 		err = br_fdb_insert(br, p, dev->dev_addr, v->vid);
 		if (err) {
 			br_err(br, "failed insert local address into bridge forwarding table\n");
 			goto out_filt;
 		}
+		vg->num_vlans++;
 	}
 
-	err = rhashtable_lookup_insert_fast(tbl, &v->vnode, br_vlan_rht_params);
+	err = rhashtable_lookup_insert_fast(&vg->vlan_hash, &v->vnode,
+					    br_vlan_rht_params);
 	if (err)
 		goto out_fdb_insert;
 
 	__vlan_add_list(v);
 	__vlan_add_flags(v, flags);
-	if (br_vlan_is_master(v)) {
-		if (br_vlan_is_brentry(v))
-			br->vlgrp->num_vlans++;
-	} else {
-		p->vlgrp->num_vlans++;
-	}
 out:
 	return err;
 
 out_fdb_insert:
-	br_fdb_find_delete_local(br, p, br->dev->dev_addr, v->vid);
+	if (br_vlan_should_use(v)) {
+		br_fdb_find_delete_local(br, p, dev->dev_addr, v->vid);
+		vg->num_vlans--;
+	}
 
 out_filt:
 	if (p) {
 		__vlan_vid_del(dev, br, v->vid);
 		if (masterv) {
-			atomic_dec(&masterv->refcnt);
+			br_vlan_put_master(masterv);
 			v->brvlan = NULL;
 		}
 	}
@@ -253,15 +277,12 @@ static int __vlan_del(struct net_bridge_vlan *v)
 	struct net_bridge_vlan *masterv = v;
 	struct net_bridge_vlan_group *vg;
 	struct net_bridge_port *p = NULL;
-	struct net_bridge *br;
 	int err = 0;
 
 	if (br_vlan_is_master(v)) {
-		br = v->br;
 		vg = v->br->vlgrp;
 	} else {
 		p = v->port;
-		br = p->br;
 		vg = v->port->vlgrp;
 		masterv = v->brvlan;
 	}
@@ -273,13 +294,9 @@ static int __vlan_del(struct net_bridge_vlan *v)
 			goto out;
 	}
 
-	if (br_vlan_is_master(v)) {
-		if (br_vlan_is_brentry(v)) {
-			v->flags &= ~BRIDGE_VLAN_INFO_BRENTRY;
-			br->vlgrp->num_vlans--;
-		}
-	} else {
-		p->vlgrp->num_vlans--;
+	if (br_vlan_should_use(v)) {
+		v->flags &= ~BRIDGE_VLAN_INFO_BRENTRY;
+		vg->num_vlans--;
 	}
 
 	if (masterv != v) {
@@ -289,12 +306,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 		kfree_rcu(v, rcu);
 	}
 
-	if (atomic_dec_and_test(&masterv->refcnt)) {
-		rhashtable_remove_fast(&masterv->br->vlgrp->vlan_hash,
-				       &masterv->vnode, br_vlan_rht_params);
-		__vlan_del_list(masterv);
-		kfree_rcu(masterv, rcu);
-	}
+	br_vlan_put_master(masterv);
 out:
 	return err;
 }
