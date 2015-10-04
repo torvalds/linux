@@ -854,6 +854,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 #endif
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
+	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
 	       0;
 }
 
@@ -868,6 +869,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
 	u16 group_fwd_mask = br->group_fwd_mask;
 	u8 vlan_enabled = br_vlan_enabled(br);
+	struct ifla_bridge_id root_id;
+
+	memset(&root_id, 0, sizeof(root_id));
+	memcpy(root_id.prio, br->designated_root.prio, sizeof(root_id.prio));
+	memcpy(root_id.addr, br->designated_root.addr, sizeof(root_id.addr));
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
@@ -876,7 +882,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
 	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
 	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled) ||
-	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, group_fwd_mask))
+	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, group_fwd_mask) ||
+	    nla_put(skb, IFLA_BR_ROOT_ID, sizeof(root_id), &root_id))
 		return -EMSGSIZE;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING

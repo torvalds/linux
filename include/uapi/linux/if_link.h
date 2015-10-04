@@ -233,10 +233,16 @@ enum {
 	IFLA_BR_VLAN_FILTERING,
 	IFLA_BR_VLAN_PROTOCOL,
 	IFLA_BR_GROUP_FWD_MASK,
+	IFLA_BR_ROOT_ID,
 	__IFLA_BR_MAX,
 };
 
 #define IFLA_BR_MAX	(__IFLA_BR_MAX - 1)
+
+struct ifla_bridge_id {
+	__u8	prio[2];
+	__u8	addr[6]; /* ETH_ALEN */
+};
 
 enum {
 	BRIDGE_MODE_UNSPEC,
