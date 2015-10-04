@@ -407,10 +407,10 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 		for (d = xcnt - 1; d >= 0; d--) {
 			X = xparm[d].value;
-			M = quo*X;
+			M = quo * X;
 			M += fl_quo * X / 10000;
 			/* round step */
-			M += (fl_quo*X % 10000) > 5000?1:0;
+			M += (fl_quo * X % 10000) > 5000?1:0;
 			if (M < 256 && M > 0) {
 				unsigned int diff;
 
