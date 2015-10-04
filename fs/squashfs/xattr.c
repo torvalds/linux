@@ -212,96 +212,68 @@ failed:
 }
 
 
-/*
- * User namespace support
- */
-static size_t squashfs_user_list(const struct xattr_handler *handler,
-				 struct dentry *d, char *list, size_t list_size,
-				 const char *name, size_t name_len)
+static size_t squashfs_xattr_handler_list(const struct xattr_handler *handler,
+					  struct dentry *d, char *list,
+					  size_t list_size, const char *name,
+					  size_t name_len)
 {
-	if (list && XATTR_USER_PREFIX_LEN <= list_size)
-		memcpy(list, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
-	return XATTR_USER_PREFIX_LEN;
+	int len = strlen(handler->prefix);
+
+	if (list && len <= list_size)
+		memcpy(list, handler->prefix, len);
+	return len;
 }
 
-static int squashfs_user_get(const struct xattr_handler *handler,
-			     struct dentry *d, const char *name, void *buffer,
-			     size_t size)
+static int squashfs_xattr_handler_get(const struct xattr_handler *handler,
+				      struct dentry *d, const char *name,
+				      void *buffer, size_t size)
 {
 	if (name[0] == '\0')
 		return  -EINVAL;
 
-	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_USER, name,
+	return squashfs_xattr_get(d_inode(d), handler->flags, name,
 		buffer, size);
 }
 
+/*
+ * User namespace support
+ */
 static const struct xattr_handler squashfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.list	= squashfs_user_list,
-	.get	= squashfs_user_get
+	.flags	= SQUASHFS_XATTR_USER,
+	.list	= squashfs_xattr_handler_list,
+	.get	= squashfs_xattr_handler_get
 };
 
 /*
  * Trusted namespace support
  */
-static size_t squashfs_trusted_list(const struct xattr_handler *handler,
-				    struct dentry *d, char *list,
-				    size_t list_size, const char *name,
-				    size_t name_len)
+static size_t squashfs_trusted_xattr_handler_list(const struct xattr_handler *handler,
+						  struct dentry *d, char *list,
+						  size_t list_size, const char *name,
+						  size_t name_len)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
-
-	if (list && XATTR_TRUSTED_PREFIX_LEN <= list_size)
-		memcpy(list, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
-	return XATTR_TRUSTED_PREFIX_LEN;
-}
-
-static int squashfs_trusted_get(const struct xattr_handler *handler,
-				struct dentry *d, const char *name,
-				void *buffer, size_t size)
-{
-	if (name[0] == '\0')
-		return  -EINVAL;
-
-	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_TRUSTED, name,
-		buffer, size);
+	return squashfs_xattr_handler_list(handler, d, list, list_size, name,
+					   name_len);
 }
 
 static const struct xattr_handler squashfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.list	= squashfs_trusted_list,
-	.get	= squashfs_trusted_get
+	.flags	= SQUASHFS_XATTR_TRUSTED,
+	.list	= squashfs_trusted_xattr_handler_list,
+	.get	= squashfs_xattr_handler_get
 };
 
 /*
  * Security namespace support
  */
-static size_t squashfs_security_list(const struct xattr_handler *handler,
-				     struct dentry *d, char *list,
-				     size_t list_size, const char *name,
-				     size_t name_len)
-{
-	if (list && XATTR_SECURITY_PREFIX_LEN <= list_size)
-		memcpy(list, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
-	return XATTR_SECURITY_PREFIX_LEN;
-}
-
-static int squashfs_security_get(const struct xattr_handler *handler,
-				 struct dentry *d, const char *name,
-				 void *buffer, size_t size)
-{
-	if (name[0] == '\0')
-		return  -EINVAL;
-
-	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_SECURITY, name,
-		buffer, size);
-}
-
 static const struct xattr_handler squashfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.list	= squashfs_security_list,
-	.get	= squashfs_security_get
+	.flags	= SQUASHFS_XATTR_SECURITY,
+	.list	= squashfs_xattr_handler_list,
+	.get	= squashfs_xattr_handler_get
 };
 
 static const struct xattr_handler *squashfs_xattr_handler(int type)
