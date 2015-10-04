@@ -764,6 +764,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
 	[IFLA_BR_VLAN_FILTERING] = { .type = NLA_U8 },
 	[IFLA_BR_VLAN_PROTOCOL] = { .type = NLA_U16 },
+	[IFLA_BR_GROUP_FWD_MASK] = { .type = NLA_U16 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -829,6 +830,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	}
 #endif
 
+	if (data[IFLA_BR_GROUP_FWD_MASK]) {
+		u16 fwd_mask = nla_get_u16(data[IFLA_BR_GROUP_FWD_MASK]);
+
+		if (fwd_mask & BR_GROUPFWD_RESTRICTED)
+			return -EINVAL;
+		br->group_fwd_mask = fwd_mask;
+	}
+
 	return 0;
 }
 
@@ -844,6 +853,7 @@ static size_t br_get_size(const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 #endif
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
 	       0;
 }
 
@@ -856,6 +866,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
 	u32 stp_enabled = br->stp_enabled;
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
+	u16 group_fwd_mask = br->group_fwd_mask;
 	u8 vlan_enabled = br_vlan_enabled(br);
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
@@ -864,7 +875,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_AGEING_TIME, ageing_time) ||
 	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
 	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
-	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled))
+	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled) ||
+	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, group_fwd_mask))
 		return -EMSGSIZE;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
