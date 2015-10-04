@@ -109,6 +109,8 @@ struct bus_type fsl_mc_bus_type = {
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_type);
 
+static atomic_t root_dprc_count = ATOMIC_INIT(0);
+
 static int fsl_mc_driver_probe(struct device *dev)
 {
 	struct fsl_mc_driver *mc_drv;
@@ -213,7 +215,7 @@ EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
  */
 bool fsl_mc_bus_exists(void)
 {
-	return fsl_mc_bus_type.dev_root;
+	return atomic_read(&root_dprc_count) > 0;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_bus_exists);
 
@@ -458,6 +460,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 
 			if (!fsl_mc_bus_exists())
 				fsl_mc_bus_type.dev_root = &mc_dev->dev;
+
+			atomic_inc(&root_dprc_count);
 		}
 
 		error = get_dprc_icid(mc_io2, obj_desc->id, &mc_dev->icid);
@@ -540,8 +544,13 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 			mc_dev->mc_io = NULL;
 		}
 
-		if (fsl_mc_is_root_dprc(&mc_dev->dev))
+		if (fsl_mc_is_root_dprc(&mc_dev->dev)) {
 			fsl_mc_bus_type.dev_root = NULL;
+			if (atomic_read(&root_dprc_count) > 0)
+				atomic_dec(&root_dprc_count);
+			else
+				WARN_ON(1);
+		}
 	}
 
 	if (mc_bus)
