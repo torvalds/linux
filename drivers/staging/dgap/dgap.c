@@ -248,7 +248,6 @@ static struct toklist dgap_tlist[] = {
 	{ BEGIN,	"config_begin" },
 	{ END,		"config_end" },
 	{ BOARD,	"board"	},
-	{ IO,		"io" },
 	{ PCIINFO,	"pciinfo" },
 	{ LINE,		"line" },
 	{ CONC,		"conc" },
@@ -660,25 +659,6 @@ static int dgap_parsefile(char **in)
 
 			p->u.board.type = board_type;
 
-			break;
-
-		case IO:	/* i/o port */
-			if (p->type != BNODE) {
-				pr_err("IO port only valid for boards");
-				return -1;
-			}
-			s = dgap_getword(in);
-			if (!s) {
-				pr_err("unexpected end of file");
-				return -1;
-			}
-			kfree(p->u.board.portstr);
-			p->u.board.portstr = kstrdup(s, GFP_KERNEL);
-			if (kstrtol(s, 0, &p->u.board.port)) {
-				pr_err("bad number for IO port");
-				return -1;
-			}
-			p->u.board.v_port = 1;
 			break;
 
 		case MEM:	/* memory address */
@@ -1296,7 +1276,6 @@ static void dgap_cleanup_nodes(void)
 
 		switch (p->type) {
 		case BNODE:
-			kfree(p->u.board.portstr);
 			kfree(p->u.board.addrstr);
 			kfree(p->u.board.pcibusstr);
 			kfree(p->u.board.pcislotstr);
