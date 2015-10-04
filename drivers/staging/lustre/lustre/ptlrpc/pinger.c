@@ -313,7 +313,7 @@ int ptlrpc_start_pinger(void)
 	return 0;
 }
 
-int ptlrpc_pinger_remove_timeouts(void);
+static int ptlrpc_pinger_remove_timeouts(void);
 
 int ptlrpc_stop_pinger(void)
 {
@@ -497,7 +497,7 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 }
 EXPORT_SYMBOL(ptlrpc_del_timeout_client);
 
-int ptlrpc_pinger_remove_timeouts(void)
+static int ptlrpc_pinger_remove_timeouts(void)
 {
 	struct timeout_item *item, *tmp;
 
