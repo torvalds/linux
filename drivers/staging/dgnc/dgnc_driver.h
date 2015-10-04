@@ -390,6 +390,7 @@ struct channel_t {
 extern uint		dgnc_Major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
+extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_NumBoards;		/* Total number of boards */
 extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs */
 

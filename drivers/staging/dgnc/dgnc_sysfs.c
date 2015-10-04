@@ -56,11 +56,18 @@ static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 static ssize_t dgnc_driver_pollrate_store(struct device_driver *ddp,
 					  const char *buf, size_t count)
 {
+	unsigned long flags;
+	int tick;
 	int ret;
 
-	ret = sscanf(buf, "%d\n", &dgnc_poll_tick);
+	ret = sscanf(buf, "%d\n", &tick);
 	if (ret != 1)
 		return -EINVAL;
+
+	spin_lock_irqsave(&dgnc_poll_lock, flags);
+	dgnc_poll_tick = tick;
+	spin_unlock_irqrestore(&dgnc_poll_lock, flags);
+
 	return count;
 }
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgnc_driver_pollrate_show,

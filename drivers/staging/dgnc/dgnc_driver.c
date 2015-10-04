@@ -63,6 +63,7 @@ static const struct file_operations dgnc_BoardFops = {
 uint			dgnc_NumBoards;
 struct dgnc_board		*dgnc_Board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
+DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
 uint			dgnc_Major;
 int			dgnc_poll_tick = 20;	/* Poll interval - 20 ms */
 
@@ -74,7 +75,6 @@ static struct class *dgnc_class;
 /*
  * Poller stuff
  */
-static DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
 static ulong		dgnc_poll_time; /* Time of next poll */
 static uint		dgnc_poll_stop; /* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
