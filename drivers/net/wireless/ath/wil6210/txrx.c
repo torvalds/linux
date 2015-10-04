@@ -358,6 +358,13 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 	}
 }
 
+/* similar to ieee80211_ version, but FC contain only 1-st byte */
+static inline int wil_is_back_req(u8 fc)
+{
+	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
 /**
  * reap 1 frame from @swhead
  *
@@ -411,7 +418,7 @@ again:
 
 	trace_wil6210_rx(i, d);
 	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", i, dmalen);
-	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("RxD ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	cid = wil_rxdesc_cid(d);
@@ -441,23 +448,44 @@ again:
 	/* no extra checks if in sniffer mode */
 	if (ndev->type != ARPHRD_ETHER)
 		return skb;
-	/*
-	 * Non-data frames may be delivered through Rx DMA channel (ex: BAR)
+	/* Non-data frames may be delivered through Rx DMA channel (ex: BAR)
 	 * Driver should recognize it by frame type, that is found
 	 * in Rx descriptor. If type is not data, it is 802.11 frame as is
 	 */
 	ftype = wil_rxdesc_ftype(d) << 2;
 	if (unlikely(ftype != IEEE80211_FTYPE_DATA)) {
-		wil_dbg_txrx(wil, "Non-data frame ftype 0x%08x\n", ftype);
-		/* TODO: process it */
+		u8 fc1 = wil_rxdesc_fc1(d);
+		int mid = wil_rxdesc_mid(d);
+		int tid = wil_rxdesc_tid(d);
+		u16 seq = wil_rxdesc_seq(d);
+
+		wil_dbg_txrx(wil,
+			     "Non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+			     fc1, mid, cid, tid, seq);
 		stats->rx_non_data_frame++;
+		if (wil_is_back_req(fc1)) {
+			wil_dbg_txrx(wil,
+				     "BAR: MID %d CID %d TID %d Seq 0x%03x\n",
+				     mid, cid, tid, seq);
+			wil_rx_bar(wil, cid, tid, seq);
+		} else {
+			/* print again all info. One can enable only this
+			 * without overhead for printing every Rx frame
+			 */
+			wil_dbg_txrx(wil,
+				     "Unhandled non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+				     fc1, mid, cid, tid, seq);
+			wil_hex_dump_txrx("RxD ", DUMP_PREFIX_NONE, 32, 4,
+					  (const void *)d, sizeof(*d), false);
+			wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
+					  skb->data, skb_headlen(skb), false);
+		}
 		kfree_skb(skb);
 		goto again;
 	}
 
 	if (unlikely(skb->len < ETH_HLEN + snaplen)) {
 		wil_err(wil, "Short frame, len = %d\n", skb->len);
-		/* TODO: process it (i.e. BAR) */
 		stats->rx_short_frame++;
 		kfree_skb(skb);
 		goto again;
