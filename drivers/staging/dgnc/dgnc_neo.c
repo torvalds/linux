@@ -1390,7 +1390,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 	/* If port is "stopped", don't send any data to the UART */
 	if ((ch->ch_flags & CH_FORCED_STOP) ||
-		 (ch->ch_flags & CH_BREAK_SENDING))
+	    (ch->ch_flags & CH_BREAK_SENDING))
 		goto exit_unlock;
 
 	/*

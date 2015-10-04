@@ -237,7 +237,7 @@ static int dgnc_start(void)
 	}
 
 	dev = device_create(dgnc_class, NULL,
-			MKDEV(dgnc_Major, 0),
+			    MKDEV(dgnc_Major, 0),
 			NULL, "dgnc_mgmt");
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);

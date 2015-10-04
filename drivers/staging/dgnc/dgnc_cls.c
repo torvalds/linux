@@ -518,7 +518,7 @@ static void cls_param(struct tty_struct *tty)
 		 * unit is NOT open
 		 */
 		if (!(ch->ch_tun.un_flags & UN_ISOPEN) &&
-					 (un->un_type == DGNC_PRINT))
+		    (un->un_type == DGNC_PRINT))
 			baud = C_BAUD(ch->ch_pun.un_tty) & 0xff;
 		else
 			baud = C_BAUD(ch->ch_tun.un_tty) & 0xff;
@@ -532,7 +532,7 @@ static void cls_param(struct tty_struct *tty)
 		jindex = baud;
 
 		if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) &&
-								(jindex < 16)) {
+		    (jindex < 16)) {
 			baud = bauds[iindex][jindex];
 		} else {
 			baud = 0;
@@ -641,7 +641,7 @@ static void cls_param(struct tty_struct *tty)
 		 * disable flow control
 		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
-					 (ch->ch_stopc == _POSIX_VDISABLE))
+		    (ch->ch_stopc == _POSIX_VDISABLE))
 			cls_set_no_output_flow_control(ch);
 		else
 			cls_set_ixon_flow_control(ch);
@@ -657,7 +657,7 @@ static void cls_param(struct tty_struct *tty)
 		 * flow control
 		 */
 		if ((ch->ch_startc == _POSIX_VDISABLE) ||
-				(ch->ch_stopc == _POSIX_VDISABLE))
+		    (ch->ch_stopc == _POSIX_VDISABLE))
 			cls_set_no_input_flow_control(ch);
 		else
 			cls_set_ixoff_flow_control(ch);
@@ -933,7 +933,7 @@ static void cls_flush_uart_write(struct channel_t *ch)
 		return;
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
-						&ch->ch_cls_uart->isr_fcr);
+	       &ch->ch_cls_uart->isr_fcr);
 	udelay(10);
 
 	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
@@ -979,7 +979,7 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 
 	/* If port is "stopped", don't send any data to the UART */
 	if ((ch->ch_flags & CH_FORCED_STOP) ||
-				 (ch->ch_flags & CH_BREAK_SENDING))
+	    (ch->ch_flags & CH_BREAK_SENDING))
 		goto exit_unlock;
 
 	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
@@ -1169,7 +1169,7 @@ static void cls_uart_init(struct channel_t *ch)
 	readb(&ch->ch_cls_uart->txrx);
 
 	writeb((UART_FCR_ENABLE_FIFO|UART_FCR_CLEAR_RCVR|UART_FCR_CLEAR_XMIT),
-						 &ch->ch_cls_uart->isr_fcr);
+	       &ch->ch_cls_uart->isr_fcr);
 	udelay(10);
 
 	ch->ch_flags |= (CH_FIFO_ENABLED | CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);

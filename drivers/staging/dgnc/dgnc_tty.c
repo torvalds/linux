@@ -365,12 +365,12 @@ int dgnc_tty_init(struct dgnc_board *brd)
 			struct device *classp;
 
 			classp = tty_register_device(&brd->SerialDriver, i,
-				&(ch->ch_bd->pdev->dev));
+						     &(ch->ch_bd->pdev->dev));
 			ch->ch_tun.un_sysfs = classp;
 			dgnc_create_tty_sysfs(&ch->ch_tun, classp);
 
 			classp = tty_register_device(&brd->PrintDriver, i,
-				&(ch->ch_bd->pdev->dev));
+						     &(ch->ch_bd->pdev->dev));
 			ch->ch_pun.un_sysfs = classp;
 			dgnc_create_tty_sysfs(&ch->ch_pun, classp);
 		}
@@ -934,7 +934,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_tun.un_flags & UN_ISOPEN) {
 		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-			ch->ch_tun.un_tty->ldisc->ops->write_wakeup) {
+		    ch->ch_tun.un_tty->ldisc->ops->write_wakeup) {
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
 			spin_lock_irqsave(&ch->ch_lock, flags);
@@ -948,7 +948,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 		 */
 		if (ch->ch_tun.un_flags & UN_EMPTY) {
 			if ((qlen == 0) &&
-			   (ch->ch_bd->bd_ops->get_uart_bytes_left(ch) == 0)) {
+			    (ch->ch_bd->bd_ops->get_uart_bytes_left(ch) == 0)) {
 				ch->ch_tun.un_flags &= ~(UN_EMPTY);
 
 				/*
@@ -976,7 +976,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_pun.un_flags & UN_ISOPEN) {
 		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-			ch->ch_pun.un_tty->ldisc->ops->write_wakeup) {
+		    ch->ch_pun.un_tty->ldisc->ops->write_wakeup) {
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
 			spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1038,7 +1038,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	 * sleep waiting for it to happen or they cancel the open.
 	 */
 	rc = wait_event_interruptible(brd->state_wait,
-		(brd->state & BOARD_READY));
+				      (brd->state & BOARD_READY));
 
 	if (rc)
 		return rc;
@@ -1440,7 +1440,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 */
 		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int)ch->ch_digi.digi_offlen);
+				   (int)ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
 		}
 
@@ -1487,7 +1487,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 */
 		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int)ch->ch_digi.digi_offlen);
+				   (int)ch->ch_digi.digi_offlen);
 			ch->ch_flags &= ~CH_PRON;
 		}
 	}
@@ -1690,7 +1690,7 @@ static int dgnc_tty_put_char(struct tty_struct *tty, unsigned char c)
  * In here exists all the Transparent Print magic as well.
  */
 static int dgnc_tty_write(struct tty_struct *tty,
-		const unsigned char *buf, int count)
+			  const unsigned char *buf, int count)
 {
 	struct channel_t *ch = NULL;
 	struct un_t *un = NULL;
@@ -1756,7 +1756,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if ((un->un_type == DGNC_PRINT) && !(ch->ch_flags & CH_PRON)) {
 		dgnc_wmove(ch, ch->ch_digi.digi_onstr,
-		    (int)ch->ch_digi.digi_onlen);
+			   (int)ch->ch_digi.digi_onlen);
 		head = (ch->ch_w_head) & tmask;
 		ch->ch_flags |= CH_PRON;
 	}
@@ -1767,7 +1767,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if ((un->un_type != DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
 		dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-			(int)ch->ch_digi.digi_offlen);
+			   (int)ch->ch_digi.digi_offlen);
 		head = (ch->ch_w_head) & tmask;
 		ch->ch_flags &= ~CH_PRON;
 	}
@@ -1880,7 +1880,7 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
  */
 
 static int dgnc_tty_tiocmset(struct tty_struct *tty,
-		unsigned int set, unsigned int clear)
+			     unsigned int set, unsigned int clear)
 {
 	struct dgnc_board *bd;
 	struct channel_t *ch;
@@ -2547,7 +2547,7 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
  * The usual assortment of ioctl's
  */
 static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
-		unsigned long arg)
+			  unsigned long arg)
 {
 	struct dgnc_board *bd;
 	struct channel_t *ch;
