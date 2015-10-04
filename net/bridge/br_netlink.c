@@ -769,6 +769,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 				 .len  = ETH_ALEN },
 	[IFLA_BR_MCAST_ROUTER] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_SNOOPING] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_QUERY_USE_IFADDR] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -880,6 +881,13 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
+
+	if (data[IFLA_BR_MCAST_QUERY_USE_IFADDR]) {
+		u8 val;
+
+		val = nla_get_u8(data[IFLA_BR_MCAST_QUERY_USE_IFADDR]);
+		br->multicast_query_use_ifaddr = !!val;
+	}
 #endif
 
 	return 0;
@@ -912,6 +920,7 @@ static size_t br_get_size(const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_ROUTER */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_SNOOPING */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERY_USE_IFADDR */
 #endif
 	       0;
 }
@@ -971,7 +980,9 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
-	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled))
+	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
+		       br->multicast_query_use_ifaddr))
 		return -EMSGSIZE;
 #endif
 
