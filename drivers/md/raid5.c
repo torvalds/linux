@@ -7582,6 +7582,7 @@ static void raid5_quiesce(struct mddev *mddev, int state)
 		unlock_all_device_hash_locks_irq(conf);
 		break;
 	}
+	r5l_quiesce(conf->log, state);
 }
 
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)

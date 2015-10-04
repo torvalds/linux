@@ -748,6 +748,24 @@ static void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 	md_wakeup_thread(log->reclaim_thread);
 }
 
+void r5l_quiesce(struct r5l_log *log, int state)
+{
+	if (!log || state == 2)
+		return;
+	if (state == 0) {
+		log->reclaim_thread = md_register_thread(r5l_reclaim_thread,
+					log->rdev->mddev, "reclaim");
+	} else if (state == 1) {
+		/*
+		 * at this point all stripes are finished, so io_unit is at
+		 * least in STRIPE_END state
+		 */
+		r5l_wake_reclaim(log, -1L);
+		md_unregister_thread(&log->reclaim_thread);
+		r5l_do_reclaim(log);
+	}
+}
+
 struct r5l_recovery_ctx {
 	struct page *meta_page;		/* current meta */
 	sector_t meta_total_blocks;	/* total size of current meta and data */
@@ -1120,19 +1138,7 @@ io_kc:
 
 void r5l_exit_log(struct r5l_log *log)
 {
-	/*
-	 * at this point all stripes are finished, so io_unit is at least in
-	 * STRIPE_END state
-	 */
-	r5l_wake_reclaim(log, -1L);
 	md_unregister_thread(&log->reclaim_thread);
-	r5l_do_reclaim(log);
-	/*
-	 * force a super update, r5l_do_reclaim might updated the super.
-	 * mddev->thread is already stopped
-	 */
-	md_update_sb(log->rdev->mddev, 1);
-
 	kmem_cache_destroy(log->io_kc);
 	kfree(log);
 }
