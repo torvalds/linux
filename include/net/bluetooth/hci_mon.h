@@ -39,6 +39,8 @@ struct hci_mon_hdr {
 #define HCI_MON_ACL_RX_PKT	5
 #define HCI_MON_SCO_TX_PKT	6
 #define HCI_MON_SCO_RX_PKT	7
+#define HCI_MON_OPEN_INDEX	8
+#define HCI_MON_CLOSE_INDEX	9
 
 struct hci_mon_new_index {
 	__u8		type;
