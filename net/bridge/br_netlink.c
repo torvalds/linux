@@ -767,6 +767,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_GROUP_FWD_MASK] = { .type = NLA_U16 },
 	[IFLA_BR_GROUP_ADDR] = { .type = NLA_BINARY,
 				 .len  = ETH_ALEN },
+	[IFLA_BR_MCAST_ROUTER] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -862,6 +863,16 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_FDB_FLUSH])
 		br_fdb_flush(br);
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (data[IFLA_BR_MCAST_ROUTER]) {
+		u8 multicast_router = nla_get_u8(data[IFLA_BR_MCAST_ROUTER]);
+
+		err = br_multicast_set_router(br, multicast_router);
+		if (err)
+			return err;
+	}
+#endif
+
 	return 0;
 }
 
@@ -889,6 +900,9 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_GC_TIMER */
 	       nla_total_size(ETH_ALEN) +       /* IFLA_BR_GROUP_ADDR */
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_ROUTER */
+#endif
 	       0;
 }
 
@@ -942,6 +956,11 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto))
+		return -EMSGSIZE;
+#endif
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router))
 		return -EMSGSIZE;
 #endif
 
