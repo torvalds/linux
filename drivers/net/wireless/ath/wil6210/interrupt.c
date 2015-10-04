@@ -347,7 +347,12 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	wil6210_mask_irq_misc(wil);
 
 	if (isr & ISR_MISC_FW_ERROR) {
-		wil_err(wil, "Firmware error detected\n");
+		u32 fw_assert_code = wil_r(wil, RGF_FW_ASSERT_CODE);
+		u32 ucode_assert_code = wil_r(wil, RGF_UCODE_ASSERT_CODE);
+
+		wil_err(wil,
+			"Firmware error detected, assert codes FW 0x%08x, UCODE 0x%08x\n",
+			fw_assert_code, ucode_assert_code);
 		clear_bit(wil_status_fwready, wil->status);
 		/*
 		 * do not clear @isr here - we do 2-nd part in thread

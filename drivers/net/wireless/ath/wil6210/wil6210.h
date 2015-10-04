@@ -246,6 +246,10 @@ struct RGF_ICR {
 #define RGF_USER_JTAG_DEV_ID	(0x880b34) /* device ID */
 	#define JTAG_DEV_ID_SPARROW_B0	(0x2632072f)
 
+/* crash codes for FW/Ucode stored here */
+#define RGF_FW_ASSERT_CODE		(0x91f020)
+#define RGF_UCODE_ASSERT_CODE		(0x91f028)
+
 enum {
 	HW_VER_UNKNOWN,
 	HW_VER_SPARROW_B0, /* JTAG_DEV_ID_SPARROW_B0 */
