@@ -111,7 +111,7 @@ static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
  * Register bulk at the sender for later transfer.
  * Returns 0 on success or error code.
  */
-int ptlrpc_register_bulk(struct ptlrpc_request *req)
+static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 {
 	struct ptlrpc_bulk_desc *desc = req->rq_bulk;
 	lnet_process_id_t peer;
@@ -232,7 +232,6 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_register_bulk);
 
 /**
  * Disconnect a bulk desc from the network. Idempotent. Not

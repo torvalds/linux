@@ -2296,7 +2296,6 @@ void ptlrpc_connection_fini(void);
  * @{
  */
 
-int ptlrpc_register_bulk(struct ptlrpc_request *req);
 int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async);
 
 static inline int ptlrpc_client_bulk_active(struct ptlrpc_request *req)
