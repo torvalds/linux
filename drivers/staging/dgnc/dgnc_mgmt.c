@@ -99,7 +99,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *uarg = (void __user *) arg;
 
 	switch (cmd) {
-
 	case DIGI_GETDD:
 	{
 		/*

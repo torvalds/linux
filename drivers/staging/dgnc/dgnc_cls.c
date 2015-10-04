@@ -378,7 +378,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
-
 		isr = readb(&ch->ch_cls_uart->isr_fcr);
 
 		/* Bail if no pending interrupt on port */
@@ -472,7 +471,6 @@ static void cls_param(struct tty_struct *tty)
 		ch->ch_old_baud = 0;
 		return;
 	} else if (ch->ch_custom_speed) {
-
 		baud = ch->ch_custom_speed;
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
@@ -704,7 +702,6 @@ static void cls_tasklet(unsigned long data)
 	 * If board is ready, parse deeper to see if there is anything to do.
 	 */
 	if ((state == BOARD_READY) && (ports > 0)) {
-
 		/* Loop on each port */
 		for (i = 0; i < ports; i++) {
 			ch = bd->channels[i];
@@ -999,7 +996,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	n = min(n, qlen);
 
 	while (n > 0) {
-
 		/*
 		 * If RTS Toggle mode is on, turn on RTS now if not already set,
 		 * and make sure we get an event when the data transfer has

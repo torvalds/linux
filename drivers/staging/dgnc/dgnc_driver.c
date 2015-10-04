@@ -417,7 +417,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->irq = pci_irq;
 
 	switch (brd->device) {
-
 	case PCI_DEVICE_CLASSIC_4_DID:
 	case PCI_DEVICE_CLASSIC_8_DID:
 	case PCI_DEVICE_CLASSIC_4_422_DID:
@@ -516,7 +515,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		dgnc_do_remap(brd);
 
 		if (brd->re_map_membase) {
-
 			/* Read and store the dvid after remapping */
 			brd->dvid = readb(brd->re_map_membase + 0x8D);
 
@@ -609,7 +607,6 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
  */
 static void dgnc_do_remap(struct dgnc_board *brd)
 {
-
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 

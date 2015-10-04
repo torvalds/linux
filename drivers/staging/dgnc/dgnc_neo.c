@@ -320,7 +320,6 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 /* change UARTs start/stop chars */
 static inline void neo_set_new_start_stop_chars(struct channel_t *ch)
 {
-
 	/* if hardware flow control is set, then skip this whole thing */
 	if (ch->ch_digi.digi_flags & (CTSPACE | RTSPACE) || ch->ch_c_cflag & CRTSCTS)
 		return;
@@ -387,7 +386,6 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
-
 		isr = readb(&ch->ch_neo_uart->isr_fcr);
 
 		/* Bail if no pending interrupt */
@@ -626,7 +624,6 @@ static void neo_param(struct tty_struct *tty)
 		return;
 
 	} else if (ch->ch_custom_speed) {
-
 		baud = ch->ch_custom_speed;
 		/* Handle transition from B0 */
 		if (ch->ch_flags & CH_BAUD0) {
@@ -954,7 +951,6 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 	/* Loop on each port */
 	while ((uart_poll & 0xff) != 0) {
-
 		tmp = uart_poll;
 
 		/* Check current port to see if it has interrupt pending */
@@ -977,7 +973,6 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 		/* Switch on type of interrupt we have */
 		switch (type) {
-
 		case UART_17158_RXRDY_TIMEOUT:
 			/*
 			 * RXRDY Time-out is cleared by reading data in the
@@ -1141,7 +1136,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	total = min(total, qleft);
 
 	while (total > 0) {
-
 		/*
 		 * Grab the linestatus register, we need to check
 		 * to see if there are any errors in the FIFO.
@@ -1206,7 +1200,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	 * Also deal with any possible queue overflow here as well.
 	 */
 	while (1) {
-
 		/*
 		 * Its possible we have a linestatus from the loop above
 		 * this, so we "OR" on any extra bits.
@@ -1339,7 +1332,6 @@ static void neo_flush_uart_write(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 
 	for (i = 0; i < 10; i++) {
-
 		/* Check to see if the UART feels it completely flushed the FIFO. */
 		tmp = readb(&ch->ch_neo_uart->isr_fcr);
 		if (tmp & 4)
@@ -1368,7 +1360,6 @@ static void neo_flush_uart_read(struct channel_t *ch)
 	neo_pci_posting_flush(ch->ch_bd);
 
 	for (i = 0; i < 10; i++) {
-
 		/* Check to see if the UART feels it completely flushed the FIFO. */
 		tmp = readb(&ch->ch_neo_uart->isr_fcr);
 		if (tmp & 2)
@@ -1473,7 +1464,6 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	n = min(n, qlen);
 
 	while (n > 0) {
-
 		s = ((head >= tail) ? head : WQUEUESIZE) - tail;
 		s = min(s, n);
 
@@ -1632,7 +1622,6 @@ static void neo_send_stop_character(struct channel_t *ch)
  */
 static void neo_uart_init(struct channel_t *ch)
 {
-
 	writeb(0, &ch->ch_neo_uart->ier);
 	writeb(0, &ch->ch_neo_uart->efr);
 	writeb(UART_EFR_ECB, &ch->ch_neo_uart->efr);

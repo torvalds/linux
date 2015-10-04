@@ -543,7 +543,6 @@ void dgnc_input(struct channel_t *ch)
 	    !(ch->ch_tun.un_flags & UN_ISOPEN) ||
 	    !(tp->termios.c_cflag & CREAD) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
-
 		ch->ch_r_head = tail;
 
 		/* Force queue flow control to be released, if needed */
@@ -706,7 +705,6 @@ void dgnc_carrier(struct channel_t *ch)
 	 * Test for a VIRTUAL carrier transition to HIGH.
 	 */
 	if (((ch->ch_flags & CH_FCAR) == 0) && (virt_carrier == 1)) {
-
 		/*
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
@@ -720,7 +718,6 @@ void dgnc_carrier(struct channel_t *ch)
 	 * Test for a PHYSICAL carrier transition to HIGH.
 	 */
 	if (((ch->ch_flags & CH_CD) == 0) && (phys_carrier == 1)) {
-
 		/*
 		 * When carrier rises, wake any threads waiting
 		 * for carrier in the open routine.
@@ -741,7 +738,6 @@ void dgnc_carrier(struct channel_t *ch)
 	 */
 	if ((virt_carrier == 0) && ((ch->ch_flags & CH_CD) != 0) &&
 	    (phys_carrier == 0)) {
-
 		/*
 		 *   When carrier drops:
 		 *
@@ -1148,7 +1144,6 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	 * Initialize if neither terminal or printer is open.
 	 */
 	if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) & UN_ISOPEN)) {
-
 		/*
 		 * Flush input queues.
 		 */
@@ -1241,7 +1236,6 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 
 	/* Loop forever */
 	while (1) {
-
 		sleep_on_un_flags = 0;
 
 		/*
@@ -1269,7 +1263,6 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 		if (!((ch->ch_tun.un_flags |
 		    ch->ch_pun.un_flags) &
 		    UN_CLOSING)) {
-
 			/*
 			 * Our conditions to leave cleanly and happily:
 			 * 1) NONBLOCKING on the tty is set.
@@ -1440,7 +1433,6 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	 */
 	if ((ch->ch_open_count == 0) &&
 	    !(ch->ch_digi.digi_flags & DIGI_PRINTER)) {
-
 		ch->ch_flags &= ~(CH_STOPI | CH_FORCED_STOPI);
 
 		/*
@@ -1469,7 +1461,6 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 * If we have HUPCL set, lower DTR and RTS
 		 */
 		if (ch->ch_c_cflag & HUPCL) {
-
 			/* Drop RTS/DTR */
 			ch->ch_mostat &= ~(UART_MCR_DTR | UART_MCR_RTS);
 			bd->bd_ops->assert_modem_signals(ch);
@@ -2588,7 +2579,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 
 	switch (cmd) {
-
 	/* Here are all the standard ioctl's that we MUST implement */
 
 	case TCSBRK:
@@ -2801,7 +2791,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		/* set information for ditty */
 		if (cmd == (DIGI_SETAW)) {
-
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			rc = ch->ch_bd->bd_ops->drain(tty, 0);
 
