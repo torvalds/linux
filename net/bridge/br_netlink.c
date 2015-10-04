@@ -781,6 +781,9 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_QUERY_INTVL] = { .type = NLA_U64 },
 	[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL] = { .type = NLA_U64 },
 	[IFLA_BR_MCAST_STARTUP_QUERY_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_NF_CALL_IPTABLES] = { .type = NLA_U8 },
+	[IFLA_BR_NF_CALL_IP6TABLES] = { .type = NLA_U8 },
+	[IFLA_BR_NF_CALL_ARPTABLES] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -970,6 +973,25 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		br->multicast_startup_query_interval = clock_t_to_jiffies(val);
 	}
 #endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	if (data[IFLA_BR_NF_CALL_IPTABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IPTABLES]);
+
+		br->nf_call_iptables = val ? true : false;
+	}
+
+	if (data[IFLA_BR_NF_CALL_IP6TABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IP6TABLES]);
+
+		br->nf_call_ip6tables = val ? true : false;
+	}
+
+	if (data[IFLA_BR_NF_CALL_ARPTABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_ARPTABLES]);
+
+		br->nf_call_arptables = val ? true : false;
+	}
+#endif
 
 	return 0;
 }
@@ -1013,6 +1035,11 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_INTVL */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_RESPONSE_INTVL */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_INTVL */
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IPTABLES */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IP6TABLES */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_ARPTABLES */
 #endif
 	       0;
 }
@@ -1070,7 +1097,6 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto))
 		return -EMSGSIZE;
 #endif
-
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled) ||
@@ -1103,6 +1129,15 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_startup_query_interval);
 	if (nla_put_u64(skb, IFLA_BR_MCAST_STARTUP_QUERY_INTVL, clockval))
+		return -EMSGSIZE;
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	if (nla_put_u8(skb, IFLA_BR_NF_CALL_IPTABLES,
+		       br->nf_call_iptables ? 1 : 0) ||
+	    nla_put_u8(skb, IFLA_BR_NF_CALL_IP6TABLES,
+		       br->nf_call_ip6tables ? 1 : 0) ||
+	    nla_put_u8(skb, IFLA_BR_NF_CALL_ARPTABLES,
+		       br->nf_call_arptables ? 1 : 0))
 		return -EMSGSIZE;
 #endif
 
