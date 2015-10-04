@@ -528,10 +528,11 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		/* CAPDAC Scale = 21pF_typ / 127
+		/*
+		 * CAPDAC Scale = 21pF_typ / 127
 		 * CIN Scale = 8.192pF / 2^24
 		 * Offset Scale = CAPDAC Scale / CIN Scale = 338646
-		 * */
+		 */
 
 		val /= 338646;
 
@@ -600,7 +601,8 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		switch (chan->type) {
 		case IIO_TEMP:
-		/* temperature in milli degrees Celsius
+		/*
+		 * temperature in milli degrees Celsius
 		 * T = ((*val / 2048) - 4096) * 1000
 		 */
 			*val = (*val * 125) / 256;
