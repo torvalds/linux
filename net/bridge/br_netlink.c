@@ -774,6 +774,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_HASH_ELASTICITY] = { .type = NLA_U32 },
 	[IFLA_BR_MCAST_HASH_MAX] = { .type = NLA_U32 },
 	[IFLA_BR_MCAST_LAST_MEMBER_CNT] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_STARTUP_QUERY_CNT] = { .type = NLA_U32 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -920,6 +921,12 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 
 		br->multicast_last_member_count = val;
 	}
+
+	if (data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]) {
+		u32 val = nla_get_u32(data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]);
+
+		br->multicast_startup_query_count = val;
+	}
 #endif
 
 	return 0;
@@ -942,8 +949,8 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_BRIDGE_ID */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_ROOT_PORT */
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
-	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE */
-	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_HELLO_TIMER */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TCN_TIMER */
 	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
@@ -954,9 +961,10 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_SNOOPING */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERY_USE_IFADDR */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERIER */
-	       nla_total_size(sizeof(u32)) +     /* IFLA_BR_MCAST_HASH_ELASTICITY */
-	       nla_total_size(sizeof(u32)) +     /* IFLA_BR_MCAST_HASH_MAX */
-	       nla_total_size(sizeof(u32)) +     /* IFLA_BR_MCAST_LAST_MEMBER_CNT */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_HASH_ELASTICITY */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_HASH_MAX */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_LAST_MEMBER_CNT */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_CNT */
 #endif
 	       0;
 }
@@ -1024,7 +1032,9 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 			br->hash_elasticity) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
-			br->multicast_last_member_count))
+			br->multicast_last_member_count) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
+			br->multicast_startup_query_count))
 		return -EMSGSIZE;
 #endif
 
