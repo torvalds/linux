@@ -860,12 +860,17 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
 	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE */
 	       nla_total_size(sizeof(u8)) +    /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_HELLO_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TCN_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_GC_TIMER */
 	       0;
 }
 
 static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 {
 	struct net_bridge *br = netdev_priv(brdev);
+	u64 hello_timer, tcn_timer, topology_change_timer, gc_timer;
 	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
 	u32 hello_time = jiffies_to_clock_t(br->hello_time);
 	u32 age_time = jiffies_to_clock_t(br->max_age);
@@ -882,6 +887,10 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	memcpy(root_id.addr, br->designated_root.addr, sizeof(root_id.addr));
 	memcpy(bridge_id.prio, br->bridge_id.prio, sizeof(bridge_id.prio));
 	memcpy(bridge_id.addr, br->bridge_id.addr, sizeof(bridge_id.addr));
+	hello_timer = br_timer_value(&br->hello_timer);
+	tcn_timer = br_timer_value(&br->tcn_timer);
+	topology_change_timer = br_timer_value(&br->topology_change_timer);
+	gc_timer = br_timer_value(&br->gc_timer);
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
@@ -897,7 +906,12 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_ROOT_PATH_COST, br->root_path_cost) ||
 	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE, br->topology_change) ||
 	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE_DETECTED,
-		       br->topology_change_detected))
+		       br->topology_change_detected) ||
+	    nla_put_u64(skb, IFLA_BR_HELLO_TIMER, hello_timer) ||
+	    nla_put_u64(skb, IFLA_BR_TCN_TIMER, tcn_timer) ||
+	    nla_put_u64(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER,
+			topology_change_timer) ||
+	    nla_put_u64(skb, IFLA_BR_GC_TIMER, gc_timer))
 		return -EMSGSIZE;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
