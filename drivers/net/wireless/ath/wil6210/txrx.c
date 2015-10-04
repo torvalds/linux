@@ -379,14 +379,16 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	u16 dmalen;
 	u8 ftype;
 	int cid;
-	int i = (int)vring->swhead;
+	int i;
 	struct wil_net_stats *stats;
 
 	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
 
+again:
 	if (unlikely(wil_vring_is_empty(vring)))
 		return NULL;
 
+	i = (int)vring->swhead;
 	_d = &vring->va[i].rx;
 	if (unlikely(!(_d->dma.status & RX_DMA_STATUS_DU))) {
 		/* it is not error, we just reached end of Rx done area */
@@ -398,7 +400,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_vring_advance_head(vring, 1);
 	if (!skb) {
 		wil_err(wil, "No Rx skb at [%d]\n", i);
-		return NULL;
+		goto again;
 	}
 	d = wil_skb_rxdesc(skb);
 	*d = *_d;
@@ -412,10 +414,14 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
+	cid = wil_rxdesc_cid(d);
+	stats = &wil->sta[cid].stats;
+
 	if (unlikely(dmalen > sz)) {
 		wil_err(wil, "Rx size too large: %d bytes!\n", dmalen);
+		stats->rx_large_frame++;
 		kfree_skb(skb);
-		return NULL;
+		goto again;
 	}
 	skb_trim(skb, dmalen);
 
@@ -424,8 +430,6 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 			  skb->data, skb_headlen(skb), false);
 
-	cid = wil_rxdesc_cid(d);
-	stats = &wil->sta[cid].stats;
 	stats->last_mcs_rx = wil_rxdesc_mcs(d);
 	if (stats->last_mcs_rx < ARRAY_SIZE(stats->rx_per_mcs))
 		stats->rx_per_mcs[stats->last_mcs_rx]++;
@@ -446,15 +450,17 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	if (unlikely(ftype != IEEE80211_FTYPE_DATA)) {
 		wil_dbg_txrx(wil, "Non-data frame ftype 0x%08x\n", ftype);
 		/* TODO: process it */
+		stats->rx_non_data_frame++;
 		kfree_skb(skb);
-		return NULL;
+		goto again;
 	}
 
 	if (unlikely(skb->len < ETH_HLEN + snaplen)) {
 		wil_err(wil, "Short frame, len = %d\n", skb->len);
 		/* TODO: process it (i.e. BAR) */
+		stats->rx_short_frame++;
 		kfree_skb(skb);
-		return NULL;
+		goto again;
 	}
 
 	/* L4 IDENT is on when HW calculated checksum, check status
