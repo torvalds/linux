@@ -39,6 +39,9 @@ static size_t jffs2_trusted_listxattr(struct dentry *dentry, char *list,
 {
 	size_t retlen = XATTR_TRUSTED_PREFIX_LEN + name_len + 1;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return 0;
+
 	if (list && retlen<=list_size) {
 		strcpy(list, XATTR_TRUSTED_PREFIX);
 		strcpy(list + XATTR_TRUSTED_PREFIX_LEN, name);
