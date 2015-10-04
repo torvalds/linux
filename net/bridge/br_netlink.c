@@ -764,6 +764,27 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
 	[IFLA_BR_VLAN_FILTERING] = { .type = NLA_U8 },
 	[IFLA_BR_VLAN_PROTOCOL] = { .type = NLA_U16 },
+	[IFLA_BR_GROUP_FWD_MASK] = { .type = NLA_U16 },
+	[IFLA_BR_GROUP_ADDR] = { .type = NLA_BINARY,
+				 .len  = ETH_ALEN },
+	[IFLA_BR_MCAST_ROUTER] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_SNOOPING] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_QUERY_USE_IFADDR] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_QUERIER] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_HASH_ELASTICITY] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_HASH_MAX] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_LAST_MEMBER_CNT] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_STARTUP_QUERY_CNT] = { .type = NLA_U32 },
+	[IFLA_BR_MCAST_LAST_MEMBER_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_MCAST_MEMBERSHIP_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_MCAST_QUERIER_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_MCAST_QUERY_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_MCAST_STARTUP_QUERY_INTVL] = { .type = NLA_U64 },
+	[IFLA_BR_NF_CALL_IPTABLES] = { .type = NLA_U8 },
+	[IFLA_BR_NF_CALL_IP6TABLES] = { .type = NLA_U8 },
+	[IFLA_BR_NF_CALL_ARPTABLES] = { .type = NLA_U8 },
+	[IFLA_BR_VLAN_DEFAULT_PVID] = { .type = NLA_U16 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -827,6 +848,158 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
+
+	if (data[IFLA_BR_VLAN_DEFAULT_PVID]) {
+		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
+
+		err = __br_vlan_set_default_pvid(br, defpvid);
+		if (err)
+			return err;
+	}
+#endif
+
+	if (data[IFLA_BR_GROUP_FWD_MASK]) {
+		u16 fwd_mask = nla_get_u16(data[IFLA_BR_GROUP_FWD_MASK]);
+
+		if (fwd_mask & BR_GROUPFWD_RESTRICTED)
+			return -EINVAL;
+		br->group_fwd_mask = fwd_mask;
+	}
+
+	if (data[IFLA_BR_GROUP_ADDR]) {
+		u8 new_addr[ETH_ALEN];
+
+		if (nla_len(data[IFLA_BR_GROUP_ADDR]) != ETH_ALEN)
+			return -EINVAL;
+		memcpy(new_addr, nla_data(data[IFLA_BR_GROUP_ADDR]), ETH_ALEN);
+		if (!is_link_local_ether_addr(new_addr))
+			return -EINVAL;
+		if (new_addr[5] == 1 ||		/* 802.3x Pause address */
+		    new_addr[5] == 2 ||		/* 802.3ad Slow protocols */
+		    new_addr[5] == 3)		/* 802.1X PAE address */
+			return -EINVAL;
+		spin_lock_bh(&br->lock);
+		memcpy(br->group_addr, new_addr, sizeof(br->group_addr));
+		spin_unlock_bh(&br->lock);
+		br->group_addr_set = true;
+		br_recalculate_fwd_mask(br);
+	}
+
+	if (data[IFLA_BR_FDB_FLUSH])
+		br_fdb_flush(br);
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (data[IFLA_BR_MCAST_ROUTER]) {
+		u8 multicast_router = nla_get_u8(data[IFLA_BR_MCAST_ROUTER]);
+
+		err = br_multicast_set_router(br, multicast_router);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_MCAST_SNOOPING]) {
+		u8 mcast_snooping = nla_get_u8(data[IFLA_BR_MCAST_SNOOPING]);
+
+		err = br_multicast_toggle(br, mcast_snooping);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_MCAST_QUERY_USE_IFADDR]) {
+		u8 val;
+
+		val = nla_get_u8(data[IFLA_BR_MCAST_QUERY_USE_IFADDR]);
+		br->multicast_query_use_ifaddr = !!val;
+	}
+
+	if (data[IFLA_BR_MCAST_QUERIER]) {
+		u8 mcast_querier = nla_get_u8(data[IFLA_BR_MCAST_QUERIER]);
+
+		err = br_multicast_set_querier(br, mcast_querier);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_MCAST_HASH_ELASTICITY]) {
+		u32 val = nla_get_u32(data[IFLA_BR_MCAST_HASH_ELASTICITY]);
+
+		br->hash_elasticity = val;
+	}
+
+	if (data[IFLA_BR_MCAST_HASH_MAX]) {
+		u32 hash_max = nla_get_u32(data[IFLA_BR_MCAST_HASH_MAX]);
+
+		err = br_multicast_set_hash_max(br, hash_max);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_MCAST_LAST_MEMBER_CNT]) {
+		u32 val = nla_get_u32(data[IFLA_BR_MCAST_LAST_MEMBER_CNT]);
+
+		br->multicast_last_member_count = val;
+	}
+
+	if (data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]) {
+		u32 val = nla_get_u32(data[IFLA_BR_MCAST_STARTUP_QUERY_CNT]);
+
+		br->multicast_startup_query_count = val;
+	}
+
+	if (data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_LAST_MEMBER_INTVL]);
+
+		br->multicast_last_member_interval = clock_t_to_jiffies(val);
+	}
+
+	if (data[IFLA_BR_MCAST_MEMBERSHIP_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_MEMBERSHIP_INTVL]);
+
+		br->multicast_membership_interval = clock_t_to_jiffies(val);
+	}
+
+	if (data[IFLA_BR_MCAST_QUERIER_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERIER_INTVL]);
+
+		br->multicast_querier_interval = clock_t_to_jiffies(val);
+	}
+
+	if (data[IFLA_BR_MCAST_QUERY_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERY_INTVL]);
+
+		br->multicast_query_interval = clock_t_to_jiffies(val);
+	}
+
+	if (data[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_QUERY_RESPONSE_INTVL]);
+
+		br->multicast_query_response_interval = clock_t_to_jiffies(val);
+	}
+
+	if (data[IFLA_BR_MCAST_STARTUP_QUERY_INTVL]) {
+		u64 val = nla_get_u64(data[IFLA_BR_MCAST_STARTUP_QUERY_INTVL]);
+
+		br->multicast_startup_query_interval = clock_t_to_jiffies(val);
+	}
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	if (data[IFLA_BR_NF_CALL_IPTABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IPTABLES]);
+
+		br->nf_call_iptables = val ? true : false;
+	}
+
+	if (data[IFLA_BR_NF_CALL_IP6TABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_IP6TABLES]);
+
+		br->nf_call_ip6tables = val ? true : false;
+	}
+
+	if (data[IFLA_BR_NF_CALL_ARPTABLES]) {
+		u8 val = nla_get_u8(data[IFLA_BR_NF_CALL_ARPTABLES]);
+
+		br->nf_call_arptables = val ? true : false;
+	}
 #endif
 
 	return 0;
@@ -843,6 +1016,40 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_FILTERING */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_VLAN_DEFAULT_PVID */
+#endif
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
+	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
+	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_BRIDGE_ID */
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_ROOT_PORT */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_HELLO_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TCN_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_GC_TIMER */
+	       nla_total_size(ETH_ALEN) +       /* IFLA_BR_GROUP_ADDR */
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_ROUTER */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_SNOOPING */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERY_USE_IFADDR */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_QUERIER */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_HASH_ELASTICITY */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_HASH_MAX */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_LAST_MEMBER_CNT */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_CNT */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_LAST_MEMBER_INTVL */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_MEMBERSHIP_INTVL */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERIER_INTVL */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_INTVL */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_RESPONSE_INTVL */
+	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_INTVL */
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IPTABLES */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IP6TABLES */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_ARPTABLES */
 #endif
 	       0;
 }
@@ -850,13 +1057,28 @@ static size_t br_get_size(const struct net_device *brdev)
 static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 {
 	struct net_bridge *br = netdev_priv(brdev);
+	u64 hello_timer, tcn_timer, topology_change_timer, gc_timer, clockval;
 	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
 	u32 hello_time = jiffies_to_clock_t(br->hello_time);
 	u32 age_time = jiffies_to_clock_t(br->max_age);
 	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
 	u32 stp_enabled = br->stp_enabled;
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
+	u16 group_fwd_mask = br->group_fwd_mask;
 	u8 vlan_enabled = br_vlan_enabled(br);
+	struct ifla_bridge_id root_id, bridge_id;
+
+	memset(&bridge_id, 0, sizeof(bridge_id));
+	memset(&root_id, 0, sizeof(root_id));
+	memcpy(root_id.prio, br->designated_root.prio, sizeof(root_id.prio));
+	memcpy(root_id.addr, br->designated_root.addr, sizeof(root_id.addr));
+	memcpy(bridge_id.prio, br->bridge_id.prio, sizeof(bridge_id.prio));
+	memcpy(bridge_id.addr, br->bridge_id.addr, sizeof(bridge_id.addr));
+	hello_timer = br_timer_value(&br->hello_timer);
+	tcn_timer = br_timer_value(&br->tcn_timer);
+	topology_change_timer = br_timer_value(&br->topology_change_timer);
+	gc_timer = br_timer_value(&br->gc_timer);
+	clockval = 0;
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
@@ -864,11 +1086,69 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_AGEING_TIME, ageing_time) ||
 	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
 	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
-	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled))
+	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled) ||
+	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, group_fwd_mask) ||
+	    nla_put(skb, IFLA_BR_ROOT_ID, sizeof(root_id), &root_id) ||
+	    nla_put(skb, IFLA_BR_BRIDGE_ID, sizeof(bridge_id), &bridge_id) ||
+	    nla_put_u16(skb, IFLA_BR_ROOT_PORT, br->root_port) ||
+	    nla_put_u32(skb, IFLA_BR_ROOT_PATH_COST, br->root_path_cost) ||
+	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE, br->topology_change) ||
+	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE_DETECTED,
+		       br->topology_change_detected) ||
+	    nla_put_u64(skb, IFLA_BR_HELLO_TIMER, hello_timer) ||
+	    nla_put_u64(skb, IFLA_BR_TCN_TIMER, tcn_timer) ||
+	    nla_put_u64(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER,
+			topology_change_timer) ||
+	    nla_put_u64(skb, IFLA_BR_GC_TIMER, gc_timer) ||
+	    nla_put(skb, IFLA_BR_GROUP_ADDR, ETH_ALEN, br->group_addr))
 		return -EMSGSIZE;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
-	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto))
+	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
+	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid))
+		return -EMSGSIZE;
+#endif
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_QUERY_USE_IFADDR,
+		       br->multicast_query_use_ifaddr) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_QUERIER, br->multicast_querier) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY,
+			br->hash_elasticity) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
+			br->multicast_last_member_count) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_STARTUP_QUERY_CNT,
+			br->multicast_startup_query_count))
+		return -EMSGSIZE;
+
+	clockval = jiffies_to_clock_t(br->multicast_last_member_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_LAST_MEMBER_INTVL, clockval))
+		return -EMSGSIZE;
+	clockval = jiffies_to_clock_t(br->multicast_membership_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_MEMBERSHIP_INTVL, clockval))
+		return -EMSGSIZE;
+	clockval = jiffies_to_clock_t(br->multicast_querier_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERIER_INTVL, clockval))
+		return -EMSGSIZE;
+	clockval = jiffies_to_clock_t(br->multicast_query_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERY_INTVL, clockval))
+		return -EMSGSIZE;
+	clockval = jiffies_to_clock_t(br->multicast_query_response_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERY_RESPONSE_INTVL, clockval))
+		return -EMSGSIZE;
+	clockval = jiffies_to_clock_t(br->multicast_startup_query_interval);
+	if (nla_put_u64(skb, IFLA_BR_MCAST_STARTUP_QUERY_INTVL, clockval))
+		return -EMSGSIZE;
+#endif
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	if (nla_put_u8(skb, IFLA_BR_NF_CALL_IPTABLES,
+		       br->nf_call_iptables ? 1 : 0) ||
+	    nla_put_u8(skb, IFLA_BR_NF_CALL_IP6TABLES,
+		       br->nf_call_ip6tables ? 1 : 0) ||
+	    nla_put_u8(skb, IFLA_BR_NF_CALL_ARPTABLES,
+		       br->nf_call_arptables ? 1 : 0))
 		return -EMSGSIZE;
 #endif
 
