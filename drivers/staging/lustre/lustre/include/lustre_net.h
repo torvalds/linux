@@ -2289,7 +2289,6 @@ int ptlrpc_connection_put(struct ptlrpc_connection *c);
 struct ptlrpc_connection *ptlrpc_connection_addref(struct ptlrpc_connection *);
 int ptlrpc_connection_init(void);
 void ptlrpc_connection_fini(void);
-lnet_pid_t ptl_get_pid(void);
 
 /* ptlrpc/niobuf.c */
 /**

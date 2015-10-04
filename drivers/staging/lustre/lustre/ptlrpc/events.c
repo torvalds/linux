@@ -521,7 +521,7 @@ static void ptlrpc_ni_fini(void)
 	/* notreached */
 }
 
-lnet_pid_t ptl_get_pid(void)
+static lnet_pid_t ptl_get_pid(void)
 {
 	lnet_pid_t pid;
 
