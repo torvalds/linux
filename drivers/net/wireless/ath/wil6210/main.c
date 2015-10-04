@@ -203,11 +203,13 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	 * - disconnect single STA, already disconnected
 	 * - disconnect all
 	 *
-	 * For "disconnect all", there are 2 options:
+	 * For "disconnect all", there are 3 options:
 	 * - bssid == NULL
+	 * - bssid is broadcast address (ff:ff:ff:ff:ff:ff)
 	 * - bssid is our MAC address
 	 */
-	if (bssid && memcmp(ndev->dev_addr, bssid, ETH_ALEN)) {
+	if (bssid && !is_broadcast_ether_addr(bssid) &&
+	    !ether_addr_equal_unaligned(ndev->dev_addr, bssid)) {
 		cid = wil_find_cid(wil, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
