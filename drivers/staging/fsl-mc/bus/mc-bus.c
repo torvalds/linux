@@ -22,6 +22,8 @@
 
 static struct kmem_cache *mc_dev_cache;
 
+static bool fsl_mc_is_root_dprc(struct device *dev);
+
 /**
  * fsl_mc_bus_match - device to driver matching callback
  * @dev: the MC object device structure to match against
@@ -50,7 +52,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	 * Only exception is the root DPRC, which is a special case.
 	 */
 	if ((mc_dev->obj_desc.state & DPRC_OBJ_STATE_PLUGGED) == 0 &&
-	    &mc_dev->dev != fsl_mc_bus_type.dev_root)
+	    !fsl_mc_is_root_dprc(&mc_dev->dev))
 		goto out;
 
 	/*
@@ -214,6 +216,14 @@ bool fsl_mc_bus_exists(void)
 	return fsl_mc_bus_type.dev_root;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_bus_exists);
+
+/**
+ * fsl_mc_is_root_dprc - function to check if a given device is a root dprc
+ */
+static bool fsl_mc_is_root_dprc(struct device *dev)
+{
+	return dev == fsl_mc_bus_type.dev_root;
+}
 
 static int get_dprc_icid(struct fsl_mc_io *mc_io,
 			 int container_id, u16 *icid)
@@ -500,7 +510,7 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 			mc_dev->mc_io = NULL;
 		}
 
-		if (&mc_dev->dev == fsl_mc_bus_type.dev_root)
+		if (fsl_mc_is_root_dprc(&mc_dev->dev))
 			fsl_mc_bus_type.dev_root = NULL;
 	}
 
@@ -726,7 +736,7 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 {
 	struct fsl_mc *mc = platform_get_drvdata(pdev);
 
-	if (WARN_ON(&mc->root_mc_bus_dev->dev != fsl_mc_bus_type.dev_root))
+	if (WARN_ON(!fsl_mc_is_root_dprc(&mc->root_mc_bus_dev->dev)))
 		return -EINVAL;
 
 	fsl_mc_device_remove(mc->root_mc_bus_dev);
