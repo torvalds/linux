@@ -893,19 +893,8 @@ static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 	return __hfsplus_setxattr(d_inode(dentry), name, buffer, size, flags);
 }
 
-static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,
-		size_t list_size, const char *name, size_t name_len, int type)
-{
-	/*
-	 * This method is not used.
-	 * It is used hfsplus_listxattr() instead of generic_listxattr().
-	 */
-	return -EOPNOTSUPP;
-}
-
 const struct xattr_handler hfsplus_xattr_osx_handler = {
 	.prefix	= XATTR_MAC_OSX_PREFIX,
-	.list	= hfsplus_osx_listxattr,
 	.get	= hfsplus_osx_getxattr,
 	.set	= hfsplus_osx_setxattr,
 };
