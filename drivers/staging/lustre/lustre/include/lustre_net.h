@@ -1528,11 +1528,6 @@ static inline int ptlrpc_req_interpret(const struct lu_env *env,
 	return rc;
 }
 
-/** \addtogroup  nrs
- * @{
- */
-int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf);
-
 /*
  * Can the request be moved from the regular NRS head to the high-priority NRS
  * head (of the same PTLRPC service partition), if any?

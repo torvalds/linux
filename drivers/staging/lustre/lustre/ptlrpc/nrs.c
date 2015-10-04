@@ -1111,7 +1111,7 @@ again:
  * \retval -ve error
  * \retval   0 success
  */
-int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
+static int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 {
 	struct ptlrpc_service *svc;
 	struct ptlrpc_nrs_pol_desc *desc;
@@ -1247,7 +1247,6 @@ fail:
 
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_nrs_policy_register);
 
 /**
  * Setup NRS heads on all service partitions of service \a svc, and register
