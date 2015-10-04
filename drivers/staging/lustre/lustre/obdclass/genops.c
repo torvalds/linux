@@ -1104,14 +1104,6 @@ void class_fail_export(struct obd_export *exp)
 }
 EXPORT_SYMBOL(class_fail_export);
 
-static char *obd_export_nid2str(struct obd_export *exp)
-{
-	if (exp->exp_connection != NULL)
-		return libcfs_nid2str(exp->exp_connection->c_peer.nid);
-
-	return "(no nid)";
-}
-
 #if LUSTRE_TRACKS_LOCK_EXP_REFS
 void (*class_export_dump_hook)(struct obd_export *) = NULL;
 EXPORT_SYMBOL(class_export_dump_hook);
