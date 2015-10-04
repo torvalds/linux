@@ -30,33 +30,27 @@ static size_t f2fs_xattr_generic_list(const struct xattr_handler *handler,
 		const char *name, size_t len)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dentry->d_sb);
-	int total_len, prefix_len = 0;
-	const char *prefix = NULL;
+	int total_len, prefix_len;
 
 	switch (handler->flags) {
 	case F2FS_XATTR_INDEX_USER:
 		if (!test_opt(sbi, XATTR_USER))
 			return -EOPNOTSUPP;
-		prefix = XATTR_USER_PREFIX;
-		prefix_len = XATTR_USER_PREFIX_LEN;
 		break;
 	case F2FS_XATTR_INDEX_TRUSTED:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		prefix = XATTR_TRUSTED_PREFIX;
-		prefix_len = XATTR_TRUSTED_PREFIX_LEN;
 		break;
 	case F2FS_XATTR_INDEX_SECURITY:
-		prefix = XATTR_SECURITY_PREFIX;
-		prefix_len = XATTR_SECURITY_PREFIX_LEN;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	prefix_len = strlen(handler->prefix);
 	total_len = prefix_len + len + 1;
 	if (list && total_len <= list_size) {
-		memcpy(list, prefix, prefix_len);
+		memcpy(list, handler->prefix, prefix_len);
 		memcpy(list + prefix_len, name, len);
 		list[prefix_len + len] = '\0';
 	}
@@ -122,9 +116,6 @@ static size_t f2fs_xattr_advise_list(const struct xattr_handler *handler,
 {
 	const char *xname = F2FS_SYSTEM_ADVISE_PREFIX;
 	size_t size;
-
-	if (handler->flags != F2FS_XATTR_INDEX_ADVISE)
-		return 0;
 
 	size = strlen(xname) + 1;
 	if (list && size <= list_size)
