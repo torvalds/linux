@@ -768,6 +768,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_GROUP_ADDR] = { .type = NLA_BINARY,
 				 .len  = ETH_ALEN },
 	[IFLA_BR_MCAST_ROUTER] = { .type = NLA_U8 },
+	[IFLA_BR_MCAST_SNOOPING] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -871,6 +872,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		if (err)
 			return err;
 	}
+
+	if (data[IFLA_BR_MCAST_SNOOPING]) {
+		u8 mcast_snooping = nla_get_u8(data[IFLA_BR_MCAST_SNOOPING]);
+
+		err = br_multicast_toggle(br, mcast_snooping);
+		if (err)
+			return err;
+	}
 #endif
 
 	return 0;
@@ -902,6 +911,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(ETH_ALEN) +       /* IFLA_BR_GROUP_ADDR */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_ROUTER */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_SNOOPING */
 #endif
 	       0;
 }
@@ -960,7 +970,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 #endif
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router))
+	if (nla_put_u8(skb, IFLA_BR_MCAST_ROUTER, br->multicast_router) ||
+	    nla_put_u8(skb, IFLA_BR_MCAST_SNOOPING, !br->multicast_disabled))
 		return -EMSGSIZE;
 #endif
 
