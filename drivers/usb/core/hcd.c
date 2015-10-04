@@ -131,7 +131,7 @@ static inline int is_root_hub(struct usb_device *udev)
 /* usb 3.0 root hub device descriptor */
 static const u8 usb3_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
-	0x01,       /*  __u8  bDescriptorType; Device */
+	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
 	0x00, 0x03, /*  __le16 bcdUSB; v3.0 */
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
@@ -152,7 +152,7 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 /* usb 2.5 (wireless USB 1.0) root hub device descriptor */
 static const u8 usb25_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
-	0x01,       /*  __u8  bDescriptorType; Device */
+	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
 	0x50, 0x02, /*  __le16 bcdUSB; v2.5 */
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
@@ -173,7 +173,7 @@ static const u8 usb25_rh_dev_descriptor[18] = {
 /* usb 2.0 root hub device descriptor */
 static const u8 usb2_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
-	0x01,       /*  __u8  bDescriptorType; Device */
+	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
 	0x00, 0x02, /*  __le16 bcdUSB; v2.0 */
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
@@ -196,7 +196,7 @@ static const u8 usb2_rh_dev_descriptor[18] = {
 /* usb 1.1 root hub device descriptor */
 static const u8 usb11_rh_dev_descriptor[18] = {
 	0x12,       /*  __u8  bLength; */
-	0x01,       /*  __u8  bDescriptorType; Device */
+	USB_DT_DEVICE, /* __u8 bDescriptorType; Device */
 	0x10, 0x01, /*  __le16 bcdUSB; v1.1 */
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
@@ -223,7 +223,7 @@ static const u8 fs_rh_config_descriptor[] = {
 
 	/* one configuration */
 	0x09,       /*  __u8  bLength; */
-	0x02,       /*  __u8  bDescriptorType; Configuration */
+	USB_DT_CONFIG, /* __u8 bDescriptorType; Configuration */
 	0x19, 0x00, /*  __le16 wTotalLength; */
 	0x01,       /*  __u8  bNumInterfaces; (1) */
 	0x01,       /*  __u8  bConfigurationValue; */
@@ -248,7 +248,7 @@ static const u8 fs_rh_config_descriptor[] = {
 
 	/* one interface */
 	0x09,       /*  __u8  if_bLength; */
-	0x04,       /*  __u8  if_bDescriptorType; Interface */
+	USB_DT_INTERFACE,  /* __u8 if_bDescriptorType; Interface */
 	0x00,       /*  __u8  if_bInterfaceNumber; */
 	0x00,       /*  __u8  if_bAlternateSetting; */
 	0x01,       /*  __u8  if_bNumEndpoints; */
@@ -259,7 +259,7 @@ static const u8 fs_rh_config_descriptor[] = {
 
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  __u8  ep_bLength; */
-	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
+	USB_DT_ENDPOINT, /* __u8 ep_bDescriptorType; Endpoint */
 	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
 	0x02, 0x00, /*  __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8) */
@@ -270,7 +270,7 @@ static const u8 hs_rh_config_descriptor[] = {
 
 	/* one configuration */
 	0x09,       /*  __u8  bLength; */
-	0x02,       /*  __u8  bDescriptorType; Configuration */
+	USB_DT_CONFIG, /* __u8 bDescriptorType; Configuration */
 	0x19, 0x00, /*  __le16 wTotalLength; */
 	0x01,       /*  __u8  bNumInterfaces; (1) */
 	0x01,       /*  __u8  bConfigurationValue; */
@@ -295,7 +295,7 @@ static const u8 hs_rh_config_descriptor[] = {
 
 	/* one interface */
 	0x09,       /*  __u8  if_bLength; */
-	0x04,       /*  __u8  if_bDescriptorType; Interface */
+	USB_DT_INTERFACE, /* __u8 if_bDescriptorType; Interface */
 	0x00,       /*  __u8  if_bInterfaceNumber; */
 	0x00,       /*  __u8  if_bAlternateSetting; */
 	0x01,       /*  __u8  if_bNumEndpoints; */
@@ -306,7 +306,7 @@ static const u8 hs_rh_config_descriptor[] = {
 
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  __u8  ep_bLength; */
-	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
+	USB_DT_ENDPOINT, /* __u8 ep_bDescriptorType; Endpoint */
 	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
 		    /* __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8)
@@ -318,7 +318,7 @@ static const u8 hs_rh_config_descriptor[] = {
 static const u8 ss_rh_config_descriptor[] = {
 	/* one configuration */
 	0x09,       /*  __u8  bLength; */
-	0x02,       /*  __u8  bDescriptorType; Configuration */
+	USB_DT_CONFIG, /* __u8 bDescriptorType; Configuration */
 	0x1f, 0x00, /*  __le16 wTotalLength; */
 	0x01,       /*  __u8  bNumInterfaces; (1) */
 	0x01,       /*  __u8  bConfigurationValue; */
@@ -332,7 +332,7 @@ static const u8 ss_rh_config_descriptor[] = {
 
 	/* one interface */
 	0x09,       /*  __u8  if_bLength; */
-	0x04,       /*  __u8  if_bDescriptorType; Interface */
+	USB_DT_INTERFACE, /* __u8 if_bDescriptorType; Interface */
 	0x00,       /*  __u8  if_bInterfaceNumber; */
 	0x00,       /*  __u8  if_bAlternateSetting; */
 	0x01,       /*  __u8  if_bNumEndpoints; */
@@ -343,7 +343,7 @@ static const u8 ss_rh_config_descriptor[] = {
 
 	/* one endpoint (status change endpoint) */
 	0x07,       /*  __u8  ep_bLength; */
-	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
+	USB_DT_ENDPOINT, /* __u8 ep_bDescriptorType; Endpoint */
 	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
 	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
 		    /* __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8)
@@ -353,7 +353,8 @@ static const u8 ss_rh_config_descriptor[] = {
 
 	/* one SuperSpeed endpoint companion descriptor */
 	0x06,        /* __u8 ss_bLength */
-	0x30,        /* __u8 ss_bDescriptorType; SuperSpeed EP Companion */
+	USB_DT_SS_ENDPOINT_COMP, /* __u8 ss_bDescriptorType; SuperSpeed EP */
+		     /* Companion */
 	0x00,        /* __u8 ss_bMaxBurst; allows 1 TX between ACKs */
 	0x00,        /* __u8 ss_bmAttributes; 1 packet per service interval */
 	0x02, 0x00   /* __le16 ss_wBytesPerInterval; 15 bits for max 15 ports */
