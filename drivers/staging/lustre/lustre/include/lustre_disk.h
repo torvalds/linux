@@ -383,12 +383,7 @@ struct lustre_mount_info {
 /****************** prototypes *********************/
 
 /* obd_mount.c */
-int server_name2fsname(const char *svname, char *fsname, const char **endptr);
-int server_name2index(const char *svname, __u32 *idx, const char **endptr);
 
-int lustre_put_lsi(struct super_block *sb);
-int lustre_start_simple(char *obdname, char *type, char *uuid,
-			char *s1, char *s2, char *s3, char *s4);
 int lustre_start_mgc(struct super_block *sb);
 void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb,
 						  struct vfsmount *mnt));

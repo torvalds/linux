@@ -143,8 +143,8 @@ EXPORT_SYMBOL(lustre_end_log);
 /** lustre_cfg_bufs are a holdover from 1.4; we can still set these up from
  * lctl (and do for echo cli/srv.
  */
-int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
-	    char *s1, char *s2, char *s3, char *s4)
+static int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
+		   char *s1, char *s2, char *s3, char *s4)
 {
 	struct lustre_cfg_bufs bufs;
 	struct lustre_cfg     *lcfg = NULL;
@@ -169,13 +169,12 @@ int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	lustre_cfg_free(lcfg);
 	return rc;
 }
-EXPORT_SYMBOL(do_lcfg);
 
 /** Call class_attach and class_setup.  These methods in turn call
  * obd type-specific methods.
  */
-int lustre_start_simple(char *obdname, char *type, char *uuid,
-			char *s1, char *s2, char *s3, char *s4)
+static int lustre_start_simple(char *obdname, char *type, char *uuid,
+			       char *s1, char *s2, char *s3, char *s4)
 {
 	int rc;
 	CDEBUG(D_MOUNT, "Starting obd %s (typ=%s)\n", obdname, type);
@@ -488,7 +487,7 @@ out:
 
 /***************** lustre superblock **************/
 
-struct lustre_sb_info *lustre_init_lsi(struct super_block *sb)
+static struct lustre_sb_info *lustre_init_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi;
 
@@ -547,7 +546,7 @@ static int lustre_free_lsi(struct super_block *sb)
 
 /* The lsi has one reference for every server that is using the disk -
    e.g. MDT, MGS, and potentially MGC */
-int lustre_put_lsi(struct super_block *sb)
+static int lustre_put_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 
@@ -577,7 +576,8 @@ int lustre_put_lsi(struct super_block *sb)
  * @param [out] endptr if endptr isn't NULL it is set to end of fsname
  * rc < 0  on error
  */
-int server_name2fsname(const char *svname, char *fsname, const char **endptr)
+static int server_name2fsname(const char *svname, char *fsname,
+			      const char **endptr)
 {
 	const char *dash;
 
@@ -597,13 +597,13 @@ int server_name2fsname(const char *svname, char *fsname, const char **endptr)
 
 	return 0;
 }
-EXPORT_SYMBOL(server_name2fsname);
 
 /* Get the index from the obd name.
    rc = server type, or
    rc < 0  on error
    if endptr isn't NULL it is set to end of name */
-int server_name2index(const char *svname, __u32 *idx, const char **endptr)
+static int server_name2index(const char *svname, __u32 *idx,
+			     const char **endptr)
 {
 	unsigned long index;
 	int rc;
@@ -642,7 +642,6 @@ int server_name2index(const char *svname, __u32 *idx, const char **endptr)
 
 	return rc;
 }
-EXPORT_SYMBOL(server_name2index);
 
 /*************** mount common between server and client ***************/
 
@@ -1074,7 +1073,7 @@ struct lustre_mount_data2 {
  * and this is where we start setting things up.
  * @param data Mount options (e.g. -o flock,abort_recov)
  */
-int lustre_fill_super(struct super_block *sb, void *data, int silent)
+static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct lustre_mount_data *lmd;
 	struct lustre_mount_data2 *lmd2 = data;
@@ -1185,7 +1184,7 @@ static void lustre_kill_super(struct super_block *sb)
 
 /** Register the "lustre" fs type
  */
-struct file_system_type lustre_fs_type = {
+static struct file_system_type lustre_fs_type = {
 	.owner	= THIS_MODULE,
 	.name	 = "lustre",
 	.mount	= lustre_mount,
