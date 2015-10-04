@@ -360,9 +360,6 @@ static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s", hdev->name);
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
-
 	skb->dev = (void *) hdev;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);

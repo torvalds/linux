@@ -256,9 +256,6 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	struct ti_st *hst;
 	long len;
 
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
-
 	hst = hci_get_drvdata(hdev);
 
 	/* Prepend skb with frame type */
