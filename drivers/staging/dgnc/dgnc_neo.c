@@ -901,7 +901,6 @@ static void neo_tasklet(unsigned long data)
 
 	/* Allow interrupt routine to access the interrupt register again */
 	spin_unlock_irqrestore(&bd->bd_intr_lock, flags);
-
 }
 
 /*

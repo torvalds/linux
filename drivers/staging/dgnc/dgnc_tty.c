@@ -374,7 +374,6 @@ int dgnc_tty_init(struct dgnc_board *brd)
 			ch->ch_pun.un_sysfs = classp;
 			dgnc_create_tty_sysfs(&ch->ch_pun, classp);
 		}
-
 	}
 
 	return 0;
@@ -1368,7 +1367,6 @@ static void dgnc_tty_hangup(struct tty_struct *tty)
 
 	/* flush the transmit queues */
 	dgnc_tty_flush_buffer(tty);
-
 }
 
 /*
@@ -1981,7 +1979,6 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
 	return 0;
-
 }
 
 /*
@@ -2744,7 +2741,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 						~(UN_LOW|UN_EMPTY);
 					wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 				}
-
 			}
 		}
 

@@ -251,7 +251,6 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
-
 	}
 
 	return 0;

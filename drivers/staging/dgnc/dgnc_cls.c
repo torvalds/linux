@@ -115,7 +115,6 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 		&ch->ch_cls_uart->isr_fcr);
 
 	ch->ch_t_tlevel = 16;
-
 }
 
 static inline void cls_set_ixon_flow_control(struct channel_t *ch)
@@ -161,7 +160,6 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 	writeb((UART_FCR_ENABLE_FIFO | UART_16654_FCR_RXTRIGGER_16 |
 		UART_16654_FCR_TXTRIGGER_16 | UART_FCR_CLEAR_RCVR),
 		&ch->ch_cls_uart->isr_fcr);
-
 }
 
 static inline void cls_set_no_output_flow_control(struct channel_t *ch)
@@ -205,7 +203,6 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 	ch->ch_r_watermark = 0;
 	ch->ch_t_tlevel = 16;
 	ch->ch_r_tlevel = 16;
-
 }
 
 static inline void cls_set_rts_flow_control(struct channel_t *ch)
@@ -244,7 +241,6 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 
 	ch->ch_r_watermark = 4;
 	ch->ch_r_tlevel = 8;
-
 }
 
 static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
@@ -286,7 +282,6 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 	writeb((UART_FCR_ENABLE_FIFO | UART_16654_FCR_RXTRIGGER_16 |
 		UART_16654_FCR_TXTRIGGER_16 | UART_FCR_CLEAR_RCVR),
 		&ch->ch_cls_uart->isr_fcr);
-
 }
 
 static inline void cls_set_no_input_flow_control(struct channel_t *ch)
@@ -325,7 +320,6 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 
 	ch->ch_t_tlevel = 16;
 	ch->ch_r_tlevel = 16;
-
 }
 
 /*
@@ -746,7 +740,6 @@ static void cls_tasklet(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&bd->bd_intr_lock, flags);
-
 }
 
 /*

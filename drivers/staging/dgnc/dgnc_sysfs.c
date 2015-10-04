@@ -695,7 +695,6 @@ void dgnc_create_tty_sysfs(struct un_t *un, struct device *c)
 	}
 
 	dev_set_drvdata(c, un);
-
 }
 
 void dgnc_remove_tty_sysfs(struct device *c)

@@ -529,7 +529,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		dev_err(&brd->pdev->dev,
 			"Didn't find any compatible Neo/Classic PCI boards.\n");
 		return -ENXIO;
-
 	}
 
 	/*
@@ -581,7 +580,6 @@ failed:
 	brd->dpastatus = BD_NOFEP;
 
 	return -ENXIO;
-
 }
 
 static int dgnc_finalize_board_init(struct dgnc_board *brd)
