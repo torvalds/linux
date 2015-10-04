@@ -767,6 +767,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (wil->hw_version == HW_VER_UNKNOWN)
 		return -ENODEV;
 
+	set_bit(wil_status_resetting, wil->status);
+
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	wil_bcast_fini(wil);
@@ -853,6 +855,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "starting fw error recovery\n");
+
+	if (test_bit(wil_status_resetting, wil->status)) {
+		wil_info(wil, "Reset already in progress\n");
+		return;
+	}
+
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
 }
