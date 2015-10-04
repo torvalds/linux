@@ -403,7 +403,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 } /* class_handle_ioctl */
 
 #define OBD_INIT_CHECK
-int obd_init_checks(void)
+static int obd_init_checks(void)
 {
 	__u64 u64val, div64val;
 	char buf[64];
