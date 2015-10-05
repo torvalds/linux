@@ -394,6 +394,10 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 2b : and mutually compatible */
 
+	/* the async command requires a pacer */
+	if (cmd->scan_begin_src != TRIG_TIMER && cmd->convert_src != TRIG_TIMER)
+		err |= -EINVAL;
+
 	if (err)
 		return 2;
 
