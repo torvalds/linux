@@ -2785,8 +2785,6 @@ struct ldlm_lock_desc {
 	ldlm_wire_policy_data_t l_policy_data;
 };
 
-void lustre_swab_ldlm_lock_desc(struct ldlm_lock_desc *l);
-
 #define LDLM_LOCKREQ_HANDLES 2
 #define LDLM_ENQUEUE_CANCEL_OFF 1
 
@@ -3355,7 +3353,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg);
 /* Functions for dumping PTLRPC fields */
 void dump_rniobuf(struct niobuf_remote *rnb);
 void dump_ioo(struct obd_ioobj *nb);
-void dump_obdo(struct obdo *oa);
 void dump_ost_body(struct ost_body *ob);
 void dump_rcs(__u32 *rc);
 

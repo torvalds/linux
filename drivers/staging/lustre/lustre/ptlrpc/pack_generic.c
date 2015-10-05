@@ -1977,14 +1977,13 @@ void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r)
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_resource_desc);
 
-void lustre_swab_ldlm_lock_desc(struct ldlm_lock_desc *l)
+static void lustre_swab_ldlm_lock_desc(struct ldlm_lock_desc *l)
 {
 	lustre_swab_ldlm_resource_desc(&l->l_resource);
 	__swab32s(&l->l_req_mode);
 	__swab32s(&l->l_granted_mode);
 	lustre_swab_ldlm_policy_data(&l->l_policy_data);
 }
-EXPORT_SYMBOL(lustre_swab_ldlm_lock_desc);
 
 void lustre_swab_ldlm_request(struct ldlm_request *rq)
 {
@@ -2033,7 +2032,7 @@ void dump_rniobuf(struct niobuf_remote *nb)
 }
 EXPORT_SYMBOL(dump_rniobuf);
 
-void dump_obdo(struct obdo *oa)
+static void dump_obdo(struct obdo *oa)
 {
 	__u32 valid = oa->o_valid;
 
