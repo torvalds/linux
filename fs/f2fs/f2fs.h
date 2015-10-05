@@ -124,6 +124,7 @@ enum {
 		(SM_I(sbi)->trim_sections * (sbi)->segs_per_sec)
 #define BATCHED_TRIM_BLOCKS(sbi)	\
 		(BATCHED_TRIM_SEGMENTS(sbi) << (sbi)->log_blocks_per_seg)
+#define DEF_CP_INTERVAL			60	/* 60 secs */
 
 struct cp_control {
 	int reason;
@@ -734,6 +735,7 @@ struct f2fs_sb_info {
 	struct rw_semaphore node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
 	wait_queue_head_t cp_wait;
+	long cp_expires, cp_interval;		/* next expected periodic cp */
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
 
