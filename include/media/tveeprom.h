@@ -32,9 +32,6 @@ struct tveeprom {
 	u32 tuner2_formats;
 	u32 tuner2_hauppauge_model;
 
-	u32 digitizer;
-	u32 digitizer_formats;
-
 	u32 audio_processor;
 	u32 decoder_processor;
 
