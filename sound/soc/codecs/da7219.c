@@ -1554,8 +1554,10 @@ static int da7219_handle_supplies(struct snd_soc_codec *codec)
 
 	ret = devm_regulator_bulk_get(codec->dev, DA7219_NUM_SUPPLIES,
 				      da7219->supplies);
-	if (ret)
+	if (ret) {
+		dev_err(codec->dev, "Failed to get supplies");
 		return ret;
+	}
 
 	/* Determine VDDIO voltage provided */
 	vddio = da7219->supplies[DA7219_SUPPLY_VDDIO].consumer;
@@ -1567,6 +1569,10 @@ static int da7219_handle_supplies(struct snd_soc_codec *codec)
 
 	/* Enable main supplies */
 	ret = regulator_bulk_enable(DA7219_NUM_SUPPLIES, da7219->supplies);
+	if (ret) {
+		dev_err(codec->dev, "Failed to enable supplies");
+		return ret;
+	}
 
 	/* Ensure device in active mode */
 	snd_soc_write(codec, DA7219_SYSTEM_ACTIVE, DA7219_SYSTEM_ACTIVE_MASK);
@@ -1574,7 +1580,7 @@ static int da7219_handle_supplies(struct snd_soc_codec *codec)
 	/* Update IO voltage level range */
 	snd_soc_write(codec, DA7219_IO_CTRL, io_voltage_lvl);
 
-	return ret;
+	return 0;
 }
 
 static void da7219_handle_pdata(struct snd_soc_codec *codec)
