@@ -76,7 +76,7 @@ struct cfg_param_attr {
 };
 
 /*!
- *  @struct             tstrHostIFwpaAttr
+ *  @struct             host_if_wpa_attr
  *  @brief		Structure to hold Host IF Scan Attributes
  *  @details
  *  @todo
@@ -85,7 +85,7 @@ struct cfg_param_attr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFwpaAttr {
+struct host_if_wpa_attr {
 	u8 *pu8key;
 	const u8 *pu8macaddr;
 	u8 *pu8seq;
@@ -93,7 +93,7 @@ typedef struct _tstrHostIFwpaAttr {
 	u8 u8keyidx;
 	u8 u8Keylen;
 	u8 u8Ciphermode;
-} tstrHostIFwpaAttr;
+};
 
 
 /*!
@@ -126,7 +126,7 @@ struct host_if_wep_attr {
  */
 union host_if_key_attr {
 	struct host_if_wep_attr strHostIFwepAttr;
-	tstrHostIFwpaAttr strHostIFwpaAttr;
+	struct host_if_wpa_attr strHostIFwpaAttr;
 	tstrHostIFpmkidAttr strHostIFpmkidAttr;
 };
 
