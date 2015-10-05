@@ -336,7 +336,7 @@ struct pcl812_board {
 	int n_aochan;
 	unsigned int ai_ns_min;
 	const struct comedi_lrange *rangelist_ai;
-	unsigned int IRQbits;
+	unsigned int irq_bits;
 	unsigned int has_dma:1;
 	unsigned int has_16bit_ai:1;
 	unsigned int has_mpc508_mux:1;
@@ -351,7 +351,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_bipolar10,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -361,7 +361,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 33000,
 		.rangelist_ai	= &range_pcl812pg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -371,7 +371,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl812pg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -381,7 +381,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_mpc508_mux	= 1,
 		.has_dio	= 1,
@@ -392,7 +392,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_mpc508_mux	= 1,
 		.has_dio	= 1,
@@ -403,7 +403,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 1,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
-		.IRQbits	= 0x000c,
+		.irq_bits	= 0x000c,
 		.has_dio	= 1,
 	}, {
 		.name		= "a821pglnda",
@@ -411,7 +411,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aichan	= 16,	/* 8 differential */
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
-		.IRQbits	= 0x000c,
+		.irq_bits	= 0x000c,
 	}, {
 		.name		= "a821pgh",
 		.board_type	= BOARD_A821,
@@ -419,7 +419,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 1,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_a821pgh_ai,
-		.IRQbits	= 0x000c,
+		.irq_bits	= 0x000c,
 		.has_dio	= 1,
 	}, {
 		.name		= "a822pgl",
@@ -428,7 +428,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -438,7 +438,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -448,7 +448,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112dg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -458,7 +458,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 8000,
 		.rangelist_ai	= &range_acl8112hg_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_dio	= 1,
 	}, {
@@ -488,7 +488,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_16bit_ai	= 1,
 		.has_mpc508_mux	= 1,
@@ -500,7 +500,7 @@ static const struct pcl812_board boardtypes[] = {
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b2_ai,
-		.IRQbits	= 0xdcfc,
+		.irq_bits	= 0xdcfc,
 		.has_dma	= 1,
 		.has_16bit_ai	= 1,
 		.has_dio	= 1,
@@ -1143,14 +1143,14 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	if (board->IRQbits) {
+	if (board->irq_bits) {
 		dev->pacer = comedi_8254_init(dev->iobase + PCL812_TIMER_BASE,
 					      I8254_OSC_BASE_2MHZ,
 					      I8254_IO8, 0);
 		if (!dev->pacer)
 			return -ENOMEM;
 
-		if ((1 << it->options[1]) & board->IRQbits) {
+		if ((1 << it->options[1]) & board->irq_bits) {
 			ret = request_irq(it->options[1], pcl812_interrupt, 0,
 					  dev->board_name, dev);
 			if (ret == 0)
