@@ -1,51 +1,43 @@
-/*======================================================================
-
-    comedi/drivers/quatech_daqp_cs.c
-
-    Quatech DAQP PCMCIA data capture cards COMEDI client driver
-    Copyright (C) 2000, 2003 Brent Baccala <baccala@freesoft.org>
-    The DAQP interface code in this file is released into the public domain.
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998 David A. Schleef <ds@schleef.org>
-    http://www.comedi.org/
-
-    quatech_daqp_cs.c 1.10
-
-    Documentation for the DAQP PCMCIA cards can be found on Quatech's site:
-
-		ftp://ftp.quatech.com/Manuals/daqp-208.pdf
-
-    This manual is for both the DAQP-208 and the DAQP-308.
-
-    What works:
-
-	- A/D conversion
-	    - 8 channels
-	    - 4 gain ranges
-	    - ground ref or differential
-	    - single-shot and timed both supported
-	- D/A conversion, single-shot
-	- digital I/O
-
-    What doesn't:
-
-	- any kind of triggering - external or D/A channel 1
-	- the card's optional expansion board
-	- the card's timer (for anything other than A/D conversion)
-	- D/A update modes other than immediate (i.e, timed)
-	- fancier timing modes
-	- setting card's FIFO buffer thresholds to anything but default
-
-======================================================================*/
+/*
+ * quatech_daqp_cs.c
+ * Quatech DAQP PCMCIA data capture cards COMEDI client driver
+ * Copyright (C) 2000, 2003 Brent Baccala <baccala@freesoft.org>
+ * The DAQP interface code in this file is released into the public domain.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
+ * http://www.comedi.org/
+ *
+ * Documentation for the DAQP PCMCIA cards can be found on Quatech's site:
+ *	ftp://ftp.quatech.com/Manuals/daqp-208.pdf
+ *
+ * This manual is for both the DAQP-208 and the DAQP-308.
+ *
+ * What works:
+ * - A/D conversion
+ *	- 8 channels
+ *	- 4 gain ranges
+ *	- ground ref or differential
+ *	- single-shot and timed both supported
+ * - D/A conversion, single-shot
+ * - digital I/O
+ *
+ * What doesn't:
+ * - any kind of triggering - external or D/A channel 1
+ * - the card's optional expansion board
+ * - the card's timer (for anything other than A/D conversion)
+ * - D/A update modes other than immediate (i.e, timed)
+ * - fancier timing modes
+ * - setting card's FIFO buffer thresholds to anything but default
+ */
 
 /*
-Driver: quatech_daqp_cs
-Description: Quatech DAQP PCMCIA data capture cards
-Author: Brent Baccala <baccala@freesoft.org>
-Status: works
-Devices: [Quatech] DAQP-208 (daqp), DAQP-308
-*/
+ * Driver: quatech_daqp_cs
+ * Description: Quatech DAQP PCMCIA data capture cards
+ * Devices: [Quatech] DAQP-208 (daqp), DAQP-308
+ * Author: Brent Baccala <baccala@freesoft.org>
+ * Status: works
+ */
 
 #include <linux/module.h>
 #include <linux/semaphore.h>
