@@ -5,6 +5,15 @@
 #ifndef __TUNER_TYPES_H__
 #define __TUNER_TYPES_H__
 
+/**
+ * enum param_type - type of the tuner pameters
+ *
+ * @TUNER_PARAM_TYPE_RADIO:	Tuner params are for FM and/or AM radio
+ * @TUNER_PARAM_TYPE_PAL:	Tuner params are for PAL color TV standard
+ * @TUNER_PARAM_TYPE_SECAM:	Tuner params are for SECAM color TV standard
+ * @TUNER_PARAM_TYPE_NTSC:	Tuner params are for NTSC color TV standard
+ * @TUNER_PARAM_TYPE_DIGITAL:	Tuner params are for digital TV
+ */
 enum param_type {
 	TUNER_PARAM_TYPE_RADIO,
 	TUNER_PARAM_TYPE_PAL,
@@ -13,6 +22,23 @@ enum param_type {
 	TUNER_PARAM_TYPE_DIGITAL,
 };
 
+/**
+ * struct tuner_range - define the frequencies supported by the tuner
+ *
+ * @limit:		Max frequency supported by that range, in 62.5 kHz
+ *			(TV) or 62.5 Hz (Radio), as defined by
+ *			V4L2_TUNER_CAP_LOW.
+ * @config:		Value of the band switch byte (BB) to setup this mode.
+ * @cb:			Value of the CB byte to setup this mode.
+ *
+ * Please notice that digital tuners like xc3028/xc4000/xc5000 don't use
+ * those ranges, as they're defined inside the driver. This is used by
+ * analog tuners that are compatible with the "Philips way" to setup the
+ * tuners. On those devices, the tuner set is done via 4 bytes:
+ *	divider byte1 (DB1), divider byte 2 (DB2), Control byte (CB) and
+ *	band switch byte (BB).
+ * Some tuners also have an additional optional Auxiliary byte (AB).
+ */
 struct tuner_range {
 	unsigned short limit;
 	unsigned char config;
