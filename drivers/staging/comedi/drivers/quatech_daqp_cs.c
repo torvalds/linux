@@ -93,24 +93,27 @@
 
 #define DAQP_DI_REG			0x03
 #define DAQP_DO_REG			0x03
+
 #define DAQP_PACER_LOW_REG		0x04
 #define DAQP_PACER_MID_REG		0x05
 #define DAQP_PACER_HIGH_REG		0x06
+
 #define DAQP_CMD_REG			0x07
+/* the monostable bits are self-clearing after the function is complete */
+#define DAQP_CMD_ARM			BIT(7)	/* monostable */
+#define DAQP_CMD_RSTF			BIT(6)	/* monostable */
+#define DAQP_CMD_RSTQ			BIT(5)	/* monostable */
+#define DAQP_CMD_STOP			BIT(4)	/* monostable */
+#define DAQP_CMD_LATCH			BIT(3)	/* monostable */
+#define DAQP_CMD_SCANRATE(x)		(((x) & 0x3) << 1)
+#define DAQP_CMD_SCANRATE_100KHZ	DAQP_CMD_SCANRATE(0)
+#define DAQP_CMD_SCANRATE_50KHZ		DAQP_CMD_SCANRATE(1)
+#define DAQP_CMD_SCANRATE_25KHZ		DAQP_CMD_SCANRATE(2)
+#define DAQP_CMD_FIFO_DATA		BIT(0)
+
 #define DAQP_AO_REG			0x08
 #define DAQP_TIMER_REG			0x0a
 #define DAQP_AUX_REG			0x0f
-
-#define DAQP_COMMAND_ARM		0x80
-#define DAQP_COMMAND_RSTF		0x40
-#define DAQP_COMMAND_RSTQ		0x20
-#define DAQP_COMMAND_STOP		0x10
-#define DAQP_COMMAND_LATCH		0x08
-#define DAQP_COMMAND_100kHz		0x00
-#define DAQP_COMMAND_50kHz		0x02
-#define DAQP_COMMAND_25kHz		0x04
-#define DAQP_COMMAND_FIFO_DATA		0x01
-#define DAQP_COMMAND_FIFO_PROGRAM	0x00
 
 #define DAQP_AUX_TRIGGER_TTL		0x00
 #define DAQP_AUX_TRIGGER_ANALOG		0x80
@@ -181,10 +184,10 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->stop)
 		return -EIO;
 
-	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_STOP, dev->iobase + DAQP_CMD_REG);
 
 	/* flush any linguring data in FIFO - superfluous here */
-	/* outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG); */
+	/* outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG); */
 
 	devpriv->interrupt_mode = semaphore;
 
@@ -310,14 +313,14 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	outb(0, dev->iobase + DAQP_AUX_REG);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_RSTQ, dev->iobase + DAQP_CMD_REG);
 
 	/* Program one scan list entry */
 	daqp_ai_set_one_scanlist_entry(dev, insn->chanspec, 1);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
-	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG);
 
 	/* Set trigger - one-shot, internal */
 	outb(DAQP_CTRL_PACER_CLK_100KHZ | DAQP_CTRL_EOS_INT_ENA,
@@ -332,7 +335,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		/* Start conversion */
-		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
+		outb(DAQP_CMD_ARM | DAQP_CMD_FIFO_DATA,
 		     dev->iobase + DAQP_CMD_REG);
 
 		/* Wait for interrupt service routine to unblock completion */
@@ -477,7 +480,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb(0, dev->iobase + DAQP_AUX_REG);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_RSTQ, dev->iobase + DAQP_CMD_REG);
 
 	/* Program pacer clock
 	 *
@@ -595,7 +598,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
-	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG);
 
 	/* Set FIFO threshold.  First two bytes are near-empty
 	 * threshold, which is unused; next two bytes are near-full
@@ -623,8 +626,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->interrupt_mode = buffer;
 
 	/* Start conversion */
-	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-	     dev->iobase + DAQP_CMD_REG);
+	outb(DAQP_CMD_ARM | DAQP_CMD_FIFO_DATA, dev->iobase + DAQP_CMD_REG);
 
 	return 0;
 }
