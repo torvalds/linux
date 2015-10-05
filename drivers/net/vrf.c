@@ -36,6 +36,9 @@
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
 
+#define RT_FL_TOS(oldflp4) \
+	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
+
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
 
@@ -553,9 +556,41 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 	return rth;
 }
 
+/* called under rcu_read_lock */
+static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
+{
+	struct fib_result res = { .tclassid = 0 };
+	struct net *net = dev_net(dev);
+	u32 orig_tos = fl4->flowi4_tos;
+	u8 flags = fl4->flowi4_flags;
+	u8 scope = fl4->flowi4_scope;
+	u8 tos = RT_FL_TOS(fl4);
+
+	if (unlikely(!fl4->daddr))
+		return;
+
+	fl4->flowi4_flags |= FLOWI_FLAG_SKIP_NH_OIF;
+	fl4->flowi4_iif = LOOPBACK_IFINDEX;
+	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
+	fl4->flowi4_scope = ((tos & RTO_ONLINK) ?
+			     RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
+
+	if (!fib_lookup(net, fl4, &res, 0)) {
+		if (res.type == RTN_LOCAL)
+			fl4->saddr = res.fi->fib_prefsrc ? : fl4->daddr;
+		else
+			fib_select_path(net, &res, fl4, -1);
+	}
+
+	fl4->flowi4_flags = flags;
+	fl4->flowi4_tos = orig_tos;
+	fl4->flowi4_scope = scope;
+}
+
 static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_fib_table	= vrf_fib_table,
 	.l3mdev_get_rtable	= vrf_get_rtable,
+	.l3mdev_get_saddr	= vrf_get_saddr,
 };
 
 static void vrf_get_drvinfo(struct net_device *dev,

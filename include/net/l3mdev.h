@@ -17,12 +17,16 @@
  * @l3mdev_fib_table: Get FIB table id to use for lookups
  *
  * @l3mdev_get_rtable: Get cached IPv4 rtable (dst_entry) for device
+ *
+ * @l3mdev_get_saddr: Get source address for a flow
  */
 
 struct l3mdev_ops {
 	u32		(*l3mdev_fib_table)(const struct net_device *dev);
 	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
 					     const struct flowi4 *fl4);
+	void		(*l3mdev_get_saddr)(struct net_device *dev,
+					    struct flowi4 *fl4);
 };
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
@@ -100,6 +104,25 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return rc;
 }
 
+static inline void l3mdev_get_saddr(struct net *net, int ifindex,
+				    struct flowi4 *fl4)
+{
+	struct net_device *dev;
+
+	if (ifindex) {
+
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (dev && netif_is_l3_master(dev) &&
+		    dev->l3mdev_ops->l3mdev_get_saddr) {
+			dev->l3mdev_ops->l3mdev_get_saddr(dev, fl4);
+		}
+
+		rcu_read_unlock();
+	}
+}
+
 #else
 
 static inline int l3mdev_master_ifindex_rcu(struct net_device *dev)
@@ -144,6 +167,10 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return false;
 }
 
+static inline void l3mdev_get_saddr(struct net *net, int ifindex,
+				    struct flowi4 *fl4)
+{
+}
 #endif
 
 #endif /* _NET_L3MDEV_H_ */
