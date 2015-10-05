@@ -79,10 +79,10 @@ struct daqp_private {
 #define DAQP_AUX		15
 
 #define DAQP_SCANLIST_DIFFERENTIAL	0x4000
-#define DAQP_SCANLIST_GAIN(x)		((x)<<12)
-#define DAQP_SCANLIST_CHANNEL(x)	((x)<<8)
+#define DAQP_SCANLIST_GAIN(x)		((x) << 12)
+#define DAQP_SCANLIST_CHANNEL(x)	((x) << 8)
 #define DAQP_SCANLIST_START		0x0080
-#define DAQP_SCANLIST_EXT_GAIN(x)	((x)<<4)
+#define DAQP_SCANLIST_EXT_GAIN(x)	((x) << 4)
 #define DAQP_SCANLIST_EXT_CHANNEL(x)	(x)
 
 #define DAQP_CONTROL_PACER_100kHz	0xc0
