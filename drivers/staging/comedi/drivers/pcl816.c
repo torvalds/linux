@@ -1,36 +1,33 @@
 /*
-   comedi/drivers/pcl816.c
+ * pcl816.c
+ * Comedi driver for Advantech PCL-816 cards
+ *
+ * Author:  Juan Grigera <juan@grigera.com.ar>
+ * based on pcl818 by Michal Dobes <dobes@tesnet.cz> and bits of pcl812
+ */
 
-   Author:  Juan Grigera <juan@grigera.com.ar>
-	    based on pcl818 by Michal Dobes <dobes@tesnet.cz> and bits of pcl812
-
-   hardware driver for Advantech cards:
-    card:   PCL-816, PCL814B
-    driver: pcl816
-*/
 /*
-Driver: pcl816
-Description: Advantech PCL-816 cards, PCL-814
-Author: Juan Grigera <juan@grigera.com.ar>
-Devices: [Advantech] PCL-816 (pcl816), PCL-814B (pcl814b)
-Status: works
-Updated: Tue,  2 Apr 2002 23:15:21 -0800
-
-PCL 816 and 814B have 16 SE/DIFF ADCs, 16 DACs, 16 DI and 16 DO.
-Differences are at resolution (16 vs 12 bits).
-
-The driver support AI command mode, other subdevices not written.
-
-Analog output and digital input and output are not supported.
-
-Configuration Options:
-  [0] - IO Base
-  [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)
-  [2] - DMA	(0=disable, 1, 3)
-  [3] - 0, 10=10MHz clock for 8254
-	    1= 1MHz clock for 8254
-
-*/
+ * Driver: pcl816
+ * Description: Advantech PCL-816 cards, PCL-814
+ * Devices: [Advantech] PCL-816 (pcl816), PCL-814B (pcl814b)
+ * Author: Juan Grigera <juan@grigera.com.ar>
+ * Status: works
+ * Updated: Tue,  2 Apr 2002 23:15:21 -0800
+ *
+ * PCL 816 and 814B have 16 SE/DIFF ADCs, 16 DACs, 16 DI and 16 DO.
+ * Differences are at resolution (16 vs 12 bits).
+ *
+ * The driver support AI command mode, other subdevices not written.
+ *
+ * Analog output and digital input and output are not supported.
+ *
+ * Configuration Options:
+ *   [0] - IO Base
+ *   [1] - IRQ	(0=disable, 2, 3, 4, 5, 6, 7)
+ *   [2] - DMA	(0=disable, 1, 3)
+ *   [3] - 0, 10=10MHz clock for 8254
+ *	       1= 1MHz clock for 8254
+ */
 
 #include <linux/module.h>
 #include <linux/gfp.h>
