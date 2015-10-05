@@ -53,25 +53,20 @@
 #define PCL816_MUX_REG				0x0b
 #define PCL816_MUX_SCAN(_first, _last)		(((_last) << 4) | (_first))
 #define PCL816_CTRL_REG				0x0c
-#define PCL816_CTRL_DISABLE_TRIG		(0 << 0)
-#define PCL816_CTRL_SOFT_TRIG			(1 << 0)
-#define PCL816_CTRL_PACER_TRIG			(1 << 1)
-#define PCL816_CTRL_EXT_TRIG			(1 << 2)
-#define PCL816_CTRL_POE				(1 << 3)
-#define PCL816_CTRL_DMAEN			(1 << 4)
-#define PCL816_CTRL_INTEN			(1 << 5)
-#define PCL816_CTRL_DMASRC_SLOT0		(0 << 6)
-#define PCL816_CTRL_DMASRC_SLOT1		(1 << 6)
-#define PCL816_CTRL_DMASRC_SLOT2		(2 << 6)
+#define PCL816_CTRL_SOFT_TRIG			BIT(0)
+#define PCL816_CTRL_PACER_TRIG			BIT(1)
+#define PCL816_CTRL_EXT_TRIG			BIT(2)
+#define PCL816_CTRL_POE				BIT(3)
+#define PCL816_CTRL_DMAEN			BIT(4)
+#define PCL816_CTRL_INTEN			BIT(5)
+#define PCL816_CTRL_DMASRC_SLOT(x)		(((x) & 0x3) << 6)
 #define PCL816_STATUS_REG			0x0d
 #define PCL816_STATUS_NEXT_CHAN_MASK		(0xf << 0)
-#define PCL816_STATUS_INTSRC_MASK		(3 << 4)
-#define PCL816_STATUS_INTSRC_SLOT0		(0 << 4)
-#define PCL816_STATUS_INTSRC_SLOT1		(1 << 4)
-#define PCL816_STATUS_INTSRC_SLOT2		(2 << 4)
-#define PCL816_STATUS_INTSRC_DMA		(3 << 4)
-#define PCL816_STATUS_INTACT			(1 << 6)
-#define PCL816_STATUS_DRDY			(1 << 7)
+#define PCL816_STATUS_INTSRC_SLOT(x)		(((x) & 0x3) << 4)
+#define PCL816_STATUS_INTSRC_DMA		PCL816_STATUS_INTSRC_SLOT(3)
+#define PCL816_STATUS_INTSRC_MASK		PCL816_STATUS_INTSRC_SLOT(3)
+#define PCL816_STATUS_INTACT			BIT(6)
+#define PCL816_STATUS_DRDY			BIT(7)
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -440,7 +435,8 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	comedi_8254_update_divisors(dev->pacer);
 	comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 
-	ctrl = PCL816_CTRL_INTEN | PCL816_CTRL_DMAEN | PCL816_CTRL_DMASRC_SLOT0;
+	ctrl = PCL816_CTRL_INTEN | PCL816_CTRL_DMAEN |
+	       PCL816_CTRL_DMASRC_SLOT(0);
 	if (cmd->convert_src == TRIG_TIMER)
 		ctrl |= PCL816_CTRL_PACER_TRIG;
 	else	/* TRIG_EXT */
@@ -494,7 +490,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 	if (!devpriv->ai_cmd_running)
 		return 0;
 
-	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
+	outb(0, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_clear_eoc(dev);
 
 	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
@@ -530,7 +526,7 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 
 		data[i] = pcl816_ai_get_sample(dev, s);
 	}
-	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
+	outb(0, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_clear_eoc(dev);
 
 	return ret ? ret : insn->n;
@@ -564,7 +560,7 @@ static int pcl816_do_insn_bits(struct comedi_device *dev,
 
 static void pcl816_reset(struct comedi_device *dev)
 {
-	outb(PCL816_CTRL_DISABLE_TRIG, dev->iobase + PCL816_CTRL_REG);
+	outb(0, dev->iobase + PCL816_CTRL_REG);
 	pcl816_ai_set_chan_range(dev, 0, 0);
 	pcl816_ai_clear_eoc(dev);
 
