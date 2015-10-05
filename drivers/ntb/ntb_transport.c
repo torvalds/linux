@@ -605,7 +605,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
 		num_qps_mw = qp_count / mw_count;
 
 	rx_size = (unsigned int)mw->xlat_size / num_qps_mw;
-	qp->rx_buff = mw->virt_addr + rx_size * qp_num / mw_count;
+	qp->rx_buff = mw->virt_addr + rx_size * (qp_num / mw_count);
 	rx_size -= sizeof(struct ntb_rx_info);
 
 	qp->remote_rx_info = qp->rx_buff + rx_size;
@@ -956,7 +956,7 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	mw_size = nt->mw_vec[mw_num].phys_size;
 
 	tx_size = (unsigned int)mw_size / num_qps_mw;
-	qp_offset = tx_size * qp_num / mw_count;
+	qp_offset = tx_size * (qp_num / mw_count);
 
 	qp->tx_mw = nt->mw_vec[mw_num].vbase + qp_offset;
 	if (!qp->tx_mw)
