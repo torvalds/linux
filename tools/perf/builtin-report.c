@@ -633,7 +633,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	bool has_br_stack = false;
 	int branch_mode = -1;
 	bool branch_call_mode = false;
-	char callchain_default_opt[] = "fractal,0.5,callee";
+	char callchain_default_opt[] = "graph,0.5,caller";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
 		NULL
@@ -701,7 +701,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Only display entries with parent-match"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order[,branch]",
 		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit, callchain order, key (function or address), add branches. "
-		     "Default: fractal,0.5,callee,function", &report_parse_callchain_opt, callchain_default_opt),
+		     "Default: graph,0.5,caller", &report_parse_callchain_opt, callchain_default_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
