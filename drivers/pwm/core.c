@@ -738,8 +738,10 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 		}
 	}
 
-	if (!chosen)
+	if (!chosen) {
+		pwm = ERR_PTR(-ENODEV);
 		goto out;
+	}
 
 	chip = pwmchip_find_by_name(chosen->provider);
 	if (!chip)
