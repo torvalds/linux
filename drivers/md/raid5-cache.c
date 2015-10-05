@@ -322,16 +322,12 @@ static struct r5l_io_unit *r5l_new_meta(struct r5l_log *log)
 
 static int r5l_get_meta(struct r5l_log *log, unsigned int payload_size)
 {
-	struct r5l_io_unit *io;
-
-	io = log->current_io;
-	if (io && io->meta_offset + payload_size > PAGE_SIZE)
+	if (log->current_io &&
+	    log->current_io->meta_offset + payload_size > PAGE_SIZE)
 		r5l_submit_current_io(log);
-	io = log->current_io;
-	if (io)
-		return 0;
 
-	log->current_io = r5l_new_meta(log);
+	if (!log->current_io)
+		log->current_io = r5l_new_meta(log);
 	return 0;
 }
 
