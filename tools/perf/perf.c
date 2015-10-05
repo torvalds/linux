@@ -162,6 +162,20 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			break;
 
 		/*
+		 * Shortcut for '-h' and '-v' options to invoke help
+		 * and version command.
+		 */
+		if (!strcmp(cmd, "-h")) {
+			(*argv)[0] = "--help";
+			break;
+		}
+
+		if (!strcmp(cmd, "-v")) {
+			(*argv)[0] = "--version";
+			break;
+		}
+
+		/*
 		 * Check remaining flags.
 		 */
 		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
