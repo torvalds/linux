@@ -35,8 +35,6 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 
-#include <linux/leds_pwm.h>
-
 #include <asm/mach-jz4740/platform.h>
 
 #include "clock.h"
