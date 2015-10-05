@@ -144,6 +144,7 @@
 #define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in nanoseconds */
 
 struct daqp_private {
+	unsigned int pacer_div;
 	int stop;
 };
 
@@ -359,17 +360,18 @@ static int daqp_ns_to_timer(unsigned int *ns, unsigned int flags)
 	return timer;
 }
 
-/* cmdtest tests a particular command to see if it is valid.
- * Using the cmdtest ioctl, a user can create a valid cmd
- * and then have it executed by the cmd ioctl.
- *
- * cmdtest returns 1,2,3,4 or 0, depending on which tests
- * the command passes.
- */
+static void daqp_set_pacer(struct comedi_device *dev, unsigned int val)
+{
+	outb(val & 0xff, dev->iobase + DAQP_PACER_LOW_REG);
+	outb((val >> 8) & 0xff, dev->iobase + DAQP_PACER_MID_REG);
+	outb((val >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH_REG);
+}
 
 static int daqp_ai_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
+			   struct comedi_subdevice *s,
+			   struct comedi_cmd *cmd)
 {
+	struct daqp_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -440,16 +442,14 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 4: fix up any arguments */
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		arg = cmd->scan_begin_arg;
-		daqp_ns_to_timer(&arg, cmd->flags);
-		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
-	}
-
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		daqp_ns_to_timer(&arg, cmd->flags);
+		devpriv->pacer_div = daqp_ns_to_timer(&arg, cmd->flags);
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
+	} else if (cmd->scan_begin_src == TRIG_TIMER) {
+		arg = cmd->scan_begin_arg;
+		devpriv->pacer_div = daqp_ns_to_timer(&arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
@@ -462,7 +462,6 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct daqp_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int counter;
 	int scanlist_start_on_every_entry;
 	int threshold;
 	int ret;
@@ -488,20 +487,12 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * each scan, so we program the pacer clock to this frequency
 	 * and only set the SCANLIST_START bit on the first entry.
 	 */
+	daqp_set_pacer(dev, devpriv->pacer_div);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		counter = daqp_ns_to_timer(&cmd->convert_arg, cmd->flags);
-		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW_REG);
-		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID_REG);
-		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH_REG);
+	if (cmd->convert_src == TRIG_TIMER)
 		scanlist_start_on_every_entry = 1;
-	} else {
-		counter = daqp_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
-		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW_REG);
-		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID_REG);
-		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH_REG);
+	else
 		scanlist_start_on_every_entry = 0;
-	}
 
 	/* Program scan list */
 	for (i = 0; i < cmd->chanlist_len; i++) {
