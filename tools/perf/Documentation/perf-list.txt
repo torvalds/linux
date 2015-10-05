@@ -30,6 +30,7 @@ counted. The following modifiers exist:
  G - guest counting (in KVM guests)
  H - host counting (not in KVM guests)
  p - precise level
+ P - use maximum detected precise level
  S - read sample value (PERF_SAMPLE_READ)
  D - pin the event to the PMU
 
