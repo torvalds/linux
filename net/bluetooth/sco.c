@@ -965,7 +965,9 @@ static int sco_sock_shutdown(struct socket *sock, int how)
 	if (!sk)
 		return 0;
 
+	sock_hold(sk);
 	lock_sock(sk);
+
 	if (!sk->sk_shutdown) {
 		sk->sk_shutdown = SHUTDOWN_MASK;
 		sco_sock_clear_timer(sk);
@@ -976,7 +978,10 @@ static int sco_sock_shutdown(struct socket *sock, int how)
 			err = bt_sock_wait_state(sk, BT_CLOSED,
 						 sk->sk_lingertime);
 	}
+
 	release_sock(sk);
+	sock_put(sk);
+
 	return err;
 }
 
