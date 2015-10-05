@@ -1,15 +1,15 @@
 /* Extract X.509 certificate in DER form from PKCS#11 or PEM.
  *
- * Copyright © 2014 Red Hat, Inc. All Rights Reserved.
- * Copyright © 2015 Intel Corporation.
+ * Copyright © 2014-2015 Red Hat, Inc. All Rights Reserved.
+ * Copyright © 2015      Intel Corporation.
  *
  * Authors: David Howells <dhowells@redhat.com>
  *          David Woodhouse <dwmw2@infradead.org>
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the licence, or (at your option) any later version.
  */
 #define _GNU_SOURCE
 #include <stdio.h>

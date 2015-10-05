@@ -1080,6 +1080,7 @@ static const struct of_device_id max77693_led_dt_match[] = {
 	{ .compatible = "maxim,max77693-led" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, max77693_led_dt_match);
 
 static struct platform_driver max77693_led_driver = {
 	.probe		= max77693_led_probe,

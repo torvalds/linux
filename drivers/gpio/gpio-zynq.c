@@ -514,7 +514,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
  * application for that pin.
  * Note: A bug is reported if no handler is set for the gpio pin.
  */
-static void zynq_gpio_irqhandler(unsigned int irq, struct irq_desc *desc)
+static void zynq_gpio_irqhandler(struct irq_desc *desc)
 {
 	u32 int_sts, int_enb;
 	unsigned int bank_num;

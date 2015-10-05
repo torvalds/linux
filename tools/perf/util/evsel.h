@@ -98,6 +98,7 @@ struct perf_evsel {
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
+	struct cpu_map		*own_cpus;
 	struct thread_map	*threads;
 	unsigned int		sample_size;
 	int			id_pos;

@@ -56,7 +56,7 @@ struct bcm7120_l2_intc_data {
 	const __be32 *map_mask_prop;
 };
 
-static void bcm7120_l2_intc_irq_handle(unsigned int irq, struct irq_desc *desc)
+static void bcm7120_l2_intc_irq_handle(struct irq_desc *desc)
 {
 	struct bcm7120_l1_intc_data *data = irq_desc_get_handler_data(desc);
 	struct bcm7120_l2_intc_data *b = data->b;

@@ -15,8 +15,8 @@ The updated API replacements are:
 
 DEFINE_STATIC_KEY_TRUE(key);
 DEFINE_STATIC_KEY_FALSE(key);
-static_key_likely()
-statick_key_unlikely()
+static_branch_likely()
+static_branch_unlikely()
 
 0) Abstract
 

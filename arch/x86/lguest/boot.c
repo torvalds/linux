@@ -1015,7 +1015,7 @@ static struct clock_event_device lguest_clockevent = {
  * This is the Guest timer interrupt handler (hardware interrupt 0).  We just
  * call the clockevent infrastructure and it does whatever needs doing.
  */
-static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
+static void lguest_time_irq(struct irq_desc *desc)
 {
 	unsigned long flags;
 

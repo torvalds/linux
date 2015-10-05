@@ -240,7 +240,7 @@ static struct irq_chip s3c2410_eint0_3_chip = {
 	.irq_set_type	= s3c24xx_eint_type,
 };
 
-static void s3c2410_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
+static void s3c2410_demux_eint0_3(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
@@ -295,7 +295,7 @@ static struct irq_chip s3c2412_eint0_3_chip = {
 	.irq_set_type	= s3c24xx_eint_type,
 };
 
-static void s3c2412_demux_eint0_3(unsigned int irq, struct irq_desc *desc)
+static void s3c2412_demux_eint0_3(struct irq_desc *desc)
 {
 	struct s3c24xx_eint_data *eint_data = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
@@ -361,7 +361,7 @@ static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 				      u32 offset, u32 range)
 {
 	struct s3c24xx_eint_data *data = irq_desc_get_handler_data(desc);
-	struct irq_chip *chip = irq_desc_get_irq_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct samsung_pinctrl_drv_data *d = data->drvdata;
 	unsigned int pend, mask;
 
@@ -388,12 +388,12 @@ static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 	chained_irq_exit(chip, desc);
 }
 
-static void s3c24xx_demux_eint4_7(unsigned int irq, struct irq_desc *desc)
+static void s3c24xx_demux_eint4_7(struct irq_desc *desc)
 {
 	s3c24xx_demux_eint(desc, 0, 0xf0);
 }
 
-static void s3c24xx_demux_eint8_23(unsigned int irq, struct irq_desc *desc)
+static void s3c24xx_demux_eint8_23(struct irq_desc *desc)
 {
 	s3c24xx_demux_eint(desc, 8, 0xffff00);
 }

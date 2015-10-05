@@ -104,9 +104,10 @@ cpld_pic_get_irq(int offset, u8 ignore, u8 __iomem *statusp,
 	return irq_linear_revmap(cpld_pic_host, cpld_irq);
 }
 
-static void
-cpld_pic_cascade(unsigned int irq, struct irq_desc *desc)
+static void cpld_pic_cascade(struct irq_desc *desc)
 {
+	unsigned int irq;
+
 	irq = cpld_pic_get_irq(0, PCI_IGNORE, &cpld_regs->pci_status,
 		&cpld_regs->pci_mask);
 	if (irq != NO_IRQ) {

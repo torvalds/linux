@@ -109,7 +109,7 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 	return 0;
 }
 
-static void intc_virq_handler(unsigned int __irq, struct irq_desc *desc)
+static void intc_virq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
@@ -127,7 +127,7 @@ static void intc_virq_handler(unsigned int __irq, struct irq_desc *desc)
 			handle = (unsigned long)irq_desc_get_handler_data(vdesc);
 			addr = INTC_REG(d, _INTC_ADDR_E(handle), 0);
 			if (intc_reg_fns[_INTC_FN(handle)](addr, handle, 0))
-				generic_handle_irq_desc(entry->irq, vdesc);
+				generic_handle_irq_desc(vdesc);
 		}
 	}
 

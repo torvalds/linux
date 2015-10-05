@@ -148,13 +148,13 @@ static ssize_t namespace_store(struct device *dev,
 	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
 	ssize_t rc;
 
-	nvdimm_bus_lock(dev);
 	device_lock(dev);
+	nvdimm_bus_lock(dev);
 	rc = nd_namespace_store(dev, &nd_pfn->ndns, buf, len);
 	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
 			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
-	device_unlock(dev);
 	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
 
 	return rc;
 }

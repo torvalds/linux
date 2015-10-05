@@ -446,7 +446,7 @@ static int meta_intc_irq_set_type(struct irq_data *data, unsigned int flow_type)
  * Whilst using TR2 to detect external interrupts is a software convention it is
  * (hopefully) unlikely to change.
  */
-static void meta_intc_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void meta_intc_irq_demux(struct irq_desc *desc)
 {
 	struct meta_intc_priv *priv = &meta_intc_priv;
 	irq_hw_number_t hw;

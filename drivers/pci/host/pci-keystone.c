@@ -110,7 +110,7 @@ static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 	return -EINVAL;
 }
 
-static void ks_pcie_msi_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
@@ -138,8 +138,7 @@ static void ks_pcie_msi_irq_handler(unsigned int __irq, struct irq_desc *desc)
  * Traverse through pending legacy interrupts and invoke handler for each. Also
  * takes care of interrupt controller level mask/ack operation.
  */
-static void ks_pcie_legacy_irq_handler(unsigned int __irq,
-				       struct irq_desc *desc)
+static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);

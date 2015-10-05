@@ -768,8 +768,8 @@ static int process_exit_event(struct perf_tool *tool,
 	if (!evsel->attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
-		sample->tid = event->comm.tid;
-		sample->pid = event->comm.pid;
+		sample->tid = event->fork.tid;
+		sample->pid = event->fork.pid;
 	}
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);

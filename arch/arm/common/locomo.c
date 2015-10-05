@@ -138,7 +138,7 @@ static struct locomo_dev_info locomo_devices[] = {
 	},
 };
 
-static void locomo_handler(unsigned int __irq, struct irq_desc *desc)
+static void locomo_handler(struct irq_desc *desc)
 {
 	struct locomo *lchip = irq_desc_get_chip_data(desc);
 	int req, i;

@@ -305,7 +305,7 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
  * which have been set as summary IRQ lines and which are triggered,
  * and to call their interrupt handlers.
  */
-static void msm_summary_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void msm_summary_irq_handler(struct irq_desc *desc)
 {
 	unsigned long i;
 	struct irq_chip *chip = irq_desc_get_chip(desc);

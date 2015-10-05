@@ -87,13 +87,12 @@ static struct irq_chip isa_hi_chip = {
 	.irq_unmask	= isa_unmask_pic_hi_irq,
 };
 
-static void
-isa_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void isa_irq_handler(struct irq_desc *desc)
 {
 	unsigned int isa_irq = *(unsigned char *)PCIIACK_BASE;
 
 	if (isa_irq < _ISA_IRQ(0) || isa_irq >= _ISA_IRQ(16)) {
-		do_bad_IRQ(isa_irq, desc);
+		do_bad_IRQ(desc);
 		return;
 	}
 
