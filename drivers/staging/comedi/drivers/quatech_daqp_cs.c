@@ -172,6 +172,20 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static unsigned int daqp_ai_get_sample(struct comedi_device *dev,
+				       struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	/*
+	 * Get a two's complement sample from the FIFO and
+	 * return the munged offset binary value.
+	 */
+	val = inb(dev->iobase + DAQP_FIFO);
+	val |= inb(dev->iobase + DAQP_FIFO) << 8;
+	return comedi_offset_munge(s, val);
+}
+
 /* Interrupt handler
  *
  * Operates in one of two modes.  If devpriv->interrupt_mode is
@@ -209,10 +223,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 				break;
 			}
 
-			data = inb(dev->iobase + DAQP_FIFO);
-			data |= inb(dev->iobase + DAQP_FIFO) << 8;
-			data ^= 0x8000;
-
+			data = daqp_ai_get_sample(dev, s);
 			comedi_buf_write_samples(s, &data, 1);
 
 			/* If there's a limit, decrement it
@@ -323,9 +334,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 		if (wait_for_completion_interruptible(&devpriv->eos))
 			return -EINTR;
 
-		data[i] = inb(dev->iobase + DAQP_FIFO);
-		data[i] |= inb(dev->iobase + DAQP_FIFO) << 8;
-		data[i] ^= 0x8000;
+		data[i] = daqp_ai_get_sample(dev, s);
 	}
 
 	return insn->n;
