@@ -50,19 +50,19 @@
 #define MULTIQ3_STATUS_EOC		BIT(3)
 #define MULTIQ3_STATUS_EOC_I		BIT(4)
 #define MULTIQ3_CTRL_REG		0x06
+#define MULTIQ3_CTRL_AO_CHAN(x)		(((x) & 0x7) << 0)
+#define MULTIQ3_CTRL_RC(x)		(((x) & 0x3) << 0)
+#define MULTIQ3_CTRL_AI_CHAN(x)		(((x) & 0x7) << 3)
+#define MULTIQ3_CTRL_E_CHAN(x)		(((x) & 0x7) << 3)
+#define MULTIQ3_CTRL_EN			BIT(6)
+#define MULTIQ3_CTRL_AZ			BIT(7)
+#define MULTIQ3_CTRL_CAL		BIT(8)
+#define MULTIQ3_CTRL_SH			BIT(9)
+#define MULTIQ3_CTRL_CLK		BIT(10)
+#define MULTIQ3_CTRL_LD			(3 << 11)
 #define MULTIQ3_CLK_REG			0x08
 #define MULTIQ3_ENC_DATA_REG		0x0c
 #define MULTIQ3_ENC_CTRL_REG		0x0e
-
-/*
- * flags for CONTROL register
- */
-#define MULTIQ3_AD_MUX_EN      0x0040
-#define MULTIQ3_AD_AUTOZ       0x0080
-#define MULTIQ3_AD_AUTOCAL     0x0100
-#define MULTIQ3_AD_SH          0x0200
-#define MULTIQ3_AD_CLOCK_4M    0x0400
-#define MULTIQ3_DA_LOAD                0x1800
 
 /*
  * flags for encoder control
@@ -85,7 +85,7 @@ static void multiq3_set_ctrl(struct comedi_device *dev, unsigned int bits)
 	 * According to the programming manual, the SH and CLK bits should
 	 * be kept high at all times.
 	 */
-	outw(MULTIQ3_AD_SH | MULTIQ3_AD_CLOCK_4M | bits,
+	outw(MULTIQ3_CTRL_SH | MULTIQ3_CTRL_CLK | bits,
 	     dev->iobase + MULTIQ3_CTRL_REG);
 }
 
@@ -112,7 +112,7 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	multiq3_set_ctrl(dev, MULTIQ3_AD_MUX_EN | (chan << 3));
+	multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN | MULTIQ3_CTRL_AI_CHAN(chan));
 
 	ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
 			     MULTIQ3_STATUS_EOC);
@@ -150,7 +150,8 @@ static int multiq3_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		multiq3_set_ctrl(dev, MULTIQ3_DA_LOAD | chan);
+		multiq3_set_ctrl(dev, MULTIQ3_CTRL_LD |
+				      MULTIQ3_CTRL_AO_CHAN(chan));
 		outw(val, dev->iobase + MULTIQ3_AO_REG);
 		multiq3_set_ctrl(dev, 0);
 	}
@@ -191,7 +192,8 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		multiq3_set_ctrl(dev, MULTIQ3_AD_MUX_EN | (chan << 3));
+		multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN |
+				      MULTIQ3_CTRL_E_CHAN(chan));
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CTRL_REG);
 		value = inb(dev->iobase + MULTIQ3_ENC_DATA_REG);
@@ -209,7 +211,8 @@ static void encoder_reset(struct comedi_device *dev)
 	int chan;
 
 	for (chan = 0; chan < s->n_chan; chan++) {
-		multiq3_set_ctrl(dev, MULTIQ3_AD_MUX_EN | (chan << 3));
+		multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN |
+				      MULTIQ3_CTRL_E_CHAN(chan));
 		outb(MULTIQ3_EFLAG_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
 		outb(MULTIQ3_CLOCK_DATA, dev->iobase + MULTIQ3_ENC_DATA_REG);
