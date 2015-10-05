@@ -550,7 +550,9 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	struct gpiod_data	*data;
 	unsigned long		flags;
 	int			status;
+	const char		*ioname = NULL;
 	struct device		*dev;
+	int			offset;
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
@@ -599,9 +601,13 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	else
 		data->direction_can_change = false;
 
+	offset = gpio_chip_hwgpio(desc);
+	if (chip->names && chip->names[offset])
+		ioname = chip->names[offset];
+
 	dev = device_create_with_groups(&gpio_class, chip->dev,
 					MKDEV(0, 0), data, gpio_groups,
-					desc->name ? desc->name : "gpio%u",
+					ioname ? ioname : "gpio%u",
 					desc_to_gpio(desc));
 	if (IS_ERR(dev)) {
 		status = PTR_ERR(dev);
