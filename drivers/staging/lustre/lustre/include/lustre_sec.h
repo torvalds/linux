@@ -916,7 +916,6 @@ const char *sptlrpc_flavor2name_base(__u32 flvr);
 char *sptlrpc_flavor2name_bulk(struct sptlrpc_flavor *sf,
 			       char *buf, int bufsize);
 char *sptlrpc_flavor2name(struct sptlrpc_flavor *sf, char *buf, int bufsize);
-char *sptlrpc_secflags2str(__u32 flags, char *buf, int bufsize);
 
 static inline
 struct ptlrpc_sec_policy *sptlrpc_policy_get(struct ptlrpc_sec_policy *policy)
@@ -979,7 +978,6 @@ int cli_ctx_is_eternal(struct ptlrpc_cli_ctx *ctx)
 /*
  * sec get/put
  */
-struct ptlrpc_sec *sptlrpc_sec_get(struct ptlrpc_sec *sec);
 void sptlrpc_sec_put(struct ptlrpc_sec *sec);
 
 /*
@@ -1058,11 +1056,6 @@ void sptlrpc_svc_ctx_decref(struct ptlrpc_request *req);
 
 int  sptlrpc_target_export_check(struct obd_export *exp,
 				 struct ptlrpc_request *req);
-/*
- * reverse context
- */
-int sptlrpc_svc_install_rvs_ctx(struct obd_import *imp,
-				struct ptlrpc_svc_ctx *ctx);
 
 /* bulk security api */
 void sptlrpc_enc_pool_put_pages(struct ptlrpc_bulk_desc *desc);

@@ -227,7 +227,7 @@ char *sptlrpc_flavor2name(struct sptlrpc_flavor *sf, char *buf, int bufsize)
 }
 EXPORT_SYMBOL(sptlrpc_flavor2name);
 
-char *sptlrpc_secflags2str(__u32 flags, char *buf, int bufsize)
+static char *sptlrpc_secflags2str(__u32 flags, char *buf, int bufsize)
 {
 	buf[0] = '\0';
 
@@ -244,7 +244,6 @@ char *sptlrpc_secflags2str(__u32 flags, char *buf, int bufsize)
 
 	return buf;
 }
-EXPORT_SYMBOL(sptlrpc_secflags2str);
 
 /**************************************************
  * client context APIs			    *
@@ -1199,14 +1198,13 @@ static void sptlrpc_sec_kill(struct ptlrpc_sec *sec)
 	}
 }
 
-struct ptlrpc_sec *sptlrpc_sec_get(struct ptlrpc_sec *sec)
+static struct ptlrpc_sec *sptlrpc_sec_get(struct ptlrpc_sec *sec)
 {
 	if (sec)
 		atomic_inc(&sec->ps_refcount);
 
 	return sec;
 }
-EXPORT_SYMBOL(sptlrpc_sec_get);
 
 void sptlrpc_sec_put(struct ptlrpc_sec *sec)
 {
@@ -1643,8 +1641,8 @@ void sptlrpc_cli_free_repbuf(struct ptlrpc_request *req)
 	req->rq_repmsg = NULL;
 }
 
-int sptlrpc_svc_install_rvs_ctx(struct obd_import *imp,
-				struct ptlrpc_svc_ctx *ctx)
+static int sptlrpc_svc_install_rvs_ctx(struct obd_import *imp,
+				       struct ptlrpc_svc_ctx *ctx)
 {
 	struct ptlrpc_sec_policy *policy = ctx->sc_policy;
 
