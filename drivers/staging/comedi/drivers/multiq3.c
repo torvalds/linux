@@ -100,14 +100,14 @@ static int multiq3_ai_status(struct comedi_device *dev,
 
 static int multiq3_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int n;
-	int chan;
-	unsigned int hi, lo;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
 	int ret;
+	int i;
 
-	chan = CR_CHAN(insn->chanspec);
 	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3),
 	     dev->iobase + MULTIQ3_CONTROL);
 
@@ -116,7 +116,7 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		outw(0, dev->iobase + MULTIQ3_AD_CS);
 
 		ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
@@ -124,12 +124,16 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		hi = inb(dev->iobase + MULTIQ3_AD_CS);
-		lo = inb(dev->iobase + MULTIQ3_AD_CS);
-		data[n] = (((hi << 8) | lo) + 0x1000) & 0x1fff;
+		/* get a 16-bit sample; mask it to the subdevice resolution */
+		val = inb(dev->iobase + MULTIQ3_AD_DATA) << 8;
+		val |= inb(dev->iobase + MULTIQ3_AD_DATA);
+		val &= s->maxdata;
+
+		/* munge the 2's complement value to offset binary */
+		data[i] = comedi_offset_munge(s, val);
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int multiq3_ao_insn_write(struct comedi_device *dev,
