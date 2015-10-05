@@ -5260,9 +5260,9 @@ int host_int_wait_msg_queue_idle(void)
 	return result;
 }
 
-s32 host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
+int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 {
-	s32 s32Error = 0;
+	int s32Error = 0;
 
 	struct host_if_msg msg;
 
