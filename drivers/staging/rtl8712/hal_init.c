@@ -278,7 +278,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		}
 		/* 5.Download DMEM code size and Load EMEM Code Section */
 		memset(ptx_desc, 0, TXDESC_SIZE);
-		ptx_desc->txdw0 |= cpu_to_le32(fwhdr.fw_priv_sz&0x0000ffff);
+		ptx_desc->txdw0 |= cpu_to_le32(fwhdr.fw_priv_sz & 0x0000ffff);
 		ptx_desc->txdw0 |= cpu_to_le32(BIT(28));
 		memcpy(ppayload, &fwhdr.fwpriv, fwhdr.fw_priv_sz);
 		r8712_write_mem(padapter, RTL8712_DMA_VOQ,
@@ -338,7 +338,7 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 	r8712_write32(padapter, RCR, (val32 | BIT(25))); /* Append PHY status */
 	val32 = 0;
 	val32 = r8712_read32(padapter, 0x10250040);
-	r8712_write32(padapter,  0x10250040, (val32&0x00FFFFFF));
+	r8712_write32(padapter,  0x10250040, (val32 & 0x00FFFFFF));
 	/* for usb rx aggregation */
 	r8712_write8(padapter, 0x102500B5, r8712_read8(padapter, 0x102500B5) |
 	       BIT(0)); /* page = 128bytes */
