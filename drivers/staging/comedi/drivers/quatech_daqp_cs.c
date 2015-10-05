@@ -655,11 +655,9 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 
 		s->readback[chan] = val;
 
-		val &= 0x0fff;
-		val ^= 0x0800;		/* Flip the sign */
-		val |= (chan << 12);
-
-		outw(val, dev->iobase + DAQP_DA);
+		/* write the two's complement value to the channel */
+		outw((chan << 12) | comedi_offset_munge(s, val),
+		     dev->iobase + DAQP_DA);
 	}
 
 	return insn->n;
