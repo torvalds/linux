@@ -142,7 +142,7 @@ typedef union _tuniHostIFkeyAttr {
  *  @version		1.0
  */
 struct key_attr {
-	tenuKeyType enuKeyType;
+	enum KEY_TYPE enuKeyType;
 	u8 u8KeyAction;
 	tuniHostIFkeyAttr uniHostIFkeyAttr;
 };

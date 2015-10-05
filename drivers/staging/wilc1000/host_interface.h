@@ -172,12 +172,12 @@ typedef enum {
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 } tenuConnDisconnEvent;
 
-typedef enum {
+enum KEY_TYPE {
 	WEP,
 	WPARxGtk,
 	WPAPtk,
 	PMKSA,
-} tenuKeyType;
+};
 
 
 /*Scan callBack function definition*/
