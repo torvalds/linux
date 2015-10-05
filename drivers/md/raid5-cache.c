@@ -66,7 +66,7 @@ struct r5l_log {
 					 * to the RAID */
 	struct list_head flushing_ios;	/* io_units which are waiting for log
 					 * cache flush */
-	struct list_head flushed_ios;	/* io_units which settle down in log disk */
+	struct list_head finished_ios;	/* io_units which settle down in log disk */
 	struct bio flush_bio;
 
 	struct kmem_cache *io_kc;
@@ -523,14 +523,14 @@ static sector_t r5l_reclaimable_space(struct r5l_log *log)
 				 log->next_checkpoint);
 }
 
-static bool r5l_complete_flushed_ios(struct r5l_log *log)
+static bool r5l_complete_finished_ios(struct r5l_log *log)
 {
 	struct r5l_io_unit *io, *next;
 	bool found = false;
 
 	assert_spin_locked(&log->io_list_lock);
 
-	list_for_each_entry_safe(io, next, &log->flushed_ios, log_sibling) {
+	list_for_each_entry_safe(io, next, &log->finished_ios, log_sibling) {
 		/* don't change list order */
 		if (io->state < IO_UNIT_STRIPE_END)
 			break;
@@ -555,7 +555,7 @@ static void __r5l_stripe_write_finished(struct r5l_io_unit *io)
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_STRIPE_END);
 
-	if (!r5l_complete_flushed_ios(log)) {
+	if (!r5l_complete_finished_ios(log)) {
 		spin_unlock_irqrestore(&log->io_list_lock, flags);
 		return;
 	}
@@ -596,7 +596,7 @@ static void r5l_log_flush_endio(struct bio *bio)
 			raid5_release_stripe(sh);
 		}
 	}
-	list_splice_tail_init(&log->flushing_ios, &log->flushed_ios);
+	list_splice_tail_init(&log->flushing_ios, &log->finished_ios);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 }
 
@@ -658,7 +658,7 @@ static void r5l_do_reclaim(struct r5l_log *log)
 		    (list_empty(&log->running_ios) &&
 		     list_empty(&log->io_end_ios) &&
 		     list_empty(&log->flushing_ios) &&
-		     list_empty(&log->flushed_ios)))
+		     list_empty(&log->finished_ios)))
 			break;
 
 		md_wakeup_thread(log->rdev->mddev->thread);
@@ -1071,7 +1071,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	INIT_LIST_HEAD(&log->running_ios);
 	INIT_LIST_HEAD(&log->io_end_ios);
 	INIT_LIST_HEAD(&log->flushing_ios);
-	INIT_LIST_HEAD(&log->flushed_ios);
+	INIT_LIST_HEAD(&log->finished_ios);
 	bio_init(&log->flush_bio);
 
 	log->io_kc = KMEM_CACHE(r5l_io_unit, 0);
