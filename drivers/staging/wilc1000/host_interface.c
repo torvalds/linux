@@ -72,7 +72,7 @@ extern u8 g_wilc_initialized;
  *  @version		1.0
  */
 struct cfg_param_attr {
-	tstrCfgParamVal pstrCfgParamVal;
+	struct cfg_param_val pstrCfgParamVal;
 };
 
 /*!
@@ -5782,7 +5782,7 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
  *  @date		8 March 2012
  *  @version		1.0
  */
-s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, tstrCfgParamVal *pstrCfgParamVal)
+s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, struct cfg_param_val *pstrCfgParamVal)
 {
 
 	s32 s32Error = 0;

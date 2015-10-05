@@ -109,7 +109,7 @@ typedef enum {
 	MBPS_54		= 54
 } CURRENT_TX_RATE_T;
 
-typedef struct {
+struct cfg_param_val {
 	u32 u32SetCfgFlag;
 	u8 ht_enable;
 	u8 bss_type;
@@ -132,7 +132,7 @@ typedef struct {
 	u16 passive_scan_time;
 	CURRENT_TX_RATE_T curr_tx_rate;
 
-} tstrCfgParamVal;
+};
 
 typedef enum {
 	RETRY_SHORT		= BIT(0),
@@ -319,7 +319,7 @@ typedef struct {
 	tenuHostIFstate enuHostIFstate;
 
 	u8 au8AssociatedBSSID[ETH_ALEN];
-	tstrCfgParamVal strCfgValues;
+	struct cfg_param_val strCfgValues;
 /* semaphores */
 	struct semaphore gtOsCfgValuesSem;
 	struct semaphore hSemTestKeyBlock;
@@ -885,7 +885,7 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
  *  @date		8 March 2012
  *  @version		1.0
  */
-s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, tstrCfgParamVal *pstrCfgParamVal);
+s32 hif_set_cfg(tstrWILC_WFIDrv *hWFIDrv, struct cfg_param_val *pstrCfgParamVal);
 
 /**
  *  @brief              gets configuration wids values
