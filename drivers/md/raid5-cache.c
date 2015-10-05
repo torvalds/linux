@@ -194,6 +194,17 @@ static void __r5l_set_io_unit_state(struct r5l_io_unit *io,
 	io->state = state;
 }
 
+static void r5l_io_run_stripes(struct r5l_io_unit *io)
+{
+	struct stripe_head *sh, *next;
+
+	list_for_each_entry_safe(sh, next, &io->stripe_list, log_list) {
+		list_del_init(&sh->log_list);
+		set_bit(STRIPE_HANDLE, &sh->state);
+		raid5_release_stripe(sh);
+	}
+}
+
 /* XXX: totally ignores I/O errors */
 static void r5l_log_endio(struct bio *bio)
 {
@@ -584,18 +595,10 @@ static void r5l_log_flush_endio(struct bio *bio)
 		flush_bio);
 	unsigned long flags;
 	struct r5l_io_unit *io;
-	struct stripe_head *sh;
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
-	list_for_each_entry(io, &log->flushing_ios, log_sibling) {
-		while (!list_empty(&io->stripe_list)) {
-			sh = list_first_entry(&io->stripe_list,
-				struct stripe_head, log_list);
-			list_del_init(&sh->log_list);
-			set_bit(STRIPE_HANDLE, &sh->state);
-			raid5_release_stripe(sh);
-		}
-	}
+	list_for_each_entry(io, &log->flushing_ios, log_sibling)
+		r5l_io_run_stripes(io);
 	list_splice_tail_init(&log->flushing_ios, &log->finished_ios);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 }
