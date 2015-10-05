@@ -85,10 +85,11 @@ struct daqp_private {
 #define DAQP_SCANLIST_EXT_GAIN(x)	((x) << 4)
 #define DAQP_SCANLIST_EXT_CHANNEL(x)	(x)
 
-#define DAQP_CONTROL_PACER_100kHz	0xc0
-#define DAQP_CONTROL_PACER_1MHz		0x80
-#define DAQP_CONTROL_PACER_5MHz		0x40
-#define DAQP_CONTROL_PACER_EXTERNAL	0x00
+#define DAQP_CONTROL_PACER_CLK(x)	(((x) & 0x3) << 6)
+#define DAQP_CONTROL_PACER_CLK_EXT	DAQP_CONTROL_PACER_CLK(0)
+#define DAQP_CONTROL_PACER_CLK_5MHZ	DAQP_CONTROL_PACER_CLK(1)
+#define DAQP_CONTROL_PACER_CLK_1MHZ	DAQP_CONTROL_PACER_CLK(2)
+#define DAQP_CONTROL_PACER_CLK_100KHZ	DAQP_CONTROL_PACER_CLK(3)
 #define DAQP_CONTORL_EXPANSION		0x20
 #define DAQP_CONTROL_EOS_INT_ENABLE	0x10
 #define DAQP_CONTROL_FIFO_INT_ENABLE	0x08
@@ -280,7 +281,6 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 {
 	struct daqp_private *devpriv = dev->private;
 	int i;
-	int v;
 	int counter = 10000;
 
 	if (devpriv->stop)
@@ -302,11 +302,9 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_COMMAND);
 
 	/* Set trigger */
-
-	v = DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL
-	    | DAQP_CONTROL_PACER_100kHz | DAQP_CONTROL_EOS_INT_ENABLE;
-
-	outb(v, dev->iobase + DAQP_CONTROL);
+	outb(DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL |
+	     DAQP_CONTROL_PACER_CLK_100KHZ | DAQP_CONTROL_EOS_INT_ENABLE,
+	     dev->iobase + DAQP_CONTROL);
 
 	/* Reset any pending interrupts (my card has a tendency to require
 	 * require multiple reads on the status register to achieve this)
@@ -459,9 +457,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int counter;
 	int scanlist_start_on_every_entry;
 	int threshold;
-
 	int i;
-	int v;
 
 	if (devpriv->stop)
 		return -EIO;
@@ -607,11 +603,9 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb((DAQP_FIFO_SIZE - threshold) >> 8, dev->iobase + DAQP_FIFO);
 
 	/* Set trigger */
-
-	v = DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL
-	    | DAQP_CONTROL_PACER_5MHz | DAQP_CONTROL_FIFO_INT_ENABLE;
-
-	outb(v, dev->iobase + DAQP_CONTROL);
+	outb(DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL |
+	     DAQP_CONTROL_PACER_CLK_5MHZ | DAQP_CONTROL_FIFO_INT_ENABLE,
+	     dev->iobase + DAQP_CONTROL);
 
 	/* Reset any pending interrupts (my card has a tendency to require
 	 * require multiple reads on the status register to achieve this)
