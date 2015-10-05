@@ -1533,31 +1533,6 @@ static int set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 ke
 }
 
 /**
- *  @brief      WILC_WFI_dump_survey
- *  @details    Get site survey information
- *  @param[in]
- *  @return     int : Return 0 on Success.
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int WILC_WFI_dump_survey(struct wiphy *wiphy, struct net_device *netdev,
-				int idx, struct survey_info *info)
-{
-	s32 s32Error = 0;
-
-
-	if (idx != 0) {
-		s32Error = -ENOENT;
-		PRINT_ER("Error Idx value doesn't equal zero: Error(%d)\n", s32Error);
-
-	}
-
-	return s32Error;
-}
-
-
-/**
  *  @brief      get_station
  *  @details    Get station information for the station identified by @mac
  *  @param[in]   NONE
@@ -1666,70 +1641,6 @@ static int change_bss(struct wiphy *wiphy, struct net_device *dev,
 }
 
 /**
- *  @brief      WILC_WFI_auth
- *  @details    Request to authenticate with the specified peer
- *  @param[in]
- *  @return     int : Return 0 on Success.
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int WILC_WFI_auth(struct wiphy *wiphy, struct net_device *dev,
-			 struct cfg80211_auth_request *req)
-{
-	PRINT_D(CFG80211_DBG, "In Authentication Function\n");
-	return 0;
-}
-
-/**
- *  @brief      WILC_WFI_assoc
- *  @details    Request to (re)associate with the specified peer
- *  @param[in]
- *  @return     int : Return 0 on Success.
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int WILC_WFI_assoc(struct wiphy *wiphy, struct net_device *dev,
-			  struct cfg80211_assoc_request *req)
-{
-	PRINT_D(CFG80211_DBG, "In Association Function\n");
-	return 0;
-}
-
-/**
- *  @brief      WILC_WFI_deauth
- *  @details    Request to deauthenticate from the specified peer
- *  @param[in]
- *  @return     int : Return 0 on Success.
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int  WILC_WFI_deauth(struct wiphy *wiphy, struct net_device *dev,
-			    struct cfg80211_deauth_request *req, void *cookie)
-{
-	PRINT_D(CFG80211_DBG, "In De-authentication Function\n");
-	return 0;
-}
-
-/**
- *  @brief      WILC_WFI_disassoc
- *  @details    Request to disassociate from the specified peer
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int  WILC_WFI_disassoc(struct wiphy *wiphy, struct net_device *dev,
-			      struct cfg80211_disassoc_request *req, void *cookie)
-{
-	PRINT_D(CFG80211_DBG, "In Disassociation Function\n");
-	return 0;
-}
-
-/**
  *  @brief      set_wiphy_params
  *  @details    Notify that wiphy parameters have changed;
  *  @param[in]   Changed bitfield (see &enum wiphy_params_flags) describes which values
@@ -1785,26 +1696,6 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 
 	return s32Error;
-}
-
-/**
- *  @brief      WILC_WFI_set_bitrate_mask
- *  @details    set the bitrate mask configuration
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	01 MAR 2012
- *  @version	1.0
- */
-static int WILC_WFI_set_bitrate_mask(struct wiphy *wiphy,
-				     struct net_device *dev, const u8 *peer,
-				     const struct cfg80211_bitrate_mask *mask)
-{
-	s32 s32Error = 0;
-
-	PRINT_D(CFG80211_DBG, "Setting Bitrate mask function\n");
-	return s32Error;
-
 }
 
 /**
