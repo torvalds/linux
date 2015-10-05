@@ -310,12 +310,11 @@ static struct r5l_io_unit *r5l_new_meta(struct r5l_log *log)
 
 	io->log_start = log->log_start;
 	io->meta_offset = sizeof(struct r5l_meta_block);
-	io->seq = log->seq;
+	io->seq = log->seq++;
 
 	io->current_bio = r5l_bio_alloc(log, io);
 	bio_add_page(io->current_bio, io->meta_page, PAGE_SIZE, 0);
 
-	log->seq++;
 	r5_reserve_log_entry(log, io);
 
 	spin_lock_irq(&log->io_list_lock);
