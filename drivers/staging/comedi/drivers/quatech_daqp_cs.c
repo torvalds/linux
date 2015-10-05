@@ -748,10 +748,17 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->insn_bits	= daqp_di_insn_bits;
 
+	/*
+	 * Digital Output subdevice
+	 * NOTE: The digital output lines share the same pins on the
+	 * interface connector as the four external channel selection
+	 * bits. If expansion mode is used the digital outputs do not
+	 * work.
+	 */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
 	s->subdev_flags	= SDF_WRITABLE;
-	s->n_chan	= 1;
+	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->insn_bits	= daqp_do_insn_bits;
 
