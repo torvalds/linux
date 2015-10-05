@@ -127,7 +127,7 @@ struct host_if_wep_attr {
 union host_if_key_attr {
 	struct host_if_wep_attr strHostIFwepAttr;
 	struct host_if_wpa_attr strHostIFwpaAttr;
-	tstrHostIFpmkidAttr strHostIFpmkidAttr;
+	struct host_if_pmkid_attr strHostIFpmkidAttr;
 };
 
 /*!
@@ -4725,7 +4725,7 @@ s32 host_int_add_rx_gtk(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8RxGtk, u8 u8GtkKe
  *  @date		8 March 2012
  *  @version		1.0
  */
-s32 host_int_set_pmkid_info(tstrWILC_WFIDrv *hWFIDrv, tstrHostIFpmkidAttr *pu8PmkidInfoArray)
+s32 host_int_set_pmkid_info(tstrWILC_WFIDrv *hWFIDrv, struct host_if_pmkid_attr *pu8PmkidInfoArray)
 {
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;

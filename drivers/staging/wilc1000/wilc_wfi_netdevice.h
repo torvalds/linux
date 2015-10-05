@@ -122,7 +122,7 @@ struct wilc_priv {
 	struct net_device *dev;
 	struct napi_struct napi;
 	tstrWILC_WFIDrv *hWILCWFIDrv;
-	tstrHostIFpmkidAttr pmkid_list;
+	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
 	u8 WILC_WFI_wep_default;
 	u8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];

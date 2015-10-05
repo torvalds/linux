@@ -88,10 +88,10 @@ typedef struct _tstrHostIFpmkid {
 	u8 pmkid[PMKID_LEN];
 } tstrHostIFpmkid;
 
-typedef struct _tstrHostIFpmkidAttr {
+struct host_if_pmkid_attr {
 	u8 numpmkid;
 	tstrHostIFpmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
-} tstrHostIFpmkidAttr;
+};
 
 typedef enum {
 	AUTORATE	= 0,
@@ -550,7 +550,7 @@ s32 host_int_add_tx_gtk(tstrWILC_WFIDrv *hWFIDrv, u8 u8KeyLen, u8 *pu8TxGtk, u8 
  *  @version		1.0
  */
 
-s32 host_int_set_pmkid_info(tstrWILC_WFIDrv *hWFIDrv, tstrHostIFpmkidAttr *pu8PmkidInfoArray);
+s32 host_int_set_pmkid_info(tstrWILC_WFIDrv *hWFIDrv, struct host_if_pmkid_attr *pu8PmkidInfoArray);
 /**
  *  @brief              gets the cached the pmkid info
  *  @details    valid only in BSS STA mode if External Supplicant
