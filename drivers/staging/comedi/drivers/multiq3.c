@@ -39,18 +39,18 @@
 #include "../comedidev.h"
 
 /*
- * MULTIQ-3 port offsets
+ * Register map
  */
-#define MULTIQ3_DIGIN_PORT 0
-#define MULTIQ3_DIGOUT_PORT 0
-#define MULTIQ3_DAC_DATA 2
-#define MULTIQ3_AD_DATA 4
-#define MULTIQ3_AD_CS 4
-#define MULTIQ3_STATUS 6
-#define MULTIQ3_CONTROL 6
-#define MULTIQ3_CLK_DATA 8
-#define MULTIQ3_ENC_DATA 12
-#define MULTIQ3_ENC_CONTROL 14
+#define MULTIQ3_DI_REG			0x00
+#define MULTIQ3_DO_REG			0x00
+#define MULTIQ3_AO_REG			0x02
+#define MULTIQ3_AI_REG			0x04
+#define MULTIQ3_AI_CONV_REG		0x04
+#define MULTIQ3_STATUS_REG		0x06
+#define MULTIQ3_CTRL_REG		0x06
+#define MULTIQ3_CLK_REG			0x08
+#define MULTIQ3_ENC_DATA_REG		0x0c
+#define MULTIQ3_ENC_CTRL_REG		0x0e
 
 /*
  * flags for CONTROL register
@@ -92,7 +92,7 @@ static int multiq3_ai_status(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + MULTIQ3_STATUS);
+	status = inw(dev->iobase + MULTIQ3_STATUS_REG);
 	if (status & context)
 		return 0;
 	return -EBUSY;
@@ -109,7 +109,7 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 	int i;
 
 	outw(MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3),
-	     dev->iobase + MULTIQ3_CONTROL);
+	     dev->iobase + MULTIQ3_CTRL_REG);
 
 	ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
 			     MULTIQ3_STATUS_EOC);
@@ -117,7 +117,7 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < insn->n; i++) {
-		outw(0, dev->iobase + MULTIQ3_AD_CS);
+		outw(0, dev->iobase + MULTIQ3_AI_CONV_REG);
 
 		ret = comedi_timeout(dev, s, insn, multiq3_ai_status,
 				     MULTIQ3_STATUS_EOC_I);
@@ -125,8 +125,8 @@ static int multiq3_ai_insn_read(struct comedi_device *dev,
 			return ret;
 
 		/* get a 16-bit sample; mask it to the subdevice resolution */
-		val = inb(dev->iobase + MULTIQ3_AD_DATA) << 8;
-		val |= inb(dev->iobase + MULTIQ3_AD_DATA);
+		val = inb(dev->iobase + MULTIQ3_AI_REG) << 8;
+		val |= inb(dev->iobase + MULTIQ3_AI_REG);
 		val &= s->maxdata;
 
 		/* munge the 2's complement value to offset binary */
@@ -148,9 +148,9 @@ static int multiq3_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		outw(MULTIQ3_CONTROL_MUST | MULTIQ3_DA_LOAD | chan,
-		     dev->iobase + MULTIQ3_CONTROL);
-		outw(val, dev->iobase + MULTIQ3_DAC_DATA);
-		outw(MULTIQ3_CONTROL_MUST, dev->iobase + MULTIQ3_CONTROL);
+		     dev->iobase + MULTIQ3_CTRL_REG);
+		outw(val, dev->iobase + MULTIQ3_AO_REG);
+		outw(MULTIQ3_CONTROL_MUST, dev->iobase + MULTIQ3_CTRL_REG);
 	}
 	s->readback[chan] = val;
 
@@ -161,7 +161,7 @@ static int multiq3_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	data[1] = inw(dev->iobase + MULTIQ3_DIGIN_PORT);
+	data[1] = inw(dev->iobase + MULTIQ3_DI_REG);
 
 	return insn->n;
 }
@@ -172,7 +172,7 @@ static int multiq3_do_insn_bits(struct comedi_device *dev,
 				unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + MULTIQ3_DIGOUT_PORT);
+		outw(s->state, dev->iobase + MULTIQ3_DO_REG);
 
 	data[1] = s->state;
 
@@ -190,12 +190,12 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
-		outw(control, dev->iobase + MULTIQ3_CONTROL);
-		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CONTROL);
-		value = inb(dev->iobase + MULTIQ3_ENC_DATA);
-		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA) << 8);
-		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA) << 16);
+		outw(control, dev->iobase + MULTIQ3_CTRL_REG);
+		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		value = inb(dev->iobase + MULTIQ3_ENC_DATA_REG);
+		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 8);
+		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 16);
 		data[n] = (value + 0x800000) & 0xffffff;
 	}
 
@@ -210,14 +210,14 @@ static void encoder_reset(struct comedi_device *dev)
 	for (chan = 0; chan < s->n_chan; chan++) {
 		int control =
 		    MULTIQ3_CONTROL_MUST | MULTIQ3_AD_MUX_EN | (chan << 3);
-		outw(control, dev->iobase + MULTIQ3_CONTROL);
-		outb(MULTIQ3_EFLAG_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_CLOCK_DATA, dev->iobase + MULTIQ3_ENC_DATA);
-		outb(MULTIQ3_CLOCK_SETUP, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_INPUT_SETUP, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_QUAD_X4, dev->iobase + MULTIQ3_ENC_CONTROL);
-		outb(MULTIQ3_CNTR_RESET, dev->iobase + MULTIQ3_ENC_CONTROL);
+		outw(control, dev->iobase + MULTIQ3_CTRL_REG);
+		outb(MULTIQ3_EFLAG_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_CLOCK_DATA, dev->iobase + MULTIQ3_ENC_DATA_REG);
+		outb(MULTIQ3_CLOCK_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_INPUT_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_QUAD_X4, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+		outb(MULTIQ3_CNTR_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
 	}
 }
 
