@@ -2116,7 +2116,6 @@ void lustre_swab_generic_32s(__u32 *val);
 /* This FULL lock is useful to take on unlink sort of operations */
 #define MDS_INODELOCK_FULL ((1<<(MDS_INODELOCK_MAXSHIFT+1))-1)
 
-void lustre_swab_ll_fid(struct ll_fid *fid);
 
 /* NOTE: until Lustre 1.8.7/2.1.1 the fid_ver() was packed into name[2],
  * but was moved into name[1] along with the OID to avoid consuming the
@@ -3349,7 +3348,6 @@ void lustre_swab_llogd_body(struct llogd_body *d);
 void lustre_swab_llog_hdr(struct llog_log_hdr *h);
 void lustre_swab_llogd_conn_body(struct llogd_conn_body *d);
 void lustre_swab_llog_rec(struct llog_rec_hdr *rec);
-void lustre_swab_llog_id(struct llog_logid *lid);
 
 struct lustre_cfg;
 void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg);
