@@ -141,6 +141,8 @@
 
 #define DAQP_FIFO_SIZE			4096
 
+#define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in nanoseconds */
+
 struct daqp_private {
 	int stop;
 };
@@ -399,30 +401,30 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-#define MAX_SPEED	10000	/* 100 kHz - in nanoseconds */
+	err |= comedi_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
+	if (cmd->scan_begin_src == TRIG_TIMER)
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
-						    MAX_SPEED);
-	}
-
-	/* If both scan_begin and convert are both timer values, the only
-	 * way that can make sense is if the scan time is the number of
-	 * conversions times the convert time
-	 */
-
-	if (cmd->scan_begin_src == TRIG_TIMER && cmd->convert_src == TRIG_TIMER
-	    && cmd->scan_begin_arg != cmd->convert_arg * cmd->scan_end_arg) {
-		err |= -EINVAL;
-	}
+						    DAQP_MAX_TIMER_SPEED);
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
-						    MAX_SPEED);
-	}
+						    DAQP_MAX_TIMER_SPEED);
 
-	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
-					   cmd->chanlist_len);
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			/*
+			 * If both scan_begin and convert are both timer
+			 * values, the only way that can make sense is if
+			 * the scan time is the number of conversions times
+			 * the convert time.
+			 */
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg,
+							   arg);
+		}
+	}
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
