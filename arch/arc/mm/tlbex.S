@@ -221,12 +221,15 @@ ex_saved_reg1:
 	; Get the PTE entry: The idea is
 	; (1) x = addr >> PAGE_SHIFT 	-> masks page-off bits from @fault-addr
 	; (2) y = x & (PTRS_PER_PTE - 1) -> to get index
-	; (3) z = pgtbl[y]
-	; To avoid the multiply by in end, we do the -2, <<2 below
+	; (3) z = (pgtbl + y * 4)
 
-	lsr     r0, r2, (PAGE_SHIFT - 2)
-	and     r0, r0, ( (PTRS_PER_PTE - 1) << 2)
-	ld.aw   r0, [r1, r0]            ; get PTE and PTE ptr for fault addr
+#define PTE_SIZE_LOG	2	/* 4 == 2 ^ 2 */
+
+	; multiply in step (3) above avoided by shifting lesser in step (1)
+	lsr     r0, r2, ( PAGE_SHIFT - PTE_SIZE_LOG )
+	and     r0, r0, ( (PTRS_PER_PTE - 1) << PTE_SIZE_LOG )
+	ld.aw   r0, [r1, r0]		; r0: PTE
+					; r1: PTE ptr
 
 2:
 
@@ -247,15 +250,15 @@ ex_saved_reg1:
 ; IN: r0 = PTE, r1 = ptr to PTE
 
 .macro CONV_PTE_TO_TLB
-	and    r3, r0, PTE_BITS_RWX	;       r w x
-	lsl    r2, r3, 3		; r w x 0 0 0 (GLOBAL, kernel only)
+	and    r3, r0, PTE_BITS_RWX	;          r  w  x
+	lsl    r2, r3, 3		; Kr Kw Kx 0  0  0 (GLOBAL, kernel only)
 	and.f  0,  r0, _PAGE_GLOBAL
-	or.z   r2, r2, r3		; r w x r w x (!GLOBAL, user page)
+	or.z   r2, r2, r3		; Kr Kw Kx Ur Uw Ux (!GLOBAL, user page)
 
 	and r3, r0, PTE_BITS_NON_RWX_IN_PD1 ; Extract PFN+cache bits from PTE
 	or  r3, r3, r2
 
-	sr  r3, [ARC_REG_TLBPD1]    	; these go in PD1
+	sr  r3, [ARC_REG_TLBPD1]    	; paddr[31..13] | Kr Kw Kx Ur Uw Ux | C
 
 	and r2, r0, PTE_BITS_IN_PD0 ; Extract other PTE flags: (V)alid, (G)lb
 
