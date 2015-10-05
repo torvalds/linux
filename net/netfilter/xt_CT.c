@@ -171,6 +171,9 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 	if (timeout_ext == NULL)
 		ret = -ENOMEM;
 
+	rcu_read_unlock();
+	return ret;
+
 err_put_timeout:
 	__xt_ct_tg_timeout_put(timeout);
 out:
