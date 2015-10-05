@@ -269,11 +269,8 @@ static void r5l_submit_current_io(struct r5l_log *log)
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
-	while ((bio = bio_list_pop(&io->bios))) {
-		/* all IO must start from rdev->data_offset */
-		bio->bi_iter.bi_sector += log->rdev->data_offset;
+	while ((bio = bio_list_pop(&io->bios)))
 		submit_bio(WRITE, bio);
-	}
 }
 
 static struct bio *r5l_bio_alloc(struct r5l_log *log, struct r5l_io_unit *io)
@@ -282,7 +279,7 @@ static struct bio *r5l_bio_alloc(struct r5l_log *log, struct r5l_io_unit *io)
 
 	bio->bi_rw = WRITE;
 	bio->bi_bdev = log->rdev->bdev;
-	bio->bi_iter.bi_sector = log->log_start;
+	bio->bi_iter.bi_sector = log->rdev->data_offset + log->log_start;
 	bio->bi_end_io = r5l_log_endio;
 	bio->bi_private = io;
 
