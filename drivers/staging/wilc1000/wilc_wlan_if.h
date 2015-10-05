@@ -219,12 +219,12 @@ typedef enum {
 	WPA2_AES_TKIP		= 0x71,	/* Aes or Tkip */
 } SECURITY_T;
 
-typedef enum {
+enum AUTHTYPE {
 	OPEN_SYSTEM		= 1,
 	SHARED_KEY		= 2,
 	ANY			= 3,
 	IEEE8021		= 5
-} AUTHTYPE_T;
+};
 
 typedef enum {
 	SITE_SURVEY_1CH		= 0,

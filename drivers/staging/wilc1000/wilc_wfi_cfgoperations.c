@@ -786,7 +786,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	s32 s32Error = 0;
 	u32 i;
 	u8 u8security = NO_ENCRYPT;
-	AUTHTYPE_T tenuAuth_type = ANY;
+	enum AUTHTYPE tenuAuth_type = ANY;
 	char *pcgroup_encrypt_val = NULL;
 	char *pccipher_group = NULL;
 	char *pcwpa_version = NULL;
@@ -1085,7 +1085,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	u8 u8mode = NO_ENCRYPT;
 	u8 u8gmode = NO_ENCRYPT;
 	u8 u8pmode = NO_ENCRYPT;
-	AUTHTYPE_T tenuAuth_type = ANY;
+	enum AUTHTYPE tenuAuth_type = ANY;
 
 	priv = wiphy_priv(wiphy);
 

@@ -111,7 +111,7 @@ typedef struct _tstrHostIFwepAttr {
 	u8 u8WepKeylen;
 	u8 u8Wepidx;
 	u8 u8mode;
-	AUTHTYPE_T tenuAuth_type;
+	enum AUTHTYPE tenuAuth_type;
 
 } tstrHostIFwepAttr;
 
@@ -191,7 +191,7 @@ struct connect_attr {
 	u8 u8security;
 	wilc_connect_result pfConnectResult;
 	void *pvUserArg;
-	AUTHTYPE_T tenuAuth_type;
+	enum AUTHTYPE tenuAuth_type;
 	u8 u8channel;
 	void *pJoinParams;
 };
@@ -4455,7 +4455,7 @@ s32 host_int_add_wep_key_bss_sta(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, 
  *  @date		28 FEB 2013
  *  @version		1.0
  */
-s32 host_int_add_wep_key_bss_ap(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, u8 u8WepKeylen, u8 u8Keyidx, u8 u8mode, AUTHTYPE_T tenuAuth_type)
+s32 host_int_add_wep_key_bss_ap(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8WepKey, u8 u8WepKeylen, u8 u8Keyidx, u8 u8mode, enum AUTHTYPE tenuAuth_type)
 {
 
 	s32 s32Error = 0;
@@ -5000,7 +5000,7 @@ s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 				  const u8 *pu8ssid, size_t ssidLen,
 				  const u8 *pu8IEs, size_t IEsLen,
 				  wilc_connect_result pfConnectResult, void *pvUserArg,
-				  u8 u8security, AUTHTYPE_T tenuAuth_type,
+				  u8 u8security, enum AUTHTYPE tenuAuth_type,
 				  u8 u8channel,
 				  void *pJoinParams)
 {
