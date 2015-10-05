@@ -329,6 +329,8 @@ static inline int fib_multipath_hash(__be32 saddr, __be32 daddr)
 }
 
 void fib_select_multipath(struct fib_result *res, int hash);
+void fib_select_path(struct net *net, struct fib_result *res,
+		     struct flowi4 *fl4, int mp_hash);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
