@@ -39,8 +39,6 @@
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
 
-#define vrf_is_slave(dev)   ((dev)->flags & IFF_SLAVE)
-
 #define vrf_master_get_rcu(dev) \
 	((struct net_device *)rcu_dereference(dev->rx_handler_data))
 
@@ -433,7 +431,7 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 	if (ret < 0)
 		goto out_unregister;
 
-	port_dev->flags |= IFF_SLAVE;
+	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
 	__vrf_insert_slave(queue, slave);
 	cycle_netdev(port_dev);
 
@@ -448,7 +446,7 @@ out_fail:
 
 static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	if (netif_is_l3_master(port_dev) || vrf_is_slave(port_dev))
+	if (netif_is_l3_master(port_dev) || netif_is_l3_slave(port_dev))
 		return -EINVAL;
 
 	return do_vrf_add_slave(dev, port_dev);
@@ -462,7 +460,7 @@ static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 	struct slave *slave;
 
 	netdev_upper_dev_unlink(port_dev, dev);
-	port_dev->flags &= ~IFF_SLAVE;
+	port_dev->priv_flags &= ~IFF_L3MDEV_SLAVE;
 
 	netdev_rx_handler_unregister(port_dev);
 
@@ -672,7 +670,7 @@ static int vrf_device_event(struct notifier_block *unused,
 	if (event == NETDEV_UNREGISTER) {
 		struct net_device *vrf_dev;
 
-		if (!vrf_is_slave(dev) || netif_is_l3_master(dev))
+		if (!netif_is_l3_slave(dev))
 			goto out;
 
 		vrf_dev = netdev_master_upper_dev_get(dev);
