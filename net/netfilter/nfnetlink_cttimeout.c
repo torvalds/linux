@@ -612,6 +612,7 @@ static void __exit cttimeout_exit(void)
 	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
 	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
+	rcu_barrier();
 }
 
 module_init(cttimeout_init);
