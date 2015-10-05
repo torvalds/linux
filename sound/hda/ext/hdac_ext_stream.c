@@ -227,7 +227,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_setup);
 void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
 				 int stream)
 {
-	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 0);
+	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 1 << stream);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_link_set_stream_id);
 
