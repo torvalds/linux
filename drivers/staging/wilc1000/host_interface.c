@@ -4214,7 +4214,7 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (result)
 		PRINT_ER("Error in sending message queue : Request to remove WEP key\n");
-	down(&(wfi_drv->hSemTestKeyBlock));
+	down(&wfi_drv->hSemTestKeyBlock);
 
 	return result;
 }
