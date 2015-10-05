@@ -116,7 +116,7 @@ typedef struct _tstrHostIFwepAttr {
 } tstrHostIFwepAttr;
 
 /*!
- *  @struct             tuniHostIFkeyAttr
+ *  @struct             host_if_key_attr
  *  @brief		Structure to hold Host IF Scan Attributes
  *  @details
  *  @todo
@@ -125,11 +125,11 @@ typedef struct _tstrHostIFwepAttr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef union _tuniHostIFkeyAttr {
+union host_if_key_attr {
 	tstrHostIFwepAttr strHostIFwepAttr;
 	tstrHostIFwpaAttr strHostIFwpaAttr;
 	tstrHostIFpmkidAttr strHostIFpmkidAttr;
-} tuniHostIFkeyAttr;
+};
 
 /*!
  *  @struct             key_attr
@@ -144,7 +144,7 @@ typedef union _tuniHostIFkeyAttr {
 struct key_attr {
 	enum KEY_TYPE enuKeyType;
 	u8 u8KeyAction;
-	tuniHostIFkeyAttr uniHostIFkeyAttr;
+	union host_if_key_attr uniHostIFkeyAttr;
 };
 
 
