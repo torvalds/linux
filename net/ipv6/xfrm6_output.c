@@ -131,6 +131,13 @@ int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb)
 	return xfrm_output(sk, skb);
 }
 
+static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	struct xfrm_state *x = skb_dst(skb)->xfrm;
+
+	return x->outer_mode->afinfo->output_finish(sk, skb);
+}
+
 static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
@@ -160,8 +167,8 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	if (x->props.mode == XFRM_MODE_TUNNEL &&
 	    ((skb->len > mtu && !skb_is_gso(skb)) ||
 		dst_allfrag(skb_dst(skb)))) {
-		return ip6_fragment(sk, skb,
-				    x->outer_mode->afinfo->output_finish);
+		return ip6_fragment(net, sk, skb,
+				    __xfrm6_output_finish);
 	}
 	return x->outer_mode->afinfo->output_finish(sk, skb);
 }
