@@ -5237,7 +5237,6 @@ int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *wfi_drv, u8 channel)
 	return 0;
 }
 
-
 int host_int_wait_msg_queue_idle(void)
 {
 	int result = 0;
@@ -5283,14 +5282,11 @@ int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 	return s32Error;
 }
 
-
-
 s32 host_int_set_operation_mode(tstrWILC_WFIDrv *hWFIDrv, u32 u32mode)
 {
 	s32 s32Error = 0;
 
 	struct host_if_msg msg;
-
 
 	/* prepare the set driver handler message */
 
