@@ -386,7 +386,7 @@ union message_body {
 	struct ba_session_info session_info;
 	struct remain_ch remain_on_ch;
 	struct reg_frame reg_frame;
-	char *pUserData;
+	char *data;
 	struct del_all_sta strHostIFDelAllSta;
 };
 
@@ -4105,7 +4105,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_GET_STATISTICS:
-			Handle_GetStatistics(msg.drvHandler, (tstrStatistics *)msg.body.pUserData);
+			Handle_GetStatistics(msg.drvHandler, (tstrStatistics *)msg.body.data);
 			break;
 
 		case HOST_IF_MSG_GET_CHNL:
@@ -5681,7 +5681,7 @@ s32 host_int_get_statistics(tstrWILC_WFIDrv *hWFIDrv, tstrStatistics *pstrStatis
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
 	msg.id = HOST_IF_MSG_GET_STATISTICS;
-	msg.body.pUserData = (char *)pstrStatistics;
+	msg.body.data = (char *)pstrStatistics;
 	msg.drvHandler = hWFIDrv;
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
