@@ -257,6 +257,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	struct victim_sel_policy p;
 	unsigned int secno, max_cost;
+	unsigned int last_segment = MAIN_SEGS(sbi);
 	int nsearched = 0;
 
 	mutex_lock(&dirty_i->seglist_lock);
@@ -277,9 +278,10 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		unsigned long cost;
 		unsigned int segno;
 
-		segno = find_next_bit(p.dirty_segmap, MAIN_SEGS(sbi), p.offset);
-		if (segno >= MAIN_SEGS(sbi)) {
+		segno = find_next_bit(p.dirty_segmap, last_segment, p.offset);
+		if (segno >= last_segment) {
 			if (sbi->last_victim[p.gc_mode]) {
+				last_segment = sbi->last_victim[p.gc_mode];
 				sbi->last_victim[p.gc_mode] = 0;
 				p.offset = 0;
 				continue;
