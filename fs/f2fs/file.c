@@ -1618,29 +1618,25 @@ static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	__u32 i, count;
+	__u32 sync;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (get_user(count, (__u32 __user *)arg))
+	if (get_user(sync, (__u32 __user *)arg))
 		return -EFAULT;
 
-	if (!count || count > F2FS_BATCH_GC_MAX_NUM)
-		return -EINVAL;
+	if (f2fs_readonly(sbi->sb))
+		return -EROFS;
 
-	for (i = 0; i < count; i++) {
+	if (!sync) {
 		if (!mutex_trylock(&sbi->gc_mutex))
-			break;
-
-		if (f2fs_gc(sbi))
-			break;
+			return -EBUSY;
+	} else {
+		mutex_lock(&sbi->gc_mutex);
 	}
 
-	if (put_user(i, (__u32 __user *)arg))
-		return -EFAULT;
-
-	return 0;
+	return f2fs_gc(sbi, sync);
 }
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

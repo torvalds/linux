@@ -78,7 +78,7 @@ static int gc_thread_func(void *data)
 		stat_inc_bggc_count(sbi);
 
 		/* if return value is not zero, no victim was selected */
-		if (f2fs_gc(sbi))
+		if (f2fs_gc(sbi, false))
 			wait_ms = gc_th->no_gc_sleep_time;
 
 		/* balancing f2fs's metadata periodically */
@@ -803,12 +803,12 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	return nfree;
 }
 
-int f2fs_gc(struct f2fs_sb_info *sbi)
+int f2fs_gc(struct f2fs_sb_info *sbi, bool sync)
 {
 	unsigned int segno, i;
-	int gc_type = BG_GC;
+	int gc_type = sync ? FG_GC : BG_GC;
 	int sec_freed = 0;
-	int ret = -1;
+	int ret = -EINVAL;
 	struct cp_control cpc;
 	struct gc_inode_list gc_list = {
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
@@ -855,15 +855,20 @@ gc_more:
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
-	if (has_not_enough_free_secs(sbi, sec_freed))
-		goto gc_more;
+	if (!sync) {
+		if (has_not_enough_free_secs(sbi, sec_freed))
+			goto gc_more;
 
-	if (gc_type == FG_GC)
-		write_checkpoint(sbi, &cpc);
+		if (gc_type == FG_GC)
+			write_checkpoint(sbi, &cpc);
+	}
 stop:
 	mutex_unlock(&sbi->gc_mutex);
 
 	put_gc_inode(&gc_list);
+
+	if (sync)
+		ret = sec_freed ? 0 : -EAGAIN;
 	return ret;
 }
 
