@@ -444,11 +444,7 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 	else
 		scratch &= ~0x47;
 
-	ret = pci_write_config_byte(chip->pdev, 0xAE, scratch);
-	if (ret)
-		return ret;
-
-	return 0;
+	return pci_write_config_byte(chip->pdev, 0xAE, scratch);
 }
 
 static int jmicron_probe(struct sdhci_pci_chip *chip)
