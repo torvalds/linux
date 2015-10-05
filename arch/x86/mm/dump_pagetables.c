@@ -32,6 +32,8 @@ struct pg_state {
 	const struct addr_marker *marker;
 	unsigned long lines;
 	bool to_dmesg;
+	bool check_wx;
+	unsigned long wx_pages;
 };
 
 struct addr_marker {
@@ -214,6 +216,16 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		const char *unit = units;
 		unsigned long delta;
 		int width = sizeof(unsigned long) * 2;
+		pgprotval_t pr = pgprot_val(st->current_prot);
+
+		if (st->check_wx && (pr & _PAGE_RW) && !(pr & _PAGE_NX)) {
+			WARN_ONCE(1,
+				  "x86/mm: Found insecure W+X mapping at address %p/%pS\n",
+				  (void *)st->start_address,
+				  (void *)st->start_address);
+			st->wx_pages += (st->current_address -
+					 st->start_address) / PAGE_SIZE;
+		}
 
 		/*
 		 * Now print the actual finished series
@@ -346,7 +358,8 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
 #define pgd_none(a)  pud_none(__pud(pgd_val(a)))
 #endif
 
-void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
+static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
+				       bool checkwx)
 {
 #ifdef CONFIG_X86_64
 	pgd_t *start = (pgd_t *) &init_level4_pgt;
@@ -361,6 +374,10 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 		start = pgd;
 		st.to_dmesg = true;
 	}
+
+	st.check_wx = checkwx;
+	if (checkwx)
+		st.wx_pages = 0;
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
@@ -381,8 +398,26 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 	/* Flush out the last page */
 	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
 	note_page(m, &st, __pgprot(0), 0);
+	if (!checkwx)
+		return;
+	if (st.wx_pages)
+		pr_info("x86/mm: Checked W+X mappings: FAILED, %lu W+X pages found.\n",
+			st.wx_pages);
+	else
+		pr_info("x86/mm: Checked W+X mappings: passed, no W+X pages found.\n");
 }
 
+void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
+{
+	ptdump_walk_pgd_level_core(m, pgd, false);
+}
+
+void ptdump_walk_pgd_level_checkwx(void)
+{
+	ptdump_walk_pgd_level_core(NULL, NULL, true);
+}
+
+#ifdef CONFIG_X86_PTDUMP
 static int ptdump_show(struct seq_file *m, void *v)
 {
 	ptdump_walk_pgd_level(m, NULL);
@@ -400,10 +435,13 @@ static const struct file_operations ptdump_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif
 
 static int pt_dump_init(void)
 {
+#ifdef CONFIG_X86_PTDUMP
 	struct dentry *pe;
+#endif
 
 #ifdef CONFIG_X86_32
 	/* Not a compile-time constant on x86-32 */
@@ -415,10 +453,12 @@ static int pt_dump_init(void)
 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
 #endif
 
+#ifdef CONFIG_X86_PTDUMP
 	pe = debugfs_create_file("kernel_page_tables", 0600, NULL, NULL,
 				 &ptdump_fops);
 	if (!pe)
 		return -ENOMEM;
+#endif
 
 	return 0;
 }
