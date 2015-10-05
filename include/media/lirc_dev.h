@@ -196,10 +196,10 @@ struct lirc_driver {
 	void *data;
 	int min_timeout;
 	int max_timeout;
-	int (*add_to_buf) (void *data, struct lirc_buffer *buf);
+	int (*add_to_buf)(void *data, struct lirc_buffer *buf);
 	struct lirc_buffer *rbuf;
-	int (*set_use_inc) (void *data);
-	void (*set_use_dec) (void *data);
+	int (*set_use_inc)(void *data);
+	void (*set_use_dec)(void *data);
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct device *dev;
