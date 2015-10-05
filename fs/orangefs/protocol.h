@@ -101,22 +101,30 @@ typedef __s64 PVFS_offset;
 
 #define PVFS2_SUPER_MAGIC 0x20030528
 
-/* PVFS2 error codes are a signed 32-bit integer. Error codes are negative, but
- * the sign is stripped before decoding. */
+/*
+ * PVFS2 error codes are a signed 32-bit integer. Error codes are negative, but
+ * the sign is stripped before decoding.
+ */
 
 /* Bit 31 is not used since it is the sign. */
 
-/* Bit 30 specifies that this is a PVFS2 error. A PVFS2 error is either an
- * encoded errno value or a PVFS2 protocol error. */
+/*
+ * Bit 30 specifies that this is a PVFS2 error. A PVFS2 error is either an
+ * encoded errno value or a PVFS2 protocol error.
+ */
 #define PVFS_ERROR_BIT (1 << 30)
 
-/* Bit 29 specifies that this is a PVFS2 protocol error and not an encoded
- * errno value. */
+/*
+ * Bit 29 specifies that this is a PVFS2 protocol error and not an encoded
+ * errno value.
+ */
 #define PVFS_NON_ERRNO_ERROR_BIT (1 << 29)
 
-/* Bits 9, 8, and 7 specify the error class, which encodes the section of
+/*
+ * Bits 9, 8, and 7 specify the error class, which encodes the section of
  * server code the error originated in for logging purposes. It is not used
- * in the kernel except to be masked out. */
+ * in the kernel except to be masked out.
+ */
 #define PVFS_ERROR_CLASS_BITS 0x380
 
 /* Bits 6 - 0 are reserved for the actual error code. */
@@ -388,14 +396,8 @@ enum {
 
 /*
  * version number for use in communicating between kernel space and user
- * space
+ * space. Zero signifies the upstream version of the kernel module.
  */
-/*
-#define PVFS_KERNEL_PROTO_VERSION			\
-		((PVFS2_VERSION_MAJOR * 10000)	+	\
-		 (PVFS2_VERSION_MINOR * 100)	+	\
-		 PVFS2_VERSION_SUB)
-*/
 #define PVFS_KERNEL_PROTO_VERSION 0
 
 /*

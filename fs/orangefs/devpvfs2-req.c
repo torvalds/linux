@@ -476,9 +476,9 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			set_op_state_serviced(op);
 			spin_unlock(&op->lock);
 			/*
-			   for every other operation (i.e. non-I/O), we need to
-			   wake up the callers for downcall completion
-			   notification
+			 * for every other operation (i.e. non-I/O), we need to
+			 * wake up the callers for downcall completion
+			 * notification
 			 */
 			wake_up_interruptible(&op->waitq);
 		}

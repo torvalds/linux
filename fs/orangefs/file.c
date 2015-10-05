@@ -54,7 +54,6 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
 		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
 			   __func__,
 			   (long)ret);
-		
 	}
 
 	if (ret < 0)
@@ -199,9 +198,9 @@ populate_shared_memory:
 	if (ret < 0) {
 		handle_io_error(); /* defined in pvfs2-kernel.h */
 		/*
-		   don't write an error to syslog on signaled operation
-		   termination unless we've got debugging turned on, as
-		   this can happen regularly (i.e. ctrl-c)
+		 * don't write an error to syslog on signaled operation
+		 * termination unless we've got debugging turned on, as
+		 * this can happen regularly (i.e. ctrl-c)
 		 */
 		if (ret == -EINTR)
 			gossip_debug(GOSSIP_FILE_DEBUG,
@@ -245,10 +244,10 @@ populate_shared_memory:
 	ret = new_op->downcall.resp.io.amt_complete;
 
 	/*
-	   tell the device file owner waiting on I/O that this read has
-	   completed and it can return now.  in this exact case, on
-	   wakeup the daemon will free the op, so we *cannot* touch it
-	   after this.
+	 * tell the device file owner waiting on I/O that this read has
+	 * completed and it can return now.  in this exact case, on
+	 * wakeup the daemon will free the op, so we *cannot* touch it
+	 * after this.
 	 */
 	wake_up_daemon_for_return(new_op);
 	new_op = NULL;
@@ -875,9 +874,9 @@ static int pvfs2_file_release(struct inode *inode, struct file *file)
 	pvfs2_flush_inode(inode);
 
 	/*
-	   remove all associated inode pages from the page cache and mmap
-	   readahead cache (if any); this forces an expensive refresh of
-	   data for the next caller of mmap (or 'get_block' accesses)
+	 * remove all associated inode pages from the page cache and mmap
+	 * readahead cache (if any); this forces an expensive refresh of
+	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
 	if (file->f_path.dentry->d_inode &&
 	    file->f_path.dentry->d_inode->i_mapping &&
@@ -960,8 +959,8 @@ static loff_t pvfs2_file_llseek(struct file *file, loff_t offset, int origin)
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "pvfs2_file_llseek: offset is %ld | origin is %d | "
-		     "inode size is %lu\n",
+		     "pvfs2_file_llseek: offset is %ld | origin is %d"
+		     " | inode size is %lu\n",
 		     (long)offset,
 		     origin,
 		     (unsigned long)file->f_path.dentry->d_inode->i_size);

@@ -289,7 +289,7 @@ get_new_buffer_index:
 
 	}
 
-	/* 
+	/*
 	 * we ran all the way through the last batch, set up for
 	 * getting another batch...
 	 */

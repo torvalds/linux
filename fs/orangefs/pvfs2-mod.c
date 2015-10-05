@@ -73,11 +73,11 @@ module_param(slot_timeout_secs, int, 0);
 struct mutex devreq_mutex;
 
 /*
-  blocks non-priority requests from being queued for servicing.  this
-  could be used for protecting the request list data structure, but
-  for now it's only being used to stall the op addition to the request
-  list
-*/
+ * Blocks non-priority requests from being queued for servicing.  This
+ * could be used for protecting the request list data structure, but
+ * for now it's only being used to stall the op addition to the request
+ * list
+ */
 struct mutex request_mutex;
 
 /* hash table for storing operations waiting for matching downcall */

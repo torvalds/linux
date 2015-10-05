@@ -107,7 +107,7 @@ struct pvfs2_downcall_s {
 	__s32 status;
 	/* currently trailer is used only by readdir */
 	__s64 trailer_size;
-	char * trailer_buf;
+	char *trailer_buf;
 
 	union {
 		struct pvfs2_io_response io;

@@ -111,18 +111,18 @@ static int copy_attributes_to_inode(struct inode *inode,
 
 
 	/*
-	   arbitrarily set the inode block size; FIXME: we need to
-	   resolve the difference between the reported inode blocksize
-	   and the PAGE_CACHE_SIZE, since our block count will always
-	   be wrong.
-
-	   For now, we're setting the block count to be the proper
-	   number assuming the block size is 512 bytes, and the size is
-	   rounded up to the nearest 4K.  This is apparently required
-	   to get proper size reports from the 'du' shell utility.
-
-	   changing the inode->i_blkbits to something other than
-	   PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
+	 * arbitrarily set the inode block size; FIXME: we need to
+	 * resolve the difference between the reported inode blocksize
+	 * and the PAGE_CACHE_SIZE, since our block count will always
+	 * be wrong.
+	 *
+	 * For now, we're setting the block count to be the proper
+	 * number assuming the block size is 512 bytes, and the size is
+	 * rounded up to the nearest 4K.  This is apparently required
+	 * to get proper size reports from the 'du' shell utility.
+	 *
+	 * changing the inode->i_blkbits to something other than
+	 * PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
 	 */
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 		     "attrs->mask = %x (objtype = %s)\n",
@@ -662,41 +662,51 @@ __u64 pvfs2_convert_time_field(void *time_ptr)
 	return pvfs2_time;
 }
 
-/* The following is a very dirty hack that is now a permanent part of the
- * PVFS2 protocol. See protocol.h for more error definitions. */
+/*
+ * The following is a very dirty hack that is now a permanent part of the
+ * PVFS2 protocol. See protocol.h for more error definitions.
+ */
 
 /* The order matches include/pvfs2-types.h in the OrangeFS source. */
 static int PINT_errno_mapping[] = {
-        0, EPERM, ENOENT, EINTR, EIO, ENXIO, EBADF, EAGAIN, ENOMEM,
-        EFAULT, EBUSY, EEXIST, ENODEV, ENOTDIR, EISDIR, EINVAL, EMFILE,
-        EFBIG, ENOSPC, EROFS, EMLINK, EPIPE, EDEADLK, ENAMETOOLONG,
-        ENOLCK, ENOSYS, ENOTEMPTY, ELOOP, EWOULDBLOCK, ENOMSG, EUNATCH,
-        EBADR, EDEADLOCK, ENODATA, ETIME, ENONET, EREMOTE, ECOMM,
-        EPROTO, EBADMSG, EOVERFLOW, ERESTART, EMSGSIZE, EPROTOTYPE,
-        ENOPROTOOPT, EPROTONOSUPPORT, EOPNOTSUPP, EADDRINUSE,
-        EADDRNOTAVAIL, ENETDOWN, ENETUNREACH, ENETRESET, ENOBUFS,
-        ETIMEDOUT, ECONNREFUSED, EHOSTDOWN, EHOSTUNREACH, EALREADY,
-        EACCES, ECONNRESET, ERANGE
+	0, EPERM, ENOENT, EINTR, EIO, ENXIO, EBADF, EAGAIN, ENOMEM,
+	EFAULT, EBUSY, EEXIST, ENODEV, ENOTDIR, EISDIR, EINVAL, EMFILE,
+	EFBIG, ENOSPC, EROFS, EMLINK, EPIPE, EDEADLK, ENAMETOOLONG,
+	ENOLCK, ENOSYS, ENOTEMPTY, ELOOP, EWOULDBLOCK, ENOMSG, EUNATCH,
+	EBADR, EDEADLOCK, ENODATA, ETIME, ENONET, EREMOTE, ECOMM,
+	EPROTO, EBADMSG, EOVERFLOW, ERESTART, EMSGSIZE, EPROTOTYPE,
+	ENOPROTOOPT, EPROTONOSUPPORT, EOPNOTSUPP, EADDRINUSE,
+	EADDRNOTAVAIL, ENETDOWN, ENETUNREACH, ENETRESET, ENOBUFS,
+	ETIMEDOUT, ECONNREFUSED, EHOSTDOWN, EHOSTUNREACH, EALREADY,
+	EACCES, ECONNRESET, ERANGE
 };
 
 int pvfs2_normalize_to_errno(__s32 error_code)
 {
+	__u32 i;
+
 	/* Success */
 	if (error_code == 0) {
 		return 0;
-	/* This shouldn't ever happen. If it does it should be fixed on the
-	 * server. */
+	/*
+	 * This shouldn't ever happen. If it does it should be fixed on the
+	 * server.
+	 */
 	} else if (error_code > 0) {
 		gossip_err("pvfs2: error status receieved.\n");
 		gossip_err("pvfs2: assuming error code is inverted.\n");
 		error_code = -error_code;
 	}
 
-	/* XXX: This is very bad since error codes from PVFS2 may not be
-	 * suitable for return into userspace. */
+	/*
+	 * XXX: This is very bad since error codes from PVFS2 may not be
+	 * suitable for return into userspace.
+	 */
 
-	/* Convert PVFS2 error values into errno values suitable for return
-	 * from the kernel. */
+	/*
+	 * Convert PVFS2 error values into errno values suitable for return
+	 * from the kernel.
+	 */
 	if ((-error_code) & PVFS_NON_ERRNO_ERROR_BIT) {
 		if (((-error_code) &
 		    (PVFS_ERROR_NUMBER_BITS|PVFS_NON_ERRNO_ERROR_BIT|
@@ -708,25 +718,24 @@ int pvfs2_normalize_to_errno(__s32 error_code)
 			error_code = -ETIMEDOUT;
 		} else {
 			/* assume a default error code */
-			gossip_err("pvfs2: warning: got error code without "
-			    "errno equivalent: %d.\n", error_code);
+			gossip_err("pvfs2: warning: got error code without errno equivalent: %d.\n", error_code);
 			error_code = -EINVAL;
 		}
 
 	/* Convert PVFS2 encoded errno values into regular errno values. */
 	} else if ((-error_code) & PVFS_ERROR_BIT) {
-		__u32 i;
 		i = (-error_code) & ~(PVFS_ERROR_BIT|PVFS_ERROR_CLASS_BITS);
-		if (i < sizeof PINT_errno_mapping/sizeof *PINT_errno_mapping)
+		if (i < sizeof(PINT_errno_mapping)/sizeof(*PINT_errno_mapping))
 			error_code = -PINT_errno_mapping[i];
 		else
 			error_code = -EINVAL;
 
-	/* Only PVFS2 protocol error codes should ever come here. Otherwise
-	 * there is a bug somewhere. */
+	/*
+	 * Only PVFS2 protocol error codes should ever come here. Otherwise
+	 * there is a bug somewhere.
+	 */
 	} else {
-		gossip_err("pvfs2: pvfs2_normalize_to_errno: got error code"
-		    "which is not from PVFS2.\n");
+		gossip_err("pvfs2: pvfs2_normalize_to_errno: got error code which is not from PVFS2.\n");
 	}
 	return error_code;
 }
@@ -993,7 +1002,7 @@ void do_k_string(void *k_mask, int index)
 	__u64 *mask = (__u64 *) k_mask;
 
 	if (keyword_is_amalgam((char *) s_kmod_keyword_mask_map[index].keyword))
-			goto out;
+		goto out;
 
 	if (*mask & s_kmod_keyword_mask_map[index].mask_val) {
 		if ((strlen(kernel_debug_string) +

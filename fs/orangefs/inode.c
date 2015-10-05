@@ -128,18 +128,18 @@ static int pvfs2_releasepage(struct page *page, gfp_t foo)
  * AIO. Modeled after NFS, they do this too.
  */
 /*
-static ssize_t pvfs2_direct_IO(int rw,
-			struct kiocb *iocb,
-			struct iov_iter *iter,
-			loff_t offset)
-{
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "pvfs2_direct_IO: %s\n",
-		     iocb->ki_filp->f_path.dentry->d_name.name);
-
-	return -EINVAL;
-}
-*/
+ * static ssize_t pvfs2_direct_IO(int rw,
+ *			struct kiocb *iocb,
+ *			struct iov_iter *iter,
+ *			loff_t offset)
+ *{
+ *	gossip_debug(GOSSIP_INODE_DEBUG,
+ *		     "pvfs2_direct_IO: %s\n",
+ *		     iocb->ki_filp->f_path.dentry->d_name.name);
+ *
+ *	return -EINVAL;
+ *}
+ */
 
 struct backing_dev_info pvfs2_backing_dev_info = {
 	.name = "pvfs2",

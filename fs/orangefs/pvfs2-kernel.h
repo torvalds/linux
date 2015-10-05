@@ -229,9 +229,6 @@ int keyword_is_amalgam(char *);
 extern char kernel_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_string[PVFS2_MAX_DEBUG_STRING_LEN];
 extern char client_debug_array_string[PVFS2_MAX_DEBUG_STRING_LEN];
-/* HELLO
-extern struct client_debug_mask current_client_mask;
-*/
 extern unsigned int kernel_mask_set_mod_init;
 
 extern int pvfs2_init_acl(struct inode *inode, struct inode *dir);
@@ -431,9 +428,9 @@ struct pvfs2_stats {
 extern struct pvfs2_stats g_pvfs2_stats;
 
 /*
-  NOTE: See Documentation/filesystems/porting for information
-  on implementing FOO_I and properly accessing fs private data
-*/
+ * NOTE: See Documentation/filesystems/porting for information
+ * on implementing FOO_I and properly accessing fs private data
+ */
 static inline struct pvfs2_inode_s *PVFS2_I(struct inode *inode)
 {
 	return container_of(inode, struct pvfs2_inode_s, vfs_inode);

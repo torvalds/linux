@@ -508,9 +508,9 @@ void readdir_index_put(struct pvfs2_bufmap *bufmap, int buffer_index)
 }
 
 int pvfs_bufmap_copy_from_iovec(struct pvfs2_bufmap *bufmap,
-                                    struct iov_iter *iter,
-                                    int buffer_index,
-                                    size_t size)
+				struct iov_iter *iter,
+				int buffer_index,
+				size_t size)
 {
 	struct pvfs_bufmap_desc *to;
 	struct page *page;
@@ -553,7 +553,7 @@ int pvfs_bufmap_copy_to_iovec(struct pvfs2_bufmap *bufmap,
 		     "%s: buffer_index:%d: iov_iter_count(iter):%lu:\n",
 		     __func__, buffer_index, iov_iter_count(iter));
 
-        from = &bufmap->desc_array[buffer_index];
+	from = &bufmap->desc_array[buffer_index];
 
 	for (i = 0; iov_iter_count(iter); i++) {
 		page = from->page_array[i];
@@ -562,5 +562,5 @@ int pvfs_bufmap_copy_to_iovec(struct pvfs2_bufmap *bufmap,
 			break;
 	}
 
-        return iov_iter_count(iter) ? -EFAULT : 0;
+	return iov_iter_count(iter) ? -EFAULT : 0;
 }

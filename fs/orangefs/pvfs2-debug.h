@@ -180,8 +180,10 @@ static struct __keyword_mask_s s_keyword_mask_map[] = {
 	{"readdir", GOSSIP_READDIR_DEBUG},
 	/* Debug the mkdir operation (server only) */
 	{"mkdir", GOSSIP_MKDIR_DEBUG},
-	/* Debug the io operation (reads and writes)
-	 * for both the client and server */
+	/*
+	 * Debug the io operation (reads and writes)
+	 * for both the client and server.
+	 */
 	{"io", GOSSIP_IO_DEBUG},
 	/* Debug the server's open file descriptor cache */
 	{"open_cache", GOSSIP_DBPF_OPEN_CACHE_DEBUG},
