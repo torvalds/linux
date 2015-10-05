@@ -4193,7 +4193,6 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 	int result = 0;
 	struct host_if_msg msg;
 
-
 	if (wfi_drv == NULL) {
 		result = -EFAULT;
 		PRINT_ER("Failed to send setup multicast config packet\n");
@@ -4203,13 +4202,10 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 	/* prepare the Remove Wep Key Message */
 	memset(&msg, 0, sizeof(struct host_if_msg));
 
-
 	msg.id = HOST_IF_MSG_KEY;
 	msg.body.key_info.enuKeyType = WEP;
 	msg.body.key_info.u8KeyAction = REMOVEKEY;
 	msg.drvHandler = wfi_drv;
-
-
 
 	msg.body.key_info.
 	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = index;
