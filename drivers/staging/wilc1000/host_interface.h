@@ -83,14 +83,14 @@ typedef enum {
 	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
 } tenuHostIFstate;
 
-typedef struct _tstrHostIFpmkid {
+struct host_if_pmkid {
 	u8 bssid[ETH_ALEN];
 	u8 pmkid[PMKID_LEN];
-} tstrHostIFpmkid;
+};
 
 struct host_if_pmkid_attr {
 	u8 numpmkid;
-	tstrHostIFpmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
+	struct host_if_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
 };
 
 typedef enum {
