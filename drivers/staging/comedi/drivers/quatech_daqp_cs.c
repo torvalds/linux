@@ -154,6 +154,23 @@ static const struct comedi_lrange range_daqp_ai = {
 	}
 };
 
+static int daqp_clear_events(struct comedi_device *dev, int loops)
+{
+	unsigned int status;
+
+	/*
+	 * Reset any pending interrupts (my card has a tendency to require
+	 * require multiple reads on the status register to achieve this).
+	 */
+	while (--loops) {
+		status = inb(dev->iobase + DAQP_STATUS);
+		if ((status & DAQP_STATUS_EVENTS) == 0)
+			return 0;
+	}
+	dev_err(dev->class_dev, "couldn't clear events in status register\n");
+	return -EBUSY;
+}
+
 /* Cancel a running acquisition */
 
 static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -280,8 +297,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_insn *insn, unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
+	int ret;
 	int i;
-	int counter = 10000;
 
 	if (devpriv->stop)
 		return -EIO;
@@ -306,18 +323,9 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	     DAQP_CONTROL_PACER_CLK_100KHZ | DAQP_CONTROL_EOS_INT_ENABLE,
 	     dev->iobase + DAQP_CONTROL);
 
-	/* Reset any pending interrupts (my card has a tendency to require
-	 * require multiple reads on the status register to achieve this)
-	 */
-
-	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
-		;
-	if (!counter) {
-		dev_err(dev->class_dev,
-			"couldn't clear interrupts in status register\n");
-		return -1;
-	}
+	ret = daqp_clear_events(dev, 10000);
+	if (ret)
+		return ret;
 
 	init_completion(&devpriv->eos);
 	devpriv->interrupt_mode = semaphore;
@@ -457,6 +465,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int counter;
 	int scanlist_start_on_every_entry;
 	int threshold;
+	int ret;
 	int i;
 
 	if (devpriv->stop)
@@ -607,18 +616,9 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	     DAQP_CONTROL_PACER_CLK_5MHZ | DAQP_CONTROL_FIFO_INT_ENABLE,
 	     dev->iobase + DAQP_CONTROL);
 
-	/* Reset any pending interrupts (my card has a tendency to require
-	 * require multiple reads on the status register to achieve this)
-	 */
-	counter = 100;
-	while (--counter
-	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS))
-		;
-	if (!counter) {
-		dev_err(dev->class_dev,
-			"couldn't clear interrupts in status register\n");
-		return -1;
-	}
+	ret = daqp_clear_events(dev, 100);
+	if (ret)
+		return ret;
 
 	devpriv->interrupt_mode = buffer;
 
