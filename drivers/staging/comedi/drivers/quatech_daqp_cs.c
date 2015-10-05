@@ -214,6 +214,9 @@ static irqreturn_t daqp_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	status = inb(dev->iobase + DAQP_STATUS_REG);
+	if (!(status & DAQP_STATUS_EVENTS))
+		return IRQ_NONE;
+
 	while (!(status & DAQP_STATUS_FIFO_EMPTY)) {
 		unsigned short data;
 
