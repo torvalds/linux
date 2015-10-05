@@ -5,6 +5,7 @@
 int test__rdpmc(void);
 int test__perf_time_to_tsc(void);
 int test__insn_x86(void);
+int test__intel_cqm_count_nmi_context(void);
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 struct thread;
