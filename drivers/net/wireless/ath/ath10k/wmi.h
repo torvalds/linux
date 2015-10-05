@@ -73,6 +73,25 @@ struct wmi_cmd_hdr {
 #define HTC_PROTOCOL_VERSION    0x0002
 #define WMI_PROTOCOL_VERSION    0x0002
 
+/*
+ * There is no signed version of __le32, so for a temporary solution come
+ * up with our own version. The idea is from fs/ntfs/types.h.
+ *
+ * Use a_ prefix so that it doesn't conflict if we get proper support to
+ * linux/types.h.
+ */
+typedef __s32 __bitwise a_sle32;
+
+static inline a_sle32 a_cpu_to_sle32(s32 val)
+{
+	return (__force a_sle32)cpu_to_le32(val);
+}
+
+static inline s32 a_sle32_to_cpu(a_sle32 val)
+{
+	return le32_to_cpu((__force __le32)val);
+}
+
 enum wmi_service {
 	WMI_SERVICE_BEACON_OFFLOAD = 0,
 	WMI_SERVICE_SCAN_OFFLOAD,
@@ -3657,7 +3676,7 @@ struct wmi_pdev_tpc_config_event {
 	__le32 phy_mode;
 	__le32 twice_antenna_reduction;
 	__le32 twice_max_rd_power;
-	s32 twice_antenna_gain;
+	a_sle32 twice_antenna_gain;
 	__le32 power_limit;
 	__le32 rate_max;
 	__le32 num_tx_chain;
