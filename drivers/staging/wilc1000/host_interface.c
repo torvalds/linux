@@ -5265,7 +5265,6 @@ int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *address)
 
 	struct host_if_msg msg;
 
-
 	/* prepare the set driver handler message */
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
