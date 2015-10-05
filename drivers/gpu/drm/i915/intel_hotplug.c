@@ -458,6 +458,7 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	int i;
 
@@ -482,6 +483,16 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/*
+	 * Connected boot / resume scenarios can't generate new hot plug.
+	 * So, probe it manually.
+	 */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->hot_plug)
+			encoder->hot_plug(encoder);
+	}
 }
 
 void intel_hpd_init_work(struct drm_i915_private *dev_priv)
