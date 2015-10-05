@@ -235,55 +235,54 @@ static int multiq3_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 8;
-	s->insn_read = multiq3_ai_insn_read;
-	s->maxdata = 0x1fff;
-	s->range_table = &range_bipolar5;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 8;
+	s->maxdata	= 0x1fff;
+	s->range_table	= &range_bipolar5;
+	s->insn_read	= multiq3_ai_insn_read;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* ao subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 0xfff;
-	s->range_table = &range_bipolar5;
-	s->insn_write = multiq3_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= multiq3_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	/* di subdevice */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->insn_bits = multiq3_di_insn_bits;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= multiq3_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	/* do subdevice */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->insn_bits = multiq3_do_insn_bits;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->state = 0;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= multiq3_do_insn_bits;
 
+	/* Encoder (Counter) subdevice */
 	s = &dev->subdevices[4];
-	/* encoder (counter) subdevice */
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = it->options[2] * 2;
-	s->insn_read = multiq3_encoder_insn_read;
-	s->maxdata = 0xffffff;
-	s->range_table = &range_unknown;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
+	s->n_chan	= it->options[2] * 2;
+	s->maxdata	= 0x00ffffff;
+	s->range_table	= &range_unknown;
+	s->insn_read	= multiq3_encoder_insn_read;
 
 	encoder_reset(dev);
 
