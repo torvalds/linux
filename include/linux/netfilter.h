@@ -377,7 +377,7 @@ struct nf_conn;
 enum ip_conntrack_info;
 struct nlattr;
 
-struct nfq_ct_hook {
+struct nfnl_ct_hook {
 	struct nf_conn *(*get_ct)(struct sk_buff *skb,
 				  enum ip_conntrack_info *ctinfo);
 	size_t (*build_size)(const struct nf_conn *ct);
@@ -390,7 +390,7 @@ struct nfq_ct_hook {
 	void (*seq_adjust)(struct sk_buff *skb, struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo, s32 off);
 };
-extern struct nfq_ct_hook __rcu *nfq_ct_hook;
+extern struct nfnl_ct_hook __rcu *nfnl_ct_hook;
 
 /**
  * nf_skb_duplicated - TEE target has sent a packet

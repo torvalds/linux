@@ -2135,7 +2135,7 @@ ctnetlink_alloc_expect(const struct nlattr *const cda[], struct nf_conn *ct,
 
 #ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 static size_t
-ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
+ctnetlink_glue_build_size(const struct nf_conn *ct)
 {
 	return 3 * nla_total_size(0) /* CTA_TUPLE_ORIG|REPL|MASTER */
 	       + 3 * nla_total_size(0) /* CTA_TUPLE_IP */
@@ -2162,8 +2162,8 @@ ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
 	       ;
 }
 
-static struct nf_conn *ctnetlink_nfqueue_get_ct(struct sk_buff *skb,
-						enum ip_conntrack_info *ctinfo)
+static struct nf_conn *ctnetlink_glue_get_ct(struct sk_buff *skb,
+					     enum ip_conntrack_info *ctinfo)
 {
 	struct nf_conn *ct;
 
@@ -2174,7 +2174,7 @@ static struct nf_conn *ctnetlink_nfqueue_get_ct(struct sk_buff *skb,
 	return ct;
 }
 
-static int __ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
+static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 {
 	const struct nf_conntrack_zone *zone;
 	struct nlattr *nest_parms;
@@ -2247,9 +2247,9 @@ nla_put_failure:
 }
 
 static int
-ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct,
-			enum ip_conntrack_info ctinfo,
-			u_int16_t ct_attr, u_int16_t ct_info_attr)
+ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct,
+		     enum ip_conntrack_info ctinfo,
+		     u_int16_t ct_attr, u_int16_t ct_info_attr)
 {
 	struct nlattr *nest_parms;
 
@@ -2257,7 +2257,7 @@ ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (__ctnetlink_nfqueue_build(skb, ct) < 0)
+	if (__ctnetlink_glue_build(skb, ct) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest_parms);
@@ -2272,7 +2272,7 @@ nla_put_failure:
 }
 
 static int
-ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
+ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 {
 	int err;
 
@@ -2312,7 +2312,7 @@ ctnetlink_nfqueue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 }
 
 static int
-ctnetlink_nfqueue_parse(const struct nlattr *attr, struct nf_conn *ct)
+ctnetlink_glue_parse(const struct nlattr *attr, struct nf_conn *ct)
 {
 	struct nlattr *cda[CTA_MAX+1];
 	int ret;
@@ -2322,16 +2322,16 @@ ctnetlink_nfqueue_parse(const struct nlattr *attr, struct nf_conn *ct)
 		return ret;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
-	ret = ctnetlink_nfqueue_parse_ct((const struct nlattr **)cda, ct);
+	ret = ctnetlink_glue_parse_ct((const struct nlattr **)cda, ct);
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 
 	return ret;
 }
 
-static int ctnetlink_nfqueue_exp_parse(const struct nlattr * const *cda,
-				       const struct nf_conn *ct,
-				       struct nf_conntrack_tuple *tuple,
-				       struct nf_conntrack_tuple *mask)
+static int ctnetlink_glue_exp_parse(const struct nlattr * const *cda,
+				    const struct nf_conn *ct,
+				    struct nf_conntrack_tuple *tuple,
+				    struct nf_conntrack_tuple *mask)
 {
 	int err;
 
@@ -2345,8 +2345,8 @@ static int ctnetlink_nfqueue_exp_parse(const struct nlattr * const *cda,
 }
 
 static int
-ctnetlink_nfqueue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
-				u32 portid, u32 report)
+ctnetlink_glue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
+			     u32 portid, u32 report)
 {
 	struct nlattr *cda[CTA_EXPECT_MAX+1];
 	struct nf_conntrack_tuple tuple, mask;
@@ -2358,8 +2358,8 @@ ctnetlink_nfqueue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 	if (err < 0)
 		return err;
 
-	err = ctnetlink_nfqueue_exp_parse((const struct nlattr * const *)cda,
-					  ct, &tuple, &mask);
+	err = ctnetlink_glue_exp_parse((const struct nlattr * const *)cda,
+				       ct, &tuple, &mask);
 	if (err < 0)
 		return err;
 
@@ -2386,8 +2386,8 @@ ctnetlink_nfqueue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 	return 0;
 }
 
-static void ctnetlink_nfqueue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
-				     enum ip_conntrack_info ctinfo, int diff)
+static void ctnetlink_glue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
+				  enum ip_conntrack_info ctinfo, int diff)
 {
 	if (!(ct->status & IPS_NAT_MASK))
 		return;
@@ -2395,13 +2395,13 @@ static void ctnetlink_nfqueue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
 	nf_ct_tcp_seqadj_set(skb, ct, ctinfo, diff);
 }
 
-static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
-	.get_ct		= ctnetlink_nfqueue_get_ct,
-	.build_size	= ctnetlink_nfqueue_build_size,
-	.build		= ctnetlink_nfqueue_build,
-	.parse		= ctnetlink_nfqueue_parse,
-	.attach_expect	= ctnetlink_nfqueue_attach_expect,
-	.seq_adjust	= ctnetlink_nfqueue_seqadj,
+static struct nfnl_ct_hook ctnetlink_glue_hook = {
+	.get_ct		= ctnetlink_glue_get_ct,
+	.build_size	= ctnetlink_glue_build_size,
+	.build		= ctnetlink_glue_build,
+	.parse		= ctnetlink_glue_parse,
+	.attach_expect	= ctnetlink_glue_attach_expect,
+	.seq_adjust	= ctnetlink_glue_seqadj,
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 
@@ -3389,7 +3389,7 @@ static int __init ctnetlink_init(void)
 	}
 #ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
 	/* setup interaction between nf_queue and nf_conntrack_netlink. */
-	RCU_INIT_POINTER(nfq_ct_hook, &ctnetlink_nfqueue_hook);
+	RCU_INIT_POINTER(nfnl_ct_hook, &ctnetlink_glue_hook);
 #endif
 	return 0;
 
@@ -3409,7 +3409,7 @@ static void __exit ctnetlink_exit(void)
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
 #ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
-	RCU_INIT_POINTER(nfq_ct_hook, NULL);
+	RCU_INIT_POINTER(nfnl_ct_hook, NULL);
 #endif
 }
 

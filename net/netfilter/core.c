@@ -351,8 +351,8 @@ EXPORT_SYMBOL(skb_make_writable);
 /* This needs to be compiled in any case to avoid dependencies between the
  * nfnetlink_queue code and nf_conntrack.
  */
-struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
-EXPORT_SYMBOL_GPL(nfq_ct_hook);
+struct nfnl_ct_hook __rcu *nfnl_ct_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfnl_ct_hook);
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 /* This does not belong here, but locally generated errors need it if connection

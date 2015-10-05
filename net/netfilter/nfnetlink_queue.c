@@ -313,7 +313,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	struct net_device *outdev;
 	struct nf_conn *ct = NULL;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
-	struct nfq_ct_hook *nfq_ct;
+	struct nfnl_ct_hook *nfnl_ct;
 	bool csum_verify;
 	char *secdata = NULL;
 	u32 seclen = 0;
@@ -366,11 +366,11 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	}
 
 	if (queue->flags & NFQA_CFG_F_CONNTRACK) {
-		nfq_ct = rcu_dereference(nfq_ct_hook);
-		if (nfq_ct != NULL) {
-			ct = nfq_ct->get_ct(entskb, &ctinfo);
+		nfnl_ct = rcu_dereference(nfnl_ct_hook);
+		if (nfnl_ct != NULL) {
+			ct = nfnl_ct->get_ct(entskb, &ctinfo);
 			if (ct != NULL)
-				size += nfq_ct->build_size(ct);
+				size += nfnl_ct->build_size(ct);
 		}
 	}
 
@@ -516,7 +516,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (seclen && nla_put(skb, NFQA_SECCTX, seclen, secdata))
 		goto nla_put_failure;
 
-	if (ct && nfq_ct->build(skb, ct, ctinfo, NFQA_CT, NFQA_CT_INFO) < 0)
+	if (ct && nfnl_ct->build(skb, ct, ctinfo, NFQA_CT, NFQA_CT_INFO) < 0)
 		goto nla_put_failure;
 
 	if (cap_len > data_len &&
@@ -1009,7 +1009,7 @@ nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
 	return 0;
 }
 
-static struct nf_conn *nfqnl_ct_parse(struct nfq_ct_hook *nfq_ct,
+static struct nf_conn *nfqnl_ct_parse(struct nfnl_ct_hook *nfnl_ct,
 				      const struct nlmsghdr *nlh,
 				      const struct nlattr * const nfqa[],
 				      struct nf_queue_entry *entry,
@@ -1017,15 +1017,15 @@ static struct nf_conn *nfqnl_ct_parse(struct nfq_ct_hook *nfq_ct,
 {
 	struct nf_conn *ct;
 
-	ct = nfq_ct->get_ct(entry->skb, ctinfo);
+	ct = nfnl_ct->get_ct(entry->skb, ctinfo);
 	if (ct == NULL)
 		return NULL;
 
-	if (nfq_ct->parse(nfqa[NFQA_CT], ct) < 0)
+	if (nfnl_ct->parse(nfqa[NFQA_CT], ct) < 0)
 		return NULL;
 
 	if (nfqa[NFQA_EXP])
-		nfq_ct->attach_expect(nfqa[NFQA_EXP], ct,
+		nfnl_ct->attach_expect(nfqa[NFQA_EXP], ct,
 				      NETLINK_CB(entry->skb).portid,
 				      nlmsg_report(nlh));
 	return ct;
@@ -1044,7 +1044,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
 	enum ip_conntrack_info uninitialized_var(ctinfo);
-	struct nfq_ct_hook *nfq_ct;
+	struct nfnl_ct_hook *nfnl_ct;
 	struct nf_conn *ct = NULL;
 
 	struct net *net = sock_net(ctnl);
@@ -1069,9 +1069,9 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nfqa[NFQA_CT]) {
 		/* rcu lock already held from nfnl->call_rcu. */
-		nfq_ct = rcu_dereference(nfq_ct_hook);
-		if (nfq_ct != NULL)
-			ct = nfqnl_ct_parse(nfq_ct, nlh, nfqa, entry, &ctinfo);
+		nfnl_ct = rcu_dereference(nfnl_ct_hook);
+		if (nfnl_ct != NULL)
+			ct = nfqnl_ct_parse(nfnl_ct, nlh, nfqa, entry, &ctinfo);
 	}
 
 	if (nfqa[NFQA_PAYLOAD]) {
@@ -1083,7 +1083,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 			verdict = NF_DROP;
 
 		if (ct && diff)
-			nfq_ct->seq_adjust(entry->skb, ct, ctinfo, diff);
+			nfnl_ct->seq_adjust(entry->skb, ct, ctinfo, diff);
 	}
 
 	if (nfqa[NFQA_MARK])
