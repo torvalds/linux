@@ -741,10 +741,21 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/*
+	 * Digital Input subdevice
+	 * NOTE: The digital input lines are shared:
+	 *
+	 * Chan  Normal Mode        Expansion Mode
+	 * ----  -----------------  ----------------------------
+	 *  0    DI0, ext. trigger  Same as normal mode
+	 *  1    DI1                External gain select, lo bit
+	 *  2    DI2, ext. clock    Same as normal mode
+	 *  3    DI3                External gain select, hi bit
+	 */
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
-	s->n_chan	= 1;
+	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->insn_bits	= daqp_di_insn_bits;
 
