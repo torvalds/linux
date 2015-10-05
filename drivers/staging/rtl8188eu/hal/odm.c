@@ -881,7 +881,7 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 
 	if (pDM_PSTable->PreRFState != pDM_PSTable->CurRFState) {
 		if (pDM_PSTable->CurRFState == RF_Save) {
-			phy_set_bb_reg(adapter, 0x874  , 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
+			phy_set_bb_reg(adapter, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]=3'b010 */
 			phy_set_bb_reg(adapter, 0xc70, BIT3, 0); /* RegC70[3]=1'b0 */
 			phy_set_bb_reg(adapter, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]=0x63 */
 			phy_set_bb_reg(adapter, 0x874, 0xC000, 0x2); /* Reg874[15:14]=2'b10 */
@@ -889,7 +889,7 @@ void ODM_RF_Saving(struct odm_dm_struct *pDM_Odm, u8 bForceInNormal)
 			phy_set_bb_reg(adapter, 0x818, BIT28, 0x0); /* Reg818[28]=1'b0 */
 			phy_set_bb_reg(adapter, 0x818, BIT28, 0x1); /* Reg818[28]=1'b1 */
 		} else {
-			phy_set_bb_reg(adapter, 0x874  , 0x1CC000, pDM_PSTable->Reg874);
+			phy_set_bb_reg(adapter, 0x874, 0x1CC000, pDM_PSTable->Reg874);
 			phy_set_bb_reg(adapter, 0xc70, BIT3, pDM_PSTable->RegC70);
 			phy_set_bb_reg(adapter, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
 			phy_set_bb_reg(adapter, 0xa74, 0xF000, pDM_PSTable->RegA74);
@@ -1043,7 +1043,7 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
 		if (IS_STA_VALID(pstat)) {
-			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false , &pstat->rssi_level)) {
+			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
 					     ("RSSI:%d, RSSI_LEVEL:%d\n",
 					     pstat->rssi_stat.UndecoratedSmoothedPWDB, pstat->rssi_level));
@@ -1188,7 +1188,8 @@ void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
 		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
 
 	FindMinimumRSSI(Adapter);
-	ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+	ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN,
+			  pdmpriv->MinUndecoratedPWDBForDM);
 }
 
 /* 3============================================================ */
