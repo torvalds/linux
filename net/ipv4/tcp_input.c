@@ -6042,9 +6042,11 @@ static void tcp_openreq_init(struct request_sock *req,
 }
 
 struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
-				      struct sock *sk_listener)
+				      struct sock *sk_listener,
+				      bool attach_listener)
 {
-	struct request_sock *req = reqsk_alloc(ops, sk_listener);
+	struct request_sock *req = reqsk_alloc(ops, sk_listener,
+					       attach_listener);
 
 	if (req) {
 		struct inet_request_sock *ireq = inet_rsk(req);
@@ -6143,7 +6145,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		goto drop;
 	}
 
-	req = inet_reqsk_alloc(rsk_ops, sk);
+	req = inet_reqsk_alloc(rsk_ops, sk, !want_cookie);
 	if (!req)
 		goto drop;
 
