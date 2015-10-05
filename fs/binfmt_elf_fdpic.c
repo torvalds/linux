@@ -35,6 +35,7 @@
 #include <linux/elf-fdpic.h>
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
+#include <linux/dax.h>
 
 #include <asm/uaccess.h>
 #include <asm/param.h>
@@ -1204,6 +1205,20 @@ static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 	if (!(vma->vm_flags & VM_READ)) {
 		kdcore("%08lx: %08lx: no (!read)", vma->vm_start, vma->vm_flags);
 		return 0;
+	}
+
+	/* support for DAX */
+	if (vma_is_dax(vma)) {
+		if (vma->vm_flags & VM_SHARED) {
+			dump_ok = test_bit(MMF_DUMP_DAX_SHARED, &mm_flags);
+			kdcore("%08lx: %08lx: %s (DAX shared)", vma->vm_start,
+			       vma->vm_flags, dump_ok ? "yes" : "no");
+		} else {
+			dump_ok = test_bit(MMF_DUMP_DAX_PRIVATE, &mm_flags);
+			kdcore("%08lx: %08lx: %s (DAX private)", vma->vm_start,
+			       vma->vm_flags, dump_ok ? "yes" : "no");
+		}
+		return dump_ok;
 	}
 
 	/* By default, dump shared memory if mapped from an anonymous file. */
