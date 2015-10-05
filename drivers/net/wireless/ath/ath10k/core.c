@@ -570,7 +570,6 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	ar->firmware_len = 0;
 
 	ar->cal_file = NULL;
-
 }
 
 static int ath10k_fetch_cal_file(struct ath10k *ar)

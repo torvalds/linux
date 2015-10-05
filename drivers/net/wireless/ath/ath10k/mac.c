@@ -4064,6 +4064,7 @@ static u32 get_nss_from_chainmask(u16 chain_mask)
 static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
 {
 	int nsts = ar->vht_cap_info;
+
 	nsts &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
 
@@ -4080,8 +4081,9 @@ static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
 static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
 {
 	int sound_dim = ar->vht_cap_info;
+
 	sound_dim &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
-	sound_dim >>=IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
+	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
 
 	/* If the sounding dimension is not advertised by the firmware,
 	 * let's use a default value of 1
