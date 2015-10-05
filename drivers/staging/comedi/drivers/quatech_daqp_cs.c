@@ -111,8 +111,10 @@
 #define DAQP_CMD_SCANRATE_25KHZ		DAQP_CMD_SCANRATE(2)
 #define DAQP_CMD_FIFO_DATA		BIT(0)
 
-#define DAQP_AO_REG			0x08
-#define DAQP_TIMER_REG			0x0a
+#define DAQP_AO_REG			0x08	/* and 0x09 (16-bit) */
+
+#define DAQP_TIMER_REG			0x0a	/* and 0x0b (16-bit) */
+
 #define DAQP_AUX_REG			0x0f
 
 #define DAQP_AUX_TRIGGER_TTL		0x00
