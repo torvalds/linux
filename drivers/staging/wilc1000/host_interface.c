@@ -6,6 +6,7 @@
 #include "coreconfigurator.h"
 #include "wilc_wlan_if.h"
 #include "wilc_msgqueue.h"
+#include <linux/etherdevice.h>
 
 extern u8 connecting;
 
@@ -1949,7 +1950,7 @@ static s32 Handle_ConnectTimeout(tstrWILC_WFIDrv *drvHandler)
 		pstrWFIDrv->strWILC_UsrConnReq.pu8ConnReqIEs = NULL;
 	}
 
-	memset(u8ConnectedSSID, 0, ETH_ALEN);
+	eth_zero_addr(u8ConnectedSSID);
 	/*Freeing flushed join request params on connect timeout*/
 	if (gu8FlushedJoinReq != NULL && gu8FlushedJoinReqDrvHandler == drvHandler) {
 		kfree(gu8FlushedJoinReq);
@@ -2205,11 +2206,11 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 			if ((u8MacStatus == MAC_CONNECTED) &&
 			    (strConnectInfo.u16ConnectStatus != SUCCESSFUL_STATUSCODE))	{
 				PRINT_ER("Received MAC status is MAC_CONNECTED while the received status code in Asoc Resp is not SUCCESSFUL_STATUSCODE\n");
-				memset(u8ConnectedSSID, 0, ETH_ALEN);
+				eth_zero_addr(u8ConnectedSSID);
 
 			} else if (u8MacStatus == MAC_DISCONNECTED)    {
 				PRINT_ER("Received MAC status is MAC_DISCONNECTED\n");
-				memset(u8ConnectedSSID, 0, ETH_ALEN);
+				eth_zero_addr(u8ConnectedSSID);
 			}
 
 			/* TODO: mostafa: correct BSSID should be retrieved from actual BSSID received from AP */
@@ -2327,7 +2328,7 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 				PRINT_ER("Connect result callback function is NULL\n");
 			}
 
-			memset(pstrWFIDrv->au8AssociatedBSSID, 0, ETH_ALEN);
+			eth_zero_addr(pstrWFIDrv->au8AssociatedBSSID);
 
 
 			/* Deallocation */
@@ -2789,7 +2790,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 	g_obtainingIP = false;
 	host_int_set_power_mgmt(pstrWFIDrv, 0, 0);
 
-	memset(u8ConnectedSSID, 0, ETH_ALEN);
+	eth_zero_addr(u8ConnectedSSID);
 
 	s32Error = send_config_pkt(SET_CFG, &strWID, 1, false,
 				   get_id_from_handler(pstrWFIDrv));
@@ -2831,7 +2832,7 @@ static void Handle_Disconnect(tstrWILC_WFIDrv *drvHandler)
 
 		pstrWFIDrv->enuHostIFstate = HOST_IF_IDLE;
 
-		memset(pstrWFIDrv->au8AssociatedBSSID, 0, ETH_ALEN);
+		eth_zero_addr(pstrWFIDrv->au8AssociatedBSSID);
 
 
 		/* Deallocation */
