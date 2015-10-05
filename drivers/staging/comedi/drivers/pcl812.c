@@ -119,17 +119,6 @@
 #include "comedi_isadma.h"
 #include "comedi_8254.h"
 
-/* hardware types of the cards */
-#define boardPCL812PG	      0	/* and ACL-8112PG */
-#define boardPCL813B	      1
-#define boardPCL812	      2
-#define boardPCL813	      3
-#define boardISO813	      5
-#define boardACL8113	      6
-#define boardACL8112	      7 /* ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH */
-#define boardACL8216	      8	/* and ICP DAS A-826PG */
-#define boardA821	      9	/* PGH, PGL, PGL/NDA versions */
-
 /*
  * Register I/O map
  */
@@ -327,9 +316,21 @@ static const struct comedi_lrange range_a821pgh_ai = {
 	}
 };
 
+enum pcl812_boardtype {
+	BOARD_PCL812PG	= 0,	/* and ACL-8112PG */
+	BOARD_PCL813B	= 1,
+	BOARD_PCL812	= 2,
+	BOARD_PCL813	= 3,
+	BOARD_ISO813	= 5,
+	BOARD_ACL8113	= 6,
+	BOARD_ACL8112	= 7,	/* ACL-8112DG/HG, A-822PGL/PGH, A-823PGL/PGH */
+	BOARD_ACL8216	= 8,	/* and ICP DAS A-826PG */
+	BOARD_A821	= 9,	/* PGH, PGL, PGL/NDA versions */
+};
+
 struct pcl812_board {
 	const char *name;
-	int board_type;
+	enum pcl812_boardtype board_type;
 	int n_aichan;
 	int n_aochan;
 	unsigned int ai_ns_min;
@@ -344,7 +345,7 @@ struct pcl812_board {
 static const struct pcl812_board boardtypes[] = {
 	{
 		.name		= "pcl812",
-		.board_type	= boardPCL812,
+		.board_type	= BOARD_PCL812,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.ai_ns_min	= 33000,
@@ -354,7 +355,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "pcl812pg",
-		.board_type	= boardPCL812PG,
+		.board_type	= BOARD_PCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.ai_ns_min	= 33000,
@@ -364,7 +365,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "acl8112pg",
-		.board_type	= boardPCL812PG,
+		.board_type	= BOARD_PCL812PG,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -374,7 +375,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "acl8112dg",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -385,7 +386,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "acl8112hg",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -396,7 +397,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a821pgl",
-		.board_type	= boardA821,
+		.board_type	= BOARD_A821,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
 		.ai_ns_min	= 10000,
@@ -405,14 +406,14 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a821pglnda",
-		.board_type	= boardA821,
+		.board_type	= BOARD_A821,
 		.n_aichan	= 16,	/* 8 differential */
 		.ai_ns_min	= 10000,
 		.rangelist_ai	= &range_pcl813b_ai,
 		.IRQbits	= 0x000c,
 	}, {
 		.name		= "a821pgh",
-		.board_type	= boardA821,
+		.board_type	= BOARD_A821,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 1,
 		.ai_ns_min	= 10000,
@@ -421,7 +422,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a822pgl",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -431,7 +432,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a822pgh",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -441,7 +442,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a823pgl",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 8000,
@@ -451,7 +452,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a823pgh",
-		.board_type	= boardACL8112,
+		.board_type	= BOARD_ACL8112,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 8000,
@@ -461,27 +462,27 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "pcl813",
-		.board_type	= boardPCL813,
+		.board_type	= BOARD_PCL813,
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_pcl813b_ai,
 	}, {
 		.name		= "pcl813b",
-		.board_type	= boardPCL813B,
+		.board_type	= BOARD_PCL813B,
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_pcl813b_ai,
 	}, {
 		.name		= "acl8113",
-		.board_type	= boardACL8113,
+		.board_type	= BOARD_ACL8113,
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_acl8113_1_ai,
 	}, {
 		.name		= "iso813",
-		.board_type	= boardISO813,
+		.board_type	= BOARD_ISO813,
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_iso813_1_ai,
 	}, {
 		.name		= "acl8216",
-		.board_type	= boardACL8216,
+		.board_type	= BOARD_ACL8216,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -493,7 +494,7 @@ static const struct pcl812_board boardtypes[] = {
 		.has_dio	= 1,
 	}, {
 		.name		= "a826pg",
-		.board_type	= boardACL8216,
+		.board_type	= BOARD_ACL8216,
 		.n_aichan	= 16,	/* 8 differential */
 		.n_aochan	= 2,
 		.ai_ns_min	= 10000,
@@ -1017,16 +1018,14 @@ static void pcl812_set_ai_range_table(struct comedi_device *dev,
 	const struct pcl812_board *board = dev->board_ptr;
 	struct pcl812_private *devpriv = dev->private;
 
-	/* default to the range table from the boardinfo */
-	s->range_table = board->rangelist_ai;
-
-	/* now check the user config option based on the boardtype */
 	switch (board->board_type) {
-	case boardPCL812PG:
+	case BOARD_PCL812PG:
 		if (it->options[4] == 1)
 			s->range_table = &range_pcl812pg2_ai;
+		else
+			s->range_table = board->rangelist_ai;
 		break;
-	case boardPCL812:
+	case BOARD_PCL812:
 		switch (it->options[4]) {
 		case 0:
 			s->range_table = &range_bipolar10;
@@ -1051,11 +1050,13 @@ static void pcl812_set_ai_range_table(struct comedi_device *dev,
 			break;
 		}
 		break;
-	case boardPCL813B:
+	case BOARD_PCL813B:
 		if (it->options[1] == 1)
 			s->range_table = &range_pcl813b2_ai;
+		else
+			s->range_table = board->rangelist_ai;
 		break;
-	case boardISO813:
+	case BOARD_ISO813:
 		switch (it->options[1]) {
 		case 0:
 			s->range_table = &range_iso813_1_ai;
@@ -1076,7 +1077,7 @@ static void pcl812_set_ai_range_table(struct comedi_device *dev,
 			break;
 		}
 		break;
-	case boardACL8113:
+	case BOARD_ACL8113:
 		switch (it->options[1]) {
 		case 0:
 			s->range_table = &range_acl8113_1_ai;
@@ -1096,6 +1097,9 @@ static void pcl812_set_ai_range_table(struct comedi_device *dev,
 			s->range_table = &range_acl8113_1_ai;
 			break;
 		}
+		break;
+	default:
+		s->range_table = board->rangelist_ai;
 		break;
 	}
 }
@@ -1159,14 +1163,16 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* differential analog inputs? */
 	switch (board->board_type) {
-	case boardA821:
+	case BOARD_A821:
 		if (it->options[2] == 1)
 			devpriv->use_diff = 1;
 		break;
-	case boardACL8112:
-	case boardACL8216:
+	case BOARD_ACL8112:
+	case BOARD_ACL8216:
 		if (it->options[4] == 1)
 			devpriv->use_diff = 1;
+		break;
+	default:
 		break;
 	}
 
@@ -1220,20 +1226,31 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 		s->n_chan	= board->n_aochan;
 		s->maxdata	= 0xfff;
-		s->range_table	= &range_unipolar5;
 		switch (board->board_type) {
-		case boardA821:
+		case BOARD_A821:
 			if (it->options[3] == 1)
 				s->range_table = &range_unipolar10;
+			else
+				s->range_table = &range_unipolar5;
 			break;
-		case boardPCL812:
-		case boardACL8112:
-		case boardPCL812PG:
-		case boardACL8216:
-			if (it->options[5] == 1)
+		case BOARD_PCL812:
+		case BOARD_ACL8112:
+		case BOARD_PCL812PG:
+		case BOARD_ACL8216:
+			switch (it->options[5]) {
+			case 1:
 				s->range_table = &range_unipolar10;
-			if (it->options[5] == 2)
+				break;
+			case 2:
 				s->range_table = &range_unknown;
+				break;
+			default:
+				s->range_table = &range_unipolar5;
+				break;
+			}
+			break;
+		default:
+			s->range_table = &range_unipolar5;
 			break;
 		}
 		s->insn_write	= pcl812_ao_insn_write;
@@ -1268,23 +1285,23 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	switch (board->board_type) {
-	case boardACL8216:
-	case boardPCL812PG:
-	case boardPCL812:
-	case boardACL8112:
+	case BOARD_ACL8216:
+	case BOARD_PCL812PG:
+	case BOARD_PCL812:
+	case BOARD_ACL8112:
 		devpriv->max_812_ai_mode0_rangewait = 1;
 		if (it->options[3] > 0)
 						/*  we use external trigger */
 			devpriv->use_ext_trg = 1;
 		break;
-	case boardA821:
+	case BOARD_A821:
 		devpriv->max_812_ai_mode0_rangewait = 1;
 		devpriv->mode_reg_int = (dev->irq << 4) & 0xf0;
 		break;
-	case boardPCL813B:
-	case boardPCL813:
-	case boardISO813:
-	case boardACL8113:
+	case BOARD_PCL813B:
+	case BOARD_PCL813:
+	case BOARD_ISO813:
+	case BOARD_ACL8113:
 		/* maybe there must by greatest timeout */
 		devpriv->max_812_ai_mode0_rangewait = 5;
 		break;
