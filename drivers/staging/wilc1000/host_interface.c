@@ -4190,15 +4190,15 @@ s32 host_int_remove_key(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8StaAddress)
  */
 int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 {
-	int s32Error = 0;
+	int result = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)wfi_drv;
 	struct host_if_msg msg;
 
 
 	if (pstrWFIDrv == NULL) {
-		s32Error = -EFAULT;
+		result = -EFAULT;
 		PRINT_ER("Failed to send setup multicast config packet\n");
-		return s32Error;
+		return result;
 	}
 
 	/* prepare the Remove Wep Key Message */
@@ -4216,12 +4216,12 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = index;
 
 	/* send the message */
-	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
-	if (s32Error)
+	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
+	if (result)
 		PRINT_ER("Error in sending message queue : Request to remove WEP key\n");
 	down(&(pstrWFIDrv->hSemTestKeyBlock));
 
-	return s32Error;
+	return result;
 }
 
 /**
