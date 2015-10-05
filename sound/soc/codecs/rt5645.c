@@ -3514,6 +3514,8 @@ static void rt5645_i2c_shutdown(struct i2c_client *i2c)
 		RT5645_CBJ_MN_JD);
 	regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1, RT5645_CBJ_BST1_EN,
 		0);
+	msleep(20);
+	regmap_write(rt5645->regmap, RT5645_RESET, 0);
 }
 
 static struct i2c_driver rt5645_i2c_driver = {
