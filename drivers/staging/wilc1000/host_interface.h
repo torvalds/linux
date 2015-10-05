@@ -184,7 +184,7 @@ typedef enum {
 typedef void (*wilc_scan_result)(tenuScanEvent, tstrNetworkInfo *, void *, void *);
 
 /*Connect callBack function definition*/
-typedef void (*tWILCpfConnectResult)(tenuConnDisconnEvent,
+typedef void (*wilc_connect_result)(tenuConnDisconnEvent,
 				     tstrConnectInfo *,
 				     u8,
 				     tstrDisconnectNotifInfo *,
@@ -245,7 +245,7 @@ typedef struct {
 	u8 *pu8ConnReqIEs;
 	size_t ConnReqIEsLen;
 	/* Connect user call back function */
-	tWILCpfConnectResult pfUserConnectResult;
+	wilc_connect_result pfUserConnectResult;
 	bool IsHTCapable;
 	/* User specific parameter to be delivered through the Connect User Callback function */
 	void *u32UserConnectPvoid;
@@ -698,7 +698,7 @@ s32 host_int_get_start_scan_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8ScanSource);
 s32 host_int_set_join_req(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8bssid,
 				  const u8 *pu8ssid, size_t ssidLen,
 				  const u8 *pu8IEs, size_t IEsLen,
-				  tWILCpfConnectResult pfConnectResult, void *pvUserArg,
+				  wilc_connect_result pfConnectResult, void *pvUserArg,
 				  u8 u8security, AUTHTYPE_T tenuAuth_type,
 				  u8 u8channel,
 				  void *pJoinParams);
