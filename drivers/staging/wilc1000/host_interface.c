@@ -5282,7 +5282,7 @@ int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *address)
 	return result;
 }
 
-int host_int_set_operation_mode(tstrWILC_WFIDrv *wfi_drv, u32 u32mode)
+int host_int_set_operation_mode(tstrWILC_WFIDrv *wfi_drv, u32 mode)
 {
 	int result = 0;
 
@@ -5292,7 +5292,7 @@ int host_int_set_operation_mode(tstrWILC_WFIDrv *wfi_drv, u32 u32mode)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_OPERATION_MODE;
-	msg.body.mode.u32Mode = u32mode;
+	msg.body.mode.u32Mode = mode;
 	msg.drvHandler = wfi_drv;
 
 	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
