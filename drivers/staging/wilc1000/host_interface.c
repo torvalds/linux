@@ -4188,7 +4188,7 @@ s32 host_int_remove_key(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8StaAddress)
  *  @date		8 March 2012
  *  @version		1.0
  */
-int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 u8keyIdx)
+int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 {
 	int s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)wfi_drv;
@@ -4213,7 +4213,7 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 u8keyIdx)
 
 
 	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8keyIdx;
+	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = index;
 
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));

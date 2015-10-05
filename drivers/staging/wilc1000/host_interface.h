@@ -406,7 +406,7 @@ s32 host_int_remove_key(tstrWILC_WFIDrv *hWFIDrv, const u8 *pu8StaAddress);
  *  @date		8 March 2012
  *  @version		1.0
  */
-int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 u8Index);
+int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index);
 /**
  *  @brief              sets WEP deafault key
  *  @details    Sets the index of the WEP encryption key in use,
