@@ -1178,7 +1178,7 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
-		bit_name(IDENTIFIER), bit_name(REGS_INTR),
+		bit_name(IDENTIFIER), bit_name(REGS_INTR), bit_name(DATA_SRC),
 		{ .name = NULL, }
 	};
 #undef bit_name
