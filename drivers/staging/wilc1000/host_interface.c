@@ -385,7 +385,7 @@ union message_body {
 	struct get_mac_addr get_mac_info;
 	struct ba_session_info session_info;
 	struct remain_ch remain_on_ch;
-	struct reg_frame strHostIfRegisterFrame;
+	struct reg_frame reg_frame;
 	char *pUserData;
 	struct del_all_sta strHostIFDelAllSta;
 };
@@ -4185,7 +4185,7 @@ static int hostIFthread(void *pvArg)
 
 		case HOST_IF_MSG_REGISTER_FRAME:
 			PRINT_D(HOSTINF_DBG, "HOST_IF_MSG_REGISTER_FRAME\n");
-			Handle_RegisterFrame(msg.drvHandler, &msg.body.strHostIfRegisterFrame);
+			Handle_RegisterFrame(msg.drvHandler, &msg.body.reg_frame);
 			break;
 
 		case HOST_IF_MSG_LISTEN_TIMER_FIRED:
@@ -6481,20 +6481,20 @@ s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bRe
 	switch (u16FrameType) {
 	case ACTION:
 		PRINT_D(HOSTINF_DBG, "ACTION\n");
-		msg.body.strHostIfRegisterFrame.u8Regid = ACTION_FRM_IDX;
+		msg.body.reg_frame.u8Regid = ACTION_FRM_IDX;
 		break;
 
 	case PROBE_REQ:
 		PRINT_D(HOSTINF_DBG, "PROBE REQ\n");
-		msg.body.strHostIfRegisterFrame.u8Regid = PROBE_REQ_IDX;
+		msg.body.reg_frame.u8Regid = PROBE_REQ_IDX;
 		break;
 
 	default:
 		PRINT_D(HOSTINF_DBG, "Not valid frame type\n");
 		break;
 	}
-	msg.body.strHostIfRegisterFrame.u16FrameType = u16FrameType;
-	msg.body.strHostIfRegisterFrame.bReg = bReg;
+	msg.body.reg_frame.u16FrameType = u16FrameType;
+	msg.body.reg_frame.bReg = bReg;
 	msg.drvHandler = hWFIDrv;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
