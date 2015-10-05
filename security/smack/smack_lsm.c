@@ -3354,6 +3354,9 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 			 */
 			isp->smk_inode = smk_of_current();
 			break;
+		case PIPEFS_MAGIC:
+			isp->smk_inode = smk_of_current();
+			break;
 		default:
 			isp->smk_inode = sbsp->smk_root;
 			break;
