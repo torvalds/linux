@@ -643,6 +643,10 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 	}
 
 	SW_FLOW_KEY_PUT(match, tun_key.tun_flags, tun_flags, is_mask);
+	if (is_mask)
+		SW_FLOW_KEY_MEMSET_FIELD(match, tun_proto, 0xff, true);
+	else
+		SW_FLOW_KEY_PUT(match, tun_proto, AF_INET, false);
 
 	if (rem > 0) {
 		OVS_NLERR(log, "IPv4 tunnel attribute has %d unknown bytes.",
@@ -1194,7 +1198,7 @@ int ovs_nla_get_match(struct net *net, struct sw_flow_match *match,
 			/* The userspace does not send tunnel attributes that
 			 * are 0, but we should not wildcard them nonetheless.
 			 */
-			if (match->key->tun_key.u.ipv4.dst)
+			if (match->key->tun_proto)
 				SW_FLOW_KEY_MEMSET_FIELD(match, tun_key,
 							 0xff, true);
 
@@ -1367,7 +1371,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 	if (nla_put_u32(skb, OVS_KEY_ATTR_PRIORITY, output->phy.priority))
 		goto nla_put_failure;
 
-	if ((swkey->tun_key.u.ipv4.dst || is_mask)) {
+	if ((swkey->tun_proto || is_mask)) {
 		const void *opts = NULL;
 
 		if (output->tun_key.tun_flags & TUNNEL_OPTIONS_PRESENT)
@@ -1913,6 +1917,8 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 
 	tun_info = &tun_dst->u.tun_info;
 	tun_info->mode = IP_TUNNEL_INFO_TX;
+	if (key.tun_proto == AF_INET6)
+		tun_info->mode |= IP_TUNNEL_INFO_IPV6;
 	tun_info->key = key.tun_key;
 
 	/* We need to store the options in the action itself since
