@@ -171,19 +171,21 @@ static int daqp_clear_events(struct comedi_device *dev, int loops)
 	return -EBUSY;
 }
 
-/* Cancel a running acquisition */
-
-static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int daqp_ai_cancel(struct comedi_device *dev,
+			  struct comedi_subdevice *s)
 {
 	struct daqp_private *devpriv = dev->private;
 
 	if (devpriv->stop)
 		return -EIO;
 
+	/*
+	 * Stop any conversions, disable interrupts, and clear
+	 * the status event flags.
+	 */
 	outb(DAQP_CMD_STOP, dev->iobase + DAQP_CMD_REG);
-
-	/* flush any linguring data in FIFO - superfluous here */
-	/* outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG); */
+	outb(0, dev->iobase + DAQP_CTRL_REG);
+	inb(dev->iobase + DAQP_STATUS_REG);
 
 	return 0;
 }
@@ -297,9 +299,6 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 	if (devpriv->stop)
 		return -EIO;
-
-	/* Stop any running conversion */
-	daqp_ai_cancel(dev, s);
 
 	outb(0, dev->iobase + DAQP_AUX_REG);
 
@@ -465,9 +464,6 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->stop)
 		return -EIO;
-
-	/* Stop any running conversion */
-	daqp_ai_cancel(dev, s);
 
 	outb(0, dev->iobase + DAQP_AUX_REG);
 
