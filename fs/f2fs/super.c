@@ -292,11 +292,16 @@ static int parse_options(struct super_block *sb, char *options)
 
 			if (!name)
 				return -ENOMEM;
-			if (strlen(name) == 2 && !strncmp(name, "on", 2))
+			if (strlen(name) == 2 && !strncmp(name, "on", 2)) {
 				set_opt(sbi, BG_GC);
-			else if (strlen(name) == 3 && !strncmp(name, "off", 3))
+				clear_opt(sbi, FORCE_FG_GC);
+			} else if (strlen(name) == 3 && !strncmp(name, "off", 3)) {
 				clear_opt(sbi, BG_GC);
-			else {
+				clear_opt(sbi, FORCE_FG_GC);
+			} else if (strlen(name) == 4 && !strncmp(name, "sync", 4)) {
+				set_opt(sbi, BG_GC);
+				set_opt(sbi, FORCE_FG_GC);
+			} else {
 				kfree(name);
 				return -EINVAL;
 			}
@@ -631,10 +636,14 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(root->d_sb);
 
-	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, BG_GC))
-		seq_printf(seq, ",background_gc=%s", "on");
-	else
+	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, BG_GC)) {
+		if (test_opt(sbi, FORCE_FG_GC))
+			seq_printf(seq, ",background_gc=%s", "sync");
+		else
+			seq_printf(seq, ",background_gc=%s", "on");
+	} else {
 		seq_printf(seq, ",background_gc=%s", "off");
+	}
 	if (test_opt(sbi, DISABLE_ROLL_FORWARD))
 		seq_puts(seq, ",disable_roll_forward");
 	if (test_opt(sbi, DISCARD))

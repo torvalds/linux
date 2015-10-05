@@ -78,7 +78,7 @@ static int gc_thread_func(void *data)
 		stat_inc_bggc_count(sbi);
 
 		/* if return value is not zero, no victim was selected */
-		if (f2fs_gc(sbi, false))
+		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC)))
 			wait_ms = gc_th->no_gc_sleep_time;
 
 		/* balancing f2fs's metadata periodically */
