@@ -190,7 +190,7 @@ typedef void (*wilc_connect_result)(tenuConnDisconnEvent,
 				     tstrDisconnectNotifInfo *,
 				     void *);
 
-typedef void (*tWILCpfRemainOnChanExpired)(void *, u32);  /*Remain on channel expiration callback function*/
+typedef void (*wilc_remain_on_chan_expired)(void *, u32);  /*Remain on channel expiration callback function*/
 typedef void (*tWILCpfRemainOnChanReady)(void *); /*Remain on channel callback function*/
 
 /* typedef u32 WILC_WFIDrvHandle; */
@@ -277,7 +277,7 @@ struct ba_session_info {
 struct remain_ch {
 	u16 u16Channel;
 	u32 u32duration;
-	tWILCpfRemainOnChanExpired pRemainOnChanExpired;
+	wilc_remain_on_chan_expired pRemainOnChanExpired;
 	tWILCpfRemainOnChanReady pRemainOnChanReady;
 	void *pVoid;
 	u32 u32ListenSessionID;
@@ -1149,7 +1149,7 @@ s32 host_int_get_ipaddress(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8IPAddr, u8 idx);
  *  @date
  *  @version	1.0
  */
-s32 host_int_remain_on_channel(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID, u32 u32duration, u16 chan, tWILCpfRemainOnChanExpired RemainOnChanExpired, tWILCpfRemainOnChanReady RemainOnChanReady, void *pvUserArg);
+s32 host_int_remain_on_channel(tstrWILC_WFIDrv *hWFIDrv, u32 u32SessionID, u32 u32duration, u16 chan, wilc_remain_on_chan_expired RemainOnChanExpired, tWILCpfRemainOnChanReady RemainOnChanReady, void *pvUserArg);
 
 /**
  *  @brief              host_int_ListenStateExpired
