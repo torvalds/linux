@@ -246,15 +246,15 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 
 		/* 3.Enable CPU */
 		tmp8 = r8712_read8(padapter, SYS_CLKR);
-		r8712_write8(padapter, SYS_CLKR, tmp8|BIT(2));
+		r8712_write8(padapter, SYS_CLKR, tmp8 | BIT(2));
 		tmp8_a = r8712_read8(padapter, SYS_CLKR);
-		if (tmp8_a != (tmp8|BIT(2)))
+		if (tmp8_a != (tmp8 | BIT(2)))
 			goto exit_fail;
 
 		tmp8 = r8712_read8(padapter, SYS_FUNC_EN + 1);
-		r8712_write8(padapter, SYS_FUNC_EN + 1, tmp8|BIT(2));
+		r8712_write8(padapter, SYS_FUNC_EN + 1, tmp8 | BIT(2));
 		tmp8_a = r8712_read8(padapter, SYS_FUNC_EN + 1);
-		if (tmp8_a != (tmp8|BIT(2)))
+		if (tmp8_a != (tmp8 | BIT(2)))
 			goto exit_fail;
 
 		r8712_read32(padapter, TCR);
@@ -335,7 +335,7 @@ uint rtl8712_hal_init(struct _adapter *padapter)
 	netdev_info(padapter->pnetdev, "2 RCR=0x%x\n",
 		    r8712_read32(padapter, RCR));
 	val32 = r8712_read32(padapter, RCR);
-	r8712_write32(padapter, RCR, (val32|BIT(25))); /* Append PHY status */
+	r8712_write32(padapter, RCR, (val32 | BIT(25))); /* Append PHY status */
 	val32 = 0;
 	val32 = r8712_read32(padapter, 0x10250040);
 	r8712_write32(padapter,  0x10250040, (val32&0x00FFFFFF));
