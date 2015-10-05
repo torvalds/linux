@@ -514,6 +514,34 @@ TRACE_EVENT(f2fs_map_blocks,
 		__entry->ret)
 );
 
+TRACE_EVENT(f2fs_background_gc,
+
+	TP_PROTO(struct super_block *sb, long wait_ms,
+			unsigned int prefree, unsigned int free),
+
+	TP_ARGS(sb, wait_ms, prefree, free),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(long,	wait_ms)
+		__field(unsigned int,	prefree)
+		__field(unsigned int,	free)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->wait_ms	= wait_ms;
+		__entry->prefree	= prefree;
+		__entry->free		= free;
+	),
+
+	TP_printk("dev = (%d,%d), wait_ms = %ld, prefree = %u, free = %u",
+		show_dev(__entry),
+		__entry->wait_ms,
+		__entry->prefree,
+		__entry->free)
+);
+
 TRACE_EVENT(f2fs_get_victim,
 
 	TP_PROTO(struct super_block *sb, int type, int gc_type,
