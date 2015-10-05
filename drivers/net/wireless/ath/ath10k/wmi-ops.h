@@ -177,6 +177,8 @@ struct wmi_ops {
 						const struct wmi_tdls_peer_capab_arg *cap,
 						const struct wmi_channel_arg *chan);
 	struct sk_buff *(*gen_adaptive_qcs)(struct ath10k *ar, bool enable);
+	struct sk_buff *(*gen_pdev_get_tpc_config)(struct ath10k *ar,
+						   u32 param);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1268,6 +1270,23 @@ ath10k_wmi_adaptive_qcs(struct ath10k *ar, bool enable)
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->adaptive_qcs_cmdid);
+}
+
+static inline int
+ath10k_wmi_pdev_get_tpc_config(struct ath10k *ar, u32 param)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_pdev_get_tpc_config)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_pdev_get_tpc_config(ar, param);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_get_tpc_config_cmdid);
 }
 
 #endif

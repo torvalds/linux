@@ -1843,6 +1843,233 @@ static const struct file_operations fops_nf_cal_period = {
 	.llseek = default_llseek,
 };
 
+#define ATH10K_TPC_CONFIG_BUF_SIZE	(1024 * 1024)
+
+static int ath10k_debug_tpc_stats_request(struct ath10k *ar)
+{
+	int ret;
+	unsigned long time_left;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	reinit_completion(&ar->debug.tpc_complete);
+
+	ret = ath10k_wmi_pdev_get_tpc_config(ar, WMI_TPC_CONFIG_PARAM);
+	if (ret) {
+		ath10k_warn(ar, "failed to request tpc config: %d\n", ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->debug.tpc_complete,
+						1 * HZ);
+	if (time_left == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+void ath10k_debug_tpc_stats_process(struct ath10k *ar,
+				    struct ath10k_tpc_stats *tpc_stats)
+{
+	spin_lock_bh(&ar->data_lock);
+
+	kfree(ar->debug.tpc_stats);
+	ar->debug.tpc_stats = tpc_stats;
+	complete(&ar->debug.tpc_complete);
+
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static void ath10k_tpc_stats_print(struct ath10k_tpc_stats *tpc_stats,
+				   unsigned int j, char *buf, unsigned int *len)
+{
+	unsigned int i, buf_len;
+	static const char table_str[][5] = { "CDD",
+					     "STBC",
+					     "TXBF" };
+	static const char pream_str[][6] = { "CCK",
+					     "OFDM",
+					     "HT20",
+					     "HT40",
+					     "VHT20",
+					     "VHT40",
+					     "VHT80",
+					     "HTCUP" };
+
+	buf_len = ATH10K_TPC_CONFIG_BUF_SIZE;
+	*len += scnprintf(buf + *len, buf_len - *len,
+			  "********************************\n");
+	*len += scnprintf(buf + *len, buf_len - *len,
+			  "******************* %s POWER TABLE ****************\n",
+			  table_str[j]);
+	*len += scnprintf(buf + *len, buf_len - *len,
+			  "********************************\n");
+	*len += scnprintf(buf + *len, buf_len - *len,
+			  "No.  Preamble Rate_code tpc_value1 tpc_value2 tpc_value3\n");
+
+	for (i = 0; i < tpc_stats->rate_max; i++) {
+		*len += scnprintf(buf + *len, buf_len - *len,
+				  "%8d %s 0x%2x %s\n", i,
+				  pream_str[tpc_stats->tpc_table[j].pream_idx[i]],
+				  tpc_stats->tpc_table[j].rate_code[i],
+				  tpc_stats->tpc_table[j].tpc_value[i]);
+	}
+
+	*len += scnprintf(buf + *len, buf_len - *len,
+			  "***********************************\n");
+}
+
+static void ath10k_tpc_stats_fill(struct ath10k *ar,
+				  struct ath10k_tpc_stats *tpc_stats,
+				  char *buf)
+{
+	unsigned int len, j, buf_len;
+
+	len = 0;
+	buf_len = ATH10K_TPC_CONFIG_BUF_SIZE;
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (!tpc_stats) {
+		ath10k_warn(ar, "failed to get tpc stats\n");
+		goto unlock;
+	}
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "*************************************\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "TPC config for channel %4d mode %d\n",
+			 tpc_stats->chan_freq,
+			 tpc_stats->phy_mode);
+	len += scnprintf(buf + len, buf_len - len,
+			 "*************************************\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "CTL		=  0x%2x Reg. Domain		= %2d\n",
+			 tpc_stats->ctl,
+			 tpc_stats->reg_domain);
+	len += scnprintf(buf + len, buf_len - len,
+			 "Antenna Gain	= %2d Reg. Max Antenna Gain	=  %2d\n",
+			 tpc_stats->twice_antenna_gain,
+			 tpc_stats->twice_antenna_reduction);
+	len += scnprintf(buf + len, buf_len - len,
+			 "Power Limit	= %2d Reg. Max Power		= %2d\n",
+			 tpc_stats->power_limit,
+			 tpc_stats->twice_max_rd_power / 2);
+	len += scnprintf(buf + len, buf_len - len,
+			 "Num tx chains	= %2d Num supported rates	= %2d\n",
+			 tpc_stats->num_tx_chain,
+			 tpc_stats->rate_max);
+
+	for (j = 0; j < tpc_stats->num_tx_chain ; j++) {
+		switch (j) {
+		case WMI_TPC_TABLE_TYPE_CDD:
+			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
+				len += scnprintf(buf + len, buf_len - len,
+						 "CDD not supported\n");
+				break;
+			}
+
+			ath10k_tpc_stats_print(tpc_stats, j, buf, &len);
+			break;
+		case WMI_TPC_TABLE_TYPE_STBC:
+			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
+				len += scnprintf(buf + len, buf_len - len,
+						 "STBC not supported\n");
+				break;
+			}
+
+			ath10k_tpc_stats_print(tpc_stats, j, buf, &len);
+			break;
+		case WMI_TPC_TABLE_TYPE_TXBF:
+			if (tpc_stats->flag[j] == ATH10K_TPC_TABLE_TYPE_FLAG) {
+				len += scnprintf(buf + len, buf_len - len,
+						 "TXBF not supported\n***************************\n");
+				break;
+			}
+
+			ath10k_tpc_stats_print(tpc_stats, j, buf, &len);
+			break;
+		default:
+			len += scnprintf(buf + len, buf_len - len,
+					 "Invalid Type\n");
+			break;
+		}
+	}
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
+
+	if (len >= buf_len)
+		buf[len - 1] = 0;
+	else
+		buf[len] = 0;
+}
+
+static int ath10k_tpc_stats_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+	void *buf = NULL;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto err_unlock;
+	}
+
+	buf = vmalloc(ATH10K_TPC_CONFIG_BUF_SIZE);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_unlock;
+	}
+
+	ret = ath10k_debug_tpc_stats_request(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to request tpc config stats: %d\n",
+			    ret);
+		goto err_free;
+	}
+
+	ath10k_tpc_stats_fill(ar, ar->debug.tpc_stats, buf);
+	file->private_data = buf;
+
+	mutex_unlock(&ar->conf_mutex);
+	return 0;
+
+err_free:
+	vfree(buf);
+
+err_unlock:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath10k_tpc_stats_release(struct inode *inode, struct file *file)
+{
+	vfree(file->private_data);
+
+	return 0;
+}
+
+static ssize_t ath10k_tpc_stats_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	unsigned int len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_tpc_stats = {
+	.open = ath10k_tpc_stats_open,
+	.release = ath10k_tpc_stats_release,
+	.read = ath10k_tpc_stats_read,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_start(struct ath10k *ar)
 {
 	int ret;
@@ -2111,6 +2338,8 @@ void ath10k_debug_destroy(struct ath10k *ar)
 	ar->debug.fw_crash_data = NULL;
 
 	ath10k_debug_fw_stats_reset(ar);
+
+	kfree(ar->debug.tpc_stats);
 }
 
 int ath10k_debug_register(struct ath10k *ar)
@@ -2127,6 +2356,7 @@ int ath10k_debug_register(struct ath10k *ar)
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
 			  ath10k_debug_htt_stats_dwork);
 
+	init_completion(&ar->debug.tpc_complete);
 	init_completion(&ar->debug.fw_stats_complete);
 
 	debugfs_create_file("fw_stats", S_IRUSR, ar->debug.debugfs_phy, ar,
@@ -2194,6 +2424,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("quiet_period", S_IRUGO | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_quiet_period);
+
+	debugfs_create_file("tpc_stats", S_IRUSR,
+			    ar->debug.debugfs_phy, ar, &fops_tpc_stats);
 
 	return 0;
 }

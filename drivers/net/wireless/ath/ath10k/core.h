@@ -250,6 +250,30 @@ struct ath10k_fw_stats {
 	struct list_head peers;
 };
 
+#define ATH10K_TPC_TABLE_TYPE_FLAG	1
+#define ATH10K_TPC_PREAM_TABLE_END	0xFFFF
+
+struct ath10k_tpc_table {
+	u32 pream_idx[WMI_TPC_RATE_MAX];
+	u8 rate_code[WMI_TPC_RATE_MAX];
+	char tpc_value[WMI_TPC_RATE_MAX][WMI_TPC_TX_N_CHAIN * WMI_TPC_BUF_SIZE];
+};
+
+struct ath10k_tpc_stats {
+	u32 reg_domain;
+	u32 chan_freq;
+	u32 phy_mode;
+	u32 twice_antenna_reduction;
+	u32 twice_max_rd_power;
+	s32 twice_antenna_gain;
+	u32 power_limit;
+	u32 num_tx_chain;
+	u32 ctl;
+	u32 rate_max;
+	u8 flag[WMI_TPC_FLAG];
+	struct ath10k_tpc_table tpc_table[WMI_TPC_FLAG];
+};
+
 struct ath10k_dfs_stats {
 	u32 phy_errors;
 	u32 pulses_total;
@@ -377,6 +401,11 @@ struct ath10k_debug {
 	struct delayed_work htt_stats_dwork;
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
+
+	/* used for tpc-dump storage, protected by data-lock */
+	struct ath10k_tpc_stats *tpc_stats;
+
+	struct completion tpc_complete;
 
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;

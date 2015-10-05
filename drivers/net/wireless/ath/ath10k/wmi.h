@@ -3661,8 +3661,18 @@ struct wmi_pdev_get_tpc_config_cmd {
 	__le32 param;
 } __packed;
 
+#define WMI_TPC_CONFIG_PARAM		1
 #define WMI_TPC_RATE_MAX		160
 #define WMI_TPC_TX_N_CHAIN		4
+#define WMI_TPC_PREAM_TABLE_MAX		10
+#define WMI_TPC_FLAG			3
+#define WMI_TPC_BUF_SIZE		10
+
+enum wmi_tpc_table_type {
+	WMI_TPC_TABLE_TYPE_CDD = 0,
+	WMI_TPC_TABLE_TYPE_STBC = 1,
+	WMI_TPC_TABLE_TYPE_TXBF = 2,
+};
 
 enum wmi_tpc_config_event_flag {
 	WMI_TPC_CONFIG_EVENT_FLAG_TABLE_CDD	= 0x1,
@@ -4271,6 +4281,11 @@ enum wmi_rate_preamble {
 	WMI_RATE_PREAMBLE_HT,
 	WMI_RATE_PREAMBLE_VHT,
 };
+
+#define ATH10K_HW_NSS(rate)		(1 + (((rate) >> 4) & 0x3))
+#define ATH10K_HW_PREAMBLE(rate)	(((rate) >> 6) & 0x3)
+#define ATH10K_HW_RATECODE(rate, nss, preamble)	\
+	(((preamble) << 6) | ((nss) << 4) | (rate))
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
