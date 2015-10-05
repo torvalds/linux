@@ -387,7 +387,7 @@ union message_body {
 	struct remain_ch remain_on_ch;
 	struct reg_frame reg_frame;
 	char *data;
-	struct del_all_sta strHostIFDelAllSta;
+	struct del_all_sta del_all_sta_info;
 };
 
 /*!
@@ -4206,7 +4206,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_DEL_ALL_STA:
-			Handle_DelAllSta(msg.drvHandler, &msg.body.strHostIFDelAllSta);
+			Handle_DelAllSta(msg.drvHandler, &msg.body.del_all_sta_info);
 			break;
 
 		default:
@@ -6718,7 +6718,7 @@ s32 host_int_del_allstation(tstrWILC_WFIDrv *hWFIDrv, u8 pu8MacAddr[][ETH_ALEN])
 	s32 s32Error = 0;
 	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
 	struct host_if_msg msg;
-	struct del_all_sta *pstrDelAllStationMsg = &msg.body.strHostIFDelAllSta;
+	struct del_all_sta *pstrDelAllStationMsg = &msg.body.del_all_sta_info;
 	u8 au8Zero_Buff[ETH_ALEN] = {0};
 	u32 i;
 	u8 u8AssocNumb = 0;
