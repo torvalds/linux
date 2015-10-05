@@ -170,11 +170,13 @@ static void sco_conn_del(struct hci_conn *hcon, int err)
 	sco_conn_unlock(conn);
 
 	if (sk) {
+		sock_hold(sk);
 		bh_lock_sock(sk);
 		sco_sock_clear_timer(sk);
 		sco_chan_del(sk, err);
 		bh_unlock_sock(sk);
 		sco_sock_kill(sk);
+		sock_put(sk);
 	}
 
 	hcon->sco_data = NULL;
