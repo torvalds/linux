@@ -143,8 +143,6 @@
 
 struct daqp_private {
 	int stop;
-
-	enum { semaphore, buffer } interrupt_mode;
 };
 
 static const struct comedi_lrange range_daqp_ai = {
@@ -187,8 +185,6 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* flush any linguring data in FIFO - superfluous here */
 	/* outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG); */
 
-	devpriv->interrupt_mode = semaphore;
-
 	return 0;
 }
 
@@ -206,10 +202,9 @@ static unsigned int daqp_ai_get_sample(struct comedi_device *dev,
 	return comedi_offset_munge(s, val);
 }
 
-static enum irqreturn daqp_interrupt(int irq, void *dev_id)
+static irqreturn_t daqp_interrupt(int irq, void *dev_id)
 {
 	struct comedi_device *dev = dev_id;
-	struct daqp_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int loop_limit = 10000;
@@ -218,46 +213,39 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	switch (devpriv->interrupt_mode) {
-	case semaphore:
-		break;
+	status = inb(dev->iobase + DAQP_STATUS_REG);
+	while (!(status & DAQP_STATUS_FIFO_EMPTY)) {
+		unsigned short data;
 
-	case buffer:
-		while (!((status = inb(dev->iobase + DAQP_STATUS_REG))
-			 & DAQP_STATUS_FIFO_EMPTY)) {
-			unsigned short data;
-
-			if (status & DAQP_STATUS_DATA_LOST) {
-				s->async->events |= COMEDI_CB_OVERFLOW;
-				dev_warn(dev->class_dev, "data lost\n");
-				break;
-			}
-
-			data = daqp_ai_get_sample(dev, s);
-			comedi_buf_write_samples(s, &data, 1);
-
-			/* If there's a limit, decrement it
-			 * and stop conversion if zero
-			 */
-
-			if (cmd->stop_src == TRIG_COUNT &&
-			    s->async->scans_done >= cmd->stop_arg) {
-				s->async->events |= COMEDI_CB_EOA;
-				break;
-			}
-
-			if ((loop_limit--) <= 0)
-				break;
+		if (status & DAQP_STATUS_DATA_LOST) {
+			s->async->events |= COMEDI_CB_OVERFLOW;
+			dev_warn(dev->class_dev, "data lost\n");
+			break;
 		}
 
-		if (loop_limit <= 0) {
-			dev_warn(dev->class_dev,
-				 "loop_limit reached in daqp_interrupt()\n");
-			s->async->events |= COMEDI_CB_ERROR;
+		data = daqp_ai_get_sample(dev, s);
+		comedi_buf_write_samples(s, &data, 1);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    s->async->scans_done >= cmd->stop_arg) {
+			s->async->events |= COMEDI_CB_EOA;
+			break;
 		}
 
-		comedi_handle_events(dev, s);
+		if ((loop_limit--) <= 0)
+			break;
+
+		status = inb(dev->iobase + DAQP_STATUS_REG);
 	}
+
+	if (loop_limit <= 0) {
+		dev_warn(dev->class_dev,
+			 "loop_limit reached in daqp_interrupt()\n");
+		s->async->events |= COMEDI_CB_ERROR;
+	}
+
+	comedi_handle_events(dev, s);
+
 	return IRQ_HANDLED;
 }
 
@@ -623,8 +611,6 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ret = daqp_clear_events(dev, 100);
 	if (ret)
 		return ret;
-
-	devpriv->interrupt_mode = buffer;
 
 	/* Start conversion */
 	outb(DAQP_CMD_ARM | DAQP_CMD_FIFO_DATA, dev->iobase + DAQP_CMD_REG);
