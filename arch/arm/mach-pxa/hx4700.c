@@ -557,10 +557,8 @@ static struct platform_device hx4700_lcd = {
  */
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = -1,	/* Superseded by pwm_lookup */
 	.max_brightness = 200,
 	.dft_brightness = 100,
-	.pwm_period_ns  = 30923,
 	.enable_gpio    = -1,
 };
 
