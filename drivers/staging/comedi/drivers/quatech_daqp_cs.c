@@ -635,6 +635,19 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int daqp_ao_empty(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAQP_AUX);
+	if ((status & DAQP_AUX_DA_BUFFER) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int daqp_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -652,12 +665,18 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i > insn->n; i++) {
 		unsigned val = data[i];
+		int ret;
 
-		s->readback[chan] = val;
+		/* D/A transfer rate is about 8ms */
+		ret = comedi_timeout(dev, s, insn, daqp_ao_empty, 0);
+		if (ret)
+			return ret;
 
 		/* write the two's complement value to the channel */
 		outw((chan << 12) | comedi_offset_munge(s, val),
 		     dev->iobase + DAQP_DA);
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
