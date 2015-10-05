@@ -1,28 +1,38 @@
 /*
-   comedi/drivers/multiq3.c
-   Hardware driver for Quanser Consulting MultiQ-3 board
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * multiq3.c
+ * Hardware driver for Quanser Consulting MultiQ-3 board
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-/*
-Driver: multiq3
-Description: Quanser Consulting MultiQ-3
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Status: works
-Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
-*/
+/*
+ * Driver: multiq3
+ * Description: Quanser Consulting MultiQ-3
+ * Devices: [Quanser Consulting] MultiQ-3 (multiq3)
+ * Author: Anders Blomdell <anders.blomdell@control.lth.se>
+ * Status: works
+ *
+ * Configuration Options:
+ *  [0] - I/O port base address
+ *  [1] - IRQ (not used)
+ *  [2] - Number of optional encoder chips installed on board
+ *	  0 = none
+ *	  1 = 2 inputs (Model -2E)
+ *	  2 = 4 inputs (Model -4E)
+ *	  3 = 6 inputs (Model -6E)
+ *	  4 = 8 inputs (Model -8E)
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
