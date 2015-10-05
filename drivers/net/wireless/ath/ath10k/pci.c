@@ -2257,7 +2257,7 @@ static int ath10k_pci_qca6174_chip_reset(struct ath10k *ar)
 	ret = ath10k_pci_wait_for_target_init(ar);
 	if (ret) {
 		ath10k_warn(ar, "failed to wait for target after cold reset: %d\n",
-				ret);
+			    ret);
 		return ret;
 	}
 

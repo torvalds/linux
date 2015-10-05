@@ -510,7 +510,7 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		data_len = ar->firmware_len;
 		mode_name = "normal";
 		ret = ath10k_swap_code_seg_configure(ar,
-				ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
+						     ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
 		if (ret) {
 			ath10k_err(ar, "failed to configure fw code swap: %d\n",
 				   ret);
@@ -1263,10 +1263,10 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		goto err;
 
 	/* Some of of qca988x solutions are having global reset issue
-         * during target initialization. Bypassing PLL setting before
-         * downloading firmware and letting the SoC run on REF_CLK is
-         * fixing the problem. Corresponding firmware change is also needed
-         * to set the clock source once the target is initialized.
+	 * during target initialization. Bypassing PLL setting before
+	 * downloading firmware and letting the SoC run on REF_CLK is
+	 * fixing the problem. Corresponding firmware change is also needed
+	 * to set the clock source once the target is initialized.
 	 */
 	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
 		     ar->fw_features)) {

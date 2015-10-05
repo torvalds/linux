@@ -4656,7 +4656,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 						info->use_cts_prot ? 1 : 0);
 		if (ret)
 			ath10k_warn(ar, "failed to set protection mode %d on vdev %i: %d\n",
-					info->use_cts_prot, arvif->vdev_id, ret);
+				    info->use_cts_prot, arvif->vdev_id, ret);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -6268,8 +6268,8 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 	rcu_read_lock();
 	if (!ctx && ath10k_mac_num_chanctxs(ar) == 1) {
 		ieee80211_iter_chan_contexts_atomic(ar->hw,
-					ath10k_mac_get_any_chandef_iter,
-					&def);
+						    ath10k_mac_get_any_chandef_iter,
+						    &def);
 
 		if (vifs)
 			def = &vifs[0].new_ctx->def;
