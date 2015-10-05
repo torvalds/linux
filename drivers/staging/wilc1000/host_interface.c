@@ -5349,49 +5349,6 @@ s32 host_int_get_host_chnl_num(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8ChNo)
 
 }
 
-
-/**
- *  @brief                       host_int_test_set_int_wid
- *  @details             Test function for setting wids
- *  @param[in,out]   WILC_WFIDrvHandle hWFIDrv, u32 u32TestMemAddr
- *  @return              Error code indicating success/failure
- *  @note
- *  @author		zsalah
- *  @date		8 March 2012
- *  @version		1.0
- */
-s32 host_int_test_set_int_wid(tstrWILC_WFIDrv *hWFIDrv, u32 u32TestMemAddr)
-{
-	s32 s32Error = 0;
-	tstrWID	strWID;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
-
-
-	if (pstrWFIDrv == NULL) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	/*prepare configuration packet*/
-	strWID.u16WIDid = (u16)WID_MEMORY_ADDRESS;
-	strWID.enuWIDtype = WID_INT;
-	strWID.ps8WidVal = (char *)&u32TestMemAddr;
-	strWID.s32ValueSize = sizeof(u32);
-
-	/*Sending Cfg*/
-	s32Error = send_config_pkt(SET_CFG, &strWID, 1, true,
-				   get_id_from_handler(pstrWFIDrv));
-	if (s32Error) {
-		PRINT_ER("Failed to set wid value\n");
-		return -EINVAL;
-	} else {
-		PRINT_D(HOSTINF_DBG, "Successfully set wid value\n");
-
-	}
-
-	return s32Error;
-}
-
 /**
  *  @brief              host_int_get_inactive_time
  *  @details
