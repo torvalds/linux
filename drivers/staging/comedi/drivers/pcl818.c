@@ -102,15 +102,6 @@
 #include "comedi_isadma.h"
 #include "comedi_8254.h"
 
-/* boards constants */
-
-#define boardPCL818L 0
-#define boardPCL818H 1
-#define boardPCL818HD 2
-#define boardPCL818HG 3
-#define boardPCL818 4
-#define boardPCL718 5
-
 /*
  * Register I/O map
  */
