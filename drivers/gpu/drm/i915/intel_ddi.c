@@ -2320,7 +2320,6 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 		intel_dp_start_link_train(intel_dp);
-		intel_dp_complete_link_train(intel_dp);
 		if (port != PORT_A || INTEL_INFO(dev)->gen >= 9)
 			intel_dp_stop_link_train(intel_dp);
 	} else if (type == INTEL_OUTPUT_HDMI) {

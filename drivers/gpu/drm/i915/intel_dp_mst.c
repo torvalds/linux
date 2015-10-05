@@ -188,7 +188,6 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 
 
 		intel_dp_start_link_train(intel_dp);
-		intel_dp_complete_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);
 	}
 
