@@ -125,7 +125,7 @@ struct cfg_param_val {
 	u8 txop_prot_disabled;
 	u16 beacon_interval;
 	u16 dtim_period;
-	SITE_SURVEY_T site_survey_enabled;
+	enum SITESURVEY site_survey_enabled;
 	u16 site_survey_scan_time;
 	u8 scan_source;
 	u16 active_scan_time;

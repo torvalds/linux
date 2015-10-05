@@ -226,11 +226,11 @@ enum AUTHTYPE {
 	IEEE8021		= 5
 };
 
-typedef enum {
+enum SITESURVEY {
 	SITE_SURVEY_1CH		= 0,
 	SITE_SURVEY_ALL_CH	= 1,
 	SITE_SURVEY_OFF		= 2
-} SITE_SURVEY_T;
+};
 
 typedef enum {
 	NORMAL_ACK		= 0,
