@@ -2260,7 +2260,6 @@ static s32 Handle_RcvdGnrlAsyncInfo(tstrWILC_WFIDrv *drvHandler,
 
 				/* open a BA session if possible */
 				/* if(pstrWFIDrv->strWILC_UsrConnReq.IsHTCapable) */
-				/* host_int_addBASession(pstrWFIDrv->strWILC_UsrConnReq.pu8bssid,0, */
 				/* BA_SESSION_DEFAULT_BUFFER_SIZE,BA_SESSION_DEFAULT_TIMEOUT); */
 			} else {
 				PRINT_D(HOSTINF_DBG, "MAC status : %d and Connect Status : %d\n", u8MacStatus, strConnectInfo.u16ConnectStatus);
@@ -2883,34 +2882,6 @@ void resolve_disconnect_aberration(tstrWILC_WFIDrv *drvHandler)
 		PRINT_D(HOSTINF_DBG, "\n\n<< correcting Supplicant state machine >>\n\n");
 		host_int_disconnect(pstrWFIDrv, 1);
 	}
-}
-static s32 Switch_Log_Terminal(tstrWILC_WFIDrv *drvHandler)
-{
-
-
-	s32 s32Error = 0;
-	tstrWID strWID;
-	static char dummy = 9;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
-
-	strWID.u16WIDid = (u16)WID_LOGTerminal_Switch;
-	strWID.enuWIDtype = WID_CHAR;
-	strWID.ps8WidVal = &dummy;
-	strWID.s32ValueSize = sizeof(char);
-
-	s32Error = send_config_pkt(SET_CFG, &strWID, 1, true,
-				   get_id_from_handler(pstrWFIDrv));
-
-
-	if (s32Error) {
-		PRINT_D(HOSTINF_DBG, "Failed to switch log terminal\n");
-		PRINT_ER("Failed to switch log terminal\n");
-		return -EINVAL;
-	}
-
-	PRINT_INFO(HOSTINF_DBG, "MAC address set ::\n");
-
-	return s32Error;
 }
 
 /**
@@ -3869,79 +3840,6 @@ static s32 Handle_AddBASession(tstrWILC_WFIDrv *drvHandler,
 	return s32Error;
 
 }
-
-
-/**
- *  @brief                      Handle_DelBASession
- *  @details            Delete block ack session
- *  @param[in]          tstrHostIFSetMulti* strHostIfSetMulti
- *  @return             NONE
- *  @author		Amr Abdel-Moghny
- *  @date			Feb. 2013
- *  @version		9.0
- */
-static s32 Handle_DelBASession(tstrWILC_WFIDrv *drvHandler,
-			       struct ba_session_info *strHostIfBASessionInfo)
-{
-	s32 s32Error = 0;
-	tstrWID strWID;
-	char *ptr = NULL;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)drvHandler;
-
-	PRINT_D(GENERIC_DBG, "Delete Block Ack session with\nBSSID = %.2x:%.2x:%.2x\nTID=%d\n",
-		strHostIfBASessionInfo->au8Bssid[0],
-		strHostIfBASessionInfo->au8Bssid[1],
-		strHostIfBASessionInfo->au8Bssid[2],
-		strHostIfBASessionInfo->u8Ted);
-
-	strWID.u16WIDid = (u16)WID_11E_P_ACTION_REQ;
-	strWID.enuWIDtype = WID_STR;
-	strWID.ps8WidVal = kmalloc(BLOCK_ACK_REQ_SIZE, GFP_KERNEL);
-	strWID.s32ValueSize = BLOCK_ACK_REQ_SIZE;
-	ptr = strWID.ps8WidVal;
-	/* *ptr++ = 0x14; */
-	*ptr++ = 0x14;
-	*ptr++ = 0x3;
-	*ptr++ = 0x2;
-	memcpy(ptr, strHostIfBASessionInfo->au8Bssid, ETH_ALEN);
-	ptr += ETH_ALEN;
-	*ptr++ = strHostIfBASessionInfo->u8Ted;
-	/* BA direction = recipent*/
-	*ptr++ = 0;
-	/* Delba Reason */
-	*ptr++ = 32; /* Unspecific QOS reason */
-
-	s32Error = send_config_pkt(SET_CFG, &strWID, 1, true,
-				   get_id_from_handler(pstrWFIDrv));
-	if (s32Error)
-		PRINT_D(HOSTINF_DBG, "Couldn't delete BA Session\n");
-
-
-	strWID.u16WIDid = (u16)WID_11E_P_ACTION_REQ;
-	strWID.enuWIDtype = WID_STR;
-	strWID.s32ValueSize = 15;
-	ptr = strWID.ps8WidVal;
-	/* *ptr++ = 0x14; */
-	*ptr++ = 15;
-	*ptr++ = 7;
-	*ptr++ = 0x3;
-	memcpy(ptr, strHostIfBASessionInfo->au8Bssid, ETH_ALEN);
-	ptr += ETH_ALEN;
-	/* TID*/
-	*ptr++ = strHostIfBASessionInfo->u8Ted;
-
-	s32Error = send_config_pkt(SET_CFG, &strWID, 1, true,
-				   get_id_from_handler(pstrWFIDrv));
-
-	if (strWID.ps8WidVal != NULL)
-		kfree(strWID.ps8WidVal);
-
-	up(&hWaitResponse);
-
-	return s32Error;
-
-}
-
 
 /**
  *  @brief                      Handle_DelAllRxBASessions
@@ -7095,47 +6993,6 @@ void host_int_freeJoinParams(void *pJoinParams)
 	else
 		PRINT_ER("Unable to FREE null pointer\n");
 }
-
-/**
- *  @brief              host_int_addBASession
- *  @details            Open a block Ack session with the given parameters
- *  @param[in]          tstrNetworkInfo* ptstrNetworkInfo
- *  @return
- *  @author		anoureldin
- *  @date
- *  @version		1.0**/
-
-static int host_int_addBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID, short int BufferSize,
-				 short int SessionTimeout, void *drvHandler)
-{
-	s32 s32Error = 0;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)hWFIDrv;
-	struct host_if_msg msg;
-	struct ba_session_info *pBASessionInfo = &msg.body.session_info;
-
-	if (pstrWFIDrv == NULL) {
-		PRINT_ER("driver is null\n");
-		return -EFAULT;
-	}
-
-	memset(&msg, 0, sizeof(struct host_if_msg));
-
-	/* prepare the WiphyParams Message */
-	msg.id = HOST_IF_MSG_ADD_BA_SESSION;
-
-	memcpy(pBASessionInfo->au8Bssid, pBSSID, ETH_ALEN);
-	pBASessionInfo->u8Ted = TID;
-	pBASessionInfo->u16BufferSize = BufferSize;
-	pBASessionInfo->u16SessionTimeout = SessionTimeout;
-	msg.drvHandler = hWFIDrv;
-
-	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
-	if (s32Error)
-		PRINT_ER("wilc_mq_send fail\n");
-
-	return s32Error;
-}
-
 
 s32 host_int_delBASession(tstrWILC_WFIDrv *hWFIDrv, char *pBSSID, char TID)
 {
