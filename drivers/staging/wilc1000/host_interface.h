@@ -1187,7 +1187,7 @@ s32 host_int_frame_register(tstrWILC_WFIDrv *hWFIDrv, u16 u16FrameType, bool bRe
  *  @version	1.0
  */
 int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *address);
-int host_int_set_operation_mode(tstrWILC_WFIDrv *hWFIDrv, u32 u32mode);
+int host_int_set_operation_mode(tstrWILC_WFIDrv *wfi_drv, u32 u32mode);
 
 static s32 Handle_ScanDone(tstrWILC_WFIDrv *drvHandler, tenuScanEvent enuEvent);
 
