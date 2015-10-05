@@ -28,6 +28,8 @@ Optional properties:
 - inl7-supply:  The input supply for LDO18, LDO20, LDO28 and LDO29
 - inl9-supply:  The input supply for LDO12, LDO23, LDO25, LDO26, LDO32 and LDO34
 - inl10-supply: The input supply for LDO1 and LDO2
+
+Optional nodes:
 - regulators : The regulators of max77802 have to be instantiated
   under subnode named "regulators" using the following format.
 
