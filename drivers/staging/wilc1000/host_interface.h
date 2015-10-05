@@ -219,12 +219,11 @@ typedef struct _tstrHiddenNetworkInfo {
 
 } tstrHiddenNetworkInfo;
 
-typedef struct _tstrHiddenNetwork {
+struct hidden_network {
 	/* MAX_SSID_LEN */
 	tstrHiddenNetworkInfo *pstrHiddenNetworkInfo;
 	u8 u8ssidnum;
-
-} tstrHiddenNetwork;
+};
 
 typedef struct {
 	/* Scan user call back function */
@@ -873,7 +872,8 @@ s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 			  u8 u8ScanType, u8 *pu8ChnlFreqList,
 			  u8 u8ChnlListLen, const u8 *pu8IEs,
 			  size_t IEsLen, wilc_scan_result ScanResult,
-			  void *pvUserArg, tstrHiddenNetwork *pstrHiddenNetwork);
+			  void *pvUserArg,
+			  struct hidden_network *pstrHiddenNetwork);
 /**
  *  @brief              sets configuration wids values
  *  @details

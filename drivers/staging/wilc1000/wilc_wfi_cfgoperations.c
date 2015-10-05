@@ -698,7 +698,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	u32 i;
 	s32 s32Error = 0;
 	u8 au8ScanChanList[MAX_NUM_SCANNED_NETWORKS];
-	tstrHiddenNetwork strHiddenNetwork;
+	struct hidden_network strHiddenNetwork;
 
 	priv = wiphy_priv(wiphy);
 
@@ -727,7 +727,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		if (request->n_ssids >= 1) {
 
 
-			strHiddenNetwork.pstrHiddenNetworkInfo = kmalloc(request->n_ssids * sizeof(tstrHiddenNetwork), GFP_KERNEL);
+			strHiddenNetwork.pstrHiddenNetworkInfo = kmalloc(request->n_ssids * sizeof(struct hidden_network), GFP_KERNEL);
 			strHiddenNetwork.u8ssidnum = request->n_ssids;
 
 
