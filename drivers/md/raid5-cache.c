@@ -83,6 +83,8 @@ struct r5l_log {
 
 	struct list_head no_space_stripes; /* pending stripes, log has no space */
 	spinlock_t no_space_stripes_lock;
+
+	bool need_cache_flush;
 };
 
 /*
@@ -206,6 +208,22 @@ static void r5l_io_run_stripes(struct r5l_io_unit *io)
 }
 
 /* XXX: totally ignores I/O errors */
+static void r5l_log_run_stripes(struct r5l_log *log)
+{
+	struct r5l_io_unit *io, *next;
+
+	assert_spin_locked(&log->io_list_lock);
+
+	list_for_each_entry_safe(io, next, &log->running_ios, log_sibling) {
+		/* don't change list order */
+		if (io->state < IO_UNIT_IO_END)
+			break;
+
+		list_move_tail(&io->log_sibling, &log->finished_ios);
+		r5l_io_run_stripes(io);
+	}
+}
+
 static void r5l_log_endio(struct bio *bio)
 {
 	struct r5l_io_unit *io = bio->bi_private;
@@ -219,11 +237,15 @@ static void r5l_log_endio(struct bio *bio)
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
-	r5l_move_io_unit_list(&log->running_ios, &log->io_end_ios,
-			IO_UNIT_IO_END);
+	if (log->need_cache_flush)
+		r5l_move_io_unit_list(&log->running_ios, &log->io_end_ios,
+				      IO_UNIT_IO_END);
+	else
+		r5l_log_run_stripes(log);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
-	md_wakeup_thread(log->rdev->mddev->thread);
+	if (log->need_cache_flush)
+		md_wakeup_thread(log->rdev->mddev->thread);
 }
 
 static void r5l_submit_current_io(struct r5l_log *log)
@@ -620,7 +642,8 @@ static void r5l_log_flush_endio(struct bio *bio)
 void r5l_flush_stripe_to_raid(struct r5l_log *log)
 {
 	bool do_flush;
-	if (!log)
+
+	if (!log || !log->need_cache_flush)
 		return;
 
 	spin_lock_irq(&log->io_list_lock);
@@ -1064,6 +1087,8 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log)
 		return -ENOMEM;
 	log->rdev = rdev;
+
+	log->need_cache_flush = (rdev->bdev->bd_disk->queue->flush_flags != 0);
 
 	log->uuid_checksum = crc32c_le(~0, rdev->mddev->uuid,
 				       sizeof(rdev->mddev->uuid));
