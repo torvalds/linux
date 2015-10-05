@@ -29,6 +29,7 @@
 #include <linux/leds.h>
 #include <linux/w1-gpio.h>
 #include <linux/sched.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
@@ -531,13 +532,15 @@ static void __init raumfeld_w1_init(void)
  * Framebuffer device
  */
 
+static struct pwm_lookup raumfeld_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight", NULL, 10000,
+		   PWM_POLARITY_NORMAL),
+};
+
 /* PWM controlled backlight */
 static struct platform_pwm_backlight_data raumfeld_pwm_backlight_data = {
-	.pwm_id		= 0,
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
-	/* 10000 ns = 10 ms ^= 100 kHz */
-	.pwm_period_ns	= 10000,
 	.enable_gpio	= -1,
 };
 
@@ -618,6 +621,8 @@ static void __init raumfeld_lcd_init(void)
 	} else {
 		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
 		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
+		pwm_add_table(raumfeld_pwm_lookup,
+			      ARRAY_SIZE(raumfeld_pwm_lookup));
 		platform_device_register(&raumfeld_pwm_backlight_device);
 	}
 
