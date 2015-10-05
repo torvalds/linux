@@ -3917,6 +3917,53 @@ static int ath10k_wmi_alloc_host_mem(struct ath10k *ar, u32 req_id,
 	return 0;
 }
 
+static bool
+ath10k_wmi_is_host_mem_allocated(struct ath10k *ar,
+				 const struct wlan_host_mem_req **mem_reqs,
+				 u32 num_mem_reqs)
+{
+	u32 req_id, num_units, unit_size, num_unit_info;
+	u32 pool_size;
+	int i, j;
+	bool found;
+
+	if (ar->wmi.num_mem_chunks != num_mem_reqs)
+		return false;
+
+	for (i = 0; i < num_mem_reqs; ++i) {
+		req_id = __le32_to_cpu(mem_reqs[i]->req_id);
+		num_units = __le32_to_cpu(mem_reqs[i]->num_units);
+		unit_size = __le32_to_cpu(mem_reqs[i]->unit_size);
+		num_unit_info = __le32_to_cpu(mem_reqs[i]->num_unit_info);
+
+		if (num_unit_info & NUM_UNITS_IS_NUM_ACTIVE_PEERS) {
+			if (ar->num_active_peers)
+				num_units = ar->num_active_peers + 1;
+			else
+				num_units = ar->max_num_peers + 1;
+		} else if (num_unit_info & NUM_UNITS_IS_NUM_PEERS) {
+			num_units = ar->max_num_peers + 1;
+		} else if (num_unit_info & NUM_UNITS_IS_NUM_VDEVS) {
+			num_units = ar->max_num_vdevs + 1;
+		}
+
+		found = false;
+		for (j = 0; j < ar->wmi.num_mem_chunks; j++) {
+			if (ar->wmi.mem_chunks[j].req_id == req_id) {
+				pool_size = num_units * round_up(unit_size, 4);
+				if (ar->wmi.mem_chunks[j].len == pool_size) {
+					found = true;
+					break;
+				}
+			}
+		}
+		if (!found)
+			return false;
+	}
+
+	return true;
+}
+
 static int
 ath10k_wmi_main_op_pull_svc_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 				   struct wmi_svc_rdy_ev_arg *arg)
@@ -3997,6 +4044,7 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	struct wmi_svc_rdy_ev_arg arg = {};
 	u32 num_units, req_id, unit_size, num_mem_reqs, num_unit_info, i;
 	int ret;
+	bool allocated;
 
 	if (!skb) {
 		ath10k_warn(ar, "invalid service ready event skb\n");
@@ -4073,6 +4121,18 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	 * and WMI_SERVICE_IRAM_TIDS, etc.
 	 */
 
+	allocated = ath10k_wmi_is_host_mem_allocated(ar, arg.mem_reqs,
+						     num_mem_reqs);
+	if (allocated)
+		goto skip_mem_alloc;
+
+	/* Either this event is received during boot time or there is a change
+	 * in memory requirement from firmware when compared to last request.
+	 * Free any old memory and do a fresh allocation based on the current
+	 * memory requirement.
+	 */
+	ath10k_wmi_free_host_mem(ar);
+
 	for (i = 0; i < num_mem_reqs; ++i) {
 		req_id = __le32_to_cpu(arg.mem_reqs[i]->req_id);
 		num_units = __le32_to_cpu(arg.mem_reqs[i]->num_units);
@@ -4108,6 +4168,7 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 			return;
 	}
 
+skip_mem_alloc:
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event service ready min_tx_power 0x%08x max_tx_power 0x%08x ht_cap 0x%08x vht_cap 0x%08x sw_ver0 0x%08x sw_ver1 0x%08x fw_build 0x%08x phy_capab 0x%08x num_rf_chains 0x%08x eeprom_rd 0x%08x num_mem_reqs 0x%08x\n",
 		   __le32_to_cpu(arg.min_tx_power),
@@ -6660,14 +6721,9 @@ int ath10k_wmi_attach(struct ath10k *ar)
 	return 0;
 }
 
-void ath10k_wmi_detach(struct ath10k *ar)
+void ath10k_wmi_free_host_mem(struct ath10k *ar)
 {
 	int i;
-
-	cancel_work_sync(&ar->svc_rdy_work);
-
-	if (ar->svc_rdy_skb)
-		dev_kfree_skb(ar->svc_rdy_skb);
 
 	/* free the host memory chunks requested by firmware */
 	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
@@ -6678,4 +6734,12 @@ void ath10k_wmi_detach(struct ath10k *ar)
 	}
 
 	ar->wmi.num_mem_chunks = 0;
+}
+
+void ath10k_wmi_detach(struct ath10k *ar)
+{
+	cancel_work_sync(&ar->svc_rdy_work);
+
+	if (ar->svc_rdy_skb)
+		dev_kfree_skb(ar->svc_rdy_skb);
 }
