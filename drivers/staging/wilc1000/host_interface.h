@@ -181,7 +181,7 @@ typedef enum {
 
 
 /*Scan callBack function definition*/
-typedef void (*tWILCpfScanResult)(tenuScanEvent, tstrNetworkInfo *, void *, void *);
+typedef void (*wilc_scan_result)(tenuScanEvent, tstrNetworkInfo *, void *, void *);
 
 /*Connect callBack function definition*/
 typedef void (*tWILCpfConnectResult)(tenuConnDisconnEvent,
@@ -228,7 +228,7 @@ typedef struct _tstrHiddenNetwork {
 
 typedef struct {
 	/* Scan user call back function */
-	tWILCpfScanResult pfUserScanResult;
+	wilc_scan_result pfUserScanResult;
 
 	/* User specific parameter to be delivered through the Scan User Callback function */
 	void *u32UserScanPvoid;
@@ -872,7 +872,7 @@ s32 host_int_get_link_speed(tstrWILC_WFIDrv *hWFIDrv, s8 *ps8lnkspd);
 s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 			  u8 u8ScanType, u8 *pu8ChnlFreqList,
 			  u8 u8ChnlListLen, const u8 *pu8IEs,
-			  size_t IEsLen, tWILCpfScanResult ScanResult,
+			  size_t IEsLen, wilc_scan_result ScanResult,
 			  void *pvUserArg, tstrHiddenNetwork *pstrHiddenNetwork);
 /**
  *  @brief              sets configuration wids values

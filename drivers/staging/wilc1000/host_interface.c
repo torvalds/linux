@@ -167,7 +167,7 @@ struct scan_attr {
 	u8 u8ChnlListLen;
 	u8 *pu8IEs;
 	size_t IEsLen;
-	tWILCpfScanResult pfScanResult;
+	wilc_scan_result pfScanResult;
 	void *pvUserArg;
 	tstrHiddenNetwork strHiddenNetwork;
 };
@@ -5714,7 +5714,7 @@ s32 host_int_get_statistics(tstrWILC_WFIDrv *hWFIDrv, tstrStatistics *pstrStatis
 s32 host_int_scan(tstrWILC_WFIDrv *hWFIDrv, u8 u8ScanSource,
 			  u8 u8ScanType, u8 *pu8ChnlFreqList,
 			  u8 u8ChnlListLen, const u8 *pu8IEs,
-			  size_t IEsLen, tWILCpfScanResult ScanResult,
+			  size_t IEsLen, wilc_scan_result ScanResult,
 			  void *pvUserArg, tstrHiddenNetwork  *pstrHiddenNetwork)
 {
 	s32 s32Error = 0;
