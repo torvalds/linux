@@ -1488,7 +1488,6 @@ struct ath10k_htt {
 	int num_pending_mgmt_tx;
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
-	struct dma_pool *tx_pool;
 
 	/* set if host-fw communication goes haywire
 	 * used to avoid further failures */
@@ -1509,6 +1508,11 @@ struct ath10k_htt {
 		dma_addr_t paddr;
 		struct htt_msdu_ext_desc *vaddr;
 	} frag_desc;
+
+	struct {
+		dma_addr_t paddr;
+		struct ath10k_htt_txbuf *vaddr;
+	} txbuf;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64

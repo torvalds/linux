@@ -92,11 +92,6 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	skb_cb = ATH10K_SKB_CB(msdu);
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 
-	if (skb_cb->htt.txbuf)
-		dma_pool_free(htt->tx_pool,
-			      skb_cb->htt.txbuf,
-			      skb_cb->htt.txbuf_paddr);
-
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
 	info = IEEE80211_SKB_CB(msdu);
