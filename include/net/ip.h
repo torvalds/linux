@@ -323,12 +323,15 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 
 static inline unsigned int ip_skb_dst_mtu(const struct sk_buff *skb)
 {
-	if (!skb->sk || ip_sk_use_pmtu(skb->sk)) {
+	struct sock *sk = skb->sk;
+
+	if (!sk || !sk_fullsock(sk) || ip_sk_use_pmtu(sk)) {
 		bool forwarding = IPCB(skb)->flags & IPSKB_FORWARDED;
+
 		return ip_dst_mtu_maybe_forward(skb_dst(skb), forwarding);
-	} else {
-		return min(skb_dst(skb)->dev->mtu, IP_MAX_MTU);
 	}
+
+	return min(skb_dst(skb)->dev->mtu, IP_MAX_MTU);
 }
 
 u32 ip_idents_reserve(u32 hash, int segs);
