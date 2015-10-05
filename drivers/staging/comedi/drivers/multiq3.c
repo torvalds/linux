@@ -47,6 +47,8 @@
 #define MULTIQ3_AI_REG			0x04
 #define MULTIQ3_AI_CONV_REG		0x04
 #define MULTIQ3_STATUS_REG		0x06
+#define MULTIQ3_STATUS_EOC		BIT(3)
+#define MULTIQ3_STATUS_EOC_I		BIT(4)
 #define MULTIQ3_CTRL_REG		0x06
 #define MULTIQ3_CLK_REG			0x08
 #define MULTIQ3_ENC_DATA_REG		0x0c
@@ -63,12 +65,6 @@
 #define MULTIQ3_DA_LOAD                0x1800
 
 #define MULTIQ3_CONTROL_MUST    0x0600
-
-/*
- * flags for STATUS register
- */
-#define MULTIQ3_STATUS_EOC      0x008
-#define MULTIQ3_STATUS_EOC_I    0x010
 
 /*
  * flags for encoder control
