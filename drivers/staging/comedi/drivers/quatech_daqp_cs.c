@@ -55,7 +55,15 @@
  * access the 16-bit data. Data is transferred LSB then MSB.
  */
 #define DAQP_AI_FIFO_REG		0x00
+
 #define DAQP_SCANLIST_REG		0x01
+#define DAQP_SCANLIST_DIFFERENTIAL	BIT(14)
+#define DAQP_SCANLIST_GAIN(x)		(((x) & 0x3) << 12)
+#define DAQP_SCANLIST_CHANNEL(x)	(((x) & 0xf) << 8)
+#define DAQP_SCANLIST_START		BIT(7)
+#define DAQP_SCANLIST_EXT_GAIN(x)	(((x) & 0x3) << 4)
+#define DAQP_SCANLIST_EXT_CHANNEL(x)	(((x) & 0xf) << 0)
+
 #define DAQP_CTRL_REG			0x02
 #define DAQP_STATUS_REG			0x02
 #define DAQP_DI_REG			0x03
@@ -67,13 +75,6 @@
 #define DAQP_AO_REG			0x08
 #define DAQP_TIMER_REG			0x0a
 #define DAQP_AUX_REG			0x0f
-
-#define DAQP_SCANLIST_DIFFERENTIAL	0x4000
-#define DAQP_SCANLIST_GAIN(x)		((x) << 12)
-#define DAQP_SCANLIST_CHANNEL(x)	((x) << 8)
-#define DAQP_SCANLIST_START		0x0080
-#define DAQP_SCANLIST_EXT_GAIN(x)	((x) << 4)
-#define DAQP_SCANLIST_EXT_CHANNEL(x)	(x)
 
 #define DAQP_CONTROL_PACER_CLK(x)	(((x) & 0x3) << 6)
 #define DAQP_CONTROL_PACER_CLK_EXT	DAQP_CONTROL_PACER_CLK(0)
