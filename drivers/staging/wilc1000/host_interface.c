@@ -97,7 +97,7 @@ typedef struct _tstrHostIFwpaAttr {
 
 
 /*!
- *  @struct             tstrHostIFwepAttr
+ *  @struct             host_if_wep_attr
  *  @brief		Structure to hold Host IF Scan Attributes
  *  @details
  *  @todo
@@ -106,14 +106,13 @@ typedef struct _tstrHostIFwpaAttr {
  *  @date		25 March 2012
  *  @version		1.0
  */
-typedef struct _tstrHostIFwepAttr {
+struct host_if_wep_attr {
 	u8 *pu8WepKey;
 	u8 u8WepKeylen;
 	u8 u8Wepidx;
 	u8 u8mode;
 	enum AUTHTYPE tenuAuth_type;
-
-} tstrHostIFwepAttr;
+};
 
 /*!
  *  @struct             host_if_key_attr
@@ -126,7 +125,7 @@ typedef struct _tstrHostIFwepAttr {
  *  @version		1.0
  */
 union host_if_key_attr {
-	tstrHostIFwepAttr strHostIFwepAttr;
+	struct host_if_wep_attr strHostIFwepAttr;
 	tstrHostIFwpaAttr strHostIFwpaAttr;
 	tstrHostIFpmkidAttr strHostIFpmkidAttr;
 };
