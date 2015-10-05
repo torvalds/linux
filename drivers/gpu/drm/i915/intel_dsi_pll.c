@@ -419,7 +419,7 @@ u32 bxt_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	return pclk;
 }
 
-void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -577,7 +577,7 @@ void intel_disable_dsi_pll(struct intel_encoder *encoder)
 		bxt_disable_dsi_pll(encoder);
 }
 
-void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
+static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 tmp;
 	struct drm_device *dev = encoder->base.dev;
