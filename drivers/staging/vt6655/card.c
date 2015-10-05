@@ -428,7 +428,7 @@ bool CARDbRadioPowerOff(struct vnt_private *pDevice)
 {
 	bool bResult = true;
 
-	if (pDevice->bRadioOff == true)
+	if (pDevice->bRadioOff)
 		return true;
 
 	switch (pDevice->byRFType) {
