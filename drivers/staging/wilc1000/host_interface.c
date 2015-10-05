@@ -5318,10 +5318,9 @@ s32 host_int_get_rx_power_level(tstrWILC_WFIDrv *hWFIDrv, u8 *pu8RxPowerLevel,
 int host_int_set_mac_chnl_num(tstrWILC_WFIDrv *wfi_drv, u8 channel)
 {
 	int result = 0;
-	tstrWILC_WFIDrv *pstrWFIDrv = (tstrWILC_WFIDrv *)wfi_drv;
 	struct host_if_msg msg;
 
-	if (!pstrWFIDrv) {
+	if (!wfi_drv) {
 		PRINT_ER("driver is null\n");
 		return -EFAULT;
 	}
