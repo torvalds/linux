@@ -92,6 +92,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		req->rsk_listener = sk_listener;
 		req_to_sk(req)->sk_prot = sk_listener->sk_prot;
 		sk_node_init(&req_to_sk(req)->sk_node);
+		sk_tx_queue_clear(req_to_sk(req));
 		req->saved_syn = NULL;
 		/* Following is temporary. It is coupled with debugging
 		 * helpers in reqsk_put() & reqsk_free()
