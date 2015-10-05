@@ -125,23 +125,24 @@
 #define PCL812_TIMER_BASE			0x00
 #define PCL812_AI_LSB_REG			0x04
 #define PCL812_AI_MSB_REG			0x05
-#define PCL812_AI_MSB_DRDY			(1 << 4)
+#define PCL812_AI_MSB_DRDY			BIT(4)
 #define PCL812_AO_LSB_REG(x)			(0x04 + ((x) * 2))
 #define PCL812_AO_MSB_REG(x)			(0x05 + ((x) * 2))
 #define PCL812_DI_LSB_REG			0x06
 #define PCL812_DI_MSB_REG			0x07
 #define PCL812_STATUS_REG			0x08
-#define PCL812_STATUS_DRDY			(1 << 5)
+#define PCL812_STATUS_DRDY			BIT(5)
 #define PCL812_RANGE_REG			0x09
 #define PCL812_MUX_REG				0x0a
 #define PCL812_MUX_CHAN(x)			((x) << 0)
-#define PCL812_MUX_CS0				(1 << 4)
-#define PCL812_MUX_CS1				(1 << 5)
+#define PCL812_MUX_CS0				BIT(4)
+#define PCL812_MUX_CS1				BIT(5)
 #define PCL812_CTRL_REG				0x0b
-#define PCL812_CTRL_DISABLE_TRIG		(0 << 0)
-#define PCL812_CTRL_SOFT_TRIG			(1 << 0)
-#define PCL812_CTRL_PACER_DMA_TRIG		(2 << 0)
-#define PCL812_CTRL_PACER_EOC_TRIG		(6 << 0)
+#define PCL812_CTRL_TRIG(x)			(((x) & 0x7) << 0)
+#define PCL812_CTRL_DISABLE_TRIG		PCL812_CTRL_TRIG(0)
+#define PCL812_CTRL_SOFT_TRIG			PCL812_CTRL_TRIG(1)
+#define PCL812_CTRL_PACER_DMA_TRIG		PCL812_CTRL_TRIG(2)
+#define PCL812_CTRL_PACER_EOC_TRIG		PCL812_CTRL_TRIG(6)
 #define PCL812_SOFTTRIG_REG			0x0c
 #define PCL812_DO_LSB_REG			0x0d
 #define PCL812_DO_MSB_REG			0x0e
