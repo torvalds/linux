@@ -1057,28 +1057,27 @@ static size_t br_get_size(const struct net_device *brdev)
 static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 {
 	struct net_bridge *br = netdev_priv(brdev);
-	u64 hello_timer, tcn_timer, topology_change_timer, gc_timer, clockval;
 	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
 	u32 hello_time = jiffies_to_clock_t(br->hello_time);
 	u32 age_time = jiffies_to_clock_t(br->max_age);
 	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
 	u32 stp_enabled = br->stp_enabled;
 	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
-	u16 group_fwd_mask = br->group_fwd_mask;
 	u8 vlan_enabled = br_vlan_enabled(br);
-	struct ifla_bridge_id root_id, bridge_id;
+	u64 clockval;
 
-	memset(&bridge_id, 0, sizeof(bridge_id));
-	memset(&root_id, 0, sizeof(root_id));
-	memcpy(root_id.prio, br->designated_root.prio, sizeof(root_id.prio));
-	memcpy(root_id.addr, br->designated_root.addr, sizeof(root_id.addr));
-	memcpy(bridge_id.prio, br->bridge_id.prio, sizeof(bridge_id.prio));
-	memcpy(bridge_id.addr, br->bridge_id.addr, sizeof(bridge_id.addr));
-	hello_timer = br_timer_value(&br->hello_timer);
-	tcn_timer = br_timer_value(&br->tcn_timer);
-	topology_change_timer = br_timer_value(&br->topology_change_timer);
-	gc_timer = br_timer_value(&br->gc_timer);
-	clockval = 0;
+	clockval = br_timer_value(&br->hello_timer);
+	if (nla_put_u64(skb, IFLA_BR_HELLO_TIMER, clockval))
+		return -EMSGSIZE;
+	clockval = br_timer_value(&br->tcn_timer);
+	if (nla_put_u64(skb, IFLA_BR_TCN_TIMER, clockval))
+		return -EMSGSIZE;
+	clockval = br_timer_value(&br->topology_change_timer);
+	if (nla_put_u64(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER, clockval))
+		return -EMSGSIZE;
+	clockval = br_timer_value(&br->gc_timer);
+	if (nla_put_u64(skb, IFLA_BR_GC_TIMER, clockval))
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
@@ -1087,19 +1086,16 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
 	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority) ||
 	    nla_put_u8(skb, IFLA_BR_VLAN_FILTERING, vlan_enabled) ||
-	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, group_fwd_mask) ||
-	    nla_put(skb, IFLA_BR_ROOT_ID, sizeof(root_id), &root_id) ||
-	    nla_put(skb, IFLA_BR_BRIDGE_ID, sizeof(bridge_id), &bridge_id) ||
+	    nla_put_u16(skb, IFLA_BR_GROUP_FWD_MASK, br->group_fwd_mask) ||
+	    nla_put(skb, IFLA_BR_BRIDGE_ID, sizeof(struct ifla_bridge_id),
+		    &br->bridge_id) ||
+	    nla_put(skb, IFLA_BR_ROOT_ID, sizeof(struct ifla_bridge_id),
+		    &br->designated_root) ||
 	    nla_put_u16(skb, IFLA_BR_ROOT_PORT, br->root_port) ||
 	    nla_put_u32(skb, IFLA_BR_ROOT_PATH_COST, br->root_path_cost) ||
 	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE, br->topology_change) ||
 	    nla_put_u8(skb, IFLA_BR_TOPOLOGY_CHANGE_DETECTED,
 		       br->topology_change_detected) ||
-	    nla_put_u64(skb, IFLA_BR_HELLO_TIMER, hello_timer) ||
-	    nla_put_u64(skb, IFLA_BR_TCN_TIMER, tcn_timer) ||
-	    nla_put_u64(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER,
-			topology_change_timer) ||
-	    nla_put_u64(skb, IFLA_BR_GC_TIMER, gc_timer) ||
 	    nla_put(skb, IFLA_BR_GROUP_ADDR, ETH_ALEN, br->group_addr))
 		return -EMSGSIZE;
 
