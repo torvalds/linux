@@ -385,14 +385,13 @@ void snd_hdac_ext_stream_release(struct hdac_ext_stream *stream, int type)
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
-		if (stream->decoupled) {
+		if (stream->decoupled && !stream->link_locked)
 			snd_hdac_ext_stream_decouple(ebus, stream, false);
-			snd_hdac_stream_release(&stream->hstream);
-		}
+		snd_hdac_stream_release(&stream->hstream);
 		break;
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
-		if (stream->decoupled)
+		if (stream->decoupled && !stream->hstream.opened)
 			snd_hdac_ext_stream_decouple(ebus, stream, false);
 		spin_lock_irq(&bus->reg_lock);
 		stream->link_locked = 0;
