@@ -49,7 +49,7 @@ struct rt298_priv {
 	int is_hp_in;
 };
 
-static struct reg_default rt298_index_def[] = {
+static const struct reg_default rt298_index_def[] = {
 	{ 0x01, 0xaaaa },
 	{ 0x02, 0x8aaa },
 	{ 0x03, 0x0002 },
@@ -1165,7 +1165,11 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	rt298->index_cache = rt298_index_def;
+	rt298->index_cache = devm_kmemdup(&i2c->dev, rt298_index_def,
+					  sizeof(rt298_index_def), GFP_KERNEL);
+	if (!rt298->index_cache)
+		return -ENOMEM;
+
 	rt298->index_cache_size = INDEX_CACHE_SIZE;
 	rt298->i2c = i2c;
 	i2c_set_clientdata(i2c, rt298);
