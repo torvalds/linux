@@ -8,7 +8,6 @@ perf-y += openat-syscall-all-cpus.o
 perf-y += openat-syscall-tp-fields.o
 perf-y += mmap-basic.o
 perf-y += perf-record.o
-perf-y += rdpmc.o
 perf-y += evsel-roundtrip-name.o
 perf-y += evsel-tp-sched.o
 perf-y += fdarray.o
@@ -34,11 +33,6 @@ perf-y += kmod-path.o
 perf-y += thread-map.o
 perf-y += llvm.o
 perf-y += topology.o
-
-perf-$(CONFIG_X86) += perf-time-to-tsc.o
-ifdef CONFIG_AUXTRACE
-perf-$(CONFIG_X86) += insn-x86.o
-endif
 
 ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o

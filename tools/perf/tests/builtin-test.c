@@ -41,12 +41,6 @@ static struct test generic_tests[] = {
 		.desc = "parse events tests",
 		.func = test__parse_events,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "x86 rdpmc test",
-		.func = test__rdpmc,
-	},
-#endif
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
@@ -107,12 +101,6 @@ static struct test generic_tests[] = {
 		.desc = "Test software clock events have valid period values",
 		.func = test__sw_clock_freq,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "Test converting perf time to TSC",
-		.func = test__perf_time_to_tsc,
-	},
-#endif
 	{
 		.desc = "Test object code reading",
 		.func = test__code_reading,
@@ -129,14 +117,6 @@ static struct test generic_tests[] = {
 		.desc = "Test parsing with no sample_id_all bit set",
 		.func = test__parse_no_sample_id_all,
 	},
-#if defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__)
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-	{
-		.desc = "Test dwarf unwind",
-		.func = test__dwarf_unwind,
-	},
-#endif
-#endif
 	{
 		.desc = "Test filtering hist entries",
 		.func = test__hists_filter,
@@ -181,14 +161,6 @@ static struct test generic_tests[] = {
 		.desc = "Test LLVM searching and compiling",
 		.func = test__llvm,
 	},
-#ifdef HAVE_AUXTRACE_SUPPORT
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "Test x86 instruction decoder - new instructions",
-		.func = test__insn_x86,
-	},
-#endif
-#endif
 	{
 		.desc = "Test topology in session",
 		.func = test_session_topology,
