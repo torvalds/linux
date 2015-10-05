@@ -290,4 +290,6 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
+
+void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr);
 #endif /* __PERF_EVLIST_H */
