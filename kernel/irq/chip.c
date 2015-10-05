@@ -21,6 +21,20 @@
 
 #include "internals.h"
 
+static irqreturn_t bad_chained_irq(int irq, void *dev_id)
+{
+	WARN_ONCE(1, "Chained irq %d should not call an action\n", irq);
+	return IRQ_NONE;
+}
+
+/*
+ * Chained handlers should never call action on their IRQ. This default
+ * action will emit warning if such thing happens.
+ */
+struct irqaction chained_action = {
+	.handler = bad_chained_irq,
+};
+
 /**
  *	irq_set_chip - set the irq chip for an irq
  *	@irq:	irq number
@@ -746,6 +760,8 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		if (desc->irq_data.chip != &no_irq_chip)
 			mask_ack_irq(desc);
 		irq_state_set_disabled(desc);
+		if (is_chained)
+			desc->action = NULL;
 		desc->depth = 1;
 	}
 	desc->handle_irq = handle;
@@ -755,6 +771,7 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		irq_settings_set_noprobe(desc);
 		irq_settings_set_norequest(desc);
 		irq_settings_set_nothread(desc);
+		desc->action = &chained_action;
 		irq_startup(desc, true);
 	}
 }

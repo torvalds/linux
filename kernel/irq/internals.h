@@ -18,6 +18,8 @@
 
 extern bool noirqdebug;
 
+extern struct irqaction chained_action;
+
 /*
  * Bits used by threaded handlers:
  * IRQTF_RUNTHREAD - signals that the interrupt handler thread should run
