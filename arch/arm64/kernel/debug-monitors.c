@@ -271,20 +271,21 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
  * Use reader/writer locks instead of plain spinlock.
  */
 static LIST_HEAD(break_hook);
-static DEFINE_RWLOCK(break_hook_lock);
+static DEFINE_SPINLOCK(break_hook_lock);
 
 void register_break_hook(struct break_hook *hook)
 {
-	write_lock(&break_hook_lock);
-	list_add(&hook->node, &break_hook);
-	write_unlock(&break_hook_lock);
+	spin_lock(&break_hook_lock);
+	list_add_rcu(&hook->node, &break_hook);
+	spin_unlock(&break_hook_lock);
 }
 
 void unregister_break_hook(struct break_hook *hook)
 {
-	write_lock(&break_hook_lock);
-	list_del(&hook->node);
-	write_unlock(&break_hook_lock);
+	spin_lock(&break_hook_lock);
+	list_del_rcu(&hook->node);
+	spin_unlock(&break_hook_lock);
+	synchronize_rcu();
 }
 
 static int call_break_hook(struct pt_regs *regs, unsigned int esr)
@@ -292,11 +293,11 @@ static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 	struct break_hook *hook;
 	int (*fn)(struct pt_regs *regs, unsigned int esr) = NULL;
 
-	read_lock(&break_hook_lock);
-	list_for_each_entry(hook, &break_hook, node)
+	rcu_read_lock();
+	list_for_each_entry_rcu(hook, &break_hook, node)
 		if ((esr & hook->esr_mask) == hook->esr_val)
 			fn = hook->fn;
-	read_unlock(&break_hook_lock);
+	rcu_read_unlock();
 
 	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
 }
