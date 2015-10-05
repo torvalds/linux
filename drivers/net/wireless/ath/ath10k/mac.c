@@ -197,9 +197,8 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 		return -EOPNOTSUPP;
 	}
 
-	if (test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
+	if (test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags))
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-	}
 
 	if (cmd == DISABLE_KEY) {
 		arg.key_cipher = WMI_CIPHER_NONE;

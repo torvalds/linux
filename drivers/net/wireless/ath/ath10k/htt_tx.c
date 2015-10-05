@@ -454,9 +454,9 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
-	if (res < 0) {
+	if (res < 0)
 		goto err_tx_dec;
-	}
+
 	msdu_id = res;
 
 	txdesc = ath10k_htc_alloc_skb(ar, len);
@@ -542,9 +542,9 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
-	if (res < 0) {
+	if (res < 0)
 		goto err_tx_dec;
-	}
+
 	msdu_id = res;
 
 	prefetch_len = min(htt->prefetch_len, msdu->len);
