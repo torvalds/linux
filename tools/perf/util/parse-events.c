@@ -449,7 +449,7 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 	char evt_path[MAXPATHLEN];
 	struct dirent *evt_ent;
 	DIR *evt_dir;
-	int ret = 0;
+	int ret = 0, found = 0;
 
 	snprintf(evt_path, MAXPATHLEN, "%s/%s", tracing_events_path, sys_name);
 	evt_dir = opendir(evt_path);
@@ -468,8 +468,15 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 		if (!strglobmatch(evt_ent->d_name, evt_name))
 			continue;
 
+		found++;
+
 		ret = add_tracepoint(list, idx, sys_name, evt_ent->d_name,
 				     err, head_config);
+	}
+
+	if (!found) {
+		tracepoint_error(err, ENOENT, sys_name, evt_name);
+		ret = -1;
 	}
 
 	closedir(evt_dir);
