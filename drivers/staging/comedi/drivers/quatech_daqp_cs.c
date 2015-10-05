@@ -40,8 +40,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/semaphore.h>
-#include <linux/completion.h>
 
 #include "../comedi_pcmcia.h"
 
@@ -147,8 +145,6 @@ struct daqp_private {
 	int stop;
 
 	enum { semaphore, buffer } interrupt_mode;
-
-	struct completion eos;
 };
 
 static const struct comedi_lrange range_daqp_ai = {
@@ -210,15 +206,6 @@ static unsigned int daqp_ai_get_sample(struct comedi_device *dev,
 	return comedi_offset_munge(s, val);
 }
 
-/* Interrupt handler
- *
- * Operates in one of two modes.  If devpriv->interrupt_mode is
- * 'semaphore', just signal the devpriv->eos completion and return
- * (one-shot mode).  Otherwise (continuous mode), read data in from
- * the card, transfer it to the buffer provided by the higher-level
- * comedi kernel module, and signal various comedi callback routines,
- * which run pretty quick.
- */
 static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
 	struct comedi_device *dev = dev_id;
@@ -233,7 +220,6 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 
 	switch (devpriv->interrupt_mode) {
 	case semaphore:
-		complete(&devpriv->eos);
 		break;
 
 	case buffer:
@@ -296,14 +282,26 @@ static void daqp_ai_set_one_scanlist_entry(struct comedi_device *dev,
 	outb((val >> 8) & 0xff, dev->iobase + DAQP_SCANLIST_REG);
 }
 
-/* One-shot analog data acquisition routine */
+static int daqp_ai_eos(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DAQP_AUX_REG);
+	if (status & DAQP_AUX_CONVERSION)
+		return 0;
+	return -EBUSY;
+}
 
 static int daqp_ai_insn_read(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
-	int ret;
+	int ret = 0;
 	int i;
 
 	if (devpriv->stop)
@@ -321,34 +319,35 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	daqp_ai_set_one_scanlist_entry(dev, insn->chanspec, 1);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
-
 	outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG);
 
-	/* Set trigger - one-shot, internal */
-	outb(DAQP_CTRL_PACER_CLK_100KHZ | DAQP_CTRL_EOS_INT_ENA,
-	     dev->iobase + DAQP_CTRL_REG);
+	/* Set trigger - one-shot, internal, no interrupts */
+	outb(DAQP_CTRL_PACER_CLK_100KHZ, dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 10000);
 	if (ret)
 		return ret;
-
-	init_completion(&devpriv->eos);
-	devpriv->interrupt_mode = semaphore;
 
 	for (i = 0; i < insn->n; i++) {
 		/* Start conversion */
 		outb(DAQP_CMD_ARM | DAQP_CMD_FIFO_DATA,
 		     dev->iobase + DAQP_CMD_REG);
 
-		/* Wait for interrupt service routine to unblock completion */
-		/* Maybe could use a timeout here, but it's interruptible */
-		if (wait_for_completion_interruptible(&devpriv->eos))
-			return -EINTR;
+		ret = comedi_timeout(dev, s, insn, daqp_ai_eos, 0);
+		if (ret)
+			break;
+
+		/* clear the status event flags */
+		inb(dev->iobase + DAQP_STATUS_REG);
 
 		data[i] = daqp_ai_get_sample(dev, s);
 	}
 
-	return insn->n;
+	/* stop any conversions and clear the status event flags */
+	outb(DAQP_CMD_STOP, dev->iobase + DAQP_CMD_REG);
+	inb(dev->iobase + DAQP_STATUS_REG);
+
+	return ret ? ret : insn->n;
 }
 
 /* This function converts ns nanoseconds to a counter value suitable
