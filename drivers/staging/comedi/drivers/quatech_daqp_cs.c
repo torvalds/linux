@@ -45,30 +45,28 @@
 
 #include "../comedi_pcmcia.h"
 
-struct daqp_private {
-	int stop;
-
-	enum { semaphore, buffer } interrupt_mode;
-
-	struct completion eos;
-};
-
-/* The DAQP communicates with the system through a 16 byte I/O window. */
-
-#define DAQP_FIFO_SIZE		4096
-
-#define DAQP_FIFO		0
-#define DAQP_SCANLIST		1
-#define DAQP_CONTROL		2
-#define DAQP_STATUS		2
-#define DAQP_DIGITAL_IO		3
-#define DAQP_PACER_LOW		4
-#define DAQP_PACER_MID		5
-#define DAQP_PACER_HIGH		6
-#define DAQP_COMMAND		7
-#define DAQP_DA			8
-#define DAQP_TIMER		10
-#define DAQP_AUX		15
+/*
+ * Register I/O map
+ *
+ * The D/A and timer registers can be accessed with 16-bit or 8-bit I/O
+ * instructions. All other registers can only use 8-bit instructions.
+ *
+ * The FIFO and scanlist registers require two 8-bit instructions to
+ * access the 16-bit data. Data is transferred LSB then MSB.
+ */
+#define DAQP_AI_FIFO_REG		0x00
+#define DAQP_SCANLIST_REG		0x01
+#define DAQP_CTRL_REG			0x02
+#define DAQP_STATUS_REG			0x02
+#define DAQP_DI_REG			0x03
+#define DAQP_DO_REG			0x03
+#define DAQP_PACER_LOW_REG		0x04
+#define DAQP_PACER_MID_REG		0x05
+#define DAQP_PACER_HIGH_REG		0x06
+#define DAQP_CMD_REG			0x07
+#define DAQP_AO_REG			0x08
+#define DAQP_TIMER_REG			0x0a
+#define DAQP_AUX_REG			0x0f
 
 #define DAQP_SCANLIST_DIFFERENTIAL	0x4000
 #define DAQP_SCANLIST_GAIN(x)		((x) << 12)
@@ -137,6 +135,16 @@ struct daqp_private {
 #define DAQP_AUX_FIFO_NEARFULL		0x02
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
+#define DAQP_FIFO_SIZE			4096
+
+struct daqp_private {
+	int stop;
+
+	enum { semaphore, buffer } interrupt_mode;
+
+	struct completion eos;
+};
+
 static const struct comedi_lrange range_daqp_ai = {
 	4, {
 		BIP_RANGE(10),
@@ -155,7 +163,7 @@ static int daqp_clear_events(struct comedi_device *dev, int loops)
 	 * require multiple reads on the status register to achieve this).
 	 */
 	while (--loops) {
-		status = inb(dev->iobase + DAQP_STATUS);
+		status = inb(dev->iobase + DAQP_STATUS_REG);
 		if ((status & DAQP_STATUS_EVENTS) == 0)
 			return 0;
 	}
@@ -172,10 +180,10 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->stop)
 		return -EIO;
 
-	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_COMMAND);
+	outb(DAQP_COMMAND_STOP, dev->iobase + DAQP_CMD_REG);
 
 	/* flush any linguring data in FIFO - superfluous here */
-	/* outb(DAQP_COMMAND_RSTF, dev->iobase+DAQP_COMMAND); */
+	/* outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG); */
 
 	devpriv->interrupt_mode = semaphore;
 
@@ -191,8 +199,8 @@ static unsigned int daqp_ai_get_sample(struct comedi_device *dev,
 	 * Get a two's complement sample from the FIFO and
 	 * return the munged offset binary value.
 	 */
-	val = inb(dev->iobase + DAQP_FIFO);
-	val |= inb(dev->iobase + DAQP_FIFO) << 8;
+	val = inb(dev->iobase + DAQP_AI_FIFO_REG);
+	val |= inb(dev->iobase + DAQP_AI_FIFO_REG) << 8;
 	return comedi_offset_munge(s, val);
 }
 
@@ -223,7 +231,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		break;
 
 	case buffer:
-		while (!((status = inb(dev->iobase + DAQP_STATUS))
+		while (!((status = inb(dev->iobase + DAQP_STATUS_REG))
 			 & DAQP_STATUS_FIFO_EMPTY)) {
 			unsigned short data;
 
@@ -278,8 +286,8 @@ static void daqp_ai_set_one_scanlist_entry(struct comedi_device *dev,
 	if (start)
 		val |= DAQP_SCANLIST_START;
 
-	outb(val & 0xff, dev->iobase + DAQP_SCANLIST);
-	outb((val >> 8) & 0xff, dev->iobase + DAQP_SCANLIST);
+	outb(val & 0xff, dev->iobase + DAQP_SCANLIST_REG);
+	outb((val >> 8) & 0xff, dev->iobase + DAQP_SCANLIST_REG);
 }
 
 /* One-shot analog data acquisition routine */
@@ -298,22 +306,22 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
 
-	outb(0, dev->iobase + DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX_REG);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_CMD_REG);
 
 	/* Program one scan list entry */
 	daqp_ai_set_one_scanlist_entry(dev, insn->chanspec, 1);
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
-	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG);
 
 	/* Set trigger */
 	outb(DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL |
 	     DAQP_CONTROL_PACER_CLK_100KHZ | DAQP_CONTROL_EOS_INT_ENABLE,
-	     dev->iobase + DAQP_CONTROL);
+	     dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 10000);
 	if (ret)
@@ -325,7 +333,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		/* Start conversion */
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-		     dev->iobase + DAQP_COMMAND);
+		     dev->iobase + DAQP_CMD_REG);
 
 		/* Wait for interrupt service routine to unblock completion */
 		/* Maybe could use a timeout here, but it's interruptible */
@@ -466,10 +474,10 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Stop any running conversion */
 	daqp_ai_cancel(dev, s);
 
-	outb(0, dev->iobase + DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX_REG);
 
 	/* Reset scan list queue */
-	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTQ, dev->iobase + DAQP_CMD_REG);
 
 	/* Program pacer clock
 	 *
@@ -486,15 +494,15 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		counter = daqp_ns_to_timer(&cmd->convert_arg, cmd->flags);
-		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
-		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
-		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
+		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW_REG);
+		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID_REG);
+		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH_REG);
 		scanlist_start_on_every_entry = 1;
 	} else {
 		counter = daqp_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
-		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
-		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
-		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
+		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW_REG);
+		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID_REG);
+		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH_REG);
 		scanlist_start_on_every_entry = 0;
 	}
 
@@ -587,7 +595,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 
-	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_COMMAND);
+	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG);
 
 	/* Set FIFO threshold.  First two bytes are near-empty
 	 * threshold, which is unused; next two bytes are near-full
@@ -597,16 +605,17 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * when the interrupt is to happen.
 	 */
 
-	outb(0x00, dev->iobase + DAQP_FIFO);
-	outb(0x00, dev->iobase + DAQP_FIFO);
+	outb(0x00, dev->iobase + DAQP_AI_FIFO_REG);
+	outb(0x00, dev->iobase + DAQP_AI_FIFO_REG);
 
-	outb((DAQP_FIFO_SIZE - threshold) & 0xff, dev->iobase + DAQP_FIFO);
-	outb((DAQP_FIFO_SIZE - threshold) >> 8, dev->iobase + DAQP_FIFO);
+	outb((DAQP_FIFO_SIZE - threshold) & 0xff,
+	     dev->iobase + DAQP_AI_FIFO_REG);
+	outb((DAQP_FIFO_SIZE - threshold) >> 8, dev->iobase + DAQP_AI_FIFO_REG);
 
 	/* Set trigger */
 	outb(DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL |
 	     DAQP_CONTROL_PACER_CLK_5MHZ | DAQP_CONTROL_FIFO_INT_ENABLE,
-	     dev->iobase + DAQP_CONTROL);
+	     dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 100);
 	if (ret)
@@ -616,7 +625,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* Start conversion */
 	outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
-	     dev->iobase + DAQP_COMMAND);
+	     dev->iobase + DAQP_CMD_REG);
 
 	return 0;
 }
@@ -628,7 +637,7 @@ static int daqp_ao_empty(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inb(dev->iobase + DAQP_AUX);
+	status = inb(dev->iobase + DAQP_AUX_REG);
 	if ((status & DAQP_AUX_DA_BUFFER) == 0)
 		return 0;
 	return -EBUSY;
@@ -647,7 +656,7 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 		return -EIO;
 
 	/* Make sure D/A update mode is direct update */
-	outb(0, dev->iobase + DAQP_AUX);
+	outb(0, dev->iobase + DAQP_AUX_REG);
 
 	for (i = 0; i > insn->n; i++) {
 		unsigned val = data[i];
@@ -660,7 +669,7 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 
 		/* write the two's complement value to the channel */
 		outw((chan << 12) | comedi_offset_munge(s, val),
-		     dev->iobase + DAQP_DA);
+		     dev->iobase + DAQP_AO_REG);
 
 		s->readback[chan] = val;
 	}
@@ -678,7 +687,7 @@ static int daqp_di_insn_bits(struct comedi_device *dev,
 	if (devpriv->stop)
 		return -EIO;
 
-	data[0] = inb(dev->iobase + DAQP_DIGITAL_IO);
+	data[0] = inb(dev->iobase + DAQP_DI_REG);
 
 	return insn->n;
 }
@@ -694,7 +703,7 @@ static int daqp_do_insn_bits(struct comedi_device *dev,
 		return -EIO;
 
 	if (comedi_dio_update_state(s, data))
-		outb(s->state, dev->iobase + DAQP_DIGITAL_IO);
+		outb(s->state, dev->iobase + DAQP_DO_REG);
 
 	data[1] = s->state;
 
