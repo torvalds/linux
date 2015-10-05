@@ -65,17 +65,17 @@
 #define MULTIQ3_ENC_CTRL_REG		0x0e
 
 /*
- * flags for encoder control
+ * Encoder chip commands (from the programming manual)
  */
-#define MULTIQ3_CLOCK_DATA      0x00
-#define MULTIQ3_CLOCK_SETUP     0x18
-#define MULTIQ3_INPUT_SETUP     0x41
-#define MULTIQ3_QUAD_X4         0x38
-#define MULTIQ3_BP_RESET        0x01
-#define MULTIQ3_CNTR_RESET      0x02
-#define MULTIQ3_TRSFRPR_CTR     0x08
-#define MULTIQ3_TRSFRCNTR_OL    0x10
-#define MULTIQ3_EFLAG_RESET     0x06
+#define MULTIQ3_CLOCK_DATA		0x00	/* FCK frequency divider */
+#define MULTIQ3_CLOCK_SETUP		0x18	/* xfer PR0 to PSC */
+#define MULTIQ3_INPUT_SETUP		0x41	/* enable inputs A and B */
+#define MULTIQ3_QUAD_X4			0x38	/* quadrature */
+#define MULTIQ3_BP_RESET		0x01	/* reset byte pointer */
+#define MULTIQ3_CNTR_RESET		0x02	/* reset counter */
+#define MULTIQ3_TRSFRPR_CTR		0x08	/* xfre preset reg to counter */
+#define MULTIQ3_TRSFRCNTR_OL		0x10	/* xfer CNTR to OL (x and y) */
+#define MULTIQ3_EFLAG_RESET		0x06	/* reset E bit of flag reg */
 
 #define MULTIQ3_TIMEOUT 30
 
