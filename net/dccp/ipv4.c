@@ -595,7 +595,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = inet_reqsk_alloc(&dccp_request_sock_ops, sk);
+	req = inet_reqsk_alloc(&dccp_request_sock_ops, sk, true);
 	if (req == NULL)
 		goto drop;
 

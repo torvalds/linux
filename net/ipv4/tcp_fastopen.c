@@ -168,8 +168,6 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 				  TCP_TIMEOUT_INIT, TCP_RTO_MAX);
 
 	atomic_set(&req->rsk_refcnt, 2);
-	/* Add the child socket directly into the accept queue */
-	inet_csk_reqsk_queue_add(sk, req, child);
 
 	/* Now finish processing the fastopen child socket. */
 	inet_csk(child)->icsk_af_ops->rebuild_header(child);
@@ -178,12 +176,10 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tcp_init_metrics(child);
 	tcp_init_buffer_space(child);
 
-	/* Queue the data carried in the SYN packet. We need to first
-	 * bump skb's refcnt because the caller will attempt to free it.
-	 * Note that IPv6 might also have used skb_get() trick
-	 * in tcp_v6_conn_request() to keep this SYN around (treq->pktopts)
-	 * So we need to eventually get a clone of the packet,
-	 * before inserting it in sk_receive_queue.
+	/* Queue the data carried in the SYN packet.
+	 * We used to play tricky games with skb_get().
+	 * With lockless listener, it is a dead end.
+	 * Do not think about it.
 	 *
 	 * XXX (TFO) - we honor a zero-payload TFO request for now,
 	 * (any reason not to?) but no need to queue the skb since
@@ -191,12 +187,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 */
 	end_seq = TCP_SKB_CB(skb)->end_seq;
 	if (end_seq != TCP_SKB_CB(skb)->seq + 1) {
-		struct sk_buff *skb2;
-
-		if (unlikely(skb_shared(skb)))
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-		else
-			skb2 = skb_get(skb);
+		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(skb2)) {
 			skb_dst_drop(skb2);
@@ -214,12 +205,9 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 		}
 	}
 	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt = end_seq;
-	sk->sk_data_ready(sk);
-	bh_unlock_sock(child);
-	/* Note: sock_put(child) will be done by tcp_conn_request()
-	 * after SYNACK packet is sent.
+	/* tcp_conn_request() is sending the SYNACK,
+	 * and queues the child into listener accept queue.
 	 */
-	WARN_ON(!req->sk);
 	return child;
 }
 
