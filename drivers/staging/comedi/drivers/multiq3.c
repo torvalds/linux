@@ -185,22 +185,45 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
-	int value;
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
+		/* select encoder channel */
 		multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN |
 				      MULTIQ3_CTRL_E_CHAN(chan));
+
+		/* reset the byte pointer */
 		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+
+		/* latch the data */
 		outb(MULTIQ3_TRSFRCNTR_OL, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		value = inb(dev->iobase + MULTIQ3_ENC_DATA_REG);
-		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 8);
-		value |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 16);
-		data[n] = (value + 0x800000) & 0xffffff;
+
+		/* read the 24-bit encoder data (lsb/mid/msb) */
+		val = inb(dev->iobase + MULTIQ3_ENC_DATA_REG);
+		val |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 8);
+		val |= (inb(dev->iobase + MULTIQ3_ENC_DATA_REG) << 16);
+
+		/*
+		 * Munge the data so that the reset value is in the middle
+		 * of the maxdata range, i.e.:
+		 *
+		 * real value	comedi value
+		 * 0xffffff	0x7fffff	1 negative count
+		 * 0x000000	0x800000	reset value
+		 * 0x000001	0x800001	1 positive count
+		 *
+		 * It's possible for the 24-bit counter to overflow but it
+		 * would normally take _quite_ a few turns. A 2000 line
+		 * encoder in quadrature results in 8000 counts/rev. So about
+		 * 1048 turns in either direction can be measured without
+		 * an overflow.
+		 */
+		data[i] = (val + ((s->maxdata + 1) >> 1)) & s->maxdata;
 	}
 
-	return n;
+	return insn->n;
 }
 
 static void multiq3_encoder_reset(struct comedi_device *dev,
