@@ -732,25 +732,28 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	link->priv = dev;
 	ret = pcmcia_request_irq(link, daqp_interrupt);
-	if (ret)
-		return ret;
+	if (ret == 0)
+		dev->irq = link->irq;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 8;
-	s->len_chanlist	= 2048;
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_daqp_ai;
 	s->insn_read	= daqp_ai_insn_read;
-	s->do_cmdtest	= daqp_ai_cmdtest;
-	s->do_cmd	= daqp_ai_cmd;
-	s->cancel	= daqp_ai_cancel;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 2048;
+		s->do_cmdtest	= daqp_ai_cmdtest;
+		s->do_cmd	= daqp_ai_cmd;
+		s->cancel	= daqp_ai_cancel;
+	}
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
