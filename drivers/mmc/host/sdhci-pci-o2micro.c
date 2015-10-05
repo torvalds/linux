@@ -60,7 +60,7 @@ static void o2_pci_led_enable(struct sdhci_pci_chip *chip)
 
 }
 
-void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
+static void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 {
 	u32 scratch_32;
 	int ret;
