@@ -3301,9 +3301,11 @@ void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
 	if (sta) {
 		txqi->txq.sta = &sta->sta;
 		sta->sta.txq[tid] = &txqi->txq;
+		txqi->txq.tid = tid;
 		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
 	} else {
 		sdata->vif.txq = &txqi->txq;
+		txqi->txq.tid = 0;
 		txqi->txq.ac = IEEE80211_AC_BE;
 	}
 }
