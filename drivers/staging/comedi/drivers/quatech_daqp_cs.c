@@ -65,6 +65,18 @@
 #define DAQP_SCANLIST_EXT_CHANNEL(x)	(((x) & 0xf) << 0)
 
 #define DAQP_CTRL_REG			0x02
+#define DAQP_CTRL_PACER_CLK(x)		(((x) & 0x3) << 6)
+#define DAQP_CTRL_PACER_CLK_EXT		DAQP_CTRL_PACER_CLK(0)
+#define DAQP_CTRL_PACER_CLK_5MHZ	DAQP_CTRL_PACER_CLK(1)
+#define DAQP_CTRL_PACER_CLK_1MHZ	DAQP_CTRL_PACER_CLK(2)
+#define DAQP_CTRL_PACER_CLK_100KHZ	DAQP_CTRL_PACER_CLK(3)
+#define DAQP_CTRL_EXPANSION		BIT(5)
+#define DAQP_CTRL_EOS_INT_ENA		BIT(4)
+#define DAQP_CTRL_FIFO_INT_ENA		BIT(3)
+#define DAQP_CTRL_TRIG_MODE		BIT(2)	/* 0=one-shot; 1=continuous */
+#define DAQP_CTRL_TRIG_SRC		BIT(1)	/* 0=internal; 1=external */
+#define DAQP_CTRL_TRIG_EDGE		BIT(0)	/* 0=rising; 1=falling */
+
 #define DAQP_STATUS_REG			0x02
 #define DAQP_DI_REG			0x03
 #define DAQP_DO_REG			0x03
@@ -75,21 +87,6 @@
 #define DAQP_AO_REG			0x08
 #define DAQP_TIMER_REG			0x0a
 #define DAQP_AUX_REG			0x0f
-
-#define DAQP_CONTROL_PACER_CLK(x)	(((x) & 0x3) << 6)
-#define DAQP_CONTROL_PACER_CLK_EXT	DAQP_CONTROL_PACER_CLK(0)
-#define DAQP_CONTROL_PACER_CLK_5MHZ	DAQP_CONTROL_PACER_CLK(1)
-#define DAQP_CONTROL_PACER_CLK_1MHZ	DAQP_CONTROL_PACER_CLK(2)
-#define DAQP_CONTROL_PACER_CLK_100KHZ	DAQP_CONTROL_PACER_CLK(3)
-#define DAQP_CONTORL_EXPANSION		0x20
-#define DAQP_CONTROL_EOS_INT_ENABLE	0x10
-#define DAQP_CONTROL_FIFO_INT_ENABLE	0x08
-#define DAQP_CONTROL_TRIGGER_ONESHOT	0x00
-#define DAQP_CONTROL_TRIGGER_CONTINUOUS	0x04
-#define DAQP_CONTROL_TRIGGER_INTERNAL	0x00
-#define DAQP_CONTROL_TRIGGER_EXTERNAL	0x02
-#define DAQP_CONTROL_TRIGGER_RISING	0x00
-#define DAQP_CONTROL_TRIGGER_FALLING	0x01
 
 #define DAQP_STATUS_IDLE		0x80
 #define DAQP_STATUS_RUNNING		0x40
@@ -319,9 +316,8 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 
 	outb(DAQP_COMMAND_RSTF, dev->iobase + DAQP_CMD_REG);
 
-	/* Set trigger */
-	outb(DAQP_CONTROL_TRIGGER_ONESHOT | DAQP_CONTROL_TRIGGER_INTERNAL |
-	     DAQP_CONTROL_PACER_CLK_100KHZ | DAQP_CONTROL_EOS_INT_ENABLE,
+	/* Set trigger - one-shot, internal */
+	outb(DAQP_CTRL_PACER_CLK_100KHZ | DAQP_CTRL_EOS_INT_ENA,
 	     dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 10000);
@@ -613,10 +609,9 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	     dev->iobase + DAQP_AI_FIFO_REG);
 	outb((DAQP_FIFO_SIZE - threshold) >> 8, dev->iobase + DAQP_AI_FIFO_REG);
 
-	/* Set trigger */
-	outb(DAQP_CONTROL_TRIGGER_CONTINUOUS | DAQP_CONTROL_TRIGGER_INTERNAL |
-	     DAQP_CONTROL_PACER_CLK_5MHZ | DAQP_CONTROL_FIFO_INT_ENABLE,
-	     dev->iobase + DAQP_CTRL_REG);
+	/* Set trigger - continuous, internal */
+	outb(DAQP_CTRL_TRIG_MODE | DAQP_CTRL_PACER_CLK_5MHZ |
+	     DAQP_CTRL_FIFO_INT_ENA, dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 100);
 	if (ret)
