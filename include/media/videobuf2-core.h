@@ -202,11 +202,6 @@ struct vb2_queue;
  * @num_planes:		number of planes in the buffer
  *			on an internal driver queue
  * @planes:		private per-plane information; do not change
- * @state:		current buffer state; do not change
- * @queued_entry:	entry on the queued buffers list, which holds all
- *			buffers queued from userspace
- * @done_entry:		entry on the list that stores all buffers ready to
- *			be dequeued to userspace
  */
 struct vb2_buffer {
 	struct vb2_queue	*vb2_queue;
@@ -216,7 +211,14 @@ struct vb2_buffer {
 	unsigned int		num_planes;
 	struct vb2_plane	planes[VIDEO_MAX_PLANES];
 
-	/* Private: internal use only */
+	/* private: internal use only
+	 *
+	 * state:		current buffer state; do not change
+	 * queued_entry:	entry on the queued buffers list, which holds
+	 *			all buffers queued from userspace
+	 * done_entry:		entry on the list that stores all buffers ready
+	 *			to be dequeued to userspace
+	 */
 	enum vb2_buffer_state	state;
 
 	struct list_head	queued_entry;
