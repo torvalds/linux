@@ -24,6 +24,7 @@
 #include <linux/mfd/htc-pasic3.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/gpio-regulator.h>
@@ -346,6 +347,11 @@ static struct pxafb_mach_info samsung_info = {
  * Backlight
  */
 
+static struct pwm_lookup magician_pwm_lookup[] = {
+	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight", NULL, 30923,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct gpio magician_bl_gpios[] = {
 	{ EGPIO_MAGICIAN_BL_POWER,  GPIOF_DIR_OUT, "Backlight power" },
 	{ EGPIO_MAGICIAN_BL_POWER2, GPIOF_DIR_OUT, "Backlight power 2" },
@@ -374,10 +380,8 @@ static void magician_backlight_exit(struct device *dev)
 }
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = 0,
 	.max_brightness = 272,
 	.dft_brightness = 100,
-	.pwm_period_ns  = 30923,
 	.enable_gpio    = -1,
 	.init           = magician_backlight_init,
 	.notify         = magician_backlight_notify,
@@ -743,6 +747,7 @@ static void __init magician_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
+	pwm_add_table(magician_pwm_lookup, ARRAY_SIZE(magician_pwm_lookup));
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	pxa_set_ficp_info(&magician_ficp_info);
