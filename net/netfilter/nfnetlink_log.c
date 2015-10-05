@@ -27,6 +27,7 @@
 #include <net/netlink.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_log.h>
+#include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/spinlock.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
@@ -401,7 +402,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			unsigned int hooknum,
 			const struct net_device *indev,
 			const struct net_device *outdev,
-			const char *prefix, unsigned int plen)
+			const char *prefix, unsigned int plen,
+			const struct nfnl_ct_hook *nfnl_ct,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	struct nfulnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
@@ -575,6 +578,10 @@ __build_packet_message(struct nfnl_log_net *log,
 			 htonl(atomic_inc_return(&log->global_seq))))
 		goto nla_put_failure;
 
+	if (ct && nfnl_ct->build(inst->skb, ct, ctinfo,
+				 NFULA_CT, NFULA_CT_INFO) < 0)
+		goto nla_put_failure;
+
 	if (data_len) {
 		struct nlattr *nla;
 		int size = nla_attr_size(data_len);
@@ -620,12 +627,16 @@ nfulnl_log_packet(struct net *net,
 		  const struct nf_loginfo *li_user,
 		  const char *prefix)
 {
-	unsigned int size, data_len;
+	size_t size;
+	unsigned int data_len;
 	struct nfulnl_instance *inst;
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
 	unsigned int plen;
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
+	const struct nfnl_ct_hook *nfnl_ct = NULL;
+	struct nf_conn *ct = NULL;
+	enum ip_conntrack_info uninitialized_var(ctinfo);
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)
 		li = li_user;
@@ -671,6 +682,14 @@ nfulnl_log_packet(struct net *net,
 		size += nla_total_size(sizeof(u_int32_t));
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL)
 		size += nla_total_size(sizeof(u_int32_t));
+	if (inst->flags & NFULNL_CFG_F_CONNTRACK) {
+		nfnl_ct = rcu_dereference(nfnl_ct_hook);
+		if (nfnl_ct != NULL) {
+			ct = nfnl_ct->get_ct(skb, &ctinfo);
+			if (ct != NULL)
+				size += nfnl_ct->build_size(ct);
+		}
+	}
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
@@ -715,7 +734,8 @@ nfulnl_log_packet(struct net *net,
 	inst->qlen++;
 
 	__build_packet_message(log, inst, skb, data_len, pf,
-				hooknum, in, out, prefix, plen);
+				hooknum, in, out, prefix, plen,
+				nfnl_ct, ct, ctinfo);
 
 	if (inst->qlen >= qthreshold)
 		__nfulnl_flush(inst);
@@ -899,13 +919,20 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfula[NFULA_CFG_FLAGS]) {
-		__be16 flags = nla_get_be16(nfula[NFULA_CFG_FLAGS]);
+		u16 flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
 
 		if (!inst) {
 			ret = -ENODEV;
 			goto out;
 		}
-		nfulnl_set_flags(inst, ntohs(flags));
+
+		if (flags & NFULNL_CFG_F_CONNTRACK &&
+		    rcu_access_pointer(nfnl_ct_hook) == NULL) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+
+		nfulnl_set_flags(inst, flags);
 	}
 
 out_put:
