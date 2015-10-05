@@ -5284,7 +5284,7 @@ int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *address)
 
 int host_int_set_operation_mode(tstrWILC_WFIDrv *hWFIDrv, u32 u32mode)
 {
-	int s32Error = 0;
+	int result = 0;
 
 	struct host_if_msg msg;
 
@@ -5295,13 +5295,13 @@ int host_int_set_operation_mode(tstrWILC_WFIDrv *hWFIDrv, u32 u32mode)
 	msg.body.mode.u32Mode = u32mode;
 	msg.drvHandler = hWFIDrv;
 
-	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
-	if (s32Error) {
+	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
+	if (result) {
 		PRINT_ER("wilc mq send fail\n");
-		s32Error = -EINVAL;
+		result = -EINVAL;
 	}
 
-	return s32Error;
+	return result;
 }
 
 /**
