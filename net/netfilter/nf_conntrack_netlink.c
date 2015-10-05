@@ -2133,7 +2133,7 @@ ctnetlink_alloc_expect(const struct nlattr *const cda[], struct nf_conn *ct,
 		       struct nf_conntrack_tuple *tuple,
 		       struct nf_conntrack_tuple *mask);
 
-#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
+#ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT
 static size_t
 ctnetlink_glue_build_size(const struct nf_conn *ct)
 {
@@ -2403,7 +2403,7 @@ static struct nfnl_ct_hook ctnetlink_glue_hook = {
 	.attach_expect	= ctnetlink_glue_attach_expect,
 	.seq_adjust	= ctnetlink_glue_seqadj,
 };
-#endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
+#endif /* CONFIG_NETFILTER_NETLINK_GLUE_CT */
 
 /***********************************************************************
  * EXPECT
@@ -3387,7 +3387,7 @@ static int __init ctnetlink_init(void)
 		pr_err("ctnetlink_init: cannot register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}
-#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
+#ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT
 	/* setup interaction between nf_queue and nf_conntrack_netlink. */
 	RCU_INIT_POINTER(nfnl_ct_hook, &ctnetlink_glue_hook);
 #endif
@@ -3408,7 +3408,7 @@ static void __exit ctnetlink_exit(void)
 	unregister_pernet_subsys(&ctnetlink_net_ops);
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
-#ifdef CONFIG_NETFILTER_NETLINK_QUEUE_CT
+#ifdef CONFIG_NETFILTER_NETLINK_GLUE_CT
 	RCU_INIT_POINTER(nfnl_ct_hook, NULL);
 #endif
 }
