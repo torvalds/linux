@@ -311,32 +311,6 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
 };
 
 /**
- *  @brief      WILC_WFI_mon_setup
- *  @details
- *  @param[in]
- *  @return     int : Return 0 on Success
- *  @author	mdaftedar
- *  @date	12 JUL 2012
- *  @version	1.0
- */
-static void WILC_WFI_mon_setup(struct net_device *dev)
-{
-
-	dev->netdev_ops = &wilc_wfi_netdev_ops;
-	PRINT_INFO(CORECONFIG_DBG, "In Ethernet setup function\n");
-	ether_setup(dev);
-	dev->priv_flags |= IFF_NO_QUEUE;
-	dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	eth_zero_addr(dev->dev_addr);
-
-	{
-		unsigned char mac_add[] = {0x00, 0x50, 0xc2, 0x5e, 0x10, 0x8f};
-		memcpy(dev->dev_addr, mac_add, ETH_ALEN);
-	}
-
-}
-
-/**
  *  @brief      WILC_WFI_init_mon_interface
  *  @details
  *  @param[in]

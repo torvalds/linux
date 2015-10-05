@@ -75,28 +75,6 @@ _fail_:
 	return 0;
 }
 
-static int sdio_set_func0_csa_address_byte0(u32 adr)
-{
-	sdio_cmd52_t cmd;
-
-	/**
-	 *      Review: BIG ENDIAN
-	 **/
-	cmd.read_write = 1;
-	cmd.function = 0;
-	cmd.raw = 0;
-	cmd.address = 0x10c;
-	cmd.data = (u8)adr;
-	if (!g_sdio.sdio_cmd52(&cmd)) {
-		g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd52, set 0x10c data...\n");
-		goto _fail_;
-	}
-
-	return 1;
-_fail_:
-	return 0;
-}
-
 static int sdio_set_func0_block_size(u32 block_size)
 {
 	sdio_cmd52_t cmd;
