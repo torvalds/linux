@@ -205,22 +205,35 @@ static int multiq3_encoder_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static void encoder_reset(struct comedi_device *dev)
+static void multiq3_encoder_reset(struct comedi_device *dev,
+				  unsigned int chan)
 {
-	struct comedi_subdevice *s = &dev->subdevices[4];
-	int chan;
+	multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN | MULTIQ3_CTRL_E_CHAN(chan));
+	outb(MULTIQ3_EFLAG_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+	outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+	outb(MULTIQ3_CLOCK_DATA, dev->iobase + MULTIQ3_ENC_DATA_REG);
+	outb(MULTIQ3_CLOCK_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+	outb(MULTIQ3_INPUT_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+	outb(MULTIQ3_QUAD_X4, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+	outb(MULTIQ3_CNTR_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+}
 
-	for (chan = 0; chan < s->n_chan; chan++) {
-		multiq3_set_ctrl(dev, MULTIQ3_CTRL_EN |
-				      MULTIQ3_CTRL_E_CHAN(chan));
-		outb(MULTIQ3_EFLAG_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		outb(MULTIQ3_BP_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		outb(MULTIQ3_CLOCK_DATA, dev->iobase + MULTIQ3_ENC_DATA_REG);
-		outb(MULTIQ3_CLOCK_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		outb(MULTIQ3_INPUT_SETUP, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		outb(MULTIQ3_QUAD_X4, dev->iobase + MULTIQ3_ENC_CTRL_REG);
-		outb(MULTIQ3_CNTR_RESET, dev->iobase + MULTIQ3_ENC_CTRL_REG);
+static int multiq3_encoder_insn_config(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+
+	switch (data[0]) {
+	case INSN_CONFIG_RESET:
+		multiq3_encoder_reset(dev, chan);
+		break;
+	default:
+		return -EINVAL;
 	}
+
+	return insn->n;
 }
 
 static int multiq3_attach(struct comedi_device *dev,
@@ -228,6 +241,7 @@ static int multiq3_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 	int ret;
+	int i;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
@@ -285,8 +299,10 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->maxdata	= 0x00ffffff;
 	s->range_table	= &range_unknown;
 	s->insn_read	= multiq3_encoder_insn_read;
+	s->insn_config	= multiq3_encoder_insn_config;
 
-	encoder_reset(dev);
+	for (i = 0; i < s->n_chan; i++)
+		multiq3_encoder_reset(dev, i);
 
 	return 0;
 }
