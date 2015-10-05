@@ -424,7 +424,7 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config config;
-	struct timespec now;
+	struct timespec64 now;
 	u64 temp = 0;
 	u32 ptp_v2 = 0;
 	u32 tstamp_all = 0;
@@ -621,8 +621,10 @@ static int stmmac_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 					     priv->default_addend);
 
 		/* initialize system time */
-		getnstimeofday(&now);
-		priv->hw->ptp->init_systime(priv->ioaddr, now.tv_sec,
+		ktime_get_real_ts64(&now);
+
+		/* lower 32 bits of tv_sec are safe until y2106 */
+		priv->hw->ptp->init_systime(priv->ioaddr, (u32)now.tv_sec,
 					    now.tv_nsec);
 	}
 
