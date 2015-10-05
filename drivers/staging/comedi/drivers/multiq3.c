@@ -77,8 +77,6 @@
 #define MULTIQ3_TRSFRCNTR_OL		0x10	/* xfer CNTR to OL (x and y) */
 #define MULTIQ3_EFLAG_RESET		0x06	/* reset E bit of flag reg */
 
-#define MULTIQ3_TIMEOUT 30
-
 static void multiq3_set_ctrl(struct comedi_device *dev, unsigned int bits)
 {
 	/*
