@@ -4193,7 +4193,7 @@ int host_int_remove_wep_key(tstrWILC_WFIDrv *wfi_drv, u8 index)
 	int result = 0;
 	struct host_if_msg msg;
 
-	if (wfi_drv == NULL) {
+	if (!wfi_drv) {
 		result = -EFAULT;
 		PRINT_ER("Failed to send setup multicast config packet\n");
 		return result;
