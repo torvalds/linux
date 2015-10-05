@@ -93,7 +93,7 @@ struct host_if_pmkid_attr {
 	struct host_if_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
 };
 
-typedef enum {
+enum CURRENT_TXRATE {
 	AUTORATE	= 0,
 	MBPS_1		= 1,
 	MBPS_2		= 2,
@@ -107,7 +107,7 @@ typedef enum {
 	MBPS_36		= 36,
 	MBPS_48		= 48,
 	MBPS_54		= 54
-} CURRENT_TX_RATE_T;
+};
 
 struct cfg_param_val {
 	u32 u32SetCfgFlag;
@@ -130,7 +130,7 @@ struct cfg_param_val {
 	u8 scan_source;
 	u16 active_scan_time;
 	u16 passive_scan_time;
-	CURRENT_TX_RATE_T curr_tx_rate;
+	enum CURRENT_TXRATE curr_tx_rate;
 
 };
 

@@ -1155,7 +1155,7 @@ static s32 Handle_CfgParam(tstrWILC_WFIDrv *drvHandler,
 		u8WidCnt++;
 	}
 	if (strHostIFCfgParamAttr->pstrCfgParamVal.u32SetCfgFlag & CURRENT_TX_RATE) {
-		CURRENT_TX_RATE_T curr_tx_rate = strHostIFCfgParamAttr->pstrCfgParamVal.curr_tx_rate;
+		enum CURRENT_TXRATE curr_tx_rate = strHostIFCfgParamAttr->pstrCfgParamVal.curr_tx_rate;
 		/*----------------------------------------------------------------------*/
 		/*Rates:		1   2   5.5   11   6  9  12  18  24  36  48   54  Auto	*/
 		/*InputValues:	1   2     3    4   5  6   7   8   9  10  11   12  0		*/
