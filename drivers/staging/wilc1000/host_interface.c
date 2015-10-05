@@ -5259,7 +5259,7 @@ int host_int_wait_msg_queue_idle(void)
 	return result;
 }
 
-int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
+int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *address)
 {
 	int result = 0;
 
@@ -5270,8 +5270,8 @@ int host_int_set_wfi_drv_handler(tstrWILC_WFIDrv *u32address)
 
 	memset(&msg, 0, sizeof(struct host_if_msg));
 	msg.id = HOST_IF_MSG_SET_WFIDRV_HANDLER;
-	msg.body.drv.u32Address = get_id_from_handler(u32address);
-	msg.drvHandler = u32address;
+	msg.body.drv.u32Address = get_id_from_handler(address);
+	msg.drvHandler = address;
 
 	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (result) {
