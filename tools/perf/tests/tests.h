@@ -24,6 +24,11 @@ enum {
 	TEST_SKIP = -2,
 };
 
+struct test {
+	const char *desc;
+	int (*func)(void);
+};
+
 /* Tests */
 int test__vmlinux_matches_kallsyms(void);
 int test__openat_syscall_event(void);

@@ -14,10 +14,13 @@
 #include "parse-options.h"
 #include "symbol.h"
 
-static struct test {
-	const char *desc;
-	int (*func)(void);
-} tests[] = {
+struct test __weak arch_tests[] = {
+	{
+		.func = NULL,
+	},
+};
+
+static struct test generic_tests[] = {
 	{
 		.desc = "vmlinux symtab matches kallsyms",
 		.func = test__vmlinux_matches_kallsyms,
@@ -195,6 +198,11 @@ static struct test {
 	},
 };
 
+static struct test *tests[] = {
+	generic_tests,
+	arch_tests,
+};
+
 static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
 {
 	int i;
@@ -249,22 +257,25 @@ static int run_test(struct test *test)
 	return err;
 }
 
-#define for_each_test(t)	 for (t = &tests[0]; t->func; t++)
+#define for_each_test(j, t)	 				\
+	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
+		for (t = &tests[j][0]; t->func; t++)
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
 	struct test *t;
+	unsigned int j;
 	int i = 0;
 	int width = 0;
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		int len = strlen(t->desc);
 
 		if (width < len)
 			width = len;
 	}
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		int curr = i++, err;
 
 		if (!perf_test__matches(t, curr, argc, argv))
@@ -300,10 +311,11 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 static int perf_test__list(int argc, const char **argv)
 {
+	unsigned int j;
 	struct test *t;
 	int i = 0;
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		if (argc > 1 && !strstr(t->desc, argv[1]))
 			continue;
 
