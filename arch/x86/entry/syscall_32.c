@@ -12,13 +12,13 @@
 #define SYM(sym, compat) sym
 #endif
 
-#define __SYSCALL_I386(nr, sym, compat) extern asmlinkage void SYM(sym, compat)(void) ;
+#define __SYSCALL_I386(nr, sym, compat) extern asmlinkage long SYM(sym, compat)(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
 #include <asm/syscalls_32.h>
 #undef __SYSCALL_I386
 
 #define __SYSCALL_I386(nr, sym, compat) [nr] = SYM(sym, compat),
 
-extern asmlinkage void sys_ni_syscall(void);
+extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
 __visible const sys_call_ptr_t ia32_sys_call_table[__NR_syscall_compat_max+1] = {
 	/*

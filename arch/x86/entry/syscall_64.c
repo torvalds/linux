@@ -14,13 +14,13 @@
 # define __SYSCALL_X32(nr, sym, compat) /* nothing */
 #endif
 
-#define __SYSCALL_64(nr, sym, compat) extern asmlinkage void sym(void) ;
+#define __SYSCALL_64(nr, sym, compat) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
 #include <asm/syscalls_64.h>
 #undef __SYSCALL_64
 
 #define __SYSCALL_64(nr, sym, compat) [nr] = sym,
 
-extern void sys_ni_syscall(void);
+extern long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
 
 asmlinkage const sys_call_ptr_t sys_call_table[__NR_syscall_max+1] = {
 	/*
