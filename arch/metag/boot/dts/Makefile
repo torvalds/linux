@@ -12,11 +12,7 @@ endif
 dtb-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb
 obj-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb.o
 
-targets	+= dtbs
-targets	+= $(dtb-y)
-
 .SECONDARY: $(obj)/$(builtindtb-y).dtb.S
 
-dtbs: $(addprefix $(obj)/, $(dtb-y))
-
+always += $(dtb-y)
 clean-files += *.dtb *.dtb.S
