@@ -16,16 +16,6 @@
 #include <linux/linkage.h>
 #include <linux/err.h>
 
-/* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
-#include <linux/elf-em.h>
-#define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
-#define __AUDIT_ARCH_LE		0x40000000
-
-#ifndef CONFIG_AUDITSYSCALL
-# define sysexit_audit		ia32_ret_from_sys_call_irqs_off
-# define sysretl_audit		ia32_ret_from_sys_call_irqs_off
-#endif
-
 	.section .entry.text, "ax"
 
 #ifdef CONFIG_PARAVIRT
@@ -148,7 +138,7 @@ sysenter_dispatch:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	sysexit_audit
+	jnz	ia32_ret_from_sys_call_irqs_off
 sysexit_from_sys_call:
 	/*
 	 * NB: SYSEXIT is not obviously safe for 64-bit kernels -- an
@@ -200,81 +190,12 @@ sysexit_from_sys_call:
 	 */
 	USERGS_SYSRET32
 
-#ifdef CONFIG_AUDITSYSCALL
-	.macro auditsys_entry_common
-	/*
-	 * At this point, registers hold syscall args in the 32-bit syscall ABI:
-	 * EAX is syscall number, the 6 args are in EBX,ECX,EDX,ESI,EDI,EBP.
-	 *
-	 * We want to pass them to __audit_syscall_entry(), which is a 64-bit
-	 * C function with 5 parameters, so shuffle them to match what
-	 * the function expects: RDI,RSI,RDX,RCX,R8.
-	 */
-	movl	%esi, %r8d		/* arg5 (R8 ) <= 4th syscall arg (ESI) */
-	xchg	%ecx, %edx		/* arg4 (RCX) <= 3rd syscall arg (EDX) */
-					/* arg3 (RDX) <= 2nd syscall arg (ECX) */
-	movl	%ebx, %esi		/* arg2 (RSI) <= 1st syscall arg (EBX) */
-	movl	%eax, %edi		/* arg1 (RDI) <= syscall number  (EAX) */
-	call	__audit_syscall_entry
-
-	/*
-	 * We are going to jump back to the syscall dispatch code.
-	 * Prepare syscall args as required by the 64-bit C ABI.
-	 * Registers clobbered by __audit_syscall_entry() are
-	 * loaded from pt_regs on stack:
-	 */
-	movl	ORIG_RAX(%rsp), %eax	/* syscall number */
-	movl	%ebx, %edi		/* arg1 */
-	movl	RCX(%rsp), %esi		/* arg2 */
-	movl	RDX(%rsp), %edx		/* arg3 */
-	movl	RSI(%rsp), %ecx		/* arg4 */
-	movl	RDI(%rsp), %r8d		/* arg5 */
-	.endm
-
-	.macro auditsys_exit exit
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	testl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	ia32_ret_from_sys_call
-	movl	%eax, %esi		/* second arg, syscall return value */
-	cmpl	$-MAX_ERRNO, %eax	/* is it an error ? */
-	jbe	1f
-	movslq	%eax, %rsi		/* if error sign extend to 64 bits */
-1:	setbe	%al			/* 1 if error, 0 if not */
-	movzbl	%al, %edi		/* zero-extend that into %edi */
-	call	__audit_syscall_exit
-	movl	$(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %edi
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	testl	%edi, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jz	\exit
-	xorl	%eax, %eax		/* Do not leak kernel information */
-	movq	%rax, R11(%rsp)
-	movq	%rax, R10(%rsp)
-	movq	%rax, R9(%rsp)
-	movq	%rax, R8(%rsp)
-	jmp	int_ret_from_sys_call_irqs_off
-	.endm
-
-sysenter_auditsys:
-	auditsys_entry_common
-	movl	%ebp, %r9d		/* reload 6th syscall arg */
-	jmp	sysenter_dispatch
-
-sysexit_audit:
-	auditsys_exit sysexit_from_sys_call
-#endif
-
 sysenter_fix_flags:
 	pushq	$X86_EFLAGS_FIXED
 	popfq
 	jmp	sysenter_flags_fixed
 
 sysenter_tracesys:
-#ifdef CONFIG_AUDITSYSCALL
-	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jz	sysenter_auditsys
-#endif
 	SAVE_EXTRA_REGS
 	xorl	%eax, %eax		/* Do not leak kernel information */
 	movq	%rax, R11(%rsp)
@@ -389,7 +310,7 @@ cstar_dispatch:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	sysretl_audit
+	jnz	ia32_ret_from_sys_call_irqs_off
 
 sysretl_from_sys_call:
 	andl	$~TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
@@ -420,22 +341,7 @@ sysretl_from_sys_call:
 	 */
 	USERGS_SYSRET32
 
-#ifdef CONFIG_AUDITSYSCALL
-cstar_auditsys:
-	movl	%r9d, R9(%rsp)		/* register to be clobbered by call */
-	auditsys_entry_common
-	movl	R9(%rsp), %r9d		/* reload 6th syscall arg */
-	jmp	cstar_dispatch
-
-sysretl_audit:
-	auditsys_exit sysretl_from_sys_call
-#endif
-
 cstar_tracesys:
-#ifdef CONFIG_AUDITSYSCALL
-	testl	$(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT), ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jz	cstar_auditsys
-#endif
 	xchgl	%r9d, %ebp
 	SAVE_EXTRA_REGS
 	xorl	%eax, %eax		/* Do not leak kernel information */
