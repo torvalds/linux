@@ -52,15 +52,18 @@ ENTRY(entry_SYSENTER_compat)
 	SWAPGS_UNSAFE_STACK
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
-	/* Zero-extending 32-bit regs, do not remove */
-	movl	%ebp, %ebp
+	/*
+	 * User tracing code (ptrace or signal handlers) might assume that
+	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
+	 * syscall.  Just in case the high bits are nonzero, zero-extend
+	 * the syscall number.  (This could almost certainly be deleted
+	 * with no ill effects.)
+	 */
 	movl	%eax, %eax
-
-	movl	ASM_THREAD_INFO(TI_sysenter_return, %rsp, 0), %r10d
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
-	pushq	%rbp			/* pt_regs->sp */
+	pushq	%rcx			/* pt_regs->sp */
 
 	/*
 	 * Push flags.  This is nasty.  First, interrupts are currently
@@ -70,17 +73,28 @@ ENTRY(entry_SYSENTER_compat)
 	 */
 	pushfq				/* pt_regs->flags (except IF = 0) */
 	orl	$X86_EFLAGS_IF, (%rsp)	/* Fix saved flags */
+	ASM_CLAC			/* Clear AC after saving FLAGS */
 
 	pushq	$__USER32_CS		/* pt_regs->cs */
-	pushq	%r10			/* pt_regs->ip = thread_info->sysenter_return */
+	xorq    %r8,%r8
+	pushq	%r8			/* pt_regs->ip = 0 (placeholder) */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
-	pushq	%rcx			/* pt_regs->cx */
+	pushq	%rcx			/* pt_regs->cx (will be overwritten) */
 	pushq	$-ENOSYS		/* pt_regs->ax */
+	pushq   %r8                     /* pt_regs->r8  = 0 */
+	pushq   %r8                     /* pt_regs->r9  = 0 */
+	pushq   %r8                     /* pt_regs->r10 = 0 */
+	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   %rbx                    /* pt_regs->rbx */
+	pushq   %rbp                    /* pt_regs->rbp */
+	pushq   %r8                     /* pt_regs->r12 = 0 */
+	pushq   %r8                     /* pt_regs->r13 = 0 */
+	pushq   %r8                     /* pt_regs->r14 = 0 */
+	pushq   %r8                     /* pt_regs->r15 = 0 */
 	cld
-	sub	$(10*8), %rsp /* pt_regs->r8-11, bp, bx, r12-15 not saved */
 
 	/*
 	 * Sysenter doesn't filter flags, so we need to clear NT
@@ -93,16 +107,15 @@ ENTRY(entry_SYSENTER_compat)
 	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
 
-	/* Temporary: SYSENTER is disabled. */
-#ifdef CONFIG_CONTEXT_TRACKING
-	call enter_from_user_mode
-#endif
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movl $11, %edi
-	call do_exit
+	/*
+	 * User mode is traced as though IRQs are on, and SYSENTER
+	 * turned them off.
+	 */
+	TRACE_IRQS_OFF
 
-	/* Unreachable. */
-	ud2
+	movq	%rsp, %rdi
+	call	do_fast_syscall_32
+	jmp	.Lsyscall_32_done
 
 sysenter_fix_flags:
 	pushq	$X86_EFLAGS_FIXED
@@ -135,26 +148,14 @@ ENDPROC(entry_SYSENTER_compat)
  * edi  arg5
  * esp  user stack
  * 0(%esp) arg6
- *
- * This is purely a fast path. For anything complicated we use the int 0x80
- * path below. We set up a complete hardware stack frame to share code
- * with the int 0x80 path.
  */
 ENTRY(entry_SYSCALL_compat)
-	/*
-	 * Interrupts are off on entry.
-	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
-	 * it is too small to ever cause noticeable irq latency.
-	 */
+	/* Interrupts are off on entry. */
 	SWAPGS_UNSAFE_STACK
 
-	/* Temporary: SYSCALL32 is disabled. */
-	movl	$-ENOSYS, %eax
-	USERGS_SYSRET32
-
+	/* Stash user ESP and switch to the kernel stack. */
 	movl	%esp, %r8d
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/* Zero-extending 32-bit regs, do not remove */
 	movl	%eax, %eax
@@ -169,13 +170,29 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
-	pushq	%rbp			/* pt_regs->cx */
-	movl	%ebp, %ecx
+	pushq	%rcx			/* pt_regs->cx (will be overwritten) */
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	sub	$(10*8), %rsp		/* pt_regs->r8-11, bp, bx, r12-15 not saved */
+	xorq    %r8,%r8
+	pushq   %r8                     /* pt_regs->r8  = 0 */
+	pushq   %r8                     /* pt_regs->r9  = 0 */
+	pushq   %r8                     /* pt_regs->r10 = 0 */
+	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   %rbx                    /* pt_regs->rbx */
+	pushq   %rbp                    /* pt_regs->rbp */
+	pushq   %r8                     /* pt_regs->r12 = 0 */
+	pushq   %r8                     /* pt_regs->r13 = 0 */
+	pushq   %r8                     /* pt_regs->r14 = 0 */
+	pushq   %r8                     /* pt_regs->r15 = 0 */
 
-	/* Unreachable. */
-	ud2
+	/*
+	 * User mode is traced as though IRQs are on, and SYSENTER
+	 * turned them off.
+	 */
+	TRACE_IRQS_OFF
+
+	movq	%rsp, %rdi
+	call	do_fast_syscall_32
+	jmp	.Lsyscall_32_done
 END(entry_SYSCALL_compat)
 
 /*
@@ -243,6 +260,7 @@ ENTRY(entry_INT80_compat)
 
 	movq	%rsp, %rdi
 	call	do_int80_syscall_32
+.Lsyscall_32_done:
 
 	/* Go back to user mode. */
 	TRACE_IRQS_ON

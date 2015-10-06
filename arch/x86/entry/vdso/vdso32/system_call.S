@@ -3,6 +3,8 @@
 */
 
 #include <asm/dwarf2.h>
+#include <asm/cpufeature.h>
+#include <asm/alternative-asm.h>
 
 /*
  * First get the common code for the sigreturn entry points.
@@ -27,6 +29,12 @@ __kernel_vsyscall:
 	CFI_ADJUST_CFA_OFFSET	4
 	CFI_REL_OFFSET		ecx, 0
 	movl	%esp, %ecx
+
+#ifdef CONFIG_X86_64
+	/* If SYSENTER (Intel) or SYSCALL32 (AMD) is available, use it. */
+	ALTERNATIVE_2 "", "sysenter", X86_FEATURE_SYSENTER32, \
+	                  "syscall",  X86_FEATURE_SYSCALL32
+#endif
 
 	/* Enter using int $0x80 */
 	movl	(%esp), %ecx
