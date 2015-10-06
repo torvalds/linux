@@ -103,6 +103,14 @@ ENTRY(entry_SYSENTER_compat)
 	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
 
+	/* Temporary: SYSENTER is disabled. */
+#ifdef CONFIG_CONTEXT_TRACKING
+	call enter_from_user_mode
+#endif
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	movl $11, %edi
+	call do_exit
+
 	/*
 	 * Re-enable interrupts.  IRQ tracing already thinks that IRQs are
 	 * on (since we treat user mode as having IRQs on), and the
@@ -324,6 +332,11 @@ ENTRY(entry_SYSCALL_compat)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
+
+	/* Temporary: SYSCALL32 is disabled. */
+	movl	$-ENOSYS, %eax
+	USERGS_SYSRET32
+
 	movl	%esp, %r8d
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
