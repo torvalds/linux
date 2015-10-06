@@ -168,7 +168,7 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	uint32_t gpioc;
+	unsigned int gpioc;
 	int i;
 
 	/* Enable instantaneous update of converters outputs + Enable DACs */
