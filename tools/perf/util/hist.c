@@ -132,6 +132,18 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL,
 					   symlen);
 		}
+
+		if (h->mem_info->iaddr.sym) {
+			symlen = (int)h->mem_info->iaddr.sym->namelen + 4
+			       + unresolved_col_width + 2;
+			hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL,
+					   symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL,
+					   symlen);
+		}
+
 		if (h->mem_info->daddr.map) {
 			symlen = dso__name_len(h->mem_info->daddr.map->dso);
 			hists__new_col_len(hists, HISTC_MEM_DADDR_DSO,
@@ -143,6 +155,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	} else {
 		symlen = unresolved_col_width + 4 + 2;
 		hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL, symlen);
+		hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL, symlen);
 		hists__set_unres_dso_col_len(hists, HISTC_MEM_DADDR_DSO);
 	}
 

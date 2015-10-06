@@ -17,9 +17,9 @@
 #include "callchain.h"
 
 struct callchain_param	callchain_param = {
-	.mode	= CHAIN_GRAPH_REL,
+	.mode	= CHAIN_GRAPH_ABS,
 	.min_percent = 0.5,
-	.order  = ORDER_CALLEE,
+	.order  = ORDER_CALLER,
 	.key	= CCKEY_FUNCTION
 };
 

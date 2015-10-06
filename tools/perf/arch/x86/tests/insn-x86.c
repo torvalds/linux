@@ -1,7 +1,8 @@
 #include <linux/types.h>
 
 #include "debug.h"
-#include "tests.h"
+#include "tests/tests.h"
+#include "arch-tests.h"
 
 #include "intel-pt-decoder/insn.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"

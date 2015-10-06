@@ -655,6 +655,35 @@ static int hist_entry__daddr_snprintf(struct hist_entry *he, char *bf,
 }
 
 static int64_t
+sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	uint64_t l = 0, r = 0;
+
+	if (left->mem_info)
+		l = left->mem_info->iaddr.addr;
+	if (right->mem_info)
+		r = right->mem_info->iaddr.addr;
+
+	return (int64_t)(r - l);
+}
+
+static int hist_entry__iaddr_snprintf(struct hist_entry *he, char *bf,
+				    size_t size, unsigned int width)
+{
+	uint64_t addr = 0;
+	struct map *map = NULL;
+	struct symbol *sym = NULL;
+
+	if (he->mem_info) {
+		addr = he->mem_info->iaddr.addr;
+		map  = he->mem_info->iaddr.map;
+		sym  = he->mem_info->iaddr.sym;
+	}
+	return _hist_entry__sym_snprintf(map, sym, addr, he->level, bf, size,
+					 width);
+}
+
+static int64_t
 sort__dso_daddr_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	struct map *map_l = NULL;
@@ -1077,6 +1106,13 @@ struct sort_entry sort_mem_daddr_sym = {
 	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
 };
 
+struct sort_entry sort_mem_iaddr_sym = {
+	.se_header	= "Code Symbol",
+	.se_cmp		= sort__iaddr_cmp,
+	.se_snprintf	= hist_entry__iaddr_snprintf,
+	.se_width_idx	= HISTC_MEM_IADDR_SYMBOL,
+};
+
 struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
@@ -1299,6 +1335,7 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 
 static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_DADDR_SYMBOL, "symbol_daddr", sort_mem_daddr_sym),
+	DIM(SORT_MEM_IADDR_SYMBOL, "symbol_iaddr", sort_mem_iaddr_sym),
 	DIM(SORT_MEM_DADDR_DSO, "dso_daddr", sort_mem_daddr_dso),
 	DIM(SORT_MEM_LOCKED, "locked", sort_mem_locked),
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),

@@ -205,7 +205,7 @@ void perf_evlist__set_leader(struct perf_evlist *evlist)
 	}
 }
 
-static void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
+void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
 {
 	attr->precise_ip = 3;
 

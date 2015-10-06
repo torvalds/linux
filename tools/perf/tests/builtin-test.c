@@ -14,10 +14,13 @@
 #include "parse-options.h"
 #include "symbol.h"
 
-static struct test {
-	const char *desc;
-	int (*func)(void);
-} tests[] = {
+struct test __weak arch_tests[] = {
+	{
+		.func = NULL,
+	},
+};
+
+static struct test generic_tests[] = {
 	{
 		.desc = "vmlinux symtab matches kallsyms",
 		.func = test__vmlinux_matches_kallsyms,
@@ -38,12 +41,6 @@ static struct test {
 		.desc = "parse events tests",
 		.func = test__parse_events,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "x86 rdpmc test",
-		.func = test__rdpmc,
-	},
-#endif
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
@@ -104,12 +101,6 @@ static struct test {
 		.desc = "Test software clock events have valid period values",
 		.func = test__sw_clock_freq,
 	},
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "Test converting perf time to TSC",
-		.func = test__perf_time_to_tsc,
-	},
-#endif
 	{
 		.desc = "Test object code reading",
 		.func = test__code_reading,
@@ -126,14 +117,6 @@ static struct test {
 		.desc = "Test parsing with no sample_id_all bit set",
 		.func = test__parse_no_sample_id_all,
 	},
-#if defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__)
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-	{
-		.desc = "Test dwarf unwind",
-		.func = test__dwarf_unwind,
-	},
-#endif
-#endif
 	{
 		.desc = "Test filtering hist entries",
 		.func = test__hists_filter,
@@ -178,14 +161,6 @@ static struct test {
 		.desc = "Test LLVM searching and compiling",
 		.func = test__llvm,
 	},
-#ifdef HAVE_AUXTRACE_SUPPORT
-#if defined(__x86_64__) || defined(__i386__)
-	{
-		.desc = "Test x86 instruction decoder - new instructions",
-		.func = test__insn_x86,
-	},
-#endif
-#endif
 	{
 		.desc = "Test topology in session",
 		.func = test_session_topology,
@@ -193,6 +168,11 @@ static struct test {
 	{
 		.func = NULL,
 	},
+};
+
+static struct test *tests[] = {
+	generic_tests,
+	arch_tests,
 };
 
 static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
@@ -249,22 +229,25 @@ static int run_test(struct test *test)
 	return err;
 }
 
-#define for_each_test(t)	 for (t = &tests[0]; t->func; t++)
+#define for_each_test(j, t)	 				\
+	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
+		for (t = &tests[j][0]; t->func; t++)
 
 static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 {
 	struct test *t;
+	unsigned int j;
 	int i = 0;
 	int width = 0;
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		int len = strlen(t->desc);
 
 		if (width < len)
 			width = len;
 	}
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		int curr = i++, err;
 
 		if (!perf_test__matches(t, curr, argc, argv))
@@ -300,10 +283,11 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 static int perf_test__list(int argc, const char **argv)
 {
+	unsigned int j;
 	struct test *t;
 	int i = 0;
 
-	for_each_test(t) {
+	for_each_test(j, t) {
 		if (argc > 1 && !strstr(t->desc, argv[1]))
 			continue;
 

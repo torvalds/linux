@@ -192,7 +192,7 @@ OPTIONS
 	when available. Usually more convenient to use --branch-history
 	for this.
 
-	Default: fractal,0.5,callee,function.
+	Default: graph,0.5,caller
 
 --children::
 	Accumulate callchain of children to parent entry so that then can

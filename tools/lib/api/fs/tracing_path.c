@@ -12,9 +12,9 @@
 #include "tracing_path.h"
 
 
-char tracing_mnt[PATH_MAX + 1]         = "/sys/kernel/debug";
-char tracing_path[PATH_MAX + 1]        = "/sys/kernel/debug/tracing";
-char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
+char tracing_mnt[PATH_MAX]         = "/sys/kernel/debug";
+char tracing_path[PATH_MAX]        = "/sys/kernel/debug/tracing";
+char tracing_events_path[PATH_MAX] = "/sys/kernel/debug/tracing/events";
 
 
 static void __tracing_path_set(const char *tracing, const char *mountpoint)

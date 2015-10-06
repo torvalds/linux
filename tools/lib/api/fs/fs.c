@@ -69,7 +69,7 @@ static const char * const tracefs__known_mountpoints[] = {
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
-	char			 path[PATH_MAX + 1];
+	char			 path[PATH_MAX];
 	bool			 found;
 	long			 magic;
 };

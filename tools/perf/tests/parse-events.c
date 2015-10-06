@@ -1259,6 +1259,17 @@ test__checkevent_breakpoint_len_rw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_rw(evlist);
 }
 
+static int test__checkevent_precise_max_modifier(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_SOFTWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_SW_TASK_CLOCK == evsel->attr.config);
+	return 0;
+}
+
 static int count_tracepoints(void)
 {
 	struct dirent *events_ent;
@@ -1561,6 +1572,11 @@ static struct evlist_test test__events[] = {
 		.name  = "instructions:kIG",
 		.check = test__checkevent_exclude_idle_modifier_1,
 		.id    = 46,
+	},
+	{
+		.name  = "task-clock:P,cycles",
+		.check = test__checkevent_precise_max_modifier,
+		.id    = 47,
 	},
 };
 
