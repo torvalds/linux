@@ -1781,7 +1781,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * Flush them here.
 		 */
 		mutex_lock(&mvm->mutex);
-		iwl_mvm_flush_tx_path(mvm, tfd_msk, true);
+		iwl_mvm_flush_tx_path(mvm, tfd_msk, 0);
 		mutex_unlock(&mvm->mutex);
 
 		/*
@@ -3924,7 +3924,7 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	}
 
 	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, true))
+		if (iwl_mvm_flush_tx_path(mvm, msk, 0))
 			IWL_ERR(mvm, "flush request fail\n");
 		mutex_unlock(&mvm->mutex);
 	} else {

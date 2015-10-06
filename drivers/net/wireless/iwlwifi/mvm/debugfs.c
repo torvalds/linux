@@ -85,7 +85,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 	IWL_ERR(mvm, "FLUSHING queues: scd_q_msk = 0x%x\n", scd_q_msk);
 
 	mutex_lock(&mvm->mutex);
-	ret =  iwl_mvm_flush_tx_path(mvm, scd_q_msk, true) ? : count;
+	ret =  iwl_mvm_flush_tx_path(mvm, scd_q_msk, 0) ? : count;
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
