@@ -219,7 +219,7 @@ static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
 /* Called with IRQs disabled. */
 __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 {
-	if (WARN_ON(!irqs_disabled()))
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
 		local_irq_disable();
 
 	lockdep_sys_exit();
@@ -281,8 +281,8 @@ __visible void syscall_return_slowpath(struct pt_regs *regs)
 
 	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
 
-	if (WARN(irqs_disabled(), "syscall %ld left IRQs disabled",
-		 regs->orig_ax))
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
+	    WARN(irqs_disabled(), "syscall %ld left IRQs disabled", regs->orig_ax))
 		local_irq_enable();
 
 	/*
