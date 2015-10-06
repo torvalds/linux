@@ -48,7 +48,6 @@ static struct mm_struct efi_mm = {
 	.mmap_sem		= __RWSEM_INITIALIZER(efi_mm.mmap_sem),
 	.page_table_lock	= __SPIN_LOCK_UNLOCKED(efi_mm.page_table_lock),
 	.mmlist			= LIST_HEAD_INIT(efi_mm.mmlist),
-	INIT_MM_CONTEXT(efi_mm)
 };
 
 static int uefi_debug __initdata;
