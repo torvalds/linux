@@ -324,9 +324,11 @@ __visible void syscall_return_slowpath(struct pt_regs *regs)
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 /*
  * Does a 32-bit syscall.  Called with IRQs on and does all entry and
- * exit work and returns with IRQs off.
+ * exit work and returns with IRQs off.  This function is extremely hot
+ * in workloads that use it, and it's usually called from
+ * do_fast_syscall_32, so forcibly inline it to improve performance.
  */
-static void do_syscall_32_irqs_on(struct pt_regs *regs)
+static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 {
 	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	unsigned int nr = (unsigned int)regs->orig_ax;
@@ -345,7 +347,7 @@ static void do_syscall_32_irqs_on(struct pt_regs *regs)
 		nr = syscall_trace_enter(regs);
 	}
 
-	if (nr < IA32_NR_syscalls) {
+	if (likely(nr < IA32_NR_syscalls)) {
 		/*
 		 * It's possible that a 32-bit syscall implementation
 		 * takes a 64-bit parameter but nonetheless assumes that
