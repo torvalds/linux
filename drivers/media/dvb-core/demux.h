@@ -55,21 +55,6 @@
 #define DMX_MAX_SECFEED_SIZE (DMX_MAX_SECTION_SIZE + 188)
 #endif
 
-
-/*
- * enum dmx_success: Success codes for the Demux Callback API.
- */
-
-enum dmx_success {
-  DMX_OK = 0, /* Received Ok */
-  DMX_LENGTH_ERROR, /* Incorrect length */
-  DMX_OVERRUN_ERROR, /* Receiver ring buffer overrun */
-  DMX_CRC_ERROR, /* Incorrect CRC */
-  DMX_FRAME_ERROR, /* Frame alignment error */
-  DMX_FIFO_ERROR, /* Receiver FIFO overrun */
-  DMX_MISSED_ERROR /* Receiver missed packet */
-} ;
-
 /*--------------------------------------------------------------------------*/
 /* TS packet reception */
 /*--------------------------------------------------------------------------*/
@@ -141,15 +126,13 @@ typedef int (*dmx_ts_cb) ( const u8 * buffer1,
 			   size_t buffer1_length,
 			   const u8 * buffer2,
 			   size_t buffer2_length,
-			   struct dmx_ts_feed* source,
-			   enum dmx_success success);
+			   struct dmx_ts_feed* source);
 
 typedef int (*dmx_section_cb) (	const u8 * buffer1,
 				size_t buffer1_len,
 				const u8 * buffer2,
 				size_t buffer2_len,
-				struct dmx_section_filter * source,
-				enum dmx_success success);
+				struct dmx_section_filter * source);
 
 /*--------------------------------------------------------------------------*/
 /* DVB Front-End */

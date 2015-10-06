@@ -11,20 +11,6 @@ DVB device driver writers. The header file for this API is named <constant>demux
 <title>Kernel Demux Data Types</title>
 
 
-<section id="dmx_success_t">
-<title>dmx_success_t</title>
- <programlisting>
- typedef enum {
-   DMX_OK = 0, /&#x22C6; Received Ok &#x22C6;/
-   DMX_LENGTH_ERROR, /&#x22C6; Incorrect length &#x22C6;/
-   DMX_OVERRUN_ERROR, /&#x22C6; Receiver ring buffer overrun &#x22C6;/
-   DMX_CRC_ERROR, /&#x22C6; Incorrect CRC &#x22C6;/
-   DMX_FRAME_ERROR, /&#x22C6; Frame alignment error &#x22C6;/
-   DMX_FIFO_ERROR, /&#x22C6; Receiver FIFO overrun &#x22C6;/
-   DMX_MISSED_ERROR /&#x22C6; Receiver missed packet &#x22C6;/
- } dmx_success_t;
-</programlisting>
-
 </section>
 <section id="ts_filter_types">
 <title>TS filter types</title>
@@ -143,22 +129,19 @@ should be kept identical) to the types in the demux device.
 			    size_t buffer1_length,
 			    __u8 &#x22C6; buffer2,
 			    size_t buffer2_length,
-			    dmx_ts_feed_t&#x22C6; source,
-			    dmx_success_t success);
+			    dmx_ts_feed_t&#x22C6; source)
 
  typedef int (&#x22C6;dmx_section_cb) ( __u8 &#x22C6; buffer1,
 				 size_t buffer1_len,
 				 __u8 &#x22C6; buffer2,
 				 size_t buffer2_len,
-				 dmx_section_filter_t &#x22C6; source,
-				 dmx_success_t success);
+				 dmx_section_filter_t &#x22C6; source);
 
  typedef int (&#x22C6;dmx_pes_cb) ( __u8 &#x22C6; buffer1,
 			     size_t buffer1_len,
 			     __u8 &#x22C6; buffer2,
 			     size_t buffer2_len,
-			     dmx_pes_filter_t&#x22C6; source,
-			     dmx_success_t success);
+			     dmx_pes_filter_t&#x22C6; source);
 
  /&#x22C6;--------------------------------------------------------------------------&#x22C6;/
  /&#x22C6; DVB Front-End &#x22C6;/
@@ -523,7 +506,7 @@ role="subsection"><title>dmx_ts_cb()</title>
  align="char">
 <para>int dmx_ts_cb(__u8&#x22C6; buffer1, size_t buffer1_length,
  __u8&#x22C6; buffer2, size_t buffer2_length, dmx_ts_feed_t&#x22C6;
- source, dmx_success_t success);</para>
+ source);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>PARAMETERS
@@ -563,14 +546,6 @@ role="subsection"><title>dmx_ts_cb()</title>
 </entry><entry
  align="char">
 <para>Indicates which TS feed is the source of the callback.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>dmx_success_t
- success</para>
-</entry><entry
- align="char">
-<para>Indicates if there was an error in TS reception.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>RETURNS
@@ -623,8 +598,7 @@ role="subsection"><title>dmx_section_cb()</title>
  align="char">
 <para>int dmx_section_cb(__u8&#x22C6; buffer1, size_t
  buffer1_length, __u8&#x22C6; buffer2, size_t
- buffer2_length, dmx_section_filter_t&#x22C6; source,
- dmx_success_t success);</para>
+ buffer2_length, dmx_section_filter_t&#x22C6; source);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>PARAMETERS
@@ -668,14 +642,6 @@ role="subsection"><title>dmx_section_cb()</title>
 </entry><entry
  align="char">
 <para>Indicates the filter that triggered the callback.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>dmx_success_t
- success</para>
-</entry><entry
- align="char">
-<para>Indicates if there was an error in section reception.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>RETURNS
