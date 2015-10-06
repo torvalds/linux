@@ -43,8 +43,7 @@
 #define MF6X4_ADCTRL_CHAN(x)	BIT(chan)
 #define MF6X4_DIN_R		0x10
 #define MF6X4_DIN_M		0xff
-#define MF6X4_DOUT_R		0x10
-#define MF6X4_DOUT_M		0xff
+#define MF6X4_DOUT_REG		0x10
 #define MF6X4_ADSTART_R		0x20
 #define MF6X4_DAC_R(x)		(0x20 + ((x) * 2))
 
@@ -107,7 +106,7 @@ static int mf6x4_do_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		iowrite16(s->state & MF6X4_DOUT_M, dev->mmio + MF6X4_DOUT_R);
+		iowrite16(s->state, dev->mmio + MF6X4_DOUT_REG);
 
 	data[1] = s->state;
 
