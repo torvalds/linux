@@ -914,8 +914,10 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];
 
-		if (ds != NULL)
+		if (ds) {
 			dsa_switch_destroy(ds);
+			kfree(ds);
+		}
 	}
 }
 
@@ -924,6 +926,7 @@ static int dsa_remove(struct platform_device *pdev)
 	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
 
 	dsa_remove_dst(dst);
+	kfree(dst);
 	dsa_of_remove(&pdev->dev);
 
 	return 0;
