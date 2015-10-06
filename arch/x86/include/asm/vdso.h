@@ -26,6 +26,7 @@ struct vdso_image {
 	long sym___kernel_sigreturn;
 	long sym___kernel_rt_sigreturn;
 	long sym___kernel_vsyscall;
+	long sym_int80_landing_pad;
 };
 
 #ifdef CONFIG_X86_64

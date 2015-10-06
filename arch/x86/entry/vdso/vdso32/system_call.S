@@ -16,7 +16,30 @@
 	ALIGN
 __kernel_vsyscall:
 	CFI_STARTPROC
-	int $0x80
+	/*
+	 * Reshuffle regs so that all of any of the entry instructions
+	 * will preserve enough state.
+	 */
+	pushl	%edx
+	CFI_ADJUST_CFA_OFFSET	4
+	CFI_REL_OFFSET		edx, 0
+	pushl	%ecx
+	CFI_ADJUST_CFA_OFFSET	4
+	CFI_REL_OFFSET		ecx, 0
+	movl	%esp, %ecx
+
+	/* Enter using int $0x80 */
+	movl	(%esp), %ecx
+	int	$0x80
+GLOBAL(int80_landing_pad)
+
+	/* Restore ECX and EDX in case they were clobbered. */
+	popl	%ecx
+	CFI_RESTORE		ecx
+	CFI_ADJUST_CFA_OFFSET	-4
+	popl	%edx
+	CFI_RESTORE		edx
+	CFI_ADJUST_CFA_OFFSET	-4
 	ret
 	CFI_ENDPROC
 
