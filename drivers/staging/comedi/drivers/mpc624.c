@@ -59,25 +59,25 @@
 
 /* Offsets of different ports */
 #define MPC624_MASTER_CONTROL	0 /* not used */
-#define MPC624_GNMUXCH          1 /* Gain, Mux, Channel of ADC */
-#define MPC624_ADC              2 /* read/write to/from ADC */
-#define MPC624_EE               3 /* read/write to/from serial EEPROM via I2C */
-#define MPC624_LEDS             4 /* write to LEDs */
-#define MPC624_DIO              5 /* read/write to/from digital I/O ports */
-#define MPC624_IRQ_MASK         6 /* IRQ masking enable/disable */
+#define MPC624_GNMUXCH		1 /* Gain, Mux, Channel of ADC */
+#define MPC624_ADC		2 /* read/write to/from ADC */
+#define MPC624_EE		3 /* read/write to/from serial EEPROM via I2C */
+#define MPC624_LEDS		4 /* write to LEDs */
+#define MPC624_DIO		5 /* read/write to/from digital I/O ports */
+#define MPC624_IRQ_MASK		6 /* IRQ masking enable/disable */
 
 /* Register bits' names */
-#define MPC624_ADBUSY           BIT(5)
-#define MPC624_ADSDO            BIT(4)
-#define MPC624_ADFO             BIT(3)
-#define MPC624_ADCS             BIT(2)
-#define MPC624_ADSCK            BIT(1)
-#define MPC624_ADSDI            BIT(0)
+#define MPC624_ADBUSY		BIT(5)
+#define MPC624_ADSDO		BIT(4)
+#define MPC624_ADFO		BIT(3)
+#define MPC624_ADCS		BIT(2)
+#define MPC624_ADSCK		BIT(1)
+#define MPC624_ADSDI		BIT(0)
 
 /* 32-bit output value bits' names */
-#define MPC624_EOC_BIT          BIT(31)
-#define MPC624_DMY_BIT          BIT(30)
-#define MPC624_SGN_BIT          BIT(29)
+#define MPC624_EOC_BIT		BIT(31)
+#define MPC624_DMY_BIT		BIT(30)
+#define MPC624_SGN_BIT		BIT(29)
 
 /* SDI Speed/Resolution Programming bits */
 #define MPC624_OSR(x)		(((x) & 0x1f) << 27)
