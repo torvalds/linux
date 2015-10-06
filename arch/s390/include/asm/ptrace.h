@@ -128,17 +128,17 @@ struct per_struct_kernel {
 
 static inline void set_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	regs->flags |= (1U << flag);
+	regs->flags |= (1UL << flag);
 }
 
 static inline void clear_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	regs->flags &= ~(1U << flag);
+	regs->flags &= ~(1UL << flag);
 }
 
 static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
 {
-	return !!(regs->flags & (1U << flag));
+	return !!(regs->flags & (1UL << flag));
 }
 
 /*

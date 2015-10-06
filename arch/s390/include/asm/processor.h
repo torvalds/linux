@@ -36,17 +36,17 @@
 
 static inline void set_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags |= (1U << flag);
+	S390_lowcore.cpu_flags |= (1UL << flag);
 }
 
 static inline void clear_cpu_flag(int flag)
 {
-	S390_lowcore.cpu_flags &= ~(1U << flag);
+	S390_lowcore.cpu_flags &= ~(1UL << flag);
 }
 
 static inline int test_cpu_flag(int flag)
 {
-	return !!(S390_lowcore.cpu_flags & (1U << flag));
+	return !!(S390_lowcore.cpu_flags & (1UL << flag));
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
