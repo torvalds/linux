@@ -24,6 +24,8 @@
 
 #include <asm/desc.h>
 #include <asm/traps.h>
+#include <asm/vdso.h>
+#include <asm/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -359,5 +361,46 @@ __visible void do_int80_syscall_32(struct pt_regs *regs)
 	}
 
 	syscall_return_slowpath(regs);
+}
+
+__visible void do_fast_syscall_32(struct pt_regs *regs)
+{
+	/*
+	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
+	 * convention.  Adjust regs so it looks like we entered using int80.
+	 */
+
+	unsigned long landing_pad = (unsigned long)current->mm->context.vdso +
+		vdso_image_32.sym_int80_landing_pad;
+
+	/*
+	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
+	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
+	 * Fix it up.
+	 */
+	regs->ip = landing_pad;
+
+	/*
+	 * Fetch ECX from where the vDSO stashed it.
+	 *
+	 * WARNING: We are in CONTEXT_USER and RCU isn't paying attention!
+	 */
+	local_irq_enable();
+	if (get_user(*(u32 *)&regs->cx,
+		     (u32 __user __force *)(unsigned long)(u32)regs->sp)) {
+		/* User code screwed up. */
+		local_irq_disable();
+		regs->ax = -EFAULT;
+#ifdef CONFIG_CONTEXT_TRACKING
+		enter_from_user_mode();
+#endif
+		prepare_exit_to_usermode(regs);
+		return;
+	}
+	local_irq_disable();
+
+	/* Now this is just like a normal syscall. */
+	do_int80_syscall_32(regs);
+	return;
 }
 #endif
