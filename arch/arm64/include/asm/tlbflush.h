@@ -163,7 +163,6 @@ static inline void __flush_tlb_pgtable(struct mm_struct *mm,
 {
 	unsigned long addr = uaddr >> 12 | (ASID(mm) << 48);
 
-	dsb(ishst);
 	asm("tlbi	vae1is, %0" : : "r" (addr));
 	dsb(ish);
 }
