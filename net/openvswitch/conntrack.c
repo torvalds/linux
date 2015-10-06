@@ -167,7 +167,7 @@ void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 
 int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
 {
-	if (nla_put_u8(skb, OVS_KEY_ATTR_CT_STATE, key->ct.state))
+	if (nla_put_u32(skb, OVS_KEY_ATTR_CT_STATE, key->ct.state))
 		return -EMSGSIZE;
 
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
