@@ -75,7 +75,7 @@
 		adc_op_clk: adc_op_clk{
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <20000000>;
+			clock-frequency = <1000000>;
 		};
 	};
 
@@ -322,6 +322,7 @@
 				atmel,adc-use-external-triggers;
 				atmel,adc-vref = <3000>;
 				atmel,adc-res = <10 12>;
+				atmel,adc-sample-hold-time = <11>;
 				atmel,adc-res-names = "lowres", "highres";
 				status = "disabled";
 
