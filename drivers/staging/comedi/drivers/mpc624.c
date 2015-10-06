@@ -115,6 +115,85 @@ static const struct comedi_lrange range_mpc624_bipolar10 = {
 	 }
 };
 
+static unsigned int mpc624_ai_get_sample(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	struct mpc624_private *devpriv = dev->private;
+	unsigned int data_out = devpriv->ai_speed;
+	unsigned int data_in = 0;
+	unsigned int bit;
+	int i;
+
+	/* Start reading data */
+	udelay(1);
+	for (i = 0; i < 32; i++) {
+		/* Set the clock low */
+		outb(0, dev->iobase + MPC624_ADC);
+		udelay(1);
+
+		/* Set the ADSDI line for the next bit (send to MPC624) */
+		bit = (data_out & BIT(31)) ? MPC624_ADSDI : 0;
+		outb(bit, dev->iobase + MPC624_ADC);
+		udelay(1);
+
+		/* Set the clock high */
+		outb(MPC624_ADSCK | bit, dev->iobase + MPC624_ADC);
+		udelay(1);
+
+		/* Read ADSDO on high clock (receive from MPC624) */
+		data_in <<= 1;
+		data_in |= (inb(dev->iobase + MPC624_ADC) & MPC624_ADSDO) >> 4;
+		udelay(1);
+
+		data_out <<= 1;
+	}
+
+	/*
+	 * Received 32-bit long value consist of:
+	 *	31: EOC - (End Of Transmission) bit - should be 0
+	 *	30: DMY - (Dummy) bit - should be 0
+	 *	29: SIG - (Sign) bit - 1 if positive, 0 if negative
+	 *	28: MSB - (Most Significant Bit) - the first bit of the
+	 *					   conversion result
+	 *	....
+	 *	05: LSB - (Least Significant Bit)- the last bit of the
+	 *					   conversion result
+	 *	04-00: sub-LSB - sub-LSBs are basically noise, but when
+	 *			 averaged properly, they can increase
+	 *			 conversion precision up to 29 bits;
+	 *			 they can be discarded without loss of
+	 *			 resolution.
+	 */
+	if (data_in & MPC624_EOC_BIT)
+		dev_dbg(dev->class_dev, "EOC bit is set!");
+	if (data_in & MPC624_DMY_BIT)
+		dev_dbg(dev->class_dev, "DMY bit is set!");
+
+	if (data_in & MPC624_SGN_BIT) {
+		/*
+		 * Voltage is positive
+		 *
+		 * comedi operates on unsigned numbers, so mask off EOC
+		 * and DMY and don't clear the SGN bit
+		 */
+		data_in &= 0x3fffffff;
+	} else {
+		/*
+		 * The voltage is negative
+		 *
+		 * data_in contains a number in 30-bit two's complement
+		 * code and we must deal with it
+		 */
+		data_in |= MPC624_SGN_BIT;
+		data_in = ~data_in;
+		data_in += 1;
+		/* clear EOC and DMY bits */
+		data_in &= ~(MPC624_EOC_BIT | MPC624_DMY_BIT);
+		data_in = 0x20000000 - data_in;
+	}
+	return data_in;
+}
+
 static int mpc624_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -133,10 +212,8 @@ static int mpc624_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct mpc624_private *devpriv = dev->private;
-	int n, i;
-	unsigned long int data_in, data_out;
 	int ret;
+	int i;
 
 	/*
 	 *  WARNING:
@@ -144,7 +221,7 @@ static int mpc624_ai_insn_read(struct comedi_device *dev,
 	 */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		/*  Trigger the conversion */
 		outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
 		udelay(1);
@@ -158,93 +235,10 @@ static int mpc624_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		/*  Start reading data */
-		data_in = 0;
-		data_out = devpriv->ai_speed;
-		udelay(1);
-		for (i = 0; i < 32; i++) {
-			/*  Set the clock low */
-			outb(0, dev->iobase + MPC624_ADC);
-			udelay(1);
-
-			if (data_out & BIT(31)) { /*  the next bit is a 1 */
-				/*  Set the ADSDI line (send to MPC624) */
-				outb(MPC624_ADSDI, dev->iobase + MPC624_ADC);
-				udelay(1);
-				/*  Set the clock high */
-				outb(MPC624_ADSCK | MPC624_ADSDI,
-				     dev->iobase + MPC624_ADC);
-			} else {	/*  the next bit is a 0 */
-
-				/*  Set the ADSDI line (send to MPC624) */
-				outb(0, dev->iobase + MPC624_ADC);
-				udelay(1);
-				/*  Set the clock high */
-				outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
-			}
-			/*  Read ADSDO on high clock (receive from MPC624) */
-			udelay(1);
-			data_in <<= 1;
-			data_in |=
-			    (inb(dev->iobase + MPC624_ADC) & MPC624_ADSDO) >> 4;
-			udelay(1);
-
-			data_out <<= 1;
-		}
-
-		/*
-		 *  Received 32-bit long value consist of:
-		 *    31: EOC -
-		 *          (End Of Transmission) bit - should be 0
-		 *    30: DMY
-		 *          (Dummy) bit - should be 0
-		 *    29: SIG
-		 *          (Sign) bit- 1 if the voltage is positive,
-		 *                      0 if negative
-		 *    28: MSB
-		 *          (Most Significant Bit) - the first bit of
-		 *                                   the conversion result
-		 *    ....
-		 *    05: LSB
-		 *          (Least Significant Bit)- the last bit of the
-		 *                                   conversion result
-		 *    04-00: sub-LSB
-		 *          - sub-LSBs are basically noise, but when
-		 *            averaged properly, they can increase conversion
-		 *            precision up to 29 bits; they can be discarded
-		 *            without loss of resolution.
-		 */
-
-		if (data_in & MPC624_EOC_BIT)
-			dev_dbg(dev->class_dev,
-				"EOC bit is set (data_in=%lu)!", data_in);
-		if (data_in & MPC624_DMY_BIT)
-			dev_dbg(dev->class_dev,
-				"DMY bit is set (data_in=%lu)!", data_in);
-		if (data_in & MPC624_SGN_BIT) {	/* Volatge is positive */
-			/*
-			 * comedi operates on unsigned numbers, so mask off EOC
-			 * and DMY and don't clear the SGN bit
-			 */
-			data_in &= 0x3FFFFFFF;
-			data[n] = data_in;
-		} else { /*  The voltage is negative */
-			/*
-			 * data_in contains a number in 30-bit two's complement
-			 * code and we must deal with it
-			 */
-			data_in |= MPC624_SGN_BIT;
-			data_in = ~data_in;
-			data_in += 1;
-			data_in &= ~(MPC624_EOC_BIT | MPC624_DMY_BIT);
-			/*  clear EOC and DMY bits */
-			data_in = 0x20000000 - data_in;
-			data[n] = data_in;
-		}
+		data[i] = mpc624_ai_get_sample(dev, s);
 	}
 
-	/*  Return the number of samples read/written */
-	return n;
+	return insn->n;
 }
 
 static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
