@@ -1051,27 +1051,16 @@ static inline __u8 bdaddr_type(__u8 type)
 		return BDADDR_LE_RANDOM;
 }
 
-static struct l2cap_chan *chan_get(void)
-{
-	struct l2cap_chan *chan;
-
-	chan = chan_create();
-	if (!chan)
-		return NULL;
-
-	chan->ops = &bt_6lowpan_chan_ops;
-
-	return chan;
-}
-
 static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 {
 	struct l2cap_chan *chan;
 	int err;
 
-	chan = chan_get();
+	chan = chan_create();
 	if (!chan)
 		return -EINVAL;
+
+	chan->ops = &bt_6lowpan_chan_ops;
 
 	err = l2cap_chan_connect(chan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
 				 addr, dst_type);
@@ -1109,10 +1098,11 @@ static struct l2cap_chan *bt_6lowpan_listen(void)
 	if (!enable_6lowpan)
 		return NULL;
 
-	chan = chan_get();
+	chan = chan_create();
 	if (!chan)
 		return NULL;
 
+	chan->ops = &bt_6lowpan_chan_ops;
 	chan->state = BT_LISTEN;
 	chan->src_type = BDADDR_LE_PUBLIC;
 
