@@ -202,6 +202,36 @@ struct platform_freeze_ops {
 extern void suspend_set_ops(const struct platform_suspend_ops *ops);
 extern int suspend_valid_only_mem(suspend_state_t state);
 
+extern unsigned int pm_suspend_global_flags;
+
+#define PM_SUSPEND_FLAG_FW_SUSPEND	(1 << 0)
+#define PM_SUSPEND_FLAG_FW_RESUME	(1 << 1)
+
+static inline void pm_suspend_clear_flags(void)
+{
+	pm_suspend_global_flags = 0;
+}
+
+static inline void pm_set_suspend_via_firmware(void)
+{
+	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_SUSPEND;
+}
+
+static inline void pm_set_resume_via_firmware(void)
+{
+	pm_suspend_global_flags |= PM_SUSPEND_FLAG_FW_RESUME;
+}
+
+static inline bool pm_suspend_via_firmware(void)
+{
+	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_SUSPEND);
+}
+
+static inline bool pm_resume_via_firmware(void)
+{
+	return !!(pm_suspend_global_flags & PM_SUSPEND_FLAG_FW_RESUME);
+}
+
 /* Suspend-to-idle state machnine. */
 enum freeze_state {
 	FREEZE_STATE_NONE,      /* Not suspended/suspending. */
@@ -240,6 +270,12 @@ extern void arch_suspend_enable_irqs(void);
 extern int pm_suspend(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */
 #define suspend_valid_only_mem	NULL
+
+static inline void pm_suspend_clear_flags(void) {}
+static inline void pm_set_suspend_via_firmware(void) {}
+static inline void pm_set_resume_via_firmware(void) {}
+static inline bool pm_suspend_via_firmware(void) { return false; }
+static inline bool pm_resume_via_firmware(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
