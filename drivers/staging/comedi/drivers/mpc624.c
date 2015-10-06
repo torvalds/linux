@@ -93,7 +93,7 @@
 #define MPC624_SPEED_6_875_HZ	MPC624_OSR(0x1f)
 
 struct mpc624_private {
-	unsigned long int ai_speed;
+	unsigned int ai_speed;
 };
 
 /* -------------------------------------------------------------------------- */
