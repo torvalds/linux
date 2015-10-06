@@ -569,8 +569,8 @@ static void fib_rebalance(struct fib_info *fi)
 			upper_bound = -1;
 		} else {
 			w += nexthop_nh->nh_weight;
-			upper_bound = DIV_ROUND_CLOSEST(2147483648LL * w,
-							total) - 1;
+			upper_bound = DIV_ROUND_CLOSEST_ULL((u64)w << 31,
+							    total) - 1;
 		}
 
 		atomic_set(&nexthop_nh->nh_upper_bound, upper_bound);
