@@ -31,27 +31,27 @@
 #include "../comedi_pci.h"
 
 /* Registers present in BAR0 memory region */
-#define MF624_GPIOC_R					0x54
+#define MF624_GPIOC_R		0x54
 
 #define MF6X4_GPIOC_EOLC	BIT(17)	/* End Of Last Conversion */
 #define MF6X4_GPIOC_LDAC	BIT(23)	/* Load DACs */
 #define MF6X4_GPIOC_DACEN	BIT(26)
 
 /* BAR1 registers */
-#define MF6X4_DIN_R					0x10
-#define MF6X4_DIN_M					0xff
-#define MF6X4_DOUT_R					0x10
-#define MF6X4_DOUT_M					0xff
+#define MF6X4_DIN_R		0x10
+#define MF6X4_DIN_M		0xff
+#define MF6X4_DOUT_R		0x10
+#define MF6X4_DOUT_M		0xff
 
-#define MF6X4_ADSTART_R					0x20
-#define MF6X4_ADDATA_R					0x00
-#define MF6X4_ADCTRL_R					0x00
-#define MF6X4_ADCTRL_M					0xff
+#define MF6X4_ADSTART_R		0x20
+#define MF6X4_ADDATA_R		0x00
+#define MF6X4_ADCTRL_R		0x00
+#define MF6X4_ADCTRL_M		0xff
 
-#define MF6X4_DAC_R(x)					(0x20 + ((x) * 2))
+#define MF6X4_DAC_R(x)		(0x20 + ((x) * 2))
 
 /* BAR2 registers */
-#define MF634_GPIOC_R					0x68
+#define MF634_GPIOC_R		0x68
 
 enum mf6x4_boardid {
 	BOARD_MF634,
