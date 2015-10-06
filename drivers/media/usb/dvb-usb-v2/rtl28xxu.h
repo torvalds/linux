@@ -69,7 +69,7 @@
 
 
 struct rtl28xxu_dev {
-	u8 buf[28];
+	u8 buf[128];
 	u8 chip_id;
 	u8 tuner;
 	char *tuner_name;
