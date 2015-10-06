@@ -702,6 +702,8 @@ dtb-$(CONFIG_MACH_ARMADA_370) += \
 	armada-370-netgear-rn102.dtb \
 	armada-370-netgear-rn104.dtb \
 	armada-370-rd.dtb \
+	armada-370-seagate-nas-2bay.dtb \
+	armada-370-seagate-nas-4bay.dtb \
 	armada-370-synology-ds213j.dtb
 dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
