@@ -668,18 +668,22 @@ static int ads7846_no_filter(void *ads, int data_idx, int *val)
 
 static int ads7846_get_value(struct ads7846 *ts, struct spi_message *m)
 {
+	int value;
 	struct spi_transfer *t =
 		list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
 
 	if (ts->model == 7845) {
-		return be16_to_cpup((__be16 *)&(((char*)t->rx_buf)[1])) >> 3;
+		value = be16_to_cpup((__be16 *)&(((char *)t->rx_buf)[1]));
 	} else {
 		/*
 		 * adjust:  on-wire is a must-ignore bit, a BE12 value, then
 		 * padding; built from two 8 bit values written msb-first.
 		 */
-		return be16_to_cpup((__be16 *)t->rx_buf) >> 3;
+		value = be16_to_cpup((__be16 *)t->rx_buf);
 	}
+
+	/* enforce ADC output is 12 bits width */
+	return (value >> 3) & 0xfff;
 }
 
 static void ads7846_update_value(struct spi_message *m, int val)
