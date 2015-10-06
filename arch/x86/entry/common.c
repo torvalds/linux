@@ -71,7 +71,8 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 	unsigned long ret = 0;
 	u32 work;
 
-	BUG_ON(regs != task_pt_regs(current));
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+		BUG_ON(regs != task_pt_regs(current));
 
 	work = ACCESS_ONCE(current_thread_info()->flags) &
 		_TIF_WORK_SYSCALL_ENTRY;
@@ -160,7 +161,8 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
 	u32 work = ACCESS_ONCE(current_thread_info()->flags) &
 		_TIF_WORK_SYSCALL_ENTRY;
 
-	BUG_ON(regs != task_pt_regs(current));
+	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+		BUG_ON(regs != task_pt_regs(current));
 
 	/*
 	 * If we stepped into a sysenter/syscall insn, it trapped in
