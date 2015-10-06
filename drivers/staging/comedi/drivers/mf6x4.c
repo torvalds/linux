@@ -44,8 +44,8 @@
 #define MF6X4_DIN_REG		0x10
 #define MF6X4_DIN_MASK		0xff
 #define MF6X4_DOUT_REG		0x10
-#define MF6X4_ADSTART_R		0x20
-#define MF6X4_DAC_R(x)		(0x20 + ((x) * 2))
+#define MF6X4_ADSTART_REG	0x20
+#define MF6X4_DAC_REG(x)	(0x20 + ((x) * 2))
 
 /* BAR2 registers */
 #define MF634_GPIOC_R		0x68
@@ -142,7 +142,7 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		/* Trigger ADC conversion by reading ADSTART */
-		ioread16(dev->mmio + MF6X4_ADSTART_R);
+		ioread16(dev->mmio + MF6X4_ADSTART_REG);
 
 		ret = comedi_timeout(dev, s, insn, mf6x4_ai_eoc, 0);
 		if (ret)
@@ -178,7 +178,7 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		iowrite16(val, dev->mmio + MF6X4_DAC_R(chan));
+		iowrite16(val, dev->mmio + MF6X4_DAC_REG(chan));
 	}
 	s->readback[chan] = val;
 
