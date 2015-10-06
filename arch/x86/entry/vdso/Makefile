@@ -67,7 +67,7 @@ $(obj)/vdso-image-%.c: $(obj)/vdso%.so.dbg $(obj)/vdso%.so $(obj)/vdso2c FORCE
 CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \
        $(filter -g%,$(KBUILD_CFLAGS)) $(call cc-option, -fno-stack-protector) \
        -fno-omit-frame-pointer -foptimize-sibling-calls \
-       -DDISABLE_BRANCH_PROFILING
+       -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
 
 $(vobjs): KBUILD_CFLAGS += $(CFL)
 
@@ -131,7 +131,7 @@ targets += vdso32/vdso32.lds
 targets += vdso32/note.o vdso32/vclock_gettime.o vdso32/system_call.o
 targets += vdso32/vclock_gettime.o
 
-KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
+KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS)) -DBUILD_VDSO
 $(obj)/vdso32.so.dbg: KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
 $(obj)/vdso32.so.dbg: asflags-$(CONFIG_X86_64) += -m32
 

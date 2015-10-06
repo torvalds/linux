@@ -36,15 +36,22 @@
 #endif
 
 #if defined(CONFIG_AS_CFI_SECTIONS) && defined(__ASSEMBLY__)
+#ifndef BUILD_VDSO
 	/*
 	 * Emit CFI data in .debug_frame sections, not .eh_frame sections.
 	 * The latter we currently just discard since we don't do DWARF
 	 * unwinding at runtime.  So only the offline DWARF information is
-	 * useful to anyone.  Note we should not use this directive if this
-	 * file is used in the vDSO assembly, or if vmlinux.lds.S gets
-	 * changed so it doesn't discard .eh_frame.
+	 * useful to anyone.  Note we should not use this directive if
+	 * vmlinux.lds.S gets changed so it doesn't discard .eh_frame.
 	 */
 	.cfi_sections .debug_frame
+#else
+	 /*
+	  * For the vDSO, emit both runtime unwind information and debug
+	  * symbols for the .dbg file.
+	  */
+	.cfi_sections .eh_frame, .debug_frame
+#endif
 #endif
 
 #else
