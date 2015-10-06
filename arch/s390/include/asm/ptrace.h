@@ -6,13 +6,14 @@
 #ifndef _S390_PTRACE_H
 #define _S390_PTRACE_H
 
+#include <linux/const.h>
 #include <uapi/asm/ptrace.h>
 
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
 
-#define _PIF_SYSCALL		(1<<PIF_SYSCALL)
-#define _PIF_PER_TRAP		(1<<PIF_PER_TRAP)
+#define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
+#define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
 
 #ifndef __ASSEMBLY__
 
