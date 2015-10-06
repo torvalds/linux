@@ -294,6 +294,8 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	printk("### PCIBIOS_FIXUP_BUS(%d)\n",bus->number);
 #endif
 
+	pci_read_bridge_bases(bus);
+
 	if (bus->number == 0) {
 		struct pci_dev *dev;
 		list_for_each_entry(dev, &bus->devices, bus_list) {

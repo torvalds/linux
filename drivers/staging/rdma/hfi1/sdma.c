@@ -737,7 +737,7 @@ u16 sdma_get_descq_cnt(void)
 	 */
 	if (!is_power_of_2(count))
 		return SDMA_DESCQ_CNT;
-	if (count < 64 && count > 32768)
+	if (count < 64 || count > 32768)
 		return SDMA_DESCQ_CNT;
 	return count;
 }
@@ -1848,7 +1848,7 @@ static void dump_sdma_state(struct sdma_engine *sde)
 			dd_dev_err(sde->dd,
 				"\taidx: %u amode: %u alen: %u\n",
 				(u8)((desc[1] & SDMA_DESC1_HEADER_INDEX_SMASK)
-					>> SDMA_DESC1_HEADER_INDEX_MASK),
+					>> SDMA_DESC1_HEADER_INDEX_SHIFT),
 				(u8)((desc[1] & SDMA_DESC1_HEADER_MODE_SMASK)
 					>> SDMA_DESC1_HEADER_MODE_SHIFT),
 				(u8)((desc[1] & SDMA_DESC1_HEADER_DWS_SMASK)
@@ -1926,7 +1926,7 @@ void sdma_seqfile_dump_sde(struct seq_file *s, struct sdma_engine *sde)
 		if (desc[0] & SDMA_DESC0_FIRST_DESC_FLAG)
 			seq_printf(s, "\t\tahgidx: %u ahgmode: %u\n",
 				(u8)((desc[1] & SDMA_DESC1_HEADER_INDEX_SMASK)
-					>> SDMA_DESC1_HEADER_INDEX_MASK),
+					>> SDMA_DESC1_HEADER_INDEX_SHIFT),
 				(u8)((desc[1] & SDMA_DESC1_HEADER_MODE_SMASK)
 					>> SDMA_DESC1_HEADER_MODE_SHIFT));
 		head = (head + 1) & sde->sdma_mask;

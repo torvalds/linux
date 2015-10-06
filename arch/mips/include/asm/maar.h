@@ -66,6 +66,15 @@ static inline void write_maar_pair(unsigned idx, phys_addr_t lower,
 }
 
 /**
+ * maar_init() - initialise MAARs
+ *
+ * Performs initialisation of MAARs for the current CPU, making use of the
+ * platforms implementation of platform_maar_init where necessary and
+ * duplicating the setup it provides on secondary CPUs.
+ */
+extern void maar_init(void);
+
+/**
  * struct maar_config - MAAR configuration data
  * @lower:	The lowest address that the MAAR pair will affect. Must be
  *		aligned to a 2^16 byte boundary.

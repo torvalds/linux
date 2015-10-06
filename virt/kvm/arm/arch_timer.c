@@ -200,6 +200,14 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	timer->irq = irq;
 
 	/*
+	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
+	 * and to 0 for ARMv7.  We provide an implementation that always
+	 * resets the timer to be disabled and unmasked and is compliant with
+	 * the ARMv7 architecture.
+	 */
+	timer->cntv_ctl = 0;
+
+	/*
 	 * Tell the VGIC that the virtual interrupt is tied to a
 	 * physical interrupt. We do that once per VCPU.
 	 */

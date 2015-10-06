@@ -1,9 +1,6 @@
 #define _GNU_SOURCE
-#define __EXPORTED_HEADERS__
-
 #include <linux/membarrier.h>
-#include <asm-generic/unistd.h>
-#include <sys/syscall.h>
+#include <syscall.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>

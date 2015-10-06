@@ -771,40 +771,14 @@ static enum kvm_bus ioeventfd_bus_from_flags(__u32 flags)
 	return KVM_MMIO_BUS;
 }
 
-static int
-kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
+				enum kvm_bus bus_idx,
+				struct kvm_ioeventfd *args)
 {
-	enum kvm_bus              bus_idx;
-	struct _ioeventfd        *p;
-	struct eventfd_ctx       *eventfd;
-	int                       ret;
 
-	bus_idx = ioeventfd_bus_from_flags(args->flags);
-	/* must be natural-word sized, or 0 to ignore length */
-	switch (args->len) {
-	case 0:
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* check for range overflow */
-	if (args->addr + args->len < args->addr)
-		return -EINVAL;
-
-	/* check for extra flags that we don't understand */
-	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
-		return -EINVAL;
-
-	/* ioeventfd with no length can't be combined with DATAMATCH */
-	if (!args->len &&
-	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
-			   KVM_IOEVENTFD_FLAG_DATAMATCH))
-		return -EINVAL;
+	struct eventfd_ctx *eventfd;
+	struct _ioeventfd *p;
+	int ret;
 
 	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
@@ -843,16 +817,6 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (ret < 0)
 		goto unlock_fail;
 
-	/* When length is ignored, MMIO is also put on a separate bus, for
-	 * faster lookups.
-	 */
-	if (!args->len && !(args->flags & KVM_IOEVENTFD_FLAG_PIO)) {
-		ret = kvm_io_bus_register_dev(kvm, KVM_FAST_MMIO_BUS,
-					      p->addr, 0, &p->dev);
-		if (ret < 0)
-			goto register_fail;
-	}
-
 	kvm->buses[bus_idx]->ioeventfd_count++;
 	list_add_tail(&p->list, &kvm->ioeventfds);
 
@@ -860,8 +824,6 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	return 0;
 
-register_fail:
-	kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
 unlock_fail:
 	mutex_unlock(&kvm->slots_lock);
 
@@ -873,14 +835,13 @@ fail:
 }
 
 static int
-kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
+			   struct kvm_ioeventfd *args)
 {
-	enum kvm_bus              bus_idx;
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
 	int                       ret = -ENOENT;
 
-	bus_idx = ioeventfd_bus_from_flags(args->flags);
 	eventfd = eventfd_ctx_fdget(args->fd);
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
@@ -901,10 +862,6 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 			continue;
 
 		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
-		if (!p->length) {
-			kvm_io_bus_unregister_dev(kvm, KVM_FAST_MMIO_BUS,
-						  &p->dev);
-		}
 		kvm->buses[bus_idx]->ioeventfd_count--;
 		ioeventfd_release(p);
 		ret = 0;
@@ -915,6 +872,71 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	eventfd_ctx_put(eventfd);
 
+	return ret;
+}
+
+static int kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	enum kvm_bus bus_idx = ioeventfd_bus_from_flags(args->flags);
+	int ret = kvm_deassign_ioeventfd_idx(kvm, bus_idx, args);
+
+	if (!args->len && bus_idx == KVM_MMIO_BUS)
+		kvm_deassign_ioeventfd_idx(kvm, KVM_FAST_MMIO_BUS, args);
+
+	return ret;
+}
+
+static int
+kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	enum kvm_bus              bus_idx;
+	int ret;
+
+	bus_idx = ioeventfd_bus_from_flags(args->flags);
+	/* must be natural-word sized, or 0 to ignore length */
+	switch (args->len) {
+	case 0:
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* check for range overflow */
+	if (args->addr + args->len < args->addr)
+		return -EINVAL;
+
+	/* check for extra flags that we don't understand */
+	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
+		return -EINVAL;
+
+	/* ioeventfd with no length can't be combined with DATAMATCH */
+	if (!args->len &&
+	    args->flags & (KVM_IOEVENTFD_FLAG_PIO |
+			   KVM_IOEVENTFD_FLAG_DATAMATCH))
+		return -EINVAL;
+
+	ret = kvm_assign_ioeventfd_idx(kvm, bus_idx, args);
+	if (ret)
+		goto fail;
+
+	/* When length is ignored, MMIO is also put on a separate bus, for
+	 * faster lookups.
+	 */
+	if (!args->len && bus_idx == KVM_MMIO_BUS) {
+		ret = kvm_assign_ioeventfd_idx(kvm, KVM_FAST_MMIO_BUS, args);
+		if (ret < 0)
+			goto fast_fail;
+	}
+
+	return 0;
+
+fast_fail:
+	kvm_deassign_ioeventfd_idx(kvm, bus_idx, args);
+fail:
 	return ret;
 }
 

@@ -719,6 +719,9 @@ static unsigned long *its_lpi_alloc_chunks(int nr_irqs, int *base, int *nr_ids)
 out:
 	spin_unlock(&lpi_lock);
 
+	if (!bitmap)
+		*base = *nr_ids = 0;
+
 	return bitmap;
 }
 
@@ -898,8 +901,10 @@ retry_baser:
 			 * non-cacheable as well.
 			 */
 			shr = tmp & GITS_BASER_SHAREABILITY_MASK;
-			if (!shr)
+			if (!shr) {
 				cache = GITS_BASER_nC;
+				__flush_dcache_area(base, alloc_size);
+			}
 			goto retry_baser;
 		}
 
@@ -1139,6 +1144,8 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 		kfree(col_map);
 		return NULL;
 	}
+
+	__flush_dcache_area(itt, sz);
 
 	dev->its = its;
 	dev->itt = itt;

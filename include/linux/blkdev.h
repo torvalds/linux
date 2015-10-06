@@ -456,6 +456,8 @@ struct request_queue {
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
 	struct bio_set		*bio_split;
+
+	bool			mq_sysfs_init_done;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */
@@ -1368,6 +1370,26 @@ static inline bool bvec_gap_to_prev(struct request_queue *q,
 		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
 }
 
+static inline bool bio_will_gap(struct request_queue *q, struct bio *prev,
+			 struct bio *next)
+{
+	if (!bio_has_data(prev))
+		return false;
+
+	return bvec_gap_to_prev(q, &prev->bi_io_vec[prev->bi_vcnt - 1],
+				next->bi_io_vec[0].bv_offset);
+}
+
+static inline bool req_gap_back_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, req->biotail, bio);
+}
+
+static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
+{
+	return bio_will_gap(req->q, bio, req->bio);
+}
+
 struct work_struct;
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_delayed_work(struct delayed_work *dwork, unsigned long delay);
@@ -1494,6 +1516,26 @@ queue_max_integrity_segments(struct request_queue *q)
 	return q->limits.max_integrity_segments;
 }
 
+static inline bool integrity_req_gap_back_merge(struct request *req,
+						struct bio *next)
+{
+	struct bio_integrity_payload *bip = bio_integrity(req->bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(next);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+
+static inline bool integrity_req_gap_front_merge(struct request *req,
+						 struct bio *bio)
+{
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
+
+	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+				bip_next->bip_vec[0].bv_offset);
+}
+
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
 struct bio;
@@ -1559,6 +1601,16 @@ static inline bool blk_integrity_merge_bio(struct request_queue *rq,
 static inline bool blk_integrity_is_initialized(struct gendisk *g)
 {
 	return 0;
+}
+static inline bool integrity_req_gap_back_merge(struct request *req,
+						struct bio *next)
+{
+	return false;
+}
+static inline bool integrity_req_gap_front_merge(struct request *req,
+						 struct bio *bio)
+{
+	return false;
 }
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */

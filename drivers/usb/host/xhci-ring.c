@@ -302,6 +302,15 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
 			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
+		/* we are about to kill xhci, give it one more chance */
+		xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
+			      &xhci->op_regs->cmd_ring);
+		udelay(1000);
+		ret = xhci_handshake(&xhci->op_regs->cmd_ring,
+				     CMD_RING_RUNNING, 0, 3 * 1000 * 1000);
+		if (ret == 0)
+			return 0;
+
 		xhci_err(xhci, "Stopped the command ring failed, "
 				"maybe the host is dead\n");
 		xhci->xhc_state |= XHCI_STATE_DYING;
@@ -3461,8 +3470,8 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (start_cycle == 0)
 		field |= 0x1;
 
-	/* xHCI 1.0 6.4.1.2.1: Transfer Type field */
-	if (xhci->hci_version == 0x100) {
+	/* xHCI 1.0/1.1 6.4.1.2.1: Transfer Type field */
+	if (xhci->hci_version >= 0x100) {
 		if (urb->transfer_buffer_length > 0) {
 			if (setup->bRequestType & USB_DIR_IN)
 				field |= TRB_TX_TYPE(TRB_DATA_IN);

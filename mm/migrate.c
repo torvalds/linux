@@ -740,6 +740,15 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 	if (PageSwapBacked(page))
 		SetPageSwapBacked(newpage);
 
+	/*
+	 * Indirectly called below, migrate_page_copy() copies PG_dirty and thus
+	 * needs newpage's memcg set to transfer memcg dirty page accounting.
+	 * So perform memcg migration in two steps:
+	 * 1. set newpage->mem_cgroup (here)
+	 * 2. clear page->mem_cgroup (below)
+	 */
+	set_page_memcg(newpage, page_memcg(page));
+
 	mapping = page_mapping(page);
 	if (!mapping)
 		rc = migrate_page(mapping, newpage, page, mode);
@@ -756,9 +765,10 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		rc = fallback_migrate_page(mapping, newpage, page, mode);
 
 	if (rc != MIGRATEPAGE_SUCCESS) {
+		set_page_memcg(newpage, NULL);
 		newpage->mapping = NULL;
 	} else {
-		mem_cgroup_migrate(page, newpage, false);
+		set_page_memcg(page, NULL);
 		if (page_was_mapped)
 			remove_migration_ptes(page, newpage);
 		page->mapping = NULL;
@@ -1075,7 +1085,7 @@ out:
 	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
 		put_new_page(new_hpage, private);
 	else
-		put_page(new_hpage);
+		putback_active_hugepage(new_hpage);
 
 	if (result) {
 		if (rc)

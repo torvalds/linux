@@ -2692,8 +2692,12 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	while (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE &&
 	       (vc->vcore_state == VCORE_RUNNING ||
-		vc->vcore_state == VCORE_EXITING))
+		vc->vcore_state == VCORE_EXITING ||
+		vc->vcore_state == VCORE_PIGGYBACK))
 		kvmppc_wait_for_exec(vc, vcpu, TASK_UNINTERRUPTIBLE);
+
+	if (vc->vcore_state == VCORE_PREEMPT && vc->runner == NULL)
+		kvmppc_vcore_end_preempt(vc);
 
 	if (vcpu->arch.state == KVMPPC_VCPU_RUNNABLE) {
 		kvmppc_remove_runnable(vc, vcpu);

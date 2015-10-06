@@ -192,7 +192,7 @@ out:
 	return ret;
 }
 
-static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
+static void timbgpio_irq(struct irq_desc *desc)
 {
 	struct timbgpio *tgpio = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);

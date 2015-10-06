@@ -155,7 +155,7 @@ config USB_MSM_OTG
 config USB_QCOM_8X16_PHY
 	tristate "Qualcomm APQ8016/MSM8916 on-chip USB PHY controller support"
 	depends on ARCH_QCOM || COMPILE_TEST
-	depends on RESET_CONTROLLER
+	depends on RESET_CONTROLLER && EXTCON
 	select USB_PHY
 	select USB_ULPI_VIEWPORT
 	help

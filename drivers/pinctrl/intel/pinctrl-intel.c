@@ -836,7 +836,7 @@ static void intel_gpio_community_irq_handler(struct gpio_chip *gc,
 	}
 }
 
-static void intel_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void intel_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);

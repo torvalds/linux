@@ -252,7 +252,7 @@ static struct irq_chip idu_irq_chip = {
 
 static int idu_first_irq;
 
-static void idu_cascade_isr(unsigned int __core_irq, struct irq_desc *desc)
+static void idu_cascade_isr(struct irq_desc *desc)
 {
 	struct irq_domain *domain = irq_desc_get_handler_data(desc);
 	unsigned int core_irq = irq_desc_get_irq(desc);

@@ -1303,20 +1303,18 @@ static int pistachio_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	}
 
 	if (type & IRQ_TYPE_LEVEL_MASK)
-		__irq_set_handler_locked(data->irq, handle_level_irq);
+		irq_set_handler_locked(data, handle_level_irq);
 	else
-		__irq_set_handler_locked(data->irq, handle_edge_irq);
+		irq_set_handler_locked(data, handle_edge_irq);
 
 	return 0;
 }
 
-static void pistachio_gpio_irq_handler(unsigned int __irq,
-				       struct irq_desc *desc)
+static void pistachio_gpio_irq_handler(struct irq_desc *desc)
 {
-	unsigned int irq = irq_desc_get_irq(desc);
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct pistachio_gpio_bank *bank = gc_to_bank(gc);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long pending;
 	unsigned int pin;
 

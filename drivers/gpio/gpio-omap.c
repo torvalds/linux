@@ -709,7 +709,7 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
  * line's interrupt handler has been run, we may miss some nested
  * interrupts.
  */
-static void omap_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void omap_gpio_irq_handler(struct irq_desc *desc)
 {
 	void __iomem *isr_reg = NULL;
 	u32 isr;

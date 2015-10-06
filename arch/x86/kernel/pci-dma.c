@@ -131,8 +131,8 @@ void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
 
 bool arch_dma_alloc_attrs(struct device **dev, gfp_t *gfp)
 {
-	*gfp = dma_alloc_coherent_gfp_flags(*dev, *gfp);
 	*gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	*gfp = dma_alloc_coherent_gfp_flags(*dev, *gfp);
 
 	if (!*dev)
 		*dev = &x86_dma_fallback_dev;

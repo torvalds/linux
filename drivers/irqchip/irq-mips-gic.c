@@ -320,6 +320,14 @@ static void gic_handle_shared_int(bool chained)
 		intrmask[i] = gic_read(intrmask_reg);
 		pending_reg += gic_reg_step;
 		intrmask_reg += gic_reg_step;
+
+		if (!config_enabled(CONFIG_64BIT) || mips_cm_is64)
+			continue;
+
+		pending[i] |= (u64)gic_read(pending_reg) << 32;
+		intrmask[i] |= (u64)gic_read(intrmask_reg) << 32;
+		pending_reg += gic_reg_step;
+		intrmask_reg += gic_reg_step;
 	}
 
 	bitmap_and(pending, pending, intrmask, gic_shared_intrs);
@@ -426,7 +434,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, cpumask_first(&tmp));
+	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < NR_CPUS; i++)
@@ -546,7 +554,7 @@ static void __gic_irq_dispatch(void)
 	gic_handle_shared_int(false);
 }
 
-static void gic_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+static void gic_irq_dispatch(struct irq_desc *desc)
 {
 	gic_handle_local_int(true);
 	gic_handle_shared_int(true);
@@ -599,7 +607,7 @@ static __init void gic_ipi_init_one(unsigned int intr, int cpu,
 				      GIC_SHARED_TO_HWIRQ(intr));
 	int i;
 
-	gic_map_to_vpe(intr, cpu);
+	gic_map_to_vpe(intr, mips_cm_vp_id(cpu));
 	for (i = 0; i < NR_CPUS; i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[cpu].pcpu_mask);

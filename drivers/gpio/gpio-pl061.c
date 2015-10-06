@@ -187,7 +187,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	return 0;
 }
 
-static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
+static void pl061_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending;
 	int offset;

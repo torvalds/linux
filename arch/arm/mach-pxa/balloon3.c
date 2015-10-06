@@ -496,13 +496,13 @@ static struct irq_chip balloon3_irq_chip = {
 	.irq_unmask	= balloon3_unmask_irq,
 };
 
-static void balloon3_irq_handler(unsigned int __irq, struct irq_desc *desc)
+static void balloon3_irq_handler(struct irq_desc *desc)
 {
 	unsigned long pending = __raw_readl(BALLOON3_INT_CONTROL_REG) &
 					balloon3_irq_enabled;
 	do {
 		struct irq_data *d = irq_desc_get_irq_data(desc);
-		struct irq_chip *chip = irq_data_get_chip(d);
+		struct irq_chip *chip = irq_desc_get_chip(desc);
 		unsigned int irq;
 
 		/* clear useless edge notification */

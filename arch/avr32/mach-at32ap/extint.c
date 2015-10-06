@@ -144,7 +144,7 @@ static struct irq_chip eic_chip = {
 	.irq_set_type	= eic_set_irq_type,
 };
 
-static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
+static void demux_eic_irq(struct irq_desc *desc)
 {
 	struct eic *eic = irq_desc_get_handler_data(desc);
 	unsigned long status, pending;
