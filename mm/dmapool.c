@@ -394,7 +394,7 @@ static struct dma_page *pool_find_page(struct dma_pool *pool, dma_addr_t dma)
 	list_for_each_entry(page, &pool->page_list, page_list) {
 		if (dma < page->dma)
 			continue;
-		if (dma < (page->dma + pool->allocation))
+		if ((dma - page->dma) < pool->allocation)
 			return page;
 	}
 	return NULL;

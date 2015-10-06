@@ -113,10 +113,22 @@
 				};
 
 				scm_conf: scm_conf@270 {
-					compatible = "syscon";
+					compatible = "syscon", "simple-bus";
 					reg = <0x270 0x330>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0x270 0x330>;
+
+					pbias_regulator: pbias_regulator {
+						compatible = "ti,pbias-omap3", "ti,pbias-omap";
+						reg = <0x2b0 0x4>;
+						syscon = <&scm_conf>;
+						pbias_mmc_reg: pbias_mmc_omap2430 {
+							regulator-name = "pbias_mmc_omap2430";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3000000>;
+						};
+					};
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -200,17 +212,6 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <96>;
-		};
-
-		pbias_regulator: pbias_regulator {
-			compatible = "ti,pbias-omap";
-			reg = <0x2b0 0x4>;
-			syscon = <&scm_conf>;
-			pbias_mmc_reg: pbias_mmc_omap2430 {
-				regulator-name = "pbias_mmc_omap2430";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3000000>;
-			};
 		};
 
 		gpio1: gpio@48310000 {
