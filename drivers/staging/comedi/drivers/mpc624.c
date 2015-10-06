@@ -299,24 +299,15 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF;
-	s->n_chan = 8;
-	switch (it->options[1]) {
-	default:
-		s->maxdata = 0x3FFFFFFF;
-	}
-
-	switch (it->options[1]) {
-	case 0:
-		s->range_table = &range_mpc624_bipolar1;
-		break;
-	default:
-		s->range_table = &range_mpc624_bipolar10;
-	}
-	s->len_chanlist = 1;
-	s->insn_read = mpc624_ai_rinsn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
+	s->n_chan	= 8;
+	s->maxdata	= 0x3fffffff;
+	s->range_table	= (it->options[1] == 0) ? &range_mpc624_bipolar1
+						: &range_mpc624_bipolar10;
+	s->insn_read	= mpc624_ai_rinsn;
 
 	return 0;
 }
