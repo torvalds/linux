@@ -138,7 +138,10 @@
 
 /* 01010: Auto Power-Down */
 #define BCM54XX_SHD_APD			0x0a
+#define  BCM_APD_CLR_MASK		0xFE9F /* clear bits 5, 6 & 8 */
 #define  BCM54XX_SHD_APD_EN		0x0020
+#define  BCM_NO_ANEG_APD_EN		0x0060 /* bits 5 & 6 */
+#define  BCM_APD_SINGLELP_EN	0x0100 /* Bit 8 */
 
 #define BCM5482_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
 					/* LED3 / ~LINKSPD[2] selector */
@@ -208,25 +211,6 @@
 
 #define MII_BRCM_FET_SHDW_AUXSTAT2	0x1b	/* Auxiliary status 2 */
 #define MII_BRCM_FET_SHDW_AS2_APDE	0x0020	/* Auto power down enable */
-
-/*
- * Indirect register access functions for the 1000BASE-T/100BASE-TX/10BASE-T
- * 0x1c shadow registers.
- */
-static inline int bcm54xx_shadow_read(struct phy_device *phydev, u16 shadow)
-{
-	phy_write(phydev, MII_BCM54XX_SHD, MII_BCM54XX_SHD_VAL(shadow));
-	return MII_BCM54XX_SHD_DATA(phy_read(phydev, MII_BCM54XX_SHD));
-}
-
-static inline int bcm54xx_shadow_write(struct phy_device *phydev, u16 shadow,
-				       u16 val)
-{
-	return phy_write(phydev, MII_BCM54XX_SHD,
-			 MII_BCM54XX_SHD_WRITE |
-			 MII_BCM54XX_SHD_VAL(shadow) |
-			 MII_BCM54XX_SHD_DATA(val));
-}
 
 #define BRCM_CL45VEN_EEE_CONTROL	0x803d
 #define LPI_FEATURE_EN			0x8000

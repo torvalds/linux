@@ -69,8 +69,12 @@ config SMSC_PHY
 	---help---
 	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
 
+config BCM_NET_PHYLIB
+	tristate
+
 config BROADCOM_PHY
 	tristate "Drivers for Broadcom PHYs"
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481 and BCM5482 PHYs.
@@ -78,11 +82,13 @@ config BROADCOM_PHY
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 
 config BCM7XXX_PHY
 	tristate "Drivers for Broadcom 7xxx SOCs internal PHYs"
+	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM7366, BCM7439, BCM7445, and
 	  40nm and 65nm generation of BCM7xxx Set Top Box SoCs.
