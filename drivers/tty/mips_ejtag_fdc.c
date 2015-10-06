@@ -1048,38 +1048,6 @@ err_destroy_ports:
 	return ret;
 }
 
-static int mips_ejtag_fdc_tty_remove(struct mips_cdmm_device *dev)
-{
-	struct mips_ejtag_fdc_tty *priv = mips_cdmm_get_drvdata(dev);
-	struct mips_ejtag_fdc_tty_port *dport;
-	int nport;
-	unsigned int cfg;
-
-	if (priv->irq >= 0) {
-		raw_spin_lock_irq(&priv->lock);
-		cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
-		/* Disable interrupts */
-		cfg &= ~(REG_FDCFG_TXINTTHRES | REG_FDCFG_RXINTTHRES);
-		cfg |= REG_FDCFG_TXINTTHRES_DISABLED;
-		cfg |= REG_FDCFG_RXINTTHRES_DISABLED;
-		mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
-		raw_spin_unlock_irq(&priv->lock);
-	} else {
-		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
-	}
-	kthread_stop(priv->thread);
-	if (dev->cpu == 0)
-		mips_ejtag_fdc_con.tty_drv = NULL;
-	tty_unregister_driver(priv->driver);
-	for (nport = 0; nport < NUM_TTY_CHANNELS; nport++) {
-		dport = &priv->ports[nport];
-		tty_port_destroy(&dport->port);
-	}
-	put_tty_driver(priv->driver);
-	return 0;
-}
-
 static int mips_ejtag_fdc_tty_cpu_down(struct mips_cdmm_device *dev)
 {
 	struct mips_ejtag_fdc_tty *priv = mips_cdmm_get_drvdata(dev);
@@ -1152,12 +1120,11 @@ static struct mips_cdmm_driver mips_ejtag_fdc_tty_driver = {
 		.name	= "mips_ejtag_fdc",
 	},
 	.probe		= mips_ejtag_fdc_tty_probe,
-	.remove		= mips_ejtag_fdc_tty_remove,
 	.cpu_down	= mips_ejtag_fdc_tty_cpu_down,
 	.cpu_up		= mips_ejtag_fdc_tty_cpu_up,
 	.id_table	= mips_ejtag_fdc_tty_ids,
 };
-module_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
+builtin_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
 
 static int __init mips_ejtag_fdc_init_console(void)
 {
