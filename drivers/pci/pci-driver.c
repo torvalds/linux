@@ -687,7 +687,7 @@ static int pci_pm_prepare(struct device *dev)
 static void pci_pm_complete(struct device *dev)
 {
 	pci_dev_complete_resume(to_pci_dev(dev));
-	pm_generic_complete(dev);
+	pm_complete_with_resume_check(dev);
 }
 
 #else /* !CONFIG_PM_SLEEP */
