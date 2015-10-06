@@ -548,7 +548,7 @@ static unsigned long __init xen_get_max_pages(void)
 {
 	unsigned long max_pages, limit;
 	domid_t domid = DOMID_SELF;
-	int ret;
+	long ret;
 
 	limit = xen_get_pages_limit();
 	max_pages = limit;
@@ -798,7 +798,7 @@ char * __init xen_memory_setup(void)
 		xen_ignore_unusable();
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
-	sanitize_e820_map(xen_e820_map, xen_e820_map_entries,
+	sanitize_e820_map(xen_e820_map, ARRAY_SIZE(xen_e820_map),
 			  &xen_e820_map_entries);
 
 	max_pages = xen_get_max_pages();
