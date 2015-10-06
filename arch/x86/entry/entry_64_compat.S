@@ -89,15 +89,6 @@ ENTRY(entry_SYSENTER_compat)
 	sub	$(10*8), %rsp /* pt_regs->r8-11, bp, bx, r12-15 not saved */
 
 	/*
-	 * no need to do an access_ok check here because rbp has been
-	 * 32-bit zero extended
-	 */
-	ASM_STAC
-1:	movl	(%rbp), %ebp
-	_ASM_EXTABLE(1b, ia32_badarg)
-	ASM_CLAC
-
-	/*
 	 * Sysenter doesn't filter flags, so we need to clear NT
 	 * ourselves.  To save a few cycles, we can check whether
 	 * NT was set instead of doing an unconditional popfq.
@@ -105,6 +96,15 @@ ENTRY(entry_SYSENTER_compat)
 	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
 	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
+
+	/*
+	 * No need to do an access_ok() check here because RBP has been
+	 * 32-bit zero extended:
+	 */
+	ASM_STAC
+1:	movl	(%rbp), %ebp
+	_ASM_EXTABLE(1b, ia32_badarg)
+	ASM_CLAC
 
 	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
