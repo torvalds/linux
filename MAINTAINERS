@@ -788,6 +788,11 @@ S:	Maintained
 F:	drivers/net/appletalk/
 F:	net/appletalk/
 
+APPLIED MICRO (APM) X-GENE DEVICE TREE SUPPORT
+M:	Duc Dang <dhdang@apm.com>
+S:	Supported
+F:	arch/arm64/boot/dts/apm/
+
 APPLIED MICRO (APM) X-GENE SOC ETHERNET DRIVER
 M:	Iyappan Subramanian <isubramanian@apm.com>
 M:	Keyur Chudgar <kchudgar@apm.com>
