@@ -1542,6 +1542,7 @@ static const struct usb_gadget_driver configfs_driver_template = {
 	.unbind         = configfs_composite_unbind,
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 	.setup          = android_setup,
+	.reset          = android_disconnect,
 	.disconnect     = android_disconnect,
 #else
 	.setup          = composite_setup,
