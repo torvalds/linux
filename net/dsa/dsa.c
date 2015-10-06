@@ -837,10 +837,11 @@ static inline void dsa_of_remove(struct device *dev)
 }
 #endif
 
-static void dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
-			  struct device *parent, struct dsa_platform_data *pd)
+static int dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
+			 struct device *parent, struct dsa_platform_data *pd)
 {
 	int i;
+	unsigned configured = 0;
 
 	dst->pd = pd;
 	dst->master_netdev = dev;
@@ -860,7 +861,15 @@ static void dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 		dst->ds[i] = ds;
 		if (ds->drv->poll_link != NULL)
 			dst->link_poll_needed = 1;
+
+		++configured;
 	}
+
+	/*
+	 * If no switch was found, exit cleanly
+	 */
+	if (!configured)
+		return -EPROBE_DEFER;
 
 	/*
 	 * If we use a tagging format that doesn't have an ethertype
@@ -878,6 +887,8 @@ static void dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
 		dst->link_poll_timer.expires = round_jiffies(jiffies + HZ);
 		add_timer(&dst->link_poll_timer);
 	}
+
+	return 0;
 }
 
 static int dsa_probe(struct platform_device *pdev)
@@ -927,7 +938,9 @@ static int dsa_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dst);
 
-	dsa_setup_dst(dst, dev, &pdev->dev, pd);
+	ret = dsa_setup_dst(dst, dev, &pdev->dev, pd);
+	if (ret)
+		goto out;
 
 	return 0;
 
