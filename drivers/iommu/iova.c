@@ -88,19 +88,14 @@ __cached_rbnode_delete_update(struct iova_domain *iovad, struct iova *free)
 	}
 }
 
-/* Computes the padding size required, to make the
- * the start address naturally aligned on its size
+/*
+ * Computes the padding size required, to make the start address
+ * naturally aligned on the power-of-two order of its size
  */
-static int
-iova_get_pad_size(int size, unsigned int limit_pfn)
+static unsigned int
+iova_get_pad_size(unsigned int size, unsigned int limit_pfn)
 {
-	unsigned int pad_size = 0;
-	unsigned int order = ilog2(size);
-
-	if (order)
-		pad_size = (limit_pfn + 1) % (1 << order);
-
-	return pad_size;
+	return (limit_pfn + 1 - size) & (__roundup_pow_of_two(size) - 1);
 }
 
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
@@ -283,12 +278,6 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	new_iova = alloc_iova_mem();
 	if (!new_iova)
 		return NULL;
-
-	/* If size aligned is set then round the size to
-	 * to next power of two.
-	 */
-	if (size_aligned)
-		size = __roundup_pow_of_two(size);
 
 	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn,
 			new_iova, size_aligned);

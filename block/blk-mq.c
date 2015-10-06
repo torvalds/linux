@@ -393,14 +393,16 @@ void __blk_mq_complete_request(struct request *rq)
  *	Ends all I/O on a request. It does not handle partial completions.
  *	The actual completion happens out-of-order, through a IPI handler.
  **/
-void blk_mq_complete_request(struct request *rq)
+void blk_mq_complete_request(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
 
 	if (unlikely(blk_should_fake_timeout(q)))
 		return;
-	if (!blk_mark_rq_complete(rq))
+	if (!blk_mark_rq_complete(rq)) {
+		rq->errors = error;
 		__blk_mq_complete_request(rq);
+	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
@@ -616,10 +618,8 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		 * If a request wasn't started before the queue was
 		 * marked dying, kill it here or it'll go unnoticed.
 		 */
-		if (unlikely(blk_queue_dying(rq->q))) {
-			rq->errors = -EIO;
-			blk_mq_complete_request(rq);
-		}
+		if (unlikely(blk_queue_dying(rq->q)))
+			blk_mq_complete_request(rq, -EIO);
 		return;
 	}
 	if (rq->cmd_flags & REQ_NO_TIMEOUT)
@@ -641,24 +641,16 @@ static void blk_mq_rq_timer(unsigned long priv)
 		.next		= 0,
 		.next_set	= 0,
 	};
-	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
-		/*
-		 * If not software queues are currently mapped to this
-		 * hardware queue, there's nothing to check
-		 */
-		if (!blk_mq_hw_queue_mapped(hctx))
-			continue;
-
-		blk_mq_tag_busy_iter(hctx, blk_mq_check_expired, &data);
-	}
+	blk_mq_queue_tag_busy_iter(q, blk_mq_check_expired, &data);
 
 	if (data.next_set) {
 		data.next = blk_rq_timeout(round_jiffies_up(data.next));
 		mod_timer(&q->timeout, data.next);
 	} else {
+		struct blk_mq_hw_ctx *hctx;
+
 		queue_for_each_hw_ctx(q, hctx, i) {
 			/* the hctx may be unmapped, so check it here */
 			if (blk_mq_hw_queue_mapped(hctx))
@@ -1789,12 +1781,18 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 	}
 }
 
-static void blk_mq_map_swqueue(struct request_queue *q)
+static void blk_mq_map_swqueue(struct request_queue *q,
+			       const struct cpumask *online_mask)
 {
 	unsigned int i;
 	struct blk_mq_hw_ctx *hctx;
 	struct blk_mq_ctx *ctx;
 	struct blk_mq_tag_set *set = q->tag_set;
+
+	/*
+	 * Avoid others reading imcomplete hctx->cpumask through sysfs
+	 */
+	mutex_lock(&q->sysfs_lock);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		cpumask_clear(hctx->cpumask);
@@ -1806,15 +1804,16 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 	 */
 	queue_for_each_ctx(q, ctx, i) {
 		/* If the cpu isn't online, the cpu is mapped to first hctx */
-		if (!cpu_online(i))
+		if (!cpumask_test_cpu(i, online_mask))
 			continue;
 
 		hctx = q->mq_ops->map_queue(q, i);
 		cpumask_set_cpu(i, hctx->cpumask);
-		cpumask_set_cpu(i, hctx->tags->cpumask);
 		ctx->index_hw = hctx->nr_ctx;
 		hctx->ctxs[hctx->nr_ctx++] = ctx;
 	}
+
+	mutex_unlock(&q->sysfs_lock);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		struct blk_mq_ctxmap *map = &hctx->ctx_map;
@@ -1850,6 +1849,14 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 		 */
 		hctx->next_cpu = cpumask_first(hctx->cpumask);
 		hctx->next_cpu_batch = BLK_MQ_CPU_WORK_BATCH;
+	}
+
+	queue_for_each_ctx(q, ctx, i) {
+		if (!cpumask_test_cpu(i, online_mask))
+			continue;
+
+		hctx = q->mq_ops->map_queue(q, i);
+		cpumask_set_cpu(i, hctx->tags->cpumask);
 	}
 }
 
@@ -1917,6 +1924,9 @@ void blk_mq_release(struct request_queue *q)
 		kfree(hctx->ctxs);
 		kfree(hctx);
 	}
+
+	kfree(q->mq_map);
+	q->mq_map = NULL;
 
 	kfree(q->queue_hw_ctx);
 
@@ -2027,13 +2037,15 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	if (blk_mq_init_hw_queues(q, set))
 		goto err_hctxs;
 
+	get_online_cpus();
 	mutex_lock(&all_q_mutex);
+
 	list_add_tail(&q->all_q_node, &all_q_list);
-	mutex_unlock(&all_q_mutex);
-
 	blk_mq_add_queue_tag_set(set, q);
+	blk_mq_map_swqueue(q, cpu_online_mask);
 
-	blk_mq_map_swqueue(q);
+	mutex_unlock(&all_q_mutex);
+	put_online_cpus();
 
 	return q;
 
@@ -2057,30 +2069,27 @@ void blk_mq_free_queue(struct request_queue *q)
 {
 	struct blk_mq_tag_set	*set = q->tag_set;
 
+	mutex_lock(&all_q_mutex);
+	list_del_init(&q->all_q_node);
+	mutex_unlock(&all_q_mutex);
+
 	blk_mq_del_queue_tag_set(q);
 
 	blk_mq_exit_hw_queues(q, set, set->nr_hw_queues);
 	blk_mq_free_hw_queues(q, set);
 
 	percpu_ref_exit(&q->mq_usage_counter);
-
-	kfree(q->mq_map);
-
-	q->mq_map = NULL;
-
-	mutex_lock(&all_q_mutex);
-	list_del_init(&q->all_q_node);
-	mutex_unlock(&all_q_mutex);
 }
 
 /* Basically redo blk_mq_init_queue with queue frozen */
-static void blk_mq_queue_reinit(struct request_queue *q)
+static void blk_mq_queue_reinit(struct request_queue *q,
+				const struct cpumask *online_mask)
 {
 	WARN_ON_ONCE(!atomic_read(&q->mq_freeze_depth));
 
 	blk_mq_sysfs_unregister(q);
 
-	blk_mq_update_queue_map(q->mq_map, q->nr_hw_queues);
+	blk_mq_update_queue_map(q->mq_map, q->nr_hw_queues, online_mask);
 
 	/*
 	 * redo blk_mq_init_cpu_queues and blk_mq_init_hw_queues. FIXME: maybe
@@ -2088,7 +2097,7 @@ static void blk_mq_queue_reinit(struct request_queue *q)
 	 * involves free and re-allocate memory, worthy doing?)
 	 */
 
-	blk_mq_map_swqueue(q);
+	blk_mq_map_swqueue(q, online_mask);
 
 	blk_mq_sysfs_register(q);
 }
@@ -2097,16 +2106,43 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 				      unsigned long action, void *hcpu)
 {
 	struct request_queue *q;
+	int cpu = (unsigned long)hcpu;
+	/*
+	 * New online cpumask which is going to be set in this hotplug event.
+	 * Declare this cpumasks as global as cpu-hotplug operation is invoked
+	 * one-by-one and dynamically allocating this could result in a failure.
+	 */
+	static struct cpumask online_new;
 
 	/*
-	 * Before new mappings are established, hotadded cpu might already
-	 * start handling requests. This doesn't break anything as we map
-	 * offline CPUs to first hardware queue. We will re-init the queue
-	 * below to get optimal settings.
+	 * Before hotadded cpu starts handling requests, new mappings must
+	 * be established.  Otherwise, these requests in hw queue might
+	 * never be dispatched.
+	 *
+	 * For example, there is a single hw queue (hctx) and two CPU queues
+	 * (ctx0 for CPU0, and ctx1 for CPU1).
+	 *
+	 * Now CPU1 is just onlined and a request is inserted into
+	 * ctx1->rq_list and set bit0 in pending bitmap as ctx1->index_hw is
+	 * still zero.
+	 *
+	 * And then while running hw queue, flush_busy_ctxs() finds bit0 is
+	 * set in pending bitmap and tries to retrieve requests in
+	 * hctx->ctxs[0]->rq_list.  But htx->ctxs[0] is a pointer to ctx0,
+	 * so the request in ctx1->rq_list is ignored.
 	 */
-	if (action != CPU_DEAD && action != CPU_DEAD_FROZEN &&
-	    action != CPU_ONLINE && action != CPU_ONLINE_FROZEN)
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DEAD:
+	case CPU_UP_CANCELED:
+		cpumask_copy(&online_new, cpu_online_mask);
+		break;
+	case CPU_UP_PREPARE:
+		cpumask_copy(&online_new, cpu_online_mask);
+		cpumask_set_cpu(cpu, &online_new);
+		break;
+	default:
 		return NOTIFY_OK;
+	}
 
 	mutex_lock(&all_q_mutex);
 
@@ -2130,7 +2166,7 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 	}
 
 	list_for_each_entry(q, &all_q_list, all_q_node)
-		blk_mq_queue_reinit(q);
+		blk_mq_queue_reinit(q, &online_new);
 
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		blk_mq_unfreeze_queue(q);
