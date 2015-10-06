@@ -74,7 +74,7 @@ struct stm_source_device {
 	struct device		dev;
 	struct stm_source_data	*data;
 	spinlock_t		link_lock;
-	struct stm_device	*link;
+	struct stm_device __rcu	*link;
 	struct list_head	link_entry;
 	/* one output per stm_source device */
 	struct stp_policy_node	*policy_node;

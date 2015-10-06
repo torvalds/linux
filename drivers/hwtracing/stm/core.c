@@ -781,17 +781,20 @@ fail_detach:
 static void __stm_source_link_drop(struct stm_source_device *src,
 				   struct stm_device *stm)
 {
+	struct stm_device *link;
+
 	spin_lock(&src->link_lock);
-	if (WARN_ON_ONCE(src->link != stm)) {
+	link = srcu_dereference_check(src->link, &stm_source_srcu, 1);
+	if (WARN_ON_ONCE(link != stm)) {
 		spin_unlock(&src->link_lock);
 		return;
 	}
 
-	stm_output_free(src->link, &src->output);
+	stm_output_free(link, &src->output);
 	/* caller must hold stm::link_lock */
 	list_del_init(&src->link_entry);
 	/* matches stm_find_device() from stm_source_link_store() */
-	stm_put_device(src->link);
+	stm_put_device(link);
 	rcu_assign_pointer(src->link, NULL);
 
 	spin_unlock(&src->link_lock);
