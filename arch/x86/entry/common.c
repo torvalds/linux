@@ -318,3 +318,46 @@ __visible void syscall_return_slowpath(struct pt_regs *regs)
 	local_irq_disable();
 	prepare_exit_to_usermode(regs);
 }
+
+#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+/*
+ * Does a 32-bit syscall.  Called with IRQs off and does all entry and
+ * exit work.
+ */
+__visible void do_int80_syscall_32(struct pt_regs *regs)
+{
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	unsigned int nr = (unsigned int)regs->orig_ax;
+
+#ifdef CONFIG_IA32_EMULATION
+	ti->status |= TS_COMPAT;
+#endif
+
+	local_irq_enable();
+
+	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {
+		/*
+		 * Subtlety here: if ptrace pokes something larger than
+		 * 2^32-1 into orig_ax, this truncates it.  This may or
+		 * may not be necessary, but it matches the old asm
+		 * behavior.
+		 */
+		nr = syscall_trace_enter(regs);
+	}
+
+	if (nr < IA32_NR_syscalls) {
+		/*
+		 * It's possible that a 32-bit syscall implementation
+		 * takes a 64-bit parameter but nonetheless assumes that
+		 * the high bits are zero.  Make sure we zero-extend all
+		 * of the args.
+		 */
+		regs->ax = ia32_sys_call_table[nr](
+			(unsigned int)regs->bx, (unsigned int)regs->cx,
+			(unsigned int)regs->dx, (unsigned int)regs->si,
+			(unsigned int)regs->di, (unsigned int)regs->bp);
+	}
+
+	syscall_return_slowpath(regs);
+}
+#endif
