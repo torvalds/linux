@@ -114,7 +114,8 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 {
 	void **ptr, *addr;
 
-	ptr = devres_alloc(devm_memremap_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_memremap_release, sizeof(*ptr), GFP_KERNEL,
+			dev_to_node(dev));
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -165,8 +166,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
-	page_map = devres_alloc(devm_memremap_pages_release,
-			sizeof(*page_map), GFP_KERNEL);
+	page_map = devres_alloc_node(devm_memremap_pages_release,
+			sizeof(*page_map), GFP_KERNEL, dev_to_node(dev));
 	if (!page_map)
 		return ERR_PTR(-ENOMEM);
 

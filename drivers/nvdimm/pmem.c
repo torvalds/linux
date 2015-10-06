@@ -176,9 +176,10 @@ static void pmem_detach_disk(struct pmem_device *pmem)
 static int pmem_attach_disk(struct device *dev,
 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
 {
+	int nid = dev_to_node(dev);
 	struct gendisk *disk;
 
-	pmem->pmem_queue = blk_alloc_queue(GFP_KERNEL);
+	pmem->pmem_queue = blk_alloc_queue_node(GFP_KERNEL, nid);
 	if (!pmem->pmem_queue)
 		return -ENOMEM;
 
@@ -188,7 +189,7 @@ static int pmem_attach_disk(struct device *dev,
 	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, pmem->pmem_queue);
 
-	disk = alloc_disk(0);
+	disk = alloc_disk_node(0, nid);
 	if (!disk) {
 		blk_cleanup_queue(pmem->pmem_queue);
 		return -ENOMEM;
