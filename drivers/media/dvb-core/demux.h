@@ -381,6 +381,16 @@ struct dmx_frontend {
  *	It returns
  *		0 on success;
  *		-EINVAL on bad parameter.
+ *
+ * @get_pes_pids: Get the PIDs for DMX_PES_AUDIO0, DMX_PES_VIDEO0,
+ *	DMX_PES_TELETEXT0, DMX_PES_SUBTITLE0 and DMX_PES_PCR0.
+ *	The @demux function parameter contains a pointer to the demux API and
+ *	instance data.
+ *	The @pids function parameter contains an array with five u16 elements
+ *	where the PIDs will be stored.
+ *	It returns
+ *		0 on success;
+ *		-EINVAL on bad parameter.
  */
 
 struct dmx_demux {
@@ -416,7 +426,11 @@ struct dmx_demux {
 	int (*get_caps) (struct dmx_demux* demux, struct dmx_caps *caps);
 	int (*set_source) (struct dmx_demux* demux, const dmx_source_t *src);
 #endif
-	/* public: */
+	/*
+	 * private: Only used at av7110, to read some data from firmware.
+	 *	As this was never documented, we have no clue about what's
+	 * 	there, and its usage on other drivers aren't encouraged.
+	 */
 	int (*get_stc) (struct dmx_demux* demux, unsigned int num,
 			u64 *stc, unsigned int *base);
 };
