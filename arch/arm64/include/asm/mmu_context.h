@@ -129,6 +129,9 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	unsigned int cpu = smp_processor_id();
 
+	if (prev == next)
+		return;
+
 	/*
 	 * init_mm.pgd does not contain any user mappings and it is always
 	 * active for kernel addresses in TTBR1. Just set the reserved TTBR0.
@@ -138,8 +141,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		return;
 	}
 
-	if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)) || prev != next)
-		check_and_switch_context(next, tsk);
+	check_and_switch_context(next, cpu);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)

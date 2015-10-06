@@ -166,10 +166,10 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 		local_flush_tlb_all();
 
 	atomic64_set(&per_cpu(active_asids, cpu), asid);
-	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
 
 switch_mm_fastpath:
+	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	cpu_switch_mm(mm->pgd, mm);
 }
 
