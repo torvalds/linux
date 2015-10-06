@@ -363,7 +363,7 @@ __visible void do_int80_syscall_32(struct pt_regs *regs)
 	syscall_return_slowpath(regs);
 }
 
-/* Returns 0 to return using IRET or 1 to return using SYSRETL. */
+/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
 __visible long do_fast_syscall_32(struct pt_regs *regs)
 {
 	/*
@@ -417,7 +417,20 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 		regs->ip == landing_pad &&
 		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF)) == 0;
 #else
-	return 0;
+	/*
+	 * Opportunistic SYSEXIT: if possible, try to return using SYSEXIT.
+	 *
+	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
+	 * because the ECX fixup above will ensure that this is essentially
+	 * never the case.
+	 *
+	 * We don't allow syscalls at all from VM86 mode, but we still
+	 * need to check VM, because we might be returning from sys_vm86.
+	 */
+	return static_cpu_has(X86_FEATURE_SEP) &&
+		regs->cs == __USER_CS && regs->ss == __USER_DS &&
+		regs->ip == landing_pad &&
+		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF | X86_EFLAGS_VM)) == 0;
 #endif
 }
 #endif

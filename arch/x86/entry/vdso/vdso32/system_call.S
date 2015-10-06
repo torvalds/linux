@@ -34,6 +34,8 @@ __kernel_vsyscall:
 	/* If SYSENTER (Intel) or SYSCALL32 (AMD) is available, use it. */
 	ALTERNATIVE_2 "", "sysenter", X86_FEATURE_SYSENTER32, \
 	                  "syscall",  X86_FEATURE_SYSCALL32
+#else
+	ALTERNATIVE "", "sysenter", X86_FEATURE_SEP
 #endif
 
 	/* Enter using int $0x80 */

@@ -287,76 +287,47 @@ need_resched:
 END(resume_kernel)
 #endif
 
-/*
- * SYSENTER_RETURN points to after the SYSENTER instruction
- * in the vsyscall page.  See vsyscall-sysentry.S, which defines
- * the symbol.
- */
-
 	# SYSENTER  call handler stub
 ENTRY(entry_SYSENTER_32)
 	movl	TSS_sysenter_sp0(%esp), %esp
 sysenter_past_esp:
+	pushl	$__USER_DS		/* pt_regs->ss */
+	pushl	%ecx			/* pt_regs->cx */
+	pushfl				/* pt_regs->flags (except IF = 0) */
+	orl	$X86_EFLAGS_IF, (%esp)	/* Fix IF */
+	pushl	$__USER_CS		/* pt_regs->cs */
+	pushl	$0			/* pt_regs->ip = 0 (placeholder) */
+	pushl	%eax			/* pt_regs->orig_ax */
+	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
+
 	/*
-	 * Interrupts are disabled here, but we can't trace it until
-	 * enough kernel state to call TRACE_IRQS_OFF can be called - but
-	 * we immediately enable interrupts at that point anyway.
+	 * User mode is traced as though IRQs are on, and SYSENTER
+	 * turned them off.
 	 */
-	pushl	$__USER_DS
-	pushl	%ebp
-	pushfl
-	orl	$X86_EFLAGS_IF, (%esp)
-	pushl	$__USER_CS
-	/*
-	 * Push current_thread_info()->sysenter_return to the stack.
-	 * A tiny bit of offset fixup is necessary: TI_sysenter_return
-	 * is relative to thread_info, which is at the bottom of the
-	 * kernel stack page.  4*4 means the 4 words pushed above;
-	 * TOP_OF_KERNEL_STACK_PADDING takes us to the top of the stack;
-	 * and THREAD_SIZE takes us to the bottom.
-	 */
-	pushl	((TI_sysenter_return) - THREAD_SIZE + TOP_OF_KERNEL_STACK_PADDING + 4*4)(%esp)
-
-	pushl	%eax
-	SAVE_ALL
-	ENABLE_INTERRUPTS(CLBR_NONE)
-
-/*
- * Load the potential sixth argument from user stack.
- * Careful about security.
- */
-	cmpl	$__PAGE_OFFSET-3, %ebp
-	jae	syscall_fault
-	ASM_STAC
-1:	movl	(%ebp), %ebp
-	ASM_CLAC
-	movl	%ebp, PT_EBP(%esp)
-	_ASM_EXTABLE(1b, syscall_fault)
-
-	GET_THREAD_INFO(%ebp)
-
-	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	syscall_trace_entry
-sysenter_do_call:
-	cmpl	$(NR_syscalls), %eax
-	jae	sysenter_badsys
-	call	*sys_call_table(, %eax, 4)
-sysenter_after_call:
-	movl	%eax, PT_EAX(%esp)
-	LOCKDEP_SYS_EXIT
-	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	movl	TI_flags(%ebp), %ecx
-	testl	$_TIF_ALLWORK_MASK, %ecx
-	jnz	syscall_exit_work_irqs_off
-sysenter_exit:
-/* if something modifies registers it must also disable sysexit */
-	movl	PT_EIP(%esp), %edx
-	movl	PT_OLDESP(%esp), %ecx
-	xorl	%ebp, %ebp
-	TRACE_IRQS_ON
+
+	movl	%esp, %eax
+	call	do_fast_syscall_32
+	testl	%eax, %eax
+	jz	.Lsyscall_32_done
+
+/* Opportunistic SYSEXIT */
+	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
+	movl	PT_EIP(%esp), %edx	/* pt_regs->ip */
+	movl	PT_OLDESP(%esp), %ecx	/* pt_regs->sp */
+	popl	%ebx			/* pt_regs->bx */
+	addl	$2*4, %esp		/* skip pt_regs->cx and pt_regs->dx */
+	popl	%esi			/* pt_regs->si */
+	popl	%edi			/* pt_regs->di */
+	popl	%ebp			/* pt_regs->bp */
+	popl	%eax			/* pt_regs->ax */
 1:	mov	PT_FS(%esp), %fs
 	PTGS_TO_GS
+
+	/*
+	 * Return back to the vDSO, which will pop ecx and edx.
+	 * Don't bother with DS and ES (they already contain __USER_DS).
+	 */
 	ENABLE_INTERRUPTS_SYSEXIT
 
 .pushsection .fixup, "ax"
@@ -371,7 +342,7 @@ ENDPROC(entry_SYSENTER_32)
 ENTRY(entry_INT80_32)
 	ASM_CLAC
 	pushl	%eax			/* pt_regs->orig_ax */
-	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest, load -ENOSYS into ax */
+	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
 
 	/*
 	 * User mode is traced as though IRQs are on, and the interrupt gate
@@ -381,6 +352,7 @@ ENTRY(entry_INT80_32)
 
 	movl	%esp, %eax
 	call	do_int80_syscall_32
+.Lsyscall_32_done:
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -456,42 +428,6 @@ ldt_ss:
 	jmp	restore_nocheck
 #endif
 ENDPROC(entry_INT80_32)
-
-	# perform syscall exit tracing
-	ALIGN
-syscall_trace_entry:
-	movl	$-ENOSYS, PT_EAX(%esp)
-	movl	%esp, %eax
-	call	syscall_trace_enter
-	/* What it returned is what we'll actually use.  */
-	cmpl	$(NR_syscalls), %eax
-	jnae	syscall_call
-	jmp	syscall_exit
-END(syscall_trace_entry)
-
-	# perform syscall exit tracing
-	ALIGN
-syscall_exit_work_irqs_off:
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_ANY)
-
-syscall_exit_work:
-	movl	%esp, %eax
-	call	syscall_return_slowpath
-	jmp	restore_all
-END(syscall_exit_work)
-
-syscall_fault:
-	ASM_CLAC
-	GET_THREAD_INFO(%ebp)
-	movl	$-EFAULT, PT_EAX(%esp)
-	jmp	resume_userspace
-END(syscall_fault)
-
-sysenter_badsys:
-	movl	$-ENOSYS, %eax
-	jmp	sysenter_after_call
-END(sysenter_badsys)
 
 .macro FIXUP_ESPFIX_STACK
 /*
