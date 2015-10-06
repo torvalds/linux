@@ -931,29 +931,30 @@ static void gc_attach(struct parport *pp)
 {
 	struct gc *gc;
 	struct pardevice *pd;
-	int i;
+	int i, port_idx;
 	int count = 0;
 	int *pads, n_pads;
 	struct pardev_cb gc_parport_cb;
 
-	for (i = 0; i < GC_MAX_PORTS; i++) {
-		if (gc_cfg[i].nargs == 0 || gc_cfg[i].args[0] < 0)
+	for (port_idx = 0; port_idx < GC_MAX_PORTS; port_idx++) {
+		if (gc_cfg[port_idx].nargs == 0 || gc_cfg[port_idx].args[0] < 0)
 			continue;
 
-		if (gc_cfg[i].args[0] == pp->number)
+		if (gc_cfg[port_idx].args[0] == pp->number)
 			break;
 	}
 
-	if (i == GC_MAX_PORTS) {
+	if (port_idx == GC_MAX_PORTS) {
 		pr_debug("Not using parport%d.\n", pp->number);
 		return;
 	}
-	pads = gc_cfg[i].args + 1;
-	n_pads = gc_cfg[i].nargs - 1;
+	pads = gc_cfg[port_idx].args + 1;
+	n_pads = gc_cfg[port_idx].nargs - 1;
 
 	gc_parport_cb.flags = PARPORT_FLAG_EXCL;
 
-	pd = parport_register_dev_model(pp, "gamecon", &gc_parport_cb, i);
+	pd = parport_register_dev_model(pp, "gamecon", &gc_parport_cb,
+					port_idx);
 	if (!pd) {
 		pr_err("parport busy already - lp.o loaded?\n");
 		return;
@@ -985,7 +986,7 @@ static void gc_attach(struct parport *pp)
 		goto err_free_gc;
 	}
 
-	gc_base[i] = gc;
+	gc_base[port_idx] = gc;
 	return;
 
  err_unreg_devs:
