@@ -137,10 +137,9 @@ void vivid_sliced_vbi_cap_process(struct vivid_dev *dev,
 	buf->vb.timestamp.tv_sec += dev->time_wrap_offset;
 }
 
-static int vbi_cap_queue_setup(struct vb2_queue *vq,
-			const struct v4l2_format *fmt,
-			unsigned *nbuffers, unsigned *nplanes,
-			unsigned sizes[], void *alloc_ctxs[])
+static int vbi_cap_queue_setup(struct vb2_queue *vq, const void *parg,
+		       unsigned *nbuffers, unsigned *nplanes,
+		       unsigned sizes[], void *alloc_ctxs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	bool is_60hz = dev->std_cap & V4L2_STD_525_60;

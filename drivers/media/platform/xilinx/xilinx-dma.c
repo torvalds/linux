@@ -309,10 +309,11 @@ static void xvip_dma_complete(void *param)
 }
 
 static int
-xvip_dma_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+xvip_dma_queue_setup(struct vb2_queue *vq, const void *parg,
 		     unsigned int *nbuffers, unsigned int *nplanes,
 		     unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 
 	/* Make sure the image size is large enough. */

@@ -43,11 +43,11 @@ static const struct v4l2_dv_timings cea1080p60 = V4L2_DV_BT_CEA_1920X1080P60;
 
 /* vb2 DMA streaming ops */
 
-static int cobalt_queue_setup(struct vb2_queue *q,
-			const struct v4l2_format *fmt,
+static int cobalt_queue_setup(struct vb2_queue *q, const void *parg,
 			unsigned int *num_buffers, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
+	const struct v4l2_format *fmt = parg;
 	struct cobalt_stream *s = q->drv_priv;
 	unsigned size = s->stride * s->height;
 
