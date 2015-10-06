@@ -560,25 +560,25 @@ static void db9_attach(struct parport *pp)
 	const struct db9_mode_data *db9_mode;
 	struct pardevice *pd;
 	struct input_dev *input_dev;
-	int i, j;
+	int i, j, port_idx;
 	int mode;
 	struct pardev_cb db9_parport_cb;
 
-	for (i = 0; i < DB9_MAX_PORTS; i++) {
-		if (db9_cfg[i].nargs == 0 ||
-		    db9_cfg[i].args[DB9_ARG_PARPORT] < 0)
+	for (port_idx = 0; port_idx < DB9_MAX_PORTS; port_idx++) {
+		if (db9_cfg[port_idx].nargs == 0 ||
+		    db9_cfg[port_idx].args[DB9_ARG_PARPORT] < 0)
 			continue;
 
-		if (db9_cfg[i].args[DB9_ARG_PARPORT] == pp->number)
+		if (db9_cfg[port_idx].args[DB9_ARG_PARPORT] == pp->number)
 			break;
 	}
 
-	if (i == DB9_MAX_PORTS) {
+	if (port_idx == DB9_MAX_PORTS) {
 		pr_debug("Not using parport%d.\n", pp->number);
 		return;
 	}
 
-	mode = db9_cfg[i].args[DB9_ARG_MODE];
+	mode = db9_cfg[port_idx].args[DB9_ARG_MODE];
 
 	if (mode < 1 || mode >= DB9_MAX_PAD || !db9_modes[mode].n_buttons) {
 		printk(KERN_ERR "db9.c: Bad device type %d\n", mode);
@@ -594,7 +594,7 @@ static void db9_attach(struct parport *pp)
 
 	db9_parport_cb.flags = PARPORT_FLAG_EXCL;
 
-	pd = parport_register_dev_model(pp, "db9", &db9_parport_cb, i);
+	pd = parport_register_dev_model(pp, "db9", &db9_parport_cb, port_idx);
 	if (!pd) {
 		printk(KERN_ERR "db9.c: parport busy already - lp.o loaded?\n");
 		return;
@@ -649,7 +649,7 @@ static void db9_attach(struct parport *pp)
 			goto err_free_dev;
 	}
 
-	db9_base[i] = db9;
+	db9_base[port_idx] = db9;
 	return;
 
  err_free_dev:
@@ -676,6 +676,7 @@ static void db9_detach(struct parport *port)
 		return;
 
 	db9 = db9_base[i];
+	db9_base[i] = NULL;
 
 	for (i = 0; i < min(db9_modes[db9->mode].n_pads, DB9_MAX_DEVICES); i++)
 		input_unregister_device(db9->dev[i]);
