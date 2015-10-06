@@ -348,7 +348,8 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
-				    struct iwl_mac_power_cmd *cmd)
+				    struct iwl_mac_power_cmd *cmd,
+				    bool host_awake)
 {
 	int dtimper, bi;
 	int keep_alive;
@@ -389,10 +390,9 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		cmd->lprx_rssi_threshold = POWER_LPRX_RSSI_THRESHOLD;
 	}
 
-	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd,
-				       mvm->cur_ucode != IWL_UCODE_WOWLAN);
+	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd, host_awake);
 
-	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
+	if (host_awake) {
 		cmd->rx_data_timeout =
 			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout =
@@ -458,7 +458,8 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 {
 	struct iwl_mac_power_cmd cmd = {};
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd,
+				mvm->cur_ucode != IWL_UCODE_WOWLAN);
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
@@ -994,11 +995,7 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 	if (!vif->bss_conf.assoc)
 		return 0;
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
-
-	/* when enabling D0i3, override the skip-over-dtim configuration */
-	if (enable)
-		iwl_mvm_power_config_skip_dtim(mvm, vif, &cmd, false);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd, !enable);
 
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
