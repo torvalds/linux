@@ -303,7 +303,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
-	s->n_chan	= 8;
+	s->n_chan	= 4;
 	s->maxdata	= 0x3fffffff;
 	s->range_table	= (it->options[1] == 0) ? &range_mpc624_bipolar1
 						: &range_mpc624_bipolar10;
