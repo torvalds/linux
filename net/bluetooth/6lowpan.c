@@ -1053,32 +1053,32 @@ static inline __u8 bdaddr_type(__u8 type)
 
 static struct l2cap_chan *chan_get(void)
 {
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 
-	pchan = chan_create();
-	if (!pchan)
+	chan = chan_create();
+	if (!chan)
 		return NULL;
 
-	pchan->ops = &bt_6lowpan_chan_ops;
+	chan->ops = &bt_6lowpan_chan_ops;
 
-	return pchan;
+	return chan;
 }
 
 static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 {
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 	int err;
 
-	pchan = chan_get();
-	if (!pchan)
+	chan = chan_get();
+	if (!chan)
 		return -EINVAL;
 
-	err = l2cap_chan_connect(pchan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
+	err = l2cap_chan_connect(chan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
 				 addr, dst_type);
 
-	BT_DBG("chan %p err %d", pchan, err);
+	BT_DBG("chan %p err %d", chan, err);
 	if (err < 0)
-		l2cap_chan_put(pchan);
+		l2cap_chan_put(chan);
 
 	return err;
 }
@@ -1103,31 +1103,31 @@ static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 static struct l2cap_chan *bt_6lowpan_listen(void)
 {
 	bdaddr_t *addr = BDADDR_ANY;
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 	int err;
 
 	if (!enable_6lowpan)
 		return NULL;
 
-	pchan = chan_get();
-	if (!pchan)
+	chan = chan_get();
+	if (!chan)
 		return NULL;
 
-	pchan->state = BT_LISTEN;
-	pchan->src_type = BDADDR_LE_PUBLIC;
+	chan->state = BT_LISTEN;
+	chan->src_type = BDADDR_LE_PUBLIC;
 
-	atomic_set(&pchan->nesting, L2CAP_NESTING_PARENT);
+	atomic_set(&chan->nesting, L2CAP_NESTING_PARENT);
 
-	BT_DBG("chan %p src type %d", pchan, pchan->src_type);
+	BT_DBG("chan %p src type %d", chan, chan->src_type);
 
-	err = l2cap_add_psm(pchan, addr, cpu_to_le16(L2CAP_PSM_IPSP));
+	err = l2cap_add_psm(chan, addr, cpu_to_le16(L2CAP_PSM_IPSP));
 	if (err) {
-		l2cap_chan_put(pchan);
+		l2cap_chan_put(chan);
 		BT_ERR("psm cannot be added err %d", err);
 		return NULL;
 	}
 
-	return pchan;
+	return chan;
 }
 
 static int get_l2cap_conn(char *buf, bdaddr_t *addr, u8 *addr_type,
