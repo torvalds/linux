@@ -58,14 +58,9 @@ ENDPROC(native_usergs_sysret32)
  * with the int 0x80 path.
  */
 ENTRY(entry_SYSENTER_compat)
-	/*
-	 * Interrupts are off on entry.
-	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
-	 * it is too small to ever cause noticeable irq latency.
-	 */
+	/* Interrupts are off on entry. */
 	SWAPGS_UNSAFE_STACK
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/* Zero-extending 32-bit regs, do not remove */
 	movl	%ebp, %ebp
@@ -76,7 +71,16 @@ ENTRY(entry_SYSENTER_compat)
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
 	pushq	%rbp			/* pt_regs->sp */
-	pushfq				/* pt_regs->flags */
+
+	/*
+	 * Push flags.  This is nasty.  First, interrupts are currently
+	 * off, but we need pt_regs->flags to have IF set.  Second, even
+	 * if TF was set when SYSENTER started, it's clear by now.  We fix
+	 * that later using TIF_SINGLESTEP.
+	 */
+	pushfq				/* pt_regs->flags (except IF = 0) */
+	orl	$X86_EFLAGS_IF, (%rsp)	/* Fix saved flags */
+
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	pushq	%r10			/* pt_regs->ip = thread_info->sysenter_return */
 	pushq	%rax			/* pt_regs->orig_ax */
@@ -92,10 +96,20 @@ ENTRY(entry_SYSENTER_compat)
 	 * Sysenter doesn't filter flags, so we need to clear NT
 	 * ourselves.  To save a few cycles, we can check whether
 	 * NT was set instead of doing an unconditional popfq.
+	 * This needs to happen before enabling interrupts so that
+	 * we don't get preempted with NT set.
 	 */
 	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
 	jnz	sysenter_fix_flags
 sysenter_flags_fixed:
+
+	/*
+	 * Re-enable interrupts.  IRQ tracing already thinks that IRQs are
+	 * on (since we treat user mode as having IRQs on), and the
+	 * prologue above is too short for it to be worth adding a
+	 * tracing round trip.
+	 */
+	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/*
 	 * No need to do an access_ok() check here because RBP has been
@@ -244,7 +258,7 @@ sysexit_audit:
 #endif
 
 sysenter_fix_flags:
-	pushq	$(X86_EFLAGS_IF|X86_EFLAGS_FIXED)
+	pushq	$X86_EFLAGS_FIXED
 	popfq
 	jmp	sysenter_flags_fixed
 
