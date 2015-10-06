@@ -51,13 +51,13 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
 	 * limit, not add it to the address).
 	 */
 	if (__builtin_constant_p(size))
-		return addr > limit - size;
+		return unlikely(addr > limit - size);
 
 	/* Arbitrary sizes? Be careful about overflow */
 	addr += size;
-	if (addr < size)
+	if (unlikely(addr < size))
 		return true;
-	return addr > limit;
+	return unlikely(addr > limit);
 }
 
 #define __range_not_ok(addr, size, limit)				\
