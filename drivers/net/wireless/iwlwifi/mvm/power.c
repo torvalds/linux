@@ -377,8 +377,13 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	if (!vif->bss_conf.ps || !mvmvif->pm_enabled ||
-	    (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p))
+	if (!vif->bss_conf.ps || !mvmvif->pm_enabled)
+		return;
+
+	if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
+	    (!fw_has_capa(&mvm->fw->ucode_capa,
+			 IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS) ||
+	     !IWL_MVM_P2P_LOWLATENCY_PS_ENABLE))
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -392,16 +397,23 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd, host_awake);
 
-	if (host_awake) {
-		cmd->rx_data_timeout =
-			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
-		cmd->tx_data_timeout =
-			cpu_to_le32(IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
-	} else {
+	if (!host_awake) {
 		cmd->rx_data_timeout =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
+	} else if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
+		   fw_has_capa(&mvm->fw->ucode_capa,
+			       IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS)) {
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_SHORT_PS_TX_DATA_TIMEOUT);
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_SHORT_PS_RX_DATA_TIMEOUT);
+	} else {
+		cmd->rx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_RX_DATA_TIMEOUT);
+		cmd->tx_data_timeout =
+			cpu_to_le32(IWL_MVM_DEFAULT_PS_TX_DATA_TIMEOUT);
 	}
 
 	if (iwl_mvm_power_allow_uapsd(mvm, vif))
