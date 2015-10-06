@@ -7,6 +7,7 @@
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <generated/user_constants.h>
+#include <asm/syscall.h>
 
 #define __NO_STUBS
 
@@ -42,8 +43,6 @@
 
 #undef __SYSCALL_64
 #define __SYSCALL_64(nr, sym, compat) [ nr ] = sym,
-
-typedef void (*sys_call_ptr_t)(void);
 
 extern void sys_ni_syscall(void);
 

@@ -7,6 +7,7 @@
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <generated/user_constants.h>
+#include <asm/syscall.h>
 
 #define __NO_STUBS
 
@@ -29,8 +30,6 @@
 
 #undef __SYSCALL_I386
 #define __SYSCALL_I386(nr, sym, compat) [ nr ] = sym,
-
-typedef asmlinkage void (*sys_call_ptr_t)(void);
 
 extern asmlinkage void sys_ni_syscall(void);
 
