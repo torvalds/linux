@@ -218,14 +218,12 @@ long syscall_trace_enter(struct pt_regs *regs)
 		return syscall_trace_enter_phase2(regs, arch, phase1_result);
 }
 
-/* Called with IRQs disabled. */
-__visible void prepare_exit_to_usermode(struct pt_regs *regs)
+#define EXIT_TO_USERMODE_LOOP_FLAGS				\
+	(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_UPROBE |	\
+	 _TIF_NEED_RESCHED | _TIF_USER_RETURN_NOTIFY)
+
+static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 {
-	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
-		local_irq_disable();
-
-	lockdep_sys_exit();
-
 	/*
 	 * In order to return to user mode, we need to have IRQs off with
 	 * none of _TIF_SIGPENDING, _TIF_NOTIFY_RESUME, _TIF_USER_RETURN_NOTIFY,
@@ -235,14 +233,6 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 	 * work to clear some of the flags can sleep.
 	 */
 	while (true) {
-		u32 cached_flags =
-			READ_ONCE(pt_regs_to_thread_info(regs)->flags);
-
-		if (!(cached_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME |
-				      _TIF_UPROBE | _TIF_NEED_RESCHED |
-				      _TIF_USER_RETURN_NOTIFY)))
-			break;
-
 		/* We have work to do. */
 		local_irq_enable();
 
@@ -266,7 +256,30 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 
 		/* Disable IRQs and retry */
 		local_irq_disable();
+
+		cached_flags = READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+
+		if (!(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
+			break;
+
 	}
+}
+
+/* Called with IRQs disabled. */
+__visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+{
+	u32 cached_flags;
+
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
+		local_irq_disable();
+
+	lockdep_sys_exit();
+
+	cached_flags =
+		READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+
+	if (unlikely(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
+		exit_to_usermode_loop(regs, cached_flags);
 
 	user_enter();
 }
