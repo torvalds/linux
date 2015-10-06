@@ -5,6 +5,7 @@
 #define _TRACE_V4L2_H
 
 #include <linux/tracepoint.h>
+#include <media/videobuf2-v4l2.h>
 
 /* Enums require being exported to userspace, for user tool parsing */
 #undef EM
@@ -203,7 +204,9 @@ DECLARE_EVENT_CLASS(vb2_event_class,
 
 	TP_fast_assign(
 		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-		__entry->minor = q->owner ? q->owner->vdev->minor : -1;
+		struct v4l2_fh *owner = q->owner;
+
+		__entry->minor = owner ? owner->vdev->minor : -1;
 		__entry->queued_count = q->queued_count;
 		__entry->owned_by_drv_count =
 			atomic_read(&q->owned_by_drv_count);

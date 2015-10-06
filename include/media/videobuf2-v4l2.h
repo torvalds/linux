@@ -15,6 +15,14 @@
 #include <linux/videodev2.h>
 #include <media/videobuf2-core.h>
 
+#if VB2_MAX_FRAME != VIDEO_MAX_FRAME
+#error VB2_MAX_FRAME != VIDEO_MAX_FRAME
+#endif
+
+#if VB2_MAX_PLANES != VIDEO_MAX_PLANES
+#error VB2_MAX_PLANES != VIDEO_MAX_PLANES
+#endif
+
 /**
  * struct vb2_v4l2_buffer - video buffer information for v4l2
  * @vb2_buf:	video buffer 2
