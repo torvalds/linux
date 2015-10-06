@@ -202,14 +202,17 @@ END(entry_SYSCALL_compat)
 ENTRY(entry_INT80_compat)
 	/*
 	 * Interrupts are off on entry.
-	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
-	 * it is too small to ever cause noticeable irq latency.
 	 */
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	SWAPGS
-	ENABLE_INTERRUPTS(CLBR_NONE)
 
-	/* Zero-extending 32-bit regs, do not remove */
+	/*
+	 * User tracing code (ptrace or signal handlers) might assume that
+	 * the saved RAX contains a 32-bit number when we're invoking a 32-bit
+	 * syscall.  Just in case the high bits are nonzero, zero-extend
+	 * the syscall number.  (This could almost certainly be deleted
+	 * with no ill effects.)
+	 */
 	movl	%eax, %eax
 
 	/* Construct struct pt_regs on stack (iret frame is already on stack) */
@@ -232,42 +235,19 @@ ENTRY(entry_INT80_compat)
 	pushq   %r15                    /* pt_regs->r15 */
 	cld
 
-	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
-	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz	ia32_tracesys
-
-ia32_do_call:
-	/* 32-bit syscall -> 64-bit C ABI argument conversion */
-	movl	%edi, %r8d		/* arg5 */
-	movl	%ebp, %r9d		/* arg6 */
-	xchg	%ecx, %esi		/* rsi:arg2, rcx:arg4 */
-	movl	%ebx, %edi		/* arg1 */
-	movl	%edx, %edx		/* arg3 (zero extension) */
-	cmpq	$(IA32_NR_syscalls-1), %rax
-	ja	1f
-
-	call	*ia32_sys_call_table(, %rax, 8)
-	movq	%rax, RAX(%rsp)
-1:
-	RESTORE_EXTRA_REGS
-	jmp	int_ret_from_sys_call
-
-ia32_tracesys:
-	movq	%rsp, %rdi			/* &pt_regs -> arg1 */
-	call	syscall_trace_enter
 	/*
-	 * Reload arg registers from stack in case ptrace changed them.
-	 * Don't reload %eax because syscall_trace_enter() returned
-	 * the %rax value we should see.  But do truncate it to 32 bits.
-	 * If it's -1 to make us punt the syscall, then (u32)-1 is still
-	 * an appropriately invalid value.
+	 * User mode is traced as though IRQs are on, and the interrupt
+	 * gate turned them off.
 	 */
-	movl	RCX(%rsp), %ecx
-	movl	RDX(%rsp), %edx
-	movl	RSI(%rsp), %esi
-	movl	RDI(%rsp), %edi
-	movl	%eax, %eax		/* zero extension */
-	jmp	ia32_do_call
+	TRACE_IRQS_OFF
+
+	movq	%rsp, %rdi
+	call	do_int80_syscall_32
+
+	/* Go back to user mode. */
+	TRACE_IRQS_ON
+	SWAPGS
+	jmp	restore_regs_and_iret
 END(entry_INT80_compat)
 
 	ALIGN

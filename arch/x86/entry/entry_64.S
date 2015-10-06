@@ -582,7 +582,7 @@ retint_kernel:
  * At this label, code paths which return to kernel and to user,
  * which come from interrupts/exception and from syscalls, merge.
  */
-restore_regs_and_iret:
+GLOBAL(restore_regs_and_iret)
 	RESTORE_EXTRA_REGS
 restore_c_regs_and_iret:
 	RESTORE_C_REGS
