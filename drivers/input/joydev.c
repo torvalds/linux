@@ -445,10 +445,8 @@ static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,
 
 	/* Validate the map. */
 	abspam = memdup_user(argp, len);
-	if (IS_ERR(abspam)) {
-		retval = PTR_ERR(abspam);
-		goto out;
-	}
+	if (IS_ERR(abspam))
+		return PTR_ERR(abspam);
 
 	for (i = 0; i < joydev->nabs; i++) {
 		if (abspam[i] > ABS_MAX) {
@@ -478,10 +476,8 @@ static int joydev_handle_JSIOCSBTNMAP(struct joydev *joydev,
 
 	/* Validate the map. */
 	keypam = memdup_user(argp, len);
-	if (IS_ERR(keypam)) {
-		retval = PTR_ERR(keypam);
-		goto out;
-	}
+	if (IS_ERR(keypam))
+		return PTR_ERR(keypam);
 
 	for (i = 0; i < joydev->nkey; i++) {
 		if (keypam[i] > KEY_MAX || keypam[i] < BTN_MISC) {
