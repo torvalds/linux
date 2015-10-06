@@ -30,6 +30,8 @@
 #define PHY_ID_BCM7439_2		0xae025080
 #define PHY_ID_BCM7445			0x600d8510
 
+#define PHY_ID_BCM_CYGNUS		0xae025200
+
 #define PHY_BCM_OUI_MASK		0xfffffc00
 #define PHY_BCM_OUI_1			0x00206000
 #define PHY_BCM_OUI_2			0x0143bc00
@@ -215,5 +217,10 @@
 #define BRCM_CL45VEN_EEE_CONTROL	0x803d
 #define LPI_FEATURE_EN			0x8000
 #define LPI_FEATURE_EN_DIG1000X		0x4000
+
+/* Core register definitions*/
+#define MII_BRCM_CORE_BASE1E	0x1E
+#define MII_BRCM_CORE_EXPB0	0xB0
+#define MII_BRCM_CORE_EXPB1	0xB1
 
 #endif /* _LINUX_BRCMPHY_H */

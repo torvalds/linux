@@ -79,6 +79,19 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
 	  BCM5481 and BCM5482 PHYs.
 
+config BCM_CYGNUS_PHY
+	tristate "Drivers for Broadcom Cygnus SoC internal PHY"
+	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	depends on MDIO_BCM_IPROC
+	select BCM_NET_PHYLIB
+	---help---
+	  This PHY driver is for the 1G internal PHYs of the Broadcom
+	  Cygnus Family SoC.
+
+	  Currently supports internal PHY's used in the BCM11300,
+	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
+	  BCM58303 & BCM58305 Broadcom Cygnus SoCs.
+
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
 	depends on BCM63XX
