@@ -21,7 +21,6 @@
 #include <asm/nmi.h>
 #include <asm/crw.h>
 #include <asm/switch_to.h>
-#include <asm/fpu-internal.h>
 #include <asm/ctl_reg.h>
 
 struct mcck_struct {

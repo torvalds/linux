@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include "entry.h"
 
 int show_unhandled_signals = 1;

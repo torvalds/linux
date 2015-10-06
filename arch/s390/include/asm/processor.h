@@ -16,7 +16,7 @@
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore vector registers */
+#define CIF_FPU			3	/* restore FPU registers */
 #define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
@@ -34,7 +34,8 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/types.h>
+#include <asm/fpu/internal.h>
 
 static inline void set_cpu_flag(int flag)
 {

@@ -1,6 +1,6 @@
 #include <linux/module.h>
 #include <linux/kvm_host.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include <asm/ftrace.h>
 
 #ifdef CONFIG_FUNCTION_TRACER
