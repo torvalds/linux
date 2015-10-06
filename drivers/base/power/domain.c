@@ -192,6 +192,8 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 	queue_work(pm_wq, &genpd->power_off_work);
 }
 
+static int pm_genpd_poweron(struct generic_pm_domain *genpd);
+
 /**
  * __pm_genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
@@ -245,7 +247,7 @@ static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
  * pm_genpd_poweron - Restore power to a given PM domain and its masters.
  * @genpd: PM domain to power up.
  */
-int pm_genpd_poweron(struct generic_pm_domain *genpd)
+static int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	int ret;
 
