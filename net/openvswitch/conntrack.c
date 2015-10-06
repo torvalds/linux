@@ -47,7 +47,7 @@ struct ovs_conntrack_info {
 	struct nf_conntrack_helper *helper;
 	struct nf_conntrack_zone zone;
 	struct nf_conn *ct;
-	u32 flags;
+	u8 commit : 1;
 	u16 family;
 	struct md_mark mark;
 	struct md_labels labels;
@@ -493,7 +493,7 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 			return err;
 	}
 
-	if (info->flags & OVS_CT_F_COMMIT)
+	if (info->commit)
 		err = ovs_ct_commit(net, key, info, skb);
 	else
 		err = ovs_ct_lookup(net, key, info, skb);
@@ -539,8 +539,7 @@ static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 }
 
 static const struct ovs_ct_len_tbl ovs_ct_attr_lens[OVS_CT_ATTR_MAX + 1] = {
-	[OVS_CT_ATTR_FLAGS]	= { .minlen = sizeof(u32),
-				    .maxlen = sizeof(u32) },
+	[OVS_CT_ATTR_COMMIT]	= { .minlen = 0, .maxlen = 0 },
 	[OVS_CT_ATTR_ZONE]	= { .minlen = sizeof(u16),
 				    .maxlen = sizeof(u16) },
 	[OVS_CT_ATTR_MARK]	= { .minlen = sizeof(struct md_mark),
@@ -576,8 +575,8 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 		}
 
 		switch (type) {
-		case OVS_CT_ATTR_FLAGS:
-			info->flags = nla_get_u32(a);
+		case OVS_CT_ATTR_COMMIT:
+			info->commit = true;
 			break;
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 		case OVS_CT_ATTR_ZONE:
@@ -701,7 +700,7 @@ int ovs_ct_action_to_attr(const struct ovs_conntrack_info *ct_info,
 	if (!start)
 		return -EMSGSIZE;
 
-	if (nla_put_u32(skb, OVS_CT_ATTR_FLAGS, ct_info->flags))
+	if (ct_info->commit && nla_put_flag(skb, OVS_CT_ATTR_COMMIT))
 		return -EMSGSIZE;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_ZONES) &&
 	    nla_put_u16(skb, OVS_CT_ATTR_ZONE, ct_info->zone.id))

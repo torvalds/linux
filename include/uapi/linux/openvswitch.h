@@ -618,7 +618,9 @@ struct ovs_action_hash {
 
 /**
  * enum ovs_ct_attr - Attributes for %OVS_ACTION_ATTR_CT action.
- * @OVS_CT_ATTR_FLAGS: u32 connection tracking flags.
+ * @OVS_CT_ATTR_COMMIT: If present, commits the connection to the conntrack
+ * table. This allows future packets for the same connection to be identified
+ * as 'established' or 'related'.
  * @OVS_CT_ATTR_ZONE: u16 connection tracking zone.
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection
@@ -630,7 +632,7 @@ struct ovs_action_hash {
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
-	OVS_CT_ATTR_FLAGS,      /* u32 bitmask of OVS_CT_F_*. */
+	OVS_CT_ATTR_COMMIT,     /* No argument, commits connection. */
 	OVS_CT_ATTR_ZONE,       /* u16 zone id. */
 	OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
 	OVS_CT_ATTR_LABELS,     /* labels to associate with this connection. */
@@ -640,14 +642,6 @@ enum ovs_ct_attr {
 };
 
 #define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
-
-/*
- * OVS_CT_ATTR_FLAGS flags - bitmask of %OVS_CT_F_*
- * @OVS_CT_F_COMMIT: Commits the flow to the conntrack table. This allows
- * future packets for the same connection to be identified as 'established'
- * or 'related'.
- */
-#define OVS_CT_F_COMMIT		0x01
 
 /**
  * enum ovs_action_attr - Action types.
