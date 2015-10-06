@@ -61,12 +61,15 @@ struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 							struct dma_buf_attachment *attach,
 							struct sg_table *sg)
 {
+	struct reservation_object *resv = attach->dmabuf->resv;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_bo *bo;
 	int ret;
 
+	ww_mutex_lock(&resv->lock, NULL);
 	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, &bo);
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
+	ww_mutex_unlock(&resv->lock);
 	if (ret)
 		return ERR_PTR(ret);
 

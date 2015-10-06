@@ -1685,7 +1685,6 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 	struct drm_crtc *crtc;
 	u32 num_units = 0;
 	u32 i, k;
-	int ret;
 
 	dirty->dev_priv = dev_priv;
 
@@ -1711,7 +1710,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 			if (!dirty->cmd) {
 				DRM_ERROR("Couldn't reserve fifo space "
 					  "for dirty blits.\n");
-				return ret;
+				return -ENOMEM;
 			}
 			memset(dirty->cmd, 0, dirty->fifo_reserve_size);
 		}

@@ -2002,6 +2002,17 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 		ep->udc = udc;
 		INIT_LIST_HEAD(&ep->queue);
 
+		if (ep->index == 0) {
+			ep->ep.caps.type_control = true;
+		} else {
+			ep->ep.caps.type_iso = ep->can_isoc;
+			ep->ep.caps.type_bulk = true;
+			ep->ep.caps.type_int = true;
+		}
+
+		ep->ep.caps.dir_in = true;
+		ep->ep.caps.dir_out = true;
+
 		if (i)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 

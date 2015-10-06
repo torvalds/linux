@@ -21,8 +21,7 @@ static	DEFINE_PER_CPU(unsigned int, iommu_hash_common);
 
 static inline bool need_flush(struct iommu_map_table *iommu)
 {
-	return (iommu->lazy_flush != NULL &&
-		(iommu->flags & IOMMU_NEED_FLUSH) != 0);
+	return ((iommu->flags & IOMMU_NEED_FLUSH) != 0);
 }
 
 static inline void set_flush(struct iommu_map_table *iommu)
@@ -211,7 +210,8 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 			goto bail;
 		}
 	}
-	if (n < pool->hint || need_flush(iommu)) {
+	if (iommu->lazy_flush &&
+	    (n < pool->hint || need_flush(iommu))) {
 		clear_flush(iommu);
 		iommu->lazy_flush(iommu);
 	}
