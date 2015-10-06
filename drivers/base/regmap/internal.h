@@ -98,9 +98,6 @@ struct regmap {
 
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
-	int (*reg_update_bits)(void *context, unsigned int reg,
-			       unsigned int mask, unsigned int val,
-			       bool *change, bool force_write);
 
 	bool defer_caching;
 
