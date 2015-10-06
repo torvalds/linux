@@ -1112,7 +1112,7 @@ static int __init encx24j600_init(void)
 }
 module_init(encx24j600_init);
 
-static void encx24j600_exit(void)
+void encx24j600_exit(void)
 {
 	spi_unregister_driver(&encx24j600_spi_net_driver);
 }
