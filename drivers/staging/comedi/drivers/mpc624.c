@@ -74,50 +74,26 @@
 #define MPC624_ADSCK            BIT(1)
 #define MPC624_ADSDI            BIT(0)
 
-/* SDI Speed/Resolution Programming bits */
-#define MPC624_OSR4             BIT(31)
-#define MPC624_OSR3             BIT(30)
-#define MPC624_OSR2             BIT(29)
-#define MPC624_OSR1             BIT(28)
-#define MPC624_OSR0             BIT(27)
-
 /* 32-bit output value bits' names */
 #define MPC624_EOC_BIT          BIT(31)
 #define MPC624_DMY_BIT          BIT(30)
 #define MPC624_SGN_BIT          BIT(29)
 
-/* Conversion speeds */
-/* OSR4 OSR3 OSR2 OSR1 OSR0  Conversion rate  RMS noise  ENOB^
- *  X    0    0    0    1        3.52kHz        23uV      17
- *  X    0    0    1    0        1.76kHz       3.5uV      20
- *  X    0    0    1    1         880Hz         2uV      21.3
- *  X    0    1    0    0         440Hz        1.4uV     21.8
- *  X    0    1    0    1         220Hz         1uV      22.4
- *  X    0    1    1    0         110Hz        750uV     22.9
- *  X    0    1    1    1          55Hz        510nV     23.4
- *  X    1    0    0    0         27.5Hz       375nV      24
- *  X    1    0    0    1        13.75Hz       250nV     24.4
- *  X    1    1    1    1        6.875Hz       200nV     24.6
- *
- * ^ - Effective Number Of Bits
- */
+/* SDI Speed/Resolution Programming bits */
+#define MPC624_OSR(x)		(((x) & 0x1f) << 27)
+#define MPC624_SPEED_3_52_KHZ	MPC624_OSR(0x11)
+#define MPC624_SPEED_1_76_KHZ	MPC624_OSR(0x12)
+#define MPC624_SPEED_880_HZ	MPC624_OSR(0x13)
+#define MPC624_SPEED_440_HZ	MPC624_OSR(0x14)
+#define MPC624_SPEED_220_HZ	MPC624_OSR(0x15)
+#define MPC624_SPEED_110_HZ	MPC624_OSR(0x16)
+#define MPC624_SPEED_55_HZ	MPC624_OSR(0x17)
+#define MPC624_SPEED_27_5_HZ	MPC624_OSR(0x18)
+#define MPC624_SPEED_13_75_HZ	MPC624_OSR(0x19)
+#define MPC624_SPEED_6_875_HZ	MPC624_OSR(0x1f)
 
-#define MPC624_SPEED_3_52_kHz (MPC624_OSR4 | MPC624_OSR0)
-#define MPC624_SPEED_1_76_kHz (MPC624_OSR4 | MPC624_OSR1)
-#define MPC624_SPEED_880_Hz   (MPC624_OSR4 | MPC624_OSR1 | MPC624_OSR0)
-#define MPC624_SPEED_440_Hz   (MPC624_OSR4 | MPC624_OSR2)
-#define MPC624_SPEED_220_Hz   (MPC624_OSR4 | MPC624_OSR2 | MPC624_OSR0)
-#define MPC624_SPEED_110_Hz   (MPC624_OSR4 | MPC624_OSR2 | MPC624_OSR1)
-#define MPC624_SPEED_55_Hz \
-	(MPC624_OSR4 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
-#define MPC624_SPEED_27_5_Hz  (MPC624_OSR4 | MPC624_OSR3)
-#define MPC624_SPEED_13_75_Hz (MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR0)
-#define MPC624_SPEED_6_875_Hz \
-	(MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
-/* -------------------------------------------------------------------------- */
 struct mpc624_private {
-	/*  set by mpc624_attach() from driver's parameters */
-	unsigned long int ulConvertionRate;
+	unsigned long int ai_speed;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -183,7 +159,7 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 
 		/*  Start reading data */
 		data_in = 0;
-		data_out = devpriv->ulConvertionRate;
+		data_out = devpriv->ai_speed;
 		udelay(1);
 		for (i = 0; i < 32; i++) {
 			/*  Set the clock low */
@@ -286,37 +262,37 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	switch (it->options[1]) {
 	case 0:
-		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
+		devpriv->ai_speed = MPC624_SPEED_3_52_KHZ;
 		break;
 	case 1:
-		devpriv->ulConvertionRate = MPC624_SPEED_1_76_kHz;
+		devpriv->ai_speed = MPC624_SPEED_1_76_KHZ;
 		break;
 	case 2:
-		devpriv->ulConvertionRate = MPC624_SPEED_880_Hz;
+		devpriv->ai_speed = MPC624_SPEED_880_HZ;
 		break;
 	case 3:
-		devpriv->ulConvertionRate = MPC624_SPEED_440_Hz;
+		devpriv->ai_speed = MPC624_SPEED_440_HZ;
 		break;
 	case 4:
-		devpriv->ulConvertionRate = MPC624_SPEED_220_Hz;
+		devpriv->ai_speed = MPC624_SPEED_220_HZ;
 		break;
 	case 5:
-		devpriv->ulConvertionRate = MPC624_SPEED_110_Hz;
+		devpriv->ai_speed = MPC624_SPEED_110_HZ;
 		break;
 	case 6:
-		devpriv->ulConvertionRate = MPC624_SPEED_55_Hz;
+		devpriv->ai_speed = MPC624_SPEED_55_HZ;
 		break;
 	case 7:
-		devpriv->ulConvertionRate = MPC624_SPEED_27_5_Hz;
+		devpriv->ai_speed = MPC624_SPEED_27_5_HZ;
 		break;
 	case 8:
-		devpriv->ulConvertionRate = MPC624_SPEED_13_75_Hz;
+		devpriv->ai_speed = MPC624_SPEED_13_75_HZ;
 		break;
 	case 9:
-		devpriv->ulConvertionRate = MPC624_SPEED_6_875_Hz;
+		devpriv->ai_speed = MPC624_SPEED_6_875_HZ;
 		break;
 	default:
-		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
+		devpriv->ai_speed = MPC624_SPEED_3_52_KHZ;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 1);
