@@ -775,8 +775,7 @@ static struct l2cap_chan *chan_create(void)
 
 	chan->chan_type = L2CAP_CHAN_CONN_ORIENTED;
 	chan->mode = L2CAP_MODE_LE_FLOWCTL;
-	chan->omtu = 65535;
-	chan->imtu = chan->omtu;
+	chan->imtu = 1280;
 
 	return chan;
 }
