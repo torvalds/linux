@@ -33,9 +33,9 @@
 /* Registers present in BAR0 memory region */
 #define MF624_GPIOC_R					0x54
 
-#define MF6X4_GPIOC_EOLC /* End Of Last Conversion */	(1 << 17)
-#define MF6X4_GPIOC_LDAC /* Load DACs */		(1 << 23)
-#define MF6X4_GPIOC_DACEN				(1 << 26)
+#define MF6X4_GPIOC_EOLC	BIT(17)	/* End Of Last Conversion */
+#define MF6X4_GPIOC_LDAC	BIT(23)	/* Load DACs */
+#define MF6X4_GPIOC_DACEN	BIT(26)
 
 /* BAR1 registers */
 #define MF6X4_DIN_R					0x10
