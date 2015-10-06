@@ -48,35 +48,9 @@ __setup("vdso32=", vdso32_setup);
 __setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 #endif
 
-#ifdef CONFIG_X86_64
-
-#define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
-#define	vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
-
-#else  /* CONFIG_X86_32 */
-
-#define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
-#define vdso32_syscall()	(0)
-
-#endif	/* CONFIG_X86_64 */
-
-#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
-const struct vdso_image *selected_vdso32;
-#endif
-
 int __init sysenter_setup(void)
 {
-#ifdef CONFIG_COMPAT
-	if (vdso32_syscall())
-		selected_vdso32 = &vdso_image_32_syscall;
-	else
-#endif
-	if (vdso32_sysenter())
-		selected_vdso32 = &vdso_image_32_sysenter;
-	else
-		selected_vdso32 = &vdso_image_32_int80;
-
-	init_vdso_image(selected_vdso32);
+	init_vdso_image(&vdso_image_32);
 
 	return 0;
 }

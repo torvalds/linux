@@ -328,7 +328,7 @@ else									\
 
 #define VDSO_ENTRY							\
 	((unsigned long)current->mm->context.vdso +			\
-	 selected_vdso32->sym___kernel_vsyscall)
+	 vdso_image_32.sym___kernel_vsyscall)
 
 struct linux_binprm;
 
