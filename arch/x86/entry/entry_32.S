@@ -3,7 +3,7 @@
  *
  * entry_32.S contains the system-call and low-level fault and trap handling routines.
  *
- * Stack layout in 'syscall_exit':
+ * Stack layout while running C code:
  *	ptrace needs to have all registers on the stack.
  *	If the order here is changed, it needs to be
  *	updated in fork.c:copy_process(), signal.c:do_signal(),
@@ -211,7 +211,11 @@ ENTRY(ret_from_fork)
 	popl	%eax
 	pushl	$0x0202				# Reset kernel eflags
 	popfl
-	jmp	syscall_exit
+
+	/* When we fork, we trace the syscall return in the child, too. */
+	movl    %esp, %eax
+	call    syscall_return_slowpath
+	jmp     restore_all
 END(ret_from_fork)
 
 ENTRY(ret_from_kernel_thread)
@@ -224,7 +228,15 @@ ENTRY(ret_from_kernel_thread)
 	movl	PT_EBP(%esp), %eax
 	call	*PT_EBX(%esp)
 	movl	$0, PT_EAX(%esp)
-	jmp	syscall_exit
+
+	/*
+	 * Kernel threads return to userspace as if returning from a syscall.
+	 * We should check whether anything actually uses this path and, if so,
+	 * consider switching it over to ret_from_fork.
+	 */
+	movl    %esp, %eax
+	call    syscall_return_slowpath
+	jmp     restore_all
 ENDPROC(ret_from_kernel_thread)
 
 /*
