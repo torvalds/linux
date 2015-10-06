@@ -115,7 +115,9 @@ sysenter_flags_fixed:
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
-	jmp	.Lsyscall_32_done
+	testl	%eax, %eax
+	jz	.Lsyscall_32_done
+	jmp	sysret32_from_system_call
 
 sysenter_fix_flags:
 	pushq	$X86_EFLAGS_FIXED
@@ -192,7 +194,43 @@ ENTRY(entry_SYSCALL_compat)
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
-	jmp	.Lsyscall_32_done
+	testl	%eax, %eax
+	jz	.Lsyscall_32_done
+
+	/* Opportunistic SYSRET */
+sysret32_from_system_call:
+	TRACE_IRQS_ON			/* User mode traces as IRQs on. */
+	movq	RBX(%rsp), %rbx		/* pt_regs->rbx */
+	movq	RBP(%rsp), %rbp		/* pt_regs->rbp */
+	movq	EFLAGS(%rsp), %r11	/* pt_regs->flags (in r11) */
+	movq	RIP(%rsp), %rcx		/* pt_regs->ip (in rcx) */
+	addq	$RAX, %rsp		/* Skip r8-r15 */
+	popq	%rax			/* pt_regs->rax */
+	popq	%rdx			/* Skip pt_regs->cx */
+	popq	%rdx			/* pt_regs->dx */
+	popq	%rsi			/* pt_regs->si */
+	popq	%rdi			/* pt_regs->di */
+
+        /*
+         * USERGS_SYSRET32 does:
+         *  GSBASE = user's GS base
+         *  EIP = ECX
+         *  RFLAGS = R11
+         *  CS = __USER32_CS
+         *  SS = __USER_DS
+         *
+	 * ECX will not match pt_regs->cx, but we're returning to a vDSO
+	 * trampoline that will fix up RCX, so this is okay.
+	 *
+	 * R12-R15 are callee-saved, so they contain whatever was in them
+	 * when the system call started, which is already known to user
+	 * code.  We zero R8-R10 to avoid info leaks.
+         */
+	xorq	%r8, %r8
+	xorq	%r9, %r9
+	xorq	%r10, %r10
+	movq	RSP-ORIG_RAX(%rsp), %rsp
+        USERGS_SYSRET32
 END(entry_SYSCALL_compat)
 
 /*

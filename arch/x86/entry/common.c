@@ -363,7 +363,8 @@ __visible void do_int80_syscall_32(struct pt_regs *regs)
 	syscall_return_slowpath(regs);
 }
 
-__visible void do_fast_syscall_32(struct pt_regs *regs)
+/* Returns 0 to return using IRET or 1 to return using SYSRETL. */
+__visible long do_fast_syscall_32(struct pt_regs *regs)
 {
 	/*
 	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
@@ -395,12 +396,28 @@ __visible void do_fast_syscall_32(struct pt_regs *regs)
 		enter_from_user_mode();
 #endif
 		prepare_exit_to_usermode(regs);
-		return;
+		return 0;	/* Keep it simple: use IRET. */
 	}
 	local_irq_disable();
 
 	/* Now this is just like a normal syscall. */
 	do_int80_syscall_32(regs);
-	return;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Opportunistic SYSRETL: if possible, try to return using SYSRETL.
+	 * SYSRETL is available on all 64-bit CPUs, so we don't need to
+	 * bother with SYSEXIT.
+	 *
+	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
+	 * because the ECX fixup above will ensure that this is essentially
+	 * never the case.
+	 */
+	return regs->cs == __USER32_CS && regs->ss == __USER_DS &&
+		regs->ip == landing_pad &&
+		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF)) == 0;
+#else
+	return 0;
+#endif
 }
 #endif
