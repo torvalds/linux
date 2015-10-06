@@ -232,10 +232,14 @@ int scsi_dh_add_device(struct scsi_device *sdev)
 	return err;
 }
 
-void scsi_dh_remove_device(struct scsi_device *sdev)
+void scsi_dh_release_device(struct scsi_device *sdev)
 {
 	if (sdev->handler)
 		scsi_dh_handler_detach(sdev);
+}
+
+void scsi_dh_remove_device(struct scsi_device *sdev)
+{
 	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
 
