@@ -2084,7 +2084,8 @@ static void ath10k_peer_assoc_h_ht(struct ath10k *ar,
 	enum ieee80211_band band;
 	const u8 *ht_mcs_mask;
 	const u16 *vht_mcs_mask;
-	int i, n, max_nss;
+	int i, n;
+	u8 max_nss;
 	u32 stbc;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -2169,7 +2170,7 @@ static void ath10k_peer_assoc_h_ht(struct ath10k *ar,
 			arg->peer_ht_rates.rates[i] = i;
 	} else {
 		arg->peer_ht_rates.num_rates = n;
-		arg->peer_num_spatial_streams = max_nss;
+		arg->peer_num_spatial_streams = min(sta->rx_nss, max_nss);
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac ht peer %pM mcs cnt %d nss %d\n",
