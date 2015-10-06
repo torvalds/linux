@@ -902,21 +902,6 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 		return -EINVAL;
 	}
 
-	if (args->num_cliprects != 0) {
-		DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
-		return -EINVAL;
-	} else {
-		if (args->DR4 == 0xffffffff) {
-			DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
-			args->DR4 = 0;
-		}
-
-		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
-			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
-			return -EINVAL;
-		}
-	}
-
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
 		DRM_DEBUG("sol reset is gen7 only\n");
 		return -EINVAL;
