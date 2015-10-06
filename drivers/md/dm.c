@@ -1001,6 +1001,7 @@ static void end_clone_bio(struct bio *clone)
 	struct dm_rq_target_io *tio = info->tio;
 	struct bio *bio = info->orig;
 	unsigned int nr_bytes = info->orig->bi_iter.bi_size;
+	int error = clone->bi_error;
 
 	bio_put(clone);
 
@@ -1011,13 +1012,13 @@ static void end_clone_bio(struct bio *clone)
 		 * the remainder.
 		 */
 		return;
-	else if (bio->bi_error) {
+	else if (error) {
 		/*
 		 * Don't notice the error to the upper layer yet.
 		 * The error handling decision is made by the target driver,
 		 * when the request is completed.
 		 */
-		tio->error = bio->bi_error;
+		tio->error = error;
 		return;
 	}
 
