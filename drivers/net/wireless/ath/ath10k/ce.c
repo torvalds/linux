@@ -413,7 +413,7 @@ int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
 	lockdep_assert_held(&ar_pci->ce_lock);
 
 	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) == 0)
-		return -EIO;
+		return -ENOSPC;
 
 	desc->addr = __cpu_to_le32(paddr);
 	desc->nbytes = 0;

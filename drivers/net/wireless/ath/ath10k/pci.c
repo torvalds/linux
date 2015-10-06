@@ -686,8 +686,6 @@ static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
 	dma_addr_t paddr;
 	int ret;
 
-	lockdep_assert_held(&ar_pci->ce_lock);
-
 	skb = dev_alloc_skb(pipe->buf_sz);
 	if (!skb)
 		return -ENOMEM;
@@ -705,9 +703,10 @@ static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
 
 	ATH10K_SKB_RXCB(skb)->paddr = paddr;
 
+	spin_lock_bh(&ar_pci->ce_lock);
 	ret = __ath10k_ce_rx_post_buf(ce_pipe, skb, paddr);
+	spin_unlock_bh(&ar_pci->ce_lock);
 	if (ret) {
-		ath10k_warn(ar, "failed to post pci rx buf: %d\n", ret);
 		dma_unmap_single(ar->dev, paddr, skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
 		dev_kfree_skb_any(skb);
@@ -717,14 +716,12 @@ static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
 	return 0;
 }
 
-static void __ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
+static void ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 {
 	struct ath10k *ar = pipe->hif_ce_state;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_pipe = pipe->ce_hdl;
 	int ret, num;
-
-	lockdep_assert_held(&ar_pci->ce_lock);
 
 	if (pipe->buf_sz == 0)
 		return;
@@ -732,10 +729,14 @@ static void __ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 	if (!ce_pipe->dest_ring)
 		return;
 
+	spin_lock_bh(&ar_pci->ce_lock);
 	num = __ath10k_ce_rx_num_free_bufs(ce_pipe);
+	spin_unlock_bh(&ar_pci->ce_lock);
 	while (num--) {
 		ret = __ath10k_pci_rx_post_buf(pipe);
 		if (ret) {
+			if (ret == -ENOSPC)
+				break;
 			ath10k_warn(ar, "failed to post pci rx buf: %d\n", ret);
 			mod_timer(&ar_pci->rx_post_retry, jiffies +
 				  ATH10K_PCI_RX_POST_RETRY_MS);
@@ -744,25 +745,13 @@ static void __ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
 	}
 }
 
-static void ath10k_pci_rx_post_pipe(struct ath10k_pci_pipe *pipe)
-{
-	struct ath10k *ar = pipe->hif_ce_state;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	spin_lock_bh(&ar_pci->ce_lock);
-	__ath10k_pci_rx_post_pipe(pipe);
-	spin_unlock_bh(&ar_pci->ce_lock);
-}
-
 static void ath10k_pci_rx_post(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int i;
 
-	spin_lock_bh(&ar_pci->ce_lock);
 	for (i = 0; i < CE_COUNT; i++)
-		__ath10k_pci_rx_post_pipe(&ar_pci->pipe_info[i]);
-	spin_unlock_bh(&ar_pci->ce_lock);
+		ath10k_pci_rx_post_pipe(&ar_pci->pipe_info[i]);
 }
 
 static void ath10k_pci_rx_replenish_retry(unsigned long ptr)
