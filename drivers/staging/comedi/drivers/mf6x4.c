@@ -38,7 +38,7 @@
 #define MF6X4_GPIOC_DACEN	BIT(26)
 
 /* BAR1 registers */
-#define MF6X4_ADDATA_R		0x00
+#define MF6X4_ADDATA_REG	0x00
 #define MF6X4_ADCTRL_REG	0x00
 #define MF6X4_ADCTRL_CHAN(x)	BIT(chan)
 #define MF6X4_DIN_R		0x10
@@ -134,9 +134,9 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int d;
 	int ret;
 	int i;
-	int d;
 
 	/* Set the ADC channel number in the scan list */
 	iowrite16(MF6X4_ADCTRL_CHAN(chan), dev->mmio + MF6X4_ADCTRL_REG);
@@ -150,9 +150,10 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			return ret;
 
 		/* Read the actual value */
-		d = ioread16(dev->mmio + MF6X4_ADDATA_R);
+		d = ioread16(dev->mmio + MF6X4_ADDATA_REG);
 		d &= s->maxdata;
-		data[i] = d;
+		/* munge the 2's complement data to offset binary */
+		data[i] = comedi_offset_munge(s, d);
 	}
 
 	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_REG);
