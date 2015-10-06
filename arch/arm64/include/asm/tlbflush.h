@@ -81,7 +81,7 @@ static inline void flush_tlb_all(void)
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	unsigned long asid = (unsigned long)ASID(mm) << 48;
+	unsigned long asid = ASID(mm) << 48;
 
 	dsb(ishst);
 	asm("tlbi	aside1is, %0" : : "r" (asid));
@@ -91,8 +91,7 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long uaddr)
 {
-	unsigned long addr = uaddr >> 12 |
-		((unsigned long)ASID(vma->vm_mm) << 48);
+	unsigned long addr = uaddr >> 12 | (ASID(vma->vm_mm) << 48);
 
 	dsb(ishst);
 	asm("tlbi	vale1is, %0" : : "r" (addr));
@@ -109,7 +108,7 @@ static inline void __flush_tlb_range(struct vm_area_struct *vma,
 				     unsigned long start, unsigned long end,
 				     bool last_level)
 {
-	unsigned long asid = (unsigned long)ASID(vma->vm_mm) << 48;
+	unsigned long asid = ASID(vma->vm_mm) << 48;
 	unsigned long addr;
 
 	if ((end - start) > MAX_TLB_RANGE) {
@@ -162,7 +161,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 static inline void __flush_tlb_pgtable(struct mm_struct *mm,
 				       unsigned long uaddr)
 {
-	unsigned long addr = uaddr >> 12 | ((unsigned long)ASID(mm) << 48);
+	unsigned long addr = uaddr >> 12 | (ASID(mm) << 48);
 
 	dsb(ishst);
 	asm("tlbi	vae1is, %0" : : "r" (addr));
