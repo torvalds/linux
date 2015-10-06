@@ -590,7 +590,7 @@ int pfault_init(void)
 		.reffcode = 0,
 		.refdwlen = 5,
 		.refversn = 2,
-		.refgaddr = __LC_CURRENT_PID,
+		.refgaddr = __LC_LPP,
 		.refselmk = 1ULL << 48,
 		.refcmpmk = 1ULL << 48,
 		.reserved = __PF_RES_FIELD };
@@ -649,7 +649,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 		return;
 	inc_irq_stat(IRQEXT_PFL);
 	/* Get the token (= pid of the affected task). */
-	pid = param64;
+	pid = param64 & LPP_PFAULT_PID_MASK;
 	rcu_read_lock();
 	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
 	if (tsk)

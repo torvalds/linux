@@ -34,6 +34,9 @@
 #define MACHINE_FLAG_VX		_BITUL(18)
 #define MACHINE_FLAG_CAD	_BITUL(19)
 
+#define LPP_MAGIC		_BITUL(31)
+#define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/lowcore.h>

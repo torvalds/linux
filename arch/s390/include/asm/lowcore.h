@@ -132,7 +132,14 @@ struct _lowcore {
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0358 */
 	__u64	user_asce;			/* 0x0360 */
-	__u64	current_pid;			/* 0x0368 */
+
+	/*
+	 * The lpp and current_pid fields form a
+	 * 64-bit value that is set as program
+	 * parameter with the LPP instruction.
+	 */
+	__u32	lpp;				/* 0x0368 */
+	__u32	current_pid;			/* 0x036c */
 
 	/* SMP info area */
 	__u32	cpu_nr;				/* 0x0370 */

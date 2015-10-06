@@ -187,8 +187,11 @@ ENTRY(__switch_to)
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
-	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
+	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
+	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
+	bzr	%r14
+	.insn	s,0xb2800000,__LC_LPP		# set program parameter
 	br	%r14
 
 .L__critical_start:
@@ -203,7 +206,7 @@ ENTRY(sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
-	xc	__SF_EMPTY+16(16,%r15),__SF_EMPTY+16(%r15) # host id & reason
+	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # reason code = 0
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU		# load guest fp/vx registers ?
 	jno	.Lsie_load_guest_gprs
 	brasl	%r14,load_fpu_regs		# load guest fp/vx regs
@@ -220,14 +223,7 @@ ENTRY(sie64a)
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	.Lsie_enter
-	.insn	s,0xb2800000,__LC_CURRENT_PID	# set guest id to pid
-.Lsie_enter:
 	sie	0(%r14)
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	.Lsie_skip
-	.insn	s,0xb2800000,__SF_EMPTY+16(%r15)# set host id
 .Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
@@ -244,11 +240,11 @@ sie_exit:
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
-	lg	%r2,__SF_EMPTY+24(%r15)		# return exit reason code
+	lg	%r2,__SF_EMPTY+16(%r15)		# return exit reason code
 	br	%r14
 .Lsie_fault:
 	lghi	%r14,-EFAULT
-	stg	%r14,__SF_EMPTY+24(%r15)	# set exit reason code
+	stg	%r14,__SF_EMPTY+16(%r15)	# set exit reason code
 	j	sie_exit
 
 	EX_TABLE(.Lrewind_pad,.Lsie_fault)
@@ -938,7 +934,10 @@ ENTRY(mcck_int_handler)
 # PSW restart interrupt handler
 #
 ENTRY(restart_int_handler)
-	stg	%r15,__LC_SAVE_AREA_RESTART
+	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
+	jz	0f
+	.insn	s,0xb2800000,__LC_LPP
+0:	stg	%r15,__LC_SAVE_AREA_RESTART
 	lg	%r15,__LC_RESTART_STACK
 	aghi	%r15,-__PT_SIZE			# create pt_regs on stack
 	xc	0(__PT_SIZE,%r15),0(%r15)
@@ -1042,10 +1041,7 @@ cleanup_critical:
 
 .Lcleanup_sie:
 	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	0f
-	.insn	s,0xb2800000,__SF_EMPTY+16(%r15)# set host id
-0:	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
+	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	br	%r14

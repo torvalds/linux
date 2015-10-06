@@ -163,6 +163,7 @@ int main(void)
 	OFFSET(__LC_RESTART_DATA, _lowcore, restart_data);
 	OFFSET(__LC_RESTART_SOURCE, _lowcore, restart_source);
 	OFFSET(__LC_USER_ASCE, _lowcore, user_asce);
+	OFFSET(__LC_LPP, _lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, _lowcore, current_pid);
 	OFFSET(__LC_PERCPU_OFFSET, _lowcore, percpu_offset);
 	OFFSET(__LC_VDSO_PER_CPU, _lowcore, vdso_per_cpu_data);
