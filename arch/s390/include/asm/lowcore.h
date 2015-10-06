@@ -67,7 +67,7 @@ struct _lowcore {
 	__u8	pad_0x00c4[0x00c8-0x00c4];	/* 0x00c4 */
 	__u32	stfl_fac_list;			/* 0x00c8 */
 	__u8	pad_0x00cc[0x00e8-0x00cc];	/* 0x00cc */
-	__u32	mcck_interruption_code[2];	/* 0x00e8 */
+	__u64	mcck_interruption_code;		/* 0x00e8 */
 	__u8	pad_0x00f0[0x00f4-0x00f0];	/* 0x00f0 */
 	__u32	external_damage_code;		/* 0x00f4 */
 	__u64	failing_storage_address;	/* 0x00f8 */
