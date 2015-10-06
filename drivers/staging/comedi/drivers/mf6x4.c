@@ -57,8 +57,8 @@ enum mf6x4_boardid {
 
 struct mf6x4_board {
 	const char *name;
-	unsigned int bar_nums[3]; /* We need to keep track of the
-				     order of BARs used by the cards */
+	/* We need to keep track of the order of BARs used by the cards */
+	unsigned int bar_nums[3];
 };
 
 static const struct mf6x4_board mf6x4_boards[] = {
