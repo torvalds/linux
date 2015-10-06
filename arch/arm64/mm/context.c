@@ -132,7 +132,6 @@ set_asid:
 
 bump_gen:
 	asid |= generation;
-	cpumask_clear(mm_cpumask(mm));
 	return asid;
 }
 
@@ -169,7 +168,6 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
 
 switch_mm_fastpath:
-	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	cpu_switch_mm(mm->pgd, mm);
 }
 
