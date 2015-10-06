@@ -128,9 +128,10 @@ static int mpc624_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int mpc624_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int mpc624_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct mpc624_private *devpriv = dev->private;
 	int n, i;
@@ -307,7 +308,7 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x3fffffff;
 	s->range_table	= (it->options[1] == 0) ? &range_mpc624_bipolar1
 						: &range_mpc624_bipolar10;
-	s->insn_read	= mpc624_ai_rinsn;
+	s->insn_read	= mpc624_ai_insn_read;
 
 	return 0;
 }
