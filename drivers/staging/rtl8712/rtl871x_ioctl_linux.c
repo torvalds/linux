@@ -114,7 +114,7 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 static inline void handle_group_key(struct ieee_param *param,
 				    struct _adapter *padapter)
 {
-	if (0 < param->u.crypt.idx &&
+	if (param->u.crypt.idx > 0 &&
 	    param->u.crypt.idx < 3) {
 		/* group key idx is 1 or 2 */
 		memcpy(padapter->securitypriv.XGrpKey[param->u.crypt.
@@ -931,7 +931,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 	if (IS_ERR(ext))
 		return PTR_ERR(ext);
 
-	if (0 == strcasecmp(ext, "RSSI")) {
+	if (!strcasecmp(ext, "RSSI")) {
 		/*Return received signal strength indicator in -db for */
 		/* current AP */
 		/*<ssid> Rssi xx */
@@ -948,7 +948,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		} else {
 			sprintf(ext, "OK");
 		}
-	} else if (0 == strcasecmp(ext, "LINKSPEED")) {
+	} else if (!strcasecmp(ext, "LINKSPEED")) {
 		/*Return link speed in MBPS */
 		/*LinkSpeed xx */
 		union iwreq_data wrqd;
@@ -956,30 +956,30 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		int mbps;
 
 		ret_inner = r8711_wx_get_rate(dev, info, &wrqd, extra);
-		if (0 != ret_inner)
+		if (ret_inner != 0)
 			mbps = 0;
 		else
 			mbps = wrqd.bitrate.value / 1000000;
 		sprintf(ext, "LINKSPEED %d", mbps);
-	} else if (0 == strcasecmp(ext, "MACADDR")) {
+	} else if (!strcasecmp(ext, "MACADDR")) {
 		/*Return mac address of the station */
 		/* Macaddr = xx:xx:xx:xx:xx:xx */
 		sprintf(ext, "MACADDR = %pM", dev->dev_addr);
-	} else if (0 == strcasecmp(ext, "SCAN-ACTIVE")) {
+	} else if (!strcasecmp(ext, "SCAN-ACTIVE")) {
 		/*Set scan type to active */
 		/*OK if successful */
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 		pmlmepriv->passive_mode = 1;
 		sprintf(ext, "OK");
-	} else if (0 == strcasecmp(ext, "SCAN-PASSIVE")) {
+	} else if (!strcasecmp(ext, "SCAN-PASSIVE")) {
 		/*Set scan type to passive */
 		/*OK if successful */
 		struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 		pmlmepriv->passive_mode = 0;
 		sprintf(ext, "OK");
-	} else if (0 == strncmp(ext, "DCE-E", 5)) {
+	} else if (!strncmp(ext, "DCE-E", 5)) {
 		/*Set scan type to passive */
 		/*OK if successful */
 		r8712_disconnectCtrlEx_cmd(padapter
@@ -989,7 +989,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 			, 5000 /*u32 firstStageTO */
 		);
 		sprintf(ext, "OK");
-	} else if (0 == strncmp(ext, "DCE-D", 5)) {
+	} else if (!strncmp(ext, "DCE-D", 5)) {
 		/*Set scan type to passive */
 		/*OK if successfu */
 		r8712_disconnectCtrlEx_cmd(padapter
@@ -1428,7 +1428,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 		if (ht_cap == true) {
 			if (mcs_rate & 0x8000 /* MCS15 */
 				&&
-				RTL8712_RF_2T2R == rf_type)
+				rf_type == RTL8712_RF_2T2R)
 				max_rate = (bw_40MHz) ? ((short_GI) ? 300 :
 					    270) : ((short_GI) ? 144 : 130);
 			else /* default MCS7 */
