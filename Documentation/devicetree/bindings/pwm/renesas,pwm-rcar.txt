@@ -1,8 +1,7 @@
 * Renesas R-Car PWM Timer Controller
 
 Required Properties:
-- compatible: should be one of the following.
- - "renesas,pwm-rcar": for generic R-Car compatible PWM Timer
+- compatible: should be "renesas,pwm-rcar" and one of the following.
  - "renesas,pwm-r8a7778": for R-Car M1A
  - "renesas,pwm-r8a7779": for R-Car H1
  - "renesas,pwm-r8a7790": for R-Car H2
