@@ -264,7 +264,7 @@ static inline u16 get_assoc_resp_cap_info(u8 *data)
 	return cap_info;
 }
 
-/* This funcion extracts the association status code from the incoming       */
+/* This function extracts the association status code from the incoming       */
 /* association response frame and returns association status code            */
 static inline u16 get_asoc_status(u8 *data)
 {
