@@ -31,7 +31,7 @@
 #include "../comedi_pci.h"
 
 /* Registers present in BAR0 memory region */
-#define MF624_GPIOC_R		0x54
+#define MF624_GPIOC_REG		0x54
 
 #define MF6X4_GPIOC_EOLC	BIT(17)	/* End Of Last Conversion */
 #define MF6X4_GPIOC_LDAC	BIT(23)	/* Load DACs */
@@ -48,7 +48,7 @@
 #define MF6X4_DAC_REG(x)	(0x20 + ((x) * 2))
 
 /* BAR2 registers */
-#define MF634_GPIOC_R		0x68
+#define MF634_GPIOC_REG		0x68
 
 enum mf6x4_boardid {
 	BOARD_MF634,
@@ -87,7 +87,7 @@ struct mf6x4_private {
 	 * for both cards however it lies in different BARs on different
 	 * offsets -- this variable makes the access easier
 	 */
-	void __iomem *gpioc_R;
+	void __iomem *gpioc_reg;
 };
 
 static int mf6x4_di_insn_bits(struct comedi_device *dev,
@@ -121,7 +121,7 @@ static int mf6x4_ai_eoc(struct comedi_device *dev,
 	struct mf6x4_private *devpriv = dev->private;
 	unsigned int status;
 
-	status = ioread32(devpriv->gpioc_R);
+	status = ioread32(devpriv->gpioc_reg);
 	if (status & MF6X4_GPIOC_EOLC)
 		return 0;
 	return -EBUSY;
@@ -172,9 +172,9 @@ static int mf6x4_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	/* Enable instantaneous update of converters outputs + Enable DACs */
-	gpioc = ioread32(devpriv->gpioc_R);
+	gpioc = ioread32(devpriv->gpioc_reg);
 	iowrite32((gpioc & ~MF6X4_GPIOC_LDAC) | MF6X4_GPIOC_DACEN,
-		  devpriv->gpioc_R);
+		  devpriv->gpioc_reg);
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
@@ -222,9 +222,9 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 		return -ENODEV;
 
 	if (board == &mf6x4_boards[BOARD_MF634])
-		devpriv->gpioc_R = devpriv->bar2_mem + MF634_GPIOC_R;
+		devpriv->gpioc_reg = devpriv->bar2_mem + MF634_GPIOC_REG;
 	else
-		devpriv->gpioc_R = devpriv->bar0_mem + MF624_GPIOC_R;
+		devpriv->gpioc_reg = devpriv->bar0_mem + MF624_GPIOC_REG;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
