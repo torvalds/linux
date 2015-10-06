@@ -293,6 +293,7 @@ enum {
 	IFLA_BRPORT_LEARNING_SYNC, /* mac learning sync from device */
 	IFLA_BRPORT_PROXYARP_WIFI, /* proxy ARP for Wi-Fi */
 	IFLA_BRPORT_ROOT_ID,	/* designated root */
+	IFLA_BRPORT_BRIDGE_ID,	/* designated bridge */
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
