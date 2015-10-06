@@ -219,12 +219,18 @@ ENTRY(entry_INT80_compat)
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	pushq	$0			/* pt_regs->r8 */
-	pushq	$0			/* pt_regs->r9 */
-	pushq	$0			/* pt_regs->r10 */
-	pushq	$0			/* pt_regs->r11 */
+	xorq    %r8,%r8
+	pushq   %r8                     /* pt_regs->r8  = 0 */
+	pushq   %r8                     /* pt_regs->r9  = 0 */
+	pushq   %r8                     /* pt_regs->r10 = 0 */
+	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   %rbx                    /* pt_regs->rbx */
+	pushq   %rbp                    /* pt_regs->rbp */
+	pushq   %r12                    /* pt_regs->r12 */
+	pushq   %r13                    /* pt_regs->r13 */
+	pushq   %r14                    /* pt_regs->r14 */
+	pushq   %r15                    /* pt_regs->r15 */
 	cld
-	sub	$(6*8), %rsp /* pt_regs->bp, bx, r12-15 not saved */
 
 	orl	$TS_COMPAT, ASM_THREAD_INFO(TI_status, %rsp, SIZEOF_PTREGS)
 	testl	$_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
@@ -243,10 +249,10 @@ ia32_do_call:
 	call	*ia32_sys_call_table(, %rax, 8)
 	movq	%rax, RAX(%rsp)
 1:
+	RESTORE_EXTRA_REGS
 	jmp	int_ret_from_sys_call
 
 ia32_tracesys:
-	SAVE_EXTRA_REGS
 	movq	%rsp, %rdi			/* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 	/*
@@ -261,25 +267,11 @@ ia32_tracesys:
 	movl	RSI(%rsp), %esi
 	movl	RDI(%rsp), %edi
 	movl	%eax, %eax		/* zero extension */
-	RESTORE_EXTRA_REGS
 	jmp	ia32_do_call
 END(entry_INT80_compat)
 
-	.macro PTREGSCALL label, func
-	ALIGN
-GLOBAL(\label)
-	leaq	\func(%rip), %rax
-	jmp	ia32_ptregs_common
-	.endm
-
-	PTREGSCALL stub32_rt_sigreturn,	sys32_rt_sigreturn
-	PTREGSCALL stub32_sigreturn,	sys32_sigreturn
-	PTREGSCALL stub32_fork,		sys_fork
-	PTREGSCALL stub32_vfork,	sys_vfork
-
 	ALIGN
 GLOBAL(stub32_clone)
-	leaq	sys_clone(%rip), %rax
 	/*
 	 * The 32-bit clone ABI is: clone(..., int tls_val, int *child_tidptr).
 	 * The 64-bit clone ABI is: clone(..., int *child_tidptr, int tls_val).
@@ -288,12 +280,4 @@ GLOBAL(stub32_clone)
 	 * so we need to swap arguments here before calling it:
 	 */
 	xchg	%r8, %rcx
-	jmp	ia32_ptregs_common
-
-	ALIGN
-ia32_ptregs_common:
-	SAVE_EXTRA_REGS 8
-	call	*%rax
-	RESTORE_EXTRA_REGS 8
-	ret
-END(ia32_ptregs_common)
+	jmp	sys_clone
