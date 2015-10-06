@@ -788,8 +788,6 @@ static struct l2cap_chan *chan_open(struct l2cap_chan *pchan)
 	if (!chan)
 		return NULL;
 
-	chan->state = BT_CONNECTED;
-
 	return chan;
 }
 
