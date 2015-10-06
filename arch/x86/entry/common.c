@@ -30,6 +30,13 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
+static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
+{
+	unsigned long top_of_stack =
+		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
+	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
+}
+
 #ifdef CONFIG_CONTEXT_TRACKING
 /* Called on entry from user mode with IRQs off. */
 __visible void enter_from_user_mode(void)
@@ -68,14 +75,14 @@ static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
  */
 unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 {
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	unsigned long ret = 0;
 	u32 work;
 
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		BUG_ON(regs != task_pt_regs(current));
 
-	work = ACCESS_ONCE(current_thread_info()->flags) &
-		_TIF_WORK_SYSCALL_ENTRY;
+	work = ACCESS_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
 
 #ifdef CONFIG_CONTEXT_TRACKING
 	/*
@@ -157,9 +164,9 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
 				unsigned long phase1_result)
 {
+	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	long ret = 0;
-	u32 work = ACCESS_ONCE(current_thread_info()->flags) &
-		_TIF_WORK_SYSCALL_ENTRY;
+	u32 work = ACCESS_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
 
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		BUG_ON(regs != task_pt_regs(current));
@@ -209,13 +216,6 @@ long syscall_trace_enter(struct pt_regs *regs)
 		return regs->orig_ax;
 	else
 		return syscall_trace_enter_phase2(regs, arch, phase1_result);
-}
-
-static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
-{
-	unsigned long top_of_stack =
-		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
-	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
 }
 
 /* Called with IRQs disabled. */
