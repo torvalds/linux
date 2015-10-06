@@ -174,7 +174,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 
 	nid = dev_to_node(dev);
 	if (nid < 0)
-		nid = 0;
+		nid = numa_mem_id();
 
 	error = arch_add_memory(nid, res->start, resource_size(res), true);
 	if (error) {
