@@ -25,7 +25,6 @@
 #define MII_BCM7XXX_100TX_DISC		0x14
 #define MII_BCM7XXX_AUX_MODE		0x1d
 #define  MII_BCM7XX_64CLK_MDIO		BIT(12)
-#define MII_BCM7XXX_CORE_BASE1E		0x1e
 #define MII_BCM7XXX_TEST		0x1f
 #define  MII_BCM7XXX_SHD_MODE_2		BIT(2)
 
@@ -45,8 +44,6 @@
 #define AFE_VDCA_ICTRL_0		MISC_ADDR(0x39, 1)
 #define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
 #define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
-
-#define CORE_EXPB0			0xb0
 
 static void r_rc_cal_reset(struct phy_device *phydev)
 {
@@ -76,7 +73,7 @@ static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x690b);
 
 	/* Switch to CORE_BASE1E */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0xd);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0xd);
 
 	r_rc_cal_reset(phydev);
 
@@ -127,7 +124,7 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
 
 	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0x0010);
 
 	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
@@ -155,7 +152,7 @@ static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x00e3);
 
 	/* CORE_BASE1E, force trim to overwrite and set I_ext trim to 0000 */
-	phy_write(phydev, MII_BCM7XXX_CORE_BASE1E, 0x0010);
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0x0010);
 
 	/* DSP_TAP10, adjust bias current trim (+0% swing, +0 tick) */
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
