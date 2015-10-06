@@ -543,23 +543,32 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
 	}
 }
 
-/* Wait for the ready pin, after a command. The timeout is caught later. */
+/**
+ * nand_wait_ready - [GENERIC] Wait for the ready pin after commands.
+ * @mtd: MTD device structure
+ *
+ * Wait for the ready pin after a command, and warn if a timeout occurs.
+ */
 void nand_wait_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
-	unsigned long timeo = jiffies + msecs_to_jiffies(20);
+	unsigned long timeo = 400;
 
-	/* 400ms timeout */
 	if (in_interrupt() || oops_in_progress)
-		return panic_nand_wait_ready(mtd, 400);
+		return panic_nand_wait_ready(mtd, timeo);
 
 	led_trigger_event(nand_led_trigger, LED_FULL);
 	/* Wait until command is processed or timeout occurs */
+	timeo = jiffies + msecs_to_jiffies(timeo);
 	do {
 		if (chip->dev_ready(mtd))
-			break;
-		touch_softlockup_watchdog();
+			goto out;
+		cond_resched();
 	} while (time_before(jiffies, timeo));
+
+	pr_warn_ratelimited(
+		"timeout while waiting for chip to become ready\n");
+out:
 	led_trigger_event(nand_led_trigger, LED_OFF);
 }
 EXPORT_SYMBOL_GPL(nand_wait_ready);
@@ -885,15 +894,13 @@ static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
  * @mtd: MTD device structure
  * @chip: NAND chip structure
  *
- * Wait for command done. This applies to erase and program only. Erase can
- * take up to 400ms and program up to 20ms according to general NAND and
- * SmartMedia specs.
+ * Wait for command done. This applies to erase and program only.
  */
 static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
 
-	int status, state = chip->state;
-	unsigned long timeo = (state == FL_ERASING ? 400 : 20);
+	int status;
+	unsigned long timeo = 400;
 
 	led_trigger_event(nand_led_trigger, LED_FULL);
 
@@ -909,7 +916,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		panic_nand_wait(mtd, chip, timeo);
 	else {
 		timeo = jiffies + msecs_to_jiffies(timeo);
-		while (time_before(jiffies, timeo)) {
+		do {
 			if (chip->dev_ready) {
 				if (chip->dev_ready(mtd))
 					break;
@@ -918,7 +925,7 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 					break;
 			}
 			cond_resched();
-		}
+		} while (time_before(jiffies, timeo));
 	}
 	led_trigger_event(nand_led_trigger, LED_OFF);
 
