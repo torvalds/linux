@@ -48,15 +48,6 @@
 #define MF6X4_ADCTRL_R					0x00
 #define MF6X4_ADCTRL_M					0xff
 
-#define MF6X4_DA0_R					0x20
-#define MF6X4_DA1_R					0x22
-#define MF6X4_DA2_R					0x24
-#define MF6X4_DA3_R					0x26
-#define MF6X4_DA4_R					0x28
-#define MF6X4_DA5_R					0x2a
-#define MF6X4_DA6_R					0x2c
-#define MF6X4_DA7_R					0x2e
-/* Map DAC cahnnel id to real HW-dependent offset value */
 #define MF6X4_DAC_R(x)					(0x20 + ((x) * 2))
 
 /* BAR2 registers */
