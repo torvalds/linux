@@ -1,55 +1,56 @@
 /*
-    comedi/drivers/mpc624.c
-    Hardware driver for a Micro/sys inc. MPC-624 PC/104 board
+ * mpc624.c
+ * Hardware driver for a Micro/sys inc. MPC-624 PC/104 board
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: mpc624
-Description: Micro/sys MPC-624 PC/104 board
-Devices: [Micro/sys] MPC-624 (mpc624)
-Author: Stanislaw Raczynski <sraczynski@op.pl>
-Updated: Thu, 15 Sep 2005 12:01:18 +0200
-Status: working
-
-    The Micro/sys MPC-624 board is based on the LTC2440 24-bit sigma-delta
-    ADC chip.
-
-    Subdevices supported by the driver:
-    - Analog In:   supported
-    - Digital I/O: not supported
-    - LEDs:        not supported
-    - EEPROM:      not supported
-
-Configuration Options:
-  [0] - I/O base address
-  [1] - conversion rate
-	Conversion rate  RMS noise  Effective Number Of Bits
-	0      3.52kHz        23uV                17
-	1      1.76kHz       3.5uV                20
-	2       880Hz         2uV                21.3
-	3       440Hz        1.4uV               21.8
-	4       220Hz         1uV                22.4
-	5       110Hz        750uV               22.9
-	6       55Hz         510nV               23.4
-	7      27.5Hz        375nV                24
-	8      13.75Hz       250nV               24.4
-	9      6.875Hz       200nV               24.6
-  [2] - voltage range
-	0      -1.01V .. +1.01V
-	1      -10.1V .. +10.1V
-*/
+ * Driver: mpc624
+ * Description: Micro/sys MPC-624 PC/104 board
+ * Devices: [Micro/sys] MPC-624 (mpc624)
+ * Author: Stanislaw Raczynski <sraczynski@op.pl>
+ * Updated: Thu, 15 Sep 2005 12:01:18 +0200
+ * Status: working
+ *
+ * The Micro/sys MPC-624 board is based on the LTC2440 24-bit sigma-delta
+ * ADC chip.
+ *
+ * Subdevices supported by the driver:
+ * - Analog In:   supported
+ * - Digital I/O: not supported
+ * - LEDs:        not supported
+ * - EEPROM:      not supported
+ *
+ * Configuration Options:
+ *   [0] - I/O base address
+ *   [1] - conversion rate
+ *	   Conversion rate   RMS noise	Effective Number Of Bits
+ *	   0	3.52kHz		23uV		17
+ *	   1	1.76kHz		3.5uV		20
+ *	   2	880Hz		2uV		21.3
+ *	   3	440Hz		1.4uV		21.8
+ *	   4	220Hz		1uV		22.4
+ *	   5	110Hz		750uV		22.9
+ *	   6	55Hz		510nV		23.4
+ *	   7	27.5Hz		375nV		24
+ *	   8	13.75Hz		250nV		24.4
+ *	   9	6.875Hz		200nV		24.6
+ *   [2] - voltage range
+ *	   0	-1.01V .. +1.01V
+ *	   1	-10.1V .. +10.1V
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
