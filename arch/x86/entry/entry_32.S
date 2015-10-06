@@ -153,13 +153,13 @@
 
 #endif /* CONFIG_X86_32_LAZY_GS */
 
-.macro SAVE_ALL
+.macro SAVE_ALL pt_regs_ax=%eax
 	cld
 	PUSH_GS
 	pushl	%fs
 	pushl	%es
 	pushl	%ds
-	pushl	%eax
+	pushl	\pt_regs_ax
 	pushl	%ebp
 	pushl	%edi
 	pushl	%esi
@@ -370,20 +370,17 @@ ENDPROC(entry_SYSENTER_32)
 	# system call handler stub
 ENTRY(entry_INT80_32)
 	ASM_CLAC
-	pushl	%eax				# save orig_eax
-	SAVE_ALL
-	GET_THREAD_INFO(%ebp)
-						# system call tracing in operation / emulation
-	testl	$_TIF_WORK_SYSCALL_ENTRY, TI_flags(%ebp)
-	jnz	syscall_trace_entry
-	cmpl	$(NR_syscalls), %eax
-	jae	syscall_badsys
-syscall_call:
-	call	*sys_call_table(, %eax, 4)
-syscall_after_call:
-	movl	%eax, PT_EAX(%esp)		# store the return value
-syscall_exit:
-	jmp	syscall_exit_work
+	pushl	%eax			/* pt_regs->orig_ax */
+	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest, load -ENOSYS into ax */
+
+	/*
+	 * User mode is traced as though IRQs are on, and the interrupt gate
+	 * turned them off.
+	 */
+	TRACE_IRQS_OFF
+
+	movl	%esp, %eax
+	call	do_int80_syscall_32
 
 restore_all:
 	TRACE_IRQS_IRET
@@ -490,11 +487,6 @@ syscall_fault:
 	movl	$-EFAULT, PT_EAX(%esp)
 	jmp	resume_userspace
 END(syscall_fault)
-
-syscall_badsys:
-	movl	$-ENOSYS, %eax
-	jmp	syscall_after_call
-END(syscall_badsys)
 
 sysenter_badsys:
 	movl	$-ENOSYS, %eax
