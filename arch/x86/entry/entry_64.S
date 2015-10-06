@@ -557,7 +557,6 @@ ret_from_intr:
 	jz	retint_kernel
 
 	/* Interrupt came from user space */
-	LOCKDEP_SYS_EXIT_IRQ
 GLOBAL(retint_user)
 	mov	%rsp,%rdi
 	call	prepare_exit_to_usermode

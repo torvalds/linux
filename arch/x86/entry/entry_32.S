@@ -255,7 +255,6 @@ ret_from_intr:
 	jb	resume_kernel			# not returning to v8086 or userspace
 
 ENTRY(resume_userspace)
-	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl	%esp, %eax
@@ -372,7 +371,6 @@ syscall_call:
 syscall_after_call:
 	movl	%eax, PT_EAX(%esp)		# store the return value
 syscall_exit:
-	LOCKDEP_SYS_EXIT
 	jmp	syscall_exit_work
 
 restore_all:

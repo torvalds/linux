@@ -220,6 +220,8 @@ __visible void prepare_exit_to_usermode(struct pt_regs *regs)
 	if (WARN_ON(!irqs_disabled()))
 		local_irq_disable();
 
+	lockdep_sys_exit();
+
 	/*
 	 * In order to return to user mode, we need to have IRQs off with
 	 * none of _TIF_SIGPENDING, _TIF_NOTIFY_RESUME, _TIF_USER_RETURN_NOTIFY,
