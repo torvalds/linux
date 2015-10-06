@@ -363,6 +363,12 @@ struct vb2_ops {
 	void (*buf_queue)(struct vb2_buffer *vb);
 };
 
+struct vb2_buf_ops {
+	int (*fill_user_buffer)(struct vb2_buffer *vb, void *pb);
+	int (*fill_vb2_buffer)(struct vb2_buffer *vb, const void *pb,
+				struct vb2_plane *planes);
+	int (*set_timestamp)(struct vb2_buffer *vb, const void *pb);
+};
 
 /**
  * struct vb2_queue - a videobuf queue
@@ -385,6 +391,8 @@ struct vb2_ops {
  *		drivers to easily associate an owner filehandle with the queue.
  * @ops:	driver-specific callbacks
  * @mem_ops:	memory allocator specific callbacks
+ * @buf_ops:	callbacks to deliver buffer information
+ *		between user-space and kernel-space
  * @drv_priv:	driver private data
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
@@ -440,6 +448,8 @@ struct vb2_queue {
 
 	const struct vb2_ops		*ops;
 	const struct vb2_mem_ops	*mem_ops;
+	const struct vb2_buf_ops	*buf_ops;
+
 	void				*drv_priv;
 	unsigned int			buf_struct_size;
 	u32				timestamp_flags;
