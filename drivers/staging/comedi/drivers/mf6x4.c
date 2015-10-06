@@ -39,8 +39,8 @@
 
 /* BAR1 registers */
 #define MF6X4_ADDATA_R		0x00
-#define MF6X4_ADCTRL_R		0x00
-#define MF6X4_ADCTRL_M		0xff
+#define MF6X4_ADCTRL_REG	0x00
+#define MF6X4_ADCTRL_CHAN(x)	BIT(chan)
 #define MF6X4_DIN_R		0x10
 #define MF6X4_DIN_M		0xff
 #define MF6X4_DOUT_R		0x10
@@ -133,13 +133,13 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int ret;
 	int i;
 	int d;
 
 	/* Set the ADC channel number in the scan list */
-	iowrite16((1 << chan) & MF6X4_ADCTRL_M, dev->mmio + MF6X4_ADCTRL_R);
+	iowrite16(MF6X4_ADCTRL_CHAN(chan), dev->mmio + MF6X4_ADCTRL_REG);
 
 	for (i = 0; i < insn->n; i++) {
 		/* Trigger ADC conversion by reading ADSTART */
@@ -155,7 +155,7 @@ static int mf6x4_ai_insn_read(struct comedi_device *dev,
 		data[i] = d;
 	}
 
-	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_R);
+	iowrite16(0x0, dev->mmio + MF6X4_ADCTRL_REG);
 
 	return insn->n;
 }
