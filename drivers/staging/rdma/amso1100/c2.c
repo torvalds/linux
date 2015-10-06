@@ -675,11 +675,11 @@ static int c2_up(struct net_device *netdev)
 
 	return 0;
 
-      bail1:
+bail1:
 	c2_rx_clean(c2_port);
 	kfree(c2_port->rx_ring.start);
 
-      bail0:
+bail0:
 	pci_free_consistent(c2dev->pcidev, c2_port->mem_size, c2_port->mem,
 			    c2_port->dma);
 
