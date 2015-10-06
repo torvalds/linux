@@ -424,6 +424,8 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 	if (ds->hwmon_dev)
 		hwmon_device_unregister(ds->hwmon_dev);
 #endif
+	mdiobus_unregister(ds->slave_mii_bus);
+	mdiobus_free(ds->slave_mii_bus);
 }
 
 #ifdef CONFIG_PM_SLEEP
