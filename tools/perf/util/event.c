@@ -67,7 +67,8 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	char filename[PATH_MAX];
 	char bf[4096];
 	int fd;
-	size_t size = 0, n;
+	size_t size = 0;
+	ssize_t n;
 	char *nl, *name, *tgids, *ppids;
 
 	*tgid = -1;
