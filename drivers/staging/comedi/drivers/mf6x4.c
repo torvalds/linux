@@ -230,45 +230,45 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	if (ret)
 		return ret;
 
-	/* ADC */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 8;
-	s->maxdata = 0x3fff; /* 14 bits ADC */
-	s->range_table = &range_bipolar10;
-	s->insn_read = mf6x4_ai_insn_read;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 8;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &range_bipolar10;
+	s->insn_read	= mf6x4_ai_insn_read;
 
-	/* DAC */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 0x3fff; /* 14 bits DAC */
-	s->range_table = &range_bipolar10;
-	s->insn_write = mf6x4_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 0x3fff;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= mf6x4_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
-	/* DIN */
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = mf6x4_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= mf6x4_di_insn_bits;
 
-	/* DOUT */
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = mf6x4_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= mf6x4_do_insn_bits;
 
 	return 0;
 }
