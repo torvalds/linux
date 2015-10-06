@@ -1056,7 +1056,7 @@ static int intel_th_msc_release(struct inode *inode, struct file *file)
 static ssize_t
 msc_single_to_user(struct msc *msc, char __user *buf, loff_t off, size_t len)
 {
-	size_t size = msc->nr_pages << PAGE_SHIFT, rem = len;
+	unsigned long size = msc->nr_pages << PAGE_SHIFT, rem = len;
 	unsigned long start = off, tocopy = 0;
 
 	if (msc->single_wrap) {
