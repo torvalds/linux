@@ -60,7 +60,7 @@ struct elan_transport_ops {
 	int (*get_sm_version)(struct i2c_client *client,
 			      u8* ic_type, u8 *version);
 	int (*get_checksum)(struct i2c_client *client, bool iap, u16 *csum);
-	int (*get_product_id)(struct i2c_client *client, u8 *id);
+	int (*get_product_id)(struct i2c_client *client, u16 *id);
 
 	int (*get_max)(struct i2c_client *client,
 		       unsigned int *max_x, unsigned int *max_y);

@@ -56,39 +56,35 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem_obj *obj)
 	nr_pages = obj->size >> PAGE_SHIFT;
 
 	if (!is_drm_iommu_supported(dev)) {
-		dma_addr_t start_addr;
-		unsigned int i = 0;
-
 		obj->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
 		if (!obj->pages) {
 			DRM_ERROR("failed to allocate pages.\n");
 			return -ENOMEM;
 		}
+	}
 
-		obj->cookie = dma_alloc_attrs(dev->dev,
-					obj->size,
-					&obj->dma_addr, GFP_KERNEL,
-					&obj->dma_attrs);
-		if (!obj->cookie) {
-			DRM_ERROR("failed to allocate buffer.\n");
+	obj->cookie = dma_alloc_attrs(dev->dev, obj->size, &obj->dma_addr,
+				      GFP_KERNEL, &obj->dma_attrs);
+	if (!obj->cookie) {
+		DRM_ERROR("failed to allocate buffer.\n");
+		if (obj->pages)
 			drm_free_large(obj->pages);
-			return -ENOMEM;
-		}
+		return -ENOMEM;
+	}
+
+	if (obj->pages) {
+		dma_addr_t start_addr;
+		unsigned int i = 0;
 
 		start_addr = obj->dma_addr;
 		while (i < nr_pages) {
-			obj->pages[i] = phys_to_page(start_addr);
+			obj->pages[i] = pfn_to_page(dma_to_pfn(dev->dev,
+							       start_addr));
 			start_addr += PAGE_SIZE;
 			i++;
 		}
 	} else {
-		obj->pages = dma_alloc_attrs(dev->dev, obj->size,
-					&obj->dma_addr, GFP_KERNEL,
-					&obj->dma_attrs);
-		if (!obj->pages) {
-			DRM_ERROR("failed to allocate buffer.\n");
-			return -ENOMEM;
-		}
+		obj->pages = obj->cookie;
 	}
 
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
@@ -110,15 +106,11 @@ static void exynos_drm_free_buf(struct exynos_drm_gem_obj *obj)
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)obj->dma_addr, obj->size);
 
-	if (!is_drm_iommu_supported(dev)) {
-		dma_free_attrs(dev->dev, obj->size, obj->cookie,
-				(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
-		drm_free_large(obj->pages);
-	} else
-		dma_free_attrs(dev->dev, obj->size, obj->pages,
-				(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
+	dma_free_attrs(dev->dev, obj->size, obj->cookie,
+			(dma_addr_t)obj->dma_addr, &obj->dma_attrs);
 
-	obj->dma_addr = (dma_addr_t)NULL;
+	if (!is_drm_iommu_supported(dev))
+		drm_free_large(obj->pages);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -156,18 +148,14 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	 * once dmabuf's refcount becomes 0.
 	 */
 	if (obj->import_attach)
-		goto out;
-
-	exynos_drm_free_buf(exynos_gem_obj);
-
-out:
-	drm_gem_free_mmap_offset(obj);
+		drm_prime_gem_destroy(obj, exynos_gem_obj->sgt);
+	else
+		exynos_drm_free_buf(exynos_gem_obj);
 
 	/* release file pointer to gem object. */
 	drm_gem_object_release(obj);
 
 	kfree(exynos_gem_obj);
-	exynos_gem_obj = NULL;
 }
 
 unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
@@ -190,8 +178,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 	return exynos_gem_obj->size;
 }
 
-
-struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
+static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 						      unsigned long size)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
@@ -208,6 +195,13 @@ struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 	ret = drm_gem_object_init(dev, obj, size);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize gem object\n");
+		kfree(exynos_gem_obj);
+		return ERR_PTR(ret);
+	}
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret < 0) {
+		drm_gem_object_release(obj);
 		kfree(exynos_gem_obj);
 		return ERR_PTR(ret);
 	}
@@ -313,7 +307,7 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 	drm_gem_object_unreference_unlocked(obj);
 }
 
-int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
+static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
 				      struct vm_area_struct *vma)
 {
 	struct drm_device *drm_dev = exynos_gem_obj->base.dev;
@@ -342,7 +336,8 @@ int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem_obj *exynos_gem_obj,
 
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv)
-{	struct exynos_drm_gem_obj *exynos_gem_obj;
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_exynos_gem_info *args = data;
 	struct drm_gem_object *obj;
 
@@ -402,6 +397,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_mode_create_dumb *args)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
+	unsigned int flags;
 	int ret;
 
 	/*
@@ -413,16 +409,12 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	if (is_drm_iommu_supported(dev)) {
-		exynos_gem_obj = exynos_drm_gem_create(dev,
-			EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
-			args->size);
-	} else {
-		exynos_gem_obj = exynos_drm_gem_create(dev,
-			EXYNOS_BO_CONTIG | EXYNOS_BO_WC,
-			args->size);
-	}
+	if (is_drm_iommu_supported(dev))
+		flags = EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC;
+	else
+		flags = EXYNOS_BO_CONTIG | EXYNOS_BO_WC;
 
+	exynos_gem_obj = exynos_drm_gem_create(dev, flags, args->size);
 	if (IS_ERR(exynos_gem_obj)) {
 		dev_warn(dev->dev, "FB allocation failed.\n");
 		return PTR_ERR(exynos_gem_obj);
@@ -460,14 +452,9 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 		goto unlock;
 	}
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
-
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
-out:
 	drm_gem_object_unreference(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
@@ -543,7 +530,6 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 err_close_vm:
 	drm_gem_vm_close(vma);
-	drm_gem_free_mmap_offset(obj);
 
 	return ret;
 }
@@ -587,6 +573,8 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 			npages);
 	if (ret < 0)
 		goto err_free_large;
+
+	exynos_gem_obj->sgt = sgt;
 
 	if (sgt->nents == 1) {
 		/* always physically continuous memory if sgt->nents is 1. */
