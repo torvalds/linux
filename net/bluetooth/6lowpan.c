@@ -780,17 +780,6 @@ static struct l2cap_chan *chan_create(void)
 	return chan;
 }
 
-static struct l2cap_chan *chan_open(struct l2cap_chan *pchan)
-{
-	struct l2cap_chan *chan;
-
-	chan = chan_create();
-	if (!chan)
-		return NULL;
-
-	return chan;
-}
-
 static void set_ip_addr_bits(u8 addr_type, u8 *addr)
 {
 	if (addr_type == BDADDR_LE_PUBLIC)
@@ -913,7 +902,10 @@ static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *pchan)
 {
 	struct l2cap_chan *chan;
 
-	chan = chan_open(pchan);
+	chan = chan_create();
+	if (!chan)
+		return NULL;
+
 	chan->ops = pchan->ops;
 
 	BT_DBG("chan %p pchan %p", chan, pchan);
