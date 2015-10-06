@@ -162,27 +162,29 @@ static void tgfx_attach(struct parport *pp)
 	struct tgfx *tgfx;
 	struct input_dev *input_dev;
 	struct pardevice *pd;
-	int i, j;
+	int i, j, port_idx;
 	int *n_buttons, n_devs;
 	struct pardev_cb tgfx_parport_cb;
 
-	for (i = 0; i < TGFX_MAX_PORTS; i++) {
-		if (tgfx_cfg[i].nargs == 0 || tgfx_cfg[i].args[0] < 0)
+	for (port_idx = 0; port_idx < TGFX_MAX_PORTS; port_idx++) {
+		if (tgfx_cfg[port_idx].nargs == 0 ||
+		    tgfx_cfg[port_idx].args[0] < 0)
 			continue;
-		if (tgfx_cfg[i].args[0] == pp->number)
+		if (tgfx_cfg[port_idx].args[0] == pp->number)
 			break;
 	}
 
-	if (i == TGFX_MAX_PORTS) {
+	if (port_idx == TGFX_MAX_PORTS) {
 		pr_debug("Not using parport%d.\n", pp->number);
 		return;
 	}
-	n_buttons = tgfx_cfg[i].args + 1;
-	n_devs = tgfx_cfg[i].nargs - 1;
+	n_buttons = tgfx_cfg[port_idx].args + 1;
+	n_devs = tgfx_cfg[port_idx].nargs - 1;
 
 	tgfx_parport_cb.flags = PARPORT_FLAG_EXCL;
 
-	pd = parport_register_dev_model(pp, "turbografx", &tgfx_parport_cb, i);
+	pd = parport_register_dev_model(pp, "turbografx", &tgfx_parport_cb,
+					port_idx);
 	if (!pd) {
 		pr_err("parport busy already - lp.o loaded?\n");
 		return;
@@ -250,7 +252,7 @@ static void tgfx_attach(struct parport *pp)
 		goto err_free_tgfx;
         }
 
-	tgfx_base[i] = tgfx;
+	tgfx_base[port_idx] = tgfx;
 	return;
 
  err_free_dev:
