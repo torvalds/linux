@@ -41,8 +41,8 @@
 #define MF6X4_ADDATA_REG	0x00
 #define MF6X4_ADCTRL_REG	0x00
 #define MF6X4_ADCTRL_CHAN(x)	BIT(chan)
-#define MF6X4_DIN_R		0x10
-#define MF6X4_DIN_M		0xff
+#define MF6X4_DIN_REG		0x10
+#define MF6X4_DIN_MASK		0xff
 #define MF6X4_DOUT_REG		0x10
 #define MF6X4_ADSTART_R		0x20
 #define MF6X4_DAC_R(x)		(0x20 + ((x) * 2))
@@ -95,7 +95,7 @@ static int mf6x4_di_insn_bits(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	data[1] = ioread16(dev->mmio + MF6X4_DIN_R) & MF6X4_DIN_M;
+	data[1] = ioread16(dev->mmio + MF6X4_DIN_REG) & MF6X4_DIN_MASK;
 
 	return insn->n;
 }
