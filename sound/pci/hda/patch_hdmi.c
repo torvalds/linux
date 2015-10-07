@@ -1775,6 +1775,16 @@ static bool check_non_pcm_per_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
 	return non_pcm;
 }
 
+/* There is a fixed mapping between audio pin node and display port
+ * on current Intel platforms:
+ * Pin Widget 5 - PORT B (port = 1 in i915 driver)
+ * Pin Widget 6 - PORT C (port = 2 in i915 driver)
+ * Pin Widget 7 - PORT D (port = 3 in i915 driver)
+ */
+static int intel_pin2port(hda_nid_t pin_nid)
+{
+	return pin_nid - 4;
+}
 
 /*
  * HDMI callbacks
@@ -1791,6 +1801,8 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	int pin_idx = hinfo_to_pin_index(codec, hinfo);
 	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	hda_nid_t pin_nid = per_pin->pin_nid;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct i915_audio_component *acomp = codec->bus->core.audio_component;
 	bool non_pcm;
 	int pinctl;
 
@@ -1806,6 +1818,13 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 		intel_verify_pin_cvt_connect(codec, per_pin);
 		intel_not_share_assigned_cvt(codec, pin_nid, per_pin->mux_idx);
 	}
+
+	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
+	/* Todo: add DP1.2 MST audio support later */
+	if (acomp && acomp->ops && acomp->ops->sync_audio_rate)
+		acomp->ops->sync_audio_rate(acomp->dev,
+				intel_pin2port(pin_nid),
+				runtime->rate);
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);

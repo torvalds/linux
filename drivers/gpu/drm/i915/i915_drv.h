@@ -1888,6 +1888,11 @@ struct drm_i915_private {
 	/* hda/i915 audio component */
 	struct i915_audio_component *audio_component;
 	bool audio_component_registered;
+	/**
+	 * av_mutex - mutex for audio/video sync
+	 *
+	 */
+	struct mutex av_mutex;
 
 	uint32_t hw_context_size;
 	struct list_head context_list;
