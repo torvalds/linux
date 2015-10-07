@@ -2623,7 +2623,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 			GEN8_RING_SEMAPHORE_INIT;
 		}
 	} else if (INTEL_INFO(dev)->gen >= 6) {
-		ring->init_context = i915_gem_render_state_init;
+		ring->init_context = intel_rcs_ctx_init;
 		ring->add_request = gen6_add_request;
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)
