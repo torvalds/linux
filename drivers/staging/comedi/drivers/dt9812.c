@@ -18,17 +18,17 @@
  */
 
 /*
-Driver: dt9812
-Description: Data Translation DT9812 USB module
-Author: anders.blomdell@control.lth.se (Anders Blomdell)
-Status: in development
-Devices: [Data Translation] DT9812 (dt9812)
-Updated: Sun Nov 20 20:18:34 EST 2005
-
-This driver works, but bulk transfers not implemented. Might be a starting point
-for someone else. I found out too late that USB has too high latencies (>1 ms)
-for my needs.
-*/
+ * Driver: dt9812
+ * Description: Data Translation DT9812 USB module
+ * Devices: [Data Translation] DT9812 (dt9812)
+ * Author: anders.blomdell@control.lth.se (Anders Blomdell)
+ * Status: in development
+ * Updated: Sun Nov 20 20:18:34 EST 2005
+ *
+ * This driver works, but bulk transfers not implemented. Might be a
+ * starting point for someone else. I found out too late that USB has
+ * too high latencies (>1 ms) for my needs.
+ */
 
 /*
  * Nota Bene:
