@@ -14,7 +14,7 @@ struct gb_svc;
 
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
-						u8 intf2_id, u16 cport2_id);
+			     u8 intf2_id, u16 cport2_id, bool boot_over_unipro);
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id);
 int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,

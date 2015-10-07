@@ -832,6 +832,13 @@ struct gb_svc_dme_peer_set_response {
 #define DME_ATTR_SELECTOR_INDEX		0
 #define DME_ATTR_T_TST_SRC_INCREMENT	0x4083
 
+/* Return value from TST_SRC_INCREMENT */
+#define DME_TSI_SPI_BOOT_STARTED		0x02
+#define DME_TSI_TRUSTED_SPI_BOOT_FINISHED	0x03
+#define DME_TSI_UNTRUSTED_SPI_BOOT_FINISHED	0x04
+#define DME_TSI_UNIPRO_BOOT_STARTED		0x06
+#define DME_TSI_FALLBACK_UNIPRO_BOOT_STARTED	0x09
+
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
 	__u8	dev1_id;

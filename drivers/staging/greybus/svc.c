@@ -207,6 +207,18 @@ static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 		return -ENODEV;
 	}
 
+	/*
+	 * Check if the module needs to boot from unipro.
+	 * For ES2: We need to check lowest 8 bits of 'value'.
+	 * For ES3: We need to check highest 8 bits out of 32 of 'value'.
+	 *
+	 * FIXME: Add code to find if we are on ES2 or ES3 to have separate
+	 * checks.
+	 */
+	if (value == DME_TSI_UNIPRO_BOOT_STARTED ||
+	    value == DME_TSI_FALLBACK_UNIPRO_BOOT_STARTED)
+		intf->boot_over_unipro = true;
+
 	return gb_svc_dme_peer_set(hd->svc, intf->interface_id,
 				   DME_ATTR_T_TST_SRC_INCREMENT,
 				   DME_ATTR_SELECTOR_INDEX, 0);
@@ -214,7 +226,8 @@ static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 
 int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
-				u8 intf2_id, u16 cport2_id)
+				u8 intf2_id, u16 cport2_id,
+				bool boot_over_unipro)
 {
 	struct gb_svc_conn_create_request request;
 
@@ -227,7 +240,16 @@ int gb_svc_connection_create(struct gb_svc *svc,
 	 * for now.
 	 */
 	request.tc = 0;
-	request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_E2EFC;
+
+	/*
+	 * We need to skip setting E2EFC and other flags to the connection
+	 * create request, for all cports, on an interface that need to boot
+	 * over unipro, i.e. interfaces required to download firmware.
+	 */
+	if (boot_over_unipro)
+		request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_CSD_N;
+	else
+		request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_E2EFC;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);

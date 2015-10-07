@@ -328,16 +328,19 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_protocol *protocol = connection->protocol;
+	struct gb_interface *intf;
 	int ret;
 
 	if (protocol->flags & GB_PROTOCOL_SKIP_SVC_CONNECTION)
 		return 0;
 
+	intf = connection->bundle->intf;
 	ret = gb_svc_connection_create(hd->svc,
 			hd->endo->ap_intf_id,
 			connection->hd_cport_id,
-			connection->bundle->intf->interface_id,
-			connection->intf_cport_id);
+			intf->interface_id,
+			connection->intf_cport_id,
+			intf->boot_over_unipro);
 	if (ret) {
 		dev_err(&connection->dev,
 				"failed to create svc connection: %d\n", ret);

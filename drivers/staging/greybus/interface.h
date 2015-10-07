@@ -36,6 +36,9 @@ struct gb_interface {
 
 	struct gb_module *module;
 	struct greybus_host_device *hd;
+
+	/* The interface needs to boot over unipro */
+	bool boot_over_unipro;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
 
