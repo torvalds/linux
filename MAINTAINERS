@@ -4321,6 +4321,13 @@ F:	include/linux/fmc*.h
 F:	include/linux/ipmi-fru.h
 K:	fmc_d.*register
 
+FPGA MANAGER FRAMEWORK
+M:	Alan Tull <atull@opensource.altera.com>
+S:	Maintained
+F:	drivers/fpga/
+F:	include/linux/fpga/fpga-mgr.h
+W:	http://www.rocketboards.org
+
 FPU EMULATOR
 M:	Bill Metzenthen <billm@melbpc.org.au>
 W:	http://floatingpoint.sourceforge.net/emulator/index.html
