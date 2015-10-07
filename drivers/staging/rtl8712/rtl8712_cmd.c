@@ -64,10 +64,12 @@ static void check_hw_pbc(struct _adapter *padapter)
 		return;
 	if (tmp1byte&HAL_8192S_HW_GPIO_WPS_BIT) {
 		/* Here we only set bPbcPressed to true
-		 * After trigger PBC, the variable will be set to false */
+		 * After trigger PBC, the variable will be set to false
+		 */
 		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
-		 * the HW PBC doesn't provide its pid to driver. */
+		 * the HW PBC doesn't provide its pid to driver.
+		 */
 		if (padapter->pid == 0)
 			return;
 		kill_pid(find_vpid(padapter->pid), SIGUSR1, 1);
@@ -76,7 +78,8 @@ static void check_hw_pbc(struct _adapter *padapter)
 
 /* query rx phy status from fw.
  * Adhoc mode: beacon.
- * Infrastructure mode: beacon , data. */
+ * Infrastructure mode: beacon , data.
+ */
 static void query_fw_rx_phy_status(struct _adapter *padapter)
 {
 	u32 val32 = 0;
@@ -257,7 +260,8 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 		/* Before set JoinBss_CMD to FW, driver must ensure FW is in
 		 * PS_MODE_ACTIVE. Directly write rpwm to radio on and assign
 		 * new pwr_mode to Driver, instead of use workitem to change
-		 * state. */
+		 * state.
+		 */
 		if (padapter->pwrctrlpriv.pwr_mode > PS_MODE_ACTIVE) {
 			padapter->pwrctrlpriv.pwr_mode = PS_MODE_ACTIVE;
 			_enter_pwrlock(&(padapter->pwrctrlpriv.lock));
