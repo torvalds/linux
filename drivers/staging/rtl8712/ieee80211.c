@@ -107,9 +107,10 @@ u8 *r8712_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen)
 	return pbuf + len + 2;
 }
 
-/*----------------------------------------------------------------------------
-index: the information element id index, limit is the limit for search
------------------------------------------------------------------------------*/
+/* ---------------------------------------------------------------------------
+ * index: the information element id index, limit is the limit for search
+ * ---------------------------------------------------------------------------
+ */
 u8 *r8712_get_ie(u8 *pbuf, sint index, sint *len, sint limit)
 {
 	sint tmp, i;
