@@ -49,7 +49,12 @@
 
 #include "../comedi_pci.h"
 
-#define ICP_MULTI_ADC_CSR	0	/* R/W: ADC command/status register */
+#define ICP_MULTI_ADC_CSR	0x00	/* R/W: ADC command/status register */
+#define ICP_MULTI_ADC_CSR_ST	BIT(0)	/* Start ADC */
+#define ICP_MULTI_ADC_CSR_BSY	BIT(0)	/* ADC busy */
+#define ICP_MULTI_ADC_CSR_BI	BIT(4)	/* Bipolar input range */
+#define ICP_MULTI_ADC_CSR_RA	BIT(5)	/* Input range 0 = 5V, 1 = 10V */
+#define ICP_MULTI_ADC_CSR_DI	BIT(6)	/* Input mode 1 = differential */
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
 #define ICP_MULTI_DAC_CSR	4	/* R/W: DAC command/status register */
 #define ICP_MULTI_AO		6	/* R/W: Analogue output data */
@@ -61,13 +66,6 @@
 #define ICP_MULTI_CNTR1		0x12	/* R/W: counter 1 */
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
-
-/*  Define bits from ADC command/status register */
-#define	ADC_ST		0x0001	/* Start ADC */
-#define	ADC_BSY		0x0001	/* ADC busy */
-#define ADC_BI		0x0010	/* Bipolar input range 1 = bipolar */
-#define ADC_RA		0x0020	/* Input range 0 = 5V, 1 = 10V */
-#define	ADC_DI		0x0040	/* Differential input mode 1 = differential */
 
 /*  Define bits from DAC command/status register */
 #define	DAC_ST		0x0001	/* Start DAC */
@@ -150,7 +148,7 @@ static void setup_channel_list(struct comedi_device *dev,
 		if (diff) {
 			/*  Set channel number, bits 9-11 & mode, bit 6 */
 			devpriv->AdcCmdStatus |= (chanprog << 9);
-			devpriv->AdcCmdStatus |= ADC_DI;
+			devpriv->AdcCmdStatus |= ICP_MULTI_ADC_CSR_DI;
 		} else
 			/*  Set channel number, bits 8-11 */
 			devpriv->AdcCmdStatus |= (chanprog << 8);
@@ -173,7 +171,7 @@ static int icp_multi_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = readw(dev->mmio + ICP_MULTI_ADC_CSR);
-	if ((status & ADC_BSY) == 0)
+	if ((status & ICP_MULTI_ADC_CSR_BSY) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -200,9 +198,9 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Set start ADC bit */
-		devpriv->AdcCmdStatus |= ADC_ST;
+		devpriv->AdcCmdStatus |= ICP_MULTI_ADC_CSR_ST;
 		writew(devpriv->AdcCmdStatus, dev->mmio + ICP_MULTI_ADC_CSR);
-		devpriv->AdcCmdStatus &= ~ADC_ST;
+		devpriv->AdcCmdStatus &= ~ICP_MULTI_ADC_CSR_ST;
 
 		udelay(1);
 
