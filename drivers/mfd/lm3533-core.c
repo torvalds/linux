@@ -592,7 +592,6 @@ static int lm3533_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
 {
 	struct lm3533 *lm3533;
-	int ret;
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
