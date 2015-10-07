@@ -184,7 +184,7 @@ void il4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 int il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 * ssn,
-			    u8 buf_size);
+			    u8 buf_size, bool amsdu);
 int il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void

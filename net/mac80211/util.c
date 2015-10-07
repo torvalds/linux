@@ -1966,7 +1966,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (!sdata->u.mgd.associated)
 				continue;
 
-			ieee80211_send_nullfunc(local, sdata, 0);
+			ieee80211_send_nullfunc(local, sdata, false);
 		}
 	}
 
@@ -2017,8 +2017,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		mutex_lock(&local->sta_mtx);
 
 		list_for_each_entry(sta, &local->sta_list, list) {
-			ieee80211_sta_tear_down_BA_sessions(
-					sta, AGG_STOP_LOCAL_REQUEST);
+			if (!local->resuming)
+				ieee80211_sta_tear_down_BA_sessions(
+						sta, AGG_STOP_LOCAL_REQUEST);
 			clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		}
 
@@ -2324,6 +2325,8 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	if (chandef->center_freq2)
 		vht_oper->center_freq_seg2_idx =
 			ieee80211_frequency_to_channel(chandef->center_freq2);
+	else
+		vht_oper->center_freq_seg2_idx = 0x00;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_160:
@@ -2541,7 +2544,7 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 		/* non-managed type inferfaces */
 		return 0;
 	}
-	return ifmgd->ave_beacon_signal / 16;
+	return -ewma_beacon_signal_read(&ifmgd->ave_beacon_signal);
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
 
