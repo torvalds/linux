@@ -3493,6 +3493,21 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(hci_recv_frame);
 
+/* Receive diagnostic message from HCI drivers */
+int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	/* Time stamp */
+	__net_timestamp(skb);
+
+	/* Mark as diagnostic packet and send to monitor */
+	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
+	hci_send_to_monitor(hdev, skb);
+
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL(hci_recv_diag);
+
 /* ---- Interface to upper protocols ---- */
 
 int hci_register_cb(struct hci_cb *cb)

@@ -279,6 +279,9 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 		else
 			opcode = cpu_to_le16(HCI_MON_SCO_TX_PKT);
 		break;
+	case HCI_DIAG_PKT:
+		opcode = cpu_to_le16(HCI_MON_VENDOR_DIAG);
+		break;
 	default:
 		return;
 	}
