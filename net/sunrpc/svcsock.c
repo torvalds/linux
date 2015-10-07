@@ -181,7 +181,7 @@ int svc_send_common(struct socket *sock, struct xdr_buf *xdr,
 	struct page	**ppage = xdr->pages;
 	size_t		base = xdr->page_base;
 	unsigned int	pglen = xdr->page_len;
-	unsigned int	flags = MSG_MORE;
+	unsigned int	flags = MSG_MORE | MSG_SENDPAGE_NOTLAST;
 	int		slen;
 	int		len = 0;
 
