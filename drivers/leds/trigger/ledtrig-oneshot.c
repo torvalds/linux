@@ -63,9 +63,9 @@ static ssize_t led_invert_store(struct device *dev,
 	oneshot_data->invert = !!state;
 
 	if (oneshot_data->invert)
-		led_set_brightness_async(led_cdev, LED_FULL);
+		led_set_brightness_nosleep(led_cdev, LED_FULL);
 	else
-		led_set_brightness_async(led_cdev, LED_OFF);
+		led_set_brightness_nosleep(led_cdev, LED_OFF);
 
 	return size;
 }

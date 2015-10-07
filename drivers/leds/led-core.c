@@ -32,7 +32,7 @@ static void led_timer_function(unsigned long data)
 	unsigned long delay;
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
-		led_set_brightness_async(led_cdev, LED_OFF);
+		led_set_brightness_nosleep(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -60,7 +60,7 @@ static void led_timer_function(unsigned long data)
 		delay = led_cdev->blink_delay_off;
 	}
 
-	led_set_brightness_async(led_cdev, brightness);
+	led_set_brightness_nosleep(led_cdev, brightness);
 
 	/* Return in next iteration if led is in one-shot mode and we are in
 	 * the final blink state so that the led is toggled each delay_on +
@@ -110,13 +110,14 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 
 	/* never on - just set to off */
 	if (!delay_on) {
-		led_set_brightness_async(led_cdev, LED_OFF);
+		led_set_brightness_nosleep(led_cdev, LED_OFF);
 		return;
 	}
 
 	/* never off - just set to brightness */
 	if (!delay_off) {
-		led_set_brightness_async(led_cdev, led_cdev->blink_brightness);
+		led_set_brightness_nosleep(led_cdev,
+					   led_cdev->blink_brightness);
 		return;
 	}
 
@@ -217,7 +218,7 @@ void led_set_brightness(struct led_classdev *led_cdev,
 	}
 
 	if (led_cdev->flags & SET_BRIGHTNESS_ASYNC) {
-		led_set_brightness_async(led_cdev, brightness);
+		led_set_brightness_nosleep(led_cdev, brightness);
 		return;
 	} else if (led_cdev->flags & SET_BRIGHTNESS_SYNC)
 		ret = led_set_brightness_sync(led_cdev, brightness);
@@ -229,6 +230,33 @@ void led_set_brightness(struct led_classdev *led_cdev,
 			ret);
 }
 EXPORT_SYMBOL_GPL(led_set_brightness);
+
+void led_set_brightness_nopm(struct led_classdev *led_cdev,
+			      enum led_brightness value)
+{
+	/* Use brightness_set op if available, it is guaranteed not to sleep */
+	if (led_cdev->brightness_set) {
+		led_cdev->brightness_set(led_cdev, value);
+		return;
+	}
+
+	/* If brightness setting can sleep, delegate it to a work queue task */
+	led_cdev->delayed_set_value = value;
+	schedule_work(&led_cdev->set_brightness_work);
+}
+EXPORT_SYMBOL_GPL(led_set_brightness_nopm);
+
+void led_set_brightness_nosleep(struct led_classdev *led_cdev,
+				enum led_brightness value)
+{
+	led_cdev->brightness = min(value, led_cdev->max_brightness);
+
+	if (led_cdev->flags & LED_SUSPENDED)
+		return;
+
+	led_set_brightness_nopm(led_cdev, led_cdev->brightness);
+}
+EXPORT_SYMBOL_GPL(led_set_brightness_nosleep);
 
 int led_update_brightness(struct led_classdev *led_cdev)
 {
