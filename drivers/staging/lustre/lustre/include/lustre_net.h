@@ -2502,12 +2502,10 @@ struct ptlrpc_service *ptlrpc_register_service(
 				struct ptlrpc_service_conf *conf,
 				struct kset *parent,
 				struct dentry *debugfs_entry);
-void ptlrpc_stop_all_threads(struct ptlrpc_service *svc);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc);
 int ptlrpc_unregister_service(struct ptlrpc_service *service);
 int liblustre_check_services(void *arg);
-void ptlrpc_server_drop_request(struct ptlrpc_request *req);
 
 int ptlrpc_hr_init(void);
 void ptlrpc_hr_fini(void);

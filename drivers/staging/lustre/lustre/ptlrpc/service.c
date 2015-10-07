@@ -715,7 +715,7 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
  * drop a reference count of the request. if it reaches 0, we either
  * put it into history list, or free it immediately.
  */
-void ptlrpc_server_drop_request(struct ptlrpc_request *req)
+static void ptlrpc_server_drop_request(struct ptlrpc_request *req)
 {
 	struct ptlrpc_request_buffer_desc *rqbd = req->rq_rqbd;
 	struct ptlrpc_service_part *svcpt = rqbd->rqbd_svcpt;
@@ -2327,7 +2327,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 /**
  * Stops all threads of a particular service \a svc
  */
-void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
+static void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 {
 	struct ptlrpc_service_part *svcpt;
 	int i;
@@ -2337,7 +2337,6 @@ void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 			ptlrpc_svcpt_stop_threads(svcpt);
 	}
 }
-EXPORT_SYMBOL(ptlrpc_stop_all_threads);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc)
 {
