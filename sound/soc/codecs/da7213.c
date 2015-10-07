@@ -12,6 +12,7 @@
  * option) any later version.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -1222,23 +1223,44 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	if ((da7213->clk_src == clk_id) && (da7213->mclk_rate == freq))
+		return 0;
+
+	if (((freq < 5000000) && (freq != 32768)) || (freq > 54000000)) {
+		dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
+			freq);
+		return -EINVAL;
+	}
 
 	switch (clk_id) {
 	case DA7213_CLKSRC_MCLK:
-		if ((freq == 32768) ||
-		    ((freq >= 5000000) && (freq <= 54000000))) {
-			da7213->mclk_rate = freq;
-			return 0;
-		} else {
-			dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
-				freq);
-			return -EINVAL;
-		}
+		da7213->mclk_squarer_en = false;
+		break;
+	case DA7213_CLKSRC_MCLK_SQR:
+		da7213->mclk_squarer_en = true;
 		break;
 	default:
 		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
 		return -EINVAL;
 	}
+
+	da7213->clk_src = clk_id;
+
+	if (da7213->mclk) {
+		freq = clk_round_rate(da7213->mclk, freq);
+		ret = clk_set_rate(da7213->mclk, freq);
+		if (ret) {
+			dev_err(codec_dai->dev, "Failed to set clock rate %d\n",
+				freq);
+			return ret;
+		}
+	}
+
+	da7213->mclk_rate = freq;
+
+	return 0;
 }
 
 /* Supported PLL input frequencies are 5MHz - 54MHz. */
@@ -1366,12 +1388,25 @@ static struct snd_soc_dai_driver da7213_dai = {
 static int da7213_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+			/* MCLK */
+			if (da7213->mclk) {
+				ret = clk_prepare_enable(da7213->mclk);
+				if (ret) {
+					dev_err(codec->dev,
+						"Failed to enable mclk\n");
+					return ret;
+				}
+			}
+
 			/* Enable VMID reference & master bias */
 			snd_soc_update_bits(codec, DA7213_REFERENCES,
 					    DA7213_VMID_EN | DA7213_BIAS_EN,
@@ -1382,6 +1417,10 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 		/* Disable VMID reference & master bias */
 		snd_soc_update_bits(codec, DA7213_REFERENCES,
 				    DA7213_VMID_EN | DA7213_BIAS_EN, 0);
+
+		/* MCLK */
+		if (da7213->mclk)
+			clk_disable_unprepare(da7213->mclk);
 		break;
 	}
 	return 0;
@@ -1618,9 +1657,15 @@ static int da7213_probe(struct snd_soc_codec *codec)
 				    DA7213_DMIC_DATA_SEL_MASK |
 				    DA7213_DMIC_SAMPLEPHASE_MASK |
 				    DA7213_DMIC_CLK_RATE_MASK, dmic_cfg);
+	}
 
-		/* Set MCLK squaring */
-		da7213->mclk_squarer_en = pdata->mclk_squaring;
+	/* Check if MCLK provided */
+	da7213->mclk = devm_clk_get(codec->dev, "mclk");
+	if (IS_ERR(da7213->mclk)) {
+		if (PTR_ERR(da7213->mclk) != -ENOENT)
+			return PTR_ERR(da7213->mclk);
+		else
+			da7213->mclk = NULL;
 	}
 
 	return 0;
