@@ -56,7 +56,11 @@
 #define ICP_MULTI_ADC_CSR_RA	BIT(5)	/* Input range 0 = 5V, 1 = 10V */
 #define ICP_MULTI_ADC_CSR_DI	BIT(6)	/* Input mode 1 = differential */
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
-#define ICP_MULTI_DAC_CSR	4	/* R/W: DAC command/status register */
+#define ICP_MULTI_DAC_CSR	0x04	/* R/W: DAC command/status register */
+#define ICP_MULTI_DAC_CSR_ST	BIT(0)	/* Start DAC */
+#define ICP_MULTI_DAC_CSR_BSY	BIT(0)	/* DAC busy */
+#define ICP_MULTI_DAC_CSR_BI	BIT(4)	/* Bipolar output range */
+#define ICP_MULTI_DAC_CSR_RA	BIT(5)	/* Output range 0 = 5V, 1 = 10V */
 #define ICP_MULTI_AO		6	/* R/W: Analogue output data */
 #define ICP_MULTI_DI		8	/* R/W: Digital inputs */
 #define ICP_MULTI_DO		0x0A	/* R/W: Digital outputs */
@@ -66,12 +70,6 @@
 #define ICP_MULTI_CNTR1		0x12	/* R/W: counter 1 */
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
-
-/*  Define bits from DAC command/status register */
-#define	DAC_ST		0x0001	/* Start DAC */
-#define DAC_BSY		0x0001	/* DAC busy */
-#define	DAC_BI		0x0010	/* Bipolar input range 1 = bipolar */
-#define	DAC_RA		0x0020	/* Input range 0 = 5V, 1 = 10V */
 
 /*  Define bits from interrupt enable/status registers */
 #define	ADC_READY	0x0001	/* A/d conversion ready interrupt */
@@ -231,7 +229,7 @@ static int icp_multi_ao_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = readw(dev->mmio + ICP_MULTI_DAC_CSR);
-	if ((status & DAC_BSY) == 0)
+	if ((status & ICP_MULTI_DAC_CSR_BSY) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -288,10 +286,10 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 
 		writew(val, dev->mmio + ICP_MULTI_AO);
 
-		/*  Set DAC_ST bit to write the data to selected channel */
-		devpriv->DacCmdStatus |= DAC_ST;
+		/* Set start conversion bit to write data to channel */
+		devpriv->DacCmdStatus |= ICP_MULTI_DAC_CSR_ST;
 		writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
-		devpriv->DacCmdStatus &= ~DAC_ST;
+		devpriv->DacCmdStatus &= ~ICP_MULTI_DAC_CSR_ST;
 
 		s->readback[chan] = val;
 	}
@@ -426,7 +424,7 @@ static int icp_multi_reset(struct comedi_device *dev)
 		writew(0, dev->mmio + ICP_MULTI_AO);
 
 		/*  Set start conversion bit */
-		devpriv->DacCmdStatus |= DAC_ST;
+		devpriv->DacCmdStatus |= ICP_MULTI_DAC_CSR_ST;
 
 		/*  Output to command / status register */
 		writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
