@@ -199,8 +199,6 @@
 };
 
 &i2c_0 {
-	pinctrl-0 = <&i2c0_bus>;
-	pinctrl-names = "default";
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
@@ -276,15 +274,13 @@
 				regulator-always-on;
 			};
 
-			ldo8_reg: ldo@8 {
-				regulator-compatible = "LDO8";
+			ldo8_reg: LDO8 {
 				regulator-name = "VDD10_HDMI_1.0V";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 			};
 
-			ldo10_reg: ldo@10 {
-				regulator-compatible = "LDO10";
+			ldo10_reg: LDO10 {
 				regulator-name = "VDDQ_MIPIHSI_1.8V";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -424,8 +420,6 @@
 };
 
 &i2c_1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_bus>;
 	status = "okay";
 	max98090: max98090@10 {
 		compatible = "maxim,max98090";
@@ -440,8 +434,6 @@
 
 &i2c_2 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_bus>;
 };
 
 &i2c_8 {
