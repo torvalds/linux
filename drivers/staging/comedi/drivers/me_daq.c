@@ -94,7 +94,6 @@
 #define   ME_DAC_CTRL_GAIN(x)		BIT(11 - ((x) & 0x3))
 #define   ME_DAC_CTRL_MASK(x)		(ME_DAC_CTRL_BIPOLAR(x) |	\
 					 ME_DAC_CTRL_GAIN(x))
-
 #define ME_DAC_DATA_A			0x0014	/* - | W */
 #define ME_DAC_DATA_B			0x0016	/* - | W */
 #define ME_DAC_DATA_C			0x0018	/* - | W */
@@ -321,9 +320,8 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	/* Set dac-control register */
 	devpriv->dac_ctrl &= ~ME_DAC_CTRL_MASK(chan);
 	if (range == 0)
-		devpriv->dac_ctrl |= ME_DAC_CTRL_GAIN(chan) |
-				     ME_DAC_CTRL_BIPOLAR(chan);
-	else if (range == 1)
+		devpriv->dac_ctrl |= ME_DAC_CTRL_GAIN(chan);
+	if (comedi_range_is_bipolar(s, range))
 		devpriv->dac_ctrl |= ME_DAC_CTRL_BIPOLAR(chan);
 	writew(devpriv->dac_ctrl, dev->mmio + ME_DAC_CTRL_REG);
 
