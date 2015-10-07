@@ -173,15 +173,22 @@ static inline u32 read_spin_table_addr_l(void *spin_table)
 static void wake_hw_thread(void *info)
 {
 	void fsl_secondary_thread_init(void);
-	unsigned long imsr1, inia1;
+	unsigned long imsr, inia;
 	int nr = *(const int *)info;
 
-	imsr1 = MSR_KERNEL;
-	inia1 = *(unsigned long *)fsl_secondary_thread_init;
+	imsr = MSR_KERNEL;
+	inia = *(unsigned long *)fsl_secondary_thread_init;
 
-	mttmr(TMRN_IMSR1, imsr1);
-	mttmr(TMRN_INIA1, inia1);
-	mtspr(SPRN_TENS, TEN_THREAD(1));
+	if (cpu_thread_in_core(nr) == 0) {
+		/* For when we boot on a secondary thread with kdump */
+		mttmr(TMRN_IMSR0, imsr);
+		mttmr(TMRN_INIA0, inia);
+		mtspr(SPRN_TENS, TEN_THREAD(0));
+	} else {
+		mttmr(TMRN_IMSR1, imsr);
+		mttmr(TMRN_INIA1, inia);
+		mtspr(SPRN_TENS, TEN_THREAD(1));
+	}
 
 	smp_generic_kick_cpu(nr);
 }
@@ -224,6 +231,12 @@ static int smp_85xx_kick_cpu(int nr)
 
 		smp_call_function_single(primary, wake_hw_thread, &nr, 0);
 		return 0;
+	} else if (cpu_thread_in_core(boot_cpuid) != 0 &&
+		   cpu_first_thread_sibling(boot_cpuid) == nr) {
+		if (WARN_ON_ONCE(!cpu_has_feature(CPU_FTR_SMT)))
+			return -ENOENT;
+
+		smp_call_function_single(boot_cpuid, wake_hw_thread, &nr, 0);
 	}
 #endif
 
