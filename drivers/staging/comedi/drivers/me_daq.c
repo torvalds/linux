@@ -83,9 +83,7 @@
 #define   ME_STATUS_FST_ACTIVE		BIT(0)
 #define ME_DIO_PORT_A_REG		0x06	/* R | W */
 #define ME_DIO_PORT_B_REG		0x08	/* R | W */
-#define ME_TIMER_DATA_0			0x000A	/* - | W */
-#define ME_TIMER_DATA_1			0x000C	/* - | W */
-#define ME_TIMER_DATA_2			0x000E	/* - | W */
+#define ME_TIMER_DATA_REG(x)		(0x0a + ((x) * 2))	/* - | W */
 #define ME_CHANNEL_LIST			0x0010	/* - | W */
 #define   ADC_UNIPOLAR			(1<<6)
 #define   ADC_GAIN_0			(0<<4)
