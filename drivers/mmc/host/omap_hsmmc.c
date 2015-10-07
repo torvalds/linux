@@ -182,6 +182,7 @@ struct omap_hsmmc_host {
 	struct	clk		*fclk;
 	struct	clk		*dbclk;
 	struct	regulator	*pbias;
+	bool			pbias_enabled;
 	void	__iomem		*base;
 	int			vqmmc_enabled;
 	resource_size_t		mapbase;
@@ -328,20 +329,22 @@ static int omap_hsmmc_set_pbias(struct omap_hsmmc_host *host, bool power_on,
 			return ret;
 		}
 
-		if (!regulator_is_enabled(host->pbias)) {
+		if (host->pbias_enabled == 0) {
 			ret = regulator_enable(host->pbias);
 			if (ret) {
 				dev_err(host->dev, "pbias reg enable fail\n");
 				return ret;
 			}
+			host->pbias_enabled = 1;
 		}
 	} else {
-		if (regulator_is_enabled(host->pbias)) {
+		if (host->pbias_enabled == 1) {
 			ret = regulator_disable(host->pbias);
 			if (ret) {
 				dev_err(host->dev, "pbias reg disable fail\n");
 				return ret;
 			}
+			host->pbias_enabled = 0;
 		}
 	}
 
@@ -2053,6 +2056,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	host->base	= base + pdata->reg_offset;
 	host->power_mode = MMC_POWER_OFF;
 	host->next_data.cookie = 1;
+	host->pbias_enabled = 0;
 	host->vqmmc_enabled = 0;
 
 	ret = omap_hsmmc_gpio_init(mmc, host, pdata);
