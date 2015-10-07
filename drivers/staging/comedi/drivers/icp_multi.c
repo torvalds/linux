@@ -45,7 +45,6 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
 
 #include "../comedi_pci.h"
 
@@ -284,42 +283,6 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 	return 0;
 }
 
-static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	int int_no;
-
-	/*  Is this interrupt from our board? */
-	int_no = readw(dev->mmio + ICP_MULTI_INT_STAT) & ICP_MULTI_INT_MASK;
-	if (!int_no)
-		/*  No, exit */
-		return IRQ_NONE;
-
-	/*  Determine which interrupt is active & handle it */
-	switch (int_no) {
-	case ICP_MULTI_INT_ADC_RDY:
-		break;
-	case ICP_MULTI_INT_DAC_RDY:
-		break;
-	case ICP_MULTI_INT_DOUT_ERR:
-		break;
-	case ICP_MULTI_INT_DIN_STAT:
-		break;
-	case ICP_MULTI_INT_CIE0:
-		break;
-	case ICP_MULTI_INT_CIE1:
-		break;
-	case ICP_MULTI_INT_CIE2:
-		break;
-	case ICP_MULTI_INT_CIE3:
-		break;
-	default:
-		break;
-	}
-
-	return IRQ_HANDLED;
-}
-
 #if 0
 static int check_channel_list(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -413,13 +376,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	icp_multi_reset(dev);
-
-	if (pcidev->irq) {
-		ret = request_irq(pcidev->irq, interrupt_service_icp_multi,
-				  IRQF_SHARED, dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
 
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
