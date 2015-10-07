@@ -245,39 +245,6 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 	return 0;
 }
 
-#if 0
-static int check_channel_list(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int *chanlist, unsigned int n_chan)
-{
-	unsigned int i;
-
-	/*  Check that we at least have one channel to check */
-	if (n_chan < 1) {
-		dev_err(dev->class_dev, "range/channel list is empty!\n");
-		return 0;
-	}
-	/*  Check all channels */
-	for (i = 0; i < n_chan; i++) {
-		/*  Check that channel number is < maximum */
-		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
-			if (CR_CHAN(chanlist[i]) > (s->nchan / 2)) {
-				dev_err(dev->class_dev,
-					"Incorrect differential ai ch-nr\n");
-				return 0;
-			}
-		} else {
-			if (CR_CHAN(chanlist[i]) > s->n_chan) {
-				dev_err(dev->class_dev,
-					"Incorrect ai channel number\n");
-				return 0;
-			}
-		}
-	}
-	return 1;
-}
-#endif
-
 static int icp_multi_reset(struct comedi_device *dev)
 {
 	struct icp_multi_private *devpriv = dev->private;
