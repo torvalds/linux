@@ -178,7 +178,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 			  fwhdr.img_IMEM_size : fwhdr.img_SRAM_size;
 		maxlen += txdscp_sz;
 		ptmpchar = kmalloc(maxlen + FWBUFF_ALIGN_SZ, GFP_ATOMIC);
-		if (ptmpchar == NULL)
+		if (!ptmpchar)
 			return ret;
 
 		ptx_desc = (struct tx_desc *)(ptmpchar + FWBUFF_ALIGN_SZ -
