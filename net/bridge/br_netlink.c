@@ -127,6 +127,20 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(1)	/* IFLA_BRPORT_UNICAST_FLOOD */
 		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP */
 		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP_WIFI */
+		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_ROOT_ID */
+		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_BRIDGE_ID */
+		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_DESIGNATED_PORT */
+		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_DESIGNATED_COST */
+		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_ID */
+		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_NO */
+		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_TOPOLOGY_CHANGE_ACK */
+		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_CONFIG_PENDING */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_MESSAGE_AGE_TIMER */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_FORWARD_DELAY_TIMER */
+		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_HOLD_TIMER */
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_MULTICAST_ROUTER */
+#endif
 		+ 0;
 }
 
@@ -148,6 +162,7 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 			      const struct net_bridge_port *p)
 {
 	u8 mode = !!(p->flags & BR_HAIRPIN_MODE);
+	u64 timerval;
 
 	if (nla_put_u8(skb, IFLA_BRPORT_STATE, p->state) ||
 	    nla_put_u16(skb, IFLA_BRPORT_PRIORITY, p->priority) ||
@@ -160,8 +175,35 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	    nla_put_u8(skb, IFLA_BRPORT_UNICAST_FLOOD, !!(p->flags & BR_FLOOD)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP, !!(p->flags & BR_PROXYARP)) ||
 	    nla_put_u8(skb, IFLA_BRPORT_PROXYARP_WIFI,
-		       !!(p->flags & BR_PROXYARP_WIFI)))
+		       !!(p->flags & BR_PROXYARP_WIFI)) ||
+	    nla_put(skb, IFLA_BRPORT_ROOT_ID, sizeof(struct ifla_bridge_id),
+		    &p->designated_root) ||
+	    nla_put(skb, IFLA_BRPORT_BRIDGE_ID, sizeof(struct ifla_bridge_id),
+		    &p->designated_bridge) ||
+	    nla_put_u16(skb, IFLA_BRPORT_DESIGNATED_PORT, p->designated_port) ||
+	    nla_put_u16(skb, IFLA_BRPORT_DESIGNATED_COST, p->designated_cost) ||
+	    nla_put_u16(skb, IFLA_BRPORT_ID, p->port_id) ||
+	    nla_put_u16(skb, IFLA_BRPORT_NO, p->port_no) ||
+	    nla_put_u8(skb, IFLA_BRPORT_TOPOLOGY_CHANGE_ACK,
+		       p->topology_change_ack) ||
+	    nla_put_u8(skb, IFLA_BRPORT_CONFIG_PENDING, p->config_pending))
 		return -EMSGSIZE;
+
+	timerval = br_timer_value(&p->message_age_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_MESSAGE_AGE_TIMER, timerval))
+		return -EMSGSIZE;
+	timerval = br_timer_value(&p->forward_delay_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_FORWARD_DELAY_TIMER, timerval))
+		return -EMSGSIZE;
+	timerval = br_timer_value(&p->hold_timer);
+	if (nla_put_u64(skb, IFLA_BRPORT_HOLD_TIMER, timerval))
+		return -EMSGSIZE;
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (nla_put_u8(skb, IFLA_BRPORT_MULTICAST_ROUTER,
+		       p->multicast_router))
+		return -EMSGSIZE;
+#endif
 
 	return 0;
 }
@@ -527,6 +569,7 @@ static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_UNICAST_FLOOD] = { .type = NLA_U8 },
 	[IFLA_BRPORT_PROXYARP]	= { .type = NLA_U8 },
 	[IFLA_BRPORT_PROXYARP_WIFI] = { .type = NLA_U8 },
+	[IFLA_BRPORT_MULTICAST_ROUTER] = { .type = NLA_U8 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -598,6 +641,18 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 			return err;
 	}
 
+	if (tb[IFLA_BRPORT_FLUSH])
+		br_fdb_delete_by_port(p->br, p, 0, 0);
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	if (tb[IFLA_BRPORT_MULTICAST_ROUTER]) {
+		u8 mcast_router = nla_get_u8(tb[IFLA_BRPORT_MULTICAST_ROUTER]);
+
+		err = br_multicast_set_port_router(p, mcast_router);
+		if (err)
+			return err;
+	}
+#endif
 	br_port_flags_change(p, old_flags ^ p->flags);
 	return 0;
 }
