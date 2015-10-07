@@ -26,6 +26,7 @@
 #include <asm/thread_info.h>
 #include <asm/kexec.h>
 #include <asm/ptrace.h>
+#include <asm/mmu.h>
 
 	.text
 
@@ -496,6 +497,51 @@ kexec_flag:
 
 
 #ifdef CONFIG_KEXEC
+#ifdef CONFIG_PPC_BOOK3E
+/*
+ * BOOK3E has no real MMU mode, so we have to setup the initial TLB
+ * for a core to identity map v:0 to p:0.  This current implementation
+ * assumes that 1G is enough for kexec.
+ */
+kexec_create_tlb:
+	/*
+	 * Invalidate all non-IPROT TLB entries to avoid any TLB conflict.
+	 * IPROT TLB entries should be >= PAGE_OFFSET and thus not conflict.
+	 */
+	PPC_TLBILX_ALL(0,R0)
+	sync
+	isync
+
+	mfspr	r10,SPRN_TLB1CFG
+	andi.	r10,r10,TLBnCFG_N_ENTRY	/* Extract # entries */
+	subi	r10,r10,1	/* Last entry: no conflict with kernel text */
+	lis	r9,MAS0_TLBSEL(1)@h
+	rlwimi	r9,r10,16,4,15		/* Setup MAS0 = TLBSEL | ESEL(r9) */
+
+/* Set up a temp identity mapping v:0 to p:0 and return to it. */
+#if defined(CONFIG_SMP) || defined(CONFIG_PPC_E500MC)
+#define M_IF_NEEDED	MAS2_M
+#else
+#define M_IF_NEEDED	0
+#endif
+	mtspr	SPRN_MAS0,r9
+
+	lis	r9,(MAS1_VALID|MAS1_IPROT)@h
+	ori	r9,r9,(MAS1_TSIZE(BOOK3E_PAGESZ_1GB))@l
+	mtspr	SPRN_MAS1,r9
+
+	LOAD_REG_IMMEDIATE(r9, 0x0 | M_IF_NEEDED)
+	mtspr	SPRN_MAS2,r9
+
+	LOAD_REG_IMMEDIATE(r9, 0x0 | MAS3_SR | MAS3_SW | MAS3_SX)
+	mtspr	SPRN_MAS3,r9
+	li	r9,0
+	mtspr	SPRN_MAS7,r9
+
+	tlbwe
+	isync
+	blr
+#endif
 
 /* kexec_smp_wait(void)
  *
@@ -525,6 +571,10 @@ _GLOBAL(kexec_smp_wait)
  * don't overwrite r3 here, it is live for kexec_wait above.
  */
 real_mode:	/* assume normal blr return */
+#ifdef CONFIG_PPC_BOOK3E
+	/* Create an identity mapping. */
+	b	kexec_create_tlb
+#else
 1:	li	r9,MSR_RI
 	li	r10,MSR_DR|MSR_IR
 	mflr	r11		/* return address to SRR0 */
@@ -536,7 +586,7 @@ real_mode:	/* assume normal blr return */
 	mtspr	SPRN_SRR1,r10
 	mtspr	SPRN_SRR0,r11
 	rfid
-
+#endif
 
 /*
  * kexec_sequence(newstack, start, image, control, clear_all())
