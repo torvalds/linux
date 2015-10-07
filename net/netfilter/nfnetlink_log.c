@@ -927,7 +927,16 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		}
 
 		if (flags & NFULNL_CFG_F_CONNTRACK &&
-		    rcu_access_pointer(nfnl_ct_hook) == NULL) {
+		    !rcu_access_pointer(nfnl_ct_hook)) {
+#ifdef CONFIG_MODULES
+			nfnl_unlock(NFNL_SUBSYS_ULOG);
+			request_module("ip_conntrack_netlink");
+			nfnl_lock(NFNL_SUBSYS_ULOG);
+			if (rcu_access_pointer(nfnl_ct_hook)) {
+				ret = -EAGAIN;
+				goto out;
+			}
+#endif
 			ret = -EOPNOTSUPP;
 			goto out;
 		}
