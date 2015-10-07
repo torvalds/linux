@@ -37,7 +37,7 @@ void rcu_cpu_stall_reset(void);
 /*
  * Note a virtualization-based context switch.  This is simply a
  * wrapper around rcu_note_context_switch(), which allows TINY_RCU
- * to save a few bytes.
+ * to save a few bytes. The caller must have disabled interrupts.
  */
 static inline void rcu_virt_note_context_switch(int cpu)
 {
