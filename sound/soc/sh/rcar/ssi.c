@@ -700,9 +700,6 @@ static void rsnd_of_parse_ssi(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	int nr, i;
 
-	if (!of_data)
-		return;
-
 	node = rsnd_ssi_of_node(priv);
 	if (!node)
 		return;

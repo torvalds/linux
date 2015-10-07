@@ -21,9 +21,10 @@
 #include <linux/of_irq.h>
 #include <linux/sh_dma.h>
 #include <linux/workqueue.h>
-#include <sound/rcar_snd.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+
+#include "rcar_snd.h"
 
 /*
  *	pseudo register

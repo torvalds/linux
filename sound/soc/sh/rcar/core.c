@@ -1236,20 +1236,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	};
 	int ret, i;
 
-	info = NULL;
-	of_data = NULL;
-	if (of_id) {
-		info = devm_kzalloc(&pdev->dev,
-				    sizeof(struct rcar_snd_info), GFP_KERNEL);
-		of_data = of_id->data;
-	} else {
-		info = pdev->dev.platform_data;
-	}
-
-	if (!info) {
-		dev_err(dev, "driver needs R-Car sound information\n");
-		return -ENODEV;
-	}
+	info = devm_kzalloc(&pdev->dev, sizeof(struct rcar_snd_info),
+			    GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	of_data = of_id->data;
 
 	/*
 	 *	init priv data
