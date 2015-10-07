@@ -249,7 +249,7 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		}
 		else{ //ac3,use the same pcm mode as i2s configuration
 			iec958_mode = AIU_958_MODE_PCM_RAW;
-			printk("iec958 mode %s\n",(i2s_mode == AIU_I2S_MODE_PCM32)?"PCM32_RAW":((I2S_MODE == AIU_I2S_MODE_PCM24)?"PCM24_RAW":"PCM16_RAW"));
+			printk("iec958 mode %s\n",(i2s_mode == AIU_I2S_MODE_PCM32)?"PCM32_RAW":((i2s_mode == AIU_I2S_MODE_PCM24)?"PCM24_RAW":"PCM16_RAW"));
 		}
 	}
 	else{
@@ -281,7 +281,7 @@ static void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 		start = buf->addr;
 		size = snd_pcm_lib_buffer_bytes(substream);
 		audio_set_958outbuf(start, size, runtime->channels, 0);
-		audio_set_i2s_mode(iec958_mode);
+		//audio_set_i2s_mode(i2s_mode);
 		//audio_set_aiubuf(start, size);		
 	}else{
 

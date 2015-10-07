@@ -103,8 +103,6 @@ enum {
 #define AUDIO_ALGOUT_DAC_FORMAT_LEFT_JUSTIFY    1
 
 extern unsigned ENABLE_IEC958;
-extern unsigned IEC958_MODE;
-extern unsigned I2S_MODE;
 
 void audio_set_aiubuf(u32 addr, u32 size, unsigned int channel);
 void audio_set_958outbuf(u32 addr, u32 size, int channels, int flag);
@@ -148,7 +146,7 @@ unsigned audio_aiu_pg_enable(unsigned char enable);
 /*OVERCLOCK == 1,our SOC privide 512fs mclk,OVERCLOCK == 0 ,256fs*/
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6TV
 #define OVERCLOCK 0
-#define IEC958_OVERCLOCK 1
+#define IEC958_OVERCLOCK 0
 #else
 #define OVERCLOCK 1
 #endif
