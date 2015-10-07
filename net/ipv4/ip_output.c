@@ -460,7 +460,7 @@ packet_routed:
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
-	res = ip_local_out(skb);
+	res = ip_local_out_sk(sk, skb);
 	rcu_read_unlock();
 	return res;
 
