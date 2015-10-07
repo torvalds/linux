@@ -5861,7 +5861,7 @@ s32 host_int_init(tstrWILC_WFIDrv **phWFIDrv)
 	pstrWFIDrv  = kzalloc(sizeof(tstrWILC_WFIDrv), GFP_KERNEL);
 	if (!pstrWFIDrv) {
 		result = -ENOMEM;
-		goto _fail_timer_2;
+		goto _fail_;
 	}
 	*phWFIDrv = pstrWFIDrv;
 	err = add_handler_in_list(pstrWFIDrv);
