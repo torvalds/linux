@@ -21,6 +21,10 @@
 #include <linux/rculist.h>
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
+#include <linux/dmar.h>
+#include <linux/interrupt.h>
+
+static irqreturn_t prq_event_thread(int irq, void *d);
 
 struct pasid_entry {
 	u64 val;
@@ -79,6 +83,66 @@ int intel_svm_free_pasid_tables(struct intel_iommu *iommu)
 		iommu->pasid_state_table = NULL;
 	}
 	idr_destroy(&iommu->pasid_idr);
+	return 0;
+}
+
+#define PRQ_ORDER 0
+
+int intel_svm_enable_prq(struct intel_iommu *iommu)
+{
+	struct page *pages;
+	int irq, ret;
+
+	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, PRQ_ORDER);
+	if (!pages) {
+		pr_warn("IOMMU: %s: Failed to allocate page request queue\n",
+			iommu->name);
+		return -ENOMEM;
+	}
+	iommu->prq = page_address(pages);
+
+	irq = dmar_alloc_hwirq(DMAR_UNITS_SUPPORTED + iommu->seq_id, iommu->node, iommu);
+	if (irq <= 0) {
+		pr_err("IOMMU: %s: Failed to create IRQ vector for page request queue\n",
+		       iommu->name);
+		ret = -EINVAL;
+	err:
+		free_pages((unsigned long)iommu->prq, PRQ_ORDER);
+		iommu->prq = NULL;
+		return ret;
+	}
+	iommu->pr_irq = irq;
+
+	snprintf(iommu->prq_name, sizeof(iommu->prq_name), "dmar%d-prq", iommu->seq_id);
+
+	ret = request_threaded_irq(irq, NULL, prq_event_thread, IRQF_ONESHOT,
+				   iommu->prq_name, iommu);
+	if (ret) {
+		pr_err("IOMMU: %s: Failed to request IRQ for page request queue\n",
+		       iommu->name);
+		dmar_free_hwirq(irq);
+		goto err;
+	}
+	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
+	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
+	dmar_writeq(iommu->reg + DMAR_PQA_REG, virt_to_phys(iommu->prq) | PRQ_ORDER);
+
+	return 0;
+}
+
+int intel_svm_finish_prq(struct intel_iommu *iommu)
+{
+	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
+	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
+	dmar_writeq(iommu->reg + DMAR_PQA_REG, 0ULL);
+
+	free_irq(iommu->pr_irq, iommu);
+	dmar_free_hwirq(iommu->pr_irq);
+	iommu->pr_irq = 0;
+
+	free_pages((unsigned long)iommu->prq, PRQ_ORDER);
+	iommu->prq = NULL;
+
 	return 0;
 }
 
@@ -363,3 +427,112 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(intel_svm_unbind_mm);
+
+/* Page request queue descriptor */
+struct page_req_dsc {
+	u64 srr:1;
+	u64 bof:1;
+	u64 pasid_present:1;
+	u64 lpig:1;
+	u64 pasid:20;
+	u64 bus:8;
+	u64 private:23;
+	u64 prg_index:9;
+	u64 rd_req:1;
+	u64 wr_req:1;
+	u64 exe_req:1;
+	u64 priv_req:1;
+	u64 devfn:8;
+	u64 addr:52;
+};
+
+#define PRQ_RING_MASK ((0x1000 << PRQ_ORDER) - 0x10)
+static irqreturn_t prq_event_thread(int irq, void *d)
+{
+	struct intel_iommu *iommu = d;
+	struct intel_svm *svm = NULL;
+	int head, tail, handled = 0;
+
+	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	while (head != tail) {
+		struct vm_area_struct *vma;
+		struct page_req_dsc *req;
+		struct qi_desc resp;
+		int ret, result;
+		u64 address;
+
+		handled = 1;
+
+		req = &iommu->prq[head / sizeof(*req)];
+
+		result = QI_RESP_FAILURE;
+		address = req->addr << PAGE_SHIFT;
+		if (!req->pasid_present) {
+			pr_err("%s: Page request without PASID: %08llx %08llx\n",
+			       iommu->name, ((unsigned long long *)req)[0],
+			       ((unsigned long long *)req)[1]);
+			goto bad_req;
+		}
+
+		if (!svm || svm->pasid != req->pasid) {
+			rcu_read_lock();
+			svm = idr_find(&iommu->pasid_idr, req->pasid);
+			/* It *can't* go away, because the driver is not permitted
+			 * to unbind the mm while any page faults are outstanding.
+			 * So we only need RCU to protect the internal idr code. */
+			rcu_read_unlock();
+
+			if (!svm) {
+				pr_err("%s: Page request for invalid PASID %d: %08llx %08llx\n",
+				       iommu->name, req->pasid, ((unsigned long long *)req)[0],
+				       ((unsigned long long *)req)[1]);
+				goto bad_req;
+			}
+		}
+
+		result = QI_RESP_INVALID;
+		down_read(&svm->mm->mmap_sem);
+		vma = find_extend_vma(svm->mm, address);
+		if (!vma || address < vma->vm_start)
+			goto invalid;
+
+		ret = handle_mm_fault(svm->mm, vma, address,
+				      req->wr_req ? FAULT_FLAG_WRITE : 0);
+		if (ret & VM_FAULT_ERROR)
+			goto invalid;
+
+		result = QI_RESP_SUCCESS;
+	invalid:
+		up_read(&svm->mm->mmap_sem);
+	bad_req:
+		/* Accounting for major/minor faults? */
+
+		if (req->lpig) {
+			/* Page Group Response */
+			resp.low = QI_PGRP_PASID(req->pasid) |
+				QI_PGRP_DID((req->bus << 8) | req->devfn) |
+				QI_PGRP_PASID_P(req->pasid_present) |
+				QI_PGRP_RESP_TYPE;
+			resp.high = QI_PGRP_IDX(req->prg_index) |
+				QI_PGRP_PRIV(req->private) | QI_PGRP_RESP_CODE(result);
+
+			qi_submit_sync(&resp, svm->iommu);
+		} else if (req->srr) {
+			/* Page Stream Response */
+			resp.low = QI_PSTRM_IDX(req->prg_index) |
+				QI_PSTRM_PRIV(req->private) | QI_PSTRM_BUS(req->bus) |
+				QI_PSTRM_PASID(req->pasid) | QI_PSTRM_RESP_TYPE;
+			resp.high = QI_PSTRM_ADDR(address) | QI_PSTRM_DEVFN(req->devfn) |
+				QI_PSTRM_RESP_CODE(result);
+
+			qi_submit_sync(&resp, svm->iommu);
+		}
+
+		head = (head + sizeof(*req)) & PRQ_RING_MASK;
+	}
+
+	dmar_writeq(iommu->reg + DMAR_PQH_REG, tail);
+
+	return IRQ_RETVAL(handled);
+}

@@ -265,6 +265,8 @@ enum {
 #define QI_EIOTLB_TYPE		0x6
 #define QI_PC_TYPE		0x7
 #define QI_DEIOTLB_TYPE		0x8
+#define QI_PGRP_RESP_TYPE	0x9
+#define QI_PSTRM_RESP_TYPE	0xa
 
 #define QI_IEC_SELECTIVE	(((u64)1) << 4)
 #define QI_IEC_IIDEX(idx)	(((u64)(idx & 0xffff) << 32))
@@ -314,6 +316,25 @@ enum {
 #define QI_DEV_EIOTLB_SID(sid)	((u64)((sid) & 0xffff) << 32)
 #define QI_DEV_EIOTLB_QDEP(qd)	(((qd) & 0x1f) << 16)
 #define QI_DEV_EIOTLB_MAX_INVS	32
+
+#define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
+#define QI_PGRP_PRIV(priv)	(((u64)(priv)) << 32)
+#define QI_PGRP_RESP_CODE(res)	((u64)(res))
+#define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
+#define QI_PGRP_DID(did)	(((u64)(did)) << 16)
+#define QI_PGRP_PASID_P(p)	(((u64)(p)) << 4)
+
+#define QI_PSTRM_ADDR(addr)	(((u64)(addr)) & VTD_PAGE_MASK)
+#define QI_PSTRM_DEVFN(devfn)	(((u64)(devfn)) << 4)
+#define QI_PSTRM_RESP_CODE(res)	((u64)(res))
+#define QI_PSTRM_IDX(idx)	(((u64)(idx)) << 55)
+#define QI_PSTRM_PRIV(priv)	(((u64)(priv)) << 32)
+#define QI_PSTRM_BUS(bus)	(((u64)(bus)) << 24)
+#define QI_PSTRM_PASID(pasid)	(((u64)(pasid)) << 4)
+
+#define QI_RESP_SUCCESS		0x0
+#define QI_RESP_INVALID		0x1
+#define QI_RESP_FAILURE		0xf
 
 #define QI_GRAN_ALL_ALL			0
 #define QI_GRAN_NONG_ALL		1
@@ -369,6 +390,7 @@ enum {
 
 struct pasid_entry;
 struct pasid_state_entry;
+struct page_req_dsc;
 
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
@@ -401,6 +423,8 @@ struct intel_iommu {
 	 * told to. But while it's all driver-arbitrated, we're fine. */
 	struct pasid_entry *pasid_table;
 	struct pasid_state_entry *pasid_state_table;
+	struct page_req_dsc *prq;
+	unsigned char prq_name[16];    /* Name for PRQ interrupt */
 	struct idr pasid_idr;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
@@ -445,6 +469,8 @@ extern int dmar_ir_support(void);
 #ifdef CONFIG_INTEL_IOMMU_SVM
 extern int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu);
 extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
+extern int intel_svm_enable_prq(struct intel_iommu *iommu);
+extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 
 struct intel_svm_dev {
 	struct list_head list;
