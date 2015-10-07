@@ -27,7 +27,7 @@
 		compatible = "gpio-leds";
 		led1 {
 			label = "led1:heart";
-			gpios = <&gpc1 0 1>;
+			gpios = <&gpc1 0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};

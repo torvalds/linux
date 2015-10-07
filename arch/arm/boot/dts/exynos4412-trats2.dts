@@ -65,7 +65,7 @@
 			regulator-name = "CAM_SENSOR_A";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
-			gpio = <&gpm0 2 0>;
+			gpio = <&gpm0 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
@@ -74,7 +74,7 @@
 			regulator-name = "LCD_VDD_2.2V";
 			regulator-min-microvolt = <2200000>;
 			regulator-max-microvolt = <2200000>;
-			gpio = <&gpc0 1 0>;
+			gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
@@ -83,7 +83,7 @@
 			regulator-name = "CAM_AF";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
-			gpio = <&gpm0 4 0>;
+			gpio = <&gpm0 4 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 
@@ -92,7 +92,7 @@
 			regulator-name = "LED_A_3.0V";
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
-			gpio = <&gpj0 5 0>;
+			gpio = <&gpj0 5 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -101,21 +101,21 @@
 		compatible = "gpio-keys";
 
 		key-down {
-			gpios = <&gpx3 3 1>;
+			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
 			linux,code = <114>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
 		key-up {
-			gpios = <&gpx2 2 1>;
+			gpios = <&gpx2 2 GPIO_ACTIVE_LOW>;
 			linux,code = <115>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
 		key-power {
-			gpios = <&gpx2 7 1>;
+			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
@@ -123,7 +123,7 @@
 		};
 
 		key-ok {
-			gpios = <&gpx0 1 1>;
+			gpios = <&gpx0 1 GPIO_ACTIVE_LOW>;
 			linux,code = <139>;
 			label = "ok";
 			debounce-inteval = <10>;
@@ -198,7 +198,7 @@
 
 	i2c_ak8975: i2c-gpio-0 {
 		compatible = "i2c-gpio";
-		gpios = <&gpy2 4 0>, <&gpy2 5 0>;
+		gpios = <&gpy2 4 GPIO_ACTIVE_HIGH>, <&gpy2 5 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -207,13 +207,13 @@
 		ak8975@0c {
 			compatible = "asahi-kasei,ak8975";
 			reg = <0x0c>;
-			gpios = <&gpj0 7 0>;
+			gpios = <&gpj0 7 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	i2c_cm36651: i2c-gpio-2 {
 		compatible = "i2c-gpio";
-		gpios = <&gpf0 0 1>, <&gpf0 1 1>;
+		gpios = <&gpf0 0 GPIO_ACTIVE_LOW>, <&gpf0 1 GPIO_ACTIVE_LOW>;
 		i2c-gpio,delay-us = <2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -359,7 +359,7 @@
 		reg = <0>;
 		vdd3-supply = <&lcd_vdd3_reg>;
 		vci-supply = <&ldo25_reg>;
-		reset-gpios = <&gpy4 5 0>;
+		reset-gpios = <&gpy4 5 GPIO_ACTIVE_HIGH>;
 		power-on-delay= <50>;
 		reset-delay = <100>;
 		init-delay = <100>;
@@ -446,7 +446,7 @@
 			clocks = <&camera 1>;
 			clock-names = "extclk";
 			samsung,camclk-out = <1>;
-			gpios = <&gpm1 6 0>;
+			gpios = <&gpm1 6 GPIO_ACTIVE_HIGH>;
 
 			port {
 				is_s5k6a3_ep: endpoint {
@@ -488,8 +488,8 @@
 	s5c73m3@3c {
 		compatible = "samsung,s5c73m3";
 		reg = <0x3c>;
-		standby-gpios = <&gpm0 1 1>;   /* ISP_STANDBY */
-		xshutdown-gpios = <&gpf1 3 1>; /* ISP_RESET */
+		standby-gpios = <&gpm0 1 GPIO_ACTIVE_LOW>;   /* ISP_STANDBY */
+		xshutdown-gpios = <&gpf1 3 GPIO_ACTIVE_LOW>; /* ISP_RESET */
 		vdd-int-supply = <&buck9_reg>;
 		vddio-cis-supply = <&ldo9_reg>;
 		vdda-supply = <&ldo17_reg>;
@@ -1241,7 +1241,7 @@
 
 &sdhci_2 {
 	bus-width = <4>;
-	cd-gpios = <&gpx3 4 0>;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
@@ -1268,7 +1268,7 @@
 &spi_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_bus>;
-	cs-gpios = <&gpb 5 0>;
+	cs-gpios = <&gpb 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	s5c73m3_spi: s5c73m3 {

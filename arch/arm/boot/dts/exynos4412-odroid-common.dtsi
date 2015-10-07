@@ -11,6 +11,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/maxim,max77686.h>
 #include "exynos4412.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	chosen {
@@ -30,7 +31,7 @@
 		power_key {
 			interrupt-parent = <&gpx1>;
 			interrupts = <3 0>;
-			gpios = <&gpx1 3 1>;
+			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
@@ -70,7 +71,7 @@
 		pinctrl-0 = <&sd1_cd>;
 		pinctrl-names = "default";
 		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpk1 2 1>;
+		reset-gpios = <&gpk1 2 GPIO_ACTIVE_LOW>;
 	};
 
 	camera {
@@ -181,7 +182,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 0>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd>;
 	vdd-supply = <&ldo8_reg>;
@@ -207,9 +208,9 @@
 		compatible = "smsc,usb3503";
 		reg = <0x08>;
 
-		intn-gpios = <&gpx3 0 0>;
-		connect-gpios = <&gpx3 4 0>;
-		reset-gpios = <&gpx3 5 0>;
+		intn-gpios = <&gpx3 0 GPIO_ACTIVE_HIGH>;
+		connect-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpx3 5 GPIO_ACTIVE_HIGH>;
 		initial-mode = <1>;
 	};
 
@@ -482,7 +483,7 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo4_reg &ldo21_reg>;
-	cd-gpios = <&gpk2 2 0>;
+	cd-gpios = <&gpk2 2 GPIO_ACTIVE_HIGH>;
 	cd-inverted;
 	status = "okay";
 };
