@@ -319,15 +319,12 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* Set dac-control register */
-	for (i = 0; i < insn->n; i++) {
-		/* clear bits for this channel */
-		devpriv->dac_ctrl &= ~ME_DAC_CTRL_MASK(chan);
-		if (range == 0)
-			devpriv->dac_ctrl |= ME_DAC_CTRL_GAIN(chan) |
-					     ME_DAC_CTRL_BIPOLAR(chan);
-		else if (range == 1)
-			devpriv->dac_ctrl |= ME_DAC_CTRL_BIPOLAR(chan);
-	}
+	devpriv->dac_ctrl &= ~ME_DAC_CTRL_MASK(chan);
+	if (range == 0)
+		devpriv->dac_ctrl |= ME_DAC_CTRL_GAIN(chan) |
+				     ME_DAC_CTRL_BIPOLAR(chan);
+	else if (range == 1)
+		devpriv->dac_ctrl |= ME_DAC_CTRL_BIPOLAR(chan);
 	writew(devpriv->dac_ctrl, dev->mmio + ME_DAC_CTRL_REG);
 
 	/* Update dac-control register */
