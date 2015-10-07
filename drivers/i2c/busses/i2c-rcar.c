@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/i2c/i2c-rcar.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -582,7 +581,6 @@ MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
 
 static int rcar_i2c_probe(struct platform_device *pdev)
 {
-	struct i2c_rcar_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct rcar_i2c_priv *priv;
 	struct i2c_adapter *adap;
 	struct resource *res;
@@ -601,15 +599,9 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	}
 
 	bus_speed = 100000; /* default 100 kHz */
-	ret = of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
-	if (ret < 0 && pdata && pdata->bus_speed)
-		bus_speed = pdata->bus_speed;
+	of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
 
-	if (pdev->dev.of_node)
-		priv->devtype = (long)of_match_device(rcar_i2c_dt_ids,
-						      dev)->data;
-	else
-		priv->devtype = platform_get_device_id(pdev)->driver_data;
+	priv->devtype = (enum rcar_i2c_type)of_match_device(rcar_i2c_dt_ids, dev)->data;
 
 	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
 	if (ret < 0)
@@ -667,14 +659,6 @@ static int rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id rcar_i2c_id_table[] = {
-	{ "i2c-rcar",		I2C_RCAR_GEN1 },
-	{ "i2c-rcar_gen1",	I2C_RCAR_GEN1 },
-	{ "i2c-rcar_gen2",	I2C_RCAR_GEN2 },
-	{},
-};
-MODULE_DEVICE_TABLE(platform, rcar_i2c_id_table);
-
 static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
@@ -682,7 +666,6 @@ static struct platform_driver rcar_i2c_driver = {
 	},
 	.probe		= rcar_i2c_probe,
 	.remove		= rcar_i2c_remove,
-	.id_table	= rcar_i2c_id_table,
 };
 
 module_platform_driver(rcar_i2c_driver);
