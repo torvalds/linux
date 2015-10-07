@@ -238,7 +238,7 @@ static void __init __prandom_start_seed_timer(void)
 	add_timer(&seed_timer);
 }
 
-static void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
+void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state)
 {
 	int i;
 
