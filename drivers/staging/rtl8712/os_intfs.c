@@ -366,7 +366,8 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 
 	if (cbw40_value) {
 		/* if the driver supports the 40M bandwidth,
-		 * we can enable the bit 9.*/
+		 * we can enable the bit 9.
+		 */
 		intcmd |= 0x200;
 	}
 	r8712_fw_cmd(padapter, intcmd);
