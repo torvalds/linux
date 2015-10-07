@@ -116,13 +116,12 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 			deepcolor = hdmi->edid.deepcolor;
 		}
 		if ((hdmi->property->feature & SUPPORT_DEEP_10BIT) &&
-		    (deepcolor & HDMI_DEEP_COLOR_30BITS)) {
-			if (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
-			    hdmi->colordepth == 10)
-				video->color_output_depth = 10;
-		} else {
+		    (deepcolor & HDMI_DEEP_COLOR_30BITS) &&
+		    (hdmi->colordepth == HDMI_DEPP_COLOR_AUTO ||
+		     hdmi->colordepth == 10))
+			video->color_output_depth = 10;
+		else
 			video->color_output_depth = 8;
-		}
 	}
 	pr_info("hdmi output corlor mode is %d\n", video->color_output);
 	if ((hdmi->property->feature & SUPPORT_YCBCR_INPUT) &&
