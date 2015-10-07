@@ -695,7 +695,7 @@ static bool __maybe_unused torturing_tasks(void)
 
 #define RCUTORTURE_TASKS_OPS
 
-static bool torturing_tasks(void)
+static bool __maybe_unused torturing_tasks(void)
 {
 	return false;
 }
@@ -768,7 +768,6 @@ static int rcu_torture_boost(void *arg)
 				}
 				call_rcu_time = jiffies;
 			}
-			cond_resched_rcu_qs();
 			stutter_wait("rcu_torture_boost");
 			if (torture_must_stop())
 				goto checkwait;
@@ -1208,7 +1207,6 @@ rcu_torture_reader(void *arg)
 		__this_cpu_inc(rcu_torture_batch[completed]);
 		preempt_enable();
 		cur_ops->readunlock(idx);
-		cond_resched_rcu_qs();
 		stutter_wait("rcu_torture_reader");
 	} while (!torture_must_stop());
 	if (irqreader && cur_ops->irq_capable) {
@@ -1742,15 +1740,15 @@ rcu_torture_init(void)
 		for (i = 0; i < ARRAY_SIZE(torture_ops); i++)
 			pr_alert(" %s", torture_ops[i]->name);
 		pr_alert("\n");
-		torture_init_end();
-		return -EINVAL;
+		firsterr = -EINVAL;
+		goto unwind;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
 		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
 	}
 	if (cur_ops->init)
-		cur_ops->init(); /* no "goto unwind" prior to this point!!! */
+		cur_ops->init();
 
 	if (nreaders >= 0) {
 		nrealreaders = nreaders;
