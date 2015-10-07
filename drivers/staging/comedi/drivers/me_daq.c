@@ -89,24 +89,12 @@
 #define   ME_AI_FIFO_CHANLIST_UNIPOLAR	BIT(6)
 #define   ME_AI_FIFO_CHANLIST_GAIN(x)	(((x) & 0x3) << 4)
 #define   ME_AI_FIFO_CHANLIST_CHAN(x)	(((x) & 0xf) << 0)
-#define ME_DAC_CONTROL			0x0012	/* - | W */
-#define   DAC_UNIPOLAR_D		(0<<4)
-#define   DAC_BIPOLAR_D			(1<<4)
-#define   DAC_UNIPOLAR_C		(0<<5)
-#define   DAC_BIPOLAR_C			(1<<5)
-#define   DAC_UNIPOLAR_B		(0<<6)
-#define   DAC_BIPOLAR_B			(1<<6)
-#define   DAC_UNIPOLAR_A		(0<<7)
-#define   DAC_BIPOLAR_A			(1<<7)
-#define   DAC_GAIN_0_D			(0<<8)
-#define   DAC_GAIN_1_D			(1<<8)
-#define   DAC_GAIN_0_C			(0<<9)
-#define   DAC_GAIN_1_C			(1<<9)
-#define   DAC_GAIN_0_B			(0<<10)
-#define   DAC_GAIN_1_B			(1<<10)
-#define   DAC_GAIN_0_A			(0<<11)
-#define   DAC_GAIN_1_A			(1<<11)
-#define ME_DAC_CONTROL_UPDATE		0x0012	/* R | - */
+#define ME_DAC_CTRL_REG			0x12	/* R (updates) | W */
+#define   ME_DAC_CTRL_BIPOLAR(x)	BIT(7 - ((x) & 0x3))
+#define   ME_DAC_CTRL_GAIN(x)		BIT(11 - ((x) & 0x3))
+#define   ME_DAC_CTRL_MASK(x)		(ME_DAC_CTRL_BIPOLAR(x) |	\
+					 ME_DAC_CTRL_GAIN(x))
+
 #define ME_DAC_DATA_A			0x0014	/* - | W */
 #define ME_DAC_DATA_B			0x0016	/* - | W */
 #define ME_DAC_DATA_C			0x0018	/* - | W */
@@ -318,7 +306,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 {
 	struct me_private_data *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val = s->readback[chan];
 	int i;
 
@@ -333,18 +321,17 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	/* Set dac-control register */
 	for (i = 0; i < insn->n; i++) {
 		/* clear bits for this channel */
-		devpriv->dac_ctrl &= ~(0x0880 >> chan);
-		if (rang == 0)
-			devpriv->dac_ctrl |=
-			    ((DAC_BIPOLAR_A | DAC_GAIN_1_A) >> chan);
-		else if (rang == 1)
-			devpriv->dac_ctrl |=
-			    ((DAC_BIPOLAR_A | DAC_GAIN_0_A) >> chan);
+		devpriv->dac_ctrl &= ~ME_DAC_CTRL_MASK(chan);
+		if (range == 0)
+			devpriv->dac_ctrl |= ME_DAC_CTRL_GAIN(chan) |
+					     ME_DAC_CTRL_BIPOLAR(chan);
+		else if (range == 1)
+			devpriv->dac_ctrl |= ME_DAC_CTRL_BIPOLAR(chan);
 	}
-	writew(devpriv->dac_ctrl, dev->mmio + ME_DAC_CONTROL);
+	writew(devpriv->dac_ctrl, dev->mmio + ME_DAC_CTRL_REG);
 
 	/* Update dac-control register */
-	readw(dev->mmio + ME_DAC_CONTROL_UPDATE);
+	readw(dev->mmio + ME_DAC_CTRL_REG);
 
 	/* Set data register */
 	for (i = 0; i < insn->n; i++) {
@@ -438,7 +425,7 @@ static int me_reset(struct comedi_device *dev)
 	writew(0x00, dev->mmio + ME_CTRL1_REG);
 	writew(0x00, dev->mmio + ME_CTRL2_REG);
 	writew(0x00, dev->mmio + ME_STATUS_REG);	/* clear interrupts */
-	writew(0x00, dev->mmio + ME_DAC_CONTROL);
+	writew(0x00, dev->mmio + ME_DAC_CTRL_REG);
 
 	/* Save values in the board context */
 	devpriv->dac_ctrl = 0;
