@@ -234,8 +234,10 @@
 			#power-domain-cells = <1>;
 			reg = <0 0x10006000 0 0x1000>;
 			clocks = <&clk26m>,
-				 <&topckgen CLK_TOP_MM_SEL>;
-			clock-names = "mfg", "mm";
+				 <&topckgen CLK_TOP_MM_SEL>,
+				 <&topckgen CLK_TOP_VENC_SEL>,
+				 <&topckgen CLK_TOP_VENC_LT_SEL>;
+			clock-names = "mfg", "mm", "venc", "venc_lt";
 			infracfg = <&infracfg>;
 		};
 
