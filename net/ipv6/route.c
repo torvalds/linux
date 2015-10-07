@@ -226,7 +226,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
 	.redirect		=	rt6_do_redirect,
-	.local_out		=	__ip6_local_out_sk,
+	.local_out		=	__ip6_local_out,
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
 
