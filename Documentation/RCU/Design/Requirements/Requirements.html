@@ -1495,6 +1495,14 @@ section, neither of which is conducive to a long-lived and prosperous
 kernel.
 
 <p>
+It is worth noting that RCU is not alone in limiting composability.
+For example, many transactional-memory implementations prohibit
+composing a pair of transactions separated by an irrevocable
+operation (for example, a network receive operation).
+For another example, lock-based critical sections can be composed
+surprisingly freely, but only if deadlock is avoided.
+
+<p>
 In short, although RCU read-side critical sections are highly composable,
 care is required in some situations, just as is the case for any other
 composable synchronization mechanism.
