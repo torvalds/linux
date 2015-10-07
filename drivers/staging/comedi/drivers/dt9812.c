@@ -80,7 +80,7 @@
 #define F020_MASK_ADC0CN_AD0INT		0x20
 #define F020_MASK_ADC0CN_AD0BUSY	0x10
 
-#define F020_MASK_DACxCN_DACxEN		0x80
+#define F020_MASK_DACXCN_DACXEN		0x80
 
 enum {
 					/* A/D  D/A  DI  DO  CT */
@@ -511,7 +511,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC0CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
 		/* 2 load low byte of DAC value first */
 		rmw[1].address = F020_SFR_DAC0L;
@@ -529,7 +529,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC1CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
 		/* 2 load low byte of DAC value first */
 		rmw[1].address = F020_SFR_DAC1L;
