@@ -55,6 +55,8 @@
 #define ICP_MULTI_ADC_CSR_BI	BIT(4)	/* Bipolar input range */
 #define ICP_MULTI_ADC_CSR_RA	BIT(5)	/* Input range 0 = 5V, 1 = 10V */
 #define ICP_MULTI_ADC_CSR_DI	BIT(6)	/* Input mode 1 = differential */
+#define ICP_MULTI_ADC_CSR_DI_CHAN(x) (((x) & 0x7) << 9)
+#define ICP_MULTI_ADC_CSR_SE_CHAN(x) (((x) & 0xf) << 8)
 #define ICP_MULTI_AI		2	/* R:   Analogue input data */
 #define ICP_MULTI_DAC_CSR	0x04	/* R/W: DAC command/status register */
 #define ICP_MULTI_DAC_CSR_ST	BIT(0)	/* Start DAC */
@@ -93,55 +95,10 @@ static const struct comedi_lrange icp_multi_ranges = {
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 
 struct icp_multi_private {
-	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
 	unsigned int IntStatus;	/*  Interrupt Status register */
 };
-
-static void setup_channel_list(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned int *chanlist, unsigned int n_chan)
-{
-	struct icp_multi_private *devpriv = dev->private;
-	unsigned int i, range, chanprog;
-	unsigned int diff;
-
-	for (i = 0; i < n_chan; i++) {
-		/*  Get channel */
-		chanprog = CR_CHAN(chanlist[i]);
-
-		/*  Determine if it is a differential channel (Bit 15  = 1) */
-		if (CR_AREF(chanlist[i]) == AREF_DIFF) {
-			diff = 1;
-			chanprog &= 0x0007;
-		} else {
-			diff = 0;
-			chanprog &= 0x000f;
-		}
-
-		/*  Clear channel, range and input mode bits
-		 *  in A/D command/status register */
-		devpriv->AdcCmdStatus &= 0xf00f;
-
-		/*  Set channel number and differential mode status bit */
-		if (diff) {
-			/*  Set channel number, bits 9-11 & mode, bit 6 */
-			devpriv->AdcCmdStatus |= (chanprog << 9);
-			devpriv->AdcCmdStatus |= ICP_MULTI_ADC_CSR_DI;
-		} else
-			/*  Set channel number, bits 8-11 */
-			devpriv->AdcCmdStatus |= (chanprog << 8);
-
-		/*  Get range for current channel */
-		range = range_codes_analog[CR_RANGE(chanlist[i])];
-		/*  Set range. bits 4-5 */
-		devpriv->AdcCmdStatus |= range;
-
-		/* Output channel, range, mode to ICP Multi */
-		writew(devpriv->AdcCmdStatus, dev->mmio + ICP_MULTI_ADC_CSR);
-	}
-}
 
 static int icp_multi_ai_eoc(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -162,6 +119,10 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int aref = CR_AREF(insn->chanspec);
+	unsigned int adc_csr;
 	int ret = 0;
 	int n;
 
@@ -173,14 +134,20 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 	devpriv->IntStatus |= ICP_MULTI_INT_ADC_RDY;
 	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
-	/*  Set up appropriate channel, mode and range data, for specified ch */
-	setup_channel_list(dev, s, &insn->chanspec, 1);
+	/* Set mode and range data for specified channel */
+	if (aref == AREF_DIFF) {
+		adc_csr = ICP_MULTI_ADC_CSR_DI_CHAN(chan) |
+			  ICP_MULTI_ADC_CSR_DI;
+	} else {
+		adc_csr = ICP_MULTI_ADC_CSR_SE_CHAN(chan);
+	}
+	adc_csr |= range_codes_analog[range];
+	writew(adc_csr, dev->mmio + ICP_MULTI_ADC_CSR);
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Set start ADC bit */
-		devpriv->AdcCmdStatus |= ICP_MULTI_ADC_CSR_ST;
-		writew(devpriv->AdcCmdStatus, dev->mmio + ICP_MULTI_ADC_CSR);
-		devpriv->AdcCmdStatus &= ~ICP_MULTI_ADC_CSR_ST;
+		writew(adc_csr | ICP_MULTI_ADC_CSR_ST,
+		       dev->mmio + ICP_MULTI_ADC_CSR);
 
 		udelay(1);
 
