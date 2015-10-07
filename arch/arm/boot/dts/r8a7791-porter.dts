@@ -154,3 +154,7 @@
 	cd-gpios = <&gpio6 22 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
+
+&sata0 {
+	status = "okay";
+};
