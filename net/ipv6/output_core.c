@@ -155,7 +155,7 @@ int __ip6_local_out(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(__ip6_local_out);
 
-int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int ip6_local_out(struct sock *sk, struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	int err;
@@ -165,11 +165,5 @@ int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 		err = dst_output(net, sk, skb);
 
 	return err;
-}
-EXPORT_SYMBOL_GPL(ip6_local_out_sk);
-
-int ip6_local_out(struct sk_buff *skb)
-{
-	return ip6_local_out_sk(skb->sk, skb);
 }
 EXPORT_SYMBOL_GPL(ip6_local_out);
