@@ -2091,7 +2091,7 @@ static int __bnx2fc_enable(struct fcoe_ctlr *ctlr)
 {
 	struct bnx2fc_interface *interface = fcoe_ctlr_priv(ctlr);
 	struct bnx2fc_hba *hba;
-	struct cnic_fc_npiv_tbl npiv_tbl;
+	struct cnic_fc_npiv_tbl *npiv_tbl;
 	struct fc_lport *lport;
 
 	if (interface->enabled == false) {
@@ -2123,11 +2123,16 @@ static int __bnx2fc_enable(struct fcoe_ctlr *ctlr)
 	if (!hba->cnic->get_fc_npiv_tbl)
 		goto done;
 
-	memset(&npiv_tbl, 0, sizeof(npiv_tbl));
-	if (hba->cnic->get_fc_npiv_tbl(hba->cnic, &npiv_tbl))
+	npiv_tbl = kzalloc(sizeof(struct cnic_fc_npiv_tbl), GFP_KERNEL);
+	if (!npiv_tbl)
 		goto done;
 
-	bnx2fc_npiv_create_vports(lport, &npiv_tbl);
+	if (hba->cnic->get_fc_npiv_tbl(hba->cnic, npiv_tbl))
+		goto done_free;
+
+	bnx2fc_npiv_create_vports(lport, npiv_tbl);
+done_free:
+	kfree(npiv_tbl);
 done:
 	return 0;
 }
