@@ -7625,7 +7625,7 @@ static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
 			 "Cannot set RSS key, err %s aq_err %s\n",
 			 i40e_stat_str(&pf->hw, ret),
 			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
-		return ret;
+		goto config_rss_aq_out;
 	}
 
 	if (vsi->type == I40E_VSI_MAIN)
@@ -7639,6 +7639,8 @@ static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed)
 			 i40e_stat_str(&pf->hw, ret),
 			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 
+config_rss_aq_out:
+	kfree(rss_lut);
 	return ret;
 }
 
