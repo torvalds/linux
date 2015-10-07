@@ -173,10 +173,8 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	return x->outer_mode->afinfo->output_finish(sk, skb);
 }
 
-int xfrm6_output(struct sock *sk, struct sk_buff *skb)
+int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
-
 	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
 			    net, sk, skb,  NULL, skb_dst(skb)->dev,
 			    __xfrm6_output,

@@ -284,11 +284,10 @@ static int ip_finish_output(struct net *net, struct sock *sk, struct sk_buff *sk
 	return ip_finish_output2(net, sk, skb);
 }
 
-int ip_mc_output(struct sock *sk, struct sk_buff *skb)
+int ip_mc_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct net_device *dev = rt->dst.dev;
-	struct net *net = dev_net(dev);
 
 	/*
 	 *	If the indicated interface is up and running, send the packet.
@@ -347,10 +346,9 @@ int ip_mc_output(struct sock *sk, struct sk_buff *skb)
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_output(struct sock *sk, struct sk_buff *skb)
+int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb_dst(skb)->dev;
-	struct net *net = dev_net(dev);
 
 	IP_UPD_PO_STATS(net, IPSTATS_MIB_OUT, skb->len);
 

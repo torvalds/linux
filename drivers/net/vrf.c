@@ -312,10 +312,9 @@ err:
 	return ret;
 }
 
-static int vrf_output(struct sock *sk, struct sk_buff *skb)
+static int vrf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb_dst(skb)->dev;
-	struct net *net = dev_net(dev);
 
 	IP_UPD_PO_STATS(net, IPSTATS_MIB_OUT, skb->len);
 

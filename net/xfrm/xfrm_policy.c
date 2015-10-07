@@ -1957,7 +1957,7 @@ purge_queue:
 	xfrm_pol_put(pol);
 }
 
-static int xdst_queue_output(struct sock *sk, struct sk_buff *skb)
+static int xdst_queue_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	unsigned long sched_next;
 	struct dst_entry *dst = skb_dst(skb);

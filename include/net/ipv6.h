@@ -860,7 +860,7 @@ struct dst_entry *ip6_blackhole_route(struct net *net,
  *	skb processing functions
  */
 
-int ip6_output(struct sock *sk, struct sk_buff *skb);
+int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip6_forward(struct sk_buff *skb);
 int ip6_input(struct sk_buff *skb);
 int ip6_mc_input(struct sk_buff *skb);
