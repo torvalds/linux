@@ -62,6 +62,7 @@
 #define ICP_MULTI_DAC_CSR_BSY	BIT(0)	/* DAC busy */
 #define ICP_MULTI_DAC_CSR_BI	BIT(4)	/* Bipolar output range */
 #define ICP_MULTI_DAC_CSR_RA	BIT(5)	/* Output range 0 = 5V, 1 = 10V */
+#define ICP_MULTI_DAC_CSR_CHAN(x) (((x) & 0x3) << 8)
 #define ICP_MULTI_AO		6	/* R/W: Analogue output data */
 #define ICP_MULTI_DI		8	/* R/W: Digital inputs */
 #define ICP_MULTI_DO		0x0A	/* R/W: Digital outputs */
@@ -92,10 +93,6 @@ static const struct comedi_lrange icp_multi_ranges = {
 };
 
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
-
-struct icp_multi_private {
-	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
-};
 
 static int icp_multi_ai_eoc(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -168,21 +165,15 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct icp_multi_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int dac_csr;
 	int i;
 
-	/*  Set up range and channel data */
-	/*  Bit 4 = 1 : Bipolar */
-	/*  Bit 5 = 0 : 5V */
-	/*  Bit 5 = 1 : 10V */
-	/*  Bits 8-9 : Channel number */
-	devpriv->DacCmdStatus &= 0xfccf;
-	devpriv->DacCmdStatus |= range_codes_analog[range];
-	devpriv->DacCmdStatus |= (chan << 8);
-
-	writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
+	/* Select channel and range */
+	dac_csr = ICP_MULTI_DAC_CSR_CHAN(chan);
+	dac_csr |= range_codes_analog[range];
+	writew(dac_csr, dev->mmio + ICP_MULTI_DAC_CSR);
 
 	for (i = 0; i < insn->n; i++) {
 		unsigned int val = data[i];
@@ -197,9 +188,8 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 		writew(val, dev->mmio + ICP_MULTI_AO);
 
 		/* Set start conversion bit to write data to channel */
-		devpriv->DacCmdStatus |= ICP_MULTI_DAC_CSR_ST;
-		writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
-		devpriv->DacCmdStatus &= ~ICP_MULTI_DAC_CSR_ST;
+		writew(dac_csr | ICP_MULTI_DAC_CSR_ST,
+		       dev->mmio + ICP_MULTI_DAC_CSR);
 
 		s->readback[chan] = val;
 	}
@@ -247,30 +237,25 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev,
 
 static int icp_multi_reset(struct comedi_device *dev)
 {
-	struct icp_multi_private *devpriv = dev->private;
-	unsigned int i;
+	int i;
 
 	/* Disable all interrupts and clear any requests */
 	writew(0, dev->mmio + ICP_MULTI_INT_EN);
 	writew(ICP_MULTI_INT_MASK, dev->mmio + ICP_MULTI_INT_STAT);
 
-	/* Set DACs to 0..5V range and 0V output */
+	/* Reset the analog output channels to 0V */
 	for (i = 0; i < 4; i++) {
-		devpriv->DacCmdStatus &= 0xfcce;
+		unsigned int dac_csr = ICP_MULTI_DAC_CSR_CHAN(i);
 
-		/*  Set channel number */
-		devpriv->DacCmdStatus |= (i << 8);
+		/* Select channel and 0..5V range */
+		writew(dac_csr, dev->mmio + ICP_MULTI_DAC_CSR);
 
-		/*  Output 0V */
+		/* Output 0V */
 		writew(0, dev->mmio + ICP_MULTI_AO);
 
-		/*  Set start conversion bit */
-		devpriv->DacCmdStatus |= ICP_MULTI_DAC_CSR_ST;
-
-		/*  Output to command / status register */
-		writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
-
-		/*  Delay to allow DAC time to recover */
+		/* Set start conversion bit to write data to channel */
+		writew(dac_csr | ICP_MULTI_DAC_CSR_ST,
+		       dev->mmio + ICP_MULTI_DAC_CSR);
 		udelay(1);
 	}
 
@@ -284,13 +269,8 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 				 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
