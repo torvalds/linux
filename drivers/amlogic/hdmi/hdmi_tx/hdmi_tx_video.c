@@ -543,14 +543,14 @@ void hdmitx_init_parameters(HDMI_TX_INFO_t *info)
 //If not, treated as a DVI Device
 static int is_dvi_device(rx_cap_t* pRXCap)
 {
-	
-	if(dvi_mode == 1) {
-		pr_emerg("hdmi: fixing to DVI mode\n");
-		return 1;
+	if (voutmode_hdmi()) {
+		pr_emerg("hdmi: Fixing to HDMI Mode\n");
+		return 0;
 	}
 
-    pr_emerg("hdmi: Fixing to HDMI Mode\n");
-    return 0;
+	pr_emerg("hdmi: fixing to %s mode\n",
+			voutmode_dvi() ? "DVI" : "VGA");
+	return 1;
 }
 
 void hdmitx_output_rgb(void)
