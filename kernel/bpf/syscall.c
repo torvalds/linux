@@ -404,6 +404,8 @@ static void fixup_bpf_calls(struct bpf_prog *prog)
 
 			if (insn->imm == BPF_FUNC_get_route_realm)
 				prog->dst_needed = 1;
+			if (insn->imm == BPF_FUNC_get_prandom_u32)
+				bpf_user_rnd_init_once();
 			if (insn->imm == BPF_FUNC_tail_call) {
 				/* mark bpf_tail_call as different opcode
 				 * to avoid conditional branch in

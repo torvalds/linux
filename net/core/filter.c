@@ -149,12 +149,6 @@ static u64 __get_raw_cpu_id(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 	return raw_smp_processor_id();
 }
 
-/* note that this only generates 32-bit random numbers */
-static u64 __get_random_u32(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
-{
-	return prandom_u32();
-}
-
 static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 			      struct bpf_insn *insn_buf)
 {
@@ -313,7 +307,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 			*insn = BPF_EMIT_CALL(__get_raw_cpu_id);
 			break;
 		case SKF_AD_OFF + SKF_AD_RANDOM:
-			*insn = BPF_EMIT_CALL(__get_random_u32);
+			*insn = BPF_EMIT_CALL(bpf_user_rnd_u32);
+			bpf_user_rnd_init_once();
 			break;
 		}
 		break;

@@ -731,6 +731,32 @@ void bpf_prog_free(struct bpf_prog *fp)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
 
+/* RNG for unpriviledged user space with separated state from prandom_u32(). */
+static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);
+
+void bpf_user_rnd_init_once(void)
+{
+	prandom_init_once(&bpf_user_rnd_state);
+}
+
+u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	/* Should someone ever have the rather unwise idea to use some
+	 * of the registers passed into this function, then note that
+	 * this function is called from native eBPF and classic-to-eBPF
+	 * transformations. Register assignments from both sides are
+	 * different, f.e. classic always sets fn(ctx, A, X) here.
+	 */
+	struct rnd_state *state;
+	u32 res;
+
+	state = &get_cpu_var(bpf_user_rnd_state);
+	res = prandom_u32_state(state);
+	put_cpu_var(state);
+
+	return res;
+}
+
 /* Weak definitions of helper functions in case we don't have bpf syscall. */
 const struct bpf_func_proto bpf_map_lookup_elem_proto __weak;
 const struct bpf_func_proto bpf_map_update_elem_proto __weak;
