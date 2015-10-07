@@ -141,7 +141,7 @@ struct balloon_stats balloon_stats;
 EXPORT_SYMBOL_GPL(balloon_stats);
 
 /* We increase/decrease in batches which fit in a page */
-static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
+static xen_pfn_t frame_list[PAGE_SIZE / sizeof(xen_pfn_t)];
 
 
 /* List of ballooned pages, threaded through the mem_map array. */
