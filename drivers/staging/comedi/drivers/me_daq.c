@@ -81,8 +81,8 @@
 #define   ME_STATUS_ADFIFO_EMPTY	BIT(2)
 #define   ME_STATUS_CHANLIST_FULL	BIT(1)
 #define   ME_STATUS_FST_ACTIVE		BIT(0)
-#define ME_DIO_PORT_A			0x0006	/* R | W */
-#define ME_DIO_PORT_B			0x0008	/* R | W */
+#define ME_DIO_PORT_A_REG		0x06	/* R | W */
+#define ME_DIO_PORT_B_REG		0x08	/* R | W */
 #define ME_TIMER_DATA_0			0x000A	/* - | W */
 #define ME_TIMER_DATA_1			0x000C	/* - | W */
 #define ME_TIMER_DATA_2			0x000E	/* - | W */
@@ -216,8 +216,8 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 			    struct comedi_insn *insn,
 			    unsigned int *data)
 {
-	void __iomem *mmio_porta = dev->mmio + ME_DIO_PORT_A;
-	void __iomem *mmio_portb = dev->mmio + ME_DIO_PORT_B;
+	void __iomem *mmio_porta = dev->mmio + ME_DIO_PORT_A_REG;
+	void __iomem *mmio_portb = dev->mmio + ME_DIO_PORT_B_REG;
 	unsigned int mask;
 	unsigned int val;
 
