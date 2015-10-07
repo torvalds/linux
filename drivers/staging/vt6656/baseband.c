@@ -810,7 +810,6 @@ void vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 			cr_206 = 0x38;
 		}
 		break;
-
 	}
 
 	if (ed_inx == priv->bb_pre_ed_index && !scanning)
