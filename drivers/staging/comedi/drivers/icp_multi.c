@@ -1,46 +1,47 @@
 /*
-    comedi/drivers/icp_multi.c
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * icp_multi.c
+ * Comedi driver for Inova ICP_MULTI board
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: icp_multi
-Description: Inova ICP_MULTI
-Author: Anne Smorthit <anne.smorthit@sfwte.ch>
-Devices: [Inova] ICP_MULTI (icp_multi)
-Status: works
-
-The driver works for analog input and output and digital input and output.
-It does not work with interrupts or with the counters.  Currently no support
-for DMA.
-
-It has 16 single-ended or 8 differential Analogue Input channels with 12-bit
-resolution.  Ranges : 5V, 10V, +/-5V, +/-10V, 0..20mA and 4..20mA.  Input
-ranges can be individually programmed for each channel.  Voltage or current
-measurement is selected by jumper.
-
-There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
-
-16 x Digital Inputs, 24V
-
-8 x Digital Outputs, 24V, 1A
-
-4 x 16-bit counters
-
-Configuration options: not applicable, uses PCI auto config
-*/
+ * Driver: icp_multi
+ * Description: Inova ICP_MULTI
+ * Devices: [Inova] ICP_MULTI (icp_multi)
+ * Author: Anne Smorthit <anne.smorthit@sfwte.ch>
+ * Status: works
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * The driver works for analog input and output and digital input and
+ * output. It does not work with interrupts or with the counters. Currently
+ * no support for DMA.
+ *
+ * It has 16 single-ended or 8 differential Analogue Input channels with
+ * 12-bit resolution.  Ranges : 5V, 10V, +/-5V, +/-10V, 0..20mA and 4..20mA.
+ * Input ranges can be individually programmed for each channel.  Voltage or
+ * current measurement is selected by jumper.
+ *
+ * There are 4 x 12-bit Analogue Outputs.  Ranges : 5V, 10V, +/-5V, +/-10V
+ *
+ * 16 x Digital Inputs, 24V
+ *
+ * 8 x Digital Outputs, 24V, 1A
+ *
+ * 4 x 16-bit counters
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
