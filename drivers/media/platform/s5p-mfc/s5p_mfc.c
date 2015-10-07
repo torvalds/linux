@@ -181,13 +181,6 @@ unlock:
 		mutex_unlock(&dev->mfc_mutex);
 }
 
-static void s5p_mfc_clear_int_flags(struct s5p_mfc_dev *dev)
-{
-	mfc_write(dev, 0, S5P_FIMV_RISC_HOST_INT);
-	mfc_write(dev, 0, S5P_FIMV_RISC2HOST_CMD);
-	mfc_write(dev, 0xffff, S5P_FIMV_SI_RTN_CHID);
-}
-
 static void s5p_mfc_handle_frame_all_extracted(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_buf *dst_buf;
@@ -579,17 +572,13 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 	}
 }
 
-static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx,
-				 unsigned int reason, unsigned int err)
+static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *mb_entry;
 
 	mfc_debug(2, "Stream completed\n");
 
-	s5p_mfc_clear_int_flags(dev);
-	ctx->int_type = reason;
-	ctx->int_err = err;
 	ctx->state = MFCINST_FINISHED;
 
 	spin_lock(&dev->irqlock);
@@ -646,6 +635,13 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		if (ctx->c_ops->post_frame_start) {
 			if (ctx->c_ops->post_frame_start(ctx))
 				mfc_err("post_frame_start() failed\n");
+
+			if (ctx->state == MFCINST_FINISHING &&
+						list_empty(&ctx->ref_queue)) {
+				s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+				s5p_mfc_handle_stream_complete(ctx);
+				break;
+			}
 			s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
 			wake_up_ctx(ctx, reason, err);
 			WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
@@ -691,7 +687,10 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		break;
 
 	case S5P_MFC_R2H_CMD_COMPLETE_SEQ_RET:
-		s5p_mfc_handle_stream_complete(ctx, reason, err);
+		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+		ctx->int_type = reason;
+		ctx->int_err = err;
+		s5p_mfc_handle_stream_complete(ctx);
 		break;
 
 	case S5P_MFC_R2H_CMD_DPB_FLUSH_RET:

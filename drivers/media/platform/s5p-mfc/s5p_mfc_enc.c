@@ -907,9 +907,9 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 			list_add_tail(&mb_entry->list, &ctx->ref_queue);
 			ctx->ref_queue_cnt++;
 		}
-		mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
-			  ctx->src_queue_cnt, ctx->ref_queue_cnt);
 	}
+	mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
+		  ctx->src_queue_cnt, ctx->ref_queue_cnt);
 	if ((ctx->dst_queue_cnt > 0) && (strm_size > 0)) {
 		mb_entry = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf,
 									list);
@@ -932,6 +932,7 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	if ((ctx->src_queue_cnt == 0) || (ctx->dst_queue_cnt == 0))
 		clear_work_bit(ctx);
+
 	return 0;
 }
 
