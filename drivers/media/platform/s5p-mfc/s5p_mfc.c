@@ -196,6 +196,7 @@ static void s5p_mfc_handle_frame_all_extracted(struct s5p_mfc_ctx *ctx)
 		vb2_set_plane_payload(&dst_buf->b->vb2_buf, 0, 0);
 		vb2_set_plane_payload(&dst_buf->b->vb2_buf, 1, 0);
 		list_del(&dst_buf->list);
+		dst_buf->flags |= MFC_BUF_FLAG_EOS;
 		ctx->dst_queue_cnt--;
 		dst_buf->b->sequence = (ctx->sequence++);
 
