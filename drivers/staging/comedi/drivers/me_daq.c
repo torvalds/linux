@@ -243,8 +243,9 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
-	unsigned short val;
-	int ret;
+	unsigned int val;
+	int ret = 0;
+	int i;
 
 	/*
 	 * For differential operation, there are only 8 input channels
@@ -254,10 +255,6 @@ static int me_ai_insn_read(struct comedi_device *dev,
 		if (chan > 7 || comedi_range_is_unipolar(s, range))
 			return -EINVAL;
 	}
-
-	/* stop any running conversion */
-	devpriv->ctrl1 &= ~ME_CTRL1_ADC_MODE_MASK;
-	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
 	/* clear chanlist and ad fifo */
 	devpriv->ctrl2 &= ~(ME_CTRL2_ADFIFO_ENA | ME_CTRL2_CHANLIST_ENA);
@@ -281,24 +278,27 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	devpriv->ctrl1 |= ME_CTRL1_ADC_MODE_SOFT_TRIG;
 	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
-	/* start ai conversion */
-	readw(dev->mmio + ME_CTRL1_REG);
+	for (i = 0; i < insn->n; i++) {
+		/* start ai conversion */
+		readw(dev->mmio + ME_CTRL1_REG);
 
-	/* wait for ADC fifo not empty flag */
-	ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
-	if (ret)
-		return ret;
+		/* wait for ADC fifo not empty flag */
+		ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
+		if (ret)
+			break;
 
-	/* get value from ADC fifo */
-	val = readw(dev->mmio + ME_AI_FIFO_REG);
-	val = (val ^ 0x800) & 0x0fff;
-	data[0] = val;
+		/* get value from ADC fifo */
+		val = readw(dev->mmio + ME_AI_FIFO_REG) & s->maxdata;
+
+		/* munge 2's complement value to offset binary */
+		data[i] = comedi_offset_munge(s, val);
+	}
 
 	/* stop any running conversion */
 	devpriv->ctrl1 &= ~ME_CTRL1_ADC_MODE_MASK;
 	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
-	return 1;
+	return ret ? ret : insn->n;
 }
 
 static int me_ao_insn_write(struct comedi_device *dev,
