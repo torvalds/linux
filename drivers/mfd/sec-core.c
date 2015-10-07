@@ -253,6 +253,15 @@ static const struct regmap_config s5m8767_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
+{
+	unsigned int val;
+
+	/* For each device type, the REG_ID is always the first register */
+	if (!regmap_read(sec_pmic->regmap_pmic, S2MPS11_REG_ID, &val))
+		dev_dbg(sec_pmic->dev, "Revision: 0x%x\n", val);
+}
+
 #ifdef CONFIG_OF
 /*
  * Only the common platform data elements for s5m8767 are parsed here from the
@@ -425,6 +434,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		goto err_mfd;
 
 	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
+	sec_pmic_dump_rev(sec_pmic);
 
 	return ret;
 
