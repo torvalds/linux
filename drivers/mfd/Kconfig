@@ -1071,6 +1071,7 @@ config MFD_PALMAS
 config TPS6105X
 	tristate "TI TPS61050/61052 Boost Converters"
 	depends on I2C
+	select REGMAP_I2C
 	select REGULATOR
 	select MFD_CORE
 	select REGULATOR_FIXED_VOLTAGE
