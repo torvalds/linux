@@ -42,6 +42,7 @@
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/code-patching.h>
+#include <asm/cputhreads.h>
 #include <asm/hugetlb.h>
 #include <asm/paca.h>
 
@@ -628,10 +629,26 @@ static void early_init_this_mmu(void)
 #ifdef CONFIG_PPC_FSL_BOOK3E
 	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
 		unsigned int num_cams;
+		int __maybe_unused cpu = smp_processor_id();
+		bool map = true;
 
 		/* use a quarter of the TLBCAM for bolted linear map */
 		num_cams = (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) / 4;
-		linear_map_top = map_mem_in_cams(linear_map_top, num_cams);
+
+		/*
+		 * Only do the mapping once per core, or else the
+		 * transient mapping would cause problems.
+		 */
+#ifdef CONFIG_SMP
+		if (cpu != boot_cpuid &&
+		    (cpu != cpu_first_thread_sibling(cpu) ||
+		     cpu == cpu_first_thread_sibling(boot_cpuid)))
+			map = false;
+#endif
+
+		if (map)
+			linear_map_top = map_mem_in_cams(linear_map_top,
+							 num_cams);
 	}
 #endif
 

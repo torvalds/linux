@@ -141,8 +141,6 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	tlbcam_addrs[index].start = virt;
 	tlbcam_addrs[index].limit = virt + size - 1;
 	tlbcam_addrs[index].phys = phys;
-
-	loadcam_entry(index);
 }
 
 unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
@@ -188,6 +186,8 @@ static unsigned long map_mem_in_cams_addr(phys_addr_t phys, unsigned long virt,
 		virt += cam_sz;
 		phys += cam_sz;
 	}
+
+	loadcam_multi(0, i, max_cam_idx);
 	tlbcam_index = i;
 
 #ifdef CONFIG_PPC64
