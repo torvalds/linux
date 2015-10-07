@@ -382,7 +382,7 @@ uint rtl8712_hal_deinit(struct _adapter *padapter)
 uint rtl871x_hal_init(struct _adapter *padapter)
 {
 	padapter->hw_init_completed = false;
-	if (padapter->halpriv.hal_bus_init == NULL)
+	if (!padapter->halpriv.hal_bus_init)
 		return _FAIL;
 	if (padapter->halpriv.hal_bus_init(padapter) != _SUCCESS)
 		return _FAIL;
