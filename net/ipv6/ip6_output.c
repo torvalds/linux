@@ -233,7 +233,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 		 */
 		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 			       net, (struct sock *)sk, skb, NULL, dst->dev,
-			       dst_output_okfn);
+			       dst_output);
 	}
 
 	skb->dev = dst->dev;
@@ -333,7 +333,7 @@ static inline int ip6_forward_finish(struct net *net, struct sock *sk,
 				     struct sk_buff *skb)
 {
 	skb_sender_cpu_clear(skb);
-	return dst_output(sk, skb);
+	return dst_output(net, sk, skb);
 }
 
 static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)

@@ -1944,7 +1944,7 @@ static void xfrm_policy_queue_process(unsigned long arg)
 		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 
-		dst_output(skb->sk, skb);
+		dst_output(net, skb->sk, skb);
 	}
 
 out:

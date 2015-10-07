@@ -413,7 +413,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 
 	err = NF_HOOK(NFPROTO_IPV4, NF_INET_LOCAL_OUT,
 		      net, sk, skb, NULL, rt->dst.dev,
-		      dst_output_okfn);
+		      dst_output);
 	if (err > 0)
 		err = net_xmit_errno(err);
 	if (err)
