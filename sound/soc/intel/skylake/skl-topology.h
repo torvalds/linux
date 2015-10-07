@@ -273,6 +273,13 @@ struct skl_dapm_path_list {
 	struct list_head node;
 };
 
+static inline struct skl *get_skl_ctx(struct device *dev)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+
+	return ebus_to_skl(ebus);
+}
+
 int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
