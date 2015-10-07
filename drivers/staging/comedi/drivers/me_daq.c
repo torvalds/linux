@@ -70,18 +70,17 @@
 #define   ME_CTRL2_COUNTER_A_ENA	BIT(3)
 #define   ME_CTRL2_DAC_ENA		BIT(1)
 #define   ME_CTRL2_BUFFERED_DAC		BIT(0)
-#define ME_STATUS			0x0004	/* R | - */
-#define   COUNTER_B_IRQ_PENDING		(1<<12)
-#define   COUNTER_A_IRQ_PENDING		(1<<11)
-#define   CHANLIST_READY_IRQ_PENDING	(1<<10)
-#define   EXT_IRQ_PENDING		(1<<9)
-#define   ADFIFO_HALFFULL_IRQ_PENDING	(1<<8)
-#define   ADFIFO_FULL			(1<<4)
-#define   ADFIFO_HALFFULL		(1<<3)
-#define   ADFIFO_EMPTY			(1<<2)
-#define   CHANLIST_FULL			(1<<1)
-#define   FST_ACTIVE			(1<<0)
-#define ME_RESET_INTERRUPT		0x0004	/* - | W */
+#define ME_STATUS_REG			0x04	/* R | W (clears interrupts) */
+#define   ME_STATUS_COUNTER_B_IRQ	BIT(12)
+#define   ME_STATUS_COUNTER_A_IRQ	BIT(11)
+#define   ME_STATUS_CHANLIST_READY_IRQ	BIT(10)
+#define   ME_STATUS_EXT_IRQ		BIT(9)
+#define   ME_STATUS_ADFIFO_HALFFULL_IRQ	BIT(8)
+#define   ME_STATUS_ADFIFO_FULL		BIT(4)
+#define   ME_STATUS_ADFIFO_HALFFULL	BIT(3)
+#define   ME_STATUS_ADFIFO_EMPTY	BIT(2)
+#define   ME_STATUS_CHANLIST_FULL	BIT(1)
+#define   ME_STATUS_FST_ACTIVE		BIT(0)
 #define ME_DIO_PORT_A			0x0006	/* R | W */
 #define ME_DIO_PORT_B			0x0008	/* R | W */
 #define ME_TIMER_DATA_0			0x000A	/* - | W */
@@ -252,8 +251,8 @@ static int me_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = readw(dev->mmio + ME_STATUS);
-	if ((status & 0x0004) == 0)
+	status = readw(dev->mmio + ME_STATUS_REG);
+	if ((status & ME_STATUS_ADFIFO_EMPTY) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -278,8 +277,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	devpriv->ctrl2 &= ~(ME_CTRL2_ADFIFO_ENA | ME_CTRL2_CHANLIST_ENA);
 	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
-	/* reset any pending interrupt */
-	writew(0x00, dev->mmio + ME_RESET_INTERRUPT);
+	writew(0x00, dev->mmio + ME_STATUS_REG);	/* clear interrupts */
 
 	/* enable the chanlist and ADC fifo */
 	devpriv->ctrl2 |= (ME_CTRL2_ADFIFO_ENA | ME_CTRL2_CHANLIST_ENA);
@@ -442,7 +440,7 @@ static int me_reset(struct comedi_device *dev)
 	/* Reset board */
 	writew(0x00, dev->mmio + ME_CTRL1_REG);
 	writew(0x00, dev->mmio + ME_CTRL2_REG);
-	writew(0x00, dev->mmio + ME_RESET_INTERRUPT);
+	writew(0x00, dev->mmio + ME_STATUS_REG);	/* clear interrupts */
 	writew(0x00, dev->mmio + ME_DAC_CONTROL);
 
 	/* Save values in the board context */
