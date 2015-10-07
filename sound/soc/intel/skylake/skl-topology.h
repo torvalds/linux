@@ -263,6 +263,16 @@ struct skl_module_cfg {
 	struct skl_specific_cfg formats_config;
 };
 
+struct skl_pipeline {
+	struct skl_pipe *pipe;
+	struct list_head node;
+};
+
+struct skl_dapm_path_list {
+	struct snd_soc_dapm_path *dapm_path;
+	struct list_head node;
+};
+
 int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);

@@ -48,6 +48,13 @@
 #define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
 #define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
 
+struct skl_dsp_resource {
+	u32 max_mcps;
+	u32 max_mem;
+	u32 mcps;
+	u32 mem;
+};
+
 struct skl {
 	struct hdac_ext_bus ebus;
 	struct pci_dev *pci;
@@ -57,6 +64,10 @@ struct skl {
 
 	void __iomem *nhlt; /* nhlt ptr */
 	struct skl_sst *skl_sst; /* sst skl ctx */
+
+	struct skl_dsp_resource resource;
+	struct list_head ppl_list;
+	struct list_head dapm_path_list;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
