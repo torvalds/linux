@@ -166,6 +166,7 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;
+	skb_sender_cpu_clear(skb2);
 	err = dev_queue_xmit(skb2);
 
 out:
