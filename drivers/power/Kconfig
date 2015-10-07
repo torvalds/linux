@@ -204,6 +204,16 @@ config CHARGER_DA9150
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-charger.
 
+config BATTERY_DA9150
+	tristate "Dialog Semiconductor DA9150 Fuel Gauge support"
+	depends on MFD_DA9150
+	help
+	  Say Y here to enable support for the Fuel-Gauge unit of the DA9150
+	  Integrated Charger & Fuel-Gauge IC
+
+	  This driver can also be built as a module. If so, the module will be
+	  called da9150-fg.
+
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
