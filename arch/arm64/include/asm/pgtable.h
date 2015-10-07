@@ -140,6 +140,7 @@ extern struct page *empty_zero_page;
 #define pte_special(pte)	(!!(pte_val(pte) & PTE_SPECIAL))
 #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
+#define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
 
 #ifdef CONFIG_ARM64_HW_AFDBM
 #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
@@ -200,6 +201,16 @@ static inline pte_t pte_mkyoung(pte_t pte)
 static inline pte_t pte_mkspecial(pte_t pte)
 {
 	return set_pte_bit(pte, __pgprot(PTE_SPECIAL));
+}
+
+static inline pte_t pte_mkcont(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(PTE_CONT));
+}
+
+static inline pte_t pte_mknoncont(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(PTE_CONT));
 }
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
