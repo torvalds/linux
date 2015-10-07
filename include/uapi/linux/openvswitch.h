@@ -323,7 +323,7 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_MPLS,      /* array of struct ovs_key_mpls.
 				 * The implementation may restrict
 				 * the accepted length of the array. */
-	OVS_KEY_ATTR_CT_STATE,	/* u8 bitmask of OVS_CS_F_* */
+	OVS_KEY_ATTR_CT_STATE,	/* u32 bitmask of OVS_CS_F_* */
 	OVS_KEY_ATTR_CT_ZONE,	/* u16 connection tracking zone. */
 	OVS_KEY_ATTR_CT_MARK,	/* u32 connection tracking mark */
 	OVS_KEY_ATTR_CT_LABELS,	/* 16-octet connection tracking label */
@@ -449,9 +449,9 @@ struct ovs_key_ct_labels {
 #define OVS_CS_F_ESTABLISHED       0x02 /* Part of an existing connection. */
 #define OVS_CS_F_RELATED           0x04 /* Related to an established
 					 * connection. */
-#define OVS_CS_F_INVALID           0x20 /* Could not track connection. */
-#define OVS_CS_F_REPLY_DIR         0x40 /* Flow is in the reply direction. */
-#define OVS_CS_F_TRACKED           0x80 /* Conntrack has occurred. */
+#define OVS_CS_F_REPLY_DIR         0x08 /* Flow is in the reply direction. */
+#define OVS_CS_F_INVALID           0x10 /* Could not track connection. */
+#define OVS_CS_F_TRACKED           0x20 /* Conntrack has occurred. */
 
 /**
  * enum ovs_flow_attr - attributes for %OVS_FLOW_* commands.
@@ -618,7 +618,9 @@ struct ovs_action_hash {
 
 /**
  * enum ovs_ct_attr - Attributes for %OVS_ACTION_ATTR_CT action.
- * @OVS_CT_ATTR_FLAGS: u32 connection tracking flags.
+ * @OVS_CT_ATTR_COMMIT: If present, commits the connection to the conntrack
+ * table. This allows future packets for the same connection to be identified
+ * as 'established' or 'related'.
  * @OVS_CT_ATTR_ZONE: u16 connection tracking zone.
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection
@@ -630,7 +632,7 @@ struct ovs_action_hash {
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
-	OVS_CT_ATTR_FLAGS,      /* u8 bitmask of OVS_CT_F_*. */
+	OVS_CT_ATTR_COMMIT,     /* No argument, commits connection. */
 	OVS_CT_ATTR_ZONE,       /* u16 zone id. */
 	OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
 	OVS_CT_ATTR_LABELS,     /* labels to associate with this connection. */
@@ -640,14 +642,6 @@ enum ovs_ct_attr {
 };
 
 #define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
-
-/*
- * OVS_CT_ATTR_FLAGS flags - bitmask of %OVS_CT_F_*
- * @OVS_CT_F_COMMIT: Commits the flow to the conntrack table. This allows
- * future packets for the same connection to be identified as 'established'
- * or 'related'.
- */
-#define OVS_CT_F_COMMIT		0x01
 
 /**
  * enum ovs_action_attr - Action types.
@@ -705,7 +699,7 @@ enum ovs_action_attr {
 				       * data immediately followed by a mask.
 				       * The data must be zero for the unmasked
 				       * bits. */
-	OVS_ACTION_ATTR_CT,           /* One nested OVS_CT_ATTR_* . */
+	OVS_ACTION_ATTR_CT,           /* Nested OVS_CT_ATTR_* . */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */
