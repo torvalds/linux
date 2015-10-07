@@ -11,4 +11,14 @@ config FPGA
 	  kernel.  The FPGA framework adds a FPGA manager class and FPGA
 	  manager drivers.
 
+if FPGA
+
+config FPGA_MGR_SOCFPGA
+	tristate "Altera SOCFPGA FPGA Manager"
+	depends on ARCH_SOCFPGA
+	help
+	  FPGA manager driver support for Altera SOCFPGA.
+
+endif # FPGA
+
 endmenu
