@@ -64,25 +64,21 @@
 #define ICP_MULTI_AO		6	/* R/W: Analogue output data */
 #define ICP_MULTI_DI		8	/* R/W: Digital inputs */
 #define ICP_MULTI_DO		0x0A	/* R/W: Digital outputs */
-#define ICP_MULTI_INT_EN	0x0C	/* R/W: Interrupt enable register */
-#define ICP_MULTI_INT_STAT	0x0E	/* R/W: Interrupt status register */
+#define ICP_MULTI_INT_EN	0x0c	/* R/W: Interrupt enable register */
+#define ICP_MULTI_INT_STAT	0x0e	/* R/W: Interrupt status register */
+#define ICP_MULTI_INT_ADC_RDY	BIT(0)	/* A/D conversion ready interrupt */
+#define ICP_MULTI_INT_DAC_RDY	BIT(1)	/* D/A conversion ready interrupt */
+#define ICP_MULTI_INT_DOUT_ERR	BIT(2)	/* Digital output error interrupt */
+#define ICP_MULTI_INT_DIN_STAT	BIT(3)	/* Digital input status change int. */
+#define ICP_MULTI_INT_CIE0	BIT(4)	/* Counter 0 overrun interrupt */
+#define ICP_MULTI_INT_CIE1	BIT(5)	/* Counter 1 overrun interrupt */
+#define ICP_MULTI_INT_CIE2	BIT(6)	/* Counter 2 overrun interrupt */
+#define ICP_MULTI_INT_CIE3	BIT(7)	/* Counter 3 overrun interrupt */
+#define ICP_MULTI_INT_MASK	0xff	/* All interrupts */
 #define ICP_MULTI_CNTR0		0x10	/* R/W: Counter 0 */
 #define ICP_MULTI_CNTR1		0x12	/* R/W: counter 1 */
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
-
-/*  Define bits from interrupt enable/status registers */
-#define	ADC_READY	0x0001	/* A/d conversion ready interrupt */
-#define	DAC_READY	0x0002	/* D/a conversion ready interrupt */
-#define	DOUT_ERROR	0x0004	/* Digital output error interrupt */
-#define	DIN_STATUS	0x0008	/* Digital input status change interrupt */
-#define	CIE0		0x0010	/* Counter 0 overrun interrupt */
-#define	CIE1		0x0020	/* Counter 1 overrun interrupt */
-#define	CIE2		0x0040	/* Counter 2 overrun interrupt */
-#define	CIE3		0x0080	/* Counter 3 overrun interrupt */
-
-/*  Useful definitions */
-#define	Status_IRQ	0x00ff	/*  All interrupts */
 
 /*  Define analogue range */
 static const struct comedi_lrange range_analog = {
@@ -184,11 +180,11 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 	int n;
 
 	/*  Disable A/D conversion ready interrupt */
-	devpriv->IntEnable &= ~ADC_READY;
+	devpriv->IntEnable &= ~ICP_MULTI_INT_ADC_RDY;
 	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
 
 	/*  Clear interrupt status */
-	devpriv->IntStatus |= ADC_READY;
+	devpriv->IntStatus |= ICP_MULTI_INT_ADC_RDY;
 	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
 	/*  Set up appropriate channel, mode and range data, for specified ch */
@@ -211,11 +207,11 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 	}
 
 	/*  Disable interrupt */
-	devpriv->IntEnable &= ~ADC_READY;
+	devpriv->IntEnable &= ~ICP_MULTI_INT_ADC_RDY;
 	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
 
 	/*  Clear interrupt status */
-	devpriv->IntStatus |= ADC_READY;
+	devpriv->IntStatus |= ICP_MULTI_INT_ADC_RDY;
 	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
 	return ret ? ret : n;
@@ -245,11 +241,11 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	/*  Disable D/A conversion ready interrupt */
-	devpriv->IntEnable &= ~DAC_READY;
+	devpriv->IntEnable &= ~ICP_MULTI_INT_DAC_RDY;
 	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
 
 	/*  Clear interrupt status */
-	devpriv->IntStatus |= DAC_READY;
+	devpriv->IntStatus |= ICP_MULTI_INT_DAC_RDY;
 	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
 	/*  Set up range and channel data */
@@ -272,12 +268,12 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
 		if (ret) {
 			/*  Disable interrupt */
-			devpriv->IntEnable &= ~DAC_READY;
+			devpriv->IntEnable &= ~ICP_MULTI_INT_DAC_RDY;
 			writew(devpriv->IntEnable,
 			       dev->mmio + ICP_MULTI_INT_EN);
 
 			/*  Clear interrupt status */
-			devpriv->IntStatus |= DAC_READY;
+			devpriv->IntStatus |= ICP_MULTI_INT_DAC_RDY;
 			writew(devpriv->IntStatus,
 			       dev->mmio + ICP_MULTI_INT_STAT);
 
@@ -341,28 +337,28 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 	int int_no;
 
 	/*  Is this interrupt from our board? */
-	int_no = readw(dev->mmio + ICP_MULTI_INT_STAT) & Status_IRQ;
+	int_no = readw(dev->mmio + ICP_MULTI_INT_STAT) & ICP_MULTI_INT_MASK;
 	if (!int_no)
 		/*  No, exit */
 		return IRQ_NONE;
 
 	/*  Determine which interrupt is active & handle it */
 	switch (int_no) {
-	case ADC_READY:
+	case ICP_MULTI_INT_ADC_RDY:
 		break;
-	case DAC_READY:
+	case ICP_MULTI_INT_DAC_RDY:
 		break;
-	case DOUT_ERROR:
+	case ICP_MULTI_INT_DOUT_ERR:
 		break;
-	case DIN_STATUS:
+	case ICP_MULTI_INT_DIN_STAT:
 		break;
-	case CIE0:
+	case ICP_MULTI_INT_CIE0:
 		break;
-	case CIE1:
+	case ICP_MULTI_INT_CIE1:
 		break;
-	case CIE2:
+	case ICP_MULTI_INT_CIE2:
 		break;
-	case CIE3:
+	case ICP_MULTI_INT_CIE3:
 		break;
 	default:
 		break;
