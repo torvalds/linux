@@ -1049,7 +1049,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	ret = ip_vs_tunnel_xmit_prepare(skb, cp);
 	if (ret == NF_ACCEPT)
-		ip_local_out(skb);
+		ip_local_out(skb->sk, skb);
 	else if (ret == NF_DROP)
 		kfree_skb(skb);
 	rcu_read_unlock();
