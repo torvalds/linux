@@ -89,17 +89,21 @@ static int do_account_vtime(struct task_struct *tsk, int hardirq_offset)
 	if (smp_cpu_mtid &&
 	    time_after64(jiffies_64, __this_cpu_read(mt_scaling_jiffies))) {
 		u64 cycles_new[32], *cycles_old;
-		u64 delta, mult, div;
+		u64 delta, fac, mult, div;
 
 		cycles_old = this_cpu_ptr(mt_cycles);
 		if (stcctm5(smp_cpu_mtid + 1, cycles_new) < 2) {
+			fac = 1;
 			mult = div = 0;
 			for (i = 0; i <= smp_cpu_mtid; i++) {
 				delta = cycles_new[i] - cycles_old[i];
-				mult += delta;
-				div += (i + 1) * delta;
+				div += delta;
+				mult *= i + 1;
+				mult += delta * fac;
+				fac *= i + 1;
 			}
-			if (mult > 0) {
+			div *= fac;
+			if (div > 0) {
 				/* Update scaling factor */
 				__this_cpu_write(mt_scaling_mult, mult);
 				__this_cpu_write(mt_scaling_div, div);
