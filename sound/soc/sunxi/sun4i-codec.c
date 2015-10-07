@@ -571,7 +571,6 @@ static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 {
 	struct snd_soc_card *card;
-	int ret;
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
@@ -583,12 +582,6 @@ static struct snd_soc_card *sun4i_codec_create_card(struct device *dev)
 
 	card->dev		= dev;
 	card->name		= "sun4i-codec";
-
-	ret = snd_soc_of_parse_audio_routing(card, "routing");
-	if (ret) {
-		dev_err(dev, "Failed to create our audio routing\n");
-		return NULL;
-	}
 
 	return card;
 };
