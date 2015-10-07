@@ -67,6 +67,7 @@ source "fs/quota/Kconfig"
 
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
+source "fs/overlayfs/Kconfig"
 
 config GENERIC_ACL
 	bool
