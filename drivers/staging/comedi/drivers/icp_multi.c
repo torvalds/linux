@@ -313,18 +313,11 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void icp_multi_detach(struct comedi_device *dev)
-{
-	if (dev->mmio)
-		icp_multi_reset(dev);
-	comedi_pci_detach(dev);
-}
-
 static struct comedi_driver icp_multi_driver = {
 	.driver_name	= "icp_multi",
 	.module		= THIS_MODULE,
 	.auto_attach	= icp_multi_auto_attach,
-	.detach		= icp_multi_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int icp_multi_pci_probe(struct pci_dev *dev,
