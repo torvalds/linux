@@ -1462,6 +1462,7 @@ int skb_do_redirect(struct sk_buff *skb)
 		return dev_forward_skb(dev, skb);
 
 	skb->dev = dev;
+	skb_sender_cpu_clear(skb);
 	return dev_queue_xmit(skb);
 }
 
