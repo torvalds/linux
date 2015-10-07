@@ -60,6 +60,14 @@
 #define DMAR_IQA_REG	0x90	/* Invalidation queue addr register */
 #define DMAR_ICS_REG	0x9c	/* Invalidation complete status register */
 #define DMAR_IRTA_REG	0xb8    /* Interrupt remapping table addr register */
+#define DMAR_PQH_REG	0xc0	/* Page request queue head register */
+#define DMAR_PQT_REG	0xc8	/* Page request queue tail register */
+#define DMAR_PQA_REG	0xd0	/* Page request queue address register */
+#define DMAR_PRS_REG	0xdc	/* Page request status register */
+#define DMAR_PECTL_REG	0xe0	/* Page request event control register */
+#define	DMAR_PEDATA_REG	0xe4	/* Page request event interrupt data register */
+#define	DMAR_PEADDR_REG	0xe8	/* Page request event interrupt addr register */
+#define	DMAR_PEUADDR_REG 0xec	/* Page request event Upper address register */
 
 #define OFFSET_STRIDE		(9)
 
@@ -373,7 +381,7 @@ struct intel_iommu {
 	int		seq_id;	/* sequence id of the iommu */
 	int		agaw; /* agaw of this iommu */
 	int		msagaw; /* max sagaw of this iommu */
-	unsigned int 	irq;
+	unsigned int 	irq, pr_irq;
 	u16		segment;     /* PCI segment# */
 	unsigned char 	name[13];    /* Device Name */
 
