@@ -882,6 +882,7 @@ static const struct nvkm_enum gf100_mp_warp_error[] = {
 	{ 0x0d, "GPR_OUT_OF_BOUNDS" },
 	{ 0x0e, "MEM_OUT_OF_BOUNDS" },
 	{ 0x0f, "UNALIGNED_MEM_ACCESS" },
+	{ 0x10, "INVALID_ADDR_SPACE" },
 	{ 0x11, "INVALID_PARAM" },
 	{}
 };
