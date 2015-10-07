@@ -806,8 +806,6 @@ do {									\
 
 #define pvfs2_lock_inode(inode) spin_lock(&inode->i_lock)
 #define pvfs2_unlock_inode(inode) spin_unlock(&inode->i_lock)
-#define pvfs2_current_signal_lock current->sighand->siglock
-#define pvfs2_current_sigaction current->sighand->action
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
