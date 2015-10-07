@@ -1178,7 +1178,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 
 bind_event:
 	if (tplg_w->event_type == 0) {
-		dev_info(bus->dev, "ASoC: No event handler required\n");
+		dev_dbg(bus->dev, "ASoC: No event handler required\n");
 		return 0;
 	}
 
