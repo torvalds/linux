@@ -191,7 +191,8 @@ static void etm_set_prog(struct etm_drvdata *drvdata)
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n", ETMSR);
+			"%s: timeout observed when probing at offset %#x\n",
+			__func__, ETMSR);
 	}
 }
 
@@ -209,7 +210,8 @@ static void etm_clr_prog(struct etm_drvdata *drvdata)
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n", ETMSR);
+			"%s: timeout observed when probing at offset %#x\n",
+			__func__, ETMSR);
 	}
 }
 
