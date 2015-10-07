@@ -485,6 +485,8 @@ _GLOBAL(kexec_wait)
 	mtsrr1	r11
 	rfid
 #else
+	/* Create TLB entry in book3e_secondary_core_init */
+	li	r4,0
 	ba	0x60
 #endif
 #endif
