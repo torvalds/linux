@@ -134,6 +134,56 @@ static const struct file_operations dut_mode_fops = {
 	.llseek		= default_llseek,
 };
 
+static ssize_t vendor_diag_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+	int err;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	hci_req_lock(hdev);
+	err = hdev->set_diag(hdev, enable);
+	hci_req_unlock(hdev);
+
+	if (err < 0)
+		return err;
+
+	if (enable)
+		hci_dev_set_flag(hdev, HCI_VENDOR_DIAG);
+	else
+		hci_dev_clear_flag(hdev, HCI_VENDOR_DIAG);
+
+	return count;
+}
+
+static const struct file_operations vendor_diag_fops = {
+	.open		= simple_open,
+	.read		= vendor_diag_read,
+	.write		= vendor_diag_write,
+	.llseek		= default_llseek,
+};
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
@@ -850,12 +900,19 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	/* The Device Under Test (DUT) mode is special and available for
-	 * all controller types. So just create it early on.
-	 */
 	if (hci_dev_test_flag(hdev, HCI_SETUP)) {
+		/* The Device Under Test (DUT) mode is special and available
+		 * for all controller types. So just create it early on.
+		 */
 		debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
 				    &dut_mode_fops);
+
+		/* When the driver supports the set_diag callback, then
+		 * expose an entry to modify the vendor diagnostic setting.
+		 */
+		if (hdev->set_diag)
+			debugfs_create_file("vendor_diag", 0644, hdev->debugfs,
+					    hdev, &vendor_diag_fops);
 	}
 
 	err = __hci_req_sync(hdev, hci_init2_req, 0, HCI_INIT_TIMEOUT);
