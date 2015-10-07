@@ -95,12 +95,9 @@
 #define   ME_DAC_CTRL_MASK(x)		(ME_DAC_CTRL_BIPOLAR(x) |	\
 					 ME_DAC_CTRL_GAIN(x))
 #define ME_AO_DATA_REG(x)		(0x14 + ((x) * 2))	/* - | W */
-#define ME_COUNTER_ENDDATA_A		0x001C	/* - | W */
-#define ME_COUNTER_ENDDATA_B		0x001E	/* - | W */
-#define ME_COUNTER_STARTDATA_A		0x0020	/* - | W */
-#define ME_COUNTER_VALUE_A		0x0020	/* R | - */
-#define ME_COUNTER_STARTDATA_B		0x0022	/* - | W */
-#define ME_COUNTER_VALUE_B		0x0022	/* R | - */
+#define ME_COUNTER_ENDDATA_REG(x)	(0x1c + ((x) * 2))	/* - | W */
+#define ME_COUNTER_STARTDATA_REG(x)	(0x20 + ((x) * 2))	/* - | W */
+#define ME_COUNTER_VALUE_REG(x)		(0x20 + ((x) * 2))	/* R | - */
 
 static const struct comedi_lrange me_ai_range = {
 	8, {
