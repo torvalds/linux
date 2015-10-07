@@ -3,52 +3,60 @@
 #include <linux/once.h>
 #include <linux/random.h>
 
-struct __random_once_work {
+struct once_work {
 	struct work_struct work;
 	struct static_key *key;
 };
 
-static void __random_once_deferred(struct work_struct *w)
+static void once_deferred(struct work_struct *w)
 {
-	struct __random_once_work *work;
+	struct once_work *work;
 
-	work = container_of(w, struct __random_once_work, work);
+	work = container_of(w, struct once_work, work);
 	BUG_ON(!static_key_enabled(work->key));
 	static_key_slow_dec(work->key);
 	kfree(work);
 }
 
-static void __random_once_disable_jump(struct static_key *key)
+static void once_disable_jump(struct static_key *key)
 {
-	struct __random_once_work *w;
+	struct once_work *w;
 
 	w = kmalloc(sizeof(*w), GFP_ATOMIC);
 	if (!w)
 		return;
 
-	INIT_WORK(&w->work, __random_once_deferred);
+	INIT_WORK(&w->work, once_deferred);
 	w->key = key;
 	schedule_work(&w->work);
 }
 
-bool __get_random_once(void *buf, int nbytes, bool *done,
-		       struct static_key *once_key)
-{
-	static DEFINE_SPINLOCK(lock);
-	unsigned long flags;
+static DEFINE_SPINLOCK(once_lock);
 
-	spin_lock_irqsave(&lock, flags);
+bool __do_once_start(bool *done, unsigned long *flags)
+	__acquires(once_lock)
+{
+	spin_lock_irqsave(&once_lock, *flags);
 	if (*done) {
-		spin_unlock_irqrestore(&lock, flags);
+		spin_unlock_irqrestore(&once_lock, *flags);
+		/* Keep sparse happy by restoring an even lock count on
+		 * this lock. In case we return here, we don't call into
+		 * __do_once_done but return early in the DO_ONCE() macro.
+		 */
+		__acquire(once_lock);
 		return false;
 	}
 
-	get_random_bytes(buf, nbytes);
-	*done = true;
-	spin_unlock_irqrestore(&lock, flags);
-
-	__random_once_disable_jump(once_key);
-
 	return true;
 }
-EXPORT_SYMBOL(__get_random_once);
+EXPORT_SYMBOL(__do_once_start);
+
+void __do_once_done(bool *done, struct static_key *once_key,
+		    unsigned long *flags)
+	__releases(once_lock)
+{
+	*done = true;
+	spin_unlock_irqrestore(&once_lock, *flags);
+	once_disable_jump(once_key);
+}
+EXPORT_SYMBOL(__do_once_done);
