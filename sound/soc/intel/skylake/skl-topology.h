@@ -280,6 +280,18 @@ static inline struct skl *get_skl_ctx(struct device *dev)
 	return ebus_to_skl(ebus);
 }
 
+int skl_tplg_be_update_params(struct snd_soc_dai *dai,
+	struct skl_pipe_params *params);
+void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
+	struct skl_pipe_params *params, int stream);
+int skl_tplg_init(struct snd_soc_platform *platform,
+				struct hdac_ext_bus *ebus);
+struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
+		struct snd_soc_dai *dai, int stream);
+int skl_tplg_update_pipe_params(struct device *dev,
+		struct skl_module_cfg *mconfig, struct skl_pipe_params *params);
+
+
 int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
