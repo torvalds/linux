@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/seq_file.h>
 #include <linux/ethtool.h>
+#include <linux/hashtable.h>
 
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
@@ -739,11 +740,17 @@ struct qeth_vlan_vid {
 	unsigned short vid;
 };
 
-struct qeth_mc_mac {
-	struct list_head list;
-	__u8 mc_addr[MAX_ADDR_LEN];
-	unsigned char mc_addrlen;
-	int is_vmac;
+enum qeth_mac_disposition {
+	QETH_DISP_MAC_DELETE = 0,
+	QETH_DISP_MAC_DO_NOTHING = 1,
+	QETH_DISP_MAC_ADD = 2,
+};
+
+struct qeth_mac {
+	u8 mac_addr[OSA_ADDR_LEN];
+	u8 is_uc:1;
+	u8 disp_flag:2;
+	struct hlist_node hnode;
 };
 
 struct qeth_rx {
@@ -790,7 +797,7 @@ struct qeth_card {
 	spinlock_t mclock;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct list_head vid_list;
-	struct list_head mc_list;
+	DECLARE_HASHTABLE(mac_htable, 4);
 	struct work_struct kernel_thread_starter;
 	spinlock_t thread_mask_lock;
 	unsigned long thread_start_mask;
