@@ -4,7 +4,7 @@
 
 config HDM_USB
 	tristate "USB HDM"
-	depends on USB
+	depends on USB && NET
 	select AIM_NETWORK
 	---help---
 	  Say Y here if you want to connect via USB to network tranceiver.

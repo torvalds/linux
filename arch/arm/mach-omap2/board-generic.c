@@ -20,13 +20,6 @@
 
 #include "common.h"
 
-#if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
-#define intc_of_init	NULL
-#endif
-#ifndef CONFIG_ARCH_OMAP4
-#define gic_of_init		NULL
-#endif
-
 static const struct of_device_id omap_dt_match_table[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "ti,omap-infra", },

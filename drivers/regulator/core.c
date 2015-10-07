@@ -1394,15 +1394,15 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return 0;
 
 	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
-	if (ret == -ENODEV) {
-		/*
-		 * No supply was specified for this regulator and
-		 * there will never be one.
-		 */
-		return 0;
-	}
-
 	if (!r) {
+		if (ret == -ENODEV) {
+			/*
+			 * No supply was specified for this regulator and
+			 * there will never be one.
+			 */
+			return 0;
+		}
+
 		if (have_full_constraints()) {
 			r = dummy_regulator_rdev;
 		} else {
@@ -1422,11 +1422,10 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return ret;
 
 	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev)) {
+	if (_regulator_is_enabled(rdev) && rdev->supply) {
 		ret = regulator_enable(rdev->supply);
 		if (ret < 0) {
-			if (rdev->supply)
-				_regulator_put(rdev->supply);
+			_regulator_put(rdev->supply);
 			return ret;
 		}
 	}
