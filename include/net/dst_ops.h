@@ -28,7 +28,7 @@ struct dst_ops {
 					       struct sk_buff *skb, u32 mtu);
 	void			(*redirect)(struct dst_entry *dst, struct sock *sk,
 					    struct sk_buff *skb);
-	int			(*local_out)(struct sk_buff *skb);
+	int			(*local_out)(struct sock *sk, struct sk_buff *skb);
 	struct neighbour *	(*neigh_lookup)(const struct dst_entry *dst,
 						struct sk_buff *skb,
 						const void *daddr);

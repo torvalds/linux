@@ -285,7 +285,7 @@ static struct dst_ops xfrm6_dst_ops = {
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
-	.local_out =		__ip6_local_out,
+	.local_out =		__ip6_local_out_sk,
 	.gc_thresh =		32768,
 };
 

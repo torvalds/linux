@@ -165,7 +165,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
 	.redirect =		ip_do_redirect,
-	.local_out =		__ip_local_out,
+	.local_out =		__ip_local_out_sk,
 	.neigh_lookup =		ipv4_neigh_lookup,
 };
 

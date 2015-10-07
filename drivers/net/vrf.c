@@ -74,9 +74,9 @@ static struct dst_entry *vrf_ip_check(struct dst_entry *dst, u32 cookie)
 	return dst;
 }
 
-static int vrf_ip_local_out(struct sk_buff *skb)
+static int vrf_ip_local_out(struct sock *sk, struct sk_buff *skb)
 {
-	return ip_local_out(skb);
+	return ip_local_out_sk(sk, skb);
 }
 
 static unsigned int vrf_v4_mtu(const struct dst_entry *dst)

@@ -96,7 +96,7 @@ void ip_send_check(struct iphdr *iph)
 }
 EXPORT_SYMBOL(ip_send_check);
 
-static int __ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int __ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct iphdr *iph = ip_hdr(skb);
