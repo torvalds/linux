@@ -1618,12 +1618,35 @@ guard against mishaps and misuse:
 	supplied the needed
 	<a href="https://lkml.kernel.org/g/20100319013024.GA28456@Krystal">patch</a>.
 <li>	An infinite loop in an RCU read-side critical section will
-	eventually trigger an RCU CPU stall warning splat.
+	eventually trigger an RCU CPU stall warning splat, with
+	the duration of &ldquo;eventually&rdquo; being controlled by the
+	<tt>RCU_CPU_STALL_TIMEOUT</tt> <tt>Kconfig</tt> option, or,
+	alternatively, by the
+	<tt>rcupdate.rcu_cpu_stall_timeout</tt> boot/sysfs
+	parameter.
 	However, RCU is not obligated to produce this splat
 	unless there is a grace period waiting on that particular
 	RCU read-side critical section.
+	<p>
+	Some extreme workloads might intentionally delay
+	RCU grace periods, and systems running those workloads can
+	be booted with <tt>rcupdate.rcu_cpu_stall_suppress</tt>
+	to suppress the splats.
+	This kernel parameter may also be set via <tt>sysfs</tt>.
+	Furthermore, RCU CPU stall warnings are counter-productive
+	during sysrq dumps and during panics.
+	RCU therefore supplies the <tt>rcu_sysrq_start()</tt> and
+	<tt>rcu_sysrq_end()</tt> API members to be called before
+	and after long sysrq dumps.
+	RCU also supplies the <tt>rcu_panic()</tt> notifier that is
+	automatically invoked at the beginning of a panic to suppress
+	further RCU CPU stall warnings.
+
+	<p>
 	This requirement made itself known in the early 1990s, pretty
 	much the first time that it was necessary to debug a CPU stall.
+	That said, the initial implementation in DYNIX/ptx was quite
+	generic in comparison with that of Linux.
 <li>	Although it would be very good to detect pointers leaking out
 	of RCU read-side critical sections, there is currently no
 	good way of doing this.
