@@ -148,14 +148,9 @@ should be kept identical) to the types in the demux device.
  /&#x22C6;--------------------------------------------------------------------------&#x22C6;/
 
  typedef enum {
-	 DMX_OTHER_FE = 0,
-	 DMX_SATELLITE_FE,
-	 DMX_CABLE_FE,
-	 DMX_TERRESTRIAL_FE,
-	 DMX_LVDS_FE,
-	 DMX_ASI_FE, /&#x22C6; DVB-ASI interface &#x22C6;/
-	 DMX_MEMORY_FE
- } dmx_frontend_source_t;
+	 DMX_MEMORY_FE,
+	 DMX_FRONTEND_0,
+ } dmx_frontend_source;
 
  typedef struct {
 	 /&#x22C6; The following char&#x22C6; fields point to NULL terminated strings &#x22C6;/
@@ -166,7 +161,7 @@ should be kept identical) to the types in the demux device.
 						be connected to a particular
 						demux &#x22C6;/
 	 void&#x22C6; priv;     /&#x22C6; Pointer to private data of the API client &#x22C6;/
-	 dmx_frontend_source_t source;
+	 dmx_frontend_source source;
  } dmx_frontend_t;
 
  /&#x22C6;--------------------------------------------------------------------------&#x22C6;/

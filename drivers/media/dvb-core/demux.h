@@ -141,13 +141,6 @@ typedef int (*dmx_section_cb) (	const u8 * buffer1,
 enum dmx_frontend_source {
 	DMX_MEMORY_FE,
 	DMX_FRONTEND_0,
-	DMX_FRONTEND_1,
-	DMX_FRONTEND_2,
-	DMX_FRONTEND_3,
-	DMX_STREAM_0,    /* external stream input, e.g. LVDS */
-	DMX_STREAM_1,
-	DMX_STREAM_2,
-	DMX_STREAM_3
 };
 
 struct dmx_frontend {
