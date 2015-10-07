@@ -32,8 +32,14 @@
 #define ST_RNG_FIFO_SIZE		8
 #define ST_RNG_SAMPLE_SIZE		2 /* 2 Byte (16bit) samples */
 
-/* Samples are available every 0.667us, which we round to 1us */
-#define ST_RNG_FILL_FIFO_TIMEOUT   (1 * (ST_RNG_FIFO_SIZE / ST_RNG_SAMPLE_SIZE))
+/*
+ * Samples are documented to be available every 0.667us, so in theory
+ * the 4 sample deep FIFO should take 2.668us to fill.  However, during
+ * thorough testing, it became apparent that filling the FIFO actually
+ * takes closer to 12us.  We then multiply by 2 in order to account for
+ * the lack of udelay()'s reliability, suggested by Russell King.
+ */
+#define ST_RNG_FILL_FIFO_TIMEOUT	(12 * 2)
 
 struct st_rng_data {
 	void __iomem	*base;
