@@ -6605,6 +6605,11 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 			jiffies_to_msecs(jiffies - intbss->ts)))
 		goto nla_put_failure;
 
+	if (intbss->ts_boottime &&
+	    nla_put_u64(msg, NL80211_BSS_LAST_SEEN_BOOTTIME,
+			intbss->ts_boottime))
+		goto nla_put_failure;
+
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
 		if (nla_put_u32(msg, NL80211_BSS_SIGNAL_MBM, res->signal))
