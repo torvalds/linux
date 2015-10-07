@@ -246,6 +246,15 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	unsigned short val;
 	int ret;
 
+	/*
+	 * For differential operation, there are only 8 input channels
+	 * and only bipolar ranges are available.
+	 */
+	if (aref & AREF_DIFF) {
+		if (chan > 7 || comedi_range_is_unipolar(s, range))
+			return -EINVAL;
+	}
+
 	/* stop any running conversion */
 	devpriv->ctrl1 &= ~ME_CTRL1_ADC_MODE_MASK;
 	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
@@ -472,7 +481,7 @@ static int me_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_COMMON;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= 0x0fff;
 	s->len_chanlist	= 16;
