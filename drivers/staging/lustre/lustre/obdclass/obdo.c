@@ -127,7 +127,7 @@ void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj)
 }
 EXPORT_SYMBOL(obdo_to_ioobj);
 
-void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid)
+static void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid)
 {
 	valid &= oa->o_valid;
 
@@ -174,7 +174,6 @@ void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid)
 		attr->ia_valid |= ATTR_GID;
 	}
 }
-EXPORT_SYMBOL(iattr_from_obdo);
 
 void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid)
 {

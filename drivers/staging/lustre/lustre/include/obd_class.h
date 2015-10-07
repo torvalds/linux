@@ -271,7 +271,6 @@ struct obdo;
 void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid);
 
 void obdo_to_ioobj(struct obdo *oa, struct obd_ioobj *ioobj);
-void iattr_from_obdo(struct iattr *attr, struct obdo *oa, u32 valid);
 void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid);
 
 #define OBT(dev)	(dev)->obd_type
