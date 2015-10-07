@@ -1233,6 +1233,16 @@ static inline unsigned int valid_inode_count(struct f2fs_sb_info *sbi)
 	return sbi->total_valid_inode_count;
 }
 
+static inline void f2fs_copy_page(struct page *src, struct page *dst)
+{
+	char *src_kaddr = kmap(src);
+	char *dst_kaddr = kmap(dst);
+
+	memcpy(dst_kaddr, src_kaddr, PAGE_SIZE);
+	kunmap(dst);
+	kunmap(src);
+}
+
 static inline void f2fs_put_page(struct page *page, int unlock)
 {
 	if (!page)
@@ -1754,6 +1764,7 @@ int f2fs_issue_flush(struct f2fs_sb_info *);
 int create_flush_cmd_control(struct f2fs_sb_info *);
 void destroy_flush_cmd_control(struct f2fs_sb_info *);
 void invalidate_blocks(struct f2fs_sb_info *, block_t);
+bool is_checkpointed_data(struct f2fs_sb_info *, block_t);
 void refresh_sit_entry(struct f2fs_sb_info *, block_t, block_t);
 void clear_prefree_segments(struct f2fs_sb_info *, struct cp_control *);
 void release_discard_addrs(struct f2fs_sb_info *);
