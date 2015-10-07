@@ -1942,12 +1942,16 @@ RCU depends on the scheduler, and the scheduler uses RCU to
 protect some of its data structures.
 This means the scheduler is forbidden from acquiring
 the runqueue locks and the priority-inheritance locks
-in the middle of an outermost RCU read-side critical section unless
-it also releases them before exiting that same
-RCU read-side critical section.
-This same prohibition also applies to any lock that is acquired
+in the middle of an outermost RCU read-side critical section unless either
+(1)&nbsp;it releases them before exiting that same
+RCU read-side critical section, or
+(2)&nbsp;preemption is disabled across
+that entire RCU read-side critical section.
+This same prohibition also applies (recursively!) to any lock that is acquired
 while holding any lock to which this prohibition applies.
-Violating this rule results in deadlock.
+Adhering to this rule prevents preemptible RCU from invoking
+<tt>rcu_read_unlock_special()</tt> while either runqueue or
+priority-inheritance locks are held, thus avoiding deadlock.
 
 <p>
 For RCU's part, the preemptible-RCU <tt>rcu_read_unlock()</tt>
