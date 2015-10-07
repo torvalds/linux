@@ -1089,8 +1089,8 @@ static struct skl_pipe *skl_tplg_add_pipe(struct device *dev,
  * FW expects like ids, resource values, formats etc
  */
 static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
-					struct snd_soc_dapm_widget *w,
-					struct snd_soc_tplg_dapm_widget *tplg_w)
+				struct snd_soc_dapm_widget *w,
+				struct snd_soc_tplg_dapm_widget *tplg_w)
 {
 	int ret;
 	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata(cmpnt);
@@ -1098,7 +1098,8 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl_module_cfg *mconfig;
 	struct skl_pipe *pipe;
-	struct skl_dfw_module *dfw_config = (struct skl_dfw_module *)tplg_w->priv.data;
+	struct skl_dfw_module *dfw_config =
+				(struct skl_dfw_module *)tplg_w->priv.data;
 
 	if (!tplg_w->priv.size)
 		goto bind_event;
@@ -1121,12 +1122,14 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->in_fmt.channels = dfw_config->in_fmt.channels;
 	mconfig->in_fmt.s_freq = dfw_config->in_fmt.freq;
 	mconfig->in_fmt.bit_depth = dfw_config->in_fmt.bit_depth;
-	mconfig->in_fmt.valid_bit_depth = dfw_config->in_fmt.valid_bit_depth;
+	mconfig->in_fmt.valid_bit_depth =
+				dfw_config->in_fmt.valid_bit_depth;
 	mconfig->in_fmt.ch_cfg = dfw_config->in_fmt.ch_cfg;
 	mconfig->out_fmt.channels = dfw_config->out_fmt.channels;
 	mconfig->out_fmt.s_freq = dfw_config->out_fmt.freq;
 	mconfig->out_fmt.bit_depth = dfw_config->out_fmt.bit_depth;
-	mconfig->out_fmt.valid_bit_depth = dfw_config->out_fmt.valid_bit_depth;
+	mconfig->out_fmt.valid_bit_depth =
+				dfw_config->out_fmt.valid_bit_depth;
 	mconfig->out_fmt.ch_cfg = dfw_config->out_fmt.ch_cfg;
 	mconfig->params_fixup = dfw_config->params_fixup;
 	mconfig->converter = dfw_config->converter;
@@ -1142,15 +1145,17 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->time_slot = dfw_config->time_slot;
 	mconfig->formats_config.caps_size = dfw_config->caps.caps_size;
 
-	mconfig->m_in_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
-						sizeof(*mconfig->m_in_pin),
-						GFP_KERNEL);
+	mconfig->m_in_pin = devm_kzalloc(bus->dev,
+				(mconfig->max_in_queue) *
+					sizeof(*mconfig->m_in_pin),
+				GFP_KERNEL);
 	if (!mconfig->m_in_pin)
 		return -ENOMEM;
 
-	mconfig->m_out_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
-						sizeof(*mconfig->m_out_pin),
-						GFP_KERNEL);
+	mconfig->m_out_pin = devm_kzalloc(bus->dev,
+				(mconfig->max_in_queue) *
+					sizeof(*mconfig->m_out_pin),
+				GFP_KERNEL);
 	if (!mconfig->m_out_pin)
 		return -ENOMEM;
 
@@ -1163,13 +1168,13 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 		goto bind_event;
 
 	mconfig->formats_config.caps = (u32 *)devm_kzalloc(bus->dev,
-				mconfig->formats_config.caps_size, GFP_KERNEL);
+			mconfig->formats_config.caps_size, GFP_KERNEL);
 
 	if (mconfig->formats_config.caps == NULL)
 		return -ENOMEM;
 
 	memcpy(mconfig->formats_config.caps, dfw_config->caps.caps,
-						 dfw_config->caps.caps_size);
+					 dfw_config->caps.caps_size);
 
 bind_event:
 	if (tplg_w->event_type == 0) {
@@ -1178,7 +1183,8 @@ bind_event:
 	}
 
 	ret = snd_soc_tplg_widget_bind_event(w, skl_tplg_widget_ops,
-			ARRAY_SIZE(skl_tplg_widget_ops), tplg_w->event_type);
+					ARRAY_SIZE(skl_tplg_widget_ops),
+					tplg_w->event_type);
 
 	if (ret) {
 		dev_err(bus->dev, "%s: No matching event handlers found for %d\n",
@@ -1209,7 +1215,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 
 	ret = request_firmware(&fw, "dfw_sst.bin", bus->dev);
 	if (ret < 0) {
-		dev_err(bus->dev, "config firmware %s request failed with %d\n",
+		dev_err(bus->dev, "tplg fw %s load failed with %d\n",
 				"dfw_sst.bin", ret);
 		return ret;
 	}
@@ -1218,7 +1224,8 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 * The complete tplg for SKL is loaded as index 0, we don't use
 	 * any other index
 	 */
-	ret = snd_soc_tplg_component_load(&platform->component, &skl_tplg_ops, fw, 0);
+	ret = snd_soc_tplg_component_load(&platform->component,
+					&skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
 		return -EINVAL;
