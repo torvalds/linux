@@ -44,18 +44,18 @@ static void led_timer_function(unsigned long data)
 	brightness = led_get_brightness(led_cdev);
 	if (!brightness) {
 		/* Time to switch the LED on. */
-		if (led_cdev->delayed_set_value) {
-			led_cdev->blink_brightness =
-					led_cdev->delayed_set_value;
-			led_cdev->delayed_set_value = 0;
-		}
 		brightness = led_cdev->blink_brightness;
 		delay = led_cdev->blink_delay_on;
 	} else {
 		/* Store the current brightness value to be able
 		 * to restore it when the delay_off period is over.
+		 * Do it only if there is no pending blink brightness
+		 * change, to avoid overwriting the new value.
 		 */
-		led_cdev->blink_brightness = brightness;
+		if (!(led_cdev->flags & LED_BLINK_BRIGHTNESS_CHANGE))
+			led_cdev->blink_brightness = brightness;
+		else
+			led_cdev->flags &= ~LED_BLINK_BRIGHTNESS_CHANGE;
 		brightness = LED_OFF;
 		delay = led_cdev->blink_delay_off;
 	}
@@ -84,7 +84,11 @@ static void set_brightness_delayed(struct work_struct *ws)
 	struct led_classdev *led_cdev =
 		container_of(ws, struct led_classdev, set_brightness_work);
 
-	led_stop_software_blink(led_cdev);
+	if (led_cdev->flags & LED_BLINK_DISABLE) {
+		led_cdev->delayed_set_value = LED_OFF;
+		led_stop_software_blink(led_cdev);
+		led_cdev->flags &= ~LED_BLINK_DISABLE;
+	}
 
 	led_set_brightness_async(led_cdev, led_cdev->delayed_set_value);
 }
@@ -192,11 +196,23 @@ void led_set_brightness(struct led_classdev *led_cdev,
 {
 	int ret = 0;
 
-	/* delay brightness if soft-blink is active */
+	/*
+	 * In case blinking is on delay brightness setting
+	 * until the next timer tick.
+	 */
 	if (led_cdev->blink_delay_on || led_cdev->blink_delay_off) {
-		led_cdev->delayed_set_value = brightness;
-		if (brightness == LED_OFF)
+		/*
+		 * If we need to disable soft blinking delegate this to the
+		 * work queue task to avoid problems in case we are called
+		 * from hard irq context.
+		 */
+		if (brightness == LED_OFF) {
+			led_cdev->flags |= LED_BLINK_DISABLE;
 			schedule_work(&led_cdev->set_brightness_work);
+		} else {
+			led_cdev->flags |= LED_BLINK_BRIGHTNESS_CHANGE;
+			led_cdev->blink_brightness = brightness;
+		}
 		return;
 	}
 
