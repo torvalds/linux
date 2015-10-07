@@ -97,11 +97,6 @@ struct icp_multi_private {
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
 	unsigned int IntStatus;	/*  Interrupt Status register */
-	unsigned int act_chanlist[32];	/*  list of scanned channel */
-	unsigned char act_chanlist_len;	/*  len of scanlist */
-	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
-	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	unsigned int do_data;	/*  Remember digital output data */
 };
 
 static void setup_channel_list(struct comedi_device *dev,
@@ -111,9 +106,6 @@ static void setup_channel_list(struct comedi_device *dev,
 	struct icp_multi_private *devpriv = dev->private;
 	unsigned int i, range, chanprog;
 	unsigned int diff;
-
-	devpriv->act_chanlist_len = n_chan;
-	devpriv->act_chanlist_pos = 0;
 
 	for (i = 0; i < n_chan; i++) {
 		/*  Get channel */
