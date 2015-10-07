@@ -107,7 +107,7 @@ static int icp_multi_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int icp_multi_insn_read_ai(struct comedi_device *dev,
+static int icp_multi_ai_insn_read(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
@@ -196,7 +196,7 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int icp_multi_insn_bits_di(struct comedi_device *dev,
+static int icp_multi_di_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
@@ -206,7 +206,7 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int icp_multi_insn_bits_do(struct comedi_device *dev,
+static int icp_multi_do_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
@@ -270,46 +270,45 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	icp_multi_reset(dev);
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
-	s->n_chan = 16;
-	s->maxdata = 0x0fff;
-	s->len_chanlist = 16;
-	s->range_table = &icp_multi_ranges;
-	s->insn_read = icp_multi_insn_read_ai;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
+	s->n_chan	= 16;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &icp_multi_ranges;
+	s->insn_read	= icp_multi_ai_insn_read;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = 4;
-	s->maxdata = 0x0fff;
-	s->len_chanlist = 4;
-	s->range_table = &icp_multi_ranges;
-	s->insn_write = icp_multi_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan	= 4;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &icp_multi_ranges;
+	s->insn_write	= icp_multi_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
 		return ret;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->len_chanlist = 16;
-	s->range_table = &range_digital;
-	s->insn_bits = icp_multi_insn_bits_di;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= icp_multi_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->len_chanlist = 8;
-	s->range_table = &range_digital;
-	s->insn_bits = icp_multi_insn_bits_do;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= icp_multi_do_insn_bits;
 
 	return 0;
 }
