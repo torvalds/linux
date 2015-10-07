@@ -631,9 +631,13 @@ _GLOBAL(kexec_sequence)
 	lhz	r25,PACAHWCPUID(r13)	/* get our phys cpu from paca */
 
 	/* disable interrupts, we are overwriting kernel data next */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	0
+#else
 	mfmsr	r3
 	rlwinm	r3,r3,0,17,15
 	mtmsrd	r3,1
+#endif
 
 	/* copy dest pages, flush whole dest image */
 	mr	r3,r29
@@ -655,6 +659,7 @@ _GLOBAL(kexec_sequence)
 	li	r6,1
 	stw	r6,kexec_flag-1b(5)
 
+#ifndef CONFIG_PPC_BOOK3E
 	/* clear out hardware hash page table and tlb */
 #if !defined(_CALL_ELF) || _CALL_ELF != 2
 	ld	r12,0(r27)		/* deref function descriptor */
@@ -663,6 +668,7 @@ _GLOBAL(kexec_sequence)
 #endif
 	mtctr	r12
 	bctrl				/* ppc_md.hpte_clear_all(void); */
+#endif /* !CONFIG_PPC_BOOK3E */
 
 /*
  *   kexec image calling is:
