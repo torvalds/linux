@@ -4558,22 +4558,6 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 		BUG();
 }
 
-static bool
-intel_enable_blt(struct drm_device *dev)
-{
-	if (!HAS_BLT(dev))
-		return false;
-
-	/* The blitter was dysfunctional on early prototypes */
-	if (IS_GEN6(dev) && dev->pdev->revision < 8) {
-		DRM_INFO("BLT not supported on this pre-production hardware;"
-			 " graphics performance will be degraded.\n");
-		return false;
-	}
-
-	return true;
-}
-
 static void init_unused_ring(struct drm_device *dev, u32 base)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4616,7 +4600,7 @@ int i915_gem_init_rings(struct drm_device *dev)
 			goto cleanup_render_ring;
 	}
 
-	if (intel_enable_blt(dev)) {
+	if (HAS_BLT(dev)) {
 		ret = intel_init_blt_ring_buffer(dev);
 		if (ret)
 			goto cleanup_bsd_ring;
