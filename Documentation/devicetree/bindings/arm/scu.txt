@@ -10,10 +10,13 @@ References:
   Revision r2p0
 - Cortex-A5: see DDI0434B Cortex-A5 MPCore Technical Reference Manual
   Revision r0p1
+- ARM11 MPCore: see DDI0360F ARM 11 MPCore Processor Technical Reference
+  Manial Revision r2p0
 
 - compatible : Should be:
 	"arm,cortex-a9-scu"
 	"arm,cortex-a5-scu"
+	"arm,arm11mp-scu"
 
 - reg : Specify the base address and the size of the SCU register window.
 
