@@ -3241,7 +3241,7 @@ static int buddy_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id dmi_platform_intel_broadwell[] __initdata = {
+static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{
 		.ident = "Chrome Buddy",
 		.callback = buddy_quirk_cb,
