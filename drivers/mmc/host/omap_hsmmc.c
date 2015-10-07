@@ -478,7 +478,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	mmc->supply.vmmc = devm_regulator_get_optional(host->dev, "vmmc");
 	if (IS_ERR(mmc->supply.vmmc)) {
 		ret = PTR_ERR(mmc->supply.vmmc);
-		if (ret != -ENODEV)
+		if ((ret != -ENODEV) && host->dev->of_node)
 			return ret;
 		dev_dbg(host->dev, "unable to get vmmc regulator %ld\n",
 			PTR_ERR(mmc->supply.vmmc));
@@ -493,7 +493,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	mmc->supply.vqmmc = devm_regulator_get_optional(host->dev, "vmmc_aux");
 	if (IS_ERR(mmc->supply.vqmmc)) {
 		ret = PTR_ERR(mmc->supply.vqmmc);
-		if (ret != -ENODEV)
+		if ((ret != -ENODEV) && host->dev->of_node)
 			return ret;
 		dev_dbg(host->dev, "unable to get vmmc_aux regulator %ld\n",
 			PTR_ERR(mmc->supply.vqmmc));
@@ -503,7 +503,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	host->pbias = devm_regulator_get_optional(host->dev, "pbias");
 	if (IS_ERR(host->pbias)) {
 		ret = PTR_ERR(host->pbias);
-		if (ret != -ENODEV)
+		if ((ret != -ENODEV) && host->dev->of_node)
 			return ret;
 		dev_dbg(host->dev, "unable to get pbias regulator %ld\n",
 			PTR_ERR(host->pbias));
