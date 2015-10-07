@@ -59,8 +59,8 @@ struct led_classdev {
 	 * Set LED brightness level immediately - it can block the caller for
 	 * the time required for accessing a LED device register.
 	 */
-	int		(*brightness_set_sync)(struct led_classdev *led_cdev,
-					enum led_brightness brightness);
+	int (*brightness_set_blocking)(struct led_classdev *led_cdev,
+				       enum led_brightness brightness);
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 

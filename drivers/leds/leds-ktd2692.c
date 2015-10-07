@@ -382,7 +382,7 @@ static int ktd2692_probe(struct platform_device *pdev)
 
 	led_cdev->max_brightness = led_cfg.max_brightness;
 	led_cdev->brightness_set = ktd2692_led_brightness_set;
-	led_cdev->brightness_set_sync = ktd2692_led_brightness_set_sync;
+	led_cdev->brightness_set_blocking = ktd2692_led_brightness_set_sync;
 	led_cdev->flags |= LED_CORE_SUSPENDRESUME | LED_DEV_CAP_FLASH;
 
 	mutex_init(&led->lock);

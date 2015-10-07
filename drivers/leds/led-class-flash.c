@@ -298,7 +298,7 @@ int led_classdev_flash_register(struct device *parent,
 	led_cdev = &fled_cdev->led_cdev;
 
 	if (led_cdev->flags & LED_DEV_CAP_FLASH) {
-		if (!led_cdev->brightness_set_sync)
+		if (!led_cdev->brightness_set_blocking)
 			return -EINVAL;
 
 		ops = fled_cdev->ops;
