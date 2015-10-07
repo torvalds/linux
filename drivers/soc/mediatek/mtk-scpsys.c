@@ -54,11 +54,15 @@
 #define PWR_STATUS_USB			BIT(25)
 
 enum clk_id {
+	MT8173_CLK_NONE,
 	MT8173_CLK_MM,
 	MT8173_CLK_MFG,
-	MT8173_CLK_NONE,
-	MT8173_CLK_MAX = MT8173_CLK_NONE,
+	MT8173_CLK_VENC,
+	MT8173_CLK_VENC_LT,
+	MT8173_CLK_MAX,
 };
+
+#define MAX_CLKS	2
 
 struct scp_domain_data {
 	const char *name;
@@ -67,7 +71,7 @@ struct scp_domain_data {
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;
 	u32 bus_prot_mask;
-	enum clk_id clk_id;
+	enum clk_id clk_id[MAX_CLKS];
 	bool active_wakeup;
 };
 
@@ -78,7 +82,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_VDE_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
-		.clk_id = MT8173_CLK_MM,
+		.clk_id = {MT8173_CLK_MM},
 	},
 	[MT8173_POWER_DOMAIN_VENC] = {
 		.name = "venc",
@@ -86,7 +90,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_VEN_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = MT8173_CLK_MM,
+		.clk_id = {MT8173_CLK_MM, MT8173_CLK_VENC},
 	},
 	[MT8173_POWER_DOMAIN_ISP] = {
 		.name = "isp",
@@ -94,7 +98,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_ISP_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(13, 12),
-		.clk_id = MT8173_CLK_MM,
+		.clk_id = {MT8173_CLK_MM},
 	},
 	[MT8173_POWER_DOMAIN_MM] = {
 		.name = "mm",
@@ -102,7 +106,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_DIS_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
-		.clk_id = MT8173_CLK_MM,
+		.clk_id = {MT8173_CLK_MM},
 		.bus_prot_mask = MT8173_TOP_AXI_PROT_EN_MM_M0 |
 			MT8173_TOP_AXI_PROT_EN_MM_M1,
 	},
@@ -112,7 +116,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_VEN2_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = MT8173_CLK_MM,
+		.clk_id = {MT8173_CLK_MM, MT8173_CLK_VENC_LT},
 	},
 	[MT8173_POWER_DOMAIN_AUDIO] = {
 		.name = "audio",
@@ -120,7 +124,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_AUDIO_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = MT8173_CLK_NONE,
+		.clk_id = {MT8173_CLK_NONE},
 	},
 	[MT8173_POWER_DOMAIN_USB] = {
 		.name = "usb",
@@ -128,7 +132,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_USB_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(15, 12),
-		.clk_id = MT8173_CLK_NONE,
+		.clk_id = {MT8173_CLK_NONE},
 		.active_wakeup = true,
 	},
 	[MT8173_POWER_DOMAIN_MFG_ASYNC] = {
@@ -137,7 +141,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_MFG_ASYNC_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = 0,
-		.clk_id = MT8173_CLK_MFG,
+		.clk_id = {MT8173_CLK_MFG},
 	},
 	[MT8173_POWER_DOMAIN_MFG_2D] = {
 		.name = "mfg_2d",
@@ -145,7 +149,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_MFG_2D_PWR_CON,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(13, 12),
-		.clk_id = MT8173_CLK_NONE,
+		.clk_id = {MT8173_CLK_NONE},
 	},
 	[MT8173_POWER_DOMAIN_MFG] = {
 		.name = "mfg",
@@ -153,7 +157,7 @@ static const struct scp_domain_data scp_domain_data[] __initconst = {
 		.ctl_offs = SPM_MFG_PWR_CON,
 		.sram_pdn_bits = GENMASK(13, 8),
 		.sram_pdn_ack_bits = GENMASK(21, 16),
-		.clk_id = MT8173_CLK_NONE,
+		.clk_id = {MT8173_CLK_NONE},
 		.bus_prot_mask = MT8173_TOP_AXI_PROT_EN_MFG_S |
 			MT8173_TOP_AXI_PROT_EN_MFG_M0 |
 			MT8173_TOP_AXI_PROT_EN_MFG_M1 |
@@ -168,7 +172,7 @@ struct scp;
 struct scp_domain {
 	struct generic_pm_domain genpd;
 	struct scp *scp;
-	struct clk *clk;
+	struct clk *clk[MAX_CLKS];
 	u32 sta_mask;
 	void __iomem *ctl_addr;
 	u32 sram_pdn_bits;
@@ -215,11 +219,16 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 	u32 sram_pdn_ack = scpd->sram_pdn_ack_bits;
 	u32 val;
 	int ret;
+	int i;
 
-	if (scpd->clk) {
-		ret = clk_prepare_enable(scpd->clk);
-		if (ret)
+	for (i = 0; i < MAX_CLKS && scpd->clk[i]; i++) {
+		ret = clk_prepare_enable(scpd->clk[i]);
+		if (ret) {
+			for (--i; i >= 0; i--)
+				clk_disable_unprepare(scpd->clk[i]);
+
 			goto err_clk;
+		}
 	}
 
 	val = readl(ctl_addr);
@@ -285,7 +294,10 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 	return 0;
 
 err_pwr_ack:
-	clk_disable_unprepare(scpd->clk);
+	for (i = MAX_CLKS - 1; i >= 0; i--) {
+		if (scpd->clk[i])
+			clk_disable_unprepare(scpd->clk[i]);
+	}
 err_clk:
 	dev_err(scp->dev, "Failed to power on domain %s\n", genpd->name);
 
@@ -302,6 +314,7 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	u32 pdn_ack = scpd->sram_pdn_ack_bits;
 	u32 val;
 	int ret;
+	int i;
 
 	if (scpd->bus_prot_mask) {
 		ret = mtk_infracfg_set_bus_protection(scp->infracfg,
@@ -363,8 +376,8 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 			expired = true;
 	}
 
-	if (scpd->clk)
-		clk_disable_unprepare(scpd->clk);
+	for (i = 0; i < MAX_CLKS && scpd->clk[i]; i++)
+		clk_disable_unprepare(scpd->clk[i]);
 
 	return 0;
 
@@ -389,7 +402,7 @@ static int __init scpsys_probe(struct platform_device *pdev)
 {
 	struct genpd_onecell_data *pd_data;
 	struct resource *res;
-	int i, ret;
+	int i, j, ret;
 	struct scp *scp;
 	struct clk *clk[MT8173_CLK_MAX];
 
@@ -419,6 +432,14 @@ static int __init scpsys_probe(struct platform_device *pdev)
 	if (IS_ERR(clk[MT8173_CLK_MFG]))
 		return PTR_ERR(clk[MT8173_CLK_MFG]);
 
+	clk[MT8173_CLK_VENC] = devm_clk_get(&pdev->dev, "venc");
+	if (IS_ERR(clk[MT8173_CLK_VENC]))
+		return PTR_ERR(clk[MT8173_CLK_VENC]);
+
+	clk[MT8173_CLK_VENC_LT] = devm_clk_get(&pdev->dev, "venc_lt");
+	if (IS_ERR(clk[MT8173_CLK_VENC_LT]))
+		return PTR_ERR(clk[MT8173_CLK_VENC_LT]);
+
 	scp->infracfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 			"infracfg");
 	if (IS_ERR(scp->infracfg)) {
@@ -443,8 +464,8 @@ static int __init scpsys_probe(struct platform_device *pdev)
 		scpd->sram_pdn_ack_bits = data->sram_pdn_ack_bits;
 		scpd->bus_prot_mask = data->bus_prot_mask;
 		scpd->active_wakeup = data->active_wakeup;
-		if (data->clk_id != MT8173_CLK_NONE)
-			scpd->clk = clk[data->clk_id];
+		for (j = 0; j < MAX_CLKS && data->clk_id[j]; j++)
+			scpd->clk[j] = clk[data->clk_id[j]];
 
 		genpd->name = data->name;
 		genpd->power_off = scpsys_power_off;
