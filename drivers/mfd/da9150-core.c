@@ -355,39 +355,14 @@ static const struct regmap_irq_chip da9150_regmap_irq_chip = {
 };
 
 static struct resource da9150_gpadc_resources[] = {
-	{
-		.name = "GPADC",
-		.start = DA9150_IRQ_GPADC,
-		.end = DA9150_IRQ_GPADC,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_GPADC, "GPADC"),
 };
 
 static struct resource da9150_charger_resources[] = {
-	{
-		.name = "CHG_STATUS",
-		.start = DA9150_IRQ_CHG,
-		.end = DA9150_IRQ_CHG,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "CHG_TJUNC",
-		.start = DA9150_IRQ_TJUNC,
-		.end = DA9150_IRQ_TJUNC,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "CHG_VFAULT",
-		.start = DA9150_IRQ_VFAULT,
-		.end = DA9150_IRQ_VFAULT,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "CHG_VBUS",
-		.start = DA9150_IRQ_VBUS,
-		.end = DA9150_IRQ_VBUS,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_CHG, "CHG_STATUS"),
+	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_TJUNC, "CHG_TJUNC"),
+	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_VFAULT, "CHG_VFAULT"),
+	DEFINE_RES_IRQ_NAMED(DA9150_IRQ_VBUS, "CHG_VBUS"),
 };
 
 static struct resource da9150_fg_resources[] = {
