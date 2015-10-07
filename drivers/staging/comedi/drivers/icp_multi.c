@@ -147,10 +147,10 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 	return ret ? ret : n;
 }
 
-static int icp_multi_ao_eoc(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned long context)
+static int icp_multi_ao_ready(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
 {
 	unsigned int status;
 
@@ -179,9 +179,8 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 		unsigned int val = data[i];
 		int ret;
 
-		/*  Wait for analogue output data register to be
-		 *  ready for new data, or get fed up waiting */
-		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
+		/* Wait for analog output to be ready for new data */
+		ret = comedi_timeout(dev, s, insn, icp_multi_ao_ready, 0);
 		if (ret)
 			return ret;
 
