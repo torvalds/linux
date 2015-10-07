@@ -262,6 +262,29 @@ static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
 		dev_dbg(sec_pmic->dev, "Revision: 0x%x\n", val);
 }
 
+static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
+{
+	int err;
+
+	if (sec_pmic->device_type != S2MPS13X)
+		return;
+
+	if (sec_pmic->pdata->disable_wrstbi) {
+		/*
+		 * If WRSTBI pin is pulled down this feature must be disabled
+		 * because each Suspend to RAM will trigger buck voltage reset
+		 * to default values.
+		 */
+		err = regmap_update_bits(sec_pmic->regmap_pmic,
+					 S2MPS13_REG_WRSTBI,
+					 S2MPS13_REG_WRSTBI_MASK, 0x0);
+		if (err)
+			dev_warn(sec_pmic->dev,
+				 "Cannot initialize WRSTBI config: %d\n",
+				 err);
+	}
+}
+
 #ifdef CONFIG_OF
 /*
  * Only the common platform data elements for s5m8767 are parsed here from the
@@ -289,6 +312,8 @@ static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
 
 	pd->manual_poweroff = of_property_read_bool(dev->of_node,
 						"samsung,s2mps11-acokb-ground");
+	pd->disable_wrstbi = of_property_read_bool(dev->of_node,
+						"samsung,s2mps11-wrstbi-ground");
 	return pd;
 }
 #else
@@ -434,6 +459,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		goto err_mfd;
 
 	device_init_wakeup(sec_pmic->dev, sec_pmic->wakeup);
+	sec_pmic_configure(sec_pmic);
 	sec_pmic_dump_rev(sec_pmic);
 
 	return ret;

@@ -134,6 +134,8 @@ struct sec_platform_data {
 	int				buck4_init;
 	/* Whether or not manually set PWRHOLD to low during shutdown. */
 	bool				manual_poweroff;
+	/* Disable the WRSTBI (buck voltage warm reset) when probing? */
+	bool				disable_wrstbi;
 };
 
 /**
