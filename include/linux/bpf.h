@@ -100,6 +100,8 @@ enum bpf_access_type {
 	BPF_WRITE = 2
 };
 
+struct bpf_prog;
+
 struct bpf_verifier_ops {
 	/* return eBPF function prototype for verification */
 	const struct bpf_func_proto *(*get_func_proto)(enum bpf_func_id func_id);
@@ -111,7 +113,7 @@ struct bpf_verifier_ops {
 
 	u32 (*convert_ctx_access)(enum bpf_access_type type, int dst_reg,
 				  int src_reg, int ctx_off,
-				  struct bpf_insn *insn);
+				  struct bpf_insn *insn, struct bpf_prog *prog);
 };
 
 struct bpf_prog_type_list {
@@ -119,8 +121,6 @@ struct bpf_prog_type_list {
 	const struct bpf_verifier_ops *ops;
 	enum bpf_prog_type type;
 };
-
-struct bpf_prog;
 
 struct bpf_prog_aux {
 	atomic_t refcnt;

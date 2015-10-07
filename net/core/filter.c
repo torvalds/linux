@@ -56,10 +56,10 @@
  *	@sk: sock associated with &sk_buff
  *	@skb: buffer to filter
  *
- * Run the filter code and then cut skb->data to correct size returned by
- * SK_RUN_FILTER. If pkt_len is 0 we toss packet. If skb->len is smaller
+ * Run the eBPF program and then cut skb->data to correct size returned by
+ * the program. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
- * wrapper to SK_RUN_FILTER. It returns 0 if the packet should
+ * wrapper to BPF_PROG_RUN. It returns 0 if the packet should
  * be accepted or -EPERM if the packet should be tossed.
  *
  */
@@ -83,7 +83,7 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock();
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
-		unsigned int pkt_len = SK_RUN_FILTER(filter, skb);
+		unsigned int pkt_len = bpf_prog_run_save_cb(filter->prog, skb);
 
 		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
@@ -1736,7 +1736,8 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 
 static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 				      int src_reg, int ctx_off,
-				      struct bpf_insn *insn_buf)
+				      struct bpf_insn *insn_buf,
+				      struct bpf_prog *prog)
 {
 	struct bpf_insn *insn = insn_buf;
 
@@ -1827,6 +1828,7 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 		offsetof(struct __sk_buff, cb[4]):
 		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, data) < 20);
 
+		prog->cb_access = 1;
 		ctx_off -= offsetof(struct __sk_buff, cb[0]);
 		ctx_off += offsetof(struct sk_buff, cb);
 		ctx_off += offsetof(struct qdisc_skb_cb, data);

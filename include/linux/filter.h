@@ -13,6 +13,7 @@
 #include <linux/printk.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
+#include <net/sch_generic.h>
 
 #include <asm/cacheflush.h>
 
@@ -302,10 +303,6 @@ struct bpf_prog_aux;
 	bpf_size;						\
 })
 
-/* Macro to invoke filter function. */
-#define SK_RUN_FILTER(filter, ctx) \
-	(*filter->prog->bpf_func)(ctx, filter->prog->insnsi)
-
 #ifdef CONFIG_COMPAT
 /* A struct sock_filter is architecture independent. */
 struct compat_sock_fprog {
@@ -329,6 +326,7 @@ struct bpf_prog {
 	kmemcheck_bitfield_begin(meta);
 	u16			jited:1,	/* Is our filter JIT'ed? */
 				gpl_compatible:1, /* Is filter GPL compatible? */
+				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1;	/* Do we need dst entry? */
 	kmemcheck_bitfield_end(meta);
 	u32			len;		/* Number of filter blocks */
@@ -351,6 +349,39 @@ struct sk_filter {
 };
 
 #define BPF_PROG_RUN(filter, ctx)  (*filter->bpf_func)(ctx, filter->insnsi)
+
+static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
+				       struct sk_buff *skb)
+{
+	u8 *cb_data = qdisc_skb_cb(skb)->data;
+	u8 saved_cb[QDISC_CB_PRIV_LEN];
+	u32 res;
+
+	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
+		     QDISC_CB_PRIV_LEN);
+
+	if (unlikely(prog->cb_access)) {
+		memcpy(saved_cb, cb_data, sizeof(saved_cb));
+		memset(cb_data, 0, sizeof(saved_cb));
+	}
+
+	res = BPF_PROG_RUN(prog, skb);
+
+	if (unlikely(prog->cb_access))
+		memcpy(cb_data, saved_cb, sizeof(saved_cb));
+
+	return res;
+}
+
+static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
+					struct sk_buff *skb)
+{
+	u8 *cb_data = qdisc_skb_cb(skb)->data;
+
+	if (unlikely(prog->cb_access))
+		memset(cb_data, 0, QDISC_CB_PRIV_LEN);
+	return BPF_PROG_RUN(prog, skb);
+}
 
 static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
