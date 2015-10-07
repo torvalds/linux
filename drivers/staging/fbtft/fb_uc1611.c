@@ -221,7 +221,7 @@ static int set_var(struct fbtft_par *par)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u8 *vmem8 = (u8 *)(par->info->screen_base);
+	u8 *vmem8 = (u8 *)(par->info->screen_buffer);
 	u8 *buf8 = (u8 *)(par->txbuf.buf);
 	u16 *buf16 = (u16 *)(par->txbuf.buf);
 	int line_length = par->info->fix.line_length;

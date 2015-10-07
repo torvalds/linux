@@ -269,7 +269,7 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 		__func__, offset, len);
 
 	remain = len / 2;
-	vmem16 = (u16 *)(par->info->screen_base + offset);
+	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	tx_array_size = par->txbuf.len / 2;
 		txbuf16 = (u16 *)(par->txbuf.buf + 1);
 		tx_array_size -= 2;

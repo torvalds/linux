@@ -266,7 +266,7 @@ construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	u8 *buf = par->txbuf.buf;
 	int x, y;
 	int ret = 0;

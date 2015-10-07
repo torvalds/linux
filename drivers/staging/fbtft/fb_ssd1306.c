@@ -160,7 +160,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	u8 *buf = par->txbuf.buf;
 	int x, y, i;
 	int ret = 0;
