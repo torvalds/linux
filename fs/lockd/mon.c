@@ -42,7 +42,7 @@ struct nsm_args {
 	u32			proc;
 
 	char			*mon_name;
-	char			*nodename;
+	const char		*nodename;
 };
 
 struct nsm_res {
@@ -86,69 +86,18 @@ static struct rpc_clnt *nsm_create(struct net *net, const char *nodename)
 	return rpc_create(&args);
 }
 
-static struct rpc_clnt *nsm_client_set(struct lockd_net *ln,
-		struct rpc_clnt *clnt)
-{
-	spin_lock(&ln->nsm_clnt_lock);
-	if (ln->nsm_users == 0) {
-		if (clnt == NULL)
-			goto out;
-		ln->nsm_clnt = clnt;
-	}
-	clnt = ln->nsm_clnt;
-	ln->nsm_users++;
-out:
-	spin_unlock(&ln->nsm_clnt_lock);
-	return clnt;
-}
-
-static struct rpc_clnt *nsm_client_get(struct net *net, const char *nodename)
-{
-	struct rpc_clnt	*clnt, *new;
-	struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-	clnt = nsm_client_set(ln, NULL);
-	if (clnt != NULL)
-		goto out;
-
-	clnt = new = nsm_create(net, nodename);
-	if (IS_ERR(clnt))
-		goto out;
-
-	clnt = nsm_client_set(ln, new);
-	if (clnt != new)
-		rpc_shutdown_client(new);
-out:
-	return clnt;
-}
-
-static void nsm_client_put(struct net *net)
-{
-	struct lockd_net *ln = net_generic(net, lockd_net_id);
-	struct rpc_clnt	*clnt = NULL;
-
-	spin_lock(&ln->nsm_clnt_lock);
-	ln->nsm_users--;
-	if (ln->nsm_users == 0) {
-		clnt = ln->nsm_clnt;
-		ln->nsm_clnt = NULL;
-	}
-	spin_unlock(&ln->nsm_clnt_lock);
-	if (clnt != NULL)
-		rpc_shutdown_client(clnt);
-}
-
 static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
-			 struct rpc_clnt *clnt)
+			 const struct nlm_host *host)
 {
 	int		status;
+	struct rpc_clnt *clnt;
 	struct nsm_args args = {
 		.priv		= &nsm->sm_priv,
 		.prog		= NLM_PROGRAM,
 		.vers		= 3,
 		.proc		= NLMPROC_NSM_NOTIFY,
 		.mon_name	= nsm->sm_mon_name,
-		.nodename	= clnt->cl_nodename,
+		.nodename	= host->nodename,
 	};
 	struct rpc_message msg = {
 		.rpc_argp	= &args,
@@ -156,6 +105,13 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 	};
 
 	memset(res, 0, sizeof(*res));
+
+	clnt = nsm_create(host->net, host->nodename);
+	if (IS_ERR(clnt)) {
+		dprintk("lockd: failed to create NSM upcall transport, "
+			"status=%ld, net=%p\n", PTR_ERR(clnt), host->net);
+		return PTR_ERR(clnt);
+	}
 
 	msg.rpc_proc = &clnt->cl_procinfo[proc];
 	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFTCONN);
@@ -170,6 +126,8 @@ static int nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res,
 				status);
 	else
 		status = 0;
+
+	rpc_shutdown_client(clnt);
 	return status;
 }
 
@@ -189,16 +147,11 @@ int nsm_monitor(const struct nlm_host *host)
 	struct nsm_handle *nsm = host->h_nsmhandle;
 	struct nsm_res	res;
 	int		status;
-	struct rpc_clnt *clnt;
-	const char *nodename = NULL;
 
 	dprintk("lockd: nsm_monitor(%s)\n", nsm->sm_name);
 
 	if (nsm->sm_monitored)
 		return 0;
-
-	if (host->h_rpcclnt)
-		nodename = host->h_rpcclnt->cl_nodename;
 
 	/*
 	 * Choose whether to record the caller_name or IP address of
@@ -206,15 +159,7 @@ int nsm_monitor(const struct nlm_host *host)
 	 */
 	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
-	clnt = nsm_client_get(host->net, nodename);
-	if (IS_ERR(clnt)) {
-		status = PTR_ERR(clnt);
-		dprintk("lockd: failed to create NSM upcall transport, "
-				"status=%d, net=%p\n", status, host->net);
-		return status;
-	}
-
-	status = nsm_mon_unmon(nsm, NSMPROC_MON, &res, clnt);
+	status = nsm_mon_unmon(nsm, NSMPROC_MON, &res, host);
 	if (unlikely(res.status != 0))
 		status = -EIO;
 	if (unlikely(status < 0)) {
@@ -246,11 +191,9 @@ void nsm_unmonitor(const struct nlm_host *host)
 
 	if (atomic_read(&nsm->sm_count) == 1
 	 && nsm->sm_monitored && !nsm->sm_sticky) {
-		struct lockd_net *ln = net_generic(host->net, lockd_net_id);
-
 		dprintk("lockd: nsm_unmonitor(%s)\n", nsm->sm_name);
 
-		status = nsm_mon_unmon(nsm, NSMPROC_UNMON, &res, ln->nsm_clnt);
+		status = nsm_mon_unmon(nsm, NSMPROC_UNMON, &res, host);
 		if (res.status != 0)
 			status = -EIO;
 		if (status < 0)
@@ -258,8 +201,6 @@ void nsm_unmonitor(const struct nlm_host *host)
 					nsm->sm_name);
 		else
 			nsm->sm_monitored = 0;
-
-		nsm_client_put(host->net);
 	}
 }
 

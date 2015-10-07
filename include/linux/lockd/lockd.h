@@ -68,6 +68,7 @@ struct nlm_host {
 	struct nsm_handle	*h_nsmhandle;	/* NSM status handle */
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
+	char			nodename[UNX_MAXNODENAME + 1];
 };
 
 /*
