@@ -21,6 +21,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include "cosm_main.h"
 
 /* Debugfs parent dir */
