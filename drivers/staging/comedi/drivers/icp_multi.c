@@ -80,8 +80,8 @@
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
 
-/*  Define analogue range */
-static const struct comedi_lrange range_analog = {
+/* analog input and output have the same range options */
+static const struct comedi_lrange icp_multi_ranges = {
 	4, {
 		UNI_RANGE(5),
 		UNI_RANGE(10),
@@ -475,7 +475,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->n_chan = 16;
 	s->maxdata = 0x0fff;
 	s->len_chanlist = 16;
-	s->range_table = &range_analog;
+	s->range_table = &icp_multi_ranges;
 	s->insn_read = icp_multi_insn_read_ai;
 
 	s = &dev->subdevices[1];
@@ -484,7 +484,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->n_chan = 4;
 	s->maxdata = 0x0fff;
 	s->len_chanlist = 4;
-	s->range_table = &range_analog;
+	s->range_table = &icp_multi_ranges;
 	s->insn_write = icp_multi_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
