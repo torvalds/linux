@@ -95,8 +95,6 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 
 struct icp_multi_private {
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
-	unsigned int IntEnable;	/*  Interrupt Enable register */
-	unsigned int IntStatus;	/*  Interrupt Status register */
 };
 
 static int icp_multi_ai_eoc(struct comedi_device *dev,
@@ -117,21 +115,12 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	struct icp_multi_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned int adc_csr;
 	int ret = 0;
 	int n;
-
-	/*  Disable A/D conversion ready interrupt */
-	devpriv->IntEnable &= ~ICP_MULTI_INT_ADC_RDY;
-	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
-
-	/*  Clear interrupt status */
-	devpriv->IntStatus |= ICP_MULTI_INT_ADC_RDY;
-	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
 	/* Set mode and range data for specified channel */
 	if (aref == AREF_DIFF) {
@@ -157,14 +146,6 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev,
 
 		data[n] = (readw(dev->mmio + ICP_MULTI_AI) >> 4) & 0x0fff;
 	}
-
-	/*  Disable interrupt */
-	devpriv->IntEnable &= ~ICP_MULTI_INT_ADC_RDY;
-	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
-
-	/*  Clear interrupt status */
-	devpriv->IntStatus |= ICP_MULTI_INT_ADC_RDY;
-	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
 
 	return ret ? ret : n;
 }
@@ -192,14 +173,6 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 	unsigned int range = CR_RANGE(insn->chanspec);
 	int i;
 
-	/*  Disable D/A conversion ready interrupt */
-	devpriv->IntEnable &= ~ICP_MULTI_INT_DAC_RDY;
-	writew(devpriv->IntEnable, dev->mmio + ICP_MULTI_INT_EN);
-
-	/*  Clear interrupt status */
-	devpriv->IntStatus |= ICP_MULTI_INT_DAC_RDY;
-	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
-
 	/*  Set up range and channel data */
 	/*  Bit 4 = 1 : Bipolar */
 	/*  Bit 5 = 0 : 5V */
@@ -218,19 +191,8 @@ static int icp_multi_ao_insn_write(struct comedi_device *dev,
 		/*  Wait for analogue output data register to be
 		 *  ready for new data, or get fed up waiting */
 		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
-		if (ret) {
-			/*  Disable interrupt */
-			devpriv->IntEnable &= ~ICP_MULTI_INT_DAC_RDY;
-			writew(devpriv->IntEnable,
-			       dev->mmio + ICP_MULTI_INT_EN);
-
-			/*  Clear interrupt status */
-			devpriv->IntStatus |= ICP_MULTI_INT_DAC_RDY;
-			writew(devpriv->IntStatus,
-			       dev->mmio + ICP_MULTI_INT_STAT);
-
+		if (ret)
 			return ret;
-		}
 
 		writew(val, dev->mmio + ICP_MULTI_AO);
 
@@ -321,9 +283,9 @@ static int icp_multi_reset(struct comedi_device *dev)
 	struct icp_multi_private *devpriv = dev->private;
 	unsigned int i;
 
-	/*  Clear INT enables and requests */
+	/* Disable all interrupts and clear any requests */
 	writew(0, dev->mmio + ICP_MULTI_INT_EN);
-	writew(0x00ff, dev->mmio + ICP_MULTI_INT_STAT);
+	writew(ICP_MULTI_INT_MASK, dev->mmio + ICP_MULTI_INT_STAT);
 
 	/* Set DACs to 0..5V range and 0V output */
 	for (i = 0; i < 4; i++) {
