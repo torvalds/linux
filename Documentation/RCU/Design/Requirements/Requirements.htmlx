@@ -1837,6 +1837,7 @@ Some of the relevant points of interest are as follows:
 <li>	<a href="#Scheduler and RCU">Scheduler and RCU</a>.
 <li>	<a href="#Tracing and RCU">Tracing and RCU</a>.
 <li>	<a href="#Energy Efficiency">Energy Efficiency</a>.
+<li>	<a href="#Memory Efficiency">Memory Efficiency</a>.
 <li>	<a href="#Performance, Scalability, Response Time, and Reliability">
 	Performance, Scalability, Response Time, and Reliability</a>.
 </ol>
@@ -2172,6 +2173,48 @@ As noted earlier,
 I learned of many of these requirements via angry phone calls:
 Flaming me on the Linux-kernel mailing list was apparently not
 sufficient to fully vent their ire at RCU's energy-efficiency bugs!
+
+<h3><a name="Memory Efficiency">Memory Efficiency</a></h3>
+
+<p>
+Although small-memory non-realtime systems can simply use Tiny RCU,
+code size is only one aspect of memory efficiency.
+Another aspect is the size of the <tt>rcu_head</tt> structure
+used by <tt>call_rcu()</tt> and <tt>kfree_rcu()</tt>.
+Although this structure contains nothing more than a pair of pointers,
+it does appear in many RCU-protected data structures, including
+some that are size critical.
+The <tt>page</tt> structure is a case in point, as evidenced by
+the many occurrences of the <tt>union</tt> keyword within that structure.
+
+<p>
+This need for memory efficiency is one reason that RCU uses hand-crafted
+singly linked lists to track the <tt>rcu_head</tt> structures that
+are waiting for a grace period to elapse.
+It is also the reason why <tt>rcu_head</tt> structures do not contain
+debug information, such as fields tracking the file and line of the
+<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> that posted them.
+Although this information might appear in debug-only kernel builds at some
+point, in the meantime, the <tt>-&gt;func</tt> field will often provide
+the needed debug information.
+
+<p>
+However, in some cases, the need for memory efficiency leads to even
+more extreme measures.
+Returning to the <tt>page</tt> structure, the <tt>rcu_head</tt> field
+shares storage with a great many other structures that are used at
+various points in the corresponding page's lifetime.
+In order to correctly resolve certain
+<a href="https://lkml.kernel.org/g/1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com">race conditions</a>,
+the Linux kernel's memory-management subsystem needs a particular bit
+to remain zero during all phases of grace-period processing,
+and that bit happens to map to the bottom bit of the
+<tt>rcu_head</tt> structure's <tt>-&gt;next</tt> field.
+RCU makes this guarantee as long as <tt>call_rcu()</tt>
+is used to post the callback, as opposed to <tt>kfree_rcu()</tt>
+or some future &ldquo;lazy&rdquo;
+variant of <tt>call_rcu()</tt> that might one day be created for
+energy-efficiency purposes.
 
 <h3><a name="Performance, Scalability, Response Time, and Reliability">
 Performance, Scalability, Response Time, and Reliability</a></h3>
