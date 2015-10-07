@@ -62,8 +62,10 @@
  * This takes extra reference on llog_handle via llog_handle_get() and require
  * this reference to be put by caller using llog_handle_put()
  */
-int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
-		       struct llog_handle **res, struct llog_logid *logid)
+static int llog_cat_id2handle(const struct lu_env *env,
+			      struct llog_handle *cathandle,
+			      struct llog_handle **res,
+			      struct llog_logid *logid)
 {
 	struct llog_handle	*loghandle;
 	int			 rc = 0;
@@ -189,10 +191,10 @@ static int llog_cat_process_cb(const struct lu_env *env,
 	return rc;
 }
 
-int llog_cat_process_or_fork(const struct lu_env *env,
-			     struct llog_handle *cat_llh,
-			     llog_cb_t cb, void *data, int startcat,
-			     int startidx, bool fork)
+static int llog_cat_process_or_fork(const struct lu_env *env,
+				    struct llog_handle *cat_llh,
+				    llog_cb_t cb, void *data, int startcat,
+				    int startidx, bool fork)
 {
 	struct llog_process_data d;
 	struct llog_log_hdr *llh = cat_llh->lgh_hdr;
@@ -228,7 +230,6 @@ int llog_cat_process_or_fork(const struct lu_env *env,
 
 	return rc;
 }
-EXPORT_SYMBOL(llog_cat_process_or_fork);
 
 int llog_cat_process(const struct lu_env *env, struct llog_handle *cat_llh,
 		     llog_cb_t cb, void *data, int startcat, int startidx)

@@ -66,8 +66,6 @@ void llog_info_fini(void);
 
 void llog_handle_get(struct llog_handle *loghandle);
 void llog_handle_put(struct llog_handle *loghandle);
-int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
-		       struct llog_handle **res, struct llog_logid *logid);
 int class_config_dump_handler(const struct lu_env *env,
 			      struct llog_handle *handle,
 			      struct llog_rec_hdr *rec, void *data);

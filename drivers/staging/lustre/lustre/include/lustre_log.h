@@ -165,9 +165,6 @@ struct llog_process_cat_data {
 struct thandle;
 
 int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle);
-int llog_cat_process_or_fork(const struct lu_env *env,
-			     struct llog_handle *cat_llh, llog_cb_t cb,
-			     void *data, int startcat, int startidx, bool fork);
 int llog_cat_process(const struct lu_env *env, struct llog_handle *cat_llh,
 		     llog_cb_t cb, void *data, int startcat, int startidx);
 
