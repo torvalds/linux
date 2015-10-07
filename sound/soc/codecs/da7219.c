@@ -1494,6 +1494,7 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1502,7 +1503,14 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* MCLK */
-			clk_prepare_enable(da7219->mclk);
+			if (da7219->mclk) {
+				ret = clk_prepare_enable(da7219->mclk);
+				if (ret) {
+					dev_err(codec->dev,
+						"Failed to enable mclk\n");
+					return ret;
+				}
+			}
 
 			/* Master bias */
 			snd_soc_update_bits(codec, DA7219_REFERENCES,
@@ -1528,7 +1536,8 @@ static int da7219_set_bias_level(struct snd_soc_codec *codec,
 		}
 
 		/* MCLK */
-		clk_disable_unprepare(da7219->mclk);
+		if (da7219->mclk)
+			clk_disable_unprepare(da7219->mclk);
 		break;
 	}
 
