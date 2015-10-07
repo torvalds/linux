@@ -169,3 +169,4 @@ obj-y				+= hwtracing/intel_th/
 obj-$(CONFIG_STM)		+= hwtracing/stm/
 obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_NVMEM)		+= nvmem/
+obj-$(CONFIG_FPGA)		+= fpga/
