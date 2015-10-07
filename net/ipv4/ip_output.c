@@ -117,7 +117,7 @@ int ip_local_out_sk(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 
-	err = __ip_local_out(skb);
+	err = __ip_local_out_sk(sk, skb);
 	if (likely(err == 1))
 		err = dst_output(sk, skb);
 
