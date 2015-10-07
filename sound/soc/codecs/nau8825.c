@@ -16,6 +16,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/acpi.h>
 
 #include <sound/initval.h>
 #include <sound/tlv.h>
@@ -1090,10 +1091,19 @@ static const struct of_device_id nau8825_of_ids[] = {
 MODULE_DEVICE_TABLE(of, nau8825_of_ids);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id nau8825_acpi_match[] = {
+	{ "10508825", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, nau8825_acpi_match);
+#endif
+
 static struct i2c_driver nau8825_driver = {
 	.driver = {
 		.name = "nau8825",
 		.of_match_table = of_match_ptr(nau8825_of_ids),
+		.acpi_match_table = ACPI_PTR(nau8825_acpi_match),
 	},
 	.probe = nau8825_i2c_probe,
 	.remove = nau8825_i2c_remove,
