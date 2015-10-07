@@ -128,7 +128,8 @@ int ptlrpc_init_import(struct obd_import *imp)
 EXPORT_SYMBOL(ptlrpc_init_import);
 
 #define UUID_STR "_UUID"
-void deuuidify(char *uuid, const char *prefix, char **uuid_start, int *uuid_len)
+static void deuuidify(char *uuid, const char *prefix, char **uuid_start,
+		      int *uuid_len)
 {
 	*uuid_start = !prefix || strncmp(uuid, prefix, strlen(prefix))
 		? uuid : uuid + strlen(prefix);
