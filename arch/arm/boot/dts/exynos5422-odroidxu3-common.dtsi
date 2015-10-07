@@ -43,7 +43,7 @@
 		pinctrl-0 = <&emmc_nrst_pin>;
 		pinctrl-names = "default";
 		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpd1 0 1>;
+		reset-gpios = <&gpd1 0 GPIO_ACTIVE_LOW>;
 	};
 
 	fan0: pwm-fan {
@@ -74,7 +74,7 @@
 
 &hdmi {
 	status = "okay";
-	hpd-gpio = <&gpx3 7 0>;
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
 
