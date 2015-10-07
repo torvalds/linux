@@ -898,6 +898,7 @@
 		pinctrl-0 = <&ec_spi_cs &ec_irq>;
 		reg = <0>;
 		spi-max-frequency = <3125000>;
+		google,has-vbc-nvram;
 
 		controller-data {
 			samsung,spi-feedback-delay = <1>;
