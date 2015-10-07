@@ -85,8 +85,8 @@ static void setup_shared_ram_perms(u32 client_id, phys_addr_t addr, u32 size)
 		if (ret == -EINVAL)
 			pr_warn("hyp_assign_phys is not supported!\n");
 		else
-			pr_err("hyp_assign_phys failed IPA=0x%016llX size=%u err=%d\n",
-				addr, size, ret);
+			pr_err("hyp_assign_phys failed IPA=0x016%pa size=%u err=%d\n",
+				&addr, size, ret);
 	}
 }
 
