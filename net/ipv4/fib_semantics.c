@@ -1557,3 +1557,24 @@ void fib_select_multipath(struct fib_result *res, int hash)
 	res->nh_sel = 0;
 }
 #endif
+
+void fib_select_path(struct net *net, struct fib_result *res,
+		     struct flowi4 *fl4, int mp_hash)
+{
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+	if (res->fi->fib_nhs > 1 && fl4->flowi4_oif == 0) {
+		if (mp_hash < 0)
+			mp_hash = fib_multipath_hash(fl4->saddr, fl4->daddr);
+		fib_select_multipath(res, mp_hash);
+	}
+	else
+#endif
+	if (!res->prefixlen &&
+	    res->table->tb_num_default > 1 &&
+	    res->type == RTN_UNICAST && !fl4->flowi4_oif)
+		fib_select_default(fl4, res);
+
+	if (!fl4->saddr)
+		fl4->saddr = FIB_RES_PREFSRC(net, *res);
+}
+EXPORT_SYMBOL_GPL(fib_select_path);

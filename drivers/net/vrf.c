@@ -36,10 +36,11 @@
 #include <net/addrconf.h>
 #include <net/l3mdev.h>
 
+#define RT_FL_TOS(oldflp4) \
+	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
+
 #define DRV_NAME	"vrf"
 #define DRV_VERSION	"1.0"
-
-#define vrf_is_slave(dev)   ((dev)->flags & IFF_SLAVE)
 
 #define vrf_master_get_rcu(dev) \
 	((struct net_device *)rcu_dereference(dev->rx_handler_data))
@@ -208,7 +209,7 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 		.flowi4_oif = vrf_dev->ifindex,
 		.flowi4_iif = LOOPBACK_IFINDEX,
 		.flowi4_tos = RT_TOS(ip4h->tos),
-		.flowi4_flags = FLOWI_FLAG_ANYSRC | FLOWI_FLAG_VRFSRC |
+		.flowi4_flags = FLOWI_FLAG_ANYSRC | FLOWI_FLAG_L3MDEV_SRC |
 				FLOWI_FLAG_SKIP_NH_OIF,
 		.daddr = ip4h->daddr,
 	};
@@ -433,7 +434,7 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 	if (ret < 0)
 		goto out_unregister;
 
-	port_dev->flags |= IFF_SLAVE;
+	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
 	__vrf_insert_slave(queue, slave);
 	cycle_netdev(port_dev);
 
@@ -448,7 +449,7 @@ out_fail:
 
 static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	if (netif_is_l3_master(port_dev) || vrf_is_slave(port_dev))
+	if (netif_is_l3_master(port_dev) || netif_is_l3_slave(port_dev))
 		return -EINVAL;
 
 	return do_vrf_add_slave(dev, port_dev);
@@ -462,7 +463,7 @@ static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 	struct slave *slave;
 
 	netdev_upper_dev_unlink(port_dev, dev);
-	port_dev->flags &= ~IFF_SLAVE;
+	port_dev->priv_flags &= ~IFF_L3MDEV_SLAVE;
 
 	netdev_rx_handler_unregister(port_dev);
 
@@ -545,7 +546,7 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 {
 	struct rtable *rth = NULL;
 
-	if (!(fl4->flowi4_flags & FLOWI_FLAG_VRFSRC)) {
+	if (!(fl4->flowi4_flags & FLOWI_FLAG_L3MDEV_SRC)) {
 		struct net_vrf *vrf = netdev_priv(dev);
 
 		rth = vrf->rth;
@@ -555,9 +556,41 @@ static struct rtable *vrf_get_rtable(const struct net_device *dev,
 	return rth;
 }
 
+/* called under rcu_read_lock */
+static void vrf_get_saddr(struct net_device *dev, struct flowi4 *fl4)
+{
+	struct fib_result res = { .tclassid = 0 };
+	struct net *net = dev_net(dev);
+	u32 orig_tos = fl4->flowi4_tos;
+	u8 flags = fl4->flowi4_flags;
+	u8 scope = fl4->flowi4_scope;
+	u8 tos = RT_FL_TOS(fl4);
+
+	if (unlikely(!fl4->daddr))
+		return;
+
+	fl4->flowi4_flags |= FLOWI_FLAG_SKIP_NH_OIF;
+	fl4->flowi4_iif = LOOPBACK_IFINDEX;
+	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
+	fl4->flowi4_scope = ((tos & RTO_ONLINK) ?
+			     RT_SCOPE_LINK : RT_SCOPE_UNIVERSE);
+
+	if (!fib_lookup(net, fl4, &res, 0)) {
+		if (res.type == RTN_LOCAL)
+			fl4->saddr = res.fi->fib_prefsrc ? : fl4->daddr;
+		else
+			fib_select_path(net, &res, fl4, -1);
+	}
+
+	fl4->flowi4_flags = flags;
+	fl4->flowi4_tos = orig_tos;
+	fl4->flowi4_scope = scope;
+}
+
 static const struct l3mdev_ops vrf_l3mdev_ops = {
 	.l3mdev_fib_table	= vrf_fib_table,
 	.l3mdev_get_rtable	= vrf_get_rtable,
+	.l3mdev_get_saddr	= vrf_get_saddr,
 };
 
 static void vrf_get_drvinfo(struct net_device *dev,
@@ -672,7 +705,7 @@ static int vrf_device_event(struct notifier_block *unused,
 	if (event == NETDEV_UNREGISTER) {
 		struct net_device *vrf_dev;
 
-		if (!vrf_is_slave(dev) || netif_is_l3_master(dev))
+		if (!netif_is_l3_slave(dev))
 			goto out;
 
 		vrf_dev = netdev_master_upper_dev_get(dev);

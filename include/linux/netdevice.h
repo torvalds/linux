@@ -1261,6 +1261,7 @@ struct net_device_ops {
  * @IFF_L3MDEV_MASTER: device is an L3 master device
  * @IFF_NO_QUEUE: device can run without qdisc attached
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
+ * @IFF_L3MDEV_SLAVE: device is enslaved to an L3 master device
  */
 enum netdev_priv_flags {
 	IFF_802_1Q_VLAN			= 1<<0,
@@ -1286,6 +1287,7 @@ enum netdev_priv_flags {
 	IFF_L3MDEV_MASTER		= 1<<20,
 	IFF_NO_QUEUE			= 1<<21,
 	IFF_OPENVSWITCH			= 1<<22,
+	IFF_L3MDEV_SLAVE		= 1<<23,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -3828,6 +3830,11 @@ static inline bool netif_supports_nofcs(struct net_device *dev)
 static inline bool netif_is_l3_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_L3MDEV_MASTER;
+}
+
+static inline bool netif_is_l3_slave(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_L3MDEV_SLAVE;
 }
 
 static inline bool netif_is_bridge_master(const struct net_device *dev)
