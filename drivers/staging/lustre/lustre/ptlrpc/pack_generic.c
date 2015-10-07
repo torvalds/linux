@@ -1501,7 +1501,7 @@ void lustre_swab_connect(struct obd_connect_data *ocd)
 	CLASSERT(offsetof(typeof(*ocd), paddingF) != 0);
 }
 
-void lustre_swab_obdo(struct obdo *o)
+static void lustre_swab_obdo(struct obdo *o)
 {
 	__swab64s(&o->o_valid);
 	lustre_swab_ost_id(&o->o_oi);
@@ -1533,7 +1533,6 @@ void lustre_swab_obdo(struct obdo *o)
 	CLASSERT(offsetof(typeof(*o), o_padding_6) != 0);
 
 }
-EXPORT_SYMBOL(lustre_swab_obdo);
 
 void lustre_swab_obd_statfs(struct obd_statfs *os)
 {
@@ -1941,16 +1940,15 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
 
-void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
+static void lustre_swab_ldlm_res_id(struct ldlm_res_id *id)
 {
 	int i;
 
 	for (i = 0; i < RES_NAME_SIZE; i++)
 		__swab64s(&id->name[i]);
 }
-EXPORT_SYMBOL(lustre_swab_ldlm_res_id);
 
-void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
+static void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
 {
 	/* the lock data is a union and the first two fields are always an
 	 * extent so it's ok to process an LDLM_EXTENT and LDLM_FLOCK lock
@@ -1961,7 +1959,6 @@ void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d)
 	__swab64s(&d->l_flock.lfw_owner);
 	__swab32s(&d->l_flock.lfw_pid);
 }
-EXPORT_SYMBOL(lustre_swab_ldlm_policy_data);
 
 void lustre_swab_ldlm_intent(struct ldlm_intent *i)
 {
@@ -1969,13 +1966,12 @@ void lustre_swab_ldlm_intent(struct ldlm_intent *i)
 }
 EXPORT_SYMBOL(lustre_swab_ldlm_intent);
 
-void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r)
+static void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r)
 {
 	__swab32s(&r->lr_type);
 	CLASSERT(offsetof(typeof(*r), lr_padding) != 0);
 	lustre_swab_ldlm_res_id(&r->lr_name);
 }
-EXPORT_SYMBOL(lustre_swab_ldlm_resource_desc);
 
 static void lustre_swab_ldlm_lock_desc(struct ldlm_lock_desc *l)
 {

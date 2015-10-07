@@ -2679,8 +2679,6 @@ struct ldlm_res_id {
 #define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
 			(res)->lr_name.name[2], (res)->lr_name.name[3]
 
-void lustre_swab_ldlm_res_id(struct ldlm_res_id *id);
-
 static inline int ldlm_res_eq(const struct ldlm_res_id *res0,
 			      const struct ldlm_res_id *res1)
 {
@@ -2756,8 +2754,6 @@ typedef union {
 	struct ldlm_inodebits l_inodebits;
 } ldlm_wire_policy_data_t;
 
-void lustre_swab_ldlm_policy_data(ldlm_wire_policy_data_t *d);
-
 union ldlm_gl_desc {
 	struct ldlm_gl_lquota_desc	lquota_desc;
 };
@@ -2775,8 +2771,6 @@ struct ldlm_resource_desc {
 	__u32 lr_padding;       /* also fix lustre_swab_ldlm_resource_desc */
 	struct ldlm_res_id lr_name;
 };
-
-void lustre_swab_ldlm_resource_desc(struct ldlm_resource_desc *r);
 
 struct ldlm_lock_desc {
 	struct ldlm_resource_desc l_resource;
@@ -3316,8 +3310,6 @@ static inline void lustre_get_wire_obdo(struct obd_connect_data *ocd,
 		lobdo->o_oi.oi_fid.f_ver = 0;
 	}
 }
-
-void lustre_swab_obdo(struct obdo *o);
 
 /* request structure for OST's */
 struct ost_body {
