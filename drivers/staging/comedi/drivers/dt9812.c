@@ -513,13 +513,12 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		rmw[0].and_mask = 0xff;
 		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC0L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC0H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
@@ -531,13 +530,12 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		rmw[0].and_mask = 0xff;
 		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC1L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC1H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
