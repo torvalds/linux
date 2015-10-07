@@ -1545,6 +1545,18 @@ static ssize_t status_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(status);
 
+static ssize_t cpu_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	int val;
+	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->cpu;
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+
+}
+static DEVICE_ATTR_RO(cpu);
+
 static ssize_t traceid_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -1621,6 +1633,7 @@ static struct attribute *coresight_etm_attrs[] = {
 	&dev_attr_timestamp_event.attr,
 	&dev_attr_status.attr,
 	&dev_attr_traceid.attr,
+	&dev_attr_cpu.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(coresight_etm);
