@@ -40,7 +40,7 @@
  *
  * 8 x Digital Outputs, 24V, 1A
  *
- * 4 x 16-bit counters
+ * 4 x 16-bit counters - not implemented
  */
 
 #include <linux/module.h>
@@ -219,21 +219,6 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int icp_multi_insn_read_ctr(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
-{
-	return 0;
-}
-
-static int icp_multi_insn_write_ctr(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	return 0;
-}
-
 static int icp_multi_reset(struct comedi_device *dev)
 {
 	int i;
@@ -279,7 +264,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	if (!dev->mmio)
 		return -ENOMEM;
 
-	ret = comedi_alloc_subdevices(dev, 5);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
@@ -325,16 +310,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
 	s->insn_bits = icp_multi_insn_bits_do;
-
-	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 0xffff;
-	s->len_chanlist = 4;
-	s->state = 0;
-	s->insn_read = icp_multi_insn_read_ctr;
-	s->insn_write = icp_multi_insn_write_ctr;
 
 	return 0;
 }
