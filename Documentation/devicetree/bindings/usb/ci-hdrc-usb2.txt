@@ -6,6 +6,7 @@ Required properties:
 	"lsi,zevio-usb"
 	"qcom,ci-hdrc"
 	"chipidea,usb2"
+	"xlnx,zynq-usb-2.20a"
 - reg: base address and length of the registers
 - interrupts: interrupt for the USB controller
 

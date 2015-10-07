@@ -64,6 +64,9 @@ void __init prom_init_env(void)
 	}
 	if (memsize == 0)
 		memsize = 256;
+
+	loongson_sysconf.nr_uarts = 1;
+
 	pr_info("memsize=%u, highmemsize=%u\n", memsize, highmemsize);
 #else
 	struct boot_params *boot_p;
