@@ -92,12 +92,6 @@ static const struct comedi_lrange icp_multi_ranges = {
 
 static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 
-/*
-==============================================================================
-	Data & Structure declarations
-==============================================================================
-*/
-
 struct icp_multi_private {
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
