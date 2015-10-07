@@ -94,10 +94,7 @@
 #define   ME_DAC_CTRL_GAIN(x)		BIT(11 - ((x) & 0x3))
 #define   ME_DAC_CTRL_MASK(x)		(ME_DAC_CTRL_BIPOLAR(x) |	\
 					 ME_DAC_CTRL_GAIN(x))
-#define ME_DAC_DATA_A			0x0014	/* - | W */
-#define ME_DAC_DATA_B			0x0016	/* - | W */
-#define ME_DAC_DATA_C			0x0018	/* - | W */
-#define ME_DAC_DATA_D			0x001A	/* - | W */
+#define ME_AO_DATA_REG(x)		(0x14 + ((x) * 2))	/* - | W */
 #define ME_COUNTER_ENDDATA_A		0x001C	/* - | W */
 #define ME_COUNTER_ENDDATA_B		0x001E	/* - | W */
 #define ME_COUNTER_STARTDATA_A		0x0020	/* - | W */
@@ -332,7 +329,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		writew(val, dev->mmio + ME_DAC_DATA_A + (chan << 1));
+		writew(val, dev->mmio + ME_AO_DATA_REG(chan));
 	}
 	s->readback[chan] = val;
 
