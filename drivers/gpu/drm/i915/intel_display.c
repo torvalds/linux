@@ -1724,6 +1724,8 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
 	}
 
+	I915_WRITE(reg, dpll);
+
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(reg);
 	udelay(150);
