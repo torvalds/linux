@@ -204,8 +204,8 @@ exc_##label##_book3e:
 #endif
 
 #define SET_IVOR(vector_number, vector_offset)	\
-	li	r3,vector_offset@l; 		\
-	ori	r3,r3,interrupt_base_book3e@l;	\
+	LOAD_REG_ADDR(r3,interrupt_base_book3e);\
+	ori	r3,r3,vector_offset@l;		\
 	mtspr	SPRN_IVOR##vector_number,r3;
 
 #endif /* _ASM_POWERPC_EXCEPTION_64E_H */

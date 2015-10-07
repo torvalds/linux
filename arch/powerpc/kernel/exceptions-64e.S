@@ -1351,7 +1351,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
  * r4 = MAS0 w/TLBSEL & ESEL for the temp mapping
  */
 	/* Now we branch the new virtual address mapped by this entry */
-	LOAD_REG_IMMEDIATE(r6,2f)
+	bl	1f		/* Find our address */
+1:	mflr	r6
+	addi	r6,r6,(2f - 1b)
+	tovirt(r6,r6)
 	lis	r7,MSR_KERNEL@h
 	ori	r7,r7,MSR_KERNEL@l
 	mtspr	SPRN_SRR0,r6
@@ -1583,9 +1586,11 @@ _GLOBAL(book3e_secondary_thread_init)
 	mflr	r28
 	b	3b
 
+	.globl init_core_book3e
 init_core_book3e:
 	/* Establish the interrupt vector base */
-	LOAD_REG_IMMEDIATE(r3, interrupt_base_book3e)
+	tovirt(r2,r2)
+	LOAD_REG_ADDR(r3, interrupt_base_book3e)
 	mtspr	SPRN_IVPR,r3
 	sync
 	blr
