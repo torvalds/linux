@@ -1614,6 +1614,8 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 
 int hci_dev_do_close(struct hci_dev *hdev)
 {
+	bool auto_off;
+
 	BT_DBG("%s %p", hdev->name, hdev);
 
 	if (!hci_dev_test_flag(hdev, HCI_UNREGISTER) &&
@@ -1669,10 +1671,10 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
-	if (!hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
-		if (hdev->dev_type == HCI_BREDR)
-			mgmt_powered(hdev, 0);
-	}
+	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
+
+	if (!auto_off && hdev->dev_type == HCI_BREDR)
+		mgmt_powered(hdev, 0);
 
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
@@ -1689,9 +1691,8 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	if (!hci_dev_test_flag(hdev, HCI_AUTO_OFF) &&
-	    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
-	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
+	if (test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks) &&
+	    !auto_off && !hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 		set_bit(HCI_INIT, &hdev->flags);
 		__hci_req_sync(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
 		clear_bit(HCI_INIT, &hdev->flags);
