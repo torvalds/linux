@@ -29,8 +29,9 @@
 #define ST_RNG_STATUS_BAD_ALTERNANCE	BIT(1)
 #define ST_RNG_STATUS_FIFO_FULL		BIT(5)
 
-#define ST_RNG_FIFO_SIZE		8
 #define ST_RNG_SAMPLE_SIZE		2 /* 2 Byte (16bit) samples */
+#define ST_RNG_FIFO_DEPTH		4
+#define ST_RNG_FIFO_SIZE		(ST_RNG_FIFO_DEPTH * ST_RNG_SAMPLE_SIZE)
 
 /*
  * Samples are documented to be available every 0.667us, so in theory
