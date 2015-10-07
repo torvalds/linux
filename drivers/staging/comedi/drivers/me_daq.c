@@ -61,16 +61,15 @@
 #define   ME_CTRL1_ADC_MODE_SCAN_TRIG	ME_CTRL1_ADC_MODE(2)
 #define   ME_CTRL1_ADC_MODE_EXT_TRIG	ME_CTRL1_ADC_MODE(3)
 #define   ME_CTRL1_ADC_MODE_MASK	ME_CTRL1_ADC_MODE(3)
-#define ME_CONTROL_2			0x0002	/* - | W */
-#define   ENABLE_ADFIFO			(1<<10)
-#define   ENABLE_CHANLIST		(1<<9)
-#define   ENABLE_PORT_B			(1<<7)
-#define   ENABLE_PORT_A			(1<<6)
-#define   ENABLE_COUNTER_B		(1<<4)
-#define   ENABLE_COUNTER_A		(1<<3)
-#define   ENABLE_DAC			(1<<1)
-#define   BUFFERED_DAC			(1<<0)
-#define ME_DAC_UPDATE			0x0002	/* R | - */
+#define ME_CTRL2_REG			0x02	/* R (dac update) | W */
+#define   ME_CTRL2_ADFIFO_ENA		BIT(10)
+#define   ME_CTRL2_CHANLIST_ENA		BIT(9)
+#define   ME_CTRL2_PORT_B_ENA		BIT(7)
+#define   ME_CTRL2_PORT_A_ENA		BIT(6)
+#define   ME_CTRL2_COUNTER_B_ENA	BIT(4)
+#define   ME_CTRL2_COUNTER_A_ENA	BIT(3)
+#define   ME_CTRL2_DAC_ENA		BIT(1)
+#define   ME_CTRL2_BUFFERED_DAC		BIT(0)
 #define ME_STATUS			0x0004	/* R | - */
 #define   COUNTER_B_IRQ_PENDING		(1<<12)
 #define   COUNTER_A_IRQ_PENDING		(1<<11)
@@ -200,15 +199,15 @@ static int me_dio_insn_config(struct comedi_device *dev,
 		return ret;
 
 	if (s->io_bits & 0x0000ffff)
-		devpriv->ctrl2 |= ENABLE_PORT_A;
+		devpriv->ctrl2 |= ME_CTRL2_PORT_A_ENA;
 	else
-		devpriv->ctrl2 &= ~ENABLE_PORT_A;
+		devpriv->ctrl2 &= ~ME_CTRL2_PORT_A_ENA;
 	if (s->io_bits & 0xffff0000)
-		devpriv->ctrl2 |= ENABLE_PORT_B;
+		devpriv->ctrl2 |= ME_CTRL2_PORT_B_ENA;
 	else
-		devpriv->ctrl2 &= ~ENABLE_PORT_B;
+		devpriv->ctrl2 &= ~ME_CTRL2_PORT_B_ENA;
 
-	writew(devpriv->ctrl2, dev->mmio + ME_CONTROL_2);
+	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	return insn->n;
 }
@@ -276,15 +275,15 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
 	/* clear chanlist and ad fifo */
-	devpriv->ctrl2 &= ~(ENABLE_ADFIFO | ENABLE_CHANLIST);
-	writew(devpriv->ctrl2, dev->mmio + ME_CONTROL_2);
+	devpriv->ctrl2 &= ~(ME_CTRL2_ADFIFO_ENA | ME_CTRL2_CHANLIST_ENA);
+	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* reset any pending interrupt */
 	writew(0x00, dev->mmio + ME_RESET_INTERRUPT);
 
 	/* enable the chanlist and ADC fifo */
-	devpriv->ctrl2 |= (ENABLE_ADFIFO | ENABLE_CHANLIST);
-	writew(devpriv->ctrl2, dev->mmio + ME_CONTROL_2);
+	devpriv->ctrl2 |= (ME_CTRL2_ADFIFO_ENA | ME_CTRL2_CHANLIST_ENA);
+	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* write to channel list fifo */
 	val = chan & 0x0f;			/* b3:b0 channel */
@@ -329,12 +328,12 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	/* Enable all DAC */
-	devpriv->ctrl2 |= ENABLE_DAC;
-	writew(devpriv->ctrl2, dev->mmio + ME_CONTROL_2);
+	devpriv->ctrl2 |= ME_CTRL2_DAC_ENA;
+	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* and set DAC to "buffered" mode */
-	devpriv->ctrl2 |= BUFFERED_DAC;
-	writew(devpriv->ctrl2, dev->mmio + ME_CONTROL_2);
+	devpriv->ctrl2 |= ME_CTRL2_BUFFERED_DAC;
+	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* Set dac-control register */
 	for (i = 0; i < insn->n; i++) {
@@ -361,7 +360,7 @@ static int me_ao_insn_write(struct comedi_device *dev,
 	s->readback[chan] = val;
 
 	/* Update dac with data registers */
-	readw(dev->mmio + ME_DAC_UPDATE);
+	readw(dev->mmio + ME_CTRL2_REG);
 
 	return insn->n;
 }
@@ -442,7 +441,7 @@ static int me_reset(struct comedi_device *dev)
 
 	/* Reset board */
 	writew(0x00, dev->mmio + ME_CTRL1_REG);
-	writew(0x00, dev->mmio + ME_CONTROL_2);
+	writew(0x00, dev->mmio + ME_CTRL2_REG);
 	writew(0x00, dev->mmio + ME_RESET_INTERRUPT);
 	writew(0x00, dev->mmio + ME_DAC_CONTROL);
 
