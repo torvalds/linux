@@ -126,6 +126,59 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 		"02 1c 07 12 37 32 29 2d 29 25 2B 39 00 01 03 10\n" \
 		"03 1d 07 06 2E 2C 29 2D 2E 2E 37 3F 00 00 02 10"
 
+#define CBERRY28_GAMMA \
+		"D0 00 14 15 13 2C 42 43 4E 09 16 14 18 21\n" \
+		"D0 00 14 15 13 0B 43 55 53 0C 17 14 23 20"
+
+static int cberry28_init_sequence[] = {
+	/* turn off sleep mode */
+	-1, 0x11,
+	-2, 120,
+
+	/* set pixel format to RGB-565 */
+	-1, 0x3A, 0x05,
+
+	-1, 0xB2, 0x0C, 0x0C, 0x00, 0x33, 0x33,
+
+	/*
+	 * VGH = 13.26V
+	 * VGL = -10.43V
+	 */
+	-1, 0xB7, 0x35,
+
+	/*
+	 * VDV and VRH register values come from command write
+	 * (instead of NVM)
+	 */
+	-1, 0xC2, 0x01, 0xFF,
+
+	/*
+	 * VAP =  4.7V + (VCOM + VCOM offset + 0.5 * VDV)
+	 * VAN = -4.7V + (VCOM + VCOM offset + 0.5 * VDV)
+	 */
+	-1, 0xC3, 0x17,
+
+	/* VDV = 0V */
+	-1, 0xC4, 0x20,
+
+	/* VCOM = 0.875V */
+	-1, 0xBB, 0x1F,
+
+	/* VCOM offset = 0V */
+	-1, 0xC5, 0x20,
+
+	/*
+	 * AVDD = 6.6V
+	 * AVCL = -4.8V
+	 * VDS = 2.3V
+	 */
+	-1, 0xD0, 0xA4, 0x61,
+
+	-1, 0x29,
+
+	-3,
+};
+
 static int hy28b_init_sequence[] = {
 	-1, 0x00e7, 0x0010, -1, 0x0000, 0x0001,
 	-1, 0x0001, 0x0100, -1, 0x0002, 0x0700,
@@ -310,6 +363,27 @@ static struct fbtft_device_display displays[] = {
 					{ "dc", 24 },
 					{},
 				},
+			}
+		}
+	}, {
+		.name = "admatec_c-berry28",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_st7789v",
+			.max_speed_hz = 48000000,
+			.mode = SPI_MODE_0,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+					.init_sequence = cberry28_init_sequence,
+				},
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 25 },
+					{ "dc", 22 },
+					{ "led", 18 },
+					{},
+				},
+				.gamma = CBERRY28_GAMMA,
 			}
 		}
 	}, {
