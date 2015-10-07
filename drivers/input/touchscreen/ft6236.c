@@ -323,4 +323,4 @@ module_i2c_driver(ft6236_driver);
 MODULE_AUTHOR("Sean Cross <xobs@kosagi.com>");
 MODULE_AUTHOR("Noralf Trønnes <noralf@tronnes.org>");
 MODULE_DESCRIPTION("FocalTech FT6236 TouchScreen driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
