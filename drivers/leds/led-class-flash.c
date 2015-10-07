@@ -316,10 +316,6 @@ int led_classdev_flash_register(struct device *parent,
 	if (ret < 0)
 		return ret;
 
-	/* Setting a torch brightness needs to have immediate effect */
-	led_cdev->flags &= ~SET_BRIGHTNESS_ASYNC;
-	led_cdev->flags |= SET_BRIGHTNESS_SYNC;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(led_classdev_flash_register);

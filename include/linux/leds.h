@@ -47,9 +47,7 @@ struct led_classdev {
 #define LED_BLINK_BRIGHTNESS_CHANGE (1 << 20)
 #define LED_BLINK_DISABLE	(1 << 21)
 #define LED_SYSFS_DISABLE	(1 << 22)
-#define SET_BRIGHTNESS_ASYNC	(1 << 23)
-#define SET_BRIGHTNESS_SYNC	(1 << 24)
-#define LED_DEV_CAP_FLASH	(1 << 25)
+#define LED_DEV_CAP_FLASH	(1 << 23)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
@@ -162,6 +160,21 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
  */
 extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
+
+/**
+ * led_set_brightness_sync - set LED brightness synchronously
+ * @led_cdev: the LED to set
+ * @brightness: the brightness to set it to
+ *
+ * Set an LED's brightness immediately. This function will block
+ * the caller for the time required for accessing device registers,
+ * and it can sleep.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+extern int led_set_brightness_sync(struct led_classdev *led_cdev,
+				   enum led_brightness value);
+
 /**
  * led_update_brightness - update LED brightness
  * @led_cdev: the LED to query
