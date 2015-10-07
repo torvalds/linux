@@ -84,13 +84,11 @@
 #define ME_DIO_PORT_A_REG		0x06	/* R | W */
 #define ME_DIO_PORT_B_REG		0x08	/* R | W */
 #define ME_TIMER_DATA_REG(x)		(0x0a + ((x) * 2))	/* - | W */
-#define ME_CHANNEL_LIST			0x0010	/* - | W */
-#define   ADC_UNIPOLAR			(1<<6)
-#define   ADC_GAIN_0			(0<<4)
-#define   ADC_GAIN_1			(1<<4)
-#define   ADC_GAIN_2			(2<<4)
-#define   ADC_GAIN_3			(3<<4)
-#define ME_READ_AD_FIFO			0x0010	/* R | - */
+#define ME_AI_FIFO_REG			0x10	/* R (fifo) | W (chanlist) */
+#define   ME_AI_FIFO_CHANLIST_DIFF	BIT(7)
+#define   ME_AI_FIFO_CHANLIST_UNIPOLAR	BIT(6)
+#define   ME_AI_FIFO_CHANLIST_GAIN(x)	(((x) & 0x3) << 4)
+#define   ME_AI_FIFO_CHANLIST_CHAN(x)	(((x) & 0xf) << 0)
 #define ME_DAC_CONTROL			0x0012	/* - | W */
 #define   DAC_UNIPOLAR_D		(0<<4)
 #define   DAC_BIPOLAR_D			(1<<4)
@@ -262,7 +260,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 {
 	struct me_private_data *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int rang = CR_RANGE(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int aref = CR_AREF(insn->chanspec);
 	unsigned short val;
 	int ret;
@@ -282,11 +280,12 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	writew(devpriv->ctrl2, dev->mmio + ME_CTRL2_REG);
 
 	/* write to channel list fifo */
-	val = chan & 0x0f;			/* b3:b0 channel */
-	val |= (rang & 0x03) << 4;		/* b5:b4 gain */
-	val |= (rang & 0x04) << 4;		/* b6 polarity */
-	val |= ((aref & AREF_DIFF) ? 0x80 : 0);	/* b7 differential */
-	writew(val & 0xff, dev->mmio + ME_CHANNEL_LIST);
+	val = ME_AI_FIFO_CHANLIST_CHAN(chan) | ME_AI_FIFO_CHANLIST_GAIN(range);
+	if (comedi_range_is_unipolar(s, range))
+		val |= ME_AI_FIFO_CHANLIST_UNIPOLAR;
+	if (aref & AREF_DIFF)
+		val |= ME_AI_FIFO_CHANLIST_DIFF;
+	writew(val, dev->mmio + ME_AI_FIFO_REG);
 
 	/* set ADC mode to software trigger */
 	devpriv->ctrl1 |= ME_CTRL1_ADC_MODE_SOFT_TRIG;
@@ -301,7 +300,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 		return ret;
 
 	/* get value from ADC fifo */
-	val = readw(dev->mmio + ME_READ_AD_FIFO);
+	val = readw(dev->mmio + ME_AI_FIFO_REG);
 	val = (val ^ 0x800) & 0x0fff;
 	data[0] = val;
 
