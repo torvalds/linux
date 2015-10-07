@@ -616,12 +616,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 * will be empty.
 	 */
 
-	for (i = 0; i < IWL_MAX_HW_QUEUES; i++) {
-		if (i < mvm->first_agg_queue && i != IWL_MVM_CMD_QUEUE)
-			mvm->queue_to_mac80211[i] = i;
-		else
-			mvm->queue_to_mac80211[i] = IWL_INVALID_MAC80211_QUEUE;
-	}
+	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
+	mvm->queue_info[IWL_MVM_CMD_QUEUE].hw_queue_refcount = 1;
 
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);

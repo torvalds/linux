@@ -185,6 +185,7 @@ int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
 	}
 
 	cmd->sta_id = mvmvif->bcast_sta.sta_id;
+	memcpy(cmd->bssid, vif->addr, ETH_ALEN);
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_CMD,
 						    IWL_ALWAYS_LONG_GROUP, 0),
 				    0, sizeof(*cmd), cmd);

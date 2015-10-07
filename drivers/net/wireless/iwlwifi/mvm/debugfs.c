@@ -1495,6 +1495,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (!debugfs_create_blob("nvm_prod", S_IRUSR,
 				  mvm->debugfs_dir, &mvm->nvm_prod_blob))
 		goto err;
+	if (!debugfs_create_blob("nvm_phy_sku", S_IRUSR,
+				 mvm->debugfs_dir, &mvm->nvm_phy_sku_blob))
+		goto err;
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211

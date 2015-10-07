@@ -268,6 +268,16 @@ enum {
 	REPLY_MAX = 0xff,
 };
 
+enum iwl_phy_ops_subcmd_ids {
+	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+};
+
+/* command groups */
+enum {
+	PHY_OPS_GROUP = 0x4,
+};
+
 /**
  * struct iwl_cmd_response - generic response struct for most commands
  * @status: status of the command asked, changes for each one
