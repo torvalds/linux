@@ -96,9 +96,8 @@ void ip_send_check(struct iphdr *iph)
 }
 EXPORT_SYMBOL(ip_send_check);
 
-int __ip_local_out(struct sock *sk, struct sk_buff *skb)
+int __ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct iphdr *iph = ip_hdr(skb);
 
 	iph->tot_len = htons(skb->len);
@@ -113,7 +112,7 @@ int ip_local_out(struct sock *sk, struct sk_buff *skb)
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	int err;
 
-	err = __ip_local_out(sk, skb);
+	err = __ip_local_out(net, sk, skb);
 	if (likely(err == 1))
 		err = dst_output(net, sk, skb);
 

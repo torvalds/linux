@@ -138,9 +138,8 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 EXPORT_SYMBOL(ip6_dst_hoplimit);
 #endif
 
-int __ip6_local_out(struct sock *sk, struct sk_buff *skb)
+int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb_dst(skb)->dev);
 	int len;
 
 	len = skb->len - sizeof(struct ipv6hdr);
@@ -160,7 +159,7 @@ int ip6_local_out(struct sock *sk, struct sk_buff *skb)
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	int err;
 
-	err = __ip6_local_out(sk, skb);
+	err = __ip6_local_out(net, sk, skb);
 	if (likely(err == 1))
 		err = dst_output(net, sk, skb);
 
