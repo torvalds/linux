@@ -216,10 +216,12 @@ define_machine(corenet_generic) {
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
 #endif
 /*
- * Core reset may cause issue if using the proxy mode of MPIC.
+ * Core reset may cause issues if using the proxy mode of MPIC.
  * So, use the mixed mode of MPIC if enabling CPU hotplug.
+ *
+ * Likewise, problems have been seen with kexec when coreint is enabled.
  */
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
 	.get_irq		= mpic_get_irq,
 #else
 	.get_irq		= mpic_get_coreint_irq,
