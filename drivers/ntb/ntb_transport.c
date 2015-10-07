@@ -825,10 +825,10 @@ static void ntb_transport_link_work(struct work_struct *work)
 			size = max_mw_size;
 
 		spad = MW0_SZ_HIGH + (i * 2);
-		ntb_peer_spad_write(ndev, spad, (u32)(size >> 32));
+		ntb_peer_spad_write(ndev, spad, upper_32_bits(size));
 
 		spad = MW0_SZ_LOW + (i * 2);
-		ntb_peer_spad_write(ndev, spad, (u32)size);
+		ntb_peer_spad_write(ndev, spad, lower_32_bits(size));
 	}
 
 	ntb_peer_spad_write(ndev, NUM_MWS, nt->mw_count);
