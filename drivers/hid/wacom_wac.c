@@ -1740,8 +1740,8 @@ static void wacom_wac_finger_pre_report(struct hid_device *hdev,
 			}
 		}
 	}
-
-	if (hid_data->cc_index >= 0) {
+	if (hid_data->cc_report != 0 &&
+	    hid_data->cc_index >= 0) {
 		struct hid_field *field = report->field[hid_data->cc_index];
 		int value = field->value[hid_data->cc_value_index];
 		if (value)
