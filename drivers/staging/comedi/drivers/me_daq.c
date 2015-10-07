@@ -41,22 +41,26 @@
 
 #define XILINX_DOWNLOAD_RESET	0x42	/* Xilinx registers */
 
-#define ME_CONTROL_1			0x0000	/* - | W */
-#define   INTERRUPT_ENABLE		(1<<15)
-#define   COUNTER_B_IRQ			(1<<12)
-#define   COUNTER_A_IRQ			(1<<11)
-#define   CHANLIST_READY_IRQ		(1<<10)
-#define   EXT_IRQ			(1<<9)
-#define   ADFIFO_HALFFULL_IRQ		(1<<8)
-#define   SCAN_COUNT_ENABLE		(1<<5)
-#define   SIMULTANEOUS_ENABLE		(1<<4)
-#define   TRIGGER_FALLING_EDGE		(1<<3)
-#define   CONTINUOUS_MODE		(1<<2)
-#define   DISABLE_ADC			(0<<0)
-#define   SOFTWARE_TRIGGERED_ADC	(1<<0)
-#define   SCAN_TRIGGERED_ADC		(2<<0)
-#define   EXT_TRIGGERED_ADC		(3<<0)
-#define ME_ADC_START			0x0000	/* R | - */
+/*
+ * PCI BAR2 Memory map (dev->mmio)
+ */
+#define ME_CTRL1_REG			0x00	/* R (ai start) | W */
+#define   ME_CTRL1_INT_ENA		BIT(15)
+#define   ME_CTRL1_COUNTER_B_IRQ	BIT(12)
+#define   ME_CTRL1_COUNTER_A_IRQ	BIT(11)
+#define   ME_CTRL1_CHANLIST_READY_IRQ	BIT(10)
+#define   ME_CTRL1_EXT_IRQ		BIT(9)
+#define   ME_CTRL1_ADFIFO_HALFFULL_IRQ	BIT(8)
+#define   ME_CTRL1_SCAN_COUNT_ENA	BIT(5)
+#define   ME_CTRL1_SIMULTANEOUS_ENA	BIT(4)
+#define   ME_CTRL1_TRIGGER_FALLING_EDGE	BIT(3)
+#define   ME_CTRL1_CONTINUOUS_MODE	BIT(2)
+#define   ME_CTRL1_ADC_MODE(x)		(((x) & 0x3) << 0)
+#define   ME_CTRL1_ADC_MODE_DISABLE	ME_CTRL1_ADC_MODE(0)
+#define   ME_CTRL1_ADC_MODE_SOFT_TRIG	ME_CTRL1_ADC_MODE(1)
+#define   ME_CTRL1_ADC_MODE_SCAN_TRIG	ME_CTRL1_ADC_MODE(2)
+#define   ME_CTRL1_ADC_MODE_EXT_TRIG	ME_CTRL1_ADC_MODE(3)
+#define   ME_CTRL1_ADC_MODE_MASK	ME_CTRL1_ADC_MODE(3)
 #define ME_CONTROL_2			0x0002	/* - | W */
 #define   ENABLE_ADFIFO			(1<<10)
 #define   ENABLE_CHANLIST		(1<<9)
@@ -268,8 +272,8 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	int ret;
 
 	/* stop any running conversion */
-	devpriv->ctrl1 &= 0xFFFC;
-	writew(devpriv->ctrl1, dev->mmio + ME_CONTROL_1);
+	devpriv->ctrl1 &= ~ME_CTRL1_ADC_MODE_MASK;
+	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
 	/* clear chanlist and ad fifo */
 	devpriv->ctrl2 &= ~(ENABLE_ADFIFO | ENABLE_CHANLIST);
@@ -290,11 +294,11 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	writew(val & 0xff, dev->mmio + ME_CHANNEL_LIST);
 
 	/* set ADC mode to software trigger */
-	devpriv->ctrl1 |= SOFTWARE_TRIGGERED_ADC;
-	writew(devpriv->ctrl1, dev->mmio + ME_CONTROL_1);
+	devpriv->ctrl1 |= ME_CTRL1_ADC_MODE_SOFT_TRIG;
+	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
-	/* start conversion by reading from ADC_START */
-	readw(dev->mmio + ME_ADC_START);
+	/* start ai conversion */
+	readw(dev->mmio + ME_CTRL1_REG);
 
 	/* wait for ADC fifo not empty flag */
 	ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
@@ -307,8 +311,8 @@ static int me_ai_insn_read(struct comedi_device *dev,
 	data[0] = val;
 
 	/* stop any running conversion */
-	devpriv->ctrl1 &= 0xFFFC;
-	writew(devpriv->ctrl1, dev->mmio + ME_CONTROL_1);
+	devpriv->ctrl1 &= ~ME_CTRL1_ADC_MODE_MASK;
+	writew(devpriv->ctrl1, dev->mmio + ME_CTRL1_REG);
 
 	return 1;
 }
@@ -437,7 +441,7 @@ static int me_reset(struct comedi_device *dev)
 	struct me_private_data *devpriv = dev->private;
 
 	/* Reset board */
-	writew(0x00, dev->mmio + ME_CONTROL_1);
+	writew(0x00, dev->mmio + ME_CTRL1_REG);
 	writew(0x00, dev->mmio + ME_CONTROL_2);
 	writew(0x00, dev->mmio + ME_RESET_INTERRUPT);
 	writew(0x00, dev->mmio + ME_DAC_CONTROL);
