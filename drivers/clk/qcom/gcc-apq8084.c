@@ -3623,15 +3623,8 @@ static int gcc_apq8084_probe(struct platform_device *pdev)
 	return qcom_cc_probe(pdev, &gcc_apq8084_desc);
 }
 
-static int gcc_apq8084_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_apq8084_driver = {
 	.probe		= gcc_apq8084_probe,
-	.remove		= gcc_apq8084_remove,
 	.driver		= {
 		.name	= "gcc-apq8084",
 		.of_match_table = gcc_apq8084_match_table,

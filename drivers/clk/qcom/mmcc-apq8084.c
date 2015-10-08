@@ -3402,15 +3402,8 @@ static int mmcc_apq8084_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mmcc_apq8084_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver mmcc_apq8084_driver = {
 	.probe		= mmcc_apq8084_probe,
-	.remove		= mmcc_apq8084_remove,
 	.driver		= {
 		.name	= "mmcc-apq8084",
 		.of_match_table = mmcc_apq8084_match_table,

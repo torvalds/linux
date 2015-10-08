@@ -3525,7 +3525,6 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 
 static int gcc_msm8960_remove(struct platform_device *pdev)
 {
-	qcom_cc_remove(pdev);
 	return 0;
 }
 

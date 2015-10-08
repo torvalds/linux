@@ -2686,15 +2686,8 @@ static int mmcc_msm8960_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, match->data, regmap);
 }
 
-static int mmcc_msm8960_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver mmcc_msm8960_driver = {
 	.probe		= mmcc_msm8960_probe,
-	.remove		= mmcc_msm8960_remove,
 	.driver		= {
 		.name	= "mmcc-msm8960",
 		.of_match_table = mmcc_msm8960_match_table,

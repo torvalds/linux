@@ -2628,16 +2628,12 @@ static int mmcc_msm8974_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = pm_genpd_add_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
-	if (ret)
-		qcom_cc_remove(pdev);
-	return ret;
+	return pm_genpd_add_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
 }
 
 static int mmcc_msm8974_remove(struct platform_device *pdev)
 {
 	pm_genpd_remove_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
-	qcom_cc_remove(pdev);
 	return 0;
 }
 

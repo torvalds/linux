@@ -3372,15 +3372,8 @@ static int gcc_msm8916_probe(struct platform_device *pdev)
 	return qcom_cc_probe(pdev, &gcc_msm8916_desc);
 }
 
-static int gcc_msm8916_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_msm8916_driver = {
 	.probe		= gcc_msm8916_probe,
-	.remove		= gcc_msm8916_remove,
 	.driver		= {
 		.name	= "gcc-msm8916",
 		.of_match_table = gcc_msm8916_match_table,

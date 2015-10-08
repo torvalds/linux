@@ -45,6 +45,4 @@ extern int qcom_cc_really_probe(struct platform_device *pdev,
 extern int qcom_cc_probe(struct platform_device *pdev,
 			 const struct qcom_cc_desc *desc);
 
-extern void qcom_cc_remove(struct platform_device *pdev);
-
 #endif

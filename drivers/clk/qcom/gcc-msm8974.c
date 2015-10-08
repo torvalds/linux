@@ -2744,15 +2744,8 @@ static int gcc_msm8974_probe(struct platform_device *pdev)
 	return qcom_cc_probe(pdev, &gcc_msm8974_desc);
 }
 
-static int gcc_msm8974_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver gcc_msm8974_driver = {
 	.probe		= gcc_msm8974_probe,
-	.remove		= gcc_msm8974_remove,
 	.driver		= {
 		.name	= "gcc-msm8974",
 		.of_match_table = gcc_msm8974_match_table,

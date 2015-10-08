@@ -168,9 +168,4 @@ int qcom_cc_probe(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 }
 EXPORT_SYMBOL_GPL(qcom_cc_probe);
 
-void qcom_cc_remove(struct platform_device *pdev)
-{
-}
-EXPORT_SYMBOL_GPL(qcom_cc_remove);
-
 MODULE_LICENSE("GPL v2");
