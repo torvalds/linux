@@ -242,6 +242,9 @@ Commands:\n\
 "  u	dump TLB\n"
 #endif
 "  ?	help\n"
+#ifdef CONFIG_PPC64
+"  # n	limit output to n lines per page (dump paca only)\n"
+#endif
 "  zr	reboot\n\
   zh	halt\n"
 ;
@@ -833,6 +836,16 @@ static void remove_cpu_bpts(void)
 	write_ciabr(0);
 }
 
+static void set_lpp_cmd(void)
+{
+	unsigned long lpp;
+
+	if (!scanhex(&lpp)) {
+		printf("Invalid number.\n");
+		lpp = 0;
+	}
+	xmon_set_pagination_lpp(lpp);
+}
 /* Command interpreting routine */
 static char *last_cmd;
 
@@ -923,6 +936,9 @@ cmds(struct pt_regs *excp)
 			return cmd;
 		case '?':
 			xmon_puts(help_string);
+			break;
+		case '#':
+			set_lpp_cmd();
 			break;
 		case 'b':
 			bpt_cmds();
@@ -2166,7 +2182,9 @@ dump(void)
 
 #ifdef CONFIG_PPC64
 	if (c == 'p') {
+		xmon_start_pagination();
 		dump_pacas();
+		xmon_end_pagination();
 		return;
 	}
 #endif
