@@ -243,7 +243,7 @@ int linux_spi_write(u8 *b, u32 len)
 
 #if defined(TXRX_PHASE_SIZE)
 
-int linux_spi_read(unsigned char *rb, unsigned long rlen)
+int linux_spi_read(u8 *rb, u32 rlen)
 {
 	int ret;
 
@@ -307,7 +307,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 
 		kfree(t_buffer);
 	} else {
-		PRINT_ER("can't read data with the following length: %ld\n", rlen);
+		PRINT_ER("can't read data with the following length: %u\n", rlen);
 		ret = -1;
 	}
 	/* change return value to match WILC interface */
@@ -317,7 +317,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 }
 
 #else
-int linux_spi_read(unsigned char *rb, unsigned long rlen)
+int linux_spi_read(u8 *rb, u32 rlen)
 {
 
 	int ret;
@@ -351,7 +351,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 		}
 		kfree(t_buffer);
 	} else {
-		PRINT_ER("can't read data with the following length: %ld\n", rlen);
+		PRINT_ER("can't read data with the following length: %u\n", rlen);
 		ret = -1;
 	}
 	/* change return value to match WILC interface */
@@ -362,7 +362,7 @@ int linux_spi_read(unsigned char *rb, unsigned long rlen)
 
 #endif
 
-int linux_spi_write_read(unsigned char *wb, unsigned char *rb, unsigned int rlen)
+int linux_spi_write_read(u8 *wb, u8 *rb, u32 rlen)
 {
 
 	int ret;
@@ -390,7 +390,7 @@ int linux_spi_write_read(unsigned char *wb, unsigned char *rb, unsigned int rlen
 			PRINT_ER("SPI transaction failed\n");
 		}
 	} else {
-		PRINT_ER("can't read data with the following length: %d\n", rlen);
+		PRINT_ER("can't read data with the following length: %u\n", rlen);
 		ret = -1;
 	}
 	/* change return value to match WILC interface */
