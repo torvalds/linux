@@ -1070,8 +1070,6 @@ int class_config_llog_handler(const struct lu_env *env,
 	char *cfg_buf = (char *) (rec + 1);
 	int rc = 0;
 
-	//class_config_dump_handler(handle, rec, data);
-
 	switch (rec->lrh_type) {
 	case OBD_CFG_REC: {
 		struct lustre_cfg *lcfg, *lcfg_new;
