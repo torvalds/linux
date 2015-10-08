@@ -1,3 +1,7 @@
+config QCOM_GDSC
+	bool
+	select PM_GENERIC_DOMAINS if PM
+
 config COMMON_CLK_QCOM
 	tristate "Support for Qualcomm's clock controllers"
 	depends on OF
@@ -40,10 +44,6 @@ config IPQ_LCC_806X
 	  Support for the LPASS clock controller on ipq806x devices.
 	  Say Y if you want to use audio devices such as i2s, pcm,
 	  S/PDIF, etc.
-
-config QCOM_GDSC
-	bool
-	select PM_GENERIC_DOMAINS if PM
 
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
