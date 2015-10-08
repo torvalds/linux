@@ -18,6 +18,8 @@
 #include <linux/filter.h>
 #include <linux/version.h>
 
+int sysctl_unprivileged_bpf_disabled __read_mostly;
+
 static LIST_HEAD(bpf_map_types);
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
@@ -544,6 +546,9 @@ static int bpf_prog_load(union bpf_attr *attr)
 	    attr->kern_version != LINUX_VERSION_CODE)
 		return -EINVAL;
 
+	if (type != BPF_PROG_TYPE_SOCKET_FILTER && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/* plain bpf_prog allocation */
 	prog = bpf_prog_alloc(bpf_prog_size(attr->insn_cnt), GFP_USER);
 	if (!prog)
@@ -599,11 +604,7 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 	union bpf_attr attr = {};
 	int err;
 
-	/* the syscall is limited to root temporarily. This restriction will be
-	 * lifted when security audit is clean. Note that eBPF+tracing must have
-	 * this restriction, since it may pass kernel data to user space
-	 */
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN) && sysctl_unprivileged_bpf_disabled)
 		return -EPERM;
 
 	if (!access_ok(VERIFY_READ, uattr, 1))
