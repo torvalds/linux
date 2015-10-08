@@ -22,14 +22,6 @@
 
 #include <phy.h>
 
-#define read_next_pair(array, v1, v2, i)		\
-	 do {						\
-		i += 2;					\
-		v1 = array[i];				\
-		v2 = array[i+1];			\
-	 } while (0)
-
-
 /* AGC_TAB_1T.TXT */
 
 static u32 array_agc_tab_1t_8188e[] = {
