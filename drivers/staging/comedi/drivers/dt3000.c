@@ -511,8 +511,10 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int dt3k_ai_insn_read(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
 	int i;
 	unsigned int chan, gain, aref;
@@ -657,14 +659,14 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* ai subdevice */
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= board->adchan;
-	s->insn_read	= dt3k_ai_insn;
 	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &range_dt3000_ai;	/* XXX */
+	s->insn_read	= dt3k_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
