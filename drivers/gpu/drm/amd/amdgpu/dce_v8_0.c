@@ -2449,8 +2449,7 @@ static int dce_v8_0_cursor_move_locked(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
-			       int hot_x, int hot_y)
+static int dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
@@ -2471,19 +2470,6 @@ static int dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj
 	       upper_32_bits(gpu_addr));
 	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       lower_32_bits(gpu_addr));
-
-	if (hot_x != amdgpu_crtc->cursor_hot_x ||
-	    hot_y != amdgpu_crtc->cursor_hot_y) {
-		int x, y;
-
-		x = amdgpu_crtc->cursor_x + amdgpu_crtc->cursor_hot_x - hot_x;
-		y = amdgpu_crtc->cursor_y + amdgpu_crtc->cursor_hot_y - hot_y;
-
-		dce_v8_0_cursor_move_locked(crtc, x, y);
-
-		amdgpu_crtc->cursor_hot_x = hot_x;
-		amdgpu_crtc->cursor_hot_y = hot_y;
-	}
 
 	return 0;
 
@@ -2540,7 +2526,21 @@ static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
 	amdgpu_crtc->cursor_height = height;
 
 	dce_v8_0_lock_cursor(crtc, true);
-	ret = dce_v8_0_set_cursor(crtc, obj, hot_x, hot_y);
+
+	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	    hot_y != amdgpu_crtc->cursor_hot_y) {
+		int x, y;
+
+		x = amdgpu_crtc->cursor_x + amdgpu_crtc->cursor_hot_x - hot_x;
+		y = amdgpu_crtc->cursor_y + amdgpu_crtc->cursor_hot_y - hot_y;
+
+		dce_v8_0_cursor_move_locked(crtc, x, y);
+
+		amdgpu_crtc->cursor_hot_x = hot_x;
+		amdgpu_crtc->cursor_hot_y = hot_y;
+	}
+
+	ret = dce_v8_0_set_cursor(crtc, obj);
 	if (ret)
 		DRM_ERROR("dce_v8_0_set_cursor returned %d, not changing cursor\n",
 			  ret);
@@ -2575,9 +2575,7 @@ static void dce_v8_0_cursor_reset(struct drm_crtc *crtc)
 		dce_v8_0_cursor_move_locked(crtc, amdgpu_crtc->cursor_x,
 					    amdgpu_crtc->cursor_y);
 
-		ret = dce_v8_0_set_cursor(crtc, amdgpu_crtc->cursor_bo,
-					  amdgpu_crtc->cursor_hot_x,
-					  amdgpu_crtc->cursor_hot_y);
+		ret = dce_v8_0_set_cursor(crtc, amdgpu_crtc->cursor_bo);
 		if (ret)
 			DRM_ERROR("dce_v8_0_set_cursor returned %d, not showing "
 				  "cursor\n", ret);
