@@ -2784,6 +2784,26 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	u64 offset = 0;
 	int i, backwards;
 
+	/*
+	 * This function does not support execlist mode - any attempt to
+	 * proceed further into this function will result in a kernel panic
+	 * when dereferencing ring->buffer, which is not set up in execlist
+	 * mode.
+	 *
+	 * The correct way of doing it would be to derive the currently
+	 * executing ring buffer from the current context, which is derived
+	 * from the currently running request. Unfortunately, to get the
+	 * current request we would have to grab the struct_mutex before doing
+	 * anything else, which would be ill-advised since some other thread
+	 * might have grabbed it already and managed to hang itself, causing
+	 * the hang checker to deadlock.
+	 *
+	 * Therefore, this function does not support execlist mode in its
+	 * current form. Just return NULL and move on.
+	 */
+	if (ring->buffer == NULL)
+		return NULL;
+
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))
 		return NULL;
