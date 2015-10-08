@@ -62,6 +62,12 @@
 #define DPR_ADC_BUFFER		(4 * 0x800)
 #define DPR_COMMAND		(4 * 0xfd3)
 #define DPR_SUBSYS		(4 * 0xfd3)
+#define DPR_SUBSYS_AI		0
+#define DPR_SUBSYS_AO		1
+#define DPR_SUBSYS_DIN		2
+#define DPR_SUBSYS_DOUT		3
+#define DPR_SUBSYS_MEM		4
+#define DPR_SUBSYS_CT		5
 #define DPR_ENCODE		(4 * 0xfd4)
 #define DPR_PARAMS(x)		(4 * (0xfd5 + (x)))
 #define DPR_TICK_REG_LO		(4 * 0xff5)
@@ -209,13 +215,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define AI_FIFO_DEPTH	2003
 #define AO_FIFO_DEPTH	2048
 
-#define SUBS_AI		0
-#define SUBS_AO		1
-#define SUBS_DIN	2
-#define SUBS_DOUT	3
-#define SUBS_MEM	4
-#define SUBS_CT		5
-
 /* interrupt flags */
 #define DT3000_CMDONE		0x80
 #define DT3000_CTDONE		0x40
@@ -326,7 +325,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 static int dt3k_ai_cancel(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
-	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
+	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_STOP);
 
 	writew(0, dev->mmio + DPR_INT_MASK);
@@ -511,7 +510,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	writew(AI_FIFO_DEPTH / 2, dev->mmio + DPR_PARAMS(7));
 
-	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
+	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
 
 	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
@@ -519,7 +518,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	debug_n_ints = 0;
 
-	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
+	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_START);
 
 	return 0;
@@ -537,7 +536,7 @@ static int dt3k_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	aref = CR_AREF(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++)
-		data[i] = dt3k_readsingle(dev, SUBS_AI, chan, gain);
+		data[i] = dt3k_readsingle(dev, DPR_SUBSYS_AI, chan, gain);
 
 	return i;
 }
@@ -553,7 +552,7 @@ static int dt3k_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		dt3k_writesingle(dev, SUBS_AO, chan, val);
+		dt3k_writesingle(dev, DPR_SUBSYS_AO, chan, val);
 	}
 	s->readback[chan] = val;
 
@@ -563,7 +562,7 @@ static int dt3k_ao_insn_write(struct comedi_device *dev,
 static void dt3k_dio_config(struct comedi_device *dev, int bits)
 {
 	/* XXX */
-	writew(SUBS_DOUT, dev->mmio + DPR_SUBSYS);
+	writew(DPR_SUBSYS_DOUT, dev->mmio + DPR_SUBSYS);
 
 	writew(bits, dev->mmio + DPR_PARAMS(0));
 #if 0
@@ -604,9 +603,9 @@ static int dt3k_dio_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		dt3k_writesingle(dev, SUBS_DOUT, 0, s->state);
+		dt3k_writesingle(dev, DPR_SUBSYS_DOUT, 0, s->state);
 
-	data[1] = dt3k_readsingle(dev, SUBS_DIN, 0, 0);
+	data[1] = dt3k_readsingle(dev, DPR_SUBSYS_DIN, 0, 0);
 
 	return insn->n;
 }
@@ -620,7 +619,7 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		writew(SUBS_MEM, dev->mmio + DPR_SUBSYS);
+		writew(DPR_SUBSYS_MEM, dev->mmio + DPR_SUBSYS);
 		writew(addr, dev->mmio + DPR_PARAMS(0));
 		writew(1, dev->mmio + DPR_PARAMS(1));
 
