@@ -3538,6 +3538,13 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		return -ENXIO;
 	}
 
+	if (bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
+	    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+	    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
 	/* Incoming skb */
 	bt_cb(skb)->incoming = 1;
 
