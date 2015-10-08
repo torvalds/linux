@@ -12,6 +12,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
+#include <linux/kernel.h>
 #else
 #include <asm/types.h>
 #endif
@@ -241,8 +242,8 @@ extern long long virt_phys_offset;
 #endif
 
 /* align addr on a size boundary - adjust address up/down if needed */
-#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
-#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+#define _ALIGN_UP(addr, size)   __ALIGN_KERNEL(addr, size)
+#define _ALIGN_DOWN(addr, size)	((addr)&(~((typeof(addr))(size)-1)))
 
 /* align addr on a size boundary - adjust address up if needed */
 #define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
