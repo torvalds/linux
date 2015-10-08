@@ -2417,20 +2417,8 @@ static void dce_v8_0_show_cursor(struct drm_crtc *crtc)
 		   (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
 }
 
-static void dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
-			      uint64_t gpu_addr)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_device *adev = crtc->dev->dev_private;
-
-	WREG32(mmCUR_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
-	       upper_32_bits(gpu_addr));
-	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
-	       gpu_addr & 0xffffffff);
-}
-
-static int dce_v8_0_crtc_cursor_move(struct drm_crtc *crtc,
-				     int x, int y)
+static int dce_v8_0_cursor_move_locked(struct drm_crtc *crtc,
+				       int x, int y)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
@@ -2450,21 +2438,61 @@ static int dce_v8_0_crtc_cursor_move(struct drm_crtc *crtc,
 		y = 0;
 	}
 
-	dce_v8_0_lock_cursor(crtc, true);
 	WREG32(mmCUR_POSITION + amdgpu_crtc->crtc_offset, (x << 16) | y);
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
 	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
 	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
-	dce_v8_0_lock_cursor(crtc, false);
+
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
 
 	return 0;
 }
 
-static int dce_v8_0_crtc_cursor_set(struct drm_crtc *crtc,
-				    struct drm_file *file_priv,
-				    uint32_t handle,
-				    uint32_t width,
-				    uint32_t height)
+static void dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
+				 uint64_t gpu_addr, int hot_x, int hot_y)
+{
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+
+	WREG32(mmCUR_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
+	       upper_32_bits(gpu_addr));
+	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
+	       lower_32_bits(gpu_addr));
+
+	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	    hot_y != amdgpu_crtc->cursor_hot_y) {
+		int x, y;
+
+		x = amdgpu_crtc->cursor_x + amdgpu_crtc->cursor_hot_x - hot_x;
+		y = amdgpu_crtc->cursor_y + amdgpu_crtc->cursor_hot_y - hot_y;
+
+		dce_v8_0_cursor_move_locked(crtc, x, y);
+
+		amdgpu_crtc->cursor_hot_x = hot_x;
+		amdgpu_crtc->cursor_hot_y = hot_y;
+	}
+}
+
+static int dce_v8_0_crtc_cursor_move(struct drm_crtc *crtc,
+				     int x, int y)
+{
+	int ret;
+
+	dce_v8_0_lock_cursor(crtc, true);
+	ret = dce_v8_0_cursor_move_locked(crtc, x, y);
+	dce_v8_0_lock_cursor(crtc, false);
+
+	return ret;
+}
+
+static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
+				     struct drm_file *file_priv,
+				     uint32_t handle,
+				     uint32_t width,
+				     uint32_t height,
+				     int32_t hot_x,
+				     int32_t hot_y)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_gem_object *obj;
@@ -2505,7 +2533,7 @@ static int dce_v8_0_crtc_cursor_set(struct drm_crtc *crtc,
 	amdgpu_crtc->cursor_height = height;
 
 	dce_v8_0_lock_cursor(crtc, true);
-	dce_v8_0_set_cursor(crtc, obj, gpu_addr);
+	dce_v8_0_set_cursor(crtc, obj, gpu_addr, hot_x, hot_y);
 	dce_v8_0_show_cursor(crtc);
 	dce_v8_0_lock_cursor(crtc, false);
 
@@ -2553,7 +2581,7 @@ static void dce_v8_0_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs dce_v8_0_crtc_funcs = {
-	.cursor_set = dce_v8_0_crtc_cursor_set,
+	.cursor_set2 = dce_v8_0_crtc_cursor_set2,
 	.cursor_move = dce_v8_0_crtc_cursor_move,
 	.gamma_set = dce_v8_0_crtc_gamma_set,
 	.set_config = amdgpu_crtc_set_config,
