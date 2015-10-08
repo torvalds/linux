@@ -580,9 +580,9 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	 * hold all of the paths here
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
-		printk_in_rcu(KERN_WARNING "BTRFS: %s at logical %llu on dev "
+		btrfs_warn_in_rcu(fs_info, "%s at logical %llu on dev "
 			"%s, sector %llu, root %llu, inode %llu, offset %llu, "
-			"length %llu, links %u (path: %s)\n", swarn->errstr,
+			"length %llu, links %u (path: %s)", swarn->errstr,
 			swarn->logical, rcu_str_deref(swarn->dev->name),
 			(unsigned long long)swarn->sector, root, inum, offset,
 			min(isize - offset, (u64)PAGE_SIZE), nlink,
@@ -592,9 +592,9 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	return 0;
 
 err:
-	printk_in_rcu(KERN_WARNING "BTRFS: %s at logical %llu on dev "
+	btrfs_warn_in_rcu(fs_info, "%s at logical %llu on dev "
 		"%s, sector %llu, root %llu, inode %llu, offset %llu: path "
-		"resolving failed with ret=%d\n", swarn->errstr,
+		"resolving failed with ret=%d", swarn->errstr,
 		swarn->logical, rcu_str_deref(swarn->dev->name),
 		(unsigned long long)swarn->sector, root, inum, offset, ret);
 
@@ -649,10 +649,10 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 			ret = tree_backref_for_extent(&ptr, eb, &found_key, ei,
 						      item_size, &ref_root,
 						      &ref_level);
-			printk_in_rcu(KERN_WARNING
-				"BTRFS: %s at logical %llu on dev %s, "
+			btrfs_warn_in_rcu(fs_info,
+				"%s at logical %llu on dev %s, "
 				"sector %llu: metadata %s (level %d) in tree "
-				"%llu\n", errstr, swarn.logical,
+				"%llu", errstr, swarn.logical,
 				rcu_str_deref(dev->name),
 				(unsigned long long)swarn.sector,
 				ref_level ? "node" : "leaf",
