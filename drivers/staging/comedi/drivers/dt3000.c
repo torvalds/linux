@@ -704,15 +704,14 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->insn_config	= dt3k_dio_insn_config;
 	s->insn_bits	= dt3k_dio_insn_bits;
 
+	/* Memory subdevice */
 	s = &dev->subdevices[3];
-	/* mem subsystem */
 	s->type		= COMEDI_SUBD_MEMORY;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 0x1000;
-	s->insn_read	= dt3k_mem_insn_read;
 	s->maxdata	= 0xff;
-	s->len_chanlist	= 1;
 	s->range_table	= &range_unknown;
+	s->insn_read	= dt3k_mem_insn_read;
 
 	return 0;
 }
