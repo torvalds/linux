@@ -55,6 +55,7 @@ MODULE_FIRMWARE("amdgpu/carrizo_sdma.bin");
 MODULE_FIRMWARE("amdgpu/carrizo_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/fiji_sdma.bin");
 MODULE_FIRMWARE("amdgpu/fiji_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/stoney_sdma.bin");
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -122,6 +123,19 @@ static const u32 cz_mgcg_cgcg_init[] =
 	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
 };
 
+static const u32 stoney_golden_settings_a11[] =
+{
+	mmSDMA0_GFX_IB_CNTL, 0x00000100, 0x00000100,
+	mmSDMA0_POWER_CNTL, 0x00000800, 0x0003c800,
+	mmSDMA0_RLC0_IB_CNTL, 0x00000100, 0x00000100,
+	mmSDMA0_RLC1_IB_CNTL, 0x00000100, 0x00000100,
+};
+
+static const u32 stoney_mgcg_cgcg_init[] =
+{
+	mmSDMA0_CLK_CTRL, 0xffffffff, 0x00000100,
+};
+
 /*
  * sDMA - System DMA
  * Starting with CIK, the GPU has new asynchronous
@@ -166,6 +180,14 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 						 cz_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
 		break;
+	case CHIP_STONEY:
+		amdgpu_program_register_sequence(adev,
+						 stoney_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 stoney_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
+		break;
 	default:
 		break;
 	}
@@ -200,6 +222,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_CARRIZO:
 		chip_name = "carrizo";
+		break;
+	case CHIP_STONEY:
+		chip_name = "stoney";
 		break;
 	default: BUG();
 	}
@@ -1071,6 +1096,9 @@ static int sdma_v3_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		adev->sdma.num_instances = 1;
+		break;
 	default:
 		adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 		break;
