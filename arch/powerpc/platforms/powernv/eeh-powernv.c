@@ -471,7 +471,7 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
 	bool freeze_pe = false;
-	int opt, ret = 0;
+	int opt;
 	s64 rc;
 
 	switch (option) {
@@ -494,38 +494,37 @@ static int pnv_eeh_set_option(struct eeh_pe *pe, int option)
 		return -EINVAL;
 	}
 
-	/* If PHB supports compound PE, to handle it */
+	/* Freeze master and slave PEs if PHB supports compound PEs */
 	if (freeze_pe) {
 		if (phb->freeze_pe) {
 			phb->freeze_pe(phb, pe->addr);
-		} else {
-			rc = opal_pci_eeh_freeze_set(phb->opal_id,
-						     pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld freezing "
-					"PHB#%x-PE#%x\n",
-					__func__, rc,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+			return 0;
 		}
-	} else {
-		if (phb->unfreeze_pe) {
-			ret = phb->unfreeze_pe(phb, pe->addr, opt);
-		} else {
-			rc = opal_pci_eeh_freeze_clear(phb->opal_id,
-						       pe->addr, opt);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld enable %d "
-					"for PHB#%x-PE#%x\n",
-					__func__, rc, option,
-					phb->hose->global_number, pe->addr);
-				ret = -EIO;
-			}
+
+		rc = opal_pci_eeh_freeze_set(phb->opal_id, pe->addr, opt);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld freezing PHB#%x-PE#%x\n",
+				__func__, rc, phb->hose->global_number,
+				pe->addr);
+			return -EIO;
 		}
+
+		return 0;
 	}
 
-	return ret;
+	/* Unfreeze master and slave PEs if PHB supports */
+	if (phb->unfreeze_pe)
+		return phb->unfreeze_pe(phb, pe->addr, opt);
+
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe->addr, opt);
+	if (rc != OPAL_SUCCESS) {
+		pr_warn("%s: Failure %lld enable %d for PHB#%x-PE#%x\n",
+			__func__, rc, option, phb->hose->global_number,
+			pe->addr);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
