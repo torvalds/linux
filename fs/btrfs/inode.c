@@ -1776,8 +1776,8 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 
 		if (root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID
 		    && do_list && !(state->state & EXTENT_NORESERVE))
-			btrfs_free_reserved_data_space(inode, state->start,
-						       len);
+			btrfs_free_reserved_data_space_noquota(inode,
+					state->start, len);
 
 		__percpu_counter_add(&root->fs_info->delalloc_bytes, -len,
 				     root->fs_info->delalloc_batch);

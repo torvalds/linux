@@ -4066,10 +4066,12 @@ int btrfs_check_data_free_space(struct inode *inode, u64 start, u64 len)
  * Called if we need to clear a data reservation for this inode
  * Normally in a error case.
  *
- * This one will handle the per-indoe data rsv map for accurate reserved
- * space framework.
+ * This one will *NOT* use accurate qgroup reserved space API, just for case
+ * which we can't sleep and is sure it won't affect qgroup reserved space.
+ * Like clear_bit_hook().
  */
-void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
+void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
+					    u64 len)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_space_info *data_sinfo;
@@ -4078,13 +4080,6 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
 	len = round_up(start + len, root->sectorsize) -
 	      round_down(start, root->sectorsize);
 	start = round_down(start, root->sectorsize);
-
-	/*
-	 * Free any reserved qgroup data space first
-	 * As it will alloc memory, we can't do it with data sinfo
-	 * spinlock hold.
-	 */
-	btrfs_qgroup_free_data(inode, start, len);
 
 	data_sinfo = root->fs_info->data_sinfo;
 	spin_lock(&data_sinfo->lock);
@@ -4095,6 +4090,19 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
 				      data_sinfo->flags, len, 0);
 	spin_unlock(&data_sinfo->lock);
+}
+
+/*
+ * Called if we need to clear a data reservation for this inode
+ * Normally in a error case.
+ *
+ * This one will handle the per-indoe data rsv map for accurate reserved
+ * space framework.
+ */
+void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
+{
+	btrfs_free_reserved_data_space_noquota(inode, start, len);
+	btrfs_qgroup_free_data(inode, start, len);
 }
 
 static void force_metadata_allocation(struct btrfs_fs_info *info)
