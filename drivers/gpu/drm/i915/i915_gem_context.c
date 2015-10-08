@@ -138,7 +138,7 @@ static void i915_gem_context_clean(struct intel_context *ctx)
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
 	struct i915_vma *vma, *next;
 
-	if (WARN_ON_ONCE(!ppgtt))
+	if (!ppgtt)
 		return;
 
 	WARN_ON(!list_empty(&ppgtt->base.active_list));
