@@ -1845,34 +1845,34 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 	struct tcrypt_result result;
 	unsigned int out_len_max, out_len = 0;
 	int err = -ENOMEM;
+	struct scatterlist src, dst, src_tab[2];
 
 	req = akcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
 		return err;
 
 	init_completion(&result.completion);
-	err = crypto_akcipher_setkey(tfm, vecs->key, vecs->key_len);
+
+	if (vecs->public_key_vec)
+		err = crypto_akcipher_set_pub_key(tfm, vecs->key,
+						  vecs->key_len);
+	else
+		err = crypto_akcipher_set_priv_key(tfm, vecs->key,
+						   vecs->key_len);
 	if (err)
 		goto free_req;
 
-	akcipher_request_set_crypt(req, vecs->m, outbuf_enc, vecs->m_size,
-				   out_len);
-	/* expect this to fail, and update the required buf len */
-	crypto_akcipher_encrypt(req);
-	out_len = req->dst_len;
-	if (!out_len) {
-		err = -EINVAL;
-		goto free_req;
-	}
-
-	out_len_max = out_len;
-	err = -ENOMEM;
+	out_len_max = crypto_akcipher_maxsize(tfm);
 	outbuf_enc = kzalloc(out_len_max, GFP_KERNEL);
 	if (!outbuf_enc)
 		goto free_req;
 
-	akcipher_request_set_crypt(req, vecs->m, outbuf_enc, vecs->m_size,
-				   out_len);
+	sg_init_table(src_tab, 2);
+	sg_set_buf(&src_tab[0], vecs->m, 8);
+	sg_set_buf(&src_tab[1], vecs->m + 8, vecs->m_size - 8);
+	sg_init_one(&dst, outbuf_enc, out_len_max);
+	akcipher_request_set_crypt(req, src_tab, &dst, vecs->m_size,
+				   out_len_max);
 	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				      tcrypt_complete, &result);
 
@@ -1882,13 +1882,13 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		pr_err("alg: rsa: encrypt test failed. err %d\n", err);
 		goto free_all;
 	}
-	if (out_len != vecs->c_size) {
+	if (req->dst_len != vecs->c_size) {
 		pr_err("alg: rsa: encrypt test failed. Invalid output len\n");
 		err = -EINVAL;
 		goto free_all;
 	}
 	/* verify that encrypted message is equal to expected */
-	if (memcmp(vecs->c, outbuf_enc, vecs->c_size)) {
+	if (memcmp(vecs->c, sg_virt(req->dst), vecs->c_size)) {
 		pr_err("alg: rsa: encrypt test failed. Invalid output\n");
 		err = -EINVAL;
 		goto free_all;
@@ -1903,9 +1903,10 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		err = -ENOMEM;
 		goto free_all;
 	}
+	sg_init_one(&src, vecs->c, vecs->c_size);
+	sg_init_one(&dst, outbuf_dec, out_len_max);
 	init_completion(&result.completion);
-	akcipher_request_set_crypt(req, outbuf_enc, outbuf_dec, vecs->c_size,
-				   out_len);
+	akcipher_request_set_crypt(req, &src, &dst, vecs->c_size, out_len_max);
 
 	/* Run RSA decrypt - m = c^d mod n;*/
 	err = wait_async_op(&result, crypto_akcipher_decrypt(req));

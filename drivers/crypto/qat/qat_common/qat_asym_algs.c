@@ -51,7 +51,9 @@
 #include <crypto/akcipher.h>
 #include <linux/dma-mapping.h>
 #include <linux/fips.h>
-#include "qat_rsakey-asn1.h"
+#include <crypto/scatterwalk.h>
+#include "qat_rsapubkey-asn1.h"
+#include "qat_rsaprivkey-asn1.h"
 #include "icp_qat_fw_pke.h"
 #include "adf_accel_devices.h"
 #include "adf_transport.h"
@@ -106,6 +108,7 @@ struct qat_rsa_request {
 	dma_addr_t phy_in;
 	dma_addr_t phy_out;
 	char *src_align;
+	char *dst_align;
 	struct icp_qat_fw_pke_request req;
 	struct qat_rsa_ctx *ctx;
 	int err;
@@ -118,7 +121,6 @@ static void qat_rsa_cb(struct icp_qat_fw_pke_resp *resp)
 	struct device *dev = &GET_DEV(req->ctx->inst->accel_dev);
 	int err = ICP_QAT_FW_PKE_RESP_PKE_STAT_GET(
 				resp->pke_resp_hdr.comn_resp_flags);
-	char *ptr = areq->dst;
 
 	err = (err == ICP_QAT_FW_COMN_STATUS_FLAG_OK) ? 0 : -EINVAL;
 
@@ -129,23 +131,43 @@ static void qat_rsa_cb(struct icp_qat_fw_pke_resp *resp)
 		dma_unmap_single(dev, req->in.enc.m, req->ctx->key_sz,
 				 DMA_TO_DEVICE);
 
-	dma_unmap_single(dev, req->out.enc.c, req->ctx->key_sz,
-			 DMA_FROM_DEVICE);
+	areq->dst_len = req->ctx->key_sz;
+	if (req->dst_align) {
+		char *ptr = req->dst_align;
+
+		while (!(*ptr) && areq->dst_len) {
+			areq->dst_len--;
+			ptr++;
+		}
+
+		if (areq->dst_len != req->ctx->key_sz)
+			memmove(req->dst_align, ptr, areq->dst_len);
+
+		scatterwalk_map_and_copy(req->dst_align, areq->dst, 0,
+					 areq->dst_len, 1);
+
+		dma_free_coherent(dev, req->ctx->key_sz, req->dst_align,
+				  req->out.enc.c);
+	} else {
+		char *ptr = sg_virt(areq->dst);
+
+		while (!(*ptr) && areq->dst_len) {
+			areq->dst_len--;
+			ptr++;
+		}
+
+		if (sg_virt(areq->dst) != ptr && areq->dst_len)
+			memmove(sg_virt(areq->dst), ptr, areq->dst_len);
+
+		dma_unmap_single(dev, req->out.enc.c, req->ctx->key_sz,
+				 DMA_FROM_DEVICE);
+	}
+
 	dma_unmap_single(dev, req->phy_in, sizeof(struct qat_rsa_input_params),
 			 DMA_TO_DEVICE);
 	dma_unmap_single(dev, req->phy_out,
 			 sizeof(struct qat_rsa_output_params),
 			 DMA_TO_DEVICE);
-
-	areq->dst_len = req->ctx->key_sz;
-	/* Need to set the corect length of the output */
-	while (!(*ptr) && areq->dst_len) {
-		areq->dst_len--;
-		ptr++;
-	}
-
-	if (areq->dst_len != req->ctx->key_sz)
-		memmove(areq->dst, ptr, areq->dst_len);
 
 	akcipher_request_complete(areq, err);
 }
@@ -255,8 +277,16 @@ static int qat_rsa_enc(struct akcipher_request *req)
 	 * same as modulo n so in case it is different we need to allocate a
 	 * new buf and copy src data.
 	 * In other case we just need to map the user provided buffer.
+	 * Also need to make sure that it is in contiguous buffer.
 	 */
-	if (req->src_len < ctx->key_sz) {
+	if (sg_is_last(req->src) && req->src_len == ctx->key_sz) {
+		qat_req->src_align = NULL;
+		qat_req->in.enc.m = dma_map_single(dev, sg_virt(req->src),
+						   req->src_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev, qat_req->in.enc.m)))
+			return ret;
+
+	} else {
 		int shift = ctx->key_sz - req->src_len;
 
 		qat_req->src_align = dma_zalloc_coherent(dev, ctx->key_sz,
@@ -265,29 +295,39 @@ static int qat_rsa_enc(struct akcipher_request *req)
 		if (unlikely(!qat_req->src_align))
 			return ret;
 
-		memcpy(qat_req->src_align + shift, req->src, req->src_len);
+		scatterwalk_map_and_copy(qat_req->src_align + shift, req->src,
+					 0, req->src_len, 0);
+	}
+	if (sg_is_last(req->dst) && req->dst_len == ctx->key_sz) {
+		qat_req->dst_align = NULL;
+		qat_req->out.enc.c = dma_map_single(dev, sg_virt(req->dst),
+						    req->dst_len,
+						    DMA_FROM_DEVICE);
+
+		if (unlikely(dma_mapping_error(dev, qat_req->out.enc.c)))
+			goto unmap_src;
+
 	} else {
-		qat_req->src_align = NULL;
-		qat_req->in.enc.m = dma_map_single(dev, req->src, req->src_len,
-					   DMA_TO_DEVICE);
+		qat_req->dst_align = dma_zalloc_coherent(dev, ctx->key_sz,
+							 &qat_req->out.enc.c,
+							 GFP_KERNEL);
+		if (unlikely(!qat_req->dst_align))
+			goto unmap_src;
+
 	}
 	qat_req->in.in_tab[3] = 0;
-	qat_req->out.enc.c = dma_map_single(dev, req->dst, req->dst_len,
-					    DMA_FROM_DEVICE);
 	qat_req->out.out_tab[1] = 0;
 	qat_req->phy_in = dma_map_single(dev, &qat_req->in.enc.m,
 					 sizeof(struct qat_rsa_input_params),
 					 DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, qat_req->phy_in)))
+		goto unmap_dst;
+
 	qat_req->phy_out = dma_map_single(dev, &qat_req->out.enc.c,
 					  sizeof(struct qat_rsa_output_params),
-					    DMA_TO_DEVICE);
-
-	if (unlikely((!qat_req->src_align &&
-		      dma_mapping_error(dev, qat_req->in.enc.m)) ||
-		     dma_mapping_error(dev, qat_req->out.enc.c) ||
-		     dma_mapping_error(dev, qat_req->phy_in) ||
-		     dma_mapping_error(dev, qat_req->phy_out)))
-		goto unmap;
+					  DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, qat_req->phy_out)))
+		goto unmap_in_params;
 
 	msg->pke_mid.src_data_addr = qat_req->phy_in;
 	msg->pke_mid.dest_data_addr = qat_req->phy_out;
@@ -300,7 +340,7 @@ static int qat_rsa_enc(struct akcipher_request *req)
 
 	if (!ret)
 		return -EINPROGRESS;
-unmap:
+unmap_src:
 	if (qat_req->src_align)
 		dma_free_coherent(dev, ctx->key_sz, qat_req->src_align,
 				  qat_req->in.enc.m);
@@ -308,9 +348,15 @@ unmap:
 		if (!dma_mapping_error(dev, qat_req->in.enc.m))
 			dma_unmap_single(dev, qat_req->in.enc.m, ctx->key_sz,
 					 DMA_TO_DEVICE);
-	if (!dma_mapping_error(dev, qat_req->out.enc.c))
-		dma_unmap_single(dev, qat_req->out.enc.c, ctx->key_sz,
-				 DMA_FROM_DEVICE);
+unmap_dst:
+	if (qat_req->dst_align)
+		dma_free_coherent(dev, ctx->key_sz, qat_req->dst_align,
+				  qat_req->out.enc.c);
+	else
+		if (!dma_mapping_error(dev, qat_req->out.enc.c))
+			dma_unmap_single(dev, qat_req->out.enc.c, ctx->key_sz,
+					 DMA_FROM_DEVICE);
+unmap_in_params:
 	if (!dma_mapping_error(dev, qat_req->phy_in))
 		dma_unmap_single(dev, qat_req->phy_in,
 				 sizeof(struct qat_rsa_input_params),
@@ -362,8 +408,16 @@ static int qat_rsa_dec(struct akcipher_request *req)
 	 * same as modulo n so in case it is different we need to allocate a
 	 * new buf and copy src data.
 	 * In other case we just need to map the user provided buffer.
+	 * Also need to make sure that it is in contiguous buffer.
 	 */
-	if (req->src_len < ctx->key_sz) {
+	if (sg_is_last(req->src) && req->src_len == ctx->key_sz) {
+		qat_req->src_align = NULL;
+		qat_req->in.dec.c = dma_map_single(dev, sg_virt(req->src),
+						   req->dst_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev, qat_req->in.dec.c)))
+			return ret;
+
+	} else {
 		int shift = ctx->key_sz - req->src_len;
 
 		qat_req->src_align = dma_zalloc_coherent(dev, ctx->key_sz,
@@ -372,29 +426,40 @@ static int qat_rsa_dec(struct akcipher_request *req)
 		if (unlikely(!qat_req->src_align))
 			return ret;
 
-		memcpy(qat_req->src_align + shift, req->src, req->src_len);
-	} else {
-		qat_req->src_align = NULL;
-		qat_req->in.dec.c = dma_map_single(dev, req->src, req->src_len,
-						   DMA_TO_DEVICE);
+		scatterwalk_map_and_copy(qat_req->src_align + shift, req->src,
+					 0, req->src_len, 0);
 	}
+	if (sg_is_last(req->dst) && req->dst_len == ctx->key_sz) {
+		qat_req->dst_align = NULL;
+		qat_req->out.dec.m = dma_map_single(dev, sg_virt(req->dst),
+						    req->dst_len,
+						    DMA_FROM_DEVICE);
+
+		if (unlikely(dma_mapping_error(dev, qat_req->out.dec.m)))
+			goto unmap_src;
+
+	} else {
+		qat_req->dst_align = dma_zalloc_coherent(dev, ctx->key_sz,
+							 &qat_req->out.dec.m,
+							 GFP_KERNEL);
+		if (unlikely(!qat_req->dst_align))
+			goto unmap_src;
+
+	}
+
 	qat_req->in.in_tab[3] = 0;
-	qat_req->out.dec.m = dma_map_single(dev, req->dst, req->dst_len,
-					    DMA_FROM_DEVICE);
 	qat_req->out.out_tab[1] = 0;
 	qat_req->phy_in = dma_map_single(dev, &qat_req->in.dec.c,
 					 sizeof(struct qat_rsa_input_params),
 					 DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, qat_req->phy_in)))
+		goto unmap_dst;
+
 	qat_req->phy_out = dma_map_single(dev, &qat_req->out.dec.m,
 					  sizeof(struct qat_rsa_output_params),
-					    DMA_TO_DEVICE);
-
-	if (unlikely((!qat_req->src_align &&
-		      dma_mapping_error(dev, qat_req->in.dec.c)) ||
-		     dma_mapping_error(dev, qat_req->out.dec.m) ||
-		     dma_mapping_error(dev, qat_req->phy_in) ||
-		     dma_mapping_error(dev, qat_req->phy_out)))
-		goto unmap;
+					  DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, qat_req->phy_out)))
+		goto unmap_in_params;
 
 	msg->pke_mid.src_data_addr = qat_req->phy_in;
 	msg->pke_mid.dest_data_addr = qat_req->phy_out;
@@ -407,7 +472,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 
 	if (!ret)
 		return -EINPROGRESS;
-unmap:
+unmap_src:
 	if (qat_req->src_align)
 		dma_free_coherent(dev, ctx->key_sz, qat_req->src_align,
 				  qat_req->in.dec.c);
@@ -415,9 +480,15 @@ unmap:
 		if (!dma_mapping_error(dev, qat_req->in.dec.c))
 			dma_unmap_single(dev, qat_req->in.dec.c, ctx->key_sz,
 					 DMA_TO_DEVICE);
-	if (!dma_mapping_error(dev, qat_req->out.dec.m))
-		dma_unmap_single(dev, qat_req->out.dec.m, ctx->key_sz,
-				 DMA_FROM_DEVICE);
+unmap_dst:
+	if (qat_req->dst_align)
+		dma_free_coherent(dev, ctx->key_sz, qat_req->dst_align,
+				  qat_req->out.dec.m);
+	else
+		if (!dma_mapping_error(dev, qat_req->out.dec.m))
+			dma_unmap_single(dev, qat_req->out.dec.m, ctx->key_sz,
+					 DMA_FROM_DEVICE);
+unmap_in_params:
 	if (!dma_mapping_error(dev, qat_req->phy_in))
 		dma_unmap_single(dev, qat_req->phy_in,
 				 sizeof(struct qat_rsa_input_params),
@@ -531,7 +602,7 @@ err:
 }
 
 static int qat_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
-			  unsigned int keylen)
+			  unsigned int keylen, bool private)
 {
 	struct qat_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct device *dev = &GET_DEV(ctx->inst->accel_dev);
@@ -550,12 +621,23 @@ static int qat_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	ctx->n = NULL;
 	ctx->e = NULL;
 	ctx->d = NULL;
-	ret = asn1_ber_decoder(&qat_rsakey_decoder, ctx, key, keylen);
+
+	if (private)
+		ret = asn1_ber_decoder(&qat_rsaprivkey_decoder, ctx, key,
+				       keylen);
+	else
+		ret = asn1_ber_decoder(&qat_rsapubkey_decoder, ctx, key,
+				       keylen);
 	if (ret < 0)
 		goto free;
 
 	if (!ctx->n || !ctx->e) {
 		/* invalid key provided */
+		ret = -EINVAL;
+		goto free;
+	}
+	if (private && !ctx->d) {
+		/* invalid private key provided */
 		ret = -EINVAL;
 		goto free;
 	}
@@ -577,6 +659,25 @@ free:
 		ctx->key_sz = 0;
 	}
 	return ret;
+}
+
+static int qat_rsa_setpubkey(struct crypto_akcipher *tfm, const void *key,
+			     unsigned int keylen)
+{
+	return qat_rsa_setkey(tfm, key, keylen, false);
+}
+
+static int qat_rsa_setprivkey(struct crypto_akcipher *tfm, const void *key,
+			      unsigned int keylen)
+{
+	return qat_rsa_setkey(tfm, key, keylen, true);
+}
+
+static int qat_rsa_max_size(struct crypto_akcipher *tfm)
+{
+	struct qat_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+
+	return (ctx->n) ? ctx->key_sz : -EINVAL;
 }
 
 static int qat_rsa_init_tfm(struct crypto_akcipher *tfm)
@@ -617,7 +718,9 @@ static struct akcipher_alg rsa = {
 	.decrypt = qat_rsa_dec,
 	.sign = qat_rsa_dec,
 	.verify = qat_rsa_enc,
-	.setkey = qat_rsa_setkey,
+	.set_pub_key = qat_rsa_setpubkey,
+	.set_priv_key = qat_rsa_setprivkey,
+	.max_size = qat_rsa_max_size,
 	.init = qat_rsa_init_tfm,
 	.exit = qat_rsa_exit_tfm,
 	.reqsize = sizeof(struct qat_rsa_request) + 64,
