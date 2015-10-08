@@ -226,7 +226,7 @@ int scsi_dh_add_device(struct scsi_device *sdev)
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
-		devinfo = scsi_dh_lookup(drv);
+		devinfo = __scsi_dh_lookup(drv);
 	if (devinfo)
 		err = scsi_dh_handler_attach(sdev, devinfo);
 	return err;
