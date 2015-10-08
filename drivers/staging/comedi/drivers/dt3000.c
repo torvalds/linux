@@ -721,12 +721,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->len_chanlist	= 1;
 	s->range_table	= &range_unknown;
 
-#if 0
-	s = &dev->subdevices[4];
-	/* proc subsystem */
-	s->type = COMEDI_SUBD_PROC;
-#endif
-
 	return 0;
 }
 
