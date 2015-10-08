@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/irqdomain.h>
+#include <linux/of_irq.h>
 
 #include "pci.h"
 
@@ -1326,5 +1327,36 @@ struct irq_domain *pci_msi_create_default_irq_domain(struct fwnode_handle *fwnod
 	mutex_unlock(&pci_msi_domain_lock);
 
 	return domain;
+}
+
+static int get_msi_id_cb(struct pci_dev *pdev, u16 alias, void *data)
+{
+	u32 *pa = data;
+
+	*pa = alias;
+	return 0;
+}
+/**
+ * pci_msi_domain_get_msi_rid - Get the MSI requester id (RID)
+ * @domain:	The interrupt domain
+ * @pdev:	The PCI device.
+ *
+ * The RID for a device is formed from the alias, with a firmware
+ * supplied mapping applied
+ *
+ * Returns: The RID.
+ */
+u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
+{
+	struct device_node *of_node;
+	u32 rid = 0;
+
+	pci_for_each_dma_alias(pdev, get_msi_id_cb, &rid);
+
+	of_node = irq_domain_get_of_node(domain);
+	if (of_node)
+		rid = of_msi_map_rid(&pdev->dev, of_node, rid);
+
+	return rid;
 }
 #endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */
