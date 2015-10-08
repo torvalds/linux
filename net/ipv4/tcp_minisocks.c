@@ -768,6 +768,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (!child)
 		goto listen_overflow;
 
+	sock_rps_save_rxhash(child, skb);
 	tcp_synack_rtt_meas(child, req);
 	inet_csk_reqsk_queue_drop(sk, req);
 	inet_csk_reqsk_queue_add(sk, req, child);
