@@ -369,21 +369,16 @@ out:
  * Data may be placed either in a user or kernel buffer.
  */
 ssize_t pvfs2_inode_read(struct inode *inode,
-			 char __user *buf,
-			 size_t count,
+			 struct iov_iter *iter,
 			 loff_t *offset,
 			 loff_t readahead_size)
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
+	size_t count = iov_iter_count(iter);
 	size_t bufmap_size;
-	struct iovec vec;
-	struct iov_iter iter;
 	ssize_t ret = -EINVAL;
 
 	g_pvfs2_stats.reads++;
-
-	vec.iov_base = buf;
-	vec.iov_len = count;
 
 	bufmap_size = pvfs_bufmap_size_query();
 	if (count > bufmap_size) {
@@ -400,8 +395,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 		     count,
 		     llu(*offset));
 
-	iov_iter_init(&iter, READ, &vec, 1, count);
-	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, &iter,
+	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, iter,
 			count, readahead_size);
 	if (ret > 0)
 		*offset += ret;

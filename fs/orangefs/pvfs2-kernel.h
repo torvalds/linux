@@ -605,8 +605,7 @@ struct inode *pvfs2_iget(struct super_block *sb,
 			 struct pvfs2_object_kref *ref);
 
 ssize_t pvfs2_inode_read(struct inode *inode,
-			 char __user *buf,
-			 size_t count,
+			 struct iov_iter *iter,
 			 loff_t *offset,
 			 loff_t readahead_size);
 

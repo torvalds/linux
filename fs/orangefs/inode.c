@@ -14,18 +14,20 @@
 
 static int read_one_page(struct page *page)
 {
-	void *page_data;
 	int ret;
 	int max_block;
 	ssize_t bytes_read = 0;
 	struct inode *inode = page->mapping->host;
 	const __u32 blocksize = PAGE_CACHE_SIZE;	/* inode->i_blksize */
 	const __u32 blockbits = PAGE_CACHE_SHIFT;	/* inode->i_blkbits */
+	struct iov_iter to;
+	struct bio_vec bv = {.bv_page = page, .bv_len = PAGE_SIZE};
+
+	iov_iter_bvec(&to, ITER_BVEC | READ, &bv, 1, PAGE_SIZE);
 
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		    "pvfs2_readpage called with page %p\n",
 		     page);
-	page_data = pvfs2_kmap(page);
 
 	max_block = ((inode->i_size / blocksize) + 1);
 
@@ -33,16 +35,12 @@ static int read_one_page(struct page *page)
 		loff_t blockptr_offset = (((loff_t) page->index) << blockbits);
 
 		bytes_read = pvfs2_inode_read(inode,
-					      (char __user *) page_data,
-					      blocksize,
+					      &to,
 					      &blockptr_offset,
 					      inode->i_size);
 	}
-	/* only zero remaining unread portions of the page data */
-	if (bytes_read > 0)
-		memset(page_data + bytes_read, 0, blocksize - bytes_read);
-	else
-		memset(page_data, 0, blocksize);
+	/* this will only zero remaining unread portions of the page data */
+	iov_iter_zero(~0U, &to);
 	/* takes care of potential aliasing */
 	flush_dcache_page(page);
 	if (bytes_read < 0) {
@@ -54,7 +52,6 @@ static int read_one_page(struct page *page)
 			ClearPageError(page);
 		ret = 0;
 	}
-	pvfs2_kunmap(page);
 	/* unlock the page after the ->readpage() routine completes */
 	unlock_page(page);
 	return ret;
