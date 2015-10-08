@@ -78,6 +78,14 @@
 #define DPR_AD_BUF_REAR		(4 * 0xffa)
 #define DPR_INT_MASK		(4 * 0xffb)
 #define DPR_INTR_FLAG		(4 * 0xffc)
+#define DPR_INTR_CMDONE		BIT(7)
+#define DPR_INTR_CTDONE		BIT(6)
+#define DPR_INTR_DAHWERR	BIT(5)
+#define DPR_INTR_DASWERR	BIT(4)
+#define DPR_INTR_DAEMPTY	BIT(3)
+#define DPR_INTR_ADHWERR	BIT(2)
+#define DPR_INTR_ADSWERR	BIT(1)
+#define DPR_INTR_ADFULL		BIT(0)
 #define DPR_RESPONSE_MBX	(4 * 0xffe)
 #define DPR_CMD_MBX		(4 * 0xfff)
 #define DPR_CMD_COMPLETION(x)	((x) << 8)
@@ -215,16 +223,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define AI_FIFO_DEPTH	2003
 #define AO_FIFO_DEPTH	2048
 
-/* interrupt flags */
-#define DT3000_CMDONE		0x80
-#define DT3000_CTDONE		0x40
-#define DT3000_DAHWERR		0x20
-#define DT3000_DASWERR		0x10
-#define DT3000_DAEMPTY		0x08
-#define DT3000_ADHWERR		0x04
-#define DT3000_ADSWERR		0x02
-#define DT3000_ADFULL		0x01
-
 #define DT3000_EXTERNAL_CLOCK	1
 #define DT3000_RISING_EDGE	2
 
@@ -348,10 +346,10 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 
 	status = readw(dev->mmio + DPR_INTR_FLAG);
 
-	if (status & DT3000_ADFULL)
+	if (status & DPR_INTR_ADFULL)
 		dt3k_ai_empty_fifo(dev, s);
 
-	if (status & (DT3000_ADSWERR | DT3000_ADHWERR))
+	if (status & (DPR_INTR_ADSWERR | DPR_INTR_ADHWERR))
 		s->async->events |= COMEDI_CB_ERROR;
 
 	debug_n_ints++;
@@ -513,7 +511,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
 
-	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
+	writew(DPR_INTR_ADFULL | DPR_INTR_ADSWERR | DPR_INTR_ADHWERR,
 	       dev->mmio + DPR_INT_MASK);
 
 	debug_n_ints = 0;
