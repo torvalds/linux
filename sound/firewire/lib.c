@@ -76,6 +76,9 @@ static void async_midi_port_callback(struct fw_card *card, int rcode,
 
 	if (rcode == RCODE_COMPLETE && substream != NULL)
 		snd_rawmidi_transmit_ack(substream, port->consume_bytes);
+	else if (!rcode_is_permanent_error(rcode))
+		/* To start next transaction immediately for recovery. */
+		port->next_ktime = ktime_set(0, 0);
 
 	port->idling = true;
 
@@ -99,6 +102,12 @@ static void midi_port_work(struct work_struct *work)
 	if (substream == NULL || snd_rawmidi_transmit_empty(substream))
 		return;
 
+	/* Do it in next chance. */
+	if (ktime_after(port->next_ktime, ktime_get())) {
+		schedule_work(&port->work);
+		return;
+	}
+
 	/*
 	 * Fill the buffer. The callee must use snd_rawmidi_transmit_peek().
 	 * Later, snd_rawmidi_transmit_ack() is called.
@@ -107,8 +116,10 @@ static void midi_port_work(struct work_struct *work)
 	port->consume_bytes = port->fill(substream, port->buf);
 	if (port->consume_bytes <= 0) {
 		/* Do it in next chance, immediately. */
-		if (port->consume_bytes == 0)
+		if (port->consume_bytes == 0) {
+			port->next_ktime = ktime_set(0, 0);
 			schedule_work(&port->work);
+		}
 		return;
 	}
 
@@ -117,6 +128,10 @@ static void midi_port_work(struct work_struct *work)
 		type = TCODE_WRITE_QUADLET_REQUEST;
 	else
 		type = TCODE_WRITE_BLOCK_REQUEST;
+
+	/* Set interval to next transaction. */
+	port->next_ktime = ktime_add_ns(ktime_get(),
+				port->consume_bytes * 8 * NSEC_PER_SEC / 31250);
 
 	/* Start this transaction. */
 	port->idling = false;
@@ -162,6 +177,7 @@ int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
 	port->addr = addr;
 	port->fill = fill;
 	port->idling = true;
+	port->next_ktime = ktime_set(0, 0);
 
 	INIT_WORK(&port->work, midi_port_work);
 

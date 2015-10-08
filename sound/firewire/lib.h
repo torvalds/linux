@@ -31,6 +31,7 @@ struct snd_fw_async_midi_port {
 	struct fw_device *parent;
 	struct work_struct work;
 	bool idling;
+	ktime_t next_ktime;
 
 	u64 addr;
 	struct fw_transaction transaction;
