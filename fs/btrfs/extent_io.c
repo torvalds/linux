@@ -5563,13 +5563,15 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		printk(KERN_ERR "BTRFS: memmove bogus src_offset %lu move "
-		       "len %lu dst len %lu\n", src_offset, len, dst->len);
+		btrfs_err(dst->fs_info,
+			"memmove bogus src_offset %lu move "
+		       "len %lu dst len %lu", src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		printk(KERN_ERR "BTRFS: memmove bogus dst_offset %lu move "
-		       "len %lu dst len %lu\n", dst_offset, len, dst->len);
+		btrfs_err(dst->fs_info,
+			"memmove bogus dst_offset %lu move "
+		       "len %lu dst len %lu", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}
 
@@ -5609,13 +5611,13 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	unsigned long src_i;
 
 	if (src_offset + len > dst->len) {
-		printk(KERN_ERR "BTRFS: memmove bogus src_offset %lu move "
-		       "len %lu len %lu\n", src_offset, len, dst->len);
+		btrfs_err(dst->fs_info, "memmove bogus src_offset %lu move "
+		       "len %lu len %lu", src_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
-		printk(KERN_ERR "BTRFS: memmove bogus dst_offset %lu move "
-		       "len %lu len %lu\n", dst_offset, len, dst->len);
+		btrfs_err(dst->fs_info, "memmove bogus dst_offset %lu move "
+		       "len %lu len %lu", dst_offset, len, dst->len);
 		BUG_ON(1);
 	}
 	if (dst_offset < src_offset) {

@@ -2352,7 +2352,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 						root->fs_info->fsid);
 		if (kobject_rename(&root->fs_info->fs_devices->super_kobj,
 								fsid_buf))
-			pr_warn("BTRFS: sysfs: failed to create fsid for sprout\n");
+			btrfs_warn(root->fs_info,
+				"sysfs: failed to create fsid for sprout");
 	}
 
 	root->fs_info->num_tolerated_disk_barrier_failures =
