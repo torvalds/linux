@@ -31,7 +31,7 @@ int read_log(struct tpm_bios_log *log)
 		return -EFAULT;
 	}
 
-	np = of_find_node_by_name(NULL, "ibm,vtpm");
+	np = of_find_node_by_name(NULL, "vtpm");
 	if (!np) {
 		pr_err("%s: ERROR - IBMVTPM not supported\n", __func__);
 		return -ENODEV;
