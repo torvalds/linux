@@ -1886,6 +1886,18 @@ sub dump_typedef($$) {
 			    'purpose' => $declaration_purpose
 			   });
     }
+    elsif ($x =~ /typedef\s+\w+\s*\(\*\s*(\w\S+)\s*\)\s*\(/) { # functions
+	$declaration_name = $1;
+
+	output_declaration($declaration_name,
+			   'typedef',
+			   {'typedef' => $declaration_name,
+			    'module' => $modulename,
+			    'sectionlist' => \@sectionlist,
+			    'sections' => \%sections,
+			    'purpose' => $declaration_purpose
+			   });
+    }
     else {
 	print STDERR "${file}:$.: error: Cannot parse typedef!\n";
 	++$errors;
