@@ -332,16 +332,20 @@ struct dmx_frontend {
  * MPEG-2 TS Demux
  */
 
-/*
- * Flags OR'ed in the capabilities field of struct dmx_demux.
+/**
+ * enum dmx_demux_caps - MPEG-2 TS Demux capabilities bitmap
+ *
+ * @DMX_TS_FILTERING:		set if TS filtering is supported;
+ * @DMX_SECTION_FILTERING:	set if section filtering is supported;
+ * @DMX_MEMORY_BASED_FILTERING:	set if write() available.
+ *
+ * Those flags are OR'ed in the &dmx_demux.&capabilities field
  */
-
-#define DMX_TS_FILTERING                        1
-#define DMX_PES_FILTERING                       2
-#define DMX_SECTION_FILTERING                   4
-#define DMX_MEMORY_BASED_FILTERING              8    /* write() available */
-#define DMX_CRC_CHECKING                        16
-#define DMX_TS_DESCRAMBLING                     32
+enum dmx_demux_caps {
+	DMX_TS_FILTERING = 1,
+	DMX_SECTION_FILTERING = 4,
+	DMX_MEMORY_BASED_FILTERING = 8,
+};
 
 /*
  * Demux resource type identifier.
@@ -361,7 +365,7 @@ struct dmx_frontend {
  * struct dmx_demux - Structure that contains the demux capabilities and
  *		      callbacks.
  *
- * @capabilities: Bitfield of capability flags
+ * @capabilities: Bitfield of capability flags.
  *
  * @frontend: Front-end connected to the demux
  *
@@ -549,7 +553,7 @@ struct dmx_frontend {
  */
 
 struct dmx_demux {
-	u32 capabilities;
+	enum dmx_demux_caps capabilities;
 	struct dmx_frontend *frontend;
 	void *priv;
 	int (*open)(struct dmx_demux *demux);
