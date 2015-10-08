@@ -94,7 +94,7 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
  * Post and wait for the I/O upcall to finish
  */
 static ssize_t wait_for_direct_io(enum PVFS_io_type type, struct inode *inode,
-		loff_t *offset, struct iovec *vec, unsigned long nr_segs,
+		loff_t *offset, struct iov_iter *iter,
 		size_t total_size, loff_t readahead_size)
 {
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
@@ -137,10 +137,9 @@ populate_shared_memory:
 	new_op->upcall.req.io.offset = *offset;
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "%s(%pU): nr_segs %lu, offset: %llu total_size: %zd\n",
+		     "%s(%pU): offset: %llu total_size: %zd\n",
 		     __func__,
 		     handle,
-		     nr_segs,
 		     llu(*offset),
 		     total_size);
 	/*
@@ -148,11 +147,9 @@ populate_shared_memory:
 	 * precopy_buffers only pertains to writes.
 	 */
 	if (type == PVFS_IO_WRITE) {
-		struct iov_iter iter;
-		iov_iter_init(&iter, WRITE, vec, nr_segs, total_size);
 		ret = precopy_buffers(bufmap,
 				      buffer_index,
-				      &iter,
+				      iter,
 				      total_size);
 		if (ret < 0)
 			goto out;
@@ -213,11 +210,9 @@ populate_shared_memory:
 	 * postcopy_buffers only pertains to reads.
 	 */
 	if (type == PVFS_IO_READ) {
-		struct iov_iter iter;
-		iov_iter_init(&iter, READ, vec, nr_segs, new_op->downcall.resp.io.amt_complete);
 		ret = postcopy_buffers(bufmap,
 				       buffer_index,
-				       &iter,
+				       iter,
 				       new_op->downcall.resp.io.amt_complete);
 		if (ret < 0) {
 			/*
@@ -563,6 +558,7 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 #endif
 	seg = 0;
 	while (total_count < count) {
+		struct iov_iter iter;
 		size_t each_count;
 		size_t amt_complete;
 
@@ -583,8 +579,11 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 			     handle,
 			     (int)*offset);
 
-		ret = wait_for_direct_io(type, inode, offset, ptr,
-				seg_array[seg], each_count, 0);
+		iov_iter_init(&iter, type == PVFS_IO_READ ? READ : WRITE,
+			      ptr, seg_array[seg], each_count);
+
+		ret = wait_for_direct_io(type, inode, offset, &iter,
+				each_count, 0);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
@@ -654,6 +653,7 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	size_t bufmap_size;
 	struct iovec vec;
+	struct iov_iter iter;
 	ssize_t ret = -EINVAL;
 
 	g_pvfs2_stats.reads++;
@@ -676,7 +676,8 @@ ssize_t pvfs2_inode_read(struct inode *inode,
 		     count,
 		     llu(*offset));
 
-	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, &vec, 1,
+	iov_iter_init(&iter, READ, &vec, 1, count);
+	ret = wait_for_direct_io(PVFS_IO_READ, inode, offset, &iter,
 			count, readahead_size);
 	if (ret > 0)
 		*offset += ret;
