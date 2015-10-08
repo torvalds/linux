@@ -300,7 +300,11 @@ struct iser_tx_desc {
 	int                          num_sge;
 	bool			     mapped;
 	u8                           wr_idx;
-	struct ib_send_wr            wrs[ISER_MAX_WRS];
+	union iser_wr {
+		struct ib_send_wr		send;
+		struct ib_fast_reg_wr		fast_reg;
+		struct ib_sig_handover_wr	sig;
+	} wrs[ISER_MAX_WRS];
 	struct iser_mem_reg          data_reg;
 	struct iser_mem_reg          prot_reg;
 	struct ib_sig_attrs          sig_attrs;
@@ -712,11 +716,11 @@ iser_reg_desc_put_fmr(struct ib_conn *ib_conn,
 static inline struct ib_send_wr *
 iser_tx_next_wr(struct iser_tx_desc *tx_desc)
 {
-	struct ib_send_wr *cur_wr = &tx_desc->wrs[tx_desc->wr_idx];
+	struct ib_send_wr *cur_wr = &tx_desc->wrs[tx_desc->wr_idx].send;
 	struct ib_send_wr *last_wr;
 
 	if (tx_desc->wr_idx) {
-		last_wr = &tx_desc->wrs[tx_desc->wr_idx - 1];
+		last_wr = &tx_desc->wrs[tx_desc->wr_idx - 1].send;
 		last_wr->next = cur_wr;
 	}
 	tx_desc->wr_idx++;

@@ -683,7 +683,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 {
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
 	struct ib_sig_attrs *sig_attrs = &tx_desc->sig_attrs;
-	struct ib_send_wr *wr;
+	struct ib_sig_handover_wr *wr;
 	int ret;
 
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
@@ -693,26 +693,24 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 
 	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
-	if (!pi_ctx->sig_mr_valid) {
-		wr = iser_tx_next_wr(tx_desc);
-		iser_inv_rkey(wr, pi_ctx->sig_mr);
-	}
+	if (!pi_ctx->sig_mr_valid)
+		iser_inv_rkey(iser_tx_next_wr(tx_desc), pi_ctx->sig_mr);
 
-	wr = iser_tx_next_wr(tx_desc);
-	wr->opcode = IB_WR_REG_SIG_MR;
-	wr->wr_id = ISER_FASTREG_LI_WRID;
-	wr->sg_list = &data_reg->sge;
-	wr->num_sge = 1;
-	wr->send_flags = 0;
-	wr->wr.sig_handover.sig_attrs = sig_attrs;
-	wr->wr.sig_handover.sig_mr = pi_ctx->sig_mr;
+	wr = sig_handover_wr(iser_tx_next_wr(tx_desc));
+	wr->wr.opcode = IB_WR_REG_SIG_MR;
+	wr->wr.wr_id = ISER_FASTREG_LI_WRID;
+	wr->wr.sg_list = &data_reg->sge;
+	wr->wr.num_sge = 1;
+	wr->wr.send_flags = 0;
+	wr->sig_attrs = sig_attrs;
+	wr->sig_mr = pi_ctx->sig_mr;
 	if (scsi_prot_sg_count(iser_task->sc))
-		wr->wr.sig_handover.prot = &prot_reg->sge;
+		wr->prot = &prot_reg->sge;
 	else
-		wr->wr.sig_handover.prot = NULL;
-	wr->wr.sig_handover.access_flags = IB_ACCESS_LOCAL_WRITE |
-					   IB_ACCESS_REMOTE_READ |
-					   IB_ACCESS_REMOTE_WRITE;
+		wr->prot = NULL;
+	wr->access_flags = IB_ACCESS_LOCAL_WRITE |
+			   IB_ACCESS_REMOTE_READ |
+			   IB_ACCESS_REMOTE_WRITE;
 	pi_ctx->sig_mr_valid = 0;
 
 	sig_reg->sge.lkey = pi_ctx->sig_mr->lkey;
@@ -737,7 +735,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	struct ib_mr *mr = rsc->mr;
 	struct ib_fast_reg_page_list *frpl = rsc->frpl;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
-	struct ib_send_wr *wr;
+	struct ib_fast_reg_wr *wr;
 	int offset, size, plen;
 
 	plen = iser_sg_to_page_vec(mem, device->ib_device, frpl->page_list,
@@ -747,24 +745,22 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return -EINVAL;
 	}
 
-	if (!rsc->mr_valid) {
-		wr = iser_tx_next_wr(tx_desc);
-		iser_inv_rkey(wr, mr);
-	}
+	if (!rsc->mr_valid)
+		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr);
 
-	wr = iser_tx_next_wr(tx_desc);
-	wr->opcode = IB_WR_FAST_REG_MR;
-	wr->wr_id = ISER_FASTREG_LI_WRID;
-	wr->send_flags = 0;
-	wr->wr.fast_reg.iova_start = frpl->page_list[0] + offset;
-	wr->wr.fast_reg.page_list = frpl;
-	wr->wr.fast_reg.page_list_len = plen;
-	wr->wr.fast_reg.page_shift = SHIFT_4K;
-	wr->wr.fast_reg.length = size;
-	wr->wr.fast_reg.rkey = mr->rkey;
-	wr->wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE  |
-					IB_ACCESS_REMOTE_WRITE |
-					IB_ACCESS_REMOTE_READ);
+	wr = fast_reg_wr(iser_tx_next_wr(tx_desc));
+	wr->wr.opcode = IB_WR_FAST_REG_MR;
+	wr->wr.wr_id = ISER_FASTREG_LI_WRID;
+	wr->wr.send_flags = 0;
+	wr->iova_start = frpl->page_list[0] + offset;
+	wr->page_list = frpl;
+	wr->page_list_len = plen;
+	wr->page_shift = SHIFT_4K;
+	wr->length = size;
+	wr->rkey = mr->rkey;
+	wr->access_flags = (IB_ACCESS_LOCAL_WRITE  |
+			    IB_ACCESS_REMOTE_WRITE |
+			    IB_ACCESS_REMOTE_READ);
 	rsc->mr_valid = 0;
 
 	reg->sge.lkey = mr->lkey;

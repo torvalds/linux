@@ -59,7 +59,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	u32 length;
 	enum ib_qp_type sqptype, dqptype;
 
-	qp = qib_lookup_qpn(ibp, swqe->wr.wr.ud.remote_qpn);
+	qp = qib_lookup_qpn(ibp, swqe->ud_wr.remote_qpn);
 	if (!qp) {
 		ibp->n_pkt_drops++;
 		return;
@@ -76,7 +76,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 		goto drop;
 	}
 
-	ah_attr = &to_iah(swqe->wr.wr.ud.ah)->attr;
+	ah_attr = &to_iah(swqe->ud_wr.ah)->attr;
 	ppd = ppd_from_ibp(ibp);
 
 	if (qp->ibqp.qp_num > 1) {
@@ -106,8 +106,8 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	if (qp->ibqp.qp_num) {
 		u32 qkey;
 
-		qkey = (int)swqe->wr.wr.ud.remote_qkey < 0 ?
-			sqp->qkey : swqe->wr.wr.ud.remote_qkey;
+		qkey = (int)swqe->ud_wr.remote_qkey < 0 ?
+			sqp->qkey : swqe->ud_wr.remote_qkey;
 		if (unlikely(qkey != qp->qkey)) {
 			u16 lid;
 
@@ -210,7 +210,7 @@ static void qib_ud_loopback(struct qib_qp *sqp, struct qib_swqe *swqe)
 	wc.qp = &qp->ibqp;
 	wc.src_qp = sqp->ibqp.qp_num;
 	wc.pkey_index = qp->ibqp.qp_type == IB_QPT_GSI ?
-		swqe->wr.wr.ud.pkey_index : 0;
+		swqe->ud_wr.pkey_index : 0;
 	wc.slid = ppd->lid | (ah_attr->src_path_bits & ((1 << ppd->lmc) - 1));
 	wc.sl = ah_attr->sl;
 	wc.dlid_path_bits = ah_attr->dlid & ((1 << ppd->lmc) - 1);
@@ -277,7 +277,7 @@ int qib_make_ud_req(struct qib_qp *qp)
 	/* Construct the header. */
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
-	ah_attr = &to_iah(wqe->wr.wr.ud.ah)->attr;
+	ah_attr = &to_iah(wqe->ud_wr.ah)->attr;
 	if (ah_attr->dlid >= QIB_MULTICAST_LID_BASE) {
 		if (ah_attr->dlid != QIB_PERMISSIVE_LID)
 			this_cpu_inc(ibp->pmastats->n_multicast_xmit);
@@ -363,7 +363,7 @@ int qib_make_ud_req(struct qib_qp *qp)
 	bth0 |= extra_bytes << 20;
 	bth0 |= qp->ibqp.qp_type == IB_QPT_SMI ? QIB_DEFAULT_P_KEY :
 		qib_get_pkey(ibp, qp->ibqp.qp_type == IB_QPT_GSI ?
-			     wqe->wr.wr.ud.pkey_index : qp->s_pkey_index);
+			     wqe->ud_wr.pkey_index : qp->s_pkey_index);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	/*
 	 * Use the multicast QP if the destination LID is a multicast LID.
@@ -371,14 +371,14 @@ int qib_make_ud_req(struct qib_qp *qp)
 	ohdr->bth[1] = ah_attr->dlid >= QIB_MULTICAST_LID_BASE &&
 		ah_attr->dlid != QIB_PERMISSIVE_LID ?
 		cpu_to_be32(QIB_MULTICAST_QPN) :
-		cpu_to_be32(wqe->wr.wr.ud.remote_qpn);
+		cpu_to_be32(wqe->ud_wr.remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->s_next_psn++ & QIB_PSN_MASK);
 	/*
 	 * Qkeys with the high order bit set mean use the
 	 * qkey from the QP context instead of the WR (see 10.2.5).
 	 */
-	ohdr->u.ud.deth[0] = cpu_to_be32((int)wqe->wr.wr.ud.remote_qkey < 0 ?
-					 qp->qkey : wqe->wr.wr.ud.remote_qkey);
+	ohdr->u.ud.deth[0] = cpu_to_be32((int)wqe->ud_wr.remote_qkey < 0 ?
+					 qp->qkey : wqe->ud_wr.remote_qkey);
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 
 done:

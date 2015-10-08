@@ -1306,7 +1306,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct ib_send_wr *bad_wr;
-	struct ib_send_wr wr;
+	struct ib_fast_reg_wr wr;
 	struct srp_fr_desc *desc;
 	u32 rkey;
 
@@ -1324,17 +1324,17 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	       sizeof(state->pages[0]) * state->npages);
 
 	memset(&wr, 0, sizeof(wr));
-	wr.opcode = IB_WR_FAST_REG_MR;
-	wr.wr_id = FAST_REG_WR_ID_MASK;
-	wr.wr.fast_reg.iova_start = state->base_dma_addr;
-	wr.wr.fast_reg.page_list = desc->frpl;
-	wr.wr.fast_reg.page_list_len = state->npages;
-	wr.wr.fast_reg.page_shift = ilog2(dev->mr_page_size);
-	wr.wr.fast_reg.length = state->dma_len;
-	wr.wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE |
-				       IB_ACCESS_REMOTE_READ |
-				       IB_ACCESS_REMOTE_WRITE);
-	wr.wr.fast_reg.rkey = desc->mr->lkey;
+	wr.wr.opcode = IB_WR_FAST_REG_MR;
+	wr.wr.wr_id = FAST_REG_WR_ID_MASK;
+	wr.iova_start = state->base_dma_addr;
+	wr.page_list = desc->frpl;
+	wr.page_list_len = state->npages;
+	wr.page_shift = ilog2(dev->mr_page_size);
+	wr.length = state->dma_len;
+	wr.access_flags = (IB_ACCESS_LOCAL_WRITE |
+			   IB_ACCESS_REMOTE_READ |
+			   IB_ACCESS_REMOTE_WRITE);
+	wr.rkey = desc->mr->lkey;
 
 	*state->fr.next++ = desc;
 	state->nmdesc++;
@@ -1342,7 +1342,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	srp_map_desc(state, state->base_dma_addr, state->dma_len,
 		     desc->mr->rkey);
 
-	return ib_post_send(ch->qp, &wr, &bad_wr);
+	return ib_post_send(ch->qp, &wr.wr, &bad_wr);
 }
 
 static int srp_finish_mapping(struct srp_map_state *state,

@@ -1997,13 +1997,13 @@ static void ocrdma_build_ud_hdr(struct ocrdma_qp *qp,
 {
 	struct ocrdma_ewqe_ud_hdr *ud_hdr =
 		(struct ocrdma_ewqe_ud_hdr *)(hdr + 1);
-	struct ocrdma_ah *ah = get_ocrdma_ah(wr->wr.ud.ah);
+	struct ocrdma_ah *ah = get_ocrdma_ah(ud_wr(wr)->ah);
 
-	ud_hdr->rsvd_dest_qpn = wr->wr.ud.remote_qpn;
+	ud_hdr->rsvd_dest_qpn = ud_wr(wr)->remote_qpn;
 	if (qp->qp_type == IB_QPT_GSI)
 		ud_hdr->qkey = qp->qkey;
 	else
-		ud_hdr->qkey = wr->wr.ud.remote_qkey;
+		ud_hdr->qkey = ud_wr(wr)->remote_qkey;
 	ud_hdr->rsvd_ahid = ah->id;
 	if (ah->av->valid & OCRDMA_AV_VLAN_VALID)
 		hdr->cw |= (OCRDMA_FLAG_AH_VLAN_PR << OCRDMA_WQE_FLAGS_SHIFT);
@@ -2106,9 +2106,9 @@ static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	status = ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
 	if (status)
 		return status;
-	ext_rw->addr_lo = wr->wr.rdma.remote_addr;
-	ext_rw->addr_hi = upper_32_bits(wr->wr.rdma.remote_addr);
-	ext_rw->lrkey = wr->wr.rdma.rkey;
+	ext_rw->addr_lo = rdma_wr(wr)->remote_addr;
+	ext_rw->addr_hi = upper_32_bits(rdma_wr(wr)->remote_addr);
+	ext_rw->lrkey = rdma_wr(wr)->rkey;
 	ext_rw->len = hdr->total_len;
 	return 0;
 }
@@ -2126,13 +2126,14 @@ static void ocrdma_build_read(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	hdr->cw |= (OCRDMA_READ << OCRDMA_WQE_OPCODE_SHIFT);
 	hdr->cw |= (OCRDMA_TYPE_LKEY << OCRDMA_WQE_TYPE_SHIFT);
 
-	ext_rw->addr_lo = wr->wr.rdma.remote_addr;
-	ext_rw->addr_hi = upper_32_bits(wr->wr.rdma.remote_addr);
-	ext_rw->lrkey = wr->wr.rdma.rkey;
+	ext_rw->addr_lo = rdma_wr(wr)->remote_addr;
+	ext_rw->addr_hi = upper_32_bits(rdma_wr(wr)->remote_addr);
+	ext_rw->lrkey = rdma_wr(wr)->rkey;
 	ext_rw->len = hdr->total_len;
 }
 
-static void build_frmr_pbes(struct ib_send_wr *wr, struct ocrdma_pbl *pbl_tbl,
+static void build_frmr_pbes(struct ib_fast_reg_wr *wr,
+			    struct ocrdma_pbl *pbl_tbl,
 			    struct ocrdma_hw_mr *hwmr)
 {
 	int i;
@@ -2144,12 +2145,12 @@ static void build_frmr_pbes(struct ib_send_wr *wr, struct ocrdma_pbl *pbl_tbl,
 	num_pbes = 0;
 
 	/* go through the OS phy regions & fill hw pbe entries into pbls. */
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
+	for (i = 0; i < wr->page_list_len; i++) {
 		/* number of pbes can be more for one OS buf, when
 		 * buffers are of different sizes.
 		 * split the ib_buf to one or more pbes.
 		 */
-		buf_addr = wr->wr.fast_reg.page_list->page_list[i];
+		buf_addr = wr->page_list->page_list[i];
 		pbe->pa_lo = cpu_to_le32((u32) (buf_addr & PAGE_MASK));
 		pbe->pa_hi = cpu_to_le32((u32) upper_32_bits(buf_addr));
 		num_pbes += 1;
@@ -2178,9 +2179,10 @@ static int get_encoded_page_size(int pg_sz)
 
 
 static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
-			   struct ib_send_wr *wr)
+			   struct ib_send_wr *send_wr)
 {
 	u64 fbo;
+	struct ib_fast_reg_wr *wr = fast_reg_wr(send_wr);
 	struct ocrdma_ewqe_fr *fast_reg = (struct ocrdma_ewqe_fr *)(hdr + 1);
 	struct ocrdma_mr *mr;
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
@@ -2188,33 +2190,32 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 
 	wqe_size = roundup(wqe_size, OCRDMA_WQE_ALIGN_BYTES);
 
-	if (wr->wr.fast_reg.page_list_len > dev->attr.max_pages_per_frmr)
+	if (wr->page_list_len > dev->attr.max_pages_per_frmr)
 		return -EINVAL;
 
 	hdr->cw |= (OCRDMA_FR_MR << OCRDMA_WQE_OPCODE_SHIFT);
 	hdr->cw |= ((wqe_size / OCRDMA_WQE_STRIDE) << OCRDMA_WQE_SIZE_SHIFT);
 
-	if (wr->wr.fast_reg.page_list_len == 0)
+	if (wr->page_list_len == 0)
 		BUG();
-	if (wr->wr.fast_reg.access_flags & IB_ACCESS_LOCAL_WRITE)
+	if (wr->access_flags & IB_ACCESS_LOCAL_WRITE)
 		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_LOCAL_WR;
-	if (wr->wr.fast_reg.access_flags & IB_ACCESS_REMOTE_WRITE)
+	if (wr->access_flags & IB_ACCESS_REMOTE_WRITE)
 		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_WR;
-	if (wr->wr.fast_reg.access_flags & IB_ACCESS_REMOTE_READ)
+	if (wr->access_flags & IB_ACCESS_REMOTE_READ)
 		hdr->rsvd_lkey_flags |= OCRDMA_LKEY_FLAG_REMOTE_RD;
-	hdr->lkey = wr->wr.fast_reg.rkey;
-	hdr->total_len = wr->wr.fast_reg.length;
+	hdr->lkey = wr->rkey;
+	hdr->total_len = wr->length;
 
-	fbo = wr->wr.fast_reg.iova_start -
-	    (wr->wr.fast_reg.page_list->page_list[0] & PAGE_MASK);
+	fbo = wr->iova_start - (wr->page_list->page_list[0] & PAGE_MASK);
 
-	fast_reg->va_hi = upper_32_bits(wr->wr.fast_reg.iova_start);
-	fast_reg->va_lo = (u32) (wr->wr.fast_reg.iova_start & 0xffffffff);
+	fast_reg->va_hi = upper_32_bits(wr->iova_start);
+	fast_reg->va_lo = (u32) (wr->iova_start & 0xffffffff);
 	fast_reg->fbo_hi = upper_32_bits(fbo);
 	fast_reg->fbo_lo = (u32) fbo & 0xffffffff;
-	fast_reg->num_sges = wr->wr.fast_reg.page_list_len;
+	fast_reg->num_sges = wr->page_list_len;
 	fast_reg->size_sge =
-		get_encoded_page_size(1 << wr->wr.fast_reg.page_shift);
+		get_encoded_page_size(1 << wr->page_shift);
 	mr = (struct ocrdma_mr *) (unsigned long)
 		dev->stag_arr[(hdr->lkey >> 8) & (OCRDMA_MAX_STAG - 1)];
 	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);

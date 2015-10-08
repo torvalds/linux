@@ -525,7 +525,7 @@ typedef struct kib_tx                         /* transmit message */
 	__u64                  tx_msgaddr;    /* message buffer (I/O addr) */
 	DECLARE_PCI_UNMAP_ADDR(tx_msgunmap);  /* for dma_unmap_single() */
 	int                    tx_nwrq;       /* # send work items */
-	struct ib_send_wr      *tx_wrq;       /* send work items... */
+	struct ib_rdma_wr      *tx_wrq;       /* send work items... */
 	struct ib_sge          *tx_sge;       /* ...and their memory */
 	kib_rdma_desc_t        *tx_rd;        /* rdma descriptor */
 	int                    tx_nfrags;     /* # entries in... */

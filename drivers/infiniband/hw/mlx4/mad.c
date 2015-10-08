@@ -457,7 +457,8 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  struct ib_grh *grh, struct ib_mad *mad)
 {
 	struct ib_sge list;
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_ud_wr wr;
+	struct ib_send_wr *bad_wr;
 	struct mlx4_ib_demux_pv_ctx *tun_ctx;
 	struct mlx4_ib_demux_pv_qp *tun_qp;
 	struct mlx4_rcv_tunnel_mad *tun_mad;
@@ -582,18 +583,18 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	list.length = sizeof (struct mlx4_rcv_tunnel_mad);
 	list.lkey = tun_ctx->pd->local_dma_lkey;
 
-	wr.wr.ud.ah = ah;
-	wr.wr.ud.port_num = port;
-	wr.wr.ud.remote_qkey = IB_QP_SET_QKEY;
-	wr.wr.ud.remote_qpn = dqpn;
-	wr.next = NULL;
-	wr.wr_id = ((u64) tun_tx_ix) | MLX4_TUN_SET_WRID_QPN(dest_qpt);
-	wr.sg_list = &list;
-	wr.num_sge = 1;
-	wr.opcode = IB_WR_SEND;
-	wr.send_flags = IB_SEND_SIGNALED;
+	wr.ah = ah;
+	wr.port_num = port;
+	wr.remote_qkey = IB_QP_SET_QKEY;
+	wr.remote_qpn = dqpn;
+	wr.wr.next = NULL;
+	wr.wr.wr_id = ((u64) tun_tx_ix) | MLX4_TUN_SET_WRID_QPN(dest_qpt);
+	wr.wr.sg_list = &list;
+	wr.wr.num_sge = 1;
+	wr.wr.opcode = IB_WR_SEND;
+	wr.wr.send_flags = IB_SEND_SIGNALED;
 
-	ret = ib_post_send(src_qp, &wr, &bad_wr);
+	ret = ib_post_send(src_qp, &wr.wr, &bad_wr);
 out:
 	if (ret)
 		ib_destroy_ah(ah);
@@ -1175,7 +1176,8 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 u8 *s_mac, struct ib_mad *mad)
 {
 	struct ib_sge list;
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_ud_wr wr;
+	struct ib_send_wr *bad_wr;
 	struct mlx4_ib_demux_pv_ctx *sqp_ctx;
 	struct mlx4_ib_demux_pv_qp *sqp;
 	struct mlx4_mad_snd_buf *sqp_mad;
@@ -1246,22 +1248,22 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 	list.length = sizeof (struct mlx4_mad_snd_buf);
 	list.lkey = sqp_ctx->pd->local_dma_lkey;
 
-	wr.wr.ud.ah = ah;
-	wr.wr.ud.port_num = port;
-	wr.wr.ud.pkey_index = wire_pkey_ix;
-	wr.wr.ud.remote_qkey = qkey;
-	wr.wr.ud.remote_qpn = remote_qpn;
-	wr.next = NULL;
-	wr.wr_id = ((u64) wire_tx_ix) | MLX4_TUN_SET_WRID_QPN(src_qpnum);
-	wr.sg_list = &list;
-	wr.num_sge = 1;
-	wr.opcode = IB_WR_SEND;
-	wr.send_flags = IB_SEND_SIGNALED;
+	wr.ah = ah;
+	wr.port_num = port;
+	wr.pkey_index = wire_pkey_ix;
+	wr.remote_qkey = qkey;
+	wr.remote_qpn = remote_qpn;
+	wr.wr.next = NULL;
+	wr.wr.wr_id = ((u64) wire_tx_ix) | MLX4_TUN_SET_WRID_QPN(src_qpnum);
+	wr.wr.sg_list = &list;
+	wr.wr.num_sge = 1;
+	wr.wr.opcode = IB_WR_SEND;
+	wr.wr.send_flags = IB_SEND_SIGNALED;
 	if (s_mac)
 		memcpy(to_mah(ah)->av.eth.s_mac, s_mac, 6);
 
 
-	ret = ib_post_send(send_qp, &wr, &bad_wr);
+	ret = ib_post_send(send_qp, &wr.wr, &bad_wr);
 out:
 	if (ret)
 		ib_destroy_ah(ah);

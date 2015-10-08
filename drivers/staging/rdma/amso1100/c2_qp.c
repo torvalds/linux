@@ -860,9 +860,9 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 				flags |= SQ_READ_FENCE;
 			}
 			wr.sqwr.rdma_write.remote_stag =
-			    cpu_to_be32(ib_wr->wr.rdma.rkey);
+			    cpu_to_be32(rdma_wr(ib_wr)->rkey);
 			wr.sqwr.rdma_write.remote_to =
-			    cpu_to_be64(ib_wr->wr.rdma.remote_addr);
+			    cpu_to_be64(rdma_wr(ib_wr)->remote_addr);
 			err = move_sgl((struct c2_data_addr *)
 				       & (wr.sqwr.rdma_write.data),
 				       ib_wr->sg_list,
@@ -889,9 +889,9 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 			wr.sqwr.rdma_read.local_to =
 			    cpu_to_be64(ib_wr->sg_list->addr);
 			wr.sqwr.rdma_read.remote_stag =
-			    cpu_to_be32(ib_wr->wr.rdma.rkey);
+			    cpu_to_be32(rdma_wr(ib_wr)->rkey);
 			wr.sqwr.rdma_read.remote_to =
-			    cpu_to_be64(ib_wr->wr.rdma.remote_addr);
+			    cpu_to_be64(rdma_wr(ib_wr)->remote_addr);
 			wr.sqwr.rdma_read.length =
 			    cpu_to_be32(ib_wr->sg_list->length);
 			break;

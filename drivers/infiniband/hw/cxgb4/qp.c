@@ -528,8 +528,8 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
 	wqe->write.r2 = 0;
-	wqe->write.stag_sink = cpu_to_be32(wr->wr.rdma.rkey);
-	wqe->write.to_sink = cpu_to_be64(wr->wr.rdma.remote_addr);
+	wqe->write.stag_sink = cpu_to_be32(rdma_wr(wr)->rkey);
+	wqe->write.to_sink = cpu_to_be64(rdma_wr(wr)->remote_addr);
 	if (wr->num_sge) {
 		if (wr->send_flags & IB_SEND_INLINE) {
 			ret = build_immd(sq, wqe->write.u.immd_src, wr,
@@ -566,10 +566,10 @@ static int build_rdma_read(union t4_wr *wqe, struct ib_send_wr *wr, u8 *len16)
 	if (wr->num_sge > 1)
 		return -EINVAL;
 	if (wr->num_sge) {
-		wqe->read.stag_src = cpu_to_be32(wr->wr.rdma.rkey);
-		wqe->read.to_src_hi = cpu_to_be32((u32)(wr->wr.rdma.remote_addr
+		wqe->read.stag_src = cpu_to_be32(rdma_wr(wr)->rkey);
+		wqe->read.to_src_hi = cpu_to_be32((u32)(rdma_wr(wr)->remote_addr
 							>> 32));
-		wqe->read.to_src_lo = cpu_to_be32((u32)wr->wr.rdma.remote_addr);
+		wqe->read.to_src_lo = cpu_to_be32((u32)rdma_wr(wr)->remote_addr);
 		wqe->read.stag_sink = cpu_to_be32(wr->sg_list[0].lkey);
 		wqe->read.plen = cpu_to_be32(wr->sg_list[0].length);
 		wqe->read.to_sink_hi = cpu_to_be32((u32)(wr->sg_list[0].addr
@@ -606,39 +606,36 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 }
 
 static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
-			 struct ib_send_wr *wr, u8 *len16, u8 t5dev)
+			 struct ib_send_wr *send_wr, u8 *len16, u8 t5dev)
 {
-
+	struct ib_fast_reg_wr *wr = fast_reg_wr(send_wr);
 	struct fw_ri_immd *imdp;
 	__be64 *p;
 	int i;
-	int pbllen = roundup(wr->wr.fast_reg.page_list_len * sizeof(u64), 32);
+	int pbllen = roundup(wr->page_list_len * sizeof(u64), 32);
 	int rem;
 
-	if (wr->wr.fast_reg.page_list_len >
-	    t4_max_fr_depth(use_dsgl))
+	if (wr->page_list_len > t4_max_fr_depth(use_dsgl))
 		return -EINVAL;
 
 	wqe->fr.qpbinde_to_dcacpu = 0;
-	wqe->fr.pgsz_shift = wr->wr.fast_reg.page_shift - 12;
+	wqe->fr.pgsz_shift = wr->page_shift - 12;
 	wqe->fr.addr_type = FW_RI_VA_BASED_TO;
-	wqe->fr.mem_perms = c4iw_ib_to_tpt_access(wr->wr.fast_reg.access_flags);
+	wqe->fr.mem_perms = c4iw_ib_to_tpt_access(wr->access_flags);
 	wqe->fr.len_hi = 0;
-	wqe->fr.len_lo = cpu_to_be32(wr->wr.fast_reg.length);
-	wqe->fr.stag = cpu_to_be32(wr->wr.fast_reg.rkey);
-	wqe->fr.va_hi = cpu_to_be32(wr->wr.fast_reg.iova_start >> 32);
-	wqe->fr.va_lo_fbo = cpu_to_be32(wr->wr.fast_reg.iova_start &
-					0xffffffff);
+	wqe->fr.len_lo = cpu_to_be32(wr->length);
+	wqe->fr.stag = cpu_to_be32(wr->rkey);
+	wqe->fr.va_hi = cpu_to_be32(wr->iova_start >> 32);
+	wqe->fr.va_lo_fbo = cpu_to_be32(wr->iova_start & 0xffffffff);
 
 	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
 		struct c4iw_fr_page_list *c4pl =
-			to_c4iw_fr_page_list(wr->wr.fast_reg.page_list);
+			to_c4iw_fr_page_list(wr->page_list);
 		struct fw_ri_dsgl *sglp;
 
-		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-			wr->wr.fast_reg.page_list->page_list[i] = (__force u64)
-				cpu_to_be64((u64)
-				wr->wr.fast_reg.page_list->page_list[i]);
+		for (i = 0; i < wr->page_list_len; i++) {
+			wr->page_list->page_list[i] = (__force u64)
+				cpu_to_be64((u64)wr->page_list->page_list[i]);
 		}
 
 		sglp = (struct fw_ri_dsgl *)(&wqe->fr + 1);
@@ -657,9 +654,8 @@ static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 		imdp->immdlen = cpu_to_be32(pbllen);
 		p = (__be64 *)(imdp + 1);
 		rem = pbllen;
-		for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-			*p = cpu_to_be64(
-				(u64)wr->wr.fast_reg.page_list->page_list[i]);
+		for (i = 0; i < wr->page_list_len; i++) {
+			*p = cpu_to_be64((u64)wr->page_list->page_list[i]);
 			rem -= sizeof(*p);
 			if (++p == (__be64 *)&sq->queue[sq->size])
 				p = (__be64 *)sq->queue;
