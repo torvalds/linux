@@ -4454,7 +4454,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	 * not associated with any file_priv. */
 	mutex_lock(&dev->mode_config.blob_lock);
 	out_resp->blob_id = blob->base.id;
-	list_add_tail(&file_priv->blobs, &blob->head_file);
+	list_add_tail(&blob->head_file, &file_priv->blobs);
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	return 0;
