@@ -605,6 +605,7 @@ extern wait_queue_head_t rds_poll_waitq;
 int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 void rds_remove_bound(struct rds_sock *rs);
 struct rds_sock *rds_find_bound(__be32 addr, __be16 port);
+void rds_bind_lock_init(void);
 
 /* cong.c */
 int rds_cong_get_maps(struct rds_connection *conn);
