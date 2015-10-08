@@ -55,9 +55,14 @@ extern void __flush_dcache_range(unsigned long, unsigned long);
 extern void __flush_invalidate_dcache_page(unsigned long);
 extern void __flush_invalidate_dcache_range(unsigned long, unsigned long);
 #else
-# define __flush_dcache_range(p,s)		do { } while(0)
-# define __flush_dcache_page(p)			do { } while(0)
-# define __flush_invalidate_dcache_page(p) 	__invalidate_dcache_page(p)
+static inline void __flush_dcache_page(unsigned long va)
+{
+}
+static inline void __flush_dcache_range(unsigned long va, unsigned long sz)
+{
+}
+# define __flush_invalidate_dcache_all()	__invalidate_dcache_all()
+# define __flush_invalidate_dcache_page(p)	__invalidate_dcache_page(p)
 # define __flush_invalidate_dcache_range(p,s)	__invalidate_dcache_range(p,s)
 #endif
 
