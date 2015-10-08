@@ -10289,7 +10289,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		}
 		spin_unlock(&fs_info->unused_bgs_lock);
 
-		mutex_lock(&root->fs_info->delete_unused_bgs_mutex);
+		mutex_lock(&fs_info->delete_unused_bgs_mutex);
 
 		/* Don't want to race with allocators so take the groups_sem */
 		down_write(&space_info->groups_sem);
@@ -10413,7 +10413,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 end_trans:
 		btrfs_end_transaction(trans, root);
 next:
-		mutex_unlock(&root->fs_info->delete_unused_bgs_mutex);
+		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 		btrfs_put_block_group(block_group);
 		spin_lock(&fs_info->unused_bgs_lock);
 	}
