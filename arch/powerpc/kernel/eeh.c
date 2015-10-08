@@ -631,7 +631,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	 */
 	switch (function) {
 	case EEH_OPT_THAW_MMIO:
-		active_flag = EEH_STATE_MMIO_ACTIVE;
+		active_flag = EEH_STATE_MMIO_ACTIVE | EEH_STATE_MMIO_ENABLED;
 		break;
 	case EEH_OPT_THAW_DMA:
 		active_flag = EEH_STATE_DMA_ACTIVE;
