@@ -1425,8 +1425,9 @@ static void __init prom_instantiate_sml(void)
 {
 	phandle ibmvtpm_node;
 	ihandle ibmvtpm_inst;
-	u32 entry = 0, size = 0;
+	u32 entry = 0, size = 0, succ = 0;
 	u64 base;
+	__be32 val;
 
 	prom_debug("prom_instantiate_sml: start...\n");
 
@@ -1439,6 +1440,16 @@ static void __init prom_instantiate_sml(void)
 	if (!IHANDLE_VALID(ibmvtpm_inst)) {
 		prom_printf("opening vtpm package failed (%x)\n", ibmvtpm_inst);
 		return;
+	}
+
+	if (prom_getprop(ibmvtpm_node, "ibm,sml-efi-reformat-supported",
+			 &val, sizeof(val)) != PROM_ERROR) {
+		if (call_prom_ret("call-method", 2, 2, &succ,
+				  ADDR("reformat-sml-to-efi-alignment"),
+				  ibmvtpm_inst) != 0 || succ == 0) {
+			prom_printf("Reformat SML to EFI alignment failed\n");
+			return;
+		}
 	}
 
 	if (call_prom_ret("call-method", 2, 2, &size,
