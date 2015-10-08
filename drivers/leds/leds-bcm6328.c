@@ -41,6 +41,11 @@
 #define BCM6328_SERIAL_LED_SHIFT_DIR	BIT(16)
 #define BCM6328_LED_SHIFT_TEST		BIT(30)
 #define BCM6328_LED_TEST		BIT(31)
+#define BCM6328_INIT_MASK		(BCM6328_SERIAL_LED_EN | \
+					 BCM6328_SERIAL_LED_MUX  | \
+					 BCM6328_SERIAL_LED_CLK_NPOL | \
+					 BCM6328_SERIAL_LED_DATA_PPOL | \
+					 BCM6328_SERIAL_LED_SHIFT_DIR)
 
 #define BCM6328_LED_MODE_MASK		3
 #define BCM6328_LED_MODE_OFF		0
@@ -366,9 +371,17 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 	bcm6328_led_write(mem + BCM6328_REG_LNKACTSEL_LO, 0);
 
 	val = bcm6328_led_read(mem + BCM6328_REG_INIT);
-	val &= ~BCM6328_SERIAL_LED_EN;
+	val &= ~(BCM6328_INIT_MASK);
 	if (of_property_read_bool(np, "brcm,serial-leds"))
 		val |= BCM6328_SERIAL_LED_EN;
+	if (of_property_read_bool(np, "brcm,serial-mux"))
+		val |= BCM6328_SERIAL_LED_MUX;
+	if (of_property_read_bool(np, "brcm,serial-clk-low"))
+		val |= BCM6328_SERIAL_LED_CLK_NPOL;
+	if (!of_property_read_bool(np, "brcm,serial-dat-low"))
+		val |= BCM6328_SERIAL_LED_DATA_PPOL;
+	if (!of_property_read_bool(np, "brcm,serial-shift-inv"))
+		val |= BCM6328_SERIAL_LED_SHIFT_DIR;
 	bcm6328_led_write(mem + BCM6328_REG_INIT, val);
 
 	for_each_available_child_of_node(np, child) {
