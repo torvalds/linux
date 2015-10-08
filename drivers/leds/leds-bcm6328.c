@@ -373,7 +373,7 @@ static int bcm6328_leds_probe(struct platform_device *pdev)
 			continue;
 
 		if (reg >= BCM6328_LED_MAX_COUNT) {
-			dev_err(dev, "invalid LED (>= %d)\n",
+			dev_err(dev, "invalid LED (%u >= %d)\n", reg,
 				BCM6328_LED_MAX_COUNT);
 			continue;
 		}
