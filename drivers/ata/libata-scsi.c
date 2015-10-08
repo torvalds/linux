@@ -1757,6 +1757,15 @@ nothing_to_do:
 	return 1;
 }
 
+static void ata_qc_done(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *cmd = qc->scsicmd;
+	void (*done)(struct scsi_cmnd *) = qc->scsidone;
+
+	ata_qc_free(qc);
+	done(cmd);
+}
+
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -1784,9 +1793,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	if (need_sense && !ap->ops->error_handler)
 		ata_dump_status(ap->print_id, &qc->result_tf);
 
-	qc->scsidone(cmd);
-
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 
 /**
@@ -2588,8 +2595,7 @@ static void atapi_sense_complete(struct ata_queued_cmd *qc)
 		ata_gen_passthru_sense(qc);
 	}
 
-	qc->scsidone(qc->scsicmd);
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 
 /* is it pointless to prefer PIO for "safety reasons"? */
@@ -2684,8 +2690,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 			qc->dev->sdev->locked = 0;
 
 		qc->scsicmd->result = SAM_STAT_CHECK_CONDITION;
-		qc->scsidone(cmd);
-		ata_qc_free(qc);
+		ata_qc_done(qc);
 		return;
 	}
 
@@ -2729,8 +2734,7 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		cmd->result = SAM_STAT_GOOD;
 	}
 
-	qc->scsidone(cmd);
-	ata_qc_free(qc);
+	ata_qc_done(qc);
 }
 /**
  *	atapi_xlat - Initialize PACKET taskfile
