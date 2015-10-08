@@ -301,8 +301,7 @@ static void rcu_preempt_note_context_switch(void)
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = this_cpu_ptr(rcu_state_p->rda);
 		rnp = rdp->mynode;
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		smp_mb__after_unlock_lock();
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		t->rcu_read_unlock_special.b.blocked = true;
 		t->rcu_blocked_node = rnp;
 
@@ -457,8 +456,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
-			raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
-			smp_mb__after_unlock_lock();
+			raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 			if (rnp == t->rcu_blocked_node)
 				break;
 			WARN_ON_ONCE(1);
@@ -989,8 +987,7 @@ static int rcu_boost(struct rcu_node *rnp)
 	    READ_ONCE(rnp->boost_tasks) == NULL)
 		return 0;  /* Nothing left to boost. */
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 
 	/*
 	 * Recheck under the lock: all tasks in need of boosting
@@ -1176,8 +1173,7 @@ static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 			   "rcub/%d", rnp_index);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rnp->boost_kthread_task = t;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	sp.sched_priority = kthread_prio;
@@ -1567,8 +1563,7 @@ static void rcu_prepare_for_idle(void)
 		if (!*rdp->nxttail[RCU_DONE_TAIL])
 			continue;
 		rnp = rdp->mynode;
-		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
-		smp_mb__after_unlock_lock();
+		raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
 		needwake = rcu_accelerate_cbs(rsp, rnp, rdp);
 		raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		if (needwake)
@@ -2068,8 +2063,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 	bool needwake;
 	struct rcu_node *rnp = rdp->mynode;
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	needwake = rcu_start_future_gp(rnp, rdp, &c);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	if (needwake)

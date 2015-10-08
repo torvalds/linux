@@ -664,3 +664,42 @@ static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
 #else /* #ifdef CONFIG_PPC */
 #define smp_mb__after_unlock_lock()	do { } while (0)
 #endif /* #else #ifdef CONFIG_PPC */
+
+/*
+ * Wrappers for the rcu_node::lock acquire.
+ *
+ * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * different lock values, this in turn means that an UNLOCK of one level
+ * followed by a LOCK of another level does not imply a full memory barrier;
+ * and most importantly transitivity is lost.
+ *
+ * In order to restore full ordering between tree levels, augment the regular
+ * lock acquire functions with smp_mb__after_unlock_lock().
+ */
+static inline void raw_spin_lock_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_lock(&rnp->lock);
+	smp_mb__after_unlock_lock();
+}
+
+static inline void raw_spin_lock_irq_rcu_node(struct rcu_node *rnp)
+{
+	raw_spin_lock_irq(&rnp->lock);
+	smp_mb__after_unlock_lock();
+}
+
+#define raw_spin_lock_irqsave_rcu_node(rnp, flags)	\
+do {							\
+	typecheck(unsigned long, flags);		\
+	raw_spin_lock_irqsave(&(rnp)->lock, flags);	\
+	smp_mb__after_unlock_lock();			\
+} while (0)
+
+static inline bool raw_spin_trylock_rcu_node(struct rcu_node *rnp)
+{
+	bool locked = raw_spin_trylock(&rnp->lock);
+
+	if (locked)
+		smp_mb__after_unlock_lock();
+	return locked;
+}
