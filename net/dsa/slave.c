@@ -367,7 +367,7 @@ static int dsa_slave_port_fdb_del(struct net_device *dev,
 	int ret = -EOPNOTSUPP;
 
 	if (ds->drv->port_fdb_del)
-		ret = ds->drv->port_fdb_del(ds, p->port, fdb->addr, fdb->vid);
+		ret = ds->drv->port_fdb_del(ds, p->port, fdb);
 
 	return ret;
 }

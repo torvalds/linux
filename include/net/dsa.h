@@ -326,7 +326,7 @@ struct dsa_switch_driver {
 				const struct switchdev_obj_port_fdb *fdb,
 				struct switchdev_trans *trans);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid);
+				const struct switchdev_obj_port_fdb *fdb);
 	int	(*port_fdb_getnext)(struct dsa_switch *ds, int port,
 				    unsigned char *addr, u16 *vid,
 				    bool *is_static);
