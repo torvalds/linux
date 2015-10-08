@@ -325,13 +325,13 @@ void dccp_send_close(struct sock *sk, const int active);
 int dccp_invalid_packet(struct sk_buff *skb);
 u32 dccp_sample_rtt(struct sock *sk, long delta);
 
-static inline int dccp_bad_service_code(const struct sock *sk,
+static inline bool dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 
 	if (dp->dccps_service == service)
-		return 0;
+		return false;
 	return !dccp_list_has_service(dp->dccps_service_list, service);
 }
 
