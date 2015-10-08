@@ -23,4 +23,5 @@
  */
 &iomuxc {
 	pinctrl-0 = <&pinctrl_hog_1>;
+	pinctrl-1 = <&pinctrl_hog_1>;
 };
