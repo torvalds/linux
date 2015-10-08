@@ -193,10 +193,17 @@ static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 	struct clk *t2_clk = tc->clk[2];
 	int irq = tc->irq[2];
 
-	/* try to enable t2 clk to avoid future errors in mode change */
-	ret = clk_prepare_enable(t2_clk);
+	ret = clk_prepare_enable(tc->slow_clk);
 	if (ret)
 		return ret;
+
+	/* try to enable t2 clk to avoid future errors in mode change */
+	ret = clk_prepare_enable(t2_clk);
+	if (ret) {
+		clk_disable_unprepare(tc->slow_clk);
+		return ret;
+	}
+
 	clk_disable(t2_clk);
 
 	clkevt.regs = tc->regs;
@@ -208,7 +215,8 @@ static int __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 
 	ret = request_irq(irq, ch2_irq, IRQF_TIMER, "tc_clkevt", &clkevt);
 	if (ret) {
-		clk_disable_unprepare(t2_clk);
+		clk_unprepare(t2_clk);
+		clk_disable_unprepare(tc->slow_clk);
 		return ret;
 	}
 
