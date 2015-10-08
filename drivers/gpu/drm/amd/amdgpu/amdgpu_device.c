@@ -1166,7 +1166,8 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
-		if (adev->asic_type == CHIP_CARRIZO)
+	case CHIP_STONEY:
+		if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY)
 			adev->family = AMDGPU_FAMILY_CZ;
 		else
 			adev->family = AMDGPU_FAMILY_VI;
