@@ -30,6 +30,9 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#define KB(x) ((x) * 1024)
+#define MB(x) (KB(x) * 1024)
+
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
  * use of the integrated graphics. This memory is no longer available for
@@ -91,24 +94,91 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	/* Almost universally we can find the Graphics Base of Stolen Memory
 	 * at offset 0x5c in the igfx configuration space. On a few (desktop)
 	 * machines this is also mirrored in the bridge device at different
-	 * locations, or in the MCHBAR. On gen2, the layout is again slightly
-	 * different with the Graphics Segment immediately following Top of
-	 * Memory (or Top of Usable DRAM). Note it appears that TOUD is only
-	 * reported by 865g, so we just use the top of memory as determined
-	 * by the e820 probe.
+	 * locations, or in the MCHBAR.
 	 *
-	 * XXX However gen2 requires an unavailable symbol.
+	 * On 865 we just check the TOUD register.
+	 *
+	 * On 830/845/85x the stolen memory base isn't available in any
+	 * register. We need to calculate it as TOM-TSEG_SIZE-stolen_size.
+	 *
 	 */
 	base = 0;
 	if (INTEL_INFO(dev)->gen >= 3) {
 		/* Read Graphics Base of Stolen Memory directly */
 		pci_read_config_dword(dev->pdev, 0x5c, &base);
 		base &= ~((1<<20) - 1);
-	} else { /* GEN2 */
-#if 0
-		/* Stolen is immediately above Top of Memory */
-		base = max_low_pfn_mapped << PAGE_SHIFT;
-#endif
+	} else if (IS_I865G(dev)) {
+		u16 toud = 0;
+
+		/*
+		 * FIXME is the graphics stolen memory region
+		 * always at TOUD? Ie. is it always the last
+		 * one to be allocated by the BIOS?
+		 */
+		pci_bus_read_config_word(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I865_TOUD, &toud);
+
+		base = toud << 16;
+	} else if (IS_I85X(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I85X_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE)
+			tseg_size = MB(1);
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 1),
+					 I85X_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+	} else if (IS_845G(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I845_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			switch (tmp & I845_TSEG_SIZE_MASK) {
+			case I845_TSEG_SIZE_512K:
+				tseg_size = KB(512);
+				break;
+			case I845_TSEG_SIZE_1M:
+				tseg_size = MB(1);
+				break;
+			}
+		}
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
+	} else if (IS_I830(dev)) {
+		u32 tseg_size = 0;
+		u32 tom;
+		u8 tmp;
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_ESMRAMC, &tmp);
+
+		if (tmp & TSEG_ENABLE) {
+			if (tmp & I830_TSEG_SIZE_1M)
+				tseg_size = MB(1);
+			else
+				tseg_size = KB(512);
+		}
+
+		pci_bus_read_config_byte(dev->pdev->bus, PCI_DEVFN(0, 0),
+					 I830_DRB3, &tmp);
+		tom = tmp * MB(32);
+
+		base = tom - tseg_size - dev_priv->gtt.stolen_size;
 	}
 
 	if (base == 0)
