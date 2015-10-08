@@ -13,6 +13,16 @@
 #define HDMIDBG(format, ...)
 #endif
 
+struct hdmi_dev_phy_para {
+	u32 maxfreq;
+	int pre_emphasis;
+	int slopeboost;
+	int clk_level;
+	int data0_level;
+	int data1_level;
+	int data2_level;
+};
+
 struct hdmi_dev {
 	void __iomem		*regbase;
 	int			regbase_phy;
@@ -53,5 +63,8 @@ struct hdmi_dev {
 	void			(*hdcp2_en)(int);
 	void			(*hdcp2_reset)(void);
 	void			(*hdcp2_start)(void);
+
+	struct hdmi_dev_phy_para *phy_table;
+	int			phy_table_size;
 };
 #endif /*__RK32_HDMI_H__*/

@@ -1472,10 +1472,8 @@ enum {
 #define v_SLOPEBOOST(n)		(((n)&0x03) << 4)
 #define m_TX_SYMON		(0x01 << 3)
 #define v_TX_SYMON(n)		(((n)&0x01) << 3)
-#define m_TX_TRAON		(0x01 << 2)
-#define v_TX_TRAON(n)		(((n)&0x01) << 2)
-#define m_TX_TRBON		(0x01 << 1)
-#define v_TX_TRBON(n)		(((n)&0x01) << 1)
+#define m_PREEMPHASIS		(0x03 << 1)
+#define v_PREEMPHASIS(n)	(((n)&0x03) << 1)
 #define m_CLK_SYMON		(0x01 << 0)
 #define v_CLK_SYMON(n)		(((n)&0x01) << 0)
 

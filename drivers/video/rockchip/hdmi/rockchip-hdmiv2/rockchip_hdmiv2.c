@@ -401,6 +401,20 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 	} else {
 		rk_hdmi_property.defaultmode = HDMI_VIDEO_DEFAULT_MODE;
 	}
+	if (of_get_property(np, "rockchip,phy_table", &val)) {
+		hdmi_dev->phy_table = kmalloc(val, GFP_KERNEL);
+		if (!hdmi_dev->phy_table) {
+			pr_err("kmalloc phy table %d error\n", val);
+			return -ENOMEM;
+		}
+		hdmi_dev->phy_table_size =
+				val / sizeof(struct hdmi_dev_phy_para);
+		of_property_read_u32_array(np, "rockchip,phy_table",
+					   (u32 *)hdmi_dev->phy_table,
+					   val / sizeof(u32));
+	} else {
+		pr_info("hdmi phy_table not exist\n");
+	}
 	#ifdef CONFIG_MFD_SYSCON
 	hdmi_dev->grf_base =
 		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -424,7 +438,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hdmi_dev);
 	hdmi_dev->dev = &pdev->dev;
 
-	rockchip_hdmiv2_parse_dt(hdmi_dev);
+	if (rockchip_hdmiv2_parse_dt(hdmi_dev))
+		goto failed;
 
 	/*request and remap iomem*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -537,6 +552,7 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 failed1:
 	rockchip_hdmi_unregister(hdmi_dev->hdmi);
 failed:
+	kfree(hdmi_dev->phy_table);
 	kfree(hdmi_dev);
 	hdmi_dev = NULL;
 	dev_err(&pdev->dev, "rk3288 hdmi probe error.\n");
