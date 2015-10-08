@@ -2078,8 +2078,8 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		return -EIO;
 	}
 
-	printk_ratelimited_in_rcu(KERN_INFO
-				  "BTRFS: read error corrected: ino %llu off %llu (dev %s sector %llu)\n",
+	btrfs_info_rl_in_rcu(fs_info,
+		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
 				  btrfs_ino(inode), start,
 				  rcu_str_deref(dev->name), sector);
 	bio_put(bio);

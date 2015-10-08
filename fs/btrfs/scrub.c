@@ -850,8 +850,8 @@ out:
 		btrfs_dev_replace_stats_inc(
 			&sctx->dev_root->fs_info->dev_replace.
 			num_uncorrectable_read_errors);
-		printk_ratelimited_in_rcu(KERN_ERR "BTRFS: "
-		    "unable to fixup (nodatasum) error at logical %llu on dev %s\n",
+		btrfs_err_rl_in_rcu(sctx->dev_root->fs_info,
+		    "unable to fixup (nodatasum) error at logical %llu on dev %s",
 			fixup->logical, rcu_str_deref(fixup->dev->name));
 	}
 
@@ -1230,8 +1230,8 @@ corrected_error:
 			sctx->stat.corrected_errors++;
 			sblock_to_check->data_corrected = 1;
 			spin_unlock(&sctx->stat_lock);
-			printk_ratelimited_in_rcu(KERN_ERR
-				"BTRFS: fixed up error at logical %llu on dev %s\n",
+			btrfs_err_rl_in_rcu(fs_info,
+				"fixed up error at logical %llu on dev %s",
 				logical, rcu_str_deref(dev->name));
 		}
 	} else {
@@ -1239,8 +1239,8 @@ did_not_correct_error:
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.uncorrectable_errors++;
 		spin_unlock(&sctx->stat_lock);
-		printk_ratelimited_in_rcu(KERN_ERR
-			"BTRFS: unable to fixup (regular) error at logical %llu on dev %s\n",
+		btrfs_err_rl_in_rcu(fs_info,
+			"unable to fixup (regular) error at logical %llu on dev %s",
 			logical, rcu_str_deref(dev->name));
 	}
 
@@ -2201,15 +2201,15 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors++;
 		spin_unlock(&sctx->stat_lock);
-		printk_ratelimited_in_rcu(KERN_ERR
-			"BTRFS: I/O error rebulding logical %llu for dev %s\n",
+		btrfs_err_rl_in_rcu(fs_info,
+			"IO error rebuilding logical %llu for dev %s",
 			logical, rcu_str_deref(dev->name));
 	} else if (sblock->header_error || sblock->checksum_error) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.uncorrectable_errors++;
 		spin_unlock(&sctx->stat_lock);
-		printk_ratelimited_in_rcu(KERN_ERR
-			"BTRFS: failed to rebuild valid logical %llu for dev %s\n",
+		btrfs_err_rl_in_rcu(fs_info,
+			"failed to rebuild valid logical %llu for dev %s",
 			logical, rcu_str_deref(dev->name));
 	} else {
 		scrub_write_block_to_dev_replace(sblock);

@@ -3175,8 +3175,8 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		struct btrfs_device *device = (struct btrfs_device *)
 			bh->b_private;
 
-		printk_ratelimited_in_rcu(KERN_WARNING "BTRFS: lost page write due to "
-					  "I/O error on %s\n",
+		btrfs_warn_rl_in_rcu(device->dev_root->fs_info,
+				"lost page write due to IO error on %s",
 					  rcu_str_deref(device->name));
 		/* note, we dont' set_buffer_write_io_error because we have
 		 * our own ways of dealing with the IO errors

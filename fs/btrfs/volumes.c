@@ -6675,8 +6675,8 @@ static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
 {
 	if (!dev->dev_stats_valid)
 		return;
-	printk_ratelimited_in_rcu(KERN_ERR "BTRFS: "
-			   "bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
+	btrfs_err_rl_in_rcu(dev->dev_root->fs_info,
+		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 			   rcu_str_deref(dev->name),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
