@@ -281,11 +281,10 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 						    "linux,default-trigger",
 						    NULL);
 
+	spin_lock_irqsave(lock, flags);
 	if (!of_property_read_string(nc, "default-state", &state)) {
-		spin_lock_irqsave(lock, flags);
 		if (!strcmp(state, "on")) {
 			led->cdev.brightness = LED_FULL;
-			bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
 		} else if (!strcmp(state, "keep")) {
 			void __iomem *mode;
 			unsigned long val, shift;
@@ -296,20 +295,27 @@ static int bcm6328_led(struct device *dev, struct device_node *nc, u32 reg,
 			else
 				mode = mem + BCM6328_REG_MODE_LO;
 
-			val = bcm6328_led_read(mode) >> (shift % 16);
+			val = bcm6328_led_read(mode) >>
+			      BCM6328_LED_SHIFT(shift % 16);
 			val &= BCM6328_LED_MODE_MASK;
-			if (val == BCM6328_LED_MODE_ON)
+			if ((led->active_low && val == BCM6328_LED_MODE_ON) ||
+			    (!led->active_low && val == BCM6328_LED_MODE_OFF))
 				led->cdev.brightness = LED_FULL;
-			else {
+			else
 				led->cdev.brightness = LED_OFF;
-				bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
-			}
 		} else {
 			led->cdev.brightness = LED_OFF;
-			bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
 		}
-		spin_unlock_irqrestore(lock, flags);
+	} else {
+		led->cdev.brightness = LED_OFF;
 	}
+
+	if ((led->active_low && led->cdev.brightness == LED_FULL) ||
+	    (!led->active_low && led->cdev.brightness == LED_OFF))
+		bcm6328_led_mode(led, BCM6328_LED_MODE_ON);
+	else
+		bcm6328_led_mode(led, BCM6328_LED_MODE_OFF);
+	spin_unlock_irqrestore(lock, flags);
 
 	led->cdev.brightness_set = bcm6328_led_set;
 	led->cdev.blink_set = bcm6328_blink_set;
