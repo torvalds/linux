@@ -1369,15 +1369,17 @@ intel_hdmi_set_edid(struct drm_connector *connector, bool force)
 	return connected;
 }
 
-static void intel_hdmi_hot_plug(struct intel_encoder *intel_encoder)
+static enum drm_connector_status
+intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
-	struct intel_hdmi *intel_hdmi =
-			enc_to_intel_hdmi(&intel_encoder->base);
-	struct intel_connector *intel_connector =
-				intel_hdmi->attached_connector;
-	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
+	enum drm_connector_status status;
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	bool live_status = false;
 	unsigned int retry = 3;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, connector->name);
 
 	while (!live_status && --retry) {
 		live_status = intel_digital_port_connected(dev_priv,
@@ -1388,48 +1390,15 @@ static void intel_hdmi_hot_plug(struct intel_encoder *intel_encoder)
 	if (!live_status)
 		DRM_DEBUG_KMS("Live status not up!");
 
-	/*
-	 * We are here, means there is a hotplug or a force
-	 * detection. Clear the cached EDID and probe the
-	 * DDC bus to check the current status of HDMI.
-	 */
-	intel_hdmi_unset_edid(&intel_connector->base);
-	if (intel_hdmi_set_edid(&intel_connector->base, live_status))
-		DRM_DEBUG_DRIVER("DDC probe: got EDID\n");
-	else
-		DRM_DEBUG_DRIVER("DDC probe: no EDID\n");
-}
+	intel_hdmi_unset_edid(connector);
 
-static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector, bool force)
-{
-	enum drm_connector_status status;
-	struct intel_connector *intel_connector =
-				to_intel_connector(connector);
-
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, connector->name);
-
-	/*
-	 * There are many userspace calls which probe EDID from
-	 * detect path. In case of multiple hotplug/unplug, these
-	 * can cause race conditions while probing EDID. Also its
-	 * waste of CPU cycles to read the EDID again and again
-	 * unless there is a real hotplug.
-	 * So, rely on hotplugs and init to read edid.
-	 * Check connector status based on availability of cached EDID.
-	 */
-
-	if (intel_connector->detect_edid) {
+	if (intel_hdmi_set_edid(connector, live_status)) {
 		struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 
 		hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
 		status = connector_status_connected;
-		DRM_DEBUG_DRIVER("hdmi status = connected\n");
-	} else {
+	} else
 		status = connector_status_disconnected;
-		DRM_DEBUG_DRIVER("hdmi status = disconnected\n");
-	}
 
 	return status;
 }
@@ -2145,7 +2114,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_connector->unregister = intel_connector_unregister;
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
-	intel_encoder->hot_plug = intel_hdmi_hot_plug;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_connector_register(connector);
