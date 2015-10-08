@@ -6238,6 +6238,17 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		else
 			*cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
+	/* p2p might require that "if-events" get processed by fweh. So
+	 * activate the already registered event handlers now and activate
+	 * the rest when initialization has completed. drvr->config needs to
+	 * be assigned before activating events.
+	 */
+	drvr->config = cfg;
+	err = brcmf_fweh_activate_events(ifp);
+	if (err) {
+		brcmf_err("FWEH activation failed (%d)\n", err);
+		goto wiphy_unreg_out;
+	}
 
 	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
@@ -6258,6 +6269,13 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	} else {
 		brcmf_fweh_register(cfg->pub, BRCMF_E_TDLS_PEER_EVENT,
 				    brcmf_notify_tdls_peer_event);
+	}
+
+	/* (re-) activate FWEH event handling */
+	err = brcmf_fweh_activate_events(ifp);
+	if (err) {
+		brcmf_err("FWEH activation failed (%d)\n", err);
+		goto wiphy_unreg_out;
 	}
 
 	return cfg;

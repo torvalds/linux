@@ -828,8 +828,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
-		ndev = alloc_netdev(sizeof(*ifp), name, NET_NAME_UNKNOWN,
-				    ether_setup);
+		ndev = alloc_netdev(sizeof(*ifp), is_p2pdev ? "p2p%d" : name,
+				    NET_NAME_UNKNOWN, ether_setup);
 		if (!ndev)
 			return ERR_PTR(-ENOMEM);
 
@@ -1021,12 +1021,7 @@ int brcmf_bus_start(struct device *dev)
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
 
-	if (brcmf_p2p_enable)
-		p2p_ifp = brcmf_add_if(drvr, 1, 0, false, "p2p%d", NULL);
-	else
-		p2p_ifp = NULL;
-	if (IS_ERR(p2p_ifp))
-		p2p_ifp = NULL;
+	p2p_ifp = NULL;
 
 	/* signal bus ready */
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
@@ -1060,11 +1055,13 @@ int brcmf_bus_start(struct device *dev)
 		goto fail;
 	}
 
-	ret = brcmf_fweh_activate_events(ifp);
-	if (ret < 0)
-		goto fail;
-
 	ret = brcmf_net_attach(ifp, false);
+
+	if ((!ret) && (brcmf_p2p_enable)) {
+		p2p_ifp = drvr->iflist[1];
+		if (p2p_ifp)
+			ret = brcmf_net_p2p_attach(p2p_ifp);
+	}
 fail:
 	if (ret < 0) {
 		brcmf_err("failed: %d\n", ret);
@@ -1076,20 +1073,12 @@ fail:
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
 		}
-		if (drvr->iflist[0]) {
+		if (ifp)
 			brcmf_net_detach(ifp->ndev);
-			drvr->iflist[0] = NULL;
-		}
-		if (p2p_ifp) {
+		if (p2p_ifp)
 			brcmf_net_detach(p2p_ifp->ndev);
-			drvr->iflist[1] = NULL;
-		}
 		return ret;
 	}
-	if ((brcmf_p2p_enable) && (p2p_ifp))
-		if (brcmf_net_p2p_attach(p2p_ifp) < 0)
-			brcmf_p2p_enable = 0;
-
 	return 0;
 }
 
