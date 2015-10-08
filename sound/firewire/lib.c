@@ -76,6 +76,8 @@ static void async_midi_port_callback(struct fw_card *card, int rcode,
 
 	if (rcode == RCODE_COMPLETE && substream != NULL)
 		snd_rawmidi_transmit_ack(substream, port->consume_bytes);
+
+	port->idling = true;
 }
 
 static void midi_port_work(struct work_struct *work)
@@ -85,6 +87,10 @@ static void midi_port_work(struct work_struct *work)
 	struct snd_rawmidi_substream *substream = ACCESS_ONCE(port->substream);
 	int generation;
 	int type;
+
+	/* Under transacting. */
+	if (!port->idling)
+		return;
 
 	/* Nothing to do. */
 	if (substream == NULL || snd_rawmidi_transmit_empty(substream))
@@ -110,6 +116,8 @@ static void midi_port_work(struct work_struct *work)
 		type = TCODE_WRITE_BLOCK_REQUEST;
 
 	/* Start this transaction. */
+	port->idling = false;
+
 	/*
 	 * In Linux FireWire core, when generation is updated with memory
 	 * barrier, node id has already been updated. In this module, After
@@ -150,6 +158,7 @@ int snd_fw_async_midi_port_init(struct snd_fw_async_midi_port *port,
 	port->parent = fw_parent_device(unit);
 	port->addr = addr;
 	port->fill = fill;
+	port->idling = true;
 
 	INIT_WORK(&port->work, midi_port_work);
 

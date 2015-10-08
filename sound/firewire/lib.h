@@ -30,6 +30,7 @@ typedef int (*snd_fw_async_midi_port_fill)(
 struct snd_fw_async_midi_port {
 	struct fw_device *parent;
 	struct work_struct work;
+	bool idling;
 
 	u64 addr;
 	struct fw_transaction transaction;
