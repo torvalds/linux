@@ -564,6 +564,7 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 		return -ENOENT;
 
 	br_fdb_find_delete_local(br, NULL, br->dev->dev_addr, vid);
+	br_fdb_delete_by_port(br, NULL, vid, 0);
 
 	return __vlan_del(v);
 }
