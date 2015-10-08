@@ -73,21 +73,24 @@ static void cpu_stop_signal_done(struct cpu_stop_done *done, bool executed)
 	}
 }
 
+static void __cpu_stop_queue_work(struct cpu_stopper *stopper,
+					struct cpu_stop_work *work)
+{
+	list_add_tail(&work->list, &stopper->works);
+	wake_up_process(stopper->thread);
+}
+
 /* queue @work to @stopper.  if offline, @work is completed immediately */
 static void cpu_stop_queue_work(unsigned int cpu, struct cpu_stop_work *work)
 {
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-
 	unsigned long flags;
 
 	spin_lock_irqsave(&stopper->lock, flags);
-
-	if (stopper->enabled) {
-		list_add_tail(&work->list, &stopper->works);
-		wake_up_process(stopper->thread);
-	} else
+	if (stopper->enabled)
+		__cpu_stop_queue_work(stopper, work);
+	else
 		cpu_stop_signal_done(work->done, false);
-
 	spin_unlock_irqrestore(&stopper->lock, flags);
 }
 
@@ -213,6 +216,16 @@ static int multi_cpu_stop(void *data)
 	return err;
 }
 
+static int cpu_stop_queue_two_works(int cpu1, struct cpu_stop_work *work1,
+				    int cpu2, struct cpu_stop_work *work2)
+{
+	lg_double_lock(&stop_cpus_lock, cpu1, cpu2);
+	cpu_stop_queue_work(cpu1, work1);
+	cpu_stop_queue_work(cpu2, work2);
+	lg_double_unlock(&stop_cpus_lock, cpu1, cpu2);
+
+	return 0;
+}
 /**
  * stop_two_cpus - stops two cpus
  * @cpu1: the cpu to stop
@@ -260,10 +273,12 @@ int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *
 		return -ENOENT;
 	}
 
-	lg_double_lock(&stop_cpus_lock, cpu1, cpu2);
-	cpu_stop_queue_work(cpu1, &work1);
-	cpu_stop_queue_work(cpu2, &work2);
-	lg_double_unlock(&stop_cpus_lock, cpu1, cpu2);
+	if (cpu1 > cpu2)
+		swap(cpu1, cpu2);
+	if (cpu_stop_queue_two_works(cpu1, &work1, cpu2, &work2)) {
+		preempt_enable();
+		return -ENOENT;
+	}
 
 	preempt_enable();
 
