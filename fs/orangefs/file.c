@@ -31,13 +31,10 @@ do {							\
  */
 static int precopy_buffers(struct pvfs2_bufmap *bufmap,
 			   int buffer_index,
-			   const struct iovec *vec,
-			   unsigned long nr_segs,
+			   struct iov_iter *iter,
 			   size_t total_size)
 {
 	int ret = 0;
-	struct iov_iter iter;
-
 	/*
 	 * copy data from application/kernel by pulling it out
 	 * of the iovec.
@@ -45,9 +42,8 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
 
 
 	if (total_size) {
-		iov_iter_init(&iter, WRITE, vec, nr_segs, total_size);
 		ret = pvfs_bufmap_copy_from_iovec(bufmap,
-						&iter,
+						iter,
 						buffer_index,
 						total_size);
 		if (ret < 0)
@@ -152,10 +148,11 @@ populate_shared_memory:
 	 * precopy_buffers only pertains to writes.
 	 */
 	if (type == PVFS_IO_WRITE) {
+		struct iov_iter iter;
+		iov_iter_init(&iter, WRITE, vec, nr_segs, total_size);
 		ret = precopy_buffers(bufmap,
 				      buffer_index,
-				      vec,
-				      nr_segs,
+				      &iter,
 				      total_size);
 		if (ret < 0)
 			goto out;
