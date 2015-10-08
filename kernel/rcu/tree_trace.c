@@ -319,7 +319,7 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	unsigned long gpmax;
 	struct rcu_node *rnp = &rsp->node[0];
 
-	raw_spin_lock_irqsave(&rnp->lock, flags);
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	completed = READ_ONCE(rsp->completed);
 	gpnum = READ_ONCE(rsp->gpnum);
 	if (completed == gpnum)
