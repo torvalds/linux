@@ -2002,9 +2002,33 @@ static int init_phys_status_page(struct intel_engine_cs *ring)
 
 void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf)
 {
-	iounmap(ringbuf->virtual_start);
+	if (HAS_LLC(ringbuf->obj->base.dev) && !ringbuf->obj->stolen)
+		vunmap(ringbuf->virtual_start);
+	else
+		iounmap(ringbuf->virtual_start);
 	ringbuf->virtual_start = NULL;
 	i915_gem_object_ggtt_unpin(ringbuf->obj);
+}
+
+static u32 *vmap_obj(struct drm_i915_gem_object *obj)
+{
+	struct sg_page_iter sg_iter;
+	struct page **pages;
+	void *addr;
+	int i;
+
+	pages = drm_malloc_ab(obj->base.size >> PAGE_SHIFT, sizeof(*pages));
+	if (pages == NULL)
+		return NULL;
+
+	i = 0;
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0)
+		pages[i++] = sg_page_iter_page(&sg_iter);
+
+	addr = vmap(pages, i, 0, PAGE_KERNEL);
+	drm_free_large(pages);
+
+	return addr;
 }
 
 int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
@@ -2014,21 +2038,39 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 	struct drm_i915_gem_object *obj = ringbuf->obj;
 	int ret;
 
-	ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
-	if (ret)
-		return ret;
+	if (HAS_LLC(dev_priv) && !obj->stolen) {
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, 0);
+		if (ret)
+			return ret;
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, true);
-	if (ret) {
-		i915_gem_object_ggtt_unpin(obj);
-		return ret;
-	}
+		ret = i915_gem_object_set_to_cpu_domain(obj, true);
+		if (ret) {
+			i915_gem_object_ggtt_unpin(obj);
+			return ret;
+		}
 
-	ringbuf->virtual_start = ioremap_wc(dev_priv->gtt.mappable_base +
-			i915_gem_obj_ggtt_offset(obj), ringbuf->size);
-	if (ringbuf->virtual_start == NULL) {
-		i915_gem_object_ggtt_unpin(obj);
-		return -EINVAL;
+		ringbuf->virtual_start = vmap_obj(obj);
+		if (ringbuf->virtual_start == NULL) {
+			i915_gem_object_ggtt_unpin(obj);
+			return -ENOMEM;
+		}
+	} else {
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
+		if (ret)
+			return ret;
+
+		ret = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (ret) {
+			i915_gem_object_ggtt_unpin(obj);
+			return ret;
+		}
+
+		ringbuf->virtual_start = ioremap_wc(dev_priv->gtt.mappable_base +
+						    i915_gem_obj_ggtt_offset(obj), ringbuf->size);
+		if (ringbuf->virtual_start == NULL) {
+			i915_gem_object_ggtt_unpin(obj);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
