@@ -87,12 +87,35 @@ static void _gb_sdio_set_host_caps(struct gb_sdio_host *host, u32 r)
 		host->card_present = true;
 }
 
+static u32 _gb_sdio_get_host_ocr(u32 ocr)
+{
+	return (((ocr & GB_SDIO_VDD_165_195) ? MMC_VDD_165_195 : 0) |
+		((ocr & GB_SDIO_VDD_20_21) ? MMC_VDD_20_21 : 0) |
+		((ocr & GB_SDIO_VDD_21_22) ? MMC_VDD_21_22 : 0) |
+		((ocr & GB_SDIO_VDD_22_23) ? MMC_VDD_22_23 : 0) |
+		((ocr & GB_SDIO_VDD_23_24) ? MMC_VDD_23_24 : 0) |
+		((ocr & GB_SDIO_VDD_24_25) ? MMC_VDD_24_25 : 0) |
+		((ocr & GB_SDIO_VDD_25_26) ? MMC_VDD_25_26 : 0) |
+		((ocr & GB_SDIO_VDD_26_27) ? MMC_VDD_26_27 : 0) |
+		((ocr & GB_SDIO_VDD_27_28) ? MMC_VDD_27_28 : 0) |
+		((ocr & GB_SDIO_VDD_28_29) ? MMC_VDD_28_29 : 0) |
+		((ocr & GB_SDIO_VDD_29_30) ? MMC_VDD_29_30 : 0) |
+		((ocr & GB_SDIO_VDD_30_31) ? MMC_VDD_30_31 : 0) |
+		((ocr & GB_SDIO_VDD_31_32) ? MMC_VDD_31_32 : 0) |
+		((ocr & GB_SDIO_VDD_32_33) ? MMC_VDD_32_33 : 0) |
+		((ocr & GB_SDIO_VDD_33_34) ? MMC_VDD_33_34 : 0) |
+		((ocr & GB_SDIO_VDD_34_35) ? MMC_VDD_34_35 : 0) |
+		((ocr & GB_SDIO_VDD_35_36) ? MMC_VDD_35_36 : 0)
+		);
+}
+
 static int gb_sdio_get_caps(struct gb_sdio_host *host)
 {
 	struct gb_sdio_get_caps_response response;
 	struct mmc_host *mmc = host->mmc;
 	u16 data_max;
 	u32 blksz;
+	u32 ocr;
 	u32 r;
 	int ret;
 
@@ -117,7 +140,8 @@ static int gb_sdio_get_caps(struct gb_sdio_host *host)
 	host->data_max = data_max;
 
 	/* get ocr supported values */
-	mmc->ocr_avail = le32_to_cpu(response.ocr);
+	ocr = _gb_sdio_get_host_ocr(le32_to_cpu(response.ocr));
+	mmc->ocr_avail = ocr;
 	mmc->ocr_avail_sdio = mmc->ocr_avail;
 	mmc->ocr_avail_sd = mmc->ocr_avail;
 	mmc->ocr_avail_mmc = mmc->ocr_avail;
