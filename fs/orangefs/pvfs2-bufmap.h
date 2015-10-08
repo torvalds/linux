@@ -49,7 +49,8 @@ int pvfs_bufmap_copy_from_iovec(struct pvfs2_bufmap *bufmap,
 
 int pvfs_bufmap_copy_to_iovec(struct pvfs2_bufmap *bufmap,
 			      struct iov_iter *iter,
-			      int buffer_index);
+			      int buffer_index,
+			      size_t size);
 
 size_t pvfs_bufmap_copy_to_user_task_iovec(struct task_struct *tsk,
 					   struct iovec *iovec,

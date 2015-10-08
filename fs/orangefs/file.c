@@ -89,7 +89,8 @@ static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 		iov_iter_init(&iter, READ, vec, nr_segs, total_size);
 		ret = pvfs_bufmap_copy_to_iovec(bufmap,
 						&iter,
-						buffer_index);
+						buffer_index,
+						total_size);
 		if (ret < 0)
 			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
 				__func__,

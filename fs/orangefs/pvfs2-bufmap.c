@@ -542,25 +542,26 @@ int pvfs_bufmap_copy_from_iovec(struct pvfs2_bufmap *bufmap,
  */
 int pvfs_bufmap_copy_to_iovec(struct pvfs2_bufmap *bufmap,
 				    struct iov_iter *iter,
-				    int buffer_index)
+				    int buffer_index,
+				    size_t size)
 {
-	struct pvfs_bufmap_desc *from;
-	struct page *page;
+	struct pvfs_bufmap_desc *from = &bufmap->desc_array[buffer_index];
 	int i;
-	size_t written;
 
 	gossip_debug(GOSSIP_BUFMAP_DEBUG,
-		     "%s: buffer_index:%d: iov_iter_count(iter):%lu:\n",
-		     __func__, buffer_index, iov_iter_count(iter));
+		     "%s: buffer_index:%d: size:%zu:\n",
+		     __func__, buffer_index, size);
 
-	from = &bufmap->desc_array[buffer_index];
 
-	for (i = 0; iov_iter_count(iter); i++) {
-		page = from->page_array[i];
-		written = copy_page_to_iter(page, 0, PAGE_SIZE, iter);
-		if ((written == 0) && (iov_iter_count(iter)))
-			break;
+	for (i = 0; size; i++) {
+		struct page *page = from->page_array[i];
+		size_t n = size;
+		if (n > PAGE_SIZE)
+			n = PAGE_SIZE;
+		n = copy_page_to_iter(page, 0, n, iter);
+		if (!n)
+			return -EFAULT;
+		size -= n;
 	}
-
-	return iov_iter_count(iter) ? -EFAULT : 0;
+	return 0;
 }
