@@ -2981,11 +2981,15 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
  */
 int t4_check_fw_version(struct adapter *adap)
 {
-	int ret, major, minor, micro;
+	int i, ret, major, minor, micro;
 	int exp_major, exp_minor, exp_micro;
 	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
 
 	ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+	/* Try multiple times before returning error */
+	for (i = 0; (ret == -EBUSY || ret == -EAGAIN) && i < 3; i++)
+		ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+
 	if (ret)
 		return ret;
 

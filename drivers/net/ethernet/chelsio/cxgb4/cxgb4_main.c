@@ -3698,7 +3698,7 @@ static int adap_init0(struct adapter *adap)
 	t4_get_tp_version(adap, &adap->params.tp_vers);
 	ret = t4_check_fw_version(adap);
 	/* If firmware is too old (not supported by driver) force an update. */
-	if (ret == -EFAULT)
+	if (ret)
 		state = DEV_STATE_UNINIT;
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
 		struct fw_info *fw_info;
