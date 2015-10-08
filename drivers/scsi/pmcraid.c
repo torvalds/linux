@@ -4254,7 +4254,6 @@ static struct scsi_host_template pmcraid_host_template = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = pmcraid_host_attrs,
 	.proc_name = PMCRAID_DRIVER_NAME,
-	.use_blk_tags = 1,
 };
 
 /*

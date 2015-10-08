@@ -4983,7 +4983,6 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 static int hpsa_scsi_host_alloc(struct ctlr_info *h)
 {
 	struct Scsi_Host *sh;
-	int error;
 
 	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
 	if (sh == NULL) {
@@ -5004,14 +5003,7 @@ static int hpsa_scsi_host_alloc(struct ctlr_info *h)
 	sh->hostdata[0] = (unsigned long) h;
 	sh->irq = h->intr[h->intr_mode];
 	sh->unique_id = sh->irq;
-	error = scsi_init_shared_tag_map(sh, sh->can_queue);
-	if (error) {
-		dev_err(&h->pdev->dev,
-			"%s: scsi_init_shared_tag_map failed for controller %d\n",
-			__func__, h->ctlr);
-			scsi_host_put(sh);
-			return error;
-	}
+
 	h->scsi_host = sh;
 	return 0;
 }

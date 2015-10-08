@@ -4355,7 +4355,6 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.cmd_per_lun		= UFSHCD_CMD_PER_LUN,
 	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_host_blocked	= 1,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 
@@ -5617,13 +5616,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		goto exit_gating;
 	} else {
 		hba->is_irq_enabled = true;
-	}
-
-	/* Enable SCSI tag mapping */
-	err = scsi_init_shared_tag_map(host, host->can_queue);
-	if (err) {
-		dev_err(hba->dev, "init shared queue failed\n");
-		goto exit_gating;
 	}
 
 	err = scsi_add_host(host, hba->dev);

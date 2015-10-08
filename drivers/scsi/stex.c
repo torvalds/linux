@@ -1374,7 +1374,6 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,
-	.use_blk_tags			= 1,
 };
 
 static struct pci_device_id stex_pci_tbl[] = {
@@ -1658,13 +1657,6 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = stex_handshake(hba);
 	if (err)
 		goto out_free_irq;
-
-	err = scsi_init_shared_tag_map(host, host->can_queue);
-	if (err) {
-		printk(KERN_ERR DRV_NAME "(%s): init shared queue failed\n",
-			pci_name(pdev));
-		goto out_free_irq;
-	}
 
 	pci_set_drvdata(pdev, hba);
 

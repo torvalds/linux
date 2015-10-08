@@ -5049,7 +5049,6 @@ static int megasas_start_aen(struct megasas_instance *instance)
 static int megasas_io_attach(struct megasas_instance *instance)
 {
 	struct Scsi_Host *host = instance->host;
-	u32 error;
 
 	/*
 	 * Export parameters required by SCSI mid-layer
@@ -5098,13 +5097,6 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
 		host->hostt->eh_device_reset_handler = NULL;
 		host->hostt->eh_bus_reset_handler = NULL;
-	}
-	error = scsi_init_shared_tag_map(host, host->can_queue);
-	if (error) {
-		dev_err(&instance->pdev->dev,
-			"Failed to shared tag from %s %d\n",
-			__func__, __LINE__);
-		return -ENODEV;
 	}
 
 	/*

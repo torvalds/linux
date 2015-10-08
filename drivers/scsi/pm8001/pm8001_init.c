@@ -88,7 +88,6 @@ static struct scsi_host_template pm8001_sht = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= pm8001_host_attrs,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 

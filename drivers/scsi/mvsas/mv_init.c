@@ -65,7 +65,6 @@ static struct scsi_host_template mvs_sht = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= mvst_host_attrs,
-	.use_blk_tags		= 1,
 	.track_queue_depth	= 1,
 };
 
