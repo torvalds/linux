@@ -4,6 +4,8 @@ menu "RealView platform type"
 config REALVIEW_DT
 	bool "Support RealView(R) Device Tree based boot"
 	select ARM_GIC
+	select CLK_SP810
+	select ICST
 	select MFD_SYSCON
 	select POWER_RESET
 	select POWER_RESET_VERSATILE
