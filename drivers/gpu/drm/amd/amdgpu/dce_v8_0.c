@@ -2449,34 +2449,15 @@ static int dce_v8_0_cursor_move_locked(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int dce_v8_0_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj)
+static void dce_v8_0_set_cursor(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
-	struct amdgpu_bo *aobj = gem_to_amdgpu_bo(obj);
-	uint64_t gpu_addr;
-	int ret;
-
-	ret = amdgpu_bo_reserve(aobj, false);
-	if (unlikely(ret != 0))
-		goto fail;
-
-	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM, &gpu_addr);
-	amdgpu_bo_unreserve(aobj);
-	if (ret)
-		goto fail;
 
 	WREG32(mmCUR_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
-	       upper_32_bits(gpu_addr));
+	       upper_32_bits(amdgpu_crtc->cursor_addr));
 	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
-	       lower_32_bits(gpu_addr));
-
-	return 0;
-
-fail:
-	drm_gem_object_unreference_unlocked(obj);
-
-	return ret;
+	       lower_32_bits(amdgpu_crtc->cursor_addr));
 }
 
 static int dce_v8_0_crtc_cursor_move(struct drm_crtc *crtc,
@@ -2501,6 +2482,7 @@ static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_gem_object *obj;
+	struct amdgpu_bo *aobj;
 	int ret;
 
 	if (!handle) {
@@ -2522,6 +2504,21 @@ static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return -ENOENT;
 	}
 
+	aobj = gem_to_amdgpu_bo(obj);
+	ret = amdgpu_bo_reserve(aobj, false);
+	if (ret != 0) {
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
+
+	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM, &amdgpu_crtc->cursor_addr);
+	amdgpu_bo_unreserve(aobj);
+	if (ret) {
+		DRM_ERROR("Failed to pin new cursor BO (%d)\n", ret);
+		drm_gem_object_unreference_unlocked(obj);
+		return ret;
+	}
+
 	amdgpu_crtc->cursor_width = width;
 	amdgpu_crtc->cursor_height = height;
 
@@ -2540,12 +2537,8 @@ static int dce_v8_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		amdgpu_crtc->cursor_hot_y = hot_y;
 	}
 
-	ret = dce_v8_0_set_cursor(crtc, obj);
-	if (ret)
-		DRM_ERROR("dce_v8_0_set_cursor returned %d, not changing cursor\n",
-			  ret);
-	else
-		dce_v8_0_show_cursor(crtc);
+	dce_v8_0_set_cursor(crtc);
+	dce_v8_0_show_cursor(crtc);
 	dce_v8_0_lock_cursor(crtc, false);
 
 unpin:
@@ -2556,8 +2549,7 @@ unpin:
 			amdgpu_bo_unpin(aobj);
 			amdgpu_bo_unreserve(aobj);
 		}
-		if (amdgpu_crtc->cursor_bo != obj)
-			drm_gem_object_unreference_unlocked(amdgpu_crtc->cursor_bo);
+		drm_gem_object_unreference_unlocked(amdgpu_crtc->cursor_bo);
 	}
 
 	amdgpu_crtc->cursor_bo = obj;
@@ -2567,7 +2559,6 @@ unpin:
 static void dce_v8_0_cursor_reset(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	int ret;
 
 	if (amdgpu_crtc->cursor_bo) {
 		dce_v8_0_lock_cursor(crtc, true);
@@ -2575,12 +2566,8 @@ static void dce_v8_0_cursor_reset(struct drm_crtc *crtc)
 		dce_v8_0_cursor_move_locked(crtc, amdgpu_crtc->cursor_x,
 					    amdgpu_crtc->cursor_y);
 
-		ret = dce_v8_0_set_cursor(crtc, amdgpu_crtc->cursor_bo);
-		if (ret)
-			DRM_ERROR("dce_v8_0_set_cursor returned %d, not showing "
-				  "cursor\n", ret);
-		else
-			dce_v8_0_show_cursor(crtc);
+		dce_v8_0_set_cursor(crtc);
+		dce_v8_0_show_cursor(crtc);
 
 		dce_v8_0_lock_cursor(crtc, false);
 	}
