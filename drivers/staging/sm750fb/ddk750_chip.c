@@ -384,10 +384,10 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 	if (pll->clockType != MXCLK_PLL) {
 		xparm = &xparm_PIXEL[0];
-		xcnt = sizeof(xparm_PIXEL) / sizeof(xparm_PIXEL[0]);
+		xcnt = ARRAY_SIZE(xparm_PIXEL);
 	} else {
 		xparm = &xparm_MXCLK[0];
-		xcnt = sizeof(xparm_MXCLK) / sizeof(xparm_MXCLK[0]);
+		xcnt = ARRAY_SIZE(xparm_MXCLK);
 	}
 
 
