@@ -168,18 +168,17 @@ enum dt3k_boardid {
 struct dt3k_boardtype {
 	const char *name;
 	int adchan;
-	int adbits;
 	int ai_speed;
 	const struct comedi_lrange *adrange;
 	int dachan;
 	int dabits;
+	unsigned int ai_is_16bit:1;
 };
 
 static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	[BOARD_DT3001] = {
 		.name		= "dt3001",
 		.adchan		= 16,
-		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
 		.dachan		= 2,
@@ -188,7 +187,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	[BOARD_DT3001_PGL] = {
 		.name		= "dt3001-pgl",
 		.adchan		= 16,
-		.adbits		= 12,
 		.adrange	= &range_dt3000_ai_pgl,
 		.ai_speed	= 3000,
 		.dachan		= 2,
@@ -197,14 +195,12 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	[BOARD_DT3002] = {
 		.name		= "dt3002",
 		.adchan		= 32,
-		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
 	},
 	[BOARD_DT3003] = {
 		.name		= "dt3003",
 		.adchan		= 64,
-		.adbits		= 12,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 3000,
 		.dachan		= 2,
@@ -213,7 +209,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	[BOARD_DT3003_PGL] = {
 		.name		= "dt3003-pgl",
 		.adchan		= 64,
-		.adbits		= 12,
 		.adrange	= &range_dt3000_ai_pgl,
 		.ai_speed	= 3000,
 		.dachan		= 2,
@@ -222,20 +217,20 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	[BOARD_DT3004] = {
 		.name		= "dt3004",
 		.adchan		= 16,
-		.adbits		= 16,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 10000,
 		.dachan		= 2,
 		.dabits		= 12,
+		.ai_is_16bit	= 1,
 	},
 	[BOARD_DT3005] = {
 		.name		= "dt3005",	/* a.k.a. 3004-200 */
 		.adchan		= 16,
-		.adbits		= 16,
 		.adrange	= &range_dt3000_ai,
 		.ai_speed	= 5000,
 		.dachan		= 2,
 		.dabits		= 12,
+		.ai_is_16bit	= 1,
 	},
 };
 
@@ -675,7 +670,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= board->adchan;
 	s->insn_read	= dt3k_ai_insn;
-	s->maxdata	= (1 << board->adbits) - 1;
+	s->maxdata	= board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->range_table	= &range_dt3000_ai;	/* XXX */
 	if (dev->irq) {
 		dev->read_subdev = s;
