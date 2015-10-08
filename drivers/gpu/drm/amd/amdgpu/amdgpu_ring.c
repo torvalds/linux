@@ -540,8 +540,8 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 static int amdgpu_gfx_index = offsetof(struct amdgpu_device, gfx.gfx_ring[0]);
 static int cayman_cp1_index = offsetof(struct amdgpu_device, gfx.compute_ring[0]);
 static int cayman_cp2_index = offsetof(struct amdgpu_device, gfx.compute_ring[1]);
-static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma[0].ring);
-static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma[1].ring);
+static int amdgpu_dma1_index = offsetof(struct amdgpu_device, sdma.instance[0].ring);
+static int amdgpu_dma2_index = offsetof(struct amdgpu_device, sdma.instance[1].ring);
 static int r600_uvd_index = offsetof(struct amdgpu_device, uvd.ring);
 static int si_vce1_index = offsetof(struct amdgpu_device, vce.ring[0]);
 static int si_vce2_index = offsetof(struct amdgpu_device, vce.ring[1]);

@@ -104,10 +104,11 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		}
 		break;
 	case AMDGPU_HW_IP_DMA:
-		if (ring < 2) {
-			*out_ring = &adev->sdma[ring].ring;
+		if (ring < adev->sdma.num_instances) {
+			*out_ring = &adev->sdma.instance[ring].ring;
 		} else {
-			DRM_ERROR("only two SDMA rings are supported\n");
+			DRM_ERROR("only %d SDMA rings are supported\n",
+				  adev->sdma.num_instances);
 			return -EINVAL;
 		}
 		break;
