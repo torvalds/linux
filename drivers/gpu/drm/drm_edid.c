@@ -2418,6 +2418,8 @@ add_cvt_modes(struct drm_connector *connector, struct edid *edid)
 	return closure.modes;
 }
 
+static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode);
+
 static void
 do_detailed_mode(struct detailed_timing *timing, void *c)
 {
@@ -2433,6 +2435,13 @@ do_detailed_mode(struct detailed_timing *timing, void *c)
 
 		if (closure->preferred)
 			newmode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		/*
+		 * Detailed modes are limited to 10kHz pixel clock resolution,
+		 * so fix up anything that looks like CEA/HDMI mode, but the clock
+		 * is just slightly off.
+		 */
+		fixup_detailed_cea_mode_clock(newmode);
 
 		drm_mode_probed_add(closure->connector, newmode);
 		closure->modes++;
@@ -3101,6 +3110,45 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 					    video_len);
 
 	return modes;
+}
+
+static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
+{
+	const struct drm_display_mode *cea_mode;
+	int clock1, clock2, clock;
+	u8 mode_idx;
+	const char *type;
+
+	mode_idx = drm_match_cea_mode(mode) - 1;
+	if (mode_idx < ARRAY_SIZE(edid_cea_modes)) {
+		type = "CEA";
+		cea_mode = &edid_cea_modes[mode_idx];
+		clock1 = cea_mode->clock;
+		clock2 = cea_mode_alternate_clock(cea_mode);
+	} else {
+		mode_idx = drm_match_hdmi_mode(mode) - 1;
+		if (mode_idx < ARRAY_SIZE(edid_4k_modes)) {
+			type = "HDMI";
+			cea_mode = &edid_4k_modes[mode_idx];
+			clock1 = cea_mode->clock;
+			clock2 = hdmi_mode_alternate_clock(cea_mode);
+		} else {
+			return;
+		}
+	}
+
+	/* pick whichever is closest */
+	if (abs(mode->clock - clock1) < abs(mode->clock - clock2))
+		clock = clock1;
+	else
+		clock = clock2;
+
+	if (mode->clock == clock)
+		return;
+
+	DRM_DEBUG("detailed mode matches %s VIC %d, adjusting clock %d -> %d\n",
+		  type, mode_idx + 1, mode->clock, clock);
+	mode->clock = clock;
 }
 
 static void
