@@ -60,26 +60,22 @@
  * TS packet reception
  */
 
-/* TS filter type for set() */
-
-#define TS_PACKET       1   /*
-			     * send TS packets (188 bytes) to callback
-			     * (default)
-			     */
-
-#define	TS_PAYLOAD_ONLY 2   /*
-			     * in case TS_PACKET is set, only send the TS
-			     * payload (<=184 bytes per packet) to callback
-			     */
-
-#define TS_DECODER      4   /*
-			     * send stream to built-in decoder (if present)
-			     */
-
-#define TS_DEMUX        8   /*
-			     * in case TS_PACKET is set, send the TS to
-			     * the demux device, not to the dvr device
-			     */
+/**
+ * enum ts_filter_type - filter type bitmap for dmx_ts_feed.set()
+ *
+ * @TS_PACKET:		Send TS packets (188 bytes) to callback (default).
+ * @TS_PAYLOAD_ONLY:	In case TS_PACKET is set, only send the TS payload
+ *			(<=184 bytes per packet) to callback
+ * @TS_DECODER:		Send stream to built-in decoder (if present).
+ * @TS_DEMUX:		In case TS_PACKET is set, send the TS to the demux
+ *			device, not to the dvr device
+ */
+enum ts_filter_type {
+	TS_PACKET = 1,
+	TS_PAYLOAD_ONLY = 2,
+	TS_DECODER = 4,
+	TS_DEMUX = 8,
+};
 
 /**
  * struct dmx_ts_feed - Structure that contains a TS feed filter
