@@ -554,11 +554,8 @@ static void dt3k_dio_config(struct comedi_device *dev, int bits)
 	writew(DPR_SUBSYS_DOUT, dev->mmio + DPR_SUBSYS);
 
 	writew(bits, dev->mmio + DPR_PARAMS(0));
-#if 0
-	/* don't know */
-	writew(0, dev->mmio + DPR_PARAMS(1));
-	writew(0, dev->mmio + DPR_PARAMS(2));
-#endif
+
+	/* XXX write 0 to DPR_PARAMS(1) and DPR_PARAMS(2) ? */
 
 	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
 }
