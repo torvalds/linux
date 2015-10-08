@@ -143,7 +143,6 @@ struct brcmf_cfg80211_profile {
  * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
  * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
  * @BRCMF_VIF_STATUS_DISCONNECTING: disconnect/disable in progress.
- * @BRCMF_VIF_STATUS_AP_CREATING: interface configured for AP operation.
  * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
  */
 enum brcmf_vif_status {
@@ -151,7 +150,6 @@ enum brcmf_vif_status {
 	BRCMF_VIF_STATUS_CONNECTING,
 	BRCMF_VIF_STATUS_CONNECTED,
 	BRCMF_VIF_STATUS_DISCONNECTING,
-	BRCMF_VIF_STATUS_AP_CREATING,
 	BRCMF_VIF_STATUS_AP_CREATED
 };
 

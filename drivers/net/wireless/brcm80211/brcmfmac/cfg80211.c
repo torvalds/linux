@@ -840,7 +840,6 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 			err = brcmf_p2p_ifchange(cfg, BRCMF_FIL_P2P_IF_GO);
 		}
 		if (!err) {
-			set_bit(BRCMF_VIF_STATUS_AP_CREATING, &vif->sme_state);
 			brcmf_dbg(INFO, "IF Type = AP\n");
 		}
 	} else {
@@ -4251,7 +4250,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 		brcmf_dbg(TRACE, "GO mode configuration complete\n");
 	}
-	clear_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	set_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
 exit:
@@ -4316,7 +4314,6 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 	}
 	brcmf_set_mpc(ifp, 1);
 	brcmf_configure_arp_offload(ifp, true);
-	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
 	return err;
