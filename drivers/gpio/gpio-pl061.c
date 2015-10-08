@@ -152,12 +152,6 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
-	spin_lock_irqsave(&chip->lock, flags);
-
-	gpioiev = readb(chip->base + GPIOIEV);
-	gpiois = readb(chip->base + GPIOIS);
-	gpioibe = readb(chip->base + GPIOIBE);
-
 	if ((trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) &&
 	    (trigger & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
 	{
@@ -167,6 +161,13 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 			offset);
 		return -EINVAL;
 	}
+
+
+	spin_lock_irqsave(&chip->lock, flags);
+
+	gpioiev = readb(chip->base + GPIOIEV);
+	gpiois = readb(chip->base + GPIOIS);
+	gpioibe = readb(chip->base + GPIOIBE);
 
 	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		bool polarity = trigger & IRQ_TYPE_LEVEL_HIGH;
