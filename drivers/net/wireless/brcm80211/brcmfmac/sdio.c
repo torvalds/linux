@@ -3539,6 +3539,51 @@ done:
 	return err;
 }
 
+static size_t brcmf_sdio_bus_get_ramsize(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiodev->bus;
+
+	return bus->ci->ramsize - bus->ci->srsize;
+}
+
+static int brcmf_sdio_bus_get_memdump(struct device *dev, void *data,
+				      size_t mem_size)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiodev->bus;
+	int err;
+	int address;
+	int offset;
+	int len;
+
+	brcmf_dbg(INFO, "dump at 0x%08x: size=%zu\n", bus->ci->rambase,
+		  mem_size);
+
+	address = bus->ci->rambase;
+	offset = err = 0;
+	sdio_claim_host(sdiodev->func[1]);
+	while (offset < mem_size) {
+		len = ((offset + MEMBLOCK) < mem_size) ? MEMBLOCK :
+		      mem_size - offset;
+		err = brcmf_sdiod_ramrw(sdiodev, false, address, data, len);
+		if (err) {
+			brcmf_err("error %d on reading %d membytes at 0x%08x\n",
+				  err, len, address);
+			goto done;
+		}
+		data += len;
+		offset += len;
+		address += len;
+	}
+
+done:
+	sdio_release_host(sdiodev->func[1]);
+	return err;
+}
+
 void brcmf_sdio_trigger_dpc(struct brcmf_sdio *bus)
 {
 	if (!bus->dpc_triggered) {
@@ -3987,7 +4032,9 @@ static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.txctl = brcmf_sdio_bus_txctl,
 	.rxctl = brcmf_sdio_bus_rxctl,
 	.gettxq = brcmf_sdio_bus_gettxq,
-	.wowl_config = brcmf_sdio_wowl_config
+	.wowl_config = brcmf_sdio_wowl_config,
+	.get_ramsize = brcmf_sdio_bus_get_ramsize,
+	.get_memdump = brcmf_sdio_bus_get_memdump,
 };
 
 static void brcmf_sdio_firmware_callback(struct device *dev,

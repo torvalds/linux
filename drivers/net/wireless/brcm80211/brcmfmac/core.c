@@ -957,8 +957,8 @@ int brcmf_attach(struct device *dev)
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;
 
-	/* create device debugfs folder */
-	brcmf_debugfs_attach(drvr);
+	/* attach debug facilities */
+	brcmf_debug_attach(drvr);
 
 	/* Attach and link in the protocol */
 	ret = brcmf_proto_attach(drvr);
@@ -1155,7 +1155,7 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_proto_detach(drvr);
 
-	brcmf_debugfs_detach(drvr);
+	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;
 	kfree(drvr);
 }
