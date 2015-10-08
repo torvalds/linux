@@ -389,13 +389,15 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 	for (i = 0; i < nr_ioapic_pins; ++i) {
 		hlist_for_each_entry(entry, &table->map[i], link) {
 			u32 dest_id, dest_mode;
+			bool level;
 
 			if (entry->type != KVM_IRQ_ROUTING_MSI)
 				continue;
 			dest_id = (entry->msi.address_lo >> 12) & 0xff;
 			dest_mode = (entry->msi.address_lo >> 2) & 0x1;
-			if (kvm_apic_match_dest(vcpu, NULL, 0, dest_id,
-						dest_mode)) {
+			level = entry->msi.data & MSI_DATA_TRIGGER_LEVEL;
+			if (level && kvm_apic_match_dest(vcpu, NULL, 0,
+						dest_id, dest_mode)) {
 				u32 vector = entry->msi.data & 0xff;
 
 				__set_bit(vector,
