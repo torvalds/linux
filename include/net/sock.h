@@ -1514,6 +1514,13 @@ void sock_kfree_s(struct sock *sk, void *mem, int size);
 void sock_kzfree_s(struct sock *sk, void *mem, int size);
 void sk_send_sigurg(struct sock *sk);
 
+struct sockcm_cookie {
+	u32 mark;
+};
+
+int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
+		   struct sockcm_cookie *sockc);
+
 /*
  * Functions to fill in entries in struct proto_ops when a protocol
  * does not implement a particular function.
