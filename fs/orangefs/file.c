@@ -72,23 +72,18 @@ static int precopy_buffers(struct pvfs2_bufmap *bufmap,
  */
 static int postcopy_buffers(struct pvfs2_bufmap *bufmap,
 			    int buffer_index,
-			    const struct iovec *vec,
-			    int nr_segs,
+			    struct iov_iter *iter,
 			    size_t total_size)
 {
 	int ret = 0;
-
-	struct iov_iter iter;
-
 	/*
 	 * copy data to application/kernel by pushing it out to
 	 * the iovec. NOTE; target buffers can be addresses or
 	 * struct page pointers.
 	 */
 	if (total_size) {
-		iov_iter_init(&iter, READ, vec, nr_segs, total_size);
 		ret = pvfs_bufmap_copy_to_iovec(bufmap,
-						&iter,
+						iter,
 						buffer_index,
 						total_size);
 		if (ret < 0)
@@ -221,10 +216,11 @@ populate_shared_memory:
 	 * postcopy_buffers only pertains to reads.
 	 */
 	if (type == PVFS_IO_READ) {
+		struct iov_iter iter;
+		iov_iter_init(&iter, READ, vec, nr_segs, new_op->downcall.resp.io.amt_complete);
 		ret = postcopy_buffers(bufmap,
 				       buffer_index,
-				       vec,
-				       nr_segs,
+				       &iter,
 				       new_op->downcall.resp.io.amt_complete);
 		if (ret < 0) {
 			/*
