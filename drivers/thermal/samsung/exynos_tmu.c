@@ -608,7 +608,7 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 	unsigned int trim_info = 0, con, rising_threshold;
-	int ret = 0, threshold_code;
+	int threshold_code;
 	int crit_temp = 0;
 
 	/*
@@ -651,7 +651,8 @@ static int exynos5440_tmu_initialize(struct platform_device *pdev)
 	/* Clear the PMIN in the common TMU register */
 	if (!data->id)
 		writel(0, data->base_second + EXYNOS5440_TMU_PMIN);
-	return ret;
+
+	return 0;
 }
 
 static int exynos7_tmu_initialize(struct platform_device *pdev)
