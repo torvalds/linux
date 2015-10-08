@@ -49,6 +49,7 @@
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
 #define FIRMWARE_FIJI		"amdgpu/fiji_vce.bin"
+#define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -60,6 +61,7 @@ MODULE_FIRMWARE(FIRMWARE_MULLINS);
 MODULE_FIRMWARE(FIRMWARE_TONGA);
 MODULE_FIRMWARE(FIRMWARE_CARRIZO);
 MODULE_FIRMWARE(FIRMWARE_FIJI);
+MODULE_FIRMWARE(FIRMWARE_STONEY);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -105,6 +107,9 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		break;
 	case CHIP_FIJI:
 		fw_name = FIRMWARE_FIJI;
+		break;
+	case CHIP_STONEY:
+		fw_name = FIRMWARE_STONEY;
 		break;
 
 	default:

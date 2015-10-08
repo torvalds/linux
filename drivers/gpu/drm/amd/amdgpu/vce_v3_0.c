@@ -205,8 +205,9 @@ static unsigned vce_v3_0_get_harvest_config(struct amdgpu_device *adev)
 	u32 tmp;
 	unsigned ret;
 
-	/* Fiji is single pipe */
-	if (adev->asic_type == CHIP_FIJI) {
+	/* Fiji, Stoney are single pipe */
+	if ((adev->asic_type == CHIP_FIJI) ||
+	    (adev->asic_type == CHIP_STONEY)){
 		ret = AMDGPU_VCE_HARVEST_VCE1;
 		return ret;
 	}
