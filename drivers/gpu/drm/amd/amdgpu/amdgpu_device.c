@@ -1657,10 +1657,20 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	}
 	drm_modeset_unlock_all(dev);
 
-	/* unpin the front buffers */
+	/* unpin the front buffers and cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 		struct amdgpu_framebuffer *rfb = to_amdgpu_framebuffer(crtc->primary->fb);
 		struct amdgpu_bo *robj;
+
+		if (amdgpu_crtc->cursor_bo) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, false);
+			if (r == 0) {
+				amdgpu_bo_unpin(aobj);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
 
 		if (rfb == NULL || rfb->obj == NULL) {
 			continue;
@@ -1713,6 +1723,7 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 {
 	struct drm_connector *connector;
 	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_crtc *crtc;
 	int r;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -1745,6 +1756,24 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	r = amdgpu_late_init(adev);
 	if (r)
 		return r;
+
+	/* pin cursors */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+		if (amdgpu_crtc->cursor_bo) {
+			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+			r = amdgpu_bo_reserve(aobj, false);
+			if (r == 0) {
+				r = amdgpu_bo_pin(aobj,
+						  AMDGPU_GEM_DOMAIN_VRAM,
+						  &amdgpu_crtc->cursor_addr);
+				if (r != 0)
+					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+				amdgpu_bo_unreserve(aobj);
+			}
+		}
+	}
 
 	/* blat the mode back in */
 	if (fbcon) {
