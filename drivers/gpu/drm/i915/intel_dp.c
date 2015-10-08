@@ -6168,10 +6168,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 		return;
 
 	intel_connector = intel_connector_alloc();
-	if (!intel_connector) {
-		kfree(intel_dig_port);
-		return;
-	}
+	if (!intel_connector)
+		goto err_connector_alloc;
 
 	intel_encoder = &intel_dig_port->base;
 	encoder = &intel_encoder->base;
@@ -6219,11 +6217,18 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
 	dev_priv->hotplug.irq_port[port] = intel_dig_port;
 
-	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {
-		drm_encoder_cleanup(encoder);
-		kfree(intel_dig_port);
-		kfree(intel_connector);
-	}
+	if (!intel_dp_init_connector(intel_dig_port, intel_connector))
+		goto err_init_connector;
+
+	return;
+
+err_init_connector:
+	drm_encoder_cleanup(encoder);
+	kfree(intel_connector);
+err_connector_alloc:
+	kfree(intel_dig_port);
+
+	return;
 }
 
 void intel_dp_mst_suspend(struct drm_device *dev)
