@@ -92,33 +92,20 @@ static void /*__exit */ esp_exit(void)
 	esp_common_exit();
 }
 
-#include <linux/rfkill-wlan.h>
-extern int get_wifi_chip_type(void);
 
 int rockchip_wifi_init_module_esp8089(void)
 {
-#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-    int type = get_wifi_chip_type();
-    if (type != WIFI_ESP8089) return 0;
-#endif
+
 	return esp_init();
 }
 
 void rockchip_wifi_exit_module_esp8089(void)
 {
-#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-    int type = get_wifi_chip_type();
-    if (type != WIFI_ESP8089) return;
-#endif
 	esp_exit(); 
 }
 
-#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-late_initcall(rockchip_wifi_init_module_esp8089);
-module_exit(rockchip_wifi_exit_module_esp8089);
-#else
 EXPORT_SYMBOL(rockchip_wifi_init_module_esp8089);
 EXPORT_SYMBOL(rockchip_wifi_exit_module_esp8089);
-#endif
+
 //module_init(esp_init);
 //module_exit(esp_exit);
