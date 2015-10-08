@@ -24,7 +24,8 @@
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
-#include <linux/jump_label.h>
+#include <linux/once.h>
+
 #include <uapi/linux/net.h>
 
 struct poll_table_struct;
@@ -250,22 +251,8 @@ do {								\
 	} while (0)
 #endif
 
-bool __net_get_random_once(void *buf, int nbytes, bool *done,
-			   struct static_key *done_key);
-
-#define net_get_random_once(buf, nbytes)				\
-	({								\
-		bool ___ret = false;					\
-		static bool ___done = false;				\
-		static struct static_key ___once_key =			\
-			STATIC_KEY_INIT_TRUE;				\
-		if (static_key_true(&___once_key))			\
-			___ret = __net_get_random_once(buf,		\
-						       nbytes,		\
-						       &___done,	\
-						       &___once_key);	\
-		___ret;							\
-	})
+#define net_get_random_once(buf, nbytes)			\
+	get_random_once((buf), (nbytes))
 
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len);
