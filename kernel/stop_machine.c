@@ -452,6 +452,18 @@ repeat:
 	}
 }
 
+void stop_machine_park(int cpu)
+{
+	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
+	/*
+	 * Lockless. cpu_stopper_thread() will take stopper->lock and flush
+	 * the pending works before it parks, until then it is fine to queue
+	 * the new works.
+	 */
+	stopper->enabled = false;
+	kthread_park(stopper->thread);
+}
+
 extern void sched_set_stop_task(int cpu, struct task_struct *stop);
 
 static void cpu_stop_create(unsigned int cpu)
@@ -462,17 +474,8 @@ static void cpu_stop_create(unsigned int cpu)
 static void cpu_stop_park(unsigned int cpu)
 {
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-	struct cpu_stop_work *work, *tmp;
-	unsigned long flags;
 
-	/* drain remaining works */
-	spin_lock_irqsave(&stopper->lock, flags);
-	list_for_each_entry_safe(work, tmp, &stopper->works, list) {
-		list_del_init(&work->list);
-		cpu_stop_signal_done(work->done, false);
-	}
-	stopper->enabled = false;
-	spin_unlock_irqrestore(&stopper->lock, flags);
+	WARN_ON(!list_empty(&stopper->works));
 }
 
 static void cpu_stop_unpark(unsigned int cpu)
