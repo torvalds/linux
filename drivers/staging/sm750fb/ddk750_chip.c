@@ -234,7 +234,6 @@ unsigned int ddk750_getVMSize(void)
 		break;
 	}
 	return data;
-
 }
 
 int ddk750_initHw(initchip_param_t *pInitParam)
