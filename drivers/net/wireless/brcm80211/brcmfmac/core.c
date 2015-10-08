@@ -635,8 +635,7 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_cfg80211_down(ndev);
 
-	/* Set state and stop OS transmissions */
-	netif_stop_queue(ndev);
+	brcmf_net_setcarrier(ifp, false);
 
 	return 0;
 }
@@ -670,8 +669,8 @@ static int brcmf_netdev_open(struct net_device *ndev)
 		return -EIO;
 	}
 
-	/* Allow transmit calls */
-	netif_start_queue(ndev);
+	/* Clear, carrier, set when connected or AP mode. */
+	netif_carrier_off(ndev);
 	return 0;
 }
 
@@ -734,6 +733,24 @@ static void brcmf_net_detach(struct net_device *ndev)
 		unregister_netdev(ndev);
 	else
 		brcmf_cfg80211_free_netdev(ndev);
+}
+
+void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on)
+{
+	struct net_device *ndev;
+
+	brcmf_dbg(TRACE, "Enter, idx=%d carrier=%d\n", ifp->bssidx, on);
+
+	ndev = ifp->ndev;
+	brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_DISCONNECTED, !on);
+	if (on) {
+		if (!netif_carrier_ok(ndev))
+			netif_carrier_on(ndev);
+
+	} else {
+		if (netif_carrier_ok(ndev))
+			netif_carrier_off(ndev);
+	}
 }
 
 static int brcmf_net_p2p_open(struct net_device *ndev)
