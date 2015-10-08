@@ -36,6 +36,8 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
+	u32 pages;
+	struct user_struct *user;
 	const struct bpf_map_ops *ops;
 	struct work_struct work;
 };
@@ -128,6 +130,7 @@ struct bpf_prog_aux {
 	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
+	struct user_struct *user;
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
