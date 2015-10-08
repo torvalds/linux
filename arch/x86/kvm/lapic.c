@@ -348,6 +348,8 @@ void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	__kvm_apic_update_irr(pir, apic->regs);
+
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
