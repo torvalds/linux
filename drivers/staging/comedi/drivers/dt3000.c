@@ -747,5 +747,5 @@ static struct pci_driver dt3000_pci_driver = {
 module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Data Translation DT3000 series boards");
 MODULE_LICENSE("GPL");
