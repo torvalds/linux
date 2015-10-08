@@ -33,6 +33,7 @@
 #include "feature.h"
 #include "proto.h"
 #include "pcie.h"
+#include "common.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
