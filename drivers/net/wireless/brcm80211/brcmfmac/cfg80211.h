@@ -407,6 +407,7 @@ struct brcmf_cfg80211_info {
 	struct brcmu_d11inf d11inf;
 	bool wowl_enabled;
 	u32 pre_wowl_pmmode;
+	struct brcmf_assoclist_le assoclist;
 };
 
 /**
