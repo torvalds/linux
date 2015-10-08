@@ -12,7 +12,6 @@ typedef struct _pllcalparam {
 }
 pllcalparam;
 
-
 logical_chip_type_t getChipType(void)
 {
 	unsigned short physicalID;
@@ -74,7 +73,6 @@ static unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
 	return calcPLL(pPLL);
 }
 
-
 static unsigned int getChipClock(void)
 {
 	pll_value_t pll;
@@ -85,7 +83,6 @@ static unsigned int getChipClock(void)
 
 	return getPllValue(MXCLK_PLL, &pll);
 }
-
 
 /*
  * This function set up the main chip clock.
@@ -120,8 +117,6 @@ static void setChipClock(unsigned int frequency)
 		POKE32(MXCLK_PLL_CTRL, formatPllReg(&pll));
 	}
 }
-
-
 
 static void setMemoryClock(unsigned int frequency)
 {
@@ -161,7 +156,6 @@ static void setMemoryClock(unsigned int frequency)
 		setCurrentGate(ulReg);
 	}
 }
-
 
 /*
  * This function set up the master clock (MCLK).
@@ -209,7 +203,6 @@ static void setMasterClock(unsigned int frequency)
 		setCurrentGate(ulReg);
 		}
 }
-
 
 unsigned int ddk750_getVMSize(void)
 {
