@@ -118,6 +118,25 @@
 #define DPR_CMD_HALT		DPR_CMD(48)
 #define DPR_CMD_MASK		DPR_CMD(0xff)
 
+#define DPR_PARAM5_AD_TRIG(x)		(((x) & 0x7) << 2)
+#define DPR_PARAM5_AD_TRIG_INT		DPR_PARAM5_AD_TRIG(0)
+#define DPR_PARAM5_AD_TRIG_EXT		DPR_PARAM5_AD_TRIG(1)
+#define DPR_PARAM5_AD_TRIG_INT_RETRIG	DPR_PARAM5_AD_TRIG(2)
+#define DPR_PARAM5_AD_TRIG_EXT_RETRIG	DPR_PARAM5_AD_TRIG(3)
+#define DPR_PARAM5_AD_TRIG_INT_RETRIG2	DPR_PARAM5_AD_TRIG(4)
+
+#define DPR_PARAM6_AD_DIFF		BIT(0)
+
+#define DPR_AI_FIFO_DEPTH		2003
+#define DPR_AO_FIFO_DEPTH		2048
+
+#define DPR_EXTERNAL_CLOCK		1
+#define DPR_RISING_EDGE			2
+
+#define DPR_TMODE_MASK			0x1c
+
+#define DPR_CMD_TIMEOUT			100
+
 static const struct comedi_lrange range_dt3000_ai = {
 	4, {
 		BIP_RANGE(10),
@@ -220,30 +239,11 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	},
 };
 
-#define AI_FIFO_DEPTH	2003
-#define AO_FIFO_DEPTH	2048
-
-#define DT3000_EXTERNAL_CLOCK	1
-#define DT3000_RISING_EDGE	2
-
-#define TMODE_MASK		0x1c
-
-#define DT3000_AD_TRIG_INTERNAL		(0<<2)
-#define DT3000_AD_TRIG_EXTERNAL		(1<<2)
-#define DT3000_AD_RETRIG_INTERNAL	(2<<2)
-#define DT3000_AD_RETRIG_EXTERNAL	(3<<2)
-#define DT3000_AD_EXTRETRIG		(4<<2)
-
-#define DT3000_CHANNEL_MODE_SE		0
-#define DT3000_CHANNEL_MODE_DI		1
-
 struct dt3k_private {
 	unsigned int lock;
 	unsigned int ai_front;
 	unsigned int ai_rear;
 };
-
-#define TIMEOUT 100
 
 static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 {
@@ -252,7 +252,7 @@ static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 
 	writew(cmd, dev->mmio + DPR_CMD_MBX);
 
-	for (i = 0; i < TIMEOUT; i++) {
+	for (i = 0; i < DPR_CMD_TIMEOUT; i++) {
 		status = readw(dev->mmio + DPR_CMD_MBX);
 		status &= DPR_CMD_COMPLETION_MASK;
 		if (status != DPR_CMD_NOTPROCESSED)
@@ -304,7 +304,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	front = readw(dev->mmio + DPR_AD_BUF_FRONT);
 	count = front - devpriv->ai_front;
 	if (count < 0)
-		count += AI_FIFO_DEPTH;
+		count += DPR_AI_FIFO_DEPTH;
 
 	rear = devpriv->ai_rear;
 
@@ -312,7 +312,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 		data = readw(dev->mmio + DPR_ADC_BUFFER + rear);
 		comedi_buf_write_samples(s, &data, 1);
 		rear++;
-		if (rear >= AI_FIFO_DEPTH)
+		if (rear >= DPR_AI_FIFO_DEPTH)
 			rear = 0;
 	}
 
@@ -503,10 +503,11 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writew((tscandiv & 0xffff), dev->mmio + DPR_PARAMS(4));
 	}
 
-	writew(DT3000_AD_RETRIG_INTERNAL, dev->mmio + DPR_PARAMS(5));
-	writew(aref == AREF_DIFF, dev->mmio + DPR_PARAMS(6));
+	writew(DPR_PARAM5_AD_TRIG_INT_RETRIG, dev->mmio + DPR_PARAMS(5));
+	writew((aref == AREF_DIFF) ? DPR_PARAM6_AD_DIFF : 0,
+	       dev->mmio + DPR_PARAMS(6));
 
-	writew(AI_FIFO_DEPTH / 2, dev->mmio + DPR_PARAMS(7));
+	writew(DPR_AI_FIFO_DEPTH / 2, dev->mmio + DPR_PARAMS(7));
 
 	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
