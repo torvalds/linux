@@ -548,7 +548,7 @@ static int exynos5433_tmu_initialize(struct platform_device *pdev)
 	default:
 		pdata->cal_type = TYPE_ONE_POINT_TRIMMING;
 		break;
-	};
+	}
 
 	dev_info(&pdev->dev, "Calibration type is %d-point calibration\n",
 			cal_type ?  2 : 1);
@@ -1356,7 +1356,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		break;
 	default:
 		break;
-	};
+	}
 
 	/*
 	 * data->tzd must be registered before calling exynos_tmu_initialize(),
