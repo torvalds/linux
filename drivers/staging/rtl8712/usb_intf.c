@@ -330,8 +330,7 @@ static void disable_ht_for_spec_devid(const struct usb_device_id *pdid,
 	u16 vid, pid;
 	u32 flags;
 	int i;
-	int num = sizeof(specific_device_id_tbl) /
-		  sizeof(struct specific_device_id);
+	int num = ARRAY_SIZE(specific_device_id_tbl);
 
 	for (i = 0; i < num; i++) {
 		vid = specific_device_id_tbl[i].idVendor;
