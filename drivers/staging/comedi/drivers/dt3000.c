@@ -694,16 +694,15 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* dio subsystem */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
 	s->insn_config	= dt3k_dio_insn_config;
 	s->insn_bits	= dt3k_dio_insn_bits;
-	s->maxdata	= 1;
-	s->len_chanlist	= 8;
-	s->range_table	= &range_digital;
 
 	s = &dev->subdevices[3];
 	/* mem subsystem */
