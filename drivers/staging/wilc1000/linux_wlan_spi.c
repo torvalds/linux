@@ -10,6 +10,7 @@
 #include <linux/spi/spi.h>
 
 #include "linux_wlan_common.h"
+#include "linux_wlan_spi.h"
 
 #define USE_SPI_DMA     0       /* johnny add */
 
@@ -40,7 +41,6 @@
 
 static u32 SPEED = MIN_SPEED;
 
-struct spi_device *wilc_spi_dev;
 void linux_spi_deinit(void *vp);
 
 static int __init wilc_bus_probe(struct spi_device *spi)
