@@ -133,7 +133,7 @@ static void setMemoryClock(unsigned int frequency)
 			frequency = MHz(336);
 
 		/* Calculate the divisor */
-		divisor = (unsigned int) roundedDiv(getChipClock(), frequency);
+		divisor = (unsigned int)roundedDiv(getChipClock(), frequency);
 
 		/* Set the corresponding divisor in the register. */
 		ulReg = PEEK32(CURRENT_GATE);
@@ -180,7 +180,7 @@ static void setMasterClock(unsigned int frequency)
 			frequency = MHz(190);
 
 		/* Calculate the divisor */
-		divisor = (unsigned int) roundedDiv(getChipClock(), frequency);
+		divisor = (unsigned int)roundedDiv(getChipClock(), frequency);
 
 		/* Set the corresponding divisor in the register. */
 		ulReg = PEEK32(CURRENT_GATE);
