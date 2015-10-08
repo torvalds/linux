@@ -2201,6 +2201,14 @@ static inline bool sk_fullsock(const struct sock *sk)
 	return (1 << sk->sk_state) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
 }
 
+/* This helper checks if a socket is a LISTEN or NEW_SYN_RECV
+ * SYNACK messages can be attached to either ones (depending on SYNCOOKIE)
+ */
+static inline bool sk_listener(const struct sock *sk)
+{
+	return (1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV);
+}
+
 void sock_enable_timestamp(struct sock *sk, int flag);
 int sock_get_timestamp(struct sock *, struct timeval __user *);
 int sock_get_timestampns(struct sock *, struct timespec __user *);

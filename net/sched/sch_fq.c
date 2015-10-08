@@ -225,6 +225,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 		return &q->internal;
 
 	/* SYNACK messages are attached to a TCP_NEW_SYN_RECV request socket
+	 * or a listener (SYNCOOKIE mode)
 	 * 1) request sockets are not full blown,
 	 *    they do not contain sk_pacing_rate
 	 * 2) They are not part of a 'flow' yet
@@ -232,7 +233,7 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 	 *    especially if the listener set SO_MAX_PACING_RATE
 	 * 4) We pretend they are orphaned
 	 */
-	if (!sk || sk->sk_state == TCP_NEW_SYN_RECV) {
+	if (!sk || sk_listener(sk)) {
 		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
 
 		/* By forcing low order bit to 1, we make sure to not
