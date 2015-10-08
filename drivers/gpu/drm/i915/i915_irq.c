@@ -581,6 +581,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
+ * @dev: drm device
  */
 static void i915_enable_asle_pipestat(struct drm_device *dev)
 {
@@ -2392,6 +2393,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 
 /**
  * i915_reset_and_wakeup - do process context error handling work
+ * @dev: drm device
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
