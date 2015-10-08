@@ -391,9 +391,10 @@ struct mlx5_core_health {
 	struct health_buffer __iomem   *health;
 	__be32 __iomem		       *health_counter;
 	struct timer_list		timer;
-	struct list_head		list;
 	u32				prev;
 	int				miss_counter;
+	struct workqueue_struct	       *wq;
+	struct work_struct		work;
 };
 
 struct mlx5_cq_table {
@@ -676,8 +677,8 @@ int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
 void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
-void mlx5_health_cleanup(void);
-void  __init mlx5_health_init(void);
+void mlx5_health_cleanup(struct mlx5_core_dev *dev);
+int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
