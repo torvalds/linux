@@ -78,6 +78,9 @@ static void async_midi_port_callback(struct fw_card *card, int rcode,
 		snd_rawmidi_transmit_ack(substream, port->consume_bytes);
 
 	port->idling = true;
+
+	if (!snd_rawmidi_transmit_empty(substream))
+		schedule_work(&port->work);
 }
 
 static void midi_port_work(struct work_struct *work)
