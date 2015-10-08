@@ -144,7 +144,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 	u8 state_changed = 0;
 
 	if (event & GB_SDIO_CARD_INSERTED) {
-		if (!mmc_card_is_removable(host->mmc))
+		if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
 			return 0;
 		if (host->card_present)
 			return 0;
@@ -153,7 +153,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 	}
 
 	if (event & GB_SDIO_CARD_REMOVED) {
-		if (!mmc_card_is_removable(host->mmc))
+		if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
 			return 0;
 		if (!(host->card_present))
 			return 0;
