@@ -264,13 +264,12 @@ out:
  * Note: File extended attributes override any mount options.
  */
 static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
-		loff_t *offset, const struct iovec *iov, unsigned long nr_segs)
+		loff_t *offset, struct iov_iter *iter)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct pvfs2_inode_s *pvfs2_inode = PVFS2_I(inode);
 	struct pvfs2_khandle *handle = &pvfs2_inode->refn.khandle;
-	struct iov_iter iter;
-	size_t count = iov_length(iov, nr_segs);
+	size_t count = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
 
@@ -295,18 +294,13 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 		goto out;
 	}
 
-	iov_iter_init(&iter, type == PVFS_IO_READ ? READ : WRITE,
-			      iov, nr_segs, count);
-
-	while (total_count < count) {
-		size_t each_count;
+	while (iov_iter_count(iter)) {
+		size_t each_count = iov_iter_count(iter);
 		size_t amt_complete;
 
 		/* how much to transfer in this loop iteration */
-		each_count =
-		   (((count - total_count) > pvfs_bufmap_size_query()) ?
-			pvfs_bufmap_size_query() :
-			(count - total_count));
+		if (each_count > pvfs_bufmap_size_query())
+			each_count = pvfs_bufmap_size_query();
 
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): size of each_count(%d)\n",
@@ -319,7 +313,7 @@ static ssize_t do_readv_writev(enum PVFS_io_type type, struct file *file,
 			     handle,
 			     (int)*offset);
 
-		ret = wait_for_direct_io(type, inode, offset, &iter,
+		ret = wait_for_direct_io(type, inode, offset, iter,
 				each_count, 0);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
@@ -426,7 +420,6 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct file *file = iocb->ki_filp;
 	loff_t pos = *(&iocb->ki_pos);
 	ssize_t rc = 0;
-	unsigned long nr_segs = iter->nr_segs;
 
 	BUG_ON(iocb->private);
 
@@ -434,11 +427,7 @@ static ssize_t pvfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	g_pvfs2_stats.reads++;
 
-	rc = do_readv_writev(PVFS_IO_READ,
-			     file,
-			     &pos,
-			     iter->iov,
-			     nr_segs);
+	rc = do_readv_writev(PVFS_IO_READ, file, &pos, iter);
 	iocb->ki_pos = pos;
 
 	return rc;
@@ -448,7 +437,6 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos = *(&iocb->ki_pos);
-	unsigned long nr_segs = iter->nr_segs;
 	ssize_t rc;
 
 	BUG_ON(iocb->private);
@@ -482,8 +470,7 @@ static ssize_t pvfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	rc = do_readv_writev(PVFS_IO_WRITE,
 			     file,
 			     &pos,
-			     iter->iov,
-			     nr_segs);
+			     iter);
 	if (rc < 0) {
 		gossip_err("%s: do_readv_writev failed, rc:%zd:.\n",
 			   __func__, rc);
