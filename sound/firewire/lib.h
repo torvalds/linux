@@ -32,6 +32,7 @@ struct snd_fw_async_midi_port {
 	struct work_struct work;
 	bool idling;
 	ktime_t next_ktime;
+	bool error;
 
 	u64 addr;
 	struct fw_transaction transaction;
@@ -58,8 +59,10 @@ static inline void
 snd_fw_async_midi_port_run(struct snd_fw_async_midi_port *port,
 			   struct snd_rawmidi_substream *substream)
 {
-	port->substream = substream;
-	schedule_work(&port->work);
+	if (!port->error) {
+		port->substream = substream;
+		schedule_work(&port->work);
+	}
 }
 
 /**
@@ -70,6 +73,7 @@ static inline void
 snd_fw_async_midi_port_finish(struct snd_fw_async_midi_port *port)
 {
 	port->substream = NULL;
+	port->error = false;
 }
 
 #endif
