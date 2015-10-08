@@ -74,11 +74,6 @@ struct atmel_uart_data {
 	struct serial_rs485	rs485;		/* rs485 settings */
 };
 
-/* CAN */
-struct at91_can_data {
-	void (*transceiver_switch)(int on);
-};
-
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);
 
