@@ -3926,7 +3926,7 @@ static unsigned int OnAction(struct adapter *padapter,
 
 	category = frame_body[0];
 
-	for (i = 0; i < sizeof(OnAction_tbl)/sizeof(struct action_handler); i++) {
+	for (i = 0; i < ARRAY_SIZE(OnAction_tbl); i++) {
 		ptable = &OnAction_tbl[i];
 		if (category == ptable->num)
 			ptable->func(padapter, precv_frame);
