@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/seq_file.h>
 #include <net/dsa.h>
+#include <net/switchdev.h>
 #include "mv88e6xxx.h"
 
 /* MDIO bus access can be nested in the case of PHYs connected to the
@@ -1852,16 +1853,17 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 }
 
 int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+			   const struct switchdev_obj_port_fdb *fdb,
+			   struct switchdev_trans *trans)
 {
-	int state = is_multicast_ether_addr(addr) ?
+	int state = is_multicast_ether_addr(fdb->addr) ?
 		GLOBAL_ATU_DATA_STATE_MC_STATIC :
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_port_fdb_load(ds, port, addr, vid, state);
+	ret = _mv88e6xxx_port_fdb_load(ds, port, fdb->addr, fdb->vid, state);
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;

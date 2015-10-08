@@ -354,7 +354,7 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 	if (switchdev_trans_ph_prepare(trans))
 		ret = ds->drv->port_fdb_prepare(ds, p->port, fdb, trans);
 	else
-		ret = ds->drv->port_fdb_add(ds, p->port, fdb->addr, fdb->vid);
+		ret = ds->drv->port_fdb_add(ds, p->port, fdb, trans);
 
 	return ret;
 }
