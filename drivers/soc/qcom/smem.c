@@ -664,37 +664,47 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 	return 0;
 }
 
-static int qcom_smem_count_mem_regions(struct platform_device *pdev)
+static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
+				const char *name, int i)
 {
-	struct resource *res;
-	int num_regions = 0;
-	int i;
+	struct device_node *np;
+	struct resource r;
+	int ret;
 
-	for (i = 0; i < pdev->num_resources; i++) {
-		res = &pdev->resource[i];
-
-		if (resource_type(res) == IORESOURCE_MEM)
-			num_regions++;
+	np = of_parse_phandle(dev->of_node, name, 0);
+	if (!np) {
+		dev_err(dev, "No %s specified\n", name);
+		return -EINVAL;
 	}
 
-	return num_regions;
+	ret = of_address_to_resource(np, 0, &r);
+	of_node_put(np);
+	if (ret)
+		return ret;
+
+	smem->regions[i].aux_base = (u32)r.start;
+	smem->regions[i].size = resource_size(&r);
+	smem->regions[i].virt_base = devm_ioremap_nocache(dev, r.start,
+							  resource_size(&r));
+	if (!smem->regions[i].virt_base)
+		return -ENOMEM;
+
+	return 0;
 }
 
 static int qcom_smem_probe(struct platform_device *pdev)
 {
 	struct smem_header *header;
-	struct device_node *np;
 	struct qcom_smem *smem;
-	struct resource *res;
-	struct resource r;
 	size_t array_size;
-	int num_regions = 0;
+	int num_regions;
 	int hwlock_id;
 	u32 version;
 	int ret;
-	int i;
 
-	num_regions = qcom_smem_count_mem_regions(pdev) + 1;
+	num_regions = 1;
+	if (of_find_property(pdev->dev.of_node, "qcom,rpm-msg-ram", NULL))
+		num_regions++;
 
 	array_size = num_regions * sizeof(struct smem_region);
 	smem = devm_kzalloc(&pdev->dev, sizeof(*smem) + array_size, GFP_KERNEL);
@@ -704,36 +714,13 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	smem->dev = &pdev->dev;
 	smem->num_regions = num_regions;
 
-	np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "No memory-region specified\n");
-		return -EINVAL;
-	}
-
-	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	ret = qcom_smem_map_memory(smem, &pdev->dev, "memory-region", 0);
 	if (ret)
 		return ret;
 
-	smem->regions[0].aux_base = (u32)r.start;
-	smem->regions[0].size = resource_size(&r);
-	smem->regions[0].virt_base = devm_ioremap_nocache(&pdev->dev,
-							  r.start,
-							  resource_size(&r));
-	if (!smem->regions[0].virt_base)
-		return -ENOMEM;
-
-	for (i = 1; i < num_regions; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i - 1);
-
-		smem->regions[i].aux_base = (u32)res->start;
-		smem->regions[i].size = resource_size(res);
-		smem->regions[i].virt_base = devm_ioremap_nocache(&pdev->dev,
-								  res->start,
-								  resource_size(res));
-		if (!smem->regions[i].virt_base)
-			return -ENOMEM;
-	}
+	if (num_regions > 1 && (ret = qcom_smem_map_memory(smem, &pdev->dev,
+					"qcom,rpm-msg-ram", 1)))
+		return ret;
 
 	header = smem->regions[0].virt_base;
 	if (le32_to_cpu(header->initialized) != 1 ||
