@@ -1450,13 +1450,20 @@ static void __init prom_instantiate_sml(void)
 			prom_printf("Reformat SML to EFI alignment failed\n");
 			return;
 		}
-	}
 
-	if (call_prom_ret("call-method", 2, 2, &size,
-			  ADDR("sml-get-handover-size"),
-			  ibmvtpm_inst) != 0 || size == 0) {
-		prom_printf("SML get handover size failed\n");
-		return;
+		if (call_prom_ret("call-method", 2, 2, &size,
+				  ADDR("sml-get-allocated-size"),
+				  ibmvtpm_inst) != 0 || size == 0) {
+			prom_printf("SML get allocated size failed\n");
+			return;
+		}
+	} else {
+		if (call_prom_ret("call-method", 2, 2, &size,
+				  ADDR("sml-get-handover-size"),
+				  ibmvtpm_inst) != 0 || size == 0) {
+			prom_printf("SML get handover size failed\n");
+			return;
+		}
 	}
 
 	base = alloc_down(size, PAGE_SIZE, 0);
@@ -1464,6 +1471,8 @@ static void __init prom_instantiate_sml(void)
 		prom_panic("Could not allocate memory for sml\n");
 
 	prom_printf("instantiating sml at 0x%x...", base);
+
+	memset((void *)base, 0, size);
 
 	if (call_prom_ret("call-method", 4, 2, &entry,
 			  ADDR("sml-handover"),
