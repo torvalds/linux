@@ -73,7 +73,36 @@
 #define DPR_INT_MASK		(4 * 0xffb)
 #define DPR_INTR_FLAG		(4 * 0xffc)
 #define DPR_RESPONSE_MBX	(4 * 0xffe)
-#define DPR_COMMAND_MBX		(4 * 0xfff)
+#define DPR_CMD_MBX		(4 * 0xfff)
+#define DPR_CMD_COMPLETION(x)	((x) << 8)
+#define DPR_CMD_NOTPROCESSED	DPR_CMD_COMPLETION(0x00)
+#define DPR_CMD_NOERROR		DPR_CMD_COMPLETION(0x55)
+#define DPR_CMD_ERROR		DPR_CMD_COMPLETION(0xaa)
+#define DPR_CMD_NOTSUPPORTED	DPR_CMD_COMPLETION(0xff)
+#define DPR_CMD_COMPLETION_MASK	DPR_CMD_COMPLETION(0xff)
+#define DPR_CMD(x)		((x) << 0)
+#define DPR_CMD_GETBRDINFO	DPR_CMD(0)
+#define DPR_CMD_CONFIG		DPR_CMD(1)
+#define DPR_CMD_GETCONFIG	DPR_CMD(2)
+#define DPR_CMD_START		DPR_CMD(3)
+#define DPR_CMD_STOP		DPR_CMD(4)
+#define DPR_CMD_READSINGLE	DPR_CMD(5)
+#define DPR_CMD_WRITESINGLE	DPR_CMD(6)
+#define DPR_CMD_CALCCLOCK	DPR_CMD(7)
+#define DPR_CMD_READEVENTS	DPR_CMD(8)
+#define DPR_CMD_WRITECTCTRL	DPR_CMD(16)
+#define DPR_CMD_READCTCTRL	DPR_CMD(17)
+#define DPR_CMD_WRITECT		DPR_CMD(18)
+#define DPR_CMD_READCT		DPR_CMD(19)
+#define DPR_CMD_WRITEDATA	DPR_CMD(32)
+#define DPR_CMD_READDATA	DPR_CMD(33)
+#define DPR_CMD_WRITEIO		DPR_CMD(34)
+#define DPR_CMD_READIO		DPR_CMD(35)
+#define DPR_CMD_WRITECODE	DPR_CMD(36)
+#define DPR_CMD_READCODE	DPR_CMD(37)
+#define DPR_CMD_EXECUTE		DPR_CMD(38)
+#define DPR_CMD_HALT		DPR_CMD(48)
+#define DPR_CMD_MASK		DPR_CMD(0xff)
 
 static const struct comedi_lrange range_dt3000_ai = {
 	4, {
@@ -180,30 +209,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define AI_FIFO_DEPTH	2003
 #define AO_FIFO_DEPTH	2048
 
-/* command list */
-
-#define CMD_GETBRDINFO		0
-#define CMD_CONFIG		1
-#define CMD_GETCONFIG		2
-#define CMD_START		3
-#define CMD_STOP		4
-#define CMD_READSINGLE		5
-#define CMD_WRITESINGLE		6
-#define CMD_CALCCLOCK		7
-#define CMD_READEVENTS		8
-#define CMD_WRITECTCTRL		16
-#define CMD_READCTCTRL		17
-#define CMD_WRITECT		18
-#define CMD_READCT		19
-#define CMD_WRITEDATA		32
-#define CMD_READDATA		33
-#define CMD_WRITEIO		34
-#define CMD_READIO		35
-#define CMD_WRITECODE		36
-#define CMD_READCODE		37
-#define CMD_EXECUTE		38
-#define CMD_HALT		48
-
 #define SUBS_AI		0
 #define SUBS_AO		1
 #define SUBS_DIN	2
@@ -220,13 +225,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define DT3000_ADHWERR		0x04
 #define DT3000_ADSWERR		0x02
 #define DT3000_ADFULL		0x01
-
-#define DT3000_COMPLETION_MASK	0xff00
-#define DT3000_COMMAND_MASK	0x00ff
-#define DT3000_NOTPROCESSED	0x0000
-#define DT3000_NOERROR		0x5500
-#define DT3000_ERROR		0xaa00
-#define DT3000_NOTSUPPORTED	0xff00
 
 #define DT3000_EXTERNAL_CLOCK	1
 #define DT3000_RISING_EDGE	2
@@ -255,16 +253,17 @@ static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 	int i;
 	unsigned int status = 0;
 
-	writew(cmd, dev->mmio + DPR_COMMAND_MBX);
+	writew(cmd, dev->mmio + DPR_CMD_MBX);
 
 	for (i = 0; i < TIMEOUT; i++) {
-		status = readw(dev->mmio + DPR_COMMAND_MBX);
-		if ((status & DT3000_COMPLETION_MASK) != DT3000_NOTPROCESSED)
+		status = readw(dev->mmio + DPR_CMD_MBX);
+		status &= DPR_CMD_COMPLETION_MASK;
+		if (status != DPR_CMD_NOTPROCESSED)
 			break;
 		udelay(1);
 	}
 
-	if ((status & DT3000_COMPLETION_MASK) != DT3000_NOERROR)
+	if (status != DPR_CMD_NOERROR)
 		dev_dbg(dev->class_dev, "%s: timeout/error status=0x%04x\n",
 			__func__, status);
 }
@@ -278,7 +277,7 @@ static unsigned int dt3k_readsingle(struct comedi_device *dev,
 	writew(chan, dev->mmio + DPR_PARAMS(0));
 	writew(gain, dev->mmio + DPR_PARAMS(1));
 
-	dt3k_send_cmd(dev, CMD_READSINGLE);
+	dt3k_send_cmd(dev, DPR_CMD_READSINGLE);
 
 	return readw(dev->mmio + DPR_PARAMS(2));
 }
@@ -292,7 +291,7 @@ static void dt3k_writesingle(struct comedi_device *dev, unsigned int subsys,
 	writew(0, dev->mmio + DPR_PARAMS(1));
 	writew(data, dev->mmio + DPR_PARAMS(2));
 
-	dt3k_send_cmd(dev, CMD_WRITESINGLE);
+	dt3k_send_cmd(dev, DPR_CMD_WRITESINGLE);
 }
 
 static void dt3k_ai_empty_fifo(struct comedi_device *dev,
@@ -328,7 +327,7 @@ static int dt3k_ai_cancel(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
 	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
-	dt3k_send_cmd(dev, CMD_STOP);
+	dt3k_send_cmd(dev, DPR_CMD_STOP);
 
 	writew(0, dev->mmio + DPR_INT_MASK);
 
@@ -513,7 +512,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(AI_FIFO_DEPTH / 2, dev->mmio + DPR_PARAMS(7));
 
 	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
-	dt3k_send_cmd(dev, CMD_CONFIG);
+	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
 
 	writew(DT3000_ADFULL | DT3000_ADSWERR | DT3000_ADHWERR,
 	       dev->mmio + DPR_INT_MASK);
@@ -521,7 +520,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	debug_n_ints = 0;
 
 	writew(SUBS_AI, dev->mmio + DPR_SUBSYS);
-	dt3k_send_cmd(dev, CMD_START);
+	dt3k_send_cmd(dev, DPR_CMD_START);
 
 	return 0;
 }
@@ -573,7 +572,7 @@ static void dt3k_dio_config(struct comedi_device *dev, int bits)
 	writew(0, dev->mmio + DPR_PARAMS(2));
 #endif
 
-	dt3k_send_cmd(dev, CMD_CONFIG);
+	dt3k_send_cmd(dev, DPR_CMD_CONFIG);
 }
 
 static int dt3k_dio_insn_config(struct comedi_device *dev,
@@ -625,7 +624,7 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 		writew(addr, dev->mmio + DPR_PARAMS(0));
 		writew(1, dev->mmio + DPR_PARAMS(1));
 
-		dt3k_send_cmd(dev, CMD_READCODE);
+		dt3k_send_cmd(dev, DPR_CMD_READCODE);
 
 		data[i] = readw(dev->mmio + DPR_PARAMS(2));
 	}
