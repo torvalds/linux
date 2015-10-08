@@ -336,15 +336,12 @@ static int arc_pmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (__test_and_set_bit(idx, pmu_cpu->used_mask)) {
-		idx = find_first_zero_bit(pmu_cpu->used_mask,
-					  arc_pmu->n_counters);
-		if (idx == arc_pmu->n_counters)
-			return -EAGAIN;
+	idx = ffz(pmu_cpu->used_mask[0]);
+	if (idx == arc_pmu->n_counters)
+		return -EAGAIN;
 
-		__set_bit(idx, pmu_cpu->used_mask);
-		hwc->idx = idx;
-	}
+	__set_bit(idx, pmu_cpu->used_mask);
+	hwc->idx = idx;
 
 	write_aux_reg(ARC_REG_PCT_INDEX, idx);
 
@@ -465,6 +462,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		pr_err("This core does not have performance counters!\n");
 		return -ENODEV;
 	}
+	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
 	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
