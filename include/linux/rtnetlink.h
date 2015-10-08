@@ -33,11 +33,11 @@ extern wait_queue_head_t netdev_unregistering_wq;
 extern struct mutex net_mutex;
 
 #ifdef CONFIG_PROVE_LOCKING
-extern int lockdep_rtnl_is_held(void);
+extern bool lockdep_rtnl_is_held(void);
 #else
-static inline int lockdep_rtnl_is_held(void)
+static inline bool lockdep_rtnl_is_held(void)
 {
-	return 1;
+	return true;
 }
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
