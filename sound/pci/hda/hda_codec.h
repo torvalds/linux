@@ -309,11 +309,21 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec);
 /*
  * low level functions
  */
-unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
+static inline unsigned int
+snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 				int flags,
-				unsigned int verb, unsigned int parm);
-int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
-			unsigned int verb, unsigned int parm);
+				unsigned int verb, unsigned int parm)
+{
+	return snd_hdac_codec_read(&codec->core, nid, flags, verb, parm);
+}
+
+static inline int
+snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
+			unsigned int verb, unsigned int parm)
+{
+	return snd_hdac_codec_write(&codec->core, nid, flags, verb, parm);
+}
+
 #define snd_hda_param_read(codec, nid, param) \
 	snd_hdac_read_parm(&(codec)->core, nid, param)
 #define snd_hda_get_sub_nodes(codec, nid, start_nid) \
