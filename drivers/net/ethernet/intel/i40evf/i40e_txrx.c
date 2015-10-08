@@ -1927,10 +1927,11 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	else if (tso)
 		tx_flags |= I40E_TX_FLAGS_TSO;
 
-	if (i40e_chk_linearize(skb, tx_flags))
+	if (i40e_chk_linearize(skb, tx_flags)) {
 		if (skb_linearize(skb))
 			goto out_drop;
-
+		tx_ring->tx_stats.tx_linearize++;
+	}
 	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */

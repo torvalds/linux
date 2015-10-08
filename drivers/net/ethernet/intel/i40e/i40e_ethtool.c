@@ -87,6 +87,7 @@ static const struct i40e_stats i40e_gstrings_misc_stats[] = {
 	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
 	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
 	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	I40E_VSI_STAT("tx_linearize", tx_linearize),
 };
 
 static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
@@ -425,6 +426,7 @@ static void i40e_get_settings_link_down(struct i40e_hw *hw,
 		ecmd->advertising = ADVERTISED_10000baseKR_Full;
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
+	case I40E_DEV_ID_10G_BASE_T4:
 		ecmd->supported = SUPPORTED_10000baseT_Full |
 				  SUPPORTED_1000baseT_Full |
 				  SUPPORTED_100baseT_Full;
@@ -664,6 +666,13 @@ static int i40e_set_settings(struct net_device *netdev,
 	    advertise & ADVERTISED_40000baseSR4_Full ||
 	    advertise & ADVERTISED_40000baseLR4_Full)
 		config.link_speed |= I40E_LINK_SPEED_40GB;
+
+	/* If speed didn't get set, set it to what it currently is.
+	 * This is needed because if advertise is 0 (as it is when autoneg
+	 * is disabled) then speed won't get set.
+	 */
+	if (!config.link_speed)
+		config.link_speed = abilities.link_speed;
 
 	if (change || (abilities.link_speed != config.link_speed)) {
 		/* copy over the rest of the abilities */
@@ -1508,9 +1517,18 @@ static int i40e_link_test(struct net_device *netdev, u64 *data)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
+	i40e_status status;
+	bool link_up = false;
 
 	netif_info(pf, hw, netdev, "link test\n");
-	if (i40e_get_link_status(&pf->hw))
+	status = i40e_get_link_status(&pf->hw, &link_up);
+	if (status) {
+		netif_err(pf, drv, netdev, "link query timed out, please retry test\n");
+		*data = 1;
+		return *data;
+	}
+
+	if (link_up)
 		*data = 0;
 	else
 		*data = 1;

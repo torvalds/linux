@@ -75,6 +75,7 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X722), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_1G_BASE_T_X722), 0},
@@ -878,6 +879,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	u32 rx_page, rx_buf;
 	u64 bytes, packets;
 	unsigned int start;
+	u64 tx_linearize;
 	u64 rx_p, rx_b;
 	u64 tx_p, tx_b;
 	u16 q;
@@ -896,7 +898,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	 */
 	rx_b = rx_p = 0;
 	tx_b = tx_p = 0;
-	tx_restart = tx_busy = 0;
+	tx_restart = tx_busy = tx_linearize = 0;
 	rx_page = 0;
 	rx_buf = 0;
 	rcu_read_lock();
@@ -913,6 +915,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 		tx_p += packets;
 		tx_restart += p->tx_stats.restart_queue;
 		tx_busy += p->tx_stats.tx_busy;
+		tx_linearize += p->tx_stats.tx_linearize;
 
 		/* Rx queue is part of the same block as Tx queue */
 		p = &p[1];
@@ -929,6 +932,7 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	rcu_read_unlock();
 	vsi->tx_restart = tx_restart;
 	vsi->tx_busy = tx_busy;
+	vsi->tx_linearize = tx_linearize;
 	vsi->rx_page_failed = rx_page;
 	vsi->rx_buf_failed = rx_buf;
 
@@ -1725,36 +1729,27 @@ static void i40e_set_rx_mode(struct net_device *netdev)
 
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
-		bool found = false;
 
 		if (!f->is_netdev)
 			continue;
 
-		if (is_multicast_ether_addr(f->macaddr)) {
-			netdev_for_each_mc_addr(mca, netdev) {
-				if (ether_addr_equal(mca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-		} else {
-			netdev_for_each_uc_addr(uca, netdev) {
-				if (ether_addr_equal(uca->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
+		netdev_for_each_mc_addr(mca, netdev)
+			if (ether_addr_equal(mca->addr, f->macaddr))
+				goto bottom_of_search_loop;
 
-			for_each_dev_addr(netdev, ha) {
-				if (ether_addr_equal(ha->addr, f->macaddr)) {
-					found = true;
-					break;
-				}
-			}
-		}
-		if (!found)
-			i40e_del_filter(
-			   vsi, f->macaddr, I40E_VLAN_ANY, false, true);
+		netdev_for_each_uc_addr(uca, netdev)
+			if (ether_addr_equal(uca->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		for_each_dev_addr(netdev, ha)
+			if (ether_addr_equal(ha->addr, f->macaddr))
+				goto bottom_of_search_loop;
+
+		/* f->macaddr wasn't found in uc, mc, or ha list so delete it */
+		i40e_del_filter(vsi, f->macaddr, I40E_VLAN_ANY, false, true);
+
+bottom_of_search_loop:
+		continue;
 	}
 
 	/* check for other flag changes */
@@ -3155,8 +3150,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 				  q_vector);
 		if (err) {
 			dev_info(&pf->pdev->dev,
-				 "%s: request_irq failed, error: %d\n",
-				 __func__, err);
+				 "MSIX request_irq failed, error: %d\n", err);
 			goto free_queue_irqs;
 		}
 		/* assign the mask for this irq */
@@ -3680,9 +3674,8 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		ret = i40e_pf_txq_wait(pf, pf_q, enable);
 		if (ret) {
 			dev_info(&pf->pdev->dev,
-				 "%s: VSI seid %d Tx ring %d %sable timeout\n",
-				 __func__, vsi->seid, pf_q,
-				 (enable ? "en" : "dis"));
+				 "VSI seid %d Tx ring %d %sable timeout\n",
+				 vsi->seid, pf_q, (enable ? "en" : "dis"));
 			break;
 		}
 	}
@@ -3758,9 +3751,8 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 		ret = i40e_pf_rxq_wait(pf, pf_q, enable);
 		if (ret) {
 			dev_info(&pf->pdev->dev,
-				 "%s: VSI seid %d Rx ring %d %sable timeout\n",
-				 __func__, vsi->seid, pf_q,
-				 (enable ? "en" : "dis"));
+				 "VSI seid %d Rx ring %d %sable timeout\n",
+				 vsi->seid, pf_q, (enable ? "en" : "dis"));
 			break;
 		}
 	}
@@ -4055,8 +4047,7 @@ static void i40e_quiesce_vsi(struct i40e_vsi *vsi)
 	if ((test_bit(__I40E_PORT_TX_SUSPENDED, &vsi->back->state)) &&
 	    vsi->type == I40E_VSI_FCOE) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"%s: VSI seid %d skipping FCoE VSI disable\n",
-			 __func__, vsi->seid);
+			 "VSI seid %d skipping FCoE VSI disable\n", vsi->seid);
 		return;
 	}
 
@@ -4130,8 +4121,8 @@ static int i40e_vsi_wait_txq_disabled(struct i40e_vsi *vsi)
 		ret = i40e_pf_txq_wait(pf, pf_q, false);
 		if (ret) {
 			dev_info(&pf->pdev->dev,
-				 "%s: VSI seid %d Tx ring %d disable timeout\n",
-				 __func__, vsi->seid, pf_q);
+				 "VSI seid %d Tx ring %d disable timeout\n",
+				 vsi->seid, pf_q);
 			return ret;
 		}
 	}
@@ -5422,8 +5413,7 @@ bool i40e_dcb_need_reconfig(struct i40e_pf *pf,
 		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
 	}
 
-	dev_dbg(&pf->pdev->dev, "%s: need_reconfig=%d\n", __func__,
-		need_reconfig);
+	dev_dbg(&pf->pdev->dev, "dcb need_reconfig=%d\n", need_reconfig);
 	return need_reconfig;
 }
 
@@ -5450,16 +5440,14 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 	/* Ignore if event is not for Nearest Bridge */
 	type = ((mib->type >> I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT)
 		& I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
-	dev_dbg(&pf->pdev->dev,
-		"%s: LLDP event mib bridge type 0x%x\n", __func__, type);
+	dev_dbg(&pf->pdev->dev, "LLDP event mib bridge type 0x%x\n", type);
 	if (type != I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE)
 		return ret;
 
 	/* Check MIB Type and return if event for Remote MIB update */
 	type = mib->type & I40E_AQ_LLDP_MIB_TYPE_MASK;
 	dev_dbg(&pf->pdev->dev,
-		"%s: LLDP event mib type %s\n", __func__,
-		type ? "remote" : "local");
+		"LLDP event mib type %s\n", type ? "remote" : "local");
 	if (type == I40E_AQ_LLDP_MIB_REMOTE) {
 		/* Update the remote cached instance and return */
 		ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
@@ -5842,15 +5830,23 @@ static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
  **/
 static void i40e_link_event(struct i40e_pf *pf)
 {
-	bool new_link, old_link;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	u8 new_link_speed, old_link_speed;
+	i40e_status status;
+	bool new_link, old_link;
 
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
 
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
-	new_link = i40e_get_link_status(&pf->hw);
+
+	status = i40e_get_link_status(&pf->hw, &new_link);
+	if (status) {
+		dev_dbg(&pf->pdev->dev, "couldn't get link state, status: %d\n",
+			status);
+		return;
+	}
+
 	old_link_speed = pf->hw.phy.link_info_old.link_speed;
 	new_link_speed = pf->hw.phy.link_info.link_speed;
 
@@ -6572,9 +6568,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	}
 #endif /* CONFIG_I40E_DCB */
 #ifdef I40E_FCOE
-	ret = i40e_init_pf_fcoe(pf);
-	if (ret)
-		dev_info(&pf->pdev->dev, "init_pf_fcoe failed: %d\n", ret);
+	i40e_init_pf_fcoe(pf);
 
 #endif
 	/* do basic switch setup */
@@ -7975,9 +7969,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 
 #ifdef I40E_FCOE
-	err = i40e_init_pf_fcoe(pf);
-	if (err)
-		dev_info(&pf->pdev->dev, "init_pf_fcoe failed: %d\n", err);
+	i40e_init_pf_fcoe(pf);
 
 #endif /* I40E_FCOE */
 #ifdef CONFIG_PCI_IOV
@@ -9057,8 +9049,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 		if (veb) {
 			if (vsi->seid != pf->vsi[pf->lan_vsi]->seid) {
 				dev_info(&vsi->back->pdev->dev,
-					 "%s: New VSI creation error, uplink seid of LAN VSI expected.\n",
-					 __func__);
+					 "New VSI creation error, uplink seid of LAN VSI expected.\n");
 				return NULL;
 			}
 			/* We come up by default in VEPA mode if SRIOV is not
@@ -9947,6 +9938,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
 	static u16 pfs_found;
+	u16 wol_nvm_bits;
 	u16 link_status;
 	int err = 0;
 	u32 len;
@@ -10163,8 +10155,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	clear_bit(__I40E_SERVICE_SCHED, &pf->state);
 	pf->flags |= I40E_FLAG_NEED_LINK_UPDATE;
 
-	/* WoL defaults to disabled */
-	pf->wol_en = false;
+	/* NVM bit on means WoL disabled for the port */
+	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
+	if ((1 << hw->port) & wol_nvm_bits || hw->partition_id != 1)
+		pf->wol_en = false;
+	else
+		pf->wol_en = true;
 	device_set_wakeup_enable(&pf->pdev->dev, pf->wol_en);
 
 	/* set up the main switch operations */
@@ -10496,7 +10492,7 @@ static pci_ers_result_t i40e_pci_error_slot_reset(struct pci_dev *pdev)
 	int err;
 	u32 reg;
 
-	dev_info(&pdev->dev, "%s\n", __func__);
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 	if (pci_enable_device_mem(pdev)) {
 		dev_info(&pdev->dev,
 			 "Cannot re-enable PCI device after reset.\n");
@@ -10536,7 +10532,7 @@ static void i40e_pci_error_resume(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "%s\n", __func__);
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 	if (test_bit(__I40E_SUSPENDED, &pf->state))
 		return;
 
@@ -10628,9 +10624,7 @@ static int i40e_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev,
-			"%s: Cannot enable PCI device from suspend\n",
-			__func__);
+		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);

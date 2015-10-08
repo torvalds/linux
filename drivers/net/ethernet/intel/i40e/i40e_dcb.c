@@ -531,37 +531,55 @@ static void i40e_cee_to_dcb_config(
 	dcbcfg->pfc.pfcenable = cee_cfg->oper_pfc_en;
 	dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
 
-	status = (tlv_status & I40E_AQC_CEE_APP_STATUS_MASK) >>
-		  I40E_AQC_CEE_APP_STATUS_SHIFT;
+	i = 0;
+	status = (tlv_status & I40E_AQC_CEE_FCOE_STATUS_MASK) >>
+		  I40E_AQC_CEE_FCOE_STATUS_SHIFT;
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
 	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
 	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
-	/* Add APPs if Error is False and Oper/Sync is True */
+	/* Add FCoE APP if Error is False and Oper/Sync is True */
 	if (!err && sync && oper) {
-		/* CEE operating configuration supports FCoE/iSCSI/FIP only */
-		dcbcfg->numapps = I40E_CEE_OPER_MAX_APPS;
-
 		/* FCoE APP */
-		dcbcfg->app[0].priority =
+		dcbcfg->app[i].priority =
 			(app_prio & I40E_AQC_CEE_APP_FCOE_MASK) >>
 			 I40E_AQC_CEE_APP_FCOE_SHIFT;
-		dcbcfg->app[0].selector = I40E_APP_SEL_ETHTYPE;
-		dcbcfg->app[0].protocolid = I40E_APP_PROTOID_FCOE;
+		dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_FCOE;
+		i++;
+	}
 
+	status = (tlv_status & I40E_AQC_CEE_ISCSI_STATUS_MASK) >>
+		  I40E_AQC_CEE_ISCSI_STATUS_SHIFT;
+	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
+	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
+	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
+	/* Add iSCSI APP if Error is False and Oper/Sync is True */
+	if (!err && sync && oper) {
 		/* iSCSI APP */
-		dcbcfg->app[1].priority =
+		dcbcfg->app[i].priority =
 			(app_prio & I40E_AQC_CEE_APP_ISCSI_MASK) >>
 			 I40E_AQC_CEE_APP_ISCSI_SHIFT;
-		dcbcfg->app[1].selector = I40E_APP_SEL_TCPIP;
-		dcbcfg->app[1].protocolid = I40E_APP_PROTOID_ISCSI;
+		dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
+		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_ISCSI;
+		i++;
+	}
 
+	status = (tlv_status & I40E_AQC_CEE_FIP_STATUS_MASK) >>
+		  I40E_AQC_CEE_FIP_STATUS_SHIFT;
+	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
+	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
+	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
+	/* Add FIP APP if Error is False and Oper/Sync is True */
+	if (!err && sync && oper) {
 		/* FIP APP */
-		dcbcfg->app[2].priority =
+		dcbcfg->app[i].priority =
 			(app_prio & I40E_AQC_CEE_APP_FIP_MASK) >>
 			 I40E_AQC_CEE_APP_FIP_SHIFT;
-		dcbcfg->app[2].selector = I40E_APP_SEL_ETHTYPE;
-		dcbcfg->app[2].protocolid = I40E_APP_PROTOID_FIP;
+		dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_FIP;
+		i++;
 	}
+	dcbcfg->numapps = i;
 }
 
 /**

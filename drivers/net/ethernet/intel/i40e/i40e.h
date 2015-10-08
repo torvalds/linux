@@ -97,7 +97,7 @@
 #define I40E_MAX_USER_PRIORITY        8
 #define I40E_DEFAULT_MSG_ENABLE       4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT   10
-#define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 9)
+#define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 16)
 
 /* Ethtool Private Flags */
 #define I40E_PRIV_FLAGS_NPAR_FLAG	BIT(0)
@@ -475,6 +475,7 @@ struct i40e_vsi {
 #endif
 	u32 tx_restart;
 	u32 tx_busy;
+	u64 tx_linearize;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 
@@ -740,7 +741,7 @@ int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt);
 u8 i40e_get_fcoe_tc_map(struct i40e_pf *pf);
 void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi);
 void i40e_fcoe_vsi_setup(struct i40e_pf *pf);
-int i40e_init_pf_fcoe(struct i40e_pf *pf);
+void i40e_init_pf_fcoe(struct i40e_pf *pf);
 int i40e_fcoe_setup_ddp_resources(struct i40e_vsi *vsi);
 void i40e_fcoe_free_ddp_resources(struct i40e_vsi *vsi);
 int i40e_fcoe_handle_offload(struct i40e_ring *rx_ring,

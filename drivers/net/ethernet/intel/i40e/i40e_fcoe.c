@@ -272,10 +272,8 @@ out:
 /**
  * i40e_fcoe_sw_init - sets up the HW for FCoE
  * @pf: pointer to PF
- *
- * Returns 0 if FCoE is supported otherwise the error code
  **/
-int i40e_init_pf_fcoe(struct i40e_pf *pf)
+void i40e_init_pf_fcoe(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 val;
@@ -287,13 +285,13 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 
 	if (!pf->hw.func_caps.fcoe) {
 		dev_info(&pf->pdev->dev, "FCoE capability is disabled\n");
-		return 0;
+		return;
 	}
 
 	if (!pf->hw.func_caps.dcb) {
 		dev_warn(&pf->pdev->dev,
 			 "Hardware is not DCB capable not enabling FCoE.\n");
-		return 0;
+		return;
 	}
 
 	/* enable FCoE hash filter */
@@ -326,7 +324,7 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 	wr32(hw, I40E_GLFCOE_RCTL, val);
 
 	dev_info(&pf->pdev->dev, "FCoE is supported.\n");
-	return 0;
+	return;
 }
 
 /**

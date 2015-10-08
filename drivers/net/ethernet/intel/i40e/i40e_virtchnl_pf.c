@@ -872,6 +872,11 @@ void i40e_free_vfs(struct i40e_pf *pf)
 			i40e_vsi_control_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
 					       false);
 
+	for (i = 0; i < pf->num_alloc_vfs; i++)
+		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
+			i40e_vsi_control_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
+					       false);
+
 	/* Disable IOV before freeing resources. This lets any VF drivers
 	 * running in the host get themselves cleaned up before we yank
 	 * the carpet out from underneath their feet.
