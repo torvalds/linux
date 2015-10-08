@@ -184,6 +184,16 @@ static const struct file_operations vendor_diag_fops = {
 	.llseek		= default_llseek,
 };
 
+static void hci_debugfs_create_basic(struct hci_dev *hdev)
+{
+	debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
+			    &dut_mode_fops);
+
+	if (hdev->set_diag)
+		debugfs_create_file("vendor_diag", 0644, hdev->debugfs, hdev,
+				    &vendor_diag_fops);
+}
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
@@ -900,20 +910,8 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	if (hci_dev_test_flag(hdev, HCI_SETUP)) {
-		/* The Device Under Test (DUT) mode is special and available
-		 * for all controller types. So just create it early on.
-		 */
-		debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
-				    &dut_mode_fops);
-
-		/* When the driver supports the set_diag callback, then
-		 * expose an entry to modify the vendor diagnostic setting.
-		 */
-		if (hdev->set_diag)
-			debugfs_create_file("vendor_diag", 0644, hdev->debugfs,
-					    hdev, &vendor_diag_fops);
-	}
+	if (hci_dev_test_flag(hdev, HCI_SETUP))
+		hci_debugfs_create_basic(hdev);
 
 	err = __hci_req_sync(hdev, hci_init2_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
@@ -989,6 +987,9 @@ static int __hci_unconf_init(struct hci_dev *hdev)
 	err = __hci_req_sync(hdev, hci_init0_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
 		return err;
+
+	if (hci_dev_test_flag(hdev, HCI_SETUP))
+		hci_debugfs_create_basic(hdev);
 
 	return 0;
 }
