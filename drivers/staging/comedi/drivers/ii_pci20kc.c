@@ -153,9 +153,8 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 
 		s->readback[chan] = val;
 
-		/* munge data */
-		val += ((s->maxdata + 1) >> 1);
-		val &= s->maxdata;
+		/* munge the offset binary data to 2's complement */
+		val = comedi_offset_munge(s, val);
 
 		writeb(val & 0xff, iobase + II20K_AO_LSB_REG(chan));
 		writeb((val >> 8) & 0xff, iobase + II20K_AO_MSB_REG(chan));
@@ -243,11 +242,8 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 		val = readb(iobase + II20K_AI_LSB_REG);
 		val |= (readb(iobase + II20K_AI_MSB_REG) << 8);
 
-		/* munge two's complement data */
-		val += ((s->maxdata + 1) >> 1);
-		val &= s->maxdata;
-
-		data[i] = val;
+		/* munge the 2's complement data to offset binary */
+		data[i] = comedi_offset_munge(s, val);
 	}
 
 	return insn->n;
