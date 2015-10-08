@@ -598,3 +598,87 @@ void of_msi_configure(struct device *dev, struct device_node *np)
 		d = irq_find_host(msi_np);
 	dev_set_msi_domain(dev, d);
 }
+
+/**
+ * of_msi_map_rid - Map a MSI requester ID for a device.
+ * @dev: device for which the mapping is to be done.
+ * @msi_np: device node of the expected msi controller.
+ * @rid_in: unmapped MSI requester ID for the device.
+ *
+ * Walk up the device hierarchy looking for devices with a "msi-map"
+ * property.  If found, apply the mapping to @rid_in.
+ *
+ * Returns the mapped MSI requester ID.
+ */
+u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in)
+{
+	struct device *parent_dev;
+	struct device_node *msi_controller_node;
+	u32 map_mask, masked_rid, rid_base, msi_base, rid_len, phandle;
+	int msi_map_len;
+	bool matched;
+	u32 rid_out = rid_in;
+	const __be32 *msi_map = NULL;
+
+	/*
+	 * Walk up the device parent links looking for one with a
+	 * "msi-map" property.
+	 */
+	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent) {
+		if (!parent_dev->of_node)
+			continue;
+
+		msi_map = of_get_property(parent_dev->of_node,
+					  "msi-map", &msi_map_len);
+		if (!msi_map)
+			continue;
+
+		if (msi_map_len % (4 * sizeof(__be32))) {
+			dev_err(parent_dev, "Error: Bad msi-map length: %d\n",
+				msi_map_len);
+			return rid_out;
+		}
+		/* We have a good parent_dev and msi_map, let's use them. */
+		break;
+	}
+	if (!msi_map)
+		return rid_out;
+
+	/* The default is to select all bits. */
+	map_mask = 0xffffffff;
+
+	/*
+	 * Can be overridden by "msi-map-mask" property.  If
+	 * of_property_read_u32() fails, the default is used.
+	 */
+	of_property_read_u32(parent_dev->of_node, "msi-map-mask", &map_mask);
+
+	masked_rid = map_mask & rid_in;
+	matched = false;
+	while (!matched && msi_map_len >= 4 * sizeof(__be32)) {
+		rid_base = be32_to_cpup(msi_map + 0);
+		phandle = be32_to_cpup(msi_map + 1);
+		msi_base = be32_to_cpup(msi_map + 2);
+		rid_len = be32_to_cpup(msi_map + 3);
+
+		msi_controller_node = of_find_node_by_phandle(phandle);
+
+		matched = masked_rid >= rid_base &&
+			masked_rid < rid_base + rid_len &&
+			msi_np == msi_controller_node;
+
+		of_node_put(msi_controller_node);
+		msi_map_len -= 4 * sizeof(__be32);
+		msi_map += 4;
+	}
+	if (!matched)
+		return rid_out;
+
+	rid_out = masked_rid + msi_base;
+	dev_dbg(dev,
+		"msi-map at: %s, using mask %08x, rid-base: %08x, msi-base: %08x, length: %08x, rid: %08x -> %08x\n",
+		dev_name(parent_dev), map_mask, rid_base, msi_base,
+		rid_len, rid_in, rid_out);
+
+	return rid_out;
+}
