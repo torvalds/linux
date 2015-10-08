@@ -120,8 +120,8 @@ efi_head:
 #endif
 
 #ifdef CONFIG_EFI
-	.globl	stext_offset
-	.set	stext_offset, stext - efi_head
+	.globl	__efistub_stext_offset
+	.set	__efistub_stext_offset, stext - efi_head
 	.align 3
 pe_header:
 	.ascii	"PE"
@@ -144,8 +144,8 @@ optional_header:
 	.long	_end - stext			// SizeOfCode
 	.long	0				// SizeOfInitializedData
 	.long	0				// SizeOfUninitializedData
-	.long	efi_stub_entry - efi_head	// AddressOfEntryPoint
-	.long	stext_offset			// BaseOfCode
+	.long	__efistub_entry - efi_head	// AddressOfEntryPoint
+	.long	__efistub_stext_offset		// BaseOfCode
 
 extra_header_fields:
 	.quad	0				// ImageBase
@@ -162,7 +162,7 @@ extra_header_fields:
 	.long	_end - efi_head			// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	stext_offset			// SizeOfHeaders
+	.long	__efistub_stext_offset		// SizeOfHeaders
 	.long	0				// CheckSum
 	.short	0xa				// Subsystem (EFI application)
 	.short	0				// DllCharacteristics
@@ -207,9 +207,9 @@ section_table:
 	.byte	0
 	.byte	0        		// end of 0 padding of section name
 	.long	_end - stext		// VirtualSize
-	.long	stext_offset		// VirtualAddress
+	.long	__efistub_stext_offset	// VirtualAddress
 	.long	_edata - stext		// SizeOfRawData
-	.long	stext_offset		// PointerToRawData
+	.long	__efistub_stext_offset	// PointerToRawData
 
 	.long	0		// PointerToRelocations (0 for executables)
 	.long	0		// PointerToLineNumbers (0 for executables)
