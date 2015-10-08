@@ -122,6 +122,10 @@ static int gb_sdio_get_caps(struct gb_sdio_host *host)
 	mmc->ocr_avail_sd = mmc->ocr_avail;
 	mmc->ocr_avail_mmc = mmc->ocr_avail;
 
+	/* get frequency range values */
+	mmc->f_min = le32_to_cpu(response.f_min);
+	mmc->f_max = le32_to_cpu(response.f_max);
+
 	return 0;
 }
 

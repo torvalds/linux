@@ -1002,6 +1002,8 @@ struct gb_sdio_get_caps_response {
 	__le32 ocr;
 	__le16 max_blk_count;
 	__le16 max_blk_size;
+	__le32 f_min;
+	__le32 f_max;
 } __packed;
 
 /* set ios request: response has no payload */
