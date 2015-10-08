@@ -31,6 +31,7 @@
 #define G10_MPI_H
 
 #include <linux/types.h>
+#include <linux/scatterlist.h>
 
 /* DSI defines */
 
@@ -78,6 +79,7 @@ void mpi_swap(MPI a, MPI b);
 MPI do_encode_md(const void *sha_buffer, unsigned nbits);
 MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes);
 MPI mpi_read_from_buffer(const void *buffer, unsigned *ret_nread);
+MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int len);
 int mpi_fromstr(MPI val, const char *str);
 u32 mpi_get_keyid(MPI a, u32 *keyid);
 void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign);
@@ -85,6 +87,8 @@ int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 		    int *sign);
 void *mpi_get_secure_buffer(MPI a, unsigned *nbytes, int *sign);
 int mpi_set_buffer(MPI a, const void *buffer, unsigned nbytes, int sign);
+int mpi_write_to_sgl(MPI a, struct scatterlist *sg, unsigned *nbytes,
+		     int *sign);
 
 #define log_mpidump g10_log_mpidump
 
