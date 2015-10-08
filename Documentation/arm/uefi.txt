@@ -58,7 +58,5 @@ linux,uefi-mmap-desc-size | 32-bit | Size in bytes of each entry in the UEFI
 --------------------------------------------------------------------------------
 linux,uefi-mmap-desc-ver  | 32-bit | Version of the mmap descriptor format.
 --------------------------------------------------------------------------------
-linux,uefi-stub-kern-ver  | string | Copy of linux_banner from build.
---------------------------------------------------------------------------------
 
 For verbose debug messages, specify 'uefi_debug' on the kernel command line.
