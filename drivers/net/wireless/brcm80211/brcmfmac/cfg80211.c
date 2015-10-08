@@ -2478,13 +2478,13 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 		sinfo->rx_packets += le32_to_cpu(sta_info_le.rx_mcast_pkts);
 		if (sinfo->tx_packets) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
-			sinfo->txrate.legacy = le32_to_cpu(sta_info_le.tx_rate);
-			sinfo->txrate.legacy /= 100;
+			sinfo->txrate.legacy =
+				le32_to_cpu(sta_info_le.tx_rate) / 100;
 		}
 		if (sinfo->rx_packets) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
-			sinfo->rxrate.legacy = le32_to_cpu(sta_info_le.rx_rate);
-			sinfo->rxrate.legacy /= 100;
+			sinfo->rxrate.legacy =
+				le32_to_cpu(sta_info_le.rx_rate) / 100;
 		}
 		if (le16_to_cpu(sta_info_le.ver) >= 4) {
 			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
