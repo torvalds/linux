@@ -450,9 +450,9 @@ static int io_ctl_check_generation(struct btrfs_io_ctl *io_ctl, u64 generation)
 
 	gen = io_ctl->cur;
 	if (le64_to_cpu(*gen) != generation) {
-		printk_ratelimited(KERN_ERR "BTRFS: space cache generation "
-				   "(%Lu) does not match inode (%Lu)\n", *gen,
-				   generation);
+		btrfs_err_rl(io_ctl->root->fs_info,
+			"space cache generation (%llu) does not match inode (%llu)",
+				*gen, generation);
 		io_ctl_unmap_page(io_ctl);
 		return -EIO;
 	}
@@ -506,8 +506,8 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 			      PAGE_CACHE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	if (val != crc) {
-		printk_ratelimited(KERN_ERR "BTRFS: csum mismatch on free "
-				   "space cache\n");
+		btrfs_err_rl(io_ctl->root->fs_info,
+			"csum mismatch on free space cache");
 		io_ctl_unmap_page(io_ctl);
 		return -EIO;
 	}

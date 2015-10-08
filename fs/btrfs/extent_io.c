@@ -96,8 +96,8 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	inode = tree->mapping->host;
 	isize = i_size_read(inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
-		printk_ratelimited(KERN_DEBUG
-		    "BTRFS: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
+		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
+		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
 				caller, btrfs_ino(inode), isize, start, end);
 	}
 }

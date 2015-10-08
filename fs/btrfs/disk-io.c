@@ -319,9 +319,9 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk_ratelimited(KERN_WARNING
-				"BTRFS: %s checksum verify failed on %llu wanted %X found %X "
-				"level %d\n",
+			btrfs_warn_rl(fs_info,
+				"%s checksum verify failed on %llu wanted %X found %X "
+				"level %d",
 				fs_info->sb->s_id, buf->start,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
@@ -368,9 +368,9 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		ret = 0;
 		goto out;
 	}
-	printk_ratelimited(KERN_ERR
-	    "BTRFS (device %s): parent transid verify failed on %llu wanted %llu found %llu\n",
-			eb->fs_info->sb->s_id, eb->start,
+	btrfs_err_rl(eb->fs_info,
+		"parent transid verify failed on %llu wanted %llu found %llu",
+			eb->start,
 			parent_transid, btrfs_header_generation(eb));
 	ret = 1;
 
@@ -629,15 +629,14 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
-		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad tree block start "
-			       "%llu %llu\n",
-			       eb->fs_info->sb->s_id, found_start, eb->start);
+		btrfs_err_rl(eb->fs_info, "bad tree block start %llu %llu",
+			       found_start, eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	if (check_tree_block_fsid(root->fs_info, eb)) {
-		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad fsid on block %llu\n",
-			       eb->fs_info->sb->s_id, eb->start);
+		btrfs_err_rl(eb->fs_info, "bad fsid on block %llu",
+			       eb->start);
 		ret = -EIO;
 		goto err;
 	}

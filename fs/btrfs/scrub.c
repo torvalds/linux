@@ -1626,9 +1626,9 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 		int ret;
 
 		if (!page_bad->dev->bdev) {
-			printk_ratelimited(KERN_WARNING "BTRFS: "
+			btrfs_warn_rl(sblock_bad->sctx->dev_root->fs_info,
 				"scrub_repair_page_from_good_copy(bdev == NULL) "
-				"is unexpected!\n");
+				"is unexpected");
 			return -EIO;
 		}
 
@@ -4375,8 +4375,8 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	if (!dev)
 		return -EIO;
 	if (!dev->bdev) {
-		printk_ratelimited(KERN_WARNING
-			"BTRFS: scrub write_page_nocow(bdev == NULL) is unexpected!\n");
+		btrfs_warn_rl(dev->dev_root->fs_info,
+			"scrub write_page_nocow(bdev == NULL) is unexpected");
 		return -EIO;
 	}
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);

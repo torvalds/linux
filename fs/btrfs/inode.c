@@ -3018,8 +3018,6 @@ static int __readpage_endio_check(struct inode *inode,
 	char *kaddr;
 	u32 csum_expected;
 	u32 csum = ~(u32)0;
-	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
 
 	csum_expected = *(((u32 *)io_bio->csum) + icsum);
 
@@ -3032,9 +3030,8 @@ static int __readpage_endio_check(struct inode *inode,
 	kunmap_atomic(kaddr);
 	return 0;
 zeroit:
-	if (__ratelimit(&_rs))
-		btrfs_warn(BTRFS_I(inode)->root->fs_info,
-			   "csum failed ino %llu off %llu csum %u expected csum %u",
+	btrfs_warn_rl(BTRFS_I(inode)->root->fs_info,
+		"csum failed ino %llu off %llu csum %u expected csum %u",
 			   btrfs_ino(inode), start, csum, csum_expected);
 	memset(kaddr + pgoff, 1, len);
 	flush_dcache_page(page);
