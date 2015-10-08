@@ -93,6 +93,12 @@ static const u32 cz_mgcg_cgcg_init[] =
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 
+static const u32 stoney_mgcg_cgcg_init[] =
+{
+	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
+};
+
+
 static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
@@ -124,6 +130,11 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 cz_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
+		break;
+	case CHIP_STONEY:
+		amdgpu_program_register_sequence(adev,
+						 stoney_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		break;
 	default:
 		break;
@@ -228,6 +239,7 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "fiji";
 		break;
 	case CHIP_CARRIZO:
+	case CHIP_STONEY:
 		return 0;
 	default: BUG();
 	}
