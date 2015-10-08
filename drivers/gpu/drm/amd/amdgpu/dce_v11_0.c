@@ -126,6 +126,13 @@ static const u32 cz_mgcg_cgcg_init[] =
 	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
 };
 
+static const u32 stoney_golden_settings_a11[] =
+{
+	mmCRTC_DOUBLE_BUFFER_CONTROL, 0x00010101, 0x00010000,
+	mmFBC_MISC, 0x1f311fff, 0x14302000,
+};
+
+
 static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
@@ -136,6 +143,11 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 cz_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
+		break;
+	case CHIP_STONEY:
+		amdgpu_program_register_sequence(adev,
+						 stoney_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
 		break;
 	default:
 		break;
@@ -2425,7 +2437,7 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 	/* XXX need to determine what plls are available on each DCE11 part */
 	pll_in_use = amdgpu_pll_get_use_mask(crtc);
-	if (adev->asic_type == CHIP_CARRIZO) {
+	if (adev->asic_type == CHIP_CARRIZO || adev->asic_type == CHIP_STONEY) {
 		if (!(pll_in_use & (1 << ATOM_PPLL1)))
 			return ATOM_PPLL1;
 		if (!(pll_in_use & (1 << ATOM_PPLL0)))
@@ -2927,6 +2939,11 @@ static int dce_v11_0_early_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 		adev->mode_info.num_crtc = 4;
+		adev->mode_info.num_hpd = 6;
+		adev->mode_info.num_dig = 9;
+		break;
+	case CHIP_STONEY:
+		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
 		break;
