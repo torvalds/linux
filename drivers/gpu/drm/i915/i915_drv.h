@@ -627,8 +627,6 @@ struct drm_i915_display_funcs {
 			  int target, int refclk,
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
-	int (*compute_pipe_wm)(struct intel_crtc *crtc,
-			       struct drm_atomic_state *state);
 	void (*update_wm)(struct drm_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);
@@ -1692,13 +1690,6 @@ struct i915_execbuffer_params {
 	struct drm_i915_gem_request     *request;
 };
 
-/* used in computing the new watermarks state */
-struct intel_wm_config {
-	unsigned int num_pipes_active;
-	bool sprites_enabled;
-	bool sprites_scaled;
-};
-
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *objects;
@@ -1923,9 +1914,6 @@ struct drm_i915_private {
 		 * in 1us units.
 		 */
 		uint16_t skl_latency[8];
-
-		/* Committed wm config */
-		struct intel_wm_config config;
 
 		/*
 		 * The skl_wm_values structure is a bit too big for stack
