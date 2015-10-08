@@ -1869,24 +1869,37 @@ sub dump_typedef($$) {
     my $file = shift;
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
+
+    # Parse function prototypes
+    if ($x =~ /typedef\s+(\w+)\s*\(\*\s*(\w\S+)\s*\)\s*\((.*)\);/) {
+	# Function typedefs
+	$return_type = $1;
+	$declaration_name = $2;
+	my $args = $3;
+
+	create_parameterlist($args, ',', $file);
+
+	output_declaration($declaration_name,
+			   'function',
+			   {'function' => $declaration_name,
+			    'module' => $modulename,
+			    'functiontype' => $return_type,
+			    'parameterlist' => \@parameterlist,
+			    'parameterdescs' => \%parameterdescs,
+			    'parametertypes' => \%parametertypes,
+			    'sectionlist' => \@sectionlist,
+			    'sections' => \%sections,
+			    'purpose' => $declaration_purpose
+			   });
+	return;
+    }
+
     while (($x =~ /\(*.\)\s*;$/) || ($x =~ /\[*.\]\s*;$/)) {
 	$x =~ s/\(*.\)\s*;$/;/;
 	$x =~ s/\[*.\]\s*;$/;/;
     }
 
     if ($x =~ /typedef.*\s+(\w+)\s*;/) {
-	$declaration_name = $1;
-
-	output_declaration($declaration_name,
-			   'typedef',
-			   {'typedef' => $declaration_name,
-			    'module' => $modulename,
-			    'sectionlist' => \@sectionlist,
-			    'sections' => \%sections,
-			    'purpose' => $declaration_purpose
-			   });
-    }
-    elsif ($x =~ /typedef\s+\w+\s*\(\*\s*(\w\S+)\s*\)\s*\(/) { # functions
 	$declaration_name = $1;
 
 	output_declaration($declaration_name,
