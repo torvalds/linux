@@ -242,9 +242,7 @@ Commands:\n\
 "  u	dump TLB\n"
 #endif
 "  ?	help\n"
-#ifdef CONFIG_PPC64
-"  # n	limit output to n lines per page (dump paca only)\n"
-#endif
+"  # n	limit output to n lines per page (for dp, dpa, dl)\n"
 "  zr	reboot\n\
   zh	halt\n"
 ;
@@ -2333,10 +2331,12 @@ dump_log_buf(void)
 	sync();
 
 	kmsg_dump_rewind_nolock(&dumper);
+	xmon_start_pagination();
 	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
+	xmon_end_pagination();
 
 	sync();
 	/* wait a little while to see if we get a machine check */
