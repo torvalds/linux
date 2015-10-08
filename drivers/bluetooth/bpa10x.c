@@ -342,6 +342,24 @@ static int bpa10x_flush(struct hci_dev *hdev)
 	return 0;
 }
 
+static int bpa10x_setup(struct hci_dev *hdev)
+{
+	const u8 req[] = { 0x07 };
+	struct sk_buff *skb;
+
+	BT_DBG("%s", hdev->name);
+
+	/* Read revision string */
+	skb = __hci_cmd_sync(hdev, 0xfc0e, sizeof(req), req, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	BT_INFO("%s: %s", hdev->name, (char *)(skb->data + 1));
+
+	kfree_skb(skb);
+	return 0;
+}
+
 static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct bpa10x_data *data = hci_get_drvdata(hdev);
@@ -454,6 +472,7 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	hdev->open     = bpa10x_open;
 	hdev->close    = bpa10x_close;
 	hdev->flush    = bpa10x_flush;
+	hdev->setup    = bpa10x_setup;
 	hdev->send     = bpa10x_send_frame;
 
 	set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
