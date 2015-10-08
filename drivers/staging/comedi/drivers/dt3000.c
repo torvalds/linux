@@ -1,52 +1,53 @@
 /*
-    comedi/drivers/dt3000.c
-    Data Translation DT3000 series driver
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: dt3000
-Description: Data Translation DT3000 series
-Author: ds
-Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
-  DT3003-PGL, DT3004, DT3005, DT3004-200
-Updated: Mon, 14 Apr 2008 15:41:24 +0100
-Status: works
-
-Configuration Options: not applicable, uses PCI auto config
-
-There is code to support AI commands, but it may not work.
-
-AO commands are not supported.
-*/
+ * dt3000.c
+ * Data Translation DT3000 series driver
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-   The DT3000 series is Data Translation's attempt to make a PCI
-   data acquisition board.  The design of this series is very nice,
-   since each board has an on-board DSP (Texas Instruments TMS320C52).
-   However, a few details are a little annoying.  The boards lack
-   bus-mastering DMA, which eliminates them from serious work.
-   They also are not capable of autocalibration, which is a common
-   feature in modern hardware.  The default firmware is pretty bad,
-   making it nearly impossible to write an RT compatible driver.
-   It would make an interesting project to write a decent firmware
-   for these boards.
+ * Driver: dt3000
+ * Description: Data Translation DT3000 series
+ * Devices: [Data Translation] DT3001 (dt3000), DT3001-PGL, DT3002, DT3003,
+ *   DT3003-PGL, DT3004, DT3005, DT3004-200
+ * Author: ds
+ * Updated: Mon, 14 Apr 2008 15:41:24 +0100
+ * Status: works
+ *
+ * Configuration Options: not applicable, uses PCI auto config
+ *
+ * There is code to support AI commands, but it may not work.
+ *
+ * AO commands are not supported.
+ */
 
-   Data Translation originally wanted an NDA for the documentation
-   for the 3k series.  However, if you ask nicely, they might send
-   you the docs without one, also.
-*/
+/*
+ * The DT3000 series is Data Translation's attempt to make a PCI
+ * data acquisition board.  The design of this series is very nice,
+ * since each board has an on-board DSP (Texas Instruments TMS320C52).
+ * However, a few details are a little annoying.  The boards lack
+ * bus-mastering DMA, which eliminates them from serious work.
+ * They also are not capable of autocalibration, which is a common
+ * feature in modern hardware.  The default firmware is pretty bad,
+ * making it nearly impossible to write an RT compatible driver.
+ * It would make an interesting project to write a decent firmware
+ * for these boards.
+ *
+ * Data Translation originally wanted an NDA for the documentation
+ * for the 3k series.  However, if you ask nicely, they might send
+ * you the docs without one, also.
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
