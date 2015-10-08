@@ -281,27 +281,18 @@ static int pnv_eeh_post_init(void)
 	return ret;
 }
 
-static int pnv_eeh_cap_start(struct pci_dn *pdn)
+static int pnv_eeh_find_cap(struct pci_dn *pdn, int cap)
 {
-	u32 status;
+	int pos = PCI_CAPABILITY_LIST;
+	int cnt = 48;   /* Maximal number of capabilities */
+	u32 status, id;
 
 	if (!pdn)
 		return 0;
 
+	/* Check if the device supports capabilities */
 	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
-		return 0;
-
-	return PCI_CAPABILITY_LIST;
-}
-
-static int pnv_eeh_find_cap(struct pci_dn *pdn, int cap)
-{
-	int pos = pnv_eeh_cap_start(pdn);
-	int cnt = 48;   /* Maximal number of capabilities */
-	u32 id;
-
-	if (!pos)
 		return 0;
 
 	while (cnt--) {
