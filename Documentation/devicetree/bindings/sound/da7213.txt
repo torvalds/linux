@@ -18,7 +18,7 @@ Optional properties:
 	["lrise_rfall", "lfall_rrise"]
 - dlg,dmic-samplephase : When to sample audio from DMIC.
 	["on_clkedge", "between_clkedge"]
-- dlg,dmic-clkrate : DMIC clock frequency (MHz).
+- dlg,dmic-clkrate : DMIC clock frequency (Hz).
 	[<1500000>, <3000000>]
 
 ======
