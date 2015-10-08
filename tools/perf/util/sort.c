@@ -1577,6 +1577,12 @@ static int __hpp_dimension__add_output(struct hpp_dimension *hd)
 	return 0;
 }
 
+int hpp_dimension__add_output(unsigned col)
+{
+	BUG_ON(col >= PERF_HPP__MAX_INDEX);
+	return __hpp_dimension__add_output(&hpp_sort_dimensions[col]);
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -1916,8 +1922,6 @@ static int __setup_output_field(void)
 
 	if (field_order == NULL)
 		return 0;
-
-	reset_dimensions();
 
 	strp = str = strdup(field_order);
 	if (str == NULL) {
