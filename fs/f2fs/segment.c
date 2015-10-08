@@ -1484,6 +1484,23 @@ void f2fs_wait_on_page_writeback(struct page *page,
 	}
 }
 
+void f2fs_wait_on_encrypted_page_writeback(struct f2fs_sb_info *sbi,
+							block_t blkaddr)
+{
+	struct page *cpage;
+
+	if (blkaddr == NEW_ADDR)
+		return;
+
+	f2fs_bug_on(sbi, blkaddr == NULL_ADDR);
+
+	cpage = find_lock_page(META_MAPPING(sbi), blkaddr);
+	if (cpage) {
+		f2fs_wait_on_page_writeback(cpage, DATA);
+		f2fs_put_page(cpage, 1);
+	}
+}
+
 static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);

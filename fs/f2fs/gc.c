@@ -559,8 +559,16 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 	if (err)
 		goto out;
 
-	if (unlikely(dn.data_blkaddr == NULL_ADDR))
+	if (unlikely(dn.data_blkaddr == NULL_ADDR)) {
+		ClearPageUptodate(page);
 		goto put_out;
+	}
+
+	/*
+	 * don't cache encrypted data into meta inode until previous dirty
+	 * data were writebacked to avoid racing between GC and flush.
+	 */
+	f2fs_wait_on_page_writeback(page, DATA);
 
 	get_node_info(fio.sbi, dn.nid, &ni);
 	set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
@@ -589,7 +597,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx)
 		goto put_page_out;
 
 	set_page_dirty(fio.encrypted_page);
-	f2fs_wait_on_page_writeback(fio.encrypted_page, META);
+	f2fs_wait_on_page_writeback(fio.encrypted_page, DATA);
 	if (clear_page_dirty_for_io(fio.encrypted_page))
 		dec_page_count(fio.sbi, F2FS_DIRTY_META);
 

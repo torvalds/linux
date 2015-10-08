@@ -956,21 +956,14 @@ submit_and_realloc:
 
 			if (f2fs_encrypted_inode(inode) &&
 					S_ISREG(inode->i_mode)) {
-				struct page *cpage;
 
 				ctx = f2fs_get_crypto_ctx(inode);
 				if (IS_ERR(ctx))
 					goto set_error_page;
 
 				/* wait the page to be moved by cleaning */
-				cpage = find_lock_page(
-						META_MAPPING(F2FS_I_SB(inode)),
-						block_nr);
-				if (cpage) {
-					f2fs_wait_on_page_writeback(cpage,
-									DATA);
-					f2fs_put_page(cpage, 1);
-				}
+				f2fs_wait_on_encrypted_page_writeback(
+						F2FS_I_SB(inode), block_nr);
 			}
 
 			bio = bio_alloc(GFP_KERNEL,
@@ -1064,6 +1057,11 @@ int do_write_data_page(struct f2fs_io_info *fio)
 	}
 
 	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
+
+		/* wait for GCed encrypted page writeback */
+		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
+							fio->blk_addr);
+
 		fio->encrypted_page = f2fs_encrypt(inode, fio->page);
 		if (IS_ERR(fio->encrypted_page)) {
 			err = PTR_ERR(fio->encrypted_page);
@@ -1451,6 +1449,10 @@ put_next:
 	f2fs_unlock_op(sbi);
 
 	f2fs_wait_on_page_writeback(page, DATA);
+
+	/* wait for GCed encrypted page writeback */
+	if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+		f2fs_wait_on_encrypted_page_writeback(sbi, dn.data_blkaddr);
 
 	if (len == PAGE_CACHE_SIZE)
 		goto out_update;
