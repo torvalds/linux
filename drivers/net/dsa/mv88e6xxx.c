@@ -1841,6 +1841,16 @@ static int _mv88e6xxx_port_fdb_load(struct dsa_switch *ds, int port,
 	return _mv88e6xxx_atu_load(ds, &entry);
 }
 
+int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_fdb *fdb,
+			       struct switchdev_trans *trans)
+{
+	/* We don't need any dynamic resource from the kernel (yet),
+	 * so skip the prepare phase.
+	 */
+	return 0;
+}
+
 int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {

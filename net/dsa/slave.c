@@ -346,10 +346,13 @@ static int dsa_slave_port_fdb_add(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	int ret = -EOPNOTSUPP;
+	int ret;
+
+	if (!ds->drv->port_fdb_prepare || !ds->drv->port_fdb_add)
+		return -EOPNOTSUPP;
 
 	if (switchdev_trans_ph_prepare(trans))
-		ret = ds->drv->port_fdb_add ? 0 : -EOPNOTSUPP;
+		ret = ds->drv->port_fdb_prepare(ds, p->port, fdb, trans);
 	else
 		ret = ds->drv->port_fdb_add(ds, p->port, fdb->addr, fdb->vid);
 

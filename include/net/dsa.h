@@ -197,6 +197,9 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 		return ds->pd->rtable[dst->cpu_switch];
 }
 
+struct switchdev_trans;
+struct switchdev_obj_port_fdb;
+
 struct dsa_switch_driver {
 	struct list_head	list;
 
@@ -316,6 +319,9 @@ struct dsa_switch_driver {
 	/*
 	 * Forwarding database
 	 */
+	int	(*port_fdb_prepare)(struct dsa_switch *ds, int port,
+				    const struct switchdev_obj_port_fdb *fdb,
+				    struct switchdev_trans *trans);
 	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
 				const unsigned char *addr, u16 vid);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
