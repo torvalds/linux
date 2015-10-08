@@ -333,11 +333,10 @@ END(call_do_page_fault)
 	; Note that we use realtime STATUS32 (not pt_regs->status32) to
 	; decide that.
 
-	; if Returning from Exception
-	btst   r10, STATUS_AE_BIT
-	bnz    .Lexcep_ret
+	and.f	0, r10, (STATUS_A1_MASK|STATUS_A2_MASK)
+	bz	.Lexcep_or_pure_K_ret
 
-	; Not Exception so maybe Interrupts (Level 1 or 2)
+	; Returning from Interrupts (Level 1 or 2)
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
@@ -378,8 +377,7 @@ END(call_do_page_fault)
 	st      r9, [r10, THREAD_INFO_PREEMPT_COUNT]
 
 149:
-	;return from level 2
-	INTERRUPT_EPILOGUE 2
+	INTERRUPT_EPILOGUE 2	; return from level 2 interrupt
 debug_marker_l2:
 	rtie
 
@@ -387,15 +385,11 @@ not_level2_interrupt:
 
 #endif
 
-	bbit0  r10, STATUS_A1_BIT, .Lpure_k_mode_ret
-
-	;return from level 1
-	INTERRUPT_EPILOGUE 1
+	INTERRUPT_EPILOGUE 1	; return from level 1 interrupt
 debug_marker_l1:
 	rtie
 
-.Lexcep_ret:
-.Lpure_k_mode_ret:
+.Lexcep_or_pure_K_ret:
 
 	;this case is for syscalls or Exceptions or pure kernel mode
 
