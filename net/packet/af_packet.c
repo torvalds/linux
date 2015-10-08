@@ -2630,6 +2630,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	__be16 proto;
 	unsigned char *addr;
 	int err, reserve = 0;
+	struct sockcm_cookie sockc;
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int offset = 0;
 	int vnet_hdr_len;
@@ -2664,6 +2665,13 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	err = -ENETDOWN;
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
+
+	sockc.mark = sk->sk_mark;
+	if (msg->msg_controllen) {
+		err = sock_cmsg_send(sk, msg, &sockc);
+		if (unlikely(err))
+			goto out_unlock;
+	}
 
 	if (sock->type == SOCK_RAW)
 		reserve = dev->hard_header_len;
@@ -2774,7 +2782,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	skb->mark = sockc.mark;
 
 	packet_pick_tx_queue(dev, skb);
 
