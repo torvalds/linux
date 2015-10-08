@@ -184,6 +184,7 @@ config BT_HCIBCM203X
 config BT_HCIBPA10X
 	tristate "HCI BPA10x USB driver"
 	depends on USB
+	select BT_HCIUART
 	select BT_HCIUART_H4
 	help
 	  Bluetooth HCI BPA10x USB driver.
