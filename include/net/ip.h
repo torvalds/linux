@@ -107,17 +107,13 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	   struct net_device *orig_dev);
 int ip_local_deliver(struct sk_buff *skb);
 int ip_mr_input(struct sk_buff *skb);
-int ip_output(struct sock *sk, struct sk_buff *skb);
-int ip_mc_output(struct sock *sk, struct sk_buff *skb);
+int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip_mc_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		   int (*output)(struct net *, struct sock *, struct sk_buff *));
 void ip_send_check(struct iphdr *ip);
-int __ip_local_out(struct sk_buff *skb);
-int ip_local_out_sk(struct sock *sk, struct sk_buff *skb);
-static inline int ip_local_out(struct sk_buff *skb)
-{
-	return ip_local_out_sk(skb->sk, skb);
-}
+int __ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);
 void ip_init(void);

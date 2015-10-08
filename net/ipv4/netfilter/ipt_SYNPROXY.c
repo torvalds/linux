@@ -63,7 +63,7 @@ synproxy_send_tcp(const struct synproxy_net *snet,
 		nf_conntrack_get(nfct);
 	}
 
-	ip_local_out(nskb);
+	ip_local_out(net, nskb->sk, nskb);
 	return;
 
 free_nskb:

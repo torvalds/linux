@@ -74,9 +74,9 @@ static struct dst_entry *vrf_ip_check(struct dst_entry *dst, u32 cookie)
 	return dst;
 }
 
-static int vrf_ip_local_out(struct sk_buff *skb)
+static int vrf_ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return ip_local_out(skb);
+	return ip_local_out(net, sk, skb);
 }
 
 static unsigned int vrf_v4_mtu(const struct dst_entry *dst)
@@ -222,7 +222,7 @@ static netdev_tx_t vrf_process_v4_outbound(struct sk_buff *skb,
 					       RT_SCOPE_LINK);
 	}
 
-	ret = ip_local_out(skb);
+	ret = ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	if (unlikely(net_xmit_eval(ret)))
 		vrf_dev->stats.tx_errors++;
 	else
@@ -312,10 +312,9 @@ err:
 	return ret;
 }
 
-static int vrf_output(struct sock *sk, struct sk_buff *skb)
+static int vrf_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb_dst(skb)->dev;
-	struct net *net = dev_net(dev);
 
 	IP_UPD_PO_STATS(net, IPSTATS_MIB_OUT, skb->len);
 
