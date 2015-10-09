@@ -307,8 +307,7 @@ config CLKSRC_TANGO_XTAL
 	select CLKSRC_OF
 
 config CLKSRC_PXA
-	def_bool y if ARCH_PXA || ARCH_SA1100
-	select CLKSRC_OF if OF
+	bool
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
