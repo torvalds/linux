@@ -97,26 +97,8 @@ static void mcip_ipi_clear(int irq)
 #endif
 }
 
-volatile int wake_flag;
-
-static void mcip_wakeup_cpu(int cpu, unsigned long pc)
-{
-	BUG_ON(cpu == 0);
-	wake_flag = cpu;
-}
-
-void arc_platform_smp_wait_to_boot(int cpu)
-{
-	while (wake_flag != cpu)
-		;
-
-	wake_flag = 0;
-	__asm__ __volatile__("j @first_lines_of_secondary	\n");
-}
-
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
-	.cpu_kick	= mcip_wakeup_cpu,
 	.ipi_send	= mcip_ipi_send,
 	.ipi_clear	= mcip_ipi_clear,
 };
