@@ -285,7 +285,7 @@ int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	/* ensure we process id in increasing order */
 	qsort(c->map, c->nr, sizeof(int), cmp_ids);
 
-	atomic_set(&cpus->refcnt, 1);
+	atomic_set(&c->refcnt, 1);
 	*res = c;
 	return 0;
 }
