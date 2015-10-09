@@ -29,6 +29,8 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 
+#include <asm-generic/io-64-nonatomic-lo-hi.h>
+
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
 #include "pci-quirks.h"
@@ -1707,20 +1709,12 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
 		__le64 __iomem *regs)
 {
-	__u32 __iomem *ptr = (__u32 __iomem *) regs;
-	u64 val_lo = readl(ptr);
-	u64 val_hi = readl(ptr + 1);
-	return val_lo + (val_hi << 32);
+	return lo_hi_readq(regs);
 }
 static inline void xhci_write_64(struct xhci_hcd *xhci,
 				 const u64 val, __le64 __iomem *regs)
 {
-	__u32 __iomem *ptr = (__u32 __iomem *) regs;
-	u32 val_lo = lower_32_bits(val);
-	u32 val_hi = upper_32_bits(val);
-
-	writel(val_lo, ptr);
-	writel(val_hi, ptr + 1);
+	lo_hi_writeq(val, regs);
 }
 
 static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
