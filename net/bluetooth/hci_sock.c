@@ -170,6 +170,11 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 			continue;
 
 		if (hci_pi(sk)->channel == HCI_CHANNEL_RAW) {
+			if (bt_cb(skb)->pkt_type != HCI_COMMAND_PKT &&
+			    bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
+			    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+			    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT)
+				continue;
 			if (is_filtered_packet(sk, skb))
 				continue;
 		} else if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
@@ -1244,6 +1249,12 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	} else {
 		if (!capable(CAP_NET_RAW)) {
 			err = -EPERM;
+			goto drop;
+		}
+
+		if (bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+		    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+			err = -EINVAL;
 			goto drop;
 		}
 
