@@ -2918,7 +2918,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci probe\n");
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "pci probe %04x:%04x %04x:%04x\n",
+		   pdev->vendor, pdev->device,
+		   pdev->subsystem_vendor, pdev->subsystem_device);
 
 	ar_pci = ath10k_pci_priv(ar);
 	ar_pci->pdev = pdev;
@@ -2926,11 +2928,10 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci->ar = ar;
 	ar->dev_id = pci_dev->device;
 
-	if (pdev->subsystem_vendor || pdev->subsystem_device)
-		scnprintf(ar->spec_board_id, sizeof(ar->spec_board_id),
-			  "%04x:%04x:%04x:%04x",
-			  pdev->vendor, pdev->device,
-			  pdev->subsystem_vendor, pdev->subsystem_device);
+	ar->id.vendor = pdev->vendor;
+	ar->id.device = pdev->device;
+	ar->id.subsystem_vendor = pdev->subsystem_vendor;
+	ar->id.subsystem_device = pdev->subsystem_device;
 
 	spin_lock_init(&ar_pci->ce_lock);
 	spin_lock_init(&ar_pci->ps_lock);
@@ -3084,13 +3085,16 @@ MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API3_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 
 /* QCA6174 2.1 firmware files */
 MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" QCA6174_HW_2_1_BOARD_DATA_FILE);
+MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 
 /* QCA6174 3.1 firmware files */
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" QCA6174_HW_3_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(QCA6174_HW_3_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);

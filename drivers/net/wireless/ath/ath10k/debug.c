@@ -125,19 +125,21 @@ EXPORT_SYMBOL(ath10k_info);
 void ath10k_print_driver_info(struct ath10k *ar)
 {
 	char fw_features[128] = {};
+	char boardinfo[100];
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
-	ath10k_info(ar, "%s (0x%08x, 0x%08x%s%s%s) fw %s api %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d features %s\n",
+	scnprintf(boardinfo, sizeof(boardinfo), "sub %04x:%04x",
+		  ar->id.subsystem_vendor, ar->id.subsystem_device);
+
+	ath10k_info(ar, "%s (0x%08x, 0x%08x %s) fw %s fwapi %d bdapi %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d features %s\n",
 		    ar->hw_params.name,
 		    ar->target_version,
 		    ar->chip_id,
-		    (strlen(ar->spec_board_id) > 0 ? ", " : ""),
-		    ar->spec_board_id,
-		    (strlen(ar->spec_board_id) > 0 && !ar->spec_board_loaded
-		     ? " fallback" : ""),
+		    boardinfo,
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
+		    ar->bd_api,
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor,
 		    ar->wmi.op_version,
