@@ -3281,37 +3281,20 @@ static int dce_v11_0_set_pageflip_irq_state(struct amdgpu_device *adev,
 					    unsigned type,
 					    enum amdgpu_interrupt_state state)
 {
-	u32 reg, reg_block;
-	/* now deal with page flip IRQ */
-	switch (type) {
-		case AMDGPU_PAGEFLIP_IRQ_D1:
-			reg_block = CRTC0_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D2:
-			reg_block = CRTC1_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D3:
-			reg_block = CRTC2_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D4:
-			reg_block = CRTC3_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D5:
-			reg_block = CRTC4_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D6:
-			reg_block = CRTC5_REGISTER_OFFSET;
-			break;
-		default:
-			DRM_ERROR("invalid pageflip crtc %d\n", type);
-			return -EINVAL;
+	u32 reg;
+
+	if (type >= adev->mode_info.num_crtc) {
+		DRM_ERROR("invalid pageflip crtc %d\n", type);
+		return -EINVAL;
 	}
 
-	reg = RREG32(mmGRPH_INTERRUPT_CONTROL + reg_block);
+	reg = RREG32(mmGRPH_INTERRUPT_CONTROL + crtc_offsets[type]);
 	if (state == AMDGPU_IRQ_STATE_DISABLE)
-		WREG32(mmGRPH_INTERRUPT_CONTROL + reg_block, reg & ~GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK);
+		WREG32(mmGRPH_INTERRUPT_CONTROL + crtc_offsets[type],
+		       reg & ~GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK);
 	else
-		WREG32(mmGRPH_INTERRUPT_CONTROL + reg_block, reg | GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK);
+		WREG32(mmGRPH_INTERRUPT_CONTROL + crtc_offsets[type],
+		       reg | GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK);
 
 	return 0;
 }
@@ -3320,7 +3303,6 @@ static int dce_v11_0_pageflip_irq(struct amdgpu_device *adev,
 				  struct amdgpu_irq_src *source,
 				  struct amdgpu_iv_entry *entry)
 {
-	int reg_block;
 	unsigned long flags;
 	unsigned crtc_id;
 	struct amdgpu_crtc *amdgpu_crtc;
@@ -3329,33 +3311,15 @@ static int dce_v11_0_pageflip_irq(struct amdgpu_device *adev,
 	crtc_id = (entry->src_id - 8) >> 1;
 	amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
 
-	/* ack the interrupt */
-	switch(crtc_id){
-		case AMDGPU_PAGEFLIP_IRQ_D1:
-			reg_block = CRTC0_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D2:
-			reg_block = CRTC1_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D3:
-			reg_block = CRTC2_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D4:
-			reg_block = CRTC3_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D5:
-			reg_block = CRTC4_REGISTER_OFFSET;
-			break;
-		case AMDGPU_PAGEFLIP_IRQ_D6:
-			reg_block = CRTC5_REGISTER_OFFSET;
-			break;
-		default:
-			DRM_ERROR("invalid pageflip crtc %d\n", crtc_id);
-			return -EINVAL;
+	if (crtc_id >= adev->mode_info.num_crtc) {
+		DRM_ERROR("invalid pageflip crtc %d\n", crtc_id);
+		return -EINVAL;
 	}
 
-	if (RREG32(mmGRPH_INTERRUPT_STATUS + reg_block) & GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_OCCURRED_MASK)
-		WREG32(mmGRPH_INTERRUPT_STATUS + reg_block, GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_CLEAR_MASK);
+	if (RREG32(mmGRPH_INTERRUPT_STATUS + crtc_offsets[crtc_id]) &
+	    GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_OCCURRED_MASK)
+		WREG32(mmGRPH_INTERRUPT_STATUS + crtc_offsets[crtc_id],
+		       GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_CLEAR_MASK);
 
 	/* IRQ could occur when in initial stage */
 	if(amdgpu_crtc == NULL)
