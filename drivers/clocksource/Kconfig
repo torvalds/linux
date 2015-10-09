@@ -326,7 +326,6 @@ config CLKSRC_IMX_GPT
 
 config CLKSRC_ST_LPC
 	bool
-	depends on ARCH_STI
 	select CLKSRC_OF if OF
 	help
 	  Enable this option to use the Low Power controller timer
