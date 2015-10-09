@@ -177,21 +177,31 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 						struct msm_dsi_host *msm_host)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = NULL;
+	struct device *dev = &msm_host->pdev->dev;
 	struct regulator *gdsc_reg;
+	struct clk *ahb_clk;
 	int ret;
 	u32 major = 0, minor = 0;
 
-	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
+	gdsc_reg = regulator_get(dev, "gdsc");
 	if (IS_ERR(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
 		goto exit;
 	}
+
+	ahb_clk = clk_get(dev, "iface_clk");
+	if (IS_ERR(ahb_clk)) {
+		pr_err("%s: cannot get interface clock\n", __func__);
+		goto put_gdsc;
+	}
+
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
-		goto put_gdsc;
+		goto put_clk;
 	}
-	ret = clk_prepare_enable(msm_host->ahb_clk);
+
+	ret = clk_prepare_enable(ahb_clk);
 	if (ret) {
 		pr_err("%s: unable to enable ahb_clk\n", __func__);
 		goto disable_gdsc;
@@ -208,9 +218,11 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 	DBG("%s: Version %x:%x\n", __func__, major, minor);
 
 disable_clks:
-	clk_disable_unprepare(msm_host->ahb_clk);
+	clk_disable_unprepare(ahb_clk);
 disable_gdsc:
 	regulator_disable(gdsc_reg);
+put_clk:
+	clk_put(ahb_clk);
 put_gdsc:
 	regulator_put(gdsc_reg);
 exit:
@@ -1417,12 +1429,6 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	ret = dsi_clk_init(msm_host);
-	if (ret) {
-		pr_err("%s: unable to initialize dsi clks\n", __func__);
-		goto fail;
-	}
-
 	msm_host->ctrl_base = msm_ioremap(pdev, "dsi_ctrl", "DSI CTRL");
 	if (IS_ERR(msm_host->ctrl_base)) {
 		pr_err("%s: unable to map Dsi ctrl base\n", __func__);
@@ -1443,6 +1449,12 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	ret = dsi_regulator_init(msm_host);
 	if (ret) {
 		pr_err("%s: regulator init failed\n", __func__);
+		goto fail;
+	}
+
+	ret = dsi_clk_init(msm_host);
+	if (ret) {
+		pr_err("%s: unable to initialize dsi clks\n", __func__);
 		goto fail;
 	}
 
