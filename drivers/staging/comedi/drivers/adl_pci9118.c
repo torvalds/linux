@@ -816,8 +816,8 @@ static int pci9118_ai_inttrig(struct comedi_device *dev,
 	return 1;
 }
 
-static int Compute_and_setup_dma(struct comedi_device *dev,
-				 struct comedi_subdevice *s)
+static int pci9118_ai_setup_dma(struct comedi_device *dev,
+				struct comedi_subdevice *s)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -1141,7 +1141,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_act_dmapos = 0;
 
 	if (devpriv->usedma) {
-		Compute_and_setup_dma(dev, s);
+		pci9118_ai_setup_dma(dev, s);
 
 		outl(0x02000000 | AINT_WRITE_COMPL,
 		     devpriv->iobase_a + AMCC_OP_REG_INTCSR);
