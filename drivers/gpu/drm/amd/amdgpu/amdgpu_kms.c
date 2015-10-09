@@ -485,7 +485,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  * Outdated mess for old drm with Xorg being in charge (void function now).
  */
 /**
- * amdgpu_driver_firstopen_kms - drm callback for last close
+ * amdgpu_driver_lastclose_kms - drm callback for last close
  *
  * @dev: drm dev pointer
  *
@@ -493,6 +493,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  */
 void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 {
+	struct amdgpu_device *adev = dev->dev_private;
+
+	amdgpu_fbdev_restore_mode(adev);
 	vga_switcheroo_process_delayed_switch();
 }
 
