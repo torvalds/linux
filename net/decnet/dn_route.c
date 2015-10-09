@@ -789,9 +789,7 @@ static int dn_forward(struct sk_buff *skb)
 	struct dn_dev *dn_db = rcu_dereference(dst->dev->dn_ptr);
 	struct dn_route *rt;
 	int header_len;
-#ifdef CONFIG_NETFILTER
 	struct net_device *dev = skb->dev;
-#endif
 
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
