@@ -684,7 +684,7 @@ void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 			if (!memcmp(ra_list->ra, mac, ETH_ALEN))
 				continue;
 
-			if (ra_list && ra_list->tx_paused != tx_pause) {
+			if (ra_list->tx_paused != tx_pause) {
 				pkt_cnt += ra_list->total_pkt_count;
 				ra_list->tx_paused = tx_pause;
 				if (tx_pause)
