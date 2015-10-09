@@ -997,10 +997,8 @@ tegra_emc_find_node_by_ram_code(struct device_node *node, u32 ram_code)
 		u32 value;
 
 		err = of_property_read_u32(np, "nvidia,ram-code", &value);
-		if (err || (value != ram_code)) {
-			of_node_put(np);
+		if (err || (value != ram_code))
 			continue;
-		}
 
 		return np;
 	}

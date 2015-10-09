@@ -206,10 +206,8 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 	for_each_child_of_node(mc->dev->of_node, node) {
 		err = of_property_read_u32(node, "nvidia,ram-code",
 					   &node_ram_code);
-		if (err || (node_ram_code != ram_code)) {
-			of_node_put(node);
+		if (err || (node_ram_code != ram_code))
 			continue;
-		}
 
 		err = load_timings(mc, node);
 		if (err)
