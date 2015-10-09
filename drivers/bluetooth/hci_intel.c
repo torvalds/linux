@@ -557,6 +557,7 @@ static int intel_setup(struct hci_uart *hu)
 
 	bt_dev_dbg(hdev, "start intel_setup");
 
+	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
 
 	calltime = ktime_get();
