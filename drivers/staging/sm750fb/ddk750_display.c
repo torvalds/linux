@@ -228,17 +228,17 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 
 	if (output & PRI_TP_USAGE) {
 		/* set primary timing and plane en_bit */
-		setDisplayControl(0, (output&PRI_TP_MASK) >> PRI_TP_OFFSET);
+		setDisplayControl(0, (output & PRI_TP_MASK) >> PRI_TP_OFFSET);
 	}
 
 	if (output & SEC_TP_USAGE) {
 		/* set secondary timing and plane en_bit*/
-		setDisplayControl(1, (output&SEC_TP_MASK) >> SEC_TP_OFFSET);
+		setDisplayControl(1, (output & SEC_TP_MASK) >> SEC_TP_OFFSET);
 	}
 
 	if (output & PNL_SEQ_USAGE) {
 		/* set  panel sequence */
-		swPanelPowerSequence((output&PNL_SEQ_MASK) >> PNL_SEQ_OFFSET, 4);
+		swPanelPowerSequence((output & PNL_SEQ_MASK) >> PNL_SEQ_OFFSET, 4);
 	}
 
 	if (output & DAC_USAGE)
