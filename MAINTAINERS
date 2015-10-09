@@ -6556,6 +6556,13 @@ M:	Guenter Roeck <linux@roeck-us.net>
 S:	Maintained
 F:	drivers/net/dsa/mv88e6352.c
 
+MARVELL CRYPTO DRIVER
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+M:	Arnaud Ebalard <arno@natisbad.org>
+F:	drivers/crypto/marvell/
+S:	Maintained
+L:	linux-crypto@vger.kernel.org
+
 MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
 M:	Mirko Lindner <mlindner@marvell.com>
 M:	Stephen Hemminger <stephen@networkplumber.org>
