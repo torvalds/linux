@@ -491,10 +491,8 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 	for_each_child_of_node(np, node) {
 		err = of_property_read_u32(node, "nvidia,ram-code",
 					   &node_ram_code);
-		if (err) {
-			of_node_put(node);
+		if (err)
 			continue;
-		}
 
 		/*
 		 * Store timings for all ram codes as we cannot read the
