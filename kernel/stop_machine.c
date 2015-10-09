@@ -513,6 +513,14 @@ static void cpu_stop_unpark(unsigned int cpu)
 	spin_unlock_irq(&stopper->lock);
 }
 
+void stop_machine_unpark(int cpu)
+{
+	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
+
+	cpu_stop_unpark(cpu);
+	kthread_unpark(stopper->thread);
+}
+
 static struct smp_hotplug_thread cpu_stop_threads = {
 	.store			= &cpu_stopper.thread,
 	.thread_should_run	= cpu_stop_should_run,
@@ -521,7 +529,6 @@ static struct smp_hotplug_thread cpu_stop_threads = {
 	.create			= cpu_stop_create,
 	.setup			= cpu_stop_unpark,
 	.park			= cpu_stop_park,
-	.pre_unpark		= cpu_stop_unpark,
 	.selfparking		= true,
 };
 
@@ -537,6 +544,7 @@ static int __init cpu_stop_init(void)
 	}
 
 	BUG_ON(smpboot_register_percpu_thread(&cpu_stop_threads));
+	stop_machine_unpark(raw_smp_processor_id());
 	stop_machine_initialized = true;
 	return 0;
 }

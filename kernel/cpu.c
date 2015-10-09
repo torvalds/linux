@@ -475,6 +475,7 @@ static int smpboot_thread_call(struct notifier_block *nfb,
 
 	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
+		stop_machine_unpark(cpu);
 		smpboot_unpark_threads(cpu);
 		break;
 
