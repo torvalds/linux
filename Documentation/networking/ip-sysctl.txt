@@ -884,8 +884,8 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 
-	If zero, icmp error messages are sent with the primary address of
-	the exiting interface.
+	If zero, icmp error messages except redirects are sent with the primary
+	address of the exiting interface.
 
 	If non-zero, the message will be sent with the primary address of
 	the interface that received the packet that caused the icmp error.
@@ -897,7 +897,22 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 	then the primary address of the first non-loopback interface that
 	has one will be used regardless of this setting.
 
+	The source address selection of icmp redirect messages is controlled by
+	icmp_errors_use_inbound_ifaddr.
 	Default: 0
+
+icmp_redirects_use_orig_daddr - BOOLEAN
+
+	If zero, icmp redirect messages are sent using the address specified for
+	other icmp errors by icmp_errors_use_inbound_ifaddr.
+
+	If non-zero, the message will be sent with the destination address of
+	the packet that caused the icmp redirect.
+	This behaviour is the preferred one on VRRP routers (see RFC 5798
+	section 8.1.1).
+
+	Default: 0
+
 
 igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.

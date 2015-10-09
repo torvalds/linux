@@ -659,7 +659,9 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	 */
 
 	saddr = iph->daddr;
-	if (!(rt->rt_flags & RTCF_LOCAL)) {
+	if (!((type == ICMP_REDIRECT) &&
+	      net->ipv4.sysctl_icmp_redirects_use_orig_daddr) &&
+	    !(rt->rt_flags & RTCF_LOCAL)) {
 		struct net_device *dev = NULL;
 
 		rcu_read_lock();
@@ -1221,6 +1223,11 @@ static int __net_init icmp_sk_init(struct net *net)
 	net->ipv4.sysctl_icmp_ratelimit = 1 * HZ;
 	net->ipv4.sysctl_icmp_ratemask = 0x1818;
 	net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr = 0;
+
+	/* Control paramerer - use the daddr of originating packets as saddr
+	 * in redirect messages?
+	 */
+	net->ipv4.sysctl_icmp_redirects_use_orig_daddr = 0;
 
 	return 0;
 
