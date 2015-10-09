@@ -293,12 +293,14 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		 * The resulting value will be rounded down to the closest
 		 * multiple of dd->rcv_entries.group_size.
 		 */
-		rcd->egrbufs.buffers = kzalloc(sizeof(*rcd->egrbufs.buffers) *
-					       rcd->egrbufs.count, GFP_KERNEL);
+		rcd->egrbufs.buffers = kcalloc(rcd->egrbufs.count,
+					       sizeof(*rcd->egrbufs.buffers),
+					       GFP_KERNEL);
 		if (!rcd->egrbufs.buffers)
 			goto bail;
-		rcd->egrbufs.rcvtids = kzalloc(sizeof(*rcd->egrbufs.rcvtids) *
-					       rcd->egrbufs.count, GFP_KERNEL);
+		rcd->egrbufs.rcvtids = kcalloc(rcd->egrbufs.count,
+					       sizeof(*rcd->egrbufs.rcvtids),
+					       GFP_KERNEL);
 		if (!rcd->egrbufs.rcvtids)
 			goto bail;
 		rcd->egrbufs.size = eager_buffer_size;
@@ -1050,8 +1052,8 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (!hfi1_cpulist_count) {
 		u32 count = num_online_cpus();
 
-		hfi1_cpulist = kzalloc(BITS_TO_LONGS(count) *
-				      sizeof(long), GFP_KERNEL);
+		hfi1_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
+				       GFP_KERNEL);
 		if (hfi1_cpulist)
 			hfi1_cpulist_count = count;
 		else

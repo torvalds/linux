@@ -1159,9 +1159,8 @@ static long hfi1_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				   filter_cmd.opcode, filter_cmd.length,
 				   filter_cmd.value_ptr);
 
-			filter_value = kzalloc(
-						filter_cmd.length * sizeof(u8),
-						GFP_KERNEL);
+			filter_value = kcalloc(filter_cmd.length, sizeof(u8),
+					       GFP_KERNEL);
 			if (!filter_value) {
 				pr_alert("Not enough memory\n");
 				ret = -ENOMEM;

@@ -1050,8 +1050,8 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	unsigned pinned;
 
 	iovec->npages = num_user_pages(&iovec->iov);
-	iovec->pages = kzalloc(sizeof(*iovec->pages) *
-			       iovec->npages, GFP_KERNEL);
+	iovec->pages = kcalloc(iovec->npages, sizeof(*iovec->pages),
+			       GFP_KERNEL);
 	if (!iovec->pages) {
 		SDMA_DBG(req, "Failed page array alloc");
 		ret = -ENOMEM;
