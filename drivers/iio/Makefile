@@ -16,6 +16,7 @@ obj-y += buffer/
 obj-y += chemical/
 obj-y += common/
 obj-y += dac/
+obj-y += dummy/
 obj-y += gyro/
 obj-y += frequency/
 obj-y += humidity/
