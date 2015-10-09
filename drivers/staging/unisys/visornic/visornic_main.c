@@ -1797,8 +1797,8 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_netdev;
 	}
 
-	devdata->rcvbuf = kzalloc(sizeof(struct sk_buff *) *
-				  devdata->num_rcv_bufs, GFP_KERNEL);
+	devdata->rcvbuf = kcalloc(devdata->num_rcv_bufs,
+				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
 		goto cleanup_rcvbuf;
