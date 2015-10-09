@@ -1667,6 +1667,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 			set_bit(WriteMostly, &rdev->flags);
 		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
 			set_bit(Replacement, &rdev->flags);
+		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)
+			set_bit(MD_HAS_JOURNAL, &mddev->flags);
 	} else /* MULTIPATH are always insync */
 		set_bit(In_sync, &rdev->flags);
 
@@ -1807,16 +1809,18 @@ retry:
 	for (i=0; i<max_dev;i++)
 		sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_FAULTY);
 
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags))
+		sb->feature_map |= cpu_to_le32(MD_FEATURE_JOURNAL);
+
 	rdev_for_each(rdev2, mddev) {
 		i = rdev2->desc_nr;
 		if (test_bit(Faulty, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_FAULTY);
 		else if (test_bit(In_sync, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(rdev2->raid_disk);
-		else if (test_bit(Journal, &rdev2->flags)) {
+		else if (test_bit(Journal, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_JOURNAL);
-			sb->feature_map |= cpu_to_le32(MD_FEATURE_JOURNAL);
-		} else if (rdev2->raid_disk >= 0)
+		else if (rdev2->raid_disk >= 0)
 			sb->dev_roles[i] = cpu_to_le16(rdev2->raid_disk);
 		else
 			sb->dev_roles[i] = cpu_to_le16(MD_DISK_ROLE_SPARE);

@@ -233,6 +233,7 @@ struct mddev {
 				 * md_ioctl checked on it.
 				 */
 #define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
+#define MD_HAS_JOURNAL	6	/* The raid array has journal feature set */
 
 	int				suspended;
 	atomic_t			active_io;
