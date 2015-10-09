@@ -117,7 +117,6 @@ static void setDisplayControl(int ctrl, int disp_state)
 	}
 }
 
-
 static void waitNextVerticalSync(int ctrl, int delay)
 {
 	unsigned int status;
@@ -189,7 +188,6 @@ static void swPanelPowerSequence(int disp, int delay)
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
 
-
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, DATA, disp);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
@@ -199,7 +197,6 @@ static void swPanelPowerSequence(int disp, int delay)
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, VBIASEN, disp);
 	POKE32(PANEL_DISPLAY_CTRL, reg);
 	primaryWaitVerticalSync(delay);
-
 
 	reg = PEEK32(PANEL_DISPLAY_CTRL);
 	reg = FIELD_VALUE(reg, PANEL_DISPLAY_CTRL, FPEN, disp);
