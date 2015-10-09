@@ -279,7 +279,12 @@ config EM_TIMER_STI
 	  such as EMEV2 from former NEC Electronics.
 
 config CLKSRC_QCOM
-	bool
+	bool "Qualcomm MSM timer" if COMPILE_TEST
+	depends on ARM
+	select CLKSRC_OF
+	help
+	  This enables the clocksource and the per CPU clockevent driver for the
+	  Qualcomm SoCs.
 
 config CLKSRC_VERSATILE
 	bool "ARM Versatile (Express) reference platforms clock source"
