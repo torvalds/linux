@@ -242,27 +242,6 @@ static int pvfs2_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-/*
- * PVFS2 does not support hard links.
- */
-static int pvfs2_link(struct dentry *old_dentry,
-		      struct inode *dir,
-		      struct dentry *dentry)
-{
-	return -EPERM;
-}
-
-/*
- * PVFS2 does not support special files.
- */
-static int pvfs2_mknod(struct inode *dir,
-		       struct dentry *dentry,
-		       umode_t mode,
-		       dev_t rdev)
-{
-	return -EPERM;
-}
-
 static int pvfs2_symlink(struct inode *dir,
 			 struct dentry *dentry,
 			 const char *symname)
@@ -453,12 +432,10 @@ struct inode_operations pvfs2_dir_inode_operations = {
 	.get_acl = pvfs2_get_acl,
 	.set_acl = pvfs2_set_acl,
 	.create = pvfs2_create,
-	.link = pvfs2_link,
 	.unlink = pvfs2_unlink,
 	.symlink = pvfs2_symlink,
 	.mkdir = pvfs2_mkdir,
 	.rmdir = pvfs2_unlink,
-	.mknod = pvfs2_mknod,
 	.rename = pvfs2_rename,
 	.setattr = pvfs2_setattr,
 	.getattr = pvfs2_getattr,
