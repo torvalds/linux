@@ -62,14 +62,14 @@
 
 /* address scheme (page 2.17 of the manual) */
 #define ADQ12B_CTREG		0x00
-#define ADQ12B_CTREG_MSKP	(1 << 7)	/* enable pacer interrupt */
-#define ADQ12B_CTREG_GTP	(1 << 6)	/* enable pacer */
+#define ADQ12B_CTREG_MSKP	BIT(7)	/* enable pacer interrupt */
+#define ADQ12B_CTREG_GTP	BIT(6)	/* enable pacer */
 #define ADQ12B_CTREG_RANGE(x)	((x) << 4)
 #define ADQ12B_CTREG_CHAN(x)	((x) << 0)
 #define ADQ12B_STINR		0x00
-#define ADQ12B_STINR_OUT2	(1 << 7)	/* timer 2 output state */
-#define ADQ12B_STINR_OUTP	(1 << 6)	/* pacer output state */
-#define ADQ12B_STINR_EOC	(1 << 5)	/* A/D end-of-conversion */
+#define ADQ12B_STINR_OUT2	BIT(7)	/* timer 2 output state */
+#define ADQ12B_STINR_OUTP	BIT(6)	/* pacer output state */
+#define ADQ12B_STINR_EOC	BIT(5)	/* A/D end-of-conversion */
 #define ADQ12B_STINR_IN_MASK	(0x1f << 0)
 #define ADQ12B_OUTBR		0x04
 #define ADQ12B_ADLOW		0x08
