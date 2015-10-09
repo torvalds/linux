@@ -96,24 +96,24 @@
 #define PCI9118_AI_FIFO_REG		0x10
 #define PCI9118_AO_REG(x)		(0x10 + ((x) * 4))
 #define PCI9118_AI_STATUS_REG		0x18
-#define PCI9118_AI_STATUS_NFULL		(1 << 8)  /* 0=FIFO full (fatal) */
-#define PCI9118_AI_STATUS_NHFULL	(1 << 7)  /* 0=FIFO half full */
-#define PCI9118_AI_STATUS_NEPTY		(1 << 6)  /* 0=FIFO empty */
-#define PCI9118_AI_STATUS_ACMP		(1 << 5)  /* 1=about trigger complete */
-#define PCI9118_AI_STATUS_DTH		(1 << 4)  /* 1=ext. digital trigger */
-#define PCI9118_AI_STATUS_BOVER		(1 << 3)  /* 1=burst overrun (fatal) */
-#define PCI9118_AI_STATUS_ADOS		(1 << 2)  /* 1=A/D over speed (warn) */
-#define PCI9118_AI_STATUS_ADOR		(1 << 1)  /* 1=A/D overrun (fatal) */
-#define PCI9118_AI_STATUS_ADRDY		(1 << 0)  /* 1=A/D ready */
+#define PCI9118_AI_STATUS_NFULL		BIT(8)	/* 0=FIFO full (fatal) */
+#define PCI9118_AI_STATUS_NHFULL	BIT(7)	/* 0=FIFO half full */
+#define PCI9118_AI_STATUS_NEPTY		BIT(6)	/* 0=FIFO empty */
+#define PCI9118_AI_STATUS_ACMP		BIT(5)	/* 1=about trigger complete */
+#define PCI9118_AI_STATUS_DTH		BIT(4)	/* 1=ext. digital trigger */
+#define PCI9118_AI_STATUS_BOVER		BIT(3)	/* 1=burst overrun (fatal) */
+#define PCI9118_AI_STATUS_ADOS		BIT(2)	/* 1=A/D over speed (warn) */
+#define PCI9118_AI_STATUS_ADOR		BIT(1)	/* 1=A/D overrun (fatal) */
+#define PCI9118_AI_STATUS_ADRDY		BIT(0)	/* 1=A/D ready */
 #define PCI9118_AI_CTRL_REG		0x18
-#define PCI9118_AI_CTRL_UNIP		(1 << 7)  /* 1=unipolar */
-#define PCI9118_AI_CTRL_DIFF		(1 << 6)  /* 1=differential inputs */
-#define PCI9118_AI_CTRL_SOFTG		(1 << 5)  /* 1=8254 software gate */
-#define PCI9118_AI_CTRL_EXTG		(1 << 4)  /* 1=8254 TGIN(pin 46) gate */
-#define PCI9118_AI_CTRL_EXTM		(1 << 3)  /* 1=ext. trigger (pin 44) */
-#define PCI9118_AI_CTRL_TMRTR		(1 << 2)  /* 1=8254 is trigger source */
-#define PCI9118_AI_CTRL_INT		(1 << 1)  /* 1=enable interrupt */
-#define PCI9118_AI_CTRL_DMA		(1 << 0)  /* 1=enable DMA */
+#define PCI9118_AI_CTRL_UNIP		BIT(7)	/* 1=unipolar */
+#define PCI9118_AI_CTRL_DIFF		BIT(6)	/* 1=differential inputs */
+#define PCI9118_AI_CTRL_SOFTG		BIT(5)	/* 1=8254 software gate */
+#define PCI9118_AI_CTRL_EXTG		BIT(4)	/* 1=8254 TGIN(pin 46) gate */
+#define PCI9118_AI_CTRL_EXTM		BIT(3)	/* 1=ext. trigger (pin 44) */
+#define PCI9118_AI_CTRL_TMRTR		BIT(2)	/* 1=8254 is trigger source */
+#define PCI9118_AI_CTRL_INT		BIT(1)	/* 1=enable interrupt */
+#define PCI9118_AI_CTRL_DMA		BIT(0)	/* 1=enable DMA */
 #define PCI9118_DIO_REG			0x1c
 #define PCI9118_SOFTTRG_REG		0x20
 #define PCI9118_AI_CHANLIST_REG		0x24
@@ -122,20 +122,20 @@
 #define PCI9118_AI_BURST_NUM_REG	0x28
 #define PCI9118_AI_AUTOSCAN_MODE_REG	0x2c
 #define PCI9118_AI_CFG_REG		0x30
-#define PCI9118_AI_CFG_PDTRG		(1 << 7)  /* 1=positive trigger */
-#define PCI9118_AI_CFG_PETRG		(1 << 6)  /* 1=positive ext. trigger */
-#define PCI9118_AI_CFG_BSSH		(1 << 5)  /* 1=with sample & hold */
-#define PCI9118_AI_CFG_BM		(1 << 4)  /* 1=burst mode */
-#define PCI9118_AI_CFG_BS		(1 << 3)  /* 1=burst mode start */
-#define PCI9118_AI_CFG_PM		(1 << 2)  /* 1=post trigger */
-#define PCI9118_AI_CFG_AM		(1 << 1)  /* 1=about trigger */
-#define PCI9118_AI_CFG_START		(1 << 0)  /* 1=trigger start */
+#define PCI9118_AI_CFG_PDTRG		BIT(7)	/* 1=positive trigger */
+#define PCI9118_AI_CFG_PETRG		BIT(6)	/* 1=positive ext. trigger */
+#define PCI9118_AI_CFG_BSSH		BIT(5)	/* 1=with sample & hold */
+#define PCI9118_AI_CFG_BM		BIT(4)	/* 1=burst mode */
+#define PCI9118_AI_CFG_BS		BIT(3)	/* 1=burst mode start */
+#define PCI9118_AI_CFG_PM		BIT(2)	/* 1=post trigger */
+#define PCI9118_AI_CFG_AM		BIT(1)	/* 1=about trigger */
+#define PCI9118_AI_CFG_START		BIT(0)	/* 1=trigger start */
 #define PCI9118_FIFO_RESET_REG		0x34
 #define PCI9118_INT_CTRL_REG		0x38
-#define PCI9118_INT_CTRL_TIMER		(1 << 3)  /* timer interrupt */
-#define PCI9118_INT_CTRL_ABOUT		(1 << 2)  /* about trigger complete */
-#define PCI9118_INT_CTRL_HFULL		(1 << 1)  /* A/D FIFO half full */
-#define PCI9118_INT_CTRL_DTRG		(1 << 0)  /* ext. digital trigger */
+#define PCI9118_INT_CTRL_TIMER		BIT(3)	/* timer interrupt */
+#define PCI9118_INT_CTRL_ABOUT		BIT(2)	/* about trigger complete */
+#define PCI9118_INT_CTRL_HFULL		BIT(1)	/* A/D FIFO half full */
+#define PCI9118_INT_CTRL_DTRG		BIT(0)	/* ext. digital trigger */
 
 #define START_AI_EXT	0x01	/* start measure on external trigger */
 #define STOP_AI_EXT	0x02	/* stop measure on external trigger */
