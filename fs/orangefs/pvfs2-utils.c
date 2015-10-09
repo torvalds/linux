@@ -298,7 +298,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 		attrs->mask |= PVFS_ATTR_SYS_ATIME;
 		if (iattr->ia_valid & ATTR_ATIME_SET) {
 			attrs->atime =
-			    pvfs2_convert_time_field((void *)&iattr->ia_atime);
+			    pvfs2_convert_time_field(&iattr->ia_atime);
 			attrs->mask |= PVFS_ATTR_SYS_ATIME_SET;
 		}
 	}
@@ -306,7 +306,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 		attrs->mask |= PVFS_ATTR_SYS_MTIME;
 		if (iattr->ia_valid & ATTR_MTIME_SET) {
 			attrs->mtime =
-			    pvfs2_convert_time_field((void *)&iattr->ia_mtime);
+			    pvfs2_convert_time_field(&iattr->ia_mtime);
 			attrs->mask |= PVFS_ATTR_SYS_MTIME_SET;
 		}
 	}
@@ -651,15 +651,6 @@ void block_signals(sigset_t *orig_sigset)
 void set_signals(sigset_t *sigset)
 {
 	sigprocmask(SIG_SETMASK, sigset, NULL);
-}
-
-__u64 pvfs2_convert_time_field(void *time_ptr)
-{
-	__u64 pvfs2_time;
-	struct timespec *tspec = (struct timespec *)time_ptr;
-
-	pvfs2_time = (__u64) ((time_t) tspec->tv_sec);
-	return pvfs2_time;
 }
 
 /*

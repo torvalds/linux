@@ -638,7 +638,10 @@ int pvfs2_unmount_sb(struct super_block *sb);
 
 int pvfs2_cancel_op_in_progress(__u64 tag);
 
-__u64 pvfs2_convert_time_field(void *time_ptr);
+static inline __u64 pvfs2_convert_time_field(const struct timespec *ts)
+{
+	return (__u64)ts->tv_sec;
+}
 
 int pvfs2_normalize_to_errno(__s32 error_code);
 
