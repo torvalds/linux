@@ -15,6 +15,8 @@
 #ifndef _LINUX_NVME_H
 #define _LINUX_NVME_H
 
+#include <linux/types.h>
+
 struct nvme_bar {
 	__u64			cap;	/* Controller Capabilities */
 	__u32			vs;	/* Version */
