@@ -245,7 +245,7 @@ void comedi_buf_reset(struct comedi_subdevice *s)
 	async->events = 0;
 }
 
-static unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
+static unsigned int comedi_buf_write_n_unalloc(struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
@@ -268,10 +268,10 @@ unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s,
 				    unsigned int nbytes)
 {
 	struct comedi_async *async = s->async;
-	unsigned int available = comedi_buf_write_n_available(s);
+	unsigned int unalloc = comedi_buf_write_n_unalloc(s);
 
-	if (nbytes > available)
-		nbytes = available;
+	if (nbytes > unalloc)
+		nbytes = unalloc;
 
 	async->buf_write_alloc_count += nbytes;
 
@@ -557,8 +557,7 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 	 * If not, clamp the nsamples to the number that will fit, flag the
 	 * buffer overrun and add the samples that fit.
 	 */
-	max_samples = comedi_bytes_to_samples(s,
-					      comedi_buf_write_n_available(s));
+	max_samples = comedi_bytes_to_samples(s, comedi_buf_write_n_unalloc(s));
 	if (nsamples > max_samples) {
 		dev_warn(s->device->class_dev, "buffer overrun\n");
 		s->async->events |= COMEDI_CB_OVERFLOW;
