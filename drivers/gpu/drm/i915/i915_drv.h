@@ -628,6 +628,10 @@ struct drm_i915_display_funcs {
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
 	void (*update_wm)(struct drm_crtc *crtc);
+	void (*update_sprite_wm)(struct drm_plane *plane,
+				 struct drm_crtc *crtc,
+				 uint32_t sprite_width, uint32_t sprite_height,
+				 int pixel_size, bool enable, bool scaled);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);
 	/* Returns the active state of the crtc, and if the crtc is active,
