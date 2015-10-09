@@ -1467,23 +1467,21 @@ void lprocfs_oh_clear(struct obd_histogram *oh)
 }
 EXPORT_SYMBOL(lprocfs_oh_clear);
 
-ssize_t lustre_attr_show(struct kobject *kobj,
-			 struct attribute *attr, char *buf)
+static ssize_t lustre_attr_show(struct kobject *kobj,
+				struct attribute *attr, char *buf)
 {
 	struct lustre_attr *a = container_of(attr, struct lustre_attr, attr);
 
 	return a->show ? a->show(kobj, attr, buf) : 0;
 }
-EXPORT_SYMBOL_GPL(lustre_attr_show);
 
-ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
-			  const char *buf, size_t len)
+static ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
+				 const char *buf, size_t len)
 {
 	struct lustre_attr *a = container_of(attr, struct lustre_attr, attr);
 
 	return a->store ? a->store(kobj, attr, buf, len) : len;
 }
-EXPORT_SYMBOL_GPL(lustre_attr_store);
 
 const struct sysfs_ops lustre_sysfs_ops = {
 	.show  = lustre_attr_show,

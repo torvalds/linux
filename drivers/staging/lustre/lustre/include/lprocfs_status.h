@@ -713,11 +713,6 @@ static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
 #define LUSTRE_RO_ATTR(name) LUSTRE_ATTR(name, 0444, name##_show, NULL)
 #define LUSTRE_RW_ATTR(name) LUSTRE_ATTR(name, 0644, name##_show, name##_store)
 
-ssize_t lustre_attr_show(struct kobject *kobj, struct attribute *attr,
-			 char *buf);
-ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
-			  const char *buf, size_t len);
-
 extern const struct sysfs_ops lustre_sysfs_ops;
 
 /* all quota proc functions */
