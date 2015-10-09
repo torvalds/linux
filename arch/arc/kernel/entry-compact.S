@@ -86,7 +86,7 @@
  */
 
 ; ********* Critical System Events **********************
-VECTOR   res_service             ; 0x0, Restart Vector  (0x0)
+VECTOR   res_service             ; 0x0, Reset Vector	(0x0)
 VECTOR   mem_service             ; 0x8, Mem exception   (0x1)
 VECTOR   instr_service           ; 0x10, Instrn Error   (0x2)
 
@@ -155,13 +155,9 @@ int2_saved_reg:
 ; ---------------------------------------------
 	.section .text, "ax",@progbits
 
-res_service:		; processor restart
-	flag    0x1     ; not implemented
-	nop
-	nop
 
-reserved:		; processor restart
-	rtie            ; jump to processor initializations
+reserved:
+	flag 1		; Unexpected event, halt
 
 ;##################### Interrupt Handling ##############################
 

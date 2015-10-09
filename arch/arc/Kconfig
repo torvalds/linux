@@ -194,6 +194,16 @@ config NR_CPUS
 	range 2 4096
 	default "4"
 
+config ARC_SMP_HALT_ON_RESET
+	bool "Enable Halt-on-reset boot mode"
+	default y if ARC_UBOOT_SUPPORT
+	help
+	  In SMP configuration cores can be configured as Halt-on-reset
+	  or they could all start at same time. For Halt-on-reset, non
+	  masters are parked until Master kicks them so they can start of
+	  at designated entry point. For other case, all jump to common
+	  entry point and spin wait for Master's signal.
+
 endif	#SMP
 
 menuconfig ARC_CACHE
