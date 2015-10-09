@@ -359,7 +359,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 	/* as sm750 register definition, N located in 2,15 and M located in 1,255	*/
 	int N, M, X, d;
 	int xcnt;
-	int miniDiff;
+	int mini_diff;
 	unsigned int RN, quo, rem, fl_quo;
 	unsigned int input, request;
 	unsigned int tmpClock, ret;
@@ -374,7 +374,7 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 #endif
 
 	ret = 0;
-	miniDiff = ~0;
+	mini_diff = ~0;
 	request = request_orig / 1000;
 	input = pll->inputFreq / 1000;
 
@@ -407,12 +407,12 @@ unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 
 				tmpClock = pll->inputFreq * M / N / X;
 				diff = absDiff(tmpClock, request_orig);
-				if (diff < miniDiff) {
+				if (diff < mini_diff) {
 					pll->M = M;
 					pll->N = N;
 					pll->OD = xparm[d].od;
 					pll->POD = xparm[d].pod;
-					miniDiff = diff;
+					mini_diff = diff;
 					ret = tmpClock;
 				}
 			}
