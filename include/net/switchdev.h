@@ -16,6 +16,7 @@
 #include <linux/list.h>
 
 #define SWITCHDEV_F_NO_RECURSE		BIT(0)
+#define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
 
 struct switchdev_trans_item {
 	struct list_head list;
