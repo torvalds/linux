@@ -505,14 +505,14 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
 		return 0;
 
 	if (cache_only) {
-		page = grab_cache_page(mapping, index);
+		page = f2fs_grab_cache_page(mapping, index, false);
 		if (page && PageUptodate(page))
 			goto truncate_out;
 		f2fs_put_page(page, 1);
 		return 0;
 	}
 
-	page = get_lock_data_page(inode, index);
+	page = get_lock_data_page(inode, index, true);
 	if (IS_ERR(page))
 		return 0;
 truncate_out:
@@ -879,7 +879,7 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 	} else {
 		struct page *psrc, *pdst;
 
-		psrc = get_lock_data_page(inode, src);
+		psrc = get_lock_data_page(inode, src, true);
 		if (IS_ERR(psrc))
 			return PTR_ERR(psrc);
 		pdst = get_new_data_page(inode, NULL, dst, false);
