@@ -6810,6 +6810,13 @@ static int run(struct mddev *mddev)
 	if (IS_ERR(conf))
 		return PTR_ERR(conf);
 
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags) && !journal_dev) {
+		printk(KERN_ERR "md/raid:%s: journal disk is missing, force array readonly\n",
+		       mdname(mddev));
+		mddev->ro = 1;
+		set_disk_ro(mddev->gendisk, 1);
+	}
+
 	conf->min_offset_diff = min_offset_diff;
 	mddev->thread = conf->thread;
 	conf->thread = NULL;

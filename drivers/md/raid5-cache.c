@@ -806,8 +806,9 @@ void r5l_quiesce(struct r5l_log *log, int state)
 
 bool r5l_log_disk_error(struct r5conf *conf)
 {
+	/* don't allow write if journal disk is missing */
 	if (!conf->log)
-		return false;
+		return test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return test_bit(Faulty, &conf->log->rdev->flags);
 }
 
