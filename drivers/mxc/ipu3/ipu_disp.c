@@ -1108,7 +1108,7 @@ int32_t ipu_init_sync_panel(struct ipu_soc *ipu, int disp, uint32_t pixel_clk,
 		dev_err(ipu->dev, "clk_get di1 failed");
 		return PTR_ERR(ldb_di1_clk);
 	}
-	if (!strcmp(__clk_get_name(di_parent), __clk_get_name(ldb_di1_clk)) ||
+	if (!strcmp(__clk_get_name(di_parent), __clk_get_name(ldb_di0_clk)) ||
 		!strcmp(__clk_get_name(di_parent), __clk_get_name(ldb_di1_clk))) {
 		/* if di clk parent is tve/ldb, then keep it;*/
 		dev_dbg(ipu->dev, "use special clk parent\n");
