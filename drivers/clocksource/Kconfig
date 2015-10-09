@@ -279,6 +279,10 @@ config CLKSRC_MIPS_GIC
 	depends on MIPS_GIC
 	select CLKSRC_OF
 
+config CLKSRC_TANGO_XTAL
+	bool
+	select CLKSRC_OF
+
 config CLKSRC_PXA
 	def_bool y if ARCH_PXA || ARCH_SA1100
 	select CLKSRC_OF if OF
