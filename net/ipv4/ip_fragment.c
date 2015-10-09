@@ -654,11 +654,10 @@ out_fail:
 }
 
 /* Process an incoming IP datagram fragment. */
-int ip_defrag(struct sk_buff *skb, u32 user)
+int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 {
 	struct net_device *dev = skb->dev ? : skb_dst(skb)->dev;
 	int vif = l3mdev_master_ifindex_rcu(dev);
-	struct net *net = dev_net(dev);
 	struct ipq *qp;
 
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
@@ -683,7 +682,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 }
 EXPORT_SYMBOL(ip_defrag);
 
-struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
+struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user)
 {
 	struct iphdr iph;
 	int netoff;
@@ -712,7 +711,7 @@ struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
 			if (pskb_trim_rcsum(skb, netoff + len))
 				return skb;
 			memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-			if (ip_defrag(skb, user))
+			if (ip_defrag(net, skb, user))
 				return NULL;
 			skb_clear_hash(skb);
 		}

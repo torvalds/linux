@@ -304,7 +304,7 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 		int err;
 
 		memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
-		err = ip_defrag(skb, user);
+		err = ip_defrag(net, skb, user);
 		if (err)
 			return err;
 
