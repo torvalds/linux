@@ -7128,6 +7128,15 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct disk_info *p = conf->disks + number;
 
 	print_raid5_conf(conf);
+	if (test_bit(Journal, &rdev->flags)) {
+		/*
+		 * journal disk is not removable, but we need give a chance to
+		 * update superblock of other disks. Otherwise journal disk
+		 * will be considered as 'fresh'
+		 */
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+		return -EINVAL;
+	}
 	if (rdev == p->rdev)
 		rdevp = &p->rdev;
 	else if (rdev == p->replacement)
@@ -7190,6 +7199,8 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
+	if (test_bit(Journal, &rdev->flags))
+		return -EINVAL;
 	if (mddev->recovery_disabled == conf->recovery_disabled)
 		return -EBUSY;
 
