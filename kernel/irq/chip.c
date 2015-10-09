@@ -241,6 +241,13 @@ void irq_enable(struct irq_desc *desc)
  * disabled. If an interrupt happens, then the interrupt flow
  * handler masks the line at the hardware level and marks it
  * pending.
+ *
+ * If the interrupt chip does not implement the irq_disable callback,
+ * a driver can disable the lazy approach for a particular irq line by
+ * calling 'irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY)'. This can
+ * be used for devices which cannot disable the interrupt at the
+ * device level under certain circumstances and have to use
+ * disable_irq[_nosync] instead.
  */
 void irq_disable(struct irq_desc *desc)
 {
@@ -248,6 +255,8 @@ void irq_disable(struct irq_desc *desc)
 	if (desc->irq_data.chip->irq_disable) {
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 		irq_state_set_masked(desc);
+	} else if (irq_settings_disable_unlazy(desc)) {
+		mask_irq(desc);
 	}
 }
 
