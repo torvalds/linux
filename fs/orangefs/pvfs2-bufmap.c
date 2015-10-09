@@ -171,16 +171,8 @@ pvfs2_bufmap_map(struct pvfs2_bufmap *bufmap,
 	int offset = 0, ret, i;
 
 	/* map the pages */
-	down_write(&current->mm->mmap_sem);
-	ret = get_user_pages(current,
-			     current->mm,
-			     (unsigned long)user_desc->ptr,
-			     bufmap->page_count,
-			     1,
-			     0,
-			     bufmap->page_array,
-			     NULL);
-	up_write(&current->mm->mmap_sem);
+	ret = get_user_pages_fast((unsigned long)user_desc->ptr,
+			     bufmap->page_count, 1, bufmap->page_array);
 
 	if (ret < 0)
 		return ret;
