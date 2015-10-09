@@ -2262,7 +2262,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	unsigned int mask = 0;
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_device *dev = cfp->dev;
-	struct comedi_subdevice *s;
+	struct comedi_subdevice *s, *s_read;
 
 	mutex_lock(&dev->mutex);
 
@@ -2272,6 +2272,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	}
 
 	s = comedi_file_read_subdevice(file);
+	s_read = s;
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
@@ -2284,7 +2285,8 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	if (s && s->async) {
 		unsigned int bps = comedi_bytes_per_sample(s);
 
-		poll_wait(file, &s->async->wait_head, wait);
+		if (s != s_read)
+			poll_wait(file, &s->async->wait_head, wait);
 		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
 		    !(s->async->cmd.flags & CMDF_WRITE) ||
