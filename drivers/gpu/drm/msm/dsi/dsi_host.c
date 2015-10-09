@@ -113,6 +113,14 @@ struct msm_dsi_host {
 	struct clk *pixel_clk_src;
 
 	u32 byte_clk_rate;
+	u32 esc_clk_rate;
+
+	/* DSI v2 specific clocks */
+	struct clk *src_clk;
+	struct clk *esc_clk_src;
+	struct clk *dsi_clk_src;
+
+	u32 src_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
 	struct gpio_desc *te_gpio;
@@ -318,7 +326,8 @@ static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 static int dsi_clk_init(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
-	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+	const struct msm_dsi_config *cfg = cfg_hnd->cfg;
 	int i, ret = 0;
 
 	/* get bus clocks */
@@ -372,8 +381,34 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 	if (!msm_host->pixel_clk_src) {
 		ret = -ENODEV;
 		pr_err("%s: can't find pixel_clk_src. ret=%d\n", __func__, ret);
+		goto exit;
 	}
 
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_V2) {
+		msm_host->src_clk = devm_clk_get(dev, "src_clk");
+		if (IS_ERR(msm_host->src_clk)) {
+			ret = PTR_ERR(msm_host->src_clk);
+			pr_err("%s: can't find dsi_src_clk. ret=%d\n",
+				__func__, ret);
+			msm_host->src_clk = NULL;
+			goto exit;
+		}
+
+		msm_host->esc_clk_src = clk_get_parent(msm_host->esc_clk);
+		if (!msm_host->esc_clk_src) {
+			ret = -ENODEV;
+			pr_err("%s: can't get esc_clk_src. ret=%d\n",
+				__func__, ret);
+			goto exit;
+		}
+
+		msm_host->dsi_clk_src = clk_get_parent(msm_host->src_clk);
+		if (!msm_host->dsi_clk_src) {
+			ret = -ENODEV;
+			pr_err("%s: can't get dsi_clk_src. ret=%d\n",
+				__func__, ret);
+		}
+	}
 exit:
 	return ret;
 }
@@ -413,7 +448,7 @@ static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
 		clk_disable_unprepare(msm_host->bus_clks[i]);
 }
 
-static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
+static int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 {
 	int ret;
 
@@ -460,11 +495,98 @@ error:
 	return ret;
 }
 
+static int dsi_link_clk_enable_v2(struct msm_dsi_host *msm_host)
+{
+	int ret;
+
+	DBG("Set clk rates: pclk=%d, byteclk=%d, esc_clk=%d, dsi_src_clk=%d",
+		msm_host->mode->clock, msm_host->byte_clk_rate,
+		msm_host->esc_clk_rate, msm_host->src_clk_rate);
+
+	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+	if (ret) {
+		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
+		goto error;
+	}
+
+	ret = clk_set_rate(msm_host->esc_clk, msm_host->esc_clk_rate);
+	if (ret) {
+		pr_err("%s: Failed to set rate esc clk, %d\n", __func__, ret);
+		goto error;
+	}
+
+	ret = clk_set_rate(msm_host->src_clk, msm_host->src_clk_rate);
+	if (ret) {
+		pr_err("%s: Failed to set rate src clk, %d\n", __func__, ret);
+		goto error;
+	}
+
+	ret = clk_set_rate(msm_host->pixel_clk, msm_host->mode->clock * 1000);
+	if (ret) {
+		pr_err("%s: Failed to set rate pixel clk, %d\n", __func__, ret);
+		goto error;
+	}
+
+	ret = clk_prepare_enable(msm_host->byte_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi byte clk\n", __func__);
+		goto error;
+	}
+
+	ret = clk_prepare_enable(msm_host->esc_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi esc clk\n", __func__);
+		goto esc_clk_err;
+	}
+
+	ret = clk_prepare_enable(msm_host->src_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi src clk\n", __func__);
+		goto src_clk_err;
+	}
+
+	ret = clk_prepare_enable(msm_host->pixel_clk);
+	if (ret) {
+		pr_err("%s: Failed to enable dsi pixel clk\n", __func__);
+		goto pixel_clk_err;
+	}
+
+	return 0;
+
+pixel_clk_err:
+	clk_disable_unprepare(msm_host->src_clk);
+src_clk_err:
+	clk_disable_unprepare(msm_host->esc_clk);
+esc_clk_err:
+	clk_disable_unprepare(msm_host->byte_clk);
+error:
+	return ret;
+}
+
+static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)
+{
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		return dsi_link_clk_enable_6g(msm_host);
+	else
+		return dsi_link_clk_enable_v2(msm_host);
+}
+
 static void dsi_link_clk_disable(struct msm_dsi_host *msm_host)
 {
-	clk_disable_unprepare(msm_host->esc_clk);
-	clk_disable_unprepare(msm_host->pixel_clk);
-	clk_disable_unprepare(msm_host->byte_clk);
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
+		clk_disable_unprepare(msm_host->esc_clk);
+		clk_disable_unprepare(msm_host->pixel_clk);
+		clk_disable_unprepare(msm_host->byte_clk);
+	} else {
+		clk_disable_unprepare(msm_host->pixel_clk);
+		clk_disable_unprepare(msm_host->src_clk);
+		clk_disable_unprepare(msm_host->esc_clk);
+		clk_disable_unprepare(msm_host->byte_clk);
+	}
 }
 
 static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
@@ -499,6 +621,7 @@ unlock_ret:
 static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 {
 	struct drm_display_mode *mode = msm_host->mode;
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	u8 lanes = msm_host->lanes;
 	u32 bpp = dsi_get_bpp(msm_host->format);
 	u32 pclk_rate;
@@ -517,6 +640,47 @@ static int dsi_calc_clk_rate(struct msm_dsi_host *msm_host)
 	}
 
 	DBG("pclk=%d, bclk=%d", pclk_rate, msm_host->byte_clk_rate);
+
+	msm_host->esc_clk_rate = clk_get_rate(msm_host->esc_clk);
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_V2) {
+		unsigned int esc_mhz, esc_div;
+		unsigned long byte_mhz;
+
+		msm_host->src_clk_rate = (pclk_rate * bpp) / 8;
+
+		/*
+		 * esc clock is byte clock followed by a 4 bit divider,
+		 * we need to find an escape clock frequency within the
+		 * mipi DSI spec range within the maximum divider limit
+		 * We iterate here between an escape clock frequencey
+		 * between 20 Mhz to 5 Mhz and pick up the first one
+		 * that can be supported by our divider
+		 */
+
+		byte_mhz = msm_host->byte_clk_rate / 1000000;
+
+		for (esc_mhz = 20; esc_mhz >= 5; esc_mhz--) {
+			esc_div = DIV_ROUND_UP(byte_mhz, esc_mhz);
+
+			/*
+			 * TODO: Ideally, we shouldn't know what sort of divider
+			 * is available in mmss_cc, we're just assuming that
+			 * it'll always be a 4 bit divider. Need to come up with
+			 * a better way here.
+			 */
+			if (esc_div >= 1 && esc_div <= 16)
+				break;
+		}
+
+		if (esc_mhz < 5)
+			return -EINVAL;
+
+		msm_host->esc_clk_rate = msm_host->byte_clk_rate / esc_div;
+
+		DBG("esc=%d, src=%d", msm_host->esc_clk_rate,
+			msm_host->src_clk_rate);
+	}
 
 	return 0;
 }
@@ -1750,6 +1914,7 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 	struct msm_dsi_pll *src_pll)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	struct clk *byte_clk_provider, *pixel_clk_provider;
 	int ret;
 
@@ -1773,6 +1938,22 @@ int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
 		pr_err("%s: can't set parent to pixel_clk_src. ret=%d\n",
 			__func__, ret);
 		goto exit;
+	}
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_V2) {
+		ret = clk_set_parent(msm_host->dsi_clk_src, pixel_clk_provider);
+		if (ret) {
+			pr_err("%s: can't set parent to dsi_clk_src. ret=%d\n",
+				__func__, ret);
+			goto exit;
+		}
+
+		ret = clk_set_parent(msm_host->esc_clk_src, byte_clk_provider);
+		if (ret) {
+			pr_err("%s: can't set parent to esc_clk_src. ret=%d\n",
+				__func__, ret);
+			goto exit;
+		}
 	}
 
 exit:
@@ -1846,7 +2027,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 	dsi_phy_sw_reset(msm_host);
 	ret = msm_dsi_manager_phy_enable(msm_host->id,
 					msm_host->byte_clk_rate * 8,
-					clk_get_rate(msm_host->esc_clk),
+					msm_host->esc_clk_rate,
 					&clk_pre, &clk_post);
 	dsi_bus_clk_disable(msm_host);
 	if (ret) {
