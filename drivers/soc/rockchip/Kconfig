@@ -1,3 +1,5 @@
+if ARCH_ROCKCHIP || COMPILE_TEST
+
 #
 # Rockchip Soc drivers
 #
@@ -12,3 +14,5 @@ config ROCKCHIP_PM_DOMAINS
           mode. The RK3288 PMU is dedicated for managing the power of the whole chip.
 
           If unsure, say N.
+
+endif
