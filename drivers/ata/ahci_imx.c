@@ -629,7 +629,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	* which is present on mx6q, and not on mx53,
 	* we should use sg_tablesize = 1 for reliable operation
 	*/
-	if (imxpriv->type == AHCI_IMX6Q) {
+	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		dma_addr_t dma;
 
 		ahci_platform_sht.sg_tablesize = 1;
