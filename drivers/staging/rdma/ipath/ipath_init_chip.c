@@ -264,7 +264,7 @@ static int init_chip_first(struct ipath_devdata *dd)
 	 * Allocate full portcnt array, rather than just cfgports, because
 	 * cleanup iterates across all possible ports.
 	 */
-	dd->ipath_pd = kzalloc(sizeof(*dd->ipath_pd) * dd->ipath_portcnt,
+	dd->ipath_pd = kcalloc(dd->ipath_portcnt, sizeof(*dd->ipath_pd),
 			       GFP_KERNEL);
 
 	if (!dd->ipath_pd) {
