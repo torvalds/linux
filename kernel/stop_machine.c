@@ -275,15 +275,6 @@ int stop_two_cpus(unsigned int cpu1, unsigned int cpu2, cpu_stop_fn_t fn, void *
 	cpu_stop_init_done(&done, 2);
 	set_state(&msdata, MULTI_STOP_PREPARE);
 
-	/*
-	 * We do not want to migrate to inactive CPU. FIXME: move this
-	 * into migrate_swap_stop() callback.
-	 */
-	if (!cpu_active(cpu1) || !cpu_active(cpu2)) {
-		preempt_enable();
-		return -ENOENT;
-	}
-
 	if (cpu1 > cpu2)
 		swap(cpu1, cpu2);
 	if (cpu_stop_queue_two_works(cpu1, &work1, cpu2, &work2)) {
