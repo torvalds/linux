@@ -846,22 +846,6 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 {
 	enum state_11d_t state_11d;
 
-	if (mwifiex_del_mgmt_ies(priv))
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to delete mgmt IEs!\n");
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
-			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR, "Failed to stop the BSS\n");
-		return -1;
-	}
-
-	if (mwifiex_send_cmd(priv, HOST_CMD_APCMD_SYS_RESET,
-			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		mwifiex_dbg(priv->adapter, ERROR, "Failed to reset BSS\n");
-		return -1;
-	}
-
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
 			     HostCmd_ACT_GEN_SET,
 			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
