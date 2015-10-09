@@ -833,6 +833,10 @@ static int mv_cesa_md5_import(struct ahash_request *req, const void *in)
 	unsigned int cache_ptr;
 	int ret;
 
+	ret = crypto_ahash_init(req);
+	if (ret)
+		return ret;
+
 	creq->len = in_state->byte_count;
 	memcpy(creq->state, in_state->hash, digsize);
 	creq->cache_ptr = 0;
@@ -922,6 +926,10 @@ static int mv_cesa_sha1_import(struct ahash_request *req, const void *in)
 	unsigned int digsize = crypto_ahash_digestsize(ahash);
 	unsigned int cache_ptr;
 	int ret;
+
+	ret = crypto_ahash_init(req);
+	if (ret)
+		return ret;
 
 	creq->len = in_state->count;
 	memcpy(creq->state, in_state->state, digsize);
@@ -1023,6 +1031,10 @@ static int mv_cesa_sha256_import(struct ahash_request *req, const void *in)
 	unsigned int digsize = crypto_ahash_digestsize(ahash);
 	unsigned int cache_ptr;
 	int ret;
+
+	ret = crypto_ahash_init(req);
+	if (ret)
+		return ret;
 
 	creq->len = in_state->count;
 	memcpy(creq->state, in_state->state, digsize);
