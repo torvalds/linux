@@ -128,7 +128,7 @@ int pgd_huge(pgd_t pgd)
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	/* Only called for hugetlbfs pages, hence can ignore THP */
-	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL);
+	return __find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
 }
 
 static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
@@ -703,13 +703,14 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 struct page *
 follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 {
+	bool is_thp;
 	pte_t *ptep, pte;
 	unsigned shift;
 	unsigned long mask, flags;
 	struct page *page = ERR_PTR(-EINVAL);
 
 	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
+	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &is_thp, &shift);
 	if (!ptep)
 		goto no_page;
 	pte = READ_ONCE(*ptep);
@@ -718,7 +719,7 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 	 * Transparent hugepages are handled by generic code. We can skip them
 	 * here.
 	 */
-	if (!shift || pmd_trans_huge(__pmd(pte_val(pte))))
+	if (!shift || is_thp)
 		goto no_page;
 
 	if (!pte_present(pte)) {
@@ -975,7 +976,7 @@ void flush_dcache_icache_hugepage(struct page *page)
  */
 
 pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
-				   unsigned *shift)
+				   bool *is_thp, unsigned *shift)
 {
 	pgd_t pgd, *pgdp;
 	pud_t pud, *pudp;
@@ -986,6 +987,9 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 
 	if (shift)
 		*shift = 0;
+
+	if (is_thp)
+		*is_thp = false;
 
 	pgdp = pgdir + pgd_index(ea);
 	pgd  = READ_ONCE(*pgdp);
@@ -1034,7 +1038,14 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 			if (pmd_none(pmd))
 				return NULL;
 
-			if (pmd_huge(pmd) || pmd_large(pmd)) {
+			if (pmd_trans_huge(pmd)) {
+				if (is_thp)
+					*is_thp = true;
+				ret_pte = (pte_t *) pmdp;
+				goto out;
+			}
+
+			if (pmd_huge(pmd)) {
 				ret_pte = (pte_t *) pmdp;
 				goto out;
 			} else if (is_hugepd(__hugepd(pmd_val(pmd))))

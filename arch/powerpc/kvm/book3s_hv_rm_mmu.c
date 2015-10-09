@@ -32,7 +32,7 @@ static void *real_vmalloc_addr(void *x)
 	 * So don't worry about THP collapse/split. Called
 	 * Only in realmode, hence won't need irq_save/restore.
 	 */
-	p = __find_linux_pte_or_hugepte(swapper_pg_dir, addr, NULL);
+	p = __find_linux_pte_or_hugepte(swapper_pg_dir, addr, NULL, NULL);
 	if (!p || !pte_present(*p))
 		return NULL;
 	addr = (pte_pfn(*p) << PAGE_SHIFT) | (addr & ~PAGE_MASK);
@@ -221,10 +221,12 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	 * retry via mmu_notifier_retry.
 	 */
 	if (realmode)
-		ptep = __find_linux_pte_or_hugepte(pgdir, hva, &hpage_shift);
+		ptep = __find_linux_pte_or_hugepte(pgdir, hva, NULL,
+						   &hpage_shift);
 	else {
 		local_irq_save(irq_flags);
-		ptep = find_linux_pte_or_hugepte(pgdir, hva, &hpage_shift);
+		ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL,
+						 &hpage_shift);
 	}
 	if (ptep) {
 		pte_t pte;
