@@ -365,18 +365,6 @@ struct pvfs2_sb_info_s {
 };
 
 /*
- * a temporary structure used only for sb mount time that groups the
- * mount time data provided along with a private superblock structure
- * that is allocated before a 'kernel' superblock is allocated.
-*/
-struct pvfs2_mount_sb_info_s {
-	void *data;
-	struct pvfs2_khandle root_khandle;
-	__s32 fs_id;
-	int id;
-};
-
-/*
  * structure that holds the state of any async I/O operation issued
  * through the VFS. Needed especially to handle cancellation requests
  * or even completion notification so that the VFS client-side daemon

@@ -347,13 +347,13 @@ static struct export_operations pvfs2_export_ops = {
 	.fh_to_dentry = pvfs2_fh_to_dentry,
 };
 
-static int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
+static int pvfs2_fill_sb(struct super_block *sb,
+		struct pvfs2_fs_mount_response *fs_mount,
+		void *data, int silent)
 {
 	int ret = -EINVAL;
 	struct inode *root = NULL;
 	struct dentry *root_dentry = NULL;
-	struct pvfs2_mount_sb_info_s *mount_sb_info =
-		(struct pvfs2_mount_sb_info_s *) data;
 	struct pvfs2_object_kref root_object;
 
 	/* alloc and init our private pvfs2 sb info */
@@ -364,13 +364,12 @@ static int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 	memset(sb->s_fs_info, 0, sizeof(struct pvfs2_sb_info_s));
 	PVFS2_SB(sb)->sb = sb;
 
-	PVFS2_SB(sb)->root_khandle = mount_sb_info->root_khandle;
-	PVFS2_SB(sb)->fs_id = mount_sb_info->fs_id;
-	PVFS2_SB(sb)->id = mount_sb_info->id;
+	PVFS2_SB(sb)->root_khandle = fs_mount->root_khandle;
+	PVFS2_SB(sb)->fs_id = fs_mount->fs_id;
+	PVFS2_SB(sb)->id = fs_mount->id;
 
-	if (mount_sb_info->data) {
-		ret = parse_mount_options(sb, mount_sb_info->data,
-					  silent);
+	if (data) {
+		ret = parse_mount_options(sb, data, silent);
 		if (ret)
 			return ret;
 	}
@@ -419,7 +418,6 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	int ret = -EINVAL;
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	struct pvfs2_kernel_op_s *new_op;
-	struct pvfs2_mount_sb_info_s mount_sb_info;
 	struct dentry *d = ERR_PTR(-EINVAL);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -455,13 +453,6 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 		goto free_op;
 	}
 
-	/* fill in temporary structure passed to fill_sb method */
-	mount_sb_info.data = data;
-	mount_sb_info.root_khandle =
-		new_op->downcall.resp.fs_mount.root_khandle;
-	mount_sb_info.fs_id = new_op->downcall.resp.fs_mount.fs_id;
-	mount_sb_info.id = new_op->downcall.resp.fs_mount.id;
-
 	sb = sget(fst, NULL, set_anon_super, flags, NULL);
 
 	if (IS_ERR(sb)) {
@@ -470,7 +461,7 @@ struct dentry *pvfs2_mount(struct file_system_type *fst,
 	}
 
 	ret = pvfs2_fill_sb(sb,
-	      (void *)&mount_sb_info,
+	      &new_op->downcall.resp.fs_mount, data,
 	      flags & MS_SILENT ? 1 : 0);
 
 	if (ret) {
