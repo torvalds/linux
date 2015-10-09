@@ -90,6 +90,12 @@
 		};
 
 		internal-regs {
+
+			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
+			rtc@10300 {
+				status = "disabled";
+			};
+
 			/* Two rear eSATA ports */
 			sata@a0000 {
 				nr-ports = <2>;
