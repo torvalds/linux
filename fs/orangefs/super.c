@@ -403,10 +403,8 @@ static int pvfs2_fill_sb(struct super_block *sb, void *data, int silent)
 
 	/* allocates and places root dentry in dcache */
 	root_dentry = d_make_root(root);
-	if (!root_dentry) {
-		iput(root);
+	if (!root_dentry)
 		return -ENOMEM;
-	}
 
 	sb->s_export_op = &pvfs2_export_ops;
 	sb->s_root = root_dentry;
