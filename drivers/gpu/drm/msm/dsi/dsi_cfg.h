@@ -30,6 +30,8 @@
 struct msm_dsi_config {
 	u32 io_offset;
 	struct dsi_reg_config reg_cfg;
+	const char * const *bus_clk_names;
+	const int num_bus_clks;
 };
 
 struct msm_dsi_cfg_handler {

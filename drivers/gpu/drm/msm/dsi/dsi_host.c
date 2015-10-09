@@ -103,10 +103,9 @@ struct msm_dsi_host {
 
 	void __iomem *ctrl_base;
 	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
-	struct clk *mdp_core_clk;
-	struct clk *ahb_clk;
-	struct clk *axi_clk;
-	struct clk *mmss_misc_ahb_clk;
+
+	struct clk *bus_clks[DSI_BUS_CLK_MAX];
+
 	struct clk *byte_clk;
 	struct clk *esc_clk;
 	struct clk *pixel_clk;
@@ -319,40 +318,22 @@ static int dsi_regulator_init(struct msm_dsi_host *msm_host)
 static int dsi_clk_init(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
-	int ret = 0;
+	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	int i, ret = 0;
 
-	msm_host->mdp_core_clk = devm_clk_get(dev, "mdp_core_clk");
-	if (IS_ERR(msm_host->mdp_core_clk)) {
-		ret = PTR_ERR(msm_host->mdp_core_clk);
-		pr_err("%s: Unable to get mdp core clk. ret=%d\n",
-			__func__, ret);
-		goto exit;
+	/* get bus clocks */
+	for (i = 0; i < cfg->num_bus_clks; i++) {
+		msm_host->bus_clks[i] = devm_clk_get(dev,
+						cfg->bus_clk_names[i]);
+		if (IS_ERR(msm_host->bus_clks[i])) {
+			ret = PTR_ERR(msm_host->bus_clks[i]);
+			pr_err("%s: Unable to get %s, ret = %d\n",
+				__func__, cfg->bus_clk_names[i], ret);
+			goto exit;
+		}
 	}
 
-	msm_host->ahb_clk = devm_clk_get(dev, "iface_clk");
-	if (IS_ERR(msm_host->ahb_clk)) {
-		ret = PTR_ERR(msm_host->ahb_clk);
-		pr_err("%s: Unable to get mdss ahb clk. ret=%d\n",
-			__func__, ret);
-		goto exit;
-	}
-
-	msm_host->axi_clk = devm_clk_get(dev, "bus_clk");
-	if (IS_ERR(msm_host->axi_clk)) {
-		ret = PTR_ERR(msm_host->axi_clk);
-		pr_err("%s: Unable to get axi bus clk. ret=%d\n",
-			__func__, ret);
-		goto exit;
-	}
-
-	msm_host->mmss_misc_ahb_clk = devm_clk_get(dev, "core_mmss_clk");
-	if (IS_ERR(msm_host->mmss_misc_ahb_clk)) {
-		ret = PTR_ERR(msm_host->mmss_misc_ahb_clk);
-		pr_err("%s: Unable to get mmss misc ahb clk. ret=%d\n",
-			__func__, ret);
-		goto exit;
-	}
-
+	/* get link and source clocks */
 	msm_host->byte_clk = devm_clk_get(dev, "byte_clk");
 	if (IS_ERR(msm_host->byte_clk)) {
 		ret = PTR_ERR(msm_host->byte_clk);
@@ -399,55 +380,37 @@ exit:
 
 static int dsi_bus_clk_enable(struct msm_dsi_host *msm_host)
 {
-	int ret;
+	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	int i, ret;
 
 	DBG("id=%d", msm_host->id);
 
-	ret = clk_prepare_enable(msm_host->mdp_core_clk);
-	if (ret) {
-		pr_err("%s: failed to enable mdp_core_clock, %d\n",
-							 __func__, ret);
-		goto core_clk_err;
-	}
-
-	ret = clk_prepare_enable(msm_host->ahb_clk);
-	if (ret) {
-		pr_err("%s: failed to enable ahb clock, %d\n", __func__, ret);
-		goto ahb_clk_err;
-	}
-
-	ret = clk_prepare_enable(msm_host->axi_clk);
-	if (ret) {
-		pr_err("%s: failed to enable ahb clock, %d\n", __func__, ret);
-		goto axi_clk_err;
-	}
-
-	ret = clk_prepare_enable(msm_host->mmss_misc_ahb_clk);
-	if (ret) {
-		pr_err("%s: failed to enable mmss misc ahb clk, %d\n",
-			__func__, ret);
-		goto misc_ahb_clk_err;
+	for (i = 0; i < cfg->num_bus_clks; i++) {
+		ret = clk_prepare_enable(msm_host->bus_clks[i]);
+		if (ret) {
+			pr_err("%s: failed to enable bus clock %d ret %d\n",
+				__func__, i, ret);
+			goto err;
+		}
 	}
 
 	return 0;
+err:
+	for (; i > 0; i--)
+		clk_disable_unprepare(msm_host->bus_clks[i]);
 
-misc_ahb_clk_err:
-	clk_disable_unprepare(msm_host->axi_clk);
-axi_clk_err:
-	clk_disable_unprepare(msm_host->ahb_clk);
-ahb_clk_err:
-	clk_disable_unprepare(msm_host->mdp_core_clk);
-core_clk_err:
 	return ret;
 }
 
 static void dsi_bus_clk_disable(struct msm_dsi_host *msm_host)
 {
+	const struct msm_dsi_config *cfg = msm_host->cfg_hnd->cfg;
+	int i;
+
 	DBG("");
-	clk_disable_unprepare(msm_host->mmss_misc_ahb_clk);
-	clk_disable_unprepare(msm_host->axi_clk);
-	clk_disable_unprepare(msm_host->ahb_clk);
-	clk_disable_unprepare(msm_host->mdp_core_clk);
+
+	for (i = cfg->num_bus_clks - 1; i >= 0; i--)
+		clk_disable_unprepare(msm_host->bus_clks[i]);
 }
 
 static int dsi_link_clk_enable(struct msm_dsi_host *msm_host)

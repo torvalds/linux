@@ -36,6 +36,7 @@ enum msm_dsi_phy_type {
 };
 
 #define DSI_DEV_REGULATOR_MAX	8
+#define DSI_BUS_CLK_MAX		4
 
 /* Regulators for DSI devices */
 struct dsi_reg_entry {
