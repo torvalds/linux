@@ -86,19 +86,19 @@ int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
 
-/**
+/*
  * cvm_oct_poll_queue - Workqueue for polling operations.
  */
 struct workqueue_struct *cvm_oct_poll_queue;
 
-/**
+/*
  * cvm_oct_poll_queue_stopping - flag to indicate polling should stop.
  *
  * Set to one right before cvm_oct_poll_queue is destroyed.
  */
 atomic_t cvm_oct_poll_queue_stopping = ATOMIC_INIT(0);
 
-/**
+/*
  * Array of every ethernet device owned by this driver indexed by
  * the ipd input port number.
  */
