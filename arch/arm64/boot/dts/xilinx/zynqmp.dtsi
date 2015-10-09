@@ -300,6 +300,16 @@
 			};
 		};
 
+		rtc: rtc@ffa60000 {
+			compatible = "xlnx,zynqmp-rtc";
+			status = "disabled";
+			reg = <0x0 0xffa60000 0x0 0x100>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 26 4>, <0 27 4>;
+			interrupt-names = "alarm", "sec";
+			calibration = <0x8000>;
+		};
+
 		sata: ahci@fd0c0000 {
 			compatible = "ceva,ahci-1v84";
 			status = "disabled";
