@@ -671,8 +671,6 @@ void lu_object_fini       (struct lu_object *o);
 void lu_object_add_top    (struct lu_object_header *h, struct lu_object *o);
 void lu_object_add	(struct lu_object *before, struct lu_object *o);
 
-void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d);
-
 /**
  * Helpers to initialize and finalize device types.
  */
@@ -715,9 +713,6 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr);
 
 void lu_site_print(const struct lu_env *env, struct lu_site *s, void *cookie,
 		   lu_printer_t printer);
-struct lu_object *lu_object_find(const struct lu_env *env,
-				 struct lu_device *dev, const struct lu_fid *f,
-				 const struct lu_object_conf *conf);
 struct lu_object *lu_object_find_at(const struct lu_env *env,
 				    struct lu_device *dev,
 				    const struct lu_fid *f,

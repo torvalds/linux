@@ -572,13 +572,13 @@ static struct lu_object *htable_lookup(struct lu_site *s,
  * return it. Otherwise, create new object, insert it into cache and return
  * it. In any case, additional reference is acquired on the returned object.
  */
-struct lu_object *lu_object_find(const struct lu_env *env,
-				 struct lu_device *dev, const struct lu_fid *f,
-				 const struct lu_object_conf *conf)
+static struct lu_object *lu_object_find(const struct lu_env *env,
+					struct lu_device *dev,
+					const struct lu_fid *f,
+					const struct lu_object_conf *conf)
 {
 	return lu_object_find_at(env, dev->ld_site->ls_top_dev, f, conf);
 }
-EXPORT_SYMBOL(lu_object_find);
 
 static struct lu_object *lu_object_new(const struct lu_env *env,
 				       struct lu_device *dev,
@@ -925,14 +925,13 @@ cfs_hash_ops_t lu_site_hash_ops = {
 	.hs_put_locked  = lu_obj_hop_put_locked,
 };
 
-void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d)
+static void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d)
 {
 	spin_lock(&s->ls_ld_lock);
 	if (list_empty(&d->ld_linkage))
 		list_add(&d->ld_linkage, &s->ls_ld_linkage);
 	spin_unlock(&s->ls_ld_lock);
 }
-EXPORT_SYMBOL(lu_dev_add_linkage);
 
 /**
  * Initialize site \a s, with \a d as the top level device.
