@@ -253,6 +253,14 @@ static unsigned int comedi_buf_write_n_unalloc(struct comedi_subdevice *s)
 	return free_end - async->buf_write_alloc_count;
 }
 
+unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s)
+{
+	struct comedi_async *async = s->async;
+	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
+
+	return free_end - async->buf_write_count;
+}
+
 /**
  * comedi_buf_write_alloc() - Reserve buffer space for writing
  * @s: COMEDI subdevice.
