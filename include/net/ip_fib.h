@@ -236,8 +236,11 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	rcu_read_lock();
 
 	tb = fib_get_table(net, RT_TABLE_MAIN);
-	if (tb && !fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_NOREF))
-		err = 0;
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags | FIB_LOOKUP_NOREF);
+
+	if (err == -EAGAIN)
+		err = -ENETUNREACH;
 
 	rcu_read_unlock();
 
@@ -258,7 +261,7 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res, unsigned int flags)
 {
 	struct fib_table *tb;
-	int err;
+	int err = -ENETUNREACH;
 
 	flags |= FIB_LOOKUP_NOREF;
 	if (net->ipv4.fib_has_custom_rules)
@@ -268,15 +271,20 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 
 	res->tclassid = 0;
 
-	for (err = 0; !err; err = -ENETUNREACH) {
-		tb = rcu_dereference_rtnl(net->ipv4.fib_main);
-		if (tb && !fib_table_lookup(tb, flp, res, flags))
-			break;
+	tb = rcu_dereference_rtnl(net->ipv4.fib_main);
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags);
 
-		tb = rcu_dereference_rtnl(net->ipv4.fib_default);
-		if (tb && !fib_table_lookup(tb, flp, res, flags))
-			break;
-	}
+	if (!err)
+		goto out;
+
+	tb = rcu_dereference_rtnl(net->ipv4.fib_default);
+	if (tb)
+		err = fib_table_lookup(tb, flp, res, flags);
+
+out:
+	if (err == -EAGAIN)
+		err = -ENETUNREACH;
 
 	rcu_read_unlock();
 

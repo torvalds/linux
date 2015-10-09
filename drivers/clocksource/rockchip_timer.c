@@ -148,7 +148,7 @@ static void __init rk_timer_init(struct device_node *np)
 	bc_timer.freq = clk_get_rate(timer_clk);
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		pr_err("Failed to map interrupts for '%s'\n", TIMER_NAME);
 		return;
 	}

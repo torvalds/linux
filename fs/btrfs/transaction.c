@@ -117,6 +117,18 @@ static noinline void switch_commit_roots(struct btrfs_transaction *trans,
 			btrfs_unpin_free_ino(root);
 		clear_btree_io_tree(&root->dirty_log_pages);
 	}
+
+	/* We can free old roots now. */
+	spin_lock(&trans->dropped_roots_lock);
+	while (!list_empty(&trans->dropped_roots)) {
+		root = list_first_entry(&trans->dropped_roots,
+					struct btrfs_root, root_list);
+		list_del_init(&root->root_list);
+		spin_unlock(&trans->dropped_roots_lock);
+		btrfs_drop_and_free_fs_root(fs_info, root);
+		spin_lock(&trans->dropped_roots_lock);
+	}
+	spin_unlock(&trans->dropped_roots_lock);
 	up_write(&fs_info->commit_root_sem);
 }
 
@@ -255,11 +267,13 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->pending_ordered);
 	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
 	INIT_LIST_HEAD(&cur_trans->io_bgs);
+	INIT_LIST_HEAD(&cur_trans->dropped_roots);
 	mutex_init(&cur_trans->cache_write_mutex);
 	cur_trans->num_dirty_bgs = 0;
 	spin_lock_init(&cur_trans->dirty_bgs_lock);
 	INIT_LIST_HEAD(&cur_trans->deleted_bgs);
 	spin_lock_init(&cur_trans->deleted_bgs_lock);
+	spin_lock_init(&cur_trans->dropped_roots_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
 			     fs_info->btree_inode->i_mapping);
@@ -335,6 +349,24 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+
+void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root)
+{
+	struct btrfs_transaction *cur_trans = trans->transaction;
+
+	/* Add ourselves to the transaction dropped list */
+	spin_lock(&cur_trans->dropped_roots_lock);
+	list_add_tail(&root->root_list, &cur_trans->dropped_roots);
+	spin_unlock(&cur_trans->dropped_roots_lock);
+
+	/* Make sure we don't try to update the root at commit time */
+	spin_lock(&root->fs_info->fs_roots_radix_lock);
+	radix_tree_tag_clear(&root->fs_info->fs_roots_radix,
+			     (unsigned long)root->root_key.objectid,
+			     BTRFS_ROOT_TRANS_TAG);
+	spin_unlock(&root->fs_info->fs_roots_radix_lock);
+}
 
 int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)

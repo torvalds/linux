@@ -488,7 +488,8 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else {
 		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto asrc_fail;
 	}
 
 	/* Common settings for corresponding Freescale CPU DAI driver */

@@ -187,10 +187,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 	head = rht_dereference_bucket(new_tbl->buckets[new_hash],
 				      new_tbl, new_hash);
 
-	if (rht_is_a_nulls(head))
-		INIT_RHT_NULLS_HEAD(entry->next, ht, new_hash);
-	else
-		RCU_INIT_POINTER(entry->next, head);
+	RCU_INIT_POINTER(entry->next, head);
 
 	rcu_assign_pointer(new_tbl->buckets[new_hash], entry);
 	spin_unlock(new_bucket_lock);

@@ -3206,7 +3206,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev,
 				     adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2,
 				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
@@ -3373,7 +3373,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev,
 					     sizeof(struct bonaire_mqd),
 					     PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
+					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 					     &ring->mqd_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
@@ -3610,41 +3610,6 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v7_0_ce_sync_me(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	u64 gpu_addr = adev->wb.gpu_addr + adev->gfx.ce_sync_offs * 4;
-
-	/* instruct DE to set a magic number */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-							 WRITE_DATA_DST_SEL(5)));
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 1);
-
-	/* let CE wait till condition satisfied */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
-	amdgpu_ring_write(ring, (WAIT_REG_MEM_OPERATION(0) | /* wait */
-							 WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-							 WAIT_REG_MEM_FUNCTION(3) |  /* == */
-							 WAIT_REG_MEM_ENGINE(2)));   /* ce */
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 1);
-	amdgpu_ring_write(ring, 0xffffffff);
-	amdgpu_ring_write(ring, 4); /* poll interval */
-
-	/* instruct CE to reset wb of ce_sync to zero */
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
-							 WRITE_DATA_DST_SEL(5) |
-							 WR_CONFIRM));
-	amdgpu_ring_write(ring, gpu_addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(gpu_addr) & 0xffffffff);
-	amdgpu_ring_write(ring, 0);
-}
-
 /*
  * vm
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -3663,6 +3628,13 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	if (usepfp) {
+		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -3703,7 +3675,10 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		amdgpu_ring_write(ring, 0x0);
 
 		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
-		gfx_v7_0_ce_sync_me(ring);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
 	}
 }
 
@@ -3788,7 +3763,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.save_restore_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.save_restore_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC sr bo failed\n", r);
 				return r;
@@ -3831,7 +3807,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.clear_state_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.clear_state_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -3870,7 +3847,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
-					     NULL, &adev->gfx.rlc.cp_table_obj);
+					     NULL, NULL,
+					     &adev->gfx.rlc.cp_table_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -4802,12 +4780,6 @@ static int gfx_v7_0_sw_init(void *handle)
 		return r;
 	}
 
-	r = amdgpu_wb_get(adev, &adev->gfx.ce_sync_offs);
-	if (r) {
-		DRM_ERROR("(%d) gfx.ce_sync_offs wb alloc failed\n", r);
-		return r;
-	}
-
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 		ring = &adev->gfx.gfx_ring[i];
 		ring->ring_obj = NULL;
@@ -4851,21 +4823,21 @@ static int gfx_v7_0_sw_init(void *handle)
 	r = amdgpu_bo_create(adev, adev->gds.mem.gfx_partition_size,
 			PAGE_SIZE, true,
 			AMDGPU_GEM_DOMAIN_GDS, 0,
-			NULL, &adev->gds.gds_gfx_bo);
+			NULL, NULL, &adev->gds.gds_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.gws.gfx_partition_size,
 		PAGE_SIZE, true,
 		AMDGPU_GEM_DOMAIN_GWS, 0,
-		NULL, &adev->gds.gws_gfx_bo);
+		NULL, NULL, &adev->gds.gws_gfx_bo);
 	if (r)
 		return r;
 
 	r = amdgpu_bo_create(adev, adev->gds.oa.gfx_partition_size,
 			PAGE_SIZE, true,
 			AMDGPU_GEM_DOMAIN_OA, 0,
-			NULL, &adev->gds.oa_gfx_bo);
+			NULL, NULL, &adev->gds.oa_gfx_bo);
 	if (r)
 		return r;
 
@@ -4885,8 +4857,6 @@ static int gfx_v7_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
-
-	amdgpu_wb_free(adev, adev->gfx.ce_sync_offs);
 
 	gfx_v7_0_cp_compute_fini(adev);
 	gfx_v7_0_rlc_fini(adev);

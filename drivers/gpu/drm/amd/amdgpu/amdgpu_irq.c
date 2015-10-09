@@ -140,7 +140,7 @@ void amdgpu_irq_preinstall(struct drm_device *dev)
  */
 int amdgpu_irq_postinstall(struct drm_device *dev)
 {
-	dev->max_vblank_count = 0x001fffff;
+	dev->max_vblank_count = 0x00ffffff;
 	return 0;
 }
 

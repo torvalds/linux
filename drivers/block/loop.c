@@ -470,8 +470,7 @@ static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
 	else if (ret < 0)
 		ret = -EIO;
 
-	rq->errors = ret;
-	blk_mq_complete_request(rq);
+	blk_mq_complete_request(rq, ret);
 }
 
 static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
@@ -1669,19 +1668,18 @@ static void loop_handle_cmd(struct loop_cmd *cmd)
 {
 	const bool write = cmd->rq->cmd_flags & REQ_WRITE;
 	struct loop_device *lo = cmd->rq->q->queuedata;
-	int ret = -EIO;
+	int ret = 0;
 
-	if (write && (lo->lo_flags & LO_FLAGS_READ_ONLY))
+	if (write && (lo->lo_flags & LO_FLAGS_READ_ONLY)) {
+		ret = -EIO;
 		goto failed;
+	}
 
 	ret = do_req_filebacked(lo, cmd->rq);
-
  failed:
-	if (ret)
-		cmd->rq->errors = -EIO;
 	/* complete non-aio request */
 	if (!cmd->use_aio || ret)
-		blk_mq_complete_request(cmd->rq);
+		blk_mq_complete_request(cmd->rq, ret ? -EIO : 0);
 }
 
 static void loop_queue_work(struct kthread_work *work)

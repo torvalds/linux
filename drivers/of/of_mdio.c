@@ -197,7 +197,8 @@ static int of_phy_match(struct device *dev, void *phy_np)
  * of_phy_find_device - Give a PHY node, find the phy_device
  * @phy_np: Pointer to the phy's device tree node
  *
- * Returns a pointer to the phy_device.
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure.
  */
 struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
@@ -217,7 +218,9 @@ EXPORT_SYMBOL(of_phy_find_device);
  * @hndlr: Link state callback for the network device
  * @iface: PHY data interface type
  *
- * Returns a pointer to the phy_device if successful.  NULL otherwise
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_connect(struct net_device *dev,
 				  struct device_node *phy_np,
@@ -225,13 +228,19 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 				  phy_interface_t iface)
 {
 	struct phy_device *phy = of_phy_find_device(phy_np);
+	int ret;
 
 	if (!phy)
 		return NULL;
 
 	phy->dev_flags = flags;
 
-	return phy_connect_direct(dev, phy, hndlr, iface) ? NULL : phy;
+	ret = phy_connect_direct(dev, phy, hndlr, iface);
+
+	/* refcount is held by phy_connect_direct() on success */
+	put_device(&phy->dev);
+
+	return ret ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_connect);
 
@@ -241,17 +250,27 @@ EXPORT_SYMBOL(of_phy_connect);
  * @phy_np: Node pointer for the PHY
  * @flags: flags to pass to the PHY
  * @iface: PHY data interface type
+ *
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
  */
 struct phy_device *of_phy_attach(struct net_device *dev,
 				 struct device_node *phy_np, u32 flags,
 				 phy_interface_t iface)
 {
 	struct phy_device *phy = of_phy_find_device(phy_np);
+	int ret;
 
 	if (!phy)
 		return NULL;
 
-	return phy_attach_direct(dev, phy, flags, iface) ? NULL : phy;
+	ret = phy_attach_direct(dev, phy, flags, iface);
+
+	/* refcount is held by phy_attach_direct() on success */
+	put_device(&phy->dev);
+
+	return ret ? NULL : phy;
 }
 EXPORT_SYMBOL(of_phy_attach);
 

@@ -31,7 +31,6 @@
 static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
-static const char fmt_udec[] = "%u\n";
 static const char fmt_ulong[] = "%lu\n";
 static const char fmt_u64[] = "%llu\n";
 
@@ -202,7 +201,7 @@ static ssize_t speed_show(struct device *dev,
 	if (netif_running(netdev)) {
 		struct ethtool_cmd cmd;
 		if (!__ethtool_get_settings(netdev, &cmd))
-			ret = sprintf(buf, fmt_udec, ethtool_cmd_speed(&cmd));
+			ret = sprintf(buf, fmt_dec, ethtool_cmd_speed(&cmd));
 	}
 	rtnl_unlock();
 	return ret;
@@ -1481,6 +1480,15 @@ static int of_dev_node_match(struct device *dev, const void *data)
 	return ret == 0 ? dev->of_node == data : ret;
 }
 
+/*
+ * of_find_net_device_by_node - lookup the net device for the device node
+ * @np: OF device node
+ *
+ * Looks up the net_device structure corresponding with the device node.
+ * If successful, returns a pointer to the net_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped when done with the net_device.
+ */
 struct net_device *of_find_net_device_by_node(struct device_node *np)
 {
 	struct device *dev;

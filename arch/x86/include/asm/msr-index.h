@@ -141,6 +141,8 @@
 #define DEBUGCTLMSR_BTS_OFF_USR		(1UL << 10)
 #define DEBUGCTLMSR_FREEZE_LBRS_ON_PMI	(1UL << 11)
 
+#define MSR_PEBS_FRONTEND		0x000003f7
+
 #define MSR_IA32_POWER_CTL		0x000001fc
 
 #define MSR_IA32_MC0_CTL		0x00000400
@@ -331,6 +333,7 @@
 /* C1E active bits in int pending message */
 #define K8_INTP_C1E_ACTIVE_MASK		0x18000000
 #define MSR_K8_TSEG_ADDR		0xc0010112
+#define MSR_K8_TSEG_MASK		0xc0010113
 #define K8_MTRRFIXRANGE_DRAM_ENABLE	0x00040000 /* MtrrFixDramEn bit    */
 #define K8_MTRRFIXRANGE_DRAM_MODIFY	0x00080000 /* MtrrFixDramModEn bit */
 #define K8_MTRR_RDMEM_WRMEM_MASK	0x18181818 /* Mask: RdMem|WrMem    */
