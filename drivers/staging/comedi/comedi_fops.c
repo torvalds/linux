@@ -2264,7 +2264,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s, *s_read;
 
-	mutex_lock(&dev->mutex);
+	down_read(&dev->attach_lock);
 
 	if (!dev->attached) {
 		dev_dbg(dev->class_dev, "no driver attached\n");
@@ -2294,7 +2294,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	}
 
 done:
-	mutex_unlock(&dev->mutex);
+	up_read(&dev->attach_lock);
 	return mask;
 }
 
