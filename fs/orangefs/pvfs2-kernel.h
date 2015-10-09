@@ -185,9 +185,6 @@ struct client_debug_mask {
 #define PVFS2_GFP_FLAGS (GFP_KERNEL)
 #define PVFS2_BUFMAP_GFP_FLAGS (GFP_KERNEL)
 
-#define pvfs2_kmap(page) kmap(page)
-#define pvfs2_kunmap(page) kunmap(page)
-
 /* pvfs2 xattr and acl related defines */
 #define PVFS2_XATTR_INDEX_POSIX_ACL_ACCESS  1
 #define PVFS2_XATTR_INDEX_POSIX_ACL_DEFAULT 2
