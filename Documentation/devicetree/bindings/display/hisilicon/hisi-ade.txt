@@ -1,0 +1,64 @@
+Device-Tree bindings for hisilicon ADE display controller driver
+
+ADE (Advanced Display Engine) is the display controller which grab image
+data from memory, do composition, do post image processing, generate RGB
+timing stream and transfer to DSI.
+
+Required properties:
+- compatible: value should be "hisilicon,hi6220-ade".
+- reg: physical base address and length of the ADE controller's registers.
+- hisilicon,noc-syscon: ADE NOC QoS syscon.
+- resets: The ADE reset controller node.
+- interrupt: the ldi vblank interrupt number used.
+- clocks: a list of phandle + clock-specifier pairs, one for each entry
+  in clock-names.
+- clock-names: should contain:
+  "clk_ade_core" for the ADE core clock.
+  "clk_codec_jpeg" for the media NOC QoS clock, which use the same clock with
+  jpeg codec.
+  "clk_ade_pix" for the ADE pixel clok.
+- assigned-clocks: Should contain "clk_ade_core" and "clk_codec_jpeg" clocks'
+  phandle + clock-specifier pairs.
+- assigned-clock-rates: clock rates, one for each entry in assigned-clocks.
+  The rate of "clk_ade_core" could be "360000000" or "180000000";
+  The rate of "clk_codec_jpeg" could be or less than "1440000000".
+  These rate values could be configured according to performance and power
+  consumption.
+- port: the output port. This contains one endpoint subnode, with its
+  remote-endpoint set to the phandle of the connected DSI input endpoint.
+  See Documentation/devicetree/bindings/graph.txt for more device graph info.
+
+Optional properties:
+- dma-coherent: Present if dma operations are coherent.
+
+
+A example of HiKey board hi6220 SoC specific DT entry:
+Example:
+
+	ade: ade@f4100000 {
+		compatible = "hisilicon,hi6220-ade";
+		reg = <0x0 0xf4100000 0x0 0x7800>;
+		reg-names = "ade_base";
+		hisilicon,noc-syscon = <&medianoc_ade>;
+		resets = <&media_ctrl MEDIA_ADE>;
+		interrupts = <0 115 4>; /* ldi interrupt */
+
+		clocks = <&media_ctrl HI6220_ADE_CORE>,
+			 <&media_ctrl HI6220_CODEC_JPEG>,
+			 <&media_ctrl HI6220_ADE_PIX_SRC>;
+		/*clock name*/
+		clock-names  = "clk_ade_core",
+			       "clk_codec_jpeg",
+			       "clk_ade_pix";
+
+		assigned-clocks = <&media_ctrl HI6220_ADE_CORE>,
+			<&media_ctrl HI6220_CODEC_JPEG>;
+		assigned-clock-rates = <360000000>, <288000000>;
+		dma-coherent;
+
+		port {
+			ade_out: endpoint {
+				remote-endpoint = <&dsi_in>;
+			};
+		};
+	};
