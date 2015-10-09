@@ -2275,7 +2275,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	s_read = s;
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
-		if (!s->busy || !comedi_is_subdevice_running(s) ||
+		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    (s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_read_n_available(s) > 0)
 			mask |= POLLIN | POLLRDNORM;
@@ -2287,7 +2287,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 
 		if (s != s_read)
 			poll_wait(file, &s->async->wait_head, wait);
-		if (!s->busy || !comedi_is_subdevice_running(s) ||
+		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    !(s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_write_n_available(s) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
