@@ -245,6 +245,12 @@ KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Define the event that controls the trigger.
 
+What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/cpu
+Date:		October 2015
+KernelVersion:	4.4
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RO) Holds the cpu number this tracer is affined to.
+
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmccr
 Date:		September 2015
 KernelVersion:	4.4
