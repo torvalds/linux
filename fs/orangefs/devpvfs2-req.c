@@ -352,18 +352,20 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 		 * to reset trailer size on op errors.
 		 */
 		if (op->downcall.status == 0 && op->downcall.trailer_size > 0) {
+			__u64 trailer_size = op->downcall.trailer_size;
+			size_t size;
 			gossip_debug(GOSSIP_DEV_DEBUG,
 				     "writev: trailer size %ld\n",
-				     (unsigned long)op->downcall.trailer_size);
+				     (unsigned long)size);
 			if (count != (notrailer_count + 1)) {
-				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%zu)\n", (unsigned long)op->downcall.trailer_size, count);
+				gossip_err("Error: trailer size (%ld) is non-zero, no trailer elements though? (%zu)\n", (unsigned long)trailer_size, count);
 				dev_req_release(buffer);
 				put_op(op);
 				return -EPROTO;
 			}
-			if (iov[notrailer_count].iov_len >
-			    op->downcall.trailer_size) {
-				gossip_err("writev error: trailer size (%ld) != iov_len (%ld)\n", (unsigned long)op->downcall.trailer_size, (unsigned long)iov[notrailer_count].iov_len);
+			size = iov[notrailer_count].iov_len;
+			if (size > trailer_size) {
+				gossip_err("writev error: trailer size (%ld) != iov_len (%zd)\n", (unsigned long)trailer_size, size);
 				dev_req_release(buffer);
 				put_op(op);
 				return -EMSGSIZE;
@@ -371,16 +373,14 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 			/* Allocate a buffer large enough to hold the
 			 * trailer bytes.
 			 */
-			op->downcall.trailer_buf =
-			    vmalloc(op->downcall.trailer_size);
+			op->downcall.trailer_buf = vmalloc(trailer_size);
 			if (op->downcall.trailer_buf != NULL) {
 				gossip_debug(GOSSIP_DEV_DEBUG, "vmalloc: %p\n",
 					     op->downcall.trailer_buf);
 				ret = copy_from_user(op->downcall.trailer_buf,
 						     iov[notrailer_count].
 						     iov_base,
-						     iov[notrailer_count].
-						     iov_len);
+						     size);
 				if (ret) {
 					gossip_err("Failed to copy trailer data from user space\n");
 					dev_req_release(buffer);
@@ -392,6 +392,8 @@ static ssize_t pvfs2_devreq_writev(struct file *file,
 					put_op(op);
 					return -EIO;
 				}
+				memset(op->downcall.trailer_buf + size, 0,
+				       trailer_size - size);
 			} else {
 				/* Change downcall status */
 				op->downcall.status = -ENOMEM;
