@@ -129,8 +129,12 @@ void ath10k_print_driver_info(struct ath10k *ar)
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
-	scnprintf(boardinfo, sizeof(boardinfo), "sub %04x:%04x",
-		  ar->id.subsystem_vendor, ar->id.subsystem_device);
+	if (ar->id.bmi_ids_valid)
+		scnprintf(boardinfo, sizeof(boardinfo), "bmi %d:%d",
+			  ar->id.bmi_chip_id, ar->id.bmi_board_id);
+	else
+		scnprintf(boardinfo, sizeof(boardinfo), "sub %04x:%04x",
+			  ar->id.subsystem_vendor, ar->id.subsystem_device);
 
 	ath10k_info(ar, "%s (0x%08x, 0x%08x %s) fw %s fwapi %d bdapi %d htt-ver %d.%d wmi-op %d htt-op %d cal %s max-sta %d raw %d hwcrypto %d features %s\n",
 		    ar->hw_params.name,

@@ -681,6 +681,10 @@ struct ath10k {
 		u32 device;
 		u32 subsystem_vendor;
 		u32 subsystem_device;
+
+		bool bmi_ids_valid;
+		u8 bmi_board_id;
+		u8 bmi_chip_id;
 	} id;
 
 	int fw_api;

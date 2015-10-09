@@ -448,6 +448,56 @@ out:
 	return ret;
 }
 
+static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
+{
+	u32 result, address;
+	u8 board_id, chip_id;
+	int ret;
+
+	address = ar->hw_params.patch_load_addr;
+
+	if (!ar->otp_data || !ar->otp_len) {
+		ath10k_warn(ar,
+			    "failed to retrieve board id because of invalid otp\n");
+		return -ENODATA;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot upload otp to 0x%x len %zd for board id\n",
+		   address, ar->otp_len);
+
+	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
+	if (ret) {
+		ath10k_err(ar, "could not write otp for board id check: %d\n",
+			   ret);
+		return ret;
+	}
+
+	ret = ath10k_bmi_execute(ar, address, BMI_PARAM_GET_EEPROM_BOARD_ID,
+				 &result);
+	if (ret) {
+		ath10k_err(ar, "could not execute otp for board id check: %d\n",
+			   ret);
+		return ret;
+	}
+
+	board_id = MS(result, ATH10K_BMI_BOARD_ID_FROM_OTP);
+	chip_id = MS(result, ATH10K_BMI_CHIP_ID_FROM_OTP);
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot get otp board id result 0x%08x board_id %d chip_id %d\n",
+		   result, board_id, chip_id);
+
+	if ((result & ATH10K_BMI_BOARD_ID_STATUS_MASK) != 0)
+		return -EOPNOTSUPP;
+
+	ar->id.bmi_ids_valid = true;
+	ar->id.bmi_board_id = board_id;
+	ar->id.bmi_chip_id = chip_id;
+
+	return 0;
+}
+
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
 	u32 result, address = ar->hw_params.patch_load_addr;
@@ -792,12 +842,22 @@ err:
 static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 					 size_t name_len)
 {
+	if (ar->id.bmi_ids_valid) {
+		scnprintf(name, name_len,
+			  "bus=%s,bmi-chip-id=%d,bmi-board-id=%d",
+			  ath10k_bus_str(ar->hif.bus),
+			  ar->id.bmi_chip_id,
+			  ar->id.bmi_board_id);
+		goto out;
+	}
+
 	scnprintf(name, name_len,
 		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x",
 		  ath10k_bus_str(ar->hif.bus),
 		  ar->id.vendor, ar->id.device,
 		  ar->id.subsystem_vendor, ar->id.subsystem_device);
 
+out:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using board name '%s'\n", name);
 
 	return 0;
@@ -1059,12 +1119,6 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 
 	/* calibration file is optional, don't check for any errors */
 	ath10k_fetch_cal_file(ar);
-
-	ret = ath10k_core_fetch_board_file(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to fetch board file: %d\n", ret);
-		return ret;
-	}
 
 	ar->fw_api = 5;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
@@ -1673,6 +1727,19 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	if (ret) {
 		ath10k_err(ar, "could not fetch firmware files (%d)\n", ret);
 		goto err_power_down;
+	}
+
+	ret = ath10k_core_get_board_id_from_otp(ar);
+	if (ret && ret != -EOPNOTSUPP) {
+		ath10k_err(ar, "failed to get board id from otp for qca99x0: %d\n",
+			   ret);
+		return ret;
+	}
+
+	ret = ath10k_core_fetch_board_file(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to fetch board file: %d\n", ret);
+		goto err_free_firmware_files;
 	}
 
 	ret = ath10k_core_init_firmware_features(ar);
