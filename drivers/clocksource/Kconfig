@@ -307,7 +307,9 @@ config CLKSRC_TANGO_XTAL
 	select CLKSRC_OF
 
 config CLKSRC_PXA
-	bool
+	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
