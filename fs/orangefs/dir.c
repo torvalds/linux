@@ -23,7 +23,6 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 	struct pvfs2_readdir_response_s *rd =
 		(struct pvfs2_readdir_response_s *) ptr;
 	char *buf = ptr;
-	char **pptr = &buf;
 
 	readdir->token = rd->token;
 	readdir->pvfs_dirent_outcount = rd->pvfs_dirent_outcount;
@@ -32,15 +31,17 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 					GFP_KERNEL);
 	if (readdir->dirent_array == NULL)
 		return -ENOMEM;
-	*pptr += offsetof(struct pvfs2_readdir_response_s, dirent_array);
+	buf += offsetof(struct pvfs2_readdir_response_s, dirent_array);
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
-		dec_string(pptr, &readdir->dirent_array[i].d_name,
-			   &readdir->dirent_array[i].d_length);
+		__u32 len = *(__u32 *)buf;
+		readdir->dirent_array[i].d_name = buf + 4;
+		buf += roundup8(4 + len + 1);
+		readdir->dirent_array[i].d_length = len;
 		readdir->dirent_array[i].khandle =
-			*(struct pvfs2_khandle *) *pptr;
-		*pptr += 16;
+			*(struct pvfs2_khandle *) buf;
+		buf += 16;
 	}
-	return (unsigned long)*pptr - (unsigned long)ptr;
+	return buf - ptr;
 }
 
 static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
