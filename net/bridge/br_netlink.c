@@ -870,9 +870,9 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	}
 
 	if (data[IFLA_BR_AGEING_TIME]) {
-		u32 ageing_time = nla_get_u32(data[IFLA_BR_AGEING_TIME]);
-
-		br->ageing_time = clock_t_to_jiffies(ageing_time);
+		err = br_set_ageing_time(br, nla_get_u32(data[IFLA_BR_AGEING_TIME]));
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_BR_STP_STATE]) {

@@ -566,6 +566,29 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+int br_set_ageing_time(struct net_bridge *br, u32 ageing_time)
+{
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
+		.u.ageing_time = ageing_time,
+	};
+	unsigned long t = clock_t_to_jiffies(ageing_time);
+	int err;
+
+	if (t < BR_MIN_AGEING_TIME || t > BR_MAX_AGEING_TIME)
+		return -ERANGE;
+
+	err = switchdev_port_attr_set(br->dev, &attr);
+	if (err)
+		return err;
+
+	br->ageing_time = t;
+	mod_timer(&br->gc_timer, jiffies);
+
+	return 0;
+}
+
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
 {
 	br->bridge_forward_delay = t;
