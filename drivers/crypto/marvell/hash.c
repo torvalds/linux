@@ -837,6 +837,11 @@ static int mv_cesa_md5_import(struct ahash_request *req, const void *in)
 	if (ret)
 		return ret;
 
+	if (in_state->byte_count >= sizeof(in_state->block))
+		mv_cesa_update_op_cfg(&creq->op_tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
+
 	creq->len = in_state->byte_count;
 	memcpy(creq->state, in_state->hash, digsize);
 	creq->cache_ptr = 0;
@@ -930,6 +935,11 @@ static int mv_cesa_sha1_import(struct ahash_request *req, const void *in)
 	ret = crypto_ahash_init(req);
 	if (ret)
 		return ret;
+
+	if (in_state->count >= SHA1_BLOCK_SIZE)
+		mv_cesa_update_op_cfg(&creq->op_tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
 
 	creq->len = in_state->count;
 	memcpy(creq->state, in_state->state, digsize);
@@ -1035,6 +1045,11 @@ static int mv_cesa_sha256_import(struct ahash_request *req, const void *in)
 	ret = crypto_ahash_init(req);
 	if (ret)
 		return ret;
+
+	if (in_state->count >= SHA256_BLOCK_SIZE)
+		mv_cesa_update_op_cfg(&creq->op_tmpl,
+				      CESA_SA_DESC_CFG_MID_FRAG,
+				      CESA_SA_DESC_CFG_FRAG_MSK);
 
 	creq->len = in_state->count;
 	memcpy(creq->state, in_state->state, digsize);
