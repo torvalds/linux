@@ -120,10 +120,7 @@ static bool is_filtered_packet(struct sock *sk, struct sk_buff *skb)
 	/* Apply filter */
 	flt = &hci_pi(sk)->filter;
 
-	if (bt_cb(skb)->pkt_type == HCI_VENDOR_PKT)
-		flt_type = 0;
-	else
-		flt_type = bt_cb(skb)->pkt_type & HCI_FLT_TYPE_BITS;
+	flt_type = bt_cb(skb)->pkt_type & HCI_FLT_TYPE_BITS;
 
 	if (!test_bit(flt_type, &flt->type_mask))
 		return true;
