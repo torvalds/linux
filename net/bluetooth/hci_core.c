@@ -3555,14 +3555,15 @@ EXPORT_SYMBOL(hci_recv_frame);
 /* Receive diagnostic message from HCI drivers */
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	/* Mark as diagnostic packet */
+	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
+
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	/* Mark as diagnostic packet and send to monitor */
-	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
-	hci_send_to_monitor(hdev, skb);
+	skb_queue_tail(&hdev->rx_q, skb);
+	queue_work(hdev->workqueue, &hdev->rx_work);
 
-	kfree_skb(skb);
 	return 0;
 }
 EXPORT_SYMBOL(hci_recv_diag);
