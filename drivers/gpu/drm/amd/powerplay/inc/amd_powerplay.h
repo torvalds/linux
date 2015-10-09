@@ -131,6 +131,47 @@ struct amd_pp_init {
 	uint32_t rev_id;
 };
 
+enum {
+	PP_GROUP_UNKNOWN = 0,
+	PP_GROUP_GFX = 1,
+	PP_GROUP_SYS,
+	PP_GROUP_MAX
+};
+
+#define PP_GROUP_MASK        0xF0000000
+#define PP_GROUP_SHIFT       28
+
+#define PP_BLOCK_MASK        0x0FFFFF00
+#define PP_BLOCK_SHIFT       8
+
+#define PP_BLOCK_GFX_CG         0x01
+#define PP_BLOCK_GFX_MG         0x02
+#define PP_BLOCK_SYS_BIF        0x01
+#define PP_BLOCK_SYS_MC         0x02
+#define PP_BLOCK_SYS_ROM        0x04
+#define PP_BLOCK_SYS_DRM        0x08
+#define PP_BLOCK_SYS_HDP        0x10
+#define PP_BLOCK_SYS_SDMA       0x20
+
+#define PP_STATE_MASK           0x0000000F
+#define PP_STATE_SHIFT          0
+#define PP_STATE_SUPPORT_MASK   0x000000F0
+#define PP_STATE_SUPPORT_SHIFT  0
+
+#define PP_STATE_CG             0x01
+#define PP_STATE_LS             0x02
+#define PP_STATE_DS             0x04
+#define PP_STATE_SD             0x08
+#define PP_STATE_SUPPORT_CG     0x10
+#define PP_STATE_SUPPORT_LS     0x20
+#define PP_STATE_SUPPORT_DS     0x40
+#define PP_STATE_SUPPORT_SD     0x80
+
+#define PP_CG_MSG_ID(group, block, support, state) (group << PP_GROUP_SHIFT |\
+								block << PP_BLOCK_SHIFT |\
+								support << PP_STATE_SUPPORT_SHIFT |\
+								state << PP_STATE_SHIFT)
+
 struct amd_powerplay_funcs {
 	int (*get_temperature)(void *handle);
 	int (*load_firmware)(void *handle);
