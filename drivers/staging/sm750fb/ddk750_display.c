@@ -6,7 +6,7 @@
 
 #define primaryWaitVerticalSync(delay) waitNextVerticalSync(0, delay)
 
-static void setDisplayControl(int ctrl, int dispState)
+static void setDisplayControl(int ctrl, int disp_state)
 {
 	/* state != 0 means turn on both timing & plane en_bit */
 	unsigned long ulDisplayCtrlReg, ulReservedBits;
@@ -18,7 +18,7 @@ static void setDisplayControl(int ctrl, int dispState)
 	if (!ctrl) {
 		ulDisplayCtrlReg = PEEK32(PANEL_DISPLAY_CTRL);
 		/* Turn on/off the Panel display control */
-		if (dispState) {
+		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane
 			 * because changing at the same time does not guarantee that
 			 * the plane will also enabled or disabled.
@@ -70,7 +70,7 @@ static void setDisplayControl(int ctrl, int dispState)
 		/* Set the secondary display control */
 		ulDisplayCtrlReg = PEEK32(CRT_DISPLAY_CTRL);
 
-		if (dispState) {
+		if (disp_state) {
 			/* Timing should be enabled first before enabling the plane because changing at the
 			   same time does not guarantee that the plane will also enabled or disabled.
 			   */
