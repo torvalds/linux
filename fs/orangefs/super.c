@@ -358,10 +358,9 @@ static int pvfs2_fill_sb(struct super_block *sb,
 
 	/* alloc and init our private pvfs2 sb info */
 	sb->s_fs_info =
-		kmalloc(sizeof(struct pvfs2_sb_info_s), PVFS2_GFP_FLAGS);
+		kzalloc(sizeof(struct pvfs2_sb_info_s), PVFS2_GFP_FLAGS);
 	if (!PVFS2_SB(sb))
 		return -ENOMEM;
-	memset(sb->s_fs_info, 0, sizeof(struct pvfs2_sb_info_s));
 	PVFS2_SB(sb)->sb = sb;
 
 	PVFS2_SB(sb)->root_khandle = fs_mount->root_khandle;
