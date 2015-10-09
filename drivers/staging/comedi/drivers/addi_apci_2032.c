@@ -44,9 +44,9 @@
 #define APCI2032_WDOG_REG		0x10
 
 struct apci2032_int_private {
-	spinlock_t spinlock;
-	bool active;
-	unsigned char enabled_isns;
+	spinlock_t spinlock;		/* protects the following members */
+	bool active;			/* an async command is running */
+	unsigned char enabled_isns;	/* mask of enabled interrupt channels */
 };
 
 static int apci2032_do_insn_bits(struct comedi_device *dev,
