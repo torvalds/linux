@@ -160,14 +160,14 @@ enum i40e_set_fc_aq_failures {
 };
 
 enum i40e_vsi_type {
-	I40E_VSI_MAIN = 0,
-	I40E_VSI_VMDQ1,
-	I40E_VSI_VMDQ2,
-	I40E_VSI_CTRL,
-	I40E_VSI_FCOE,
-	I40E_VSI_MIRROR,
-	I40E_VSI_SRIOV,
-	I40E_VSI_FDIR,
+	I40E_VSI_MAIN	= 0,
+	I40E_VSI_VMDQ1	= 1,
+	I40E_VSI_VMDQ2	= 2,
+	I40E_VSI_CTRL	= 3,
+	I40E_VSI_FCOE	= 4,
+	I40E_VSI_MIRROR	= 5,
+	I40E_VSI_SRIOV	= 6,
+	I40E_VSI_FDIR	= 7,
 	I40E_VSI_TYPE_UNKNOWN
 };
 
@@ -510,8 +510,9 @@ struct i40e_hw {
 	u16 dcbx_status;
 
 	/* DCBX info */
-	struct i40e_dcbx_config local_dcbx_config;
-	struct i40e_dcbx_config remote_dcbx_config;
+	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
+	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
+	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
 	/* debug mask */
 	u32 debug_mask;

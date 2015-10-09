@@ -730,6 +730,8 @@ static int i40evf_vlan_rx_add_vid(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
+	if (!VLAN_ALLOWED(adapter))
+		return -EIO;
 	if (i40evf_add_vlan(adapter, vid) == NULL)
 		return -ENOMEM;
 	return 0;
@@ -745,8 +747,11 @@ static int i40evf_vlan_rx_kill_vid(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	i40evf_del_vlan(adapter, vid);
-	return 0;
+	if (VLAN_ALLOWED(adapter)) {
+		i40evf_del_vlan(adapter, vid);
+		return 0;
+	}
+	return -EIO;
 }
 
 /**
@@ -1419,16 +1424,16 @@ static void i40evf_watchdog_task(struct work_struct *work)
 						      struct i40evf_adapter,
 						      watchdog_task);
 	struct i40e_hw *hw = &adapter->hw;
-	uint32_t rstat_val;
+	u32 reg_val;
 
 	if (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section))
 		goto restart_watchdog;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) {
-		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
-			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if ((rstat_val == I40E_VFR_VFACTIVE) ||
-		    (rstat_val == I40E_VFR_COMPLETED)) {
+		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
+			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		if ((reg_val == I40E_VFR_VFACTIVE) ||
+		    (reg_val == I40E_VFR_COMPLETED)) {
 			/* A chance for redemption! */
 			dev_err(&adapter->pdev->dev, "Hardware came out of reset. Attempting reinit.\n");
 			adapter->state = __I40EVF_STARTUP;
@@ -1453,11 +1458,8 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 
 	/* check for reset */
-	rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
-		    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING) &&
-	    (rstat_val != I40E_VFR_VFACTIVE) &&
-	    (rstat_val != I40E_VFR_COMPLETED)) {
+	reg_val = rd32(hw, I40E_VF_ARQLEN1) & I40E_VF_ARQLEN1_ARQENABLE_MASK;
+	if (!(adapter->flags & I40EVF_FLAG_RESET_PENDING) && !reg_val) {
 		adapter->state = __I40EVF_RESETTING;
 		adapter->flags |= I40EVF_FLAG_RESET_PENDING;
 		dev_err(&adapter->pdev->dev, "Hardware reset detected\n");
@@ -1572,7 +1574,7 @@ static void i40evf_reset_task(struct work_struct *work)
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40evf_mac_filter *f;
-	uint32_t rstat_val;
+	u32 reg_val;
 	int i = 0, err;
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
@@ -1593,12 +1595,11 @@ static void i40evf_reset_task(struct work_struct *work)
 
 	/* poll until we see the reset actually happen */
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
-		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
-			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if ((rstat_val != I40E_VFR_VFACTIVE) &&
-		    (rstat_val != I40E_VFR_COMPLETED))
+		reg_val = rd32(hw, I40E_VF_ARQLEN1) &
+			  I40E_VF_ARQLEN1_ARQENABLE_MASK;
+		if (!reg_val)
 			break;
-		usleep_range(500, 1000);
+		usleep_range(5000, 10000);
 	}
 	if (i == I40EVF_RESET_WAIT_COUNT) {
 		dev_info(&adapter->pdev->dev, "Never saw reset\n");
@@ -1607,9 +1608,9 @@ static void i40evf_reset_task(struct work_struct *work)
 
 	/* wait until the reset is complete and the PF is responding to us */
 	for (i = 0; i < I40EVF_RESET_WAIT_COUNT; i++) {
-		rstat_val = rd32(hw, I40E_VFGEN_RSTAT) &
-			    I40E_VFGEN_RSTAT_VFR_STATE_MASK;
-		if (rstat_val == I40E_VFR_VFACTIVE)
+		reg_val = rd32(hw, I40E_VFGEN_RSTAT) &
+			  I40E_VFGEN_RSTAT_VFR_STATE_MASK;
+		if (reg_val == I40E_VFR_VFACTIVE)
 			break;
 		msleep(I40EVF_RESET_WAIT_MS);
 	}
@@ -1621,7 +1622,7 @@ static void i40evf_reset_task(struct work_struct *work)
 
 		/* reset never finished */
 		dev_err(&adapter->pdev->dev, "Reset never finished (%x)\n",
-			rstat_val);
+			reg_val);
 		adapter->flags |= I40EVF_FLAG_PF_COMMS_FAILED;
 
 		if (netif_running(adapter->netdev)) {
@@ -2114,6 +2115,7 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	adapter->vsi.tx_itr_setting = (I40E_ITR_DYNAMIC |
 				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
 	adapter->vsi.netdev = adapter->netdev;
+	adapter->vsi.qs_handle = adapter->vsi_res->qset_handle;
 	return 0;
 }
 

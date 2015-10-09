@@ -622,8 +622,7 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
 	while (rd32(hw, hw->aq.asq.head) != ntc) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
-			   "%s: ntc %d head %d.\n", __func__, ntc,
-			   rd32(hw, hw->aq.asq.head));
+			   "ntc %d head %d.\n", ntc, rd32(hw, hw->aq.asq.head));
 
 		if (details->callback) {
 			I40E_ADMINQ_CALLBACK cb_func =

@@ -1035,7 +1035,7 @@ i40e_status i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 	status = i40e_aq_mac_address_read(hw, &flags, &addrs, NULL);
 
 	if (flags & I40E_AQC_LAN_ADDR_VALID)
-		memcpy(mac_addr, &addrs.pf_lan_mac, sizeof(addrs.pf_lan_mac));
+		ether_addr_copy(mac_addr, addrs.pf_lan_mac);
 
 	return status;
 }
@@ -1058,7 +1058,7 @@ i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 		return status;
 
 	if (flags & I40E_AQC_PORT_ADDR_VALID)
-		memcpy(mac_addr, &addrs.port_mac, sizeof(addrs.port_mac));
+		ether_addr_copy(mac_addr, addrs.port_mac);
 	else
 		status = I40E_ERR_INVALID_MAC_ADDR;
 
@@ -1116,7 +1116,7 @@ i40e_status i40e_get_san_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 		return status;
 
 	if (flags & I40E_AQC_SAN_ADDR_VALID)
-		memcpy(mac_addr, &addrs.pf_san_mac, sizeof(addrs.pf_san_mac));
+		ether_addr_copy(mac_addr, addrs.pf_san_mac);
 	else
 		status = I40E_ERR_INVALID_MAC_ADDR;
 
@@ -2363,6 +2363,7 @@ i40e_status i40e_aq_get_veb_parameters(struct i40e_hw *hw,
 		*vebs_free = le16_to_cpu(cmd_resp->vebs_free);
 	if (floating) {
 		u16 flags = le16_to_cpu(cmd_resp->veb_flags);
+
 		if (flags & I40E_AQC_ADD_VEB_FLOATING)
 			*floating = true;
 		else
@@ -3777,7 +3778,7 @@ i40e_status i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 	}
 
 	if (mac_addr)
-		memcpy(cmd->mac, mac_addr, ETH_ALEN);
+		ether_addr_copy(cmd->mac, mac_addr);
 
 	cmd->etype = cpu_to_le16(ethtype);
 	cmd->flags = cpu_to_le16(flags);

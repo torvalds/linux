@@ -236,6 +236,7 @@ static void i40e_dcbnl_del_app(struct i40e_pf *pf,
 			       struct i40e_dcb_app_priority_table *app)
 {
 	int v, err;
+
 	for (v = 0; v < pf->num_alloc_vsi; v++) {
 		if (pf->vsi[v] && pf->vsi[v]->netdev) {
 			err = i40e_dcbnl_vsi_del_app(pf->vsi[v], app);

@@ -101,6 +101,7 @@
 
 /* Ethtool Private Flags */
 #define I40E_PRIV_FLAGS_NPAR_FLAG	BIT(0)
+#define I40E_PRIV_FLAGS_LINKPOLL_FLAG	BIT(1)
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
@@ -327,6 +328,7 @@ struct i40e_pf {
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		BIT_ULL(35)
 #define I40E_FLAG_VEB_STATS_ENABLED		BIT_ULL(37)
 #define I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE	BIT_ULL(38)
+#define I40E_FLAG_LINK_POLLING_ENABLED		BIT_ULL(39)
 #define I40E_FLAG_VEB_MODE_ENABLED		BIT_ULL(40)
 
 	/* tracks features that get auto disabled by errors */
@@ -410,6 +412,7 @@ struct i40e_pf {
 	u32 npar_min_bw;
 
 	u32 ioremap_len;
+	u32 fd_inv;
 };
 
 struct i40e_mac_filter {
@@ -536,6 +539,7 @@ struct i40e_vsi {
 	u16 idx;               /* index in pf->vsi[] */
 	u16 veb_idx;           /* index of VEB parent */
 	struct kobject *kobj;  /* sysfs object */
+	bool current_isup;     /* Sync 'link up' logging */
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -702,7 +706,24 @@ static inline void i40e_dbg_pf_exit(struct i40e_pf *pf) {}
 static inline void i40e_dbg_init(void) {}
 static inline void i40e_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS*/
-void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector);
+/**
+ * i40e_irq_dynamic_enable - Enable default interrupt generation settings
+ * @vsi: pointer to a vsi
+ * @vector: enable a particular Hw Interrupt vector, without base_vector
+ **/
+static inline void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u32 val;
+
+	val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
+	      I40E_PFINT_DYN_CTLN_CLEARPBA_MASK |
+	      (I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
+	wr32(hw, I40E_PFINT_DYN_CTLN(vector + vsi->base_vector - 1), val);
+	/* skip the flush */
+}
+
 void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector);
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf);
@@ -773,4 +794,5 @@ int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi);
 i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf);
+void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 #endif /* _I40E_H_ */
