@@ -41,20 +41,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 		exynos_crtc->ops->disable(exynos_crtc);
 }
 
-static bool
-exynos_drm_crtc_mode_fixup(struct drm_crtc *crtc,
-			    const struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
-{
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	if (exynos_crtc->ops->mode_fixup)
-		return exynos_crtc->ops->mode_fixup(exynos_crtc, mode,
-						    adjusted_mode);
-
-	return true;
-}
-
 static void
 exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
@@ -99,7 +85,6 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
-	.mode_fixup	= exynos_drm_crtc_mode_fixup,
 	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,

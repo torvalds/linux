@@ -212,6 +212,9 @@ static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t *gref,
 
 static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
+	struct pending_req *req, *n;
+	int i = 0, j;
+
 	if (blkif->xenblkd) {
 		kthread_stop(blkif->xenblkd);
 		wake_up(&blkif->shutdown_wq);
@@ -238,25 +241,6 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 	/* Remove all persistent grants and the cache of ballooned pages. */
 	xen_blkbk_free_caches(blkif);
 
-	return 0;
-}
-
-static void xen_blkif_free(struct xen_blkif *blkif)
-{
-	struct pending_req *req, *n;
-	int i = 0, j;
-
-	xen_blkif_disconnect(blkif);
-	xen_vbd_free(&blkif->vbd);
-
-	/* Make sure everything is drained before shutting down */
-	BUG_ON(blkif->persistent_gnt_c != 0);
-	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
-	BUG_ON(blkif->free_pages_num != 0);
-	BUG_ON(!list_empty(&blkif->persistent_purge_list));
-	BUG_ON(!list_empty(&blkif->free_pages));
-	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
-
 	/* Check that there is no request in use */
 	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {
 		list_del(&req->free_list);
@@ -272,6 +256,24 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 	}
 
 	WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
+	blkif->nr_ring_pages = 0;
+
+	return 0;
+}
+
+static void xen_blkif_free(struct xen_blkif *blkif)
+{
+
+	xen_blkif_disconnect(blkif);
+	xen_vbd_free(&blkif->vbd);
+
+	/* Make sure everything is drained before shutting down */
+	BUG_ON(blkif->persistent_gnt_c != 0);
+	BUG_ON(atomic_read(&blkif->persistent_gnt_in_use) != 0);
+	BUG_ON(blkif->free_pages_num != 0);
+	BUG_ON(!list_empty(&blkif->persistent_purge_list));
+	BUG_ON(!list_empty(&blkif->free_pages));
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
 
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }

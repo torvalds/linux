@@ -676,6 +676,7 @@ void __init am43xx_init_early(void)
 void __init am43xx_init_late(void)
 {
 	omap_common_late_init();
+	omap2_clk_enable_autoidle_all();
 }
 #endif
 

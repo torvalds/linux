@@ -376,7 +376,6 @@ struct vmw_private {
 	uint32_t initial_width;
 	uint32_t initial_height;
 	u32 __iomem *mmio_virt;
-	int mmio_mtrr;
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
@@ -631,7 +630,8 @@ extern int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
 				 uint32_t size,
 				 bool shareable,
 				 uint32_t *handle,
-				 struct vmw_dma_buffer **p_dma_buf);
+				 struct vmw_dma_buffer **p_dma_buf,
+				 struct ttm_base_object **p_base);
 extern int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
 				     struct vmw_dma_buffer *dma_buf,
 				     uint32_t *handle);
@@ -645,7 +645,8 @@ extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 					 uint32_t cur_validate_node);
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
-				  uint32_t id, struct vmw_dma_buffer **out);
+				  uint32_t id, struct vmw_dma_buffer **out,
+				  struct ttm_base_object **base);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
