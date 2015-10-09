@@ -262,7 +262,7 @@ struct hfi1_ctxtdata {
 	pid_t pid;
 	pid_t subpid[HFI1_MAX_SHARED_CTXTS];
 	/* same size as task_struct .comm[], command that opened context */
-	char comm[16];
+	char comm[TASK_COMM_LEN];
 	/* so file ops can get at unit */
 	struct hfi1_devdata *dd;
 	/* so functions that need physical port can get it easily */
