@@ -49,6 +49,16 @@
 			status = "okay";
 		};
 
+		spi@78b7000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		spi@78b9000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
 		leds {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msmgpio_leds>,
