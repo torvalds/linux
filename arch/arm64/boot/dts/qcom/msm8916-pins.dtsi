@@ -279,7 +279,7 @@
 
 	i2c4_sleep: i2c4_sleep {
 		pinmux {
-			function = "blsp_i2c4";
+			function = "gpio";
 			pins = "gpio14", "gpio15";
 		};
 		pinconf {
