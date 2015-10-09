@@ -607,9 +607,7 @@ static void tegra_uart_rx_dma_complete(void *args)
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
-		spin_unlock_irqrestore(&u->lock, flags);
 		tty_flip_buffer_push(port);
-		spin_lock_irqsave(&u->lock, flags);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -622,13 +620,11 @@ done:
 	spin_unlock_irqrestore(&u->lock, flags);
 }
 
-static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup,
-		unsigned long *flags)
+static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup)
 {
 	struct dma_tx_state state;
 	struct tty_struct *tty = tty_port_tty_get(&tup->uport.state->port);
 	struct tty_port *port = &tup->uport.state->port;
-	struct uart_port *u = &tup->uport;
 	unsigned int count;
 
 	/* Deactivate flow control to stop sender */
@@ -645,9 +641,7 @@ static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup,
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
-		spin_unlock_irqrestore(&u->lock, *flags);
 		tty_flip_buffer_push(port);
-		spin_lock_irqsave(&u->lock, *flags);
 		tty_kref_put(tty);
 	}
 	tegra_uart_start_rx_dma(tup);
@@ -714,7 +708,7 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 		iir = tegra_uart_read(tup, UART_IIR);
 		if (iir & UART_IIR_NO_INT) {
 			if (is_rx_int) {
-				tegra_uart_handle_rx_dma(tup, &flags);
+				tegra_uart_handle_rx_dma(tup);
 				if (tup->rx_in_progress) {
 					ier = tup->ier_shadow;
 					ier |= (UART_IER_RLSI | UART_IER_RTOIE |
