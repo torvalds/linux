@@ -192,10 +192,8 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	nf_queue_entry_release_refs(entry);
 
 	/* Continue traversal iff userspace said ok... */
-	if (verdict == NF_REPEAT) {
-		elem = list_entry(elem->list.prev, struct nf_hook_ops, list);
-		verdict = NF_ACCEPT;
-	}
+	if (verdict == NF_REPEAT)
+		verdict = elem->hook(elem->priv, skb, &entry->state);
 
 	if (verdict == NF_ACCEPT) {
 		afinfo = nf_get_afinfo(entry->state.pf);
