@@ -777,16 +777,13 @@ static void tegra_uart_stop_rx(struct uart_port *u)
 	tup->ier_shadow = ier;
 	tegra_uart_write(tup, ier, UART_IER);
 	tup->rx_in_progress = 0;
-	if (tup->rx_dma_chan) {
-		dmaengine_terminate_all(tup->rx_dma_chan);
-		dmaengine_tx_status(tup->rx_dma_chan, tup->rx_cookie, &state);
-		async_tx_ack(tup->rx_dma_desc);
-		count = tup->rx_bytes_requested - state.residue;
-		tegra_uart_copy_rx_to_tty(tup, port, count);
-		tegra_uart_handle_rx_pio(tup, port);
-	} else {
-		tegra_uart_handle_rx_pio(tup, port);
-	}
+	dmaengine_terminate_all(tup->rx_dma_chan);
+	dmaengine_tx_status(tup->rx_dma_chan, tup->rx_cookie, &state);
+	async_tx_ack(tup->rx_dma_desc);
+	count = tup->rx_bytes_requested - state.residue;
+	tegra_uart_copy_rx_to_tty(tup, port, count);
+	tegra_uart_handle_rx_pio(tup, port);
+
 	if (tty) {
 		tty_flip_buffer_push(port);
 		tty_kref_put(tty);
