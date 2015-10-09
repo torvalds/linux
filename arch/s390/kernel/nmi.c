@@ -28,6 +28,8 @@ struct mcck_struct {
 	int kill_task;
 	int channel_report;
 	int warning;
+	unsigned int etr_queue : 1;
+	unsigned int stp_queue : 1;
 	unsigned long long mcck_code;
 };
 
@@ -81,6 +83,10 @@ void s390_handle_mcck(void)
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
+	if (mcck.etr_queue)
+		etr_queue_work();
+	if (mcck.stp_queue)
+		stp_queue_work();
 	if (mcck.kill_task) {
 		local_irq_enable();
 		printk(KERN_EMERG "mcck: Terminating task because of machine "
@@ -323,13 +329,15 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	if (mci->ed && mci->ec) {
 		/* External damage */
 		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
-			etr_sync_check();
+			mcck->etr_queue |= etr_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SWITCH))
-			etr_switch_to_local();
+			mcck->etr_queue |= etr_switch_to_local();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
-			stp_sync_check();
+			mcck->stp_queue |= stp_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
-			stp_island_check();
+			mcck->stp_queue |= stp_island_check();
+		if (mcck->etr_queue || mcck->stp_queue)
+			set_cpu_flag(CIF_MCCK_PENDING);
 	}
 	if (mci->se)
 		/* Storage error uncorrected */
