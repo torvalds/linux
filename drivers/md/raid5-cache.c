@@ -190,7 +190,6 @@ static void r5l_io_run_stripes(struct r5l_io_unit *io)
 	}
 }
 
-/* XXX: totally ignores I/O errors */
 static void r5l_log_run_stripes(struct r5l_log *log)
 {
 	struct r5l_io_unit *io, *next;
@@ -212,6 +211,9 @@ static void r5l_log_endio(struct bio *bio)
 	struct r5l_io_unit *io = bio->bi_private;
 	struct r5l_log *log = io->log;
 	unsigned long flags;
+
+	if (bio->bi_error)
+		md_error(log->rdev->mddev, log->rdev);
 
 	bio_put(bio);
 
@@ -598,6 +600,9 @@ static void r5l_log_flush_endio(struct bio *bio)
 	unsigned long flags;
 	struct r5l_io_unit *io;
 
+	if (bio->bi_error)
+		md_error(log->rdev->mddev, log->rdev);
+
 	spin_lock_irqsave(&log->io_list_lock, flags);
 	list_for_each_entry(io, &log->flushing_ios, log_sibling)
 		r5l_io_run_stripes(io);
@@ -684,6 +689,7 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 		md_update_sb(mddev, 1);
 	}
 
+	/* discard IO error really doesn't matter, ignore it */
 	if (log->last_checkpoint < end) {
 		blkdev_issue_discard(bdev,
 				log->last_checkpoint + log->rdev->data_offset,
@@ -796,6 +802,13 @@ void r5l_quiesce(struct r5l_log *log, int state)
 		md_unregister_thread(&log->reclaim_thread);
 		r5l_do_reclaim(log);
 	}
+}
+
+bool r5l_log_disk_error(struct r5conf *conf)
+{
+	if (!conf->log)
+		return false;
+	return test_bit(Faulty, &conf->log->rdev->flags);
 }
 
 struct r5l_recovery_ctx {
