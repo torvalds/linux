@@ -33,17 +33,24 @@
 static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 {
 	u32 ver;
-	u32 ver_6g;
 
 	if (!major || !minor)
 		return -EINVAL;
 
-	/* From DSI6G(v3), addition of a 6G_HW_VERSION register at offset 0
+	/*
+	 * From DSI6G(v3), addition of a 6G_HW_VERSION register at offset 0
 	 * makes all other registers 4-byte shifted down.
+	 *
+	 * In order to identify between DSI6G(v3) and beyond, and DSIv2 and
+	 * older, we read the DSI_VERSION register without any shift(offset
+	 * 0x1f0). In the case of DSIv2, this hast to be a non-zero value. In
+	 * the case of DSI6G, this has to be zero (the offset points to a
+	 * scratch register which we never touch)
 	 */
-	ver_6g = msm_readl(base + REG_DSI_6G_HW_VERSION);
-	if (ver_6g == 0) {
-		ver = msm_readl(base + REG_DSI_VERSION);
+
+	ver = msm_readl(base + REG_DSI_VERSION);
+	if (ver) {
+		/* older dsi host, there is no register shift */
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
 		if (ver <= MSM_DSI_VER_MAJOR_V2) {
 			/* old versions */
@@ -54,12 +61,17 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 			return -EINVAL;
 		}
 	} else {
+		/*
+		 * newer host, offset 0 has 6G_HW_VERSION, the rest of the
+		 * registers are shifted down, read DSI_VERSION again with
+		 * the shifted offset
+		 */
 		ver = msm_readl(base + DSI_6G_REG_SHIFT + REG_DSI_VERSION);
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
 		if (ver == MSM_DSI_VER_MAJOR_6G) {
 			/* 6G version */
 			*major = ver;
-			*minor = ver_6g;
+			*minor = msm_readl(base + REG_DSI_6G_HW_VERSION);
 			return 0;
 		} else {
 			return -EINVAL;
