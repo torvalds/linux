@@ -57,31 +57,16 @@ enum {
 	MLX5_HEALTH_SYNDR_HIGH_TEMP		= 0x10
 };
 
-static DEFINE_SPINLOCK(health_lock);
-static LIST_HEAD(health_list);
-static struct work_struct health_work;
-
 static void health_care(struct work_struct *work)
 {
-	struct mlx5_core_health *health, *n;
+	struct mlx5_core_health *health;
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
-	LIST_HEAD(tlist);
 
-	spin_lock_irq(&health_lock);
-	list_splice_init(&health_list, &tlist);
-
-	spin_unlock_irq(&health_lock);
-
-	list_for_each_entry_safe(health, n, &tlist, list) {
-		priv = container_of(health, struct mlx5_priv, health);
-		dev = container_of(priv, struct mlx5_core_dev, priv);
-		mlx5_core_warn(dev, "handling bad device here\n");
-		/* nothing yet */
-		spin_lock_irq(&health_lock);
-		list_del_init(&health->list);
-		spin_unlock_irq(&health_lock);
-	}
+	health = container_of(work, struct mlx5_core_health, work);
+	priv = container_of(health, struct mlx5_priv, health);
+	dev = container_of(priv, struct mlx5_core_dev, priv);
+	mlx5_core_warn(dev, "handling bad device here\n");
 }
 
 static const char *hsynd_str(u8 synd)
@@ -114,32 +99,41 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
-static u16 read_be16(__be16 __iomem *p)
+static u16 get_maj(u32 fw)
 {
-	return swab16(readl((__force u16 __iomem *) p));
+	return fw >> 28;
 }
 
-static u32 read_be32(__be32 __iomem *p)
+static u16 get_min(u32 fw)
 {
-	return swab32(readl((__force u32 __iomem *) p));
+	return fw >> 16 & 0xfff;
+}
+
+static u16 get_sub(u32 fw)
+{
+	return fw & 0xffff;
 }
 
 static void print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
+	char fw_str[18];
+	u32 fw;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
-		pr_info("assert_var[%d] 0x%08x\n", i, read_be32(h->assert_var + i));
+		dev_err(&dev->pdev->dev, "assert_var[%d] 0x%08x\n", i, ioread32be(h->assert_var + i));
 
-	pr_info("assert_exit_ptr 0x%08x\n", read_be32(&h->assert_exit_ptr));
-	pr_info("assert_callra 0x%08x\n", read_be32(&h->assert_callra));
-	pr_info("fw_ver 0x%08x\n", read_be32(&h->fw_ver));
-	pr_info("hw_id 0x%08x\n", read_be32(&h->hw_id));
-	pr_info("irisc_index %d\n", readb(&h->irisc_index));
-	pr_info("synd 0x%x: %s\n", readb(&h->synd), hsynd_str(readb(&h->synd)));
-	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_synd));
+	dev_err(&dev->pdev->dev, "assert_exit_ptr 0x%08x\n", ioread32be(&h->assert_exit_ptr));
+	dev_err(&dev->pdev->dev, "assert_callra 0x%08x\n", ioread32be(&h->assert_callra));
+	fw = ioread32be(&h->fw_ver);
+	sprintf(fw_str, "%d.%d.%d", get_maj(fw), get_min(fw), get_sub(fw));
+	dev_err(&dev->pdev->dev, "fw_ver %s\n", fw_str);
+	dev_err(&dev->pdev->dev, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
+	dev_err(&dev->pdev->dev, "irisc_index %d\n", ioread8(&h->irisc_index));
+	dev_err(&dev->pdev->dev, "synd 0x%x: %s\n", ioread8(&h->synd), hsynd_str(ioread8(&h->synd)));
+	dev_err(&dev->pdev->dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
 }
 
 static void poll_health(unsigned long data)
@@ -159,11 +153,7 @@ static void poll_health(unsigned long data)
 	if (health->miss_counter == MAX_MISSES) {
 		mlx5_core_err(dev, "device's health compromised\n");
 		print_health_info(dev);
-		spin_lock_irq(&health_lock);
-		list_add_tail(&health->list, &health_list);
-		spin_unlock_irq(&health_lock);
-
-		queue_work(mlx5_core_wq, &health_work);
+		queue_work(health->wq, &health->work);
 	} else {
 		get_random_bytes(&next, sizeof(next));
 		next %= HZ;
@@ -176,7 +166,6 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	INIT_LIST_HEAD(&health->list);
 	init_timer(&health->timer);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
@@ -192,18 +181,33 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	del_timer_sync(&health->timer);
-
-	spin_lock_irq(&health_lock);
-	if (!list_empty(&health->list))
-		list_del_init(&health->list);
-	spin_unlock_irq(&health_lock);
 }
 
-void mlx5_health_cleanup(void)
+void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
+	struct mlx5_core_health *health = &dev->priv.health;
+
+	destroy_workqueue(health->wq);
 }
 
-void  __init mlx5_health_init(void)
+int mlx5_health_init(struct mlx5_core_dev *dev)
 {
-	INIT_WORK(&health_work, health_care);
+	struct mlx5_core_health *health;
+	char *name;
+
+	health = &dev->priv.health;
+	name = kmalloc(64, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	strcpy(name, "mlx5_health");
+	strcat(name, dev_name(&dev->pdev->dev));
+	health->wq = create_singlethread_workqueue(name);
+	kfree(name);
+	if (!health->wq)
+		return -ENOMEM;
+
+	INIT_WORK(&health->work, health_care);
+
+	return 0;
 }
