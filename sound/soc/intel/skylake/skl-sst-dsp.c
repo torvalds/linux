@@ -175,7 +175,7 @@ static int skl_dsp_core_power_down(struct sst_dsp  *ctx)
 	/* poll with timeout to check if operation successful */
 	return sst_dsp_register_poll(ctx,
 			SKL_ADSP_REG_ADSPCS,
-			SKL_ADSPCS_SPA_MASK,
+			SKL_ADSPCS_CPA_MASK,
 			0,
 			SKL_DSP_PD_TO,
 			"Power down");
