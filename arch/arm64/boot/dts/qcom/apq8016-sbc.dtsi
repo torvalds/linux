@@ -34,6 +34,21 @@
 			pinctrl-1 = <&blsp1_uart2_sleep>;
 		};
 
+		i2c@78b6000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
+		i2c@78b8000 {
+		/* On High speed expansion */
+			status = "okay";
+		};
+
+		i2c@78ba000 {
+		/* On Low speed expansion */
+			status = "okay";
+		};
+
 		leds {
 			pinctrl-names = "default";
 			pinctrl-0 = <&msmgpio_leds>,
