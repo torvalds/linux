@@ -229,6 +229,7 @@ struct sock_common {
 	union {
 		int		skc_incoming_cpu;
 		u32		skc_rcv_wnd;
+		u32		skc_tw_rcv_nxt; /* struct tcp_timewait_sock  */
 	};
 
 	atomic_t		skc_refcnt;
@@ -237,6 +238,7 @@ struct sock_common {
 	union {
 		u32		skc_rxhash;
 		u32		skc_window_clamp;
+		u32		skc_tw_snd_nxt; /* struct tcp_timewait_sock */
 	};
 	/* public: */
 };
