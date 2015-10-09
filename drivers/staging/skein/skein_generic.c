@@ -20,7 +20,6 @@
 #include <crypto/internal/hash.h>
 #include "skein_base.h"
 
-
 static int skein256_init(struct shash_desc *desc)
 {
 	return skein_256_init((struct skein_256_ctx *) shash_desc_ctx(desc),
