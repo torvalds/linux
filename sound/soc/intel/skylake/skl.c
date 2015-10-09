@@ -173,6 +173,9 @@ static int skl_runtime_suspend(struct device *dev)
 
 	/* enable controller wake up event */
 	snd_hdac_chip_updatew(bus, WAKEEN, 0, STATESTS_INT_MASK);
+
+	snd_hdac_ext_bus_link_power_down_all(ebus);
+
 	ret = skl_suspend_dsp(skl);
 	if (ret < 0)
 		return ret;
