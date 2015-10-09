@@ -160,7 +160,6 @@ static int __init init_cpu_info(enum arch_id arch)
 	if (memcpy_hsa_kernel(&sa_ext->sa, sys_info.sa_base,
 			      sys_info.sa_size) < 0) {
 		TRACE("could not copy from HSA\n");
-		kfree(sa_ext);
 		return -EIO;
 	}
 	if (MACHINE_HAS_VX)
