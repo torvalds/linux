@@ -51,15 +51,14 @@ struct request_sock {
 #define rsk_refcnt			__req_common.skc_refcnt
 #define rsk_hash			__req_common.skc_hash
 #define rsk_listener			__req_common.skc_listener
+#define rsk_window_clamp		__req_common.skc_window_clamp
+#define rsk_rcv_wnd			__req_common.skc_rcv_wnd
 
 	struct request_sock		*dl_next;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
 	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
 	u8				num_timeout:7; /* number of timeouts */
-	/* The following two fields can be easily recomputed I think -AK */
-	u32				window_clamp; /* window clamp at creation time */
-	u32				rcv_wnd;	  /* rcv_wnd offered first time */
 	u32				ts_recent;
 	struct timer_list		rsk_timer;
 	const struct request_sock_ops	*rsk_ops;
