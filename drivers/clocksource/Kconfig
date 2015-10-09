@@ -325,7 +325,7 @@ config CLKSRC_IMX_GPT
 	select CLKSRC_MMIO
 
 config CLKSRC_ST_LPC
-	bool
+	bool "Low power clocksource found in the LPC" if COMPILE_TEST
 	select CLKSRC_OF if OF
 	help
 	  Enable this option to use the Low Power controller timer
