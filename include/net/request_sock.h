@@ -50,9 +50,9 @@ struct request_sock {
 	struct sock_common		__req_common;
 #define rsk_refcnt			__req_common.skc_refcnt
 #define rsk_hash			__req_common.skc_hash
+#define rsk_listener			__req_common.skc_listener
 
 	struct request_sock		*dl_next;
-	struct sock			*rsk_listener;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
 	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */

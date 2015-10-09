@@ -150,6 +150,9 @@ typedef __u64 __bitwise __addrpair;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
  *	@skc_tx_queue_mapping: tx queue number for this connection
+ *	@skc_flags: place holder for sk_flags
+ *		%SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
+ *		%SO_OOBINLINE settings, %SO_TIMESTAMPING settings
  *	@skc_incoming_cpu: record/match cpu processing incoming packets
  *	@skc_refcnt: reference count
  *
@@ -201,6 +204,16 @@ struct sock_common {
 
 	atomic64_t		skc_cookie;
 
+	/* following fields are padding to force
+	 * offset(struct sock, sk_refcnt) == 128 on 64bit arches
+	 * assuming IPV6 is enabled. We use this padding differently
+	 * for different kind of 'sockets'
+	 */
+	union {
+		unsigned long	skc_flags;
+		struct sock	*skc_listener; /* request_sock */
+		struct inet_timewait_death_row *skc_tw_dr; /* inet_timewait_sock */
+	};
 	/*
 	 * fields between dontcopy_begin/dontcopy_end
 	 * are not copied in sock_copy()
@@ -246,8 +259,6 @@ struct cg_proto;
   *	@sk_pacing_rate: Pacing rate (if supported by transport/packet scheduler)
   *	@sk_max_pacing_rate: Maximum pacing rate (%SO_MAX_PACING_RATE)
   *	@sk_sndbuf: size of send buffer in bytes
-  *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
-  *		   %SO_OOBINLINE settings, %SO_TIMESTAMPING settings
   *	@sk_no_check_tx: %SO_NO_CHECK setting, set checksum in TX packets
   *	@sk_no_check_rx: allow zero checksum in RX packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
@@ -334,6 +345,7 @@ struct sock {
 #define sk_v6_rcv_saddr	__sk_common.skc_v6_rcv_saddr
 #define sk_cookie		__sk_common.skc_cookie
 #define sk_incoming_cpu		__sk_common.skc_incoming_cpu
+#define sk_flags		__sk_common.skc_flags
 
 	socket_lock_t		sk_lock;
 	struct sk_buff_head	sk_receive_queue;
@@ -371,7 +383,6 @@ struct sock {
 #ifdef CONFIG_XFRM
 	struct xfrm_policy	*sk_policy[2];
 #endif
-	unsigned long 		sk_flags;
 	struct dst_entry	*sk_rx_dst;
 	struct dst_entry __rcu	*sk_dst_cache;
 	spinlock_t		sk_dst_lock;
