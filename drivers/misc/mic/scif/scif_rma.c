@@ -386,16 +386,20 @@ static int scif_create_remote_lookup(struct scif_dev *remote_dev,
 				    remote_dev, window->nr_lookup *
 				    sizeof(*window->dma_addr_lookup.lookup),
 				    GFP_KERNEL | __GFP_ZERO);
-	if (!window->dma_addr_lookup.lookup)
+	if (!window->dma_addr_lookup.lookup) {
+		err = -ENOMEM;
 		goto error_window;
+	}
 
 	window->num_pages_lookup.lookup =
 		scif_alloc_coherent(&window->num_pages_lookup.offset,
 				    remote_dev, window->nr_lookup *
 				    sizeof(*window->num_pages_lookup.lookup),
 				    GFP_KERNEL | __GFP_ZERO);
-	if (!window->num_pages_lookup.lookup)
+	if (!window->num_pages_lookup.lookup) {
+		err = -ENOMEM;
 		goto error_window;
+	}
 
 	vmalloc_dma_phys = is_vmalloc_addr(&window->dma_addr[0]);
 	vmalloc_num_pages = is_vmalloc_addr(&window->num_pages[0]);
