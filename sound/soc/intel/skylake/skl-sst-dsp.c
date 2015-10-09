@@ -262,6 +262,11 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 	val = sst_dsp_shim_read_unlocked(ctx, SKL_ADSP_REG_ADSPIS);
 	ctx->intr_status = val;
 
+	if (val == 0xffffffff) {
+		spin_unlock(&ctx->spinlock);
+		return IRQ_NONE;
+	}
+
 	if (val & SKL_ADSPIS_IPC) {
 		skl_ipc_int_disable(ctx);
 		result = IRQ_WAKE_THREAD;
