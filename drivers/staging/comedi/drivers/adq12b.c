@@ -129,7 +129,7 @@ static int adq12b_ai_insn_read(struct comedi_device *dev,
 	if (val != devpriv->last_ctreg) {
 		outb(val, dev->iobase + ADQ12B_CTREG);
 		devpriv->last_ctreg = val;
-		udelay(50);	/* wait for the mux to settle */
+		usleep_range(50, 100);	/* wait for the mux to settle */
 	}
 
 	val = inb(dev->iobase + ADQ12B_ADLOW);	/* trigger A/D */
