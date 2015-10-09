@@ -6560,7 +6560,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	rdev_for_each(rdev, mddev) {
 		raid_disk = rdev->raid_disk;
 		if (raid_disk >= max_disks
-		    || raid_disk < 0)
+		    || raid_disk < 0 || test_bit(Journal, &rdev->flags))
 			continue;
 		disk = conf->disks + raid_disk;
 
@@ -6694,8 +6694,10 @@ static int run(struct mddev *mddev)
 	rdev_for_each(rdev, mddev) {
 		long long diff;
 
-		if (test_bit(Journal, &rdev->flags))
+		if (test_bit(Journal, &rdev->flags)) {
 			journal_dev = rdev;
+			continue;
+		}
 		if (rdev->raid_disk < 0)
 			continue;
 		diff = (rdev->new_data_offset - rdev->data_offset);
