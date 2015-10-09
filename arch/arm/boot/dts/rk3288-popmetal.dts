@@ -79,11 +79,47 @@
 		};
 	};
 
+	io_domains: io-domains {
+		compatible = "rockchip,rk3288-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		audio-supply = <&vcca_33>;
+		bb-supply = <&vcc_io>;
+		dvp-supply = <&vcc18_dvp>;
+		flash0-supply = <&vcc_flash>;
+		flash1-supply = <&vcc_lan>;
+		gpio30-supply = <&vcc_io>;
+		gpio1830-supply = <&vcc_io>;
+		lcdc-supply = <&vcc_io>;
+		sdcard-supply = <&vccio_sd>;
+		wifi-supply = <&vccio_wl>;
+	};
+
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_int>;
+	};
+
+	vcc_flash: flash-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_flash";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	vcc_sd: sdmmc-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwr>;
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
 	};
 
 	vcc_sys: vsys-regulator {
@@ -93,6 +129,31 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	/*
+	 * A PT5128 creates both dovdd_1v8 and vcc28_dvp, controlled
+	 * by the dvp_pwr pin.
+	 */
+	vcc18_dvp: vcc18-dvp-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc18-dvp";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc28_dvp>;
+	};
+
+	vcc28_dvp: vcc28-dvp-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dvp_pwr>;
+		regulator-name = "vcc28_dvp";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+		vin-supply = <&vcc_io>;
 	};
 };
 
@@ -109,6 +170,8 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
+	vmmc-supply = <&vcc_io>;
+	vqmmc-supply = <&vcc_flash>;
 	status = "okay";
 };
 
@@ -121,6 +184,8 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
+	vmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
 };
 
@@ -297,22 +362,22 @@
 				};
 			};
 
-			vcca_codec: LDO_REG8 {
+			vcca_33: LDO_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcca_codec";
+				regulator-name = "vcca_33";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
-			vcc_wl: SWITCH_REG1 {
+			vccio_wl: SWITCH_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vcc_wl";
+				regulator-name = "vccio_wl";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -388,6 +453,12 @@
 		};
 	};
 
+	dvp {
+		dvp_pwr: dvp-pwr {
+			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	ir {
 		ir_int: ir-int {
 			rockchip,pins = <0 6 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -403,6 +474,12 @@
 	pmic {
 		pmic_int: pmic-int {
 			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdmmc {
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

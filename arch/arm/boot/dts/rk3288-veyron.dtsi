@@ -544,18 +544,6 @@
 		};
 	};
 
-	/*
-	 * On Marvell-based hardware this is a no-connect.  Make sure we enable
-	 * the pullup so that the line doesn't float.  The pullup shouldn't
-	 * hurt on Broadcom-based hardware since the other side is actively
-	 * driving this signal.  As proof: we've already got a pullup on RX.
-	 */
-	uart0 {
-		uart0_cts: uart0-cts {
-			rockchip,pins = <4 18 RK_FUNC_1 &pcfg_pull_up>;
-		};
-	};
-
 	write-protect {
 		fw_wp_ap: fw-wp-ap {
 			rockchip,pins = <7 6 RK_FUNC_GPIO &pcfg_pull_none>;
