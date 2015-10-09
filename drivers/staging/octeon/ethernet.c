@@ -368,7 +368,7 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
  * cvm_oct_common_set_mac_address - set the hardware MAC address for a device
  * @dev:    The device in question.
  * @addr:   Address structure to change it too.
-
+ *
  * Returns Zero on success
  */
 static int cvm_oct_set_mac_filter(struct net_device *dev)
