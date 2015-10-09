@@ -24,7 +24,6 @@ config HIX5HD2_GMAC
 
 config HIP04_ETH
 	tristate "HISILICON P04 Ethernet support"
-	select PHYLIB
 	select MARVELL_PHY
 	select MFD_SYSCON
 	select HNS_MDIO
@@ -33,8 +32,8 @@ config HIP04_ETH
 	  want to use the internal ethernet then you should answer Y to this.
 
 config HNS_MDIO
-	tristate "Hisilicon HNS MDIO device Support"
-	select MDIO
+	tristate
+	select PHYLIB
 	---help---
 	  This selects the HNS MDIO support. It is needed by HNS_DSAF to access
 	  the PHY
