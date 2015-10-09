@@ -195,16 +195,9 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 		goto bail;
 	}
 
-	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp) {
-		ret = -ENOMEM;
-		goto bail;
-	}
-
-	if (copy_from_user(tmp, buf, count)) {
-		ret = -EFAULT;
-		goto bail_tmp;
-	}
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	dd = file_inode(file)->i_private;
 	if (ipath_eeprom_write(dd, pos, tmp, count)) {
