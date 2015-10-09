@@ -59,9 +59,8 @@ static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-	ieee->networks = kzalloc(
-		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
-		GFP_KERNEL);
+	ieee->networks = kcalloc(MAX_NETWORK_COUNT,
+				 sizeof(struct rtllib_network), GFP_KERNEL);
 	if (!ieee->networks)
 		return -ENOMEM;
 
