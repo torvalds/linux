@@ -102,6 +102,12 @@ ENTRY(entry_SYSENTER_compat)
 	 * NT was set instead of doing an unconditional popfq.
 	 * This needs to happen before enabling interrupts so that
 	 * we don't get preempted with NT set.
+	 *
+	 * NB.: sysenter_fix_flags is a label with the code under it moved
+	 * out-of-line as an optimization: NT is unlikely to be set in the
+	 * majority of the cases and instead of polluting the I$ unnecessarily,
+	 * we're keeping that code behind a branch which will predict as
+	 * not-taken and therefore its instructions won't be fetched.
 	 */
 	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
 	jnz	sysenter_fix_flags
