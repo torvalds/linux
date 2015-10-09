@@ -1272,8 +1272,8 @@ void drm_vblank_off(struct drm_device *dev, unsigned int pipe)
 	list_for_each_entry_safe(e, t, &dev->vblank_event_list, base.link) {
 		if (e->pipe != pipe)
 			continue;
-		DRM_DEBUG("Sending premature vblank event on disable: \
-			  wanted %d, current %d\n",
+		DRM_DEBUG("Sending premature vblank event on disable: "
+			  "wanted %d, current %d\n",
 			  e->event.sequence, seq);
 		list_del(&e->base.link);
 		drm_vblank_put(dev, pipe);
