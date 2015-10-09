@@ -5957,7 +5957,7 @@ F:	virt/kvm/
 KERNEL VIRTUAL MACHINE (KVM) FOR AMD-V
 M:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
-W:	http://kvm.qumranet.com
+W:	http://www.linux-kvm.org/
 S:	Maintained
 F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
@@ -5965,7 +5965,7 @@ F:	arch/x86/kvm/svm.c
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
 M:	Alexander Graf <agraf@suse.com>
 L:	kvm-ppc@vger.kernel.org
-W:	http://kvm.qumranet.com
+W:	http://www.linux-kvm.org/
 T:	git git://github.com/agraf/linux-2.6.git
 S:	Supported
 F:	arch/powerpc/include/asm/kvm*

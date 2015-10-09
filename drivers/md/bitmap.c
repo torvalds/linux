@@ -1997,7 +1997,8 @@ int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 	if (bitmap->mddev->bitmap_info.offset || bitmap->mddev->bitmap_info.file)
 		ret = bitmap_storage_alloc(&store, chunks,
 					   !bitmap->mddev->bitmap_info.external,
-					   bitmap->cluster_slot);
+					   mddev_is_clustered(bitmap->mddev)
+					   ? bitmap->cluster_slot : 0);
 	if (ret)
 		goto err;
 
