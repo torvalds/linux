@@ -504,20 +504,11 @@ static void cpu_stop_park(unsigned int cpu)
 	WARN_ON(!list_empty(&stopper->works));
 }
 
-static void cpu_stop_unpark(unsigned int cpu)
-{
-	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-
-	spin_lock_irq(&stopper->lock);
-	stopper->enabled = true;
-	spin_unlock_irq(&stopper->lock);
-}
-
 void stop_machine_unpark(int cpu)
 {
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
 
-	cpu_stop_unpark(cpu);
+	stopper->enabled = true;
 	kthread_unpark(stopper->thread);
 }
 
@@ -527,7 +518,6 @@ static struct smp_hotplug_thread cpu_stop_threads = {
 	.thread_fn		= cpu_stopper_thread,
 	.thread_comm		= "migration/%u",
 	.create			= cpu_stop_create,
-	.setup			= cpu_stop_unpark,
 	.park			= cpu_stop_park,
 	.selfparking		= true,
 };
