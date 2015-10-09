@@ -17,12 +17,16 @@ struct readdir_handle_s {
 /*
  * decode routine needed by kmod to make sense of the shared page for readdirs.
  */
-static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
+static long decode_dirents(char *ptr, size_t size,
+			   struct pvfs2_readdir_response_s *readdir)
 {
 	int i;
 	struct pvfs2_readdir_response_s *rd =
 		(struct pvfs2_readdir_response_s *) ptr;
 	char *buf = ptr;
+
+	if (size < offsetof(struct pvfs2_readdir_response_s, dirent_array))
+		return -EINVAL;
 
 	readdir->token = rd->token;
 	readdir->pvfs_dirent_outcount = rd->pvfs_dirent_outcount;
@@ -31,21 +35,43 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 					GFP_KERNEL);
 	if (readdir->dirent_array == NULL)
 		return -ENOMEM;
+
 	buf += offsetof(struct pvfs2_readdir_response_s, dirent_array);
+	size -= offsetof(struct pvfs2_readdir_response_s, dirent_array);
+
 	for (i = 0; i < readdir->pvfs_dirent_outcount; i++) {
-		__u32 len = *(__u32 *)buf;
+		__u32 len;
+
+		if (size < 4)
+			goto Einval;
+
+		len = *(__u32 *)buf;
+		if (len >= (unsigned)-24)
+			goto Einval;
+
 		readdir->dirent_array[i].d_name = buf + 4;
-		buf += roundup8(4 + len + 1);
 		readdir->dirent_array[i].d_length = len;
+
+		len = roundup8(4 + len + 1);
+		if (size < len + 16)
+			goto Einval;
+		size -= len + 16;
+
+		buf += len;
+
 		readdir->dirent_array[i].khandle =
 			*(struct pvfs2_khandle *) buf;
 		buf += 16;
 	}
 	return buf - ptr;
+Einval:
+	kfree(readdir->dirent_array);
+	readdir->dirent_array = NULL;
+	return -EINVAL;
 }
 
 static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
-				int buffer_index)
+				size_t size, int buffer_index)
 {
 	long ret;
 
@@ -61,7 +87,7 @@ static long readdir_handle_ctor(struct readdir_handle_s *rhandle, void *buf,
 	}
 	rhandle->buffer_index = buffer_index;
 	rhandle->dents_buf = buf;
-	ret = decode_dirents(buf, &rhandle->readdir_response);
+	ret = decode_dirents(buf, size, &rhandle->readdir_response);
 	if (ret < 0) {
 		gossip_err("Could not decode readdir from buffer %ld\n", ret);
 		rhandle->buffer_index = -1;
@@ -209,6 +235,7 @@ get_new_buffer_index:
 	bytes_decoded =
 		readdir_handle_ctor(&rhandle,
 				    new_op->downcall.trailer_buf,
+				    new_op->downcall.trailer_size,
 				    buffer_index);
 	if (bytes_decoded < 0) {
 		gossip_err("pvfs2_readdir: Could not decode trailer buffer into a readdir response %d\n",
