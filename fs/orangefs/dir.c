@@ -27,7 +27,7 @@ static long decode_dirents(char *ptr, struct pvfs2_readdir_response_s *readdir)
 
 	readdir->token = rd->token;
 	readdir->pvfs_dirent_outcount = rd->pvfs_dirent_outcount;
-	readdir->dirent_array = kmalloc(readdir->pvfs_dirent_outcount *
+	readdir->dirent_array = kcalloc(readdir->pvfs_dirent_outcount,
 					sizeof(*readdir->dirent_array),
 					GFP_KERNEL);
 	if (readdir->dirent_array == NULL)
