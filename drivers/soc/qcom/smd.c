@@ -87,8 +87,8 @@ static const struct {
 		.fifo_base_id = 338
 	},
 	{
-		.alloc_tbl_id = 14,
-		.info_base_id = 266,
+		.alloc_tbl_id = 266,
+		.info_base_id = 138,
 		.fifo_base_id = 202,
 	},
 };
