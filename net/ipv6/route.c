@@ -1724,21 +1724,21 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 	return -EINVAL;
 }
 
-int ip6_route_info_create(struct fib6_config *cfg, struct rt6_info **rt_ret)
+static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg)
 {
-	int err;
 	struct net *net = cfg->fc_nlinfo.nl_net;
 	struct rt6_info *rt = NULL;
 	struct net_device *dev = NULL;
 	struct inet6_dev *idev = NULL;
 	struct fib6_table *table;
 	int addr_type;
+	int err = -EINVAL;
 
 	if (cfg->fc_dst_len > 128 || cfg->fc_src_len > 128)
-		return -EINVAL;
+		goto out;
 #ifndef CONFIG_IPV6_SUBTREES
 	if (cfg->fc_src_len)
-		return -EINVAL;
+		goto out;
 #endif
 	if (cfg->fc_ifindex) {
 		err = -ENODEV;
@@ -1958,9 +1958,7 @@ install_route:
 
 	cfg->fc_nlinfo.nl_net = dev_net(dev);
 
-	*rt_ret = rt;
-
-	return 0;
+	return rt;
 out:
 	if (dev)
 		dev_put(dev);
@@ -1969,20 +1967,21 @@ out:
 	if (rt)
 		dst_free(&rt->dst);
 
-	*rt_ret = NULL;
-
-	return err;
+	return ERR_PTR(err);
 }
 
 int ip6_route_add(struct fib6_config *cfg)
 {
 	struct mx6_config mxc = { .mx = NULL, };
-	struct rt6_info *rt = NULL;
+	struct rt6_info *rt;
 	int err;
 
-	err = ip6_route_info_create(cfg, &rt);
-	if (err)
+	rt = ip6_route_info_create(cfg);
+	if (IS_ERR(rt)) {
+		err = PTR_ERR(rt);
+		rt = NULL;
 		goto out;
+	}
 
 	err = ip6_convert_metrics(&mxc, cfg);
 	if (err)
@@ -2871,9 +2870,12 @@ static int ip6_route_multipath_add(struct fib6_config *cfg)
 				r_cfg.fc_encap_type = nla_get_u16(nla);
 		}
 
-		err = ip6_route_info_create(&r_cfg, &rt);
-		if (err)
+		rt = ip6_route_info_create(&r_cfg);
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
+			rt = NULL;
 			goto cleanup;
+		}
 
 		err = ip6_route_info_append(&rt6_nh_list, rt, &r_cfg);
 		if (err) {
