@@ -431,7 +431,7 @@ static void hdm_write_completion(struct urb *urb)
 }
 
 /**
- * hdm_read_completion - completion funciton for submitted Rx URBs
+ * hdm_read_completion - completion function for submitted Rx URBs
  * @urb: the URB that has been completed
  *
  * This checks the status of the completed URB. In case the URB has been
@@ -767,7 +767,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		tmp_val = conf->buffer_size / frame_size;
 		conf->buffer_size = tmp_val * frame_size;
 		dev_notice(dev,
-			   "Channel %d - rouding buffer size to %d bytes, "
+			   "Channel %d - rounding buffer size to %d bytes, "
 			   "channel config says %d bytes\n",
 			   channel,
 			   conf->buffer_size,
