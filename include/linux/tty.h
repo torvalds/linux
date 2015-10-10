@@ -655,32 +655,6 @@ extern void __lockfunc tty_unlock(struct tty_struct *tty);
 extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
 extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);
 extern void tty_set_lock_subclass(struct tty_struct *tty);
-/*
- * wait_event_interruptible_tty -- wait for a condition with the tty lock held
- *
- * The condition we are waiting for might take a long time to
- * become true, or might depend on another thread taking the
- * BTM. In either case, we need to drop the BTM to guarantee
- * forward progress. This is a leftover from the conversion
- * from the BKL and should eventually get removed as the BTM
- * falls out of use.
- *
- * Do not use in new code.
- */
-#define wait_event_interruptible_tty(tty, wq, condition)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__ret = __wait_event_interruptible_tty(tty, wq,		\
-						       condition);	\
-	__ret;								\
-})
-
-#define __wait_event_interruptible_tty(tty, wq, condition)		\
-	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
-			tty_unlock(tty);				\
-			schedule();					\
-			tty_lock(tty))
 
 #ifdef CONFIG_PROC_FS
 extern void proc_tty_register_driver(struct tty_driver *);
