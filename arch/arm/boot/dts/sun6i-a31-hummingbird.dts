@@ -191,18 +191,18 @@
 				regulator-name = "vcc-3v0";
 			};
 
-			vdd_cpu: dcdc2 {
-				regulator-always-on;
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1320000>;
-				regulator-name = "vdd-cpu";
-			};
-
-			vdd_gpu: dcdc3 {
+			vdd_gpu: dcdc2 {
 				regulator-always-on;
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1320000>;
 				regulator-name = "vdd-gpu";
+			};
+
+			vdd_cpu: dcdc3 {
+				regulator-always-on;
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1320000>;
+				regulator-name = "vdd-cpu";
 			};
 
 			vdd_sys_dll: dcdc4 {
