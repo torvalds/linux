@@ -1580,13 +1580,15 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 			goto out;
 		}
 
+		/* No more Mr. Nice Guy. */
 		switch (state) {
 		case cpuset:
-			/* No more Mr. Nice Guy. */
-			cpuset_cpus_allowed_fallback(p);
-			state = possible;
-			break;
-
+			if (IS_ENABLED(CONFIG_CPUSETS)) {
+				cpuset_cpus_allowed_fallback(p);
+				state = possible;
+				break;
+			}
+			/* fall-through */
 		case possible:
 			do_set_cpus_allowed(p, cpu_possible_mask);
 			state = fail;
