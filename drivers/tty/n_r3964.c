@@ -276,7 +276,7 @@ static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
 			add_msg(pHeader->owner, R3964_MSG_ACK, pHeader->length,
 				error_code, NULL);
 		}
-		wake_up_interruptible(&pInfo->read_wait);
+		wake_up_interruptible(&pInfo->tty->read_wait);
 	}
 
 	spin_lock_irqsave(&pInfo->lock, flags);
@@ -542,7 +542,7 @@ static void on_receive_block(struct r3964_info *pInfo)
 				pBlock);
 		}
 	}
-	wake_up_interruptible(&pInfo->read_wait);
+	wake_up_interruptible(&pInfo->tty->read_wait);
 
 	pInfo->state = R3964_IDLE;
 
@@ -979,7 +979,6 @@ static int r3964_open(struct tty_struct *tty)
 
 	spin_lock_init(&pInfo->lock);
 	pInfo->tty = tty;
-	init_waitqueue_head(&pInfo->read_wait);
 	pInfo->priority = R3964_MASTER;
 	pInfo->rx_first = pInfo->rx_last = NULL;
 	pInfo->tx_first = pInfo->tx_last = NULL;
@@ -1045,7 +1044,6 @@ static void r3964_close(struct tty_struct *tty)
 	}
 
 	/* Free buffers: */
-	wake_up_interruptible(&pInfo->read_wait);
 	kfree(pInfo->rx_buf);
 	TRACE_M("r3964_close - rx_buf kfree %p", pInfo->rx_buf);
 	kfree(pInfo->tx_buf);
@@ -1077,7 +1075,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 				goto unlock;
 			}
 			/* block until there is a message: */
-			wait_event_interruptible_tty(tty, pInfo->read_wait,
+			wait_event_interruptible_tty(tty, tty->read_wait,
 					(pMsg = remove_msg(pInfo, pClient)));
 		}
 
@@ -1227,7 +1225,7 @@ static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
 
 	pClient = findClient(pInfo, task_pid(current));
 	if (pClient) {
-		poll_wait(file, &pInfo->read_wait, wait);
+		poll_wait(file, &tty->read_wait, wait);
 		spin_lock_irqsave(&pInfo->lock, flags);
 		pMsg = pClient->first_msg;
 		spin_unlock_irqrestore(&pInfo->lock, flags);
