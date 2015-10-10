@@ -200,6 +200,12 @@
 	regulator-name = "avcc";
 };
 
+&reg_dc5ldo {
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-cpus";
+};
+
 &reg_dcdc1 {
 	regulator-always-on;
 	regulator-min-microvolt = <3000000>;
