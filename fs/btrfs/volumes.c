@@ -3300,6 +3300,16 @@ static int should_balance_chunk(struct btrfs_root *root,
 			return 0;
 		else
 			bargs->limit--;
+	} else if ((bargs->flags & BTRFS_BALANCE_ARGS_LIMIT_RANGE)) {
+		/*
+		 * Same logic as the 'limit' filter; the minimum cannot be
+		 * determined here because we do not have the global informatoin
+		 * about the count of all chunks that satisfy the filters.
+		 */
+		if (bargs->limit_max == 0)
+			return 0;
+		else
+			bargs->limit_max--;
 	}
 
 	return 1;
@@ -3314,6 +3324,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	struct btrfs_device *device;
 	u64 old_size;
 	u64 size_to_free;
+	u64 chunk_type;
 	struct btrfs_chunk *chunk;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -3324,9 +3335,13 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	int ret;
 	int enospc_errors = 0;
 	bool counting = true;
+	/* The single value limit and min/max limits use the same bytes in the */
 	u64 limit_data = bctl->data.limit;
 	u64 limit_meta = bctl->meta.limit;
 	u64 limit_sys = bctl->sys.limit;
+	u32 count_data = 0;
+	u32 count_meta = 0;
+	u32 count_sys = 0;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -3367,6 +3382,10 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->balance_lock);
 again:
 	if (!counting) {
+		/*
+		 * The single value limit and min/max limits use the same bytes
+		 * in the
+		 */
 		bctl->data.limit = limit_data;
 		bctl->meta.limit = limit_meta;
 		bctl->sys.limit = limit_sys;
@@ -3414,6 +3433,7 @@ again:
 		}
 
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
+		chunk_type = btrfs_chunk_type(leaf, chunk);
 
 		if (!counting) {
 			spin_lock(&fs_info->balance_lock);
@@ -3434,6 +3454,28 @@ again:
 			spin_lock(&fs_info->balance_lock);
 			bctl->stat.expected++;
 			spin_unlock(&fs_info->balance_lock);
+
+			if (chunk_type & BTRFS_BLOCK_GROUP_DATA)
+				count_data++;
+			else if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM)
+				count_sys++;
+			else if (chunk_type & BTRFS_BLOCK_GROUP_METADATA)
+				count_meta++;
+
+			goto loop;
+		}
+
+		/*
+		 * Apply limit_min filter, no need to check if the LIMITS
+		 * filter is used, limit_min is 0 by default
+		 */
+		if (((chunk_type & BTRFS_BLOCK_GROUP_DATA) &&
+					count_data < bctl->data.limit_min)
+				|| ((chunk_type & BTRFS_BLOCK_GROUP_METADATA) &&
+					count_meta < bctl->meta.limit_min)
+				|| ((chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) &&
+					count_sys < bctl->sys.limit_min)) {
+			mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 			goto loop;
 		}
 

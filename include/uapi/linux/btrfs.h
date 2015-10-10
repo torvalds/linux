@@ -217,7 +217,18 @@ struct btrfs_balance_args {
 
 	__u64 flags;
 
-	__u64 limit;		/* limit number of processed chunks */
+	/*
+	 * BTRFS_BALANCE_ARGS_LIMIT with value 'limit'
+	 * BTRFS_BALANCE_ARGS_LIMIT_RANGE - the extend version can use minimum
+	 * and maximum
+	 */
+	union {
+		__u64 limit;		/* limit number of processed chunks */
+		struct {
+			__u32 limit_min;
+			__u32 limit_max;
+		};
+	};
 	__u64 unused[7];
 } __attribute__ ((__packed__));
 
