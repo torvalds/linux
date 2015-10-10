@@ -439,7 +439,6 @@ static void omap_8250_set_termios(struct uart_port *port,
 	priv->xoff = termios->c_cc[VSTOP];
 
 	priv->efr = 0;
-	up->mcr &= ~(UART_MCR_RTS | UART_MCR_XONANY);
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
