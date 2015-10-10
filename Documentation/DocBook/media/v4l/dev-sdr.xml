@@ -44,10 +44,10 @@ frequency.
     </para>
 
     <para>
-The <constant>V4L2_TUNER_ADC</constant> tuner type is used for ADC tuners, and
+The <constant>V4L2_TUNER_SDR</constant> tuner type is used for SDR tuners, and
 the <constant>V4L2_TUNER_RF</constant> tuner type is used for RF tuners. The
-tuner index of the RF tuner (if any) must always follow the ADC tuner index.
-Normally the ADC tuner is #0 and the RF tuner is #1.
+tuner index of the RF tuner (if any) must always follow the SDR tuner index.
+Normally the SDR tuner is #0 and the RF tuner is #1.
     </para>
 
     <para>
