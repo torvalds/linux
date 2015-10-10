@@ -302,6 +302,59 @@ static void ade_set_medianoc_qos(struct ade_crtc *acrtc)
 			   SOCKET_QOS_EN, SOCKET_QOS_EN);
 }
 
+static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct kirin_drm_private *priv = dev->dev_private;
+	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct ade_hw_ctx *ctx = acrtc->ctx;
+	void __iomem *base = ctx->base;
+
+	if (!ctx->power_on)
+		(void)ade_power_up(ctx);
+
+	ade_update_bits(base + LDI_INT_EN, FRAME_END_INT_EN_OFST,
+			MASK(1), 1);
+
+	return 0;
+}
+
+static void ade_disable_vblank(struct drm_device *dev, unsigned int pipe)
+{
+	struct kirin_drm_private *priv = dev->dev_private;
+	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct ade_hw_ctx *ctx = acrtc->ctx;
+	void __iomem *base = ctx->base;
+
+	if (!ctx->power_on) {
+		DRM_ERROR("power is down! vblank disable fail\n");
+		return;
+	}
+
+	ade_update_bits(base + LDI_INT_EN, FRAME_END_INT_EN_OFST,
+			MASK(1), 0);
+}
+
+static irqreturn_t ade_irq_handler(int irq, void *data)
+{
+	struct ade_crtc *acrtc = data;
+	struct ade_hw_ctx *ctx = acrtc->ctx;
+	struct drm_crtc *crtc = &acrtc->base;
+	void __iomem *base = ctx->base;
+	u32 status;
+
+	status = readl(base + LDI_MSK_INT);
+	DRM_DEBUG_VBL("LDI IRQ: status=0x%X\n", status);
+
+	/* vblank irq */
+	if (status & BIT(FRAME_END_INT_EN_OFST)) {
+		ade_update_bits(base + LDI_INT_CLR, FRAME_END_INT_EN_OFST,
+				MASK(1), 1);
+		drm_crtc_handle_vblank(crtc);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static void ade_display_enable(struct ade_crtc *acrtc)
 {
 	struct ade_hw_ctx *ctx = acrtc->ctx;
@@ -976,6 +1029,15 @@ static int ade_drm_init(struct drm_device *dev)
 	ret = ade_crtc_init(dev, &acrtc->base, &ade->aplane[PRIMARY_CH].base);
 	if (ret)
 		return ret;
+
+	/* vblank irq init */
+	ret = devm_request_irq(dev->dev, ctx->irq, ade_irq_handler,
+			       IRQF_SHARED, dev->driver->name, acrtc);
+	if (ret)
+		return ret;
+	dev->driver->get_vblank_counter = drm_vblank_no_hw_counter;
+	dev->driver->enable_vblank = ade_enable_vblank;
+	dev->driver->disable_vblank = ade_disable_vblank;
 
 	return 0;
 }
