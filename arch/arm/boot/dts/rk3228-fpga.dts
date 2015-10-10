@@ -245,4 +245,22 @@
 
 			<&clk_gates1 3>;/*clk_jtag*/
 	};
+
+	amba {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+
+		pdma: pdma@110f0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x110f0000 0x4000>;
+			clocks = <&clk_gates8 2>;
+			clock-names = "apb_pclk";
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+		};
+	};
 };
