@@ -1519,8 +1519,7 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 		index_buf = area_data->index_buf;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
-			if ((rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
-			     (area_data->ion_handle != NULL))
+			if (area_data->ion_handle != NULL)
 				ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
 						area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
@@ -1580,14 +1579,12 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
 				win->area[i].format =
 					reg_win_data->reg_area_data[i].data_format;
-				if (inf->disp_policy != DISPLAY_POLICY_BOX)
-					win->area[i].ion_hdl =
+				win->area[i].ion_hdl =
 					reg_win_data->reg_area_data[i].ion_handle;
 				win->area[i].smem_start =
 					reg_win_data->reg_area_data[i].smem_start;
                                 if (inf->disp_mode == DUAL ||
-                                    inf->disp_mode == NO_DUAL ||
-                                    inf->disp_policy == DISPLAY_POLICY_BOX) {
+                                    inf->disp_mode == NO_DUAL) {
 				        win->area[i].xpos =
 				                reg_win_data->reg_area_data[i].xpos;
 				        win->area[i].ypos =
@@ -1690,7 +1687,6 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 			     struct rk_fb_reg_data *regs,
 			     int count)
 {
-	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	int i, j, wait_for_vsync = false;
 	unsigned int dsp_addr[5][4];
 	int win_status = 0;
@@ -1699,10 +1695,6 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
 
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
-		if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-		    (!strcmp(dev_drv->win[i]->name, "hwc")))
-			continue;
-
 		for (j = 0;j < RK_WIN_MAX_AREA; j++) {
 			if ((j > 0) && (dev_drv->area_support[i] == 1)) {
 				continue;
@@ -1712,10 +1704,6 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 					dev_drv->win[i]->area[j].smem_start +
 					dev_drv->win[i]->area[j].y_offset;
 				u32 reg_start = dsp_addr[i][j];
-				if ((rk_fb->disp_policy ==
-					DISPLAY_POLICY_BOX) &&
-					(dev_drv->suspend_flag))
-					continue;
 				if (unlikely(new_start != reg_start)) {
 					wait_for_vsync = true;
 					dev_info(dev_drv->dev,
@@ -1807,7 +1795,6 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	int i, j;
 	struct rk_lcdc_win *win;
 	ktime_t timestamp = dev_drv->vsync_info.timestamp;
-	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct rk_fb_reg_win_data *win_data;
 	bool wait_for_vsync;
 	int count = 100;
@@ -1828,11 +1815,6 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		win = dev_drv->win[i];
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
-			if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-			    (win_data->reg_area_data[0].data_format == YUV420 ||
-			     win_data->reg_area_data[0].data_format == YUV420_NV21 ||
-			     win_data->reg_area_data[0].data_format == YUV420_A))
-				continue;
 			mutex_lock(&dev_drv->win_config);
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
@@ -3070,7 +3052,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	struct rk_lcdc_win *win = NULL;
 	struct rk_screen *screen = dev_drv->cur_screen;
 	int win_id = 0;
@@ -3192,13 +3173,6 @@ static int rk_fb_set_par(struct fb_info *info)
 			 (win->area[0].format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
 
-	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-	    (win->area[0].format == YUV420 ||
-	     win->area[0].format == YUV420_NV21 ||
-	     win->area[0].format == YUV420_A)) {
-                win->state = 1;
-                win->z_order = 0;
-	}
 	dev_drv->ops->set_par(dev_drv, win_id);
 
 	return 0;
