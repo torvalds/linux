@@ -158,7 +158,7 @@ static u32 array_agc_tab_1t_8188e[] = {
 static bool set_baseband_agc_config(struct adapter *adapt)
 {
 	u32 i;
-	u32 arraylen = sizeof(array_agc_tab_1t_8188e)/sizeof(u32);
+	const u32 arraylen = ARRAY_SIZE(array_agc_tab_1t_8188e);
 	u32 *array = array_agc_tab_1t_8188e;
 
 	for (i = 0; i < arraylen; i += 2) {
@@ -393,7 +393,7 @@ static void rtl_bb_delay(struct adapter *adapt, u32 addr, u32 data)
 static bool set_baseband_phy_config(struct adapter *adapt)
 {
 	u32 i;
-	u32 arraylen = sizeof(array_phy_reg_1t_8188e)/sizeof(u32);
+	const u32 arraylen = ARRAY_SIZE(array_phy_reg_1t_8188e);
 	u32 *array = array_phy_reg_1t_8188e;
 
 	for (i = 0; i < arraylen; i += 2) {
@@ -574,8 +574,8 @@ static void rtl_addr_delay(struct adapter *adapt,
 
 static bool config_bb_with_pgheader(struct adapter *adapt)
 {
-	u32 i = 0;
-	u32 arraylen = sizeof(array_phy_reg_pg_8188e) / sizeof(u32);
+	u32 i;
+	const u32 arraylen = ARRAY_SIZE(array_phy_reg_pg_8188e);
 	u32 *array = array_phy_reg_pg_8188e;
 
 	for (i = 0; i < arraylen; i += 3) {
