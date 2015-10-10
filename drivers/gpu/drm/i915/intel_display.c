@@ -10848,11 +10848,11 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static inline void intel_mark_page_flip_active(struct intel_crtc *intel_crtc)
+static inline void intel_mark_page_flip_active(struct intel_unpin_work *work)
 {
 	/* Ensure that the work item is consistent when activating it ... */
 	smp_wmb();
-	atomic_set(&intel_crtc->unpin_work->pending, INTEL_FLIP_PENDING);
+	atomic_set(&work->pending, INTEL_FLIP_PENDING);
 	/* and that it is marked active as soon as the irq could fire. */
 	smp_wmb();
 }
@@ -10888,7 +10888,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(ring, 0); /* aux display base address, unused */
 
-	intel_mark_page_flip_active(intel_crtc);
+	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -10920,7 +10920,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(ring, MI_NOOP);
 
-	intel_mark_page_flip_active(intel_crtc);
+	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -10959,7 +10959,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
 	intel_ring_emit(ring, pf | pipesrc);
 
-	intel_mark_page_flip_active(intel_crtc);
+	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -10995,7 +10995,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
 	intel_ring_emit(ring, pf | pipesrc);
 
-	intel_mark_page_flip_active(intel_crtc);
+	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11090,7 +11090,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(ring, (MI_NOOP));
 
-	intel_mark_page_flip_active(intel_crtc);
+	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11121,7 +11121,8 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 		return ring != i915_gem_request_get_ring(obj->last_write_req);
 }
 
-static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
+static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
+			     struct intel_unpin_work *work)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -11162,11 +11163,12 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
 	I915_WRITE(PLANE_CTL(pipe, 0), ctl);
 	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
 
-	I915_WRITE(PLANE_SURF(pipe, 0), intel_crtc->unpin_work->gtt_offset);
+	I915_WRITE(PLANE_SURF(pipe, 0), work->gtt_offset);
 	POSTING_READ(PLANE_SURF(pipe, 0));
 }
 
-static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc)
+static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc,
+			     struct intel_unpin_work *work)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -11186,31 +11188,36 @@ static void ilk_do_mmio_flip(struct intel_crtc *intel_crtc)
 
 	I915_WRITE(reg, dspcntr);
 
-	I915_WRITE(DSPSURF(intel_crtc->plane),
-		   intel_crtc->unpin_work->gtt_offset);
+	I915_WRITE(DSPSURF(intel_crtc->plane), work->gtt_offset);
 	POSTING_READ(DSPSURF(intel_crtc->plane));
-
 }
 
 /*
  * XXX: This is the temporary way to update the plane registers until we get
  * around to using the usual plane update functions for MMIO flips
  */
-static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
+static void intel_do_mmio_flip(struct intel_mmio_flip *mmio_flip)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct intel_crtc *crtc = mmio_flip->crtc;
+	struct intel_unpin_work *work;
 
-	intel_mark_page_flip_active(intel_crtc);
+	spin_lock_irq(&crtc->base.dev->event_lock);
+	work = crtc->unpin_work;
+	spin_unlock_irq(&crtc->base.dev->event_lock);
+	if (work == NULL)
+		return;
 
-	intel_pipe_update_start(intel_crtc);
+	intel_mark_page_flip_active(work);
 
-	if (INTEL_INFO(dev)->gen >= 9)
-		skl_do_mmio_flip(intel_crtc);
+	intel_pipe_update_start(crtc);
+
+	if (INTEL_INFO(mmio_flip->i915)->gen >= 9)
+		skl_do_mmio_flip(crtc, work);
 	else
 		/* use_mmio_flip() retricts MMIO flips to ilk+ */
-		ilk_do_mmio_flip(intel_crtc);
+		ilk_do_mmio_flip(crtc, work);
 
-	intel_pipe_update_end(intel_crtc);
+	intel_pipe_update_end(crtc);
 }
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
@@ -11218,15 +11225,15 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 	struct intel_mmio_flip *mmio_flip =
 		container_of(work, struct intel_mmio_flip, work);
 
-	if (mmio_flip->req)
+	if (mmio_flip->req) {
 		WARN_ON(__i915_wait_request(mmio_flip->req,
 					    mmio_flip->crtc->reset_counter,
 					    false, NULL,
 					    &mmio_flip->i915->rps.mmioflips));
+		i915_gem_request_unreference__unlocked(mmio_flip->req);
+	}
 
-	intel_do_mmio_flip(mmio_flip->crtc);
-
-	i915_gem_request_unreference__unlocked(mmio_flip->req);
+	intel_do_mmio_flip(mmio_flip);
 	kfree(mmio_flip);
 }
 
