@@ -30,8 +30,12 @@ static struct kirin_dc_ops *dc_ops;
 
 static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
+	struct kirin_drm_private *priv = dev->dev_private;
+
 	dc_ops->cleanup(dev);
 	drm_mode_config_cleanup(dev);
+	devm_kfree(dev->dev, priv);
+	dev->dev_private = NULL;
 
 	return 0;
 }
@@ -55,8 +59,14 @@ static void kirin_drm_mode_config_init(struct drm_device *dev)
 
 static int kirin_drm_kms_init(struct drm_device *dev)
 {
+	struct kirin_drm_private *priv;
 	int ret;
 
+	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	dev->dev_private = priv;
 	dev_set_drvdata(dev->dev, dev);
 
 	/* dev->mode_config initialization */
@@ -84,6 +94,8 @@ err_dc_cleanup:
 	dc_ops->cleanup(dev);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
+	devm_kfree(dev->dev, priv);
+	dev->dev_private = NULL;
 
 	return ret;
 }
