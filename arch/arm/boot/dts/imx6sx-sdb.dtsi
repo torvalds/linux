@@ -263,6 +263,18 @@
 	};
 };
 
+&dcic1 {
+	dcic_id = <0>;
+	dcic_mux = "dcic-lcdif1";
+	status = "okay";
+};
+
+&dcic2 {
+	dcic_id = <1>;
+	dcic_mux = "dcic-lvds";
+	status = "okay";
+};
+
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;

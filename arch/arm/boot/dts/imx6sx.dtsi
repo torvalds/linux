@@ -1192,6 +1192,28 @@
 					status = "disabled";
 				};
 
+				dcic1: dcic@0220c000 {
+					compatible = "fsl,imx6sx-dcic";
+					reg = <0x0220c000 0x4000>;
+					interrupts = <0 124 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6SX_CLK_DCIC1>,
+						<&clks IMX6SX_CLK_DISPLAY_AXI>;
+					clock-names = "dcic", "disp-axi";
+					gpr = <&gpr>;
+					status = "disabled";
+				};
+
+				dcic2: dcic@02210000 {
+					compatible = "fsl,imx6sx-dcic";
+					reg = <0x02210000 0x4000>;
+					interrupts = <0 125 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6SX_CLK_DCIC2>,
+						<&clks IMX6SX_CLK_DISPLAY_AXI>;
+					clock-names = "dcic", "disp-axi";
+					gpr = <&gpr>;
+					status = "disabled";
+				};
+
 				pxp: pxp@02218000 {
 					reg = <0x02218000 0x4000>;
 					interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;

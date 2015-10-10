@@ -548,6 +548,18 @@
 	};
 };
 
+&dcic1 {
+	dcic_id = <0>;
+	dcic_mux = "dcic-lcdif1";
+	status = "okay";
+};
+
+&dcic2 {
+	dcic_id = <1>;
+	dcic_mux = "dcic-lvds";
+	status = "okay";
+};
+
 &vadc {
 	vadc_in = <0>;
 	csi_id = <1>;

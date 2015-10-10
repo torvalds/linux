@@ -243,6 +243,18 @@
 	assigned-clock-rates = <0>, <0>, <24576000>;
 };
 
+&dcic1 {
+	dcic_id = <0>;
+	dcic_mux = "dcic-hdmi";
+	status = "okay";
+};
+
+&dcic2 {
+	dcic_id = <1>;
+	dcic_mux = "dcic-lvds0";
+	status = "okay";
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio3 19 0>;
