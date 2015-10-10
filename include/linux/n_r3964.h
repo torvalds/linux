@@ -161,8 +161,9 @@ struct r3964_info {
 	unsigned char last_rx;
 	unsigned char bcc;
         unsigned int  blocks_in_rx_queue;
-	  
-	
+
+	struct mutex read_lock;		/* serialize r3964_read */
+
 	struct r3964_client_info *firstClient;
 	unsigned int state;
 	unsigned int flags;

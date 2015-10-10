@@ -978,6 +978,7 @@ static int r3964_open(struct tty_struct *tty)
 	}
 
 	spin_lock_init(&pInfo->lock);
+	mutex_init(&pInfo->read_lock);
 	pInfo->tty = tty;
 	pInfo->priority = R3964_MASTER;
 	pInfo->rx_first = pInfo->rx_last = NULL;
@@ -1063,7 +1064,16 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 
 	TRACE_L("read()");
 
-	tty_lock(tty);
+	/*
+	 *	Internal serialization of reads.
+	 */
+	if (file->f_flags & O_NONBLOCK) {
+		if (!mutex_trylock(&pInfo->read_lock))
+			return -EAGAIN;
+	} else {
+		if (mutex_lock_interruptible(&pInfo->read_lock))
+			return -ERESTARTSYS;
+	}
 
 	pClient = findClient(pInfo, task_pid(current));
 	if (pClient) {
@@ -1075,7 +1085,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 				goto unlock;
 			}
 			/* block until there is a message: */
-			wait_event_interruptible_tty(tty, tty->read_wait,
+			wait_event_interruptible(tty->read_wait,
 					(pMsg = remove_msg(pInfo, pClient)));
 		}
 
@@ -1105,7 +1115,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 	}
 	ret = -EPERM;
 unlock:
-	tty_unlock(tty);
+	mutex_unlock(&pInfo->read_lock);
 	return ret;
 }
 
@@ -1154,8 +1164,6 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 	pHeader->locks = 0;
 	pHeader->owner = NULL;
 
-	tty_lock(tty);
-
 	pClient = findClient(pInfo, task_pid(current));
 	if (pClient) {
 		pHeader->owner = pClient;
@@ -1172,8 +1180,6 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
  */
 	add_tx_queue(pInfo, pHeader);
 	trigger_transmit(pInfo);
-
-	tty_unlock(tty);
 
 	return 0;
 }
