@@ -23,6 +23,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "kirin_drm_drv.h"
 
@@ -32,6 +33,13 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
 	struct kirin_drm_private *priv = dev->dev_private;
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (priv->fbdev) {
+		drm_fbdev_cma_fini(priv->fbdev);
+		priv->fbdev = NULL;
+	}
+#endif
+	drm_kms_helper_poll_fini(dev);
 	drm_vblank_cleanup(dev);
 	dc_ops->cleanup(dev);
 	drm_mode_config_cleanup(dev);
@@ -41,8 +49,28 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
+{
+	struct kirin_drm_private *priv = dev->dev_private;
+
+	if (priv->fbdev) {
+		drm_fbdev_cma_hotplug_event(priv->fbdev);
+	} else {
+		priv->fbdev = drm_fbdev_cma_init(dev, 32,
+				dev->mode_config.num_crtc,
+				dev->mode_config.num_connector);
+		if (IS_ERR(priv->fbdev))
+			priv->fbdev = NULL;
+	}
+}
+#endif
+
 static const struct drm_mode_config_funcs kirin_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	.output_poll_changed = kirin_fbdev_output_poll_changed,
+#endif
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -97,6 +125,12 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 
 	/* reset all the states of crtc/plane/encoder/connector */
 	drm_mode_config_reset(dev);
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
+
+	/* force detection after connectors init */
+	(void)drm_helper_hpd_irq_event(dev);
 
 	return 0;
 
