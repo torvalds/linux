@@ -157,6 +157,7 @@ applications. -->
 	<authorinitials>ap</authorinitials>
 	<revremark>Renamed V4L2_TUNER_ADC to V4L2_TUNER_SDR.
 Added V4L2_CID_RF_TUNER_RF_GAIN control.
+Added transmitter support for Software Defined Radio (SDR) Interface.
 	</revremark>
       </revision>
 

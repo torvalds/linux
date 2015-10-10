@@ -2604,6 +2604,10 @@ and &v4l2-mbus-framefmt;.
 	  <para>Added <constant>V4L2_CID_RF_TUNER_RF_GAIN</constant>
 RF Tuner control.</para>
 	</listitem>
+	<listitem>
+	  <para>Added transmitter support for Software Defined Radio (SDR)
+Interface.</para>
+	</listitem>
       </orderedlist>
     </section>
 

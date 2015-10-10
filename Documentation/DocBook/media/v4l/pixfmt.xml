@@ -1732,7 +1732,7 @@ extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
   <section id="sdr-formats">
     <title>SDR Formats</title>
 
-    <para>These formats are used for <link linkend="sdr">SDR Capture</link>
+    <para>These formats are used for <link linkend="sdr">SDR</link>
 interface only.</para>
 
     &sub-sdr-cu08;
