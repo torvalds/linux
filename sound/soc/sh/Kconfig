@@ -40,7 +40,7 @@ config SND_SOC_RCAR
 	select SND_SIMPLE_CARD
 	select REGMAP_MMIO
 	help
-	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
+	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
 
 config SND_SOC_RSRC_CARD
 	tristate "Renesas Sampling Rate Convert Sound Card"
