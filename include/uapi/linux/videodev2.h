@@ -1593,7 +1593,8 @@ struct v4l2_modulator {
 	__u32			rangelow;
 	__u32			rangehigh;
 	__u32			txsubchans;
-	__u32			reserved[4];
+	__u32			type;	/* enum v4l2_tuner_type */
+	__u32			reserved[3];
 };
 
 /*  Flags for the 'capability' field */
