@@ -5418,6 +5418,18 @@ set. Unit is in Hz. The range and step are driver-specific.</entry>
               <entry spanname="descr">Enables/disables IF automatic gain control (AGC)</entry>
             </row>
             <row>
+              <entry spanname="id"><constant>V4L2_CID_RF_TUNER_RF_GAIN</constant>&nbsp;</entry>
+              <entry>integer</entry>
+            </row>
+            <row>
+              <entry spanname="descr">The RF amplifier is the very first
+amplifier on the receiver signal path, just right after the antenna input.
+The difference between the LNA gain and the RF gain in this document is that
+the LNA gain is integrated in the tuner chip while the RF gain is a separate
+chip. There may be both RF and LNA gain controls in the same device.
+The range and step are driver-specific.</entry>
+            </row>
+            <row>
               <entry spanname="id"><constant>V4L2_CID_RF_TUNER_LNA_GAIN</constant>&nbsp;</entry>
               <entry>integer</entry>
             </row>
@@ -5425,6 +5437,8 @@ set. Unit is in Hz. The range and step are driver-specific.</entry>
               <entry spanname="descr">LNA (low noise amplifier) gain is first
 gain stage on the RF tuner signal path. It is located very close to tuner
 antenna input. Used when <constant>V4L2_CID_RF_TUNER_LNA_GAIN_AUTO</constant> is not set.
+See <constant>V4L2_CID_RF_TUNER_RF_GAIN</constant> to understand how RF gain
+and LNA gain differs from the each others.
 The range and step are driver-specific.</entry>
             </row>
             <row>

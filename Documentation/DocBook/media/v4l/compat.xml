@@ -2600,6 +2600,10 @@ and &v4l2-mbus-framefmt;.
 <constant>V4L2_TUNER_ADC</constant> is deprecated now.
 	  </para>
 	</listitem>
+	<listitem>
+	  <para>Added <constant>V4L2_CID_RF_TUNER_RF_GAIN</constant>
+RF Tuner control.</para>
+	</listitem>
       </orderedlist>
     </section>
 
