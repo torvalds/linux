@@ -243,9 +243,8 @@ static void dcon_load_holdoff(struct dcon_priv *dcon)
 	while (1) {
 		now = ktime_get();
 		delta_t = ktime_sub(now, dcon->load_time);
-		if (ktime_to_ns(delta_t) > NSEC_PER_MSEC * 20) {
+		if (ktime_to_ns(delta_t) > NSEC_PER_MSEC * 20)
 			break;
-		}
 		mdelay(4);
 	}
 }
