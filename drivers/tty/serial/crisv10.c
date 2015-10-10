@@ -3759,23 +3759,6 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	int		do_clocal = 0;
 
 	/*
-	 * If the device is in the middle of being closed, then block
-	 * until it's done, and then try again.
-	 */
-	if (info->port.flags & ASYNC_CLOSING) {
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-			!(info->port.flags & ASYNC_CLOSING));
-#ifdef SERIAL_DO_RESTART
-		if (info->port.flags & ASYNC_HUP_NOTIFY)
-			return -EAGAIN;
-		else
-			return -ERESTARTSYS;
-#else
-		return -EAGAIN;
-#endif
-	}
-
-	/*
 	 * If non-blocking mode is set, or the port is not enabled,
 	 * then make the check up front and then exit.
 	 */
@@ -3825,7 +3808,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 			break;
 		}
-		if (!(info->port.flags & ASYNC_CLOSING) && do_clocal)
+		if (do_clocal)
 			/* && (do_clocal || DCD_IS_ASSERTED) */
 			break;
 		if (signal_pending(current)) {
@@ -3893,20 +3876,6 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	info->port.tty = tty;
 
 	info->port.low_latency = !!(info->port.flags & ASYNC_LOW_LATENCY);
-
-	/*
-	 * If the port is in the middle of closing, bail out now
-	 */
-	if (info->port.flags & ASYNC_CLOSING) {
-		wait_event_interruptible_tty(tty, info->port.close_wait,
-			!(info->port.flags & ASYNC_CLOSING));
-#ifdef SERIAL_DO_RESTART
-		return ((info->port.flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-#else
-		return -EAGAIN;
-#endif
-	}
 
 	/*
 	 * If DMA is enabled try to allocate the irq's.

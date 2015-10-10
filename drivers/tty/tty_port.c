@@ -363,16 +363,6 @@ int tty_port_block_til_ready(struct tty_port *port,
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 
-	/* block if port is in the process of being closed */
-	if (port->flags & ASYNC_CLOSING) {
-		wait_event_interruptible_tty(tty, port->close_wait,
-				!(port->flags & ASYNC_CLOSING));
-		if (port->flags & ASYNC_HUP_NOTIFY)
-			return -EAGAIN;
-		else
-			return -ERESTARTSYS;
-	}
-
 	/* if non-blocking mode is set we can pass directly to open unless
 	   the port has just hung up or is in another error state */
 	if (tty->flags & (1 << TTY_IO_ERROR)) {
@@ -423,8 +413,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 		 * Never ask drivers if CLOCAL is set, this causes troubles
 		 * on some hardware.
 		 */
-		if (!(port->flags & ASYNC_CLOSING) &&
-				(do_clocal || tty_port_carrier_raised(port)))
+		if (do_clocal || tty_port_carrier_raised(port))
 			break;
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
