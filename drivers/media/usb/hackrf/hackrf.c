@@ -70,7 +70,6 @@ static const struct v4l2_frequency_band bands_rx_tx[] = {
 
 /* stream formats */
 struct hackrf_format {
-	char	*name;
 	u32	pixelformat;
 	u32	buffersize;
 };
@@ -78,7 +77,6 @@ struct hackrf_format {
 /* format descriptions for capture and preview */
 static struct hackrf_format formats[] = {
 	{
-		.name		= "Complex S8",
 		.pixelformat	= V4L2_SDR_FMT_CS8,
 		.buffersize	= BULK_BUFFER_SIZE,
 	},
@@ -1007,7 +1005,6 @@ static int hackrf_enum_fmt_sdr(struct file *file, void *priv,
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;
