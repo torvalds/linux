@@ -163,7 +163,7 @@ static bool set_baseband_agc_config(struct adapter *adapt)
 
 	for (i = 0; i < arraylen; i += 2) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
+		u32 v2 = array[i + 1];
 
 		if (v1 < 0xCDCDCDCD) {
 			phy_set_bb_reg(adapt, v1, bMaskDWord, v2);
@@ -398,7 +398,7 @@ static bool set_baseband_phy_config(struct adapter *adapt)
 
 	for (i = 0; i < arraylen; i += 2) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
+		u32 v2 = array[i + 1];
 
 		if (v1 < 0xCDCDCDCD)
 			rtl_bb_delay(adapt, v1, v2);
@@ -580,8 +580,8 @@ static bool config_bb_with_pgheader(struct adapter *adapt)
 
 	for (i = 0; i < arraylen; i += 3) {
 		u32 v1 = array[i];
-		u32 v2 = array[i+1];
-		u32 v3 = array[i+2];
+		u32 v2 = array[i + 1];
+		u32 v3 = array[i + 2];
 
 		if (v1 < 0xCDCDCDCD)
 			rtl_addr_delay(adapt, v1, v2, v3);
