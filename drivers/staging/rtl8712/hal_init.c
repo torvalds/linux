@@ -209,7 +209,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		i = 10;
 		tmp16 = r8712_read16(padapter, TCR);
 		while (((tmp16 & _IMEM_CODE_DONE) == 0) && (i > 0)) {
-			udelay(10);
+			usleep_range(10, 1000);
 			tmp16 = r8712_read16(padapter, TCR);
 			i--;
 		}
@@ -237,7 +237,7 @@ static u8 rtl8712_dl_fw(struct _adapter *padapter)
 		i = 5;
 		tmp16 = r8712_read16(padapter, TCR);
 		while (((tmp16 & _EMEM_CODE_DONE) == 0) && (i > 0)) {
-			udelay(10);
+			usleep_range(10, 1000);
 			tmp16 = r8712_read16(padapter, TCR);
 			i--;
 		}
