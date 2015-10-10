@@ -2320,11 +2320,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
 			Format: [panic,][nopanic,][num]
 			Valid num: 0 or 1
-			0 - turn nmi_watchdog off
-			1 - turn nmi_watchdog on
+			0 - turn hardlockup detector in nmi_watchdog off
+			1 - turn hardlockup detector in nmi_watchdog on
 			When panic is specified, panic when an NMI watchdog
 			timeout occurs (or 'nopanic' to override the opposite
-			default).
+			default). To disable both hard and soft lockup detectors,
+			please see 'nowatchdog'.
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 
