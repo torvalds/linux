@@ -1176,7 +1176,7 @@ static int rx_pkt(struct atm_dev *dev)
         if (!(skb = atm_alloc_charge(vcc, len, GFP_ATOMIC))) {
            if (vcc->vci < 32)
               printk("Drop control packets\n");
-	      goto out_free_desc;
+	   goto out_free_desc;
         }
 	skb_put(skb,len);  
         // pwang_test
