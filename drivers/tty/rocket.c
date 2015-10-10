@@ -1049,7 +1049,6 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
-	wake_up_interruptible(&port->close_wait);
 	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 

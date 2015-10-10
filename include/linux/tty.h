@@ -227,7 +227,6 @@ struct tty_port {
 	int			blocked_open;	/* Waiting to open */
 	int			count;		/* Usage count */
 	wait_queue_head_t	open_wait;	/* Open waiters */
-	wait_queue_head_t	close_wait;	/* Close waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
 	unsigned long		flags;		/* TTY flags ASY_*/
 	unsigned char		console:1,	/* port is a console */

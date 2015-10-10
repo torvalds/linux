@@ -1071,7 +1071,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		wake_up_interruptible(&port->open_wait);
 	}
 	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
 	local_irq_restore(flags);
 }
 

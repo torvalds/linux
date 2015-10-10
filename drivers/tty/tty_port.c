@@ -22,7 +22,6 @@ void tty_port_init(struct tty_port *port)
 	memset(port, 0, sizeof(*port));
 	tty_buffer_init(port);
 	init_waitqueue_head(&port->open_wait);
-	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->delta_msr_wait);
 	mutex_init(&port->mutex);
 	mutex_init(&port->buf_mutex);
@@ -520,7 +519,6 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 		wake_up_interruptible(&port->open_wait);
 	}
 	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_close_end);
