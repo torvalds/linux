@@ -1,6 +1,8 @@
 #ifndef _VME_BRIDGE_H_
 #define _VME_BRIDGE_H_
 
+#include <linux/vme.h>
+
 #define VME_CRCSR_BUF_SIZE (508*1024)
 /*
  * Resource structures
@@ -88,7 +90,7 @@ struct vme_callback {
 
 struct vme_irq {
 	int count;
-	struct vme_callback callback[255];
+	struct vme_callback callback[VME_NUM_STATUSID];
 };
 
 /* Allow 16 characters for name (including null character) */

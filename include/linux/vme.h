@@ -81,6 +81,9 @@ struct vme_resource {
 
 extern struct bus_type vme_bus_type;
 
+/* Number of VME interrupt vectors */
+#define VME_NUM_STATUSID	256
+
 /* VME_MAX_BRIDGES comes from the type of vme_bus_numbers */
 #define VME_MAX_BRIDGES		(sizeof(unsigned int)*8)
 #define VME_MAX_SLOTS		32
