@@ -342,8 +342,10 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 		}
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-		if (!pd)
+		if (!pd) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		pd->genpd.name = np->name;
 		pd->base = base;
