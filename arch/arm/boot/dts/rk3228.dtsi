@@ -132,7 +132,7 @@
 			<&pclk_bus>,
 			<&clk_gates8 0>,/*aclk_intmem*/
 			<&clk_gates8 1>,/*clk_intmem_mbist*/
-			<&clk_gates8 3>,/*aclk_dmac_bus*/
+			<&clk_gates8 2>,/*aclk_dmac_bus*/
 			<&clk_gates10 1>,/*g_aclk_bus*/
 			<&clk_gates13 9>,/*aclk_gic400*/
 			<&clk_gates8 3>,/*hclk_rom*/
