@@ -435,7 +435,16 @@ static void xpad360_process_packet(struct usb_xpad *xpad,
 		input_report_key(dev, BTN_TRIGGER_HAPPY2, data[2] & 0x08);
 		input_report_key(dev, BTN_TRIGGER_HAPPY3, data[2] & 0x01);
 		input_report_key(dev, BTN_TRIGGER_HAPPY4, data[2] & 0x02);
-	} else {
+	}
+
+	/*
+	 * This should be a simple else block. However historically
+	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
+	 * made no sense, but now we can not just switch back and have to
+	 * support both behaviors.
+	 */
+	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
+	    xpad->xtype == XTYPE_XBOX360W) {
 		input_report_abs(dev, ABS_HAT0X,
 				 !!(data[2] & 0x08) - !!(data[2] & 0x04));
 		input_report_abs(dev, ABS_HAT0Y,
@@ -1158,7 +1167,16 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (xpad->mapping & MAP_DPAD_TO_BUTTONS) {
 		for (i = 0; xpad_btn_pad[i] >= 0; i++)
 			__set_bit(xpad_btn_pad[i], input_dev->keybit);
-	} else {
+	}
+
+	/*
+	 * This should be a simple else block. However historically
+	 * xbox360w has mapped DPAD to buttons while xbox360 did not. This
+	 * made no sense, but now we can not just switch back and have to
+	 * support both behaviors.
+	 */
+	if (!(xpad->mapping & MAP_DPAD_TO_BUTTONS) ||
+	    xpad->xtype == XTYPE_XBOX360W) {
 		for (i = 0; xpad_abs_pad[i] >= 0; i++)
 			xpad_set_up_abs(input_dev, xpad_abs_pad[i]);
 	}
