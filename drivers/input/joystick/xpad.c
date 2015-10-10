@@ -768,6 +768,33 @@ static void xpad_deinit_output(struct usb_xpad *xpad)
 	}
 }
 
+static int xpad_inquiry_pad_presence(struct usb_xpad *xpad)
+{
+	int retval;
+
+	mutex_lock(&xpad->odata_mutex);
+
+	xpad->odata[0] = 0x08;
+	xpad->odata[1] = 0x00;
+	xpad->odata[2] = 0x0F;
+	xpad->odata[3] = 0xC0;
+	xpad->odata[4] = 0x00;
+	xpad->odata[5] = 0x00;
+	xpad->odata[6] = 0x00;
+	xpad->odata[7] = 0x00;
+	xpad->odata[8] = 0x00;
+	xpad->odata[9] = 0x00;
+	xpad->odata[10] = 0x00;
+	xpad->odata[11] = 0x00;
+	xpad->irq_out->transfer_buffer_length = 12;
+
+	retval = usb_submit_urb(xpad->irq_out, GFP_KERNEL);
+
+	mutex_unlock(&xpad->odata_mutex);
+
+	return retval;
+}
+
 #ifdef CONFIG_JOYSTICK_XPAD_FF
 static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
@@ -1259,9 +1286,22 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		error = usb_submit_urb(xpad->irq_in, GFP_KERNEL);
 		if (error)
 			goto err_deinit_input;
+
+		/*
+		 * Send presence packet.
+		 * This will force the controller to resend connection packets.
+		 * This is useful in the case we activate the module after the
+		 * adapter has been plugged in, as it won't automatically
+		 * send us info about the controllers.
+		 */
+		error = xpad_inquiry_pad_presence(xpad);
+		if (error)
+			goto err_kill_in_urb;
 	}
 	return 0;
 
+err_kill_in_urb:
+	usb_kill_urb(xpad->irq_in);
 err_deinit_input:
 	xpad_deinit_input(xpad);
 err_deinit_output:
