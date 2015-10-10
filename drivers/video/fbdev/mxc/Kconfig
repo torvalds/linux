@@ -18,6 +18,11 @@ config FB_MXC_SYNC_PANEL
 	depends on FB_MXC
 	tristate "Synchronous Panel Framebuffer"
 
+config FB_MXC_MIPI_DSI
+	tristate "MXC MIPI_DSI"
+	depends on FB_MXC_SYNC_PANEL
+	depends on MXC_IPU_V3
+
 config FB_MXC_MIPI_DSI_SAMSUNG
 	tristate "MXC MIPI_DSI_SAMSUNG"
 	depends on FB_MXC_SYNC_PANEL
@@ -26,7 +31,7 @@ config FB_MXC_MIPI_DSI_SAMSUNG
 config FB_MXC_TRULY_WVGA_SYNC_PANEL
 	tristate "TRULY WVGA Panel"
 	depends on FB_MXC_SYNC_PANEL
-	depends on FB_MXC_MIPI_DSI_SAMSUNG
+	depends on FB_MXC_MIPI_DSI || FB_MXC_MIPI_DSI_SAMSUNG
 
 config FB_MXC_LDB
 	tristate "MXC LDB"
