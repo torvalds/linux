@@ -112,7 +112,8 @@ static void ia_enque_head_rtn_q (IARTN_Q *que, IARTN_Q * data)
 
 static int ia_enque_rtn_q (IARTN_Q *que, struct desc_tbl_t data) {
    IARTN_Q *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
-   if (!entry) return -1;
+   if (!entry)
+      return -ENOMEM;
    entry->data = data;
    entry->next = NULL;
    if (que->next == NULL) 
