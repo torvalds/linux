@@ -69,6 +69,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&reg_dcdc3>;
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -121,7 +125,7 @@
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
-	vmmc-supply = <&vcc_3v0>;
+	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
 	cd-inverted;
@@ -136,7 +140,7 @@
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>, <&wifi_reset_pin_hummingbird>;
-	vmmc-supply = <&vcc_wifi>;
+	vmmc-supply = <&reg_aldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	non-removable;
@@ -173,66 +177,61 @@
 &p2wi {
 	status = "okay";
 
-	axp221: pmic@68 {
+	axp22x: pmic@68 {
 		compatible = "x-powers,axp221";
 		reg = <0x68>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-controller;
-		#interrupt-cells = <1>;
-
-		regulators {
-			x-powers,dcdc-freq = <3000>;
-
-			vcc_3v0: dcdc1 {
-				regulator-always-on;
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-name = "vcc-3v0";
-			};
-
-			vdd_gpu: dcdc2 {
-				regulator-always-on;
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1320000>;
-				regulator-name = "vdd-gpu";
-			};
-
-			vdd_cpu: dcdc3 {
-				regulator-always-on;
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1320000>;
-				regulator-name = "vdd-cpu";
-			};
-
-			vdd_sys_dll: dcdc4 {
-				regulator-always-on;
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>;
-				regulator-name = "vdd-sys-dll";
-			};
-
-			vcc_dram: dcdc5 {
-				regulator-always-on;
-				regulator-min-microvolt = <1500000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-name = "vcc-dram";
-			};
-
-			vcc_wifi: aldo1 {
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc_wifi";
-			};
-
-			avcc: aldo3 {
-				regulator-always-on;
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-name = "avcc";
-			};
-		};
 	};
+};
+
+#include "axp22x.dtsi"
+
+&reg_aldo1 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi";
+};
+
+&reg_aldo3 {
+	regulator-always-on;
+	regulator-min-microvolt = <2700000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "avcc";
+};
+
+&reg_dcdc1 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "vcc-3v0";
+};
+
+&reg_dcdc2 {
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-gpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc4 {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-sys-dll";
+};
+
+&reg_dcdc5 {
+	regulator-always-on;
+	regulator-min-microvolt = <1500000>;
+	regulator-max-microvolt = <1500000>;
+	regulator-name = "vcc-dram";
 };
 
 &reg_usb1_vbus {
