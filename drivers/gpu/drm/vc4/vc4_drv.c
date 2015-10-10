@@ -92,7 +92,8 @@ static struct drm_driver vc4_drm_driver = {
 	.debugfs_cleanup = vc4_debugfs_cleanup,
 #endif
 
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_create_object = vc4_create_object,
+	.gem_free_object = vc4_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
@@ -170,6 +171,8 @@ static int vc4_drm_bind(struct device *dev)
 
 	drm_dev_set_unique(drm, dev_name(dev));
 
+	vc4_bo_cache_init(drm);
+
 	drm_mode_config_init(drm);
 	if (ret)
 		goto unref;
@@ -202,6 +205,7 @@ unbind_all:
 	component_unbind_all(dev, drm);
 unref:
 	drm_dev_unref(drm);
+	vc4_bo_cache_destroy(drm);
 	return ret;
 }
 
