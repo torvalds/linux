@@ -1336,10 +1336,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
-	if (retval)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 /*
