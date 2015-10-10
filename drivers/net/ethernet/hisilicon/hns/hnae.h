@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
+#include <linux/phy.h>
 #include <linux/types.h>
 
 #define HNAE_DRIVER_VERSION "1.3.0"
