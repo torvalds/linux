@@ -4003,7 +4003,7 @@ S:	Maintained
 F:	sound/usb/misc/ua101.c
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 L:	linux-efi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
@@ -4018,7 +4018,7 @@ F:	include/linux/efi*.h
 EFI VARIABLE FILESYSTEM
 M:	Matthew Garrett <matthew.garrett@nebula.com>
 M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 L:	linux-efi@vger.kernel.org
 S:	Maintained
