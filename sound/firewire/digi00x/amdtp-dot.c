@@ -21,8 +21,8 @@
  * Zammit in 2012, with reverse-engineering for Digi 003 Rack.
  */
 struct dot_state {
-	__u8 carry;
-	__u8 idx;
+	u8 carry;
+	u8 idx;
 	unsigned int off;
 };
 
@@ -47,25 +47,25 @@ struct amdtp_dot {
 #define BYTE_PER_SAMPLE (4)
 #define MAGIC_DOT_BYTE (2)
 #define MAGIC_BYTE_OFF(x) (((x) * BYTE_PER_SAMPLE) + MAGIC_DOT_BYTE)
-static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
+static const u8 dot_scrt(const u8 idx, const unsigned int off)
 {
 	/*
 	 * the length of the added pattern only depends on the lower nibble
 	 * of the last non-zero data
 	 */
-	static const __u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
-				     12, 10, 8, 6, 4, 2, 0};
+	static const u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
+				   12, 10, 8, 6, 4, 2, 0};
 
 	/*
 	 * the lower nibble of the salt. Interleaved sequence.
 	 * this is walked backwards according to len[]
 	 */
-	static const __u8 nib[15] = {0x8, 0x7, 0x9, 0x6, 0xa, 0x5, 0xb, 0x4,
-				     0xc, 0x3, 0xd, 0x2, 0xe, 0x1, 0xf};
+	static const u8 nib[15] = {0x8, 0x7, 0x9, 0x6, 0xa, 0x5, 0xb, 0x4,
+				   0xc, 0x3, 0xd, 0x2, 0xe, 0x1, 0xf};
 
 	/* circular list for the salt's hi nibble. */
-	static const __u8 hir[15] = {0x0, 0x6, 0xf, 0x8, 0x7, 0x5, 0x3, 0x4,
-				     0xc, 0xd, 0xe, 0x1, 0x2, 0xb, 0xa};
+	static const u8 hir[15] = {0x0, 0x6, 0xf, 0x8, 0x7, 0x5, 0x3, 0x4,
+				   0xc, 0xd, 0xe, 0x1, 0x2, 0xb, 0xa};
 
 	/*
 	 * start offset for upper nibble mapping.
@@ -73,12 +73,12 @@ static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
 	 * hir[] is not used and - coincidentally - the salt's hi nibble is
 	 * 0x09 regardless of the offset.
 	 */
-	static const __u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
-				     3, 0x00, 14, 13, 8, 9, 10, 2};
+	static const u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
+				   3, 0x00, 14, 13, 8, 9, 10, 2};
 
-	const __u8 ln = idx & 0xf;
-	const __u8 hn = (idx >> 4) & 0xf;
-	const __u8 hr = (hn == 0x9) ? 0x9 : hir[(hio[hn] + off) % 15];
+	const u8 ln = idx & 0xf;
+	const u8 hn = (idx >> 4) & 0xf;
+	const u8 hr = (hn == 0x9) ? 0x9 : hir[(hio[hn] + off) % 15];
 
 	if (len[ln] < off)
 		return 0x00;
@@ -88,7 +88,7 @@ static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
 
 static void dot_encode_step(struct dot_state *state, __be32 *const buffer)
 {
-	__u8 * const data = (__u8 *) buffer;
+	u8 * const data = (u8 *) buffer;
 
 	if (data[MAGIC_DOT_BYTE] != 0x00) {
 		state->off = 0;
