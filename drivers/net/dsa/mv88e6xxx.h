@@ -402,11 +402,6 @@ struct mv88e6xxx_priv_state {
 	int		id; /* switch product id */
 	int		num_ports;	/* number of switch ports */
 
-	/* hw bridging */
-
-	DECLARE_BITMAP(fid_bitmap, VLAN_N_VID);	/* FIDs 1 to 4095 available */
-	u16 fid[DSA_MAX_PORTS];			/* per (non-bridged) port FID */
-
 	unsigned long port_state_update_mask;
 	u8 port_state[DSA_MAX_PORTS];
 
