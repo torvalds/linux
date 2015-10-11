@@ -23,6 +23,8 @@
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
 
+#include <linux/irqchip/arm-gic-v3.h>
+
 static bool
 feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 {
@@ -45,11 +47,26 @@ __ID_FEAT_CHK(id_aa64pfr0);
 __ID_FEAT_CHK(id_aa64mmfr1);
 __ID_FEAT_CHK(id_aa64isar0);
 
+static bool has_useable_gicv3_cpuif(const struct arm64_cpu_capabilities *entry)
+{
+	bool has_sre;
+
+	if (!has_id_aa64pfr0_feature(entry))
+		return false;
+
+	has_sre = gic_enable_sre();
+	if (!has_sre)
+		pr_warn_once("%s present but disabled by higher exception level\n",
+			     entry->desc);
+
+	return has_sre;
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
 		.capability = ARM64_HAS_SYSREG_GIC_CPUIF,
-		.matches = has_id_aa64pfr0_feature,
+		.matches = has_useable_gicv3_cpuif,
 		.field_pos = 24,
 		.min_field_value = 1,
 	},

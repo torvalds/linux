@@ -51,6 +51,19 @@
 
 #include "irq-gic-common.h"
 
+#ifdef CONFIG_ARM64
+#include <asm/cpufeature.h>
+
+static void gic_check_cpu_features(void)
+{
+	WARN_TAINT_ONCE(cpus_have_cap(ARM64_HAS_SYSREG_GIC_CPUIF),
+			TAINT_CPU_OUT_OF_SPEC,
+			"GICv3 system registers enabled, broken firmware!\n");
+}
+#else
+#define gic_check_cpu_features()	do { } while(0)
+#endif
+
 union gic_base {
 	void __iomem *common_base;
 	void __percpu * __iomem *percpu_base;
@@ -986,6 +999,8 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	int gic_irqs, irq_base, i;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
+
+	gic_check_cpu_features();
 
 	gic = &gic_data[gic_nr];
 #ifdef CONFIG_GIC_NON_BANKED
