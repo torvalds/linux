@@ -4048,7 +4048,7 @@ static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 	struct qlcnic_mailbox *mbx = container_of(work, struct qlcnic_mailbox,
 						  work);
 	struct qlcnic_adapter *adapter = mbx->adapter;
-	struct qlcnic_mbx_ops *mbx_ops = mbx->ops;
+	const struct qlcnic_mbx_ops *mbx_ops = mbx->ops;
 	struct device *dev = &adapter->pdev->dev;
 	atomic_t *rsp_status = &mbx->rsp_status;
 	struct list_head *head = &mbx->cmd_q;
@@ -4098,7 +4098,7 @@ static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 	}
 }
 
-static struct qlcnic_mbx_ops qlcnic_83xx_mbx_ops = {
+static const struct qlcnic_mbx_ops qlcnic_83xx_mbx_ops = {
 	.enqueue_cmd    = qlcnic_83xx_enqueue_mbx_cmd,
 	.dequeue_cmd    = qlcnic_83xx_dequeue_mbx_cmd,
 	.decode_resp    = qlcnic_83xx_decode_mbx_rsp,
