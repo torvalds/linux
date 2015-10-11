@@ -285,6 +285,8 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 	err = snd_dg00x_stream_get_local_rate(dg00x, &curr_rate);
 	if (err < 0)
 		goto error;
+	if (rate == 0)
+		rate = curr_rate;
 	if (curr_rate != rate ||
 	    amdtp_streaming_error(&dg00x->tx_stream) ||
 	    amdtp_streaming_error(&dg00x->rx_stream)) {

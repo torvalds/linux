@@ -147,5 +147,7 @@ void snd_dg00x_proc_init(struct snd_dg00x *dg00x);
 
 int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x);
 
+int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x);
+
 int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x);
 #endif
