@@ -524,6 +524,9 @@ static int br_afspec(struct net_bridge *br,
 			if (vinfo_start)
 				return -EINVAL;
 			vinfo_start = vinfo;
+			/* don't allow range of pvids */
+			if (vinfo_start->flags & BRIDGE_VLAN_INFO_PVID)
+				return -EINVAL;
 			continue;
 		}
 
