@@ -390,10 +390,10 @@ EXPORT_SYMBOL_GPL(tty_find_polling_driver);
  *	Locking: ctrl_lock
  */
 
-int tty_check_change(struct tty_struct *tty)
+int __tty_check_change(struct tty_struct *tty, int sig)
 {
 	unsigned long flags;
-	struct pid *pgrp;
+	struct pid *pgrp, *tty_pgrp;
 	int ret = 0;
 
 	if (current->signal->tty != tty)
@@ -403,33 +403,35 @@ int tty_check_change(struct tty_struct *tty)
 	pgrp = task_pgrp(current);
 
 	spin_lock_irqsave(&tty->ctrl_lock, flags);
-
-	if (!tty->pgrp) {
-		printk(KERN_WARNING "tty_check_change: tty->pgrp == NULL!\n");
-		goto out_unlock;
-	}
-	if (pgrp == tty->pgrp)
-		goto out_unlock;
+	tty_pgrp = tty->pgrp;
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
-	if (is_ignored(SIGTTOU))
-		goto out_rcuunlock;
-	if (is_current_pgrp_orphaned()) {
-		ret = -EIO;
-		goto out_rcuunlock;
+	if (tty_pgrp && pgrp != tty->pgrp) {
+		if (is_ignored(sig)) {
+			if (sig == SIGTTIN)
+				ret = -EIO;
+		} else if (is_current_pgrp_orphaned())
+			ret = -EIO;
+		else {
+			kill_pgrp(pgrp, sig, 1);
+			set_thread_flag(TIF_SIGPENDING);
+			ret = -ERESTARTSYS;
+		}
 	}
-	kill_pgrp(pgrp, SIGTTOU, 1);
 	rcu_read_unlock();
-	set_thread_flag(TIF_SIGPENDING);
-	ret = -ERESTARTSYS;
-	return ret;
-out_unlock:
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-out_rcuunlock:
-	rcu_read_unlock();
+
+	if (!tty_pgrp) {
+		pr_warn("%s: tty_check_change: sig=%d, tty->pgrp == NULL!\n",
+			tty_name(tty), sig);
+	}
+
 	return ret;
 }
 
+int tty_check_change(struct tty_struct *tty)
+{
+	return __tty_check_change(tty, SIGTTOU);
+}
 EXPORT_SYMBOL(tty_check_change);
 
 static ssize_t hung_up_tty_read(struct file *file, char __user *buf,
