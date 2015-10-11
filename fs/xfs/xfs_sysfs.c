@@ -21,6 +21,7 @@
 #include "xfs_log_format.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
+#include "xfs_stats.h"
 
 struct xfs_sysfs_attr {
 	struct attribute attr;
@@ -38,6 +39,8 @@ to_attr(struct attribute *attr)
 	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_RW(name)
 #define XFS_SYSFS_ATTR_RO(name) \
 	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_RO(name)
+#define XFS_SYSFS_ATTR_WO(name) \
+	static struct xfs_sysfs_attr xfs_sysfs_attr_##name = __ATTR_WO(name)
 
 #define ATTR_LIST(name) &xfs_sysfs_attr_##name.attr
 
@@ -124,6 +127,78 @@ struct kobj_type xfs_dbg_ktype = {
 };
 
 #endif /* DEBUG */
+
+
+/* stats */
+
+STATIC ssize_t
+stats_show(
+	char	*buf,
+	void	*data)
+{
+	return xfs_stats_format(buf);
+}
+XFS_SYSFS_ATTR_RO(stats);
+
+STATIC ssize_t
+stats_clear_store(
+	const char	*buf,
+	size_t		count,
+	void		*data)
+{
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val != 1)
+		return -EINVAL;
+	xfs_stats_clearall();
+	return count;
+}
+XFS_SYSFS_ATTR_WO(stats_clear);
+
+static struct attribute *xfs_stats_attrs[] = {
+	ATTR_LIST(stats),
+	ATTR_LIST(stats_clear),
+	NULL,
+};
+
+STATIC ssize_t
+xfs_stats_show(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	char			*buf)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->show ? xfs_attr->show(buf, NULL) : 0;
+}
+
+STATIC ssize_t
+xfs_stats_store(
+	struct kobject		*kobject,
+	struct attribute	*attr,
+	const char		*buf,
+	size_t			count)
+{
+	struct xfs_sysfs_attr *xfs_attr = to_attr(attr);
+
+	return xfs_attr->store ? xfs_attr->store(buf, count, NULL) : 0;
+}
+
+static struct sysfs_ops xfs_stats_ops = {
+	.show = xfs_stats_show,
+	.store = xfs_stats_store,
+};
+
+struct kobj_type xfs_stats_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_stats_ops,
+	.default_attrs = xfs_stats_attrs,
+};
 
 /* xlog */
 

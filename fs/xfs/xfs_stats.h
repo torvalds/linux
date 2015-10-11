@@ -18,6 +18,8 @@
 #ifndef __XFS_STATS_H__
 #define __XFS_STATS_H__
 
+int xfs_stats_format(char *buf);
+void xfs_stats_clearall(void);
 
 #if defined(CONFIG_PROC_FS) && !defined(XFS_STATS_OFF)
 
