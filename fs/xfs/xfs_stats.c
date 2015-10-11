@@ -18,18 +18,18 @@
 #include "xfs.h"
 #include <linux/proc_fs.h>
 
-DEFINE_PER_CPU(struct xfsstats, xfsstats);
+struct xstats xfsstats;
 
-static int counter_val(int idx)
+static int counter_val(struct xfsstats __percpu *stats, int idx)
 {
 	int val = 0, cpu;
 
 	for_each_possible_cpu(cpu)
-		val += *(((__u32 *)&per_cpu(xfsstats, cpu) + idx));
+		val += *(((__u32 *)per_cpu_ptr(stats, cpu) + idx));
 	return val;
 }
 
-int xfs_stats_format(char *buf)
+int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 {
 	int		i, j;
 	int		len = 0;
@@ -73,14 +73,14 @@ int xfs_stats_format(char *buf)
 		/* inner loop does each group */
 		for (; j < xstats[i].endpoint; j++)
 			len += snprintf(buf + len, PATH_MAX - len, " %u",
-					counter_val(j));
+					counter_val(stats, j));
 		len += snprintf(buf + len, PATH_MAX - len, "\n");
 	}
 	/* extra precision counters */
 	for_each_possible_cpu(i) {
-		xs_xstrat_bytes += per_cpu(xfsstats, i).xs_xstrat_bytes;
-		xs_write_bytes += per_cpu(xfsstats, i).xs_write_bytes;
-		xs_read_bytes += per_cpu(xfsstats, i).xs_read_bytes;
+		xs_xstrat_bytes += per_cpu_ptr(stats, i)->xs_xstrat_bytes;
+		xs_write_bytes += per_cpu_ptr(stats, i)->xs_write_bytes;
+		xs_read_bytes += per_cpu_ptr(stats, i)->xs_read_bytes;
 	}
 
 	len += snprintf(buf + len, PATH_MAX-len, "xpc %Lu %Lu %Lu\n",
@@ -95,7 +95,7 @@ int xfs_stats_format(char *buf)
 	return len;
 }
 
-void xfs_stats_clearall(void)
+void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
 	int		c;
 	__uint32_t	vn_active;
@@ -104,9 +104,9 @@ void xfs_stats_clearall(void)
 	for_each_possible_cpu(c) {
 		preempt_disable();
 		/* save vn_active, it's a universal truth! */
-		vn_active = per_cpu(xfsstats, c).vn_active;
-		memset(&per_cpu(xfsstats, c), 0, sizeof(struct xfsstats));
-		per_cpu(xfsstats, c).vn_active = vn_active;
+		vn_active = per_cpu_ptr(stats, c)->vn_active;
+		memset(per_cpu_ptr(stats, c), 0, sizeof(*stats));
+		per_cpu_ptr(stats, c)->vn_active = vn_active;
 		preempt_enable();
 	}
 }
@@ -117,10 +117,8 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 {
 	/* maximum; incore; ratio free to inuse; freelist */
 	seq_printf(m, "%d\t%d\t%d\t%u\n",
-			0,
-			counter_val(XFSSTAT_END_XQMSTAT),
-			0,
-			counter_val(XFSSTAT_END_XQMSTAT + 1));
+		   0, counter_val(xfsstats.xs_stats, XFSSTAT_END_XQMSTAT),
+		   0, counter_val(xfsstats.xs_stats, XFSSTAT_END_XQMSTAT + 1));
 	return 0;
 }
 
@@ -144,7 +142,7 @@ static int xqmstat_proc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "qm");
 	for (j = XFSSTAT_END_IBT_V2; j < XFSSTAT_END_XQMSTAT; j++)
-		seq_printf(m, " %u", counter_val(j));
+		seq_printf(m, " %u", counter_val(xfsstats.xs_stats, j));
 	seq_putc(m, '\n');
 	return 0;
 }

@@ -61,7 +61,6 @@ static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
 
 static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
-static struct xfs_kobj xfs_stats_kobj;	/* global stats sysfs attrs */
 #ifdef DEBUG
 static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
 #endif
@@ -1842,11 +1841,18 @@ init_xfs_fs(void)
 		goto out_sysctl_unregister;
 	}
 
-	xfs_stats_kobj.kobject.kset = xfs_kset;
-	error = xfs_sysfs_init(&xfs_stats_kobj, &xfs_stats_ktype, NULL,
+	xfsstats.xs_kobj.kobject.kset = xfs_kset;
+
+	xfsstats.xs_stats = alloc_percpu(struct xfsstats);
+	if (!xfsstats.xs_stats) {
+		error = -ENOMEM;
+		goto out_kset_unregister;
+	}
+
+	error = xfs_sysfs_init(&xfsstats.xs_kobj, &xfs_stats_ktype, NULL,
 			       "stats");
 	if (error)
-		goto out_kset_unregister;
+		goto out_free_stats;
 
 #ifdef DEBUG
 	xfs_dbg_kobj.kobject.kset = xfs_kset;
@@ -1871,7 +1877,9 @@ init_xfs_fs(void)
 	xfs_sysfs_del(&xfs_dbg_kobj);
  out_remove_stats_kobj:
 #endif
-	xfs_sysfs_del(&xfs_stats_kobj);
+	xfs_sysfs_del(&xfsstats.xs_kobj);
+ out_free_stats:
+	free_percpu(xfsstats.xs_stats);
  out_kset_unregister:
 	kset_unregister(xfs_kset);
  out_sysctl_unregister:
@@ -1898,7 +1906,8 @@ exit_xfs_fs(void)
 #ifdef DEBUG
 	xfs_sysfs_del(&xfs_dbg_kobj);
 #endif
-	xfs_sysfs_del(&xfs_stats_kobj);
+	xfs_sysfs_del(&xfsstats.xs_kobj);
+	free_percpu(xfsstats.xs_stats);
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();

@@ -131,12 +131,22 @@ struct kobj_type xfs_dbg_ktype = {
 
 /* stats */
 
+static inline struct xstats *
+to_xstats(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+
+	return container_of(kobj, struct xstats, xs_kobj);
+}
+
 STATIC ssize_t
 stats_show(
 	struct kobject	*kobject,
 	char		*buf)
 {
-	return xfs_stats_format(buf);
+	struct xstats	*stats = to_xstats(kobject);
+
+	return xfs_stats_format(stats->xs_stats, buf);
 }
 XFS_SYSFS_ATTR_RO(stats);
 
@@ -148,6 +158,7 @@ stats_clear_store(
 {
 	int		ret;
 	int		val;
+	struct xstats	*stats = to_xstats(kobject);
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret)
@@ -155,7 +166,8 @@ stats_clear_store(
 
 	if (val != 1)
 		return -EINVAL;
-	xfs_stats_clearall();
+
+	xfs_stats_clearall(stats->xs_stats);
 	return count;
 }
 XFS_SYSFS_ATTR_WO(stats_clear);

@@ -171,6 +171,13 @@ struct xfs_kobj {
 	struct completion	complete;
 };
 
+struct xstats {
+	struct xfsstats __percpu	*xs_stats;
+	struct xfs_kobj			xs_kobj;
+};
+
+extern struct xstats xfsstats;
+
 /* Kernel uid/gid conversion. These are used to convert to/from the on disk
  * uid_t/gid_t types to the kuid_t/kgid_t types that the kernel uses internally.
  * The conversion here is type only, the value will remain the same since we

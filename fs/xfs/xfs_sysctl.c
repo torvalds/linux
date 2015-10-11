@@ -37,7 +37,7 @@ xfs_stats_clear_proc_handler(
 	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 
 	if (!ret && write && *valp) {
-		xfs_stats_clearall();
+		xfs_stats_clearall(xfsstats.xs_stats);
 		xfs_stats_clear = 0;
 	}
 
