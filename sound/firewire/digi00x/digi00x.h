@@ -53,6 +53,9 @@ struct snd_dg00x {
 	/* For asynchronous messages. */
 	struct fw_address_handler async_handler;
 	u32 msg;
+
+	/* For asynchronous MIDI controls. */
+	struct snd_rawmidi_substream *in_control;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
