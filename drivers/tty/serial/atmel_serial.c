@@ -1682,15 +1682,15 @@ static void atmel_init_rs485(struct uart_port *port,
 	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (np) {
+		struct serial_rs485 *rs485conf = &port->rs485;
 		u32 rs485_delay[2];
 		/* rs485 properties */
 		if (of_property_read_u32_array(np, "rs485-rts-delay",
 					rs485_delay, 2) == 0) {
-			struct serial_rs485 *rs485conf = &port->rs485;
-
 			rs485conf->delay_rts_before_send = rs485_delay[0];
 			rs485conf->delay_rts_after_send = rs485_delay[1];
 			rs485conf->flags = 0;
+		}
 
 		if (of_get_property(np, "rs485-rx-during-tx", NULL))
 			rs485conf->flags |= SER_RS485_RX_DURING_TX;
@@ -1698,7 +1698,6 @@ static void atmel_init_rs485(struct uart_port *port,
 		if (of_get_property(np, "linux,rs485-enabled-at-boot-time",
 								NULL))
 			rs485conf->flags |= SER_RS485_ENABLED;
-		}
 	} else {
 		port->rs485       = pdata->rs485;
 	}
