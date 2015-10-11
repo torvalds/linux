@@ -834,7 +834,7 @@ static struct v4l2_subdev_ops mt9t001_subdev_ops = {
 	.pad = &mt9t001_subdev_pad_ops,
 };
 
-static struct v4l2_subdev_internal_ops mt9t001_subdev_internal_ops = {
+static const struct v4l2_subdev_internal_ops mt9t001_subdev_internal_ops = {
 	.registered = mt9t001_registered,
 	.open = mt9t001_open,
 	.close = mt9t001_close,
