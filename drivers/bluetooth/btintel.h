@@ -80,6 +80,9 @@ int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 			const void *param);
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
 
+struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
+				   u16 opcode_write);
+
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -113,4 +116,10 @@ static inline int btintel_load_ddc_config(struct hci_dev *hdev,
 	return -EOPNOTSUPP;
 }
 
+static inline struct regmap *btintel_regmap_init(struct hci_dev *hdev,
+						 u16 opcode_read,
+						 u16 opcode_write)
+{
+	return ERR_PTR(-EINVAL);
+}
 #endif

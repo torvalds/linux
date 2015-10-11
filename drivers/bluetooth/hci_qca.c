@@ -347,7 +347,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 	struct hci_uart *hu = (struct hci_uart *)arg;
 	struct qca_data *qca = hu->priv;
 	unsigned long flags, retrans_delay;
-	unsigned long retransmit = 0;
+	bool retransmit = false;
 
 	BT_DBG("hu %p wake retransmit timeout in %d state",
 		hu, qca->tx_ibs_state);
@@ -358,7 +358,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_WAKING:
 		/* No WAKE_ACK, retransmit WAKE */
-		retransmit = 1;
+		retransmit = true;
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0) {
 			BT_ERR("Failed to acknowledge device wake up");
 			break;

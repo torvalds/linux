@@ -940,9 +940,6 @@ static int btusb_open(struct hci_dev *hdev)
 
 	data->intf->needs_remote_wakeup = 1;
 
-	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
-		goto done;
-
 	if (test_and_set_bit(BTUSB_INTR_RUNNING, &data->flags))
 		goto done;
 
@@ -965,7 +962,6 @@ done:
 
 failed:
 	clear_bit(BTUSB_INTR_RUNNING, &data->flags);
-	clear_bit(HCI_RUNNING, &hdev->flags);
 	usb_autopm_put_interface(data->intf);
 	return err;
 }
@@ -983,9 +979,6 @@ static int btusb_close(struct hci_dev *hdev)
 	int err;
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
-		return 0;
 
 	cancel_work_sync(&data->work);
 	cancel_work_sync(&data->waker);
@@ -1155,9 +1148,6 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	struct urb *urb;
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -1842,9 +1832,6 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 	struct urb *urb;
 
 	BT_DBG("%s", hdev->name);
-
-	if (!test_bit(HCI_RUNNING, &hdev->flags))
-		return -EBUSY;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:

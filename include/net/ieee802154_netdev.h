@@ -50,15 +50,6 @@ struct ieee802154_sechdr {
 	};
 };
 
-struct ieee802154_addr {
-	u8 mode;
-	__le16 pan_id;
-	union {
-		__le16 short_addr;
-		__le64 extended_addr;
-	};
-};
-
 struct ieee802154_hdr_fc {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	u16 type:3,
@@ -99,7 +90,7 @@ struct ieee802154_hdr {
  * hdr->fc will be ignored. this includes the INTRA_PAN bit and the frame
  * version, if SECEN is set.
  */
-int ieee802154_hdr_push(struct sk_buff *skb, const struct ieee802154_hdr *hdr);
+int ieee802154_hdr_push(struct sk_buff *skb, struct ieee802154_hdr *hdr);
 
 /* pulls the entire 802.15.4 header off of the skb, including the security
  * header, and performs pan id decompression
@@ -243,87 +234,12 @@ static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 	return mac_cb(skb);
 }
 
-#define IEEE802154_LLSEC_KEY_SIZE 16
-
-struct ieee802154_llsec_key_id {
-	u8 mode;
-	u8 id;
-	union {
-		struct ieee802154_addr device_addr;
-		__le32 short_source;
-		__le64 extended_source;
-	};
-};
-
-struct ieee802154_llsec_key {
-	u8 frame_types;
-	u32 cmd_frame_ids;
-	u8 key[IEEE802154_LLSEC_KEY_SIZE];
-};
-
-struct ieee802154_llsec_key_entry {
-	struct list_head list;
-
-	struct ieee802154_llsec_key_id id;
-	struct ieee802154_llsec_key *key;
-};
-
-struct ieee802154_llsec_device_key {
-	struct list_head list;
-
-	struct ieee802154_llsec_key_id key_id;
-	u32 frame_counter;
-};
-
 enum {
 	IEEE802154_LLSEC_DEVKEY_IGNORE,
 	IEEE802154_LLSEC_DEVKEY_RESTRICT,
 	IEEE802154_LLSEC_DEVKEY_RECORD,
 
 	__IEEE802154_LLSEC_DEVKEY_MAX,
-};
-
-struct ieee802154_llsec_device {
-	struct list_head list;
-
-	__le16 pan_id;
-	__le16 short_addr;
-	__le64 hwaddr;
-	u32 frame_counter;
-	bool seclevel_exempt;
-
-	u8 key_mode;
-	struct list_head keys;
-};
-
-struct ieee802154_llsec_seclevel {
-	struct list_head list;
-
-	u8 frame_type;
-	u8 cmd_frame_id;
-	bool device_override;
-	u32 sec_levels;
-};
-
-struct ieee802154_llsec_params {
-	bool enabled;
-
-	__be32 frame_counter;
-	u8 out_level;
-	struct ieee802154_llsec_key_id out_key;
-
-	__le64 default_key_source;
-
-	__le16 pan_id;
-	__le64 hwaddr;
-	__le64 coord_hwaddr;
-	__le16 coord_shortaddr;
-};
-
-struct ieee802154_llsec_table {
-	struct list_head keys;
-	struct list_head devices;
-	struct list_head security_levels;
 };
 
 #define IEEE802154_MAC_SCAN_ED		0

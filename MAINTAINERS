@@ -6978,6 +6978,7 @@ M:	Alan Ott <alan@signal11.us>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ieee802154/mrf24j40.c
+F:	Documentation/devicetree/bindings/net/ieee802154/mrf24j40.txt
 
 MSI LAPTOP SUPPORT
 M:	"Lee, Chun-Yi" <jlee@suse.com>

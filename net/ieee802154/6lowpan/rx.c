@@ -29,6 +29,8 @@
 static int lowpan_give_skb_to_device(struct sk_buff *skb)
 {
 	skb->protocol = htons(ETH_P_IPV6);
+	skb->dev->stats.rx_packets++;
+	skb->dev->stats.rx_bytes += skb->len;
 
 	return netif_rx(skb);
 }

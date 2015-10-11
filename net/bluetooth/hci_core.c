@@ -134,6 +134,66 @@ static const struct file_operations dut_mode_fops = {
 	.llseek		= default_llseek,
 };
 
+static ssize_t vendor_diag_read(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = hci_dev_test_flag(hdev, HCI_VENDOR_DIAG) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+	int err;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	hci_req_lock(hdev);
+	err = hdev->set_diag(hdev, enable);
+	hci_req_unlock(hdev);
+
+	if (err < 0)
+		return err;
+
+	if (enable)
+		hci_dev_set_flag(hdev, HCI_VENDOR_DIAG);
+	else
+		hci_dev_clear_flag(hdev, HCI_VENDOR_DIAG);
+
+	return count;
+}
+
+static const struct file_operations vendor_diag_fops = {
+	.open		= simple_open,
+	.read		= vendor_diag_read,
+	.write		= vendor_diag_write,
+	.llseek		= default_llseek,
+};
+
+static void hci_debugfs_create_basic(struct hci_dev *hdev)
+{
+	debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
+			    &dut_mode_fops);
+
+	if (hdev->set_diag)
+		debugfs_create_file("vendor_diag", 0644, hdev->debugfs, hdev,
+				    &vendor_diag_fops);
+}
+
 /* ---- HCI requests ---- */
 
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
@@ -850,13 +910,8 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	/* The Device Under Test (DUT) mode is special and available for
-	 * all controller types. So just create it early on.
-	 */
-	if (hci_dev_test_flag(hdev, HCI_SETUP)) {
-		debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
-				    &dut_mode_fops);
-	}
+	if (hci_dev_test_flag(hdev, HCI_SETUP))
+		hci_debugfs_create_basic(hdev);
 
 	err = __hci_req_sync(hdev, hci_init2_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
@@ -932,6 +987,9 @@ static int __hci_unconf_init(struct hci_dev *hdev)
 	err = __hci_req_sync(hdev, hci_init0_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
 		return err;
+
+	if (hci_dev_test_flag(hdev, HCI_SETUP))
+		hci_debugfs_create_basic(hdev);
 
 	return 0;
 }
@@ -1385,6 +1443,9 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		goto done;
 	}
 
+	set_bit(HCI_RUNNING, &hdev->flags);
+	hci_notify(hdev, HCI_DEV_OPEN);
+
 	atomic_set(&hdev->cmd_cnt, 1);
 	set_bit(HCI_INIT, &hdev->flags);
 
@@ -1465,6 +1526,9 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 			kfree_skb(hdev->sent_cmd);
 			hdev->sent_cmd = NULL;
 		}
+
+		clear_bit(HCI_RUNNING, &hdev->flags);
+		hci_notify(hdev, HCI_DEV_CLOSE);
 
 		hdev->close(hdev);
 		hdev->flags &= BIT(HCI_RAW);
@@ -1551,6 +1615,8 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 
 int hci_dev_do_close(struct hci_dev *hdev)
 {
+	bool auto_off;
+
 	BT_DBG("%s %p", hdev->name, hdev);
 
 	if (!hci_dev_test_flag(hdev, HCI_UNREGISTER) &&
@@ -1606,10 +1672,10 @@ int hci_dev_do_close(struct hci_dev *hdev)
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
-	if (!hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
-		if (hdev->dev_type == HCI_BREDR)
-			mgmt_powered(hdev, 0);
-	}
+	auto_off = hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF);
+
+	if (!auto_off && hdev->dev_type == HCI_BREDR)
+		mgmt_powered(hdev, 0);
 
 	hci_inquiry_cache_flush(hdev);
 	hci_pend_le_actions_clear(hdev);
@@ -1626,9 +1692,8 @@ int hci_dev_do_close(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	if (!hci_dev_test_flag(hdev, HCI_AUTO_OFF) &&
-	    !hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
-	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
+	if (test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks) &&
+	    !auto_off && !hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 		set_bit(HCI_INIT, &hdev->flags);
 		__hci_req_sync(hdev, hci_reset_req, 0, HCI_CMD_TIMEOUT);
 		clear_bit(HCI_INIT, &hdev->flags);
@@ -1648,6 +1713,9 @@ int hci_dev_do_close(struct hci_dev *hdev)
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
+
+	clear_bit(HCI_RUNNING, &hdev->flags);
+	hci_notify(hdev, HCI_DEV_CLOSE);
 
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
@@ -3471,6 +3539,13 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		return -ENXIO;
 	}
 
+	if (bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
+	    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+	    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
 	/* Incoming skb */
 	bt_cb(skb)->incoming = 1;
 
@@ -3483,6 +3558,21 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 EXPORT_SYMBOL(hci_recv_frame);
+
+/* Receive diagnostic message from HCI drivers */
+int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	/* Time stamp */
+	__net_timestamp(skb);
+
+	/* Mark as diagnostic packet and send to monitor */
+	bt_cb(skb)->pkt_type = HCI_DIAG_PKT;
+	hci_send_to_monitor(hdev, skb);
+
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL(hci_recv_diag);
 
 /* ---- Interface to upper protocols ---- */
 
@@ -3529,6 +3619,11 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
+
+	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
+		kfree_skb(skb);
+		return;
+	}
 
 	err = hdev->send(hdev, skb);
 	if (err < 0) {
@@ -3579,6 +3674,25 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)
 
 	return hdev->sent_cmd->data + HCI_COMMAND_HDR_SIZE;
 }
+
+/* Send HCI command and wait for command commplete event */
+struct sk_buff *hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			     const void *param, u32 timeout)
+{
+	struct sk_buff *skb;
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return ERR_PTR(-ENETDOWN);
+
+	bt_dev_dbg(hdev, "opcode 0x%4.4x plen %d", opcode, plen);
+
+	hci_req_lock(hdev);
+	skb = __hci_cmd_sync(hdev, opcode, plen, param, timeout);
+	hci_req_unlock(hdev);
+
+	return skb;
+}
+EXPORT_SYMBOL(hci_cmd_sync);
 
 /* Send ACL data */
 static void hci_add_acl_hdr(struct sk_buff *skb, __u16 handle, __u16 flags)
