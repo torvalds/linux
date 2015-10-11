@@ -468,10 +468,12 @@ static int handle_in_packet(struct amdtp_stream *s,
 	/* Check valid protocol or not. */
 	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
 	if (fmt != s->fmt) {
-		dev_err(&s->unit->device,
-			"Detect unexpected protocol: %08x %08x\n",
-			cip_header[0], cip_header[1]);
-		return -EIO;
+		dev_info_ratelimited(&s->unit->device,
+				     "Detect unexpected protocol: %08x %08x\n",
+				     cip_header[0], cip_header[1]);
+		*data_blocks = 0;
+		pcm_frames = 0;
+		goto end;
 	}
 
 	/* Calculate data blocks */
