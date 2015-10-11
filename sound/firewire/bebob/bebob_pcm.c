@@ -155,7 +155,7 @@ static int
 pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	struct snd_bebob_rate_spec *spec = bebob->spec->rate;
+	const struct snd_bebob_rate_spec *spec = bebob->spec->rate;
 	unsigned int sampling_rate;
 	enum snd_bebob_clock_type src;
 	int err;

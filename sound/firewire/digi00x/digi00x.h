@@ -24,6 +24,7 @@
 #include <sound/pcm_params.h>
 #include <sound/firewire.h>
 #include <sound/hwdep.h>
+#include <sound/rawmidi.h>
 
 #include "../lib.h"
 #include "../iso-resources.h"
@@ -52,6 +53,10 @@ struct snd_dg00x {
 	/* For asynchronous messages. */
 	struct fw_address_handler async_handler;
 	u32 msg;
+
+	/* For asynchronous MIDI controls. */
+	struct snd_rawmidi_substream *in_control;
+	struct snd_fw_async_midi_port out_control;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
@@ -103,15 +108,19 @@ enum snd_dg00x_optical_mode {
 	SND_DG00X_OPT_IFACE_MODE_COUNT,
 };
 
+#define DOT_MIDI_IN_PORTS	1
+#define DOT_MIDI_OUT_PORTS	2
+
 int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		   enum amdtp_stream_direction dir);
 int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
-			     unsigned int pcm_channels,
-			     unsigned int midi_ports);
+			     unsigned int pcm_channels);
 void amdtp_dot_reset(struct amdtp_stream *s);
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime);
 void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
+void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			  struct snd_rawmidi_substream *midi);
 
 int snd_dg00x_transaction_register(struct snd_dg00x *dg00x);
 int snd_dg00x_transaction_reregister(struct snd_dg00x *dg00x);
@@ -141,6 +150,8 @@ void snd_dg00x_stream_lock_release(struct snd_dg00x *dg00x);
 void snd_dg00x_proc_init(struct snd_dg00x *dg00x);
 
 int snd_dg00x_create_pcm_devices(struct snd_dg00x *dg00x);
+
+int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x);
 
 int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x);
 #endif

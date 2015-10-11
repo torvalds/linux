@@ -17,12 +17,24 @@
 #define AMDTP_FDF_AM824		0x00
 
 /*
+ * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * 1% too slow, and the bus clock 100 ppm too fast.
+ */
+#define MIDI_BYTES_PER_SECOND	3093
+
+/*
+ * Several devices look only at the first eight data blocks.
+ * In any case, this is more than enough for the MIDI data rate.
+ */
+#define MAX_MIDI_RX_BLOCKS	8
+
+/*
  * The double-oh-three algorithm was discovered by Robin Gareus and Damien
  * Zammit in 2012, with reverse-engineering for Digi 003 Rack.
  */
 struct dot_state {
-	__u8 carry;
-	__u8 idx;
+	u8 carry;
+	u8 idx;
 	unsigned int off;
 };
 
@@ -31,6 +43,10 @@ struct amdtp_dot {
 	struct dot_state state;
 
 	unsigned int midi_ports;
+	/* 2 = MAX(DOT_MIDI_IN_PORTS, DOT_MIDI_OUT_PORTS) */
+	struct snd_rawmidi_substream *midi[2];
+	int midi_fifo_used[2];
+	int midi_fifo_limit;
 
 	void (*transfer_samples)(struct amdtp_stream *s,
 				 struct snd_pcm_substream *pcm,
@@ -47,25 +63,25 @@ struct amdtp_dot {
 #define BYTE_PER_SAMPLE (4)
 #define MAGIC_DOT_BYTE (2)
 #define MAGIC_BYTE_OFF(x) (((x) * BYTE_PER_SAMPLE) + MAGIC_DOT_BYTE)
-static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
+static const u8 dot_scrt(const u8 idx, const unsigned int off)
 {
 	/*
 	 * the length of the added pattern only depends on the lower nibble
 	 * of the last non-zero data
 	 */
-	static const __u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
-				     12, 10, 8, 6, 4, 2, 0};
+	static const u8 len[16] = {0, 1, 3, 5, 7, 9, 11, 13, 14,
+				   12, 10, 8, 6, 4, 2, 0};
 
 	/*
 	 * the lower nibble of the salt. Interleaved sequence.
 	 * this is walked backwards according to len[]
 	 */
-	static const __u8 nib[15] = {0x8, 0x7, 0x9, 0x6, 0xa, 0x5, 0xb, 0x4,
-				     0xc, 0x3, 0xd, 0x2, 0xe, 0x1, 0xf};
+	static const u8 nib[15] = {0x8, 0x7, 0x9, 0x6, 0xa, 0x5, 0xb, 0x4,
+				   0xc, 0x3, 0xd, 0x2, 0xe, 0x1, 0xf};
 
 	/* circular list for the salt's hi nibble. */
-	static const __u8 hir[15] = {0x0, 0x6, 0xf, 0x8, 0x7, 0x5, 0x3, 0x4,
-				     0xc, 0xd, 0xe, 0x1, 0x2, 0xb, 0xa};
+	static const u8 hir[15] = {0x0, 0x6, 0xf, 0x8, 0x7, 0x5, 0x3, 0x4,
+				   0xc, 0xd, 0xe, 0x1, 0x2, 0xb, 0xa};
 
 	/*
 	 * start offset for upper nibble mapping.
@@ -73,12 +89,12 @@ static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
 	 * hir[] is not used and - coincidentally - the salt's hi nibble is
 	 * 0x09 regardless of the offset.
 	 */
-	static const __u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
-				     3, 0x00, 14, 13, 8, 9, 10, 2};
+	static const u8 hio[16] = {0, 11, 12, 6, 7, 5, 1, 4,
+				   3, 0x00, 14, 13, 8, 9, 10, 2};
 
-	const __u8 ln = idx & 0xf;
-	const __u8 hn = (idx >> 4) & 0xf;
-	const __u8 hr = (hn == 0x9) ? 0x9 : hir[(hio[hn] + off) % 15];
+	const u8 ln = idx & 0xf;
+	const u8 hn = (idx >> 4) & 0xf;
+	const u8 hr = (hn == 0x9) ? 0x9 : hir[(hio[hn] + off) % 15];
 
 	if (len[ln] < off)
 		return 0x00;
@@ -88,7 +104,7 @@ static const __u8 dot_scrt(const __u8 idx, const unsigned int off)
 
 static void dot_encode_step(struct dot_state *state, __be32 *const buffer)
 {
-	__u8 * const data = (__u8 *) buffer;
+	u8 * const data = (u8 *) buffer;
 
 	if (data[MAGIC_DOT_BYTE] != 0x00) {
 		state->off = 0;
@@ -99,7 +115,7 @@ static void dot_encode_step(struct dot_state *state, __be32 *const buffer)
 }
 
 int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
-			     unsigned int pcm_channels, unsigned int midi_ports)
+			     unsigned int pcm_channels)
 {
 	struct amdtp_dot *p = s->protocol;
 	int err;
@@ -118,7 +134,19 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	s->fdf = AMDTP_FDF_AM824 | s->sfc;
 
 	p->pcm_channels = pcm_channels;
-	p->midi_ports = midi_ports;
+
+	if (s->direction == AMDTP_IN_STREAM)
+		p->midi_ports = DOT_MIDI_IN_PORTS;
+	else
+		p->midi_ports = DOT_MIDI_OUT_PORTS;
+
+	/*
+	 * We do not know the actual MIDI FIFO size of most devices.  Just
+	 * assume two bytes, i.e., one byte can be received over the bus while
+	 * the previous one is transmitted over MIDI.
+	 * (The value here is adjusted for midi_ratelimit_per_packet().)
+	 */
+	p->midi_fifo_limit = rate - MIDI_BYTES_PER_SECOND * s->syt_interval + 1;
 
 	return 0;
 }
@@ -216,6 +244,81 @@ static void write_pcm_silence(struct amdtp_stream *s, __be32 *buffer,
 	}
 }
 
+static bool midi_ratelimit_per_packet(struct amdtp_stream *s, unsigned int port)
+{
+	struct amdtp_dot *p = s->protocol;
+	int used;
+
+	used = p->midi_fifo_used[port];
+	if (used == 0)
+		return true;
+
+	used -= MIDI_BYTES_PER_SECOND * s->syt_interval;
+	used = max(used, 0);
+	p->midi_fifo_used[port] = used;
+
+	return used < p->midi_fifo_limit;
+}
+
+static inline void midi_use_bytes(struct amdtp_stream *s,
+				  unsigned int port, unsigned int count)
+{
+	struct amdtp_dot *p = s->protocol;
+
+	p->midi_fifo_used[port] += amdtp_rate_table[s->sfc] * count;
+}
+
+static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
+				unsigned int data_blocks)
+{
+	struct amdtp_dot *p = s->protocol;
+	unsigned int f, port;
+	int len;
+	u8 *b;
+
+	for (f = 0; f < data_blocks; f++) {
+		port = (s->data_block_counter + f) % 8;
+		b = (u8 *)&buffer[0];
+
+		len = 0;
+		if (port < p->midi_ports &&
+		    midi_ratelimit_per_packet(s, port) &&
+		    p->midi[port] != NULL)
+			len = snd_rawmidi_transmit(p->midi[port], b + 1, 2);
+
+		if (len > 0) {
+			b[3] = (0x10 << port) | len;
+			midi_use_bytes(s, port, len);
+		} else {
+			b[1] = 0;
+			b[2] = 0;
+			b[3] = 0;
+		}
+		b[0] = 0x80;
+
+		buffer += s->data_block_quadlets;
+	}
+}
+
+static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
+			       unsigned int data_blocks)
+{
+	struct amdtp_dot *p = s->protocol;
+	unsigned int f, port, len;
+	u8 *b;
+
+	for (f = 0; f < data_blocks; f++) {
+		b = (u8 *)&buffer[0];
+		port = b[3] >> 4;
+		len = b[3] & 0x0f;
+
+		if (port < p->midi_ports && p->midi[port] && len > 0)
+			snd_rawmidi_receive(p->midi[port], b + 1, len);
+
+		buffer += s->data_block_quadlets;
+	}
+}
+
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime)
 {
@@ -256,6 +359,15 @@ void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format)
 	}
 }
 
+void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			  struct snd_rawmidi_substream *midi)
+{
+	struct amdtp_dot *p = s->protocol;
+
+	if (port < p->midi_ports)
+		ACCESS_ONCE(p->midi[port]) = midi;
+}
+
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 					   __be32 *buffer,
 					   unsigned int data_blocks,
@@ -273,7 +385,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 		pcm_frames = 0;
 	}
 
-	/* A place holder for MIDI processing. */
+	read_midi_messages(s, buffer, data_blocks);
 
 	return pcm_frames;
 }
@@ -296,7 +408,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 		pcm_frames = 0;
 	}
 
-	/* A place holder for MIDI processing. */
+	write_midi_messages(s, buffer, data_blocks);
 
 	return pcm_frames;
 }

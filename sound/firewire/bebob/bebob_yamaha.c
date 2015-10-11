@@ -46,16 +46,16 @@ clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 
 	return 0;
 }
-static struct snd_bebob_clock_spec clock_spec = {
+static const struct snd_bebob_clock_spec clock_spec = {
 	.num	= ARRAY_SIZE(clk_src_types),
 	.types	= clk_src_types,
 	.get	= &clk_src_get,
 };
-static struct snd_bebob_rate_spec rate_spec = {
+static const struct snd_bebob_rate_spec rate_spec = {
 	.get	= &snd_bebob_stream_get_rate,
 	.set	= &snd_bebob_stream_set_rate,
 };
-struct snd_bebob_spec yamaha_go_spec = {
+const struct snd_bebob_spec yamaha_go_spec = {
 	.clock	= &clock_spec,
 	.rate	= &rate_spec,
 	.meter	= NULL

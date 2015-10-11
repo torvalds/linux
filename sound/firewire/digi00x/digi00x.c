@@ -90,6 +90,10 @@ static int snd_dg00x_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
+	err = snd_dg00x_create_midi_devices(dg00x);
+	if (err < 0)
+		goto error;
+
 	err = snd_dg00x_create_hwdep_device(dg00x);
 	if (err < 0)
 		goto error;

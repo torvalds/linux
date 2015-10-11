@@ -119,7 +119,7 @@ end:
 int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 				   enum snd_bebob_clock_type *src)
 {
-	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 addr[AVC_BRIDGECO_ADDR_BYTES], input[7];
 	unsigned int id;
 	enum avc_bridgeco_plug_type type;
@@ -580,7 +580,7 @@ end:
 
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
 {
-	struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
+	const struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
 	struct amdtp_stream *master, *slave;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
@@ -967,7 +967,7 @@ end:
 
 int snd_bebob_stream_discover(struct snd_bebob *bebob)
 {
-	struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
+	const struct snd_bebob_clock_spec *clk_spec = bebob->spec->clock;
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES], addr[AVC_BRIDGECO_ADDR_BYTES];
 	enum avc_bridgeco_plug_type type;
 	unsigned int i;
