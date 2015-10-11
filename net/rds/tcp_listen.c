@@ -125,6 +125,9 @@ int rds_tcp_accept_one(struct socket *sock)
 		new_sock = NULL;
 		ret = 0;
 		goto out;
+	} else if (rs_tcp->t_sock) {
+		rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
+		conn->c_outgoing = 0;
 	}
 
 	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
