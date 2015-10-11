@@ -80,12 +80,12 @@ int wilc_mq_send(WILC_MsgQueueHandle *pHandle,
 		return -ENOMEM;
 	pstrMessage->u32Length = u32SendBufferSize;
 	pstrMessage->pstrNext = NULL;
-	pstrMessage->pvBuffer = kmalloc(u32SendBufferSize, GFP_ATOMIC);
+	pstrMessage->pvBuffer = kmemdup(pvSendBuffer, u32SendBufferSize,
+					GFP_ATOMIC);
 	if (!pstrMessage->pvBuffer) {
 		result = -ENOMEM;
 		goto ERRORHANDLER;
 	}
-	memcpy(pstrMessage->pvBuffer, pvSendBuffer, u32SendBufferSize);
 
 	/* add it to the message queue */
 	if (!pHandle->pstrMessageList) {
