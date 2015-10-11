@@ -1,7 +1,7 @@
 /*
  * ADIS16203 Programmable 360 Degrees Inclinometer
  *
- * Copyright 2030 Analog Devices Inc.
+ * Copyright 2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
