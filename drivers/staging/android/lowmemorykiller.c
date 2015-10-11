@@ -32,7 +32,8 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
@@ -190,21 +191,16 @@ static int __init lowmem_init(void)
 	register_shrinker(&lowmem_shrinker);
 	return 0;
 }
+device_initcall(lowmem_init);
 
-static void __exit lowmem_exit(void)
-{
-	unregister_shrinker(&lowmem_shrinker);
-}
-
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
 module_param_array_named(adj, lowmem_adj, short, &lowmem_adj_size,
 			 S_IRUGO | S_IWUSR);
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
-
-module_init(lowmem_init);
-module_exit(lowmem_exit);
-
-MODULE_LICENSE("GPL");
 
