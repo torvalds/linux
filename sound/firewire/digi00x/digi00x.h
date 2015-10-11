@@ -24,6 +24,7 @@
 #include <sound/pcm_params.h>
 #include <sound/firewire.h>
 #include <sound/hwdep.h>
+#include <sound/rawmidi.h>
 
 #include "../lib.h"
 #include "../iso-resources.h"
@@ -103,15 +104,19 @@ enum snd_dg00x_optical_mode {
 	SND_DG00X_OPT_IFACE_MODE_COUNT,
 };
 
+#define DOT_MIDI_IN_PORTS	1
+#define DOT_MIDI_OUT_PORTS	2
+
 int amdtp_dot_init(struct amdtp_stream *s, struct fw_unit *unit,
 		   enum amdtp_stream_direction dir);
 int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
-			     unsigned int pcm_channels,
-			     unsigned int midi_ports);
+			     unsigned int pcm_channels);
 void amdtp_dot_reset(struct amdtp_stream *s);
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime);
 void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
+void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			  struct snd_rawmidi_substream *midi);
 
 int snd_dg00x_transaction_register(struct snd_dg00x *dg00x);
 int snd_dg00x_transaction_reregister(struct snd_dg00x *dg00x);

@@ -199,7 +199,7 @@ static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 
 	/* Keep resources for out-stream. */
 	err = amdtp_dot_set_parameters(&dg00x->rx_stream, rate,
-				       snd_dg00x_stream_pcm_channels[i], 0);
+				       snd_dg00x_stream_pcm_channels[i]);
 	if (err < 0)
 		return err;
 	err = fw_iso_resources_allocate(&dg00x->rx_resources,
@@ -210,7 +210,7 @@ static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 
 	/* Keep resources for in-stream. */
 	err = amdtp_dot_set_parameters(&dg00x->tx_stream, rate,
-				       snd_dg00x_stream_pcm_channels[i], 0);
+				       snd_dg00x_stream_pcm_channels[i]);
 	if (err < 0)
 		return err;
 	err = fw_iso_resources_allocate(&dg00x->tx_resources,
