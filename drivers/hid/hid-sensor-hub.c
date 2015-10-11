@@ -646,8 +646,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 						      GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
-			ret = -ENOMEM;
-			goto err_stop_hw;
+		ret = -ENOMEM;
+		goto err_stop_hw;
 	}
 
 	for (i = 0; i < hdev->maxcollection; ++i) {
@@ -684,8 +684,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					      collection->usage);
 			if (name == NULL) {
 				hid_err(hdev, "Failed MFD device name\n");
-					ret = -ENOMEM;
-					goto err_stop_hw;
+				ret = -ENOMEM;
+				goto err_stop_hw;
 			}
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].name = name;
