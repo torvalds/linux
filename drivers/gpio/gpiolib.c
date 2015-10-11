@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "gpiolib.h"
 
@@ -744,6 +745,28 @@ EXPORT_SYMBOL_GPL(_gpiochip_irqchip_add);
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip) {}
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
+
+/**
+ * gpiochip_generic_request() - request the gpio function for a pin
+ * @chip: the gpiochip owning the GPIO
+ * @offset: the offset of the GPIO to request for GPIO function
+ */
+int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_request_gpio(chip->base + offset);
+}
+EXPORT_SYMBOL_GPL(gpiochip_generic_request);
+
+/**
+ * gpiochip_generic_free() - free the gpio function from a pin
+ * @chip: the gpiochip to request the gpio function for
+ * @offset: the offset of the GPIO to free from GPIO function
+ */
+void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset)
+{
+	pinctrl_free_gpio(chip->base + offset);
+}
+EXPORT_SYMBOL_GPL(gpiochip_generic_free);
 
 #ifdef CONFIG_PINCTRL
 
