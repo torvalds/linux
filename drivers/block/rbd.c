@@ -93,6 +93,8 @@ static int atomic_dec_return_safe(atomic_t *v)
 
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
+#define RBD_MAX_PARENT_CHAIN_LEN	16
+
 #define RBD_SNAP_DEV_NAME_PREFIX	"snap_"
 #define RBD_MAX_SNAP_NAME_LEN	\
 			(NAME_MAX - (sizeof (RBD_SNAP_DEV_NAME_PREFIX) - 1))
@@ -394,7 +396,7 @@ static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
 			  size_t count);
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping);
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth);
 static void rbd_spec_put(struct rbd_spec *spec);
 
 static struct bus_attribute rbd_bus_attrs[] = {
@@ -4831,13 +4833,24 @@ out_err:
 	return ret;
 }
 
-static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
+/*
+ * @depth is rbd_dev_image_probe() -> rbd_dev_probe_parent() ->
+ * rbd_dev_image_probe() recursion depth, which means it's also the
+ * length of the already discovered part of the parent chain.
+ */
+static int rbd_dev_probe_parent(struct rbd_device *rbd_dev, int depth)
 {
 	struct rbd_device *parent = NULL;
 	int ret;
 
 	if (!rbd_dev->parent_spec)
 		return 0;
+
+	if (++depth > RBD_MAX_PARENT_CHAIN_LEN) {
+		pr_info("parent chain is too long (%d)\n", depth);
+		ret = -EINVAL;
+		goto out_err;
+	}
 
 	parent = rbd_dev_create(rbd_dev->rbd_client, rbd_dev->parent_spec);
 	if (!parent) {
@@ -4852,7 +4865,7 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 	__rbd_get_client(rbd_dev->rbd_client);
 	rbd_spec_get(rbd_dev->parent_spec);
 
-	ret = rbd_dev_image_probe(parent, false);
+	ret = rbd_dev_image_probe(parent, depth);
 	if (ret < 0)
 		goto out_err;
 
@@ -4969,7 +4982,7 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
  * parent), initiate a watch on its header object before using that
  * object to get detailed information about the rbd image.
  */
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 {
 	int ret;
 	int tmp;
@@ -4990,7 +5003,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	if (ret)
 		goto err_out_format;
 
-	if (mapping) {
+	if (!depth) {
 		ret = rbd_dev_header_watch_sync(rbd_dev, true);
 		if (ret)
 			goto out_header_name;
@@ -5007,7 +5020,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 	if (ret)
 		goto err_out_probe;
 
-	ret = rbd_dev_probe_parent(rbd_dev);
+	ret = rbd_dev_probe_parent(rbd_dev, depth);
 	if (ret)
 		goto err_out_probe;
 
@@ -5018,7 +5031,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool mapping)
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
-	if (mapping) {
+	if (!depth) {
 		tmp = rbd_dev_header_watch_sync(rbd_dev, false);
 		if (tmp)
 			rbd_warn(rbd_dev, "unable to tear down "
@@ -5089,7 +5102,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbdc = NULL;		/* rbd_dev now owns this */
 	spec = NULL;		/* rbd_dev now owns this */
 
-	rc = rbd_dev_image_probe(rbd_dev, true);
+	rc = rbd_dev_image_probe(rbd_dev, 0);
 	if (rc < 0)
 		goto err_out_rbd_dev;
 
