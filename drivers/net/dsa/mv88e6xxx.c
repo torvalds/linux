@@ -1124,41 +1124,6 @@ static int _mv88e6xxx_port_vlan_map_set(struct dsa_switch *ds, int port,
 	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_BASE_VLAN, reg);
 }
 
-/* Bridge handling functions */
-
-static int mv88e6xxx_map_bridge(struct dsa_switch *ds, u16 members)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	const unsigned long output = members | BIT(dsa_upstream_port(ds));
-	int port, err = 0;
-
-	mutex_lock(&ps->smi_mutex);
-
-	for_each_set_bit(port, &output, ps->num_ports) {
-		if (dsa_is_cpu_port(ds, port))
-			continue;
-
-		err = _mv88e6xxx_port_vlan_map_set(ds, port, output & ~port);
-		if (err)
-			break;
-	}
-
-	mutex_unlock(&ps->smi_mutex);
-
-	return err;
-}
-
-
-int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
-{
-	return mv88e6xxx_map_bridge(ds, br_port_mask);
-}
-
-int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask)
-{
-	return mv88e6xxx_map_bridge(ds, br_port_mask & ~port);
-}
-
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -2007,7 +1972,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
 	}
 
-	reg |= PORT_CONTROL_2_8021Q_FALLBACK;
+	reg |= PORT_CONTROL_2_8021Q_SECURE;
 
 	if (reg) {
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
@@ -2101,15 +2066,9 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		goto abort;
 
 	/* Port based VLAN map: do not give each port its own address
-	 * database, allow the CPU port to talk to each of the 'real'
-	 * ports, and allow each of the 'real' ports to only talk to
-	 * the upstream port.
+	 * database, and allow every port to egress frames on all other ports.
 	 */
-	if (dsa_is_cpu_port(ds, port))
-		reg = BIT(ps->num_ports) - 1;
-	else
-		reg = BIT(dsa_upstream_port(ds));
-
+	reg = BIT(ps->num_ports) - 1; /* all ports */
 	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg & ~port);
 	if (ret)
 		goto abort;
