@@ -40,6 +40,16 @@
 	  </address>
 	</affiliation>
       </author>
+      <author>
+	<firstname>Lukas</firstname>
+	<surname>Wunner</surname>
+	<contrib>vga_switcheroo documentation</contrib>
+	<affiliation>
+	  <address>
+	    <email>lukas@wunner.de</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -50,6 +60,10 @@
     <copyright>
       <year>2012</year>
       <holder>Laurent Pinchart</holder>
+    </copyright>
+    <copyright>
+      <year>2015</year>
+      <holder>Lukas Wunner</holder>
     </copyright>
 
     <legalnotice>
@@ -67,6 +81,13 @@
 	<date>2012-07-13</date>
 	<authorinitials>LP</authorinitials>
 	<revremark>Added extensive documentation about driver internals.
+	</revremark>
+      </revision>
+      <revision>
+	<revnumber>1.1</revnumber>
+	<date>2015-10-11</date>
+	<authorinitials>LW</authorinitials>
+	<revremark>Added vga_switcheroo documentation.
 	</revremark>
       </revision>
     </revhistory>
@@ -3583,10 +3604,11 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
 	plane properties to default value, so that a subsequent open of the
 	device will not inherit state from the previous user. It can also be
 	used to execute delayed power switching state changes, e.g. in
-	conjunction with the vga_switcheroo infrastructure. Beyond that KMS
-	drivers should not do any further cleanup. Only legacy UMS drivers might
-	need to clean up device state so that the vga console or an independent
-	fbdev driver could take over.
+	conjunction with the vga_switcheroo infrastructure (see
+	<xref linkend="vga_switcheroo"/>). Beyond that KMS drivers should not
+	do any further cleanup. Only legacy UMS drivers might need to clean up
+	device state so that the vga console or an independent fbdev driver
+	could take over.
       </para>
     </sect2>
     <sect2>
@@ -4200,4 +4222,50 @@ int num_ioctls;</synopsis>
   </chapter>
 !Cdrivers/gpu/drm/i915/i915_irq.c
 </part>
+
+<part id="vga_switcheroo">
+  <title>vga_switcheroo</title>
+  <partintro>
+!Pdrivers/gpu/vga/vga_switcheroo.c Overview
+  </partintro>
+
+  <chapter id="modes_of_use">
+    <title>Modes of Use</title>
+  <sect1>
+    <title>Manual switching and manual power control</title>
+!Pdrivers/gpu/vga/vga_switcheroo.c Manual switching and manual power control
+  </sect1>
+  <sect1>
+    <title>Driver power control</title>
+!Pdrivers/gpu/vga/vga_switcheroo.c Driver power control
+  </sect1>
+  </chapter>
+
+  <chapter id="pubfunctions">
+    <title>Public functions</title>
+!Edrivers/gpu/vga/vga_switcheroo.c
+  </chapter>
+
+  <chapter id="pubstructures">
+    <title>Public structures</title>
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_handler
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_client_ops
+  </chapter>
+
+  <chapter id="pubconstants">
+    <title>Public constants</title>
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_client_id
+!Finclude/linux/vga_switcheroo.h vga_switcheroo_state
+  </chapter>
+
+  <chapter id="privstructures">
+    <title>Private structures</title>
+!Fdrivers/gpu/vga/vga_switcheroo.c vgasr_priv
+!Fdrivers/gpu/vga/vga_switcheroo.c vga_switcheroo_client
+  </chapter>
+
+!Cdrivers/gpu/vga/vga_switcheroo.c
+!Cinclude/linux/vga_switcheroo.h
+</part>
+
 </book>
