@@ -4778,7 +4778,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_rx_stats stats = {
 		.signal = 0,
-		.noise = -98,
+		.noise = 0x100 - 98,
 		.rate = 0,
 		.freq = IEEE80211_24GHZ_BAND,
 	};
@@ -4889,7 +4889,7 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 	/* TODO */
 	struct ieee80211_rx_stats stats = {
 		.signal = 0,
-		.noise = -98,
+		.noise = 0x100 - 98,
 		.rate = 0,
 		.freq = IEEE80211_24GHZ_BAND,
 	};
