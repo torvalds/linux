@@ -56,6 +56,7 @@ struct snd_dg00x {
 
 	/* For asynchronous MIDI controls. */
 	struct snd_rawmidi_substream *in_control;
+	struct snd_fw_async_midi_port out_control;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull

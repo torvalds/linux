@@ -9,6 +9,18 @@
 #include <sound/asound.h>
 #include "digi00x.h"
 
+static int fill_midi_message(struct snd_rawmidi_substream *substream, u8 *buf)
+{
+	int bytes;
+
+	buf[0] = 0x80;
+	bytes = snd_rawmidi_transmit_peek(substream, buf + 1, 2);
+	if (bytes >= 0)
+		buf[3] = 0xc0 | bytes;
+
+	return bytes;
+}
+
 static void handle_midi_control(struct snd_dg00x *dg00x, __be32 *buf,
 				unsigned int length)
 {
@@ -102,15 +114,24 @@ int snd_dg00x_transaction_register(struct snd_dg00x *dg00x)
 		return err;
 
 	err = snd_dg00x_transaction_reregister(dg00x);
-	if (err < 0) {
-		fw_core_remove_address_handler(&dg00x->async_handler);
-		dg00x->async_handler.address_callback = NULL;
-	}
+	if (err < 0)
+		goto error;
 
+	err = snd_fw_async_midi_port_init(&dg00x->out_control, dg00x->unit,
+					  DG00X_ADDR_BASE + DG00X_OFFSET_MMC,
+					  4, fill_midi_message);
+	if (err < 0)
+		goto error;
+
+	return err;
+error:
+	fw_core_remove_address_handler(&dg00x->async_handler);
+	dg00x->async_handler.address_callback = NULL;
 	return err;
 }
 
 void snd_dg00x_transaction_unregister(struct snd_dg00x *dg00x)
 {
+	snd_fw_async_midi_port_destroy(&dg00x->out_control);
 	fw_core_remove_address_handler(&dg00x->async_handler);
 }
