@@ -6625,7 +6625,7 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 			unsigned char *ptmp = info->intermediate_rxbuffer;
 
 			if ( !(status & RXSTATUS_CRC_ERROR))
-			info->icount.rxok++;
+				info->icount.rxok++;
 			
 			while(copy_count) {
 				int partial_count;
