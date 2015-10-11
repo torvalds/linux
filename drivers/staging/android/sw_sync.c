@@ -15,11 +15,11 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
@@ -255,13 +255,6 @@ static int __init sw_sync_device_init(void)
 {
 	return misc_register(&sw_sync_dev);
 }
-
-static void __exit sw_sync_device_remove(void)
-{
-	misc_deregister(&sw_sync_dev);
-}
-
-module_init(sw_sync_device_init);
-module_exit(sw_sync_device_remove);
+device_initcall(sw_sync_device_init);
 
 #endif /* CONFIG_SW_SYNC_USER */
