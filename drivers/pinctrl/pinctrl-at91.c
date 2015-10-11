@@ -1277,28 +1277,6 @@ static int at91_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int at91_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	/*
-	 * Map back to global GPIO space and request muxing, the direction
-	 * parameter does not matter for this controller.
-	 */
-	int gpio = chip->base + offset;
-	int bank = chip->base / chip->ngpio;
-
-	dev_dbg(chip->dev, "%s:%d pio%c%d(%d)\n", __func__, __LINE__,
-		 'A' + bank, offset, gpio);
-
-	return pinctrl_request_gpio(gpio);
-}
-
-static void at91_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	int gpio = chip->base + offset;
-
-	pinctrl_free_gpio(gpio);
-}
-
 static int at91_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
@@ -1684,8 +1662,8 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 
 /* This structure is replicated for each GPIO block allocated at probe time */
 static struct gpio_chip at91_gpio_template = {
-	.request		= at91_gpio_request,
-	.free			= at91_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.get_direction		= at91_gpio_get_direction,
 	.direction_input	= at91_gpio_direction_input,
 	.get			= at91_gpio_get,

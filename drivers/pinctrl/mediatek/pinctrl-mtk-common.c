@@ -723,16 +723,6 @@ static const struct pinmux_ops mtk_pmx_ops = {
 	.gpio_set_direction	= mtk_pmx_gpio_set_direction,
 };
 
-static int mtk_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_request_gpio(chip->base + offset);
-}
-
-static void mtk_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	pinctrl_free_gpio(chip->base + offset);
-}
-
 static int mtk_gpio_direction_input(struct gpio_chip *chip,
 					unsigned offset)
 {
@@ -1005,8 +995,8 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 
 static struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
-	.request		= mtk_gpio_request,
-	.free			= mtk_gpio_free,
+	.request		= gpiochip_generic_request,
+	.free			= gpiochip_generic_free,
 	.direction_input	= mtk_gpio_direction_input,
 	.direction_output	= mtk_gpio_direction_output,
 	.get			= mtk_gpio_get,
