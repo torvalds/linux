@@ -165,6 +165,14 @@
 			#size-cells = <0>;
 		};
 
+		pwm: pwm@01c20e00 {
+			compatible = "allwinner,sun5i-a10s-pwm";
+			reg = <0x01c20e00 0xc>;
+			clocks = <&osc24M>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;
