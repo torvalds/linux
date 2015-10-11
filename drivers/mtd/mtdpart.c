@@ -755,12 +755,12 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			 struct mtd_part_parser_data *data)
 {
 	struct mtd_part_parser *parser;
-	int ret = 0;
+	int ret, err = 0;
 
 	if (!types)
 		types = default_mtd_part_types;
 
-	for ( ; ret <= 0 && *types; types++) {
+	for ( ; *types; types++) {
 		pr_debug("%s: parsing partitions %s\n", master->name, *types);
 		parser = get_partition_parser(*types);
 		if (!parser && !request_module("%s", *types))
@@ -776,10 +776,16 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		if (ret > 0) {
 			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
 			       ret, parser->name, master->name);
-			break;
+			return ret;
 		}
+		/*
+		 * Stash the first error we see; only report it if no parser
+		 * succeeds
+		 */
+		if (ret < 0 && !err)
+			err = ret;
 	}
-	return ret;
+	return err;
 }
 
 int mtd_is_partition(const struct mtd_info *mtd)

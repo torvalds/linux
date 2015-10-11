@@ -598,8 +598,10 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 	/* Didn't come up with either parsed OR fallback partitions */
 	if (ret < 0) {
-		pr_info("mtd: failed to find partitions\n");
-		goto out;
+		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
+			ret);
+		/* Don't abort on errors; we can still use unpartitioned MTD */
+		ret = 0;
 	}
 
 	ret = mtd_add_device_partitions(mtd, real_parts, ret);
