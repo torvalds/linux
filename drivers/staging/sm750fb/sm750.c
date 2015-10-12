@@ -511,6 +511,7 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		fb_set_suspend(info, 0);
 	}
 
+	pdev->dev.power.power_state.event = PM_EVENT_RESUME;
 	console_unlock();
 	return ret;
 }
