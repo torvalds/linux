@@ -119,8 +119,8 @@ static const struct das16cs_board das16cs_boards[] = {
 };
 
 struct das16cs_private {
-	unsigned short status1;
-	unsigned short status2;
+	unsigned short misc1;
+	unsigned short misc2;
 };
 
 static const struct comedi_lrange das16cs_ai_range = {
@@ -161,30 +161,30 @@ static int das16cs_ai_insn_read(struct comedi_device *dev,
 	     dev->iobase + DAS16CS_AI_MUX_REG);
 
 	/* disable interrupts, software convert */
-	devpriv->status1 &= ~(DAS16CS_MISC1_INTE | DAS16CS_MISC1_INT_SRC_MASK |
+	devpriv->misc1 &= ~(DAS16CS_MISC1_INTE | DAS16CS_MISC1_INT_SRC_MASK |
 			      DAS16CS_MISC1_AI_CONV_MASK);
 	if (aref == AREF_DIFF)
-		devpriv->status1 &= ~DAS16CS_MISC1_SEDIFF;
+		devpriv->misc1 &= ~DAS16CS_MISC1_SEDIFF;
 	else
-		devpriv->status1 |= DAS16CS_MISC1_SEDIFF;
-	outw(devpriv->status1, dev->iobase + DAS16CS_MISC1_REG);
+		devpriv->misc1 |= DAS16CS_MISC1_SEDIFF;
+	outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 
-	devpriv->status2 &= ~(DAS16CS_MISC2_BME | DAS16CS_MISC2_AI_GAIN_MASK);
+	devpriv->misc2 &= ~(DAS16CS_MISC2_BME | DAS16CS_MISC2_AI_GAIN_MASK);
 	switch (range) {
 	case 0:
-		devpriv->status2 |= DAS16CS_MISC2_AI_GAIN_1;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_1;
 		break;
 	case 1:
-		devpriv->status2 |= DAS16CS_MISC2_AI_GAIN_2;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_2;
 		break;
 	case 2:
-		devpriv->status2 |= DAS16CS_MISC2_AI_GAIN_4;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_4;
 		break;
 	case 3:
-		devpriv->status2 |= DAS16CS_MISC2_AI_GAIN_8;
+		devpriv->misc2 |= DAS16CS_MISC2_AI_GAIN_8;
 		break;
 	}
-	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2_REG);
+	outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
 
 	for (i = 0; i < insn->n; i++) {
 		outw(0, dev->iobase + DAS16CS_AI_DATA_REG);
@@ -207,34 +207,34 @@ static int das16cs_ao_insn_write(struct comedi_device *dev,
 	struct das16cs_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int val = s->readback[chan];
-	unsigned short status1;
+	unsigned short misc1;
 	int bit;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		outw(devpriv->status1, dev->iobase + DAS16CS_MISC1_REG);
+		outw(devpriv->misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
 		/* raise the DACxCS line for the non-selected channel */
-		status1 = devpriv->status1 & ~DAS16CS_MISC1_DAC_MASK;
+		misc1 = devpriv->misc1 & ~DAS16CS_MISC1_DAC_MASK;
 		if (chan)
-			status1 |= DAS16CS_MISC1_DAC0CS;
+			misc1 |= DAS16CS_MISC1_DAC0CS;
 		else
-			status1 |= DAS16CS_MISC1_DAC1CS;
+			misc1 |= DAS16CS_MISC1_DAC1CS;
 
-		outw(status1, dev->iobase + DAS16CS_MISC1_REG);
+		outw(misc1, dev->iobase + DAS16CS_MISC1_REG);
 		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
 			if ((val >> bit) & 0x1)
-				status1 |= DAS16CS_MISC1_DACSD;
+				misc1 |= DAS16CS_MISC1_DACSD;
 			else
-				status1 &= ~DAS16CS_MISC1_DACSD;
-			outw(status1, dev->iobase + DAS16CS_MISC1_REG);
+				misc1 &= ~DAS16CS_MISC1_DACSD;
+			outw(misc1, dev->iobase + DAS16CS_MISC1_REG);
 			udelay(1);
-			outw(status1 | DAS16CS_MISC1_DACCLK,
+			outw(misc1 | DAS16CS_MISC1_DACCLK,
 			     dev->iobase + DAS16CS_MISC1_REG);
 			udelay(1);
 		}
@@ -242,7 +242,7 @@ static int das16cs_ao_insn_write(struct comedi_device *dev,
 		 * Make both DAC0CS and DAC1CS high to load
 		 * the new data and update analog the output
 		 */
-		outw(status1 | DAS16CS_MISC1_DAC0CS | DAS16CS_MISC1_DAC1CS,
+		outw(misc1 | DAS16CS_MISC1_DAC0CS | DAS16CS_MISC1_DAC1CS,
 		     dev->iobase + DAS16CS_MISC1_REG);
 	}
 	s->readback[chan] = val;
@@ -283,14 +283,14 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 		return ret;
 
 	if (s->io_bits & 0xf0)
-		devpriv->status2 |= DAS16CS_MISC2_UDIR;
+		devpriv->misc2 |= DAS16CS_MISC2_UDIR;
 	else
-		devpriv->status2 &= ~DAS16CS_MISC2_UDIR;
+		devpriv->misc2 &= ~DAS16CS_MISC2_UDIR;
 	if (s->io_bits & 0x0f)
-		devpriv->status2 |= DAS16CS_MISC2_LDIR;
+		devpriv->misc2 |= DAS16CS_MISC2_LDIR;
 	else
-		devpriv->status2 &= ~DAS16CS_MISC2_LDIR;
-	outw(devpriv->status2, dev->iobase + DAS16CS_MISC2_REG);
+		devpriv->misc2 &= ~DAS16CS_MISC2_LDIR;
+	outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
 
 	return insn->n;
 }
@@ -306,18 +306,18 @@ static int das16cs_counter_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		switch (data[1]) {
 		case 0:	/* internal 100 kHz */
-			devpriv->status2 |= DAS16CS_MISC2_CTR1;
+			devpriv->misc2 |= DAS16CS_MISC2_CTR1;
 			break;
 		case 1:	/* external */
-			devpriv->status2 &= ~DAS16CS_MISC2_CTR1;
+			devpriv->misc2 &= ~DAS16CS_MISC2_CTR1;
 			break;
 		default:
 			return -EINVAL;
 		}
-		outw(devpriv->status2, dev->iobase + DAS16CS_MISC2_REG);
+		outw(devpriv->misc2, dev->iobase + DAS16CS_MISC2_REG);
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		if (devpriv->status2 & DAS16CS_MISC2_CTR1) {
+		if (devpriv->misc2 & DAS16CS_MISC2_CTR1) {
 			data[1] = 0;
 			data[2] = I8254_OSC_BASE_100KHZ;
 		} else {
