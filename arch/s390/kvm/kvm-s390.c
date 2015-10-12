@@ -1289,6 +1289,7 @@ static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
 			sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca & ~0x3fU;
+		vcpu->arch.sie_block->ecb2 |= 0x04U;
 		set_bit_inv(id, (unsigned long *) sca->mcn);
 	} else {
 		struct bsca_block *sca = kvm->arch.sca;
@@ -1493,8 +1494,11 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->epoch = vcpu->kvm->arch.epoch;
 	preempt_enable();
 	mutex_unlock(&vcpu->kvm->lock);
-	if (!kvm_is_ucontrol(vcpu->kvm))
+	if (!kvm_is_ucontrol(vcpu->kvm)) {
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
+		sca_add_vcpu(vcpu, vcpu->kvm, vcpu->vcpu_id);
+	}
+
 }
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
@@ -1558,8 +1562,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->ecb |= 0x10;
 
 	vcpu->arch.sie_block->ecb2  = 8;
-	if (vcpu->kvm->arch.use_esca)
-		vcpu->arch.sie_block->ecb2 |= 4;
 	vcpu->arch.sie_block->eca   = 0xC1002000U;
 	if (sclp.has_siif)
 		vcpu->arch.sie_block->eca |= 1;
@@ -1608,9 +1610,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	vcpu->arch.sie_block->itdba = (unsigned long) &sie_page->itdb;
 
 	vcpu->arch.sie_block->icpua = id;
-	if (!kvm_is_ucontrol(kvm))
-		sca_add_vcpu(vcpu, kvm, id);
-
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
 	vcpu->arch.local_int.wq = &vcpu->wq;
