@@ -1,0 +1,34 @@
+PXA LCD Controller
+------------------
+
+Required properties:
+ - compatible : one of these
+	"marvell,pxa2xx-lcdc",
+	"marvell,pxa270-lcdc",
+	"marvell,pxa300-lcdc"
+ - reg : should contain 1 register range (address and length).
+ - interrupts : framebuffer controller interrupt.
+ - clocks: phandle to input clocks
+
+Required nodes:
+ - port: connection to the LCD panel (see video-interfaces.txt)
+	 This node must have its properties bus-width and remote-endpoint set.
+	 If the panel is not a TFT color panel, then a "lcd-type" property in
+	 the panel should specify the panel type.
+	 This panel node should be in the board dts.
+
+Example:
+	lcd-controller@40500000 {
+		compatible = "marvell,pxa2xx-lcdc";
+		reg = <0x44000000 0x10000>;
+		interrupts = <17>;
+		clocks = <&clks CLK_LCD>;
+		status = "okay";
+
+		port {
+			lcdc_out: endpoint {
+				remote-endpoint = <&panel_in>;
+				bus-width = <16>;
+			};
+		};
+	};
