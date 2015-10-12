@@ -79,17 +79,16 @@ static struct irq_chip onchip_intc = {
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
 			       irq_hw_number_t hw)
 {
-	/*
-	 * XXX: the IPI IRQ needs to be handled like TIMER too. However ARC core
-	 *      code doesn't own it (like TIMER0). ISS IDU / ezchip define it
-	 *      in platform header which can't be included here as it goes
-	 *      against multi-platform image philisophy
-	 */
-	if (irq == TIMER0_IRQ)
+	switch (irq) {
+	case TIMER0_IRQ:
+#ifdef CONFIG_SMP
+	case IPI_IRQ:
+#endif
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
-	else
+		break;
+	default:
 		irq_set_chip_and_handler(irq, &onchip_intc, handle_level_irq);
-
+	}
 	return 0;
 }
 
