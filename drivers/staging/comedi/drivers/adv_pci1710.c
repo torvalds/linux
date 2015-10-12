@@ -1,45 +1,30 @@
 /*
- * comedi/drivers/adv_pci1710.c
- *
+ * adv_pci1710.c
+ * Comedi driver for Advantech PCI-1710 series boards
  * Author: Michal Dobes <dobes@tesnet.cz>
  *
  * Thanks to ZhenGang Shang <ZhenGang.Shang@Advantech.com.cn>
  * for testing and information.
- *
- *  hardware driver for Advantech cards:
- *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1720, PCI-1731
- *   driver: pci1710,  pci1710hg,  pci1711,  pci1713,  pci1720,  pci1731
- *
- * Options:
- *  [0] - PCI bus number - if bus number and slot number are 0,
- *                         then driver search for first unused card
- *  [1] - PCI slot number
- *
-*/
+ */
+
 /*
-Driver: adv_pci1710
-Description: Advantech PCI-1710, PCI-1710HG, PCI-1711, PCI-1713,
-	     Advantech PCI-1720, PCI-1731
-Author: Michal Dobes <dobes@tesnet.cz>
-Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG (pci1710hg),
-  PCI-1711 (adv_pci1710), PCI-1713, PCI-1720,
-  PCI-1731
-Status: works
-
-This driver supports AI, AO, DI and DO subdevices.
-AI subdevice supports cmd and insn interface,
-other subdevices support only insn interface.
-
-The PCI-1710 and PCI-1710HG have the same PCI device ID, so the
-driver cannot distinguish between them, as would be normal for a
-PCI driver.
-
-Configuration options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-	If bus/slot is not specified, the first available PCI
-	device will be used.
-*/
+ * Driver: adv_pci1710
+ * Description: Comedi driver for Advantech PCI-1710 series boards
+ * Devices: [Advantech] PCI-1710 (adv_pci1710), PCI-1710HG, PCI-1711,
+ *   PCI-1713, PCI-1720, PCI-1731
+ * Author: Michal Dobes <dobes@tesnet.cz>
+ * Status: works
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * This driver supports AI, AO, DI and DO subdevices.
+ * AI subdevice supports cmd and insn interface,
+ * other subdevices support only insn interface.
+ *
+ * The PCI-1710 and PCI-1710HG have the same PCI device ID, so the
+ * driver cannot distinguish between them, as would be normal for a
+ * PCI driver.
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
