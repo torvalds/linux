@@ -140,8 +140,12 @@ awk '/version/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-ifconfig --version 2>&1 | grep tools | awk \
-'NR==1{print "Net-tools             ", $NF}'
+ifconfig --version 2>&1 |
+awk '/tools/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Net-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 # Kbd needs 'loadkeys -h',
 loadkeys -h 2>&1 | awk \
