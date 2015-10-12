@@ -595,7 +595,7 @@ s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-s32 send_config_pkt(u8 mode, tstrWID *wids, u32 count, u32 drv)
+s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 {
 	s32 counter = 0, ret = 0;
 
