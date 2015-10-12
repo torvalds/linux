@@ -445,6 +445,16 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 			tbipa = data->get_tbipa(priv->map);
 
+			/*
+			 * Add consistency check to make sure TBI is contained
+			 * within the mapped range (not because we would get a
+			 * segfault, rather to catch bugs in computing TBI
+			 * address). Print error message but continue anyway.
+			 */
+			if ((void *)tbipa > priv->map + resource_size(&res) - 4)
+				dev_err(&pdev->dev, "invalid register map (should be at least 0x%04x to contain TBI address)\n",
+					((void *)tbipa - priv->map) + 4);
+
 			iowrite32be(be32_to_cpup(prop), tbipa);
 		}
 	}
