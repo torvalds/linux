@@ -120,13 +120,15 @@ static int aio_aio12_8_ai_eoc(struct comedi_device *dev,
 
 static int aio_aio12_8_ai_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val;
 	unsigned char control;
 	int ret;
-	int n;
+	int i;
 
 	/*
 	 * Setup the control byte for internal 2MHz clock, 3uS conversion,
@@ -138,7 +140,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 	/* Read status to clear EOC latch */
 	inb(dev->iobase + AIO12_8_STATUS_REG);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		/*  Setup and start conversion */
 		outb(control, dev->iobase + AIO12_8_ADC_REG);
 
@@ -147,7 +149,13 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		data[n] = inw(dev->iobase + AIO12_8_ADC_REG) & s->maxdata;
+		val = inw(dev->iobase + AIO12_8_ADC_REG) & s->maxdata;
+
+		/* munge bipolar 2's complement data to offset binary */
+		if (comedi_range_is_bipolar(s, range))
+			val = comedi_offset_munge(s, val);
+
+		data[i] = val;
 	}
 
 	return insn->n;
