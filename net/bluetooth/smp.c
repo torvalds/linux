@@ -1046,8 +1046,24 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	struct smp_cmd_pairing *rsp = (void *) &smp->prsp[1];
 	bool persistent;
 
+	if (hcon->type == ACL_LINK) {
+		if (hcon->key_type == HCI_LK_DEBUG_COMBINATION)
+			persistent = false;
+		else
+			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
+					       &hcon->flags);
+	} else {
+		/* The LTKs, IRKs and CSRKs should be persistent only if
+		 * both sides had the bonding bit set in their
+		 * authentication requests.
+		 */
+		persistent = !!((req->auth_req & rsp->auth_req) &
+				SMP_AUTH_BONDING);
+	}
+
 	if (smp->remote_irk) {
-		mgmt_new_irk(hdev, smp->remote_irk);
+		mgmt_new_irk(hdev, smp->remote_irk, persistent);
+
 		/* Now that user space can be considered to know the
 		 * identity address track the connection based on it
 		 * from now on (assuming this is an LE link).
@@ -1074,21 +1090,6 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			smp->remote_irk = NULL;
 		}
 	}
-
-	if (hcon->type == ACL_LINK) {
-		if (hcon->key_type == HCI_LK_DEBUG_COMBINATION)
-			persistent = false;
-		else
-			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
-					       &hcon->flags);
-	} else {
-		/* The LTKs and CSRKs should be persistent only if both sides
-		 * had the bonding bit set in their authentication requests.
-		 */
-		persistent = !!((req->auth_req & rsp->auth_req) &
-				SMP_AUTH_BONDING);
-	}
-
 
 	if (smp->csrk) {
 		smp->csrk->bdaddr_type = hcon->dst_type;
