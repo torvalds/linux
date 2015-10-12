@@ -1887,10 +1887,8 @@ static void __exit exit_wilc_driver(void)
 	sdio_unregister_driver(&wilc_bus);
 #endif
 
-	if (g_linux_wlan != NULL) {
-		kfree(g_linux_wlan);
-		g_linux_wlan = NULL;
-	}
+	kfree(g_linux_wlan);
+	g_linux_wlan = NULL;
 	printk("Module_exit Done.\n");
 
 #if defined(WILC_DEBUGFS)
