@@ -455,7 +455,7 @@ xfs_attrmulti_attr_get(
 	unsigned char		*kbuf;
 	int			error = -EFAULT;
 
-	if (*len > XATTR_SIZE_MAX)
+	if (*len > XFS_XATTR_SIZE_MAX)
 		return -EINVAL;
 	kbuf = kmem_zalloc_large(*len, KM_SLEEP);
 	if (!kbuf)
@@ -485,7 +485,7 @@ xfs_attrmulti_attr_set(
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;
-	if (len > XATTR_SIZE_MAX)
+	if (len > XFS_XATTR_SIZE_MAX)
 		return -EINVAL;
 
 	kbuf = memdup_user(ubuf, len);
