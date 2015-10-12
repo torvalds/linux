@@ -188,7 +188,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			return 0;
 
-		page = get_meta_page(sbi, blkaddr);
+		page = get_tmp_page(sbi, blkaddr);
 
 		if (cp_ver != cpver_of_node(page))
 			break;
@@ -480,7 +480,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 
 		ra_meta_pages_cond(sbi, blkaddr);
 
-		page = get_meta_page(sbi, blkaddr);
+		page = get_tmp_page(sbi, blkaddr);
 
 		if (cp_ver != cpver_of_node(page)) {
 			f2fs_put_page(page, 1);

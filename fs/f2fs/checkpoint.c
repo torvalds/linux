@@ -47,7 +47,8 @@ repeat:
 /*
  * We guarantee no failure on the returned page.
  */
-struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
+							bool is_meta)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
 	struct page *page;
@@ -58,6 +59,9 @@ struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 		.blk_addr = index,
 		.encrypted_page = NULL,
 	};
+
+	if (unlikely(!is_meta))
+		fio.rw &= ~REQ_META;
 repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page) {
@@ -89,6 +93,17 @@ repeat:
 		f2fs_stop_checkpoint(sbi);
 out:
 	return page;
+}
+
+struct page *get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	return __get_meta_page(sbi, index, true);
+}
+
+/* for POR only */
+struct page *get_tmp_page(struct f2fs_sb_info *sbi, pgoff_t index)
+{
+	return __get_meta_page(sbi, index, false);
 }
 
 bool is_valid_blkaddr(struct f2fs_sb_info *sbi, block_t blkaddr, int type)
@@ -136,6 +151,9 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 		.rw = READ_SYNC | REQ_META | REQ_PRIO,
 		.encrypted_page = NULL,
 	};
+
+	if (unlikely(type == META_POR))
+		fio.rw &= ~REQ_META;
 
 	for (; nrpages-- > 0; blkno++) {
 

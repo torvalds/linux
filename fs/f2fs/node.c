@@ -1807,7 +1807,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 		ra_meta_pages(sbi, addr, nrpages, META_POR);
 
 		for (idx = addr; idx < addr + nrpages; idx++) {
-			struct page *page = get_meta_page(sbi, idx);
+			struct page *page = get_tmp_page(sbi, idx);
 
 			rn = F2FS_NODE(page);
 			sum_entry->nid = rn->footer.nid;

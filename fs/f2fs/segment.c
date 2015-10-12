@@ -1317,6 +1317,9 @@ void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
 		.encrypted_page = NULL,
 	};
 
+	if (unlikely(page->index >= MAIN_BLKADDR(sbi)))
+		fio.rw &= ~REQ_META;
+
 	set_page_writeback(page);
 	f2fs_submit_page_mbio(&fio);
 }
