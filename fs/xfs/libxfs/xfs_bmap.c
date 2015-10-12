@@ -948,14 +948,16 @@ xfs_bmap_local_to_extents(
 	bp = xfs_btree_get_bufl(args.mp, tp, args.fsbno, 0);
 
 	/*
-	 * Initialise the block and copy the data
+	 * Initialize the block, copy the data and log the remote buffer.
 	 *
-	 * Note: init_fn must set the buffer log item type correctly!
+	 * The callout is responsible for logging because the remote format
+	 * might differ from the local format and thus we don't know how much to
+	 * log here. Note that init_fn must also set the buffer log item type
+	 * correctly.
 	 */
 	init_fn(tp, bp, ip, ifp);
 
-	/* account for the change in fork size and log everything */
-	xfs_trans_log_buf(tp, bp, 0, ifp->if_bytes - 1);
+	/* account for the change in fork size */
 	xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
 	xfs_bmap_local_to_extents_empty(ip, whichfork);
 	flags |= XFS_ILOG_CORE;
