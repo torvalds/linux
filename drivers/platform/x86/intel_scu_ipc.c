@@ -567,9 +567,14 @@ static irqreturn_t ioc(int irq, void *dev_id)
  */
 static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	int platform;		/* Platform type */
 	int err;
 	struct intel_scu_ipc_dev *scu = &ipcdev;
 	struct intel_scu_ipc_pdata_t *pdata;
+
+	platform = intel_mid_identify_cpu();
+	if (platform == 0)
+		return -ENODEV;
 
 	if (scu->dev)		/* We support only one SCU */
 		return -EBUSY;
@@ -651,24 +656,8 @@ static struct pci_driver ipc_driver = {
 	.remove = ipc_remove,
 };
 
-static int __init intel_scu_ipc_init(void)
-{
-	int platform;		/* Platform type */
-
-	platform = intel_mid_identify_cpu();
-	if (platform == 0)
-		return -ENODEV;
-	return  pci_register_driver(&ipc_driver);
-}
-
-static void __exit intel_scu_ipc_exit(void)
-{
-	pci_unregister_driver(&ipc_driver);
-}
+module_pci_driver(ipc_driver);
 
 MODULE_AUTHOR("Sreedhara DS <sreedhara.ds@intel.com>");
 MODULE_DESCRIPTION("Intel SCU IPC driver");
 MODULE_LICENSE("GPL");
-
-module_init(intel_scu_ipc_init);
-module_exit(intel_scu_ipc_exit);
