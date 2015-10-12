@@ -155,7 +155,7 @@
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {
-			      };
+			};
 		};
 	};
 };
@@ -175,11 +175,11 @@
 };
 
 &mmc1 {
-      pinctrl-names = "default";
-      pinctrl-0 = <&mmc1_pins>;
-      vmmc-supply = <&vmmc1>;
-      vmmc_aux-supply = <&vsim>;
-      bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+	vmmc-supply = <&vmmc1>;
+	vmmc_aux-supply = <&vsim>;
+	bus-width = <4>;
 };
 
 &mmc3 {
@@ -187,13 +187,13 @@
 };
 
 &uart1 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart1_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
 };
 
 &uart3 {
-       pinctrl-names = "default";
-       pinctrl-0 = <&uart3_pins>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 };
 
 &twl_gpio {
