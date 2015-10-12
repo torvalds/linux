@@ -1,39 +1,34 @@
 /*
-
-    comedi/drivers/aio_aio12_8.c
-
-    Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
-    Copyright (C) 2006 C&C Technologies, Inc.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * aio_aio12_8.c
+ * Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
+ * Copyright (C) 2006 C&C Technologies, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-
-Driver: aio_aio12_8
-Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
-Author: Pablo Mejia <pablo.mejia@cctechnol.com>
-Devices: [Access I/O] PC-104 AIO12-8 (aio_aio12_8)
-	 [Access I/O] PC-104 AI12-8 (aio_ai12_8)
-	 [Access I/O] PC-104 AO12-8 (aio_ao12_8)
-Status: experimental
-
-Configuration Options:
-  [0] - I/O port base address
-
-Notes:
-
-  Only synchronous operations are supported.
-
-*/
+ * Driver: aio_aio12_8
+ * Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
+ * Author: Pablo Mejia <pablo.mejia@cctechnol.com>
+ * Devices: [Access I/O] PC-104 AIO12-8 (aio_aio12_8),
+ *   [Access I/O] PC-104 AI12-8 (aio_ai12_8),
+ *   [Access I/O] PC-104 AO12-8 (aio_ao12_8)
+ * Status: experimental
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
+ *
+ * Notes:
+ * Only synchronous operations are supported.
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
