@@ -1831,6 +1831,13 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	if (of_flags & OF_GPIO_ACTIVE_LOW)
 		*flags |= GPIO_ACTIVE_LOW;
 
+	if (of_flags & OF_GPIO_SINGLE_ENDED) {
+		if (of_flags & OF_GPIO_ACTIVE_LOW)
+			*flags |= GPIO_OPEN_DRAIN;
+		else
+			*flags |= GPIO_OPEN_SOURCE;
+	}
+
 	return desc;
 }
 
@@ -2184,6 +2191,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 {
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
 	bool active_low = false;
+	bool single_ended = false;
 	int ret;
 
 	if (!fwnode)
@@ -2194,8 +2202,10 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 		desc = of_get_named_gpiod_flags(to_of_node(fwnode), propname, 0,
 						&flags);
-		if (!IS_ERR(desc))
+		if (!IS_ERR(desc)) {
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
+			single_ended = flags & OF_GPIO_SINGLE_ENDED;
+		}
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
 
@@ -2208,9 +2218,15 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	if (IS_ERR(desc))
 		return desc;
 
-	/* Only value flag can be set from both DT and ACPI is active_low */
 	if (active_low)
 		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+
+	if (single_ended) {
+		if (active_low)
+			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+		else
+			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+	}
 
 	ret = gpiod_request(desc, NULL);
 	if (ret)
