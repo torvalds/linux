@@ -2125,6 +2125,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	/* Free the indication buffer */
 	dev_kfree_skb_any(skb);
 }
+EXPORT_SYMBOL(ath10k_htt_t2h_msg_handler);
 
 static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 {

@@ -187,6 +187,12 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
+void ath10k_htt_hif_tx_complete(struct ath10k *ar, struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+}
+EXPORT_SYMBOL(ath10k_htt_hif_tx_complete);
+
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
