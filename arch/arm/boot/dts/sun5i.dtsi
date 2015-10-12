@@ -102,6 +102,15 @@
 			clock-output-names = "pll1";
 		};
 
+		pll2: clk@01c20008 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun5i-a13-pll2-clk";
+			reg = <0x01c20008 0x8>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll2-1x", "pll2-2x",
+					     "pll2-4x", "pll2-8x";
+		};
+
 		pll4: clk@01c20018 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-a10-pll1-clk";
