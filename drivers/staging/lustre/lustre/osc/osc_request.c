@@ -1998,9 +1998,7 @@ out:
 	if (mem_tight != 0)
 		cfs_memory_pressure_restore(mpflag);
 
-	if (crattr != NULL) {
-		kfree(crattr);
-	}
+	kfree(crattr);
 
 	if (rc != 0) {
 		LASSERT(req == NULL);
