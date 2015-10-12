@@ -482,6 +482,8 @@ xfs_zero_eof(
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(offset > isize);
 
+	trace_xfs_zero_eof(ip, isize, offset - isize);
+
 	/*
 	 * First handle zeroing the block on which isize resides.
 	 *
