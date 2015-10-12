@@ -307,15 +307,20 @@ out:
 	return err;
 }
 
-static void __vlan_flush(struct net_bridge_vlan_group *vlgrp)
+static void __vlan_group_free(struct net_bridge_vlan_group *vg)
+{
+	WARN_ON(!list_empty(&vg->vlan_list));
+	rhashtable_destroy(&vg->vlan_hash);
+	kfree(vg);
+}
+
+static void __vlan_flush(struct net_bridge_vlan_group *vg)
 {
 	struct net_bridge_vlan *vlan, *tmp;
 
-	__vlan_delete_pvid(vlgrp, vlgrp->pvid);
-	list_for_each_entry_safe(vlan, tmp, &vlgrp->vlan_list, vlist)
+	__vlan_delete_pvid(vg, vg->pvid);
+	list_for_each_entry_safe(vlan, tmp, &vg->vlan_list, vlist)
 		__vlan_del(vlan);
-	rhashtable_destroy(&vlgrp->vlan_hash);
-	kfree_rcu(vlgrp, rcu);
 }
 
 struct sk_buff *br_handle_vlan(struct net_bridge *br,
@@ -571,9 +576,15 @@ int br_vlan_delete(struct net_bridge *br, u16 vid)
 
 void br_vlan_flush(struct net_bridge *br)
 {
+	struct net_bridge_vlan_group *vg;
+
 	ASSERT_RTNL();
 
-	__vlan_flush(br_vlan_group(br));
+	vg = br_vlan_group(br);
+	__vlan_flush(vg);
+	RCU_INIT_POINTER(br->vlgrp, NULL);
+	synchronize_rcu();
+	__vlan_group_free(vg);
 }
 
 struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group *vg, u16 vid)
@@ -959,7 +970,13 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 
 void nbp_vlan_flush(struct net_bridge_port *port)
 {
+	struct net_bridge_vlan_group *vg;
+
 	ASSERT_RTNL();
 
-	__vlan_flush(nbp_vlan_group(port));
+	vg = nbp_vlan_group(port);
+	__vlan_flush(vg);
+	RCU_INIT_POINTER(port->vlgrp, NULL);
+	synchronize_rcu();
+	__vlan_group_free(vg);
 }

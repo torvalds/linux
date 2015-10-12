@@ -132,7 +132,6 @@ struct net_bridge_vlan_group {
 	struct list_head		vlan_list;
 	u16				num_vlans;
 	u16				pvid;
-	struct rcu_head			rcu;
 };
 
 struct net_bridge_fdb_entry
