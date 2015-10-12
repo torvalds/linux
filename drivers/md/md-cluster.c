@@ -880,13 +880,11 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct cluster_msg cmsg;
-	int slot = cinfo->slot_number - 1;
 
 	add_resync_info(mddev, cinfo->bitmap_lockres, lo, hi);
 	/* Re-acquire the lock to refresh LVB */
 	dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW);
 	cmsg.type = cpu_to_le32(RESYNCING);
-	cmsg.slot = cpu_to_le32(slot);
 	cmsg.low = cpu_to_le64(lo);
 	cmsg.high = cpu_to_le64(hi);
 
