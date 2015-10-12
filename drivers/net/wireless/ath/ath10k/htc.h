@@ -312,7 +312,6 @@ struct ath10k_htc_ep {
 	int max_ep_message_len;
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
-	int ul_is_polled; /* call HIF to get tx completions */
 
 	u8 seq_no; /* for debugging */
 	int tx_credits;

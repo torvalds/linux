@@ -1402,9 +1402,8 @@ static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 	del_timer_sync(&ar_pci->rx_post_retry);
 }
 
-static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
-					      u16 service_id, u8 *ul_pipe,
-					      u8 *dl_pipe, int *ul_is_polled)
+static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar, u16 service_id,
+					      u8 *ul_pipe, u8 *dl_pipe)
 {
 	const struct service_to_pipe *entry;
 	bool ul_set = false, dl_set = false;
@@ -1445,24 +1444,17 @@ static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
 	if (WARN_ON(!ul_set || !dl_set))
 		return -ENOENT;
 
-	*ul_is_polled =
-		(host_ce_config_wlan[*ul_pipe].flags & CE_ATTR_DIS_INTR) != 0;
-
 	return 0;
 }
 
 static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
 					    u8 *ul_pipe, u8 *dl_pipe)
 {
-	int ul_is_polled;
-
 	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci hif get default pipe\n");
 
 	(void)ath10k_pci_hif_map_service_to_pipe(ar,
 						 ATH10K_HTC_SVC_ID_RSVD_CTRL,
-						 ul_pipe,
-						 dl_pipe,
-						 &ul_is_polled);
+						 ul_pipe, dl_pipe);
 }
 
 static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)

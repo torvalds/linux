@@ -58,8 +58,7 @@ struct ath10k_hif_ops {
 	void (*stop)(struct ath10k *ar);
 
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
-				   u8 *ul_pipe, u8 *dl_pipe,
-				   int *ul_is_polled);
+				   u8 *ul_pipe, u8 *dl_pipe);
 
 	void (*get_default_pipe)(struct ath10k *ar, u8 *ul_pipe, u8 *dl_pipe);
 
@@ -132,12 +131,10 @@ static inline void ath10k_hif_stop(struct ath10k *ar)
 
 static inline int ath10k_hif_map_service_to_pipe(struct ath10k *ar,
 						 u16 service_id,
-						 u8 *ul_pipe, u8 *dl_pipe,
-						 int *ul_is_polled)
+						 u8 *ul_pipe, u8 *dl_pipe)
 {
 	return ar->hif.ops->map_service_to_pipe(ar, service_id,
-						ul_pipe, dl_pipe,
-						ul_is_polled);
+						ul_pipe, dl_pipe);
 }
 
 static inline void ath10k_hif_get_default_pipe(struct ath10k *ar,
