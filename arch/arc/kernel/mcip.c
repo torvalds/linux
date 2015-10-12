@@ -19,14 +19,7 @@ static int idu_detected;
 
 static DEFINE_RAW_SPINLOCK(mcip_lock);
 
-/*
- * Any SMP specific init any CPU does when it comes up.
- * Here we setup the CPU to enable Inter-Processor-Interrupts
- * Called for each CPU
- * -Master      : init_IRQ()
- * -Other(s)    : start_kernel_secondary()
- */
-void mcip_init_smp(unsigned int cpu)
+static void mcip_setup_per_cpu(int cpu)
 {
 	smp_ipi_irq_setup(cpu, IPI_IRQ);
 }
@@ -139,6 +132,7 @@ static void mcip_probe_n_setup(void)
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
 	.init_early_smp	= mcip_probe_n_setup,
+	.init_irq_cpu	= mcip_setup_per_cpu,
 	.ipi_send	= mcip_ipi_send,
 	.ipi_clear	= mcip_ipi_clear,
 };

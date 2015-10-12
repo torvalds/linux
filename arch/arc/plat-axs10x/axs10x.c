@@ -482,9 +482,6 @@ static const char *axs103_compat[] __initconst = {
 MACHINE_START(AXS103, "axs103")
 	.dt_compat	= axs103_compat,
 	.init_early	= axs103_early_init,
-#ifdef CONFIG_ARC_MCIP
-	.init_smp	= mcip_init_smp,
-#endif
 MACHINE_END
 
 /*
