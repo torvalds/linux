@@ -1987,6 +1987,8 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			 be_if_cap_flags(adapter));
 	}
 	flags &= be_if_cap_flags(adapter);
+	if (!flags)
+		return -ENOTSUPP;
 
 	return __be_cmd_rx_filter(adapter, flags, value);
 }
@@ -3932,12 +3934,16 @@ static void be_fill_vf_res_template(struct be_adapter *adapter,
 			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
 					     BE_IF_FLAGS_DEFQ_RSS);
 		}
-
-		nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
 	} else {
 		num_vf_qs = 1;
 	}
 
+	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
+		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
+		vf_if_cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
+	}
+
+	nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
 	nic_vft->rq_count = cpu_to_le16(num_vf_qs);
 	nic_vft->txq_count = cpu_to_le16(num_vf_qs);
 	nic_vft->rssq_count = cpu_to_le16(num_vf_qs);
