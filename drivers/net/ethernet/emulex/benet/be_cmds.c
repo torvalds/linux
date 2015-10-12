@@ -2890,6 +2890,7 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 	if (!status) {
 		attribs = attribs_cmd.va + sizeof(struct be_cmd_resp_hdr);
 		adapter->hba_port_num = attribs->hba_attribs.phy_port;
+		adapter->pci_func_num = attribs->pci_func_num;
 		serial_num = attribs->hba_attribs.controller_serial_number;
 		for (i = 0; i < CNTL_SERIAL_NUM_WORDS; i++)
 			adapter->serial_num[i] = le32_to_cpu(serial_num[i]) &
@@ -3712,7 +3713,6 @@ int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 			status = -EINVAL;
 			goto err;
 		}
-
 		adapter->pf_number = desc->pf_num;
 		be_copy_nic_desc(res, desc);
 	}
@@ -3724,7 +3724,10 @@ err:
 	return status;
 }
 
-/* Will use MBOX only if MCCQ has not been created */
+/* Will use MBOX only if MCCQ has not been created
+ * non-zero domain => a PF is querying this on behalf of a VF
+ * zero domain => a PF or a VF is querying this for itself
+ */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 query, u8 domain)
 {
@@ -3751,10 +3754,15 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 			       OPCODE_COMMON_GET_PROFILE_CONFIG,
 			       cmd.size, &wrb, &cmd);
 
-	req->hdr.domain = domain;
 	if (!lancer_chip(adapter))
 		req->hdr.version = 1;
 	req->type = ACTIVE_PROFILE_TYPE;
+	/* When a function is querying profile information relating to
+	 * itself hdr.pf_number must be set to it's pci_func_num + 1
+	 */
+	req->hdr.domain = domain;
+	if (domain == 0)
+		req->hdr.pf_num = adapter->pci_func_num + 1;
 
 	/* When QUERY_MODIFIABLE_FIELDS_TYPE bit is set, cmd returns the
 	 * descriptors with all bits set to "1" for the fields which can be

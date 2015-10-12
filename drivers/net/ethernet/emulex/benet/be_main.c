@@ -4206,10 +4206,6 @@ static int be_get_config(struct be_adapter *adapter)
 	int status, level;
 	u16 profile_id;
 
-	status = be_cmd_get_cntl_attributes(adapter);
-	if (status)
-		return status;
-
 	status = be_cmd_query_fw_cfg(adapter);
 	if (status)
 		return status;
@@ -4407,6 +4403,11 @@ static int be_setup(struct be_adapter *adapter)
 
 	if (!lancer_chip(adapter))
 		be_cmd_req_native_mode(adapter);
+
+	/* Need to invoke this cmd first to get the PCI Function Number */
+	status = be_cmd_get_cntl_attributes(adapter);
+	if (status)
+		return status;
 
 	if (!BE2_chip(adapter) && be_physfn(adapter))
 		be_alloc_sriov_res(adapter);
