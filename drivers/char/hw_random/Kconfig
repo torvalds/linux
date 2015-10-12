@@ -369,6 +369,18 @@ config HW_RANDOM_XGENE
 
 	  If unsure, say Y.
 
+config HW_RANDOM_STM32
+	tristate "STMicroelectronics STM32 random number generator"
+	depends on HW_RANDOM && (ARCH_STM32 || COMPILE_TEST)
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on STM32 microcontrollers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-rng.
+
+	  If unsure, say N.
+
 endif # HW_RANDOM
 
 config UML_RANDOM
