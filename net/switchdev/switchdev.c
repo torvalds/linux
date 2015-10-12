@@ -727,6 +727,9 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 			if (vlan.vid_begin)
 				return -EINVAL;
 			vlan.vid_begin = vinfo->vid;
+			/* don't allow range of pvids */
+			if (vlan.flags & BRIDGE_VLAN_INFO_PVID)
+				return -EINVAL;
 		} else if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_END) {
 			if (!vlan.vid_begin)
 				return -EINVAL;
