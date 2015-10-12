@@ -1276,27 +1276,26 @@ static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 	read_unlock(&vcpu->kvm->arch.sca_lock);
 }
 
-static void sca_add_vcpu(struct kvm_vcpu *vcpu, struct kvm *kvm,
-			unsigned int id)
+static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 {
-	read_lock(&kvm->arch.sca_lock);
-	if (kvm->arch.use_esca) {
-		struct esca_block *sca = kvm->arch.sca;
+	read_lock(&vcpu->kvm->arch.sca_lock);
+	if (vcpu->kvm->arch.use_esca) {
+		struct esca_block *sca = vcpu->kvm->arch.sca;
 
-		sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+		sca->cpu[vcpu->vcpu_id].sda = (__u64) vcpu->arch.sie_block;
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca & ~0x3fU;
 		vcpu->arch.sie_block->ecb2 |= 0x04U;
-		set_bit_inv(id, (unsigned long *) sca->mcn);
+		set_bit_inv(vcpu->vcpu_id, (unsigned long *) sca->mcn);
 	} else {
-		struct bsca_block *sca = kvm->arch.sca;
+		struct bsca_block *sca = vcpu->kvm->arch.sca;
 
-		sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+		sca->cpu[vcpu->vcpu_id].sda = (__u64) vcpu->arch.sie_block;
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
-		set_bit_inv(id, (unsigned long *) &sca->mcn);
+		set_bit_inv(vcpu->vcpu_id, (unsigned long *) &sca->mcn);
 	}
-	read_unlock(&kvm->arch.sca_lock);
+	read_unlock(&vcpu->kvm->arch.sca_lock);
 }
 
 /* Basic SCA to Extended SCA data copy routines */
@@ -1492,7 +1491,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	mutex_unlock(&vcpu->kvm->lock);
 	if (!kvm_is_ucontrol(vcpu->kvm)) {
 		vcpu->arch.gmap = vcpu->kvm->arch.gmap;
-		sca_add_vcpu(vcpu, vcpu->kvm, vcpu->vcpu_id);
+		sca_add_vcpu(vcpu);
 	}
 
 }
