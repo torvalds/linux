@@ -3626,6 +3626,14 @@ S:	Maintained
 F:	drivers/gpu/drm/imx/
 F:	Documentation/devicetree/bindings/drm/imx/
 
+DRM DRIVERS FOR GMA500 (Poulsbo, Moorestown and derivative chipsets)
+M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://github.com/patjak/drm-gma500
+S:	Maintained
+F:	drivers/gpu/drm/gma500
+F:	include/drm/gma500*
+
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
 M:	Terje Bergström <tbergstrom@nvidia.com>
