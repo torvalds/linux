@@ -131,6 +131,23 @@ struct extent_page_data {
 	unsigned int sync_io:1;
 };
 
+static void add_extent_changeset(struct extent_state *state, unsigned bits,
+				 struct extent_changeset *changeset,
+				 int set)
+{
+	int ret;
+
+	if (!changeset)
+		return;
+	if (set && (state->state & bits) == bits)
+		return;
+	changeset->bytes_changed += state->end - state->start + 1;
+	ret = ulist_add(changeset->range_changed, state->start, state->end,
+			GFP_ATOMIC);
+	/* ENOMEM */
+	BUG_ON(ret < 0);
+}
+
 static noinline void flush_write_bio(void *data);
 static inline struct btrfs_fs_info *
 tree_fs_info(struct extent_io_tree *tree)
@@ -410,7 +427,8 @@ static void clear_state_cb(struct extent_io_tree *tree,
 }
 
 static void set_state_bits(struct extent_io_tree *tree,
-			   struct extent_state *state, unsigned *bits);
+			   struct extent_state *state, unsigned *bits,
+			   struct extent_changeset *changeset);
 
 /*
  * insert an extent_state struct into the tree.  'bits' are set on the
@@ -426,7 +444,7 @@ static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state, u64 start, u64 end,
 			struct rb_node ***p,
 			struct rb_node **parent,
-			unsigned *bits)
+			unsigned *bits, struct extent_changeset *changeset)
 {
 	struct rb_node *node;
 
@@ -436,7 +454,7 @@ static int insert_state(struct extent_io_tree *tree,
 	state->start = start;
 	state->end = end;
 
-	set_state_bits(tree, state, bits);
+	set_state_bits(tree, state, bits, changeset);
 
 	node = tree_insert(&tree->state, NULL, end, &state->rb_node, p, parent);
 	if (node) {
@@ -789,7 +807,7 @@ out:
 
 static void set_state_bits(struct extent_io_tree *tree,
 			   struct extent_state *state,
-			   unsigned *bits)
+			   unsigned *bits, struct extent_changeset *changeset)
 {
 	unsigned bits_to_set = *bits & ~EXTENT_CTLBITS;
 
@@ -798,6 +816,7 @@ static void set_state_bits(struct extent_io_tree *tree,
 		u64 range = state->end - state->start + 1;
 		tree->dirty_bytes += range;
 	}
+	add_extent_changeset(state, bits_to_set, changeset, 1);
 	state->state |= bits_to_set;
 }
 
@@ -835,7 +854,7 @@ static int __must_check
 __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		 unsigned bits, unsigned exclusive_bits,
 		 u64 *failed_start, struct extent_state **cached_state,
-		 gfp_t mask)
+		 gfp_t mask, struct extent_changeset *changeset)
 {
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
@@ -873,7 +892,7 @@ again:
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
 		err = insert_state(tree, prealloc, start, end,
-				   &p, &parent, &bits);
+				   &p, &parent, &bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -899,7 +918,7 @@ hit_next:
 			goto out;
 		}
 
-		set_state_bits(tree, state, &bits);
+		set_state_bits(tree, state, &bits, changeset);
 		cache_state(state, cached_state);
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
@@ -945,7 +964,7 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set_state_bits(tree, state, &bits);
+			set_state_bits(tree, state, &bits, changeset);
 			cache_state(state, cached_state);
 			merge_state(tree, state);
 			if (last_end == (u64)-1)
@@ -980,7 +999,7 @@ hit_next:
 		 * the later extent.
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
-				   NULL, NULL, &bits);
+				   NULL, NULL, &bits, changeset);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1008,7 +1027,7 @@ hit_next:
 		if (err)
 			extent_io_tree_panic(tree, err);
 
-		set_state_bits(tree, prealloc, &bits);
+		set_state_bits(tree, prealloc, &bits, changeset);
 		cache_state(prealloc, cached_state);
 		merge_state(tree, prealloc);
 		prealloc = NULL;
@@ -1038,7 +1057,7 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   struct extent_state **cached_state, gfp_t mask)
 {
 	return __set_extent_bit(tree, start, end, bits, 0, failed_start,
-				cached_state, mask);
+				cached_state, mask, NULL);
 }
 
 
@@ -1111,7 +1130,7 @@ again:
 			goto out;
 		}
 		err = insert_state(tree, prealloc, start, end,
-				   &p, &parent, &bits);
+				   &p, &parent, &bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1130,7 +1149,7 @@ hit_next:
 	 * Just lock what we found and keep going
 	 */
 	if (state->start == start && state->end <= end) {
-		set_state_bits(tree, state, &bits);
+		set_state_bits(tree, state, &bits, NULL);
 		cache_state(state, cached_state);
 		state = clear_state_bit(tree, state, &clear_bits, 0);
 		if (last_end == (u64)-1)
@@ -1171,7 +1190,7 @@ hit_next:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			set_state_bits(tree, state, &bits);
+			set_state_bits(tree, state, &bits, NULL);
 			cache_state(state, cached_state);
 			state = clear_state_bit(tree, state, &clear_bits, 0);
 			if (last_end == (u64)-1)
@@ -1208,7 +1227,7 @@ hit_next:
 		 * the later extent.
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
-				   NULL, NULL, &bits);
+				   NULL, NULL, &bits, NULL);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1233,7 +1252,7 @@ hit_next:
 		if (err)
 			extent_io_tree_panic(tree, err);
 
-		set_state_bits(tree, prealloc, &bits);
+		set_state_bits(tree, prealloc, &bits, NULL);
 		cache_state(prealloc, cached_state);
 		clear_state_bit(tree, prealloc, &clear_bits, 0);
 		prealloc = NULL;
@@ -1272,6 +1291,22 @@ int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	return set_extent_bit(tree, start, end, bits, NULL,
 			      NULL, mask);
+}
+
+int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+			   unsigned bits, gfp_t mask,
+			   struct extent_changeset *changeset)
+{
+	/*
+	 * We don't support EXTENT_LOCKED yet, as current changeset will
+	 * record any bits changed, so for EXTENT_LOCKED case, it will
+	 * either fail with -EEXIST or changeset will record the whole
+	 * range.
+	 */
+	BUG_ON(bits & EXTENT_LOCKED);
+
+	return __set_extent_bit(tree, start, end, bits, 0, NULL, NULL, mask,
+				changeset);
 }
 
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -1343,7 +1378,7 @@ int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	while (1) {
 		err = __set_extent_bit(tree, start, end, EXTENT_LOCKED | bits,
 				       EXTENT_LOCKED, &failed_start,
-				       cached_state, GFP_NOFS);
+				       cached_state, GFP_NOFS, NULL);
 		if (err == -EEXIST) {
 			wait_extent_bit(tree, failed_start, end, EXTENT_LOCKED);
 			start = failed_start;
@@ -1365,7 +1400,7 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 	u64 failed_start;
 
 	err = __set_extent_bit(tree, start, end, EXTENT_LOCKED, EXTENT_LOCKED,
-			       &failed_start, NULL, GFP_NOFS);
+			       &failed_start, NULL, GFP_NOFS, NULL);
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			clear_extent_bit(tree, start, failed_start - 1,
