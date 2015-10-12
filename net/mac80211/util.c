@@ -2042,9 +2042,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (sched_scan_sdata && sched_scan_req)
 		/*
 		 * Sched scan stopped, but we don't want to report it. Instead,
-		 * we're trying to reschedule.
+		 * we're trying to reschedule. However, if more than one scan
+		 * plan was set, we cannot reschedule since we don't know which
+		 * scan plan was currently running (and some scan plans may have
+		 * already finished).
 		 */
-		if (__ieee80211_request_sched_scan_start(sched_scan_sdata,
+		if (sched_scan_req->n_scan_plans > 1 ||
+		    __ieee80211_request_sched_scan_start(sched_scan_sdata,
 							 sched_scan_req))
 			sched_scan_stopped = true;
 	mutex_unlock(&local->mtx);
