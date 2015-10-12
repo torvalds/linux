@@ -1051,5 +1051,6 @@ static void cluster_exit(void)
 
 module_init(cluster_init);
 module_exit(cluster_exit);
+MODULE_AUTHOR("SUSE");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Clustering support for MD");
