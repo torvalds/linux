@@ -22,6 +22,25 @@
 		status = "okay";
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+		pinctrl-1 = <&pinctrl_gpio_keys_sleep>;
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};
+
 	pxp_v4l2_out {
 		compatible = "fsl,imx7d-pxp-v4l2", "fsl,imx6sx-pxp-v4l2", "fsl,imx6sl-pxp-v4l2";
 		status = "okay";
@@ -468,6 +487,20 @@
 				MX7D_PAD_EPDC_BDR0__EPDC_BDR0     0x2
 				MX7D_PAD_EPDC_BDR1__EPDC_BDR1     0x2
 				MX7D_PAD_ECSPI1_MISO__GPIO4_IO18  0x80000000  /* pwr int */
+			>;
+		};
+
+		pinctrl_gpio_keys: gpio_keysgrp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO14__GPIO1_IO14 0x32
+				MX7D_PAD_GPIO1_IO15__GPIO1_IO15 0x32
+			>;
+		};
+
+		pinctrl_gpio_keys_sleep: gpio_keysgrp_sleep {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO14__GPIO1_IO14 0x14
+				MX7D_PAD_GPIO1_IO15__GPIO1_IO15 0x14
 			>;
 		};
 
