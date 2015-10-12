@@ -2504,8 +2504,6 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			if (!comedi_is_runflags_running(runflags)) {
 				if (comedi_is_runflags_in_error(runflags))
 					retval = -EPIPE;
-				else
-					retval = 0;
 				become_nonbusy = true;
 				break;
 			}
@@ -2519,7 +2517,6 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 				break;
 			}
 			if (!s->busy) {
-				retval = 0;
 				break;
 			}
 			if (s->busy != file) {
