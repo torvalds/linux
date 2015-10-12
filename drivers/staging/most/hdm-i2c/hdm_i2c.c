@@ -416,7 +416,6 @@ MODULE_DEVICE_TABLE(i2c, i2c_id);
 static struct i2c_driver i2c_driver = {
 	.driver = {
 		.name = "hdm_i2c",
-		.owner = THIS_MODULE,
 	},
 	.probe = i2c_probe,
 	.remove = i2c_remove,
