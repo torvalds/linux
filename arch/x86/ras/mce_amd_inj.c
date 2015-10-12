@@ -129,12 +129,9 @@ static ssize_t flags_write(struct file *filp, const char __user *ubuf,
 {
 	char buf[MAX_FLAG_OPT_SIZE], *__buf;
 	int err;
-	size_t ret;
 
 	if (cnt > MAX_FLAG_OPT_SIZE)
-		cnt = MAX_FLAG_OPT_SIZE;
-
-	ret = cnt;
+		return -EINVAL;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -150,9 +147,9 @@ static ssize_t flags_write(struct file *filp, const char __user *ubuf,
 		return err;
 	}
 
-	*ppos += ret;
+	*ppos += cnt;
 
-	return ret;
+	return cnt;
 }
 
 static const struct file_operations flags_fops = {
