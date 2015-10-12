@@ -192,11 +192,6 @@ typedef void (*wilc_connect_result)(tenuConnDisconnEvent,
 typedef void (*wilc_remain_on_chan_expired)(void *, u32);  /*Remain on channel expiration callback function*/
 typedef void (*wilc_remain_on_chan_ready)(void *); /*Remain on channel callback function*/
 
-/* typedef u32 WILC_WFIDrvHandle; */
-typedef struct {
-	s32 s32Dummy;
-} *WILC_WFIDrvHandle;
-
 /*!
  *  @struct             rcvd_net_info
  *  @brief		Structure to hold Received Asynchronous Network info
