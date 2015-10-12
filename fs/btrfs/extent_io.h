@@ -2,6 +2,7 @@
 #define __EXTENTIO__
 
 #include <linux/rbtree.h>
+#include "ulist.h"
 
 /* bits for the extent state */
 #define EXTENT_DIRTY		(1U << 0)
@@ -159,6 +160,17 @@ struct extent_buffer {
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
 #endif
+};
+
+/*
+ * Structure to record how many bytes and which ranges are set/cleared
+ */
+struct extent_changeset {
+	/* How many bytes are set/cleared in this operation */
+	u64 bytes_changed;
+
+	/* Changed ranges */
+	struct ulist *range_changed;
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
