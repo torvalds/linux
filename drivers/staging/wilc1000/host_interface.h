@@ -59,7 +59,7 @@
 
 typedef struct {
 	u16 cfg_wid;
-	WID_TYPE_T cfg_type;
+	enum WID_TYPE cfg_type;
 	s8     *pu8Para;
 } cfg_param_t;
 
