@@ -1027,7 +1027,7 @@ xfs_alloc_file_space(
 		xfs_bmap_init(&free_list, &firstfsb);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
 					allocatesize_fsb, alloc_type, &firstfsb,
-					0, imapp, &nimaps, &free_list);
+					resblks, imapp, &nimaps, &free_list);
 		if (error) {
 			goto error0;
 		}
