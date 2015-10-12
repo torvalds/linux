@@ -43,7 +43,14 @@
 #define PCI171X_STATUS_FF	BIT(10)	/* 1=FIFO is full, fatal error */
 #define PCI171X_STATUS_FH	BIT(9)	/* 1=FIFO is half full */
 #define PCI171X_STATUS_FE	BIT(8)	/* 1=FIFO is empty */
-#define PCI171x_CONTROL	 6	/* W:   control register */
+#define PCI171X_CTRL_REG	0x06	/* W:   control register */
+#define PCI171X_CTRL_CNT0	BIT(6)	/* 1=ext. clk, 0=int. 100kHz clk */
+#define PCI171X_CTRL_ONEFH	BIT(5)	/* 1=on FIFO half full, 0=on sample */
+#define PCI171X_CTRL_IRQEN	BIT(4)	/* 1=enable IRQ */
+#define PCI171X_CTRL_GATE	BIT(3)	/* 1=enable ext. trigger GATE (8254?) */
+#define PCI171X_CTRL_EXT	BIT(2)	/* 1=enable ext. trigger source */
+#define PCI171X_CTRL_PACER	BIT(1)	/* 1=enable int. 8254 trigger source */
+#define PCI171X_CTRL_SW		BIT(0)	/* 1=enable software trigger source */
 #define PCI171x_CLRINT	 8	/* W:   clear interrupts request */
 #define PCI171x_CLRFIFO	 9	/* W:   clear FIFO */
 #define PCI171x_DA1	10	/* W:   D/A register */
@@ -53,16 +60,6 @@
 #define PCI171x_DO	16	/* R:   digi inputs */
 
 #define PCI171X_TIMER_BASE	0x18
-
-/* bits from control register (PCI171x_CONTROL) */
-#define Control_CNT0	0x0040	/* 1=CNT0 have external source,
-				 * 0=have internal 100kHz source */
-#define Control_ONEFH	0x0020	/* 1=IRQ on FIFO is half full, 0=every sample */
-#define Control_IRQEN	0x0010	/* 1=enable IRQ */
-#define Control_GATE	0x0008	/* 1=enable external trigger GATE (8254?) */
-#define Control_EXT	0x0004	/* 1=external trigger source */
-#define Control_PACER	0x0002	/* 1=enable internal 8254 trigger source */
-#define Control_SW	0x0001	/* 1=enable software trigger source */
 
 #define PCI1720_DA0	 0	/* W:   D/A register 0 */
 #define PCI1720_DA1	 2	/* W:   D/A register 1 */
@@ -227,9 +224,9 @@ static const struct boardtype boardtypes[] = {
 
 struct pci1710_private {
 	unsigned int max_samples;
-	unsigned int CntrlReg;	/*  Control register */
+	unsigned int ctrl;	/* control register value */
+	unsigned int ctrl_ext;	/* used to switch from TRIG_EXT to TRIG_xxx */
 	unsigned char ai_et;
-	unsigned int ai_et_CntrlReg;
 	unsigned int ai_et_MuxVal;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
@@ -389,9 +386,9 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 	int ret = 0;
 	int i;
 
-	devpriv->CntrlReg &= Control_CNT0;
-	devpriv->CntrlReg |= Control_SW;	/*  set software trigger */
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+	devpriv->ctrl &= PCI171X_CTRL_CNT0;
+	devpriv->ctrl |= PCI171X_CTRL_SW;	/*  set software trigger */
+	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
@@ -503,10 +500,10 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 {
 	struct pci1710_private *devpriv = dev->private;
 
-	devpriv->CntrlReg &= Control_CNT0;
-	devpriv->CntrlReg |= Control_SW;
+	devpriv->ctrl &= PCI171X_CTRL_CNT0;
+	devpriv->ctrl |= PCI171X_CTRL_SW;
 	/* reset any operations */
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
@@ -620,14 +617,14 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 
 	if (devpriv->ai_et) {	/*  Switch from initial TRIG_EXT to TRIG_xxx. */
 		devpriv->ai_et = 0;
-		devpriv->CntrlReg &= Control_CNT0;
-		devpriv->CntrlReg |= Control_SW; /* set software trigger */
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		devpriv->CntrlReg = devpriv->ai_et_CntrlReg;
+		devpriv->ctrl &= PCI171X_CTRL_CNT0;
+		devpriv->ctrl |= PCI171X_CTRL_SW; /* set software trigger */
+		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
+		devpriv->ctrl = devpriv->ctrl_ext;
 		outb(0, dev->iobase + PCI171x_CLRFIFO);
 		outb(0, dev->iobase + PCI171x_CLRINT);
 		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		return IRQ_HANDLED;
 	}
@@ -653,30 +650,31 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
 	outb(0, dev->iobase + PCI171x_CLRINT);
 
-	devpriv->CntrlReg &= Control_CNT0;
+	devpriv->ctrl &= PCI171X_CTRL_CNT0;
 	if ((cmd->flags & CMDF_WAKE_EOS) == 0)
-		devpriv->CntrlReg |= Control_ONEFH;
+		devpriv->ctrl |= PCI171X_CTRL_ONEFH;
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		comedi_8254_update_divisors(dev->pacer);
 
-		devpriv->CntrlReg |= Control_PACER | Control_IRQEN;
+		devpriv->ctrl |= PCI171X_CTRL_PACER | PCI171X_CTRL_IRQEN;
 		if (cmd->start_src == TRIG_EXT) {
-			devpriv->ai_et_CntrlReg = devpriv->CntrlReg;
-			devpriv->CntrlReg &=
-			    ~(Control_PACER | Control_ONEFH | Control_GATE);
-			devpriv->CntrlReg |= Control_EXT;
+			devpriv->ctrl_ext = devpriv->ctrl;
+			devpriv->ctrl &= ~(PCI171X_CTRL_PACER |
+					   PCI171X_CTRL_ONEFH |
+					   PCI171X_CTRL_GATE);
+			devpriv->ctrl |= PCI171X_CTRL_EXT;
 			devpriv->ai_et = 1;
 		} else {	/* TRIG_NOW */
 			devpriv->ai_et = 0;
 		}
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 
 		if (cmd->start_src == TRIG_NOW)
 			comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 	} else {	/* TRIG_EXT */
-		devpriv->CntrlReg |= Control_EXT | Control_IRQEN;
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+		devpriv->ctrl |= PCI171X_CTRL_EXT | PCI171X_CTRL_IRQEN;
+		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 	}
 
 	return 0;
@@ -765,18 +763,18 @@ static int pci171x_insn_counter_config(struct comedi_device *dev,
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		switch (data[1]) {
 		case 0:	/* internal */
-			devpriv->ai_et_CntrlReg &= ~Control_CNT0;
+			devpriv->ctrl_ext &= ~PCI171X_CTRL_CNT0;
 			break;
 		case 1:	/* external */
-			devpriv->ai_et_CntrlReg |= Control_CNT0;
+			devpriv->ctrl_ext |= PCI171X_CTRL_CNT0;
 			break;
 		default:
 			return -EINVAL;
 		}
-		outw(devpriv->ai_et_CntrlReg, dev->iobase + PCI171x_CONTROL);
+		outw(devpriv->ctrl_ext, dev->iobase + PCI171X_CTRL_REG);
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		if (devpriv->ai_et_CntrlReg & Control_CNT0) {
+		if (devpriv->ctrl_ext & PCI171X_CTRL_CNT0) {
 			data[1] = 1;
 			data[2] = 0;
 		} else {
@@ -797,9 +795,9 @@ static int pci171x_reset(struct comedi_device *dev)
 	struct pci1710_private *devpriv = dev->private;
 
 	/* Software trigger, CNT0=external */
-	devpriv->CntrlReg = Control_SW | Control_CNT0;
+	devpriv->ctrl = PCI171X_CTRL_SW | PCI171X_CTRL_CNT0;
 	/* reset any operations */
-	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
 	devpriv->da_ranges = 0;
