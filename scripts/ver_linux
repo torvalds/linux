@@ -46,8 +46,12 @@ awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-tune2fs 2>&1 | grep "^tune2fs" | sed 's/,//' |  awk \
-'NR==1 {print "e2fsprogs             ", $2}'
+tune2fs 2>&1 |
+awk '/^tune2fs/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("E2fsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 fsck.jfs -V 2>&1 | grep version | sed 's/,//' |  awk \
 'NR==1 {print "jfsutils              ", $3}'
