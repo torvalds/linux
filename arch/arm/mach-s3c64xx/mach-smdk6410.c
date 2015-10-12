@@ -30,6 +30,7 @@
 #include <linux/smsc911x.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
+#include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
@@ -623,8 +624,12 @@ static struct samsung_bl_gpio_info smdk6410_bl_gpio_info = {
 	.func = S3C_GPIO_SFN(2),
 };
 
+static struct pwm_lookup smdk6410_pwm_lookup[] = {
+	PWM_LOOKUP("samsung-pwm", 1, "pwm-backlight.0", NULL, 78770,
+		   PWM_POLARITY_NORMAL),
+};
+
 static struct platform_pwm_backlight_data smdk6410_bl_data = {
-	.pwm_id = 1,
 	.enable_gpio = -1,
 };
 
@@ -695,6 +700,7 @@ static void __init smdk6410_machine_init(void)
 
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 
+	pwm_add_table(smdk6410_pwm_lookup, ARRAY_SIZE(smdk6410_pwm_lookup));
 	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
 }
 
