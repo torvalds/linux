@@ -97,7 +97,7 @@ drm_vma_offset_exact_lookup(struct drm_vma_offset_manager *mgr,
  * drm_vma_offset_lock_lookup() - Lock lookup for extended private use
  * @mgr: Manager object
  *
- * Lock VMA manager for extended lookups. Only *_locked() VMA function calls
+ * Lock VMA manager for extended lookups. Only locked VMA function calls
  * are allowed while holding this lock. All other contexts are blocked from VMA
  * until the lock is released via drm_vma_offset_unlock_lookup().
  *
