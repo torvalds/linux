@@ -147,13 +147,12 @@ awk '/tools/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-# Kbd needs 'loadkeys -h',
-loadkeys -h 2>&1 | awk \
-'(NR==1 && ($3 !~ /option/)) {print "Kbd                   ", $3}'
-
-# while console-tools needs 'loadkeys -V'.
-loadkeys -V 2>&1 | awk \
-'(NR==1 && ($2 ~ /console-tools/)) {print "Console-tools         ", $3}'
+loadkeys -V 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	$0 = substr($0,RSTART,RLENGTH)
+	printf("Kbd\t\t\t%s\nConsole-tools\t\t%s\n",$0,$0)
+}'
 
 oprofiled --version 2>&1 | awk \
 '(NR==1 && ($2 == "oprofile")) {print "oprofile              ", $3}'
