@@ -117,7 +117,9 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
-	ether_addr_copy(hw->mac.perm_addr, addr);
+	if (msgbuf[0] == (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
+		ether_addr_copy(hw->mac.perm_addr, addr);
+
 	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
 
 	return 0;
