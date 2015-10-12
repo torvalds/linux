@@ -17,8 +17,10 @@
 #include <linux/cpu.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
+#include <linux/pci.h>
 
 #include <asm/mce.h>
+#include <asm/amd_nb.h>
 #include <asm/irq_vectors.h>
 
 #include "../kernel/cpu/mcheck/mce-internal.h"
@@ -32,6 +34,7 @@ static struct dentry *dfs_inj;
 static u8 n_banks;
 
 #define MAX_FLAG_OPT_SIZE	3
+#define NBCFG			0x44
 
 enum injection_type {
 	SW_INJ = 0,	/* SW injection, simply decode the error */
@@ -198,6 +201,45 @@ static void trigger_thr_int(void *info)
 	asm volatile("int %0" :: "i" (THRESHOLD_APIC_VECTOR));
 }
 
+static u32 get_nbc_for_node(int node_id)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+	u32 cores_per_node;
+
+	cores_per_node = c->x86_max_cores / amd_get_nodes_per_socket();
+
+	return cores_per_node * node_id;
+}
+
+static void toggle_nb_mca_mst_cpu(u16 nid)
+{
+	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
+	u32 val;
+	int err;
+
+	if (!F3)
+		return;
+
+	err = pci_read_config_dword(F3, NBCFG, &val);
+	if (err) {
+		pr_err("%s: Error reading F%dx%03x.\n",
+		       __func__, PCI_FUNC(F3->devfn), NBCFG);
+		return;
+	}
+
+	if (val & BIT(27))
+		return;
+
+	pr_err("%s: Set D18F3x44[NbMcaToMstCpuEn] which BIOS hasn't done.\n",
+	       __func__);
+
+	val |= BIT(27);
+	err = pci_write_config_dword(F3, NBCFG, val);
+	if (err)
+		pr_err("%s: Error writing F%dx%03x.\n",
+		       __func__, PCI_FUNC(F3->devfn), NBCFG);
+}
+
 static void do_inject(void)
 {
 	u64 mcg_status = 0;
@@ -226,6 +268,16 @@ static void do_inject(void)
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
 		i_mce.status |= (i_mce.status & ~MCI_STATUS_UC);
+	}
+
+	/*
+	 * For multi node CPUs, logging and reporting of bank 4 errors happens
+	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
+	 * Fam10h and later BKDGs.
+	 */
+	if (static_cpu_has(X86_FEATURE_AMD_DCM) && b == 4) {
+		toggle_nb_mca_mst_cpu(amd_get_nb_id(cpu));
+		cpu = get_nbc_for_node(amd_get_nb_id(cpu));
 	}
 
 	get_online_cpus();
