@@ -4999,7 +4999,15 @@ static bool be_check_ufi_compatibility(struct be_adapter *adapter,
 		return false;
 	}
 
-	return (fhdr->asic_type_rev >= adapter->asic_rev);
+	/* In BE3 FW images the "asic_type_rev" field doesn't track the
+	 * asic_rev of the chips it is compatible with.
+	 * When asic_type_rev is 0 the image is compatible only with
+	 * pre-BE3-R chips (asic_rev < 0x10)
+	 */
+	if (BEx_chip(adapter) && fhdr->asic_type_rev == 0)
+		return adapter->asic_rev < 0x10;
+	else
+		return (fhdr->asic_type_rev >= adapter->asic_rev);
 }
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
