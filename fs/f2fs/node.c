@@ -1560,6 +1560,9 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 			remove_free_nid(nm_i, nid);
 	}
 	mutex_unlock(&curseg->curseg_mutex);
+
+	ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nm_i->next_scan_nid),
+					FREE_NID_PAGES, META_NAT, false);
 }
 
 /*
