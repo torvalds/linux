@@ -512,6 +512,7 @@
 			iomuxc_lpsr: iomuxc-lpsr@302c0000 {
 				compatible = "fsl,imx7d-iomuxc-lpsr";
 				reg = <0x302c0000 0x10000>;
+				fsl,input-sel = <&iomuxc>;
 			};
 
 			gpt1: gpt@302d0000 {
