@@ -38,7 +38,11 @@
 #define PCI171x_SOFTTRG	 0	/* W:   soft trigger for A/D */
 #define PCI171x_RANGE	 2	/* W:   A/D gain/range register */
 #define PCI171x_MUX	 4	/* W:   A/D multiplexor control */
-#define PCI171x_STATUS	 6	/* R:   status register */
+#define PCI171X_STATUS_REG	0x06	/* R:   status register */
+#define PCI171X_STATUS_IRQ	BIT(11)	/* 1=IRQ occurred */
+#define PCI171X_STATUS_FF	BIT(10)	/* 1=FIFO is full, fatal error */
+#define PCI171X_STATUS_FH	BIT(9)	/* 1=FIFO is half full */
+#define PCI171X_STATUS_FE	BIT(8)	/* 1=FIFO is empty */
 #define PCI171x_CONTROL	 6	/* W:   control register */
 #define PCI171x_CLRINT	 8	/* W:   clear interrupts request */
 #define PCI171x_CLRFIFO	 9	/* W:   clear FIFO */
@@ -50,12 +54,6 @@
 
 #define PCI171X_TIMER_BASE	0x18
 
-/* upper bits from status register (PCI171x_STATUS) (lower is same with control
- * reg) */
-#define	Status_FE	0x0100	/* 1=FIFO is empty */
-#define Status_FH	0x0200	/* 1=FIFO is half full */
-#define Status_FF	0x0400	/* 1=FIFO is full, fatal error */
-#define Status_IRQ	0x0800	/* 1=IRQ occurred */
 /* bits from control register (PCI171x_CONTROL) */
 #define Control_CNT0	0x0040	/* 1=CNT0 have external source,
 				 * 0=have internal 100kHz source */
@@ -347,8 +345,8 @@ static int pci171x_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + PCI171x_STATUS);
-	if ((status & Status_FE) == 0)
+	status = inw(dev->iobase + PCI171X_STATUS_REG);
+	if ((status & PCI171X_STATUS_FE) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -524,13 +522,13 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	unsigned int val;
 	int ret;
 
-	status = inw(dev->iobase + PCI171x_STATUS);
-	if (status & Status_FE) {
+	status = inw(dev->iobase + PCI171X_STATUS_REG);
+	if (status & PCI171X_STATUS_FE) {
 		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", status);
 		s->async->events |= COMEDI_CB_ERROR;
 		return;
 	}
-	if (status & Status_FF) {
+	if (status & PCI171X_STATUS_FF) {
 		dev_dbg(dev->class_dev,
 			"A/D FIFO Full status (Fatal Error!) (%4x)\n", status);
 		s->async->events |= COMEDI_CB_ERROR;
@@ -539,7 +537,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 
-	for (; !(inw(dev->iobase + PCI171x_STATUS) & Status_FE);) {
+	for (; !(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_FE);) {
 		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
 		if (ret) {
 			s->async->events |= COMEDI_CB_ERROR;
@@ -567,13 +565,13 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	unsigned int status;
 	int i;
 
-	status = inw(dev->iobase + PCI171x_STATUS);
-	if (!(status & Status_FH)) {
+	status = inw(dev->iobase + PCI171X_STATUS_REG);
+	if (!(status & PCI171X_STATUS_FH)) {
 		dev_dbg(dev->class_dev, "A/D FIFO not half full!\n");
 		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
-	if (status & Status_FF) {
+	if (status & PCI171X_STATUS_FF) {
 		dev_dbg(dev->class_dev,
 			"A/D FIFO Full status (Fatal Error!)\n");
 		async->events |= COMEDI_CB_ERROR;
@@ -617,7 +615,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 	cmd = &s->async->cmd;
 
 	/*  is this interrupt from our board? */
-	if (!(inw(dev->iobase + PCI171x_STATUS) & Status_IRQ))
+	if (!(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_IRQ))
 		return IRQ_NONE;	/*  no, exit */
 
 	if (devpriv->ai_et) {	/*  Switch from initial TRIG_EXT to TRIG_xxx. */
