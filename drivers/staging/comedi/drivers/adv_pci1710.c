@@ -62,16 +62,15 @@
 #define PCI171X_DO_REG		0x10	/* W:   digital outputs */
 #define PCI171X_TIMER_BASE	0x18	/* R/W: 8254 timer */
 
-#define PCI1720_DA0	 0	/* W:   D/A register 0 */
-#define PCI1720_DA1	 2	/* W:   D/A register 1 */
-#define PCI1720_DA2	 4	/* W:   D/A register 2 */
-#define PCI1720_DA3	 6	/* W:   D/A register 3 */
-#define PCI1720_RANGE	 8	/* R/W: D/A range register */
-#define PCI1720_SYNCOUT	 9	/* W:   D/A synchronized output register */
-#define PCI1720_SYNCONT	15	/* R/W: D/A synchronized control */
-
-/* D/A synchronized control (PCI1720_SYNCONT) */
-#define Syncont_SC0	 1	/* set synchronous output mode */
+/*
+ * PCI-1720 only has analog outputs and has a different
+ * register map (dev->iobase)
+ */
+#define PCI1720_DA_REG(x)	(0x00 + ((x) * 2)) /* W:   D/A registers */
+#define PCI1720_RANGE_REG	0x08	/* R/W: D/A range register */
+#define PCI1720_SYNC_REG	0x09	/* W:   D/A synchronized output */
+#define PCI1720_SYNC_CTRL_REG	0x0f	/* R/W: D/A synchronized control */
+#define PCI1720_SYNC_CTRL_SC0	BIT(0)	/* set synchronous output mode */
 
 static const struct comedi_lrange range_pci1710_3 = {
 	9, {
@@ -480,15 +479,15 @@ static int pci1720_ao_insn_write(struct comedi_device *dev,
 	val = devpriv->da_ranges & (~(0x03 << (chan << 1)));
 	val |= (range << (chan << 1));
 	if (val != devpriv->da_ranges) {
-		outb(val, dev->iobase + PCI1720_RANGE);
+		outb(val, dev->iobase + PCI1720_RANGE_REG);
 		devpriv->da_ranges = val;
 	}
 
 	val = s->readback[chan];
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outw(val, dev->iobase + PCI1720_DA0 + (chan << 1));
-		outb(0, dev->iobase + PCI1720_SYNCOUT);	/* update outputs */
+		outw(val, dev->iobase + PCI1720_DA_REG(chan));
+		outb(0, dev->iobase + PCI1720_SYNC_REG); /* update outputs */
 	}
 
 	s->readback[chan] = val;
@@ -819,15 +818,15 @@ static int pci1720_reset(struct comedi_device *dev)
 {
 	struct pci1710_private *devpriv = dev->private;
 	/* set synchronous output mode */
-	outb(Syncont_SC0, dev->iobase + PCI1720_SYNCONT);
+	outb(PCI1720_SYNC_CTRL_SC0, dev->iobase + PCI1720_SYNC_CTRL_REG);
 	devpriv->da_ranges = 0xAA;
-	/* set all ranges to +/-5V */
-	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE);
-	outw(0x0800, dev->iobase + PCI1720_DA0);	/*  set outputs to 0V */
-	outw(0x0800, dev->iobase + PCI1720_DA1);
-	outw(0x0800, dev->iobase + PCI1720_DA2);
-	outw(0x0800, dev->iobase + PCI1720_DA3);
-	outb(0, dev->iobase + PCI1720_SYNCOUT);	/*  update outputs */
+	/* set all ranges to +/-5V and outputs to 0V */
+	outb(devpriv->da_ranges, dev->iobase + PCI1720_RANGE_REG);
+	outw(0x0800, dev->iobase + PCI1720_DA_REG(0));
+	outw(0x0800, dev->iobase + PCI1720_DA_REG(1));
+	outw(0x0800, dev->iobase + PCI1720_DA_REG(2));
+	outw(0x0800, dev->iobase + PCI1720_DA_REG(3));
+	outb(0, dev->iobase + PCI1720_SYNC_REG);	/* update outputs */
 
 	return 0;
 }
