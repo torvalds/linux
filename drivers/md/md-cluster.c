@@ -882,7 +882,7 @@ static int resync_start(struct mddev *mddev)
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	struct cluster_msg cmsg;
+	struct cluster_msg cmsg = {0};
 
 	add_resync_info(mddev, cinfo->bitmap_lockres, lo, hi);
 	/* Re-acquire the lock to refresh LVB */
@@ -982,7 +982,7 @@ static int new_disk_ack(struct mddev *mddev, bool ack)
 
 static int remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct cluster_msg cmsg;
+	struct cluster_msg cmsg = {0};
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	cmsg.type = cpu_to_le32(REMOVE);
 	cmsg.raid_slot = cpu_to_le32(rdev->desc_nr);
@@ -993,7 +993,7 @@ static int gather_bitmaps(struct md_rdev *rdev)
 {
 	int sn, err;
 	sector_t lo, hi;
-	struct cluster_msg cmsg;
+	struct cluster_msg cmsg = {0};
 	struct mddev *mddev = rdev->mddev;
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
