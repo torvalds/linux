@@ -2422,11 +2422,20 @@ xlog_write(
 						     &partial_copy_len);
 			xlog_verify_dest_ptr(log, ptr);
 
-			/* copy region */
+			/*
+			 * Copy region.
+			 *
+			 * Unmount records just log an opheader, so can have
+			 * empty payloads with no data region to copy. Hence we
+			 * only copy the payload if the vector says it has data
+			 * to copy.
+			 */
 			ASSERT(copy_len >= 0);
-			memcpy(ptr, reg->i_addr + copy_off, copy_len);
-			xlog_write_adv_cnt(&ptr, &len, &log_offset, copy_len);
-
+			if (copy_len > 0) {
+				memcpy(ptr, reg->i_addr + copy_off, copy_len);
+				xlog_write_adv_cnt(&ptr, &len, &log_offset,
+						   copy_len);
+			}
 			copy_len += start_rec_copy + sizeof(xlog_op_header_t);
 			record_cnt++;
 			data_cnt += contwr ? copy_len : 0;
