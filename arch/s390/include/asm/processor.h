@@ -224,7 +224,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static inline void __load_psw_mask (unsigned long mask)
+static inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;
@@ -248,6 +248,16 @@ static inline unsigned long __extract_psw(void)
 
 	asm volatile("epsw %0,%1" : "=d" (reg1), "=a" (reg2));
 	return (((unsigned long) reg1) << 32) | ((unsigned long) reg2);
+}
+
+static inline void local_mcck_enable(void)
+{
+	__load_psw_mask(__extract_psw() | PSW_MASK_MCHECK);
+}
+
+static inline void local_mcck_disable(void)
+{
+	__load_psw_mask(__extract_psw() & ~PSW_MASK_MCHECK);
 }
 
 /*
@@ -316,21 +326,6 @@ static inline void __noreturn disabled_wait(unsigned long code)
 		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
 	while (1);
 }
-
-/*
- * Use to set psw mask except for the first byte which
- * won't be changed by this function.
- */
-static inline void
-__set_psw_mask(unsigned long mask)
-{
-	__load_psw_mask(mask | (arch_local_save_flags() & ~(-1UL >> 8)));
-}
-
-#define local_mcck_enable() \
-	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT | PSW_MASK_MCHECK)
-#define local_mcck_disable() \
-	__set_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT)
 
 /*
  * Basic Machine Check/Program Check Handler.
