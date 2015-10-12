@@ -322,26 +322,6 @@ struct host_if_drv {
 	bool IFC_UP;
 };
 
-/*!
- *  @enum               tenuWILC_StaFlag
- *  @brief			Used to decode the station flag set and mask in tstrWILC_AddStaParam
- *  @details
- *  @todo
- *  @sa			tstrWILC_AddStaParam, enum nl80211_sta_flags
- *  @author		Enumeraion's creator
- *  @date			12 July 2012
- *  @version		1.0 Description
- */
-
-typedef enum {
-	WILC_STA_FLAG_INVALID = 0,
-	WILC_STA_FLAG_AUTHORIZED,                       /*!<  station is authorized (802.1X)*/
-	WILC_STA_FLAG_SHORT_PREAMBLE,   /*!< station is capable of receiving frames	with short barker preamble*/
-	WILC_STA_FLAG_WME,                              /*!< station is WME/QoS capable*/
-	WILC_STA_FLAG_MFP,                                      /*!< station uses management frame protection*/
-	WILC_STA_FLAG_AUTHENTICATED             /*!< station is authenticated*/
-} tenuWILC_StaFlag;
-
 struct add_sta_param {
 	u8 au8BSSID[ETH_ALEN];
 	u16 u16AssocID;
