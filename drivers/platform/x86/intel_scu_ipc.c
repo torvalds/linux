@@ -563,7 +563,6 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err;
 	struct intel_scu_ipc_pdata_t *pdata;
-	resource_size_t base;
 
 	if (ipcdev.pdev)		/* We support only one SCU */
 		return -EBUSY;
@@ -573,32 +572,26 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ipcdev.pdev = pci_dev_get(dev);
 	ipcdev.irq_mode = pdata->irq_mode;
 
-	err = pci_enable_device(dev);
+	err = pcim_enable_device(dev);
 	if (err)
 		return err;
 
-	err = pci_request_regions(dev, "intel_scu_ipc");
+	err = pcim_iomap_regions(dev, 1 << 0, pci_name(dev));
 	if (err)
 		return err;
-
-	base = pci_resource_start(dev, 0);
-	if (!base)
-		return -ENOMEM;
 
 	init_completion(&ipcdev.cmd_complete);
 
-	if (request_irq(dev->irq, ioc, 0, "intel_scu_ipc", &ipcdev))
-		return -EBUSY;
+	err = devm_request_irq(&dev->dev, dev->irq, ioc, 0, "intel_scu_ipc",
+			       &ipcdev);
+	if (err)
+		return err;
 
-	ipcdev.ipc_base = ioremap_nocache(base, pci_resource_len(dev, 0));
-	if (!ipcdev.ipc_base)
-		return -ENOMEM;
+	ipcdev.ipc_base = pcim_iomap_table(dev)[0];
 
 	ipcdev.i2c_base = ioremap_nocache(pdata->i2c_base, pdata->i2c_len);
-	if (!ipcdev.i2c_base) {
-		iounmap(ipcdev.ipc_base);
+	if (!ipcdev.i2c_base)
 		return -ENOMEM;
-	}
 
 	intel_scu_devices_create();
 
@@ -617,10 +610,7 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
  */
 static void ipc_remove(struct pci_dev *pdev)
 {
-	free_irq(pdev->irq, &ipcdev);
-	pci_release_regions(pdev);
 	pci_dev_put(ipcdev.pdev);
-	iounmap(ipcdev.ipc_base);
 	iounmap(ipcdev.i2c_base);
 	ipcdev.pdev = NULL;
 	intel_scu_devices_destroy();
