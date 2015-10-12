@@ -251,7 +251,7 @@ static struct clk_lookup pxa27x_clkregs[] = {
  */
 static unsigned int pwrmode = PWRMODE_SLEEP;
 
-int __init pxa27x_set_pwrmode(unsigned int mode)
+int pxa27x_set_pwrmode(unsigned int mode)
 {
 	switch (mode) {
 	case PWRMODE_SLEEP:
