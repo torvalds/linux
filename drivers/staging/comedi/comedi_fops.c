@@ -2493,13 +2493,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	while (nbytes > 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		n = nbytes;
-
 		m = comedi_buf_read_n_available(s);
 		if (async->buf_read_ptr + m > async->prealloc_bufsz)
 			m = async->prealloc_bufsz - async->buf_read_ptr;
-		if (m < n)
-			n = m;
+		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
 			unsigned runflags = comedi_get_subdevice_runflags(s);
