@@ -2478,15 +2478,13 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	}
 
 	async = s->async;
-	if (!nbytes)
-		goto out;
 	if (s->busy != file || (async->cmd.flags & CMDF_WRITE)) {
 		retval = -EINVAL;
 		goto out;
 	}
 
 	add_wait_queue(&async->wait_head, &wait);
-	while (nbytes > 0 && !retval) {
+	while (count == 0 && !retval) {
 		unsigned int rp, n1, n2;
 
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -2500,9 +2498,12 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			if (!comedi_is_runflags_running(runflags)) {
 				if (comedi_is_runflags_in_error(runflags))
 					retval = -EPIPE;
-				become_nonbusy = true;
+				if (retval || nbytes)
+					become_nonbusy = true;
 				break;
 			}
+			if (nbytes == 0)
+				break;
 			if (file->f_flags & O_NONBLOCK) {
 				retval = -EAGAIN;
 				break;
@@ -2539,7 +2540,6 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		nbytes -= n;
 
 		buf += n;
-		break;		/* makes device work like a pipe */
 	}
 	remove_wait_queue(&async->wait_head, &wait);
 	set_current_state(TASK_RUNNING);
