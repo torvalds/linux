@@ -157,7 +157,12 @@ awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
 oprofiled --version 2>&1 | awk \
 '(NR==1 && ($2 == "oprofile")) {print "oprofile              ", $3}'
 
-expr --v 2>&1 | awk 'NR==1{print "Sh-utils              ", $NF}'
+expr --v 2>&1 |
+awk '/^expr/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Sh-utils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 udevinfo -V 2>&1 | grep version | awk '{print "udev                  ", $3}'
 
