@@ -417,14 +417,14 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 {
 	struct pci9111_private_data *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned short *buf = devpriv->ai_bounce_buffer;
 	unsigned int samples;
 
 	samples = comedi_nsamples_left(s, PCI9111_FIFO_HALF_SIZE);
-	insw(dev->iobase + PCI9111_AI_FIFO_REG,
-	     devpriv->ai_bounce_buffer, samples);
+	insw(dev->iobase + PCI9111_AI_FIFO_REG, buf, samples);
 
 	if (devpriv->scan_delay < 1) {
-		comedi_buf_write_samples(s, devpriv->ai_bounce_buffer, samples);
+		comedi_buf_write_samples(s, buf, samples);
 	} else {
 		unsigned int pos = 0;
 		unsigned int to_read;
@@ -437,9 +437,7 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				if (to_read > samples - pos)
 					to_read = samples - pos;
 
-				comedi_buf_write_samples(s,
-						devpriv->ai_bounce_buffer + pos,
-						to_read);
+				comedi_buf_write_samples(s, buf + pos, to_read);
 			} else {
 				to_read = devpriv->chunk_num_samples -
 					  devpriv->chunk_counter;
