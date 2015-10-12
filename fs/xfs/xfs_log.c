@@ -3165,11 +3165,19 @@ xlog_state_switch_iclogs(
 	}
 
 	if (log->l_curr_block >= log->l_logBBsize) {
+		/*
+		 * Rewind the current block before the cycle is bumped to make
+		 * sure that the combined LSN never transiently moves forward
+		 * when the log wraps to the next cycle. This is to support the
+		 * unlocked sample of these fields from xlog_valid_lsn(). Most
+		 * other cases should acquire l_icloglock.
+		 */
+		log->l_curr_block -= log->l_logBBsize;
+		ASSERT(log->l_curr_block >= 0);
+		smp_wmb();
 		log->l_curr_cycle++;
 		if (log->l_curr_cycle == XLOG_HEADER_MAGIC_NUM)
 			log->l_curr_cycle++;
-		log->l_curr_block -= log->l_logBBsize;
-		ASSERT(log->l_curr_block >= 0);
 	}
 	ASSERT(iclog == log->l_iclog);
 	log->l_iclog = iclog->ic_next;
@@ -4023,3 +4031,45 @@ xlog_iclogs_empty(
 	return 1;
 }
 
+/*
+ * Verify that an LSN stamped into a piece of metadata is valid. This is
+ * intended for use in read verifiers on v5 superblocks.
+ */
+bool
+xfs_log_check_lsn(
+	struct xfs_mount	*mp,
+	xfs_lsn_t		lsn)
+{
+	struct xlog		*log = mp->m_log;
+	bool			valid;
+
+	/*
+	 * norecovery mode skips mount-time log processing and unconditionally
+	 * resets the in-core LSN. We can't validate in this mode, but
+	 * modifications are not allowed anyways so just return true.
+	 */
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+		return true;
+
+	/*
+	 * Some metadata LSNs are initialized to NULL (e.g., the agfl). This is
+	 * handled by recovery and thus safe to ignore here.
+	 */
+	if (lsn == NULLCOMMITLSN)
+		return true;
+
+	valid = xlog_valid_lsn(mp->m_log, lsn);
+
+	/* warn the user about what's gone wrong before verifier failure */
+	if (!valid) {
+		spin_lock(&log->l_icloglock);
+		xfs_warn(mp,
+"Corruption warning: Metadata has LSN (%d:%d) ahead of current LSN (%d:%d). "
+"Please unmount and run xfs_repair (>= v4.3) to resolve.",
+			 CYCLE_LSN(lsn), BLOCK_LSN(lsn),
+			 log->l_curr_cycle, log->l_curr_block);
+		spin_unlock(&log->l_icloglock);
+	}
+
+	return valid;
+}

@@ -31,6 +31,7 @@
 #include "xfs_cksum.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_log.h"
 
 
 /*
@@ -60,6 +61,7 @@ xfs_symlink_hdr_set(
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return 0;
 
+	memset(dsl, 0, sizeof(struct xfs_dsymlink_hdr));
 	dsl->sl_magic = cpu_to_be32(XFS_SYMLINK_MAGIC);
 	dsl->sl_offset = cpu_to_be32(offset);
 	dsl->sl_bytes = cpu_to_be32(size);
@@ -115,6 +117,8 @@ xfs_symlink_verify(
 				be32_to_cpu(dsl->sl_bytes) >= MAXPATHLEN)
 		return false;
 	if (dsl->sl_owner == 0)
+		return false;
+	if (!xfs_log_check_lsn(mp, be64_to_cpu(dsl->sl_lsn)))
 		return false;
 
 	return true;
