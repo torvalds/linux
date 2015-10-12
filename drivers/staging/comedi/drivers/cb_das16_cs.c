@@ -392,8 +392,8 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	s->range_table	= &das16cs_ai_range;
 	s->insn_read	= das16cs_ai_insn_read;
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* analog output subdevice */
 	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
