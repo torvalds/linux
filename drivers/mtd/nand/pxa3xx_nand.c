@@ -1893,19 +1893,10 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct pxa3xx_nand_info *info = platform_get_drvdata(pdev);
-	struct pxa3xx_nand_platform_data *pdata;
-	struct mtd_info *mtd;
-	int cs;
 
-	pdata = dev_get_platdata(&pdev->dev);
 	if (info->state) {
 		dev_err(&pdev->dev, "driver busy, state = %d\n", info->state);
 		return -EAGAIN;
-	}
-
-	for (cs = 0; cs < pdata->num_cs; cs++) {
-		mtd = info->host[cs]->mtd;
-		mtd_suspend(mtd);
 	}
 
 	return 0;
@@ -1914,11 +1905,7 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 static int pxa3xx_nand_resume(struct platform_device *pdev)
 {
 	struct pxa3xx_nand_info *info = platform_get_drvdata(pdev);
-	struct pxa3xx_nand_platform_data *pdata;
-	struct mtd_info *mtd;
-	int cs;
 
-	pdata = dev_get_platdata(&pdev->dev);
 	/* We don't want to handle interrupt without calling mtd routine */
 	disable_int(info, NDCR_INT_MASK);
 
@@ -1936,10 +1923,6 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 	 * all status before resume
 	 */
 	nand_writel(info, NDSR, NDSR_MASK);
-	for (cs = 0; cs < pdata->num_cs; cs++) {
-		mtd = info->host[cs]->mtd;
-		mtd_resume(mtd);
-	}
 
 	return 0;
 }
