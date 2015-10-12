@@ -174,7 +174,7 @@ struct comedi_subdevice {
 	void *lock;
 	void *busy;
 	unsigned runflags;
-	spinlock_t spin_lock;
+	spinlock_t spin_lock;	/* generic spin-lock for COMEDI and drivers */
 
 	unsigned int io_bits;
 
@@ -537,8 +537,8 @@ struct comedi_device {
 	const void *board_ptr;
 	bool attached:1;
 	bool ioenabled:1;
-	spinlock_t spinlock;
-	struct mutex mutex;
+	spinlock_t spinlock;	/* generic spin-lock for low-level driver */
+	struct mutex mutex;	/* generic mutex for COMEDI core */
 	struct rw_semaphore attach_lock;
 	struct kref refcount;
 
