@@ -1402,10 +1402,9 @@ static int check_reset_complete(struct fotg210_hcd *fotg210, int index,
 				"Failed to enable port %d on root hub TT\n",
 				index + 1);
 		return port_status;
-	} else {
-		fotg210_dbg(fotg210, "port %d reset complete, port enabled\n",
-				index + 1);
 	}
+	fotg210_dbg(fotg210, "port %d reset complete, port enabled\n",
+			index + 1);
 
 	return port_status;
 }
