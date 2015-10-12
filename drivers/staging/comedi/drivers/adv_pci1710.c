@@ -34,10 +34,13 @@
 #include "comedi_8254.h"
 #include "amcc_s5933.h"
 
-#define PCI171x_AD_DATA	 0	/* R:   A/D data */
-#define PCI171x_SOFTTRG	 0	/* W:   soft trigger for A/D */
-#define PCI171x_RANGE	 2	/* W:   A/D gain/range register */
-#define PCI171x_MUX	 4	/* W:   A/D multiplexor control */
+/*
+ * PCI BAR2 Register map (dev->iobase)
+ */
+#define PCI171X_AD_DATA_REG	0x00	/* R:   A/D data */
+#define PCI171X_SOFTTRG_REG	0x00	/* W:   soft trigger for A/D */
+#define PCI171X_RANGE_REG	0x02	/* W:   A/D gain/range register */
+#define PCI171X_MUX_REG		0x04	/* W:   A/D multiplexor control */
 #define PCI171X_STATUS_REG	0x06	/* R:   status register */
 #define PCI171X_STATUS_IRQ	BIT(11)	/* 1=IRQ occurred */
 #define PCI171X_STATUS_FF	BIT(10)	/* 1=FIFO is full, fatal error */
@@ -51,15 +54,13 @@
 #define PCI171X_CTRL_EXT	BIT(2)	/* 1=enable ext. trigger source */
 #define PCI171X_CTRL_PACER	BIT(1)	/* 1=enable int. 8254 trigger source */
 #define PCI171X_CTRL_SW		BIT(0)	/* 1=enable software trigger source */
-#define PCI171x_CLRINT	 8	/* W:   clear interrupts request */
-#define PCI171x_CLRFIFO	 9	/* W:   clear FIFO */
-#define PCI171x_DA1	10	/* W:   D/A register */
-#define PCI171x_DA2	12	/* W:   D/A register */
-#define PCI171x_DAREF	14	/* W:   D/A reference control */
-#define PCI171x_DI	16	/* R:   digi inputs */
-#define PCI171x_DO	16	/* R:   digi inputs */
-
-#define PCI171X_TIMER_BASE	0x18
+#define PCI171X_CLRINT_REG	0x08	/* W:   clear interrupts request */
+#define PCI171X_CLRFIFO_REG	0x09	/* W:   clear FIFO */
+#define PCI171X_DA_REG(x)	(0x0a + ((x) * 2)) /* W:   D/A register */
+#define PCI171X_DAREF_REG	0x0e	/* W:   D/A reference control */
+#define PCI171X_DI_REG		0x10	/* R:   digital inputs */
+#define PCI171X_DO_REG		0x10	/* W:   digital outputs */
+#define PCI171X_TIMER_BASE	0x18	/* R/W: 8254 timer */
 
 #define PCI1720_DA0	 0	/* W:   D/A register 0 */
 #define PCI1720_DA1	 2	/* W:   D/A register 1 */
@@ -322,8 +323,8 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 			rangeval |= 0x0020;
 
 		/* select channel and set range */
-		outw(chan | (chan << 8), dev->iobase + PCI171x_MUX);
-		outw(rangeval, dev->iobase + PCI171x_RANGE);
+		outw(chan | (chan << 8), dev->iobase + PCI171X_MUX_REG);
+		outw(rangeval, dev->iobase + PCI171X_RANGE_REG);
 
 		devpriv->act_chanlist[i] = chan;
 	}
@@ -332,7 +333,7 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 
 	/* select channel interval to scan */
 	devpriv->ai_et_MuxVal = first_chan | (last_chan << 8);
-	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
+	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171X_MUX_REG);
 }
 
 static int pci171x_ai_eoc(struct comedi_device *dev,
@@ -358,7 +359,7 @@ static int pci171x_ai_read_sample(struct comedi_device *dev,
 	unsigned int sample;
 	unsigned int chan;
 
-	sample = inw(dev->iobase + PCI171x_AD_DATA);
+	sample = inw(dev->iobase + PCI171X_AD_DATA_REG);
 	if (!board->is_pci1713) {
 		/*
 		 * The upper 4 bits of the 16-bit sample are the channel number
@@ -389,15 +390,16 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 	devpriv->ctrl &= PCI171X_CTRL_CNT0;
 	devpriv->ctrl |= PCI171X_CTRL_SW;	/*  set software trigger */
 	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
-	outb(0, dev->iobase + PCI171x_CLRFIFO);
-	outb(0, dev->iobase + PCI171x_CLRINT);
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	pci171x_ai_setup_chanlist(dev, s, &insn->chanspec, 1, 1);
 
 	for (i = 0; i < insn->n; i++) {
 		unsigned int val;
 
-		outw(0, dev->iobase + PCI171x_SOFTTRG);	/* start conversion */
+		/* start conversion */
+		outw(0, dev->iobase + PCI171X_SOFTTRG_REG);
 
 		ret = comedi_timeout(dev, s, insn, pci171x_ai_eoc, 0);
 		if (ret)
@@ -410,8 +412,8 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 		data[i] = val;
 	}
 
-	outb(0, dev->iobase + PCI171x_CLRFIFO);
-	outb(0, dev->iobase + PCI171x_CLRINT);
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	return ret ? ret : insn->n;
 }
@@ -424,17 +426,16 @@ static int pci171x_ao_insn_write(struct comedi_device *dev,
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int reg = chan ? PCI171x_DA2 : PCI171x_DA1;
 	unsigned int val = s->readback[chan];
 	int i;
 
 	devpriv->da_ranges &= ~(1 << (chan << 1));
 	devpriv->da_ranges |= (range << (chan << 1));
-	outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
+	outw(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outw(val, dev->iobase + reg);
+		outw(val, dev->iobase + PCI171X_DA_REG(chan));
 	}
 
 	s->readback[chan] = val;
@@ -447,7 +448,7 @@ static int pci171x_di_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	data[1] = inw(dev->iobase + PCI171x_DI);
+	data[1] = inw(dev->iobase + PCI171X_DI_REG);
 
 	return insn->n;
 }
@@ -458,7 +459,7 @@ static int pci171x_do_insn_bits(struct comedi_device *dev,
 				unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + PCI171x_DO);
+		outw(s->state, dev->iobase + PCI171X_DO_REG);
 
 	data[1] = s->state;
 
@@ -505,8 +506,8 @@ static int pci171x_ai_cancel(struct comedi_device *dev,
 	/* reset any operations */
 	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 	comedi_8254_pacer_enable(dev->pacer, 1, 2, false);
-	outb(0, dev->iobase + PCI171x_CLRFIFO);
-	outb(0, dev->iobase + PCI171x_CLRINT);
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	return 0;
 }
@@ -532,7 +533,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 		return;
 	}
 
-	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	for (; !(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_FE);) {
 		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
@@ -550,7 +551,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 		}
 	}
 
-	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 }
 
 static void pci1710_handle_fifo(struct comedi_device *dev,
@@ -595,7 +596,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 		}
 	}
 
-	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 }
 
 static irqreturn_t interrupt_service_pci1710(int irq, void *d)
@@ -621,9 +622,9 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		devpriv->ctrl |= PCI171X_CTRL_SW; /* set software trigger */
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		devpriv->ctrl = devpriv->ctrl_ext;
-		outb(0, dev->iobase + PCI171x_CLRFIFO);
-		outb(0, dev->iobase + PCI171x_CLRINT);
-		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
+		outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+		outb(0, dev->iobase + PCI171X_CLRINT_REG);
+		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171X_MUX_REG);
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		return IRQ_HANDLED;
@@ -647,8 +648,8 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	pci171x_ai_setup_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len,
 				  devpriv->saved_seglen);
 
-	outb(0, dev->iobase + PCI171x_CLRFIFO);
-	outb(0, dev->iobase + PCI171x_CLRINT);
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	devpriv->ctrl &= PCI171X_CTRL_CNT0;
 	if ((cmd->flags & CMDF_WAKE_EOS) == 0)
@@ -798,18 +799,18 @@ static int pci171x_reset(struct comedi_device *dev)
 	devpriv->ctrl = PCI171X_CTRL_SW | PCI171X_CTRL_CNT0;
 	/* reset any operations */
 	outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
-	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
-	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 	devpriv->da_ranges = 0;
 	if (board->has_ao) {
-		/* set DACs to 0..5V */
-		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
-		outw(0, dev->iobase + PCI171x_DA2);
+		/* set DACs to 0..5V and outputs to 0V */
+		outb(devpriv->da_ranges, dev->iobase + PCI171X_DAREF_REG);
+		outw(0, dev->iobase + PCI171X_DA_REG(0));
+		outw(0, dev->iobase + PCI171X_DA_REG(1));
 	}
-	outw(0, dev->iobase + PCI171x_DO);	/*  digital outputs to 0 */
-	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
-	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
+	outw(0, dev->iobase + PCI171X_DO_REG);	/*  digital outputs to 0 */
+	outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
+	outb(0, dev->iobase + PCI171X_CLRINT_REG);
 
 	return 0;
 }
