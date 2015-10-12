@@ -32,6 +32,8 @@
 
 #include <linux/module.h>
 #include "../comedidev.h"
+
+#include "comedi_8254.h"
 #include "8255.h"
 
 /*
@@ -163,6 +165,29 @@ static int aio_aio12_8_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int aio_aio12_8_counter_insn_config(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   struct comedi_insn *insn,
+					   unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+
+	switch (data[0]) {
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		/*
+		 * Channels 0 and 2 have external clock sources.
+		 * Channel 1 has a fixed 1 MHz clock source.
+		 */
+		data[0] = 0;
+		data[1] = (chan == 1) ? I8254_OSC_BASE_1MHZ : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static const struct comedi_lrange range_aio_aio12_8 = {
 	4, {
 		UNI_RANGE(5),
@@ -182,6 +207,11 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	ret = comedi_request_region(dev, it->options[0], 32);
 	if (ret)
 		return ret;
+
+	dev->pacer = comedi_8254_init(dev->iobase + AIO12_8_8254_BASE_REG,
+				      0, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -223,9 +253,11 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Counter subdevice (8254) */
 	s = &dev->subdevices[3];
-	/* 8254 counter/timer subdevice */
-	s->type		= COMEDI_SUBD_UNUSED;
+	comedi_8254_subdevice_init(s, dev->pacer);
+
+	dev->pacer->insn_config = aio_aio12_8_counter_insn_config;
 
 	return 0;
 }
