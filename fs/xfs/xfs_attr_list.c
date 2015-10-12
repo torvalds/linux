@@ -511,7 +511,7 @@ xfs_attr_list_int(
 	xfs_inode_t *dp = context->dp;
 	uint		lock_mode;
 
-	XFS_STATS_INC(xs_attr_list);
+	XFS_STATS_INC(dp->i_mount, xs_attr_list);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return -EIO;

@@ -18,7 +18,6 @@
 #ifndef __XFS_STATS_H__
 #define __XFS_STATS_H__
 
-#if defined(CONFIG_PROC_FS) && !defined(XFS_STATS_OFF)
 
 #include <linux/percpu.h>
 
@@ -218,24 +217,31 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf);
 void xfs_stats_clearall(struct xfsstats __percpu *stats);
 extern struct xstats xfsstats;
 
-#define XFS_STATS_INC(v)	\
-	(per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v++)
+#define XFS_STATS_INC(mp, v)					\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v++;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v++;	\
+} while (0)
 
-#define XFS_STATS_DEC(v)	\
-	(per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v--)
+#define XFS_STATS_DEC(mp, v)					\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v--;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v--;	\
+} while (0)
 
-#define XFS_STATS_ADD(v, inc)	\
-	(per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v += (inc))
+#define XFS_STATS_ADD(mp, v, inc)					\
+do {									\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v += (inc);	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v += (inc);	\
+} while (0)
+
+#if defined(CONFIG_PROC_FS)
 
 extern int xfs_init_procfs(void);
 extern void xfs_cleanup_procfs(void);
 
 
 #else	/* !CONFIG_PROC_FS */
-
-# define XFS_STATS_INC(count)
-# define XFS_STATS_DEC(count)
-# define XFS_STATS_ADD(count, inc)
 
 static inline int xfs_init_procfs(void)
 {

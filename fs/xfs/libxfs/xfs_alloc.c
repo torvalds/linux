@@ -651,8 +651,8 @@ xfs_alloc_ag_vextent(
 				 -((long)(args->len)));
 	}
 
-	XFS_STATS_INC(xs_allocx);
-	XFS_STATS_ADD(xs_allocb, args->len);
+	XFS_STATS_INC(args->mp, xs_allocx);
+	XFS_STATS_ADD(args->mp, xs_allocb, args->len);
 	return error;
 }
 
@@ -1808,8 +1808,8 @@ xfs_free_ag_extent(
 
 	if (!isfl)
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, (long)len);
-	XFS_STATS_INC(xs_freex);
-	XFS_STATS_ADD(xs_freeb, len);
+	XFS_STATS_INC(mp, xs_freex);
+	XFS_STATS_ADD(mp, xs_freeb, len);
 
 	trace_xfs_free_extent(mp, agno, bno, len, isfl, haveleft, haveright);
 

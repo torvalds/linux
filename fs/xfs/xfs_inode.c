@@ -3271,8 +3271,8 @@ xfs_iflush_cluster(
 	}
 
 	if (clcount) {
-		XFS_STATS_INC(xs_icluster_flushcnt);
-		XFS_STATS_ADD(xs_icluster_flushinode, clcount);
+		XFS_STATS_INC(mp, xs_icluster_flushcnt);
+		XFS_STATS_ADD(mp, xs_icluster_flushinode, clcount);
 	}
 
 out_free:
@@ -3345,7 +3345,7 @@ xfs_iflush(
 	struct xfs_dinode	*dip;
 	int			error;
 
-	XFS_STATS_INC(xs_iflush_count);
+	XFS_STATS_INC(mp, xs_iflush_count);
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(xfs_isiflocked(ip));

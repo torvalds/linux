@@ -268,7 +268,7 @@ xlog_grant_head_wait(
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock(&head->lock);
 
-		XFS_STATS_INC(xs_sleep_logspace);
+		XFS_STATS_INC(log->l_mp, xs_sleep_logspace);
 
 		trace_xfs_log_grant_sleep(log, tic);
 		schedule();
@@ -379,7 +379,7 @@ xfs_log_regrant(
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return -EIO;
 
-	XFS_STATS_INC(xs_try_logspace);
+	XFS_STATS_INC(mp, xs_try_logspace);
 
 	/*
 	 * This is a new transaction on the ticket, so we need to change the
@@ -448,7 +448,7 @@ xfs_log_reserve(
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return -EIO;
 
-	XFS_STATS_INC(xs_try_logspace);
+	XFS_STATS_INC(mp, xs_try_logspace);
 
 	ASSERT(*ticp == NULL);
 	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
@@ -1768,7 +1768,7 @@ xlog_sync(
 	int		v2 = xfs_sb_version_haslogv2(&log->l_mp->m_sb);
 	int		size;
 
-	XFS_STATS_INC(xs_log_writes);
+	XFS_STATS_INC(log->l_mp, xs_log_writes);
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
 
 	/* Add for LR header */
@@ -1805,7 +1805,7 @@ xlog_sync(
 	bp = iclog->ic_bp;
 	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn)));
 
-	XFS_STATS_ADD(xs_log_blocks, BTOBB(count));
+	XFS_STATS_ADD(log->l_mp, xs_log_blocks, BTOBB(count));
 
 	/* Do we need to split this write into 2 parts? */
 	if (XFS_BUF_ADDR(bp) + BTOBB(count) > log->l_logBBsize) {
@@ -2913,7 +2913,7 @@ restart:
 
 	iclog = log->l_iclog;
 	if (iclog->ic_state != XLOG_STATE_ACTIVE) {
-		XFS_STATS_INC(xs_log_noiclogs);
+		XFS_STATS_INC(log->l_mp, xs_log_noiclogs);
 
 		/* Wait for log writes to have flushed */
 		xlog_wait(&log->l_flush_wait, &log->l_icloglock);
@@ -3212,7 +3212,7 @@ _xfs_log_force(
 	struct xlog_in_core	*iclog;
 	xfs_lsn_t		lsn;
 
-	XFS_STATS_INC(xs_log_force);
+	XFS_STATS_INC(mp, xs_log_force);
 
 	xlog_cil_force(log);
 
@@ -3297,7 +3297,7 @@ maybe_sleep:
 			spin_unlock(&log->l_icloglock);
 			return -EIO;
 		}
-		XFS_STATS_INC(xs_log_force_sleep);
+		XFS_STATS_INC(mp, xs_log_force_sleep);
 		xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
 		/*
 		 * No need to grab the log lock here since we're
@@ -3362,7 +3362,7 @@ _xfs_log_force_lsn(
 
 	ASSERT(lsn != 0);
 
-	XFS_STATS_INC(xs_log_force);
+	XFS_STATS_INC(mp, xs_log_force);
 
 	lsn = xlog_cil_force_lsn(log, lsn);
 	if (lsn == NULLCOMMITLSN)
@@ -3411,7 +3411,7 @@ try_again:
 			     (XLOG_STATE_WANT_SYNC | XLOG_STATE_SYNCING))) {
 				ASSERT(!(iclog->ic_state & XLOG_STATE_IOERROR));
 
-				XFS_STATS_INC(xs_log_force_sleep);
+				XFS_STATS_INC(mp, xs_log_force_sleep);
 
 				xlog_wait(&iclog->ic_prev->ic_write_wait,
 							&log->l_icloglock);
@@ -3441,7 +3441,7 @@ try_again:
 				spin_unlock(&log->l_icloglock);
 				return -EIO;
 			}
-			XFS_STATS_INC(xs_log_force_sleep);
+			XFS_STATS_INC(mp, xs_log_force_sleep);
 			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
 			/*
 			 * No need to grab the log lock here since we're

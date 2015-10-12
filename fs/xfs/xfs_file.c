@@ -287,7 +287,7 @@ xfs_file_read_iter(
 	xfs_fsize_t		n;
 	loff_t			pos = iocb->ki_pos;
 
-	XFS_STATS_INC(xs_read_calls);
+	XFS_STATS_INC(mp, xs_read_calls);
 
 	if (unlikely(iocb->ki_flags & IOCB_DIRECT))
 		ioflags |= XFS_IO_ISDIRECT;
@@ -365,7 +365,7 @@ xfs_file_read_iter(
 
 	ret = generic_file_read_iter(iocb, to);
 	if (ret > 0)
-		XFS_STATS_ADD(xs_read_bytes, ret);
+		XFS_STATS_ADD(mp, xs_read_bytes, ret);
 
 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
@@ -383,7 +383,7 @@ xfs_file_splice_read(
 	int			ioflags = 0;
 	ssize_t			ret;
 
-	XFS_STATS_INC(xs_read_calls);
+	XFS_STATS_INC(ip->i_mount, xs_read_calls);
 
 	if (infilp->f_mode & FMODE_NOCMTIME)
 		ioflags |= XFS_IO_INVIS;
@@ -401,7 +401,7 @@ xfs_file_splice_read(
 	else
 		ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
 	if (ret > 0)
-		XFS_STATS_ADD(xs_read_bytes, ret);
+		XFS_STATS_ADD(ip->i_mount, xs_read_bytes, ret);
 
 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
@@ -867,7 +867,7 @@ xfs_file_write_iter(
 	ssize_t			ret;
 	size_t			ocount = iov_iter_count(from);
 
-	XFS_STATS_INC(xs_write_calls);
+	XFS_STATS_INC(ip->i_mount, xs_write_calls);
 
 	if (ocount == 0)
 		return 0;
@@ -883,7 +883,7 @@ xfs_file_write_iter(
 	if (ret > 0) {
 		ssize_t err;
 
-		XFS_STATS_ADD(xs_write_bytes, ret);
+		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
 
 		/* Handle various SYNC-type writes */
 		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
