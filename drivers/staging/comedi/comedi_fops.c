@@ -2491,11 +2491,11 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
+		unsigned int rp, n1, n2;
+
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		m = comedi_buf_read_n_available(s);
-		if (async->buf_read_ptr + m > async->prealloc_bufsz)
-			m = async->prealloc_bufsz - async->buf_read_ptr;
 		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
@@ -2532,8 +2532,14 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			}
 			continue;
 		}
-		m = copy_to_user(buf, async->prealloc_buf +
-				 async->buf_read_ptr, n);
+		rp = async->buf_read_ptr;
+		n1 = min(n, async->prealloc_bufsz - rp);
+		n2 = n - n1;
+		m = copy_to_user(buf, async->prealloc_buf + rp, n1);
+		if (m)
+			m += n2;
+		else if (n2)
+			m = copy_to_user(buf + n1, async->prealloc_buf, n2);
 		if (m) {
 			n -= m;
 			retval = -EFAULT;
