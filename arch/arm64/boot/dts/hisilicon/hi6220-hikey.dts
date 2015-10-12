@@ -11,6 +11,7 @@
 /memreserve/ 0x05e00000 0x00100000;
 
 #include "hi6220.dtsi"
+#include "hi6220-ion.dtsi"
 
 / {
 	model = "HiKey Development Board";
