@@ -105,6 +105,7 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 			       struct bmi_xfer *xfer);
 static int ath10k_pci_qca99x0_chip_reset(struct ath10k *ar);
 static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -122,6 +123,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 512,
+		.recv_cb = ath10k_pci_htc_rx_cb,
 	},
 
 	/* CE2: target->host WMI */
@@ -130,6 +132,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 128,
+		.recv_cb = ath10k_pci_htc_rx_cb,
 	},
 
 	/* CE3: host->target WMI */
@@ -1123,12 +1126,11 @@ static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state)
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
-static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
+static void ath10k_pci_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
-	struct ath10k_hif_cb *cb = &ar_pci->msg_callbacks_current;
 	struct sk_buff *skb;
 	struct sk_buff_head list;
 	void *transfer_context;
@@ -1163,7 +1165,7 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci rx: ",
 				skb->data, skb->len);
 
-		cb->rx_completion(ar, skb);
+		ath10k_htc_rx_completion_handler(ar, skb);
 	}
 
 	ath10k_pci_rx_post_pipe(pipe_info);
@@ -1336,17 +1338,6 @@ static void ath10k_pci_hif_send_complete_check(struct ath10k *ar, u8 pipe,
 			return;
 	}
 	ath10k_ce_per_engine_service(ar, pipe);
-}
-
-static void ath10k_pci_hif_set_callbacks(struct ath10k *ar,
-					 struct ath10k_hif_cb *callbacks)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci hif set callbacks\n");
-
-	memcpy(&ar_pci->msg_callbacks_current, callbacks,
-	       sizeof(ar_pci->msg_callbacks_current));
 }
 
 static void ath10k_pci_kill_tasklet(struct ath10k *ar)
@@ -1995,8 +1986,7 @@ static int ath10k_pci_alloc_pipes(struct ath10k *ar)
 		pipe->pipe_num = i;
 		pipe->hif_ce_state = ar;
 
-		ret = ath10k_ce_alloc_pipe(ar, i, &host_ce_config_wlan[i],
-					   ath10k_pci_ce_recv_data);
+		ret = ath10k_ce_alloc_pipe(ar, i, &host_ce_config_wlan[i]);
 		if (ret) {
 			ath10k_err(ar, "failed to allocate copy engine pipe %d: %d\n",
 				   i, ret);
@@ -2416,7 +2406,6 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.map_service_to_pipe	= ath10k_pci_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_pci_hif_get_default_pipe,
 	.send_complete_check	= ath10k_pci_hif_send_complete_check,
-	.set_callbacks		= ath10k_pci_hif_set_callbacks,
 	.get_free_queue_number	= ath10k_pci_hif_get_free_queue_number,
 	.power_up		= ath10k_pci_hif_power_up,
 	.power_down		= ath10k_pci_hif_power_down,

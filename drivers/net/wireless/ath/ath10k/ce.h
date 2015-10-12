@@ -209,8 +209,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 			const struct ce_attr *attr);
 void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
-			 const struct ce_attr *attr,
-			 void (*recv_cb)(struct ath10k_ce_pipe *));
+			 const struct ce_attr *attr);
 void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
 /*==================CE Engine Shutdown=======================*/
@@ -278,6 +277,7 @@ struct ce_attr {
 	unsigned int dest_nentries;
 
 	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 };
 
 #define SR_BA_ADDRESS		0x0000

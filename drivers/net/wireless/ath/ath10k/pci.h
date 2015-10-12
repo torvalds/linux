@@ -175,8 +175,6 @@ struct ath10k_pci {
 
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
-	struct ath10k_hif_cb msg_callbacks_current;
-
 	/* Copy Engine used for Diagnostic Accesses */
 	struct ath10k_ce_pipe *ce_diag;
 

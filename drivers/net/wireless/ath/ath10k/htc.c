@@ -302,7 +302,7 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 	return status;
 }
 
-int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	int status = 0;
 	struct ath10k_htc *htc = &ar->htc;
@@ -323,7 +323,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_warn(ar, "HTC Rx: invalid eid %d\n", eid);
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTC, "htc bad header", "",
 				hdr, sizeof(*hdr));
-		status = -EINVAL;
 		goto out;
 	}
 
@@ -345,7 +344,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 			    payload_len + sizeof(*hdr));
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTC, "htc bad rx pkt len", "",
 				hdr, sizeof(*hdr));
-		status = -EINVAL;
 		goto out;
 	}
 
@@ -355,7 +353,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 			   skb->len, payload_len);
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTC, "htc bad rx pkt len",
 				"", hdr, sizeof(*hdr));
-		status = -EINVAL;
 		goto out;
 	}
 
@@ -371,7 +368,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 		    (trailer_len > payload_len)) {
 			ath10k_warn(ar, "Invalid trailer length: %d\n",
 				    trailer_len);
-			status = -EPROTO;
 			goto out;
 		}
 
@@ -404,7 +400,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 				 * sending unsolicited messages on the ep 0
 				 */
 				ath10k_warn(ar, "HTC rx ctrl still processing\n");
-				status = -EINVAL;
 				complete(&htc->ctl_resp);
 				goto out;
 			}
@@ -436,8 +431,6 @@ int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 	skb = NULL;
 out:
 	kfree_skb(skb);
-
-	return status;
 }
 EXPORT_SYMBOL(ath10k_htc_rx_completion_handler);
 
@@ -839,7 +832,6 @@ int ath10k_htc_start(struct ath10k_htc *htc)
 /* registered target arrival callback from the HIF layer */
 int ath10k_htc_init(struct ath10k *ar)
 {
-	struct ath10k_hif_cb htc_callbacks;
 	struct ath10k_htc_ep *ep = NULL;
 	struct ath10k_htc *htc = &ar->htc;
 
@@ -847,14 +839,11 @@ int ath10k_htc_init(struct ath10k *ar)
 
 	ath10k_htc_reset_endpoint_states(htc);
 
-	/* setup HIF layer callbacks */
-	htc_callbacks.rx_completion = ath10k_htc_rx_completion_handler;
 	htc->ar = ar;
 
 	/* Get HIF default pipe for HTC message exchange */
 	ep = &htc->endpoint[ATH10K_HTC_EP_0];
 
-	ath10k_hif_set_callbacks(ar, &htc_callbacks);
 	ath10k_hif_get_default_pipe(ar, &ep->ul_pipe_id, &ep->dl_pipe_id);
 
 	init_completion(&htc->ctl_resp);

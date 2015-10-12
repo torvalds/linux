@@ -30,11 +30,6 @@ struct ath10k_hif_sg_item {
 	u16 len;
 };
 
-struct ath10k_hif_cb {
-	int (*rx_completion)(struct ath10k *ar,
-			     struct sk_buff *wbuf);
-};
-
 struct ath10k_hif_ops {
 	/* send a scatter-gather list to the target */
 	int (*tx_sg)(struct ath10k *ar, u8 pipe_id,
@@ -77,9 +72,6 @@ struct ath10k_hif_ops {
 	 * to be polled rather than interrupt-driven.
 	 */
 	void (*send_complete_check)(struct ath10k *ar, u8 pipe_id, int force);
-
-	void (*set_callbacks)(struct ath10k *ar,
-			      struct ath10k_hif_cb *callbacks);
 
 	u16 (*get_free_queue_number)(struct ath10k *ar, u8 pipe_id);
 
@@ -159,12 +151,6 @@ static inline void ath10k_hif_send_complete_check(struct ath10k *ar,
 						  u8 pipe_id, int force)
 {
 	ar->hif.ops->send_complete_check(ar, pipe_id, force);
-}
-
-static inline void ath10k_hif_set_callbacks(struct ath10k *ar,
-					    struct ath10k_hif_cb *callbacks)
-{
-	ar->hif.ops->set_callbacks(ar, callbacks);
 }
 
 static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,
