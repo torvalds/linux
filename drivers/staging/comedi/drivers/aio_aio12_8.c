@@ -76,6 +76,15 @@
 #define AIO12_8_DAC_ENABLE_REG		0x18
 #define AIO12_8_DAC_ENABLE_REF_ENA	BIT(0)
 
+static const struct comedi_lrange aio_aio12_8_range = {
+	4, {
+		UNI_RANGE(5),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(10)
+	}
+};
+
 struct aio12_8_boardtype {
 	const char *name;
 	int ai_nchan;
@@ -188,15 +197,6 @@ static int aio_aio12_8_counter_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct comedi_lrange range_aio_aio12_8 = {
-	4, {
-		UNI_RANGE(5),
-		BIP_RANGE(5),
-		UNI_RANGE(10),
-		BIP_RANGE(10)
-	}
-};
-
 static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
@@ -224,7 +224,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 		s->n_chan	= board->ai_nchan;
 		s->maxdata	= 0x0fff;
-		s->range_table	= &range_aio_aio12_8;
+		s->range_table	= &aio_aio12_8_range;
 		s->insn_read	= aio_aio12_8_ai_read;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -237,7 +237,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_DIFF;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
-		s->range_table	= &range_aio_aio12_8;
+		s->range_table	= &aio_aio12_8_range;
 		s->insn_write	= aio_aio12_8_ao_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
