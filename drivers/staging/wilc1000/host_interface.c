@@ -436,11 +436,11 @@ struct join_bss_param {
 	u8 au8StartTime[4];
 };
 
-typedef enum {
+enum scan_conn_timer {
 	SCAN_TIMER = 0,
 	CONNECT_TIMER	= 1,
 	SCAN_CONNECT_TIMER_FORCE_32BIT = 0xFFFFFFFF
-} tenuScanConnTimer;
+};
 
 /*****************************************************************************/
 /*																			 */
@@ -4872,7 +4872,7 @@ s32 host_int_set_join_req(struct host_if_drv *hWFIDrv, u8 *pu8bssid,
 	s32 s32Error = 0;
 	struct host_if_drv *pstrWFIDrv = (struct host_if_drv *)hWFIDrv;
 	struct host_if_msg msg;
-	tenuScanConnTimer enuScanConnTimer;
+	enum scan_conn_timer enuScanConnTimer;
 
 	if (pstrWFIDrv == NULL || pfConnectResult == NULL) {
 		s32Error = -EFAULT;
@@ -5530,7 +5530,7 @@ s32 host_int_scan(struct host_if_drv *hWFIDrv, u8 u8ScanSource,
 	s32 s32Error = 0;
 	struct host_if_drv *pstrWFIDrv = (struct host_if_drv *)hWFIDrv;
 	struct host_if_msg msg;
-	tenuScanConnTimer enuScanConnTimer;
+	enum scan_conn_timer enuScanConnTimer;
 
 	if (pstrWFIDrv == NULL || ScanResult == NULL) {
 		PRINT_ER("pstrWFIDrv or ScanResult = NULL\n");
