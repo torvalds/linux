@@ -921,10 +921,8 @@ static struct device_node *qcom_smd_match_channel(struct device_node *edge_node,
 	for_each_available_child_of_node(edge_node, child) {
 		key = "qcom,smd-channels";
 		ret = of_property_read_string(child, key, &name);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			continue;
-		}
 
 		if (strcmp(name, channel) == 0)
 			return child;
