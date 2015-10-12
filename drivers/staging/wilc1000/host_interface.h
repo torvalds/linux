@@ -57,12 +57,6 @@
 #define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC			2
 
-typedef struct {
-	u16 cfg_wid;
-	enum WID_TYPE cfg_type;
-	s8     *pu8Para;
-} cfg_param_t;
-
 typedef struct _tstrStatistics {
 	u8 u8LinkSpeed;
 	s8 s8RSSI;
