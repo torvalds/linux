@@ -180,7 +180,7 @@ scif_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 		goto free_sdev;
 	return sdev;
 free_sdev:
-	kfree(sdev);
+	put_device(&sdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(scif_register_device);

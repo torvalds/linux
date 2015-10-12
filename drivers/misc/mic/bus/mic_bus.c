@@ -175,7 +175,7 @@ mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 		goto free_mbdev;
 	return mbdev;
 free_mbdev:
-	kfree(mbdev);
+	put_device(&mbdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(mbus_register_device);

@@ -100,7 +100,7 @@ cosm_register_device(struct device *pdev, struct cosm_hw_ops *hw_ops)
 ida_remove:
 	ida_simple_remove(&cosm_index_ida, cdev->index);
 free_cdev:
-	kfree(cdev);
+	put_device(&cdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(cosm_register_device);
