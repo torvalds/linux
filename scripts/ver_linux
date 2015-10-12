@@ -18,8 +18,12 @@ awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-make --version 2>&1 | awk -F, '{print $1}' | awk \
-      '/GNU Make/{print "Gnu make              ",$NF}'
+make --version 2>&1 |
+awk '/GNU Make/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("GNU Make\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 echo "binutils               $(ld -v | egrep -o '[0-9]+\.[0-9\.]+')"
 
