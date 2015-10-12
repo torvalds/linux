@@ -958,6 +958,8 @@ struct gb_loopback_transfer_request {
 
 struct gb_loopback_transfer_response {
 	__le32	len;
+	__le32	reserved0;
+	__le32	reserved1;
 	__u8	data[0];
 } __packed;
 
