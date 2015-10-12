@@ -344,6 +344,9 @@ loop_lock:
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
 
+		/*
+		 * atomic_dec_return implies a barrier for waitqueue_active
+		 */
 		if (atomic_dec_return(&fs_info->nr_async_bios) < limit &&
 		    waitqueue_active(&fs_info->async_submit_wait))
 			wake_up(&fs_info->async_submit_wait);

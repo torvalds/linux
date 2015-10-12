@@ -10372,8 +10372,7 @@ void btrfs_end_write_no_snapshoting(struct btrfs_root *root)
 {
 	percpu_counter_dec(&root->subv_writers->counter);
 	/*
-	 * Make sure counter is updated before we wake up
-	 * waiters.
+	 * Make sure counter is updated before we wake up waiters.
 	 */
 	smp_mb();
 	if (waitqueue_active(&root->subv_writers->wait))

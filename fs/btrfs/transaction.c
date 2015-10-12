@@ -82,6 +82,12 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 static void clear_btree_io_tree(struct extent_io_tree *tree)
 {
 	spin_lock(&tree->lock);
+	/*
+	 * Do a single barrier for the waitqueue_active check here, the state
+	 * of the waitqueue should not change once clear_btree_io_tree is
+	 * called.
+	 */
+	smp_mb();
 	while (!RB_EMPTY_ROOT(&tree->state)) {
 		struct rb_node *node;
 		struct extent_state *state;
@@ -856,6 +862,9 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	atomic_dec(&cur_trans->num_writers);
 	extwriter_counter_dec(cur_trans, trans->type);
 
+	/*
+	 * Make sure counter is updated before we wake up waiters.
+	 */
 	smp_mb();
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
