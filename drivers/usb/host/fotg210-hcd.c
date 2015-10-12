@@ -5696,7 +5696,7 @@ static int __init fotg210_hcd_init(void)
 	set_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	if (test_bit(USB_UHCI_LOADED, &usb_hcds_loaded) ||
 			test_bit(USB_OHCI_LOADED, &usb_hcds_loaded))
-		pr_warn(KERN_WARNING "Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, not after\n");
+		pr_warn("Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, not after\n");
 
 	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd\n",
 			hcd_name, sizeof(struct fotg210_qh),
