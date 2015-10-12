@@ -823,9 +823,15 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 		}
 
 		/* Now look up the logical CPU number */
-		for_each_possible_cpu(cpu)
-			if (dn == of_cpu_device_node_get(cpu))
+		for_each_possible_cpu(cpu) {
+			struct device_node *cpu_dn;
+
+			cpu_dn = of_cpu_device_node_get(cpu);
+			of_node_put(cpu_dn);
+
+			if (dn == cpu_dn)
 				break;
+		}
 
 		if (cpu >= nr_cpu_ids) {
 			pr_warn("Failed to find logical CPU for %s\n",
