@@ -25,6 +25,7 @@
 #include <sound/pcm_params.h>
 #include <sound/firewire.h>
 #include <sound/hwdep.h>
+#include <sound/rawmidi.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
@@ -40,6 +41,9 @@ struct snd_tscm_spec {
 	unsigned int midi_playback_ports;
 	bool is_controller;
 };
+
+#define TSCM_MIDI_IN_PORT_MAX	4
+#define TSCM_MIDI_OUT_PORT_MAX	4
 
 struct snd_tscm {
 	struct snd_card *card;
@@ -59,6 +63,18 @@ struct snd_tscm {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	/* For MIDI message incoming transactions. */
+	struct fw_address_handler async_handler;
+	struct snd_rawmidi_substream *tx_midi_substreams[TSCM_MIDI_IN_PORT_MAX];
+
+	/* For MIDI message outgoing transactions. */
+	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
+	u8 running_status[TSCM_MIDI_OUT_PORT_MAX];
+	bool on_sysex[TSCM_MIDI_OUT_PORT_MAX];
+
+	/* For control messages. */
+	struct snd_firewire_tascam_status *status;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull
@@ -80,6 +96,14 @@ struct snd_tscm {
 /* Unknown				0x0224 */
 #define TSCM_OFFSET_CLOCK_STATUS	0x0228
 #define TSCM_OFFSET_SET_OPTION		0x022c
+
+#define TSCM_OFFSET_MIDI_TX_ON		0x0300
+#define TSCM_OFFSET_MIDI_TX_ADDR_HI	0x0304
+#define TSCM_OFFSET_MIDI_TX_ADDR_LO	0x0308
+
+#define TSCM_OFFSET_LED_POWER		0x0404
+
+#define TSCM_OFFSET_MIDI_RX_QUAD	0x4000
 
 enum snd_tscm_clock {
 	SND_TSCM_CLOCK_INTERNAL = 0,
@@ -108,9 +132,15 @@ void snd_tscm_stream_lock_changed(struct snd_tscm *tscm);
 int snd_tscm_stream_lock_try(struct snd_tscm *tscm);
 void snd_tscm_stream_lock_release(struct snd_tscm *tscm);
 
+int snd_tscm_transaction_register(struct snd_tscm *tscm);
+int snd_tscm_transaction_reregister(struct snd_tscm *tscm);
+void snd_tscm_transaction_unregister(struct snd_tscm *tscm);
+
 void snd_tscm_proc_init(struct snd_tscm *tscm);
 
 int snd_tscm_create_pcm_devices(struct snd_tscm *tscm);
+
+int snd_tscm_create_midi_devices(struct snd_tscm *tscm);
 
 int snd_tscm_create_hwdep_device(struct snd_tscm *tscm);
 
