@@ -479,6 +479,12 @@ nl80211_match_policy[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1] = {
 	[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI] = { .type = NLA_U32 },
 };
 
+static const struct nla_policy
+nl80211_plan_policy[NL80211_SCHED_SCAN_PLAN_MAX + 1] = {
+	[NL80211_SCHED_SCAN_PLAN_INTERVAL] = { .type = NLA_U32 },
+	[NL80211_SCHED_SCAN_PLAN_ITERATIONS] = { .type = NLA_U32 },
+};
+
 static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
 				     struct netlink_callback *cb,
 				     struct cfg80211_registered_device **rdev,
@@ -1304,7 +1310,13 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		    nla_put_u16(msg, NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
 				rdev->wiphy.max_sched_scan_ie_len) ||
 		    nla_put_u8(msg, NL80211_ATTR_MAX_MATCH_SETS,
-			       rdev->wiphy.max_match_sets))
+			       rdev->wiphy.max_match_sets) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS,
+				rdev->wiphy.max_sched_scan_plans) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL,
+				rdev->wiphy.max_sched_scan_plan_interval) ||
+		    nla_put_u32(msg, NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS,
+				rdev->wiphy.max_sched_scan_plan_iterations))
 			goto nla_put_failure;
 
 		if ((rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN) &&
@@ -5974,27 +5986,106 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int
+nl80211_parse_sched_scan_plans(struct wiphy *wiphy, int n_plans,
+			       struct cfg80211_sched_scan_request *request,
+			       struct nlattr **attrs)
+{
+	int tmp, err, i = 0;
+	struct nlattr *attr;
+
+	if (!attrs[NL80211_ATTR_SCHED_SCAN_PLANS]) {
+		u32 interval;
+
+		/*
+		 * If scan plans are not specified,
+		 * %NL80211_ATTR_SCHED_SCAN_INTERVAL must be specified. In this
+		 * case one scan plan will be set with the specified scan
+		 * interval and infinite number of iterations.
+		 */
+		if (!attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL])
+			return -EINVAL;
+
+		interval = nla_get_u32(attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL]);
+		if (!interval)
+			return -EINVAL;
+
+		request->scan_plans[0].interval =
+			DIV_ROUND_UP(interval, MSEC_PER_SEC);
+		if (!request->scan_plans[0].interval)
+			return -EINVAL;
+
+		if (request->scan_plans[0].interval >
+		    wiphy->max_sched_scan_plan_interval)
+			request->scan_plans[0].interval =
+				wiphy->max_sched_scan_plan_interval;
+
+		return 0;
+	}
+
+	nla_for_each_nested(attr, attrs[NL80211_ATTR_SCHED_SCAN_PLANS], tmp) {
+		struct nlattr *plan[NL80211_SCHED_SCAN_PLAN_MAX + 1];
+
+		if (WARN_ON(i >= n_plans))
+			return -EINVAL;
+
+		err = nla_parse(plan, NL80211_SCHED_SCAN_PLAN_MAX,
+				nla_data(attr), nla_len(attr),
+				nl80211_plan_policy);
+		if (err)
+			return err;
+
+		if (!plan[NL80211_SCHED_SCAN_PLAN_INTERVAL])
+			return -EINVAL;
+
+		request->scan_plans[i].interval =
+			nla_get_u32(plan[NL80211_SCHED_SCAN_PLAN_INTERVAL]);
+		if (!request->scan_plans[i].interval ||
+		    request->scan_plans[i].interval >
+		    wiphy->max_sched_scan_plan_interval)
+			return -EINVAL;
+
+		if (plan[NL80211_SCHED_SCAN_PLAN_ITERATIONS]) {
+			request->scan_plans[i].iterations =
+				nla_get_u32(plan[NL80211_SCHED_SCAN_PLAN_ITERATIONS]);
+			if (!request->scan_plans[i].iterations ||
+			    (request->scan_plans[i].iterations >
+			     wiphy->max_sched_scan_plan_iterations))
+				return -EINVAL;
+		} else if (i < n_plans - 1) {
+			/*
+			 * All scan plans but the last one must specify
+			 * a finite number of iterations
+			 */
+			return -EINVAL;
+		}
+
+		i++;
+	}
+
+	/*
+	 * The last scan plan must not specify the number of
+	 * iterations, it is supposed to run infinitely
+	 */
+	if (request->scan_plans[n_plans - 1].iterations)
+		return  -EINVAL;
+
+	return 0;
+}
+
 static struct cfg80211_sched_scan_request *
 nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct nlattr **attrs)
 {
 	struct cfg80211_sched_scan_request *request;
 	struct nlattr *attr;
-	int err, tmp, n_ssids = 0, n_match_sets = 0, n_channels, i;
-	u32 interval;
+	int err, tmp, n_ssids = 0, n_match_sets = 0, n_channels, i, n_plans = 0;
 	enum ieee80211_band band;
 	size_t ie_len;
 	struct nlattr *tb[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1];
 	s32 default_match_rssi = NL80211_SCAN_RSSI_THOLD_OFF;
 
 	if (!is_valid_ie_attr(attrs[NL80211_ATTR_IE]))
-		return ERR_PTR(-EINVAL);
-
-	if (!attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL])
-		return ERR_PTR(-EINVAL);
-
-	interval = nla_get_u32(attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL]);
-	if (interval == 0)
 		return ERR_PTR(-EINVAL);
 
 	if (attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
@@ -6060,9 +6151,37 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (ie_len > wiphy->max_sched_scan_ie_len)
 		return ERR_PTR(-EINVAL);
 
+	if (attrs[NL80211_ATTR_SCHED_SCAN_PLANS]) {
+		/*
+		 * NL80211_ATTR_SCHED_SCAN_INTERVAL must not be specified since
+		 * each scan plan already specifies its own interval
+		 */
+		if (attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL])
+			return ERR_PTR(-EINVAL);
+
+		nla_for_each_nested(attr,
+				    attrs[NL80211_ATTR_SCHED_SCAN_PLANS], tmp)
+			n_plans++;
+	} else {
+		/*
+		 * The scan interval attribute is kept for backward
+		 * compatibility. If no scan plans are specified and sched scan
+		 * interval is specified, one scan plan will be set with this
+		 * scan interval and infinite number of iterations.
+		 */
+		if (!attrs[NL80211_ATTR_SCHED_SCAN_INTERVAL])
+			return ERR_PTR(-EINVAL);
+
+		n_plans = 1;
+	}
+
+	if (!n_plans || n_plans > wiphy->max_sched_scan_plans)
+		return ERR_PTR(-EINVAL);
+
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*request->ssids) * n_ssids
 			+ sizeof(*request->match_sets) * n_match_sets
+			+ sizeof(*request->scan_plans) * n_plans
 			+ sizeof(*request->channels) * n_channels
 			+ ie_len, GFP_KERNEL);
 	if (!request)
@@ -6089,6 +6208,18 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 				(void *)(request->channels + n_channels);
 	}
 	request->n_match_sets = n_match_sets;
+
+	if (n_match_sets)
+		request->scan_plans = (void *)(request->match_sets +
+					       n_match_sets);
+	else if (request->ie)
+		request->scan_plans = (void *)(request->ie + ie_len);
+	else if (n_ssids)
+		request->scan_plans = (void *)(request->ssids + n_ssids);
+	else
+		request->scan_plans = (void *)(request->channels + n_channels);
+
+	request->n_scan_plans = n_plans;
 
 	i = 0;
 	if (attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
@@ -6252,7 +6383,10 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 		request->delay =
 			nla_get_u32(attrs[NL80211_ATTR_SCHED_SCAN_DELAY]);
 
-	request->interval = interval;
+	err = nl80211_parse_sched_scan_plans(wiphy, n_plans, request, attrs);
+	if (err)
+		goto out_free;
+
 	request->scan_start = jiffies;
 
 	return request;
@@ -8850,7 +8984,7 @@ static int nl80211_send_wowlan_tcp(struct sk_buff *msg,
 static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 				  struct cfg80211_sched_scan_request *req)
 {
-	struct nlattr *nd, *freqs, *matches, *match;
+	struct nlattr *nd, *freqs, *matches, *match, *scan_plans, *scan_plan;
 	int i;
 
 	if (!req)
@@ -8860,7 +8994,9 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 	if (!nd)
 		return -ENOBUFS;
 
-	if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL, req->interval))
+	if (req->n_scan_plans == 1 &&
+	    nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL,
+			req->scan_plans[0].interval * 1000))
 		return -ENOBUFS;
 
 	if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_DELAY, req->delay))
@@ -8886,6 +9022,23 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 		}
 		nla_nest_end(msg, matches);
 	}
+
+	scan_plans = nla_nest_start(msg, NL80211_ATTR_SCHED_SCAN_PLANS);
+	if (!scan_plans)
+		return -ENOBUFS;
+
+	for (i = 0; i < req->n_scan_plans; i++) {
+		scan_plan = nla_nest_start(msg, i + 1);
+		if (!scan_plan ||
+		    nla_put_u32(msg, NL80211_SCHED_SCAN_PLAN_INTERVAL,
+				req->scan_plans[i].interval) ||
+		    (req->scan_plans[i].iterations &&
+		     nla_put_u32(msg, NL80211_SCHED_SCAN_PLAN_ITERATIONS,
+				 req->scan_plans[i].iterations)))
+			return -ENOBUFS;
+		nla_nest_end(msg, scan_plan);
+	}
+	nla_nest_end(msg, scan_plans);
 
 	nla_nest_end(msg, nd);
 
