@@ -212,15 +212,13 @@ struct rcvd_net_info {
 	u32 u32Length;
 };
 
-typedef struct _tstrHiddenNetworkInfo {
+struct hidden_net_info {
 	u8  *pu8ssid;
 	u8 u8ssidlen;
-
-} tstrHiddenNetworkInfo;
+};
 
 struct hidden_network {
-	/* MAX_SSID_LEN */
-	tstrHiddenNetworkInfo *pstrHiddenNetworkInfo;
+	struct hidden_net_info *pstrHiddenNetworkInfo;
 	u8 u8ssidnum;
 };
 
