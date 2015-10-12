@@ -114,7 +114,7 @@
 			regulator-name = "peri_3v3";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
-			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio4 16 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			regulator-always-on;
 		};
