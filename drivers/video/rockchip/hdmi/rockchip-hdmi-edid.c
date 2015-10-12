@@ -122,7 +122,8 @@ int hdmi_edid_parse_base(unsigned char *buf,
 	fb_edid_to_monspecs(buf, pedid->specs);
 
 out:
-	if (rc != E_HDMI_EDID_SUCCESS && *extend_num > 4)
+	if ((rc != E_HDMI_EDID_SUCCESS) &&
+	    (*extend_num < 1 && *extend_num > 4))
 		return rc;
 	else
 		return E_HDMI_EDID_SUCCESS;
