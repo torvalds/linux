@@ -52,55 +52,9 @@
 #define INTEL_RC6p_ENABLE			(1<<1)
 #define INTEL_RC6pp_ENABLE			(1<<2)
 
-static void gen9_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* WaEnableLbsSlaRetryTimerDecrement:skl */
-	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
-		   GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
-
-	/* WaDisableKillLogic:bxt,skl */
-	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-		   ECOCHK_DIS_TLB);
-}
-
-static void skl_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	gen9_init_clock_gating(dev);
-
-	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
-		/* WaDisableHDCInvalidation:skl */
-		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
-			   BDW_DISABLE_HDC_INVALIDATION);
-
-		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
-		I915_WRITE(FF_SLICE_CS_CHICKEN2,
-			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
-	}
-
-	/* GEN8_L3SQCREG4 has a dependency with WA batch so any new changes
-	 * involving this register should also be added to WA batch as required.
-	 */
-	if (INTEL_REVID(dev) <= SKL_REVID_E0)
-		/* WaDisableLSQCROPERFforOCL:skl */
-		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
-			   GEN8_LQSC_RO_PERF_DIS);
-
-	/* WaEnableGapsTsvCreditFix:skl */
-	if (IS_SKYLAKE(dev) && (INTEL_REVID(dev) >= SKL_REVID_C0)) {
-		I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
-					   GEN9_GAPS_TSV_CREDIT_DISABLE));
-	}
-}
-
 static void bxt_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	gen9_init_clock_gating(dev);
 
 	/* WaDisableSDEUnitClockGating:bxt */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
@@ -112,17 +66,6 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 	 */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
-
-	/* WaStoreMultiplePTEenable:bxt */
-	/* This is a requirement according to Hardware specification */
-	if (INTEL_REVID(dev) == BXT_REVID_A0)
-		I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
-
-	/* WaSetClckGatingDisableMedia:bxt */
-	if (INTEL_REVID(dev) == BXT_REVID_A0) {
-		I915_WRITE(GEN7_MISCCPCTL, (I915_READ(GEN7_MISCCPCTL) &
-					    ~GEN8_DOP_CLOCK_GATE_MEDIA_ENABLE));
-	}
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -7109,9 +7052,6 @@ void intel_init_pm(struct drm_device *dev)
 		if (IS_BROXTON(dev))
 			dev_priv->display.init_clock_gating =
 				bxt_init_clock_gating;
-		else if (IS_SKYLAKE(dev))
-			dev_priv->display.init_clock_gating =
-				skl_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
