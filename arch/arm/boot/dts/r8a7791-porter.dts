@@ -120,6 +120,16 @@
 		renesas,function = "i2c2";
 	};
 
+	usb0_pins: usb0 {
+		renesas,groups = "usb0";
+		renesas,function = "usb0";
+	};
+
+	usb1_pins: usb1 {
+		renesas,groups = "usb1";
+		renesas,function = "usb1";
+	};
+
 	vin0_pins: vin0 {
 		renesas,groups = "vin0_data8", "vin0_clk";
 		renesas,function = "vin0";
@@ -243,6 +253,24 @@
 			bus-width = <8>;
 		};
 	};
+};
+
+&pci0 {
+	pinctrl-0 = <&usb0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&pci1 {
+	pinctrl-0 = <&usb1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
 };
 
 &pcie_bus_clk {
