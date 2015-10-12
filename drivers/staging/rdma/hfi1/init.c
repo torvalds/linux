@@ -134,11 +134,8 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 	dd->assigned_node_id = local_node_id;
 
 	dd->rcd = kcalloc(dd->num_rcv_contexts, sizeof(*dd->rcd), GFP_KERNEL);
-	if (!dd->rcd) {
-		dd_dev_err(dd,
-			"Unable to allocate receive context array, failing\n");
+	if (!dd->rcd)
 		goto nomem;
-	}
 
 	/* create one or more kernel contexts */
 	for (i = 0; i < dd->first_user_ctxt; ++i) {
@@ -320,12 +317,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt)
 		if (ctxt < dd->first_user_ctxt) { /* N/A for PSM contexts */
 			rcd->opstats = kzalloc(sizeof(*rcd->opstats),
 				GFP_KERNEL);
-			if (!rcd->opstats) {
-				dd_dev_err(dd,
-					   "ctxt%u: Unable to allocate per ctxt stats buffer\n",
-					   rcd->ctxt);
+			if (!rcd->opstats)
 				goto bail;
-			}
 		}
 	}
 	return rcd;

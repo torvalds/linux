@@ -435,7 +435,6 @@ int init_send_contexts(struct hfi1_devdata *dd)
 					sizeof(struct send_context_info),
 					GFP_KERNEL);
 	if (!dd->send_contexts || !dd->hw_to_sw) {
-		dd_dev_err(dd, "Unable to allocate send context arrays\n");
 		kfree(dd->hw_to_sw);
 		kfree(dd->send_contexts);
 		free_credit_return(dd);
@@ -684,10 +683,8 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		return NULL;
 
 	sc = kzalloc_node(sizeof(struct send_context), GFP_KERNEL, numa);
-	if (!sc) {
-		dd_dev_err(dd, "Cannot allocate send context structure\n");
+	if (!sc)
 		return NULL;
-	}
 
 	spin_lock_irqsave(&dd->sc_lock, flags);
 	ret = sc_hw_alloc(dd, type, &sw_index, &hw_context);
@@ -813,8 +810,6 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		sc->sr = kzalloc_node(sizeof(union pio_shadow_ring) *
 				sc->sr_size, GFP_KERNEL, numa);
 		if (!sc->sr) {
-			dd_dev_err(dd,
-				"Cannot allocate send context shadow ring structure\n");
 			sc_free(sc);
 			return NULL;
 		}

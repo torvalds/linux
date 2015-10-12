@@ -8991,7 +8991,6 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 
 	entries = kcalloc(total, sizeof(*entries), GFP_KERNEL);
 	if (!entries) {
-		dd_dev_err(dd, "cannot allocate msix table\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
