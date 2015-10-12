@@ -222,6 +222,9 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   struct extent_state *cached_state);
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		      unsigned bits, gfp_t mask);
+int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
+			     unsigned bits, gfp_t mask,
+			     struct extent_changeset *changeset);
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     unsigned bits, int wake, int delete,
 		     struct extent_state **cached, gfp_t mask);
