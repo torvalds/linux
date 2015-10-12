@@ -93,7 +93,8 @@ TODO:
 #define PCI9111_AI_STAT_FF_FF		BIT(6)
 #define PCI9111_AI_STAT_FF_HF		BIT(5)
 #define PCI9111_AI_STAT_FF_EF		BIT(4)
-#define PCI9111_AI_RANGE_MASK		(7 << 0)
+#define PCI9111_AI_RANGE(x)		(((x) & 0x7) << 0)
+#define PCI9111_AI_RANGE_MASK		PCI9111_AI_RANGE(7)
 #define PCI9111_AI_TRIG_CTRL_REG	0x0a
 #define PCI9111_AI_TRIG_CTRL_TRGEVENT	BIT(5)
 #define PCI9111_AI_TRIG_CTRL_POTRG	BIT(4)
@@ -363,6 +364,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	struct pci9111_private_data *dev_private = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int last_chan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
 	unsigned int trig = 0;
 
 	/*  Set channel scan limit */
@@ -374,11 +376,8 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 
 	outb(last_chan, dev->iobase + PCI9111_AI_CHANNEL_REG);
 
-	/*  Set gain */
-	/*  This is the same gain on every channel */
-
-	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
-	     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	/*  Set gain - all channels use the same range */
+	outb(PCI9111_AI_RANGE(range0), dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
@@ -571,7 +570,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	if ((status & PCI9111_AI_RANGE_MASK) != range) {
-		outb(range & PCI9111_AI_RANGE_MASK,
+		outb(PCI9111_AI_RANGE(range),
 		     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	}
 
