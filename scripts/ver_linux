@@ -178,7 +178,16 @@ awk '/version/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-if [ -e /proc/modules ]; then
-    X=`cat /proc/modules | sed -e "s/ .*$//"`
-    echo "Modules Loaded         "$X
-fi
+test -e /proc/modules &&
+sort /proc/modules |
+sed '
+	s/ .*//
+	H
+${
+	g
+	s/^\n/Modules Loaded\t\t/
+	y/\n/ /
+	q
+}
+	d
+'
