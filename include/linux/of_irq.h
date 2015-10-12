@@ -46,6 +46,7 @@ extern int of_irq_get(struct device_node *dev, int index);
 extern int of_irq_get_byname(struct device_node *dev, const char *name);
 extern int of_irq_to_resource_table(struct device_node *dev,
 		struct resource *res, int nr_irqs);
+extern void of_msi_configure(struct device *dev, struct device_node *np);
 #else
 static inline int of_irq_count(struct device_node *dev)
 {
@@ -64,6 +65,9 @@ static inline int of_irq_to_resource_table(struct device_node *dev,
 {
 	return 0;
 }
+static inline void of_msi_configure(struct device *dev, struct device_node *np)
+{
+}
 #endif
 
 #if defined(CONFIG_OF)
@@ -74,7 +78,6 @@ static inline int of_irq_to_resource_table(struct device_node *dev,
  */
 extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 extern struct device_node *of_irq_find_parent(struct device_node *child);
-extern void of_msi_configure(struct device *dev, struct device_node *np);
 
 #else /* !CONFIG_OF */
 static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
