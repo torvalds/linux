@@ -77,7 +77,12 @@ awk '/version/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-pccardctl -V 2>&1| grep pcmciautils | awk '{print "pcmciautils           ", $2}'
+pccardctl -V 2>&1 |
+awk '/pcmciautils/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Pcmciautils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 cardmgr -V 2>&1| grep version | awk \
 'NR==1{print "pcmcia-cs             ", $3}'
