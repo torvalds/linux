@@ -199,10 +199,8 @@ static int __init omapdss_boot_init(void)
 	omapdss_walk_device(dss, true);
 
 	for_each_available_child_of_node(dss, child) {
-		if (!of_find_property(child, "compatible", NULL)) {
-			of_node_put(child);
+		if (!of_find_property(child, "compatible", NULL))
 			continue;
-		}
 
 		omapdss_walk_device(child, true);
 	}
