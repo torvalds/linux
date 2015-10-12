@@ -363,8 +363,6 @@ static void __remove_suspend_info(struct md_cluster_info *cinfo, int slot)
 
 	list_for_each_entry_safe(s, tmp, &cinfo->suspend_list, list)
 		if (slot == s->slot) {
-			pr_info("%s:%d Deleting suspend_info: %d\n",
-					__func__, __LINE__, slot);
 			list_del(&s->list);
 			kfree(s);
 			break;
@@ -462,34 +460,22 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
 	switch (msg->type) {
 	case METADATA_UPDATED:
-		pr_info("%s: %d Received message: METADATA_UPDATE from %d\n",
-			__func__, __LINE__, msg->slot);
 		process_metadata_update(mddev, msg);
 		break;
 	case RESYNCING:
-		pr_info("%s: %d Received message: RESYNCING from %d\n",
-			__func__, __LINE__, msg->slot);
 		process_suspend_info(mddev, msg->slot,
 				msg->low, msg->high);
 		break;
 	case NEWDISK:
-		pr_info("%s: %d Received message: NEWDISK from %d\n",
-			__func__, __LINE__, msg->slot);
 		process_add_new_disk(mddev, msg);
 		break;
 	case REMOVE:
-		pr_info("%s: %d Received REMOVE from %d\n",
-			__func__, __LINE__, msg->slot);
 		process_remove_disk(mddev, msg);
 		break;
 	case RE_ADD:
-		pr_info("%s: %d Received RE_ADD from %d\n",
-			__func__, __LINE__, msg->slot);
 		process_readd_disk(mddev, msg);
 		break;
 	case BITMAP_NEEDS_SYNC:
-		pr_info("%s: %d Received BITMAP_NEEDS_SYNC from %d\n",
-			__func__, __LINE__, msg->slot);
 		__recover_slot(mddev, msg->slot);
 		break;
 	default:
