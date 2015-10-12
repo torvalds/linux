@@ -108,7 +108,7 @@ struct host_if_wpa_attr {
  *  @version		1.0
  */
 struct host_if_wep_attr {
-	u8 *pu8WepKey;
+	u8 *key;
 	u8 u8WepKeylen;
 	u8 u8Wepidx;
 	u8 u8mode;
@@ -2375,11 +2375,11 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 				return -1;
 			}
 
-			memcpy(pu8keybuf, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey,
+			memcpy(pu8keybuf, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.key,
 				    pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen);
 
 
-			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.key);
 
 			strWIDList[3].id = (u16)WID_WEP_KEY_VALUE;
 			strWIDList[3].type = WID_STR;
@@ -2405,10 +2405,10 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 			memcpy(pu8keybuf + 1, &pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen, 1);
 
-			memcpy(pu8keybuf + 2, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey,
+			memcpy(pu8keybuf + 2, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.key,
 				    pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen);
 
-			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.key);
 
 			strWID.id = (u16)WID_ADD_WEP_KEY;
 			strWID.type = WID_STR;
@@ -4193,9 +4193,9 @@ s32 host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 
 
 	msg.body.key_info.
-	uniHostIFkeyAttr.wep.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
+	uniHostIFkeyAttr.wep.key = kmalloc(u8WepKeylen, GFP_KERNEL);
 
-	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.pu8WepKey,
+	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.key,
 		    pu8WepKey, u8WepKeylen);
 
 
@@ -4261,10 +4261,10 @@ s32 host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 
 	msg.body.key_info.
-	uniHostIFkeyAttr.wep.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
+	uniHostIFkeyAttr.wep.key = kmalloc(u8WepKeylen, GFP_KERNEL);
 
 
-	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.pu8WepKey,
+	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.key,
 		    pu8WepKey, (u8WepKeylen));
 
 
