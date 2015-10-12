@@ -4003,7 +4003,7 @@ S:	Maintained
 F:	sound/usb/misc/ua101.c
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 L:	linux-efi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
@@ -4018,7 +4018,7 @@ F:	include/linux/efi*.h
 EFI VARIABLE FILESYSTEM
 M:	Matthew Garrett <matthew.garrett@nebula.com>
 M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Matt Fleming <matt.fleming@intel.com>
+M:	Matt Fleming <matt@codeblueprint.co.uk>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 L:	linux-efi@vger.kernel.org
 S:	Maintained
@@ -9914,7 +9914,6 @@ S:	Maintained
 F:	drivers/staging/lustre
 
 STAGING - NVIDIA COMPLIANT EMBEDDED CONTROLLER INTERFACE (nvec)
-M:	Julian Andres Klode <jak@jak-linux.org>
 M:	Marc Dietrich <marvin24@gmx.de>
 L:	ac100@lists.launchpad.net (moderated for non-subscribers)
 L:	linux-tegra@vger.kernel.org
@@ -11377,15 +11376,6 @@ L:	linux-wireless@vger.kernel.org
 W:	http://oops.ghostprotocols.net:81/blog
 S:	Maintained
 F:	drivers/net/wireless/wl3501*
-
-WM97XX TOUCHSCREEN DRIVERS
-M:	Mark Brown <broonie@kernel.org>
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
-L:	linux-input@vger.kernel.org
-W:	https://github.com/CirrusLogic/linux-drivers/wiki
-S:	Supported
-F:	drivers/input/touchscreen/*wm97*
-F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS DRIVERS
 L:	patches@opensource.wolfsonmicro.com
