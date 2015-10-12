@@ -868,7 +868,7 @@ static int fsl_qspi_read(struct spi_nor *nor, loff_t from,
 		}
 	}
 
-	dev_dbg(q->dev, "cmd [%x],read from 0x%p, len:%d\n",
+	dev_dbg(q->dev, "cmd [%x],read from %p, len:%zd\n",
 		cmd, q->ahb_addr + q->chip_base_addr + from - q->memmap_offs,
 		len);
 
