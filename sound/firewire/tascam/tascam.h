@@ -67,6 +67,14 @@ struct snd_tscm {
 	/* For MIDI message incoming transactions. */
 	struct fw_address_handler async_handler;
 	struct snd_rawmidi_substream *tx_midi_substreams[TSCM_MIDI_IN_PORT_MAX];
+
+	/* For MIDI message outgoing transactions. */
+	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
+	u8 running_status[TSCM_MIDI_OUT_PORT_MAX];
+	bool on_sysex[TSCM_MIDI_OUT_PORT_MAX];
+
+	/* For control messages. */
+	struct snd_firewire_tascam_status *status;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull

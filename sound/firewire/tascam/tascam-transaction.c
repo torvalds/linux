@@ -58,6 +58,83 @@ static inline int calculate_message_bytes(u8 status)
 	return -EINVAL;
 }
 
+static int fill_message(struct snd_rawmidi_substream *substream, u8 *buf)
+{
+	struct snd_tscm *tscm = substream->rmidi->private_data;
+	unsigned int port = substream->number;
+	unsigned int len;
+	unsigned int i;
+	u8 status;
+	int consume;
+
+	buf[0] = buf[1] = buf[2] = buf[3] = 0x00;
+
+	len = snd_rawmidi_transmit_peek(substream, buf + 1, 3);
+	if (len == 0)
+		return 0;
+
+	/* On exclusive message. */
+	if (tscm->on_sysex[port]) {
+		/* Seek the end of exclusives. */
+		for (i = 1; i < 4 || i < len; ++i) {
+			if (buf[i] == 0xf7) {
+				tscm->on_sysex[port] = false;
+				break;
+			}
+		}
+
+		/* At the end of exclusive message, use label 0x07. */
+		if (!tscm->on_sysex[port]) {
+			len = i;
+			buf[0] = (port << 4) | 0x07;
+		/* During exclusive message, use label 0x04. */
+		} else if (len == 3) {
+			buf[0] = (port << 4) | 0x04;
+		/* We need to fill whole 3 bytes. Go to next change. */
+		} else {
+			len = 0;
+		}
+	} else {
+		/* The beginning of exclusives. */
+		if (buf[1] == 0xf0) {
+			/* Transfer it in next chance in another condition. */
+			tscm->on_sysex[port] = true;
+			return 0;
+		} else {
+			/* On running-status. */
+			if ((buf[1] & 0x80) != 0x80)
+				status = tscm->running_status[port];
+			else
+				status = buf[1];
+
+			/* Calculate consume bytes. */
+			consume = calculate_message_bytes(status);
+			if (consume <= 0)
+				return 0;
+
+			/* On running-status. */
+			if ((buf[1] & 0x80) != 0x80) {
+				buf[3] = buf[2];
+				buf[2] = buf[1];
+				buf[1] = tscm->running_status[port];
+				consume--;
+			} else {
+				tscm->running_status[port] = buf[1];
+			}
+
+			/* Confirm length. */
+			if (len < consume)
+				return 0;
+			if (len > consume)
+				len = consume;
+		}
+
+		buf[0] = (port << 4) | (buf[1] >> 4);
+	}
+
+	return len;
+}
+
 static void handle_midi_tx(struct fw_card *card, struct fw_request *request,
 			   int tcode, int destination, int source,
 			   int generation, unsigned long long offset,
@@ -111,6 +188,7 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 		.start	= 0xffffe0000000ull,
 		.end	= 0xffffe000ffffull,
 	};
+	unsigned int i;
 	int err;
 
 	/*
@@ -129,8 +207,20 @@ int snd_tscm_transaction_register(struct snd_tscm *tscm)
 
 	err = snd_tscm_transaction_reregister(tscm);
 	if (err < 0)
-		fw_core_remove_address_handler(&tscm->async_handler);
+		goto error;
 
+	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++) {
+		err = snd_fw_async_midi_port_init(
+				&tscm->out_ports[i], tscm->unit,
+				TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_RX_QUAD,
+				4, fill_message);
+		if (err < 0)
+			goto error;
+	}
+
+	return err;
+error:
+	fw_core_remove_address_handler(&tscm->async_handler);
 	return err;
 }
 
@@ -167,6 +257,7 @@ int snd_tscm_transaction_reregister(struct snd_tscm *tscm)
 void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 {
 	__be32 reg;
+	unsigned int i;
 
 	/* Turn off messaging. */
 	reg = cpu_to_be32(0x00000000);
@@ -183,4 +274,6 @@ void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 			   &reg, sizeof(reg), 0);
 
 	fw_core_remove_address_handler(&tscm->async_handler);
+	for (i = 0; i < TSCM_MIDI_OUT_PORT_MAX; i++)
+		snd_fw_async_midi_port_destroy(&tscm->out_ports[i]);
 }
