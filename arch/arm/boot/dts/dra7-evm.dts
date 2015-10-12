@@ -634,7 +634,7 @@
 	 * SDCD signal is not being used here - using the fact that GPIO mode
 	 * is always hardwired.
 	 */
-	cd-gpios = <&gpio6 27 0>;
+	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
 };
 
 &mmc2 {
