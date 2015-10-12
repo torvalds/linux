@@ -1408,12 +1408,12 @@ __xfs_get_blocks(
 	      imap.br_startblock == DELAYSTARTBLOCK))) {
 		if (direct || xfs_get_extsz_hint(ip)) {
 			/*
-			 * Drop the ilock in preparation for starting the block
-			 * allocation transaction.  It will be retaken
-			 * exclusively inside xfs_iomap_write_direct for the
-			 * actual allocation.
+			 * xfs_iomap_write_direct() expects the shared lock. It
+			 * is unlocked on return.
 			 */
-			xfs_iunlock(ip, lockmode);
+			if (lockmode == XFS_ILOCK_EXCL)
+				xfs_ilock_demote(ip, lockmode);
+
 			error = xfs_iomap_write_direct(ip, offset, size,
 						       &imap, nimaps);
 			if (error)
