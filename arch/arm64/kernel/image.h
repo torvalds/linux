@@ -80,6 +80,12 @@ __efistub_strcmp		= __pi_strcmp;
 __efistub_strncmp		= __pi_strncmp;
 __efistub___flush_dcache_area	= __pi___flush_dcache_area;
 
+#ifdef CONFIG_KASAN
+__efistub___memcpy		= __pi_memcpy;
+__efistub___memmove		= __pi_memmove;
+__efistub___memset		= __pi_memset;
+#endif
+
 __efistub__text			= _text;
 __efistub__end			= _end;
 __efistub__edata		= _edata;
