@@ -51,74 +51,85 @@ static inline void *load_real_addr(void *addr)
 }
 
 /*
- * Copy real to virtual or real memory
+ * Copy memory of the old, dumped system to a kernel space virtual address
  */
-static int copy_from_realmem(void *dest, void *src, size_t count)
+int copy_oldmem_kernel(void *dst, void *src, size_t count)
 {
-	unsigned long size;
+	unsigned long from, len;
+	void *ra;
+	int rc;
 
-	if (!count)
-		return 0;
-	if (!is_vmalloc_or_module_addr(dest))
-		return memcpy_real(dest, src, count);
-	do {
-		size = min(count, PAGE_SIZE - (__pa(dest) & ~PAGE_MASK));
-		if (memcpy_real(load_real_addr(dest), src, size))
-			return -EFAULT;
-		count -= size;
-		dest += size;
-		src += size;
-	} while (count);
+	while (count) {
+		from = __pa(src);
+		if (!OLDMEM_BASE && from < sclp.hsa_size) {
+			/* Copy from zfcpdump HSA area */
+			len = min(count, sclp.hsa_size - from);
+			rc = memcpy_hsa_kernel(dst, from, len);
+			if (rc)
+				return rc;
+		} else {
+			/* Check for swapped kdump oldmem areas */
+			if (OLDMEM_BASE && from - OLDMEM_BASE < OLDMEM_SIZE) {
+				from -= OLDMEM_BASE;
+				len = min(count, OLDMEM_SIZE - from);
+			} else if (OLDMEM_BASE && from < OLDMEM_SIZE) {
+				len = min(count, OLDMEM_SIZE - from);
+				from += OLDMEM_BASE;
+			} else {
+				len = count;
+			}
+			if (is_vmalloc_or_module_addr(dst)) {
+				ra = load_real_addr(dst);
+				len = min(PAGE_SIZE - offset_in_page(ra), len);
+			} else {
+				ra = dst;
+			}
+			if (memcpy_real(ra, (void *) from, len))
+				return -EFAULT;
+		}
+		dst += len;
+		src += len;
+		count -= len;
+	}
 	return 0;
 }
 
 /*
- * Copy one page from zfcpdump "oldmem"
- *
- * For pages below HSA size memory from the HSA is copied. Otherwise
- * real memory copy is used.
+ * Copy memory of the old, dumped system to a user space virtual address
  */
-static ssize_t copy_oldmem_page_zfcpdump(char *buf, size_t csize,
-					 unsigned long src, int userbuf)
+int copy_oldmem_user(void __user *dst, void *src, size_t count)
 {
+	unsigned long from, len;
 	int rc;
 
-	if (src < sclp.hsa_size) {
-		rc = memcpy_hsa(buf, src, csize, userbuf);
-	} else {
-		if (userbuf)
-			rc = copy_to_user_real((void __force __user *) buf,
-					       (void *) src, csize);
-		else
-			rc = memcpy_real(buf, (void *) src, csize);
+	while (count) {
+		from = __pa(src);
+		if (!OLDMEM_BASE && from < sclp.hsa_size) {
+			/* Copy from zfcpdump HSA area */
+			len = min(count, sclp.hsa_size - from);
+			rc = memcpy_hsa_user(dst, from, len);
+			if (rc)
+				return rc;
+		} else {
+			/* Check for swapped kdump oldmem areas */
+			if (OLDMEM_BASE && from - OLDMEM_BASE < OLDMEM_SIZE) {
+				from -= OLDMEM_BASE;
+				len = min(count, OLDMEM_SIZE - from);
+			} else if (OLDMEM_BASE && from < OLDMEM_SIZE) {
+				len = min(count, OLDMEM_SIZE - from);
+				from += OLDMEM_BASE;
+			} else {
+				len = count;
+			}
+			rc = copy_to_user_real(dst, (void *) from, count);
+			if (rc)
+				return rc;
+		}
+		dst += len;
+		src += len;
+		count -= len;
 	}
-	return rc ? rc : csize;
-}
-
-/*
- * Copy one page from kdump "oldmem"
- *
- * For the kdump reserved memory this functions performs a swap operation:
- *  - [OLDMEM_BASE - OLDMEM_BASE + OLDMEM_SIZE] is mapped to [0 - OLDMEM_SIZE].
- *  - [0 - OLDMEM_SIZE] is mapped to [OLDMEM_BASE - OLDMEM_BASE + OLDMEM_SIZE]
- */
-static ssize_t copy_oldmem_page_kdump(char *buf, size_t csize,
-				      unsigned long src, int userbuf)
-
-{
-	int rc;
-
-	if (src < OLDMEM_SIZE)
-		src += OLDMEM_BASE;
-	else if (src > OLDMEM_BASE &&
-		 src < OLDMEM_BASE + OLDMEM_SIZE)
-		src -= OLDMEM_BASE;
-	if (userbuf)
-		rc = copy_to_user_real((void __force __user *) buf,
-				       (void *) src, csize);
-	else
-		rc = copy_from_realmem(buf, (void *) src, csize);
-	return (rc == 0) ? rc : csize;
+	return 0;
 }
 
 /*
@@ -127,15 +138,17 @@ static ssize_t copy_oldmem_page_kdump(char *buf, size_t csize,
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 			 unsigned long offset, int userbuf)
 {
-	unsigned long src;
+	void *src;
+	int rc;
 
 	if (!csize)
 		return 0;
-	src = (pfn << PAGE_SHIFT) + offset;
-	if (OLDMEM_BASE)
-		return copy_oldmem_page_kdump(buf, csize, src, userbuf);
+	src = (void *) (pfn << PAGE_SHIFT) + offset;
+	if (userbuf)
+		rc = copy_oldmem_user((void __force __user *) buf, src, csize);
 	else
-		return copy_oldmem_page_zfcpdump(buf, csize, src, userbuf);
+		rc = copy_oldmem_kernel((void *) buf, src, csize);
+	return rc;
 }
 
 /*
@@ -201,33 +214,6 @@ int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	else
 		return remap_oldmem_pfn_range_zfcpdump(vma, from, pfn, size,
 						       prot);
-}
-
-/*
- * Copy memory from old kernel
- */
-int copy_from_oldmem(void *dest, void *src, size_t count)
-{
-	unsigned long copied = 0;
-	int rc;
-
-	if (OLDMEM_BASE) {
-		if ((unsigned long) src < OLDMEM_SIZE) {
-			copied = min(count, OLDMEM_SIZE - (unsigned long) src);
-			rc = copy_from_realmem(dest, src + OLDMEM_BASE, copied);
-			if (rc)
-				return rc;
-		}
-	} else {
-		unsigned long hsa_end = sclp.hsa_size;
-		if ((unsigned long) src < hsa_end) {
-			copied = min(count, hsa_end - (unsigned long) src);
-			rc = memcpy_hsa(dest, (unsigned long) src, copied, 0);
-			if (rc)
-				return rc;
-		}
-	}
-	return copy_from_realmem(dest + copied, src + copied, count - copied);
 }
 
 /*
@@ -425,17 +411,18 @@ static void *get_vmcoreinfo_old(unsigned long *size)
 	Elf64_Nhdr note;
 	void *addr;
 
-	if (copy_from_oldmem(&addr, &S390_lowcore.vmcore_info, sizeof(addr)))
+	if (copy_oldmem_kernel(&addr, &S390_lowcore.vmcore_info, sizeof(addr)))
 		return NULL;
 	memset(nt_name, 0, sizeof(nt_name));
-	if (copy_from_oldmem(&note, addr, sizeof(note)))
+	if (copy_oldmem_kernel(&note, addr, sizeof(note)))
 		return NULL;
-	if (copy_from_oldmem(nt_name, addr + sizeof(note), sizeof(nt_name) - 1))
+	if (copy_oldmem_kernel(nt_name, addr + sizeof(note),
+			       sizeof(nt_name) - 1))
 		return NULL;
 	if (strcmp(nt_name, "VMCOREINFO") != 0)
 		return NULL;
 	vmcoreinfo = kzalloc_panic(note.n_descsz);
-	if (copy_from_oldmem(vmcoreinfo, addr + 24, note.n_descsz))
+	if (copy_oldmem_kernel(vmcoreinfo, addr + 24, note.n_descsz))
 		return NULL;
 	*size = note.n_descsz;
 	return vmcoreinfo;

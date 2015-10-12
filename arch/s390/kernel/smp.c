@@ -546,8 +546,8 @@ static void __init __smp_store_cpu_state(struct save_area_ext *sa_ext,
 
 	if (is_boot_cpu) {
 		/* Copy the registers of the boot CPU. */
-		copy_oldmem_page(1, (void *) &sa_ext->sa, sizeof(sa_ext->sa),
-				 SAVE_AREA_BASE - PAGE_SIZE, 0);
+		copy_oldmem_kernel(&sa_ext->sa, (void *) SAVE_AREA_BASE,
+				   sizeof(sa_ext->sa));
 		if (MACHINE_HAS_VX)
 			save_vx_regs_safe(sa_ext->vx_regs);
 		return;

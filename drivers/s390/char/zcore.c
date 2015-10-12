@@ -64,7 +64,7 @@ static struct ipl_parameter_block *ipl_block;
  * @count: Size of buffer, which should be copied
  * @mode:  Either TO_KERNEL or TO_USER
  */
-int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode)
+static int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode)
 {
 	int offs, blk_num;
 	static char buf[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
@@ -126,12 +126,26 @@ out:
 	return 0;
 }
 
-static int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
+/*
+ * Copy memory from HSA to user memory (not reentrant):
+ *
+ * @dest:  Kernel or user buffer where memory should be copied to
+ * @src:   Start address within HSA where data should be copied
+ * @count: Size of buffer, which should be copied
+ */
+int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
 {
 	return memcpy_hsa((void __force *) dest, src, count, TO_USER);
 }
 
-static int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
+/*
+ * Copy memory from HSA to kernel memory (not reentrant):
+ *
+ * @dest:  Kernel or user buffer where memory should be copied to
+ * @src:   Start address within HSA where data should be copied
+ * @count: Size of buffer, which should be copied
+ */
+int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 {
 	return memcpy_hsa(dest, src, count, TO_KERNEL);
 }

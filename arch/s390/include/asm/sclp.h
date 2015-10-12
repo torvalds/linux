@@ -77,7 +77,8 @@ int sclp_chp_read_info(struct sclp_chp_info *info);
 void sclp_get_ipl_info(struct sclp_ipl_info *info);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
-int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode);
+int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
+int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
 int _sclp_print_early(const char *);
 
