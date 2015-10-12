@@ -181,8 +181,7 @@ err_pull:
 	return ret;
 }
 
-static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
-					    struct sk_buff *skb)
+int ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_skb_cb *skb_cb;
@@ -199,6 +198,7 @@ static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_htc_tx_completion_handler);
 
 /***********/
 /* Receive */
@@ -304,8 +304,7 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 	return status;
 }
 
-static int ath10k_htc_rx_completion_handler(struct ath10k *ar,
-					    struct sk_buff *skb)
+int ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	int status = 0;
 	struct ath10k_htc *htc = &ar->htc;
@@ -442,6 +441,7 @@ out:
 
 	return status;
 }
+EXPORT_SYMBOL(ath10k_htc_rx_completion_handler);
 
 static void ath10k_htc_control_rx_complete(struct ath10k *ar,
 					   struct sk_buff *skb)
