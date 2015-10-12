@@ -70,8 +70,12 @@ awk '/^reiserfsck/{
 fsck.reiser4 -V 2>&1 | grep ^fsck.reiser4 | awk \
 'NR==1{print "reiser4progs          ", $2}'
 
-xfs_db -V 2>&1 | grep version | awk \
-'NR==1{print "xfsprogs              ", $3}'
+xfs_db -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Xfsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 pccardctl -V 2>&1| grep pcmciautils | awk '{print "pcmciautils           ", $2}'
 
