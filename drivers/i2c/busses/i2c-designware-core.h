@@ -113,13 +113,10 @@ struct dw_i2c_dev {
 #define ACCESS_16BIT		0x00000002
 
 extern int i2c_dw_init(struct dw_i2c_dev *dev);
-extern int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
-		int num);
-extern u32 i2c_dw_func(struct i2c_adapter *adap);
-extern irqreturn_t i2c_dw_isr(int this_irq, void *dev_id);
 extern void i2c_dw_disable(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
+extern int i2c_dw_probe(struct dw_i2c_dev *dev);
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
 extern int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev);

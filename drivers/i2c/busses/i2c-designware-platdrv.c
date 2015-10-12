@@ -41,10 +41,6 @@
 #include <linux/platform_data/i2c-designware.h>
 #include "i2c-designware-core.h"
 
-static struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer	= i2c_dw_xfer,
-	.functionality	= i2c_dw_func,
-};
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
 	return clk_get_rate(dev->clk)/1000;
@@ -155,8 +151,6 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 
-	init_completion(&dev->cmd_complete);
-	mutex_init(&dev->lock);
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
 	platform_set_drvdata(pdev, dev);
@@ -231,33 +225,15 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		dev->rx_fifo_depth = ((param1 >> 8)  & 0xff) + 1;
 		dev->adapter.nr = pdev->id;
 	}
-	r = i2c_dw_init(dev);
-	if (r)
-		return r;
-
-	i2c_dw_disable_int(dev);
-	r = devm_request_irq(&pdev->dev, dev->irq, i2c_dw_isr, IRQF_SHARED,
-			pdev->name, dev);
-	if (r) {
-		dev_err(&pdev->dev, "failure requesting irq %i\n", dev->irq);
-		return r;
-	}
 
 	adap = &dev->adapter;
-	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
-	strlcpy(adap->name, "Synopsys DesignWare I2C adapter",
-			sizeof(adap->name));
-	adap->algo = &i2c_dw_algo;
-	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	r = i2c_add_numbered_adapter(adap);
-	if (r) {
-		dev_err(&pdev->dev, "failure adding adapter\n");
+	r = i2c_dw_probe(dev);
+	if (r)
 		return r;
-	}
 
 	if (dev->pm_runtime_disabled) {
 		pm_runtime_forbid(&pdev->dev);
