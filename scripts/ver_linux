@@ -171,8 +171,12 @@ awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-iwconfig --version 2>&1 | awk \
-'(NR==1 && ($3 == "version")) {print "wireless-tools        ",$4}'
+iwconfig --version 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Wireless-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 if [ -e /proc/modules ]; then
     X=`cat /proc/modules | sed -e "s/ .*$//"`
