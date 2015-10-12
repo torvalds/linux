@@ -107,8 +107,12 @@ isdnctrl 2>&1 | grep version | awk \
 showmount --version 2>&1 | grep nfs-utils | awk \
 'NR==1{print "nfs-utils             ", $NF}'
 
-echo -n "Linux C Library        "
-sed -n -e '/^.*\/libc-\([^/]*\)\.so$/{s//\1/;p;q}' < /proc/self/maps
+test -r /proc/self/maps &&
+sed '
+	/.*libc-\(.*\)\.so$/!d
+	s//Linux C Library\t\t\1/
+	q
+' /proc/self/maps
 
 ldd -v > /dev/null 2>&1 && ldd -v || ldd --version |head -n 1 | awk \
 'NR==1{print "Dynamic linker (ldd)  ", $NF}'
