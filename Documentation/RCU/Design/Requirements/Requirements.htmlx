@@ -78,6 +78,8 @@ These are:
 	Grace-Period Guarantee</a>
 <li>	<a href="#Publish-Subscribe Guarantee">
 	Publish-Subscribe Guarantee</a>
+<li>	<a href="#Memory-Barrier Guarantees">
+	Memory-Barrier Guarantees</a>
 <li>	<a href="#RCU Primitives Guaranteed to Execute Unconditionally">
 	RCU Primitives Guaranteed to Execute Unconditionally</a>
 <li>	<a href="#Guaranteed Read-to-Write Upgrade">
@@ -539,9 +541,37 @@ either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
 <p>@@QQE@@
 
 <p>
-This simple linked-data-structure scenario clearly demonstrates the need
-for RCU's stringent memory-ordering guarantees on systems with more than
-one CPU:
+In short, RCU's publish-subscribe guarantee is provided by the combination
+of <tt>rcu_assign_pointer()</tt> and <tt>rcu_dereference()</tt>.
+This guarantee allows data elements to be safely added to RCU-protected
+linked data structures without disrupting RCU readers.
+This guarantee can be used in combination with the grace-period
+guarantee to also allow data elements to be removed from RCU-protected
+linked data structures, again without disrupting RCU readers.
+
+<p>
+This guarantee was only partially premeditated.
+DYNIX/ptx used an explicit memory barrier for publication, but had nothing
+resembling <tt>rcu_dereference()</tt> for subscription, nor did it
+have anything resembling the <tt>smp_read_barrier_depends()</tt>
+that was later subsumed into <tt>rcu_dereference()</tt>.
+The need for these operations made itself known quite suddenly at a
+late-1990s meeting with the DEC Alpha architects, back in the days when
+DEC was still a free-standing company.
+It took the Alpha architects a good hour to convince me that any sort
+of barrier would ever be needed, and it then took me a good <i>two</i> hours
+to convince them that their documentation did not make this point clear.
+More recent work with the C and C++ standards committees have provided
+much education on tricks and traps from the compiler.
+In short, compilers were much less tricky in the early 1990s, but in
+2015, don't even think about omitting <tt>rcu_dereference()</tt>!
+
+<h3><a name="Memory-Barrier Guarantees">Memory-Barrier Guarantees</a></h3>
+
+<p>
+The previous section's simple linked-data-structure scenario clearly
+demonstrates the need for RCU's stringent memory-ordering guarantees on
+systems with more than one CPU:
 
 <ol>
 <li>	Each CPU that has an RCU read-side critical section that
@@ -653,30 +683,12 @@ adhered to the as-if rule than it is to actually adhere to it!
 <p>@@QQE@@
 
 <p>
-In short, RCU's publish-subscribe guarantee is provided by the combination
-of <tt>rcu_assign_pointer()</tt> and <tt>rcu_dereference()</tt>.
-This guarantee allows data elements to be safely added to RCU-protected
-linked data structures without disrupting RCU readers.
-This guarantee can be used in combination with the grace-period
-guarantee to also allow data elements to be removed from RCU-protected
-linked data structures, again without disrupting RCU readers.
-
-<p>
-This guarantee was only partially premeditated.
-DYNIX/ptx used an explicit memory barrier for publication, but had nothing
-resembling <tt>rcu_dereference()</tt> for subscription, nor did it
-have anything resembling the <tt>smp_read_barrier_depends()</tt>
-that was later subsumed into <tt>rcu_dereference()</tt>.
-The need for these operations made itself known quite suddenly at a
-late-1990s meeting with the DEC Alpha architects, back in the days when
-DEC was still a free-standing company.
-It took the Alpha architects a good hour to convince me that any sort
-of barrier would ever be needed, and it then took me a good <i>two</i> hours
-to convince them that their documentation did not make this point clear.
-More recent work with the C and C++ standards committees have provided
-much education on tricks and traps from the compiler.
-In short, compilers were much less tricky in the early 1990s, but in
-2015, don't even think about omitting <tt>rcu_dereference()</tt>!
+Note that these memory-barrier requirements do not replace the fundamental
+RCU requirement that a grace period wait for all pre-existing readers.
+On the contrary, the memory barriers called out in this section must operate in
+such a way as to <i>enforce</i> this fundamental requirement.
+Of course, different implementations enforce this requirement in different
+ways, but enforce it they must.
 
 <h3><a name="RCU Primitives Guaranteed to Execute Unconditionally">RCU Primitives Guaranteed to Execute Unconditionally</a></h3>
 
