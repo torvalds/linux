@@ -155,10 +155,10 @@ typedef enum {
 	HT_ENABLE		= BIT(18),
 } tenuCfgParam;
 
-typedef struct {
+struct found_net_info {
 	u8 au8bssid[6];
 	s8 s8rssi;
-} tstrFoundNetworkInfo;
+};
 
 typedef enum {SCAN_EVENT_NETWORK_FOUND  = 0,
 	      SCAN_EVENT_DONE = 1,
@@ -232,7 +232,7 @@ struct user_scan_req {
 	void *u32UserScanPvoid;
 
 	u32 u32RcvdChCount;
-	tstrFoundNetworkInfo astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
+	struct found_net_info astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
 };
 
 struct user_conn_req {
