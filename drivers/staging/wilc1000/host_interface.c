@@ -112,7 +112,7 @@ struct host_if_wep_attr {
 	u8 key_len;
 	u8 index;
 	u8 mode;
-	enum AUTHTYPE tenuAuth_type;
+	enum AUTHTYPE auth_type;
 };
 
 /*!
@@ -2358,7 +2358,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			strWIDList[1].id = WID_AUTH_TYPE;
 			strWIDList[1].type = WID_CHAR;
 			strWIDList[1].size = sizeof(char);
-			strWIDList[1].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.tenuAuth_type));
+			strWIDList[1].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.auth_type));
 
 			strWIDList[2].id = (u16)WID_KEY_ID;
 			strWIDList[2].type = WID_CHAR;
@@ -4274,7 +4274,7 @@ s32 host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 	msg.body.key_info.uniHostIFkeyAttr.wep.mode = u8mode;
 
-	msg.body.key_info.uniHostIFkeyAttr.wep.tenuAuth_type = tenuAuth_type;
+	msg.body.key_info.uniHostIFkeyAttr.wep.auth_type = tenuAuth_type;
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 
