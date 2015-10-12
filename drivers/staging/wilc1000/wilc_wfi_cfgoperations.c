@@ -531,7 +531,7 @@ int linux_wlan_set_bssid(struct net_device *wilc_netdev, u8 *pBSSID);
  */
 int connecting;
 
-static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
+static void CfgConnectResult(enum conn_event enuConnDisconnEvent,
 			     tstrConnectInfo *pstrConnectInfo,
 			     u8 u8MacStatus,
 			     tstrDisconnectNotifInfo *pstrDisconnectNotifInfo,

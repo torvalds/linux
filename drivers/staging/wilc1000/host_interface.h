@@ -160,11 +160,11 @@ enum scan_event {
 	SCAN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 
-typedef enum {
+enum conn_event {
 	CONN_DISCONN_EVENT_CONN_RESP		= 0,
 	CONN_DISCONN_EVENT_DISCONN_NOTIF	= 1,
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
-} tenuConnDisconnEvent;
+};
 
 enum KEY_TYPE {
 	WEP,
@@ -179,7 +179,7 @@ typedef void (*wilc_scan_result)(enum scan_event, tstrNetworkInfo *,
 				  void *, void *);
 
 /*Connect callBack function definition*/
-typedef void (*wilc_connect_result)(tenuConnDisconnEvent,
+typedef void (*wilc_connect_result)(enum conn_event,
 				     tstrConnectInfo *,
 				     u8,
 				     tstrDisconnectNotifInfo *,
