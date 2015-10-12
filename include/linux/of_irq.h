@@ -70,7 +70,7 @@ static inline void of_msi_configure(struct device *dev, struct device_node *np)
 }
 #endif
 
-#if defined(CONFIG_OF)
+#if defined(CONFIG_OF_IRQ) || defined(CONFIG_SPARC)
 /*
  * irq_of_parse_and_map() is used by all OF enabled platforms; but SPARC
  * implements it differently.  However, the prototype is the same for all,
@@ -78,7 +78,7 @@ static inline void of_msi_configure(struct device *dev, struct device_node *np)
  */
 extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 
-#else /* !CONFIG_OF */
+#else /* !CONFIG_OF && !CONFIG_SPARC */
 static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
 						int index)
 {
