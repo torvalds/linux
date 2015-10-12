@@ -563,7 +563,7 @@
 			>;
 		};
 
-		pinctrl_lcd: lcdgrp {
+		pinctrl_lcdif_dat: lcdifdatgrp {
 			fsl,pins = <
 				MX6SL_PAD_LCD_DAT0__LCD_DATA00 0x1b0b0
 				MX6SL_PAD_LCD_DAT1__LCD_DATA01 0x1b0b0
@@ -589,6 +589,11 @@
 				MX6SL_PAD_LCD_DAT21__LCD_DATA21 0x1b0b0
 				MX6SL_PAD_LCD_DAT22__LCD_DATA22 0x1b0b0
 				MX6SL_PAD_LCD_DAT23__LCD_DATA23 0x1b0b0
+			>;
+		};
+
+		pinctrl_lcdif_ctrl: lcdifctrlgrp {
+			fsl,pins = <
 				MX6SL_PAD_LCD_CLK__LCD_CLK 0x1b0b0
 				MX6SL_PAD_LCD_ENABLE__LCD_ENABLE 0x1b0b0
 				MX6SL_PAD_LCD_HSYNC__LCD_HSYNC 0x1b0b0
@@ -801,12 +806,13 @@
 
 &lcdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_lcd>;
+	pinctrl-0 = <&pinctrl_lcdif_dat
+		     &pinctrl_lcdif_ctrl>;
 	lcd-supply = <&reg_lcd_3v3>;
-	display = <&display0>;
+	display = <&display>;
 	status = "okay";
 
-	display0: display0 {
+	display: display {
 		bits-per-pixel = <16>;
 		bus-width = <24>;
 
