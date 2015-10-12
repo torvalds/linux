@@ -616,7 +616,7 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 		for (counter = 0; counter < count; counter++) {
 			wids[counter].size = wilc_wlan_cfg_get_val(
 					wids[counter].id,
-					wids[counter].ps8WidVal,
+					wids[counter].val,
 					wids[counter].size);
 
 		}
@@ -625,7 +625,7 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].id);
 			if (!wilc_wlan_cfg_set(!counter,
 					       wids[counter].id,
-					       wids[counter].ps8WidVal,
+					       wids[counter].val,
 					       wids[counter].size,
 					       (counter == count - 1),
 					       drv)) {
