@@ -143,9 +143,10 @@ static int das16cs_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int das16cs_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das16cs_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
@@ -343,15 +344,14 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= 0xffff;
 	s->range_table	= &das16cs_ai_range;
-	s->len_chanlist	= 16;
-	s->insn_read	= das16cs_ai_rinsn;
+	s->insn_read	= das16cs_ai_insn_read;
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
