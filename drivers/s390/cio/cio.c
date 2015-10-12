@@ -826,11 +826,11 @@ static atomic_t chpid_reset_count;
 static void s390_reset_chpids_mcck_handler(void)
 {
 	struct crw crw;
-	struct mci *mci;
+	union mci mci;
 
 	/* Check for pending channel report word. */
-	mci = (struct mci *)&S390_lowcore.mcck_interruption_code;
-	if (!mci->cp)
+	mci.val = S390_lowcore.mcck_interruption_code;
+	if (!mci.cp)
 		return;
 	/* Process channel report words. */
 	while (stcrw(&crw) == 0) {

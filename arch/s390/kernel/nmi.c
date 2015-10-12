@@ -29,7 +29,7 @@ struct mcck_struct {
 	int warning;
 	unsigned int etr_queue : 1;
 	unsigned int stp_queue : 1;
-	unsigned long long mcck_code;
+	unsigned long mcck_code;
 };
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
@@ -89,7 +89,7 @@ void s390_handle_mcck(void)
 	if (mcck.kill_task) {
 		local_irq_enable();
 		printk(KERN_EMERG "mcck: Terminating task because of machine "
-		       "malfunction (code 0x%016llx).\n", mcck.mcck_code);
+		       "malfunction (code 0x%016lx).\n", mcck.mcck_code);
 		printk(KERN_EMERG "mcck: task: %s, pid: %d.\n",
 		       current->comm, current->pid);
 		do_exit(SIGSEGV);
@@ -101,7 +101,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all registers could be validated
  * returns 1 otherwise
  */
-static int notrace s390_revalidate_registers(struct mci *mci)
+static int notrace s390_revalidate_registers(union mci mci)
 {
 	int kill_task;
 	u64 zero;
@@ -110,14 +110,14 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	kill_task = 0;
 	zero = 0;
 
-	if (!mci->gr) {
+	if (!mci.gr) {
 		/*
 		 * General purpose registers couldn't be restored and have
 		 * unknown contents. Process needs to be terminated.
 		 */
 		kill_task = 1;
 	}
-	if (!mci->fp) {
+	if (!mci.fp) {
 		/*
 		 * Floating point registers can't be restored and
 		 * therefore the process needs to be terminated.
@@ -126,7 +126,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	}
 	fpt_save_area = &S390_lowcore.floating_pt_save_area;
 	fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
-	if (!mci->fc) {
+	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
 		 * Task will be terminated.
@@ -160,7 +160,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		/* Revalidate vector registers */
 		union ctlreg0 cr0;
 
-		if (!mci->vr) {
+		if (!mci.vr) {
 			/*
 			 * Vector registers can't be restored and therefore
 			 * the process needs to be terminated.
@@ -182,7 +182,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	asm volatile(
 		"	lam	0,15,0(%0)"
 		: : "a" (&S390_lowcore.access_regs_save_area));
-	if (!mci->ar) {
+	if (!mci.ar) {
 		/*
 		 * Access registers have unknown contents.
 		 * Terminating task.
@@ -190,7 +190,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		kill_task = 1;
 	}
 	/* Revalidate control registers */
-	if (!mci->cr) {
+	if (!mci.cr) {
 		/*
 		 * Control registers have unknown contents.
 		 * Can't recover and therefore stopping machine.
@@ -209,7 +209,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	 * See if we can revalidate the TOD programmable register with its
 	 * old contents (should be zero) otherwise set it to zero.
 	 */
-	if (!mci->pr)
+	if (!mci.pr)
 		asm volatile(
 			"	sr	0,0\n"
 			"	sckpf"
@@ -223,14 +223,14 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 	/* Revalidate clock comparator register */
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	/* Check if old PSW is valid */
-	if (!mci->wp)
+	if (!mci.wp)
 		/*
 		 * Can't tell if we come from user or kernel mode
 		 * -> stopping machine.
 		 */
 		s390_handle_damage();
 
-	if (!mci->ms || !mci->pm || !mci->ia)
+	if (!mci.ms || !mci.pm || !mci.ia)
 		kill_task = 1;
 
 	return kill_task;
@@ -254,21 +254,21 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	static unsigned long long last_ipd;
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
-	struct mci *mci;
+	union mci mci;
 	int umode;
 
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
-	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
+	mci.val = S390_lowcore.mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
 	umode = user_mode(regs);
 
-	if (mci->sd) {
+	if (mci.sd) {
 		/* System damage -> stopping machine */
 		s390_handle_damage();
 	}
-	if (mci->pd) {
-		if (mci->b) {
+	if (mci.pd) {
+		if (mci.b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
 			z_mcic = (1ULL<<63 | 1ULL<<59 | 1ULL<<29);
@@ -276,7 +276,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 				  1ULL<<36 | 1ULL<<35 | 1ULL<<34 | 1ULL<<32 |
 				  1ULL<<30 | 1ULL<<21 | 1ULL<<20 | 1ULL<<17 |
 				  1ULL<<16);
-			t_mcic = *(u64 *)mci;
+			t_mcic = mci.val;
 
 			if (((t_mcic & z_mcic) != 0) ||
 			    ((t_mcic & o_mcic) != o_mcic)) {
@@ -309,7 +309,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * user mode -> mark task for termination.
 			 */
 			mcck->kill_task = 1;
-			mcck->mcck_code = *(unsigned long long *) mci;
+			mcck->mcck_code = mci.val;
 			set_cpu_flag(CIF_MCCK_PENDING);
 		} else {
 			/*
@@ -319,11 +319,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (mci->cd) {
+	if (mci.cd) {
 		/* Timing facility damage */
 		s390_handle_damage();
 	}
-	if (mci->ed && mci->ec) {
+	if (mci.ed && mci.ec) {
 		/* External damage */
 		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
 			mcck->etr_queue |= etr_sync_check();
@@ -336,21 +336,21 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		if (mcck->etr_queue || mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
-	if (mci->se)
+	if (mci.se)
 		/* Storage error uncorrected */
 		s390_handle_damage();
-	if (mci->ke)
+	if (mci.ke)
 		/* Storage key-error uncorrected */
 		s390_handle_damage();
-	if (mci->ds && mci->fa)
+	if (mci.ds && mci.fa)
 		/* Storage degradation */
 		s390_handle_damage();
-	if (mci->cp) {
+	if (mci.cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
-	if (mci->w) {
+	if (mci.w) {
 		/* Warning pending */
 		mcck->warning = 1;
 		set_cpu_flag(CIF_MCCK_PENDING);
