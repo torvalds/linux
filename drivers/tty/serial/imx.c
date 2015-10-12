@@ -1631,12 +1631,12 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	int locked = 1;
 	int retval;
 
-	retval = clk_prepare_enable(sport->clk_per);
+	retval = clk_enable(sport->clk_per);
 	if (retval)
 		return;
-	retval = clk_prepare_enable(sport->clk_ipg);
+	retval = clk_enable(sport->clk_ipg);
 	if (retval) {
-		clk_disable_unprepare(sport->clk_per);
+		clk_disable(sport->clk_per);
 		return;
 	}
 
@@ -1675,8 +1675,8 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	if (locked)
 		spin_unlock_irqrestore(&sport->port.lock, flags);
 
-	clk_disable_unprepare(sport->clk_ipg);
-	clk_disable_unprepare(sport->clk_per);
+	clk_disable(sport->clk_ipg);
+	clk_disable(sport->clk_per);
 }
 
 /*
@@ -1777,7 +1777,15 @@ imx_console_setup(struct console *co, char *options)
 
 	retval = uart_set_options(&sport->port, co, baud, parity, bits, flow);
 
-	clk_disable_unprepare(sport->clk_ipg);
+	clk_disable(sport->clk_ipg);
+	if (retval) {
+		clk_unprepare(sport->clk_ipg);
+		goto error_console;
+	}
+
+	retval = clk_prepare(sport->clk_per);
+	if (retval)
+		clk_disable_unprepare(sport->clk_ipg);
 
 error_console:
 	return retval;
