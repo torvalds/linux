@@ -1576,7 +1576,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (nic->iftype == STATION_MODE) {
-		tstrStatistics strStatistics;
+		struct rf_info strStatistics;
 
 		host_int_get_statistics(priv->hWILCWFIDrv, &strStatistics);
 

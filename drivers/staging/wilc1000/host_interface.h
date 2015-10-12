@@ -57,14 +57,13 @@
 #define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC			2
 
-typedef struct _tstrStatistics {
+struct rf_info {
 	u8 u8LinkSpeed;
 	s8 s8RSSI;
 	u32 u32TxCount;
 	u32 u32RxCount;
 	u32 u32TxFailureCount;
-
-} tstrStatistics;
+};
 
 enum host_if_state {
 	HOST_IF_IDLE			= 0,
@@ -1176,6 +1175,6 @@ static s32 Handle_ScanDone(struct host_if_drv *drvHandler, tenuScanEvent enuEven
 
 void host_int_freeJoinParams(void *pJoinParams);
 
-s32 host_int_get_statistics(struct host_if_drv *hWFIDrv, tstrStatistics *pstrStatistics);
+s32 host_int_get_statistics(struct host_if_drv *hWFIDrv, struct rf_info *pstrStatistics);
 
 #endif

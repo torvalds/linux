@@ -2974,7 +2974,7 @@ static void Handle_GetLinkspeed(struct host_if_drv *drvHandler)
 
 }
 
-s32 Handle_GetStatistics(struct host_if_drv *drvHandler, tstrStatistics *pstrStatistics)
+s32 Handle_GetStatistics(struct host_if_drv *drvHandler, struct rf_info *pstrStatistics)
 {
 	struct wid strWIDList[5];
 	u32 u32WidsCount = 0, s32Error = 0;
@@ -3987,7 +3987,7 @@ static int hostIFthread(void *pvArg)
 			break;
 
 		case HOST_IF_MSG_GET_STATISTICS:
-			Handle_GetStatistics(msg.drv, (tstrStatistics *)msg.body.data);
+			Handle_GetStatistics(msg.drv, (struct rf_info *)msg.body.data);
 			break;
 
 		case HOST_IF_MSG_GET_CHNL:
@@ -5480,7 +5480,7 @@ s32 host_int_get_link_speed(struct host_if_drv *hWFIDrv, s8 *ps8lnkspd)
 	return s32Error;
 }
 
-s32 host_int_get_statistics(struct host_if_drv *hWFIDrv, tstrStatistics *pstrStatistics)
+s32 host_int_get_statistics(struct host_if_drv *hWFIDrv, struct rf_info *pstrStatistics)
 {
 	s32 s32Error = 0;
 	struct host_if_msg msg;
