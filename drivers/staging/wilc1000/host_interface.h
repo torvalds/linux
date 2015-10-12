@@ -102,7 +102,7 @@ enum CURRENT_TXRATE {
 };
 
 struct cfg_param_val {
-	u32 u32SetCfgFlag;
+	u32 flag;
 	u8 ht_enable;
 	u8 bss_type;
 	u8 auth_type;

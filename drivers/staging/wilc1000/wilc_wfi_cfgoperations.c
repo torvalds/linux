@@ -1649,25 +1649,25 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 	priv = wiphy_priv(wiphy);
 
-	pstrCfgParamVal.u32SetCfgFlag = 0;
+	pstrCfgParamVal.flag = 0;
 	PRINT_D(CFG80211_DBG, "Setting Wiphy params\n");
 
 	if (changed & WIPHY_PARAM_RETRY_SHORT) {
 		PRINT_D(CFG80211_DBG, "Setting WIPHY_PARAM_RETRY_SHORT %d\n",
 			priv->dev->ieee80211_ptr->wiphy->retry_short);
-		pstrCfgParamVal.u32SetCfgFlag  |= RETRY_SHORT;
+		pstrCfgParamVal.flag  |= RETRY_SHORT;
 		pstrCfgParamVal.short_retry_limit = priv->dev->ieee80211_ptr->wiphy->retry_short;
 	}
 	if (changed & WIPHY_PARAM_RETRY_LONG) {
 
 		PRINT_D(CFG80211_DBG, "Setting WIPHY_PARAM_RETRY_LONG %d\n", priv->dev->ieee80211_ptr->wiphy->retry_long);
-		pstrCfgParamVal.u32SetCfgFlag |= RETRY_LONG;
+		pstrCfgParamVal.flag |= RETRY_LONG;
 		pstrCfgParamVal.long_retry_limit = priv->dev->ieee80211_ptr->wiphy->retry_long;
 
 	}
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
 		PRINT_D(CFG80211_DBG, "Setting WIPHY_PARAM_FRAG_THRESHOLD %d\n", priv->dev->ieee80211_ptr->wiphy->frag_threshold);
-		pstrCfgParamVal.u32SetCfgFlag |= FRAG_THRESHOLD;
+		pstrCfgParamVal.flag |= FRAG_THRESHOLD;
 		pstrCfgParamVal.frag_threshold = priv->dev->ieee80211_ptr->wiphy->frag_threshold;
 
 	}
@@ -1675,7 +1675,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
 		PRINT_D(CFG80211_DBG, "Setting WIPHY_PARAM_RTS_THRESHOLD %d\n", priv->dev->ieee80211_ptr->wiphy->rts_threshold);
 
-		pstrCfgParamVal.u32SetCfgFlag |= RTS_THRESHOLD;
+		pstrCfgParamVal.flag |= RTS_THRESHOLD;
 		pstrCfgParamVal.rts_threshold = priv->dev->ieee80211_ptr->wiphy->rts_threshold;
 
 	}

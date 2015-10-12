@@ -847,7 +847,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 
 	PRINT_D(HOSTINF_DBG, "Setting CFG params\n");
 
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & BSS_TYPE) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & BSS_TYPE) {
 		/*----------------------------------------------------------*/
 		/*Input Value:	INFRASTRUCTURE = 1,							*/
 		/*				INDEPENDENT= 2,								*/
@@ -867,7 +867,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & AUTH_TYPE) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & AUTH_TYPE) {
 		/*------------------------------------------------------*/
 		/*Input Values: OPEN_SYSTEM     = 0,					*/
 		/*				SHARED_KEY      = 1,					*/
@@ -887,7 +887,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & AUTHEN_TIMEOUT) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & AUTHEN_TIMEOUT) {
 		/* range is 1 to 65535. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.auth_timeout > 0 && strHostIFCfgParamAttr->cfg_attr_info.auth_timeout < 65536) {
 			strWIDList[u8WidCnt].id = WID_AUTH_TIMEOUT;
@@ -902,7 +902,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & POWER_MANAGEMENT) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & POWER_MANAGEMENT) {
 		/*-----------------------------------------------------------*/
 		/*Input Values:	NO_POWERSAVE     = 0,						*/
 		/*				MIN_FAST_PS      = 1,						*/
@@ -923,7 +923,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & RETRY_SHORT) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & RETRY_SHORT) {
 		/* range from 1 to 256 */
 		if ((strHostIFCfgParamAttr->cfg_attr_info.short_retry_limit > 0) && (strHostIFCfgParamAttr->cfg_attr_info.short_retry_limit < 256))	{
 			strWIDList[u8WidCnt].id = WID_SHORT_RETRY_LIMIT;
@@ -938,7 +938,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & RETRY_LONG) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & RETRY_LONG) {
 		/* range from 1 to 256 */
 		if ((strHostIFCfgParamAttr->cfg_attr_info.long_retry_limit > 0) && (strHostIFCfgParamAttr->cfg_attr_info.long_retry_limit < 256)) {
 			strWIDList[u8WidCnt].id = WID_LONG_RETRY_LIMIT;
@@ -954,7 +954,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & FRAG_THRESHOLD) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & FRAG_THRESHOLD) {
 
 		if (strHostIFCfgParamAttr->cfg_attr_info.frag_threshold > 255 && strHostIFCfgParamAttr->cfg_attr_info.frag_threshold < 7937) {
 			strWIDList[u8WidCnt].id = WID_FRAG_THRESHOLD;
@@ -969,7 +969,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & RTS_THRESHOLD) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & RTS_THRESHOLD) {
 		/* range 256 to 65535 */
 		if (strHostIFCfgParamAttr->cfg_attr_info.rts_threshold > 255 && strHostIFCfgParamAttr->cfg_attr_info.rts_threshold < 65536)	{
 			strWIDList[u8WidCnt].id = WID_RTS_THRESHOLD;
@@ -984,7 +984,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & PREAMBLE) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & PREAMBLE) {
 		/*-----------------------------------------------------*/
 		/*Input Values: Short= 0,								*/
 		/*				Long= 1,                                */
@@ -1003,7 +1003,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & SHORT_SLOT_ALLOWED) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & SHORT_SLOT_ALLOWED) {
 		if (strHostIFCfgParamAttr->cfg_attr_info.short_slot_allowed < 2) {
 			strWIDList[u8WidCnt].id = WID_SHORT_SLOT_ALLOWED;
 			strWIDList[u8WidCnt].val = (s8 *)&strHostIFCfgParamAttr->cfg_attr_info.short_slot_allowed;
@@ -1017,7 +1017,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & TXOP_PROT_DISABLE) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & TXOP_PROT_DISABLE) {
 		/*Description:	used to Disable RTS-CTS protection for TXOP burst*/
 		/*transmission when the acknowledgement policy is No-Ack or Block-Ack	*/
 		/* this information is useful for external supplicant                                   */
@@ -1035,7 +1035,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & BEACON_INTERVAL) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & BEACON_INTERVAL) {
 		/* range is 1 to 65535. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.beacon_interval > 0 && strHostIFCfgParamAttr->cfg_attr_info.beacon_interval < 65536) {
 			strWIDList[u8WidCnt].id = WID_BEACON_INTERVAL;
@@ -1050,7 +1050,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & DTIM_PERIOD) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & DTIM_PERIOD) {
 		/* range is 1 to 255. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.dtim_period > 0 && strHostIFCfgParamAttr->cfg_attr_info.dtim_period < 256) {
 			strWIDList[u8WidCnt].id = WID_DTIM_PERIOD;
@@ -1065,7 +1065,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & SITE_SURVEY) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & SITE_SURVEY) {
 		/*----------------------------------------------------------------------*/
 		/*Input Values: SITE_SURVEY_1CH    = 0, i.e.: currently set channel		*/
 		/*				SITE_SURVEY_ALL_CH = 1,									*/
@@ -1084,7 +1084,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & SITE_SURVEY_SCAN_TIME) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & SITE_SURVEY_SCAN_TIME) {
 		/* range is 1 to 65535. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.site_survey_scan_time > 0 && strHostIFCfgParamAttr->cfg_attr_info.site_survey_scan_time < 65536) {
 			strWIDList[u8WidCnt].id = WID_SITE_SURVEY_SCAN_TIME;
@@ -1099,7 +1099,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & ACTIVE_SCANTIME) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & ACTIVE_SCANTIME) {
 		/* range is 1 to 65535. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.active_scan_time > 0 && strHostIFCfgParamAttr->cfg_attr_info.active_scan_time < 65536) {
 			strWIDList[u8WidCnt].id = WID_ACTIVE_SCAN_TIME;
@@ -1114,7 +1114,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & PASSIVE_SCANTIME) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & PASSIVE_SCANTIME) {
 		/* range is 1 to 65535. */
 		if (strHostIFCfgParamAttr->cfg_attr_info.passive_scan_time > 0 && strHostIFCfgParamAttr->cfg_attr_info.passive_scan_time < 65536) {
 			strWIDList[u8WidCnt].id = WID_PASSIVE_SCAN_TIME;
@@ -1129,7 +1129,7 @@ static s32 Handle_CfgParam(struct host_if_drv *hif_drv,
 		}
 		u8WidCnt++;
 	}
-	if (strHostIFCfgParamAttr->cfg_attr_info.u32SetCfgFlag & CURRENT_TX_RATE) {
+	if (strHostIFCfgParamAttr->cfg_attr_info.flag & CURRENT_TX_RATE) {
 		enum CURRENT_TXRATE curr_tx_rate = strHostIFCfgParamAttr->cfg_attr_info.curr_tx_rate;
 		/*----------------------------------------------------------------------*/
 		/*Rates:		1   2   5.5   11   6  9  12  18  24  36  48   54  Auto	*/
