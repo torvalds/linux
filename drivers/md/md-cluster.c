@@ -462,6 +462,9 @@ static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
 
 static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
+	if (WARN(mddev->cluster_info->slot_number - 1 == le32_to_cpu(msg->slot),
+		"node %d received it's own msg\n", le32_to_cpu(msg->slot)))
+		return;
 	switch (msg->type) {
 	case METADATA_UPDATED:
 		process_metadata_update(mddev, msg);
