@@ -1123,11 +1123,12 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 					   struct sk_buff *skb,
 					   struct be_wrb_params *wrb_params)
 {
-	/* Lancer, SH-R ASICs have a bug wherein Packets that are 32 bytes or
-	 * less may cause a transmit stall on that port. So the work-around is
-	 * to pad short packets (<= 32 bytes) to a 36-byte length.
+	/* Lancer, SH and BE3 in SRIOV mode have a bug wherein
+	 * packets that are 32b or less may cause a transmit stall
+	 * on that port. The workaround is to pad such packets
+	 * (len <= 32 bytes) to a minimum length of 36b.
 	 */
-	if (unlikely(!BEx_chip(adapter) && skb->len <= 32)) {
+	if (skb->len <= 32) {
 		if (skb_put_padto(skb, 36))
 			return NULL;
 	}
