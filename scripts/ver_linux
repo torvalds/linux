@@ -94,8 +94,12 @@ awk '/version/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-pppd --version 2>&1| grep version | awk \
-'NR==1{print "PPP                   ", $3}'
+pppd --version 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("PPP\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 isdnctrl 2>&1 | grep version | awk \
 'NR==1{print "isdn4k-utils          ", $NF}'
