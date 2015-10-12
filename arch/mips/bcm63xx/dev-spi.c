@@ -18,29 +18,6 @@
 #include <bcm63xx_dev_spi.h>
 #include <bcm63xx_regs.h>
 
-/*
- * register offsets
- */
-static const unsigned long bcm6348_regs_spi[] = {
-	__GEN_SPI_REGS_TABLE(6348)
-};
-
-static const unsigned long bcm6358_regs_spi[] = {
-	__GEN_SPI_REGS_TABLE(6358)
-};
-
-const unsigned long *bcm63xx_regs_spi;
-EXPORT_SYMBOL(bcm63xx_regs_spi);
-
-static __init void bcm63xx_spi_regs_init(void)
-{
-	if (BCMCPU_IS_6338() || BCMCPU_IS_6348())
-		bcm63xx_regs_spi = bcm6348_regs_spi;
-	if (BCMCPU_IS_3368() || BCMCPU_IS_6358() ||
-		BCMCPU_IS_6362() || BCMCPU_IS_6368())
-		bcm63xx_regs_spi = bcm6358_regs_spi;
-}
-
 static struct resource spi_resources[] = {
 	{
 		.start		= -1, /* filled at runtime */
@@ -54,7 +31,6 @@ static struct resource spi_resources[] = {
 };
 
 static struct platform_device bcm63xx_spi_device = {
-	.name		= "bcm63xx-spi",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(spi_resources),
 	.resource	= spi_resources,
@@ -69,14 +45,16 @@ int __init bcm63xx_spi_register(void)
 	spi_resources[0].end = spi_resources[0].start;
 	spi_resources[1].start = bcm63xx_get_irq_number(IRQ_SPI);
 
-	if (BCMCPU_IS_6338() || BCMCPU_IS_6348())
+	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
+		bcm63xx_spi_device.name = "bcm6348-spi",
 		spi_resources[0].end += BCM_6348_RSET_SPI_SIZE - 1;
+	}
 
 	if (BCMCPU_IS_3368() || BCMCPU_IS_6358() || BCMCPU_IS_6362() ||
-		BCMCPU_IS_6368())
+		BCMCPU_IS_6368()) {
+		bcm63xx_spi_device.name = "bcm6358-spi",
 		spi_resources[0].end += BCM_6358_RSET_SPI_SIZE - 1;
-
-	bcm63xx_spi_regs_init();
+	}
 
 	return platform_device_register(&bcm63xx_spi_device);
 }

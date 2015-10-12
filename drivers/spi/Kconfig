@@ -125,7 +125,7 @@ config SPI_BCM53XX
 
 config SPI_BCM63XX
 	tristate "Broadcom BCM63xx SPI controller"
-	depends on BCM63XX
+	depends on BCM63XX || COMPILE_TEST
 	help
           Enable support for the SPI controller on the Broadcom BCM63xx SoCs.
 
