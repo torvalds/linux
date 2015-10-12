@@ -62,8 +62,8 @@ static inline u8 bcm_spi_readb(struct bcm63xx_spi *bs,
 static inline u16 bcm_spi_readw(struct bcm63xx_spi *bs,
 				unsigned int offset)
 {
-#ifdef CONFIG_BIG_ENDIAN
-	return ioread16(bs->regs + bcm63xx_spireg(offset));
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	return ioread16be(bs->regs + bcm63xx_spireg(offset));
 #else
 	return readw(bs->regs + bcm63xx_spireg(offset));
 #endif
@@ -78,8 +78,8 @@ static inline void bcm_spi_writeb(struct bcm63xx_spi *bs,
 static inline void bcm_spi_writew(struct bcm63xx_spi *bs,
 				  u16 value, unsigned int offset)
 {
-#ifdef CONFIG_BIG_ENDIAN
-	iowrite16(value, bs->regs + bcm63xx_spireg(offset));
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	iowrite16be(value, bs->regs + bcm63xx_spireg(offset));
 #else
 	writew(value, bs->regs + bcm63xx_spireg(offset));
 #endif
