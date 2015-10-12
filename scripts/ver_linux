@@ -114,8 +114,12 @@ sed '
 	q
 ' /proc/self/maps
 
-ldd -v > /dev/null 2>&1 && ldd -v || ldd --version |head -n 1 | awk \
-'NR==1{print "Dynamic linker (ldd)  ", $NF}'
+ldd --version 2>&1 |
+awk '/^ldd/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Dynamic linker (ldd)\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 ls -l /usr/lib/libg++.so /usr/lib/libstdc++.so  2>/dev/null | awk -F. \
        '{print "Linux C++ Library      " $4"."$5"."$6}'
