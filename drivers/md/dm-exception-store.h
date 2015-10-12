@@ -42,8 +42,7 @@ struct dm_exception_store_type {
 	const char *name;
 	struct module *module;
 
-	int (*ctr) (struct dm_exception_store *store,
-		    unsigned argc, char **argv);
+	int (*ctr) (struct dm_exception_store *store, char *options);
 
 	/*
 	 * Destroys this object when you've finished with it.
@@ -123,6 +122,8 @@ struct dm_exception_store {
 	unsigned chunk_shift;
 
 	void *context;
+
+	bool userspace_supports_overflow;
 };
 
 /*
