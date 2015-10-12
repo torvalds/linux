@@ -120,7 +120,7 @@ struct visornic_devdata {
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct sk_buff **rcvbuf;
-	u64 uniquenum; /* TODO figure out why not used */
+	u64 incarnation_id;		/* lets IOPART know about re-birth */
 	unsigned short old_flags;	/* flags as they were prior to
 					 * set_multicast_list
 					 */
@@ -431,7 +431,7 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	cmdrsp->net.rcvpost.frag.pi_off =
 		(unsigned long)skb->data & PI_PAGE_MASK;
 	cmdrsp->net.rcvpost.frag.pi_len = skb->len;
-	cmdrsp->net.rcvpost.unique_num = devdata->uniquenum;
+	cmdrsp->net.rcvpost.unique_num = devdata->incarnation_id;
 
 	if ((cmdrsp->net.rcvpost.frag.pi_off + skb->len) <= PI_PAGE_SIZE) {
 		cmdrsp->net.type = NET_RCV_POST;
@@ -1365,6 +1365,7 @@ devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 		return NULL;
 	memset(devdata, '\0', sizeof(struct visornic_devdata));
 	devdata->dev = dev;
+	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
 }
 
@@ -1588,7 +1589,21 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 }
 
 /**
- *	draing_queue	- drains the response queue
+ *	drain_resp_queue  - drains and ignores all messages from the resp queue
+ *	@cmdrsp: io channel command response message
+ *	@devdata: visornic device to drain
+ */
+static void
+drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
+{
+	while (visorchannel_signalremove(devdata->dev->visorchannel,
+					 IOCHAN_FROM_IOPART,
+					 cmdrsp))
+		;
+}
+
+/**
+ *	service_resp_queue	- drains the response queue
  *	@cmdrsp: io channel command response message
  *	@devdata: visornic device to drain
  *
@@ -1777,6 +1792,8 @@ static int visornic_probe(struct visor_device *dev)
 		err = -ENOMEM;
 		goto cleanup_netdev;
 	}
+	/* don't trust messages laying around in the channel */
+	drain_resp_queue(devdata->cmdrsp, devdata);
 
 	devdata->netdev = netdev;
 	dev_set_drvdata(&dev->device, devdata);
@@ -1868,6 +1885,7 @@ static int visornic_probe(struct visor_device *dev)
 	}
 
 	features |= ULTRA_IO_CHANNEL_IS_POLLING;
+	features |= ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err) {
 		dev_err(&dev->device,
