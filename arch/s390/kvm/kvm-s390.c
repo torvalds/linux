@@ -1588,7 +1588,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	struct sie_page *sie_page;
 	int rc = -EINVAL;
 
-	if (!sca_can_add_vcpu(kvm, id))
+	if (!kvm_is_ucontrol(kvm) && !sca_can_add_vcpu(kvm, id))
 		goto out;
 
 	rc = -ENOMEM;
