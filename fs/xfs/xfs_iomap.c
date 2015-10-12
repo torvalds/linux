@@ -202,8 +202,8 @@ xfs_iomap_write_direct(
 	xfs_bmap_init(&free_list, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-				XFS_BMAPI_PREALLOC, &firstfsb, 0,
-				imap, &nimaps, &free_list);
+				XFS_BMAPI_PREALLOC, &firstfsb, resblks, imap,
+				&nimaps, &free_list);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -750,9 +750,9 @@ xfs_iomap_write_allocate(
 			 * pointer that the caller gave to us.
 			 */
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
-						count_fsb, 0,
-						&first_block, 1,
-						imap, &nimaps, &free_list);
+						count_fsb, 0, &first_block,
+						nres, imap, &nimaps,
+						&free_list);
 			if (error)
 				goto trans_cancel;
 
@@ -866,8 +866,8 @@ xfs_iomap_write_unwritten(
 		xfs_bmap_init(&free_list, &firstfsb);
 		nimaps = 1;
 		error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-				  XFS_BMAPI_CONVERT, &firstfsb,
-				  1, &imap, &nimaps, &free_list);
+					XFS_BMAPI_CONVERT, &firstfsb, resblks,
+					&imap, &nimaps, &free_list);
 		if (error)
 			goto error_on_bmapi_transaction;
 
