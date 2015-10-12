@@ -2245,6 +2245,7 @@ void md_update_sb(struct mddev *mddev, int force_change)
 	int sync_req;
 	int nospares = 0;
 	int any_badblocks_changed = 0;
+	int ret = -1;
 
 	if (mddev->ro) {
 		if (force_change)
@@ -2255,10 +2256,11 @@ void md_update_sb(struct mddev *mddev, int force_change)
 	if (mddev_is_clustered(mddev)) {
 		if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
 			force_change = 1;
-		md_cluster_ops->metadata_update_start(mddev);
+		ret = md_cluster_ops->metadata_update_start(mddev);
 		/* Has someone else has updated the sb */
 		if (!does_sb_need_changing(mddev)) {
-			md_cluster_ops->metadata_update_cancel(mddev);
+			if (ret == 0)
+				md_cluster_ops->metadata_update_cancel(mddev);
 			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
 			return;
 		}
@@ -2412,7 +2414,7 @@ repeat:
 		wake_up(&rdev->blocked_wait);
 	}
 
-	if (mddev_is_clustered(mddev))
+	if (mddev_is_clustered(mddev) && ret == 0)
 		md_cluster_ops->metadata_update_finish(mddev);
 }
 EXPORT_SYMBOL(md_update_sb);
@@ -6031,13 +6033,14 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 {
 	char b[BDEVNAME_SIZE];
 	struct md_rdev *rdev;
+	int ret = -1;
 
 	rdev = find_rdev(mddev, dev);
 	if (!rdev)
 		return -ENXIO;
 
 	if (mddev_is_clustered(mddev))
-		md_cluster_ops->metadata_update_start(mddev);
+		ret = md_cluster_ops->metadata_update_start(mddev);
 
 	if (rdev->raid_disk < 0)
 		goto kick_rdev;
@@ -6049,7 +6052,7 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 		goto busy;
 
 kick_rdev:
-	if (mddev_is_clustered(mddev))
+	if (mddev_is_clustered(mddev) && ret == 0)
 		md_cluster_ops->remove_disk(mddev, rdev);
 
 	md_kick_rdev_from_array(rdev);
@@ -6058,7 +6061,7 @@ kick_rdev:
 
 	return 0;
 busy:
-	if (mddev_is_clustered(mddev))
+	if (mddev_is_clustered(mddev) && ret == 0)
 		md_cluster_ops->metadata_update_cancel(mddev);
 
 	printk(KERN_WARNING "md: cannot remove active disk %s from %s ...\n",
