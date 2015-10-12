@@ -4361,6 +4361,18 @@ static int rocker_port_brport_flags_set(struct rocker_port *rocker_port,
 	return err;
 }
 
+static int rocker_port_bridge_ageing_time(struct rocker_port *rocker_port,
+					  struct switchdev_trans *trans,
+					  u32 ageing_time)
+{
+	if (!switchdev_trans_ph_prepare(trans)) {
+		rocker_port->ageing_time = clock_t_to_jiffies(ageing_time);
+		mod_timer(&rocker_port->rocker->fdb_cleanup_timer, jiffies);
+	}
+
+	return 0;
+}
+
 static int rocker_port_attr_set(struct net_device *dev,
 				struct switchdev_attr *attr,
 				struct switchdev_trans *trans)
@@ -4377,6 +4389,10 @@ static int rocker_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		err = rocker_port_brport_flags_set(rocker_port, trans,
 						   attr->u.brport_flags);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME:
+		err = rocker_port_bridge_ageing_time(rocker_port, trans,
+						     attr->u.ageing_time);
 		break;
 	default:
 		err = -EOPNOTSUPP;
