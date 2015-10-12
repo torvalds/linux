@@ -198,15 +198,26 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 
 #if defined(CONFIG_GIANFAR) || defined(CONFIG_GIANFAR_MODULE)
 /*
+ * Return the TBIPA address, starting from the address
+ * of the mapped GFAR MDIO registers (struct gfar)
  * This is mildly evil, but so is our hardware for doing this.
  * Also, we have to cast back to struct gfar because of
  * definition weirdness done in gianfar.h.
  */
-static uint32_t __iomem *get_gfar_tbipa(void __iomem *p)
+static uint32_t __iomem *get_gfar_tbipa_from_mdio(void __iomem *p)
 {
 	struct gfar __iomem *enet_regs = p;
 
 	return &enet_regs->tbipa;
+}
+
+/*
+ * Return the TBIPA address, starting from the address
+ * of the mapped GFAR MII registers (gfar_mii_regs[] within struct gfar)
+ */
+static uint32_t __iomem *get_gfar_tbipa_from_mii(void __iomem *p)
+{
+	return get_gfar_tbipa_from_mdio(container_of(p, struct gfar, gfar_mii_regs));
 }
 
 /*
@@ -220,11 +231,12 @@ static uint32_t __iomem *get_etsec_tbipa(void __iomem *p)
 
 #if defined(CONFIG_UCC_GETH) || defined(CONFIG_UCC_GETH_MODULE)
 /*
- * Return the TBIPAR address for a QE MDIO node
+ * Return the TBIPAR address for a QE MDIO node, starting from the address
+ * of the mapped MII registers (struct fsl_pq_mii)
  */
 static uint32_t __iomem *get_ucc_tbipa(void __iomem *p)
 {
-	struct fsl_pq_mdio __iomem *mdio = p;
+	struct fsl_pq_mdio __iomem *mdio = container_of(p, struct fsl_pq_mdio, mii);
 
 	return &mdio->utbipar;
 }
@@ -300,14 +312,14 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		.compatible = "fsl,gianfar-tbi",
 		.data = &(struct fsl_pq_mdio_data) {
 			.mii_offset = 0,
-			.get_tbipa = get_gfar_tbipa,
+			.get_tbipa = get_gfar_tbipa_from_mii,
 		},
 	},
 	{
 		.compatible = "fsl,gianfar-mdio",
 		.data = &(struct fsl_pq_mdio_data) {
 			.mii_offset = 0,
-			.get_tbipa = get_gfar_tbipa,
+			.get_tbipa = get_gfar_tbipa_from_mii,
 		},
 	},
 	{
@@ -315,7 +327,7 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 		.compatible = "gianfar",
 		.data = &(struct fsl_pq_mdio_data) {
 			.mii_offset = offsetof(struct fsl_pq_mdio, mii),
-			.get_tbipa = get_gfar_tbipa,
+			.get_tbipa = get_gfar_tbipa_from_mdio,
 		},
 	},
 	{
