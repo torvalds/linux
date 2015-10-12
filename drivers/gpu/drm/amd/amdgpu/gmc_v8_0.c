@@ -1262,6 +1262,12 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
 	mc_client = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_MCCLIENT);
+	/* reset addr and status */
+	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
+
+	if (!addr && !status)
+		return 0;
+
 	dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
 		entry->src_id, entry->src_data);
 	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
@@ -1269,8 +1275,6 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 		status);
 	gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
-	/* reset addr and status */
-	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
 
 	return 0;
 }
