@@ -60,8 +60,12 @@ awk '/version/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-reiserfsck -V 2>&1 | grep ^reiserfsck | awk \
-'NR==1{print "reiserfsprogs         ", $2}'
+reiserfsck -V 2>&1 |
+awk '/^reiserfsck/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Reiserfsprogs\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 fsck.reiser4 -V 2>&1 | grep ^fsck.reiser4 | awk \
 'NR==1{print "reiser4progs          ", $2}'
