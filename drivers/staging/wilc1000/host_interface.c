@@ -111,7 +111,7 @@ struct host_if_wep_attr {
 	u8 *key;
 	u8 key_len;
 	u8 index;
-	u8 u8mode;
+	u8 mode;
 	enum AUTHTYPE tenuAuth_type;
 };
 
@@ -2353,7 +2353,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
 			strWIDList[0].size = sizeof(char);
-			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8mode));
+			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.mode));
 
 			strWIDList[1].id = WID_AUTH_TYPE;
 			strWIDList[1].type = WID_CHAR;
@@ -4272,7 +4272,7 @@ s32 host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 	msg.body.key_info.uniHostIFkeyAttr.wep.index = u8Keyidx;
 
-	msg.body.key_info.uniHostIFkeyAttr.wep.u8mode = u8mode;
+	msg.body.key_info.uniHostIFkeyAttr.wep.mode = u8mode;
 
 	msg.body.key_info.uniHostIFkeyAttr.wep.tenuAuth_type = tenuAuth_type;
 	/* send the message */
