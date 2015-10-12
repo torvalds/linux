@@ -863,8 +863,7 @@ void dwc2_enable_host_interrupts(struct dwc2_hsotg *hsotg)
 
 	/* Enable host mode interrupts without disturbing common interrupts */
 	intmsk = dwc2_readl(hsotg->regs + GINTMSK);
-	intmsk |= GINTSTS_DISCONNINT | GINTSTS_PRTINT | GINTSTS_HCHINT |
-			GINTSTS_DISCONNINT;
+	intmsk |= GINTSTS_DISCONNINT | GINTSTS_PRTINT | GINTSTS_HCHINT;
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 }
 
