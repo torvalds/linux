@@ -1474,9 +1474,16 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_destroy_workqueues;
 
+	/* Allocate stats memory before we do operations that might use it */
+	mp->m_stats.xs_stats = alloc_percpu(struct xfsstats);
+	if (!mp->m_stats.xs_stats) {
+		error = PTR_ERR(mp->m_stats.xs_stats);
+		goto out_destroy_counters;
+	}
+
 	error = xfs_readsb(mp, flags);
 	if (error)
-		goto out_destroy_counters;
+		goto out_free_stats;
 
 	error = xfs_finish_flags(mp);
 	if (error)
@@ -1545,9 +1552,11 @@ xfs_fs_fill_super(
 	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
+ out_free_stats:
+	free_percpu(mp->m_stats.xs_stats);
  out_destroy_counters:
 	xfs_destroy_percpu_counters(mp);
-out_destroy_workqueues:
+ out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
  out_close_devices:
 	xfs_close_devices(mp);
@@ -1574,6 +1583,7 @@ xfs_fs_put_super(
 	xfs_unmountfs(mp);
 
 	xfs_freesb(mp);
+	free_percpu(mp->m_stats.xs_stats);
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
 	xfs_close_devices(mp);
