@@ -133,11 +133,11 @@ void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios)
 {
 }
 
-void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios)
+static inline void mctrl_gpio_enable_ms(struct mctrl_gpios *gpios)
 {
 }
 
-void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
+static inline void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
 {
 }
 
