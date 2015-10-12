@@ -252,12 +252,26 @@ int snd_tscm_transaction_reregister(struct snd_tscm *tscm)
 	return snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				  TSCM_ADDR_BASE + TSCM_OFFSET_MIDI_TX_ON,
 				  &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
+
+	/* Turn on FireWire LED. */
+	reg = cpu_to_be32(0x0001008e);
+	return snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+				  TSCM_ADDR_BASE + TSCM_OFFSET_LED_POWER,
+				  &reg, sizeof(reg), 0);
 }
 
 void snd_tscm_transaction_unregister(struct snd_tscm *tscm)
 {
 	__be32 reg;
 	unsigned int i;
+
+	/* Turn off FireWire LED. */
+	reg = cpu_to_be32(0x0000008e);
+	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   TSCM_ADDR_BASE + TSCM_OFFSET_LED_POWER,
+			   &reg, sizeof(reg), 0);
 
 	/* Turn off messaging. */
 	reg = cpu_to_be32(0x00000000);

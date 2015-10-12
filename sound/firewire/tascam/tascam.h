@@ -101,6 +101,8 @@ struct snd_tscm {
 #define TSCM_OFFSET_MIDI_TX_ADDR_HI	0x0304
 #define TSCM_OFFSET_MIDI_TX_ADDR_LO	0x0308
 
+#define TSCM_OFFSET_LED_POWER		0x0404
+
 #define TSCM_OFFSET_MIDI_RX_QUAD	0x4000
 
 enum snd_tscm_clock {
