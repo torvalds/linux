@@ -126,7 +126,7 @@ struct cfg_param_val {
 
 };
 
-typedef enum {
+enum cfg_param {
 	RETRY_SHORT		= BIT(0),
 	RETRY_LONG		= BIT(1),
 	FRAG_THRESHOLD		= BIT(2),
@@ -146,7 +146,7 @@ typedef enum {
 	PASSIVE_SCANTIME	= BIT(16),
 	CURRENT_TX_RATE		= BIT(17),
 	HT_ENABLE		= BIT(18),
-} tenuCfgParam;
+};
 
 struct found_net_info {
 	u8 au8bssid[6];
