@@ -2450,7 +2450,9 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
-	int n, m, count = 0, retval = 0;
+	unsigned int n, m;
+	ssize_t count = 0;
+	int retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_device *dev = cfp->dev;
