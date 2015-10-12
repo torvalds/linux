@@ -1443,8 +1443,7 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	priv = wiphy_priv(wiphy);
 
 
-	if (!pairwise)
-	{
+	if (!pairwise) {
 		PRINT_D(CFG80211_DBG, "Getting group key idx: %x\n", key_index);
 
 		key_params.key = priv->wilc_gtk[key_index]->key;
@@ -1817,9 +1816,8 @@ void WILC_WFI_CfgParseRxAction(u8 *buf, u32 len)
 			op_channel_attr_index = index;
 		index += buf[index + 1] + 3; /* ID,Length byte */
 	}
+	if (u8WLANChannel != INVALID_CHANNEL) {
 
-	if (u8WLANChannel != INVALID_CHANNEL)
-	{
 		/*Modify channel list attribute*/
 		if (channel_list_attr_index) {
 			PRINT_D(GENERIC_DBG, "Modify channel list attribute\n");
@@ -1872,9 +1870,8 @@ void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftype)
 			op_channel_attr_index = index;
 		index += buf[index + 1] + 3; /* ID,Length byte */
 	}
+	if (u8WLANChannel != INVALID_CHANNEL && bOperChan) {
 
-	if (u8WLANChannel != INVALID_CHANNEL && bOperChan)
-	{
 		/*Modify channel list attribute*/
 		if (channel_list_attr_index) {
 			PRINT_D(GENERIC_DBG, "Modify channel list attribute\n");
