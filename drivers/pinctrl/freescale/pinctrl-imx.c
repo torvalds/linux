@@ -256,7 +256,7 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 			 * Regular select input register can never be at offset
 			 * 0, and we only print register value for regular case.
 			 */
-			if (info->flags & SHARE_INPUT_SELECT_REG)
+			if (ipctl->input_sel_base)
 				writel(pin->input_val, ipctl->input_sel_base +
 						pin->input_reg);
 			else
@@ -560,11 +560,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 				conf_reg = -1;
 		}
 
-		if (info->flags & ZERO_OFFSET_VALID)
-			pin_id = mux_reg / 4;
-		else
-			pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
-
+		pin_id = (mux_reg != -1) ? mux_reg / 4 : conf_reg / 4;
 		pin_reg = &info->pin_regs[pin_id];
 		pin->pin = pin_id;
 		grp->pin_ids[i] = pin_id;
@@ -686,18 +682,18 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	if (IS_ERR(ipctl->base))
 		return PTR_ERR(ipctl->base);
 
-	if (info->flags & SHARE_INPUT_SELECT_REG) {
-		np = of_get_child_by_name(dev_np->parent, "iomuxc");
+	if (of_property_read_bool(dev_np, "fsl,input-sel")) {
+		np = of_parse_phandle(dev_np, "fsl,input-sel", 0);
 		if (np) {
 			ipctl->input_sel_base = of_iomap(np, 0);
 			if (IS_ERR(ipctl->input_sel_base)) {
 				of_node_put(np);
 				dev_err(&pdev->dev,
-					"iomuxc base address not found\n");
+					"iomuxc input select base address not found\n");
 				return PTR_ERR(ipctl->input_sel_base);
 			}
 		} else {
-			dev_err(&pdev->dev, "iomuxc device node not foud\n");
+			dev_err(&pdev->dev, "iomuxc fsl,input-sel property not found\n");
 			return -EINVAL;
 		}
 		of_node_put(np);
