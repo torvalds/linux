@@ -81,4 +81,6 @@ int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
 			       u64 rfer, u64 excl);
 #endif
 
+/* New io_tree based accurate qgroup reserve API */
+int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len);
 #endif /* __BTRFS_QGROUP__ */

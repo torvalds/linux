@@ -2486,3 +2486,52 @@ btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info)
 		btrfs_queue_work(fs_info->qgroup_rescan_workers,
 				 &fs_info->qgroup_rescan_work);
 }
+
+/*
+ * Reserve qgroup space for range [start, start + len).
+ *
+ * This function will either reserve space from related qgroups or doing
+ * nothing if the range is already reserved.
+ *
+ * Return 0 for successful reserve
+ * Return <0 for error (including -EQUOT)
+ *
+ * NOTE: this function may sleep for memory allocation.
+ */
+int btrfs_qgroup_reserve_data(struct inode *inode, u64 start, u64 len)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_changeset changeset;
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+	int ret;
+
+	if (!root->fs_info->quota_enabled || !is_fstree(root->objectid) ||
+	    len == 0)
+		return 0;
+
+	changeset.bytes_changed = 0;
+	changeset.range_changed = ulist_alloc(GFP_NOFS);
+
+	ret = set_record_extent_bits(&BTRFS_I(inode)->io_tree, start,
+			start + len -1, EXTENT_QGROUP_RESERVED, GFP_NOFS,
+			&changeset);
+	if (ret < 0)
+		goto cleanup;
+	ret = btrfs_qgroup_reserve(root, changeset.bytes_changed);
+	if (ret < 0)
+		goto cleanup;
+
+	ulist_free(changeset.range_changed);
+	return ret;
+
+cleanup:
+	/* cleanup already reserved ranges */
+	ULIST_ITER_INIT(&uiter);
+	while ((unode = ulist_next(changeset.range_changed, &uiter)))
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, unode->val,
+				 unode->aux, EXTENT_QGROUP_RESERVED, 0, 0, NULL,
+				 GFP_NOFS);
+	ulist_free(changeset.range_changed);
+	return ret;
+}
