@@ -283,47 +283,11 @@ void enabled_wait(void);
  */
 static inline void __noreturn disabled_wait(unsigned long code)
 {
-        unsigned long ctl_buf;
-        psw_t dw_psw;
+	psw_t psw;
 
-	dw_psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
-        dw_psw.addr = code;
-        /* 
-         * Store status and then load disabled wait psw,
-         * the processor is dead afterwards
-         */
-	asm volatile(
-		"	stctg	0,0,0(%2)\n"
-		"	ni	4(%2),0xef\n"	/* switch off protection */
-		"	lctlg	0,0,0(%2)\n"
-		"	lghi	1,0x1000\n"
-		"	stpt	0x328(1)\n"	/* store timer */
-		"	stckc	0x330(1)\n"	/* store clock comparator */
-		"	stpx	0x318(1)\n"	/* store prefix register */
-		"	stam	0,15,0x340(1)\n"/* store access registers */
-		"	stfpc	0x31c(1)\n"	/* store fpu control */
-		"	std	0,0x200(1)\n"	/* store f0 */
-		"	std	1,0x208(1)\n"	/* store f1 */
-		"	std	2,0x210(1)\n"	/* store f2 */
-		"	std	3,0x218(1)\n"	/* store f3 */
-		"	std	4,0x220(1)\n"	/* store f4 */
-		"	std	5,0x228(1)\n"	/* store f5 */
-		"	std	6,0x230(1)\n"	/* store f6 */
-		"	std	7,0x238(1)\n"	/* store f7 */
-		"	std	8,0x240(1)\n"	/* store f8 */
-		"	std	9,0x248(1)\n"	/* store f9 */
-		"	std	10,0x250(1)\n"	/* store f10 */
-		"	std	11,0x258(1)\n"	/* store f11 */
-		"	std	12,0x260(1)\n"	/* store f12 */
-		"	std	13,0x268(1)\n"	/* store f13 */
-		"	std	14,0x270(1)\n"	/* store f14 */
-		"	std	15,0x278(1)\n"	/* store f15 */
-		"	stmg	0,15,0x280(1)\n"/* store general registers */
-		"	stctg	0,15,0x380(1)\n"/* store control registers */
-		"	oi	0x384(1),0x10\n"/* fake protection bit */
-		"	lpswe	0(%1)"
-		: "=m" (ctl_buf)
-		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
+	psw.mask = PSW_MASK_BASE | PSW_MASK_WAIT | PSW_MASK_BA | PSW_MASK_EA;
+	psw.addr = code;
+	__load_psw(psw);
 	while (1);
 }
 
