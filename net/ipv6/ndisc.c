@@ -147,6 +147,7 @@ struct neigh_table nd_tbl = {
 	.gc_thresh2 =	 512,
 	.gc_thresh3 =	1024,
 };
+EXPORT_SYMBOL_GPL(nd_tbl);
 
 static void ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data)
 {
