@@ -1775,13 +1775,20 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	unsigned long	flags;
 	unsigned long	val;
 	int		vbus;
+	u8		devctl;
 
 	spin_lock_irqsave(&musb->lock, flags);
 	val = musb->a_wait_bcon;
-	/* FIXME get_vbus_status() is normally #defined as false...
-	 * and is effectively TUSB-specific.
-	 */
 	vbus = musb_platform_get_vbus_status(musb);
+	if (vbus < 0) {
+		/* Use default MUSB method by means of DEVCTL register */
+		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+		if ((devctl & MUSB_DEVCTL_VBUS)
+				== (3 << MUSB_DEVCTL_VBUS_SHIFT))
+			vbus = 1;
+		else
+			vbus = 0;
+	}
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
