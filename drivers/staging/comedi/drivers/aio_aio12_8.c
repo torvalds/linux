@@ -242,5 +242,5 @@ static struct comedi_driver aio_aio12_8_driver = {
 module_comedi_driver(aio_aio12_8_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Access I/O AIO12-8 Analog I/O Board");
 MODULE_LICENSE("GPL");
