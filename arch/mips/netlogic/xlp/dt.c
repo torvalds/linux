@@ -87,7 +87,6 @@ void __init *xlp_dt_init(void *fdtp)
 void __init xlp_early_init_devtree(void)
 {
 	__dt_setup_arch(xlp_fdt_blob);
-	strlcpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 void __init device_tree_init(void)
