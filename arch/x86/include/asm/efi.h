@@ -86,6 +86,7 @@ extern u64 asmlinkage efi_call(void *fp, ...);
 extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 					u32 type, u64 attribute);
 
+#ifdef CONFIG_KASAN
 /*
  * CONFIG_KASAN may redefine memset to __memset.  __memset function is present
  * only in kernel binary.  Since the EFI stub linked into a separate binary it
@@ -95,6 +96,7 @@ extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 #undef memcpy
 #undef memset
 #undef memmove
+#endif
 
 #endif /* CONFIG_X86_32 */
 
