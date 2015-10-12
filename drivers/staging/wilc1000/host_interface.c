@@ -436,12 +436,6 @@ typedef struct _tstrJoinBssParam {
 	u8 au8Interval[4];
 	u8 au8StartTime[4];
 } tstrJoinBssParam;
-/*a linked list table containing needed join parameters entries for each AP found in most recent scan*/
-typedef struct _tstrBssTable {
-	u8 u8noBssEntries;
-	tstrJoinBssParam *head;
-	tstrJoinBssParam *tail;
-} tstrBssTable;
 
 typedef enum {
 	SCAN_TIMER = 0,
