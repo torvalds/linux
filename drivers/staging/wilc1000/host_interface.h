@@ -225,7 +225,7 @@ struct hidden_network {
 	u8 u8ssidnum;
 };
 
-typedef struct {
+struct user_scan_req {
 	/* Scan user call back function */
 	wilc_scan_result pfUserScanResult;
 
@@ -234,7 +234,7 @@ typedef struct {
 
 	u32 u32RcvdChCount;
 	tstrFoundNetworkInfo astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
-} tstrWILC_UsrScanReq;
+};
 
 typedef struct {
 	u8 *pu8bssid;
@@ -304,8 +304,7 @@ enum p2p_listen_state {
 };
 
 struct host_if_drv {
-	/* Scan user structure */
-	tstrWILC_UsrScanReq strWILC_UsrScanReq;
+	struct user_scan_req strWILC_UsrScanReq;
 
 	/* Connect User structure */
 	tstrWILC_UsrConnReq strWILC_UsrConnReq;
