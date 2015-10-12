@@ -87,8 +87,12 @@ awk '/pcmciautils/{
 cardmgr -V 2>&1| grep version | awk \
 'NR==1{print "pcmcia-cs             ", $3}'
 
-quota -V 2>&1 | grep version | awk \
-'NR==1{print "quota-tools           ", $NF}'
+quota -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Quota-tools\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 pppd --version 2>&1| grep version | awk \
 'NR==1{print "PPP                   ", $3}'
