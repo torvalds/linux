@@ -178,6 +178,16 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 }
 
 /*
+ * Those patch levels cannot be updated to newer ones and thus should be final.
+ */
+static u32 final_levels[] = {
+	0x01000098,
+	0x0100009f,
+	0x010000af,
+	0, /* T-101 terminator */
+};
+
+/*
  * Check the current patch level on this CPU.
  *
  * @rev: Use it to return the patch level. It is set to 0 in the case of
@@ -187,13 +197,31 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
  *  - true: if update should stop
  *  - false: otherwise
  */
-bool check_current_patch_level(u32 *rev)
+bool check_current_patch_level(u32 *rev, bool early)
 {
-	u32 dummy;
+	u32 lvl, dummy, i;
+	bool ret = false;
+	u32 *levels;
 
-	native_rdmsr(MSR_AMD64_PATCH_LEVEL, *rev, dummy);
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
 
-	return false;
+	if (IS_ENABLED(CONFIG_X86_32) && early)
+		levels = (u32 *)__pa_nodebug(&final_levels);
+	else
+		levels = final_levels;
+
+	for (i = 0; levels[i]; i++) {
+		if (lvl == levels[i]) {
+			lvl = 0;
+			ret = true;
+			break;
+		}
+	}
+
+	if (rev)
+		*rev = lvl;
+
+	return ret;
 }
 
 int __apply_microcode_amd(struct microcode_amd *mc_amd)
@@ -229,7 +257,7 @@ int apply_microcode_amd(int cpu)
 	mc_amd  = p->data;
 	uci->mc = p->data;
 
-	if (check_current_patch_level(&rev))
+	if (check_current_patch_level(&rev, false))
 		return -1;
 
 	/* need to apply patch? */

@@ -76,5 +76,5 @@ static inline int __init save_microcode_in_initrd_amd(void) { return -EINVAL; }
 void reload_ucode_amd(void) {}
 #endif
 
-extern bool check_current_patch_level(u32 *rev);
+extern bool check_current_patch_level(u32 *rev, bool early);
 #endif /* _ASM_X86_MICROCODE_AMD_H */

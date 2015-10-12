@@ -196,7 +196,7 @@ static void apply_ucode_in_initrd(void *ucode, size_t size, bool save_patch)
 		return;
 	}
 
-	if (check_current_patch_level(&rev))
+	if (check_current_patch_level(&rev, true))
 		return;
 
 	while (left > 0) {
@@ -330,7 +330,10 @@ void load_ucode_amd_ap(void)
 	if (!container)
 		return;
 
-	if (check_current_patch_level(&rev))
+	/*
+	 * 64-bit runs with paging enabled, thus early==false.
+	 */
+	if (check_current_patch_level(&rev, false))
 		return;
 
 	eax = cpuid_eax(0x00000001);
@@ -422,7 +425,11 @@ void reload_ucode_amd(void)
 	struct microcode_amd *mc;
 	u32 rev;
 
-	if (check_current_patch_level(&rev))
+	/*
+	 * early==false because this is a syscore ->resume path and by
+	 * that time paging is long enabled.
+	 */
+	if (check_current_patch_level(&rev, false))
 		return;
 
 	mc = (struct microcode_amd *)amd_ucode_patch;
