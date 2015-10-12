@@ -87,21 +87,21 @@ static const struct comedi_lrange aio_aio12_8_range = {
 
 struct aio12_8_boardtype {
 	const char *name;
-	int ai_nchan;
-	int ao_nchan;
+	unsigned int has_ai:1;
+	unsigned int has_ao:1;
 };
 
 static const struct aio12_8_boardtype board_types[] = {
 	{
 		.name		= "aio_aio12_8",
-		.ai_nchan	= 8,
-		.ao_nchan	= 4,
+		.has_ai		= 1,
+		.has_ao		= 1,
 	}, {
 		.name		= "aio_ai12_8",
-		.ai_nchan	= 8,
+		.has_ai		= 1,
 	}, {
 		.name		= "aio_ao12_8",
-		.ao_nchan	= 4,
+		.has_ao		= 1,
 	},
 };
 
@@ -225,12 +225,12 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	if (board->ai_nchan) {
-		/* Analog input subdevice */
+	if (board->has_ai) {
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
-		s->n_chan	= board->ai_nchan;
+		s->n_chan	= 8;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &aio_aio12_8_range;
 		s->insn_read	= aio_aio12_8_ai_read;
@@ -238,9 +238,9 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	if (board->ao_nchan) {
-		/* Analog output subdevice */
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 		s->n_chan	= 4;
