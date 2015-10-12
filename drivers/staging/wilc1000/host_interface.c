@@ -126,7 +126,7 @@ struct host_if_wep_attr {
  *  @version		1.0
  */
 union host_if_key_attr {
-	struct host_if_wep_attr strHostIFwepAttr;
+	struct host_if_wep_attr wep;
 	struct host_if_wpa_attr strHostIFwpaAttr;
 	struct host_if_pmkid_attr strHostIFpmkidAttr;
 };
@@ -2349,25 +2349,25 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY_AP)	{
 
 			PRINT_D(HOSTINF_DBG, "Handling WEP key\n");
-			PRINT_D(GENERIC_DBG, "ID Hostint is %d\n", (pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
+			PRINT_D(GENERIC_DBG, "ID Hostint is %d\n", (pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8Wepidx));
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
 			strWIDList[0].size = sizeof(char);
-			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8mode));
+			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8mode));
 
 			strWIDList[1].id = WID_AUTH_TYPE;
 			strWIDList[1].type = WID_CHAR;
 			strWIDList[1].size = sizeof(char);
-			strWIDList[1].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.tenuAuth_type));
+			strWIDList[1].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.tenuAuth_type));
 
 			strWIDList[2].id = (u16)WID_KEY_ID;
 			strWIDList[2].type = WID_CHAR;
 
-			strWIDList[2].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
+			strWIDList[2].val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8Wepidx));
 			strWIDList[2].size = sizeof(char);
 
 
-			pu8keybuf = kmalloc(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen, GFP_KERNEL);
+			pu8keybuf = kmalloc(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen, GFP_KERNEL);
 
 
 			if (pu8keybuf == NULL) {
@@ -2375,15 +2375,15 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 				return -1;
 			}
 
-			memcpy(pu8keybuf, pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey,
-				    pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen);
+			memcpy(pu8keybuf, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey,
+				    pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen);
 
 
-			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey);
 
 			strWIDList[3].id = (u16)WID_WEP_KEY_VALUE;
 			strWIDList[3].type = WID_STR;
-			strWIDList[3].size = pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen;
+			strWIDList[3].size = pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen;
 			strWIDList[3].val = (s8 *)pu8keybuf;
 
 
@@ -2396,24 +2396,24 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 		if (pstrHostIFkeyAttr->u8KeyAction & ADDKEY) {
 			PRINT_D(HOSTINF_DBG, "Handling WEP key\n");
-			pu8keybuf = kmalloc(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen + 2, GFP_KERNEL);
+			pu8keybuf = kmalloc(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen + 2, GFP_KERNEL);
 			if (pu8keybuf == NULL) {
 				PRINT_ER("No buffer to send Key\n");
 				return -1;
 			}
-			pu8keybuf[0] = pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx;
+			pu8keybuf[0] = pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8Wepidx;
 
-			memcpy(pu8keybuf + 1, &pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen, 1);
+			memcpy(pu8keybuf + 1, &pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen, 1);
 
-			memcpy(pu8keybuf + 2, pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey,
-				    pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen);
+			memcpy(pu8keybuf + 2, pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey,
+				    pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen);
 
-			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey);
+			kfree(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.pu8WepKey);
 
 			strWID.id = (u16)WID_ADD_WEP_KEY;
 			strWID.type = WID_STR;
 			strWID.val = (s8 *)pu8keybuf;
-			strWID.size = pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen + 2;
+			strWID.size = pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8WepKeylen + 2;
 
 			s32Error = send_config_pkt(SET_CFG, &strWID, 1,
 						   get_id_from_handler(hif_drv));
@@ -2424,7 +2424,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			strWID.id = (u16)WID_REMOVE_WEP_KEY;
 			strWID.type = WID_STR;
 
-			s8idxarray[0] = (s8)pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx;
+			s8idxarray[0] = (s8)pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8Wepidx;
 			strWID.val = s8idxarray;
 			strWID.size = 1;
 
@@ -2433,7 +2433,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 		} else {
 			strWID.id = (u16)WID_KEY_ID;
 			strWID.type = WID_CHAR;
-			strWID.val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx));
+			strWID.val = (s8 *)(&(pstrHostIFkeyAttr->uniHostIFkeyAttr.wep.u8Wepidx));
 			strWID.size = sizeof(char);
 
 			PRINT_D(HOSTINF_DBG, "Setting default key index\n");
@@ -4092,9 +4092,7 @@ int host_int_remove_wep_key(struct host_if_drv *hif_drv, u8 index)
 	msg.body.key_info.enuKeyType = WEP;
 	msg.body.key_info.u8KeyAction = REMOVEKEY;
 	msg.drv = hif_drv;
-
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = index;
+	msg.body.key_info.uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = index;
 
 	/* send the message */
 	result = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4139,8 +4137,7 @@ s32 host_int_set_WEPDefaultKeyID(struct host_if_drv *hif_drv, u8 u8Index)
 	msg.drv = hif_drv;
 
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8Index;
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8Wepidx = u8Index;
 
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4196,17 +4193,15 @@ s32 host_int_add_wep_key_bss_sta(struct host_if_drv *hif_drv,
 
 
 	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
+	uniHostIFkeyAttr.wep.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
 
-	memcpy(msg.body.key_info.uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey,
+	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.pu8WepKey,
 		    pu8WepKey, u8WepKeylen);
 
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen = (u8WepKeylen);
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8WepKeylen = (u8WepKeylen);
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8Keyidx;
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8Wepidx = u8Keyidx;
 
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -4266,24 +4261,20 @@ s32 host_int_add_wep_key_bss_ap(struct host_if_drv *hif_drv,
 
 
 	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
+	uniHostIFkeyAttr.wep.pu8WepKey = kmalloc(u8WepKeylen, GFP_KERNEL);
 
 
-	memcpy(msg.body.key_info.uniHostIFkeyAttr.strHostIFwepAttr.pu8WepKey,
+	memcpy(msg.body.key_info.uniHostIFkeyAttr.wep.pu8WepKey,
 		    pu8WepKey, (u8WepKeylen));
 
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8WepKeylen = (u8WepKeylen);
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8WepKeylen = (u8WepKeylen);
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8Wepidx = u8Keyidx;
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8Wepidx = u8Keyidx;
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.u8mode = u8mode;
+	msg.body.key_info.uniHostIFkeyAttr.wep.u8mode = u8mode;
 
-	msg.body.key_info.
-	uniHostIFkeyAttr.strHostIFwepAttr.tenuAuth_type = tenuAuth_type;
+	msg.body.key_info.uniHostIFkeyAttr.wep.tenuAuth_type = tenuAuth_type;
 	/* send the message */
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 
