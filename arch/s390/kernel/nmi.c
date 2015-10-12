@@ -34,7 +34,7 @@ struct mcck_struct {
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
-static void s390_handle_damage(char *msg)
+static void s390_handle_damage(void)
 {
 	smp_send_stop();
 	disabled_wait((unsigned long) __builtin_return_address(0));
@@ -195,7 +195,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		 * Control registers have unknown contents.
 		 * Can't recover and therefore stopping machine.
 		 */
-		s390_handle_damage("invalid control registers.");
+		s390_handle_damage();
 	} else {
 		asm volatile(
 			"	lctlg	0,15,0(%0)"
@@ -228,7 +228,7 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 		 * Can't tell if we come from user or kernel mode
 		 * -> stopping machine.
 		 */
-		s390_handle_damage("old psw invalid.");
+		s390_handle_damage();
 
 	if (!mci->ms || !mci->pm || !mci->ia)
 		kill_task = 1;
@@ -265,7 +265,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 
 	if (mci->sd) {
 		/* System damage -> stopping machine */
-		s390_handle_damage("received system damage machine check.");
+		s390_handle_damage();
 	}
 	if (mci->pd) {
 		if (mci->b) {
@@ -280,8 +280,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 
 			if (((t_mcic & z_mcic) != 0) ||
 			    ((t_mcic & o_mcic) != o_mcic)) {
-				s390_handle_damage("processing backup machine "
-						   "check with damage.");
+				s390_handle_damage();
 			}
 
 			/*
@@ -296,12 +295,11 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 				ipd_count = 1;
 			last_ipd = tmp;
 			if (ipd_count == MAX_IPD_COUNT)
-				s390_handle_damage("too many ipd retries.");
+				s390_handle_damage();
 			spin_unlock(&ipd_lock);
 		} else {
 			/* Processing damage -> stopping machine */
-			s390_handle_damage("received instruction processing "
-					   "damage machine check.");
+			s390_handle_damage();
 		}
 	}
 	if (s390_revalidate_registers(mci)) {
@@ -318,12 +316,12 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			 * Couldn't restore all register contents while in
 			 * kernel mode -> stopping machine.
 			 */
-			s390_handle_damage("unable to revalidate registers.");
+			s390_handle_damage();
 		}
 	}
 	if (mci->cd) {
 		/* Timing facility damage */
-		s390_handle_damage("TOD clock damaged");
+		s390_handle_damage();
 	}
 	if (mci->ed && mci->ec) {
 		/* External damage */
@@ -340,16 +338,13 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	}
 	if (mci->se)
 		/* Storage error uncorrected */
-		s390_handle_damage("received storage error uncorrected "
-				   "machine check.");
+		s390_handle_damage();
 	if (mci->ke)
 		/* Storage key-error uncorrected */
-		s390_handle_damage("received storage key-error uncorrected "
-				   "machine check.");
+		s390_handle_damage();
 	if (mci->ds && mci->fa)
 		/* Storage degradation */
-		s390_handle_damage("received storage degradation machine "
-				   "check.");
+		s390_handle_damage();
 	if (mci->cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
