@@ -24,16 +24,6 @@ static struct snd_tscm_spec model_specs[] = {
 		.is_controller = true,
 	},
 	{
-		.name = "FW-1804",
-		.has_adat = true,
-		.has_spdif = true,
-		.pcm_capture_analog_channels = 8,
-		.pcm_playback_analog_channels = 2,
-		.midi_capture_ports = 2,
-		.midi_playback_ports = 4,
-		.is_controller = false,
-	},
-	{
 		.name = "FW-1082",
 		.has_adat = false,
 		.has_spdif = true,
@@ -43,34 +33,46 @@ static struct snd_tscm_spec model_specs[] = {
 		.midi_playback_ports = 2,
 		.is_controller = true,
 	},
+	/* FW-1804 may be supported. */
 };
 
-static int check_name(struct snd_tscm *tscm)
+static int identify_model(struct snd_tscm *tscm)
 {
 	struct fw_device *fw_dev = fw_parent_device(tscm->unit);
-	char vendor[8];
+	const u32 *config_rom = fw_dev->config_rom;
 	char model[8];
-	__u32 data;
+	unsigned int i;
+	u8 c;
 
-	/* Retrieve model name. */
-	data = be32_to_cpu(fw_dev->config_rom[28]);
-	memcpy(model, &data, 4);
-	data = be32_to_cpu(fw_dev->config_rom[29]);
-	memcpy(model + 4, &data, 4);
-	model[7] = '\0';
+	if (fw_dev->config_rom_length < 30) {
+		dev_err(&tscm->unit->device,
+			"Configuration ROM is too short.\n");
+		return -ENODEV;
+	}
 
-	/* Retrieve vendor name. */
-	data = be32_to_cpu(fw_dev->config_rom[23]);
-	memcpy(vendor, &data, 4);
-	data = be32_to_cpu(fw_dev->config_rom[24]);
-	memcpy(vendor + 4, &data, 4);
-	vendor[7] = '\0';
+	/* Pick up model name from certain addresses. */
+	for (i = 0; i < 8; i++) {
+		c = config_rom[28 + i / 4] >> (24 - 8 * (i % 4));
+		if (c == '\0')
+			break;
+		model[i] = c;
+	}
+	model[i] = '\0';
+
+	for (i = 0; i < ARRAY_SIZE(model_specs); i++) {
+		if (strcmp(model, model_specs[i].name) == 0) {
+			tscm->spec = &model_specs[i];
+			break;
+		}
+	}
+	if (tscm->spec == NULL)
+		return -ENODEV;
 
 	strcpy(tscm->card->driver, "FW-TASCAM");
 	strcpy(tscm->card->shortname, model);
 	strcpy(tscm->card->mixername, model);
 	snprintf(tscm->card->longname, sizeof(tscm->card->longname),
-		 "%s %s, GUID %08x%08x at %s, S%d", vendor, model,
+		 "TASCAM %s, GUID %08x%08x at %s, S%d", model,
 		 cpu_to_be32(fw_dev->config_rom[3]),
 		 cpu_to_be32(fw_dev->config_rom[4]),
 		 dev_name(&tscm->unit->device), 100 << fw_dev->max_speed);
@@ -108,13 +110,12 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	tscm = card->private_data;
 	tscm->card = card;
 	tscm->unit = fw_unit_get(unit);
-	tscm->spec = (const struct snd_tscm_spec *)entry->driver_data;
 
 	mutex_init(&tscm->mutex);
 	spin_lock_init(&tscm->lock);
 	init_waitqueue_head(&tscm->hwdep_wait);
 
-	err = check_name(tscm);
+	err = identify_model(tscm);
 	if (err < 0)
 		goto error;
 
@@ -172,27 +173,12 @@ static void snd_tscm_remove(struct fw_unit *unit)
 }
 
 static const struct ieee1394_device_id snd_tscm_id_table[] = {
-	/* FW-1082 */
 	{
 		.match_flags = IEEE1394_MATCH_VENDOR_ID |
-			       IEEE1394_MATCH_SPECIFIER_ID |
-			       IEEE1394_MATCH_VERSION,
+			       IEEE1394_MATCH_SPECIFIER_ID,
 		.vendor_id = 0x00022e,
 		.specifier_id = 0x00022e,
-		.version = 0x800003,
-		.driver_data = (kernel_ulong_t)&model_specs[2],
 	},
-	/* FW-1884 */
-	{
-		.match_flags = IEEE1394_MATCH_VENDOR_ID |
-			       IEEE1394_MATCH_SPECIFIER_ID |
-			       IEEE1394_MATCH_VERSION,
-		.vendor_id = 0x00022e,
-		.specifier_id = 0x00022e,
-		.version = 0x800000,
-		.driver_data = (kernel_ulong_t)&model_specs[0],
-	},
-	/* FW-1804 mey be supported if IDs are clear. */
 	/* FE-08 requires reverse-engineering because it just has faders. */
 	{}
 };
