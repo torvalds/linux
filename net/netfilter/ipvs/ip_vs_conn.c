@@ -1347,23 +1347,20 @@ flush_again:
  */
 int __net_init ip_vs_conn_net_init(struct netns_ipvs *ipvs)
 {
-	struct net *net = ipvs->net;
-
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_create("ip_vs_conn", 0, net->proc_net, &ip_vs_conn_fops);
-	proc_create("ip_vs_conn_sync", 0, net->proc_net, &ip_vs_conn_sync_fops);
+	proc_create("ip_vs_conn", 0, ipvs->net->proc_net, &ip_vs_conn_fops);
+	proc_create("ip_vs_conn_sync", 0, ipvs->net->proc_net,
+		    &ip_vs_conn_sync_fops);
 	return 0;
 }
 
 void __net_exit ip_vs_conn_net_cleanup(struct netns_ipvs *ipvs)
 {
-	struct net *net = ipvs->net;
-
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(ipvs);
-	remove_proc_entry("ip_vs_conn", net->proc_net);
-	remove_proc_entry("ip_vs_conn_sync", net->proc_net);
+	remove_proc_entry("ip_vs_conn", ipvs->net->proc_net);
+	remove_proc_entry("ip_vs_conn_sync", ipvs->net->proc_net);
 }
 
 int __init ip_vs_conn_init(void)
