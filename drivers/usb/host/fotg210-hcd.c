@@ -493,6 +493,34 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	return strlen(buf->output_buf);
 }
 
+/* count tds, get ep direction */
+static unsigned output_buf_tds_dir(char *buf, struct fotg210_hcd *fotg210,
+		struct fotg210_qh_hw *hw, struct fotg210_qh *qh, unsigned size)
+{
+	u32 scratch = hc32_to_cpup(fotg210, &hw->hw_info1);
+	struct fotg210_qtd *qtd;
+	char *type = "";
+	unsigned temp = 0;
+
+	/* count tds, get ep direction */
+	list_for_each_entry(qtd, &qh->qtd_list, qtd_list) {
+		temp++;
+		switch ((hc32_to_cpu(fotg210, qtd->hw_token) >> 8) & 0x03) {
+		case 0:
+			type = "out";
+			continue;
+		case 1:
+			type = "in";
+			continue;
+		}
+	}
+
+	return scnprintf(buf, size, "(%c%d ep%d%s [%d/%d] q%d p%d)",
+			speed_char(scratch), scratch & 0x007f,
+			(scratch >> 8) & 0x000f, type, qh->usecs,
+			qh->c_usecs, temp, (scratch >> 16) & 0x7ff);
+}
+
 #define DBG_SCHED_LIMIT 64
 static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 {
@@ -564,37 +592,9 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				}
 				/* show more info the first time around */
 				if (temp == seen_count) {
-					u32 scratch = hc32_to_cpup(fotg210,
-							&hw->hw_info1);
-					struct fotg210_qtd *qtd;
-					char *type = "";
-
-					/* count tds, get ep direction */
-					temp = 0;
-					list_for_each_entry(qtd,
-							&p.qh->qtd_list,
-							qtd_list) {
-						temp++;
-						switch (0x03 & (hc32_to_cpu(
-							fotg210,
-							qtd->hw_token) >> 8)) {
-						case 0:
-							type = "out";
-							continue;
-						case 1:
-							type = "in";
-							continue;
-						}
-					}
-
-					temp = scnprintf(next, size,
-						"(%c%d ep%d%s [%d/%d] q%d p%d)",
-						speed_char(scratch),
-						scratch & 0x007f,
-						(scratch >> 8) & 0x000f, type,
-						p.qh->usecs, p.qh->c_usecs,
-						temp,
-						0x7ff & (scratch >> 16));
+					temp = output_buf_tds_dir(next,
+							fotg210, hw,
+							p.qh, size);
 
 					if (seen_count < DBG_SCHED_LIMIT)
 						seen[seen_count++].qh = p.qh;
