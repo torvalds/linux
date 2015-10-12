@@ -73,7 +73,7 @@ typedef enum {
 struct wid {
 	u16 id;
 	enum WID_TYPE type;
-	s32 s32ValueSize;
+	s32 size;
 	s8      *ps8WidVal;
 };
 

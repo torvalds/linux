@@ -614,10 +614,10 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 		}
 		counter = 0;
 		for (counter = 0; counter < count; counter++) {
-			wids[counter].s32ValueSize = wilc_wlan_cfg_get_val(
+			wids[counter].size = wilc_wlan_cfg_get_val(
 					wids[counter].id,
 					wids[counter].ps8WidVal,
-					wids[counter].s32ValueSize);
+					wids[counter].size);
 
 		}
 	} else if (mode == SET_CFG) {
@@ -626,7 +626,7 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 			if (!wilc_wlan_cfg_set(!counter,
 					       wids[counter].id,
 					       wids[counter].ps8WidVal,
-					       wids[counter].s32ValueSize,
+					       wids[counter].size,
 					       (counter == count - 1),
 					       drv)) {
 				ret = -1;
