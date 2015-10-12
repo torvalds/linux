@@ -22,6 +22,8 @@
 #define MAX_PLANE	5
 #define MAX_FB_BUFFER	4
 
+#define DEFAULT_WIN	0
+
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
