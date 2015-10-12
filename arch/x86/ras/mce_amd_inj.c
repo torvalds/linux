@@ -17,7 +17,9 @@
 #include <linux/cpu.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
+
 #include <asm/mce.h>
+#include <asm/irq_vectors.h>
 
 #include "../kernel/cpu/mcheck/mce-internal.h"
 
@@ -34,12 +36,16 @@ static u8 n_banks;
 enum injection_type {
 	SW_INJ = 0,	/* SW injection, simply decode the error */
 	HW_INJ,		/* Trigger a #MC */
+	DFR_INT_INJ,    /* Trigger Deferred error interrupt */
+	THR_INT_INJ,    /* Trigger threshold interrupt */
 	N_INJ_TYPES,
 };
 
 static const char * const flags_options[] = {
 	[SW_INJ] = "sw",
 	[HW_INJ] = "hw",
+	[DFR_INT_INJ] = "df",
+	[THR_INT_INJ] = "th",
 	NULL
 };
 
@@ -182,6 +188,16 @@ static void trigger_mce(void *info)
 	asm volatile("int $18");
 }
 
+static void trigger_dfr_int(void *info)
+{
+	asm volatile("int %0" :: "i" (DEFERRED_ERROR_VECTOR));
+}
+
+static void trigger_thr_int(void *info)
+{
+	asm volatile("int %0" :: "i" (THRESHOLD_APIC_VECTOR));
+}
+
 static void do_inject(void)
 {
 	u64 mcg_status = 0;
@@ -201,6 +217,16 @@ static void do_inject(void)
 
 	if (!(i_mce.status & MCI_STATUS_PCC))
 		mcg_status |= MCG_STATUS_RIPV;
+
+	/*
+	 * Ensure necessary status bits for deferred errors:
+	 * - MCx_STATUS[Deferred]: make sure it is a deferred error
+	 * - MCx_STATUS[UC] cleared: deferred errors are _not_ UC
+	 */
+	if (inj_type == DFR_INT_INJ) {
+		i_mce.status |= MCI_STATUS_DEFERRED;
+		i_mce.status |= (i_mce.status & ~MCI_STATUS_UC);
+	}
 
 	get_online_cpus();
 	if (!cpu_online(cpu))
@@ -222,7 +248,16 @@ static void do_inject(void)
 
 	toggle_hw_mce_inject(cpu, false);
 
-	smp_call_function_single(cpu, trigger_mce, NULL, 0);
+	switch (inj_type) {
+	case DFR_INT_INJ:
+		smp_call_function_single(cpu, trigger_dfr_int, NULL, 0);
+		break;
+	case THR_INT_INJ:
+		smp_call_function_single(cpu, trigger_thr_int, NULL, 0);
+		break;
+	default:
+		smp_call_function_single(cpu, trigger_mce, NULL, 0);
+	}
 
 err:
 	put_online_cpus();
@@ -287,6 +322,11 @@ static const char readme_msg[] =
 "\t    handle the error. Be warned: might cause system panic if MCi_STATUS[PCC] \n"
 "\t    is set. Therefore, consider setting (debugfs_mountpoint)/mce/fake_panic \n"
 "\t    before injecting.\n"
+"\t  - \"df\": Trigger APIC interrupt for Deferred error. Causes deferred \n"
+"\t    error APIC interrupt handler to handle the error if the feature is \n"
+"\t    is present in hardware. \n"
+"\t  - \"th\": Trigger APIC interrupt for Threshold errors. Causes threshold \n"
+"\t    APIC interrupt handler to handle the error. \n"
 "\n";
 
 static ssize_t
