@@ -11,8 +11,12 @@ echo ' '
 uname -a
 echo ' '
 
-gcc -dumpversion 2>&1| awk \
-'NR==1{print "Gnu C                 ", $1}'
+gcc -dumpversion 2>&1 |
+awk '/[0-9]+([.]?[0-9]+)+/ && !/not found$/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("GNU C\t\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 make --version 2>&1 | awk -F, '{print $1}' | awk \
       '/GNU Make/{print "Gnu make              ",$NF}'
