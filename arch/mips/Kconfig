@@ -2749,6 +2749,22 @@ choice
 		  if you don't intend to always append a DTB.
 endchoice
 
+choice
+	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
+	default MIPS_CMDLINE_FROM_BOOTLOADER
+
+	config MIPS_CMDLINE_FROM_DTB
+		depends on USE_OF
+		bool "Dtb kernel arguments if available"
+
+	config MIPS_CMDLINE_DTB_EXTEND
+		depends on USE_OF
+		bool "Extend dtb kernel arguments with bootloader arguments"
+
+	config MIPS_CMDLINE_FROM_BOOTLOADER
+		bool "Bootloader kernel arguments if available"
+endchoice
+
 endmenu
 
 config LOCKDEP_SUPPORT
