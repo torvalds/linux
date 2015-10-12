@@ -1889,7 +1889,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case '/':
 			if (ui_browser__input_window("Symbol to show",
-					"Please enter the name of symbol you want to see",
+					"Please enter the name of symbol you want to see.\n"
+					"To remove the filter later, press / + ENTER.",
 					buf, "ENTER: OK, ESC: Cancel",
 					delay_secs * 2) == K_ENTER) {
 				hists->symbol_filter_str = *buf ? buf : NULL;
