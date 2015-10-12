@@ -256,7 +256,7 @@ struct btrfs_fs_devices {
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
-	struct kobject super_kobj;
+	struct kobject fsid_kobj;
 	struct kobject *device_dir_kobj;
 	struct completion kobj_unregister;
 };
@@ -474,7 +474,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				      struct btrfs_device *tgtdev);
 void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 					      struct btrfs_device *tgtdev);
-int btrfs_scratch_superblock(struct btrfs_device *device);
+void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path);
 int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 			   u64 logical, u64 len, int mirror_num);
 unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
@@ -547,5 +547,6 @@ static inline void unlock_chunks(struct btrfs_root *root)
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
+void btrfs_close_one_device(struct btrfs_device *device);
 
 #endif

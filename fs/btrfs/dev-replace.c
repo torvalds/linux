@@ -327,19 +327,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	    args->start.tgtdev_name[0] == '\0')
 		return -EINVAL;
 
-	/*
-	 * Here we commit the transaction to make sure commit_total_bytes
-	 * of all the devices are updated.
-	 */
-	trans = btrfs_attach_transaction(root);
-	if (!IS_ERR(trans)) {
-		ret = btrfs_commit_transaction(trans, root);
-		if (ret)
-			return ret;
-	} else if (PTR_ERR(trans) != -ENOENT) {
-		return PTR_ERR(trans);
-	}
-
 	/* the disk copy procedure reuses the scrub code */
 	mutex_lock(&fs_info->volume_mutex);
 	ret = btrfs_dev_replace_find_srcdev(root, args->start.srcdevid,
@@ -355,6 +342,19 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	mutex_unlock(&fs_info->volume_mutex);
 	if (ret)
 		return ret;
+
+	/*
+	 * Here we commit the transaction to make sure commit_total_bytes
+	 * of all the devices are updated.
+	 */
+	trans = btrfs_attach_transaction(root);
+	if (!IS_ERR(trans)) {
+		ret = btrfs_commit_transaction(trans, root);
+		if (ret)
+			return ret;
+	} else if (PTR_ERR(trans) != -ENOENT) {
+		return PTR_ERR(trans);
+	}
 
 	btrfs_dev_replace_lock(dev_replace);
 	switch (dev_replace->replace_state) {
@@ -374,10 +374,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->srcdev = src_device;
 	WARN_ON(!tgt_device);
 	dev_replace->tgtdev = tgt_device;
-
-	ret = btrfs_kobj_add_device(tgt_device->fs_devices, tgt_device);
-	if (ret)
-		btrfs_err(root->fs_info, "kobj add dev failed %d\n", ret);
 
 	btrfs_info_in_rcu(root->fs_info,
 		      "dev_replace from %s (devid %llu) to %s started",
@@ -400,6 +396,10 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->item_needs_writeback = 1;
 	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	btrfs_dev_replace_unlock(dev_replace);
+
+	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
+	if (ret)
+		btrfs_err(root->fs_info, "kobj add dev failed %d\n", ret);
 
 	btrfs_wait_ordered_roots(root->fs_info, -1);
 
@@ -586,7 +586,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&uuid_mutex);
 
 	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info->fs_devices, src_device);
+	btrfs_sysfs_rm_device_link(fs_info->fs_devices, src_device);
 	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 
 	/* write back the superblocks */

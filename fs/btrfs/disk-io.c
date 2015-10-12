@@ -2375,7 +2375,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	/* returns with log_tree_root freed on success */
 	ret = btrfs_recover_log_trees(log_tree_root);
 	if (ret) {
-		btrfs_error(tree_root->fs_info, ret,
+		btrfs_std_error(tree_root->fs_info, ret,
 			    "Failed to recover log tree");
 		free_extent_buffer(log_tree_root->node);
 		kfree(log_tree_root);
@@ -2651,8 +2651,8 @@ int open_ctree(struct super_block *sb,
 	 * Read super block and check the signature bytes only
 	 */
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
-	if (!bh) {
-		err = -EINVAL;
+	if (IS_ERR(bh)) {
+		err = PTR_ERR(bh);
 		goto fail_alloc;
 	}
 
@@ -2935,7 +2935,7 @@ retry_root_backup:
 		goto fail_fsdev_sysfs;
 	}
 
-	ret = btrfs_sysfs_add_one(fs_info);
+	ret = btrfs_sysfs_add_mounted(fs_info);
 	if (ret) {
 		pr_err("BTRFS: failed to init sysfs interface: %d\n", ret);
 		goto fail_fsdev_sysfs;
@@ -3115,7 +3115,7 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 
 fail_sysfs:
-	btrfs_sysfs_remove_one(fs_info);
+	btrfs_sysfs_remove_mounted(fs_info);
 
 fail_fsdev_sysfs:
 	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
@@ -3190,6 +3190,37 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	put_bh(bh);
 }
 
+int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
+			struct buffer_head **bh_ret)
+{
+	struct buffer_head *bh;
+	struct btrfs_super_block *super;
+	u64 bytenr;
+
+	bytenr = btrfs_sb_offset(copy_num);
+	if (bytenr + BTRFS_SUPER_INFO_SIZE >= i_size_read(bdev->bd_inode))
+		return -EINVAL;
+
+	bh = __bread(bdev, bytenr / 4096, BTRFS_SUPER_INFO_SIZE);
+	/*
+	 * If we fail to read from the underlying devices, as of now
+	 * the best option we have is to mark it EIO.
+	 */
+	if (!bh)
+		return -EIO;
+
+	super = (struct btrfs_super_block *)bh->b_data;
+	if (btrfs_super_bytenr(super) != bytenr ||
+		    btrfs_super_magic(super) != BTRFS_MAGIC) {
+		brelse(bh);
+		return -EINVAL;
+	}
+
+	*bh_ret = bh;
+	return 0;
+}
+
+
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 {
 	struct buffer_head *bh;
@@ -3197,7 +3228,7 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	struct btrfs_super_block *super;
 	int i;
 	u64 transid = 0;
-	u64 bytenr;
+	int ret = -EINVAL;
 
 	/* we would like to check all the supers, but that would make
 	 * a btrfs mount succeed after a mkfs from a different FS.
@@ -3205,21 +3236,11 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
 	 */
 	for (i = 0; i < 1; i++) {
-		bytenr = btrfs_sb_offset(i);
-		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-					i_size_read(bdev->bd_inode))
-			break;
-		bh = __bread(bdev, bytenr / 4096,
-					BTRFS_SUPER_INFO_SIZE);
-		if (!bh)
+		ret = btrfs_read_dev_one_super(bdev, i, &bh);
+		if (ret)
 			continue;
 
 		super = (struct btrfs_super_block *)bh->b_data;
-		if (btrfs_super_bytenr(super) != bytenr ||
-		    btrfs_super_magic(super) != BTRFS_MAGIC) {
-			brelse(bh);
-			continue;
-		}
 
 		if (!latest || btrfs_super_generation(super) > transid) {
 			brelse(latest);
@@ -3229,6 +3250,10 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 			brelse(bh);
 		}
 	}
+
+	if (!latest)
+		return ERR_PTR(ret);
+
 	return latest;
 }
 
@@ -3547,7 +3572,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		if (ret) {
 			mutex_unlock(
 				&root->fs_info->fs_devices->device_list_mutex);
-			btrfs_error(root->fs_info, ret,
+			btrfs_std_error(root->fs_info, ret,
 				    "errors while submitting device barriers.");
 			return ret;
 		}
@@ -3587,7 +3612,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
-		btrfs_error(root->fs_info, -EIO,
+		btrfs_std_error(root->fs_info, -EIO,
 			    "%d errors while writing supers", total_errors);
 		return -EIO;
 	}
@@ -3605,7 +3630,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	}
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	if (total_errors > max_errors) {
-		btrfs_error(root->fs_info, -EIO,
+		btrfs_std_error(root->fs_info, -EIO,
 			    "%d errors while writing supers", total_errors);
 		return -EIO;
 	}
@@ -3791,7 +3816,7 @@ void close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	btrfs_sysfs_remove_one(fs_info);
+	btrfs_sysfs_remove_mounted(fs_info);
 	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
 	btrfs_free_fs_roots(fs_info);

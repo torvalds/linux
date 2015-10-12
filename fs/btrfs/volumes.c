@@ -198,7 +198,6 @@ btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
 
 	if (IS_ERR(*bdev)) {
 		ret = PTR_ERR(*bdev);
-		printk(KERN_INFO "BTRFS: open %s failed\n", device_path);
 		goto error;
 	}
 
@@ -211,8 +210,8 @@ btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
 	}
 	invalidate_bdev(*bdev);
 	*bh = btrfs_read_dev_super(*bdev);
-	if (!*bh) {
-		ret = -EINVAL;
+	if (IS_ERR(*bh)) {
+		ret = PTR_ERR(*bh);
 		blkdev_put(*bdev, flags);
 		goto error;
 	}
@@ -765,36 +764,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry_safe(device, tmp, &fs_devices->devices, dev_list) {
-		struct btrfs_device *new_device;
-		struct rcu_string *name;
-
-		if (device->bdev)
-			fs_devices->open_devices--;
-
-		if (device->writeable &&
-		    device->devid != BTRFS_DEV_REPLACE_DEVID) {
-			list_del_init(&device->dev_alloc_list);
-			fs_devices->rw_devices--;
-		}
-
-		if (device->missing)
-			fs_devices->missing_devices--;
-
-		new_device = btrfs_alloc_device(NULL, &device->devid,
-						device->uuid);
-		BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
-
-		/* Safe because we are under uuid_mutex */
-		if (device->name) {
-			name = rcu_string_strdup(device->name->str, GFP_NOFS);
-			BUG_ON(!name); /* -ENOMEM */
-			rcu_assign_pointer(new_device->name, name);
-		}
-
-		list_replace_rcu(&device->dev_list, &new_device->dev_list);
-		new_device->fs_devices = device->fs_devices;
-
-		call_rcu(&device->rcu, free_device);
+		btrfs_close_one_device(device);
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
 
@@ -1402,7 +1372,7 @@ again:
 		extent = btrfs_item_ptr(leaf, path->slots[0],
 					struct btrfs_dev_extent);
 	} else {
-		btrfs_error(root->fs_info, ret, "Slot search failed");
+		btrfs_std_error(root->fs_info, ret, "Slot search failed");
 		goto out;
 	}
 
@@ -1410,7 +1380,7 @@ again:
 
 	ret = btrfs_del_item(trans, root, path);
 	if (ret) {
-		btrfs_error(root->fs_info, ret,
+		btrfs_std_error(root->fs_info, ret,
 			    "Failed to remove dev extent item");
 	} else {
 		trans->transaction->have_free_bgs = 1;
@@ -1801,7 +1771,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev) {
 		device->fs_devices->open_devices--;
 		/* remove sysfs entry */
-		btrfs_kobj_rm_device(root->fs_info->fs_devices, device);
+		btrfs_sysfs_rm_device_link(root->fs_info->fs_devices, device);
 	}
 
 	call_rcu(&device->rcu, free_device);
@@ -1924,7 +1894,8 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	if (srcdev->writeable) {
 		fs_devices->rw_devices--;
 		/* zero out the old super if it is writable */
-		btrfs_scratch_superblock(srcdev);
+		btrfs_scratch_superblocks(srcdev->bdev,
+					rcu_str_deref(srcdev->name));
 	}
 
 	if (srcdev->bdev)
@@ -1971,10 +1942,11 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	WARN_ON(!tgtdev);
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 
-	btrfs_kobj_rm_device(fs_info->fs_devices, tgtdev);
+	btrfs_sysfs_rm_device_link(fs_info->fs_devices, tgtdev);
 
 	if (tgtdev->bdev) {
-		btrfs_scratch_superblock(tgtdev);
+		btrfs_scratch_superblocks(tgtdev->bdev,
+					rcu_str_deref(tgtdev->name));
 		fs_info->fs_devices->open_devices--;
 	}
 	fs_info->fs_devices->num_devices--;
@@ -2041,10 +2013,8 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 			}
 		}
 
-		if (!*device) {
-			btrfs_err(root->fs_info, "no missing device found");
-			return -ENOENT;
-		}
+		if (!*device)
+			return BTRFS_ERROR_DEV_MISSING_NOT_FOUND;
 
 		return 0;
 	} else {
@@ -2309,7 +2279,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 				    tmp + 1);
 
 	/* add sysfs device entry */
-	btrfs_kobj_add_device(root->fs_info->fs_devices, device);
+	btrfs_sysfs_add_device_link(root->fs_info->fs_devices, device);
 
 	/*
 	 * we've got more storage, clear any full flags on the space
@@ -2350,7 +2320,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		 */
 		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
 						root->fs_info->fsid);
-		if (kobject_rename(&root->fs_info->fs_devices->super_kobj,
+		if (kobject_rename(&root->fs_info->fs_devices->fsid_kobj,
 								fsid_buf))
 			btrfs_warn(root->fs_info,
 				"sysfs: failed to create fsid for sprout");
@@ -2369,7 +2339,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 		ret = btrfs_relocate_sys_chunks(root);
 		if (ret < 0)
-			btrfs_error(root->fs_info, ret,
+			btrfs_std_error(root->fs_info, ret,
 				    "Failed to relocate sys chunks after "
 				    "device initialization. This can be fixed "
 				    "using the \"btrfs balance\" command.");
@@ -2389,7 +2359,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 error_trans:
 	btrfs_end_transaction(trans, root);
 	rcu_string_free(device->name);
-	btrfs_kobj_rm_device(root->fs_info->fs_devices, device);
+	btrfs_sysfs_rm_device_link(root->fs_info->fs_devices, device);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
@@ -2614,7 +2584,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 	else if (ret > 0) { /* Logic error or corruption */
-		btrfs_error(root->fs_info, -ENOENT,
+		btrfs_std_error(root->fs_info, -ENOENT,
 			    "Failed lookup while freeing chunk.");
 		ret = -ENOENT;
 		goto out;
@@ -2622,7 +2592,7 @@ static int btrfs_free_chunk(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_item(trans, root, path);
 	if (ret < 0)
-		btrfs_error(root->fs_info, ret,
+		btrfs_std_error(root->fs_info, ret,
 			    "Failed to delete chunk item.");
 out:
 	btrfs_free_path(path);
@@ -2807,7 +2777,7 @@ static int btrfs_relocate_chunk(struct btrfs_root *root, u64 chunk_offset)
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		btrfs_std_error(root->fs_info, ret);
+		btrfs_std_error(root->fs_info, ret, NULL);
 		return ret;
 	}
 
@@ -3462,7 +3432,7 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	unset_balance_control(fs_info);
 	ret = del_balance_item(fs_info->tree_root);
 	if (ret)
-		btrfs_std_error(fs_info, ret);
+		btrfs_std_error(fs_info, ret, NULL);
 
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
@@ -6741,22 +6711,34 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 	return 0;
 }
 
-int btrfs_scratch_superblock(struct btrfs_device *device)
+void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path)
 {
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;
+	int copy_num;
 
-	bh = btrfs_read_dev_super(device->bdev);
-	if (!bh)
-		return -EINVAL;
-	disk_super = (struct btrfs_super_block *)bh->b_data;
+	if (!bdev)
+		return;
 
-	memset(&disk_super->magic, 0, sizeof(disk_super->magic));
-	set_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	brelse(bh);
+	for (copy_num = 0; copy_num < BTRFS_SUPER_MIRROR_MAX;
+		copy_num++) {
 
-	return 0;
+		if (btrfs_read_dev_one_super(bdev, copy_num, &bh))
+			continue;
+
+		disk_super = (struct btrfs_super_block *)bh->b_data;
+
+		memset(&disk_super->magic, 0, sizeof(disk_super->magic));
+		set_buffer_dirty(bh);
+		sync_dirty_buffer(bh);
+		brelse(bh);
+	}
+
+	/* Notify udev that device has changed */
+	btrfs_kobject_uevent(bdev, KOBJ_CHANGE);
+
+	/* Update ctime/mtime for device path for libblkid */
+	update_dev_time(device_path);
 }
 
 /*
@@ -6823,4 +6805,39 @@ void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info)
 		fs_devices->fs_info = NULL;
 		fs_devices = fs_devices->seed;
 	}
+}
+
+void btrfs_close_one_device(struct btrfs_device *device)
+{
+	struct btrfs_fs_devices *fs_devices = device->fs_devices;
+	struct btrfs_device *new_device;
+	struct rcu_string *name;
+
+	if (device->bdev)
+		fs_devices->open_devices--;
+
+	if (device->writeable &&
+	    device->devid != BTRFS_DEV_REPLACE_DEVID) {
+		list_del_init(&device->dev_alloc_list);
+		fs_devices->rw_devices--;
+	}
+
+	if (device->missing)
+		fs_devices->missing_devices--;
+
+	new_device = btrfs_alloc_device(NULL, &device->devid,
+					device->uuid);
+	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
+
+	/* Safe because we are under uuid_mutex */
+	if (device->name) {
+		name = rcu_string_strdup(device->name->str, GFP_NOFS);
+		BUG_ON(!name); /* -ENOMEM */
+		rcu_assign_pointer(new_device->name, name);
+	}
+
+	list_replace_rcu(&device->dev_list, &new_device->dev_list);
+	new_device->fs_devices = device->fs_devices;
+
+	call_rcu(&device->rcu, free_device);
 }
