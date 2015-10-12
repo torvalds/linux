@@ -1851,7 +1851,7 @@ static int i915_opregion(struct seq_file *m, void *unused)
 		goto out;
 
 	if (opregion->header) {
-		memcpy_fromio(data, opregion->header, OPREGION_SIZE);
+		memcpy(data, opregion->header, OPREGION_SIZE);
 		seq_write(m, data, OPREGION_SIZE);
 	}
 

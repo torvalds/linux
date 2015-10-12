@@ -450,14 +450,14 @@ struct opregion_swsci;
 struct opregion_asle;
 
 struct intel_opregion {
-	struct opregion_header __iomem *header;
-	struct opregion_acpi __iomem *acpi;
-	struct opregion_swsci __iomem *swsci;
+	struct opregion_header *header;
+	struct opregion_acpi *acpi;
+	struct opregion_swsci *swsci;
 	u32 swsci_gbda_sub_functions;
 	u32 swsci_sbcb_sub_functions;
-	struct opregion_asle __iomem *asle;
-	void __iomem *vbt;
-	u32 __iomem *lid_state;
+	struct opregion_asle *asle;
+	void *vbt;
+	u32 *lid_state;
 	struct work_struct asle_work;
 };
 #define OPREGION_SIZE            (8*1024)

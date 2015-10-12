@@ -381,7 +381,7 @@ intel_panel_detect(struct drm_device *dev)
 
 	/* Assume that the BIOS does not lie through the OpRegion... */
 	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
-		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
+		return *dev_priv->opregion.lid_state & 0x1 ?
 			connector_status_connected :
 			connector_status_disconnected;
 	}
