@@ -77,18 +77,12 @@ static inline void of_msi_configure(struct device *dev, struct device_node *np)
  * so declare it here regardless of the CONFIG_OF_IRQ setting.
  */
 extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
-extern struct device_node *of_irq_find_parent(struct device_node *child);
 
 #else /* !CONFIG_OF */
 static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
 						int index)
 {
 	return 0;
-}
-
-static inline void *of_irq_find_parent(struct device_node *child)
-{
-	return NULL;
 }
 #endif /* !CONFIG_OF */
 
