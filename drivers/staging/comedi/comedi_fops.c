@@ -2551,7 +2551,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	}
 	remove_wait_queue(&async->wait_head, &wait);
 	set_current_state(TASK_RUNNING);
-	if (become_nonbusy || comedi_is_subdevice_idle(s)) {
+	if (become_nonbusy && count == 0) {
 		struct comedi_subdevice *new_s;
 
 		/*
