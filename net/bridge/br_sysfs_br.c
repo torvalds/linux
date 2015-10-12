@@ -102,7 +102,15 @@ static ssize_t ageing_time_show(struct device *d,
 
 static int set_ageing_time(struct net_bridge *br, unsigned long val)
 {
-	return br_set_ageing_time(br, val);
+	int ret;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = br_set_ageing_time(br, val);
+	rtnl_unlock();
+
+	return ret;
 }
 
 static ssize_t ageing_time_store(struct device *d,
