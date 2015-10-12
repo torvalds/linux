@@ -455,11 +455,6 @@ static void __init axs103_early_init(void)
 	axs10x_print_board_ver(AXC003_CREG + 4088, "AXC003 CPU Card");
 
 	axs10x_early_init();
-
-#ifdef CONFIG_ARC_MCIP
-	/* No Hardware init, but filling the smp ops callbacks */
-	mcip_init_early_smp();
-#endif
 }
 #endif
 

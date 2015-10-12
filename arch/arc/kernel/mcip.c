@@ -97,13 +97,7 @@ static void mcip_ipi_clear(int irq)
 #endif
 }
 
-struct plat_smp_ops plat_smp_ops = {
-	.info		= smp_cpuinfo_buf,
-	.ipi_send	= mcip_ipi_send,
-	.ipi_clear	= mcip_ipi_clear,
-};
-
-void mcip_init_early_smp(void)
+static void mcip_probe_n_setup(void)
 {
 	struct mcip_bcr {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -141,6 +135,13 @@ void mcip_init_early_smp(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_GRTC) && !mp.grtc)
 		panic("kernel trying to use non-existent GRTC\n");
 }
+
+struct plat_smp_ops plat_smp_ops = {
+	.info		= smp_cpuinfo_buf,
+	.init_early_smp	= mcip_probe_n_setup,
+	.ipi_send	= mcip_ipi_send,
+	.ipi_clear	= mcip_ipi_clear,
+};
 
 /***************************************************************************
  * ARCv2 Interrupt Distribution Unit (IDU)
