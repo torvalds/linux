@@ -794,6 +794,9 @@ struct regmap_irq {
 	unsigned int mask;
 };
 
+#define REGMAP_IRQ_REG(_irq, _off, _mask)		\
+	[_irq] = { .reg_offset = (_off), .mask = (_mask) }
+
 /**
  * Description of a generic regmap irq_chip.  This is not intended to
  * handle every possible interrupt controller, but it should handle a
