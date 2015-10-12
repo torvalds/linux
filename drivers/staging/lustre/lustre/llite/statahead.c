@@ -947,7 +947,7 @@ static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 
 static int ll_agl_thread(void *arg)
 {
-	struct dentry	    *parent = (struct dentry *)arg;
+	struct dentry	    *parent = arg;
 	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *plli   = ll_i2info(dir);
 	struct ll_inode_info     *clli;
@@ -1038,7 +1038,7 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 
 static int ll_statahead_thread(void *arg)
 {
-	struct dentry	    *parent = (struct dentry *)arg;
+	struct dentry	    *parent = arg;
 	struct inode	     *dir    = d_inode(parent);
 	struct ll_inode_info     *plli   = ll_i2info(dir);
 	struct ll_inode_info     *clli;
