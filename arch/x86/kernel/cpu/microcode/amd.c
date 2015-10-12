@@ -177,6 +177,25 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 	return patch_size;
 }
 
+/*
+ * Check the current patch level on this CPU.
+ *
+ * @rev: Use it to return the patch level. It is set to 0 in the case of
+ * error.
+ *
+ * Returns:
+ *  - true: if update should stop
+ *  - false: otherwise
+ */
+bool check_current_patch_level(u32 *rev)
+{
+	u32 dummy;
+
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, *rev, dummy);
+
+	return false;
+}
+
 int __apply_microcode_amd(struct microcode_amd *mc_amd)
 {
 	u32 rev, dummy;
@@ -197,7 +216,7 @@ int apply_microcode_amd(int cpu)
 	struct microcode_amd *mc_amd;
 	struct ucode_cpu_info *uci;
 	struct ucode_patch *p;
-	u32 rev, dummy;
+	u32 rev;
 
 	BUG_ON(raw_smp_processor_id() != cpu);
 
@@ -210,7 +229,8 @@ int apply_microcode_amd(int cpu)
 	mc_amd  = p->data;
 	uci->mc = p->data;
 
-	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	if (check_current_patch_level(&rev))
+		return -1;
 
 	/* need to apply patch? */
 	if (rev >= mc_amd->hdr.patch_id) {
