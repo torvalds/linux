@@ -142,6 +142,9 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 	struct net_device *loopback_dev = net->loopback_dev;
 	int cpu;
 
+	if (dev == loopback_dev)
+		return;
+
 	for_each_possible_cpu(cpu) {
 		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
 		struct rt6_info *rt;
@@ -151,14 +154,12 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 			struct inet6_dev *rt_idev = rt->rt6i_idev;
 			struct net_device *rt_dev = rt->dst.dev;
 
-			if (rt_idev && (rt_idev->dev == dev || !dev) &&
-			    rt_idev->dev != loopback_dev) {
+			if (rt_idev->dev == dev) {
 				rt->rt6i_idev = in6_dev_get(loopback_dev);
 				in6_dev_put(rt_idev);
 			}
 
-			if (rt_dev && (rt_dev == dev || !dev) &&
-			    rt_dev != loopback_dev) {
+			if (rt_dev == dev) {
 				rt->dst.dev = loopback_dev;
 				dev_hold(rt->dst.dev);
 				dev_put(rt_dev);
@@ -2622,7 +2623,8 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 
 	fib6_clean_all(net, fib6_ifdown, &adn);
 	icmp6_clean_all(fib6_ifdown, &adn);
-	rt6_uncached_list_flush_dev(net, dev);
+	if (dev)
+		rt6_uncached_list_flush_dev(net, dev);
 }
 
 struct rt6_mtu_change_arg {
