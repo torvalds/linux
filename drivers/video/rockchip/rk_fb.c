@@ -3381,7 +3381,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	char name[6] = {0};
 	int i, win_id;
 	static bool load_screen = false;
-	char *envp[3];
+	char *envp[4];
+	char envplcdc[32];
+	char envpfbdev[32];
 	int ret, list_is_empty = 0;
 
 	if (unlikely(!rk_fb) || unlikely(!screen))
@@ -3426,14 +3428,13 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	}
 
 	envp[0] = "switch screen";
-	envp[1] = kmalloc(32, GFP_KERNEL);
-	if (envp[1] == NULL) {
-		pr_err("switch screen kmalloc envp[1] fail\n");
-		mutex_unlock(&dev_drv->switch_screen);
-		return 0;
-	}
-	sprintf(envp[1], "SCREEN=%d,ENABLE=%d", screen->type, enable);
-	envp[2] = NULL;
+	memset(envplcdc, 0, sizeof(envplcdc));
+	memset(envpfbdev, 0, sizeof(envpfbdev));
+	sprintf(envplcdc, "SCREEN=%d,ENABLE=%d", screen->type, enable);
+	sprintf(envpfbdev, "FBDEV=%d", dev_drv->fb_index_base);
+	envp[1] = envplcdc;
+	envp[2] = envpfbdev;
+	envp[3] = NULL;
 
 	if ((rk_fb->disp_mode == ONE_DUAL) ||
 	    (rk_fb->disp_mode == NO_DUAL)) {
@@ -3457,7 +3458,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (dev_drv->cur_screen->type != screen->type) {
 			dev_drv->hdmi_switch = 0;
 			mutex_unlock(&dev_drv->switch_screen);
-			kfree(envp[1]);
 			return 0;
 		}
 
@@ -3510,7 +3510,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			}
 		}
                 kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
-                kfree(envp[1]);
 
 		hdmi_switch_state = 0;
 		dev_drv->hdmi_switch = 0;
@@ -3542,7 +3541,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 			win = dev_drv->win[win_id];
 			if (win && fb_par->state) {
+				mutex_lock(&dev_drv->win_config);
 				dev_drv->ops->load_screen(dev_drv, 1);
+				mutex_unlock(&dev_drv->win_config);
 
 				info->var.activate |= FB_ACTIVATE_FORCE;
 				if (rk_fb->disp_mode == ONE_DUAL) {
@@ -3582,7 +3583,6 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->ops->load_screen(dev_drv, 0);
 	}
 	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
-        kfree(envp[1]);
 
 	hdmi_switch_state = 1;
 	load_screen = true;
@@ -3753,6 +3753,8 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 	dma_addr_t fb_mem_phys;
 	void *fb_mem_virt;
 #endif
+	ion_phys_addr_t phy_addr;
+	size_t len;
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (win_id < 0)
@@ -3779,9 +3781,64 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi)
 #endif
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
 	} else {
-		fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
-		fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
-		fbi->screen_base = rk_fb->fb[0]->screen_base;
+		if (dev_drv->prop == EXTEND && dev_drv->iommu_enabled) {
+			struct rk_lcdc_driver *dev_drv_prmry;
+			int win_id_prmry;
+			fb_mem_size = get_fb_size(dev_drv->reserved_fb);
+#if defined(CONFIG_ION_ROCKCHIP)
+			dev_drv_prmry = rk_get_prmry_lcdc_drv();
+			if (dev_drv_prmry == NULL)
+				return -ENODEV;
+			win_id_prmry =
+				dev_drv_prmry->ops->fb_get_win_id(dev_drv_prmry,
+								 fbi->fix.id);
+			if (win_id_prmry < 0)
+				return -ENODEV;
+			else
+				fb_par->ion_hdl =
+				dev_drv_prmry->win[win_id_prmry]->area[0].ion_hdl;
+				fbi->screen_base =
+					ion_map_kernel(rk_fb->ion_client,
+						       fb_par->ion_hdl);
+				dev_drv->win[win_id]->area[0].ion_hdl =
+					fb_par->ion_hdl;
+	#ifdef CONFIG_ROCKCHIP_IOMMU
+				if (dev_drv->mmu_dev)
+					ret = ion_map_iommu(dev_drv->dev,
+							    rk_fb->ion_client,
+							    fb_par->ion_hdl,
+							    (unsigned long *)&phy_addr,
+							    (unsigned long *)&len);
+				else
+					ret = ion_phys(rk_fb->ion_client,
+						       fb_par->ion_hdl,
+						       &phy_addr, &len);
+	#endif
+				if (ret < 0) {
+					dev_err(fbi->dev, "ion map to get phy addr failed\n");
+					return -ENOMEM;
+				}
+				fbi->fix.smem_start = phy_addr;
+				fbi->fix.smem_len = len;
+#else
+			fb_mem_virt = dma_alloc_writecombine(fbi->dev,
+							     fb_mem_size,
+							     &fb_mem_phys,
+							     GFP_KERNEL);
+			if (!fb_mem_virt) {
+				pr_err("%s: Failed to allocate framebuffer\n",
+				       __func__);
+				return -ENOMEM;
+			}
+			fbi->fix.smem_len = fb_mem_size;
+			fbi->fix.smem_start = fb_mem_phys;
+			fbi->screen_base = fb_mem_virt;
+#endif
+		} else {
+			fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
+			fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
+			fbi->screen_base = rk_fb->fb[0]->screen_base;
+		}
 	}
 
 	fbi->screen_size = fbi->fix.smem_len;
@@ -4217,7 +4274,15 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	} else {
                 struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
                 extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
-                rk_fb_alloc_buffer(extend_fbi);
+		extend_fbi->fbops->fb_open(extend_fbi, 1);
+#if defined(CONFIG_ROCKCHIP_IOMMU)
+		if (dev_drv->iommu_enabled) {
+			if (dev_drv->mmu_dev)
+				rockchip_iovmm_set_fault_handler(dev_drv->dev,
+								 rk_fb_sysmmu_fault_handler);
+		}
+#endif
+		rk_fb_alloc_buffer(extend_fbi);
 	}
 #endif
 	return 0;
