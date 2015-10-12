@@ -124,21 +124,21 @@ struct pci9111_private_data {
 };
 
 static void plx9050_interrupt_control(unsigned long io_base,
-				      bool LINTi1_enable,
-				      bool LINTi1_active_high,
-				      bool LINTi2_enable,
-				      bool LINTi2_active_high,
+				      bool int1_enable,
+				      bool int1_active_high,
+				      bool int2_enable,
+				      bool int2_active_high,
 				      bool interrupt_enable)
 {
 	int flags = 0;
 
-	if (LINTi1_enable)
+	if (int1_enable)
 		flags |= PLX9052_INTCSR_LI1ENAB;
-	if (LINTi1_active_high)
+	if (int1_active_high)
 		flags |= PLX9052_INTCSR_LI1POL;
-	if (LINTi2_enable)
+	if (int2_enable)
 		flags |= PLX9052_INTCSR_LI2ENAB;
-	if (LINTi2_active_high)
+	if (int2_active_high)
 		flags |= PLX9052_INTCSR_LI2POL;
 
 	if (interrupt_enable)
