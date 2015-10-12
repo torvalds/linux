@@ -53,8 +53,12 @@ awk '/^tune2fs/{
 	substr($0,RSTART,RLENGTH))
 }'
 
-fsck.jfs -V 2>&1 | grep version | sed 's/,//' |  awk \
-'NR==1 {print "jfsutils              ", $3}'
+fsck.jfs -V 2>&1 |
+awk '/version/{
+	match($0, /[0-9]+([.]?[0-9]+)+/)
+	printf("Jfsutils\t\t%s\n",
+	substr($0,RSTART,RLENGTH))
+}'
 
 reiserfsck -V 2>&1 | grep ^reiserfsck | awk \
 'NR==1{print "reiserfsprogs         ", $2}'
