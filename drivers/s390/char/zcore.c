@@ -34,8 +34,6 @@
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
 
-#define TO_USER		1
-#define TO_KERNEL	0
 #define CHUNK_INFO_SIZE	34 /* 2 16-byte char, each followed by blank */
 
 enum arch_id {
@@ -56,86 +54,36 @@ static struct dentry *zcore_reipl_file;
 static struct dentry *zcore_hsa_file;
 static struct ipl_parameter_block *ipl_block;
 
-/*
- * Copy memory from HSA to kernel or user memory (not reentrant):
- *
- * @dest:  Kernel or user buffer where memory should be copied to
- * @src:   Start address within HSA where data should be copied
- * @count: Size of buffer, which should be copied
- * @mode:  Either TO_KERNEL or TO_USER
- */
-static int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode)
-{
-	int offs, blk_num;
-	static char buf[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
-
-	if (!hsa_available)
-		return -ENODATA;
-	if (count == 0)
-		return 0;
-
-	/* copy first block */
-	offs = 0;
-	if ((src % PAGE_SIZE) != 0) {
-		blk_num = src / PAGE_SIZE + 2;
-		if (sclp_sdias_copy(buf, blk_num, 1)) {
-			TRACE("sclp_sdias_copy() failed\n");
-			return -EIO;
-		}
-		offs = min((PAGE_SIZE - (src % PAGE_SIZE)), count);
-		if (mode == TO_USER) {
-			if (copy_to_user((__force __user void*) dest,
-					 buf + (src % PAGE_SIZE), offs))
-				return -EFAULT;
-		} else
-			memcpy(dest, buf + (src % PAGE_SIZE), offs);
-	}
-	if (offs == count)
-		goto out;
-
-	/* copy middle */
-	for (; (offs + PAGE_SIZE) <= count; offs += PAGE_SIZE) {
-		blk_num = (src + offs) / PAGE_SIZE + 2;
-		if (sclp_sdias_copy(buf, blk_num, 1)) {
-			TRACE("sclp_sdias_copy() failed\n");
-			return -EIO;
-		}
-		if (mode == TO_USER) {
-			if (copy_to_user((__force __user void*) dest + offs,
-					 buf, PAGE_SIZE))
-				return -EFAULT;
-		} else
-			memcpy(dest + offs, buf, PAGE_SIZE);
-	}
-	if (offs == count)
-		goto out;
-
-	/* copy last block */
-	blk_num = (src + offs) / PAGE_SIZE + 2;
-	if (sclp_sdias_copy(buf, blk_num, 1)) {
-		TRACE("sclp_sdias_copy() failed\n");
-		return -EIO;
-	}
-	if (mode == TO_USER) {
-		if (copy_to_user((__force __user void*) dest + offs, buf,
-				 count - offs))
-			return -EFAULT;
-	} else
-		memcpy(dest + offs, buf, count - offs);
-out:
-	return 0;
-}
+static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 /*
  * Copy memory from HSA to user memory (not reentrant):
  *
- * @dest:  Kernel or user buffer where memory should be copied to
+ * @dest:  User buffer where memory should be copied to
  * @src:   Start address within HSA where data should be copied
  * @count: Size of buffer, which should be copied
  */
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
 {
-	return memcpy_hsa((void __force *) dest, src, count, TO_USER);
+	unsigned long offset, bytes;
+
+	if (!hsa_available)
+		return -ENODATA;
+
+	while (count) {
+		if (sclp_sdias_copy(hsa_buf, src / PAGE_SIZE + 2, 1)) {
+			TRACE("sclp_sdias_copy() failed\n");
+			return -EIO;
+		}
+		offset = src % PAGE_SIZE;
+		bytes = min(PAGE_SIZE - offset, count);
+		if (copy_to_user(dest, hsa_buf + offset, bytes))
+			return -EFAULT;
+		src += bytes;
+		dest += bytes;
+		count -= bytes;
+	}
+	return 0;
 }
 
 /*
@@ -147,7 +95,24 @@ int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
  */
 int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 {
-	return memcpy_hsa(dest, src, count, TO_KERNEL);
+	unsigned long offset, bytes;
+
+	if (!hsa_available)
+		return -ENODATA;
+
+	while (count) {
+		if (sclp_sdias_copy(hsa_buf, src / PAGE_SIZE + 2, 1)) {
+			TRACE("sclp_sdias_copy() failed\n");
+			return -EIO;
+		}
+		offset = src % PAGE_SIZE;
+		bytes = min(PAGE_SIZE - offset, count);
+		memcpy(dest, hsa_buf + offset, bytes);
+		src += bytes;
+		dest += bytes;
+		count -= bytes;
+	}
+	return 0;
 }
 
 static int __init init_cpu_info(void)
