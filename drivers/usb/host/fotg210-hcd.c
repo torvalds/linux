@@ -5085,7 +5085,7 @@ static int fotg210_run(struct usb_hcd *hcd)
 	fotg210->rh_state = FOTG210_RH_RUNNING;
 	/* unblock posted writes */
 	fotg210_readl(fotg210, &fotg210->regs->command);
-	msleep(5);
+	usleep_range(5000, 10000);
 	up_write(&ehci_cf_port_reset_rwsem);
 	fotg210->last_periodic_enable = ktime_get_real();
 
