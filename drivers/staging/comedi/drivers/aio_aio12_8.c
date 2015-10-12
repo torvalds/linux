@@ -20,7 +20,7 @@
  * Author: Pablo Mejia <pablo.mejia@cctechnol.com>
  * Devices: [Access I/O] PC-104 AIO12-8 (aio_aio12_8),
  *   [Access I/O] PC-104 AI12-8 (aio_ai12_8),
- *   [Access I/O] PC-104 AO12-8 (aio_ao12_8)
+ *   [Access I/O] PC-104 AO12-4 (aio_ao12_4)
  * Status: experimental
  *
  * Configuration Options:
@@ -100,7 +100,7 @@ static const struct aio12_8_boardtype board_types[] = {
 		.name		= "aio_ai12_8",
 		.has_ai		= 1,
 	}, {
-		.name		= "aio_ao12_8",
+		.name		= "aio_ao12_4",
 		.has_ao		= 1,
 	},
 };
