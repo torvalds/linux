@@ -407,7 +407,7 @@ struct host_if_msg {
 };
 
 /*Struct containg joinParam of each AP*/
-typedef struct _tstrJoinBssParam {
+struct join_bss_param {
 	BSSTYPE_T bss_type;
 	u8 dtim_period;
 	u16 beacon_period;
@@ -435,7 +435,7 @@ typedef struct _tstrJoinBssParam {
 	u8 au8Duration[4];
 	u8 au8Interval[4];
 	u8 au8StartTime[4];
-} tstrJoinBssParam;
+};
 
 typedef enum {
 	SCAN_TIMER = 0,
@@ -1438,7 +1438,7 @@ static s32 Handle_Connect(struct host_if_drv *drvHandler,
 	u32 u32WidsCount = 0, dummyval = 0;
 	/* char passphrase[] = "12345678"; */
 	u8 *pu8CurrByte = NULL;
-	tstrJoinBssParam *ptstrJoinBssParam;
+	struct join_bss_param *ptstrJoinBssParam;
 
 	PRINT_D(GENERIC_DBG, "Handling connect request\n");
 
@@ -1453,7 +1453,7 @@ static s32 Handle_Connect(struct host_if_drv *drvHandler,
 
 	PRINT_INFO(HOSTINF_DBG, "Saving connection parameters in global structure\n");
 
-	ptstrJoinBssParam = (tstrJoinBssParam *)pstrHostIFconnectAttr->pJoinParams;
+	ptstrJoinBssParam = (struct join_bss_param *)pstrHostIFconnectAttr->pJoinParams;
 	if (ptstrJoinBssParam == NULL) {
 		PRINT_ER("Required BSSID not found\n");
 		s32Error = -ENOENT;
@@ -6700,7 +6700,7 @@ s32 host_int_setup_multicast_filter(struct host_if_drv *hWFIDrv, bool bIsEnabled
  *  @version		1.0**/
 static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 {
-	tstrJoinBssParam *pNewJoinBssParam = NULL;
+	struct join_bss_param *pNewJoinBssParam = NULL;
 	u8 *pu8IEs;
 	u16 u16IEsLen;
 	u16 index = 0;
@@ -6716,9 +6716,9 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 	pu8IEs = ptstrNetworkInfo->pu8IEs;
 	u16IEsLen = ptstrNetworkInfo->u16IEsLen;
 
-	pNewJoinBssParam = kmalloc(sizeof(tstrJoinBssParam), GFP_KERNEL);
+	pNewJoinBssParam = kmalloc(sizeof(struct join_bss_param), GFP_KERNEL);
 	if (pNewJoinBssParam != NULL) {
-		memset(pNewJoinBssParam, 0, sizeof(tstrJoinBssParam));
+		memset(pNewJoinBssParam, 0, sizeof(struct join_bss_param));
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->u8DtimPeriod;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->u16BeaconPeriod;
 		pNewJoinBssParam->cap_info = ptstrNetworkInfo->u16CapInfo;
@@ -6902,8 +6902,8 @@ static void *host_int_ParseJoinBssParam(tstrNetworkInfo *ptstrNetworkInfo)
 
 void host_int_freeJoinParams(void *pJoinParams)
 {
-	if ((tstrJoinBssParam *)pJoinParams != NULL)
-		kfree((tstrJoinBssParam *)pJoinParams);
+	if ((struct bss_param *)pJoinParams != NULL)
+		kfree((struct bss_param *)pJoinParams);
 	else
 		PRINT_ER("Unable to FREE null pointer\n");
 }
