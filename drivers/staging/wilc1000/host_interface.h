@@ -72,8 +72,7 @@ typedef struct _tstrStatistics {
 
 } tstrStatistics;
 
-
-typedef enum {
+enum host_if_state {
 	HOST_IF_IDLE			= 0,
 	HOST_IF_SCANNING		= 1,
 	HOST_IF_CONNECTING		= 2,
@@ -81,7 +80,7 @@ typedef enum {
 	HOST_IF_CONNECTED		= 4,
 	HOST_IF_P2P_LISTEN		= 5,
 	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
-} tenuHostIFstate;
+};
 
 struct host_if_pmkid {
 	u8 bssid[ETH_ALEN];
@@ -313,7 +312,7 @@ struct host_if_drv {
 	u64 u64P2p_MgmtTimeout;
 	u8 u8P2PConnect;
 
-	tenuHostIFstate enuHostIFstate;
+	enum host_if_state enuHostIFstate;
 
 	u8 au8AssociatedBSSID[ETH_ALEN];
 	struct cfg_param_val strCfgValues;
