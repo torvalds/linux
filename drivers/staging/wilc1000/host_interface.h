@@ -153,10 +153,12 @@ struct found_net_info {
 	s8 s8rssi;
 };
 
-typedef enum {SCAN_EVENT_NETWORK_FOUND  = 0,
-	      SCAN_EVENT_DONE = 1,
-	      SCAN_EVENT_ABORTED = 2,
-	      SCAN_EVENT_FORCE_32BIT  = 0xFFFFFFFF} tenuScanEvent;
+enum scan_event {
+	SCAN_EVENT_NETWORK_FOUND	= 0,
+	SCAN_EVENT_DONE			= 1,
+	SCAN_EVENT_ABORTED		= 2,
+	SCAN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
+};
 
 typedef enum {
 	CONN_DISCONN_EVENT_CONN_RESP		= 0,
@@ -173,7 +175,8 @@ enum KEY_TYPE {
 
 
 /*Scan callBack function definition*/
-typedef void (*wilc_scan_result)(tenuScanEvent, tstrNetworkInfo *, void *, void *);
+typedef void (*wilc_scan_result)(enum scan_event, tstrNetworkInfo *,
+				  void *, void *);
 
 /*Connect callBack function definition*/
 typedef void (*wilc_connect_result)(tenuConnDisconnEvent,
@@ -1171,7 +1174,7 @@ s32 host_int_frame_register(struct host_if_drv *hWFIDrv, u16 u16FrameType, bool 
 int host_int_set_wfi_drv_handler(struct host_if_drv *address);
 int host_int_set_operation_mode(struct host_if_drv *wfi_drv, u32 mode);
 
-static s32 Handle_ScanDone(struct host_if_drv *drvHandler, tenuScanEvent enuEvent);
+static s32 Handle_ScanDone(struct host_if_drv *drvHandler, enum scan_event enuEvent);
 
 void host_int_freeJoinParams(void *pJoinParams);
 

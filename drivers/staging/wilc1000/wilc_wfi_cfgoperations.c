@@ -357,7 +357,7 @@ void add_network_to_shadow(tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, vo
  *  @date
  *  @version	1.0
  */
-static void CfgScanResult(tenuScanEvent enuScanEvent, tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
+static void CfgScanResult(enum scan_event enuScanEvent, tstrNetworkInfo *pstrNetworkInfo, void *pUserVoid, void *pJoinParams)
 {
 	struct wilc_priv *priv;
 	struct wiphy *wiphy;

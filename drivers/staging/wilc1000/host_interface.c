@@ -1371,7 +1371,7 @@ ERRORHANDLER:
  *  @date
  *  @version	1.0
  */
-static s32 Handle_ScanDone(struct host_if_drv *drvHandler, tenuScanEvent enuEvent)
+static s32 Handle_ScanDone(struct host_if_drv *drvHandler, enum scan_event enuEvent)
 {
 	s32 s32Error = 0;
 
