@@ -7,14 +7,6 @@
 
 int __init bcm63xx_spi_register(void);
 
-struct bcm63xx_spi_pdata {
-	unsigned int	fifo_size;
-	unsigned int	msg_type_shift;
-	unsigned int	msg_ctl_width;
-	int		bus_num;
-	int		num_chipselect;
-};
-
 enum bcm63xx_regs_spi {
 	SPI_CMD,
 	SPI_INT_STATUS,
@@ -28,6 +20,9 @@ enum bcm63xx_regs_spi {
 	SPI_MSG_CTL,
 	SPI_MSG_DATA,
 	SPI_RX_DATA,
+	SPI_MSG_TYPE_SHIFT,
+	SPI_MSG_CTL_WIDTH,
+	SPI_MSG_DATA_SIZE,
 };
 
 #define __GEN_SPI_REGS_TABLE(__cpu)					\
@@ -42,7 +37,10 @@ enum bcm63xx_regs_spi {
 	[SPI_RX_TAIL]		= SPI_## __cpu ##_RX_TAIL,		\
 	[SPI_MSG_CTL]		= SPI_## __cpu ##_MSG_CTL,		\
 	[SPI_MSG_DATA]		= SPI_## __cpu ##_MSG_DATA,		\
-	[SPI_RX_DATA]		= SPI_## __cpu ##_RX_DATA,
+	[SPI_RX_DATA]		= SPI_## __cpu ##_RX_DATA,		\
+	[SPI_MSG_TYPE_SHIFT]	= SPI_## __cpu ##_MSG_TYPE_SHIFT,	\
+	[SPI_MSG_CTL_WIDTH]	= SPI_## __cpu ##_MSG_CTL_WIDTH,	\
+	[SPI_MSG_DATA_SIZE]	= SPI_## __cpu ##_MSG_DATA_SIZE,
 
 static inline unsigned long bcm63xx_spireg(enum bcm63xx_regs_spi reg)
 {
