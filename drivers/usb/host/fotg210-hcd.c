@@ -330,17 +330,22 @@ struct debug_buffer {
 	size_t alloc_size;
 };
 
-#define speed_char(info1)({ char tmp; \
-		switch (info1 & (3 << 12)) { \
-		case QH_FULL_SPEED:	\
-			tmp = 'f'; break; \
-		case QH_LOW_SPEED:	\
-			tmp = 'l'; break; \
-		case QH_HIGH_SPEED:	\
-			tmp = 'h'; break; \
-		default:		\
-			tmp = '?'; break; \
-		} tmp; })
+static inline char speed_char(u32 scratch)
+{
+	switch (scratch & (3 << 12)) {
+	case QH_FULL_SPEED:
+		return 'f';
+
+	case QH_LOW_SPEED:
+		return 'l';
+
+	case QH_HIGH_SPEED:
+		return 'h';
+
+	default:
+		return '?';
+	}
+}
 
 static inline char token_mark(struct fotg210_hcd *fotg210, __hc32 token)
 {
