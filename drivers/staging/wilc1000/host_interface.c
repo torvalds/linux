@@ -406,12 +406,6 @@ struct host_if_msg {
 	struct host_if_drv *drv;
 };
 
-typedef struct _tstrWidJoinReqExt {
-	char SSID[MAX_SSID_LEN];
-	u8 u8channel;
-	u8 BSSID[6];
-} tstrWidJoinReqExt;
-
 /*Struct containg joinParam of each AP*/
 typedef struct _tstrJoinBssParam {
 	BSSTYPE_T bss_type;
