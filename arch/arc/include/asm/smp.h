@@ -45,12 +45,16 @@ extern int smp_ipi_irq_setup(int cpu, int irq);
  * struct plat_smp_ops	- SMP callbacks provided by platform to ARC SMP
  *
  * @info:		SoC SMP specific info for /proc/cpuinfo etc
+ * @init_early_smp:	A SMP specific h/w block can init itself
+ * 			Could be common across platforms so not covered by
+ * 			mach_desc->init_early()
  * @cpu_kick:		For Master to kickstart a cpu (optionally at a PC)
  * @ipi_send:		To send IPI to a @cpu
  * @ips_clear:		To clear IPI received at @irq
  */
 struct plat_smp_ops {
 	const char 	*info;
+	void		(*init_early_smp)(void);
 	void		(*cpu_kick)(int cpu, unsigned long pc);
 	void		(*ipi_send)(int cpu);
 	void		(*ipi_clear)(int irq);

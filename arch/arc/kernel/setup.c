@@ -411,8 +411,9 @@ void __init setup_arch(char **cmdline_p)
 	if (machine_desc->init_early)
 		machine_desc->init_early();
 
-	setup_processor();
 	smp_init_cpus();
+
+	setup_processor();
 	setup_arch_memory();
 
 	/* copy flat DT out of .init and then unflatten it */

@@ -42,8 +42,13 @@ void __init smp_prepare_boot_cpu(void)
 }
 
 /*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
+ * Called from setup_arch() before calling setup_processor()
+ *
+ * - Initialise the CPU possible map early - this describes the CPUs
+ *   which may be present or become present in the system.
+ * - Call early smp init hook. This can initialize a specific multi-core
+ *   IP which is say common to several platforms (hence not part of
+ *   platform specific int_early() hook)
  */
 void __init smp_init_cpus(void)
 {
@@ -51,6 +56,9 @@ void __init smp_init_cpus(void)
 
 	for (i = 0; i < NR_CPUS; i++)
 		set_cpu_possible(i, true);
+
+	if (plat_smp_ops.init_early_smp)
+		plat_smp_ops.init_early_smp();
 }
 
 /* called from init ( ) =>  process 1 */
