@@ -24,9 +24,9 @@
 #include <asm/ctl_reg.h>
 
 struct mcck_struct {
-	int kill_task;
-	int channel_report;
-	int warning;
+	unsigned int kill_task : 1;
+	unsigned int channel_report : 1;
+	unsigned int warning : 1;
 	unsigned int etr_queue : 1;
 	unsigned int stp_queue : 1;
 	unsigned long mcck_code;
