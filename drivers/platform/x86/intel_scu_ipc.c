@@ -625,7 +625,10 @@ static void ipc_remove(struct pci_dev *pdev)
 {
 	struct intel_scu_ipc_dev *scu = pci_get_drvdata(pdev);
 
+	mutex_lock(&ipclock);
 	scu->dev = NULL;
+	mutex_unlock(&ipclock);
+
 	iounmap(scu->i2c_base);
 	intel_scu_devices_destroy();
 }
