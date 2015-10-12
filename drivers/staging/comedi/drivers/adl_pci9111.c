@@ -1,68 +1,52 @@
 /*
-
-comedi/drivers/adl_pci9111.c
-
-Hardware driver for PCI9111 ADLink cards:
-
-PCI-9111HR
-
-Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-*/
+ * adl_pci9111.c
+ * Hardware driver for PCI9111 ADLink cards: PCI-9111HR
+ * Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-Driver: adl_pci9111
-Description: Adlink PCI-9111HR
-Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
-Devices: [ADLink] PCI-9111HR (adl_pci9111)
-Status: experimental
-
-Supports:
-
-	- ai_insn read
-	- ao_insn read/write
-	- di_insn read
-	- do_insn read/write
-	- ai_do_cmd mode with the following sources:
-
-	- start_src		TRIG_NOW
-	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
-	- convert_src				TRIG_TIMER	TRIG_EXT
-	- scan_end_src		TRIG_COUNT
-	- stop_src		TRIG_COUNT	TRIG_NONE
-
-The scanned channels must be consecutive and start from 0. They must
-all have the same range and aref.
-
-Configuration options: not applicable, uses PCI auto config
-*/
+ * Driver: adl_pci9111
+ * Description: Adlink PCI-9111HR
+ * Devices: [ADLink] PCI-9111HR (adl_pci9111)
+ * Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
+ * Status: experimental
+ *
+ * Configuration options: not applicable, uses PCI auto config
+ *
+ * Supports:
+ * - ai_insn read
+ * - ao_insn read/write
+ * - di_insn read
+ * - do_insn read/write
+ * - ai_do_cmd mode with the following sources:
+ *	- start_src		TRIG_NOW
+ *	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
+ *	- convert_src				TRIG_TIMER	TRIG_EXT
+ *	- scan_end_src		TRIG_COUNT
+ *	- stop_src		TRIG_COUNT	TRIG_NONE
+ *
+ * The scanned channels must be consecutive and start from 0. They must
+ * all have the same range and aref.
+ */
 
 /*
-CHANGELOG:
-
-2005/02/17 Extend AI streaming capabilities. Now, scan_begin_arg can be
-a multiple of chanlist_len*convert_arg.
-2002/02/19 Fixed the two's complement conversion in pci9111_(hr_)ai_get_data.
-2002/02/18 Added external trigger support for analog input.
-
-TODO:
-
-	- Really test implemented functionality.
-	- Add support for the PCI-9111DG with a probe routine to identify
-	  the card type (perhaps with the help of the channel number readback
-	  of the A/D Data register).
-	- Add external multiplexer support.
-
-*/
+ * TODO:
+ * - Really test implemented functionality.
+ * - Add support for the PCI-9111DG with a probe routine to identify
+ *   the card type (perhaps with the help of the channel number readback
+ *   of the A/D Data register).
+ * - Add external multiplexer support.
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
