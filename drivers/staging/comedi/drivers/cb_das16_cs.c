@@ -100,6 +100,7 @@ struct das16cs_board {
 	const char *name;
 	int device_id;
 	unsigned int has_ao:1;
+	unsigned int has_4dio:1;
 };
 
 static const struct das16cs_board das16cs_boards[] = {
@@ -107,6 +108,7 @@ static const struct das16cs_board das16cs_boards[] = {
 		.name		= "PC-CARD DAS16/16-AO",
 		.device_id	= 0x0039,
 		.has_ao		= 1,
+		.has_4dio	= 1,
 	}, {
 		.name		= "PCM-DAS16s/16",
 		.device_id	= 0x4009,
@@ -407,11 +409,11 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 8;
+	s->n_chan	= board->has_4dio ? 4 : 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= das16cs_dio_insn_bits;
