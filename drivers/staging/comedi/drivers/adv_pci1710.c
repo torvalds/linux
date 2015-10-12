@@ -226,8 +226,8 @@ struct pci1710_private {
 	unsigned int max_samples;
 	unsigned int ctrl;	/* control register value */
 	unsigned int ctrl_ext;	/* used to switch from TRIG_EXT to TRIG_xxx */
+	unsigned int mux_ext;	/* used to set the channel interval to scan */
 	unsigned char ai_et;
-	unsigned int ai_et_MuxVal;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
@@ -331,8 +331,8 @@ static void pci171x_ai_setup_chanlist(struct comedi_device *dev,
 		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 
 	/* select channel interval to scan */
-	devpriv->ai_et_MuxVal = first_chan | (last_chan << 8);
-	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171X_MUX_REG);
+	devpriv->mux_ext = first_chan | (last_chan << 8);
+	outw(devpriv->mux_ext, dev->iobase + PCI171X_MUX_REG);
 }
 
 static int pci171x_ai_eoc(struct comedi_device *dev,
@@ -623,7 +623,8 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		devpriv->ctrl = devpriv->ctrl_ext;
 		outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 		outb(0, dev->iobase + PCI171X_CLRINT_REG);
-		outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171X_MUX_REG);
+		/* no sample on this interrupt; reset the channel interval */
+		outw(devpriv->mux_ext, dev->iobase + PCI171X_MUX_REG);
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 		return IRQ_HANDLED;
