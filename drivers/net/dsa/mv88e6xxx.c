@@ -2051,6 +2051,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
 			else
 				reg |= PORT_CONTROL_FRAME_MODE_DSA;
+			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
+				PORT_CONTROL_FORWARD_UNKNOWN_MC;
 		}
 
 		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
