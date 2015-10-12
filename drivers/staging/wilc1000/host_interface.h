@@ -236,7 +236,7 @@ struct user_scan_req {
 	tstrFoundNetworkInfo astrFoundNetworkInfo[MAX_NUM_SCANNED_NETWORKS];
 };
 
-typedef struct {
+struct user_conn_req {
 	u8 *pu8bssid;
 	u8 *pu8ssid;
 	u8 u8security;
@@ -249,7 +249,7 @@ typedef struct {
 	bool IsHTCapable;
 	/* User specific parameter to be delivered through the Connect User Callback function */
 	void *u32UserConnectPvoid;
-} tstrWILC_UsrConnReq;
+};
 
 struct drv_handler {
 	u32 u32Address;
@@ -305,9 +305,7 @@ enum p2p_listen_state {
 
 struct host_if_drv {
 	struct user_scan_req strWILC_UsrScanReq;
-
-	/* Connect User structure */
-	tstrWILC_UsrConnReq strWILC_UsrConnReq;
+	struct user_conn_req strWILC_UsrConnReq;
 
 	/*Remain on channel struvture*/
 	struct remain_ch strHostIfRemainOnChan;
