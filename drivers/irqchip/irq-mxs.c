@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2014 Oleksij Rempel <linux@rempel-privat.de>
+ *	Add Alphascale ASM9260 support.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +30,8 @@
 #include <linux/stmp_device.h>
 #include <asm/exception.h>
 
+#include "alphascale_asm9260-icoll.h"
+
 /*
  * this device provide 4 offsets for each register:
  * 0x0 - plain read write mode
@@ -49,16 +53,40 @@
 
 #define ICOLL_NUM_IRQS		128
 
+enum icoll_type {
+	ICOLL,
+	ASM9260_ICOLL,
+};
+
 struct icoll_priv {
 	void __iomem *vector;
 	void __iomem *levelack;
 	void __iomem *ctrl;
 	void __iomem *stat;
 	void __iomem *intr;
+	void __iomem *clear;
+	enum icoll_type type;
 };
 
 static struct icoll_priv icoll_priv;
 static struct irq_domain *icoll_domain;
+
+/* calculate bit offset depending on number of intterupt per register */
+static u32 icoll_intr_bitshift(struct irq_data *d, u32 bit)
+{
+	/*
+	 * mask lower part of hwirq to convert it
+	 * in 0, 1, 2 or 3 and then multiply it by 8 (or shift by 3)
+	 */
+	return bit << ((d->hwirq & 3) << 3);
+}
+
+/* calculate mem offset depending on number of intterupt per register */
+static void __iomem *icoll_intr_reg(struct irq_data *d)
+{
+	/* offset = hwirq / intr_per_reg * 0x10 */
+	return icoll_priv.intr + ((d->hwirq >> 2) * 0x10);
+}
 
 static void icoll_ack_irq(struct irq_data *d)
 {
@@ -83,10 +111,32 @@ static void icoll_unmask_irq(struct irq_data *d)
 			icoll_priv.intr + SET_REG + HW_ICOLL_INTERRUPTn(d->hwirq));
 }
 
+static void asm9260_mask_irq(struct irq_data *d)
+{
+	__raw_writel(icoll_intr_bitshift(d, BM_ICOLL_INTR_ENABLE),
+			icoll_intr_reg(d) + CLR_REG);
+}
+
+static void asm9260_unmask_irq(struct irq_data *d)
+{
+	__raw_writel(ASM9260_BM_CLEAR_BIT(d->hwirq),
+		     icoll_priv.clear +
+		     ASM9260_HW_ICOLL_CLEARn(d->hwirq));
+
+	__raw_writel(icoll_intr_bitshift(d, BM_ICOLL_INTR_ENABLE),
+			icoll_intr_reg(d) + SET_REG);
+}
+
 static struct irq_chip mxs_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = icoll_mask_irq,
 	.irq_unmask = icoll_unmask_irq,
+};
+
+static struct irq_chip asm9260_icoll_chip = {
+	.irq_ack = icoll_ack_irq,
+	.irq_mask = asm9260_mask_irq,
+	.irq_unmask = asm9260_unmask_irq,
 };
 
 asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
@@ -101,7 +151,14 @@ asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
 static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				irq_hw_number_t hw)
 {
-	irq_set_chip_and_handler(virq, &mxs_icoll_chip, handle_level_irq);
+	struct irq_chip *chip;
+
+	if (icoll_priv.type == ICOLL)
+		chip = &mxs_icoll_chip;
+	else
+		chip = &asm9260_icoll_chip;
+
+	irq_set_chip_and_handler(virq, chip, handle_level_irq);
 
 	return 0;
 }
@@ -136,12 +193,15 @@ static int __init icoll_of_init(struct device_node *np,
 {
 	void __iomem *icoll_base;
 
+	icoll_priv.type = ICOLL;
+
 	icoll_base		= icoll_init_iobase(np);
 	icoll_priv.vector	= icoll_base + HW_ICOLL_VECTOR;
 	icoll_priv.levelack	= icoll_base + HW_ICOLL_LEVELACK;
 	icoll_priv.ctrl		= icoll_base + HW_ICOLL_CTRL;
 	icoll_priv.stat		= icoll_base + HW_ICOLL_STAT_OFFSET;
 	icoll_priv.intr		= icoll_base + HW_ICOLL_INTERRUPT0;
+	icoll_priv.clear	= NULL;
 
 	/*
 	 * Interrupt Collector reset, which initializes the priority
@@ -154,3 +214,34 @@ static int __init icoll_of_init(struct device_node *np,
 	return 0;
 }
 IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);
+
+static int __init asm9260_of_init(struct device_node *np,
+			  struct device_node *interrupt_parent)
+{
+	void __iomem *icoll_base;
+	int i;
+
+	icoll_priv.type = ASM9260_ICOLL;
+
+	icoll_base = icoll_init_iobase(np);
+	icoll_priv.vector	= icoll_base + ASM9260_HW_ICOLL_VECTOR;
+	icoll_priv.levelack	= icoll_base + ASM9260_HW_ICOLL_LEVELACK;
+	icoll_priv.ctrl		= icoll_base + ASM9260_HW_ICOLL_CTRL;
+	icoll_priv.stat		= icoll_base + ASM9260_HW_ICOLL_STAT_OFFSET;
+	icoll_priv.intr		= icoll_base + ASM9260_HW_ICOLL_INTERRUPT0;
+	icoll_priv.clear	= icoll_base + ASM9260_HW_ICOLL_CLEAR0;
+
+	writel_relaxed(ASM9260_BM_CTRL_IRQ_ENABLE,
+			icoll_priv.ctrl);
+	/*
+	 * ASM9260 don't provide reset bit. So, we need to set level 0
+	 * manually.
+	 */
+	for (i = 0; i < 16 * 0x10; i += 0x10)
+		writel(0, icoll_priv.intr + i);
+
+	icoll_add_domain(np, ASM9260_NUM_IRQS);
+
+	return 0;
+}
+IRQCHIP_DECLARE(asm9260, "alphascale,asm9260-icoll", asm9260_of_init);
