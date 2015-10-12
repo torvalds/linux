@@ -2567,14 +2567,17 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		 * sufficient (unless there have been 2**32 detaches in the
 		 * meantime!), but check the subdevice pointer as well just in
 		 * case.
+		 *
+		 * Also check the subdevice is still in a suitable state to
+		 * become non-busy in case it changed behind our back.
 		 */
 		new_s = comedi_file_read_subdevice(file);
 		if (dev->attached && old_detach_count == dev->detach_count &&
-		    s == new_s && new_s->async == async) {
-			if (become_nonbusy ||
-			    comedi_buf_read_n_available(s) == 0)
-				do_become_nonbusy(dev, s);
-		}
+		    s == new_s && new_s->async == async && s->busy == file &&
+		    !(async->cmd.flags & CMDF_WRITE) &&
+		    !comedi_is_subdevice_running(s) &&
+		    comedi_buf_read_n_available(s) == 0)
+			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
 out:
