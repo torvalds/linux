@@ -121,7 +121,7 @@ struct wilc_priv {
 	spinlock_t lock;
 	struct net_device *dev;
 	struct napi_struct napi;
-	tstrWILC_WFIDrv *hWILCWFIDrv;
+	struct host_if_drv *hWILCWFIDrv;
 	struct host_if_pmkid_attr pmkid_list;
 	struct WILC_WFI_stats netstats;
 	u8 WILC_WFI_wep_default;
@@ -151,7 +151,7 @@ typedef struct {
 typedef struct {
 	u8 aSrcAddress[ETH_ALEN];
 	u8 aBSSID[ETH_ALEN];
-	tstrWILC_WFIDrv *drvHandler;
+	struct host_if_drv *drvHandler;
 	struct net_device *wilc_netdev;
 } tstrInterfaceInfo;
 typedef struct {

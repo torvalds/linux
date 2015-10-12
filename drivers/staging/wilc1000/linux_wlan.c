@@ -132,7 +132,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 {
 	struct in_ifaddr *dev_iface = (struct in_ifaddr *)ptr;
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	struct net_device *dev;
 	u8 *pIP_Add_buff;
 	perInterface_wlan_t *nic;
@@ -159,7 +159,7 @@ static int dev_state_ev_handler(struct notifier_block *this, unsigned long event
 		PRINT_D(GENERIC_DBG, "No Wireless Priv\n");
 		return NOTIFY_DONE;
 	}
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 	nic = netdev_priv(dev);
 	if (nic == NULL || pstrWFIDrv == NULL) {
 		PRINT_D(GENERIC_DBG, "No Wireless Priv\n");
@@ -633,13 +633,13 @@ static int linux_wlan_init_test_config(struct net_device *dev, linux_wlan_t *p_n
 	unsigned char mac_add[] = {0x00, 0x80, 0xC2, 0x5E, 0xa2, 0xff};
 
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 
 	PRINT_D(TX_DBG, "Start configuring Firmware\n");
 	get_random_bytes(&mac_add[5], 1);
 	get_random_bytes(&mac_add[4], 1);
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 	PRINT_D(INIT_DBG, "Host = %p\n", pstrWFIDrv);
 
 	PRINT_D(INIT_DBG, "MAC address is : %02x-%02x-%02x-%02x-%02x-%02x\n", mac_add[0], mac_add[1], mac_add[2], mac_add[3], mac_add[4], mac_add[5]);
@@ -1364,11 +1364,11 @@ static void wilc_set_multicast_list(struct net_device *dev)
 
 	struct netdev_hw_addr *ha;
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	int i = 0;
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	if (!dev)
 		return;
@@ -1497,7 +1497,7 @@ int mac_close(struct net_device *ndev)
 {
 	struct wilc_priv *priv;
 	perInterface_wlan_t *nic;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 
 	nic = netdev_priv(ndev);
 
@@ -1513,7 +1513,7 @@ int mac_close(struct net_device *ndev)
 		return 0;
 	}
 
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	PRINT_D(GENERIC_DBG, "Mac close\n");
 

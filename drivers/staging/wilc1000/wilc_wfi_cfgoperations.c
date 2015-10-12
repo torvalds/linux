@@ -539,14 +539,14 @@ static void CfgConnectResult(tenuConnDisconnEvent enuConnDisconnEvent,
 {
 	struct wilc_priv *priv;
 	struct net_device *dev;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	u8 NullBssid[ETH_ALEN] = {0};
 
 	connecting = 0;
 
 	priv = (struct wilc_priv *)pUserVoid;
 	dev = priv->dev;
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	if (enuConnDisconnEvent == CONN_DISCONN_EVENT_CONN_RESP) {
 		/*Initialization*/
@@ -792,13 +792,13 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	char *pcwpa_version = NULL;
 
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	tstrNetworkInfo *pstrNetworkInfo = NULL;
 
 
 	connecting = 1;
 	priv = wiphy_priv(wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)(priv->hWILCWFIDrv);
+	pstrWFIDrv = (struct host_if_drv *)(priv->hWILCWFIDrv);
 
 	host_int_set_wfi_drv_handler(priv->hWILCWFIDrv);
 
@@ -1034,14 +1034,14 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev, u16 reason_co
 {
 	s32 s32Error = 0;
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	u8 NullBssid[ETH_ALEN] = {0};
 
 	connecting = 0;
 	priv = wiphy_priv(wiphy);
 
 	/*Invalidate u8WLANChannel value on wlan0 disconnect*/
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 	if (!pstrWFIDrv->u8P2PConnect)
 		u8WLANChannel = INVALID_CHANNEL;
 	linux_wlan_set_bssid(priv->dev, NullBssid);
@@ -1948,12 +1948,12 @@ void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
 
 	struct wilc_priv *priv;
 	u32 header, pkt_offset;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	u32 i = 0;
 	s32 s32Freq;
 
 	priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	/* Get WILC header */
 	memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
@@ -2249,14 +2249,14 @@ static int mgmt_tx(struct wiphy *wiphy,
 	struct p2p_mgmt_data *mgmt_tx;
 	struct wilc_priv *priv;
 	s32 s32Error = 0;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 	u32 i;
 	perInterface_wlan_t *nic;
 	u32 buf_len = len + sizeof(u8P2P_vendorspec) + sizeof(u8P2Plocalrandom);
 
 	nic = netdev_priv(wdev->netdev);
 	priv = wiphy_priv(wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 	*cookie = (unsigned long)buf;
 	priv->u64tx_cookie = *cookie;
@@ -2394,10 +2394,10 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 			       u64 cookie)
 {
 	struct wilc_priv *priv;
-	tstrWILC_WFIDrv *pstrWFIDrv;
+	struct host_if_drv *pstrWFIDrv;
 
 	priv = wiphy_priv(wiphy);
-	pstrWFIDrv = (tstrWILC_WFIDrv *)priv->hWILCWFIDrv;
+	pstrWFIDrv = (struct host_if_drv *)priv->hWILCWFIDrv;
 
 
 	PRINT_D(GENERIC_DBG, "Tx Cancel wait :%lu\n", jiffies);
