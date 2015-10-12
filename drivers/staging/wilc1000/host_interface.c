@@ -425,7 +425,6 @@ struct join_bss_param {
 	u8 rsn_pcip_policy[3];
 	u8 rsn_auth_policy[3];
 	u8 rsn_cap[2];
-	struct _tstrJoinParam *nextJoinBss;
 	u32 tsf;
 	u8 u8NoaEnbaled;
 	u8 u8OppEnable;
