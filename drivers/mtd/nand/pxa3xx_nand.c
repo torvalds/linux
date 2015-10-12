@@ -1890,21 +1890,21 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
+static int pxa3xx_nand_suspend(struct device *dev)
 {
-	struct pxa3xx_nand_info *info = platform_get_drvdata(pdev);
+	struct pxa3xx_nand_info *info = dev_get_drvdata(dev);
 
 	if (info->state) {
-		dev_err(&pdev->dev, "driver busy, state = %d\n", info->state);
+		dev_err(dev, "driver busy, state = %d\n", info->state);
 		return -EAGAIN;
 	}
 
 	return 0;
 }
 
-static int pxa3xx_nand_resume(struct platform_device *pdev)
+static int pxa3xx_nand_resume(struct device *dev)
 {
-	struct pxa3xx_nand_info *info = platform_get_drvdata(pdev);
+	struct pxa3xx_nand_info *info = dev_get_drvdata(dev);
 
 	/* We don't want to handle interrupt without calling mtd routine */
 	disable_int(info, NDCR_INT_MASK);
@@ -1931,15 +1931,19 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 #define pxa3xx_nand_resume	NULL
 #endif
 
+static const struct dev_pm_ops pxa3xx_nand_pm_ops = {
+	.suspend	= pxa3xx_nand_suspend,
+	.resume		= pxa3xx_nand_resume,
+};
+
 static struct platform_driver pxa3xx_nand_driver = {
 	.driver = {
 		.name	= "pxa3xx-nand",
 		.of_match_table = pxa3xx_nand_dt_ids,
+		.pm	= &pxa3xx_nand_pm_ops,
 	},
 	.probe		= pxa3xx_nand_probe,
 	.remove		= pxa3xx_nand_remove,
-	.suspend	= pxa3xx_nand_suspend,
-	.resume		= pxa3xx_nand_resume,
 };
 
 module_platform_driver(pxa3xx_nand_driver);
