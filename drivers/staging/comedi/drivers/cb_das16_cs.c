@@ -293,6 +293,43 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int das16cs_counter_insn_config(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
+{
+	struct das16cs_private *devpriv = dev->private;
+
+	switch (data[0]) {
+	case INSN_CONFIG_SET_CLOCK_SRC:
+		switch (data[1]) {
+		case 0:	/* internal 100 kHz */
+			devpriv->status2 |= DAS16CS_MISC2_CTR1;
+			break;
+		case 1:	/* external */
+			devpriv->status2 &= ~DAS16CS_MISC2_CTR1;
+			break;
+		default:
+			return -EINVAL;
+		}
+		outw(devpriv->status2, dev->iobase + DAS16CS_MISC2_REG);
+		break;
+	case INSN_CONFIG_GET_CLOCK_SRC:
+		if (devpriv->status2 & DAS16CS_MISC2_CTR1) {
+			data[1] = 0;
+			data[2] = I8254_OSC_BASE_100KHZ;
+		} else {
+			data[1] = 1;
+			data[2] = 0;	/* unknown */
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return insn->n;
+}
+
 static const void *das16cs_find_boardinfo(struct comedi_device *dev,
 					  struct pcmcia_device *link)
 {
@@ -340,7 +377,7 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	if (!dev->pacer)
 		return -ENOMEM;
 
-	ret = comedi_alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
 
@@ -379,6 +416,16 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= das16cs_dio_insn_bits;
 	s->insn_config	= das16cs_dio_insn_config;
+
+	/* Counter subdevice (8254) */
+	s = &dev->subdevices[3];
+	comedi_8254_subdevice_init(s, dev->pacer);
+
+	dev->pacer->insn_config = das16cs_counter_insn_config;
+
+	/* counters 1 and 2 are used internally for the pacer */
+	comedi_8254_set_busy(dev->pacer, 1, true);
+	comedi_8254_set_busy(dev->pacer, 2, true);
 
 	return 0;
 }
