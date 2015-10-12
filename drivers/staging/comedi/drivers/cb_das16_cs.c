@@ -46,6 +46,10 @@
  */
 #define DAS16CS_AI_DATA_REG		0x00
 #define DAS16CS_AI_MUX_REG		0x02
+#define DAS16CS_AI_MUX_HI_CHAN(x)	(((x) & 0xf) << 4)
+#define DAS16CS_AI_MUX_LO_CHAN(x)	(((x) & 0xf) << 0)
+#define DAS16CS_AI_MUX_SINGLE_CHAN(x)	(DAS16CS_AI_MUX_HI_CHAN(x) |	\
+					 DAS16CS_AI_MUX_LO_CHAN(x))
 #define DAS16CS_MISC1_REG		0x04
 #define DAS16CS_MISC2_REG		0x06
 #define DAS16CS_TIMER_BASE		0x08
@@ -111,7 +115,8 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	outw(chan, dev->iobase + DAS16CS_AI_MUX_REG);
+	outw(DAS16CS_AI_MUX_SINGLE_CHAN(chan),
+	     dev->iobase + DAS16CS_AI_MUX_REG);
 
 	devpriv->status1 &= ~0xf320;
 	devpriv->status1 |= (aref == AREF_DIFF) ? 0 : 0x0020;
