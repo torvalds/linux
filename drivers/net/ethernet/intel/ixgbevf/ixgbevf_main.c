@@ -2260,10 +2260,8 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	}
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
-		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
-		memcpy(netdev->perm_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
+		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
+		ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 	}
 
 	adapter->last_reset = jiffies;
@@ -2659,13 +2657,13 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 		else if (is_zero_ether_addr(adapter->hw.mac.addr))
 			dev_info(&pdev->dev,
 				 "MAC address not assigned by administrator.\n");
-		memcpy(netdev->dev_addr, hw->mac.addr, netdev->addr_len);
+		ether_addr_copy(netdev->dev_addr, hw->mac.addr);
 	}
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_info(&pdev->dev, "Assigning random MAC address\n");
 		eth_hw_addr_random(netdev);
-		memcpy(hw->mac.addr, netdev->dev_addr, netdev->addr_len);
+		ether_addr_copy(hw->mac.addr, netdev->dev_addr);
 	}
 
 	/* Enable dynamic interrupt throttling rates */
@@ -3695,8 +3693,8 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
+	ether_addr_copy(netdev->dev_addr, addr->sa_data);
+	ether_addr_copy(hw->mac.addr, addr->sa_data);
 
 	spin_lock_bh(&adapter->mbx_lock);
 
