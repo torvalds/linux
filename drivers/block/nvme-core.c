@@ -603,8 +603,8 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	struct nvme_iod *iod = ctx;
 	struct request *req = iod_get_private(iod);
 	struct nvme_cmd_info *cmd_rq = blk_mq_rq_to_pdu(req);
-
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
+	int error = 0;
 
 	if (unlikely(status)) {
 		if (!(status & NVME_SC_DNR || blk_noretry_request(req))
@@ -621,9 +621,11 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
 			if (cmd_rq->ctx == CMD_CTX_CANCELLED)
-				status = -EINTR;
+				error = -EINTR;
+			else
+				error = status;
 		} else {
-			status = nvme_error_status(status);
+			error = nvme_error_status(status);
 		}
 	}
 
@@ -635,7 +637,7 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (cmd_rq->aborted)
 		dev_warn(nvmeq->dev->dev,
 			"completing aborted command with status:%04x\n",
-			status);
+			error);
 
 	if (iod->nents) {
 		dma_unmap_sg(nvmeq->dev->dev, iod->sg, iod->nents,
@@ -649,7 +651,7 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 	}
 	nvme_free_iod(nvmeq->dev, iod);
 
-	blk_mq_complete_request(req, status);
+	blk_mq_complete_request(req, error);
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
