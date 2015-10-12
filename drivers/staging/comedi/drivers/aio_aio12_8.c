@@ -234,7 +234,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	if (board->ao_nchan) {
 		/* Analog output subdevice */
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_DIFF;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &aio_aio12_8_range;
