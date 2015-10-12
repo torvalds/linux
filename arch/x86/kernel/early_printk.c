@@ -195,14 +195,14 @@ static __init void early_serial_init(char *s)
 #ifdef CONFIG_PCI
 static void mem32_serial_out(unsigned long addr, int offset, int value)
 {
-	u32 *vaddr = (u32 *)addr;
+	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	writel(value, vaddr + offset);
 }
 
 static unsigned int mem32_serial_in(unsigned long addr, int offset)
 {
-	u32 *vaddr = (u32 *)addr;
+	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	return readl(vaddr + offset);
 }
