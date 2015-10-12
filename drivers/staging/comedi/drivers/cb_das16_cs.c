@@ -99,22 +99,20 @@
 struct das16cs_board {
 	const char *name;
 	int device_id;
-	int n_ao_chans;
+	unsigned int has_ao:1;
 };
 
 static const struct das16cs_board das16cs_boards[] = {
 	{
 		.name		= "PC-CARD DAS16/16-AO",
 		.device_id	= 0x0039,
-		.n_ao_chans	= 2,
+		.has_ao		= 1,
 	}, {
 		.name		= "PCM-DAS16s/16",
 		.device_id	= 0x4009,
-		.n_ao_chans	= 0,
 	}, {
 		.name		= "PC-CARD DAS16/16",
 		.device_id	= 0x0000,	/* unknown */
-		.n_ao_chans	= 0,
 	},
 };
 
@@ -357,10 +355,10 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (board->n_ao_chans) {
+	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= board->n_ao_chans;
+		s->n_chan	= 2;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_insn_write;
