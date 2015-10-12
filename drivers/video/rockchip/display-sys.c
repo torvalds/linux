@@ -649,10 +649,31 @@ struct rk_display_device
 		mutex_unlock(&allocated_dsp_lock);
 
 		if (new_dev->idx >= 0) {
-			new_dev->dev =
-			device_create(display_class, parent,
-				      MKDEV(0, 0), new_dev,
-				      "%s", new_dev->type);
+			struct list_head *pos, *head;
+			struct rk_display_device *dev;
+			int i = 0;
+
+			head = &main_display_device_list;
+			list_for_each_entry(dev, head, list) {
+				if (strcmp(dev->type, new_dev->type) == 0)
+					i++;
+			}
+			head = &aux_display_device_list;
+			list_for_each_entry(dev, head, list) {
+				if (strcmp(dev->type, new_dev->type) == 0)
+					i++;
+			}
+			if (i == 0)
+				new_dev->dev =
+				device_create(display_class, parent,
+					      MKDEV(0, 0), new_dev,
+					      "%s", new_dev->type);
+			else
+				new_dev->dev =
+				device_create(display_class, parent,
+					      MKDEV(0, 0), new_dev,
+					      "%s%d", new_dev->type, i);
+
 			if (!IS_ERR(new_dev->dev)) {
 				new_dev->parent = parent;
 				new_dev->driver = driver;
@@ -660,10 +681,6 @@ struct rk_display_device
 					new_dev->dev->driver = parent->driver;
 				mutex_init(&new_dev->lock);
 				/* Add new device to display device list. */
-				{
-				struct list_head *pos, *head;
-				struct rk_display_device *dev;
-
 				if (new_dev->property == DISPLAY_MAIN)
 					head = &main_display_device_list;
 				else
@@ -679,7 +696,6 @@ struct rk_display_device
 				}
 				list_add_tail(&new_dev->list, pos);
 				return new_dev;
-				}
 			}
 			mutex_lock(&allocated_dsp_lock);
 			idr_remove(&allocated_dsp, new_dev->idx);
