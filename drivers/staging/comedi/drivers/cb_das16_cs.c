@@ -1,36 +1,37 @@
 /*
-    comedi/drivers/das16cs.c
-    Driver for Computer Boards PC-CARD DAS16/16.
+ * cb_das16_cs.c
+ * Driver for Computer Boards PC-CARD DAS16/16.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000, 2001, 2002 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * PCMCIA support code for this driver is adapted from the dummy_cs.c
+ * driver of the Linux PCMCIA Card Services package.
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000, 2001, 2002 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    PCMCIA support code for this driver is adapted from the dummy_cs.c
-    driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-
-*/
 /*
-Driver: cb_das16_cs
-Description: Computer Boards PC-CARD DAS16/16
-Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs), PC-CARD DAS16/16-AO
-Author: ds
-Updated: Mon, 04 Nov 2002 20:04:21 -0800
-Status: experimental
-*/
+ * Driver: cb_das16_cs
+ * Description: Computer Boards PC-CARD DAS16/16
+ * Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs),
+ *   PC-CARD DAS16/16-AO
+ * Author: ds
+ * Updated: Mon, 04 Nov 2002 20:04:21 -0800
+ * Status: experimental
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
