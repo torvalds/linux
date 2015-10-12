@@ -1077,7 +1077,6 @@ void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id)
 
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 			 const struct ce_attr *attr,
-			 void (*send_cb)(struct ath10k_ce_pipe *),
 			 void (*recv_cb)(struct ath10k_ce_pipe *))
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -1104,7 +1103,7 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	ce_state->src_sz_max = attr->src_sz_max;
 
 	if (attr->src_nentries)
-		ce_state->send_cb = send_cb;
+		ce_state->send_cb = attr->send_cb;
 
 	if (attr->dest_nentries)
 		ce_state->recv_cb = recv_cb;

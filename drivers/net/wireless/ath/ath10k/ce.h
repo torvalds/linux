@@ -210,7 +210,6 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 			 const struct ce_attr *attr,
-			 void (*send_cb)(struct ath10k_ce_pipe *),
 			 void (*recv_cb)(struct ath10k_ce_pipe *));
 void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
@@ -277,6 +276,8 @@ struct ce_attr {
 
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
+
+	void (*send_cb)(struct ath10k_ce_pipe *);
 };
 
 #define SR_BA_ADDRESS		0x0000

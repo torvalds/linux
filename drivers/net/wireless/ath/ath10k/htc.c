@@ -181,22 +181,20 @@ err_pull:
 	return ret;
 }
 
-int ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_skb_cb *skb_cb;
 	struct ath10k_htc_ep *ep;
 
 	if (WARN_ON_ONCE(!skb))
-		return 0;
+		return;
 
 	skb_cb = ATH10K_SKB_CB(skb);
 	ep = &htc->endpoint[skb_cb->eid];
 
 	ath10k_htc_notify_tx_completion(ep, skb);
 	/* the skb now belongs to the completion handler */
-
-	return 0;
 }
 EXPORT_SYMBOL(ath10k_htc_tx_completion_handler);
 
@@ -851,7 +849,6 @@ int ath10k_htc_init(struct ath10k *ar)
 
 	/* setup HIF layer callbacks */
 	htc_callbacks.rx_completion = ath10k_htc_rx_completion_handler;
-	htc_callbacks.tx_completion = ath10k_htc_tx_completion_handler;
 	htc->ar = ar;
 
 	/* Get HIF default pipe for HTC message exchange */

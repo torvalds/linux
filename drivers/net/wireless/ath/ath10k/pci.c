@@ -104,6 +104,7 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 			       struct ath10k_ce_pipe *rx_pipe,
 			       struct bmi_xfer *xfer);
 static int ath10k_pci_qca99x0_chip_reset(struct ath10k *ar);
+static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -112,6 +113,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 16,
 		.src_sz_max = 256,
 		.dest_nentries = 0,
+		.send_cb = ath10k_pci_htc_tx_cb,
 	},
 
 	/* CE1: target->host HTT + HTC control */
@@ -136,6 +138,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 32,
 		.src_sz_max = 2048,
 		.dest_nentries = 0,
+		.send_cb = ath10k_pci_htc_tx_cb,
 	},
 
 	/* CE4: host->target HTT */
@@ -144,6 +147,7 @@ static const struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = CE_HTT_H2T_MSG_SRC_NENTRIES,
 		.src_sz_max = 256,
 		.dest_nentries = 0,
+		.send_cb = ath10k_pci_htc_tx_cb,
 	},
 
 	/* CE5: unused */
@@ -1095,11 +1099,9 @@ static int ath10k_pci_diag_write32(struct ath10k *ar, u32 address, u32 value)
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
-static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
+static void ath10k_pci_htc_tx_cb(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_hif_cb *cb = &ar_pci->msg_callbacks_current;
 	struct sk_buff_head list;
 	struct sk_buff *skb;
 	u32 ce_data;
@@ -1117,7 +1119,7 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	}
 
 	while ((skb = __skb_dequeue(&list)))
-		cb->tx_completion(ar, skb);
+		ath10k_htc_tx_completion_handler(ar, skb);
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
@@ -1573,7 +1575,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 
 		ce_ring->per_transfer_context[i] = NULL;
 
-		ar_pci->msg_callbacks_current.tx_completion(ar, skb);
+		ath10k_htc_tx_completion_handler(ar, skb);
 	}
 }
 
@@ -1994,7 +1996,6 @@ static int ath10k_pci_alloc_pipes(struct ath10k *ar)
 		pipe->hif_ce_state = ar;
 
 		ret = ath10k_ce_alloc_pipe(ar, i, &host_ce_config_wlan[i],
-					   ath10k_pci_ce_send_done,
 					   ath10k_pci_ce_recv_data);
 		if (ret) {
 			ath10k_err(ar, "failed to allocate copy engine pipe %d: %d\n",
