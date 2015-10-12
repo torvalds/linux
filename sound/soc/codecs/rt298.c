@@ -129,7 +129,7 @@ static bool rt298_volatile_register(struct device *dev, unsigned int reg)
 	case VERB_CMD(AC_VERB_GET_EAPD_BTLENABLE, RT298_HP_OUT, 0):
 		return true;
 	default:
-		return true;
+		return false;
 	}
 
 
