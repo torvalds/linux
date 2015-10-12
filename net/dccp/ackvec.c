@@ -398,12 +398,8 @@ out_err:
 
 void dccp_ackvec_exit(void)
 {
-	if (dccp_ackvec_slab != NULL) {
-		kmem_cache_destroy(dccp_ackvec_slab);
-		dccp_ackvec_slab = NULL;
-	}
-	if (dccp_ackvec_record_slab != NULL) {
-		kmem_cache_destroy(dccp_ackvec_record_slab);
-		dccp_ackvec_record_slab = NULL;
-	}
+	kmem_cache_destroy(dccp_ackvec_slab);
+	dccp_ackvec_slab = NULL;
+	kmem_cache_destroy(dccp_ackvec_record_slab);
+	dccp_ackvec_record_slab = NULL;
 }

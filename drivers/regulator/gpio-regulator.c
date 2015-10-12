@@ -394,6 +394,7 @@ static const struct of_device_id regulator_gpio_of_match[] = {
 	{ .compatible = "regulator-gpio", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, regulator_gpio_of_match);
 #endif
 
 static struct platform_driver gpio_regulator_driver = {

@@ -58,7 +58,8 @@ static void fsl_dcu_drm_plane_atomic_disable(struct drm_plane *plane,
 					     struct drm_plane_state *old_state)
 {
 	struct fsl_dcu_drm_device *fsl_dev = plane->dev->dev_private;
-	unsigned int index, value, ret;
+	unsigned int value;
+	int index, ret;
 
 	index = fsl_dcu_drm_plane_index(plane);
 	if (index < 0)

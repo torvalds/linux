@@ -502,7 +502,7 @@ static void balloon3_irq_handler(struct irq_desc *desc)
 					balloon3_irq_enabled;
 	do {
 		struct irq_data *d = irq_desc_get_irq_data(desc);
-		struct irq_chip *chip = irq_data_get_chip(d);
+		struct irq_chip *chip = irq_desc_get_chip(desc);
 		unsigned int irq;
 
 		/* clear useless edge notification */
