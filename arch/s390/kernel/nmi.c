@@ -101,7 +101,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all registers could be validated
  * returns 1 otherwise
  */
-static int notrace s390_revalidate_registers(union mci mci)
+static int notrace s390_validate_registers(union mci mci)
 {
 	int kill_task;
 	u64 zero;
@@ -137,7 +137,7 @@ static int notrace s390_revalidate_registers(union mci mci)
 		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
 
 	if (!MACHINE_HAS_VX) {
-		/* Revalidate floating point registers */
+		/* Validate floating point registers */
 		asm volatile(
 			"	ld	0,0(%0)\n"
 			"	ld	1,8(%0)\n"
@@ -157,7 +157,7 @@ static int notrace s390_revalidate_registers(union mci mci)
 			"	ld	15,120(%0)\n"
 			: : "a" (fpt_save_area));
 	} else {
-		/* Revalidate vector registers */
+		/* Validate vector registers */
 		union ctlreg0 cr0;
 
 		if (!mci.vr) {
@@ -178,7 +178,7 @@ static int notrace s390_revalidate_registers(union mci mci)
 				 &S390_lowcore.vector_save_area) : "1");
 		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
-	/* Revalidate access registers */
+	/* Validate access registers */
 	asm volatile(
 		"	lam	0,15,0(%0)"
 		: : "a" (&S390_lowcore.access_regs_save_area));
@@ -189,7 +189,7 @@ static int notrace s390_revalidate_registers(union mci mci)
 		 */
 		kill_task = 1;
 	}
-	/* Revalidate control registers */
+	/* Validate control registers */
 	if (!mci.cr) {
 		/*
 		 * Control registers have unknown contents.
@@ -202,11 +202,11 @@ static int notrace s390_revalidate_registers(union mci mci)
 			: : "a" (&S390_lowcore.cregs_save_area));
 	}
 	/*
-	 * We don't even try to revalidate the TOD register, since we simply
+	 * We don't even try to validate the TOD register, since we simply
 	 * can't write something sensible into that register.
 	 */
 	/*
-	 * See if we can revalidate the TOD programmable register with its
+	 * See if we can validate the TOD programmable register with its
 	 * old contents (should be zero) otherwise set it to zero.
 	 */
 	if (!mci.pr)
@@ -220,7 +220,7 @@ static int notrace s390_revalidate_registers(union mci mci)
 			"	sckpf"
 			: : "a" (&S390_lowcore.tod_progreg_save_area)
 			: "0", "cc");
-	/* Revalidate clock comparator register */
+	/* Validate clock comparator register */
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	/* Check if old PSW is valid */
 	if (!mci.wp)
@@ -302,7 +302,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_revalidate_registers(mci)) {
+	if (s390_validate_registers(mci)) {
 		if (umode) {
 			/*
 			 * Couldn't restore all register contents while in
