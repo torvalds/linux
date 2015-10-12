@@ -11,20 +11,20 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/time.h>
-#include <linux/rtc.h>
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
-#include <linux/slab.h>
-#include <linux/platform_data/atmel.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
-#include <linux/clk.h>
+#include <linux/time.h>
 
 /*
  * This driver uses two configurable hardware resources that live in the
@@ -425,16 +425,17 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->sclk))
 		return PTR_ERR(rtc->sclk);
 
-	sclk_rate = clk_get_rate(rtc->sclk);
-	if (!sclk_rate || sclk_rate > AT91_RTT_RTPRES) {
-		dev_err(&pdev->dev, "Invalid slow clock rate\n");
-		return -EINVAL;
-	}
-
 	ret = clk_prepare_enable(rtc->sclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
+	}
+
+	sclk_rate = clk_get_rate(rtc->sclk);
+	if (!sclk_rate || sclk_rate > AT91_RTT_RTPRES) {
+		dev_err(&pdev->dev, "Invalid slow clock rate\n");
+		ret = -EINVAL;
+		goto err_clk;
 	}
 
 	mr = rtt_readl(rtc, MR);
@@ -451,8 +452,10 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtcdev = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&at91_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtcdev))
-		return PTR_ERR(rtc->rtcdev);
+	if (IS_ERR(rtc->rtcdev)) {
+		ret = PTR_ERR(rtc->rtcdev);
+		goto err_clk;
+	}
 
 	/* register irq handler after we know what name we'll use */
 	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
@@ -460,7 +463,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 			       dev_name(&rtc->rtcdev->dev), rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "can't share IRQ %d?\n", rtc->irq);
-		return ret;
+		goto err_clk;
 	}
 
 	/* NOTE:  sam9260 rev A silicon has a ROM bug which resets the
@@ -474,6 +477,11 @@ static int at91_rtc_probe(struct platform_device *pdev)
 				dev_name(&rtc->rtcdev->dev));
 
 	return 0;
+
+err_clk:
+	clk_disable_unprepare(rtc->sclk);
+
+	return ret;
 }
 
 /*
@@ -487,8 +495,7 @@ static int at91_rtc_remove(struct platform_device *pdev)
 	/* disable all interrupts */
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
 
-	if (!IS_ERR(rtc->sclk))
-		clk_disable_unprepare(rtc->sclk);
+	clk_disable_unprepare(rtc->sclk);
 
 	return 0;
 }

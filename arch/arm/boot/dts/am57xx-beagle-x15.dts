@@ -580,7 +580,6 @@
 
 	vmmc-supply = <&ldo1_reg>;
 	vmmc_aux-supply = <&vdd_3v3>;
-	pbias-supply = <&pbias_mmc_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 0>; /* gpio 219 */
 };
@@ -692,4 +691,8 @@
 			remote-endpoint = <&tpd12s015_in>;
 		};
 	};
+};
+
+&pcie1 {
+	gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
 };

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -23,8 +24,6 @@
 
 #include <asm/exception.h>
 #include <asm/hardirq.h>
-
-#include "irqchip.h"
 
 #define MAX_ICU_NR		16
 
@@ -130,8 +129,9 @@ struct irq_chip icu_irq_chip = {
 	.irq_unmask	= icu_unmask_irq,
 };
 
-static void icu_mux_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void icu_mux_irq_demux(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct irq_domain *domain;
 	struct icu_chip_data *data;
 	int i;

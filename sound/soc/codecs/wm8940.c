@@ -787,7 +787,6 @@ MODULE_DEVICE_TABLE(i2c, wm8940_i2c_id);
 static struct i2c_driver wm8940_i2c_driver = {
 	.driver = {
 		.name = "wm8940",
-		.owner = THIS_MODULE,
 	},
 	.probe =    wm8940_i2c_probe,
 	.remove =   wm8940_i2c_remove,

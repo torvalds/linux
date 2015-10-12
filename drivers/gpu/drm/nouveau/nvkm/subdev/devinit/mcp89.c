@@ -27,40 +27,42 @@
 #include <subdev/bios/init.h>
 
 static u64
-mcp89_devinit_disable(struct nvkm_devinit *devinit)
+mcp89_devinit_disable(struct nvkm_devinit *init)
 {
-	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 r001540 = nv_rd32(priv, 0x001540);
-	u32 r00154c = nv_rd32(priv, 0x00154c);
+	struct nvkm_device *device = init->subdev.device;
+	u32 r001540 = nvkm_rd32(device, 0x001540);
+	u32 r00154c = nvkm_rd32(device, 0x00154c);
 	u64 disable = 0;
 
 	if (!(r001540 & 0x40000000)) {
-		disable |= (1ULL << NVDEV_ENGINE_MSPDEC);
-		disable |= (1ULL << NVDEV_ENGINE_MSPPP);
+		disable |= (1ULL << NVKM_ENGINE_MSPDEC);
+		disable |= (1ULL << NVKM_ENGINE_MSPPP);
 	}
 
 	if (!(r00154c & 0x00000004))
-		disable |= (1ULL << NVDEV_ENGINE_DISP);
+		disable |= (1ULL << NVKM_ENGINE_DISP);
 	if (!(r00154c & 0x00000020))
-		disable |= (1ULL << NVDEV_ENGINE_MSVLD);
+		disable |= (1ULL << NVKM_ENGINE_MSVLD);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVDEV_ENGINE_VIC);
+		disable |= (1ULL << NVKM_ENGINE_VIC);
 	if (!(r00154c & 0x00000200))
-		disable |= (1ULL << NVDEV_ENGINE_CE0);
+		disable |= (1ULL << NVKM_ENGINE_CE0);
 
 	return disable;
 }
 
-struct nvkm_oclass *
-mcp89_devinit_oclass = &(struct nvkm_devinit_impl) {
-	.base.handle = NV_SUBDEV(DEVINIT, 0xaf),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv50_devinit_ctor,
-		.dtor = _nvkm_devinit_dtor,
-		.init = nv50_devinit_init,
-		.fini = _nvkm_devinit_fini,
-	},
+static const struct nvkm_devinit_func
+mcp89_devinit = {
+	.preinit = nv50_devinit_preinit,
+	.init = nv50_devinit_init,
+	.post = nv04_devinit_post,
 	.pll_set = gt215_devinit_pll_set,
 	.disable = mcp89_devinit_disable,
-	.post = nvbios_init,
-}.base;
+};
+
+int
+mcp89_devinit_new(struct nvkm_device *device, int index,
+		struct nvkm_devinit **pinit)
+{
+	return nv50_devinit_new_(&mcp89_devinit, device, index, pinit);
+}

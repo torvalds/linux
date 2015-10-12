@@ -36,7 +36,8 @@ config RFKILL_REGULATOR
 
 config RFKILL_GPIO
 	tristate "GPIO RFKILL driver"
-	depends on RFKILL && GPIOLIB
+	depends on RFKILL
+	depends on GPIOLIB || COMPILE_TEST
 	default n
 	help
 	  If you say yes here you get support of a generic gpio RFKILL

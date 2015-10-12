@@ -386,7 +386,6 @@ static int pca9541_remove(struct i2c_client *client)
 static struct i2c_driver pca9541_driver = {
 	.driver = {
 		   .name = "pca9541",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = pca9541_probe,
 	.remove = pca9541_remove,

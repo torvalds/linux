@@ -48,6 +48,7 @@
 	compatible = "haoyu,marsboard-rk3066", "rockchip,rk3066a";
 
 	memory {
+		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
 
@@ -198,6 +199,18 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
 	status = "okay";
 };
 

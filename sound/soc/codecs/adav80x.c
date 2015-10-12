@@ -113,7 +113,7 @@
 
 #define ADAV80X_PLL_OUTE_SYSCLKPD(x)		BIT(2 - (x))
 
-static struct reg_default adav80x_reg_defaults[] = {
+static const struct reg_default adav80x_reg_defaults[] = {
 	{ ADAV80X_PLAYBACK_CTRL,	0x01 },
 	{ ADAV80X_AUX_IN_CTRL,		0x01 },
 	{ ADAV80X_REC_CTRL,		0x02 },
@@ -865,7 +865,6 @@ const struct regmap_config adav80x_regmap_config = {
 	.val_bits = 8,
 	.pad_bits = 1,
 	.reg_bits = 7,
-	.read_flag_mask = 0x01,
 
 	.max_register = ADAV80X_PLL_OUTE,
 

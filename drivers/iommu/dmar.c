@@ -1068,7 +1068,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	if (intel_iommu_enabled)
 		iommu->iommu_dev = iommu_device_create(NULL, iommu,
 						       intel_iommu_groups,
-						       iommu->name);
+						       "%s", iommu->name);
 
 	return 0;
 

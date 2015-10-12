@@ -109,7 +109,7 @@ static unsigned long ti_clk_divider_recalc_rate(struct clk_hw *hw,
 	if (!div) {
 		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
 		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
-		     __clk_get_name(hw->clk));
+		     clk_hw_get_name(hw));
 		return parent_rate;
 	}
 
@@ -155,7 +155,7 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 
 	maxdiv = _get_maxdiv(divider);
 
-	if (!(__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT)) {
+	if (!(clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT)) {
 		parent_rate = *best_parent_rate;
 		bestdiv = DIV_ROUND_UP(parent_rate, rate);
 		bestdiv = bestdiv == 0 ? 1 : bestdiv;
@@ -181,7 +181,7 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 			*best_parent_rate = parent_rate_saved;
 			return i;
 		}
-		parent_rate = __clk_round_rate(__clk_get_parent(hw->clk),
+		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 				MULT_ROUND_UP(rate, i));
 		now = DIV_ROUND_UP(parent_rate, i);
 		if (now <= rate && now > best) {
@@ -194,7 +194,7 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	if (!bestdiv) {
 		bestdiv = _get_maxdiv(divider);
 		*best_parent_rate =
-			__clk_round_rate(__clk_get_parent(hw->clk), 1);
+			clk_hw_round_rate(clk_hw_get_parent(hw), 1);
 	}
 
 	return bestdiv;

@@ -251,6 +251,12 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_GEMBIRD
+	tristate "Gembird Joypad"
+	depends on HID
+	---help---
+	Support for Gembird JPD-DualForce 2.
+
 config HID_HOLTEK
 	tristate "Holtek HID devices"
 	depends on USB_HID
@@ -480,6 +486,7 @@ config HID_MULTITOUCH
 	  - Atmel panels
 	  - Cando dual touch panels
 	  - Chunghwa panels
+	  - CJTouch panels
 	  - CVTouch panels
 	  - Cypress TrueTouch panels
 	  - Elan Microelectronics touch panels

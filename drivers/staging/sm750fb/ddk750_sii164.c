@@ -36,12 +36,12 @@ static char *gDviCtrlChipName = "Silicon Image SiI 164";
  */
 unsigned short sii164GetVendorID(void)
 {
-    unsigned short vendorID;
+	unsigned short vendorID;
 
-    vendorID = ((unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_HIGH) << 8) |
-                (unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_LOW);
+	vendorID = ((unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_HIGH) << 8) |
+		    (unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_VENDOR_ID_LOW);
 
-    return vendorID;
+	return vendorID;
 }
 
 /*
@@ -53,12 +53,12 @@ unsigned short sii164GetVendorID(void)
  */
 unsigned short sii164GetDeviceID(void)
 {
-    unsigned short deviceID;
+	unsigned short deviceID;
 
-    deviceID = ((unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_HIGH) << 8) |
-                (unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_LOW);
+	deviceID = ((unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_HIGH) << 8) |
+		    (unsigned short) i2cReadReg(SII164_I2C_ADDRESS, SII164_DEVICE_ID_LOW);
 
-    return deviceID;
+	return deviceID;
 }
 
 
@@ -113,132 +113,130 @@ unsigned short sii164GetDeviceID(void)
  *     -1   - Fail.
  */
 long sii164InitChip(
-    unsigned char edgeSelect,
-    unsigned char busSelect,
-    unsigned char dualEdgeClkSelect,
-    unsigned char hsyncEnable,
-    unsigned char vsyncEnable,
-    unsigned char deskewEnable,
-    unsigned char deskewSetting,
-    unsigned char continuousSyncEnable,
-    unsigned char pllFilterEnable,
-    unsigned char pllFilterValue
+	unsigned char edgeSelect,
+	unsigned char busSelect,
+	unsigned char dualEdgeClkSelect,
+	unsigned char hsyncEnable,
+	unsigned char vsyncEnable,
+	unsigned char deskewEnable,
+	unsigned char deskewSetting,
+	unsigned char continuousSyncEnable,
+	unsigned char pllFilterEnable,
+	unsigned char pllFilterValue
 )
 {
 	unsigned char config;
 
-    /* Initialize the i2c bus */
+	/* Initialize the i2c bus */
 #ifdef USE_HW_I2C
-    /* Use fast mode. */
-    hwI2CInit(1);
+	/* Use fast mode. */
+	hwI2CInit(1);
 #else
-    swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
+	swI2CInit(DEFAULT_I2C_SCL, DEFAULT_I2C_SDA);
 #endif
 
-    /* Check if SII164 Chip exists */
-    if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID))
-    {
-        /*
-         *  Initialize SII164 controller chip.
-         */
+	/* Check if SII164 Chip exists */
+	if ((sii164GetVendorID() == SII164_VENDOR_ID) && (sii164GetDeviceID() == SII164_DEVICE_ID)) {
+		/*
+		 *  Initialize SII164 controller chip.
+		 */
 
-        /* Select the edge */
-        if (edgeSelect == 0)
-            config = SII164_CONFIGURATION_LATCH_FALLING;
-        else
-            config = SII164_CONFIGURATION_LATCH_RISING;
+		/* Select the edge */
+		if (edgeSelect == 0)
+			config = SII164_CONFIGURATION_LATCH_FALLING;
+		else
+			config = SII164_CONFIGURATION_LATCH_RISING;
 
-        /* Select bus wide */
-        if (busSelect == 0)
-            config |= SII164_CONFIGURATION_BUS_12BITS;
-        else
-            config |= SII164_CONFIGURATION_BUS_24BITS;
+		/* Select bus wide */
+		if (busSelect == 0)
+			config |= SII164_CONFIGURATION_BUS_12BITS;
+		else
+			config |= SII164_CONFIGURATION_BUS_24BITS;
 
-        /* Select Dual/Single Edge Clock */
-        if (dualEdgeClkSelect == 0)
-            config |= SII164_CONFIGURATION_CLOCK_SINGLE;
-        else
-            config |= SII164_CONFIGURATION_CLOCK_DUAL;
+		/* Select Dual/Single Edge Clock */
+		if (dualEdgeClkSelect == 0)
+			config |= SII164_CONFIGURATION_CLOCK_SINGLE;
+		else
+			config |= SII164_CONFIGURATION_CLOCK_DUAL;
 
-        /* Select HSync Enable */
-        if (hsyncEnable == 0)
-            config |= SII164_CONFIGURATION_HSYNC_FORCE_LOW;
-        else
-            config |= SII164_CONFIGURATION_HSYNC_AS_IS;
+		/* Select HSync Enable */
+		if (hsyncEnable == 0)
+			config |= SII164_CONFIGURATION_HSYNC_FORCE_LOW;
+		else
+			config |= SII164_CONFIGURATION_HSYNC_AS_IS;
 
-        /* Select VSync Enable */
-        if (vsyncEnable == 0)
-            config |= SII164_CONFIGURATION_VSYNC_FORCE_LOW;
-        else
-            config |= SII164_CONFIGURATION_VSYNC_AS_IS;
+		/* Select VSync Enable */
+		if (vsyncEnable == 0)
+			config |= SII164_CONFIGURATION_VSYNC_FORCE_LOW;
+		else
+			config |= SII164_CONFIGURATION_VSYNC_AS_IS;
 
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-        /* De-skew enabled with default 111b value.
-           This will fix some artifacts problem in some mode on board 2.2.
-           Somehow this fix does not affect board 2.1.
-         */
-        if (deskewEnable == 0)
-            config = SII164_DESKEW_DISABLE;
-        else
-            config = SII164_DESKEW_ENABLE;
+		/* De-skew enabled with default 111b value.
+		   This will fix some artifacts problem in some mode on board 2.2.
+		   Somehow this fix does not affect board 2.1.
+		 */
+		if (deskewEnable == 0)
+			config = SII164_DESKEW_DISABLE;
+		else
+			config = SII164_DESKEW_ENABLE;
 
-        switch (deskewSetting)
-        {
-            case 0:
-                config |= SII164_DESKEW_1_STEP;
-                break;
-            case 1:
-                config |= SII164_DESKEW_2_STEP;
-                break;
-            case 2:
-                config |= SII164_DESKEW_3_STEP;
-                break;
-            case 3:
-                config |= SII164_DESKEW_4_STEP;
-                break;
-            case 4:
-                config |= SII164_DESKEW_5_STEP;
-                break;
-            case 5:
-                config |= SII164_DESKEW_6_STEP;
-                break;
-            case 6:
-                config |= SII164_DESKEW_7_STEP;
-                break;
-            case 7:
-                config |= SII164_DESKEW_8_STEP;
-                break;
-        }
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_DESKEW, config);
+		switch (deskewSetting) {
+		case 0:
+			config |= SII164_DESKEW_1_STEP;
+			break;
+		case 1:
+			config |= SII164_DESKEW_2_STEP;
+			break;
+		case 2:
+			config |= SII164_DESKEW_3_STEP;
+			break;
+		case 3:
+			config |= SII164_DESKEW_4_STEP;
+			break;
+		case 4:
+			config |= SII164_DESKEW_5_STEP;
+			break;
+		case 5:
+			config |= SII164_DESKEW_6_STEP;
+			break;
+		case 6:
+			config |= SII164_DESKEW_7_STEP;
+			break;
+		case 7:
+			config |= SII164_DESKEW_8_STEP;
+			break;
+		}
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_DESKEW, config);
 
-        /* Enable/Disable Continuous Sync. */
-        if (continuousSyncEnable == 0)
-            config = SII164_PLL_FILTER_SYNC_CONTINUOUS_DISABLE;
-        else
-            config = SII164_PLL_FILTER_SYNC_CONTINUOUS_ENABLE;
+		/* Enable/Disable Continuous Sync. */
+		if (continuousSyncEnable == 0)
+			config = SII164_PLL_FILTER_SYNC_CONTINUOUS_DISABLE;
+		else
+			config = SII164_PLL_FILTER_SYNC_CONTINUOUS_ENABLE;
 
-        /* Enable/Disable PLL Filter */
-        if (pllFilterEnable == 0)
-            config |= SII164_PLL_FILTER_DISABLE;
-        else
-            config |= SII164_PLL_FILTER_ENABLE;
+		/* Enable/Disable PLL Filter */
+		if (pllFilterEnable == 0)
+			config |= SII164_PLL_FILTER_DISABLE;
+		else
+			config |= SII164_PLL_FILTER_ENABLE;
 
-        /* Set the PLL Filter value */
-        config |= ((pllFilterValue & 0x07) << 1);
+		/* Set the PLL Filter value */
+		config |= ((pllFilterValue & 0x07) << 1);
 
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_PLL, config);
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_PLL, config);
 
-        /* Recover from Power Down and enable output. */
-        config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
-        config |= SII164_CONFIGURATION_POWER_NORMAL;
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
+		/* Recover from Power Down and enable output. */
+		config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
+		config |= SII164_CONFIGURATION_POWER_NORMAL;
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-        return 0;
-    }
+		return 0;
+	}
 
-    /* Return -1 if initialization fails. */
-    return (-1);
+	/* Return -1 if initialization fails. */
+	return (-1);
 }
 
 
@@ -255,9 +253,9 @@ long sii164InitChip(
  */
 void sii164ResetChip(void)
 {
-    /* Power down */
-    sii164SetPower(0);
-    sii164SetPower(1);
+	/* Power down */
+	sii164SetPower(0);
+	sii164SetPower(1);
 }
 
 
@@ -268,7 +266,7 @@ void sii164ResetChip(void)
  */
 char *sii164GetChipString(void)
 {
-    return gDviCtrlChipName;
+	return gDviCtrlChipName;
 }
 
 
@@ -280,26 +278,23 @@ char *sii164GetChipString(void)
  *      powerUp - Flag to set the power down or up
  */
 void sii164SetPower(
-    unsigned char powerUp
+	unsigned char powerUp
 )
 {
-    unsigned char config;
+	unsigned char config;
 
-    config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
-    if (powerUp == 1)
-    {
-        /* Power up the chip */
-        config &= ~SII164_CONFIGURATION_POWER_MASK;
-        config |= SII164_CONFIGURATION_POWER_NORMAL;
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
-    }
-    else
-    {
-        /* Power down the chip */
-        config &= ~SII164_CONFIGURATION_POWER_MASK;
-        config |= SII164_CONFIGURATION_POWER_DOWN;
-        i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
-    }
+	config = i2cReadReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION);
+	if (powerUp == 1) {
+		/* Power up the chip */
+		config &= ~SII164_CONFIGURATION_POWER_MASK;
+		config |= SII164_CONFIGURATION_POWER_NORMAL;
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
+	} else {
+		/* Power down the chip */
+		config &= ~SII164_CONFIGURATION_POWER_MASK;
+		config |= SII164_CONFIGURATION_POWER_DOWN;
+		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
+	}
 }
 
 
@@ -308,31 +303,30 @@ void sii164SetPower(
  *      This function selects the mode of the hot plug detection.
  */
 static void sii164SelectHotPlugDetectionMode(
-    sii164_hot_plug_mode_t hotPlugMode
+	sii164_hot_plug_mode_t hotPlugMode
 )
 {
-    unsigned char detectReg;
+	unsigned char detectReg;
 
-    detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & ~SII164_DETECT_MONITOR_SENSE_OUTPUT_FLAG;
-    switch (hotPlugMode)
-    {
-        case SII164_HOTPLUG_DISABLE:
-            detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_HIGH;
-            break;
-        case SII164_HOTPLUG_USE_MDI:
-            detectReg &= ~SII164_DETECT_INTERRUPT_MASK;
-            detectReg |= SII164_DETECT_INTERRUPT_BY_HTPLG_PIN;
-            detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_MDI;
-            break;
-        case SII164_HOTPLUG_USE_RSEN:
-            detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_RSEN;
-            break;
-        case SII164_HOTPLUG_USE_HTPLG:
-            detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_HTPLG;
-            break;
-    }
+	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & ~SII164_DETECT_MONITOR_SENSE_OUTPUT_FLAG;
+	switch (hotPlugMode) {
+	case SII164_HOTPLUG_DISABLE:
+		detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_HIGH;
+		break;
+	case SII164_HOTPLUG_USE_MDI:
+		detectReg &= ~SII164_DETECT_INTERRUPT_MASK;
+		detectReg |= SII164_DETECT_INTERRUPT_BY_HTPLG_PIN;
+		detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_MDI;
+		break;
+	case SII164_HOTPLUG_USE_RSEN:
+		detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_RSEN;
+		break;
+	case SII164_HOTPLUG_USE_HTPLG:
+		detectReg |= SII164_DETECT_MONITOR_SENSE_OUTPUT_HTPLG;
+		break;
+	}
 
-    i2cWriteReg(SII164_I2C_ADDRESS, SII164_DETECT, detectReg);
+	i2cWriteReg(SII164_I2C_ADDRESS, SII164_DETECT, detectReg);
 }
 
 /*
@@ -342,18 +336,19 @@ static void sii164SelectHotPlugDetectionMode(
  *  enableHotPlug   - Enable (=1) / disable (=0) Hot Plug detection
  */
 void sii164EnableHotPlugDetection(
-    unsigned char enableHotPlug
+	unsigned char enableHotPlug
 )
 {
-    unsigned char detectReg;
-    detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
+	unsigned char detectReg;
 
-    /* Depending on each DVI controller, need to enable the hot plug based on each
-       individual chip design. */
-    if (enableHotPlug != 0)
-        sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_USE_MDI);
-    else
-        sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_DISABLE);
+	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
+
+	/* Depending on each DVI controller, need to enable the hot plug based on each
+	   individual chip design. */
+	if (enableHotPlug != 0)
+		sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_USE_MDI);
+	else
+		sii164SelectHotPlugDetectionMode(SII164_HOTPLUG_DISABLE);
 }
 
 /*
@@ -366,13 +361,13 @@ void sii164EnableHotPlugDetection(
  */
 unsigned char sii164IsConnected(void)
 {
-    unsigned char hotPlugValue;
+	unsigned char hotPlugValue;
 
-    hotPlugValue = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & SII164_DETECT_HOT_PLUG_STATUS_MASK;
-    if (hotPlugValue == SII164_DETECT_HOT_PLUG_STATUS_ON)
-        return 1;
-    else
-        return 0;
+	hotPlugValue = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & SII164_DETECT_HOT_PLUG_STATUS_MASK;
+	if (hotPlugValue == SII164_DETECT_HOT_PLUG_STATUS_ON)
+		return 1;
+	else
+		return 0;
 }
 
 /*
@@ -385,13 +380,13 @@ unsigned char sii164IsConnected(void)
  */
 unsigned char sii164CheckInterrupt(void)
 {
-    unsigned char detectReg;
+	unsigned char detectReg;
 
-    detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & SII164_DETECT_MONITOR_STATE_MASK;
-    if (detectReg == SII164_DETECT_MONITOR_STATE_CHANGE)
-        return 1;
-    else
-        return 0;
+	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT) & SII164_DETECT_MONITOR_STATE_MASK;
+	if (detectReg == SII164_DETECT_MONITOR_STATE_CHANGE)
+		return 1;
+	else
+		return 0;
 }
 
 /*
@@ -400,11 +395,11 @@ unsigned char sii164CheckInterrupt(void)
  */
 void sii164ClearInterrupt(void)
 {
-    unsigned char detectReg;
+	unsigned char detectReg;
 
-    /* Clear the MDI interrupt */
-    detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
-    i2cWriteReg(SII164_I2C_ADDRESS, SII164_DETECT, detectReg | SII164_DETECT_MONITOR_STATE_CLEAR);
+	/* Clear the MDI interrupt */
+	detectReg = i2cReadReg(SII164_I2C_ADDRESS, SII164_DETECT);
+	i2cWriteReg(SII164_I2C_ADDRESS, SII164_DETECT, detectReg | SII164_DETECT_MONITOR_STATE_CLEAR);
 }
 
 #endif

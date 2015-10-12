@@ -273,7 +273,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 				tmp_false_count++;
 			}
 		}
-		if (ps.count < min_count)
+		if (ps.count <= min_count)
 			/* did not reach minimum count, drop sequence */
 			continue;
 

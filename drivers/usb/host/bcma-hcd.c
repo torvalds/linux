@@ -2,7 +2,8 @@
  * Broadcom specific Advanced Microcontroller Bus
  * Broadcom USB-core driver (BCMA bus glue)
  *
- * Copyright 2011-2012 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright 2011-2015 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright 2015 Felix Fietkau <nbd@openwrt.org>
  *
  * Based on ssb-ohci driver
  * Copyright 2007 Michael Buesch <m@bues.ch>
@@ -23,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 
@@ -88,7 +91,7 @@ static void bcma_hcd_4716wa(struct bcma_device *dev)
 }
 
 /* based on arch/mips/brcm-boards/bcm947xx/pcibios.c */
-static void bcma_hcd_init_chip(struct bcma_device *dev)
+static void bcma_hcd_init_chip_mips(struct bcma_device *dev)
 {
 	u32 tmp;
 
@@ -159,6 +162,87 @@ static void bcma_hcd_init_chip(struct bcma_device *dev)
 	}
 }
 
+static void bcma_hcd_init_chip_arm_phy(struct bcma_device *dev)
+{
+	struct bcma_device *arm_core;
+	void __iomem *dmu;
+
+	arm_core = bcma_find_core(dev->bus, BCMA_CORE_ARMCA9);
+	if (!arm_core) {
+		dev_err(&dev->dev, "can not find ARM Cortex A9 ihost core\n");
+		return;
+	}
+
+	dmu = ioremap_nocache(arm_core->addr_s[0], 0x1000);
+	if (!dmu) {
+		dev_err(&dev->dev, "can not map ARM Cortex A9 ihost core\n");
+		return;
+	}
+
+	/* Unlock DMU PLL settings */
+	iowrite32(0x0000ea68, dmu + 0x180);
+
+	/* Write USB 2.0 PLL control setting */
+	iowrite32(0x00dd10c3, dmu + 0x164);
+
+	/* Lock DMU PLL settings */
+	iowrite32(0x00000000, dmu + 0x180);
+
+	iounmap(dmu);
+}
+
+static void bcma_hcd_init_chip_arm_hc(struct bcma_device *dev)
+{
+	u32 val;
+
+	/*
+	 * Delay after PHY initialized to ensure HC is ready to be configured
+	 */
+	usleep_range(1000, 2000);
+
+	/* Set packet buffer OUT threshold */
+	val = bcma_read32(dev, 0x94);
+	val &= 0xffff;
+	val |= 0x80 << 16;
+	bcma_write32(dev, 0x94, val);
+
+	/* Enable break memory transfer */
+	val = bcma_read32(dev, 0x9c);
+	val |= 1;
+	bcma_write32(dev, 0x9c, val);
+}
+
+static void bcma_hcd_init_chip_arm(struct bcma_device *dev)
+{
+	bcma_core_enable(dev, 0);
+
+	if (dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM4707 ||
+	    dev->bus->chipinfo.id == BCMA_CHIP_ID_BCM53018) {
+		if (dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4707 ||
+		    dev->bus->chipinfo.pkg == BCMA_PKG_ID_BCM4708)
+			bcma_hcd_init_chip_arm_phy(dev);
+
+		bcma_hcd_init_chip_arm_hc(dev);
+	}
+}
+
+static void bcma_hci_platform_power_gpio(struct bcma_device *dev, bool val)
+{
+	int gpio;
+
+	gpio = of_get_named_gpio(dev->dev.of_node, "vcc-gpio", 0);
+	if (!gpio_is_valid(gpio))
+		return;
+
+	if (val) {
+		gpio_request(gpio, "bcma-hcd-gpio");
+		gpio_set_value(gpio, 1);
+	} else {
+		gpio_set_value(gpio, 0);
+		gpio_free(gpio);
+	}
+}
+
 static const struct usb_ehci_pdata ehci_pdata = {
 };
 
@@ -169,7 +253,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
-	int ret = -ENOMEM;
+	int ret;
 
 	memset(hci_res, 0, sizeof(hci_res));
 
@@ -183,7 +267,7 @@ static struct platform_device *bcma_hcd_create_pdev(struct bcma_device *dev, boo
 	hci_dev = platform_device_alloc(ohci ? "ohci-platform" :
 					"ehci-platform" , 0);
 	if (!hci_dev)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	hci_dev->dev.parent = &dev->dev;
 	hci_dev->dev.dma_mask = &hci_dev->dev.coherent_dma_mask;
@@ -214,39 +298,45 @@ err_alloc:
 static int bcma_hcd_probe(struct bcma_device *dev)
 {
 	int err;
-	u16 chipid_top;
 	u32 ohci_addr;
 	struct bcma_hcd_device *usb_dev;
 	struct bcma_chipinfo *chipinfo;
 
 	chipinfo = &dev->bus->chipinfo;
-	/* USBcores are only connected on embedded devices. */
-	chipid_top = (chipinfo->id & 0xFF00);
-	if (chipid_top != 0x4700 && chipid_top != 0x5300)
-		return -ENODEV;
 
 	/* TODO: Probably need checks here; is the core connected? */
 
 	if (dma_set_mask_and_coherent(dev->dma_dev, DMA_BIT_MASK(32)))
 		return -EOPNOTSUPP;
 
-	usb_dev = kzalloc(sizeof(struct bcma_hcd_device), GFP_KERNEL);
+	usb_dev = devm_kzalloc(&dev->dev, sizeof(struct bcma_hcd_device),
+			       GFP_KERNEL);
 	if (!usb_dev)
 		return -ENOMEM;
 
-	bcma_hcd_init_chip(dev);
+	bcma_hci_platform_power_gpio(dev, true);
+
+	switch (dev->id.id) {
+	case BCMA_CORE_NS_USB20:
+		bcma_hcd_init_chip_arm(dev);
+		break;
+	case BCMA_CORE_USB20_HOST:
+		bcma_hcd_init_chip_mips(dev);
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	/* In AI chips EHCI is addrspace 0, OHCI is 1 */
 	ohci_addr = dev->addr_s[0];
-	if ((chipinfo->id == 0x5357 || chipinfo->id == 0x4749)
+	if ((chipinfo->id == BCMA_CHIP_ID_BCM5357 ||
+	     chipinfo->id == BCMA_CHIP_ID_BCM4749)
 	    && chipinfo->rev == 0)
 		ohci_addr = 0x18009000;
 
 	usb_dev->ohci_dev = bcma_hcd_create_pdev(dev, true, ohci_addr);
-	if (IS_ERR(usb_dev->ohci_dev)) {
-		err = PTR_ERR(usb_dev->ohci_dev);
-		goto err_free_usb_dev;
-	}
+	if (IS_ERR(usb_dev->ohci_dev))
+		return PTR_ERR(usb_dev->ohci_dev);
 
 	usb_dev->ehci_dev = bcma_hcd_create_pdev(dev, false, dev->addr);
 	if (IS_ERR(usb_dev->ehci_dev)) {
@@ -259,8 +349,6 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 
 err_unregister_ohci_dev:
 	platform_device_unregister(usb_dev->ohci_dev);
-err_free_usb_dev:
-	kfree(usb_dev);
 	return err;
 }
 
@@ -280,6 +368,7 @@ static void bcma_hcd_remove(struct bcma_device *dev)
 
 static void bcma_hcd_shutdown(struct bcma_device *dev)
 {
+	bcma_hci_platform_power_gpio(dev, false);
 	bcma_core_disable(dev, 0);
 }
 
@@ -287,6 +376,7 @@ static void bcma_hcd_shutdown(struct bcma_device *dev)
 
 static int bcma_hcd_suspend(struct bcma_device *dev)
 {
+	bcma_hci_platform_power_gpio(dev, false);
 	bcma_core_disable(dev, 0);
 
 	return 0;
@@ -294,6 +384,7 @@ static int bcma_hcd_suspend(struct bcma_device *dev)
 
 static int bcma_hcd_resume(struct bcma_device *dev)
 {
+	bcma_hci_platform_power_gpio(dev, true);
 	bcma_core_enable(dev, 0);
 
 	return 0;
@@ -306,6 +397,7 @@ static int bcma_hcd_resume(struct bcma_device *dev)
 
 static const struct bcma_device_id bcma_hcd_table[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_USB20_HOST, BCMA_ANY_REV, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_USB20, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
 };
 MODULE_DEVICE_TABLE(bcma, bcma_hcd_table);

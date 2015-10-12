@@ -87,6 +87,8 @@ int machine__process_aux_event(struct machine *machine,
 			       union perf_event *event);
 int machine__process_itrace_start_event(struct machine *machine,
 					union perf_event *event);
+int machine__process_switch_event(struct machine *machine __maybe_unused,
+				  union perf_event *event);
 int machine__process_mmap_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
 int machine__process_mmap2_event(struct machine *machine, union perf_event *event,
@@ -237,5 +239,9 @@ int machine__synthesize_threads(struct machine *machine, struct target *target,
 pid_t machine__get_current_tid(struct machine *machine, int cpu);
 int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid);
+/*
+ * For use with libtraceevent's pevent_set_function_resolver()
+ */
+char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp);
 
 #endif /* __PERF_MACHINE_H */

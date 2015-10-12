@@ -839,7 +839,6 @@ out:
 	raw_spin_unlock(&tick_broadcast_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(tick_broadcast_oneshot_control);
 
 /*
  * Reset the one shot broadcast for a cpu

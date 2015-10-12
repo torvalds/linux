@@ -787,7 +787,6 @@ static const struct pinmux_ops abx500_pinmux_ops = {
 	.set_mux = abx500_pmx_set,
 	.gpio_request_enable = abx500_gpio_request_enable,
 	.gpio_disable_free = abx500_gpio_disable_free,
-	.strict = true,
 };
 
 static int abx500_get_groups_cnt(struct pinctrl_dev *pctldev)

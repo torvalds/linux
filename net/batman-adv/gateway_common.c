@@ -19,8 +19,10 @@
 #include "main.h"
 
 #include <linux/atomic.h>
+#include <linux/errno.h>
 #include <linux/byteorder/generic.h>
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/netdevice.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
@@ -39,11 +41,11 @@
  * Returns false on parse error and true otherwise.
  */
 static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-				      uint32_t *down, uint32_t *up)
+				      u32 *down, u32 *up)
 {
 	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
 	char *slash_ptr, *tmp_ptr;
-	long ldown, lup;
+	u64 ldown, lup;
 	int ret;
 
 	slash_ptr = strchr(buff, '/');
@@ -61,7 +63,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 			*tmp_ptr = '\0';
 	}
 
-	ret = kstrtol(buff, 10, &ldown);
+	ret = kstrtou64(buff, 10, &ldown);
 	if (ret) {
 		batadv_err(net_dev,
 			   "Download speed of gateway mode invalid: %s\n",
@@ -71,13 +73,30 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 
 	switch (bw_unit_type) {
 	case BATADV_BW_UNIT_MBIT:
-		*down = ldown * 10;
+		/* prevent overflow */
+		if (U64_MAX / 10 < ldown) {
+			batadv_err(net_dev,
+				   "Download speed of gateway mode too large: %s\n",
+				   buff);
+			return false;
+		}
+
+		ldown *= 10;
 		break;
 	case BATADV_BW_UNIT_KBIT:
 	default:
-		*down = ldown / 100;
+		ldown = div_u64(ldown, 100);
 		break;
 	}
+
+	if (U32_MAX < ldown) {
+		batadv_err(net_dev,
+			   "Download speed of gateway mode too large: %s\n",
+			   buff);
+		return false;
+	}
+
+	*down = ldown;
 
 	/* we also got some upload info */
 	if (slash_ptr) {
@@ -94,7 +113,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 				*tmp_ptr = '\0';
 		}
 
-		ret = kstrtol(slash_ptr + 1, 10, &lup);
+		ret = kstrtou64(slash_ptr + 1, 10, &lup);
 		if (ret) {
 			batadv_err(net_dev,
 				   "Upload speed of gateway mode invalid: %s\n",
@@ -104,13 +123,30 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 
 		switch (bw_unit_type) {
 		case BATADV_BW_UNIT_MBIT:
-			*up = lup * 10;
+			/* prevent overflow */
+			if (U64_MAX / 10 < lup) {
+				batadv_err(net_dev,
+					   "Upload speed of gateway mode too large: %s\n",
+					   slash_ptr + 1);
+				return false;
+			}
+
+			lup *= 10;
 			break;
 		case BATADV_BW_UNIT_KBIT:
 		default:
-			*up = lup / 100;
+			lup = div_u64(lup, 100);
 			break;
 		}
+
+		if (U32_MAX < lup) {
+			batadv_err(net_dev,
+				   "Upload speed of gateway mode too large: %s\n",
+				   slash_ptr + 1);
+			return false;
+		}
+
+		*up = lup;
 	}
 
 	return true;
@@ -124,7 +160,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_gateway_data gw;
-	uint32_t down, up;
+	u32 down, up;
 	char gw_mode;
 
 	gw_mode = atomic_read(&bat_priv->gw_mode);
@@ -149,7 +185,10 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	uint32_t down_curr, up_curr, down_new = 0, up_new = 0;
+	u32 down_curr;
+	u32 up_curr;
+	u32 down_new = 0;
+	u32 up_new = 0;
 	bool ret;
 
 	down_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_down);
@@ -157,7 +196,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 
 	ret = batadv_parse_gw_bandwidth(net_dev, buff, &down_new, &up_new);
 	if (!ret)
-		goto end;
+		return -EINVAL;
 
 	if (!down_new)
 		down_new = 1;
@@ -181,7 +220,6 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	atomic_set(&bat_priv->gw.bandwidth_up, up_new);
 	batadv_gw_tvlv_container_update(bat_priv);
 
-end:
 	return count;
 }
 
@@ -195,9 +233,8 @@ end:
  */
 static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig,
-					  uint8_t flags,
-					  void *tvlv_value,
-					  uint16_t tvlv_value_len)
+					  u8 flags,
+					  void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_tvlv_gateway_data gateway, *gateway_ptr;
 

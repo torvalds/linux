@@ -23,6 +23,11 @@
 	};
 
 	soc {
+		/* Enable UART1 on this board */
+		uart@80121000 {
+			status = "okay";
+		};
+
 		i2c@80004000 {
 			tps61052@33 {
 				compatible = "tps61052";

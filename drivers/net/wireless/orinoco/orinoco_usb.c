@@ -1502,6 +1502,7 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	if (upriv->dev) {
 		struct orinoco_private *priv = ndev_priv(upriv->dev);
 		orinoco_if_del(priv);
+		wiphy_unregister(priv_to_wiphy(upriv));
 		free_orinocodev(priv);
 	}
 }
@@ -1695,6 +1696,7 @@ static int ezusb_probe(struct usb_interface *interface,
 	if (orinoco_if_add(priv, 0, 0, &ezusb_netdev_ops) != 0) {
 		upriv->dev = NULL;
 		err("%s: orinoco_if_add() failed", __func__);
+		wiphy_unregister(priv_to_wiphy(priv));
 		goto error;
 	}
 	upriv->dev = priv->ndev;

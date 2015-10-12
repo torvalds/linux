@@ -75,6 +75,11 @@ void amdgpu_connector_hotplug(struct drm_connector *connector)
 			if (!amdgpu_display_hpd_sense(adev, amdgpu_connector->hpd.hpd)) {
 				drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 			} else if (amdgpu_atombios_dp_needs_link_train(amdgpu_connector)) {
+				/* Don't try to start link training before we
+				 * have the dpcd */
+				if (!amdgpu_atombios_dp_get_dpcd(amdgpu_connector))
+					return;
+
 				/* set it to OFF so that drm_helper_connector_dpms()
 				 * won't return immediately since the current state
 				 * is ON at this point.

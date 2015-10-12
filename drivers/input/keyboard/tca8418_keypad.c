@@ -404,7 +404,6 @@ MODULE_ALIAS("i2c:tca8418");
 static struct i2c_driver tca8418_keypad_driver = {
 	.driver = {
 		.name	= TCA8418_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(tca8418_dt_ids),
 	},
 	.probe		= tca8418_keypad_probe,

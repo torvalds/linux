@@ -141,6 +141,9 @@ enum mwifiex_tdls_status {
 	TDLS_SETUP_COMPLETE,
 	TDLS_SETUP_FAILURE,
 	TDLS_LINK_TEARDOWN,
+	TDLS_CHAN_SWITCHING,
+	TDLS_IN_BASE_CHAN,
+	TDLS_IN_OFF_CHAN,
 };
 
 enum mwifiex_tdls_error_code {

@@ -220,7 +220,7 @@ void __init gemini_gpio_init(void)
 		     j < GPIO_IRQ_BASE + (i + 1) * 32; j++) {
 			irq_set_chip_and_handler(j, &gpio_irq_chip,
 						 handle_edge_irq);
-			set_irq_flags(j, IRQF_VALID);
+			irq_clear_status_flags(j, IRQ_NOREQUEST);
 		}
 
 		irq_set_chained_handler_and_data(IRQ_GPIO(i), gpio_irq_handler,

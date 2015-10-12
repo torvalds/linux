@@ -114,7 +114,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 val;
 	int ret;
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags) && (period_ns != pwm->period)) {
+	if (pwm_is_enabled(pwm) && (period_ns != pwm_get_period(pwm))) {
 		dev_err(chip->dev, "cannot change PWM period while enabled\n");
 		return -EBUSY;
 	}
@@ -176,7 +176,7 @@ static void atmel_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the PWM channel is enabled, only update CDTY by using the update
 	 * register, it needs to set bit 10 of CMR to 0
 	 */
-	if (test_bit(PWMF_ENABLED, &pwm->flags))
+	if (pwm_is_enabled(pwm))
 		return;
 	/*
 	 * If the PWM channel is disabled, write value to duty and period
@@ -191,7 +191,7 @@ static void atmel_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags)) {
+	if (pwm_is_enabled(pwm)) {
 		/*
 		 * If the PWM channel is enabled, using the duty update register
 		 * to update the value.

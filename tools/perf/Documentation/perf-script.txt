@@ -116,7 +116,7 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-	srcline, period, flags.
+	srcline, period, iregs, flags.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
@@ -222,6 +222,17 @@ OPTIONS
 --show-mmap-events
 	Display mmap related events (e.g. MMAP, MMAP2).
 
+--show-switch-events
+	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
+	PERF_RECORD_SWITCH_CPU_WIDE.
+
+--demangle::
+	Demangle symbol names to human readable form. It's enabled by default,
+	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
+
 --header
 	Show perf.data header.
 
@@ -231,30 +242,12 @@ OPTIONS
 --itrace::
 	Options for decoding instruction tracing data. The options are:
 
-		i	synthesize instructions events
-		b	synthesize branches events
-		c	synthesize branches events (calls only)
-		r	synthesize branches events (returns only)
-		x	synthesize transactions events
-		e	synthesize error events
-		d	create a debug log
-		g	synthesize a call chain (use with i or x)
-
-	The default is all events i.e. the same as --itrace=ibxe
-
-	In addition, the period (default 100000) for instructions events
-	can be specified in units of:
-
-		i	instructions
-		t	ticks
-		ms	milliseconds
-		us	microseconds
-		ns	nanoseconds (default)
-
-	Also the call chain size (default 16, max. 1024) for instructions or
-	transactions events can be specified.
+include::itrace.txt[]
 
 	To disable decoding entirely, use --no-itrace.
+
+--full-source-path::
+	Show the full path for source files for srcline output.
 
 SEE ALSO
 --------

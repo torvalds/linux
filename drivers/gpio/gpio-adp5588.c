@@ -305,15 +305,7 @@ static int adp5588_irq_setup(struct adp5588_gpio *dev)
 		irq_set_chip_and_handler(irq, &adp5588_irq_chip,
 					 handle_level_irq);
 		irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-		/*
-		 * ARM needs us to explicitly flag the IRQ as VALID,
-		 * once we do so, it will also set the noprobe.
-		 */
-		set_irq_flags(irq, IRQF_VALID);
-#else
-		irq_set_noprobe(irq);
-#endif
+		irq_modify_status(irq, IRQ_NOREQUEST, IRQ_NOPROBE);
 	}
 
 	ret = request_threaded_irq(client->irq,

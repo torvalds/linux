@@ -65,17 +65,6 @@
 
 #define	AQL_ENABLE					1
 
-#define	SDMA_RB_VMID(x)					(x << 24)
-#define	SDMA_RB_ENABLE					(1 << 0)
-#define	SDMA_RB_SIZE(x)					((x) << 1) /* log2 */
-#define	SDMA_RPTR_WRITEBACK_ENABLE			(1 << 12)
-#define	SDMA_RPTR_WRITEBACK_TIMER(x)			((x) << 16) /* log2 */
-#define	SDMA_OFFSET(x)					(x << 0)
-#define	SDMA_DB_ENABLE					(1 << 28)
-#define	SDMA_ATC					(1 << 0)
-#define	SDMA_VA_PTR32					(1 << 4)
-#define	SDMA_VA_SHARED_BASE(x)				(x << 8)
-
 #define GRBM_GFX_INDEX					0x30800
 
 #define	ATC_VMID_PASID_MAPPING_VALID			(1U << 31)

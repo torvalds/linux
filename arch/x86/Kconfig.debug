@@ -297,6 +297,18 @@ config OPTIMIZE_INLINING
 
 	  If unsure, say N.
 
+config DEBUG_ENTRY
+	bool "Debug low-level entry code"
+	depends on DEBUG_KERNEL
+	---help---
+	  This option enables sanity checks in x86's low-level entry code.
+	  Some of these sanity checks may slow down kernel entries and
+	  exits or otherwise impact performance.
+
+	  This is currently used to help test NMI code.
+
+	  If unsure, say N.
+
 config DEBUG_NMI_SELFTEST
 	bool "NMI Selftest"
 	depends on DEBUG_KERNEL && X86_LOCAL_APIC

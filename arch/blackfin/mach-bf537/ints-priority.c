@@ -182,9 +182,11 @@ static struct irq_chip bf537_mac_rx_irqchip = {
 	.irq_unmask = bf537_mac_rx_unmask_irq,
 };
 
-static void bf537_demux_mac_rx_irq(unsigned int int_irq,
+static void bf537_demux_mac_rx_irq(unsigned int __int_irq,
 				   struct irq_desc *desc)
 {
+	unsigned int int_irq = irq_desc_get_irq(desc);
+
 	if (bfin_read_DMA1_IRQ_STATUS() & (DMA_DONE | DMA_ERR))
 		bfin_handle_irq(IRQ_MAC_RX);
 	else

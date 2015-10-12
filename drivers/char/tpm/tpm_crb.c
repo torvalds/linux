@@ -233,6 +233,14 @@ static int crb_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 	}
 
+	/* At least some versions of AMI BIOS have a bug that TPM2 table has
+	 * zero address for the control area and therefore we must fail.
+	*/
+	if (!buf->control_area_pa) {
+		dev_err(dev, "TPM2 ACPI table has a zero address for the control area\n");
+		return -EINVAL;
+	}
+
 	if (buf->hdr.length < sizeof(struct acpi_tpm2)) {
 		dev_err(dev, "TPM2 ACPI table has wrong size");
 		return -EINVAL;

@@ -22,73 +22,55 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
+
+#include <subdev/gpio.h>
+
+#include <subdev/gpio.h>
 
 static void
-nv04_bus_intr(struct nvkm_subdev *subdev)
+nv04_bus_intr(struct nvkm_bus *bus)
 {
-	struct nvkm_bus *pbus = nvkm_bus(subdev);
-	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
+	struct nvkm_subdev *subdev = &bus->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x001100) & nvkm_rd32(device, 0x001140);
 
 	if (stat & 0x00000001) {
-		nv_error(pbus, "BUS ERROR\n");
+		nvkm_error(subdev, "BUS ERROR\n");
 		stat &= ~0x00000001;
-		nv_wr32(pbus, 0x001100, 0x00000001);
+		nvkm_wr32(device, 0x001100, 0x00000001);
 	}
 
 	if (stat & 0x00000110) {
-		subdev = nvkm_subdev(subdev, NVDEV_SUBDEV_GPIO);
-		if (subdev && subdev->intr)
-			subdev->intr(subdev);
+		struct nvkm_gpio *gpio = device->gpio;
+		if (gpio)
+			nvkm_subdev_intr(&gpio->subdev);
 		stat &= ~0x00000110;
-		nv_wr32(pbus, 0x001100, 0x00000110);
+		nvkm_wr32(device, 0x001100, 0x00000110);
 	}
 
 	if (stat) {
-		nv_error(pbus, "unknown intr 0x%08x\n", stat);
-		nv_mask(pbus, 0x001140, stat, 0x00000000);
+		nvkm_error(subdev, "intr %08x\n", stat);
+		nvkm_mask(device, 0x001140, stat, 0x00000000);
 	}
 }
 
-static int
-nv04_bus_init(struct nvkm_object *object)
+static void
+nv04_bus_init(struct nvkm_bus *bus)
 {
-	struct nv04_bus_priv *priv = (void *)object;
-
-	nv_wr32(priv, 0x001100, 0xffffffff);
-	nv_wr32(priv, 0x001140, 0x00000111);
-
-	return nvkm_bus_init(&priv->base);
+	struct nvkm_device *device = bus->subdev.device;
+	nvkm_wr32(device, 0x001100, 0xffffffff);
+	nvkm_wr32(device, 0x001140, 0x00000111);
 }
+
+static const struct nvkm_bus_func
+nv04_bus = {
+	.init = nv04_bus_init,
+	.intr = nv04_bus_intr,
+};
 
 int
-nv04_bus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	      struct nvkm_oclass *oclass, void *data, u32 size,
-	      struct nvkm_object **pobject)
+nv04_bus_new(struct nvkm_device *device, int index, struct nvkm_bus **pbus)
 {
-	struct nv04_bus_impl *impl = (void *)oclass;
-	struct nv04_bus_priv *priv;
-	int ret;
-
-	ret = nvkm_bus_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->intr = impl->intr;
-	priv->base.hwsq_exec = impl->hwsq_exec;
-	priv->base.hwsq_size = impl->hwsq_size;
-	return 0;
+	return nvkm_bus_new_(&nv04_bus, device, index, pbus);
 }
-
-struct nvkm_oclass *
-nv04_bus_oclass = &(struct nv04_bus_impl) {
-	.base.handle = NV_SUBDEV(BUS, 0x04),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_bus_ctor,
-		.dtor = _nvkm_bus_dtor,
-		.init = nv04_bus_init,
-		.fini = _nvkm_bus_fini,
-	},
-	.intr = nv04_bus_intr,
-}.base;

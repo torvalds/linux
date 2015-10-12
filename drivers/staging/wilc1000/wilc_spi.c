@@ -374,11 +374,10 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 		return result;
 	}
 
-	if (!g_spi.crc_off) {
+	if (!g_spi.crc_off)
 		wb[len - 1] = (crc7(0x7f, (const uint8_t *)&wb[0], len - 1)) << 1;
-	} else {
+	else
 		len -= 1;
-	}
 
 #define NUM_SKIP_BYTES (1)
 #define NUM_RSP_BYTES (2)
@@ -522,11 +521,10 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 			if (sz > 0) {
 				int nbytes;
 
-				if (sz <= (DATA_PKT_SZ - ix)) {
+				if (sz <= (DATA_PKT_SZ - ix))
 					nbytes = sz;
-				} else {
+				else
 					nbytes = DATA_PKT_SZ - ix;
-				}
 
 				/**
 				 * Read bytes
@@ -557,11 +555,10 @@ static int spi_cmd_complete(uint8_t cmd, uint32_t adr, uint8_t *b, uint32_t sz, 
 			while (sz > 0) {
 				int nbytes;
 
-				if (sz <= DATA_PKT_SZ) {
+				if (sz <= DATA_PKT_SZ)
 					nbytes = sz;
-				} else {
+				else
 					nbytes = DATA_PKT_SZ;
-				}
 
 				/**
 				 * read data response only on the next DMA cycles not

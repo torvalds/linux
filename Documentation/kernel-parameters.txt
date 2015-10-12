@@ -910,6 +910,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Disable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs.
 
+	dis_ucode_ldr	[X86] Disable the microcode loader.
+
 	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
 			this option disables the debugging code at boot.
 
@@ -1315,6 +1317,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			     <bus_id>,<clkrate>
 
 	i8042.debug	[HW] Toggle i8042 debug mode
+	i8042.unmask_kbd_data
+			[HW] Enable printing of interrupt data from the KBD port
+			     (disabled by default, and as a pre-condition
+			     requires that i8042.debug=1 be enabled)
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -2279,6 +2285,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The default parameter value of '0' causes the kernel
 			not to attempt recovery of lost locks.
 
+	nfs4.layoutstats_timer =
+			[NFSv4.2] Change the rate at which the kernel sends
+			layoutstats to the pNFS metadata server.
+
+			Setting this to value to 0 causes the kernel to use
+			whatever value is the default set by the layout
+			driver. A non-zero value sets the minimum interval
+			in seconds between layoutstats transmissions.
+
 	nfsd.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', the NFSv4
 			server will return only numeric uids and gids to
@@ -3135,22 +3150,35 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			in a given burst of a callback-flood test.
 
 	rcutorture.fqs_duration= [KNL]
-			Set duration of force_quiescent_state bursts.
+			Set duration of force_quiescent_state bursts
+			in microseconds.
 
 	rcutorture.fqs_holdoff= [KNL]
-			Set holdoff time within force_quiescent_state bursts.
+			Set holdoff time within force_quiescent_state bursts
+			in microseconds.
 
 	rcutorture.fqs_stutter= [KNL]
-			Set wait time between force_quiescent_state bursts.
+			Set wait time between force_quiescent_state bursts
+			in seconds.
+
+	rcutorture.gp_cond= [KNL]
+			Use conditional/asynchronous update-side
+			primitives, if available.
 
 	rcutorture.gp_exp= [KNL]
-			Use expedited update-side primitives.
+			Use expedited update-side primitives, if available.
 
 	rcutorture.gp_normal= [KNL]
-			Use normal (non-expedited) update-side primitives.
-			If both gp_exp and gp_normal are set, do both.
-			If neither gp_exp nor gp_normal are set, still
-			do both.
+			Use normal (non-expedited) asynchronous
+			update-side primitives, if available.
+
+	rcutorture.gp_sync= [KNL]
+			Use normal (non-expedited) synchronous
+			update-side primitives, if available.  If all
+			of rcutorture.gp_cond=, rcutorture.gp_exp=,
+			rcutorture.gp_normal=, and rcutorture.gp_sync=
+			are zero, rcutorture acts as if is interpreted
+			they are all non-zero.
 
 	rcutorture.n_barrier_cbs= [KNL]
 			Set callbacks/threads for rcu_barrier() testing.
@@ -3176,9 +3204,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.onoff_interval= [KNL]
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
-
-	rcutorture.torture_runnable= [BOOT]
-			Start rcutorture running at boot time.
 
 	rcutorture.shuffle_interval= [KNL]
 			Set task-shuffle interval (s).  Shuffling tasks
@@ -3219,6 +3244,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.test_no_idle_hz= [KNL]
 			Test RCU's dyntick-idle handling.  See also the
 			rcutorture.shuffle_interval parameter.
+
+	rcutorture.torture_runnable= [BOOT]
+			Start rcutorture running at boot time.
 
 	rcutorture.torture_type= [KNL]
 			Specify the RCU implementation to test.
@@ -4077,6 +4105,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Two valid options are apbt timer only and lapic timer
 			plus one apbt timer for broadcast timer.
 			x86_intel_mid_timer=apbt_only | lapic_and_apbt
+
+	xen_512gb_limit		[KNL,X86-64,XEN]
+			Restricts the kernel running paravirtualized under Xen
+			to use only up to 512 GB of RAM. The reason to do so is
+			crash analysis tools and Xen tools for doing domain
+			save/restore/migration must be enabled to handle larger
+			domains.
 
 	xen_emul_unplug=		[HW,X86,XEN]
 			Unplug Xen emulated devices

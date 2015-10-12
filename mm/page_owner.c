@@ -76,6 +76,13 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
 }
 
+gfp_t __get_page_owner_gfp(struct page *page)
+{
+	struct page_ext *page_ext = lookup_page_ext(page);
+
+	return page_ext->gfp_mask;
+}
+
 static ssize_t
 print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 		struct page *page, struct page_ext *page_ext)

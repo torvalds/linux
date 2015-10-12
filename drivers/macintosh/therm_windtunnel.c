@@ -408,6 +408,7 @@ static const struct i2c_device_id therm_windtunnel_id[] = {
 	{ "therm_adm1030", adm1030 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, therm_windtunnel_id);
 
 static int
 do_probe(struct i2c_client *cl, const struct i2c_device_id *id)
@@ -459,6 +460,7 @@ static const struct of_device_id therm_of_match[] = {{
 	.compatible	= "adm1030"
     }, {}
 };
+MODULE_DEVICE_TABLE(of, therm_of_match);
 
 static struct platform_driver therm_of_driver = {
 	.driver = {

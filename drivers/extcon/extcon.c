@@ -124,24 +124,34 @@ static int find_cable_index_by_id(struct extcon_dev *edev, const unsigned int id
 	return -EINVAL;
 }
 
-static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
+static int find_cable_id_by_name(struct extcon_dev *edev, const char *name)
 {
-	unsigned int id = EXTCON_NONE;
+	int id = -EINVAL;
 	int i = 0;
 
-	if (edev->max_supported == 0)
-		return -EINVAL;
-
-	/* Find the the number of extcon cable */
+	/* Find the id of extcon cable */
 	while (extcon_name[i]) {
 		if (!strncmp(extcon_name[i], name, CABLE_NAME_MAX)) {
 			id = i;
 			break;
 		}
+		i++;
 	}
 
-	if (id == EXTCON_NONE)
+	return id;
+}
+
+static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
+{
+	int id;
+
+	if (edev->max_supported == 0)
 		return -EINVAL;
+
+	/* Find the the number of extcon cable */
+	id = find_cable_id_by_name(edev, name);
+	if (id < 0)
+		return id;
 
 	return find_cable_index_by_id(edev, id);
 }
@@ -161,14 +171,6 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 {
 	int i, count = 0;
 	struct extcon_dev *edev = dev_get_drvdata(dev);
-
-	if (edev->print_state) {
-		int ret = edev->print_state(edev, buf);
-
-		if (ret >= 0)
-			return ret;
-		/* Use default if failed */
-	}
 
 	if (edev->max_supported == 0)
 		return sprintf(buf, "%u\n", edev->state);
@@ -228,9 +230,11 @@ static ssize_t cable_state_show(struct device *dev,
 	struct extcon_cable *cable = container_of(attr, struct extcon_cable,
 						  attr_state);
 
+	int i = cable->cable_index;
+
 	return sprintf(buf, "%d\n",
 		       extcon_get_cable_state_(cable->edev,
-					       cable->cable_index));
+					       cable->edev->supported_cable[i]));
 }
 
 /**
@@ -260,22 +264,30 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	unsigned long flags;
 	bool attached;
 
+	if (!edev)
+		return -EINVAL;
+
 	spin_lock_irqsave(&edev->lock, flags);
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
+		u32 old_state;
+
 		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
 						   (state & mask))) {
 			spin_unlock_irqrestore(&edev->lock, flags);
 			return -EPERM;
 		}
 
-		for (index = 0; index < edev->max_supported; index++) {
-			if (is_extcon_changed(edev->state, state, index, &attached))
-				raw_notifier_call_chain(&edev->nh[index], attached, edev);
-		}
-
+		old_state = edev->state;
 		edev->state &= ~mask;
 		edev->state |= state & mask;
+
+		for (index = 0; index < edev->max_supported; index++) {
+			if (is_extcon_changed(old_state, edev->state, index,
+					      &attached))
+				raw_notifier_call_chain(&edev->nh[index],
+							attached, edev);
+		}
 
 		/* This could be in interrupt handler */
 		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
@@ -328,6 +340,9 @@ EXPORT_SYMBOL_GPL(extcon_update_state);
  */
 int extcon_set_state(struct extcon_dev *edev, u32 state)
 {
+	if (!edev)
+		return -EINVAL;
+
 	return extcon_update_state(edev, 0xffffffff, state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_state);
@@ -340,6 +355,9 @@ EXPORT_SYMBOL_GPL(extcon_set_state);
 int extcon_get_cable_state_(struct extcon_dev *edev, const unsigned int id)
 {
 	int index;
+
+	if (!edev)
+		return -EINVAL;
 
 	index = find_cable_index_by_id(edev, id);
 	if (index < 0)
@@ -361,8 +379,13 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state_);
  */
 int extcon_get_cable_state(struct extcon_dev *edev, const char *cable_name)
 {
-	return extcon_get_cable_state_(edev, find_cable_index_by_name
-						(edev, cable_name));
+	int id;
+
+	id = find_cable_id_by_name(edev, cable_name);
+	if (id < 0)
+		return id;
+
+	return extcon_get_cable_state_(edev, id);
 }
 EXPORT_SYMBOL_GPL(extcon_get_cable_state);
 
@@ -379,6 +402,9 @@ int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
 {
 	u32 state;
 	int index;
+
+	if (!edev)
+		return -EINVAL;
 
 	index = find_cable_index_by_id(edev, id);
 	if (index < 0)
@@ -404,8 +430,13 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 int extcon_set_cable_state(struct extcon_dev *edev,
 			const char *cable_name, bool cable_state)
 {
-	return extcon_set_cable_state_(edev, find_cable_index_by_name
-					(edev, cable_name), cable_state);
+	int id;
+
+	id = find_cable_id_by_name(edev, cable_name);
+	if (id < 0)
+		return id;
+
+	return extcon_set_cable_state_(edev, id, cable_state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_cable_state);
 
@@ -416,6 +447,9 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state);
 struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
 	struct extcon_dev *sd;
+
+	if (!extcon_name)
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&extcon_dev_list_lock);
 	list_for_each_entry(sd, &extcon_dev_list, entry) {
@@ -545,6 +579,9 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 	unsigned long flags;
 	int ret, idx;
 
+	if (!edev || !nb)
+		return -EINVAL;
+
 	idx = find_cable_index_by_id(edev, id);
 
 	spin_lock_irqsave(&edev->lock, flags);
@@ -566,6 +603,9 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 {
 	unsigned long flags;
 	int ret, idx;
+
+	if (!edev || !nb)
+		return -EINVAL;
 
 	idx = find_cable_index_by_id(edev, id);
 
@@ -626,6 +666,9 @@ static void dummy_sysfs_dev_release(struct device *dev)
 struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 {
 	struct extcon_dev *edev;
+
+	if (!supported_cable)
+		return ERR_PTR(-EINVAL);
 
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev)
@@ -727,7 +770,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 			return ret;
 	}
 
-	if (!edev->supported_cable)
+	if (!edev || !edev->supported_cable)
 		return -EINVAL;
 
 	for (; edev->supported_cable[index] != EXTCON_NONE; index++);
@@ -933,6 +976,9 @@ void extcon_dev_unregister(struct extcon_dev *edev)
 {
 	int index;
 
+	if (!edev)
+		return;
+
 	mutex_lock(&extcon_dev_list_lock);
 	list_del(&edev->entry);
 	mutex_unlock(&extcon_dev_list_lock);
@@ -1038,6 +1084,9 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 {
 	struct device_node *node;
 	struct extcon_dev *edev;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
 
 	if (!dev->of_node) {
 		dev_err(dev, "device does not have a device node entry\n");

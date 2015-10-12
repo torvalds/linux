@@ -225,9 +225,9 @@
 		#dma-cells = <1>;
 	};
 
-	ahb@6000c004 {
+	ahb@6000c000 {
 		compatible = "nvidia,tegra20-ahb";
-		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */
+		reg = <0x6000c000 0x110>; /* AHB Arbitration + Gizmo Controller */
 	};
 
 	gpio: gpio@6000d000 {
@@ -244,6 +244,7 @@
 		gpio-controller;
 		#interrupt-cells = <2>;
 		interrupt-controller;
+		gpio-ranges = <&pinmux 0 0 224>;
 	};
 
 	apbmisc@70000800 {

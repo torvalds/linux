@@ -119,6 +119,7 @@
 #define X86_FEATURE_TM2		( 4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3	( 4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_CID		( 4*32+10) /* Context ID */
+#define X86_FEATURE_SDBG	( 4*32+11) /* Silicon Debug */
 #define X86_FEATURE_FMA		( 4*32+12) /* Fused multiply-add */
 #define X86_FEATURE_CX16	( 4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	( 4*32+14) /* Send Task Priority Messages */
@@ -176,6 +177,7 @@
 #define X86_FEATURE_PERFCTR_NB  ( 6*32+24) /* NB performance counter extensions */
 #define X86_FEATURE_BPEXT	(6*32+26) /* data breakpoint extension */
 #define X86_FEATURE_PERFCTR_L2	( 6*32+28) /* L2 performance counter extensions */
+#define X86_FEATURE_MWAITX	( 6*32+29) /* MWAIT extension (MONITORX/MWAITX) */
 
 /*
  * Auxiliary flags: Linux defined - For features scattered in various

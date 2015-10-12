@@ -356,6 +356,7 @@ int paste_selection(struct tty_struct *tty)
 			schedule();
 			continue;
 		}
+		__set_current_state(TASK_RUNNING);
 		count = sel_buffer_lth - pasted;
 		count = tty_ldisc_receive_buf(ld, sel_buffer + pasted, NULL,
 					      count);

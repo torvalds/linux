@@ -235,6 +235,10 @@
 	};
 };
 
+&cpu0 {
+	cpu0-supply = <&buck2_reg>;
+};
+
 &dp {
 	status = "okay";
 	pinctrl-names = "default";
@@ -688,6 +692,7 @@
 	status = "okay";
 	samsung,spi-src-clk = <0>;
 	num-cs = <1>;
+	cs-gpios = <&gpa2 5 GPIO_ACTIVE_HIGH>;
 };
 
 &usbdrd_dwc3 {

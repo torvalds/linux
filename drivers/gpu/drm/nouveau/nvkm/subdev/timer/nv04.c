@@ -21,165 +21,92 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv04.h"
+#include "priv.h"
+#include "regsnv04.h"
 
-#include <core/device.h>
-
-static u64
-nv04_timer_read(struct nvkm_timer *ptimer)
+void
+nv04_timer_time(struct nvkm_timer *tmr, u64 time)
 {
-	struct nv04_timer_priv *priv = (void *)ptimer;
+	struct nvkm_subdev *subdev = &tmr->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 hi = upper_32_bits(time);
+	u32 lo = lower_32_bits(time);
+
+	nvkm_debug(subdev, "time low        : %08x\n", lo);
+	nvkm_debug(subdev, "time high       : %08x\n", hi);
+
+	nvkm_wr32(device, NV04_PTIMER_TIME_1, hi);
+	nvkm_wr32(device, NV04_PTIMER_TIME_0, lo);
+}
+
+u64
+nv04_timer_read(struct nvkm_timer *tmr)
+{
+	struct nvkm_device *device = tmr->subdev.device;
 	u32 hi, lo;
 
 	do {
-		hi = nv_rd32(priv, NV04_PTIMER_TIME_1);
-		lo = nv_rd32(priv, NV04_PTIMER_TIME_0);
-	} while (hi != nv_rd32(priv, NV04_PTIMER_TIME_1));
+		hi = nvkm_rd32(device, NV04_PTIMER_TIME_1);
+		lo = nvkm_rd32(device, NV04_PTIMER_TIME_0);
+	} while (hi != nvkm_rd32(device, NV04_PTIMER_TIME_1));
 
 	return ((u64)hi << 32 | lo);
 }
 
-static void
-nv04_timer_alarm_trigger(struct nvkm_timer *ptimer)
+void
+nv04_timer_alarm_fini(struct nvkm_timer *tmr)
 {
-	struct nv04_timer_priv *priv = (void *)ptimer;
-	struct nvkm_alarm *alarm, *atemp;
-	unsigned long flags;
-	LIST_HEAD(exec);
-
-	/* move any due alarms off the pending list */
-	spin_lock_irqsave(&priv->lock, flags);
-	list_for_each_entry_safe(alarm, atemp, &priv->alarms, head) {
-		if (alarm->timestamp <= ptimer->read(ptimer))
-			list_move_tail(&alarm->head, &exec);
-	}
-
-	/* reschedule interrupt for next alarm time */
-	if (!list_empty(&priv->alarms)) {
-		alarm = list_first_entry(&priv->alarms, typeof(*alarm), head);
-		nv_wr32(priv, NV04_PTIMER_ALARM_0, alarm->timestamp);
-		nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000001);
-	} else {
-		nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* execute any pending alarm handlers */
-	list_for_each_entry_safe(alarm, atemp, &exec, head) {
-		list_del_init(&alarm->head);
-		alarm->func(alarm);
-	}
+	struct nvkm_device *device = tmr->subdev.device;
+	nvkm_wr32(device, NV04_PTIMER_INTR_EN_0, 0x00000000);
 }
 
-static void
-nv04_timer_alarm(struct nvkm_timer *ptimer, u64 time, struct nvkm_alarm *alarm)
+void
+nv04_timer_alarm_init(struct nvkm_timer *tmr, u32 time)
 {
-	struct nv04_timer_priv *priv = (void *)ptimer;
-	struct nvkm_alarm *list;
-	unsigned long flags;
-
-	alarm->timestamp = ptimer->read(ptimer) + time;
-
-	/* append new alarm to list, in soonest-alarm-first order */
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!time) {
-		if (!list_empty(&alarm->head))
-			list_del(&alarm->head);
-	} else {
-		list_for_each_entry(list, &priv->alarms, head) {
-			if (list->timestamp > alarm->timestamp)
-				break;
-		}
-		list_add_tail(&alarm->head, &list->head);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* process pending alarms */
-	nv04_timer_alarm_trigger(ptimer);
+	struct nvkm_device *device = tmr->subdev.device;
+	nvkm_wr32(device, NV04_PTIMER_ALARM_0, time);
+	nvkm_wr32(device, NV04_PTIMER_INTR_EN_0, 0x00000001);
 }
 
-static void
-nv04_timer_alarm_cancel(struct nvkm_timer *ptimer, struct nvkm_alarm *alarm)
+void
+nv04_timer_intr(struct nvkm_timer *tmr)
 {
-	struct nv04_timer_priv *priv = (void *)ptimer;
-	unsigned long flags;
-	spin_lock_irqsave(&priv->lock, flags);
-	list_del_init(&alarm->head);
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static void
-nv04_timer_intr(struct nvkm_subdev *subdev)
-{
-	struct nv04_timer_priv *priv = (void *)subdev;
-	u32 stat = nv_rd32(priv, NV04_PTIMER_INTR_0);
+	struct nvkm_subdev *subdev = &tmr->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, NV04_PTIMER_INTR_0);
 
 	if (stat & 0x00000001) {
-		nv04_timer_alarm_trigger(&priv->base);
-		nv_wr32(priv, NV04_PTIMER_INTR_0, 0x00000001);
+		nvkm_timer_alarm_trigger(tmr);
+		nvkm_wr32(device, NV04_PTIMER_INTR_0, 0x00000001);
 		stat &= ~0x00000001;
 	}
 
 	if (stat) {
-		nv_error(priv, "unknown stat 0x%08x\n", stat);
-		nv_wr32(priv, NV04_PTIMER_INTR_0, stat);
+		nvkm_error(subdev, "intr %08x\n", stat);
+		nvkm_wr32(device, NV04_PTIMER_INTR_0, stat);
 	}
 }
 
-int
-nv04_timer_fini(struct nvkm_object *object, bool suspend)
+static void
+nv04_timer_init(struct nvkm_timer *tmr)
 {
-	struct nv04_timer_priv *priv = (void *)object;
-	if (suspend)
-		priv->suspend_time = nv04_timer_read(&priv->base);
-	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
-	return nvkm_timer_fini(&priv->base, suspend);
-}
-
-static int
-nv04_timer_init(struct nvkm_object *object)
-{
-	struct nvkm_device *device = nv_device(object);
-	struct nv04_timer_priv *priv = (void *)object;
-	u32 m = 1, f, n, d, lo, hi;
-	int ret;
-
-	ret = nvkm_timer_init(&priv->base);
-	if (ret)
-		return ret;
+	struct nvkm_subdev *subdev = &tmr->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 f = 0; /*XXX: nvclk */
+	u32 n, d;
 
 	/* aim for 31.25MHz, which gives us nanosecond timestamps */
 	d = 1000000 / 32;
+	n = f;
 
-	/* determine base clock for timer source */
-#if 0 /*XXX*/
-	if (device->chipset < 0x40) {
-		n = nvkm_hw_get_clock(device, PLL_CORE);
-	} else
-#endif
-	if (device->chipset <= 0x40) {
-		/*XXX: figure this out */
-		f = -1;
-		n = 0;
-	} else {
-		f = device->crystal;
-		n = f;
-		while (n < (d * 2)) {
-			n += (n / m);
-			m++;
+	if (!f) {
+		n = nvkm_rd32(device, NV04_PTIMER_NUMERATOR);
+		d = nvkm_rd32(device, NV04_PTIMER_DENOMINATOR);
+		if (!n || !d) {
+			n = 1;
+			d = 1;
 		}
-
-		nv_wr32(priv, 0x009220, m - 1);
-	}
-
-	if (!n) {
-		nv_warn(priv, "unknown input clock freq\n");
-		if (!nv_rd32(priv, NV04_PTIMER_NUMERATOR) ||
-		    !nv_rd32(priv, NV04_PTIMER_DENOMINATOR)) {
-			nv_wr32(priv, NV04_PTIMER_NUMERATOR, 1);
-			nv_wr32(priv, NV04_PTIMER_DENOMINATOR, 1);
-		}
-		return 0;
+		nvkm_warn(subdev, "unknown input clock freq\n");
 	}
 
 	/* reduce ratio to acceptable values */
@@ -198,65 +125,27 @@ nv04_timer_init(struct nvkm_object *object)
 		d >>= 1;
 	}
 
-	/* restore the time before suspend */
-	lo = priv->suspend_time;
-	hi = (priv->suspend_time >> 32);
+	nvkm_debug(subdev, "input frequency : %dHz\n", f);
+	nvkm_debug(subdev, "numerator       : %08x\n", n);
+	nvkm_debug(subdev, "denominator     : %08x\n", d);
+	nvkm_debug(subdev, "timer frequency : %dHz\n", f * d / n);
 
-	nv_debug(priv, "input frequency : %dHz\n", f);
-	nv_debug(priv, "input multiplier: %d\n", m);
-	nv_debug(priv, "numerator       : 0x%08x\n", n);
-	nv_debug(priv, "denominator     : 0x%08x\n", d);
-	nv_debug(priv, "timer frequency : %dHz\n", (f * m) * d / n);
-	nv_debug(priv, "time low        : 0x%08x\n", lo);
-	nv_debug(priv, "time high       : 0x%08x\n", hi);
-
-	nv_wr32(priv, NV04_PTIMER_NUMERATOR, n);
-	nv_wr32(priv, NV04_PTIMER_DENOMINATOR, d);
-	nv_wr32(priv, NV04_PTIMER_INTR_0, 0xffffffff);
-	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
-	nv_wr32(priv, NV04_PTIMER_TIME_1, hi);
-	nv_wr32(priv, NV04_PTIMER_TIME_0, lo);
-	return 0;
+	nvkm_wr32(device, NV04_PTIMER_NUMERATOR, n);
+	nvkm_wr32(device, NV04_PTIMER_DENOMINATOR, d);
 }
 
-void
-nv04_timer_dtor(struct nvkm_object *object)
-{
-	struct nv04_timer_priv *priv = (void *)object;
-	return nvkm_timer_destroy(&priv->base);
-}
+static const struct nvkm_timer_func
+nv04_timer = {
+	.init = nv04_timer_init,
+	.intr = nv04_timer_intr,
+	.read = nv04_timer_read,
+	.time = nv04_timer_time,
+	.alarm_init = nv04_timer_alarm_init,
+	.alarm_fini = nv04_timer_alarm_fini,
+};
 
 int
-nv04_timer_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+nv04_timer_new(struct nvkm_device *device, int index, struct nvkm_timer **ptmr)
 {
-	struct nv04_timer_priv *priv;
-	int ret;
-
-	ret = nvkm_timer_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.base.intr = nv04_timer_intr;
-	priv->base.read = nv04_timer_read;
-	priv->base.alarm = nv04_timer_alarm;
-	priv->base.alarm_cancel = nv04_timer_alarm_cancel;
-	priv->suspend_time = 0;
-
-	INIT_LIST_HEAD(&priv->alarms);
-	spin_lock_init(&priv->lock);
-	return 0;
+	return nvkm_timer_new_(&nv04_timer, device, index, ptmr);
 }
-
-struct nvkm_oclass
-nv04_timer_oclass = {
-	.handle = NV_SUBDEV(TIMER, 0x04),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_timer_ctor,
-		.dtor = nv04_timer_dtor,
-		.init = nv04_timer_init,
-		.fini = nv04_timer_fini,
-	}
-};

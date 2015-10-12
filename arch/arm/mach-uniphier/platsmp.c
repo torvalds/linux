@@ -60,12 +60,6 @@ err:
 	sbcm_regmap = NULL;
 }
 
-static void __naked uniphier_secondary_startup(void)
-{
-	asm("bl		v7_invalidate_l1\n"
-	    "b		secondary_startup\n");
-};
-
 static int uniphier_boot_secondary(unsigned int cpu,
 				   struct task_struct *idle)
 {
@@ -75,7 +69,7 @@ static int uniphier_boot_secondary(unsigned int cpu,
 		return -ENODEV;
 
 	ret = regmap_write(sbcm_regmap, 0x1208,
-			   virt_to_phys(uniphier_secondary_startup));
+			   virt_to_phys(secondary_startup));
 	if (!ret)
 		asm("sev"); /* wake up secondary CPU */
 

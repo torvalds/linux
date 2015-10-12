@@ -197,6 +197,27 @@
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
 #define LOWPAN_NHC_UDP_CS_C	0x04 /* checksum elided */
 
+#define LOWPAN_PRIV_SIZE(llpriv_size)	\
+	(sizeof(struct lowpan_priv) + llpriv_size)
+
+enum lowpan_lltypes {
+	LOWPAN_LLTYPE_BTLE,
+	LOWPAN_LLTYPE_IEEE802154,
+};
+
+struct lowpan_priv {
+	enum lowpan_lltypes lltype;
+
+	/* must be last */
+	u8 priv[0] __aligned(sizeof(void *));
+};
+
+static inline
+struct lowpan_priv *lowpan_priv(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
 #ifdef DEBUG
 /* print data in line */
 static inline void raw_dump_inline(const char *caller, char *msg,
@@ -371,6 +392,8 @@ lowpan_uncompress_size(const struct sk_buff *skb, u16 *dgram_offset)
 
 	return skb->len + uncomp_header - ret;
 }
+
+void lowpan_netdev_setup(struct net_device *dev, enum lowpan_lltypes lltype);
 
 int
 lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,

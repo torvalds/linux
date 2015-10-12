@@ -29,8 +29,9 @@
 void __iomem *it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
-static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void cmx2xx_it8152_irq_demux(unsigned int __irq, struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	/* clear our parent irq */
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 

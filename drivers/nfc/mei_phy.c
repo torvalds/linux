@@ -355,7 +355,8 @@ static int nfc_mei_phy_enable(void *phy_id)
 		goto err;
 	}
 
-	r = mei_cl_register_event_cb(phy->device, nfc_mei_event_cb, phy);
+	r = mei_cl_register_event_cb(phy->device, BIT(MEI_CL_EVENT_RX),
+				     nfc_mei_event_cb, phy);
 	if (r) {
 		pr_err("Event cb registration failed %d\n", r);
 		goto err;

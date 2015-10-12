@@ -98,6 +98,8 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
 
 	vcpu->arch.eager_fpu = use_eager_fpu() || guest_cpuid_has_mpx(vcpu);
+	if (vcpu->arch.eager_fpu)
+		kvm_x86_ops->fpu_activate(vcpu);
 
 	/*
 	 * The existing code assumes virtual address is 48-bit in the canonical

@@ -144,7 +144,6 @@ MODULE_DEVICE_TABLE(i2c, tea6420_id);
 
 static struct i2c_driver tea6420_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tea6420",
 	},
 	.probe		= tea6420_probe,

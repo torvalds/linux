@@ -963,14 +963,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	} else {
 		pool->npages_free += count;
 		list_splice(&ttm_dma->pages_list, &pool->free_list);
-		npages = count;
-		if (pool->npages_free > _manager->options.max_size) {
+		/*
+		 * Wait to have at at least NUM_PAGES_TO_ALLOC number of pages
+		 * to free in order to minimize calls to set_memory_wb().
+		 */
+		if (pool->npages_free >= (_manager->options.max_size +
+					  NUM_PAGES_TO_ALLOC))
 			npages = pool->npages_free - _manager->options.max_size;
-			/* free at least NUM_PAGES_TO_ALLOC number of pages
-			 * to reduce calls to set_memory_wb */
-			if (npages < NUM_PAGES_TO_ALLOC)
-				npages = NUM_PAGES_TO_ALLOC;
-		}
 	}
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 

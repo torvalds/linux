@@ -39,12 +39,12 @@
 
 #include "smi.h"
 
-enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, u8 node_type,
+enum smi_action opa_smi_handle_dr_smp_recv(struct opa_smp *smp, bool is_switch,
 				       int port_num, int phys_port_cnt);
 int opa_smi_get_fwd_port(struct opa_smp *smp);
 extern enum smi_forward_action opa_smi_check_forward_dr_smp(struct opa_smp *smp);
 extern enum smi_action opa_smi_handle_dr_smp_send(struct opa_smp *smp,
-					      u8 node_type, int port_num);
+					      bool is_switch, int port_num);
 
 /*
  * Return IB_SMI_HANDLE if the SMP should be handled by the local SMA/SM

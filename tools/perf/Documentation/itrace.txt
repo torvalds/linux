@@ -1,0 +1,22 @@
+		i	synthesize instructions events
+		b	synthesize branches events
+		c	synthesize branches events (calls only)
+		r	synthesize branches events (returns only)
+		x	synthesize transactions events
+		e	synthesize error events
+		d	create a debug log
+		g	synthesize a call chain (use with i or x)
+
+	The default is all events i.e. the same as --itrace=ibxe
+
+	In addition, the period (default 100000) for instructions events
+	can be specified in units of:
+
+		i	instructions
+		t	ticks
+		ms	milliseconds
+		us	microseconds
+		ns	nanoseconds (default)
+
+	Also the call chain size (default 16, max. 1024) for instructions or
+	transactions events can be specified.

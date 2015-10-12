@@ -58,7 +58,7 @@
 	 * the whole bus hierarchy.
 	 */
 	ocp {
-		compatible = "ti,omap3-l3-smx", "simple-bus";
+		compatible = "simple-bus";
 		reg = <0x44000000 0x10000>;
 		interrupts = <9 10>;
 		#address-cells = <1>;

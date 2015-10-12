@@ -198,10 +198,10 @@ static int slimpro_i2c_blkrd(struct slimpro_i2c_dev *ctx, u32 chip, u32 addr,
 	int rc;
 
 	paddr = dma_map_single(ctx->dev, ctx->dma_buffer, readlen, DMA_FROM_DEVICE);
-	rc = dma_mapping_error(ctx->dev, paddr);
-	if (rc) {
+	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
+		rc = -ENOMEM;
 		goto err;
 	}
 
@@ -241,10 +241,10 @@ static int slimpro_i2c_blkwr(struct slimpro_i2c_dev *ctx, u32 chip,
 	memcpy(ctx->dma_buffer, data, writelen);
 	paddr = dma_map_single(ctx->dev, ctx->dma_buffer, writelen,
 			       DMA_TO_DEVICE);
-	rc = dma_mapping_error(ctx->dev, paddr);
-	if (rc) {
+	if (dma_mapping_error(ctx->dev, paddr)) {
 		dev_err(&ctx->adapter.dev, "Error in mapping dma buffer %p\n",
 			ctx->dma_buffer);
+		rc = -ENOMEM;
 		goto err;
 	}
 

@@ -82,12 +82,19 @@ static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 	int orig;
 	int test1, test2;
 	int orig1, orig2;
+	unsigned int vram_size;
 
 	/* Probe */
 	orig = ioread16(mem);
 	iowrite16(0, mem);
 
-	for (offset = 0x100000; offset < mdev->mc.vram_window; offset += 0x4000) {
+	vram_size = mdev->mc.vram_window;
+
+	if ((mdev->type == G200_EW3) && (vram_size >= 0x1000000)) {
+		vram_size = vram_size - 0x400000;
+	}
+
+	for (offset = 0x100000; offset < vram_size; offset += 0x4000) {
 		orig1 = ioread8(mem + offset);
 		orig2 = ioread8(mem + offset + 0x100);
 
@@ -345,23 +352,15 @@ mgag200_dumb_mmap_offset(struct drm_file *file,
 		     uint64_t *offset)
 {
 	struct drm_gem_object *obj;
-	int ret;
 	struct mgag200_bo *bo;
 
-	mutex_lock(&dev->struct_mutex);
 	obj = drm_gem_object_lookup(dev, file, handle);
-	if (obj == NULL) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
+	if (obj == NULL)
+		return -ENOENT;
 
 	bo = gem_to_mga_bo(obj);
 	*offset = mgag200_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference(obj);
-	ret = 0;
-out_unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
-
+	drm_gem_object_unreference_unlocked(obj);
+	return 0;
 }

@@ -236,18 +236,16 @@ static struct dso *__machine__findnew_compat(struct machine *machine,
 	const char *file_name;
 	struct dso *dso;
 
-	pthread_rwlock_wrlock(&machine->dsos.lock);
 	dso = __dsos__find(&machine->dsos, vdso_file->dso_name, true);
 	if (dso)
-		goto out_unlock;
+		goto out;
 
 	file_name = vdso__get_compat_file(vdso_file);
 	if (!file_name)
-		goto out_unlock;
+		goto out;
 
 	dso = __machine__addnew_vdso(machine, vdso_file->dso_name, file_name);
-out_unlock:
-	pthread_rwlock_unlock(&machine->dsos.lock);
+out:
 	return dso;
 }
 

@@ -88,7 +88,7 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 	struct ib_ah *ah;
 	struct ib_mad_send_wr_private *mad_send_wr;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
+	if (rdma_cap_ib_switch(device))
 		port_priv = ib_get_agent_port(device, 0);
 	else
 		port_priv = ib_get_agent_port(device, port_num);
@@ -122,7 +122,7 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 	memcpy(send_buf->mad, mad_hdr, resp_mad_len);
 	send_buf->ah = ah;
 
-	if (device->node_type == RDMA_NODE_IB_SWITCH) {
+	if (rdma_cap_ib_switch(device)) {
 		mad_send_wr = container_of(send_buf,
 					   struct ib_mad_send_wr_private,
 					   send_buf);

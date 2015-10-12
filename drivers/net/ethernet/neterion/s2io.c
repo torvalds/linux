@@ -8226,31 +8226,7 @@ static void s2io_rem_nic(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-/**
- * s2io_starter - Entry point for the driver
- * Description: This function is the entry point for the driver. It verifies
- * the module loadable parameters and initializes PCI configuration space.
- */
-
-static int __init s2io_starter(void)
-{
-	return pci_register_driver(&s2io_driver);
-}
-
-/**
- * s2io_closer - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver. It
- * unregisters the driver.
- */
-
-static __exit void s2io_closer(void)
-{
-	pci_unregister_driver(&s2io_driver);
-	DBG_PRINT(INIT_DBG, "cleanup done\n");
-}
-
-module_init(s2io_starter);
-module_exit(s2io_closer);
+module_pci_driver(s2io_driver);
 
 static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 				struct tcphdr **tcp, struct RxD_t *rxdp,

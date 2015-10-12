@@ -574,6 +574,9 @@ void debug_dma_assert_idle(struct page *page)
 	unsigned long flags;
 	phys_addr_t cln;
 
+	if (dma_debug_disabled())
+		return;
+
 	if (!page)
 		return;
 

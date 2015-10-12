@@ -191,7 +191,7 @@ static void sun4i_ts_close(struct input_dev *dev)
 	writel(TEMP_IRQ_EN(1), ts->base + TP_INT_FIFOC);
 }
 
-static int sun4i_get_temp(const struct sun4i_ts_data *ts, long *temp)
+static int sun4i_get_temp(const struct sun4i_ts_data *ts, int *temp)
 {
 	/* No temp_data until the first irq */
 	if (ts->temp_data == -1)
@@ -202,7 +202,7 @@ static int sun4i_get_temp(const struct sun4i_ts_data *ts, long *temp)
 	return 0;
 }
 
-static int sun4i_get_tz_temp(void *data, long *temp)
+static int sun4i_get_tz_temp(void *data, int *temp)
 {
 	return sun4i_get_temp(data, temp);
 }
@@ -215,14 +215,14 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct sun4i_ts_data *ts = dev_get_drvdata(dev);
-	long temp;
+	int temp;
 	int error;
 
 	error = sun4i_get_temp(ts, &temp);
 	if (error)
 		return error;
 
-	return sprintf(buf, "%ld\n", temp);
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t show_temp_label(struct device *dev,

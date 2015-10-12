@@ -343,6 +343,8 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 		goto out_dispose_irq;
 	}
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	rtc->rtc_dev = rtc_device_register("mt6397-rtc", &pdev->dev,
 					   &mtk_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
@@ -350,8 +352,6 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto out_free_irq;
 	}
-
-	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 
@@ -373,15 +373,42 @@ static int mtk_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mt6397_rtc_suspend(struct device *dev)
+{
+	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(rtc->irq);
+
+	return 0;
+}
+
+static int mt6397_rtc_resume(struct device *dev)
+{
+	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(rtc->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mt6397_pm_ops, mt6397_rtc_suspend,
+			mt6397_rtc_resume);
+
 static const struct of_device_id mt6397_rtc_of_match[] = {
 	{ .compatible = "mediatek,mt6397-rtc", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt6397_rtc_of_match);
 
 static struct platform_driver mtk_rtc_driver = {
 	.driver = {
 		.name = "mt6397-rtc",
 		.of_match_table = mt6397_rtc_of_match,
+		.pm = &mt6397_pm_ops,
 	},
 	.probe	= mtk_rtc_probe,
 	.remove = mtk_rtc_remove,

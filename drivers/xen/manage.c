@@ -80,7 +80,7 @@ static int xen_suspend(void *data)
 	 * is resuming in a new domain.
 	 */
 	si->cancelled = HYPERVISOR_suspend(xen_pv_domain()
-                                           ? virt_to_mfn(xen_start_info)
+                                           ? virt_to_gfn(xen_start_info)
                                            : 0);
 
 	xen_arch_post_suspend(si->cancelled);

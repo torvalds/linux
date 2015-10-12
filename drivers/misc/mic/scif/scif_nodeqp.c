@@ -357,7 +357,7 @@ static void scif_p2p_freesg(struct scatterlist *sg)
 }
 
 static struct scatterlist *
-scif_p2p_setsg(void __iomem *va, int page_size, int page_cnt)
+scif_p2p_setsg(phys_addr_t pa, int page_size, int page_cnt)
 {
 	struct scatterlist *sg;
 	struct page *page;
@@ -368,16 +368,11 @@ scif_p2p_setsg(void __iomem *va, int page_size, int page_cnt)
 		return NULL;
 	sg_init_table(sg, page_cnt);
 	for (i = 0; i < page_cnt; i++) {
-		page = vmalloc_to_page((void __force *)va);
-		if (!page)
-			goto p2p_sg_err;
+		page = pfn_to_page(pa >> PAGE_SHIFT);
 		sg_set_page(&sg[i], page, page_size, 0);
-		va += page_size;
+		pa += page_size;
 	}
 	return sg;
-p2p_sg_err:
-	kfree(sg);
-	return NULL;
 }
 
 /* Init p2p mappings required to access peerdev from scifdev */
@@ -395,14 +390,14 @@ scif_init_p2p_info(struct scif_dev *scifdev, struct scif_dev *peerdev)
 	p2p = kzalloc(sizeof(*p2p), GFP_KERNEL);
 	if (!p2p)
 		return NULL;
-	p2p->ppi_sg[SCIF_PPI_MMIO] = scif_p2p_setsg(psdev->mmio->va,
+	p2p->ppi_sg[SCIF_PPI_MMIO] = scif_p2p_setsg(psdev->mmio->pa,
 						    PAGE_SIZE, num_mmio_pages);
 	if (!p2p->ppi_sg[SCIF_PPI_MMIO])
 		goto free_p2p;
 	p2p->sg_nentries[SCIF_PPI_MMIO] = num_mmio_pages;
 	sg_page_shift = get_order(min(psdev->aper->len, (u64)(1 << 30)));
 	num_aper_chunks = num_aper_pages >> (sg_page_shift - PAGE_SHIFT);
-	p2p->ppi_sg[SCIF_PPI_APER] = scif_p2p_setsg(psdev->aper->va,
+	p2p->ppi_sg[SCIF_PPI_APER] = scif_p2p_setsg(psdev->aper->pa,
 						    1 << sg_page_shift,
 						    num_aper_chunks);
 	p2p->sg_nentries[SCIF_PPI_APER] = num_aper_chunks;

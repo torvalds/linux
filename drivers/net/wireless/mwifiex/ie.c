@@ -409,6 +409,8 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 	int ret;
 
 	ret = mwifiex_uap_parse_tail_ies(priv, info);
+
+	if (ret)
 		return ret;
 
 	return mwifiex_set_mgmt_beacon_data_ies(priv, info);
@@ -477,6 +479,7 @@ int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 						   ar_ie, &priv->assocresp_idx);
 
 done:
+	kfree(gen_ie);
 	kfree(beacon_ie);
 	kfree(pr_ie);
 	kfree(ar_ie);

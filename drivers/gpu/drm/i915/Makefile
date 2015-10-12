@@ -6,12 +6,13 @@
 
 # core driver code
 i915-y := i915_drv.o \
+	  i915_irq.o \
 	  i915_params.o \
           i915_suspend.o \
 	  i915_sysfs.o \
+	  intel_csr.o \
 	  intel_pm.o \
-	  intel_runtime_pm.o \
-	  intel_csr.o
+	  intel_runtime_pm.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
 i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o
@@ -20,21 +21,22 @@ i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o
 i915-y += i915_cmd_parser.o \
 	  i915_gem_batch_pool.o \
 	  i915_gem_context.o \
-	  i915_gem_render_state.o \
 	  i915_gem_debug.o \
 	  i915_gem_dmabuf.o \
 	  i915_gem_evict.o \
 	  i915_gem_execbuffer.o \
+	  i915_gem_fence.o \
 	  i915_gem_gtt.o \
 	  i915_gem.o \
+	  i915_gem_render_state.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gpu_error.o \
-	  i915_irq.o \
 	  i915_trace_points.o \
 	  intel_lrc.o \
+	  intel_mocs.o \
 	  intel_ringbuffer.o \
 	  intel_uncore.o
 
@@ -46,18 +48,21 @@ i915-y += intel_renderstate_gen6.o \
 
 # modesetting core code
 i915-y += intel_audio.o \
+	  intel_atomic.o \
+	  intel_atomic_plane.o \
 	  intel_bios.o \
 	  intel_display.o \
 	  intel_fbc.o \
 	  intel_fifo_underrun.o \
 	  intel_frontbuffer.o \
+	  intel_hotplug.o \
 	  intel_modes.o \
 	  intel_overlay.o \
 	  intel_psr.o \
 	  intel_sideband.o \
 	  intel_sprite.o
 i915-$(CONFIG_ACPI)		+= intel_acpi.o intel_opregion.o
-i915-$(CONFIG_DRM_I915_FBDEV)	+= intel_fbdev.o
+i915-$(CONFIG_DRM_FBDEV_EMULATION)	+= intel_fbdev.o
 
 # modesetting output/encoder code
 i915-y += dvo_ch7017.o \
@@ -66,15 +71,13 @@ i915-y += dvo_ch7017.o \
 	  dvo_ns2501.o \
 	  dvo_sil164.o \
 	  dvo_tfp410.o \
-	  intel_atomic.o \
-	  intel_atomic_plane.o \
 	  intel_crt.o \
 	  intel_ddi.o \
-	  intel_dp.o \
 	  intel_dp_mst.o \
+	  intel_dp.o \
 	  intel_dsi.o \
-	  intel_dsi_pll.o \
 	  intel_dsi_panel_vbt.o \
+	  intel_dsi_pll.o \
 	  intel_dvo.o \
 	  intel_hdmi.o \
 	  intel_i2c.o \

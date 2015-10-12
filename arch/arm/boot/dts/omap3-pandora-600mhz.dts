@@ -19,7 +19,7 @@
 / {
 	model = "Pandora Handheld Console";
 
-	compatible = "ti,omap3";
+	compatible = "openpandora,omap3-pandora-600mhz", "ti,omap3430", "ti,omap3";
 };
 
 &omap3_pmx_core2 {

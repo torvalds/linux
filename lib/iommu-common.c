@@ -119,7 +119,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 	unsigned long align_mask = 0;
 
 	if (align_order > 0)
-		align_mask = 0xffffffffffffffffl >> (64 - align_order);
+		align_mask = ~0ul >> (BITS_PER_LONG - align_order);
 
 	/* Sanity check */
 	if (unlikely(npages == 0)) {

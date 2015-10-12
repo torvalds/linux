@@ -12,6 +12,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hugetlb.h>
 #include <linux/module.h>
+#include <linux/log2.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -97,25 +98,52 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
+/* Update the changed page order field of an rmap entry */
+void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize)
+{
+	unsigned long order;
+
+	if (!psize)
+		return;
+	order = ilog2(psize);
+	order <<= KVMPPC_RMAP_CHG_SHIFT;
+	if (order > (*rmap & KVMPPC_RMAP_CHG_ORDER))
+		*rmap = (*rmap & ~KVMPPC_RMAP_CHG_ORDER) | order;
+}
+EXPORT_SYMBOL_GPL(kvmppc_update_rmap_change);
+
+/* Returns a pointer to the revmap entry for the page mapped by a HPTE */
+static unsigned long *revmap_for_hpte(struct kvm *kvm, unsigned long hpte_v,
+				      unsigned long hpte_gr)
+{
+	struct kvm_memory_slot *memslot;
+	unsigned long *rmap;
+	unsigned long gfn;
+
+	gfn = hpte_rpn(hpte_gr, hpte_page_size(hpte_v, hpte_gr));
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
+	if (!memslot)
+		return NULL;
+
+	rmap = real_vmalloc_addr(&memslot->arch.rmap[gfn - memslot->base_gfn]);
+	return rmap;
+}
+
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 				struct revmap_entry *rev,
 				unsigned long hpte_v, unsigned long hpte_r)
 {
 	struct revmap_entry *next, *prev;
-	unsigned long gfn, ptel, head;
-	struct kvm_memory_slot *memslot;
+	unsigned long ptel, head;
 	unsigned long *rmap;
 	unsigned long rcbits;
 
 	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
 	ptel = rev->guest_rpte |= rcbits;
-	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
-	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
-	if (!memslot)
+	rmap = revmap_for_hpte(kvm, hpte_v, ptel);
+	if (!rmap)
 		return;
-
-	rmap = real_vmalloc_addr(&memslot->arch.rmap[gfn - memslot->base_gfn]);
 	lock_rmap(rmap);
 
 	head = *rmap & KVMPPC_RMAP_INDEX;
@@ -131,6 +159,8 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 			*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) | head;
 	}
 	*rmap |= rcbits << KVMPPC_RMAP_RC_SHIFT;
+	if (rcbits & HPTE_R_C)
+		kvmppc_update_rmap_change(rmap, hpte_page_size(hpte_v, hpte_r));
 	unlock_rmap(rmap);
 }
 
@@ -421,14 +451,20 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
 	v = pte & ~HPTE_V_HVLOCK;
 	if (v & HPTE_V_VALID) {
-		u64 pte1;
-
-		pte1 = be64_to_cpu(hpte[1]);
 		hpte[0] &= ~cpu_to_be64(HPTE_V_VALID);
-		rb = compute_tlbie_rb(v, pte1, pte_index);
+		rb = compute_tlbie_rb(v, be64_to_cpu(hpte[1]), pte_index);
 		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
-		/* Read PTE low word after tlbie to get final R/C values */
-		remove_revmap_chain(kvm, pte_index, rev, v, pte1);
+		/*
+		 * The reference (R) and change (C) bits in a HPT
+		 * entry can be set by hardware at any time up until
+		 * the HPTE is invalidated and the TLB invalidation
+		 * sequence has completed.  This means that when
+		 * removing a HPTE, we need to re-read the HPTE after
+		 * the invalidation sequence has completed in order to
+		 * obtain reliable values of R and C.
+		 */
+		remove_revmap_chain(kvm, pte_index, rev, v,
+				    be64_to_cpu(hpte[1]));
 	}
 	r = rev->guest_rpte & ~HPTE_GR_RESERVED;
 	note_hpte_modification(kvm, rev);
@@ -653,6 +689,105 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 		vcpu->arch.gpr[5 + i * 2] = r;
 	}
 	return H_SUCCESS;
+}
+
+long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
+			unsigned long pte_index)
+{
+	struct kvm *kvm = vcpu->kvm;
+	__be64 *hpte;
+	unsigned long v, r, gr;
+	struct revmap_entry *rev;
+	unsigned long *rmap;
+	long ret = H_NOT_FOUND;
+
+	if (pte_index >= kvm->arch.hpt_npte)
+		return H_PARAMETER;
+
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
+		cpu_relax();
+	v = be64_to_cpu(hpte[0]);
+	r = be64_to_cpu(hpte[1]);
+	if (!(v & (HPTE_V_VALID | HPTE_V_ABSENT)))
+		goto out;
+
+	gr = rev->guest_rpte;
+	if (rev->guest_rpte & HPTE_R_R) {
+		rev->guest_rpte &= ~HPTE_R_R;
+		note_hpte_modification(kvm, rev);
+	}
+	if (v & HPTE_V_VALID) {
+		gr |= r & (HPTE_R_R | HPTE_R_C);
+		if (r & HPTE_R_R) {
+			kvmppc_clear_ref_hpte(kvm, hpte, pte_index);
+			rmap = revmap_for_hpte(kvm, v, gr);
+			if (rmap) {
+				lock_rmap(rmap);
+				*rmap |= KVMPPC_RMAP_REFERENCED;
+				unlock_rmap(rmap);
+			}
+		}
+	}
+	vcpu->arch.gpr[4] = gr;
+	ret = H_SUCCESS;
+ out:
+	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
+	return ret;
+}
+
+long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
+			unsigned long pte_index)
+{
+	struct kvm *kvm = vcpu->kvm;
+	__be64 *hpte;
+	unsigned long v, r, gr;
+	struct revmap_entry *rev;
+	unsigned long *rmap;
+	long ret = H_NOT_FOUND;
+
+	if (pte_index >= kvm->arch.hpt_npte)
+		return H_PARAMETER;
+
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	hpte = (__be64 *)(kvm->arch.hpt_virt + (pte_index << 4));
+	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
+		cpu_relax();
+	v = be64_to_cpu(hpte[0]);
+	r = be64_to_cpu(hpte[1]);
+	if (!(v & (HPTE_V_VALID | HPTE_V_ABSENT)))
+		goto out;
+
+	gr = rev->guest_rpte;
+	if (gr & HPTE_R_C) {
+		rev->guest_rpte &= ~HPTE_R_C;
+		note_hpte_modification(kvm, rev);
+	}
+	if (v & HPTE_V_VALID) {
+		/* need to make it temporarily absent so C is stable */
+		hpte[0] |= cpu_to_be64(HPTE_V_ABSENT);
+		kvmppc_invalidate_hpte(kvm, hpte, pte_index);
+		r = be64_to_cpu(hpte[1]);
+		gr |= r & (HPTE_R_R | HPTE_R_C);
+		if (r & HPTE_R_C) {
+			unsigned long psize = hpte_page_size(v, r);
+			hpte[1] = cpu_to_be64(r & ~HPTE_R_C);
+			eieio();
+			rmap = revmap_for_hpte(kvm, v, gr);
+			if (rmap) {
+				lock_rmap(rmap);
+				*rmap |= KVMPPC_RMAP_CHANGED;
+				kvmppc_update_rmap_change(rmap, psize);
+				unlock_rmap(rmap);
+			}
+		}
+	}
+	vcpu->arch.gpr[4] = gr;
+	ret = H_SUCCESS;
+ out:
+	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
+	return ret;
 }
 
 void kvmppc_invalidate_hpte(struct kvm *kvm, __be64 *hptep,

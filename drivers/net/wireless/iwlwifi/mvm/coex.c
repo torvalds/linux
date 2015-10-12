@@ -725,15 +725,17 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	}
 }
 
-int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
-			     struct iwl_rx_cmd_buffer *rxb,
-			     struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
-		return iwl_mvm_rx_bt_coex_notif_old(mvm, rxb, dev_cmd);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+		iwl_mvm_rx_bt_coex_notif_old(mvm, rxb);
+		return;
+	}
 
 	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
 	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
@@ -748,12 +750,6 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
 	iwl_mvm_bt_coex_notif_handle(mvm);
-
-	/*
-	 * This is an async handler for a notification, returning anything other
-	 * than 0 doesn't make sense even if HCMD failed.
-	 */
-	return 0;
 }
 
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -947,9 +943,8 @@ void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm)
 	iwl_mvm_bt_coex_notif_handle(mvm);
 }
 
-int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
-				  struct iwl_rx_cmd_buffer *rxb,
-				  struct iwl_device_cmd *dev_cmd)
+void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
@@ -957,20 +952,23 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	u8 __maybe_unused lower_bound, upper_bound;
 	u8 lut;
 
-	if (!fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_BT_COEX_SPLIT))
-		return iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb, dev_cmd);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
+		iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb);
+		return;
+	}
 
 	if (!iwl_mvm_bt_is_plcr_supported(mvm))
-		return 0;
+		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Ignore updates if we are in force mode */
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
-		return 0;
+		return;
 
 	if (ant_isolation ==  mvm->last_ant_isol)
-		return 0;
+		return;
 
 	for (lut = 0; lut < ARRAY_SIZE(antenna_coupling_ranges) - 1; lut++)
 		if (ant_isolation < antenna_coupling_ranges[lut + 1].range)
@@ -989,7 +987,7 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	mvm->last_ant_isol = ant_isolation;
 
 	if (mvm->last_corun_lut == lut)
-		return 0;
+		return;
 
 	mvm->last_corun_lut = lut;
 
@@ -1000,6 +998,8 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	memcpy(&cmd.corun_lut40, antenna_coupling_ranges[lut].lut20,
 	       sizeof(cmd.corun_lut40));
 
-	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
-				    sizeof(cmd), &cmd);
+	if (iwl_mvm_send_cmd_pdu(mvm, BT_COEX_UPDATE_CORUN_LUT, 0,
+				 sizeof(cmd), &cmd))
+		IWL_ERR(mvm,
+			"failed to send BT_COEX_UPDATE_CORUN_LUT command\n");
 }

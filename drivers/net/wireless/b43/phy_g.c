@@ -3004,7 +3004,7 @@ static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
 		   phy->rev == 1) {
 		//TODO: implement rev1 workaround
 	}
-	b43_lo_g_maintanance_work(dev);
+	b43_lo_g_maintenance_work(dev);
 	b43_mac_enable(dev);
 }
 

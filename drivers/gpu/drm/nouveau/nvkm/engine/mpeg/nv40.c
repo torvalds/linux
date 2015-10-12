@@ -25,110 +25,53 @@
 
 #include <subdev/instmem.h>
 
-/*******************************************************************************
- * MPEG object classes
- ******************************************************************************/
+#include <nvif/class.h>
 
-static int
-nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
+bool
+nv40_mpeg_mthd_dma(struct nvkm_device *device, u32 mthd, u32 data)
 {
-	struct nvkm_instmem *imem = nvkm_instmem(object);
-	struct nv31_mpeg_priv *priv = (void *)object->engine;
-	u32 inst = *(u32 *)arg << 4;
-	u32 dma0 = nv_ro32(imem, inst + 0);
-	u32 dma1 = nv_ro32(imem, inst + 4);
-	u32 dma2 = nv_ro32(imem, inst + 8);
+	struct nvkm_instmem *imem = device->imem;
+	u32 inst = data << 4;
+	u32 dma0 = nvkm_instmem_rd32(imem, inst + 0);
+	u32 dma1 = nvkm_instmem_rd32(imem, inst + 4);
+	u32 dma2 = nvkm_instmem_rd32(imem, inst + 8);
 	u32 base = (dma2 & 0xfffff000) | (dma0 >> 20);
 	u32 size = dma1 + 1;
 
 	/* only allow linear DMA objects */
 	if (!(dma0 & 0x00002000))
-		return -EINVAL;
+		return false;
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(priv, 0x00b300, 0x00030000, (dma0 & 0x00030000));
-		nv_wr32(priv, 0x00b334, base);
-		nv_wr32(priv, 0x00b324, size);
+		nvkm_mask(device, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nvkm_wr32(device, 0x00b334, base);
+		nvkm_wr32(device, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(priv, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
-		nv_wr32(priv, 0x00b360, base);
-		nv_wr32(priv, 0x00b364, size);
+		nvkm_mask(device, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nvkm_wr32(device, 0x00b360, base);
+		nvkm_wr32(device, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
 		if (dma0 & 0x00030000)
-			return -EINVAL;
+			return false;
 
-		nv_wr32(priv, 0x00b370, base);
-		nv_wr32(priv, 0x00b374, size);
+		nvkm_wr32(device, 0x00b370, base);
+		nvkm_wr32(device, 0x00b374, size);
 	}
 
-	return 0;
+	return true;
 }
 
-static struct nvkm_omthds
-nv40_mpeg_omthds[] = {
-	{ 0x0190, 0x0190, nv40_mpeg_mthd_dma },
-	{ 0x01a0, 0x01a0, nv40_mpeg_mthd_dma },
-	{ 0x01b0, 0x01b0, nv40_mpeg_mthd_dma },
-	{}
+static const struct nv31_mpeg_func
+nv40_mpeg = {
+	.mthd_dma = nv40_mpeg_mthd_dma,
 };
 
-struct nvkm_oclass
-nv40_mpeg_sclass[] = {
-	{ 0x3174, &nv31_mpeg_ofuncs, nv40_mpeg_omthds },
-	{}
-};
-
-/*******************************************************************************
- * PMPEG engine/subdev functions
- ******************************************************************************/
-
-static void
-nv40_mpeg_intr(struct nvkm_subdev *subdev)
+int
+nv40_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
 {
-	struct nv31_mpeg_priv *priv = (void *)subdev;
-	u32 stat;
-
-	if ((stat = nv_rd32(priv, 0x00b100)))
-		nv31_mpeg_intr(subdev);
-
-	if ((stat = nv_rd32(priv, 0x00b800))) {
-		nv_error(priv, "PMSRCH 0x%08x\n", stat);
-		nv_wr32(priv, 0x00b800, stat);
-	}
+	return nv31_mpeg_new_(&nv40_mpeg, device, index, pmpeg);
 }
-
-static int
-nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
-{
-	struct nv31_mpeg_priv *priv;
-	int ret;
-
-	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nv40_mpeg_intr;
-	nv_engine(priv)->cclass = &nv31_mpeg_cclass;
-	nv_engine(priv)->sclass = nv40_mpeg_sclass;
-	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
-	return 0;
-}
-
-struct nvkm_oclass
-nv40_mpeg_oclass = {
-	.handle = NV_ENGINE(MPEG, 0x40),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv40_mpeg_ctor,
-		.dtor = _nvkm_mpeg_dtor,
-		.init = nv31_mpeg_init,
-		.fini = _nvkm_mpeg_fini,
-	},
-};

@@ -51,6 +51,10 @@ static unsigned long iface_work_flags;
 
 static struct semaphore add_remove_card_sem;
 
+static struct memory_type_mapping generic_mem_type_map[] = {
+	{"DUMP", NULL, 0, 0xDD},
+};
+
 static struct memory_type_mapping mem_type_mapping_tbl[] = {
 	{"ITCM", NULL, 0, 0xF0},
 	{"DTCM", NULL, 0, 0xF1},
@@ -91,6 +95,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		return -ENOMEM;
 
 	card->func = func;
+	card->device_id = id;
 
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
@@ -107,6 +112,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->mp_tx_agg_buf_size = data->mp_tx_agg_buf_size;
 		card->mp_rx_agg_buf_size = data->mp_rx_agg_buf_size;
 		card->can_dump_fw = data->can_dump_fw;
+		card->fw_dump_enh = data->fw_dump_enh;
 		card->can_auto_tdls = data->can_auto_tdls;
 		card->can_ext_scan = data->can_ext_scan;
 	}
@@ -287,6 +293,8 @@ static int mwifiex_sdio_suspend(struct device *dev)
 #define SDIO_DEVICE_ID_MARVELL_8887   (0x9135)
 /* Device ID for SD8801 */
 #define SDIO_DEVICE_ID_MARVELL_8801   (0x9139)
+/* Device ID for SD8997 */
+#define SDIO_DEVICE_ID_MARVELL_8997   (0x9141)
 
 
 /* WLAN IDs */
@@ -303,6 +311,8 @@ static const struct sdio_device_id mwifiex_ids[] = {
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8887},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8801),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8801},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8997),
+		.driver_data = (unsigned long)&mwifiex_sdio_sd8997},
 	{},
 };
 
@@ -910,6 +920,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	if (!fwbuf)
 		return -ENOMEM;
 
+	sdio_claim_host(card->func);
+
 	/* Perform firmware data transfer */
 	do {
 		/* The host polls for the DN_LD_CARD_RDY and CARD_IO_READY
@@ -1013,6 +1025,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 		offset += txlen;
 	} while (true);
+
+	sdio_release_host(card->func);
 
 	mwifiex_dbg(adapter, MSG,
 		    "info: FW download over, size %d bytes\n", offset);
@@ -1964,8 +1978,13 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	adapter->dev = &func->dev;
 
 	strcpy(adapter->fw_name, card->firmware);
-	adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
-	adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
+	if (card->fw_dump_enh) {
+		adapter->mem_type_mapping_tbl = generic_mem_type_map;
+		adapter->num_mem_types = 1;
+	} else {
+		adapter->mem_type_mapping_tbl = mem_type_mapping_tbl;
+		adapter->num_mem_types = ARRAY_SIZE(mem_type_mapping_tbl);
+	}
 
 	return 0;
 }
@@ -2107,26 +2126,46 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 		    port, card->mp_data_port_mask);
 }
 
+static void mwifiex_recreate_adapter(struct sdio_mmc_card *card)
+{
+	struct sdio_func *func = card->func;
+	const struct sdio_device_id *device_id = card->device_id;
+
+	/* TODO mmc_hw_reset does not require destroying and re-probing the
+	 * whole adapter. Hence there was no need to for this rube-goldberg
+	 * design to reload the fw from an external workqueue. If we don't
+	 * destroy the adapter we could reload the fw from
+	 * mwifiex_main_work_queue directly.
+	 * The real difficulty with fw reset is to restore all the user
+	 * settings applied through ioctl. By destroying and recreating the
+	 * adapter, we take the easy way out, since we rely on user space to
+	 * restore them. We assume that user space will treat the new
+	 * incarnation of the adapter(interfaces) as if they had been just
+	 * discovered and initializes them from scratch.
+	 */
+
+	mwifiex_sdio_remove(func);
+
+	/* power cycle the adapter */
+	sdio_claim_host(func);
+	mmc_hw_reset(func->card->host);
+	sdio_release_host(func);
+
+	mwifiex_sdio_probe(func, device_id);
+}
+
 static struct mwifiex_adapter *save_adapter;
 static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	struct mmc_host *target = card->func->card->host;
 
-	/* The actual reset operation must be run outside of driver thread.
-	 * This is because mmc_remove_host() will cause the device to be
-	 * instantly destroyed, and the driver then needs to end its thread,
-	 * leading to a deadlock.
-	 *
-	 * We run it in a totally independent workqueue.
+	/* TODO card pointer is unprotected. If the adapter is removed
+	 * physically, sdio core might trigger mwifiex_sdio_remove, before this
+	 * workqueue is run, which will destroy the adapter struct. When this
+	 * workqueue eventually exceutes it will dereference an invalid adapter
+	 * pointer
 	 */
-
-	mwifiex_dbg(adapter, WARN, "Resetting card...\n");
-	mmc_remove_host(target);
-	/* 200ms delay is based on experiment with sdhci controller */
-	mdelay(200);
-	target->rescan_entered = 0; /* rescan non-removable cards */
-	mmc_add_host(target);
+	mwifiex_recreate_adapter(card);
 }
 
 /* This function read/write firmware */
@@ -2138,8 +2177,8 @@ rdwr_status mwifiex_sdio_rdwr_firmware(struct mwifiex_adapter *adapter,
 	int ret, tries;
 	u8 ctrl_data = 0;
 
-	sdio_writeb(card->func, FW_DUMP_HOST_READY, card->reg->fw_dump_ctrl,
-		    &ret);
+	sdio_writeb(card->func, card->reg->fw_dump_host_ready,
+		    card->reg->fw_dump_ctrl, &ret);
 	if (ret) {
 		mwifiex_dbg(adapter, ERROR, "SDIO Write ERR\n");
 		return RDWR_STATUS_FAILURE;
@@ -2155,10 +2194,10 @@ rdwr_status mwifiex_sdio_rdwr_firmware(struct mwifiex_adapter *adapter,
 			break;
 		if (doneflag && ctrl_data == doneflag)
 			return RDWR_STATUS_DONE;
-		if (ctrl_data != FW_DUMP_HOST_READY) {
+		if (ctrl_data != card->reg->fw_dump_host_ready) {
 			mwifiex_dbg(adapter, WARN,
-				    "The ctrl reg was changed, re-try again!\n");
-			sdio_writeb(card->func, FW_DUMP_HOST_READY,
+				    "The ctrl reg was changed, re-try again\n");
+			sdio_writeb(card->func, card->reg->fw_dump_host_ready,
 				    card->reg->fw_dump_ctrl, &ret);
 			if (ret) {
 				mwifiex_dbg(adapter, ERROR, "SDIO write err\n");
@@ -2167,7 +2206,7 @@ rdwr_status mwifiex_sdio_rdwr_firmware(struct mwifiex_adapter *adapter,
 		}
 		usleep_range(100, 200);
 	}
-	if (ctrl_data == FW_DUMP_HOST_READY) {
+	if (ctrl_data == card->reg->fw_dump_host_ready) {
 		mwifiex_dbg(adapter, ERROR,
 			    "Fail to pull ctrl_data\n");
 		return RDWR_STATUS_FAILURE;
@@ -2300,10 +2339,129 @@ done:
 	sdio_release_host(card->func);
 }
 
+static void mwifiex_sdio_generic_fw_dump(struct mwifiex_adapter *adapter)
+{
+	struct sdio_mmc_card *card = adapter->card;
+	struct memory_type_mapping *entry = &generic_mem_type_map[0];
+	unsigned int reg, reg_start, reg_end;
+	u8 start_flag = 0, done_flag = 0;
+	u8 *dbg_ptr, *end_ptr;
+	enum rdwr_status stat;
+	int ret = -1, tries;
+
+	if (!card->fw_dump_enh)
+		return;
+
+	if (entry->mem_ptr) {
+		vfree(entry->mem_ptr);
+		entry->mem_ptr = NULL;
+	}
+	entry->mem_size = 0;
+
+	mwifiex_pm_wakeup_card(adapter);
+	sdio_claim_host(card->func);
+
+	mwifiex_dbg(adapter, MSG, "== mwifiex firmware dump start ==\n");
+
+	stat = mwifiex_sdio_rdwr_firmware(adapter, done_flag);
+	if (stat == RDWR_STATUS_FAILURE)
+		goto done;
+
+	reg_start = card->reg->fw_dump_start;
+	reg_end = card->reg->fw_dump_end;
+	for (reg = reg_start; reg <= reg_end; reg++) {
+		for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
+			start_flag = sdio_readb(card->func, reg, &ret);
+			if (ret) {
+				mwifiex_dbg(adapter, ERROR,
+					    "SDIO read err\n");
+				goto done;
+			}
+			if (start_flag == 0)
+				break;
+			if (tries == MAX_POLL_TRIES) {
+				mwifiex_dbg(adapter, ERROR,
+					    "FW not ready to dump\n");
+				ret = -1;
+				goto done;
+			}
+		}
+		usleep_range(100, 200);
+	}
+
+	entry->mem_ptr = vmalloc(0xf0000 + 1);
+	if (!entry->mem_ptr) {
+		ret = -1;
+		goto done;
+	}
+	dbg_ptr = entry->mem_ptr;
+	entry->mem_size = 0xf0000;
+	end_ptr = dbg_ptr + entry->mem_size;
+
+	done_flag = entry->done_flag;
+	mwifiex_dbg(adapter, DUMP,
+		    "Start %s output, please wait...\n", entry->mem_name);
+
+	while (true) {
+		stat = mwifiex_sdio_rdwr_firmware(adapter, done_flag);
+		if (stat == RDWR_STATUS_FAILURE)
+			goto done;
+		for (reg = reg_start; reg <= reg_end; reg++) {
+			*dbg_ptr = sdio_readb(card->func, reg, &ret);
+			if (ret) {
+				mwifiex_dbg(adapter, ERROR,
+					    "SDIO read err\n");
+				goto done;
+			}
+			dbg_ptr++;
+			if (dbg_ptr >= end_ptr) {
+				u8 *tmp_ptr;
+
+				tmp_ptr = vmalloc(entry->mem_size + 0x4000 + 1);
+				if (!tmp_ptr)
+					goto done;
+
+				memcpy(tmp_ptr, entry->mem_ptr,
+				       entry->mem_size);
+				vfree(entry->mem_ptr);
+				entry->mem_ptr = tmp_ptr;
+				tmp_ptr = NULL;
+				dbg_ptr = entry->mem_ptr + entry->mem_size;
+				entry->mem_size += 0x4000;
+				end_ptr = entry->mem_ptr + entry->mem_size;
+			}
+		}
+		if (stat == RDWR_STATUS_DONE) {
+			entry->mem_size = dbg_ptr - entry->mem_ptr;
+			mwifiex_dbg(adapter, DUMP, "dump %s done size=0x%x\n",
+				    entry->mem_name, entry->mem_size);
+			ret = 0;
+			break;
+		}
+	}
+	mwifiex_dbg(adapter, MSG, "== mwifiex firmware dump end ==\n");
+
+done:
+	if (ret) {
+		mwifiex_dbg(adapter, ERROR, "firmware dump failed\n");
+		if (entry->mem_ptr) {
+			vfree(entry->mem_ptr);
+			entry->mem_ptr = NULL;
+		}
+		entry->mem_size = 0;
+	}
+	sdio_release_host(card->func);
+}
+
 static void mwifiex_sdio_device_dump_work(struct mwifiex_adapter *adapter)
 {
+	struct sdio_mmc_card *card = adapter->card;
+
 	mwifiex_drv_info_dump(adapter);
-	mwifiex_sdio_fw_dump(adapter);
+	if (card->fw_dump_enh)
+		mwifiex_sdio_generic_fw_dump(adapter);
+	else
+		mwifiex_sdio_fw_dump(adapter);
 	mwifiex_upload_device_dump(adapter);
 }
 
@@ -2510,3 +2668,4 @@ MODULE_FIRMWARE(SD8787_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8797_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8897_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8887_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8997_DEFAULT_FW_NAME);

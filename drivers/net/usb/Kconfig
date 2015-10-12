@@ -106,6 +106,16 @@ config USB_RTL8152
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8152.
 
+config USB_LAN78XX
+	tristate "Microchip LAN78XX Based USB Ethernet Adapters"
+	select MII
+	help
+	  This option adds support for Microchip LAN78XX based USB 2
+	  & USB 3 10/100/1000 Ethernet adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lan78xx.
+
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	select MII

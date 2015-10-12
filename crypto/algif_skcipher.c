@@ -145,7 +145,7 @@ static int skcipher_alloc_sgl(struct sock *sk)
 		sgl->cur = 0;
 
 		if (sg)
-			scatterwalk_sg_chain(sg, MAX_SGL_ENTS + 1, sgl->sg);
+			sg_chain(sg, MAX_SGL_ENTS + 1, sgl->sg);
 
 		list_add_tail(&sgl->list, &ctx->tsgl);
 	}

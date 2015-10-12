@@ -25,8 +25,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/acpi.h>
 #include <acpi/video.h>
 
@@ -53,6 +51,7 @@
 #define MBOX_ACPI      (1<<0)
 #define MBOX_SWSCI     (1<<1)
 #define MBOX_ASLE      (1<<2)
+#define MBOX_ASLE_EXT  (1<<4)
 
 struct opregion_header {
 	u8 signature[16];
@@ -62,7 +61,10 @@ struct opregion_header {
 	u8 vbios_ver[16];
 	u8 driver_ver[16];
 	u32 mboxes;
-	u8 reserved[164];
+	u32 driver_model;
+	u32 pcon;
+	u8 dver[32];
+	u8 rsvd[124];
 } __packed;
 
 /* OpRegion mailbox #1: public ACPI methods */
@@ -84,7 +86,9 @@ struct opregion_acpi {
 	u32 evts;       /* ASL supported events */
 	u32 cnot;       /* current OS notification */
 	u32 nrdy;       /* driver status */
-	u8 rsvd2[60];
+	u32 did2[7];	/* extended supported display devices ID list */
+	u32 cpd2[7];	/* extended attached display devices list */
+	u8 rsvd2[4];
 } __packed;
 
 /* OpRegion mailbox #2: SWSCI */
@@ -113,7 +117,10 @@ struct opregion_asle {
 	u32 pcft;       /* power conservation features */
 	u32 srot;       /* supported rotation angles */
 	u32 iuer;       /* IUER events */
-	u8 rsvd[86];
+	u64 fdss;
+	u32 fdsp;
+	u32 stat;
+	u8 rsvd[70];
 } __packed;
 
 /* Driver readiness indicator */
@@ -611,6 +618,38 @@ static struct notifier_block intel_opregion_notifier = {
  * (version 3)
  */
 
+static u32 get_did(struct intel_opregion *opregion, int i)
+{
+	u32 did;
+
+	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
+		did = ioread32(&opregion->acpi->didl[i]);
+	} else {
+		i -= ARRAY_SIZE(opregion->acpi->didl);
+
+		if (WARN_ON(i >= ARRAY_SIZE(opregion->acpi->did2)))
+			return 0;
+
+		did = ioread32(&opregion->acpi->did2[i]);
+	}
+
+	return did;
+}
+
+static void set_did(struct intel_opregion *opregion, int i, u32 val)
+{
+	if (i < ARRAY_SIZE(opregion->acpi->didl)) {
+		iowrite32(val, &opregion->acpi->didl[i]);
+	} else {
+		i -= ARRAY_SIZE(opregion->acpi->didl);
+
+		if (WARN_ON(i >= ARRAY_SIZE(opregion->acpi->did2)))
+			return;
+
+		iowrite32(val, &opregion->acpi->did2[i]);
+	}
+}
+
 static void intel_didl_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -620,7 +659,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
 	unsigned long long device_id;
 	acpi_status status;
-	u32 temp;
+	u32 temp, max_outputs;
 	int i = 0;
 
 	handle = ACPI_HANDLE(&dev->pdev->dev);
@@ -639,41 +678,50 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		pr_warn("No ACPI video bus found\n");
+		DRM_ERROR("No ACPI video bus found\n");
 		return;
 	}
 
+	/*
+	 * In theory, did2, the extended didl, gets added at opregion version
+	 * 3.0. In practice, however, we're supposed to set it for earlier
+	 * versions as well, since a BIOS that doesn't understand did2 should
+	 * not look at it anyway. Use a variable so we can tweak this if a need
+	 * arises later.
+	 */
+	max_outputs = ARRAY_SIZE(opregion->acpi->didl) +
+		ARRAY_SIZE(opregion->acpi->did2);
+
 	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
-		if (i >= 8) {
-			dev_dbg(&dev->pdev->dev,
-				"More than 8 outputs detected via ACPI\n");
+		if (i >= max_outputs) {
+			DRM_DEBUG_KMS("More than %u outputs detected via ACPI\n",
+				      max_outputs);
 			return;
 		}
-		status =
-			acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
-						NULL, &device_id);
+		status = acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
+					       NULL, &device_id);
 		if (ACPI_SUCCESS(status)) {
 			if (!device_id)
 				goto blind_set;
-			iowrite32((u32)(device_id & 0x0f0f),
-				  &opregion->acpi->didl[i]);
-			i++;
+			set_did(opregion, i++, (u32)(device_id & 0x0f0f));
 		}
 	}
 
 end:
-	/* If fewer than 8 outputs, the list must be null terminated */
-	if (i < 8)
-		iowrite32(0, &opregion->acpi->didl[i]);
+	DRM_DEBUG_KMS("%d outputs detected\n", i);
+
+	/* If fewer than max outputs, the list must be null terminated */
+	if (i < max_outputs)
+		set_did(opregion, i, 0);
 	return;
 
 blind_set:
 	i = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
-		if (i >= 8) {
-			dev_dbg(&dev->pdev->dev,
-				"More than 8 outputs in connector list\n");
+		if (i >= max_outputs) {
+			DRM_DEBUG_KMS("More than %u outputs in connector list\n",
+				      max_outputs);
 			return;
 		}
 		switch (connector->connector_type) {
@@ -698,9 +746,8 @@ blind_set:
 			output_type = ACPI_LVDS_OUTPUT;
 			break;
 		}
-		temp = ioread32(&opregion->acpi->didl[i]);
-		iowrite32(temp | (1<<31) | output_type | i,
-			  &opregion->acpi->didl[i]);
+		temp = get_did(opregion, i);
+		set_did(opregion, i, temp | (1 << 31) | output_type | i);
 		i++;
 	}
 	goto end;
@@ -720,7 +767,7 @@ static void intel_setup_cadls(struct drm_device *dev)
 	 * display switching hotkeys. Just like DIDL, CADL is NULL-terminated if
 	 * there are less than eight devices. */
 	do {
-		disp_id = ioread32(&opregion->acpi->didl[i]);
+		disp_id = get_did(opregion, i);
 		iowrite32(disp_id, &opregion->acpi->cadl[i]);
 	} while (++i < 8 && disp_id != 0);
 }
@@ -851,6 +898,11 @@ int intel_opregion_setup(struct drm_device *dev)
 	u32 asls, mboxes;
 	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;
+
+	BUILD_BUG_ON(sizeof(struct opregion_header) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_acpi) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_swsci) != 0x100);
+	BUILD_BUG_ON(sizeof(struct opregion_asle) != 0x100);
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);

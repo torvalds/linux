@@ -23,6 +23,11 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
 	};
@@ -59,6 +64,27 @@
 		interrupt-parent = <&gic>;
 	};
 
+	scu: scu@48240000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0x48240000 0x100>;
+	};
+
+	global_timer: timer@48240200 {
+		compatible = "arm,cortex-a9-global-timer";
+		reg = <0x48240200 0x100>;
+		interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		clocks = <&dpll_mpu_m2_ck>;
+	};
+
+	local_timer: timer@48240600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x48240600 0x100>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		clocks = <&dpll_mpu_m2_ck>;
+	};
+
 	l2-cache-controller@48242000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x48242000 0x1000>;
@@ -83,9 +109,19 @@
 			#size-cells = <1>;
 			ranges = <0 0x44c00000 0x287000>;
 
+			wkup_m3: wkup_m3@100000 {
+				compatible = "ti,am4372-wkup-m3";
+				reg = <0x100000 0x4000>,
+				      <0x180000	0x2000>;
+				reg-names = "umem", "dmem";
+				ti,hwmods = "wkup_m3";
+				ti,pm-firmware = "am335x-pm-firmware.elf";
+			};
+
 			prcm: prcm@1f0000 {
 				compatible = "ti,am4-prcm";
 				reg = <0x1f0000 0x11000>;
+				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
@@ -125,6 +161,14 @@
 						#address-cells = <1>;
 						#size-cells = <0>;
 					};
+				};
+
+				wkup_m3_ipc: wkup_m3_ipc@1324 {
+					compatible = "ti,am4372-wkup-m3-ipc";
+					reg = <0x1324 0x44>;
+					interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+					ti,rproc = <&wkup_m3>;
+					mboxes = <&mailbox &mbox_wkupm3>;
 				};
 
 				scm_clockdomains: clockdomains {
@@ -308,11 +352,14 @@
 		};
 
 		rtc: rtc@44e3e000 {
-			compatible = "ti,am4372-rtc","ti,da830-rtc";
+			compatible = "ti,am4372-rtc", "ti,am3352-rtc",
+				     "ti,da830-rtc";
 			reg = <0x44e3e000 0x1000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "rtc";
+			clocks = <&clk_32768_ck>;
+			clock-names = "int-clk";
 			status = "disabled";
 		};
 
@@ -527,8 +574,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ti,hwmods = "cpgmac0";
-			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>;
-			clock-names = "fck", "cpts";
+			clocks = <&cpsw_125mhz_gclk>, <&cpsw_cpts_rft_clk>,
+				 <&dpll_clksel_mac_clk>;
+			clock-names = "fck", "cpts", "50mclk";
+			assigned-clocks = <&dpll_clksel_mac_clk>;
+			assigned-clock-rates = <50000000>;
 			status = "disabled";
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
@@ -865,7 +915,12 @@
 			usb1: usb@48390000 {
 				compatible = "synopsys,dwc3";
 				reg = <0x48390000 0x10000>;
-				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
 				phys = <&usb2_phy1>;
 				phy-names = "usb2-phy";
 				maximum-speed = "high-speed";
@@ -889,7 +944,12 @@
 			usb2: usb@483d0000 {
 				compatible = "synopsys,dwc3";
 				reg = <0x483d0000 0x10000>;
-				interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "peripheral",
+						  "host",
+						  "otg";
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";
 				maximum-speed = "high-speed";

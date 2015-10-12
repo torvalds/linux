@@ -225,13 +225,14 @@ static int next_cpu_for_irq(struct irq_data *data)
 
 #ifdef CONFIG_SMP
 	int cpu;
-	int weight = cpumask_weight(data->affinity);
+	struct cpumask *mask = irq_data_get_affinity_mask(data);
+	int weight = cpumask_weight(mask);
 	struct octeon_ciu_chip_data *cd = irq_data_get_irq_chip_data(data);
 
 	if (weight > 1) {
 		cpu = cd->current_cpu;
 		for (;;) {
-			cpu = cpumask_next(cpu, data->affinity);
+			cpu = cpumask_next(cpu, mask);
 			if (cpu >= nr_cpu_ids) {
 				cpu = -1;
 				continue;
@@ -240,7 +241,7 @@ static int next_cpu_for_irq(struct irq_data *data)
 			}
 		}
 	} else if (weight == 1) {
-		cpu = cpumask_first(data->affinity);
+		cpu = cpumask_first(mask);
 	} else {
 		cpu = smp_processor_id();
 	}
@@ -662,6 +663,11 @@ static int octeon_irq_ciu_gpio_set_type(struct irq_data *data, unsigned int t)
 	irqd_set_trigger_type(data, t);
 	octeon_irq_gpio_setup(data);
 
+	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
+		irq_set_handler_locked(data, handle_edge_irq);
+	else
+		irq_set_handler_locked(data, handle_level_irq);
+
 	return IRQ_SET_MASK_OK;
 }
 
@@ -696,32 +702,23 @@ static void octeon_irq_ciu_gpio_ack(struct irq_data *data)
 	cvmx_write_csr(CVMX_GPIO_INT_CLR, mask);
 }
 
-static void octeon_irq_handle_trigger(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_data *data = irq_desc_get_irq_data(desc);
-
-	if (irqd_get_trigger_type(data) & IRQ_TYPE_EDGE_BOTH)
-		handle_edge_irq(irq, desc);
-	else
-		handle_level_irq(irq, desc);
-}
-
 #ifdef CONFIG_SMP
 
 static void octeon_irq_cpu_offline_ciu(struct irq_data *data)
 {
 	int cpu = smp_processor_id();
 	cpumask_t new_affinity;
+	struct cpumask *mask = irq_data_get_affinity_mask(data);
 
-	if (!cpumask_test_cpu(cpu, data->affinity))
+	if (!cpumask_test_cpu(cpu, mask))
 		return;
 
-	if (cpumask_weight(data->affinity) > 1) {
+	if (cpumask_weight(mask) > 1) {
 		/*
 		 * It has multi CPU affinity, just remove this CPU
 		 * from the affinity set.
 		 */
-		cpumask_copy(&new_affinity, data->affinity);
+		cpumask_copy(&new_affinity, mask);
 		cpumask_clear_cpu(cpu, &new_affinity);
 	} else {
 		/* Otherwise, put it on lowest numbered online CPU. */
@@ -1227,8 +1224,13 @@ static int octeon_irq_gpio_map(struct irq_domain *d,
 		octeon_irq_ciu_to_irq[line][bit] != 0)
 		return -EINVAL;
 
+	/*
+	 * Default to handle_level_irq. If the DT contains a different
+	 * trigger type, it will call the irq_set_type callback and
+	 * the handler gets updated.
+	 */
 	r = octeon_irq_set_ciu_mapping(virq, line, bit, hw,
-		octeon_irq_gpio_chip, octeon_irq_handle_trigger);
+				       octeon_irq_gpio_chip, handle_level_irq);
 	return r;
 }
 

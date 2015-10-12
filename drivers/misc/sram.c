@@ -186,10 +186,10 @@ static int sram_probe(struct platform_device *pdev)
 	if (IS_ERR(sram->virt_base))
 		return PTR_ERR(sram->virt_base);
 
-	sram->pool = devm_gen_pool_create(sram->dev,
-					  ilog2(SRAM_GRANULARITY), -1);
-	if (!sram->pool)
-		return -ENOMEM;
+	sram->pool = devm_gen_pool_create(sram->dev, ilog2(SRAM_GRANULARITY),
+					  NUMA_NO_NODE, NULL);
+	if (IS_ERR(sram->pool))
+		return PTR_ERR(sram->pool);
 
 	ret = sram_reserve_regions(sram, res);
 	if (ret)

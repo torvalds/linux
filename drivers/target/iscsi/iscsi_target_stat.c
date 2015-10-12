@@ -430,7 +430,7 @@ static ssize_t iscsi_stat_tgt_attr_show_attr_fail_intr_addr(
 	int ret;
 
 	spin_lock(&lstat->lock);
-	ret = snprintf(page, PAGE_SIZE, "%s\n", lstat->last_intr_fail_ip_addr);
+	ret = snprintf(page, PAGE_SIZE, "%pISc\n", &lstat->last_intr_fail_sockaddr);
 	spin_unlock(&lstat->lock);
 
 	return ret;

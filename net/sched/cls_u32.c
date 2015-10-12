@@ -490,6 +490,19 @@ static bool u32_destroy(struct tcf_proto *tp, bool force)
 					return false;
 			}
 		}
+
+		if (tp_c->refcnt > 1)
+			return false;
+
+		if (tp_c->refcnt == 1) {
+			struct tc_u_hnode *ht;
+
+			for (ht = rtnl_dereference(tp_c->hlist);
+			     ht;
+			     ht = rtnl_dereference(ht->next))
+				if (!ht_empty(ht))
+					return false;
+		}
 	}
 
 	if (root_ht && --root_ht->refcnt == 0)

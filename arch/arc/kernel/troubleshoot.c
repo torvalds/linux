@@ -58,7 +58,6 @@ static void show_callee_regs(struct callee_regs *cregs)
 
 static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
-	struct path path;
 	char *path_nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;

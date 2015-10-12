@@ -1765,8 +1765,9 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	/* Start with the header buffer which may contain just the header
 	 * or the header plus data
 	 */
-	dma_sync_single_for_cpu(pdata->dev, rdata->rx.hdr.dma,
-				rdata->rx.hdr.dma_len, DMA_FROM_DEVICE);
+	dma_sync_single_range_for_cpu(pdata->dev, rdata->rx.hdr.dma_base,
+				      rdata->rx.hdr.dma_off,
+				      rdata->rx.hdr.dma_len, DMA_FROM_DEVICE);
 
 	packet = page_address(rdata->rx.hdr.pa.pages) +
 		 rdata->rx.hdr.pa.pages_offset;
@@ -1778,8 +1779,11 @@ static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
 	len -= copy_len;
 	if (len) {
 		/* Add the remaining data as a frag */
-		dma_sync_single_for_cpu(pdata->dev, rdata->rx.buf.dma,
-					rdata->rx.buf.dma_len, DMA_FROM_DEVICE);
+		dma_sync_single_range_for_cpu(pdata->dev,
+					      rdata->rx.buf.dma_base,
+					      rdata->rx.buf.dma_off,
+					      rdata->rx.buf.dma_len,
+					      DMA_FROM_DEVICE);
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				rdata->rx.buf.pa.pages,
@@ -1945,8 +1949,9 @@ read_again:
 				if (!skb)
 					error = 1;
 			} else if (rdesc_len) {
-				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx.buf.dma,
+				dma_sync_single_range_for_cpu(pdata->dev,
+							rdata->rx.buf.dma_base,
+							rdata->rx.buf.dma_off,
 							rdata->rx.buf.dma_len,
 							DMA_FROM_DEVICE);
 

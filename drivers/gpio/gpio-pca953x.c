@@ -570,6 +570,10 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 				"could not connect irqchip to gpiochip\n");
 			return ret;
 		}
+
+		gpiochip_set_chained_irqchip(&chip->gpio_chip,
+					     &pca953x_irq_chip,
+					     client->irq, NULL);
 	}
 
 	return 0;

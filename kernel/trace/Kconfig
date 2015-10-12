@@ -434,7 +434,7 @@ config UPROBE_EVENT
 
 config BPF_EVENTS
 	depends on BPF_SYSCALL
-	depends on KPROBE_EVENT
+	depends on KPROBE_EVENT || UPROBE_EVENT
 	bool
 	default y
 	help

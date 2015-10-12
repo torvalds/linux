@@ -1252,6 +1252,8 @@ struct ath5k_statistics {
 #define ATH5K_TXQ_LEN_MAX	(ATH_TXBUF / 4)		/* bufs per queue */
 #define ATH5K_TXQ_LEN_LOW	(ATH5K_TXQ_LEN_MAX / 2)	/* low mark */
 
+DECLARE_EWMA(beacon_rssi, 1024, 8)
+
 /* Driver state associated with an instance of a device */
 struct ath5k_hw {
 	struct ath_common       common;
@@ -1432,7 +1434,7 @@ struct ath5k_hw {
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
 	/* average beacon RSSI in our BSS (used by ANI) */
-	struct ewma		ah_beacon_rssi_avg;
+	struct ewma_beacon_rssi	ah_beacon_rssi_avg;
 
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;

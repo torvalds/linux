@@ -236,6 +236,7 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 	count += pages;
 	while (pages--)
 		__free_pages_bootmem(page++, cur++, 0);
+	bdata->node_bootmem_map = NULL;
 
 	bdebug("nid=%td released=%lx\n", bdata - bootmem_node_data, count);
 
@@ -294,6 +295,9 @@ static void __init __free(bootmem_data_t *bdata,
 		sidx + bdata->node_min_pfn,
 		eidx + bdata->node_min_pfn);
 
+	if (WARN_ON(bdata->node_bootmem_map == NULL))
+		return;
+
 	if (bdata->hint_idx > sidx)
 		bdata->hint_idx = sidx;
 
@@ -313,6 +317,9 @@ static int __init __reserve(bootmem_data_t *bdata, unsigned long sidx,
 		sidx + bdata->node_min_pfn,
 		eidx + bdata->node_min_pfn,
 		flags);
+
+	if (WARN_ON(bdata->node_bootmem_map == NULL))
+		return 0;
 
 	for (idx = sidx; idx < eidx; idx++)
 		if (test_and_set_bit(idx, bdata->node_bootmem_map)) {

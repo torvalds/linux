@@ -1542,11 +1542,8 @@ static int u132_periodic_reinit(struct u132 *u132)
 		(fit ^ FIT) | u132->hc_fminterval);
 	if (retval)
 		return retval;
-	retval = u132_write_pcimem(u132, periodicstart,
-		((9 * fi) / 10) & 0x3fff);
-	if (retval)
-		return retval;
-	return 0;
+	return u132_write_pcimem(u132, periodicstart,
+	       ((9 * fi) / 10) & 0x3fff);
 }
 
 static char *hcfs2string(int state)
@@ -2701,28 +2698,18 @@ static int u132_roothub_setportfeature(struct u132 *u132, u16 wValue,
 	if (wIndex == 0 || wIndex > u132->num_ports) {
 		return -EINVAL;
 	} else {
-		int retval;
 		int port_index = wIndex - 1;
 		struct u132_port *port = &u132->port[port_index];
 		port->Status &= ~(1 << wValue);
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			retval = u132_write_pcimem(u132,
-				roothub.portstatus[port_index], RH_PS_PSS);
-			if (retval)
-				return retval;
-			return 0;
+			return u132_write_pcimem(u132,
+			       roothub.portstatus[port_index], RH_PS_PSS);
 		case USB_PORT_FEAT_POWER:
-			retval = u132_write_pcimem(u132,
-				roothub.portstatus[port_index], RH_PS_PPS);
-			if (retval)
-				return retval;
-			return 0;
+			return u132_write_pcimem(u132,
+			       roothub.portstatus[port_index], RH_PS_PPS);
 		case USB_PORT_FEAT_RESET:
-			retval = u132_roothub_portreset(u132, port_index);
-			if (retval)
-				return retval;
-			return 0;
+			return u132_roothub_portreset(u132, port_index);
 		default:
 			return -EPIPE;
 		}
@@ -2737,7 +2724,6 @@ static int u132_roothub_clearportfeature(struct u132 *u132, u16 wValue,
 	} else {
 		int port_index = wIndex - 1;
 		u32 temp;
-		int retval;
 		struct u132_port *port = &u132->port[port_index];
 		port->Status &= ~(1 << wValue);
 		switch (wValue) {
@@ -2773,11 +2759,8 @@ static int u132_roothub_clearportfeature(struct u132 *u132, u16 wValue,
 		default:
 			return -EPIPE;
 		}
-		retval = u132_write_pcimem(u132, roothub.portstatus[port_index],
-			 temp);
-		if (retval)
-			return retval;
-		return 0;
+		return u132_write_pcimem(u132, roothub.portstatus[port_index],
+		       temp);
 	}
 }
 

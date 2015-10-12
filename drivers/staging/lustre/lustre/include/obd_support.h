@@ -56,9 +56,7 @@ extern unsigned int obd_dump_on_eviction;
 /* obd_timeout should only be used for recovery, not for
    networking / disk / timings affected by load (use Adaptive Timeouts) */
 extern unsigned int obd_timeout;	  /* seconds */
-extern unsigned int ldlm_timeout;	 /* seconds */
 extern unsigned int obd_timeout_set;
-extern unsigned int ldlm_timeout_set;
 extern unsigned int at_min;
 extern unsigned int at_max;
 extern unsigned int at_history;
@@ -105,8 +103,6 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 
 /* Timeout definitions */
 #define OBD_TIMEOUT_DEFAULT	     100
-#define LDLM_TIMEOUT_DEFAULT	    20
-#define MDS_LDLM_TIMEOUT_DEFAULT	6
 /* Time to wait for all clients to reconnect during recovery (hard limit) */
 #define OBD_RECOVERY_TIME_HARD	  (obd_timeout * 9)
 /* Time to wait for all clients to reconnect during recovery (soft limit) */
@@ -505,9 +501,7 @@ int obd_alloc_fail(const void *ptr, const char *name, const char *type,
 #define OBD_FAIL_ONCE			   CFS_FAIL_ONCE
 #define OBD_FAILED			      CFS_FAILED
 
-extern atomic_t libcfs_kmemory;
-
-extern void obd_update_maxusage(void);
+void obd_update_maxusage(void);
 
 #define obd_memory_add(size)						  \
 	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
@@ -526,8 +520,8 @@ extern void obd_update_maxusage(void);
 	lprocfs_stats_collector(obd_memory, OBD_MEMORY_PAGES_STAT,	    \
 				LPROCFS_FIELDS_FLAGS_SUM)
 
-extern __u64 obd_memory_max(void);
-extern __u64 obd_pages_max(void);
+__u64 obd_memory_max(void);
+__u64 obd_pages_max(void);
 
 #define OBD_DEBUG_MEMUSAGE (1)
 
@@ -622,8 +616,8 @@ do {									      \
 	if (unlikely((ptr) == NULL)) {					\
 		CERROR("vmalloc of '" #ptr "' (%d bytes) failed\n",	   \
 		       (int)(size));					  \
-		CERROR("%llu total bytes allocated by Lustre, %d by LNET\n", \
-		       obd_memory_sum(), atomic_read(&libcfs_kmemory));   \
+		CERROR("%llu total bytes allocated by Lustre\n",	      \
+		       obd_memory_sum());				      \
 	} else {							      \
 		OBD_ALLOC_POST(ptr, size, "vmalloced");		       \
 	}								     \
@@ -769,12 +763,10 @@ do {									      \
 		       "failed\n", (int)1,				    \
 		       (__u64)(1 << PAGE_CACHE_SHIFT));			 \
 		CERROR("%llu total bytes and %llu total pages "	   \
-		       "(%llu bytes) allocated by Lustre, "		\
-		       "%d total bytes by LNET\n",			    \
+		       "(%llu bytes) allocated by Lustre\n",		      \
 		       obd_memory_sum(),				      \
 		       obd_pages_sum() << PAGE_CACHE_SHIFT,		     \
-		       obd_pages_sum(),				       \
-		       atomic_read(&libcfs_kmemory));		     \
+		       obd_pages_sum());				       \
 	} else {							      \
 		obd_pages_add(0);					     \
 		CDEBUG(D_MALLOC, "alloc_pages '" #ptr "': %d page(s) / "      \

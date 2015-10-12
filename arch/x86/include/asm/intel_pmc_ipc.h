@@ -25,36 +25,9 @@
 
 #if IS_ENABLED(CONFIG_INTEL_PMC_IPC)
 
-/*
- * intel_pmc_ipc_simple_command
- * @cmd: command
- * @sub: sub type
- */
 int intel_pmc_ipc_simple_command(int cmd, int sub);
-
-/*
- * intel_pmc_ipc_raw_cmd
- * @cmd: command
- * @sub: sub type
- * @in: input data
- * @inlen: input length in bytes
- * @out: output data
- * @outlen: output length in dwords
- * @sptr: data writing to SPTR register
- * @dptr: data writing to DPTR register
- */
 int intel_pmc_ipc_raw_cmd(u32 cmd, u32 sub, u8 *in, u32 inlen,
 		u32 *out, u32 outlen, u32 dptr, u32 sptr);
-
-/*
- * intel_pmc_ipc_command
- * @cmd: command
- * @sub: sub type
- * @in: input data
- * @inlen: input length in bytes
- * @out: output data
- * @outlen: output length in dwords
- */
 int intel_pmc_ipc_command(u32 cmd, u32 sub, u8 *in, u32 inlen,
 		u32 *out, u32 outlen);
 

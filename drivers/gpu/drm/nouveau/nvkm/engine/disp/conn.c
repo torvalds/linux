@@ -33,15 +33,15 @@ static int
 nvkm_connector_hpd(struct nvkm_notify *notify)
 {
 	struct nvkm_connector *conn = container_of(notify, typeof(*conn), hpd);
-	struct nvkm_disp *disp = nvkm_disp(conn);
-	struct nvkm_gpio *gpio = nvkm_gpio(conn);
+	struct nvkm_disp *disp = conn->disp;
+	struct nvkm_gpio *gpio = disp->engine.subdev.device->gpio;
 	const struct nvkm_gpio_ntfy_rep *line = notify->data;
 	struct nvif_notify_conn_rep_v0 rep;
 	int index = conn->index;
 
-	DBG("HPD: %d\n", line->mask);
+	CONN_DBG(conn, "HPD: %d", line->mask);
 
-	if (!gpio->get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.index))
+	if (!nvkm_gpio_get(gpio, 0, DCB_GPIO_UNUSED, conn->hpd.index))
 		rep.mask = NVIF_NOTIFY_CONN_V0_UNPLUG;
 	else
 		rep.mask = NVIF_NOTIFY_CONN_V0_PLUG;
@@ -51,78 +51,58 @@ nvkm_connector_hpd(struct nvkm_notify *notify)
 	return NVKM_NOTIFY_KEEP;
 }
 
-int
-_nvkm_connector_fini(struct nvkm_object *object, bool suspend)
+void
+nvkm_connector_fini(struct nvkm_connector *conn)
 {
-	struct nvkm_connector *conn = (void *)object;
 	nvkm_notify_put(&conn->hpd);
-	return nvkm_object_fini(&conn->base, suspend);
-}
-
-int
-_nvkm_connector_init(struct nvkm_object *object)
-{
-	struct nvkm_connector *conn = (void *)object;
-	int ret = nvkm_object_init(&conn->base);
-	if (ret == 0)
-		nvkm_notify_get(&conn->hpd);
-	return ret;
 }
 
 void
-_nvkm_connector_dtor(struct nvkm_object *object)
+nvkm_connector_init(struct nvkm_connector *conn)
 {
-	struct nvkm_connector *conn = (void *)object;
-	nvkm_notify_fini(&conn->hpd);
-	nvkm_object_destroy(&conn->base);
+	nvkm_notify_get(&conn->hpd);
 }
 
-int
-nvkm_connector_create_(struct nvkm_object *parent,
-		       struct nvkm_object *engine,
-		       struct nvkm_oclass *oclass,
-		       struct nvbios_connE *info, int index,
-		       int length, void **pobject)
+void
+nvkm_connector_del(struct nvkm_connector **pconn)
+{
+	struct nvkm_connector *conn = *pconn;
+	if (conn) {
+		nvkm_notify_fini(&conn->hpd);
+		kfree(*pconn);
+		*pconn = NULL;
+	}
+}
+
+static void
+nvkm_connector_ctor(struct nvkm_disp *disp, int index,
+		    struct nvbios_connE *info, struct nvkm_connector *conn)
 {
 	static const u8 hpd[] = { 0x07, 0x08, 0x51, 0x52, 0x5e, 0x5f, 0x60 };
-	struct nvkm_disp *disp = nvkm_disp(parent);
-	struct nvkm_gpio *gpio = nvkm_gpio(parent);
-	struct nvkm_connector *conn;
-	struct nvkm_output *outp;
+	struct nvkm_gpio *gpio = disp->engine.subdev.device->gpio;
 	struct dcb_gpio_func func;
 	int ret;
 
-	list_for_each_entry(outp, &disp->outp, head) {
-		if (outp->conn && outp->conn->index == index) {
-			atomic_inc(&nv_object(outp->conn)->refcount);
-			*pobject = outp->conn;
-			return 1;
-		}
-	}
-
-	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
-	conn = *pobject;
-	if (ret)
-		return ret;
-
-	conn->info = *info;
+	conn->disp = disp;
 	conn->index = index;
+	conn->info = *info;
 
-	DBG("type %02x loc %d hpd %02x dp %x di %x sr %x lcdid %x\n",
-	    info->type, info->location, info->hpd, info->dp,
-	    info->di, info->sr, info->lcdid);
+	CONN_DBG(conn, "type %02x loc %d hpd %02x dp %x di %x sr %x lcdid %x",
+		 info->type, info->location, info->hpd, info->dp,
+		 info->di, info->sr, info->lcdid);
 
 	if ((info->hpd = ffs(info->hpd))) {
 		if (--info->hpd >= ARRAY_SIZE(hpd)) {
-			ERR("hpd %02x unknown\n", info->hpd);
-			return 0;
+			CONN_ERR(conn, "hpd %02x unknown", info->hpd);
+			return;
 		}
 		info->hpd = hpd[info->hpd];
 
-		ret = gpio->find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
+		ret = nvkm_gpio_find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
 		if (ret) {
-			ERR("func %02x lookup failed, %d\n", info->hpd, ret);
-			return 0;
+			CONN_ERR(conn, "func %02x lookup failed, %d",
+				 info->hpd, ret);
+			return;
 		}
 
 		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_connector_hpd,
@@ -134,41 +114,19 @@ nvkm_connector_create_(struct nvkm_object *parent,
 				       sizeof(struct nvkm_gpio_ntfy_rep),
 				       &conn->hpd);
 		if (ret) {
-			ERR("func %02x failed, %d\n", info->hpd, ret);
+			CONN_ERR(conn, "func %02x failed, %d", info->hpd, ret);
 		} else {
-			DBG("func %02x (HPD)\n", info->hpd);
+			CONN_DBG(conn, "func %02x (HPD)", info->hpd);
 		}
 	}
-
-	return 0;
 }
 
 int
-_nvkm_connector_ctor(struct nvkm_object *parent,
-		     struct nvkm_object *engine,
-		     struct nvkm_oclass *oclass, void *info, u32 index,
-		     struct nvkm_object **pobject)
+nvkm_connector_new(struct nvkm_disp *disp, int index,
+		   struct nvbios_connE *info, struct nvkm_connector **pconn)
 {
-	struct nvkm_connector *conn;
-	int ret;
-
-	ret = nvkm_connector_create(parent, engine, oclass, info, index, &conn);
-	*pobject = nv_object(conn);
-	if (ret)
-		return ret;
-
+	if (!(*pconn = kzalloc(sizeof(**pconn), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_connector_ctor(disp, index, info, *pconn);
 	return 0;
 }
-
-struct nvkm_oclass *
-nvkm_connector_oclass = &(struct nvkm_connector_impl) {
-	.base = {
-		.handle = 0,
-		.ofuncs = &(struct nvkm_ofuncs) {
-			.ctor = _nvkm_connector_ctor,
-			.dtor = _nvkm_connector_dtor,
-			.init = _nvkm_connector_init,
-			.fini = _nvkm_connector_fini,
-		},
-	},
-}.base;

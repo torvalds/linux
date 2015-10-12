@@ -34,15 +34,15 @@ nvbios_P0260Te(struct nvkm_bios *bios,
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2 && bit_P.length > 0x63)
-			data = nv_ro32(bios, bit_P.offset + 0x60);
+			data = nvbios_rd32(bios, bit_P.offset + 0x60);
 		if (data) {
-			*ver = nv_ro08(bios, data + 0);
+			*ver = nvbios_rd08(bios, data + 0);
 			switch (*ver) {
 			case 0x10:
-				*hdr = nv_ro08(bios, data + 1);
-				*cnt = nv_ro08(bios, data + 2);
+				*hdr = nvbios_rd08(bios, data + 1);
+				*cnt = nvbios_rd08(bios, data + 2);
 				*len = 4;
-				*xnr = nv_ro08(bios, data + 3);
+				*xnr = nvbios_rd08(bios, data + 3);
 				*xsz = 4;
 				return data;
 			default:
@@ -72,7 +72,7 @@ nvbios_P0260Ep(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x10:
-		info->data = nv_ro32(bios, data);
+		info->data = nvbios_rd32(bios, data);
 		return data;
 	default:
 		break;
@@ -98,7 +98,7 @@ nvbios_P0260Xp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	memset(info, 0x00, sizeof(*info));
 	switch (!!data * *ver) {
 	case 0x10:
-		info->data = nv_ro32(bios, data);
+		info->data = nvbios_rd32(bios, data);
 		return data;
 	default:
 		break;

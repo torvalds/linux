@@ -125,7 +125,8 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 
 	if (adev->gart.robj == NULL) {
 		r = amdgpu_bo_create(adev, adev->gart.table_size,
-				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM, 0,
+				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
 				     NULL, &adev->gart.robj);
 		if (r) {
 			return r;

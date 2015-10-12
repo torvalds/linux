@@ -1244,7 +1244,6 @@ static struct i2c_driver pm2xxx_charger_driver = {
 	.remove = pm2xxx_wall_charger_remove,
 	.driver = {
 		.name = "pm2xxx-wall_charger",
-		.owner = THIS_MODULE,
 		.pm = PM2XXX_PM_OPS,
 	},
 	.id_table = pm2xxx_id,

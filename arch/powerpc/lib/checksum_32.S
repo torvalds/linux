@@ -41,22 +41,6 @@ _GLOBAL(ip_fast_csum)
 	blr
 
 /*
- * Compute checksum of TCP or UDP pseudo-header:
- *   csum_tcpudp_magic(saddr, daddr, len, proto, sum)
- */	
-_GLOBAL(csum_tcpudp_magic)
-	rlwimi	r5,r6,16,0,15	/* put proto in upper half of len */
-	addc	r0,r3,r4	/* add 4 32-bit words together */
-	adde	r0,r0,r5
-	adde	r0,r0,r7
-	addze	r0,r0		/* add in final carry */
-	rlwinm	r3,r0,16,0,31	/* fold two halves together */
-	add	r3,r0,r3
-	not	r3,r3
-	srwi	r3,r3,16
-	blr
-
-/*
  * computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit)
  *

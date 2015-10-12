@@ -32,11 +32,11 @@
 			status = "okay";
 		};
 
+		/* This UART is unused and thus left disabled */
 		uart@80121000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&uart1_default_mode>;
 			pinctrl-1 = <&uart1_sleep_mode>;
-			status = "okay";
 		};
 
 		uart@80007000 {

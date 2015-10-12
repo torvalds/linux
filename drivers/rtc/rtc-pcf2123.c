@@ -165,13 +165,7 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			tm->tm_sec, tm->tm_min, tm->tm_hour,
 			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* the clock can give out invalid datetime, but we cannot return
-	 * -EINVAL otherwise hwclock will refuse to set the time on bootup.
-	 */
-	if (rtc_valid_tm(tm) < 0)
-		dev_err(dev, "retrieved date/time is not valid.\n");
-
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int pcf2123_rtc_set_time(struct device *dev, struct rtc_time *tm)

@@ -350,19 +350,24 @@ int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
 	return 0;
 }
 
-struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
-					int max_page_list_len)
+struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
+			       enum ib_mr_type mr_type,
+			       u32 max_num_sg)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mr *mr;
 	int err;
+
+	if (mr_type != IB_MR_TYPE_MEM_REG ||
+	    max_num_sg > MLX4_MAX_FAST_REG_PAGES)
+		return ERR_PTR(-EINVAL);
 
 	mr = kmalloc(sizeof *mr, GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
 	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, 0, 0, 0,
-			    max_page_list_len, 0, &mr->mmr);
+			    max_num_sg, 0, &mr->mmr);
 	if (err)
 		goto err_free;
 

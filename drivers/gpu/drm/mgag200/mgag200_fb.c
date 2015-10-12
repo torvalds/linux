@@ -101,7 +101,7 @@ static void mga_fillrect(struct fb_info *info,
 			 const struct fb_fillrect *rect)
 {
 	struct mga_fbdev *mfbdev = info->par;
-	sys_fillrect(info, rect);
+	drm_fb_helper_sys_fillrect(info, rect);
 	mga_dirty_update(mfbdev, rect->dx, rect->dy, rect->width,
 			 rect->height);
 }
@@ -110,7 +110,7 @@ static void mga_copyarea(struct fb_info *info,
 			 const struct fb_copyarea *area)
 {
 	struct mga_fbdev *mfbdev = info->par;
-	sys_copyarea(info, area);
+	drm_fb_helper_sys_copyarea(info, area);
 	mga_dirty_update(mfbdev, area->dx, area->dy, area->width,
 			 area->height);
 }
@@ -119,7 +119,7 @@ static void mga_imageblit(struct fb_info *info,
 			  const struct fb_image *image)
 {
 	struct mga_fbdev *mfbdev = info->par;
-	sys_imageblit(info, image);
+	drm_fb_helper_sys_imageblit(info, image);
 	mga_dirty_update(mfbdev, image->dx, image->dy, image->width,
 			 image->height);
 }
@@ -166,8 +166,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *gobj = NULL;
-	struct device *device = &dev->pdev->dev;
-	struct mgag200_bo *bo;
 	int ret;
 	void *sysram;
 	int size;
@@ -185,15 +183,14 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
 	}
-	bo = gem_to_mga_bo(gobj);
 
 	sysram = vmalloc(size);
 	if (!sysram)
 		return -ENOMEM;
 
-	info = framebuffer_alloc(0, device);
-	if (info == NULL)
-		return -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
 
 	info->par = mfbdev;
 
@@ -208,14 +205,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	/* setup helper */
 	mfbdev->helper.fb = fb;
-	mfbdev->helper.fbdev = info;
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		DRM_ERROR("%s: can't allocate color map\n", info->fix.id);
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	strcpy(info->fix.id, "mgadrmfb");
 
@@ -223,11 +212,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	info->fbops = &mgag200fb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out;
-	}
 	info->apertures->ranges[0].base = mdev->dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = mdev->mc.vram_size;
 
@@ -242,24 +226,15 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_KMS("allocated %dx%d\n",
 		      fb->width, fb->height);
 	return 0;
-out:
-	return ret;
 }
 
 static int mga_fbdev_destroy(struct drm_device *dev,
 				struct mga_fbdev *mfbdev)
 {
-	struct fb_info *info;
 	struct mga_framebuffer *mfb = &mfbdev->mfb;
 
-	if (mfbdev->helper.fbdev) {
-		info = mfbdev->helper.fbdev;
-
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
+	drm_fb_helper_unregister_fbi(&mfbdev->helper);
+	drm_fb_helper_release_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
 		drm_gem_object_unreference_unlocked(mfb->obj);

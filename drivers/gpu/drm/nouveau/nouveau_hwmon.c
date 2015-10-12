@@ -41,7 +41,7 @@ nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
 	struct drm_device *dev = dev_get_drvdata(d);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->device);
-	int temp = therm->temp_get(therm);
+	int temp = nvkm_therm_temp_get(therm);
 
 	if (temp < 0)
 		return temp;
@@ -348,7 +348,7 @@ nouveau_hwmon_show_fan1_input(struct device *d, struct device_attribute *attr,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->device);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", therm->fan_sense(therm));
+	return snprintf(buf, PAGE_SIZE, "%d\n", nvkm_therm_fan_sense(therm));
 }
 static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, nouveau_hwmon_show_fan1_input,
 			  NULL, 0);
@@ -571,7 +571,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return -ENOMEM;
 	hwmon->dev = dev;
 
-	if (!therm || !therm->temp_get || !therm->attr_get || !therm->attr_set)
+	if (!therm || !therm->attr_get || !therm->attr_set)
 		return -ENODEV;
 
 	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
@@ -588,7 +588,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		goto error;
 
 	/* if the card has a working thermal sensor */
-	if (therm->temp_get(therm) >= 0) {
+	if (nvkm_therm_temp_get(therm) >= 0) {
 		ret = sysfs_create_group(&hwmon_dev->kobj, &hwmon_temp_attrgroup);
 		if (ret)
 			goto error;
@@ -606,7 +606,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	}
 
 	/* if the card can read the fan rpm */
-	if (therm->fan_sense(therm) >= 0) {
+	if (nvkm_therm_fan_sense(therm) >= 0) {
 		ret = sysfs_create_group(&hwmon_dev->kobj,
 					 &hwmon_fan_rpm_attrgroup);
 		if (ret)

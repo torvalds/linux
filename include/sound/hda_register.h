@@ -160,6 +160,10 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_SPB_BASE			0x08
 /* Interval used to calculate the iterating register offset */
 #define AZX_SPB_INTERVAL		0x08
+/* SPIB base */
+#define AZX_SPB_SPIB			0x00
+/* SPIB MAXFIFO base*/
+#define AZX_SPB_MAXFIFO			0x04
 
 /* registers of Global Time Synchronization Capability Structure */
 #define AZX_GTS_CAP_ID			0x1

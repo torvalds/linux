@@ -15,7 +15,7 @@ HW assisted tracing is becoming increasingly useful when dealing with systems
 that have many SoCs and other components like GPU and DMA engines.  ARM has
 developed a HW assisted tracing solution by means of different components, each
 being added to a design at synthesis time to cater to specific tracing needs.
-Compoments are generally categorised as source, link and sinks and are
+Components are generally categorised as source, link and sinks and are
 (usually) discovered using the AMBA bus.
 
 "Sources" generate a compressed stream representing the processor instruction
@@ -138,7 +138,7 @@ void coresight_unregister(struct coresight_device *csdev);
 
 The registering function is taking a "struct coresight_device *csdev" and
 register the device with the core framework.  The unregister function takes
-a reference to a "strut coresight_device", obtained at registration time.
+a reference to a "struct coresight_device", obtained at registration time.
 
 If everything goes well during the registration process the new devices will
 show up under /sys/bus/coresight/devices, as showns here for a TC2 platform:

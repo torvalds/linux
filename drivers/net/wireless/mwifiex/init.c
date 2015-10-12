@@ -77,7 +77,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 
 	priv->media_connected = false;
 	eth_broadcast_addr(priv->curr_addr);
-
+	priv->port_open = false;
 	priv->pkt_tx_ctrl = 0;
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->data_rate = 0;	/* Initially indicate the rate as auto */
@@ -301,7 +301,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->iface_limit.sta_intf = MWIFIEX_MAX_STA_NUM;
 	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
 	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
-
+	adapter->active_scan_triggered = false;
 	setup_timer(&adapter->wakeup_timer, wakeup_timer_fn,
 		    (unsigned long)adapter);
 }
@@ -499,6 +499,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		INIT_LIST_HEAD(&priv->sta_list);
 		INIT_LIST_HEAD(&priv->auto_tdls_list);
 		skb_queue_head_init(&priv->tdls_txq);
+		skb_queue_head_init(&priv->bypass_txq);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
@@ -548,11 +549,6 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 			if (ret)
 				return -1;
 		}
-	}
-
-	if (adapter->if_ops.init_fw_port) {
-		if (adapter->if_ops.init_fw_port(adapter))
-			return -1;
 	}
 
 	for (i = 0; i < adapter->priv_num; i++) {

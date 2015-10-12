@@ -1859,13 +1859,10 @@ oom:
 		return;
 	}
 
-	mc_spec = kmalloc(0x200, GFP_ATOMIC);
+	mc_spec = kzalloc(0x200, GFP_ATOMIC);
 	if (mc_spec == NULL)
 		goto oom;
 	mc_other = mc_spec + (0x100 >> 2);
-
-	memset(mc_spec, 0, 0x100);
-	memset(mc_other, 0, 0x100);
 
 	netdev_for_each_mc_addr(ha, dev) {
 		u8 *a = ha->addr;

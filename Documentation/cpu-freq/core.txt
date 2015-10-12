@@ -55,16 +55,13 @@ transition notifiers.
 ----------------------------
 
 These are notified when a new policy is intended to be set. Each
-CPUFreq policy notifier is called three times for a policy transition:
+CPUFreq policy notifier is called twice for a policy transition:
 
 1.) During CPUFREQ_ADJUST all CPUFreq notifiers may change the limit if
     they see a need for this - may it be thermal considerations or
     hardware limitations.
 
-2.) During CPUFREQ_INCOMPATIBLE only changes may be done in order to avoid
-    hardware failure.
-
-3.) And during CPUFREQ_NOTIFY all notifiers are informed of the new policy
+2.) And during CPUFREQ_NOTIFY all notifiers are informed of the new policy
    - if two hardware drivers failed to agree on a new policy before this
    stage, the incompatible hardware shall be shut down, and the user
    informed of this.

@@ -100,7 +100,7 @@ void iio_channel_stop_all_cb(struct iio_cb_buffer *cb_buff);
 
 /**
  * iio_channel_cb_get_channels() - get access to the underlying channels.
- * @cb_buff:		The callback buffer from whom we want the channel
+ * @cb_buffer:		The callback buffer from whom we want the channel
  *			information.
  *
  * This function allows one to obtain information about the channels.

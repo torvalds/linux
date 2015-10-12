@@ -531,8 +531,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_crtc_vblank_off(crtc);
 
-	crtc->mode = *adj;
-
 	val = dcrtc->dumb_ctrl & ~CFG_DUMB_ENA;
 	if (val != dcrtc->dumb_ctrl) {
 		dcrtc->dumb_ctrl = val;

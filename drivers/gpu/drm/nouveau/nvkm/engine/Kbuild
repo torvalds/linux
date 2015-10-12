@@ -6,7 +6,7 @@ include $(src)/nvkm/engine/ce/Kbuild
 include $(src)/nvkm/engine/cipher/Kbuild
 include $(src)/nvkm/engine/device/Kbuild
 include $(src)/nvkm/engine/disp/Kbuild
-include $(src)/nvkm/engine/dmaobj/Kbuild
+include $(src)/nvkm/engine/dma/Kbuild
 include $(src)/nvkm/engine/fifo/Kbuild
 include $(src)/nvkm/engine/gr/Kbuild
 include $(src)/nvkm/engine/mpeg/Kbuild

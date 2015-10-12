@@ -135,36 +135,6 @@ void event_format__print(struct event_format *event,
 	return event_format__fprintf(event, cpu, data, size, stdout);
 }
 
-void parse_proc_kallsyms(struct pevent *pevent,
-			 char *file, unsigned int size __maybe_unused)
-{
-	unsigned long long addr;
-	char *func;
-	char *line;
-	char *next = NULL;
-	char *addr_str;
-	char *mod;
-	char *fmt = NULL;
-
-	line = strtok_r(file, "\n", &next);
-	while (line) {
-		mod = NULL;
-		addr_str = strtok_r(line, " ", &fmt);
-		addr = strtoull(addr_str, NULL, 16);
-		/* skip character */
-		strtok_r(NULL, " ", &fmt);
-		func = strtok_r(NULL, "\t", &fmt);
-		mod = strtok_r(NULL, "]", &fmt);
-		/* truncate the extra '[' */
-		if (mod)
-			mod = mod + 1;
-
-		pevent_register_function(pevent, func, addr, mod);
-
-		line = strtok_r(NULL, "\n", &next);
-	}
-}
-
 void parse_ftrace_printk(struct pevent *pevent,
 			 char *file, unsigned int size __maybe_unused)
 {

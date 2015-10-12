@@ -206,7 +206,7 @@ unalignedOffby3:
 	ld.ab	r6, [r1, 4]
 	prefetch [r1, 28]	;Prefetch the next read location
 	ld.ab	r8, [r1,4]
-	prefetch [r3, 32]	;Prefetch the next write location
+	prefetchw [r3, 32]	;Prefetch the next write location
 
 	SHIFT_1	(r7, r6, 8)
 	or	r7, r7, r5

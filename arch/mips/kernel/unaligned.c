@@ -438,7 +438,7 @@ do {                                                        \
 		: "memory");                                \
 } while(0)
 
-#define     StoreDW(addr, value, res) \
+#define     _StoreDW(addr, value, res) \
 do {                                                        \
 		__asm__ __volatile__ (                      \
 			".set\tpush\n\t"		    \
@@ -891,6 +891,9 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 #ifdef	CONFIG_EVA
 	mm_segment_t seg;
 #endif
+	union fpureg *fpr;
+	enum msa_2b_fmt df;
+	unsigned int wd;
 	origpc = (unsigned long)pc;
 	orig31 = regs->regs[31];
 
@@ -1201,6 +1204,75 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (res == 0)
 			break;
 		return;
+
+	case msa_op:
+		if (!cpu_has_msa)
+			goto sigill;
+
+		/*
+		 * If we've reached this point then userland should have taken
+		 * the MSA disabled exception & initialised vector context at
+		 * some point in the past.
+		 */
+		BUG_ON(!thread_msa_context_live());
+
+		df = insn.msa_mi10_format.df;
+		wd = insn.msa_mi10_format.wd;
+		fpr = &current->thread.fpu.fpr[wd];
+
+		switch (insn.msa_mi10_format.func) {
+		case msa_ld_op:
+			if (!access_ok(VERIFY_READ, addr, sizeof(*fpr)))
+				goto sigbus;
+
+			/*
+			 * Disable preemption to avoid a race between copying
+			 * state from userland, migrating to another CPU and
+			 * updating the hardware vector register below.
+			 */
+			preempt_disable();
+
+			res = __copy_from_user_inatomic(fpr, addr,
+							sizeof(*fpr));
+			if (res)
+				goto fault;
+
+			/*
+			 * Update the hardware register if it is in use by the
+			 * task in this quantum, in order to avoid having to
+			 * save & restore the whole vector context.
+			 */
+			if (test_thread_flag(TIF_USEDMSA))
+				write_msa_wr(wd, fpr, df);
+
+			preempt_enable();
+			break;
+
+		case msa_st_op:
+			if (!access_ok(VERIFY_WRITE, addr, sizeof(*fpr)))
+				goto sigbus;
+
+			/*
+			 * Update from the hardware register if it is in use by
+			 * the task in this quantum, in order to avoid having to
+			 * save & restore the whole vector context.
+			 */
+			preempt_disable();
+			if (test_thread_flag(TIF_USEDMSA))
+				read_msa_wr(wd, fpr, df);
+			preempt_enable();
+
+			res = __copy_to_user_inatomic(addr, fpr, sizeof(*fpr));
+			if (res)
+				goto fault;
+			break;
+
+		default:
+			goto sigbus;
+		}
+
+		compute_return_epc(regs);
+		break;
 
 #ifndef CONFIG_CPU_MIPSR6
 	/*
@@ -2240,5 +2312,5 @@ static int __init debugfs_unaligned(void)
 		return -ENOMEM;
 	return 0;
 }
-__initcall(debugfs_unaligned);
+arch_initcall(debugfs_unaligned);
 #endif

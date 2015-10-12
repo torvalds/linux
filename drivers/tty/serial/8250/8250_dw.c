@@ -56,7 +56,6 @@
 
 struct dw8250_data {
 	u8			usr_reg;
-	int			last_mcr;
 	int			line;
 	int			msr_mask_on;
 	int			msr_mask_off;
@@ -75,12 +74,6 @@ struct dw8250_data {
 static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = p->private_data;
-
-	/* If reading MSR, report CTS asserted when auto-CTS/RTS enabled */
-	if (offset == UART_MSR && d->last_mcr & UART_MCR_AFE) {
-		value |= UART_MSR_CTS;
-		value &= ~UART_MSR_DCTS;
-	}
 
 	/* Override any modem control signals if needed */
 	if (offset == UART_MSR) {
@@ -101,11 +94,6 @@ static void dw8250_force_idle(struct uart_port *p)
 
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 {
-	struct dw8250_data *d = p->private_data;
-
-	if (offset == UART_MCR)
-		d->last_mcr = value;
-
 	writeb(value, p->membase + (offset << p->regshift));
 
 	/* Make sure LCR write wasn't ignored */
@@ -144,11 +132,6 @@ static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 
 static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
 {
-	struct dw8250_data *d = p->private_data;
-
-	if (offset == UART_MCR)
-		d->last_mcr = value;
-
 	value &= 0xff;
 	__raw_writeq(value, p->membase + (offset << p->regshift));
 	/* Read back to ensure register write ordering. */
@@ -175,11 +158,6 @@ static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
 
 static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 {
-	struct dw8250_data *d = p->private_data;
-
-	if (offset == UART_MCR)
-		d->last_mcr = value;
-
 	writel(value, p->membase + (offset << p->regshift));
 
 	/* Make sure LCR write wasn't ignored */
@@ -257,6 +235,11 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 
 	if (!ret)
 		p->uartclk = rate;
+
+	p->status &= ~UPSTAT_AUTOCTS;
+	if (termios->c_cflag & CRTSCTS)
+		p->status |= UPSTAT_AUTOCTS;
+
 out:
 	serial8250_do_set_termios(p, termios, old);
 }

@@ -1015,9 +1015,12 @@ static void send_beacon_frame(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct rtl_tcb_desc tcb_desc;
 
-	if (skb)
-		rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, NULL);
+	if (skb) {
+		memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
+		rtlpriv->intf_ops->adapter_tx(hw, NULL, skb, &tcb_desc);
+	}
 }
 
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,

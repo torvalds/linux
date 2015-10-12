@@ -509,7 +509,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 			break;
 		}
 	}
-	iowrite32(v->swtail, wil->csr + HOSTADDR(v->hwtail));
+	wil_w(wil, v->hwtail, v->swtail);
 
 	return rc;
 }
@@ -540,6 +540,14 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_NORMAL]		= "GRO_NORMAL",
 		[GRO_DROP]		= "GRO_DROP",
 	};
+
+	if (ndev->features & NETIF_F_RXHASH)
+		/* fake L4 to ensure it won't be re-calculated later
+		 * set hash to any non-zero value to activate rps
+		 * mechanism, core will be chosen according
+		 * to user-level rps configuration.
+		 */
+		skb_set_hash(skb, 1, PKT_HASH_TYPE_L4);
 
 	skb_orphan(skb);
 
@@ -1058,14 +1066,52 @@ static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
 static inline
 void wil_tx_desc_set_nr_frags(struct vring_tx_desc *d, int nr_frags)
 {
-	d->mac.d[2] |= ((nr_frags + 1) <<
-		       MAC_CFG_DESC_TX_2_NUM_OF_DESCRIPTORS_POS);
+	d->mac.d[2] |= (nr_frags << MAC_CFG_DESC_TX_2_NUM_OF_DESCRIPTORS_POS);
 }
 
-static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
-					 struct vring_tx_desc *d,
-					 struct sk_buff *skb)
+/**
+ * Sets the descriptor @d up for csum and/or TSO offloading. The corresponding
+ * @skb is used to obtain the protocol and headers length.
+ * @tso_desc_type is a descriptor type for TSO: 0 - a header, 1 - first data,
+ * 2 - middle, 3 - last descriptor.
+ */
+
+static void wil_tx_desc_offload_setup_tso(struct vring_tx_desc *d,
+					  struct sk_buff *skb,
+					  int tso_desc_type, bool is_ipv4,
+					  int tcp_hdr_len, int skb_net_hdr_len)
 {
+	d->dma.b11 = ETH_HLEN; /* MAC header length */
+	d->dma.b11 |= is_ipv4 << DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS;
+
+	d->dma.d0 |= (2 << DMA_CFG_DESC_TX_0_L4_TYPE_POS);
+	/* L4 header len: TCP header length */
+	d->dma.d0 |= (tcp_hdr_len & DMA_CFG_DESC_TX_0_L4_LENGTH_MSK);
+
+	/* Setup TSO: bit and desc type */
+	d->dma.d0 |= (BIT(DMA_CFG_DESC_TX_0_TCP_SEG_EN_POS)) |
+		(tso_desc_type << DMA_CFG_DESC_TX_0_SEGMENT_BUF_DETAILS_POS);
+	d->dma.d0 |= (is_ipv4 << DMA_CFG_DESC_TX_0_IPV4_CHECKSUM_EN_POS);
+
+	d->dma.ip_length = skb_net_hdr_len;
+	/* Enable TCP/UDP checksum */
+	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_TCP_UDP_CHECKSUM_EN_POS);
+	/* Calculate pseudo-header */
+	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_PSEUDO_HEADER_CALC_EN_POS);
+}
+
+/**
+ * Sets the descriptor @d up for csum. The corresponding
+ * @skb is used to obtain the protocol and headers length.
+ * Returns the protocol: 0 - not TCP, 1 - TCPv4, 2 - TCPv6.
+ * Note, if d==NULL, the function only returns the protocol result.
+ *
+ * It is very similar to previous wil_tx_desc_offload_setup_tso. This
+ * is "if unrolling" to optimize the critical path.
+ */
+
+static int wil_tx_desc_offload_setup(struct vring_tx_desc *d,
+				     struct sk_buff *skb){
 	int protocol;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -1110,6 +1156,305 @@ static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
 	return 0;
 }
 
+static inline void wil_tx_last_desc(struct vring_tx_desc *d)
+{
+	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_EOP_POS) |
+	      BIT(DMA_CFG_DESC_TX_0_CMD_MARK_WB_POS) |
+	      BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
+}
+
+static inline void wil_set_tx_desc_last_tso(volatile struct vring_tx_desc *d)
+{
+	d->dma.d0 |= wil_tso_type_lst <<
+		  DMA_CFG_DESC_TX_0_SEGMENT_BUF_DETAILS_POS;
+}
+
+static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
+			      struct sk_buff *skb)
+{
+	struct device *dev = wil_to_dev(wil);
+
+	/* point to descriptors in shared memory */
+	volatile struct vring_tx_desc *_desc = NULL, *_hdr_desc,
+				      *_first_desc = NULL;
+
+	/* pointers to shadow descriptors */
+	struct vring_tx_desc desc_mem, hdr_desc_mem, first_desc_mem,
+			     *d = &hdr_desc_mem, *hdr_desc = &hdr_desc_mem,
+			     *first_desc = &first_desc_mem;
+
+	/* pointer to shadow descriptors' context */
+	struct wil_ctx *hdr_ctx, *first_ctx = NULL;
+
+	int descs_used = 0; /* total number of used descriptors */
+	int sg_desc_cnt = 0; /* number of descriptors for current mss*/
+
+	u32 swhead = vring->swhead;
+	int used, avail = wil_vring_avail_tx(vring);
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	int min_desc_required = nr_frags + 1;
+	int mss = skb_shinfo(skb)->gso_size;	/* payload size w/o headers */
+	int f, len, hdrlen, headlen;
+	int vring_index = vring - wil->vring_tx;
+	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
+	uint i = swhead;
+	dma_addr_t pa;
+	const skb_frag_t *frag = NULL;
+	int rem_data = mss;
+	int lenmss;
+	int hdr_compensation_need = true;
+	int desc_tso_type = wil_tso_type_first;
+	bool is_ipv4;
+	int tcp_hdr_len;
+	int skb_net_hdr_len;
+	int gso_type;
+
+	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
+		     __func__, skb->len, vring_index);
+
+	if (unlikely(!txdata->enabled))
+		return -EINVAL;
+
+	/* A typical page 4K is 3-4 payloads, we assume each fragment
+	 * is a full payload, that's how min_desc_required has been
+	 * calculated. In real we might need more or less descriptors,
+	 * this is the initial check only.
+	 */
+	if (unlikely(avail < min_desc_required)) {
+		wil_err_ratelimited(wil,
+				    "TSO: Tx ring[%2d] full. No space for %d fragments\n",
+				    vring_index, min_desc_required);
+		return -ENOMEM;
+	}
+
+	/* Header Length = MAC header len + IP header len + TCP header len*/
+	hdrlen = ETH_HLEN +
+		(int)skb_network_header_len(skb) +
+		tcp_hdrlen(skb);
+
+	gso_type = skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV6 | SKB_GSO_TCPV4);
+	switch (gso_type) {
+	case SKB_GSO_TCPV4:
+		/* TCP v4, zero out the IP length and IPv4 checksum fields
+		 * as required by the offloading doc
+		 */
+		ip_hdr(skb)->tot_len = 0;
+		ip_hdr(skb)->check = 0;
+		is_ipv4 = true;
+		break;
+	case SKB_GSO_TCPV6:
+		/* TCP v6, zero out the payload length */
+		ipv6_hdr(skb)->payload_len = 0;
+		is_ipv4 = false;
+		break;
+	default:
+		/* other than TCPv4 or TCPv6 types are not supported for TSO.
+		 * It is also illegal for both to be set simultaneously
+		 */
+		return -EINVAL;
+	}
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return -EINVAL;
+
+	/* tcp header length and skb network header length are fixed for all
+	 * packet's descriptors - read then once here
+	 */
+	tcp_hdr_len = tcp_hdrlen(skb);
+	skb_net_hdr_len = skb_network_header_len(skb);
+
+	_hdr_desc = &vring->va[i].tx;
+
+	pa = dma_map_single(dev, skb->data, hdrlen, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, pa))) {
+		wil_err(wil, "TSO: Skb head DMA map error\n");
+		goto err_exit;
+	}
+
+	wil_tx_desc_map(hdr_desc, pa, hdrlen, vring_index);
+	wil_tx_desc_offload_setup_tso(hdr_desc, skb, wil_tso_type_hdr, is_ipv4,
+				      tcp_hdr_len, skb_net_hdr_len);
+	wil_tx_last_desc(hdr_desc);
+
+	vring->ctx[i].mapped_as = wil_mapped_as_single;
+	hdr_ctx = &vring->ctx[i];
+
+	descs_used++;
+	headlen = skb_headlen(skb) - hdrlen;
+
+	for (f = headlen ? -1 : 0; f < nr_frags; f++)  {
+		if (headlen) {
+			len = headlen;
+			wil_dbg_txrx(wil, "TSO: process skb head, len %u\n",
+				     len);
+		} else {
+			frag = &skb_shinfo(skb)->frags[f];
+			len = frag->size;
+			wil_dbg_txrx(wil, "TSO: frag[%d]: len %u\n", f, len);
+		}
+
+		while (len) {
+			wil_dbg_txrx(wil,
+				     "TSO: len %d, rem_data %d, descs_used %d\n",
+				     len, rem_data, descs_used);
+
+			if (descs_used == avail)  {
+				wil_err(wil, "TSO: ring overflow\n");
+				goto dma_error;
+			}
+
+			lenmss = min_t(int, rem_data, len);
+			i = (swhead + descs_used) % vring->size;
+			wil_dbg_txrx(wil, "TSO: lenmss %d, i %d\n", lenmss, i);
+
+			if (!headlen) {
+				pa = skb_frag_dma_map(dev, frag,
+						      frag->size - len, lenmss,
+						      DMA_TO_DEVICE);
+				vring->ctx[i].mapped_as = wil_mapped_as_page;
+			} else {
+				pa = dma_map_single(dev,
+						    skb->data +
+						    skb_headlen(skb) - headlen,
+						    lenmss,
+						    DMA_TO_DEVICE);
+				vring->ctx[i].mapped_as = wil_mapped_as_single;
+				headlen -= lenmss;
+			}
+
+			if (unlikely(dma_mapping_error(dev, pa)))
+				goto dma_error;
+
+			_desc = &vring->va[i].tx;
+
+			if (!_first_desc) {
+				_first_desc = _desc;
+				first_ctx = &vring->ctx[i];
+				d = first_desc;
+			} else {
+				d = &desc_mem;
+			}
+
+			wil_tx_desc_map(d, pa, lenmss, vring_index);
+			wil_tx_desc_offload_setup_tso(d, skb, desc_tso_type,
+						      is_ipv4, tcp_hdr_len,
+						      skb_net_hdr_len);
+
+			/* use tso_type_first only once */
+			desc_tso_type = wil_tso_type_mid;
+
+			descs_used++;  /* desc used so far */
+			sg_desc_cnt++; /* desc used for this segment */
+			len -= lenmss;
+			rem_data -= lenmss;
+
+			wil_dbg_txrx(wil,
+				     "TSO: len %d, rem_data %d, descs_used %d, sg_desc_cnt %d,\n",
+				     len, rem_data, descs_used, sg_desc_cnt);
+
+			/* Close the segment if reached mss size or last frag*/
+			if (rem_data == 0 || (f == nr_frags - 1 && len == 0)) {
+				if (hdr_compensation_need) {
+					/* first segment include hdr desc for
+					 * release
+					 */
+					hdr_ctx->nr_frags = sg_desc_cnt;
+					wil_tx_desc_set_nr_frags(first_desc,
+								 sg_desc_cnt +
+								 1);
+					hdr_compensation_need = false;
+				} else {
+					wil_tx_desc_set_nr_frags(first_desc,
+								 sg_desc_cnt);
+				}
+				first_ctx->nr_frags = sg_desc_cnt - 1;
+
+				wil_tx_last_desc(d);
+
+				/* first descriptor may also be the last
+				 * for this mss - make sure not to copy
+				 * it twice
+				 */
+				if (first_desc != d)
+					*_first_desc = *first_desc;
+
+				/*last descriptor will be copied at the end
+				 * of this TS processing
+				 */
+				if (f < nr_frags - 1 || len > 0)
+					*_desc = *d;
+
+				rem_data = mss;
+				_first_desc = NULL;
+				sg_desc_cnt = 0;
+			} else if (first_desc != d) /* update mid descriptor */
+					*_desc = *d;
+		}
+	}
+
+	/* first descriptor may also be the last.
+	 * in this case d pointer is invalid
+	 */
+	if (_first_desc == _desc)
+		d = first_desc;
+
+	/* Last data descriptor */
+	wil_set_tx_desc_last_tso(d);
+	*_desc = *d;
+
+	/* Fill the total number of descriptors in first desc (hdr)*/
+	wil_tx_desc_set_nr_frags(hdr_desc, descs_used);
+	*_hdr_desc = *hdr_desc;
+
+	/* hold reference to skb
+	 * to prevent skb release before accounting
+	 * in case of immediate "tx done"
+	 */
+	vring->ctx[i].skb = skb_get(skb);
+
+	/* performance monitoring */
+	used = wil_vring_used_tx(vring);
+	if (wil_val_in_range(vring_idle_trsh,
+			     used, used + descs_used)) {
+		txdata->idle += get_cycles() - txdata->last_idle;
+		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+			     vring_index, used, used + descs_used);
+	}
+
+	/* advance swhead */
+	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, vring->swhead);
+	wil_vring_advance_head(vring, descs_used);
+
+	/* make sure all writes to descriptors (shared memory) are done before
+	 * committing them to HW
+	 */
+	wmb();
+
+	wil_w(wil, vring->hwtail, vring->swhead);
+	return 0;
+
+dma_error:
+	wil_err(wil, "TSO: DMA map page error\n");
+	while (descs_used > 0) {
+		struct wil_ctx *ctx;
+
+		i = (swhead + descs_used) % vring->size;
+		d = (struct vring_tx_desc *)&vring->va[i].tx;
+		_desc = &vring->va[i].tx;
+		*d = *_desc;
+		_desc->dma.status = TX_DMA_STATUS_DU;
+		ctx = &vring->ctx[i];
+		wil_txdesc_unmap(dev, d, ctx);
+		if (ctx->skb)
+			dev_kfree_skb_any(ctx->skb);
+		memset(ctx, 0, sizeof(*ctx));
+		descs_used--;
+	}
+
+err_exit:
+	return -EINVAL;
+}
+
 static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			  struct sk_buff *skb)
 {
@@ -1128,7 +1473,8 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	bool mcast = (vring_index == wil->bcast_vring);
 	uint len = skb_headlen(skb);
 
-	wil_dbg_txrx(wil, "%s()\n", __func__);
+	wil_dbg_txrx(wil, "%s() %d bytes to vring %d\n",
+		     __func__, skb->len, vring_index);
 
 	if (unlikely(!txdata->enabled))
 		return -EINVAL;
@@ -1159,14 +1505,14 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			d->mac.d[0] |= (1 << MAC_CFG_DESC_TX_0_MCS_INDEX_POS);
 	}
 	/* Process TCP/UDP checksum offloading */
-	if (unlikely(wil_tx_desc_offload_cksum_set(wil, d, skb))) {
+	if (unlikely(wil_tx_desc_offload_setup(d, skb))) {
 		wil_err(wil, "Tx[%2d] Failed to set cksum, drop packet\n",
 			vring_index);
 		goto dma_error;
 	}
 
 	vring->ctx[i].nr_frags = nr_frags;
-	wil_tx_desc_set_nr_frags(d, nr_frags);
+	wil_tx_desc_set_nr_frags(d, nr_frags + 1);
 
 	/* middle segments */
 	for (; f < nr_frags; f++) {
@@ -1190,7 +1536,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		 * if it succeeded for 1-st descriptor,
 		 * it will succeed here too
 		 */
-		wil_tx_desc_offload_cksum_set(wil, d, skb);
+		wil_tx_desc_offload_setup(d, skb);
 	}
 	/* for the last seg only */
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_EOP_POS);
@@ -1221,7 +1567,13 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_dbg_txrx(wil, "Tx[%2d] swhead %d -> %d\n", vring_index, swhead,
 		     vring->swhead);
 	trace_wil6210_tx(vring_index, swhead, skb->len, nr_frags);
-	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
+
+	/* make sure all writes to descriptors (shared memory) are done before
+	 * committing them to HW
+	 */
+	wmb();
+
+	wil_w(wil, vring->hwtail, vring->swhead);
 
 	return 0;
  dma_error:
@@ -1254,8 +1606,12 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	int rc;
 
 	spin_lock(&txdata->lock);
-	rc = __wil_tx_vring(wil, vring, skb);
+
+	rc = (skb_is_gso(skb) ? __wil_tx_vring_tso : __wil_tx_vring)
+	     (wil, vring, skb);
+
 	spin_unlock(&txdata->lock);
+
 	return rc;
 }
 
@@ -1382,7 +1738,8 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		struct wil_ctx *ctx = &vring->ctx[vring->swtail];
 		/**
 		 * For the fragmented skb, HW will set DU bit only for the
-		 * last fragment. look for it
+		 * last fragment. look for it.
+		 * In TSO the first DU will include hdr desc
 		 */
 		int lf = (vring->swtail + ctx->nr_frags) % vring->size;
 		/* TODO: check we are not past head */

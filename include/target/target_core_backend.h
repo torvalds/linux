@@ -93,4 +93,6 @@ bool	target_lun_is_rdonly(struct se_cmd *);
 sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
 	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
+bool target_sense_desc_format(struct se_device *dev);
+
 #endif /* TARGET_CORE_BACKEND_H */

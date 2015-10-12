@@ -71,7 +71,7 @@ static const struct parent_map lcc_pxo_pll4_map[] = {
 	{ P_PLL4, 2 }
 };
 
-static const char *lcc_pxo_pll4[] = {
+static const char * const lcc_pxo_pll4[] = {
 	"pxo",
 	"pll4_vote",
 };
@@ -146,7 +146,7 @@ static struct clk_rcg mi2s_osr_src = {
 	},
 };
 
-static const char *lcc_mi2s_parents[] = {
+static const char * const lcc_mi2s_parents[] = {
 	"mi2s_osr_src",
 };
 
@@ -340,7 +340,7 @@ static struct clk_rcg spdif_src = {
 	},
 };
 
-static const char *lcc_spdif_parents[] = {
+static const char * const lcc_spdif_parents[] = {
 	"spdif_src",
 };
 

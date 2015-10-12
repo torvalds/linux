@@ -496,6 +496,8 @@ static const struct trace_mark {
 	char			sym;
 } mark[] = {
 	MARK(1000000000ULL	, '$'), /* 1 sec */
+	MARK(100000000ULL	, '@'), /* 100 msec */
+	MARK(10000000ULL	, '*'), /* 10 msec */
 	MARK(1000000ULL		, '#'), /* 1000 usecs */
 	MARK(100000ULL		, '!'), /* 100 usecs */
 	MARK(10000ULL		, '+'), /* 10 usecs */
@@ -508,7 +510,7 @@ char trace_find_mark(unsigned long long d)
 	int size = ARRAY_SIZE(mark);
 
 	for (i = 0; i < size; i++) {
-		if (d >= mark[i].val)
+		if (d > mark[i].val)
 			break;
 	}
 

@@ -23,7 +23,7 @@ struct bpf_map_def SEC("maps") my_map = {
 SEC("kprobe/blk_mq_start_request")
 int bpf_prog1(struct pt_regs *ctx)
 {
-	long rq = ctx->di;
+	long rq = PT_REGS_PARM1(ctx);
 	u64 val = bpf_ktime_get_ns();
 
 	bpf_map_update_elem(&my_map, &rq, &val, BPF_ANY);
@@ -51,7 +51,7 @@ struct bpf_map_def SEC("maps") lat_map = {
 SEC("kprobe/blk_update_request")
 int bpf_prog2(struct pt_regs *ctx)
 {
-	long rq = ctx->di;
+	long rq = PT_REGS_PARM1(ctx);
 	u64 *value, l, base;
 	u32 index;
 

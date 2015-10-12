@@ -237,12 +237,22 @@ acpi_ds_initialize_objects(u32 table_index,
 		return_ACPI_STATUS(status);
 	}
 
+	/* DSDT is always the first AML table */
+
+	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT)) {
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+				      "\nInitializing Namespace objects:\n"));
+	}
+
+	/* Summary of objects initialized */
+
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Table [%4.4s] (id %4.4X) - %4u Objects with %3u Devices, "
-			      "%3u Regions, %3u Methods (%u/%u/%u Serial/Non/Cvt)\n",
-			      table->signature, owner_id, info.object_count,
-			      info.device_count, info.op_region_count,
-			      info.method_count, info.serial_method_count,
+			      "Table [%4.4s:%8.8s] (id %.2X) - %4u Objects with %3u Devices, "
+			      "%3u Regions, %4u Methods (%u/%u/%u Serial/Non/Cvt)\n",
+			      table->signature, table->oem_table_id, owner_id,
+			      info.object_count, info.device_count,
+			      info.op_region_count, info.method_count,
+			      info.serial_method_count,
 			      info.non_serial_method_count,
 			      info.serialized_method_count));
 

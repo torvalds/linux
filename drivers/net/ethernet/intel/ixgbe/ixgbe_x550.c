@@ -26,6 +26,20 @@
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
 
+static s32 ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
+{
+	struct ixgbe_mac_info *mac = &hw->mac;
+	struct ixgbe_phy_info *phy = &hw->phy;
+
+	/* Start with X540 invariants, since so simular */
+	ixgbe_get_invariants_X540(hw);
+
+	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
+		phy->ops.set_phy_power = NULL;
+
+	return 0;
+}
+
 /** ixgbe_setup_mux_ctl - Setup ESDP register for I2C mux control
  *  @hw: pointer to hardware structure
  **/
@@ -595,6 +609,24 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 					      sizeof(buffer),
 					      IXGBE_HI_COMMAND_TIMEOUT, false);
 	return status;
+}
+
+/**
+ * ixgbe_get_bus_info_X550em - Set PCI bus info
+ * @hw: pointer to hardware structure
+ *
+ * Sets bus link width and speed to unknown because X550em is
+ * not a PCI device.
+ **/
+static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
+{
+	hw->bus.type  = ixgbe_bus_type_internal;
+	hw->bus.width = ixgbe_bus_width_unknown;
+	hw->bus.speed = ixgbe_bus_speed_unknown;
+
+	hw->mac.ops.set_lan_id(hw);
+
+	return 0;
 }
 
 /** ixgbe_disable_rx_x550 - Disable RX unit
@@ -1444,6 +1476,144 @@ static s32 ixgbe_reset_phy_t_X550em(struct ixgbe_hw *hw)
 	return ixgbe_enable_lasi_ext_t_x550em(hw);
 }
 
+/** ixgbe_get_lcd_x550em - Determine lowest common denominator
+ *  @hw: pointer to hardware structure
+ *  @lcd_speed: pointer to lowest common link speed
+ *
+ *  Determine lowest common link speed with link partner.
+ **/
+static s32 ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
+				  ixgbe_link_speed *lcd_speed)
+{
+	u16 an_lp_status;
+	s32 status;
+	u16 word = hw->eeprom.ctrl_word_3;
+
+	*lcd_speed = IXGBE_LINK_SPEED_UNKNOWN;
+
+	status = hw->phy.ops.read_reg(hw, IXGBE_AUTO_NEG_LP_STATUS,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &an_lp_status);
+	if (status)
+		return status;
+
+	/* If link partner advertised 1G, return 1G */
+	if (an_lp_status & IXGBE_AUTO_NEG_LP_1000BASE_CAP) {
+		*lcd_speed = IXGBE_LINK_SPEED_1GB_FULL;
+		return status;
+	}
+
+	/* If 10G disabled for LPLU via NVM D10GMP, then return no valid LCD */
+	if ((hw->bus.lan_id && (word & NVM_INIT_CTRL_3_D10GMP_PORT1)) ||
+	    (word & NVM_INIT_CTRL_3_D10GMP_PORT0))
+		return status;
+
+	/* Link partner not capable of lower speeds, return 10G */
+	*lcd_speed = IXGBE_LINK_SPEED_10GB_FULL;
+	return status;
+}
+
+/** ixgbe_enter_lplu_x550em - Transition to low power states
+ *  @hw: pointer to hardware structure
+ *
+ *  Configures Low Power Link Up on transition to low power states
+ *  (from D0 to non-D0). Link is required to enter LPLU so avoid resetting
+ *  the X557 PHY immediately prior to entering LPLU.
+ **/
+static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
+{
+	u16 an_10g_cntl_reg, autoneg_reg, speed;
+	s32 status;
+	ixgbe_link_speed lcd_speed;
+	u32 save_autoneg;
+	bool link_up;
+
+	/* SW LPLU not required on later HW revisions. */
+	if (IXGBE_FUSES0_REV1 & IXGBE_READ_REG(hw, IXGBE_FUSES0_GROUP(0)))
+		return 0;
+
+	/* If blocked by MNG FW, then don't restart AN */
+	if (ixgbe_check_reset_blocked(hw))
+		return 0;
+
+	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
+	if (status)
+		return status;
+
+	status = hw->eeprom.ops.read(hw, NVM_INIT_CTRL_3,
+				     &hw->eeprom.ctrl_word_3);
+	if (status)
+		return status;
+
+	/* If link is down, LPLU disabled in NVM, WoL disabled, or
+	 * manageability disabled, then force link down by entering
+	 * low power mode.
+	 */
+	if (!link_up || !(hw->eeprom.ctrl_word_3 & NVM_INIT_CTRL_3_LPLU) ||
+	    !(hw->wol_enabled || ixgbe_mng_present(hw)))
+		return ixgbe_set_copper_phy_power(hw, false);
+
+	/* Determine LCD */
+	status = ixgbe_get_lcd_t_x550em(hw, &lcd_speed);
+	if (status)
+		return status;
+
+	/* If no valid LCD link speed, then force link down and exit. */
+	if (lcd_speed == IXGBE_LINK_SPEED_UNKNOWN)
+		return ixgbe_set_copper_phy_power(hw, false);
+
+	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_STAT,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &speed);
+	if (status)
+		return status;
+
+	/* If no link now, speed is invalid so take link down */
+	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
+	if (status)
+		return ixgbe_set_copper_phy_power(hw, false);
+
+	/* clear everything but the speed bits */
+	speed &= IXGBE_MDIO_AUTO_NEG_VEN_STAT_SPEED_MASK;
+
+	/* If current speed is already LCD, then exit. */
+	if (((speed == IXGBE_MDIO_AUTO_NEG_VENDOR_STATUS_1GB) &&
+	     (lcd_speed == IXGBE_LINK_SPEED_1GB_FULL)) ||
+	    ((speed == IXGBE_MDIO_AUTO_NEG_VENDOR_STATUS_10GB) &&
+	     (lcd_speed == IXGBE_LINK_SPEED_10GB_FULL)))
+		return status;
+
+	/* Clear AN completed indication */
+	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_TX_ALARM,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &autoneg_reg);
+	if (status)
+		return status;
+
+	status = hw->phy.ops.read_reg(hw, IXGBE_MII_10GBASE_T_AUTONEG_CTRL_REG,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &an_10g_cntl_reg);
+	if (status)
+		return status;
+
+	status = hw->phy.ops.read_reg(hw,
+				      IXGBE_MII_AUTONEG_VENDOR_PROVISION_1_REG,
+				      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
+				      &autoneg_reg);
+	if (status)
+		return status;
+
+	save_autoneg = hw->phy.autoneg_advertised;
+
+	/* Setup link at least common link speed */
+	status = hw->mac.ops.setup_link(hw, lcd_speed, false);
+
+	/* restore autoneg from before setting lplu speed */
+	hw->phy.autoneg_advertised = save_autoneg;
+
+	return status;
+}
+
 /** ixgbe_init_phy_ops_X550em - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
@@ -1513,6 +1683,11 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 				IXGBE_LINK_SPEED_1GB_FULL;
 			ret_val = ixgbe_setup_kr_speed_x550em(hw, speed);
 		}
+
+		/* setup SW LPLU only for first revision */
+		if (!(IXGBE_FUSES0_REV1 & IXGBE_READ_REG(hw,
+							IXGBE_FUSES0_GROUP(0))))
+			phy->ops.enter_lplu = ixgbe_enter_lplu_t_x550em;
 
 		phy->ops.handle_lasi = ixgbe_handle_lasi_ext_t_x550em;
 		phy->ops.reset = ixgbe_reset_phy_t_X550em;
@@ -1760,7 +1935,6 @@ static void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw,
 	.get_mac_addr			= &ixgbe_get_mac_addr_generic, \
 	.get_device_caps		= &ixgbe_get_device_caps_generic, \
 	.stop_adapter			= &ixgbe_stop_adapter_generic, \
-	.get_bus_info			= &ixgbe_get_bus_info_generic, \
 	.set_lan_id			= &ixgbe_set_lan_id_multi_port_pcie, \
 	.read_analog_reg8		= NULL, \
 	.write_analog_reg8		= NULL, \
@@ -1809,6 +1983,7 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.get_wwn_prefix		= &ixgbe_get_wwn_prefix_generic,
 	.setup_link		= &ixgbe_setup_mac_link_X540,
 	.get_link_capabilities	= &ixgbe_get_copper_link_capabilities_generic,
+	.get_bus_info		= &ixgbe_get_bus_info_generic,
 	.setup_sfp		= NULL,
 };
 
@@ -1820,6 +1995,7 @@ static struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.get_wwn_prefix		= NULL,
 	.setup_link		= NULL, /* defined later */
 	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
+	.get_bus_info		= &ixgbe_get_bus_info_X550em,
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 
 };
@@ -1855,7 +2031,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.read_reg		= &ixgbe_read_phy_reg_generic, \
 	.write_reg		= &ixgbe_write_phy_reg_generic, \
 	.setup_link		= &ixgbe_setup_phy_link_generic, \
-	.set_phy_power		= &ixgbe_set_copper_phy_power, \
+	.set_phy_power		= NULL, \
 	.check_overtemp		= &ixgbe_tn_check_overtemp, \
 	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
 
@@ -1893,7 +2069,7 @@ struct ixgbe_info ixgbe_X550_info = {
 
 struct ixgbe_info ixgbe_X550EM_x_info = {
 	.mac			= ixgbe_mac_X550EM_x,
-	.get_invariants		= &ixgbe_get_invariants_X540,
+	.get_invariants		= &ixgbe_get_invariants_X550_x,
 	.mac_ops		= &mac_ops_X550EM_x,
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
 	.phy_ops		= &phy_ops_X550EM_x,

@@ -2173,7 +2173,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
 	adev->gfx.config.mem_max_burst_length_bytes = 256;
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		/* Get memory bank mapping mode. */
 		tmp = RREG32(mmMC_FUS_DRAM0_BANK_ADDR_MAPPING);
 		dimm00_addr_map = REG_GET_FIELD(tmp, MC_FUS_DRAM0_BANK_ADDR_MAPPING, DIMM0ADDRMAP);
@@ -2561,7 +2561,7 @@ static bool gfx_v7_0_ring_emit_semaphore(struct amdgpu_ring *ring,
  * sheduling on the ring.  This function schedules the IB
  * on the gfx ring for execution by the GPU.
  */
-static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
+static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib)
 {
 	bool need_ctx_switch = ring->current_ctx != ib->ctx;
@@ -2569,15 +2569,10 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 next_rptr = ring->wptr + 5;
 
 	/* drop the CE preamble IB for the same context */
-	if ((ring->type == AMDGPU_RING_TYPE_GFX) &&
-	    (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
-	    !need_ctx_switch)
+	if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && !need_ctx_switch)
 		return;
 
-	if (ring->type == AMDGPU_RING_TYPE_COMPUTE)
-		control |= INDIRECT_BUFFER_VALID;
-
-	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX)
+	if (need_ctx_switch)
 		next_rptr += 2;
 
 	next_rptr += 4;
@@ -2588,7 +2583,7 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX) {
+	if (need_ctx_switch) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
@@ -2611,6 +2606,35 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, control);
 }
 
+static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
+				  struct amdgpu_ib *ib)
+{
+	u32 header, control = 0;
+	u32 next_rptr = ring->wptr + 5;
+
+	control |= INDIRECT_BUFFER_VALID;
+	next_rptr += 4;
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, WRITE_DATA_DST_SEL(5) | WR_CONFIRM);
+	amdgpu_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
+	amdgpu_ring_write(ring, next_rptr);
+
+	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
+
+	control |= ib->length_dw |
+			   (ib->vm ? (ib->vm->ids[ring->idx].id << 24) : 0);
+
+	amdgpu_ring_write(ring, header);
+	amdgpu_ring_write(ring,
+#ifdef __BIG_ENDIAN
+					  (2 << 0) |
+#endif
+					  (ib->gpu_addr & 0xFFFFFFFC));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
+	amdgpu_ring_write(ring, control);
+}
+
 /**
  * gfx_v7_0_ring_test_ib - basic ring IB test
  *
@@ -2624,6 +2648,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
+	struct fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2635,29 +2660,27 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
+	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(ring, NULL, 256, &ib);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		return r;
+		goto err1;
 	}
 	ib.ptr[0] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
 	ib.ptr[1] = ((scratch - PACKET3_SET_UCONFIG_REG_START));
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
-	r = amdgpu_ib_schedule(adev, 1, &ib, AMDGPU_FENCE_OWNER_UNDEFINED);
-	if (r) {
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		DRM_ERROR("amdgpu: failed to schedule ib (%d).\n", r);
-		return r;
-	}
-	r = amdgpu_fence_wait(ib.fence, false);
+
+	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, &ib, 1, NULL,
+						 AMDGPU_FENCE_OWNER_UNDEFINED,
+						 &f);
+	if (r)
+		goto err2;
+
+	r = fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		amdgpu_gfx_scratch_free(adev, scratch);
-		amdgpu_ib_free(adev, &ib);
-		return r;
+		goto err2;
 	}
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(scratch);
@@ -2667,14 +2690,19 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	}
 	if (i < adev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n",
-			 ib.fence->ring->idx, i);
+			 ring->idx, i);
+		goto err2;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
-	amdgpu_gfx_scratch_free(adev, scratch);
+
+err2:
+	fence_put(f);
 	amdgpu_ib_free(adev, &ib);
+err1:
+	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
 }
 
@@ -3056,6 +3084,8 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 	mec_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
 	amdgpu_ucode_print_gfx_hdr(&mec_hdr->header);
 	adev->gfx.mec_fw_version = le32_to_cpu(mec_hdr->header.ucode_version);
+	adev->gfx.mec_feature_version = le32_to_cpu(
+					mec_hdr->ucode_feature_version);
 
 	gfx_v7_0_cp_compute_enable(adev, false);
 
@@ -3078,6 +3108,8 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 		mec2_hdr = (const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
 		amdgpu_ucode_print_gfx_hdr(&mec2_hdr->header);
 		adev->gfx.mec2_fw_version = le32_to_cpu(mec2_hdr->header.ucode_version);
+		adev->gfx.mec2_feature_version = le32_to_cpu(
+				mec2_hdr->ucode_feature_version);
 
 		/* MEC2 */
 		fw_data = (const __le32 *)
@@ -3730,7 +3762,7 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	int r;
 
 	/* allocate rlc buffers */
-	if (adev->flags & AMDGPU_IS_APU) {
+	if (adev->flags & AMD_IS_APU) {
 		if (adev->asic_type == CHIP_KAVERI) {
 			adev->gfx.rlc.reg_list = spectre_rlc_save_restore_register_list;
 			adev->gfx.rlc.reg_list_size =
@@ -3754,7 +3786,9 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 		/* save restore block */
 		if (adev->gfx.rlc.save_restore_obj == NULL) {
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->gfx.rlc.save_restore_obj);
+					     AMDGPU_GEM_DOMAIN_VRAM,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     NULL, &adev->gfx.rlc.save_restore_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC sr bo failed\n", r);
 				return r;
@@ -3795,7 +3829,9 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 
 		if (adev->gfx.rlc.clear_state_obj == NULL) {
 			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->gfx.rlc.clear_state_obj);
+					     AMDGPU_GEM_DOMAIN_VRAM,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     NULL, &adev->gfx.rlc.clear_state_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -3832,7 +3868,9 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 	if (adev->gfx.rlc.cp_table_size) {
 		if (adev->gfx.rlc.cp_table_obj == NULL) {
 			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->gfx.rlc.cp_table_obj);
+					     AMDGPU_GEM_DOMAIN_VRAM,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     NULL, &adev->gfx.rlc.cp_table_obj);
 			if (r) {
 				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
 				gfx_v7_0_rlc_fini(adev);
@@ -4042,6 +4080,8 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	hdr = (const struct rlc_firmware_header_v1_0 *)adev->gfx.rlc_fw->data;
 	amdgpu_ucode_print_rlc_hdr(&hdr->header);
 	adev->gfx.rlc_fw_version = le32_to_cpu(hdr->header.ucode_version);
+	adev->gfx.rlc_feature_version = le32_to_cpu(
+					hdr->ucode_feature_version);
 
 	gfx_v7_0_rlc_stop(adev);
 
@@ -5098,7 +5138,7 @@ static void gfx_v7_0_print_status(void *handle)
 		dev_info(adev->dev, "  CP_HPD_EOP_CONTROL=0x%08X\n",
 			 RREG32(mmCP_HPD_EOP_CONTROL));
 
-		for (queue = 0; queue < 8; i++) {
+		for (queue = 0; queue < 8; queue++) {
 			cik_srbm_select(adev, me, pipe, queue, 0);
 			dev_info(adev->dev, "  queue: %d\n", queue);
 			dev_info(adev->dev, "  CP_PQ_WPTR_POLL_CNTL=0x%08X\n",
@@ -5555,7 +5595,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v7_0_ring_emit_ib,
+	.emit_ib = gfx_v7_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v7_0_ring_emit_fence_gfx,
 	.emit_semaphore = gfx_v7_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v7_0_ring_emit_vm_flush,
@@ -5564,6 +5604,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.is_lockup = gfx_v7_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
@@ -5571,7 +5612,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v7_0_ring_emit_ib,
+	.emit_ib = gfx_v7_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v7_0_ring_emit_fence_compute,
 	.emit_semaphore = gfx_v7_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v7_0_ring_emit_vm_flush,
@@ -5580,6 +5621,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.is_lockup = gfx_v7_0_ring_is_lockup,
+	.insert_nop = amdgpu_ring_insert_nop,
 };
 
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev)

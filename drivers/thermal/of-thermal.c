@@ -91,7 +91,7 @@ struct __thermal_zone {
 /***   DT thermal zone device callbacks   ***/
 
 static int of_thermal_get_temp(struct thermal_zone_device *tz,
-			       unsigned long *temp)
+			       int *temp)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -177,7 +177,7 @@ EXPORT_SYMBOL_GPL(of_thermal_get_trip_points);
  * Return: zero on success, error code otherwise
  */
 static int of_thermal_set_emul_temp(struct thermal_zone_device *tz,
-				    unsigned long temp)
+				    int temp)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -311,7 +311,7 @@ static int of_thermal_get_trip_type(struct thermal_zone_device *tz, int trip,
 }
 
 static int of_thermal_get_trip_temp(struct thermal_zone_device *tz, int trip,
-				    unsigned long *temp)
+				    int *temp)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -324,7 +324,7 @@ static int of_thermal_get_trip_temp(struct thermal_zone_device *tz, int trip,
 }
 
 static int of_thermal_set_trip_temp(struct thermal_zone_device *tz, int trip,
-				    unsigned long temp)
+				    int temp)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -338,7 +338,7 @@ static int of_thermal_set_trip_temp(struct thermal_zone_device *tz, int trip,
 }
 
 static int of_thermal_get_trip_hyst(struct thermal_zone_device *tz, int trip,
-				    unsigned long *hyst)
+				    int *hyst)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -351,7 +351,7 @@ static int of_thermal_get_trip_hyst(struct thermal_zone_device *tz, int trip,
 }
 
 static int of_thermal_set_trip_hyst(struct thermal_zone_device *tz, int trip,
-				    unsigned long hyst)
+				    int hyst)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -365,7 +365,7 @@ static int of_thermal_set_trip_hyst(struct thermal_zone_device *tz, int trip,
 }
 
 static int of_thermal_get_crit_temp(struct thermal_zone_device *tz,
-				    unsigned long *temp)
+				    int *temp)
 {
 	struct __thermal_zone *data = tz->devdata;
 	int i;

@@ -500,7 +500,6 @@ MODULE_DEVICE_TABLE(i2c, aat2870_i2c_id_table);
 static struct i2c_driver aat2870_i2c_driver = {
 	.driver = {
 		.name	= "aat2870",
-		.owner	= THIS_MODULE,
 		.pm	= &aat2870_pm_ops,
 	},
 	.probe		= aat2870_i2c_probe,

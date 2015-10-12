@@ -957,16 +957,6 @@ static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
-};
-
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
@@ -983,7 +973,6 @@ static const struct v4l2_subdev_pad_ops tvp514x_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops tvp514x_ops = {
-	.core = &tvp514x_core_ops,
 	.video = &tvp514x_video_ops,
 	.pad = &tvp514x_pad_ops,
 };

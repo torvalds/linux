@@ -770,11 +770,11 @@ static u32 dce_v8_0_line_buffer_adjust(struct amdgpu_device *adev,
 			buffer_alloc = 2;
 		} else if (mode->crtc_hdisplay < 4096) {
 			tmp = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			tmp = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		}
 	} else {
 		tmp = 1;
@@ -2566,6 +2566,7 @@ static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	unsigned type;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -2574,6 +2575,9 @@ static void dce_v8_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		dce_v8_0_vga_enable(crtc, true);
 		amdgpu_atombios_crtc_blank(crtc, ATOM_DISABLE);
 		dce_v8_0_vga_enable(crtc, false);
+		/* Make sure VBLANK interrupt is still enabled */
+		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
+		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
 		dce_v8_0_crtc_load_lut(crtc);
 		break;

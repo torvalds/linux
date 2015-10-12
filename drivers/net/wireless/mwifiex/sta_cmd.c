@@ -26,6 +26,10 @@
 #include "11n.h"
 #include "11ac.h"
 
+static bool drcs;
+module_param(drcs, bool, 0644);
+MODULE_PARM_DESC(drcs, "multi-channel operation:1, single-channel operation:0");
+
 static bool disable_auto_ds;
 module_param(disable_auto_ds, bool, 0);
 MODULE_PARM_DESC(disable_auto_ds,
@@ -1512,6 +1516,22 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 }
 
 static int
+mwifiex_cmd_set_mc_policy(struct mwifiex_private *priv,
+			  struct host_cmd_ds_command *cmd,
+			  u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_multi_chan_policy *mc_pol = &cmd->params.mc_policy;
+	const u16 *drcs_info = data_buf;
+
+	mc_pol->action = cpu_to_le16(cmd_action);
+	mc_pol->policy = cpu_to_le16(*drcs_info);
+	cmd->command = cpu_to_le16(HostCmd_CMD_MC_POLICY);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_multi_chan_policy) +
+				S_DS_GEN);
+	return 0;
+}
+
+static int
 mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 			 struct host_cmd_ds_command *cmd,
 			 u16 cmd_action, void *data_buf)
@@ -1572,6 +1592,50 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 	/* Add sizeof action, num_of_rules to total command length */
 	le16_add_cpu(&cmd->size, sizeof(u16) + sizeof(u16));
 
+	return 0;
+}
+
+static int
+mwifiex_cmd_tdls_config(struct mwifiex_private *priv,
+			struct host_cmd_ds_command *cmd,
+			u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_ds_tdls_config *tdls_config = &cmd->params.tdls_config;
+	struct mwifiex_tdls_init_cs_params *config;
+	struct mwifiex_tdls_config *init_config;
+	u16 len;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_TDLS_CONFIG);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+	tdls_config->tdls_action = cpu_to_le16(cmd_action);
+	le16_add_cpu(&cmd->size, sizeof(tdls_config->tdls_action));
+
+	switch (cmd_action) {
+	case ACT_TDLS_CS_ENABLE_CONFIG:
+		init_config = data_buf;
+		len = sizeof(*init_config);
+		memcpy(tdls_config->tdls_data, init_config, len);
+		break;
+	case ACT_TDLS_CS_INIT:
+		config = data_buf;
+		len = sizeof(*config);
+		memcpy(tdls_config->tdls_data, config, len);
+		break;
+	case ACT_TDLS_CS_STOP:
+		len = sizeof(struct mwifiex_tdls_stop_cs_params);
+		memcpy(tdls_config->tdls_data, data_buf, len);
+		break;
+	case ACT_TDLS_CS_PARAMS:
+		len = sizeof(struct mwifiex_tdls_config_cs_params);
+		memcpy(tdls_config->tdls_data, data_buf, len);
+		break;
+	default:
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Unknown TDLS configuration\n");
+		return -ENOTSUPP;
+	}
+
+	le16_add_cpu(&cmd->size, len);
 	return 0;
 }
 
@@ -1933,10 +1997,12 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_ADHOC;
-		else if (priv->bss_mode == NL80211_IFTYPE_STATION)
+		else if (priv->bss_mode == NL80211_IFTYPE_STATION ||
+			 priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_INFRA;
-		else if (priv->bss_mode == NL80211_IFTYPE_AP)
+		else if (priv->bss_mode == NL80211_IFTYPE_AP ||
+			 priv->bss_mode == NL80211_IFTYPE_P2P_GO)
 			cmd_ptr->params.bss_mode.con_type = CONNECTION_TYPE_AP;
 		cmd_ptr->size = cpu_to_le16(sizeof(struct
 				host_cmd_ds_set_bss_mode) + S_DS_GEN);
@@ -1958,6 +2024,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_TDLS_OPER:
 		ret = mwifiex_cmd_tdls_oper(priv, cmd_ptr, data_buf);
 		break;
+	case HostCmd_CMD_TDLS_CONFIG:
+		ret = mwifiex_cmd_tdls_config(priv, cmd_ptr, cmd_action,
+					      data_buf);
+		break;
 	case HostCmd_CMD_CHAN_REPORT_REQUEST:
 		ret = mwifiex_cmd_issue_chan_report_request(priv, cmd_ptr,
 							    data_buf);
@@ -1965,6 +2035,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
 		ret = mwifiex_cmd_sdio_rx_aggr_cfg(cmd_ptr, cmd_action,
 						   data_buf);
+		break;
+	case HostCmd_CMD_MC_POLICY:
+		ret = mwifiex_cmd_set_mc_policy(priv, cmd_ptr, cmd_action,
+						data_buf);
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
@@ -2079,6 +2153,18 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 					       HostCmd_CMD_802_11_PS_MODE_ENH,
 					       EN_AUTO_PS, BITMAP_STA_PS, NULL,
 					       true);
+			if (ret)
+				return -1;
+		}
+
+		if (drcs) {
+			adapter->drcs_enabled = true;
+			if (ISSUPP_DRCS_ENABLED(adapter->fw_cap_info))
+				ret = mwifiex_send_cmd(priv,
+						       HostCmd_CMD_MC_POLICY,
+						       HostCmd_ACT_GEN_SET, 0,
+						       &adapter->drcs_enabled,
+						       true);
 			if (ret)
 				return -1;
 		}

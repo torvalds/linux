@@ -348,7 +348,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 }
 
 /* generic sta initialization (non vif-specific) */
-static int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
+int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 

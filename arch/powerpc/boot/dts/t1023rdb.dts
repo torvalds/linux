@@ -60,7 +60,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,ifc-nand";
-			reg = <0x2 0x0 0x10000>;
+			reg = <0x1 0x0 0x10000>;
 		};
 	};
 
@@ -99,6 +99,17 @@
 		};
 
 		i2c@118100 {
+			current-sensor@40 {
+				compatible = "ti,ina220";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			current-sensor@41 {
+				compatible = "ti,ina220";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
 		};
 	};
 

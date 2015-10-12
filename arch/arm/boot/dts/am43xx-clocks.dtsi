@@ -486,6 +486,15 @@
 		reg = <0x4238>;
 	};
 
+	dpll_clksel_mac_clk: dpll_clksel_mac_clk {
+		#clock-cells = <0>;
+		compatible = "ti,divider-clock";
+		clocks = <&dpll_core_m5_ck>;
+		reg = <0x4234>;
+		ti,bit-shift = <2>;
+		ti,dividers = <2>, <5>;
+	};
+
 	clk_32k_mosc_ck: clk_32k_mosc_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";

@@ -283,12 +283,8 @@ int msm_atomic_commit(struct drm_device *dev,
 
 	timeout = ktime_add_ms(ktime_get(), 1000);
 
-	ret = msm_wait_fence_interruptable(dev, c->fence, &timeout);
-	if (ret) {
-		WARN_ON(ret);  // TODO unswap state back?  or??
-		commit_destroy(c);
-		return ret;
-	}
+	/* uninterruptible wait */
+	msm_wait_fence(dev, c->fence, &timeout, false);
 
 	complete_commit(c);
 

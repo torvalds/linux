@@ -487,6 +487,7 @@
 					 (((op) & 0xFF) << 0))
 /* sDMA opcodes */
 #define	SDMA_OPCODE_NOP					  0
+#	define SDMA_NOP_COUNT(x)			  (((x) & 0x3FFF) << 16)
 #define	SDMA_OPCODE_COPY				  1
 #       define SDMA_COPY_SUB_OPCODE_LINEAR                0
 #       define SDMA_COPY_SUB_OPCODE_TILED                 1
@@ -551,6 +552,12 @@
 #define VCE_CMD_TRAP		0x00000004
 #define VCE_CMD_IB_AUTO		0x00000005
 #define VCE_CMD_SEMAPHORE	0x00000006
+
+/* if PTR32, these are the bases for scratch and lds */
+#define	PRIVATE_BASE(x)	((x) << 0) /* scratch */
+#define	SHARED_BASE(x)	((x) << 16) /* LDS */
+
+#define KFD_CIK_SDMA_QUEUE_OFFSET	0x200
 
 /* valid for both DEFAULT_MTYPE and APE1_MTYPE */
 enum {

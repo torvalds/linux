@@ -457,8 +457,15 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 		if (!strcmp(t->tf_ops->name, fo->name)) {
 			BUG_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
+			mutex_unlock(&g_tf_lock);
+			/*
+			 * Wait for any outstanding fabric se_deve_entry->rcu_head
+			 * callbacks to complete post kfree_rcu(), before allowing
+			 * fabric driver unload of TFO->module to proceed.
+			 */
+			rcu_barrier();
 			kfree(t);
-			break;
+			return;
 		}
 	}
 	mutex_unlock(&g_tf_lock);
@@ -747,7 +754,7 @@ static ssize_t store_pi_prot_type(struct se_dev_attrib *da,
 	if (!dev->transport->init_prot || !dev->transport->free_prot) {
 		/* 0 is only allowed value for non-supporting backends */
 		if (flag == 0)
-			return 0;
+			return count;
 
 		pr_err("DIF protection not supported by backend: %s\n",
 		       dev->transport->name);
@@ -1590,9 +1597,9 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 	u8 type = 0;
 
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
-		return 0;
+		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
-		return 0;
+		return count;
 
 	if (dev->export_count) {
 		pr_debug("Unable to process APTPL metadata while"
@@ -1658,22 +1665,32 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		 * PR APTPL Metadata for Reservation
 		 */
 		case Opt_res_holder:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			res_holder = arg;
 			break;
 		case Opt_res_type:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			type = (u8)arg;
 			break;
 		case Opt_res_scope:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			break;
 		case Opt_res_all_tg_pt:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			all_tg_pt = (int)arg;
 			break;
 		case Opt_mapped_lun:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			mapped_lun = (u64)arg;
 			break;
 		/*
@@ -1701,14 +1718,20 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 			}
 			break;
 		case Opt_tpgt:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			tpgt = (u16)arg;
 			break;
 		case Opt_port_rtpi:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			break;
 		case Opt_target_lun:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			target_lun = (u64)arg;
 			break;
 		default:
@@ -1985,7 +2008,7 @@ static ssize_t target_core_store_alua_lu_gp(
 
 	lu_gp_mem = dev->dev_alua_lu_gp_mem;
 	if (!lu_gp_mem)
-		return 0;
+		return count;
 
 	if (count > LU_GROUP_NAME_BUF) {
 		pr_err("ALUA LU Group Alias too large!\n");

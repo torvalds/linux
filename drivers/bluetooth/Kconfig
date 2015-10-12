@@ -13,6 +13,10 @@ config BT_RTL
 	tristate
 	select FW_LOADER
 
+config BT_QCA
+	tristate
+	select FW_LOADER
+
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB
@@ -132,6 +136,7 @@ config BT_HCIUART_3WIRE
 config BT_HCIUART_INTEL
 	bool "Intel protocol support"
 	depends on BT_HCIUART
+	select BT_HCIUART_H4
 	select BT_INTEL
 	help
 	  The Intel protocol support enables Bluetooth HCI over serial
@@ -149,6 +154,19 @@ config BT_HCIUART_BCM
 	  port interface for Broadcom Bluetooth controllers.
 
 	  Say Y here to compile support for Broadcom protocol.
+
+config BT_HCIUART_QCA
+	bool "Qualcomm Atheros protocol support"
+	depends on BT_HCIUART
+	select BT_HCIUART_H4
+	select BT_QCA
+	help
+	  The Qualcomm Atheros protocol supports HCI In-Band Sleep feature
+	  over serial port interface(H4) between controller and host.
+	  This protocol is required for UART clock control for QCA Bluetooth
+	  devices.
+
+	  Say Y here to compile support for QCA protocol.
 
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"

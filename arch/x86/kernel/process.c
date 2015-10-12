@@ -29,6 +29,8 @@
 #include <asm/debugreg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
+#include <asm/mce.h>
+#include <asm/vm86.h>
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
@@ -81,7 +83,7 @@ EXPORT_SYMBOL_GPL(idle_notifier_unregister);
  */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	*dst = *src;
+	memcpy(dst, src, arch_task_struct_size);
 
 	return fpu__copy(&dst->thread.fpu, &src->thread.fpu);
 }
@@ -109,6 +111,8 @@ void exit_thread(void)
 		put_cpu();
 		kfree(bp);
 	}
+
+	free_vm86(t);
 
 	fpu__drop(fpu);
 }
@@ -319,6 +323,7 @@ void stop_this_cpu(void *dummy)
 	 */
 	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
+	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
 	for (;;)
 		halt();
@@ -408,6 +413,7 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 static void mwait_idle(void)
 {
 	if (!current_set_polling_and_test()) {
+		trace_cpu_idle_rcuidle(1, smp_processor_id());
 		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR)) {
 			smp_mb(); /* quirk */
 			clflush((void *)&current_thread_info()->flags);
@@ -419,6 +425,7 @@ static void mwait_idle(void)
 			__sti_mwait(0, 0);
 		else
 			local_irq_enable();
+		trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, smp_processor_id());
 	} else {
 		local_irq_enable();
 	}

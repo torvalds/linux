@@ -545,6 +545,26 @@ err:
 	return ret;
 }
 
+static int
+__i915_gem_userptr_set_pages(struct drm_i915_gem_object *obj,
+			     struct page **pvec, int num_pages)
+{
+	int ret;
+
+	ret = st_set_pages(&obj->pages, pvec, num_pages);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_gtt_prepare_object(obj);
+	if (ret) {
+		sg_free_table(obj->pages);
+		kfree(obj->pages);
+		obj->pages = NULL;
+	}
+
+	return ret;
+}
+
 static void
 __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
@@ -584,9 +604,12 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (obj->userptr.work != &work->work) {
 		ret = 0;
 	} else if (pinned == num_pages) {
-		ret = st_set_pages(&obj->pages, pvec, num_pages);
+		ret = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
 		if (ret == 0) {
 			list_add_tail(&obj->global_list, &to_i915(dev)->mm.unbound_list);
+			obj->get_page.sg = obj->pages->sgl;
+			obj->get_page.last = 0;
+
 			pinned = 0;
 		}
 	}
@@ -693,7 +716,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 			}
 		}
 	} else {
-		ret = st_set_pages(&obj->pages, pvec, num_pages);
+		ret = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
 		if (ret == 0) {
 			obj->userptr.work = NULL;
 			pinned = 0;
@@ -714,6 +737,8 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
 
 	if (obj->madv != I915_MADV_WILLNEED)
 		obj->dirty = 0;
+
+	i915_gem_gtt_finish_object(obj);
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
 		struct page *page = sg_page_iter_page(&sg_iter);

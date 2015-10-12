@@ -1387,7 +1387,6 @@ MODULE_DEVICE_TABLE(i2c, af9033_id_table);
 
 static struct i2c_driver af9033_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "af9033",
 	},
 	.probe		= af9033_probe,

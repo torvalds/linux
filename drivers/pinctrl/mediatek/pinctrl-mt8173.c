@@ -385,6 +385,7 @@ static struct platform_driver mtk_pinctrl_driver = {
 	.driver = {
 		.name = "mediatek-mt8173-pinctrl",
 		.of_match_table = mt8173_pctrl_match,
+		.pm = &mtk_eint_pm_ops,
 	},
 };
 

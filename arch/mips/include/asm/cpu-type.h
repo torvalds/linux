@@ -77,6 +77,10 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	 */
 #endif
 
+#ifdef CONFIG_SYS_HAS_CPU_MIPS64_R6
+	case CPU_I6400:
+#endif
+
 #ifdef CONFIG_SYS_HAS_CPU_R3000
 	case CPU_R2000:
 	case CPU_R3000:

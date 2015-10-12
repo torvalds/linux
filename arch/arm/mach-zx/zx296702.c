@@ -13,7 +13,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-static const char *zx296702_dt_compat[] __initconst = {
+static const char *const zx296702_dt_compat[] __initconst = {
 	"zte,zx296702",
 	NULL,
 };

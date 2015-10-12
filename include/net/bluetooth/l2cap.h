@@ -55,6 +55,8 @@
 #define L2CAP_INFO_TIMEOUT		msecs_to_jiffies(4000)
 #define L2CAP_MOVE_TIMEOUT		msecs_to_jiffies(4000)
 #define L2CAP_MOVE_ERTX_TIMEOUT		msecs_to_jiffies(60000)
+#define L2CAP_WAIT_ACK_POLL_PERIOD	msecs_to_jiffies(200)
+#define L2CAP_WAIT_ACK_TIMEOUT		msecs_to_jiffies(10000)
 
 #define L2CAP_A2MP_DEFAULT_MTU		670
 

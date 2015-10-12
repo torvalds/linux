@@ -192,7 +192,7 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
  *   by @dp in @dip.
  *
  * Returns:
- *   A NULL-pointer on success, else an negative error code encoded
+ *   A NULL-pointer on success, else a negative error code encoded
  *   in the return pointer.
  */
 static struct dentry *

@@ -28,18 +28,18 @@ int
 bit_entry(struct nvkm_bios *bios, u8 id, struct bit_entry *bit)
 {
 	if (likely(bios->bit_offset)) {
-		u8  entries = nv_ro08(bios, bios->bit_offset + 10);
+		u8  entries = nvbios_rd08(bios, bios->bit_offset + 10);
 		u32 entry   = bios->bit_offset + 12;
 		while (entries--) {
-			if (nv_ro08(bios, entry + 0) == id) {
-				bit->id      = nv_ro08(bios, entry + 0);
-				bit->version = nv_ro08(bios, entry + 1);
-				bit->length  = nv_ro16(bios, entry + 2);
-				bit->offset  = nv_ro16(bios, entry + 4);
+			if (nvbios_rd08(bios, entry + 0) == id) {
+				bit->id      = nvbios_rd08(bios, entry + 0);
+				bit->version = nvbios_rd08(bios, entry + 1);
+				bit->length  = nvbios_rd16(bios, entry + 2);
+				bit->offset  = nvbios_rd16(bios, entry + 4);
 				return 0;
 			}
 
-			entry += nv_ro08(bios, bios->bit_offset + 9);
+			entry += nvbios_rd08(bios, bios->bit_offset + 9);
 		}
 
 		return -ENOENT;
