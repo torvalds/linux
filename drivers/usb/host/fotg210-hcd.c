@@ -4609,13 +4609,81 @@ done:
 	return status;
 }
 
-/*-------------------------------------------------------------------------*/
+static inline int scan_frame_queue(struct fotg210_hcd *fotg210, unsigned frame,
+		unsigned now_frame, bool live)
+{
+	unsigned uf;
+	bool modified;
+	union fotg210_shadow q, *q_p;
+	__hc32 type, *hw_p;
+
+	/* scan each element in frame's queue for completions */
+	q_p = &fotg210->pshadow[frame];
+	hw_p = &fotg210->periodic[frame];
+	q.ptr = q_p->ptr;
+	type = Q_NEXT_TYPE(fotg210, *hw_p);
+	modified = false;
+
+	while (q.ptr) {
+		switch (hc32_to_cpu(fotg210, type)) {
+		case Q_TYPE_ITD:
+			/* If this ITD is still active, leave it for
+			 * later processing ... check the next entry.
+			 * No need to check for activity unless the
+			 * frame is current.
+			 */
+			if (frame == now_frame && live) {
+				rmb();
+				for (uf = 0; uf < 8; uf++) {
+					if (q.itd->hw_transaction[uf] &
+							ITD_ACTIVE(fotg210))
+						break;
+				}
+				if (uf < 8) {
+					q_p = &q.itd->itd_next;
+					hw_p = &q.itd->hw_next;
+					type = Q_NEXT_TYPE(fotg210,
+							q.itd->hw_next);
+					q = *q_p;
+					break;
+				}
+			}
+
+			/* Take finished ITDs out of the schedule
+			 * and process them:  recycle, maybe report
+			 * URB completion.  HC won't cache the
+			 * pointer for much longer, if at all.
+			 */
+			*q_p = q.itd->itd_next;
+			*hw_p = q.itd->hw_next;
+			type = Q_NEXT_TYPE(fotg210, q.itd->hw_next);
+			wmb();
+			modified = itd_complete(fotg210, q.itd);
+			q = *q_p;
+			break;
+		default:
+			fotg210_dbg(fotg210, "corrupt type %d frame %d shadow %p\n",
+					type, frame, q.ptr);
+			/* FALL THROUGH */
+		case Q_TYPE_QH:
+		case Q_TYPE_FSTN:
+			/* End of the iTDs and siTDs */
+			q.ptr = NULL;
+			break;
+		}
+
+		/* assume completion callbacks modify the queue */
+		if (unlikely(modified && fotg210->isoc_count > 0))
+			return -EINVAL;
+	}
+	return 0;
+}
 
 static void scan_isoc(struct fotg210_hcd *fotg210)
 {
-	unsigned	uf, now_frame, frame;
-	unsigned	fmask = fotg210->periodic_size - 1;
-	bool		modified, live;
+	unsigned uf, now_frame, frame, ret;
+	unsigned fmask = fotg210->periodic_size - 1;
+	bool live;
 
 	/*
 	 * When running, scan from last scan point up to "now"
@@ -4634,69 +4702,10 @@ static void scan_isoc(struct fotg210_hcd *fotg210)
 
 	frame = fotg210->next_frame;
 	for (;;) {
-		union fotg210_shadow	q, *q_p;
-		__hc32			type, *hw_p;
-
-restart:
-		/* scan each element in frame's queue for completions */
-		q_p = &fotg210->pshadow[frame];
-		hw_p = &fotg210->periodic[frame];
-		q.ptr = q_p->ptr;
-		type = Q_NEXT_TYPE(fotg210, *hw_p);
-		modified = false;
-
-		while (q.ptr != NULL) {
-			switch (hc32_to_cpu(fotg210, type)) {
-			case Q_TYPE_ITD:
-				/* If this ITD is still active, leave it for
-				 * later processing ... check the next entry.
-				 * No need to check for activity unless the
-				 * frame is current.
-				 */
-				if (frame == now_frame && live) {
-					rmb();
-					for (uf = 0; uf < 8; uf++) {
-						if (q.itd->hw_transaction[uf] &
-							    ITD_ACTIVE(fotg210))
-							break;
-					}
-					if (uf < 8) {
-						q_p = &q.itd->itd_next;
-						hw_p = &q.itd->hw_next;
-						type = Q_NEXT_TYPE(fotg210,
-							q.itd->hw_next);
-						q = *q_p;
-						break;
-					}
-				}
-
-				/* Take finished ITDs out of the schedule
-				 * and process them:  recycle, maybe report
-				 * URB completion.  HC won't cache the
-				 * pointer for much longer, if at all.
-				 */
-				*q_p = q.itd->itd_next;
-				*hw_p = q.itd->hw_next;
-				type = Q_NEXT_TYPE(fotg210, q.itd->hw_next);
-				wmb();
-				modified = itd_complete(fotg210, q.itd);
-				q = *q_p;
-				break;
-			default:
-				fotg210_dbg(fotg210, "corrupt type %d frame %d shadow %p\n",
-						type, frame, q.ptr);
-				/* FALL THROUGH */
-			case Q_TYPE_QH:
-			case Q_TYPE_FSTN:
-				/* End of the iTDs and siTDs */
-				q.ptr = NULL;
-				break;
-			}
-
-			/* assume completion callbacks modify the queue */
-			if (unlikely(modified && fotg210->isoc_count > 0))
-				goto restart;
-		}
+		ret = 1;
+		while (ret != 0)
+			ret = scan_frame_queue(fotg210, frame,
+					now_frame, live);
 
 		/* Stop when we have reached the current frame */
 		if (frame == now_frame)
