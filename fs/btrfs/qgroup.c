@@ -2535,3 +2535,63 @@ cleanup:
 	ulist_free(changeset.range_changed);
 	return ret;
 }
+
+static int __btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len,
+				       int free)
+{
+	struct extent_changeset changeset;
+	int ret;
+
+	changeset.bytes_changed = 0;
+	changeset.range_changed = ulist_alloc(GFP_NOFS);
+	if (!changeset.range_changed)
+		return -ENOMEM;
+
+	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, start, 
+			start + len -1, EXTENT_QGROUP_RESERVED, GFP_NOFS,
+			&changeset);
+	if (ret < 0)
+		goto out;
+
+	if (free)
+		btrfs_qgroup_free(BTRFS_I(inode)->root,
+				  changeset.bytes_changed);
+out:
+	ulist_free(changeset.range_changed);
+	return ret;
+}
+
+/*
+ * Free a reserved space range from io_tree and related qgroups
+ *
+ * Should be called when a range of pages get invalidated before reaching disk.
+ * Or for error cleanup case.
+ *
+ * For data written to disk, use btrfs_qgroup_release_data().
+ *
+ * NOTE: This function may sleep for memory allocation.
+ */
+int btrfs_qgroup_free_data(struct inode *inode, u64 start, u64 len)
+{
+	return __btrfs_qgroup_release_data(inode, start, len, 1);
+}
+
+/*
+ * Release a reserved space range from io_tree only.
+ *
+ * Should be called when a range of pages get written to disk and corresponding
+ * FILE_EXTENT is inserted into corresponding root.
+ *
+ * Since new qgroup accounting framework will only update qgroup numbers at
+ * commit_transaction() time, its reserved space shouldn't be freed from
+ * related qgroups.
+ *
+ * But we should release the range from io_tree, to allow further write to be
+ * COWed.
+ *
+ * NOTE: This function may sleep for memory allocation.
+ */
+int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
+{
+	return __btrfs_qgroup_release_data(inode, start, len, 0);
+}
