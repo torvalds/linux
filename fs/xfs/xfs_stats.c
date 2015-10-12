@@ -165,41 +165,29 @@ int
 xfs_init_procfs(void)
 {
 	if (!proc_mkdir("fs/xfs", NULL))
-		goto out;
+		return -ENOMEM;
 
 	if (!proc_symlink("fs/xfs/stat", NULL,
 			  "/sys/fs/xfs/stats/stats"))
-		goto out_remove_xfs_dir;
+		goto out;
 
 #ifdef CONFIG_XFS_QUOTA
 	if (!proc_create("fs/xfs/xqmstat", 0, NULL,
 			 &xqmstat_proc_fops))
-		goto out_remove_stat_file;
+		goto out;
 	if (!proc_create("fs/xfs/xqm", 0, NULL,
 			 &xqm_proc_fops))
-		goto out_remove_xqmstat_file;
+		goto out;
 #endif
 	return 0;
 
-#ifdef CONFIG_XFS_QUOTA
- out_remove_xqmstat_file:
-	remove_proc_entry("fs/xfs/xqmstat", NULL);
- out_remove_stat_file:
-	remove_proc_entry("fs/xfs/stat", NULL);
-#endif
- out_remove_xfs_dir:
-	remove_proc_entry("fs/xfs", NULL);
- out:
+out:
+	remove_proc_subtree("fs/xfs", NULL);
 	return -ENOMEM;
 }
 
 void
 xfs_cleanup_procfs(void)
 {
-#ifdef CONFIG_XFS_QUOTA
-	remove_proc_entry("fs/xfs/xqm", NULL);
-	remove_proc_entry("fs/xfs/xqmstat", NULL);
-#endif
-	remove_proc_entry("fs/xfs/stat", NULL);
-	remove_proc_entry("fs/xfs", NULL);
+	remove_proc_subtree("fs/xfs", NULL);
 }
