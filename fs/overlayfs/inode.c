@@ -98,6 +98,29 @@ int ovl_permission(struct inode *inode, int mask)
 
 	realdentry = ovl_entry_real(oe, &is_upper);
 
+	if (ovl_is_default_permissions(inode)) {
+		struct kstat stat;
+		struct path realpath = { .dentry = realdentry };
+
+		if (mask & MAY_NOT_BLOCK)
+			return -ECHILD;
+
+		realpath.mnt = ovl_entry_mnt_real(oe, inode, is_upper);
+
+		err = vfs_getattr(&realpath, &stat);
+		if (err)
+			return err;
+
+		if ((stat.mode ^ inode->i_mode) & S_IFMT)
+			return -ESTALE;
+
+		inode->i_mode = stat.mode;
+		inode->i_uid = stat.uid;
+		inode->i_gid = stat.gid;
+
+		return generic_permission(inode, mask);
+	}
+
 	/* Careful in RCU walk mode */
 	realinode = ACCESS_ONCE(realdentry->d_inode);
 	if (!realinode) {

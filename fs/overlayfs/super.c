@@ -30,6 +30,7 @@ struct ovl_config {
 	char *lowerdir;
 	char *upperdir;
 	char *workdir;
+	bool default_permissions;
 };
 
 /* private information held for overlayfs's superblock */
@@ -154,11 +155,30 @@ struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper)
 	return realdentry;
 }
 
+struct vfsmount *ovl_entry_mnt_real(struct ovl_entry *oe, struct inode *inode,
+				    bool is_upper)
+{
+	if (is_upper) {
+		struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+
+		return ofs->upper_mnt;
+	} else {
+		return oe->numlower ? oe->lowerstack[0].mnt : NULL;
+	}
+}
+
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
 
 	return oe->cache;
+}
+
+bool ovl_is_default_permissions(struct inode *inode)
+{
+	struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+
+	return ofs->config.default_permissions;
 }
 
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache)
@@ -594,6 +614,8 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 		seq_printf(m, ",upperdir=%s", ufs->config.upperdir);
 		seq_printf(m, ",workdir=%s", ufs->config.workdir);
 	}
+	if (ufs->config.default_permissions)
+		seq_puts(m, ",default_permissions");
 	return 0;
 }
 
@@ -618,6 +640,7 @@ enum {
 	OPT_LOWERDIR,
 	OPT_UPPERDIR,
 	OPT_WORKDIR,
+	OPT_DEFAULT_PERMISSIONS,
 	OPT_ERR,
 };
 
@@ -625,6 +648,7 @@ static const match_table_t ovl_tokens = {
 	{OPT_LOWERDIR,			"lowerdir=%s"},
 	{OPT_UPPERDIR,			"upperdir=%s"},
 	{OPT_WORKDIR,			"workdir=%s"},
+	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_ERR,			NULL}
 };
 
@@ -683,6 +707,10 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->workdir = match_strdup(&args[0]);
 			if (!config->workdir)
 				return -ENOMEM;
+			break;
+
+		case OPT_DEFAULT_PERMISSIONS:
+			config->default_permissions = true;
 			break;
 
 		default:

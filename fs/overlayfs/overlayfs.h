@@ -142,7 +142,10 @@ struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
 struct dentry *ovl_entry_real(struct ovl_entry *oe, bool *is_upper);
+struct vfsmount *ovl_entry_mnt_real(struct ovl_entry *oe, struct inode *inode,
+				    bool is_upper);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
+bool ovl_is_default_permissions(struct inode *inode);
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
 struct dentry *ovl_workdir(struct dentry *dentry);
 int ovl_want_write(struct dentry *dentry);
