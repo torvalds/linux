@@ -152,7 +152,6 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 #define ULTRA_IO_DRIVER_DISABLES_INTS (0x1ULL << 5)
 #define ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING (0x1ULL << 6)
 
-#pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 /* Common Channel Header */
 struct channel_header {
 	u64 signature;		/* Signature */
@@ -192,7 +191,7 @@ struct channel_header {
 	u8 filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
 	u8 recover_channel;
-};
+} __packed;
 
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
@@ -230,9 +229,8 @@ struct signal_queue_header {
 				 * to denote trouble with client's
 				 * fields */
 	u8 filler[12];		/* Pad out to 64 byte cacheline */
-};
+} __packed;
 
-#pragma pack(pop)
 
 #define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
 	do {								\
