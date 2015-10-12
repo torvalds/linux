@@ -132,6 +132,10 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	if (err < 0)
 		goto error;
 
+	err = snd_tscm_create_midi_devices(tscm);
+	if (err < 0)
+		goto error;
+
 	err = snd_tscm_create_hwdep_device(tscm);
 	if (err < 0)
 		goto error;

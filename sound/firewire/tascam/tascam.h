@@ -138,6 +138,8 @@ void snd_tscm_proc_init(struct snd_tscm *tscm);
 
 int snd_tscm_create_pcm_devices(struct snd_tscm *tscm);
 
+int snd_tscm_create_midi_devices(struct snd_tscm *tscm);
+
 int snd_tscm_create_hwdep_device(struct snd_tscm *tscm);
 
 #endif
