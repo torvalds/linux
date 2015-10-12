@@ -61,6 +61,7 @@
 #include <net/nexthop.h>
 #include <net/lwtunnel.h>
 #include <net/ip_tunnels.h>
+#include <net/l3mdev.h>
 
 #include <asm/uaccess.h>
 
@@ -1044,6 +1045,9 @@ static struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	fn = fib6_lookup(&table->tb6_root, &fl6->daddr, &fl6->saddr);
 	saved_fn = fn;
 
+	if (fl6->flowi6_flags & FLOWI_FLAG_SKIP_NH_OIF)
+		oif = 0;
+
 redo_rt6_select:
 	rt = rt6_select(fn, oif, strict);
 	if (rt->rt6i_nsiblings)
@@ -1141,7 +1145,7 @@ void ip6_route_input(struct sk_buff *skb)
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct ip_tunnel_info *tun_info;
 	struct flowi6 fl6 = {
-		.flowi6_iif = skb->dev->ifindex,
+		.flowi6_iif = l3mdev_fib_oif(skb->dev),
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
 		.flowlabel = ip6_flowinfo(iph),
@@ -1165,7 +1169,12 @@ static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table 
 struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
 				    struct flowi6 *fl6)
 {
+	struct dst_entry *dst;
 	int flags = 0;
+
+	dst = l3mdev_rt6_dst_by_oif(net, fl6);
+	if (dst)
+		return dst;
 
 	fl6->flowi6_iif = LOOPBACK_IFINDEX;
 
@@ -2263,7 +2272,6 @@ static struct rt6_info *rt6_add_route_info(struct net *net,
 					   unsigned int pref)
 {
 	struct fib6_config cfg = {
-		.fc_table	= RT6_TABLE_INFO,
 		.fc_metric	= IP6_RT_PRIO_USER,
 		.fc_ifindex	= ifindex,
 		.fc_dst_len	= prefixlen,
@@ -2274,6 +2282,7 @@ static struct rt6_info *rt6_add_route_info(struct net *net,
 		.fc_nlinfo.nl_net = net,
 	};
 
+	cfg.fc_table = l3mdev_fib_table_by_index(net, ifindex) ? : RT6_TABLE_INFO;
 	cfg.fc_dst = *prefix;
 	cfg.fc_gateway = *gwaddr;
 
@@ -2314,7 +2323,7 @@ struct rt6_info *rt6_add_dflt_router(const struct in6_addr *gwaddr,
 				     unsigned int pref)
 {
 	struct fib6_config cfg = {
-		.fc_table	= RT6_TABLE_DFLT,
+		.fc_table	= l3mdev_fib_table(dev) ? : RT6_TABLE_DFLT,
 		.fc_metric	= IP6_RT_PRIO_USER,
 		.fc_ifindex	= dev->ifindex,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_DEFAULT |
@@ -2361,7 +2370,8 @@ static void rtmsg_to_fib6_config(struct net *net,
 {
 	memset(cfg, 0, sizeof(*cfg));
 
-	cfg->fc_table = RT6_TABLE_MAIN;
+	cfg->fc_table = l3mdev_fib_table_by_index(net, rtmsg->rtmsg_ifindex) ?
+			 : RT6_TABLE_MAIN;
 	cfg->fc_ifindex = rtmsg->rtmsg_ifindex;
 	cfg->fc_metric = rtmsg->rtmsg_metric;
 	cfg->fc_expires = rtmsg->rtmsg_info;
@@ -2470,6 +2480,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    const struct in6_addr *addr,
 				    bool anycast)
 {
+	u32 tb_id;
 	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(net, net->loopback_dev,
 					    DST_NOCOUNT);
@@ -2492,7 +2503,8 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->rt6i_gateway  = *addr;
 	rt->rt6i_dst.addr = *addr;
 	rt->rt6i_dst.plen = 128;
-	rt->rt6i_table = fib6_get_table(net, RT6_TABLE_LOCAL);
+	tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
+	rt->rt6i_table = fib6_get_table(net, tb_id);
 	rt->dst.flags |= DST_NOCACHE;
 
 	atomic_set(&rt->dst.__refcnt, 1);
@@ -3253,6 +3265,11 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 							       flags);
 	} else {
 		fl6.flowi6_oif = oif;
+
+		if (netif_index_is_l3_master(net, oif)) {
+			fl6.flowi6_flags = FLOWI_FLAG_L3MDEV_SRC |
+					   FLOWI_FLAG_SKIP_NH_OIF;
+		}
 
 		rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
 	}
