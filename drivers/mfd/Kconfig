@@ -1482,7 +1482,7 @@ config MFD_WM8994
 
 config MFD_STW481X
 	tristate "Support for ST Microelectronics STw481x"
-	depends on I2C && ARCH_NOMADIK
+	depends on I2C && (ARCH_NOMADIK || COMPILE_TEST)
 	select REGMAP_I2C
 	select MFD_CORE
 	help
