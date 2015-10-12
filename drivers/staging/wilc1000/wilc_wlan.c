@@ -8,7 +8,7 @@
 /* //////////////////////////////////////////////////////////////////////////// */
 
 #include "wilc_wlan_if.h"
-#include "wilc_wlan.h"
+#include "wilc_wfi_netdevice.h"
 #include "wilc_wlan_cfg.h"
 
 /********************************************

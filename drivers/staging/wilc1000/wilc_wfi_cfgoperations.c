@@ -11,7 +11,6 @@
  */
 
 #include "wilc_wfi_cfgoperations.h"
-#include "wilc_wlan.c"
 #ifdef WILC_SDIO
 #include "linux_wlan_sdio.h"
 #endif
