@@ -595,41 +595,40 @@ s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo)
  *  @date		1 Mar 2012
  *  @version	1.0
  */
-s32 send_config_pkt(u8 u8Mode, tstrWID *pstrWIDs,
-		    u32 u32WIDsCount, u32 drvHandler)
+s32 send_config_pkt(u8 mode, tstrWID *wids, u32 count, u32 drv)
 {
 	s32 counter = 0, ret = 0;
 
-	if (u8Mode == GET_CFG) {
-		for (counter = 0; counter < u32WIDsCount; counter++) {
+	if (mode == GET_CFG) {
+		for (counter = 0; counter < count; counter++) {
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,
-				   (counter == u32WIDsCount - 1));
+				   (counter == count - 1));
 			if (!wilc_wlan_cfg_get(!counter,
-					       pstrWIDs[counter].u16WIDid,
-					       (counter == u32WIDsCount - 1),
-					       drvHandler)) {
+					       wids[counter].u16WIDid,
+					       (counter == count - 1),
+					       drv)) {
 				ret = -1;
 				printk("[Sendconfigpkt]Get Timed out\n");
 				break;
 			}
 		}
 		counter = 0;
-		for (counter = 0; counter < u32WIDsCount; counter++) {
-			pstrWIDs[counter].s32ValueSize = wilc_wlan_cfg_get_val(
-					pstrWIDs[counter].u16WIDid,
-					pstrWIDs[counter].ps8WidVal,
-					pstrWIDs[counter].s32ValueSize);
+		for (counter = 0; counter < count; counter++) {
+			wids[counter].s32ValueSize = wilc_wlan_cfg_get_val(
+					wids[counter].u16WIDid,
+					wids[counter].ps8WidVal,
+					wids[counter].s32ValueSize);
 
 		}
-	} else if (u8Mode == SET_CFG) {
-		for (counter = 0; counter < u32WIDsCount; counter++) {
-			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", pstrWIDs[counter].u16WIDid);
+	} else if (mode == SET_CFG) {
+		for (counter = 0; counter < count; counter++) {
+			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].u16WIDid);
 			if (!wilc_wlan_cfg_set(!counter,
-					       pstrWIDs[counter].u16WIDid,
-					       pstrWIDs[counter].ps8WidVal,
-					       pstrWIDs[counter].s32ValueSize,
-					       (counter == u32WIDsCount - 1),
-					       drvHandler)) {
+					       wids[counter].u16WIDid,
+					       wids[counter].ps8WidVal,
+					       wids[counter].s32ValueSize,
+					       (counter == count - 1),
+					       drv)) {
 				ret = -1;
 				printk("[Sendconfigpkt]Set Timed out\n");
 				break;
