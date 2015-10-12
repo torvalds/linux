@@ -845,8 +845,8 @@ static int btrfsic_process_superblock_dev_mirror(
 		superblock_tmp->never_written = 0;
 		superblock_tmp->mirror_num = 1 + superblock_mirror_num;
 		if (state->print_mask & BTRFSIC_PRINT_MASK_SUPERBLOCK_WRITE)
-			printk_in_rcu(KERN_INFO "New initial S-block (bdev %p, %s)"
-				     " @%llu (%s/%llu/%d)\n",
+			btrfs_info_in_rcu(device->dev_root->fs_info,
+				"new initial S-block (bdev %p, %s) @%llu (%s/%llu/%d)",
 				     superblock_bdev,
 				     rcu_str_deref(device->name), dev_bytenr,
 				     dev_state->name, dev_bytenr,

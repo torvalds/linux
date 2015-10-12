@@ -2352,7 +2352,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 						root->fs_info->fsid);
 		if (kobject_rename(&root->fs_info->fs_devices->super_kobj,
 								fsid_buf))
-			pr_warn("BTRFS: sysfs: failed to create fsid for sprout\n");
+			btrfs_warn(root->fs_info,
+				"sysfs: failed to create fsid for sprout");
 	}
 
 	root->fs_info->num_tolerated_disk_barrier_failures =
@@ -6594,8 +6595,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	BUG_ON(!path);
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
-		printk_in_rcu(KERN_WARNING "BTRFS: "
-			"error %d while searching for dev_stats item for device %s!\n",
+		btrfs_warn_in_rcu(dev_root->fs_info,
+			"error %d while searching for dev_stats item for device %s",
 			      ret, rcu_str_deref(device->name));
 		goto out;
 	}
@@ -6605,8 +6606,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 		/* need to delete old one and insert a new one */
 		ret = btrfs_del_item(trans, dev_root, path);
 		if (ret != 0) {
-			printk_in_rcu(KERN_WARNING "BTRFS: "
-				"delete too small dev_stats item for device %s failed %d!\n",
+			btrfs_warn_in_rcu(dev_root->fs_info,
+				"delete too small dev_stats item for device %s failed %d",
 				      rcu_str_deref(device->name), ret);
 			goto out;
 		}
@@ -6619,9 +6620,9 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_empty_item(trans, dev_root, path,
 					      &key, sizeof(*ptr));
 		if (ret < 0) {
-			printk_in_rcu(KERN_WARNING "BTRFS: "
-					  "insert dev_stats item for device %s failed %d!\n",
-				      rcu_str_deref(device->name), ret);
+			btrfs_warn_in_rcu(dev_root->fs_info,
+				"insert dev_stats item for device %s failed %d",
+				rcu_str_deref(device->name), ret);
 			goto out;
 		}
 	}
@@ -6675,8 +6676,8 @@ static void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
 {
 	if (!dev->dev_stats_valid)
 		return;
-	printk_ratelimited_in_rcu(KERN_ERR "BTRFS: "
-			   "bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
+	btrfs_err_rl_in_rcu(dev->dev_root->fs_info,
+		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 			   rcu_str_deref(dev->name),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
@@ -6695,8 +6696,8 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 	if (i == BTRFS_DEV_STAT_VALUES_MAX)
 		return; /* all values == 0, suppress message */
 
-	printk_in_rcu(KERN_INFO "BTRFS: "
-		   "bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
+	btrfs_info_in_rcu(dev->dev_root->fs_info,
+		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 	       rcu_str_deref(dev->name),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),

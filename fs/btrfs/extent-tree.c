@@ -8275,10 +8275,11 @@ skip:
 			ret = account_shared_subtree(trans, root, next,
 						     generation, level - 1);
 			if (ret) {
-				printk_ratelimited(KERN_ERR "BTRFS: %s Error "
+				btrfs_err_rl(root->fs_info,
+					"Error "
 					"%d accounting shared subtree. Quota "
-					"is out of sync, rescan required.\n",
-					root->fs_info->sb->s_id, ret);
+					"is out of sync, rescan required.",
+					ret);
 			}
 		}
 		ret = btrfs_free_extent(trans, root, bytenr, blocksize, parent,
@@ -8367,10 +8368,11 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			BUG_ON(ret); /* -ENOMEM */
 			ret = account_leaf_items(trans, root, eb);
 			if (ret) {
-				printk_ratelimited(KERN_ERR "BTRFS: %s Error "
+				btrfs_err_rl(root->fs_info,
+					"error "
 					"%d accounting leaf items. Quota "
-					"is out of sync, rescan required.\n",
-					root->fs_info->sb->s_id, ret);
+					"is out of sync, rescan required.",
+					ret);
 			}
 		}
 		/* make block locked assertion in clean_tree_block happy */

@@ -1342,7 +1342,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			break;
 
 		if (btrfs_defrag_cancelled(root->fs_info)) {
-			printk(KERN_DEBUG "BTRFS: defrag_file cancelled\n");
+			btrfs_debug(root->fs_info, "defrag_file cancelled");
 			ret = -EAGAIN;
 			break;
 		}
@@ -1579,7 +1579,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	new_size = div_u64(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
-	printk_in_rcu(KERN_INFO "BTRFS: new size for %s is %llu\n",
+	btrfs_info_in_rcu(root->fs_info, "new size for %s is %llu",
 		      rcu_str_deref(device->name), new_size);
 
 	if (new_size > old_size) {
@@ -2081,7 +2081,7 @@ static noinline int search_ioctl(struct inode *inode,
 		key.offset = (u64)-1;
 		root = btrfs_read_fs_root_no_name(info, &key);
 		if (IS_ERR(root)) {
-			printk(KERN_ERR "BTRFS: could not find root %llu\n",
+			btrfs_err(info, "could not find root %llu",
 			       sk->tree_id);
 			btrfs_free_path(path);
 			return -ENOENT;
@@ -2221,7 +2221,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	key.offset = (u64)-1;
 	root = btrfs_read_fs_root_no_name(info, &key);
 	if (IS_ERR(root)) {
-		printk(KERN_ERR "BTRFS: could not find root %llu\n", tree_id);
+		btrfs_err(info, "could not find root %llu", tree_id);
 		ret = -ENOENT;
 		goto out;
 	}

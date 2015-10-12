@@ -319,9 +319,9 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk_ratelimited(KERN_WARNING
-				"BTRFS: %s checksum verify failed on %llu wanted %X found %X "
-				"level %d\n",
+			btrfs_warn_rl(fs_info,
+				"%s checksum verify failed on %llu wanted %X found %X "
+				"level %d",
 				fs_info->sb->s_id, buf->start,
 				val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
@@ -368,9 +368,9 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		ret = 0;
 		goto out;
 	}
-	printk_ratelimited(KERN_ERR
-	    "BTRFS (device %s): parent transid verify failed on %llu wanted %llu found %llu\n",
-			eb->fs_info->sb->s_id, eb->start,
+	btrfs_err_rl(eb->fs_info,
+		"parent transid verify failed on %llu wanted %llu found %llu",
+			eb->start,
 			parent_transid, btrfs_header_generation(eb));
 	ret = 1;
 
@@ -629,15 +629,14 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
-		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad tree block start "
-			       "%llu %llu\n",
-			       eb->fs_info->sb->s_id, found_start, eb->start);
+		btrfs_err_rl(eb->fs_info, "bad tree block start %llu %llu",
+			       found_start, eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	if (check_tree_block_fsid(root->fs_info, eb)) {
-		printk_ratelimited(KERN_ERR "BTRFS (device %s): bad fsid on block %llu\n",
-			       eb->fs_info->sb->s_id, eb->start);
+		btrfs_err_rl(eb->fs_info, "bad fsid on block %llu",
+			       eb->start);
 		ret = -EIO;
 		goto err;
 	}
@@ -2348,8 +2347,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	u64 bytenr = btrfs_super_log_root(disk_super);
 
 	if (fs_devices->rw_devices == 0) {
-		printk(KERN_WARNING "BTRFS: log replay required "
-		       "on RO media\n");
+		btrfs_warn(fs_info, "log replay required on RO media");
 		return -EIO;
 	}
 
@@ -2364,12 +2362,12 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	log_tree_root->node = read_tree_block(tree_root, bytenr,
 			fs_info->generation + 1);
 	if (IS_ERR(log_tree_root->node)) {
-		printk(KERN_ERR "BTRFS: failed to read log tree\n");
+		btrfs_warn(fs_info, "failed to read log tree");
 		ret = PTR_ERR(log_tree_root->node);
 		kfree(log_tree_root);
 		return ret;
 	} else if (!extent_buffer_uptodate(log_tree_root->node)) {
-		printk(KERN_ERR "BTRFS: failed to read log tree\n");
+		btrfs_err(fs_info, "failed to read log tree");
 		free_extent_buffer(log_tree_root->node);
 		kfree(log_tree_root);
 		return -EIO;
@@ -3179,8 +3177,8 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		struct btrfs_device *device = (struct btrfs_device *)
 			bh->b_private;
 
-		printk_ratelimited_in_rcu(KERN_WARNING "BTRFS: lost page write due to "
-					  "I/O error on %s\n",
+		btrfs_warn_rl_in_rcu(device->dev_root->fs_info,
+				"lost page write due to IO error on %s",
 					  rcu_str_deref(device->name));
 		/* note, we dont' set_buffer_write_io_error because we have
 		 * our own ways of dealing with the IO errors
@@ -3299,8 +3297,9 @@ static int write_dev_supers(struct btrfs_device *device,
 			bh = __getblk(device->bdev, bytenr / 4096,
 				      BTRFS_SUPER_INFO_SIZE);
 			if (!bh) {
-				printk(KERN_ERR "BTRFS: couldn't get super "
-				       "buffer head for bytenr %Lu\n", bytenr);
+				btrfs_err(device->dev_root->fs_info,
+				    "couldn't get super buffer head for bytenr %llu",
+				    bytenr);
 				errors++;
 				continue;
 			}

@@ -2564,7 +2564,7 @@ verbose_printk("btrfs: send_create_inode %llu\n", ino);
 	} else if (S_ISSOCK(mode)) {
 		cmd = BTRFS_SEND_C_MKSOCK;
 	} else {
-		printk(KERN_WARNING "btrfs: unexpected inode type %o",
+		btrfs_warn(sctx->send_root->fs_info, "unexpected inode type %o",
 				(int)(mode & S_IFMT));
 		ret = -ENOTSUPP;
 		goto out;
