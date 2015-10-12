@@ -97,7 +97,8 @@ static int __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
 	icoll_base = of_iomap(np, 0);
-	WARN_ON(!icoll_base);
+	if (!icoll_base)
+		panic("%s: unable to map resource", np->full_name);
 
 	/*
 	 * Interrupt Collector reset, which initializes the priority
@@ -107,6 +108,9 @@ static int __init icoll_of_init(struct device_node *np,
 
 	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
 					     &icoll_irq_domain_ops, NULL);
-	return icoll_domain ? 0 : -ENODEV;
+	if (!icoll_domain)
+		panic("%s: unable to create irqdomain", np->full_name);
+
+	return 0;
 }
 IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);
