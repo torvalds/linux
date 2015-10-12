@@ -851,8 +851,10 @@ static int be_cmd_notify_wait(struct be_adapter *adapter,
 		return status;
 
 	dest_wrb = be_cmd_copy(adapter, wrb);
-	if (!dest_wrb)
-		return -EBUSY;
+	if (!dest_wrb) {
+		status = -EBUSY;
+		goto unlock;
+	}
 
 	if (use_mcc(adapter))
 		status = be_mcc_notify_wait(adapter);
@@ -862,6 +864,7 @@ static int be_cmd_notify_wait(struct be_adapter *adapter,
 	if (!status)
 		memcpy(wrb, dest_wrb, sizeof(*wrb));
 
+unlock:
 	be_cmd_unlock(adapter);
 	return status;
 }
