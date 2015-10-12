@@ -102,10 +102,10 @@ static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 	rcu_read_lock();
 	if (br_port_exists(dev)) {
 		p = br_port_get_rcu(dev);
-		vg = nbp_vlan_group(p);
+		vg = nbp_vlan_group_rcu(p);
 	} else if (dev->priv_flags & IFF_EBRIDGE) {
 		br = netdev_priv(dev);
-		vg = br_vlan_group(br);
+		vg = br_vlan_group_rcu(br);
 	}
 	num_vlan_infos = br_get_num_vlan_infos(vg, filter_mask);
 	rcu_read_unlock();

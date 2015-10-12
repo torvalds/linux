@@ -32,7 +32,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 {
 	struct net_bridge_vlan_group *vg;
 
-	vg = nbp_vlan_group(p);
+	vg = nbp_vlan_group_rcu(p);
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING;
 }
@@ -80,7 +80,7 @@ static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 	struct net_bridge_vlan_group *vg;
 
-	vg = nbp_vlan_group(to);
+	vg = nbp_vlan_group_rcu(to);
 	skb = br_handle_vlan(to->br, vg, skb);
 	if (!skb)
 		return;
@@ -112,7 +112,7 @@ static void __br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 		return;
 	}
 
-	vg = nbp_vlan_group(to);
+	vg = nbp_vlan_group_rcu(to);
 	skb = br_handle_vlan(to->br, vg, skb);
 	if (!skb)
 		return;
