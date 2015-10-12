@@ -759,8 +759,7 @@ setup:
 						ep->service_id,
 						&ep->ul_pipe_id,
 						&ep->dl_pipe_id,
-						&ep->ul_is_polled,
-						&ep->dl_is_polled);
+						&ep->ul_is_polled);
 	if (status)
 		return status;
 
@@ -770,8 +769,8 @@ setup:
 		   ep->dl_pipe_id, ep->eid);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot htc ep %d ul polled %d dl polled %d\n",
-		   ep->eid, ep->ul_is_polled, ep->dl_is_polled);
+		   "boot htc ep %d ul polled %d\n",
+		   ep->eid, ep->ul_is_polled);
 
 	if (disable_credit_flow_ctrl && ep->tx_credit_flow_enabled) {
 		ep->tx_credit_flow_enabled = false;

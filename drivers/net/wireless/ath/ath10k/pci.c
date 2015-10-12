@@ -1404,17 +1404,13 @@ static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 
 static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
 					      u16 service_id, u8 *ul_pipe,
-					      u8 *dl_pipe, int *ul_is_polled,
-					      int *dl_is_polled)
+					      u8 *dl_pipe, int *ul_is_polled)
 {
 	const struct service_to_pipe *entry;
 	bool ul_set = false, dl_set = false;
 	int i;
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci hif map service\n");
-
-	/* polling for received messages not supported */
-	*dl_is_polled = 0;
 
 	for (i = 0; i < ARRAY_SIZE(target_service_to_ce_map_wlan); i++) {
 		entry = &target_service_to_ce_map_wlan[i];
@@ -1458,7 +1454,7 @@ static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
 static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
 					    u8 *ul_pipe, u8 *dl_pipe)
 {
-	int ul_is_polled, dl_is_polled;
+	int ul_is_polled;
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI, "pci hif get default pipe\n");
 
@@ -1466,8 +1462,7 @@ static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
 						 ATH10K_HTC_SVC_ID_RSVD_CTRL,
 						 ul_pipe,
 						 dl_pipe,
-						 &ul_is_polled,
-						 &dl_is_polled);
+						 &ul_is_polled);
 }
 
 static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
