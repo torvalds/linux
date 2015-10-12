@@ -71,7 +71,7 @@ typedef enum {
 } tenuConnectSts;
 
 struct wid {
-	u16 u16WIDid;
+	u16 id;
 	enum WID_TYPE type;
 	s32 s32ValueSize;
 	s8      *ps8WidVal;

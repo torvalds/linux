@@ -604,7 +604,7 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 			PRINT_INFO(CORECONFIG_DBG, "Sending CFG packet [%d][%d]\n", !counter,
 				   (counter == count - 1));
 			if (!wilc_wlan_cfg_get(!counter,
-					       wids[counter].u16WIDid,
+					       wids[counter].id,
 					       (counter == count - 1),
 					       drv)) {
 				ret = -1;
@@ -615,16 +615,16 @@ s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv)
 		counter = 0;
 		for (counter = 0; counter < count; counter++) {
 			wids[counter].s32ValueSize = wilc_wlan_cfg_get_val(
-					wids[counter].u16WIDid,
+					wids[counter].id,
 					wids[counter].ps8WidVal,
 					wids[counter].s32ValueSize);
 
 		}
 	} else if (mode == SET_CFG) {
 		for (counter = 0; counter < count; counter++) {
-			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].u16WIDid);
+			PRINT_D(CORECONFIG_DBG, "Sending config SET PACKET WID:%x\n", wids[counter].id);
 			if (!wilc_wlan_cfg_set(!counter,
-					       wids[counter].u16WIDid,
+					       wids[counter].id,
 					       wids[counter].ps8WidVal,
 					       wids[counter].s32ValueSize,
 					       (counter == count - 1),
