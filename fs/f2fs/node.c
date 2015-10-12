@@ -1529,7 +1529,8 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		return;
 
 	/* readahead nat pages to be scanned */
-	ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), FREE_NID_PAGES, META_NAT);
+	ra_meta_pages(sbi, NAT_BLOCK_OFFSET(nid), FREE_NID_PAGES,
+							META_NAT, true);
 
 	while (1) {
 		struct page *page = get_current_nat_page(sbi, nid);
@@ -1804,7 +1805,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 		nrpages = min(last_offset - i, bio_blocks);
 
 		/* readahead node pages */
-		ra_meta_pages(sbi, addr, nrpages, META_POR);
+		ra_meta_pages(sbi, addr, nrpages, META_POR, true);
 
 		for (idx = addr; idx < addr + nrpages; idx++) {
 			struct page *page = get_tmp_page(sbi, idx);

@@ -1808,7 +1808,7 @@ struct page *grab_meta_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_meta_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_tmp_page(struct f2fs_sb_info *, pgoff_t);
 bool is_valid_blkaddr(struct f2fs_sb_info *, block_t, int);
-int ra_meta_pages(struct f2fs_sb_info *, block_t, int, int);
+int ra_meta_pages(struct f2fs_sb_info *, block_t, int, int, bool);
 void ra_meta_pages_cond(struct f2fs_sb_info *, pgoff_t);
 long sync_meta_pages(struct f2fs_sb_info *, enum page_type, long);
 void add_dirty_inode(struct f2fs_sb_info *, nid_t, int type);
