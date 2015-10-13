@@ -426,6 +426,9 @@ struct nested_vmx {
 	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
 	u64 vmcs01_debugctl;
 
+	u16 vpid02;
+	u16 last_vpid;
+
 	u32 nested_vmx_procbased_ctls_low;
 	u32 nested_vmx_procbased_ctls_high;
 	u32 nested_vmx_true_procbased_ctls_low;
@@ -1211,6 +1214,11 @@ static inline bool nested_cpu_has_xsaves(struct vmcs12 *vmcs12)
 static inline bool nested_cpu_has_virt_x2apic_mode(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE);
+}
+
+static inline bool nested_cpu_has_vpid(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_VPID);
 }
 
 static inline bool nested_cpu_has_apic_reg_virt(struct vmcs12 *vmcs12)
@@ -2590,6 +2598,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_RDTSCP |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		SECONDARY_EXEC_ENABLE_VPID |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING |
@@ -6818,6 +6827,7 @@ static void free_nested(struct vcpu_vmx *vmx)
 		return;
 
 	vmx->nested.vmxon = false;
+	free_vpid(vmx->nested.vpid02);
 	nested_release_vmcs12(vmx);
 	if (enable_shadow_vmcs)
 		free_vmcs(vmx->nested.current_shadow_vmcs);
@@ -7379,7 +7389,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 			return 1;
 		}
-		vmx_flush_tlb(vcpu);
+		__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
@@ -8759,8 +8769,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 			goto free_vmcs;
 	}
 
-	if (nested)
+	if (nested) {
 		nested_vmx_setup_ctls_msrs(vmx);
+		vmx->nested.vpid02 = allocate_vpid();
+	}
 
 	vmx->nested.posted_intr_nv = -1;
 	vmx->nested.current_vmptr = -1ull;
@@ -8781,6 +8793,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	return &vmx->vcpu;
 
 free_vmcs:
+	free_vpid(vmx->nested.vpid02);
 	free_loaded_vmcs(vmx->loaded_vmcs);
 free_msrs:
 	kfree(vmx->guest_msrs);
@@ -9665,12 +9678,24 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	if (enable_vpid) {
 		/*
-		 * Trivially support vpid by letting L2s share their parent
-		 * L1's vpid. TODO: move to a more elaborate solution, giving
-		 * each L2 its own vpid and exposing the vpid feature to L1.
+		 * There is no direct mapping between vpid02 and vpid12, the
+		 * vpid02 is per-vCPU for L0 and reused while the value of
+		 * vpid12 is changed w/ one invvpid during nested vmentry.
+		 * The vpid12 is allocated by L1 for L2, so it will not
+		 * influence global bitmap(for vpid01 and vpid02 allocation)
+		 * even if spawn a lot of nested vCPUs.
 		 */
-		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
-		vmx_flush_tlb(vcpu);
+		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02) {
+			vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->nested.vpid02);
+			if (vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
+				vmx->nested.last_vpid = vmcs12->virtual_processor_id;
+				__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02);
+			}
+		} else {
+			vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
+			vmx_flush_tlb(vcpu);
+		}
+
 	}
 
 	if (nested_cpu_has_ept(vmcs12)) {
