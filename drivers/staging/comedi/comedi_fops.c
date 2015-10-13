@@ -1341,7 +1341,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			goto out;
 		}
 		/* This looks arbitrary.  It is. */
-		s->busy = &parse_insn;
+		s->busy = parse_insn;
 		switch (insn->insn) {
 		case INSN_READ:
 			ret = s->insn_read(dev, s, insn, data);
