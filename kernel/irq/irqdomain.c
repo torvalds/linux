@@ -514,37 +514,28 @@ static void of_phandle_args_to_fwspec(struct of_phandle_args *irq_data,
 		fwspec->param[i] = irq_data->args[i];
 }
 
-unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
+unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 {
-	struct irq_fwspec fwspec;
 	struct irq_domain *domain;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
 	int virq;
 
-	of_phandle_args_to_fwspec(irq_data, &fwspec);
-
-	if (fwspec.fwnode)
-		domain = irq_find_matching_fwnode(fwspec.fwnode, DOMAIN_BUS_ANY);
+	if (fwspec->fwnode)
+		domain = irq_find_matching_fwnode(fwspec->fwnode, DOMAIN_BUS_ANY);
 	else
 		domain = irq_default_domain;
 
 	if (!domain) {
 		pr_warn("no irq domain found for %s !\n",
-			of_node_full_name(to_of_node(fwspec.fwnode)));
+			of_node_full_name(to_of_node(fwspec->fwnode)));
 		return 0;
 	}
 
-	if (irq_domain_translate(domain, &fwspec, &hwirq, &type))
+	if (irq_domain_translate(domain, fwspec, &hwirq, &type))
 		return 0;
 
 	if (irq_domain_is_hierarchy(domain)) {
-		/* Temporary hack */
-		void *desc = &fwspec;
-#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
-		if (!domain->ops->translate)
-			desc = irq_data;
-#endif
 		/*
 		 * If we've already configured this interrupt,
 		 * don't do it again, or hell will break loose.
@@ -553,7 +544,7 @@ unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 		if (virq)
 			return virq;
 
-		virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, desc);
+		virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, fwspec);
 		if (virq <= 0)
 			return 0;
 	} else {
@@ -568,6 +559,15 @@ unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 	    type != irq_get_trigger_type(virq))
 		irq_set_irq_type(virq, type);
 	return virq;
+}
+EXPORT_SYMBOL_GPL(irq_create_fwspec_mapping);
+
+unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
+{
+	struct irq_fwspec fwspec;
+
+	of_phandle_args_to_fwspec(irq_data, &fwspec);
+	return irq_create_fwspec_mapping(&fwspec);
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 
