@@ -1557,6 +1557,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 
 	up_write(&dev->lock);
 }
+EXPORT_SYMBOL(ion_device_add_heap);
 
 struct ion_device *ion_device_create(long (*custom_ioctl)
 				     (struct ion_client *client,
@@ -1606,6 +1607,7 @@ debugfs_done:
 	idev->clients = RB_ROOT;
 	return idev;
 }
+EXPORT_SYMBOL(ion_device_create);
 
 void ion_device_destroy(struct ion_device *dev)
 {
@@ -1614,6 +1616,7 @@ void ion_device_destroy(struct ion_device *dev)
 	/* XXX need to free the heaps and clients ? */
 	kfree(dev);
 }
+EXPORT_SYMBOL(ion_device_destroy);
 
 void __init ion_reserve(struct ion_platform_data *data)
 {
