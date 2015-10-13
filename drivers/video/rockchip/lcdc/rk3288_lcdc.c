@@ -895,6 +895,8 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
 	struct rk_screen *screen = dev_drv->cur_screen;
 	unsigned int mask, val, off;
+	struct fb_info *fb0 = rk_get_fb(0);
+
 	off = (win_id-2) * 0x50;
 	if((screen->y_mirror == 1)&&(win->area_num > 1)){
 		rk3288_lcdc_area_swap(win,win->area_num);
@@ -927,7 +929,8 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST0_EN;
 			val  = v_WIN2_MST0_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
-			lcdc_writel(lcdc_dev, WIN2_MST0 + off, 0x80000000);
+			lcdc_writel(lcdc_dev, WIN2_MST0 + off,
+				    fb0->fix.smem_start);
 		}
 		/*area 1*/
 		if(win->area[1].state == 1){
@@ -952,7 +955,8 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST1_EN;
 			val  = v_WIN2_MST1_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
-			lcdc_writel(lcdc_dev, WIN2_MST1 + off, 0x80000000);
+			lcdc_writel(lcdc_dev, WIN2_MST1 + off,
+				    fb0->fix.smem_start);
 		}
 		/*area 2*/
 		if(win->area[2].state == 1){
@@ -977,7 +981,8 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST2_EN;
 			val  = v_WIN2_MST2_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
-			lcdc_writel(lcdc_dev, WIN2_MST2 + off, 0x80000000);
+			lcdc_writel(lcdc_dev, WIN2_MST2 + off,
+				    fb0->fix.smem_start);
 		}
 		/*area 3*/
 		if(win->area[3].state == 1){
@@ -1002,7 +1007,8 @@ static int rk3288_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 			mask = m_WIN2_MST3_EN;
 			val  = v_WIN2_MST3_EN(0);
 			lcdc_msk_reg(lcdc_dev,WIN2_CTRL0+off,mask,val);
-			lcdc_writel(lcdc_dev, WIN2_MST3 + off, 0x80000000);
+			lcdc_writel(lcdc_dev, WIN2_MST3 + off,
+				    fb0->fix.smem_start);
 		}	
 
 		if(win->alpha_en == 1)
@@ -1682,10 +1688,18 @@ static int win2_display(struct lcdc_device *lcdc_dev,
 		for(i=0;i<win->area_num;i++)
 			win->area[i].y_addr = 
 				win->area[i].smem_start + win->area[i].y_offset;
-			lcdc_writel(lcdc_dev,WIN2_MST0,win->area[0].y_addr);
-			lcdc_writel(lcdc_dev,WIN2_MST1,win->area[1].y_addr);
-			lcdc_writel(lcdc_dev,WIN2_MST2,win->area[2].y_addr);
-			lcdc_writel(lcdc_dev,WIN2_MST3,win->area[3].y_addr);
+			if (win->area[0].state)
+				lcdc_writel(lcdc_dev, WIN2_MST0,
+					    win->area[0].y_addr);
+			if (win->area[1].state)
+				lcdc_writel(lcdc_dev, WIN2_MST1,
+					    win->area[1].y_addr);
+			if (win->area[2].state)
+				lcdc_writel(lcdc_dev, WIN2_MST2,
+					    win->area[2].y_addr);
+			if (win->area[3].state)
+				lcdc_writel(lcdc_dev, WIN2_MST3,
+					    win->area[3].y_addr);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
@@ -1704,10 +1718,18 @@ static int win3_display(struct lcdc_device *lcdc_dev,
 		for(i=0;i<win->area_num;i++)
 			win->area[i].y_addr = 
 				win->area[i].smem_start + win->area[i].y_offset;
-			lcdc_writel(lcdc_dev,WIN3_MST0,win->area[0].y_addr);
-			lcdc_writel(lcdc_dev,WIN3_MST1,win->area[1].y_addr);
-			lcdc_writel(lcdc_dev,WIN3_MST2,win->area[2].y_addr);
-			lcdc_writel(lcdc_dev,WIN3_MST3,win->area[3].y_addr);		
+			if (win->area[0].state)
+				lcdc_writel(lcdc_dev, WIN3_MST0,
+					    win->area[0].y_addr);
+			if (win->area[1].state)
+				lcdc_writel(lcdc_dev, WIN3_MST1,
+					    win->area[1].y_addr);
+			if (win->area[2].state)
+				lcdc_writel(lcdc_dev, WIN3_MST2,
+					    win->area[2].y_addr);
+			if (win->area[3].state)
+				lcdc_writel(lcdc_dev, WIN3_MST3,
+					    win->area[3].y_addr);
 		}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
@@ -2499,16 +2521,16 @@ static int win3_set_par(struct lcdc_device *lcdc_dev,
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 			}
-		}
-		if ((win->area[i].xact != win->area[i].xsize) ||
-		    (win->area[i].yact != win->area[i].ysize)) {
-                        pr_err("win[%d]->area[%d],not support scale\n",
-                                win->id, i);
-                        pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
-                                win->area[i].xact,win->area[i].yact,
-                                win->area[i].xsize,win->area[i].ysize);
-                        win->area[i].xsize = win->area[i].xact;
-                        win->area[i].ysize = win->area[i].yact;
+			if ((win->area[i].xact != win->area[i].xsize) ||
+			    (win->area[i].yact != win->area[i].ysize)) {
+				pr_err("win[%d]->area[%d],not support scale\n",
+				       win->id, i);
+				pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+				       win->area[i].xact, win->area[i].yact,
+				       win->area[i].xsize, win->area[i].ysize);
+				win->area[i].xsize = win->area[i].xact;
+				win->area[i].ysize = win->area[i].yact;
+			}
 		}
 	}
 	rk3288_win_2_3_reg_update(&lcdc_dev->driver,3);
