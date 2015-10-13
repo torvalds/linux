@@ -524,14 +524,12 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	struct lynxfb_crtc *crtc;
 	struct lynxfb_output *output;
 	struct lynx_share *share;
-	int ret;
 	resource_size_t request;
 
 	par = info->par;
 	crtc = &par->crtc;
 	output = &par->output;
 	share = par->share;
-	ret = 0;
 
 	pr_debug("check var:%dx%d-%d\n",
 		 var->xres,
