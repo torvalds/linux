@@ -49,11 +49,12 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	sinfo->sig.digest_size = digest_size = crypto_shash_digestsize(tfm);
 
 	ret = -ENOMEM;
-	digest = kzalloc(digest_size + desc_size, GFP_KERNEL);
+	digest = kzalloc(ALIGN(digest_size, __alignof__(*desc)) + desc_size,
+			 GFP_KERNEL);
 	if (!digest)
 		goto error_no_desc;
 
-	desc = digest + digest_size;
+	desc = PTR_ALIGN(digest + digest_size, __alignof__(*desc));
 	desc->tfm   = tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
