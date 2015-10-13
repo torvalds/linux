@@ -69,7 +69,7 @@ struct host_if_wpa_attr {
 	u8 *key;
 	const u8 *mac_addr;
 	u8 *seq;
-	u8 u8seqlen;
+	u8 seq_len;
 	u8 u8keyidx;
 	u8 u8Keylen;
 	u8 u8Ciphermode;
@@ -3436,7 +3436,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 
 	msg.body.key_info.attr.wpa.u8keyidx = u8KeyIdx;
 	msg.body.key_info.attr.wpa.u8Keylen = u8KeyLen;
-	msg.body.key_info.attr.wpa.u8seqlen = u32KeyRSClen;
+	msg.body.key_info.attr.wpa.seq_len = u32KeyRSClen;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
