@@ -435,6 +435,21 @@ free_p2p:
 	return NULL;
 }
 
+/* Uninitialize and release resources from a p2p mapping */
+static void scif_deinit_p2p_info(struct scif_dev *scifdev,
+				 struct scif_p2p_info *p2p)
+{
+	struct scif_hw_dev *sdev = scifdev->sdev;
+
+	dma_unmap_sg(&sdev->dev, p2p->ppi_sg[SCIF_PPI_MMIO],
+		     p2p->sg_nentries[SCIF_PPI_MMIO], DMA_BIDIRECTIONAL);
+	dma_unmap_sg(&sdev->dev, p2p->ppi_sg[SCIF_PPI_APER],
+		     p2p->sg_nentries[SCIF_PPI_APER], DMA_BIDIRECTIONAL);
+	scif_p2p_freesg(p2p->ppi_sg[SCIF_PPI_MMIO]);
+	scif_p2p_freesg(p2p->ppi_sg[SCIF_PPI_APER]);
+	kfree(p2p);
+}
+
 /**
  * scif_node_connect: Respond to SCIF_NODE_CONNECT interrupt message
  * @dst: Destination node
@@ -477,8 +492,10 @@ static void scif_node_connect(struct scif_dev *scifdev, int dst)
 	if (!p2p_ij)
 		return;
 	p2p_ji = scif_init_p2p_info(dev_j, dev_i);
-	if (!p2p_ji)
+	if (!p2p_ji) {
+		scif_deinit_p2p_info(dev_i, p2p_ij);
 		return;
+	}
 	list_add_tail(&p2p_ij->ppi_list, &dev_i->p2p);
 	list_add_tail(&p2p_ji->ppi_list, &dev_j->p2p);
 
