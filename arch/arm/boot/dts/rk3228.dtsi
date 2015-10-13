@@ -180,4 +180,54 @@
 			#dma-cells = <1>;
 		};
 	};
+
+	i2s0: i2s0@100c0000 {
+		compatible = "rockchip-i2s";
+		reg = <0x100c0000 0x1000>;
+		i2s-id = <0>;
+		clocks = <&clk_i2s0>, <&clk_gates8 7>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 11>, <&pdma 12>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
+	};
+
+	i2s1: i2s1@100b0000 {
+		compatible = "rockchip-i2s";
+		reg = <0x100b0000 0x1000>;
+		i2s-id = <1>;
+		clocks = <&clk_i2s1>, <&clk_i2s1_out>, <&clk_gates8 8>;
+		clock-names = "i2s_clk", "i2s_mclk", "i2s_hclk";
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 14>, <&pdma 15>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s2: i2s2@100e0000 {
+		compatible = "rockchip-i2s";
+		reg = <0x100e0000 0x1000>;
+		i2s-id = <2>;
+		clocks = <&clk_i2s2>, <&clk_gates8 9>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 0>, <&pdma 1>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	spdif: spdif@100d0000 {
+		compatible = "rockchip-spdif";
+		reg = <0x100d0000 0x1000>;
+		clocks = <&clk_spdif>, <&clk_gates8 10>;
+		clock-names = "spdif_mclk", "spdif_hclk";
+		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&pdma 10>;
+		#dma-cells = <1>;
+		dma-names = "tx";
+		status = "disabled";
+	};
 };
