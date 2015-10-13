@@ -1506,7 +1506,7 @@ xfs_filemap_page_mkwrite(
 		ret = __dax_mkwrite(vma, vmf, xfs_get_blocks_direct,
 				    xfs_end_io_dax_write);
 	} else {
-		ret = __block_page_mkwrite(vma, vmf, xfs_get_blocks);
+		ret = block_page_mkwrite(vma, vmf, xfs_get_blocks);
 		ret = block_page_mkwrite_return(ret);
 	}
 
