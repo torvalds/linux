@@ -109,7 +109,7 @@ struct scan_attr {
 
 struct connect_attr {
 	u8 *bssid;
-	u8 *pu8ssid;
+	u8 *ssid;
 	size_t ssidLen;
 	u8 *pu8IEs;
 	size_t IEsLen;
@@ -1037,9 +1037,9 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	}
 
 	hif_drv->strWILC_UsrConnReq.ssidLen = pstrHostIFconnectAttr->ssidLen;
-	if (pstrHostIFconnectAttr->pu8ssid != NULL) {
+	if (pstrHostIFconnectAttr->ssid != NULL) {
 		hif_drv->strWILC_UsrConnReq.pu8ssid = kmalloc(pstrHostIFconnectAttr->ssidLen + 1, GFP_KERNEL);
-		memcpy(hif_drv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->pu8ssid,
+		memcpy(hif_drv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->ssid,
 			    pstrHostIFconnectAttr->ssidLen);
 		hif_drv->strWILC_UsrConnReq.pu8ssid[pstrHostIFconnectAttr->ssidLen] = '\0';
 	}
@@ -1081,7 +1081,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		strWIDList[u32WidsCount].size = hif_drv->strWILC_UsrConnReq.ConnReqIEsLen;
 		u32WidsCount++;
 
-		if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+		if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 
 			gu32FlushedInfoElemAsocSize = hif_drv->strWILC_UsrConnReq.ConnReqIEsLen;
 			gu8FlushedInfoElemAsoc =  kmalloc(gu32FlushedInfoElemAsocSize, GFP_KERNEL);
@@ -1095,7 +1095,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].val = (s8 *)(&(hif_drv->strWILC_UsrConnReq.u8security));
 	u32WidsCount++;
 
-	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7))
 		gu8Flushed11iMode = hif_drv->strWILC_UsrConnReq.u8security;
 
 	PRINT_INFO(HOSTINF_DBG, "Encrypt Mode = %x\n", hif_drv->strWILC_UsrConnReq.u8security);
@@ -1107,7 +1107,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].val = (s8 *)(&hif_drv->strWILC_UsrConnReq.tenuAuth_type);
 	u32WidsCount++;
 
-	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7))
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7))
 		gu8FlushedAuthType = (u8)hif_drv->strWILC_UsrConnReq.tenuAuth_type;
 
 	PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n", hif_drv->strWILC_UsrConnReq.tenuAuth_type);
@@ -1119,7 +1119,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].size = 112;
 	strWIDList[u32WidsCount].val = kmalloc(strWIDList[u32WidsCount].size, GFP_KERNEL);
 
-	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		gu32FlushedJoinReqSize = strWIDList[u32WidsCount].size;
 		gu8FlushedJoinReq = kmalloc(gu32FlushedJoinReqSize, GFP_KERNEL);
 	}
@@ -1131,8 +1131,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	pu8CurrByte = strWIDList[u32WidsCount].val;
 
 
-	if (pstrHostIFconnectAttr->pu8ssid != NULL) {
-		memcpy(pu8CurrByte, pstrHostIFconnectAttr->pu8ssid, pstrHostIFconnectAttr->ssidLen);
+	if (pstrHostIFconnectAttr->ssid != NULL) {
+		memcpy(pu8CurrByte, pstrHostIFconnectAttr->ssid, pstrHostIFconnectAttr->ssidLen);
 		pu8CurrByte[pstrHostIFconnectAttr->ssidLen] = '\0';
 	}
 	pu8CurrByte += MAX_SSID_LEN;
@@ -1223,7 +1223,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	u32WidsCount++;
 	gu32WidConnRstHack = 0;
 
-	if (memcmp("DIRECT-", pstrHostIFconnectAttr->pu8ssid, 7)) {
+	if (memcmp("DIRECT-", pstrHostIFconnectAttr->ssid, 7)) {
 		memcpy(gu8FlushedJoinReq, pu8CurrByte, gu32FlushedJoinReqSize);
 		gu8FlushedJoinReqDrvHandler = hif_drv;
 	}
@@ -1292,9 +1292,9 @@ ERRORHANDLER:
 		pstrHostIFconnectAttr->bssid = NULL;
 	}
 
-	if (pstrHostIFconnectAttr->pu8ssid != NULL) {
-		kfree(pstrHostIFconnectAttr->pu8ssid);
-		pstrHostIFconnectAttr->pu8ssid = NULL;
+	if (pstrHostIFconnectAttr->ssid != NULL) {
+		kfree(pstrHostIFconnectAttr->ssid);
+		pstrHostIFconnectAttr->ssid = NULL;
 	}
 
 	if (pstrHostIFconnectAttr->pu8IEs != NULL) {
@@ -3626,10 +3626,8 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 
 	if (pu8ssid != NULL) {
 		msg.body.con_info.ssidLen = ssidLen;
-		msg.body.con_info.pu8ssid = kmalloc(ssidLen, GFP_KERNEL);
-		memcpy(msg.body.con_info.pu8ssid,
-
-			    pu8ssid, ssidLen);
+		msg.body.con_info.ssid = kmalloc(ssidLen, GFP_KERNEL);
+		memcpy(msg.body.con_info.ssid, pu8ssid, ssidLen);
 	}
 
 	if (pu8IEs != NULL) {
