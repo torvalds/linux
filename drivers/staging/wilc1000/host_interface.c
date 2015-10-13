@@ -114,7 +114,7 @@ struct connect_attr {
 	u8 *ies;
 	size_t ies_len;
 	u8 security;
-	wilc_connect_result pfConnectResult;
+	wilc_connect_result result;
 	void *pvUserArg;
 	enum AUTHTYPE tenuAuth_type;
 	u8 u8channel;
@@ -1053,7 +1053,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	hif_drv->strWILC_UsrConnReq.u8security = pstrHostIFconnectAttr->security;
 	hif_drv->strWILC_UsrConnReq.tenuAuth_type = pstrHostIFconnectAttr->tenuAuth_type;
-	hif_drv->strWILC_UsrConnReq.pfUserConnectResult = pstrHostIFconnectAttr->pfConnectResult;
+	hif_drv->strWILC_UsrConnReq.pfUserConnectResult = pstrHostIFconnectAttr->result;
 	hif_drv->strWILC_UsrConnReq.u32UserConnectPvoid = pstrHostIFconnectAttr->pvUserArg;
 
 	strWIDList[u32WidsCount].id = WID_SUCCESS_FRAME_COUNT;
@@ -1258,7 +1258,7 @@ ERRORHANDLER:
 
 		memset(&strConnectInfo, 0, sizeof(tstrConnectInfo));
 
-		if (pstrHostIFconnectAttr->pfConnectResult != NULL) {
+		if (pstrHostIFconnectAttr->result != NULL) {
 			if (pstrHostIFconnectAttr->bssid != NULL)
 				memcpy(strConnectInfo.au8bssid, pstrHostIFconnectAttr->bssid, 6);
 
@@ -1270,7 +1270,7 @@ ERRORHANDLER:
 					    pstrHostIFconnectAttr->ies_len);
 			}
 
-			pstrHostIFconnectAttr->pfConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
+			pstrHostIFconnectAttr->result(CONN_DISCONN_EVENT_CONN_RESP,
 							       &strConnectInfo,
 							       MAC_DISCONNECTED,
 							       NULL,
@@ -3614,7 +3614,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	msg.body.con_info.security = u8security;
 	msg.body.con_info.tenuAuth_type = tenuAuth_type;
 	msg.body.con_info.u8channel = u8channel;
-	msg.body.con_info.pfConnectResult = pfConnectResult;
+	msg.body.con_info.result = pfConnectResult;
 	msg.body.con_info.pvUserArg = pvUserArg;
 	msg.body.con_info.pJoinParams = pJoinParams;
 	msg.drv = hif_drv ;
