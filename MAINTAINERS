@@ -5575,6 +5575,22 @@ F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	Documentation/misc-devices/mei/*
 
+INTEL MIC DRIVERS (mic)
+M:	Sudeep Dutt <sudeep.dutt@intel.com>
+M:	Ashutosh Dixit <ashutosh.dixit@intel.com>
+S:	Supported
+W:	https://github.com/sudeepdutt/mic
+W:	http://software.intel.com/en-us/mic-developer
+F:	include/linux/mic_bus.h
+F:	include/linux/scif.h
+F:	include/uapi/linux/mic_common.h
+F: 	include/uapi/linux/mic_ioctl.h
+F	include/uapi/linux/scif_ioctl.h
+F:	drivers/misc/mic/
+F:	drivers/dma/mic_x100_dma.c
+F:	drivers/dma/mic_x100_dma.h
+F	Documentation/mic/
+
 INTEL PMC IPC DRIVER
 M:	Zha Qipeng<qipeng.zha@intel.com>
 L:	platform-driver-x86@vger.kernel.org
