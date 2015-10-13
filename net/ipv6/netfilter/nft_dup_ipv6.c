@@ -28,7 +28,7 @@ static void nft_dup_ipv6_eval(const struct nft_expr *expr,
 	struct in6_addr *gw = (struct in6_addr *)&regs->data[priv->sreg_addr];
 	int oif = regs->data[priv->sreg_dev];
 
-	nf_dup_ipv6(pkt->skb, pkt->ops->hooknum, gw, oif);
+	nf_dup_ipv6(pkt->net, pkt->skb, pkt->hook, gw, oif);
 }
 
 static int nft_dup_ipv6_init(const struct nft_ctx *ctx,

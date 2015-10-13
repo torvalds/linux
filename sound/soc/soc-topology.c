@@ -45,12 +45,12 @@
 #define SOC_TPLG_PASS_VENDOR		1
 #define SOC_TPLG_PASS_MIXER		2
 #define SOC_TPLG_PASS_WIDGET		3
-#define SOC_TPLG_PASS_GRAPH		4
-#define SOC_TPLG_PASS_PINS		5
-#define SOC_TPLG_PASS_PCM_DAI		6
+#define SOC_TPLG_PASS_PCM_DAI		4
+#define SOC_TPLG_PASS_GRAPH		5
+#define SOC_TPLG_PASS_PINS		6
 
 #define SOC_TPLG_PASS_START	SOC_TPLG_PASS_MANIFEST
-#define SOC_TPLG_PASS_END	SOC_TPLG_PASS_PCM_DAI
+#define SOC_TPLG_PASS_END	SOC_TPLG_PASS_PINS
 
 struct soc_tplg {
 	const struct firmware *fw;
@@ -66,9 +66,13 @@ struct soc_tplg {
 	u32 index;	/* current block index */
 	u32 req_index;	/* required index, only loaded/free matching blocks */
 
-	/* kcontrol operations */
+	/* vendor specific kcontrol operations */
 	const struct snd_soc_tplg_kcontrol_ops *io_ops;
 	int io_ops_count;
+
+	/* vendor specific bytes ext handlers, for TLV bytes controls */
+	const struct snd_soc_tplg_bytes_ext_ops *bytes_ext_ops;
+	int bytes_ext_ops_count;
 
 	/* optional fw loading callbacks to component drivers */
 	struct snd_soc_tplg_ops *ops;
@@ -508,38 +512,74 @@ static void remove_pcm_dai(struct snd_soc_component *comp,
 /* bind a kcontrol to it's IO handlers */
 static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	struct snd_kcontrol_new *k,
-	const struct snd_soc_tplg_kcontrol_ops *ops, int num_ops,
-	const struct snd_soc_tplg_kcontrol_ops *bops, int num_bops)
+	const struct soc_tplg *tplg)
 {
-	int i;
+	const struct snd_soc_tplg_kcontrol_ops *ops;
+	const struct snd_soc_tplg_bytes_ext_ops *ext_ops;
+	int num_ops, i;
 
-	/* try and map standard kcontrols handler first */
+	if (hdr->ops.info == SND_SOC_TPLG_CTL_BYTES
+		&& k->iface & SNDRV_CTL_ELEM_IFACE_MIXER
+		&& k->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE
+		&& k->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		struct soc_bytes_ext *sbe;
+		struct snd_soc_tplg_bytes_control *be;
+
+		sbe = (struct soc_bytes_ext *)k->private_value;
+		be = container_of(hdr, struct snd_soc_tplg_bytes_control, hdr);
+
+		/* TLV bytes controls need standard kcontrol info handler,
+		 * TLV callback and extended put/get handlers.
+		 */
+		k->info = snd_soc_bytes_info;
+		k->tlv.c = snd_soc_bytes_tlv_callback;
+
+		ext_ops = tplg->bytes_ext_ops;
+		num_ops = tplg->bytes_ext_ops_count;
+		for (i = 0; i < num_ops; i++) {
+			if (!sbe->put && ext_ops[i].id == be->ext_ops.put)
+				sbe->put = ext_ops[i].put;
+			if (!sbe->get && ext_ops[i].id == be->ext_ops.get)
+				sbe->get = ext_ops[i].get;
+		}
+
+		if (sbe->put && sbe->get)
+			return 0;
+		else
+			return -EINVAL;
+	}
+
+	/* try and map vendor specific kcontrol handlers first */
+	ops = tplg->io_ops;
+	num_ops = tplg->io_ops_count;
 	for (i = 0; i < num_ops; i++) {
 
-		if (ops[i].id == hdr->ops.put)
+		if (k->put == NULL && ops[i].id == hdr->ops.put)
 			k->put = ops[i].put;
-		if (ops[i].id == hdr->ops.get)
+		if (k->get == NULL && ops[i].id == hdr->ops.get)
 			k->get = ops[i].get;
-		if (ops[i].id == hdr->ops.info)
+		if (k->info == NULL && ops[i].id == hdr->ops.info)
+			k->info = ops[i].info;
+	}
+
+	/* vendor specific handlers found ? */
+	if (k->put && k->get && k->info)
+		return 0;
+
+	/* none found so try standard kcontrol handlers */
+	ops = io_ops;
+	num_ops = ARRAY_SIZE(io_ops);
+	for (i = 0; i < num_ops; i++) {
+
+		if (k->put == NULL && ops[i].id == hdr->ops.put)
+			k->put = ops[i].put;
+		if (k->get == NULL && ops[i].id == hdr->ops.get)
+			k->get = ops[i].get;
+		if (k->info == NULL && ops[i].id == hdr->ops.info)
 			k->info = ops[i].info;
 	}
 
 	/* standard handlers found ? */
-	if (k->put && k->get && k->info)
-		return 0;
-
-	/* none found so try bespoke handlers */
-	for (i = 0; i < num_bops; i++) {
-
-		if (k->put == NULL && bops[i].id == hdr->ops.put)
-			k->put = bops[i].put;
-		if (k->get == NULL && bops[i].id == hdr->ops.get)
-			k->get = bops[i].get;
-		if (k->info == NULL && bops[i].id == hdr->ops.info)
-			k->info = bops[i].info;
-	}
-
-	/* bespoke handlers found ? */
 	if (k->put && k->get && k->info)
 		return 0;
 
@@ -609,9 +649,7 @@ static int soc_tplg_create_tlv(struct soc_tplg *tplg,
 	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE))
 		return 0;
 
-	if (tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
-		kc->tlv.c = snd_soc_bytes_tlv_callback;
-	} else {
+	if (!(tc->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK)) {
 		tplg_tlv = &tc->tlv;
 		switch (tplg_tlv->type) {
 		case SNDRV_CTL_TLVT_DB_SCALE:
@@ -682,8 +720,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 		INIT_LIST_HEAD(&sbe->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
 			kfree(sbe);
@@ -777,8 +814,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		INIT_LIST_HEAD(&sm->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
 			kfree(sm);
@@ -855,12 +891,12 @@ static int soc_tplg_denum_create_values(struct soc_enum *se,
 	if (ec->items > sizeof(*ec->values))
 		return -EINVAL;
 
-	se->dobj.control.dvalues =
-		kmalloc(ec->items * sizeof(u32), GFP_KERNEL);
+	se->dobj.control.dvalues = kmemdup(ec->values,
+					   ec->items * sizeof(u32),
+					   GFP_KERNEL);
 	if (!se->dobj.control.dvalues)
 		return -ENOMEM;
 
-	memcpy(se->dobj.control.dvalues, ec->values, ec->items * sizeof(u32));
 	return 0;
 }
 
@@ -950,8 +986,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		}
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &ec->hdr, ec->hdr.name);
 			kfree(se);
@@ -1093,7 +1128,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 	struct snd_soc_tplg_mixer_control *mc;
 	int i, err;
 
-	kc = kzalloc(sizeof(*kc) * num_kcontrols, GFP_KERNEL);
+	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (kc == NULL)
 		return NULL;
 
@@ -1137,8 +1172,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		INIT_LIST_HEAD(&sm->dobj.list);
 
 		/* map io handlers */
-		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], io_ops,
-			ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
 			kfree(sm);
@@ -1235,8 +1269,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 	}
 
 	/* map io handlers */
-	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, io_ops,
-		ARRAY_SIZE(io_ops), tplg->io_ops, tplg->io_ops_count);
+	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, tplg);
 	if (err) {
 		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
 		goto err_se;
@@ -1274,7 +1307,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 	struct snd_kcontrol_new *kc;
 	int i, err;
 
-	kc = kzalloc(sizeof(*kc) * count, GFP_KERNEL);
+	kc = kcalloc(count, sizeof(*kc), GFP_KERNEL);
 	if (!kc)
 		return NULL;
 
@@ -1297,7 +1330,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 			"ASoC: adding bytes kcontrol %s with access 0x%x\n",
 			be->hdr.name, be->hdr.access);
 
-		memset(kc, 0, sizeof(*kc));
 		kc[i].name = be->hdr.name;
 		kc[i].private_value = (long)sbe;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -1307,9 +1339,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 		INIT_LIST_HEAD(&sbe->dobj.list);
 
 		/* map standard io handlers and check for external handlers */
-		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], io_ops,
-				ARRAY_SIZE(io_ops), tplg->io_ops,
-				tplg->io_ops_count);
+		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
 			kfree(sbe);
@@ -1737,6 +1767,8 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	tplg.req_index = id;
 	tplg.io_ops = ops->io_ops;
 	tplg.io_ops_count = ops->io_ops_count;
+	tplg.bytes_ext_ops = ops->bytes_ext_ops;
+	tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
 
 	return soc_tplg_load(&tplg);
 }
@@ -1758,7 +1790,6 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 	u32 index)
 {
 	struct snd_soc_dapm_widget *w, *next_w;
-	struct snd_soc_dapm_path *p, *next_p;
 
 	list_for_each_entry_safe(w, next_w, &dapm->card->widgets, list) {
 
@@ -1770,31 +1801,9 @@ void snd_soc_tplg_widget_remove_all(struct snd_soc_dapm_context *dapm,
 		if (w->dobj.index != index &&
 			w->dobj.index != SND_SOC_TPLG_INDEX_ALL)
 			continue;
-
-		list_del(&w->list);
-
-		/*
-		 * remove source and sink paths associated to this widget.
-		 * While removing the path, remove reference to it from both
-		 * source and sink widgets so that path is removed only once.
-		 */
-		list_for_each_entry_safe(p, next_p, &w->sources, list_sink) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p);
-		}
-		list_for_each_entry_safe(p, next_p, &w->sinks, list_source) {
-			list_del(&p->list_sink);
-			list_del(&p->list_source);
-			list_del(&p->list);
-			kfree(p);
-		}
 		/* check and free and dynamic widget kcontrols */
 		snd_soc_tplg_widget_remove(w);
-		kfree(w->kcontrols);
-		kfree(w->name);
-		kfree(w);
+		snd_soc_dapm_free_widget(w);
 	}
 }
 EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_remove_all);

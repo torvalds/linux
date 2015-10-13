@@ -20,8 +20,6 @@
 #define _RTL819XU_HTTYPE_H_
 
 #define MIMO_PS_STATIC				0
-#define MIMO_PS_DYNAMIC			1
-#define MIMO_PS_NOLIMIT			3
 
 #define sHTCLng	4
 

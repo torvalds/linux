@@ -918,17 +918,18 @@ gm204_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
-gm204_grctx_generate_tpcid(struct gf100_gr_priv *priv)
+void
+gm204_grctx_generate_tpcid(struct gf100_gr *gr)
 {
+	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, id;
 
 	for (tpc = 0, id = 0; tpc < 4; tpc++) {
-		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-			if (tpc < priv->tpc_nr[gpc]) {
-				nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x698), id);
-				nv_wr32(priv, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
-				nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x088), id);
+		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+			if (tpc < gr->tpc_nr[gpc]) {
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
+				nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), id);
+				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), id);
 				id++;
 			}
 		}
@@ -936,101 +937,95 @@ gm204_grctx_generate_tpcid(struct gf100_gr_priv *priv)
 }
 
 static void
-gm204_grctx_generate_rop_active_fbps(struct gf100_gr_priv *priv)
+gm204_grctx_generate_rop_active_fbps(struct gf100_gr *gr)
 {
-	const u32 fbp_count = nv_rd32(priv, 0x12006c);
-	nv_mask(priv, 0x408850, 0x0000000f, fbp_count); /* zrop */
-	nv_mask(priv, 0x408958, 0x0000000f, fbp_count); /* crop */
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 fbp_count = nvkm_rd32(device, 0x12006c);
+	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
+	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-static void
-gm204_grctx_generate_405b60(struct gf100_gr_priv *priv)
+void
+gm204_grctx_generate_405b60(struct gf100_gr *gr)
 {
-	const u32 dist_nr = DIV_ROUND_UP(priv->tpc_total, 4);
-	u32 dist[TPC_MAX] = {};
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 dist_nr = DIV_ROUND_UP(gr->tpc_total, 4);
+	u32 dist[TPC_MAX / 4] = {};
 	u32 gpcs[GPC_MAX] = {};
 	u8  tpcnr[GPC_MAX];
 	int tpc, gpc, i;
 
-	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
+	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
 
 	/* won't result in the same distribution as the binary driver where
 	 * some of the gpcs have more tpcs than others, but this shall do
 	 * for the moment.  the code for earlier gpus has this issue too.
 	 */
-	for (gpc = -1, i = 0; i < priv->tpc_total; i++) {
+	for (gpc = -1, i = 0; i < gr->tpc_total; i++) {
 		do {
-			gpc = (gpc + 1) % priv->gpc_nr;
+			gpc = (gpc + 1) % gr->gpc_nr;
 		} while(!tpcnr[gpc]);
-		tpc = priv->tpc_nr[gpc] - tpcnr[gpc]--;
+		tpc = gr->tpc_nr[gpc] - tpcnr[gpc]--;
 
 		dist[i / 4] |= ((gpc << 4) | tpc) << ((i % 4) * 8);
 		gpcs[gpc] |= i << (tpc * 8);
 	}
 
 	for (i = 0; i < dist_nr; i++)
-		nv_wr32(priv, 0x405b60 + (i * 4), dist[i]);
-	for (i = 0; i < priv->gpc_nr; i++)
-		nv_wr32(priv, 0x405ba0 + (i * 4), gpcs[i]);
+		nvkm_wr32(device, 0x405b60 + (i * 4), dist[i]);
+	for (i = 0; i < gr->gpc_nr; i++)
+		nvkm_wr32(device, 0x405ba0 + (i * 4), gpcs[i]);
 }
 
 void
-gm204_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
+gm204_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
-	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 tmp;
 	int i;
 
-	gf100_gr_mmio(priv, oclass->hub);
-	gf100_gr_mmio(priv, oclass->gpc);
-	gf100_gr_mmio(priv, oclass->zcull);
-	gf100_gr_mmio(priv, oclass->tpc);
-	gf100_gr_mmio(priv, oclass->ppc);
+	gf100_gr_mmio(gr, grctx->hub);
+	gf100_gr_mmio(gr, grctx->gpc);
+	gf100_gr_mmio(gr, grctx->zcull);
+	gf100_gr_mmio(gr, grctx->tpc);
+	gf100_gr_mmio(gr, grctx->ppc);
 
-	nv_wr32(priv, 0x404154, 0x00000000);
+	nvkm_wr32(device, 0x404154, 0x00000000);
 
-	oclass->bundle(info);
-	oclass->pagepool(info);
-	oclass->attrib(info);
-	oclass->unkn(priv);
+	grctx->bundle(info);
+	grctx->pagepool(info);
+	grctx->attrib(info);
+	grctx->unkn(gr);
 
-	gm204_grctx_generate_tpcid(priv);
-	gf100_grctx_generate_r406028(priv);
-	gk104_grctx_generate_r418bb8(priv);
+	gm204_grctx_generate_tpcid(gr);
+	gf100_grctx_generate_r406028(gr);
+	gk104_grctx_generate_r418bb8(gr);
 
 	for (i = 0; i < 8; i++)
-		nv_wr32(priv, 0x4064d0 + (i * 0x04), 0x00000000);
-	nv_wr32(priv, 0x406500, 0x00000000);
+		nvkm_wr32(device, 0x4064d0 + (i * 0x04), 0x00000000);
+	nvkm_wr32(device, 0x406500, 0x00000000);
 
-	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
+	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
-	gm204_grctx_generate_rop_active_fbps(priv);
+	gm204_grctx_generate_rop_active_fbps(gr);
 
-	for (tmp = 0, i = 0; i < priv->gpc_nr; i++)
-		tmp |= ((1 << priv->tpc_nr[i]) - 1) << (i * 4);
-	nv_wr32(priv, 0x4041c4, tmp);
+	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
+		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * 4);
+	nvkm_wr32(device, 0x4041c4, tmp);
 
-	gm204_grctx_generate_405b60(priv);
+	gm204_grctx_generate_405b60(gr);
 
-	gf100_gr_icmd(priv, oclass->icmd);
-	nv_wr32(priv, 0x404154, 0x00000800);
-	gf100_gr_mthd(priv, oclass->mthd);
+	gf100_gr_icmd(gr, grctx->icmd);
+	nvkm_wr32(device, 0x404154, 0x00000800);
+	gf100_gr_mthd(gr, grctx->mthd);
 
-	nv_mask(priv, 0x418e94, 0xffffffff, 0xc4230000);
-	nv_mask(priv, 0x418e4c, 0xffffffff, 0x70000000);
+	nvkm_mask(device, 0x418e94, 0xffffffff, 0xc4230000);
+	nvkm_mask(device, 0x418e4c, 0xffffffff, 0x70000000);
 }
 
-struct nvkm_oclass *
-gm204_grctx_oclass = &(struct gf100_grctx_oclass) {
-	.base.handle = NV_ENGCTX(GR, 0x24),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_context_ctor,
-		.dtor = gf100_gr_context_dtor,
-		.init = _nvkm_gr_context_init,
-		.fini = _nvkm_gr_context_fini,
-		.rd32 = _nvkm_gr_context_rd32,
-		.wr32 = _nvkm_gr_context_wr32,
-	},
+const struct gf100_grctx_func
+gm204_grctx = {
 	.main  = gm204_grctx_generate_main,
 	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gm204_grctx_pack_hub,
@@ -1051,4 +1046,4 @@ gm204_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.attrib_nr = 0x400,
 	.alpha_nr_max = 0x1800,
 	.alpha_nr = 0x1000,
-}.base;
+};

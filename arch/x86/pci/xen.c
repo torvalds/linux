@@ -179,7 +179,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (ret)
 		goto error;
 	i = 0;
-	list_for_each_entry(msidesc, &dev->msi_list, list) {
+	for_each_pci_msi_entry(msidesc, dev) {
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i],
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
@@ -230,7 +230,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	list_for_each_entry(msidesc, &dev->msi_list, list) {
+	for_each_pci_msi_entry(msidesc, dev) {
 		__pci_read_msi_msg(msidesc, &msg);
 		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
 			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
@@ -274,7 +274,7 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret = 0;
 	struct msi_desc *msidesc;
 
-	list_for_each_entry(msidesc, &dev->msi_list, list) {
+	for_each_pci_msi_entry(msidesc, dev) {
 		struct physdev_map_pirq map_irq;
 		domid_t domid;
 
@@ -386,7 +386,7 @@ static void xen_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *msidesc;
 
-	msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
+	msidesc = first_pci_msi_entry(dev);
 	if (msidesc->msi_attrib.is_msix)
 		xen_pci_frontend_disable_msix(dev);
 	else

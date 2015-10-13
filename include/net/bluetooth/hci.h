@@ -44,6 +44,8 @@
 #define HCI_DEV_DOWN			4
 #define HCI_DEV_SUSPEND			5
 #define HCI_DEV_RESUME			6
+#define HCI_DEV_OPEN			7
+#define HCI_DEV_CLOSE			8
 
 /* HCI notify events */
 #define HCI_NOTIFY_CONN_ADD		1
@@ -238,6 +240,7 @@ enum {
 	HCI_LE_SCAN_INTERRUPTED,
 
 	HCI_DUT_MODE,
+	HCI_VENDOR_DIAG,
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
 
@@ -260,6 +263,7 @@ enum {
 #define HCI_ACLDATA_PKT		0x02
 #define HCI_SCODATA_PKT		0x03
 #define HCI_EVENT_PKT		0x04
+#define HCI_DIAG_PKT		0xf0
 #define HCI_VENDOR_PKT		0xff
 
 /* HCI packet types */

@@ -2147,6 +2147,8 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
 
 static int job_control(struct tty_struct *tty, struct file *file)
 {
+	struct pid *pgrp;
+
 	/* Job control check -- must be done at start and after
 	   every sleep (POSIX.1 7.1.1.4). */
 	/* NOTE: not yet done after every sleep pending a thorough
@@ -2156,18 +2158,25 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	    current->signal->tty != tty)
 		return 0;
 
+	rcu_read_lock();
+	pgrp = task_pgrp(current);
+
 	spin_lock_irq(&tty->ctrl_lock);
 	if (!tty->pgrp)
 		printk(KERN_ERR "n_tty_read: no tty->pgrp!\n");
-	else if (task_pgrp(current) != tty->pgrp) {
+	else if (pgrp != tty->pgrp) {
 		spin_unlock_irq(&tty->ctrl_lock);
-		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned())
+		if (is_ignored(SIGTTIN) || is_current_pgrp_orphaned()) {
+			rcu_read_unlock();
 			return -EIO;
-		kill_pgrp(task_pgrp(current), SIGTTIN, 1);
+		}
+		kill_pgrp(pgrp, SIGTTIN, 1);
+		rcu_read_unlock();
 		set_thread_flag(TIF_SIGPENDING);
 		return -ERESTARTSYS;
 	}
 	spin_unlock_irq(&tty->ctrl_lock);
+	rcu_read_unlock();
 	return 0;
 }
 

@@ -8,7 +8,6 @@
  * Licensed under GPLv2 or later.
  */
 
-#include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
@@ -38,7 +37,7 @@ static void __init at91rm9200_dt_device_init(void)
 	at91rm9200_pm_init();
 }
 
-static const char *at91rm9200_dt_board_compat[] __initconst = {
+static const char *const at91rm9200_dt_board_compat[] __initconst = {
 	"atmel,at91rm9200",
 	NULL
 };

@@ -1198,6 +1198,9 @@ static inline int _loop(unsigned dry_run, u8 buf[],
 	unsigned lcnt0, lcnt1, ljmp0, ljmp1;
 	struct _arg_LPEND lpend;
 
+	if (*bursts == 1)
+		return _bursts(dry_run, buf, pxs, 1);
+
 	/* Max iterations possible in DMALP is 256 */
 	if (*bursts >= 256*256) {
 		lcnt1 = 256;

@@ -183,7 +183,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nvif_object_init(chan->object, NULL, 0x502d, 0x502d, NULL, 0,
+	ret = nvif_object_init(&chan->user, 0x502d, 0x502d, NULL, 0,
 			       &nfbdev->twod);
 	if (ret)
 		return ret;

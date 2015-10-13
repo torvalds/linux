@@ -2523,8 +2523,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
  * counted. return -ENOENT if the block is root of reloc tree.
  */
 static noinline_for_stack
-struct btrfs_root *select_one_root(struct btrfs_trans_handle *trans,
-				   struct backref_node *node)
+struct btrfs_root *select_one_root(struct backref_node *node)
 {
 	struct backref_node *next;
 	struct btrfs_root *root;
@@ -2912,7 +2911,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 		return 0;
 
 	BUG_ON(node->processed);
-	root = select_one_root(trans, node);
+	root = select_one_root(node);
 	if (root == ERR_PTR(-ENOENT)) {
 		update_processed_blocks(rc, node);
 		goto out;
@@ -3755,8 +3754,7 @@ out:
  * helper to find next unprocessed extent
  */
 static noinline_for_stack
-int find_next_extent(struct btrfs_trans_handle *trans,
-		     struct reloc_control *rc, struct btrfs_path *path,
+int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 		     struct btrfs_key *extent_key)
 {
 	struct btrfs_key key;
@@ -3951,7 +3949,7 @@ restart:
 			continue;
 		}
 
-		ret = find_next_extent(trans, rc, path, &key);
+		ret = find_next_extent(rc, path, &key);
 		if (ret < 0)
 			err = ret;
 		if (ret != 0)
@@ -3976,6 +3974,10 @@ restart:
 			       sizeof(struct btrfs_extent_item_v0));
 			ret = get_ref_objectid_v0(rc, path, &key, &ref_owner,
 						  &path_change);
+			if (ret < 0) {
+				err = ret;
+				break;
+			}
 			if (ref_owner < BTRFS_FIRST_FREE_OBJECTID)
 				flags = BTRFS_EXTENT_FLAG_TREE_BLOCK;
 			else
@@ -4140,7 +4142,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	u64 objectid = BTRFS_FIRST_FREE_OBJECTID;
+	u64 objectid;
 	int err = 0;
 
 	root = read_fs_root(fs_info, BTRFS_DATA_RELOC_TREE_OBJECTID);
@@ -4215,14 +4217,12 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	rc->block_group = btrfs_lookup_block_group(fs_info, group_start);
 	BUG_ON(!rc->block_group);
 
-	if (!rc->block_group->ro) {
-		ret = btrfs_set_block_group_ro(extent_root, rc->block_group);
-		if (ret) {
-			err = ret;
-			goto out;
-		}
-		rw = 1;
+	ret = btrfs_inc_block_group_ro(extent_root, rc->block_group);
+	if (ret) {
+		err = ret;
+		goto out;
 	}
+	rw = 1;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -4294,7 +4294,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	WARN_ON(btrfs_block_group_used(&rc->block_group->item) > 0);
 out:
 	if (err && rw)
-		btrfs_set_block_group_rw(extent_root, rc->block_group);
+		btrfs_dec_block_group_ro(extent_root, rc->block_group);
 	iput(rc->data_inode);
 	btrfs_put_block_group(rc->block_group);
 	kfree(rc);
@@ -4594,8 +4594,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
  * called before creating snapshot. it calculates metadata reservation
  * requried for relocating tree blocks in the snapshot
  */
-void btrfs_reloc_pre_snapshot(struct btrfs_trans_handle *trans,
-			      struct btrfs_pending_snapshot *pending,
+void btrfs_reloc_pre_snapshot(struct btrfs_pending_snapshot *pending,
 			      u64 *bytes_to_reserve)
 {
 	struct btrfs_root *root;

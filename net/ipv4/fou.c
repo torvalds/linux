@@ -566,7 +566,7 @@ static int parse_nl_config(struct genl_info *info,
 	if (info->attrs[FOU_ATTR_AF]) {
 		u8 family = nla_get_u8(info->attrs[FOU_ATTR_AF]);
 
-		if (family != AF_INET && family != AF_INET6)
+		if (family != AF_INET)
 			return -EINVAL;
 
 		cfg->udp_config.family = family;

@@ -463,9 +463,9 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	idev = __in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
-		      NULL, dst->dev,
-		      dst_output_sk);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
+		      net, sk, skb, NULL, dst->dev,
+		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
 		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
@@ -474,8 +474,7 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	rcu_read_unlock();
 }
 
-void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
-		   const struct in6_addr *daddr,
+void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 		   const struct in6_addr *solicited_addr,
 		   bool router, bool solicited, bool override, bool inc_opt)
 {
@@ -541,7 +540,7 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
-		ndisc_send_na(dev, NULL, &in6addr_linklocal_allnodes, &ifa->addr,
+		ndisc_send_na(dev, &in6addr_linklocal_allnodes, &ifa->addr,
 			      /*router=*/ !!idev->cnf.forwarding,
 			      /*solicited=*/ false, /*override=*/ true,
 			      /*inc_opt=*/ true);
@@ -551,8 +550,7 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 	in6_dev_put(idev);
 }
 
-void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
-		   const struct in6_addr *solicit,
+void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		   const struct in6_addr *daddr, const struct in6_addr *saddr,
 		   struct sk_buff *oskb)
 {
@@ -679,12 +677,12 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 				  "%s: trying to ucast probe in NUD_INVALID: %pI6\n",
 				  __func__, target);
 		}
-		ndisc_send_ns(dev, neigh, target, target, saddr, skb);
+		ndisc_send_ns(dev, target, target, saddr, skb);
 	} else if ((probes -= NEIGH_VAR(neigh->parms, APP_PROBES)) < 0) {
 		neigh_app_ns(neigh);
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
-		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr, skb);
+		ndisc_send_ns(dev, target, &mcaddr, saddr, skb);
 	}
 }
 
@@ -828,7 +826,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		is_router = idev->cnf.forwarding;
 
 	if (dad) {
-		ndisc_send_na(dev, NULL, &in6addr_linklocal_allnodes, &msg->target,
+		ndisc_send_na(dev, &in6addr_linklocal_allnodes, &msg->target,
 			      !!is_router, false, (ifp != NULL), true);
 		goto out;
 	}
@@ -849,8 +847,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			     NEIGH_UPDATE_F_WEAK_OVERRIDE|
 			     NEIGH_UPDATE_F_OVERRIDE);
 	if (neigh || !dev->header_ops) {
-		ndisc_send_na(dev, neigh, saddr, &msg->target,
-			      !!is_router,
+		ndisc_send_na(dev, saddr, &msg->target, !!is_router,
 			      true, (ifp != NULL && inc), inc);
 		if (neigh)
 			neigh_release(neigh);
@@ -1078,6 +1075,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	struct ndisc_options ndopts;
 	int optlen;
 	unsigned int pref = 0;
+	__u32 old_if_flags;
+	bool send_ifinfo_notify = false;
 
 	__u8 *opt = (__u8 *)(ra_msg + 1);
 
@@ -1148,12 +1147,16 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	 * Remember the managed/otherconf flags from most recently
 	 * received RA message (RFC 2462) -- yoshfuji
 	 */
+	old_if_flags = in6_dev->if_flags;
 	in6_dev->if_flags = (in6_dev->if_flags & ~(IF_RA_MANAGED |
 				IF_RA_OTHERCONF)) |
 				(ra_msg->icmph.icmp6_addrconf_managed ?
 					IF_RA_MANAGED : 0) |
 				(ra_msg->icmph.icmp6_addrconf_other ?
 					IF_RA_OTHERCONF : 0);
+
+	if (old_if_flags != in6_dev->if_flags)
+		send_ifinfo_notify = true;
 
 	if (!in6_dev->cnf.accept_ra_defrtr) {
 		ND_PRINTK(2, info,
@@ -1256,7 +1259,7 @@ skip_defrtr:
 				rtime = HZ/10;
 			NEIGH_VAR_SET(in6_dev->nd_parms, RETRANS_TIME, rtime);
 			in6_dev->tstamp = jiffies;
-			inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
+			send_ifinfo_notify = true;
 		}
 
 		rtime = ntohl(ra_msg->reachable_time);
@@ -1273,10 +1276,16 @@ skip_defrtr:
 					      GC_STALETIME, 3 * rtime);
 				in6_dev->nd_parms->reachable_time = neigh_rand_reach_time(rtime);
 				in6_dev->tstamp = jiffies;
-				inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
+				send_ifinfo_notify = true;
 			}
 		}
 	}
+
+	/*
+	 *	Send a notify if RA changed managed/otherconf flags or timer settings
+	 */
+	if (send_ifinfo_notify)
+		inet6_ifinfo_notify(RTM_NEWLINK, in6_dev);
 
 skip_linkparms:
 

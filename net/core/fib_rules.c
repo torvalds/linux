@@ -44,7 +44,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 }
 EXPORT_SYMBOL(fib_default_rule_add);
 
-u32 fib_default_rule_pref(struct fib_rules_ops *ops)
+static u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 {
 	struct list_head *pos;
 	struct fib_rule *rule;
@@ -60,7 +60,6 @@ u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 
 	return 0;
 }
-EXPORT_SYMBOL(fib_default_rule_pref);
 
 static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
@@ -299,8 +298,8 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh)
 	}
 	rule->fr_net = net;
 
-	if (tb[FRA_PRIORITY])
-		rule->pref = nla_get_u32(tb[FRA_PRIORITY]);
+	rule->pref = tb[FRA_PRIORITY] ? nla_get_u32(tb[FRA_PRIORITY])
+	                              : fib_default_rule_pref(ops);
 
 	if (tb[FRA_IIFNAME]) {
 		struct net_device *dev;
@@ -349,9 +348,6 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh)
 		rule->suppress_ifgroup = nla_get_u32(tb[FRA_SUPPRESS_IFGROUP]);
 	else
 		rule->suppress_ifgroup = -1;
-
-	if (!tb[FRA_PRIORITY] && ops->default_pref)
-		rule->pref = ops->default_pref(ops);
 
 	err = -EINVAL;
 	if (tb[FRA_GOTO]) {
@@ -635,15 +631,17 @@ static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	int idx = 0;
 	struct fib_rule *rule;
+	int err = 0;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
 		if (idx < cb->args[1])
 			goto skip;
 
-		if (fib_nl_fill_rule(skb, rule, NETLINK_CB(cb->skb).portid,
-				     cb->nlh->nlmsg_seq, RTM_NEWRULE,
-				     NLM_F_MULTI, ops) < 0)
+		err = fib_nl_fill_rule(skb, rule, NETLINK_CB(cb->skb).portid,
+				       cb->nlh->nlmsg_seq, RTM_NEWRULE,
+				       NLM_F_MULTI, ops);
+		if (err)
 			break;
 skip:
 		idx++;
@@ -652,7 +650,7 @@ skip:
 	cb->args[1] = idx;
 	rules_ops_put(ops);
 
-	return skb->len;
+	return err;
 }
 
 static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
@@ -668,7 +666,9 @@ static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 		if (ops == NULL)
 			return -EAFNOSUPPORT;
 
-		return dump_rules(skb, cb, ops);
+		dump_rules(skb, cb, ops);
+
+		return skb->len;
 	}
 
 	rcu_read_lock();

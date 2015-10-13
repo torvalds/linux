@@ -70,7 +70,8 @@ static struct hlist_head *rds_conn_bucket(__be32 laddr, __be32 faddr)
 } while (0)
 
 /* rcu read lock must be held or the connection spinlock */
-static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
+static struct rds_connection *rds_conn_lookup(struct net *net,
+					      struct hlist_head *head,
 					      __be32 laddr, __be32 faddr,
 					      struct rds_transport *trans)
 {
@@ -78,7 +79,7 @@ static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
 
 	hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 		if (conn->c_faddr == faddr && conn->c_laddr == laddr &&
-				conn->c_trans == trans) {
+		    conn->c_trans == trans && net == rds_conn_net(conn)) {
 			ret = conn;
 			break;
 		}
@@ -127,12 +128,9 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	struct rds_transport *loop_trans;
 	unsigned long flags;
 	int ret;
-	struct rds_transport *otrans = trans;
 
-	if (!is_outgoing && otrans->t_type == RDS_TRANS_TCP)
-		goto new_conn;
 	rcu_read_lock();
-	conn = rds_conn_lookup(head, laddr, faddr, trans);
+	conn = rds_conn_lookup(net, head, laddr, faddr, trans);
 	if (conn && conn->c_loopback && conn->c_trans != &rds_loop_transport &&
 	    laddr == faddr && !is_outgoing) {
 		/* This is a looped back IB connection, and we're
@@ -146,7 +144,6 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 	if (conn)
 		goto out;
 
-new_conn:
 	conn = kmem_cache_zalloc(rds_conn_slab, gfp);
 	if (!conn) {
 		conn = ERR_PTR(-ENOMEM);
@@ -189,6 +186,12 @@ new_conn:
 		}
 	}
 
+	if (trans == NULL) {
+		kmem_cache_free(rds_conn_slab, conn);
+		conn = ERR_PTR(-ENODEV);
+		goto out;
+	}
+
 	conn->c_trans = trans;
 
 	ret = trans->conn_alloc(conn, gfp);
@@ -200,6 +203,7 @@ new_conn:
 
 	atomic_set(&conn->c_state, RDS_CONN_DOWN);
 	conn->c_send_gen = 0;
+	conn->c_outgoing = (is_outgoing ? 1 : 0);
 	conn->c_reconnect_jiffies = 0;
 	INIT_DELAYED_WORK(&conn->c_send_w, rds_send_worker);
 	INIT_DELAYED_WORK(&conn->c_recv_w, rds_recv_worker);
@@ -236,22 +240,13 @@ new_conn:
 		/* Creating normal conn */
 		struct rds_connection *found;
 
-		if (!is_outgoing && otrans->t_type == RDS_TRANS_TCP)
-			found = NULL;
-		else
-			found = rds_conn_lookup(head, laddr, faddr, trans);
+		found = rds_conn_lookup(net, head, laddr, faddr, trans);
 		if (found) {
 			trans->conn_free(conn->c_transport_data);
 			kmem_cache_free(rds_conn_slab, conn);
 			conn = found;
 		} else {
-			if ((is_outgoing && otrans->t_type == RDS_TRANS_TCP) ||
-			    (otrans->t_type != RDS_TRANS_TCP)) {
-				/* Only the active side should be added to
-				 * reconnect list for TCP.
-				 */
-				hlist_add_head_rcu(&conn->c_hash_node, head);
-			}
+			hlist_add_head_rcu(&conn->c_hash_node, head);
 			rds_cong_add_conn(conn);
 			rds_conn_count++;
 		}
@@ -330,7 +325,9 @@ void rds_conn_shutdown(struct rds_connection *conn)
 	rcu_read_lock();
 	if (!hlist_unhashed(&conn->c_hash_node)) {
 		rcu_read_unlock();
-		rds_queue_reconnect(conn);
+		if (conn->c_trans->t_type != RDS_TRANS_TCP ||
+		    conn->c_outgoing == 1)
+			rds_queue_reconnect(conn);
 	} else {
 		rcu_read_unlock();
 	}

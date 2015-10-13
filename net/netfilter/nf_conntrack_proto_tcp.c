@@ -277,7 +277,7 @@ static inline struct nf_tcp_net *tcp_pernet(struct net *net)
 }
 
 static bool tcp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			     struct nf_conntrack_tuple *tuple)
+			     struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	const struct tcphdr *hp;
 	struct tcphdr _hdr;

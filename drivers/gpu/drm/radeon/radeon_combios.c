@@ -3387,6 +3387,14 @@ void radeon_combios_asic_init(struct drm_device *dev)
 	    rdev->pdev->subsystem_device == 0x30ae)
 		return;
 
+	/* quirk for rs4xx HP Compaq dc5750 Small Form Factor to make it resume
+	 * - it hangs on resume inside the dynclk 1 table.
+	 */
+	if (rdev->family == CHIP_RS480 &&
+	    rdev->pdev->subsystem_vendor == 0x103c &&
+	    rdev->pdev->subsystem_device == 0x280a)
+		return;
+
 	/* DYN CLK 1 */
 	table = combios_get_table_offset(dev, COMBIOS_DYN_CLK_1_TABLE);
 	if (table)

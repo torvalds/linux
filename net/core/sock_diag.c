@@ -1,3 +1,5 @@
+/* License: GPL */
+
 #include <linux/mutex.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
@@ -90,6 +92,9 @@ int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
 		goto out;
 
 	fprog = filter->prog->orig_prog;
+	if (!fprog)
+		goto out;
+
 	flen = bpf_classic_proglen(fprog);
 
 	attr = nla_reserve(skb, attrtype, flen);
@@ -320,14 +325,4 @@ static int __init sock_diag_init(void)
 	BUG_ON(!broadcast_wq);
 	return register_pernet_subsys(&diag_net_ops);
 }
-
-static void __exit sock_diag_exit(void)
-{
-	unregister_pernet_subsys(&diag_net_ops);
-	destroy_workqueue(broadcast_wq);
-}
-
-module_init(sock_diag_init);
-module_exit(sock_diag_exit);
-MODULE_LICENSE("GPL");
-MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_SOCK_DIAG);
+device_initcall(sock_diag_init);

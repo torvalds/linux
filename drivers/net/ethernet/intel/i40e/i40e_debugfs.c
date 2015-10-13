@@ -404,82 +404,82 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	nstat = i40e_get_vsi_stats_struct(vsi);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: rx_packets = %lu, rx_bytes = %lu, rx_errors = %lu, rx_dropped = %lu\n",
-		 (long unsigned int)nstat->rx_packets,
-		 (long unsigned int)nstat->rx_bytes,
-		 (long unsigned int)nstat->rx_errors,
-		 (long unsigned int)nstat->rx_dropped);
+		 (unsigned long int)nstat->rx_packets,
+		 (unsigned long int)nstat->rx_bytes,
+		 (unsigned long int)nstat->rx_errors,
+		 (unsigned long int)nstat->rx_dropped);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: tx_packets = %lu, tx_bytes = %lu, tx_errors = %lu, tx_dropped = %lu\n",
-		 (long unsigned int)nstat->tx_packets,
-		 (long unsigned int)nstat->tx_bytes,
-		 (long unsigned int)nstat->tx_errors,
-		 (long unsigned int)nstat->tx_dropped);
+		 (unsigned long int)nstat->tx_packets,
+		 (unsigned long int)nstat->tx_bytes,
+		 (unsigned long int)nstat->tx_errors,
+		 (unsigned long int)nstat->tx_dropped);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: multicast = %lu, collisions = %lu\n",
-		 (long unsigned int)nstat->multicast,
-		 (long unsigned int)nstat->collisions);
+		 (unsigned long int)nstat->multicast,
+		 (unsigned long int)nstat->collisions);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: rx_length_errors = %lu, rx_over_errors = %lu, rx_crc_errors = %lu\n",
-		 (long unsigned int)nstat->rx_length_errors,
-		 (long unsigned int)nstat->rx_over_errors,
-		 (long unsigned int)nstat->rx_crc_errors);
+		 (unsigned long int)nstat->rx_length_errors,
+		 (unsigned long int)nstat->rx_over_errors,
+		 (unsigned long int)nstat->rx_crc_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: rx_frame_errors = %lu, rx_fifo_errors = %lu, rx_missed_errors = %lu\n",
-		 (long unsigned int)nstat->rx_frame_errors,
-		 (long unsigned int)nstat->rx_fifo_errors,
-		 (long unsigned int)nstat->rx_missed_errors);
+		 (unsigned long int)nstat->rx_frame_errors,
+		 (unsigned long int)nstat->rx_fifo_errors,
+		 (unsigned long int)nstat->rx_missed_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: tx_aborted_errors = %lu, tx_carrier_errors = %lu, tx_fifo_errors = %lu\n",
-		 (long unsigned int)nstat->tx_aborted_errors,
-		 (long unsigned int)nstat->tx_carrier_errors,
-		 (long unsigned int)nstat->tx_fifo_errors);
+		 (unsigned long int)nstat->tx_aborted_errors,
+		 (unsigned long int)nstat->tx_carrier_errors,
+		 (unsigned long int)nstat->tx_fifo_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: tx_heartbeat_errors = %lu, tx_window_errors = %lu\n",
-		 (long unsigned int)nstat->tx_heartbeat_errors,
-		 (long unsigned int)nstat->tx_window_errors);
+		 (unsigned long int)nstat->tx_heartbeat_errors,
+		 (unsigned long int)nstat->tx_window_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats: rx_compressed = %lu, tx_compressed = %lu\n",
-		 (long unsigned int)nstat->rx_compressed,
-		 (long unsigned int)nstat->tx_compressed);
+		 (unsigned long int)nstat->rx_compressed,
+		 (unsigned long int)nstat->tx_compressed);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: rx_packets = %lu, rx_bytes = %lu, rx_errors = %lu, rx_dropped = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.rx_packets,
-		 (long unsigned int)vsi->net_stats_offsets.rx_bytes,
-		 (long unsigned int)vsi->net_stats_offsets.rx_errors,
-		 (long unsigned int)vsi->net_stats_offsets.rx_dropped);
+		 (unsigned long int)vsi->net_stats_offsets.rx_packets,
+		 (unsigned long int)vsi->net_stats_offsets.rx_bytes,
+		 (unsigned long int)vsi->net_stats_offsets.rx_errors,
+		 (unsigned long int)vsi->net_stats_offsets.rx_dropped);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: tx_packets = %lu, tx_bytes = %lu, tx_errors = %lu, tx_dropped = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.tx_packets,
-		 (long unsigned int)vsi->net_stats_offsets.tx_bytes,
-		 (long unsigned int)vsi->net_stats_offsets.tx_errors,
-		 (long unsigned int)vsi->net_stats_offsets.tx_dropped);
+		 (unsigned long int)vsi->net_stats_offsets.tx_packets,
+		 (unsigned long int)vsi->net_stats_offsets.tx_bytes,
+		 (unsigned long int)vsi->net_stats_offsets.tx_errors,
+		 (unsigned long int)vsi->net_stats_offsets.tx_dropped);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: multicast = %lu, collisions = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.multicast,
-		 (long unsigned int)vsi->net_stats_offsets.collisions);
+		 (unsigned long int)vsi->net_stats_offsets.multicast,
+		 (unsigned long int)vsi->net_stats_offsets.collisions);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: rx_length_errors = %lu, rx_over_errors = %lu, rx_crc_errors = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.rx_length_errors,
-		 (long unsigned int)vsi->net_stats_offsets.rx_over_errors,
-		 (long unsigned int)vsi->net_stats_offsets.rx_crc_errors);
+		 (unsigned long int)vsi->net_stats_offsets.rx_length_errors,
+		 (unsigned long int)vsi->net_stats_offsets.rx_over_errors,
+		 (unsigned long int)vsi->net_stats_offsets.rx_crc_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: rx_frame_errors = %lu, rx_fifo_errors = %lu, rx_missed_errors = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.rx_frame_errors,
-		 (long unsigned int)vsi->net_stats_offsets.rx_fifo_errors,
-		 (long unsigned int)vsi->net_stats_offsets.rx_missed_errors);
+		 (unsigned long int)vsi->net_stats_offsets.rx_frame_errors,
+		 (unsigned long int)vsi->net_stats_offsets.rx_fifo_errors,
+		 (unsigned long int)vsi->net_stats_offsets.rx_missed_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: tx_aborted_errors = %lu, tx_carrier_errors = %lu, tx_fifo_errors = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.tx_aborted_errors,
-		 (long unsigned int)vsi->net_stats_offsets.tx_carrier_errors,
-		 (long unsigned int)vsi->net_stats_offsets.tx_fifo_errors);
+		 (unsigned long int)vsi->net_stats_offsets.tx_aborted_errors,
+		 (unsigned long int)vsi->net_stats_offsets.tx_carrier_errors,
+		 (unsigned long int)vsi->net_stats_offsets.tx_fifo_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: tx_heartbeat_errors = %lu, tx_window_errors = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.tx_heartbeat_errors,
-		 (long unsigned int)vsi->net_stats_offsets.tx_window_errors);
+		 (unsigned long int)vsi->net_stats_offsets.tx_heartbeat_errors,
+		 (unsigned long int)vsi->net_stats_offsets.tx_window_errors);
 	dev_info(&pf->pdev->dev,
 		 "    net_stats_offsets: rx_compressed = %lu, tx_compressed = %lu\n",
-		 (long unsigned int)vsi->net_stats_offsets.rx_compressed,
-		 (long unsigned int)vsi->net_stats_offsets.tx_compressed);
+		 (unsigned long int)vsi->net_stats_offsets.rx_compressed,
+		 (unsigned long int)vsi->net_stats_offsets.tx_compressed);
 	dev_info(&pf->pdev->dev,
 		 "    tx_restart = %d, tx_busy = %d, rx_buf_failed = %d, rx_page_failed = %d\n",
 		 vsi->tx_restart, vsi->tx_busy,
@@ -487,6 +487,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	rcu_read_lock();
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		struct i40e_ring *rx_ring = ACCESS_ONCE(vsi->rx_rings[i]);
+
 		if (!rx_ring)
 			continue;
 
@@ -527,7 +528,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: size = %i, dma = 0x%08lx\n",
 			 i, rx_ring->size,
-			 (long unsigned int)rx_ring->dma);
+			 (unsigned long int)rx_ring->dma);
 		dev_info(&pf->pdev->dev,
 			 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
 			 i, rx_ring->vsi,
@@ -535,6 +536,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 	}
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
+
 		if (!tx_ring)
 			continue;
 
@@ -573,7 +575,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		dev_info(&pf->pdev->dev,
 			 "    tx_rings[%i]: size = %i, dma = 0x%08lx\n",
 			 i, tx_ring->size,
-			 (long unsigned int)tx_ring->dma);
+			 (unsigned long int)tx_ring->dma);
 		dev_info(&pf->pdev->dev,
 			 "    tx_rings[%i]: vsi = %p, q_vector = %p\n",
 			 i, tx_ring->vsi,
@@ -743,6 +745,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 	ring = &(hw->aq.asq);
 	for (i = 0; i < ring->count; i++) {
 		struct i40e_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
+
 		dev_info(&pf->pdev->dev,
 			 "   at[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
@@ -755,6 +758,7 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 	ring = &(hw->aq.arq);
 	for (i = 0; i < ring->count; i++) {
 		struct i40e_aq_desc *d = I40E_ADMINQ_DESC(*ring, i);
+
 		dev_info(&pf->pdev->dev,
 			 "   ar[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
@@ -1038,7 +1042,13 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "'%s' failed\n", cmd_buf);
 
 	} else if (strncmp(cmd_buf, "del vsi", 7) == 0) {
-		sscanf(&cmd_buf[7], "%i", &vsi_seid);
+		cnt = sscanf(&cmd_buf[7], "%i", &vsi_seid);
+		if (cnt != 1) {
+			dev_info(&pf->pdev->dev,
+				 "del vsi: bad command string, cnt=%d\n",
+				 cnt);
+			goto command_write_done;
+		}
 		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
 		if (!vsi) {
 			dev_info(&pf->pdev->dev, "del VSI %d: seid not found\n",
@@ -1146,7 +1156,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		f = i40e_add_filter(vsi, ma, vlan, false, false);
-		ret = i40e_sync_vsi_filters(vsi);
+		ret = i40e_sync_vsi_filters(vsi, true);
 		if (f && !ret)
 			dev_info(&pf->pdev->dev,
 				 "add macaddr: %pM vlan=%d added to VSI %d\n",
@@ -1183,7 +1193,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		i40e_del_filter(vsi, ma, vlan, false, false);
-		ret = i40e_sync_vsi_filters(vsi);
+		ret = i40e_sync_vsi_filters(vsi, true);
 		if (!ret)
 			dev_info(&pf->pdev->dev,
 				 "del macaddr: %pM vlan=%d removed from VSI %d\n",
@@ -1488,6 +1498,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
 		u32 address;
 		u32 value;
+
 		cnt = sscanf(&cmd_buf[4], "%i", &address);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev, "read <reg>\n");
@@ -1495,9 +1506,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		/* check the range on address */
-		if (address >= I40E_MAX_REGISTER) {
-			dev_info(&pf->pdev->dev, "read reg address 0x%08x too large\n",
-				 address);
+		if (address > (pf->ioremap_len - sizeof(u32))) {
+			dev_info(&pf->pdev->dev, "read reg address 0x%08x too large, max=0x%08lx\n",
+				 address, (unsigned long int)(pf->ioremap_len - sizeof(u32)));
 			goto command_write_done;
 		}
 
@@ -1507,6 +1518,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 	} else if (strncmp(cmd_buf, "write", 5) == 0) {
 		u32 address, value;
+
 		cnt = sscanf(&cmd_buf[5], "%i %i", &address, &value);
 		if (cnt != 2) {
 			dev_info(&pf->pdev->dev, "write <reg> <value>\n");
@@ -1514,9 +1526,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		/* check the range on address */
-		if (address >= I40E_MAX_REGISTER) {
-			dev_info(&pf->pdev->dev, "write reg address 0x%08x too large\n",
-				 address);
+		if (address > (pf->ioremap_len - sizeof(u32))) {
+			dev_info(&pf->pdev->dev, "write reg address 0x%08x too large, max=0x%08lx\n",
+				 address, (unsigned long int)(pf->ioremap_len - sizeof(u32)));
 			goto command_write_done;
 		}
 		wr32(&pf->hw, address, value);
@@ -1528,6 +1540,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			cnt = sscanf(&cmd_buf[15], "%i", &vsi_seid);
 			if (cnt == 0) {
 				int i;
+
 				for (i = 0; i < pf->num_alloc_vsi; i++)
 					i40e_vsi_reset_stats(pf->vsi[i]);
 				dev_info(&pf->pdev->dev, "vsi clear stats called for all vsi's\n");
@@ -1726,8 +1739,9 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				   packet_len, I40E_FDIR_MAX_RAW_PACKET_SIZE);
 
 		for (i = 0; i < packet_len; i++) {
-			sscanf(&asc_packet[j], "%2hhx ",
-			       &raw_packet[i]);
+			cnt = sscanf(&asc_packet[j], "%2hhx ", &raw_packet[i]);
+			if (!cnt)
+				break;
 			j += 3;
 		}
 		dev_info(&pf->pdev->dev, "FD raw packet dump\n");
@@ -1755,6 +1769,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	} else if (strncmp(cmd_buf, "lldp", 4) == 0) {
 		if (strncmp(&cmd_buf[5], "stop", 4) == 0) {
 			int ret;
+
 			ret = i40e_aq_stop_lldp(&pf->hw, false, NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
@@ -1779,6 +1794,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 #endif /* CONFIG_I40E_DCB */
 		} else if (strncmp(&cmd_buf[5], "start", 5) == 0) {
 			int ret;
+
 			ret = i40e_aq_add_rem_control_packet_filter(&pf->hw,
 						pf->hw.mac.addr,
 						I40E_ETH_P_LLDP, 0,
@@ -1807,6 +1823,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			u16 llen, rlen;
 			int ret;
 			u8 *buff;
+
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
@@ -1833,6 +1850,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			u16 llen, rlen;
 			int ret;
 			u8 *buff;
+
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
@@ -1858,6 +1876,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "event on", 8) == 0) {
 			int ret;
+
 			ret = i40e_aq_cfg_lldp_mib_change_event(&pf->hw,
 								true, NULL);
 			if (ret) {
@@ -1868,6 +1887,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 		} else if (strncmp(&cmd_buf[5], "event off", 9) == 0) {
 			int ret;
+
 			ret = i40e_aq_cfg_lldp_mib_change_event(&pf->hw,
 								false, NULL);
 			if (ret) {
@@ -2105,6 +2125,7 @@ static ssize_t i40e_dbg_netdev_ops_write(struct file *filp,
 		}
 	} else if (strncmp(i40e_dbg_netdev_ops_buf, "change_mtu", 10) == 0) {
 		int mtu;
+
 		cnt = sscanf(&i40e_dbg_netdev_ops_buf[11], "%i %i",
 			     &vsi_seid, &mtu);
 		if (cnt != 2) {
@@ -2220,7 +2241,6 @@ void i40e_dbg_pf_init(struct i40e_pf *pf)
 create_failed:
 	dev_info(dev, "debugfs dir/file for %s failed\n", name);
 	debugfs_remove_recursive(pf->i40e_dbg_pf);
-	return;
 }
 
 /**

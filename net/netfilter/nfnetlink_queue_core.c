@@ -301,7 +301,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   __be32 **packet_id_ptr)
 {
 	size_t size;
-	size_t data_len = 0, cap_len = 0;
+	size_t data_len = 0, cap_len = 0, rem_len = 0;
 	unsigned int hlen = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
@@ -360,6 +360,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		hlen = min_t(unsigned int, hlen, data_len);
 		size += sizeof(struct nlattr) + hlen;
 		cap_len = entskb->len;
+		rem_len = data_len - hlen;
 		break;
 	}
 
@@ -377,7 +378,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			size += nla_total_size(seclen);
 	}
 
-	skb = nfnetlink_alloc_skb(net, size, queue->peer_portid,
+	skb = __netlink_alloc_skb(net->nfnl, size, rem_len, queue->peer_portid,
 				  GFP_ATOMIC);
 	if (!skb) {
 		skb_tx_error(entskb);
@@ -669,8 +670,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct nfqnl_instance *queue;
 	struct sk_buff *skb, *segs;
 	int err = -ENOBUFS;
-	struct net *net = dev_net(entry->state.in ?
-				  entry->state.in : entry->state.out);
+	struct net *net = entry->state.net;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 
 	/* rcu_read_lock()ed by nf_hook_slow() */

@@ -679,7 +679,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		((u64 *)image)[1] = local_paca->kernel_toc;
 #endif
 		fp->bpf_func = (void *)image;
-		fp->jited = true;
+		fp->jited = 1;
 	}
 out:
 	kfree(addrs);

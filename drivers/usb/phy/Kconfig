@@ -152,6 +152,20 @@ config USB_MSM_OTG
 	  This driver is not supported on boards like trout which
 	  has an external PHY.
 
+config USB_QCOM_8X16_PHY
+	tristate "Qualcomm APQ8016/MSM8916 on-chip USB PHY controller support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on RESET_CONTROLLER && EXTCON
+	select USB_PHY
+	select USB_ULPI_VIEWPORT
+	help
+	  Enable this to support the USB transceiver on Qualcomm 8x16 chipsets.
+	  It handles PHY initialization, clock management, power management,
+	  and workarounds required after resetting the hardware.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called phy-qcom-8x16-usb.
+
 config USB_MV_OTG
 	tristate "Marvell USB OTG support"
 	depends on USB_EHCI_MV && USB_MV_UDC && PM

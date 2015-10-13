@@ -133,20 +133,13 @@
 #define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
 #define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
 #define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
-
-/* Only R2 or newer cores have the XI bit */
-#if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
-#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-#else
-#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
-#define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
-#endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
-
 #endif	/* CONFIG_64BIT && CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6)
 /* XI - page cannot be executed */
-#ifndef _PAGE_NO_EXEC_SHIFT
+#ifdef _PAGE_SPLITTING_SHIFT
+#define _PAGE_NO_EXEC_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
+#else
 #define _PAGE_NO_EXEC_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
 #endif
 #define _PAGE_NO_EXEC		(cpu_has_rixi ? (1 << _PAGE_NO_EXEC_SHIFT) : 0)
@@ -156,14 +149,16 @@
 #define _PAGE_READ		(cpu_has_rixi ? 0 : (1 << _PAGE_READ_SHIFT))
 #define _PAGE_NO_READ_SHIFT	_PAGE_READ_SHIFT
 #define _PAGE_NO_READ		(cpu_has_rixi ? (1 << _PAGE_READ_SHIFT) : 0)
+#endif	/* defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR6) */
 
+#if defined(_PAGE_NO_READ_SHIFT)
 #define _PAGE_GLOBAL_SHIFT	(_PAGE_NO_READ_SHIFT + 1)
-#define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
-
-#else	/* !CONFIG_CPU_MIPSR2 && !CONFIG_CPU_MIPSR6 */
+#elif defined(_PAGE_SPLITTING_SHIFT)
+#define _PAGE_GLOBAL_SHIFT	(_PAGE_SPLITTING_SHIFT + 1)
+#else
 #define _PAGE_GLOBAL_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
+#endif
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
-#endif	/* CONFIG_CPU_MIPSR2 || CONFIG_CPU_MIPSR6 */
 
 #define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
@@ -249,7 +244,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define _CACHE_CACHABLE_NONCOHERENT (3<<_CACHE_SHIFT)  /* LOONGSON       */
 #define _CACHE_CACHABLE_COHERENT    (3<<_CACHE_SHIFT)  /* LOONGSON-3     */
 
-#elif defined(CONFIG_MACH_JZ4740)
+#elif defined(CONFIG_MACH_INGENIC)
 
 /* Ingenic uses the WA bit to achieve write-combine memory writes */
 #define _CACHE_UNCACHED_ACCELERATED (1<<_CACHE_SHIFT)

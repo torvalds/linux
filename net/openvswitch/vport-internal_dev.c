@@ -43,35 +43,26 @@ static struct internal_dev *internal_dev_priv(struct net_device *netdev)
 	return netdev_priv(netdev);
 }
 
-/* This function is only called by the kernel network layer.*/
-static struct rtnl_link_stats64 *internal_dev_get_stats(struct net_device *netdev,
-							struct rtnl_link_stats64 *stats)
-{
-	struct vport *vport = ovs_internal_dev_get_vport(netdev);
-	struct ovs_vport_stats vport_stats;
-
-	ovs_vport_get_stats(vport, &vport_stats);
-
-	/* The tx and rx stats need to be swapped because the
-	 * switch and host OS have opposite perspectives. */
-	stats->rx_packets	= vport_stats.tx_packets;
-	stats->tx_packets	= vport_stats.rx_packets;
-	stats->rx_bytes		= vport_stats.tx_bytes;
-	stats->tx_bytes		= vport_stats.rx_bytes;
-	stats->rx_errors	= vport_stats.tx_errors;
-	stats->tx_errors	= vport_stats.rx_errors;
-	stats->rx_dropped	= vport_stats.tx_dropped;
-	stats->tx_dropped	= vport_stats.rx_dropped;
-
-	return stats;
-}
-
 /* Called with rcu_read_lock_bh. */
 static int internal_dev_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
+	int len, err;
+
+	len = skb->len;
 	rcu_read_lock();
-	ovs_vport_receive(internal_dev_priv(netdev)->vport, skb, NULL);
+	err = ovs_vport_receive(internal_dev_priv(netdev)->vport, skb, NULL);
 	rcu_read_unlock();
+
+	if (likely(!err)) {
+		struct pcpu_sw_netstats *tstats = this_cpu_ptr(netdev->tstats);
+
+		u64_stats_update_begin(&tstats->syncp);
+		tstats->tx_bytes += len;
+		tstats->tx_packets++;
+		u64_stats_update_end(&tstats->syncp);
+	} else {
+		netdev->stats.tx_errors++;
+	}
 	return 0;
 }
 
@@ -121,7 +112,6 @@ static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_start_xmit = internal_dev_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_change_mtu = internal_dev_change_mtu,
-	.ndo_get_stats64 = internal_dev_get_stats,
 };
 
 static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {
@@ -135,7 +125,7 @@ static void do_setup(struct net_device *netdev)
 	netdev->netdev_ops = &internal_dev_netdev_ops;
 
 	netdev->priv_flags &= ~IFF_TX_SKB_SHARING;
-	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_OPENVSWITCH;
 	netdev->destructor = internal_dev_destructor;
 	netdev->ethtool_ops = &internal_dev_ethtool_ops;
 	netdev->rtnl_link_ops = &internal_dev_link_ops;
@@ -212,17 +202,16 @@ static void internal_dev_destroy(struct vport *vport)
 	rtnl_unlock();
 }
 
-static int internal_dev_recv(struct vport *vport, struct sk_buff *skb)
+static void internal_dev_recv(struct vport *vport, struct sk_buff *skb)
 {
 	struct net_device *netdev = vport->dev;
-	int len;
+	struct pcpu_sw_netstats *stats;
 
 	if (unlikely(!(netdev->flags & IFF_UP))) {
 		kfree_skb(skb);
-		return 0;
+		netdev->stats.rx_dropped++;
+		return;
 	}
-
-	len = skb->len;
 
 	skb_dst_drop(skb);
 	nf_reset(skb);
@@ -233,9 +222,13 @@ static int internal_dev_recv(struct vport *vport, struct sk_buff *skb)
 	skb->protocol = eth_type_trans(skb, netdev);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
-	netif_rx(skb);
+	stats = this_cpu_ptr(netdev->tstats);
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets++;
+	stats->rx_bytes += skb->len;
+	u64_stats_update_end(&stats->syncp);
 
-	return len;
+	netif_rx(skb);
 }
 
 static struct vport_ops ovs_internal_vport_ops = {

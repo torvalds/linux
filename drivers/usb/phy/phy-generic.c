@@ -218,11 +218,13 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 			clk_rate = 0;
 
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset");
+		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
+							   GPIOD_ASIS);
 		err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
 		if (!err) {
 			nop->gpiod_vbus = devm_gpiod_get_optional(dev,
-							 "vbus-detect");
+							 "vbus-detect",
+							 GPIOD_ASIS);
 			err = PTR_ERR_OR_ZERO(nop->gpiod_vbus);
 		}
 	} else if (pdata) {
@@ -230,7 +232,8 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 		clk_rate = pdata->clk_rate;
 		needs_vcc = pdata->needs_vcc;
 		if (gpio_is_valid(pdata->gpio_reset)) {
-			err = devm_gpio_request_one(dev, pdata->gpio_reset, 0,
+			err = devm_gpio_request_one(dev, pdata->gpio_reset,
+						    GPIOF_ACTIVE_LOW,
 						    dev_name(dev));
 			if (!err)
 				nop->gpiod_reset =

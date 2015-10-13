@@ -244,7 +244,7 @@ void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
 void intel_csr_load_program(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	__be32 *payload = dev_priv->csr.dmc_payload;
+	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
 	if (!IS_GEN9(dev)) {
@@ -256,7 +256,7 @@ void intel_csr_load_program(struct drm_device *dev)
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
 		I915_WRITE(CSR_PROGRAM_BASE + i * 4,
-			(u32 __force)payload[i]);
+			payload[i]);
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
@@ -279,7 +279,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	char substepping = intel_get_substepping(dev);
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
-	__be32 *dmc_payload;
+	uint32_t *dmc_payload;
 	bool fw_loaded = false;
 
 	if (!fw) {
@@ -350,7 +350,7 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	}
 	csr->mmio_count = dmc_header->mmio_count;
 	for (i = 0; i < dmc_header->mmio_count; i++) {
-		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE &&
+		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
 			dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR(" Firmware has wrong mmio address 0x%x\n",
 						dmc_header->mmioaddr[i]);
@@ -375,20 +375,13 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	}
 
 	dmc_payload = csr->dmc_payload;
-	for (i = 0; i < dmc_header->fw_size; i++) {
-		uint32_t *tmp = (u32 *)&fw->data[readcount + i * 4];
-		/*
-		 * The firmware payload is an array of 32 bit words stored in
-		 * little-endian format in the firmware image and programmed
-		 * as 32 bit big-endian format to memory.
-		 */
-		dmc_payload[i] = cpu_to_be32(*tmp);
-	}
+	memcpy(dmc_payload, &fw->data[readcount], nbytes);
 
 	/* load csr program during system boot, as needed for DC states */
 	intel_csr_load_program(dev);
 	fw_loaded = true;
 
+	DRM_DEBUG_KMS("Finished loading %s\n", dev_priv->csr.fw_path);
 out:
 	if (fw_loaded)
 		intel_runtime_pm_put(dev_priv);
@@ -421,6 +414,8 @@ void intel_csr_ucode_init(struct drm_device *dev)
 		intel_csr_load_status_set(dev_priv, FW_FAILED);
 		return;
 	}
+
+	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
 
 	/*
 	 * Obtain a runtime pm reference, until CSR is loaded,
@@ -459,7 +454,8 @@ void intel_csr_ucode_fini(struct drm_device *dev)
 
 void assert_csr_loaded(struct drm_i915_private *dev_priv)
 {
-	WARN((intel_csr_load_status_get(dev_priv) != FW_LOADED), "CSR is not loaded.\n");
+	WARN(intel_csr_load_status_get(dev_priv) != FW_LOADED,
+	     "CSR is not loaded.\n");
 	WARN(!I915_READ(CSR_PROGRAM_BASE),
 				"CSR program storage start is NULL\n");
 	WARN(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");

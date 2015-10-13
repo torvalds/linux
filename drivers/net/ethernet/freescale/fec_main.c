@@ -1407,6 +1407,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		if ((status & BD_ENET_RX_LAST) == 0)
 			netdev_err(ndev, "rcv is not +last\n");
 
+		writel(FEC_ENET_RXF, fep->hwp + FEC_IEVENT);
 
 		/* Check for errors. */
 		if (status & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_NO |
@@ -1783,7 +1784,7 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 		return ret;
 
 	fep->mii_timeout = 0;
-	init_completion(&fep->mdio_done);
+	reinit_completion(&fep->mdio_done);
 
 	/* start a read op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_READ |
@@ -1815,14 +1816,16 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	struct fec_enet_private *fep = bus->priv;
 	struct device *dev = &fep->pdev->dev;
 	unsigned long time_left;
-	int ret = 0;
+	int ret;
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		return ret;
+	else
+		ret = 0;
 
 	fep->mii_timeout = 0;
-	init_completion(&fep->mdio_done);
+	reinit_completion(&fep->mdio_done);
 
 	/* start a write op */
 	writel(FEC_MMFR_ST | FEC_MMFR_OP_WRITE |
@@ -3028,6 +3031,14 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 		memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
 	}
 
+	/* Add netif status check here to avoid system hang in below case:
+	 * ifconfig ethx down; ifconfig ethx hw ether xx:xx:xx:xx:xx:xx;
+	 * After ethx down, fec all clocks are gated off and then register
+	 * access causes system hang.
+	 */
+	if (!netif_running(ndev))
+		return 0;
+
 	writel(ndev->dev_addr[3] | (ndev->dev_addr[2] << 8) |
 		(ndev->dev_addr[1] << 16) | (ndev->dev_addr[0] << 24),
 		fep->hwp + FEC_ADDR_LOW);
@@ -3059,7 +3070,6 @@ static void fec_poll_controller(struct net_device *dev)
 }
 #endif
 
-#define FEATURES_NEED_QUIESCE NETIF_F_RXCSUM
 static inline void fec_enet_set_netdev_features(struct net_device *netdev,
 	netdev_features_t features)
 {
@@ -3083,7 +3093,7 @@ static int fec_set_features(struct net_device *netdev,
 	struct fec_enet_private *fep = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+	if (netif_running(netdev) && changed & NETIF_F_RXCSUM) {
 		napi_disable(&fep->napi);
 		netif_tx_lock_bh(netdev);
 		fec_stop(netdev);

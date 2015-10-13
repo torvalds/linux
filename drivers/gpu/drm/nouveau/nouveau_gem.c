@@ -254,13 +254,13 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nvkm_fb *pfb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->device);
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	if (!pfb->memtype_valid(pfb, req->info.tile_flags)) {
-		NV_PRINTK(error, cli, "bad page flags: 0x%08x\n", req->info.tile_flags);
+	if (!nvkm_fb_memtype_valid(fb, req->info.tile_flags)) {
+		NV_PRINTK(err, cli, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
 	}
 
@@ -376,7 +376,7 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	ww_acquire_init(&op->ticket, &reservation_ww_class);
 retry:
 	if (++trycnt > 100000) {
-		NV_PRINTK(error, cli, "%s failed and gave up.\n", __func__);
+		NV_PRINTK(err, cli, "%s failed and gave up.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -387,7 +387,7 @@ retry:
 
 		gem = drm_gem_object_lookup(dev, file_priv, b->handle);
 		if (!gem) {
-			NV_PRINTK(error, cli, "Unknown handle 0x%08x\n", b->handle);
+			NV_PRINTK(err, cli, "Unknown handle 0x%08x\n", b->handle);
 			ret = -ENOENT;
 			break;
 		}
@@ -399,7 +399,7 @@ retry:
 		}
 
 		if (nvbo->reserved_by && nvbo->reserved_by == file_priv) {
-			NV_PRINTK(error, cli, "multiple instances of buffer %d on "
+			NV_PRINTK(err, cli, "multiple instances of buffer %d on "
 				      "validation list\n", b->handle);
 			drm_gem_object_unreference_unlocked(gem);
 			ret = -EINVAL;
@@ -420,7 +420,7 @@ retry:
 			}
 			if (unlikely(ret)) {
 				if (ret != -ERESTARTSYS)
-					NV_PRINTK(error, cli, "fail reserve\n");
+					NV_PRINTK(err, cli, "fail reserve\n");
 				break;
 			}
 		}
@@ -438,7 +438,7 @@ retry:
 		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART)
 			list_add_tail(&nvbo->entry, &gart_list);
 		else {
-			NV_PRINTK(error, cli, "invalid valid domains: 0x%08x\n",
+			NV_PRINTK(err, cli, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
 			list_add_tail(&nvbo->entry, &both_list);
 			ret = -EINVAL;
@@ -476,21 +476,21 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 					     b->write_domains,
 					     b->valid_domains);
 		if (unlikely(ret)) {
-			NV_PRINTK(error, cli, "fail set_domain\n");
+			NV_PRINTK(err, cli, "fail set_domain\n");
 			return ret;
 		}
 
 		ret = nouveau_bo_validate(nvbo, true, false);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
-				NV_PRINTK(error, cli, "fail ttm_validate\n");
+				NV_PRINTK(err, cli, "fail ttm_validate\n");
 			return ret;
 		}
 
 		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains, true);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
-				NV_PRINTK(error, cli, "fail post-validate sync\n");
+				NV_PRINTK(err, cli, "fail post-validate sync\n");
 			return ret;
 		}
 
@@ -537,14 +537,14 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	ret = validate_init(chan, file_priv, pbbo, nr_buffers, op);
 	if (unlikely(ret)) {
 		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validate_init\n");
+			NV_PRINTK(err, cli, "validate_init\n");
 		return ret;
 	}
 
 	ret = validate_list(chan, cli, &op->list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validating bo list\n");
+			NV_PRINTK(err, cli, "validating bo list\n");
 		validate_fini(op, NULL, NULL);
 		return ret;
 	}
@@ -600,7 +600,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 		uint32_t data;
 
 		if (unlikely(r->bo_index > req->nr_buffers)) {
-			NV_PRINTK(error, cli, "reloc bo index invalid\n");
+			NV_PRINTK(err, cli, "reloc bo index invalid\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -610,7 +610,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 			continue;
 
 		if (unlikely(r->reloc_bo_index > req->nr_buffers)) {
-			NV_PRINTK(error, cli, "reloc container bo index invalid\n");
+			NV_PRINTK(err, cli, "reloc container bo index invalid\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -618,7 +618,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 
 		if (unlikely(r->reloc_bo_offset + 4 >
 			     nvbo->bo.mem.num_pages << PAGE_SHIFT)) {
-			NV_PRINTK(error, cli, "reloc outside of bo\n");
+			NV_PRINTK(err, cli, "reloc outside of bo\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -627,7 +627,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
 					  &nvbo->kmap);
 			if (ret) {
-				NV_PRINTK(error, cli, "failed kmap for reloc\n");
+				NV_PRINTK(err, cli, "failed kmap for reloc\n");
 				break;
 			}
 			nvbo->validate_mapped = true;
@@ -650,7 +650,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 
 		ret = ttm_bo_wait(&nvbo->bo, true, false, false);
 		if (ret) {
-			NV_PRINTK(error, cli, "reloc wait_idle failed: %d\n", ret);
+			NV_PRINTK(err, cli, "reloc wait_idle failed: %d\n", ret);
 			break;
 		}
 
@@ -681,7 +681,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	list_for_each_entry(temp, &abi16->channels, head) {
-		if (temp->chan->object->handle == (NVDRM_CHAN | req->channel)) {
+		if (temp->chan->user.handle == (NVDRM_CHAN | req->channel)) {
 			chan = temp->chan;
 			break;
 		}
@@ -696,19 +696,19 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		goto out_next;
 
 	if (unlikely(req->nr_push > NOUVEAU_GEM_MAX_PUSH)) {
-		NV_PRINTK(error, cli, "pushbuf push count exceeds limit: %d max %d\n",
+		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
 			 req->nr_push, NOUVEAU_GEM_MAX_PUSH);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
 	if (unlikely(req->nr_buffers > NOUVEAU_GEM_MAX_BUFFERS)) {
-		NV_PRINTK(error, cli, "pushbuf bo count exceeds limit: %d max %d\n",
+		NV_PRINTK(err, cli, "pushbuf bo count exceeds limit: %d max %d\n",
 			 req->nr_buffers, NOUVEAU_GEM_MAX_BUFFERS);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
 	if (unlikely(req->nr_relocs > NOUVEAU_GEM_MAX_RELOCS)) {
-		NV_PRINTK(error, cli, "pushbuf reloc count exceeds limit: %d max %d\n",
+		NV_PRINTK(err, cli, "pushbuf reloc count exceeds limit: %d max %d\n",
 			 req->nr_relocs, NOUVEAU_GEM_MAX_RELOCS);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
@@ -726,7 +726,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
-			NV_PRINTK(error, cli, "push %d buffer not in list\n", i);
+			NV_PRINTK(err, cli, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
 			goto out_prevalid;
 		}
@@ -737,7 +737,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 					   req->nr_buffers, &op, &do_reloc);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
-			NV_PRINTK(error, cli, "validate: %d\n", ret);
+			NV_PRINTK(err, cli, "validate: %d\n", ret);
 		goto out_prevalid;
 	}
 
@@ -745,7 +745,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (do_reloc) {
 		ret = nouveau_gem_pushbuf_reloc_apply(cli, req, bo);
 		if (ret) {
-			NV_PRINTK(error, cli, "reloc apply: %d\n", ret);
+			NV_PRINTK(err, cli, "reloc apply: %d\n", ret);
 			goto out;
 		}
 	}
@@ -753,7 +753,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (chan->dma.ib_max) {
 		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
-			NV_PRINTK(error, cli, "nv50cal_space: %d\n", ret);
+			NV_PRINTK(err, cli, "nv50cal_space: %d\n", ret);
 			goto out;
 		}
 
@@ -768,7 +768,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (drm->device.info.chipset >= 0x25) {
 		ret = RING_SPACE(chan, req->nr_push * 2);
 		if (ret) {
-			NV_PRINTK(error, cli, "cal_space: %d\n", ret);
+			NV_PRINTK(err, cli, "cal_space: %d\n", ret);
 			goto out;
 		}
 
@@ -782,7 +782,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	} else {
 		ret = RING_SPACE(chan, req->nr_push * (2 + NOUVEAU_DMA_SKIPS));
 		if (ret) {
-			NV_PRINTK(error, cli, "jmp_space: %d\n", ret);
+			NV_PRINTK(err, cli, "jmp_space: %d\n", ret);
 			goto out;
 		}
 
@@ -820,7 +820,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	ret = nouveau_fence_new(chan, false, &fence);
 	if (ret) {
-		NV_PRINTK(error, cli, "error fencing pushbuf: %d\n", ret);
+		NV_PRINTK(err, cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
 		goto out;
 	}

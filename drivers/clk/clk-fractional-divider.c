@@ -27,11 +27,15 @@ static unsigned long clk_fd_recalc_rate(struct clk_hw *hw,
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
+	else
+		__acquire(fd->lock);
 
 	val = clk_readl(fd->reg);
 
 	if (fd->lock)
 		spin_unlock_irqrestore(fd->lock, flags);
+	else
+		__release(fd->lock);
 
 	m = (val & fd->mmask) >> fd->mshift;
 	n = (val & fd->nmask) >> fd->nshift;
@@ -80,6 +84,8 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
+	else
+		__acquire(fd->lock);
 
 	val = clk_readl(fd->reg);
 	val &= ~(fd->mmask | fd->nmask);
@@ -88,6 +94,8 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (fd->lock)
 		spin_unlock_irqrestore(fd->lock, flags);
+	else
+		__release(fd->lock);
 
 	return 0;
 }

@@ -45,7 +45,8 @@
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
-#include <net/vrf.h>
+#include <net/l3mdev.h>
+#include <trace/events/fib.h>
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
@@ -212,7 +213,7 @@ void fib_flush_external(struct net *net)
  */
 static inline unsigned int __inet_dev_addr_type(struct net *net,
 						const struct net_device *dev,
-						__be32 addr, int tb_id)
+						__be32 addr, u32 tb_id)
 {
 	struct flowi4		fl4 = { .daddr = addr };
 	struct fib_result	res;
@@ -239,7 +240,7 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	return ret;
 }
 
-unsigned int inet_addr_type_table(struct net *net, __be32 addr, int tb_id)
+unsigned int inet_addr_type_table(struct net *net, __be32 addr, u32 tb_id)
 {
 	return __inet_dev_addr_type(net, NULL, addr, tb_id);
 }
@@ -254,7 +255,7 @@ EXPORT_SYMBOL(inet_addr_type);
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
-	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, dev, addr, rt_table);
 }
@@ -267,7 +268,7 @@ unsigned int inet_addr_type_dev_table(struct net *net,
 				      const struct net_device *dev,
 				      __be32 addr)
 {
-	int rt_table = vrf_dev_table(dev) ? : RT_TABLE_LOCAL;
+	u32 rt_table = l3mdev_fib_table(dev) ? : RT_TABLE_LOCAL;
 
 	return __inet_dev_addr_type(net, NULL, addr, rt_table);
 }
@@ -331,7 +332,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
-	fl4.flowi4_iif = vrf_master_ifindex_rcu(dev);
+	fl4.flowi4_iif = l3mdev_master_ifindex_rcu(dev);
 	if (!fl4.flowi4_iif)
 		fl4.flowi4_iif = oif ? : LOOPBACK_IFINDEX;
 	fl4.daddr = src;
@@ -339,10 +340,13 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fl4.flowi4_tos = tos;
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_tun_key.tun_id = 0;
+	fl4.flowi4_flags = 0;
 
 	no_addr = idev->ifa_list == NULL;
 
 	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
+
+	trace_fib_validate_source(dev, &fl4);
 
 	net = dev_net(dev);
 	if (fib_lookup(net, &fl4, &res, 0))
@@ -363,7 +367,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		if (nh->nh_dev == dev) {
 			dev_match = true;
 			break;
-		} else if (vrf_master_ifindex_rcu(nh->nh_dev) == dev->ifindex) {
+		} else if (l3mdev_master_ifindex_rcu(nh->nh_dev) == dev->ifindex) {
 			dev_match = true;
 			break;
 		}
@@ -800,7 +804,7 @@ out:
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);
-	int tb_id = vrf_dev_table_rtnl(ifa->ifa_dev->dev);
+	u32 tb_id = l3mdev_fib_table(ifa->ifa_dev->dev);
 	struct fib_table *tb;
 	struct fib_config cfg = {
 		.fc_protocol = RTPROT_KERNEL,

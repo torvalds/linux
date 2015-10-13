@@ -113,7 +113,6 @@ config GPIO_74XX_MMIO
 config GPIO_ALTERA
 	tristate "Altera GPIO"
 	depends on OF_GPIO
-	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
@@ -131,6 +130,7 @@ config GPIO_BRCMSTB
 	default y if ARCH_BRCMSTB
 	depends on OF_GPIO && (ARCH_BRCMSTB || COMPILE_TEST)
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
@@ -172,6 +172,7 @@ config GPIO_ETRAXFS
 	depends on CRIS || COMPILE_TEST
 	depends on OF
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO controller on Axis ETRAX FS SoCs.
 
@@ -308,7 +309,6 @@ config GPIO_MVEBU
 	def_bool y
 	depends on PLAT_ORION
 	depends on OF
-	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
 config GPIO_MXC
@@ -356,7 +356,7 @@ config GPIO_PXA
 
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
-	depends on ARM && (ARCH_SHMOBILE || COMPILE_TEST)
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
@@ -1004,6 +1004,12 @@ config GPIO_MC33880
 	help
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
+
+config GPIO_ZX
+	bool "ZTE ZX GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the GPIO device on ZTE ZX SoCs.
 
 endmenu
 

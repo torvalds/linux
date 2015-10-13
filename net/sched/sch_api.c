@@ -1806,51 +1806,45 @@ done:
  * to this qdisc, (optionally) tests for protocol and asks
  * specific classifiers.
  */
-int tc_classify_compat(struct sk_buff *skb, const struct tcf_proto *tp,
-		       struct tcf_result *res)
+int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		struct tcf_result *res, bool compat_mode)
 {
 	__be16 protocol = tc_skb_protocol(skb);
-	int err;
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tcf_proto *old_tp = tp;
+	int limit = 0;
 
+reclassify:
+#endif
 	for (; tp; tp = rcu_dereference_bh(tp->next)) {
+		int err;
+
 		if (tp->protocol != protocol &&
 		    tp->protocol != htons(ETH_P_ALL))
 			continue;
-		err = tp->classify(skb, tp, res);
 
+		err = tp->classify(skb, tp, res);
+#ifdef CONFIG_NET_CLS_ACT
+		if (unlikely(err == TC_ACT_RECLASSIFY && !compat_mode))
+			goto reset;
+#endif
 		if (err >= 0)
 			return err;
 	}
+
 	return -1;
-}
-EXPORT_SYMBOL(tc_classify_compat);
-
-int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		struct tcf_result *res)
-{
-	int err = 0;
 #ifdef CONFIG_NET_CLS_ACT
-	const struct tcf_proto *otp = tp;
-	int limit = 0;
-reclassify:
-#endif
-
-	err = tc_classify_compat(skb, tp, res);
-#ifdef CONFIG_NET_CLS_ACT
-	if (err == TC_ACT_RECLASSIFY) {
-		tp = otp;
-
-		if (unlikely(limit++ >= MAX_REC_LOOP)) {
-			net_notice_ratelimited("%s: packet reclassify loop rule prio %u protocol %02x\n",
-					       tp->q->ops->id,
-					       tp->prio & 0xffff,
-					       ntohs(tp->protocol));
-			return TC_ACT_SHOT;
-		}
-		goto reclassify;
+reset:
+	if (unlikely(limit++ >= MAX_REC_LOOP)) {
+		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
+				       tp->q->ops->id, tp->prio & 0xffff,
+				       ntohs(tp->protocol));
+		return TC_ACT_SHOT;
 	}
+
+	tp = old_tp;
+	goto reclassify;
 #endif
-	return err;
 }
 EXPORT_SYMBOL(tc_classify);
 
@@ -1947,6 +1941,7 @@ static int __init pktsched_init(void)
 	register_qdisc(&bfifo_qdisc_ops);
 	register_qdisc(&pfifo_head_drop_qdisc_ops);
 	register_qdisc(&mq_qdisc_ops);
+	register_qdisc(&noqueue_qdisc_ops);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWQDISC, tc_modify_qdisc, NULL, NULL);
 	rtnl_register(PF_UNSPEC, RTM_DELQDISC, tc_get_qdisc, NULL, NULL);

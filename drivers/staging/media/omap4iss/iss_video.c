@@ -640,76 +640,6 @@ iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 }
 
 static int
-iss_video_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cropcap)
-{
-	struct iss_video *video = video_drvdata(file);
-	struct v4l2_subdev *subdev;
-	int ret;
-
-	subdev = iss_video_remote_subdev(video, NULL);
-	if (subdev == NULL)
-		return -EINVAL;
-
-	mutex_lock(&video->mutex);
-	ret = v4l2_subdev_call(subdev, video, cropcap, cropcap);
-	mutex_unlock(&video->mutex);
-
-	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
-}
-
-static int
-iss_video_get_crop(struct file *file, void *fh, struct v4l2_crop *crop)
-{
-	struct iss_video *video = video_drvdata(file);
-	struct v4l2_subdev_format format;
-	struct v4l2_subdev *subdev;
-	u32 pad;
-	int ret;
-
-	subdev = iss_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
-		return -EINVAL;
-
-	/* Try the get crop operation first and fallback to get format if not
-	 * implemented.
-	 */
-	ret = v4l2_subdev_call(subdev, video, g_crop, crop);
-	if (ret != -ENOIOCTLCMD)
-		return ret;
-
-	format.pad = pad;
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &format);
-	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
-
-	crop->c.left = 0;
-	crop->c.top = 0;
-	crop->c.width = format.format.width;
-	crop->c.height = format.format.height;
-
-	return 0;
-}
-
-static int
-iss_video_set_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
-{
-	struct iss_video *video = video_drvdata(file);
-	struct v4l2_subdev *subdev;
-	int ret;
-
-	subdev = iss_video_remote_subdev(video, NULL);
-	if (subdev == NULL)
-		return -EINVAL;
-
-	mutex_lock(&video->mutex);
-	ret = v4l2_subdev_call(subdev, video, s_crop, crop);
-	mutex_unlock(&video->mutex);
-
-	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
-}
-
-static int
 iss_video_get_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
@@ -1018,9 +948,6 @@ static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_g_fmt_vid_out		= iss_video_get_format,
 	.vidioc_s_fmt_vid_out		= iss_video_set_format,
 	.vidioc_try_fmt_vid_out		= iss_video_try_format,
-	.vidioc_cropcap			= iss_video_cropcap,
-	.vidioc_g_crop			= iss_video_get_crop,
-	.vidioc_s_crop			= iss_video_set_crop,
 	.vidioc_g_parm			= iss_video_get_param,
 	.vidioc_s_parm			= iss_video_set_param,
 	.vidioc_reqbufs			= iss_video_reqbufs,

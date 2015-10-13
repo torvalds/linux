@@ -18,6 +18,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		return addr;
 	}
 
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 	/*
 	 * We'll assume that the code segments in the GDT
 	 * are all zero-based. That is largely true: the
@@ -45,6 +46,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 		}
 		mutex_unlock(&child->mm->context.lock);
 	}
+#endif
 
 	return addr;
 }

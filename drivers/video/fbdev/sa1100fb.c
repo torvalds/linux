@@ -1042,7 +1042,6 @@ sa1100fb_freq_policy(struct notifier_block *nb, unsigned long val,
 
 	switch (val) {
 	case CPUFREQ_ADJUST:
-	case CPUFREQ_INCOMPATIBLE:
 		dev_dbg(fbi->dev, "min dma period: %d ps, "
 			"new clock %d kHz\n", sa1100fb_min_dma_period(fbi),
 			policy->max);

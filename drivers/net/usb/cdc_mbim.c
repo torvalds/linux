@@ -342,7 +342,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	in6_dev_put(in6_dev);
 
 	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */
-	ipv6_stub->ndisc_send_na(netdev, NULL, &iph->saddr, &msg->target,
+	ipv6_stub->ndisc_send_na(netdev, &iph->saddr, &msg->target,
 				 is_router /* router */,
 				 true /* solicited */,
 				 false /* override */,

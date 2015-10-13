@@ -4,6 +4,7 @@
 
 const char *nvkm_stropt(const char *optstr, const char *opt, int *len);
 bool nvkm_boolopt(const char *optstr, const char *opt, bool value);
+long nvkm_longopt(const char *optstr, const char *opt, long value);
 int  nvkm_dbgopt(const char *optstr, const char *sub);
 
 /* compares unterminated string 'str' with zero-terminated string 'cmp' */

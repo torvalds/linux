@@ -20,6 +20,8 @@
 
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/audit.h>
+#include <linux/compat.h>
 #include <arch/abi.h>
 
 /* The array of function pointers for syscalls. */
@@ -61,7 +63,15 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	regs->regs[0] = (long) error ?: val;
+	if (error) {
+		/* R0 is the passed-in negative error, R1 is positive. */
+		regs->regs[0] = error;
+		regs->regs[1] = -error;
+	} else {
+		/* R1 set to zero to indicate no error. */
+		regs->regs[0] = val;
+		regs->regs[1] = 0;
+	}
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
@@ -80,6 +90,22 @@ static inline void syscall_set_arguments(struct task_struct *task,
 {
 	BUG_ON(i + n > 6);
 	memcpy(&regs[i], args, n * sizeof(args[0]));
+}
+
+/*
+ * We don't care about endianness (__AUDIT_ARCH_LE bit) here because
+ * tile has the same system calls both on little- and big- endian.
+ */
+static inline int syscall_get_arch(void)
+{
+	if (is_compat_task())
+		return AUDIT_ARCH_TILEGX32;
+
+#ifdef CONFIG_TILEGX
+	return AUDIT_ARCH_TILEGX;
+#else
+	return AUDIT_ARCH_TILEPRO;
+#endif
 }
 
 #endif	/* _ASM_TILE_SYSCALL_H */

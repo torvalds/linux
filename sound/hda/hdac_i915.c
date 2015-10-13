@@ -134,6 +134,16 @@ static int hdac_component_master_match(struct device *dev, void *data)
 	return !strcmp(dev->driver->name, "i915");
 }
 
+int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
+{
+	if (WARN_ON(!hdac_acomp))
+		return -ENODEV;
+
+	hdac_acomp->audio_ops = aops;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_i915_register_notifier);
+
 int snd_hdac_i915_init(struct hdac_bus *bus)
 {
 	struct component_match *match = NULL;

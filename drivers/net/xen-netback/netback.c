@@ -149,9 +149,20 @@ static inline pending_ring_idx_t pending_index(unsigned i)
 	return i & (MAX_PENDING_REQS-1);
 }
 
-bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed)
+static int xenvif_rx_ring_slots_needed(struct xenvif *vif)
+{
+	if (vif->gso_mask)
+		return DIV_ROUND_UP(vif->dev->gso_max_size, PAGE_SIZE) + 1;
+	else
+		return DIV_ROUND_UP(vif->dev->mtu, PAGE_SIZE);
+}
+
+static bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue)
 {
 	RING_IDX prod, cons;
+	int needed;
+
+	needed = xenvif_rx_ring_slots_needed(queue->vif);
 
 	do {
 		prod = queue->rx.sring->req_prod;
@@ -314,7 +325,7 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 		} else {
 			copy_gop->source.domid = DOMID_SELF;
 			copy_gop->source.u.gmfn =
-				virt_to_mfn(page_address(page));
+				virt_to_gfn(page_address(page));
 		}
 		copy_gop->source.offset = offset;
 
@@ -513,7 +524,7 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	skb_queue_head_init(&rxq);
 
-	while (xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX)
+	while (xenvif_rx_ring_slots_available(queue)
 	       && (skb = xenvif_rx_dequeue(queue)) != NULL) {
 		queue->last_rx_time = jiffies;
 
@@ -1157,6 +1168,80 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	return false;
 }
 
+/* No locking is required in xenvif_mcast_add/del() as they are
+ * only ever invoked from NAPI poll. An RCU list is used because
+ * xenvif_mcast_match() is called asynchronously, during start_xmit.
+ */
+
+static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	if (vif->fe_mcast_count == XEN_NETBK_MCAST_MAX) {
+		if (net_ratelimit())
+			netdev_err(vif->dev,
+				   "Too many multicast addresses\n");
+		return -ENOSPC;
+	}
+
+	mcast = kzalloc(sizeof(*mcast), GFP_ATOMIC);
+	if (!mcast)
+		return -ENOMEM;
+
+	ether_addr_copy(mcast->addr, addr);
+	list_add_tail_rcu(&mcast->entry, &vif->fe_mcast_addr);
+	vif->fe_mcast_count++;
+
+	return 0;
+}
+
+static void xenvif_mcast_del(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	list_for_each_entry_rcu(mcast, &vif->fe_mcast_addr, entry) {
+		if (ether_addr_equal(addr, mcast->addr)) {
+			--vif->fe_mcast_count;
+			list_del_rcu(&mcast->entry);
+			kfree_rcu(mcast, rcu);
+			break;
+		}
+	}
+}
+
+bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr)
+{
+	struct xenvif_mcast_addr *mcast;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(mcast, &vif->fe_mcast_addr, entry) {
+		if (ether_addr_equal(addr, mcast->addr)) {
+			rcu_read_unlock();
+			return true;
+		}
+	}
+	rcu_read_unlock();
+
+	return false;
+}
+
+void xenvif_mcast_addr_list_free(struct xenvif *vif)
+{
+	/* No need for locking or RCU here. NAPI poll and TX queue
+	 * are stopped.
+	 */
+	while (!list_empty(&vif->fe_mcast_addr)) {
+		struct xenvif_mcast_addr *mcast;
+
+		mcast = list_first_entry(&vif->fe_mcast_addr,
+					 struct xenvif_mcast_addr,
+					 entry);
+		--vif->fe_mcast_count;
+		list_del(&mcast->entry);
+		kfree(mcast);
+	}
+}
+
 static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 				     int budget,
 				     unsigned *copy_ops,
@@ -1213,6 +1298,31 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			idx = queue->tx.req_cons;
 			if (unlikely(work_to_do < 0))
 				break;
+		}
+
+		if (extras[XEN_NETIF_EXTRA_TYPE_MCAST_ADD - 1].type) {
+			struct xen_netif_extra_info *extra;
+
+			extra = &extras[XEN_NETIF_EXTRA_TYPE_MCAST_ADD - 1];
+			ret = xenvif_mcast_add(queue->vif, extra->u.mcast.addr);
+
+			make_tx_response(queue, &txreq,
+					 (ret == 0) ?
+					 XEN_NETIF_RSP_OKAY :
+					 XEN_NETIF_RSP_ERROR);
+			push_tx_responses(queue);
+			continue;
+		}
+
+		if (extras[XEN_NETIF_EXTRA_TYPE_MCAST_DEL - 1].type) {
+			struct xen_netif_extra_info *extra;
+
+			extra = &extras[XEN_NETIF_EXTRA_TYPE_MCAST_DEL - 1];
+			xenvif_mcast_del(queue->vif, extra->u.mcast.addr);
+
+			make_tx_response(queue, &txreq, XEN_NETIF_RSP_OKAY);
+			push_tx_responses(queue);
+			continue;
 		}
 
 		ret = xenvif_count_requests(queue, &txreq, txfrags, work_to_do);
@@ -1296,7 +1406,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		queue->tx_copy_ops[*copy_ops].source.offset = txreq.offset;
 
 		queue->tx_copy_ops[*copy_ops].dest.u.gmfn =
-			virt_to_mfn(skb->data);
+			virt_to_gfn(skb->data);
 		queue->tx_copy_ops[*copy_ops].dest.domid = DOMID_SELF;
 		queue->tx_copy_ops[*copy_ops].dest.offset =
 			offset_in_page(skb->data);
@@ -1839,8 +1949,7 @@ static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
 	prod = queue->rx.sring->req_prod;
 	cons = queue->rx.req_cons;
 
-	return !queue->stalled
-		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
+	return !queue->stalled && prod - cons < 1
 		&& time_after(jiffies,
 			      queue->last_rx_time + queue->vif->stall_timeout);
 }
@@ -1852,14 +1961,13 @@ static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
 	prod = queue->rx.sring->req_prod;
 	cons = queue->rx.req_cons;
 
-	return queue->stalled
-		&& prod - cons >= XEN_NETBK_RX_SLOTS_MAX;
+	return queue->stalled && prod - cons >= 1;
 }
 
 static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue)
-		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
+		&& xenvif_rx_ring_slots_available(queue))
 		|| (queue->vif->stall_timeout &&
 		    (xenvif_rx_queue_stalled(queue)
 		     || xenvif_rx_queue_ready(queue)))
@@ -2006,8 +2114,11 @@ static int __init netback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	/* Allow as many queues as there are CPUs, by default */
-	xenvif_max_queues = num_online_cpus();
+	/* Allow as many queues as there are CPUs if user has not
+	 * specified a value.
+	 */
+	if (xenvif_max_queues == 0)
+		xenvif_max_queues = num_online_cpus();
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
 		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",

@@ -654,10 +654,12 @@ int snd_soc_suspend(struct device *dev)
 
 	/* suspend all CODECs */
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+		struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+
 		/* If there are paths active then the CODEC will be held with
 		 * bias _ON and should not be suspended. */
 		if (!codec->suspended) {
-			switch (codec->dapm.bias_level) {
+			switch (snd_soc_dapm_get_bias_level(dapm)) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
 				 * If the CODEC is capable of idle
@@ -665,7 +667,7 @@ int snd_soc_suspend(struct device *dev)
 				 * means it's doing something,
 				 * otherwise fall through.
 				 */
-				if (codec->dapm.idle_bias_off) {
+				if (dapm->idle_bias_off) {
 					dev_dbg(codec->dev,
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
@@ -978,7 +980,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 
 static void soc_remove_component(struct snd_soc_component *component)
 {
-	if (!component->probed)
+	if (!component->card)
 		return;
 
 	/* This is a HACK and will be removed soon */
@@ -991,7 +993,7 @@ static void soc_remove_component(struct snd_soc_component *component)
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 
 	soc_cleanup_component_debugfs(component);
-	component->probed = 0;
+	component->card = NULL;
 	module_put(component->dev->driver->owner);
 }
 
@@ -1102,15 +1104,25 @@ static int soc_probe_component(struct snd_soc_card *card,
 	struct snd_soc_dai *dai;
 	int ret;
 
-	if (component->probed)
+	if (!strcmp(component->name, "snd-soc-dummy"))
 		return 0;
+
+	if (component->card) {
+		if (component->card != card) {
+			dev_err(component->dev,
+				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
+				card->name, component->card->name);
+			return -ENODEV;
+		}
+		return 0;
+	}
+
+	if (!try_module_get(component->dev->driver->owner))
+		return -ENODEV;
 
 	component->card = card;
 	dapm->card = card;
 	soc_set_name_prefix(card, component);
-
-	if (!try_module_get(component->dev->driver->owner))
-		return -ENODEV;
 
 	soc_init_component_debugfs(component);
 
@@ -1155,7 +1167,6 @@ static int soc_probe_component(struct snd_soc_card *card,
 		snd_soc_dapm_add_routes(dapm, component->dapm_routes,
 					component->num_dapm_routes);
 
-	component->probed = 1;
 	list_add(&dapm->list, &card->dapm_list);
 
 	/* This is a HACK and will be removed soon */
@@ -1166,6 +1177,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 err_probe:
 	soc_cleanup_component_debugfs(component);
+	component->card = NULL;
 	module_put(component->dev->driver->owner);
 
 	return ret;
@@ -1449,7 +1461,7 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 		rtd->dev_registered = 0;
 	}
 
-	if (component && component->probed)
+	if (component)
 		soc_remove_component(component);
 }
 
@@ -2128,7 +2140,7 @@ EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
 /**
  * snd_soc_dai_set_bclk_ratio - configure BCLK to sample rate ratio.
  * @dai: DAI
- * @ratio Ratio of BCLK to Sample rate.
+ * @ratio: Ratio of BCLK to Sample rate.
  *
  * Configures the DAI for a preset BCLK to sample rate ratio.
  */
@@ -2652,10 +2664,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->probe = component->driver->probe;
 	component->remove = component->driver->remove;
 
-	if (!component->dapm_ptr)
-		component->dapm_ptr = &component->dapm;
-
-	dapm = component->dapm_ptr;
+	dapm = &component->dapm;
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
@@ -2799,6 +2808,7 @@ EXPORT_SYMBOL_GPL(snd_soc_register_component);
 /**
  * snd_soc_unregister_component - Unregister a component from the ASoC core
  *
+ * @dev: The device to unregister
  */
 void snd_soc_unregister_component(struct device *dev)
 {
@@ -2839,7 +2849,7 @@ static void snd_soc_platform_drv_remove(struct snd_soc_component *component)
  * snd_soc_add_platform - Add a platform to the ASoC core
  * @dev: The parent device for the platform
  * @platform: The platform to add
- * @platform_driver: The driver for the platform
+ * @platform_drv: The driver for the platform
  */
 int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		const struct snd_soc_platform_driver *platform_drv)
@@ -2878,7 +2888,8 @@ EXPORT_SYMBOL_GPL(snd_soc_add_platform);
 /**
  * snd_soc_register_platform - Register a platform with the ASoC core
  *
- * @platform: platform to register
+ * @dev: The device for the platform
+ * @platform_drv: The driver for the platform
  */
 int snd_soc_register_platform(struct device *dev,
 		const struct snd_soc_platform_driver *platform_drv)
@@ -2939,7 +2950,7 @@ EXPORT_SYMBOL_GPL(snd_soc_lookup_platform);
 /**
  * snd_soc_unregister_platform - Unregister a platform from the ASoC core
  *
- * @platform: platform to unregister
+ * @dev: platform to unregister
  */
 void snd_soc_unregister_platform(struct device *dev)
 {
@@ -3030,13 +3041,17 @@ static int snd_soc_codec_set_bias_level(struct snd_soc_dapm_context *dapm,
 /**
  * snd_soc_register_codec - Register a codec with the ASoC core
  *
- * @codec: codec to register
+ * @dev: The parent device for this codec
+ * @codec_drv: Codec driver
+ * @dai_drv: The associated DAI driver
+ * @num_dai: Number of DAIs
  */
 int snd_soc_register_codec(struct device *dev,
 			   const struct snd_soc_codec_driver *codec_drv,
 			   struct snd_soc_dai_driver *dai_drv,
 			   int num_dai)
 {
+	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
 	int ret, i;
@@ -3047,7 +3062,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec == NULL)
 		return -ENOMEM;
 
-	codec->component.dapm_ptr = &codec->dapm;
 	codec->component.codec = codec;
 
 	ret = snd_soc_component_initialize(&codec->component,
@@ -3077,12 +3091,14 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec_drv->read)
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
-	codec->dapm.idle_bias_off = codec_drv->idle_bias_off;
-	codec->dapm.suspend_bias_off = codec_drv->suspend_bias_off;
+
+	dapm = snd_soc_codec_get_dapm(codec);
+	dapm->idle_bias_off = codec_drv->idle_bias_off;
+	dapm->suspend_bias_off = codec_drv->suspend_bias_off;
 	if (codec_drv->seq_notifier)
-		codec->dapm.seq_notifier = codec_drv->seq_notifier;
+		dapm->seq_notifier = codec_drv->seq_notifier;
 	if (codec_drv->set_bias_level)
-		codec->dapm.set_bias_level = snd_soc_codec_set_bias_level;
+		dapm->set_bias_level = snd_soc_codec_set_bias_level;
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->component.val_bytes = codec_drv->reg_word_size;
@@ -3129,7 +3145,7 @@ EXPORT_SYMBOL_GPL(snd_soc_register_codec);
 /**
  * snd_soc_unregister_codec - Unregister a codec from the ASoC core
  *
- * @codec: codec to unregister
+ * @dev: codec to unregister
  */
 void snd_soc_unregister_codec(struct device *dev)
 {
@@ -3303,6 +3319,26 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_tdm_slot);
+
+void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+				   struct snd_soc_codec_conf *codec_conf,
+				   struct device_node *of_node,
+				   const char *propname)
+{
+	struct device_node *np = card->dev->of_node;
+	const char *str;
+	int ret;
+
+	ret = of_property_read_string(np, propname, &str);
+	if (ret < 0) {
+		/* no prefix is not error */
+		return;
+	}
+
+	codec_conf->of_node	= of_node;
+	codec_conf->name_prefix	= str;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_parse_audio_prefix);
 
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)

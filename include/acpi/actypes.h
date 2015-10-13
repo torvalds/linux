@@ -662,6 +662,7 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_DEBUG_OBJECT          0x10
 
 #define ACPI_TYPE_EXTERNAL_MAX          0x10
+#define ACPI_NUM_TYPES                  (ACPI_TYPE_EXTERNAL_MAX + 1)
 
 /*
  * These are object types that do not map directly to the ACPI
@@ -683,6 +684,7 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_LOCAL_SCOPE           0x1B	/* 1 Name, multiple object_list Nodes */
 
 #define ACPI_TYPE_NS_NODE_MAX           0x1B	/* Last typecode used within a NS Node */
+#define ACPI_TOTAL_TYPES                (ACPI_TYPE_NS_NODE_MAX + 1)
 
 /*
  * These are special object types that never appear in
@@ -985,7 +987,8 @@ struct acpi_buffer {
  */
 #define ACPI_FULL_PATHNAME              0
 #define ACPI_SINGLE_NAME                1
-#define ACPI_NAME_TYPE_MAX              1
+#define ACPI_FULL_PATHNAME_NO_TRAILING  2
+#define ACPI_NAME_TYPE_MAX              2
 
 /*
  * Predefined Namespace items
@@ -1245,6 +1248,14 @@ struct acpi_memory_list {
 	u32 hits;
 #endif
 };
+
+/* Definitions of trace event types */
+
+typedef enum {
+	ACPI_TRACE_AML_METHOD,
+	ACPI_TRACE_AML_OPCODE,
+	ACPI_TRACE_AML_REGION
+} acpi_trace_event_type;
 
 /* Definitions of _OSI support */
 

@@ -650,7 +650,7 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 
 static void __init save_runtime_map(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *tmp, *p, *q = NULL;
 	int count = 0;
@@ -748,7 +748,7 @@ static void * __init efi_map_regions(int *count, int *pg_shift)
 
 static void __init kexec_enter_virtual_mode(void)
 {
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	efi_memory_desc_t *md;
 	void *p;
 

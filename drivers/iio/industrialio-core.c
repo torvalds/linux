@@ -81,6 +81,14 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_X] = "x",
 	[IIO_MOD_Y] = "y",
 	[IIO_MOD_Z] = "z",
+	[IIO_MOD_X_AND_Y] = "x&y",
+	[IIO_MOD_X_AND_Z] = "x&z",
+	[IIO_MOD_Y_AND_Z] = "y&z",
+	[IIO_MOD_X_AND_Y_AND_Z] = "x&y&z",
+	[IIO_MOD_X_OR_Y] = "x|y",
+	[IIO_MOD_X_OR_Z] = "x|z",
+	[IIO_MOD_Y_OR_Z] = "y|z",
+	[IIO_MOD_X_OR_Y_OR_Z] = "x|y|z",
 	[IIO_MOD_ROOT_SUM_SQUARED_X_Y] = "sqrt(x^2+y^2)",
 	[IIO_MOD_SUM_SQUARED_X_Y_Z] = "x^2+y^2+z^2",
 	[IIO_MOD_LIGHT_BOTH] = "both",
@@ -398,10 +406,16 @@ EXPORT_SYMBOL_GPL(iio_enum_write);
 
 /**
  * iio_format_value() - Formats a IIO value into its string representation
- * @buf: The buffer to which the formated value gets written
- * @type: One of the IIO_VAL_... constants. This decides how the val and val2
- *        parameters are formatted.
- * @vals: pointer to the values, exact meaning depends on the type parameter.
+ * @buf:	The buffer to which the formatted value gets written
+ * @type:	One of the IIO_VAL_... constants. This decides how the val
+ *		and val2 parameters are formatted.
+ * @size:	Number of IIO value entries contained in vals
+ * @vals:	Pointer to the values, exact meaning depends on the
+ *		type parameter.
+ *
+ * Return: 0 by default, a negative number on failure or the
+ *	   total number of characters written for a type that belongs
+ *	   to the IIO_VAL_... constant.
  */
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 {
@@ -1088,6 +1102,11 @@ EXPORT_SYMBOL_GPL(devm_iio_device_free);
 
 /**
  * iio_chrdev_open() - chrdev file open for buffer access and ioctls
+ * @inode:	Inode structure for identifying the device in the file system
+ * @filp:	File structure for iio device used to keep and later access
+ *		private data
+ *
+ * Return: 0 on success or -EBUSY if the device is already opened
  **/
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
@@ -1106,7 +1125,11 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 
 /**
  * iio_chrdev_release() - chrdev file close buffer access and ioctls
- **/
+ * @inode:	Inode structure pointer for the char device
+ * @filp:	File structure pointer for the char device
+ *
+ * Return: 0 for successful release
+ */
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,

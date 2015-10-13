@@ -365,13 +365,15 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	}
 
 	mutex_init(&chip->mutex);
-	init_rwsem(&chip->shutdown_rwsem);
+	init_waitqueue_head(&chip->shutdown_wait);
 	chip->index = idx;
 	chip->dev = dev;
 	chip->card = card;
 	chip->setup = device_setup[idx];
 	chip->autoclock = autoclock;
-	chip->probing = 1;
+	atomic_set(&chip->active, 1); /* avoid autopm during probing */
+	atomic_set(&chip->usage_count, 0);
+	atomic_set(&chip->shutdown, 0);
 
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 			      le16_to_cpu(dev->descriptor.idProduct));
@@ -495,13 +497,13 @@ static int usb_audio_probe(struct usb_interface *intf,
 	mutex_lock(&register_mutex);
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (usb_chip[i] && usb_chip[i]->dev == dev) {
-			if (usb_chip[i]->shutdown) {
+			if (atomic_read(&usb_chip[i]->shutdown)) {
 				dev_err(&dev->dev, "USB device is in the shutdown state, cannot create a card instance\n");
 				err = -EIO;
 				goto __error;
 			}
 			chip = usb_chip[i];
-			chip->probing = 1;
+			atomic_inc(&chip->active); /* avoid autopm */
 			break;
 		}
 	}
@@ -561,8 +563,8 @@ static int usb_audio_probe(struct usb_interface *intf,
 
 	usb_chip[chip->index] = chip;
 	chip->num_interfaces++;
-	chip->probing = 0;
 	usb_set_intfdata(intf, chip);
+	atomic_dec(&chip->active);
 	mutex_unlock(&register_mutex);
 	return 0;
 
@@ -570,7 +572,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	if (chip) {
 		if (!chip->num_interfaces)
 			snd_card_free(chip->card);
-		chip->probing = 0;
+		atomic_dec(&chip->active);
 	}
 	mutex_unlock(&register_mutex);
 	return err;
@@ -585,23 +587,23 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct snd_card *card;
 	struct list_head *p;
-	bool was_shutdown;
 
 	if (chip == (void *)-1L)
 		return;
 
 	card = chip->card;
-	down_write(&chip->shutdown_rwsem);
-	was_shutdown = chip->shutdown;
-	chip->shutdown = 1;
-	up_write(&chip->shutdown_rwsem);
 
 	mutex_lock(&register_mutex);
-	if (!was_shutdown) {
+	if (atomic_inc_return(&chip->shutdown) == 1) {
 		struct snd_usb_stream *as;
 		struct snd_usb_endpoint *ep;
 		struct usb_mixer_interface *mixer;
 
+		/* wait until all pending tasks done;
+		 * they are protected by snd_usb_lock_shutdown()
+		 */
+		wait_event(chip->shutdown_wait,
+			   !atomic_read(&chip->usage_count));
 		snd_card_disconnect(card);
 		/* release the pcm resources */
 		list_for_each_entry(as, &chip->pcm_list, list) {
@@ -631,28 +633,50 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 	}
 }
 
+/* lock the shutdown (disconnect) task and autoresume */
+int snd_usb_lock_shutdown(struct snd_usb_audio *chip)
+{
+	int err;
+
+	atomic_inc(&chip->usage_count);
+	if (atomic_read(&chip->shutdown)) {
+		err = -EIO;
+		goto error;
+	}
+	err = snd_usb_autoresume(chip);
+	if (err < 0)
+		goto error;
+	return 0;
+
+ error:
+	if (atomic_dec_and_test(&chip->usage_count))
+		wake_up(&chip->shutdown_wait);
+	return err;
+}
+
+/* autosuspend and unlock the shutdown */
+void snd_usb_unlock_shutdown(struct snd_usb_audio *chip)
+{
+	snd_usb_autosuspend(chip);
+	if (atomic_dec_and_test(&chip->usage_count))
+		wake_up(&chip->shutdown_wait);
+}
+
 #ifdef CONFIG_PM
 
 int snd_usb_autoresume(struct snd_usb_audio *chip)
 {
-	int err = -ENODEV;
-
-	down_read(&chip->shutdown_rwsem);
-	if (chip->probing || chip->in_pm)
-		err = 0;
-	else if (!chip->shutdown)
-		err = usb_autopm_get_interface(chip->pm_intf);
-	up_read(&chip->shutdown_rwsem);
-
-	return err;
+	if (atomic_read(&chip->shutdown))
+		return -EIO;
+	if (atomic_inc_return(&chip->active) == 1)
+		return usb_autopm_get_interface(chip->pm_intf);
+	return 0;
 }
 
 void snd_usb_autosuspend(struct snd_usb_audio *chip)
 {
-	down_read(&chip->shutdown_rwsem);
-	if (!chip->shutdown && !chip->probing && !chip->in_pm)
+	if (atomic_dec_and_test(&chip->active))
 		usb_autopm_put_interface(chip->pm_intf);
-	up_read(&chip->shutdown_rwsem);
 }
 
 static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
@@ -665,30 +689,20 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	if (chip == (void *)-1L)
 		return 0;
 
-	if (!PMSG_IS_AUTO(message)) {
+	chip->autosuspended = !!PMSG_IS_AUTO(message);
+	if (!chip->autosuspended)
 		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
-		if (!chip->num_suspended_intf++) {
-			list_for_each_entry(as, &chip->pcm_list, list) {
-				snd_pcm_suspend_all(as->pcm);
-				as->substream[0].need_setup_ep =
-					as->substream[1].need_setup_ep = true;
-			}
-			list_for_each(p, &chip->midi_list) {
-				snd_usbmidi_suspend(p);
-			}
+	if (!chip->num_suspended_intf++) {
+		list_for_each_entry(as, &chip->pcm_list, list) {
+			snd_pcm_suspend_all(as->pcm);
+			as->substream[0].need_setup_ep =
+				as->substream[1].need_setup_ep = true;
 		}
-	} else {
-		/*
-		 * otherwise we keep the rest of the system in the dark
-		 * to keep this transparent
-		 */
-		if (!chip->num_suspended_intf++)
-			chip->autosuspended = 1;
-	}
-
-	if (chip->num_suspended_intf == 1)
+		list_for_each(p, &chip->midi_list)
+			snd_usbmidi_suspend(p);
 		list_for_each_entry(mixer, &chip->mixer_list, list)
 			snd_usb_mixer_suspend(mixer);
+	}
 
 	return 0;
 }
@@ -705,7 +719,7 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 	if (--chip->num_suspended_intf)
 		return 0;
 
-	chip->in_pm = 1;
+	atomic_inc(&chip->active); /* avoid autopm */
 	/*
 	 * ALSA leaves material resumption to user space
 	 * we just notify and restart the mixers
@@ -725,7 +739,7 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 	chip->autosuspended = 0;
 
 err_out:
-	chip->in_pm = 0;
+	atomic_dec(&chip->active); /* allow autopm after this point */
 	return err;
 }
 

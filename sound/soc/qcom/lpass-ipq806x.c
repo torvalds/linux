@@ -73,7 +73,7 @@ static int ipq806x_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
 	return 0;
 }
 
-struct lpass_variant ipq806x_data = {
+static struct lpass_variant ipq806x_data = {
 	.i2sctrl_reg_base	= 0x0010,
 	.i2sctrl_reg_stride	= 0x04,
 	.i2s_ports		= 5,

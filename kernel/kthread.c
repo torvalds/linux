@@ -248,15 +248,16 @@ static void create_kthread(struct kthread_create_info *create)
  * kthread_create_on_node - create a kthread.
  * @threadfn: the function to run until signal_pending(current).
  * @data: data ptr for @threadfn.
- * @node: memory node number.
+ * @node: task and thread structures for the thread are allocated on this node
  * @namefmt: printf-style name for the thread.
  *
  * Description: This helper function creates and names a kernel
  * thread.  The thread will be stopped: use wake_up_process() to start
- * it.  See also kthread_run().
+ * it.  See also kthread_run().  The new thread has SCHED_NORMAL policy and
+ * is affine to all CPUs.
  *
  * If thread is going to be bound on a particular cpu, give its node
- * in @node, to get NUMA affinity for kthread stack, or else give -1.
+ * in @node, to get NUMA affinity for kthread stack, or else give NUMA_NO_NODE.
  * When woken, the thread will run @threadfn() with @data as its
  * argument. @threadfn() can either call do_exit() directly if it is a
  * standalone thread for which no one will call kthread_stop(), or
@@ -327,16 +328,30 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 }
 EXPORT_SYMBOL(kthread_create_on_node);
 
-static void __kthread_bind(struct task_struct *p, unsigned int cpu, long state)
+static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mask, long state)
 {
-	/* Must have done schedule() in kthread() before we set_task_cpu */
+	unsigned long flags;
+
 	if (!wait_task_inactive(p, state)) {
 		WARN_ON(1);
 		return;
 	}
+
 	/* It's safe because the task is inactive. */
-	do_set_cpus_allowed(p, cpumask_of(cpu));
+	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	do_set_cpus_allowed(p, mask);
 	p->flags |= PF_NO_SETAFFINITY;
+	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+}
+
+static void __kthread_bind(struct task_struct *p, unsigned int cpu, long state)
+{
+	__kthread_bind_mask(p, cpumask_of(cpu), state);
+}
+
+void kthread_bind_mask(struct task_struct *p, const struct cpumask *mask)
+{
+	__kthread_bind_mask(p, mask, TASK_UNINTERRUPTIBLE);
 }
 
 /**

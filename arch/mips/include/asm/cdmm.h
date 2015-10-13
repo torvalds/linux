@@ -53,7 +53,7 @@ struct mips_cdmm_driver {
  * mips_cdmm_phys_base() - Choose a physical base address for CDMM region.
  *
  * Picking a suitable physical address at which to map the CDMM region is
- * platform specific, so this weak function can be defined by platform code to
+ * platform specific, so this function can be defined by platform code to
  * pick a suitable value if none is configured by the bootloader.
  *
  * This address must be 32kB aligned, and the region occupies a maximum of 32kB
@@ -61,7 +61,7 @@ struct mips_cdmm_driver {
  *
  * Returns:	Physical base address for CDMM region, or 0 on failure.
  */
-phys_addr_t __weak mips_cdmm_phys_base(void);
+phys_addr_t mips_cdmm_phys_base(void);
 
 extern struct bus_type mips_cdmm_bustype;
 void __iomem *mips_cdmm_early_probe(unsigned int dev_type);

@@ -2371,6 +2371,7 @@ static int falcon_probe_nic(struct efx_nic *efx)
 
 	efx->max_channels = (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ? 4 :
 			     EFX_MAX_CHANNELS);
+	efx->max_tx_channels = efx->max_channels;
 	efx->timer_quantum_ns = 4968; /* 621 cycles */
 
 	/* Initialise I2C adapter */

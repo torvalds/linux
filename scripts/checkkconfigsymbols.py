@@ -2,7 +2,7 @@
 
 """Find Kconfig symbols that are referenced but not defined."""
 
-# (c) 2014-2015 Valentin Rothberg <Valentin.Rothberg@lip6.fr>
+# (c) 2014-2015 Valentin Rothberg <valentinrothberg@gmail.com>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
 #
 # Licensed under the terms of the GNU GPL License version 2
@@ -20,18 +20,20 @@ OPERATORS = r"&|\(|\)|\||\!"
 FEATURE = r"(?:\w*[A-Z0-9]\w*){2,}"
 DEF = r"^\s*(?:menu){,1}config\s+(" + FEATURE + r")\s*"
 EXPR = r"(?:" + OPERATORS + r"|\s|" + FEATURE + r")+"
-STMT = r"^\s*(?:if|select|depends\s+on)\s+" + EXPR
+DEFAULT = r"default\s+.*?(?:if\s.+){,1}"
+STMT = r"^\s*(?:if|select|depends\s+on|(?:" + DEFAULT + r"))\s+" + EXPR
 SOURCE_FEATURE = r"(?:\W|\b)+[D]{,1}CONFIG_(" + FEATURE + r")"
 
 # regex objects
 REGEX_FILE_KCONFIG = re.compile(r".*Kconfig[\.\w+\-]*$")
-REGEX_FEATURE = re.compile(r"(" + FEATURE + r")")
+REGEX_FEATURE = re.compile(r'(?!\B"[^"]*)' + FEATURE + r'(?![^"]*"\B)')
 REGEX_SOURCE_FEATURE = re.compile(SOURCE_FEATURE)
 REGEX_KCONFIG_DEF = re.compile(DEF)
 REGEX_KCONFIG_EXPR = re.compile(EXPR)
 REGEX_KCONFIG_STMT = re.compile(STMT)
 REGEX_KCONFIG_HELP = re.compile(r"^\s+(help|---help---)\s*$")
 REGEX_FILTER_FEATURES = re.compile(r"[A-Za-z0-9]$")
+REGEX_NUMERIC = re.compile(r"0[xX][0-9a-fA-F]+|[0-9]+")
 
 
 def parse_options():
@@ -57,6 +59,11 @@ def parse_options():
                       help="Diff undefined symbols between two commits.  The "
                            "input format bases on Git log's "
                            "\'commmit1..commit2\'.")
+
+    parser.add_option('-f', '--find', dest='find', action='store_true',
+                      default=False,
+                      help="Find and show commits that may cause symbols to be "
+                           "missing.  Required to run with --diff.")
 
     parser.add_option('-i', '--ignore', dest='ignore', action='store',
                       default="",
@@ -85,6 +92,9 @@ def parse_options():
                      " Please run this script in a clean Git tree or pass "
                      "'--force' if you\nwant to ignore this warning and "
                      "continue.")
+
+    if opts.commit:
+        opts.find = False
 
     if opts.ignore:
         try:
@@ -128,13 +138,19 @@ def main():
             # feature has not been undefined before
             if not feature in undefined_a:
                 files = sorted(undefined_b.get(feature))
-                print "%s\t%s" % (feature, ", ".join(files))
+                print "%s\t%s" % (yel(feature), ", ".join(files))
+                if opts.find:
+                    commits = find_commits(feature, opts.diff)
+                    print red(commits)
             # check if there are new files that reference the undefined feature
             else:
                 files = sorted(undefined_b.get(feature) -
                                undefined_a.get(feature))
                 if files:
-                    print "%s\t%s" % (feature, ", ".join(files))
+                    print "%s\t%s" % (yel(feature), ", ".join(files))
+                    if opts.find:
+                        commits = find_commits(feature, opts.diff)
+                        print red(commits)
 
         # reset to head
         execute("git reset --hard %s" % head)
@@ -144,7 +160,21 @@ def main():
         undefined = check_symbols(opts.ignore)
         for feature in sorted(undefined):
             files = sorted(undefined.get(feature))
-            print "%s\t%s" % (feature, ", ".join(files))
+            print "%s\t%s" % (yel(feature), ", ".join(files))
+
+
+def yel(string):
+    """
+    Color %string yellow.
+    """
+    return "\033[33m%s\033[0m" % string
+
+
+def red(string):
+    """
+    Color %string red.
+    """
+    return "\033[31m%s\033[0m" % string
 
 
 def execute(cmd):
@@ -154,6 +184,13 @@ def execute(cmd):
     if pop.returncode != 0:
         sys.exit(stdout)
     return stdout
+
+
+def find_commits(symbol, diff):
+    """Find commits changing %symbol in the given range of %diff."""
+    commits = execute("git log --pretty=oneline --abbrev-commit -G %s %s"
+                      % (symbol, diff))
+    return commits
 
 
 def tree_is_dirty():
@@ -279,6 +316,9 @@ def parse_kconfig_file(kfile, defined_features, referenced_features):
                 line = line.strip('\n')
                 features.extend(get_features_in_line(line))
             for feature in set(features):
+                if REGEX_NUMERIC.match(feature):
+                    # ignore numeric values
+                    continue
                 paths = referenced_features.get(feature, set())
                 paths.add(kfile)
                 referenced_features[feature] = paths

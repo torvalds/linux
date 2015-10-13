@@ -239,7 +239,7 @@ static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
 	struct flow_keys flow;
 	int data_len;
 
-	if (!skb_flow_dissect_flow_keys(skb, &flow) ||
+	if (!skb_flow_dissect_flow_keys(skb, &flow, 0) ||
 	    !(flow.basic.n_proto == htons(ETH_P_IP) ||
 	      flow.basic.n_proto == htons(ETH_P_IPV6)))
 		return false;

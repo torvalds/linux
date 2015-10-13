@@ -191,6 +191,12 @@ static int thread__clone_map_groups(struct thread *thread,
 	if (thread->pid_ == parent->pid_)
 		return 0;
 
+	if (thread->mg == parent->mg) {
+		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
+			 thread->pid_, thread->tid, parent->pid_, parent->tid);
+		return 0;
+	}
+
 	/* But this one is new process, copy maps. */
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		if (map_groups__clone(thread->mg, parent->mg, i) < 0)

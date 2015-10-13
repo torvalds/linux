@@ -303,7 +303,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
 	struct sta_info *sta;
-	struct timespec uptime;
 	int i;
 
 	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
@@ -339,8 +338,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	/* Mark TID as unreserved */
 	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
 
-	ktime_get_ts(&uptime);
-	sta->last_connected = uptime.tv_sec;
+	sta->last_connected = ktime_get_seconds();
 	ewma_signal_init(&sta->avg_signal);
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
 		ewma_signal_init(&sta->chain_signal_avg[i]);
@@ -1813,7 +1811,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct rate_control_ref *ref = NULL;
-	struct timespec uptime;
 	u32 thr = 0;
 	int i, ac;
 
@@ -1838,8 +1835,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			 BIT(NL80211_STA_INFO_RX_DROP_MISC) |
 			 BIT(NL80211_STA_INFO_BEACON_LOSS);
 
-	ktime_get_ts(&uptime);
-	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
+	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 
 	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_TX_BYTES64) |

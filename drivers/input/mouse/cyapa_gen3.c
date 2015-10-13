@@ -6,7 +6,7 @@
  *   Daniel Kurtz <djkurtz@chromium.org>
  *   Benson Leung <bleung@chromium.org>
  *
- * Copyright (C) 2011-2014 Cypress Semiconductor, Inc.
+ * Copyright (C) 2011-2015 Cypress Semiconductor, Inc.
  * Copyright (C) 2011-2012 Google, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -950,7 +950,7 @@ static u16 cyapa_get_wait_time_for_pwr_cmd(u8 pwr_mode)
  * Device power mode can only be set when device is in operational mode.
  */
 static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
-				     u16 always_unused)
+		u16 always_unused, bool is_suspend_unused)
 {
 	int ret;
 	u8 power;
@@ -997,6 +997,11 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	 */
 	msleep(sleep_time);
 	return ret;
+}
+
+static int cyapa_gen3_set_proximity(struct cyapa *cyapa, bool enable)
+{
+	return -EOPNOTSUPP;
 }
 
 static int cyapa_gen3_get_query_data(struct cyapa *cyapa)
@@ -1107,7 +1112,7 @@ static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
 		 * may cause problems, so we set the power mode first here.
 		 */
 		error = cyapa_gen3_set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0);
+				PWR_MODE_FULL_ACTIVE, 0, false);
 		if (error)
 			dev_err(dev, "%s: set full power mode failed: %d\n",
 				__func__, error);
@@ -1156,7 +1161,7 @@ static bool cyapa_gen3_irq_cmd_handler(struct cyapa *cyapa)
 	 * so, stop cyapa_gen3_irq_handler to continue process to
 	 * avoid unwanted to error detecting and processing.
 	 *
-	 * And also, avoid the periodicly accerted interrupts to be processed
+	 * And also, avoid the periodically asserted interrupts to be processed
 	 * as touch inputs when gen3 failed to launch into application mode,
 	 * which will cause gen3 stays in bootloader mode.
 	 */
@@ -1243,4 +1248,6 @@ const struct cyapa_dev_ops cyapa_gen3_ops = {
 	.irq_cmd_handler = cyapa_gen3_irq_cmd_handler,
 	.sort_empty_output_data = cyapa_gen3_empty_output_data,
 	.set_power_mode = cyapa_gen3_set_power_mode,
+
+	.set_proximity = cyapa_gen3_set_proximity,
 };

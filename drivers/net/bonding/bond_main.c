@@ -979,7 +979,6 @@ static void bond_poll_controller(struct net_device *bond_dev)
 		if (bond_3ad_get_active_agg_info(bond, &ad_info))
 			return;
 
-	rcu_read_lock_bh();
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		ops = slave->dev->netdev_ops;
 		if (!bond_slave_is_up(slave) || !ops->ndo_poll_controller)
@@ -1000,7 +999,6 @@ static void bond_poll_controller(struct net_device *bond_dev)
 		ops->ndo_poll_controller(slave->dev);
 		up(&ni->dev_lock);
 	}
-	rcu_read_unlock_bh();
 }
 
 static void bond_netpoll_cleanup(struct net_device *bond_dev)
@@ -3097,7 +3095,7 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	int noff, proto = -1;
 
 	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
-		return skb_flow_dissect_flow_keys(skb, fk);
+		return skb_flow_dissect_flow_keys(skb, fk, 0);
 
 	fk->ports.ports = 0;
 	noff = skb_network_offset(skb);
@@ -3137,6 +3135,10 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 {
 	struct flow_keys flow;
 	u32 hash;
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_ENCAP34 &&
+	    skb->l4_hash)
+		return skb->hash;
 
 	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER2 ||
 	    !bond_flow_dissect(bond, skb, &flow))

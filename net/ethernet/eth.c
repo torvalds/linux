@@ -127,12 +127,12 @@ u32 eth_get_headlen(void *data, unsigned int len)
 	struct flow_keys keys;
 
 	/* this should never happen, but better safe than sorry */
-	if (len < sizeof(*eth))
+	if (unlikely(len < sizeof(*eth)))
 		return len;
 
 	/* parse any remaining L2/L3 headers, check for L4 */
 	if (!skb_flow_dissect_flow_keys_buf(&keys, data, eth->h_proto,
-					    sizeof(*eth), len))
+					    sizeof(*eth), len, 0))
 		return max_t(u32, keys.control.thoff, sizeof(*eth));
 
 	/* parse for any L4 headers */

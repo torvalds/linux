@@ -716,7 +716,7 @@ repeat_fid2path:
 	if (remote_gf == NULL) {
 		remote_gf_size = sizeof(*remote_gf) + PATH_MAX;
 		remote_gf = kzalloc(remote_gf_size, GFP_NOFS);
-		if (remote_gf == NULL) {
+		if (!remote_gf) {
 			rc = -ENOMEM;
 			goto out_fid2path;
 		}
@@ -1398,7 +1398,7 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 		return rc;
 
 	temp = kzalloc(sizeof(*temp), GFP_NOFS);
-	if (temp == NULL)
+	if (!temp)
 		return -ENOMEM;
 
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
@@ -1730,7 +1730,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	}
 
 	rdata = kzalloc(sizeof(*rdata), GFP_NOFS);
-	if (rdata == NULL) {
+	if (!rdata) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -1993,7 +1993,7 @@ static int lmv_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device       *obd = exp->exp_obd;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc     *tgt;
-	int		      rc = 0;
+	int		      rc;
 
 	rc = lmv_check_connect(obd);
 	if (rc)

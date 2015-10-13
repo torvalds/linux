@@ -15,6 +15,7 @@ Required properties:
 	       "fsl,imx6q-usdhc"
 	       "fsl,imx6sl-usdhc"
 	       "fsl,imx6sx-usdhc"
+	       "fsl,imx7d-usdhc"
 
 Optional properties:
 - fsl,wp-controller : Indicate to use controller internal write protection
@@ -27,6 +28,11 @@ Optional properties:
   transparent level shifters on the outputs of the controller. Two cells are
   required, first cell specifies minimum slot voltage (mV), second cell
   specifies maximum slot voltage (mV). Several ranges could be specified.
+- fsl,tuning-step: Specify the increasing delay cell steps in tuning procedure.
+  The uSDHC use one delay cell as default increasing step to do tuning process.
+  This property allows user to change the tuning step to more than one delay
+  cells which is useful for some special boards or cards when the default
+  tuning step can't find the proper delay window within limited tuning retries.
 
 Examples:
 

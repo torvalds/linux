@@ -44,7 +44,7 @@ static void __init bcm5301x_init_early(void)
 			"imprecise external abort");
 }
 
-static const char __initconst *bcm5301x_dt_compat[] = {
+static const char *const bcm5301x_dt_compat[] __initconst = {
 	"brcm,bcm4708",
 	NULL,
 };

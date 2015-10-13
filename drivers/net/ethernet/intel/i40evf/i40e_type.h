@@ -45,6 +45,8 @@
 #define I40E_DEV_ID_QSFP_C		0x1585
 #define I40E_DEV_ID_10G_BASE_T		0x1586
 #define I40E_DEV_ID_20G_KR2		0x1587
+#define I40E_DEV_ID_20G_KR2_A		0x1588
+#define I40E_DEV_ID_10G_BASE_T4		0x1589
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 #define I40E_DEV_ID_SFP_X722		0x37D0
@@ -158,14 +160,14 @@ enum i40e_set_fc_aq_failures {
 };
 
 enum i40e_vsi_type {
-	I40E_VSI_MAIN = 0,
-	I40E_VSI_VMDQ1,
-	I40E_VSI_VMDQ2,
-	I40E_VSI_CTRL,
-	I40E_VSI_FCOE,
-	I40E_VSI_MIRROR,
-	I40E_VSI_SRIOV,
-	I40E_VSI_FDIR,
+	I40E_VSI_MAIN	= 0,
+	I40E_VSI_VMDQ1	= 1,
+	I40E_VSI_VMDQ2	= 2,
+	I40E_VSI_CTRL	= 3,
+	I40E_VSI_FCOE	= 4,
+	I40E_VSI_MIRROR	= 5,
+	I40E_VSI_SRIOV	= 6,
+	I40E_VSI_FDIR	= 7,
 	I40E_VSI_TYPE_UNKNOWN
 };
 
@@ -304,12 +306,17 @@ enum i40e_nvmupd_cmd {
 	I40E_NVMUPD_CSUM_CON,
 	I40E_NVMUPD_CSUM_SA,
 	I40E_NVMUPD_CSUM_LCB,
+	I40E_NVMUPD_STATUS,
+	I40E_NVMUPD_EXEC_AQ,
+	I40E_NVMUPD_GET_AQ_RESULT,
 };
 
 enum i40e_nvmupd_state {
 	I40E_NVMUPD_STATE_INIT,
 	I40E_NVMUPD_STATE_READING,
-	I40E_NVMUPD_STATE_WRITING
+	I40E_NVMUPD_STATE_WRITING,
+	I40E_NVMUPD_STATE_INIT_WAIT,
+	I40E_NVMUPD_STATE_WRITE_WAIT,
 };
 
 /* nvm_access definition and its masks/shifts need to be accessible to
@@ -328,6 +335,7 @@ enum i40e_nvmupd_state {
 #define I40E_NVM_SA		(I40E_NVM_SNT | I40E_NVM_LCB)
 #define I40E_NVM_ERA		0x4
 #define I40E_NVM_CSUM		0x8
+#define I40E_NVM_EXEC		0xf
 
 #define I40E_NVM_ADAPT_SHIFT	16
 #define I40E_NVM_ADAPT_MASK	(0xffff << I40E_NVM_ADAPT_SHIFT)
@@ -434,6 +442,7 @@ struct i40e_ieee_app_priority_table {
 
 struct i40e_dcbx_config {
 	u32 numapps;
+	u32 tlv_status; /* CEE mode TLV status */
 	struct i40e_ieee_ets_config etscfg;
 	struct i40e_ieee_ets_recommend etsrec;
 	struct i40e_ieee_pfc_config pfc;
@@ -485,6 +494,8 @@ struct i40e_hw {
 
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;
+	struct i40e_aq_desc nvm_wb_desc;
+	struct i40e_virt_mem nvm_buff;
 
 	/* HMC info */
 	struct i40e_hmc_info hmc; /* HMC info struct */
@@ -493,8 +504,9 @@ struct i40e_hw {
 	u16 dcbx_status;
 
 	/* DCBX info */
-	struct i40e_dcbx_config local_dcbx_config;
-	struct i40e_dcbx_config remote_dcbx_config;
+	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
+	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
+	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
 	/* debug mask */
 	u32 debug_mask;
@@ -1093,6 +1105,14 @@ struct i40e_eth_stats {
 	u64 tx_broadcast;		/* bptc */
 	u64 tx_discards;		/* tdpc */
 	u64 tx_errors;			/* tepc */
+};
+
+/* Statistics collected per VEB per TC */
+struct i40e_veb_tc_stats {
+	u64 tc_rx_packets[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_rx_bytes[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_tx_packets[I40E_MAX_TRAFFIC_CLASS];
+	u64 tc_tx_bytes[I40E_MAX_TRAFFIC_CLASS];
 };
 
 /* Statistics collected by the MAC */

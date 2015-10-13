@@ -329,7 +329,14 @@ Examples
 
 3) hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
 
-4) The libhugetlbfs (http://libhugetlbfs.sourceforge.net) library provides a
-   wide range of userspace tools to help with huge page usability, environment
-   setup, and control. Furthermore it provides useful test cases that should be
-   used when modifying code to ensure no regressions are introduced.
+4) The libhugetlbfs (https://github.com/libhugetlbfs/libhugetlbfs) library
+   provides a wide range of userspace tools to help with huge page usability,
+   environment setup, and control.
+
+Kernel development regression testing
+=====================================
+
+The most complete set of hugetlb tests are in the libhugetlbfs repository.
+If you modify any hugetlb related code, use the libhugetlbfs test suite
+to check for regressions.  In addition, if you add any new hugetlb
+functionality, please add appropriate tests to libhugetlbfs.

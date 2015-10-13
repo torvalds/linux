@@ -75,6 +75,7 @@
 #define MAX8973_DISCH_ENBABLE				BIT(5)
 #define MAX8973_FT_ENABLE				BIT(4)
 
+#define MAX8973_CKKADV_TRIP_MASK			0xC
 #define MAX8973_CKKADV_TRIP_DISABLE			0xC
 #define MAX8973_CKKADV_TRIP_75mV_PER_US			0x0
 #define MAX8973_CKKADV_TRIP_150mV_PER_US		0x4
@@ -282,6 +283,55 @@ static int max8973_set_ramp_delay(struct regulator_dev *rdev,
 	return ret;
 }
 
+static int max8973_set_current_limit(struct regulator_dev *rdev,
+		int min_ua, int max_ua)
+{
+	struct max8973_chip *max = rdev_get_drvdata(rdev);
+	unsigned int val;
+	int ret;
+
+	if (max_ua <= 9000000)
+		val = MAX8973_CKKADV_TRIP_75mV_PER_US;
+	else if (max_ua <= 12000000)
+		val = MAX8973_CKKADV_TRIP_150mV_PER_US;
+	else
+		val = MAX8973_CKKADV_TRIP_DISABLE;
+
+	ret = regmap_update_bits(max->regmap, MAX8973_CONTROL2,
+			MAX8973_CKKADV_TRIP_MASK, val);
+	if (ret < 0) {
+		dev_err(max->dev, "register %d update failed: %d\n",
+				MAX8973_CONTROL2, ret);
+		return ret;
+	}
+	return 0;
+}
+
+static int max8973_get_current_limit(struct regulator_dev *rdev)
+{
+	struct max8973_chip *max = rdev_get_drvdata(rdev);
+	unsigned int control2;
+	int ret;
+
+	ret = regmap_read(max->regmap, MAX8973_CONTROL2, &control2);
+	if (ret < 0) {
+		dev_err(max->dev, "register %d read failed: %d\n",
+				MAX8973_CONTROL2, ret);
+		return ret;
+	}
+	switch (control2 & MAX8973_CKKADV_TRIP_MASK) {
+	case MAX8973_CKKADV_TRIP_DISABLE:
+		return 15000000;
+	case MAX8973_CKKADV_TRIP_150mV_PER_US:
+		return 12000000;
+	case MAX8973_CKKADV_TRIP_75mV_PER_US:
+		return 9000000;
+	default:
+		break;
+	}
+	return 9000000;
+}
+
 static const struct regulator_ops max8973_dcdc_ops = {
 	.get_voltage_sel	= max8973_dcdc_get_voltage_sel,
 	.set_voltage_sel	= max8973_dcdc_set_voltage_sel,
@@ -421,6 +471,8 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 	struct device_node *np = dev->of_node;
 	int ret;
 	u32 pval;
+	bool etr_enable;
+	bool etr_sensitivity_high;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -451,6 +503,23 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 
 	if (of_property_read_bool(np, "maxim,enable-bias-control"))
 		pdata->control_flags  |= MAX8973_CONTROL_BIAS_ENABLE;
+
+	etr_enable = of_property_read_bool(np, "maxim,enable-etr");
+	etr_sensitivity_high = of_property_read_bool(np,
+				"maxim,enable-high-etr-sensitivity");
+	if (etr_sensitivity_high)
+		etr_enable = true;
+
+	if (etr_enable) {
+		if (etr_sensitivity_high)
+			pdata->control_flags |=
+				MAX8973_CONTROL_CLKADV_TRIP_75mV_PER_US;
+		else
+			pdata->control_flags |=
+				MAX8973_CONTROL_CLKADV_TRIP_150mV_PER_US;
+	} else {
+		pdata->control_flags |= MAX8973_CONTROL_CLKADV_TRIP_DISABLED;
+	}
 
 	return pdata;
 }
@@ -568,6 +637,15 @@ static int max8973_probe(struct i2c_client *client,
 			max->lru_index[i] = i;
 		max->lru_index[0] = max->curr_vout_reg;
 		max->lru_index[max->curr_vout_reg] = 0;
+	} else {
+		/*
+		 * If there is no DVS GPIO, the VOUT register
+		 * address is fixed.
+		 */
+		max->ops.set_voltage_sel = regulator_set_voltage_sel_regmap;
+		max->ops.get_voltage_sel = regulator_get_voltage_sel_regmap;
+		max->desc.vsel_reg = max->curr_vout_reg;
+		max->desc.vsel_mask = MAX8973_VOUT_MASK;
 	}
 
 	if (pdata_from_dt)
@@ -613,6 +691,8 @@ static int max8973_probe(struct i2c_client *client,
 		max->ops.enable = regulator_enable_regmap;
 		max->ops.disable = regulator_disable_regmap;
 		max->ops.is_enabled = regulator_is_enabled_regmap;
+		max->ops.set_current_limit = max8973_set_current_limit;
+		max->ops.get_current_limit = max8973_get_current_limit;
 		break;
 	default:
 		break;
@@ -652,7 +732,6 @@ static struct i2c_driver max8973_i2c_driver = {
 	.driver = {
 		.name = "max8973",
 		.of_match_table = of_max8973_match_tbl,
-		.owner = THIS_MODULE,
 	},
 	.probe = max8973_probe,
 	.id_table = max8973_id,

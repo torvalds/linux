@@ -58,6 +58,9 @@ EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
+ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
+EXPORT_SYMBOL(s390_epoch_delta_notifier);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -117,11 +120,6 @@ static int s390_next_event(unsigned long delta,
 	return 0;
 }
 
-static void s390_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
-{
-}
-
 /*
  * Set up lowcore and control register of the current cpu to
  * enable TOD clock and clock comparator interrupts.
@@ -145,7 +143,6 @@ void init_cpu_timer(void)
 	cd->rating		= 400;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
-	cd->set_mode		= s390_set_mode;
 
 	clockevents_register_device(cd);
 
@@ -381,7 +378,7 @@ static void disable_sync_clock(void *dummy)
 	 * increase the "sequence" counter to avoid the race of an
 	 * etr event and the complete recovery against get_sync_clock.
 	 */
-	atomic_clear_mask(0x80000000, sw_ptr);
+	atomic_andnot(0x80000000, sw_ptr);
 	atomic_inc(sw_ptr);
 }
 
@@ -392,7 +389,7 @@ static void disable_sync_clock(void *dummy)
 static void enable_sync_clock(void)
 {
 	atomic_t *sw_ptr = this_cpu_ptr(&clock_sync_word);
-	atomic_set_mask(0x80000000, sw_ptr);
+	atomic_or(0x80000000, sw_ptr);
 }
 
 /*
@@ -752,7 +749,7 @@ static void clock_sync_cpu(struct clock_sync_data *sync)
 static int etr_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long clock, old_clock, delay, delta;
+	unsigned long long clock, old_clock, clock_delta, delay, delta;
 	struct clock_sync_data *etr_sync;
 	struct etr_aib *sync_port, *aib;
 	int port;
@@ -789,6 +786,9 @@ static int etr_sync_clock(void *data)
 		delay = (unsigned long long)
 			(aib->edf2.etv - sync_port->edf2.etv) << 32;
 		delta = adjust_time(old_clock, clock, delay);
+		clock_delta = clock - old_clock;
+		atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0,
+					   &clock_delta);
 		etr_sync->fixup_cc = delta;
 		fixup_clock_comparator(delta);
 		/* Verify that the clock is properly set. */
@@ -1526,7 +1526,7 @@ void stp_island_check(void)
 static int stp_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long old_clock, delta;
+	unsigned long long old_clock, delta, new_clock, clock_delta;
 	struct clock_sync_data *stp_sync;
 	int rc;
 
@@ -1551,7 +1551,11 @@ static int stp_sync_clock(void *data)
 		old_clock = get_tod_clock();
 		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0);
 		if (rc == 0) {
-			delta = adjust_time(old_clock, get_tod_clock(), 0);
+			new_clock = get_tod_clock();
+			delta = adjust_time(old_clock, new_clock, 0);
+			clock_delta = new_clock - old_clock;
+			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
+						   0, &clock_delta);
 			fixup_clock_comparator(delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));

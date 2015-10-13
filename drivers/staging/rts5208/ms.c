@@ -1121,11 +1121,10 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 
 #ifdef SUPPORT_MSXC
 		if ((buf[cur_addr_off + 8] == 0x10) ||
-			(buf[cur_addr_off + 8] == 0x13))
+			(buf[cur_addr_off + 8] == 0x13)) {
 #else
-		if (buf[cur_addr_off + 8] == 0x10)
+		if (buf[cur_addr_off + 8] == 0x10) {
 #endif
-		{
 			sys_info_addr = ((u32)buf[cur_addr_off + 0] << 24) |
 				((u32)buf[cur_addr_off + 1] << 16) |
 				((u32)buf[cur_addr_off + 2] << 8) |

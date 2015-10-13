@@ -60,9 +60,10 @@ Filesystem support consists of
 - implementing the direct_IO address space operation, and calling
   dax_do_io() instead of blockdev_direct_IO() if S_DAX is set
 - implementing an mmap file operation for DAX files which sets the
-  VM_MIXEDMAP flag on the VMA, and setting the vm_ops to include handlers
-  for fault and page_mkwrite (which should probably call dax_fault() and
-  dax_mkwrite(), passing the appropriate get_block() callback)
+  VM_MIXEDMAP and VM_HUGEPAGE flags on the VMA, and setting the vm_ops to
+  include handlers for fault, pmd_fault and page_mkwrite (which should
+  probably call dax_fault(), dax_pmd_fault() and dax_mkwrite(), passing the
+  appropriate get_block() callback)
 - calling dax_truncate_page() instead of block_truncate_page() for DAX files
 - calling dax_zero_page_range() instead of zero_user() for DAX files
 - ensuring that there is sufficient locking between reads, writes,

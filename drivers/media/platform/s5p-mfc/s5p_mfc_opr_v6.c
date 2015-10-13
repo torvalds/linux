@@ -239,7 +239,8 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 
 	/* Allocate only if memory from bank 1 is necessary */
 	if (ctx->bank1.size > 0) {
-		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->bank1);
+		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1,
+					     &ctx->bank1);
 		if (ret) {
 			mfc_err("Failed to allocate Bank1 memory\n");
 			return ret;
@@ -291,7 +292,7 @@ static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 		break;
 	}
 
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->ctx);
+	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1, &ctx->ctx);
 	if (ret) {
 		mfc_err("Failed to allocate instance buffer\n");
 		return ret;
@@ -320,7 +321,8 @@ static int s5p_mfc_alloc_dev_context_buffer_v6(struct s5p_mfc_dev *dev)
 	mfc_debug_enter();
 
 	dev->ctx_buf.size = buf_size->dev_ctx;
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &dev->ctx_buf);
+	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1,
+				     &dev->ctx_buf);
 	if (ret) {
 		mfc_err("Failed to allocate device context buffer\n");
 		return ret;
@@ -1734,7 +1736,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 
 	mfc_debug(1, "New context: %d\n", new_ctx);
 	ctx = dev->ctx[new_ctx];
-	mfc_debug(1, "Seting new context to %p\n", ctx);
+	mfc_debug(1, "Setting new context to %p\n", ctx);
 	/* Got context to run in ctx */
 	mfc_debug(1, "ctx->dst_queue_cnt=%d ctx->dpb_count=%d ctx->src_queue_cnt=%d\n",
 		ctx->dst_queue_cnt, ctx->pb_count, ctx->src_queue_cnt);

@@ -1249,7 +1249,8 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR, 0x0);
 
-	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
+	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
+	    AR_SREV_9561(ah)) {
 		if (is_2g)
 			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 				      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR,
@@ -1640,7 +1641,8 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 
 skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
-		if (AR_SREV_9330_11(ah) || AR_SREV_9531(ah) || AR_SREV_9550(ah)) {
+		if (AR_SREV_9330_11(ah) || AR_SREV_9531(ah) || AR_SREV_9550(ah) ||
+		    AR_SREV_9561(ah)) {
 			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 				if (!(ah->rxchainmask & (1 << i)))
 					continue;

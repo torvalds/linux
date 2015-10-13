@@ -451,10 +451,10 @@ static void periph_interrupt(struct spmi_pmic_arb_dev *pa, u8 apid)
 	}
 }
 
-static void pmic_arb_chained_irq(unsigned int irq, struct irq_desc *desc)
+static void pmic_arb_chained_irq(struct irq_desc *desc)
 {
-	struct spmi_pmic_arb_dev *pa = irq_get_handler_data(irq);
-	struct irq_chip *chip = irq_get_chip(irq);
+	struct spmi_pmic_arb_dev *pa = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	void __iomem *intr = pa->intr;
 	int first = pa->min_apid >> 5;
 	int last = pa->max_apid >> 5;
@@ -575,6 +575,22 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
+static int qpnpint_get_irqchip_state(struct irq_data *d,
+				     enum irqchip_irq_state which,
+				     bool *state)
+{
+	u8 irq = d->hwirq >> 8;
+	u8 status = 0;
+
+	if (which != IRQCHIP_STATE_LINE_LEVEL)
+		return -EINVAL;
+
+	qpnpint_spmi_read(d, QPNPINT_REG_RT_STS, &status, 1);
+	*state = !!(status & BIT(irq));
+
+	return 0;
+}
+
 static struct irq_chip pmic_arb_irqchip = {
 	.name		= "pmic_arb",
 	.irq_enable	= qpnpint_irq_enable,
@@ -582,6 +598,7 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_mask	= qpnpint_irq_mask,
 	.irq_unmask	= qpnpint_irq_unmask,
 	.irq_set_type	= qpnpint_irq_set_type,
+	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND
 			| IRQCHIP_SKIP_SET_WAKE,
 };
@@ -928,8 +945,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		goto err_put_ctrl;
 	}
 
-	irq_set_handler_data(pa->irq, pa);
-	irq_set_chained_handler(pa->irq, pmic_arb_chained_irq);
+	irq_set_chained_handler_and_data(pa->irq, pmic_arb_chained_irq, pa);
 
 	err = spmi_controller_add(ctrl);
 	if (err)
@@ -938,8 +954,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	return 0;
 
 err_domain_remove:
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 err_put_ctrl:
 	spmi_controller_put(ctrl);
@@ -951,8 +966,7 @@ static int spmi_pmic_arb_remove(struct platform_device *pdev)
 	struct spmi_controller *ctrl = platform_get_drvdata(pdev);
 	struct spmi_pmic_arb_dev *pa = spmi_controller_get_drvdata(ctrl);
 	spmi_controller_remove(ctrl);
-	irq_set_chained_handler(pa->irq, NULL);
-	irq_set_handler_data(pa->irq, NULL);
+	irq_set_chained_handler_and_data(pa->irq, NULL, NULL);
 	irq_domain_remove(pa->domain);
 	spmi_controller_put(ctrl);
 	return 0;

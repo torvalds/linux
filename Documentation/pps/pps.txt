@@ -125,7 +125,7 @@ The same function may also run the defined echo function
 (pps_ktimer_echo(), passing to it the "ptr" pointer) if the user
 asked for that... etc..
 
-Please see the file drivers/pps/clients/ktimer.c for example code.
+Please see the file drivers/pps/clients/pps-ktimer.c for example code.
 
 
 SYSFS support

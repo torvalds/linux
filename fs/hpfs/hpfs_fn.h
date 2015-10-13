@@ -88,6 +88,10 @@ struct hpfs_sb_info {
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
 	int sb_timeshift;
 	struct rcu_head rcu;
+
+	unsigned n_hotfixes;
+	secno hotfix_from[256];
+	secno hotfix_to[256];
 };
 
 /* Four 512-byte buffers and the 2k block obtained by concatenating them */
@@ -217,6 +221,8 @@ void hpfs_remove_fnode(struct super_block *, fnode_secno fno);
 
 /* buffer.c */
 
+secno hpfs_search_hotfix_map(struct super_block *s, secno sec);
+unsigned hpfs_search_hotfix_map_for_range(struct super_block *s, secno sec, unsigned n);
 void hpfs_prefetch_sectors(struct super_block *, unsigned, int);
 void *hpfs_map_sector(struct super_block *, unsigned, struct buffer_head **, int);
 void *hpfs_get_sector(struct super_block *, unsigned, struct buffer_head **);
@@ -285,6 +291,7 @@ __le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head 
 void hpfs_prefetch_bitmap(struct super_block *, unsigned);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
 __le32 *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
+void hpfs_load_hotfix_map(struct super_block *s, struct hpfs_spare_block *spareblock);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
 struct anode *hpfs_map_anode(struct super_block *s, anode_secno, struct buffer_head **);
 struct dnode *hpfs_map_dnode(struct super_block *s, dnode_secno, struct quad_buffer_head *);

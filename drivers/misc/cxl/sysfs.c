@@ -112,12 +112,38 @@ static ssize_t load_image_on_perst_store(struct device *device,
 	return count;
 }
 
+static ssize_t perst_reloads_same_image_show(struct device *device,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->perst_same_image);
+}
+
+static ssize_t perst_reloads_same_image_store(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+	int val;
+
+	rc = sscanf(buf, "%i", &val);
+	if ((rc != 1) || !(val == 1 || val == 0))
+		return -EINVAL;
+
+	adapter->perst_same_image = (val == 1 ? true : false);
+	return count;
+}
+
 static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(caia_version),
 	__ATTR_RO(psl_revision),
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
 	__ATTR_RW(load_image_on_perst),
+	__ATTR_RW(perst_reloads_same_image),
 	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),
 };
 
@@ -443,12 +469,7 @@ static ssize_t afu_read_config(struct file *filp, struct kobject *kobj,
 	struct afu_config_record *cr = to_cr(kobj);
 	struct cxl_afu *afu = to_cxl_afu(container_of(kobj->parent, struct device, kobj));
 
-	u64 i, j, val, size = afu->crs_len;
-
-	if (off > size)
-		return 0;
-	if (off + count > size)
-		count = size - off;
+	u64 i, j, val;
 
 	for (i = 0; i < count;) {
 		val = cxl_afu_cr_read64(afu, cr->cr, off & ~0x7);
@@ -571,6 +592,8 @@ int cxl_sysfs_afu_add(struct cxl_afu *afu)
 
 	/* conditionally create the add the binary file for error info buffer */
 	if (afu->eb_len) {
+		sysfs_attr_init(&afu->attr_eb.attr);
+
 		afu->attr_eb.attr.name = "afu_err_buff";
 		afu->attr_eb.attr.mode = S_IRUGO;
 		afu->attr_eb.size = afu->eb_len;

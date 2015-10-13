@@ -38,7 +38,7 @@
  * they are running owned by the thread that is running them. Otherwise, suppose
  * you submit some bios and wish to have a function run when they all complete:
  *
- * foo_endio(struct bio *bio, int error)
+ * foo_endio(struct bio *bio)
  * {
  *	closure_put(cl);
  * }

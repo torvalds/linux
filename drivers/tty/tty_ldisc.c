@@ -22,9 +22,7 @@
 #undef LDISC_DEBUG_HANGUP
 
 #ifdef LDISC_DEBUG_HANGUP
-#define tty_ldisc_debug(tty, f, args...) ({				  \
-	printk(KERN_DEBUG "%s: %s: " f, __func__, tty_name(tty), ##args); \
-})
+#define tty_ldisc_debug(tty, f, args...)	tty_debug(tty, f, ##args)
 #else
 #define tty_ldisc_debug(tty, f, args...)
 #endif
@@ -449,6 +447,8 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 		ret = ld->ops->open(tty);
 		if (ret)
 			clear_bit(TTY_LDISC_OPEN, &tty->flags);
+
+		tty_ldisc_debug(tty, "%p: opened\n", tty->ldisc);
 		return ret;
 	}
 	return 0;
@@ -469,6 +469,7 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 	clear_bit(TTY_LDISC_OPEN, &tty->flags);
 	if (ld->ops->close)
 		ld->ops->close(tty);
+	tty_ldisc_debug(tty, "%p: closed\n", tty->ldisc);
 }
 
 /**
@@ -662,7 +663,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
 	int err = 0;
 
-	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: closing\n", tty->ldisc);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
@@ -712,7 +713,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	if (reset)
 		tty_reset_termios(tty);
 
-	tty_ldisc_debug(tty, "re-opened ldisc: %p\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: re-opened\n", tty->ldisc);
 }
 
 /**
@@ -776,8 +777,6 @@ void tty_ldisc_release(struct tty_struct *tty)
 	 * it does not race with the set_ldisc code path.
 	 */
 
-	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
-
 	tty_ldisc_lock_pair(tty, o_tty);
 	tty_ldisc_kill(tty);
 	if (o_tty)
@@ -787,7 +786,7 @@ void tty_ldisc_release(struct tty_struct *tty)
 	/* And the memory resources remaining (buffers, termios) will be
 	   disposed of when the kref hits zero */
 
-	tty_ldisc_debug(tty, "ldisc closed\n");
+	tty_ldisc_debug(tty, "released\n");
 }
 
 /**

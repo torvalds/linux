@@ -188,7 +188,7 @@ unsigned int synproxy_tstamp_adjust(struct sk_buff *skb,
 				    const struct nf_conn_synproxy *synproxy)
 {
 	unsigned int optoff, optend;
-	u32 *ptr, old;
+	__be32 *ptr, old;
 
 	if (synproxy->tsoff == 0)
 		return 1;
@@ -216,12 +216,12 @@ unsigned int synproxy_tstamp_adjust(struct sk_buff *skb,
 			if (op[0] == TCPOPT_TIMESTAMP &&
 			    op[1] == TCPOLEN_TIMESTAMP) {
 				if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY) {
-					ptr = (u32 *)&op[2];
+					ptr = (__be32 *)&op[2];
 					old = *ptr;
 					*ptr = htonl(ntohl(*ptr) -
 						     synproxy->tsoff);
 				} else {
-					ptr = (u32 *)&op[6];
+					ptr = (__be32 *)&op[6];
 					old = *ptr;
 					*ptr = htonl(ntohl(*ptr) +
 						     synproxy->tsoff);
@@ -380,7 +380,7 @@ static int __net_init synproxy_net_init(struct net *net)
 err3:
 	free_percpu(snet->stats);
 err2:
-	nf_conntrack_free(ct);
+	nf_ct_tmpl_free(ct);
 err1:
 	return err;
 }

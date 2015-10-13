@@ -26,12 +26,18 @@ Required properties:
 
 Optional properties:
 
-- interrupt-affinity : Valid only when using SPIs, specifies a list of phandles
-                       to CPU nodes corresponding directly to the affinity of
+- interrupt-affinity : When using SPIs, specifies a list of phandles to CPU
+                       nodes corresponding directly to the affinity of
 		       the SPIs listed in the interrupts property.
 
-		       This property should be present when there is more than
+                       When using a PPI, specifies a list of phandles to CPU
+		       nodes corresponding to the set of CPUs which have
+		       a PMU of this type signalling the PPI listed in the
+		       interrupts property.
+
+                       This property should be present when there is more than
 		       a single SPI.
+
 
 - qcom,no-pc-write : Indicates that this PMU doesn't support the 0xc and 0xd
                      events.

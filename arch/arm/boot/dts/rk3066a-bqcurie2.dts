@@ -49,6 +49,7 @@
 	compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
 
 	memory {
+		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};
 

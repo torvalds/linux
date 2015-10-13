@@ -36,7 +36,7 @@ static void nft_redir_ipv4_eval(const struct nft_expr *expr,
 	mr.range[0].flags |= priv->flags;
 
 	regs->verdict.code = nf_nat_redirect_ipv4(pkt->skb, &mr,
-						  pkt->ops->hooknum);
+						  pkt->hook);
 }
 
 static struct nft_expr_type nft_redir_ipv4_type;

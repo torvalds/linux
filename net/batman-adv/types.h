@@ -328,7 +328,6 @@ enum batadv_orig_capabilities {
  * @orig_node: pointer to corresponding orig node
  * @bandwidth_down: advertised uplink download bandwidth
  * @bandwidth_up: advertised uplink upload bandwidth
- * @deleted: this struct is scheduled for deletion
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
  */
@@ -337,7 +336,6 @@ struct batadv_gw_node {
 	struct batadv_orig_node *orig_node;
 	u32 bandwidth_down;
 	u32 bandwidth_up;
-	unsigned long deleted;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };

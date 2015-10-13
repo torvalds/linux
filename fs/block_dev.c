@@ -28,6 +28,7 @@
 #include <linux/namei.h>
 #include <linux/log2.h>
 #include <linux/cleancache.h>
+#include <linux/dax.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -441,7 +442,7 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
  * accessible at this address.
  */
 long bdev_direct_access(struct block_device *bdev, sector_t sector,
-			void **addr, unsigned long *pfn, long size)
+			void __pmem **addr, unsigned long *pfn, long size)
 {
 	long avail;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
@@ -462,7 +463,7 @@ long bdev_direct_access(struct block_device *bdev, sector_t sector,
 	sector += get_start_sect(bdev);
 	if (sector % (PAGE_SIZE / 512))
 		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, addr, pfn, size);
+	avail = ops->direct_access(bdev, sector, addr, pfn);
 	if (!avail)
 		return -ERANGE;
 	return min(avail, size);
@@ -1241,6 +1242,13 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_clear;
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
+			/*
+			 * If the partition is not aligned on a page
+			 * boundary, we can't do dax I/O to it.
+			 */
+			if ((bdev->bd_part->start_sect % (PAGE_SIZE / 512)) ||
+			    (bdev->bd_part->nr_sects % (PAGE_SIZE / 512)))
+				bdev->bd_inode->i_flags &= ~S_DAX;
 		}
 	} else {
 		if (bdev->bd_contains == bdev) {
@@ -1769,7 +1777,7 @@ void iterate_bdevs(void (*func)(struct block_device *, void *), void *arg)
 {
 	struct inode *inode, *old_inode = NULL;
 
-	spin_lock(&inode_sb_list_lock);
+	spin_lock(&blockdev_superblock->s_inode_list_lock);
 	list_for_each_entry(inode, &blockdev_superblock->s_inodes, i_sb_list) {
 		struct address_space *mapping = inode->i_mapping;
 
@@ -1781,13 +1789,13 @@ void iterate_bdevs(void (*func)(struct block_device *, void *), void *arg)
 		}
 		__iget(inode);
 		spin_unlock(&inode->i_lock);
-		spin_unlock(&inode_sb_list_lock);
+		spin_unlock(&blockdev_superblock->s_inode_list_lock);
 		/*
 		 * We hold a reference to 'inode' so it couldn't have been
 		 * removed from s_inodes list while we dropped the
-		 * inode_sb_list_lock.  We cannot iput the inode now as we can
+		 * s_inode_list_lock  We cannot iput the inode now as we can
 		 * be holding the last reference and we cannot iput it under
-		 * inode_sb_list_lock. So we keep the reference and iput it
+		 * s_inode_list_lock. So we keep the reference and iput it
 		 * later.
 		 */
 		iput(old_inode);
@@ -1795,8 +1803,8 @@ void iterate_bdevs(void (*func)(struct block_device *, void *), void *arg)
 
 		func(I_BDEV(inode), arg);
 
-		spin_lock(&inode_sb_list_lock);
+		spin_lock(&blockdev_superblock->s_inode_list_lock);
 	}
-	spin_unlock(&inode_sb_list_lock);
+	spin_unlock(&blockdev_superblock->s_inode_list_lock);
 	iput(old_inode);
 }

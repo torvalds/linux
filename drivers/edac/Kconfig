@@ -61,16 +61,6 @@ config EDAC_DECODE_MCE
 	  which occur really early upon boot, before the module infrastructure
 	  has been initialized.
 
-config EDAC_MCE_INJ
-	tristate "Simple MCE injection interface"
-	depends on EDAC_DECODE_MCE && DEBUG_FS
-	default n
-	help
-	  This is a simple debugfs interface to inject MCEs and test different
-	  aspects of the MCE handling code.
-
-	  WARNING: Do not even assume this interface is staying stable!
-
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
 	select RAS

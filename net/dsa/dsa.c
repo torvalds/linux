@@ -176,6 +176,41 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
+static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
+{
+	struct dsa_chip_data *cd = ds->pd;
+	struct device_node *port_dn;
+	struct phy_device *phydev;
+	int ret, port, mode;
+
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
+		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
+			continue;
+
+		port_dn = cd->port_dn[port];
+		if (of_phy_is_fixed_link(port_dn)) {
+			ret = of_phy_register_fixed_link(port_dn);
+			if (ret) {
+				netdev_err(master,
+					   "failed to register fixed PHY\n");
+				return ret;
+			}
+			phydev = of_phy_find_device(port_dn);
+
+			mode = of_get_phy_mode(port_dn);
+			if (mode < 0)
+				mode = PHY_INTERFACE_MODE_NA;
+			phydev->interface = mode;
+
+			genphy_config_init(phydev);
+			genphy_read_status(phydev);
+			if (ds->drv->adjust_link)
+				ds->drv->adjust_link(ds, port, phydev);
+		}
+	}
+	return 0;
+}
+
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
 	struct dsa_switch_driver *drv = ds->drv;
@@ -291,10 +326,18 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 
 		ret = dsa_slave_create(ds, parent, i, pd->port_names[i]);
 		if (ret < 0) {
-			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
-				   index, i, pd->port_names[i]);
+			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
+				   index, i, pd->port_names[i], ret);
 			ret = 0;
 		}
+	}
+
+	/* Perform configuration of the CPU and DSA ports */
+	ret = dsa_cpu_dsa_setup(ds, dst->master_netdev);
+	if (ret < 0) {
+		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
+			   index);
+		ret = 0;
 	}
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -591,6 +634,10 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 			port_index++;
 		}
 		kfree(pd->chip[i].rtable);
+
+		/* Drop our reference to the MDIO bus device */
+		if (pd->chip[i].host_dev)
+			put_device(pd->chip[i].host_dev);
 	}
 	kfree(pd->chip);
 }
@@ -618,16 +665,22 @@ static int dsa_of_probe(struct device *dev)
 		return -EPROBE_DEFER;
 
 	ethernet = of_parse_phandle(np, "dsa,ethernet", 0);
-	if (!ethernet)
-		return -EINVAL;
+	if (!ethernet) {
+		ret = -EINVAL;
+		goto out_put_mdio;
+	}
 
 	ethernet_dev = of_find_net_device_by_node(ethernet);
-	if (!ethernet_dev)
-		return -EPROBE_DEFER;
+	if (!ethernet_dev) {
+		ret = -EPROBE_DEFER;
+		goto out_put_mdio;
+	}
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return -ENOMEM;
+	if (!pd) {
+		ret = -ENOMEM;
+		goto out_put_ethernet;
+	}
 
 	dev->platform_data = pd;
 	pd->of_netdev = ethernet_dev;
@@ -648,7 +701,9 @@ static int dsa_of_probe(struct device *dev)
 		cd = &pd->chip[chip_index];
 
 		cd->of_node = child;
-		cd->host_dev = &mdio_bus->dev;
+
+		/* When assigning the host device, increment its refcount */
+		cd->host_dev = get_device(&mdio_bus->dev);
 
 		sw_addr = of_get_property(child, "reg", NULL);
 		if (!sw_addr)
@@ -668,6 +723,12 @@ static int dsa_of_probe(struct device *dev)
 				ret = -EPROBE_DEFER;
 				goto out_free_chip;
 			}
+
+			/* Drop the mdio_bus device ref, replacing the host
+			 * device with the mdio_bus_switch device, keeping
+			 * the refcount from of_mdio_find_bus() above.
+			 */
+			put_device(cd->host_dev);
 			cd->host_dev = &mdio_bus_switch->dev;
 		}
 
@@ -701,6 +762,10 @@ static int dsa_of_probe(struct device *dev)
 		}
 	}
 
+	/* The individual chips hold their own refcount on the mdio bus,
+	 * so drop ours */
+	put_device(&mdio_bus->dev);
+
 	return 0;
 
 out_free_chip:
@@ -708,6 +773,10 @@ out_free_chip:
 out_free:
 	kfree(pd);
 	dev->platform_data = NULL;
+out_put_ethernet:
+	put_device(&ethernet_dev->dev);
+out_put_mdio:
+	put_device(&mdio_bus->dev);
 	return ret;
 }
 
@@ -719,6 +788,7 @@ static void dsa_of_remove(struct device *dev)
 		return;
 
 	dsa_of_free_platform_data(pd);
+	put_device(&pd->of_netdev->dev);
 	kfree(pd);
 }
 #else

@@ -53,6 +53,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "ext_intr",    VCPU_STAT(ext_intr_exits) },
 	{ "queue_intr",  VCPU_STAT(queue_intr) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll), },
+	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll), },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "pf_storage",  VCPU_STAT(pf_storage) },
 	{ "sp_storage",  VCPU_STAT(sp_storage) },
@@ -240,7 +241,8 @@ void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
 }
 
-int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
+static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
+					 unsigned int priority)
 {
 	int deliver = 1;
 	int vec = 0;
@@ -827,12 +829,15 @@ int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
 	unsigned long size = kvmppc_get_gpr(vcpu, 4);
 	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
 	u64 buf;
+	int srcu_idx;
 	int ret;
 
 	if (!is_power_of_2(size) || (size > sizeof(buf)))
 		return H_TOO_HARD;
 
+	srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 	if (ret != 0)
 		return H_TOO_HARD;
 
@@ -867,6 +872,7 @@ int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu)
 	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
 	unsigned long val = kvmppc_get_gpr(vcpu, 6);
 	u64 buf;
+	int srcu_idx;
 	int ret;
 
 	switch (size) {
@@ -890,7 +896,9 @@ int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu)
 		return H_TOO_HARD;
 	}
 
+	srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 	if (ret != 0)
 		return H_TOO_HARD;
 
@@ -902,7 +910,7 @@ int kvmppc_core_check_processor_compat(void)
 {
 	/*
 	 * We always return 0 for book3s. We check
-	 * for compatability while loading the HV
+	 * for compatibility while loading the HV
 	 * or PR module
 	 */
 	return 0;

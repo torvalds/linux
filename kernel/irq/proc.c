@@ -39,7 +39,7 @@ static struct proc_dir_entry *root_irq_dir;
 static int show_irq_affinity(int type, struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
-	const struct cpumask *mask = desc->irq_data.affinity;
+	const struct cpumask *mask = desc->irq_common_data.affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (irqd_is_setaffinity_pending(&desc->irq_data))

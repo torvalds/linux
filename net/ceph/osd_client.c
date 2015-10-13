@@ -2817,8 +2817,9 @@ out:
 }
 
 /*
- * lookup and return message for incoming reply.  set up reply message
- * pages.
+ * Lookup and return message for incoming reply.  Don't try to do
+ * anything about a larger than preallocated data portion of the
+ * message at the moment - for now, just skip the message.
  */
 static struct ceph_msg *get_reply(struct ceph_connection *con,
 				  struct ceph_msg_header *hdr,
@@ -2836,10 +2837,10 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	mutex_lock(&osdc->request_mutex);
 	req = __lookup_request(osdc, tid);
 	if (!req) {
-		*skip = 1;
+		pr_warn("%s osd%d tid %llu unknown, skipping\n",
+			__func__, osd->o_osd, tid);
 		m = NULL;
-		dout("get_reply unknown tid %llu from osd%d\n", tid,
-		     osd->o_osd);
+		*skip = 1;
 		goto out;
 	}
 
@@ -2849,10 +2850,9 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	ceph_msg_revoke_incoming(req->r_reply);
 
 	if (front_len > req->r_reply->front_alloc_len) {
-		pr_warn("get_reply front %d > preallocated %d (%u#%llu)\n",
-			front_len, req->r_reply->front_alloc_len,
-			(unsigned int)con->peer_name.type,
-			le64_to_cpu(con->peer_name.num));
+		pr_warn("%s osd%d tid %llu front %d > preallocated %d\n",
+			__func__, osd->o_osd, req->r_tid, front_len,
+			req->r_reply->front_alloc_len);
 		m = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, front_len, GFP_NOFS,
 				 false);
 		if (!m)
@@ -2860,37 +2860,22 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		ceph_msg_put(req->r_reply);
 		req->r_reply = m;
 	}
-	m = ceph_msg_get(req->r_reply);
 
-	if (data_len > 0) {
-		struct ceph_osd_data *osd_data;
-
-		/*
-		 * XXX This is assuming there is only one op containing
-		 * XXX page data.  Probably OK for reads, but this
-		 * XXX ought to be done more generally.
-		 */
-		osd_data = osd_req_op_extent_osd_data(req, 0);
-		if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
-			if (osd_data->pages &&
-				unlikely(osd_data->length < data_len)) {
-
-				pr_warn("tid %lld reply has %d bytes we had only %llu bytes ready\n",
-					tid, data_len, osd_data->length);
-				*skip = 1;
-				ceph_msg_put(m);
-				m = NULL;
-				goto out;
-			}
-		}
+	if (data_len > req->r_reply->data_length) {
+		pr_warn("%s osd%d tid %llu data %d > preallocated %zu, skipping\n",
+			__func__, osd->o_osd, req->r_tid, data_len,
+			req->r_reply->data_length);
+		m = NULL;
+		*skip = 1;
+		goto out;
 	}
-	*skip = 0;
+
+	m = ceph_msg_get(req->r_reply);
 	dout("get_reply tid %lld %p\n", tid, m);
 
 out:
 	mutex_unlock(&osdc->request_mutex);
 	return m;
-
 }
 
 static struct ceph_msg *alloc_msg(struct ceph_connection *con,

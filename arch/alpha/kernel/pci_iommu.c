@@ -939,16 +939,6 @@ static int alpha_pci_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return dma_addr == 0;
 }
 
-static int alpha_pci_set_mask(struct device *dev, u64 mask)
-{
-	if (!dev->dma_mask ||
-	    !pci_dma_supported(alpha_gendev_to_pci(dev), mask))
-		return -EIO;
-
-	*dev->dma_mask = mask;
-	return 0;
-}
-
 struct dma_map_ops alpha_pci_ops = {
 	.alloc			= alpha_pci_alloc_coherent,
 	.free			= alpha_pci_free_coherent,
@@ -958,7 +948,6 @@ struct dma_map_ops alpha_pci_ops = {
 	.unmap_sg		= alpha_pci_unmap_sg,
 	.mapping_error		= alpha_pci_mapping_error,
 	.dma_supported		= alpha_pci_supported,
-	.set_dma_mask		= alpha_pci_set_mask,
 };
 
 struct dma_map_ops *dma_ops = &alpha_pci_ops;

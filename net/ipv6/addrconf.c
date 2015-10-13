@@ -1943,37 +1943,6 @@ static void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
 	__ipv6_dev_ac_dec(ifp->idev, &addr);
 }
 
-static int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
-{
-	if (dev->addr_len != ETH_ALEN)
-		return -1;
-	memcpy(eui, dev->dev_addr, 3);
-	memcpy(eui + 5, dev->dev_addr + 3, 3);
-
-	/*
-	 * The zSeries OSA network cards can be shared among various
-	 * OS instances, but the OSA cards have only one MAC address.
-	 * This leads to duplicate address conflicts in conjunction
-	 * with IPv6 if more than one instance uses the same card.
-	 *
-	 * The driver for these cards can deliver a unique 16-bit
-	 * identifier for each instance sharing the same card.  It is
-	 * placed instead of 0xFFFE in the interface identifier.  The
-	 * "u" bit of the interface identifier is not inverted in this
-	 * case.  Hence the resulting interface identifier has local
-	 * scope according to RFC2373.
-	 */
-	if (dev->dev_id) {
-		eui[3] = (dev->dev_id >> 8) & 0xFF;
-		eui[4] = dev->dev_id & 0xFF;
-	} else {
-		eui[3] = 0xFF;
-		eui[4] = 0xFE;
-		eui[0] ^= 2;
-	}
-	return 0;
-}
-
 static int addrconf_ifid_eui64(u8 *eui, struct net_device *dev)
 {
 	if (dev->addr_len != IEEE802154_ADDR_LEN)
@@ -3656,7 +3625,7 @@ static void addrconf_dad_work(struct work_struct *w)
 
 	/* send a neighbour solicitation for our addr */
 	addrconf_addr_solict_mult(&ifp->addr, &mcaddr);
-	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &in6addr_any, NULL);
+	ndisc_send_ns(ifp->idev->dev, &ifp->addr, &mcaddr, &in6addr_any, NULL);
 out:
 	in6_ifa_put(ifp);
 	rtnl_unlock();
@@ -4726,18 +4695,24 @@ static inline void __snmp6_fill_statsdev(u64 *stats, atomic_long_t *mib,
 }
 
 static inline void __snmp6_fill_stats64(u64 *stats, void __percpu *mib,
-				      int items, int bytes, size_t syncpoff)
+					int bytes, size_t syncpoff)
 {
-	int i;
-	int pad = bytes - sizeof(u64) * items;
+	int i, c;
+	u64 buff[IPSTATS_MIB_MAX];
+	int pad = bytes - sizeof(u64) * IPSTATS_MIB_MAX;
+
 	BUG_ON(pad < 0);
 
-	/* Use put_unaligned() because stats may not be aligned for u64. */
-	put_unaligned(items, &stats[0]);
-	for (i = 1; i < items; i++)
-		put_unaligned(snmp_fold_field64(mib, i, syncpoff), &stats[i]);
+	memset(buff, 0, sizeof(buff));
+	buff[0] = IPSTATS_MIB_MAX;
 
-	memset(&stats[items], 0, pad);
+	for_each_possible_cpu(c) {
+		for (i = 1; i < IPSTATS_MIB_MAX; i++)
+			buff[i] += snmp_get_cpu_field64(mib, c, i, syncpoff);
+	}
+
+	memcpy(stats, buff, IPSTATS_MIB_MAX * sizeof(u64));
+	memset(&stats[IPSTATS_MIB_MAX], 0, pad);
 }
 
 static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
@@ -4745,8 +4720,8 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 {
 	switch (attrtype) {
 	case IFLA_INET6_STATS:
-		__snmp6_fill_stats64(stats, idev->stats.ipv6,
-				     IPSTATS_MIB_MAX, bytes, offsetof(struct ipstats_mib, syncp));
+		__snmp6_fill_stats64(stats, idev->stats.ipv6, bytes,
+				     offsetof(struct ipstats_mib, syncp));
 		break;
 	case IFLA_INET6_ICMP6STATS:
 		__snmp6_fill_statsdev(stats, idev->stats.icmpv6dev->mibs, ICMP6_MIB_MAX, bytes);
@@ -4754,7 +4729,8 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 	}
 }
 
-static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev)
+static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev,
+				  u32 ext_filter_mask)
 {
 	struct nlattr *nla;
 	struct ifla_cacheinfo ci;
@@ -4773,6 +4749,9 @@ static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev)
 	ipv6_store_devconf(&idev->cnf, nla_data(nla), nla_len(nla));
 
 	/* XXX - MC not implemented */
+
+	if (ext_filter_mask & RTEXT_FILTER_SKIP_STATS)
+		return 0;
 
 	nla = nla_reserve(skb, IFLA_INET6_STATS, IPSTATS_MIB_MAX * sizeof(u64));
 	if (!nla)
@@ -4809,14 +4788,15 @@ static size_t inet6_get_link_af_size(const struct net_device *dev)
 	return inet6_ifla6_size();
 }
 
-static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
+static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev,
+			      u32 ext_filter_mask)
 {
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
 	if (!idev)
 		return -ENODATA;
 
-	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+	if (inet6_fill_ifla6_attrs(skb, idev, ext_filter_mask) < 0)
 		return -EMSGSIZE;
 
 	return 0;
@@ -4971,7 +4951,7 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	if (!protoinfo)
 		goto nla_put_failure;
 
-	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+	if (inet6_fill_ifla6_attrs(skb, idev, 0) < 0)
 		goto nla_put_failure;
 
 	nla_nest_end(skb, protoinfo);
@@ -5152,13 +5132,12 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 			rt = addrconf_get_prefix_route(&ifp->peer_addr, 128,
 						       ifp->idev->dev, 0, 0);
-			if (rt && ip6_del_rt(rt))
-				dst_free(&rt->dst);
+			if (rt)
+				ip6_del_rt(rt);
 		}
 		dst_hold(&ifp->rt->dst);
 
-		if (ip6_del_rt(ifp->rt))
-			dst_free(&ifp->rt->dst);
+		ip6_del_rt(ifp->rt);
 
 		rt_genid_bump_ipv6(net);
 		break;

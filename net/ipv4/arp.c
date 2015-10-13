@@ -113,6 +113,8 @@
 #include <net/arp.h>
 #include <net/ax25.h>
 #include <net/netrom.h>
+#include <net/dst_metadata.h>
+#include <net/ip_tunnels.h>
 
 #include <linux/uaccess.h>
 
@@ -296,7 +298,8 @@ static void arp_send_dst(int type, int ptype, __be32 dest_ip,
 			 struct net_device *dev, __be32 src_ip,
 			 const unsigned char *dest_hw,
 			 const unsigned char *src_hw,
-			 const unsigned char *target_hw, struct sk_buff *oskb)
+			 const unsigned char *target_hw,
+			 struct dst_entry *dst)
 {
 	struct sk_buff *skb;
 
@@ -309,9 +312,7 @@ static void arp_send_dst(int type, int ptype, __be32 dest_ip,
 	if (!skb)
 		return;
 
-	if (oskb)
-		skb_dst_copy(skb, oskb);
-
+	skb_dst_set(skb, dst);
 	arp_xmit(skb);
 }
 
@@ -333,6 +334,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	__be32 target = *(__be32 *)neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 	struct in_device *in_dev;
+	struct dst_entry *dst = NULL;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
@@ -381,9 +383,10 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		}
 	}
 
+	if (skb && !(dev->priv_flags & IFF_XMIT_DST_RELEASE))
+		dst = dst_clone(skb_dst(skb));
 	arp_send_dst(ARPOP_REQUEST, ETH_P_ARP, target, dev, saddr,
-		     dst_hw, dev->dev_addr, NULL,
-		     dev->priv_flags & IFF_XMIT_DST_RELEASE ? NULL : skb);
+		     dst_hw, dev->dev_addr, NULL, dst);
 }
 
 static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
@@ -621,14 +624,20 @@ out:
 }
 EXPORT_SYMBOL(arp_create);
 
+static int arp_xmit_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	return dev_queue_xmit(skb);
+}
+
 /*
  *	Send an arp packet.
  */
 void arp_xmit(struct sk_buff *skb)
 {
 	/* Send it off, maybe filter it using firewalling first.  */
-	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, NULL, skb,
-		NULL, skb->dev, dev_queue_xmit_sk);
+	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT,
+		dev_net(skb->dev), NULL, skb, NULL, skb->dev,
+		arp_xmit_finish);
 }
 EXPORT_SYMBOL(arp_xmit);
 
@@ -636,7 +645,7 @@ EXPORT_SYMBOL(arp_xmit);
  *	Process an arp request.
  */
 
-static int arp_process(struct sock *sk, struct sk_buff *skb)
+static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
@@ -648,7 +657,7 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 	u16 dev_type = dev->type;
 	int addr_type;
 	struct neighbour *n;
-	struct net *net = dev_net(dev);
+	struct dst_entry *reply_dst = NULL;
 	bool is_garp = false;
 
 	/* arp_rcv below verifies the ARP header and verifies the device
@@ -749,13 +758,18 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
  *  cache.
  */
 
+	if (arp->ar_op == htons(ARPOP_REQUEST) && skb_metadata_dst(skb))
+		reply_dst = (struct dst_entry *)
+			    iptunnel_metadata_reply(skb_metadata_dst(skb),
+						    GFP_ATOMIC);
+
 	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
 	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type_dev_table(net, dev, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev, sip, tip))
-			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha,
-				 dev->dev_addr, sha);
+			arp_send_dst(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip,
+				     sha, dev->dev_addr, sha, reply_dst);
 		goto out;
 	}
 
@@ -774,9 +788,10 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 			if (!dont_send) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
-					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
-						 dev, tip, sha, dev->dev_addr,
-						 sha);
+					arp_send_dst(ARPOP_REPLY, ETH_P_ARP,
+						     sip, dev, tip, sha,
+						     dev->dev_addr, sha,
+						     reply_dst);
 					neigh_release(n);
 				}
 			}
@@ -794,9 +809,10 @@ static int arp_process(struct sock *sk, struct sk_buff *skb)
 				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
 				    skb->pkt_type == PACKET_HOST ||
 				    NEIGH_VAR(in_dev->arp_parms, PROXY_DELAY) == 0) {
-					arp_send(ARPOP_REPLY, ETH_P_ARP, sip,
-						 dev, tip, sha, dev->dev_addr,
-						 sha);
+					arp_send_dst(ARPOP_REPLY, ETH_P_ARP,
+						     sip, dev, tip, sha,
+						     dev->dev_addr, sha,
+						     reply_dst);
 				} else {
 					pneigh_enqueue(&arp_tbl,
 						       in_dev->arp_parms, skb);
@@ -859,7 +875,7 @@ out:
 
 static void parp_redo(struct sk_buff *skb)
 {
-	arp_process(NULL, skb);
+	arp_process(dev_net(skb->dev), NULL, skb);
 }
 
 
@@ -892,8 +908,9 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
-	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, NULL, skb,
-		       dev, NULL, arp_process);
+	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN,
+		       dev_net(dev), NULL, skb, dev, NULL,
+		       arp_process);
 
 consumeskb:
 	consume_skb(skb);

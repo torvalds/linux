@@ -59,14 +59,14 @@ enum qe_ic_grp_id {
 
 #ifdef CONFIG_QUICC_ENGINE
 void qe_ic_init(struct device_node *node, unsigned int flags,
-		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
-		void (*high_handler)(unsigned int irq, struct irq_desc *desc));
+		void (*low_handler)(struct irq_desc *desc),
+		void (*high_handler)(struct irq_desc *desc));
 unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic);
 unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic);
 #else
 static inline void qe_ic_init(struct device_node *node, unsigned int flags,
-		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
-		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
+		void (*low_handler)(struct irq_desc *desc),
+		void (*high_handler)(struct irq_desc *desc))
 {}
 static inline unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 { return 0; }
@@ -78,8 +78,7 @@ void qe_ic_set_highest_priority(unsigned int virq, int high);
 int qe_ic_set_priority(unsigned int virq, unsigned int priority);
 int qe_ic_set_high_priority(unsigned int virq, unsigned int priority, int high);
 
-static inline void qe_ic_cascade_low_ipic(unsigned int irq,
-					  struct irq_desc *desc)
+static inline void qe_ic_cascade_low_ipic(struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
@@ -88,8 +87,7 @@ static inline void qe_ic_cascade_low_ipic(unsigned int irq,
 		generic_handle_irq(cascade_irq);
 }
 
-static inline void qe_ic_cascade_high_ipic(unsigned int irq,
-					   struct irq_desc *desc)
+static inline void qe_ic_cascade_high_ipic(struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
@@ -98,8 +96,7 @@ static inline void qe_ic_cascade_high_ipic(unsigned int irq,
 		generic_handle_irq(cascade_irq);
 }
 
-static inline void qe_ic_cascade_low_mpic(unsigned int irq,
-					  struct irq_desc *desc)
+static inline void qe_ic_cascade_low_mpic(struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
@@ -111,8 +108,7 @@ static inline void qe_ic_cascade_low_mpic(unsigned int irq,
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static inline void qe_ic_cascade_high_mpic(unsigned int irq,
-					   struct irq_desc *desc)
+static inline void qe_ic_cascade_high_mpic(struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
@@ -124,8 +120,7 @@ static inline void qe_ic_cascade_high_mpic(unsigned int irq,
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static inline void qe_ic_cascade_muxed_mpic(unsigned int irq,
-					    struct irq_desc *desc)
+static inline void qe_ic_cascade_muxed_mpic(struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = irq_desc_get_handler_data(desc);
 	unsigned int cascade_irq;

@@ -22,9 +22,9 @@ static /*const*/ struct fb_ops armada_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= drm_fb_helper_check_var,
 	.fb_set_par	= drm_fb_helper_set_par,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
+	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
+	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
 	.fb_pan_display	= drm_fb_helper_pan_display,
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_setcmap	= drm_fb_helper_setcmap,
@@ -80,16 +80,10 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	if (IS_ERR(dfb))
 		return PTR_ERR(dfb);
 
-	info = framebuffer_alloc(0, dev->dev);
-	if (!info) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(fbh);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto err_fballoc;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto err_fbcmap;
 	}
 
 	strlcpy(info->fix.id, "armada-drmfb", sizeof(info->fix.id));
@@ -101,7 +95,7 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	info->screen_size = obj->obj.size;
 	info->screen_base = ptr;
 	fbh->fb = &dfb->fb;
-	fbh->fbdev = info;
+
 	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0], dfb->fb.depth);
 	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
 
@@ -111,8 +105,6 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 
 	return 0;
 
- err_fbcmap:
-	framebuffer_release(info);
  err_fballoc:
 	dfb->fb.funcs->destroy(&dfb->fb);
 	return ret;
@@ -171,6 +163,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	return 0;
  err_fb_setup:
+	drm_fb_helper_release_fbi(fbh);
 	drm_fb_helper_fini(fbh);
  err_fb_helper:
 	priv->fbdev = NULL;
@@ -191,14 +184,8 @@ void armada_fbdev_fini(struct drm_device *dev)
 	struct drm_fb_helper *fbh = priv->fbdev;
 
 	if (fbh) {
-		struct fb_info *info = fbh->fbdev;
-
-		if (info) {
-			unregister_framebuffer(info);
-			if (info->cmap.len)
-				fb_dealloc_cmap(&info->cmap);
-			framebuffer_release(info);
-		}
+		drm_fb_helper_unregister_fbi(fbh);
+		drm_fb_helper_release_fbi(fbh);
 
 		drm_fb_helper_fini(fbh);
 

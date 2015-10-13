@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <sysexits.h>
 #include "include/liblockdep/mutex.h"
-#include "../../../include/linux/rbtree.h"
+#include "../../include/linux/rbtree.h"
 
 /**
  * struct lock_lookup - liblockdep's view of a single unique lock

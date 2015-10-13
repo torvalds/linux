@@ -473,15 +473,71 @@ int symbol__alloc_hist(struct symbol *sym)
 	return 0;
 }
 
+/* The cycles histogram is lazily allocated. */
+static int symbol__alloc_hist_cycles(struct symbol *sym)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	const size_t size = symbol__size(sym);
+
+	notes->src->cycles_hist = calloc(size, sizeof(struct cyc_hist));
+	if (notes->src->cycles_hist == NULL)
+		return -1;
+	return 0;
+}
+
 void symbol__annotate_zero_histograms(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
 	pthread_mutex_lock(&notes->lock);
-	if (notes->src != NULL)
+	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
 		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
+		if (notes->src->cycles_hist)
+			memset(notes->src->cycles_hist, 0,
+				symbol__size(sym) * sizeof(struct cyc_hist));
+	}
 	pthread_mutex_unlock(&notes->lock);
+}
+
+static int __symbol__account_cycles(struct annotation *notes,
+				    u64 start,
+				    unsigned offset, unsigned cycles,
+				    unsigned have_start)
+{
+	struct cyc_hist *ch;
+
+	ch = notes->src->cycles_hist;
+	/*
+	 * For now we can only account one basic block per
+	 * final jump. But multiple could be overlapping.
+	 * Always account the longest one. So when
+	 * a shorter one has been already seen throw it away.
+	 *
+	 * We separately always account the full cycles.
+	 */
+	ch[offset].num_aggr++;
+	ch[offset].cycles_aggr += cycles;
+
+	if (!have_start && ch[offset].have_start)
+		return 0;
+	if (ch[offset].num) {
+		if (have_start && (!ch[offset].have_start ||
+				   ch[offset].start > start)) {
+			ch[offset].have_start = 0;
+			ch[offset].cycles = 0;
+			ch[offset].num = 0;
+			if (ch[offset].reset < 0xffff)
+				ch[offset].reset++;
+		} else if (have_start &&
+			   ch[offset].start < start)
+			return 0;
+	}
+	ch[offset].have_start = have_start;
+	ch[offset].start = start;
+	ch[offset].cycles += cycles;
+	ch[offset].num++;
+	return 0;
 }
 
 static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
@@ -506,12 +562,16 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return 0;
 }
 
-static struct annotation *symbol__get_annotation(struct symbol *sym)
+static struct annotation *symbol__get_annotation(struct symbol *sym, bool cycles)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
 	if (notes->src == NULL) {
 		if (symbol__alloc_hist(sym) < 0)
+			return NULL;
+	}
+	if (!notes->src->cycles_hist && cycles) {
+		if (symbol__alloc_hist_cycles(sym) < 0)
 			return NULL;
 	}
 	return notes;
@@ -524,10 +584,71 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	if (sym == NULL)
 		return 0;
-	notes = symbol__get_annotation(sym);
+	notes = symbol__get_annotation(sym, false);
 	if (notes == NULL)
 		return -ENOMEM;
 	return __symbol__inc_addr_samples(sym, map, notes, evidx, addr);
+}
+
+static int symbol__account_cycles(u64 addr, u64 start,
+				  struct symbol *sym, unsigned cycles)
+{
+	struct annotation *notes;
+	unsigned offset;
+
+	if (sym == NULL)
+		return 0;
+	notes = symbol__get_annotation(sym, true);
+	if (notes == NULL)
+		return -ENOMEM;
+	if (addr < sym->start || addr >= sym->end)
+		return -ERANGE;
+
+	if (start) {
+		if (start < sym->start || start >= sym->end)
+			return -ERANGE;
+		if (start >= addr)
+			start = 0;
+	}
+	offset = addr - sym->start;
+	return __symbol__account_cycles(notes,
+					start ? start - sym->start : 0,
+					offset, cycles,
+					!!start);
+}
+
+int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
+				    struct addr_map_symbol *start,
+				    unsigned cycles)
+{
+	u64 saddr = 0;
+	int err;
+
+	if (!cycles)
+		return 0;
+
+	/*
+	 * Only set start when IPC can be computed. We can only
+	 * compute it when the basic block is completely in a single
+	 * function.
+	 * Special case the case when the jump is elsewhere, but
+	 * it starts on the function start.
+	 */
+	if (start &&
+		(start->sym == ams->sym ||
+		 (ams->sym &&
+		   start->addr == ams->sym->start + ams->map->start)))
+		saddr = start->al_addr;
+	if (saddr == 0)
+		pr_debug2("BB with bad start: addr %"PRIx64" start %"PRIx64" sym %"PRIx64" saddr %"PRIx64"\n",
+			ams->addr,
+			start ? start->addr : 0,
+			ams->sym ? ams->sym->start + ams->map->start : 0,
+			saddr);
+	err = symbol__account_cycles(ams->al_addr, saddr, ams->sym, cycles);
+	if (err)
+		pr_debug2("account_cycles failed %d\n", err);
+	return err;
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, int evidx)
@@ -1005,6 +1126,7 @@ fallback:
 		dso->annotate_warned = 1;
 		pr_err("Can't annotate %s:\n\n"
 		       "No vmlinux file%s\nwas found in the path.\n\n"
+		       "Note that annotation using /proc/kcore requires CAP_SYS_RAWIO capability.\n\n"
 		       "Please use:\n\n"
 		       "  perf buildid-cache -vu vmlinux\n\n"
 		       "or:\n\n"

@@ -283,25 +283,25 @@ static int lpc32xx_set_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_RISING:
 		/* Rising edge sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 1, 1);
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
 		/* Falling edge sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 0, 1);
-		__irq_set_handler_locked(d->irq, handle_edge_irq);
+		irq_set_handler_locked(d, handle_edge_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
 		/* Low level sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 0, 0);
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 		break;
 
 	case IRQ_TYPE_LEVEL_HIGH:
 		/* High level sensitive */
 		__lpc32xx_set_irq_type(d->hwirq, 1, 0);
-		__irq_set_handler_locked(d->irq, handle_level_irq);
+		irq_set_handler_locked(d, handle_level_irq);
 		break;
 
 	/* Other modes are not supported */
@@ -370,7 +370,7 @@ static struct irq_chip lpc32xx_irq_chip = {
 	.irq_set_wake = lpc32xx_irq_wake
 };
 
-static void lpc32xx_sic1_handler(unsigned int irq, struct irq_desc *desc)
+static void lpc32xx_sic1_handler(struct irq_desc *desc)
 {
 	unsigned long ints = __raw_readl(LPC32XX_INTC_STAT(LPC32XX_SIC1_BASE));
 
@@ -383,7 +383,7 @@ static void lpc32xx_sic1_handler(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static void lpc32xx_sic2_handler(unsigned int irq, struct irq_desc *desc)
+static void lpc32xx_sic2_handler(struct irq_desc *desc)
 {
 	unsigned long ints = __raw_readl(LPC32XX_INTC_STAT(LPC32XX_SIC2_BASE));
 
@@ -434,7 +434,7 @@ void __init lpc32xx_init_irq(void)
 	for (i = 0; i < NR_IRQS; i++) {
 		irq_set_chip_and_handler(i, &lpc32xx_irq_chip,
 					 handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
 
 	/* Set default mappings */

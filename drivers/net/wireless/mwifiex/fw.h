@@ -104,6 +104,7 @@ enum KEY_TYPE_ID {
 enum mwifiex_usb_ep {
 	MWIFIEX_USB_EP_CMD_EVENT = 1,
 	MWIFIEX_USB_EP_DATA = 2,
+	MWIFIEX_USB_EP_DATA_CH2 = 3,
 };
 
 enum MWIFIEX_802_11_PRIVACY_FILTER {
@@ -173,6 +174,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
 #define TLV_TYPE_MULTI_CHAN_INFO    (PROPRIETARY_TLV_BASE_ID + 183)
+#define TLV_TYPE_MC_GROUP_INFO      (PROPRIETARY_TLV_BASE_ID + 184)
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_SCAN_CHANNEL_GAP   (PROPRIETARY_TLV_BASE_ID + 197)
 #define TLV_TYPE_API_REV            (PROPRIETARY_TLV_BASE_ID + 199)
@@ -1982,6 +1984,22 @@ struct mwifiex_ie_types_multi_chan_info {
 	struct mwifiex_ie_types_header header;
 	__le16 status;
 	u8 tlv_buffer[0];
+} __packed;
+
+struct mwifiex_ie_types_mc_group_info {
+	struct mwifiex_ie_types_header header;
+	u8 chan_group_id;
+	u8 chan_buf_weight;
+	u8 band_config;
+	u8 chan_num;
+	u32 chan_time;
+	u32 reserved;
+	union {
+		u8 sdio_func_num;
+		u8 usb_ep_num;
+	} hid_num;
+	u8 intf_num;
+	u8 bss_type_numlist[0];
 } __packed;
 
 struct meas_rpt_map {

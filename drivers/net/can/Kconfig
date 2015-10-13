@@ -129,6 +129,16 @@ config CAN_RCAR
 	  To compile this driver as a module, choose M here: the module will
 	  be called rcar_can.
 
+config CAN_SUN4I
+	tristate "Allwinner A10 CAN controller"
+	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
+	---help---
+	  Say Y here if you want to use CAN controller found on Allwinner
+	  A10/A20 SoCs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sun4i_can.
+
 config CAN_XILINXCAN
 	tristate "Xilinx CAN"
 	depends on ARCH_ZYNQ || ARM64 || MICROBLAZE || COMPILE_TEST

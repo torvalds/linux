@@ -781,14 +781,18 @@ static void long_sleep(int ms)
 		schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
-/* send a serial byte to the LCD panel. The caller is responsible for locking
-   if needed. */
+/*
+ * send a serial byte to the LCD panel. The caller is responsible for locking
+ * if needed.
+ */
 static void lcd_send_serial(int byte)
 {
 	int bit;
 
-	/* the data bit is set on D0, and the clock on STROBE.
-	 * LCD reads D0 on STROBE's rising edge. */
+	/*
+	 * the data bit is set on D0, and the clock on STROBE.
+	 * LCD reads D0 on STROBE's rising edge.
+	 */
 	for (bit = 0; bit < 8; bit++) {
 		bits.cl = BIT_CLR;	/* CLK low */
 		panel_set_bits();

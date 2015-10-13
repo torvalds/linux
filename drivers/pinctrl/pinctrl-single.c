@@ -1679,12 +1679,12 @@ static irqreturn_t pcs_irq_handler(int irq, void *d)
  * Use this if you have a separate interrupt for each
  * pinctrl-single instance.
  */
-static void pcs_irq_chain_handler(unsigned int irq, struct irq_desc *desc)
+static void pcs_irq_chain_handler(struct irq_desc *desc)
 {
 	struct pcs_soc_data *pcs_soc = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip;
 
-	chip = irq_get_chip(irq);
+	chip = irq_desc_get_chip(desc);
 	chained_irq_enter(chip, desc);
 	pcs_irq_handle(pcs_soc);
 	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
@@ -1716,12 +1716,7 @@ static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, pcs_soc);
 	irq_set_chip_and_handler(irq, &pcs->chip,
 				 handle_level_irq);
-
-#ifdef CONFIG_ARM
-	set_irq_flags(irq, IRQF_VALID);
-#else
 	irq_set_noprobe(irq);
-#endif
 
 	return 0;
 }
@@ -1768,9 +1763,9 @@ static int pcs_irq_init_chained_handler(struct pcs_device *pcs,
 			return res;
 		}
 	} else {
-		irq_set_handler_data(pcs_soc->irq, pcs_soc);
-		irq_set_chained_handler(pcs_soc->irq,
-					pcs_irq_chain_handler);
+		irq_set_chained_handler_and_data(pcs_soc->irq,
+						 pcs_irq_chain_handler,
+						 pcs_soc);
 	}
 
 	/*
@@ -1983,7 +1978,6 @@ static const struct pcs_soc_data pinctrl_single_omap_wkup = {
 };
 
 static const struct pcs_soc_data pinctrl_single_dra7 = {
-	.flags = PCS_QUIRK_SHARED_IRQ,
 	.irq_enable_mask = (1 << 24),	/* WAKEUPENABLE */
 	.irq_status_mask = (1 << 25),	/* WAKEUPEVENT */
 };

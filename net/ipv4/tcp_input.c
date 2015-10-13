@@ -2953,20 +2953,20 @@ static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 }
 
 /* Compute time elapsed between (last) SYNACK and the ACK completing 3WHS. */
-static void tcp_synack_rtt_meas(struct sock *sk, const u32 synack_stamp)
+void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-	long seq_rtt_us = -1L;
+	long rtt_us = -1L;
 
-	if (synack_stamp && !tp->total_retrans)
-		seq_rtt_us = jiffies_to_usecs(tcp_time_stamp - synack_stamp);
+	if (req && !req->num_retrans && tcp_rsk(req)->snt_synack.v64) {
+		struct skb_mstamp now;
 
-	/* If the ACK acks both the SYNACK and the (Fast Open'd) data packets
-	 * sent in SYN_RECV, SYNACK RTT is the smooth RTT computed in tcp_ack()
-	 */
-	if (!tp->srtt_us)
-		tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt_us, -1L);
+		skb_mstamp_get(&now);
+		rtt_us = skb_mstamp_us_delta(&now, &tcp_rsk(req)->snt_synack);
+	}
+
+	tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, rtt_us, -1L);
 }
+
 
 static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
@@ -5472,7 +5472,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 }
 
 static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
-					 const struct tcphdr *th, unsigned int len)
+					 const struct tcphdr *th)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -5698,15 +5698,14 @@ reset_and_undo:
  *	address independent.
  */
 
-int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
-			  const struct tcphdr *th, unsigned int len)
+int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct tcphdr *th = tcp_hdr(skb);
 	struct request_sock *req;
 	int queued = 0;
 	bool acceptable;
-	u32 synack_stamp;
 
 	tp->rx_opt.saw_tstamp = 0;
 
@@ -5750,7 +5749,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		goto discard;
 
 	case TCP_SYN_SENT:
-		queued = tcp_rcv_synsent_state_process(sk, skb, th, len);
+		queued = tcp_rcv_synsent_state_process(sk, skb, th);
 		if (queued >= 0)
 			return queued;
 
@@ -5785,15 +5784,16 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (!acceptable)
 			return 1;
 
+		if (!tp->srtt_us)
+			tcp_synack_rtt_meas(sk, req);
+
 		/* Once we leave TCP_SYN_RECV, we no longer need req
 		 * so release it.
 		 */
 		if (req) {
-			synack_stamp = tcp_rsk(req)->snt_synack;
 			tp->total_retrans = req->num_retrans;
 			reqsk_fastopen_remove(sk, req, false);
 		} else {
-			synack_stamp = tp->lsndtime;
 			/* Make sure socket is routed, for correct metrics. */
 			icsk->icsk_af_ops->rebuild_header(sk);
 			tcp_init_congestion_control(sk);
@@ -5816,7 +5816,6 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
 		tp->snd_wnd = ntohs(th->window) << tp->rx_opt.snd_wscale;
 		tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
-		tcp_synack_rtt_meas(sk, synack_stamp);
 
 		if (tp->rx_opt.tstamp_ok)
 			tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
@@ -6003,14 +6002,17 @@ static void tcp_ecn_create_request(struct request_sock *req,
 	const struct net *net = sock_net(listen_sk);
 	bool th_ecn = th->ece && th->cwr;
 	bool ect, ecn_ok;
+	u32 ecn_ok_dst;
 
 	if (!th_ecn)
 		return;
 
 	ect = !INET_ECN_is_not_ect(TCP_SKB_CB(skb)->ip_dsfield);
-	ecn_ok = net->ipv4.sysctl_tcp_ecn || dst_feature(dst, RTAX_FEATURE_ECN);
+	ecn_ok_dst = dst_feature(dst, DST_FEATURE_ECN_MASK);
+	ecn_ok = net->ipv4.sysctl_tcp_ecn || ecn_ok_dst;
 
-	if ((!ect && ecn_ok) || tcp_ca_needs_ecn(listen_sk))
+	if ((!ect && ecn_ok) || tcp_ca_needs_ecn(listen_sk) ||
+	    (ecn_ok_dst & DST_FEATURE_ECN_CA))
 		inet_rsk(req)->ecn_ok = 1;
 }
 
@@ -6020,11 +6022,11 @@ static void tcp_openreq_init(struct request_sock *req,
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 
-	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
+	req->rsk_rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
 	req->cookie_ts = 0;
 	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
 	tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
-	tcp_rsk(req)->snt_synack = tcp_time_stamp;
+	skb_mstamp_get(&tcp_rsk(req)->snt_synack);
 	tcp_rsk(req)->last_oow_ack_time = 0;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
@@ -6040,9 +6042,11 @@ static void tcp_openreq_init(struct request_sock *req,
 }
 
 struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
-				      struct sock *sk_listener)
+				      struct sock *sk_listener,
+				      bool attach_listener)
 {
-	struct request_sock *req = reqsk_alloc(ops, sk_listener);
+	struct request_sock *req = reqsk_alloc(ops, sk_listener,
+					       attach_listener);
 
 	if (req) {
 		struct inet_request_sock *ireq = inet_rsk(req);
@@ -6062,13 +6066,13 @@ EXPORT_SYMBOL(inet_reqsk_alloc);
 /*
  * Return true if a syncookie should be sent
  */
-static bool tcp_syn_flood_action(struct sock *sk,
+static bool tcp_syn_flood_action(const struct sock *sk,
 				 const struct sk_buff *skb,
 				 const char *proto)
 {
+	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 	const char *msg = "Dropping request";
 	bool want_cookie = false;
-	struct listen_sock *lopt;
 
 #ifdef CONFIG_SYN_COOKIES
 	if (sysctl_tcp_syncookies) {
@@ -6079,12 +6083,12 @@ static bool tcp_syn_flood_action(struct sock *sk,
 #endif
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDROP);
 
-	lopt = inet_csk(sk)->icsk_accept_queue.listen_opt;
-	if (!lopt->synflood_warned && sysctl_tcp_syncookies != 2) {
-		lopt->synflood_warned = 1;
+	if (!queue->synflood_warned &&
+	    sysctl_tcp_syncookies != 2 &&
+	    xchg(&queue->synflood_warned, 1) == 0)
 		pr_info("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
 			proto, ntohs(tcp_hdr(skb)->dest), msg);
-	}
+
 	return want_cookie;
 }
 
@@ -6109,16 +6113,15 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		     const struct tcp_request_sock_ops *af_ops,
 		     struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_options_received tmp_opt;
-	struct request_sock *req;
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct dst_entry *dst = NULL;
-	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
-	bool want_cookie = false, fastopen;
-	struct flowi fl;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
-	int err;
-
+	__u32 isn = TCP_SKB_CB(skb)->tcp_tw_isn;
+	struct tcp_options_received tmp_opt;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sock *fastopen_sk = NULL;
+	struct dst_entry *dst = NULL;
+	struct request_sock *req;
+	bool want_cookie = false;
+	struct flowi fl;
 
 	/* TW buckets are converted to open requests without
 	 * limitations, they conserve resources and peer is
@@ -6142,7 +6145,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		goto drop;
 	}
 
-	req = inet_reqsk_alloc(rsk_ops, sk);
+	req = inet_reqsk_alloc(rsk_ops, sk, !want_cookie);
 	if (!req)
 		goto drop;
 
@@ -6225,20 +6228,30 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	}
 
 	tcp_rsk(req)->snt_isn = isn;
+	tcp_rsk(req)->txhash = net_tx_rndhash();
 	tcp_openreq_init_rwin(req, sk, dst);
-	fastopen = !want_cookie &&
-		   tcp_try_fastopen(sk, skb, req, &foc, dst);
-	err = af_ops->send_synack(sk, dst, &fl, req,
-				  skb_get_queue_mapping(skb), &foc);
-	if (!fastopen) {
-		if (err || want_cookie)
-			goto drop_and_free;
-
-		tcp_rsk(req)->tfo_listener = false;
-		af_ops->queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+	if (!want_cookie) {
+		tcp_reqsk_record_syn(sk, req, skb);
+		fastopen_sk = tcp_try_fastopen(sk, skb, req, &foc, dst);
 	}
-	tcp_reqsk_record_syn(sk, req, skb);
-
+	if (fastopen_sk) {
+		af_ops->send_synack(fastopen_sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, false);
+		/* Add the child socket directly into the accept queue */
+		inet_csk_reqsk_queue_add(sk, req, fastopen_sk);
+		sk->sk_data_ready(sk);
+		bh_unlock_sock(fastopen_sk);
+		sock_put(fastopen_sk);
+	} else {
+		tcp_rsk(req)->tfo_listener = false;
+		if (!want_cookie)
+			inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
+		af_ops->send_synack(sk, dst, &fl, req,
+				    skb_get_queue_mapping(skb), &foc, !want_cookie);
+		if (want_cookie)
+			goto drop_and_free;
+	}
+	reqsk_put(req);
 	return 0;
 
 drop_and_release:

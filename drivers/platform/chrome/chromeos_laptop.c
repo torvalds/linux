@@ -23,7 +23,7 @@
 
 #include <linux/dmi.h>
 #include <linux/i2c.h>
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -111,6 +111,7 @@ static struct mxt_platform_data atmel_224s_tp_platform_data = {
 	.irqflags		= IRQF_TRIGGER_FALLING,
 	.t19_num_keys		= ARRAY_SIZE(mxt_t19_keys),
 	.t19_keymap		= mxt_t19_keys,
+	.suspend_mode		= MXT_SUSPEND_T9_CTRL,
 };
 
 static struct i2c_board_info atmel_224s_tp_device = {
@@ -121,6 +122,7 @@ static struct i2c_board_info atmel_224s_tp_device = {
 
 static struct mxt_platform_data atmel_1664s_platform_data = {
 	.irqflags		= IRQF_TRIGGER_FALLING,
+	.suspend_mode		= MXT_SUSPEND_T9_CTRL,
 };
 
 static struct i2c_board_info atmel_1664s_device = {

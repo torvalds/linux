@@ -200,7 +200,7 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 	unsigned char opts[MAX_IPOPTLEN];
 	const struct xt_osf_finger *kf;
 	const struct xt_osf_user_finger *f;
-	struct net *net = dev_net(p->in ? p->in : p->out);
+	struct net *net = p->net;
 
 	if (!info)
 		return false;

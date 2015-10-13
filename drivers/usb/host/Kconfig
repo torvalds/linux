@@ -32,7 +32,14 @@ config USB_XHCI_PCI
        default y
 
 config USB_XHCI_PLATFORM
-	tristate
+	tristate "Generic xHCI driver for a platform device"
+	---help---
+	  Adds an xHCI host driver for a generic platform device, which
+	  provides a memory space and an irq.
+	  It is also a prerequisite for platform specific drivers that
+	  implement some extra quirks.
+
+	  If unsure, say N.
 
 config USB_XHCI_MVEBU
 	tristate "xHCI support for Marvell Armada 375/38x"
@@ -441,10 +448,10 @@ config USB_OHCI_HCD_PXA27X
 	  PXA27x/PXA3xx chips.
 
 config USB_OHCI_HCD_AT91
-        tristate "Support for Atmel on-chip OHCI USB controller"
-        depends on USB_OHCI_HCD && ARCH_AT91
-        default y
-        ---help---
+	tristate "Support for Atmel on-chip OHCI USB controller"
+	depends on USB_OHCI_HCD && ARCH_AT91 && OF
+	default y
+	---help---
           Enables support for the on-chip OHCI controller on
           Atmel chips.
 

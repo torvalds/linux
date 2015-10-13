@@ -120,6 +120,7 @@
 #define PRID_IMP_PROAPTIV_MP	0xa300
 #define PRID_IMP_M5150		0xa700
 #define PRID_IMP_P5600		0xa800
+#define PRID_IMP_I6400		0xa900
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -307,6 +308,7 @@ enum cpu_type_enum {
 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
 	CPU_M14KEC, CPU_INTERAPTIV, CPU_P5600, CPU_PROAPTIV, CPU_1074K, CPU_M5150,
+	CPU_I6400,
 
 	/*
 	 * MIPS64 class processors
@@ -382,6 +384,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
 #define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
 #define MIPS_CPU_BP_GHIST	0x8000000000ull /* R12K+ Branch Prediction Global History */
+#define MIPS_CPU_SP		0x10000000000ull /* Small (1KB) page support */
+#define MIPS_CPU_FTLB		0x20000000000ull /* CPU has Fixed-page-size TLB */
 
 /*
  * CPU ASE encodings

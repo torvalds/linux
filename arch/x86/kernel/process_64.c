@@ -121,6 +121,7 @@ void __show_regs(struct pt_regs *regs, int all)
 void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
 		if (dead_task->mm->context.ldt) {
 			pr_warn("WARNING: dead process %s still has LDT? <%p/%d>\n",
 				dead_task->comm,
@@ -128,6 +129,7 @@ void release_thread(struct task_struct *dead_task)
 				dead_task->mm->context.ldt->size);
 			BUG();
 		}
+#endif
 	}
 }
 
@@ -248,8 +250,8 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 			    __USER_CS, __USER_DS, 0);
 }
 
-#ifdef CONFIG_IA32_EMULATION
-void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp)
+#ifdef CONFIG_COMPAT
+void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp)
 {
 	start_thread_common(regs, new_ip, new_sp,
 			    test_thread_flag(TIF_X32)

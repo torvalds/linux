@@ -1113,7 +1113,6 @@ static int g762_remove(struct i2c_client *client)
 static struct i2c_driver g762_driver = {
 	.driver = {
 		.name = DRVNAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(g762_dt_match),
 	},
 	.probe	  = g762_probe,

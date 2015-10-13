@@ -166,6 +166,8 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	/* set the supported link speeds */
 	if (supported_link & IXGBE_LINK_SPEED_10GB_FULL)
 		ecmd->supported |= SUPPORTED_10000baseT_Full;
+	if (supported_link & IXGBE_LINK_SPEED_2_5GB_FULL)
+		ecmd->supported |= SUPPORTED_2500baseX_Full;
 	if (supported_link & IXGBE_LINK_SPEED_1GB_FULL)
 		ecmd->supported |= SUPPORTED_1000baseT_Full;
 	if (supported_link & IXGBE_LINK_SPEED_100_FULL)
@@ -177,6 +179,8 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_2_5GB_FULL)
+			ecmd->advertising |= ADVERTISED_2500baseX_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 	} else {
@@ -285,6 +289,9 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		switch (link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
+			break;
+		case IXGBE_LINK_SPEED_2_5GB_FULL:
+			ethtool_cmd_speed_set(ecmd, SPEED_2500);
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
 			ethtool_cmd_speed_set(ecmd, SPEED_1000);
@@ -2279,7 +2286,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (adapter->tx_itr_setting == 1)
-		tx_itr_param = IXGBE_10K_ITR;
+		tx_itr_param = IXGBE_12K_ITR;
 	else
 		tx_itr_param = adapter->tx_itr_setting;
 
@@ -2868,6 +2875,14 @@ static int ixgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return ret;
 }
 
+static int ixgbe_rss_indir_tbl_max(struct ixgbe_adapter *adapter)
+{
+	if (adapter->hw.mac.type < ixgbe_mac_X550)
+		return 16;
+	else
+		return 64;
+}
+
 static u32 ixgbe_get_rxfh_key_size(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -2903,6 +2918,44 @@ static int ixgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 
 	if (key)
 		memcpy(key, adapter->rss_key, ixgbe_get_rxfh_key_size(netdev));
+
+	return 0;
+}
+
+static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
+			  const u8 *key, const u8 hfunc)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int i;
+	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
+
+	if (hfunc)
+		return -EINVAL;
+
+	/* Fill out the redirection table */
+	if (indir) {
+		int max_queues = min_t(int, adapter->num_rx_queues,
+				       ixgbe_rss_indir_tbl_max(adapter));
+
+		/*Allow at least 2 queues w/ SR-IOV.*/
+		if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
+		    (max_queues < 2))
+			max_queues = 2;
+
+		/* Verify user input. */
+		for (i = 0; i < reta_entries; i++)
+			if (indir[i] >= max_queues)
+				return -EINVAL;
+
+		for (i = 0; i < reta_entries; i++)
+			adapter->rss_indir_tbl[i] = indir[i];
+	}
+
+	/* Fill out the rss hash key */
+	if (key)
+		memcpy(adapter->rss_key, key, ixgbe_get_rxfh_key_size(netdev));
+
+	ixgbe_store_reta(adapter);
 
 	return 0;
 }
@@ -3159,6 +3212,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_rxfh_indir_size	= ixgbe_rss_indir_size,
 	.get_rxfh_key_size	= ixgbe_get_rxfh_key_size,
 	.get_rxfh		= ixgbe_get_rxfh,
+	.set_rxfh		= ixgbe_set_rxfh,
 	.get_channels		= ixgbe_get_channels,
 	.set_channels		= ixgbe_set_channels,
 	.get_ts_info		= ixgbe_get_ts_info,

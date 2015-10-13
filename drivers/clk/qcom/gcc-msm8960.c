@@ -125,7 +125,7 @@ static const struct parent_map gcc_pxo_pll8_map[] = {
 	{ P_PLL8, 3 }
 };
 
-static const char *gcc_pxo_pll8[] = {
+static const char * const gcc_pxo_pll8[] = {
 	"pxo",
 	"pll8_vote",
 };
@@ -136,7 +136,7 @@ static const struct parent_map gcc_pxo_pll8_cxo_map[] = {
 	{ P_CXO, 5 }
 };
 
-static const char *gcc_pxo_pll8_cxo[] = {
+static const char * const gcc_pxo_pll8_cxo[] = {
 	"pxo",
 	"pll8_vote",
 	"cxo",
@@ -148,7 +148,7 @@ static const struct parent_map gcc_pxo_pll8_pll3_map[] = {
 	{ P_PLL3, 6 }
 };
 
-static const char *gcc_pxo_pll8_pll3[] = {
+static const char * const gcc_pxo_pll8_pll3[] = {
 	"pxo",
 	"pll8_vote",
 	"pll3",
@@ -2085,7 +2085,7 @@ static struct clk_rcg usb_hsic_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_hsic_xcvr_fs_src_p[] = { "usb_hsic_xcvr_fs_src" };
+static const char * const usb_hsic_xcvr_fs_src_p[] = { "usb_hsic_xcvr_fs_src" };
 
 static struct clk_branch usb_hsic_xcvr_fs_clk = {
 	.halt_reg = 0x2fc8,
@@ -2181,7 +2181,7 @@ static struct clk_rcg usb_fs1_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
+static const char * const usb_fs1_xcvr_fs_src_p[] = { "usb_fs1_xcvr_fs_src" };
 
 static struct clk_branch usb_fs1_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,
@@ -2248,7 +2248,7 @@ static struct clk_rcg usb_fs2_xcvr_fs_src = {
 	}
 };
 
-static const char *usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
+static const char * const usb_fs2_xcvr_fs_src_p[] = { "usb_fs2_xcvr_fs_src" };
 
 static struct clk_branch usb_fs2_xcvr_fs_clk = {
 	.halt_reg = 0x2fcc,

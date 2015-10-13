@@ -3726,17 +3726,25 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		if (ev->link_type == ESCO_LINK)
 			goto unlock;
 
+		/* When the link type in the event indicates SCO connection
+		 * and lookup of the connection object fails, then check
+		 * if an eSCO connection object exists.
+		 *
+		 * The core limits the synchronous connections to either
+		 * SCO or eSCO. The eSCO connection is preferred and tried
+		 * to be setup first and until successfully established,
+		 * the link type will be hinted as eSCO.
+		 */
 		conn = hci_conn_hash_lookup_ba(hdev, ESCO_LINK, &ev->bdaddr);
 		if (!conn)
 			goto unlock;
-
-		conn->type = SCO_LINK;
 	}
 
 	switch (ev->status) {
 	case 0x00:
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
+		conn->type   = ev->link_type;
 
 		hci_debugfs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
@@ -4711,6 +4719,27 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	struct hci_conn *conn;
 	bool match;
 	u32 flags;
+	u8 *ptr, real_len;
+
+	/* Find the end of the data in case the report contains padded zero
+	 * bytes at the end causing an invalid length value.
+	 *
+	 * When data is NULL, len is 0 so there is no need for extra ptr
+	 * check as 'ptr < data + 0' is already false in such case.
+	 */
+	for (ptr = data; ptr < data + len && *ptr; ptr += *ptr + 1) {
+		if (ptr + 1 + *ptr > data + len)
+			break;
+	}
+
+	real_len = ptr - data;
+
+	/* Adjust for actual length */
+	if (len != real_len) {
+		BT_ERR_RATELIMITED("%s advertising data length corrected",
+				   hdev->name);
+		len = real_len;
+	}
 
 	/* If the direct address is present, then this report is from
 	 * a LE Direct Advertising Report event. In that case it is

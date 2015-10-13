@@ -112,10 +112,11 @@ struct tcp_request_sock_ops;
 struct tcp_request_sock {
 	struct inet_request_sock 	req;
 	const struct tcp_request_sock_ops *af_specific;
+	struct skb_mstamp		snt_synack; /* first SYNACK sent time */
 	bool				tfo_listener;
+	u32				txhash;
 	u32				rcv_isn;
 	u32				snt_isn;
-	u32				snt_synack; /* synack sent time */
 	u32				last_oow_ack_time; /* last SYNACK */
 	u32				rcv_nxt; /* the ack # by SYNACK. For
 						  * FastOpen it's the seq#
@@ -355,8 +356,8 @@ static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 
 struct tcp_timewait_sock {
 	struct inet_timewait_sock tw_sk;
-	u32			  tw_rcv_nxt;
-	u32			  tw_snd_nxt;
+#define tw_rcv_nxt tw_sk.__tw_common.skc_tw_rcv_nxt
+#define tw_snd_nxt tw_sk.__tw_common.skc_tw_snd_nxt
 	u32			  tw_rcv_wnd;
 	u32			  tw_ts_offset;
 	u32			  tw_ts_recent;
@@ -381,25 +382,11 @@ static inline bool tcp_passive_fastopen(const struct sock *sk)
 		tcp_sk(sk)->fastopen_rsk != NULL);
 }
 
-extern void tcp_sock_destruct(struct sock *sk);
-
-static inline int fastopen_init_queue(struct sock *sk, int backlog)
+static inline void fastopen_queue_tune(struct sock *sk, int backlog)
 {
-	struct request_sock_queue *queue =
-	    &inet_csk(sk)->icsk_accept_queue;
+	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
 
-	if (queue->fastopenq == NULL) {
-		queue->fastopenq = kzalloc(
-		    sizeof(struct fastopen_queue),
-		    sk->sk_allocation);
-		if (queue->fastopenq == NULL)
-			return -ENOMEM;
-
-		sk->sk_destruct = tcp_sock_destruct;
-		spin_lock_init(&queue->fastopenq->lock);
-	}
-	queue->fastopenq->max_qlen = backlog;
-	return 0;
+	queue->fastopenq.max_qlen = backlog;
 }
 
 static inline void tcp_saved_syn_free(struct tcp_sock *tp)

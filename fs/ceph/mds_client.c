@@ -2107,7 +2107,6 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	msg = create_request_message(mdsc, req, mds, drop_cap_releases);
 	if (IS_ERR(msg)) {
 		req->r_err = PTR_ERR(msg);
-		complete_request(mdsc, req);
 		return PTR_ERR(msg);
 	}
 	req->r_request = msg;
@@ -2135,7 +2134,7 @@ static int __do_request(struct ceph_mds_client *mdsc,
 {
 	struct ceph_mds_session *session = NULL;
 	int mds = -1;
-	int err = -EAGAIN;
+	int err = 0;
 
 	if (req->r_err || req->r_got_result) {
 		if (req->r_aborted)
@@ -2146,6 +2145,11 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	if (req->r_timeout &&
 	    time_after_eq(jiffies, req->r_started + req->r_timeout)) {
 		dout("do_request timed out\n");
+		err = -EIO;
+		goto finish;
+	}
+	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		dout("do_request forced umount\n");
 		err = -EIO;
 		goto finish;
 	}
@@ -2196,13 +2200,15 @@ static int __do_request(struct ceph_mds_client *mdsc,
 
 out_session:
 	ceph_put_mds_session(session);
+finish:
+	if (err) {
+		dout("__do_request early error %d\n", err);
+		req->r_err = err;
+		complete_request(mdsc, req);
+		__unregister_request(mdsc, req);
+	}
 out:
 	return err;
-
-finish:
-	req->r_err = err;
-	complete_request(mdsc, req);
-	goto out;
 }
 
 /*
@@ -2289,8 +2295,6 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 
 	if (req->r_err) {
 		err = req->r_err;
-		__unregister_request(mdsc, req);
-		dout("do_request early error %d\n", err);
 		goto out;
 	}
 
@@ -2411,7 +2415,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		mutex_unlock(&mdsc->mutex);
 		goto out;
 	}
-	if (req->r_got_safe && !head->safe) {
+	if (req->r_got_safe) {
 		pr_warn("got unsafe after safe on %llu from mds%d\n",
 			   tid, mds);
 		mutex_unlock(&mdsc->mutex);
@@ -2520,8 +2524,7 @@ out_err:
 		if (err) {
 			req->r_err = err;
 		} else {
-			req->r_reply = msg;
-			ceph_msg_get(msg);
+			req->r_reply =  ceph_msg_get(msg);
 			req->r_got_result = true;
 		}
 	} else {
@@ -3555,7 +3558,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 {
 	u64 want_tid, want_flush, want_snap;
 
-	if (mdsc->fsc->mount_state == CEPH_MOUNT_SHUTDOWN)
+	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
 		return;
 
 	dout("sync\n");
@@ -3584,7 +3587,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
  */
 static bool done_closing_sessions(struct ceph_mds_client *mdsc)
 {
-	if (mdsc->fsc->mount_state == CEPH_MOUNT_SHUTDOWN)
+	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
 		return true;
 	return atomic_read(&mdsc->num_sessions) == 0;
 }
@@ -3641,6 +3644,34 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	cancel_delayed_work_sync(&mdsc->delayed_work); /* cancel timer */
 
 	dout("stopped\n");
+}
+
+void ceph_mdsc_force_umount(struct ceph_mds_client *mdsc)
+{
+	struct ceph_mds_session *session;
+	int mds;
+
+	dout("force umount\n");
+
+	mutex_lock(&mdsc->mutex);
+	for (mds = 0; mds < mdsc->max_sessions; mds++) {
+		session = __ceph_lookup_mds_session(mdsc, mds);
+		if (!session)
+			continue;
+		mutex_unlock(&mdsc->mutex);
+		mutex_lock(&session->s_mutex);
+		__close_session(mdsc, session);
+		if (session->s_state == CEPH_MDS_SESSION_CLOSING) {
+			cleanup_session_requests(mdsc, session);
+			remove_session_caps(session);
+		}
+		mutex_unlock(&session->s_mutex);
+		ceph_put_mds_session(session);
+		mutex_lock(&mdsc->mutex);
+		kick_requests(mdsc, mds);
+	}
+	__wake_requests(mdsc, &mdsc->waiting_for_map);
+	mutex_unlock(&mdsc->mutex);
 }
 
 static void ceph_mdsc_stop(struct ceph_mds_client *mdsc)

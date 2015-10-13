@@ -199,7 +199,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	if (verdict == NF_ACCEPT) {
 		afinfo = nf_get_afinfo(entry->state.pf);
-		if (!afinfo || afinfo->reroute(skb, entry) < 0)
+		if (!afinfo || afinfo->reroute(entry->state.net, skb, entry) < 0)
 			verdict = NF_DROP;
 	}
 
@@ -215,7 +215,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	case NF_ACCEPT:
 	case NF_STOP:
 		local_bh_disable();
-		entry->state.okfn(entry->state.sk, skb);
+		entry->state.okfn(entry->state.net, entry->state.sk, skb);
 		local_bh_enable();
 		break;
 	case NF_QUEUE:

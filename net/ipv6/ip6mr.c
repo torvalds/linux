@@ -217,7 +217,6 @@ static const struct fib_rules_ops __net_initconst ip6mr_rules_ops_template = {
 	.match		= ip6mr_rule_match,
 	.configure	= ip6mr_rule_configure,
 	.compare	= ip6mr_rule_compare,
-	.default_pref	= fib_default_rule_pref,
 	.fill		= ip6mr_rule_fill,
 	.nlgroup	= RTNLGRP_IPV6_RULE,
 	.policy		= ip6mr_rule_policy,
@@ -550,7 +549,7 @@ static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
 
 	if (it->cache == &mrt->mfc6_unres_queue)
 		spin_unlock_bh(&mfc_unres_lock);
-	else if (it->cache == mrt->mfc6_cache_array)
+	else if (it->cache == &mrt->mfc6_cache_array[it->ct])
 		read_unlock(&mrt_lock);
 }
 
@@ -1986,13 +1985,13 @@ int ip6mr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 }
 #endif
 
-static inline int ip6mr_forward2_finish(struct sock *sk, struct sk_buff *skb)
+static inline int ip6mr_forward2_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	IP6_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
+	IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP6_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
+	IP6_ADD_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTOCTETS, skb->len);
-	return dst_output_sk(sk, skb);
+	return dst_output(net, sk, skb);
 }
 
 /*
@@ -2064,8 +2063,8 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, NULL, skb,
-		       skb->dev, dev,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
+		       net, NULL, skb, skb->dev, dev,
 		       ip6mr_forward2_finish);
 
 out_free:

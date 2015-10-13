@@ -287,7 +287,7 @@
 
 /* POWER8 Micro Partition Prefetch (MPP) parameters */
 /* Address mask is common for LOGMPP instruction and MPPR SPR */
-#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000
+#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000ULL
 
 /* Bits 60 and 61 of MPP SPR should be set to one of the following */
 /* Aborting the fetch is indeed setting 00 in the table size bits */

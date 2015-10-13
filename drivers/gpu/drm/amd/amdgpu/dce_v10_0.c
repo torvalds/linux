@@ -126,9 +126,31 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
 };
 
+static const u32 golden_settings_fiji_a10[] =
+{
+	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
+	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_MISC, 0x1f311fff, 0x12300000,
+	mmHDMI_CONTROL, 0x31000111, 0x00000011,
+};
+
+static const u32 fiji_mgcg_cgcg_init[] =
+{
+	mmXDMA_CLOCK_GATING_CNTL, 0xffffffff, 0x00000100,
+	mmXDMA_MEM_POWER_CNTL, 0x00000101, 0x00000000,
+};
+
 static void dce_v10_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		amdgpu_program_register_sequence(adev,
+						 fiji_mgcg_cgcg_init,
+						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_fiji_a10,
+						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
@@ -803,11 +825,11 @@ static u32 dce_v10_0_line_buffer_adjust(struct amdgpu_device *adev,
 			buffer_alloc = 2;
 		} else if (mode->crtc_hdisplay < 4096) {
 			mem_cfg = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			mem_cfg = 0;
-			buffer_alloc = (adev->flags & AMDGPU_IS_APU) ? 2 : 4;
+			buffer_alloc = (adev->flags & AMD_IS_APU) ? 2 : 4;
 		}
 	} else {
 		mem_cfg = 1;
@@ -1331,7 +1353,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(wm_mask, DPG_WATERMARK_MASK_CONTROL, URGENCY_WATERMARK_MASK, 2);
 	WREG32(mmDPG_WATERMARK_MASK_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 	tmp = RREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset);
-	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_LOW_WATERMARK, latency_watermark_a);
+	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_LOW_WATERMARK, latency_watermark_b);
 	tmp = REG_SET_FIELD(tmp, DPG_PIPE_URGENCY_CONTROL, URGENCY_HIGH_WATERMARK, line_time);
 	WREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 	/* restore original selection */
@@ -2888,6 +2910,7 @@ static int dce_v10_0_early_init(void *handle)
 	dce_v10_0_set_irq_funcs(adev);
 
 	switch (adev->asic_type) {
+	case CHIP_FIJI:
 	case CHIP_TONGA:
 		adev->mode_info.num_crtc = 6; /* XXX 7??? */
 		adev->mode_info.num_hpd = 6;

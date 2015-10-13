@@ -507,14 +507,14 @@ static void arp_print(struct arp_payload *payload)
 #endif
 
 static unsigned int
-arp_mangle(const struct nf_hook_ops *ops,
+arp_mangle(void *priv,
 	   struct sk_buff *skb,
 	   const struct nf_hook_state *state)
 {
 	struct arphdr *arp = arp_hdr(skb);
 	struct arp_payload *payload;
 	struct clusterip_config *c;
-	struct net *net = dev_net(state->in ? state->in : state->out);
+	struct net *net = state->net;
 
 	/* we don't care about non-ethernet and non-ipv4 ARP */
 	if (arp->ar_hrd != htons(ARPHRD_ETHER) ||

@@ -93,6 +93,38 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 	return raw - build_id;
 }
 
+int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
+{
+	char notes[PATH_MAX];
+	u8 build_id[BUILD_ID_SIZE];
+	int ret;
+
+	if (!root_dir)
+		root_dir = "";
+
+	scnprintf(notes, sizeof(notes), "%s/sys/kernel/notes", root_dir);
+
+	ret = sysfs__read_build_id(notes, build_id, sizeof(build_id));
+	if (ret < 0)
+		return ret;
+
+	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+}
+
+int filename__sprintf_build_id(const char *pathname, char *sbuild_id)
+{
+	u8 build_id[BUILD_ID_SIZE];
+	int ret;
+
+	ret = filename__read_build_id(pathname, build_id, sizeof(build_id));
+	if (ret < 0)
+		return ret;
+	else if (ret != sizeof(build_id))
+		return -EINVAL;
+
+	return build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
+}
+
 /* asnprintf consolidates asprintf and snprintf */
 static int asnprintf(char **strp, size_t size, const char *fmt, ...)
 {
@@ -124,7 +156,7 @@ static char *build_id__filename(const char *sbuild_id, char *bf, size_t size)
 
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 {
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	char build_id_hex[SBUILD_ID_SIZE];
 
 	if (!dso->has_build_id)
 		return NULL;
@@ -291,7 +323,7 @@ int build_id_cache__list_build_ids(const char *pathname,
 	struct dirent *d;
 	int ret = 0;
 
-	list = strlist__new(true, NULL);
+	list = strlist__new(NULL, NULL);
 	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
 	if (!list || !dir_name) {
 		ret = -ENOMEM;
@@ -384,7 +416,7 @@ static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 				 const char *name, bool is_kallsyms,
 				 bool is_vdso)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 

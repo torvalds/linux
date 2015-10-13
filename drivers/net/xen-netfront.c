@@ -291,7 +291,7 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		struct sk_buff *skb;
 		unsigned short id;
 		grant_ref_t ref;
-		unsigned long pfn;
+		unsigned long gfn;
 		struct xen_netif_rx_request *req;
 
 		skb = xennet_alloc_one_rx_buffer(queue);
@@ -307,12 +307,12 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		BUG_ON((signed short)ref < 0);
 		queue->grant_rx_ref[id] = ref;
 
-		pfn = page_to_pfn(skb_frag_page(&skb_shinfo(skb)->frags[0]));
+		gfn = xen_page_to_gfn(skb_frag_page(&skb_shinfo(skb)->frags[0]));
 
 		req = RING_GET_REQUEST(&queue->rx, req_prod);
 		gnttab_grant_foreign_access_ref(ref,
 						queue->info->xbdev->otherend_id,
-						pfn_to_mfn(pfn),
+						gfn,
 						0);
 
 		req->id = id;
@@ -430,8 +430,10 @@ static struct xen_netif_tx_request *xennet_make_one_txreq(
 	ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
 	BUG_ON((signed short)ref < 0);
 
-	gnttab_grant_foreign_access_ref(ref, queue->info->xbdev->otherend_id,
-					page_to_mfn(page), GNTMAP_readonly);
+	gnttab_grant_foreign_access_ref(ref,
+					queue->info->xbdev->otherend_id,
+					xen_page_to_gfn(page),
+					GNTMAP_readonly);
 
 	queue->tx_skbs[id].skb = skb;
 	queue->grant_tx_page[id] = page;
@@ -1348,7 +1350,8 @@ static void xennet_disconnect_backend(struct netfront_info *info)
 		queue->tx_evtchn = queue->rx_evtchn = 0;
 		queue->tx_irq = queue->rx_irq = 0;
 
-		napi_synchronize(&queue->napi);
+		if (netif_running(info->netdev))
+			napi_synchronize(&queue->napi);
 
 		xennet_release_tx_bufs(queue);
 		xennet_release_rx_bufs(queue);
@@ -1816,19 +1819,22 @@ again:
 		goto destroy_ring;
 	}
 
+	if (xenbus_exists(XBT_NIL,
+			  info->xbdev->otherend, "multi-queue-max-queues")) {
+		/* Write the number of queues */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "multi-queue-num-queues", "%u", num_queues);
+		if (err) {
+			message = "writing multi-queue-num-queues";
+			goto abort_transaction_no_dev_fatal;
+		}
+	}
+
 	if (num_queues == 1) {
 		err = write_queue_xenstore_keys(&info->queues[0], &xbt, 0); /* flat */
 		if (err)
 			goto abort_transaction_no_dev_fatal;
 	} else {
-		/* Write the number of queues */
-		err = xenbus_printf(xbt, dev->nodename, "multi-queue-num-queues",
-				    "%u", num_queues);
-		if (err) {
-			message = "writing multi-queue-num-queues";
-			goto abort_transaction_no_dev_fatal;
-		}
-
 		/* Write the keys for each queue */
 		for (i = 0; i < num_queues; ++i) {
 			queue = &info->queues[i];
@@ -2131,8 +2137,11 @@ static int __init netif_init(void)
 
 	pr_info("Initialising Xen virtual ethernet driver\n");
 
-	/* Allow as many queues as there are CPUs, by default */
-	xennet_max_queues = num_online_cpus();
+	/* Allow as many queues as there are CPUs if user has not
+	 * specified a value.
+	 */
+	if (xennet_max_queues == 0)
+		xennet_max_queues = num_online_cpus();
 
 	return xenbus_register_frontend(&netfront_driver);
 }

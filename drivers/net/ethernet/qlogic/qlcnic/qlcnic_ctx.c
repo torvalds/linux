@@ -73,8 +73,6 @@ int qlcnic_82xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 				mbx->req.arg = NULL;
 				return -ENOMEM;
 			}
-			memset(mbx->req.arg, 0, sizeof(u32) * mbx->req.num);
-			memset(mbx->rsp.arg, 0, sizeof(u32) * mbx->rsp.num);
 			mbx->req.arg[0] = type;
 			break;
 		}

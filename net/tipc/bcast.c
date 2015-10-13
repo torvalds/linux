@@ -170,6 +170,30 @@ static void bclink_retransmit_pkt(struct tipc_net *tn, u32 after, u32 to)
 }
 
 /**
+ * bclink_prepare_wakeup - prepare users for wakeup after congestion
+ * @bcl: broadcast link
+ * @resultq: queue for users which can be woken up
+ * Move a number of waiting users, as permitted by available space in
+ * the send queue, from link wait queue to specified queue for wakeup
+ */
+static void bclink_prepare_wakeup(struct tipc_link *bcl, struct sk_buff_head *resultq)
+{
+	int pnd[TIPC_SYSTEM_IMPORTANCE + 1] = {0,};
+	int imp, lim;
+	struct sk_buff *skb, *tmp;
+
+	skb_queue_walk_safe(&bcl->wakeupq, skb, tmp) {
+		imp = TIPC_SKB_CB(skb)->chain_imp;
+		lim = bcl->window + bcl->backlog[imp].limit;
+		pnd[imp] += TIPC_SKB_CB(skb)->chain_sz;
+		if ((pnd[imp] + bcl->backlog[imp].len) >= lim)
+			continue;
+		skb_unlink(skb, &bcl->wakeupq);
+		skb_queue_tail(resultq, skb);
+	}
+}
+
+/**
  * tipc_bclink_wakeup_users - wake up pending users
  *
  * Called with no locks taken
@@ -177,8 +201,12 @@ static void bclink_retransmit_pkt(struct tipc_net *tn, u32 after, u32 to)
 void tipc_bclink_wakeup_users(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_link *bcl = tn->bcl;
+	struct sk_buff_head resultq;
 
-	tipc_sk_rcv(net, &tn->bclink->link.wakeupq);
+	skb_queue_head_init(&resultq);
+	bclink_prepare_wakeup(bcl, &resultq);
+	tipc_sk_rcv(net, &resultq);
 }
 
 /**

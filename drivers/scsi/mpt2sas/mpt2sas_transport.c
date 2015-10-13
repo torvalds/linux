@@ -1323,15 +1323,17 @@ _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	sas_device = __mpt2sas_get_sdev_by_addr(ioc,
 	    rphy->identify.sas_address);
 	if (sas_device) {
 		*identifier = sas_device->enclosure_logical_id;
 		rc = 0;
+		sas_device_put(sas_device);
 	} else {
 		*identifier = 0;
 		rc = -ENXIO;
 	}
+
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	return rc;
 }
@@ -1351,12 +1353,14 @@ _transport_get_bay_identifier(struct sas_rphy *rphy)
 	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	sas_device = __mpt2sas_get_sdev_by_addr(ioc,
 	    rphy->identify.sas_address);
-	if (sas_device)
+	if (sas_device) {
 		rc = sas_device->slot;
-	else
+		sas_device_put(sas_device);
+	} else {
 		rc = -ENXIO;
+	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	return rc;
 }

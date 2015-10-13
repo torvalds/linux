@@ -9,6 +9,11 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#ifndef _CRYPTO_PKCS7_H
+#define _CRYPTO_PKCS7_H
+
+#include <crypto/public_key.h>
+
 struct key;
 struct pkcs7_message;
 
@@ -33,4 +38,10 @@ extern int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
 /*
  * pkcs7_verify.c
  */
-extern int pkcs7_verify(struct pkcs7_message *pkcs7);
+extern int pkcs7_verify(struct pkcs7_message *pkcs7,
+			enum key_being_used_for usage);
+
+extern int pkcs7_supply_detached_data(struct pkcs7_message *pkcs7,
+				      const void *data, size_t datalen);
+
+#endif /* _CRYPTO_PKCS7_H */

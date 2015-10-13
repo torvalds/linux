@@ -67,13 +67,12 @@ static const struct regmap_config max9850_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static const unsigned int max9850_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+static const DECLARE_TLV_DB_RANGE(max9850_tlv,
 	0x18, 0x1f, TLV_DB_SCALE_ITEM(-7450, 400, 0),
 	0x20, 0x33, TLV_DB_SCALE_ITEM(-4150, 200, 0),
 	0x34, 0x37, TLV_DB_SCALE_ITEM(-150, 100, 0),
-	0x38, 0x3f, TLV_DB_SCALE_ITEM(250, 50, 0),
-};
+	0x38, 0x3f, TLV_DB_SCALE_ITEM(250, 50, 0)
+);
 
 static const struct snd_kcontrol_new max9850_controls[] = {
 SOC_SINGLE_TLV("Headphone Volume", MAX9850_VOLUME, 0, 0x3f, 1, max9850_tlv),
@@ -352,7 +351,6 @@ MODULE_DEVICE_TABLE(i2c, max9850_i2c_id);
 static struct i2c_driver max9850_i2c_driver = {
 	.driver = {
 		.name = "max9850",
-		.owner = THIS_MODULE,
 	},
 	.probe = max9850_i2c_probe,
 	.remove = max9850_i2c_remove,

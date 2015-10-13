@@ -112,7 +112,6 @@ MODULE_DEVICE_TABLE(i2c, stmpe_id);
 static struct i2c_driver stmpe_i2c_driver = {
 	.driver = {
 		.name = "stmpe-i2c",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &stmpe_dev_pm_ops,
 #endif

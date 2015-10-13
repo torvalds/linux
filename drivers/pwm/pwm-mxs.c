@@ -77,7 +77,7 @@ static int mxs_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the PWM channel is disabled, make sure to turn on the clock
 	 * before writing the register. Otherwise, keep it enabled.
 	 */
-	if (!test_bit(PWMF_ENABLED, &pwm->flags)) {
+	if (!pwm_is_enabled(pwm)) {
 		ret = clk_prepare_enable(mxs->clk);
 		if (ret)
 			return ret;
@@ -92,7 +92,7 @@ static int mxs_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/*
 	 * If the PWM is not enabled, turn the clock off again to save power.
 	 */
-	if (!test_bit(PWMF_ENABLED, &pwm->flags))
+	if (!pwm_is_enabled(pwm))
 		clk_disable_unprepare(mxs->clk);
 
 	return 0;

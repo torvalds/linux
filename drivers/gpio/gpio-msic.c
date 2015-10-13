@@ -232,7 +232,7 @@ static struct irq_chip msic_irqchip = {
 	.irq_bus_sync_unlock	= msic_bus_sync_unlock,
 };
 
-static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void msic_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct msic_gpio *mg = irq_data_get_irq_handler_data(data);

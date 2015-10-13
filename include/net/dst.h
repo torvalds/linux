@@ -45,7 +45,7 @@ struct dst_entry {
 	void			*__pad1;
 #endif
 	int			(*input)(struct sk_buff *);
-	int			(*output)(struct sock *sk, struct sk_buff *skb);
+	int			(*output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 	unsigned short		flags;
 #define DST_HOST		0x0001
@@ -207,6 +207,12 @@ static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
 		p[metric-1] = val;
 }
 
+/* Kernel-internal feature bits that are unallocated in user space. */
+#define DST_FEATURE_ECN_CA	(1 << 31)
+
+#define DST_FEATURE_MASK	(DST_FEATURE_ECN_CA)
+#define DST_FEATURE_ECN_MASK	(DST_FEATURE_ECN_CA | RTAX_FEATURE_ECN)
+
 static inline u32
 dst_feature(const struct dst_entry *dst, u32 feature)
 {
@@ -289,11 +295,16 @@ static inline void skb_dst_drop(struct sk_buff *skb)
 	}
 }
 
-static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb)
+static inline void __skb_dst_copy(struct sk_buff *nskb, unsigned long refdst)
 {
-	nskb->_skb_refdst = oskb->_skb_refdst;
+	nskb->_skb_refdst = refdst;
 	if (!(nskb->_skb_refdst & SKB_DST_NOREF))
 		dst_clone(skb_dst(nskb));
+}
+
+static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb)
+{
+	__skb_dst_copy(nskb, oskb->_skb_refdst);
 }
 
 /**
@@ -354,10 +365,10 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev,
 	__skb_tunnel_rx(skb, dev, net);
 }
 
-int dst_discard_sk(struct sock *sk, struct sk_buff *skb);
+int dst_discard_out(struct net *net, struct sock *sk, struct sk_buff *skb);
 static inline int dst_discard(struct sk_buff *skb)
 {
-	return dst_discard_sk(skb->sk, skb);
+	return dst_discard_out(&init_net, skb->sk, skb);
 }
 void *dst_alloc(struct dst_ops *ops, struct net_device *dev, int initial_ref,
 		int initial_obsolete, unsigned short flags);
@@ -443,13 +454,9 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 }
 
 /* Output packet to network from transport.  */
-static inline int dst_output_sk(struct sock *sk, struct sk_buff *skb)
+static inline int dst_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	return skb_dst(skb)->output(sk, skb);
-}
-static inline int dst_output(struct sk_buff *skb)
-{
-	return dst_output_sk(skb->sk, skb);
+	return skb_dst(skb)->output(net, sk, skb);
 }
 
 /* Input packet from network to transport.  */
@@ -478,7 +485,8 @@ struct flowi;
 #ifndef CONFIG_XFRM
 static inline struct dst_entry *xfrm_lookup(struct net *net,
 					    struct dst_entry *dst_orig,
-					    const struct flowi *fl, struct sock *sk,
+					    const struct flowi *fl,
+					    const struct sock *sk,
 					    int flags)
 {
 	return dst_orig;
@@ -487,7 +495,7 @@ static inline struct dst_entry *xfrm_lookup(struct net *net,
 static inline struct dst_entry *xfrm_lookup_route(struct net *net,
 						  struct dst_entry *dst_orig,
 						  const struct flowi *fl,
-						  struct sock *sk,
+						  const struct sock *sk,
 						  int flags)
 {
 	return dst_orig;
@@ -500,11 +508,11 @@ static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
 
 #else
 struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
-			      const struct flowi *fl, struct sock *sk,
+			      const struct flowi *fl, const struct sock *sk,
 			      int flags);
 
 struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
-				    const struct flowi *fl, struct sock *sk,
+				    const struct flowi *fl, const struct sock *sk,
 				    int flags);
 
 /* skb attached with this dst needs transformation if dst->xfrm is valid */

@@ -156,7 +156,9 @@ struct xen_netif_tx_request {
 /* Types of xen_netif_extra_info descriptors. */
 #define XEN_NETIF_EXTRA_TYPE_NONE	(0)  /* Never used - invalid */
 #define XEN_NETIF_EXTRA_TYPE_GSO	(1)  /* u.gso */
-#define XEN_NETIF_EXTRA_TYPE_MAX	(2)
+#define XEN_NETIF_EXTRA_TYPE_MCAST_ADD	(2)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MCAST_DEL	(3)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MAX	(4)
 
 /* xen_netif_extra_info flags. */
 #define _XEN_NETIF_EXTRA_FLAG_MORE	(0)
@@ -200,6 +202,10 @@ struct xen_netif_extra_info {
 			 */
 			uint16_t features; /* XEN_NETIF_GSO_FEAT_* */
 		} gso;
+
+		struct {
+			uint8_t addr[6]; /* Address to add/remove. */
+		} mcast;
 
 		uint16_t pad[3];
 	} u;

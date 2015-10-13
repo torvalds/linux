@@ -21,39 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "ram.h"
 
-static int
-nv10_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
-		struct nvkm_oclass *oclass, void *data, u32 size,
-		struct nvkm_object **pobject)
+int
+nv10_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
-	struct nvkm_fb *pfb = nvkm_fb(parent);
-	struct nvkm_ram *ram;
-	u32 cfg0 = nv_rd32(pfb, 0x100200);
-	int ret;
-
-	ret = nvkm_ram_create(parent, engine, oclass, &ram);
-	*pobject = nv_object(ram);
-	if (ret)
-		return ret;
+	struct nvkm_device *device = fb->subdev.device;
+	u32 size = nvkm_rd32(device, 0x10020c) & 0xff000000;
+	u32 cfg0 = nvkm_rd32(device, 0x100200);
+	enum nvkm_ram_type type;
 
 	if (cfg0 & 0x00000001)
-		ram->type = NV_MEM_TYPE_DDR1;
+		type = NVKM_RAM_TYPE_DDR1;
 	else
-		ram->type = NV_MEM_TYPE_SDRAM;
+		type = NVKM_RAM_TYPE_SDRAM;
 
-	ram->size = nv_rd32(pfb, 0x10020c) & 0xff000000;
-	return 0;
+	return nvkm_ram_new_(&nv04_ram_func, fb, type, size, 0, pram);
 }
-
-struct nvkm_oclass
-nv10_ram_oclass = {
-	.handle = 0,
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv10_ram_create,
-		.dtor = _nvkm_ram_dtor,
-		.init = _nvkm_ram_init,
-		.fini = _nvkm_ram_fini,
-	}
-};

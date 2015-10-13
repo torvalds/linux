@@ -988,6 +988,10 @@ set_rcvbuf:
 					 sk->sk_max_pacing_rate);
 		break;
 
+	case SO_INCOMING_CPU:
+		sk->sk_incoming_cpu = val;
+		break;
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1852,6 +1856,32 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 }
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
+int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
+		   struct sockcm_cookie *sockc)
+{
+	struct cmsghdr *cmsg;
+
+	for_each_cmsghdr(cmsg, msg) {
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+		if (cmsg->cmsg_level != SOL_SOCKET)
+			continue;
+		switch (cmsg->cmsg_type) {
+		case SO_MARK:
+			if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+				return -EPERM;
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(u32)))
+				return -EINVAL;
+			sockc->mark = *(u32 *)CMSG_DATA(cmsg);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(sock_cmsg_send);
+
 /* On 32bit arches, an skb frag is limited to 2^15 */
 #define SKB_FRAG_PAGE_ORDER	get_order(32768)
 
@@ -2078,7 +2108,7 @@ suppress_allocation:
 EXPORT_SYMBOL(__sk_mem_schedule);
 
 /**
- *	__sk_reclaim - reclaim memory_allocated
+ *	__sk_mem_reclaim - reclaim memory_allocated
  *	@sk: socket
  *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
  */
@@ -2353,6 +2383,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_max_pacing_rate = ~0U;
 	sk->sk_pacing_rate = ~0U;
+	sk->sk_incoming_cpu = -1;
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
 	 * (Documentation/RCU/rculist_nulls.txt for details)
@@ -2740,10 +2771,8 @@ static void req_prot_cleanup(struct request_sock_ops *rsk_prot)
 		return;
 	kfree(rsk_prot->slab_name);
 	rsk_prot->slab_name = NULL;
-	if (rsk_prot->slab) {
-		kmem_cache_destroy(rsk_prot->slab);
-		rsk_prot->slab = NULL;
-	}
+	kmem_cache_destroy(rsk_prot->slab);
+	rsk_prot->slab = NULL;
 }
 
 static int req_prot_init(const struct proto *prot)
@@ -2760,7 +2789,7 @@ static int req_prot_init(const struct proto *prot)
 
 	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
 					   rsk_prot->obj_size, 0,
-					   0, NULL);
+					   prot->slab_flags, NULL);
 
 	if (!rsk_prot->slab) {
 		pr_crit("%s: Can't create request sock SLAB cache!\n",
@@ -2828,10 +2857,8 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	mutex_unlock(&proto_list_mutex);
 
-	if (prot->slab != NULL) {
-		kmem_cache_destroy(prot->slab);
-		prot->slab = NULL;
-	}
+	kmem_cache_destroy(prot->slab);
+	prot->slab = NULL;
 
 	req_prot_cleanup(prot->rsk_prot);
 

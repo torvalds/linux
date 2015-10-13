@@ -489,6 +489,11 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto pclk_disable;
 	}
 
+	/* Vote for maximum clock rate for maximum performance */
+	ret = clk_set_rate(msm_host->clk, INT_MAX);
+	if (ret)
+		dev_warn(&pdev->dev, "core clock boost failed\n");
+
 	ret = clk_prepare_enable(msm_host->clk);
 	if (ret)
 		goto pclk_disable;

@@ -166,7 +166,7 @@ static const struct wm_adsp_region wm2200_dsp2_regions[] = {
 	{ .type = WMFW_ADSP1_ZM, .base = WM2200_DSP2_ZM_BASE },
 };
 
-static struct reg_default wm2200_reg_defaults[] = {
+static const struct reg_default wm2200_reg_defaults[] = {
 	{ 0x000B, 0x0000 },   /* R11    - Tone Generator 1 */
 	{ 0x0102, 0x0000 },   /* R258   - Clocking 3 */
 	{ 0x0103, 0x0011 },   /* R259   - Clocking 4 */
@@ -897,7 +897,7 @@ static bool wm2200_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct reg_default wm2200_reva_patch[] = {
+static const struct reg_sequence wm2200_reva_patch[] = {
 	{ 0x07, 0x0003 },
 	{ 0x102, 0x0200 },
 	{ 0x203, 0x0084 },
@@ -1702,7 +1702,7 @@ static int wm2200_hw_params(struct snd_pcm_substream *substream,
 	int *bclk_rates;
 
 	/* Data sizes if not using TDM */
-	wl = snd_pcm_format_width(params_format(params));
+	wl = params_width(params);
 	if (wl < 0)
 		return wl;
 	fl = snd_soc_params_to_frame_size(params);
@@ -2481,7 +2481,7 @@ static int wm2200_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops wm2200_pm = {
+static const struct dev_pm_ops wm2200_pm = {
 	SET_RUNTIME_PM_OPS(wm2200_runtime_suspend, wm2200_runtime_resume,
 			   NULL)
 };
@@ -2495,7 +2495,6 @@ MODULE_DEVICE_TABLE(i2c, wm2200_i2c_id);
 static struct i2c_driver wm2200_i2c_driver = {
 	.driver = {
 		.name = "wm2200",
-		.owner = THIS_MODULE,
 		.pm = &wm2200_pm,
 	},
 	.probe =    wm2200_i2c_probe,

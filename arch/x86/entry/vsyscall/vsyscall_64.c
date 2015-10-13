@@ -277,7 +277,7 @@ static const char *gate_vma_name(struct vm_area_struct *vma)
 {
 	return "[vsyscall]";
 }
-static struct vm_operations_struct gate_vma_ops = {
+static const struct vm_operations_struct gate_vma_ops = {
 	.name = gate_vma_name,
 };
 static struct vm_area_struct gate_vma = {
@@ -290,7 +290,7 @@ static struct vm_area_struct gate_vma = {
 
 struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
-#ifdef CONFIG_IA32_EMULATION
+#ifdef CONFIG_COMPAT
 	if (!mm || mm->context.ia32_compat)
 		return NULL;
 #endif

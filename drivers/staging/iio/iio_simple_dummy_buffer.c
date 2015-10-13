@@ -32,6 +32,7 @@ static const s16 fakedata[] = {
 	[diffvoltage3m4] = -2,
 	[accelx] = 344,
 };
+
 /**
  * iio_simple_dummy_trigger_h() - the trigger handler function
  * @irq: the interrupt number
@@ -178,7 +179,6 @@ error_free_buffer:
 	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
-
 }
 
 /**

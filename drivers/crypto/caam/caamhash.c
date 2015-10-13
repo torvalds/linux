@@ -127,7 +127,7 @@ struct caam_hash_state {
 	int buflen_0;
 	u8 buf_1[CAAM_MAX_HASH_BLOCK_SIZE] ____cacheline_aligned;
 	int buflen_1;
-	u8 caam_ctx[MAX_CTX_LEN];
+	u8 caam_ctx[MAX_CTX_LEN] ____cacheline_aligned;
 	int (*update)(struct ahash_request *req);
 	int (*final)(struct ahash_request *req);
 	int (*finup)(struct ahash_request *req);
@@ -807,7 +807,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -829,7 +829,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		state->buf_dma = try_buf_map_to_sec4_sg(jrdev,
 							edesc->sec4_sg + 1,
 							buf, state->buf_dma,
-							*buflen, last_buflen);
+							*next_buflen, *buflen);
 
 		if (src_nents) {
 			src_map_to_sec4_sg(jrdev, req->src, src_nents,
@@ -919,8 +919,8 @@ static int ahash_final_ctx(struct ahash_request *req)
 	sec4_sg_bytes = sec4_sg_src_index * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
-			sec4_sg_bytes, GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN + sec4_sg_bytes,
+			GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return -ENOMEM;
@@ -1006,8 +1006,8 @@ static int ahash_finup_ctx(struct ahash_request *req)
 			 sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
-			sec4_sg_bytes, GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN + sec4_sg_bytes,
+			GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return -ENOMEM;
@@ -1092,8 +1092,8 @@ static int ahash_digest(struct ahash_request *req)
 	sec4_sg_bytes = src_nents * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + sec4_sg_bytes +
-			DESC_JOB_IO_LEN, GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + sec4_sg_bytes + DESC_JOB_IO_LEN,
+			GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return -ENOMEM;
@@ -1166,8 +1166,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	int sh_len;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN,
-			GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return -ENOMEM;
@@ -1246,7 +1245,7 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -1354,8 +1353,8 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 			 sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
-			sec4_sg_bytes, GFP_DMA | flags);
+	edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN + sec4_sg_bytes,
+			GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
 		return -ENOMEM;
@@ -1449,7 +1448,7 @@ static int ahash_update_first(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(*edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -1843,7 +1842,7 @@ caam_hash_alloc(struct caam_hash_template *template,
 	struct ahash_alg *halg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc(sizeof(struct caam_hash_alg), GFP_KERNEL);
+	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
 		pr_err("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
@@ -1885,8 +1884,10 @@ static int __init caam_algapi_hash_init(void)
 	struct device_node *dev_node;
 	struct platform_device *pdev;
 	struct device *ctrldev;
-	void *priv;
 	int i = 0, err = 0;
+	struct caam_drv_private *priv;
+	unsigned int md_limit = SHA512_DIGEST_SIZE;
+	u32 cha_inst, cha_vid;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node) {
@@ -1912,19 +1913,40 @@ static int __init caam_algapi_hash_init(void)
 	if (!priv)
 		return -ENODEV;
 
+	/*
+	 * Register crypto algorithms the device supports.  First, identify
+	 * presence and attributes of MD block.
+	 */
+	cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
+	cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+
+	/*
+	 * Skip registration of any hashing algorithms if MD block
+	 * is not present.
+	 */
+	if (!((cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT))
+		return -ENODEV;
+
+	/* Limit digest size based on LP256 */
+	if ((cha_vid & CHA_ID_LS_MD_MASK) == CHA_ID_LS_MD_LP256)
+		md_limit = SHA256_DIGEST_SIZE;
+
 	INIT_LIST_HEAD(&hash_list);
 
 	/* register crypto algorithms the device supports */
 	for (i = 0; i < ARRAY_SIZE(driver_hash); i++) {
-		/* TODO: check if h/w supports alg */
 		struct caam_hash_alg *t_alg;
+		struct caam_hash_template *alg = driver_hash + i;
+
+		/* If MD size is not supported by device, skip registration */
+		if (alg->template_ahash.halg.digestsize > md_limit)
+			continue;
 
 		/* register hmac version */
-		t_alg = caam_hash_alloc(&driver_hash[i], true);
+		t_alg = caam_hash_alloc(alg, true);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			pr_warn("%s alg allocation failed\n",
-				driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n", alg->driver_name);
 			continue;
 		}
 
@@ -1937,11 +1959,10 @@ static int __init caam_algapi_hash_init(void)
 			list_add_tail(&t_alg->entry, &hash_list);
 
 		/* register unkeyed version */
-		t_alg = caam_hash_alloc(&driver_hash[i], false);
+		t_alg = caam_hash_alloc(alg, false);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
-			pr_warn("%s alg allocation failed\n",
-				driver_hash[i].driver_name);
+			pr_warn("%s alg allocation failed\n", alg->driver_name);
 			continue;
 		}
 

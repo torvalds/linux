@@ -1310,7 +1310,7 @@ void bpf_int_jit_compile(struct bpf_prog *fp)
 	if (jit.prg_buf) {
 		set_memory_ro((unsigned long)header, header->pages);
 		fp->bpf_func = (void *) jit.prg_buf;
-		fp->jited = true;
+		fp->jited = 1;
 	}
 free_addrs:
 	kfree(jit.addrs);

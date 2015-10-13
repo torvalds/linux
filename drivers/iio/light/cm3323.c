@@ -29,7 +29,7 @@
 
 #define CM3323_CONF_SD_BIT	BIT(0) /* sensor disable */
 #define CM3323_CONF_AF_BIT	BIT(1) /* auto/manual force mode */
-#define CM3323_CONF_IT_MASK	(BIT(4) | BIT(5) | BIT(6))
+#define CM3323_CONF_IT_MASK	GENMASK(6, 4)
 #define CM3323_CONF_IT_SHIFT	4
 
 #define CM3323_INT_TIME_AVAILABLE "0.04 0.08 0.16 0.32 0.64 1.28"
@@ -133,9 +133,11 @@ static int cm3323_set_it_bits(struct cm3323_data *data, int val, int val2)
 				return ret;
 
 			data->reg_conf = reg_conf;
+
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -148,6 +150,7 @@ static int cm3323_get_it_bits(struct cm3323_data *data)
 
 	if (bits >= ARRAY_SIZE(cm3323_int_time))
 		return -EINVAL;
+
 	return bits;
 }
 
@@ -155,7 +158,7 @@ static int cm3323_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan, int *val,
 			   int *val2, long mask)
 {
-	int i, ret;
+	int ret;
 	struct cm3323_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
@@ -172,14 +175,14 @@ static int cm3323_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_INT_TIME:
 		mutex_lock(&data->mutex);
-		i = cm3323_get_it_bits(data);
-		if (i < 0) {
+		ret = cm3323_get_it_bits(data);
+		if (ret < 0) {
 			mutex_unlock(&data->mutex);
-			return -EINVAL;
+			return ret;
 		}
 
-		*val = cm3323_int_time[i].val;
-		*val2 = cm3323_int_time[i].val2;
+		*val = cm3323_int_time[ret].val;
+		*val2 = cm3323_int_time[ret].val2;
 		mutex_unlock(&data->mutex);
 
 		return IIO_VAL_INT_PLUS_MICRO;
@@ -243,11 +246,13 @@ static int cm3323_probe(struct i2c_client *client,
 		dev_err(&client->dev, "cm3323 chip init failed\n");
 		return ret;
 	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to register iio dev\n");
 		goto err_init;
 	}
+
 	return 0;
 err_init:
 	cm3323_disable(indio_dev);

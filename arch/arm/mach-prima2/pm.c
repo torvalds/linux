@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/rtc/sirfsoc_rtciobrg.h>
+#include <asm/outercache.h>
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
 

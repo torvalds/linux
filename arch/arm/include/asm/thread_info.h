@@ -25,7 +25,6 @@
 struct task_struct;
 
 #include <asm/types.h>
-#include <asm/domain.h>
 
 typedef unsigned long mm_segment_t;
 
@@ -74,9 +73,6 @@ struct thread_info {
 	.flags		= 0,						\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
 	.addr_limit	= KERNEL_DS,					\
-	.cpu_domain	= domain_val(DOMAIN_USER, DOMAIN_MANAGER) |	\
-			  domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) |	\
-			  domain_val(DOMAIN_IO, DOMAIN_CLIENT),		\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -136,22 +132,18 @@ extern int vfp_restore_user_hwstate(struct user_vfp __user *,
 
 /*
  * thread information flags:
- *  TIF_SYSCALL_TRACE	- syscall trace active
- *  TIF_SYSCAL_AUDIT	- syscall auditing active
- *  TIF_SIGPENDING	- signal pending
- *  TIF_NEED_RESCHED	- rescheduling necessary
- *  TIF_NOTIFY_RESUME	- callback before returning to user
  *  TIF_USEDFPU		- FPU was used by this task this quantum (SMP)
  *  TIF_POLLING_NRFLAG	- true if poll_idle() is polling TIF_NEED_RESCHED
  */
-#define TIF_SIGPENDING		0
-#define TIF_NEED_RESCHED	1
+#define TIF_SIGPENDING		0	/* signal pending */
+#define TIF_NEED_RESCHED	1	/* rescheduling necessary */
 #define TIF_NOTIFY_RESUME	2	/* callback before returning to user */
-#define TIF_UPROBE		7
-#define TIF_SYSCALL_TRACE	8
-#define TIF_SYSCALL_AUDIT	9
-#define TIF_SYSCALL_TRACEPOINT	10
-#define TIF_SECCOMP		11	/* seccomp syscall filtering active */
+#define TIF_UPROBE		3	/* breakpointed or singlestepping */
+#define TIF_SYSCALL_TRACE	4	/* syscall trace active */
+#define TIF_SYSCALL_AUDIT	5	/* syscall auditing active */
+#define TIF_SYSCALL_TRACEPOINT	6	/* syscall tracepoint instrumentation */
+#define TIF_SECCOMP		7	/* seccomp syscall filtering active */
+
 #define TIF_NOHZ		12	/* in adaptive nohz mode */
 #define TIF_USING_IWMMXT	17
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */

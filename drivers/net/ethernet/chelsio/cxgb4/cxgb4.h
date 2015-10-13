@@ -47,6 +47,7 @@
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
+#include <linux/net_tstamp.h>
 #include <asm/io.h>
 #include "cxgb4_uld.h"
 
@@ -478,6 +479,8 @@ struct port_info {
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	struct cxgb_fcoe fcoe;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
+	bool rxtstamp;  /* Enable TS */
+	struct hwtstamp_config tstamp_config;
 };
 
 struct dentry;
@@ -517,6 +520,7 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 
 /* A packet gather list */
 struct pkt_gl {
+	u64 sgetstamp;		    /* SGE Time Stamp for Ingress Packet */
 	struct page_frag frags[MAX_SKB_FRAGS];
 	void *va;                         /* virtual address of first byte */
 	unsigned int nfrags;              /* # of fragments */
@@ -1289,6 +1293,7 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op);
 int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
+int t4_check_fw_version(struct adapter *adap);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_get_exprom_version(struct adapter *adapter, u32 *vers);

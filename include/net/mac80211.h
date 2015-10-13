@@ -478,7 +478,9 @@ struct ieee80211_event {
  * @chandef: Channel definition for this BSS -- the hardware might be
  *	configured a higher bandwidth than this BSS uses, for example.
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
- *	This field is only valid when the channel type is one of the HT types.
+ *	This field is only valid when the channel is a wide HT/VHT channel.
+ *	Note that with TDLS this can be the case (channel is HT, protection must
+ *	be used from this field) even when the BSS association isn't using HT.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
  *	implies disabled
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis

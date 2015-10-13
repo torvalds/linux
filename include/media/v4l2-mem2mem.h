@@ -40,6 +40,10 @@
  *		v4l2_m2m_job_finish() (as if the transaction ended normally).
  *		This function does not have to (and will usually not) wait
  *		until the device enters a state when it can be stopped.
+ * @lock:	optional. Define a driver's own lock callback, instead of using
+ *		m2m_ctx->q_lock.
+ * @unlock:	optional. Define a driver's own unlock callback, instead of
+ *		using m2m_ctx->q_lock.
  */
 struct v4l2_m2m_ops {
 	void (*device_run)(void *priv);
@@ -161,6 +165,8 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb);
 /**
  * v4l2_m2m_num_src_bufs_ready() - return the number of source buffers ready for
  * use
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline
 unsigned int v4l2_m2m_num_src_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
@@ -171,6 +177,8 @@ unsigned int v4l2_m2m_num_src_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 /**
  * v4l2_m2m_num_src_bufs_ready() - return the number of destination buffers
  * ready for use
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline
 unsigned int v4l2_m2m_num_dst_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
@@ -183,6 +191,8 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 /**
  * v4l2_m2m_next_src_buf() - return next source buffer from the list of ready
  * buffers
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
@@ -192,6 +202,8 @@ static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 /**
  * v4l2_m2m_next_dst_buf() - return next destination buffer from the list of
  * ready buffers
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
@@ -200,6 +212,8 @@ static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 
 /**
  * v4l2_m2m_get_src_vq() - return vb2_queue for source buffers
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline
 struct vb2_queue *v4l2_m2m_get_src_vq(struct v4l2_m2m_ctx *m2m_ctx)
@@ -209,6 +223,8 @@ struct vb2_queue *v4l2_m2m_get_src_vq(struct v4l2_m2m_ctx *m2m_ctx)
 
 /**
  * v4l2_m2m_get_dst_vq() - return vb2_queue for destination buffers
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline
 struct vb2_queue *v4l2_m2m_get_dst_vq(struct v4l2_m2m_ctx *m2m_ctx)
@@ -221,6 +237,8 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
 /**
  * v4l2_m2m_src_buf_remove() - take off a source buffer from the list of ready
  * buffers and return it
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
@@ -230,6 +248,8 @@ static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 /**
  * v4l2_m2m_dst_buf_remove() - take off a destination buffer from the list of
  * ready buffers and return it
+ *
+ * @m2m_ctx: pointer to struct v4l2_m2m_ctx
  */
 static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {

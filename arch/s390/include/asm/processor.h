@@ -14,10 +14,12 @@
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
+#define CIF_FPU			3	/* restore vector registers */
 
 #define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
 #define _CIF_ASCE		(1<<CIF_ASCE)
 #define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
+#define _CIF_FPU		(1<<CIF_FPU)
 
 #ifndef __ASSEMBLY__
 
@@ -28,6 +30,7 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
+#include <asm/fpu-internal.h>
 
 static inline void set_cpu_flag(int flag)
 {
@@ -85,7 +88,7 @@ typedef struct {
  * Thread structure
  */
 struct thread_struct {
-	s390_fp_regs fp_regs;
+	struct fpu fpu;			/* FP and VX register save area */
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
 	mm_segment_t mm_segment;
@@ -101,7 +104,6 @@ struct thread_struct {
 	struct runtime_instr_cb *ri_cb;
 	int ri_signum;
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
-	__vector128 *vxrs;		/* Vector register save area */
 };
 
 /* Flag to disable transactions. */
@@ -231,6 +233,17 @@ static inline void __load_psw_mask (unsigned long mask)
 }
 
 /*
+ * Extract current PSW mask
+ */
+static inline unsigned long __extract_psw(void)
+{
+	unsigned int reg1, reg2;
+
+	asm volatile("epsw %0,%1" : "=d" (reg1), "=a" (reg2));
+	return (((unsigned long) reg1) << 32) | ((unsigned long) reg2);
+}
+
+/*
  * Rewind PSW instruction address by specified number of bytes.
  */
 static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
@@ -335,25 +348,6 @@ extern void memcpy_absolute(void *, void *, size_t);
 	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
 	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
 }
-
-/*
- * Helper macro for exception table entries
- */
-#define EX_TABLE(_fault, _target)	\
-	".section __ex_table,\"a\"\n"	\
-	".align	4\n"			\
-	".long	(" #_fault ") - .\n"	\
-	".long	(" #_target ") - .\n"	\
-	".previous\n"
-
-#else /* __ASSEMBLY__ */
-
-#define EX_TABLE(_fault, _target)	\
-	.section __ex_table,"a"	;	\
-	.align	4 ;			\
-	.long	(_fault) - . ;		\
-	.long	(_target) - . ;		\
-	.previous
 
 #endif /* __ASSEMBLY__ */
 

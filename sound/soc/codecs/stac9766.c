@@ -28,6 +28,9 @@
 
 #include "stac9766.h"
 
+#define STAC9766_VENDOR_ID 0x83847666
+#define STAC9766_VENDOR_ID_MASK 0xffffffff
+
 /*
  * STAC9766 register cache
  */
@@ -239,45 +242,12 @@ static int stac9766_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
-{
-	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
-
-	if (try_warm && soc_ac97_ops->warm_reset) {
-		soc_ac97_ops->warm_reset(ac97);
-		if (stac9766_ac97_read(codec, 0) == stac9766_reg[0])
-			return 1;
-	}
-
-	soc_ac97_ops->reset(ac97);
-	if (soc_ac97_ops->warm_reset)
-		soc_ac97_ops->warm_reset(ac97);
-	if (stac9766_ac97_read(codec, 0) != stac9766_reg[0])
-		return -EIO;
-	return 0;
-}
-
 static int stac9766_codec_resume(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
-	u16 id, reset;
 
-	reset = 0;
-	/* give the codec an AC97 warm reset to start the link */
-reset:
-	if (reset > 5) {
-		dev_err(codec->dev, "Failed to resume\n");
-		return -EIO;
-	}
-	ac97->bus->ops->warm_reset(ac97);
-	id = soc_ac97_ops->read(ac97, AC97_VENDOR_ID2);
-	if (id != 0x4c13) {
-		stac9766_reset(codec, 0);
-		reset++;
-		goto reset;
-	}
-
-	return 0;
+	return snd_ac97_reset(ac97, true, STAC9766_VENDOR_ID,
+		STAC9766_VENDOR_ID_MASK);
 }
 
 static const struct snd_soc_dai_ops stac9766_dai_ops_analog = {
@@ -330,28 +300,15 @@ static struct snd_soc_dai_driver stac9766_dai[] = {
 static int stac9766_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97;
-	int ret = 0;
 
-	ac97 = snd_soc_new_ac97_codec(codec);
+	ac97 = snd_soc_new_ac97_codec(codec, STAC9766_VENDOR_ID,
+			STAC9766_VENDOR_ID_MASK);
 	if (IS_ERR(ac97))
 		return PTR_ERR(ac97);
 
 	snd_soc_codec_set_drvdata(codec, ac97);
 
-	/* do a cold reset for the controller and then try
-	 * a warm reset followed by an optional cold reset for codec */
-	stac9766_reset(codec, 0);
-	ret = stac9766_reset(codec, 1);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to reset: AC97 link error\n");
-		goto codec_err;
-	}
-
 	return 0;
-
-codec_err:
-	snd_soc_free_ac97_codec(ac97);
-	return ret;
 }
 
 static int stac9766_codec_remove(struct snd_soc_codec *codec)

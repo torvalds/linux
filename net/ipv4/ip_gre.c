@@ -400,25 +400,14 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 	if (tunnel) {
 		skb_pop_mac_header(skb);
 		if (tunnel->collect_md) {
-			struct ip_tunnel_info *info;
+			__be16 flags;
+			__be64 tun_id;
 
-			tun_dst = metadata_dst_alloc(0, GFP_ATOMIC);
+			flags = tpi->flags & (TUNNEL_CSUM | TUNNEL_KEY);
+			tun_id = key_to_tunnel_id(tpi->key);
+			tun_dst = ip_tun_rx_dst(skb, flags, tun_id, 0);
 			if (!tun_dst)
 				return PACKET_REJECT;
-
-			info = &tun_dst->u.tun_info;
-			info->key.u.ipv4.src = iph->saddr;
-			info->key.u.ipv4.dst = iph->daddr;
-			info->key.tos = iph->tos;
-			info->key.ttl = iph->ttl;
-
-			info->mode = IP_TUNNEL_INFO_RX;
-			info->key.tun_flags = tpi->flags &
-					      (TUNNEL_CSUM | TUNNEL_KEY);
-			info->key.tun_id = key_to_tunnel_id(tpi->key);
-
-			info->key.tp_src = 0;
-			info->key.tp_dst = 0;
 		}
 
 		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
@@ -522,7 +511,8 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	int err;
 
 	tun_info = skb_tunnel_info(skb);
-	if (unlikely(!tun_info || tun_info->mode != IP_TUNNEL_INFO_TX))
+	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
+		     ip_tunnel_info_af(tun_info) != AF_INET))
 		goto err_free_skb;
 
 	key = &tun_info->key;

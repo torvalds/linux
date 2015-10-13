@@ -1,4 +1,3 @@
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/slab.h>

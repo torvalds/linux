@@ -170,7 +170,7 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session_env__delete(struct perf_session_env *env)
+static void perf_session_env__exit(struct perf_env *env)
 {
 	zfree(&env->hostname);
 	zfree(&env->os_release);
@@ -180,6 +180,7 @@ static void perf_session_env__delete(struct perf_session_env *env)
 	zfree(&env->cpuid);
 
 	zfree(&env->cmdline);
+	zfree(&env->cmdline_argv);
 	zfree(&env->sibling_cores);
 	zfree(&env->sibling_threads);
 	zfree(&env->numa_nodes);
@@ -192,7 +193,7 @@ void perf_session__delete(struct perf_session *session)
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session_env__delete(&session->header.env);
+	perf_session_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->file)
 		perf_data_file__close(session->file);
@@ -332,6 +333,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->aux = perf_event__process_aux;
 	if (tool->itrace_start == NULL)
 		tool->itrace_start = perf_event__process_itrace_start;
+	if (tool->context_switch == NULL)
+		tool->context_switch = perf_event__process_switch;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -468,6 +471,19 @@ static void perf_event__itrace_start_swap(union perf_event *event,
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->itrace_start + 1);
+}
+
+static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
+{
+	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
+		event->context_switch.next_prev_pid =
+				bswap_32(event->context_switch.next_prev_pid);
+		event->context_switch.next_prev_tid =
+				bswap_32(event->context_switch.next_prev_tid);
+	}
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->context_switch + 1);
 }
 
 static void perf_event__throttle_swap(union perf_event *event,
@@ -632,6 +648,8 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_AUX]		  = perf_event__aux_swap,
 	[PERF_RECORD_ITRACE_START]	  = perf_event__itrace_start_swap,
 	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
+	[PERF_RECORD_SWITCH]		  = perf_event__switch_swap,
+	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -766,10 +784,18 @@ static void branch_stack__printf(struct perf_sample *sample)
 
 	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
 
-	for (i = 0; i < sample->branch_stack->nr; i++)
-		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 "\n",
-			i, sample->branch_stack->entries[i].from,
-			sample->branch_stack->entries[i].to);
+	for (i = 0; i < sample->branch_stack->nr; i++) {
+		struct branch_entry *e = &sample->branch_stack->entries[i];
+
+		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 " %hu cycles %s%s%s%s %x\n",
+			i, e->from, e->to,
+			e->flags.cycles,
+			e->flags.mispred ? "M" : " ",
+			e->flags.predicted ? "P" : " ",
+			e->flags.abort ? "A" : " ",
+			e->flags.in_tx ? "T" : " ",
+			(unsigned)e->flags.reserved);
+	}
 }
 
 static void regs_dump__printf(u64 mask, u64 *regs)
@@ -1093,6 +1119,9 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
+	case PERF_RECORD_SWITCH:
+	case PERF_RECORD_SWITCH_CPU_WIDE:
+		return tool->context_switch(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
@@ -1551,7 +1580,10 @@ static int __perf_session__process_events(struct perf_session *session,
 	file_offset = page_offset;
 	head = data_offset - page_offset;
 
-	if (data_size && (data_offset + data_size < file_size))
+	if (data_size == 0)
+		goto out;
+
+	if (data_offset + data_size < file_size)
 		file_size = data_offset + data_size;
 
 	ui_progress__init(&prog, file_size, "Processing events...");

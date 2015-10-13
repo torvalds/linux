@@ -48,13 +48,13 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 
 	qdwc->iface_clk = devm_clk_get(qdwc->dev, "iface");
 	if (IS_ERR(qdwc->iface_clk)) {
-		dev_dbg(qdwc->dev, "failed to get optional iface clock\n");
+		dev_info(qdwc->dev, "failed to get optional iface clock\n");
 		qdwc->iface_clk = NULL;
 	}
 
 	qdwc->sleep_clk = devm_clk_get(qdwc->dev, "sleep");
 	if (IS_ERR(qdwc->sleep_clk)) {
-		dev_dbg(qdwc->dev, "failed to get optional sleep clock\n");
+		dev_info(qdwc->dev, "failed to get optional sleep clock\n");
 		qdwc->sleep_clk = NULL;
 	}
 

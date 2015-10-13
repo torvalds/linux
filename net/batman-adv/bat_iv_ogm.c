@@ -296,39 +296,13 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 			struct batadv_orig_node *orig_node,
 			struct batadv_orig_node *orig_neigh)
 {
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct batadv_neigh_node *neigh_node, *tmp_neigh_node;
+	struct batadv_neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, orig_node);
+	neigh_node = batadv_neigh_node_new(orig_node, hard_iface, neigh_addr);
 	if (!neigh_node)
 		goto out;
 
-	if (!atomic_inc_not_zero(&hard_iface->refcount)) {
-		kfree(neigh_node);
-		neigh_node = NULL;
-		goto out;
-	}
-
 	neigh_node->orig_node = orig_neigh;
-	neigh_node->if_incoming = hard_iface;
-
-	spin_lock_bh(&orig_node->neigh_list_lock);
-	tmp_neigh_node = batadv_neigh_node_get(orig_node, hard_iface,
-					       neigh_addr);
-	if (!tmp_neigh_node) {
-		hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
-	} else {
-		kfree(neigh_node);
-		batadv_hardif_free_ref(hard_iface);
-		neigh_node = tmp_neigh_node;
-	}
-	spin_unlock_bh(&orig_node->neigh_list_lock);
-
-	if (!tmp_neigh_node)
-		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
-			   neigh_addr, orig_node->orig,
-			   hard_iface->net_dev->name);
 
 out:
 	return neigh_node;

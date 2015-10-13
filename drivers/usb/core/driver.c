@@ -160,6 +160,7 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 	spin_lock(&usb_driver->dynids.lock);
 	list_for_each_entry_safe(dynid, n, &usb_driver->dynids.list, node) {
 		struct usb_device_id *id = &dynid->id;
+
 		if ((id->idVendor == idVendor) &&
 		    (id->idProduct == idProduct)) {
 			list_del(&dynid->node);

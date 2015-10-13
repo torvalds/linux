@@ -147,11 +147,12 @@ static struct vport *vxlan_create(const struct vport_parms *parms)
 }
 
 static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				     struct ip_tunnel_info *egress_tun_info)
+				     struct dp_upcall_info *upcall)
 {
 	struct vxlan_dev *vxlan = netdev_priv(vport->dev);
 	struct net *net = ovs_dp_get_net(vport->dp);
-	__be16 dst_port = vxlan_dev_dst_port(vxlan);
+	unsigned short family = ip_tunnel_info_af(upcall->egress_tun_info);
+	__be16 dst_port = vxlan_dev_dst_port(vxlan, family);
 	__be16 src_port;
 	int port_min;
 	int port_max;
@@ -159,9 +160,8 @@ static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 	inet_get_local_port_range(net, &port_min, &port_max);
 	src_port = udp_flow_src_port(net, skb, 0, 0, true);
 
-	return ovs_tunnel_get_egress_info(egress_tun_info, net,
-					  OVS_CB(skb)->egress_tun_info,
-					  IPPROTO_UDP, skb->mark,
+	return ovs_tunnel_get_egress_info(upcall, net,
+					  skb, IPPROTO_UDP,
 					  src_port, dst_port);
 }
 

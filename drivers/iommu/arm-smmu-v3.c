@@ -118,6 +118,7 @@
 
 #define ARM_SMMU_IRQ_CTRL		0x50
 #define IRQ_CTRL_EVTQ_IRQEN		(1 << 2)
+#define IRQ_CTRL_PRIQ_IRQEN		(1 << 1)
 #define IRQ_CTRL_GERROR_IRQEN		(1 << 0)
 
 #define ARM_SMMU_IRQ_CTRLACK		0x54
@@ -173,14 +174,14 @@
 #define ARM_SMMU_PRIQ_IRQ_CFG2		0xdc
 
 /* Common MSI config fields */
-#define MSI_CFG0_SH_SHIFT		60
-#define MSI_CFG0_SH_NSH			(0UL << MSI_CFG0_SH_SHIFT)
-#define MSI_CFG0_SH_OSH			(2UL << MSI_CFG0_SH_SHIFT)
-#define MSI_CFG0_SH_ISH			(3UL << MSI_CFG0_SH_SHIFT)
-#define MSI_CFG0_MEMATTR_SHIFT		56
-#define MSI_CFG0_MEMATTR_DEVICE_nGnRE	(0x1 << MSI_CFG0_MEMATTR_SHIFT)
 #define MSI_CFG0_ADDR_SHIFT		2
 #define MSI_CFG0_ADDR_MASK		0x3fffffffffffUL
+#define MSI_CFG2_SH_SHIFT		4
+#define MSI_CFG2_SH_NSH			(0UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_SH_OSH			(2UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_SH_ISH			(3UL << MSI_CFG2_SH_SHIFT)
+#define MSI_CFG2_MEMATTR_SHIFT		0
+#define MSI_CFG2_MEMATTR_DEVICE_nGnRE	(0x1 << MSI_CFG2_MEMATTR_SHIFT)
 
 #define Q_IDX(q, p)			((p) & ((1 << (q)->max_n_shift) - 1))
 #define Q_WRP(q, p)			((p) & (1 << (q)->max_n_shift))
@@ -1330,33 +1331,10 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
 }
 
-static void arm_smmu_flush_pgtable(void *addr, size_t size, void *cookie)
-{
-	struct arm_smmu_domain *smmu_domain = cookie;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
-	unsigned long offset = (unsigned long)addr & ~PAGE_MASK;
-
-	if (smmu->features & ARM_SMMU_FEAT_COHERENCY) {
-		dsb(ishst);
-	} else {
-		dma_addr_t dma_addr;
-		struct device *dev = smmu->dev;
-
-		dma_addr = dma_map_page(dev, virt_to_page(addr), offset, size,
-					DMA_TO_DEVICE);
-
-		if (dma_mapping_error(dev, dma_addr))
-			dev_err(dev, "failed to flush pgtable at %p\n", addr);
-		else
-			dma_unmap_page(dev, dma_addr, size, DMA_TO_DEVICE);
-	}
-}
-
 static struct iommu_gather_ops arm_smmu_gather_ops = {
 	.tlb_flush_all	= arm_smmu_tlb_inv_context,
 	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
 	.tlb_sync	= arm_smmu_tlb_sync,
-	.flush_pgtable	= arm_smmu_flush_pgtable,
 };
 
 /* IOMMU API */
@@ -1531,6 +1509,7 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 		.ias		= ias,
 		.oas		= oas,
 		.tlb		= &arm_smmu_gather_ops,
+		.iommu_dev	= smmu->dev,
 	};
 
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
@@ -2053,9 +2032,17 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 	int ret;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
 
-	/* Calculate the L1 size, capped to the SIDSIZE */
-	size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
-	size = min(size, smmu->sid_bits - STRTAB_SPLIT);
+	/*
+	 * If we can resolve everything with a single L2 table, then we
+	 * just need a single L1 descriptor. Otherwise, calculate the L1
+	 * size, capped to the SIDSIZE.
+	 */
+	if (smmu->sid_bits < STRTAB_SPLIT) {
+		size = 0;
+	} else {
+		size = STRTAB_L1_SZ_SHIFT - (ilog2(STRTAB_L1_DESC_DWORDS) + 3);
+		size = min(size, smmu->sid_bits - STRTAB_SPLIT);
+	}
 	cfg->num_l1_ents = 1 << size;
 
 	size += STRTAB_SPLIT;
@@ -2198,6 +2185,7 @@ static int arm_smmu_write_reg_sync(struct arm_smmu_device *smmu, u32 val,
 static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 {
 	int ret, irq;
+	u32 irqen_flags = IRQ_CTRL_EVTQ_IRQEN | IRQ_CTRL_GERROR_IRQEN;
 
 	/* Disable IRQs first */
 	ret = arm_smmu_write_reg_sync(smmu, 0, ARM_SMMU_IRQ_CTRL,
@@ -2252,13 +2240,13 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 			if (IS_ERR_VALUE(ret))
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
+			else
+				irqen_flags |= IRQ_CTRL_PRIQ_IRQEN;
 		}
 	}
 
 	/* Enable interrupt generation on the SMMU */
-	ret = arm_smmu_write_reg_sync(smmu,
-				      IRQ_CTRL_EVTQ_IRQEN |
-				      IRQ_CTRL_GERROR_IRQEN,
+	ret = arm_smmu_write_reg_sync(smmu, irqen_flags,
 				      ARM_SMMU_IRQ_CTRL, ARM_SMMU_IRQ_CTRLACK);
 	if (ret)
 		dev_warn(smmu->dev, "failed to enable irqs\n");
@@ -2540,12 +2528,12 @@ static int arm_smmu_device_probe(struct arm_smmu_device *smmu)
 	case IDR5_OAS_44_BIT:
 		smmu->oas = 44;
 		break;
+	default:
+		dev_info(smmu->dev,
+			"unknown output address size. Truncating to 48-bit\n");
+		/* Fallthrough */
 	case IDR5_OAS_48_BIT:
 		smmu->oas = 48;
-		break;
-	default:
-		dev_err(smmu->dev, "unknown output address size!\n");
-		return -ENXIO;
 	}
 
 	/* Set the DMA mask for our table walker */

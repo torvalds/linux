@@ -161,8 +161,8 @@ static struct sdhci_pltfm_data sdhci_sirf_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 		SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
-		SDHCI_QUIRK_DELAY_AFTER_POWER,
+		SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
 static int sdhci_sirf_probe(struct platform_device *pdev)

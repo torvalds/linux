@@ -300,8 +300,19 @@
 				};
 
 				esai: esai@02024000 {
+					#sound-dai-cells = <0>;
+					compatible = "fsl,imx35-esai";
 					reg = <0x02024000 0x4000>;
 					interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6QDL_CLK_ESAI_IPG>,
+						 <&clks IMX6QDL_CLK_ESAI_MEM>,
+						 <&clks IMX6QDL_CLK_ESAI_EXTAL>,
+						 <&clks IMX6QDL_CLK_ESAI_IPG>,
+						 <&clks IMX6QDL_CLK_SPBA>;
+					clock-names = "core", "mem", "extal", "fsys", "dma";
+					dmas = <&sdma 23 21 0>, <&sdma 24 21 0>;
+					dma-names = "rx", "tx";
+					status = "disabled";
 				};
 
 				ssi1: ssi@02028000 {
@@ -353,8 +364,28 @@
 				};
 
 				asrc: asrc@02034000 {
+					compatible = "fsl,imx53-asrc";
 					reg = <0x02034000 0x4000>;
 					interrupts = <0 50 IRQ_TYPE_LEVEL_HIGH>;
+					clocks = <&clks IMX6QDL_CLK_ASRC_IPG>,
+						<&clks IMX6QDL_CLK_ASRC_MEM>, <&clks 0>,
+						<&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+						<&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+						<&clks 0>, <&clks 0>, <&clks 0>, <&clks 0>,
+						<&clks IMX6QDL_CLK_ASRC>, <&clks 0>, <&clks 0>,
+						<&clks IMX6QDL_CLK_SPBA>;
+					clock-names = "mem", "ipg", "asrck_0",
+						"asrck_1", "asrck_2", "asrck_3", "asrck_4",
+						"asrck_5", "asrck_6", "asrck_7", "asrck_8",
+						"asrck_9", "asrck_a", "asrck_b", "asrck_c",
+						"asrck_d", "asrck_e", "asrck_f", "dma";
+					dmas = <&sdma 17 23 1>, <&sdma 18 23 1>, <&sdma 19 23 1>,
+						<&sdma 20 23 1>, <&sdma 21 23 1>, <&sdma 22 23 1>;
+					dma-names = "rxa", "rxb", "rxc",
+							"txa", "txb", "txc";
+					fsl,asrc-rate  = <48000>;
+					fsl,asrc-width = <16>;
+					status = "okay";
 				};
 
 				spba@0203c000 {
@@ -687,22 +718,23 @@
 				fsl,anatop = <&anatop>;
 			};
 
-			snvs@020cc000 {
-				compatible = "fsl,sec-v4.0-mon", "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x020cc000 0x4000>;
+			snvs: snvs@020cc000 {
+				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
+				reg = <0x020cc000 0x4000>;
 
-				snvs_rtc: snvs-rtc-lp@34 {
+				snvs_rtc: snvs-rtc-lp {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
-					reg = <0x34 0x58>;
+					regmap = <&snvs>;
+					offset = <0x34>;
 					interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>,
 						     <0 20 IRQ_TYPE_LEVEL_HIGH>;
 				};
 
-				snvs_poweroff: snvs-poweroff@38 {
-					compatible = "fsl,sec-v4.0-poweroff";
-					reg = <0x38 0x4>;
+				snvs_poweroff: snvs-poweroff {
+					compatible = "syscon-poweroff";
+					regmap = <&snvs>;
+					offset = <0x38>;
+					mask = <0x60>;
 					status = "disabled";
 				};
 			};
@@ -836,10 +868,31 @@
 			reg = <0x02100000 0x100000>;
 			ranges;
 
-			caam@02100000 {
-				reg = <0x02100000 0x40000>;
-				interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>,
-					     <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			crypto: caam@2100000 {
+				compatible = "fsl,sec-v4.0";
+				fsl,sec-era = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x2100000 0x10000>;
+				ranges = <0 0x2100000 0x10000>;
+				interrupt-parent = <&intc>;
+				clocks = <&clks IMX6QDL_CLK_CAAM_MEM>,
+					 <&clks IMX6QDL_CLK_CAAM_ACLK>,
+					 <&clks IMX6QDL_CLK_CAAM_IPG>,
+					 <&clks IMX6QDL_CLK_EIM_SLOW>;
+				clock-names = "mem", "aclk", "ipg", "emi_slow";
+
+				sec_jr0: jr0@1000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x1000 0x1000>;
+					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				sec_jr1: jr1@2000 {
+					compatible = "fsl,sec-v4.0-job-ring";
+					reg = <0x2000 0x1000>;
+					interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+				};
 			};
 
 			aipstz@0217c000 { /* AIPSTZ2 */

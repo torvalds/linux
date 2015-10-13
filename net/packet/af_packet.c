@@ -230,6 +230,8 @@ struct packet_skb_cb {
 	} sa;
 };
 
+#define vio_le() virtio_legacy_is_little_endian()
+
 #define PACKET_SKB_CB(__skb)	((struct packet_skb_cb *)((__skb)->cb))
 
 #define GET_PBDQC_FROM_RB(x)	((struct tpacket_kbdq_core *)(&(x)->prb_bdqc))
@@ -1421,7 +1423,7 @@ static unsigned int fanout_demux_bpf(struct packet_fanout *f,
 	rcu_read_lock();
 	prog = rcu_dereference(f->bpf_prog);
 	if (prog)
-		ret = BPF_PROG_RUN(prog, skb) % num;
+		ret = bpf_prog_run_clear_cb(prog, skb) % num;
 	rcu_read_unlock();
 
 	return ret;
@@ -1437,17 +1439,17 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 {
 	struct packet_fanout *f = pt->af_packet_priv;
 	unsigned int num = READ_ONCE(f->num_members);
+	struct net *net = read_pnet(&f->net);
 	struct packet_sock *po;
 	unsigned int idx;
 
-	if (!net_eq(dev_net(dev), read_pnet(&f->net)) ||
-	    !num) {
+	if (!net_eq(dev_net(dev), net) || !num) {
 		kfree_skb(skb);
 		return 0;
 	}
 
 	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_DEFRAG)) {
-		skb = ip_check_defrag(skb, IP_DEFRAG_AF_PACKET);
+		skb = ip_check_defrag(net, skb, IP_DEFRAG_AF_PACKET);
 		if (!skb)
 			return 0;
 	}
@@ -1517,10 +1519,10 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 
 static bool match_fanout_group(struct packet_type *ptype, struct sock *sk)
 {
-	if (ptype->af_packet_priv == (void *)((struct packet_sock *)sk)->fanout)
-		return true;
+	if (sk->sk_family != PF_PACKET)
+		return false;
 
-	return false;
+	return ptype->af_packet_priv == pkt_sk(sk)->fanout;
 }
 
 static void fanout_init_data(struct packet_fanout *f)
@@ -1565,7 +1567,7 @@ static int fanout_set_data_cbpf(struct packet_sock *po, char __user *data,
 	if (copy_from_user(&fprog, data, len))
 		return -EFAULT;
 
-	ret = bpf_prog_create_from_user(&new, &fprog, NULL);
+	ret = bpf_prog_create_from_user(&new, &fprog, NULL, false);
 	if (ret)
 		return ret;
 
@@ -1937,16 +1939,16 @@ out_free:
 	return err;
 }
 
-static unsigned int run_filter(const struct sk_buff *skb,
-				      const struct sock *sk,
-				      unsigned int res)
+static unsigned int run_filter(struct sk_buff *skb,
+			       const struct sock *sk,
+			       unsigned int res)
 {
 	struct sk_filter *filter;
 
 	rcu_read_lock();
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter != NULL)
-		res = SK_RUN_FILTER(filter, skb);
+		res = bpf_prog_run_clear_cb(filter->prog, skb);
 	rcu_read_unlock();
 
 	return res;
@@ -2628,6 +2630,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	__be16 proto;
 	unsigned char *addr;
 	int err, reserve = 0;
+	struct sockcm_cookie sockc;
 	struct virtio_net_hdr vnet_hdr = { 0 };
 	int offset = 0;
 	int vnet_hdr_len;
@@ -2663,6 +2666,13 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_unlock;
 
+	sockc.mark = sk->sk_mark;
+	if (msg->msg_controllen) {
+		err = sock_cmsg_send(sk, msg, &sockc);
+		if (unlikely(err))
+			goto out_unlock;
+	}
+
 	if (sock->type == SOCK_RAW)
 		reserve = dev->hard_header_len;
 	if (po->has_vnet_hdr) {
@@ -2680,15 +2690,15 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 			goto out_unlock;
 
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
-		    (__virtio16_to_cpu(false, vnet_hdr.csum_start) +
-		     __virtio16_to_cpu(false, vnet_hdr.csum_offset) + 2 >
-		      __virtio16_to_cpu(false, vnet_hdr.hdr_len)))
-			vnet_hdr.hdr_len = __cpu_to_virtio16(false,
-				 __virtio16_to_cpu(false, vnet_hdr.csum_start) +
-				__virtio16_to_cpu(false, vnet_hdr.csum_offset) + 2);
+		    (__virtio16_to_cpu(vio_le(), vnet_hdr.csum_start) +
+		     __virtio16_to_cpu(vio_le(), vnet_hdr.csum_offset) + 2 >
+		      __virtio16_to_cpu(vio_le(), vnet_hdr.hdr_len)))
+			vnet_hdr.hdr_len = __cpu_to_virtio16(vio_le(),
+				 __virtio16_to_cpu(vio_le(), vnet_hdr.csum_start) +
+				__virtio16_to_cpu(vio_le(), vnet_hdr.csum_offset) + 2);
 
 		err = -EINVAL;
-		if (__virtio16_to_cpu(false, vnet_hdr.hdr_len) > len)
+		if (__virtio16_to_cpu(vio_le(), vnet_hdr.hdr_len) > len)
 			goto out_unlock;
 
 		if (vnet_hdr.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
@@ -2731,7 +2741,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
 	skb = packet_alloc_skb(sk, hlen + tlen, hlen, len,
-			       __virtio16_to_cpu(false, vnet_hdr.hdr_len),
+			       __virtio16_to_cpu(vio_le(), vnet_hdr.hdr_len),
 			       msg->msg_flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out_unlock;
@@ -2772,14 +2782,14 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	skb->mark = sockc.mark;
 
 	packet_pick_tx_queue(dev, skb);
 
 	if (po->has_vnet_hdr) {
 		if (vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
-			u16 s = __virtio16_to_cpu(false, vnet_hdr.csum_start);
-			u16 o = __virtio16_to_cpu(false, vnet_hdr.csum_offset);
+			u16 s = __virtio16_to_cpu(vio_le(), vnet_hdr.csum_start);
+			u16 o = __virtio16_to_cpu(vio_le(), vnet_hdr.csum_offset);
 			if (!skb_partial_csum_set(skb, s, o)) {
 				err = -EINVAL;
 				goto out_free;
@@ -2787,7 +2797,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		}
 
 		skb_shinfo(skb)->gso_size =
-			__virtio16_to_cpu(false, vnet_hdr.gso_size);
+			__virtio16_to_cpu(vio_le(), vnet_hdr.gso_size);
 		skb_shinfo(skb)->gso_type = gso_type;
 
 		/* Header must be checked, and gso_segs computed. */
@@ -3161,9 +3171,9 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 			/* This is a hint as to how much should be linear. */
 			vnet_hdr.hdr_len =
-				__cpu_to_virtio16(false, skb_headlen(skb));
+				__cpu_to_virtio16(vio_le(), skb_headlen(skb));
 			vnet_hdr.gso_size =
-				__cpu_to_virtio16(false, sinfo->gso_size);
+				__cpu_to_virtio16(vio_le(), sinfo->gso_size);
 			if (sinfo->gso_type & SKB_GSO_TCPV4)
 				vnet_hdr.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
 			else if (sinfo->gso_type & SKB_GSO_TCPV6)
@@ -3181,9 +3191,9 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			vnet_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-			vnet_hdr.csum_start = __cpu_to_virtio16(false,
+			vnet_hdr.csum_start = __cpu_to_virtio16(vio_le(),
 					  skb_checksum_start_offset(skb));
-			vnet_hdr.csum_offset = __cpu_to_virtio16(false,
+			vnet_hdr.csum_offset = __cpu_to_virtio16(vio_le(),
 							 skb->csum_offset);
 		} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 			vnet_hdr.flags = VIRTIO_NET_HDR_F_DATA_VALID;

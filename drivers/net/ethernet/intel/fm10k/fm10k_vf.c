@@ -131,19 +131,6 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	return 0;
 }
 
-/**
- *  fm10k_is_slot_appropriate_vf - Indicate appropriate slot for this SKU
- *  @hw: pointer to hardware structure
- *
- *  Looks at the PCIe bus info to confirm whether or not this slot can support
- *  the necessary bandwidth for this device. Since the VF has no control over
- *  the "slot" it is in, always indicate that the slot is appropriate.
- **/
-static bool fm10k_is_slot_appropriate_vf(struct fm10k_hw *hw)
-{
-	return true;
-}
-
 /* This structure defines the attibutes to be parsed below */
 const struct fm10k_tlv_attr fm10k_mac_vlan_msg_attr[] = {
 	FM10K_TLV_ATTR_U32(FM10K_MAC_VLAN_MSG_VLAN),
@@ -552,7 +539,6 @@ static struct fm10k_mac_ops mac_ops_vf = {
 	.init_hw		= &fm10k_init_hw_vf,
 	.start_hw		= &fm10k_start_hw_generic,
 	.stop_hw		= &fm10k_stop_hw_vf,
-	.is_slot_appropriate	= &fm10k_is_slot_appropriate_vf,
 	.update_vlan		= &fm10k_update_vlan_vf,
 	.read_mac_addr		= &fm10k_read_mac_addr_vf,
 	.update_uc_addr		= &fm10k_update_uc_addr_vf,

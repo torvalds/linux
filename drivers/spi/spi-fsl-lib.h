@@ -54,9 +54,6 @@ struct mpc8xxx_spi {
 	void (*get_rx) (u32 rx_data, struct mpc8xxx_spi *);
 	u32(*get_tx) (struct mpc8xxx_spi *);
 
-	/* hooks for different controller driver */
-	void (*spi_remove) (struct mpc8xxx_spi *mspi);
-
 	unsigned int count;
 	unsigned int irq;
 

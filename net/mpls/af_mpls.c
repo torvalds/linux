@@ -1177,8 +1177,10 @@ static int mpls_net_init(struct net *net)
 
 	table[0].data = net;
 	net->mpls.ctl = register_net_sysctl(net, "net/mpls", table);
-	if (net->mpls.ctl == NULL)
+	if (net->mpls.ctl == NULL) {
+		kfree(table);
 		return -ENOMEM;
+	}
 
 	return 0;
 }

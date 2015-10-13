@@ -110,18 +110,11 @@ asmlinkage void plat_irq_dispatch(void)
 	}
 }
 
-static void r4030_set_mode(enum clock_event_mode mode,
-			   struct clock_event_device *evt)
-{
-	/* Nothing to do ...  */
-}
-
 struct clock_event_device r4030_clockevent = {
 	.name		= "r4030",
 	.features	= CLOCK_EVT_FEAT_PERIODIC,
 	.rating		= 300,
 	.irq		= JAZZ_TIMER_IRQ,
-	.set_mode	= r4030_set_mode,
 };
 
 static irqreturn_t r4030_timer_interrupt(int irq, void *dev_id)

@@ -926,7 +926,6 @@ err_out1:
 static struct platform_driver pwrap_drv = {
 	.driver = {
 		.name = "mt-pmic-pwrap",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_pwrap_match_tbl),
 	},
 	.probe = pwrap_probe,

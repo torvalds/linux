@@ -1508,51 +1508,6 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 }
 
-/* Special dpms function to support cloning between dvo/sdvo/crt. */
-static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
-{
-	struct drm_crtc *crtc;
-	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
-
-	/* dvo supports only 2 dpms states. */
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	if (mode == connector->dpms)
-		return;
-
-	connector->dpms = mode;
-
-	/* Only need to change hw state when actually enabled */
-	crtc = intel_sdvo->base.base.crtc;
-	if (!crtc) {
-		intel_sdvo->base.connectors_active = false;
-		return;
-	}
-
-	/* We set active outputs manually below in case pipe dpms doesn't change
-	 * due to cloning. */
-	if (mode != DRM_MODE_DPMS_ON) {
-		intel_sdvo_set_active_outputs(intel_sdvo, 0);
-		if (0)
-			intel_sdvo_set_encoder_power_state(intel_sdvo, mode);
-
-		intel_sdvo->base.connectors_active = false;
-
-		intel_crtc_update_dpms(crtc);
-	} else {
-		intel_sdvo->base.connectors_active = true;
-
-		intel_crtc_update_dpms(crtc);
-
-		if (0)
-			intel_sdvo_set_encoder_power_state(intel_sdvo, mode);
-		intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
-	}
-
-	intel_modeset_check_state(connector->dev);
-}
-
 static enum drm_mode_status
 intel_sdvo_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
@@ -2190,7 +2145,7 @@ done:
 }
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
-	.dpms = intel_sdvo_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_sdvo_set_property,

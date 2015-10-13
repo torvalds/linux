@@ -2115,6 +2115,7 @@ enum {
 #define RT5645_JD_PSV_MODE			(0x1 << 12)
 #define RT5645_IRQ_CLK_GATE_CTRL		(0x1 << 11)
 #define RT5645_MICINDET_MANU			(0x1 << 7)
+#define RT5645_RING2_SLEEVE_GND			(0x1 << 5)
 
 /* Vendor ID (0xfd) */
 #define RT5645_VER_C				0x2
@@ -2180,32 +2181,6 @@ enum {
 
 int rt5645_sel_asrc_clk_src(struct snd_soc_codec *codec,
 		unsigned int filter_mask, unsigned int clk_src);
-
-struct rt5645_priv {
-	struct snd_soc_codec *codec;
-	struct rt5645_platform_data pdata;
-	struct regmap *regmap;
-	struct i2c_client *i2c;
-	struct gpio_desc *gpiod_hp_det;
-	struct snd_soc_jack *hp_jack;
-	struct snd_soc_jack *mic_jack;
-	struct snd_soc_jack *btn_jack;
-	struct delayed_work jack_detect_work;
-
-	int codec_type;
-	int sysclk;
-	int sysclk_src;
-	int lrck[RT5645_AIFS];
-	int bclk[RT5645_AIFS];
-	int master[RT5645_AIFS];
-
-	int pll_src;
-	int pll_in;
-	int pll_out;
-
-	int jack_type;
-	bool en_button_func;
-};
 
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
 	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,

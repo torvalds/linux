@@ -38,7 +38,6 @@
 #define HP_SW_PATH_PASSIVE		1
 
 struct hp_sw_dh_data {
-	struct scsi_dh_data dh_data;
 	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
 	int path_state;
 	int retries;
@@ -49,11 +48,6 @@ struct hp_sw_dh_data {
 };
 
 static int hp_sw_start_stop(struct hp_sw_dh_data *);
-
-static inline struct hp_sw_dh_data *get_hp_sw_data(struct scsi_device *sdev)
-{
-	return container_of(sdev->scsi_dh_data, struct hp_sw_dh_data, dh_data);
-}
 
 /*
  * tur_done - Handle TEST UNIT READY return status
@@ -267,7 +261,7 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *h)
 
 static int hp_sw_prep_fn(struct scsi_device *sdev, struct request *req)
 {
-	struct hp_sw_dh_data *h = get_hp_sw_data(sdev);
+	struct hp_sw_dh_data *h = sdev->handler_data;
 	int ret = BLKPREP_OK;
 
 	if (h->path_state != HP_SW_PATH_ACTIVE) {
@@ -292,7 +286,7 @@ static int hp_sw_activate(struct scsi_device *sdev,
 				activate_complete fn, void *data)
 {
 	int ret = SCSI_DH_OK;
-	struct hp_sw_dh_data *h = get_hp_sw_data(sdev);
+	struct hp_sw_dh_data *h = sdev->handler_data;
 
 	ret = hp_sw_tur(sdev, h);
 
@@ -311,43 +305,14 @@ static int hp_sw_activate(struct scsi_device *sdev,
 	return 0;
 }
 
-static const struct {
-	char *vendor;
-	char *model;
-} hp_sw_dh_data_list[] = {
-	{"COMPAQ", "MSA1000 VOLUME"},
-	{"COMPAQ", "HSV110"},
-	{"HP", "HSV100"},
-	{"DEC", "HSG80"},
-	{NULL, NULL},
-};
-
-static bool hp_sw_match(struct scsi_device *sdev)
-{
-	int i;
-
-	if (scsi_device_tpgs(sdev))
-		return false;
-
-	for (i = 0; hp_sw_dh_data_list[i].vendor; i++) {
-		if (!strncmp(sdev->vendor, hp_sw_dh_data_list[i].vendor,
-			strlen(hp_sw_dh_data_list[i].vendor)) &&
-		    !strncmp(sdev->model, hp_sw_dh_data_list[i].model,
-			strlen(hp_sw_dh_data_list[i].model))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static struct scsi_dh_data *hp_sw_bus_attach(struct scsi_device *sdev)
+static int hp_sw_bus_attach(struct scsi_device *sdev)
 {
 	struct hp_sw_dh_data *h;
 	int ret;
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	h->path_state = HP_SW_PATH_UNINITIALIZED;
 	h->retries = HP_SW_RETRIES;
 	h->sdev = sdev;
@@ -359,17 +324,18 @@ static struct scsi_dh_data *hp_sw_bus_attach(struct scsi_device *sdev)
 	sdev_printk(KERN_INFO, sdev, "%s: attached to %s path\n",
 		    HP_SW_NAME, h->path_state == HP_SW_PATH_ACTIVE?
 		    "active":"passive");
-	return &h->dh_data;
+
+	sdev->handler_data = h;
+	return 0;
 failed:
 	kfree(h);
-	return ERR_PTR(-EINVAL);
+	return -EINVAL;
 }
 
 static void hp_sw_bus_detach( struct scsi_device *sdev )
 {
-	struct hp_sw_dh_data *h = get_hp_sw_data(sdev);
-
-	kfree(h);
+	kfree(sdev->handler_data);
+	sdev->handler_data = NULL;
 }
 
 static struct scsi_device_handler hp_sw_dh = {
@@ -379,7 +345,6 @@ static struct scsi_device_handler hp_sw_dh = {
 	.detach		= hp_sw_bus_detach,
 	.activate	= hp_sw_activate,
 	.prep_fn	= hp_sw_prep_fn,
-	.match		= hp_sw_match,
 };
 
 static int __init hp_sw_init(void)

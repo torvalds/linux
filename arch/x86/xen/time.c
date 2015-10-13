@@ -274,30 +274,18 @@ static s64 get_abs_timeout(unsigned long delta)
 	return xen_clocksource_read() + delta;
 }
 
-static void xen_timerop_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *evt)
+static int xen_timerop_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* unsupported */
-		WARN_ON(1);
-		break;
+	/* cancel timeout */
+	HYPERVISOR_set_timer_op(0);
 
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		HYPERVISOR_set_timer_op(0);  /* cancel timeout */
-		break;
-	}
+	return 0;
 }
 
 static int xen_timerop_set_next_event(unsigned long delta,
 				      struct clock_event_device *evt)
 {
-	WARN_ON(evt->mode != CLOCK_EVT_MODE_ONESHOT);
+	WARN_ON(!clockevent_state_oneshot(evt));
 
 	if (HYPERVISOR_set_timer_op(get_abs_timeout(delta)) < 0)
 		BUG();
@@ -310,46 +298,39 @@ static int xen_timerop_set_next_event(unsigned long delta,
 }
 
 static const struct clock_event_device xen_timerop_clockevent = {
-	.name = "xen",
-	.features = CLOCK_EVT_FEAT_ONESHOT,
+	.name			= "xen",
+	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
-	.max_delta_ns = 0xffffffff,
-	.min_delta_ns = TIMER_SLOP,
+	.max_delta_ns		= 0xffffffff,
+	.min_delta_ns		= TIMER_SLOP,
 
-	.mult = 1,
-	.shift = 0,
-	.rating = 500,
+	.mult			= 1,
+	.shift			= 0,
+	.rating			= 500,
 
-	.set_mode = xen_timerop_set_mode,
-	.set_next_event = xen_timerop_set_next_event,
+	.set_state_shutdown	= xen_timerop_shutdown,
+	.set_next_event		= xen_timerop_set_next_event,
 };
 
-
-
-static void xen_vcpuop_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int xen_vcpuop_shutdown(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		WARN_ON(1);	/* unsupported */
-		break;
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, cpu, NULL) ||
+	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+		BUG();
 
-	case CLOCK_EVT_MODE_ONESHOT:
-		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
-			BUG();
-		break;
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, cpu, NULL) ||
-		    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
-			BUG();
-		break;
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+static int xen_vcpuop_set_oneshot(struct clock_event_device *evt)
+{
+	int cpu = smp_processor_id();
+
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL))
+		BUG();
+
+	return 0;
 }
 
 static int xen_vcpuop_set_next_event(unsigned long delta,
@@ -359,7 +340,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	struct vcpu_set_singleshot_timer single;
 	int ret;
 
-	WARN_ON(evt->mode != CLOCK_EVT_MODE_ONESHOT);
+	WARN_ON(!clockevent_state_oneshot(evt));
 
 	single.timeout_abs_ns = get_abs_timeout(delta);
 	single.flags = VCPU_SSHOTTMR_future;
@@ -382,7 +363,8 @@ static const struct clock_event_device xen_vcpuop_clockevent = {
 	.shift = 0,
 	.rating = 500,
 
-	.set_mode = xen_vcpuop_set_mode,
+	.set_state_shutdown = xen_vcpuop_shutdown,
+	.set_state_oneshot = xen_vcpuop_set_oneshot,
 	.set_next_event = xen_vcpuop_set_next_event,
 };
 

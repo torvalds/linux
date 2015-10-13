@@ -20,7 +20,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
-#include <net/vrf.h>
+#include <net/l3mdev.h>
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 #include <net/mip6.h>
 #endif
@@ -37,6 +37,7 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos, int oif,
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
+	fl6.flowi6_flags = FLOWI_FLAG_SKIP_NH_OIF;
 	memcpy(&fl6.daddr, daddr, sizeof(fl6.daddr));
 	if (saddr)
 		memcpy(&fl6.saddr, saddr, sizeof(fl6.saddr));
@@ -132,10 +133,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 	nexthdr = nh[nhoff];
 
-	if (skb_dst(skb)) {
-		oif = vrf_master_ifindex(skb_dst(skb)->dev) ?
-			: skb_dst(skb)->dev->ifindex;
-	}
+	if (skb_dst(skb))
+		oif = l3mdev_fib_oif(skb_dst(skb)->dev);
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->flowi6_mark = skb->mark;

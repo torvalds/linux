@@ -176,6 +176,8 @@ source "drivers/powercap/Kconfig"
 
 source "drivers/mcb/Kconfig"
 
+source "drivers/perf/Kconfig"
+
 source "drivers/ras/Kconfig"
 
 source "drivers/thunderbolt/Kconfig"
@@ -183,5 +185,7 @@ source "drivers/thunderbolt/Kconfig"
 source "drivers/android/Kconfig"
 
 source "drivers/nvdimm/Kconfig"
+
+source "drivers/nvmem/Kconfig"
 
 endmenu

@@ -10,17 +10,7 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 
-
-#ifdef WILC1000_SINGLE_TRANSFER
-#define WILC_SDIO_BLOCK_SIZE 256
-#else
- #if defined(PLAT_AML8726_M3) /* johnny */
-	#define WILC_SDIO_BLOCK_SIZE 512
-	#define MAX_SEG_SIZE (1 << 12) /* 4096 */
- #else
-	#define WILC_SDIO_BLOCK_SIZE 512
- #endif
-#endif
+#define WILC_SDIO_BLOCK_SIZE 512
 
 typedef struct {
 	void *os_context;
@@ -90,7 +80,6 @@ static int sdio_set_func0_csa_address_byte0(uint32_t adr)
 {
 	sdio_cmd52_t cmd;
 
-
 	/**
 	 *      Review: BIG ENDIAN
 	 **/
@@ -108,6 +97,7 @@ static int sdio_set_func0_csa_address_byte0(uint32_t adr)
 _fail_:
 	return 0;
 }
+
 static int sdio_set_func0_block_size(uint32_t block_size)
 {
 	sdio_cmd52_t cmd;
@@ -170,6 +160,7 @@ static int sdio_clear_int(void)
 #ifndef WILC_SDIO_IRQ_GPIO
 	/* uint32_t sts; */
 	sdio_cmd52_t cmd;
+
 	cmd.read_write = 0;
 	cmd.function = 1;
 	cmd.raw = 0;
@@ -181,6 +172,7 @@ static int sdio_clear_int(void)
 	return cmd.data;
 #else
 	uint32_t reg;
+
 	if (!sdio_read_reg(WILC_HOST_RX_CTRL_0, &reg)) {
 		g_sdio.dPrint(N_ERR, "[wilc spi]: Failed read reg (%08x)...\n", WILC_HOST_RX_CTRL_0);
 		return 0;
@@ -197,6 +189,7 @@ uint32_t sdio_xfer_cnt(void)
 {
 	uint32_t cnt = 0;
 	sdio_cmd52_t cmd;
+
 	cmd.read_write = 0;
 	cmd.function = 1;
 	cmd.raw = 0;
@@ -222,8 +215,6 @@ uint32_t sdio_xfer_cnt(void)
 	cnt |= (cmd.data << 16);
 
 	return cnt;
-
-
 }
 
 /********************************************
@@ -263,6 +254,7 @@ static int sdio_write_reg(uint32_t addr, uint32_t data)
 
 	if ((addr >= 0xf0) && (addr <= 0xff)) {
 		sdio_cmd52_t cmd;
+
 		cmd.read_write = 1;
 		cmd.function = 0;
 		cmd.raw = 0;
@@ -325,16 +317,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-#ifdef WILC1000_SINGLE_TRANSFER
-		/**
-		 *      has to be block aligned...
-		 **/
-		nleft = size % block_size;
-		if (nleft > 0) {
-			size += block_size;
-			size &= ~(block_size - 1);
-		}
-#else
 		/**
 		 *      has to be word aligned...
 		 **/
@@ -342,7 +324,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 			size += 4;
 			size &= ~0x3;
 		}
-#endif
 
 		/**
 		 *      func 1 access
@@ -355,89 +336,6 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 	nleft = size % block_size;
 
 	if (nblk > 0) {
-
-#if defined(PLAT_AML8726_M3_BACKUP) /* johnny */
-		int i;
-
-		for (i = 0; i < nblk; i++) {
-			cmd.block_mode = 0; /* 1; */
-			cmd.increment = 1;
-			cmd.count = block_size; /* nblk; */
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += block_size;     /* addr += nblk*block_size; */
-
-			buf += block_size;              /* buf += nblk*block_size; */
-		}
-
-#elif defined(PLAT_AML8726_M3) /* johnny */
-
-		int i;
-		int rest;
-		int seg_cnt;
-
-		seg_cnt = (nblk * block_size) / MAX_SEG_SIZE;
-		rest = (nblk * block_size) & (MAX_SEG_SIZE - 1);
-
-		for (i = 0; i < seg_cnt; i++) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = MAX_SEG_SIZE / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += MAX_SEG_SIZE;
-
-			buf += MAX_SEG_SIZE;
-
-		}
-
-
-		if (rest > 0) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = rest / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], bytes send...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += rest;
-
-			buf += rest;
-
-		}
-
-#else
-
 		cmd.block_mode = 1;
 		cmd.increment = 1;
 		cmd.count = nblk;
@@ -454,10 +352,7 @@ static int sdio_write(uint32_t addr, uint8_t *buf, uint32_t size)
 		if (addr > 0)
 			addr += nblk * block_size;
 		buf += nblk * block_size;
-
-#endif /* platform */
 	}
-
 
 	if (nleft > 0) {
 		cmd.block_mode = 0;
@@ -488,6 +383,7 @@ static int sdio_read_reg(uint32_t addr, uint32_t *data)
 {
 	if ((addr >= 0xf0) && (addr <= 0xff)) {
 		sdio_cmd52_t cmd;
+
 		cmd.read_write = 0;
 		cmd.function = 0;
 		cmd.raw = 0;
@@ -552,16 +448,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 		cmd.function = 0;
 		cmd.address = 0x10f;
 	} else {
-#ifdef WILC1000_SINGLE_TRANSFER
-		/**
-		 *      has to be block aligned...
-		 **/
-		nleft = size % block_size;
-		if (nleft > 0) {
-			size += block_size;
-			size &= ~(block_size - 1);
-		}
-#else
 		/**
 		 *      has to be word aligned...
 		 **/
@@ -569,7 +455,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 			size += 4;
 			size &= ~0x3;
 		}
-#endif
 
 		/**
 		 *      func 1 access
@@ -582,89 +467,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 	nleft = size % block_size;
 
 	if (nblk > 0) {
-
-#if defined(PLAT_AML8726_M3_BACKUP) /* johnny */
-
-		int i;
-
-		for (i = 0; i < nblk; i++) {
-			cmd.block_mode = 0; /* 1; */
-			cmd.increment = 1;
-			cmd.count = block_size; /* nblk; */
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-			if (addr > 0)
-				addr += block_size;             /* addr += nblk*block_size; */
-			buf += block_size;              /* buf += nblk*block_size; */
-		}
-
-#elif defined(PLAT_AML8726_M3) /* johnny */
-
-		int i;
-		int rest;
-		int seg_cnt;
-
-		seg_cnt = (nblk * block_size) / MAX_SEG_SIZE;
-		rest = (nblk * block_size) & (MAX_SEG_SIZE - 1);
-
-		for (i = 0; i < seg_cnt; i++) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = MAX_SEG_SIZE / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size;
-
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += MAX_SEG_SIZE;
-
-			buf += MAX_SEG_SIZE;
-
-		}
-
-
-		if (rest > 0) {
-			cmd.block_mode = 1;
-			cmd.increment = 1;
-			cmd.count = rest / block_size;
-			cmd.buffer = buf;
-			cmd.block_size = block_size; /* johnny : prevent it from setting unexpected value */
-
-			if (addr > 0) {
-				if (!sdio_set_func0_csa_address(addr))
-					goto _fail_;
-			}
-			if (!g_sdio.sdio_cmd53(&cmd)) {
-				g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed cmd53 [%x], block read...\n", addr);
-				goto _fail_;
-			}
-
-			if (addr > 0)
-				addr += rest;
-
-			buf += rest;
-
-		}
-
-#else
-
 		cmd.block_mode = 1;
 		cmd.increment = 1;
 		cmd.count = nblk;
@@ -681,8 +483,6 @@ static int sdio_read(uint32_t addr, uint8_t *buf, uint32_t size)
 		if (addr > 0)
 			addr += nblk * block_size;
 		buf += nblk * block_size;
-
-#endif /* platform */
 	}       /* if (nblk > 0) */
 
 	if (nleft > 0) {
@@ -784,6 +584,7 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 	sdio_cmd52_t cmd;
 	int loop;
 	uint32_t chipid;
+
 	memset(&g_sdio, 0, sizeof(wilc_sdio_t));
 
 	g_sdio.dPrint = func;
@@ -891,13 +692,11 @@ static int sdio_init(wilc_wlan_inp_t *inp, wilc_debug_func func)
 		goto _fail_;
 	}
 	g_sdio.dPrint(N_ERR, "[wilc sdio]: chipid (%08x)\n", chipid);
-	if ((chipid & 0xfff) > 0x2a0) {
+	if ((chipid & 0xfff) > 0x2a0)
 		g_sdio.has_thrpt_enh3 = 1;
-	} else {
+	else
 		g_sdio.has_thrpt_enh3 = 0;
-	}
 	g_sdio.dPrint(N_ERR, "[wilc sdio]: has_thrpt_enh3 = %d...\n", g_sdio.has_thrpt_enh3);
-
 
 	return 1;
 
@@ -925,23 +724,21 @@ static int sdio_read_size(uint32_t *size)
 	/**
 	 *      Read DMA count in words
 	 **/
-	{
-		cmd.read_write = 0;
-		cmd.function = 0;
-		cmd.raw = 0;
-		cmd.address = 0xf2;
-		cmd.data = 0;
-		g_sdio.sdio_cmd52(&cmd);
-		tmp = cmd.data;
+	cmd.read_write = 0;
+	cmd.function = 0;
+	cmd.raw = 0;
+	cmd.address = 0xf2;
+	cmd.data = 0;
+	g_sdio.sdio_cmd52(&cmd);
+	tmp = cmd.data;
 
-		/* cmd.read_write = 0; */
-		/* cmd.function = 0; */
-		/* cmd.raw = 0; */
-		cmd.address = 0xf3;
-		cmd.data = 0;
-		g_sdio.sdio_cmd52(&cmd);
-		tmp |= (cmd.data << 8);
-	}
+	/* cmd.read_write = 0; */
+	/* cmd.function = 0; */
+	/* cmd.raw = 0; */
+	cmd.address = 0xf3;
+	cmd.data = 0;
+	g_sdio.sdio_cmd52(&cmd);
+	tmp |= (cmd.data << 8);
 
 	*size = tmp;
 	return 1;
@@ -966,26 +763,21 @@ static int sdio_read_int(uint32_t *int_status)
 	cmd.data = 0;
 	g_sdio.sdio_cmd52(&cmd);
 
-	if (cmd.data & (1 << 0)) {
+	if (cmd.data & (1 << 0))
 		tmp |= INT_0;
-	}
-	if (cmd.data & (1 << 2)) {
+	if (cmd.data & (1 << 2))
 		tmp |= INT_1;
-	}
-	if (cmd.data & (1 << 3)) {
+	if (cmd.data & (1 << 3))
 		tmp |= INT_2;
-	}
-	if (cmd.data & (1 << 4)) {
+	if (cmd.data & (1 << 4))
 		tmp |= INT_3;
-	}
-	if (cmd.data & (1 << 5)) {
+	if (cmd.data & (1 << 5))
 		tmp |= INT_4;
-	}
-	if (cmd.data & (1 << 6)) {
+	if (cmd.data & (1 << 6))
 		tmp |= INT_5;
-	}
 	{
 		int i;
+
 		for (i = g_sdio.nint; i < MAX_NUM_INT; i++) {
 			if ((tmp >> (IRG_FLAGS_OFFSET + i)) & 0x1) {
 				g_sdio.dPrint(N_ERR, "[wilc sdio]: Unexpected interrupt (1) : tmp=%x, data=%x\n", tmp, cmd.data);
@@ -1024,6 +816,7 @@ static int sdio_clear_int_ext(uint32_t val)
 #ifdef WILC_SDIO_IRQ_GPIO
 		{
 			uint32_t flags;
+
 			flags = val & ((1 << MAX_NUN_INT_THRPT_ENH2) - 1);
 			reg = flags;
 		}
@@ -1041,6 +834,7 @@ static int sdio_clear_int_ext(uint32_t val)
 			reg |= (1 << 7);
 		if (reg) {
 			sdio_cmd52_t cmd;
+
 			cmd.read_write = 1;
 			cmd.function = 0;
 			cmd.raw = 0;
@@ -1060,6 +854,7 @@ static int sdio_clear_int_ext(uint32_t val)
 			/* see below. has_thrpt_enh2 uses register 0xf8 to clear interrupts. */
 			/* Cannot clear multiple interrupts. Must clear each interrupt individually */
 			uint32_t flags;
+
 			flags = val & ((1 << MAX_NUM_INT) - 1);
 			if (flags) {
 				int i;
@@ -1068,6 +863,7 @@ static int sdio_clear_int_ext(uint32_t val)
 				for (i = 0; i < g_sdio.nint; i++) {
 					if (flags & 1) {
 						sdio_cmd52_t cmd;
+
 						cmd.read_write = 1;
 						cmd.function = 0;
 						cmd.raw = 0;
@@ -1085,9 +881,8 @@ static int sdio_clear_int_ext(uint32_t val)
 						break;
 					flags >>= 1;
 				}
-				if (!ret) {
+				if (!ret)
 					goto _fail_;
-				}
 				for (i = g_sdio.nint; i < MAX_NUM_INT; i++) {
 					if (flags & 1)
 						g_sdio.dPrint(N_ERR, "[wilc sdio]: Unexpected interrupt cleared %d...\n", i);
@@ -1096,7 +891,6 @@ static int sdio_clear_int_ext(uint32_t val)
 			}
 		}
 #endif /* WILC_SDIO_IRQ_GPIO */
-
 
 		{
 			uint32_t vmm_ctl;
@@ -1138,7 +932,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 {
 	uint32_t reg;
 
-
 	if (nint > MAX_NUM_INT) {
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Too many interupts (%d)...\n", nint);
 		return 0;
@@ -1147,7 +940,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 		g_sdio.dPrint(N_ERR, "[wilc sdio]: Error: Cannot support more than 5 interrupts when has_thrpt_enh2=1.\n");
 		return 0;
 	}
-
 
 	g_sdio.nint = nint;
 
@@ -1169,7 +961,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 	{
 		uint32_t reg;
 		int ret, i;
-
 
 		/**
 		 *      interrupt pin mux select
@@ -1195,9 +986,8 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 			return 0;
 		}
 
-		for (i = 0; (i < 5) && (nint > 0); i++, nint--) {
+		for (i = 0; (i < 5) && (nint > 0); i++, nint--)
 			reg |= (1 << (27 + i));
-		}
 		ret = sdio_write_reg(WILC_INTR_ENABLE, reg);
 		if (!ret) {
 			g_sdio.dPrint(N_ERR, "[wilc sdio]: Failed write reg (%08x)...\n", WILC_INTR_ENABLE);
@@ -1210,9 +1000,8 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 				return 0;
 			}
 
-			for (i = 0; (i < 3) && (nint > 0); i++, nint--) {
+			for (i = 0; (i < 3) && (nint > 0); i++, nint--)
 				reg |= (1 << i);
-			}
 
 			ret = sdio_read_reg(WILC_INTR2_ENABLE, &reg);
 			if (!ret) {
@@ -1224,7 +1013,6 @@ static int sdio_sync_ext(int nint /*  how mant interrupts to enable. */)
 #endif /* WILC_SDIO_IRQ_GPIO */
 	return 1;
 }
-
 
 /********************************************
  *

@@ -23,4 +23,7 @@
 
 #define __ARCH_HAS_IRIX_SIGACTION
 
+extern int protected_save_fp_context(void __user *sc);
+extern int protected_restore_fp_context(void __user *sc);
+
 #endif /* _ASM_SIGNAL_H */

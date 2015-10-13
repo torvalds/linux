@@ -11,7 +11,7 @@ ifneq ($(obj-perf),)
 obj-perf := $(abspath $(obj-perf))/
 endif
 
-$(shell echo -n > $(OUTPUT).config-detected)
+$(shell printf "" > $(OUTPUT).config-detected)
 detected     = $(shell echo "$(1)=y"       >> $(OUTPUT).config-detected)
 detected_var = $(shell echo "$(1)=$($(1))" >> $(OUTPUT).config-detected)
 
@@ -297,7 +297,11 @@ ifndef NO_LIBELF
     else
       CFLAGS += -DHAVE_DWARF_SUPPORT $(LIBDW_CFLAGS)
       LDFLAGS += $(LIBDW_LDFLAGS)
-      EXTLIBS += -ldw
+      DWARFLIBS := -ldw
+      ifeq ($(findstring -static,${LDFLAGS}),-static)
+	DWARFLIBS += -lelf -lebl -lz -llzma -lbz2
+      endif
+      EXTLIBS += ${DWARFLIBS}
       $(call detected,CONFIG_DWARF)
     endif # PERF_HAVE_DWARF_REGS
   endif # NO_DWARF
@@ -569,9 +573,14 @@ ifndef NO_LIBNUMA
     msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev);
     NO_LIBNUMA := 1
   else
-    CFLAGS += -DHAVE_LIBNUMA_SUPPORT
-    EXTLIBS += -lnuma
-    $(call detected,CONFIG_NUMA)
+    ifeq ($(feature-numa_num_possible_cpus), 0)
+      msg := $(warning Old numa library found, disables 'perf bench numa mem' benchmark, please install numactl-devel/libnuma-devel/libnuma-dev >= 2.0.8);
+      NO_LIBNUMA := 1
+    else
+      CFLAGS += -DHAVE_LIBNUMA_SUPPORT
+      EXTLIBS += -lnuma
+      $(call detected,CONFIG_NUMA)
+    endif
   endif
 endif
 
@@ -617,8 +626,13 @@ ifdef LIBBABELTRACE
 endif
 
 ifndef NO_AUXTRACE
-  $(call detected,CONFIG_AUXTRACE)
-  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  ifeq ($(feature-get_cpuid), 0)
+    msg := $(warning Your gcc lacks the __get_cpuid() builtin, disables support for auxtrace/Intel PT, please install a newer gcc);
+    NO_AUXTRACE := 1
+  else
+    $(call detected,CONFIG_AUXTRACE)
+    CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+  endif
 endif
 
 # Among the variables below, these:
@@ -644,6 +658,7 @@ infodir = share/info
 perfexecdir = libexec/perf-core
 sharedir = $(prefix)/share
 template_dir = share/perf-core/templates
+STRACE_GROUPS_DIR = share/perf-core/strace/groups
 htmldir = share/doc/perf-doc
 ifeq ($(prefix),/usr)
 sysconfdir = /etc
@@ -663,6 +678,7 @@ libdir = $(prefix)/$(lib)
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
 ETC_PERFCONFIG_SQ = $(subst ','\'',$(ETC_PERFCONFIG))
+STRACE_GROUPS_DIR_SQ = $(subst ','\'',$(STRACE_GROUPS_DIR))
 DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
 bindir_SQ = $(subst ','\'',$(bindir))
 mandir_SQ = $(subst ','\'',$(mandir))
@@ -676,10 +692,13 @@ libdir_SQ = $(subst ','\'',$(libdir))
 
 ifneq ($(filter /%,$(firstword $(perfexecdir))),)
 perfexec_instdir = $(perfexecdir)
+STRACE_GROUPS_INSTDIR = $(STRACE_GROUPS_DIR)
 else
 perfexec_instdir = $(prefix)/$(perfexecdir)
+STRACE_GROUPS_INSTDIR = $(prefix)/$(STRACE_GROUPS_DIR)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
+STRACE_GROUPS_INSTDIR_SQ = $(subst ','\'',$(STRACE_GROUPS_INSTDIR))
 
 # If we install to $(HOME) we keep the traceevent default:
 # $(HOME)/.traceevent/plugins
@@ -713,6 +732,7 @@ $(call detected_var,htmldir_SQ)
 $(call detected_var,infodir_SQ)
 $(call detected_var,mandir_SQ)
 $(call detected_var,ETC_PERFCONFIG_SQ)
+$(call detected_var,STRACE_GROUPS_DIR_SQ)
 $(call detected_var,prefix_SQ)
 $(call detected_var,perfexecdir_SQ)
 $(call detected_var,LIBDIR)

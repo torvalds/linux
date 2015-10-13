@@ -602,11 +602,11 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	if (!spidev->tx_buffer) {
 		spidev->tx_buffer = kmalloc(bufsiz, GFP_KERNEL);
 		if (!spidev->tx_buffer) {
-				dev_dbg(&spidev->spi->dev, "open/ENOMEM\n");
-				status = -ENOMEM;
+			dev_dbg(&spidev->spi->dev, "open/ENOMEM\n");
+			status = -ENOMEM;
 			goto err_find_dev;
-			}
 		}
+	}
 
 	if (!spidev->rx_buffer) {
 		spidev->rx_buffer = kmalloc(bufsiz, GFP_KERNEL);
@@ -651,7 +651,8 @@ static int spidev_release(struct inode *inode, struct file *filp)
 		kfree(spidev->rx_buffer);
 		spidev->rx_buffer = NULL;
 
-		spidev->speed_hz = spidev->spi->max_speed_hz;
+		if (spidev->spi)
+			spidev->speed_hz = spidev->spi->max_speed_hz;
 
 		/* ... after we unbound from the underlying device? */
 		spin_lock_irq(&spidev->spi_lock);
@@ -709,7 +710,7 @@ static int spidev_probe(struct spi_device *spi)
 
 	/*
 	 * spidev should never be referenced in DT without a specific
-	 * compatbile string, it is a Linux implementation thing
+	 * compatible string, it is a Linux implementation thing
 	 * rather than a description of the hardware.
 	 */
 	if (spi->dev.of_node && !of_match_device(spidev_dt_ids, &spi->dev)) {

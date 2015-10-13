@@ -151,6 +151,27 @@ static void bictcp_init(struct sock *sk)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
 }
 
+static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+{
+	if (event == CA_EVENT_TX_START) {
+		struct bictcp *ca = inet_csk_ca(sk);
+		u32 now = tcp_time_stamp;
+		s32 delta;
+
+		delta = now - tcp_sk(sk)->lsndtime;
+
+		/* We were application limited (idle) for a while.
+		 * Shift epoch_start to keep cwnd growth to cubic curve.
+		 */
+		if (ca->epoch_start && delta > 0) {
+			ca->epoch_start += delta;
+			if (after(ca->epoch_start, now))
+				ca->epoch_start = now;
+		}
+		return;
+	}
+}
+
 /* calculate the cubic root of x using a table lookup followed by one
  * Newton-Raphson iteration.
  * Avg err ~= 0.195%
@@ -450,6 +471,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.cong_avoid	= bictcp_cong_avoid,
 	.set_state	= bictcp_state,
 	.undo_cwnd	= bictcp_undo_cwnd,
+	.cwnd_event	= bictcp_cwnd_event,
 	.pkts_acked     = bictcp_acked,
 	.owner		= THIS_MODULE,
 	.name		= "cubic",

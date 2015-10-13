@@ -295,11 +295,11 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	/* We can have one VI for each 8K region.  However, until we
 	 * use TX option descriptors we need two TX queues per channel.
 	 */
-	efx->max_channels =
-		min_t(unsigned int,
-		      EFX_MAX_CHANNELS,
-		      efx_ef10_mem_map_size(efx) /
-		      (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
+	efx->max_channels = min_t(unsigned int,
+				  EFX_MAX_CHANNELS,
+				  efx_ef10_mem_map_size(efx) /
+				  (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
+	efx->max_tx_channels = efx->max_channels;
 	if (WARN_ON(efx->max_channels == 0))
 		return -EIO;
 
@@ -824,11 +824,13 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int uc_mem_map_size, wc_mem_map_size;
-	unsigned int min_vis, pio_write_vi_base, max_vis;
+	unsigned int min_vis = max(EFX_TXQ_TYPES,
+				   efx_separate_tx_channels ? 2 : 1);
+	unsigned int channel_vis, pio_write_vi_base, max_vis;
 	void __iomem *membase;
 	int rc;
 
-	min_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	channel_vis = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef EFX_USE_PIO
 	/* Try to allocate PIO buffers if wanted and if the full
@@ -862,11 +864,11 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * page size is >4K).  So we may allocate some extra VIs just
 	 * for writing PIO buffers through.
 	 *
-	 * The UC mapping contains (min_vis - 1) complete VIs and the
+	 * The UC mapping contains (channel_vis - 1) complete VIs and the
 	 * first half of the next VI.  Then the WC mapping begins with
 	 * the second half of this last VI.
 	 */
-	uc_mem_map_size = PAGE_ALIGN((min_vis - 1) * EFX_VI_PAGE_SIZE +
+	uc_mem_map_size = PAGE_ALIGN((channel_vis - 1) * EFX_VI_PAGE_SIZE +
 				     ER_DZ_TX_PIOBUF);
 	if (nic_data->n_piobufs) {
 		/* pio_write_vi_base rounds down to give the number of complete
@@ -881,7 +883,7 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	} else {
 		pio_write_vi_base = 0;
 		wc_mem_map_size = 0;
-		max_vis = min_vis;
+		max_vis = channel_vis;
 	}
 
 	/* In case the last attached driver failed to free VIs, do it now */
@@ -892,6 +894,23 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	rc = efx_ef10_alloc_vis(efx, min_vis, max_vis);
 	if (rc != 0)
 		return rc;
+
+	if (nic_data->n_allocated_vis < channel_vis) {
+		netif_info(efx, drv, efx->net_dev,
+			   "Could not allocate enough VIs to satisfy RSS"
+			   " requirements. Performance may not be optimal.\n");
+		/* We didn't get the VIs to populate our channels.
+		 * We could keep what we got but then we'd have more
+		 * interrupts than we need.
+		 * Instead calculate new max_channels and restart
+		 */
+		efx->max_channels = nic_data->n_allocated_vis;
+		efx->max_tx_channels =
+			nic_data->n_allocated_vis / EFX_TXQ_TYPES;
+
+		efx_ef10_free_vis(efx);
+		return -EAGAIN;
+	}
 
 	/* If we didn't get enough VIs to map all the PIO buffers, free the
 	 * PIO buffers
@@ -1307,7 +1326,12 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		}
 	}
 
-	if (core_stats) {
+	if (!core_stats)
+		return stats_count;
+
+	if (nic_data->datapath_caps &
+			1 << MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN) {
+		/* Use vadaptor stats. */
 		core_stats->rx_packets = stats[EF10_STAT_rx_unicast] +
 					 stats[EF10_STAT_rx_multicast] +
 					 stats[EF10_STAT_rx_broadcast];
@@ -1327,6 +1351,26 @@ static size_t efx_ef10_update_stats_common(struct efx_nic *efx, u64 *full_stats,
 		core_stats->rx_fifo_errors = stats[EF10_STAT_rx_overflow];
 		core_stats->rx_errors = core_stats->rx_crc_errors;
 		core_stats->tx_errors = stats[EF10_STAT_tx_bad];
+	} else {
+		/* Use port stats. */
+		core_stats->rx_packets = stats[EF10_STAT_port_rx_packets];
+		core_stats->tx_packets = stats[EF10_STAT_port_tx_packets];
+		core_stats->rx_bytes = stats[EF10_STAT_port_rx_bytes];
+		core_stats->tx_bytes = stats[EF10_STAT_port_tx_bytes];
+		core_stats->rx_dropped = stats[EF10_STAT_port_rx_nodesc_drops] +
+					 stats[GENERIC_STAT_rx_nodesc_trunc] +
+					 stats[GENERIC_STAT_rx_noskb_drops];
+		core_stats->multicast = stats[EF10_STAT_port_rx_multicast];
+		core_stats->rx_length_errors =
+				stats[EF10_STAT_port_rx_gtjumbo] +
+				stats[EF10_STAT_port_rx_length_error];
+		core_stats->rx_crc_errors = stats[EF10_STAT_port_rx_bad];
+		core_stats->rx_frame_errors =
+				stats[EF10_STAT_port_rx_align_error];
+		core_stats->rx_fifo_errors = stats[EF10_STAT_port_rx_overflow];
+		core_stats->rx_errors = (core_stats->rx_length_errors +
+					 core_stats->rx_crc_errors +
+					 core_stats->rx_frame_errors);
 	}
 
 	return stats_count;
@@ -1560,6 +1604,22 @@ efx_ef10_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
 	memcpy(outbuf, pdu + offset, outlen);
 }
 
+static void efx_ef10_mcdi_reboot_detected(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* All our allocations have been reset */
+	efx_ef10_reset_mc_allocations(efx);
+
+	/* The datapath firmware might have been changed */
+	nic_data->must_check_datapath_caps = true;
+
+	/* MAC statistics have been cleared on the NIC; clear the local
+	 * statistic that we update with efx_update_diff_stat().
+	 */
+	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+}
+
 static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -1579,17 +1639,7 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 		return 0;
 
 	nic_data->warm_boot_count = rc;
-
-	/* All our allocations have been reset */
-	efx_ef10_reset_mc_allocations(efx);
-
-	/* The datapath firmware might have been changed */
-	nic_data->must_check_datapath_caps = true;
-
-	/* MAC statistics have been cleared on the NIC; clear the local
-	 * statistic that we update with efx_update_diff_stat().
-	 */
-	nic_data->stats[EF10_STAT_port_rx_bad_bytes] = 0;
+	efx_ef10_mcdi_reboot_detected(efx);
 
 	return -EIO;
 }
@@ -4626,6 +4676,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,
@@ -4730,6 +4781,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
 	.mcdi_read_response = efx_ef10_mcdi_read_response,
 	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.mcdi_reboot_detected = efx_ef10_mcdi_reboot_detected,
 	.irq_enable_master = efx_port_dummy_op_void,
 	.irq_test_generate = efx_ef10_irq_test_generate,
 	.irq_disable_non_ev = efx_port_dummy_op_void,

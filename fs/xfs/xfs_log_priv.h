@@ -426,6 +426,8 @@ xlog_recover(
 extern int
 xlog_recover_finish(
 	struct xlog		*log);
+extern int
+xlog_recover_cancel(struct xlog *);
 
 extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
 			    char *dp, int size);

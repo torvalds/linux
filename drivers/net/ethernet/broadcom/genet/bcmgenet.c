@@ -205,6 +205,23 @@ enum dma_reg {
 	DMA_INDEX2RING_5,
 	DMA_INDEX2RING_6,
 	DMA_INDEX2RING_7,
+	DMA_RING0_TIMEOUT,
+	DMA_RING1_TIMEOUT,
+	DMA_RING2_TIMEOUT,
+	DMA_RING3_TIMEOUT,
+	DMA_RING4_TIMEOUT,
+	DMA_RING5_TIMEOUT,
+	DMA_RING6_TIMEOUT,
+	DMA_RING7_TIMEOUT,
+	DMA_RING8_TIMEOUT,
+	DMA_RING9_TIMEOUT,
+	DMA_RING10_TIMEOUT,
+	DMA_RING11_TIMEOUT,
+	DMA_RING12_TIMEOUT,
+	DMA_RING13_TIMEOUT,
+	DMA_RING14_TIMEOUT,
+	DMA_RING15_TIMEOUT,
+	DMA_RING16_TIMEOUT,
 };
 
 static const u8 bcmgenet_dma_regs_v3plus[] = {
@@ -216,6 +233,23 @@ static const u8 bcmgenet_dma_regs_v3plus[] = {
 	[DMA_PRIORITY_0]	= 0x30,
 	[DMA_PRIORITY_1]	= 0x34,
 	[DMA_PRIORITY_2]	= 0x38,
+	[DMA_RING0_TIMEOUT]	= 0x2C,
+	[DMA_RING1_TIMEOUT]	= 0x30,
+	[DMA_RING2_TIMEOUT]	= 0x34,
+	[DMA_RING3_TIMEOUT]	= 0x38,
+	[DMA_RING4_TIMEOUT]	= 0x3c,
+	[DMA_RING5_TIMEOUT]	= 0x40,
+	[DMA_RING6_TIMEOUT]	= 0x44,
+	[DMA_RING7_TIMEOUT]	= 0x48,
+	[DMA_RING8_TIMEOUT]	= 0x4c,
+	[DMA_RING9_TIMEOUT]	= 0x50,
+	[DMA_RING10_TIMEOUT]	= 0x54,
+	[DMA_RING11_TIMEOUT]	= 0x58,
+	[DMA_RING12_TIMEOUT]	= 0x5c,
+	[DMA_RING13_TIMEOUT]	= 0x60,
+	[DMA_RING14_TIMEOUT]	= 0x64,
+	[DMA_RING15_TIMEOUT]	= 0x68,
+	[DMA_RING16_TIMEOUT]	= 0x6C,
 	[DMA_INDEX2RING_0]	= 0x70,
 	[DMA_INDEX2RING_1]	= 0x74,
 	[DMA_INDEX2RING_2]	= 0x78,
@@ -235,6 +269,23 @@ static const u8 bcmgenet_dma_regs_v2[] = {
 	[DMA_PRIORITY_0]	= 0x34,
 	[DMA_PRIORITY_1]	= 0x38,
 	[DMA_PRIORITY_2]	= 0x3C,
+	[DMA_RING0_TIMEOUT]	= 0x2C,
+	[DMA_RING1_TIMEOUT]	= 0x30,
+	[DMA_RING2_TIMEOUT]	= 0x34,
+	[DMA_RING3_TIMEOUT]	= 0x38,
+	[DMA_RING4_TIMEOUT]	= 0x3c,
+	[DMA_RING5_TIMEOUT]	= 0x40,
+	[DMA_RING6_TIMEOUT]	= 0x44,
+	[DMA_RING7_TIMEOUT]	= 0x48,
+	[DMA_RING8_TIMEOUT]	= 0x4c,
+	[DMA_RING9_TIMEOUT]	= 0x50,
+	[DMA_RING10_TIMEOUT]	= 0x54,
+	[DMA_RING11_TIMEOUT]	= 0x58,
+	[DMA_RING12_TIMEOUT]	= 0x5c,
+	[DMA_RING13_TIMEOUT]	= 0x60,
+	[DMA_RING14_TIMEOUT]	= 0x64,
+	[DMA_RING15_TIMEOUT]	= 0x68,
+	[DMA_RING16_TIMEOUT]	= 0x6C,
 };
 
 static const u8 bcmgenet_dma_regs_v1[] = {
@@ -245,6 +296,23 @@ static const u8 bcmgenet_dma_regs_v1[] = {
 	[DMA_PRIORITY_0]	= 0x34,
 	[DMA_PRIORITY_1]	= 0x38,
 	[DMA_PRIORITY_2]	= 0x3C,
+	[DMA_RING0_TIMEOUT]	= 0x2C,
+	[DMA_RING1_TIMEOUT]	= 0x30,
+	[DMA_RING2_TIMEOUT]	= 0x34,
+	[DMA_RING3_TIMEOUT]	= 0x38,
+	[DMA_RING4_TIMEOUT]	= 0x3c,
+	[DMA_RING5_TIMEOUT]	= 0x40,
+	[DMA_RING6_TIMEOUT]	= 0x44,
+	[DMA_RING7_TIMEOUT]	= 0x48,
+	[DMA_RING8_TIMEOUT]	= 0x4c,
+	[DMA_RING9_TIMEOUT]	= 0x50,
+	[DMA_RING10_TIMEOUT]	= 0x54,
+	[DMA_RING11_TIMEOUT]	= 0x58,
+	[DMA_RING12_TIMEOUT]	= 0x5c,
+	[DMA_RING13_TIMEOUT]	= 0x60,
+	[DMA_RING14_TIMEOUT]	= 0x64,
+	[DMA_RING15_TIMEOUT]	= 0x68,
+	[DMA_RING16_TIMEOUT]	= 0x6C,
 };
 
 /* Set at runtime once bcmgenet version is known */
@@ -496,6 +564,85 @@ static void bcmgenet_set_msglevel(struct net_device *dev, u32 level)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
 	priv->msg_enable = level;
+}
+
+static int bcmgenet_get_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	ec->tx_max_coalesced_frames =
+		bcmgenet_tdma_ring_readl(priv, DESC_INDEX,
+					 DMA_MBUF_DONE_THRESH);
+	ec->rx_max_coalesced_frames =
+		bcmgenet_rdma_ring_readl(priv, DESC_INDEX,
+					 DMA_MBUF_DONE_THRESH);
+	ec->rx_coalesce_usecs =
+		bcmgenet_rdma_readl(priv, DMA_RING16_TIMEOUT) * 8192 / 1000;
+
+	return 0;
+}
+
+static int bcmgenet_set_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+	unsigned int i;
+	u32 reg;
+
+	/* Base system clock is 125Mhz, DMA timeout is this reference clock
+	 * divided by 1024, which yields roughly 8.192us, our maximum value
+	 * has to fit in the DMA_TIMEOUT_MASK (16 bits)
+	 */
+	if (ec->tx_max_coalesced_frames > DMA_INTR_THRESHOLD_MASK ||
+	    ec->tx_max_coalesced_frames == 0 ||
+	    ec->rx_max_coalesced_frames > DMA_INTR_THRESHOLD_MASK ||
+	    ec->rx_coalesce_usecs > (DMA_TIMEOUT_MASK * 8) + 1)
+		return -EINVAL;
+
+	if (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0)
+		return -EINVAL;
+
+	/* GENET TDMA hardware does not support a configurable timeout, but will
+	 * always generate an interrupt either after MBDONE packets have been
+	 * transmitted, or when the ring is emtpy.
+	 */
+	if (ec->tx_coalesce_usecs || ec->tx_coalesce_usecs_high ||
+	    ec->tx_coalesce_usecs_irq || ec->tx_coalesce_usecs_low)
+		return -EOPNOTSUPP;
+
+	/* Program all TX queues with the same values, as there is no
+	 * ethtool knob to do coalescing on a per-queue basis
+	 */
+	for (i = 0; i < priv->hw_params->tx_queues; i++)
+		bcmgenet_tdma_ring_writel(priv, i,
+					  ec->tx_max_coalesced_frames,
+					  DMA_MBUF_DONE_THRESH);
+	bcmgenet_tdma_ring_writel(priv, DESC_INDEX,
+				  ec->tx_max_coalesced_frames,
+				  DMA_MBUF_DONE_THRESH);
+
+	for (i = 0; i < priv->hw_params->rx_queues; i++) {
+		bcmgenet_rdma_ring_writel(priv, i,
+					  ec->rx_max_coalesced_frames,
+					  DMA_MBUF_DONE_THRESH);
+
+		reg = bcmgenet_rdma_readl(priv, DMA_RING0_TIMEOUT + i);
+		reg &= ~DMA_TIMEOUT_MASK;
+		reg |= DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000, 8192);
+		bcmgenet_rdma_writel(priv, reg, DMA_RING0_TIMEOUT + i);
+	}
+
+	bcmgenet_rdma_ring_writel(priv, DESC_INDEX,
+				  ec->rx_max_coalesced_frames,
+				  DMA_MBUF_DONE_THRESH);
+
+	reg = bcmgenet_rdma_readl(priv, DMA_RING16_TIMEOUT);
+	reg &= ~DMA_TIMEOUT_MASK;
+	reg |= DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000, 8192);
+	bcmgenet_rdma_writel(priv, reg, DMA_RING16_TIMEOUT);
+
+	return 0;
 }
 
 /* standard ethtool support functions. */
@@ -844,6 +991,8 @@ static struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_eee		= bcmgenet_get_eee,
 	.set_eee		= bcmgenet_set_eee,
 	.nway_reset		= bcmgenet_nway_reset,
+	.get_coalesce		= bcmgenet_get_coalesce,
+	.set_coalesce		= bcmgenet_set_coalesce,
 };
 
 /* Power down the unimac, based on mode. */
@@ -2125,6 +2274,8 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	int ret = 0;
 	int timeout = 0;
 	u32 reg;
+	u32 dma_ctrl;
+	int i;
 
 	/* Disable TDMA to stop add more frames in TX DMA */
 	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
@@ -2167,6 +2318,20 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
 		ret = -ETIMEDOUT;
 	}
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->rx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+
+	dma_ctrl = 0;
+	for (i = 0; i < priv->hw_params->tx_queues; i++)
+		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
+	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+	reg &= ~dma_ctrl;
+	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 
 	return ret;
 }
@@ -2835,8 +3000,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 
 	netif_dbg(priv, tx_err, dev, "bcmgenet_timeout\n");
 
-	bcmgenet_disable_tx_napi(priv);
-
 	for (q = 0; q < priv->hw_params->tx_queues; q++)
 		bcmgenet_dump_tx_queue(&priv->tx_rings[q]);
 	bcmgenet_dump_tx_queue(&priv->tx_rings[DESC_INDEX]);
@@ -2851,8 +3014,6 @@ static void bcmgenet_timeout(struct net_device *dev)
 	/* Re-enable TX interrupts if disabled */
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
-
-	bcmgenet_enable_tx_napi(priv);
 
 	dev->trans_start = jiffies;
 
@@ -3143,6 +3304,7 @@ static const struct of_device_id bcmgenet_match[] = {
 	{ .compatible = "brcm,genet-v4", .data = (void *)GENET_V4 },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, bcmgenet_match);
 
 static int bcmgenet_probe(struct platform_device *pdev)
 {

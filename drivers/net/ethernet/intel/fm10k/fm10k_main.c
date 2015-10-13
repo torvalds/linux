@@ -216,7 +216,7 @@ static void fm10k_reuse_rx_page(struct fm10k_ring *rx_ring,
 
 static inline bool fm10k_page_is_reserved(struct page *page)
 {
-	return (page_to_nid(page) != numa_mem_id()) || page->pfmemalloc;
+	return (page_to_nid(page) != numa_mem_id()) || page_is_pfmemalloc(page);
 }
 
 static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
@@ -398,6 +398,8 @@ static inline void fm10k_rx_checksum(struct fm10k_ring *ring,
 		return;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	ring->rx_stats.csum_good++;
 }
 
 #define FM10K_RSS_L4_TYPES_MASK \
@@ -497,8 +499,11 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	if (rx_desc->w.vlan) {
 		u16 vid = le16_to_cpu(rx_desc->w.vlan);
 
-		if (vid != rx_ring->vid)
+		if ((vid & VLAN_VID_MASK) != rx_ring->vid)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
+		else if (vid & VLAN_PRIO_MASK)
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+					       vid & VLAN_PRIO_MASK);
 	}
 
 	fm10k_type_trans(rx_ring, rx_desc, skb);
@@ -553,6 +558,18 @@ static bool fm10k_cleanup_headers(struct fm10k_ring *rx_ring,
 {
 	if (unlikely((fm10k_test_staterr(rx_desc,
 					 FM10K_RXD_STATUS_RXE)))) {
+#define FM10K_TEST_RXD_BIT(rxd, bit) \
+	((rxd)->w.csum_err & cpu_to_le16(bit))
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_SWITCH_ERROR))
+			rx_ring->rx_stats.switch_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_NO_DESCRIPTOR))
+			rx_ring->rx_stats.drops++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_PP_ERROR))
+			rx_ring->rx_stats.pp_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_SWITCH_READY))
+			rx_ring->rx_stats.link_errors++;
+		if (FM10K_TEST_RXD_BIT(rx_desc, FM10K_RXD_ERR_TOO_BIG))
+			rx_ring->rx_stats.length_errors++;
 		dev_kfree_skb_any(skb);
 		rx_ring->rx_stats.errors++;
 		return true;
@@ -878,6 +895,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 
 	/* update TX checksum flag */
 	first->tx_flags |= FM10K_TX_FLAGS_CSUM;
+	tx_ring->tx_stats.csum_good++;
 
 no_csum:
 	/* populate Tx descriptor header size and mss */
@@ -1079,9 +1097,7 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	struct fm10k_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
-#if PAGE_SIZE > FM10K_MAX_DATA_PER_TXD
 	unsigned short f;
-#endif
 	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 
 	/* need: 1 descriptor per page * PAGE_SIZE/FM10K_MAX_DATA_PER_TXD,
@@ -1089,12 +1105,9 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	 *       + 2 desc gap to keep tail from touching head
 	 * otherwise try next time
 	 */
-#if PAGE_SIZE > FM10K_MAX_DATA_PER_TXD
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-#else
-	count += skb_shinfo(skb)->nr_frags;
-#endif
+
 	if (fm10k_maybe_stop_tx(tx_ring, count + 3)) {
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;

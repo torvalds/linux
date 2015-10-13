@@ -67,21 +67,13 @@ void rds_tcp_nonagle(struct socket *sock)
 	set_fs(oldfs);
 }
 
+/* All module specific customizations to the RDS-TCP socket should be done in
+ * rds_tcp_tune() and applied after socket creation. In general these
+ * customizations should be tunable via module_param()
+ */
 void rds_tcp_tune(struct socket *sock)
 {
-	struct sock *sk = sock->sk;
-
 	rds_tcp_nonagle(sock);
-
-	/*
-	 * We're trying to saturate gigabit with the default,
-	 * see svc_sock_setbufsize().
-	 */
-	lock_sock(sk);
-	sk->sk_sndbuf = RDS_TCP_DEFAULT_BUFSIZE;
-	sk->sk_rcvbuf = RDS_TCP_DEFAULT_BUFSIZE;
-	sk->sk_userlocks |= SOCK_SNDBUF_LOCK|SOCK_RCVBUF_LOCK;
-	release_sock(sk);
 }
 
 u32 rds_tcp_snd_nxt(struct rds_tcp_connection *tc)

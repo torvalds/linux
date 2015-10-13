@@ -618,9 +618,8 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 
 	/* Attempt to register the clock before enabling the hardware. */
 	pf->ptp_clock = ptp_clock_register(&pf->ptp_caps, &pf->pdev->dev);
-	if (IS_ERR(pf->ptp_clock)) {
+	if (IS_ERR(pf->ptp_clock))
 		return PTR_ERR(pf->ptp_clock);
-	}
 
 	/* clear the hwtstamp settings here during clock create, instead of
 	 * during regular init, so that we can maintain settings across a

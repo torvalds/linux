@@ -23,6 +23,15 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 	if (err < 0)
 		goto error;
 
+	if (cfg->ipv6_v6only) {
+		int val = 1;
+
+		err = kernel_setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+					(char *) &val, sizeof(val));
+		if (err < 0)
+			goto error;
+	}
+
 	udp6_addr.sin6_family = AF_INET6;
 	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
 	       sizeof(udp6_addr.sin6_addr));

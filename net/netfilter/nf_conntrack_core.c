@@ -168,6 +168,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		unsigned int dataoff,
 		u_int16_t l3num,
 		u_int8_t protonum,
+		struct net *net,
 		struct nf_conntrack_tuple *tuple,
 		const struct nf_conntrack_l3proto *l3proto,
 		const struct nf_conntrack_l4proto *l4proto)
@@ -181,12 +182,13 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 	tuple->dst.protonum = protonum;
 	tuple->dst.dir = IP_CT_DIR_ORIGINAL;
 
-	return l4proto->pkt_to_tuple(skb, dataoff, tuple);
+	return l4proto->pkt_to_tuple(skb, dataoff, net, tuple);
 }
 EXPORT_SYMBOL_GPL(nf_ct_get_tuple);
 
 bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
-		       u_int16_t l3num, struct nf_conntrack_tuple *tuple)
+		       u_int16_t l3num,
+		       struct net *net, struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
@@ -205,7 +207,7 @@ bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 
 	l4proto = __nf_ct_l4proto_find(l3num, protonum);
 
-	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, tuple,
+	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple,
 			      l3proto, l4proto);
 
 	rcu_read_unlock();
@@ -313,12 +315,13 @@ out_free:
 }
 EXPORT_SYMBOL_GPL(nf_ct_tmpl_alloc);
 
-static void nf_ct_tmpl_free(struct nf_conn *tmpl)
+void nf_ct_tmpl_free(struct nf_conn *tmpl)
 {
 	nf_ct_ext_destroy(tmpl);
 	nf_ct_ext_free(tmpl);
 	kfree(tmpl);
 }
+EXPORT_SYMBOL_GPL(nf_ct_tmpl_free);
 
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
@@ -1028,7 +1031,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	u32 hash;
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
-			     dataoff, l3num, protonum, &tuple, l3proto,
+			     dataoff, l3num, protonum, net, &tuple, l3proto,
 			     l4proto)) {
 		pr_debug("resolve_normal_ct: Can't get tuple\n");
 		return NULL;
@@ -1285,13 +1288,6 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 	return false;
 }
 EXPORT_SYMBOL_GPL(__nf_ct_kill_acct);
-
-/* Built-in default zone used e.g. by modules. */
-const struct nf_conntrack_zone nf_ct_zone_dflt = {
-	.id	= NF_CT_DEFAULT_ZONE_ID,
-	.dir	= NF_CT_DEFAULT_ZONE_DIR,
-};
-EXPORT_SYMBOL_GPL(nf_ct_zone_dflt);
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 static struct nf_ct_ext_type nf_ct_zone_extend __read_mostly = {

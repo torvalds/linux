@@ -34,16 +34,27 @@ extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
 void __putstr(const char *s);
+void __puthex(unsigned long value);
 #define error_putstr(__x)  __putstr(__x)
+#define error_puthex(__x)  __puthex(__x)
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 
 #define debug_putstr(__x)  __putstr(__x)
+#define debug_puthex(__x)  __puthex(__x)
+#define debug_putaddr(__x) { \
+		debug_putstr(#__x ": 0x"); \
+		debug_puthex((unsigned long)(__x)); \
+		debug_putstr("\n"); \
+	}
 
 #else
 
 static inline void debug_putstr(const char *s)
 { }
+static inline void debug_puthex(const char *s)
+{ }
+#define debug_putaddr(x) /* */
 
 #endif
 

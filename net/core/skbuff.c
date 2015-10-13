@@ -340,7 +340,7 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 
 	if (skb && frag_size) {
 		skb->head_frag = 1;
-		if (virt_to_head_page(data)->pfmemalloc)
+		if (page_is_pfmemalloc(virt_to_head_page(data)))
 			skb->pfmemalloc = 1;
 	}
 	return skb;
@@ -2958,11 +2958,12 @@ EXPORT_SYMBOL_GPL(skb_append_pagefrags);
  */
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 {
+	unsigned char *data = skb->data;
+
 	BUG_ON(len > skb->len);
-	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
-	skb_postpull_rcsum(skb, skb->data, len);
-	return skb->data += len;
+	__skb_pull(skb, len);
+	skb_postpull_rcsum(skb, data, len);
+	return skb->data;
 }
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 

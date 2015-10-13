@@ -99,7 +99,7 @@ static ssize_t lio_target_np_store_sctp(
 		 * Use existing np->np_sockaddr for SCTP network portal reference
 		 */
 		tpg_np_sctp = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
-					np->np_ip, tpg_np, ISCSI_SCTP_TCP);
+					tpg_np, ISCSI_SCTP_TCP);
 		if (!tpg_np_sctp || IS_ERR(tpg_np_sctp))
 			goto out;
 	} else {
@@ -177,7 +177,7 @@ static ssize_t lio_target_np_store_iser(
 		}
 
 		tpg_np_iser = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
-				np->np_ip, tpg_np, ISCSI_INFINIBAND);
+				tpg_np, ISCSI_INFINIBAND);
 		if (IS_ERR(tpg_np_iser)) {
 			rc = PTR_ERR(tpg_np_iser);
 			goto out;
@@ -220,7 +220,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tpg_np *tpg_np;
 	char *str, *str2, *ip_str, *port_str;
-	struct __kernel_sockaddr_storage sockaddr;
+	struct sockaddr_storage sockaddr;
 	struct sockaddr_in *sock_in;
 	struct sockaddr_in6 *sock_in6;
 	unsigned long port;
@@ -235,7 +235,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	memset(buf, 0, MAX_PORTAL_LEN + 1);
 	snprintf(buf, MAX_PORTAL_LEN + 1, "%s", name);
 
-	memset(&sockaddr, 0, sizeof(struct __kernel_sockaddr_storage));
+	memset(&sockaddr, 0, sizeof(struct sockaddr_storage));
 
 	str = strstr(buf, "[");
 	if (str) {
@@ -248,8 +248,8 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 			return ERR_PTR(-EINVAL);
 		}
 		str++; /* Skip over leading "[" */
-		*str2 = '\0'; /* Terminate the IPv6 address */
-		str2++; /* Skip over the "]" */
+		*str2 = '\0'; /* Terminate the unbracketed IPv6 address */
+		str2++; /* Skip over the \0 */
 		port_str = strstr(str2, ":");
 		if (!port_str) {
 			pr_err("Unable to locate \":port\""
@@ -267,7 +267,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 		sock_in6 = (struct sockaddr_in6 *)&sockaddr;
 		sock_in6->sin6_family = AF_INET6;
 		sock_in6->sin6_port = htons((unsigned short)port);
-		ret = in6_pton(str, IPV6_ADDRESS_SPACE,
+		ret = in6_pton(str, -1,
 				(void *)&sock_in6->sin6_addr.in6_u, -1, &end);
 		if (ret <= 0) {
 			pr_err("in6_pton returned: %d\n", ret);
@@ -316,7 +316,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	 * sys/kernel/config/iscsi/$IQN/$TPG/np/$IP:$PORT/
 	 *
 	 */
-	tpg_np = iscsit_tpg_add_network_portal(tpg, &sockaddr, str, NULL,
+	tpg_np = iscsit_tpg_add_network_portal(tpg, &sockaddr, NULL,
 				ISCSI_TCP);
 	if (IS_ERR(tpg_np)) {
 		iscsit_put_tpg(tpg);
@@ -344,8 +344,8 @@ static void lio_target_call_delnpfromtpg(
 
 	se_tpg = &tpg->tpg_se_tpg;
 	pr_debug("LIO_Target_ConfigFS: DEREGISTER -> %s TPGT: %hu"
-		" PORTAL: %s:%hu\n", config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
-		tpg->tpgt, tpg_np->tpg_np->np_ip, tpg_np->tpg_np->np_port);
+		" PORTAL: %pISpc\n", config_item_name(&se_tpg->se_tpg_wwn->wwn_group.cg_item),
+		tpg->tpgt, &tpg_np->tpg_np->np_sockaddr);
 
 	ret = iscsit_tpg_del_network_portal(tpg, tpg_np);
 	if (ret < 0)
@@ -656,6 +656,7 @@ static ssize_t lio_target_nacl_show_info(
 	struct iscsi_conn *conn;
 	struct se_session *se_sess;
 	ssize_t rb = 0;
+	u32 max_cmd_sn;
 
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
@@ -703,11 +704,12 @@ static ssize_t lio_target_nacl_show_info(
 				" Values]-----------------------\n");
 		rb += sprintf(page+rb, "  CmdSN/WR  :  CmdSN/WC  :  ExpCmdSN"
 				"  :  MaxCmdSN  :     ITT    :     TTT\n");
+		max_cmd_sn = (u32) atomic_read(&sess->max_cmd_sn);
 		rb += sprintf(page+rb, " 0x%08x   0x%08x   0x%08x   0x%08x"
 				"   0x%08x   0x%08x\n",
 			sess->cmdsn_window,
-			(sess->max_cmd_sn - sess->exp_cmd_sn) + 1,
-			sess->exp_cmd_sn, sess->max_cmd_sn,
+			(max_cmd_sn - sess->exp_cmd_sn) + 1,
+			sess->exp_cmd_sn, max_cmd_sn,
 			sess->init_task_tag, sess->targ_xfer_tag);
 		rb += sprintf(page+rb, "----------------------[iSCSI"
 				" Connections]-------------------------\n");
@@ -751,7 +753,7 @@ static ssize_t lio_target_nacl_show_info(
 				break;
 			}
 
-			rb += sprintf(page+rb, "   Address %s %s", conn->login_ip,
+			rb += sprintf(page+rb, "   Address %pISc %s", &conn->login_sockaddr,
 				(conn->network_transport == ISCSI_TCP) ?
 				"TCP" : "SCTP");
 			rb += sprintf(page+rb, "  StatSN: 0x%08x\n",
@@ -1010,6 +1012,11 @@ TPG_ATTR(t10_pi, S_IRUGO | S_IWUSR);
  */
 DEF_TPG_ATTRIB(fabric_prot_type);
 TPG_ATTR(fabric_prot_type, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_tpg_enabled_sendtargets
+ */
+DEF_TPG_ATTRIB(tpg_enabled_sendtargets);
+TPG_ATTR(tpg_enabled_sendtargets, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_authentication.attr,
@@ -1024,6 +1031,7 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_default_erl.attr,
 	&iscsi_tpg_attrib_t10_pi.attr,
 	&iscsi_tpg_attrib_fabric_prot_type.attr,
+	&iscsi_tpg_attrib_tpg_enabled_sendtargets.attr,
 	NULL,
 };
 

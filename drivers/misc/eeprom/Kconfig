@@ -96,17 +96,4 @@ config EEPROM_DIGSY_MTC_CFG
 
 	  If unsure, say N.
 
-config EEPROM_SUNXI_SID
-	tristate "Allwinner sunxi security ID support"
-	depends on ARCH_SUNXI && SYSFS
-	help
-	  This is a driver for the 'security ID' available on various Allwinner
-	  devices.
-
-	  Due to the potential risks involved with changing e-fuses,
-	  this driver is read-only.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called sunxi_sid.
-
 endmenu

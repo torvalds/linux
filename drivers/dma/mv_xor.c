@@ -13,7 +13,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -26,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/irqdomain.h>
+#include <linux/cpumask.h>
 #include <linux/platform_data/dma-mv_xor.h>
 
 #include "dmaengine.h"
@@ -1126,7 +1126,8 @@ static const struct of_device_id mv_xor_dt_ids[] = {
 	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_MODE_IN_DESC },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mv_xor_dt_ids);
+
+static unsigned int mv_xor_engine_count;
 
 static int mv_xor_probe(struct platform_device *pdev)
 {
@@ -1134,6 +1135,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 	struct mv_xor_device *xordev;
 	struct mv_xor_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
+	unsigned int max_engines, max_channels;
 	int i, ret;
 	int op_in_desc;
 
@@ -1177,6 +1179,21 @@ static int mv_xor_probe(struct platform_device *pdev)
 	if (!IS_ERR(xordev->clk))
 		clk_prepare_enable(xordev->clk);
 
+	/*
+	 * We don't want to have more than one channel per CPU in
+	 * order for async_tx to perform well. So we limit the number
+	 * of engines and channels so that we take into account this
+	 * constraint. Note that we also want to use channels from
+	 * separate engines when possible.
+	 */
+	max_engines = num_present_cpus();
+	max_channels = min_t(unsigned int,
+			     MV_XOR_MAX_CHANNELS,
+			     DIV_ROUND_UP(num_present_cpus(), 2));
+
+	if (mv_xor_engine_count >= max_engines)
+		return 0;
+
 	if (pdev->dev.of_node) {
 		struct device_node *np;
 		int i = 0;
@@ -1190,13 +1207,13 @@ static int mv_xor_probe(struct platform_device *pdev)
 			int irq;
 			op_in_desc = (int)of_id->data;
 
+			if (i >= max_channels)
+				continue;
+
 			dma_cap_zero(cap_mask);
-			if (of_property_read_bool(np, "dmacap,memcpy"))
-				dma_cap_set(DMA_MEMCPY, cap_mask);
-			if (of_property_read_bool(np, "dmacap,xor"))
-				dma_cap_set(DMA_XOR, cap_mask);
-			if (of_property_read_bool(np, "dmacap,interrupt"))
-				dma_cap_set(DMA_INTERRUPT, cap_mask);
+			dma_cap_set(DMA_MEMCPY, cap_mask);
+			dma_cap_set(DMA_XOR, cap_mask);
+			dma_cap_set(DMA_INTERRUPT, cap_mask);
 
 			irq = irq_of_parse_and_map(np, 0);
 			if (!irq) {
@@ -1216,7 +1233,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 			i++;
 		}
 	} else if (pdata && pdata->channels) {
-		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
+		for (i = 0; i < max_channels; i++) {
 			struct mv_xor_channel_data *cd;
 			struct mv_xor_chan *chan;
 			int irq;
@@ -1263,27 +1280,8 @@ err_channel_add:
 	return ret;
 }
 
-static int mv_xor_remove(struct platform_device *pdev)
-{
-	struct mv_xor_device *xordev = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
-		if (xordev->channels[i])
-			mv_xor_channel_remove(xordev->channels[i]);
-	}
-
-	if (!IS_ERR(xordev->clk)) {
-		clk_disable_unprepare(xordev->clk);
-		clk_put(xordev->clk);
-	}
-
-	return 0;
-}
-
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
-	.remove		= mv_xor_remove,
 	.driver		= {
 		.name	        = MV_XOR_NAME,
 		.of_match_table = of_match_ptr(mv_xor_dt_ids),
@@ -1295,19 +1293,10 @@ static int __init mv_xor_init(void)
 {
 	return platform_driver_register(&mv_xor_driver);
 }
-module_init(mv_xor_init);
+device_initcall(mv_xor_init);
 
-/* it's currently unsafe to unload this module */
-#if 0
-static void __exit mv_xor_exit(void)
-{
-	platform_driver_unregister(&mv_xor_driver);
-	return;
-}
-
-module_exit(mv_xor_exit);
-#endif
-
+/*
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");
 MODULE_DESCRIPTION("DMA engine driver for Marvell's XOR engine");
 MODULE_LICENSE("GPL");
+*/

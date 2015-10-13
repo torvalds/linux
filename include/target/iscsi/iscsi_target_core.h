@@ -62,6 +62,8 @@
 /* T10 protection information disabled by default */
 #define TA_DEFAULT_T10_PI		0
 #define TA_DEFAULT_FABRIC_PROT_TYPE	0
+/* TPG status needs to be enabled to return sendtargets discovery endpoint info */
+#define TA_DEFAULT_TPG_ENABLED_SENDTARGETS 1
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
@@ -517,7 +519,6 @@ struct iscsi_conn {
 	u16			cid;
 	/* Remote TCP Port */
 	u16			login_port;
-	u16			local_port;
 	int			net_size;
 	int			login_family;
 	u32			auth_id;
@@ -527,9 +528,8 @@ struct iscsi_conn {
 	u32			exp_statsn;
 	/* Per connection status sequence number */
 	u32			stat_sn;
-#define IPV6_ADDRESS_SPACE				48
-	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
-	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
+	struct sockaddr_storage login_sockaddr;
+	struct sockaddr_storage local_sockaddr;
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
@@ -636,7 +636,7 @@ struct iscsi_session {
 	/* session wide counter: expected command sequence number */
 	u32			exp_cmd_sn;
 	/* session wide counter: maximum allowed command sequence number */
-	u32			max_cmd_sn;
+	atomic_t		max_cmd_sn;
 	struct list_head	sess_ooo_cmdsn_list;
 
 	/* LIO specific session ID */
@@ -764,6 +764,7 @@ struct iscsi_tpg_attrib {
 	u32			default_erl;
 	u8			t10_pi;
 	u32			fabric_prot_type;
+	u32			tpg_enabled_sendtargets;
 	struct iscsi_portal_group *tpg;
 };
 
@@ -776,12 +777,10 @@ struct iscsi_np {
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;
-	unsigned char		np_ip[IPV6_ADDRESS_SPACE];
-	u16			np_port;
 	spinlock_t		np_thread_lock;
 	struct completion	np_restart_comp;
 	struct socket		*np_socket;
-	struct __kernel_sockaddr_storage np_sockaddr;
+	struct sockaddr_storage np_sockaddr;
 	struct task_struct	*np_thread;
 	struct timer_list	np_login_timer;
 	void			*np_context;

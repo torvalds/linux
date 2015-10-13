@@ -729,8 +729,6 @@ static int qlcnic_sriov_alloc_bc_mbx_args(struct qlcnic_cmd_args *mbx, u32 type)
 				mbx->req.arg = NULL;
 				return -ENOMEM;
 			}
-			memset(mbx->req.arg, 0, sizeof(u32) * mbx->req.num);
-			memset(mbx->rsp.arg, 0, sizeof(u32) * mbx->rsp.num);
 			mbx->req.arg[0] = (type | (mbx->req.num << 16) |
 					   (3 << 29));
 			mbx->rsp.arg[0] = (type & 0xffff) | mbx->rsp.num << 16;

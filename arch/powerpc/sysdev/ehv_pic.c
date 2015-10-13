@@ -177,7 +177,8 @@ unsigned int ehv_pic_get_irq(void)
 	return irq_linear_revmap(global_ehv_pic->irqhost, irq);
 }
 
-static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node)
+static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node,
+			      enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless ehv_pic node is NULL */
 	return h->of_node == NULL || h->of_node == node;

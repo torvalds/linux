@@ -9,7 +9,17 @@ modprobe test_firmware
 
 DIR=/sys/devices/virtual/misc/test_firmware
 
-OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
+# CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
+# These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
+# as an indicator for CONFIG_FW_LOADER_USER_HELPER.
+HAS_FW_LOADER_USER_HELPER=$(if [ -d /sys/class/firmware/ ]; then echo yes; else echo no; fi)
+
+if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+       OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
+else
+	echo "usermode helper disabled so ignoring test"
+	exit 0
+fi
 
 FWPATH=$(mktemp -d)
 FW="$FWPATH/test-firmware.bin"

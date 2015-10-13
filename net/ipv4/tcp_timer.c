@@ -83,7 +83,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 }
 
 /* Calculate maximal number or retries on an orphaned socket. */
-static int tcp_orphan_retries(struct sock *sk, int alive)
+static int tcp_orphan_retries(struct sock *sk, bool alive)
 {
 	int retries = sysctl_tcp_orphan_retries; /* May be zero. */
 
@@ -184,7 +184,7 @@ static int tcp_write_timeout(struct sock *sk)
 
 		retry_until = sysctl_tcp_retries2;
 		if (sock_flag(sk, SOCK_DEAD)) {
-			const int alive = icsk->icsk_rto < TCP_RTO_MAX;
+			const bool alive = icsk->icsk_rto < TCP_RTO_MAX;
 
 			retry_until = tcp_orphan_retries(sk, alive);
 			do_reset = alive ||
@@ -298,7 +298,7 @@ static void tcp_probe_timer(struct sock *sk)
 
 	max_probes = sysctl_tcp_retries2;
 	if (sock_flag(sk, SOCK_DEAD)) {
-		const int alive = inet_csk_rto_backoff(icsk, TCP_RTO_MAX) < TCP_RTO_MAX;
+		const bool alive = inet_csk_rto_backoff(icsk, TCP_RTO_MAX) < TCP_RTO_MAX;
 
 		max_probes = tcp_orphan_retries(sk, alive);
 		if (!alive && icsk->icsk_backoff >= max_probes)

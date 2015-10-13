@@ -510,13 +510,39 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
+	const unsigned hact = 720;
+	const unsigned hdelay = 15;
+	unsigned vact;
+	unsigned vdelay;
+	int ret;
 
 	if (!(norm & (V4L2_STD_NTSC | V4L2_STD_PAL)))
 		return -EINVAL;
 
 	priv->norm = norm;
+	if (norm & V4L2_STD_525_60) {
+		vact = 240;
+		vdelay = 18;
+		ret = tw9910_mask_set(client, VVBI, 0x10, 0x10);
+	} else {
+		vact = 288;
+		vdelay = 24;
+		ret = tw9910_mask_set(client, VVBI, 0x10, 0x00);
+	}
+	if (!ret)
+		ret = i2c_smbus_write_byte_data(client, CROP_HI,
+			((vdelay >> 2) & 0xc0) |
+			((vact >> 4) & 0x30) |
+			((hdelay >> 6) & 0x0c) |
+			((hact >> 8) & 0x03));
+	if (!ret)
+		ret = i2c_smbus_write_byte_data(client, VDELAY_LO,
+			vdelay & 0xff);
+	if (!ret)
+		ret = i2c_smbus_write_byte_data(client, VACTIVE_LO,
+			vact & 0xff);
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -711,7 +737,7 @@ static int tw9910_get_fmt(struct v4l2_subdev *sd,
 	mf->width	= priv->scale->width;
 	mf->height	= priv->scale->height;
 	mf->code	= MEDIA_BUS_FMT_UYVY8_2X8;
-	mf->colorspace	= V4L2_COLORSPACE_JPEG;
+	mf->colorspace	= V4L2_COLORSPACE_SMPTE170M;
 	mf->field	= V4L2_FIELD_INTERLACED_BT;
 
 	return 0;
@@ -732,7 +758,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 	if (mf->code != MEDIA_BUS_FMT_UYVY8_2X8)
 		return -EINVAL;
 
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	ret = tw9910_set_frame(sd, &width, &height);
 	if (!ret) {
@@ -762,7 +788,7 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
-	mf->colorspace = V4L2_COLORSPACE_JPEG;
+	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/*
 	 * select suitable norm
@@ -820,6 +846,7 @@ static int tw9910_video_probe(struct i2c_client *client)
 		 "tw9910 Product ID %0x:%0x\n", id, priv->revision);
 
 	priv->norm = V4L2_STD_NTSC;
+	priv->scale = &tw9910_ntsc_scales[0];
 
 done:
 	tw9910_s_power(&priv->subdev, 0);

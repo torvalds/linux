@@ -3414,7 +3414,7 @@ giving priority to the center of the metered area.</entry>
 		<row>
 		  <entry><constant>V4L2_EXPOSURE_METERING_MATRIX</constant>&nbsp;</entry>
 		  <entry>A multi-zone metering. The light intensity is measured
-in several points of the frame and the the results are combined. The
+in several points of the frame and the results are combined. The
 algorithm of the zones selection and their significance in calculating the
 final value is device dependent.</entry>
 		</row>

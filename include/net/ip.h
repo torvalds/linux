@@ -100,24 +100,20 @@ int igmp_mc_init(void);
  *	Functions provided by ip.c
  */
 
-int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
+int ip_build_and_send_pkt(struct sk_buff *skb, const struct sock *sk,
 			  __be32 saddr, __be32 daddr,
 			  struct ip_options_rcu *opt);
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	   struct net_device *orig_dev);
 int ip_local_deliver(struct sk_buff *skb);
 int ip_mr_input(struct sk_buff *skb);
-int ip_output(struct sock *sk, struct sk_buff *skb);
-int ip_mc_output(struct sock *sk, struct sk_buff *skb);
-int ip_do_fragment(struct sock *sk, struct sk_buff *skb,
-		   int (*output)(struct sock *, struct sk_buff *));
+int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip_mc_output(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
+		   int (*output)(struct net *, struct sock *, struct sk_buff *));
 void ip_send_check(struct iphdr *ip);
-int __ip_local_out(struct sk_buff *skb);
-int ip_local_out_sk(struct sock *sk, struct sk_buff *skb);
-static inline int ip_local_out(struct sk_buff *skb)
-{
-	return ip_local_out_sk(skb->sk, skb);
-}
+int __ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
+int ip_local_out(struct net *net, struct sock *sk, struct sk_buff *skb);
 
 int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);
 void ip_init(void);
@@ -202,10 +198,20 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 #define NET_ADD_STATS_BH(net, field, adnd) SNMP_ADD_STATS_BH((net)->mib.net_statistics, field, adnd)
 #define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
+u64 snmp_get_cpu_field(void __percpu *mib, int cpu, int offct);
 unsigned long snmp_fold_field(void __percpu *mib, int offt);
 #if BITS_PER_LONG==32
+u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offct,
+			 size_t syncp_offset);
 u64 snmp_fold_field64(void __percpu *mib, int offt, size_t sync_off);
 #else
+static inline u64  snmp_get_cpu_field64(void __percpu *mib, int cpu, int offct,
+					size_t syncp_offset)
+{
+	return snmp_get_cpu_field(mib, cpu, offct);
+
+}
+
 static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_off)
 {
 	return snmp_fold_field(mib, offt);
@@ -272,10 +278,12 @@ int ip_decrease_ttl(struct iphdr *iph)
 }
 
 static inline
-int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
+int ip_dont_fragment(const struct sock *sk, const struct dst_entry *dst)
 {
-	return  inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
-		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
+	u8 pmtudisc = READ_ONCE(inet_sk(sk)->pmtudisc);
+
+	return  pmtudisc == IP_PMTUDISC_DO ||
+		(pmtudisc == IP_PMTUDISC_WANT &&
 		 !(dst_metric_locked(dst, RTAX_MTU)));
 }
 
@@ -311,12 +319,15 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 
 static inline unsigned int ip_skb_dst_mtu(const struct sk_buff *skb)
 {
-	if (!skb->sk || ip_sk_use_pmtu(skb->sk)) {
+	struct sock *sk = skb->sk;
+
+	if (!sk || !sk_fullsock(sk) || ip_sk_use_pmtu(sk)) {
 		bool forwarding = IPCB(skb)->flags & IPSKB_FORWARDED;
+
 		return ip_dst_mtu_maybe_forward(skb_dst(skb), forwarding);
-	} else {
-		return min(skb_dst(skb)->dev->mtu, IP_MAX_MTU);
 	}
+
+	return min(skb_dst(skb)->dev->mtu, IP_MAX_MTU);
 }
 
 u32 ip_idents_reserve(u32 hash, int segs);
@@ -458,6 +469,11 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 
 #endif
 
+static inline unsigned int ipv4_addr_hash(__be32 ip)
+{
+	return (__force unsigned int) ip;
+}
+
 bool ip_call_ra_chain(struct sk_buff *skb);
 
 /*
@@ -490,11 +506,11 @@ static inline bool ip_defrag_user_in_between(u32 user,
 	return user >= lower_bond && user <= upper_bond;
 }
 
-int ip_defrag(struct sk_buff *skb, u32 user);
+int ip_defrag(struct net *net, struct sk_buff *skb, u32 user);
 #ifdef CONFIG_INET
-struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user);
+struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user);
 #else
-static inline struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
+static inline struct sk_buff *ip_check_defrag(struct net *net, struct sk_buff *skb, u32 user)
 {
 	return skb;
 }

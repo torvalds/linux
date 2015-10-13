@@ -2183,7 +2183,7 @@ struct ptlrpcd_ctl {
 	 */
 	struct ptlrpc_request_set  *pc_set;
 	/**
-	 * Thread name used in cfs_daemonize()
+	 * Thread name used in kthread_run()
 	 */
 	char			pc_name[16];
 	/**
@@ -2277,18 +2277,18 @@ static inline bool nrs_policy_compat_one(const struct ptlrpc_service *svc,
 
 /* ptlrpc/events.c */
 extern lnet_handle_eq_t ptlrpc_eq_h;
-extern int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
-			       lnet_process_id_t *peer, lnet_nid_t *self);
+int ptlrpc_uuid_to_peer(struct obd_uuid *uuid,
+			lnet_process_id_t *peer, lnet_nid_t *self);
 /**
  * These callbacks are invoked by LNet when something happened to
  * underlying buffer
  * @{
  */
-extern void request_out_callback(lnet_event_t *ev);
-extern void reply_in_callback(lnet_event_t *ev);
-extern void client_bulk_callback(lnet_event_t *ev);
-extern void request_in_callback(lnet_event_t *ev);
-extern void reply_out_callback(lnet_event_t *ev);
+void request_out_callback(lnet_event_t *ev);
+void reply_in_callback(lnet_event_t *ev);
+void client_bulk_callback(lnet_event_t *ev);
+void request_in_callback(lnet_event_t *ev);
+void reply_out_callback(lnet_event_t *ev);
 /** @} */
 
 /* ptlrpc/connection.c */
@@ -2299,7 +2299,7 @@ int ptlrpc_connection_put(struct ptlrpc_connection *c);
 struct ptlrpc_connection *ptlrpc_connection_addref(struct ptlrpc_connection *);
 int ptlrpc_connection_init(void);
 void ptlrpc_connection_fini(void);
-extern lnet_pid_t ptl_get_pid(void);
+lnet_pid_t ptl_get_pid(void);
 
 /* ptlrpc/niobuf.c */
 /**

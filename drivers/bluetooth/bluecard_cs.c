@@ -390,7 +390,7 @@ static void bluecard_receive(struct bluecard_info *info,
 	for (i = 0; i < len; i++) {
 
 		/* Allocate packet */
-		if (info->rx_skb == NULL) {
+		if (!info->rx_skb) {
 			info->rx_state = RECV_WAIT_PACKET_TYPE;
 			info->rx_count = 0;
 			info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
@@ -628,9 +628,6 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
 
-	if (test_and_set_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
-
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
 		unsigned int iobase = info->p_dev->resource[0]->start;
 
@@ -645,9 +642,6 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
-
-	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
-		return 0;
 
 	bluecard_hci_flush(hdev);
 

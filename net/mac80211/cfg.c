@@ -2480,8 +2480,13 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	    rssi_hyst == bss_conf->cqm_rssi_hyst)
 		return 0;
 
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER &&
+	    !(sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return -EOPNOTSUPP;
+
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
+	sdata->u.mgd.last_cqm_event_signal = 0;
 
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
@@ -2526,15 +2531,17 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 			continue;
 
 		for (j = 0; j < IEEE80211_HT_MCS_MASK_LEN; j++) {
-			if (~sdata->rc_rateidx_mcs_mask[i][j])
+			if (~sdata->rc_rateidx_mcs_mask[i][j]) {
 				sdata->rc_has_mcs_mask[i] = true;
-
-			if (~sdata->rc_rateidx_vht_mcs_mask[i][j])
-				sdata->rc_has_vht_mcs_mask[i] = true;
-
-			if (sdata->rc_has_mcs_mask[i] &&
-			    sdata->rc_has_vht_mcs_mask[i])
 				break;
+			}
+		}
+
+		for (j = 0; j < NL80211_VHT_NSS_MAX; j++) {
+			if (~sdata->rc_rateidx_vht_mcs_mask[i][j]) {
+				sdata->rc_has_vht_mcs_mask[i] = true;
+				break;
+			}
 		}
 	}
 

@@ -39,47 +39,49 @@
 
 #include <linux/power/bq27x00_battery.h>
 
-#define DRIVER_VERSION			"1.2.0"
+#define DRIVER_VERSION		"1.2.0"
 
-#define BQ27x00_REG_TEMP		0x06
-#define BQ27x00_REG_VOLT		0x08
-#define BQ27x00_REG_AI			0x14
-#define BQ27x00_REG_FLAGS		0x0A
-#define BQ27x00_REG_TTE			0x16
-#define BQ27x00_REG_TTF			0x18
-#define BQ27x00_REG_TTECP		0x26
-#define BQ27x00_REG_NAC			0x0C /* Nominal available capacity */
-#define BQ27x00_REG_LMD			0x12 /* Last measured discharge */
-#define BQ27x00_REG_CYCT		0x2A /* Cycle count total */
-#define BQ27x00_REG_AE			0x22 /* Available energy */
-#define BQ27x00_POWER_AVG		0x24
+#define BQ27XXX_MANUFACTURER	"Texas Instruments"
 
-#define BQ27000_REG_RSOC		0x0B /* Relative State-of-Charge */
-#define BQ27000_REG_ILMD		0x76 /* Initial last measured discharge */
-#define BQ27000_FLAG_EDVF		BIT(0) /* Final End-of-Discharge-Voltage flag */
-#define BQ27000_FLAG_EDV1		BIT(1) /* First End-of-Discharge-Voltage flag */
-#define BQ27000_FLAG_CI			BIT(4) /* Capacity Inaccurate flag */
-#define BQ27000_FLAG_FC			BIT(5)
-#define BQ27000_FLAG_CHGS		BIT(7) /* Charge state flag */
+#define BQ27x00_REG_TEMP	0x06
+#define BQ27x00_REG_VOLT	0x08
+#define BQ27x00_REG_AI		0x14
+#define BQ27x00_REG_FLAGS	0x0A
+#define BQ27x00_REG_TTE		0x16
+#define BQ27x00_REG_TTF		0x18
+#define BQ27x00_REG_TTECP	0x26
+#define BQ27x00_REG_NAC		0x0C /* Nominal available capacity */
+#define BQ27x00_REG_LMD		0x12 /* Last measured discharge */
+#define BQ27x00_REG_CYCT	0x2A /* Cycle count total */
+#define BQ27x00_REG_AE		0x22 /* Available energy */
+#define BQ27x00_POWER_AVG	0x24
 
-#define BQ27500_REG_SOC			0x2C
-#define BQ27500_REG_DCAP		0x3C /* Design capacity */
-#define BQ27500_FLAG_DSC		BIT(0)
-#define BQ27500_FLAG_SOCF		BIT(1) /* State-of-Charge threshold final */
-#define BQ27500_FLAG_SOC1		BIT(2) /* State-of-Charge threshold 1 */
-#define BQ27500_FLAG_FC			BIT(9)
-#define BQ27500_FLAG_OTC		BIT(15)
+#define BQ27000_REG_RSOC	0x0B /* Relative State-of-Charge */
+#define BQ27000_REG_ILMD	0x76 /* Initial last measured discharge */
+#define BQ27000_FLAG_EDVF	BIT(0) /* Final End-of-Discharge-Voltage flag */
+#define BQ27000_FLAG_EDV1	BIT(1) /* First End-of-Discharge-Voltage flag */
+#define BQ27000_FLAG_CI		BIT(4) /* Capacity Inaccurate flag */
+#define BQ27000_FLAG_FC		BIT(5)
+#define BQ27000_FLAG_CHGS	BIT(7) /* Charge state flag */
 
-#define BQ27742_POWER_AVG		0x76
+#define BQ27500_REG_SOC		0x2C
+#define BQ27500_REG_DCAP	0x3C /* Design capacity */
+#define BQ27500_FLAG_DSC	BIT(0)
+#define BQ27500_FLAG_SOCF	BIT(1) /* State-of-Charge threshold final */
+#define BQ27500_FLAG_SOC1	BIT(2) /* State-of-Charge threshold 1 */
+#define BQ27500_FLAG_FC		BIT(9)
+#define BQ27500_FLAG_OTC	BIT(15)
 
-#define BQ27510_REG_SOC			0x20
-#define BQ27510_REG_DCAP		0x2E /* Design capacity */
-#define BQ27510_REG_CYCT		0x1E /* Cycle count total */
+#define BQ27742_POWER_AVG	0x76
+
+#define BQ27510_REG_SOC		0x20
+#define BQ27510_REG_DCAP	0x2E /* Design capacity */
+#define BQ27510_REG_CYCT	0x1E /* Cycle count total */
 
 /* bq27425 register addresses are same as bq27x00 addresses minus 4 */
-#define BQ27425_REG_OFFSET		0x04
+#define BQ27425_REG_OFFSET	0x04
 #define BQ27425_REG_SOC		(0x1C + BQ27425_REG_OFFSET)
-#define BQ27425_REG_DCAP		(0x3C + BQ27425_REG_OFFSET)
+#define BQ27425_REG_DCAP	(0x3C + BQ27425_REG_OFFSET)
 
 #define BQ27000_RS			20 /* Resistor sense */
 #define BQ27x00_POWER_CONSTANT		(256 * 29200 / 1000)
@@ -106,7 +108,7 @@ struct bq27x00_reg_cache {
 };
 
 struct bq27x00_device_info {
-	struct device 		*dev;
+	struct device		*dev;
 	int			id;
 	enum bq27x00_chip	chip;
 
@@ -142,6 +144,7 @@ static enum power_supply_property bq27x00_battery_props[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27425_battery_props[] = {
@@ -156,6 +159,7 @@ static enum power_supply_property bq27425_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27742_battery_props[] = {
@@ -174,6 +178,7 @@ static enum power_supply_property bq27742_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static enum power_supply_property bq27510_battery_props[] = {
@@ -192,19 +197,20 @@ static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static unsigned int poll_interval = 360;
 module_param(poll_interval, uint, 0644);
-MODULE_PARM_DESC(poll_interval, "battery poll interval in seconds - " \
-				"0 disables polling");
+MODULE_PARM_DESC(poll_interval,
+		 "battery poll interval in seconds - 0 disables polling");
 
 /*
  * Common code for BQ27x00 devices
  */
 
 static inline int bq27x00_read(struct bq27x00_device_info *di, u8 reg,
-		bool single)
+			       bool single)
 {
 	if (di->chip == BQ27425)
 		return di->bus.read(di, reg - BQ27425_REG_OFFSET, single);
@@ -313,8 +319,9 @@ static int bq27x00_battery_read_ilmd(struct bq27x00_device_info *di)
 			ilmd = bq27x00_read(di, BQ27510_REG_DCAP, false);
 		else
 			ilmd = bq27x00_read(di, BQ27500_REG_DCAP, false);
-	} else
+	} else {
 		ilmd = bq27x00_read(di, BQ27000_REG_ILMD, true);
+	}
 
 	if (ilmd < 0) {
 		dev_dbg(di->dev, "error reading initial last measured discharge\n");
@@ -445,7 +452,7 @@ static int bq27x00_battery_read_health(struct bq27x00_device_info *di)
 		return tval;
 	}
 
-	if ((di->chip == BQ27500)) {
+	if (di->chip == BQ27500) {
 		if (tval & BQ27500_FLAG_SOCF)
 			tval = POWER_SUPPLY_HEALTH_DEAD;
 		else if (tval & BQ27500_FLAG_OTC)
@@ -559,7 +566,7 @@ static void bq27x00_battery_poll(struct work_struct *work)
  * Or 0 if something fails.
  */
 static int bq27x00_battery_current(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				   union power_supply_propval *val)
 {
 	int curr;
 	int flags;
@@ -587,7 +594,7 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_battery_status(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				  union power_supply_propval *val)
 {
 	int status;
 
@@ -615,7 +622,7 @@ static int bq27x00_battery_status(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_battery_capacity_level(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+					  union power_supply_propval *val)
 {
 	int level;
 
@@ -649,7 +656,7 @@ static int bq27x00_battery_capacity_level(struct bq27x00_device_info *di,
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_voltage(struct bq27x00_device_info *di,
-	union power_supply_propval *val)
+				   union power_supply_propval *val)
 {
 	int volt;
 
@@ -665,7 +672,7 @@ static int bq27x00_battery_voltage(struct bq27x00_device_info *di,
 }
 
 static int bq27x00_simple_value(int value,
-	union power_supply_propval *val)
+				union power_supply_propval *val)
 {
 	if (value < 0)
 		return value;
@@ -749,6 +756,9 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = bq27x00_simple_value(di->cache.health, val);
 		break;
+	case POWER_SUPPLY_PROP_MANUFACTURER:
+		val->strval = BQ27XXX_MANUFACTURER;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -827,7 +837,6 @@ static void bq27x00_powersupply_unregister(struct bq27x00_device_info *di)
 	mutex_destroy(&di->lock);
 }
 
-
 /* i2c specific code */
 #ifdef CONFIG_BATTERY_BQ27X00_I2C
 
@@ -888,14 +897,12 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 
 	name = devm_kasprintf(&client->dev, GFP_KERNEL, "%s-%d", id->name, num);
 	if (!name) {
-		dev_err(&client->dev, "failed to allocate device name\n");
 		retval = -ENOMEM;
 		goto batt_failed;
 	}
 
 	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
-		dev_err(&client->dev, "failed to allocate device info data\n");
 		retval = -ENOMEM;
 		goto batt_failed;
 	}
@@ -956,8 +963,9 @@ static struct i2c_driver bq27x00_battery_driver = {
 static inline int bq27x00_battery_i2c_init(void)
 {
 	int ret = i2c_add_driver(&bq27x00_battery_driver);
+
 	if (ret)
-		printk(KERN_ERR "Unable to register BQ27x00 i2c driver\n");
+		pr_err("Unable to register BQ27x00 i2c driver\n");
 
 	return ret;
 }
@@ -978,7 +986,7 @@ static inline void bq27x00_battery_i2c_exit(void) {};
 #ifdef CONFIG_BATTERY_BQ27X00_PLATFORM
 
 static int bq27000_read_platform(struct bq27x00_device_info *di, u8 reg,
-			bool single)
+				 bool single)
 {
 	struct device *dev = di->dev;
 	struct bq27000_platform_data *pdata = dev->platform_data;
@@ -1028,10 +1036,8 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 	}
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
-	if (!di) {
-		dev_err(&pdev->dev, "failed to allocate device info data\n");
+	if (!di)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, di);
 
@@ -1064,8 +1070,9 @@ static struct platform_driver bq27000_battery_driver = {
 static inline int bq27x00_battery_platform_init(void)
 {
 	int ret = platform_driver_register(&bq27000_battery_driver);
+
 	if (ret)
-		printk(KERN_ERR "Unable to register BQ27000 platform driver\n");
+		pr_err("Unable to register BQ27000 platform driver\n");
 
 	return ret;
 }

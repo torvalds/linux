@@ -35,6 +35,9 @@
 
 #define PCIE_CAP_OFFSET	0x100
 
+/* Quirks for the listed devices */
+#define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
+
 /* Fixed BAR fields */
 #define PCIE_VNDR_CAP_ID_FIXED_BAR 0x00	/* Fixed BAR (TBD) */
 #define PCI_FIXED_BAR_0_SIZE	0x04
@@ -210,22 +213,41 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
 	struct irq_alloc_info info;
 	int polarity;
+	int ret;
 
-	if (dev->irq_managed && dev->irq > 0)
+	if (pci_has_managed_irq(dev))
 		return 0;
 
-	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
-		polarity = 0; /* active high */
-	else
-		polarity = 1; /* active low */
+	switch (intel_mid_identify_cpu()) {
+	case INTEL_MID_CPU_CHIP_TANGIER:
+		polarity = IOAPIC_POL_HIGH;
+
+		/* Special treatment for IRQ0 */
+		if (dev->irq == 0) {
+			/*
+			 * TNG has IRQ0 assigned to eMMC controller. But there
+			 * are also other devices with bogus PCI configuration
+			 * that have IRQ0 assigned. This check ensures that
+			 * eMMC gets it.
+			 */
+			if (dev->device != PCI_DEVICE_ID_INTEL_MRFL_MMC)
+				return -EBUSY;
+		}
+		break;
+	default:
+		polarity = IOAPIC_POL_LOW;
+		break;
+	}
+
 	ioapic_set_alloc_attr(&info, dev_to_node(&dev->dev), 1, polarity);
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
 	 * IOAPIC RTE entries, so we just enable RTE for the device.
 	 */
-	if (mp_map_gsi_to_irq(dev->irq, IOAPIC_MAP_ALLOC, &info) < 0)
-		return -EBUSY;
+	ret = mp_map_gsi_to_irq(dev->irq, IOAPIC_MAP_ALLOC, &info);
+	if (ret < 0)
+		return ret;
 
 	dev->irq_managed = 1;
 
@@ -234,14 +256,17 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 static void intel_mid_pci_irq_disable(struct pci_dev *dev)
 {
-	if (!mp_should_keep_irq(&dev->dev) && dev->irq_managed &&
-	    dev->irq > 0) {
+	if (pci_has_managed_irq(dev)) {
 		mp_unmap_irq(dev->irq);
 		dev->irq_managed = 0;
+		/*
+		 * Don't reset dev->irq here, otherwise
+		 * intel_mid_pci_irq_enable() will fail on next call.
+		 */
 	}
 }
 
-struct pci_ops intel_mid_pci_ops = {
+static struct pci_ops intel_mid_pci_ops = {
 	.read = pci_read,
 	.write = pci_write,
 };

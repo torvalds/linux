@@ -2915,9 +2915,11 @@ EXPORT_SYMBOL(xmit_recursion);
 
 /**
  *	dev_loopback_xmit - loop back @skb
+ *	@net: network namespace this loopback is happening in
+ *	@sk:  sk needed to be a netfilter okfn
  *	@skb: buffer to transmit
  */
-int dev_loopback_xmit(struct sock *sk, struct sk_buff *skb)
+int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	skb_reset_mac_header(skb);
 	__skb_pull(skb, skb_network_offset(skb));
@@ -2972,6 +2974,7 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
 			new_index = skb_tx_hash(dev, skb);
 
 		if (queue_index != new_index && sk &&
+		    sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
 			sk_tx_queue_set(sk, new_index);
 
@@ -3143,11 +3146,11 @@ out:
 	return rc;
 }
 
-int dev_queue_xmit_sk(struct sock *sk, struct sk_buff *skb)
+int dev_queue_xmit(struct sk_buff *skb)
 {
 	return __dev_queue_xmit(skb, NULL);
 }
-EXPORT_SYMBOL(dev_queue_xmit_sk);
+EXPORT_SYMBOL(dev_queue_xmit);
 
 int dev_queue_xmit_accel(struct sk_buff *skb, void *accel_priv)
 {
@@ -3657,7 +3660,7 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
 	qdisc_bstats_cpu_update(cl->q, skb);
 
-	switch (tc_classify(skb, cl, &cl_res)) {
+	switch (tc_classify(skb, cl, &cl_res, false)) {
 	case TC_ACT_OK:
 	case TC_ACT_RECLASSIFY:
 		skb->tc_index = TC_H_MIN(cl_res.classid);
@@ -3667,6 +3670,14 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
 		kfree_skb(skb);
+		return NULL;
+	case TC_ACT_REDIRECT:
+		/* skb_mac_header check was done by cls/act_bpf, so
+		 * we can safely push the L2 header back before
+		 * redirecting to another netdev
+		 */
+		__skb_push(skb, skb->mac_len);
+		skb_do_redirect(skb);
 		return NULL;
 	default:
 		break;
@@ -3982,13 +3993,13 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
  *	NET_RX_SUCCESS: no congestion
  *	NET_RX_DROP: packet was dropped
  */
-int netif_receive_skb_sk(struct sock *sk, struct sk_buff *skb)
+int netif_receive_skb(struct sk_buff *skb)
 {
 	trace_netif_receive_skb_entry(skb);
 
 	return netif_receive_skb_internal(skb);
 }
-EXPORT_SYMBOL(netif_receive_skb_sk);
+EXPORT_SYMBOL(netif_receive_skb);
 
 /* Network device is going away, flush any packets still pending
  * Called with irqs disabled.
@@ -4713,6 +4724,8 @@ void napi_disable(struct napi_struct *n)
 
 	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
 		msleep(1);
+	while (test_and_set_bit(NAPI_STATE_NPSVC, &n->state))
+		msleep(1);
 
 	hrtimer_cancel(&n->timer);
 
@@ -4855,8 +4868,7 @@ struct netdev_adjacent {
 	struct rcu_head rcu;
 };
 
-static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
-						 struct net_device *adj_dev,
+static struct netdev_adjacent *__netdev_find_adj(struct net_device *adj_dev,
 						 struct list_head *adj_list)
 {
 	struct netdev_adjacent *adj;
@@ -4882,7 +4894,7 @@ bool netdev_has_upper_dev(struct net_device *dev,
 {
 	ASSERT_RTNL();
 
-	return __netdev_find_adj(dev, upper_dev, &dev->all_adj_list.upper);
+	return __netdev_find_adj(upper_dev, &dev->all_adj_list.upper);
 }
 EXPORT_SYMBOL(netdev_has_upper_dev);
 
@@ -5144,7 +5156,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	struct netdev_adjacent *adj;
 	int ret;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (adj) {
 		adj->ref_nr++;
@@ -5200,7 +5212,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 {
 	struct netdev_adjacent *adj;
 
-	adj = __netdev_find_adj(dev, adj_dev, dev_list);
+	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (!adj) {
 		pr_err("tried to remove device %s from %s\n",
@@ -5311,6 +5323,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 				   struct net_device *upper_dev, bool master,
 				   void *private)
 {
+	struct netdev_notifier_changeupper_info changeupper_info;
 	struct netdev_adjacent *i, *j, *to_i, *to_j;
 	int ret = 0;
 
@@ -5320,14 +5333,18 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		return -EBUSY;
 
 	/* To prevent loops, check if dev is not upper device to upper_dev. */
-	if (__netdev_find_adj(upper_dev, dev, &upper_dev->all_adj_list.upper))
+	if (__netdev_find_adj(dev, &upper_dev->all_adj_list.upper))
 		return -EBUSY;
 
-	if (__netdev_find_adj(dev, upper_dev, &dev->adj_list.upper))
+	if (__netdev_find_adj(upper_dev, &dev->adj_list.upper))
 		return -EEXIST;
 
 	if (master && netdev_master_upper_dev_get(dev))
 		return -EBUSY;
+
+	changeupper_info.upper_dev = upper_dev;
+	changeupper_info.master = master;
+	changeupper_info.linking = true;
 
 	ret = __netdev_adjacent_dev_link_neighbour(dev, upper_dev, private,
 						   master);
@@ -5367,7 +5384,8 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 			goto rollback_lower_mesh;
 	}
 
-	call_netdevice_notifiers(NETDEV_CHANGEUPPER, dev);
+	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+				      &changeupper_info.info);
 	return 0;
 
 rollback_lower_mesh:
@@ -5462,8 +5480,13 @@ EXPORT_SYMBOL(netdev_master_upper_dev_link_private);
 void netdev_upper_dev_unlink(struct net_device *dev,
 			     struct net_device *upper_dev)
 {
+	struct netdev_notifier_changeupper_info changeupper_info;
 	struct netdev_adjacent *i, *j;
 	ASSERT_RTNL();
+
+	changeupper_info.upper_dev = upper_dev;
+	changeupper_info.master = netdev_master_upper_dev_get(dev) == upper_dev;
+	changeupper_info.linking = false;
 
 	__netdev_adjacent_dev_unlink_neighbour(dev, upper_dev);
 
@@ -5484,7 +5507,8 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 	list_for_each_entry(i, &upper_dev->all_adj_list.upper, list)
 		__netdev_adjacent_dev_unlink(dev, i->dev);
 
-	call_netdevice_notifiers(NETDEV_CHANGEUPPER, dev);
+	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
+				      &changeupper_info.info);
 }
 EXPORT_SYMBOL(netdev_upper_dev_unlink);
 
@@ -5590,7 +5614,7 @@ void *netdev_lower_dev_get_private(struct net_device *dev,
 
 	if (!lower_dev)
 		return NULL;
-	lower = __netdev_find_adj(dev, lower_dev, &dev->adj_list.lower);
+	lower = __netdev_find_adj(lower_dev, &dev->adj_list.lower);
 	if (!lower)
 		return NULL;
 
@@ -6998,7 +7022,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	setup(dev);
 
 	if (!dev->tx_queue_len)
-		printk(KERN_WARNING "%s uses DEPRECATED zero tx_queue_len - convert driver to use IFF_NO_QUEUE instead.\n", name);
+		dev->priv_flags |= IFF_NO_QUEUE;
 
 	dev->num_tx_queues = txqs;
 	dev->real_num_tx_queues = txqs;

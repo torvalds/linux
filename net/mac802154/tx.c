@@ -77,9 +77,6 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
-	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
-		goto err_tx;
-
 	/* Stop the netif queue on each sub_if_data object. */
 	ieee802154_stop_queue(&local->hw);
 
@@ -121,6 +118,10 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int rc;
 
+	/* TODO we should move it to wpan_dev_hard_header and dev_hard_header
+	 * functions. The reason is wireshark will show a mac header which is
+	 * with security fields but the payload is not encrypted.
+	 */
 	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
 	if (rc) {
 		netdev_warn(dev, "encryption failed: %i\n", rc);

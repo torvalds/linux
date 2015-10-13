@@ -173,7 +173,7 @@ static void virtio_gpu_3d_fillrect(struct fb_info *info,
 				   const struct fb_fillrect *rect)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
-	sys_fillrect(info, rect);
+	drm_fb_helper_sys_fillrect(info, rect);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, rect->dx, rect->dy,
 			     rect->width, rect->height);
 	schedule_delayed_work(&vfbdev->work, VIRTIO_GPU_FBCON_POLL_PERIOD);
@@ -183,7 +183,7 @@ static void virtio_gpu_3d_copyarea(struct fb_info *info,
 				   const struct fb_copyarea *area)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
-	sys_copyarea(info, area);
+	drm_fb_helper_sys_copyarea(info, area);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, area->dx, area->dy,
 			   area->width, area->height);
 	schedule_delayed_work(&vfbdev->work, VIRTIO_GPU_FBCON_POLL_PERIOD);
@@ -193,7 +193,7 @@ static void virtio_gpu_3d_imageblit(struct fb_info *info,
 				    const struct fb_image *image)
 {
 	struct virtio_gpu_fbdev *vfbdev = info->par;
-	sys_imageblit(info, image);
+	drm_fb_helper_sys_imageblit(info, image);
 	virtio_gpu_dirty_update(&vfbdev->vgfb, true, image->dx, image->dy,
 			     image->width, image->height);
 	schedule_delayed_work(&vfbdev->work, VIRTIO_GPU_FBCON_POLL_PERIOD);
@@ -230,7 +230,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct virtio_gpu_object *obj;
-	struct device *device = vgdev->dev;
 	uint32_t resid, format, size;
 	int ret;
 
@@ -317,16 +316,10 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	if (ret)
 		goto err_obj_attach;
 
-	info = framebuffer_alloc(0, device);
-	if (!info) {
-		ret = -ENOMEM;
+	info = drm_fb_helper_alloc_fbi(helper);
+	if (IS_ERR(info)) {
+		ret = PTR_ERR(info);
 		goto err_fb_alloc;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto err_fb_alloc_cmap;
 	}
 
 	info->par = helper;
@@ -339,7 +332,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	fb = &vfbdev->vgfb.base;
 
 	vfbdev->helper.fb = fb;
-	vfbdev->helper.fbdev = info;
 
 	strcpy(info->fix.id, "virtiodrmfb");
 	info->flags = FBINFO_DEFAULT;
@@ -357,9 +349,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_fb_init:
-	fb_dealloc_cmap(&info->cmap);
-err_fb_alloc_cmap:
-	framebuffer_release(info);
+	drm_fb_helper_release_fbi(helper);
 err_fb_alloc:
 	virtio_gpu_cmd_resource_inval_backing(vgdev, resid);
 err_obj_attach:
@@ -371,15 +361,11 @@ err_obj_vmap:
 static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 				    struct virtio_gpu_fbdev *vgfbdev)
 {
-	struct fb_info *info;
 	struct virtio_gpu_framebuffer *vgfb = &vgfbdev->vgfb;
 
-	if (vgfbdev->helper.fbdev) {
-		info = vgfbdev->helper.fbdev;
+	drm_fb_helper_unregister_fbi(&vgfbdev->helper);
+	drm_fb_helper_release_fbi(&vgfbdev->helper);
 
-		unregister_framebuffer(info);
-		framebuffer_release(info);
-	}
 	if (vgfb->obj)
 		vgfb->obj = NULL;
 	drm_fb_helper_fini(&vgfbdev->helper);

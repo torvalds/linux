@@ -629,7 +629,6 @@ MODULE_DEVICE_TABLE(i2c, s2250_id);
 
 static struct i2c_driver s2250_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "s2250",
 	},
 	.probe		= s2250_probe,

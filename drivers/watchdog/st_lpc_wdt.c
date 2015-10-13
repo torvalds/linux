@@ -241,6 +241,7 @@ static int st_wdog_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	st_wdog_dev.max_timeout = 0xFFFFFFFF / st_wdog->clkrate;
+	st_wdog_dev.parent = &pdev->dev;
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {

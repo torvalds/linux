@@ -372,12 +372,12 @@ static int nouveau_rom_call(acpi_handle rom_handle, uint8_t *bios,
 	return len;
 }
 
-bool nouveau_acpi_rom_supported(struct pci_dev *pdev)
+bool nouveau_acpi_rom_supported(struct device *dev)
 {
 	acpi_status status;
 	acpi_handle dhandle, rom_handle;
 
-	dhandle = ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(dev);
 	if (!dhandle)
 		return false;
 

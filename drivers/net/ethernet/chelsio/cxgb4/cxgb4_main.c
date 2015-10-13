@@ -275,7 +275,7 @@ static void link_report(struct net_device *dev)
 	else {
 		static const char *fc[] = { "no", "Rx", "Tx", "Tx/Rx" };
 
-		const char *s = "10Mbps";
+		const char *s;
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
@@ -291,6 +291,10 @@ static void link_report(struct net_device *dev)
 		case 40000:
 			s = "40Gbps";
 			break;
+		default:
+			pr_info("%s: unsupported speed: %d\n",
+				dev->name, p->link_cfg.speed);
+			return;
 		}
 
 		netdev_info(dev, "link up, %s, full-duplex, %s PAUSE\n", s,
@@ -2959,6 +2963,30 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 			ret = t4_mdio_wr(pi->adapter, mbox, prtad, devad,
 					 data->reg_num, data->val_in);
 		break;
+	case SIOCGHWTSTAMP:
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&pi->tstamp_config, req->ifr_data,
+				   sizeof(pi->tstamp_config)))
+			return -EFAULT;
+
+		switch (pi->tstamp_config.rx_filter) {
+		case HWTSTAMP_FILTER_NONE:
+			pi->rxtstamp = false;
+			break;
+		case HWTSTAMP_FILTER_ALL:
+			pi->rxtstamp = true;
+			break;
+		default:
+			pi->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+			return -ERANGE;
+		}
+
+		return copy_to_user(req->ifr_data, &pi->tstamp_config,
+				    sizeof(pi->tstamp_config)) ?
+			-EFAULT : 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3668,6 +3696,10 @@ static int adap_init0(struct adapter *adap)
 	 */
 	t4_get_fw_version(adap, &adap->params.fw_vers);
 	t4_get_tp_version(adap, &adap->params.tp_vers);
+	ret = t4_check_fw_version(adap);
+	/* If firmware is too old (not supported by driver) force an update. */
+	if (ret)
+		state = DEV_STATE_UNINIT;
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
 		struct fw_info *fw_info;
 		struct fw_hdr *card_fw;
@@ -4564,28 +4596,23 @@ static void free_some_resources(struct adapter *adapter)
 
 static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 {
-	int ver, chip;
 	u16 device_id;
 
 	/* Retrieve adapter's device ID */
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &device_id);
-	ver = device_id >> 12;
-	switch (ver) {
+
+	switch (device_id >> 12) {
 	case CHELSIO_T4:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T4, pl_rev);
 	case CHELSIO_T5:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
 	case CHELSIO_T6:
-		chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
-		break;
+		return CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
 	default:
 		dev_err(&pdev->dev, "Device %d is not supported\n",
 			device_id);
-		return -EINVAL;
 	}
-	return chip;
+	return -EINVAL;
 }
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -4720,8 +4747,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			err = -ENOMEM;
 			goto out_free_adapter;
 		}
-		t4_write_reg(adapter, SGE_STAT_CFG_A,
-			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 	}
 
 	setup_memwin(adapter);
@@ -4732,6 +4757,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_memwin_rdma(adapter);
 	if (err)
 		goto out_unmap_bar;
+
+	/* configure SGE_STAT_CFG_A to read WC stats */
+	if (!is_t4(adapter->params.chip))
+		t4_write_reg(adapter, SGE_STAT_CFG_A,
+			     STATSOURCE_T5_V(7) | STATMODE_V(0));
 
 	for_each_port(adapter, i) {
 		struct net_device *netdev;

@@ -21,7 +21,7 @@
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 
-static unsigned int smack_ipv6_output(const struct nf_hook_ops *ops,
+static unsigned int smack_ipv6_output(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
@@ -38,7 +38,7 @@ static unsigned int smack_ipv6_output(const struct nf_hook_ops *ops,
 }
 #endif	/* IPV6 */
 
-static unsigned int smack_ipv4_output(const struct nf_hook_ops *ops,
+static unsigned int smack_ipv4_output(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {

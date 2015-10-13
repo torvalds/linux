@@ -145,7 +145,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	exynos->susp_clk = devm_clk_get(dev, "usbdrd30_susp_clk");
 	if (IS_ERR(exynos->susp_clk)) {
-		dev_dbg(dev, "no suspend clk specified\n");
+		dev_info(dev, "no suspend clk specified\n");
 		exynos->susp_clk = NULL;
 	}
 	clk_prepare_enable(exynos->susp_clk);

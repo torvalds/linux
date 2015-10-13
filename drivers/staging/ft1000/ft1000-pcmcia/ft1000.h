@@ -42,17 +42,16 @@ struct ft1000_pcmcia {
 
 struct pcmcia_device;
 struct net_device;
-extern struct net_device *init_ft1000_card(struct pcmcia_device *link,
-					   void *ft1000_reset);
-extern void stop_ft1000_card(struct net_device *dev);
-extern int card_download(struct net_device *dev, const u8 *pFileStart,
-			 size_t FileLength);
+struct net_device *init_ft1000_card(struct pcmcia_device *link,
+				    void *ft1000_reset);
+void stop_ft1000_card(struct net_device *dev);
+int card_download(struct net_device *dev, const u8 *pFileStart,
+		  size_t FileLength);
 
-extern u16 ft1000_read_dpram(struct net_device *dev, int offset);
-extern void card_bootload(struct net_device *dev);
-extern u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset,
-				    int Index);
-extern u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset);
+u16 ft1000_read_dpram(struct net_device *dev, int offset);
+void card_bootload(struct net_device *dev);
+u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index);
+u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset);
 void ft1000_write_dpram_mag_32(struct net_device *dev, int offset, u32 value);
 
 /* Read the value of a given ASIC register. */

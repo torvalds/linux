@@ -217,12 +217,6 @@ config SAMSUNG_DEV_PWM
 	help
 	  Compile in platform device definition for PWM Timer
 
-config SAMSUNG_DEV_BACKLIGHT
-	bool
-	depends on SAMSUNG_DEV_PWM
-	help
-	  Compile in platform device definition LCD backlight with PWM Timer
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select PWM
@@ -231,24 +225,13 @@ config S3C24XX_PWM
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
 
-config S3C_SETUP_CAMIF
-	bool
-	help
-	  Compile in common setup code for S3C CAMIF devices
-
 config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
 	help
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
-
 endif
-
-config S5P_DEV_MFC
-	bool
-	help
-	  Compile in setup memory (init) code for MFC
 
 comment "Power management"
 

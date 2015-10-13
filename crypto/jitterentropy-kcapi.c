@@ -79,7 +79,7 @@ int jent_fips_enabled(void)
 
 void jent_panic(char *s)
 {
-	panic(s);
+	panic("%s", s);
 }
 
 void jent_memcpy(void *dest, const void *src, unsigned int n)

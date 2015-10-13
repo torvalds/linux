@@ -11,6 +11,7 @@
 #include <asm/cpu.h>
 #include <asm/smp.h>
 #include <asm/pci-direct.h>
+#include <asm/delay.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/mmconfig.h>
@@ -114,7 +115,7 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		const int K6_BUG_LOOP = 1000000;
 		int n;
 		void (*f_vide)(void);
-		unsigned long d, d2;
+		u64 d, d2;
 
 		printk(KERN_INFO "AMD K6 stepping B detected - ");
 
@@ -125,10 +126,10 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 
 		n = K6_BUG_LOOP;
 		f_vide = vide;
-		rdtscl(d);
+		d = rdtsc();
 		while (n--)
 			f_vide();
-		rdtscl(d2);
+		d2 = rdtsc();
 		d = d2-d;
 
 		if (d > 20*K6_BUG_LOOP)
@@ -506,6 +507,9 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		/* A random value per boot for bit slice [12:upper_bit) */
 		va_align.bits = get_random_int() & va_align.mask;
 	}
+
+	if (cpu_has(c, X86_FEATURE_MWAITX))
+		use_mwaitx_delay();
 }
 
 static void early_init_amd(struct cpuinfo_x86 *c)

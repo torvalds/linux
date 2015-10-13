@@ -96,7 +96,7 @@ int rtnl_is_locked(void)
 EXPORT_SYMBOL(rtnl_is_locked);
 
 #ifdef CONFIG_PROVE_LOCKING
-int lockdep_rtnl_is_held(void)
+bool lockdep_rtnl_is_held(void)
 {
 	return lockdep_is_held(&rtnl_mutex);
 }
@@ -678,6 +678,12 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 					continue;
 				if (nla_put_string(skb, i + 1, name))
 					goto nla_put_failure;
+			} else if (i == RTAX_FEATURES - 1) {
+				u32 user_features = metrics[i] & RTAX_FEATURE_MASK;
+
+				BUILD_BUG_ON(RTAX_FEATURE_MASK & DST_FEATURE_MASK);
+				if (nla_put_u32(skb, i + 1, user_features))
+					goto nla_put_failure;
 			} else {
 				if (nla_put_u32(skb, i + 1, metrics[i]))
 					goto nla_put_failure;
@@ -1019,7 +1025,7 @@ static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 {
 	int err;
 	struct switchdev_attr attr = {
-		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
 		.flags = SWITCHDEV_F_NO_RECURSE,
 	};
 
@@ -1266,7 +1272,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			if (!(af = nla_nest_start(skb, af_ops->family)))
 				goto nla_put_failure;
 
-			err = af_ops->fill_link_af(skb, dev);
+			err = af_ops->fill_link_af(skb, dev, ext_filter_mask);
 
 			/*
 			 * Caller may return ENODATA to indicate that there
@@ -3041,6 +3047,7 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 portid = NETLINK_CB(cb->skb).portid;
 	u32 seq = cb->nlh->nlmsg_seq;
 	u32 filter_mask = 0;
+	int err;
 
 	if (nlmsg_len(cb->nlh) > sizeof(struct ifinfomsg)) {
 		struct nlattr *extfilt;
@@ -3061,20 +3068,25 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		struct net_device *br_dev = netdev_master_upper_dev_get(dev);
 
 		if (br_dev && br_dev->netdev_ops->ndo_bridge_getlink) {
-			if (idx >= cb->args[0] &&
-			    br_dev->netdev_ops->ndo_bridge_getlink(
-				    skb, portid, seq, dev, filter_mask,
-				    NLM_F_MULTI) < 0)
-				break;
+			if (idx >= cb->args[0]) {
+				err = br_dev->netdev_ops->ndo_bridge_getlink(
+						skb, portid, seq, dev,
+						filter_mask, NLM_F_MULTI);
+				if (err < 0 && err != -EOPNOTSUPP)
+					break;
+			}
 			idx++;
 		}
 
 		if (ops->ndo_bridge_getlink) {
-			if (idx >= cb->args[0] &&
-			    ops->ndo_bridge_getlink(skb, portid, seq, dev,
-						    filter_mask,
-						    NLM_F_MULTI) < 0)
-				break;
+			if (idx >= cb->args[0]) {
+				err = ops->ndo_bridge_getlink(skb, portid,
+							      seq, dev,
+							      filter_mask,
+							      NLM_F_MULTI);
+				if (err < 0 && err != -EOPNOTSUPP)
+					break;
+			}
 			idx++;
 		}
 	}

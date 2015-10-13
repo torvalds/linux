@@ -92,23 +92,19 @@ struct thermal_zone_device_ops {
 		     struct thermal_cooling_device *);
 	int (*unbind) (struct thermal_zone_device *,
 		       struct thermal_cooling_device *);
-	int (*get_temp) (struct thermal_zone_device *, unsigned long *);
+	int (*get_temp) (struct thermal_zone_device *, int *);
 	int (*get_mode) (struct thermal_zone_device *,
 			 enum thermal_device_mode *);
 	int (*set_mode) (struct thermal_zone_device *,
 		enum thermal_device_mode);
 	int (*get_trip_type) (struct thermal_zone_device *, int,
 		enum thermal_trip_type *);
-	int (*get_trip_temp) (struct thermal_zone_device *, int,
-			      unsigned long *);
-	int (*set_trip_temp) (struct thermal_zone_device *, int,
-			      unsigned long);
-	int (*get_trip_hyst) (struct thermal_zone_device *, int,
-			      unsigned long *);
-	int (*set_trip_hyst) (struct thermal_zone_device *, int,
-			      unsigned long);
-	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
-	int (*set_emul_temp) (struct thermal_zone_device *, unsigned long);
+	int (*get_trip_temp) (struct thermal_zone_device *, int, int *);
+	int (*set_trip_temp) (struct thermal_zone_device *, int, int);
+	int (*get_trip_hyst) (struct thermal_zone_device *, int, int *);
+	int (*set_trip_hyst) (struct thermal_zone_device *, int, int);
+	int (*get_crit_temp) (struct thermal_zone_device *, int *);
+	int (*set_emul_temp) (struct thermal_zone_device *, int);
 	int (*get_trend) (struct thermal_zone_device *, int,
 			  enum thermal_trend *);
 	int (*notify) (struct thermal_zone_device *, int,
@@ -332,9 +328,9 @@ struct thermal_genl_event {
  *		   temperature.
  */
 struct thermal_zone_of_device_ops {
-	int (*get_temp)(void *, long *);
+	int (*get_temp)(void *, int *);
 	int (*get_trend)(void *, long *);
-	int (*set_emul_temp)(void *, unsigned long);
+	int (*set_emul_temp)(void *, int);
 };
 
 /**
@@ -364,7 +360,7 @@ static inline struct thermal_zone_device *
 thermal_zone_of_sensor_register(struct device *dev, int id, void *data,
 				const struct thermal_zone_of_device_ops *ops)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline
@@ -384,6 +380,8 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 
 int power_actor_get_max_power(struct thermal_cooling_device *,
 			      struct thermal_zone_device *tz, u32 *max_power);
+int power_actor_get_min_power(struct thermal_cooling_device *,
+			      struct thermal_zone_device *tz, u32 *min_power);
 int power_actor_set_power(struct thermal_cooling_device *,
 			  struct thermal_instance *, u32);
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
@@ -406,7 +404,7 @@ thermal_of_cooling_device_register(struct device_node *np, char *, void *,
 				   const struct thermal_cooling_device_ops *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 struct thermal_zone_device *thermal_zone_get_zone_by_name(const char *name);
-int thermal_zone_get_temp(struct thermal_zone_device *tz, unsigned long *temp);
+int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 
 int get_tz_trend(struct thermal_zone_device *, int);
 struct thermal_instance *get_thermal_instance(struct thermal_zone_device *,
@@ -419,6 +417,10 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 static inline int power_actor_get_max_power(struct thermal_cooling_device *cdev,
 			      struct thermal_zone_device *tz, u32 *max_power)
 { return 0; }
+static inline int power_actor_get_min_power(struct thermal_cooling_device *cdev,
+					    struct thermal_zone_device *tz,
+					    u32 *min_power)
+{ return -ENODEV; }
 static inline int power_actor_set_power(struct thermal_cooling_device *cdev,
 			  struct thermal_instance *tz, u32 power)
 { return 0; }
@@ -457,7 +459,7 @@ static inline struct thermal_zone_device *thermal_zone_get_zone_by_name(
 		const char *name)
 { return ERR_PTR(-ENODEV); }
 static inline int thermal_zone_get_temp(
-		struct thermal_zone_device *tz, unsigned long *temp)
+		struct thermal_zone_device *tz, int *temp)
 { return -ENODEV; }
 static inline int get_tz_trend(struct thermal_zone_device *tz, int trip)
 { return -ENODEV; }

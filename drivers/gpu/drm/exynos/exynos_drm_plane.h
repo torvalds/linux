@@ -12,4 +12,5 @@
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane,
 		      unsigned long possible_crtcs, enum drm_plane_type type,
+		      const uint32_t *formats, unsigned int fcount,
 		      unsigned int zpos);

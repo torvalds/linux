@@ -206,7 +206,7 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 		dev_queue_xmit(nskb);
 	} else
 #endif
-		ip6_local_out(nskb);
+		ip6_local_out(net, nskb->sk, nskb);
 }
 EXPORT_SYMBOL_GPL(nf_send_reset6);
 

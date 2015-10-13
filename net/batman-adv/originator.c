@@ -443,40 +443,6 @@ out:
 }
 
 /**
- * batadv_neigh_node_new - create and init a new neigh_node object
- * @hard_iface: the interface where the neighbour is connected to
- * @neigh_addr: the mac address of the neighbour interface
- * @orig_node: originator object representing the neighbour
- *
- * Allocates a new neigh_node object and initialises all the generic fields.
- * Returns the new object or NULL on failure.
- */
-struct batadv_neigh_node *
-batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
-		      const u8 *neigh_addr, struct batadv_orig_node *orig_node)
-{
-	struct batadv_neigh_node *neigh_node;
-
-	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
-	if (!neigh_node)
-		goto out;
-
-	INIT_HLIST_NODE(&neigh_node->list);
-	INIT_HLIST_HEAD(&neigh_node->ifinfo_list);
-	spin_lock_init(&neigh_node->ifinfo_lock);
-
-	ether_addr_copy(neigh_node->addr, neigh_addr);
-	neigh_node->if_incoming = hard_iface;
-	neigh_node->orig_node = orig_node;
-
-	/* extra reference for return */
-	atomic_set(&neigh_node->refcount, 2);
-
-out:
-	return neigh_node;
-}
-
-/**
  * batadv_neigh_node_get - retrieve a neighbour from the list
  * @orig_node: originator which the neighbour belongs to
  * @hard_iface: the interface where this neighbour is connected to
@@ -486,7 +452,7 @@ out:
  * which is connected through the provided hard interface.
  * Returns NULL if the neighbour is not found.
  */
-struct batadv_neigh_node *
+static struct batadv_neigh_node *
 batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
 		      const struct batadv_hard_iface *hard_iface,
 		      const u8 *addr)
@@ -510,6 +476,59 @@ batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
 	rcu_read_unlock();
 
 	return res;
+}
+
+/**
+ * batadv_neigh_node_new - create and init a new neigh_node object
+ * @orig_node: originator object representing the neighbour
+ * @hard_iface: the interface where the neighbour is connected to
+ * @neigh_addr: the mac address of the neighbour interface
+ *
+ * Allocates a new neigh_node object and initialises all the generic fields.
+ * Returns the new object or NULL on failure.
+ */
+struct batadv_neigh_node *
+batadv_neigh_node_new(struct batadv_orig_node *orig_node,
+		      struct batadv_hard_iface *hard_iface,
+		      const u8 *neigh_addr)
+{
+	struct batadv_neigh_node *neigh_node;
+
+	neigh_node = batadv_neigh_node_get(orig_node, hard_iface, neigh_addr);
+	if (neigh_node)
+		goto out;
+
+	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
+	if (!neigh_node)
+		goto out;
+
+	if (!atomic_inc_not_zero(&hard_iface->refcount)) {
+		kfree(neigh_node);
+		neigh_node = NULL;
+		goto out;
+	}
+
+	INIT_HLIST_NODE(&neigh_node->list);
+	INIT_HLIST_HEAD(&neigh_node->ifinfo_list);
+	spin_lock_init(&neigh_node->ifinfo_lock);
+
+	ether_addr_copy(neigh_node->addr, neigh_addr);
+	neigh_node->if_incoming = hard_iface;
+	neigh_node->orig_node = orig_node;
+
+	/* extra reference for return */
+	atomic_set(&neigh_node->refcount, 2);
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+	batadv_dbg(BATADV_DBG_BATMAN, orig_node->bat_priv,
+		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
+		   neigh_addr, orig_node->orig, hard_iface->net_dev->name);
+
+out:
+	return neigh_node;
 }
 
 /**
@@ -1010,7 +1029,6 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	batadv_gw_node_purge(bat_priv);
 	batadv_gw_election(bat_priv);
 }
 

@@ -253,7 +253,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
 		return;
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
@@ -268,7 +267,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 			/* needs a GPU reset dont reset here */
 			mutex_unlock(&rdev->ring_lock);
 			up_write(&rdev->pm.mclk_lock);
-			mutex_unlock(&rdev->ddev->struct_mutex);
 			return;
 		}
 	}
@@ -304,7 +302,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 static void radeon_pm_print_states(struct radeon_device *rdev)
@@ -1062,7 +1059,6 @@ force:
 		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
@@ -1113,7 +1109,6 @@ force:
 done:
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
-	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
 void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)

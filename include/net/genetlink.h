@@ -183,9 +183,8 @@ _genl_register_family_with_ops_grps(struct genl_family *family,
 					    (grps), ARRAY_SIZE(grps))
 
 int genl_unregister_family(struct genl_family *family);
-void genl_notify(struct genl_family *family,
-		 struct sk_buff *skb, struct net *net, u32 portid,
-		 u32 group, struct nlmsghdr *nlh, gfp_t flags);
+void genl_notify(struct genl_family *family, struct sk_buff *skb,
+		 struct genl_info *info, u32 group, gfp_t flags);
 
 struct sk_buff *genlmsg_new_unicast(size_t payload, struct genl_info *info,
 				    gfp_t flags);

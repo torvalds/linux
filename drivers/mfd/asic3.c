@@ -138,7 +138,7 @@ static void asic3_irq_flip_edge(struct asic3 *asic,
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
-static void asic3_irq_demux(unsigned int irq, struct irq_desc *desc)
+static void asic3_irq_demux(struct irq_desc *desc)
 {
 	struct asic3 *asic = irq_desc_get_handler_data(desc);
 	struct irq_data *data = irq_desc_get_irq_data(desc);
@@ -411,7 +411,7 @@ static int __init asic3_irq_probe(struct platform_device *pdev)
 
 		irq_set_chip_data(irq, asic);
 		irq_set_handler(irq, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 	}
 
 	asic3_write_register(asic, ASIC3_OFFSET(INTR, INT_MASK),
@@ -431,7 +431,7 @@ static void asic3_irq_remove(struct platform_device *pdev)
 	irq_base = asic->irq_base;
 
 	for (irq = irq_base; irq < irq_base + ASIC3_NR_IRQS; irq++) {
-		set_irq_flags(irq, 0);
+		irq_set_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		irq_set_chip_and_handler(irq, NULL, NULL);
 		irq_set_chip_data(irq, NULL);
 	}

@@ -333,7 +333,7 @@ config CHARGER_LP8788
 
 config CHARGER_GPIO
 	tristate "GPIO charger"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y to include support for chargers which report their online status
 	  through a GPIO pin.
@@ -391,26 +391,30 @@ config CHARGER_BQ2415X
 
 config CHARGER_BQ24190
 	tristate "TI BQ24190 battery charger driver"
-	depends on I2C && GPIOLIB
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y to enable support for the TI BQ24190 battery charger.
 
 config CHARGER_BQ24257
 	tristate "TI BQ24257 battery charger driver"
-	depends on I2C && GPIOLIB
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	depends on REGMAP_I2C
 	help
 	  Say Y to enable support for the TI BQ24257 battery charger.
 
 config CHARGER_BQ24735
 	tristate "TI BQ24735 battery charger support"
-	depends on I2C && GPIOLIB
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y to enable support for the TI BQ24735 battery charger.
 
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
-	depends on I2C && GPIOLIB
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for the TI BQ25890 battery charger.
@@ -462,7 +466,8 @@ config BATTERY_RT5033
 
 config CHARGER_RT9455
 	tristate "Richtek RT9455 battery charger driver"
-	depends on I2C && GPIOLIB
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.

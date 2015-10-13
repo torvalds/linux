@@ -139,7 +139,7 @@ done:
 	   also know about dropped frames. */
 	cb->vb.v4l2_buf.sequence = s->sequence++;
 	vb2_buffer_done(&cb->vb, (skip || s->unstable_frame) ?
-			VB2_BUF_STATE_QUEUED : VB2_BUF_STATE_DONE);
+			VB2_BUF_STATE_REQUEUEING : VB2_BUF_STATE_DONE);
 }
 
 irqreturn_t cobalt_irq_handler(int irq, void *dev_id)

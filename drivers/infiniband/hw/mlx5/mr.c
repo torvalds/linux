@@ -441,9 +441,6 @@ static struct mlx5_ib_mr *alloc_cached_mr(struct mlx5_ib_dev *dev, int order)
 		spin_unlock_irq(&ent->lock);
 
 		queue_work(cache->wq, &ent->work);
-
-		if (mr)
-			break;
 	}
 
 	if (!mr)
@@ -690,12 +687,11 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 			     int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct ib_mr *mr = dev->umrc.mr;
 	struct mlx5_umr_wr *umrwr = (struct mlx5_umr_wr *)&wr->wr.fast_reg;
 
 	sg->addr = dma;
 	sg->length = ALIGN(sizeof(u64) * n, 64);
-	sg->lkey = mr->lkey;
+	sg->lkey = dev->umrc.pd->local_dma_lkey;
 
 	wr->next = NULL;
 	wr->send_flags = 0;
@@ -926,7 +922,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		sg.addr = dma;
 		sg.length = ALIGN(npages * sizeof(u64),
 				MLX5_UMR_MTT_ALIGNMENT);
-		sg.lkey = dev->umrc.mr->lkey;
+		sg.lkey = dev->umrc.pd->local_dma_lkey;
 
 		wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE |
 				MLX5_IB_SEND_UMR_UPDATE_MTT;
@@ -1118,19 +1114,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	return &mr->ibmr;
 
 error:
-	/*
-	 * Destroy the umem *before* destroying the MR, to ensure we
-	 * will not have any in-flight notifiers when destroying the
-	 * MR.
-	 *
-	 * As the MR is completely invalid to begin with, and this
-	 * error path is only taken if we can't push the mr entry into
-	 * the pagefault tree, this is safe.
-	 */
-
 	ib_umem_release(umem);
-	/* Kill the MR, and return an error code. */
-	clean_mr(mr);
 	return ERR_PTR(err);
 }
 
@@ -1172,6 +1156,19 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.device);
 	int umred = mr->umred;
 	int err;
+
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+		kfree(mr->sig);
+		mr->sig = NULL;
+	}
 
 	if (!umred) {
 		err = destroy_mkey(dev, mr);
@@ -1234,14 +1231,15 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
-				struct ib_mr_init_attr *mr_init_attr)
+struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
+			       enum ib_mr_type mr_type,
+			       u32 max_num_sg)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_create_mkey_mbox_in *in;
 	struct mlx5_ib_mr *mr;
 	int access_mode, err;
-	int ndescs = roundup(mr_init_attr->max_reg_descriptors, 4);
+	int ndescs = roundup(max_num_sg, 4);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -1257,9 +1255,11 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
-	access_mode = MLX5_ACCESS_MODE_MTT;
 
-	if (mr_init_attr->flags & IB_MR_SIGNATURE_EN) {
+	if (mr_type == IB_MR_TYPE_MEM_REG) {
+		access_mode = MLX5_ACCESS_MODE_MTT;
+		in->seg.log2_page_size = PAGE_SHIFT;
+	} else if (mr_type == IB_MR_TYPE_SIGNATURE) {
 		u32 psv_index[2];
 
 		in->seg.flags_pd = cpu_to_be32(be32_to_cpu(in->seg.flags_pd) |
@@ -1285,6 +1285,10 @@ struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
 		mr->sig->sig_err_exists = false;
 		/* Next UMR, Arm SIGERR */
 		++mr->sig->sigerr_count;
+	} else {
+		mlx5_ib_warn(dev, "Invalid mr type %d\n", mr_type);
+		err = -EINVAL;
+		goto err_free_in;
 	}
 
 	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;
@@ -1315,80 +1319,6 @@ err_free_sig:
 	kfree(mr->sig);
 err_free_in:
 	kfree(in);
-err_free:
-	kfree(mr);
-	return ERR_PTR(err);
-}
-
-int mlx5_ib_destroy_mr(struct ib_mr *ibmr)
-{
-	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
-	struct mlx5_ib_mr *mr = to_mmr(ibmr);
-	int err;
-
-	if (mr->sig) {
-		if (mlx5_core_destroy_psv(dev->mdev,
-					  mr->sig->psv_memory.psv_idx))
-			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
-				     mr->sig->psv_memory.psv_idx);
-		if (mlx5_core_destroy_psv(dev->mdev,
-					  mr->sig->psv_wire.psv_idx))
-			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
-				     mr->sig->psv_wire.psv_idx);
-		kfree(mr->sig);
-	}
-
-	err = destroy_mkey(dev, mr);
-	if (err) {
-		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
-			     mr->mmr.key, err);
-		return err;
-	}
-
-	kfree(mr);
-
-	return err;
-}
-
-struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
-					int max_page_list_len)
-{
-	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct mlx5_create_mkey_mbox_in *in;
-	struct mlx5_ib_mr *mr;
-	int err;
-
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
-
-	in = kzalloc(sizeof(*in), GFP_KERNEL);
-	if (!in) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
-	in->seg.status = MLX5_MKEY_STATUS_FREE;
-	in->seg.xlt_oct_size = cpu_to_be32((max_page_list_len + 1) / 2);
-	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
-	in->seg.flags = MLX5_PERM_UMR_EN | MLX5_ACCESS_MODE_MTT;
-	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
-	/*
-	 * TBD not needed - issue 197292 */
-	in->seg.log2_page_size = PAGE_SHIFT;
-
-	err = mlx5_core_create_mkey(dev->mdev, &mr->mmr, in, sizeof(*in), NULL,
-				    NULL, NULL);
-	kfree(in);
-	if (err)
-		goto err_free;
-
-	mr->ibmr.lkey = mr->mmr.key;
-	mr->ibmr.rkey = mr->mmr.key;
-	mr->umem = NULL;
-
-	return &mr->ibmr;
-
 err_free:
 	kfree(mr);
 	return ERR_PTR(err);

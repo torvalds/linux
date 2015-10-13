@@ -254,10 +254,21 @@ static void inode_free_security(struct inode *inode)
 	struct inode_security_struct *isec = inode->i_security;
 	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
 
-	spin_lock(&sbsec->isec_lock);
-	if (!list_empty(&isec->list))
+	/*
+	 * As not all inode security structures are in a list, we check for
+	 * empty list outside of the lock to make sure that we won't waste
+	 * time taking a lock doing nothing.
+	 *
+	 * The list_del_init() function can be safely called more than once.
+	 * It should not be possible for this function to be called with
+	 * concurrent list_add(), but for better safety against future changes
+	 * in the code, we use list_empty_careful() here.
+	 */
+	if (!list_empty_careful(&isec->list)) {
+		spin_lock(&sbsec->isec_lock);
 		list_del_init(&isec->list);
-	spin_unlock(&sbsec->isec_lock);
+		spin_unlock(&sbsec->isec_lock);
+	}
 
 	/*
 	 * The inode may still be referenced in a path walk and
@@ -1100,7 +1111,7 @@ static void selinux_write_opts(struct seq_file *m,
 		seq_puts(m, prefix);
 		if (has_comma)
 			seq_putc(m, '\"');
-		seq_puts(m, opts->mnt_opts[i]);
+		seq_escape(m, opts->mnt_opts[i], "\"\n\\");
 		if (has_comma)
 			seq_putc(m, '\"');
 	}
@@ -1698,6 +1709,32 @@ out:
 	return rc;
 }
 
+/*
+ * Determine the label for an inode that might be unioned.
+ */
+static int selinux_determine_inode_label(const struct inode *dir,
+					 const struct qstr *name,
+					 u16 tclass,
+					 u32 *_new_isid)
+{
+	const struct superblock_security_struct *sbsec = dir->i_sb->s_security;
+	const struct inode_security_struct *dsec = dir->i_security;
+	const struct task_security_struct *tsec = current_security();
+
+	if ((sbsec->flags & SE_SBINITIALIZED) &&
+	    (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)) {
+		*_new_isid = sbsec->mntpoint_sid;
+	} else if ((sbsec->flags & SBLABEL_MNT) &&
+		   tsec->create_sid) {
+		*_new_isid = tsec->create_sid;
+	} else {
+		return security_transition_sid(tsec->sid, dsec->sid, tclass,
+					       name, _new_isid);
+	}
+
+	return 0;
+}
+
 /* Check whether a task can create a file. */
 static int may_create(struct inode *dir,
 		      struct dentry *dentry,
@@ -1714,7 +1751,6 @@ static int may_create(struct inode *dir,
 	sbsec = dir->i_sb->s_security;
 
 	sid = tsec->sid;
-	newsid = tsec->create_sid;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
@@ -1725,12 +1761,10 @@ static int may_create(struct inode *dir,
 	if (rc)
 		return rc;
 
-	if (!newsid || !(sbsec->flags & SBLABEL_MNT)) {
-		rc = security_transition_sid(sid, dsec->sid, tclass,
-					     &dentry->d_name, &newsid);
-		if (rc)
-			return rc;
-	}
+	rc = selinux_determine_inode_label(dir, &dentry->d_name, tclass,
+					   &newsid);
+	if (rc)
+		return rc;
 
 	rc = avc_has_perm(sid, newsid, tclass, FILE__CREATE, &ad);
 	if (rc)
@@ -2704,32 +2738,14 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
-	const struct cred *cred = current_cred();
-	struct task_security_struct *tsec;
-	struct inode_security_struct *dsec;
-	struct superblock_security_struct *sbsec;
-	struct inode *dir = d_backing_inode(dentry->d_parent);
 	u32 newsid;
 	int rc;
 
-	tsec = cred->security;
-	dsec = dir->i_security;
-	sbsec = dir->i_sb->s_security;
-
-	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
-		newsid = tsec->create_sid;
-	} else {
-		rc = security_transition_sid(tsec->sid, dsec->sid,
-					     inode_mode_to_security_class(mode),
-					     name,
-					     &newsid);
-		if (rc) {
-			printk(KERN_WARNING
-				"%s: security_transition_sid failed, rc=%d\n",
-			       __func__, -rc);
-			return rc;
-		}
-	}
+	rc = selinux_determine_inode_label(d_inode(dentry->d_parent), name,
+					   inode_mode_to_security_class(mode),
+					   &newsid);
+	if (rc)
+		return rc;
 
 	return security_sid_to_context(newsid, (char **)ctx, ctxlen);
 }
@@ -2752,22 +2768,12 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	sid = tsec->sid;
 	newsid = tsec->create_sid;
 
-	if ((sbsec->flags & SE_SBINITIALIZED) &&
-	    (sbsec->behavior == SECURITY_FS_USE_MNTPOINT))
-		newsid = sbsec->mntpoint_sid;
-	else if (!newsid || !(sbsec->flags & SBLABEL_MNT)) {
-		rc = security_transition_sid(sid, dsec->sid,
-					     inode_mode_to_security_class(inode->i_mode),
-					     qstr, &newsid);
-		if (rc) {
-			printk(KERN_WARNING "%s:  "
-			       "security_transition_sid failed, rc=%d (dev=%s "
-			       "ino=%ld)\n",
-			       __func__,
-			       -rc, inode->i_sb->s_id, inode->i_ino);
-			return rc;
-		}
-	}
+	rc = selinux_determine_inode_label(
+		dir, qstr,
+		inode_mode_to_security_class(inode->i_mode),
+		&newsid);
+	if (rc)
+		return rc;
 
 	/* Possibly defer initialization to selinux_complete_init. */
 	if (sbsec->flags & SE_SBINITIALIZED) {
@@ -3228,6 +3234,46 @@ static void selinux_file_free_security(struct file *file)
 	file_free_security(file);
 }
 
+/*
+ * Check whether a task has the ioctl permission and cmd
+ * operation to an inode.
+ */
+int ioctl_has_perm(const struct cred *cred, struct file *file,
+		u32 requested, u16 cmd)
+{
+	struct common_audit_data ad;
+	struct file_security_struct *fsec = file->f_security;
+	struct inode *inode = file_inode(file);
+	struct inode_security_struct *isec = inode->i_security;
+	struct lsm_ioctlop_audit ioctl;
+	u32 ssid = cred_sid(cred);
+	int rc;
+	u8 driver = cmd >> 8;
+	u8 xperm = cmd & 0xff;
+
+	ad.type = LSM_AUDIT_DATA_IOCTL_OP;
+	ad.u.op = &ioctl;
+	ad.u.op->cmd = cmd;
+	ad.u.op->path = file->f_path;
+
+	if (ssid != fsec->sid) {
+		rc = avc_has_perm(ssid, fsec->sid,
+				SECCLASS_FD,
+				FD__USE,
+				&ad);
+		if (rc)
+			goto out;
+	}
+
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
+	rc = avc_has_extended_perms(ssid, isec->sid, isec->sclass,
+			requested, driver, xperm, &ad);
+out:
+	return rc;
+}
+
 static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long arg)
 {
@@ -3270,7 +3316,7 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	 * to the file's ioctl() function.
 	 */
 	default:
-		error = file_has_perm(cred, file, FILE__IOCTL);
+		error = ioctl_has_perm(cred, file, FILE__IOCTL, (u16) cmd);
 	}
 	return error;
 }
@@ -4520,6 +4566,7 @@ static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority
 
 	sksec->peer_sid = SECINITSID_UNLABELED;
 	sksec->sid = SECINITSID_UNLABELED;
+	sksec->sclass = SECCLASS_SOCKET;
 	selinux_netlbl_sk_security_reset(sksec);
 	sk->sk_security = sksec;
 
@@ -4819,7 +4866,7 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_forward(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_forward(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
@@ -4827,7 +4874,7 @@ static unsigned int selinux_ipv4_forward(const struct nf_hook_ops *ops,
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static unsigned int selinux_ipv6_forward(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv6_forward(void *priv,
 					 struct sk_buff *skb,
 					 const struct nf_hook_state *state)
 {
@@ -4851,7 +4898,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 	if (sk) {
 		struct sk_security_struct *sksec;
 
-		if (sk->sk_state == TCP_LISTEN)
+		if (sk_listener(sk))
 			/* if the socket is the listening state then this
 			 * packet is a SYN-ACK packet which means it needs to
 			 * be labeled based on the connection/request_sock and
@@ -4877,7 +4924,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_output(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_output(void *priv,
 					struct sk_buff *skb,
 					const struct nf_hook_state *state)
 {
@@ -4958,7 +5005,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	 *       unfortunately, this means more work, but it is only once per
 	 *       connection. */
 	if (skb_dst(skb) != NULL && skb_dst(skb)->xfrm != NULL &&
-	    !(sk != NULL && sk->sk_state == TCP_LISTEN))
+	    !(sk && sk_listener(sk)))
 		return NF_ACCEPT;
 #endif
 
@@ -4975,7 +5022,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 			secmark_perm = PACKET__SEND;
 			peer_sid = SECINITSID_KERNEL;
 		}
-	} else if (sk->sk_state == TCP_LISTEN) {
+	} else if (sk_listener(sk)) {
 		/* Locally generated packet but the associated socket is in the
 		 * listening state which means this is a SYN-ACK packet.  In
 		 * this particular case the correct security label is assigned
@@ -4986,7 +5033,11 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 		 * selinux_inet_conn_request().  See also selinux_ip_output()
 		 * for similar problems. */
 		u32 skb_sid;
-		struct sk_security_struct *sksec = sk->sk_security;
+		struct sk_security_struct *sksec;
+
+		if (sk->sk_state == TCP_NEW_SYN_RECV)
+			sk = inet_reqsk(sk)->rsk_listener;
+		sksec = sk->sk_security;
 		if (selinux_skb_peerlbl_sid(skb, family, &skb_sid))
 			return NF_DROP;
 		/* At this point, if the returned skb peerlbl is SECSID_NULL
@@ -5052,7 +5103,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_postroute(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv4_postroute(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
@@ -5060,7 +5111,7 @@ static unsigned int selinux_ipv4_postroute(const struct nf_hook_ops *ops,
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static unsigned int selinux_ipv6_postroute(const struct nf_hook_ops *ops,
+static unsigned int selinux_ipv6_postroute(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {

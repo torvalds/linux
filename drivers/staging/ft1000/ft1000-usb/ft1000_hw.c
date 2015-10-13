@@ -842,7 +842,6 @@ static int ft1000_copy_up_pkt(struct urb *urb)
 	skb = dev_alloc_skb(len + 12 + 2);
 
 	if (skb == NULL) {
-		pr_debug("No Network buffers available\n");
 		info->stats.rx_errors++;
 		ft1000_submit_rx_urb(info);
 		return -1;

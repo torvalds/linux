@@ -334,13 +334,15 @@ static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void mdp4_crtc_atomic_begin(struct drm_crtc *crtc)
+static void mdp4_crtc_atomic_begin(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	DBG("%s: begin", mdp4_crtc->name);
 }
 
-static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc)
+static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -679,8 +681,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
 	plane->crtc = crtc;
-
-	mdp4_plane_install_properties(plane, &crtc->base);
 
 	return crtc;
 }

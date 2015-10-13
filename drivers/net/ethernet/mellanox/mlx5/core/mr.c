@@ -40,6 +40,7 @@ void mlx5_init_mr_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_mr_table *table = &dev->priv.mr_table;
 
+	memset(table, 0, sizeof(*table));
 	rwlock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 }

@@ -148,7 +148,7 @@ void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 		     struct xmit_frame *pxmitframe)
 {
 	/*  exclude ICV */
-	unsigned char crc[4];
+	__le32 crc;
 	struct arc4context mycontext;
 	int curfragnum, length, index;
 	u32 keylength;
@@ -186,18 +186,20 @@ void rtw_wep_encrypt23a(struct rtw_adapter *padapter,
 			length = pattrib->last_txcmdsz - pattrib->hdrlen -
 				pattrib->iv_len - pattrib->icv_len;
 
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
+			crc = cpu_to_le32(getcrc32(payload, length));
 
 			arcfour_init(&mycontext, wepkey, 3 + keylength);
 			arcfour_encrypt(&mycontext, payload, payload, length);
-			arcfour_encrypt(&mycontext, payload + length, crc, 4);
+			arcfour_encrypt(&mycontext, payload + length,
+					(char *)&crc, 4);
 		} else {
 			length = pxmitpriv->frag_len - pattrib->hdrlen -
 				pattrib->iv_len - pattrib->icv_len;
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
+			crc = cpu_to_le32(getcrc32(payload, length));
 			arcfour_init(&mycontext, wepkey, 3 + keylength);
 			arcfour_encrypt(&mycontext, payload, payload, length);
-			arcfour_encrypt(&mycontext, payload + length, crc, 4);
+			arcfour_encrypt(&mycontext, payload + length,
+					(char *)&crc, 4);
 
 			pframe += pxmitpriv->frag_len;
 			pframe = PTR_ALIGN(pframe, 4);
@@ -602,7 +604,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 	u32 pnh;
 	u8 rc4key[16];
 	u8 ttkey[16];
-	u8 crc[4];
+	__le32 crc;
 	u8 hw_hdr_offset = 0;
 	struct arc4context mycontext;
 	int curfragnum, length;
@@ -679,11 +681,12 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				 "pattrib->iv_len =%x, pattrib->icv_len =%x\n",
 				 pattrib->iv_len,
 				 pattrib->icv_len);
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
+			crc = cpu_to_le32(getcrc32(payload, length));
 
 			arcfour_init(&mycontext, rc4key, 16);
 			arcfour_encrypt(&mycontext, payload, payload, length);
-			arcfour_encrypt(&mycontext, payload + length, crc, 4);
+			arcfour_encrypt(&mycontext, payload + length,
+					(char *)&crc, 4);
 
 		} else {
 			length = (pxmitpriv->frag_len -
@@ -691,10 +694,11 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				  pattrib->iv_len -
 				  pattrib->icv_len);
 
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));
+			crc = cpu_to_le32(getcrc32(payload, length));
 			arcfour_init(&mycontext, rc4key, 16);
 			arcfour_encrypt(&mycontext, payload, payload, length);
-			arcfour_encrypt(&mycontext, payload + length, crc, 4);
+			arcfour_encrypt(&mycontext, payload + length,
+					(char *)&crc, 4);
 
 			pframe += pxmitpriv->frag_len;
 			pframe  = PTR_ALIGN(pframe, 4);

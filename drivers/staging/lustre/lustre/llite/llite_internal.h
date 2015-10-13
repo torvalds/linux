@@ -456,7 +456,6 @@ struct eacl_table {
 };
 
 struct ll_sb_info {
-	struct list_head		  ll_list;
 	/* this protects pglist and ra_info.  It isn't safe to
 	 * grab from interrupt contexts */
 	spinlock_t		  ll_lock;
@@ -711,11 +710,11 @@ extern struct file_operations ll_file_operations;
 extern struct file_operations ll_file_operations_flock;
 extern struct file_operations ll_file_operations_noflock;
 extern struct inode_operations ll_file_inode_operations;
-extern int ll_have_md_lock(struct inode *inode, __u64 *bits,
-			   ldlm_mode_t l_req_mode);
-extern ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
-				   struct lustre_handle *lockh, __u64 flags,
-				   ldlm_mode_t mode);
+int ll_have_md_lock(struct inode *inode, __u64 *bits,
+		    ldlm_mode_t l_req_mode);
+ldlm_mode_t ll_take_md_lock(struct inode *inode, __u64 bits,
+			    struct lustre_handle *lockh, __u64 flags,
+			    ldlm_mode_t mode);
 int ll_file_open(struct inode *inode, struct file *file);
 int ll_file_release(struct inode *inode, struct file *file);
 int ll_glimpse_ioctl(struct ll_sb_info *sbi,
@@ -1376,9 +1375,9 @@ static inline void cl_stats_tally(struct cl_device *dev, enum cl_req_type crt,
 	ll_stats_ops_tally(ll_s2sbi(cl2ccc_dev(dev)->cdv_sb), opc, rc);
 }
 
-extern ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
-				  int rw, struct inode *inode,
-				  struct ll_dio_pages *pv);
+ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
+			   int rw, struct inode *inode,
+			   struct ll_dio_pages *pv);
 
 static inline int ll_file_nolock(const struct file *file)
 {

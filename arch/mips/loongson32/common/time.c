@@ -126,26 +126,34 @@ static irqreturn_t ls1x_clockevent_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static void ls1x_clockevent_set_mode(enum clock_event_mode mode,
-				     struct clock_event_device *cd)
+static int ls1x_clockevent_set_state_periodic(struct clock_event_device *cd)
 {
 	raw_spin_lock(&ls1x_timer_lock);
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		ls1x_pwmtimer_set_period(ls1x_jiffies_per_tick);
-		ls1x_pwmtimer_restart();
-	case CLOCK_EVT_MODE_RESUME:
-		__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		__raw_writel(__raw_readl(timer_base + PWM_CTRL) & ~CNT_EN,
-			     timer_base + PWM_CTRL);
-		break;
-	default:
-		break;
-	}
+	ls1x_pwmtimer_set_period(ls1x_jiffies_per_tick);
+	ls1x_pwmtimer_restart();
+	__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
 	raw_spin_unlock(&ls1x_timer_lock);
+
+	return 0;
+}
+
+static int ls1x_clockevent_tick_resume(struct clock_event_device *cd)
+{
+	raw_spin_lock(&ls1x_timer_lock);
+	__raw_writel(INT_EN | CNT_EN, timer_base + PWM_CTRL);
+	raw_spin_unlock(&ls1x_timer_lock);
+
+	return 0;
+}
+
+static int ls1x_clockevent_set_state_shutdown(struct clock_event_device *cd)
+{
+	raw_spin_lock(&ls1x_timer_lock);
+	__raw_writel(__raw_readl(timer_base + PWM_CTRL) & ~CNT_EN,
+		     timer_base + PWM_CTRL);
+	raw_spin_unlock(&ls1x_timer_lock);
+
+	return 0;
 }
 
 static int ls1x_clockevent_set_next(unsigned long evt,
@@ -160,12 +168,15 @@ static int ls1x_clockevent_set_next(unsigned long evt,
 }
 
 static struct clock_event_device ls1x_clockevent = {
-	.name		= "ls1x-pwmtimer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.rating		= 300,
-	.irq		= LS1X_TIMER_IRQ,
-	.set_next_event	= ls1x_clockevent_set_next,
-	.set_mode	= ls1x_clockevent_set_mode,
+	.name			= "ls1x-pwmtimer",
+	.features		= CLOCK_EVT_FEAT_PERIODIC,
+	.rating			= 300,
+	.irq			= LS1X_TIMER_IRQ,
+	.set_next_event		= ls1x_clockevent_set_next,
+	.set_state_shutdown	= ls1x_clockevent_set_state_shutdown,
+	.set_state_periodic	= ls1x_clockevent_set_state_periodic,
+	.set_state_oneshot	= ls1x_clockevent_set_state_shutdown,
+	.tick_resume		= ls1x_clockevent_tick_resume,
 };
 
 static struct irqaction ls1x_pwmtimer_irqaction = {

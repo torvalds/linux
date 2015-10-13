@@ -85,12 +85,10 @@ static struct vport *gre_create(const struct vport_parms *parms)
 }
 
 static int gre_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				   struct ip_tunnel_info *egress_tun_info)
+				   struct dp_upcall_info *upcall)
 {
-	return ovs_tunnel_get_egress_info(egress_tun_info,
-					  ovs_dp_get_net(vport->dp),
-					  OVS_CB(skb)->egress_tun_info,
-					  IPPROTO_GRE, skb->mark, 0, 0);
+	return ovs_tunnel_get_egress_info(upcall, ovs_dp_get_net(vport->dp),
+					  skb, IPPROTO_GRE, 0, 0);
 }
 
 static struct vport_ops ovs_gre_vport_ops = {

@@ -791,11 +791,13 @@ int stv0367_writeregs(struct stv0367_state *state, u16 reg, u8 *data, int len)
 	memcpy(buf + 2, data, len);
 
 	if (i2cdebug)
-		printk(KERN_DEBUG "%s: %02x: %02x\n", __func__, reg, buf[2]);
+		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+			state->config->demod_address, reg, buf[2]);
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
 	if (ret != 1)
-		printk(KERN_ERR "%s: i2c write error!\n", __func__);
+		printk(KERN_ERR "%s: i2c write error! ([%02x] %02x: %02x)\n",
+			__func__, state->config->demod_address, reg, buf[2]);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -829,10 +831,12 @@ static u8 stv0367_readreg(struct stv0367_state *state, u16 reg)
 
 	ret = i2c_transfer(state->i2c, msg, 2);
 	if (ret != 2)
-		printk(KERN_ERR "%s: i2c read error\n", __func__);
+		printk(KERN_ERR "%s: i2c read error ([%02x] %02x: %02x)\n",
+			__func__, state->config->demod_address, reg, b1[0]);
 
 	if (i2cdebug)
-		printk(KERN_DEBUG "%s: %02x: %02x\n", __func__, reg, b1[0]);
+		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+			state->config->demod_address, reg, b1[0]);
 
 	return b1[0];
 }
@@ -1550,6 +1554,11 @@ static int stv0367ter_init(struct dvb_frontend *fe)
 
 	switch (state->config->xtal) {
 		/*set internal freq to 53.125MHz */
+	case 16000000:
+		stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
+		stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
+		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
+		break;
 	case 25000000:
 		stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
 		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);

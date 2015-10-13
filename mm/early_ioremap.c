@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <asm/fixmap.h>
+#include <asm/early_ioremap.h>
 
 #ifdef CONFIG_MMU
 static int early_ioremap_debug __initdata;
@@ -217,6 +218,35 @@ early_memremap(resource_size_t phys_addr, unsigned long size)
 	return (__force void *)__early_ioremap(phys_addr, size,
 					       FIXMAP_PAGE_NORMAL);
 }
+#ifdef FIXMAP_PAGE_RO
+void __init *
+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+{
+	return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
+}
+#endif
+
+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
+
+void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+{
+	unsigned long slop, clen;
+	char *p;
+
+	while (size) {
+		slop = src & ~PAGE_MASK;
+		clen = size;
+		if (clen > MAX_MAP_CHUNK - slop)
+			clen = MAX_MAP_CHUNK - slop;
+		p = early_memremap(src & PAGE_MASK, clen + slop);
+		memcpy(dest, p + slop, clen);
+		early_memunmap(p, clen + slop);
+		dest += clen;
+		src += clen;
+		size -= clen;
+	}
+}
+
 #else /* CONFIG_MMU */
 
 void __init __iomem *
@@ -228,6 +258,11 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
 /* Remap memory */
 void __init *
 early_memremap(resource_size_t phys_addr, unsigned long size)
+{
+	return (void *)phys_addr;
+}
+void __init *
+early_memremap_ro(resource_size_t phys_addr, unsigned long size)
 {
 	return (void *)phys_addr;
 }

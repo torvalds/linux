@@ -812,7 +812,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	if (image) {
 		bpf_flush_icache(image, image + proglen);
 		fp->bpf_func = (void *)image;
-		fp->jited = true;
+		fp->jited = 1;
 	}
 out:
 	kfree(addrs);

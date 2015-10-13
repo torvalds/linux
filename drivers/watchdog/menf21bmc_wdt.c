@@ -130,6 +130,7 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	drv_data->wdt.info = &menf21bmc_wdt_info;
 	drv_data->wdt.min_timeout = BMC_WD_TIMEOUT_MIN;
 	drv_data->wdt.max_timeout = BMC_WD_TIMEOUT_MAX;
+	drv_data->wdt.parent = &pdev->dev;
 	drv_data->i2c_client = i2c_client;
 
 	/*

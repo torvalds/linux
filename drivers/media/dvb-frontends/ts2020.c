@@ -726,7 +726,6 @@ MODULE_DEVICE_TABLE(i2c, ts2020_id_table);
 
 static struct i2c_driver ts2020_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ts2020",
 	},
 	.probe		= ts2020_probe,

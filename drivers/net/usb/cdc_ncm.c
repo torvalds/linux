@@ -698,6 +698,7 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	int len;
 	int temp;
 	u8 iface_no;
+	struct usb_cdc_parsed_header hdr;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -722,66 +723,14 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	len = intf->cur_altsetting->extralen;
 
 	/* parse through descriptors associated with control interface */
-	while ((len > 0) && (buf[0] > 2) && (buf[0] <= len)) {
+	cdc_parse_cdc_header(&hdr, intf, buf, len);
 
-		if (buf[1] != USB_DT_CS_INTERFACE)
-			goto advance;
-
-		switch (buf[2]) {
-		case USB_CDC_UNION_TYPE:
-			if (buf[0] < sizeof(*union_desc))
-				break;
-
-			union_desc = (const struct usb_cdc_union_desc *)buf;
-			/* the master must be the interface we are probing */
-			if (intf->cur_altsetting->desc.bInterfaceNumber !=
-			    union_desc->bMasterInterface0) {
-				dev_dbg(&intf->dev, "bogus CDC Union\n");
-				goto error;
-			}
-			ctx->data = usb_ifnum_to_if(dev->udev,
-						    union_desc->bSlaveInterface0);
-			break;
-
-		case USB_CDC_ETHERNET_TYPE:
-			if (buf[0] < sizeof(*(ctx->ether_desc)))
-				break;
-
-			ctx->ether_desc =
-					(const struct usb_cdc_ether_desc *)buf;
-			break;
-
-		case USB_CDC_NCM_TYPE:
-			if (buf[0] < sizeof(*(ctx->func_desc)))
-				break;
-
-			ctx->func_desc = (const struct usb_cdc_ncm_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_desc)))
-				break;
-
-			ctx->mbim_desc = (const struct usb_cdc_mbim_desc *)buf;
-			break;
-
-		case USB_CDC_MBIM_EXTENDED_TYPE:
-			if (buf[0] < sizeof(*(ctx->mbim_extended_desc)))
-				break;
-
-			ctx->mbim_extended_desc =
-				(const struct usb_cdc_mbim_extended_desc *)buf;
-			break;
-
-		default:
-			break;
-		}
-advance:
-		/* advance to next descriptor */
-		temp = buf[0];
-		buf += temp;
-		len -= temp;
-	}
+	ctx->data = usb_ifnum_to_if(dev->udev,
+				    hdr.usb_cdc_union_desc->bSlaveInterface0);
+	ctx->ether_desc = hdr.usb_cdc_ether_desc;
+	ctx->func_desc = hdr.usb_cdc_ncm_desc;
+	ctx->mbim_desc = hdr.usb_cdc_mbim_desc;
+	ctx->mbim_extended_desc = hdr.usb_cdc_mbim_extended_desc;
 
 	/* some buggy devices have an IAD but no CDC Union */
 	if (!union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {

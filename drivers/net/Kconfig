@@ -180,8 +180,8 @@ config VXLAN
 	  will be called vxlan.
 
 config GENEVE
-       tristate "Generic Network Virtualization Encapsulation netdev"
-       depends on INET && GENEVE_CORE
+       tristate "Generic Network Virtualization Encapsulation"
+       depends on INET && NET_UDP_TUNNEL
        select NET_IP_TUNNEL
        ---help---
 	  This allows one to create geneve virtual interfaces that provide
@@ -299,6 +299,7 @@ config NLMON
 config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"
 	depends on IP_MULTIPLE_TABLES && IPV6_MULTIPLE_TABLES
+	depends on NET_L3_MASTER_DEV
 	---help---
 	  This option enables the support for mapping interfaces into VRF's. The
 	  support enables VRF devices.

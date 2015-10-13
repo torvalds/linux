@@ -835,7 +835,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	CDEBUG(D_CONFIG, "Add profile %s\n", prof);
 
 	lprof = kzalloc(sizeof(*lprof), GFP_NOFS);
-	if (lprof == NULL)
+	if (!lprof)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&lprof->lp_list);
 
@@ -979,7 +979,7 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 	new_len = LUSTRE_CFG_BUFLEN(cfg, 1) + strlen(new_name) - name_len;
 
 	new_param = kzalloc(new_len, GFP_NOFS);
-	if (new_param == NULL)
+	if (!new_param)
 		return ERR_PTR(-ENOMEM);
 
 	strcpy(new_param, new_name);
@@ -987,7 +987,7 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 		strcat(new_param, value);
 
 	bufs = kzalloc(sizeof(*bufs), GFP_NOFS);
-	if (bufs == NULL) {
+	if (!bufs) {
 		kfree(new_param);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1123,12 +1123,7 @@ int class_process_config(struct lustre_cfg *lcfg)
 		goto out;
 	}
 	case LCFG_SET_LDLM_TIMEOUT: {
-		CDEBUG(D_IOCTL, "changing lustre ldlm_timeout from %d to %d\n",
-		       ldlm_timeout, lcfg->lcfg_num);
-		ldlm_timeout = max(lcfg->lcfg_num, 1U);
-		if (ldlm_timeout >= obd_timeout)
-			ldlm_timeout = max(obd_timeout / 3, 1U);
-		ldlm_timeout_set = 1;
+		/* ldlm_timeout is not used on the client */
 		err = 0;
 		goto out;
 	}
@@ -1461,7 +1456,7 @@ int class_config_llog_handler(const struct lu_env *env,
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
 			inst_name = kzalloc(inst_len, GFP_NOFS);
-			if (inst_name == NULL) {
+			if (!inst_name) {
 				rc = -ENOMEM;
 				goto out;
 			}
@@ -1639,7 +1634,7 @@ int class_config_dump_handler(const struct lu_env *env,
 	int	 rc = 0;
 
 	outstr = kzalloc(256, GFP_NOFS);
-	if (outstr == NULL)
+	if (!outstr)
 		return -ENOMEM;
 
 	if (rec->lrh_type == OBD_CFG_REC) {

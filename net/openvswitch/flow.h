@@ -63,6 +63,7 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u8 tun_proto;			/* Protocol of encapsulating tunnel. */
 	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
 	u32 recirc_id;			/* Recirculation ID.  */
 	struct {
@@ -111,6 +112,14 @@ struct sw_flow_key {
 			} nd;
 		} ipv6;
 	};
+	struct {
+		/* Connection tracking fields. */
+		u16 zone;
+		u32 mark;
+		u8 state;
+		struct ovs_key_ct_label label;
+	} ct;
+
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
 
 struct sw_flow_key_range {
@@ -144,6 +153,7 @@ struct sw_flow_id {
 
 struct sw_flow_actions {
 	struct rcu_head rcu;
+	size_t orig_len;	/* From flow_cmd_new netlink actions size */
 	u32 actions_len;
 	struct nlattr actions[];
 };
@@ -212,7 +222,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb,
 			 struct sw_flow_key *key);
 /* Extract key from packet coming from userspace. */
-int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 				   struct sk_buff *skb,
 				   struct sw_flow_key *key, bool log);
 
