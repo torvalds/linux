@@ -233,7 +233,7 @@ struct dt9812_usb_cmd {
 };
 
 struct dt9812_private {
-	struct semaphore sem;
+	struct mutex mut;
 	struct {
 		__u8 addr;
 		size_t size;
@@ -335,7 +335,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 	u8 value[2];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_read_multiple_registers(dev, 2, reg, value);
 	if (ret == 0) {
 		/*
@@ -345,7 +345,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 		 */
 		*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
 	}
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -357,9 +357,9 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 	u8 value[1] = { bits };
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_write_multiple_registers(dev, 1, reg, value);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -444,7 +444,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	u8 val[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	/* 1 select the gain */
 	dt9812_configure_gain(dev, &rmw[0], gain);
@@ -493,7 +493,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	}
 
 exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -504,7 +504,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	struct dt9812_rmw_byte rmw[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (channel) {
 	case 0:
@@ -543,7 +543,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	}
 	ret = dt9812_rmw_multiple_registers(dev, 3, rmw);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -606,9 +606,9 @@ static int dt9812_ao_insn_read(struct comedi_device *dev,
 	struct dt9812_private *devpriv = dev->private;
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = comedi_readback_insn_read(dev, s, insn, data);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -772,7 +772,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	ret = dt9812_find_endpoints(dev);
@@ -844,11 +844,11 @@ static void dt9812_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver dt9812_driver = {
