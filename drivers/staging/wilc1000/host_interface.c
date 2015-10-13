@@ -111,7 +111,7 @@ struct connect_attr {
 	u8 *bssid;
 	u8 *ssid;
 	size_t ssid_len;
-	u8 *pu8IEs;
+	u8 *ies;
 	size_t IEsLen;
 	u8 u8security;
 	wilc_connect_result pfConnectResult;
@@ -1045,9 +1045,9 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	}
 
 	hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = pstrHostIFconnectAttr->IEsLen;
-	if (pstrHostIFconnectAttr->pu8IEs != NULL) {
+	if (pstrHostIFconnectAttr->ies != NULL) {
 		hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs = kmalloc(pstrHostIFconnectAttr->IEsLen, GFP_KERNEL);
-		memcpy(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs, pstrHostIFconnectAttr->pu8IEs,
+		memcpy(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs, pstrHostIFconnectAttr->ies,
 			    pstrHostIFconnectAttr->IEsLen);
 	}
 
@@ -1262,11 +1262,11 @@ ERRORHANDLER:
 			if (pstrHostIFconnectAttr->bssid != NULL)
 				memcpy(strConnectInfo.au8bssid, pstrHostIFconnectAttr->bssid, 6);
 
-			if (pstrHostIFconnectAttr->pu8IEs != NULL) {
+			if (pstrHostIFconnectAttr->ies != NULL) {
 				strConnectInfo.ReqIEsLen = pstrHostIFconnectAttr->IEsLen;
 				strConnectInfo.pu8ReqIEs = kmalloc(pstrHostIFconnectAttr->IEsLen, GFP_KERNEL);
 				memcpy(strConnectInfo.pu8ReqIEs,
-					    pstrHostIFconnectAttr->pu8IEs,
+					    pstrHostIFconnectAttr->ies,
 					    pstrHostIFconnectAttr->IEsLen);
 			}
 
@@ -1297,9 +1297,9 @@ ERRORHANDLER:
 		pstrHostIFconnectAttr->ssid = NULL;
 	}
 
-	if (pstrHostIFconnectAttr->pu8IEs != NULL) {
-		kfree(pstrHostIFconnectAttr->pu8IEs);
-		pstrHostIFconnectAttr->pu8IEs = NULL;
+	if (pstrHostIFconnectAttr->ies != NULL) {
+		kfree(pstrHostIFconnectAttr->ies);
+		pstrHostIFconnectAttr->ies = NULL;
 	}
 
 	if (pu8CurrByte != NULL)
@@ -3632,9 +3632,8 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 
 	if (pu8IEs != NULL) {
 		msg.body.con_info.IEsLen = IEsLen;
-		msg.body.con_info.pu8IEs = kmalloc(IEsLen, GFP_KERNEL);
-		memcpy(msg.body.con_info.pu8IEs,
-			    pu8IEs, IEsLen);
+		msg.body.con_info.ies = kmalloc(IEsLen, GFP_KERNEL);
+		memcpy(msg.body.con_info.ies, pu8IEs, IEsLen);
 	}
 	if (hif_drv->enuHostIFstate < HOST_IF_CONNECTING)
 		hif_drv->enuHostIFstate = HOST_IF_CONNECTING;
