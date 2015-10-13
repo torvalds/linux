@@ -116,7 +116,7 @@ struct connect_attr {
 	u8 security;
 	wilc_connect_result result;
 	void *arg;
-	enum AUTHTYPE tenuAuth_type;
+	enum AUTHTYPE auth_type;
 	u8 u8channel;
 	void *pJoinParams;
 };
@@ -1052,7 +1052,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	}
 
 	hif_drv->strWILC_UsrConnReq.u8security = pstrHostIFconnectAttr->security;
-	hif_drv->strWILC_UsrConnReq.tenuAuth_type = pstrHostIFconnectAttr->tenuAuth_type;
+	hif_drv->strWILC_UsrConnReq.tenuAuth_type = pstrHostIFconnectAttr->auth_type;
 	hif_drv->strWILC_UsrConnReq.pfUserConnectResult = pstrHostIFconnectAttr->result;
 	hif_drv->strWILC_UsrConnReq.u32UserConnectPvoid = pstrHostIFconnectAttr->arg;
 
@@ -3612,7 +3612,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	msg.id = HOST_IF_MSG_CONNECT;
 
 	msg.body.con_info.security = u8security;
-	msg.body.con_info.tenuAuth_type = tenuAuth_type;
+	msg.body.con_info.auth_type = tenuAuth_type;
 	msg.body.con_info.u8channel = u8channel;
 	msg.body.con_info.result = pfConnectResult;
 	msg.body.con_info.arg = pvUserArg;
