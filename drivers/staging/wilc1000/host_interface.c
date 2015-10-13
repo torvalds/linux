@@ -146,7 +146,7 @@ struct set_multicast {
 
 struct del_all_sta {
 	u8 del_all_sta[MAX_NUM_STA][ETH_ALEN];
-	u8 u8Num_AssocSta;
+	u8 assoc_sta;
 };
 
 struct del_sta {
@@ -2493,17 +2493,17 @@ static void Handle_DelAllSta(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_DEL_ALL_STA;
 	strWID.type = WID_STR;
-	strWID.size = (pstrDelAllStaParam->u8Num_AssocSta * ETH_ALEN) + 1;
+	strWID.size = (pstrDelAllStaParam->assoc_sta * ETH_ALEN) + 1;
 
 	PRINT_D(HOSTINF_DBG, "Handling delete station\n");
 
-	strWID.val = kmalloc((pstrDelAllStaParam->u8Num_AssocSta * ETH_ALEN) + 1, GFP_KERNEL);
+	strWID.val = kmalloc((pstrDelAllStaParam->assoc_sta * ETH_ALEN) + 1, GFP_KERNEL);
 	if (strWID.val == NULL)
 		goto ERRORHANDLER;
 
 	pu8CurrByte = strWID.val;
 
-	*(pu8CurrByte++) = pstrDelAllStaParam->u8Num_AssocSta;
+	*(pu8CurrByte++) = pstrDelAllStaParam->assoc_sta;
 
 	for (i = 0; i < MAX_NUM_STA; i++) {
 		if (memcmp(pstrDelAllStaParam->del_all_sta[i], au8Zero_Buff, ETH_ALEN))
@@ -4809,7 +4809,7 @@ s32 host_int_del_allstation(struct host_if_drv *hif_drv,
 		return s32Error;
 	}
 
-	pstrDelAllStationMsg->u8Num_AssocSta = u8AssocNumb;
+	pstrDelAllStationMsg->assoc_sta = u8AssocNumb;
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 
 
