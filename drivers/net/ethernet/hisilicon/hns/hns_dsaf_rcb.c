@@ -575,8 +575,8 @@ int hns_rcb_set_coalesced_frames(struct dsaf_device *dsaf_dev,
  *@max_vfn : max vfn number
  *@max_q_per_vf:max ring number per vm
  */
-static void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, int comm_index,
-				   u16 *max_vfn, u16 *max_q_per_vf)
+void hns_rcb_get_queue_mode(enum dsaf_mode dsaf_mode, int comm_index,
+			    u16 *max_vfn, u16 *max_q_per_vf)
 {
 	if (comm_index == HNS_DSAF_COMM_SERVICE_NW_IDX) {
 		switch (dsaf_mode) {
