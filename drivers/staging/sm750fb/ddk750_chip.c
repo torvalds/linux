@@ -34,7 +34,7 @@ logical_chip_type_t getChipType(void)
 	return chip;
 }
 
-static unsigned int getChipClock(void)
+static unsigned int get_mxclk_freq(void)
 {
 	unsigned int pll_reg;
 	unsigned int M, N, OD, POD;
@@ -100,7 +100,7 @@ static void setMemoryClock(unsigned int frequency)
 			frequency = MHz(336);
 
 		/* Calculate the divisor */
-		divisor = (unsigned int)roundedDiv(getChipClock(), frequency);
+		divisor = (unsigned int)roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
 		ulReg = PEEK32(CURRENT_GATE);
@@ -147,7 +147,7 @@ static void setMasterClock(unsigned int frequency)
 			frequency = MHz(190);
 
 		/* Calculate the divisor */
-		divisor = (unsigned int)roundedDiv(getChipClock(), frequency);
+		divisor = (unsigned int)roundedDiv(get_mxclk_freq(), frequency);
 
 		/* Set the corresponding divisor in the register. */
 		ulReg = PEEK32(CURRENT_GATE);
