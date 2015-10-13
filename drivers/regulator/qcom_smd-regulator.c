@@ -131,7 +131,7 @@ static int rpm_reg_set_load(struct regulator_dev *rdev, int load_uA)
 
 	req.key = cpu_to_le32(RPM_KEY_MA);
 	req.nbytes = cpu_to_le32(sizeof(u32));
-	req.value = cpu_to_le32(load_uA);
+	req.value = cpu_to_le32(load_uA / 1000);
 
 	return rpm_reg_write_active(vreg, &req, sizeof(req));
 }
