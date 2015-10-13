@@ -1286,6 +1286,17 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	if (state->fmr.next >= state->fmr.end)
 		return -ENOMEM;
 
+	WARN_ON_ONCE(!dev->use_fmr);
+
+	if (state->npages == 0)
+		return 0;
+
+	if (state->npages == 1 && target->global_mr) {
+		srp_map_desc(state, state->base_dma_addr, state->dma_len,
+			     target->global_mr->rkey);
+		goto reset_state;
+	}
+
 	fmr = ib_fmr_pool_map_phys(ch->fmr_pool, state->pages,
 				   state->npages, io_addr);
 	if (IS_ERR(fmr))
@@ -1296,6 +1307,10 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 
 	srp_map_desc(state, state->base_dma_addr & ~dev->mr_page_mask,
 		     state->dma_len, fmr->fmr->rkey);
+
+reset_state:
+	state->npages = 0;
+	state->dma_len = 0;
 
 	return 0;
 }
@@ -1309,9 +1324,21 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	struct ib_fast_reg_wr wr;
 	struct srp_fr_desc *desc;
 	u32 rkey;
+	int err;
 
 	if (state->fr.next >= state->fr.end)
 		return -ENOMEM;
+
+	WARN_ON_ONCE(!dev->use_fast_reg);
+
+	if (state->npages == 0)
+		return 0;
+
+	if (state->npages == 1 && target->global_mr) {
+		srp_map_desc(state, state->base_dma_addr, state->dma_len,
+			     target->global_mr->rkey);
+		goto reset_state;
+	}
 
 	desc = srp_fr_pool_get(ch->fr_pool);
 	if (!desc)
@@ -1342,7 +1369,15 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	srp_map_desc(state, state->base_dma_addr, state->dma_len,
 		     desc->mr->rkey);
 
-	return ib_post_send(ch->qp, &wr.wr, &bad_wr);
+	err = ib_post_send(ch->qp, &wr.wr, &bad_wr);
+	if (err)
+		return err;
+
+reset_state:
+	state->npages = 0;
+	state->dma_len = 0;
+
+	return 0;
 }
 
 static int srp_finish_mapping(struct srp_map_state *state,
@@ -1350,26 +1385,9 @@ static int srp_finish_mapping(struct srp_map_state *state,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
-	int ret = 0;
 
-	WARN_ON_ONCE(!dev->use_fast_reg && !dev->use_fmr);
-
-	if (state->npages == 0)
-		return 0;
-
-	if (state->npages == 1 && target->global_mr)
-		srp_map_desc(state, state->base_dma_addr, state->dma_len,
-			     target->global_mr->rkey);
-	else
-		ret = dev->use_fast_reg ? srp_map_finish_fr(state, ch) :
-			srp_map_finish_fmr(state, ch);
-
-	if (ret == 0) {
-		state->npages = 0;
-		state->dma_len = 0;
-	}
-
-	return ret;
+	return dev->use_fast_reg ? srp_map_finish_fr(state, ch) :
+				   srp_map_finish_fmr(state, ch);
 }
 
 static int srp_map_sg_entry(struct srp_map_state *state,
@@ -1415,47 +1433,79 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	return ret;
 }
 
-static int srp_map_sg(struct srp_map_state *state, struct srp_rdma_ch *ch,
-		      struct srp_request *req, struct scatterlist *scat,
-		      int count)
+static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			  struct srp_request *req, struct scatterlist *scat,
+			  int count)
+{
+	struct scatterlist *sg;
+	int i, ret;
+
+	state->desc = req->indirect_desc;
+	state->pages = req->map_page;
+	state->fmr.next = req->fmr_list;
+	state->fmr.end = req->fmr_list + ch->target->cmd_sg_cnt;
+
+	for_each_sg(scat, sg, count, i) {
+		ret = srp_map_sg_entry(state, ch, sg, i);
+		if (ret)
+			return ret;
+	}
+
+	ret = srp_finish_mapping(state, ch);
+	if (ret)
+		return ret;
+
+	req->nmdesc = state->nmdesc;
+
+	return 0;
+}
+
+static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			 struct srp_request *req, struct scatterlist *scat,
+			 int count)
+{
+	struct scatterlist *sg;
+	int i, ret;
+
+	state->desc = req->indirect_desc;
+	state->pages = req->map_page;
+	state->fmr.next = req->fmr_list;
+	state->fmr.end = req->fmr_list + ch->target->cmd_sg_cnt;
+
+	for_each_sg(scat, sg, count, i) {
+		ret = srp_map_sg_entry(state, ch, sg, i);
+		if (ret)
+			return ret;
+	}
+
+	ret = srp_finish_mapping(state, ch);
+	if (ret)
+		return ret;
+
+	req->nmdesc = state->nmdesc;
+
+	return 0;
+}
+
+static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
+			  struct srp_request *req, struct scatterlist *scat,
+			  int count)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
 	struct scatterlist *sg;
-	int i, ret;
+	int i;
 
-	state->desc	= req->indirect_desc;
-	state->pages	= req->map_page;
-	if (dev->use_fast_reg) {
-		state->fr.next = req->fr_list;
-		state->fr.end = req->fr_list + target->cmd_sg_cnt;
-	} else if (dev->use_fmr) {
-		state->fmr.next = req->fmr_list;
-		state->fmr.end = req->fmr_list + target->cmd_sg_cnt;
-	}
-
-	if (dev->use_fast_reg || dev->use_fmr) {
-		for_each_sg(scat, sg, count, i) {
-			ret = srp_map_sg_entry(state, ch, sg, i);
-			if (ret)
-				goto out;
-		}
-		ret = srp_finish_mapping(state, ch);
-		if (ret)
-			goto out;
-	} else {
-		for_each_sg(scat, sg, count, i) {
-			srp_map_desc(state, ib_sg_dma_address(dev->dev, sg),
-				     ib_sg_dma_len(dev->dev, sg),
-				     target->global_mr->rkey);
-		}
+	state->desc = req->indirect_desc;
+	for_each_sg(scat, sg, count, i) {
+		srp_map_desc(state, ib_sg_dma_address(dev->dev, sg),
+			     ib_sg_dma_len(dev->dev, sg),
+			     target->global_mr->rkey);
 	}
 
 	req->nmdesc = state->nmdesc;
-	ret = 0;
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
@@ -1563,7 +1613,12 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 				   target->indirect_size, DMA_TO_DEVICE);
 
 	memset(&state, 0, sizeof(state));
-	srp_map_sg(&state, ch, req, scat, count);
+	if (dev->use_fast_reg)
+		srp_map_sg_fr(&state, ch, req, scat, count);
+	else if (dev->use_fmr)
+		srp_map_sg_fmr(&state, ch, req, scat, count);
+	else
+		srp_map_sg_dma(&state, ch, req, scat, count);
 
 	/* We've mapped the request, now pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
