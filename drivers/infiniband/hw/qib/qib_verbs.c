@@ -362,7 +362,10 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	 * undefined operations.
 	 * Make sure buffer is large enough to hold the result for atomics.
 	 */
-	if (wr->opcode == IB_WR_FAST_REG_MR) {
+	if (wr->opcode == IB_WR_REG_MR) {
+		if (qib_reg_mr(qp, reg_wr(wr)))
+			goto bail_inval;
+	} else if (wr->opcode == IB_WR_FAST_REG_MR) {
 		if (qib_fast_reg_mr(qp, wr))
 			goto bail_inval;
 	} else if (qp->ibqp.qp_type == IB_QPT_UC) {
@@ -401,6 +404,9 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	if (qp->ibqp.qp_type != IB_QPT_UC &&
 	    qp->ibqp.qp_type != IB_QPT_RC)
 		memcpy(&wqe->ud_wr, ud_wr(wr), sizeof(wqe->ud_wr));
+	else if (wr->opcode == IB_WR_REG_MR)
+		memcpy(&wqe->reg_wr, reg_wr(wr),
+			sizeof(wqe->reg_wr));
 	else if (wr->opcode == IB_WR_FAST_REG_MR)
 		memcpy(&wqe->fast_reg_wr, fast_reg_wr(wr),
 			sizeof(wqe->fast_reg_wr));
@@ -2260,6 +2266,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
 	ibdev->alloc_mr = qib_alloc_mr;
+	ibdev->map_mr_sg = qib_map_mr_sg;
 	ibdev->alloc_fast_reg_page_list = qib_alloc_fast_reg_page_list;
 	ibdev->free_fast_reg_page_list = qib_free_fast_reg_page_list;
 	ibdev->alloc_fmr = qib_alloc_fmr;

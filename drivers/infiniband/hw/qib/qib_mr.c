@@ -303,6 +303,7 @@ int qib_dereg_mr(struct ib_mr *ibmr)
 	int ret = 0;
 	unsigned long timeout;
 
+	kfree(mr->pages);
 	qib_free_lkey(&mr->mr);
 
 	qib_put_mr(&mr->mr); /* will set completion if last */
@@ -340,7 +341,38 @@ struct ib_mr *qib_alloc_mr(struct ib_pd *pd,
 	if (IS_ERR(mr))
 		return (struct ib_mr *)mr;
 
+	mr->pages = kcalloc(max_num_sg, sizeof(u64), GFP_KERNEL);
+	if (!mr->pages)
+		goto err;
+
 	return &mr->ibmr;
+
+err:
+	qib_dereg_mr(&mr->ibmr);
+	return ERR_PTR(-ENOMEM);
+}
+
+static int qib_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct qib_mr *mr = to_imr(ibmr);
+
+	if (unlikely(mr->npages == mr->mr.max_segs))
+		return -ENOMEM;
+
+	mr->pages[mr->npages++] = addr;
+
+	return 0;
+}
+
+int qib_map_mr_sg(struct ib_mr *ibmr,
+		  struct scatterlist *sg,
+		  int sg_nents)
+{
+	struct qib_mr *mr = to_imr(ibmr);
+
+	mr->npages = 0;
+
+	return ib_sg_to_pages(ibmr, sg, sg_nents, qib_set_page);
 }
 
 struct ib_fast_reg_page_list *
