@@ -776,7 +776,10 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
  * Also note, that the object created here is not currently a "first class"
  * object, in that several ioctls are banned. These are the CPU access
  * ioctls: mmap(), pwrite and pread. In practice, you are expected to use
- * direct access via your pointer rather than use those ioctls.
+ * direct access via your pointer rather than use those ioctls. Another
+ * restriction is that we do not allow userptr surfaces to be pinned to the
+ * hardware and so we reject any attempt to create a framebuffer out of a
+ * userptr.
  *
  * If you think this is a good interface to use to pass GPU memory between
  * drivers, please use dma-buf instead. In fact, wherever possible use
