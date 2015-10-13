@@ -352,14 +352,14 @@ static void amd_sched_fence_work_func(struct work_struct *work)
 	DRM_ERROR("[%s] scheduler is timeout!\n", sched->name);
 
 	/* Clean all pending fences */
+	spin_lock_irqsave(&sched->fence_list_lock, flags);
 	list_for_each_entry_safe(entity, tmp, &sched->fence_list, list) {
 		DRM_ERROR("  fence no %d\n", entity->base.seqno);
-		cancel_delayed_work_sync(&entity->dwork);
-		spin_lock_irqsave(&sched->fence_list_lock, flags);
+		cancel_delayed_work(&entity->dwork);
 		list_del_init(&entity->list);
-		spin_unlock_irqrestore(&sched->fence_list_lock, flags);
 		fence_put(&entity->base);
 	}
+	spin_unlock_irqrestore(&sched->fence_list_lock, flags);
 }
 
 static int amd_sched_main(void *param)
