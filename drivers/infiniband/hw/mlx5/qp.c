@@ -64,7 +64,6 @@ static const u32 mlx5_ib_opcode[] = {
 	[IB_WR_ATOMIC_FETCH_AND_ADD]		= MLX5_OPCODE_ATOMIC_FA,
 	[IB_WR_SEND_WITH_INV]			= MLX5_OPCODE_SEND_INVAL,
 	[IB_WR_LOCAL_INV]			= MLX5_OPCODE_UMR,
-	[IB_WR_FAST_REG_MR]			= MLX5_OPCODE_UMR,
 	[IB_WR_REG_MR]				= MLX5_OPCODE_UMR,
 	[IB_WR_MASKED_ATOMIC_CMP_AND_SWP]	= MLX5_OPCODE_ATOMIC_MASKED_CS,
 	[IB_WR_MASKED_ATOMIC_FETCH_AND_ADD]	= MLX5_OPCODE_ATOMIC_MASKED_FA,
@@ -1908,20 +1907,11 @@ static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
 	umr->mkey_mask = frwr_mkey_mask();
 }
 
-static void set_frwr_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
-				 struct ib_send_wr *wr, int li)
+static void set_linv_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr)
 {
 	memset(umr, 0, sizeof(*umr));
-
-	if (li) {
-		umr->mkey_mask = cpu_to_be64(MLX5_MKEY_MASK_FREE);
-		umr->flags = 1 << 7;
-		return;
-	}
-
-	umr->flags = (1 << 5); /* fail if not free */
-	umr->klm_octowords = get_klm_octo(fast_reg_wr(wr)->page_list_len);
-	umr->mkey_mask = frwr_mkey_mask();
+	umr->mkey_mask = cpu_to_be64(MLX5_MKEY_MASK_FREE);
+	umr->flags = 1 << 7;
 }
 
 static __be64 get_umr_reg_mr_mask(void)
@@ -2015,24 +2005,10 @@ static void set_reg_mkey_seg(struct mlx5_mkey_seg *seg,
 	seg->log2_page_size = ilog2(mr->ibmr.page_size);
 }
 
-static void set_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr,
-			     int li, int *writ)
+static void set_linv_mkey_seg(struct mlx5_mkey_seg *seg)
 {
 	memset(seg, 0, sizeof(*seg));
-	if (li) {
-		seg->status = MLX5_MKEY_STATUS_FREE;
-		return;
-	}
-
-	seg->flags = get_umr_flags(fast_reg_wr(wr)->access_flags) |
-		     MLX5_ACCESS_MODE_MTT;
-	*writ = seg->flags & (MLX5_PERM_LOCAL_WRITE | IB_ACCESS_REMOTE_WRITE);
-	seg->qpn_mkey7_0 = cpu_to_be32((fast_reg_wr(wr)->rkey & 0xff) | 0xffffff00);
-	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL);
-	seg->start_addr = cpu_to_be64(fast_reg_wr(wr)->iova_start);
-	seg->len = cpu_to_be64(fast_reg_wr(wr)->length);
-	seg->xlt_oct_size = cpu_to_be32((fast_reg_wr(wr)->page_list_len + 1) / 2);
-	seg->log2_page_size = fast_reg_wr(wr)->page_shift;
+	seg->status = MLX5_MKEY_STATUS_FREE;
 }
 
 static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *wr)
@@ -2064,24 +2040,6 @@ static void set_reg_data_seg(struct mlx5_wqe_data_seg *dseg,
 
 	dseg->addr = cpu_to_be64(mr->desc_map);
 	dseg->byte_count = cpu_to_be32(ALIGN(bcount, 64));
-	dseg->lkey = cpu_to_be32(pd->ibpd.local_dma_lkey);
-}
-
-static void set_frwr_pages(struct mlx5_wqe_data_seg *dseg,
-			   struct ib_send_wr *wr,
-			   struct mlx5_core_dev *mdev,
-			   struct mlx5_ib_pd *pd,
-			   int writ)
-{
-	struct mlx5_ib_fast_reg_page_list *mfrpl = to_mfrpl(fast_reg_wr(wr)->page_list);
-	u64 *page_list = fast_reg_wr(wr)->page_list->page_list;
-	u64 perm = MLX5_EN_RD | (writ ? MLX5_EN_WR : 0);
-	int i;
-
-	for (i = 0; i < fast_reg_wr(wr)->page_list_len; i++)
-		mfrpl->mapped_page_list[i] = cpu_to_be64(page_list[i] | perm);
-	dseg->addr = cpu_to_be64(mfrpl->map);
-	dseg->byte_count = cpu_to_be32(ALIGN(sizeof(u64) * fast_reg_wr(wr)->page_list_len, 64));
 	dseg->lkey = cpu_to_be32(pd->ibpd.local_dma_lkey);
 }
 
@@ -2504,36 +2462,18 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 	return 0;
 }
 
-static int set_frwr_li_wr(void **seg, struct ib_send_wr *wr, int *size,
-			  struct mlx5_core_dev *mdev, struct mlx5_ib_pd *pd, struct mlx5_ib_qp *qp)
+static void set_linv_wr(struct mlx5_ib_qp *qp, void **seg, int *size)
 {
-	int writ = 0;
-	int li;
-
-	li = wr->opcode == IB_WR_LOCAL_INV ? 1 : 0;
-	if (unlikely(wr->send_flags & IB_SEND_INLINE))
-		return -EINVAL;
-
-	set_frwr_umr_segment(*seg, wr, li);
+	set_linv_umr_seg(*seg);
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
-	set_mkey_segment(*seg, wr, li, &writ);
+	set_linv_mkey_seg(*seg);
 	*seg += sizeof(struct mlx5_mkey_seg);
 	*size += sizeof(struct mlx5_mkey_seg) / 16;
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
-	if (!li) {
-		if (unlikely(fast_reg_wr(wr)->page_list_len >
-			     fast_reg_wr(wr)->page_list->max_page_list_len))
-			return	-ENOMEM;
-
-		set_frwr_pages(*seg, wr, mdev, pd, writ);
-		*seg += sizeof(struct mlx5_wqe_data_seg);
-		*size += (sizeof(struct mlx5_wqe_data_seg) / 16);
-	}
-	return 0;
 }
 
 static void dump_wqe(struct mlx5_ib_qp *qp, int idx, int size_16)
@@ -2649,7 +2589,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 {
 	struct mlx5_wqe_ctrl_seg *ctrl = NULL;  /* compiler warning */
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
-	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_ib_mr *mr;
 	struct mlx5_wqe_data_seg *dpseg;
@@ -2724,25 +2663,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				next_fence = MLX5_FENCE_MODE_INITIATOR_SMALL;
 				qp->sq.wr_data[idx] = IB_WR_LOCAL_INV;
 				ctrl->imm = cpu_to_be32(wr->ex.invalidate_rkey);
-				err = set_frwr_li_wr(&seg, wr, &size, mdev, to_mpd(ibqp->pd), qp);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					*bad_wr = wr;
-					goto out;
-				}
-				num_sge = 0;
-				break;
-
-			case IB_WR_FAST_REG_MR:
-				next_fence = MLX5_FENCE_MODE_INITIATOR_SMALL;
-				qp->sq.wr_data[idx] = IB_WR_FAST_REG_MR;
-				ctrl->imm = cpu_to_be32(fast_reg_wr(wr)->rkey);
-				err = set_frwr_li_wr(&seg, wr, &size, mdev, to_mpd(ibqp->pd), qp);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					*bad_wr = wr;
-					goto out;
-				}
+				set_linv_wr(qp, &seg, &size);
 				num_sge = 0;
 				break;
 

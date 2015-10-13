@@ -338,12 +338,6 @@ struct mlx5_ib_mr {
 	void			*descs_alloc;
 };
 
-struct mlx5_ib_fast_reg_page_list {
-	struct ib_fast_reg_page_list	ibfrpl;
-	__be64			       *mapped_page_list;
-	dma_addr_t			map;
-};
-
 struct mlx5_ib_umr_context {
 	enum ib_wc_status	status;
 	struct completion	done;
@@ -494,11 +488,6 @@ static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx5_ib_mr, ibmr);
 }
 
-static inline struct mlx5_ib_fast_reg_page_list *to_mfrpl(struct ib_fast_reg_page_list *ibfrpl)
-{
-	return container_of(ibfrpl, struct mlx5_ib_fast_reg_page_list, ibfrpl);
-}
-
 struct mlx5_ib_ah {
 	struct ib_ah		ibah;
 	struct mlx5_av		av;
@@ -569,9 +558,6 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
 		      struct scatterlist *sg,
 		      int sg_nents);
-struct ib_fast_reg_page_list *mlx5_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
-							       int page_list_len);
-void mlx5_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad_hdr *in, size_t in_mad_size,
