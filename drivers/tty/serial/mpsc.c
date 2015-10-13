@@ -2109,7 +2109,8 @@ static int mpsc_drv_probe(struct platform_device *dev)
 static struct platform_driver mpsc_driver = {
 	.probe	= mpsc_drv_probe,
 	.driver	= {
-		.name	= MPSC_CTLR_NAME,
+		.name			= MPSC_CTLR_NAME,
+		.suppress_bind_attrs	= true,
 	},
 };
 
