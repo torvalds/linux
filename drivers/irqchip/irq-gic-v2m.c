@@ -308,9 +308,10 @@ static int __init gicv2m_init_one(struct device_node *node,
 
 	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
 	inner_domain->parent = parent;
-	pci_domain = pci_msi_create_irq_domain(node, &gicv2m_msi_domain_info,
+	pci_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+					       &gicv2m_msi_domain_info,
 					       inner_domain);
-	plat_domain = platform_msi_create_irq_domain(node,
+	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
 						     &gicv2m_pmsi_domain_info,
 						     inner_domain);
 	if (!pci_domain || !plat_domain) {

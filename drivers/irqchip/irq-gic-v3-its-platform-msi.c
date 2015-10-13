@@ -78,7 +78,8 @@ static int __init its_pmsi_init(void)
 			continue;
 		}
 
-		if (!platform_msi_create_irq_domain(np, &its_pmsi_domain_info,
+		if (!platform_msi_create_irq_domain(of_node_to_fwnode(np),
+						    &its_pmsi_domain_info,
 						    parent)) {
 			pr_err("%s: unable to create platform domain\n",
 			       np->full_name);

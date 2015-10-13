@@ -174,6 +174,7 @@ struct msi_controller {
 struct irq_domain;
 struct irq_chip;
 struct device_node;
+struct fwnode_handle;
 struct msi_domain_info;
 
 /**
@@ -262,7 +263,7 @@ enum {
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			    bool force);
 
-struct irq_domain *msi_create_irq_domain(struct device_node *of_node,
+struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent);
 int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
@@ -270,7 +271,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 
-struct irq_domain *platform_msi_create_irq_domain(struct device_node *np,
+struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent);
 int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
@@ -280,13 +281,13 @@ void platform_msi_domain_free_irqs(struct device *dev);
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
 void pci_msi_domain_write_msg(struct irq_data *irq_data, struct msi_msg *msg);
-struct irq_domain *pci_msi_create_irq_domain(struct device_node *node,
+struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent);
 int pci_msi_domain_alloc_irqs(struct irq_domain *domain, struct pci_dev *dev,
 			      int nvec, int type);
 void pci_msi_domain_free_irqs(struct irq_domain *domain, struct pci_dev *dev);
-struct irq_domain *pci_msi_create_default_irq_domain(struct device_node *node,
+struct irq_domain *pci_msi_create_default_irq_domain(struct fwnode_handle *fwnode,
 		 struct msi_domain_info *info, struct irq_domain *parent);
 
 irq_hw_number_t pci_msi_domain_calc_hwirq(struct pci_dev *dev,

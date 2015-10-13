@@ -125,7 +125,8 @@ static int __init its_pci_msi_init(void)
 			continue;
 		}
 
-		if (!pci_msi_create_irq_domain(np, &its_pci_msi_domain_info,
+		if (!pci_msi_create_irq_domain(of_node_to_fwnode(np),
+					       &its_pci_msi_domain_info,
 					       parent)) {
 			pr_err("%s: unable to create PCI domain\n",
 			       np->full_name);
