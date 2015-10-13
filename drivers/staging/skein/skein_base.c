@@ -88,7 +88,7 @@ int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hash_bit_len,
 	} cfg; /* config block */
 
 	skein_assert_ret(hash_bit_len > 0, SKEIN_BAD_HASHLEN);
-	skein_assert_ret(key_bytes == 0 || key != NULL, SKEIN_FAIL);
+	skein_assert_ret(key_bytes == 0 || key, SKEIN_FAIL);
 
 	/* compute the initial chaining values ctx->x[], based on key */
 	if (key_bytes == 0) { /* is there a key? */
@@ -316,7 +316,7 @@ int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hash_bit_len,
 	} cfg;                              /* config block */
 
 	skein_assert_ret(hash_bit_len > 0, SKEIN_BAD_HASHLEN);
-	skein_assert_ret(key_bytes == 0 || key != NULL, SKEIN_FAIL);
+	skein_assert_ret(key_bytes == 0 || key, SKEIN_FAIL);
 
 	/* compute the initial chaining values ctx->x[], based on key */
 	if (key_bytes == 0) { /* is there a key? */
@@ -537,7 +537,7 @@ int skein_1024_init_ext(struct skein_1024_ctx *ctx, size_t hash_bit_len,
 	} cfg;                              /* config block */
 
 	skein_assert_ret(hash_bit_len > 0, SKEIN_BAD_HASHLEN);
-	skein_assert_ret(key_bytes == 0 || key != NULL, SKEIN_FAIL);
+	skein_assert_ret(key_bytes == 0 || key, SKEIN_FAIL);
 
 	/* compute the initial chaining values ctx->x[], based on key */
 	if (key_bytes == 0) { /* is there a key? */
