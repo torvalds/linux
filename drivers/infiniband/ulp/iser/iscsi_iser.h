@@ -227,18 +227,13 @@ enum iser_data_dir {
  * @size:         num entries of this sg
  * @data_len:     total beffer byte len
  * @dma_nents:    returned by dma_map_sg
- * @orig_sg:      pointer to the original sg list (in case
- *                we used a copy)
- * @orig_size:    num entris of orig sg list
  */
 struct iser_data_buf {
 	struct scatterlist *sg;
 	unsigned int       size;
 	unsigned long      data_len;
 	unsigned int       dma_nents;
-	struct scatterlist *orig_sg;
-	unsigned int       orig_size;
-  };
+};
 
 /* fwd declarations */
 struct iser_device;
