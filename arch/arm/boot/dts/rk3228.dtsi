@@ -115,6 +115,23 @@
 		status = "disabled";
 	};
 
+	rockchip_ion: rockchip-ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ion_cma: cma-heap {
+			 compatible = "rockchip,ion-heap";
+			 status = "disabled";
+			 rockchip,ion_heap = <4>;
+			 reg = <0x10000000 0x08000000>; /* 128 MB */
+		};
+		system_heap: system-heap {
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <0>;
+		};
+	};
+
 	rockchip_clocks_init: clocks-init{
 		compatible = "rockchip,clocks-init";
 		rockchip,clocks-init-parent =
