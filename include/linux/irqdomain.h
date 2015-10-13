@@ -183,9 +183,16 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 irq_hw_number_t first_hwirq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data);
-extern struct irq_domain *irq_find_matching_host(struct device_node *node,
-						 enum irq_domain_bus_token bus_token);
+extern struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+						   enum irq_domain_bus_token bus_token);
 extern void irq_set_default_host(struct irq_domain *host);
+
+static inline struct irq_domain *irq_find_matching_host(struct device_node *node,
+							enum irq_domain_bus_token bus_token)
+{
+	return irq_find_matching_fwnode(node ? &node->fwnode : NULL,
+					bus_token);
+}
 
 static inline struct irq_domain *irq_find_host(struct device_node *node)
 {

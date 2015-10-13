@@ -191,12 +191,12 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 EXPORT_SYMBOL_GPL(irq_domain_add_legacy);
 
 /**
- * irq_find_matching_host() - Locates a domain for a given device node
- * @node: device-tree node of the interrupt controller
+ * irq_find_matching_fwnode() - Locates a domain for a given fwnode
+ * @fwnode: FW descriptor of the interrupt controller
  * @bus_token: domain-specific data
  */
-struct irq_domain *irq_find_matching_host(struct device_node *node,
-					  enum irq_domain_bus_token bus_token)
+struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
+					    enum irq_domain_bus_token bus_token)
 {
 	struct irq_domain *h, *found = NULL;
 	int rc;
@@ -212,12 +212,10 @@ struct irq_domain *irq_find_matching_host(struct device_node *node,
 	 */
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(h, &irq_domain_list, link) {
-		struct device_node *of_node;
-		of_node = irq_domain_get_of_node(h);
 		if (h->ops->match)
-			rc = h->ops->match(h, node, bus_token);
+			rc = h->ops->match(h, to_of_node(fwnode), bus_token);
 		else
-			rc = ((of_node != NULL) && (of_node == node) &&
+			rc = ((fwnode != NULL) && (h->fwnode == fwnode) &&
 			      ((bus_token == DOMAIN_BUS_ANY) ||
 			       (h->bus_token == bus_token)));
 
@@ -229,7 +227,7 @@ struct irq_domain *irq_find_matching_host(struct device_node *node,
 	mutex_unlock(&irq_domain_mutex);
 	return found;
 }
-EXPORT_SYMBOL_GPL(irq_find_matching_host);
+EXPORT_SYMBOL_GPL(irq_find_matching_fwnode);
 
 /**
  * irq_set_default_host() - Set a "default" irq domain
