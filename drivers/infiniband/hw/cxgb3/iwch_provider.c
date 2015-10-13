@@ -463,6 +463,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr)
 		return -EINVAL;
 
 	mhp = to_iwch_mr(ib_mr);
+	kfree(mhp->pages);
 	rhp = mhp->rhp;
 	mmid = mhp->attr.stag >> 8;
 	cxio_dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
@@ -821,6 +822,12 @@ static struct ib_mr *iwch_alloc_mr(struct ib_pd *pd,
 	if (!mhp)
 		goto err;
 
+	mhp->pages = kcalloc(max_num_sg, sizeof(u64), GFP_KERNEL);
+	if (!mhp->pages) {
+		ret = -ENOMEM;
+		goto pl_err;
+	}
+
 	mhp->rhp = rhp;
 	ret = iwch_alloc_pbl(mhp, max_num_sg);
 	if (ret)
@@ -847,9 +854,34 @@ err3:
 err2:
 	iwch_free_pbl(mhp);
 err1:
+	kfree(mhp->pages);
+pl_err:
 	kfree(mhp);
 err:
 	return ERR_PTR(ret);
+}
+
+static int iwch_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct iwch_mr *mhp = to_iwch_mr(ibmr);
+
+	if (unlikely(mhp->npages == mhp->attr.pbl_size))
+		return -ENOMEM;
+
+	mhp->pages[mhp->npages++] = addr;
+
+	return 0;
+}
+
+static int iwch_map_mr_sg(struct ib_mr *ibmr,
+			  struct scatterlist *sg,
+			  int sg_nents)
+{
+	struct iwch_mr *mhp = to_iwch_mr(ibmr);
+
+	mhp->npages = 0;
+
+	return ib_sg_to_pages(ibmr, sg, sg_nents, iwch_set_page);
 }
 
 static struct ib_fast_reg_page_list *iwch_alloc_fastreg_pbl(
@@ -1450,6 +1482,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.bind_mw = iwch_bind_mw;
 	dev->ibdev.dealloc_mw = iwch_dealloc_mw;
 	dev->ibdev.alloc_mr = iwch_alloc_mr;
+	dev->ibdev.map_mr_sg = iwch_map_mr_sg;
 	dev->ibdev.alloc_fast_reg_page_list = iwch_alloc_fastreg_pbl;
 	dev->ibdev.free_fast_reg_page_list = iwch_free_fastreg_pbl;
 	dev->ibdev.attach_mcast = iwch_multicast_attach;

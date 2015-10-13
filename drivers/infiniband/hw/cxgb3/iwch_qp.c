@@ -146,6 +146,49 @@ static int build_rdma_read(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
+static int build_memreg(union t3_wr *wqe, struct ib_reg_wr *wr,
+			  u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
+{
+	struct iwch_mr *mhp = to_iwch_mr(wr->mr);
+	int i;
+	__be64 *p;
+
+	if (mhp->npages > T3_MAX_FASTREG_DEPTH)
+		return -EINVAL;
+	*wr_cnt = 1;
+	wqe->fastreg.stag = cpu_to_be32(wr->key);
+	wqe->fastreg.len = cpu_to_be32(mhp->ibmr.length);
+	wqe->fastreg.va_base_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
+	wqe->fastreg.va_base_lo_fbo =
+				cpu_to_be32(mhp->ibmr.iova & 0xffffffff);
+	wqe->fastreg.page_type_perms = cpu_to_be32(
+		V_FR_PAGE_COUNT(mhp->npages) |
+		V_FR_PAGE_SIZE(ilog2(wr->mr->page_size) - 12) |
+		V_FR_TYPE(TPT_VATO) |
+		V_FR_PERMS(iwch_ib_to_tpt_access(wr->access)));
+	p = &wqe->fastreg.pbl_addrs[0];
+	for (i = 0; i < mhp->npages; i++, p++) {
+
+		/* If we need a 2nd WR, then set it up */
+		if (i == T3_MAX_FASTREG_FRAG) {
+			*wr_cnt = 2;
+			wqe = (union t3_wr *)(wq->queue +
+				Q_PTR2IDX((wq->wptr+1), wq->size_log2));
+			build_fw_riwrh((void *)wqe, T3_WR_FASTREG, 0,
+			       Q_GENBIT(wq->wptr + 1, wq->size_log2),
+			       0, 1 + mhp->npages - T3_MAX_FASTREG_FRAG,
+			       T3_EOP);
+
+			p = &wqe->pbl_frag.pbl_addrs[0];
+		}
+		*p = cpu_to_be64((u64)mhp->pages[i]);
+	}
+	*flit_cnt = 5 + mhp->npages;
+	if (*flit_cnt > 15)
+		*flit_cnt = 15;
+	return 0;
+}
+
 static int build_fastreg(union t3_wr *wqe, struct ib_send_wr *send_wr,
 				u8 *flit_cnt, int *wr_cnt, struct t3_wq *wq)
 {
@@ -418,6 +461,11 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			t3_wr_opcode = T3_WR_FASTREG;
 			err = build_fastreg(wqe, wr, &t3_wr_flit_cnt,
 						 &wr_cnt, &qhp->wq);
+			break;
+		case IB_WR_REG_MR:
+			t3_wr_opcode = T3_WR_FASTREG;
+			err = build_memreg(wqe, reg_wr(wr), &t3_wr_flit_cnt,
+					   &wr_cnt, &qhp->wq);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
