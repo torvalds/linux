@@ -158,6 +158,7 @@ struct lprocfs_counter {
 	 */
 	__s64	lc_array_sum[1];
 };
+
 #define lc_sum		lc_array_sum[0]
 #define lc_sum_irq	lc_array_sum[1]
 
@@ -369,6 +370,7 @@ static inline void s2dhms(struct dhms *ts, time64_t secs64)
 	ts->m = secs / 60;
 	ts->s = secs % 60;
 }
+
 #define DHMS_FMT "%dd%dh%02dm%02ds"
 #define DHMS_VARS(x) (x)->d, (x)->h, (x)->m, (x)->s
 

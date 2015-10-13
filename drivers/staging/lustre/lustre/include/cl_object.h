@@ -1119,6 +1119,7 @@ static inline int __page_in_use(const struct cl_page *page, int refc)
 	LASSERT(atomic_read(&page->cp_ref) > 0);
 	return (atomic_read(&page->cp_ref) > refc);
 }
+
 #define cl_page_in_use(pg)       __page_in_use(pg, 1)
 #define cl_page_in_use_noref(pg) __page_in_use(pg, 0)
 

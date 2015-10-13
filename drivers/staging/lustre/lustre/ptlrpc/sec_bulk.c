@@ -457,6 +457,7 @@ static int cfs_hash_alg_id[] = {
 	[BULK_HASH_ALG_SHA384]	= CFS_HASH_ALG_SHA384,
 	[BULK_HASH_ALG_SHA512]	= CFS_HASH_ALG_SHA512,
 };
+
 const char *sptlrpc_get_hash_name(__u8 hash_alg)
 {
 	return cfs_crypto_hash_name(cfs_hash_alg_id[hash_alg]);

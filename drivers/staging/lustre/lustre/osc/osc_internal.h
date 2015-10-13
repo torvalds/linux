@@ -185,6 +185,7 @@ struct osc_quota_info {
 	struct hlist_node oqi_hash;
 	u32	  oqi_id;
 };
+
 int osc_quota_setup(struct obd_device *obd);
 int osc_quota_cleanup(struct obd_device *obd);
 int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],

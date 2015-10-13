@@ -264,15 +264,18 @@ static inline int rule_spec_dir(struct sptlrpc_rule *rule)
 	return (rule->sr_from != LUSTRE_SP_ANY ||
 		rule->sr_to != LUSTRE_SP_ANY);
 }
+
 static inline int rule_spec_net(struct sptlrpc_rule *rule)
 {
 	return (rule->sr_netid != LNET_NIDNET(LNET_NID_ANY));
 }
+
 static inline int rule_match_dir(struct sptlrpc_rule *r1,
 				 struct sptlrpc_rule *r2)
 {
 	return (r1->sr_from == r2->sr_from && r1->sr_to == r2->sr_to);
 }
+
 static inline int rule_match_net(struct sptlrpc_rule *r1,
 				 struct sptlrpc_rule *r2)
 {
@@ -368,6 +371,7 @@ static int sptlrpc_rule_set_merge(struct sptlrpc_rule_set *rset,
 
 	return 0;
 }
+
 /**
  * given from/to/nid, determine a matching flavor in ruleset.
  * return 1 if a match found, otherwise return 0.

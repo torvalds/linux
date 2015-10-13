@@ -562,6 +562,7 @@ int libcfs_debug_mark_buffer(const char *text)
 
 	return 0;
 }
+
 #undef DEBUG_SUBSYSTEM
 #define DEBUG_SUBSYSTEM S_LNET
 

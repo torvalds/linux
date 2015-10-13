@@ -77,6 +77,7 @@ struct portals_handle {
 	unsigned int			h_size:31;
 	unsigned int			h_in:1;
 };
+
 #define RCU2HANDLE(rcu)    container_of(rcu, struct portals_handle, h_rcu)
 
 /* handles.c */

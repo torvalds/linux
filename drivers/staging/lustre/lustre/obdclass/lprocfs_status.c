@@ -587,6 +587,7 @@ static int obd_import_flags2str(struct obd_import *imp, struct seq_file *m)
 	flag2str(pingable, first);
 	return 0;
 }
+
 #undef flags2str
 
 static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep)

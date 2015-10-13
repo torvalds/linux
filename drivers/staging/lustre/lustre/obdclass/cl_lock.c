@@ -138,6 +138,7 @@ static void cl_lock_trace0(int level, const struct lu_env *env,
 	       env, h->coh_nesting, cl_lock_nr_mutexed(env),
 	       func, line);
 }
+
 #define cl_lock_trace(level, env, prefix, lock)			 \
 	cl_lock_trace0(level, env, prefix, lock, __func__, __LINE__)
 

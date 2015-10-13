@@ -133,6 +133,7 @@ struct config_llog_instance {
 	int		 cfg_last_idx; /* for partial llog processing */
 	int		 cfg_flags;
 };
+
 int class_config_parse_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
 			    char *name, struct config_llog_instance *cfg);
 enum {

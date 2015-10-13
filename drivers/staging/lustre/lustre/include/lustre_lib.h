@@ -97,6 +97,7 @@ struct obd_client_handle {
 	__u32			 och_magic;
 	fmode_t			 och_flags;
 };
+
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
 /* statfs_pack.c */

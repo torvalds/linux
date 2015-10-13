@@ -879,6 +879,7 @@ static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
 {
 	return sprintf(buf, "%d\n", ldlm_cancel_unused_locks_before_replay);
 }
+
 static ssize_t cancel_unused_locks_before_replay_store(struct kobject *kobj,
 						       struct attribute *attr,
 						       const char *buffer,

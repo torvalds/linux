@@ -1308,6 +1308,7 @@ int obd_zombie_impexp_init(void)
 	wait_for_completion(&obd_zombie_start);
 	return 0;
 }
+
 /**
  * stop destroy zombie import/export thread
  */

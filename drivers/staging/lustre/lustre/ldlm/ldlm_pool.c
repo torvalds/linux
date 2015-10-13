@@ -474,6 +474,7 @@ static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(lprocfs_pool_state);
 
 static ssize_t grant_speed_show(struct kobject *kobj, struct attribute *attr,

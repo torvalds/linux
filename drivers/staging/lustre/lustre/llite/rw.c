@@ -528,6 +528,7 @@ static inline int stride_io_mode(struct ll_readahead_state *ras)
 {
 	return ras->ras_consecutive_stride_requests > 1;
 }
+
 /* The function calculates how much pages will be read in
  * [off, off + length], in such stride IO area,
  * stride_offset = st_off, stride_length = st_len,

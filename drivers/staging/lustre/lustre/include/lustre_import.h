@@ -352,6 +352,7 @@ static inline void at_reset(struct adaptive_timeout *at, int val)
 	at->at_worst_time = ktime_get_real_seconds();
 	spin_unlock(&at->at_lock);
 }
+
 static inline void at_init(struct adaptive_timeout *at, int val, int flags)
 {
 	memset(at, 0, sizeof(*at));
@@ -359,11 +360,13 @@ static inline void at_init(struct adaptive_timeout *at, int val, int flags)
 	at->at_flags = flags;
 	at_reset(at, val);
 }
+
 extern unsigned int at_min;
 static inline int at_get(struct adaptive_timeout *at)
 {
 	return (at->at_current > at_min) ? at->at_current : at_min;
 }
+
 int at_measured(struct adaptive_timeout *at, unsigned int val);
 int import_at_get_index(struct obd_import *imp, int portal);
 extern unsigned int at_max;

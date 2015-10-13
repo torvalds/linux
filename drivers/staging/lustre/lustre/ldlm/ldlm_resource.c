@@ -77,6 +77,7 @@ lprocfs_wr_dump_ns(struct file *file, const char __user *buffer,
 	ldlm_dump_all_namespaces(LDLM_NAMESPACE_CLIENT, D_DLMTRACE);
 	return count;
 }
+
 LPROC_SEQ_FOPS_WR_ONLY(ldlm, dump_ns);
 
 LPROC_SEQ_FOPS_RW_TYPE(ldlm_rw, uint);
@@ -426,6 +427,7 @@ static int ldlm_namespace_debugfs_register(struct ldlm_namespace *ns)
 
 	return 0;
 }
+
 #undef MAX_STRING_SIZE
 
 static struct ldlm_resource *ldlm_resource_getref(struct ldlm_resource *res)

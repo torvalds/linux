@@ -1545,6 +1545,7 @@ static inline bool ptlrpc_nrs_req_can_move(struct ptlrpc_request *req)
 	 */
 	return nrq->nr_enqueued && !nrq->nr_started && !req->rq_hp;
 }
+
 /** @} nrs */
 
 /**
@@ -2394,10 +2395,12 @@ static inline void ptlrpc_free_bulk_pin(struct ptlrpc_bulk_desc *bulk)
 {
 	__ptlrpc_free_bulk(bulk, 1);
 }
+
 static inline void ptlrpc_free_bulk_nopin(struct ptlrpc_bulk_desc *bulk)
 {
 	__ptlrpc_free_bulk(bulk, 0);
 }
+
 void __ptlrpc_prep_bulk_page(struct ptlrpc_bulk_desc *desc,
 			     struct page *page, int pageoffset, int len, int);
 static inline void ptlrpc_prep_bulk_page_pin(struct ptlrpc_bulk_desc *desc,
@@ -2837,6 +2840,7 @@ void client_destroy_import(struct obd_import *imp);
 enum timeout_event {
 	TIMEOUT_GRANT = 1
 };
+
 struct timeout_item;
 typedef int (*timeout_cb_t)(struct timeout_item *, void *);
 int ptlrpc_pinger_add_import(struct obd_import *imp);

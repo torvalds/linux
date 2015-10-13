@@ -322,6 +322,7 @@ static const struct cl_page_operations echo_page_ops = {
 		}
 	}
 };
+
 /** @} echo_page */
 
 /** \defgroup echo_lock Locking
@@ -417,6 +418,7 @@ static const struct cl_object_operations echo_cl_obj_ops = {
 	.coo_io_init   = echo_io_init,
 	.coo_conf_set  = echo_conf_set
 };
+
 /** @} echo_cl_ops */
 
 /** \defgroup echo_lu_ops lu_object operations
@@ -547,6 +549,7 @@ static const struct lu_object_operations echo_lu_obj_ops = {
 	.loo_object_print     = echo_object_print,
 	.loo_object_invariant = NULL
 };
+
 /** @} echo_lu_ops */
 
 /** \defgroup echo_lu_dev_ops  lu_device operations
@@ -918,6 +921,7 @@ static struct lu_device_type echo_device_type = {
 	.ldt_ops      = &echo_device_type_ops,
 	.ldt_ctx_tags = LCT_CL_THREAD,
 };
+
 /** @} echo_init */
 
 /** \defgroup echo_exports Exported operations
@@ -1257,6 +1261,7 @@ out:
 	cl_env_put(env, &refcheck);
 	return rc;
 }
+
 /** @} echo_exports */
 
 static u64 last_object_id;

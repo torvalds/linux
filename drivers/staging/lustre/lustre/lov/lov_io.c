@@ -51,6 +51,7 @@ static inline void lov_sub_enter(struct lov_io_sub *sub)
 {
 	sub->sub_reenter++;
 }
+
 static inline void lov_sub_exit(struct lov_io_sub *sub)
 {
 	sub->sub_reenter--;
@@ -989,4 +990,5 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 	io->ci_result = result < 0 ? result : 0;
 	return result != 0;
 }
+
 /** @} lov */

@@ -227,6 +227,7 @@ static ssize_t osc_cached_mb_seq_write(struct file *file,
 
 	return count;
 }
+
 LPROC_SEQ_FOPS(osc_cached_mb);
 
 static ssize_t cur_dirty_bytes_show(struct kobject *kobj,
@@ -427,6 +428,7 @@ static ssize_t osc_checksum_type_seq_write(struct file *file,
 	}
 	return -EINVAL;
 }
+
 LPROC_SEQ_FOPS(osc_checksum_type);
 
 static ssize_t resend_count_show(struct kobject *kobj,
@@ -692,6 +694,7 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
+
 #undef pct
 
 static ssize_t osc_rpc_stats_seq_write(struct file *file,

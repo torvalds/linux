@@ -280,6 +280,7 @@ int cfs_crypto_register(void)
 	cfs_crypto_test_hashes();
 	return 0;
 }
+
 void cfs_crypto_unregister(void)
 {
 	if (adler32 == 0)

@@ -404,6 +404,7 @@ static const struct req_msg_field *ldlm_intent_layout_client[] = {
 	&RMF_LAYOUT_INTENT,
 	&RMF_EADATA /* for new layout to be set up */
 };
+
 static const struct req_msg_field *ldlm_intent_open_server[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_DLM_REP,

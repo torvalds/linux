@@ -321,6 +321,7 @@ enum lma_incompat {
 	LMAI_REMOTE_PARENT	= 0x00000004, /* the parent of the object
 						 is on the remote MDT */
 };
+
 #define LMA_INCOMPAT_SUPP	(LMAI_AGENT | LMAI_REMOTE_PARENT)
 
 /**
@@ -1044,6 +1045,7 @@ static inline int lu_dirent_size(struct lu_dirent *ent)
 struct lustre_handle {
 	__u64 cookie;
 };
+
 #define DEAD_HANDLE_MAGIC 0xdeadbeefcafebabeULL
 
 static inline int lustre_handle_is_used(struct lustre_handle *lh)
@@ -1108,6 +1110,7 @@ struct ptlrpc_body_v3 {
 	__u64 pb_padding[4];
 	char  pb_jobid[JOBSTATS_JOBID_SIZE];
 };
+
 #define ptlrpc_body     ptlrpc_body_v3
 
 struct ptlrpc_body_v2 {
@@ -1388,6 +1391,7 @@ struct obd_connect_data {
 	__u64 paddingE;	  /* added 2.1.0. also fix lustre_swab_connect */
 	__u64 paddingF;	  /* added 2.1.0. also fix lustre_swab_connect */
 };
+
 /* XXX README XXX:
  * Please DO NOT use any fields here before first ensuring that this same
  * field is not in use on some other branch.  Please clear any such changes
@@ -1932,6 +1936,7 @@ enum {
 	LQUOTA_LAST_RES,
 	LQUOTA_FIRST_RES	= LQUOTA_RES_MD
 };
+
 #define LQUOTA_NR_RES (LQUOTA_LAST_RES - LQUOTA_FIRST_RES + 1)
 
 /*
@@ -1979,6 +1984,7 @@ struct ldlm_gl_lquota_desc {
 	__u64		gl_time;
 	__u64		gl_pad2;
 };
+
 #define gl_qunit	gl_hardlimit /* current qunit value used when
 				      * glimpsing per-ID quota locks */
 

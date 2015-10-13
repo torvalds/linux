@@ -106,6 +106,7 @@ static int sptlrpc_info_lprocfs_seq_show(struct seq_file *seq, void *v)
 out:
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(sptlrpc_info_lprocfs);
 
 static int sptlrpc_ctxs_lprocfs_seq_show(struct seq_file *seq, void *v)
@@ -130,6 +131,7 @@ static int sptlrpc_ctxs_lprocfs_seq_show(struct seq_file *seq, void *v)
 out:
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(sptlrpc_ctxs_lprocfs);
 
 int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)

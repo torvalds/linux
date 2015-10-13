@@ -143,6 +143,7 @@ static int lmv_desc_uuid_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%s\n", lmv->desc.ld_uuid.uuid);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(lmv_desc_uuid);
 
 static void *lmv_tgt_seq_start(struct seq_file *p, loff_t *pos)

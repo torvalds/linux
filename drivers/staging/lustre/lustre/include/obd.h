@@ -362,6 +362,7 @@ struct client_obd {
 	/* hash tables for osc_quota_info */
 	struct cfs_hash	      *cl_quota_hash[MAXQUOTAS];
 };
+
 #define obd2cli_tgt(obd) ((char *)(obd)->u.cli.cl_target_uuid.uuid)
 
 struct obd_id_info {
@@ -403,6 +404,7 @@ struct lov_statfs_data {
 	struct obd_info   lsd_oi;
 	struct obd_statfs lsd_statfs;
 };
+
 /* Stripe placement optimization */
 struct lov_qos {
 	struct list_head    lq_oss_list; /* list of OSSs that targets use */

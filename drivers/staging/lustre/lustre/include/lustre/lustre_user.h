@@ -833,6 +833,7 @@ struct ioc_data_version {
 	__u64 idv_version;
 	__u64 idv_flags;     /* See LL_DV_xxx */
 };
+
 #define LL_DV_NOFLUSH 0x01   /* Do not take READ EXTENT LOCK before sampling
 				version. Dirty caches are left unchanged. */
 
@@ -877,6 +878,7 @@ enum hsm_progress_states {
 	HPS_RUNNING	= 2,
 	HPS_DONE	= 3,
 };
+
 #define HPS_NONE	0
 
 static inline char *hsm_progress_state2name(enum hsm_progress_states s)
@@ -1101,6 +1103,7 @@ static inline int cfs_size_round (int val)
 {
 	return (val + 7) & (~0x7);
 }
+
 #define HAVE_CFS_SIZE_ROUND
 #endif
 
@@ -1112,6 +1115,7 @@ static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
 								hal_fsname)
 							 + 1));
 }
+
 /* Return pointer to next hai */
 static inline struct hsm_action_item *hai_next(struct hsm_action_item *hai)
 {

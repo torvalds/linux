@@ -1449,6 +1449,7 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 
 	return rc;
 }
+
 int ll_statfs(struct dentry *de, struct kstatfs *sfs)
 {
 	struct super_block *sb = de->d_sb;

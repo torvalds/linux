@@ -270,6 +270,7 @@ ptlrpc_lprocfs_req_history_len_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%d\n", total);
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_req_history_len);
 
 static int
@@ -322,6 +323,7 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 
 	return count;
 }
+
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_req_history_max);
 
 static ssize_t threads_min_show(struct kobject *kobj, struct attribute *attr,
@@ -712,6 +714,7 @@ out:
 
 	return rc < 0 ? rc : count;
 }
+
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_nrs);
 
 /** @} nrs */
@@ -984,6 +987,7 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_timeouts);
 
 static ssize_t high_priority_ratio_show(struct kobject *kobj,

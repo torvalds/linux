@@ -515,6 +515,7 @@ struct ldlm_interval {
 	struct list_head		li_group; /* the locks which have the same
 					   * policy - group of the policy */
 };
+
 #define to_ldlm_interval(n) container_of(n, struct ldlm_interval, li_node)
 
 /**

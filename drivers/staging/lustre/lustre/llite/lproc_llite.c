@@ -218,6 +218,7 @@ static int ll_site_stats_seq_show(struct seq_file *m, void *v)
 	 */
 	return cl_site_stats_print(lu2cl_site(ll_s2sbi(sb)->ll_site), m);
 }
+
 LPROC_SEQ_FOPS_RO(ll_site_stats);
 
 static ssize_t max_read_ahead_mb_show(struct kobject *kobj,
@@ -478,6 +479,7 @@ out:
 	}
 	return rc;
 }
+
 LPROC_SEQ_FOPS(ll_max_cached_mb);
 
 static ssize_t checksum_pages_show(struct kobject *kobj, struct attribute *attr,
@@ -684,6 +686,7 @@ static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 		   atomic_read(&sbi->ll_agl_total));
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_statahead_stats);
 
 static ssize_t lazystatfs_show(struct kobject *kobj,
@@ -775,6 +778,7 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "\b\n");
 	return 0;
 }
+
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
 static ssize_t xattr_cache_show(struct kobject *kobj,
@@ -1093,6 +1097,7 @@ void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
 }
+
 #undef MAX_STRING_SIZE
 
 #define pct(a, b) (b ? a * 100 / b : 0)
@@ -1287,6 +1292,7 @@ static ssize_t ll_rw_extents_stats_seq_write(struct file *file,
 
 	return len;
 }
+
 LPROC_SEQ_FOPS(ll_rw_extents_stats);
 
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
