@@ -489,8 +489,7 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 		status = 1;
 	}
 
-	lowpan_header_compress(skb, netdev, ETH_P_IPV6, daddr,
-			       dev->netdev->dev_addr, skb->len);
+	lowpan_header_compress(skb, netdev, daddr, dev->netdev->dev_addr);
 
 	err = dev_hard_header(skb, netdev, ETH_P_IPV6, NULL, NULL, 0);
 	if (err < 0)

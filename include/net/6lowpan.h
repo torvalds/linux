@@ -258,7 +258,7 @@ struct lowpan_802154_cb *lowpan_802154_cb(const struct sk_buff *skb)
 #ifdef DEBUG
 /* print data in line */
 static inline void raw_dump_inline(const char *caller, char *msg,
-				   unsigned char *buf, int len)
+				   const unsigned char *buf, int len)
 {
 	if (msg)
 		pr_debug("%s():%s: ", caller, msg);
@@ -273,7 +273,7 @@ static inline void raw_dump_inline(const char *caller, char *msg,
  * ...
  */
 static inline void raw_dump_table(const char *caller, char *msg,
-				  unsigned char *buf, int len)
+				  const unsigned char *buf, int len)
 {
 	if (msg)
 		pr_debug("%s():%s:\n", caller, msg);
@@ -282,9 +282,9 @@ static inline void raw_dump_table(const char *caller, char *msg,
 }
 #else
 static inline void raw_dump_table(const char *caller, char *msg,
-				  unsigned char *buf, int len) { }
+				  const unsigned char *buf, int len) { }
 static inline void raw_dump_inline(const char *caller, char *msg,
-				   unsigned char *buf, int len) { }
+				   const unsigned char *buf, int len) { }
 #endif
 
 static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
@@ -325,8 +325,24 @@ lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
 			 const u8 saddr_len, const u8 *daddr,
 			 const u8 daddr_type, const u8 daddr_len,
 			 u8 iphc0, u8 iphc1);
-int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
-			unsigned short type, const void *_daddr,
-			const void *_saddr, unsigned int len);
+
+/**
+ * lowpan_header_compress - replace IPv6 header with 6LoWPAN header
+ *
+ * This function replaces the IPv6 header which should be pointed at
+ * skb->data and skb_network_header, with the IPHC 6LoWPAN header.
+ * The caller need to be sure that the sk buffer is not shared and at have
+ * at least a headroom which is smaller or equal LOWPAN_IPHC_MAX_HEADER_LEN,
+ * which is the IPHC "more bytes than IPv6 header" at worst case.
+ *
+ * @skb: the buffer which should be manipulate.
+ * @dev: the lowpan net device pointer.
+ * @daddr: destination lladdr of mac header which is used for compression
+ *	methods.
+ * @saddr: source lladdr of mac header which is used for compression
+ *	methods.
+ */
+int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
+			   const void *daddr, const void *saddr);
 
 #endif /* __6LOWPAN_H__ */

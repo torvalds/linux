@@ -218,7 +218,7 @@ static int lowpan_header(struct sk_buff *skb, struct net_device *ldev,
 	saddr = &info.saddr.u.extended_addr;
 
 	*dgram_size = skb->len;
-	lowpan_header_compress(skb, ldev, ETH_P_IPV6, daddr, saddr, skb->len);
+	lowpan_header_compress(skb, ldev, daddr, saddr);
 	/* dgram_offset = (saved bytes after compression) + lowpan header len */
 	*dgram_offset = (*dgram_size - skb->len) + skb_network_header_len(skb);
 

@@ -423,16 +423,15 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, u8 shift,
 	return rol8(val, shift);
 }
 
-int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
-			   unsigned short type, const void *_daddr,
-			   const void *_saddr, unsigned int len)
+int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
+			   const void *daddr, const void *saddr)
 {
 	u8 tmp, iphc0, iphc1, *hc_ptr;
 	struct ipv6hdr *hdr;
 	u8 head[LOWPAN_IPHC_MAX_HC_BUF_LEN] = {};
 	int ret, addr_type;
 
-	if (type != ETH_P_IPV6)
+	if (skb->protocol != htons(ETH_P_IPV6))
 		return -EINVAL;
 
 	hdr = ipv6_hdr(skb);
@@ -456,10 +455,8 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 
 	/* TODO: context lookup */
 
-	raw_dump_inline(__func__, "saddr",
-			(unsigned char *)_saddr, IEEE802154_ADDR_LEN);
-	raw_dump_inline(__func__, "daddr",
-			(unsigned char *)_daddr, IEEE802154_ADDR_LEN);
+	raw_dump_inline(__func__, "saddr", saddr, EUI64_ADDR_LEN);
+	raw_dump_inline(__func__, "daddr", daddr, EUI64_ADDR_LEN);
 
 	raw_dump_table(__func__, "sending raw skb network uncompressed packet",
 		       skb->data, skb->len);
@@ -544,7 +541,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 		if (addr_type & IPV6_ADDR_LINKLOCAL) {
 			iphc1 |= lowpan_compress_addr_64(&hc_ptr,
 							 LOWPAN_IPHC_SAM_BIT,
-							 &hdr->saddr, _saddr);
+							 &hdr->saddr, saddr);
 			pr_debug("source address unicast link-local %pI6c iphc1 0x%02x\n",
 				 &hdr->saddr, iphc1);
 		} else {
@@ -589,7 +586,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 		if (addr_type & IPV6_ADDR_LINKLOCAL) {
 			/* TODO: context lookup */
 			iphc1 |= lowpan_compress_addr_64(&hc_ptr,
-				LOWPAN_IPHC_DAM_BIT, &hdr->daddr, _daddr);
+				LOWPAN_IPHC_DAM_BIT, &hdr->daddr, daddr);
 			pr_debug("dest address unicast link-local %pI6c "
 				 "iphc1 0x%02x\n", &hdr->daddr, iphc1);
 		} else {
