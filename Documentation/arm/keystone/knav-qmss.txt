@@ -48,3 +48,9 @@ in the file system and boot up the kernel. User would see
  "firmware file ks2_qmss_pdsp_acc48.bin downloaded for PDSP"
 
 in the boot up log if loading of firmware to PDSP is successful.
+
+Use of accumulated queues requires the firmware image to be present in the
+file system. The driver doesn't acc queues to the supported queue range if
+PDSP is not running in the SoC. The API call fails if there is a queue open
+request to an acc queue and PDSP is not running. So make sure to copy firmware
+to file system before using these queue types.

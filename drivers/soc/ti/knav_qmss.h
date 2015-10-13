@@ -137,6 +137,8 @@ struct knav_pdsp_info {
 	u32 __iomem					*iram;
 	u32						id;
 	struct list_head				list;
+	bool						loaded;
+	bool						started;
 };
 
 struct knav_qmgr_info {

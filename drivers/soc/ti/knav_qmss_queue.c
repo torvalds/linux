@@ -1504,6 +1504,8 @@ static int knav_queue_stop_pdsp(struct knav_device *kdev,
 		dev_err(kdev->dev, "timed out on pdsp %s stop\n", pdsp->name);
 		return ret;
 	}
+	pdsp->loaded = false;
+	pdsp->started = false;
 	return 0;
 }
 
@@ -1592,16 +1594,24 @@ static int knav_queue_start_pdsps(struct knav_device *kdev)
 	int ret;
 
 	knav_queue_stop_pdsps(kdev);
-	/* now load them all */
+	/* now load them all. We return success even if pdsp
+	 * is not loaded as acc channels are optional on having
+	 * firmware availability in the system. We set the loaded
+	 * and stated flag and when initialize the acc range, check
+	 * it and init the range only if pdsp is started.
+	 */
 	for_each_pdsp(kdev, pdsp) {
 		ret = knav_queue_load_pdsp(kdev, pdsp);
-		if (ret < 0)
-			return ret;
+		if (!ret)
+			pdsp->loaded = true;
 	}
 
 	for_each_pdsp(kdev, pdsp) {
-		ret = knav_queue_start_pdsp(kdev, pdsp);
-		WARN_ON(ret);
+		if (pdsp->loaded) {
+			ret = knav_queue_start_pdsp(kdev, pdsp);
+			if (!ret)
+				pdsp->started = true;
+		}
 	}
 	return 0;
 }
