@@ -253,7 +253,6 @@ __u16 lov_get_stripecnt(struct lov_obd *lov, __u32 magic, __u16 stripe_count)
 	return stripe_count;
 }
 
-
 static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 {
 	int rc;
@@ -326,7 +325,6 @@ int lov_free_memmd(struct lov_stripe_md **lsmp)
 	}
 	return refc;
 }
-
 
 /* Unpack LOV object metadata from disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.

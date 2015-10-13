@@ -342,7 +342,6 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd);
  */
 #define SPTLRPC_MAX_PAYLOAD     (1024)
 
-
 struct vfs_cred {
 	uint32_t	vc_uid;
 	uint32_t	vc_gid;
@@ -830,7 +829,6 @@ static inline int sec_is_rootonly(struct ptlrpc_sec *sec)
 	return (sec->ps_flvr.sf_flags & PTLRPC_SEC_FL_ROOTONLY);
 }
 
-
 struct ptlrpc_svc_ctx {
 	atomic_t		    sc_refcount;
 	struct ptlrpc_sec_policy       *sc_policy;
@@ -881,7 +879,6 @@ struct ptlrpc_bulk_sec_desc {
 	__u32	   bsd_nob;	/* nob of bulk data */
 	__u8	    bsd_data[0];    /* policy-specific token */
 };
-
 
 /*
  * round size up to next power of 2, for slab allocation.
@@ -1026,7 +1023,6 @@ void sptlrpc_req_put_ctx(struct ptlrpc_request *req, int sync);
 int  sptlrpc_req_refresh_ctx(struct ptlrpc_request *req, long timeout);
 void sptlrpc_req_set_flavor(struct ptlrpc_request *req, int opcode);
 
-
 /* gc */
 void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec);
 void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec);
@@ -1083,7 +1079,6 @@ static inline int sptlrpc_user_desc_size(int ngroups)
 int sptlrpc_current_user_desc_size(void);
 int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset);
 int sptlrpc_unpack_user_desc(struct lustre_msg *req, int offset, int swabbed);
-
 
 #define CFS_CAP_CHOWN_MASK (1 << CFS_CAP_CHOWN)
 #define CFS_CAP_SYS_RESOURCE_MASK (1 << CFS_CAP_SYS_RESOURCE)

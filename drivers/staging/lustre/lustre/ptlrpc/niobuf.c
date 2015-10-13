@@ -106,7 +106,6 @@ static void mdunlink_iterate_helper(lnet_handle_md_t *bd_mds, int count)
 		LNetMDUnlink(bd_mds[i]);
 }
 
-
 /**
  * Register bulk at the sender for later transfer.
  * Returns 0 on success or error code.

@@ -59,8 +59,6 @@ int class_find_param(char *buf, char *key, char **valp);
 int class_parse_nid(char *buf, lnet_nid_t *nid, char **endh);
 int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh);
 
-
-
 /****************** User-settable parameter keys *********************/
 /* e.g.
 	tunefs.lustre --param="failover.node=192.168.0.13@tcp0" /dev/sda

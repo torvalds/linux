@@ -148,7 +148,6 @@ static int osc_object_print(const struct lu_env *env, void *cookie,
 	return 0;
 }
 
-
 static int osc_attr_get(const struct lu_env *env, struct cl_object *obj,
 			struct cl_attr *attr)
 {
@@ -192,7 +191,6 @@ static int osc_object_glimpse(const struct lu_env *env,
 	lvb->lvb_blocks = oinfo->loi_lvb.lvb_blocks;
 	return 0;
 }
-
 
 void osc_object_set_contended(struct osc_object *obj)
 {

@@ -1040,7 +1040,6 @@ void cl_io_slice_add(struct cl_io *io, struct cl_io_slice *slice,
 }
 EXPORT_SYMBOL(cl_io_slice_add);
 
-
 /**
  * Initializes page list.
  */

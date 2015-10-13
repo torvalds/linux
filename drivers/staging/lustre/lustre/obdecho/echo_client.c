@@ -98,7 +98,6 @@ static int echo_client_setup(const struct lu_env *env,
 			     struct lustre_cfg *lcfg);
 static int echo_client_cleanup(struct obd_device *obddev);
 
-
 /** \defgroup echo_helpers Helper functions
  * @{
  */
@@ -1202,7 +1201,6 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, u64 offset,
 		goto out;
 	LASSERT(rc == 0);
 
-
 	rc = cl_echo_enqueue0(env, eco, offset,
 			      offset + npages * PAGE_CACHE_SIZE - 1,
 			      rw == READ ? LCK_PR : LCK_PW, &lh.cookie,
@@ -1261,7 +1259,6 @@ out:
 }
 /** @} echo_exports */
 
-
 static u64 last_object_id;
 
 static int
@@ -1303,7 +1300,6 @@ echo_copyin_lsm(struct echo_device *ed, struct lov_stripe_md *lsm,
 	    (lsm->lsm_stripe_size & (~CFS_PAGE_MASK)) != 0 ||
 	    ((__u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count > ~0UL))
 		return -EINVAL;
-
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		if (copy_from_user(lsm->lsm_oinfo[i],

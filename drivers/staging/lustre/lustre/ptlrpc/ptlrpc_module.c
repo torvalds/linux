@@ -36,7 +36,6 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
 #include "../include/lustre_net.h"

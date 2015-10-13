@@ -443,7 +443,6 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 	}
 }
 
-
 int ldlm_bl_to_thread_lock(struct ldlm_namespace *ns, struct ldlm_lock_desc *ld,
 			   struct ldlm_lock *lock)
 {
@@ -695,7 +694,6 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	return 0;
 }
 
-
 static struct ldlm_bl_work_item *ldlm_bl_get_work(struct ldlm_bl_pool *blp)
 {
 	struct ldlm_bl_work_item *blwi = NULL;
@@ -836,7 +834,6 @@ static int ldlm_bl_thread_main(void *arg)
 	complete(&blp->blp_comp);
 	return 0;
 }
-
 
 static int ldlm_setup(void);
 static int ldlm_cleanup(void);
@@ -988,7 +985,6 @@ static int ldlm_setup(void)
 		ldlm_state->ldlm_cb_service = NULL;
 		goto out;
 	}
-
 
 	blp = kzalloc(sizeof(*blp), GFP_NOFS);
 	if (!blp) {

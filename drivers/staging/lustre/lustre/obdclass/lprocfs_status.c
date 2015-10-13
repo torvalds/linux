@@ -40,7 +40,6 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre/lustre_idl.h"

@@ -51,7 +51,6 @@
 
 #define SEC_GC_INTERVAL (30 * 60)
 
-
 static struct mutex sec_gc_mutex;
 static LIST_HEAD(sec_gc_list);
 static spinlock_t sec_gc_list_lock;
@@ -61,7 +60,6 @@ static spinlock_t sec_gc_ctx_list_lock;
 
 static struct ptlrpc_thread sec_gc_thread;
 static atomic_t sec_gc_wait_del = ATOMIC_INIT(0);
-
 
 void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec)
 {

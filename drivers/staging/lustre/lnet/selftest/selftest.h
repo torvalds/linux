@@ -56,7 +56,6 @@
 #define MADE_WITHOUT_COMPROMISE
 #endif
 
-
 #define SWI_STATE_NEWBORN           0
 #define SWI_STATE_REPLY_SUBMITTED   1
 #define SWI_STATE_REPLY_SENT        2
@@ -497,7 +496,6 @@ swi_deschedule_workitem(swi_workitem_t *swi)
 	return cfs_wi_deschedule(swi->swi_sched, &swi->swi_workitem);
 }
 
-
 int sfw_startup(void);
 int srpc_startup(void);
 void sfw_shutdown(void);
@@ -582,7 +580,6 @@ swi_state2str (int state)
 		set_current_state(TASK_UNINTERRUPTIBLE);	\
 		schedule_timeout(cfs_time_seconds(1) / 10);	\
 	} while (0)
-
 
 #define lst_wait_until(cond, lock, fmt, ...)				\
 do {									\

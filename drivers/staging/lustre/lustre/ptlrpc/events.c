@@ -415,7 +415,6 @@ void reply_out_callback(lnet_event_t *ev)
 	}
 }
 
-
 static void ptlrpc_master_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id *cbid = ev->md.user_ptr;
@@ -559,7 +558,6 @@ static int ptlrpc_ni_init(void)
 
 	return -ENOMEM;
 }
-
 
 int ptlrpc_init_portals(void)
 {

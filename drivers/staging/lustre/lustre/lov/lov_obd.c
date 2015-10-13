@@ -122,7 +122,6 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 static int lov_notify(struct obd_device *obd, struct obd_device *watched,
 		      enum obd_notify_event ev, void *data);
 
-
 #define MAX_STRING_SIZE 128
 int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 		    struct obd_connect_data *data)
@@ -169,7 +168,6 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 		       obd_uuid2str(tgt_uuid), rc);
 		return rc;
 	}
-
 
 	if (imp->imp_invalid) {
 		CDEBUG(D_CONFIG, "not connecting OSC %s; administratively disabled\n",

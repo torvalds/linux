@@ -92,7 +92,6 @@ static inline void lustre_posix_acl_cpu_to_le(posix_acl_xattr_entry *d,
 	d->e_id	 = cpu_to_le32(s->e_id);
 }
 
-
 /* if "new_count == 0", then "new = {a_version, NULL}", NOT NULL. */
 static int lustre_posix_acl_xattr_reduce_space(posix_acl_xattr_header **header,
 					       int old_count, int new_count)

@@ -626,7 +626,6 @@ out_disconnect:
 }
 EXPORT_SYMBOL(client_disconnect_export);
 
-
 /**
  * Packs current SLV and Limit into \a req.
  */

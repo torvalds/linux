@@ -1573,7 +1573,6 @@ out:
 	return rc;
 }
 
-
 /* ptlrpc/nrs_fifo.c */
 extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
 
@@ -1594,7 +1593,6 @@ int ptlrpc_nrs_init(void)
 	rc = ptlrpc_nrs_policy_register(&nrs_conf_fifo);
 	if (rc != 0)
 		goto fail;
-
 
 	return rc;
 fail:

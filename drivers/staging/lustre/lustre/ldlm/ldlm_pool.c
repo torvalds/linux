@@ -104,7 +104,6 @@
 #include "../include/obd_support.h"
 #include "ldlm_internal.h"
 
-
 /*
  * 50 ldlm locks for 1MB of RAM.
  */

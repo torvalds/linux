@@ -36,7 +36,6 @@
 #ifndef __CLASS_OBD_H
 #define __CLASS_OBD_H
 
-
 #include "obd_support.h"
 #include "lustre_import.h"
 #include "lustre_net.h"
@@ -353,7 +352,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 				(export)->exp_md_stats, coffset);	    \
 	}
 
-
 #define OBD_CHECK_MD_OP(obd, op, err)			   \
 do {							    \
 	if (!OBT(obd) || !MDP((obd), op)) {		     \
@@ -381,7 +379,6 @@ do {							    \
 		return -EOPNOTSUPP;			    \
 	}						       \
 } while (0)
-
 
 #define OBD_CHECK_DT_OP(obd, op, err)			   \
 do {							    \
@@ -1744,7 +1741,6 @@ static inline int md_revalidate_lock(struct obd_export *exp,
 	return rc;
 }
 
-
 /* OBD Metadata Support */
 
 int obd_init_caches(void);
@@ -1762,7 +1758,6 @@ do {									  \
 do {									  \
 	OBD_SLAB_FREE_PTR((ptr), obdo_cachep);				\
 } while (0)
-
 
 static inline void obdo2fid(struct obdo *oa, struct lu_fid *fid)
 {

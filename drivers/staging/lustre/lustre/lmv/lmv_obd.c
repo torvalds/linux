@@ -863,9 +863,6 @@ static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 	return rc;
 }
 
-
-
-
 static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			 int len, void *karg, void *uarg)
 {
@@ -1587,7 +1584,6 @@ static int lmv_find_cbdata(struct obd_export *exp, const struct lu_fid *fid,
 
 	return rc;
 }
-
 
 static int lmv_close(struct obd_export *exp, struct md_op_data *op_data,
 		     struct md_open_data *mod, struct ptlrpc_request **request)

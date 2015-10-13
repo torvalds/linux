@@ -78,7 +78,6 @@ static struct osc_page *osc_cl_page_osc(struct cl_page *page)
 	return cl2osc_page(slice);
 }
 
-
 /*****************************************************************************
  *
  * io operations.
@@ -787,7 +786,6 @@ static const struct cl_req_operations osc_req_ops = {
 	.cro_attr_set   = osc_req_attr_set,
 	.cro_completion = osc_req_completion
 };
-
 
 int osc_io_init(const struct lu_env *env,
 		struct cl_object *obj, struct cl_io *io)

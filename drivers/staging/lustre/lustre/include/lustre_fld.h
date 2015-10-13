@@ -61,7 +61,6 @@ enum {
 	LUSTRE_CLI_FLD_HASH_RRB
 };
 
-
 struct lu_fld_target {
 	struct list_head	       ft_chain;
 	struct obd_export       *ft_exp;

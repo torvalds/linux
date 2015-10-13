@@ -114,7 +114,6 @@ static inline void client_obd_list_unlock(client_obd_lock_t *lock)
 	spin_unlock(&lock->lock);
 }
 
-
 static inline void client_obd_list_lock_init(client_obd_lock_t *lock)
 {
 	spin_lock_init(&lock->lock);

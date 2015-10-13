@@ -47,7 +47,6 @@
 #include "../include/cl_object.h"
 #include "llog_internal.h"
 
-
 struct obd_device *obd_devs[MAX_OBD_DEVICES];
 EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
@@ -533,7 +532,6 @@ static int __init init_obdclass(void)
 	err = cl_global_init();
 	if (err != 0)
 		return err;
-
 
 	err = llog_info_init();
 	if (err)

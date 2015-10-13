@@ -275,7 +275,6 @@ lnet_extract_iov(int dst_niov, struct kvec *dst,
 }
 EXPORT_SYMBOL(lnet_extract_iov);
 
-
 unsigned int
 lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 {
@@ -727,7 +726,6 @@ lnet_peer_is_alive(lnet_peer_t *lp, unsigned long now)
 	return alive;
 }
 
-
 /* NB: returns 1 when alive, 0 when dead, negative when error;
  *     may drop the lnet_net_lock */
 static int
@@ -866,7 +864,6 @@ lnet_post_send_locked(lnet_msg_t *msg, int do_send)
 	}
 	return 0;
 }
-
 
 static lnet_rtrbufpool_t *
 lnet_msg2bufpool(lnet_msg_t *msg)

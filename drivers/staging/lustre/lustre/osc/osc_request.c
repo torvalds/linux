@@ -38,7 +38,6 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre/lustre_user.h"
@@ -2591,7 +2590,6 @@ static int osc_getstripe(struct lov_stripe_md *lsm, struct lov_user_md *lump)
 
 	return rc;
 }
-
 
 static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			 void *karg, void *uarg)

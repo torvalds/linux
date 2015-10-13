@@ -315,7 +315,6 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 		if (page_count + (*bio)->bi_vcnt > LLOOP_MAX_SEGMENTS)
 			break;
 
-
 		page_count += (*bio)->bi_vcnt;
 		count++;
 		bio = &(*bio)->bi_next;
@@ -369,7 +368,6 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 err:
 	bio_io_error(old_bio);
 }
-
 
 static inline void loop_handle_bio(struct lloop_device *lo, struct bio *bio)
 {

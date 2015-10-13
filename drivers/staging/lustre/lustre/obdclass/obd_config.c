@@ -722,7 +722,6 @@ static int class_set_global(char *ptr, int val, struct lustre_cfg *lcfg)
 	return 0;
 }
 
-
 /* We can't call ll_process_config or lquota_process_config directly because
  * it lives in a module that must be loaded after this one. */
 static int (*client_process_config)(struct lustre_cfg *lcfg);
@@ -747,7 +746,6 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 	ktime_t	start;
 	ktime_t	end;
 	int		rc;
-
 
 	/* Add upcall processing here. Now only lctl is supported */
 	if (strcmp(upcall, LCTL_UPCALL) != 0) {
@@ -1155,7 +1153,6 @@ int class_config_llog_handler(const struct lu_env *env,
 				index[1] = 0;
 			}
 		}
-
 
 		if (clli->cfg_flags & CFG_F_EXCLUDE) {
 			CDEBUG(D_CONFIG, "cmd: %x marked EXCLUDED\n",

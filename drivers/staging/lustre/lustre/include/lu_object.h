@@ -814,7 +814,6 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
  */
 int lu_object_invariant(const struct lu_object *o);
 
-
 /**
  * Check whether object exists, no matter on local or remote storage.
  * Note: LOHA_EXISTS will be set once some one created the object,
@@ -1160,7 +1159,6 @@ void *lu_context_key_get     (const struct lu_context *ctx,
 void  lu_context_key_quiesce (struct lu_context_key *key);
 void  lu_context_key_revive  (struct lu_context_key *key);
 
-
 /*
  * LU_KEY_INIT_GENERIC() has to be a macro to correctly determine an
  * owning module.
@@ -1209,8 +1207,6 @@ void  lu_context_key_revive  (struct lu_context_key *key);
 		lu_context_key_quiesce_many(__VA_ARGS__, NULL); \
 	}						       \
 	struct __##mod##_dummy_type_stop {; }
-
-
 
 #define LU_TYPE_INIT_FINI(mod, ...)	     \
 	LU_TYPE_INIT(mod, __VA_ARGS__);	 \

@@ -48,7 +48,6 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-
 #include "../include/obd_class.h"
 
 #include "llog_internal.h"

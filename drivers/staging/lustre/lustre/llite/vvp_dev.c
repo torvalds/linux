@@ -40,7 +40,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-
 #include "../include/obd.h"
 #include "../include/lustre_lite.h"
 #include "llite_internal.h"
@@ -112,7 +111,6 @@ static void vvp_session_key_fini(const struct lu_context *ctx,
 
 	OBD_SLAB_FREE_PTR(session, vvp_session_kmem);
 }
-
 
 struct lu_context_key vvp_key = {
 	.lct_tags = LCT_CL_THREAD,
@@ -186,7 +184,6 @@ void vvp_global_fini(void)
 	ccc_global_fini(&vvp_device_type);
 	lu_kmem_fini(vvp_caches);
 }
-
 
 /*****************************************************************************
  *

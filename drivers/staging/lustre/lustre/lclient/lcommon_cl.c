@@ -161,7 +161,6 @@ struct lu_context_key ccc_session_key = {
 	.lct_fini = ccc_session_key_fini
 };
 
-
 /* type constructor/destructor: ccc_type_{init,fini,start,stop}(). */
 /* LU_TYPE_INIT_FINI(ccc, &ccc_key, &ccc_session_key); */
 

@@ -213,7 +213,6 @@ struct miscdevice obd_psdev = {
 	.fops  = &obd_psdev_fops,
 };
 
-
 static ssize_t version_show(struct kobject *kobj, struct attribute *attr,
 			    char *buf)
 {

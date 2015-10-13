@@ -115,7 +115,6 @@ cfs_wi_sched_cansleep(struct cfs_wi_sched *sched)
 	return 1;
 }
 
-
 /* XXX:
  * 0. it only works when called from wi->wi_action.
  * 1. when it returns no one shall try to schedule the workitem.
@@ -217,7 +216,6 @@ cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
 }
 EXPORT_SYMBOL(cfs_wi_schedule);
 
-
 static int
 cfs_wi_scheduler (void *arg)
 {
@@ -257,7 +255,6 @@ cfs_wi_scheduler (void *arg)
 
 			wi->wi_running   = 1;
 			wi->wi_scheduled = 0;
-
 
 			cfs_wi_sched_unlock(sched);
 			nloops++;
@@ -301,7 +298,6 @@ cfs_wi_scheduler (void *arg)
 
 	return 0;
 }
-
 
 void
 cfs_wi_sched_destroy(struct cfs_wi_sched *sched)

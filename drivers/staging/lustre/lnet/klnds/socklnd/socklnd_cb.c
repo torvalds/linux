@@ -89,7 +89,6 @@ ksocknal_alloc_tx_noop(__u64 cookie, int nonblk)
 	return tx;
 }
 
-
 void
 ksocknal_free_tx (ksock_tx_t *tx)
 {
@@ -772,7 +771,6 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 
 	spin_unlock_bh(&sched->kss_lock);
 }
-
 
 ksock_route_t *
 ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
@@ -2395,7 +2393,6 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 
 	return -EIO;
 }
-
 
 static void
 ksocknal_check_peer_timeouts (int idx)

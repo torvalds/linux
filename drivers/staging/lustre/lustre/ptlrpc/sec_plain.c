@@ -40,7 +40,6 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-
 #include "../include/obd_support.h"
 #include "../include/obd_cksum.h"
 #include "../include/obd_class.h"

@@ -40,7 +40,6 @@
  * Author: Liang Zhen <liangzhen@clusterfs.com>
  */
 
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-lnet.h"
 #include "console.h"
@@ -2020,7 +2019,6 @@ lstcon_console_init(void)
 
 	for (i = 0; i < LST_GLOBAL_HASHSIZE; i++)
 		INIT_LIST_HEAD(&console_session.ses_ndl_hash[i]);
-
 
 	/* initialize acceptor service table */
 	lstcon_init_acceptor_service();

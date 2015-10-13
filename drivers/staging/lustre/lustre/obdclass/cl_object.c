@@ -547,7 +547,6 @@ static void cl_env_init0(struct cl_env *cle, void *debug)
 	CL_ENV_INC(busy);
 }
 
-
 /*
  * The implementation of using hash table to connect cl_env and thread
  */
@@ -645,7 +644,6 @@ static void cl_env_store_fini(void)
 {
 	cfs_hash_putref(cl_env_hash);
 }
-
 
 static inline struct cl_env *cl_env_detach(struct cl_env *cle)
 {

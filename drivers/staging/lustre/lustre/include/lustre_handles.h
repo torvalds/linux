@@ -50,7 +50,6 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-
 struct portals_handle_ops {
 	void (*hop_addref)(void *object);
 	void (*hop_free)(void *object, int size);

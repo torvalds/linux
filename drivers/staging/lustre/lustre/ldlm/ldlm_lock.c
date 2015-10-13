@@ -154,7 +154,6 @@ EXPORT_SYMBOL(ldlm_it2str);
  * REFCOUNTED LOCK OBJECTS
  */
 
-
 /**
  * Get a reference on a lock.
  *
@@ -1561,7 +1560,6 @@ out:
 	unlock_res_and_lock(lock);
 	return rc;
 }
-
 
 /**
  * Process a call to blocking AST callback for a lock in ast_work list

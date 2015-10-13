@@ -71,7 +71,6 @@ enum ccc_setattr_lock_type {
 	SETATTR_MATCH_LOCK
 };
 
-
 /**
  * IO state private to vvp or slp layers.
  */

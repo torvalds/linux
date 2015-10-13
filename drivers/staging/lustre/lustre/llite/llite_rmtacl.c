@@ -178,7 +178,6 @@ void rct_fini(struct rmtacl_ctl_table *rct)
 	spin_unlock(&rct->rct_lock);
 }
 
-
 static struct eacl_entry *ee_alloc(pid_t key, struct lu_fid *fid, int type,
 				   ext_acl_xattr_header *header)
 {

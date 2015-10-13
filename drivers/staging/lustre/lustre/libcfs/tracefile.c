@@ -39,7 +39,6 @@
  * Author: Phil Schwan <phil@clusterfs.com>
  */
 
-
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
 #include "tracefile.h"

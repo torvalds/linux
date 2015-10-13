@@ -50,7 +50,6 @@
 #include "lustre_handles.h"
 #include "lustre/lustre_idl.h"
 
-
 /**
  * Adaptive Timeout stuff
  *
@@ -84,7 +83,6 @@ struct imp_at {
 	struct adaptive_timeout iat_net_latency;
 	struct adaptive_timeout iat_service_estimate[IMP_AT_MAX_PORTALS];
 };
-
 
 /** @} */
 

@@ -185,7 +185,6 @@ static inline int obd_ioctl_packlen(struct obd_ioctl_data *data)
 	return len;
 }
 
-
 static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
 	if (data->ioc_len > OBD_MAX_IOCTL_BUFFER) {
@@ -249,7 +248,6 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 	return 0;
 }
 
-
 #include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
@@ -288,7 +286,6 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 #define OBD_IOC_GETATTR		_IOWR ('f', 108, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_READ		   _IOWR('f', 109, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_WRITE		  _IOWR('f', 110, OBD_IOC_DATA_TYPE)
-
 
 #define OBD_IOC_STATFS		 _IOWR('f', 113, OBD_IOC_DATA_TYPE)
 #define OBD_IOC_SYNC		   _IOW ('f', 114, OBD_IOC_DATA_TYPE)
@@ -523,7 +520,6 @@ struct l_wait_info {
 			   sigmask(SIGTERM) | sigmask(SIGQUIT) |	\
 			   sigmask(SIGALRM))
 
-
 /*
  * wait for @condition to become true, but no longer than timeout, specified
  * by @info.
@@ -603,8 +599,6 @@ do {									   \
 									       \
 	remove_wait_queue(&wq, &__wait);					   \
 } while (0)
-
-
 
 #define l_wait_event(wq, condition, info)		       \
 ({							      \

@@ -472,7 +472,6 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_UPDATE_OBJ_NET			0x1700
 #define OBD_FAIL_UPDATE_OBJ_NET_REP		0x1701
 
-
 /* Assign references to moved code to reduce code changes */
 #define OBD_FAIL_PRECHECK(id)		   CFS_FAIL_PRECHECK(id)
 #define OBD_FAIL_CHECK(id)		      CFS_FAIL_CHECK(id)

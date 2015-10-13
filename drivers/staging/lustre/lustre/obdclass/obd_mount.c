@@ -40,7 +40,6 @@
  * Author: Nathan Rutman <nathan@clusterfs.com>
  */
 
-
 #define DEBUG_SUBSYSTEM S_CLASS
 #define D_MOUNT (D_SUPER|D_CONFIG/*|D_WARNING */)
 #define PRINT_CMD CDEBUG
@@ -1145,7 +1144,6 @@ out:
 	lockdep_on();
 	return rc;
 }
-
 
 /* We can't call ll_fill_super by name because it lives in a module that
    must be loaded after this one. */

@@ -848,7 +848,6 @@ kiblnd_rd_msg_size(kib_rdma_desc_t *rd, int msgtype, int n)
 	       offsetof(kib_putack_msg_t, ibpam_rd.rd_frags[n]);
 }
 
-
 static inline __u64
 kiblnd_dma_mapping_error(struct ib_device *dev, u64 dma_addr)
 {
@@ -904,7 +903,6 @@ static inline unsigned int kiblnd_sg_dma_len(struct ib_device *dev,
 
 #define KIBLND_CONN_PARAM(e)     ((e)->param.conn.private_data)
 #define KIBLND_CONN_PARAM_LEN(e) ((e)->param.conn.private_data_len)
-
 
 struct ib_mr *kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev,
 				    kib_rdma_desc_t *rd);

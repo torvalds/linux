@@ -58,7 +58,6 @@
 #include "../include/lustre_lib.h"
 #include "ldlm_internal.h"
 
-
 /* When a lock is cancelled by a client, the KMS may undergo change if this
  * is the "highest lock".  This function returns the new KMS value.
  * Caller must hold lr_lock already.

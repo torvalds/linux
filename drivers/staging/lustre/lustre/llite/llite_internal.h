@@ -818,7 +818,6 @@ struct ll_close_queue {
 
 struct ccc_object *cl_inode2ccc(struct inode *inode);
 
-
 void vvp_write_pending (struct ccc_object *club, struct ccc_page *page);
 void vvp_write_complete(struct ccc_object *club, struct ccc_page *page);
 
@@ -1272,7 +1271,6 @@ typedef enum llioc_iter (*llioc_callback_t)(struct inode *inode,
  * */
 void *ll_iocontrol_register(llioc_callback_t cb, int count, unsigned int *cmd);
 void ll_iocontrol_unregister(void *magic);
-
 
 /* lclient compat stuff */
 #define cl_inode_info ll_inode_info

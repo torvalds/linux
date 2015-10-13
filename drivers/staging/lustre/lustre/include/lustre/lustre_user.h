@@ -261,7 +261,6 @@ struct ost_id {
 #define LL_IOC_OBD_STATFS       IOC_OBD_STATFS
 #define IOC_MDC_GETSTRIPE       IOC_MDC_GETFILESTRIPE
 
-
 #define MAX_OBD_NAME 128 /* If this changes, a NEW ioctl must be added */
 
 /* Define O_LOV_DELAY_CREATE to be a mask that is not useful for regular
@@ -488,7 +487,6 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 	&((fid)->f_oid), \
 	&((fid)->f_ver)
 
-
 /********* Quotas **********/
 
 /* these must be explicitly translated into linux Q_* in ll_dir_ioctl */
@@ -629,7 +627,6 @@ struct lustre_swap_layouts {
 	__u64	sl_dv1;
 	__u64	sl_dv2;
 };
-
 
 /********* Changelogs **********/
 /** Changelog record types */
@@ -844,7 +841,6 @@ struct ioc_data_version {
 #endif
 
 #define dot_lustre_name ".lustre"
-
 
 /********* HSM **********/
 

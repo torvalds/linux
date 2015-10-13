@@ -960,7 +960,6 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 
-
 	name[MAX_STRING_SIZE] = '\0';
 
 	LASSERT(sbi != NULL);
@@ -1049,7 +1048,6 @@ int ldebugfs_register_mountpoint(struct dentry *parent,
 				     sbi->ll_ra_stats);
 	if (err)
 		goto out;
-
 
 	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
 				lprocfs_llite_obd_vars, sb);

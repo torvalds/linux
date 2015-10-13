@@ -1354,7 +1354,6 @@ srpc_post_rpc(srpc_client_rpc_t *rpc)
 	return;
 }
 
-
 int
 srpc_send_reply(struct srpc_server_rpc *rpc)
 {
@@ -1579,7 +1578,6 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		break;
 	}
 }
-
 
 int
 srpc_startup(void)

@@ -907,7 +907,6 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 	hpk.hpk_errval = 0;
 	hpk.hpk_data_version = 0;
 
-
 	/* For archive request, we need to read the current file version. */
 	if (copy->hc_hai.hai_action == HSMA_ARCHIVE) {
 		struct inode	*inode;
@@ -1046,7 +1045,6 @@ progress:
 
 	return rc;
 }
-
 
 static int copy_and_ioctl(int cmd, struct obd_export *exp,
 			  const void __user *data, size_t size)

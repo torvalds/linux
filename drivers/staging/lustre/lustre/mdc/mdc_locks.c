@@ -363,8 +363,6 @@ mdc_intent_getxattr_pack(struct obd_export *exp,
 	int			rc, count = 0, maxdata;
 	LIST_HEAD(cancels);
 
-
-
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 					&RQF_LDLM_INTENT_GETXATTR);
 	if (req == NULL)

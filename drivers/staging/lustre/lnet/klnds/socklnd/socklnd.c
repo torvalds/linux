@@ -2445,7 +2445,6 @@ ksocknal_base_startup(void)
 		ksocknal_data.ksnd_connd_starting++;
 		spin_unlock_bh(&ksocknal_data.ksnd_connd_lock);
 
-
 		snprintf(name, sizeof(name), "socknal_cd%02d", i);
 		rc = ksocknal_thread_start(ksocknal_connd,
 					   (void *)((ulong_ptr_t)i), name);
@@ -2835,7 +2834,6 @@ ksocknal_startup(lnet_ni_t *ni)
 
 	return -ENETDOWN;
 }
-
 
 static void __exit
 ksocknal_module_fini(void)

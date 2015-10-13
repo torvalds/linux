@@ -1057,7 +1057,6 @@ __u64 lustre_msg_get_slv(struct lustre_msg *msg)
 }
 EXPORT_SYMBOL(lustre_msg_get_slv);
 
-
 void lustre_msg_set_slv(struct lustre_msg *msg, __u64 slv)
 {
 	switch (msg->lm_magic) {
@@ -1096,7 +1095,6 @@ __u32 lustre_msg_get_limit(struct lustre_msg *msg)
 	}
 }
 EXPORT_SYMBOL(lustre_msg_get_limit);
-
 
 void lustre_msg_set_limit(struct lustre_msg *msg, __u64 limit)
 {
@@ -1401,7 +1399,6 @@ void lustre_msg_set_cksum(struct lustre_msg *msg, __u32 cksum)
 		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
 	}
 }
-
 
 void ptlrpc_request_set_replen(struct ptlrpc_request *req)
 {

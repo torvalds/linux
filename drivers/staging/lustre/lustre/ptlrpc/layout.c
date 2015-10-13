@@ -578,7 +578,6 @@ static const struct req_msg_field *ost_destroy_client[] = {
 	&RMF_CAPA1
 };
 
-
 static const struct req_msg_field *ost_brw_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_OST_BODY,

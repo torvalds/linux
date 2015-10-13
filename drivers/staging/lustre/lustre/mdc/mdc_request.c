@@ -785,7 +785,6 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	int                    rc;
 	int		       saved_rc = 0;
 
-
 	req_fmt = &RQF_MDS_CLOSE;
 	if (op_data->op_bias & MDS_HSM_RELEASE) {
 		req_fmt = &RQF_MDS_RELEASE_CLOSE;
@@ -960,7 +959,6 @@ static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
 	ptlrpc_req_finished(req);
 	return rc;
 }
-
 
 static int mdc_readpage(struct obd_export *exp, struct md_op_data *op_data,
 			struct page **pages, struct ptlrpc_request **request)
@@ -2425,7 +2423,6 @@ static int mdc_process_config(struct obd_device *obd, u32 len, void *buf)
 	}
 	return rc;
 }
-
 
 /* get remote permission for current user on fid */
 static int mdc_get_remote_perm(struct obd_export *exp, const struct lu_fid *fid,

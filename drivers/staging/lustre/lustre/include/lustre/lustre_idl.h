@@ -294,7 +294,6 @@ static inline int range_compare_loc(const struct lu_seq_range *r1,
 	(range)->lsr_index,	\
 	fld_range_is_mdt(range) ? "mdt" : "ost"
 
-
 /** \defgroup lu_fid lu_fid
  * @{ */
 
@@ -960,7 +959,6 @@ struct luda_type {
 #define DTTOIF(dirtype)		((dirtype) << IFSHIFT)
 #endif
 
-
 struct lu_dirpage {
 	__u64	    ldp_hash_start;
 	__u64	    ldp_hash_end;
@@ -1274,7 +1272,6 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define OCD_HAS_FLAG(ocd, flg)  \
 	(!!((ocd)->ocd_connect_flags & OBD_CONNECT_##flg))
 
-
 #define LRU_RESIZE_CONNECT_FLAG OBD_CONNECT_LRU_RESIZE
 
 #define MDT_CONNECT_SUPPORTED  (OBD_CONNECT_RDONLY | OBD_CONNECT_VERSION | \
@@ -1398,7 +1395,6 @@ struct obd_connect_data {
  * a small patch against EVERY branch that ONLY adds the new field along with
  * the matching OBD_CONNECT flag, so that can be approved and landed easily to
  * reserve the flag for future use. */
-
 
 void lustre_swab_connect(struct obd_connect_data *ocd);
 
@@ -2051,7 +2047,6 @@ typedef enum {
 
 #define MDS_FIRST_OPC    MDS_GETATTR
 
-
 /* opcodes for object update */
 typedef enum {
 	UPDATE_OBJ	= 1000,
@@ -2116,7 +2111,6 @@ void lustre_swab_generic_32s(__u32 *val);
 #define MDS_INODELOCK_MAXSHIFT 5
 /* This FULL lock is useful to take on unlink sort of operations */
 #define MDS_INODELOCK_FULL ((1<<(MDS_INODELOCK_MAXSHIFT+1))-1)
-
 
 /* NOTE: until Lustre 1.8.7/2.1.1 the fid_ver() was packed into name[2],
  * but was moved into name[1] along with the OID to avoid consuming the

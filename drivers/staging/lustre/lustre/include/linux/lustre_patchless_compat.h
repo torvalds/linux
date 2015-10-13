@@ -43,7 +43,6 @@
 #include <linux/mm.h>
 #include <linux/hash.h>
 
-
 #define ll_delete_from_page_cache(page) delete_from_page_cache(page)
 
 static inline void

@@ -140,5 +140,4 @@ void lstcon_rpc_cleanup_wait(void);
 int  lstcon_rpc_module_init(void);
 void lstcon_rpc_module_fini(void);
 
-
 #endif

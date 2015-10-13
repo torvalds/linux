@@ -129,7 +129,6 @@ static struct shash_alg alg = {
 	}
 };
 
-
 int cfs_crypto_adler32_register(void)
 {
 	return crypto_register_shash(&alg);

@@ -2165,7 +2165,6 @@ int sptlrpc_cli_unwrap_bulk_write(struct ptlrpc_request *req,
 }
 EXPORT_SYMBOL(sptlrpc_cli_unwrap_bulk_write);
 
-
 /****************************************
  * user descriptor helpers	      *
  ****************************************/

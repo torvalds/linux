@@ -678,7 +678,6 @@ static int lov_lock_unuse(const struct lu_env *env,
 	return result;
 }
 
-
 static void lov_lock_cancel(const struct lu_env *env,
 			   const struct cl_lock_slice *slice)
 {
@@ -1195,6 +1194,5 @@ static struct cl_lock_closure *lov_closure_get(const struct lu_env *env,
 	cl_lock_closure_init(env, closure, parent, 1);
 	return closure;
 }
-
 
 /** @} lov */

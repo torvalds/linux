@@ -338,7 +338,6 @@ out:
 	return err;
 }
 
-
 struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_psdev_open,
 	libcfs_psdev_release,

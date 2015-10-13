@@ -205,5 +205,4 @@ struct lu_device_type lovsub_device_type = {
 	.ldt_ctx_tags = LCT_CL_THREAD
 };
 
-
 /** @} lov */

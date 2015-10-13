@@ -306,7 +306,6 @@ out:
 	__res;								\
 })
 
-
 /**
  * sanity check - to make sure there is no overlapped extent in the tree.
  */
@@ -1027,7 +1026,6 @@ static int osc_extent_truncate(struct osc_extent *ext, pgoff_t trunc_index,
 	} else { /* calculate how many grants we can free */
 		int chunks = (ext->oe_end >> ppc_bits) - trunc_chunk;
 		pgoff_t last_index;
-
 
 		/* if there is no pages in this chunk, we can also free grants
 		 * for the last chunk */
@@ -1780,7 +1778,6 @@ static void osc_process_ar(struct osc_async_rc *ar, __u64 xid,
 	if (ar->ar_force_sync && (xid >= ar->ar_min_xid))
 		ar->ar_force_sync = 0;
 }
-
 
 /* this must be called holding the loi list lock to give coverage to exit_cache,
  * async_flag maintenance, and oap_request */

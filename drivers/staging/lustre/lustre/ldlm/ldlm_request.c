@@ -1795,7 +1795,6 @@ static int replay_lock_interpret(const struct lu_env *env,
 	if (rc != ELDLM_OK)
 		goto out;
 
-
 	reply = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
 	if (reply == NULL) {
 		rc = -EPROTO;

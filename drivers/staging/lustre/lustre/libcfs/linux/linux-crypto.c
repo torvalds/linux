@@ -36,8 +36,6 @@
  */
 static int cfs_crypto_hash_speeds[CFS_HASH_ALG_MAX];
 
-
-
 static int cfs_crypto_hash_alloc(unsigned char alg_id,
 				 const struct cfs_crypto_hash_type **type,
 				 struct hash_desc *desc, unsigned char *key,

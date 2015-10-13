@@ -40,7 +40,6 @@
  * Author: Liang Zhen <liang@whamcloud.com>
  */
 
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-lnet.h"
 #include "timer.h"

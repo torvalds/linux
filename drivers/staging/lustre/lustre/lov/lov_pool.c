@@ -397,7 +397,6 @@ int lov_ost_pool_free(struct ost_pool *op)
 	return 0;
 }
 
-
 int lov_pool_new(struct obd_device *obd, char *poolname)
 {
 	struct lov_obd *lov;
@@ -509,7 +508,6 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	return 0;
 }
 
-
 int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 {
 	struct obd_uuid ost_uuid;
@@ -525,7 +523,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 		return -ENOENT;
 
 	obd_str2uuid(&ost_uuid, ostname);
-
 
 	/* search ost in lov array */
 	obd_getref(obd);

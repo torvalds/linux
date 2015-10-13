@@ -1558,7 +1558,6 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 		config_log_get(cld);
 	}
 
-
 	if (cld_is_recover(cld)) {
 		rc = 0; /* this is not a fatal error for recover log */
 		if (rcl == 0)
@@ -1578,7 +1577,6 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 
 	return rc;
 }
-
 
 /** Called from lustre_process_log.
  * LCFG_LOG_START gets the config log from the MGS, processes it to start

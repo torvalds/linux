@@ -103,7 +103,6 @@ do {									\
 	spin_unlock(&imp->imp_lock);					\
 } while (0)
 
-
 static int ptlrpc_connect_interpret(const struct lu_env *env,
 				    struct ptlrpc_request *request,
 				    void *data, int rc);
@@ -941,7 +940,6 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 					      lustre_msg_get_handle(
 						      request->rq_repmsg)->cookie);
 			}
-
 
 			imp->imp_remote_handle =
 				     *lustre_msg_get_handle(request->rq_repmsg);

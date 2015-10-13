@@ -329,7 +329,6 @@ struct osc_lock {
 	struct osc_io	   *ols_owner;
 };
 
-
 /**
  * Page state private for osc layer.
  */

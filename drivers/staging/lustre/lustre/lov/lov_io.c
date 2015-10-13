@@ -271,7 +271,6 @@ struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 	return lov_sub_get(env, lio, stripe);
 }
 
-
 static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 			     struct cl_io *io)
 {
@@ -544,7 +543,6 @@ static void lov_io_unlock(const struct lu_env *env,
 	rc = lov_io_call(env, cl2lov_io(env, ios), lov_io_unlock_wrapper);
 	LASSERT(rc == 0);
 }
-
 
 static struct cl_page_list *lov_io_submit_qin(struct lov_device *ld,
 					      struct cl_page_list *qin,

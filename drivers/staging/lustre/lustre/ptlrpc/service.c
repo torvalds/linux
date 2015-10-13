@@ -58,7 +58,6 @@ MODULE_PARM_DESC(at_early_margin, "How soon before an RPC deadline to send an ea
 module_param(at_extra, int, 0644);
 MODULE_PARM_DESC(at_extra, "How much extra time to give with each early reply");
 
-
 /* forward ref */
 static int ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt);
 static void ptlrpc_server_hpreq_fini(struct ptlrpc_request *req);
@@ -142,7 +141,6 @@ ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 
 	svcpt->scp_rqbd_allocating++;
 	spin_unlock(&svcpt->scp_lock);
-
 
 	for (i = 0; i < svc->srv_nbuf_per_group; i++) {
 		/* NB: another thread might have recycled enough rqbds, we
@@ -1848,7 +1846,6 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 	return 1;
 }
 
-
 static void
 ptlrpc_check_rqbd_pool(struct ptlrpc_service_part *svcpt)
 {
@@ -2552,7 +2549,6 @@ void ptlrpc_hr_fini(void)
 	cfs_percpt_free(ptlrpc_hr.hr_partitions);
 	ptlrpc_hr.hr_partitions = NULL;
 }
-
 
 /**
  * Wait until all already scheduled replies are processed.

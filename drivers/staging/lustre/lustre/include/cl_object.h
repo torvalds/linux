@@ -2020,7 +2020,6 @@ struct cl_io_slice {
 	struct list_head		     cis_linkage;
 };
 
-
 /**
  * Per-layer io operations.
  * \see vvp_io_ops, lov_io_ops, lovsub_io_ops, osc_io_ops
@@ -2293,7 +2292,6 @@ struct cl_io_rw_common {
 	size_t      crw_count;
 	int	 crw_nonblock;
 };
-
 
 /**
  * State for io.
@@ -2857,7 +2855,6 @@ int  cl_page_flush      (const struct lu_env *env, struct cl_io *io,
 			 struct cl_page *pg);
 
 /** @} transfer */
-
 
 /**
  * \name helper routines

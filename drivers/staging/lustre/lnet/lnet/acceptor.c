@@ -202,7 +202,6 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 }
 EXPORT_SYMBOL(lnet_connect);
 
-
 /* Below is the code common for both kernel and MT user-space */
 
 static int
@@ -446,7 +445,6 @@ lnet_acceptor_start(void)
 	rc = lnet_acceptor_get_tunables();
 	if (rc != 0)
 		return rc;
-
 
 	init_completion(&lnet_acceptor_state.pta_signal);
 	rc = accept2secure(accept_type, &secure);

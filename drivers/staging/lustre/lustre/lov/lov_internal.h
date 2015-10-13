@@ -269,5 +269,4 @@ static inline bool lov_oinfo_is_dummy(const struct lov_oinfo *loi)
 	return false;
 }
 
-
 #endif

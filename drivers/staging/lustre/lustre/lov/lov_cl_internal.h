@@ -438,7 +438,6 @@ struct lovsub_page {
 	struct cl_page_slice lsb_cl;
 };
 
-
 struct lov_thread_info {
 	struct cl_object_conf   lti_stripe_conf;
 	struct lu_fid	   lti_fid;
@@ -610,7 +609,6 @@ void  lov_sub_put(struct lov_io_sub *sub);
 int   lov_sublock_modify(const struct lu_env *env, struct lov_lock *lov,
 			   struct lovsub_lock *sublock,
 			   const struct cl_lock_descr *d, int idx);
-
 
 int   lov_page_init(const struct lu_env *env, struct cl_object *ob,
 			   struct cl_page *page, struct page *vmpage);

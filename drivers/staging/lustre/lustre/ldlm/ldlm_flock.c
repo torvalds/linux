@@ -580,7 +580,6 @@ void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
 	lpolicy->l_flock.owner = wpolicy->l_flock.lfw_pid;
 }
 
-
 void ldlm_flock_policy_wire21_to_local(const ldlm_wire_policy_data_t *wpolicy,
 				       ldlm_policy_data_t *lpolicy)
 {

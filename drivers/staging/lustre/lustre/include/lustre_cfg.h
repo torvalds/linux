@@ -224,7 +224,6 @@ static inline int lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 	return cfs_size_round(len);
 }
 
-
 #include "obd_support.h"
 
 static inline struct lustre_cfg *lustre_cfg_new(int cmd,

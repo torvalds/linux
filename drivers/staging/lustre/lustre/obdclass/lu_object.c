@@ -1225,8 +1225,6 @@ struct lu_object *lu_object_locate(struct lu_object_header *h,
 }
 EXPORT_SYMBOL(lu_object_locate);
 
-
-
 /**
  * Finalize and free devices in the device stack.
  *
@@ -1731,7 +1729,6 @@ static void lu_site_stats_get(struct cfs_hash *hs,
 		cfs_hash_bd_unlock(hs, &bd, 1);
 	}
 }
-
 
 /*
  * lu_cache_shrink_count returns the number of cached objects that are

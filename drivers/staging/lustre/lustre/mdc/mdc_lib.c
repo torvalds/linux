@@ -39,7 +39,6 @@
 #include "../include/lustre/lustre_idl.h"
 #include "mdc_internal.h"
 
-
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {
 	LASSERT(b != NULL);
@@ -119,7 +118,6 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 
 	CLASSERT(sizeof(struct mdt_rec_reint) == sizeof(struct mdt_rec_create));
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
-
 
 	rec->cr_opcode   = REINT_CREATE;
 	rec->cr_fsuid    = uid;

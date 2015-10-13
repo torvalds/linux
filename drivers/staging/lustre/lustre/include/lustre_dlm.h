@@ -1275,7 +1275,6 @@ int ldlm_cli_cancel_list(struct list_head *head, int count,
 int intent_disposition(struct ldlm_reply *rep, int flag);
 void intent_set_disposition(struct ldlm_reply *rep, int flag);
 
-
 /* ioctls for trying requests */
 #define IOC_LDLM_TYPE		   'f'
 #define IOC_LDLM_MIN_NR		 40

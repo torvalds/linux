@@ -162,7 +162,6 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	lp->lp_notifying = 0;
 }
 
-
 static void
 lnet_rtr_addref_locked(lnet_peer_t *lp)
 {

@@ -318,7 +318,6 @@ LNetEQWait(lnet_handle_eq_t eventq, lnet_event_t *event)
 }
 EXPORT_SYMBOL(LNetEQWait);
 
-
 static int
 lnet_eq_wait_locked(int *timeout_ms)
 __must_hold(&the_lnet.ln_eq_wait_lock)
@@ -356,8 +355,6 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 
 	return wait;
 }
-
-
 
 /**
  * Block the calling process until there's an event from a set of EQs or

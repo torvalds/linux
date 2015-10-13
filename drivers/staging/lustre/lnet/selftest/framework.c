@@ -237,7 +237,6 @@ sfw_deactivate_session(void)
 	spin_lock(&sfw_data.fw_lock);
 }
 
-
 static void
 sfw_session_expired(void *data)
 {
@@ -1633,7 +1632,6 @@ extern srpc_service_t	brw_test_service;
 extern void brw_init_test_client(void);
 extern void brw_init_test_service(void);
 
-
 int
 sfw_startup(void)
 {
@@ -1642,7 +1640,6 @@ sfw_startup(void)
 	int error;
 	srpc_service_t *sv;
 	sfw_test_case_t *tsc;
-
 
 	if (session_timeout < 0) {
 		CERROR("Session timeout must be non-negative: %d\n",

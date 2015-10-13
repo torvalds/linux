@@ -1109,7 +1109,6 @@ void (*class_export_dump_hook)(struct obd_export *) = NULL;
 EXPORT_SYMBOL(class_export_dump_hook);
 #endif
 
-
 /* Total amount of zombies to be destroyed */
 static int zombies_count;
 
@@ -1258,7 +1257,6 @@ void obd_zombie_barrier(void)
 }
 EXPORT_SYMBOL(obd_zombie_barrier);
 
-
 /**
  * destroy zombie export/import thread.
  */
@@ -1287,7 +1285,6 @@ static int obd_zombie_impexp_thread(void *unused)
 
 	return 0;
 }
-
 
 /**
  * start destroy zombie import/export thread

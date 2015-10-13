@@ -45,7 +45,6 @@
 lnet_t the_lnet;			   /* THE state of the network */
 EXPORT_SYMBOL(the_lnet);
 
-
 static char *ip2nets = "";
 module_param(ip2nets, charp, 0444);
 MODULE_PARM_DESC(ip2nets, "LNET network <- IP table");
@@ -528,7 +527,6 @@ lnet_res_lh_initialize(struct lnet_res_container *rec, lnet_libhandle_t *lh)
 
 	list_add(&lh->lh_hash_chain, &rec->rec_lh_hash[hash]);
 }
-
 
 int lnet_unprepare(void);
 

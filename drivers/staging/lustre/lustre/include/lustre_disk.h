@@ -107,7 +107,6 @@ struct lustre_mount_data {
 
 #define lmd_is_client(x) ((x)->lmd_flags & LMD_FLG_CLIENT)
 
-
 /****************** last_rcvd file *********************/
 
 /** version recovery epoch */
@@ -373,7 +372,6 @@ struct lustre_sb_info {
 #define	    get_mount_flags(sb)	   (s2lsi(sb)->lsi_lmd->lmd_flags)
 #define	    get_mntdev_name(sb)	   (s2lsi(sb)->lsi_lmd->lmd_dev)
 
-
 /****************** mount lookup info *********************/
 
 struct lustre_mount_info {
@@ -392,7 +390,6 @@ void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb,
 						  struct vfsmount *mnt));
 void lustre_register_kill_super_cb(void (*cfs)(struct super_block *sb));
 int lustre_common_put_super(struct super_block *sb);
-
 
 int mgc_fsname2resid(char *fsname, struct ldlm_res_id *res_id, int type);
 

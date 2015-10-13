@@ -1891,7 +1891,6 @@ int ll_hsm_release(struct inode *inode)
 	__u64 data_version = 0;
 	int rc;
 
-
 	CDEBUG(D_INODE, "%s: Releasing file "DFID".\n",
 	       ll_get_fsname(inode->i_sb, NULL, 0),
 	       PFID(&ll_i2info(inode)->lli_fid));
@@ -1922,7 +1921,6 @@ int ll_hsm_release(struct inode *inode)
 	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp, inode, och,
 				       &data_version);
 	och = NULL;
-
 
 out:
 	if (och != NULL && !IS_ERR(och)) /* close the file */
@@ -2144,7 +2142,6 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 	struct hsm_state_set	*hss = NULL;
 	struct iattr		*attr = NULL;
 	int			 rc;
-
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -2504,7 +2501,6 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	}
 }
-
 
 static loff_t ll_file_seek(struct file *file, loff_t offset, int origin)
 {
@@ -3071,7 +3067,6 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-
 int ll_inode_permission(struct inode *inode, int mask)
 {
 	int rc = 0;
@@ -3168,7 +3163,6 @@ static struct llioc_ctl_data {
 	__RWSEM_INITIALIZER(llioc.ioc_sem),
 	LIST_HEAD_INIT(llioc.ioc_head)
 };
-
 
 struct llioc_data {
 	struct list_head	      iocd_list;

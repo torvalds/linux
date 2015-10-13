@@ -41,7 +41,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-
 #include "../include/obd.h"
 #include "../include/lustre_lite.h"
 
@@ -643,7 +642,6 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	return -EINVAL;
 }
 
-
 static int vvp_io_fault_start(const struct lu_env *env,
 			      const struct cl_io_slice *ios)
 {
@@ -701,7 +699,6 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		result = 1;
 		goto out;
 	}
-
 
 	if (fio->ft_mkwrite) {
 		pgoff_t last_index;

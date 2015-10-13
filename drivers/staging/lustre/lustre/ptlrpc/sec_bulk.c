@@ -58,7 +58,6 @@
  * bulk encryption page pools	   *
  ****************************************/
 
-
 #define POINTERS_PER_PAGE	(PAGE_CACHE_SIZE / sizeof(void *))
 #define PAGES_PER_POOL		(POINTERS_PER_PAGE)
 
@@ -447,7 +446,6 @@ void sptlrpc_enc_pool_fini(void)
 		       page_pools.epp_st_max_wait, HZ);
 	}
 }
-
 
 static int cfs_hash_alg_id[] = {
 	[BULK_HASH_ALG_NULL]	= CFS_HASH_ALG_NULL,

@@ -42,7 +42,6 @@
 
 #include "selftest.h"
 
-
 /*
  * Timers are implemented as a sorted queue of expiry times. The queue
  * is slotted, with each slot holding timers which expire in a
@@ -167,7 +166,6 @@ stt_check_timers(unsigned long *last)
 	return expired;
 }
 
-
 static int
 stt_timer_main(void *arg)
 {
@@ -203,7 +201,6 @@ stt_start_timer_thread(void)
 	spin_unlock(&stt_data.stt_lock);
 	return 0;
 }
-
 
 int
 stt_startup(void)

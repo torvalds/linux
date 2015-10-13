@@ -47,7 +47,6 @@ struct obd_export;
 struct obd_device;
 struct ptlrpc_request;
 
-
 int ptlrpc_replay(struct obd_import *imp);
 int ptlrpc_resend(struct obd_import *imp);
 void ptlrpc_free_committed(struct obd_import *imp);

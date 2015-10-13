@@ -347,7 +347,6 @@ static int osc_page_fail(const struct lu_env *env,
 	return 0;
 }
 
-
 static const char *osc_list(struct list_head *head)
 {
 	return list_empty(head) ? "-" : "+";

@@ -100,7 +100,6 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	return 0;
 }
 
-
 /*
  * Get an inode by inode number (already instantiated by the intent lookup).
  * Returns inode or NULL
@@ -673,7 +672,6 @@ out_release:
 
 	return rc;
 }
-
 
 /* We depend on "mode" being set with the proper file type/umask by now */
 static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)

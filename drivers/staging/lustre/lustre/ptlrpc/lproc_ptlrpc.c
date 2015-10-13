@@ -35,7 +35,6 @@
  */
 #define DEBUG_SUBSYSTEM S_CLASS
 
-
 #include "../include/obd_support.h"
 #include "../include/obd.h"
 #include "../include/lprocfs_status.h"
@@ -43,7 +42,6 @@
 #include "../include/lustre_net.h"
 #include "../include/obd_class.h"
 #include "ptlrpc_internal.h"
-
 
 static struct ll_rpc_opcode {
 	__u32       opcode;
@@ -325,7 +323,6 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 	return count;
 }
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_req_history_max);
-
 
 static ssize_t threads_min_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)

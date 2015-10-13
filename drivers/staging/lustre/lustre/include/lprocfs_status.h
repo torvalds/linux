@@ -302,7 +302,6 @@ static inline int opcode_offset(__u32 opc)
 	}
 }
 
-
 #define LUSTRE_MAX_OPCODES (OPC_RANGE(OST)  + \
 			    OPC_RANGE(MDS)  + \
 			    OPC_RANGE(LDLM) + \
@@ -637,7 +636,6 @@ int lprocfs_seq_release(struct inode *, struct file *);
 } while (0)
 #define LPROCFS_CLIMP_EXIT(obd)		 \
 	up_read(&(obd)->u.cli.cl_sem)
-
 
 /* write the name##_seq_show function, call LPROC_SEQ_FOPS_RO for read-only
   proc entries; otherwise, you will define name##_seq_write function also for

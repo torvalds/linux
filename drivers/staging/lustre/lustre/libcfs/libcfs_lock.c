@@ -34,7 +34,6 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-
 /** destroy cpu-partition lock, see libcfs_private.h for more detail */
 void
 cfs_percpt_lock_free(struct cfs_percpt_lock *pcl)
@@ -145,7 +144,6 @@ cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index)
 	}
 }
 EXPORT_SYMBOL(cfs_percpt_unlock);
-
 
 /** free cpu-partition refcount */
 void
