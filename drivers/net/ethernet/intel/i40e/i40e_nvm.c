@@ -484,7 +484,7 @@ static i40e_status i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 static i40e_status i40e_calc_nvm_checksum(struct i40e_hw *hw,
 						    u16 *checksum)
 {
-	i40e_status ret_code = 0;
+	i40e_status ret_code;
 	struct i40e_virt_mem vmem;
 	u16 pcie_alt_module = 0;
 	u16 checksum_local = 0;
@@ -564,7 +564,7 @@ i40e_calc_nvm_checksum_exit:
  **/
 i40e_status i40e_update_nvm_checksum(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
+	i40e_status ret_code;
 	u16 checksum;
 	__le16 le_sum;
 
