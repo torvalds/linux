@@ -1769,6 +1769,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
 	"H             Display column headers\n"			\
+	"m             Display context menu\n"				\
 	"S             Zoom into current Processor Socket\n"		\
 
 	/* help messages are sorted by lexical order of the hotkey */
@@ -1935,6 +1936,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
+		case 'm':
 			/* menu */
 			break;
 		case K_ESC:
