@@ -681,7 +681,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
 static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 {
 	struct radix_tree_iter iter;
-	struct bdi_writeback_congested *congested, *congested_n;
+	struct rb_node *rbn;
 	void **slot;
 
 	WARN_ON(test_bit(WB_registered, &bdi->wb.state));
@@ -691,9 +691,11 @@ static void cgwb_bdi_destroy(struct backing_dev_info *bdi)
 	radix_tree_for_each_slot(slot, &bdi->cgwb_tree, &iter, 0)
 		cgwb_kill(*slot);
 
-	rbtree_postorder_for_each_entry_safe(congested, congested_n,
-					&bdi->cgwb_congested_tree, rb_node) {
-		rb_erase(&congested->rb_node, &bdi->cgwb_congested_tree);
+	while ((rbn = rb_first(&bdi->cgwb_congested_tree))) {
+		struct bdi_writeback_congested *congested =
+			rb_entry(rbn, struct bdi_writeback_congested, rb_node);
+
+		rb_erase(rbn, &bdi->cgwb_congested_tree);
 		congested->bdi = NULL;	/* mark @congested unlinked */
 	}
 
