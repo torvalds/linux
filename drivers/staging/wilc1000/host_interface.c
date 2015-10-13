@@ -132,7 +132,7 @@ struct channel_attr {
 
 struct beacon_attr {
 	u32 interval;
-	u32 u32DTIMPeriod;
+	u32 dtim_period;
 	u32 u32HeadLen;
 	u8 *pu8Head;
 	u32 u32TailLen;
@@ -2349,10 +2349,10 @@ static void Handle_AddBeacon(struct host_if_drv *hif_drv,
 	*pu8CurrByte++ = ((pstrSetBeaconParam->interval >> 16) & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->interval >> 24) & 0xFF);
 
-	*pu8CurrByte++ = (pstrSetBeaconParam->u32DTIMPeriod & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32DTIMPeriod >> 8) & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32DTIMPeriod >> 16) & 0xFF);
-	*pu8CurrByte++ = ((pstrSetBeaconParam->u32DTIMPeriod >> 24) & 0xFF);
+	*pu8CurrByte++ = (pstrSetBeaconParam->dtim_period & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->dtim_period >> 8) & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->dtim_period >> 16) & 0xFF);
+	*pu8CurrByte++ = ((pstrSetBeaconParam->dtim_period >> 24) & 0xFF);
 
 	*pu8CurrByte++ = (pstrSetBeaconParam->u32HeadLen & 0xFF);
 	*pu8CurrByte++ = ((pstrSetBeaconParam->u32HeadLen >> 8) & 0xFF);
@@ -4642,7 +4642,7 @@ s32 host_int_add_beacon(struct host_if_drv *hif_drv, u32 u32Interval,
 	msg.id = HOST_IF_MSG_ADD_BEACON;
 	msg.drv = hif_drv;
 	pstrSetBeaconParam->interval = u32Interval;
-	pstrSetBeaconParam->u32DTIMPeriod = u32DTIMPeriod;
+	pstrSetBeaconParam->dtim_period = u32DTIMPeriod;
 	pstrSetBeaconParam->u32HeadLen = u32HeadLen;
 	pstrSetBeaconParam->pu8Head = kmalloc(u32HeadLen, GFP_KERNEL);
 	if (pstrSetBeaconParam->pu8Head == NULL) {
