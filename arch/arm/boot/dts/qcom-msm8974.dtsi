@@ -315,7 +315,7 @@
 		};
 
 		blsp_i2c11: i2c@f9967000 {
-			status = "disable";
+			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9967000 0x1000>;
 			interrupts = <0 105 IRQ_TYPE_NONE>;
