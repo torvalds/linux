@@ -157,8 +157,6 @@ CFLAGS-$(CONFIG_E500) += $(call cc-option,-mcpu=8540 -msoft-float,-mcpu=powerpc)
 endif
 endif
 
-CFLAGS-$(CONFIG_TUNE_CELL) += $(call cc-option,-mtune=cell)
-
 asinstr := $(call as-instr,lis 9$(comma)foo@high,-DHAVE_AS_ATHIGH=1)
 
 KBUILD_CPPFLAGS	+= -Iarch/$(ARCH) $(asinstr)
