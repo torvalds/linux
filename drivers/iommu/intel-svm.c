@@ -26,6 +26,10 @@ struct pasid_entry {
 	u64 val;
 };
 
+struct pasid_state_entry {
+	u64 val;
+};
+
 int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 {
 	struct page *pages;
@@ -126,6 +130,11 @@ static void intel_flush_svm_range(struct intel_svm *svm, unsigned long address,
 				  int pages, int ih)
 {
 	struct intel_svm_dev *sdev;
+
+	/* Try deferred invalidate if available */
+	if (svm->iommu->pasid_state_table &&
+	    !cmpxchg64(&svm->iommu->pasid_state_table[svm->pasid].val, 0, 1ULL << 63))
+		return;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdev, &svm->devs, list)

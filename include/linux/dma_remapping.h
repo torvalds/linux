@@ -25,6 +25,7 @@
 #define CONTEXT_TT_PT_PASID_DEV_IOTLB 5
 #define CONTEXT_TT_MASK (7ULL << 2)
 
+#define CONTEXT_DINVE		(1ULL << 8)
 #define CONTEXT_PRS		(1ULL << 9)
 #define CONTEXT_PASIDE		(1ULL << 11)
 

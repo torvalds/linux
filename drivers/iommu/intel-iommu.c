@@ -4981,6 +4981,8 @@ int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sd
 				ctx_lo |= CONTEXT_TT_PT_PASID << 2;
 		}
 		ctx_lo |= CONTEXT_PASIDE;
+		if (iommu->pasid_state_table)
+			ctx_lo |= CONTEXT_DINVE;
 		context[0].lo = ctx_lo;
 		wmb();
 		iommu->flush.flush_context(iommu, sdev->did, sdev->sid,
