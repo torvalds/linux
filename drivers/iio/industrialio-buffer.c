@@ -610,6 +610,7 @@ static void iio_free_scan_mask(struct iio_dev *indio_dev,
 
 struct iio_device_config {
 	unsigned int mode;
+	unsigned int watermark;
 	const unsigned long *scan_mask;
 	unsigned int scan_bytes;
 	bool scan_timestamp;
@@ -642,10 +643,14 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		if (buffer == remove_buffer)
 			continue;
 		modes &= buffer->access->modes;
+		config->watermark = min(config->watermark, buffer->watermark);
 	}
 
-	if (insert_buffer)
+	if (insert_buffer) {
 		modes &= insert_buffer->access->modes;
+		config->watermark = min(config->watermark,
+			insert_buffer->watermark);
+	}
 
 	/* Definitely possible for devices to support both of these. */
 	if ((modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
@@ -742,6 +747,10 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 			goto err_run_postdisable;
 		}
 	}
+
+	if (indio_dev->info->hwfifo_set_watermark)
+		indio_dev->info->hwfifo_set_watermark(indio_dev,
+			config->watermark);
 
 	indio_dev->currentmode = config->mode;
 
@@ -974,9 +983,6 @@ static ssize_t iio_buffer_store_watermark(struct device *dev,
 	}
 
 	buffer->watermark = val;
-
-	if (indio_dev->info->hwfifo_set_watermark)
-		indio_dev->info->hwfifo_set_watermark(indio_dev, val);
 out:
 	mutex_unlock(&indio_dev->mlock);
 
