@@ -84,14 +84,12 @@ enum isert_indicator {
 
 struct pi_context {
 	struct ib_mr		       *prot_mr;
-	struct ib_fast_reg_page_list   *prot_frpl;
 	struct ib_mr		       *sig_mr;
 };
 
 struct fast_reg_descriptor {
 	struct list_head		list;
 	struct ib_mr		       *data_mr;
-	struct ib_fast_reg_page_list   *data_frpl;
 	u8				ind;
 	struct pi_context	       *pi_ctx;
 };
