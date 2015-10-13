@@ -61,7 +61,7 @@ STMicroelectronics stih4xx platforms
   - reg-names: names of the mapped memory regions listed in regs property in
     the same order.
   - interrupts : HDMI interrupt number to the CPU.
-  - interrupt-names: name of the interrupts listed in interrupts property in
+  - interrupt-names: names of the interrupts listed in interrupts property in
     the same order
   - clocks: from common clock binding: handle hardware IP needed clocks, the
     number of clocks may depend of the SoC type.
@@ -95,7 +95,7 @@ sti-dvo:
   - clock-names: names of the clocks listed in clocks property in the same
     order.
   - pinctrl-0: pin control handle
-  - pinctrl-name: names of the pin control to use
+  - pinctrl-names: names of the pin control states to use
   - sti,panel: phandle of the panel connected to the DVO output
 
 sti-hqvdp:
