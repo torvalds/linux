@@ -5549,7 +5549,7 @@ static s8 btdm_1AntTdmaJudgement(struct rtw_adapter *padapter, u8 retry)
 {
 	struct hal_data_8723a *pHalData;
 	struct btdm_8723a_1ant *pBtdm8723;
-	static s8 up, dn, m = 1, n = 3, WaitCount;
+	static s8 up, dn, m = 1, WaitCount;
 	s8 ret;
 
 	pHalData = GET_HAL_DATA(padapter);
@@ -5560,7 +5560,6 @@ static s8 btdm_1AntTdmaJudgement(struct rtw_adapter *padapter, u8 retry)
 		up = 0;
 		dn = 0;
 		m = 1;
-		n = 3;
 		WaitCount = 0;
 	} else {
 		WaitCount++;
@@ -5575,8 +5574,6 @@ static s8 btdm_1AntTdmaJudgement(struct rtw_adapter *padapter, u8 retry)
 		if (up >= 3*m) {
 			/*  retry = 0 in consecutive 3m*(2s), add WiFi duration */
 			ret = 1;
-
-			n = 3;
 			up = 0;
 			dn = 0;
 			WaitCount = 0;
