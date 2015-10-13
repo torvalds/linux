@@ -443,54 +443,6 @@ err_free:
 	return ERR_PTR(err);
 }
 
-struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
-							       int page_list_len)
-{
-	struct mlx4_ib_dev *dev = to_mdev(ibdev);
-	struct mlx4_ib_fast_reg_page_list *mfrpl;
-	int size = page_list_len * sizeof (u64);
-
-	if (page_list_len > MLX4_MAX_FAST_REG_PAGES)
-		return ERR_PTR(-EINVAL);
-
-	mfrpl = kmalloc(sizeof *mfrpl, GFP_KERNEL);
-	if (!mfrpl)
-		return ERR_PTR(-ENOMEM);
-
-	mfrpl->ibfrpl.page_list = kmalloc(size, GFP_KERNEL);
-	if (!mfrpl->ibfrpl.page_list)
-		goto err_free;
-
-	mfrpl->mapped_page_list = dma_alloc_coherent(&dev->dev->persist->
-						     pdev->dev,
-						     size, &mfrpl->map,
-						     GFP_KERNEL);
-	if (!mfrpl->mapped_page_list)
-		goto err_free;
-
-	WARN_ON(mfrpl->map & 0x3f);
-
-	return &mfrpl->ibfrpl;
-
-err_free:
-	kfree(mfrpl->ibfrpl.page_list);
-	kfree(mfrpl);
-	return ERR_PTR(-ENOMEM);
-}
-
-void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
-{
-	struct mlx4_ib_dev *dev = to_mdev(page_list->device);
-	struct mlx4_ib_fast_reg_page_list *mfrpl = to_mfrpl(page_list);
-	int size = page_list->max_page_list_len * sizeof (u64);
-
-	dma_free_coherent(&dev->dev->persist->pdev->dev, size,
-			  mfrpl->mapped_page_list,
-			  mfrpl->map);
-	kfree(mfrpl->ibfrpl.page_list);
-	kfree(mfrpl);
-}
-
 struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,
 				 struct ib_fmr_attr *fmr_attr)
 {
