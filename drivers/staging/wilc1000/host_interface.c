@@ -957,11 +957,6 @@ ERRORHANDLER:
 		pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo = NULL;
 	}
 
-	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL) {
-		kfree(pstrHostIFscanAttr->pu8ChnlFreqList);
-		pstrHostIFscanAttr->pu8ChnlFreqList = NULL;
-	}
-
 	if (pu8HdnNtwrksWidVal != NULL)
 		kfree(pu8HdnNtwrksWidVal);
 
