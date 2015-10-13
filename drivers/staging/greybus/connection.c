@@ -239,7 +239,14 @@ gb_connection_create_range(struct greybus_host_device *hd,
 
 	spin_unlock_irq(&gb_connections_lock);
 
-	gb_connection_bind_protocol(connection);
+	retval = gb_connection_bind_protocol(connection);
+	if (retval) {
+		dev_err(&connection->dev, "failed to bind protocol: %d\n",
+			retval);
+		gb_connection_destroy(connection);
+		return NULL;
+	}
+
 	if (!connection->protocol)
 		dev_warn(&connection->dev,
 			 "protocol 0x%02hhx handler not found\n", protocol_id);
