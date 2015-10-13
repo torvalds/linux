@@ -103,7 +103,7 @@ struct scan_attr {
 	u8 *ies;
 	size_t ies_len;
 	wilc_scan_result result;
-	void *pvUserArg;
+	void *arg;
 	struct hidden_network strHiddenNetwork;
 };
 
@@ -841,7 +841,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	PRINT_D(HOSTINF_DBG, "Scanning: In [%d] state\n", hif_drv->enuHostIFstate);
 
 	hif_drv->strWILC_UsrScanReq.pfUserScanResult = pstrHostIFscanAttr->result;
-	hif_drv->strWILC_UsrScanReq.u32UserScanPvoid = pstrHostIFscanAttr->pvUserArg;
+	hif_drv->strWILC_UsrScanReq.u32UserScanPvoid = pstrHostIFscanAttr->arg;
 
 	if ((hif_drv->enuHostIFstate >= HOST_IF_SCANNING) && (hif_drv->enuHostIFstate < HOST_IF_CONNECTED)) {
 		PRINT_D(GENERIC_DBG, "Don't scan we are already in [%d] state\n", hif_drv->enuHostIFstate);
@@ -4060,7 +4060,7 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	msg.body.scan_info.src = u8ScanSource;
 	msg.body.scan_info.type = u8ScanType;
 	msg.body.scan_info.result = ScanResult;
-	msg.body.scan_info.pvUserArg = pvUserArg;
+	msg.body.scan_info.arg = pvUserArg;
 
 	msg.body.scan_info.ch_list_len = u8ChnlListLen;
 	msg.body.scan_info.ch_freq_list = kmalloc(u8ChnlListLen, GFP_KERNEL);
