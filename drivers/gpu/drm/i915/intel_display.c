@@ -14116,6 +14116,11 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
+	if (obj->userptr.mm) {
+		DRM_DEBUG("attempting to use a userptr for a framebuffer, denied\n");
+		return -EINVAL;
+	}
+
 	return drm_gem_handle_create(file, &obj->base, handle);
 }
 
