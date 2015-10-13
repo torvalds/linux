@@ -124,7 +124,7 @@ config CLK_TWL6040
 
 config COMMON_CLK_AXI_CLKGEN
 	tristate "AXI clkgen driver"
-	depends on ARCH_ZYNQ || MICROBLAZE
+	depends on ARCH_ZYNQ || MICROBLAZE || COMPILE_TEST
 	help
 	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
@@ -132,7 +132,7 @@ config COMMON_CLK_AXI_CLKGEN
 
 config CLK_QORIQ
 	bool "Clock driver for Freescale QorIQ platforms"
-	depends on (PPC_E500MC || ARM) && OF
+	depends on (PPC_E500MC || ARM || COMPILE_TEST) && OF
 	---help---
 	  This adds the clock driver support for Freescale QorIQ platforms
 	  using common clock framework.
@@ -140,13 +140,13 @@ config CLK_QORIQ
 config COMMON_CLK_XGENE
 	bool "Clock driver for APM XGene SoC"
 	default y
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	---help---
 	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
 
 config COMMON_CLK_KEYSTONE
 	tristate "Clock drivers for Keystone based SOCs"
-	depends on ARCH_KEYSTONE && OF
+	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
 	---help---
           Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
