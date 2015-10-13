@@ -193,7 +193,8 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	 * the target CPort id before filling it in.
 	 */
 	if (!cport_id_valid(hd, cport_id)) {
-		pr_err("invalid destination cport 0x%02x\n", cport_id);
+		dev_err(&udev->dev, "invalid destination cport 0x%02x\n",
+				cport_id);
 		return -EINVAL;
 	}
 
@@ -219,7 +220,7 @@ static int message_send(struct greybus_host_device *hd, u16 cport_id,
 	trace_gb_host_device_send(hd, cport_id, buffer_size);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
-		pr_err("error %d submitting URB\n", retval);
+		dev_err(&udev->dev, "failed to submit out-urb: %d\n", retval);
 
 		spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
 		message->hcpriv = NULL;
@@ -363,7 +364,7 @@ static void cport_in_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length < sizeof(*header)) {
-		dev_err(dev, "%s: short message received\n", __func__);
+		dev_err(dev, "short message received\n");
 		goto exit;
 	}
 
@@ -376,15 +377,13 @@ static void cport_in_callback(struct urb *urb)
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
 	} else {
-		dev_err(dev, "%s: invalid cport id 0x%02x received\n",
-				__func__, cport_id);
+		dev_err(dev, "invalid cport id 0x%02x received\n", cport_id);
 	}
 exit:
 	/* put our urb back in the request pool */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(dev, "%s: error %d in submitting urb.\n",
-			__func__, retval);
+		dev_err(dev, "failed to resubmit in-urb: %d\n", retval);
 }
 
 static void cport_out_callback(struct urb *urb)
