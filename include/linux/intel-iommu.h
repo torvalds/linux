@@ -472,10 +472,13 @@ extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
 extern int intel_svm_enable_prq(struct intel_iommu *iommu);
 extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 
+struct svm_dev_ops;
+
 struct intel_svm_dev {
 	struct list_head list;
 	struct rcu_head rcu;
 	struct device *dev;
+	struct svm_dev_ops *ops;
 	int users;
 	u16 did;
 	u16 dev_iotlb:1;

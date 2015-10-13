@@ -264,7 +264,7 @@ static const struct mmu_notifier_ops intel_mmuops = {
 
 static DEFINE_MUTEX(pasid_mutex);
 
-int intel_svm_bind_mm(struct device *dev, int *pasid)
+int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_ops *ops)
 {
 	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
 	struct intel_svm_dev *sdev;
@@ -302,6 +302,10 @@ int intel_svm_bind_mm(struct device *dev, int *pasid)
 
 			list_for_each_entry(sdev, &svm->devs, list) {
 				if (dev == sdev->dev) {
+					if (sdev->ops != ops) {
+						ret = -EBUSY;
+						goto out;
+					}
 					sdev->users++;
 					goto success;
 				}
@@ -327,6 +331,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid)
 	}
 	/* Finish the setup now we know we're keeping it */
 	sdev->users = 1;
+	sdev->ops = ops;
 	init_rcu_head(&sdev->rcu);
 
 	if (!svm) {
@@ -456,6 +461,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
 	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	while (head != tail) {
+		struct intel_svm_dev *sdev;
 		struct vm_area_struct *vma;
 		struct page_req_dsc *req;
 		struct qi_desc resp;
@@ -507,6 +513,24 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		up_read(&svm->mm->mmap_sem);
 	bad_req:
 		/* Accounting for major/minor faults? */
+		rcu_read_lock();
+		list_for_each_entry_rcu(sdev, &svm->devs, list) {
+			if (sdev->sid == PCI_DEVID(req->bus, req->devfn));
+				break;
+		}
+		/* Other devices can go away, but the drivers are not permitted
+		 * to unbind while any page faults might be in flight. So it's
+		 * OK to drop the 'lock' here now we have it. */
+		rcu_read_unlock();
+
+		if (WARN_ON(&sdev->list == &svm->devs))
+			sdev = NULL;
+
+		if (sdev && sdev->ops && sdev->ops->fault_cb) {
+			int rwxp = (req->rd_req << 3) | (req->wr_req << 2) |
+				(req->wr_req << 1) | (req->exe_req);
+			sdev->ops->fault_cb(sdev->dev, req->pasid, req->addr, req->private, rwxp, result);
+		}
 
 		if (req->lpig) {
 			/* Page Group Response */
