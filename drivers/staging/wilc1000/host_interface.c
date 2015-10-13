@@ -112,7 +112,7 @@ struct connect_attr {
 	u8 *ssid;
 	size_t ssid_len;
 	u8 *ies;
-	size_t IEsLen;
+	size_t ies_len;
 	u8 u8security;
 	wilc_connect_result pfConnectResult;
 	void *pvUserArg;
@@ -1044,11 +1044,11 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		hif_drv->strWILC_UsrConnReq.pu8ssid[pstrHostIFconnectAttr->ssid_len] = '\0';
 	}
 
-	hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = pstrHostIFconnectAttr->IEsLen;
+	hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = pstrHostIFconnectAttr->ies_len;
 	if (pstrHostIFconnectAttr->ies != NULL) {
-		hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs = kmalloc(pstrHostIFconnectAttr->IEsLen, GFP_KERNEL);
+		hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs = kmalloc(pstrHostIFconnectAttr->ies_len, GFP_KERNEL);
 		memcpy(hif_drv->strWILC_UsrConnReq.pu8ConnReqIEs, pstrHostIFconnectAttr->ies,
-			    pstrHostIFconnectAttr->IEsLen);
+			    pstrHostIFconnectAttr->ies_len);
 	}
 
 	hif_drv->strWILC_UsrConnReq.u8security = pstrHostIFconnectAttr->u8security;
@@ -1263,11 +1263,11 @@ ERRORHANDLER:
 				memcpy(strConnectInfo.au8bssid, pstrHostIFconnectAttr->bssid, 6);
 
 			if (pstrHostIFconnectAttr->ies != NULL) {
-				strConnectInfo.ReqIEsLen = pstrHostIFconnectAttr->IEsLen;
-				strConnectInfo.pu8ReqIEs = kmalloc(pstrHostIFconnectAttr->IEsLen, GFP_KERNEL);
+				strConnectInfo.ReqIEsLen = pstrHostIFconnectAttr->ies_len;
+				strConnectInfo.pu8ReqIEs = kmalloc(pstrHostIFconnectAttr->ies_len, GFP_KERNEL);
 				memcpy(strConnectInfo.pu8ReqIEs,
 					    pstrHostIFconnectAttr->ies,
-					    pstrHostIFconnectAttr->IEsLen);
+					    pstrHostIFconnectAttr->ies_len);
 			}
 
 			pstrHostIFconnectAttr->pfConnectResult(CONN_DISCONN_EVENT_CONN_RESP,
@@ -3631,7 +3631,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	}
 
 	if (pu8IEs != NULL) {
-		msg.body.con_info.IEsLen = IEsLen;
+		msg.body.con_info.ies_len = IEsLen;
 		msg.body.con_info.ies = kmalloc(IEsLen, GFP_KERNEL);
 		memcpy(msg.body.con_info.ies, pu8IEs, IEsLen);
 	}
