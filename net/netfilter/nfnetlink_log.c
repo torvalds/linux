@@ -825,6 +825,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	struct net *net = sock_net(ctnl);
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
 	int ret = 0;
+	u16 flags;
 
 	if (nfula[NFULA_CFG_CMD]) {
 		u_int8_t pf = nfmsg->nfgen_family;
@@ -844,6 +845,28 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	if (inst && inst->peer_portid != NETLINK_CB(skb).portid) {
 		ret = -EPERM;
 		goto out_put;
+	}
+
+	/* Check if we support these flags in first place, dependencies should
+	 * be there too not to break atomicity.
+	 */
+	if (nfula[NFULA_CFG_FLAGS]) {
+		flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
+
+		if ((flags & NFULNL_CFG_F_CONNTRACK) &&
+		    !rcu_access_pointer(nfnl_ct_hook)) {
+#ifdef CONFIG_MODULES
+			nfnl_unlock(NFNL_SUBSYS_ULOG);
+			request_module("ip_conntrack_netlink");
+			nfnl_lock(NFNL_SUBSYS_ULOG);
+			if (rcu_access_pointer(nfnl_ct_hook)) {
+				ret = -EAGAIN;
+				goto out_put;
+			}
+#endif
+			ret = -EOPNOTSUPP;
+			goto out_put;
+		}
 	}
 
 	if (cmd != NULL) {
@@ -905,26 +928,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
 
-	if (nfula[NFULA_CFG_FLAGS]) {
-		u16 flags = ntohs(nla_get_be16(nfula[NFULA_CFG_FLAGS]));
-
-		if (flags & NFULNL_CFG_F_CONNTRACK &&
-		    !rcu_access_pointer(nfnl_ct_hook)) {
-#ifdef CONFIG_MODULES
-			nfnl_unlock(NFNL_SUBSYS_ULOG);
-			request_module("ip_conntrack_netlink");
-			nfnl_lock(NFNL_SUBSYS_ULOG);
-			if (rcu_access_pointer(nfnl_ct_hook)) {
-				ret = -EAGAIN;
-				goto out;
-			}
-#endif
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
-
+	if (nfula[NFULA_CFG_FLAGS])
 		nfulnl_set_flags(inst, flags);
-	}
 
 out_put:
 	instance_put(inst);
