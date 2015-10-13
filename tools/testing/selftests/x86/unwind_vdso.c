@@ -134,7 +134,7 @@ _Unwind_Reason_Code trace_fn(struct _Unwind_Context * ctx, void *opaque)
 
 static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
 {
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
 	struct unwind_state state;
 	unsigned long ip = ctx->uc_mcontext.gregs[REG_EIP];
 
@@ -192,7 +192,9 @@ int main()
 		 * affected by libc/19006 (https://sourceware.org/PR19006).
 		 */
 		printf("[WARN]\tsyscall(2) didn't enter AT_SYSINFO\n");
-	} if (get_eflags() & X86_EFLAGS_TF) {
+	}
+
+	if (get_eflags() & X86_EFLAGS_TF) {
 		printf("[FAIL]\tTF is still set\n");
 		nerrs++;
 	}
