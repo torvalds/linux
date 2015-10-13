@@ -659,6 +659,7 @@ enum dmaengine_alignment {
  *	struct with auxiliary transfer status information, otherwise the call
  *	will just return a simple status code
  * @device_issue_pending: push pending transactions to hardware
+ * @descriptor_reuse: a submitted transfer can be resubmitted after completion
  */
 struct dma_device {
 
@@ -681,6 +682,7 @@ struct dma_device {
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
 	u32 directions;
+	bool descriptor_reuse;
 	enum dma_residue_granularity residue_granularity;
 
 	int (*device_alloc_chan_resources)(struct dma_chan *chan);
