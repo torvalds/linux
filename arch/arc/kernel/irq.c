@@ -28,8 +28,8 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */
-	if (machine_desc->init_smp)
-		machine_desc->init_smp(smp_processor_id());
+	if (machine_desc->init_cpu_smp)
+		machine_desc->init_cpu_smp(smp_processor_id());
 #endif
 }
 

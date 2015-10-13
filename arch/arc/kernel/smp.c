@@ -131,8 +131,8 @@ void start_kernel_secondary(void)
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
 
-	if (machine_desc->init_smp)
-		machine_desc->init_smp(cpu);
+	if (machine_desc->init_cpu_smp)
+		machine_desc->init_cpu_smp(cpu);
 
 	arc_local_timer_setup();
 
