@@ -100,7 +100,7 @@ struct scan_attr {
 	u8 type;
 	u8 *ch_freq_list;
 	u8 ch_list_len;
-	u8 *pu8IEs;
+	u8 *ies;
 	size_t IEsLen;
 	wilc_scan_result pfScanResult;
 	void *pvUserArg;
@@ -891,7 +891,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	{
 		strWIDList[u32WidsCount].id = WID_INFO_ELEMENT_PROBE;
 		strWIDList[u32WidsCount].type = WID_BIN_DATA;
-		strWIDList[u32WidsCount].val = pstrHostIFscanAttr->pu8IEs;
+		strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ies;
 		strWIDList[u32WidsCount].size = pstrHostIFscanAttr->IEsLen;
 		u32WidsCount++;
 	}
@@ -948,9 +948,9 @@ ERRORHANDLER:
 		pstrHostIFscanAttr->ch_freq_list = NULL;
 	}
 
-	if (pstrHostIFscanAttr->pu8IEs != NULL)	{
-		kfree(pstrHostIFscanAttr->pu8IEs);
-		pstrHostIFscanAttr->pu8IEs = NULL;
+	if (pstrHostIFscanAttr->ies != NULL) {
+		kfree(pstrHostIFscanAttr->ies);
+		pstrHostIFscanAttr->ies = NULL;
 	}
 	if (pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo != NULL)	{
 		kfree(pstrHostIFscanAttr->strHiddenNetwork.pstrHiddenNetworkInfo);
@@ -4067,9 +4067,8 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	memcpy(msg.body.scan_info.ch_freq_list, pu8ChnlFreqList, u8ChnlListLen);
 
 	msg.body.scan_info.IEsLen = IEsLen;
-	msg.body.scan_info.pu8IEs = kmalloc(IEsLen, GFP_KERNEL);
-	memcpy(msg.body.scan_info.pu8IEs,
-		    pu8IEs, IEsLen);
+	msg.body.scan_info.ies = kmalloc(IEsLen, GFP_KERNEL);
+	memcpy(msg.body.scan_info.ies, pu8IEs, IEsLen);
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error) {
