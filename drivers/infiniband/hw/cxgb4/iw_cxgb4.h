@@ -409,20 +409,6 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 	return container_of(ibmw, struct c4iw_mw, ibmw);
 }
 
-struct c4iw_fr_page_list {
-	struct ib_fast_reg_page_list ibpl;
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	dma_addr_t dma_addr;
-	struct c4iw_dev *dev;
-	int pll_len;
-};
-
-static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
-					struct ib_fast_reg_page_list *ibpl)
-{
-	return container_of(ibpl, struct c4iw_fr_page_list, ibpl);
-}
-
 struct c4iw_cq {
 	struct ib_cq ibcq;
 	struct c4iw_dev *rhp;
@@ -970,10 +956,6 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 void c4iw_qp_add_ref(struct ib_qp *qp);
 void c4iw_qp_rem_ref(struct ib_qp *qp);
-void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *page_list);
-struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(
-					struct ib_device *device,
-					int page_list_len);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
 			    u32 max_num_sg);

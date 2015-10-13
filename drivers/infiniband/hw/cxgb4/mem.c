@@ -945,51 +945,6 @@ int c4iw_map_mr_sg(struct ib_mr *ibmr,
 	return ib_sg_to_pages(ibmr, sg, sg_nents, c4iw_set_page);
 }
 
-struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
-						     int page_list_len)
-{
-	struct c4iw_fr_page_list *c4pl;
-	struct c4iw_dev *dev = to_c4iw_dev(device);
-	dma_addr_t dma_addr;
-	int pll_len = roundup(page_list_len * sizeof(u64), 32);
-
-	c4pl = kmalloc(sizeof(*c4pl), GFP_KERNEL);
-	if (!c4pl)
-		return ERR_PTR(-ENOMEM);
-
-	c4pl->ibpl.page_list = dma_alloc_coherent(&dev->rdev.lldi.pdev->dev,
-						  pll_len, &dma_addr,
-						  GFP_KERNEL);
-	if (!c4pl->ibpl.page_list) {
-		kfree(c4pl);
-		return ERR_PTR(-ENOMEM);
-	}
-	dma_unmap_addr_set(c4pl, mapping, dma_addr);
-	c4pl->dma_addr = dma_addr;
-	c4pl->dev = dev;
-	c4pl->pll_len = pll_len;
-
-	PDBG("%s c4pl %p pll_len %u page_list %p dma_addr %pad\n",
-	     __func__, c4pl, c4pl->pll_len, c4pl->ibpl.page_list,
-	     &c4pl->dma_addr);
-
-	return &c4pl->ibpl;
-}
-
-void c4iw_free_fastreg_pbl(struct ib_fast_reg_page_list *ibpl)
-{
-	struct c4iw_fr_page_list *c4pl = to_c4iw_fr_page_list(ibpl);
-
-	PDBG("%s c4pl %p pll_len %u page_list %p dma_addr %pad\n",
-	     __func__, c4pl, c4pl->pll_len, c4pl->ibpl.page_list,
-	     &c4pl->dma_addr);
-
-	dma_free_coherent(&c4pl->dev->rdev.lldi.pdev->dev,
-			  c4pl->pll_len,
-			  c4pl->ibpl.page_list, dma_unmap_addr(c4pl, mapping));
-	kfree(c4pl);
-}
-
 int c4iw_dereg_mr(struct ib_mr *ib_mr)
 {
 	struct c4iw_dev *rhp;
