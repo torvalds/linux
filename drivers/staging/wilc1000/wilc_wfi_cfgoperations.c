@@ -1726,7 +1726,6 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 {
 
 	u32 i;
-	u8 flag = 0;
 	s32 s32Error = 0;
 
 	struct wilc_priv *priv = wiphy_priv(wiphy);
@@ -1739,7 +1738,6 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 			/*If bssid is found, reset the values*/
 			PRINT_D(CFG80211_DBG, "Reseting PMKID values\n");
 			memset(&priv->pmkid_list.pmkidlist[i], 0, sizeof(struct host_if_pmkid));
-			flag = PMKID_FOUND;
 			break;
 		}
 	}
