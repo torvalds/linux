@@ -516,7 +516,8 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 
 static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 					  struct nand_chip *chip,
-					  const uint8_t *buf, int oob_required)
+					  const uint8_t *buf, int oob_required,
+					  int page)
 {
 	struct cafe_priv *cafe = mtd->priv;
 

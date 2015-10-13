@@ -663,7 +663,8 @@ static int lpc32xx_nand_read_page_raw_syndrome(struct mtd_info *mtd,
  */
 static int lpc32xx_nand_write_page_syndrome(struct mtd_info *mtd,
 					    struct nand_chip *chip,
-					    const uint8_t *buf, int oob_required)
+					    const uint8_t *buf,
+					    int oob_required, int page)
 {
 	struct lpc32xx_nand_host *host = chip->priv;
 	uint8_t *pb = chip->oob_poi + chip->ecc.layout->eccpos[0];
@@ -692,7 +693,7 @@ static int lpc32xx_nand_write_page_syndrome(struct mtd_info *mtd,
 static int lpc32xx_nand_write_page_raw_syndrome(struct mtd_info *mtd,
 						struct nand_chip *chip,
 						const uint8_t *buf,
-						int oob_required)
+						int oob_required, int page)
 {
 	/* Raw writes can just use the FIFO interface */
 	chip->write_buf(mtd, buf, chip->ecc.size * chip->ecc.steps);

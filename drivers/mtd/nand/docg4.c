@@ -977,13 +977,13 @@ static int write_page(struct mtd_info *mtd, struct nand_chip *nand,
 }
 
 static int docg4_write_page_raw(struct mtd_info *mtd, struct nand_chip *nand,
-				 const uint8_t *buf, int oob_required)
+				const uint8_t *buf, int oob_required, int page)
 {
 	return write_page(mtd, nand, buf, false);
 }
 
 static int docg4_write_page(struct mtd_info *mtd, struct nand_chip *nand,
-			     const uint8_t *buf, int oob_required)
+			     const uint8_t *buf, int oob_required, int page)
 {
 	return write_page(mtd, nand, buf, true);
 }
@@ -1113,7 +1113,7 @@ static int docg4_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	/* write first page of block */
 	write_page_prologue(mtd, g4_addr);
-	docg4_write_page(mtd, nand, buf, 1);
+	docg4_write_page(mtd, nand, buf, 1, page);
 	ret = pageprog(mtd);
 
 	kfree(buf);

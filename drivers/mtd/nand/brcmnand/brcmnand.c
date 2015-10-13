@@ -1606,7 +1606,7 @@ out:
 }
 
 static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required)
+			       const uint8_t *buf, int oob_required, int page)
 {
 	struct brcmnand_host *host = chip->priv;
 	void *oob = oob_required ? chip->oob_poi : NULL;
@@ -1617,7 +1617,7 @@ static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 static int brcmnand_write_page_raw(struct mtd_info *mtd,
 				   struct nand_chip *chip, const uint8_t *buf,
-				   int oob_required)
+				   int oob_required, int page)
 {
 	struct brcmnand_host *host = chip->priv;
 	void *oob = oob_required ? chip->oob_poi : NULL;
