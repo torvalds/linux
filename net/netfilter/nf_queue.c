@@ -124,22 +124,20 @@ int nf_queue(struct sk_buff *skb,
 	const struct nf_queue_handler *qh;
 
 	/* QUEUE == DROP if no one is waiting, to be safe. */
-	rcu_read_lock();
-
 	qh = rcu_dereference(queue_handler);
 	if (!qh) {
 		status = -ESRCH;
-		goto err_unlock;
+		goto err;
 	}
 
 	afinfo = nf_get_afinfo(state->pf);
 	if (!afinfo)
-		goto err_unlock;
+		goto err;
 
 	entry = kmalloc(sizeof(*entry) + afinfo->route_key_size, GFP_ATOMIC);
 	if (!entry) {
 		status = -ENOMEM;
-		goto err_unlock;
+		goto err;
 	}
 
 	*entry = (struct nf_queue_entry) {
@@ -154,8 +152,6 @@ int nf_queue(struct sk_buff *skb,
 	afinfo->saveroute(skb, entry);
 	status = qh->outfn(entry, queuenum);
 
-	rcu_read_unlock();
-
 	if (status < 0) {
 		nf_queue_entry_release_refs(entry);
 		goto err;
@@ -163,8 +159,6 @@ int nf_queue(struct sk_buff *skb,
 
 	return 0;
 
-err_unlock:
-	rcu_read_unlock();
 err:
 	kfree(entry);
 	return status;
@@ -176,8 +170,6 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
 	int err;
-
-	rcu_read_lock();
 
 	nf_queue_entry_release_refs(entry);
 
@@ -221,7 +213,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	default:
 		kfree_skb(skb);
 	}
-	rcu_read_unlock();
+
 	kfree(entry);
 }
 EXPORT_SYMBOL(nf_reinject);
