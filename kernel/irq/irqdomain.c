@@ -27,6 +27,57 @@ static int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
 				  irq_hw_number_t hwirq, int node);
 static void irq_domain_check_hierarchy(struct irq_domain *domain);
 
+struct irqchip_fwid {
+	struct fwnode_handle fwnode;
+	char *name;
+	void *data;
+};
+
+/**
+ * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
+ *                           identifying an irq domain
+ * @data: optional user-provided data
+ *
+ * Allocate a struct device_node, and return a poiner to the embedded
+ * fwnode_handle (or NULL on failure).
+ */
+struct fwnode_handle *irq_domain_alloc_fwnode(void *data)
+{
+	struct irqchip_fwid *fwid;
+	char *name;
+
+	fwid = kzalloc(sizeof(*fwid), GFP_KERNEL);
+	name = kasprintf(GFP_KERNEL, "irqchip@%p", data);
+
+	if (!fwid || !name) {
+		kfree(fwid);
+		kfree(name);
+		return NULL;
+	}
+
+	fwid->name = name;
+	fwid->data = data;
+	fwid->fwnode.type = FWNODE_IRQCHIP;
+	return &fwid->fwnode;
+}
+
+/**
+ * irq_domain_free_fwnode - Free a non-OF-backed fwnode_handle
+ *
+ * Free a fwnode_handle allocated with irq_domain_alloc_fwnode.
+ */
+void irq_domain_free_fwnode(struct fwnode_handle *fwnode)
+{
+	struct irqchip_fwid *fwid;
+
+	if (WARN_ON(fwnode->type != FWNODE_IRQCHIP))
+		return;
+
+	fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
+	kfree(fwid->name);
+	kfree(fwid);
+}
+
 /**
  * __irq_domain_add() - Allocate a new irq_domain data structure
  * @of_node: optional device-tree node of the interrupt controller
