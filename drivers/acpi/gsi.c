@@ -73,29 +73,19 @@ EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 int acpi_register_gsi(struct device *dev, u32 gsi, int trigger,
 		      int polarity)
 {
-	unsigned int irq;
-	unsigned int irq_type = acpi_gsi_get_irq_type(trigger, polarity);
+	struct irq_fwspec fwspec;
 
-	if (acpi_gsi_domain_id) {
-		struct irq_fwspec fwspec;
-
-		fwspec.fwnode = acpi_gsi_domain_id;
-		fwspec.param[0] = gsi;
-		fwspec.param[1] = irq_type;
-		fwspec.param_count = 2;
-
-		return irq_create_fwspec_mapping(&fwspec);
-	} else {
-		irq = irq_create_mapping(NULL, gsi);
-		if (!irq)
-			return -EINVAL;
+	if (WARN_ON(!acpi_gsi_domain_id)) {
+		pr_warn("GSI: No registered irqchip, giving up\n");
+		return -EINVAL;
 	}
 
-	/* Set irq type if specified and different than the current one */
-	if (irq_type != IRQ_TYPE_NONE &&
-		irq_type != irq_get_trigger_type(irq))
-		irq_set_irq_type(irq, irq_type);
-	return irq;
+	fwspec.fwnode = acpi_gsi_domain_id;
+	fwspec.param[0] = gsi;
+	fwspec.param[1] = acpi_gsi_get_irq_type(trigger, polarity);
+	fwspec.param_count = 2;
+
+	return irq_create_fwspec_mapping(&fwspec);
 }
 EXPORT_SYMBOL_GPL(acpi_register_gsi);
 
