@@ -117,7 +117,7 @@ struct connect_attr {
 	wilc_connect_result result;
 	void *arg;
 	enum AUTHTYPE auth_type;
-	u8 u8channel;
+	u8 ch;
 	void *pJoinParams;
 };
 
@@ -1112,7 +1112,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	PRINT_INFO(HOSTINF_DBG, "Authentication Type = %x\n", hif_drv->strWILC_UsrConnReq.tenuAuth_type);
 	PRINT_D(HOSTINF_DBG, "Connecting to network of SSID %s on channel %d\n",
-		hif_drv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->u8channel);
+		hif_drv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->ch);
 
 	strWIDList[u32WidsCount].id = (u16)WID_JOIN_REQ_EXTENDED;
 	strWIDList[u32WidsCount].type = WID_STR;
@@ -1138,8 +1138,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 	pu8CurrByte += MAX_SSID_LEN;
 	*(pu8CurrByte++) = INFRASTRUCTURE;
 
-	if ((pstrHostIFconnectAttr->u8channel >= 1) && (pstrHostIFconnectAttr->u8channel <= 14)) {
-		*(pu8CurrByte++) = pstrHostIFconnectAttr->u8channel;
+	if ((pstrHostIFconnectAttr->ch >= 1) && (pstrHostIFconnectAttr->ch <= 14)) {
+		*(pu8CurrByte++) = pstrHostIFconnectAttr->ch;
 	} else {
 		PRINT_ER("Channel out of range\n");
 		*(pu8CurrByte++) = 0xFF;
@@ -3613,7 +3613,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 
 	msg.body.con_info.security = u8security;
 	msg.body.con_info.auth_type = tenuAuth_type;
-	msg.body.con_info.u8channel = u8channel;
+	msg.body.con_info.ch = u8channel;
 	msg.body.con_info.result = pfConnectResult;
 	msg.body.con_info.arg = pvUserArg;
 	msg.body.con_info.pJoinParams = pJoinParams;
