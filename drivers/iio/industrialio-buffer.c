@@ -193,7 +193,8 @@ void iio_buffer_init(struct iio_buffer *buffer)
 	INIT_LIST_HEAD(&buffer->buffer_list);
 	init_waitqueue_head(&buffer->pollq);
 	kref_init(&buffer->ref);
-	buffer->watermark = 1;
+	if (!buffer->watermark)
+		buffer->watermark = 1;
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
