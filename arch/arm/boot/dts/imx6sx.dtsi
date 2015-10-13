@@ -1217,6 +1217,7 @@
 				};
 
 				pxp: pxp@02218000 {
+					compatible = "fsl,imx6sx-pxp-dma", "fsl,imx6sl-pxp-dma", "fsl,imx6dl-pxp-dma";
 					reg = <0x02218000 0x4000>;
 					interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6SX_CLK_PXP_AXI>,
