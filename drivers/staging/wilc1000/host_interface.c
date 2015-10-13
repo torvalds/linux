@@ -141,7 +141,7 @@ struct beacon_attr {
 
 struct set_multicast {
 	bool enabled;
-	u32 u32count;
+	u32 cnt;
 };
 
 struct del_all_sta {
@@ -2790,7 +2790,7 @@ static void Handle_SetMulticastFilter(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_SETUP_MULTICAST_FILTER;
 	strWID.type = WID_BIN;
-	strWID.size = sizeof(struct set_multicast) + ((strHostIfSetMulti->u32count) * ETH_ALEN);
+	strWID.size = sizeof(struct set_multicast) + ((strHostIfSetMulti->cnt) * ETH_ALEN);
 	strWID.val = kmalloc(strWID.size, GFP_KERNEL);
 	if (strWID.val == NULL)
 		goto ERRORHANDLER;
@@ -2801,13 +2801,13 @@ static void Handle_SetMulticastFilter(struct host_if_drv *hif_drv,
 	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 16) & 0xFF);
 	*pu8CurrByte++ = ((strHostIfSetMulti->enabled >> 24) & 0xFF);
 
-	*pu8CurrByte++ = (strHostIfSetMulti->u32count & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->u32count >> 8) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->u32count >> 16) & 0xFF);
-	*pu8CurrByte++ = ((strHostIfSetMulti->u32count >> 24) & 0xFF);
+	*pu8CurrByte++ = (strHostIfSetMulti->cnt & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->cnt >> 8) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->cnt >> 16) & 0xFF);
+	*pu8CurrByte++ = ((strHostIfSetMulti->cnt >> 24) & 0xFF);
 
-	if ((strHostIfSetMulti->u32count) > 0)
-		memcpy(pu8CurrByte, gau8MulticastMacAddrList, ((strHostIfSetMulti->u32count) * ETH_ALEN));
+	if ((strHostIfSetMulti->cnt) > 0)
+		memcpy(pu8CurrByte, gau8MulticastMacAddrList, ((strHostIfSetMulti->cnt) * ETH_ALEN));
 
 	s32Error = send_config_pkt(SET_CFG, &strWID, 1,
 				   get_id_from_handler(hif_drv));
@@ -4913,7 +4913,7 @@ s32 host_int_setup_multicast_filter(struct host_if_drv *hif_drv,
 	msg.drv = hif_drv;
 
 	pstrMulticastFilterParam->enabled = bIsEnabled;
-	pstrMulticastFilterParam->u32count = u32count;
+	pstrMulticastFilterParam->cnt = u32count;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
