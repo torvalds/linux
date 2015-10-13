@@ -98,7 +98,7 @@ struct key_attr {
 struct scan_attr {
 	u8 src;
 	u8 type;
-	u8 *pu8ChnlFreqList;
+	u8 *ch_freq_list;
 	u8 u8ChnlListLen;
 	u8 *pu8IEs;
 	size_t IEsLen;
@@ -905,16 +905,16 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].id = WID_SCAN_CHANNEL_LIST;
 	strWIDList[u32WidsCount].type = WID_BIN_DATA;
 
-	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL && pstrHostIFscanAttr->u8ChnlListLen > 0) {
+	if (pstrHostIFscanAttr->ch_freq_list != NULL && pstrHostIFscanAttr->u8ChnlListLen > 0) {
 		int i;
 
 		for (i = 0; i < pstrHostIFscanAttr->u8ChnlListLen; i++)	{
-			if (pstrHostIFscanAttr->pu8ChnlFreqList[i] > 0)
-				pstrHostIFscanAttr->pu8ChnlFreqList[i] = pstrHostIFscanAttr->pu8ChnlFreqList[i] - 1;
+			if (pstrHostIFscanAttr->ch_freq_list[i] > 0)
+				pstrHostIFscanAttr->ch_freq_list[i] = pstrHostIFscanAttr->ch_freq_list[i] - 1;
 		}
 	}
 
-	strWIDList[u32WidsCount].val = pstrHostIFscanAttr->pu8ChnlFreqList;
+	strWIDList[u32WidsCount].val = pstrHostIFscanAttr->ch_freq_list;
 	strWIDList[u32WidsCount].size = pstrHostIFscanAttr->u8ChnlListLen;
 	u32WidsCount++;
 
@@ -943,9 +943,9 @@ ERRORHANDLER:
 		Handle_ScanDone(hif_drv, SCAN_EVENT_ABORTED);
 	}
 
-	if (pstrHostIFscanAttr->pu8ChnlFreqList != NULL) {
-		kfree(pstrHostIFscanAttr->pu8ChnlFreqList);
-		pstrHostIFscanAttr->pu8ChnlFreqList = NULL;
+	if (pstrHostIFscanAttr->ch_freq_list != NULL) {
+		kfree(pstrHostIFscanAttr->ch_freq_list);
+		pstrHostIFscanAttr->ch_freq_list = NULL;
 	}
 
 	if (pstrHostIFscanAttr->pu8IEs != NULL)	{
@@ -4063,9 +4063,8 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 	msg.body.scan_info.pvUserArg = pvUserArg;
 
 	msg.body.scan_info.u8ChnlListLen = u8ChnlListLen;
-	msg.body.scan_info.pu8ChnlFreqList = kmalloc(u8ChnlListLen, GFP_KERNEL);
-	memcpy(msg.body.scan_info.pu8ChnlFreqList,
-		    pu8ChnlFreqList, u8ChnlListLen);
+	msg.body.scan_info.ch_freq_list = kmalloc(u8ChnlListLen, GFP_KERNEL);
+	memcpy(msg.body.scan_info.ch_freq_list, pu8ChnlFreqList, u8ChnlListLen);
 
 	msg.body.scan_info.IEsLen = IEsLen;
 	msg.body.scan_info.pu8IEs = kmalloc(IEsLen, GFP_KERNEL);
