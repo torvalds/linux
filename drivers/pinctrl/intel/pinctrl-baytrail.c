@@ -696,6 +696,7 @@ static int byt_gpio_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM
 static int byt_gpio_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -705,6 +706,7 @@ static int byt_gpio_runtime_resume(struct device *dev)
 {
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops byt_gpio_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(byt_gpio_suspend, byt_gpio_resume)
