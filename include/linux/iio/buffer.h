@@ -18,6 +18,12 @@
 struct iio_buffer;
 
 /**
+ * INDIO_BUFFER_FLAG_FIXED_WATERMARK - Watermark level of the buffer can not be
+ *   configured. It has a fixed value which will be buffer specific.
+ */
+#define INDIO_BUFFER_FLAG_FIXED_WATERMARK BIT(0)
+
+/**
  * struct iio_buffer_access_funcs - access functions for buffers.
  * @store_to:		actually store stuff to the buffer
  * @read_first_n:	try to get a specified number of bytes (must exist)
@@ -30,6 +36,7 @@ struct iio_buffer;
  * @release:		called when the last reference to the buffer is dropped,
  *			should free all resources allocated by the buffer.
  * @modes:		Supported operating modes by this buffer type
+ * @flags:		A bitmask combination of INDIO_BUFFER_FLAG_*
  *
  * The purpose of this structure is to make the buffer element
  * modular as event for a given driver, different usecases may require
@@ -54,6 +61,7 @@ struct iio_buffer_access_funcs {
 	void (*release)(struct iio_buffer *buffer);
 
 	unsigned int modes;
+	unsigned int flags;
 };
 
 /**
