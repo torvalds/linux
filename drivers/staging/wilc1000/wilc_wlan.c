@@ -141,7 +141,7 @@ static inline void release_bus(BUS_RELEASE_T release)
 static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 {
 
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	if (tqe == p->txq_head)	{
 
 		p->txq_head = tqe->next;
@@ -164,7 +164,7 @@ static void wilc_wlan_txq_remove(struct txq_entry_t *tqe)
 static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 {
 	struct txq_entry_t *tqe;
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
@@ -188,7 +188,7 @@ static struct txq_entry_t *wilc_wlan_txq_remove_from_head(void)
 
 static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
 
@@ -218,7 +218,7 @@ static void wilc_wlan_txq_add_to_tail(struct txq_entry_t *tqe)
 
 static int wilc_wlan_txq_add_to_head(struct txq_entry_t *tqe)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 	if (linux_wlan_lock_timeout(&g_linux_wlan->txq_add_to_head_cs,
 				    CFG_PKTS_TIMEOUT))
@@ -334,7 +334,7 @@ static inline int add_TCP_Pending_Ack(u32 Ack, u32 Session_index, struct txq_ent
 }
 static inline int remove_TCP_related(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
@@ -350,7 +350,7 @@ static inline int tcp_process(struct txq_entry_t *tqe)
 	u8 *buffer = tqe->buffer;
 	unsigned short h_proto;
 	int i;
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, flags);
@@ -411,7 +411,7 @@ static int wilc_wlan_txq_filter_dup_tcp_ack(void)
 
 	u32 i = 0;
 	u32 Dropped = 0;
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 
 	spin_lock_irqsave(&g_linux_wlan->txq_spinlock, p->txq_spinlock_flags);
 	for (i = PendingAcks_arrBase; i < (PendingAcks_arrBase + Pending_Acks); i++) {
@@ -467,7 +467,7 @@ bool is_TCP_ACK_Filter_Enabled(void)
 
 static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 
 	PRINT_D(TX_DBG, "Adding config packet ...\n");
@@ -504,7 +504,7 @@ static int wilc_wlan_txq_add_cfg_pkt(u8 *buffer, u32 buffer_size)
 int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size,
 			      wilc_tx_complete_func_t func)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 
 	if (p->quit)
@@ -534,7 +534,7 @@ int wilc_wlan_txq_add_net_pkt(void *priv, u8 *buffer, u32 buffer_size,
 int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_complete_func_t func)
 {
 
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 
 	if (p->quit)
@@ -559,7 +559,7 @@ int wilc_wlan_txq_add_mgmt_pkt(void *priv, u8 *buffer, u32 buffer_size, wilc_tx_
 
 static struct txq_entry_t *wilc_wlan_txq_get_first(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 	unsigned long flags;
 
@@ -587,7 +587,7 @@ static struct txq_entry_t *wilc_wlan_txq_get_next(struct txq_entry_t *tqe)
 
 static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 
 	if (p->quit)
 		return 0;
@@ -612,7 +612,7 @@ static int wilc_wlan_rxq_add(struct rxq_entry_t *rqe)
 
 static struct rxq_entry_t *wilc_wlan_rxq_remove(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 
 	PRINT_D(RX_DBG, "Getting rxQ element\n");
 	if (p->rxq_head) {
@@ -1109,7 +1109,7 @@ _end_:
 
 static void wilc_wlan_handle_rxq(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	int offset = 0, size, has_packet = 0;
 	u8 *buffer;
 	struct rxq_entry_t *rqe;
@@ -1262,7 +1262,7 @@ static void wilc_sleeptimer_isr_ext(u32 int_stats1)
 
 static void wilc_wlan_handle_isr_ext(u32 int_status)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 #ifdef MEMORY_STATIC
 	u32 offset = p->rx_buffer_offset;
 #endif
@@ -1389,7 +1389,7 @@ void wilc_handle_isr(void)
  ********************************************/
 int wilc_wlan_firmware_download(const u8 *buffer, u32 buffer_size)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	u32 offset;
 	u32 addr, size, size2, blksz;
 	u8 *dma_buffer;
@@ -1462,7 +1462,7 @@ _fail_1:
  ********************************************/
 int wilc_wlan_start(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	u32 reg = 0;
 	int ret;
 	u32 chipid;
@@ -1564,7 +1564,7 @@ int wilc_wlan_start(void)
 void wilc_wlan_global_reset(void)
 {
 
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 
 	acquire_bus(ACQUIRE_AND_WAKEUP);
 	p->hif_func.hif_write_reg(WILC_GLB_RESET_0, 0x0);
@@ -1572,7 +1572,7 @@ void wilc_wlan_global_reset(void)
 }
 int wilc_wlan_stop(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	u32 reg = 0;
 	int ret;
 	u8 timeout = 10;
@@ -1642,7 +1642,7 @@ int wilc_wlan_stop(void)
 
 void wilc_wlan_cleanup(void)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	struct txq_entry_t *tqe;
 	struct rxq_entry_t *rqe;
 	u32 reg = 0;
@@ -1702,7 +1702,7 @@ void wilc_wlan_cleanup(void)
 
 static int wilc_wlan_cfg_commit(int type, u32 drvHandler)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	wilc_cfg_frame_t *cfg = &p->cfg_frame;
 	int total_len = p->cfg_frame_offset + 4 + DRIVER_HANDLER_SIZE;
 	int seq_no = p->cfg_seq_no % 256;
@@ -1739,7 +1739,7 @@ static int wilc_wlan_cfg_commit(int type, u32 drvHandler)
 int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 		      int commit, u32 drvHandler)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	u32 offset;
 	int ret_size;
 
@@ -1779,7 +1779,7 @@ int wilc_wlan_cfg_set(int start, u32 wid, u8 *buffer, u32 buffer_size,
 }
 int wilc_wlan_cfg_get(int start, u32 wid, int commit, u32 drvHandler)
 {
-	wilc_wlan_dev_t *p = (wilc_wlan_dev_t *)&g_wlan;
+	wilc_wlan_dev_t *p = &g_wlan;
 	u32 offset;
 	int ret_size;
 
