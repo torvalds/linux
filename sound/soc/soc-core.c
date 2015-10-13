@@ -1370,9 +1370,9 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 		soc_dpcm_debugfs_add(rtd);
 #endif
 
-	if (cpu_dai->driver->compress_dai) {
+	if (cpu_dai->driver->compress_new) {
 		/*create compress_device"*/
-		ret = soc_new_compress(rtd, num);
+		ret = cpu_dai->driver->compress_new(rtd, num);
 		if (ret < 0) {
 			dev_err(card->dev, "ASoC: can't create compress %s\n",
 					 dai_link->stream_name);
