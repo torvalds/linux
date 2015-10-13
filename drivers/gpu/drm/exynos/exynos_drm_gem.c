@@ -25,6 +25,8 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 	struct drm_device *dev = exynos_gem->base.dev;
 	enum dma_attr attr;
 	unsigned int nr_pages;
+	struct sg_table sgt;
+	int ret = -ENOMEM;
 
 	if (exynos_gem->dma_addr) {
 		DRM_DEBUG_KMS("already allocated.\n");
@@ -56,13 +58,10 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
 
-	if (!is_drm_iommu_supported(dev)) {
-		exynos_gem->pages = drm_calloc_large(nr_pages,
-						     sizeof(struct page *));
-		if (!exynos_gem->pages) {
-			DRM_ERROR("failed to allocate pages.\n");
-			return -ENOMEM;
-		}
+	exynos_gem->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
+	if (!exynos_gem->pages) {
+		DRM_ERROR("failed to allocate pages.\n");
+		return -ENOMEM;
 	}
 
 	exynos_gem->cookie = dma_alloc_attrs(dev->dev, exynos_gem->size,
@@ -70,30 +69,40 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 					     &exynos_gem->dma_attrs);
 	if (!exynos_gem->cookie) {
 		DRM_ERROR("failed to allocate buffer.\n");
-		if (exynos_gem->pages)
-			drm_free_large(exynos_gem->pages);
-		return -ENOMEM;
+		goto err_free;
 	}
 
-	if (exynos_gem->pages) {
-		dma_addr_t start_addr;
-		unsigned int i = 0;
-
-		start_addr = exynos_gem->dma_addr;
-		while (i < nr_pages) {
-			exynos_gem->pages[i] =
-				pfn_to_page(dma_to_pfn(dev->dev, start_addr));
-			start_addr += PAGE_SIZE;
-			i++;
-		}
-	} else {
-		exynos_gem->pages = exynos_gem->cookie;
+	ret = dma_get_sgtable_attrs(dev->dev, &sgt, exynos_gem->cookie,
+				    exynos_gem->dma_addr, exynos_gem->size,
+				    &exynos_gem->dma_attrs);
+	if (ret < 0) {
+		DRM_ERROR("failed to get sgtable.\n");
+		goto err_dma_free;
 	}
+
+	if (drm_prime_sg_to_page_addr_arrays(&sgt, exynos_gem->pages, NULL,
+					     nr_pages)) {
+		DRM_ERROR("invalid sgtable.\n");
+		ret = -EINVAL;
+		goto err_sgt_free;
+	}
+
+	sg_free_table(&sgt);
 
 	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)exynos_gem->dma_addr, exynos_gem->size);
 
 	return 0;
+
+err_sgt_free:
+	sg_free_table(&sgt);
+err_dma_free:
+	dma_free_attrs(dev->dev, exynos_gem->size, exynos_gem->cookie,
+		       exynos_gem->dma_addr, &exynos_gem->dma_attrs);
+err_free:
+	drm_free_large(exynos_gem->pages);
+
+	return ret;
 }
 
 static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
@@ -112,8 +121,7 @@ static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
 			(dma_addr_t)exynos_gem->dma_addr,
 			&exynos_gem->dma_attrs);
 
-	if (!is_drm_iommu_supported(dev))
-		drm_free_large(exynos_gem->pages);
+	drm_free_large(exynos_gem->pages);
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
