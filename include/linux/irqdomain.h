@@ -5,9 +5,10 @@
  * helpful for interrupt controllers to implement mapping between hardware
  * irq numbers and the Linux irq number space.
  *
- * irq_domains also have a hook for translating device tree interrupt
- * representation into a hardware irq number that can be mapped back to a
- * Linux irq number without any extra platform support code.
+ * irq_domains also have hooks for translating device tree or other
+ * firmware interrupt representations into a hardware irq number that
+ * can be mapped back to a Linux irq number without any extra platform
+ * support code.
  *
  * Interrupt controller "domain" data structure. This could be defined as a
  * irq domain controller. That is, it handles the mapping between hardware
@@ -17,16 +18,12 @@
  * model). It's the domain callbacks that are responsible for setting the
  * irq_chip on a given irq_desc after it's been mapped.
  *
- * The host code and data structures are agnostic to whether or not
- * we use an open firmware device-tree. We do have references to struct
- * device_node in two places: in irq_find_host() to find the host matching
- * a given interrupt controller node, and of course as an argument to its
- * counterpart domain->ops->match() callback. However, those are treated as
- * generic pointers by the core and the fact that it's actually a device-node
- * pointer is purely a convention between callers and implementation. This
- * code could thus be used on other architectures by replacing those two
- * by some sort of arch-specific void * "token" used to identify interrupt
- * controllers.
+ * The host code and data structures use a fwnode_handle pointer to
+ * identify the domain. In some cases, and in order to preserve source
+ * code compatibility, this fwnode pointer is "upgraded" to a DT
+ * device_node. For those firmware infrastructures that do not provide
+ * a unique identifier for an interrupt controller, the irq_domain
+ * code offers a fwnode allocator.
  */
 
 #ifndef _LINUX_IRQDOMAIN_H
