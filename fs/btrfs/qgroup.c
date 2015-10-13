@@ -2645,3 +2645,35 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 	atomic_sub(num_bytes, &root->qgroup_meta_rsv);
 	qgroup_free(root, num_bytes);
 }
+
+/*
+ * Check qgroup reserved space leaking, normally at destory inode
+ * time
+ */
+void btrfs_qgroup_check_reserved_leak(struct inode *inode)
+{
+	struct extent_changeset changeset;
+	struct ulist_node *unode;
+	struct ulist_iterator iter;
+	int ret;
+
+	changeset.bytes_changed = 0;
+	changeset.range_changed = ulist_alloc(GFP_NOFS);
+	if (WARN_ON(!changeset.range_changed))
+		return;
+
+	ret = clear_record_extent_bits(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
+			EXTENT_QGROUP_RESERVED, GFP_NOFS, &changeset);
+
+	WARN_ON(ret < 0);
+	if (WARN_ON(changeset.bytes_changed)) {
+		ULIST_ITER_INIT(&iter);
+		while ((unode = ulist_next(changeset.range_changed, &iter))) {
+			btrfs_warn(BTRFS_I(inode)->root->fs_info,
+				"leaking qgroup reserved space, ino: %lu, start: %llu, end: %llu",
+				inode->i_ino, unode->val, unode->aux);
+		}
+		qgroup_free(BTRFS_I(inode)->root, changeset.bytes_changed);
+	}
+	ulist_free(changeset.range_changed);
+}
