@@ -21,6 +21,7 @@
 #define PCI_DEVICE_ID_INTEL_PNW_UART2	0x081c
 #define PCI_DEVICE_ID_INTEL_PNW_UART3	0x081d
 #define PCI_DEVICE_ID_INTEL_TNG_UART	0x1191
+#define PCI_DEVICE_ID_INTEL_DNV_UART	0x19d8
 
 /* Intel MID Specific registers */
 #define INTEL_MID_UART_PS		0x30
@@ -33,6 +34,7 @@ struct mid8250_board {
 	unsigned long freq;
 	unsigned int base_baud;
 	int (*setup)(struct mid8250 *, struct uart_port *p);
+	void (*exit)(struct mid8250 *);
 };
 
 struct mid8250 {
@@ -41,6 +43,7 @@ struct mid8250 {
 	struct pci_dev *dma_dev;
 	struct uart_8250_dma dma;
 	struct mid8250_board *board;
+	struct hsu_dma_chip dma_chip;
 };
 
 /*****************************************************************************/
@@ -80,6 +83,53 @@ static int tng_setup(struct mid8250 *mid, struct uart_port *p)
 	mid->dma_index = index;
 	mid->dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(5, 0));
 	return 0;
+}
+
+static int dnv_handle_irq(struct uart_port *p)
+{
+	struct mid8250 *mid = p->private_data;
+	int ret;
+
+	ret = hsu_dma_irq(&mid->dma_chip, 0);
+	ret |= hsu_dma_irq(&mid->dma_chip, 1);
+
+	/* For now, letting the HW generate separate interrupt for the UART */
+	if (ret)
+		return ret;
+
+	return serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
+}
+
+#define DNV_DMA_CHAN_OFFSET 0x80
+
+static int dnv_setup(struct mid8250 *mid, struct uart_port *p)
+{
+	struct hsu_dma_chip *chip = &mid->dma_chip;
+	struct pci_dev *pdev = to_pci_dev(p->dev);
+	int ret;
+
+	chip->dev = &pdev->dev;
+	chip->irq = pdev->irq;
+	chip->regs = p->membase;
+	chip->length = pci_resource_len(pdev, 0);
+	chip->offset = DNV_DMA_CHAN_OFFSET;
+
+	/* Falling back to PIO mode if DMA probing fails */
+	ret = hsu_dma_probe(chip);
+	if (ret)
+		return 0;
+
+	mid->dma_dev = pdev;
+
+	p->handle_irq = dnv_handle_irq;
+	return 0;
+}
+
+static void dnv_exit(struct mid8250 *mid)
+{
+	if (!mid->dma_dev)
+		return;
+	hsu_dma_remove(&mid->dma_chip);
 }
 
 /*****************************************************************************/
@@ -134,6 +184,9 @@ static int mid8250_dma_setup(struct mid8250 *mid, struct uart_8250_port *port)
 	struct device *dev = port->port.dev;
 	struct hsu_dma_slave *rx_param;
 	struct hsu_dma_slave *tx_param;
+
+	if (!mid->dma_dev)
+		return 0;
 
 	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
 	if (!rx_param)
@@ -202,21 +255,28 @@ static int mid8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = mid8250_dma_setup(mid, &uart);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = serial8250_register_8250_port(&uart);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	mid->line = ret;
 
 	pci_set_drvdata(pdev, mid);
 	return 0;
+err:
+	if (mid->board->exit)
+		mid->board->exit(mid);
+	return ret;
 }
 
 static void mid8250_remove(struct pci_dev *pdev)
 {
 	struct mid8250 *mid = pci_get_drvdata(pdev);
+
+	if (mid->board->exit)
+		mid->board->exit(mid);
 
 	serial8250_unregister_port(mid->line);
 }
@@ -233,6 +293,13 @@ static const struct mid8250_board tng_board = {
 	.setup = tng_setup,
 };
 
+static const struct mid8250_board dnv_board = {
+	.freq = 133333333,
+	.base_baud = 115200,
+	.setup = dnv_setup,
+	.exit = dnv_exit,
+};
+
 #define MID_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
 
 static const struct pci_device_id pci_ids[] = {
@@ -240,6 +307,7 @@ static const struct pci_device_id pci_ids[] = {
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_PNW_UART2, pnw_board),
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_PNW_UART3, pnw_board),
 	MID_DEVICE(PCI_DEVICE_ID_INTEL_TNG_UART, tng_board),
+	MID_DEVICE(PCI_DEVICE_ID_INTEL_DNV_UART, dnv_board),
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
