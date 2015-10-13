@@ -229,7 +229,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_channel *chan;
 	struct beacon_data *presp;
-	enum nl80211_bss_scan_width scan_width;
+	struct cfg80211_inform_bss bss_meta = {};
 	bool have_higher_than_11mbit;
 	bool radar_required;
 	int err;
@@ -383,10 +383,11 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	mod_timer(&ifibss->timer,
 		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
-	scan_width = cfg80211_chandef_to_scan_width(&chandef);
-	bss = cfg80211_inform_bss_width_frame(local->hw.wiphy, chan,
-					      scan_width, mgmt,
-					      presp->head_len, 0, GFP_KERNEL);
+	bss_meta.chan = chan;
+	bss_meta.scan_width = cfg80211_chandef_to_scan_width(&chandef);
+	bss = cfg80211_inform_bss_frame_data(local->hw.wiphy, &bss_meta, mgmt,
+					     presp->head_len, GFP_KERNEL);
+
 	cfg80211_put_bss(local->hw.wiphy, bss);
 	netif_carrier_on(sdata->dev);
 	cfg80211_ibss_joined(sdata->dev, ifibss->bssid, chan, GFP_KERNEL);

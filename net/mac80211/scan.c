@@ -67,24 +67,23 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	struct cfg80211_bss *cbss;
 	struct ieee80211_bss *bss;
 	int clen, srlen;
-	enum nl80211_bss_scan_width scan_width;
-	s32 signal = 0;
+	struct cfg80211_inform_bss bss_meta = {};
 	bool signal_valid;
 
 	if (ieee80211_hw_check(&local->hw, SIGNAL_DBM))
-		signal = rx_status->signal * 100;
+		bss_meta.signal = rx_status->signal * 100;
 	else if (ieee80211_hw_check(&local->hw, SIGNAL_UNSPEC))
-		signal = (rx_status->signal * 100) / local->hw.max_signal;
+		bss_meta.signal = (rx_status->signal * 100) / local->hw.max_signal;
 
-	scan_width = NL80211_BSS_CHAN_WIDTH_20;
+	bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_20;
 	if (rx_status->flag & RX_FLAG_5MHZ)
-		scan_width = NL80211_BSS_CHAN_WIDTH_5;
+		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_5;
 	if (rx_status->flag & RX_FLAG_10MHZ)
-		scan_width = NL80211_BSS_CHAN_WIDTH_10;
+		bss_meta.scan_width = NL80211_BSS_CHAN_WIDTH_10;
 
-	cbss = cfg80211_inform_bss_width_frame(local->hw.wiphy, channel,
-					       scan_width, mgmt, len, signal,
-					       GFP_ATOMIC);
+	bss_meta.chan = channel;
+	cbss = cfg80211_inform_bss_frame_data(local->hw.wiphy, &bss_meta,
+					      mgmt, len, GFP_ATOMIC);
 	if (!cbss)
 		return NULL;
 	/* In case the signal is invalid update the status */
