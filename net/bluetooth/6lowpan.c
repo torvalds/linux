@@ -314,15 +314,17 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 	if (!netif_running(dev))
 		goto drop;
 
-	if (dev->type != ARPHRD_6LOWPAN)
+	if (dev->type != ARPHRD_6LOWPAN || !skb->len)
 		goto drop;
+
+	skb_reset_network_header(skb);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		goto drop;
 
 	/* check that it's our buffer */
-	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
+	if (lowpan_is_ipv6(*skb_network_header(skb))) {
 		/* Copy the packet so that the IPv6 header is
 		 * properly aligned.
 		 */
@@ -334,7 +336,6 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 		local_skb->protocol = htons(ETH_P_IPV6);
 		local_skb->pkt_type = PACKET_HOST;
 
-		skb_reset_network_header(local_skb);
 		skb_set_transport_header(local_skb, sizeof(struct ipv6hdr));
 
 		if (give_skb_to_upper(local_skb, dev) != NET_RX_SUCCESS) {
@@ -347,38 +348,34 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		consume_skb(local_skb);
 		consume_skb(skb);
-	} else {
-		switch (skb->data[0] & 0xe0) {
-		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
-			local_skb = skb_clone(skb, GFP_ATOMIC);
-			if (!local_skb)
-				goto drop;
+	} else if (lowpan_is_iphc(*skb_network_header(skb))) {
+		local_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!local_skb)
+			goto drop;
 
-			ret = iphc_decompress(local_skb, dev, chan);
-			if (ret < 0) {
-				kfree_skb(local_skb);
-				goto drop;
-			}
-
-			local_skb->protocol = htons(ETH_P_IPV6);
-			local_skb->pkt_type = PACKET_HOST;
-			local_skb->dev = dev;
-
-			if (give_skb_to_upper(local_skb, dev)
-					!= NET_RX_SUCCESS) {
-				kfree_skb(local_skb);
-				goto drop;
-			}
-
-			dev->stats.rx_bytes += skb->len;
-			dev->stats.rx_packets++;
-
-			consume_skb(local_skb);
-			consume_skb(skb);
-			break;
-		default:
-			break;
+		ret = iphc_decompress(local_skb, dev, chan);
+		if (ret < 0) {
+			kfree_skb(local_skb);
+			goto drop;
 		}
+
+		local_skb->protocol = htons(ETH_P_IPV6);
+		local_skb->pkt_type = PACKET_HOST;
+		local_skb->dev = dev;
+
+		if (give_skb_to_upper(local_skb, dev)
+				!= NET_RX_SUCCESS) {
+			kfree_skb(local_skb);
+			goto drop;
+		}
+
+		dev->stats.rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+
+		consume_skb(local_skb);
+		consume_skb(skb);
+	} else {
+		goto drop;
 	}
 
 	return NET_RX_SUCCESS;
