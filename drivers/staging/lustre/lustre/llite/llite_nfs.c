@@ -78,8 +78,7 @@ void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid)
 
 static int ll_nfs_test_inode(struct inode *inode, void *opaque)
 {
-	return lu_fid_eq(&ll_i2info(inode)->lli_fid,
-			 (struct lu_fid *)opaque);
+	return lu_fid_eq(&ll_i2info(inode)->lli_fid, opaque);
 }
 
 struct inode *search_inode_for_lustre(struct super_block *sb,
