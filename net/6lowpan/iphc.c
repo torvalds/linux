@@ -429,7 +429,7 @@ int lowpan_header_compress(struct sk_buff *skb, struct net_device *dev,
 {
 	u8 tmp, iphc0, iphc1, *hc_ptr;
 	struct ipv6hdr *hdr;
-	u8 head[100] = {};
+	u8 head[LOWPAN_IPHC_MAX_HC_BUF_LEN] = {};
 	int ret, addr_type;
 
 	if (type != ETH_P_IPV6)

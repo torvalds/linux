@@ -64,12 +64,20 @@
 #define EUI64_ADDR_LEN		8
 
 #define LOWPAN_NHC_MAX_ID_LEN	1
+/* Maximum next header compression length which we currently support inclusive
+ * possible inline data.
+ */
+#define LOWPAN_NHC_MAX_HDR_LEN	(sizeof(struct udphdr))
 /* Max IPHC Header len without IPv6 hdr specific inline data.
  * Useful for getting the "extra" bytes we need at worst case compression.
  *
  * LOWPAN_IPHC + CID + LOWPAN_NHC_MAX_ID_LEN
  */
 #define LOWPAN_IPHC_MAX_HEADER_LEN	(2 + 1 + LOWPAN_NHC_MAX_ID_LEN)
+/* Maximum worst case IPHC header buffer size */
+#define LOWPAN_IPHC_MAX_HC_BUF_LEN	(sizeof(struct ipv6hdr) +	\
+					 LOWPAN_IPHC_MAX_HEADER_LEN +	\
+					 LOWPAN_NHC_MAX_HDR_LEN)
 
 /*
  * ipv6 address based on mac
