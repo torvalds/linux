@@ -2622,7 +2622,11 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
-	vmx->nested.nested_vmx_vpid_caps = 0;
+	if (enable_vpid)
+		vmx->nested.nested_vmx_vpid_caps = VMX_VPID_INVVPID_BIT |
+				VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT;
+	else
+		vmx->nested.nested_vmx_vpid_caps = 0;
 
 	if (enable_unrestricted_guest)
 		vmx->nested.nested_vmx_secondary_ctls_high |=
@@ -2739,7 +2743,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		break;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
 		/* Currently, no nested vpid support */
-		*pdata = vmx->nested.nested_vmx_ept_caps;
+		*pdata = vmx->nested.nested_vmx_ept_caps |
+			((u64)vmx->nested.nested_vmx_vpid_caps << 32);
 		break;
 	default:
 		return 1;
