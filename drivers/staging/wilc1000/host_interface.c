@@ -1450,7 +1450,7 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 
 	if (hif_drv->strWILC_UsrScanReq.pfUserScanResult) {
 		PRINT_D(HOSTINF_DBG, "State: Scanning, parsing network information received\n");
-		parse_network_info(pstrRcvdNetworkInfo->pu8Buffer, &pstrNetworkInfo);
+		parse_network_info(pstrRcvdNetworkInfo->buffer, &pstrNetworkInfo);
 		if ((pstrNetworkInfo == NULL)
 		    || (hif_drv->strWILC_UsrScanReq.pfUserScanResult == NULL)) {
 			PRINT_ER("driver is null\n");
@@ -1509,9 +1509,9 @@ static s32 Handle_RcvdNtwrkInfo(struct host_if_drv *hif_drv,
 	}
 
 done:
-	if (pstrRcvdNetworkInfo->pu8Buffer != NULL) {
-		kfree(pstrRcvdNetworkInfo->pu8Buffer);
-		pstrRcvdNetworkInfo->pu8Buffer = NULL;
+	if (pstrRcvdNetworkInfo->buffer != NULL) {
+		kfree(pstrRcvdNetworkInfo->buffer);
+		pstrRcvdNetworkInfo->buffer = NULL;
 	}
 
 	if (pstrNetworkInfo != NULL) {
@@ -4440,9 +4440,8 @@ void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	msg.drv = hif_drv;
 
 	msg.body.net_info.u32Length = u32Length;
-	msg.body.net_info.pu8Buffer = kmalloc(u32Length, GFP_KERNEL);
-	memcpy(msg.body.net_info.pu8Buffer,
-		    pu8Buffer, u32Length);
+	msg.body.net_info.buffer = kmalloc(u32Length, GFP_KERNEL);
+	memcpy(msg.body.net_info.buffer, pu8Buffer, u32Length);
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
 	if (s32Error)
