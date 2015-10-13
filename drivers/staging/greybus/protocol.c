@@ -155,10 +155,11 @@ int gb_protocol_get_version(struct gb_connection *connection)
 {
 	struct gb_protocol_version_request request;
 	struct gb_protocol_version_response response;
+	struct gb_protocol *protocol = connection->protocol;
 	int retval;
 
-	request.major = connection->protocol->major;
-	request.minor = connection->protocol->minor;
+	request.major = protocol->major;
+	request.minor = protocol->minor;
 
 	retval = gb_operation_sync(connection, GB_REQUEST_TYPE_PROTOCOL_VERSION,
 				   &request, sizeof(request), &response,
@@ -176,8 +177,10 @@ int gb_protocol_get_version(struct gb_connection *connection)
 	connection->module_major = response.major;
 	connection->module_minor = response.minor;
 
-	dev_dbg(&connection->dev, "version_major = %u version_minor = %u\n",
-		response.major, response.minor);
+
+	dev_dbg(&connection->dev, "%s - %s (0x%02hhx) v%hhu.%hhu\n", __func__,
+			protocol->name, protocol->id,
+			response.major, response.minor);
 
 	return 0;
 }
