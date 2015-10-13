@@ -126,7 +126,7 @@ int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
 	pkt->hdr.length = cpu_to_le32(sizeof(struct qcom_rpm_request) + count);
 
 	pkt->req.msg_id = cpu_to_le32(msg_id++);
-	pkt->req.flags = cpu_to_le32(BIT(state));
+	pkt->req.flags = cpu_to_le32(state);
 	pkt->req.type = cpu_to_le32(type);
 	pkt->req.id = cpu_to_le32(id);
 	pkt->req.data_len = cpu_to_le32(count);
