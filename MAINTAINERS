@@ -3591,6 +3591,13 @@ F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915*
 
+DRM DRIVERS FOR ATMEL HLCDC
+M:	Boris Brezillon <boris.brezillon@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/atmel-hlcdc/
+F:	Documentation/devicetree/bindings/drm/atmel/
+
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
 M:	Joonyoung Shim <jy0922.shim@samsung.com>
