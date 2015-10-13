@@ -82,9 +82,6 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 
 /* Structures for IO VMCALLs */
 
-/* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
-/* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
-#pragma pack(push, 1)
 /* Parameters to VMCALL_IO_CONTROLVM_ADDR interface */
 struct vmcall_io_controlvm_addr_params {
 	    /* The Guest-relative physical address of the ControlVm channel.
@@ -94,9 +91,6 @@ struct vmcall_io_controlvm_addr_params {
 	    * in with the appropriate address. */
 	u32 channel_bytes;	/* contents provided by this VMCALL (OUT) */
 	u8 unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
-};
-
-#pragma pack(pop)
-/* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
+} __packed;
 
 #endif /* __IOMONINTF_H__ */
