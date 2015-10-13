@@ -46,17 +46,21 @@ struct irq_domain *__irq_domain_add(struct device_node *of_node, int size,
 				    void *host_data)
 {
 	struct irq_domain *domain;
+	struct fwnode_handle *fwnode;
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
 			      GFP_KERNEL, of_node_to_nid(of_node));
 	if (WARN_ON(!domain))
 		return NULL;
 
+	of_node_get(of_node);
+	fwnode = of_node ? &of_node->fwnode : NULL;
+
 	/* Fill structure */
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
 	domain->ops = ops;
 	domain->host_data = host_data;
-	domain->of_node = of_node_get(of_node);
+	domain->fwnode = fwnode;
 	domain->hwirq_max = hwirq_max;
 	domain->revmap_size = size;
 	domain->revmap_direct_max_irq = direct_max;

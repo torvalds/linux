@@ -34,6 +34,7 @@
 
 #include <linux/types.h>
 #include <linux/irqhandler.h>
+#include <linux/of.h>
 #include <linux/radix-tree.h>
 
 struct device_node;
@@ -130,7 +131,7 @@ struct irq_domain {
 	unsigned int flags;
 
 	/* Optional data */
-	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
 	enum irq_domain_bus_token bus_token;
 	struct irq_domain_chip_generic *gc;
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
@@ -163,7 +164,7 @@ enum {
 
 static inline struct device_node *irq_domain_get_of_node(struct irq_domain *d)
 {
-	return d->of_node;
+	return to_of_node(d->fwnode);
 }
 
 #ifdef CONFIG_IRQ_DOMAIN
