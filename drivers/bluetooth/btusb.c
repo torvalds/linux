@@ -2104,6 +2104,15 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	BT_INFO("%s: Secure boot is %s", hdev->name,
 		params->secure_boot ? "enabled" : "disabled");
 
+	BT_INFO("%s: OTP lock is %s", hdev->name,
+		params->otp_lock ? "enabled" : "disabled");
+
+	BT_INFO("%s: API lock is %s", hdev->name,
+		params->api_lock ? "enabled" : "disabled");
+
+	BT_INFO("%s: Debug lock is %s", hdev->name,
+		params->debug_lock ? "enabled" : "disabled");
+
 	BT_INFO("%s: Minimum firmware build %u week %u %u", hdev->name,
 		params->min_fw_build_nn, params->min_fw_build_cw,
 		2000 + params->min_fw_build_yy);
