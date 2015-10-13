@@ -3592,11 +3592,6 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 		return s32Error;
 	}
 
-	if (!hif_drv) {
-		PRINT_ER("Driver is null\n");
-		return -EFAULT;
-	}
-
 	if (pJoinParams == NULL) {
 		PRINT_ER("Unable to Join - JoinParams is NULL\n");
 		return -EFAULT;
