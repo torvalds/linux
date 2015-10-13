@@ -484,30 +484,67 @@ int irq_create_strict_mappings(struct irq_domain *domain, unsigned int irq_base,
 }
 EXPORT_SYMBOL_GPL(irq_create_strict_mappings);
 
+static int irq_domain_translate(struct irq_domain *d,
+				struct irq_fwspec *fwspec,
+				irq_hw_number_t *hwirq, unsigned int *type)
+{
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+	if (d->ops->translate)
+		return d->ops->translate(d, fwspec, hwirq, type);
+#endif
+	if (d->ops->xlate)
+		return d->ops->xlate(d, to_of_node(fwspec->fwnode),
+				     fwspec->param, fwspec->param_count,
+				     hwirq, type);
+
+	/* If domain has no translation, then we assume interrupt line */
+	*hwirq = fwspec->param[0];
+	return 0;
+}
+
+static void of_phandle_args_to_fwspec(struct of_phandle_args *irq_data,
+				      struct irq_fwspec *fwspec)
+{
+	int i;
+
+	fwspec->fwnode = irq_data->np ? &irq_data->np->fwnode : NULL;
+	fwspec->param_count = irq_data->args_count;
+
+	for (i = 0; i < irq_data->args_count; i++)
+		fwspec->param[i] = irq_data->args[i];
+}
+
 unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 {
+	struct irq_fwspec fwspec;
 	struct irq_domain *domain;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
 	int virq;
 
-	domain = irq_data->np ? irq_find_host(irq_data->np) : irq_default_domain;
+	of_phandle_args_to_fwspec(irq_data, &fwspec);
+
+	if (fwspec.fwnode)
+		domain = irq_find_matching_fwnode(fwspec.fwnode, DOMAIN_BUS_ANY);
+	else
+		domain = irq_default_domain;
+
 	if (!domain) {
 		pr_warn("no irq domain found for %s !\n",
-			of_node_full_name(irq_data->np));
+			of_node_full_name(to_of_node(fwspec.fwnode)));
 		return 0;
 	}
 
-	/* If domain has no translation, then we assume interrupt line */
-	if (domain->ops->xlate == NULL)
-		hwirq = irq_data->args[0];
-	else {
-		if (domain->ops->xlate(domain, irq_data->np, irq_data->args,
-					irq_data->args_count, &hwirq, &type))
-			return 0;
-	}
+	if (irq_domain_translate(domain, &fwspec, &hwirq, &type))
+		return 0;
 
 	if (irq_domain_is_hierarchy(domain)) {
+		/* Temporary hack */
+		void *desc = &fwspec;
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+		if (!domain->ops->translate)
+			desc = irq_data;
+#endif
 		/*
 		 * If we've already configured this interrupt,
 		 * don't do it again, or hell will break loose.
@@ -516,7 +553,7 @@ unsigned int irq_create_of_mapping(struct of_phandle_args *irq_data)
 		if (virq)
 			return virq;
 
-		virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, irq_data);
+		virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, desc);
 		if (virq <= 0)
 			return 0;
 	} else {

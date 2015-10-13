@@ -46,6 +46,24 @@ struct irq_data;
 /* Number of irqs reserved for a legacy isa controller */
 #define NUM_ISA_INTERRUPTS	16
 
+#define IRQ_DOMAIN_IRQ_SPEC_PARAMS 16
+
+/**
+ * struct irq_fwspec - generic IRQ specifier structure
+ *
+ * @fwnode:		Pointer to a firmware-specific descriptor
+ * @param_count:	Number of device-specific parameters
+ * @param:		Device-specific parameters
+ *
+ * This structure, directly modeled after of_phandle_args, is used to
+ * pass a device-specific description of an interrupt.
+ */
+struct irq_fwspec {
+	struct fwnode_handle *fwnode;
+	int param_count;
+	u32 param[IRQ_DOMAIN_IRQ_SPEC_PARAMS];
+};
+
 /*
  * Should several domains have the same device node, but serve
  * different purposes (for example one domain is for PCI/MSI, and the
@@ -92,6 +110,8 @@ struct irq_domain_ops {
 		     unsigned int nr_irqs);
 	void (*activate)(struct irq_domain *d, struct irq_data *irq_data);
 	void (*deactivate)(struct irq_domain *d, struct irq_data *irq_data);
+	int (*translate)(struct irq_domain *d, struct irq_fwspec *fwspec,
+			 unsigned long *out_hwirq, unsigned int *out_type);
 #endif
 };
 
