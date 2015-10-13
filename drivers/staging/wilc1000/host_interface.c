@@ -97,7 +97,7 @@ struct key_attr {
 
 struct scan_attr {
 	u8 src;
-	u8 u8ScanType;
+	u8 type;
 	u8 *pu8ChnlFreqList;
 	u8 u8ChnlListLen;
 	u8 *pu8IEs;
@@ -899,7 +899,7 @@ static s32 Handle_Scan(struct host_if_drv *hif_drv,
 	strWIDList[u32WidsCount].id = WID_SCAN_TYPE;
 	strWIDList[u32WidsCount].type = WID_CHAR;
 	strWIDList[u32WidsCount].size = sizeof(char);
-	strWIDList[u32WidsCount].val = (s8 *)(&(pstrHostIFscanAttr->u8ScanType));
+	strWIDList[u32WidsCount].val = (s8 *)(&(pstrHostIFscanAttr->type));
 	u32WidsCount++;
 
 	strWIDList[u32WidsCount].id = WID_SCAN_CHANNEL_LIST;
@@ -4063,7 +4063,7 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 
 	msg.drv = hif_drv;
 	msg.body.scan_info.src = u8ScanSource;
-	msg.body.scan_info.u8ScanType = u8ScanType;
+	msg.body.scan_info.type = u8ScanType;
 	msg.body.scan_info.pfScanResult = ScanResult;
 	msg.body.scan_info.pvUserArg = pvUserArg;
 
