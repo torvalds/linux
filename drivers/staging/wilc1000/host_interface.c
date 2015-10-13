@@ -118,7 +118,7 @@ struct connect_attr {
 	void *arg;
 	enum AUTHTYPE auth_type;
 	u8 ch;
-	void *pJoinParams;
+	void *params;
 };
 
 struct rcvd_async_info {
@@ -1024,7 +1024,7 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 	PRINT_INFO(HOSTINF_DBG, "Saving connection parameters in global structure\n");
 
-	ptstrJoinBssParam = (struct join_bss_param *)pstrHostIFconnectAttr->pJoinParams;
+	ptstrJoinBssParam = (struct join_bss_param *)pstrHostIFconnectAttr->params;
 	if (ptstrJoinBssParam == NULL) {
 		PRINT_ER("Required BSSID not found\n");
 		s32Error = -ENOENT;
@@ -3616,7 +3616,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	msg.body.con_info.ch = u8channel;
 	msg.body.con_info.result = pfConnectResult;
 	msg.body.con_info.arg = pvUserArg;
-	msg.body.con_info.pJoinParams = pJoinParams;
+	msg.body.con_info.params = pJoinParams;
 	msg.drv = hif_drv ;
 
 	if (pu8bssid != NULL) {
