@@ -68,7 +68,7 @@ struct cfg_param_attr {
 struct host_if_wpa_attr {
 	u8 *key;
 	const u8 *mac_addr;
-	u8 *pu8seq;
+	u8 *seq;
 	u8 u8seqlen;
 	u8 u8keyidx;
 	u8 u8Keylen;
@@ -1886,8 +1886,8 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 
 			memset(pu8keybuf, 0, RX_MIC_KEY_MSG_LEN);
 
-			if (pstrHostIFkeyAttr->attr.wpa.pu8seq != NULL)
-				memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.pu8seq, 8);
+			if (pstrHostIFkeyAttr->attr.wpa.seq != NULL)
+				memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
 
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
@@ -1928,7 +1928,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			else
 				PRINT_ER("Couldn't handle WPARxGtk while enuHostIFstate is not HOST_IF_CONNECTED\n");
 
-			memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.pu8seq, 8);
+			memcpy(pu8keybuf + 6, pstrHostIFkeyAttr->attr.wpa.seq, 8);
 			memcpy(pu8keybuf + 14, &pstrHostIFkeyAttr->attr.wpa.u8keyidx, 1);
 			memcpy(pu8keybuf + 15, &pstrHostIFkeyAttr->attr.wpa.u8Keylen, 1);
 			memcpy(pu8keybuf + 16, pstrHostIFkeyAttr->attr.wpa.key,
@@ -1947,7 +1947,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 		}
 _WPARxGtk_end_case_:
 		kfree(pstrHostIFkeyAttr->attr.wpa.key);
-		kfree(pstrHostIFkeyAttr->attr.wpa.pu8seq);
+		kfree(pstrHostIFkeyAttr->attr.wpa.seq);
 		if (ret == -1)
 			return ret;
 
@@ -3408,9 +3408,8 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 	if (pu8TxMic != NULL)
 		u8KeyLen += TX_MIC_KEY_LEN;
 	if (KeyRSC != NULL) {
-		msg.body.key_info.
-		attr.wpa.pu8seq = kmalloc(u32KeyRSClen, GFP_KERNEL);
-		memcpy(msg.body.key_info.attr.wpa.pu8seq,KeyRSC, u32KeyRSClen);
+		msg.body.key_info.attr.wpa.seq = kmalloc(u32KeyRSClen, GFP_KERNEL);
+		memcpy(msg.body.key_info.attr.wpa.seq, KeyRSC, u32KeyRSClen);
 	}
 
 
