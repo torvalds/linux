@@ -264,6 +264,12 @@ static inline void gnttab_for_one_grant(struct page *page, unsigned int offset,
 	gnttab_foreach_grant_in_range(page, offset, len, fn, data);
 }
 
+/* Get @nr_grefs grants from an array of page and call fn for each grant */
+void gnttab_foreach_grant(struct page **pages,
+			  unsigned int nr_grefs,
+			  xen_grant_fn_t fn,
+			  void *data);
+
 /* Get the number of grant in a specified region
  *
  * start: Offset from the beginning of the first page
