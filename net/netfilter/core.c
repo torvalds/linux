@@ -313,8 +313,6 @@ next_hook:
 		int err = nf_queue(skb, elem, state,
 				   verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
-			if (err == -ECANCELED)
-				goto next_hook;
 			if (err == -ESRCH &&
 			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
 				goto next_hook;

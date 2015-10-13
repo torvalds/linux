@@ -73,7 +73,7 @@ void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
 EXPORT_SYMBOL_GPL(nf_queue_entry_release_refs);
 
 /* Bump dev refs so they don't vanish while packet is out */
-bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
+void nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 {
 	struct nf_hook_state *state = &entry->state;
 
@@ -95,8 +95,6 @@ bool nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 			dev_hold(physdev);
 	}
 #endif
-
-	return true;
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
@@ -151,10 +149,7 @@ int nf_queue(struct sk_buff *skb,
 		.size	= sizeof(*entry) + afinfo->route_key_size,
 	};
 
-	if (!nf_queue_entry_get_refs(entry)) {
-		status = -ECANCELED;
-		goto err_unlock;
-	}
+	nf_queue_entry_get_refs(entry);
 	skb_dst_force(skb);
 	afinfo->saveroute(skb, entry);
 	status = qh->outfn(entry, queuenum);
@@ -215,8 +210,6 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		err = nf_queue(skb, elem, &entry->state,
 			       verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
-			if (err == -ECANCELED)
-				goto next_hook;
 			if (err == -ESRCH &&
 			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
 				goto next_hook;

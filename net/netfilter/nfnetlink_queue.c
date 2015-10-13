@@ -606,12 +606,9 @@ static struct nf_queue_entry *
 nf_queue_entry_dup(struct nf_queue_entry *e)
 {
 	struct nf_queue_entry *entry = kmemdup(e, e->size, GFP_ATOMIC);
-	if (entry) {
-		if (nf_queue_entry_get_refs(entry))
-			return entry;
-		kfree(entry);
-	}
-	return NULL;
+	if (entry)
+		nf_queue_entry_get_refs(entry);
+	return entry;
 }
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
@@ -706,7 +703,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	nf_bridge_adjust_skb_data(skb);
 	segs = skb_gso_segment(skb, 0);
 	/* Does not use PTR_ERR to limit the number of error codes that can be
-	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to
+	 * returned by nf_queue.  For instance, callers rely on -ESRCH to
 	 * mean 'ignore this hook'.
 	 */
 	if (IS_ERR_OR_NULL(segs))
