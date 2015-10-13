@@ -229,12 +229,6 @@ struct join_bss_param {
 	u8 au8StartTime[4];
 };
 
-enum scan_conn_timer {
-	SCAN_TIMER = 0,
-	CONNECT_TIMER	= 1,
-	SCAN_CONNECT_TIMER_FORCE_32BIT = 0xFFFFFFFF
-};
-
 static struct host_if_drv *wfidrv_list[NUM_CONCURRENT_IFC + 1];
 struct host_if_drv *terminated_handle;
 struct host_if_drv *gWFiDrvHandle;
@@ -3584,7 +3578,6 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 {
 	s32 s32Error = 0;
 	struct host_if_msg msg;
-	enum scan_conn_timer enuScanConnTimer;
 
 	if (!hif_drv || pfConnectResult == NULL) {
 		s32Error = -EFAULT;
@@ -3636,7 +3629,6 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 		return -EFAULT;
 	}
 
-	enuScanConnTimer = CONNECT_TIMER;
 	hif_drv->hConnectTimer.data = (unsigned long)hif_drv;
 	mod_timer(&hif_drv->hConnectTimer,
 		  jiffies + msecs_to_jiffies(HOST_IF_CONNECT_TIMEOUT));
@@ -4020,7 +4012,6 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 {
 	s32 s32Error = 0;
 	struct host_if_msg msg;
-	enum scan_conn_timer enuScanConnTimer;
 
 	if (!hif_drv || ScanResult == NULL) {
 		PRINT_ER("hif_drv or ScanResult = NULL\n");
@@ -4058,7 +4049,6 @@ s32 host_int_scan(struct host_if_drv *hif_drv, u8 u8ScanSource,
 		return -EINVAL;
 	}
 
-	enuScanConnTimer = SCAN_TIMER;
 	PRINT_D(HOSTINF_DBG, ">> Starting the SCAN timer\n");
 	hif_drv->hScanTimer.data = (unsigned long)hif_drv;
 	mod_timer(&hif_drv->hScanTimer,
