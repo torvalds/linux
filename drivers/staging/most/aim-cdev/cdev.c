@@ -99,7 +99,8 @@ static int aim_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	ret = most_start_channel(channel->iface, channel->channel_id, &cdev_aim);
+	ret = most_start_channel(channel->iface, channel->channel_id,
+				&cdev_aim);
 	if (ret)
 		atomic_dec(&channel->access_ref);
 	return ret;
