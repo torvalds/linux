@@ -1499,9 +1499,8 @@ EXPORT_SYMBOL(dw_dma_cyclic_free);
 int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 {
 	struct dw_dma		*dw;
-	bool			autocfg;
+	bool			autocfg = false;
 	unsigned int		dw_params;
-	unsigned int		nr_channels;
 	unsigned int		max_blk_size = 0;
 	int			err;
 	int			i;
@@ -1515,33 +1514,41 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	pm_runtime_get_sync(chip->dev);
 
-	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
-	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
+	if (!pdata) {
+		dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
+		dev_dbg(chip->dev, "DW_PARAMS: 0x%08x\n", dw_params);
 
-	dev_dbg(chip->dev, "DW_PARAMS: 0x%08x\n", dw_params);
+		autocfg = dw_params >> DW_PARAMS_EN & 1;
+		if (!autocfg) {
+			err = -EINVAL;
+			goto err_pdata;
+		}
 
-	if (!pdata && autocfg) {
 		pdata = devm_kzalloc(chip->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			err = -ENOMEM;
 			goto err_pdata;
 		}
 
+		/* Get hardware configuration parameters */
+		pdata->nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 7) + 1;
+		pdata->nr_masters = (dw_params >> DW_PARAMS_NR_MASTER & 3) + 1;
+		for (i = 0; i < pdata->nr_masters; i++) {
+			pdata->data_width[i] =
+				(dw_params >> DW_PARAMS_DATA_WIDTH(i) & 3) + 2;
+		}
+		max_blk_size = dma_readl(dw, MAX_BLK_SIZE);
+
 		/* Fill platform data with the default values */
 		pdata->is_private = true;
 		pdata->chan_allocation_order = CHAN_ALLOCATION_ASCENDING;
 		pdata->chan_priority = CHAN_PRIORITY_ASCENDING;
-	} else if (!pdata || pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
+	} else if (pdata->nr_channels > DW_DMA_MAX_NR_CHANNELS) {
 		err = -EINVAL;
 		goto err_pdata;
 	}
 
-	if (autocfg)
-		nr_channels = (dw_params >> DW_PARAMS_NR_CHAN & 0x7) + 1;
-	else
-		nr_channels = pdata->nr_channels;
-
-	dw->chan = devm_kcalloc(chip->dev, nr_channels, sizeof(*dw->chan),
+	dw->chan = devm_kcalloc(chip->dev, pdata->nr_channels, sizeof(*dw->chan),
 				GFP_KERNEL);
 	if (!dw->chan) {
 		err = -ENOMEM;
@@ -1549,22 +1556,12 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	}
 
 	/* Get hardware configuration parameters */
-	if (autocfg) {
-		max_blk_size = dma_readl(dw, MAX_BLK_SIZE);
-
-		dw->nr_masters = (dw_params >> DW_PARAMS_NR_MASTER & 3) + 1;
-		for (i = 0; i < dw->nr_masters; i++) {
-			dw->data_width[i] =
-				(dw_params >> DW_PARAMS_DATA_WIDTH(i) & 3) + 2;
-		}
-	} else {
-		dw->nr_masters = pdata->nr_masters;
-		for (i = 0; i < dw->nr_masters; i++)
-			dw->data_width[i] = pdata->data_width[i];
-	}
+	dw->nr_masters = pdata->nr_masters;
+	for (i = 0; i < dw->nr_masters; i++)
+		dw->data_width[i] = pdata->data_width[i];
 
 	/* Calculate all channel mask before DMA setup */
-	dw->all_chan_mask = (1 << nr_channels) - 1;
+	dw->all_chan_mask = (1 << pdata->nr_channels) - 1;
 
 	/* Force dma off, just in case */
 	dw_dma_off(dw);
@@ -1589,7 +1586,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		goto err_pdata;
 
 	INIT_LIST_HEAD(&dw->dma.channels);
-	for (i = 0; i < nr_channels; i++) {
+	for (i = 0; i < pdata->nr_channels; i++) {
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 		int			r = nr_channels - i - 1;
 
@@ -1603,7 +1600,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
-			dwc->priority = r;
+			dwc->priority = pdata->nr_channels - i - 1;
 		else
 			dwc->priority = i;
 
@@ -1687,7 +1684,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		goto err_dma_register;
 
 	dev_info(chip->dev, "DesignWare DMA Controller, %d channels\n",
-		 nr_channels);
+		 pdata->nr_channels);
 
 	pm_runtime_put_sync_suspend(chip->dev);
 
