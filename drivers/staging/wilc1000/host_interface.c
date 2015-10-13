@@ -72,7 +72,7 @@ struct host_if_wpa_attr {
 	u8 seq_len;
 	u8 index;
 	u8 key_len;
-	u8 u8Ciphermode;
+	u8 mode;
 };
 
 struct host_if_wep_attr {
@@ -1897,7 +1897,7 @@ static int Handle_Key(struct host_if_drv *hif_drv,
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
 			strWIDList[0].size = sizeof(char);
-			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->attr.wpa.u8Ciphermode));
+			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->attr.wpa.mode));
 
 			strWIDList[1].id = (u16)WID_ADD_RX_GTK;
 			strWIDList[1].type = WID_STR;
@@ -1977,7 +1977,7 @@ _WPARxGtk_end_case_:
 			strWIDList[0].id = (u16)WID_11I_MODE;
 			strWIDList[0].type = WID_CHAR;
 			strWIDList[0].size = sizeof(char);
-			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->attr.wpa.u8Ciphermode));
+			strWIDList[0].val = (s8 *)(&(pstrHostIFkeyAttr->attr.wpa.mode));
 
 			strWIDList[1].id = (u16)WID_ADD_PTK;
 			strWIDList[1].type = WID_STR;
@@ -3371,8 +3371,8 @@ s32 host_int_add_ptk(struct host_if_drv *hif_drv, const u8 *pu8Ptk,
 	}
 
 	msg.body.key_info.attr.wpa.key_len = u8KeyLen;
-	msg.body.key_info.attr.wpa.u8Ciphermode = u8Ciphermode;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
+	msg.body.key_info.attr.wpa.mode = u8Ciphermode;
 	msg.drv = hif_drv;
 
 	s32Error = wilc_mq_send(&gMsgQHostIF, &msg, sizeof(struct host_if_msg));
@@ -3419,7 +3419,7 @@ s32 host_int_add_rx_gtk(struct host_if_drv *hif_drv, const u8 *pu8RxGtk,
 
 	if (mode == AP_MODE) {
 		msg.body.key_info.action = ADDKEY_AP;
-		msg.body.key_info.attr.wpa.u8Ciphermode = u8Ciphermode;
+		msg.body.key_info.attr.wpa.mode = u8Ciphermode;
 	}
 	if (mode == STATION_MODE)
 		msg.body.key_info.action = ADDKEY;
