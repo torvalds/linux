@@ -171,7 +171,16 @@ static __init int protocol_init(void)
 	if (retval)
 		return retval;
 
-	return gb_protocol_register(&vibrator_protocol);
+	retval = gb_protocol_register(&vibrator_protocol);
+	if (retval)
+		goto err_class_unregister;
+
+	return 0;
+
+err_class_unregister:
+	class_unregister(&vibrator_class);
+
+	return retval;
 }
 module_init(protocol_init);
 
