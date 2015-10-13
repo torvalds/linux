@@ -19,11 +19,11 @@
  */
 void __init init_IRQ(void)
 {
-	/* Any external intc can be setup here */
-	if (machine_desc->init_irq)
-		machine_desc->init_irq();
-
-	/* process the entire interrupt tree in one go */
+	/*
+	 * process the entire interrupt tree in one go
+	 * Any external intc will be setup provided DT chains them
+	 * properly
+	 */
 	irqchip_init();
 
 #ifdef CONFIG_SMP
