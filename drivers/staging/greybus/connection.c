@@ -247,10 +247,6 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		return NULL;
 	}
 
-	if (!connection->protocol)
-		dev_warn(&connection->dev,
-			 "protocol 0x%02hhx handler not found\n", protocol_id);
-
 	return connection;
 
 err_free_connection:
