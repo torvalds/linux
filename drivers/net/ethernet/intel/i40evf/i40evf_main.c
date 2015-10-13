@@ -282,6 +282,7 @@ static void i40evf_fire_sw_int(struct i40evf_adapter *adapter, u32 mask)
 /**
  * i40evf_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
+ * @flush: boolean value whether to run rd32()
  **/
 void i40evf_irq_enable(struct i40evf_adapter *adapter, bool flush)
 {
