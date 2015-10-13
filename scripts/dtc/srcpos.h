@@ -21,6 +21,7 @@
 #define _SRCPOS_H_
 
 #include <stdio.h>
+#include <stdbool.h>
 
 struct srcfile_state {
 	FILE *f;
@@ -55,7 +56,7 @@ extern struct srcfile_state *current_srcfile; /* = NULL */
 FILE *srcfile_relative_open(const char *fname, char **fullnamep);
 
 void srcfile_push(const char *fname);
-int srcfile_pop(void);
+bool srcfile_pop(void);
 
 /**
  * Add a new directory to the search path for input files
@@ -106,12 +107,12 @@ extern struct srcpos *srcpos_copy(struct srcpos *pos);
 extern char *srcpos_string(struct srcpos *pos);
 extern void srcpos_dump(struct srcpos *pos);
 
-extern void srcpos_verror(struct srcpos *pos, char const *, va_list va)
-     __attribute__((format(printf, 2, 0)));
-extern void srcpos_error(struct srcpos *pos, char const *, ...)
-     __attribute__((format(printf, 2, 3)));
-extern void srcpos_warn(struct srcpos *pos, char const *, ...)
-     __attribute__((format(printf, 2, 3)));
+extern void srcpos_verror(struct srcpos *pos, const char *prefix,
+			  const char *fmt, va_list va)
+	__attribute__((format(printf, 3, 0)));
+extern void srcpos_error(struct srcpos *pos, const char *prefix,
+			 const char *fmt, ...)
+	__attribute__((format(printf, 3, 4)));
 
 extern void srcpos_set_line(char *f, int l);
 

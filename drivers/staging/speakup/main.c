@@ -128,7 +128,8 @@ static char *phonetic[] = {
 
 /* array of 256 char pointers (one for each character description)
  * initialized to default_chars and user selectable via
- * /proc/speakup/characters */
+ * /proc/speakup/characters
+ */
 char *spk_characters[256];
 
 char *spk_default_chars[256] = {
@@ -194,7 +195,8 @@ char *spk_default_chars[256] = {
 
 /* array of 256 u_short (one for each character)
  * initialized to default_chartab and user selectable via
- * /sys/module/speakup/parameters/chartab */
+ * /sys/module/speakup/parameters/chartab
+ */
 u_short spk_chartab[256];
 
 static u_short default_chartab[256] = {
@@ -423,7 +425,8 @@ static void announce_edge(struct vc_data *vc, int msg_id)
 	if (spk_bleeps & 1)
 		bleep(spk_y);
 	if ((spk_bleeps & 2) && (msg_id < edge_quiet))
-		synth_printf("%s\n", spk_msg_get(MSG_EDGE_MSGS_START + msg_id - 1));
+		synth_printf("%s\n",
+			spk_msg_get(MSG_EDGE_MSGS_START + msg_id - 1));
 }
 
 static void speak_char(u_char ch)
@@ -539,7 +542,8 @@ static void say_next_char(struct vc_data *vc)
  * see if there is a word starting on the next position to the right
  * and return that word if it exists.  If it does not exist it will
  * move left to the beginning of any previous word on the line or the
- * beginning off the line whichever comes first.. */
+ * beginning off the line whichever comes first..
+ */
 
 static u_long get_word(struct vc_data *vc)
 {
@@ -1112,7 +1116,8 @@ static void spkup_write(const char *in_buf, int count)
 			 * suppress multiple to get rid of long pauses and
 			 * clear repeat count
 			 * so if someone has
-			 * repeats on you don't get nothing repeated count */
+			 * repeats on you don't get nothing repeated count
+			 */
 			if (ch != old_ch)
 				synth_printf("%c", ch);
 			else
@@ -1131,7 +1136,8 @@ static void spkup_write(const char *in_buf, int count)
 	if (in_count > 2 && rep_count > 2) {
 		if (last_type & CH_RPT) {
 			synth_printf(" ");
-			synth_printf(spk_msg_get(MSG_REPEAT_DESC2), ++rep_count);
+			synth_printf(spk_msg_get(MSG_REPEAT_DESC2),
+					++rep_count);
 			synth_printf(" ");
 		}
 		rep_count = 0;
@@ -1507,7 +1513,8 @@ static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
 	if (spk_no_intr)
 		spk_do_flush();
 /* the key press flushes if !no_inter but we want to flush on cursor
- * moves regardless of no_inter state */
+ * moves regardless of no_inter state
+ */
 	is_cursor = value + 1;
 	old_cursor_pos = vc->vc_pos;
 	old_cursor_x = vc->vc_x;
@@ -1527,7 +1534,7 @@ static void update_color_buffer(struct vc_data *vc, const char *ic, int len)
 	int i, bi, hi;
 	int vc_num = vc->vc_num;
 
-	bi = ((vc->vc_attr & 0x70) >> 4);
+	bi = (vc->vc_attr & 0x70) >> 4;
 	hi = speakup_console[vc_num]->ht.highsize[bi];
 
 	i = 0;
@@ -1595,7 +1602,7 @@ static int count_highlight_color(struct vc_data *vc)
 static int get_highlight_color(struct vc_data *vc)
 {
 	int i, j;
-	unsigned int cptr[8], tmp;
+	unsigned int cptr[8];
 	int vc_num = vc->vc_num;
 
 	for (i = 0; i < 8; i++)
@@ -1604,11 +1611,8 @@ static int get_highlight_color(struct vc_data *vc)
 	for (i = 0; i < 7; i++)
 		for (j = i + 1; j < 8; j++)
 			if (speakup_console[vc_num]->ht.bgcount[cptr[i]] >
-			    speakup_console[vc_num]->ht.bgcount[cptr[j]]) {
-				tmp = cptr[i];
-				cptr[i] = cptr[j];
-				cptr[j] = tmp;
-			}
+			    speakup_console[vc_num]->ht.bgcount[cptr[j]])
+				swap(cptr[i], cptr[j]);
 
 	for (i = 0; i < 8; i++)
 		if (speakup_console[vc_num]->ht.bgcount[cptr[i]] != 0)
@@ -1847,7 +1851,8 @@ static void speakup_win_set(struct vc_data *vc)
 			win_right = spk_x;
 		}
 		snprintf(info, sizeof(info), spk_msg_get(MSG_WINDOW_BOUNDARY),
-			 (win_start) ? spk_msg_get(MSG_END) : spk_msg_get(MSG_START),
+			 (win_start) ?
+				spk_msg_get(MSG_END) : spk_msg_get(MSG_START),
 			 (int)spk_y + 1, (int)spk_x + 1);
 	}
 	synth_printf("%s\n", info);

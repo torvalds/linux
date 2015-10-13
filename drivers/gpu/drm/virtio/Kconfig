@@ -1,0 +1,14 @@
+config DRM_VIRTIO_GPU
+	tristate "Virtio GPU driver"
+	depends on DRM && VIRTIO
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+        select DRM_KMS_HELPER
+        select DRM_KMS_FB_HELPER
+        select DRM_TTM
+	help
+	   This is the virtual GPU driver for virtio.  It can be used with
+           QEMU based VMMs (like KVM or Xen).
+
+	   If unsure say M.

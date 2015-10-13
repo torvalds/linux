@@ -9,7 +9,6 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
 
 #include "common.h"
 #include "cpuidle.h"
@@ -17,7 +16,7 @@
 static int imx6sl_enter_wait(struct cpuidle_device *dev,
 			    struct cpuidle_driver *drv, int index)
 {
-	imx6q_set_lpm(WAIT_UNCLOCKED);
+	imx6_set_lpm(WAIT_UNCLOCKED);
 	/*
 	 * Software workaround for ERR005311, see function
 	 * description for details.
@@ -25,7 +24,7 @@ static int imx6sl_enter_wait(struct cpuidle_device *dev,
 	imx6sl_set_wait_clk(true);
 	cpu_do_idle();
 	imx6sl_set_wait_clk(false);
-	imx6q_set_lpm(WAIT_CLOCKED);
+	imx6_set_lpm(WAIT_CLOCKED);
 
 	return index;
 }

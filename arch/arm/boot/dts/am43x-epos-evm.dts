@@ -14,6 +14,7 @@
 #include <dt-bindings/pinctrl/am43xx.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/sound/tlv320aic31xx-micbias.h>
 
 / {
 	model = "TI AM43x EPOS EVM";
@@ -31,20 +32,17 @@
 		enable-active-high;
 	};
 
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
 	lcd0: display {
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		label = "lcd";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pins>;
-
-		/*
-		 * SelLCDorHDMI, LOW to select HDMI. This is not really the
-		 * panel's enable GPIO, but we don't have HDMI driver support nor
-		 * support to switch between two displays, so using this gpio as
-		 * panel's enable should be safe.
-		 */
-		enable-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 
 		panel-timing {
 			clock-frequency = <33000000>;
@@ -69,7 +67,80 @@
 		};
 	};
 
-	am43xx_pinmux: pinmux@44e10800 {
+	matrix_keypad: matrix_keypad@0 {
+		compatible = "gpio-matrix-keypad";
+		debounce-delay-ms = <5>;
+		col-scan-delay-us = <2>;
+
+		row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
+			     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
+			     &gpio0 14 GPIO_ACTIVE_HIGH		/* Bank0, pin14 */
+			     &gpio0 15 GPIO_ACTIVE_HIGH>;	/* Bank0, pin15 */
+
+		col-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH		/* Bank3, pin9 */
+			     &gpio3 10 GPIO_ACTIVE_HIGH		/* Bank3, pin10 */
+			     &gpio2 18 GPIO_ACTIVE_HIGH		/* Bank2, pin18 */
+			     &gpio2 19 GPIO_ACTIVE_HIGH>;	/* Bank2, pin19 */
+
+		linux,keymap = <0x00000201	/* P1 */
+			0x01000204	/* P4 */
+			0x02000207	/* P7 */
+			0x0300020a	/* NUMERIC_STAR */
+			0x00010202	/* P2 */
+			0x01010205	/* P5 */
+			0x02010208	/* P8 */
+			0x03010200	/* P0 */
+			0x00020203	/* P3 */
+			0x01020206	/* P6 */
+			0x02020209	/* P9 */
+			0x0302020b	/* NUMERIC_POUND */
+			0x00030067	/* UP */
+			0x0103006a	/* RIGHT */
+			0x0203006c	/* DOWN */
+			0x03030069>;	/* LEFT */
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
+
+	sound0: sound@0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "AM43-EPOS-EVM";
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker";
+		simple-audio-card,routing =
+			"MIC1LP", "Microphone Jack",
+			"MIC1RP", "Microphone Jack",
+			"MIC1LP", "MICBIAS",
+			"MIC1RP", "MICBIAS",
+			"Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Speaker", "SPL",
+			"Speaker", "SPR";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&sound0_master>;
+		simple-audio-card,frame-master = <&sound0_master>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp1>;
+			system-clock-frequency = <12000000>;
+		};
+
+		sound0_master: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3111>;
+			system-clock-frequency = <12000000>;
+		};
+	};
+};
+
+&am43xx_pinmux {
 		cpsw_default: cpsw_default {
 			pinctrl-single,pins = <
 				/* Slave 1 */
@@ -237,7 +308,7 @@
 			>;
 		};
 
-		lcd_pins: lcd_pins {
+		display_mux_pins: display_mux_pins {
 			pinctrl-single,pins = <
 				/* GPMC CLK -> GPIO 2_1 to select LCD / HDMI */
 				0x08C (PIN_OUTPUT_PULLUP | MUX_MODE7)
@@ -279,47 +350,24 @@
 				0x204 (DS0_PULL_UP_DOWN_EN | INPUT_EN | MUX_MODE7)
 			>;
 		};
-	};
 
-	matrix_keypad: matrix_keypad@0 {
-			compatible = "gpio-matrix-keypad";
-			debounce-delay-ms = <5>;
-			col-scan-delay-us = <2>;
-
-			row-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH		/* Bank0, pin12 */
-				     &gpio0 13 GPIO_ACTIVE_HIGH		/* Bank0, pin13 */
-				     &gpio0 14 GPIO_ACTIVE_HIGH		/* Bank0, pin14 */
-				     &gpio0 15 GPIO_ACTIVE_HIGH>;	/* Bank0, pin15 */
-
-			col-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH		/* Bank3, pin9 */
-				     &gpio3 10 GPIO_ACTIVE_HIGH		/* Bank3, pin10 */
-				     &gpio2 18 GPIO_ACTIVE_HIGH		/* Bank2, pin18 */
-				     &gpio2 19 GPIO_ACTIVE_HIGH>;	/* Bank2, pin19 */
-
-			linux,keymap = <0x00000201	/* P1 */
-				0x01000204	/* P4 */
-				0x02000207	/* P7 */
-				0x0300020a	/* NUMERIC_STAR */
-				0x00010202	/* P2 */
-				0x01010205	/* P5 */
-				0x02010208	/* P8 */
-				0x03010200	/* P0 */
-				0x00020203	/* P3 */
-				0x01020206	/* P6 */
-				0x02020209	/* P9 */
-				0x0302020b	/* NUMERIC_POUND */
-				0x00030067	/* UP */
-				0x0103006a	/* RIGHT */
-				0x0203006c	/* DOWN */
-				0x03030069>;	/* LEFT */
+		mcasp1_pins: mcasp1_pins {
+			pinctrl-single,pins = <
+				0x1a0 (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_ACLKR/MCASP1_ACLKX */
+				0x1a4 (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_FSR/MCASP1_FSX */
+				0x1a8 (PIN_OUTPUT_PULLDOWN | MUX_MODE3)/* MCASP0_AXR1/MCASP1_AXR0 */
+				0x1ac (PIN_INPUT_PULLDOWN | MUX_MODE3) /* MCASP0_AHCLKX/MCASP1_AXR1 */
+			>;
 		};
 
-	backlight {
-		compatible = "pwm-backlight";
-		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
-		brightness-levels = <0 51 53 56 62 75 101 152 255>;
-		default-brightness-level = <8>;
-	};
+		mcasp1_sleep_pins: mcasp1_sleep_pins {
+			pinctrl-single,pins = <
+				0x1a0 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1a4 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1a8 (PIN_INPUT_PULLDOWN | MUX_MODE7)
+				0x1ac (PIN_INPUT_PULLDOWN | MUX_MODE7)
+			>;
+		};
 };
 
 &mmc1 {
@@ -369,7 +417,6 @@
 		reg = <0x24>;
 		compatible = "ti,tps65218";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* NMIn */
-		interrupt-parent = <&gic>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
@@ -396,6 +443,15 @@
 			regulator-name = "vdcdc3";
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <1500000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		dcdc4: regulator-dcdc4 {
+			compatible = "ti,tps65218-dcdc4";
+			regulator-name = "vdcdc4";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-boot-on;
 			regulator-always-on;
 		};
@@ -442,6 +498,23 @@
 		touchscreen-size-x = <1024>;
 		touchscreen-size-y = <600>;
 	};
+
+	tlv320aic3111: tlv320aic3111@18 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3111";
+		reg = <0x18>;
+		status = "okay";
+
+		ai31xx-micbias-vg = <MICBIAS_2_0V>;
+
+		/* Regulators */
+		HPVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		SPRVDD-supply = <&vbat>; /* vbat */
+		SPLVDD-supply = <&vbat>; /* vbat */
+		AVDD-supply = <&dcdc4>; /* v3_3AUD -> V3_3D -> DCDC4 */
+		IOVDD-supply = <&dcdc4>; /* V3_3D -> DCDC4 */
+		DVDD-supply = <&ldo1>; /* V1_8AUD -> V1_8D -> LDO1 */
+	};
 };
 
 &i2c2 {
@@ -459,7 +532,21 @@
 };
 
 &gpio2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&display_mux_pins>;
 	status = "okay";
+
+	p1 {
+		/*
+		 * SelLCDorHDMI selects between display and audio paths:
+		 * Low: HDMI display with audio via HDMI
+		 * High: LCD display with analog audio via aic3111 codec
+		 */
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SelLCDorHDMI";
+	};
 };
 
 &gpio3 {
@@ -686,4 +773,22 @@
 			vsync-active = <0>;
 		};
 	};
+};
+
+&mcasp1 {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mcasp1_pins>;
+	pinctrl-1 = <&mcasp1_sleep_pins>;
+
+	status = "okay";
+
+	op-mode = <0>;          /* MCASP_IIS_MODE */
+	tdm-slots = <2>;
+	/* 4 serializer */
+	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
+		1 2 0 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };

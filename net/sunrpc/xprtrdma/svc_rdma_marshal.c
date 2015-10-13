@@ -50,12 +50,12 @@
 /*
  * Decodes a read chunk list. The expected format is as follows:
  *    descrim  : xdr_one
- *    position : u32 offset into XDR stream
- *    handle   : u32 RKEY
+ *    position : __be32 offset into XDR stream
+ *    handle   : __be32 RKEY
  *    . . .
  *  end-of-list: xdr_zero
  */
-static u32 *decode_read_list(u32 *va, u32 *vaend)
+static __be32 *decode_read_list(__be32 *va, __be32 *vaend)
 {
 	struct rpcrdma_read_chunk *ch = (struct rpcrdma_read_chunk *)va;
 
@@ -67,20 +67,20 @@ static u32 *decode_read_list(u32 *va, u32 *vaend)
 		}
 		ch++;
 	}
-	return (u32 *)&ch->rc_position;
+	return &ch->rc_position;
 }
 
 /*
  * Decodes a write chunk list. The expected format is as follows:
  *    descrim  : xdr_one
  *    nchunks  : <count>
- *       handle   : u32 RKEY              ---+
- *       length   : u32 <len of segment>     |
+ *       handle   : __be32 RKEY           ---+
+ *       length   : __be32 <len of segment>  |
  *       offset   : remove va                + <count>
  *       . . .                               |
  *                                        ---+
  */
-static u32 *decode_write_list(u32 *va, u32 *vaend)
+static __be32 *decode_write_list(__be32 *va, __be32 *vaend)
 {
 	unsigned long start, end;
 	int nchunks;
@@ -90,14 +90,14 @@ static u32 *decode_write_list(u32 *va, u32 *vaend)
 
 	/* Check for not write-array */
 	if (ary->wc_discrim == xdr_zero)
-		return (u32 *)&ary->wc_nchunks;
+		return &ary->wc_nchunks;
 
 	if ((unsigned long)ary + sizeof(struct rpcrdma_write_array) >
 	    (unsigned long)vaend) {
 		dprintk("svcrdma: ary=%p, vaend=%p\n", ary, vaend);
 		return NULL;
 	}
-	nchunks = ntohl(ary->wc_nchunks);
+	nchunks = be32_to_cpu(ary->wc_nchunks);
 
 	start = (unsigned long)&ary->wc_array[0];
 	end = (unsigned long)vaend;
@@ -112,10 +112,10 @@ static u32 *decode_write_list(u32 *va, u32 *vaend)
 	 * rs_length is the 2nd 4B field in wc_target and taking its
 	 * address skips the list terminator
 	 */
-	return (u32 *)&ary->wc_array[nchunks].wc_target.rs_length;
+	return &ary->wc_array[nchunks].wc_target.rs_length;
 }
 
-static u32 *decode_reply_array(u32 *va, u32 *vaend)
+static __be32 *decode_reply_array(__be32 *va, __be32 *vaend)
 {
 	unsigned long start, end;
 	int nchunks;
@@ -124,14 +124,14 @@ static u32 *decode_reply_array(u32 *va, u32 *vaend)
 
 	/* Check for no reply-array */
 	if (ary->wc_discrim == xdr_zero)
-		return (u32 *)&ary->wc_nchunks;
+		return &ary->wc_nchunks;
 
 	if ((unsigned long)ary + sizeof(struct rpcrdma_write_array) >
 	    (unsigned long)vaend) {
 		dprintk("svcrdma: ary=%p, vaend=%p\n", ary, vaend);
 		return NULL;
 	}
-	nchunks = ntohl(ary->wc_nchunks);
+	nchunks = be32_to_cpu(ary->wc_nchunks);
 
 	start = (unsigned long)&ary->wc_array[0];
 	end = (unsigned long)vaend;
@@ -142,15 +142,14 @@ static u32 *decode_reply_array(u32 *va, u32 *vaend)
 			ary, nchunks, vaend);
 		return NULL;
 	}
-	return (u32 *)&ary->wc_array[nchunks];
+	return (__be32 *)&ary->wc_array[nchunks];
 }
 
 int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 			    struct svc_rqst *rqstp)
 {
 	struct rpcrdma_msg *rmsgp = NULL;
-	u32 *va;
-	u32 *vaend;
+	__be32 *va, *vaend;
 	u32 hdr_len;
 
 	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
@@ -162,22 +161,17 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 		return -EINVAL;
 	}
 
-	/* Decode the header */
-	rmsgp->rm_xid = ntohl(rmsgp->rm_xid);
-	rmsgp->rm_vers = ntohl(rmsgp->rm_vers);
-	rmsgp->rm_credit = ntohl(rmsgp->rm_credit);
-	rmsgp->rm_type = ntohl(rmsgp->rm_type);
-
-	if (rmsgp->rm_vers != RPCRDMA_VERSION)
+	if (rmsgp->rm_vers != rpcrdma_version)
 		return -ENOSYS;
 
 	/* Pull in the extra for the padded case and bump our pointer */
-	if (rmsgp->rm_type == RDMA_MSGP) {
+	if (rmsgp->rm_type == rdma_msgp) {
 		int hdrlen;
+
 		rmsgp->rm_body.rm_padded.rm_align =
-			ntohl(rmsgp->rm_body.rm_padded.rm_align);
+			be32_to_cpu(rmsgp->rm_body.rm_padded.rm_align);
 		rmsgp->rm_body.rm_padded.rm_thresh =
-			ntohl(rmsgp->rm_body.rm_padded.rm_thresh);
+			be32_to_cpu(rmsgp->rm_body.rm_padded.rm_thresh);
 
 		va = &rmsgp->rm_body.rm_padded.rm_pempty[4];
 		rqstp->rq_arg.head[0].iov_base = va;
@@ -192,7 +186,7 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 	 * chunk list and a reply chunk list.
 	 */
 	va = &rmsgp->rm_body.rm_chunks[0];
-	vaend = (u32 *)((unsigned long)rmsgp + rqstp->rq_arg.len);
+	vaend = (__be32 *)((unsigned long)rmsgp + rqstp->rq_arg.len);
 	va = decode_read_list(va, vaend);
 	if (!va)
 		return -EINVAL;
@@ -211,76 +205,20 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 	return hdr_len;
 }
 
-int svc_rdma_xdr_decode_deferred_req(struct svc_rqst *rqstp)
-{
-	struct rpcrdma_msg *rmsgp = NULL;
-	struct rpcrdma_read_chunk *ch;
-	struct rpcrdma_write_array *ary;
-	u32 *va;
-	u32 hdrlen;
-
-	dprintk("svcrdma: processing deferred RDMA header on rqstp=%p\n",
-		rqstp);
-	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
-
-	/* Pull in the extra for the padded case and bump our pointer */
-	if (rmsgp->rm_type == RDMA_MSGP) {
-		va = &rmsgp->rm_body.rm_padded.rm_pempty[4];
-		rqstp->rq_arg.head[0].iov_base = va;
-		hdrlen = (u32)((unsigned long)va - (unsigned long)rmsgp);
-		rqstp->rq_arg.head[0].iov_len -= hdrlen;
-		return hdrlen;
-	}
-
-	/*
-	 * Skip all chunks to find RPC msg. These were previously processed
-	 */
-	va = &rmsgp->rm_body.rm_chunks[0];
-
-	/* Skip read-list */
-	for (ch = (struct rpcrdma_read_chunk *)va;
-	     ch->rc_discrim != xdr_zero; ch++);
-	va = (u32 *)&ch->rc_position;
-
-	/* Skip write-list */
-	ary = (struct rpcrdma_write_array *)va;
-	if (ary->wc_discrim == xdr_zero)
-		va = (u32 *)&ary->wc_nchunks;
-	else
-		/*
-		 * rs_length is the 2nd 4B field in wc_target and taking its
-		 * address skips the list terminator
-		 */
-		va = (u32 *)&ary->wc_array[ary->wc_nchunks].wc_target.rs_length;
-
-	/* Skip reply-array */
-	ary = (struct rpcrdma_write_array *)va;
-	if (ary->wc_discrim == xdr_zero)
-		va = (u32 *)&ary->wc_nchunks;
-	else
-		va = (u32 *)&ary->wc_array[ary->wc_nchunks];
-
-	rqstp->rq_arg.head[0].iov_base = va;
-	hdrlen = (unsigned long)va - (unsigned long)rmsgp;
-	rqstp->rq_arg.head[0].iov_len -= hdrlen;
-
-	return hdrlen;
-}
-
 int svc_rdma_xdr_encode_error(struct svcxprt_rdma *xprt,
 			      struct rpcrdma_msg *rmsgp,
-			      enum rpcrdma_errcode err, u32 *va)
+			      enum rpcrdma_errcode err, __be32 *va)
 {
-	u32 *startp = va;
+	__be32 *startp = va;
 
-	*va++ = htonl(rmsgp->rm_xid);
-	*va++ = htonl(rmsgp->rm_vers);
-	*va++ = htonl(xprt->sc_max_requests);
-	*va++ = htonl(RDMA_ERROR);
-	*va++ = htonl(err);
+	*va++ = rmsgp->rm_xid;
+	*va++ = rmsgp->rm_vers;
+	*va++ = cpu_to_be32(xprt->sc_max_requests);
+	*va++ = rdma_error;
+	*va++ = cpu_to_be32(err);
 	if (err == ERR_VERS) {
-		*va++ = htonl(RPCRDMA_VERSION);
-		*va++ = htonl(RPCRDMA_VERSION);
+		*va++ = rpcrdma_version;
+		*va++ = rpcrdma_version;
 	}
 
 	return (int)((unsigned long)va - (unsigned long)startp);
@@ -297,7 +235,7 @@ int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *rmsgp)
 		&rmsgp->rm_body.rm_chunks[1];
 	if (wr_ary->wc_discrim)
 		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_array[ntohl(wr_ary->wc_nchunks)].
+			&wr_ary->wc_array[be32_to_cpu(wr_ary->wc_nchunks)].
 			wc_target.rs_length;
 	else
 		wr_ary = (struct rpcrdma_write_array *)
@@ -306,7 +244,7 @@ int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *rmsgp)
 	/* skip reply array */
 	if (wr_ary->wc_discrim)
 		wr_ary = (struct rpcrdma_write_array *)
-			&wr_ary->wc_array[ntohl(wr_ary->wc_nchunks)];
+			&wr_ary->wc_array[be32_to_cpu(wr_ary->wc_nchunks)];
 	else
 		wr_ary = (struct rpcrdma_write_array *)
 			&wr_ary->wc_nchunks;
@@ -325,7 +263,7 @@ void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *rmsgp, int chunks)
 	ary = (struct rpcrdma_write_array *)
 		&rmsgp->rm_body.rm_chunks[1];
 	ary->wc_discrim = xdr_one;
-	ary->wc_nchunks = htonl(chunks);
+	ary->wc_nchunks = cpu_to_be32(chunks);
 
 	/* write-list terminator */
 	ary->wc_array[chunks].wc_target.rs_handle = xdr_zero;
@@ -338,7 +276,7 @@ void svc_rdma_xdr_encode_reply_array(struct rpcrdma_write_array *ary,
 				 int chunks)
 {
 	ary->wc_discrim = xdr_one;
-	ary->wc_nchunks = htonl(chunks);
+	ary->wc_nchunks = cpu_to_be32(chunks);
 }
 
 void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *ary,
@@ -350,7 +288,7 @@ void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *ary,
 	struct rpcrdma_segment *seg = &ary->wc_array[chunk_no].wc_target;
 	seg->rs_handle = rs_handle;
 	seg->rs_offset = rs_offset;
-	seg->rs_length = htonl(write_len);
+	seg->rs_length = cpu_to_be32(write_len);
 }
 
 void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *xprt,
@@ -358,10 +296,10 @@ void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *xprt,
 				  struct rpcrdma_msg *rdma_resp,
 				  enum rpcrdma_proc rdma_type)
 {
-	rdma_resp->rm_xid = htonl(rdma_argp->rm_xid);
-	rdma_resp->rm_vers = htonl(rdma_argp->rm_vers);
-	rdma_resp->rm_credit = htonl(xprt->sc_max_requests);
-	rdma_resp->rm_type = htonl(rdma_type);
+	rdma_resp->rm_xid = rdma_argp->rm_xid;
+	rdma_resp->rm_vers = rdma_argp->rm_vers;
+	rdma_resp->rm_credit = cpu_to_be32(xprt->sc_max_requests);
+	rdma_resp->rm_type = cpu_to_be32(rdma_type);
 
 	/* Encode <nul> chunks lists */
 	rdma_resp->rm_body.rm_chunks[0] = xdr_zero;

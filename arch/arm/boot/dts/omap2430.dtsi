@@ -14,60 +14,75 @@
 	compatible = "ti,omap2430", "ti,omap2";
 
 	ocp {
-		prcm: prcm@49006000 {
-			compatible = "ti,omap2-prcm";
-			reg = <0x49006000 0x1000>;
-
-			prcm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			prcm_clockdomains: clockdomains {
-			};
-		};
-
-		scrm: scrm@49002000 {
-			compatible = "ti,omap2-scrm";
-			reg = <0x49002000 0x1000>;
-
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			scrm_clockdomains: clockdomains {
-			};
-		};
-
-		counter32k: counter@49020000 {
-			compatible = "ti,omap-counter32k";
-			reg = <0x49020000 0x20>;
-			ti,hwmods = "counter_32k";
-		};
-
-		omap2430_pmx: pinmux@49002030 {
-			compatible = "ti,omap2430-padconf", "pinctrl-single";
-			reg = <0x49002030 0x0154>;
+		l4_wkup: l4_wkup@49000000 {
+			compatible = "ti,omap2-l4-wkup", "simple-bus";
 			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-single,register-width = <8>;
-			pinctrl-single,function-mask = <0x3f>;
-		};
+			#size-cells = <1>;
+			ranges = <0 0x49000000 0x31000>;
 
-		omap2_scm_general: tisyscon@49002270 {
-			compatible = "syscon";
-			reg = <0x49002270 0x240>;
-		};
+			prcm: prcm@6000 {
+				compatible = "ti,omap2-prcm";
+				reg = <0x6000 0x1000>;
 
-		pbias_regulator: pbias_regulator {
-			compatible = "ti,pbias-omap";
-			reg = <0x230 0x4>;
-			syscon = <&omap2_scm_general>;
-			pbias_mmc_reg: pbias_mmc_omap2430 {
-				regulator-name = "pbias_mmc_omap2430";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3000000>;
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@2000 {
+				compatible = "ti,omap2-scm", "simple-bus";
+				reg = <0x2000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x2000 0x1000>;
+
+				omap2430_pmx: pinmux@30 {
+					compatible = "ti,omap2430-padconf",
+						     "pinctrl-single";
+					reg = <0x30 0x0154>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					pinctrl-single,register-width = <8>;
+					pinctrl-single,function-mask = <0x3f>;
+				};
+
+				scm_conf: scm_conf@270 {
+					compatible = "syscon",
+						     "simple-bus";
+					reg = <0x270 0x240>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					ranges = <0 0x270 0x240>;
+
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+
+					pbias_regulator: pbias_regulator {
+						compatible = "ti,pbias-omap2", "ti,pbias-omap";
+						reg = <0x230 0x4>;
+						syscon = <&scm_conf>;
+						pbias_mmc_reg: pbias_mmc_omap2430 {
+							regulator-name = "pbias_mmc_omap2430";
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3000000>;
+						};
+					};
+				};
+
+				scm_clockdomains: clockdomains {
+				};
+			};
+
+			counter32k: counter@20000 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x20000 0x20>;
+				ti,hwmods = "counter_32k";
 			};
 		};
 

@@ -12,10 +12,12 @@ ENTRY(wakeup_pmode_return)
 wakeup_pmode_return:
 	movw	$__KERNEL_DS, %ax
 	movw	%ax, %ss
-	movw	%ax, %ds
-	movw	%ax, %es
 	movw	%ax, %fs
 	movw	%ax, %gs
+
+	movw	$__USER_DS, %ax
+	movw	%ax, %ds
+	movw	%ax, %es
 
 	# reload the gdt, as we need the full 32 bit address
 	lidt	saved_idt

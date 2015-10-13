@@ -15,6 +15,7 @@
 
 /* loadflags */
 #define LOADED_HIGH	(1<<0)
+#define KASLR_FLAG	(1<<1)
 #define QUIET_FLAG	(1<<5)
 #define KEEP_SEGMENTS	(1<<6)
 #define CAN_USE_HEAP	(1<<7)
@@ -119,7 +120,7 @@ struct boot_params {
 	__u8  _pad3[16];				/* 0x070 */
 	__u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
 	__u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
-	struct sys_desc_table sys_desc_table;		/* 0x0a0 */
+	struct sys_desc_table sys_desc_table; /* obsolete! */	/* 0x0a0 */
 	struct olpc_ofw_header olpc_ofw_header;		/* 0x0b0 */
 	__u32 ext_ramdisk_image;			/* 0x0c0 */
 	__u32 ext_ramdisk_size;				/* 0x0c4 */

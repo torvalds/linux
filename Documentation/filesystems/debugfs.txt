@@ -51,6 +51,17 @@ operations should be provided; others can be included as needed.  Again,
 the return value will be a dentry pointer to the created file, NULL for
 error, or ERR_PTR(-ENODEV) if debugfs support is missing.
 
+Create a file with an initial size, the following function can be used
+instead:
+
+    struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
+				struct dentry *parent, void *data,
+				const struct file_operations *fops,
+				loff_t file_size);
+
+file_size is the initial file size. The other parameters are the same
+as the function debugfs_create_file.
+
 In a number of cases, the creation of a set of file operations is not
 actually necessary; the debugfs code provides a number of helper functions
 for simple situations.  Files containing a single integer value can be
@@ -100,6 +111,14 @@ A read on the resulting file will yield either Y (for non-zero values) or
 N, followed by a newline.  If written to, it will accept either upper- or
 lower-case values, or 1 or 0.  Any other input will be silently ignored.
 
+Also, atomic_t values can be placed in debugfs with:
+
+    struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
+				struct dentry *parent, atomic_t *value)
+
+A read of this file will get atomic_t values, and a write of this file
+will set atomic_t values.
+
 Another option is exporting a block of arbitrary binary data, with
 this structure and function:
 
@@ -147,6 +166,27 @@ The "base" argument may be 0, but you may want to build the reg32 array
 using __stringify, and a number of register names (macros) are actually
 byte offsets over a base for the register block.
 
+If you want to dump an u32 array in debugfs, you can create file with:
+
+    struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
+			struct dentry *parent,
+			u32 *array, u32 elements);
+
+The "array" argument provides data, and the "elements" argument is
+the number of elements in the array. Note: Once array is created its
+size can not be changed.
+
+There is a helper function to create device related seq_file:
+
+   struct dentry *debugfs_create_devm_seqfile(struct device *dev,
+				const char *name,
+				struct dentry *parent,
+				int (*read_fn)(struct seq_file *s,
+					void *data));
+
+The "dev" argument is the device related to this debugfs file, and
+the "read_fn" is a function pointer which to be called to print the
+seq_file content.
 
 There are a couple of other directory-oriented helper functions:
 

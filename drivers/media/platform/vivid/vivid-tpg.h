@@ -41,7 +41,10 @@ enum tpg_pattern {
 	TPG_PAT_GREEN,
 	TPG_PAT_BLUE,
 	TPG_PAT_CHECKERS_16X16,
+	TPG_PAT_CHECKERS_2X2,
 	TPG_PAT_CHECKERS_1X1,
+	TPG_PAT_COLOR_CHECKERS_2X2,
+	TPG_PAT_COLOR_CHECKERS_1X1,
 	TPG_PAT_ALTERNATING_HLINES,
 	TPG_PAT_ALTERNATING_VLINES,
 	TPG_PAT_CROSS_1_PIXEL,
@@ -87,7 +90,7 @@ enum tpg_move_mode {
 
 extern const char * const tpg_aspect_strings[];
 
-#define TPG_MAX_PLANES 2
+#define TPG_MAX_PLANES 3
 #define TPG_MAX_PAT_LINES 8
 
 struct tpg_data {
@@ -98,6 +101,7 @@ struct tpg_data {
 	/* Scaled output frame size */
 	unsigned			scaled_width;
 	u32				field;
+	bool				field_alternate;
 	/* crop coordinates are frame-based */
 	struct v4l2_rect		crop;
 	/* compose coordinates are format-based */
@@ -118,7 +122,13 @@ struct tpg_data {
 	u32				fourcc;
 	bool				is_yuv;
 	u32				colorspace;
+	u32				xfer_func;
 	u32				ycbcr_enc;
+	/*
+	 * Stores the actual transfer function, i.e. will never be
+	 * V4L2_XFER_FUNC_DEFAULT.
+	 */
+	u32				real_xfer_func;
 	/*
 	 * Stores the actual Y'CbCr encoding, i.e. will never be
 	 * V4L2_YCBCR_ENC_DEFAULT.
@@ -134,7 +144,16 @@ struct tpg_data {
 	enum tpg_pixel_aspect		pix_aspect;
 	unsigned			rgb_range;
 	unsigned			real_rgb_range;
+	unsigned			buffers;
 	unsigned			planes;
+	bool				interleaved;
+	u8				vdownsampling[TPG_MAX_PLANES];
+	u8				hdownsampling[TPG_MAX_PLANES];
+	/*
+	 * horizontal positions must be ANDed with this value to enforce
+	 * correct boundaries for packed YUYV values.
+	 */
+	unsigned			hmask[TPG_MAX_PLANES];
 	/* Used to store the colors in native format, either RGB or YUV */
 	u8				colors[TPG_COLOR_MAX][3];
 	u8				textfg[TPG_MAX_PLANES][8], textbg[TPG_MAX_PLANES][8];
@@ -168,6 +187,7 @@ struct tpg_data {
 	/* Used to store TPG_MAX_PAT_LINES lines, each with up to two planes */
 	unsigned			max_line_width;
 	u8				*lines[TPG_MAX_PAT_LINES][TPG_MAX_PLANES];
+	u8				*downsampled_lines[TPG_MAX_PAT_LINES][TPG_MAX_PLANES];
 	u8				*random_line[TPG_MAX_PLANES];
 	u8				*contrast_line[TPG_MAX_PLANES];
 	u8				*black_line[TPG_MAX_PLANES];
@@ -178,13 +198,18 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w);
 void tpg_free(struct tpg_data *tpg);
 void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 		       u32 field);
+void tpg_log_status(struct tpg_data *tpg);
 
 void tpg_set_font(const u8 *f);
-void tpg_gen_text(struct tpg_data *tpg,
+void tpg_gen_text(const struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], int y, int x, char *text);
 void tpg_calc_text_basep(struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], unsigned p, u8 *vbuf);
-void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf);
+unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line);
+void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std,
+			   unsigned p, u8 *vbuf);
+void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std,
+		    unsigned p, u8 *vbuf);
 bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc);
 void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
 		const struct v4l2_rect *compose);
@@ -310,6 +335,19 @@ static inline u32 tpg_g_ycbcr_enc(const struct tpg_data *tpg)
 	return tpg->ycbcr_enc;
 }
 
+static inline void tpg_s_xfer_func(struct tpg_data *tpg, u32 xfer_func)
+{
+	if (tpg->xfer_func == xfer_func)
+		return;
+	tpg->xfer_func = xfer_func;
+	tpg->recalc_colors = true;
+}
+
+static inline u32 tpg_g_xfer_func(const struct tpg_data *tpg)
+{
+	return tpg->xfer_func;
+}
+
 static inline void tpg_s_quantization(struct tpg_data *tpg, u32 quantization)
 {
 	if (tpg->quantization == quantization)
@@ -323,14 +361,42 @@ static inline u32 tpg_g_quantization(const struct tpg_data *tpg)
 	return tpg->quantization;
 }
 
+static inline unsigned tpg_g_buffers(const struct tpg_data *tpg)
+{
+	return tpg->buffers;
+}
+
 static inline unsigned tpg_g_planes(const struct tpg_data *tpg)
 {
-	return tpg->planes;
+	return tpg->interleaved ? 1 : tpg->planes;
+}
+
+static inline bool tpg_g_interleaved(const struct tpg_data *tpg)
+{
+	return tpg->interleaved;
 }
 
 static inline unsigned tpg_g_twopixelsize(const struct tpg_data *tpg, unsigned plane)
 {
 	return tpg->twopixelsize[plane];
+}
+
+static inline unsigned tpg_hdiv(const struct tpg_data *tpg,
+				  unsigned plane, unsigned x)
+{
+	return ((x / tpg->hdownsampling[plane]) & tpg->hmask[plane]) *
+		tpg->twopixelsize[plane] / 2;
+}
+
+static inline unsigned tpg_hscale(const struct tpg_data *tpg, unsigned x)
+{
+	return (x * tpg->scaled_width) / tpg->src_width;
+}
+
+static inline unsigned tpg_hscale_div(const struct tpg_data *tpg,
+				      unsigned plane, unsigned x)
+{
+	return tpg_hdiv(tpg, plane, tpg_hscale(tpg, x));
 }
 
 static inline unsigned tpg_g_bytesperline(const struct tpg_data *tpg, unsigned plane)
@@ -340,7 +406,60 @@ static inline unsigned tpg_g_bytesperline(const struct tpg_data *tpg, unsigned p
 
 static inline void tpg_s_bytesperline(struct tpg_data *tpg, unsigned plane, unsigned bpl)
 {
-	tpg->bytesperline[plane] = bpl;
+	unsigned p;
+
+	if (tpg->buffers > 1) {
+		tpg->bytesperline[plane] = bpl;
+		return;
+	}
+
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
+		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
+
+		tpg->bytesperline[p] = plane_w / tpg->hdownsampling[p];
+	}
+}
+
+
+static inline unsigned tpg_g_line_width(const struct tpg_data *tpg, unsigned plane)
+{
+	unsigned w = 0;
+	unsigned p;
+
+	if (tpg->buffers > 1)
+		return tpg_g_bytesperline(tpg, plane);
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
+		unsigned plane_w = tpg_g_bytesperline(tpg, p);
+
+		w += plane_w / tpg->vdownsampling[p];
+	}
+	return w;
+}
+
+static inline unsigned tpg_calc_line_width(const struct tpg_data *tpg,
+					   unsigned plane, unsigned bpl)
+{
+	unsigned w = 0;
+	unsigned p;
+
+	if (tpg->buffers > 1)
+		return bpl;
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
+		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
+
+		plane_w /= tpg->hdownsampling[p];
+		w += plane_w / tpg->vdownsampling[p];
+	}
+	return w;
+}
+
+static inline unsigned tpg_calc_plane_size(const struct tpg_data *tpg, unsigned plane)
+{
+	if (plane >= tpg_g_planes(tpg))
+		return 0;
+
+	return tpg_g_bytesperline(tpg, plane) * tpg->buf_height /
+	       tpg->vdownsampling[plane];
 }
 
 static inline void tpg_s_buf_height(struct tpg_data *tpg, unsigned h)
@@ -348,9 +467,10 @@ static inline void tpg_s_buf_height(struct tpg_data *tpg, unsigned h)
 	tpg->buf_height = h;
 }
 
-static inline void tpg_s_field(struct tpg_data *tpg, unsigned field)
+static inline void tpg_s_field(struct tpg_data *tpg, unsigned field, bool alternate)
 {
 	tpg->field = field;
+	tpg->field_alternate = alternate;
 }
 
 static inline void tpg_s_perc_fill(struct tpg_data *tpg,

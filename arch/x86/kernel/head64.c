@@ -161,13 +161,14 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	/* Kill off the identity-map trampoline */
 	reset_early_page_tables();
 
-	kasan_map_early_shadow(early_level4_pgt);
-
-	/* clear bss before set_intr_gate with early_idt_handler */
 	clear_bss();
 
+	clear_page(init_level4_pgt);
+
+	kasan_early_init();
+
 	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++)
-		set_intr_gate(i, early_idt_handlers[i]);
+		set_intr_gate(i, early_idt_handler_array[i]);
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	copy_bootdata(__va(real_mode_data));
@@ -177,14 +178,8 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	 */
 	load_ucode_bsp();
 
-	if (console_loglevel >= CONSOLE_LOGLEVEL_DEBUG)
-		early_printk("Kernel alive\n");
-
-	clear_page(init_level4_pgt);
 	/* set init_level4_pgt kernel high mapping*/
 	init_level4_pgt[511] = early_level4_pgt[511];
-
-	kasan_map_early_shadow(init_level4_pgt);
 
 	x86_64_start_reservations(real_mode_data);
 }

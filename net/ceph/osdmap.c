@@ -89,7 +89,7 @@ static int crush_decode_tree_bucket(void **p, void *end,
 {
 	int j;
 	dout("crush_decode_tree_bucket %p to %p\n", *p, end);
-	ceph_decode_32_safe(p, end, b->num_nodes, bad);
+	ceph_decode_8_safe(p, end, b->num_nodes, bad);
 	b->node_weights = kcalloc(b->num_nodes, sizeof(u32), GFP_NOFS);
 	if (b->node_weights == NULL)
 		return -ENOMEM;
@@ -117,6 +117,22 @@ static int crush_decode_straw_bucket(void **p, void *end,
 		b->item_weights[j] = ceph_decode_32(p);
 		b->straws[j] = ceph_decode_32(p);
 	}
+	return 0;
+bad:
+	return -EINVAL;
+}
+
+static int crush_decode_straw2_bucket(void **p, void *end,
+				      struct crush_bucket_straw2 *b)
+{
+	int j;
+	dout("crush_decode_straw2_bucket %p to %p\n", *p, end);
+	b->item_weights = kcalloc(b->h.size, sizeof(u32), GFP_NOFS);
+	if (b->item_weights == NULL)
+		return -ENOMEM;
+	ceph_decode_need(p, end, b->h.size * sizeof(u32), bad);
+	for (j = 0; j < b->h.size; j++)
+		b->item_weights[j] = ceph_decode_32(p);
 	return 0;
 bad:
 	return -EINVAL;
@@ -204,6 +220,9 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		case CRUSH_BUCKET_STRAW:
 			size = sizeof(struct crush_bucket_straw);
 			break;
+		case CRUSH_BUCKET_STRAW2:
+			size = sizeof(struct crush_bucket_straw2);
+			break;
 		default:
 			err = -EINVAL;
 			goto bad;
@@ -258,6 +277,12 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		case CRUSH_BUCKET_STRAW:
 			err = crush_decode_straw_bucket(p, end,
 				(struct crush_bucket_straw *)b);
+			if (err < 0)
+				goto bad;
+			break;
+		case CRUSH_BUCKET_STRAW2:
+			err = crush_decode_straw2_bucket(p, end,
+				(struct crush_bucket_straw2 *)b);
 			if (err < 0)
 				goto bad;
 			break;
@@ -1275,7 +1300,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		ceph_decode_addr(&addr);
 		pr_info("osd%d up\n", osd);
 		BUG_ON(osd >= map->max_osd);
-		map->osd_state[osd] |= CEPH_OSD_UP;
+		map->osd_state[osd] |= CEPH_OSD_UP | CEPH_OSD_EXISTS;
 		map->osd_addr[osd] = addr;
 	}
 

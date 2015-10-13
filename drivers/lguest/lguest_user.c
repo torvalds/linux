@@ -339,6 +339,13 @@ static ssize_t write(struct file *file, const char __user *in,
 	}
 }
 
+static int open(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+
+	return 0;
+}
+
 /*L:060
  * The final piece of interface code is the close() routine.  It reverses
  * everything done in initialize().  This is usually called because the
@@ -409,6 +416,7 @@ static int close(struct inode *inode, struct file *file)
  */
 static const struct file_operations lguest_fops = {
 	.owner	 = THIS_MODULE,
+	.open	 = open,
 	.release = close,
 	.write	 = write,
 	.read	 = read,

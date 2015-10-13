@@ -34,6 +34,7 @@
 struct mtk8250_data {
 	int			line;
 	struct clk		*uart_clk;
+	struct clk		*bus_clk;
 };
 
 static void
@@ -115,6 +116,36 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		tty_termios_encode_baud_rate(termios, baud, baud);
 }
 
+static int mtk8250_runtime_suspend(struct device *dev)
+{
+	struct mtk8250_data *data = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(data->uart_clk);
+	clk_disable_unprepare(data->bus_clk);
+
+	return 0;
+}
+
+static int mtk8250_runtime_resume(struct device *dev)
+{
+	struct mtk8250_data *data = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(data->uart_clk);
+	if (err) {
+		dev_warn(dev, "Can't enable clock\n");
+		return err;
+	}
+
+	err = clk_prepare_enable(data->bus_clk);
+	if (err) {
+		dev_warn(dev, "Can't enable bus clock\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static void
 mtk8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 {
@@ -130,22 +161,24 @@ mtk8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 			   struct mtk8250_data *data)
 {
-	int err;
-	struct device_node *np = pdev->dev.of_node;
-
-	data->uart_clk = of_clk_get(np, 0);
+	data->uart_clk = devm_clk_get(&pdev->dev, "baud");
 	if (IS_ERR(data->uart_clk)) {
-		dev_warn(&pdev->dev, "Can't get timer clock\n");
-		return PTR_ERR(data->uart_clk);
+		/*
+		 * For compatibility with older device trees try unnamed
+		 * clk when no baud clk can be found.
+		 */
+		data->uart_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(data->uart_clk)) {
+			dev_warn(&pdev->dev, "Can't get uart clock\n");
+			return PTR_ERR(data->uart_clk);
+		}
+
+		return 0;
 	}
 
-	err = clk_prepare_enable(data->uart_clk);
-	if (err) {
-		dev_warn(&pdev->dev, "Can't prepare clock\n");
-		clk_put(data->uart_clk);
-		return err;
-	}
-	p->uartclk = clk_get_rate(data->uart_clk);
+	data->bus_clk = devm_clk_get(&pdev->dev, "bus");
+	if (IS_ERR(data->bus_clk))
+		return PTR_ERR(data->bus_clk);
 
 	return 0;
 }
@@ -190,19 +223,24 @@ static int mtk8250_probe(struct platform_device *pdev)
 	uart.port.regshift = 2;
 	uart.port.private_data = data;
 	uart.port.set_termios = mtk8250_set_termios;
+	uart.port.uartclk = clk_get_rate(data->uart_clk);
 
 	/* Disable Rate Fix function */
 	writel(0x0, uart.port.membase +
 			(MTK_UART_RATE_FIX << uart.port.regshift));
 
+	platform_set_drvdata(pdev, data);
+
+	pm_runtime_enable(&pdev->dev);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		err = mtk8250_runtime_resume(&pdev->dev);
+		if (err)
+			return err;
+	}
+
 	data->line = serial8250_register_8250_port(&uart);
 	if (data->line < 0)
 		return data->line;
-
-	platform_set_drvdata(pdev, data);
-
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 }
@@ -214,13 +252,13 @@ static int mtk8250_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	serial8250_unregister_port(data->line);
-	if (!IS_ERR(data->uart_clk)) {
-		clk_disable_unprepare(data->uart_clk);
-		clk_put(data->uart_clk);
-	}
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
+
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		mtk8250_runtime_suspend(&pdev->dev);
+
 	return 0;
 }
 
@@ -244,28 +282,6 @@ static int mtk8250_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
-static int mtk8250_runtime_suspend(struct device *dev)
-{
-	struct mtk8250_data *data = dev_get_drvdata(dev);
-
-	if (!IS_ERR(data->uart_clk))
-		clk_disable_unprepare(data->uart_clk);
-
-	return 0;
-}
-
-static int mtk8250_runtime_resume(struct device *dev)
-{
-	struct mtk8250_data *data = dev_get_drvdata(dev);
-
-	if (!IS_ERR(data->uart_clk))
-		clk_prepare_enable(data->uart_clk);
-
-	return 0;
-}
-#endif
-
 static const struct dev_pm_ops mtk8250_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mtk8250_suspend, mtk8250_resume)
 	SET_RUNTIME_PM_OPS(mtk8250_runtime_suspend, mtk8250_runtime_resume,
@@ -288,6 +304,21 @@ static struct platform_driver mtk8250_platform_driver = {
 	.remove			= mtk8250_remove,
 };
 module_platform_driver(mtk8250_platform_driver);
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+static int __init early_mtk8250_setup(struct earlycon_device *device,
+					const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->port.iotype = UPIO_MEM32;
+
+	return early_serial8250_setup(device, NULL);
+}
+
+OF_EARLYCON_DECLARE(mtk8250, "mediatek,mt6577-uart", early_mtk8250_setup);
+#endif
 
 MODULE_AUTHOR("Matthias Brugger");
 MODULE_LICENSE("GPL");

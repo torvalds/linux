@@ -147,12 +147,16 @@ static void icp_native_cause_ipi(int cpu, unsigned long data)
 {
 	kvmppc_set_host_ipi(cpu, 1);
 #ifdef CONFIG_PPC_DOORBELL
-	if (cpu_has_feature(CPU_FTR_DBELL) &&
-	    (cpumask_test_cpu(cpu, cpu_sibling_mask(smp_processor_id()))))
-		doorbell_cause_ipi(cpu, data);
-	else
+	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		if (cpumask_test_cpu(cpu, cpu_sibling_mask(get_cpu()))) {
+			doorbell_cause_ipi(cpu, data);
+			put_cpu();
+			return;
+		}
+		put_cpu();
+	}
 #endif
-		icp_native_set_qirr(cpu, IPI_PRIORITY);
+	icp_native_set_qirr(cpu, IPI_PRIORITY);
 }
 
 /*

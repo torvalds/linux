@@ -20,7 +20,7 @@
 #include <linux/swap.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/backing-dev.h>
-#include <linux/aio.h>
+#include <linux/uio.h>
 #include <trace/events/writeback.h>
 
 #include "gfs2.h"
@@ -171,6 +171,7 @@ static int __gfs2_jdata_writepage(struct page *page, struct writeback_control *w
 /**
  * gfs2_jdata_writepage - Write complete page
  * @page: Page to write
+ * @wbc: The writeback control
  *
  * Returns: errno
  *
@@ -221,9 +222,10 @@ static int gfs2_writepages(struct address_space *mapping,
  * gfs2_write_jdata_pagevec - Write back a pagevec's worth of pages
  * @mapping: The mapping
  * @wbc: The writeback control
- * @writepage: The writepage function to call for each page
  * @pvec: The vector of pages
  * @nr_pages: The number of pages to write
+ * @end: End position
+ * @done_index: Page index
  *
  * Returns: non-zero if loop should terminate, zero otherwise
  */
@@ -333,8 +335,6 @@ continue_unlock:
  * gfs2_write_cache_jdata - Like write_cache_pages but different
  * @mapping: The mapping to write
  * @wbc: The writeback control
- * @writepage: The writepage function to call
- * @data: The data to pass to writepage
  *
  * The reason that we use our own function here is that we need to
  * start transactions before we grab page locks. This allows us
@@ -588,6 +588,10 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 
 /**
  * gfs2_readpages - Read a bunch of pages at once
+ * @file: The file to read from
+ * @mapping: Address space info
+ * @pages: List of pages to read
+ * @nr_pages: Number of pages to read
  *
  * Some notes:
  * 1. This is only for readahead, so we can simply ignore any things
@@ -671,12 +675,12 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	if (alloc_required) {
 		struct gfs2_alloc_parms ap = { .aflags = 0, };
-		error = gfs2_quota_lock_check(ip);
+		requested = data_blocks + ind_blocks;
+		ap.target = requested;
+		error = gfs2_quota_lock_check(ip, &ap);
 		if (error)
 			goto out_unlock;
 
-		requested = data_blocks + ind_blocks;
-		ap.target = requested;
 		error = gfs2_inplace_reserve(ip, &ap);
 		if (error)
 			goto out_qunlock;
@@ -853,7 +857,7 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
  * @mapping: The address space to write to
  * @pos: The file position
  * @len: The length of the data
- * @copied:
+ * @copied: How much was actually copied by the VFS
  * @page: The page that has been written
  * @fsdata: The fsdata (unused in GFS2)
  *
@@ -1016,13 +1020,12 @@ out:
 /**
  * gfs2_ok_for_dio - check that dio is valid on this file
  * @ip: The inode
- * @rw: READ or WRITE
  * @offset: The offset at which we are reading or writing
  *
  * Returns: 0 (to ignore the i/o request and thus fall back to buffered i/o)
  *          1 (to accept the i/o request)
  */
-static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
+static int gfs2_ok_for_dio(struct gfs2_inode *ip, loff_t offset)
 {
 	/*
 	 * Should we return an error here? I can't see that O_DIRECT for
@@ -1039,8 +1042,8 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
 
 
 
-static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
-			      struct iov_iter *iter, loff_t offset)
+static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+			      loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -1061,7 +1064,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	rv = gfs2_glock_nq(&gh);
 	if (rv)
 		return rv;
-	rv = gfs2_ok_for_dio(ip, rw, offset);
+	rv = gfs2_ok_for_dio(ip, offset);
 	if (rv != 1)
 		goto out; /* dio not valid, fall back to buffered i/o */
 
@@ -1091,13 +1094,12 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 		rv = filemap_write_and_wait_range(mapping, lstart, end);
 		if (rv)
 			goto out;
-		if (rw == WRITE)
+		if (iov_iter_rw(iter) == WRITE)
 			truncate_inode_pages_range(mapping, lstart, end);
 	}
 
-	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
-				  iter, offset,
-				  gfs2_get_block_direct, NULL, NULL, 0);
+	rv = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
+				  offset, gfs2_get_block_direct, NULL, NULL, 0);
 out:
 	gfs2_glock_dq(&gh);
 	gfs2_holder_uninit(&gh);

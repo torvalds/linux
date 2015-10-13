@@ -416,7 +416,7 @@ static int sp887x_setup_frontend_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int sp887x_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int sp887x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
 	u16 snr12 = sp887x_readreg(state, 0xf16);

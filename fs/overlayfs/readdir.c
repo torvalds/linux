@@ -23,6 +23,7 @@ struct ovl_cache_entry {
 	u64 ino;
 	struct list_head l_node;
 	struct rb_node node;
+	struct ovl_cache_entry *next_maybe_whiteout;
 	bool is_whiteout;
 	char name[];
 };
@@ -39,7 +40,7 @@ struct ovl_readdir_data {
 	struct rb_root root;
 	struct list_head *list;
 	struct list_head middle;
-	struct dentry *dir;
+	struct ovl_cache_entry *first_maybe_whiteout;
 	int count;
 	int err;
 };
@@ -79,7 +80,7 @@ static struct ovl_cache_entry *ovl_cache_entry_find(struct rb_root *root,
 	return NULL;
 }
 
-static struct ovl_cache_entry *ovl_cache_entry_new(struct dentry *dir,
+static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 						   const char *name, int len,
 						   u64 ino, unsigned int d_type)
 {
@@ -98,29 +99,8 @@ static struct ovl_cache_entry *ovl_cache_entry_new(struct dentry *dir,
 	p->is_whiteout = false;
 
 	if (d_type == DT_CHR) {
-		struct dentry *dentry;
-		const struct cred *old_cred;
-		struct cred *override_cred;
-
-		override_cred = prepare_creds();
-		if (!override_cred) {
-			kfree(p);
-			return NULL;
-		}
-
-		/*
-		 * CAP_DAC_OVERRIDE for lookup
-		 */
-		cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
-		old_cred = override_creds(override_cred);
-
-		dentry = lookup_one_len(name, dir, len);
-		if (!IS_ERR(dentry)) {
-			p->is_whiteout = ovl_is_whiteout(dentry);
-			dput(dentry);
-		}
-		revert_creds(old_cred);
-		put_cred(override_cred);
+		p->next_maybe_whiteout = rdd->first_maybe_whiteout;
+		rdd->first_maybe_whiteout = p;
 	}
 	return p;
 }
@@ -148,7 +128,7 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 			return 0;
 	}
 
-	p = ovl_cache_entry_new(rdd->dir, name, len, ino, d_type);
+	p = ovl_cache_entry_new(rdd, name, len, ino, d_type);
 	if (p == NULL)
 		return -ENOMEM;
 
@@ -169,7 +149,7 @@ static int ovl_fill_lower(struct ovl_readdir_data *rdd,
 	if (p) {
 		list_move_tail(&p->l_node, &rdd->middle);
 	} else {
-		p = ovl_cache_entry_new(rdd->dir, name, namelen, ino, d_type);
+		p = ovl_cache_entry_new(rdd, name, namelen, ino, d_type);
 		if (p == NULL)
 			rdd->err = -ENOMEM;
 		else
@@ -219,6 +199,43 @@ static int ovl_fill_merge(struct dir_context *ctx, const char *name,
 		return ovl_fill_lower(rdd, name, namelen, offset, ino, d_type);
 }
 
+static int ovl_check_whiteouts(struct dentry *dir, struct ovl_readdir_data *rdd)
+{
+	int err;
+	struct ovl_cache_entry *p;
+	struct dentry *dentry;
+	const struct cred *old_cred;
+	struct cred *override_cred;
+
+	override_cred = prepare_creds();
+	if (!override_cred)
+		return -ENOMEM;
+
+	/*
+	 * CAP_DAC_OVERRIDE for lookup
+	 */
+	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
+	old_cred = override_creds(override_cred);
+
+	err = mutex_lock_killable(&dir->d_inode->i_mutex);
+	if (!err) {
+		while (rdd->first_maybe_whiteout) {
+			p = rdd->first_maybe_whiteout;
+			rdd->first_maybe_whiteout = p->next_maybe_whiteout;
+			dentry = lookup_one_len(p->name, dir, p->len);
+			if (!IS_ERR(dentry)) {
+				p->is_whiteout = ovl_is_whiteout(dentry);
+				dput(dentry);
+			}
+		}
+		mutex_unlock(&dir->d_inode->i_mutex);
+	}
+	revert_creds(old_cred);
+	put_cred(override_cred);
+
+	return err;
+}
+
 static inline int ovl_dir_read(struct path *realpath,
 			       struct ovl_readdir_data *rdd)
 {
@@ -229,7 +246,7 @@ static inline int ovl_dir_read(struct path *realpath,
 	if (IS_ERR(realfile))
 		return PTR_ERR(realfile);
 
-	rdd->dir = realpath->dentry;
+	rdd->first_maybe_whiteout = NULL;
 	rdd->ctx.pos = 0;
 	do {
 		rdd->count = 0;
@@ -238,6 +255,10 @@ static inline int ovl_dir_read(struct path *realpath,
 		if (err >= 0)
 			err = rdd->err;
 	} while (!err && rdd->count);
+
+	if (!err && rdd->first_maybe_whiteout)
+		err = ovl_check_whiteouts(realpath->dentry, rdd);
+
 	fput(realfile);
 
 	return err;

@@ -41,13 +41,6 @@
 #include <linux/pci.h>
 #include <linux/backlight.h>
 #include <linux/bitrev.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
-#ifdef CONFIG_PPC_OF
-#include <asm/prom.h>
-#include <asm/pci-bridge.h>
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/machdep.h>
 #include <asm/backlight.h>
@@ -208,9 +201,7 @@ MODULE_DEVICE_TABLE(pci, rivafb_pci_tbl);
 static int flatpanel = -1; /* Autodetect later */
 static int forceCRTC = -1;
 static bool noaccel  = 0;
-#ifdef CONFIG_MTRR
 static bool nomtrr = 0;
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else
@@ -1735,7 +1726,6 @@ static int riva_set_fbinfo(struct fb_info *info)
 	return (rivafb_check_var(&info->var, info));
 }
 
-#ifdef CONFIG_PPC_OF
 static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 {
 	struct riva_par *par = info->par;
@@ -1766,9 +1756,8 @@ static int riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	NVTRACE_LEAVE();
 	return 0;
 }
-#endif /* CONFIG_PPC_OF */
 
-#if defined(CONFIG_FB_RIVA_I2C) && !defined(CONFIG_PPC_OF)
+#if defined(CONFIG_FB_RIVA_I2C)
 static int riva_get_EDID_i2c(struct fb_info *info)
 {
 	struct riva_par *par = info->par;
@@ -1828,10 +1817,13 @@ static void riva_update_default_var(struct fb_var_screeninfo *var,
 static void riva_get_EDID(struct fb_info *info, struct pci_dev *pdev)
 {
 	NVTRACE_ENTER();
-#ifdef CONFIG_PPC_OF
-	if (!riva_get_EDID_OF(info, pdev))
+	if (riva_get_EDID_OF(info, pdev)) {
+		NVTRACE_LEAVE();
+		return;
+	}
+	if (IS_ENABLED(CONFIG_OF))
 		printk(PFX "could not retrieve EDID from OF\n");
-#elif defined(CONFIG_FB_RIVA_I2C)
+#if defined(CONFIG_FB_RIVA_I2C)
 	if (!riva_get_EDID_i2c(info))
 		printk(PFX "could not retrieve EDID from DDC/I2C\n");
 #endif
@@ -2013,28 +2005,18 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	rivafb_fix.smem_len = riva_get_memlen(default_par) * 1024;
 	default_par->dclk_max = riva_get_maxdclk(default_par) * 1000;
-	info->screen_base = ioremap(rivafb_fix.smem_start,
-				    rivafb_fix.smem_len);
+	info->screen_base = ioremap_wc(rivafb_fix.smem_start,
+				       rivafb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR PFX "cannot ioremap FB base\n");
 		ret = -EIO;
 		goto err_iounmap_pramin;
 	}
 
-#ifdef CONFIG_MTRR
-	if (!nomtrr) {
-		default_par->mtrr.vram = mtrr_add(rivafb_fix.smem_start,
-					   	  rivafb_fix.smem_len,
-					    	  MTRR_TYPE_WRCOMB, 1);
-		if (default_par->mtrr.vram < 0) {
-			printk(KERN_ERR PFX "unable to setup MTRR\n");
-		} else {
-			default_par->mtrr.vram_valid = 1;
-			/* let there be speed */
-			printk(KERN_INFO PFX "RIVA MTRR set to ON\n");
-		}
-	}
-#endif /* CONFIG_MTRR */
+	if (!nomtrr)
+		default_par->wc_cookie =
+			arch_phys_wc_add(rivafb_fix.smem_start,
+					 rivafb_fix.smem_len);
 
 	info->fbops = &riva_fb_ops;
 	info->fix = rivafb_fix;
@@ -2108,13 +2090,7 @@ static void rivafb_remove(struct pci_dev *pd)
 	unregister_framebuffer(info);
 
 	riva_bl_exit(info);
-
-#ifdef CONFIG_MTRR
-	if (par->mtrr.vram_valid)
-		mtrr_del(par->mtrr.vram, info->fix.smem_start,
-			 info->fix.smem_len);
-#endif /* CONFIG_MTRR */
-
+	arch_phys_wc_del(par->wc_cookie);
 	iounmap(par->ctrl_base);
 	iounmap(info->screen_base);
 	if (par->riva.Architecture == NV_ARCH_03)
@@ -2153,10 +2129,8 @@ static int rivafb_setup(char *options)
 			flatpanel = 1;
 		} else if (!strncmp(this_opt, "backlight:", 10)) {
 			backlight = simple_strtoul(this_opt+10, NULL, 0);
-#ifdef CONFIG_MTRR
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
-#endif
 		} else if (!strncmp(this_opt, "strictmode", 10)) {
 			strictmode = 1;
 		} else if (!strncmp(this_opt, "noaccel", 7)) {
@@ -2212,10 +2186,8 @@ module_param(flatpanel, int, 0);
 MODULE_PARM_DESC(flatpanel, "Enables experimental flat panel support for some chipsets. (0 or 1=enabled) (default=0)");
 module_param(forceCRTC, int, 0);
 MODULE_PARM_DESC(forceCRTC, "Forces usage of a particular CRTC in case autodetection fails. (0 or 1) (default=autodetect)");
-#ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) (default=0)");
-#endif
 module_param(strictmode, bool, 0);
 MODULE_PARM_DESC(strictmode, "Only use video modes from EDID");
 

@@ -103,10 +103,9 @@ static int add_beep_ctls(struct hda_codec *codec)
 static void cx_auto_parse_beep(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++)
+	for_each_hda_codec_node(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP) {
 			set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 			break;
@@ -120,10 +119,9 @@ static void cx_auto_parse_beep(struct hda_codec *codec)
 static void cx_auto_parse_eapd(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 			continue;
 		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
@@ -202,12 +200,33 @@ static int cx_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
-#define cx_auto_free	snd_hda_gen_free
+static void cx_auto_reboot_notify(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	if (codec->core.vendor_id != 0x14f150f2)
+		return;
+
+	/* Turn the CX20722 codec into D3 to avoid spurious noises
+	   from the internal speaker during (and after) reboot */
+	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
+
+	snd_hda_codec_set_power_to_all(codec, codec->core.afg, AC_PWRST_D3);
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
+}
+
+static void cx_auto_free(struct hda_codec *codec)
+{
+	cx_auto_reboot_notify(codec);
+	snd_hda_gen_free(codec);
+}
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
+	.reboot_notify = cx_auto_reboot_notify,
 	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
@@ -304,6 +323,7 @@ static void cxt_fixup_headphone_mic(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->parse_flags |= HDA_PINCFG_HEADPHONE_MIC;
+		snd_hdac_regmap_add_vendor_verb(&codec->core, 0x410);
 		break;
 	case HDA_FIXUP_ACT_PROBE:
 		spec->gen.cap_sync_hook = cxt_update_headset_mode_hook;
@@ -411,15 +431,11 @@ static void olpc_xo_automic(struct hda_codec *codec,
 			    struct hda_jack_callback *jack)
 {
 	struct conexant_spec *spec = codec->spec;
-	int saved_cached_write = codec->cached_write;
 
-	codec->cached_write = 1;
 	/* in DC mode, we don't handle automic */
 	if (!spec->dc_enable)
 		snd_hda_gen_mic_autoswitch(codec, jack);
 	olpc_xo_update_mic_pins(codec);
-	snd_hda_codec_flush_cache(codec);
-	codec->cached_write = saved_cached_write;
 	if (spec->dc_enable)
 		olpc_xo_update_mic_boost(codec);
 }
@@ -848,13 +864,14 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	struct conexant_spec *spec;
 	int err;
 
-	codec_info(codec, "%s: BIOS auto-probing.\n", codec->chip_name);
+	codec_info(codec, "%s: BIOS auto-probing.\n", codec->core.chip_name);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
+	codec->patch_ops = cx_auto_patch_ops;
 
 	cx_auto_parse_beep(codec);
 	cx_auto_parse_eapd(codec);
@@ -862,7 +879,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (spec->dynamic_eapd)
 		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook;
 
-	switch (codec->vendor_id) {
+	switch (codec->core.vendor_id) {
 	case 0x14f15045:
 		codec->single_adc_amp = 1;
 		spec->gen.mixer_nid = 0x17;
@@ -896,7 +913,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	 * others may use EAPD really as an amp switch, so it might be
 	 * not good to expose it blindly.
 	 */
-	switch (codec->subsystem_id >> 16) {
+	switch (codec->core.subsystem_id >> 16) {
 	case 0x103c:
 		spec->gen.vmaster_mute_enum = 1;
 		break;
@@ -913,16 +930,14 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	codec->patch_ops = cx_auto_patch_ops;
-
 	/* Some laptops with Conexant chips show stalls in S3 resume,
 	 * which falls into the single-cmd mode.
 	 * Better to make reset, then.
 	 */
-	if (!codec->bus->sync_write) {
+	if (!codec->bus->core.sync_write) {
 		codec_info(codec,
 			   "Enable sync_write for stable communication\n");
-		codec->bus->sync_write = 1;
+		codec->bus->core.sync_write = 1;
 		codec->bus->allow_bus_reset = 1;
 	}
 
@@ -973,6 +988,14 @@ static const struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f150b9, .name = "CX20665",
 	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f1, .name = "CX20721",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f2, .name = "CX20722",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f3, .name = "CX20723",
+	  .patch = patch_conexant_auto },
+	{ .id = 0x14f150f4, .name = "CX20724",
+	  .patch = patch_conexant_auto },
 	{ .id = 0x14f1510f, .name = "CX20751/2",
 	  .patch = patch_conexant_auto },
 	{ .id = 0x14f15110, .name = "CX20751/2",
@@ -1007,6 +1030,10 @@ MODULE_ALIAS("snd-hda-codec-id:14f150ab");
 MODULE_ALIAS("snd-hda-codec-id:14f150ac");
 MODULE_ALIAS("snd-hda-codec-id:14f150b8");
 MODULE_ALIAS("snd-hda-codec-id:14f150b9");
+MODULE_ALIAS("snd-hda-codec-id:14f150f1");
+MODULE_ALIAS("snd-hda-codec-id:14f150f2");
+MODULE_ALIAS("snd-hda-codec-id:14f150f3");
+MODULE_ALIAS("snd-hda-codec-id:14f150f4");
 MODULE_ALIAS("snd-hda-codec-id:14f1510f");
 MODULE_ALIAS("snd-hda-codec-id:14f15110");
 MODULE_ALIAS("snd-hda-codec-id:14f15111");
@@ -1018,20 +1045,8 @@ MODULE_ALIAS("snd-hda-codec-id:14f151d7");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");
 
-static struct hda_codec_preset_list conexant_list = {
+static struct hda_codec_driver conexant_driver = {
 	.preset = snd_hda_preset_conexant,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_conexant_init(void)
-{
-	return snd_hda_add_codec_preset(&conexant_list);
-}
-
-static void __exit patch_conexant_exit(void)
-{
-	snd_hda_delete_codec_preset(&conexant_list);
-}
-
-module_init(patch_conexant_init)
-module_exit(patch_conexant_exit)
+module_hda_codec_driver(conexant_driver);

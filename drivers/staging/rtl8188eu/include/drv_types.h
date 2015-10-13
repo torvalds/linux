@@ -175,7 +175,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 };
 
 struct adapter {
-	int	pid[3];/* process id from UI, 0:wps, 1:hostapd, 2:dhcpcd */
 	u16	chip_type;
 
 	struct dvobj_priv *dvobj;

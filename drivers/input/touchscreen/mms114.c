@@ -394,12 +394,12 @@ static struct mms114_platform_data *mms114_parse_dt(struct device *dev)
 	if (of_property_read_u32(np, "x-size", &pdata->x_size)) {
 		dev_err(dev, "failed to get x-size property\n");
 		return NULL;
-	};
+	}
 
 	if (of_property_read_u32(np, "y-size", &pdata->y_size)) {
 		dev_err(dev, "failed to get y-size property\n");
 		return NULL;
-	};
+	}
 
 	of_property_read_u32(np, "contact-threshold",
 				&pdata->contact_threshold);
@@ -572,12 +572,12 @@ static const struct of_device_id mms114_dt_match[] = {
 	{ .compatible = "melfas,mms114" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mms114_dt_match);
 #endif
 
 static struct i2c_driver mms114_driver = {
 	.driver = {
 		.name	= "mms114",
-		.owner	= THIS_MODULE,
 		.pm	= &mms114_pm_ops,
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},

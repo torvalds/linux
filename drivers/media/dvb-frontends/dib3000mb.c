@@ -118,7 +118,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	fe_code_rate_t fe_cr = FEC_NONE;
+	enum fe_code_rate fe_cr = FEC_NONE;
 	int search_state, seq;
 
 	if (tuner && fe->ops.tuner_ops.set_params) {
@@ -454,7 +454,7 @@ static int dib3000mb_get_frontend(struct dvb_frontend* fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dib3000_state* state = fe->demodulator_priv;
-	fe_code_rate_t *cr;
+	enum fe_code_rate *cr;
 	u16 tps_val;
 	int inv_test1,inv_test2;
 	u32 dds_val, threshold = 0x800000;
@@ -611,7 +611,8 @@ static int dib3000mb_get_frontend(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int dib3000mb_read_status(struct dvb_frontend* fe, fe_status_t *stat)
+static int dib3000mb_read_status(struct dvb_frontend *fe,
+				 enum fe_status *stat)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 

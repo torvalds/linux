@@ -59,8 +59,8 @@
 	compatible = "marvell,armada-370-xp";
 
 	aliases {
-		eth0 = &eth0;
-		eth1 = &eth1;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {
@@ -71,6 +71,11 @@
 			device_type = "cpu";
 			reg = <0>;
 		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts-extended = <&mpic 3>;
 	};
 
 	soc {
@@ -144,7 +149,6 @@
 			};
 
 			spi0: spi@10600 {
-				compatible = "marvell,armada-370-spi", "marvell,orion-spi";
 				reg = <0x10600 0x28>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -155,7 +159,6 @@
 			};
 
 			spi1: spi@10680 {
-				compatible = "marvell,armada-370-spi", "marvell,orion-spi";
 				reg = <0x10680 0x28>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -223,7 +226,7 @@
 				      <0x20250 0x8>;
 			};
 
-			mpic: interrupt-controller@20000 {
+			mpic: interrupt-controller@20a00 {
 				compatible = "marvell,mpic";
 				#interrupt-cells = <1>;
 				#size-cells = <1>;
@@ -265,7 +268,6 @@
 			};
 
 			eth0: ethernet@70000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x70000 0x4000>;
 				interrupts = <8>;
 				clocks = <&gateclk 4>;
@@ -281,7 +283,6 @@
 			};
 
 			eth1: ethernet@74000 {
-				compatible = "marvell,armada-370-neta";
 				reg = <0x74000 0x4000>;
 				interrupts = <10>;
 				clocks = <&gateclk 3>;

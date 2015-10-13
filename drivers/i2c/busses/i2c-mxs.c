@@ -568,6 +568,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	int ret;
 	int flags;
 	int use_pio = 0;
+	unsigned long time_left;
 
 	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
 
@@ -599,9 +600,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 		if (ret)
 			return ret;
 
-		ret = wait_for_completion_timeout(&i2c->cmd_complete,
+		time_left = wait_for_completion_timeout(&i2c->cmd_complete,
 						msecs_to_jiffies(1000));
-		if (ret == 0)
+		if (!time_left)
 			goto timeout;
 
 		ret = i2c->cmd_err;
@@ -783,7 +784,7 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 	return 0;
 }
 
-static struct platform_device_id mxs_i2c_devtype[] = {
+static const struct platform_device_id mxs_i2c_devtype[] = {
 	{
 		.name = "imx23-i2c",
 		.driver_data = MXS_I2C_V1,
@@ -912,7 +913,7 @@ static void __exit mxs_i2c_exit(void)
 module_exit(mxs_i2c_exit);
 
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("MXS I2C Bus Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

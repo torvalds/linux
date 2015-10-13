@@ -43,7 +43,7 @@ void inode_claim_rsv_space(struct inode *inode, qsize_t number);
 void inode_sub_rsv_space(struct inode *inode, qsize_t number);
 void inode_reclaim_rsv_space(struct inode *inode, qsize_t number);
 
-void dquot_initialize(struct inode *inode);
+int dquot_initialize(struct inode *inode);
 void dquot_drop(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, struct kqid qid);
 static inline struct dquot *dqgrab(struct dquot *dquot)
@@ -95,8 +95,8 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 int dquot_quota_off(struct super_block *sb, int type);
 int dquot_writeback_dquots(struct super_block *sb, int type);
 int dquot_quota_sync(struct super_block *sb, int type);
-int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
-int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
+int dquot_get_state(struct super_block *sb, struct qc_state *state);
+int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii);
 int dquot_get_dqblk(struct super_block *sb, struct kqid id,
 		struct qc_dqblk *di);
 int dquot_set_dqblk(struct super_block *sb, struct kqid id,
@@ -134,10 +134,7 @@ static inline bool sb_has_quota_suspended(struct super_block *sb, int type)
 
 static inline unsigned sb_any_quota_suspended(struct super_block *sb)
 {
-	unsigned type, tmsk = 0;
-	for (type = 0; type < MAXQUOTAS; type++)
-		tmsk |= sb_has_quota_suspended(sb, type) << type;
-	return tmsk;
+	return dquot_state_types(sb_dqopt(sb)->flags, DQUOT_SUSPENDED);
 }
 
 /* Does kernel know about any quota information for given sb + type? */
@@ -149,10 +146,7 @@ static inline bool sb_has_quota_loaded(struct super_block *sb, int type)
 
 static inline unsigned sb_any_quota_loaded(struct super_block *sb)
 {
-	unsigned type, tmsk = 0;
-	for (type = 0; type < MAXQUOTAS; type++)
-		tmsk |= sb_has_quota_loaded(sb, type) << type;
-	return	tmsk;
+	return dquot_state_types(sb_dqopt(sb)->flags, DQUOT_USAGE_ENABLED);
 }
 
 static inline bool sb_has_quota_active(struct super_block *sb, int type)
@@ -206,8 +200,9 @@ static inline int sb_has_quota_active(struct super_block *sb, int type)
 	return 0;
 }
 
-static inline void dquot_initialize(struct inode *inode)
+static inline int dquot_initialize(struct inode *inode)
 {
+	return 0;
 }
 
 static inline void dquot_drop(struct inode *inode)

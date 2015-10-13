@@ -22,12 +22,88 @@
 #define ALPS_PROTO_V5		0x500
 #define ALPS_PROTO_V6		0x600
 #define ALPS_PROTO_V7		0x700	/* t3btl t4s */
+#define ALPS_PROTO_V8		0x800	/* SS4btl SS4s */
 
-#define MAX_TOUCHES	2
+#define MAX_TOUCHES	4
 
 #define DOLPHIN_COUNT_PER_ELECTRODE	64
 #define DOLPHIN_PROFILE_XOFFSET		8	/* x-electrode offset */
 #define DOLPHIN_PROFILE_YOFFSET		1	/* y-electrode offset */
+
+/*
+ * enum SS4_PACKET_ID - defines the packet type for V8
+ * SS4_PACKET_ID_IDLE: There's no finger and no button activity.
+ * SS4_PACKET_ID_ONE: There's one finger on touchpad
+ *  or there's button activities.
+ * SS4_PACKET_ID_TWO: There's two or more fingers on touchpad
+ * SS4_PACKET_ID_MULTI: There's three or more fingers on touchpad
+*/
+enum SS4_PACKET_ID {
+	SS4_PACKET_ID_IDLE = 0,
+	SS4_PACKET_ID_ONE,
+	SS4_PACKET_ID_TWO,
+	SS4_PACKET_ID_MULTI,
+};
+
+#define SS4_COUNT_PER_ELECTRODE		256
+#define SS4_NUMSENSOR_XOFFSET		7
+#define SS4_NUMSENSOR_YOFFSET		7
+#define SS4_MIN_PITCH_MM		50
+
+#define SS4_MASK_NORMAL_BUTTONS		0x07
+
+#define SS4_1F_X_V2(_b)		((_b[0] & 0x0007) |		\
+				 ((_b[1] << 3) & 0x0078) |	\
+				 ((_b[1] << 2) & 0x0380) |	\
+				 ((_b[2] << 5) & 0x1C00)	\
+				)
+
+#define SS4_1F_Y_V2(_b)		(((_b[2]) & 0x000F) |		\
+				 ((_b[3] >> 2) & 0x0030) |	\
+				 ((_b[4] << 6) & 0x03C0) |	\
+				 ((_b[4] << 5) & 0x0C00)	\
+				)
+
+#define SS4_1F_Z_V2(_b)		(((_b[5]) & 0x0F) |		\
+				 ((_b[5] >> 1) & 0x70) |	\
+				 ((_b[4]) & 0x80)		\
+				)
+
+#define SS4_1F_LFB_V2(_b)	(((_b[2] >> 4) & 0x01) == 0x01)
+
+#define SS4_MF_LF_V2(_b, _i)	((_b[1 + (_i) * 3] & 0x0004) == 0x0004)
+
+#define SS4_BTN_V2(_b)		((_b[0] >> 5) & SS4_MASK_NORMAL_BUTTONS)
+
+#define SS4_STD_MF_X_V2(_b, _i)	(((_b[0 + (_i) * 3] << 5) & 0x00E0) |	\
+				 ((_b[1 + _i * 3]  << 5) & 0x1F00)	\
+				)
+
+#define SS4_STD_MF_Y_V2(_b, _i)	(((_b[1 + (_i) * 3] << 3) & 0x0010) |	\
+				 ((_b[2 + (_i) * 3] << 5) & 0x01E0) |	\
+				 ((_b[2 + (_i) * 3] << 4) & 0x0E00)	\
+				)
+
+#define SS4_BTL_MF_X_V2(_b, _i)	(SS4_STD_MF_X_V2(_b, _i) |		\
+				 ((_b[0 + (_i) * 3] >> 3) & 0x0010)	\
+				)
+
+#define SS4_BTL_MF_Y_V2(_b, _i)	(SS4_STD_MF_Y_V2(_b, _i) | \
+				 ((_b[0 + (_i) * 3] >> 3) & 0x0008)	\
+				)
+
+#define SS4_MF_Z_V2(_b, _i)	(((_b[1 + (_i) * 3]) & 0x0001) |	\
+				 ((_b[1 + (_i) * 3] >> 1) & 0x0002)	\
+				)
+
+#define SS4_IS_MF_CONTINUE(_b)	((_b[2] & 0x10) == 0x10)
+#define SS4_IS_5F_DETECTED(_b)	((_b[2] & 0x10) == 0x10)
+
+
+#define SS4_MFPACKET_NO_AX	8160	/* X-Coordinate value */
+#define SS4_MFPACKET_NO_AY	4080	/* Y-Coordinate value */
+#define SS4_MFPACKET_NO_AX_BL	8176	/* Buttonless X-Coordinate value */
+#define SS4_MFPACKET_NO_AY_BL	4088	/* Buttonless Y-Coordinate value */
 
 /*
  * enum V7_PACKET_ID - defines the packet type for V7
@@ -202,6 +278,7 @@ struct alps_data {
 
 	int prev_fin;
 	int multi_packet;
+	int second_touch;
 	unsigned char multi_data[6];
 	struct alps_fields f;
 	u8 quirks;

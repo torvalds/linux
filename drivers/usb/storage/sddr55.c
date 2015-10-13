@@ -34,6 +34,9 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
+#include "scsiglue.h"
+
+#define DRV_NAME "ums-sddr55"
 
 MODULE_DESCRIPTION("Driver for SanDisk SDDR-55 SmartMedia reader");
 MODULE_AUTHOR("Simon Munton");
@@ -968,6 +971,7 @@ static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED; // FIXME: sense buffer?
 }
 
+static struct scsi_host_template sddr55_host_template;
 
 static int sddr55_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
@@ -976,7 +980,8 @@ static int sddr55_probe(struct usb_interface *intf,
 	int result;
 
 	result = usb_stor_probe1(&us, intf, id,
-			(id - sddr55_usb_ids) + sddr55_unusual_dev_list);
+			(id - sddr55_usb_ids) + sddr55_unusual_dev_list,
+			&sddr55_host_template);
 	if (result)
 		return result;
 
@@ -990,7 +995,7 @@ static int sddr55_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver sddr55_driver = {
-	.name =		"ums-sddr55",
+	.name =		DRV_NAME,
 	.probe =	sddr55_probe,
 	.disconnect =	usb_stor_disconnect,
 	.suspend =	usb_stor_suspend,
@@ -1003,4 +1008,4 @@ static struct usb_driver sddr55_driver = {
 	.no_dynamic_id = 1,
 };
 
-module_usb_driver(sddr55_driver);
+module_usb_stor_driver(sddr55_driver, sddr55_host_template, DRV_NAME);

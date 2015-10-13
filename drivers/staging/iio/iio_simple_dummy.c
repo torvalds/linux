@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -31,7 +30,7 @@
  * dummy devices are registered.
  */
 static unsigned instances = 1;
-module_param(instances, int, 0);
+module_param(instances, uint, 0);
 
 /* Pointer array used to fake bus elements */
 static struct iio_dev **iio_dummy_devs;
@@ -589,7 +588,7 @@ static int iio_dummy_probe(int index)
 	 * for chip specific state information.
 	 */
 	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -611,7 +610,6 @@ static int iio_dummy_probe(int index)
 	 * spi_set_drvdata(spi, indio_dev);
 	 */
 	iio_dummy_devs[index] = indio_dev;
-
 
 	/*
 	 * Set the device name.
@@ -666,9 +664,8 @@ error_ret:
  *
  * Parameters follow those of iio_dummy_probe for buses.
  */
-static int iio_dummy_remove(int index)
+static void iio_dummy_remove(int index)
 {
-	int ret;
 	/*
 	 * Get a pointer to the device instance iio_dev structure
 	 * from the bus subsystem. E.g.
@@ -676,7 +673,6 @@ static int iio_dummy_remove(int index)
 	 * struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	 */
 	struct iio_dev *indio_dev = iio_dummy_devs[index];
-
 
 	/* Unregister the device */
 	iio_device_unregister(indio_dev);
@@ -686,15 +682,10 @@ static int iio_dummy_remove(int index)
 	/* Buffered capture related cleanup */
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 
-	ret = iio_simple_dummy_events_unregister(indio_dev);
-	if (ret)
-		goto error_ret;
+	iio_simple_dummy_events_unregister(indio_dev);
 
 	/* Free all structures */
 	iio_device_free(indio_dev);
-
-error_ret:
-	return ret;
 }
 
 /**
@@ -723,9 +714,16 @@ static __init int iio_dummy_init(void)
 	for (i = 0; i < instances; i++) {
 		ret = iio_dummy_probe(i);
 		if (ret < 0)
-			return ret;
+			goto error_remove_devs;
 	}
 	return 0;
+
+error_remove_devs:
+	while (i--)
+		iio_dummy_remove(i);
+
+	kfree(iio_dummy_devs);
+	return ret;
 }
 module_init(iio_dummy_init);
 

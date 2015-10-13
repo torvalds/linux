@@ -954,7 +954,7 @@ static void eth_set_mcast_list(struct net_device *dev)
 		return;
 	}
 
-	memset(diffs, 0, ETH_ALEN);
+	eth_zero_addr(diffs);
 
 	addr = NULL;
 	netdev_for_each_mc_addr(ha, dev) {

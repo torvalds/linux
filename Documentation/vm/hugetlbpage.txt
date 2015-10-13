@@ -267,21 +267,34 @@ call, then it is required that system administrator mount a file system of
 type hugetlbfs:
 
   mount -t hugetlbfs \
-	-o uid=<value>,gid=<value>,mode=<value>,size=<value>,nr_inodes=<value> \
-	none /mnt/huge
+	-o uid=<value>,gid=<value>,mode=<value>,pagesize=<value>,size=<value>,\
+	min_size=<value>,nr_inodes=<value> none /mnt/huge
 
 This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
 /mnt/huge.  Any files created on /mnt/huge uses huge pages.  The uid and gid
 options sets the owner and group of the root of the file system.  By default
 the uid and gid of the current process are taken.  The mode option sets the
 mode of root of file system to value & 01777.  This value is given in octal.
-By default the value 0755 is picked. The size option sets the maximum value of
-memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
-rounded down to HPAGE_SIZE.  The option nr_inodes sets the maximum number of
-inodes that /mnt/huge can use.  If the size or nr_inodes option is not
-provided on command line then no limits are set.  For size and nr_inodes
-options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
-example, size=2K has the same meaning as size=2048.
+By default the value 0755 is picked. If the paltform supports multiple huge
+page sizes, the pagesize option can be used to specify the huge page size and
+associated pool.  pagesize is specified in bytes.  If pagesize is not specified
+the paltform's default huge page size and associated pool will be used. The
+size option sets the maximum value of memory (huge pages) allowed for that
+filesystem (/mnt/huge).  The size option can be specified in bytes, or as a
+percentage of the specified huge page pool (nr_hugepages).  The size is
+rounded down to HPAGE_SIZE boundary.  The min_size option sets the minimum
+value of memory (huge pages) allowed for the filesystem.  min_size can be
+specified in the same way as size, either bytes or a percentage of the
+huge page pool.  At mount time, the number of huge pages specified by
+min_size are reserved for use by the filesystem.  If there are not enough
+free huge pages available, the mount will fail.  As huge pages are allocated
+to the filesystem and freed, the reserve count is adjusted so that the sum
+of allocated and reserved huge pages is always at least min_size.  The option
+nr_inodes sets the maximum number of inodes that /mnt/huge can use.  If the
+size, min_size or nr_inodes option is not provided on command line then
+no limits are set.  For pagesize, size, min_size and nr_inodes options, you
+can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For example, size=2K
+has the same meaning as size=2048.
 
 While read system calls are supported on files that reside on hugetlb
 file systems, write system calls are not.
@@ -289,15 +302,23 @@ file systems, write system calls are not.
 Regular chown, chgrp, and chmod commands (with right permissions) could be
 used to change the file attributes on hugetlbfs.
 
-Also, it is important to note that no such mount command is required if the
+Also, it is important to note that no such mount command is required if
 applications are going to use only shmat/shmget system calls or mmap with
-MAP_HUGETLB.  Users who wish to use hugetlb page via shared memory segment
-should be a member of a supplementary group and system admin needs to
-configure that gid into /proc/sys/vm/hugetlb_shm_group.  It is possible for
-same or different applications to use any combination of mmaps and shm*
-calls, though the mount of filesystem will be required for using mmap calls
-without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
-map_hugetlb.c.
+MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see map_hugetlb
+below.
+
+Users who wish to use hugetlb memory via shared memory segment should be a
+member of a supplementary group and system admin needs to configure that gid
+into /proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+applications to use any combination of mmaps and shm* calls, though the mount of
+filesystem will be required for using mmap calls without MAP_HUGETLB.
+
+Syscalls that operate on memory backed by hugetlb pages only have their lengths
+aligned to the native page size of the processor; they will normally fail with
+errno set to EINVAL or exclude hugetlb pages that extend beyond the length if
+not hugepage aligned.  For example, munmap(2) will fail if memory is backed by
+a hugetlb page and the length is smaller than the hugepage size.
+
 
 Examples
 ========
@@ -308,7 +329,14 @@ Examples
 
 3) hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
 
-4) The libhugetlbfs (http://libhugetlbfs.sourceforge.net) library provides a
-   wide range of userspace tools to help with huge page usability, environment
-   setup, and control. Furthermore it provides useful test cases that should be
-   used when modifying code to ensure no regressions are introduced.
+4) The libhugetlbfs (https://github.com/libhugetlbfs/libhugetlbfs) library
+   provides a wide range of userspace tools to help with huge page usability,
+   environment setup, and control.
+
+Kernel development regression testing
+=====================================
+
+The most complete set of hugetlb tests are in the libhugetlbfs repository.
+If you modify any hugetlb related code, use the libhugetlbfs test suite
+to check for regressions.  In addition, if you add any new hugetlb
+functionality, please add appropriate tests to libhugetlbfs.

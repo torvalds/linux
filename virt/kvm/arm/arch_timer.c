@@ -64,10 +64,10 @@ static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
 	int ret;
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
-	timer->cntv_ctl |= ARCH_TIMER_CTRL_IT_MASK;
-	ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-				  timer->irq->irq,
-				  timer->irq->level);
+	kvm_vgic_set_phys_irq_active(timer->map, true);
+	ret = kvm_vgic_inject_mapped_irq(vcpu->kvm, vcpu->vcpu_id,
+					 timer->map,
+					 timer->irq->level);
 	WARN_ON(ret);
 }
 
@@ -85,13 +85,22 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*
+ * Work function for handling the backup timer that we schedule when a vcpu is
+ * no longer running, but had a timer programmed to fire in the future.
+ */
 static void kvm_timer_inject_irq_work(struct work_struct *work)
 {
 	struct kvm_vcpu *vcpu;
 
 	vcpu = container_of(work, struct kvm_vcpu, arch.timer_cpu.expired);
 	vcpu->arch.timer_cpu.armed = false;
-	kvm_timer_inject_irq(vcpu);
+
+	/*
+	 * If the vcpu is blocked we want to wake it up so that it will see
+	 * the timer has expired when entering the guest.
+	 */
+	kvm_vcpu_kick(vcpu);
 }
 
 static enum hrtimer_restart kvm_timer_expire(struct hrtimer *hrt)
@@ -100,6 +109,22 @@ static enum hrtimer_restart kvm_timer_expire(struct hrtimer *hrt)
 	timer = container_of(hrt, struct arch_timer_cpu, timer);
 	queue_work(wqueue, &timer->expired);
 	return HRTIMER_NORESTART;
+}
+
+bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	cycle_t cval, now;
+
+	if ((timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) ||
+	    !(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE) ||
+	    kvm_vgic_get_phys_irq_active(timer->map))
+		return false;
+
+	cval = timer->cntv_cval;
+	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
+
+	return cval <= now;
 }
 
 /**
@@ -119,6 +144,13 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 	 * populate the CPU timer again.
 	 */
 	timer_disarm(timer);
+
+	/*
+	 * If the timer expired while we were not scheduled, now is the time
+	 * to inject it.
+	 */
+	if (kvm_timer_should_fire(vcpu))
+		kvm_timer_inject_irq(vcpu);
 }
 
 /**
@@ -134,16 +166,9 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	cycle_t cval, now;
 	u64 ns;
 
-	if ((timer->cntv_ctl & ARCH_TIMER_CTRL_IT_MASK) ||
-		!(timer->cntv_ctl & ARCH_TIMER_CTRL_ENABLE))
-		return;
-
-	cval = timer->cntv_cval;
-	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
-
 	BUG_ON(timer_is_armed(timer));
 
-	if (cval <= now) {
+	if (kvm_timer_should_fire(vcpu)) {
 		/*
 		 * Timer has already expired while we were not
 		 * looking. Inject the interrupt and carry on.
@@ -152,15 +177,19 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 		return;
 	}
 
+	cval = timer->cntv_cval;
+	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
+
 	ns = cyclecounter_cyc2ns(timecounter->cc, cval - now, timecounter->mask,
 				 &timecounter->frac);
 	timer_arm(timer, ns);
 }
 
-void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
-			  const struct kvm_irq_level *irq)
+int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			 const struct kvm_irq_level *irq)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct irq_phys_map *map;
 
 	/*
 	 * The vcpu timer irq number cannot be determined in
@@ -169,6 +198,25 @@ void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	 * vcpu timer irq number when the vcpu is reset.
 	 */
 	timer->irq = irq;
+
+	/*
+	 * The bits in CNTV_CTL are architecturally reset to UNKNOWN for ARMv8
+	 * and to 0 for ARMv7.  We provide an implementation that always
+	 * resets the timer to be disabled and unmasked and is compliant with
+	 * the ARMv7 architecture.
+	 */
+	timer->cntv_ctl = 0;
+
+	/*
+	 * Tell the VGIC that the virtual interrupt is tied to a
+	 * physical interrupt. We do that once per VCPU.
+	 */
+	map = kvm_vgic_map_phys_irq(vcpu, irq->irq, host_vtimer_irq);
+	if (WARN_ON(IS_ERR(map)))
+		return PTR_ERR(map);
+
+	timer->map = map;
+	return 0;
 }
 
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
@@ -308,6 +356,8 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
 	timer_disarm(timer);
+	if (timer->map)
+		kvm_vgic_unmap_phys_irq(vcpu, timer->map);
 }
 
 void kvm_timer_enable(struct kvm *kvm)

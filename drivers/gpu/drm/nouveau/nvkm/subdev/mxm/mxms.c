@@ -47,7 +47,7 @@ mxms_version(struct nvkm_mxm *mxm)
 		break;
 	}
 
-	nv_debug(mxm, "unknown version %d.%d\n", mxms[4], mxms[5]);
+	nvkm_debug(&mxm->subdev, "unknown version %d.%d\n", mxms[4], mxms[5]);
 	return 0x0000;
 }
 
@@ -71,7 +71,7 @@ mxms_checksum(struct nvkm_mxm *mxm)
 	while (size--)
 		sum += *mxms++;
 	if (sum) {
-		nv_debug(mxm, "checksum invalid\n");
+		nvkm_debug(&mxm->subdev, "checksum invalid\n");
 		return false;
 	}
 	return true;
@@ -82,7 +82,7 @@ mxms_valid(struct nvkm_mxm *mxm)
 {
 	u8 *mxms = mxms_data(mxm);
 	if (*(u32 *)mxms != 0x5f4d584d) {
-		nv_debug(mxm, "signature invalid\n");
+		nvkm_debug(&mxm->subdev, "signature invalid\n");
 		return false;
 	}
 
@@ -96,6 +96,7 @@ bool
 mxms_foreach(struct nvkm_mxm *mxm, u8 types,
 	     bool (*exec)(struct nvkm_mxm *, u8 *, void *), void *info)
 {
+	struct nvkm_subdev *subdev = &mxm->subdev;
 	u8 *mxms = mxms_data(mxm);
 	u8 *desc = mxms + mxms_headerlen(mxm);
 	u8 *fini = desc + mxms_structlen(mxm) - 1;
@@ -140,29 +141,28 @@ mxms_foreach(struct nvkm_mxm *mxm, u8 types,
 			entries   = desc[1] & 0x07;
 			break;
 		default:
-			nv_debug(mxm, "unknown descriptor type %d\n", type);
+			nvkm_debug(subdev, "unknown descriptor type %d\n", type);
 			return false;
 		}
 
-		if (nv_subdev(mxm)->debug >= NV_DBG_DEBUG && (exec == NULL)) {
-			static const char * mxms_desc_name[] = {
+		if (mxm->subdev.debug >= NV_DBG_DEBUG && (exec == NULL)) {
+			static const char * mxms_desc[] = {
 				"ODS", "SCCS", "TS", "IPS",
 				"GSD", "VSS", "BCS", "FCS",
 			};
 			u8 *dump = desc;
+			char data[32], *ptr;
 			int i, j;
 
-			nv_debug(mxm, "%4s: ", mxms_desc_name[type]);
-			for (j = headerlen - 1; j >= 0; j--)
-				pr_cont("%02x", dump[j]);
-			pr_cont("\n");
+			for (j = headerlen - 1, ptr = data; j >= 0; j--)
+				ptr += sprintf(ptr, "%02x", dump[j]);
 			dump += headerlen;
 
+			nvkm_debug(subdev, "%4s: %s\n", mxms_desc[type], data);
 			for (i = 0; i < entries; i++, dump += recordlen) {
-				nv_debug(mxm, "      ");
-				for (j = recordlen - 1; j >= 0; j--)
-					pr_cont("%02x", dump[j]);
-				pr_cont("\n");
+				for (j = recordlen - 1, ptr = data; j >= 0; j--)
+					ptr += sprintf(ptr, "%02x", dump[j]);
+				nvkm_debug(subdev, "      %s\n", data);
 			}
 		}
 

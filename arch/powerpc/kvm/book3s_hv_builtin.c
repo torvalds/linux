@@ -21,6 +21,10 @@
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
+#include <asm/archrandom.h>
+#include <asm/xics.h>
+#include <asm/dbell.h>
+#include <asm/cputhreads.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
 
@@ -106,24 +110,25 @@ void __init kvm_cma_reserve(void)
 long int kvmppc_rm_h_confer(struct kvm_vcpu *vcpu, int target,
 			    unsigned int yield_count)
 {
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
+	int ptid = local_paca->kvm_hstate.ptid;
 	int threads_running;
 	int threads_ceded;
 	int threads_conferring;
 	u64 stop = get_tb() + 10 * tb_ticks_per_usec;
 	int rv = H_SUCCESS; /* => don't yield */
 
-	set_bit(vcpu->arch.ptid, &vc->conferring_threads);
-	while ((get_tb() < stop) && (VCORE_EXIT_COUNT(vc) == 0)) {
-		threads_running = VCORE_ENTRY_COUNT(vc);
-		threads_ceded = hweight32(vc->napping_threads);
-		threads_conferring = hweight32(vc->conferring_threads);
-		if (threads_ceded + threads_conferring >= threads_running) {
+	set_bit(ptid, &vc->conferring_threads);
+	while ((get_tb() < stop) && !VCORE_IS_EXITING(vc)) {
+		threads_running = VCORE_ENTRY_MAP(vc);
+		threads_ceded = vc->napping_threads;
+		threads_conferring = vc->conferring_threads;
+		if ((threads_ceded | threads_conferring) == threads_running) {
 			rv = H_TOO_HARD; /* => do yield */
 			break;
 		}
 	}
-	clear_bit(vcpu->arch.ptid, &vc->conferring_threads);
+	clear_bit(ptid, &vc->conferring_threads);
 	return rv;
 }
 
@@ -169,3 +174,112 @@ int kvmppc_hcall_impl_hv_realmode(unsigned long cmd)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvmppc_hcall_impl_hv_realmode);
+
+int kvmppc_hwrng_present(void)
+{
+	return powernv_hwrng_present();
+}
+EXPORT_SYMBOL_GPL(kvmppc_hwrng_present);
+
+long kvmppc_h_random(struct kvm_vcpu *vcpu)
+{
+	if (powernv_get_random_real_mode(&vcpu->arch.gpr[4]))
+		return H_SUCCESS;
+
+	return H_HARDWARE;
+}
+
+static inline void rm_writeb(unsigned long paddr, u8 val)
+{
+	__asm__ __volatile__("stbcix %0,0,%1"
+		: : "r" (val), "r" (paddr) : "memory");
+}
+
+/*
+ * Send an interrupt or message to another CPU.
+ * This can only be called in real mode.
+ * The caller needs to include any barrier needed to order writes
+ * to memory vs. the IPI/message.
+ */
+void kvmhv_rm_send_ipi(int cpu)
+{
+	unsigned long xics_phys;
+
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
+	    cpu_first_thread_sibling(cpu) ==
+	    cpu_first_thread_sibling(raw_smp_processor_id())) {
+		unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+		msg |= cpu_thread_in_core(cpu);
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+		return;
+	}
+
+	/* Else poke the target with an IPI */
+	xics_phys = paca[cpu].kvm_hstate.xics_phys;
+	rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
+}
+
+/*
+ * The following functions are called from the assembly code
+ * in book3s_hv_rmhandlers.S.
+ */
+static void kvmhv_interrupt_vcore(struct kvmppc_vcore *vc, int active)
+{
+	int cpu = vc->pcpu;
+
+	/* Order setting of exit map vs. msgsnd/IPI */
+	smp_mb();
+	for (; active; active >>= 1, ++cpu)
+		if (active & 1)
+			kvmhv_rm_send_ipi(cpu);
+}
+
+void kvmhv_commence_exit(int trap)
+{
+	struct kvmppc_vcore *vc = local_paca->kvm_hstate.kvm_vcore;
+	int ptid = local_paca->kvm_hstate.ptid;
+	struct kvm_split_mode *sip = local_paca->kvm_hstate.kvm_split_mode;
+	int me, ee, i;
+
+	/* Set our bit in the threads-exiting-guest map in the 0xff00
+	   bits of vcore->entry_exit_map */
+	me = 0x100 << ptid;
+	do {
+		ee = vc->entry_exit_map;
+	} while (cmpxchg(&vc->entry_exit_map, ee, ee | me) != ee);
+
+	/* Are we the first here? */
+	if ((ee >> 8) != 0)
+		return;
+
+	/*
+	 * Trigger the other threads in this vcore to exit the guest.
+	 * If this is a hypervisor decrementer interrupt then they
+	 * will be already on their way out of the guest.
+	 */
+	if (trap != BOOK3S_INTERRUPT_HV_DECREMENTER)
+		kvmhv_interrupt_vcore(vc, ee & ~(1 << ptid));
+
+	/*
+	 * If we are doing dynamic micro-threading, interrupt the other
+	 * subcores to pull them out of their guests too.
+	 */
+	if (!sip)
+		return;
+
+	for (i = 0; i < MAX_SUBCORES; ++i) {
+		vc = sip->master_vcs[i];
+		if (!vc)
+			break;
+		do {
+			ee = vc->entry_exit_map;
+			/* Already asked to exit? */
+			if ((ee >> 8) != 0)
+				break;
+		} while (cmpxchg(&vc->entry_exit_map, ee,
+				 ee | VCORE_EXIT_REQ) != ee);
+		if ((ee >> 8) == 0)
+			kvmhv_interrupt_vcore(vc, ee);
+	}
+}

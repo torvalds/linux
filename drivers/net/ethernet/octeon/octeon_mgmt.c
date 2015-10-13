@@ -1557,7 +1557,7 @@ static int octeon_mgmt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_mgmt_match[] = {
+static const struct of_device_id octeon_mgmt_match[] = {
 	{
 		.compatible = "cavium,octeon-5750-mix",
 	},

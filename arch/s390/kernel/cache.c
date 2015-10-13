@@ -70,6 +70,8 @@ void show_cacheinfo(struct seq_file *m)
 	struct cacheinfo *cache;
 	int idx;
 
+	if (!test_facility(34))
+		return;
 	get_online_cpus();
 	this_cpu_ci = get_cpu_cacheinfo(cpumask_any(cpu_online_mask));
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
@@ -136,6 +138,8 @@ int init_cache_level(unsigned int cpu)
 	union cache_topology ct;
 	enum cache_type ctype;
 
+	if (!test_facility(34))
+		return -EOPNOTSUPP;
 	if (!this_cpu_ci)
 		return -EINVAL;
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
@@ -159,6 +163,8 @@ int populate_cache_leaves(unsigned int cpu)
 	union cache_topology ct;
 	enum cache_type ctype;
 
+	if (!test_facility(34))
+		return -EOPNOTSUPP;
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
 	for (idx = 0, level = 0; level < this_cpu_ci->num_levels &&
 	     idx < this_cpu_ci->num_leaves; idx++, level++) {

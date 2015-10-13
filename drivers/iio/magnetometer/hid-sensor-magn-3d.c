@@ -170,7 +170,8 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 			*val = sensor_hub_input_attr_get_raw_value(
 				magn_state->common_attributes.hsdev,
 				HID_USAGE_SENSOR_COMPASS_3D, address,
-				report_id);
+				report_id,
+				SENSOR_HUB_SYNC);
 		else {
 			*val = 0;
 			hid_sensor_power_state(&magn_state->common_attributes,
@@ -509,7 +510,7 @@ static int hid_magn_3d_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_magn_3d_ids[] = {
+static const struct platform_device_id hid_magn_3d_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200083",

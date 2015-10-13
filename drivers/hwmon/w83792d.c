@@ -289,10 +289,7 @@ struct w83792d_data {
 	u8 temp1[3];		/* current, over, thyst */
 	u8 temp_add[2][6];	/* Register value */
 	u8 fan_div[7];		/* Register encoding, shifted right */
-	u8 pwm[7];		/*
-				 * We only consider the first 3 set of pwm,
-				 * although 792 chip has 7 set of pwm.
-				 */
+	u8 pwm[7];		/* The 7 PWM outputs */
 	u8 pwmenable[3];
 	u32 alarms;		/* realtime status register encoding,combined */
 	u8 chassis;		/* Chassis status */
@@ -1075,6 +1072,10 @@ static DEVICE_ATTR(intrusion0_alarm, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 2);
+static SENSOR_DEVICE_ATTR(pwm4, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 3);
+static SENSOR_DEVICE_ATTR(pwm5, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 4);
+static SENSOR_DEVICE_ATTR(pwm6, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 5);
+static SENSOR_DEVICE_ATTR(pwm7, S_IWUSR | S_IRUGO, show_pwm, store_pwm, 6);
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
 			show_pwmenable, store_pwmenable, 1);
 static SENSOR_DEVICE_ATTR(pwm2_enable, S_IWUSR | S_IRUGO,
@@ -1087,6 +1088,14 @@ static SENSOR_DEVICE_ATTR(pwm2_mode, S_IWUSR | S_IRUGO,
 			show_pwm_mode, store_pwm_mode, 1);
 static SENSOR_DEVICE_ATTR(pwm3_mode, S_IWUSR | S_IRUGO,
 			show_pwm_mode, store_pwm_mode, 2);
+static SENSOR_DEVICE_ATTR(pwm4_mode, S_IWUSR | S_IRUGO,
+			show_pwm_mode, store_pwm_mode, 3);
+static SENSOR_DEVICE_ATTR(pwm5_mode, S_IWUSR | S_IRUGO,
+			show_pwm_mode, store_pwm_mode, 4);
+static SENSOR_DEVICE_ATTR(pwm6_mode, S_IWUSR | S_IRUGO,
+			show_pwm_mode, store_pwm_mode, 5);
+static SENSOR_DEVICE_ATTR(pwm7_mode, S_IWUSR | S_IRUGO,
+			show_pwm_mode, store_pwm_mode, 6);
 static SENSOR_DEVICE_ATTR(tolerance1, S_IWUSR | S_IRUGO,
 			show_tolerance, store_tolerance, 1);
 static SENSOR_DEVICE_ATTR(tolerance2, S_IWUSR | S_IRUGO,
@@ -1177,30 +1186,38 @@ static SENSOR_DEVICE_ATTR(fan6_div, S_IWUSR | S_IRUGO,
 static SENSOR_DEVICE_ATTR(fan7_div, S_IWUSR | S_IRUGO,
 			show_fan_div, store_fan_div, 7);
 
-static struct attribute *w83792d_attributes_fan[4][5] = {
+static struct attribute *w83792d_attributes_fan[4][7] = {
 	{
 		&sensor_dev_attr_fan4_input.dev_attr.attr,
 		&sensor_dev_attr_fan4_min.dev_attr.attr,
 		&sensor_dev_attr_fan4_div.dev_attr.attr,
 		&sensor_dev_attr_fan4_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm4.dev_attr.attr,
+		&sensor_dev_attr_pwm4_mode.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan5_input.dev_attr.attr,
 		&sensor_dev_attr_fan5_min.dev_attr.attr,
 		&sensor_dev_attr_fan5_div.dev_attr.attr,
 		&sensor_dev_attr_fan5_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm5.dev_attr.attr,
+		&sensor_dev_attr_pwm5_mode.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan6_input.dev_attr.attr,
 		&sensor_dev_attr_fan6_min.dev_attr.attr,
 		&sensor_dev_attr_fan6_div.dev_attr.attr,
 		&sensor_dev_attr_fan6_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm6.dev_attr.attr,
+		&sensor_dev_attr_pwm6_mode.dev_attr.attr,
 		NULL
 	}, {
 		&sensor_dev_attr_fan7_input.dev_attr.attr,
 		&sensor_dev_attr_fan7_min.dev_attr.attr,
 		&sensor_dev_attr_fan7_div.dev_attr.attr,
 		&sensor_dev_attr_fan7_alarm.dev_attr.attr,
+		&sensor_dev_attr_pwm7.dev_attr.attr,
+		&sensor_dev_attr_pwm7_mode.dev_attr.attr,
 		NULL
 	}
 };

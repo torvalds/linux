@@ -185,13 +185,20 @@ Kernel entry (head.S)
   board devices are used, or the device is setup, and provides that
   machine specific "personality."
 
-  This fine-grained machine specific selection is controlled by the machine
-  type ID, which acts both as a run-time and a compile-time code selection
-  method.
+  For platforms that support device tree (DT), the machine selection is
+  controlled at runtime by passing the device tree blob to the kernel.  At
+  compile-time, support for the machine type must be selected.  This allows for
+  a single multiplatform kernel build to be used for several machine types.
 
-  You can register a new machine via the web site at:
+  For platforms that do not use device tree, this machine selection is
+  controlled by the machine type ID, which acts both as a run-time and a
+  compile-time code selection method.  You can register a new machine via the
+  web site at:
 
     <http://www.arm.linux.org.uk/developer/machines/>
+
+  Note: Please do not register a machine type for DT-only platforms.  If your
+  platform is DT-only, you do not need a registered machine type.
 
 ---
 Russell King (15/03/2004)

@@ -213,7 +213,7 @@ static void abort_transaction(struct inode *inode, struct logfs_transaction *ta)
 static int logfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct logfs_super *super = logfs_super(dir->i_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct logfs_transaction *ta;
 	struct page *page;
 	pgoff_t index;
@@ -271,7 +271,7 @@ static inline int logfs_empty_dir(struct inode *dir)
 
 static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	if (!logfs_empty_dir(inode))
 		return -ENOTEMPTY;
@@ -537,7 +537,7 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	ihold(inode);
@@ -607,7 +607,7 @@ static int logfs_rename_cross(struct inode *old_dir, struct dentry *old_dentry,
 	/* 2. write target dd */
 	mutex_lock(&super->s_dirop_mutex);
 	logfs_add_transaction(new_dir, ta);
-	err = logfs_write_dir(new_dir, new_dentry, old_dentry->d_inode);
+	err = logfs_write_dir(new_dir, new_dentry, d_inode(old_dentry));
 	if (!err)
 		err = write_inode(new_dir);
 
@@ -658,8 +658,8 @@ static int logfs_rename_target(struct inode *old_dir, struct dentry *old_dentry,
 			       struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct logfs_super *super = logfs_super(old_dir->i_sb);
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	int isdir = S_ISDIR(old_inode->i_mode);
 	struct logfs_disk_dentry dd;
 	struct logfs_transaction *ta;
@@ -719,7 +719,7 @@ out:
 static int logfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry)
 {
-	if (new_dentry->d_inode)
+	if (d_really_is_positive(new_dentry))
 		return logfs_rename_target(old_dir, old_dentry,
 					   new_dir, new_dentry);
 	return logfs_rename_cross(old_dir, old_dentry, new_dir, new_dentry);
@@ -779,6 +779,7 @@ fail:
 const struct inode_operations logfs_symlink_iops = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
 };
 
 const struct inode_operations logfs_dir_iops = {

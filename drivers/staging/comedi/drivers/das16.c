@@ -76,8 +76,7 @@
 #include "../comedidev.h"
 
 #include "comedi_isadma.h"
-#include "comedi_fc.h"
-#include "8253.h"
+#include "comedi_8254.h"
 #include "8255.h"
 
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
@@ -599,29 +598,29 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
 
 	trig_mask = TRIG_FOLLOW;
 	if (devpriv->can_burst)
 		trig_mask |= TRIG_TIMER | TRIG_EXT;
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, trig_mask);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, trig_mask);
 
 	trig_mask = TRIG_TIMER | TRIG_EXT;
 	if (devpriv->can_burst)
 		trig_mask |= TRIG_NOW;
-	err |= cfc_check_trigger_src(&cmd->convert_src, trig_mask);
+	err |= comedi_check_trigger_src(&cmd->convert_src, trig_mask);
 
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -636,26 +635,30 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	/* check against maximum frequency */
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-					board->ai_speed * cmd->chanlist_len);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    board->ai_speed *
+						    cmd->chanlist_len);
+	}
 
-	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 board->ai_speed);
+	if (cmd->convert_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    board->ai_speed);
+	}
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -663,19 +666,13 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  step 4: fix up arguments */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(devpriv->clockbase,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(devpriv->clockbase,
-					  &devpriv->divisor1,
-					  &devpriv->divisor2,
-					  &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		comedi_8254_cascade_ns_to_timer(dev->pacer, &arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 	if (err)
 		return 4;
@@ -693,17 +690,9 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 				    unsigned int flags)
 {
-	struct das16_private_struct *devpriv = dev->private;
-	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
-
-	i8253_cascade_ns_to_timer(devpriv->clockbase,
-				  &devpriv->divisor1, &devpriv->divisor2,
-				  &ns, flags);
-
-	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
-	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
-	i8254_write(timer_base, 0, 1, devpriv->divisor1);
-	i8254_write(timer_base, 0, 2, devpriv->divisor2);
+	comedi_8254_cascade_ns_to_timer(dev->pacer, &ns, flags);
+	comedi_8254_update_divisors(dev->pacer);
+	comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 
 	return ns;
 }
@@ -722,7 +711,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
-			 "isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
+			"isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
 		return -1;
 	}
 
@@ -935,7 +924,6 @@ static void das16_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + DAS16_STATUS_REG);
 	outb(0, dev->iobase + DAS16_CTRL_REG);
 	outb(0, dev->iobase + DAS16_PACER_REG);
-	outb(0, dev->iobase + DAS16_TIMER_BASE_REG + i8254_control_reg);
 }
 
 static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
@@ -950,9 +938,8 @@ static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	devpriv->dma = comedi_isadma_alloc(dev, 2, dma_chan, dma_chan,
 					   DAS16_DMA_SIZE, COMEDI_ISADMA_READ);
 	if (devpriv->dma) {
-		init_timer(&devpriv->timer);
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
+		setup_timer(&devpriv->timer, das16_timer_interrupt,
+			    (unsigned long)dev);
 	}
 }
 
@@ -1039,13 +1026,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int osc_base;
 	unsigned int status;
 	int ret;
 
 	/*  check that clock setting is valid */
 	if (it->options[3]) {
-		if (it->options[3] != 0 &&
-		    it->options[3] != 1 && it->options[3] != 10) {
+		if (it->options[3] != 1 && it->options[3] != 10) {
 			dev_err(dev->class_dev,
 				"Invalid option. Master clock must be set to 1 or 10 (MHz)\n");
 			return -EINVAL;
@@ -1078,20 +1065,20 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 
 	/*  get master clock speed */
+	osc_base = I8254_OSC_BASE_1MHZ;
 	if (devpriv->can_burst) {
 		status = inb(dev->iobase + DAS1600_STATUS_REG);
-
 		if (status & DAS1600_STATUS_CLK_10MHZ)
-			devpriv->clockbase = I8254_OSC_BASE_10MHZ;
-		else
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
+			osc_base = I8254_OSC_BASE_10MHZ;
 	} else {
 		if (it->options[3])
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ /
-					     it->options[3];
-		else
-			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
+			osc_base = I8254_OSC_BASE_1MHZ / it->options[3];
 	}
+
+	dev->pacer = comedi_8254_init(dev->iobase + DAS16_TIMER_BASE_REG,
+				      osc_base, I8254_IO8, 0);
+	if (!dev->pacer)
+		return -ENOMEM;
 
 	das16_alloc_dma(dev, it->options[2]);
 

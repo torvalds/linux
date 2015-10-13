@@ -182,71 +182,55 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	const u16 bus_num = bus->remote_bus;
 	int request_len;
 	int response_len;
-	u8 *request = NULL;
-	u8 *response = NULL;
+	int alloc_size;
 	int result;
-	struct cros_ec_command msg;
+	struct cros_ec_command *msg;
 
 	request_len = ec_i2c_count_message(i2c_msgs, num);
 	if (request_len < 0) {
 		dev_warn(dev, "Error constructing message %d\n", request_len);
-		result = request_len;
-		goto exit;
+		return request_len;
 	}
+
 	response_len = ec_i2c_count_response(i2c_msgs, num);
 	if (response_len < 0) {
 		/* Unexpected; no errors should come when NULL response */
 		dev_warn(dev, "Error preparing response %d\n", response_len);
-		result = response_len;
+		return response_len;
+	}
+
+	alloc_size = max(request_len, response_len);
+	msg = kmalloc(sizeof(*msg) + alloc_size, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	result = ec_i2c_construct_message(msg->data, i2c_msgs, num, bus_num);
+	if (result) {
+		dev_err(dev, "Error constructing EC i2c message %d\n", result);
 		goto exit;
 	}
 
-	if (request_len <= ARRAY_SIZE(bus->request_buf)) {
-		request = bus->request_buf;
-	} else {
-		request = kzalloc(request_len, GFP_KERNEL);
-		if (request == NULL) {
-			result = -ENOMEM;
-			goto exit;
-		}
-	}
-	if (response_len <= ARRAY_SIZE(bus->response_buf)) {
-		response = bus->response_buf;
-	} else {
-		response = kzalloc(response_len, GFP_KERNEL);
-		if (response == NULL) {
-			result = -ENOMEM;
-			goto exit;
-		}
+	msg->version = 0;
+	msg->command = EC_CMD_I2C_PASSTHRU;
+	msg->outsize = request_len;
+	msg->insize = response_len;
+
+	result = cros_ec_cmd_xfer(bus->ec, msg);
+	if (result < 0) {
+		dev_err(dev, "Error transferring EC i2c message %d\n", result);
+		goto exit;
 	}
 
-	result = ec_i2c_construct_message(request, i2c_msgs, num, bus_num);
-	if (result)
+	result = ec_i2c_parse_response(msg->data, i2c_msgs, &num);
+	if (result < 0) {
+		dev_err(dev, "Error parsing EC i2c message %d\n", result);
 		goto exit;
-
-	msg.version = 0;
-	msg.command = EC_CMD_I2C_PASSTHRU;
-	msg.outdata = request;
-	msg.outsize = request_len;
-	msg.indata = response;
-	msg.insize = response_len;
-
-	result = cros_ec_cmd_xfer(bus->ec, &msg);
-	if (result < 0)
-		goto exit;
-
-	result = ec_i2c_parse_response(response, i2c_msgs, &num);
-	if (result < 0)
-		goto exit;
+	}
 
 	/* Indicate success by saying how many messages were sent */
 	result = num;
 exit:
-	if (request != bus->request_buf)
-		kfree(request);
-	if (response != bus->response_buf)
-		kfree(response);
-
+	kfree(msg);
 	return result;
 }
 

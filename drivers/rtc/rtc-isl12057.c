@@ -648,6 +648,7 @@ static const struct of_device_id isl12057_dt_match[] = {
 	{ .compatible = "isil,isl12057" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, isl12057_dt_match);
 #endif
 
 static const struct i2c_device_id isl12057_id[] = {
@@ -659,7 +660,6 @@ MODULE_DEVICE_TABLE(i2c, isl12057_id);
 static struct i2c_driver isl12057_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &isl12057_rtc_pm_ops,
 		.of_match_table = of_match_ptr(isl12057_dt_match),
 	},

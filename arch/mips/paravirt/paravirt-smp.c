@@ -75,7 +75,7 @@ static void paravirt_send_ipi_mask(const struct cpumask *mask, unsigned int acti
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, *mask)
+	for_each_cpu(cpu, mask)
 		paravirt_send_ipi_single(cpu, action);
 }
 
@@ -114,7 +114,7 @@ static irqreturn_t paravirt_reched_interrupt(int irq, void *dev_id)
 
 static irqreturn_t paravirt_function_interrupt(int irq, void *dev_id)
 {
-	smp_call_function_interrupt();
+	generic_smp_call_function_interrupt();
 	return IRQ_HANDLED;
 }
 

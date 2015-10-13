@@ -588,7 +588,7 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	int new_margin;
+	int new_margin, options;
 	int ret = -ENOTTY;
 
 	switch (cmd) {
@@ -606,6 +606,20 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_KEEPALIVE:
 		hpwdt_ping();
 		ret = 0;
+		break;
+
+	case WDIOC_SETOPTIONS:
+		ret = get_user(options, p);
+		if (ret)
+			break;
+
+		if (options & WDIOS_DISABLECARD)
+			hpwdt_stop();
+
+		if (options & WDIOS_ENABLECARD) {
+			hpwdt_start();
+			hpwdt_ping();
+		}
 		break;
 
 	case WDIOC_SETTIMEOUT:

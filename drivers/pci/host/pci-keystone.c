@@ -88,7 +88,7 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, quirk_limit_mrrs);
 static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 {
 	struct pcie_port *pp = &ks_pcie->pp;
-	int count = 200;
+	unsigned int retries;
 
 	dw_pcie_setup_rc(pp);
 
@@ -99,21 +99,20 @@ static int ks_pcie_establish_link(struct keystone_pcie *ks_pcie)
 
 	ks_dw_pcie_initiate_link_train(ks_pcie);
 	/* check if the link is up or not */
-	while (!dw_pcie_link_up(pp)) {
+	for (retries = 0; retries < 200; retries++) {
+		if (dw_pcie_link_up(pp))
+			return 0;
 		usleep_range(100, 1000);
-		if (--count) {
-			ks_dw_pcie_initiate_link_train(ks_pcie);
-			continue;
-		}
-		dev_err(pp->dev, "phy link never came up\n");
-		return -EINVAL;
+		ks_dw_pcie_initiate_link_train(ks_pcie);
 	}
 
-	return 0;
+	dev_err(pp->dev, "phy link never came up\n");
+	return -EINVAL;
 }
 
-static void ks_pcie_msi_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
 	u32 offset = irq - ks_pcie->msi_host_irqs[0];
 	struct pcie_port *pp = &ks_pcie->pp;
@@ -139,8 +138,9 @@ static void ks_pcie_msi_irq_handler(unsigned int irq, struct irq_desc *desc)
  * Traverse through pending legacy interrupts and invoke handler for each. Also
  * takes care of interrupt controller level mask/ack operation.
  */
-static void ks_pcie_legacy_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 {
+	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
 	struct pcie_port *pp = &ks_pcie->pp;
 	u32 irq_offset = irq - ks_pcie->legacy_host_irqs[0];
@@ -214,19 +214,18 @@ static void ks_pcie_setup_interrupts(struct keystone_pcie *ks_pcie)
 
 	/* Legacy IRQ */
 	for (i = 0; i < ks_pcie->num_legacy_host_irqs; i++) {
-		irq_set_handler_data(ks_pcie->legacy_host_irqs[i], ks_pcie);
-		irq_set_chained_handler(ks_pcie->legacy_host_irqs[i],
-					ks_pcie_legacy_irq_handler);
+		irq_set_chained_handler_and_data(ks_pcie->legacy_host_irqs[i],
+						 ks_pcie_legacy_irq_handler,
+						 ks_pcie);
 	}
 	ks_dw_pcie_enable_legacy_irqs(ks_pcie);
 
 	/* MSI IRQ */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		for (i = 0; i < ks_pcie->num_msi_host_irqs; i++) {
-			irq_set_chained_handler(ks_pcie->msi_host_irqs[i],
-						ks_pcie_msi_irq_handler);
-			irq_set_handler_data(ks_pcie->msi_host_irqs[i],
-					     ks_pcie);
+			irq_set_chained_handler_and_data(ks_pcie->msi_host_irqs[i],
+							 ks_pcie_msi_irq_handler,
+							 ks_pcie);
 		}
 	}
 }

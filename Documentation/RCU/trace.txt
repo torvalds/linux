@@ -237,41 +237,25 @@ o	"ktl" is the low-order 16 bits (in hexadecimal) of the count of
 
 The output of "cat rcu/rcu_preempt/rcuexp" looks as follows:
 
-s=21872 d=21872 w=0 tf=0 wd1=0 wd2=0 n=0 sc=21872 dt=21872 dl=0 dx=21872
+s=21872 wd0=0 wd1=0 wd2=0 wd3=5 n=0 enq=0 sc=21872
 
 These fields are as follows:
 
-o	"s" is the starting sequence number.
+o	"s" is the sequence number, with an odd number indicating that
+	an expedited grace period is in progress.
 
-o	"d" is the ending sequence number.  When the starting and ending
-	numbers differ, there is an expedited grace period in progress.
-
-o	"w" is the number of times that the sequence numbers have been
-	in danger of wrapping.
-
-o	"tf" is the number of times that contention has resulted in a
-	failure to begin an expedited grace period.
-
-o	"wd1" and "wd2" are the number of times that an attempt to
-	start an expedited grace period found that someone else had
-	completed an expedited grace period that satisfies the
+o	"wd0", "wd1", "wd2", and "wd3" are the number of times that an
+	attempt to start an expedited grace period found that someone
+	else had completed an expedited grace period that satisfies the
 	attempted request.  "Our work is done."
 
-o	"n" is number of times that contention was so great that
-	the request was demoted from an expedited grace period to
-	a normal grace period.
+o	"n" is number of times that a concurrent CPU-hotplug operation
+	forced a fallback to a normal grace period.
+
+o	"enq" is the number of quiescent states still outstanding.
 
 o	"sc" is the number of times that the attempt to start a
 	new expedited grace period succeeded.
-
-o	"dt" is the number of times that we attempted to update
-	the "d" counter.
-
-o	"dl" is the number of times that we failed to update the "d"
-	counter.
-
-o	"dx" is the number of times that we succeeded in updating
-	the "d" counter.
 
 
 The output of "cat rcu/rcu_preempt/rcugp" looks as follows:

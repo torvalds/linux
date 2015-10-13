@@ -69,16 +69,15 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	12
-#define IWL3160_UCODE_API_MAX	12
+#define IWL7260_UCODE_API_MAX	17
 
 /* Oldest version we won't warn about */
-#define IWL7260_UCODE_API_OK	10
-#define IWL3160_UCODE_API_OK	10
+#define IWL7260_UCODE_API_OK	12
+#define IWL3165_UCODE_API_OK	13
 
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	9
-#define IWL3160_UCODE_API_MIN	9
+#define IWL7260_UCODE_API_MIN	12
+#define IWL3165_UCODE_API_MIN	13
 
 /* NVM versions */
 #define IWL7260_NVM_VERSION		0x0a1d
@@ -104,9 +103,6 @@
 #define IWL3160_FW_PRE "iwlwifi-3160-"
 #define IWL3160_MODULE_FIRMWARE(api) IWL3160_FW_PRE __stringify(api) ".ucode"
 
-#define IWL3165_FW_PRE "iwlwifi-3165-"
-#define IWL3165_MODULE_FIRMWARE(api) IWL3165_FW_PRE __stringify(api) ".ucode"
-
 #define IWL7265_FW_PRE "iwlwifi-7265-"
 #define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
 
@@ -126,6 +122,28 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
 	.apmg_wake_up_wa = true,
+};
+
+static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
+	.ct_kill_entry = 118,
+	.ct_kill_exit = 96,
+	.ct_kill_duration = 5,
+	.dynamic_smps_entry = 114,
+	.dynamic_smps_exit = 110,
+	.tx_protection_entry = 114,
+	.tx_protection_exit = 108,
+	.tx_backoff = {
+		{.temperature = 112, .backoff = 300},
+		{.temperature = 113, .backoff = 800},
+		{.temperature = 114, .backoff = 1500},
+		{.temperature = 115, .backoff = 3000},
+		{.temperature = 116, .backoff = 5000},
+		{.temperature = 117, .backoff = 10000},
+	},
+	.support_ct_kill = true,
+	.support_dynamic_smps = true,
+	.support_tx_protection = true,
+	.support_tx_backoff = true,
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
@@ -170,6 +188,7 @@ const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
 	.host_interrupt_operation_mode = true,
 	.lp_xtal_workaround = true,
 	.dccm_len = IWL7260_DCCM_LEN,
+	.thermal_params = &iwl7000_high_temp_tt_params,
 };
 
 const struct iwl_cfg iwl7260_2n_cfg = {
@@ -248,8 +267,13 @@ static const struct iwl_ht_params iwl7265_ht_params = {
 
 const struct iwl_cfg iwl3165_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 3165",
-	.fw_name_pre = IWL3165_FW_PRE,
+	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7000,
+	/* sparse doens't like the re-assignment but it is safe */
+#ifndef __CHECKER__
+	.ucode_api_ok = IWL3165_UCODE_API_OK,
+	.ucode_api_min = IWL3165_UCODE_API_MIN,
+#endif
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3165_NVM_VERSION,
 	.nvm_calib_ver = IWL3165_TX_POWER_VERSION,
@@ -325,6 +349,5 @@ const struct iwl_cfg iwl7265d_n_cfg = {
 
 MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL3160_UCODE_API_OK));
-MODULE_FIRMWARE(IWL3165_MODULE_FIRMWARE(IWL3160_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
 MODULE_FIRMWARE(IWL7265D_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));

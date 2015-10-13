@@ -87,8 +87,8 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
 	 * not just the header.
 	 */
 	is_identical = (u8)((table_desc->length != table_length ||
-			     ACPI_MEMCMP(table_desc->pointer, table,
-					 table_length)) ? FALSE : TRUE);
+			     memcmp(table_desc->pointer, table, table_length)) ?
+			    FALSE : TRUE);
 
 	/* Release the acquired table */
 
@@ -100,9 +100,9 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  *
  * FUNCTION:    acpi_tb_install_table_with_override
  *
- * PARAMETERS:  table_index             - Index into root table array
- *              new_table_desc          - New table descriptor to install
+ * PARAMETERS:  new_table_desc          - New table descriptor to install
  *              override                - Whether override should be performed
+ *              table_index             - Where the table index is returned
  *
  * RETURN:      None
  *
@@ -114,12 +114,14 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  ******************************************************************************/
 
 void
-acpi_tb_install_table_with_override(u32 table_index,
-				    struct acpi_table_desc *new_table_desc,
-				    u8 override)
+acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
+				    u8 override, u32 *table_index)
 {
+	u32 i;
+	acpi_status status;
 
-	if (table_index >= acpi_gbl_root_table_list.current_table_count) {
+	status = acpi_tb_get_next_table_descriptor(&i, NULL);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
 
@@ -134,8 +136,7 @@ acpi_tb_install_table_with_override(u32 table_index,
 		acpi_tb_override_table(new_table_desc);
 	}
 
-	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.
-				      tables[table_index],
+	acpi_tb_init_table_descriptor(&acpi_gbl_root_table_list.tables[i],
 				      new_table_desc->address,
 				      new_table_desc->flags,
 				      new_table_desc->pointer);
@@ -143,9 +144,13 @@ acpi_tb_install_table_with_override(u32 table_index,
 	acpi_tb_print_table_header(new_table_desc->address,
 				   new_table_desc->pointer);
 
+	/* This synchronizes acpi_gbl_dsdt_index */
+
+	*table_index = i;
+
 	/* Set the global integer width (based upon revision of the DSDT) */
 
-	if (table_index == ACPI_TABLE_INDEX_DSDT) {
+	if (i == acpi_gbl_dsdt_index) {
 		acpi_ut_set_integer_width(new_table_desc->pointer->revision);
 	}
 }
@@ -157,7 +162,7 @@ acpi_tb_install_table_with_override(u32 table_index,
  * PARAMETERS:  address                 - Physical address of DSDT or FACS
  *              signature               - Table signature, NULL if no need to
  *                                        match
- *              table_index             - Index into root table array
+ *              table_index             - Where the table index is returned
  *
  * RETURN:      Status
  *
@@ -168,7 +173,7 @@ acpi_tb_install_table_with_override(u32 table_index,
 
 acpi_status
 acpi_tb_install_fixed_table(acpi_physical_address address,
-			    char *signature, u32 table_index)
+			    char *signature, u32 *table_index)
 {
 	struct acpi_table_desc new_table_desc;
 	acpi_status status;
@@ -187,8 +192,9 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 	status = acpi_tb_acquire_temp_table(&new_table_desc, address,
 					    ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not acquire table length at %p",
-			    ACPI_CAST_PTR(void, address)));
+		ACPI_ERROR((AE_INFO,
+			    "Could not acquire table length at %8.8X%8.8X",
+			    ACPI_FORMAT_UINT64(address)));
 		return_ACPI_STATUS(status);
 	}
 
@@ -199,7 +205,9 @@ acpi_tb_install_fixed_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 
-	acpi_tb_install_table_with_override(table_index, &new_table_desc, TRUE);
+	/* Add the table to the global root table list */
+
+	acpi_tb_install_table_with_override(&new_table_desc, TRUE, table_index);
 
 release_and_exit:
 
@@ -246,8 +254,9 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	status = acpi_tb_acquire_temp_table(&new_table_desc, address, flags);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not acquire table length at %p",
-			    ACPI_CAST_PTR(void, address)));
+		ACPI_ERROR((AE_INFO,
+			    "Could not acquire table length at %8.8X%8.8X",
+			    ACPI_FORMAT_UINT64(address)));
 		return_ACPI_STATUS(status);
 	}
 
@@ -258,9 +267,10 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	if (!reload &&
 	    acpi_gbl_disable_ssdt_table_install &&
 	    ACPI_COMPARE_NAME(&new_table_desc.signature, ACPI_SIG_SSDT)) {
-		ACPI_INFO((AE_INFO, "Ignoring installation of %4.4s at %p",
-			   new_table_desc.signature.ascii, ACPI_CAST_PTR(void,
-									 address)));
+		ACPI_INFO((AE_INFO,
+			   "Ignoring installation of %4.4s at %8.8X%8.8X",
+			   new_table_desc.signature.ascii,
+			   ACPI_FORMAT_UINT64(address)));
 		goto release_and_exit;
 	}
 
@@ -286,8 +296,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 		if ((new_table_desc.signature.ascii[0] != 0x00) &&
 		    (!ACPI_COMPARE_NAME
 		     (&new_table_desc.signature, ACPI_SIG_SSDT))
-		    && (ACPI_STRNCMP(new_table_desc.signature.ascii, "OEM", 3)))
-		{
+		    && (strncmp(new_table_desc.signature.ascii, "OEM", 3))) {
 			ACPI_BIOS_ERROR((AE_INFO,
 					 "Table has invalid signature [%4.4s] (0x%8.8X), "
 					 "must be SSDT or OEMx",
@@ -346,7 +355,6 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 				 */
 				acpi_tb_uninstall_table(&new_table_desc);
 				*table_index = i;
-				(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 				return_ACPI_STATUS(AE_OK);
 			}
 		}
@@ -354,13 +362,8 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/* Add the table to the global root table list */
 
-	status = acpi_tb_get_next_root_index(&i);
-	if (ACPI_FAILURE(status)) {
-		goto release_and_exit;
-	}
-
-	*table_index = i;
-	acpi_tb_install_table_with_override(i, &new_table_desc, override);
+	acpi_tb_install_table_with_override(&new_table_desc, override,
+					    table_index);
 
 release_and_exit:
 
@@ -429,11 +432,11 @@ finish_override:
 		return;
 	}
 
-	ACPI_INFO((AE_INFO, "%4.4s " ACPI_PRINTF_UINT
-		   " %s table override, new table: " ACPI_PRINTF_UINT,
+	ACPI_INFO((AE_INFO, "%4.4s 0x%8.8X%8.8X"
+		   " %s table override, new table: 0x%8.8X%8.8X",
 		   old_table_desc->signature.ascii,
-		   ACPI_FORMAT_TO_UINT(old_table_desc->address),
-		   override_type, ACPI_FORMAT_TO_UINT(new_table_desc.address)));
+		   ACPI_FORMAT_UINT64(old_table_desc->address),
+		   override_type, ACPI_FORMAT_UINT64(new_table_desc.address)));
 
 	/* We can now uninstall the original table */
 
@@ -451,43 +454,6 @@ finish_override:
 	/* Release the temporary table descriptor */
 
 	acpi_tb_release_temp_table(&new_table_desc);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_store_table
- *
- * PARAMETERS:  address             - Table address
- *              table               - Table header
- *              length              - Table length
- *              flags               - Install flags
- *              table_index         - Where the table index is returned
- *
- * RETURN:      Status and table index.
- *
- * DESCRIPTION: Add an ACPI table to the global table list
- *
- ******************************************************************************/
-
-acpi_status
-acpi_tb_store_table(acpi_physical_address address,
-		    struct acpi_table_header * table,
-		    u32 length, u8 flags, u32 *table_index)
-{
-	acpi_status status;
-	struct acpi_table_desc *table_desc;
-
-	status = acpi_tb_get_next_root_index(table_index);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/* Initialize added table */
-
-	table_desc = &acpi_gbl_root_table_list.tables[*table_index];
-	acpi_tb_init_table_descriptor(table_desc, address, flags, table);
-	table_desc->pointer = table;
-	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -517,7 +483,7 @@ void acpi_tb_uninstall_table(struct acpi_table_desc *table_desc)
 
 	if ((table_desc->flags & ACPI_TABLE_ORIGIN_MASK) ==
 	    ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL) {
-		ACPI_FREE(ACPI_CAST_PTR(void, table_desc->address));
+		ACPI_FREE(ACPI_PHYSADDR_TO_PTR(table_desc->address));
 	}
 
 	table_desc->address = ACPI_PTR_TO_PHYSADDR(NULL);

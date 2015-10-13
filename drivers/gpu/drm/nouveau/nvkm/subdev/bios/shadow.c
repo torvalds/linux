@@ -23,13 +23,11 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
 #include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/image.h>
 
 struct shadow {
-	struct nvkm_oclass base;
 	u32 skip;
 	const struct nvbios_source *func;
 	void *data;
@@ -38,9 +36,8 @@ struct shadow {
 };
 
 static bool
-shadow_fetch(struct nvkm_bios *bios, u32 upto)
+shadow_fetch(struct nvkm_bios *bios, struct shadow *mthd, u32 upto)
 {
-	struct shadow *mthd = (void *)nv_object(bios)->oclass;
 	const u32 limit = (upto + 3) & ~3;
 	const u32 start = bios->size;
 	void *data = mthd->data;
@@ -48,68 +45,47 @@ shadow_fetch(struct nvkm_bios *bios, u32 upto)
 		u32 read = mthd->func->read(data, start, limit - start, bios);
 		bios->size = start + read;
 	}
-	return bios->size >= limit;
+	return bios->size >= upto;
 }
-
-static u8
-shadow_rd08(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	if (shadow_fetch(bios, addr + 1))
-		return bios->data[addr];
-	return 0x00;
-}
-
-static u16
-shadow_rd16(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	if (shadow_fetch(bios, addr + 2))
-		return get_unaligned_le16(&bios->data[addr]);
-	return 0x0000;
-}
-
-static u32
-shadow_rd32(struct nvkm_object *object, u64 addr)
-{
-	struct nvkm_bios *bios = (void *)object;
-	if (shadow_fetch(bios, addr + 4))
-		return get_unaligned_le32(&bios->data[addr]);
-	return 0x00000000;
-}
-
-static struct nvkm_oclass
-shadow_class = {
-	.handle = NV_SUBDEV(VBIOS, 0x00),
-	.ofuncs = &(struct nvkm_ofuncs) {
-		.rd08 = shadow_rd08,
-		.rd16 = shadow_rd16,
-		.rd32 = shadow_rd32,
-	},
-};
 
 static int
-shadow_image(struct nvkm_bios *bios, int idx, struct shadow *mthd)
+shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
 	struct nvbios_image image;
 	int score = 1;
 
-	if (!nvbios_image(bios, idx, &image)) {
-		nv_debug(bios, "image %d invalid\n", idx);
-		return 0;
-	}
-	nv_debug(bios, "%08x: type %02x, %d bytes\n",
-		 image.base, image.type, image.size);
+	if (mthd->func->no_pcir) {
+		image.base = 0;
+		image.type = 0;
+		image.size = mthd->func->size(mthd->data);
+		image.last = 1;
+	} else {
+		if (!shadow_fetch(bios, mthd, offset + 0x1000)) {
+			nvkm_debug(subdev, "%08x: header fetch failed\n",
+				   offset);
+			return 0;
+		}
 
-	if (!shadow_fetch(bios, image.size)) {
-		nv_debug(bios, "%08x: fetch failed\n", image.base);
+		if (!nvbios_image(bios, idx, &image)) {
+			nvkm_debug(subdev, "image %d invalid\n", idx);
+			return 0;
+		}
+	}
+	nvkm_debug(subdev, "%08x: type %02x, %d bytes\n",
+		   image.base, image.type, image.size);
+
+	if (!shadow_fetch(bios, mthd, image.size)) {
+		nvkm_debug(subdev, "%08x: fetch failed\n", image.base);
 		return 0;
 	}
 
 	switch (image.type) {
 	case 0x00:
-		if (nvbios_checksum(&bios->data[image.base], image.size)) {
-			nv_debug(bios, "%08x: checksum failed\n", image.base);
+		if (!mthd->func->ignore_checksum &&
+		    nvbios_checksum(&bios->data[image.base], image.size)) {
+			nvkm_debug(subdev, "%08x: checksum failed\n",
+				   image.base);
 			if (mthd->func->rw)
 				score += 1;
 			score += 1;
@@ -123,28 +99,17 @@ shadow_image(struct nvkm_bios *bios, int idx, struct shadow *mthd)
 	}
 
 	if (!image.last)
-		score += shadow_image(bios, idx + 1, mthd);
+		score += shadow_image(bios, idx + 1, offset + image.size, mthd);
 	return score;
-}
-
-static int
-shadow_score(struct nvkm_bios *bios, struct shadow *mthd)
-{
-	struct nvkm_oclass *oclass = nv_object(bios)->oclass;
-	int score;
-	nv_object(bios)->oclass = &mthd->base;
-	score = shadow_image(bios, 0, mthd);
-	nv_object(bios)->oclass = oclass;
-	return score;
-
 }
 
 static int
 shadow_method(struct nvkm_bios *bios, struct shadow *mthd, const char *name)
 {
 	const struct nvbios_source *func = mthd->func;
+	struct nvkm_subdev *subdev = &bios->subdev;
 	if (func->name) {
-		nv_debug(bios, "trying %s...\n", name ? name : func->name);
+		nvkm_debug(subdev, "trying %s...\n", name ? name : func->name);
 		if (func->init) {
 			mthd->data = func->init(bios, name);
 			if (IS_ERR(mthd->data)) {
@@ -152,10 +117,10 @@ shadow_method(struct nvkm_bios *bios, struct shadow *mthd, const char *name)
 				return 0;
 			}
 		}
-		mthd->score = shadow_score(bios, mthd);
+		mthd->score = shadow_image(bios, 0, 0, mthd);
 		if (func->fini)
 			func->fini(mthd->data);
-		nv_debug(bios, "scored %d\n", mthd->score);
+		nvkm_debug(subdev, "scored %d\n", mthd->score);
 		mthd->data = bios->data;
 		mthd->size = bios->size;
 		bios->data  = NULL;
@@ -178,7 +143,7 @@ shadow_fw_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 shadow_fw_init(struct nvkm_bios *bios, const char *name)
 {
-	struct device *dev = &nv_device(bios)->pdev->dev;
+	struct device *dev = bios->subdev.device->dev;
 	const struct firmware *fw;
 	int ret = request_firmware(&fw, name, dev);
 	if (ret)
@@ -198,22 +163,24 @@ shadow_fw = {
 int
 nvbios_shadow(struct nvkm_bios *bios)
 {
+	struct nvkm_subdev *subdev = &bios->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct shadow mthds[] = {
-		{ shadow_class, 0, &nvbios_of },
-		{ shadow_class, 0, &nvbios_ramin },
-		{ shadow_class, 0, &nvbios_rom },
-		{ shadow_class, 0, &nvbios_acpi_fast },
-		{ shadow_class, 4, &nvbios_acpi_slow },
-		{ shadow_class, 1, &nvbios_pcirom },
-		{ shadow_class, 1, &nvbios_platform },
-		{ shadow_class }
-	}, *mthd = mthds, *best = NULL;
+		{ 0, &nvbios_of },
+		{ 0, &nvbios_ramin },
+		{ 0, &nvbios_rom },
+		{ 0, &nvbios_acpi_fast },
+		{ 4, &nvbios_acpi_slow },
+		{ 1, &nvbios_pcirom },
+		{ 1, &nvbios_platform },
+		{}
+	}, *mthd, *best = NULL;
 	const char *optarg;
 	char *source;
 	int optlen;
 
 	/* handle user-specified bios source */
-	optarg = nvkm_stropt(nv_device(bios)->cfgopt, "NvBios", &optlen);
+	optarg = nvkm_stropt(device->cfgopt, "NvBios", &optlen);
 	source = optarg ? kstrndup(optarg, optlen, GFP_KERNEL) : NULL;
 	if (source) {
 		/* try to match one of the built-in methods */
@@ -234,7 +201,7 @@ nvbios_shadow(struct nvkm_bios *bios)
 		}
 
 		if (!best->score) {
-			nv_error(bios, "%s invalid\n", source);
+			nvkm_error(subdev, "%s invalid\n", source);
 			kfree(source);
 			source = NULL;
 		}
@@ -259,12 +226,12 @@ nvbios_shadow(struct nvkm_bios *bios)
 	}
 
 	if (!best->score) {
-		nv_fatal(bios, "unable to locate usable image\n");
+		nvkm_error(subdev, "unable to locate usable image\n");
 		return -EINVAL;
 	}
 
-	nv_info(bios, "using image from %s\n", best->func ?
-		best->func->name : source);
+	nvkm_debug(subdev, "using image from %s\n", best->func ?
+		   best->func->name : source);
 	bios->data = best->data;
 	bios->size = best->size;
 	kfree(source);

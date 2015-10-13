@@ -46,15 +46,17 @@
 */
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/list.h>
-#include <linux/proc_fs.h>
 #include <linux/io.h>
+#include <linux/ratelimit.h>
 #include "adf_cfg_common.h"
 
-#define PCI_VENDOR_ID_INTEL 0x8086
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
+#define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
+#define ADF_DH895XCCIOV_PCI_DEVICE_ID 0x443
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
@@ -81,6 +83,7 @@ struct adf_bar {
 struct adf_accel_msix {
 	struct msix_entry *entries;
 	char **names;
+	u32 num_entries;
 } __packed;
 
 struct adf_accel_pci {
@@ -101,6 +104,7 @@ enum dev_sku_info {
 	DEV_SKU_2,
 	DEV_SKU_3,
 	DEV_SKU_4,
+	DEV_SKU_VF,
 	DEV_SKU_UNKNOWN,
 };
 
@@ -115,6 +119,8 @@ static inline const char *get_sku_info(enum dev_sku_info info)
 		return "SKU3";
 	case DEV_SKU_4:
 		return "SKU4";
+	case DEV_SKU_VF:
+		return "SKUVF";
 	case DEV_SKU_UNKNOWN:
 	default:
 		break;
@@ -137,23 +143,29 @@ struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	uint32_t (*get_accel_mask)(uint32_t fuse);
 	uint32_t (*get_ae_mask)(uint32_t fuse);
+	uint32_t (*get_sram_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_etr_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_num_aes)(struct adf_hw_device_data *self);
 	uint32_t (*get_num_accels)(struct adf_hw_device_data *self);
+	uint32_t (*get_pf2vf_offset)(uint32_t i);
+	uint32_t (*get_vintmsk_offset)(uint32_t i);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
-	void (*hw_arb_ring_enable)(struct adf_etr_ring_data *ring);
-	void (*hw_arb_ring_disable)(struct adf_etr_ring_data *ring);
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
 	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
 	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
+	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
+	void (*get_arb_mapping)(struct adf_accel_dev *accel_dev,
+				const uint32_t **cfg);
+	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
+	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
-	uint32_t pci_dev_id;
+	const char *fw_mmp_name;
 	uint32_t fuses;
 	uint32_t accel_capabilities_mask;
 	uint16_t accel_mask;
@@ -165,6 +177,7 @@ struct adf_hw_device_data {
 	uint8_t num_accel;
 	uint8_t num_logical_accel;
 	uint8_t num_engines;
+	uint8_t min_iov_compat_ver;
 } __packed;
 
 /* CSR write macro */
@@ -186,6 +199,16 @@ struct icp_qat_fw_loader_handle;
 struct adf_fw_loader_data {
 	struct icp_qat_fw_loader_handle *fw_loader;
 	const struct firmware *uof_fw;
+	const struct firmware *mmp_fw;
+};
+
+struct adf_accel_vf_info {
+	struct adf_accel_dev *accel_dev;
+	struct tasklet_struct vf2pf_bh_tasklet;
+	struct mutex pf2vf_lock; /* protect CSR access for PF2VF messages */
+	struct ratelimit_state vf2pf_ratelimit;
+	u32 vf_nr;
+	bool init;
 };
 
 struct adf_accel_dev {
@@ -201,6 +224,21 @@ struct adf_accel_dev {
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;
+	union {
+		struct {
+			/* vf_info is non-zero when SR-IOV is init'ed */
+			struct adf_accel_vf_info *vf_info;
+		} pf;
+		struct {
+			char *irq_name;
+			struct tasklet_struct pf2vf_bh_tasklet;
+			struct mutex vf2pf_lock; /* protect CSR access */
+			struct completion iov_msg_completion;
+			uint8_t compatible;
+			uint8_t pf_version;
+		} vf;
+	};
+	bool is_vf;
 	uint8_t accel_id;
 } __packed;
 #endif

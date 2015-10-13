@@ -211,7 +211,7 @@ static inline void print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
 static void dump_common_audit_data(struct audit_buffer *ab,
 				   struct common_audit_data *a)
 {
-	struct task_struct *tsk = current;
+	char comm[sizeof(current->comm)];
 
 	/*
 	 * To keep stack sizes in check force programers to notice if they
@@ -220,8 +220,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	 */
 	BUILD_BUG_ON(sizeof(a->u) > sizeof(void *)*2);
 
-	audit_log_format(ab, " pid=%d comm=", task_pid_nr(tsk));
-	audit_log_untrustedstring(ab, tsk->comm);
+	audit_log_format(ab, " pid=%d comm=", task_pid_nr(current));
+	audit_log_untrustedstring(ab, memcpy(comm, current->comm, sizeof(comm)));
 
 	switch (a->type) {
 	case LSM_AUDIT_DATA_NONE:
@@ -237,12 +237,27 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 
 		audit_log_d_path(ab, " path=", &a->u.path);
 
-		inode = a->u.path.dentry->d_inode;
+		inode = d_backing_inode(a->u.path.dentry);
 		if (inode) {
 			audit_log_format(ab, " dev=");
 			audit_log_untrustedstring(ab, inode->i_sb->s_id);
 			audit_log_format(ab, " ino=%lu", inode->i_ino);
 		}
+		break;
+	}
+	case LSM_AUDIT_DATA_IOCTL_OP: {
+		struct inode *inode;
+
+		audit_log_d_path(ab, " path=", &a->u.op->path);
+
+		inode = a->u.op->path.dentry->d_inode;
+		if (inode) {
+			audit_log_format(ab, " dev=");
+			audit_log_untrustedstring(ab, inode->i_sb->s_id);
+			audit_log_format(ab, " ino=%lu", inode->i_ino);
+		}
+
+		audit_log_format(ab, " ioctlcmd=%hx", a->u.op->cmd);
 		break;
 	}
 	case LSM_AUDIT_DATA_DENTRY: {
@@ -251,7 +266,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
 
-		inode = a->u.dentry->d_inode;
+		inode = d_backing_inode(a->u.dentry);
 		if (inode) {
 			audit_log_format(ab, " dev=");
 			audit_log_untrustedstring(ab, inode->i_sb->s_id);
@@ -276,16 +291,19 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " ino=%lu", inode->i_ino);
 		break;
 	}
-	case LSM_AUDIT_DATA_TASK:
-		tsk = a->u.tsk;
+	case LSM_AUDIT_DATA_TASK: {
+		struct task_struct *tsk = a->u.tsk;
 		if (tsk) {
 			pid_t pid = task_pid_nr(tsk);
 			if (pid) {
-				audit_log_format(ab, " pid=%d comm=", pid);
-				audit_log_untrustedstring(ab, tsk->comm);
+				char comm[sizeof(tsk->comm)];
+				audit_log_format(ab, " opid=%d ocomm=", pid);
+				audit_log_untrustedstring(ab,
+				    memcpy(comm, tsk->comm, sizeof(comm)));
 			}
 		}
 		break;
+	}
 	case LSM_AUDIT_DATA_NET:
 		if (a->u.net->sk) {
 			struct sock *sk = a->u.net->sk;

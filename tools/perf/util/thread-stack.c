@@ -219,7 +219,7 @@ static int thread_stack__call_return(struct thread *thread,
 	return crp->process(&cr, crp->data);
 }
 
-static int thread_stack__flush(struct thread *thread, struct thread_stack *ts)
+static int __thread_stack__flush(struct thread *thread, struct thread_stack *ts)
 {
 	struct call_return_processor *crp = ts->crp;
 	int err;
@@ -238,6 +238,14 @@ static int thread_stack__flush(struct thread *thread, struct thread_stack *ts)
 			return err;
 		}
 	}
+
+	return 0;
+}
+
+int thread_stack__flush(struct thread *thread)
+{
+	if (thread->ts)
+		return __thread_stack__flush(thread, thread->ts);
 
 	return 0;
 }
@@ -264,7 +272,7 @@ int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
 	 */
 	if (trace_nr != thread->ts->trace_nr) {
 		if (thread->ts->trace_nr)
-			thread_stack__flush(thread, thread->ts);
+			__thread_stack__flush(thread, thread->ts);
 		thread->ts->trace_nr = trace_nr;
 	}
 
@@ -297,7 +305,7 @@ void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr)
 
 	if (trace_nr != thread->ts->trace_nr) {
 		if (thread->ts->trace_nr)
-			thread_stack__flush(thread, thread->ts);
+			__thread_stack__flush(thread, thread->ts);
 		thread->ts->trace_nr = trace_nr;
 	}
 }
@@ -305,7 +313,7 @@ void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr)
 void thread_stack__free(struct thread *thread)
 {
 	if (thread->ts) {
-		thread_stack__flush(thread, thread->ts);
+		__thread_stack__flush(thread, thread->ts);
 		zfree(&thread->ts->stack);
 		zfree(&thread->ts);
 	}
@@ -689,7 +697,7 @@ int thread_stack__process(struct thread *thread, struct comm *comm,
 
 	/* Flush stack on exec */
 	if (ts->comm != comm && thread->pid_ == thread->tid) {
-		err = thread_stack__flush(thread, ts);
+		err = __thread_stack__flush(thread, ts);
 		if (err)
 			return err;
 		ts->comm = comm;

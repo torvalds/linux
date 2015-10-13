@@ -144,33 +144,60 @@ static void __init uv_set_apicid_hibit(void)
 
 static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	int pnodeid, is_uv1, is_uv2, is_uv3;
+	int pnodeid;
+	int uv_apic;
 
-	is_uv1 = !strcmp(oem_id, "SGI");
-	is_uv2 = !strcmp(oem_id, "SGI2");
-	is_uv3 = !strncmp(oem_id, "SGI3", 4);	/* there are varieties of UV3 */
-	if (is_uv1 || is_uv2 || is_uv3) {
-		uv_hub_info->hub_revision =
-			(is_uv1 ? UV1_HUB_REVISION_BASE :
-			(is_uv2 ? UV2_HUB_REVISION_BASE :
-				  UV3_HUB_REVISION_BASE));
-		pnodeid = early_get_pnodeid();
-		early_get_apic_pnode_shift();
-		x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
-		x86_platform.nmi_init = uv_nmi_init;
-		if (!strcmp(oem_table_id, "UVL"))
-			uv_system_type = UV_LEGACY_APIC;
-		else if (!strcmp(oem_table_id, "UVX"))
-			uv_system_type = UV_X2APIC;
-		else if (!strcmp(oem_table_id, "UVH")) {
-			__this_cpu_write(x2apic_extra_bits,
-				pnodeid << uvh_apicid.s.pnode_shift);
-			uv_system_type = UV_NON_UNIQUE_APIC;
-			uv_set_apicid_hibit();
-			return 1;
-		}
+	if (strncmp(oem_id, "SGI", 3) != 0)
+		return 0;
+
+	/*
+	 * Determine UV arch type.
+	 *   SGI: UV100/1000
+	 *   SGI2: UV2000/3000
+	 *   SGI3: UV300 (truncated to 4 chars because of different varieties)
+	 */
+	uv_hub_info->hub_revision =
+		!strncmp(oem_id, "SGI3", 4) ? UV3_HUB_REVISION_BASE :
+		!strcmp(oem_id, "SGI2") ? UV2_HUB_REVISION_BASE :
+		!strcmp(oem_id, "SGI") ? UV1_HUB_REVISION_BASE : 0;
+
+	if (uv_hub_info->hub_revision == 0)
+		goto badbios;
+
+	pnodeid = early_get_pnodeid();
+	early_get_apic_pnode_shift();
+	x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
+	x86_platform.nmi_init = uv_nmi_init;
+
+	if (!strcmp(oem_table_id, "UVX")) {		/* most common */
+		uv_system_type = UV_X2APIC;
+		uv_apic = 0;
+
+	} else if (!strcmp(oem_table_id, "UVH")) {	/* only UV1 systems */
+		uv_system_type = UV_NON_UNIQUE_APIC;
+		__this_cpu_write(x2apic_extra_bits,
+			pnodeid << uvh_apicid.s.pnode_shift);
+		uv_set_apicid_hibit();
+		uv_apic = 1;
+
+	} else	if (!strcmp(oem_table_id, "UVL")) {	/* only used for */
+		uv_system_type = UV_LEGACY_APIC;	/* very small systems */
+		uv_apic = 0;
+
+	} else {
+		goto badbios;
 	}
-	return 0;
+
+	pr_info("UV: OEM IDs %s/%s, System/HUB Types %d/%d, uv_apic %d\n",
+		oem_id, oem_table_id, uv_system_type,
+		uv_min_hub_revision_id, uv_apic);
+
+	return uv_apic;
+
+badbios:
+	pr_err("UV: OEM_ID:%s OEM_TABLE_ID:%s\n", oem_id, oem_table_id);
+	pr_err("Current BIOS not supported, update kernel and/or BIOS\n");
+	BUG();
 }
 
 enum uv_system_type get_uv_system_type(void)
@@ -221,7 +248,6 @@ static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 	    APIC_DM_STARTUP;
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 
-	atomic_set(&init_deasserted, 1);
 	return 0;
 }
 
@@ -387,7 +413,6 @@ static struct apic __refdata apic_x2apic_uv_x = {
 	.send_IPI_self			= uv_send_IPI_self,
 
 	.wakeup_secondary_cpu		= uv_wakeup_secondary,
-	.wait_for_init_deassert		= false,
 	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_msr_read,
@@ -854,10 +879,14 @@ void __init uv_system_init(void)
 	unsigned long mmr_base, present, paddr;
 	unsigned short pnode_mask;
 	unsigned char n_lshift;
-	char *hub = (is_uv1_hub() ? "UV1" :
-		    (is_uv2_hub() ? "UV2" :
-				    "UV3"));
+	char *hub = (is_uv1_hub() ? "UV100/1000" :
+		    (is_uv2_hub() ? "UV2000/3000" :
+		    (is_uv3_hub() ? "UV300" : NULL)));
 
+	if (!hub) {
+		pr_err("UV: Unknown/unsupported UV hub\n");
+		return;
+	}
 	pr_info("UV: Found %s hub\n", hub);
 	map_low_mmrs();
 

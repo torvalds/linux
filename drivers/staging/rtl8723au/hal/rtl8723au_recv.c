@@ -48,7 +48,7 @@ int rtl8723au_init_recv_priv(struct rtw_adapter *padapter)
 	if (!precvpriv->precv_buf) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-			 ("alloc recv_buf fail!\n"));
+			 "alloc recv_buf fail!\n");
 		goto exit;
 	}
 
@@ -194,8 +194,8 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	bool matchbssid = false;
 	u8 *bssid;
 
-	matchbssid = (!ieee80211_is_ctl(hdr->frame_control) &&
-		      !pattrib->icv_err && !pattrib->crc_err);
+	matchbssid = !ieee80211_is_ctl(hdr->frame_control) &&
+		      !pattrib->icv_err && !pattrib->crc_err;
 
 	if (matchbssid) {
 		switch (hdr->frame_control &

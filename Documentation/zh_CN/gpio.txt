@@ -638,9 +638,6 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 	int gpio_export_link(struct device *dev, const char *name,
 		unsigned gpio)
 
-	/* 改变 sysfs 中的一个 GPIO 节点的极性 */
-	int gpio_sysfs_set_active_low(unsigned gpio, int value);
-
 在一个内核驱动申请一个 GPIO 之后，它可以通过 gpio_export()使其在 sysfs
 接口中可见。该驱动可以控制信号方向是否可修改。这有助于防止用户空间代码无意间
 破坏重要的系统状态。
@@ -651,8 +648,3 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 在 GPIO 被导出之后，gpio_export_link()允许在 sysfs 文件系统的任何地方
 创建一个到这个 GPIO sysfs 节点的符号链接。这样驱动就可以通过一个描述性的
 名字，在 sysfs 中他们所拥有的设备下提供一个(到这个 GPIO sysfs 节点的)接口。
-
-驱动可以使用 gpio_sysfs_set_active_low() 来在用户空间隐藏电路板之间
-GPIO 线的极性差异。这个仅对 sysfs 接口起作用。极性的改变可以在 gpio_export()
-前后进行,且之前使能的轮询操作(poll(2))支持(上升或下降沿)将会被重新配置来遵循
-这个设置。

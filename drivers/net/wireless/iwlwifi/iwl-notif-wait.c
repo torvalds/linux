@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -98,7 +99,8 @@ void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
 				continue;
 
 			for (i = 0; i < w->n_cmds; i++) {
-				if (w->cmds[i] == pkt->hdr.cmd) {
+				if (w->cmds[i] ==
+				    WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)) {
 					found = true;
 					break;
 				}
@@ -136,7 +138,7 @@ IWL_EXPORT_SYMBOL(iwl_abort_notification_waits);
 void
 iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 			   struct iwl_notification_wait *wait_entry,
-			   const u8 *cmds, int n_cmds,
+			   const u16 *cmds, int n_cmds,
 			   bool (*fn)(struct iwl_notif_wait_data *notif_wait,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data)
@@ -147,7 +149,7 @@ iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 	wait_entry->fn = fn;
 	wait_entry->fn_data = fn_data;
 	wait_entry->n_cmds = n_cmds;
-	memcpy(wait_entry->cmds, cmds, n_cmds);
+	memcpy(wait_entry->cmds, cmds, n_cmds * sizeof(u16));
 	wait_entry->triggered = false;
 	wait_entry->aborted = false;
 

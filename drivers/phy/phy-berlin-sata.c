@@ -176,7 +176,7 @@ static struct phy *phy_berlin_sata_phy_xlate(struct device *dev,
 	return priv->phys[i]->phy;
 }
 
-static struct phy_ops phy_berlin_sata_ops = {
+static const struct phy_ops phy_berlin_sata_ops = {
 	.power_on	= phy_berlin_sata_power_on,
 	.power_off	= phy_berlin_sata_power_off,
 	.owner		= THIS_MODULE,
@@ -218,7 +218,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (priv->nphys == 0)
 		return -ENODEV;
 
-	priv->phys = devm_kzalloc(dev, priv->nphys * sizeof(*priv->phys),
+	priv->phys = devm_kcalloc(dev, priv->nphys, sizeof(*priv->phys),
 				  GFP_KERNEL);
 	if (!priv->phys)
 		return -ENOMEM;
@@ -276,6 +276,7 @@ static const struct of_device_id phy_berlin_sata_of_match[] = {
 	{ .compatible = "marvell,berlin2q-sata-phy" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, phy_berlin_sata_of_match);
 
 static struct platform_driver phy_berlin_sata_driver = {
 	.probe	= phy_berlin_sata_probe,

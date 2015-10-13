@@ -97,7 +97,8 @@ static inline u8 tda8083_readreg (struct tda8083_state* state, u8 reg)
 	return val;
 }
 
-static int tda8083_set_inversion (struct tda8083_state* state, fe_spectral_inversion_t inversion)
+static int tda8083_set_inversion(struct tda8083_state *state,
+				 enum fe_spectral_inversion inversion)
 {
 	/*  XXX FIXME: implement other modes than FEC_AUTO */
 	if (inversion == INVERSION_AUTO)
@@ -106,7 +107,7 @@ static int tda8083_set_inversion (struct tda8083_state* state, fe_spectral_inver
 	return -EINVAL;
 }
 
-static int tda8083_set_fec (struct tda8083_state* state, fe_code_rate_t fec)
+static int tda8083_set_fec(struct tda8083_state *state, enum fe_code_rate fec)
 {
 	if (fec == FEC_AUTO)
 		return tda8083_writereg (state, 0x07, 0xff);
@@ -117,11 +118,13 @@ static int tda8083_set_fec (struct tda8083_state* state, fe_code_rate_t fec)
 	return -EINVAL;
 }
 
-static fe_code_rate_t tda8083_get_fec (struct tda8083_state* state)
+static enum fe_code_rate tda8083_get_fec(struct tda8083_state *state)
 {
 	u8 index;
-	static fe_code_rate_t fec_tab [] = { FEC_8_9, FEC_1_2, FEC_2_3, FEC_3_4,
-				       FEC_4_5, FEC_5_6, FEC_6_7, FEC_7_8 };
+	static enum fe_code_rate fec_tab[] = {
+		FEC_8_9, FEC_1_2, FEC_2_3, FEC_3_4,
+		FEC_4_5, FEC_5_6, FEC_6_7, FEC_7_8
+	};
 
 	index = tda8083_readreg(state, 0x0e) & 0x07;
 
@@ -178,7 +181,8 @@ static void tda8083_wait_diseqc_fifo (struct tda8083_state* state, int timeout)
 	}
 }
 
-static int tda8083_set_tone (struct tda8083_state* state, fe_sec_tone_mode_t tone)
+static int tda8083_set_tone(struct tda8083_state *state,
+			    enum fe_sec_tone_mode tone)
 {
 	tda8083_writereg (state, 0x26, 0xf1);
 
@@ -192,7 +196,8 @@ static int tda8083_set_tone (struct tda8083_state* state, fe_sec_tone_mode_t ton
 	}
 }
 
-static int tda8083_set_voltage (struct tda8083_state* state, fe_sec_voltage_t voltage)
+static int tda8083_set_voltage(struct tda8083_state *state,
+			       enum fe_sec_voltage voltage)
 {
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
@@ -204,7 +209,8 @@ static int tda8083_set_voltage (struct tda8083_state* state, fe_sec_voltage_t vo
 	}
 }
 
-static int tda8083_send_diseqc_burst (struct tda8083_state* state, fe_sec_mini_cmd_t burst)
+static int tda8083_send_diseqc_burst(struct tda8083_state *state,
+				     enum fe_sec_mini_cmd burst)
 {
 	switch (burst) {
 	case SEC_MINI_A:
@@ -222,8 +228,8 @@ static int tda8083_send_diseqc_burst (struct tda8083_state* state, fe_sec_mini_c
 	return 0;
 }
 
-static int tda8083_send_diseqc_msg (struct dvb_frontend* fe,
-				    struct dvb_diseqc_master_cmd *m)
+static int tda8083_send_diseqc_msg(struct dvb_frontend *fe,
+				   struct dvb_diseqc_master_cmd *m)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 	int i;
@@ -240,7 +246,8 @@ static int tda8083_send_diseqc_msg (struct dvb_frontend* fe,
 	return 0;
 }
 
-static int tda8083_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int tda8083_read_status(struct dvb_frontend *fe,
+			       enum fe_status *status)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 
@@ -372,7 +379,8 @@ static int tda8083_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int tda8083_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
+static int tda8083_diseqc_send_burst(struct dvb_frontend *fe,
+				     enum fe_sec_mini_cmd burst)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 
@@ -383,7 +391,8 @@ static int tda8083_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 	return 0;
 }
 
-static int tda8083_diseqc_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int tda8083_diseqc_set_tone(struct dvb_frontend *fe,
+				   enum fe_sec_tone_mode tone)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 
@@ -394,7 +403,8 @@ static int tda8083_diseqc_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t t
 	return 0;
 }
 
-static int tda8083_diseqc_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int tda8083_diseqc_set_voltage(struct dvb_frontend *fe,
+				      enum fe_sec_voltage voltage)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 

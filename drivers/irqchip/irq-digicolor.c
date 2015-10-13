@@ -12,6 +12,7 @@
 
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -19,8 +20,6 @@
 #include <linux/regmap.h>
 
 #include <asm/exception.h>
-
-#include "irqchip.h"
 
 #define UC_IRQ_CONTROL		0x04
 
@@ -55,8 +54,8 @@ static void __exception_irq_entry digicolor_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-static void digicolor_set_gc(void __iomem *reg_base, unsigned irq_base,
-			     unsigned en_reg, unsigned ack_reg)
+static void __init digicolor_set_gc(void __iomem *reg_base, unsigned irq_base,
+				    unsigned en_reg, unsigned ack_reg)
 {
 	struct irq_chip_generic *gc;
 

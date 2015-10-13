@@ -178,6 +178,7 @@ typedef enum {
 typedef union {
 	uint64_t u64;
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/*
 		 * Don't reschedule this entry. no_sched is used for
 		 * CVMX_POW_TAG_OP_SWTAG_DESCH and
@@ -217,6 +218,17 @@ typedef union {
 		 * CVMX_POW_TAG_OP_*_NSCHED
 		 */
 		uint64_t tag:32;
+#else
+		uint64_t tag:32;
+		uint64_t type:3;
+		uint64_t grp:4;
+		uint64_t qos:3;
+		uint64_t unused2:2;
+		cvmx_pow_tag_op_t op:4;
+		uint64_t index:13;
+		uint64_t unused:2;
+		uint64_t no_sched:1;
+#endif
 	} s;
 } cvmx_pow_tag_req_t;
 
@@ -230,6 +242,7 @@ typedef union {
      * Address for new work request loads (did<2:0> == 0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Mips64 address region. Should be CVMX_IO_SEG */
 		uint64_t mem_region:2;
 		/* Must be zero */
@@ -247,12 +260,22 @@ typedef union {
 		uint64_t wait:1;
 		/* Must be zero */
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t wait:1;
+		uint64_t reserved_4_39:36;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t reserved_49_61:13;
+		uint64_t mem_region:2;
+#endif
 	} swork;
 
     /**
      * Address for loads to get POW internal status
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Mips64 address region. Should be CVMX_IO_SEG */
 		uint64_t mem_region:2;
 		/* Must be zero */
@@ -282,12 +305,25 @@ typedef union {
 		uint64_t get_wqp:1;
 		/* Must be zero */
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t get_wqp:1;
+		uint64_t get_cur:1;
+		uint64_t get_rev:1;
+		uint64_t coreid:4;
+		uint64_t reserved_10_39:30;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t reserved_49_61:13;
+		uint64_t mem_region:2;
+#endif
 	} sstatus;
 
     /**
      * Address for memory loads to get POW internal state
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Mips64 address region. Should be CVMX_IO_SEG */
 		uint64_t mem_region:2;
 		/* Must be zero */
@@ -314,12 +350,24 @@ typedef union {
 		uint64_t get_wqp:1;
 		/* Must be zero */
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t get_wqp:1;
+		uint64_t get_des:1;
+		uint64_t index:11;
+		uint64_t reserved_16_39:24;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t reserved_49_61:13;
+		uint64_t mem_region:2;
+#endif
 	} smemload;
 
     /**
      * Address for index/pointer loads
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Mips64 address region. Should be CVMX_IO_SEG */
 		uint64_t mem_region:2;
 		/* Must be zero */
@@ -366,6 +414,17 @@ typedef union {
 		uint64_t get_rmt:1;
 		/* Must be zero */
 		uint64_t reserved_0_2:3;
+#else
+		uint64_t reserved_0_2:3;
+		uint64_t get_rmt:1;
+		uint64_t get_des_get_tail:1;
+		uint64_t qosgrp:4;
+		uint64_t reserved_9_39:31;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t reserved_49_61:13;
+		uint64_t mem_region:2;
+#endif
 	} sindexload;
 
     /**
@@ -377,6 +436,7 @@ typedef union {
      * available.)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Mips64 address region. Should be CVMX_IO_SEG */
 		uint64_t mem_region:2;
 		/* Must be zero */
@@ -387,6 +447,13 @@ typedef union {
 		uint64_t did:8;
 		/* Must be zero */
 		uint64_t reserved_0_39:40;
+#else
+		uint64_t reserved_0_39:40;
+		uint64_t did:8;
+		uint64_t is_io:1;
+		uint64_t reserved_49_61:13;
+		uint64_t mem_region:2;
+#endif
 	} snull_rd;
 } cvmx_pow_load_addr_t;
 
@@ -401,6 +468,7 @@ typedef union {
      * Response to new work request loads
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/*
 		 * Set when no new work queue entry was returned.  *
 		 * If there was de-scheduled work, the HW will
@@ -419,12 +487,18 @@ typedef union {
 		uint64_t reserved_40_62:23;
 		/* 36 in O1 -- the work queue pointer */
 		uint64_t addr:40;
+#else
+		uint64_t addr:40;
+		uint64_t reserved_40_62:23;
+		uint64_t no_work:1;
+#endif
 	} s_work;
 
     /**
      * Result for a POW Status Load (when get_cur==0 and get_wqp==0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/* Set when there is a pending non-NULL SWTAG or
 		 * SWTAG_FULL, and the POW entry has not left the list
@@ -476,12 +550,32 @@ typedef union {
 		 *    AND pend_desched_switch) are set.
 		 */
 		uint64_t pend_tag:32;
+#else
+		uint64_t pend_tag:32;
+		uint64_t pend_type:2;
+		uint64_t reserved_34_35:2;
+		uint64_t pend_grp:4;
+		uint64_t pend_index:11;
+		uint64_t reserved_51:1;
+		uint64_t pend_nosched_clr:1;
+		uint64_t pend_null_rd:1;
+		uint64_t pend_new_work_wait:1;
+		uint64_t pend_new_work:1;
+		uint64_t pend_nosched:1;
+		uint64_t pend_desched_switch:1;
+		uint64_t pend_desched:1;
+		uint64_t pend_switch_null:1;
+		uint64_t pend_switch_full:1;
+		uint64_t pend_switch:1;
+		uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus0;
 
     /**
      * Result for a POW Status Load (when get_cur==0 and get_wqp==1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
 		 * Set when there is a pending non-NULL SWTAG or
@@ -529,6 +623,23 @@ typedef union {
 		uint64_t pend_grp:4;
 		/* This is the wqp when pend_nosched_clr is set. */
 		uint64_t pend_wqp:36;
+#else
+	        uint64_t pend_wqp:36;
+	        uint64_t pend_grp:4;
+	        uint64_t pend_index:11;
+	        uint64_t reserved_51:1;
+	        uint64_t pend_nosched_clr:1;
+	        uint64_t pend_null_rd:1;
+	        uint64_t pend_new_work_wait:1;
+	        uint64_t pend_new_work:1;
+	        uint64_t pend_nosched:1;
+	        uint64_t pend_desched_switch:1;
+	        uint64_t pend_desched:1;
+	        uint64_t pend_switch_null:1;
+	        uint64_t pend_switch_full:1;
+	        uint64_t pend_switch:1;
+	        uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus1;
 
     /**
@@ -536,6 +647,7 @@ typedef union {
      * get_rev==0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the next POW entry in the tag list when
@@ -573,12 +685,23 @@ typedef union {
 		 * SWTAG_DESCHED).
 		 */
 		uint64_t tag:32;
+#else
+	        uint64_t tag:32;
+	        uint64_t tag_type:2;
+	        uint64_t tail:1;
+	        uint64_t head:1;
+	        uint64_t grp:4;
+	        uint64_t index:11;
+	        uint64_t link_index:11;
+	        uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus2;
 
     /**
      * Result for a POW Status Load (when get_cur==1, get_wqp==0, and get_rev==1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the prior POW entry in the tag list when
@@ -617,6 +740,16 @@ typedef union {
 		 * SWTAG_DESCHED).
 		 */
 		uint64_t tag:32;
+#else
+	        uint64_t tag:32;
+	        uint64_t tag_type:2;
+	        uint64_t tail:1;
+	        uint64_t head:1;
+	        uint64_t grp:4;
+	        uint64_t index:11;
+	        uint64_t revlink_index:11;
+	        uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus3;
 
     /**
@@ -624,6 +757,7 @@ typedef union {
      * get_rev==0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the next POW entry in the tag list when
@@ -642,6 +776,13 @@ typedef union {
 		 * list entered on SWTAG_FULL).
 		 */
 		uint64_t wqp:36;
+#else
+	        uint64_t wqp:36;
+	        uint64_t grp:4;
+	        uint64_t index:11;
+	        uint64_t link_index:11;
+	        uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus4;
 
     /**
@@ -649,6 +790,7 @@ typedef union {
      * get_rev==1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the prior POW entry in the tag list when
@@ -669,12 +811,20 @@ typedef union {
 		 * list entered on SWTAG_FULL).
 		 */
 		uint64_t wqp:36;
+#else
+	        uint64_t wqp:36;
+	        uint64_t grp:4;
+	        uint64_t index:11;
+	        uint64_t revlink_index:11;
+	        uint64_t reserved_62_63:2;
+#endif
 	} s_sstatus5;
 
     /**
      * Result For POW Memory Load (get_des == 0 and get_wqp == 0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_51_63:13;
 		/*
 		 * The next entry in the input, free, descheduled_head
@@ -695,12 +845,22 @@ typedef union {
 		uint64_t tag_type:2;
 		/* The tag of the POW entry. */
 		uint64_t tag:32;
+#else
+	        uint64_t tag:32;
+	        uint64_t tag_type:2;
+	        uint64_t tail:1;
+	        uint64_t reserved_35:1;
+	        uint64_t grp:4;
+	        uint64_t next_index:11;
+	        uint64_t reserved_51_63:13;
+#endif
 	} s_smemload0;
 
     /**
      * Result For POW Memory Load (get_des == 0 and get_wqp == 1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_51_63:13;
 		/*
 		 * The next entry in the input, free, descheduled_head
@@ -712,12 +872,19 @@ typedef union {
 		uint64_t grp:4;
 		/* The WQP held in the POW entry. */
 		uint64_t wqp:36;
+#else
+	        uint64_t wqp:36;
+	        uint64_t grp:4;
+	        uint64_t next_index:11;
+	        uint64_t reserved_51_63:13;
+#endif
 	} s_smemload1;
 
     /**
      * Result For POW Memory Load (get_des == 1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_51_63:13;
 		/*
 		 * The next entry in the tag list connected to the
@@ -740,12 +907,22 @@ typedef union {
 		 * is set.
 		 */
 		uint64_t pend_tag:32;
+#else
+	        uint64_t pend_tag:32;
+	        uint64_t pend_type:2;
+	        uint64_t pend_switch:1;
+	        uint64_t nosched:1;
+	        uint64_t grp:4;
+	        uint64_t fwd_index:11;
+	        uint64_t reserved_51_63:13;
+#endif
 	} s_smemload2;
 
     /**
      * Result For POW Index/Pointer Load (get_rmt == 0/get_des_get_tail == 0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_52_63:12;
 		/*
 		 * set when there is one or more POW entries on the
@@ -791,12 +968,28 @@ typedef union {
 		 * the input Q list selected by qosgrp.
 		 */
 		uint64_t loc_tail:11;
+#else
+	        uint64_t loc_tail:11;
+	        uint64_t reserved_11:1;
+	        uint64_t loc_head:11;
+	        uint64_t reserved_23:1;
+	        uint64_t loc_one:1;
+	        uint64_t loc_val:1;
+	        uint64_t free_tail:11;
+	        uint64_t reserved_37:1;
+	        uint64_t free_head:11;
+	        uint64_t reserved_49:1;
+	        uint64_t free_one:1;
+	        uint64_t free_val:1;
+	        uint64_t reserved_52_63:12;
+#endif
 	} sindexload0;
 
     /**
      * Result For POW Index/Pointer Load (get_rmt == 0/get_des_get_tail == 1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_52_63:12;
 		/*
 		 * set when there is one or more POW entries on the
@@ -843,12 +1036,28 @@ typedef union {
 		 * head on the descheduled list selected by qosgrp.
 		 */
 		uint64_t des_tail:11;
+#else
+	        uint64_t des_tail:11;
+	        uint64_t reserved_11:1;
+	        uint64_t des_head:11;
+	        uint64_t reserved_23:1;
+	        uint64_t des_one:1;
+	        uint64_t des_val:1;
+	        uint64_t nosched_tail:11;
+	        uint64_t reserved_37:1;
+	        uint64_t nosched_head:11;
+	        uint64_t reserved_49:1;
+	        uint64_t nosched_one:1;
+	        uint64_t nosched_val:1;
+	        uint64_t reserved_52_63:12;
+#endif
 	} sindexload1;
 
     /**
      * Result For POW Index/Pointer Load (get_rmt == 1/get_des_get_tail == 0)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_39_63:25;
 		/*
 		 * Set when this DRAM list is the current head
@@ -877,6 +1086,13 @@ typedef union {
 		 * qosgrp.
 		 */
 		uint64_t rmt_head:36;
+#else
+	        uint64_t rmt_head:36;
+	        uint64_t rmt_one:1;
+	        uint64_t rmt_val:1;
+	        uint64_t rmt_is_head:1;
+	        uint64_t reserved_39_63:25;
+#endif
 	} sindexload2;
 
     /**
@@ -884,6 +1100,7 @@ typedef union {
      * 1/get_des_get_tail == 1)
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_39_63:25;
 		/*
 		 * set when this DRAM list is the current head
@@ -912,12 +1129,20 @@ typedef union {
 		 * qosgrp.
 		 */
 		uint64_t rmt_tail:36;
+#else
+	        uint64_t rmt_tail:36;
+	        uint64_t rmt_one:1;
+	        uint64_t rmt_val:1;
+	        uint64_t rmt_is_head:1;
+	        uint64_t reserved_39_63:25;
+#endif
 	} sindexload3;
 
     /**
      * Response to NULL_RD request loads
      */
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t unused:62;
 		/* of type cvmx_pow_tag_type_t. state is one of the
 		 * following:
@@ -928,6 +1153,10 @@ typedef union {
 		 * - CVMX_POW_TAG_TYPE_NULL_NULL
 		 */
 		uint64_t state:2;
+#else
+	        uint64_t state:2;
+	        uint64_t unused:62;
+#endif
 	} s_null_rd;
 
 } cvmx_pow_tag_load_resp_t;
@@ -962,6 +1191,7 @@ typedef union {
 	uint64_t u64;
 
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/* Memory region.  Should be CVMX_IO_SEG in most cases */
 		uint64_t mem_reg:2;
 		uint64_t reserved_49_61:13;	/* Must be zero */
@@ -971,6 +1201,14 @@ typedef union {
 		uint64_t reserved_36_39:4;	/* Must be zero */
 		/* Address field. addr<2:0> must be zero */
 		uint64_t addr:36;
+#else
+	        uint64_t addr:36;
+	        uint64_t reserved_36_39:4;
+	        uint64_t did:8;
+	        uint64_t is_io:1;
+	        uint64_t reserved_49_61:13;
+	        uint64_t mem_reg:2;
+#endif
 	} stag;
 } cvmx_pow_tag_store_addr_t;
 
@@ -981,6 +1219,7 @@ typedef union {
 	uint64_t u64;
 
 	struct {
+#ifdef __BIG_ENDIAN_BITFIELD
 		/*
 		 * the (64-bit word) location in scratchpad to write
 		 * to (if len != 0)
@@ -994,6 +1233,14 @@ typedef union {
 		/* if set, don't return load response until work is available */
 		uint64_t wait:1;
 		uint64_t unused2:3;
+#else
+	        uint64_t unused2:3;
+	        uint64_t wait:1;
+	        uint64_t unused:36;
+	        uint64_t did:8;
+	        uint64_t len:8;
+	        uint64_t scraddr:8;
+#endif
 	} s;
 
 } cvmx_pow_iobdma_store_t;
@@ -1563,10 +1810,11 @@ static inline void cvmx_pow_work_submit(cvmx_wqe_t *wqp, uint32_t tag,
 	cvmx_addr_t ptr;
 	cvmx_pow_tag_req_t tag_req;
 
-	wqp->qos = qos;
-	wqp->tag = tag;
-	wqp->tag_type = tag_type;
-	wqp->grp = grp;
+	wqp->word1.tag = tag;
+	wqp->word1.tag_type = tag_type;
+
+	cvmx_wqe_set_qos(wqp, qos);
+	cvmx_wqe_set_grp(wqp, grp);
 
 	tag_req.u64 = 0;
 	tag_req.s.op = CVMX_POW_TAG_OP_ADDWQ;

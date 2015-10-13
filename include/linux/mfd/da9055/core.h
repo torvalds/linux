@@ -89,6 +89,6 @@ static inline int da9055_reg_update(struct da9055 *da9055, unsigned char reg,
 int da9055_device_init(struct da9055 *da9055);
 void da9055_device_exit(struct da9055 *da9055);
 
-extern struct regmap_config da9055_regmap_config;
+extern const struct regmap_config da9055_regmap_config;
 
 #endif /* __DA9055_CORE_H */

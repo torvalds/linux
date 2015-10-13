@@ -27,41 +27,6 @@
 #include "cifsglob.h"
 #include "cifs_debug.h"
 
-/*
- * cifs_utf16_bytes - how long will a string be after conversion?
- * @utf16 - pointer to input string
- * @maxbytes - don't go past this many bytes of input string
- * @codepage - destination codepage
- *
- * Walk a utf16le string and return the number of bytes that the string will
- * be after being converted to the given charset, not including any null
- * termination required. Don't walk past maxbytes in the source buffer.
- */
-int
-cifs_utf16_bytes(const __le16 *from, int maxbytes,
-		const struct nls_table *codepage)
-{
-	int i;
-	int charlen, outlen = 0;
-	int maxwords = maxbytes / 2;
-	char tmp[NLS_MAX_CHARSET_SIZE];
-	__u16 ftmp;
-
-	for (i = 0; i < maxwords; i++) {
-		ftmp = get_unaligned_le16(&from[i]);
-		if (ftmp == 0)
-			break;
-
-		charlen = codepage->uni2char(ftmp, tmp, NLS_MAX_CHARSET_SIZE);
-		if (charlen > 0)
-			outlen += charlen;
-		else
-			outlen++;
-	}
-
-	return outlen;
-}
-
 int cifs_remap(struct cifs_sb_info *cifs_sb)
 {
 	int map_type;
@@ -155,10 +120,13 @@ convert_sfm_char(const __u16 src_char, char *target)
  * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
  */
 static int
-cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
+cifs_mapchar(char *target, const __u16 *from, const struct nls_table *cp,
 	     int maptype)
 {
 	int len = 1;
+	__u16 src_char;
+
+	src_char = *from;
 
 	if ((maptype == SFM_MAP_UNI_RSVD) && convert_sfm_char(src_char, target))
 		return len;
@@ -168,10 +136,23 @@ cifs_mapchar(char *target, const __u16 src_char, const struct nls_table *cp,
 
 	/* if character not one of seven in special remap set */
 	len = cp->uni2char(src_char, target, NLS_MAX_CHARSET_SIZE);
-	if (len <= 0) {
-		*target = '?';
-		len = 1;
-	}
+	if (len <= 0)
+		goto surrogate_pair;
+
+	return len;
+
+surrogate_pair:
+	/* convert SURROGATE_PAIR and IVS */
+	if (strcmp(cp->charset, "utf8"))
+		goto unknown;
+	len = utf16s_to_utf8s(from, 3, UTF16_LITTLE_ENDIAN, target, 6);
+	if (len <= 0)
+		goto unknown;
+	return len;
+
+unknown:
+	*target = '?';
+	len = 1;
 	return len;
 }
 
@@ -206,7 +187,7 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 	int nullsize = nls_nullsize(codepage);
 	int fromwords = fromlen / 2;
 	char tmp[NLS_MAX_CHARSET_SIZE];
-	__u16 ftmp;
+	__u16 ftmp[3];		/* ftmp[3] = 3array x 2bytes = 6bytes UTF-16 */
 
 	/*
 	 * because the chars can be of varying widths, we need to take care
@@ -217,9 +198,17 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 	safelen = tolen - (NLS_MAX_CHARSET_SIZE + nullsize);
 
 	for (i = 0; i < fromwords; i++) {
-		ftmp = get_unaligned_le16(&from[i]);
-		if (ftmp == 0)
+		ftmp[0] = get_unaligned_le16(&from[i]);
+		if (ftmp[0] == 0)
 			break;
+		if (i + 1 < fromwords)
+			ftmp[1] = get_unaligned_le16(&from[i + 1]);
+		else
+			ftmp[1] = 0;
+		if (i + 2 < fromwords)
+			ftmp[2] = get_unaligned_le16(&from[i + 2]);
+		else
+			ftmp[2] = 0;
 
 		/*
 		 * check to see if converting this character might make the
@@ -234,6 +223,17 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 		/* put converted char into 'to' buffer */
 		charlen = cifs_mapchar(&to[outlen], ftmp, codepage, map_type);
 		outlen += charlen;
+
+		/* charlen (=bytes of UTF-8 for 1 character)
+		 * 4bytes UTF-8(surrogate pair) is charlen=4
+		 *   (4bytes UTF-16 code)
+		 * 7-8bytes UTF-8(IVS) is charlen=3+4 or 4+4
+		 *   (2 UTF-8 pairs divided to 2 UTF-16 pairs) */
+		if (charlen == 4)
+			i++;
+		else if (charlen >= 5)
+			/* 5-6bytes UTF-8 */
+			i += 2;
 	}
 
 	/* properly null-terminate string */
@@ -293,6 +293,46 @@ cifs_strtoUTF16(__le16 *to, const char *from, int len,
 success:
 	put_unaligned_le16(0, &to[i]);
 	return i;
+}
+
+/*
+ * cifs_utf16_bytes - how long will a string be after conversion?
+ * @utf16 - pointer to input string
+ * @maxbytes - don't go past this many bytes of input string
+ * @codepage - destination codepage
+ *
+ * Walk a utf16le string and return the number of bytes that the string will
+ * be after being converted to the given charset, not including any null
+ * termination required. Don't walk past maxbytes in the source buffer.
+ */
+int
+cifs_utf16_bytes(const __le16 *from, int maxbytes,
+		const struct nls_table *codepage)
+{
+	int i;
+	int charlen, outlen = 0;
+	int maxwords = maxbytes / 2;
+	char tmp[NLS_MAX_CHARSET_SIZE];
+	__u16 ftmp[3];
+
+	for (i = 0; i < maxwords; i++) {
+		ftmp[0] = get_unaligned_le16(&from[i]);
+		if (ftmp[0] == 0)
+			break;
+		if (i + 1 < maxwords)
+			ftmp[1] = get_unaligned_le16(&from[i + 1]);
+		else
+			ftmp[1] = 0;
+		if (i + 2 < maxwords)
+			ftmp[2] = get_unaligned_le16(&from[i + 2]);
+		else
+			ftmp[2] = 0;
+
+		charlen = cifs_mapchar(tmp, ftmp, codepage, NO_MAP_UNI_RSVD);
+		outlen += charlen;
+	}
+
+	return outlen;
 }
 
 /*
@@ -409,9 +449,14 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 	char src_char;
 	__le16 dst_char;
 	wchar_t tmp;
+	wchar_t *wchar_to;	/* UTF-16 */
+	int ret;
+	unicode_t u;
 
 	if (map_chars == NO_MAP_UNI_RSVD)
 		return cifs_strtoUTF16(target, source, PATH_MAX, cp);
+
+	wchar_to = kzalloc(6, GFP_KERNEL);
 
 	for (i = 0; i < srclen; j++) {
 		src_char = source[i];
@@ -441,11 +486,55 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 			 * if no match, use question mark, which at least in
 			 * some cases serves as wild card
 			 */
-			if (charlen < 1) {
-				dst_char = cpu_to_le16(0x003f);
-				charlen = 1;
+			if (charlen > 0)
+				goto ctoUTF16;
+
+			/* convert SURROGATE_PAIR */
+			if (strcmp(cp->charset, "utf8") || !wchar_to)
+				goto unknown;
+			if (*(source + i) & 0x80) {
+				charlen = utf8_to_utf32(source + i, 6, &u);
+				if (charlen < 0)
+					goto unknown;
+			} else
+				goto unknown;
+			ret  = utf8s_to_utf16s(source + i, charlen,
+					       UTF16_LITTLE_ENDIAN,
+					       wchar_to, 6);
+			if (ret < 0)
+				goto unknown;
+
+			i += charlen;
+			dst_char = cpu_to_le16(*wchar_to);
+			if (charlen <= 3)
+				/* 1-3bytes UTF-8 to 2bytes UTF-16 */
+				put_unaligned(dst_char, &target[j]);
+			else if (charlen == 4) {
+				/* 4bytes UTF-8(surrogate pair) to 4bytes UTF-16
+				 * 7-8bytes UTF-8(IVS) divided to 2 UTF-16
+				 *   (charlen=3+4 or 4+4) */
+				put_unaligned(dst_char, &target[j]);
+				dst_char = cpu_to_le16(*(wchar_to + 1));
+				j++;
+				put_unaligned(dst_char, &target[j]);
+			} else if (charlen >= 5) {
+				/* 5-6bytes UTF-8 to 6bytes UTF-16 */
+				put_unaligned(dst_char, &target[j]);
+				dst_char = cpu_to_le16(*(wchar_to + 1));
+				j++;
+				put_unaligned(dst_char, &target[j]);
+				dst_char = cpu_to_le16(*(wchar_to + 2));
+				j++;
+				put_unaligned(dst_char, &target[j]);
 			}
+			continue;
+
+unknown:
+			dst_char = cpu_to_le16(0x003f);
+			charlen = 1;
 		}
+
+ctoUTF16:
 		/*
 		 * character may take more than one byte in the source string,
 		 * but will take exactly two bytes in the target string
@@ -456,6 +545,7 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 
 ctoUTF16_out:
 	put_unaligned(0, &target[j]); /* Null terminate target unicode string */
+	kfree(wchar_to);
 	return j;
 }
 

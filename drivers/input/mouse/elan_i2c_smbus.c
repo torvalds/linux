@@ -165,7 +165,8 @@ static int elan_smbus_get_version(struct i2c_client *client,
 	return 0;
 }
 
-static int elan_smbus_get_sm_version(struct i2c_client *client, u8 *version)
+static int elan_smbus_get_sm_version(struct i2c_client *client,
+				     u8 *ic_type, u8 *version)
 {
 	int error;
 	u8 val[3];
@@ -177,11 +178,12 @@ static int elan_smbus_get_sm_version(struct i2c_client *client, u8 *version)
 		return error;
 	}
 
-	*version = val[0]; /* XXX Why 0 and not 2 as in IAP/FW versions? */
+	*version = val[0];
+	*ic_type = val[1];
 	return 0;
 }
 
-static int elan_smbus_get_product_id(struct i2c_client *client, u8 *id)
+static int elan_smbus_get_product_id(struct i2c_client *client, u16 *id)
 {
 	int error;
 	u8 val[3];
@@ -193,7 +195,7 @@ static int elan_smbus_get_product_id(struct i2c_client *client, u8 *id)
 		return error;
 	}
 
-	*id = val[1];
+	*id = be16_to_cpup((__be16 *)val);
 	return 0;
 }
 
@@ -268,9 +270,16 @@ static int elan_smbus_get_num_traces(struct i2c_client *client,
 		return error;
 	}
 
-	*x_traces = val[1] - 1;
-	*y_traces = val[2] - 1;
+	*x_traces = val[1];
+	*y_traces = val[2];
 
+	return 0;
+}
+
+static int elan_smbus_get_pressure_adjustment(struct i2c_client *client,
+					      int *adjustment)
+{
+	*adjustment = ETP_PRESSURE_OFFSET;
 	return 0;
 }
 
@@ -497,6 +506,7 @@ const struct elan_transport_ops elan_smbus_ops = {
 	.get_sm_version		= elan_smbus_get_sm_version,
 	.get_product_id		= elan_smbus_get_product_id,
 	.get_checksum		= elan_smbus_get_checksum,
+	.get_pressure_adjustment = elan_smbus_get_pressure_adjustment,
 
 	.get_max		= elan_smbus_get_max,
 	.get_resolution		= elan_smbus_get_resolution,

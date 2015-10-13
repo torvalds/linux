@@ -65,7 +65,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, len);
 	if (ret < 0) {
 		dev_err(par->info->device,
-			"%s: write() failed and returned %d\n", __func__, ret);
+			"write() failed and returned %d\n", ret);
 		return;
 	}
 }
@@ -169,7 +169,7 @@ static int init_display(struct fbtft_par *par)
 	/* enable SPI interface by having CS and MOSI low during reset */
 	save_mode = par->spi->mode;
 	par->spi->mode |= SPI_CS_HIGH;
-	ret = par->spi->master->setup(par->spi); /* set CS inactive low */
+	ret = spi_setup(par->spi); /* set CS inactive low */
 	if (ret) {
 		dev_err(par->info->device, "Could not set SPI_CS_HIGH\n");
 		return ret;
@@ -180,7 +180,7 @@ static int init_display(struct fbtft_par *par)
 	par->fbtftops.reset(par);
 	mdelay(1000);
 	par->spi->mode = save_mode;
-	ret = par->spi->master->setup(par->spi);
+	ret = spi_setup(par->spi);
 	if (ret) {
 		dev_err(par->info->device, "Could not restore SPI mode\n");
 		return ret;

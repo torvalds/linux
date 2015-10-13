@@ -239,7 +239,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 	struct palmas_rtc *palmas_rtc = NULL;
 	int ret;
 	bool enable_bb_charging = false;
-	bool high_bb_charging;
+	bool high_bb_charging = false;
 
 	if (pdev->dev.of_node) {
 		enable_bb_charging = of_property_read_bool(pdev->dev.of_node,

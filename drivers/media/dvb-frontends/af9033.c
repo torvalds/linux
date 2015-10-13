@@ -35,7 +35,7 @@ struct af9033_dev {
 	bool ts_mode_parallel;
 	bool ts_mode_serial;
 
-	fe_status_t fe_status;
+	enum fe_status fe_status;
 	u64 post_bit_error_prev; /* for old read_ber we return (curr - prev) */
 	u64 post_bit_error;
 	u64 post_bit_count;
@@ -818,7 +818,7 @@ err:
 	return ret;
 }
 
-static int af9033_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	int ret;
@@ -1387,7 +1387,6 @@ MODULE_DEVICE_TABLE(i2c, af9033_id_table);
 
 static struct i2c_driver af9033_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "af9033",
 	},
 	.probe		= af9033_probe,

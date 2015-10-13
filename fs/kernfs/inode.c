@@ -111,7 +111,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct kernfs_node *kn = dentry->d_fsdata;
 	int error;
 
@@ -172,11 +172,11 @@ int kernfs_iop_setxattr(struct dentry *dentry, const char *name,
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		error = security_inode_setsecurity(dentry->d_inode, suffix,
+		error = security_inode_setsecurity(d_inode(dentry), suffix,
 						value, size, flags);
 		if (error)
 			return error;
-		error = security_inode_getsecctx(dentry->d_inode,
+		error = security_inode_getsecctx(d_inode(dentry),
 						&secdata, &secdata_len);
 		if (error)
 			return error;
@@ -271,7 +271,7 @@ int kernfs_iop_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		   struct kstat *stat)
 {
 	struct kernfs_node *kn = dentry->d_fsdata;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	mutex_lock(&kernfs_mutex);
 	kernfs_refresh_inode(kn, inode);
@@ -296,6 +296,8 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	case KERNFS_DIR:
 		inode->i_op = &kernfs_dir_iops;
 		inode->i_fop = &kernfs_dir_fops;
+		if (kn->flags & KERNFS_EMPTY_DIR)
+			make_empty_dir_inode(inode);
 		break;
 	case KERNFS_FILE:
 		inode->i_size = kn->attr.size;

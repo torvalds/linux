@@ -1341,8 +1341,7 @@ static int close(struct inode *node, struct file *filep)
 	struct IR *ir = filep->private_data;
 
 	if (ir == NULL) {
-		dev_err(ir->l.dev,
-			"close: no private_data attached to the file!\n");
+		pr_err("ir: close: no private_data attached to the file!\n");
 		return -ENODEV;
 	}
 
@@ -1365,10 +1364,10 @@ static const struct i2c_device_id ir_transceiver_id[] = {
 	{ "ir_rx_z8f0811_hdpvr", ID_FLAG_HDPVR              },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, ir_transceiver_id);
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "Zilog/Hauppauge i2c IR",
 	},
 	.probe		= ir_probe,

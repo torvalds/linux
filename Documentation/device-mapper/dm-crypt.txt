@@ -5,7 +5,7 @@ Device-Mapper's "crypt" target provides transparent encryption of block devices
 using the kernel crypto API.
 
 For a more detailed description of supported parameters see:
-http://code.google.com/p/cryptsetup/wiki/DMCrypt
+https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt
 
 Parameters: <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
@@ -80,7 +80,7 @@ Example scripts
 ===============
 LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
-http://code.google.com/p/cryptsetup/
+https://gitlab.com/cryptsetup/cryptsetup
 
 [[
 #!/bin/sh

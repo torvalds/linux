@@ -248,6 +248,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	if (!dev)
 		return -ENOMEM;
 
+	ACPI_COMPANION_SET(&dev->dev, device);
 	dev->data = device;
 	/* .enabled means the device can decode the resources */
 	dev->active = device->status.enabled;
@@ -290,11 +291,9 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		return error;
 	}
 
-	error = acpi_bind_one(&dev->dev, device);
-
 	num++;
 
-	return error;
+	return 0;
 }
 
 static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,

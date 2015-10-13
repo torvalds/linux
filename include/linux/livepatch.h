@@ -99,7 +99,7 @@ struct klp_object {
 	struct klp_func *funcs;
 
 	/* internal */
-	struct kobject *kobj;
+	struct kobject kobj;
 	struct module *mod;
 	enum klp_state state;
 };
@@ -123,10 +123,16 @@ struct klp_patch {
 	enum klp_state state;
 };
 
-extern int klp_register_patch(struct klp_patch *);
-extern int klp_unregister_patch(struct klp_patch *);
-extern int klp_enable_patch(struct klp_patch *);
-extern int klp_disable_patch(struct klp_patch *);
+#define klp_for_each_object(patch, obj) \
+	for (obj = patch->objs; obj->funcs; obj++)
+
+#define klp_for_each_func(obj, func) \
+	for (func = obj->funcs; func->old_name; func++)
+
+int klp_register_patch(struct klp_patch *);
+int klp_unregister_patch(struct klp_patch *);
+int klp_enable_patch(struct klp_patch *);
+int klp_disable_patch(struct klp_patch *);
 
 #endif /* CONFIG_LIVEPATCH */
 

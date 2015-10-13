@@ -111,6 +111,8 @@ extern int radeon_deep_color;
 extern int radeon_use_pflipirq;
 extern int radeon_bapm;
 extern int radeon_backlight;
+extern int radeon_auxch;
+extern int radeon_mst;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -465,7 +467,6 @@ struct radeon_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
 	uint32_t			flags;
-	uint64_t			addr;
 	struct radeon_fence		*last_pt_update;
 	unsigned			ref_count;
 
@@ -505,7 +506,7 @@ struct radeon_bo {
 	pid_t				pid;
 
 	struct radeon_mn		*mn;
-	struct interval_tree_node	mn_it;
+	struct list_head		mn_list;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -717,7 +718,7 @@ struct radeon_doorbell {
 	resource_size_t		size;
 	u32 __iomem		*ptr;
 	u32			num_doorbells;	/* Number of doorbells actually reserved for radeon. */
-	unsigned long		used[DIV_ROUND_UP(RADEON_MAX_DOORBELLS, BITS_PER_LONG)];
+	DECLARE_BITMAP(used, RADEON_MAX_DOORBELLS);
 };
 
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *page);
@@ -938,6 +939,9 @@ struct radeon_vm {
 
 	/* BOs freed, but not yet updated in the PT */
 	struct list_head	freed;
+
+	/* BOs cleared in the PT */
+	struct list_head	cleared;
 
 	/* contains the page directory */
 	struct radeon_bo	*page_directory;
@@ -1671,7 +1675,6 @@ struct radeon_uvd {
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
-	void			*saved_bo;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	unsigned		img_size[RADEON_MAX_UVD_HANDLES];
@@ -1708,8 +1711,6 @@ int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
  * VCE
  */
 #define RADEON_MAX_VCE_HANDLES	16
-#define RADEON_VCE_STACK_SIZE	(1024*1024)
-#define RADEON_VCE_HEAP_SIZE	(4*1024*1024)
 
 struct radeon_vce {
 	struct radeon_bo	*vcpu_bo;
@@ -1720,6 +1721,7 @@ struct radeon_vce {
 	struct drm_file		*filp[RADEON_MAX_VCE_HANDLES];
 	unsigned		img_size[RADEON_MAX_VCE_HANDLES];
 	struct delayed_work	idle_work;
+	uint32_t		keyselect;
 };
 
 int radeon_vce_init(struct radeon_device *rdev);
@@ -1857,6 +1859,8 @@ struct radeon_asic {
 	u32 (*get_xclk)(struct radeon_device *rdev);
 	/* get the gpu clock counter */
 	uint64_t (*get_gpu_clock_counter)(struct radeon_device *rdev);
+	/* get register for info ioctl */
+	int (*get_allowed_info_register)(struct radeon_device *rdev, u32 reg, u32 *val);
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
@@ -1985,6 +1989,8 @@ struct radeon_asic {
 		u32 (*fan_ctrl_get_mode)(struct radeon_device *rdev);
 		int (*set_fan_speed_percent)(struct radeon_device *rdev, u32 speed);
 		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
+		u32 (*get_current_sclk)(struct radeon_device *rdev);
+		u32 (*get_current_mclk)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2408,6 +2414,7 @@ struct radeon_device {
 	struct radeon_rlc rlc;
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
+	struct work_struct dp_work;
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
@@ -2429,6 +2436,7 @@ struct radeon_device {
 	atomic64_t			vram_usage;
 	atomic64_t			gtt_usage;
 	atomic64_t			num_bytes_moved;
+	atomic_t			gpu_reset_counter;
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
@@ -2450,7 +2458,6 @@ struct radeon_device {
 
 	/* amdkfd interface */
 	struct kfd_dev		*kfd;
-	struct radeon_sa_manager	kfd_bo;
 
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
@@ -2466,38 +2473,24 @@ int radeon_gpu_wait_for_idle(struct radeon_device *rdev);
 
 #define RADEON_MIN_MMIO_SIZE 0x10000
 
+uint32_t r100_mm_rreg_slow(struct radeon_device *rdev, uint32_t reg);
+void r100_mm_wreg_slow(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg,
 				    bool always_indirect)
 {
 	/* The mmio size is 64kb at minimum. Allows the if to be optimized out. */
 	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
 		return readl(((void __iomem *)rdev->rmmio) + reg);
-	else {
-		unsigned long flags;
-		uint32_t ret;
-
-		spin_lock_irqsave(&rdev->mmio_idx_lock, flags);
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		ret = readl(((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-		spin_unlock_irqrestore(&rdev->mmio_idx_lock, flags);
-
-		return ret;
-	}
+	else
+		return r100_mm_rreg_slow(rdev, reg);
 }
-
 static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v,
 				bool always_indirect)
 {
 	if ((reg < rdev->rmmio_size || reg < RADEON_MIN_MMIO_SIZE) && !always_indirect)
 		writel(v, ((void __iomem *)rdev->rmmio) + reg);
-	else {
-		unsigned long flags;
-
-		spin_lock_irqsave(&rdev->mmio_idx_lock, flags);
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-		spin_unlock_irqrestore(&rdev->mmio_idx_lock, flags);
-	}
+	else
+		r100_mm_wreg_slow(rdev, reg, v);
 }
 
 u32 r100_io_rreg(struct radeon_device *rdev, u32 reg);
@@ -2573,6 +2566,13 @@ static inline struct radeon_fence *to_radeon_fence(struct fence *f)
 		tmp_ |= ((val) & ~(mask));			\
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
+#define WREG32_SMC_P(reg, val, mask)				\
+	do {							\
+		uint32_t tmp_ = RREG32_SMC(reg);		\
+		tmp_ &= (mask);					\
+		tmp_ |= ((val) & ~(mask));			\
+		WREG32_SMC(reg, tmp_);				\
+	} while (0)
 #define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg), false))
 #define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
 #define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
@@ -2581,184 +2581,29 @@ static inline struct radeon_fence *to_radeon_fence(struct fence *f)
 #define WDOORBELL32(index, v) cik_mm_wdoorbell(rdev, (index), (v))
 
 /*
- * Indirect registers accessor
+ * Indirect registers accessors.
+ * They used to be inlined, but this increases code size by ~65 kbytes.
+ * Since each performs a pair of MMIO ops
+ * within a spin_lock_irqsave/spin_unlock_irqrestore region,
+ * the cost of call+ret is almost negligible. MMIO and locking
+ * costs several dozens of cycles each at best, call+ret is ~5 cycles.
  */
-static inline uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	unsigned long flags;
-	uint32_t r;
-
-	spin_lock_irqsave(&rdev->pcie_idx_lock, flags);
-	WREG32(RADEON_PCIE_INDEX, ((reg) & rdev->pcie_reg_mask));
-	r = RREG32(RADEON_PCIE_DATA);
-	spin_unlock_irqrestore(&rdev->pcie_idx_lock, flags);
-	return r;
-}
-
-static inline void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->pcie_idx_lock, flags);
-	WREG32(RADEON_PCIE_INDEX, ((reg) & rdev->pcie_reg_mask));
-	WREG32(RADEON_PCIE_DATA, (v));
-	spin_unlock_irqrestore(&rdev->pcie_idx_lock, flags);
-}
-
-static inline u32 tn_smc_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
-	WREG32(TN_SMC_IND_INDEX_0, (reg));
-	r = RREG32(TN_SMC_IND_DATA_0);
-	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
-	return r;
-}
-
-static inline void tn_smc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
-	WREG32(TN_SMC_IND_INDEX_0, (reg));
-	WREG32(TN_SMC_IND_DATA_0, (v));
-	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
-}
-
-static inline u32 r600_rcu_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->rcu_idx_lock, flags);
-	WREG32(R600_RCU_INDEX, ((reg) & 0x1fff));
-	r = RREG32(R600_RCU_DATA);
-	spin_unlock_irqrestore(&rdev->rcu_idx_lock, flags);
-	return r;
-}
-
-static inline void r600_rcu_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->rcu_idx_lock, flags);
-	WREG32(R600_RCU_INDEX, ((reg) & 0x1fff));
-	WREG32(R600_RCU_DATA, (v));
-	spin_unlock_irqrestore(&rdev->rcu_idx_lock, flags);
-}
-
-static inline u32 eg_cg_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->cg_idx_lock, flags);
-	WREG32(EVERGREEN_CG_IND_ADDR, ((reg) & 0xffff));
-	r = RREG32(EVERGREEN_CG_IND_DATA);
-	spin_unlock_irqrestore(&rdev->cg_idx_lock, flags);
-	return r;
-}
-
-static inline void eg_cg_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->cg_idx_lock, flags);
-	WREG32(EVERGREEN_CG_IND_ADDR, ((reg) & 0xffff));
-	WREG32(EVERGREEN_CG_IND_DATA, (v));
-	spin_unlock_irqrestore(&rdev->cg_idx_lock, flags);
-}
-
-static inline u32 eg_pif_phy0_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->pif_idx_lock, flags);
-	WREG32(EVERGREEN_PIF_PHY0_INDEX, ((reg) & 0xffff));
-	r = RREG32(EVERGREEN_PIF_PHY0_DATA);
-	spin_unlock_irqrestore(&rdev->pif_idx_lock, flags);
-	return r;
-}
-
-static inline void eg_pif_phy0_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->pif_idx_lock, flags);
-	WREG32(EVERGREEN_PIF_PHY0_INDEX, ((reg) & 0xffff));
-	WREG32(EVERGREEN_PIF_PHY0_DATA, (v));
-	spin_unlock_irqrestore(&rdev->pif_idx_lock, flags);
-}
-
-static inline u32 eg_pif_phy1_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->pif_idx_lock, flags);
-	WREG32(EVERGREEN_PIF_PHY1_INDEX, ((reg) & 0xffff));
-	r = RREG32(EVERGREEN_PIF_PHY1_DATA);
-	spin_unlock_irqrestore(&rdev->pif_idx_lock, flags);
-	return r;
-}
-
-static inline void eg_pif_phy1_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->pif_idx_lock, flags);
-	WREG32(EVERGREEN_PIF_PHY1_INDEX, ((reg) & 0xffff));
-	WREG32(EVERGREEN_PIF_PHY1_DATA, (v));
-	spin_unlock_irqrestore(&rdev->pif_idx_lock, flags);
-}
-
-static inline u32 r600_uvd_ctx_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->uvd_idx_lock, flags);
-	WREG32(R600_UVD_CTX_INDEX, ((reg) & 0x1ff));
-	r = RREG32(R600_UVD_CTX_DATA);
-	spin_unlock_irqrestore(&rdev->uvd_idx_lock, flags);
-	return r;
-}
-
-static inline void r600_uvd_ctx_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->uvd_idx_lock, flags);
-	WREG32(R600_UVD_CTX_INDEX, ((reg) & 0x1ff));
-	WREG32(R600_UVD_CTX_DATA, (v));
-	spin_unlock_irqrestore(&rdev->uvd_idx_lock, flags);
-}
-
-
-static inline u32 cik_didt_rreg(struct radeon_device *rdev, u32 reg)
-{
-	unsigned long flags;
-	u32 r;
-
-	spin_lock_irqsave(&rdev->didt_idx_lock, flags);
-	WREG32(CIK_DIDT_IND_INDEX, (reg));
-	r = RREG32(CIK_DIDT_IND_DATA);
-	spin_unlock_irqrestore(&rdev->didt_idx_lock, flags);
-	return r;
-}
-
-static inline void cik_didt_wreg(struct radeon_device *rdev, u32 reg, u32 v)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rdev->didt_idx_lock, flags);
-	WREG32(CIK_DIDT_IND_INDEX, (reg));
-	WREG32(CIK_DIDT_IND_DATA, (v));
-	spin_unlock_irqrestore(&rdev->didt_idx_lock, flags);
-}
+uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
+void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+u32 tn_smc_rreg(struct radeon_device *rdev, u32 reg);
+void tn_smc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 r600_rcu_rreg(struct radeon_device *rdev, u32 reg);
+void r600_rcu_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 eg_cg_rreg(struct radeon_device *rdev, u32 reg);
+void eg_cg_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 eg_pif_phy0_rreg(struct radeon_device *rdev, u32 reg);
+void eg_pif_phy0_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 eg_pif_phy1_rreg(struct radeon_device *rdev, u32 reg);
+void eg_pif_phy1_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 r600_uvd_ctx_rreg(struct radeon_device *rdev, u32 reg);
+void r600_uvd_ctx_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+u32 cik_didt_rreg(struct radeon_device *rdev, u32 reg);
+void cik_didt_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 
 void r100_pll_errata_after_index(struct radeon_device *rdev);
 
@@ -2932,6 +2777,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
 #define radeon_get_gpu_clock_counter(rdev) (rdev)->asic->get_gpu_clock_counter((rdev))
+#define radeon_get_allowed_info_register(rdev, r, v) (rdev)->asic->get_allowed_info_register((rdev), (r), (v))
 #define radeon_dpm_init(rdev) rdev->asic->dpm.init((rdev))
 #define radeon_dpm_setup_asic(rdev) rdev->asic->dpm.setup_asic((rdev))
 #define radeon_dpm_enable(rdev) rdev->asic->dpm.enable((rdev))
@@ -2950,6 +2796,8 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_dpm_vblank_too_short(rdev) rdev->asic->dpm.vblank_too_short((rdev))
 #define radeon_dpm_powergate_uvd(rdev, g) rdev->asic->dpm.powergate_uvd((rdev), (g))
 #define radeon_dpm_enable_bapm(rdev, e) rdev->asic->dpm.enable_bapm((rdev), (e))
+#define radeon_dpm_get_current_sclk(rdev) rdev->asic->dpm.get_current_sclk((rdev))
+#define radeon_dpm_get_current_mclk(rdev) rdev->asic->dpm.get_current_mclk((rdev))
 
 /* Common functions */
 /* AGP */

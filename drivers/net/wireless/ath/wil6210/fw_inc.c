@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -221,12 +221,12 @@ static int fw_handle_direct_write(struct wil6210_priv *wil, const void *data,
 
 		FW_ADDR_CHECK(dst, block[i].addr, "address");
 
-		x = ioread32(dst);
+		x = readl(dst);
 		y = (x & m) | (v & ~m);
 		wil_dbg_fw(wil, "write [0x%08x] <== 0x%08x "
 			   "(old 0x%08x val 0x%08x mask 0x%08x)\n",
 			   le32_to_cpu(block[i].addr), y, x, v, m);
-		iowrite32(y, dst);
+		writel(y, dst);
 		wmb(); /* finish before processing next record */
 	}
 
@@ -239,18 +239,18 @@ static int gw_write(struct wil6210_priv *wil, void __iomem *gwa_addr,
 {
 	unsigned delay = 0;
 
-	iowrite32(a, gwa_addr);
-	iowrite32(gw_cmd, gwa_cmd);
+	writel(a, gwa_addr);
+	writel(gw_cmd, gwa_cmd);
 	wmb(); /* finish before activate gw */
 
-	iowrite32(WIL_FW_GW_CTL_RUN, gwa_ctl); /* activate gw */
+	writel(WIL_FW_GW_CTL_RUN, gwa_ctl); /* activate gw */
 	do {
 		udelay(1); /* typical time is few usec */
 		if (delay++ > 100) {
 			wil_err_fw(wil, "gw timeout\n");
 			return -EINVAL;
 		}
-	} while (ioread32(gwa_ctl) & WIL_FW_GW_CTL_BUSY); /* gw done? */
+	} while (readl(gwa_ctl) & WIL_FW_GW_CTL_BUSY); /* gw done? */
 
 	return 0;
 }
@@ -305,7 +305,7 @@ static int fw_handle_gateway_data(struct wil6210_priv *wil, const void *data,
 		wil_dbg_fw(wil, "  gw write[%3d] [0x%08x] <== 0x%08x\n",
 			   i, a, v);
 
-		iowrite32(v, gwa_val);
+		writel(v, gwa_val);
 		rc = gw_write(wil, gwa_addr, gwa_cmd, gwa_ctl, gw_cmd, a);
 		if (rc)
 			return rc;
@@ -372,7 +372,7 @@ static int fw_handle_gateway_data4(struct wil6210_priv *wil, const void *data,
 				sizeof(v), false);
 
 		for (k = 0; k < ARRAY_SIZE(block->value); k++)
-			iowrite32(v[k], gwa_val[k]);
+			writel(v[k], gwa_val[k]);
 		rc = gw_write(wil, gwa_addr, gwa_cmd, gwa_ctl, gw_cmd, a);
 		if (rc)
 			return rc;
@@ -451,8 +451,6 @@ static int wil_fw_load(struct wil6210_priv *wil, const void *data, size_t size)
 		}
 		return -EINVAL;
 	}
-	/* Mark FW as loaded from host */
-	S(RGF_USER_USAGE_6, 1);
 
 	return rc;
 }

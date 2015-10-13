@@ -35,15 +35,18 @@ Optional properties:
 - reset-names: Should contain the reset signal name "stmmaceth", if a
 	reset phandle is given
 - max-frame-size: See ethernet.txt file in the same directory
-- clocks: If present, the first clock should be the GMAC main clock,
-  further clocks may be specified in derived bindings.
+- clocks: If present, the first clock should be the GMAC main clock and
+  the second clock should be peripheral's register interface clock. Further
+  clocks may be specified in derived bindings.
 - clock-names: One name for each entry in the clocks property, the
-  first one should be "stmmaceth".
+  first one should be "stmmaceth" and the second one should be "pclk".
 - clk_ptp_ref: this is the PTP reference clock; in case of the PTP is
   available this clock is used for programming the Timestamp Addend Register.
   If not passed then the system clock will be used and this is fine on some
   platforms.
 - snps,burst_len: The AXI burst lenth value of the AXI BUS MODE register.
+- tx-fifo-depth: See ethernet.txt file in the same directory
+- rx-fifo-depth: See ethernet.txt file in the same directory
 
 Examples:
 
@@ -58,6 +61,8 @@ Examples:
 		phy-mode = "gmii";
 		snps,multicast-filter-bins = <256>;
 		snps,perfect-filter-entries = <128>;
+		rx-fifo-depth = <16384>;
+		tx-fifo-depth = <16384>;
 		clocks = <&clock>;
 		clock-names = "stmmaceth";
 	};

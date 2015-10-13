@@ -41,6 +41,8 @@
 #include <linux/gpio.h>
 #include <linux/atomic.h>
 
+#include <asm/mach-ar7/ar7.h>
+
 MODULE_AUTHOR("Eugene Konev <ejka@imfi.kspu.ru>");
 MODULE_DESCRIPTION("TI AR7 ethernet driver (CPMAC)");
 MODULE_LICENSE("GPL");

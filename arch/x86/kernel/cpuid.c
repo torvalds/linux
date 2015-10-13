@@ -170,7 +170,7 @@ static int cpuid_class_cpu_callback(struct notifier_block *nfb,
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __refdata cpuid_class_cpu_notifier =
+static struct notifier_block cpuid_class_cpu_notifier =
 {
 	.notifier_call = cpuid_class_cpu_callback,
 };

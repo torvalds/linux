@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#define gk20a_pmu(p) container_of((p), struct gk20a_pmu, base.subdev)
 #include "priv.h"
 
 #include <subdev/clk.h>
@@ -35,7 +36,7 @@ struct gk20a_pmu_dvfs_data {
 	unsigned int avg_load;
 };
 
-struct gk20a_pmu_priv {
+struct gk20a_pmu {
 	struct nvkm_pmu base;
 	struct nvkm_alarm alarm;
 	struct gk20a_pmu_dvfs_data *data;
@@ -48,28 +49,28 @@ struct gk20a_pmu_dvfs_dev_status {
 };
 
 static int
-gk20a_pmu_dvfs_target(struct gk20a_pmu_priv *priv, int *state)
+gk20a_pmu_dvfs_target(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 
 	return nvkm_clk_astate(clk, *state, 0, false);
 }
 
 static int
-gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu_priv *priv, int *state)
+gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu *pmu, int *state)
 {
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 
 	*state = clk->pstate;
 	return 0;
 }
 
 static int
-gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
+gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu *pmu,
 				int *state, int load)
 {
-	struct gk20a_pmu_dvfs_data *data = priv->data;
-	struct nvkm_clk *clk = nvkm_clk(priv);
+	struct gk20a_pmu_dvfs_data *data = pmu->data;
+	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 	int cur_level, level;
 
 	/* For GK20A, the performance level is directly mapped to pstate */
@@ -84,7 +85,8 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
 		level = min(clk->state_nr - 1, level);
 	}
 
-	nv_trace(priv, "cur level = %d, new level = %d\n", cur_level, level);
+	nvkm_trace(&pmu->base.subdev, "cur level = %d, new level = %d\n",
+		   cur_level, level);
 
 	*state = level;
 
@@ -95,30 +97,35 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
 }
 
 static int
-gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu_priv *priv,
+gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu *pmu,
 			      struct gk20a_pmu_dvfs_dev_status *status)
 {
-	status->busy = nv_rd32(priv, 0x10a508 + (BUSY_SLOT * 0x10));
-	status->total= nv_rd32(priv, 0x10a508 + (CLK_SLOT * 0x10));
+	struct nvkm_device *device = pmu->base.subdev.device;
+	status->busy = nvkm_rd32(device, 0x10a508 + (BUSY_SLOT * 0x10));
+	status->total= nvkm_rd32(device, 0x10a508 + (CLK_SLOT * 0x10));
 	return 0;
 }
 
 static void
-gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu_priv *priv)
+gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu *pmu)
 {
-	nv_wr32(priv, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
-	nv_wr32(priv, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
+	struct nvkm_device *device = pmu->base.subdev.device;
+	nvkm_wr32(device, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
+	nvkm_wr32(device, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
 }
 
 static void
 gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 {
-	struct gk20a_pmu_priv *priv =
-		container_of(alarm, struct gk20a_pmu_priv, alarm);
-	struct gk20a_pmu_dvfs_data *data = priv->data;
+	struct gk20a_pmu *pmu =
+		container_of(alarm, struct gk20a_pmu, alarm);
+	struct gk20a_pmu_dvfs_data *data = pmu->data;
 	struct gk20a_pmu_dvfs_dev_status status;
-	struct nvkm_clk *clk = nvkm_clk(priv);
-	struct nvkm_volt *volt = nvkm_volt(priv);
+	struct nvkm_subdev *subdev = &pmu->base.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_clk *clk = device->clk;
+	struct nvkm_timer *tmr = device->timer;
+	struct nvkm_volt *volt = device->volt;
 	u32 utilization = 0;
 	int state, ret;
 
@@ -129,9 +136,9 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	if (!clk || !volt)
 		goto resched;
 
-	ret = gk20a_pmu_dvfs_get_dev_status(priv, &status);
+	ret = gk20a_pmu_dvfs_get_dev_status(pmu, &status);
 	if (ret) {
-		nv_warn(priv, "failed to get device status\n");
+		nvkm_warn(subdev, "failed to get device status\n");
 		goto resched;
 	}
 
@@ -140,90 +147,81 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 
 	data->avg_load = (data->p_smooth * data->avg_load) + utilization;
 	data->avg_load /= data->p_smooth + 1;
-	nv_trace(priv, "utilization = %d %%, avg_load = %d %%\n",
-			utilization, data->avg_load);
+	nvkm_trace(subdev, "utilization = %d %%, avg_load = %d %%\n",
+		   utilization, data->avg_load);
 
-	ret = gk20a_pmu_dvfs_get_cur_state(priv, &state);
+	ret = gk20a_pmu_dvfs_get_cur_state(pmu, &state);
 	if (ret) {
-		nv_warn(priv, "failed to get current state\n");
+		nvkm_warn(subdev, "failed to get current state\n");
 		goto resched;
 	}
 
-	if (gk20a_pmu_dvfs_get_target_state(priv, &state, data->avg_load)) {
-		nv_trace(priv, "set new state to %d\n", state);
-		gk20a_pmu_dvfs_target(priv, &state);
+	if (gk20a_pmu_dvfs_get_target_state(pmu, &state, data->avg_load)) {
+		nvkm_trace(subdev, "set new state to %d\n", state);
+		gk20a_pmu_dvfs_target(pmu, &state);
 	}
 
 resched:
-	gk20a_pmu_dvfs_reset_dev_status(priv);
-	nvkm_timer_alarm(priv, 100000000, alarm);
+	gk20a_pmu_dvfs_reset_dev_status(pmu);
+	nvkm_timer_alarm(tmr, 100000000, alarm);
 }
 
-int
-gk20a_pmu_fini(struct nvkm_object *object, bool suspend)
+static int
+gk20a_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_pmu *pmu = (void *)object;
-	struct gk20a_pmu_priv *priv = (void *)pmu;
-
-	nvkm_timer_alarm_cancel(priv, &priv->alarm);
-
-	return nvkm_subdev_fini(&pmu->base, suspend);
+	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
+	nvkm_timer_alarm_cancel(subdev->device->timer, &pmu->alarm);
+	return 0;
 }
 
-int
-gk20a_pmu_init(struct nvkm_object *object)
+static void *
+gk20a_pmu_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_pmu *pmu = (void *)object;
-	struct gk20a_pmu_priv *priv = (void *)pmu;
-	int ret;
+	return gk20a_pmu(subdev);
+}
 
-	ret = nvkm_subdev_init(&pmu->base);
-	if (ret)
-		return ret;
-
-	pmu->pgob = nvkm_pmu_pgob;
+static int
+gk20a_pmu_init(struct nvkm_subdev *subdev)
+{
+	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
+	struct nvkm_device *device = pmu->base.subdev.device;
 
 	/* init pwr perf counter */
-	nv_wr32(pmu, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
-	nv_wr32(pmu, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
-	nv_wr32(pmu, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
+	nvkm_wr32(device, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
+	nvkm_wr32(device, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
+	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
-	nvkm_timer_alarm(pmu, 2000000000, &priv->alarm);
-	return ret;
+	nvkm_timer_alarm(device->timer, 2000000000, &pmu->alarm);
+	return 0;
 }
 
-struct gk20a_pmu_dvfs_data gk20a_dvfs_data= {
+static struct gk20a_pmu_dvfs_data
+gk20a_dvfs_data= {
 	.p_load_target = 70,
 	.p_load_max = 90,
 	.p_smooth = 1,
 };
 
-static int
-gk20a_pmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
-	       struct nvkm_oclass *oclass, void *data, u32 size,
-	       struct nvkm_object **pobject)
+static const struct nvkm_subdev_func
+gk20a_pmu = {
+	.init = gk20a_pmu_init,
+	.fini = gk20a_pmu_fini,
+	.dtor = gk20a_pmu_dtor,
+};
+
+int
+gk20a_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	struct gk20a_pmu_priv *priv;
-	int ret;
+	static const struct nvkm_pmu_func func = {};
+	struct gk20a_pmu *pmu;
 
-	ret = nvkm_pmu_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
+	if (!(pmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
+		return -ENOMEM;
+	pmu->base.func = &func;
+	*ppmu = &pmu->base;
 
-	priv->data = &gk20a_dvfs_data;
-
-	nvkm_alarm_init(&priv->alarm, gk20a_pmu_dvfs_work);
+	nvkm_subdev_ctor(&gk20a_pmu, device, index, 0, &pmu->base.subdev);
+	pmu->data = &gk20a_dvfs_data;
+	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
 	return 0;
 }
-
-struct nvkm_oclass *
-gk20a_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xea),
-	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gk20a_pmu_ctor,
-		.dtor = _nvkm_pmu_dtor,
-		.init = gk20a_pmu_init,
-		.fini = gk20a_pmu_fini,
-	},
-}.base;

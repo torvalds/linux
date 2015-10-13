@@ -347,7 +347,6 @@ MODULE_DEVICE_TABLE(i2c, cy8ctmg110_idtable);
 
 static struct i2c_driver cy8ctmg110_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= CY8CTMG110_DRIVER_NAME,
 		.pm	= &cy8ctmg110_pm,
 	},

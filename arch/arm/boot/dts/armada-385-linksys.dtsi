@@ -1,0 +1,332 @@
+/*
+ * Device Tree include file for Armada 385 based Linksys boards
+ *
+ * Copyright (C) 2015 Imre Kaloz <kaloz@openwrt.org>
+ *
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is licensed under the terms of the GNU General Public
+ *     License version 2.  This program is licensed "as is" without
+ *     any warranty of any kind, whether express or implied.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "armada-385.dtsi"
+
+/ {
+	model = "Linksys boards based on Armada 385";
+	compatible = "linksys,armada385", "marvell,armada385",
+		     "marvell,armada380";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000>;
+
+		internal-regs {
+
+			spi@10600 {
+				status = "disabled";
+			};
+
+			i2c@11000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c0_pins>;
+				status = "okay";
+
+				tmp421@4c {
+					compatible = "ti,tmp421";
+					reg = <0x4c>;
+				};
+
+				pca9635@68 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					compatible = "nxp,pca9635";
+					reg = <0x68>;
+				};
+			};
+
+			/* J10: VCC, NC, RX, NC, TX, GND  */
+			serial@12000 {
+				status = "okay";
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy-mode = "rgmii-id";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@34000 {
+				status = "okay";
+				phy-mode = "sgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			mdio {
+				status = "okay";
+			};
+
+			sata@a8000 {
+				status = "okay";
+			};
+
+			/* USB part of the eSATA/USB 2.0 port */
+			usb@50000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
+				usb-phy = <&usb3_phy>;
+			};
+
+			flash@d0000 {
+				status = "okay";
+				num-cs = <1>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+
+				partition@0 {
+					label = "u-boot";
+					reg = <0x0000000 0x200000>;  /* 2MB */
+					read-only;
+				};
+
+				partition@100000 {
+					label = "u_env";
+					reg = <0x200000 0x40000>;    /* 256KB */
+				};
+
+				partition@140000 {
+					label = "s_env";
+					reg = <0x240000 0x40000>;    /* 256KB */
+				};
+
+				partition@900000 {
+					label = "devinfo";
+					reg = <0x900000 0x100000>;   /* 1MB */
+					read-only;
+				};
+
+				/* kernel1 overlaps with rootfs1 by design */
+				partition@a00000 {
+					label = "kernel1";
+					reg = <0xa00000 0x2800000>;  /* 40MB */
+				};
+
+				partition@1000000 {
+					label = "rootfs1";
+					reg = <0x1000000 0x2200000>;  /* 34MB */
+				};
+
+				/* kernel2 overlaps with rootfs2 by design */
+				partition@3200000 {
+					label = "kernel2";
+					reg = <0x3200000 0x2800000>; /* 40MB */
+				};
+
+				partition@3800000 {
+					label = "rootfs2";
+					reg = <0x3800000 0x2200000>; /* 34MB */
+				};
+
+				/*
+				 * 38MB, last MB is for the BBT, not writable
+				 */
+				partition@5a00000 {
+					label = "syscfg";
+					reg = <0x5a00000 0x2600000>;
+				};
+
+				/*
+				 * Unused area between "s_env" and "devinfo".
+				 * Moved here because otherwise the renumbered
+				 * partitions would break the bootloader
+				 * supplied bootargs
+				 */
+				partition@180000 {
+					label = "unused_area";
+					reg = <0x280000 0x680000>;   /* 6.5MB */
+				};
+			};
+		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				/* Marvell 88W8864, 5GHz-only */
+				status = "okay";
+			};
+
+			pcie@2,0 {
+				/* Marvell 88W8864, 2GHz-only */
+				status = "okay";
+			};
+		};
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_xhci0_vbus>;
+	};
+
+	reg_xhci0_vbus: xhci0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci0_vbus_pins>;
+		regulator-name = "xhci0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&keys_pin>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		};
+
+		button@2 {
+			label = "Factory Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&power_led_pin &sata_led_pin>;
+		pinctrl-names = "default";
+
+		power {
+			gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		sata {
+			gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	dsa@0 {
+		compatible = "marvell,dsa";
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		dsa,ethernet = <&eth2>;
+		dsa,mii-bus = <&mdio>;
+
+		switch@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0>;	/* MDIO address 0, switch 0 in tree */
+
+			port@0 {
+				reg = <0>;
+				label = "lan4";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan3";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan2";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan1";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "wan";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+			};
+		};
+	};
+};
+
+&pinctrl {
+	keys_pin: keys-pin {
+		marvell,pins = "mpp24", "mpp47";
+		marvell,function = "gpio";
+	};
+
+	power_led_pin: power-led-pin {
+		marvell,pins = "mpp55";
+		marvell,function = "gpio";
+	};
+
+	sata_led_pin: sata-led-pin {
+		marvell,pins = "mpp54";
+		marvell,function = "gpio";
+	};
+
+	xhci0_vbus_pins: xhci0-vbus-pins {
+		marvell,pins = "mpp50";
+		marvell,function = "gpio";
+	};
+};

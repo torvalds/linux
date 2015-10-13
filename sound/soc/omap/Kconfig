@@ -24,7 +24,7 @@ config SND_OMAP_SOC_HDMI_AUDIO
 	  component also under DSS HDMI device. Dummy codec is used as
 	  as codec component. The hdmi audio driver implements also
 	  the card and registers it under its own platform device.
-	  The device for the dirver is registered by OMAPDSS hdmi
+	  The device for the driver is registered by OMAPDSS hdmi
 	  driver.
 
 config SND_OMAP_SOC_N810
@@ -100,17 +100,20 @@ config SND_OMAP_SOC_OMAP_TWL4030
 
 config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
-	depends on TWL6040_CORE && SND_OMAP_SOC && (ARCH_OMAP4 || COMPILE_TEST)
+	depends on TWL6040_CORE && SND_OMAP_SOC
+	depends on ARCH_OMAP4 || (SOC_OMAP5 && MFD_PALMAS) || COMPILE_TEST
 	select SND_OMAP_SOC_DMIC
 	select SND_OMAP_SOC_MCPDM
 	select SND_SOC_TWL6040
 	select SND_SOC_DMIC
+	select COMMON_CLK_PALMAS if (SOC_OMAP5 && MFD_PALMAS)
 	help
 	  Say Y if you want to add support for SoC audio on OMAP boards using
 	  ABE and twl6040 codec. This driver currently supports:
 	  - SDP4430/Blaze boards
 	  - PandaBoard (4430)
 	  - PandaBoardES (4460)
+	  - omap5-uevm (5432)
 
 config SND_OMAP_SOC_OMAP3_PANDORA
 	tristate "SoC Audio support for OMAP3 Pandora"

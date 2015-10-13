@@ -1,0 +1,15 @@
+#
+# Performance Monitor Drivers
+#
+
+menu "Performance monitor support"
+
+config ARM_PMU
+	depends on PERF_EVENTS && ARM
+	bool "ARM PMU framework"
+	default y
+	help
+	  Say y if you want to use CPU performance monitors on ARM-based
+	  systems.
+
+endmenu

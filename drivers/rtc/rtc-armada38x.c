@@ -60,7 +60,6 @@ static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned long time, time_check, flags;
 
 	spin_lock_irqsave(&rtc->lock, flags);
-
 	time = readl(rtc->regs + RTC_TIME);
 	/*
 	 * WA for failing time set attempts. As stated in HW ERRATA if
@@ -89,24 +88,17 @@ static int armada38x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	if (ret)
 		goto out;
 	/*
-	 * Setting the RTC time not always succeeds. According to the
-	 * errata we need to first write on the status register and
-	 * then wait for 100ms before writing to the time register to be
-	 * sure that the data will be taken into account.
+	 * According to errata FE-3124064, Write to RTC TIME register
+	 * may fail. As a workaround, after writing to RTC TIME
+	 * register, issue a dummy write of 0x0 twice to RTC Status
+	 * register.
 	 */
 	spin_lock_irqsave(&rtc->lock, flags);
-
-	rtc_delayed_write(0, rtc, RTC_STATUS);
-
-	spin_unlock_irqrestore(&rtc->lock, flags);
-
-	msleep(100);
-
-	spin_lock_irqsave(&rtc->lock, flags);
-
 	rtc_delayed_write(time, rtc, RTC_TIME);
-
+	rtc_delayed_write(0, rtc, RTC_STATUS);
+	rtc_delayed_write(0, rtc, RTC_STATUS);
 	spin_unlock_irqrestore(&rtc->lock, flags);
+
 out:
 	return ret;
 }
@@ -303,6 +295,7 @@ static const struct of_device_id armada38x_rtc_of_match_table[] = {
 	{ .compatible = "marvell,armada-380-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
 #endif
 
 static struct platform_driver armada38x_rtc_driver = {

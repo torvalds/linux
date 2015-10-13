@@ -1,6 +1,6 @@
 config EXYNOS_THERMAL
 	tristate "Exynos thermal management unit driver"
-	depends on OF
+	depends on THERMAL_OF
 	help
 	  If you say yes here you get support for the TMU (Thermal Management
 	  Unit) driver for SAMSUNG EXYNOS series of SoCs. This driver initialises

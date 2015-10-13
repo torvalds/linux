@@ -50,7 +50,14 @@ struct media_device_info {
 #define MEDIA_ENT_T_DEVNODE_V4L		(MEDIA_ENT_T_DEVNODE + 1)
 #define MEDIA_ENT_T_DEVNODE_FB		(MEDIA_ENT_T_DEVNODE + 2)
 #define MEDIA_ENT_T_DEVNODE_ALSA	(MEDIA_ENT_T_DEVNODE + 3)
-#define MEDIA_ENT_T_DEVNODE_DVB		(MEDIA_ENT_T_DEVNODE + 4)
+#define MEDIA_ENT_T_DEVNODE_DVB_FE	(MEDIA_ENT_T_DEVNODE + 4)
+#define MEDIA_ENT_T_DEVNODE_DVB_DEMUX	(MEDIA_ENT_T_DEVNODE + 5)
+#define MEDIA_ENT_T_DEVNODE_DVB_DVR	(MEDIA_ENT_T_DEVNODE + 6)
+#define MEDIA_ENT_T_DEVNODE_DVB_CA	(MEDIA_ENT_T_DEVNODE + 7)
+#define MEDIA_ENT_T_DEVNODE_DVB_NET	(MEDIA_ENT_T_DEVNODE + 8)
+
+/* Legacy symbol. Use it to avoid userspace compilation breakages */
+#define MEDIA_ENT_T_DEVNODE_DVB		MEDIA_ENT_T_DEVNODE_DVB_FE
 
 #define MEDIA_ENT_T_V4L2_SUBDEV		(2 << MEDIA_ENT_TYPE_SHIFT)
 #define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR	(MEDIA_ENT_T_V4L2_SUBDEV + 1)
@@ -58,6 +65,8 @@ struct media_device_info {
 #define MEDIA_ENT_T_V4L2_SUBDEV_LENS	(MEDIA_ENT_T_V4L2_SUBDEV + 3)
 /* A converter of analogue video to its digital representation. */
 #define MEDIA_ENT_T_V4L2_SUBDEV_DECODER	(MEDIA_ENT_T_V4L2_SUBDEV + 4)
+
+#define MEDIA_ENT_T_V4L2_SUBDEV_TUNER	(MEDIA_ENT_T_V4L2_SUBDEV + 5)
 
 #define MEDIA_ENT_FL_DEFAULT		(1 << 0)
 
@@ -78,17 +87,48 @@ struct media_entity_desc {
 		struct {
 			__u32 major;
 			__u32 minor;
-		} v4l;
-		struct {
-			__u32 major;
-			__u32 minor;
-		} fb;
+		} dev;
+
+#if 1
+		/*
+		 * TODO: this shouldn't have been added without
+		 * actual drivers that use this. When the first real driver
+		 * appears that sets this information, special attention
+		 * should be given whether this information is 1) enough, and
+		 * 2) can deal with udev rules that rename devices. The struct
+		 * dev would not be sufficient for this since that does not
+		 * contain the subdevice information. In addition, struct dev
+		 * can only refer to a single device, and not to multiple (e.g.
+		 * pcm and mixer devices).
+		 *
+		 * So for now mark this as a to do.
+		 */
 		struct {
 			__u32 card;
 			__u32 device;
 			__u32 subdevice;
 		} alsa;
+#endif
+
+#if 1
+		/*
+		 * DEPRECATED: previous node specifications. Kept just to
+		 * avoid breaking compilation, but media_entity_desc.dev
+		 * should be used instead. In particular, alsa and dvb
+		 * fields below are wrong: for all devnodes, there should
+		 * be just major/minor inside the struct, as this is enough
+		 * to represent any devnode, no matter what type.
+		 */
+		struct {
+			__u32 major;
+			__u32 minor;
+		} v4l;
+		struct {
+			__u32 major;
+			__u32 minor;
+		} fb;
 		int dvb;
+#endif
 
 		/* Sub-device specifications */
 		/* Nothing needed yet */

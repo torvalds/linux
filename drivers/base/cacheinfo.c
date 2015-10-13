@@ -62,15 +62,21 @@ static int cache_setup_of_node(unsigned int cpu)
 		return -ENOENT;
 	}
 
-	while (np && index < cache_leaves(cpu)) {
+	while (index < cache_leaves(cpu)) {
 		this_leaf = this_cpu_ci->info_list + index;
 		if (this_leaf->level != 1)
 			np = of_find_next_cache_node(np);
 		else
 			np = of_node_get(np);/* cpu node itself */
+		if (!np)
+			break;
 		this_leaf->of_node = np;
 		index++;
 	}
+
+	if (index != cache_leaves(cpu)) /* not all OF nodes populated */
+		return -ENOENT;
+
 	return 0;
 }
 
@@ -142,7 +148,11 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 
 			if (sibling == cpu) /* skip itself */
 				continue;
+
 			sib_cpu_ci = get_cpu_cacheinfo(sibling);
+			if (!sib_cpu_ci->info_list)
+				continue;
+
 			sib_leaf = sib_cpu_ci->info_list + index;
 			cpumask_clear_cpu(cpu, &sib_leaf->shared_cpu_map);
 			cpumask_clear_cpu(sibling, &this_leaf->shared_cpu_map);
@@ -153,6 +163,9 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 
 static void free_cache_attributes(unsigned int cpu)
 {
+	if (!per_cpu_cacheinfo(cpu))
+		return;
+
 	cache_shared_cpu_map_remove(cpu);
 
 	kfree(per_cpu_cacheinfo(cpu));
@@ -173,7 +186,7 @@ static int detect_cache_attributes(unsigned int cpu)
 {
 	int ret;
 
-	if (init_cache_level(cpu))
+	if (init_cache_level(cpu) || !cache_leaves(cpu))
 		return -ENOENT;
 
 	per_cpu_cacheinfo(cpu) = kcalloc(cache_leaves(cpu),
@@ -185,12 +198,15 @@ static int detect_cache_attributes(unsigned int cpu)
 	if (ret)
 		goto free_ci;
 	/*
-	 * For systems using DT for cache hierarcy, of_node and shared_cpu_map
+	 * For systems using DT for cache hierarchy, of_node and shared_cpu_map
 	 * will be set up here only if they are not populated already
 	 */
 	ret = cache_shared_cpu_map_setup(cpu);
-	if (ret)
+	if (ret) {
+		pr_warn("Unable to detect cache hierarchy from DT for CPU %d\n",
+			cpu);
 		goto free_ci;
+	}
 	return 0;
 
 free_ci:
@@ -505,8 +521,7 @@ static int cacheinfo_cpu_callback(struct notifier_block *nfb,
 		break;
 	case CPU_DEAD:
 		cache_remove_dev(cpu);
-		if (per_cpu_cacheinfo(cpu))
-			free_cache_attributes(cpu);
+		free_cache_attributes(cpu);
 		break;
 	}
 	return notifier_from_errno(rc);

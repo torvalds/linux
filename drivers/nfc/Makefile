@@ -12,6 +12,6 @@ obj-$(CONFIG_NFC_PORT100)	+= port100.o
 obj-$(CONFIG_NFC_MRVL)		+= nfcmrvl/
 obj-$(CONFIG_NFC_TRF7970A)	+= trf7970a.o
 obj-$(CONFIG_NFC_ST21NFCA)  	+= st21nfca/
-obj-$(CONFIG_NFC_ST21NFCB)	+= st21nfcb/
-
-ccflags-$(CONFIG_NFC_DEBUG) := -DDEBUG
+obj-$(CONFIG_NFC_ST_NCI)	+= st-nci/
+obj-$(CONFIG_NFC_NXP_NCI)	+= nxp-nci/
+obj-$(CONFIG_NFC_S3FWRN5)	+= s3fwrn5/

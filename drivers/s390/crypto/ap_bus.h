@@ -32,10 +32,12 @@
 
 #define AP_DEVICES 64		/* Number of AP devices. */
 #define AP_DOMAINS 256		/* Number of AP domains. */
-#define AP_MAX_RESET 90		/* Maximum number of resets. */
 #define AP_RESET_TIMEOUT (HZ*0.7)	/* Time in ticks for reset timeouts. */
 #define AP_CONFIG_TIME 30	/* Time in seconds between AP bus rescans. */
 #define AP_POLL_TIME 1		/* Time in ticks between receive polls. */
+
+#define AP_POLL_IMMEDIATELY	1 /* continue running poll tasklet */
+#define AP_POLL_AFTER_TIMEOUT	2 /* run poll tasklet again after timout */
 
 extern int ap_domain_index;
 
@@ -135,6 +137,14 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESET_IGNORE	0	/* request timeout will be ignored */
 #define AP_RESET_ARMED	1	/* request timeout timer is active */
 #define AP_RESET_DO	2	/* AP reset required */
+#define AP_RESET_IN_PROGRESS	3	/* AP reset in progress */
+
+/*
+ * AP interrupt states
+ */
+#define AP_INTR_DISABLED	0	/* AP interrupt disabled */
+#define AP_INTR_ENABLED		1	/* AP interrupt enabled */
+#define AP_INTR_IN_PROGRESS	3	/* AP interrupt in progress */
 
 struct ap_device;
 struct ap_message;
@@ -168,6 +178,7 @@ struct ap_device {
 	struct timer_list timeout;	/* Timer for request timeouts. */
 	int reset;			/* Reset required after req. timeout. */
 
+	int interrupt;			/* indicate if interrupts are enabled */
 	int queue_count;		/* # messages currently on AP queue. */
 
 	struct list_head pendingq;	/* List of message sent to AP queue. */

@@ -22,7 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/irqchip/irq-crossbar.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
 #include <linux/genalloc.h>
@@ -52,16 +51,73 @@ static void __iomem *twd_base;
 
 #define IRQ_LOCALTIMER		29
 
-#ifdef CONFIG_OMAP4_ERRATA_I688
+#ifdef CONFIG_OMAP_INTERCONNECT_BARRIER
+
 /* Used to implement memory barrier on DRAM path */
 #define OMAP4_DRAM_BARRIER_VA			0xfe600000
 
-void __iomem *dram_sync, *sram_sync;
+static void __iomem *dram_sync, *sram_sync;
+static phys_addr_t dram_sync_paddr;
+static u32 dram_sync_size;
 
-static phys_addr_t paddr;
-static u32 size;
+/*
+ * The OMAP4 bus structure contains asynchrnous bridges which can buffer
+ * data writes from the MPU. These asynchronous bridges can be found on
+ * paths between the MPU to EMIF, and the MPU to L3 interconnects.
+ *
+ * We need to be careful about re-ordering which can happen as a result
+ * of different accesses being performed via different paths, and
+ * therefore different asynchronous bridges.
+ */
 
-void omap_bus_sync(void)
+/*
+ * OMAP4 interconnect barrier which is called for each mb() and wmb().
+ * This is to ensure that normal paths to DRAM (normal memory, cacheable
+ * accesses) are properly synchronised with writes to DMA coherent memory
+ * (normal memory, uncacheable) and device writes.
+ *
+ * The mb() and wmb() barriers only operate only on the MPU->MA->EMIF
+ * path, as we need to ensure that data is visible to other system
+ * masters prior to writes to those system masters being seen.
+ *
+ * Note: the SRAM path is not synchronised via mb() and wmb().
+ */
+static void omap4_mb(void)
+{
+	if (dram_sync)
+		writel_relaxed(0, dram_sync);
+}
+
+/*
+ * OMAP4 Errata i688 - asynchronous bridge corruption when entering WFI.
+ *
+ * If a data is stalled inside asynchronous bridge because of back
+ * pressure, it may be accepted multiple times, creating pointer
+ * misalignment that will corrupt next transfers on that data path until
+ * next reset of the system. No recovery procedure once the issue is hit,
+ * the path remains consistently broken.
+ *
+ * Async bridges can be found on paths between MPU to EMIF and MPU to L3
+ * interconnects.
+ *
+ * This situation can happen only when the idle is initiated by a Master
+ * Request Disconnection (which is trigged by software when executing WFI
+ * on the CPU).
+ *
+ * The work-around for this errata needs all the initiators connected
+ * through an async bridge to ensure that data path is properly drained
+ * before issuing WFI. This condition will be met if one Strongly ordered
+ * access is performed to the target right before executing the WFI.
+ *
+ * In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
+ * IO barrier ensure that there is no synchronisation loss on initiators
+ * operating on both interconnect port simultaneously.
+ *
+ * This is a stronger version of the OMAP4 memory barrier below, and
+ * operates on both the MPU->MA->EMIF path but also the MPU->OCP path
+ * as well, and is necessary prior to executing a WFI.
+ */
+void omap_interconnect_sync(void)
 {
 	if (dram_sync && sram_sync) {
 		writel_relaxed(readl_relaxed(dram_sync), dram_sync);
@@ -69,7 +125,6 @@ void omap_bus_sync(void)
 		isb();
 	}
 }
-EXPORT_SYMBOL(omap_bus_sync);
 
 static int __init omap4_sram_init(void)
 {
@@ -80,7 +135,7 @@ static int __init omap4_sram_init(void)
 	if (!np)
 		pr_warn("%s:Unable to allocate sram needed to handle errata I688\n",
 			__func__);
-	sram_pool = of_get_named_gen_pool(np, "sram", 0);
+	sram_pool = of_gen_pool_get(np, "sram", 0);
 	if (!sram_pool)
 		pr_warn("%s:Unable to get sram pool needed to handle errata I688\n",
 			__func__);
@@ -92,13 +147,10 @@ static int __init omap4_sram_init(void)
 omap_arch_initcall(omap4_sram_init);
 
 /* Steal one page physical memory for barrier implementation */
-int __init omap_barrier_reserve_memblock(void)
+void __init omap_barrier_reserve_memblock(void)
 {
-
-	size = ALIGN(PAGE_SIZE, SZ_1M);
-	paddr = arm_memblock_steal(size, SZ_1M);
-
-	return 0;
+	dram_sync_size = ALIGN(PAGE_SIZE, SZ_1M);
+	dram_sync_paddr = arm_memblock_steal(dram_sync_size, SZ_1M);
 }
 
 void __init omap_barriers_init(void)
@@ -106,19 +158,18 @@ void __init omap_barriers_init(void)
 	struct map_desc dram_io_desc[1];
 
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
-	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
-	dram_io_desc[0].length = size;
+	dram_io_desc[0].pfn = __phys_to_pfn(dram_sync_paddr);
+	dram_io_desc[0].length = dram_sync_size;
 	dram_io_desc[0].type = MT_MEMORY_RW_SO;
 	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
 	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
 
-	pr_info("OMAP4: Map 0x%08llx to 0x%08lx for dram barrier\n",
-		(long long) paddr, dram_io_desc[0].virtual);
+	pr_info("OMAP4: Map %pa to %p for dram barrier\n",
+		&dram_sync_paddr, dram_sync);
 
+	soc_mb = omap4_mb;
 }
-#else
-void __init omap_barriers_init(void)
-{}
+
 #endif
 
 void gic_dist_disable(void)
@@ -242,26 +293,26 @@ static int __init omap4_sar_ram_init(void)
 }
 omap_early_initcall(omap4_sar_ram_init);
 
-static const struct of_device_id gic_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", },
-	{ .compatible = "arm,cortex-a15-gic", },
+static const struct of_device_id intc_match[] = {
+	{ .compatible = "ti,omap4-wugen-mpu", },
+	{ .compatible = "ti,omap5-wugen-mpu", },
 	{ },
 };
 
-static struct device_node *gic_node;
+static struct device_node *intc_node;
 
 unsigned int omap4_xlate_irq(unsigned int hwirq)
 {
 	struct of_phandle_args irq_data;
 	unsigned int irq;
 
-	if (!gic_node)
-		gic_node = of_find_matching_node(NULL, gic_match);
+	if (!intc_node)
+		intc_node = of_find_matching_node(NULL, intc_match);
 
-	if (WARN_ON(!gic_node))
+	if (WARN_ON(!intc_node))
 		return hwirq;
 
-	irq_data.np = gic_node;
+	irq_data.np = intc_node;
 	irq_data.args_count = 3;
 	irq_data.args[0] = 0;
 	irq_data.args[1] = hwirq - OMAP44XX_IRQ_GIC_START;
@@ -278,6 +329,12 @@ void __init omap_gic_of_init(void)
 {
 	struct device_node *np;
 
+	intc_node = of_find_matching_node(NULL, intc_match);
+	if (WARN_ON(!intc_node)) {
+		pr_err("No WUGEN found in DT, system will misbehave.\n");
+		pr_err("UPDATE YOUR DEVICE TREE!\n");
+	}
+
 	/* Extract GIC distributor and TWD bases for OMAP4460 ROM Errata WA */
 	if (!cpu_is_omap446x())
 		goto skip_errata_init;
@@ -291,9 +348,5 @@ void __init omap_gic_of_init(void)
 	WARN_ON(!twd_base);
 
 skip_errata_init:
-	omap_wakeupgen_init();
-#ifdef CONFIG_IRQ_CROSSBAR
-	irqcrossbar_init();
-#endif
 	irqchip_init();
 }

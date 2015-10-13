@@ -301,6 +301,7 @@ config USB_MIDI_GADGET
 config USB_G_PRINTER
 	tristate "Printer Gadget"
 	select USB_LIBCOMPOSITE
+	select USB_F_PRINTER
 	help
 	  The Printer Gadget channels data between the USB host and a
 	  userspace program driving the print engine. The user space
@@ -338,6 +339,7 @@ config USB_CDC_COMPOSITE
 config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
+	depends on BLOCK
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
@@ -345,6 +347,7 @@ config USB_G_NOKIA
 	select USB_F_OBEX
 	select USB_F_PHONET
 	select USB_F_ECM
+	select USB_F_MASS_STORAGE
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.

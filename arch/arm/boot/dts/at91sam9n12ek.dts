@@ -14,7 +14,8 @@
 	compatible = "atmel,at91sam9n12ek", "atmel,at91sam9n12", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
+		bootargs = "root=/dev/mtdblock1 rw rootfstype=jffs2";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -108,6 +109,13 @@
 							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
+
+				usb1 {
+					pinctrl_usb1_vbus_sense: usb1_vbus_sense {
+						atmel,pins =
+							<AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;	/* PB16 gpio usb vbus sense, no pull up and deglitch */
+					};
+				};
 			};
 
 			spi0: spi@f0000000 {
@@ -120,7 +128,34 @@
 				};
 			};
 
+			hlcdc: hlcdc@f8038000 {
+				status = "okay";
+
+				hlcdc-display-controller {
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_lcd_base &pinctrl_lcd_rgb888>;
+
+					port@0 {
+						hlcdc_panel_output: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&panel_input>;
+						};
+					};
+				};
+			};
+
+			usb1: gadget@f803c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usb1_vbus_sense>;
+				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+
 			watchdog@fffffe40 {
+				status = "okay";
+			};
+
+			rtc@fffffeb0 {
 				status = "okay";
 			};
 		};
@@ -140,6 +175,23 @@
 			atmel,vbus-gpio = <&pioB 7 GPIO_ACTIVE_LOW>;
 			status = "okay";
 		};
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&hlcdc_pwm 0 50000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		power-supply = <&bl_reg>;
+		status = "okay";
+	};
+
+	bl_reg: backlight_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "backlight-power-supply";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		status = "okay";
 	};
 
 	leds {
@@ -173,6 +225,34 @@
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
+	};
+
+	panel: panel {
+		compatible = "qd,qd43003c0-40", "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&panel_reg>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			panel_input: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hlcdc_panel_output>;
+			};
+		};
+	};
+
+	panel_reg: panel_regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "panel-power-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		status = "okay";
 	};
 
 	sound {

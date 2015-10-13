@@ -170,7 +170,7 @@ struct imxfb_info {
 	struct regulator	*lcd_pwr;
 };
 
-static struct platform_device_id imxfb_devtype[] = {
+static const struct platform_device_id imxfb_devtype[] = {
 	{
 		.name = "imx1-fb",
 		.driver_data = IMX1_FB,
@@ -183,7 +183,7 @@ static struct platform_device_id imxfb_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, imxfb_devtype);
 
-static struct of_device_id imxfb_of_dev_id[] = {
+static const struct of_device_id imxfb_of_dev_id[] = {
 	{
 		.compatible = "fsl,imx1-fb",
 		.data = &imxfb_devtype[IMX1_FB],

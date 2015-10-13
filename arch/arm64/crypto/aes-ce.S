@@ -45,18 +45,14 @@
 
 	.macro		do_enc_Nx, de, mc, k, i0, i1, i2, i3
 	aes\de		\i0\().16b, \k\().16b
-	.ifnb		\i1
-	aes\de		\i1\().16b, \k\().16b
-	.ifnb		\i3
-	aes\de		\i2\().16b, \k\().16b
-	aes\de		\i3\().16b, \k\().16b
-	.endif
-	.endif
 	aes\mc		\i0\().16b, \i0\().16b
 	.ifnb		\i1
+	aes\de		\i1\().16b, \k\().16b
 	aes\mc		\i1\().16b, \i1\().16b
 	.ifnb		\i3
+	aes\de		\i2\().16b, \k\().16b
 	aes\mc		\i2\().16b, \i2\().16b
+	aes\de		\i3\().16b, \k\().16b
 	aes\mc		\i3\().16b, \i3\().16b
 	.endif
 	.endif

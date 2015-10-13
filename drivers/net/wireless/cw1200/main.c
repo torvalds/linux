@@ -278,14 +278,14 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 	else
 		priv->ba_tx_tid_mask = 0xff; /* Enable TX BLKACK for all TIDs */
 
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		    IEEE80211_HW_SUPPORTS_PS |
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		    IEEE80211_HW_CONNECTION_MONITOR |
-		    IEEE80211_HW_AMPDU_AGGREGATION |
-		    IEEE80211_HW_TX_AMPDU_SETUP_IN_HW |
-		    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC;
+	ieee80211_hw_set(hw, NEED_DTIM_BEFORE_ASSOC);
+	ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+	ieee80211_hw_set(hw, SIGNAL_DBM);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					  BIT(NL80211_IFTYPE_ADHOC) |

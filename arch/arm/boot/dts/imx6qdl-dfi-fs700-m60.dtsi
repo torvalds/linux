@@ -1,3 +1,5 @@
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	regulators {
 		compatible = "simple-bus";
@@ -181,7 +183,7 @@
 &usdhc2 { /* module slot */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	cd-gpios = <&gpio2 2 0>;
+	cd-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

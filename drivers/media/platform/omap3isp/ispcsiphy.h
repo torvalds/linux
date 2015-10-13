@@ -17,7 +17,7 @@
 #ifndef OMAP3_ISP_CSI_PHY_H
 #define OMAP3_ISP_CSI_PHY_H
 
-#include <media/omap3isp.h>
+#include "omap3isp.h"
 
 struct isp_csi2_device;
 struct regulator;

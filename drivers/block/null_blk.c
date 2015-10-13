@@ -99,7 +99,7 @@ static int null_set_queue_mode(const char *str, const struct kernel_param *kp)
 	return null_param_store_val(str, &queue_mode, NULL_Q_BIO, NULL_Q_MQ);
 }
 
-static struct kernel_param_ops null_queue_mode_param_ops = {
+static const struct kernel_param_ops null_queue_mode_param_ops = {
 	.set	= null_set_queue_mode,
 	.get	= param_get_int,
 };
@@ -127,7 +127,7 @@ static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 					NULL_IRQ_TIMER);
 }
 
-static struct kernel_param_ops null_irqmode_param_ops = {
+static const struct kernel_param_ops null_irqmode_param_ops = {
 	.set	= null_set_irqmode,
 	.get	= param_get_int,
 };
@@ -222,7 +222,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 		blk_end_request_all(cmd->rq, 0);
 		break;
 	case NULL_Q_BIO:
-		bio_endio(cmd->bio, 0);
+		bio_endio(cmd->bio);
 		break;
 	}
 
@@ -240,9 +240,20 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	while ((entry = llist_del_all(&cq->list)) != NULL) {
 		entry = llist_reverse_order(entry);
 		do {
+			struct request_queue *q = NULL;
+
 			cmd = container_of(entry, struct nullb_cmd, ll_list);
 			entry = entry->next;
+			if (cmd->rq)
+				q = cmd->rq->q;
 			end_cmd(cmd);
+
+			if (q && !q->mq_ops && blk_queue_stopped(q)) {
+				spin_lock(q->queue_lock);
+				if (blk_queue_stopped(q))
+					blk_start_queue(q);
+				spin_unlock(q->queue_lock);
+			}
 		} while (entry);
 	}
 
@@ -257,7 +268,7 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	if (llist_add(&cmd->ll_list, &cq->list)) {
 		ktime_t kt = ktime_set(0, completion_nsec);
 
-		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL);
+		hrtimer_start(&cq->timer, kt, HRTIMER_MODE_REL_PINNED);
 	}
 
 	put_cpu();
@@ -278,7 +289,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (queue_mode)  {
 		case NULL_Q_MQ:
-			blk_mq_complete_request(cmd->rq);
+			blk_mq_complete_request(cmd->rq, cmd->rq->errors);
 			break;
 		case NULL_Q_RQ:
 			blk_complete_request(cmd->rq);
@@ -334,6 +345,7 @@ static int null_rq_prep_fn(struct request_queue *q, struct request *req)
 		req->special = cmd;
 		return BLKPREP_OK;
 	}
+	blk_stop_queue(q);
 
 	return BLKPREP_DEFER;
 }
@@ -394,6 +406,22 @@ static struct blk_mq_ops null_mq_ops = {
 	.complete	= null_softirq_done_fn,
 };
 
+static void cleanup_queue(struct nullb_queue *nq)
+{
+	kfree(nq->tag_map);
+	kfree(nq->cmds);
+}
+
+static void cleanup_queues(struct nullb *nullb)
+{
+	int i;
+
+	for (i = 0; i < nullb->nr_queues; i++)
+		cleanup_queue(&nullb->queues[i]);
+
+	kfree(nullb->queues);
+}
+
 static void null_del_dev(struct nullb *nullb)
 {
 	list_del_init(&nullb->list);
@@ -403,6 +431,7 @@ static void null_del_dev(struct nullb *nullb)
 	if (queue_mode == NULL_Q_MQ)
 		blk_mq_free_tag_set(&nullb->tag_set);
 	put_disk(nullb->disk);
+	cleanup_queues(nullb);
 	kfree(nullb);
 }
 
@@ -445,22 +474,6 @@ static int setup_commands(struct nullb_queue *nq)
 	}
 
 	return 0;
-}
-
-static void cleanup_queue(struct nullb_queue *nq)
-{
-	kfree(nq->tag_map);
-	kfree(nq->cmds);
-}
-
-static void cleanup_queues(struct nullb *nullb)
-{
-	int i;
-
-	for (i = 0; i < nullb->nr_queues; i++)
-		cleanup_queue(&nullb->queues[i]);
-
-	kfree(nullb->queues);
 }
 
 static int setup_queues(struct nullb *nullb)
@@ -576,8 +589,7 @@ static int null_add_dev(void)
 	blk_queue_physical_block_size(nullb->q, bs);
 
 	size = gb * 1024 * 1024 * 1024ULL;
-	sector_div(size, bs);
-	set_capacity(disk, size);
+	set_capacity(disk, size >> 9);
 
 	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;

@@ -2,6 +2,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <net/switchdev.h>
 
 #include "br_private.h"
 
@@ -36,6 +37,36 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 		clear_bit(vid, v->untagged_bitmap);
 }
 
+static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
+			  u16 vid, u16 flags)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	int err;
+
+	/* If driver uses VLAN ndo ops, use 8021q to install vid
+	 * on device, otherwise try switchdev ops to install vid.
+	 */
+
+	if (ops->ndo_vlan_rx_add_vid) {
+		err = vlan_vid_add(dev, br->vlan_proto, vid);
+	} else {
+		struct switchdev_obj vlan_obj = {
+			.id = SWITCHDEV_OBJ_PORT_VLAN,
+			.u.vlan = {
+				.flags = flags,
+				.vid_begin = vid,
+				.vid_end = vid,
+			},
+		};
+
+		err = switchdev_port_obj_add(dev, &vlan_obj);
+		if (err == -EOPNOTSUPP)
+			err = 0;
+	}
+
+	return err;
+}
+
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	struct net_bridge_port *p = NULL;
@@ -62,7 +93,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 		 * This ensures tagged traffic enters the bridge when
 		 * promiscuous mode is disabled by br_manage_promisc().
 		 */
-		err = vlan_vid_add(dev, br->vlan_proto, vid);
+		err = __vlan_vid_add(dev, br, vid, flags);
 		if (err)
 			return err;
 	}
@@ -86,6 +117,35 @@ out_filt:
 	return err;
 }
 
+static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
+			  u16 vid)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	int err = 0;
+
+	/* If driver uses VLAN ndo ops, use 8021q to delete vid
+	 * on device, otherwise try switchdev ops to delete vid.
+	 */
+
+	if (ops->ndo_vlan_rx_kill_vid) {
+		vlan_vid_del(dev, br->vlan_proto, vid);
+	} else {
+		struct switchdev_obj vlan_obj = {
+			.id = SWITCHDEV_OBJ_PORT_VLAN,
+			.u.vlan = {
+				.vid_begin = vid,
+				.vid_end = vid,
+			},
+		};
+
+		err = switchdev_port_obj_del(dev, &vlan_obj);
+		if (err == -EOPNOTSUPP)
+			err = 0;
+	}
+
+	return err;
+}
+
 static int __vlan_del(struct net_port_vlans *v, u16 vid)
 {
 	if (!test_bit(vid, v->vlan_bitmap))
@@ -96,7 +156,11 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	if (v->port_idx) {
 		struct net_bridge_port *p = v->parent.port;
-		vlan_vid_del(p->dev, p->br->vlan_proto, vid);
+		int err;
+
+		err = __vlan_vid_del(p->dev, p->br, vid);
+		if (err)
+			return err;
 	}
 
 	clear_bit(vid, v->vlan_bitmap);
@@ -413,41 +477,40 @@ void br_recalculate_fwd_mask(struct net_bridge *br)
 					      ~(1u << br->group_addr[5]);
 }
 
-int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
-	if (!rtnl_trylock())
-		return restart_syscall();
-
 	if (br->vlan_enabled == val)
-		goto unlock;
+		return 0;
 
 	br->vlan_enabled = val;
 	br_manage_promisc(br);
 	recalculate_group_addr(br);
 	br_recalculate_fwd_mask(br);
 
-unlock:
-	rtnl_unlock();
 	return 0;
 }
 
-int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+{
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	__br_vlan_filter_toggle(br, val);
+	rtnl_unlock();
+
+	return 0;
+}
+
+int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
 {
 	int err = 0;
 	struct net_bridge_port *p;
 	struct net_port_vlans *pv;
-	__be16 proto, oldproto;
+	__be16 oldproto;
 	u16 vid, errvid;
 
-	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
-		return -EPROTONOSUPPORT;
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	proto = htons(val);
 	if (br->vlan_proto == proto)
-		goto unlock;
+		return 0;
 
 	/* Add VLANs for the new proto to the device filter. */
 	list_for_each_entry(p, &br->port_list, list) {
@@ -478,9 +541,7 @@ int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
 			vlan_vid_del(p->dev, oldproto, vid);
 	}
 
-unlock:
-	rtnl_unlock();
-	return err;
+	return 0;
 
 err_filt:
 	errvid = vid;
@@ -496,7 +557,23 @@ err_filt:
 			vlan_vid_del(p->dev, proto, vid);
 	}
 
-	goto unlock;
+	return err;
+}
+
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
+{
+	int err;
+
+	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
+		return -EPROTONOSUPPORT;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	err = __br_vlan_set_proto(br, htons(val));
+	rtnl_unlock();
+
+	return err;
 }
 
 static bool vlan_default_pvid(struct net_port_vlans *pv, u16 vid)
@@ -686,6 +763,7 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 		return -EINVAL;
 
 	br_fdb_find_delete_local(port->br, port, port->dev->dev_addr, vid);
+	br_fdb_delete_by_port(port->br, port, vid, 0);
 
 	return __vlan_del(pv, vid);
 }

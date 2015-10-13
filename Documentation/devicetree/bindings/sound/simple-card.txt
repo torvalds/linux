@@ -16,7 +16,8 @@ Optional properties:
 					  connection's sink, the second being the connection's
 					  source.
 - simple-audio-card,mclk-fs             : Multiplication factor between stream rate and codec
-  					  mclk.
+					  mclk. When defined, mclk-fs property defined in
+					  dai-link sub nodes are ignored.
 - simple-audio-card,hp-det-gpio		: Reference to GPIO that signals when
 					  headphones are attached.
 - simple-audio-card,mic-det-gpio	: Reference to GPIO that signals when
@@ -55,6 +56,9 @@ Optional dai-link subnode properties:
 					  dai-link uses bit clock inversion.
 - frame-inversion			: bool property. Add this if the
 					  dai-link uses frame clock inversion.
+- mclk-fs             			: Multiplication factor between stream
+					  rate and codec mclk, applied only for
+					  the dai-link.
 
 For backward compatibility the frame-master and bitclock-master
 properties can be used as booleans in codec subnode to indicate if the

@@ -31,6 +31,14 @@
  */
 
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
+
+#include <asm/cputype.h>
+#include <asm/irq_regs.h>
+
+#include <linux/of.h>
+#include <linux/perf/arm_pmu.h>
+#include <linux/platform_device.h>
+
 enum armv6_perf_types {
 	ARMV6_PERFCTR_ICACHE_MISS	    = 0x0,
 	ARMV6_PERFCTR_IBUF_STALL	    = 0x1,
@@ -543,24 +551,39 @@ static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 
 	return 0;
 }
-#else
-static int armv6_1136_pmu_init(struct arm_pmu *cpu_pmu)
+
+static struct of_device_id armv6_pmu_of_device_ids[] = {
+	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
+	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
+	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},
+	{ /* sentinel value */ }
+};
+
+static const struct pmu_probe_info armv6_pmu_probe_table[] = {
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1136, armv6_1136_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1156, armv6_1156_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM1176, armv6_1176_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
+	{ /* sentinel value */ }
+};
+
+static int armv6_pmu_device_probe(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return arm_pmu_device_probe(pdev, armv6_pmu_of_device_ids,
+				    armv6_pmu_probe_table);
 }
 
-static int armv6_1156_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
+static struct platform_driver armv6_pmu_driver = {
+	.driver		= {
+		.name	= "armv6-pmu",
+		.of_match_table = armv6_pmu_of_device_ids,
+	},
+	.probe		= armv6_pmu_device_probe,
+};
 
-static int armv6_1176_pmu_init(struct arm_pmu *cpu_pmu)
+static int __init register_armv6_pmu_driver(void)
 {
-	return -ENODEV;
+	return platform_driver_register(&armv6_pmu_driver);
 }
-
-static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	return -ENODEV;
-}
+device_initcall(register_armv6_pmu_driver);
 #endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */

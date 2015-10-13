@@ -5,7 +5,10 @@
 config OPENVSWITCH
 	tristate "Open vSwitch"
 	depends on INET
+	depends on !NF_CONNTRACK || \
+		   (NF_CONNTRACK && (!NF_DEFRAG_IPV6 || NF_DEFRAG_IPV6))
 	select LIBCRC32C
+	select MPLS
 	select NET_MPLS_GSO
 	---help---
 	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized
@@ -33,7 +36,7 @@ config OPENVSWITCH
 config OPENVSWITCH_GRE
 	tristate "Open vSwitch GRE tunneling support"
 	depends on OPENVSWITCH
-	depends on NET_IPGRE_DEMUX
+	depends on NET_IPGRE
 	default OPENVSWITCH
 	---help---
 	  If you say Y here, then the Open vSwitch will be able create GRE

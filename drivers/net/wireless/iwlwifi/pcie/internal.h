@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -44,6 +44,21 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 
+/* We need 2 entries for the TX command and header, and another one might
+ * be needed for potential data in the SKB's head. The remaining ones can
+ * be used for frags.
+ */
+#define IWL_PCIE_MAX_FRAGS (IWL_NUM_OF_TBS - 3)
+
+/*
+ * RX related structures and functions
+ */
+#define RX_NUM_QUEUES 1
+#define RX_POST_REQ_ALLOC 2
+#define RX_CLAIM_REQ_ALLOC 8
+#define RX_POOL_SIZE ((RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC) * RX_NUM_QUEUES)
+#define RX_LOW_WATERMARK 8
+
 struct iwl_host_cmd;
 
 /*This file includes the declaration that are internal to the
@@ -77,29 +92,29 @@ struct isr_statistics {
  * struct iwl_rxq - Rx queue
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
  * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
- * @pool:
- * @queue:
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
+ * @used_count: Number of RBDs handled to allocator to use for allocation
  * @write_actual:
- * @rx_free: list of free SKBs for use
- * @rx_used: List of Rx buffers with no SKB
+ * @rx_free: list of RBDs with allocated RB ready for use
+ * @rx_used: list of RBDs with no RB attached
  * @need_update: flag to indicate we need to update read/write index
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
  * @lock:
+ * @pool: initial pool of iwl_rx_mem_buffer for the queue
+ * @queue: actual rx queue
  *
  * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
  */
 struct iwl_rxq {
 	__le32 *bd;
 	dma_addr_t bd_dma;
-	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
-	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
 	u32 read;
 	u32 write;
 	u32 free_count;
+	u32 used_count;
 	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
@@ -107,6 +122,32 @@ struct iwl_rxq {
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
+	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE];
+	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
+};
+
+/**
+ * struct iwl_rb_allocator - Rx allocator
+ * @pool: initial pool of allocator
+ * @req_pending: number of requests the allcator had not processed yet
+ * @req_ready: number of requests honored and ready for claiming
+ * @rbd_allocated: RBDs with pages allocated and ready to be handled to
+ *	the queue. This is a list of &struct iwl_rx_mem_buffer
+ * @rbd_empty: RBDs with no page attached for allocator use. This is a list
+ *	of &struct iwl_rx_mem_buffer
+ * @lock: protects the rbd_allocated and rbd_empty lists
+ * @alloc_wq: work queue for background calls
+ * @rx_alloc: work struct for background calls
+ */
+struct iwl_rb_allocator {
+	struct iwl_rx_mem_buffer pool[RX_POOL_SIZE];
+	atomic_t req_pending;
+	atomic_t req_ready;
+	struct list_head rbd_allocated;
+	struct list_head rbd_empty;
+	spinlock_t lock;
+	struct workqueue_struct *alloc_wq;
+	struct work_struct rx_alloc;
 };
 
 struct iwl_dma_ptr {
@@ -217,6 +258,8 @@ struct iwl_pcie_txq_scratch_buf {
  * @active: stores if queue is active
  * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
+ * @frozen: tx stuck queue timer is frozen
+ * @frozen_expiry_remainder: remember how long until the timer fires
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -228,9 +271,11 @@ struct iwl_txq {
 	dma_addr_t scratchbufs_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
+	unsigned long frozen_expiry_remainder;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
 	bool need_update;
+	bool frozen;
 	u8 active;
 	bool ampdu;
 	unsigned long wd_timeout;
@@ -246,7 +291,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
 /**
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
- * @rx_replenish: work that will be called when buffers need to be allocated
+ * @rba: allocator for RX replenishing
  * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
@@ -260,8 +305,10 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
+ * @wide_cmd_header: true when ucode supports wide command header format
  * @rx_page_order: page order for receive buffer size
  * @reg_lock: protect hw register access
+ * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
  * @fw_mon_phys: physical address of the buffer for the firmware monitor
  * @fw_mon_page: points to the first page of the buffer for the firmware monitor
@@ -269,7 +316,7 @@ iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq rxq;
-	struct work_struct rx_replenish;
+	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
 
@@ -281,9 +328,11 @@ struct iwl_trans_pcie {
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
 	bool use_ict;
+	bool is_down;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
+	struct mutex mutex;
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
@@ -310,13 +359,14 @@ struct iwl_trans_pcie {
 	bool rx_buf_size_8k;
 	bool bc_table_dword;
 	bool scd_set_active;
+	bool wide_cmd_header;
 	u32 rx_page_order;
 
 	const char *const *command_names;
 
 	/*protect hw register */
 	spinlock_t reg_lock;
-	bool cmd_in_flight;
+	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
 
 	/* protect ref counter */
@@ -381,7 +431,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
-			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
+			    struct iwl_rx_cmd_buffer *rxb);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);

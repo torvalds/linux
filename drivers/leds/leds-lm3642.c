@@ -446,7 +446,6 @@ MODULE_DEVICE_TABLE(i2c, lm3642_id);
 static struct i2c_driver lm3642_i2c_driver = {
 	.driver = {
 		   .name = LM3642_NAME,
-		   .owner = THIS_MODULE,
 		   .pm = NULL,
 		   },
 	.probe = lm3642_probe,

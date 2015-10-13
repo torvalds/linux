@@ -4,6 +4,7 @@ menuconfig ARCH_SIRF
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT_MAP
+	select REGMAP
 	select PINCTRL
 	select PINCTRL_SIRF
 	help

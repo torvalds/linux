@@ -23,10 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "nv04.h"
+#include "priv.h"
+#include "ram.h"
 
 void
-nv46_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+nv46_fb_tile_init(struct nvkm_fb *fb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nvkm_fb_tile *tile)
 {
 	/* for performance, select alternate bank offset for zeta */
@@ -39,19 +40,19 @@ nv46_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 	tile->pitch = pitch;
 }
 
-struct nvkm_oclass *
-nv46_fb_oclass = &(struct nv04_fb_impl) {
-	.base.base.handle = NV_SUBDEV(FB, 0x46),
-	.base.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = nv04_fb_ctor,
-		.dtor = _nvkm_fb_dtor,
-		.init = nv44_fb_init,
-		.fini = _nvkm_fb_fini,
-	},
-	.base.memtype = nv04_fb_memtype_valid,
-	.base.ram = &nv44_ram_oclass,
+static const struct nvkm_fb_func
+nv46_fb = {
+	.init = nv44_fb_init,
 	.tile.regions = 15,
 	.tile.init = nv46_fb_tile_init,
 	.tile.fini = nv20_fb_tile_fini,
 	.tile.prog = nv44_fb_tile_prog,
-}.base.base;
+	.ram_new = nv44_ram_new,
+	.memtype_valid = nv04_fb_memtype_valid,
+};
+
+int
+nv46_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return nvkm_fb_new_(&nv46_fb, device, index, pfb);
+}

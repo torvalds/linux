@@ -176,9 +176,7 @@ static int snd_opl4_create_seq_dev(struct snd_opl4 *opl4, int seq_device)
 
 static void snd_opl4_free(struct snd_opl4 *opl4)
 {
-#ifdef CONFIG_PROC_FS
 	snd_opl4_free_proc(opl4);
-#endif
 	release_and_free_resource(opl4->res_fm_port);
 	release_and_free_resource(opl4->res_pcm_port);
 	kfree(opl4);
@@ -249,9 +247,7 @@ int snd_opl4_create(struct snd_card *card,
 	snd_opl4_enable_opl4(opl4);
 
 	snd_opl4_create_mixer(opl4);
-#ifdef CONFIG_PROC_FS
 	snd_opl4_create_proc(opl4);
-#endif
 
 #if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
 	opl4->seq_client = -1;

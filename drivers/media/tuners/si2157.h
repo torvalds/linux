@@ -34,6 +34,12 @@ struct si2157_config {
 	 * Spectral Inversion
 	 */
 	bool inversion;
+
+	/*
+	 * Port selection
+	 * Select the RF interface to use (pins 9+11 or 12+13)
+	 */
+	u8 if_port;
 };
 
 #endif

@@ -16,6 +16,7 @@
 #include <linux/stat.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
@@ -52,35 +53,30 @@ void ux500_restart(enum reboot_mode mode, const char *cmd)
 */
 void __init ux500_init_irq(void)
 {
-	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+	struct device_node *np;
+	struct resource r;
+
 	irqchip_init();
+	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
+	of_address_to_resource(np, 0, &r);
+	of_node_put(np);
+	if (!r.start) {
+		pr_err("could not find PRCMU base resource\n");
+		return;
+	}
+	prcmu_early_init(r.start, r.end-r.start);
+	ux500_pm_init(r.start, r.end-r.start);
 
 	/*
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	if (cpu_is_u8500_family()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
-
-		u8500_of_clk_init(U8500_CLKRST1_BASE,
-				  U8500_CLKRST2_BASE,
-				  U8500_CLKRST3_BASE,
-				  U8500_CLKRST5_BASE,
-				  U8500_CLKRST6_BASE);
-	} else if (cpu_is_u9540()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
-		u9540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
-			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
-			       U8500_CLKRST6_BASE);
-	} else if (cpu_is_u8540()) {
-		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
-		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
-		u8540_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
-			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
-			       U8500_CLKRST6_BASE);
-	}
+	if (cpu_is_u8500_family())
+		u8500_clk_init();
+	else if (cpu_is_u9540())
+		u9540_clk_init();
+	else if (cpu_is_u8540())
+		u8540_clk_init();
 }
 
 static const char * __init ux500_get_machine(void)

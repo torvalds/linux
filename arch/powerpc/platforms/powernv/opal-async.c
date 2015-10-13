@@ -151,7 +151,7 @@ static struct notifier_block opal_async_comp_nb = {
 		.priority	= 0,
 };
 
-static int __init opal_async_comp_init(void)
+int __init opal_async_comp_init(void)
 {
 	struct device_node *opal_node;
 	const __be32 *async;
@@ -205,4 +205,3 @@ out_opal_node:
 out:
 	return err;
 }
-machine_subsys_initcall(powernv, opal_async_comp_init);

@@ -86,20 +86,16 @@ static int pit_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void pit_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int pit_shutdown(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		pit_set_next_event(cycle_per_jiffy, evt);
-		break;
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_UNUSED:
-		pit_timer_disable();
-		break;
-	default:
-		break;
-	}
+	pit_timer_disable();
+	return 0;
+}
+
+static int pit_set_periodic(struct clock_event_device *evt)
+{
+	pit_set_next_event(cycle_per_jiffy, evt);
+	return 0;
 }
 
 static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
@@ -114,7 +110,7 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 	 * and start the counter again. So software need to disable the timer
 	 * to stop the counter loop in ONESHOT mode.
 	 */
-	if (likely(evt->mode == CLOCK_EVT_MODE_ONESHOT))
+	if (likely(clockevent_state_oneshot(evt)))
 		pit_timer_disable();
 
 	evt->event_handler(evt);
@@ -125,7 +121,8 @@ static irqreturn_t pit_timer_interrupt(int irq, void *dev_id)
 static struct clock_event_device clockevent_pit = {
 	.name		= "VF pit timer",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= pit_set_mode,
+	.set_state_shutdown = pit_shutdown,
+	.set_state_periodic = pit_set_periodic,
 	.set_next_event	= pit_set_next_event,
 	.rating		= 300,
 };

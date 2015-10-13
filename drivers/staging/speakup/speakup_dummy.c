@@ -129,18 +129,8 @@ module_param_named(start, synth_dummy.startup, short, S_IRUGO);
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init dummy_init(void)
-{
-	return synth_add(&synth_dummy);
-}
+module_spk_synth(synth_dummy);
 
-static void __exit dummy_exit(void)
-{
-	synth_remove(&synth_dummy);
-}
-
-module_init(dummy_init);
-module_exit(dummy_exit);
 MODULE_AUTHOR("Samuel Thibault <samuel.thibault@ens-lyon.org>");
 MODULE_DESCRIPTION("Speakup support for text console");
 MODULE_LICENSE("GPL");

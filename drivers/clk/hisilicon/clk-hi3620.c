@@ -25,57 +25,55 @@
 
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
-#include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
 
 #include <dt-bindings/clock/hi3620-clock.h>
 
 #include "clk.h"
 
 /* clock parent list */
-static const char *timer0_mux_p[] __initconst = { "osc32k", "timerclk01", };
-static const char *timer1_mux_p[] __initconst = { "osc32k", "timerclk01", };
-static const char *timer2_mux_p[] __initconst = { "osc32k", "timerclk23", };
-static const char *timer3_mux_p[] __initconst = { "osc32k", "timerclk23", };
-static const char *timer4_mux_p[] __initconst = { "osc32k", "timerclk45", };
-static const char *timer5_mux_p[] __initconst = { "osc32k", "timerclk45", };
-static const char *timer6_mux_p[] __initconst = { "osc32k", "timerclk67", };
-static const char *timer7_mux_p[] __initconst = { "osc32k", "timerclk67", };
-static const char *timer8_mux_p[] __initconst = { "osc32k", "timerclk89", };
-static const char *timer9_mux_p[] __initconst = { "osc32k", "timerclk89", };
-static const char *uart0_mux_p[] __initconst = { "osc26m", "pclk", };
-static const char *uart1_mux_p[] __initconst = { "osc26m", "pclk", };
-static const char *uart2_mux_p[] __initconst = { "osc26m", "pclk", };
-static const char *uart3_mux_p[] __initconst = { "osc26m", "pclk", };
-static const char *uart4_mux_p[] __initconst = { "osc26m", "pclk", };
-static const char *spi0_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
-static const char *spi1_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
-static const char *spi2_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
+static const char *const timer0_mux_p[] __initconst = { "osc32k", "timerclk01", };
+static const char *const timer1_mux_p[] __initconst = { "osc32k", "timerclk01", };
+static const char *const timer2_mux_p[] __initconst = { "osc32k", "timerclk23", };
+static const char *const timer3_mux_p[] __initconst = { "osc32k", "timerclk23", };
+static const char *const timer4_mux_p[] __initconst = { "osc32k", "timerclk45", };
+static const char *const timer5_mux_p[] __initconst = { "osc32k", "timerclk45", };
+static const char *const timer6_mux_p[] __initconst = { "osc32k", "timerclk67", };
+static const char *const timer7_mux_p[] __initconst = { "osc32k", "timerclk67", };
+static const char *const timer8_mux_p[] __initconst = { "osc32k", "timerclk89", };
+static const char *const timer9_mux_p[] __initconst = { "osc32k", "timerclk89", };
+static const char *const uart0_mux_p[] __initconst = { "osc26m", "pclk", };
+static const char *const uart1_mux_p[] __initconst = { "osc26m", "pclk", };
+static const char *const uart2_mux_p[] __initconst = { "osc26m", "pclk", };
+static const char *const uart3_mux_p[] __initconst = { "osc26m", "pclk", };
+static const char *const uart4_mux_p[] __initconst = { "osc26m", "pclk", };
+static const char *const spi0_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
+static const char *const spi1_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
+static const char *const spi2_mux_p[] __initconst = { "osc26m", "rclk_cfgaxi", };
 /* share axi parent */
-static const char *saxi_mux_p[] __initconst = { "armpll3", "armpll2", };
-static const char *pwm0_mux_p[] __initconst = { "osc32k", "osc26m", };
-static const char *pwm1_mux_p[] __initconst = { "osc32k", "osc26m", };
-static const char *sd_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *mmc1_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *mmc1_mux2_p[] __initconst = { "osc26m", "mmc1_div", };
-static const char *g2d_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *venc_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *vdec_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *vpp_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *edc0_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *ldi0_mux_p[] __initconst = { "armpll2", "armpll4",
+static const char *const saxi_mux_p[] __initconst = { "armpll3", "armpll2", };
+static const char *const pwm0_mux_p[] __initconst = { "osc32k", "osc26m", };
+static const char *const pwm1_mux_p[] __initconst = { "osc32k", "osc26m", };
+static const char *const sd_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const mmc1_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const mmc1_mux2_p[] __initconst = { "osc26m", "mmc1_div", };
+static const char *const g2d_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const venc_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const vdec_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const vpp_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const edc0_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const ldi0_mux_p[] __initconst = { "armpll2", "armpll4",
 					     "armpll3", "armpll5", };
-static const char *edc1_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *ldi1_mux_p[] __initconst = { "armpll2", "armpll4",
+static const char *const edc1_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const ldi1_mux_p[] __initconst = { "armpll2", "armpll4",
 					     "armpll3", "armpll5", };
-static const char *rclk_hsic_p[] __initconst = { "armpll3", "armpll2", };
-static const char *mmc2_mux_p[] __initconst = { "armpll2", "armpll3", };
-static const char *mmc3_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const rclk_hsic_p[] __initconst = { "armpll3", "armpll2", };
+static const char *const mmc2_mux_p[] __initconst = { "armpll2", "armpll3", };
+static const char *const mmc3_mux_p[] __initconst = { "armpll2", "armpll3", };
 
 
 /* fixed rate clocks */
@@ -294,34 +292,29 @@ static unsigned long mmc_clk_recalc_rate(struct clk_hw *hw,
 	}
 }
 
-static long mmc_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long min_rate,
-			      unsigned long max_rate,
-			      unsigned long *best_parent_rate,
-			      struct clk_hw **best_parent_p)
+static int mmc_clk_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	struct clk_mmc *mclk = to_mmc(hw);
-	unsigned long best = 0;
 
-	if ((rate <= 13000000) && (mclk->id == HI3620_MMC_CIUCLK1)) {
-		rate = 13000000;
-		best = 26000000;
-	} else if (rate <= 26000000) {
-		rate = 25000000;
-		best = 180000000;
-	} else if (rate <= 52000000) {
-		rate = 50000000;
-		best = 360000000;
-	} else if (rate <= 100000000) {
-		rate = 100000000;
-		best = 720000000;
+	if ((req->rate <= 13000000) && (mclk->id == HI3620_MMC_CIUCLK1)) {
+		req->rate = 13000000;
+		req->best_parent_rate = 26000000;
+	} else if (req->rate <= 26000000) {
+		req->rate = 25000000;
+		req->best_parent_rate = 180000000;
+	} else if (req->rate <= 52000000) {
+		req->rate = 50000000;
+		req->best_parent_rate = 360000000;
+	} else if (req->rate <= 100000000) {
+		req->rate = 100000000;
+		req->best_parent_rate = 720000000;
 	} else {
 		/* max is 180M */
-		rate = 180000000;
-		best = 1440000000;
+		req->rate = 180000000;
+		req->best_parent_rate = 1440000000;
 	}
-	*best_parent_rate = best;
-	return rate;
+	return -EINVAL;
 }
 
 static u32 mmc_clk_delay(u32 val, u32 para, u32 off, u32 len)

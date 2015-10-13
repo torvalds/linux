@@ -329,8 +329,8 @@ static void init_8259A(int auto_eoi)
 	 */
 	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
 
-	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
-	outb_pic(IRQ0_VECTOR, PIC_MASTER_IMR);
+	/* ICW2: 8259A-1 IR0-7 mapped to ISA_IRQ_VECTOR(0) */
+	outb_pic(ISA_IRQ_VECTOR(0), PIC_MASTER_IMR);
 
 	/* 8259A-1 (the master) has a slave on IR2 */
 	outb_pic(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);
@@ -342,8 +342,8 @@ static void init_8259A(int auto_eoi)
 
 	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
 
-	/* ICW2: 8259A-2 IR0-7 mapped to IRQ8_VECTOR */
-	outb_pic(IRQ8_VECTOR, PIC_SLAVE_IMR);
+	/* ICW2: 8259A-2 IR0-7 mapped to ISA_IRQ_VECTOR(8) */
+	outb_pic(ISA_IRQ_VECTOR(8), PIC_SLAVE_IMR);
 	/* 8259A-2 is a slave on master's IR2 */
 	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);
 	/* (slave's support for AEOI in flat mode is to be investigated) */

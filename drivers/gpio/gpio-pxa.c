@@ -59,8 +59,7 @@
 #define GAFR_OFFSET	0x54
 #define ED_MASK_OFFSET	0x9C	/* GPIO edge detection for AP side */
 
-#define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : ((n) > 5 ? 0x200 : 0x100)	\
-			+ (((n) % 3) << 2))
+#define BANK_OFF(n)	(((n) / 3) << 8) + (((n) % 3) << 2)
 
 int pxa_last_gpio;
 static int irq_base;
@@ -402,7 +401,7 @@ static int pxa_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
+static void pxa_gpio_demux_handler(struct irq_desc *desc)
 {
 	struct pxa_gpio_chip *c;
 	int loop, gpio, gpio_base, n;
@@ -525,7 +524,7 @@ static int pxa_irq_domain_map(struct irq_domain *d, unsigned int irq,
 {
 	irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 				 handle_edge_irq);
-	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	irq_set_noprobe(irq);
 	return 0;
 }
 
@@ -644,20 +643,20 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 			irq = gpio_to_irq(0);
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 		if (irq1 > 0) {
 			irq = gpio_to_irq(1);
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 
 		for (irq  = gpio_to_irq(gpio_offset);
 			irq <= gpio_to_irq(pxa_last_gpio); irq++) {
 			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
 						 handle_edge_irq);
-			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+			irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
 		}
 	}
 

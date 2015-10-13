@@ -30,7 +30,6 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -169,7 +168,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 		}
 
 		flen = udf_get_filename(sb, nameptr, lfi, fname, UDF_NAME_LEN);
-		if (!flen)
+		if (flen < 0)
 			continue;
 
 		tloc = lelb_to_cpu(cfi.icb.extLocation);

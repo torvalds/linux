@@ -21,6 +21,8 @@
 
 #define SAA7134_VERSION "0, 2, 17"
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
@@ -339,6 +341,7 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_HAWELL_HW_9004V1      191
 #define SAA7134_BOARD_AVERMEDIA_A706		192
 #define SAA7134_BOARD_WIS_VOYAGER           193
+#define SAA7134_BOARD_AVERMEDIA_505         194
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -654,7 +657,8 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_DVB only */
 	struct vb2_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
-	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*original_set_voltage)(struct dvb_frontend *fe,
+				    enum fe_sec_voltage voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
 	void (*gate_ctrl)(struct saa7134_dev *dev, int open);

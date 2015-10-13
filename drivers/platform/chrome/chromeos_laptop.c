@@ -23,7 +23,7 @@
 
 #include <linux/dmi.h>
 #include <linux/i2c.h>
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -111,6 +111,7 @@ static struct mxt_platform_data atmel_224s_tp_platform_data = {
 	.irqflags		= IRQF_TRIGGER_FALLING,
 	.t19_num_keys		= ARRAY_SIZE(mxt_t19_keys),
 	.t19_keymap		= mxt_t19_keys,
+	.suspend_mode		= MXT_SUSPEND_T9_CTRL,
 };
 
 static struct i2c_board_info atmel_224s_tp_device = {
@@ -121,6 +122,7 @@ static struct i2c_board_info atmel_224s_tp_device = {
 
 static struct mxt_platform_data atmel_1664s_platform_data = {
 	.irqflags		= IRQF_TRIGGER_FALLING,
+	.suspend_mode		= MXT_SUSPEND_T9_CTRL,
 };
 
 static struct i2c_board_info atmel_1664s_device = {
@@ -133,12 +135,13 @@ static struct i2c_client *__add_probed_i2c_device(
 		const char *name,
 		int bus,
 		struct i2c_board_info *info,
-		const unsigned short *addrs)
+		const unsigned short *alt_addr_list)
 {
 	const struct dmi_device *dmi_dev;
 	const struct dmi_dev_onboard *dev_data;
 	struct i2c_adapter *adapter;
-	struct i2c_client *client;
+	struct i2c_client *client = NULL;
+	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
 
 	if (bus < 0)
 		return NULL;
@@ -169,8 +172,28 @@ static struct i2c_client *__add_probed_i2c_device(
 		return NULL;
 	}
 
-	/* add the i2c device */
-	client = i2c_new_probed_device(adapter, info, addrs, NULL);
+	/*
+	 * Add the i2c device. If we can't detect it at the primary
+	 * address we scan secondary addresses. In any case the client
+	 * structure gets assigned primary address.
+	 */
+	client = i2c_new_probed_device(adapter, info, addr_list, NULL);
+	if (!client && alt_addr_list) {
+		struct i2c_board_info dummy_info = {
+			I2C_BOARD_INFO("dummy", info->addr),
+		};
+		struct i2c_client *dummy;
+
+		dummy = i2c_new_probed_device(adapter, &dummy_info,
+					      alt_addr_list, NULL);
+		if (dummy) {
+			pr_debug("%s %d-%02x is probed at %02x\n",
+				  __func__, bus, info->addr, dummy->addr);
+			i2c_unregister_device(dummy);
+			client = i2c_new_device(adapter, info);
+		}
+	}
+
 	if (!client)
 		pr_notice("%s failed to register device %d-%02x\n",
 			  __func__, bus, info->addr);
@@ -254,12 +277,10 @@ static struct i2c_client *add_i2c_device(const char *name,
 						enum i2c_adapter_type type,
 						struct i2c_board_info *info)
 {
-	const unsigned short addr_list[] = { info->addr, I2C_CLIENT_END };
-
 	return __add_probed_i2c_device(name,
 				       find_i2c_adapter_num(type),
 				       info,
-				       addr_list);
+				       NULL);
 }
 
 static int setup_cyapa_tp(enum i2c_adapter_type type)
@@ -275,7 +296,6 @@ static int setup_cyapa_tp(enum i2c_adapter_type type)
 static int setup_atmel_224s_tp(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TP_I2C_BL_ADDR,
-					     ATMEL_TP_I2C_ADDR,
 					     I2C_CLIENT_END };
 	if (tp)
 		return 0;
@@ -289,7 +309,6 @@ static int setup_atmel_224s_tp(enum i2c_adapter_type type)
 static int setup_atmel_1664s_ts(enum i2c_adapter_type type)
 {
 	const unsigned short addr_list[] = { ATMEL_TS_I2C_BL_ADDR,
-					     ATMEL_TS_I2C_ADDR,
 					     I2C_CLIENT_END };
 	if (ts)
 		return 0;

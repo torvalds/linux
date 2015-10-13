@@ -124,7 +124,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 			unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
 			fptr = (struct frag_hdr *)((u8 *)ipv6h + unfrag_ip6hlen);
 			fptr->frag_off = htons(offset);
-			if (skb->next != NULL)
+			if (skb->next)
 				fptr->frag_off |= htons(IP6_MF);
 			offset += (ntohs(ipv6h->payload_len) -
 				   sizeof(struct frag_hdr));
@@ -292,8 +292,6 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 static const struct net_offload sit_offload = {
 	.callbacks = {
 		.gso_segment	= ipv6_gso_segment,
-		.gro_receive	= ipv6_gro_receive,
-		.gro_complete	= ipv6_gro_complete,
 	},
 };
 

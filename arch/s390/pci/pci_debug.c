@@ -31,11 +31,24 @@ static char *pci_perf_names[] = {
 	"Refresh operations",
 	"DMA read bytes",
 	"DMA write bytes",
-	/* software counters */
+};
+
+static char *pci_sw_names[] = {
 	"Allocated pages",
 	"Mapped pages",
 	"Unmapped pages",
 };
+
+static void pci_sw_counter_show(struct seq_file *m)
+{
+	struct zpci_dev *zdev = m->private;
+	atomic64_t *counter = &zdev->allocated_pages;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pci_sw_names); i++, counter++)
+		seq_printf(m, "%26s:\t%llu\n", pci_sw_names[i],
+			   atomic64_read(counter));
+}
 
 static int pci_perf_show(struct seq_file *m, void *v)
 {
@@ -45,8 +58,13 @@ static int pci_perf_show(struct seq_file *m, void *v)
 
 	if (!zdev)
 		return 0;
-	if (!zdev->fmb)
-		return seq_printf(m, "FMB statistics disabled\n");
+
+	mutex_lock(&zdev->lock);
+	if (!zdev->fmb) {
+		mutex_unlock(&zdev->lock);
+		seq_puts(m, "FMB statistics disabled\n");
+		return 0;
+	}
 
 	/* header */
 	seq_printf(m, "FMB @ %p\n", zdev->fmb);
@@ -63,12 +81,9 @@ static int pci_perf_show(struct seq_file *m, void *v)
 		for (i = 4; i < 6; i++)
 			seq_printf(m, "%26s:\t%llu\n",
 				   pci_perf_names[i], *(stat + i));
-	/* software counters */
-	for (i = 6; i < ARRAY_SIZE(pci_perf_names); i++)
-		seq_printf(m, "%26s:\t%llu\n",
-			   pci_perf_names[i],
-			   atomic64_read((atomic64_t *) (stat + i)));
 
+	pci_sw_counter_show(m);
+	mutex_unlock(&zdev->lock);
 	return 0;
 }
 
@@ -86,19 +101,17 @@ static ssize_t pci_perf_seq_write(struct file *file, const char __user *ubuf,
 	if (rc)
 		return rc;
 
+	mutex_lock(&zdev->lock);
 	switch (val) {
 	case 0:
 		rc = zpci_fmb_disable_device(zdev);
-		if (rc)
-			return rc;
 		break;
 	case 1:
 		rc = zpci_fmb_enable_device(zdev);
-		if (rc)
-			return rc;
 		break;
 	}
-	return count;
+	mutex_unlock(&zdev->lock);
+	return rc ? rc : count;
 }
 
 static int pci_perf_seq_open(struct inode *inode, struct file *filp)

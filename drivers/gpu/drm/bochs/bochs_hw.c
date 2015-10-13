@@ -164,6 +164,7 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 
 	bochs_vga_writeb(bochs, 0x3c0, 0x20); /* unblank */
 
+	bochs_dispi_write(bochs, VBE_DISPI_INDEX_ENABLE,      0);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_BPP,         bochs->bpp);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_XRES,        bochs->xres);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_YRES,        bochs->yres);

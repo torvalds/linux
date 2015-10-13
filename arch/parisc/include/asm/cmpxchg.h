@@ -46,8 +46,6 @@ __xchg(unsigned long x, __volatile__ void *ptr, int size)
 #define xchg(ptr, x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
 
-#define __HAVE_ARCH_CMPXCHG	1
-
 /* bug catcher for when unsupported size is used - won't link */
 extern void __cmpxchg_called_with_bad_pointer(void);
 

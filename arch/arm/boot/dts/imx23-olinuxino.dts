@@ -12,6 +12,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 #include "imx23.dtsi"
 
 / {
@@ -73,6 +74,12 @@
 				status = "okay";
 			};
 
+			i2c: i2c@80058000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c_pins_b>;
+				status = "okay";
+			};
+
 			duart: serial@80070000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&duart_pins_a>;
@@ -93,6 +100,7 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			dr_mode = "host";
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};
@@ -122,7 +130,7 @@
 
 		user {
 			label = "green";
-			gpios = <&gpio2 1 1>;
+			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };

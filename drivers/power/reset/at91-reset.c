@@ -73,8 +73,8 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 		: "r" (at91_ramc_base[0]),
 		  "r" (at91_rstc_base),
 		  "r" (1),
-		  "r" (AT91_SDRAMC_LPCB_POWER_DOWN),
-		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
+		  "r" cpu_to_le32(AT91_SDRAMC_LPCB_POWER_DOWN),
+		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST));
 
 	return NOTIFY_DONE;
 }
@@ -116,9 +116,18 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 		  "r" (at91_ramc_base[1]),
 		  "r" (at91_rstc_base),
 		  "r" (1),
-		  "r" (AT91_DDRSDRC_LPCB_POWER_DOWN),
-		  "r" (AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
+		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
+		  "r" cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST)
 		: "r0");
+
+	return NOTIFY_DONE;
+}
+
+static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
+			   void *cmd)
+{
+	writel(cpu_to_le32(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST),
+	       at91_rstc_base);
 
 	return NOTIFY_DONE;
 }
@@ -152,16 +161,16 @@ static void __init at91_reset_status(struct platform_device *pdev)
 	pr_info("AT91: Starting after %s\n", reason);
 }
 
-static struct of_device_id at91_ramc_of_match[] = {
+static const struct of_device_id at91_ramc_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-sdramc", },
 	{ .compatible = "atmel,at91sam9g45-ddramc", },
-	{ .compatible = "atmel,sama5d3-ddramc", },
 	{ /* sentinel */ }
 };
 
-static struct of_device_id at91_reset_of_match[] = {
+static const struct of_device_id at91_reset_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9260_restart },
 	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
+	{ .compatible = "atmel,sama5d3-rstc", .data = sama5d3_restart },
 	{ /* sentinel */ }
 };
 
@@ -181,13 +190,16 @@ static int at91_reset_of_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for_each_matching_node(np, at91_ramc_of_match) {
-		at91_ramc_base[idx] = of_iomap(np, 0);
-		if (!at91_ramc_base[idx]) {
-			dev_err(&pdev->dev, "Could not map ram controller address\n");
-			return -ENODEV;
+	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
+		/* we need to shutdown the ddr controller, so get ramc base */
+		for_each_matching_node(np, at91_ramc_of_match) {
+			at91_ramc_base[idx] = of_iomap(np, 0);
+			if (!at91_ramc_base[idx]) {
+				dev_err(&pdev->dev, "Could not map ram controller address\n");
+				return -ENODEV;
+			}
+			idx++;
 		}
-		idx++;
 	}
 
 	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
@@ -212,9 +224,9 @@ static int at91_reset_platform_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, idx + 1 );
 		at91_ramc_base[idx] = devm_ioremap(&pdev->dev, res->start,
 						   resource_size(res));
-		if (IS_ERR(at91_ramc_base[idx])) {
+		if (!at91_ramc_base[idx]) {
 			dev_err(&pdev->dev, "Could not map ram controller address\n");
-			return PTR_ERR(at91_ramc_base[idx]);
+			return -ENOMEM;
 		}
 	}
 
@@ -243,7 +255,7 @@ static int at91_reset_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id at91_reset_plat_match[] = {
+static const struct platform_device_id at91_reset_plat_match[] = {
 	{ "at91-sam9260-reset", (unsigned long)at91sam9260_restart },
 	{ "at91-sam9g45-reset", (unsigned long)at91sam9g45_restart },
 	{ /* sentinel */ }

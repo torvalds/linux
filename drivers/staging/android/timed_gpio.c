@@ -61,9 +61,9 @@ static int gpio_get_time(struct timed_output_dev *dev)
 
 static void gpio_enable(struct timed_output_dev *dev, int value)
 {
-	struct timed_gpio_data	*data =
+	struct timed_gpio_data *data =
 		container_of(dev, struct timed_gpio_data, dev);
-	unsigned long	flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&data->lock, flags);
 

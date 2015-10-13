@@ -18,6 +18,8 @@
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -406,7 +408,7 @@ static int ds1374_wdt_settimeout(unsigned int timeout)
 	/* Set new watchdog time */
 	ret = ds1374_write_rtc(save_client, timeout, DS1374_REG_WDALM0, 3);
 	if (ret) {
-		pr_info("rtc-ds1374 - couldn't set new watchdog time\n");
+		pr_info("couldn't set new watchdog time\n");
 		goto out;
 	}
 
@@ -539,12 +541,12 @@ static long ds1374_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
-			pr_info("rtc-ds1374: disable watchdog\n");
+			pr_info("disable watchdog\n");
 			ds1374_wdt_disable();
 		}
 
 		if (options & WDIOS_ENABLECARD) {
-			pr_info("rtc-ds1374: enable watchdog\n");
+			pr_info("enable watchdog\n");
 			ds1374_wdt_settimeout(wdt_margin);
 			ds1374_wdt_ping();
 		}
@@ -662,11 +664,8 @@ static int ds1374_remove(struct i2c_client *client)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 #ifdef CONFIG_RTC_DRV_DS1374_WDT
-	int res;
-
-	res = misc_deregister(&ds1374_miscdev);
-	if (!res)
-		ds1374_miscdev.parent = NULL;
+	misc_deregister(&ds1374_miscdev);
+	ds1374_miscdev.parent = NULL;
 	unregister_reboot_notifier(&ds1374_wdt_notifier);
 #endif
 
@@ -687,7 +686,7 @@ static int ds1374_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	if (client->irq >= 0 && device_may_wakeup(&client->dev))
+	if (client->irq > 0 && device_may_wakeup(&client->dev))
 		enable_irq_wake(client->irq);
 	return 0;
 }
@@ -696,7 +695,7 @@ static int ds1374_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	if (client->irq >= 0 && device_may_wakeup(&client->dev))
+	if (client->irq > 0 && device_may_wakeup(&client->dev))
 		disable_irq_wake(client->irq);
 	return 0;
 }
@@ -707,7 +706,6 @@ static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
-		.owner = THIS_MODULE,
 		.pm = &ds1374_pm,
 	},
 	.probe = ds1374_probe,

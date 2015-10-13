@@ -474,11 +474,11 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
  */
 #ifndef USLEEP_SLEEP
 /* 20 ms (reasonable hard disk speed) */
-#define USLEEP_SLEEP (20*HZ/1000)
+#define USLEEP_SLEEP msecs_to_jiffies(20)
 #endif
 /* 300 RPM (floppy speed) */
 #ifndef USLEEP_POLL
-#define USLEEP_POLL (200*HZ/1000)
+#define USLEEP_POLL msecs_to_jiffies(200)
 #endif
 #ifndef USLEEP_WAITLONG
 /* RvC: (reasonable time to wait on select error) */
@@ -576,7 +576,7 @@ static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 		if ((mask & possible) && (request_irq(i, &probe_intr, 0, "NCR-probe", NULL) == 0))
 			trying_irqs |= mask;
 
-	timeout = jiffies + (250 * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(250);
 	probe_irq = NO_IRQ;
 
 	/*
@@ -634,7 +634,7 @@ static void prepare_info(struct Scsi_Host *instance)
 	         "sg_tablesize %d, this_id %d, "
 	         "flags { %s%s%s}, "
 #if defined(USLEEP_POLL) && defined(USLEEP_WAITLONG)
-	         "USLEEP_POLL %d, USLEEP_WAITLONG %d, "
+		 "USLEEP_POLL %lu, USLEEP_WAITLONG %lu, "
 #endif
 	         "options { %s} ",
 	         instance->hostt->name, instance->io_port, instance->n_io_port,
@@ -1346,7 +1346,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	 * selection.
 	 */
 
-	timeout = jiffies + (250 * HZ / 1000);
+	timeout = jiffies + msecs_to_jiffies(250);
 
 	/* 
 	 * XXX very interesting - we're seeing a bounce where the BSY we 

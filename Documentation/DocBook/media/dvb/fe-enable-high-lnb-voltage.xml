@@ -1,0 +1,61 @@
+<refentry id="FE_ENABLE_HIGH_LNB_VOLTAGE">
+  <refmeta>
+    <refentrytitle>ioctl FE_ENABLE_HIGH_LNB_VOLTAGE</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>FE_ENABLE_HIGH_LNB_VOLTAGE</refname>
+    <refpurpose>Select output DC level between normal LNBf voltages or higher
+	LNBf voltages.</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>unsigned int <parameter>high</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fe_fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_ENABLE_HIGH_LNB_VOLTAGE</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>high</parameter></term>
+	<listitem>
+	    <para>Valid flags:</para>
+	    <itemizedlist>
+		<listitem><para>0 - normal 13V and 18V.</para></listitem>
+		<listitem><para>&gt;0 - enables slightly higher voltages instead of
+		    13/18V, in order to compensate for long antenna cables.</para></listitem>
+	    </itemizedlist>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Select output DC level between normal LNBf voltages or higher
+	LNBf voltages between 0 (normal) or a value grater than 0 for higher
+	voltages.</para>
+&return-value-dvb;
+</refsect1>
+</refentry>

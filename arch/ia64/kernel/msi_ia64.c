@@ -23,7 +23,7 @@ static int ia64_set_msi_irq_affinity(struct irq_data *idata,
 	if (irq_prepare_move(irq, cpu))
 		return -1;
 
-	__get_cached_msi_msg(idata->msi_desc, &msg);
+	__get_cached_msi_msg(irq_data_get_msi_desc(idata), &msg);
 
 	addr = msg.address_lo;
 	addr &= MSI_ADDR_DEST_ID_MASK;
@@ -36,7 +36,7 @@ static int ia64_set_msi_irq_affinity(struct irq_data *idata,
 	msg.data = data;
 
 	pci_write_msi_msg(irq, &msg);
-	cpumask_copy(idata->affinity, cpumask_of(cpu));
+	cpumask_copy(irq_data_get_affinity_mask(idata), cpumask_of(cpu));
 
 	return 0;
 }
@@ -47,15 +47,14 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	struct msi_msg	msg;
 	unsigned long	dest_phys_id;
 	int	irq, vector;
-	cpumask_t mask;
 
 	irq = create_irq();
 	if (irq < 0)
 		return irq;
 
 	irq_set_msi_desc(irq, desc);
-	cpumask_and(&mask, &(irq_to_domain(irq)), cpu_online_mask);
-	dest_phys_id = cpu_physical_id(first_cpu(mask));
+	dest_phys_id = cpu_physical_id(cpumask_any_and(&(irq_to_domain(irq)),
+						       cpu_online_mask));
 	vector = irq_to_vector(irq);
 
 	msg.address_hi = 0;
@@ -149,7 +148,7 @@ static int dmar_msi_set_affinity(struct irq_data *data,
 	msg.address_lo |= MSI_ADDR_DEST_ID_CPU(cpu_physical_id(cpu));
 
 	dmar_msi_write(irq, &msg);
-	cpumask_copy(data->affinity, mask);
+	cpumask_copy(irq_data_get_affinity_mask(data), mask);
 
 	return 0;
 }
@@ -166,15 +165,14 @@ static struct irq_chip dmar_msi_type = {
 	.irq_retrigger = ia64_msi_retrigger_irq,
 };
 
-static int
+static void
 msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 {
 	struct irq_cfg *cfg = irq_cfg + irq;
 	unsigned dest;
-	cpumask_t mask;
 
-	cpumask_and(&mask, &(irq_to_domain(irq)), cpu_online_mask);
-	dest = cpu_physical_id(first_cpu(mask));
+	dest = cpu_physical_id(cpumask_first_and(&(irq_to_domain(irq)),
+						 cpu_online_mask));
 
 	msg->address_hi = 0;
 	msg->address_lo =
@@ -188,21 +186,29 @@ msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 		MSI_DATA_LEVEL_ASSERT |
 		MSI_DATA_DELIVERY_FIXED |
 		MSI_DATA_VECTOR(cfg->vector);
-	return 0;
 }
 
-int arch_setup_dmar_msi(unsigned int irq)
+int dmar_alloc_hwirq(int id, int node, void *arg)
 {
-	int ret;
+	int irq;
 	struct msi_msg msg;
 
-	ret = msi_compose_msg(NULL, irq, &msg);
-	if (ret < 0)
-		return ret;
-	dmar_msi_write(irq, &msg);
-	irq_set_chip_and_handler_name(irq, &dmar_msi_type, handle_edge_irq,
-				      "edge");
-	return 0;
+	irq = create_irq();
+	if (irq > 0) {
+		irq_set_handler_data(irq, arg);
+		irq_set_chip_and_handler_name(irq, &dmar_msi_type,
+					      handle_edge_irq, "edge");
+		msi_compose_msg(NULL, irq, &msg);
+		dmar_msi_write(irq, &msg);
+	}
+
+	return irq;
+}
+
+void dmar_free_hwirq(int irq)
+{
+	irq_set_handler_data(irq, NULL);
+	destroy_irq(irq);
 }
 #endif /* CONFIG_INTEL_IOMMU */
 

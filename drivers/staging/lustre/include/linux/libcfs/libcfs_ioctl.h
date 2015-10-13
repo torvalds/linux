@@ -134,7 +134,7 @@ struct libcfs_ioctl_handler {
 #define IOC_LIBCFS_DEL_PEER		_IOWR('e', 74, long)
 #define IOC_LIBCFS_ADD_PEER		_IOWR('e', 75, long)
 #define IOC_LIBCFS_GET_PEER		_IOWR('e', 76, long)
-#define IOC_LIBCFS_GET_TXDESC	      _IOWR('e', 77, long)
+/* ioctl 77 is free for use */
 #define IOC_LIBCFS_ADD_INTERFACE	   _IOWR('e', 78, long)
 #define IOC_LIBCFS_DEL_INTERFACE	   _IOWR('e', 79, long)
 #define IOC_LIBCFS_GET_INTERFACE	   _IOWR('e', 80, long)

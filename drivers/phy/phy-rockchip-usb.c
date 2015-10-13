@@ -84,7 +84,7 @@ static int rockchip_usb_phy_power_on(struct phy *_phy)
 	return 0;
 }
 
-static struct phy_ops ops = {
+static const struct phy_ops ops = {
 	.power_on	= rockchip_usb_phy_power_on,
 	.power_off	= rockchip_usb_phy_power_off,
 	.owner		= THIS_MODULE,
@@ -98,6 +98,7 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 	struct device_node *child;
 	struct regmap *grf;
 	unsigned int reg_offset;
+	int err;
 
 	grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	if (IS_ERR(grf)) {
@@ -129,6 +130,11 @@ static int rockchip_usb_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(rk_phy->phy);
 		}
 		phy_set_drvdata(rk_phy->phy, rk_phy);
+
+		/* only power up usb phy when it use, so disable it when init*/
+		err = rockchip_usb_phy_power(rk_phy, 1);
+		if (err)
+			return err;
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
@@ -146,7 +152,6 @@ static struct platform_driver rockchip_usb_driver = {
 	.probe		= rockchip_usb_phy_probe,
 	.driver		= {
 		.name	= "rockchip-usb-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table = rockchip_usb_phy_dt_ids,
 	},
 };

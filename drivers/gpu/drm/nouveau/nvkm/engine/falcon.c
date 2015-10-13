@@ -21,40 +21,95 @@
  */
 #include <engine/falcon.h>
 
-#include <core/device.h>
+#include <core/gpuobj.h>
 #include <subdev/timer.h>
+#include <engine/fifo.h>
 
-void
-nvkm_falcon_intr(struct nvkm_subdev *subdev)
+static int
+nvkm_falcon_oclass_get(struct nvkm_oclass *oclass, int index)
 {
-	struct nvkm_falcon *falcon = (void *)subdev;
-	u32 dispatch = nv_ro32(falcon, 0x01c);
-	u32 intr = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
+	struct nvkm_falcon *falcon = nvkm_falcon(oclass->engine);
+	int c = 0;
+
+	while (falcon->func->sclass[c].oclass) {
+		if (c++ == index) {
+			oclass->base = falcon->func->sclass[index];
+			return index;
+		}
+	}
+
+	return c;
+}
+
+static int
+nvkm_falcon_cclass_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
+			int align, struct nvkm_gpuobj **pgpuobj)
+{
+	return nvkm_gpuobj_new(object->engine->subdev.device, 256,
+			       align, true, parent, pgpuobj);
+}
+
+static const struct nvkm_object_func
+nvkm_falcon_cclass = {
+	.bind = nvkm_falcon_cclass_bind,
+};
+
+static void
+nvkm_falcon_intr(struct nvkm_engine *engine)
+{
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32 base = falcon->addr;
+	u32 dest = nvkm_rd32(device, base + 0x01c);
+	u32 intr = nvkm_rd32(device, base + 0x008) & dest & ~(dest >> 16);
+	u32 inst = nvkm_rd32(device, base + 0x050) & 0x3fffffff;
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
+
+	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+
+	if (intr & 0x00000040) {
+		if (falcon->func->intr) {
+			falcon->func->intr(falcon, chan);
+			nvkm_wr32(device, base + 0x004, 0x00000040);
+			intr &= ~0x00000040;
+		}
+	}
 
 	if (intr & 0x00000010) {
-		nv_debug(falcon, "ucode halted\n");
-		nv_wo32(falcon, 0x004, 0x00000010);
+		nvkm_debug(subdev, "ucode halted\n");
+		nvkm_wr32(device, base + 0x004, 0x00000010);
 		intr &= ~0x00000010;
 	}
 
 	if (intr)  {
-		nv_error(falcon, "unhandled intr 0x%08x\n", intr);
-		nv_wo32(falcon, 0x004, intr);
+		nvkm_error(subdev, "intr %08x\n", intr);
+		nvkm_wr32(device, base + 0x004, intr);
 	}
+
+	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
-u32
-_nvkm_falcon_rd32(struct nvkm_object *object, u64 addr)
+static int
+nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
 {
-	struct nvkm_falcon *falcon = (void *)object;
-	return nv_rd32(falcon, falcon->addr + addr);
-}
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_device *device = falcon->engine.subdev.device;
+	const u32 base = falcon->addr;
 
-void
-_nvkm_falcon_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_falcon *falcon = (void *)object;
-	nv_wr32(falcon, falcon->addr + addr, data);
+	if (!suspend) {
+		nvkm_memory_del(&falcon->core);
+		if (falcon->external) {
+			vfree(falcon->data.data);
+			vfree(falcon->code.data);
+			falcon->code.data = NULL;
+		}
+	}
+
+	nvkm_mask(device, base + 0x048, 0x00000003, 0x00000000);
+	nvkm_wr32(device, base + 0x014, 0xffffffff);
+	return 0;
 }
 
 static void *
@@ -67,51 +122,66 @@ vmemdup(const void *src, size_t len)
 	return p;
 }
 
-int
-_nvkm_falcon_init(struct nvkm_object *object)
+static int
+nvkm_falcon_oneinit(struct nvkm_engine *engine)
 {
-	struct nvkm_device *device = nv_device(object);
-	struct nvkm_falcon *falcon = (void *)object;
-	const struct firmware *fw;
-	char name[32] = "internal";
-	int ret, i;
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const u32 base = falcon->addr;
 	u32 caps;
 
-	/* enable engine, and determine its capabilities */
-	ret = nvkm_engine_init(&falcon->base);
-	if (ret)
-		return ret;
-
+	/* determine falcon capabilities */
 	if (device->chipset <  0xa3 ||
 	    device->chipset == 0xaa || device->chipset == 0xac) {
 		falcon->version = 0;
 		falcon->secret  = (falcon->addr == 0x087000) ? 1 : 0;
 	} else {
-		caps = nv_ro32(falcon, 0x12c);
+		caps = nvkm_rd32(device, base + 0x12c);
 		falcon->version = (caps & 0x0000000f);
 		falcon->secret  = (caps & 0x00000030) >> 4;
 	}
 
-	caps = nv_ro32(falcon, 0x108);
+	caps = nvkm_rd32(device, base + 0x108);
 	falcon->code.limit = (caps & 0x000001ff) << 8;
 	falcon->data.limit = (caps & 0x0003fe00) >> 1;
 
-	nv_debug(falcon, "falcon version: %d\n", falcon->version);
-	nv_debug(falcon, "secret level: %d\n", falcon->secret);
-	nv_debug(falcon, "code limit: %d\n", falcon->code.limit);
-	nv_debug(falcon, "data limit: %d\n", falcon->data.limit);
+	nvkm_debug(subdev, "falcon version: %d\n", falcon->version);
+	nvkm_debug(subdev, "secret level: %d\n", falcon->secret);
+	nvkm_debug(subdev, "code limit: %d\n", falcon->code.limit);
+	nvkm_debug(subdev, "data limit: %d\n", falcon->data.limit);
+	return 0;
+}
+
+static int
+nvkm_falcon_init(struct nvkm_engine *engine)
+{
+	struct nvkm_falcon *falcon = nvkm_falcon(engine);
+	struct nvkm_subdev *subdev = &falcon->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	const struct firmware *fw;
+	char name[32] = "internal";
+	const u32 base = falcon->addr;
+	int ret, i;
 
 	/* wait for 'uc halted' to be signalled before continuing */
 	if (falcon->secret && falcon->version < 4) {
-		if (!falcon->version)
-			nv_wait(falcon, 0x008, 0x00000010, 0x00000010);
-		else
-			nv_wait(falcon, 0x180, 0x80000000, 0);
-		nv_wo32(falcon, 0x004, 0x00000010);
+		if (!falcon->version) {
+			nvkm_msec(device, 2000,
+				if (nvkm_rd32(device, base + 0x008) & 0x00000010)
+					break;
+			);
+		} else {
+			nvkm_msec(device, 2000,
+				if (!(nvkm_rd32(device, base + 0x180) & 0x80000000))
+					break;
+			);
+		}
+		nvkm_wr32(device, base + 0x004, 0x00000010);
 	}
 
 	/* disable all interrupts */
-	nv_wo32(falcon, 0x014, 0xffffffff);
+	nvkm_wr32(device, base + 0x014, 0xffffffff);
 
 	/* no default ucode provided by the engine implementation, try and
 	 * locate a "self-bootstrapping" firmware image for the engine
@@ -120,7 +190,7 @@ _nvkm_falcon_init(struct nvkm_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03x",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, nv_device_base(device));
+		ret = request_firmware(&fw, name, device->dev);
 		if (ret == 0) {
 			falcon->code.data = vmemdup(fw->data, fw->size);
 			falcon->code.size = fw->size;
@@ -139,10 +209,10 @@ _nvkm_falcon_init(struct nvkm_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xd",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, nv_device_base(device));
+		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
-			nv_error(falcon, "unable to load firmware data\n");
-			return ret;
+			nvkm_error(subdev, "unable to load firmware data\n");
+			return -ENODEV;
 		}
 
 		falcon->data.data = vmemdup(fw->data, fw->size);
@@ -154,10 +224,10 @@ _nvkm_falcon_init(struct nvkm_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xc",
 			 device->chipset, falcon->addr >> 12);
 
-		ret = request_firmware(&fw, name, nv_device_base(device));
+		ret = request_firmware(&fw, name, device->dev);
 		if (ret) {
-			nv_error(falcon, "unable to load firmware code\n");
-			return ret;
+			nvkm_error(subdev, "unable to load firmware code\n");
+			return -ENODEV;
 		}
 
 		falcon->code.data = vmemdup(fw->data, fw->size);
@@ -167,111 +237,117 @@ _nvkm_falcon_init(struct nvkm_object *object)
 			return -ENOMEM;
 	}
 
-	nv_debug(falcon, "firmware: %s (%s)\n", name, falcon->data.data ?
-		 "static code/data segments" : "self-bootstrapping");
+	nvkm_debug(subdev, "firmware: %s (%s)\n", name, falcon->data.data ?
+		   "static code/data segments" : "self-bootstrapping");
 
 	/* ensure any "self-bootstrapping" firmware image is in vram */
 	if (!falcon->data.data && !falcon->core) {
-		ret = nvkm_gpuobj_new(object->parent, NULL, falcon->code.size,
-				      256, 0, &falcon->core);
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
+				      falcon->code.size, 256, false,
+				      &falcon->core);
 		if (ret) {
-			nv_error(falcon, "core allocation failed, %d\n", ret);
+			nvkm_error(subdev, "core allocation failed, %d\n", ret);
 			return ret;
 		}
 
+		nvkm_kmap(falcon->core);
 		for (i = 0; i < falcon->code.size; i += 4)
-			nv_wo32(falcon->core, i, falcon->code.data[i / 4]);
+			nvkm_wo32(falcon->core, i, falcon->code.data[i / 4]);
+		nvkm_done(falcon->core);
 	}
 
 	/* upload firmware bootloader (or the full code segments) */
 	if (falcon->core) {
+		u64 addr = nvkm_memory_addr(falcon->core);
 		if (device->card_type < NV_C0)
-			nv_wo32(falcon, 0x618, 0x04000000);
+			nvkm_wr32(device, base + 0x618, 0x04000000);
 		else
-			nv_wo32(falcon, 0x618, 0x00000114);
-		nv_wo32(falcon, 0x11c, 0);
-		nv_wo32(falcon, 0x110, falcon->core->addr >> 8);
-		nv_wo32(falcon, 0x114, 0);
-		nv_wo32(falcon, 0x118, 0x00006610);
+			nvkm_wr32(device, base + 0x618, 0x00000114);
+		nvkm_wr32(device, base + 0x11c, 0);
+		nvkm_wr32(device, base + 0x110, addr >> 8);
+		nvkm_wr32(device, base + 0x114, 0);
+		nvkm_wr32(device, base + 0x118, 0x00006610);
 	} else {
 		if (falcon->code.size > falcon->code.limit ||
 		    falcon->data.size > falcon->data.limit) {
-			nv_error(falcon, "ucode exceeds falcon limit(s)\n");
+			nvkm_error(subdev, "ucode exceeds falcon limit(s)\n");
 			return -EINVAL;
 		}
 
 		if (falcon->version < 3) {
-			nv_wo32(falcon, 0xff8, 0x00100000);
+			nvkm_wr32(device, base + 0xff8, 0x00100000);
 			for (i = 0; i < falcon->code.size / 4; i++)
-				nv_wo32(falcon, 0xff4, falcon->code.data[i]);
+				nvkm_wr32(device, base + 0xff4, falcon->code.data[i]);
 		} else {
-			nv_wo32(falcon, 0x180, 0x01000000);
+			nvkm_wr32(device, base + 0x180, 0x01000000);
 			for (i = 0; i < falcon->code.size / 4; i++) {
 				if ((i & 0x3f) == 0)
-					nv_wo32(falcon, 0x188, i >> 6);
-				nv_wo32(falcon, 0x184, falcon->code.data[i]);
+					nvkm_wr32(device, base + 0x188, i >> 6);
+				nvkm_wr32(device, base + 0x184, falcon->code.data[i]);
 			}
 		}
 	}
 
 	/* upload data segment (if necessary), zeroing the remainder */
 	if (falcon->version < 3) {
-		nv_wo32(falcon, 0xff8, 0x00000000);
+		nvkm_wr32(device, base + 0xff8, 0x00000000);
 		for (i = 0; !falcon->core && i < falcon->data.size / 4; i++)
-			nv_wo32(falcon, 0xff4, falcon->data.data[i]);
+			nvkm_wr32(device, base + 0xff4, falcon->data.data[i]);
 		for (; i < falcon->data.limit; i += 4)
-			nv_wo32(falcon, 0xff4, 0x00000000);
+			nvkm_wr32(device, base + 0xff4, 0x00000000);
 	} else {
-		nv_wo32(falcon, 0x1c0, 0x01000000);
+		nvkm_wr32(device, base + 0x1c0, 0x01000000);
 		for (i = 0; !falcon->core && i < falcon->data.size / 4; i++)
-			nv_wo32(falcon, 0x1c4, falcon->data.data[i]);
+			nvkm_wr32(device, base + 0x1c4, falcon->data.data[i]);
 		for (; i < falcon->data.limit / 4; i++)
-			nv_wo32(falcon, 0x1c4, 0x00000000);
+			nvkm_wr32(device, base + 0x1c4, 0x00000000);
 	}
 
 	/* start it running */
-	nv_wo32(falcon, 0x10c, 0x00000001); /* BLOCK_ON_FIFO */
-	nv_wo32(falcon, 0x104, 0x00000000); /* ENTRY */
-	nv_wo32(falcon, 0x100, 0x00000002); /* TRIGGER */
-	nv_wo32(falcon, 0x048, 0x00000003); /* FIFO | CHSW */
+	nvkm_wr32(device, base + 0x10c, 0x00000001); /* BLOCK_ON_FIFO */
+	nvkm_wr32(device, base + 0x104, 0x00000000); /* ENTRY */
+	nvkm_wr32(device, base + 0x100, 0x00000002); /* TRIGGER */
+	nvkm_wr32(device, base + 0x048, 0x00000003); /* FIFO | CHSW */
+
+	if (falcon->func->init)
+		falcon->func->init(falcon);
 	return 0;
 }
 
-int
-_nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
+static void *
+nvkm_falcon_dtor(struct nvkm_engine *engine)
 {
-	struct nvkm_falcon *falcon = (void *)object;
-
-	if (!suspend) {
-		nvkm_gpuobj_ref(NULL, &falcon->core);
-		if (falcon->external) {
-			vfree(falcon->data.data);
-			vfree(falcon->code.data);
-			falcon->code.data = NULL;
-		}
-	}
-
-	nv_mo32(falcon, 0x048, 0x00000003, 0x00000000);
-	nv_wo32(falcon, 0x014, 0xffffffff);
-
-	return nvkm_engine_fini(&falcon->base, suspend);
+	return nvkm_falcon(engine);
 }
 
+static const struct nvkm_engine_func
+nvkm_falcon = {
+	.dtor = nvkm_falcon_dtor,
+	.oneinit = nvkm_falcon_oneinit,
+	.init = nvkm_falcon_init,
+	.fini = nvkm_falcon_fini,
+	.intr = nvkm_falcon_intr,
+	.fifo.sclass = nvkm_falcon_oclass_get,
+	.cclass = &nvkm_falcon_cclass,
+};
+
 int
-nvkm_falcon_create_(struct nvkm_object *parent, struct nvkm_object *engine,
-		    struct nvkm_oclass *oclass, u32 addr, bool enable,
-		    const char *iname, const char *fname,
-		    int length, void **pobject)
+nvkm_falcon_new_(const struct nvkm_falcon_func *func,
+		 struct nvkm_device *device, int index, bool enable,
+		 u32 addr, struct nvkm_engine **pengine)
 {
 	struct nvkm_falcon *falcon;
-	int ret;
 
-	ret = nvkm_engine_create_(parent, engine, oclass, enable, iname,
-				  fname, length, pobject);
-	falcon = *pobject;
-	if (ret)
-		return ret;
-
+	if (!(falcon = kzalloc(sizeof(*falcon), GFP_KERNEL)))
+		return -ENOMEM;
+	falcon->func = func;
 	falcon->addr = addr;
-	return 0;
+	falcon->code.data = func->code.data;
+	falcon->code.size = func->code.size;
+	falcon->data.data = func->data.data;
+	falcon->data.size = func->data.size;
+	*pengine = &falcon->engine;
+
+	return nvkm_engine_ctor(&nvkm_falcon, device, index, func->pmc_enable,
+				enable, &falcon->engine);
 }

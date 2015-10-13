@@ -159,12 +159,9 @@ static struct priority_group *alloc_priority_group(void)
 static void free_pgpaths(struct list_head *pgpaths, struct dm_target *ti)
 {
 	struct pgpath *pgpath, *tmp;
-	struct multipath *m = ti->private;
 
 	list_for_each_entry_safe(pgpath, tmp, pgpaths, list) {
 		list_del(&pgpath->list);
-		if (m->hw_handler_name)
-			scsi_dh_detach(bdev_get_queue(pgpath->path.dev->bdev));
 		dm_put_device(ti, pgpath->path.dev);
 		free_pgpath(pgpath);
 	}
@@ -428,10 +425,12 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 	} else {
 		/* blk-mq request-based interface */
 		*__clone = blk_get_request(bdev_get_queue(bdev),
-					   rq_data_dir(rq), GFP_KERNEL);
-		if (IS_ERR(*__clone))
+					   rq_data_dir(rq), GFP_ATOMIC);
+		if (IS_ERR(*__clone)) {
 			/* ENOMEM, requeue */
+			clear_mapinfo(m, map_context);
 			return r;
+		}
 		(*__clone)->bio = (*__clone)->biotail = NULL;
 		(*__clone)->rq_disk = bdev->bd_disk;
 		(*__clone)->cmd_flags |= REQ_FAILFAST_TRANSPORT;
@@ -578,6 +577,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 		q = bdev_get_queue(p->path.dev->bdev);
 
 	if (m->retain_attached_hw_handler) {
+retain:
 		attached_handler_name = scsi_dh_attached_handler_name(q, GFP_KERNEL);
 		if (attached_handler_name) {
 			/*
@@ -597,20 +597,14 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 	}
 
 	if (m->hw_handler_name) {
-		/*
-		 * Increments scsi_dh reference, even when using an
-		 * already-attached handler.
-		 */
 		r = scsi_dh_attach(q, m->hw_handler_name);
 		if (r == -EBUSY) {
-			/*
-			 * Already attached to different hw_handler:
-			 * try to reattach with correct one.
-			 */
-			scsi_dh_detach(q);
-			r = scsi_dh_attach(q, m->hw_handler_name);
-		}
+			char b[BDEVNAME_SIZE];
 
+			printk(KERN_INFO "dm-mpath: retaining handler on device %s\n",
+				bdevname(p->path.dev->bdev, b));
+			goto retain;
+		}
 		if (r < 0) {
 			ti->error = "error attaching hardware handler";
 			dm_put_device(ti, p->path.dev);
@@ -622,7 +616,6 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 			if (r < 0) {
 				ti->error = "unable to set hardware "
 							"handler parameters";
-				scsi_dh_detach(q);
 				dm_put_device(ti, p->path.dev);
 				goto bad;
 			}
@@ -732,12 +725,6 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 		return 0;
 
 	m->hw_handler_name = kstrdup(dm_shift_arg(as), GFP_KERNEL);
-	if (!try_then_request_module(scsi_dh_handler_exist(m->hw_handler_name),
-				     "scsi_dh_%s", m->hw_handler_name)) {
-		ti->error = "unknown hardware handler type";
-		ret = -EINVAL;
-		goto fail;
-	}
 
 	if (hw_argc > 1) {
 		char *p;
@@ -1627,7 +1614,7 @@ static int __pgpath_busy(struct pgpath *pgpath)
 {
 	struct request_queue *q = bdev_get_queue(pgpath->path.dev->bdev);
 
-	return dm_underlying_device_busy(q);
+	return blk_lld_busy(q);
 }
 
 /*
@@ -1703,7 +1690,7 @@ out:
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,

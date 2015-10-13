@@ -10,7 +10,6 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/cryptohash.h>
 #include "ext4.h"
 

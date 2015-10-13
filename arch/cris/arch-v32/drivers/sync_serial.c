@@ -1464,7 +1464,7 @@ static inline void handle_rx_packet(struct sync_port *port)
 		if (port->write_ts_idx == NBR_IN_DESCR)
 			port->write_ts_idx = 0;
 		idx = port->write_ts_idx++;
-		do_posix_clock_monotonic_gettime(&port->timestamp[idx]);
+		ktime_get_ts(&port->timestamp[idx]);
 		port->in_buffer_len += port->inbufchunk;
 	}
 	spin_unlock_irqrestore(&port->lock, flags);

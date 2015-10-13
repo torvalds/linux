@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/time.h>
 
-#include <asm/proc-fns.h>
+#include <asm/cpuidle.h>
 
 #include <mach/map.h>
 

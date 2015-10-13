@@ -498,7 +498,7 @@ static struct irq_chip grpci2_irq = {
 };
 
 /* Handle one or multiple IRQs from the PCI core */
-static void grpci2_pci_flow_irq(unsigned int irq, struct irq_desc *desc)
+static void grpci2_pci_flow_irq(struct irq_desc *desc)
 {
 	struct grpci2_priv *priv = grpci2priv;
 	int i, ack = 0;
@@ -723,7 +723,6 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 		err = -ENOMEM;
 		goto err1;
 	}
-	memset(grpci2priv, 0, sizeof(*grpci2priv));
 	priv->regs = regs;
 	priv->irq = ofdev->archdata.irqs[0]; /* BASE IRQ */
 	priv->irq_mode = (capability & STS_IRQMODE) >> STS_IRQMODE_BIT;

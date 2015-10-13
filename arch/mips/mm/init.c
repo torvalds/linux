@@ -37,12 +37,14 @@
 #include <asm/cpu.h>
 #include <asm/dma.h>
 #include <asm/kmap_types.h>
+#include <asm/maar.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
+#include <asm/maar.h>
 
 /*
  * We have up to 8 empty zeroed pages so we can map one of the right colour
@@ -90,13 +92,14 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 
 	BUG_ON(Page_dcache_dirty(page));
 
+	preempt_disable();
 	pagefault_disable();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, prot);
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-	entrylo = pte.pte_high;
+	entrylo = pte_to_entrylo(pte.pte_high);
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
@@ -106,6 +109,11 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
+#ifdef CONFIG_XPA
+	entrylo = (pte.pte_low & _PFNX_MASK);
+	writex_c0_entrylo0(entrylo);
+	writex_c0_entrylo1(entrylo);
+#endif
 	tlbidx = read_c0_wired();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);
@@ -147,6 +155,7 @@ void kunmap_coherent(void)
 	write_c0_entryhi(old_ctx);
 	local_irq_restore(flags);
 	pagefault_enable();
+	preempt_enable();
 }
 
 void copy_user_highpage(struct page *to, struct page *from,
@@ -244,6 +253,119 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 #endif
 }
 
+unsigned __weak platform_maar_init(unsigned num_pairs)
+{
+	struct maar_config cfg[BOOT_MEM_MAP_MAX];
+	unsigned i, num_configured, num_cfg = 0;
+	phys_addr_t skip;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		switch (boot_mem_map.map[i].type) {
+		case BOOT_MEM_RAM:
+		case BOOT_MEM_INIT_RAM:
+			break;
+		default:
+			continue;
+		}
+
+		skip = 0x10000 - (boot_mem_map.map[i].addr & 0xffff);
+
+		cfg[num_cfg].lower = boot_mem_map.map[i].addr;
+		cfg[num_cfg].lower += skip;
+
+		cfg[num_cfg].upper = cfg[num_cfg].lower;
+		cfg[num_cfg].upper += boot_mem_map.map[i].size - 1;
+		cfg[num_cfg].upper -= skip;
+
+		cfg[num_cfg].attrs = MIPS_MAAR_S;
+		num_cfg++;
+	}
+
+	num_configured = maar_config(cfg, num_cfg, num_pairs);
+	if (num_configured < num_cfg)
+		pr_warn("Not enough MAAR pairs (%u) for all bootmem regions (%u)\n",
+			num_pairs, num_cfg);
+
+	return num_configured;
+}
+
+void maar_init(void)
+{
+	unsigned num_maars, used, i;
+	phys_addr_t lower, upper, attr;
+	static struct {
+		struct maar_config cfgs[3];
+		unsigned used;
+	} recorded = { { { 0 } }, 0 };
+
+	if (!cpu_has_maar)
+		return;
+
+	/* Detect the number of MAARs */
+	write_c0_maari(~0);
+	back_to_back_c0_hazard();
+	num_maars = read_c0_maari() + 1;
+
+	/* MAARs should be in pairs */
+	WARN_ON(num_maars % 2);
+
+	/* Set MAARs using values we recorded already */
+	if (recorded.used) {
+		used = maar_config(recorded.cfgs, recorded.used, num_maars / 2);
+		BUG_ON(used != recorded.used);
+	} else {
+		/* Configure the required MAARs */
+		used = platform_maar_init(num_maars / 2);
+	}
+
+	/* Disable any further MAARs */
+	for (i = (used * 2); i < num_maars; i++) {
+		write_c0_maari(i);
+		back_to_back_c0_hazard();
+		write_c0_maar(0);
+		back_to_back_c0_hazard();
+	}
+
+	if (recorded.used)
+		return;
+
+	pr_info("MAAR configuration:\n");
+	for (i = 0; i < num_maars; i += 2) {
+		write_c0_maari(i);
+		back_to_back_c0_hazard();
+		upper = read_c0_maar();
+
+		write_c0_maari(i + 1);
+		back_to_back_c0_hazard();
+		lower = read_c0_maar();
+
+		attr = lower & upper;
+		lower = (lower & MIPS_MAAR_ADDR) << 4;
+		upper = ((upper & MIPS_MAAR_ADDR) << 4) | 0xffff;
+
+		pr_info("  [%d]: ", i / 2);
+		if (!(attr & MIPS_MAAR_V)) {
+			pr_cont("disabled\n");
+			continue;
+		}
+
+		pr_cont("%pa-%pa", &lower, &upper);
+
+		if (attr & MIPS_MAAR_S)
+			pr_cont(" speculate");
+
+		pr_cont("\n");
+
+		/* Record the setup for use on secondary CPUs */
+		if (used <= ARRAY_SIZE(recorded.cfgs)) {
+			recorded.cfgs[recorded.used].lower = lower;
+			recorded.cfgs[recorded.used].upper = upper;
+			recorded.cfgs[recorded.used].attrs = attr;
+			recorded.used++;
+		}
+	}
+}
+
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 int page_is_ram(unsigned long pagenr)
 {
@@ -324,38 +446,6 @@ static inline void mem_init_free_highmem(void)
 			free_highmem_page(page);
 	}
 #endif
-}
-
-unsigned __weak platform_maar_init(unsigned num_maars)
-{
-	return 0;
-}
-
-static void maar_init(void)
-{
-	unsigned num_maars, used, i;
-
-	if (!cpu_has_maar)
-		return;
-
-	/* Detect the number of MAARs */
-	write_c0_maari(~0);
-	back_to_back_c0_hazard();
-	num_maars = read_c0_maari() + 1;
-
-	/* MAARs should be in pairs */
-	WARN_ON(num_maars % 2);
-
-	/* Configure the required MAARs */
-	used = platform_maar_init(num_maars / 2);
-
-	/* Disable any further MAARs */
-	for (i = (used * 2); i < num_maars; i++) {
-		write_c0_maari(i);
-		back_to_back_c0_hazard();
-		write_c0_maar(0);
-		back_to_back_c0_hazard();
-	}
 }
 
 void __init mem_init(void)

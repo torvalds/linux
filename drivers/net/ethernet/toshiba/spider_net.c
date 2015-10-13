@@ -604,8 +604,7 @@ spider_net_set_multi(struct net_device *netdev)
 	int i;
 	u32 reg;
 	struct spider_net_card *card = netdev_priv(netdev);
-	unsigned long bitmask[SPIDER_NET_MULTICAST_HASHES / BITS_PER_LONG] =
-		{0, };
+	DECLARE_BITMAP(bitmask, SPIDER_NET_MULTICAST_HASHES) = {};
 
 	spider_net_set_promisc(card);
 

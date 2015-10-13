@@ -90,6 +90,11 @@ the Atmel website: http://www.atmel.com.
         + Datasheet
           http://www.atmel.com/Images/Atmel-11238-32-bit-Cortex-A5-Microcontroller-SAMA5D4_Datasheet.pdf
 
+      - sama5d2 family
+        - sama5d27
+        + Datasheet
+          Coming soon
+
 
 Linux kernel information
 ------------------------

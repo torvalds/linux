@@ -110,8 +110,8 @@
 #define DEVICE_SET_NMI_REG 0x00a01c30
 #define DEVICE_SET_NMI_VAL_HW BIT(0)
 #define DEVICE_SET_NMI_VAL_DRV BIT(7)
-#define DEVICE_SET_NMI_8000B_REG 0x00a01c24
-#define DEVICE_SET_NMI_8000B_VAL 0x1000000
+#define DEVICE_SET_NMI_8000_REG 0x00a01c24
+#define DEVICE_SET_NMI_8000_VAL 0x1000000
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -253,6 +253,7 @@
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
 #define SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
 #define SCD_GP_CTRL_ENABLE_31_QUEUES		BIT(0)
+#define SCD_GP_CTRL_AUTO_ACTIVE_MODE		BIT(18)
 
 /* Context Data */
 #define SCD_CONTEXT_MEM_LOWER_BOUND	(SCD_MEM_LOWER_BOUND + 0x600)
@@ -291,28 +292,12 @@
 
 /*********************** END TX SCHEDULER *************************************/
 
+/* tcp checksum offload */
+#define RX_EN_CSUM		(0x00a00d88)
+
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)
 #define OSC_CLK_FORCE_CONTROL		(0x8)
-
-/* SECURE boot registers */
-#define LMPM_SECURE_BOOT_CONFIG_ADDR	(0x100)
-enum secure_boot_config_reg {
-	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_BURNED_IN_OTP	= 0x00000001,
-	LMPM_SECURE_BOOT_CONFIG_INSPECTOR_NOT_REQ	= 0x00000002,
-};
-
-#define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0	(0xA01E30)
-#define LMPM_SECURE_BOOT_CPU1_STATUS_ADDR	(0x1E30)
-#define LMPM_SECURE_BOOT_CPU2_STATUS_ADDR	(0x1E34)
-enum secure_boot_status_reg {
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_STATUS		= 0x00000001,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_COMPLETED	= 0x00000002,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_SUCCESS	= 0x00000004,
-	LMPM_SECURE_BOOT_CPU_STATUS_VERF_FAIL		= 0x00000008,
-	LMPM_SECURE_BOOT_CPU_STATUS_SIGN_VERF_FAIL	= 0x00000010,
-	LMPM_SECURE_BOOT_STATUS_SUCCESS			= 0x00000003,
-};
 
 #define FH_UCODE_LOAD_STATUS		(0x1AF0)
 #define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
@@ -333,8 +318,6 @@ enum secure_load_status_reg {
 #define LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE	(0x402000)
 #define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
-
-#define LMPM_SECURE_TIME_OUT	(100) /* 10 micro */
 
 /* Rx FIFO */
 #define RXF_SIZE_ADDR			(0xa00c88)
@@ -369,13 +352,50 @@ enum secure_load_status_reg {
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
 
+#define MON_DMARB_RD_CTL_ADDR		(0xa03c60)
+#define MON_DMARB_RD_DATA_ADDR		(0xa03c5c)
+
 #define DBGC_IN_SAMPLE			(0xa03c00)
-#define DBGC_OUT_CTRL			(0xa03c0c)
+
+/* enable the ID buf for read */
+#define WFPM_PS_CTL_CLR			0xA0300C
+#define WFMP_MAC_ADDR_0			0xA03080
+#define WFMP_MAC_ADDR_1			0xA03084
+#define LMPM_PMG_EN			0xA01CEC
+#define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
+#define RFIC_REG_RD			0xAD0470
+#define WFPM_CTRL_REG			0xA03030
+enum {
+	ENABLE_WFPM = BIT(31),
+	WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK	= 0x80000000,
+};
+
+#define AUX_MISC_REG			0xA200B0
+enum {
+	HW_STEP_LOCATION_BITS = 24,
+};
+
+#define AUX_MISC_MASTER1_EN		0xA20818
+enum aux_misc_master1_en {
+	AUX_MISC_MASTER1_EN_SBE_MSK	= 0x1,
+};
+
+#define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
+#define RSA_ENABLE			0xA24B08
+#define PREG_AUX_BUS_WPROT_0		0xA04CC0
+#define SB_CPU_1_STATUS			0xA01E30
+#define SB_CPU_2_STATUS			0xA01E34
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
 enum {
 	LMPM_CHICK_EXTENDED_ADDR_SPACE = BIT(0),
+};
+
+/* FW chicken bits */
+#define LMPM_PAGE_PASS_NOTIF			0xA03824
+enum {
+	LMPM_PAGE_PASS_NOTIF_POS = BIT(20),
 };
 
 #endif				/* __iwl_prph_h__ */

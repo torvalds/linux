@@ -67,10 +67,13 @@ MACHINE_END
 
 static const char * const sun8i_board_dt_compat[] = {
 	"allwinner,sun8i-a23",
+	"allwinner,sun8i-a33",
+	"allwinner,sun8i-h3",
 	NULL,
 };
 
-DT_MACHINE_START(SUN8I_DT, "Allwinner sun8i (A23) Family")
+DT_MACHINE_START(SUN8I_DT, "Allwinner sun8i Family")
+	.init_time	= sun6i_timer_init,
 	.dt_compat	= sun8i_board_dt_compat,
 	.init_late	= sunxi_dt_cpufreq_init,
 MACHINE_END

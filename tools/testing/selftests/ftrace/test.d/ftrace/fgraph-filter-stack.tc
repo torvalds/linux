@@ -16,7 +16,9 @@ fi
 
 do_reset() {
     reset_tracer
-    echo 0 > /proc/sys/kernel/stack_tracer_enabled
+    if [ -e /proc/sys/kernel/stack_tracer_enabled ]; then
+	    echo 0 > /proc/sys/kernel/stack_tracer_enabled
+    fi
     enable_tracing
     clear_trace
     echo > set_ftrace_filter
@@ -25,7 +27,7 @@ do_reset() {
 fail() { # msg
     do_reset
     echo $1
-    exit -1
+    exit $FAIL
 }
 
 disable_tracing

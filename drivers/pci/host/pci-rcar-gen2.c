@@ -301,6 +301,9 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	if (!mem_res || !mem_res->start)
 		return -ENODEV;
 
+	if (mem_res->start & 0xFFFF)
+		return -EINVAL;
+
 	priv = devm_kzalloc(&pdev->dev,
 			    sizeof(struct rcar_pci_priv), GFP_KERNEL);
 	if (!priv)
@@ -359,6 +362,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 static struct of_device_id rcar_pci_of_match[] = {
 	{ .compatible = "renesas,pci-r8a7790", },
 	{ .compatible = "renesas,pci-r8a7791", },
+	{ .compatible = "renesas,pci-r8a7794", },
 	{ },
 };
 

@@ -149,6 +149,18 @@ config MOUSE_PS2_FOCALTECH
 
 	  If unsure, say Y.
 
+config MOUSE_PS2_VMMOUSE
+	bool "Virtual mouse (vmmouse)"
+	depends on MOUSE_PS2 && X86 && HYPERVISOR_GUEST
+	help
+	  Say Y here if you are running under control of VMware hypervisor
+	  (ESXi, Workstation or Fusion). Also make sure that when you enable
+	  this option, you remove the xf86-input-vmmouse user-space driver
+	  or upgrade it to at least xf86-input-vmmouse 13.1.0, which doesn't
+	  load in the presence of an in-kernel vmmouse driver.
+
+	  If unsure, say N.
+
 config MOUSE_SERIAL
 	tristate "Serial mouse"
 	select SERIO
@@ -329,7 +341,7 @@ config MOUSE_VSXXXAA
 
 config MOUSE_GPIO
 	tristate "GPIO mouse"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select INPUT_POLLDEV
 	help
 	  This driver simulates a mouse on GPIO lines of various CPUs (and some

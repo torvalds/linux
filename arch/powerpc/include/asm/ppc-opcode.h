@@ -136,6 +136,8 @@
 #define PPC_INST_DCBAL			0x7c2005ec
 #define PPC_INST_DCBZL			0x7c2007ec
 #define PPC_INST_ICBT			0x7c00002c
+#define PPC_INST_ICSWX			0x7c00032d
+#define PPC_INST_ICSWEPX		0x7c00076d
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
 #define PPC_INST_LDARX			0x7c0000a8
@@ -213,6 +215,8 @@
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_STD			0xf8000000
 #define PPC_INST_STDU			0xf8000001
+#define PPC_INST_STW			0x90000000
+#define PPC_INST_STWU			0x94000000
 #define PPC_INST_MFLR			0x7c0802a6
 #define PPC_INST_MTLR			0x7c0803a6
 #define PPC_INST_CMPWI			0x2c000000
@@ -283,7 +287,7 @@
 
 /* POWER8 Micro Partition Prefetch (MPP) parameters */
 /* Address mask is common for LOGMPP instruction and MPPR SPR */
-#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000
+#define PPC_MPPE_ADDRESS_MASK 0xffffffffc000ULL
 
 /* Bits 60 and 61 of MPP SPR should be set to one of the following */
 /* Aborting the fetch is indeed setting 00 in the table size bits */
@@ -400,5 +404,16 @@
 					       TMRN(tmr) | ___PPC_RS(r))
 #define MFTMR(tmr, r)		stringify_in_c(.long PPC_INST_MFTMR | \
 					       TMRN(tmr) | ___PPC_RT(r))
+
+/* Coprocessor instructions */
+#define PPC_ICSWX(s, a, b)	stringify_in_c(.long PPC_INST_ICSWX |	\
+					       ___PPC_RS(s) |		\
+					       ___PPC_RA(a) |		\
+					       ___PPC_RB(b))
+#define PPC_ICSWEPX(s, a, b)	stringify_in_c(.long PPC_INST_ICSWEPX | \
+					       ___PPC_RS(s) |		\
+					       ___PPC_RA(a) |		\
+					       ___PPC_RB(b))
+
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

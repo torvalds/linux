@@ -95,10 +95,10 @@ struct btmrvl_private {
 	struct btmrvl_device btmrvl_dev;
 	struct btmrvl_adapter *adapter;
 	struct btmrvl_thread main_thread;
-	int (*hw_host_to_card) (struct btmrvl_private *priv,
+	int (*hw_host_to_card)(struct btmrvl_private *priv,
 				u8 *payload, u16 nb);
-	int (*hw_wakeup_firmware) (struct btmrvl_private *priv);
-	int (*hw_process_int_status) (struct btmrvl_private *priv);
+	int (*hw_wakeup_firmware)(struct btmrvl_private *priv);
+	int (*hw_process_int_status)(struct btmrvl_private *priv);
 	void (*firmware_dump)(struct btmrvl_private *priv);
 	spinlock_t driver_lock;		/* spinlock used by driver */
 #ifdef CONFIG_DEBUG_FS
@@ -111,6 +111,7 @@ struct btmrvl_private {
 
 /* Vendor specific Bluetooth commands */
 #define BT_CMD_PSCAN_WIN_REPORT_ENABLE	0xFC03
+#define BT_CMD_ROUTE_SCO_TO_HOST	0xFC1D
 #define BT_CMD_SET_BDADDR		0xFC22
 #define BT_CMD_AUTO_SLEEP_MODE		0xFC23
 #define BT_CMD_HOST_SLEEP_CONFIG	0xFC59

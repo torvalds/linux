@@ -22,14 +22,12 @@
  */
 #include "priv.h"
 
-#include <core/device.h>
-
 #if defined(CONFIG_ACPI) && defined(CONFIG_X86)
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
-bool nouveau_acpi_rom_supported(struct pci_dev *pdev);
+bool nouveau_acpi_rom_supported(struct device *);
 #else
 static inline bool
-nouveau_acpi_rom_supported(struct pci_dev *pdev)
+nouveau_acpi_rom_supported(struct device *dev)
 {
 	return false;
 }
@@ -52,7 +50,7 @@ acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 	u32 start = offset & ~0x00000fff;
 	u32 fetch = limit - start;
 
-	if (nvbios_extend(bios, limit) > 0) {
+	if (nvbios_extend(bios, limit) >= 0) {
 		int ret = nouveau_acpi_get_bios_chunk(bios->data, start, fetch);
 		if (ret == fetch)
 			return fetch;
@@ -73,7 +71,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 	u32 start = offset & ~0xfff;
 	u32 fetch = 0;
 
-	if (nvbios_extend(bios, limit) > 0) {
+	if (nvbios_extend(bios, limit) >= 0) {
 		while (start + fetch < limit) {
 			int ret = nouveau_acpi_get_bios_chunk(bios->data,
 							      start + fetch,
@@ -90,7 +88,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 acpi_init(struct nvkm_bios *bios, const char *name)
 {
-	if (!nouveau_acpi_rom_supported(nv_device(bios)->pdev))
+	if (!nouveau_acpi_rom_supported(bios->subdev.device->dev))
 		return ERR_PTR(-ENODEV);
 	return NULL;
 }

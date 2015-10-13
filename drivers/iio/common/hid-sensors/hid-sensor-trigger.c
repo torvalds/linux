@@ -36,6 +36,8 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	s32 poll_value = 0;
 
 	if (state) {
+		if (!atomic_read(&st->user_requested_state))
+			return 0;
 		if (sensor_hub_device_open(st->hsdev))
 			return -EIO;
 
@@ -52,8 +54,12 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
 		poll_value = hid_sensor_read_poll_value(st);
 	} else {
-		if (!atomic_dec_and_test(&st->data_ready))
+		int val;
+
+		val = atomic_dec_if_positive(&st->data_ready);
+		if (val < 0)
 			return 0;
+
 		sensor_hub_device_close(st->hsdev);
 		state_val = hid_sensor_get_usage_index(st->hsdev,
 			st->power_state.report_id,
@@ -68,20 +74,21 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	if (state_val >= 0) {
 		state_val += st->power_state.logical_minimum;
 		sensor_hub_set_feature(st->hsdev, st->power_state.report_id,
-					st->power_state.index,
-					(s32)state_val);
+				       st->power_state.index, sizeof(state_val),
+				       &state_val);
 	}
 
 	if (report_val >= 0) {
 		report_val += st->report_state.logical_minimum;
 		sensor_hub_set_feature(st->hsdev, st->report_state.report_id,
-					st->report_state.index,
-					(s32)report_val);
+				       st->report_state.index,
+				       sizeof(report_val),
+				       &report_val);
 	}
 
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
-					st->power_state.index,
-					&state_val);
+			       st->power_state.index,
+			       sizeof(state_val), &state_val);
 	if (state && poll_value)
 		msleep_interruptible(poll_value * 2);
 
@@ -91,9 +98,11 @@ EXPORT_SYMBOL(hid_sensor_power_state);
 
 int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 {
+
 #ifdef CONFIG_PM
 	int ret;
 
+	atomic_set(&st->user_requested_state, state);
 	if (state)
 		ret = pm_runtime_get_sync(&st->pdev->dev);
 	else {
@@ -108,6 +117,7 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 
  	return 0;
 #else
+	atomic_set(&st->user_requested_state, state);
 	return _hid_sensor_power_state(st, state);
 #endif
 }

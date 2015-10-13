@@ -1758,7 +1758,7 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 	int ports = HCS_N_PORTS(priv->hcs_params);
 	u16 temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	/* priv 1.0, 2.3.9 says 20ms max */
 	desc->bPwrOn2PwrGood = 10;
 	desc->bHubContrCurrent = 0;
@@ -1869,7 +1869,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 				reg_write32(hcd->regs, HC_PORTSC1,
 							temp | PORT_RESUME);
 				priv->reset_done = jiffies +
-					msecs_to_jiffies(20);
+					msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			}
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:

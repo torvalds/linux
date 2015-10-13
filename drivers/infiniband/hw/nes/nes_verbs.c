@@ -375,9 +375,11 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 }
 
 /*
- * nes_alloc_fast_reg_mr
+ * nes_alloc_mr
  */
-static struct ib_mr *nes_alloc_fast_reg_mr(struct ib_pd *ibpd, int max_page_list_len)
+static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
+				  enum ib_mr_type mr_type,
+				  u32 max_num_sg)
 {
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
@@ -393,11 +395,18 @@ static struct ib_mr *nes_alloc_fast_reg_mr(struct ib_pd *ibpd, int max_page_list
 	u32 stag;
 	int ret;
 	struct ib_mr *ibmr;
+
+	if (mr_type != IB_MR_TYPE_MEM_REG)
+		return ERR_PTR(-EINVAL);
+
+	if (max_num_sg > (NES_4K_PBL_CHUNK_SIZE / sizeof(u64)))
+		return ERR_PTR(-E2BIG);
+
 /*
  * Note:  Set to always use a fixed length single page entry PBL.  This is to allow
  *	 for the fast_reg_mr operation to always know the size of the PBL.
  */
-	if (max_page_list_len > (NES_4K_PBL_CHUNK_SIZE / sizeof(u64)))
+	if (max_num_sg > (NES_4K_PBL_CHUNK_SIZE / sizeof(u64)))
 		return ERR_PTR(-E2BIG);
 
 	get_random_bytes(&next_stag_index, sizeof(next_stag_index));
@@ -424,7 +433,7 @@ static struct ib_mr *nes_alloc_fast_reg_mr(struct ib_pd *ibpd, int max_page_list
 	nes_debug(NES_DBG_MR, "Allocating STag 0x%08X index = 0x%08X\n",
 		  stag, stag_index);
 
-	ret = alloc_fast_reg_mr(nesdev, nespd, stag, max_page_list_len);
+	ret = alloc_fast_reg_mr(nesdev, nespd, stag, max_num_sg);
 
 	if (ret == 0) {
 		nesmr->ibmr.rkey = stag;
@@ -512,11 +521,15 @@ static void nes_free_fast_reg_page_list(struct ib_fast_reg_page_list *pifrpl)
 /**
  * nes_query_device
  */
-static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
+static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
+			    struct ib_udata *uhw)
 {
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
+
+	if (uhw->inlen || uhw->outlen)
+		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
 	memcpy(&props->sys_image_guid, nesvnic->netdev->dev_addr, 6);
@@ -605,7 +618,6 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 
 	return 0;
 }
-
 
 /**
  * nes_query_pkey
@@ -1527,10 +1539,12 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 /**
  * nes_create_cq
  */
-static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
-		int comp_vector,
-		struct ib_ucontext *context, struct ib_udata *udata)
+static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
+				   const struct ib_cq_init_attr *attr,
+				   struct ib_ucontext *context,
+				   struct ib_udata *udata)
 {
+	int entries = attr->cqe;
 	u64 u64temp;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -1549,6 +1563,9 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 	int err;
 	unsigned long flags;
 	int ret;
+
+	if (attr->flags)
+		return ERR_PTR(-EINVAL);
 
 	if (entries > nesadapter->max_cqe)
 		return ERR_PTR(-EINVAL);
@@ -3222,8 +3239,10 @@ static int nes_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
  * nes_process_mad
  */
 static int nes_process_mad(struct ib_device *ibdev, int mad_flags,
-		u8 port_num, struct ib_wc *in_wc, struct ib_grh *in_grh,
-		struct ib_mad *in_mad, struct ib_mad *out_mad)
+		u8 port_num, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		const struct ib_mad_hdr *in, size_t in_mad_size,
+		struct ib_mad_hdr *out, size_t *out_mad_size,
+		u16 *out_mad_pkey_index)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return -ENOSYS;
@@ -3828,6 +3847,22 @@ static int nes_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_
 	return 0;
 }
 
+static int nes_port_immutable(struct ib_device *ibdev, u8 port_num,
+			      struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = nes_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
 
 /**
  * nes_init_ofa_device
@@ -3903,7 +3938,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.dealloc_mw = nes_dealloc_mw;
 	nesibdev->ibdev.bind_mw = nes_bind_mw;
 
-	nesibdev->ibdev.alloc_fast_reg_mr = nes_alloc_fast_reg_mr;
+	nesibdev->ibdev.alloc_mr = nes_alloc_mr;
 	nesibdev->ibdev.alloc_fast_reg_page_list = nes_alloc_fast_reg_page_list;
 	nesibdev->ibdev.free_fast_reg_page_list = nes_free_fast_reg_page_list;
 
@@ -3928,6 +3963,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->reject = nes_reject;
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
+	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
 
 	return nesibdev;
 }

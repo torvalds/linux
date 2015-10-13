@@ -1022,9 +1022,12 @@ static int register_root_hub(struct usb_hcd *hcd)
 				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
 	}
-	if (usb_dev->speed == USB_SPEED_SUPER) {
+
+	if (le16_to_cpu(usb_dev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(usb_dev);
-		if (retval < 0) {
+		if (!retval) {
+			usb_dev->lpm_capable = usb_device_supports_lpm(usb_dev);
+		} else if (usb_dev->speed == USB_SPEED_SUPER) {
 			mutex_unlock(&usb_bus_list_lock);
 			dev_dbg(parent_dev, "can't read %s bos descriptor %d\n",
 					dev_name(&usb_dev->dev), retval);
@@ -2683,15 +2686,18 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 * bottom up so that hcds can customize the root hubs before hub_wq
 	 * starts talking to them.  (Note, bus id is assigned early too.)
 	 */
-	if ((retval = hcd_buffer_create(hcd)) != 0) {
+	retval = hcd_buffer_create(hcd);
+	if (retval != 0) {
 		dev_dbg(hcd->self.controller, "pool alloc failed\n");
 		goto err_create_buf;
 	}
 
-	if ((retval = usb_register_bus(&hcd->self)) < 0)
+	retval = usb_register_bus(&hcd->self);
+	if (retval < 0)
 		goto err_register_bus;
 
-	if ((rhdev = usb_alloc_dev(NULL, &hcd->self, 0)) == NULL) {
+	rhdev = usb_alloc_dev(NULL, &hcd->self, 0);
+	if (rhdev == NULL) {
 		dev_err(hcd->self.controller, "unable to allocate root hub\n");
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;
@@ -2733,9 +2739,13 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	/* "reset" is misnamed; its role is now one-time init. the controller
 	 * should already have been reset (and boot firmware kicked off etc).
 	 */
-	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
-		dev_err(hcd->self.controller, "can't setup: %d\n", retval);
-		goto err_hcd_driver_setup;
+	if (hcd->driver->reset) {
+		retval = hcd->driver->reset(hcd);
+		if (retval < 0) {
+			dev_err(hcd->self.controller, "can't setup: %d\n",
+					retval);
+			goto err_hcd_driver_setup;
+		}
 	}
 	hcd->rh_pollable = 1;
 
@@ -2765,7 +2775,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	}
 
 	/* starting here, usbcore will pay attention to this root hub */
-	if ((retval = register_root_hub(hcd)) != 0)
+	retval = register_root_hub(hcd);
+	if (retval != 0)
 		goto err_register_root_hub;
 
 	retval = sysfs_create_group(&rhdev->dev.kobj, &usb_bus_attr_group);

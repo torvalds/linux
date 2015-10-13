@@ -25,8 +25,8 @@ Video Ports
 -----------
 
 The DSS Core and the encoders have video port outputs. The structure of the
-video ports is described in Documentation/devicetree/bindings/video/video-
-ports.txt, and the properties for the ports and endpoints for each encoder are
+video ports is described in Documentation/devicetree/bindings/graph.txt,
+and the properties for the ports and endpoints for each encoder are
 described in the SoC's DSS binding documentation.
 
 The video ports are used to describe the connections to external hardware, like

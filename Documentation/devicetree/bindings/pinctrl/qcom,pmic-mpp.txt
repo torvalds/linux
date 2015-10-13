@@ -7,7 +7,13 @@ of PMIC's from Qualcomm.
 	Usage: required
 	Value type: <string>
 	Definition: Should contain one of:
+		    "qcom,pm8018-mpp",
+		    "qcom,pm8038-mpp",
+		    "qcom,pm8821-mpp",
 		    "qcom,pm8841-mpp",
+		    "qcom,pm8916-mpp",
+		    "qcom,pm8917-mpp",
+		    "qcom,pm8921-mpp",
 		    "qcom,pm8941-mpp",
 		    "qcom,pma8084-mpp",
 
@@ -67,6 +73,7 @@ to specify in a pin configuration subnode:
 	Definition: List of MPP pins affected by the properties specified in
 		    this subnode.  Valid pins are:
 		    mpp1-mpp4 for pm8841
+		    mpp1-mpp4 for pm8916
 		    mpp1-mpp8 for pm8941
 		    mpp1-mpp4 for pma8084
 
@@ -75,12 +82,9 @@ to specify in a pin configuration subnode:
 	Value type: <string>
 	Definition: Specify the alternative function to be configured for the
 		    specified pins.  Valid values are:
-		    "normal",
-		    "paired",
-		    "dtest1",
-		    "dtest2",
-		    "dtest3",
-		    "dtest4"
+		    "digital",
+		    "analog",
+		    "sink"
 
 - bias-disable:
 	Usage: optional
@@ -125,12 +129,18 @@ to specify in a pin configuration subnode:
 	Definition: Selects the power source for the specified pins. Valid power
 		    sources are defined in <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
-- qcom,analog-mode:
+- qcom,analog-level:
 	Usage: optional
-	Value type: <none>
-	Definition: Selects Analog mode of operation: combined with input-enable
-		    and/or output-high, output-low MPP could operate as
-		    Bidirectional Logic, Analog Input, Analog Output.
+	Value type: <u32>
+	Definition: Selects the source for analog output. Valued values are
+		    defined in <dt-binding/pinctrl/qcom,pmic-mpp.h>
+		    PMIC_MPP_AOUT_LVL_*
+
+- qcom,dtest:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects which dtest rail to be routed in the various functions.
+		    Valid values are 1-4
 
 - qcom,amux-route:
 	Usage: optional
@@ -138,6 +148,10 @@ to specify in a pin configuration subnode:
 	Definition: Selects the source for analog input. Valid values are
 		    defined in <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 		    PMIC_MPP_AMUX_ROUTE_CH5, PMIC_MPP_AMUX_ROUTE_CH6...
+- qcom,paired:
+	Usage: optional
+	Value type: <none>
+	Definition: Indicates that the pin should be operating in paired mode.
 
 Example:
 
@@ -154,7 +168,7 @@ Example:
 		pm8841_default: default {
 			gpio {
 				pins = "mpp1", "mpp2", "mpp3", "mpp4";
-				function = "normal";
+				function = "digital";
 				input-enable;
 				power-source = <PM8841_MPP_S3>;
 			};

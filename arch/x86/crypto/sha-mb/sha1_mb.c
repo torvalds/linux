@@ -65,11 +65,8 @@
 #include <crypto/mcryptd.h>
 #include <crypto/crypto_wq.h>
 #include <asm/byteorder.h>
-#include <asm/i387.h>
-#include <asm/xcr.h>
-#include <asm/xsave.h>
 #include <linux/hardirq.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/api.h>
 #include "sha_mb_ctx.h"
 
 #define FLUSH_INTERVAL 1000 /* in usec */
@@ -694,7 +691,8 @@ static struct shash_alg sha1_mb_shash_alg = {
 		 * use ASYNC flag as some buffers in multi-buffer
 		 * algo may not have completed before hashing thread sleep
 		 */
-		.cra_flags	 = CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_ASYNC,
+		.cra_flags	 = CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_ASYNC |
+				   CRYPTO_ALG_INTERNAL,
 		.cra_blocksize	 = SHA1_BLOCK_SIZE,
 		.cra_module	 = THIS_MODULE,
 		.cra_list	 = LIST_HEAD_INIT(sha1_mb_shash_alg.base.cra_list),
@@ -770,7 +768,9 @@ static int sha1_mb_async_init_tfm(struct crypto_tfm *tfm)
 	struct sha1_mb_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mcryptd_hash_ctx *mctx;
 
-	mcryptd_tfm = mcryptd_alloc_ahash("__intel_sha1-mb", 0, 0);
+	mcryptd_tfm = mcryptd_alloc_ahash("__intel_sha1-mb",
+					  CRYPTO_ALG_INTERNAL,
+					  CRYPTO_ALG_INTERNAL);
 	if (IS_ERR(mcryptd_tfm))
 		return PTR_ERR(mcryptd_tfm);
 	mctx = crypto_ahash_ctx(&mcryptd_tfm->base);
@@ -828,7 +828,7 @@ static unsigned long sha1_mb_flusher(struct mcryptd_alg_cstate *cstate)
 	while (!list_empty(&cstate->work_list)) {
 		rctx = list_entry(cstate->work_list.next,
 				struct mcryptd_hash_request_ctx, waiter);
-		if time_before(cur_time, rctx->tag.expire)
+		if (time_before(cur_time, rctx->tag.expire))
 			break;
 		kernel_fpu_begin();
 		sha_ctx = (struct sha1_hash_ctx *) sha1_ctx_mgr_flush(cstate->mgr);
@@ -882,7 +882,8 @@ static int __init sha1_mb_mod_init(void)
 		INIT_DELAYED_WORK(&cpu_state->flush, mcryptd_flusher);
 		cpu_state->cpu = cpu;
 		cpu_state->alg_state = &sha1_mb_alg_state;
-		cpu_state->mgr = (struct sha1_ctx_mgr *) kzalloc(sizeof(struct sha1_ctx_mgr), GFP_KERNEL);
+		cpu_state->mgr = kzalloc(sizeof(struct sha1_ctx_mgr),
+					GFP_KERNEL);
 		if (!cpu_state->mgr)
 			goto err2;
 		sha1_ctx_mgr_init(cpu_state->mgr);

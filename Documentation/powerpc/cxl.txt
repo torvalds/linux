@@ -133,6 +133,9 @@ User API
     The following file operations are supported on both slave and
     master devices.
 
+    A userspace library libcxl is available here:
+	https://github.com/ibm-capi/libcxl
+    This provides a C interface to this kernel API.
 
 open
 ----
@@ -365,6 +368,7 @@ Sysfs Class
     A cxl sysfs class is added under /sys/class/cxl to facilitate
     enumeration and tuning of the accelerators. Its layout is
     described in Documentation/ABI/testing/sysfs-class-cxl
+
 
 Udev rules
 ==========

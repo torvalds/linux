@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,7 @@
 #include "fw-api-coex.h"
 #include "fw-api-scan.h"
 #include "fw-api-stats.h"
+#include "fw-api-tof.h"
 
 /* Tx queue numbers */
 enum {
@@ -108,6 +109,7 @@ enum {
 	ANTENNA_COUPLING_NOTIFICATION = 0xa,
 
 	/* UMAC scan commands */
+	SCAN_ITERATION_COMPLETE_UMAC = 0xb5,
 	SCAN_CFG_CMD = 0xc,
 	SCAN_REQ_UMAC = 0xd,
 	SCAN_ABORT_UMAC = 0xe,
@@ -117,6 +119,9 @@ enum {
 	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
+
+	/* paging get item */
+	FW_GET_ITEM_CMD = 0x1a,
 
 	/* TX */
 	TX_CMD = 0x1c,
@@ -147,12 +152,8 @@ enum {
 
 	LQ_CMD = 0x4e,
 
-	/* Calibration */
-	TEMPERATURE_NOTIFICATION = 0x62,
-	CALIBRATION_CFG_CMD = 0x65,
-	CALIBRATION_RES_NOTIFICATION = 0x66,
-	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
-	RADIO_VERSION_NOTIFICATION = 0x68,
+	/* paging block to FW cpu2 */
+	FW_PAGING_BLOCK_CMD = 0x4f,
 
 	/* Scan offload */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
@@ -169,6 +170,10 @@ enum {
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	/* PHY_DB_CMD = 0x6c, */
 
+	/* ToF - 802.11mc FTM */
+	TOF_CMD = 0x10,
+	TOF_NOTIFICATION = 0x11,
+
 	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
 	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
@@ -177,12 +182,8 @@ enum {
 	/* Thermal Throttling*/
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Scanning */
-	SCAN_REQUEST_CMD = 0x80,
-	SCAN_ABORT_CMD = 0x81,
-	SCAN_START_NOTIFICATION = 0x82,
-	SCAN_RESULTS_NOTIFICATION = 0x83,
-	SCAN_COMPLETE_NOTIFICATION = 0x84,
+	/* Set/Get DC2DC frequency tune */
+	DC2DC_CONFIG_CMD = 0x83,
 
 	/* NVM */
 	NVM_ACCESS_CMD = 0x88,
@@ -192,6 +193,7 @@ enum {
 	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	STATISTICS_CMD = 0x9c,
 	STATISTICS_NOTIFICATION = 0x9d,
 	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
@@ -210,6 +212,10 @@ enum {
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
+
+	/* Location Aware Regulatory */
+	MCC_UPDATE_CMD = 0xc8,
+	MCC_CHUB_UPDATE_CMD = 0xc9,
 
 	MARKER_CMD = 0xcb,
 
@@ -275,19 +281,6 @@ struct iwl_cmd_response {
 struct iwl_tx_ant_cfg_cmd {
 	__le32 valid;
 } __packed;
-
-/**
- * struct iwl_reduce_tx_power_cmd - TX power reduction command
- * REDUCE_TX_POWER_CMD = 0x9f
- * @flags: (reserved for future implementation)
- * @mac_context_id: id of the mac ctx for which we are reducing TX power.
- * @pwr_restriction: TX power restriction in dBms.
- */
-struct iwl_reduce_tx_power_cmd {
-	u8 flags;
-	u8 mac_context_id;
-	__le16 pwr_restriction;
-} __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
 
 /*
  * Calibration control struct.
@@ -361,7 +354,8 @@ enum {
 	NVM_SECTION_TYPE_CALIBRATION = 4,
 	NVM_SECTION_TYPE_PRODUCTION = 5,
 	NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
-	NVM_MAX_NUM_SECTIONS = 12,
+	NVM_SECTION_TYPE_PHY_SKU = 12,
+	NVM_MAX_NUM_SECTIONS = 13,
 };
 
 /**
@@ -381,6 +375,50 @@ struct iwl_nvm_access_cmd {
 	__le16 length;
 	u8 data[];
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
+
+#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
+
+/*
+ * struct iwl_fw_paging_cmd - paging layout
+ *
+ * (FW_PAGING_BLOCK_CMD = 0x4f)
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+*/
+struct iwl_fw_paging_cmd {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/*
+ * Fw items ID's
+ *
+ * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *	download
+ */
+enum iwl_fw_item_id {
+	IWL_FW_ITEM_ID_PAGING = 3,
+};
+
+/*
+ * struct iwl_fw_get_item_cmd - get an item from the fw
+ */
+struct iwl_fw_get_item_cmd {
+	__le32 item_id;
+} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
+
+struct iwl_fw_get_item_resp {
+	__le32 item_id;
+	__le32 item_byte_cnt;
+	__le32 item_val;
+} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
 
 /**
  * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
@@ -431,7 +469,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct mvm_alive_resp {
+struct mvm_alive_resp_ver1 {
 	__le16 status;
 	__le16 flags;
 	u8 ucode_minor;
@@ -481,6 +519,30 @@ struct mvm_alive_resp_ver2 {
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_2 */
+
+struct mvm_alive_resp {
+	__le16 status;
+	__le16 flags;
+	__le32 ucode_minor;
+	__le32 ucode_major;
+	u8 ver_subtype;
+	u8 ver_type;
+	u8 mac;
+	u8 opt;
+	__le32 timestamp;
+	__le32 error_event_table_ptr;	/* SRAM address for error log */
+	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
+	__le32 cpu_register_ptr;
+	__le32 dbgm_config_ptr;
+	__le32 alive_counter_ptr;
+	__le32 scd_base_ptr;		/* SRAM address for SCD */
+	__le32 st_fwrd_addr;		/* pointer to Store and forward */
+	__le32 st_fwrd_size;
+	__le32 umac_minor;		/* UMAC version: minor */
+	__le32 umac_major;		/* UMAC version: major */
+	__le32 error_info_addr;		/* SRAM address for UMAC error log */
+	__le32 dbg_print_buff_addr;
+} __packed; /* ALIVE_RES_API_S_VER_3 */
 
 /* Error response/notification */
 enum {
@@ -1073,10 +1135,33 @@ struct iwl_rx_phy_info {
 	__le16 frame_time;
 } __packed;
 
+/*
+ * TCP offload Rx assist info
+ *
+ * bits 0:3 - reserved
+ * bits 4:7 - MIC CRC length
+ * bits 8:12 - MAC header length
+ * bit 13 - Padding indication
+ * bit 14 - A-AMSDU indication
+ * bit 15 - Offload enabled
+ */
+enum iwl_csum_rx_assist_info {
+	CSUM_RXA_RESERVED_MASK	= 0x000f,
+	CSUM_RXA_MICSIZE_MASK	= 0x00f0,
+	CSUM_RXA_HEADERLEN_MASK	= 0x1f00,
+	CSUM_RXA_PADD		= BIT(13),
+	CSUM_RXA_AMSDU		= BIT(14),
+	CSUM_RXA_ENA		= BIT(15)
+};
+
+/**
+ * struct iwl_rx_mpdu_res_start - phy info
+ * @assist: see CSUM_RX_ASSIST_ above
+ */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
-	__le16 reserved;
-} __packed;
+	__le16 assist;
+} __packed; /* _RX_MPDU_RES_START_API_S_VER_2 */
 
 /**
  * enum iwl_rx_phy_flags - to parse %iwl_rx_phy_info phy_flags
@@ -1129,6 +1214,8 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP:
  * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT:
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
+ * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
+ * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
  * @RX_MPDU_RES_STATUS_HASH_INDEX_MSK:
  * @RX_MPDU_RES_STATUS_STA_ID_MSK:
  * @RX_MPDU_RES_STATUS_RRF_KILL:
@@ -1158,6 +1245,8 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
 	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
 	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
+	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
+	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
 	RX_MPDU_RES_STATUS_HASH_INDEX_MSK		= (0x3F0000),
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= (0x1f000000),
 	RX_MPDU_RES_STATUS_RRF_KILL			= BIT(29),
@@ -1385,6 +1474,49 @@ struct iwl_mvm_marker {
 	__le32 metadata[0];
 } __packed; /* MARKER_API_S_VER_1 */
 
+/*
+ * enum iwl_dc2dc_config_id - flag ids
+ *
+ * Ids of dc2dc configuration flags
+ */
+enum iwl_dc2dc_config_id {
+	DCDC_LOW_POWER_MODE_MSK_SET  = 0x1, /* not used */
+	DCDC_FREQ_TUNE_SET = 0x2,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_cmd - configure dc2dc values
+ *
+ * (DC2DC_CONFIG_CMD = 0x83)
+ *
+ * Set/Get & configure dc2dc values.
+ * The command always returns the current dc2dc values.
+ *
+ * @flags: set/get dc2dc
+ * @enable_low_power_mode: not used.
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_cmd {
+	__le32 flags;
+	__le32 enable_low_power_mode; /* not used */
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dc2dc_config_resp - response for iwl_dc2dc_config_cmd
+ *
+ * Current dc2dc values returned by the FW.
+ *
+ * @dc2dc_freq_tune0: frequency divider - digital domain
+ * @dc2dc_freq_tune1: frequency divider - analog domain
+ */
+struct iwl_dc2dc_config_resp {
+	__le32 dc2dc_freq_tune0;
+	__le32 dc2dc_freq_tune1;
+} __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
+
 /***********************************
  * Smart Fifo API
  ***********************************/
@@ -1417,7 +1549,19 @@ enum iwl_sf_scenario {
 #define SF_W_MARK_LEGACY 4096
 #define SF_W_MARK_SCAN 4096
 
-/* SF Scenarios timers for FULL_ON state (aligned to 32 uSec) */
+/* SF Scenarios timers for default configuration (aligned to 32 uSec) */
+#define SF_SINGLE_UNICAST_IDLE_TIMER_DEF 160	/* 150 uSec  */
+#define SF_SINGLE_UNICAST_AGING_TIMER_DEF 400	/* 0.4 mSec */
+#define SF_AGG_UNICAST_IDLE_TIMER_DEF 160		/* 150 uSec */
+#define SF_AGG_UNICAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_MCAST_IDLE_TIMER_DEF 160		/* 150 mSec */
+#define SF_MCAST_AGING_TIMER_DEF 400		/* 0.4 mSec */
+#define SF_BA_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_BA_AGING_TIMER_DEF 400			/* 0.4 mSec */
+#define SF_TX_RE_IDLE_TIMER_DEF 160			/* 150 uSec */
+#define SF_TX_RE_AGING_TIMER_DEF 400		/* 0.4 mSec */
+
+/* SF Scenarios timers for BSS MAC configuration (aligned to 32 uSec) */
 #define SF_SINGLE_UNICAST_IDLE_TIMER 320	/* 300 uSec  */
 #define SF_SINGLE_UNICAST_AGING_TIMER 2016	/* 2 mSec */
 #define SF_AGG_UNICAST_IDLE_TIMER 320		/* 300 uSec */
@@ -1447,6 +1591,92 @@ struct iwl_sf_cfg_cmd {
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 } __packed; /* SF_CFG_API_S_VER_2 */
+
+/***********************************
+ * Location Aware Regulatory (LAR) API - MCC updates
+ ***********************************/
+
+/**
+ * struct iwl_mcc_update_cmd - Request the device to update geographic
+ * regulatory profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: the source from where we got the MCC, see iwl_mcc_source
+ * @reserved: reserved for alignment
+ */
+struct iwl_mcc_update_cmd {
+	__le16 mcc;
+	u8 source_id;
+	u8 reserved;
+} __packed; /* LAR_UPDATE_MCC_CMD_API_S */
+
+/**
+ * iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @cap: capabilities for all channels which matches the MCC
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @n_channels: number of channels in @channels_data (may be 14, 39, 50 or 51
+ *		channels, depending on platform)
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *	16bits are used.
+ */
+struct iwl_mcc_update_resp {
+	__le32 status;
+	__le16 mcc;
+	u8 cap;
+	u8 source_id;
+	__le32 n_channels;
+	__le32 channels[0];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S */
+
+/**
+ * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * (MCC_CHUB_UPDATE_CMD = 0xc9)
+ * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
+ * the cellular and connectivity cores that gets updates of the mcc, and
+ * notifies the ucode directly of any mcc change.
+ * The ucode requests the driver to request the device to update geographic
+ * regulatory  profile according to the given MCC (Mobile Country Code).
+ * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
+ * 'ZZ' MCC will be used to switch to NVM default profile; in this case, the
+ * MCC in the cmd response will be the relevant MCC in the NVM.
+ * @mcc: given mobile country code
+ * @source_id: identity of the change originator, see iwl_mcc_source
+ * @reserved1: reserved for alignment
+ */
+struct iwl_mcc_chub_notif {
+	u16 mcc;
+	u8 source_id;
+	u8 reserved1;
+} __packed; /* LAR_MCC_NOTIFY_S */
+
+enum iwl_mcc_update_status {
+	MCC_RESP_NEW_CHAN_PROFILE,
+	MCC_RESP_SAME_CHAN_PROFILE,
+	MCC_RESP_INVALID,
+	MCC_RESP_NVM_DISABLED,
+	MCC_RESP_ILLEGAL,
+	MCC_RESP_LOW_PRIORITY,
+};
+
+enum iwl_mcc_source {
+	MCC_SOURCE_OLD_FW = 0,
+	MCC_SOURCE_ME = 1,
+	MCC_SOURCE_BIOS = 2,
+	MCC_SOURCE_3G_LTE_HOST = 3,
+	MCC_SOURCE_3G_LTE_DEVICE = 4,
+	MCC_SOURCE_WIFI = 5,
+	MCC_SOURCE_RESERVED = 6,
+	MCC_SOURCE_DEFAULT = 7,
+	MCC_SOURCE_UNINITIALIZED = 8,
+	MCC_SOURCE_GET_CURRENT = 0x10
+};
 
 /* DTS measurements */
 

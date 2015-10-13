@@ -179,27 +179,53 @@ DEFINE_EVENT(rpc_task_queued, rpc_task_wakeup,
 
 );
 
+/*
+ * First define the enums in the below macros to be exported to userspace
+ * via TRACE_DEFINE_ENUM().
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+#define RPC_SHOW_SOCKET				\
+	EM( SS_FREE, "FREE" )			\
+	EM( SS_UNCONNECTED, "UNCONNECTED" )	\
+	EM( SS_CONNECTING, "CONNECTING," )	\
+	EM( SS_CONNECTED, "CONNECTED," )	\
+	EMe(SS_DISCONNECTING, "DISCONNECTING" )
+
 #define rpc_show_socket_state(state) \
-	__print_symbolic(state, \
-		{ SS_FREE, "FREE" }, \
-		{ SS_UNCONNECTED, "UNCONNECTED" }, \
-		{ SS_CONNECTING, "CONNECTING," }, \
-		{ SS_CONNECTED, "CONNECTED," }, \
-		{ SS_DISCONNECTING, "DISCONNECTING" })
+	__print_symbolic(state, RPC_SHOW_SOCKET)
+
+RPC_SHOW_SOCKET
+
+#define RPC_SHOW_SOCK				\
+	EM( TCP_ESTABLISHED, "ESTABLISHED" )	\
+	EM( TCP_SYN_SENT, "SYN_SENT" )		\
+	EM( TCP_SYN_RECV, "SYN_RECV" )		\
+	EM( TCP_FIN_WAIT1, "FIN_WAIT1" )	\
+	EM( TCP_FIN_WAIT2, "FIN_WAIT2" )	\
+	EM( TCP_TIME_WAIT, "TIME_WAIT" )	\
+	EM( TCP_CLOSE, "CLOSE" )		\
+	EM( TCP_CLOSE_WAIT, "CLOSE_WAIT" )	\
+	EM( TCP_LAST_ACK, "LAST_ACK" )		\
+	EM( TCP_LISTEN, "LISTEN" )		\
+	EMe( TCP_CLOSING, "CLOSING" )
 
 #define rpc_show_sock_state(state) \
-	__print_symbolic(state, \
-		{ TCP_ESTABLISHED, "ESTABLISHED" }, \
-		{ TCP_SYN_SENT, "SYN_SENT" }, \
-		{ TCP_SYN_RECV, "SYN_RECV" }, \
-		{ TCP_FIN_WAIT1, "FIN_WAIT1" }, \
-		{ TCP_FIN_WAIT2, "FIN_WAIT2" }, \
-		{ TCP_TIME_WAIT, "TIME_WAIT" }, \
-		{ TCP_CLOSE, "CLOSE" }, \
-		{ TCP_CLOSE_WAIT, "CLOSE_WAIT" }, \
-		{ TCP_LAST_ACK, "LAST_ACK" }, \
-		{ TCP_LISTEN, "LISTEN" }, \
-		{ TCP_CLOSING, "CLOSING" })
+	__print_symbolic(state, RPC_SHOW_SOCK)
+
+RPC_SHOW_SOCK
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
 
 DECLARE_EVENT_CLASS(xs_socket_event,
 
@@ -503,18 +529,21 @@ TRACE_EVENT(svc_xprt_do_enqueue,
 
 	TP_STRUCT__entry(
 		__field(struct svc_xprt *, xprt)
-		__field(struct svc_rqst *, rqst)
+		__field_struct(struct sockaddr_storage, ss)
+		__field(int, pid)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
-		__entry->rqst = rqst;
+		xprt ? memcpy(&__entry->ss, &xprt->xpt_remote, sizeof(__entry->ss)) : memset(&__entry->ss, 0, sizeof(__entry->ss));
+		__entry->pid = rqst? rqst->rq_task->pid : 0;
+		__entry->flags = xprt ? xprt->xpt_flags : 0;
 	),
 
 	TP_printk("xprt=0x%p addr=%pIScp pid=%d flags=%s", __entry->xprt,
-		(struct sockaddr *)&__entry->xprt->xpt_remote,
-		__entry->rqst ? __entry->rqst->rq_task->pid : 0,
-		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+		(struct sockaddr *)&__entry->ss,
+		__entry->pid, show_svc_xprt_flags(__entry->flags))
 );
 
 TRACE_EVENT(svc_xprt_dequeue,
@@ -563,16 +592,20 @@ TRACE_EVENT(svc_handle_xprt,
 	TP_STRUCT__entry(
 		__field(struct svc_xprt *, xprt)
 		__field(int, len)
+		__field_struct(struct sockaddr_storage, ss)
+		__field(unsigned long, flags)
 	),
 
 	TP_fast_assign(
 		__entry->xprt = xprt;
+		xprt ? memcpy(&__entry->ss, &xprt->xpt_remote, sizeof(__entry->ss)) : memset(&__entry->ss, 0, sizeof(__entry->ss));
 		__entry->len = len;
+		__entry->flags = xprt ? xprt->xpt_flags : 0;
 	),
 
 	TP_printk("xprt=0x%p addr=%pIScp len=%d flags=%s", __entry->xprt,
-		(struct sockaddr *)&__entry->xprt->xpt_remote, __entry->len,
-		show_svc_xprt_flags(__entry->xprt->xpt_flags))
+		(struct sockaddr *)&__entry->ss,
+		__entry->len, show_svc_xprt_flags(__entry->flags))
 );
 #endif /* _TRACE_SUNRPC_H */
 

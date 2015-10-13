@@ -26,7 +26,8 @@
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/of.h>
-
+#include <linux/console.h>
+#include <linux/screen_info.h>
 
 #include <asm/sections.h>
 #include <asm/div64.h>
@@ -37,6 +38,8 @@
 #include <asm/special_insns.h>
 
 static const char *c6x_soc_name;
+
+struct screen_info screen_info;
 
 int c6x_num_cores;
 EXPORT_SYMBOL_GPL(c6x_num_cores);
@@ -60,6 +63,7 @@ unsigned char c6x_fuse_mac[6];
 
 unsigned long memory_start;
 unsigned long memory_end;
+EXPORT_SYMBOL(memory_end);
 
 unsigned long ram_start;
 unsigned long ram_end;
@@ -265,8 +269,8 @@ int __init c6x_add_memory(phys_addr_t start, unsigned long size)
  */
 notrace void __init machine_init(unsigned long dt_ptr)
 {
-	const void *dtb = __va(dt_ptr);
-	const void *fdt = _fdt_start;
+	void *dtb = __va(dt_ptr);
+	void *fdt = _fdt_start;
 
 	/* interrupts must be masked */
 	set_creg(IER, 2);

@@ -140,7 +140,7 @@ struct bttv_ir {
 	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
-	struct timeval          base_time;  /* time of last seen code */
+	ktime_t          				base_time;  /* time of last seen code */
 	bool                    active;     /* building raw code */
 };
 
@@ -404,9 +404,9 @@ struct bttv {
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */
-	struct video_device *video_dev;
-	struct video_device *radio_dev;
-	struct video_device *vbi_dev;
+	struct video_device video_dev;
+	struct video_device radio_dev;
+	struct video_device vbi_dev;
 
 	/* controls */
 	struct v4l2_ctrl_handler   ctrl_handler;

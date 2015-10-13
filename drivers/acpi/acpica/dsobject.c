@@ -339,8 +339,8 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 		/* Initialize buffer from the byte_list (if present) */
 
 		if (byte_list) {
-			ACPI_MEMCPY(obj_desc->buffer.pointer,
-				    byte_list->named.data, byte_list_length);
+			memcpy(obj_desc->buffer.pointer, byte_list->named.data,
+			       byte_list_length);
 		}
 	}
 
@@ -750,8 +750,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 	case ACPI_TYPE_STRING:
 
 		obj_desc->string.pointer = op->common.value.string;
-		obj_desc->string.length =
-		    (u32) ACPI_STRLEN(op->common.value.string);
+		obj_desc->string.length = (u32)strlen(op->common.value.string);
 
 		/*
 		 * The string is contained in the ACPI table, don't ever try

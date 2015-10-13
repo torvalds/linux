@@ -25,6 +25,7 @@
 #include <mach/mux.h>
 
 #include "pm.h"
+#include "soc.h"
 
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;

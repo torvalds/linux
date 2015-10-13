@@ -51,9 +51,6 @@
 #define _COMPONENT          ACPI_TABLES
 ACPI_MODULE_NAME("tbxfload")
 
-/* Local prototypes */
-static acpi_status acpi_tb_load_namespace(void);
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_load_tables
@@ -65,7 +62,6 @@ static acpi_status acpi_tb_load_namespace(void);
  * DESCRIPTION: Load the ACPI tables from the RSDT/XSDT
  *
  ******************************************************************************/
-
 acpi_status __init acpi_load_tables(void)
 {
 	acpi_status status;
@@ -75,6 +71,13 @@ acpi_status __init acpi_load_tables(void)
 	/* Load the namespace from the tables */
 
 	status = acpi_tb_load_namespace();
+
+	/* Don't let single failures abort the load */
+
+	if (status == AE_CTRL_TERMINATE) {
+		status = AE_OK;
+	}
+
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While loading namespace from ACPI tables"));
@@ -97,11 +100,14 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_load_tables)
  *              the RSDT/XSDT.
  *
  ******************************************************************************/
-static acpi_status acpi_tb_load_namespace(void)
+acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
 	u32 i;
 	struct acpi_table_header *new_dsdt;
+	struct acpi_table_desc *table;
+	u32 tables_loaded = 0;
+	u32 tables_failed = 0;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
 
@@ -111,15 +117,11 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * Load the namespace. The DSDT is required, but any SSDT and
 	 * PSDT tables are optional. Verify the DSDT.
 	 */
+	table = &acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index];
+
 	if (!acpi_gbl_root_table_list.current_table_count ||
-	    !ACPI_COMPARE_NAME(&
-			       (acpi_gbl_root_table_list.
-				tables[ACPI_TABLE_INDEX_DSDT].signature),
-			       ACPI_SIG_DSDT)
-	    ||
-	    ACPI_FAILURE(acpi_tb_validate_table
-			 (&acpi_gbl_root_table_list.
-			  tables[ACPI_TABLE_INDEX_DSDT]))) {
+	    !ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_DSDT) ||
+	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
 	}
@@ -130,8 +132,7 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * array can change dynamically as tables are loaded at run-time. Note:
 	 * .Pointer field is not validated until after call to acpi_tb_validate_table.
 	 */
-	acpi_gbl_DSDT =
-	    acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer;
+	acpi_gbl_DSDT = table->pointer;
 
 	/*
 	 * Optionally copy the entire DSDT to local memory (instead of simply
@@ -140,7 +141,7 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * the DSDT.
 	 */
 	if (acpi_gbl_copy_dsdt_locally) {
-		new_dsdt = acpi_tb_copy_dsdt(ACPI_TABLE_INDEX_DSDT);
+		new_dsdt = acpi_tb_copy_dsdt(acpi_gbl_dsdt_index);
 		if (new_dsdt) {
 			acpi_gbl_DSDT = new_dsdt;
 		}
@@ -150,43 +151,72 @@ static acpi_status acpi_tb_load_namespace(void)
 	 * Save the original DSDT header for detection of table corruption
 	 * and/or replacement of the DSDT from outside the OS.
 	 */
-	ACPI_MEMCPY(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
-		    sizeof(struct acpi_table_header));
+	memcpy(&acpi_gbl_original_dsdt_header, acpi_gbl_DSDT,
+	       sizeof(struct acpi_table_header));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 
 	/* Load and parse tables */
 
-	status = acpi_ns_load_table(ACPI_TABLE_INDEX_DSDT, acpi_gbl_root_node);
+	status = acpi_ns_load_table(acpi_gbl_dsdt_index, acpi_gbl_root_node);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		ACPI_EXCEPTION((AE_INFO, status, "[DSDT] table load failed"));
+		tables_failed++;
+	} else {
+		tables_loaded++;
 	}
 
 	/* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
-		if ((!ACPI_COMPARE_NAME
-		     (&(acpi_gbl_root_table_list.tables[i].signature),
-		      ACPI_SIG_SSDT)
-		     &&
-		     !ACPI_COMPARE_NAME(&
-					(acpi_gbl_root_table_list.tables[i].
-					 signature), ACPI_SIG_PSDT))
-		    ||
-		    ACPI_FAILURE(acpi_tb_validate_table
-				 (&acpi_gbl_root_table_list.tables[i]))) {
+		table = &acpi_gbl_root_table_list.tables[i];
+
+		if (!acpi_gbl_root_table_list.tables[i].address ||
+		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
+		     && !ACPI_COMPARE_NAME(table->signature.ascii,
+					   ACPI_SIG_PSDT)
+		     && !ACPI_COMPARE_NAME(table->signature.ascii,
+					   ACPI_SIG_OSDT))
+		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
 
 		/* Ignore errors while loading tables, get as many as possible */
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		(void)acpi_ns_load_table(i, acpi_gbl_root_node);
+		status = acpi_ns_load_table(i, acpi_gbl_root_node);
+		if (ACPI_FAILURE(status)) {
+			ACPI_EXCEPTION((AE_INFO, status,
+					"(%4.4s:%8.8s) while loading table",
+					table->signature.ascii,
+					table->pointer->oem_table_id));
+			tables_failed++;
+
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+					      "Table [%4.4s:%8.8s] (id FF) - Table namespace load failed\n\n",
+					      table->signature.ascii,
+					      table->pointer->oem_table_id));
+		} else {
+			tables_loaded++;
+		}
+
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
-	ACPI_INFO((AE_INFO, "All ACPI Tables successfully acquired"));
+	if (!tables_failed) {
+		ACPI_INFO((AE_INFO,
+			   "%u ACPI AML tables successfully acquired and loaded",
+			   tables_loaded));
+	} else {
+		ACPI_ERROR((AE_INFO,
+			    "%u table load failures, %u successful",
+			    tables_failed, tables_loaded));
+
+		/* Indicate at least one failure */
+
+		status = AE_CTRL_TERMINATE;
+	}
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
@@ -219,9 +249,9 @@ acpi_install_table(acpi_physical_address address, u8 physical)
 	ACPI_FUNCTION_TRACE(acpi_install_table);
 
 	if (physical) {
-		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
-	} else {
 		flags = ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL;
+	} else {
+		flags = ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL;
 	}
 
 	status = acpi_tb_install_standard_table(address, flags,

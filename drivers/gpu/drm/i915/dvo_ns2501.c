@@ -60,6 +60,130 @@
 
 #define NS2501_REGC 0x0c
 
+/*
+ * The following registers are not part of the official datasheet
+ * and are the result of reverse engineering.
+ */
+
+/*
+ * Register c0 controls how the DVO synchronizes with
+ * its input.
+ */
+#define NS2501_REGC0 0xc0
+#define NS2501_C0_ENABLE (1<<0)	/* enable the DVO sync in general */
+#define NS2501_C0_HSYNC (1<<1)	/* synchronize horizontal with input */
+#define NS2501_C0_VSYNC (1<<2)	/* synchronize vertical with input */
+#define NS2501_C0_RESET (1<<7)	/* reset the synchronization flip/flops */
+
+/*
+ * Register 41 is somehow related to the sync register and sync
+ * configuration. It should be 0x32 whenever regC0 is 0x05 (hsync off)
+ * and 0x00 otherwise.
+ */
+#define NS2501_REG41 0x41
+
+/*
+ * this register controls the dithering of the DVO
+ * One bit enables it, the other define the dithering depth.
+ * The higher the value, the lower the dithering depth.
+ */
+#define NS2501_F9_REG 0xf9
+#define NS2501_F9_ENABLE (1<<0)		/* if set, dithering is enabled */
+#define NS2501_F9_DITHER_MASK (0x7f<<1)	/* controls the dither depth */
+#define NS2501_F9_DITHER_SHIFT 1	/* shifts the dither mask */
+
+/*
+ * PLL configuration register. This is a pair of registers,
+ * one single byte register at 1B, and a pair at 1C,1D.
+ * These registers are counters/dividers.
+ */
+#define NS2501_REG1B 0x1b /* one byte PLL control register */
+#define NS2501_REG1C 0x1c /* low-part of the second register */
+#define NS2501_REG1D 0x1d /* high-part of the second register */
+
+/*
+ * Scaler control registers. Horizontal at b8,b9,
+ * vertical at 10,11. The scale factor is computed as
+ * 2^16/control-value. The low-byte comes first.
+ */
+#define NS2501_REG10 0x10 /* low-byte vertical scaler */
+#define NS2501_REG11 0x11 /* high-byte vertical scaler */
+#define NS2501_REGB8 0xb8 /* low-byte horizontal scaler */
+#define NS2501_REGB9 0xb9 /* high-byte horizontal scaler */
+
+/*
+ * Display window definition. This consists of four registers
+ * per dimension. One register pair defines the start of the
+ * display, one the end.
+ * As far as I understand, this defines the window within which
+ * the scaler samples the input.
+ */
+#define NS2501_REGC1 0xc1 /* low-byte horizontal display start */
+#define NS2501_REGC2 0xc2 /* high-byte horizontal display start */
+#define NS2501_REGC3 0xc3 /* low-byte horizontal display stop */
+#define NS2501_REGC4 0xc4 /* high-byte horizontal display stop */
+#define NS2501_REGC5 0xc5 /* low-byte vertical display start */
+#define NS2501_REGC6 0xc6 /* high-byte vertical display start */
+#define NS2501_REGC7 0xc7 /* low-byte vertical display stop */
+#define NS2501_REGC8 0xc8 /* high-byte vertical display stop */
+
+/*
+ * The following register pair seems to define the start of
+ * the vertical sync. If automatic syncing is enabled, and the
+ * register value defines a sync pulse that is later than the
+ * incoming sync, then the register value is ignored and the
+ * external hsync triggers the synchronization.
+ */
+#define NS2501_REG80 0x80 /* low-byte vsync-start */
+#define NS2501_REG81 0x81 /* high-byte vsync-start */
+
+/*
+ * The following register pair seems to define the total number
+ * of lines created at the output side of the scaler.
+ * This is again a low-high register pair.
+ */
+#define NS2501_REG82 0x82 /* output display height, low byte */
+#define NS2501_REG83 0x83 /* output display height, high byte */
+
+/*
+ * The following registers define the end of the front-porch
+ * in horizontal and vertical position and hence allow to shift
+ * the image left/right or up/down.
+ */
+#define NS2501_REG98 0x98 /* horizontal start of display + 256, low */
+#define NS2501_REG99 0x99 /* horizontal start of display + 256, high */
+#define NS2501_REG8E 0x8e /* vertical start of the display, low byte */
+#define NS2501_REG8F 0x8f /* vertical start of the display, high byte */
+
+/*
+ * The following register pair control the function of the
+ * backlight and the DVO output. To enable the corresponding
+ * function, the corresponding bit must be set in both registers.
+ */
+#define NS2501_REG34 0x34 /* DVO enable functions, first register */
+#define NS2501_REG35 0x35 /* DVO enable functions, second register */
+#define NS2501_34_ENABLE_OUTPUT (1<<0) /* enable DVO output */
+#define NS2501_34_ENABLE_BACKLIGHT (1<<1) /* enable backlight */
+
+/*
+ * Registers 9C and 9D define the vertical output offset
+ * of the visible region.
+ */
+#define NS2501_REG9C 0x9c
+#define NS2501_REG9D 0x9d
+
+/*
+ * The register 9F defines the dithering. This requires the
+ * scaler to be ON. Bit 0 enables dithering, the remaining
+ * bits control the depth of the dither. The higher the value,
+ * the LOWER the dithering amplitude. A good value seems to be
+ * 15 (total register value).
+ */
+#define NS2501_REGF9 0xf9
+#define NS2501_F9_ENABLE_DITHER (1<<0) /* enable dithering */
+#define NS2501_F9_DITHER_MASK (0x7f<<1) /* dither masking */
+#define NS2501_F9_DITHER_SHIFT 1	/* upshift of the dither mask */
+
 enum {
 	MODE_640x480,
 	MODE_800x600,
@@ -72,274 +196,178 @@ struct ns2501_reg {
 };
 
 /*
- * Magic values based on what the BIOS on
- * Fujitsu-Siemens Lifebook S6010 programs (1024x768 panel).
+ * The following structure keeps the complete configuration of
+ * the DVO, given a specific output configuration.
+ * This is pretty much guess-work from reverse-engineering, so
+ * read all this with a grain of salt.
  */
-static const struct ns2501_reg regs_1024x768[][86] = {
+struct ns2501_configuration {
+	uint8_t sync;		/* configuration of the C0 register */
+	uint8_t conf;		/* configuration register 8 */
+	uint8_t syncb;		/* configuration register 41 */
+	uint8_t	dither;		/* configuration of the dithering */
+	uint8_t pll_a;		/* PLL configuration, register A, 1B */
+	uint16_t pll_b;		/* PLL configuration, register B, 1C/1D */
+	uint16_t hstart;	/* horizontal start, registers C1/C2 */
+	uint16_t hstop;		/* horizontal total, registers C3/C4 */
+	uint16_t vstart;	/* vertical start, registers C5/C6 */
+	uint16_t vstop;		/* vertical total, registers C7/C8 */
+	uint16_t vsync;         /* manual vertical sync start, 80/81 */
+	uint16_t vtotal;        /* number of lines generated, 82/83 */
+	uint16_t hpos;		/* horizontal position + 256, 98/99  */
+	uint16_t vpos;		/* vertical position, 8e/8f */
+	uint16_t voffs;		/* vertical output offset, 9c/9d */
+	uint16_t hscale;	/* horizontal scaling factor, b8/b9 */
+	uint16_t vscale;	/* vertical scaling factor, 10/11 */
+};
+
+/*
+ * DVO configuration values, partially based on what the BIOS
+ * of the Fujitsu Lifebook S6010 writes into registers,
+ * partially found by manual tweaking. These configurations assume
+ * a 1024x768 panel.
+ */
+static const struct ns2501_configuration ns2501_modes[] = {
 	[MODE_640x480] = {
-		[0] = { .offset = 0x0a, .value = 0x81, },
-		[1] = { .offset = 0x18, .value = 0x07, },
-		[2] = { .offset = 0x19, .value = 0x00, },
-		[3] = { .offset = 0x1a, .value = 0x00, },
-		[4] = { .offset = 0x1b, .value = 0x11, },
-		[5] = { .offset = 0x1c, .value = 0x54, },
-		[6] = { .offset = 0x1d, .value = 0x03, },
-		[7] = { .offset = 0x1e, .value = 0x02, },
-		[8] = { .offset = 0xf3, .value = 0x90, },
-		[9] = { .offset = 0xf9, .value = 0x00, },
-		[10] = { .offset = 0xc1, .value = 0x90, },
-		[11] = { .offset = 0xc2, .value = 0x00, },
-		[12] = { .offset = 0xc3, .value = 0x0f, },
-		[13] = { .offset = 0xc4, .value = 0x03, },
-		[14] = { .offset = 0xc5, .value = 0x16, },
-		[15] = { .offset = 0xc6, .value = 0x00, },
-		[16] = { .offset = 0xc7, .value = 0x02, },
-		[17] = { .offset = 0xc8, .value = 0x02, },
-		[18] = { .offset = 0xf4, .value = 0x00, },
-		[19] = { .offset = 0x80, .value = 0xff, },
-		[20] = { .offset = 0x81, .value = 0x07, },
-		[21] = { .offset = 0x82, .value = 0x3d, },
-		[22] = { .offset = 0x83, .value = 0x05, },
-		[23] = { .offset = 0x94, .value = 0x00, },
-		[24] = { .offset = 0x95, .value = 0x00, },
-		[25] = { .offset = 0x96, .value = 0x05, },
-		[26] = { .offset = 0x97, .value = 0x00, },
-		[27] = { .offset = 0x9a, .value = 0x88, },
-		[28] = { .offset = 0x9b, .value = 0x00, },
-		[29] = { .offset = 0x98, .value = 0x00, },
-		[30] = { .offset = 0x99, .value = 0x00, },
-		[31] = { .offset = 0xf7, .value = 0x88, },
-		[32] = { .offset = 0xf8, .value = 0x0a, },
-		[33] = { .offset = 0x9c, .value = 0x24, },
-		[34] = { .offset = 0x9d, .value = 0x00, },
-		[35] = { .offset = 0x9e, .value = 0x25, },
-		[36] = { .offset = 0x9f, .value = 0x03, },
-		[37] = { .offset = 0xa0, .value = 0x28, },
-		[38] = { .offset = 0xa1, .value = 0x01, },
-		[39] = { .offset = 0xa2, .value = 0x28, },
-		[40] = { .offset = 0xa3, .value = 0x05, },
-		[41] = { .offset = 0xb6, .value = 0x09, },
-		[42] = { .offset = 0xb8, .value = 0x00, },
-		[43] = { .offset = 0xb9, .value = 0xa0, },
-		[44] = { .offset = 0xba, .value = 0x00, },
-		[45] = { .offset = 0xbb, .value = 0x20, },
-		[46] = { .offset = 0x10, .value = 0x00, },
-		[47] = { .offset = 0x11, .value = 0xa0, },
-		[48] = { .offset = 0x12, .value = 0x02, },
-		[49] = { .offset = 0x20, .value = 0x00, },
-		[50] = { .offset = 0x22, .value = 0x00, },
-		[51] = { .offset = 0x23, .value = 0x00, },
-		[52] = { .offset = 0x24, .value = 0x00, },
-		[53] = { .offset = 0x25, .value = 0x00, },
-		[54] = { .offset = 0x8c, .value = 0x10, },
-		[55] = { .offset = 0x8d, .value = 0x02, },
-		[56] = { .offset = 0x8e, .value = 0x10, },
-		[57] = { .offset = 0x8f, .value = 0x00, },
-		[58] = { .offset = 0x90, .value = 0xff, },
-		[59] = { .offset = 0x91, .value = 0x07, },
-		[60] = { .offset = 0x92, .value = 0xa0, },
-		[61] = { .offset = 0x93, .value = 0x02, },
-		[62] = { .offset = 0xa5, .value = 0x00, },
-		[63] = { .offset = 0xa6, .value = 0x00, },
-		[64] = { .offset = 0xa7, .value = 0x00, },
-		[65] = { .offset = 0xa8, .value = 0x00, },
-		[66] = { .offset = 0xa9, .value = 0x04, },
-		[67] = { .offset = 0xaa, .value = 0x70, },
-		[68] = { .offset = 0xab, .value = 0x4f, },
-		[69] = { .offset = 0xac, .value = 0x00, },
-		[70] = { .offset = 0xa4, .value = 0x84, },
-		[71] = { .offset = 0x7e, .value = 0x18, },
-		[72] = { .offset = 0x84, .value = 0x00, },
-		[73] = { .offset = 0x85, .value = 0x00, },
-		[74] = { .offset = 0x86, .value = 0x00, },
-		[75] = { .offset = 0x87, .value = 0x00, },
-		[76] = { .offset = 0x88, .value = 0x00, },
-		[77] = { .offset = 0x89, .value = 0x00, },
-		[78] = { .offset = 0x8a, .value = 0x00, },
-		[79] = { .offset = 0x8b, .value = 0x00, },
-		[80] = { .offset = 0x26, .value = 0x00, },
-		[81] = { .offset = 0x27, .value = 0x00, },
-		[82] = { .offset = 0xad, .value = 0x00, },
-		[83] = { .offset = 0x08, .value = 0x30, }, /* 0x31 */
-		[84] = { .offset = 0x41, .value = 0x00, },
-		[85] = { .offset = 0xc0, .value = 0x05, },
+		.sync	= NS2501_C0_ENABLE | NS2501_C0_VSYNC,
+		.conf	= NS2501_8_VEN | NS2501_8_HEN | NS2501_8_PD,
+		.syncb	= 0x32,
+		.dither	= 0x0f,
+		.pll_a	= 17,
+		.pll_b	= 852,
+		.hstart	= 144,
+		.hstop	= 783,
+		.vstart	= 22,
+		.vstop	= 514,
+		.vsync	= 2047, /* actually, ignored with this config */
+		.vtotal	= 1341,
+		.hpos	= 0,
+		.vpos	= 16,
+		.voffs	= 36,
+		.hscale	= 40960,
+		.vscale	= 40960
 	},
 	[MODE_800x600] = {
-		[0] = { .offset = 0x0a, .value = 0x81, },
-		[1] = { .offset = 0x18, .value = 0x07, },
-		[2] = { .offset = 0x19, .value = 0x00, },
-		[3] = { .offset = 0x1a, .value = 0x00, },
-		[4] = { .offset = 0x1b, .value = 0x19, },
-		[5] = { .offset = 0x1c, .value = 0x64, },
-		[6] = { .offset = 0x1d, .value = 0x02, },
-		[7] = { .offset = 0x1e, .value = 0x02, },
-		[8] = { .offset = 0xf3, .value = 0x90, },
-		[9] = { .offset = 0xf9, .value = 0x00, },
-		[10] = { .offset = 0xc1, .value = 0xd7, },
-		[11] = { .offset = 0xc2, .value = 0x00, },
-		[12] = { .offset = 0xc3, .value = 0xf8, },
-		[13] = { .offset = 0xc4, .value = 0x03, },
-		[14] = { .offset = 0xc5, .value = 0x1a, },
-		[15] = { .offset = 0xc6, .value = 0x00, },
-		[16] = { .offset = 0xc7, .value = 0x73, },
-		[17] = { .offset = 0xc8, .value = 0x02, },
-		[18] = { .offset = 0xf4, .value = 0x00, },
-		[19] = { .offset = 0x80, .value = 0x27, },
-		[20] = { .offset = 0x81, .value = 0x03, },
-		[21] = { .offset = 0x82, .value = 0x41, },
-		[22] = { .offset = 0x83, .value = 0x05, },
-		[23] = { .offset = 0x94, .value = 0x00, },
-		[24] = { .offset = 0x95, .value = 0x00, },
-		[25] = { .offset = 0x96, .value = 0x05, },
-		[26] = { .offset = 0x97, .value = 0x00, },
-		[27] = { .offset = 0x9a, .value = 0x88, },
-		[28] = { .offset = 0x9b, .value = 0x00, },
-		[29] = { .offset = 0x98, .value = 0x00, },
-		[30] = { .offset = 0x99, .value = 0x00, },
-		[31] = { .offset = 0xf7, .value = 0x88, },
-		[32] = { .offset = 0xf8, .value = 0x06, },
-		[33] = { .offset = 0x9c, .value = 0x23, },
-		[34] = { .offset = 0x9d, .value = 0x00, },
-		[35] = { .offset = 0x9e, .value = 0x25, },
-		[36] = { .offset = 0x9f, .value = 0x03, },
-		[37] = { .offset = 0xa0, .value = 0x28, },
-		[38] = { .offset = 0xa1, .value = 0x01, },
-		[39] = { .offset = 0xa2, .value = 0x28, },
-		[40] = { .offset = 0xa3, .value = 0x05, },
-		[41] = { .offset = 0xb6, .value = 0x09, },
-		[42] = { .offset = 0xb8, .value = 0x30, },
-		[43] = { .offset = 0xb9, .value = 0xc8, },
-		[44] = { .offset = 0xba, .value = 0x00, },
-		[45] = { .offset = 0xbb, .value = 0x20, },
-		[46] = { .offset = 0x10, .value = 0x20, },
-		[47] = { .offset = 0x11, .value = 0xc8, },
-		[48] = { .offset = 0x12, .value = 0x02, },
-		[49] = { .offset = 0x20, .value = 0x00, },
-		[50] = { .offset = 0x22, .value = 0x00, },
-		[51] = { .offset = 0x23, .value = 0x00, },
-		[52] = { .offset = 0x24, .value = 0x00, },
-		[53] = { .offset = 0x25, .value = 0x00, },
-		[54] = { .offset = 0x8c, .value = 0x10, },
-		[55] = { .offset = 0x8d, .value = 0x02, },
-		[56] = { .offset = 0x8e, .value = 0x04, },
-		[57] = { .offset = 0x8f, .value = 0x00, },
-		[58] = { .offset = 0x90, .value = 0xff, },
-		[59] = { .offset = 0x91, .value = 0x07, },
-		[60] = { .offset = 0x92, .value = 0xa0, },
-		[61] = { .offset = 0x93, .value = 0x02, },
-		[62] = { .offset = 0xa5, .value = 0x00, },
-		[63] = { .offset = 0xa6, .value = 0x00, },
-		[64] = { .offset = 0xa7, .value = 0x00, },
-		[65] = { .offset = 0xa8, .value = 0x00, },
-		[66] = { .offset = 0xa9, .value = 0x83, },
-		[67] = { .offset = 0xaa, .value = 0x40, },
-		[68] = { .offset = 0xab, .value = 0x32, },
-		[69] = { .offset = 0xac, .value = 0x00, },
-		[70] = { .offset = 0xa4, .value = 0x80, },
-		[71] = { .offset = 0x7e, .value = 0x18, },
-		[72] = { .offset = 0x84, .value = 0x00, },
-		[73] = { .offset = 0x85, .value = 0x00, },
-		[74] = { .offset = 0x86, .value = 0x00, },
-		[75] = { .offset = 0x87, .value = 0x00, },
-		[76] = { .offset = 0x88, .value = 0x00, },
-		[77] = { .offset = 0x89, .value = 0x00, },
-		[78] = { .offset = 0x8a, .value = 0x00, },
-		[79] = { .offset = 0x8b, .value = 0x00, },
-		[80] = { .offset = 0x26, .value = 0x00, },
-		[81] = { .offset = 0x27, .value = 0x00, },
-		[82] = { .offset = 0xad, .value = 0x00, },
-		[83] = { .offset = 0x08, .value = 0x30, }, /* 0x31 */
-		[84] = { .offset = 0x41, .value = 0x00, },
-		[85] = { .offset = 0xc0, .value = 0x07, },
+		.sync	= NS2501_C0_ENABLE |
+			  NS2501_C0_HSYNC | NS2501_C0_VSYNC,
+		.conf   = NS2501_8_VEN | NS2501_8_HEN | NS2501_8_PD,
+		.syncb	= 0x00,
+		.dither	= 0x0f,
+		.pll_a	= 25,
+		.pll_b	= 612,
+		.hstart	= 215,
+		.hstop	= 1016,
+		.vstart	= 26,
+		.vstop	= 627,
+		.vsync	= 807,
+		.vtotal	= 1341,
+		.hpos	= 0,
+		.vpos	= 4,
+		.voffs	= 35,
+		.hscale	= 51248,
+		.vscale	= 51232
 	},
 	[MODE_1024x768] = {
-		[0] = { .offset = 0x0a, .value = 0x81, },
-		[1] = { .offset = 0x18, .value = 0x07, },
-		[2] = { .offset = 0x19, .value = 0x00, },
-		[3] = { .offset = 0x1a, .value = 0x00, },
-		[4] = { .offset = 0x1b, .value = 0x11, },
-		[5] = { .offset = 0x1c, .value = 0x54, },
-		[6] = { .offset = 0x1d, .value = 0x03, },
-		[7] = { .offset = 0x1e, .value = 0x02, },
-		[8] = { .offset = 0xf3, .value = 0x90, },
-		[9] = { .offset = 0xf9, .value = 0x00, },
-		[10] = { .offset = 0xc1, .value = 0x90, },
-		[11] = { .offset = 0xc2, .value = 0x00, },
-		[12] = { .offset = 0xc3, .value = 0x0f, },
-		[13] = { .offset = 0xc4, .value = 0x03, },
-		[14] = { .offset = 0xc5, .value = 0x16, },
-		[15] = { .offset = 0xc6, .value = 0x00, },
-		[16] = { .offset = 0xc7, .value = 0x02, },
-		[17] = { .offset = 0xc8, .value = 0x02, },
-		[18] = { .offset = 0xf4, .value = 0x00, },
-		[19] = { .offset = 0x80, .value = 0xff, },
-		[20] = { .offset = 0x81, .value = 0x07, },
-		[21] = { .offset = 0x82, .value = 0x3d, },
-		[22] = { .offset = 0x83, .value = 0x05, },
-		[23] = { .offset = 0x94, .value = 0x00, },
-		[24] = { .offset = 0x95, .value = 0x00, },
-		[25] = { .offset = 0x96, .value = 0x05, },
-		[26] = { .offset = 0x97, .value = 0x00, },
-		[27] = { .offset = 0x9a, .value = 0x88, },
-		[28] = { .offset = 0x9b, .value = 0x00, },
-		[29] = { .offset = 0x98, .value = 0x00, },
-		[30] = { .offset = 0x99, .value = 0x00, },
-		[31] = { .offset = 0xf7, .value = 0x88, },
-		[32] = { .offset = 0xf8, .value = 0x0a, },
-		[33] = { .offset = 0x9c, .value = 0x24, },
-		[34] = { .offset = 0x9d, .value = 0x00, },
-		[35] = { .offset = 0x9e, .value = 0x25, },
-		[36] = { .offset = 0x9f, .value = 0x03, },
-		[37] = { .offset = 0xa0, .value = 0x28, },
-		[38] = { .offset = 0xa1, .value = 0x01, },
-		[39] = { .offset = 0xa2, .value = 0x28, },
-		[40] = { .offset = 0xa3, .value = 0x05, },
-		[41] = { .offset = 0xb6, .value = 0x09, },
-		[42] = { .offset = 0xb8, .value = 0x00, },
-		[43] = { .offset = 0xb9, .value = 0xa0, },
-		[44] = { .offset = 0xba, .value = 0x00, },
-		[45] = { .offset = 0xbb, .value = 0x20, },
-		[46] = { .offset = 0x10, .value = 0x00, },
-		[47] = { .offset = 0x11, .value = 0xa0, },
-		[48] = { .offset = 0x12, .value = 0x02, },
-		[49] = { .offset = 0x20, .value = 0x00, },
-		[50] = { .offset = 0x22, .value = 0x00, },
-		[51] = { .offset = 0x23, .value = 0x00, },
-		[52] = { .offset = 0x24, .value = 0x00, },
-		[53] = { .offset = 0x25, .value = 0x00, },
-		[54] = { .offset = 0x8c, .value = 0x10, },
-		[55] = { .offset = 0x8d, .value = 0x02, },
-		[56] = { .offset = 0x8e, .value = 0x10, },
-		[57] = { .offset = 0x8f, .value = 0x00, },
-		[58] = { .offset = 0x90, .value = 0xff, },
-		[59] = { .offset = 0x91, .value = 0x07, },
-		[60] = { .offset = 0x92, .value = 0xa0, },
-		[61] = { .offset = 0x93, .value = 0x02, },
-		[62] = { .offset = 0xa5, .value = 0x00, },
-		[63] = { .offset = 0xa6, .value = 0x00, },
-		[64] = { .offset = 0xa7, .value = 0x00, },
-		[65] = { .offset = 0xa8, .value = 0x00, },
-		[66] = { .offset = 0xa9, .value = 0x04, },
-		[67] = { .offset = 0xaa, .value = 0x70, },
-		[68] = { .offset = 0xab, .value = 0x4f, },
-		[69] = { .offset = 0xac, .value = 0x00, },
-		[70] = { .offset = 0xa4, .value = 0x84, },
-		[71] = { .offset = 0x7e, .value = 0x18, },
-		[72] = { .offset = 0x84, .value = 0x00, },
-		[73] = { .offset = 0x85, .value = 0x00, },
-		[74] = { .offset = 0x86, .value = 0x00, },
-		[75] = { .offset = 0x87, .value = 0x00, },
-		[76] = { .offset = 0x88, .value = 0x00, },
-		[77] = { .offset = 0x89, .value = 0x00, },
-		[78] = { .offset = 0x8a, .value = 0x00, },
-		[79] = { .offset = 0x8b, .value = 0x00, },
-		[80] = { .offset = 0x26, .value = 0x00, },
-		[81] = { .offset = 0x27, .value = 0x00, },
-		[82] = { .offset = 0xad, .value = 0x00, },
-		[83] = { .offset = 0x08, .value = 0x34, }, /* 0x35 */
-		[84] = { .offset = 0x41, .value = 0x00, },
-		[85] = { .offset = 0xc0, .value = 0x01, },
-	},
+		.sync	= NS2501_C0_ENABLE | NS2501_C0_VSYNC,
+		.conf   = NS2501_8_VEN | NS2501_8_HEN | NS2501_8_PD,
+		.syncb	= 0x32,
+		.dither	= 0x0f,
+		.pll_a	= 11,
+		.pll_b	= 1350,
+		.hstart	= 276,
+		.hstop	= 1299,
+		.vstart	= 15,
+		.vstop	= 1056,
+		.vsync	= 2047,
+		.vtotal	= 1341,
+		.hpos	= 0,
+		.vpos	= 7,
+		.voffs	= 27,
+		.hscale	= 65535,
+		.vscale	= 65535
+	}
+};
+
+/*
+ * Other configuration values left by the BIOS of the
+ * Fujitsu S6010 in the DVO control registers. Their
+ * value does not depend on the BIOS and their meaning
+ * is unknown.
+ */
+
+static const struct ns2501_reg mode_agnostic_values[] = {
+	/* 08 is mode specific */
+	[0] = { .offset = 0x0a, .value = 0x81, },
+	/* 10,11 are part of the mode specific configuration */
+	[1] = { .offset = 0x12, .value = 0x02, },
+	[2] = { .offset = 0x18, .value = 0x07, },
+	[3] = { .offset = 0x19, .value = 0x00, },
+	[4] = { .offset = 0x1a, .value = 0x00, }, /* PLL?, ignored */
+	/* 1b,1c,1d are part of the mode specific configuration */
+	[5] = { .offset = 0x1e, .value = 0x02, },
+	[6] = { .offset = 0x1f, .value = 0x40, },
+	[7] = { .offset = 0x20, .value = 0x00, },
+	[8] = { .offset = 0x21, .value = 0x00, },
+	[9] = { .offset = 0x22, .value = 0x00, },
+	[10] = { .offset = 0x23, .value = 0x00, },
+	[11] = { .offset = 0x24, .value = 0x00, },
+	[12] = { .offset = 0x25, .value = 0x00, },
+	[13] = { .offset = 0x26, .value = 0x00, },
+	[14] = { .offset = 0x27, .value = 0x00, },
+	[15] = { .offset = 0x7e, .value = 0x18, },
+	/* 80-84 are part of the mode-specific configuration */
+	[16] = { .offset = 0x84, .value = 0x00, },
+	[17] = { .offset = 0x85, .value = 0x00, },
+	[18] = { .offset = 0x86, .value = 0x00, },
+	[19] = { .offset = 0x87, .value = 0x00, },
+	[20] = { .offset = 0x88, .value = 0x00, },
+	[21] = { .offset = 0x89, .value = 0x00, },
+	[22] = { .offset = 0x8a, .value = 0x00, },
+	[23] = { .offset = 0x8b, .value = 0x00, },
+	[24] = { .offset = 0x8c, .value = 0x10, },
+	[25] = { .offset = 0x8d, .value = 0x02, },
+	/* 8e,8f are part of the mode-specific configuration */
+	[26] = { .offset = 0x90, .value = 0xff, },
+	[27] = { .offset = 0x91, .value = 0x07, },
+	[28] = { .offset = 0x92, .value = 0xa0, },
+	[29] = { .offset = 0x93, .value = 0x02, },
+	[30] = { .offset = 0x94, .value = 0x00, },
+	[31] = { .offset = 0x95, .value = 0x00, },
+	[32] = { .offset = 0x96, .value = 0x05, },
+	[33] = { .offset = 0x97, .value = 0x00, },
+	/* 98,99 are part of the mode-specific configuration */
+	[34] = { .offset = 0x9a, .value = 0x88, },
+	[35] = { .offset = 0x9b, .value = 0x00, },
+	/* 9c,9d are part of the mode-specific configuration */
+	[36] = { .offset = 0x9e, .value = 0x25, },
+	[37] = { .offset = 0x9f, .value = 0x03, },
+	[38] = { .offset = 0xa0, .value = 0x28, },
+	[39] = { .offset = 0xa1, .value = 0x01, },
+	[40] = { .offset = 0xa2, .value = 0x28, },
+	[41] = { .offset = 0xa3, .value = 0x05, },
+	/* register 0xa4 is mode specific, but 0x80..0x84 works always */
+	[42] = { .offset = 0xa4, .value = 0x84, },
+	[43] = { .offset = 0xa5, .value = 0x00, },
+	[44] = { .offset = 0xa6, .value = 0x00, },
+	[45] = { .offset = 0xa7, .value = 0x00, },
+	[46] = { .offset = 0xa8, .value = 0x00, },
+	/* 0xa9 to 0xab are mode specific, but have no visible effect */
+	[47] = { .offset = 0xa9, .value = 0x04, },
+	[48] = { .offset = 0xaa, .value = 0x70, },
+	[49] = { .offset = 0xab, .value = 0x4f, },
+	[50] = { .offset = 0xac, .value = 0x00, },
+	[51] = { .offset = 0xad, .value = 0x00, },
+	[52] = { .offset = 0xb6, .value = 0x09, },
+	[53] = { .offset = 0xb7, .value = 0x03, },
+	/* b8,b9 are part of the mode-specific configuration */
+	[54] = { .offset = 0xba, .value = 0x00, },
+	[55] = { .offset = 0xbb, .value = 0x20, },
+	[56] = { .offset = 0xf3, .value = 0x90, },
+	[57] = { .offset = 0xf4, .value = 0x00, },
+	[58] = { .offset = 0xf7, .value = 0x88, },
+	/* f8 is mode specific, but the value does not matter */
+	[59] = { .offset = 0xf8, .value = 0x0a, },
+	[60] = { .offset = 0xf9, .value = 0x00, }
 };
 
 static const struct ns2501_reg regs_init[] = {
@@ -350,23 +378,10 @@ static const struct ns2501_reg regs_init[] = {
 
 struct ns2501_priv {
 	bool quiet;
-	const struct ns2501_reg *regs;
+	const struct ns2501_configuration *conf;
 };
 
 #define NSPTR(d) ((NS2501Ptr)(d->DriverPrivate.ptr))
-
-/*
- * For reasons unclear to me, the ns2501 at least on the Fujitsu/Siemens
- * laptops does not react on the i2c bus unless
- * both the PLL is running and the display is configured in its native
- * resolution.
- * This function forces the DVO on, and stores the registers it touches.
- * Afterwards, registers are restored to regular values.
- *
- * This is pretty much a hack, though it works.
- * Without that, ns2501_readb and ns2501_writeb fail
- * when switching the resolution.
- */
 
 /*
 ** Read a register from the ns2501.
@@ -534,12 +549,43 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 			    struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
+	const struct ns2501_configuration *conf;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	int mode_idx, i;
 
 	DRM_DEBUG_KMS
 	    ("set mode (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d).\n",
 	     mode->hdisplay, mode->htotal, mode->vdisplay, mode->vtotal);
+
+	DRM_DEBUG_KMS("Detailed requested mode settings are:\n"
+			"clock		: %d kHz\n"
+			"hdisplay	: %d\n"
+			"hblank start	: %d\n"
+			"hblank end	: %d\n"
+			"hsync start	: %d\n"
+			"hsync end	: %d\n"
+			"htotal		: %d\n"
+			"hskew		: %d\n"
+			"vdisplay	: %d\n"
+			"vblank start	: %d\n"
+			"hblank end	: %d\n"
+			"vsync start	: %d\n"
+			"vsync end	: %d\n"
+			"vtotal		: %d\n",
+			adjusted_mode->crtc_clock,
+			adjusted_mode->crtc_hdisplay,
+			adjusted_mode->crtc_hblank_start,
+			adjusted_mode->crtc_hblank_end,
+			adjusted_mode->crtc_hsync_start,
+			adjusted_mode->crtc_hsync_end,
+			adjusted_mode->crtc_htotal,
+			adjusted_mode->crtc_hskew,
+			adjusted_mode->crtc_vdisplay,
+			adjusted_mode->crtc_vblank_start,
+			adjusted_mode->crtc_vblank_end,
+			adjusted_mode->crtc_vsync_start,
+			adjusted_mode->crtc_vsync_end,
+			adjusted_mode->crtc_vtotal);
 
 	if (mode->hdisplay == 640 && mode->vdisplay == 480)
 		mode_idx = MODE_640x480;
@@ -554,10 +600,44 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 	for (i = 0; i < ARRAY_SIZE(regs_init); i++)
 		ns2501_writeb(dvo, regs_init[i].offset, regs_init[i].value);
 
-	ns->regs = regs_1024x768[mode_idx];
+	/* Write the mode-agnostic values */
+	for (i = 0; i < ARRAY_SIZE(mode_agnostic_values); i++)
+		ns2501_writeb(dvo, mode_agnostic_values[i].offset,
+				mode_agnostic_values[i].value);
 
-	for (i = 0; i < 84; i++)
-		ns2501_writeb(dvo, ns->regs[i].offset, ns->regs[i].value);
+	/* Write now the mode-specific configuration */
+	conf = ns2501_modes + mode_idx;
+	ns->conf = conf;
+
+	ns2501_writeb(dvo, NS2501_REG8, conf->conf);
+	ns2501_writeb(dvo, NS2501_REG1B, conf->pll_a);
+	ns2501_writeb(dvo, NS2501_REG1C, conf->pll_b & 0xff);
+	ns2501_writeb(dvo, NS2501_REG1D, conf->pll_b >> 8);
+	ns2501_writeb(dvo, NS2501_REGC1, conf->hstart & 0xff);
+	ns2501_writeb(dvo, NS2501_REGC2, conf->hstart >> 8);
+	ns2501_writeb(dvo, NS2501_REGC3, conf->hstop & 0xff);
+	ns2501_writeb(dvo, NS2501_REGC4, conf->hstop >> 8);
+	ns2501_writeb(dvo, NS2501_REGC5, conf->vstart & 0xff);
+	ns2501_writeb(dvo, NS2501_REGC6, conf->vstart >> 8);
+	ns2501_writeb(dvo, NS2501_REGC7, conf->vstop & 0xff);
+	ns2501_writeb(dvo, NS2501_REGC8, conf->vstop >> 8);
+	ns2501_writeb(dvo, NS2501_REG80, conf->vsync & 0xff);
+	ns2501_writeb(dvo, NS2501_REG81, conf->vsync >> 8);
+	ns2501_writeb(dvo, NS2501_REG82, conf->vtotal & 0xff);
+	ns2501_writeb(dvo, NS2501_REG83, conf->vtotal >> 8);
+	ns2501_writeb(dvo, NS2501_REG98, conf->hpos & 0xff);
+	ns2501_writeb(dvo, NS2501_REG99, conf->hpos >> 8);
+	ns2501_writeb(dvo, NS2501_REG8E, conf->vpos & 0xff);
+	ns2501_writeb(dvo, NS2501_REG8F, conf->vpos >> 8);
+	ns2501_writeb(dvo, NS2501_REG9C, conf->voffs & 0xff);
+	ns2501_writeb(dvo, NS2501_REG9D, conf->voffs >> 8);
+	ns2501_writeb(dvo, NS2501_REGB8, conf->hscale & 0xff);
+	ns2501_writeb(dvo, NS2501_REGB9, conf->hscale >> 8);
+	ns2501_writeb(dvo, NS2501_REG10, conf->vscale & 0xff);
+	ns2501_writeb(dvo, NS2501_REG11, conf->vscale >> 8);
+	ns2501_writeb(dvo, NS2501_REGF9, conf->dither);
+	ns2501_writeb(dvo, NS2501_REG41, conf->syncb);
+	ns2501_writeb(dvo, NS2501_REGC0, conf->sync);
 }
 
 /* set the NS2501 power state */
@@ -579,34 +659,32 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 	DRM_DEBUG_KMS("Trying set the dpms of the DVO to %i\n", enable);
 
 	if (enable) {
-		if (WARN_ON(ns->regs[83].offset != 0x08 ||
-			    ns->regs[84].offset != 0x41 ||
-			    ns->regs[85].offset != 0xc0))
-			return;
+		ns2501_writeb(dvo, NS2501_REGC0, ns->conf->sync | 0x08);
 
-		ns2501_writeb(dvo, 0xc0, ns->regs[85].value | 0x08);
+		ns2501_writeb(dvo, NS2501_REG41, ns->conf->syncb);
 
-		ns2501_writeb(dvo, 0x41, ns->regs[84].value);
-
-		ns2501_writeb(dvo, 0x34, 0x01);
+		ns2501_writeb(dvo, NS2501_REG34, NS2501_34_ENABLE_OUTPUT);
 		msleep(15);
 
-		ns2501_writeb(dvo, 0x08, 0x35);
-		if (!(ns->regs[83].value & NS2501_8_BPAS))
-			ns2501_writeb(dvo, 0x08, 0x31);
+		ns2501_writeb(dvo, NS2501_REG8,
+				ns->conf->conf | NS2501_8_BPAS);
+		if (!(ns->conf->conf & NS2501_8_BPAS))
+			ns2501_writeb(dvo, NS2501_REG8, ns->conf->conf);
 		msleep(200);
 
-		ns2501_writeb(dvo, 0x34, 0x03);
+		ns2501_writeb(dvo, NS2501_REG34,
+			NS2501_34_ENABLE_OUTPUT | NS2501_34_ENABLE_BACKLIGHT);
 
-		ns2501_writeb(dvo, 0xc0, ns->regs[85].value);
+		ns2501_writeb(dvo, NS2501_REGC0, ns->conf->sync);
 	} else {
-		ns2501_writeb(dvo, 0x34, 0x01);
+		ns2501_writeb(dvo, NS2501_REG34, NS2501_34_ENABLE_OUTPUT);
 		msleep(200);
 
-		ns2501_writeb(dvo, 0x08, 0x34);
+		ns2501_writeb(dvo, NS2501_REG8, NS2501_8_VEN | NS2501_8_HEN |
+				NS2501_8_BPAS);
 		msleep(15);
 
-		ns2501_writeb(dvo, 0x34, 0x00);
+		ns2501_writeb(dvo, NS2501_REG34, 0x00);
 	}
 }
 

@@ -398,7 +398,8 @@ int pvr2_channel_claim_stream(struct pvr2_channel *cp,
 		if (!sp) break;
 		sp->user = cp;
 		cp->stream = sp;
-	} while (0); pvr2_context_exit(cp->mc_head);
+	} while (0);
+	pvr2_context_exit(cp->mc_head);
 	return code;
 }
 

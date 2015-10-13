@@ -70,10 +70,10 @@ Avago      1000BASE-T SFP                                    ABCU-5710RZ
 82599-based adapters support all passive and active limiting direct attach
 cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
 
-Laser turns off for SFP+ when ifconfig down
+Laser turns off for SFP+ when device is down
 -------------------------------------------
-"ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
-"ifconfig up" turns on the laser.
+"ip link set down" turns off the laser for 82599-based SFP+ fiber adapters.
+"ip link set up" turns on the laser.
 
 
 82598-BASED ADAPTERS
@@ -213,13 +213,13 @@ Additional Configurations
   ------------
   The driver supports Jumbo Frames for all adapters. Jumbo Frames support is
   enabled by changing the MTU to a value larger than the default of 1500.
-  The maximum value for the MTU is 16110.  Use the ifconfig command to
+  The maximum value for the MTU is 16110.  Use the ip command to
   increase the MTU size.  For example:
 
-        ifconfig ethx mtu 9000 up
+        ip link set dev ethx mtu 9000
 
-  The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
-  with the maximum Jumbo Frames size of 16128.
+  The maximum MTU setting for Jumbo Frames is 9710.  This value coincides
+  with the maximum Jumbo Frames size of 9728.
 
   Generic Receive Offload, aka GRO
   --------------------------------

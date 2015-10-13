@@ -140,11 +140,11 @@ bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd)
 
 	skb = rd_info->skb;
 
-	pci_unmap_single(priv->pcid, rd_info->skb_dma,
-			 priv->rx_buf_sz, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&priv->pcid->dev, rd_info->skb_dma,
+			 priv->rx_buf_sz, DMA_FROM_DEVICE);
 
 	frame_size = le16_to_cpu(curr_rd->m_rd1RD1.wReqCount)
-			- cpu_to_le16(curr_rd->m_rd0RD0.wResCount);
+			- le16_to_cpu(curr_rd->m_rd0RD0.wResCount);
 
 	if ((frame_size > 2364) || (frame_size < 33)) {
 		/* Frame Size error drop this packet.*/

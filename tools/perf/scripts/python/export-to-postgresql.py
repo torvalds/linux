@@ -15,6 +15,53 @@ import sys
 import struct
 import datetime
 
+# To use this script you will need to have installed package python-pyside which
+# provides LGPL-licensed Python bindings for Qt.  You will also need the package
+# libqt4-sql-psql for Qt postgresql support.
+#
+# The script assumes postgresql is running on the local machine and that the
+# user has postgresql permissions to create databases. Examples of installing
+# postgresql and adding such a user are:
+#
+# fedora:
+#
+#	$ sudo yum install postgresql postgresql-server python-pyside qt-postgresql
+#	$ sudo su - postgres -c initdb
+#	$ sudo service postgresql start
+#	$ sudo su - postgres
+#	$ createuser <your user id here>
+#	Shall the new role be a superuser? (y/n) y
+#
+# ubuntu:
+#
+#	$ sudo apt-get install postgresql
+#	$ sudo su - postgres
+#	$ createuser <your user id here>
+#	Shall the new role be a superuser? (y/n) y
+#
+# An example of using this script with Intel PT:
+#
+#	$ perf record -e intel_pt//u ls
+#	$ perf script -s ~/libexec/perf-core/scripts/python/export-to-postgresql.py pt_example branches calls
+#	2015-05-29 12:49:23.464364 Creating database...
+#	2015-05-29 12:49:26.281717 Writing to intermediate files...
+#	2015-05-29 12:49:27.190383 Copying to database...
+#	2015-05-29 12:49:28.140451 Removing intermediate files...
+#	2015-05-29 12:49:28.147451 Adding primary keys
+#	2015-05-29 12:49:28.655683 Adding foreign keys
+#	2015-05-29 12:49:29.365350 Done
+#
+# To browse the database, psql can be used e.g.
+#
+#	$ psql pt_example
+#	pt_example=# select * from samples_view where id < 100;
+#	pt_example=# \d+
+#	pt_example=# \d+ samples_view
+#	pt_example=# \q
+#
+# An example of using the database is provided by the script
+# call-graph-from-postgresql.py.  Refer to that script for details.
+
 from PySide.QtSql import *
 
 # Need to access PostgreSQL C library directly to use COPY FROM STDIN

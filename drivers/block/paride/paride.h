@@ -165,6 +165,8 @@ typedef struct pi_protocol PIP;
 
 extern int paride_register( PIP * );
 extern void paride_unregister ( PIP * );
+void *pi_register_driver(char *);
+void pi_unregister_driver(void *);
 
 #endif /* __DRIVERS_PARIDE_H__ */
 /* end of paride.h */

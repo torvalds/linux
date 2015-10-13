@@ -253,6 +253,12 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	int rotating;
+
+	struct btrfs_fs_info *fs_info;
+	/* sysfs kobjects */
+	struct kobject super_kobj;
+	struct kobject *device_dir_kobj;
+	struct completion kobj_unregister;
 };
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
@@ -291,8 +297,6 @@ struct btrfs_bio_stripe {
 
 struct btrfs_bio;
 typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
-
-#define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
 
 struct btrfs_bio {
 	atomic_t refs;
@@ -421,8 +425,7 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret);
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
-void btrfs_close_extra_devices(struct btrfs_fs_info *fs_info,
-			       struct btrfs_fs_devices *fs_devices, int step);
+void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices, int step);
 int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
 					 char *device_path,
 					 struct btrfs_device **device);
@@ -450,6 +453,9 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
+int find_free_dev_extent_start(struct btrfs_transaction *transaction,
+			 struct btrfs_device *device, u64 num_bytes,
+			 u64 search_start, u64 *start, u64 *max_avail);
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
@@ -538,5 +544,8 @@ static inline void unlock_chunks(struct btrfs_root *root)
 	mutex_unlock(&root->fs_info->chunk_mutex);
 }
 
+struct list_head *btrfs_get_fs_uuids(void);
+void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
+void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 
 #endif

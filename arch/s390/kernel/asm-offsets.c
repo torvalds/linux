@@ -23,18 +23,20 @@
 
 int main(void)
 {
-	DEFINE(__THREAD_info, offsetof(struct task_struct, stack));
-	DEFINE(__THREAD_ksp, offsetof(struct task_struct, thread.ksp));
-	DEFINE(__THREAD_mm_segment, offsetof(struct task_struct, thread.mm_segment));
-	BLANK();
+	DEFINE(__TASK_thread_info, offsetof(struct task_struct, stack));
+	DEFINE(__TASK_thread, offsetof(struct task_struct, thread));
 	DEFINE(__TASK_pid, offsetof(struct task_struct, pid));
 	BLANK();
-	DEFINE(__THREAD_per_cause, offsetof(struct task_struct, thread.per_event.cause));
-	DEFINE(__THREAD_per_address, offsetof(struct task_struct, thread.per_event.address));
-	DEFINE(__THREAD_per_paid, offsetof(struct task_struct, thread.per_event.paid));
+	DEFINE(__THREAD_ksp, offsetof(struct thread_struct, ksp));
+	DEFINE(__THREAD_FPU_fpc, offsetof(struct thread_struct, fpu.fpc));
+	DEFINE(__THREAD_FPU_flags, offsetof(struct thread_struct, fpu.flags));
+	DEFINE(__THREAD_FPU_regs, offsetof(struct thread_struct, fpu.regs));
+	DEFINE(__THREAD_per_cause, offsetof(struct thread_struct, per_event.cause));
+	DEFINE(__THREAD_per_address, offsetof(struct thread_struct, per_event.address));
+	DEFINE(__THREAD_per_paid, offsetof(struct thread_struct, per_event.paid));
+	DEFINE(__THREAD_trap_tdb, offsetof(struct thread_struct, trap_tdb));
 	BLANK();
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
-	DEFINE(__TI_domain, offsetof(struct thread_info, exec_domain));
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));
 	DEFINE(__TI_sysc_table, offsetof(struct thread_info, sys_call_table));
 	DEFINE(__TI_cpu, offsetof(struct thread_info, cpu));
@@ -166,23 +168,20 @@ int main(void)
 	DEFINE(__LC_FPREGS_SAVE_AREA, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
-#ifdef CONFIG_32BIT
-	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
-#else /* CONFIG_32BIT */
 	DEFINE(__LC_DATA_EXC_CODE, offsetof(struct _lowcore, data_exc_code));
 	DEFINE(__LC_MCCK_FAIL_STOR_ADDR, offsetof(struct _lowcore, failing_storage_address));
+	DEFINE(__LC_VX_SAVE_AREA_ADDR, offsetof(struct _lowcore, vector_save_area_addr));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));
 	DEFINE(__LC_FP_CREG_SAVE_AREA, offsetof(struct _lowcore, fpt_creg_save_area));
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
+	DEFINE(__LC_PERCPU_OFFSET, offsetof(struct _lowcore, percpu_offset));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
 	DEFINE(__LC_GMAP, offsetof(struct _lowcore, gmap));
 	DEFINE(__LC_PGM_TDB, offsetof(struct _lowcore, pgm_tdb));
-	DEFINE(__THREAD_trap_tdb, offsetof(struct task_struct, thread.trap_tdb));
 	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
 	DEFINE(__SIE_PROG0C, offsetof(struct kvm_s390_sie_block, prog0c));
 	DEFINE(__SIE_PROG20, offsetof(struct kvm_s390_sie_block, prog20));
-#endif /* CONFIG_32BIT */
 	return 0;
 }

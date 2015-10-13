@@ -74,13 +74,14 @@ static int lif_s_stream(struct v4l2_subdev *subdev, int enable)
  */
 
 static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
 		MEDIA_BUS_FMT_ARGB8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
+	struct vsp1_lif *lif = to_lif(subdev);
 
 	if (code->pad == LIF_PAD_SINK) {
 		if (code->index >= ARRAY_SIZE(codes))
@@ -96,7 +97,8 @@ static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = v4l2_subdev_get_try_format(fh, LIF_PAD_SINK);
+		format = vsp1_entity_get_pad_format(&lif->entity, cfg,
+						    LIF_PAD_SINK, code->which);
 		code->code = format->code;
 	}
 
@@ -104,12 +106,14 @@ static int lif_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int lif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vsp1_lif *lif = to_lif(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(fh, LIF_PAD_SINK);
+	format = vsp1_entity_get_pad_format(&lif->entity, cfg, LIF_PAD_SINK,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -129,18 +133,18 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int lif_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lif_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
 
-	fmt->format = *vsp1_entity_get_pad_format(&lif->entity, fh, fmt->pad,
+	fmt->format = *vsp1_entity_get_pad_format(&lif->entity, cfg, fmt->pad,
 						  fmt->which);
 
 	return 0;
 }
 
-static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lif *lif = to_lif(subdev);
@@ -151,7 +155,7 @@ static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
 		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&lif->entity, fh, fmt->pad,
+	format = vsp1_entity_get_pad_format(&lif->entity, cfg, fmt->pad,
 					    fmt->which);
 
 	if (fmt->pad == LIF_PAD_SOURCE) {
@@ -173,7 +177,7 @@ static int lif_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&lif->entity, fh, LIF_PAD_SOURCE,
+	format = vsp1_entity_get_pad_format(&lif->entity, cfg, LIF_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
 

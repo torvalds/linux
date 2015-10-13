@@ -41,12 +41,14 @@ struct rtl2832_platform_data {
 	/*
 	 * XXX: This list must be kept sync with dvb_usb_rtl28xxu USB IF driver.
 	 */
+#define RTL2832_TUNER_FC2580    0x21
 #define RTL2832_TUNER_TUA9001   0x24
 #define RTL2832_TUNER_FC0012    0x26
 #define RTL2832_TUNER_E4000     0x27
 #define RTL2832_TUNER_FC0013    0x29
 #define RTL2832_TUNER_R820T     0x2a
 #define RTL2832_TUNER_R828D     0x2b
+#define RTL2832_TUNER_SI2157    0x2c
 	u8 tuner;
 
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);

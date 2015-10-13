@@ -99,12 +99,14 @@ static int secure_register_read(struct bcm_kona_wdt *wdt, uint32_t offset)
 
 static int bcm_kona_wdt_dbg_show(struct seq_file *s, void *data)
 {
-	int ctl_val, cur_val, ret;
+	int ctl_val, cur_val;
 	unsigned long flags;
 	struct bcm_kona_wdt *wdt = s->private;
 
-	if (!wdt)
-		return seq_puts(s, "No device pointer\n");
+	if (!wdt) {
+		seq_puts(s, "No device pointer\n");
+		return 0;
+	}
 
 	spin_lock_irqsave(&wdt->lock, flags);
 	ctl_val = secure_register_read(wdt, SECWDOG_CTRL_REG);
@@ -112,7 +114,7 @@ static int bcm_kona_wdt_dbg_show(struct seq_file *s, void *data)
 	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	if (ctl_val < 0 || cur_val < 0) {
-		ret = seq_puts(s, "Error accessing hardware\n");
+		seq_puts(s, "Error accessing hardware\n");
 	} else {
 		int ctl, cur, ctl_sec, cur_sec, res;
 
@@ -121,15 +123,18 @@ static int bcm_kona_wdt_dbg_show(struct seq_file *s, void *data)
 		cur = cur_val & SECWDOG_COUNT_MASK;
 		ctl_sec = TICKS_TO_SECS(ctl, wdt);
 		cur_sec = TICKS_TO_SECS(cur, wdt);
-		ret = seq_printf(s, "Resolution: %d / %d\n"
-				"Control: %d s / %d (%#x) ticks\n"
-				"Current: %d s / %d (%#x) ticks\n"
-				"Busy count: %lu\n", res,
-				wdt->resolution, ctl_sec, ctl, ctl, cur_sec,
-				cur, cur, wdt->busy_count);
+		seq_printf(s,
+			   "Resolution: %d / %d\n"
+			   "Control: %d s / %d (%#x) ticks\n"
+			   "Current: %d s / %d (%#x) ticks\n"
+			   "Busy count: %lu\n",
+			   res, wdt->resolution,
+			   ctl_sec, ctl, ctl,
+			   cur_sec, cur, cur,
+			   wdt->busy_count);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int bcm_kona_dbg_open(struct inode *inode, struct file *file)
@@ -314,6 +319,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 	spin_lock_init(&wdt->lock);
 	platform_set_drvdata(pdev, wdt);
 	watchdog_set_drvdata(&bcm_kona_wdt_wdd, wdt);
+	bcm_kona_wdt_wdd.parent = &pdev->dev;
 
 	ret = bcm_kona_wdt_set_timeout_reg(&bcm_kona_wdt_wdd, 0);
 	if (ret) {

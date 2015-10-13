@@ -13,6 +13,7 @@ void xen_arch_post_suspend(int suspend_cancelled);
 
 void xen_timer_resume(void);
 void xen_arch_resume(void);
+void xen_arch_suspend(void);
 
 void xen_resume_notifier_register(struct notifier_block *nb);
 void xen_resume_notifier_unregister(struct notifier_block *nb);
@@ -27,13 +28,58 @@ int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
 
 struct vm_area_struct;
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+
+/*
+ * xen_remap_domain_gfn_array() - map an array of foreign frames
+ * @vma:     VMA to map the pages into
+ * @addr:    Address at which to map the pages
+ * @gfn:     Array of GFNs to map
+ * @nr:      Number entries in the GFN array
+ * @err_ptr: Returns per-GFN error status.
+ * @prot:    page protection mask
+ * @domid:   Domain owning the pages
+ * @pages:   Array of pages if this domain has an auto-translated physmap
+ *
+ * @gfn and @err_ptr may point to the same buffer, the GFNs will be
+ * overwritten by the error codes after they are mapped.
+ *
+ * Returns the number of successfully mapped frames, or a -ve error
+ * code.
+ */
+int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t mfn, int nr,
+			       xen_pfn_t *gfn, int nr,
+			       int *err_ptr, pgprot_t prot,
+			       unsigned domid,
+			       struct page **pages);
+
+/* xen_remap_domain_gfn_range() - map a range of foreign frames
+ * @vma:     VMA to map the pages into
+ * @addr:    Address at which to map the pages
+ * @gfn:     First GFN to map.
+ * @nr:      Number frames to map
+ * @prot:    page protection mask
+ * @domid:   Domain owning the pages
+ * @pages:   Array of pages if this domain has an auto-translated physmap
+ *
+ * Returns the number of successfully mapped frames, or a -ve error
+ * code.
+ */
+int xen_remap_domain_gfn_range(struct vm_area_struct *vma,
+			       unsigned long addr,
+			       xen_pfn_t gfn, int nr,
 			       pgprot_t prot, unsigned domid,
 			       struct page **pages);
-int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int numpgs, struct page **pages);
+int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
+			      unsigned long addr,
+			      xen_pfn_t *gfn, int nr,
+			      int *err_ptr, pgprot_t prot,
+			      unsigned domid,
+			      struct page **pages);
+int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
+			      int nr, struct page **pages);
 
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 

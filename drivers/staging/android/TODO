@@ -2,16 +2,28 @@ TODO:
 	- checkpatch.pl cleanups
 	- sparse fixes
 	- rename files to be not so "generic"
-	- make sure things build as modules properly
 	- add proper arch dependencies as needed
 	- audit userspace interfaces to make sure they are sane
-	- kuid_t should never be exposed to user space as it is
-          kernel internal type. Data structure for this kuid_t is:
-          typedef struct {
-          	uid_t val;
-          } kuid_t;
-	- This bug is introduced by Xiong Zhou in the patch bd471258f2e09
-	- ("staging: android: logger: use kuid_t instead of uid_t")
+
+
+ion/
+ - Remove ION_IOC_SYNC: Flushing for devices should be purely a kernel internal
+   interface on top of dma-buf. flush_for_device needs to be added to dma-buf
+   first.
+ - Remove ION_IOC_CUSTOM: Atm used for cache flushing for cpu access in some
+   vendor trees. Should be replaced with an ioctl on the dma-buf to expose the
+   begin/end_cpu_access hooks to userspace.
+ - Clarify the tricks ion plays with explicitly managing coherency behind the
+   dma api's back (this is absolutely needed for high-perf gpu drivers): Add an
+   explicit coherency management mode to flush_for_device to be used by drivers
+   which want to manage caches themselves and which indicates whether cpu caches
+   need flushing.
+ - With those removed there's probably no use for ION_IOC_IMPORT anymore either
+   since ion would just be the central allocator for shared buffers.
+ - Add dt-binding to expose cma regions as ion heaps, with the rule that any
+   such cma regions must already be used by some device for dma. I.e. ion only
+   exposes existing cma regions and doesn't reserve unecessarily memory when
+   booting a system which doesn't use ion.
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
-Brian Swetland <swetland@google.com>
+Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>

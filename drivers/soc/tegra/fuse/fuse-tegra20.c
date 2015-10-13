@@ -34,156 +34,106 @@
 #include "fuse.h"
 
 #define FUSE_BEGIN	0x100
-#define FUSE_SIZE	0x1f8
 #define FUSE_UID_LOW	0x08
 #define FUSE_UID_HIGH	0x0c
 
-static phys_addr_t fuse_phys;
-static struct clk *fuse_clk;
-static void __iomem __initdata *fuse_base;
-
-static DEFINE_MUTEX(apb_dma_lock);
-static DECLARE_COMPLETION(apb_dma_wait);
-static struct dma_chan *apb_dma_chan;
-static struct dma_slave_config dma_sconfig;
-static u32 *apb_buffer;
-static dma_addr_t apb_buffer_phys;
+static u32 tegra20_fuse_read_early(struct tegra_fuse *fuse, unsigned int offset)
+{
+	return readl_relaxed(fuse->base + FUSE_BEGIN + offset);
+}
 
 static void apb_dma_complete(void *args)
 {
-	complete(&apb_dma_wait);
+	struct tegra_fuse *fuse = args;
+
+	complete(&fuse->apbdma.wait);
 }
 
-static u32 tegra20_fuse_readl(const unsigned int offset)
+static u32 tegra20_fuse_read(struct tegra_fuse *fuse, unsigned int offset)
 {
-	int ret;
-	u32 val = 0;
+	unsigned long flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
 	struct dma_async_tx_descriptor *dma_desc;
+	unsigned long time_left;
+	u32 value = 0;
+	int err;
 
-	mutex_lock(&apb_dma_lock);
+	mutex_lock(&fuse->apbdma.lock);
 
-	dma_sconfig.src_addr = fuse_phys + FUSE_BEGIN + offset;
-	ret = dmaengine_slave_config(apb_dma_chan, &dma_sconfig);
-	if (ret)
+	fuse->apbdma.config.src_addr = fuse->apbdma.phys + FUSE_BEGIN + offset;
+
+	err = dmaengine_slave_config(fuse->apbdma.chan, &fuse->apbdma.config);
+	if (err)
 		goto out;
 
-	dma_desc = dmaengine_prep_slave_single(apb_dma_chan, apb_buffer_phys,
-			sizeof(u32), DMA_DEV_TO_MEM,
-			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	dma_desc = dmaengine_prep_slave_single(fuse->apbdma.chan,
+					       fuse->apbdma.phys,
+					       sizeof(u32), DMA_DEV_TO_MEM,
+					       flags);
 	if (!dma_desc)
 		goto out;
 
 	dma_desc->callback = apb_dma_complete;
-	dma_desc->callback_param = NULL;
+	dma_desc->callback_param = fuse;
 
-	reinit_completion(&apb_dma_wait);
+	reinit_completion(&fuse->apbdma.wait);
 
-	clk_prepare_enable(fuse_clk);
+	clk_prepare_enable(fuse->clk);
 
 	dmaengine_submit(dma_desc);
-	dma_async_issue_pending(apb_dma_chan);
-	ret = wait_for_completion_timeout(&apb_dma_wait, msecs_to_jiffies(50));
+	dma_async_issue_pending(fuse->apbdma.chan);
+	time_left = wait_for_completion_timeout(&fuse->apbdma.wait,
+						msecs_to_jiffies(50));
 
-	if (WARN(ret == 0, "apb read dma timed out"))
-		dmaengine_terminate_all(apb_dma_chan);
+	if (WARN(time_left == 0, "apb read dma timed out"))
+		dmaengine_terminate_all(fuse->apbdma.chan);
 	else
-		val = *apb_buffer;
+		value = *fuse->apbdma.virt;
 
-	clk_disable_unprepare(fuse_clk);
+	clk_disable_unprepare(fuse->clk);
+
 out:
-	mutex_unlock(&apb_dma_lock);
-
-	return val;
+	mutex_unlock(&fuse->apbdma.lock);
+	return value;
 }
 
-static const struct of_device_id tegra20_fuse_of_match[] = {
-	{ .compatible = "nvidia,tegra20-efuse" },
-	{},
-};
-
-static int apb_dma_init(void)
+static int tegra20_fuse_probe(struct tegra_fuse *fuse)
 {
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	apb_dma_chan = dma_request_channel(mask, NULL, NULL);
-	if (!apb_dma_chan)
+
+	fuse->apbdma.chan = dma_request_channel(mask, NULL, NULL);
+	if (!fuse->apbdma.chan)
 		return -EPROBE_DEFER;
 
-	apb_buffer = dma_alloc_coherent(NULL, sizeof(u32), &apb_buffer_phys,
-					GFP_KERNEL);
-	if (!apb_buffer) {
-		dma_release_channel(apb_dma_chan);
+	fuse->apbdma.virt = dma_alloc_coherent(fuse->dev, sizeof(u32),
+					       &fuse->apbdma.phys,
+					       GFP_KERNEL);
+	if (!fuse->apbdma.virt) {
+		dma_release_channel(fuse->apbdma.chan);
 		return -ENOMEM;
 	}
 
-	dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	dma_sconfig.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	dma_sconfig.src_maxburst = 1;
-	dma_sconfig.dst_maxburst = 1;
+	fuse->apbdma.config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	fuse->apbdma.config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	fuse->apbdma.config.src_maxburst = 1;
+	fuse->apbdma.config.dst_maxburst = 1;
+
+	init_completion(&fuse->apbdma.wait);
+	mutex_init(&fuse->apbdma.lock);
+	fuse->read = tegra20_fuse_read;
 
 	return 0;
 }
 
-static int tegra20_fuse_probe(struct platform_device *pdev)
-{
-	struct resource *res;
-	int err;
-
-	fuse_clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(fuse_clk)) {
-		dev_err(&pdev->dev, "missing clock");
-		return PTR_ERR(fuse_clk);
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	fuse_phys = res->start;
-
-	err = apb_dma_init();
-	if (err)
-		return err;
-
-	if (tegra_fuse_create_sysfs(&pdev->dev, FUSE_SIZE, tegra20_fuse_readl))
-		return -ENODEV;
-
-	dev_dbg(&pdev->dev, "loaded\n");
-
-	return 0;
-}
-
-static struct platform_driver tegra20_fuse_driver = {
-	.probe = tegra20_fuse_probe,
-	.driver = {
-		.name = "tegra20_fuse",
-		.of_match_table = tegra20_fuse_of_match,
-	}
+static const struct tegra_fuse_info tegra20_fuse_info = {
+	.read = tegra20_fuse_read,
+	.size = 0x1f8,
+	.spare = 0x100,
 };
 
-static int __init tegra20_fuse_init(void)
-{
-	return platform_driver_register(&tegra20_fuse_driver);
-}
-postcore_initcall(tegra20_fuse_init);
-
 /* Early boot code. This code is called before the devices are created */
-
-u32 __init tegra20_fuse_early(const unsigned int offset)
-{
-	return readl_relaxed(fuse_base + FUSE_BEGIN + offset);
-}
-
-bool __init tegra20_spare_fuse_early(int spare_bit)
-{
-	u32 offset = spare_bit * 4;
-	bool value;
-
-	value = tegra20_fuse_early(offset + 0x100);
-
-	return value;
-}
 
 static void __init tegra20_fuse_add_randomness(void)
 {
@@ -193,22 +143,27 @@ static void __init tegra20_fuse_add_randomness(void)
 	randomness[1] = tegra_read_straps();
 	randomness[2] = tegra_read_chipid();
 	randomness[3] = tegra_sku_info.cpu_process_id << 16;
-	randomness[3] |= tegra_sku_info.core_process_id;
+	randomness[3] |= tegra_sku_info.soc_process_id;
 	randomness[4] = tegra_sku_info.cpu_speedo_id << 16;
 	randomness[4] |= tegra_sku_info.soc_speedo_id;
-	randomness[5] = tegra20_fuse_early(FUSE_UID_LOW);
-	randomness[6] = tegra20_fuse_early(FUSE_UID_HIGH);
+	randomness[5] = tegra_fuse_read_early(FUSE_UID_LOW);
+	randomness[6] = tegra_fuse_read_early(FUSE_UID_HIGH);
 
 	add_device_randomness(randomness, sizeof(randomness));
 }
 
-void __init tegra20_init_fuse_early(void)
+static void __init tegra20_fuse_init(struct tegra_fuse *fuse)
 {
-	fuse_base = ioremap(TEGRA_FUSE_BASE, TEGRA_FUSE_SIZE);
+	fuse->read_early = tegra20_fuse_read_early;
 
 	tegra_init_revision();
-	tegra20_init_speedo_data(&tegra_sku_info);
+	fuse->soc->speedo_init(&tegra_sku_info);
 	tegra20_fuse_add_randomness();
-
-	iounmap(fuse_base);
 }
+
+const struct tegra_fuse_soc tegra20_fuse_soc = {
+	.init = tegra20_fuse_init,
+	.speedo_init = tegra20_init_speedo_data,
+	.probe = tegra20_fuse_probe,
+	.info = &tegra20_fuse_info,
+};

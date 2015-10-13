@@ -135,8 +135,6 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 			| USB3_SEL_FORCE_DMPULLDOWN2 | USB3_FORCE_DMPULLDOWN2);
 
 		val |= USB3_DEVICE_NOT_HOST;
-
-		dev_dbg(dwc3_data->dev, "Configuring as Device\n");
 		break;
 
 	case USB_DR_MODE_HOST:
@@ -154,8 +152,6 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 		 */
 
 		val |= USB3_DELAY_VBUSVALID;
-
-		dev_dbg(dwc3_data->dev, "Configuring as Host\n");
 		break;
 
 	default:

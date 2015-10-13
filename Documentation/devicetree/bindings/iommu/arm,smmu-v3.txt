@@ -1,0 +1,40 @@
+* ARM SMMUv3 Architecture Implementation
+
+The SMMUv3 architecture is a significant deparature from previous
+revisions, replacing the MMIO register interface with in-memory command
+and event queues and adding support for the ATS and PRI components of
+the PCIe specification.
+
+** SMMUv3 required properties:
+
+- compatible        : Should include:
+
+                      * "arm,smmu-v3" for any SMMUv3 compliant
+                        implementation. This entry should be last in the
+                        compatible list.
+
+- reg               : Base address and size of the SMMU.
+
+- interrupts        : Non-secure interrupt list describing the wired
+                      interrupt sources corresponding to entries in
+                      interrupt-names. If no wired interrupts are
+                      present then this property may be omitted.
+
+- interrupt-names   : When the interrupts property is present, should
+                      include the following:
+                      * "eventq"    - Event Queue not empty
+                      * "priq"      - PRI Queue not empty
+                      * "cmdq-sync" - CMD_SYNC complete
+                      * "gerror"    - Global Error activated
+
+** SMMUv3 optional properties:
+
+- dma-coherent      : Present if DMA operations made by the SMMU (page
+                      table walks, stream table accesses etc) are cache
+                      coherent with the CPU.
+
+                      NOTE: this only applies to the SMMU itself, not
+                      masters connected upstream of the SMMU.
+
+- hisilicon,broken-prefetch-cmd
+                    : Avoid sending CMD_PREFETCH_* commands to the SMMU.

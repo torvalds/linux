@@ -36,7 +36,7 @@
  * Adds the timer node to the timerqueue, sorted by the
  * node's expires value.
  */
-void timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
+bool timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 {
 	struct rb_node **p = &head->head.rb_node;
 	struct rb_node *parent = NULL;
@@ -56,8 +56,11 @@ void timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 	rb_link_node(&node->node, parent, p);
 	rb_insert_color(&node->node, &head->head);
 
-	if (!head->next || node->expires.tv64 < head->next->expires.tv64)
+	if (!head->next || node->expires.tv64 < head->next->expires.tv64) {
 		head->next = node;
+		return true;
+	}
+	return false;
 }
 EXPORT_SYMBOL_GPL(timerqueue_add);
 
@@ -69,7 +72,7 @@ EXPORT_SYMBOL_GPL(timerqueue_add);
  *
  * Removes the timer node from the timerqueue.
  */
-void timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
+bool timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 {
 	WARN_ON_ONCE(RB_EMPTY_NODE(&node->node));
 
@@ -82,6 +85,7 @@ void timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 	}
 	rb_erase(&node->node, &head->head);
 	RB_CLEAR_NODE(&node->node);
+	return head->next != NULL;
 }
 EXPORT_SYMBOL_GPL(timerqueue_del);
 

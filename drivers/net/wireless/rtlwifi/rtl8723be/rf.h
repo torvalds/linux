@@ -27,7 +27,6 @@
 #define __RTL8723BE_RF_H__
 
 #define RF6052_MAX_TX_PWR		0x3F
-#define RF6052_MAX_REG			0x3F
 
 void rtl8723be_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw,
 					u8 bandwidth);

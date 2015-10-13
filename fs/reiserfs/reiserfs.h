@@ -910,7 +910,6 @@ do {									\
 	if (!(cond))							\
 		reiserfs_panic(NULL, "assertion failure", "(" #cond ") at " \
 			       __FILE__ ":%i:%s: " format "\n",		\
-			       in_interrupt() ? -1 : task_pid_nr(current), \
 			       __LINE__, __func__ , ##args);		\
 } while (0)
 

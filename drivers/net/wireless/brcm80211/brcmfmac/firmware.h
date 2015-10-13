@@ -32,6 +32,12 @@ void brcmf_fw_nvram_free(void *nvram);
  * fails it will not use the callback, but call device_release_driver()
  * instead which will call the driver .remove() callback.
  */
+int brcmf_fw_get_firmwares_pcie(struct device *dev, u16 flags,
+				const char *code, const char *nvram,
+				void (*fw_cb)(struct device *dev,
+					      const struct firmware *fw,
+					      void *nvram_image, u32 nvram_len),
+				u16 domain_nr, u16 bus_nr);
 int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
 			   const char *code, const char *nvram,
 			   void (*fw_cb)(struct device *dev,

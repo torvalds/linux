@@ -370,11 +370,11 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-struct snd_soc_dai_ops sirf_audio_codec_dai_ops = {
+static const struct snd_soc_dai_ops sirf_audio_codec_dai_ops = {
 	.trigger = sirf_audio_codec_trigger,
 };
 
-struct snd_soc_dai_driver sirf_audio_codec_dai = {
+static struct snd_soc_dai_driver sirf_audio_codec_dai = {
 	.name = "sirf-audio-codec",
 	.playback = {
 		.stream_name = "Playback",
@@ -395,7 +395,7 @@ struct snd_soc_dai_driver sirf_audio_codec_dai = {
 
 static int sirf_audio_codec_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	pm_runtime_enable(codec->dev);
 

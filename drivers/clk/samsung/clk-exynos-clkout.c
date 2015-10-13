@@ -9,8 +9,8 @@
  * Clock driver for Exynos clock output
  */
 
+#include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -142,6 +142,8 @@ CLK_OF_DECLARE(exynos4212_clkout, "samsung,exynos4212-pmu",
 		exynos4_clkout_init);
 CLK_OF_DECLARE(exynos4412_clkout, "samsung,exynos4412-pmu",
 		exynos4_clkout_init);
+CLK_OF_DECLARE(exynos3250_clkout, "samsung,exynos3250-pmu",
+		exynos4_clkout_init);
 
 static void __init exynos5_clkout_init(struct device_node *node)
 {
@@ -150,4 +152,6 @@ static void __init exynos5_clkout_init(struct device_node *node)
 CLK_OF_DECLARE(exynos5250_clkout, "samsung,exynos5250-pmu",
 		exynos5_clkout_init);
 CLK_OF_DECLARE(exynos5420_clkout, "samsung,exynos5420-pmu",
+		exynos5_clkout_init);
+CLK_OF_DECLARE(exynos5433_clkout, "samsung,exynos5433-pmu",
 		exynos5_clkout_init);

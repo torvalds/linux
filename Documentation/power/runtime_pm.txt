@@ -445,10 +445,6 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   bool pm_runtime_status_suspended(struct device *dev);
     - return true if the device's runtime PM status is 'suspended'
 
-  bool pm_runtime_suspended_if_enabled(struct device *dev);
-    - return true if the device's runtime PM status is 'suspended' and its
-      'power.disable_depth' field is equal to 1
-
   void pm_runtime_allow(struct device *dev);
     - set the power.runtime_auto flag for the device and decrease its usage
       counter (used by the /sys/devices/.../power/control interface to
@@ -555,6 +551,12 @@ reflects the actual state of the device, its bus type's or its driver's
 helper functions described in Section 4.  In that case, pm_runtime_resume()
 should be used.  Of course, for this purpose the device's runtime PM has to be
 enabled earlier by calling pm_runtime_enable().
+
+Note, if the device may execute pm_runtime calls during the probe (such as
+if it is registers with a subsystem that may call back in) then the
+pm_runtime_get_sync() call paired with a pm_runtime_put() call will be
+appropriate to ensure that the device is not put back to sleep during the
+probe. This can happen with systems such as the network device layer.
 
 It may be desirable to suspend the device once ->probe() has finished.
 Therefore the driver core uses the asyncronous pm_request_idle() to submit a

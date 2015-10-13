@@ -140,6 +140,35 @@ static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+static void ct_show_zone(struct seq_file *s, const struct nf_conn *ct,
+			 int dir)
+{
+	const struct nf_conntrack_zone *zone = nf_ct_zone(ct);
+
+	if (zone->dir != dir)
+		return;
+	switch (zone->dir) {
+	case NF_CT_DEFAULT_ZONE_DIR:
+		seq_printf(s, "zone=%u ", zone->id);
+		break;
+	case NF_CT_ZONE_DIR_ORIG:
+		seq_printf(s, "zone-orig=%u ", zone->id);
+		break;
+	case NF_CT_ZONE_DIR_REPL:
+		seq_printf(s, "zone-reply=%u ", zone->id);
+		break;
+	default:
+		break;
+	}
+}
+#else
+static inline void ct_show_zone(struct seq_file *s, const struct nf_conn *ct,
+				int dir)
+{
+}
+#endif
+
 #ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
 static void ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 {
@@ -202,6 +231,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 		    l3proto, l4proto);
 
+	ct_show_zone(s, ct, NF_CT_ZONE_DIR_ORIG);
+
 	if (seq_has_overflowed(s))
 		goto release;
 
@@ -213,6 +244,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 		    l3proto, l4proto);
+
+	ct_show_zone(s, ct, NF_CT_ZONE_DIR_REPL);
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		goto release;
@@ -228,11 +261,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 #endif
 
 	ct_show_secctx(s, ct);
-
-#ifdef CONFIG_NF_CONNTRACK_ZONES
-	seq_printf(s, "zone=%u ", nf_ct_zone(ct));
-#endif
-
+	ct_show_zone(s, ct, NF_CT_DEFAULT_ZONE_DIR);
 	ct_show_delta_time(s, ct);
 
 	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));

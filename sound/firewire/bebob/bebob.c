@@ -33,6 +33,7 @@ static DEFINE_MUTEX(devices_mutex);
 static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 
 /* Offsets from information register. */
+#define INFO_OFFSET_BEBOB_VERSION	0x08
 #define INFO_OFFSET_GUID		0x10
 #define INFO_OFFSET_HW_MODEL_ID		0x18
 #define INFO_OFFSET_HW_MODEL_REVISION	0x1c
@@ -57,6 +58,7 @@ static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 #define VEN_FOCUSRITE	0x0000130e
 #define VEN_MAUDIO1	0x00000d6c
 #define VEN_MAUDIO2	0x000007f5
+#define VEN_DIGIDESIGN	0x00a07e
 
 #define MODEL_FOCUSRITE_SAFFIRE_BOTH	0x00000000
 #define MODEL_MAUDIO_AUDIOPHILE_BOTH	0x00010060
@@ -72,6 +74,7 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 	u32 hw_id;
 	u32 data[2] = {0};
 	u32 revision;
+	u32 version;
 	int err;
 
 	/* get vendor name from root directory */
@@ -103,6 +106,12 @@ name_device(struct snd_bebob *bebob, unsigned int vendor_id)
 				   data, sizeof(data));
 	if (err < 0)
 		goto end;
+
+	err = snd_bebob_read_quad(bebob->unit, INFO_OFFSET_BEBOB_VERSION,
+				  &version);
+	if (err < 0)
+		goto end;
+	bebob->version = version;
 
 	strcpy(bebob->card->driver, "BeBoB");
 	strcpy(bebob->card->shortname, model);
@@ -364,6 +373,10 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00001604, &spec_normal),
 	/* Behringer, Digital Mixer X32 series (X-UF Card) */
 	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x00000006, &spec_normal),
+	/*  Behringer, F-Control Audio 1616 */
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x001616, &spec_normal),
+	/*  Behringer, F-Control Audio 610 */
+	SND_BEBOB_DEV_ENTRY(VEN_BEHRINGER, 0x000610, &spec_normal),
 	/* Apogee Electronics, Rosetta 200/400 (X-FireWire card) */
 	/* Apogee Electronics, DA/AD/DD-16X (X-FireWire card) */
 	SND_BEBOB_DEV_ENTRY(VEN_APOGEE, 0x00010048, &spec_normal),
@@ -433,11 +446,11 @@ static const struct ieee1394_device_id bebob_id_table[] = {
 	/* M-Audio ProjectMix */
 	SND_BEBOB_DEV_ENTRY(VEN_MAUDIO1, MODEL_MAUDIO_PROJECTMIX,
 			    &maudio_special_spec),
+	/* Digidesign Mbox 2 Pro */
+	SND_BEBOB_DEV_ENTRY(VEN_DIGIDESIGN, 0x0000a9, &spec_normal),
 	/* IDs are unknown but able to be supported */
 	/*  Apogee, Mini-ME Firewire */
 	/*  Apogee, Mini-DAC Firewire */
-	/*  Behringer, F-Control Audio 1616 */
-	/*  Behringer, F-Control Audio 610 */
 	/*  Cakawalk, Sonar Power Studio 66 */
 	/*  CME, UF400e */
 	/*  ESI, Quotafire XL */

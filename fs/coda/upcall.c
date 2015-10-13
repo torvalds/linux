@@ -353,7 +353,7 @@ int venus_readlink(struct super_block *sb, struct CodaFid *fid,
         char *result;
         
 	insize = max_t(unsigned int,
-		     INSIZE(readlink), OUTSIZE(readlink)+ *length + 1);
+		     INSIZE(readlink), OUTSIZE(readlink)+ *length);
 	UPARG(CODA_READLINK);
 
         inp->coda_readlink.VFid = *fid;
@@ -361,8 +361,8 @@ int venus_readlink(struct super_block *sb, struct CodaFid *fid,
 	error = coda_upcall(coda_vcp(sb), insize, &outsize, inp);
 	if (!error) {
 		retlen = outp->coda_readlink.count;
-		if ( retlen > *length )
-			retlen = *length;
+		if (retlen >= *length)
+			retlen = *length - 1;
 		*length = retlen;
 		result =  (char *)outp + (long)outp->coda_readlink.data;
 		memcpy(buffer, result, retlen);
@@ -820,8 +820,8 @@ int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out)
 	case CODA_FLUSH:
 		coda_cache_clear_all(sb);
 		shrink_dcache_sb(sb);
-		if (sb->s_root->d_inode)
-			coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
+		if (d_really_is_positive(sb->s_root))
+			coda_flag_inode(d_inode(sb->s_root), C_FLUSH);
 		break;
 
 	case CODA_PURGEUSER:

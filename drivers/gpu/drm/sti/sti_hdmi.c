@@ -13,6 +13,7 @@
 #include <linux/reset.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
@@ -191,8 +192,8 @@ static void hdmi_active_area(struct sti_hdmi *hdmi)
 	u32 xmin, xmax;
 	u32 ymin, ymax;
 
-	xmin = sti_vtg_get_pixel_number(hdmi->mode, 0);
-	xmax = sti_vtg_get_pixel_number(hdmi->mode, hdmi->mode.hdisplay - 1);
+	xmin = sti_vtg_get_pixel_number(hdmi->mode, 1);
+	xmax = sti_vtg_get_pixel_number(hdmi->mode, hdmi->mode.hdisplay);
 	ymin = sti_vtg_get_line_number(hdmi->mode, 0);
 	ymax = sti_vtg_get_line_number(hdmi->mode, hdmi->mode.vdisplay - 1);
 
@@ -587,7 +588,7 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	return count;
 
 fail:
-	DRM_ERROR("Can not read HDMI EDID\n");
+	DRM_ERROR("Can't read HDMI EDID\n");
 	return 0;
 }
 
@@ -663,10 +664,13 @@ static void sti_hdmi_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs sti_hdmi_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,
 	.destroy = sti_hdmi_connector_destroy,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static struct drm_encoder *sti_hdmi_find_encoder(struct drm_device *dev)
@@ -689,20 +693,7 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct sti_hdmi_connector *connector;
 	struct drm_connector *drm_connector;
 	struct drm_bridge *bridge;
-	struct device_node *ddc;
 	int err;
-
-	ddc = of_parse_phandle(dev->of_node, "ddc", 0);
-	if (ddc) {
-		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
-		if (!hdmi->ddc_adapt) {
-			err = -EPROBE_DEFER;
-			of_node_put(ddc);
-			return err;
-		}
-
-		of_node_put(ddc);
-	}
 
 	/* Set the drm device handle */
 	hdmi->drm_dev = drm_dev;
@@ -792,6 +783,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	struct sti_hdmi *hdmi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
+	struct device_node *ddc;
 	int ret;
 
 	DRM_INFO("%s\n", __func__);
@@ -799,6 +791,17 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
+
+	ddc = of_parse_phandle(pdev->dev.of_node, "ddc", 0);
+	if (ddc) {
+		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
+		if (!hdmi->ddc_adapt) {
+			of_node_put(ddc);
+			return -EPROBE_DEFER;
+		}
+
+		of_node_put(ddc);
+	}
 
 	hdmi->dev = pdev->dev;
 

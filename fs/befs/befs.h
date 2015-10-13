@@ -19,16 +19,16 @@ typedef u64 befs_blocknr_t;
  * BeFS in memory structures
  */
 
-typedef struct befs_mount_options {
+struct befs_mount_options {
 	kgid_t gid;
 	kuid_t uid;
 	int use_gid;
 	int use_uid;
 	int debug;
 	char *iocharset;
-} befs_mount_options;
+};
 
-typedef struct befs_sb_info {
+struct befs_sb_info {
 	u32 magic1;
 	u32 block_size;
 	u32 block_shift;
@@ -52,12 +52,11 @@ typedef struct befs_sb_info {
 	befs_inode_addr indices;
 	u32 magic3;
 
-	befs_mount_options mount_opts;
+	struct befs_mount_options mount_opts;
 	struct nls_table *nls;
+};
 
-} befs_sb_info;
-
-typedef struct befs_inode_info {
+struct befs_inode_info {
 	u32 i_flags;
 	u32 i_type;
 
@@ -71,8 +70,7 @@ typedef struct befs_inode_info {
 	} i_data;
 
 	struct inode vfs_inode;
-
-} befs_inode_info;
+};
 
 enum befs_err {
 	BEFS_OK,
@@ -105,16 +103,16 @@ void befs_dump_index_node(const struct super_block *sb, befs_btree_nodehead *);
 /* Gets a pointer to the private portion of the super_block
  * structure from the public part
  */
-static inline befs_sb_info *
+static inline struct befs_sb_info *
 BEFS_SB(const struct super_block *super)
 {
-	return (befs_sb_info *) super->s_fs_info;
+	return (struct befs_sb_info *) super->s_fs_info;
 }
 
-static inline befs_inode_info *
+static inline struct befs_inode_info *
 BEFS_I(const struct inode *inode)
 {
-	return list_entry(inode, struct befs_inode_info, vfs_inode);
+	return container_of(inode, struct befs_inode_info, vfs_inode);
 }
 
 static inline befs_blocknr_t

@@ -4,6 +4,7 @@
 
 #include <linux/spinlock.h>
 #include <asm/page.h>
+#include <linux/time.h>
 
 /*
  * Definitions for talking to the RTAS on CHRP machines.
@@ -273,6 +274,7 @@ inline uint32_t rtas_ext_event_company_id(struct rtas_ext_event_log_v6 *ext_log)
 #define PSERIES_ELOG_SECT_ID_MANUFACT_INFO	(('M' << 8) | 'I')
 #define PSERIES_ELOG_SECT_ID_CALL_HOME		(('C' << 8) | 'H')
 #define PSERIES_ELOG_SECT_ID_USER_DEF		(('U' << 8) | 'D')
+#define PSERIES_ELOG_SECT_ID_HOTPLUG		(('H' << 8) | 'P')
 
 /* Vendor specific Platform Event Log Format, Version 6, section header */
 struct pseries_errorlog {
@@ -296,6 +298,31 @@ inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
 	return be16_to_cpu(sect->length);
 }
 
+/* RTAS pseries hotplug errorlog section */
+struct pseries_hp_errorlog {
+	u8	resource;
+	u8	action;
+	u8	id_type;
+	u8	reserved;
+	union {
+		__be32	drc_index;
+		__be32	drc_count;
+		char	drc_name[1];
+	} _drc_u;
+};
+
+#define PSERIES_HP_ELOG_RESOURCE_CPU	1
+#define PSERIES_HP_ELOG_RESOURCE_MEM	2
+#define PSERIES_HP_ELOG_RESOURCE_SLOT	3
+#define PSERIES_HP_ELOG_RESOURCE_PHB	4
+
+#define PSERIES_HP_ELOG_ACTION_ADD	1
+#define PSERIES_HP_ELOG_ACTION_REMOVE	2
+
+#define PSERIES_HP_ELOG_ID_DRC_NAME	1
+#define PSERIES_HP_ELOG_ID_DRC_INDEX	2
+#define PSERIES_HP_ELOG_ID_DRC_COUNT	3
+
 struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 					      uint16_t section_id);
 
@@ -316,6 +343,7 @@ extern void rtas_power_off(void);
 extern void rtas_halt(void);
 extern void rtas_os_term(char *str);
 extern int rtas_get_sensor(int sensor, int index, int *state);
+extern int rtas_get_sensor_fast(int sensor, int index, int *state);
 extern int rtas_get_power_level(int powerdomain, int *level);
 extern int rtas_set_power_level(int powerdomain, int level, int *setlevel);
 extern bool rtas_indicator_present(int token, int *maxindex);
@@ -327,7 +355,7 @@ extern int rtas_suspend_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_suspend_last_cpu(struct rtas_suspend_me_data *data);
 extern int rtas_online_cpus_mask(cpumask_var_t cpus);
 extern int rtas_offline_cpus_mask(cpumask_var_t cpus);
-extern int rtas_ibm_suspend_me(u64 handle, int *vasi_return);
+extern int rtas_ibm_suspend_me(u64 handle);
 
 struct rtc_time;
 extern unsigned long rtas_get_boot_time(void);
@@ -343,8 +371,12 @@ extern int early_init_dt_scan_rtas(unsigned long node,
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
 #ifdef CONFIG_PPC_PSERIES
+extern time64_t last_rtas_event;
+extern int clobbering_unread_rtas_event(void);
 extern int pseries_devicetree_update(s32 scope);
 extern void post_mobility_fixup(void);
+#else
+static inline int clobbering_unread_rtas_event(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PPC_RTAS_DAEMON

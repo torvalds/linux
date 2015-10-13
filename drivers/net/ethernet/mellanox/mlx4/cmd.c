@@ -48,6 +48,8 @@
 
 #include "mlx4.h"
 #include "fw.h"
+#include "fw_qos.h"
+#include "mlx4_stats.h"
 
 #define CMD_POLL_TOKEN 0xffff
 #define INBOX_MASK	0xffffffffffffff00ULL
@@ -684,6 +686,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 {
 	struct mlx4_cmd *cmd = &mlx4_priv(dev)->cmd;
 	struct mlx4_cmd_context *context;
+	long ret_wait;
 	int err = 0;
 
 	down(&cmd->event_sem);
@@ -709,12 +712,29 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	if (err)
 		goto out_reset;
 
-	if (!wait_for_completion_timeout(&context->done,
-					 msecs_to_jiffies(timeout))) {
+	if (op == MLX4_CMD_SENSE_PORT) {
+		ret_wait =
+			wait_for_completion_interruptible_timeout(&context->done,
+								  msecs_to_jiffies(timeout));
+		if (ret_wait < 0) {
+			context->fw_status = 0;
+			context->out_param = 0;
+			context->result = 0;
+		}
+	} else {
+		ret_wait = (long)wait_for_completion_timeout(&context->done,
+							     msecs_to_jiffies(timeout));
+	}
+	if (!ret_wait) {
 		mlx4_warn(dev, "command 0x%x timed out (go bit not cleared)\n",
 			  op);
-		err = -EIO;
-		goto out_reset;
+		if (op == MLX4_CMD_NOP) {
+			err = -EBUSY;
+			goto out;
+		} else {
+			err = -EIO;
+			goto out_reset;
+		}
 	}
 
 	err = context->result;
@@ -726,7 +746,8 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		 */
 		if (op == MLX4_CMD_SET_PORT &&
 		    (in_modifier == 1 || in_modifier == 2) &&
-		    op_modifier == 0 && context->fw_status == CMD_STAT_BAD_SIZE)
+		    op_modifier == MLX4_SET_PORT_IB_OPCODE &&
+		    context->fw_status == CMD_STAT_BAD_SIZE)
 			mlx4_dbg(dev, "command 0x%x failed: fw status = 0x%x\n",
 				 op, context->fw_status);
 		else
@@ -875,7 +896,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 {
 	struct ib_smp *smp = inbox->buf;
 	u32 index;
-	u8 port;
+	u8 port, slave_port;
 	u8 opcode_modifier;
 	u16 *table;
 	int err;
@@ -887,7 +908,8 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	__be32 slave_cap_mask;
 	__be64 slave_node_guid;
 
-	port = vhcr->in_modifier;
+	slave_port = vhcr->in_modifier;
+	port = mlx4_slave_convert_port(dev, slave, slave_port);
 
 	/* network-view bit is for driver use only, and should not be passed to FW */
 	opcode_modifier = vhcr->op_modifier & ~0x8; /* clear netw view bit */
@@ -923,8 +945,9 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			if (smp->attr_id == IB_SMP_ATTR_PORT_INFO) {
 				/*get the slave specific caps:*/
 				/*do the command */
+				smp->attr_mod = cpu_to_be32(port);
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					    vhcr->in_modifier, opcode_modifier,
+					    port, opcode_modifier,
 					    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				/* modify the response for slaves */
 				if (!err && slave != mlx4_master_func_num(dev)) {
@@ -937,25 +960,38 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				return err;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_GUID_INFO) {
-				/* compute slave's gid block */
-				smp->attr_mod = cpu_to_be32(slave / 8);
-				/* execute cmd */
-				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
-					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
-				if (!err) {
-					/* if needed, move slave gid to index 0 */
-					if (slave % 8)
-						memcpy(outsmp->data,
-						       outsmp->data + (slave % 8) * 8, 8);
-					/* delete all other gids */
-					memset(outsmp->data + 8, 0, 56);
+				__be64 guid = mlx4_get_admin_guid(dev, slave,
+								  port);
+
+				/* set the PF admin guid to the FW/HW burned
+				 * GUID, if it wasn't yet set
+				 */
+				if (slave == 0 && guid == 0) {
+					smp->attr_mod = 0;
+					err = mlx4_cmd_box(dev,
+							   inbox->dma,
+							   outbox->dma,
+							   vhcr->in_modifier,
+							   opcode_modifier,
+							   vhcr->op,
+							   MLX4_CMD_TIME_CLASS_C,
+							   MLX4_CMD_NATIVE);
+					if (err)
+						return err;
+					mlx4_set_admin_guid(dev,
+							    *(__be64 *)outsmp->
+							    data, slave, port);
+				} else {
+					memcpy(outsmp->data, &guid, 8);
 				}
-				return err;
+
+				/* clean all other gids */
+				memset(outsmp->data + 8, 0, 56);
+				return 0;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
+					     port, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
@@ -1456,6 +1492,24 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = mlx4_CMD_EPERM_wrapper,
 	},
 	{
+		.opcode = MLX4_CMD_ALLOCATE_VPP,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
+	},
+	{
+		.opcode = MLX4_CMD_SET_VPORT_QOS,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
+	},
+	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
 		.has_inbox = false,
 		.has_outbox = false,
@@ -1499,6 +1553,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = mlx4_ACCESS_REG_wrapper,
+	},
+	{
+		.opcode = MLX4_CMD_CONGESTION_CTRL_OPCODE,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
 	},
 	/* Native multicast commands are not available for guests */
 	{
@@ -1782,7 +1845,8 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 
 	if (vp_oper->state.default_vlan == vp_admin->default_vlan &&
 	    vp_oper->state.default_qos == vp_admin->default_qos &&
-	    vp_oper->state.link_state == vp_admin->link_state)
+	    vp_oper->state.link_state == vp_admin->link_state &&
+	    vp_oper->state.qos_vport == vp_admin->qos_vport)
 		return 0;
 
 	if (!(priv->mfunc.master.slave_state[slave].active &&
@@ -1840,6 +1904,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	vp_oper->state.default_vlan = vp_admin->default_vlan;
 	vp_oper->state.default_qos = vp_admin->default_qos;
 	vp_oper->state.link_state = vp_admin->link_state;
+	vp_oper->state.qos_vport = vp_admin->qos_vport;
 
 	if (vp_admin->link_state == IFLA_VF_LINK_STATE_DISABLE)
 		work->flags |= MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE;
@@ -1848,6 +1913,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	work->port = port;
 	work->slave = slave;
 	work->qos = vp_oper->state.default_qos;
+	work->qos_vport = vp_oper->state.qos_vport;
 	work->vlan_id = vp_oper->state.default_vlan;
 	work->vlan_ix = vp_oper->vlan_idx;
 	work->priv = priv;
@@ -1857,6 +1923,63 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 	return 0;
 }
 
+static void mlx4_set_default_port_qos(struct mlx4_dev *dev, int port)
+{
+	struct mlx4_qos_manager *port_qos_ctl;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	port_qos_ctl = &priv->mfunc.master.qos_ctl[port];
+	bitmap_zero(port_qos_ctl->priority_bm, MLX4_NUM_UP);
+
+	/* Enable only default prio at PF init routine */
+	set_bit(MLX4_DEFAULT_QOS_PRIO, port_qos_ctl->priority_bm);
+}
+
+static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
+{
+	int i;
+	int err;
+	int num_vfs;
+	u16 availible_vpp;
+	u8 vpp_param[MLX4_NUM_UP];
+	struct mlx4_qos_manager *port_qos;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed query availible VPPs\n");
+		return;
+	}
+
+	port_qos = &priv->mfunc.master.qos_ctl[port];
+	num_vfs = (availible_vpp /
+		   bitmap_weight(port_qos->priority_bm, MLX4_NUM_UP));
+
+	for (i = 0; i < MLX4_NUM_UP; i++) {
+		if (test_bit(i, port_qos->priority_bm))
+			vpp_param[i] = num_vfs;
+	}
+
+	err = mlx4_ALLOCATE_VPP_set(dev, port, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed allocating VPPs\n");
+		return;
+	}
+
+	/* Query actual allocated VPP, just to make sure */
+	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
+	if (err) {
+		mlx4_info(dev, "Failed query availible VPPs\n");
+		return;
+	}
+
+	port_qos->num_of_qos_vfs = num_vfs;
+	mlx4_dbg(dev, "Port %d Availible VPPs %d\n", port, availible_vpp);
+
+	for (i = 0; i < MLX4_NUM_UP; i++)
+		mlx4_dbg(dev, "Port %d UP %d Allocated %d VPPs\n", port, i,
+			 vpp_param[i]);
+}
 
 static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 {
@@ -2204,6 +2327,9 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	}
 
 	if (mlx4_is_master(dev)) {
+		struct mlx4_vf_oper_state *vf_oper;
+		struct mlx4_vf_admin_state *vf_admin;
+
 		priv->mfunc.master.slave_state =
 			kzalloc(dev->num_slaves *
 				sizeof(struct mlx4_slave_state), GFP_KERNEL);
@@ -2223,6 +2349,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 			goto err_comm_oper;
 
 		for (i = 0; i < dev->num_slaves; ++i) {
+			vf_admin = &priv->mfunc.master.vf_admin[i];
+			vf_oper = &priv->mfunc.master.vf_oper[i];
 			s_state = &priv->mfunc.master.slave_state[i];
 			s_state->last_cmd = MLX4_COMM_CMD_RESET;
 			mutex_init(&priv->mfunc.master.gen_eqe_mutex[i]);
@@ -2234,6 +2362,9 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				     &priv->mfunc.comm[i].slave_read);
 			mmiowb();
 			for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+				struct mlx4_vport_state *admin_vport;
+				struct mlx4_vport_state *oper_vport;
+
 				s_state->vlan_filter[port] =
 					kzalloc(sizeof(struct mlx4_vlan_fltr),
 						GFP_KERNEL);
@@ -2242,13 +2373,29 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 						kfree(s_state->vlan_filter[port]);
 					goto err_slaves;
 				}
+
+				admin_vport = &vf_admin->vport[port];
+				oper_vport = &vf_oper->vport[port].state;
 				INIT_LIST_HEAD(&s_state->mcast_filters[port]);
-				priv->mfunc.master.vf_admin[i].vport[port].default_vlan = MLX4_VGT;
-				priv->mfunc.master.vf_oper[i].vport[port].state.default_vlan = MLX4_VGT;
-				priv->mfunc.master.vf_oper[i].vport[port].vlan_idx = NO_INDX;
-				priv->mfunc.master.vf_oper[i].vport[port].mac_idx = NO_INDX;
+				admin_vport->default_vlan = MLX4_VGT;
+				oper_vport->default_vlan = MLX4_VGT;
+				admin_vport->qos_vport =
+						MLX4_VPP_DEFAULT_VPORT;
+				oper_vport->qos_vport = MLX4_VPP_DEFAULT_VPORT;
+				vf_oper->vport[port].vlan_idx = NO_INDX;
+				vf_oper->vport[port].mac_idx = NO_INDX;
+				mlx4_set_random_admin_guid(dev, i, port);
 			}
 			spin_lock_init(&s_state->lock);
+		}
+
+		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP) {
+			for (port = 1; port <= dev->caps.num_ports; port++) {
+				if (mlx4_is_eth(dev, port)) {
+					mlx4_set_default_port_qos(dev, port);
+					mlx4_allocate_port_vpps(dev, port);
+				}
+			}
 		}
 
 		memset(&priv->mfunc.master.cmd_eqe, 0, dev->caps.eqe_size);
@@ -2671,6 +2818,103 @@ static int mlx4_slaves_closest_port(struct mlx4_dev *dev, int slave, int port)
 	return port;
 }
 
+static int mlx4_set_vport_qos(struct mlx4_priv *priv, int slave, int port,
+			      int max_tx_rate)
+{
+	int i;
+	int err;
+	struct mlx4_qos_manager *port_qos;
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_vport_qos_param vpp_qos[MLX4_NUM_UP];
+
+	port_qos = &priv->mfunc.master.qos_ctl[port];
+	memset(vpp_qos, 0, sizeof(struct mlx4_vport_qos_param) * MLX4_NUM_UP);
+
+	if (slave > port_qos->num_of_qos_vfs) {
+		mlx4_info(dev, "No availible VPP resources for this VF\n");
+		return -EINVAL;
+	}
+
+	/* Query for default QoS values from Vport 0 is needed */
+	err = mlx4_SET_VPORT_QOS_get(dev, port, 0, vpp_qos);
+	if (err) {
+		mlx4_info(dev, "Failed to query Vport 0 QoS values\n");
+		return err;
+	}
+
+	for (i = 0; i < MLX4_NUM_UP; i++) {
+		if (test_bit(i, port_qos->priority_bm) && max_tx_rate) {
+			vpp_qos[i].max_avg_bw = max_tx_rate;
+			vpp_qos[i].enable = 1;
+		} else {
+			/* if user supplied tx_rate == 0, meaning no rate limit
+			 * configuration is required. so we are leaving the
+			 * value of max_avg_bw as queried from Vport 0.
+			 */
+			vpp_qos[i].enable = 0;
+		}
+	}
+
+	err = mlx4_SET_VPORT_QOS_set(dev, port, slave, vpp_qos);
+	if (err) {
+		mlx4_info(dev, "Failed to set Vport %d QoS values\n", slave);
+		return err;
+	}
+
+	return 0;
+}
+
+static bool mlx4_is_vf_vst_and_prio_qos(struct mlx4_dev *dev, int port,
+					struct mlx4_vport_state *vf_admin)
+{
+	struct mlx4_qos_manager *info;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (!mlx4_is_master(dev) ||
+	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP))
+		return false;
+
+	info = &priv->mfunc.master.qos_ctl[port];
+
+	if (vf_admin->default_vlan != MLX4_VGT &&
+	    test_bit(vf_admin->default_qos, info->priority_bm))
+		return true;
+
+	return false;
+}
+
+static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
+				       struct mlx4_vport_state *vf_admin,
+				       int vlan, int qos)
+{
+	struct mlx4_vport_state dummy_admin = {0};
+
+	if (!mlx4_is_vf_vst_and_prio_qos(dev, port, vf_admin) ||
+	    !vf_admin->tx_rate)
+		return true;
+
+	dummy_admin.default_qos = qos;
+	dummy_admin.default_vlan = vlan;
+
+	/* VF wants to move to other VST state which is valid with current
+	 * rate limit. Either differnt default vlan in VST or other
+	 * supported QoS priority. Otherwise we don't allow this change when
+	 * the TX rate is still configured.
+	 */
+	if (mlx4_is_vf_vst_and_prio_qos(dev, port, &dummy_admin))
+		return true;
+
+	mlx4_info(dev, "Cannot change VF state to %s while rate is set\n",
+		  (vlan == MLX4_VGT) ? "VGT" : "VST");
+
+	if (vlan != MLX4_VGT)
+		mlx4_info(dev, "VST priority %d not supported for QoS\n", qos);
+
+	mlx4_info(dev, "Please set rate to 0 prior to this VF state change\n");
+
+	return false;
+}
+
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2687,7 +2931,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->mac = mac;
-	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
+	mlx4_info(dev, "default mac on vf %d port %d to %llX will take effect only after vf restart\n",
 		  vf, port, s_info->mac);
 	return 0;
 }
@@ -2714,11 +2958,21 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	port = mlx4_slaves_closest_port(dev, slave, port);
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 
+	if (!mlx4_valid_vf_state_change(dev, port, vf_admin, vlan, qos))
+		return -EPERM;
+
 	if ((0 == vlan) && (0 == qos))
 		vf_admin->default_vlan = MLX4_VGT;
 	else
 		vf_admin->default_vlan = vlan;
 	vf_admin->default_qos = qos;
+
+	/* If rate was configured prior to VST, we saved the configured rate
+	 * in vf_admin->rate and now, if priority supported we enforce the QoS
+	 */
+	if (mlx4_is_vf_vst_and_prio_qos(dev, port, vf_admin) &&
+	    vf_admin->tx_rate)
+		vf_admin->qos_vport = slave;
 
 	if (mlx4_master_immediate_activate_vlan_qos(priv, slave, port))
 		mlx4_info(dev,
@@ -2727,6 +2981,69 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_vlan);
+
+int mlx4_set_vf_rate(struct mlx4_dev *dev, int port, int vf, int min_tx_rate,
+		     int max_tx_rate)
+{
+	int err;
+	int slave;
+	struct mlx4_vport_state *vf_admin;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (!mlx4_is_master(dev) ||
+	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP))
+		return -EPROTONOSUPPORT;
+
+	if (min_tx_rate) {
+		mlx4_info(dev, "Minimum BW share not supported\n");
+		return -EPROTONOSUPPORT;
+	}
+
+	slave = mlx4_get_slave_indx(dev, vf);
+	if (slave < 0)
+		return -EINVAL;
+
+	port = mlx4_slaves_closest_port(dev, slave, port);
+	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
+
+	err = mlx4_set_vport_qos(priv, slave, port, max_tx_rate);
+	if (err) {
+		mlx4_info(dev, "vf %d failed to set rate %d\n", vf,
+			  max_tx_rate);
+		return err;
+	}
+
+	vf_admin->tx_rate = max_tx_rate;
+	/* if VF is not in supported mode (VST with supported prio),
+	 * we do not change vport configuration for its QPs, but save
+	 * the rate, so it will be enforced when it moves to supported
+	 * mode next time.
+	 */
+	if (!mlx4_is_vf_vst_and_prio_qos(dev, port, vf_admin)) {
+		mlx4_info(dev,
+			  "rate set for VF %d when not in valid state\n", vf);
+
+		if (vf_admin->default_vlan != MLX4_VGT)
+			mlx4_info(dev, "VST priority not supported by QoS\n");
+		else
+			mlx4_info(dev, "VF in VGT mode (needed VST)\n");
+
+		mlx4_info(dev,
+			  "rate %d take affect when VF moves to valid state\n",
+			  max_tx_rate);
+		return 0;
+	}
+
+	/* If user sets rate 0 assigning default vport for its QPs */
+	vf_admin->qos_vport = max_tx_rate ? slave : MLX4_VPP_DEFAULT_VPORT;
+
+	if (priv->mfunc.master.slave_state[slave].active &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_UPDATE_QP)
+		mlx4_master_immediate_activate_vlan_qos(priv, slave, port);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_set_vf_rate);
 
  /* mlx4_get_slave_default_vlan -
  * return true if VST ( default vlan)
@@ -2801,7 +3118,12 @@ int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_in
 
 	ivf->vlan		= s_info->default_vlan;
 	ivf->qos		= s_info->default_qos;
-	ivf->max_tx_rate	= s_info->tx_rate;
+
+	if (mlx4_is_vf_vst_and_prio_qos(dev, port, s_info))
+		ivf->max_tx_rate = s_info->tx_rate;
+	else
+		ivf->max_tx_rate = 0;
+
 	ivf->min_tx_rate	= 0;
 	ivf->spoofchk		= s_info->spoofchk;
 	ivf->linkstate		= s_info->link_state;
@@ -2858,6 +3180,92 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
 
+int mlx4_get_counter_stats(struct mlx4_dev *dev, int counter_index,
+			   struct mlx4_counter *counter_stats, int reset)
+{
+	struct mlx4_cmd_mailbox *mailbox = NULL;
+	struct mlx4_counter *tmp_counter;
+	int err;
+	u32 if_stat_in_mod;
+
+	if (!counter_stats)
+		return -EINVAL;
+
+	if (counter_index == MLX4_SINK_COUNTER_INDEX(dev))
+		return 0;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	memset(mailbox->buf, 0, sizeof(struct mlx4_counter));
+	if_stat_in_mod = counter_index;
+	if (reset)
+		if_stat_in_mod |= MLX4_QUERY_IF_STAT_RESET;
+	err = mlx4_cmd_box(dev, 0, mailbox->dma,
+			   if_stat_in_mod, 0,
+			   MLX4_CMD_QUERY_IF_STAT,
+			   MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
+	if (err) {
+		mlx4_dbg(dev, "%s: failed to read statistics for counter index %d\n",
+			 __func__, counter_index);
+		goto if_stat_out;
+	}
+	tmp_counter = (struct mlx4_counter *)mailbox->buf;
+	counter_stats->counter_mode = tmp_counter->counter_mode;
+	if (counter_stats->counter_mode == 0) {
+		counter_stats->rx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_frames) +
+				    be64_to_cpu(tmp_counter->rx_frames));
+		counter_stats->tx_frames =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_frames) +
+				    be64_to_cpu(tmp_counter->tx_frames));
+		counter_stats->rx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->rx_bytes) +
+				    be64_to_cpu(tmp_counter->rx_bytes));
+		counter_stats->tx_bytes =
+			cpu_to_be64(be64_to_cpu(counter_stats->tx_bytes) +
+				    be64_to_cpu(tmp_counter->tx_bytes));
+	}
+
+if_stat_out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_counter_stats);
+
+int mlx4_get_vf_stats(struct mlx4_dev *dev, int port, int vf_idx,
+		      struct ifla_vf_stats *vf_stats)
+{
+	struct mlx4_counter tmp_vf_stats;
+	int slave;
+	int err = 0;
+
+	if (!vf_stats)
+		return -EINVAL;
+
+	if (!mlx4_is_master(dev))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf_idx);
+	if (slave < 0)
+		return -EINVAL;
+
+	port = mlx4_slaves_closest_port(dev, slave, port);
+	err = mlx4_calc_vf_counters(dev, slave, port, &tmp_vf_stats);
+	if (!err && tmp_vf_stats.counter_mode == 0) {
+		vf_stats->rx_packets = be64_to_cpu(tmp_vf_stats.rx_frames);
+		vf_stats->tx_packets = be64_to_cpu(tmp_vf_stats.tx_frames);
+		vf_stats->rx_bytes = be64_to_cpu(tmp_vf_stats.rx_bytes);
+		vf_stats->tx_bytes = be64_to_cpu(tmp_vf_stats.tx_bytes);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_vf_stats);
+
 int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2891,6 +3299,12 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 				 int enabled)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(
+			&priv->dev, slave);
+	int min_port = find_first_bit(actv_ports.ports,
+				      priv->dev.caps.num_ports) + 1;
+	int max_port = min_port - 1 +
+		bitmap_weight(actv_ports.ports, priv->dev.caps.num_ports);
 
 	if (slave == mlx4_master_func_num(dev))
 		return 0;
@@ -2899,6 +3313,11 @@ int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
 	    port < 1 || port > MLX4_MAX_PORTS ||
 	    enabled < 0 || enabled > 1)
 		return -EINVAL;
+
+	if (min_port == max_port && dev->caps.num_ports > 1) {
+		mlx4_info(dev, "SMI access disallowed for single ported VFs\n");
+		return -EPROTONOSUPPORT;
+	}
 
 	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
 	return 0;

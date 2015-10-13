@@ -132,6 +132,7 @@ static int ep93xx_wdt_probe(struct platform_device *pdev)
 	val = readl(mmio_base + EP93XX_WATCHDOG);
 	ep93xx_wdt_wdd.bootstatus = (val & 0x01) ? WDIOF_CARDRESET : 0;
 	ep93xx_wdt_wdd.timeout = timeout;
+	ep93xx_wdt_wdd.parent = &pdev->dev;
 
 	watchdog_set_nowayout(&ep93xx_wdt_wdd, nowayout);
 

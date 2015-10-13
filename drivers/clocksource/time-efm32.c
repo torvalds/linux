@@ -48,40 +48,42 @@ struct efm32_clock_event_ddata {
 	unsigned periodic_top;
 };
 
-static void efm32_clock_event_set_mode(enum clock_event_mode mode,
-				       struct clock_event_device *evtdev)
+static int efm32_clock_event_shutdown(struct clock_event_device *evtdev)
 {
 	struct efm32_clock_event_ddata *ddata =
 		container_of(evtdev, struct efm32_clock_event_ddata, evtdev);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
-		writel_relaxed(ddata->periodic_top, ddata->base + TIMERn_TOP);
-		writel_relaxed(TIMERn_CTRL_PRESC_1024 |
-			       TIMERn_CTRL_CLKSEL_PRESCHFPERCLK |
-			       TIMERn_CTRL_MODE_DOWN,
-			       ddata->base + TIMERn_CTRL);
-		writel_relaxed(TIMERn_CMD_START, ddata->base + TIMERn_CMD);
-		break;
+	writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_ONESHOT:
-		writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
-		writel_relaxed(TIMERn_CTRL_PRESC_1024 |
-			       TIMERn_CTRL_CLKSEL_PRESCHFPERCLK |
-			       TIMERn_CTRL_OSMEN |
-			       TIMERn_CTRL_MODE_DOWN,
-			       ddata->base + TIMERn_CTRL);
-		break;
+static int efm32_clock_event_set_oneshot(struct clock_event_device *evtdev)
+{
+	struct efm32_clock_event_ddata *ddata =
+		container_of(evtdev, struct efm32_clock_event_ddata, evtdev);
 
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-		writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
-		break;
+	writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
+	writel_relaxed(TIMERn_CTRL_PRESC_1024 |
+		       TIMERn_CTRL_CLKSEL_PRESCHFPERCLK |
+		       TIMERn_CTRL_OSMEN |
+		       TIMERn_CTRL_MODE_DOWN,
+		       ddata->base + TIMERn_CTRL);
+	return 0;
+}
 
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+static int efm32_clock_event_set_periodic(struct clock_event_device *evtdev)
+{
+	struct efm32_clock_event_ddata *ddata =
+		container_of(evtdev, struct efm32_clock_event_ddata, evtdev);
+
+	writel_relaxed(TIMERn_CMD_STOP, ddata->base + TIMERn_CMD);
+	writel_relaxed(ddata->periodic_top, ddata->base + TIMERn_TOP);
+	writel_relaxed(TIMERn_CTRL_PRESC_1024 |
+		       TIMERn_CTRL_CLKSEL_PRESCHFPERCLK |
+		       TIMERn_CTRL_MODE_DOWN,
+		       ddata->base + TIMERn_CTRL);
+	writel_relaxed(TIMERn_CMD_START, ddata->base + TIMERn_CMD);
+	return 0;
 }
 
 static int efm32_clock_event_set_next_event(unsigned long evt,
@@ -111,8 +113,10 @@ static irqreturn_t efm32_clock_event_handler(int irq, void *dev_id)
 static struct efm32_clock_event_ddata clock_event_ddata = {
 	.evtdev = {
 		.name = "efm32 clockevent",
-		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_MODE_PERIODIC,
-		.set_mode = efm32_clock_event_set_mode,
+		.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
+		.set_state_shutdown = efm32_clock_event_shutdown,
+		.set_state_periodic = efm32_clock_event_set_periodic,
+		.set_state_oneshot = efm32_clock_event_set_oneshot,
 		.set_next_event = efm32_clock_event_set_next_event,
 		.rating = 200,
 	},

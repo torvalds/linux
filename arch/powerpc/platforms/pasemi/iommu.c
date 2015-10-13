@@ -27,6 +27,8 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 
+#include "pasemi.h"
+
 #define IOBMAP_PAGE_SHIFT	12
 #define IOBMAP_PAGE_SIZE	(1 << IOBMAP_PAGE_SHIFT)
 #define IOBMAP_PAGE_MASK	(IOBMAP_PAGE_SIZE - 1)
@@ -132,6 +134,10 @@ static void iobmap_free(struct iommu_table *tbl, long index,
 	}
 }
 
+static struct iommu_table_ops iommu_table_iobmap_ops = {
+	.set = iobmap_build,
+	.clear  = iobmap_free
+};
 
 static void iommu_table_iobmap_setup(void)
 {
@@ -151,6 +157,7 @@ static void iommu_table_iobmap_setup(void)
 	 * Should probably be 8 (64 bytes)
 	 */
 	iommu_table_iobmap.it_blocksize = 4;
+	iommu_table_iobmap.it_ops = &iommu_table_iobmap_ops;
 	iommu_init_table(&iommu_table_iobmap, 0);
 	pr_debug(" <- %s\n", __func__);
 }
@@ -248,10 +255,8 @@ void __init iommu_init_early_pasemi(void)
 
 	iob_init(NULL);
 
-	ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_pasemi;
-	ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_pasemi;
-	ppc_md.tce_build = iobmap_build;
-	ppc_md.tce_free  = iobmap_free;
+	pasemi_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pasemi;
+	pasemi_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pasemi;
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 

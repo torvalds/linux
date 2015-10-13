@@ -28,7 +28,7 @@
 #include <linux/omap-dma.h>
 #include <mach/tc.h>
 
-#include <mach/irqs.h>
+#include "soc.h"
 
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17

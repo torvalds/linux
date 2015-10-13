@@ -62,7 +62,8 @@ static int tcf_csum_init(struct net *n, struct nlattr *nla, struct nlattr *est,
 	parm = nla_data(tb[TCA_CSUM_PARMS]);
 
 	if (!tcf_hash_check(parm->index, a, bind)) {
-		ret = tcf_hash_create(parm->index, est, a, sizeof(*p), bind);
+		ret = tcf_hash_create(parm->index, est, a, sizeof(*p),
+				      bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;

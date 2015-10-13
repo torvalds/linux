@@ -1720,27 +1720,14 @@ static int __init samsung_init(void)
 	samsung->handle_backlight = true;
 	samsung->quirks = quirks;
 
-
 #ifdef CONFIG_ACPI
 	if (samsung->quirks->broken_acpi_video)
-		acpi_video_dmi_promote_vendor();
+		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
+	if (samsung->quirks->use_native_backlight)
+		acpi_video_set_dmi_backlight_type(acpi_backlight_native);
 
-	/* Don't handle backlight here if the acpi video already handle it */
-	if (acpi_video_backlight_support()) {
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		samsung->handle_backlight = false;
-	} else if (samsung->quirks->broken_acpi_video) {
-		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
-	}
-
-	if (samsung->quirks->use_native_backlight) {
-		pr_info("Using native backlight driver\n");
-		/* Tell acpi-video to not handle the backlight */
-		acpi_video_dmi_promote_vendor();
-		acpi_video_unregister();
-		/* And also do not handle it ourselves */
-		samsung->handle_backlight = false;
-	}
 #endif
 
 	ret = samsung_platform_init(samsung);
@@ -1750,12 +1737,6 @@ static int __init samsung_init(void)
 	ret = samsung_sabi_init(samsung);
 	if (ret)
 		goto error_sabi;
-
-#ifdef CONFIG_ACPI
-	/* Only log that if we are really on a sabi platform */
-	if (acpi_video_backlight_support())
-		pr_info("Backlight controlled by ACPI video driver\n");
-#endif
 
 	ret = samsung_sysfs_init(samsung);
 	if (ret)

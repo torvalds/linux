@@ -11,7 +11,7 @@
 
 #include <irq.h>
 
-#ifdef CONFIG_IRQ_CPU
+#ifdef CONFIG_IRQ_MIPS_CPU
 #define TXX9_IRQ_BASE	(MIPS_CPU_IRQ_BASE + 8)
 #else
 #ifdef CONFIG_I8259

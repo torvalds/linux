@@ -56,6 +56,18 @@
 #if defined(_LINUX) || defined(__linux__)
 #include <acpi/platform/aclinuxex.h>
 
+#elif defined(WIN32)
+#include "acwinex.h"
+
+#elif defined(_AED_EFI)
+#include "acefiex.h"
+
+#elif defined(_GNU_EFI)
+#include "acefiex.h"
+
+#elif defined(__DragonFly__)
+#include "acdragonflyex.h"
+
 #endif
 
 /*! [End] no source code translation !*/

@@ -15,6 +15,19 @@
 
 #include <linux/usb/ehci_def.h>
 
+/*
+ * ID
+ * For 1.x revision, bit24 - bit31 are reserved
+ * For 2.x revision, bit25 - bit28 are 0x2
+ */
+#define TAG		      (0x1F << 16)
+#define REVISION	      (0xF << 21)
+#define VERSION		      (0xF << 25)
+#define CIVERSION	      (0x7 << 29)
+
+/* SBUSCFG */
+#define AHBBRST_MASK		0x7
+
 /* HCCPARAMS */
 #define HCCPARAMS_LEN         BIT(17)
 
@@ -43,6 +56,15 @@
 #define DEVICEADDR_USBADRA    BIT(24)
 #define DEVICEADDR_USBADR     (0x7FUL << 25)
 
+/* TTCTRL */
+#define TTCTRL_TTHA_MASK	(0x7fUL << 24)
+/* Set non-zero value for internal TT Hub address representation */
+#define TTCTRL_TTHA		(0x7fUL << 24)
+
+/* BURSTSIZE */
+#define RX_BURST_MASK		0xff
+#define TX_BURST_MASK		0xff00
+
 /* PORTSC */
 #define PORTSC_CCS            BIT(0)
 #define PORTSC_CSC            BIT(1)
@@ -53,6 +75,7 @@
 #define PORTSC_HSP            BIT(9)
 #define PORTSC_PP             BIT(12)
 #define PORTSC_PTC            (0x0FUL << 16)
+#define PORTSC_WKCN           BIT(20)
 #define PORTSC_PHCD(d)	      ((d) ? BIT(22) : BIT(23))
 /* PTS and PTW for non lpm version only */
 #define PORTSC_PFSC           BIT(24)

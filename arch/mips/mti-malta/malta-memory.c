@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cdmm.h>
 #include <asm/maar.h>
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
@@ -53,6 +54,12 @@ fw_memblock_t * __init fw_getmdesc(int eva)
 		pr_warn("memsize not set in YAMON, set to default (32Mb)\n");
 		physical_memsize = 0x02000000;
 	} else {
+		if (memsize > (256 << 20)) { /* memsize should be capped to 256M */
+			pr_warn("Unsupported memsize value (0x%lx) detected! "
+				"Using 0x10000000 (256M) instead\n",
+				memsize);
+			memsize = 256 << 20;
+		}
 		/* If ememsize is set, then set physical_memsize to that */
 		physical_memsize = ememsize ? : memsize;
 	}
@@ -172,27 +179,8 @@ void __init prom_free_prom_memory(void)
 	}
 }
 
-unsigned platform_maar_init(unsigned num_pairs)
+phys_addr_t mips_cdmm_phys_base(void)
 {
-	phys_addr_t mem_end = (physical_memsize & ~0xffffull) - 1;
-	struct maar_config cfg[] = {
-		/* DRAM preceding I/O */
-		{ 0x00000000, 0x0fffffff, MIPS_MAAR_S },
-
-		/* DRAM following I/O */
-		{ 0x20000000, mem_end, MIPS_MAAR_S },
-
-		/* DRAM alias in upper half of physical */
-		{ 0x80000000, 0x80000000 + mem_end, MIPS_MAAR_S },
-	};
-	unsigned i, num_cfg = ARRAY_SIZE(cfg);
-
-	/* If DRAM fits before I/O, drop the region following it */
-	if (physical_memsize <= 0x10000000) {
-		num_cfg--;
-		for (i = 1; i < num_cfg; i++)
-			cfg[i] = cfg[i + 1];
-	}
-
-	return maar_config(cfg, num_cfg, num_pairs);
+	/* This address is "typically unused" */
+	return 0x1fc10000;
 }

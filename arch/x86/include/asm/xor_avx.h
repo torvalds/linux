@@ -18,7 +18,7 @@
 #ifdef CONFIG_AS_AVX
 
 #include <linux/compiler.h>
-#include <asm/i387.h>
+#include <asm/fpu/api.h>
 
 #define BLOCK4(i) \
 		BLOCK(32 * i, 0) \

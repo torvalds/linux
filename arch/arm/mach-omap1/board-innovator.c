@@ -456,6 +456,7 @@ MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	.map_io		= innovator_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq	= omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine	= innovator_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

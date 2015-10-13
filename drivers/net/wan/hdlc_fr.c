@@ -1096,7 +1096,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 	}
 	dev->netdev_ops = &pvc_ops;
 	dev->mtu = HDLC_MAX_MTU;
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->ml_priv = pvc;
 
 	if (register_netdevice(dev) != 0) {

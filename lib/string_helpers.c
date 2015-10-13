@@ -4,6 +4,7 @@
  * Copyright 31 August 2008 James Bottomley
  * Copyright (C) 2013, Intel Corporation
  */
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/export.h>
@@ -14,7 +15,8 @@
 
 /**
  * string_get_size - get the size in the specified units
- * @size:	The size to be converted
+ * @size:	The size to be converted in blocks
+ * @blk_size:	Size of the block (use 1 for size in bytes)
  * @units:	units to use (powers of 1000 or 1024)
  * @buf:	buffer to format to
  * @len:	length of buffer
@@ -24,14 +26,14 @@
  * at least 9 bytes and will always be zero terminated.
  *
  */
-void string_get_size(u64 size, const enum string_size_units units,
+void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 		     char *buf, int len)
 {
 	static const char *const units_10[] = {
-		"B", "kB", "MB", "GB", "TB", "PB", "EB"
+		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
 	};
 	static const char *const units_2[] = {
-		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"
+		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
 	};
 	static const char *const *const units_str[] = {
 		[STRING_UNITS_10] = units_10,
@@ -42,31 +44,61 @@ void string_get_size(u64 size, const enum string_size_units units,
 		[STRING_UNITS_2] = 1024,
 	};
 	int i, j;
-	u32 remainder = 0, sf_cap;
+	u32 remainder = 0, sf_cap, exp;
 	char tmp[8];
+	const char *unit;
 
 	tmp[0] = '\0';
 	i = 0;
-	if (size >= divisor[units]) {
-		while (size >= divisor[units]) {
-			remainder = do_div(size, divisor[units]);
-			i++;
-		}
+	if (!size)
+		goto out;
 
-		sf_cap = size;
-		for (j = 0; sf_cap*10 < 1000; j++)
-			sf_cap *= 10;
-
-		if (j) {
-			remainder *= 1000;
-			remainder /= divisor[units];
-			snprintf(tmp, sizeof(tmp), ".%03u", remainder);
-			tmp[j+1] = '\0';
-		}
+	while (blk_size >= divisor[units]) {
+		remainder = do_div(blk_size, divisor[units]);
+		i++;
 	}
 
+	exp = divisor[units] / (u32)blk_size;
+	/*
+	 * size must be strictly greater than exp here to ensure that remainder
+	 * is greater than divisor[units] coming out of the if below.
+	 */
+	if (size > exp) {
+		remainder = do_div(size, divisor[units]);
+		remainder *= blk_size;
+		i++;
+	} else {
+		remainder *= size;
+	}
+
+	size *= blk_size;
+	size += remainder / divisor[units];
+	remainder %= divisor[units];
+
+	while (size >= divisor[units]) {
+		remainder = do_div(size, divisor[units]);
+		i++;
+	}
+
+	sf_cap = size;
+	for (j = 0; sf_cap*10 < 1000; j++)
+		sf_cap *= 10;
+
+	if (j) {
+		remainder *= 1000;
+		remainder /= divisor[units];
+		snprintf(tmp, sizeof(tmp), ".%03u", remainder);
+		tmp[j+1] = '\0';
+	}
+
+ out:
+	if (i >= ARRAY_SIZE(units_2))
+		unit = "UNK";
+	else
+		unit = units_str[units][i];
+
 	snprintf(buf, len, "%u%s %s", (u32)size,
-		 tmp, units_str[units][i]);
+		 tmp, unit);
 }
 EXPORT_SYMBOL(string_get_size);
 
@@ -239,28 +271,20 @@ int string_unescape(char *src, char *dst, size_t size, unsigned int flags)
 }
 EXPORT_SYMBOL(string_unescape);
 
-static int escape_passthrough(unsigned char c, char **dst, size_t *osz)
+static bool escape_passthrough(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 1)
-		return -ENOMEM;
-
-	*out++ = c;
-
-	*dst = out;
-	*osz -= 1;
-
-	return 1;
+	if (out < end)
+		*out = c;
+	*dst = out + 1;
+	return true;
 }
 
-static int escape_space(unsigned char c, char **dst, size_t *osz)
+static bool escape_space(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 	unsigned char to;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	switch (c) {
 	case '\n':
@@ -279,25 +303,24 @@ static int escape_space(unsigned char c, char **dst, size_t *osz)
 		to = 'f';
 		break;
 	default:
-		return 0;
+		return false;
 	}
 
-	*out++ = '\\';
-	*out++ = to;
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = to;
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_special(unsigned char c, char **dst, size_t *osz)
+static bool escape_special(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 	unsigned char to;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	switch (c) {
 	case '\\':
@@ -310,71 +333,78 @@ static int escape_special(unsigned char c, char **dst, size_t *osz)
 		to = 'e';
 		break;
 	default:
-		return 0;
+		return false;
 	}
 
-	*out++ = '\\';
-	*out++ = to;
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = to;
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_null(unsigned char c, char **dst, size_t *osz)
+static bool escape_null(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
-
-	if (*osz < 2)
-		return -ENOMEM;
 
 	if (c)
-		return 0;
+		return false;
 
-	*out++ = '\\';
-	*out++ = '0';
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = '0';
+	++out;
 
 	*dst = out;
-	*osz -= 2;
-
-	return 1;
+	return true;
 }
 
-static int escape_octal(unsigned char c, char **dst, size_t *osz)
+static bool escape_octal(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 4)
-		return -ENOMEM;
-
-	*out++ = '\\';
-	*out++ = ((c >> 6) & 0x07) + '0';
-	*out++ = ((c >> 3) & 0x07) + '0';
-	*out++ = ((c >> 0) & 0x07) + '0';
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = ((c >> 6) & 0x07) + '0';
+	++out;
+	if (out < end)
+		*out = ((c >> 3) & 0x07) + '0';
+	++out;
+	if (out < end)
+		*out = ((c >> 0) & 0x07) + '0';
+	++out;
 
 	*dst = out;
-	*osz -= 4;
-
-	return 1;
+	return true;
 }
 
-static int escape_hex(unsigned char c, char **dst, size_t *osz)
+static bool escape_hex(unsigned char c, char **dst, char *end)
 {
 	char *out = *dst;
 
-	if (*osz < 4)
-		return -ENOMEM;
-
-	*out++ = '\\';
-	*out++ = 'x';
-	*out++ = hex_asc_hi(c);
-	*out++ = hex_asc_lo(c);
+	if (out < end)
+		*out = '\\';
+	++out;
+	if (out < end)
+		*out = 'x';
+	++out;
+	if (out < end)
+		*out = hex_asc_hi(c);
+	++out;
+	if (out < end)
+		*out = hex_asc_lo(c);
+	++out;
 
 	*dst = out;
-	*osz -= 4;
-
-	return 1;
+	return true;
 }
 
 /**
@@ -384,7 +414,7 @@ static int escape_hex(unsigned char c, char **dst, size_t *osz)
  * @dst:	destination buffer (escaped)
  * @osz:	destination buffer size
  * @flags:	combination of the flags (bitwise OR):
- *	%ESCAPE_SPACE:
+ *	%ESCAPE_SPACE: (special white space, not space itself)
  *		'\f' - form feed
  *		'\n' - new line
  *		'\r' - carriage return
@@ -406,16 +436,18 @@ static int escape_hex(unsigned char c, char **dst, size_t *osz)
  *		all previous together
  *	%ESCAPE_HEX:
  *		'\xHH' - byte with hexadecimal value HH (2 digits)
- * @esc:	NULL-terminated string of characters any of which, if found in
- *		the source, has to be escaped
+ * @only:	NULL-terminated string containing characters used to limit
+ *		the selected escape class. If characters are included in @only
+ *		that would not normally be escaped by the classes selected
+ *		in @flags, they will be copied to @dst unescaped.
  *
  * Description:
  * The process of escaping byte buffer includes several parts. They are applied
  * in the following sequence.
  *	1. The character is matched to the printable class, if asked, and in
  *	   case of match it passes through to the output.
- *	2. The character is not matched to the one from @esc string and thus
- *	   must go as is to the output.
+ *	2. The character is not matched to the one from @only string and thus
+ *	   must go as-is to the output.
  *	3. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
  *	   character. Note that they actually can't go together, otherwise
@@ -426,19 +458,17 @@ static int escape_hex(unsigned char c, char **dst, size_t *osz)
  * it if needs.
  *
  * Return:
- * The amount of the characters processed to the destination buffer, or
- * %-ENOMEM if the size of buffer is not enough to put an escaped character is
- * returned.
- *
- * Even in the case of error @dst pointer will be updated to point to the byte
- * after the last processed character.
+ * The total size of the escaped output that would be generated for
+ * the given input and flags. To check whether the output was
+ * truncated, compare the return value to osz. There is room left in
+ * dst for a '\0' terminator if and only if ret < osz.
  */
-int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
-		      unsigned int flags, const char *esc)
+int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
+		      unsigned int flags, const char *only)
 {
-	char *out = *dst, *p = out;
-	bool is_dict = esc && *esc;
-	int ret = 0;
+	char *p = dst;
+	char *end = p + osz;
+	bool is_dict = only && *only;
 
 	while (isz--) {
 		unsigned char c = *src++;
@@ -447,7 +477,7 @@ int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
 		 * Apply rules in the following sequence:
 		 *	- the character is printable, when @flags has
 		 *	  %ESCAPE_NP bit set
-		 *	- the @esc string is supplied and does not contain a
+		 *	- the @only string is supplied and does not contain a
 		 *	  character under question
 		 *	- the character doesn't fall into a class of symbols
 		 *	  defined by given @flags
@@ -455,58 +485,29 @@ int string_escape_mem(const char *src, size_t isz, char **dst, size_t osz,
 		 * output buffer.
 		 */
 		if ((flags & ESCAPE_NP && isprint(c)) ||
-		    (is_dict && !strchr(esc, c))) {
+		    (is_dict && !strchr(only, c))) {
 			/* do nothing */
 		} else {
-			if (flags & ESCAPE_SPACE) {
-				ret = escape_space(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
+				continue;
 
-			if (flags & ESCAPE_SPECIAL) {
-				ret = escape_special(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_SPECIAL && escape_special(c, &p, end))
+				continue;
 
-			if (flags & ESCAPE_NULL) {
-				ret = escape_null(c, &p, &osz);
-				if (ret < 0)
-					break;
-				if (ret > 0)
-					continue;
-			}
+			if (flags & ESCAPE_NULL && escape_null(c, &p, end))
+				continue;
 
 			/* ESCAPE_OCTAL and ESCAPE_HEX always go last */
-			if (flags & ESCAPE_OCTAL) {
-				ret = escape_octal(c, &p, &osz);
-				if (ret < 0)
-					break;
+			if (flags & ESCAPE_OCTAL && escape_octal(c, &p, end))
 				continue;
-			}
-			if (flags & ESCAPE_HEX) {
-				ret = escape_hex(c, &p, &osz);
-				if (ret < 0)
-					break;
+
+			if (flags & ESCAPE_HEX && escape_hex(c, &p, end))
 				continue;
-			}
 		}
 
-		ret = escape_passthrough(c, &p, &osz);
-		if (ret < 0)
-			break;
+		escape_passthrough(c, &p, end);
 	}
 
-	*dst = p;
-
-	if (ret < 0)
-		return ret;
-
-	return p - out;
+	return p - dst;
 }
 EXPORT_SYMBOL(string_escape_mem);

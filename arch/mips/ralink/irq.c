@@ -89,18 +89,19 @@ int get_c0_perfcount_int(void)
 {
 	return rt_perfcount_irq;
 }
+EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }
 
-static void ralink_intc_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void ralink_intc_irq_handler(struct irq_desc *desc)
 {
 	u32 pending = rt_intc_r32(INTC_REG_STATUS0);
 
 	if (pending) {
-		struct irq_domain *domain = irq_get_handler_data(irq);
+		struct irq_domain *domain = irq_desc_get_handler_data(desc);
 		generic_handle_irq(irq_find_mapping(domain, __ffs(pending)));
 	} else {
 		spurious_interrupt();
@@ -184,8 +185,7 @@ static int __init intc_of_init(struct device_node *node,
 
 	rt_intc_w32(INTC_INT_GLOBAL, INTC_REG_ENABLE);
 
-	irq_set_chained_handler(irq, ralink_intc_irq_handler);
-	irq_set_handler_data(irq, domain);
+	irq_set_chained_handler_and_data(irq, ralink_intc_irq_handler, domain);
 
 	/* tell the kernel which irq is used for performance monitoring */
 	rt_perfcount_irq = irq_create_mapping(domain, 9);

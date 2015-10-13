@@ -44,6 +44,11 @@ static inline int ieee754_setandtestcx(const unsigned int x)
 	return ieee754_csr.mx & x;
 }
 
+static inline int ieee754_class_nan(int xc)
+{
+	return xc >= IEEE754_CLASS_SNAN;
+}
+
 #define COMPXSP \
 	unsigned xm; int xe; int xs __maybe_unused; int xc
 
@@ -60,8 +65,8 @@ static inline int ieee754_setandtestcx(const unsigned int x)
 			vc = IEEE754_CLASS_INF;				\
 		else if (vm & SP_MBIT(SP_FBITS-1))			\
 			vc = IEEE754_CLASS_SNAN;			\
-	else								\
-		vc = IEEE754_CLASS_QNAN;				\
+		else							\
+			vc = IEEE754_CLASS_QNAN;			\
 	} else if (ve == SP_EMIN-1+SP_EBIAS) {				\
 		if (vm) {						\
 			ve = SP_EMIN;					\
@@ -100,8 +105,8 @@ static inline int ieee754_setandtestcx(const unsigned int x)
 		if (vm) {						\
 			ve = DP_EMIN;					\
 			vc = IEEE754_CLASS_DNORM;			\
-	} else								\
-		vc = IEEE754_CLASS_ZERO;				\
+		} else							\
+			vc = IEEE754_CLASS_ZERO;			\
 	} else {							\
 		ve -= DP_EBIAS;						\
 		vm |= DP_HIDDEN_BIT;					\

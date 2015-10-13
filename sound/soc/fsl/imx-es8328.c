@@ -53,9 +53,9 @@ static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Headphone jack detection */
 	if (gpio_is_valid(data->jack_gpio)) {
-		ret = snd_soc_jack_new(rtd->codec, "Headphone",
-				       SND_JACK_HEADPHONE | SND_JACK_BTN_0,
-				       &headset_jack);
+		ret = snd_soc_card_jack_new(rtd->card, "Headphone",
+					    SND_JACK_HEADPHONE | SND_JACK_BTN_0,
+					    &headset_jack, NULL, 0);
 		if (ret)
 			return ret;
 

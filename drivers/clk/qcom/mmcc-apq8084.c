@@ -27,47 +27,49 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define P_XO		0
-#define P_MMPLL0	1
-#define P_EDPLINK	1
-#define P_MMPLL1	2
-#define P_HDMIPLL	2
-#define P_GPLL0		3
-#define P_EDPVCO	3
-#define P_MMPLL4	4
-#define P_DSI0PLL	4
-#define P_DSI0PLL_BYTE	4
-#define P_MMPLL2	4
-#define P_MMPLL3	4
-#define P_GPLL1		5
-#define P_DSI1PLL	5
-#define P_DSI1PLL_BYTE	5
-#define P_MMSLEEP	6
-
-static const u8 mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_GPLL0]	= 5,
+enum {
+	P_XO,
+	P_MMPLL0,
+	P_EDPLINK,
+	P_MMPLL1,
+	P_HDMIPLL,
+	P_GPLL0,
+	P_EDPVCO,
+	P_MMPLL4,
+	P_DSI0PLL,
+	P_DSI0PLL_BYTE,
+	P_MMPLL2,
+	P_MMPLL3,
+	P_GPLL1,
+	P_DSI1PLL,
+	P_DSI1PLL_BYTE,
+	P_MMSLEEP,
 };
 
-static const char *mmcc_xo_mmpll0_mmpll1_gpll0[] = {
+static const struct parent_map mmcc_xo_mmpll0_mmpll1_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_GPLL0, 5 }
+};
+
+static const char * const mmcc_xo_mmpll0_mmpll1_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
 	"mmss_gpll0_vote",
 };
 
-static const u8 mmcc_xo_mmpll0_dsi_hdmi_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_HDMIPLL]	= 4,
-	[P_GPLL0]	= 5,
-	[P_DSI0PLL]	= 2,
-	[P_DSI1PLL]	= 3,
+static const struct parent_map mmcc_xo_mmpll0_dsi_hdmi_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_HDMIPLL, 4 },
+	{ P_GPLL0, 5 },
+	{ P_DSI0PLL, 2 },
+	{ P_DSI1PLL, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"hdmipll",
@@ -76,15 +78,15 @@ static const char *mmcc_xo_mmpll0_dsi_hdmi_gpll0[] = {
 	"dsi1pll",
 };
 
-static const u8 mmcc_xo_mmpll0_1_2_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_GPLL0]	= 5,
-	[P_MMPLL2]	= 3,
+static const struct parent_map mmcc_xo_mmpll0_1_2_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_GPLL0, 5 },
+	{ P_MMPLL2, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_2_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_2_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -92,15 +94,15 @@ static const char *mmcc_xo_mmpll0_1_2_gpll0[] = {
 	"mmpll2",
 };
 
-static const u8 mmcc_xo_mmpll0_1_3_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_GPLL0]	= 5,
-	[P_MMPLL3]	= 3,
+static const struct parent_map mmcc_xo_mmpll0_1_3_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_GPLL0, 5 },
+	{ P_MMPLL3, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_3_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_3_gpll0[] = {
 	"xo",
 	"mmpll0_vote",
 	"mmpll1_vote",
@@ -108,16 +110,16 @@ static const char *mmcc_xo_mmpll0_1_3_gpll0[] = {
 	"mmpll3",
 };
 
-static const u8 mmcc_xo_dsi_hdmi_edp_map[] = {
-	[P_XO]		= 0,
-	[P_EDPLINK]	= 4,
-	[P_HDMIPLL]	= 3,
-	[P_EDPVCO]	= 5,
-	[P_DSI0PLL]	= 1,
-	[P_DSI1PLL]	= 2,
+static const struct parent_map mmcc_xo_dsi_hdmi_edp_map[] = {
+	{ P_XO, 0 },
+	{ P_EDPLINK, 4 },
+	{ P_HDMIPLL, 3 },
+	{ P_EDPVCO, 5 },
+	{ P_DSI0PLL, 1 },
+	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -126,16 +128,16 @@ static const char *mmcc_xo_dsi_hdmi_edp[] = {
 	"dsi1pll",
 };
 
-static const u8 mmcc_xo_dsi_hdmi_edp_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_EDPLINK]	= 4,
-	[P_HDMIPLL]	= 3,
-	[P_GPLL0]	= 5,
-	[P_DSI0PLL]	= 1,
-	[P_DSI1PLL]	= 2,
+static const struct parent_map mmcc_xo_dsi_hdmi_edp_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_EDPLINK, 4 },
+	{ P_HDMIPLL, 3 },
+	{ P_GPLL0, 5 },
+	{ P_DSI0PLL, 1 },
+	{ P_DSI1PLL, 2 }
 };
 
-static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -144,16 +146,16 @@ static const char *mmcc_xo_dsi_hdmi_edp_gpll0[] = {
 	"dsi1pll",
 };
 
-static const u8 mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
-	[P_XO]			= 0,
-	[P_EDPLINK]		= 4,
-	[P_HDMIPLL]		= 3,
-	[P_GPLL0]		= 5,
-	[P_DSI0PLL_BYTE]	= 1,
-	[P_DSI1PLL_BYTE]	= 2,
+static const struct parent_map mmcc_xo_dsibyte_hdmi_edp_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_EDPLINK, 4 },
+	{ P_HDMIPLL, 3 },
+	{ P_GPLL0, 5 },
+	{ P_DSI0PLL_BYTE, 1 },
+	{ P_DSI1PLL_BYTE, 2 }
 };
 
-static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
+static const char * const mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
 	"xo",
 	"edp_link_clk",
 	"hdmipll",
@@ -162,15 +164,15 @@ static const char *mmcc_xo_dsibyte_hdmi_edp_gpll0[] = {
 	"dsi1pllbyte",
 };
 
-static const u8 mmcc_xo_mmpll0_1_4_gpll0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_GPLL0]	= 5,
-	[P_MMPLL4]	= 3,
+static const struct parent_map mmcc_xo_mmpll0_1_4_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_GPLL0, 5 },
+	{ P_MMPLL4, 3 }
 };
 
-static const char *mmcc_xo_mmpll0_1_4_gpll0[] = {
+static const char * const mmcc_xo_mmpll0_1_4_gpll0[] = {
 	"xo",
 	"mmpll0",
 	"mmpll1",
@@ -178,16 +180,16 @@ static const char *mmcc_xo_mmpll0_1_4_gpll0[] = {
 	"gpll0",
 };
 
-static const u8 mmcc_xo_mmpll0_1_4_gpll1_0_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_MMPLL4]	= 3,
-	[P_GPLL0]	= 5,
-	[P_GPLL1]	= 4,
+static const struct parent_map mmcc_xo_mmpll0_1_4_gpll1_0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_MMPLL4, 3 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL1, 4 }
 };
 
-static const char *mmcc_xo_mmpll0_1_4_gpll1_0[] = {
+static const char * const mmcc_xo_mmpll0_1_4_gpll1_0[] = {
 	"xo",
 	"mmpll0",
 	"mmpll1",
@@ -196,17 +198,17 @@ static const char *mmcc_xo_mmpll0_1_4_gpll1_0[] = {
 	"gpll0",
 };
 
-static const u8 mmcc_xo_mmpll0_1_4_gpll1_0_sleep_map[] = {
-	[P_XO]		= 0,
-	[P_MMPLL0]	= 1,
-	[P_MMPLL1]	= 2,
-	[P_MMPLL4]	= 3,
-	[P_GPLL0]	= 5,
-	[P_GPLL1]	= 4,
-	[P_MMSLEEP]	= 6,
+static const struct parent_map mmcc_xo_mmpll0_1_4_gpll1_0_sleep_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_MMPLL4, 3 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL1, 4 },
+	{ P_MMSLEEP, 6 }
 };
 
-static const char *mmcc_xo_mmpll0_1_4_gpll1_0_sleep[] = {
+static const char * const mmcc_xo_mmpll0_1_4_gpll1_0_sleep[] = {
 	"xo",
 	"mmpll0",
 	"mmpll1",

@@ -121,16 +121,9 @@ static struct snd_timer *mytimer;
 static int __init snd_hrtimer_init(void)
 {
 	struct snd_timer *timer;
-	struct timespec tp;
 	int err;
 
-	hrtimer_get_res(CLOCK_MONOTONIC, &tp);
-	if (tp.tv_sec > 0 || !tp.tv_nsec) {
-		pr_err("snd-hrtimer: Invalid resolution %u.%09u",
-			   (unsigned)tp.tv_sec, (unsigned)tp.tv_nsec);
-		return -EINVAL;
-	}
-	resolution = tp.tv_nsec;
+	resolution = hrtimer_resolution;
 
 	/* Create a new timer and set up the fields */
 	err = snd_timer_global_new("hrtimer", SNDRV_TIMER_GLOBAL_HRTIMER,

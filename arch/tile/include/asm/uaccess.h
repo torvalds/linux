@@ -65,6 +65,13 @@ static inline int is_arch_mappable_range(unsigned long addr,
 #endif
 
 /*
+ * Note that using this definition ignores is_arch_mappable_range(),
+ * so on tilepro code that uses user_addr_max() is constrained not
+ * to reference the tilepro user-interrupt region.
+ */
+#define user_addr_max() (current_thread_info()->addr_limit.seg)
+
+/*
  * Test whether a block of memory is a valid user space address.
  * Returns 0 if the range is valid, nonzero otherwise.
  */
@@ -78,7 +85,8 @@ int __range_ok(unsigned long addr, unsigned long size);
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
@@ -192,7 +200,8 @@ extern int __get_user_bad(void)
  * @x:   Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -274,7 +283,8 @@ extern int __put_user_bad(void)
  * @x:   Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -330,7 +340,8 @@ extern int __put_user_bad(void)
  * @from: Source address, in kernel space.
  * @n:    Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Copy data from kernel space to user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -366,7 +377,8 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
  * @from: Source address, in user space.
  * @n:    Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Copy data from user space to kernel space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -437,7 +449,8 @@ static inline unsigned long __must_check copy_from_user(void *to,
  * @from: Source address, in user space.
  * @n:    Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
  * Copy data from user space to user space.  Caller must check
  * the specified blocks with access_ok() before calling this function.
@@ -465,62 +478,9 @@ copy_in_user(void __user *to, const void __user *from, unsigned long n)
 #endif
 
 
-/**
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only.  This function may sleep.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-extern long strnlen_user_asm(const char __user *str, long n);
-static inline long __must_check strnlen_user(const char __user *str, long n)
-{
-	might_fault();
-	return strnlen_user_asm(str, n);
-}
-#define strlen_user(str) strnlen_user(str, LONG_MAX)
-
-/**
- * strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- * Caller must check the specified block with access_ok() before calling
- * this function.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-extern long strncpy_from_user_asm(char *dst, const char __user *src, long);
-static inline long __must_check __strncpy_from_user(
-	char *dst, const char __user *src, long count)
-{
-	might_fault();
-	return strncpy_from_user_asm(dst, src, count);
-}
-static inline long __must_check strncpy_from_user(
-	char *dst, const char __user *src, long count)
-{
-	if (access_ok(VERIFY_READ, src, 1))
-		return __strncpy_from_user(dst, src, count);
-	return -EFAULT;
-}
+extern long strnlen_user(const char __user *str, long n);
+extern long strlen_user(const char __user *str);
+extern long strncpy_from_user(char *dst, const char __user *src, long);
 
 /**
  * clear_user: - Zero a block of memory in user space.

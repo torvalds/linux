@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <linux/utsname.h>
 #include <linux/sched.h>
+#include <linux/kmsg_dump.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -65,12 +66,6 @@ static char host_info[(__NEW_UTS_LEN + 1) * 5];
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int index = 0;
-
-#ifdef CONFIG_SMP
-	index = (struct cpuinfo_um *) v - cpu_data;
-	if (!cpu_online(index))
-		return 0;
-#endif
 
 	seq_printf(m, "processor\t: %d\n", index);
 	seq_printf(m, "vendor_id\t: User Mode Linux\n");
@@ -168,23 +163,6 @@ __uml_setup("debug", no_skas_debug_setup,
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
 );
 
-#ifdef CONFIG_SMP
-static int __init uml_ncpus_setup(char *line, int *add)
-{
-	if (!sscanf(line, "%d", &ncpus)) {
-		printf("Couldn't parse [%s]\n", line);
-		return -1;
-	}
-
-	return 0;
-}
-
-__uml_setup("ncpus=", uml_ncpus_setup,
-"ncpus=<# of desired CPUs>\n"
-"    This tells an SMP kernel how many virtual processors to start.\n\n"
-);
-#endif
-
 static int __init Usage(char *line, int *add)
 {
 	const char **p;
@@ -234,6 +212,7 @@ static void __init uml_postsetup(void)
 static int panic_exit(struct notifier_block *self, unsigned long unused1,
 		      void *unused2)
 {
+	kmsg_dump(KMSG_DUMP_PANIC);
 	bust_spinlocks(1);
 	bust_spinlocks(0);
 	uml_exitcode = 1;
@@ -247,6 +226,16 @@ static struct notifier_block panic_exit_notifier = {
 	.priority 		= 0
 };
 
+void uml_finishsetup(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &panic_exit_notifier);
+
+	uml_postsetup();
+
+	new_thread_handler();
+}
+
 /* Set during early boot */
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
@@ -259,8 +248,6 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
-extern char __binary_start;
-
 int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
@@ -268,7 +255,6 @@ int __init linux_main(int argc, char **argv)
 	unsigned long stack;
 	unsigned int i;
 	int add;
-	char * mode;
 
 	for (i = 1; i < argc; i++) {
 		if ((i == 1) && (argv[i][0] == ' '))
@@ -291,15 +277,6 @@ int __init linux_main(int argc, char **argv)
 	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
 
-	can_do_skas();
-
-	if (proc_mm && ptrace_faultinfo)
-		mode = "SKAS3";
-	else
-		mode = "SKAS0";
-
-	printf("UML running in %s mode\n", mode);
-
 	brk_start = (unsigned long) sbrk(0);
 
 	/*
@@ -315,7 +292,7 @@ int __init linux_main(int argc, char **argv)
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
-	uml_physmem = (unsigned long) &__binary_start & PAGE_MASK;
+	uml_physmem = (unsigned long) __binary_start & PAGE_MASK;
 
 	/* Reserve up to 4M after the current brk */
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);
@@ -334,11 +311,6 @@ int __init linux_main(int argc, char **argv)
 	if (physmem_size + iomem_size > max_physmem) {
 		highmem = physmem_size + iomem_size - max_physmem;
 		physmem_size -= highmem;
-#ifndef CONFIG_HIGHMEM
-		highmem = 0;
-		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %Lu bytes\n", physmem_size);
-#endif
 	}
 
 	high_physmem = uml_physmem + physmem_size;
@@ -361,11 +333,6 @@ int __init linux_main(int argc, char **argv)
 	if (virtmem_size < physmem_size)
 		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
-
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &panic_exit_notifier);
-
-	uml_postsetup();
 
 	stack_protections((unsigned long) &init_thread_info);
 	os_flush_stdout();
@@ -390,15 +357,3 @@ void __init check_bugs(void)
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 }
-
-#ifdef CONFIG_SMP
-void alternatives_smp_module_add(struct module *mod, char *name,
-				 void *locks, void *locks_end,
-				 void *text,  void *text_end)
-{
-}
-
-void alternatives_smp_module_del(struct module *mod)
-{
-}
-#endif

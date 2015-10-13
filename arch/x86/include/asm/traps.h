@@ -108,11 +108,12 @@ extern int panic_on_unrecovered_nmi;
 void math_emulate(struct math_emu_info *);
 #ifndef CONFIG_X86_32
 asmlinkage void smp_thermal_interrupt(void);
-asmlinkage void mce_threshold_interrupt(void);
+asmlinkage void smp_threshold_interrupt(void);
+asmlinkage void smp_deferred_error_interrupt(void);
 #endif
 
-extern enum ctx_state ist_enter(struct pt_regs *regs);
-extern void ist_exit(struct pt_regs *regs, enum ctx_state prev_state);
+extern void ist_enter(struct pt_regs *regs);
+extern void ist_exit(struct pt_regs *regs);
 extern void ist_begin_non_atomic(struct pt_regs *regs);
 extern void ist_end_non_atomic(void);
 

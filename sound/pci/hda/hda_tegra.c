@@ -37,7 +37,6 @@
 
 #include "hda_codec.h"
 #include "hda_controller.h"
-#include "hda_priv.h"
 
 /* Defines for Nvidia Tegra HDA support */
 #define HDA_BAR0           0x8000
@@ -74,6 +73,7 @@ struct hda_tegra {
 	struct clk *hda2codec_2x_clk;
 	struct clk *hda2hdmi_clk;
 	void __iomem *regs;
+	struct work_struct probe_work;
 };
 
 #ifdef CONFIG_PM
@@ -82,19 +82,19 @@ module_param(power_save, bint, 0644);
 MODULE_PARM_DESC(power_save,
 		 "Automatic power-saving timeout (in seconds, 0 = disable).");
 #else
-static int power_save = 0;
+#define power_save	0
 #endif
 
 /*
  * DMA page allocation ops.
  */
-static int dma_alloc_pages(struct azx *chip, int type, size_t size,
+static int dma_alloc_pages(struct hdac_bus *bus, int type, size_t size,
 			   struct snd_dma_buffer *buf)
 {
-	return snd_dma_alloc_pages(type, chip->card->dev, size, buf);
+	return snd_dma_alloc_pages(type, bus->dev, size, buf);
 }
 
-static void dma_free_pages(struct azx *chip, struct snd_dma_buffer *buf)
+static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 {
 	snd_dma_free_pages(buf);
 }
@@ -103,11 +103,6 @@ static int substream_alloc_pages(struct azx *chip,
 				 struct snd_pcm_substream *substream,
 				 size_t size)
 {
-	struct azx_dev *azx_dev = get_azx_dev(substream);
-
-	azx_dev->bufsize = 0;
-	azx_dev->period_bytes = 0;
-	azx_dev->format_val = 0;
 	return snd_pcm_lib_malloc_pages(substream, size);
 }
 
@@ -174,7 +169,7 @@ static u8 hda_tegra_readb(u8 *addr)
 	return (v >> shift) & 0xff;
 }
 
-static const struct hda_controller_ops hda_tegra_ops = {
+static const struct hdac_io_ops hda_tegra_io_ops = {
 	.reg_writel = hda_tegra_writel,
 	.reg_readl = hda_tegra_readl,
 	.reg_writew = hda_tegra_writew,
@@ -183,6 +178,9 @@ static const struct hda_controller_ops hda_tegra_ops = {
 	.reg_readb = hda_tegra_readb,
 	.dma_alloc_pages = dma_alloc_pages,
 	.dma_free_pages = dma_free_pages,
+};
+
+static const struct hda_controller_ops hda_tegra_ops = {
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
 };
@@ -250,14 +248,9 @@ static int hda_tegra_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
-	struct azx_pcm *p;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	list_for_each_entry(p, &chip->pcm_list, list)
-		snd_pcm_suspend_all(p->pcm);
-	if (chip->initialized)
-		snd_hda_suspend(chip->bus);
 
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
@@ -278,7 +271,6 @@ static int hda_tegra_resume(struct device *dev)
 
 	azx_init_chip(chip, 1);
 
-	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;
@@ -289,23 +281,31 @@ static const struct dev_pm_ops hda_tegra_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(hda_tegra_suspend, hda_tegra_resume)
 };
 
+static int hda_tegra_dev_disconnect(struct snd_device *device)
+{
+	struct azx *chip = device->device_data;
+
+	chip->bus.shutdown = 1;
+	return 0;
+}
+
 /*
  * destructor
  */
 static int hda_tegra_dev_free(struct snd_device *device)
 {
-	int i;
 	struct azx *chip = device->device_data;
+	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 
-	azx_notifier_unregister(chip);
-
-	if (chip->initialized) {
-		for (i = 0; i < chip->num_streams; i++)
-			azx_stream_stop(chip, &chip->azx_dev[i]);
+	cancel_work_sync(&hda->probe_work);
+	if (azx_bus(chip)->chip_init) {
+		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
 	}
 
 	azx_free_stream_pages(chip);
+	azx_free_streams(chip);
+	snd_hdac_bus_exit(azx_bus(chip));
 
 	return 0;
 }
@@ -313,50 +313,49 @@ static int hda_tegra_dev_free(struct snd_device *device)
 static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 {
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	struct hdac_bus *bus = azx_bus(chip);
 	struct device *dev = hda->dev;
 	struct resource *res;
 	int err;
 
 	hda->hda_clk = devm_clk_get(dev, "hda");
-	if (IS_ERR(hda->hda_clk))
+	if (IS_ERR(hda->hda_clk)) {
+		dev_err(dev, "failed to get hda clock\n");
 		return PTR_ERR(hda->hda_clk);
+	}
 	hda->hda2codec_2x_clk = devm_clk_get(dev, "hda2codec_2x");
-	if (IS_ERR(hda->hda2codec_2x_clk))
+	if (IS_ERR(hda->hda2codec_2x_clk)) {
+		dev_err(dev, "failed to get hda2codec_2x clock\n");
 		return PTR_ERR(hda->hda2codec_2x_clk);
+	}
 	hda->hda2hdmi_clk = devm_clk_get(dev, "hda2hdmi");
-	if (IS_ERR(hda->hda2hdmi_clk))
+	if (IS_ERR(hda->hda2hdmi_clk)) {
+		dev_err(dev, "failed to get hda2hdmi clock\n");
 		return PTR_ERR(hda->hda2hdmi_clk);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hda->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hda->regs))
 		return PTR_ERR(hda->regs);
 
-	chip->remap_addr = hda->regs + HDA_BAR0;
-	chip->addr = res->start + HDA_BAR0;
+	bus->remap_addr = hda->regs + HDA_BAR0;
+	bus->addr = res->start + HDA_BAR0;
 
 	err = hda_tegra_enable_clocks(hda);
-	if (err)
+	if (err) {
+		dev_err(dev, "failed to get enable clocks\n");
 		return err;
+	}
 
 	hda_tegra_init(hda);
 
 	return 0;
 }
 
-/*
- * The codecs were powered up in snd_hda_codec_new().
- * Now all initialization done, so turn them down if possible
- */
-static void power_down_all_codecs(struct azx *chip)
-{
-	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list)
-		snd_hda_power_down(codec);
-}
-
 static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 {
+	struct hdac_bus *bus = azx_bus(chip);
 	struct snd_card *card = chip->card;
 	int err;
 	unsigned short gcap;
@@ -374,9 +373,9 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 			irq_id);
 		return err;
 	}
-	chip->irq = irq_id;
+	bus->irq = irq_id;
 
-	synchronize_irq(chip->irq);
+	synchronize_irq(bus->irq);
 
 	gcap = azx_readw(chip, GCAP);
 	dev_dbg(card->dev, "chipset global capabilities = 0x%x\n", gcap);
@@ -394,23 +393,26 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	chip->capture_index_offset = 0;
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
-	chip->azx_dev = devm_kcalloc(card->dev, chip->num_streams,
-				     sizeof(*chip->azx_dev), GFP_KERNEL);
-	if (!chip->azx_dev)
-		return -ENOMEM;
-
-	err = azx_alloc_stream_pages(chip);
-	if (err < 0)
-		return err;
 
 	/* initialize streams */
-	azx_init_stream(chip);
+	err = azx_init_streams(chip);
+	if (err < 0) {
+		dev_err(card->dev, "failed to initialize streams: %d\n", err);
+		return err;
+	}
+
+	err = azx_alloc_stream_pages(chip);
+	if (err < 0) {
+		dev_err(card->dev, "failed to allocate stream pages: %d\n",
+			err);
+		return err;
+	}
 
 	/* initialize chip */
 	azx_init_chip(chip, 1);
 
 	/* codec detection */
-	if (!chip->codec_mask) {
+	if (!bus->codec_mask) {
 		dev_err(card->dev, "no codecs found!\n");
 		return -ENODEV;
 	}
@@ -419,7 +421,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	strcpy(card->shortname, "tegra-hda");
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s at 0x%lx irq %i",
-		 card->shortname, chip->addr, chip->irq);
+		 card->shortname, bus->addr, bus->irq);
 
 	return 0;
 }
@@ -427,12 +429,15 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 /*
  * constructor
  */
+
+static void hda_tegra_probe_work(struct work_struct *work);
+
 static int hda_tegra_create(struct snd_card *card,
 			    unsigned int driver_caps,
-			    const struct hda_controller_ops *hda_ops,
 			    struct hda_tegra *hda)
 {
 	static struct snd_device_ops ops = {
+		.dev_disconnect = hda_tegra_dev_disconnect,
 		.dev_free = hda_tegra_dev_free,
 	};
 	struct azx *chip;
@@ -440,11 +445,9 @@ static int hda_tegra_create(struct snd_card *card,
 
 	chip = &hda->chip;
 
-	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
-	chip->ops = hda_ops;
-	chip->irq = -1;
+	chip->ops = &hda_tegra_ops;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
 	chip->dev_index = 0;
@@ -454,6 +457,12 @@ static int hda_tegra_create(struct snd_card *card,
 
 	chip->single_cmd = false;
 	chip->snoop = true;
+
+	INIT_WORK(&hda->probe_work, hda_tegra_probe_work);
+
+	err = azx_bus_init(chip, NULL, &hda_tegra_io_ops);
+	if (err < 0)
+		return err;
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
@@ -472,11 +481,12 @@ MODULE_DEVICE_TABLE(of, hda_tegra_match);
 
 static int hda_tegra_probe(struct platform_device *pdev)
 {
+	const unsigned int driver_flags = AZX_DCAPS_RIRB_DELAY |
+					  AZX_DCAPS_CORBRP_SELF_CLEAR;
 	struct snd_card *card;
 	struct azx *chip;
 	struct hda_tegra *hda;
 	int err;
-	const unsigned int driver_flags = AZX_DCAPS_RIRB_DELAY;
 
 	hda = devm_kzalloc(&pdev->dev, sizeof(*hda), GFP_KERNEL);
 	if (!hda)
@@ -491,43 +501,13 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = hda_tegra_create(card, driver_flags, &hda_tegra_ops, hda);
+	err = hda_tegra_create(card, driver_flags, hda);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
 
 	dev_set_drvdata(&pdev->dev, card);
-
-	err = hda_tegra_first_init(chip, pdev);
-	if (err < 0)
-		goto out_free;
-
-	/* create codec instances */
-	err = azx_codec_create(chip, NULL, 0, &power_save);
-	if (err < 0)
-		goto out_free;
-
-	err = azx_codec_configure(chip);
-	if (err < 0)
-		goto out_free;
-
-	/* create PCM streams */
-	err = snd_hda_build_pcms(chip->bus);
-	if (err < 0)
-		goto out_free;
-
-	/* create mixer controls */
-	err = azx_mixer_create(chip);
-	if (err < 0)
-		goto out_free;
-
-	err = snd_card_register(chip->card);
-	if (err < 0)
-		goto out_free;
-
-	chip->running = 1;
-	power_down_all_codecs(chip);
-	azx_notifier_register(chip);
+	schedule_work(&hda->probe_work);
 
 	return 0;
 
@@ -536,9 +516,52 @@ out_free:
 	return err;
 }
 
+static void hda_tegra_probe_work(struct work_struct *work)
+{
+	struct hda_tegra *hda = container_of(work, struct hda_tegra, probe_work);
+	struct azx *chip = &hda->chip;
+	struct platform_device *pdev = to_platform_device(hda->dev);
+	int err;
+
+	err = hda_tegra_first_init(chip, pdev);
+	if (err < 0)
+		goto out_free;
+
+	/* create codec instances */
+	err = azx_probe_codecs(chip, 0);
+	if (err < 0)
+		goto out_free;
+
+	err = azx_codec_configure(chip);
+	if (err < 0)
+		goto out_free;
+
+	err = snd_card_register(chip->card);
+	if (err < 0)
+		goto out_free;
+
+	chip->running = 1;
+	snd_hda_set_power_save(&chip->bus, power_save * 1000);
+
+ out_free:
+	return; /* no error return from async probe */
+}
+
 static int hda_tegra_remove(struct platform_device *pdev)
 {
 	return snd_card_free(dev_get_drvdata(&pdev->dev));
+}
+
+static void hda_tegra_shutdown(struct platform_device *pdev)
+{
+	struct snd_card *card = dev_get_drvdata(&pdev->dev);
+	struct azx *chip;
+
+	if (!card)
+		return;
+	chip = card->private_data;
+	if (chip && chip->running)
+		azx_stop_chip(chip);
 }
 
 static struct platform_driver tegra_platform_hda = {
@@ -549,6 +572,7 @@ static struct platform_driver tegra_platform_hda = {
 	},
 	.probe = hda_tegra_probe,
 	.remove = hda_tegra_remove,
+	.shutdown = hda_tegra_shutdown,
 };
 module_platform_driver(tegra_platform_hda);
 

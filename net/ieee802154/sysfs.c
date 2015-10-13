@@ -14,11 +14,13 @@
  */
 
 #include <linux/device.h>
+#include <linux/rtnetlink.h>
 
 #include <net/cfg802154.h>
 
 #include "core.h"
 #include "sysfs.h"
+#include "rdev-ops.h"
 
 static inline struct cfg802154_registered_device *
 dev_to_rdev(struct device *dev)
@@ -48,49 +50,6 @@ static ssize_t name_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(name);
 
-#define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
-static ssize_t name ## _show(struct device *dev,			\
-			    struct device_attribute *attr, char *buf)	\
-{									\
-	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);	\
-	int ret;							\
-									\
-	mutex_lock(&phy->pib_lock);					\
-	ret = snprintf(buf, PAGE_SIZE, format_string "\n", args);	\
-	mutex_unlock(&phy->pib_lock);					\
-	return ret;							\
-}									\
-static DEVICE_ATTR_RO(name)
-
-#define MASTER_SHOW(field, format_string)				\
-	MASTER_SHOW_COMPLEX(field, format_string, phy->field)
-
-MASTER_SHOW(current_channel, "%d");
-MASTER_SHOW(current_page, "%d");
-MASTER_SHOW(transmit_power, "%d +- 1 dB");
-MASTER_SHOW_COMPLEX(cca_mode, "%d", phy->cca.mode);
-
-static ssize_t channels_supported_show(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
-	int ret;
-	int i, len = 0;
-
-	mutex_lock(&phy->pib_lock);
-	for (i = 0; i < 32; i++) {
-		ret = snprintf(buf + len, PAGE_SIZE - len,
-			       "%#09x\n", phy->channels_supported[i]);
-		if (ret < 0)
-			break;
-		len += ret;
-	}
-	mutex_unlock(&phy->pib_lock);
-	return len;
-}
-static DEVICE_ATTR_RO(channels_supported);
-
 static void wpan_phy_release(struct device *dev)
 {
 	struct cfg802154_registered_device *rdev = dev_to_rdev(dev);
@@ -101,20 +60,50 @@ static void wpan_phy_release(struct device *dev)
 static struct attribute *pmib_attrs[] = {
 	&dev_attr_index.attr,
 	&dev_attr_name.attr,
-	/* below will be removed soon */
-	&dev_attr_current_channel.attr,
-	&dev_attr_current_page.attr,
-	&dev_attr_channels_supported.attr,
-	&dev_attr_transmit_power.attr,
-	&dev_attr_cca_mode.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(pmib);
+
+#ifdef CONFIG_PM_SLEEP
+static int wpan_phy_suspend(struct device *dev)
+{
+	struct cfg802154_registered_device *rdev = dev_to_rdev(dev);
+	int ret = 0;
+
+	if (rdev->ops->suspend) {
+		rtnl_lock();
+		ret = rdev_suspend(rdev);
+		rtnl_unlock();
+	}
+
+	return ret;
+}
+
+static int wpan_phy_resume(struct device *dev)
+{
+	struct cfg802154_registered_device *rdev = dev_to_rdev(dev);
+	int ret = 0;
+
+	if (rdev->ops->resume) {
+		rtnl_lock();
+		ret = rdev_resume(rdev);
+		rtnl_unlock();
+	}
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(wpan_phy_pm_ops, wpan_phy_suspend, wpan_phy_resume);
+#define WPAN_PHY_PM_OPS (&wpan_phy_pm_ops)
+#else
+#define WPAN_PHY_PM_OPS NULL
+#endif
 
 struct class wpan_phy_class = {
 	.name = "ieee802154",
 	.dev_release = wpan_phy_release,
 	.dev_groups = pmib_groups,
+	.pm = WPAN_PHY_PM_OPS,
 };
 
 int wpan_phy_sysfs_init(void)

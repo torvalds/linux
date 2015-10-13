@@ -147,7 +147,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
  * @vif: the virtual interface for which the session is issued
  *
  * This functions cancels the session protection which is an act of good
- * citizenship. If it is not needed any more it should be cancelled because
+ * citizenship. If it is not needed any more it should be canceled because
  * the other bindings wait for the medium during that time.
  * This funtions doesn't sleep.
  */
@@ -157,12 +157,11 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 /*
  * iwl_mvm_rx_time_event_notif - handles %TIME_EVENT_NOTIFICATION.
  */
-int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd);
+void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
- * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionlity
+ * iwl_mvm_start_p2p_roc - start remain on channel for p2p device functionality
  * @mvm: the mvm component
  * @vif: the virtual interface for which the roc is requested. It is assumed
  * that the vif type is NL80211_IFTYPE_P2P_DEVICE

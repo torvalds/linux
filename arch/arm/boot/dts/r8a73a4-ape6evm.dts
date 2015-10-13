@@ -22,7 +22,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		bootargs = "ignore_loglevel root=/dev/nfs ip=dhcp rw";
 		stdout-path = &scifa0;
 	};
 
@@ -72,50 +72,30 @@
 		regulator-always-on;
 	};
 
-	lbsc {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0x20000000>;
-
-		ethernet@8000000 {
-			compatible = "smsc,lan9220", "smsc,lan9115";
-			reg = <0x08000000 0x1000>;
-			interrupt-parent = <&irqc1>;
-			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
-			phy-mode = "mii";
-			reg-io-width = <4>;
-			smsc,irq-active-high;
-			smsc,irq-push-pull;
-			vdd33a-supply = <&ape6evm_fixed_3v3>;
-			vddvario-supply = <&ape6evm_fixed_1v8>;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 		led1 {
-			gpios = <&pfc 28 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 28 GPIO_ACTIVE_HIGH>;
 			label = "GNSS_EN";
 		};
 		led2 {
-			gpios = <&pfc 126 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 126 GPIO_ACTIVE_HIGH>;
 			label = "NFC_NRST";
 		};
 		led3 {
-			gpios = <&pfc 132 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 132 GPIO_ACTIVE_HIGH>;
 			label = "GNSS_NRST";
 		};
 		led4 {
-			gpios = <&pfc 232 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 232 GPIO_ACTIVE_HIGH>;
 			label = "BT_WAKEUP";
 		};
 		led5 {
-			gpios = <&pfc 250 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 250 GPIO_ACTIVE_HIGH>;
 			label = "STROBE";
 		};
 		led6 {
-			gpios = <&pfc 288 GPIO_ACTIVE_LOW>;
+			gpios = <&pfc 288 GPIO_ACTIVE_HIGH>;
 			label = "BBRESETOUT";
 		};
 	};
@@ -123,10 +103,14 @@
 	keyboard {
 		compatible = "gpio-keys";
 
+		pinctrl-names = "default";
+		pinctrl-0 = <&keyboard_pins>;
+
 		zero-key {
 			gpios = <&pfc 324 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_0>;
 			label = "S16";
+			gpio-key,wakeup;
 		};
 
 		menu-key {
@@ -163,7 +147,7 @@
 
 &i2c5 {
 	status = "okay";
-	vdd_dvfs: max8973@1b {
+	vdd_dvfs: regulator@1b {
 		compatible = "maxim,max8973";
 		reg = <0x1b>;
 
@@ -182,6 +166,21 @@
 		1462500  995000
 	>;
 	voltage-tolerance = <1>; /* 1% */
+};
+
+&bsc {
+	ethernet@8000000 {
+		compatible = "smsc,lan9220", "smsc,lan9115";
+		reg = <0x08000000 0x1000>;
+		interrupt-parent = <&irqc1>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		phy-mode = "mii";
+		reg-io-width = <4>;
+		smsc,irq-active-high;
+		smsc,irq-push-pull;
+		vdd33a-supply = <&ape6evm_fixed_3v3>;
+		vddvario-supply = <&ape6evm_fixed_1v8>;
+	};
 };
 
 &cmt1 {
@@ -207,6 +206,12 @@
 	sdhi1_pins: sd1 {
 		renesas,groups = "sdhi1_data4", "sdhi1_ctrl";
 		renesas,function = "sdhi1";
+	};
+
+	keyboard_pins: keyboard {
+		renesas,pins = "PORT324", "PORT325", "PORT326", "PORT327",
+			       "PORT328", "PORT329";
+		bias-pull-up;
 	};
 };
 

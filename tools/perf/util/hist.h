@@ -30,6 +30,7 @@ enum hist_column {
 	HISTC_PARENT,
 	HISTC_CPU,
 	HISTC_SRCLINE,
+	HISTC_SRCFILE,
 	HISTC_MISPREDICT,
 	HISTC_IN_TX,
 	HISTC_ABORT,
@@ -47,6 +48,7 @@ enum hist_column {
 	HISTC_MEM_SNOOP,
 	HISTC_MEM_DCACHELINE,
 	HISTC_TRANSACTION,
+	HISTC_CYCLES,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -60,7 +62,7 @@ struct hists {
 	struct rb_root		entries_collapsed;
 	u64			nr_entries;
 	u64			nr_non_filtered_entries;
-	const struct thread	*thread_filter;
+	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
 	const char		*symbol_filter_str;
@@ -111,7 +113,6 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      u64 weight, u64 transaction,
 				      bool sample_self);
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
-			 struct perf_evsel *evsel, struct perf_sample *sample,
 			 int max_stack_depth, void *arg);
 
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
@@ -303,13 +304,16 @@ struct hist_browser_timer {
 
 #ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"
+int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt);
+
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt,
-				  struct perf_session_env *env);
+				  struct perf_env *env);
 int script_browse(const char *script_opt);
 #else
 static inline
@@ -317,7 +321,13 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
 				  struct hist_browser_timer *hbt __maybe_unused,
 				  float min_pcnt __maybe_unused,
-				  struct perf_session_env *env __maybe_unused)
+				  struct perf_env *env __maybe_unused)
+{
+	return 0;
+}
+static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
+					   struct perf_evsel *evsel __maybe_unused,
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -340,6 +350,9 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #endif
 
 unsigned int hists__sort_list_width(struct hists *hists);
+
+void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
+			  struct perf_sample *sample, bool nonany_branch_mode);
 
 struct option;
 int parse_filter_percentage(const struct option *opt __maybe_unused,

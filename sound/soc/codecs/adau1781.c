@@ -339,7 +339,6 @@ static int adau1781_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -383,6 +382,7 @@ static int adau1781_set_input_mode(struct adau *adau, unsigned int reg,
 
 static int adau1781_codec_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct adau1781_platform_data *pdata = dev_get_platdata(codec->dev);
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
 	int ret;
@@ -403,19 +403,17 @@ static int adau1781_codec_probe(struct snd_soc_codec *codec)
 	}
 
 	if (pdata && pdata->use_dmic) {
-		ret = snd_soc_dapm_new_controls(&codec->dapm,
+		ret = snd_soc_dapm_new_controls(dapm,
 			adau1781_dmic_dapm_widgets,
 			ARRAY_SIZE(adau1781_dmic_dapm_widgets));
 		if (ret)
 			return ret;
-		ret = snd_soc_dapm_add_routes(&codec->dapm,
-			adau1781_dmic_dapm_routes,
+		ret = snd_soc_dapm_add_routes(dapm, adau1781_dmic_dapm_routes,
 			ARRAY_SIZE(adau1781_dmic_dapm_routes));
 		if (ret)
 			return ret;
 	} else {
-		ret = snd_soc_dapm_add_routes(&codec->dapm,
-			adau1781_adc_dapm_routes,
+		ret = snd_soc_dapm_add_routes(dapm, adau1781_adc_dapm_routes,
 			ARRAY_SIZE(adau1781_adc_dapm_routes));
 		if (ret)
 			return ret;

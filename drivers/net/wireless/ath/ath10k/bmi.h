@@ -178,7 +178,7 @@ struct bmi_target_info {
 };
 
 /* in msec */
-#define BMI_COMMUNICATION_TIMEOUT_HZ (1*HZ)
+#define BMI_COMMUNICATION_TIMEOUT_HZ (2 * HZ)
 
 #define BMI_CE_NUM_TO_TARG 0
 #define BMI_CE_NUM_TO_HOST 1

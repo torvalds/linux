@@ -53,7 +53,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xE5, 0x00);
 	write_reg(par, 0xF0, 0x36, 0xA5, 0x53);
 	write_reg(par, 0xE0, 0x00, 0x35, 0x33, 0x00, 0x00, 0x00,
-	                     0x00, 0x35, 0x33, 0x00, 0x00, 0x00);
+			     0x00, 0x35, 0x33, 0x00, 0x00, 0x00);
 	write_reg(par, 0x3A, 0x55);
 	write_reg(par, 0x11);
 	udelay(250);
@@ -70,7 +70,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	/* Column address */
 	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
 
-	/* Row adress */
+	/* Row address */
 	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
 
 	/* Memory write */

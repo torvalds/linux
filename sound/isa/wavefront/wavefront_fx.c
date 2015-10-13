@@ -79,13 +79,13 @@ wavefront_fx_memset (snd_wavefront_t *dev,
 	if (page < 0 || page > 7) {
 		snd_printk ("FX memset: "
 			"page must be >= 0 and <= 7\n");
-		return -(EINVAL);
+		return -EINVAL;
 	}
 
 	if (addr < 0 || addr > 0x7f) {
 		snd_printk ("FX memset: "
 			"addr must be >= 0 and <= 7f\n");
-		return -(EINVAL);
+		return -EINVAL;
 	}
 
 	if (cnt == 1) {
@@ -118,7 +118,7 @@ wavefront_fx_memset (snd_wavefront_t *dev,
 			snd_printk ("FX memset "
 				    "(0x%x, 0x%x, 0x%lx, %d) incomplete\n",
 				    page, addr, (unsigned long) data, cnt);
-			return -(EIO);
+			return -EIO;
 		}
 	}
 

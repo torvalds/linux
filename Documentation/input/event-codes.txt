@@ -229,7 +229,7 @@ such device to feedback.
 EV_PWR:
 ----------
 EV_PWR events are a special type of event used specifically for power
-mangement. Its usage is not well defined. To be addressed later.
+management. Its usage is not well defined. To be addressed later.
 
 Device properties:
 =================

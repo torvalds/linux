@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/hw_random.h>
@@ -310,6 +311,14 @@ static int xgene_rng_init(struct hwrng *rng)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_rng_acpi_match[] = {
+	{ "APMC0D18", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, xgene_rng_acpi_match);
+#endif
+
 static struct hwrng xgene_rng_func = {
 	.name		= "xgene-rng",
 	.init		= xgene_rng_init,
@@ -335,11 +344,12 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->csr_base))
 		return PTR_ERR(ctx->csr_base);
 
-	ctx->irq = platform_get_irq(pdev, 0);
-	if (ctx->irq < 0) {
+	rc = platform_get_irq(pdev, 0);
+	if (rc < 0) {
 		dev_err(&pdev->dev, "No IRQ resource\n");
-		return ctx->irq;
+		return rc;
 	}
+	ctx->irq = rc;
 
 	dev_dbg(&pdev->dev, "APM X-Gene RNG BASE %p ALARM IRQ %d",
 		ctx->csr_base, ctx->irq);
@@ -415,6 +425,7 @@ static struct platform_driver xgene_rng_driver = {
 	.driver = {
 		.name		= "xgene-rng",
 		.of_match_table = xgene_rng_of_match,
+		.acpi_match_table = ACPI_PTR(xgene_rng_acpi_match),
 	},
 };
 

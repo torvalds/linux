@@ -244,6 +244,7 @@ static void iwl_mvm_mac_sta_hw_queues_iter(void *_data,
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif)
 {
+	u8 sta_id;
 	struct iwl_mvm_hw_queues_iface_iterator_data data = {
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
@@ -263,6 +264,13 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_stations_atomic(mvm->hw,
 					  iwl_mvm_mac_sta_hw_queues_iter,
 					  &data);
+
+	/*
+	 * Some TDLS stations may be removed but are in the process of being
+	 * drained. Don't touch their queues.
+	 */
+	for_each_set_bit(sta_id, mvm->sta_drained, IWL_MVM_STATION_COUNT)
+		data.used_hw_queues |= mvm->tfd_drained[sta_id];
 
 	return data.used_hw_queues;
 }
@@ -462,9 +470,8 @@ exit_fail:
 
 int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
-					mvm->cfg->base_params->wd_timeout :
-					IWL_WATCHDOG_DISABLED;
+	unsigned int wdg_timeout =
+		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
 	u32 ac;
 	int ret;
 
@@ -845,7 +852,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 				       MAC_FILTER_IN_BEACON |
 				       MAC_FILTER_IN_PROBE_REQUEST |
 				       MAC_FILTER_IN_CRC32);
-	mvm->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+	ieee80211_hw_set(mvm->hw, RX_INCLUDES_FCS);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -1263,7 +1270,7 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	mvmvif->uploaded = false;
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
-		mvm->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
+		__clear_bit(IEEE80211_HW_RX_INCLUDES_FCS, mvm->hw->flags);
 
 	return 0;
 }
@@ -1305,9 +1312,8 @@ static void iwl_mvm_csa_count_down(struct iwl_mvm *mvm,
 	}
 }
 
-int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
+			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
@@ -1358,8 +1364,6 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 			RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
 		}
 	}
-
-	return 0;
 }
 
 static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
@@ -1367,10 +1371,18 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 {
 	struct iwl_missed_beacons_notif *missed_beacons = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct iwl_fw_dbg_trigger_missed_bcon *bcon_trig;
+	struct iwl_fw_dbg_trigger_tlv *trigger;
+	u32 stop_trig_missed_bcon, stop_trig_missed_bcon_since_rx;
+	u32 rx_missed_bcon, rx_missed_bcon_since_rx;
 
 	if (mvmvif->id != (u16)le32_to_cpu(missed_beacons->mac_id))
 		return;
 
+	rx_missed_bcon = le32_to_cpu(missed_beacons->consec_missed_beacons);
+	rx_missed_bcon_since_rx =
+		le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx);
 	/*
 	 * TODO: the threshold should be adjusted based on latency conditions,
 	 * and/or in case of a CS flow on one of the other AP vifs.
@@ -1378,11 +1390,30 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 	if (le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx) >
 	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw,
+					FW_DBG_TRIGGER_MISSED_BEACONS))
+		return;
+
+	trigger = iwl_fw_dbg_get_trigger(mvm->fw,
+					 FW_DBG_TRIGGER_MISSED_BEACONS);
+	bcon_trig = (void *)trigger->data;
+	stop_trig_missed_bcon = le32_to_cpu(bcon_trig->stop_consec_missed_bcon);
+	stop_trig_missed_bcon_since_rx =
+		le32_to_cpu(bcon_trig->stop_consec_missed_bcon_since_rx);
+
+	/* TODO: implement start trigger */
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
+		return;
+
+	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
+	    rx_missed_bcon >= stop_trig_missed_bcon)
+		iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
 }
 
-int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
@@ -1399,5 +1430,4 @@ int iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_beacon_loss_iterator,
 						   mb);
-	return 0;
 }

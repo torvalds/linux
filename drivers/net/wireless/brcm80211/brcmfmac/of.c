@@ -39,10 +39,16 @@ void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 	if (!sdiodev->pdata)
 		return;
 
+	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
+		sdiodev->pdata->drive_strength = val;
+
+	/* make sure there are interrupts defined in the node */
+	if (!of_find_property(np, "interrupts", NULL))
+		return;
+
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
 		brcmf_err("interrupt could not be mapped\n");
-		devm_kfree(dev, sdiodev->pdata);
 		return;
 	}
 	irqf = irqd_get_trigger_type(irq_get_irq_data(irq));
@@ -50,7 +56,4 @@ void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->pdata->oob_irq_supported = true;
 	sdiodev->pdata->oob_irq_nr = irq;
 	sdiodev->pdata->oob_irq_flags = irqf;
-
-	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
-		sdiodev->pdata->drive_strength = val;
 }

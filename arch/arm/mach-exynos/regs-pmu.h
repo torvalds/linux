@@ -43,12 +43,14 @@
 #define S5P_WAKEUP_STAT				0x0600
 #define S5P_EINT_WAKEUP_MASK			0x0604
 #define S5P_WAKEUP_MASK				0x0608
+#define S5P_WAKEUP_MASK2				0x0614
 
 #define S5P_INFORM0				0x0800
 #define S5P_INFORM1				0x0804
 #define S5P_INFORM5				0x0814
 #define S5P_INFORM6				0x0818
 #define S5P_INFORM7				0x081C
+#define S5P_PMU_SPARE2				0x0908
 #define S5P_PMU_SPARE3				0x090C
 
 #define EXYNOS_IROM_DATA2			0x0988
@@ -182,6 +184,7 @@
 
 #define S5P_CORE_LOCAL_PWR_EN			0x3
 #define S5P_CORE_WAKEUP_FROM_LOCAL_CFG		(0x3 << 8)
+#define S5P_CORE_AUTOWAKEUP_EN			(1 << 31)
 
 /* Only for EXYNOS4210 */
 #define S5P_CMU_CLKSTOP_LCD1_LOWPWR	0x1154
@@ -509,6 +512,12 @@ static inline unsigned int exynos_pmu_cpunr(unsigned int mpidr)
 #define EXYNOS5420_UP_SCHEDULER					0x0120
 #define SPREAD_ENABLE						0xF
 #define SPREAD_USE_STANDWFI					0xF
+
+#define EXYNOS5420_KFC_CORE_RESET0				BIT(8)
+#define EXYNOS5420_KFC_ETM_RESET0				BIT(20)
+
+#define EXYNOS5420_KFC_CORE_RESET(_nr)				\
+	((EXYNOS5420_KFC_CORE_RESET0 | EXYNOS5420_KFC_ETM_RESET0) << (_nr))
 
 #define EXYNOS5420_BB_CON1					0x0784
 #define EXYNOS5420_BB_SEL_EN					BIT(31)

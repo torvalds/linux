@@ -144,8 +144,6 @@ static struct i2c_board_info __initdata snappercl15_i2c_data[] = {
 };
 
 static struct ep93xxfb_mach_info __initdata snappercl15_fb_info = {
-	.num_modes		= EP93XXFB_USE_MODEDB,
-	.bpp			= 16,
 };
 
 static struct platform_device snappercl15_audio_device = {

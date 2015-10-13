@@ -1,10 +1,17 @@
 /* Copyright 2002 Andi Kleen */
 
 #include <linux/linkage.h>
-
 #include <asm/cpufeature.h>
-#include <asm/dwarf2.h>
 #include <asm/alternative-asm.h>
+
+/*
+ * We build a jump to memcpy_orig by default which gets NOPped out on
+ * the majority of x86 CPUs which set REP_GOOD. In addition, CPUs which
+ * have the enhanced REP MOVSB/STOSB feature (ERMS), change those NOPs
+ * to a jmp to memcpy_erms which does the REP; MOVSB mem copy.
+ */
+
+.weak memcpy
 
 /*
  * memcpy - Copy a memory block.
@@ -17,15 +24,11 @@
  * Output:
  * rax original destination
  */
+ENTRY(__memcpy)
+ENTRY(memcpy)
+	ALTERNATIVE_2 "jmp memcpy_orig", "", X86_FEATURE_REP_GOOD, \
+		      "jmp memcpy_erms", X86_FEATURE_ERMS
 
-/*
- * memcpy_c() - fast string ops (REP MOVSQ) based variant.
- *
- * This gets patched over the unrolled variant (below) via the
- * alternative instructions framework:
- */
-	.section .altinstr_replacement, "ax", @progbits
-.Lmemcpy_c:
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	shrq $3, %rcx
@@ -34,30 +37,21 @@
 	movl %edx, %ecx
 	rep movsb
 	ret
-.Lmemcpy_e:
-	.previous
+ENDPROC(memcpy)
+ENDPROC(__memcpy)
 
 /*
- * memcpy_c_e() - enhanced fast string memcpy. This is faster and simpler than
- * memcpy_c. Use memcpy_c_e when possible.
- *
- * This gets patched over the unrolled variant (below) via the
- * alternative instructions framework:
+ * memcpy_erms() - enhanced fast string memcpy. This is faster and
+ * simpler than memcpy. Use memcpy_erms when possible.
  */
-	.section .altinstr_replacement, "ax", @progbits
-.Lmemcpy_c_e:
+ENTRY(memcpy_erms)
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	rep movsb
 	ret
-.Lmemcpy_e_e:
-	.previous
+ENDPROC(memcpy_erms)
 
-.weak memcpy
-
-ENTRY(__memcpy)
-ENTRY(memcpy)
-	CFI_STARTPROC
+ENTRY(memcpy_orig)
 	movq %rdi, %rax
 
 	cmpq $0x20, %rdx
@@ -182,27 +176,4 @@ ENTRY(memcpy)
 
 .Lend:
 	retq
-	CFI_ENDPROC
-ENDPROC(memcpy)
-ENDPROC(__memcpy)
-
-	/*
-	 * Some CPUs are adding enhanced REP MOVSB/STOSB feature
-	 * If the feature is supported, memcpy_c_e() is the first choice.
-	 * If enhanced rep movsb copy is not available, use fast string copy
-	 * memcpy_c() when possible. This is faster and code is simpler than
-	 * original memcpy().
-	 * Otherwise, original memcpy() is used.
-	 * In .altinstructions section, ERMS feature is placed after REG_GOOD
-         * feature to implement the right patch order.
-	 *
-	 * Replace only beginning, memcpy is used to apply alternatives,
-	 * so it is silly to overwrite itself with nops - reboot is the
-	 * only outcome...
-	 */
-	.section .altinstructions, "a"
-	altinstruction_entry __memcpy,.Lmemcpy_c,X86_FEATURE_REP_GOOD,\
-			     .Lmemcpy_e-.Lmemcpy_c,.Lmemcpy_e-.Lmemcpy_c
-	altinstruction_entry __memcpy,.Lmemcpy_c_e,X86_FEATURE_ERMS, \
-			     .Lmemcpy_e_e-.Lmemcpy_c_e,.Lmemcpy_e_e-.Lmemcpy_c_e
-	.previous
+ENDPROC(memcpy_orig)

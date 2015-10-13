@@ -49,13 +49,10 @@ AO commands are not supported.
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
-
-#include "comedi_fc.h"
+#include "../comedi_pci.h"
 
 static const struct comedi_lrange range_dt3000_ai = {
 	4, {
@@ -403,17 +400,17 @@ static int dt3k_ns_to_timer(unsigned int timer_base, unsigned int *nanosec,
 static int dt3k_ai_cmdtest(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
-	const struct dt3k_boardtype *this_board = dev->board_ptr;
+	const struct dt3k_boardtype *board = dev->board_ptr;
 	int err = 0;
 	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT);
 
 	if (err)
 		return 1;
@@ -423,28 +420,29 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 this_board->ai_speed);
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 100 * 16 * 65535);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    board->ai_speed);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+						    100 * 16 * 65535);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 this_board->ai_speed);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
-						 50 * 16 * 65535);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    board->ai_speed);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+						    50 * 16 * 65535);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+		err |= comedi_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -454,18 +452,19 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		dt3k_ns_to_timer(100, &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		dt3k_ns_to_timer(50, &arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 arg);
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    arg);
 		}
 	}
 
@@ -636,17 +635,17 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct dt3k_boardtype *this_board = NULL;
+	const struct dt3k_boardtype *board = NULL;
 	struct dt3k_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret = 0;
 
 	if (context < ARRAY_SIZE(dt3k_boardtypes))
-		this_board = &dt3k_boardtypes[context];
-	if (!this_board)
+		board = &dt3k_boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -675,9 +674,9 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	/* ai subdevice */
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF;
-	s->n_chan	= this_board->adchan;
+	s->n_chan	= board->adchan;
 	s->insn_read	= dt3k_ai_insn;
-	s->maxdata	= (1 << this_board->adbits) - 1;
+	s->maxdata	= (1 << board->adbits) - 1;
 	s->range_table	= &range_dt3000_ai;	/* XXX */
 	if (dev->irq) {
 		dev->read_subdev = s;
@@ -693,7 +692,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
-	s->maxdata	= (1 << this_board->dabits) - 1;
+	s->maxdata	= (1 << board->dabits) - 1;
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= dt3k_ao_insn_write;

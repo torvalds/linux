@@ -34,11 +34,6 @@ const struct imx_mxc_nand_data imx21_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX21, "imx21-nand", SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
-#ifdef CONFIG_SOC_IMX25
-const struct imx_mxc_nand_data imx25_mxc_nand_data __initconst =
-	imx_mxc_nand_data_entry_single(MX25, "imx25-nand", SZ_8K);
-#endif /* ifdef CONFIG_SOC_IMX25 */
-
 #ifdef CONFIG_SOC_IMX27
 const struct imx_mxc_nand_data imx27_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX27, "imx27-nand", SZ_4K);

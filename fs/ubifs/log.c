@@ -696,7 +696,7 @@ int ubifs_consolidate_log(struct ubifs_info *c)
 	destroy_done_tree(&done_tree);
 	vfree(buf);
 	if (write_lnum == c->lhead_lnum) {
-		ubifs_err("log is too full");
+		ubifs_err(c, "log is too full");
 		return -EINVAL;
 	}
 	/* Unmap remaining LEBs */
@@ -743,7 +743,7 @@ static int dbg_check_bud_bytes(struct ubifs_info *c)
 			bud_bytes += c->leb_size - bud->start;
 
 	if (c->bud_bytes != bud_bytes) {
-		ubifs_err("bad bud_bytes %lld, calculated %lld",
+		ubifs_err(c, "bad bud_bytes %lld, calculated %lld",
 			  c->bud_bytes, bud_bytes);
 		err = -EINVAL;
 	}

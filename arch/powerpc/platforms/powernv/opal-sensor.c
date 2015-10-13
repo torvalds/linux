@@ -46,18 +46,28 @@ int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data)
 
 	mutex_lock(&opal_sensor_mutex);
 	ret = opal_sensor_read(sensor_hndl, token, &data);
-	if (ret != OPAL_ASYNC_COMPLETION)
-		goto out_token;
+	switch (ret) {
+	case OPAL_ASYNC_COMPLETION:
+		ret = opal_async_wait_response(token, &msg);
+		if (ret) {
+			pr_err("%s: Failed to wait for the async response, %d\n",
+			       __func__, ret);
+			goto out_token;
+		}
 
-	ret = opal_async_wait_response(token, &msg);
-	if (ret) {
-		pr_err("%s: Failed to wait for the async response, %d\n",
-				__func__, ret);
-		goto out_token;
+		ret = opal_error_code(be64_to_cpu(msg.params[1]));
+		*sensor_data = be32_to_cpu(data);
+		break;
+
+	case OPAL_SUCCESS:
+		ret = 0;
+		*sensor_data = be32_to_cpu(data);
+		break;
+
+	default:
+		ret = opal_error_code(ret);
+		break;
 	}
-
-	*sensor_data = be32_to_cpu(data);
-	ret = be64_to_cpu(msg.params[1]);
 
 out_token:
 	mutex_unlock(&opal_sensor_mutex);
@@ -67,7 +77,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(opal_get_sensor_data);
 
-static __init int opal_sensor_init(void)
+int __init opal_sensor_init(void)
 {
 	struct platform_device *pdev;
 	struct device_node *sensor;
@@ -83,4 +93,3 @@ static __init int opal_sensor_init(void)
 
 	return PTR_ERR_OR_ZERO(pdev);
 }
-machine_subsys_initcall(powernv, opal_sensor_init);

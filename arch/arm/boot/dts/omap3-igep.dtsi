@@ -22,7 +22,6 @@
 		compatible = "ti,omap-twl4030";
 		ti,model = "igep2";
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 
 	vdd33: regulator-vdd33 {
@@ -76,12 +75,6 @@
 			0x12e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat1.sdmmc2_dat1 */
 			0x130 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat2.sdmmc2_dat2 */
 			0x132 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc2_dat3.sdmmc2_dat3 */
-		>;
-	};
-
-	smsc9221_pins: pinmux_smsc9221_pins {
-		pinctrl-single,pins = <
-			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
 		>;
 	};
 

@@ -158,6 +158,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	struct queue *q;
 	struct process_queue_node *pqn;
 	struct kernel_queue *kq;
+	int num_queues = 0;
+	struct queue *cur;
 
 	BUG_ON(!pqm || !dev || !properties || !qid);
 
@@ -170,6 +172,20 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	if (!pdd) {
 		pr_err("Process device data doesn't exist\n");
 		return -1;
+	}
+
+	/*
+	 * for debug process, verify that it is within the static queues limit
+	 * currently limit is set to half of the total avail HQD slots
+	 * If we are just about to create DIQ, the is_debug flag is not set yet
+	 * Hence we also check the type as well
+	 */
+	if ((pdd->qpd.is_debug) ||
+		(type == KFD_QUEUE_TYPE_DIQ)) {
+		list_for_each_entry(cur, &pdd->qpd.queues_list, list)
+			num_queues++;
+		if (num_queues >= dev->device_info->max_no_of_hqd/2)
+			return (-ENOSPC);
 	}
 
 	retval = find_available_queue_slot(pqm, qid);
@@ -341,7 +357,7 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	return 0;
 }
 
-static __attribute__((unused)) struct kernel_queue *pqm_get_kernel_queue(
+struct kernel_queue *pqm_get_kernel_queue(
 					struct process_queue_manager *pqm,
 					unsigned int qid)
 {

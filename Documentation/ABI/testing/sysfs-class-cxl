@@ -6,6 +6,17 @@ Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 
 Slave contexts (eg. /sys/class/cxl/afu0.0s):
 
+What:           /sys/class/cxl/<afu>/afu_err_buf
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                AFU Error Buffer contents. The contents of this file are
+		application specific and depends on the AFU being used.
+		Applications interacting with the AFU can use this attribute
+		to know about the current error condition and take appropriate
+		action like logging the event etc.
+
+
 What:           /sys/class/cxl/<afu>/irqs_max
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
@@ -15,6 +26,7 @@ Description:    read/write
                 that hardware can support (eg. 2037). Write values will limit
                 userspace applications to that many userspace interrupts. Must
                 be >= irqs_min.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/irqs_min
 Date:           September 2014
@@ -24,6 +36,7 @@ Description:    read only
                 userspace must request on a CXL_START_WORK ioctl. Userspace may
                 omit the num_interrupts field in the START_WORK IOCTL to get
                 this minimum automatically.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/mmio_size
 Date:           September 2014
@@ -31,6 +44,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the size of the MMIO space that may be mmaped
                 by userspace.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/modes_supported
 Date:           September 2014
@@ -38,6 +52,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 List of the modes this AFU supports. One per line.
                 Valid entries are: "dedicated_process" and "afu_directed"
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/mode
 Date:           September 2014
@@ -46,6 +61,7 @@ Description:    read/write
                 The current mode the AFU is using. Will be one of the modes
                 given in modes_supported. Writing will change the mode
                 provided that no user contexts are attached.
+Users:		https://github.com/ibm-capi/libcxl
 
 
 What:           /sys/class/cxl/<afu>/prefault_mode
@@ -59,6 +75,7 @@ Description:    read/write
                                  descriptor as an effective address and
                                  prefault what it points to.
                         all: all segments process calling START_WORK maps.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/reset
 Date:           September 2014
@@ -66,12 +83,14 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
                 Writing 1 here will reset the AFU provided there are not
                 contexts active on the AFU.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/api_version
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the current version of the kernel/user API.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/api_version_compatible
 Date:           September 2014
@@ -79,6 +98,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the the lowest version of the userspace API
                 this this kernel supports.
+Users:		https://github.com/ibm-capi/libcxl
 
 
 AFU configuration records (eg. /sys/class/cxl/afu0.0/cr0):
@@ -92,6 +112,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the vendor ID found in this AFU
 		configuration record.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/cr<config num>/device
 Date:           February 2015
@@ -99,13 +120,15 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the device ID found in this AFU
 		configuration record.
+Users:		https://github.com/ibm-capi/libcxl
 
-What:           /sys/class/cxl/<afu>/cr<config num>/vendor
+What:           /sys/class/cxl/<afu>/cr<config num>/class
 Date:           February 2015
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
 		Hexadecimal value of the class code found in this AFU
 		configuration record.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>/cr<config num>/config
 Date:           February 2015
@@ -115,6 +138,7 @@ Description:    read only
 		record. The format is expected to match the either the standard
 		or extended configuration space defined by the PCIe
 		specification.
+Users:		https://github.com/ibm-capi/libcxl
 
 
 
@@ -126,18 +150,21 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the size of the MMIO space that may be mmaped
                 by userspace. This includes all slave contexts space also.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>m/pp_mmio_len
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the Per Process MMIO space length.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<afu>m/pp_mmio_off
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Decimal value of the Per Process MMIO space offset.
+Users:		https://github.com/ibm-capi/libcxl
 
 
 Card info (eg. /sys/class/cxl/card0)
@@ -147,12 +174,14 @@ Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Identifies the CAIA Version the card implements.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/psl_revision
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Identifies the revision level of the PSL.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/base_image
 Date:           September 2014
@@ -162,6 +191,7 @@ Description:    read only
                 that support loadable PSLs. For FPGAs this field identifies
                 the image contained in the on-adapter flash which is loaded
                 during the initial program load.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/image_loaded
 Date:           September 2014
@@ -169,6 +199,7 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Will return "user" or "factory" depending on the image loaded
                 onto the card.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/load_image_on_perst
 Date:           December 2014
@@ -183,6 +214,7 @@ Description:    read/write
                 user or factory image to be loaded.
                 Default is to reload on PERST whichever image the card has
                 loaded.
+Users:		https://github.com/ibm-capi/libcxl
 
 What:           /sys/class/cxl/<card>/reset
 Date:           October 2014
@@ -190,3 +222,14 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    write only
                 Writing 1 will issue a PERST to card which may cause the card
                 to reload the FPGA depending on load_image_on_perst.
+Users:		https://github.com/ibm-capi/libcxl
+
+What:		/sys/class/cxl/<card>/perst_reloads_same_image
+Date:		July 2015
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		Trust that when an image is reloaded via PERST, it will not
+		have changed.
+		0 = don't trust, the image may be different (default)
+		1 = trust that the image will not change.
+Users:		https://github.com/ibm-capi/libcxl

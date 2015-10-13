@@ -65,6 +65,7 @@
 #include <asm/page.h>
 #include <asm/m32r.h>
 #include <asm/mmu_context.h>
+#include <asm/asm-offsets.h>
 
 #if !defined(CONFIG_MMU)
 #define sys_madvise		sys_ni_syscall

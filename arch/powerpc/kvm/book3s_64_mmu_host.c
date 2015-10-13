@@ -28,6 +28,7 @@
 #include <asm/mmu_context.h>
 #include <asm/hw_irq.h>
 #include "trace_pr.h"
+#include "book3s.h"
 
 #define PTE_SIZE 12
 

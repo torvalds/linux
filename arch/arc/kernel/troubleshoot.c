@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/file.h>
 #include <asm/arcregs.h>
+#include <asm/irqflags.h>
 
 /*
  * Common routine to print scratch regs (r0-r12) or callee regs (r13-r25)
@@ -34,7 +35,10 @@ static noinline void print_reg_file(long *reg_rev, int start_num)
 			n += scnprintf(buf + n, len - n, "\n");
 
 		/* because pt_regs has regs reversed: r12..r0, r25..r13 */
-		reg_rev--;
+		if (is_isa_arcv2() && start_num == 0)
+			reg_rev++;
+		else
+			reg_rev--;
 	}
 
 	if (start_num != 0)
@@ -52,9 +56,8 @@ static void show_callee_regs(struct callee_regs *cregs)
 	print_reg_file(&(cregs->r13), 13);
 }
 
-void print_task_path_n_nm(struct task_struct *tsk, char *buf)
+static void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 {
-	struct path path;
 	char *path_nm = NULL;
 	struct mm_struct *mm;
 	struct file *exe_file;
@@ -67,17 +70,13 @@ void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 	mmput(mm);
 
 	if (exe_file) {
-		path = exe_file->f_path;
-		path_get(&exe_file->f_path);
+		path_nm = file_path(exe_file, buf, 255);
 		fput(exe_file);
-		path_nm = d_path(&path, buf, 255);
-		path_put(&path);
 	}
 
 done:
-	pr_info("Path: %s\n", path_nm);
+	pr_info("Path: %s\n", !IS_ERR(path_nm) ? path_nm : "?");
 }
-EXPORT_SYMBOL(print_task_path_n_nm);
 
 static void show_faulting_vma(unsigned long address, char *buf)
 {
@@ -100,8 +99,7 @@ static void show_faulting_vma(unsigned long address, char *buf)
 	if (vma && (vma->vm_start <= address)) {
 		struct file *file = vma->vm_file;
 		if (file) {
-			struct path *path = &file->f_path;
-			nm = d_path(path, buf, PAGE_SIZE - 1);
+			nm = file_path(file, buf, PAGE_SIZE - 1);
 			inode = file_inode(vma->vm_file);
 			dev = inode->i_sb->s_dev;
 			ino = inode->i_ino;
@@ -153,6 +151,15 @@ static void show_ecr_verbose(struct pt_regs *regs)
 				((cause_code == 0x02) ? "Write" : "EX"));
 	} else if (vec == ECR_V_INSN_ERR) {
 		pr_cont("Illegal Insn\n");
+#ifdef CONFIG_ISA_ARCV2
+	} else if (vec == ECR_V_MEM_ERR) {
+		if (cause_code == 0x00)
+			pr_cont("Bus Error from Insn Mem\n");
+		else if (cause_code == 0x10)
+			pr_cont("Bus Error from Data Mem\n");
+		else
+			pr_cont("Bus Error, check PRM\n");
+#endif
 	} else {
 		pr_cont("Check Programmer's Manual\n");
 	}
@@ -186,12 +193,20 @@ void show_regs(struct pt_regs *regs)
 
 	pr_info("[STAT32]: 0x%08lx", regs->status32);
 
-#define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit : ""
-	if (!user_mode(regs))
-		pr_cont(" : %2s %2s %2s %2s %2s\n",
-			STS_BIT(regs, AE), STS_BIT(regs, A2), STS_BIT(regs, A1),
-			STS_BIT(regs, E2), STS_BIT(regs, E1));
+#define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit" " : ""
 
+#ifdef CONFIG_ISA_ARCOMPACT
+	pr_cont(" : %2s%2s%2s%2s%2s%2s%2s\n",
+			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
+			STS_BIT(regs, DE), STS_BIT(regs, AE),
+			STS_BIT(regs, A2), STS_BIT(regs, A1),
+			STS_BIT(regs, E2), STS_BIT(regs, E1));
+#else
+	pr_cont(" : %2s%2s%2s%2s\n",
+			STS_BIT(regs, IE),
+			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
+			STS_BIT(regs, DE), STS_BIT(regs, AE));
+#endif
 	pr_info("BTA: 0x%08lx\t SP: 0x%08lx\t FP: 0x%08lx\n",
 		regs->bta, regs->sp, regs->fp);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",

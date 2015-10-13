@@ -87,6 +87,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /*
  * Decoding Capability Register
  */
+#define cap_pi_support(c)	(((c) >> 59) & 1)
 #define cap_read_drain(c)	(((c) >> 55) & 1)
 #define cap_write_drain(c)	(((c) >> 54) & 1)
 #define cap_max_amask_val(c)	(((c) >> 48) & 0x3f)
@@ -115,10 +116,20 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
  * Extended Capability Register
  */
 
-#define ecap_niotlb_iunits(e)	((((e) >> 24) & 0xff) + 1)
+#define ecap_pasid(e)		((e >> 40) & 0x1)
+#define ecap_pss(e)		((e >> 35) & 0x1f)
+#define ecap_eafs(e)		((e >> 34) & 0x1)
+#define ecap_nwfs(e)		((e >> 33) & 0x1)
+#define ecap_srs(e)		((e >> 31) & 0x1)
+#define ecap_ers(e)		((e >> 30) & 0x1)
+#define ecap_prs(e)		((e >> 29) & 0x1)
+/* PASID support used to be on bit 28 */
+#define ecap_dis(e)		((e >> 27) & 0x1)
+#define ecap_nest(e)		((e >> 26) & 0x1)
+#define ecap_mts(e)		((e >> 25) & 0x1)
+#define ecap_ecs(e)		((e >> 24) & 0x1)
 #define ecap_iotlb_offset(e) 	((((e) >> 8) & 0x3ff) * 16)
-#define ecap_max_iotlb_offset(e) \
-	(ecap_iotlb_offset(e) + ecap_niotlb_iunits(e) * 16)
+#define ecap_max_iotlb_offset(e) (ecap_iotlb_offset(e) + 16)
 #define ecap_coherent(e)	((e) & 0x1)
 #define ecap_qis(e)		((e) & 0x2)
 #define ecap_pass_through(e)	((e >> 6) & 0x1)
@@ -179,6 +190,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GSTS_IRTPS (((u32)1) << 24)
 #define DMA_GSTS_IRES (((u32)1) << 25)
 #define DMA_GSTS_CFIS (((u32)1) << 23)
+
+/* DMA_RTADDR_REG */
+#define DMA_RTADDR_RTT (((u64)1) << 11)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
@@ -283,8 +297,11 @@ struct q_inval {
 /* 1MB - maximum possible interrupt remapping table size */
 #define INTR_REMAP_PAGE_ORDER	8
 #define INTR_REMAP_TABLE_REG_SIZE	0xf
+#define INTR_REMAP_TABLE_REG_SIZE_MASK  0xf
 
 #define INTR_REMAP_TABLE_ENTRIES	65536
+
+struct irq_domain;
 
 struct ir_table {
 	struct irte *base;
@@ -307,6 +324,9 @@ enum {
 	MAX_SR_DMAR_REGS
 };
 
+#define VTD_FLAG_TRANS_PRE_ENABLED	(1 << 0)
+#define VTD_FLAG_IRQ_REMAP_PRE_ENABLED	(1 << 1)
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64 		reg_phys; /* physical address of hw register set */
@@ -324,7 +344,7 @@ struct intel_iommu {
 
 #ifdef CONFIG_INTEL_IOMMU
 	unsigned long 	*domain_ids; /* bitmap of domains */
-	struct dmar_domain **domains; /* ptr to domains */
+	struct dmar_domain ***domains; /* ptr to domains */
 	spinlock_t	lock; /* protect context, domain ids */
 	struct root_entry *root_entry; /* virtual address */
 
@@ -335,9 +355,12 @@ struct intel_iommu {
 
 #ifdef CONFIG_IRQ_REMAP
 	struct ir_table *ir_table;	/* Interrupt remapping info */
+	struct irq_domain *ir_domain;
+	struct irq_domain *ir_msi_domain;
 #endif
 	struct device	*iommu_dev; /* IOMMU-sysfs device */
 	int		node;
+	u32		flags;      /* Software defined flags */
 };
 
 static inline void __iommu_flush_cache(

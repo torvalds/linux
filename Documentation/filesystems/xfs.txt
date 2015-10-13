@@ -228,30 +228,19 @@ default behaviour.
 Deprecated Mount Options
 ========================
 
-  delaylog/nodelaylog
-	Delayed logging is the only logging method that XFS supports
-	now, so these mount options are now ignored.
+None at present.
 
-	Due for removal in 3.12.
 
-  ihashsize=value
-	In memory inode hashes have been removed, so this option has
-	no function as of August 2007. Option is deprecated.
+Removed Mount Options
+=====================
 
-	Due for removal in 3.12.
+  Name				Removed
+  ----				-------
+  delaylog/nodelaylog		v4.0
+  ihashsize			v4.0
+  irixsgid			v4.0
+  osyncisdsync/osyncisosync	v4.0
 
-  irixsgid
-	This behaviour is now controlled by a sysctl, so the mount
-	option is ignored.
-
-	Due for removal in 3.12.
-
-  osyncisdsync
-  osyncisosync
-	O_SYNC and O_DSYNC are fully supported, so there is no need
-	for these options any more.
-
-	Due for removal in 3.12.
 
 sysctls
 =======
@@ -357,5 +346,5 @@ Removed Sysctls
 
   Name				Removed
   ----				-------
-  fs.xfs.xfsbufd_centisec	v3.20
-  fs.xfs.age_buffer_centisecs	v3.20
+  fs.xfs.xfsbufd_centisec	v4.0
+  fs.xfs.age_buffer_centisecs	v4.0

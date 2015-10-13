@@ -129,8 +129,6 @@ void configfs_release_fs(void)
 }
 
 
-static struct kobject *config_kobj;
-
 static int __init configfs_init(void)
 {
 	int err = -ENOMEM;
@@ -141,8 +139,8 @@ static int __init configfs_init(void)
 	if (!configfs_dir_cachep)
 		goto out;
 
-	config_kobj = kobject_create_and_add("config", kernel_kobj);
-	if (!config_kobj)
+	err = sysfs_create_mount_point(kernel_kobj, "config");
+	if (err)
 		goto out2;
 
 	err = register_filesystem(&configfs_fs_type);
@@ -152,7 +150,7 @@ static int __init configfs_init(void)
 	return 0;
 out3:
 	pr_err("Unable to register filesystem!\n");
-	kobject_put(config_kobj);
+	sysfs_remove_mount_point(kernel_kobj, "config");
 out2:
 	kmem_cache_destroy(configfs_dir_cachep);
 	configfs_dir_cachep = NULL;
@@ -163,7 +161,7 @@ out:
 static void __exit configfs_exit(void)
 {
 	unregister_filesystem(&configfs_fs_type);
-	kobject_put(config_kobj);
+	sysfs_remove_mount_point(kernel_kobj, "config");
 	kmem_cache_destroy(configfs_dir_cachep);
 	configfs_dir_cachep = NULL;
 }
@@ -173,5 +171,5 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.2");
 MODULE_DESCRIPTION("Simple RAM filesystem for user driven kernel subsystem configuration.");
 
-module_init(configfs_init);
+core_initcall(configfs_init);
 module_exit(configfs_exit);

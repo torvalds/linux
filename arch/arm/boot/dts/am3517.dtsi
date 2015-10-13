@@ -31,7 +31,7 @@
 			status = "disabled";
 			reg = <0x5c000000 0x30000>;
 			interrupts = <67 68 69 70>;
-			syscon = <&omap3_scm_general>;
+			syscon = <&scm_conf>;
 			ti,davinci-ctrl-reg-offset = <0x10000>;
 			ti,davinci-ctrl-mod-reg-offset = <0>;
 			ti,davinci-ctrl-ram-offset = <0x20000>;
@@ -59,6 +59,17 @@
 			dmas = <&sdma 55 &sdma 54>;
 			dma-names = "tx", "rx";
 			clock-frequency = <48000000>;
+		};
+
+		omap3_pmx_core2: pinmux@480025d8 {
+			compatible = "ti,omap3-padconf", "pinctrl-single";
+			reg = <0x480025d8 0x24>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			pinctrl-single,register-width = <16>;
+			pinctrl-single,function-mask = <0xff1f>;
 		};
 	};
 };

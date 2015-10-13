@@ -21,6 +21,7 @@
 #define CLK_FOUT_CPLL		6
 #define CLK_FOUT_EPLL		7
 #define CLK_FOUT_VPLL		8
+#define CLK_ARM_CLK		9
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_CAM_BAYER	128

@@ -483,7 +483,6 @@ static void altera_hw_filt_release(void *main_dev, int filt_nr)
 	}
 
 }
-EXPORT_SYMBOL(altera_hw_filt_release);
 
 void altera_ci_release(void *dev, int ci_nr)
 {
@@ -598,7 +597,6 @@ static int altera_pid_feed_control(void *demux_dev, int filt_nr,
 
 	return 0;
 }
-EXPORT_SYMBOL(altera_pid_feed_control);
 
 static int altera_ci_start_feed(struct dvb_demux_feed *feed, int num)
 {
@@ -699,7 +697,6 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(altera_hw_filt_init);
 
 int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 {
@@ -762,7 +759,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (0 != ret)
 		goto err;
 
-       inter->state[ci_nr - 1] = state;
+	inter->state[ci_nr - 1] = state;
 
 	altera_hw_filt_init(config, ci_nr);
 

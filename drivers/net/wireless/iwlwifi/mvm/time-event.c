@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 {
 	lockdep_assert_held(&mvm->time_event_lock);
 
-	if (te_data->id == TE_MAX)
+	if (!te_data->vif)
 		return;
 
 	list_del(&te_data->list);
@@ -108,18 +108,20 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * in the case that the time event actually completed in the firmware
 	 * (which is handled in iwl_mvm_te_handle_notif).
 	 */
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status)) {
 		queues |= BIT(IWL_MVM_OFFCHANNEL_QUEUE);
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
+		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
+	}
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status)) {
 		queues |= BIT(mvm->aux_queue);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC_AUX);
+	}
 
 	synchronize_net();
 
 	/*
 	 * Flush the offchannel queue -- this is called when the time
-	 * event finishes or is cancelled, so that frames queued for it
+	 * event finishes or is canceled, so that frames queued for it
 	 * won't get stuck on the queue and be transmitted in the next
 	 * time event.
 	 * We have to send the command asynchronously since this cannot
@@ -187,7 +189,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		return false;
 	if (errmsg)
 		IWL_ERR(mvm, "%s\n", errmsg);
-	ieee80211_connection_loss(vif);
+
+	iwl_mvm_connection_loss(mvm, vif, errmsg);
 	return true;
 }
 
@@ -196,19 +199,24 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_mvm_time_event_data *te_data,
 			     struct iwl_time_event_notif *notif)
 {
-	if (!le32_to_cpu(notif->status)) {
-		if (te_data->vif->type == NL80211_IFTYPE_STATION)
-			ieee80211_connection_loss(te_data->vif);
+	struct ieee80211_vif *vif = te_data->vif;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!notif->status)
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
-		iwl_mvm_te_clear_data(mvm, te_data);
-		return;
-	}
 
 	switch (te_data->vif->type) {
 	case NL80211_IFTYPE_AP:
+		if (!notif->status)
+			mvmvif->csa_failed = true;
 		iwl_mvm_csa_noa_start(mvm);
 		break;
 	case NL80211_IFTYPE_STATION:
+		if (!notif->status) {
+			iwl_mvm_connection_loss(mvm, vif,
+						"CSA TE failed to start");
+			break;
+		}
 		iwl_mvm_csa_client_absent(mvm, te_data->vif);
 		ieee80211_chswitch_done(te_data->vif, true);
 		break;
@@ -220,6 +228,44 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 
 	/* we don't need it anymore */
 	iwl_mvm_te_clear_data(mvm, te_data);
+}
+
+static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
+				     struct iwl_time_event_notif *notif,
+				     struct iwl_mvm_time_event_data *te_data)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_time_event *te_trig;
+	int i;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
+	te_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, te_data->vif, trig))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
+		u32 trig_te_id = le32_to_cpu(te_trig->time_events[i].id);
+		u32 trig_action_bitmap =
+			le32_to_cpu(te_trig->time_events[i].action_bitmap);
+		u32 trig_status_bitmap =
+			le32_to_cpu(te_trig->time_events[i].status_bitmap);
+
+		if (trig_te_id != te_data->id ||
+		    !(trig_action_bitmap & le32_to_cpu(notif->action)) ||
+		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
+			continue;
+
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "Time event %d Action 0x%x received status: %d",
+					    te_data->id,
+					    le32_to_cpu(notif->action),
+					    le32_to_cpu(notif->status));
+		break;
+	}
 }
 
 /*
@@ -239,6 +285,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action));
 
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
+
 	/*
 	 * The FW sends the start/end time event notifications even for events
 	 * that it fails to schedule. This is indicated in the status field of
@@ -248,11 +296,16 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	 * events in the system).
 	 */
 	if (!le32_to_cpu(notif->status)) {
-		bool start = le32_to_cpu(notif->action) &
-				TE_V2_NOTIF_HOST_EVENT_START;
-		IWL_WARN(mvm, "Time Event %s notification failure\n",
-			 start ? "start" : "end");
-		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, NULL)) {
+		const char *msg;
+
+		if (notif->action & cpu_to_le32(TE_V2_NOTIF_HOST_EVENT_START))
+			msg = "Time Event start notification failure";
+		else
+			msg = "Time Event end notification failure";
+
+		IWL_DEBUG_TE(mvm, "%s\n", msg);
+
+		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, msg)) {
 			iwl_mvm_te_clear_data(mvm, te_data);
 			return;
 		}
@@ -263,17 +316,23 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
 
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		switch (te_data->vif->type) {
+		case NL80211_IFTYPE_P2P_DEVICE:
 			ieee80211_remain_on_channel_expired(mvm->hw);
 			iwl_mvm_roc_finished(mvm);
+			break;
+		case NL80211_IFTYPE_STATION:
+			/*
+			 * By now, we should have finished association
+			 * and know the dtim period.
+			 */
+			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
+				"No association and the time event is over already...");
+			break;
+		default:
+			break;
 		}
 
-		/*
-		 * By now, we should have finished association
-		 * and know the dtim period.
-		 */
-		iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-			"No association and the time event is over already...");
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_V2_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;
@@ -309,6 +368,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 	if (!aux_roc_te) /* Not a Aux ROC time event */
 		return -EINVAL;
 
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
+
 	if (!le32_to_cpu(notif->status)) {
 		IWL_DEBUG_TE(mvm,
 			     "ERROR: Aux ROC Time Event %s notification failure\n",
@@ -334,6 +395,7 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 	} else if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_START) {
 		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 		te_data->running = true;
+		iwl_mvm_ref(mvm, IWL_MVM_REF_ROC_AUX);
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
 	} else {
 		IWL_DEBUG_TE(mvm,
@@ -348,9 +410,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 /*
  * The Rx handler for time event notifications
  */
-int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd)
+void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_time_event_notif *notif = (void *)pkt->data;
@@ -371,8 +432,6 @@ int iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
 	}
 unlock:
 	spin_unlock_bh(&mvm->time_event_lock);
-
-	return 0;
 }
 
 static bool iwl_mvm_te_notif(struct iwl_notif_wait_data *notif_wait,
@@ -441,7 +500,7 @@ static int iwl_mvm_time_event_send_add(struct iwl_mvm *mvm,
 				       struct iwl_mvm_time_event_data *te_data,
 				       struct iwl_time_event_cmd *te_cmd)
 {
-	static const u8 time_event_response[] = { TIME_EVENT_CMD };
+	static const u16 time_event_response[] = { TIME_EVENT_CMD };
 	struct iwl_notification_wait wait_time_event;
 	int ret;
 
@@ -504,7 +563,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u8 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
+	const u16 te_notif_response[] = { TIME_EVENT_NOTIFICATION };
 	struct iwl_notification_wait wait_te_notif;
 	struct iwl_time_event_cmd time_cmd = {};
 
@@ -537,8 +596,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 		cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color));
 	time_cmd.id = cpu_to_le32(TE_BSS_STA_AGGRESSIVE_ASSOC);
 
-	time_cmd.apply_time =
-		cpu_to_le32(iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG));
+	time_cmd.apply_time = cpu_to_le32(0);
 
 	time_cmd.max_frags = TE_V2_FRAG_NONE;
 	time_cmd.max_delay = cpu_to_le32(max_delay);
@@ -735,13 +793,12 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm_vif *mvmvif;
+	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_time_event_data *te_data;
 	bool is_p2p = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	mvmvif = NULL;
 	spin_lock_bh(&mvm->time_event_lock);
 
 	/*
@@ -759,17 +816,14 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 		}
 	}
 
-	/*
-	 * Iterate over the list of aux roc time events and find the time
-	 * event that is associated with a BSS interface.
-	 * This assumes that a BSS interface can have only a single time
-	 * event at any given time and this time event coresponds to a ROC
-	 * request
+	/* There can only be at most one AUX ROC time event, we just use the
+	 * list to simplify/unify code. Remove it if it exists.
 	 */
-	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
+	te_data = list_first_entry_or_null(&mvm->aux_roc_te_list,
+					   struct iwl_mvm_time_event_data,
+					   list);
+	if (te_data)
 		mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-		goto remove_te;
-	}
 
 remove_te:
 	spin_unlock_bh(&mvm->time_event_lock);

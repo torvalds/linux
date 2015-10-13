@@ -40,28 +40,8 @@
 typedef int (*initcall_t)(void);
 typedef void (*exitcall_t)(void);
 
-#ifndef __KERNEL__
-#ifndef __section
-# define __section(S) __attribute__ ((__section__(#S)))
-#endif
-
-#if __GNUC__ == 3
-
-#if __GNUC_MINOR__ >= 3
-# define __used			__attribute__((__used__))
-#else
-# define __used			__attribute__((__unused__))
-#endif
-
-#else
-#if __GNUC__ == 4
-# define __used			__attribute__((__used__))
-#endif
-#endif
-
-#else
 #include <linux/compiler.h>
-#endif
+
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
 #define __init		__section(.init.text)
@@ -131,7 +111,7 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 #define __uml_postsetup_call	__used __section(.uml.postsetup.init)
 #define __uml_exit_call		__used __section(.uml.exitcall.exit)
 
-#ifndef __KERNEL__
+#ifdef __UM_HOST__
 
 #define __define_initcall(level,fn) \
 	static initcall_t __initcall_##fn __used \

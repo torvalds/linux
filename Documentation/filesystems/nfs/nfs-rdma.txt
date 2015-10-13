@@ -138,9 +138,9 @@ Installation
   - Build, install, reboot
 
     The NFS/RDMA code will be enabled automatically if NFS and RDMA
-    are turned on. The NFS/RDMA client and server are configured via the
-    SUNRPC_XPRT_RDMA_CLIENT and SUNRPC_XPRT_RDMA_SERVER config options that both
-    depend on SUNRPC and INFINIBAND. The default value of both options will be:
+    are turned on. The NFS/RDMA client and server are configured via the hidden
+    SUNRPC_XPRT_RDMA config option that depends on SUNRPC and INFINIBAND. The
+    value of SUNRPC_XPRT_RDMA will be:
 
      - N if either SUNRPC or INFINIBAND are N, in this case the NFS/RDMA client
        and server will not be built
@@ -187,8 +187,10 @@ Check RDMA and NFS Setup
     To further test the InfiniBand software stack, use IPoIB (this
     assumes you have two IB hosts named host1 and host2):
 
-    host1$ ifconfig ib0 a.b.c.x
-    host2$ ifconfig ib0 a.b.c.y
+    host1$ ip link set dev ib0 up
+    host1$ ip address add dev ib0 a.b.c.x
+    host2$ ip link set dev ib0 up
+    host2$ ip address add dev ib0 a.b.c.y
     host1$ ping a.b.c.y
     host2$ ping a.b.c.x
 
@@ -229,15 +231,15 @@ NFS/RDMA Setup
 
     $ modprobe ib_mthca
     $ modprobe ib_ipoib
-    $ ifconfig ib0 a.b.c.d
+    $ ip li set dev ib0 up
+    $ ip addr add dev ib0 a.b.c.d
 
     NOTE: use unique addresses for the client and server
 
   - Start the NFS server
 
-    If the NFS/RDMA server was built as a module
-    (CONFIG_SUNRPC_XPRT_RDMA_SERVER=m in kernel config), load the RDMA
-    transport module:
+    If the NFS/RDMA server was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA transport module:
 
     $ modprobe svcrdma
 
@@ -256,9 +258,8 @@ NFS/RDMA Setup
 
   - On the client system
 
-    If the NFS/RDMA client was built as a module
-    (CONFIG_SUNRPC_XPRT_RDMA_CLIENT=m in kernel config), load the RDMA client
-    module:
+    If the NFS/RDMA client was built as a module (CONFIG_SUNRPC_XPRT_RDMA=m in
+    kernel config), load the RDMA client module:
 
     $ modprobe xprtrdma.ko
 

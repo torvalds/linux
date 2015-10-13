@@ -218,6 +218,8 @@ struct obd_import {
 	atomic_t	      imp_timeouts;
 	/** Current import state */
 	enum lustre_imp_state     imp_state;
+	/** Last replay state */
+	enum lustre_imp_state	  imp_replay_state;
 	/** History of import states */
 	struct import_state_hist  imp_state_hist[IMP_STATE_HIST_LEN];
 	int		       imp_state_hist_idx;
@@ -373,8 +375,8 @@ extern unsigned int at_max;
 
 /* genops.c */
 struct obd_export;
-extern struct obd_import *class_exp2cliimp(struct obd_export *);
-extern struct obd_import *class_conn2cliimp(struct lustre_handle *);
+struct obd_import *class_exp2cliimp(struct obd_export *);
+struct obd_import *class_conn2cliimp(struct lustre_handle *);
 
 /** @} import */
 

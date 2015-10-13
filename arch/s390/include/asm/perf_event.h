@@ -9,8 +9,6 @@
 #ifndef _ASM_S390_PERF_EVENT_H
 #define _ASM_S390_PERF_EVENT_H
 
-#ifdef CONFIG_64BIT
-
 #include <linux/perf_event.h>
 #include <linux/device.h>
 #include <asm/cpu_mf.h>
@@ -89,8 +87,15 @@ struct sf_raw_sample {
 } __packed;
 
 /* Perf hardware reserve and release functions */
+#ifdef CONFIG_PERF_EVENTS
 int perf_reserve_sampling(void);
 void perf_release_sampling(void);
+#else /* CONFIG_PERF_EVENTS */
+static inline int perf_reserve_sampling(void)
+{
+	return 0;
+}
+static inline void perf_release_sampling(void) {}
+#endif /* CONFIG_PERF_EVENTS */
 
-#endif /* CONFIG_64BIT */
 #endif /* _ASM_S390_PERF_EVENT_H */

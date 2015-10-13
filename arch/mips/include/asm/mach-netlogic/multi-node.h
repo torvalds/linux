@@ -48,15 +48,6 @@
 #endif
 
 #define NLM_THREADS_PER_CORE	4
-#ifdef CONFIG_CPU_XLR
-#define nlm_cores_per_node()	8
-#else
-extern unsigned int xlp_cores_per_node;
-#define nlm_cores_per_node()	xlp_cores_per_node
-#endif
-
-#define nlm_threads_per_node()	(nlm_cores_per_node() * NLM_THREADS_PER_CORE)
-#define nlm_cpuid_to_node(c)	((c) / nlm_threads_per_node())
 
 struct nlm_soc_info {
 	unsigned long	coremask;	/* cores enabled on the soc */

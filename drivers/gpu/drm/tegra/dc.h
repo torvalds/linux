@@ -12,6 +12,8 @@
 
 #define DC_CMD_GENERAL_INCR_SYNCPT		0x000
 #define DC_CMD_GENERAL_INCR_SYNCPT_CNTRL	0x001
+#define  SYNCPT_CNTRL_NO_STALL   (1 << 8)
+#define  SYNCPT_CNTRL_SOFT_RESET (1 << 0)
 #define DC_CMD_GENERAL_INCR_SYNCPT_ERROR	0x002
 #define DC_CMD_WIN_A_INCR_SYNCPT		0x008
 #define DC_CMD_WIN_A_INCR_SYNCPT_CNTRL		0x009
@@ -23,6 +25,7 @@
 #define DC_CMD_WIN_C_INCR_SYNCPT_CNTRL		0x019
 #define DC_CMD_WIN_C_INCR_SYNCPT_ERROR		0x01a
 #define DC_CMD_CONT_SYNCPT_VSYNC		0x028
+#define  SYNCPT_VSYNC_ENABLE (1 << 8)
 #define DC_CMD_DISPLAY_COMMAND_OPTION0		0x031
 #define DC_CMD_DISPLAY_COMMAND			0x032
 #define DISP_CTRL_MODE_STOP (0 << 5)
@@ -83,6 +86,11 @@
 #define DC_CMD_REG_ACT_CONTROL			0x043
 
 #define DC_COM_CRC_CONTROL			0x300
+#define  DC_COM_CRC_CONTROL_ALWAYS (1 << 3)
+#define  DC_COM_CRC_CONTROL_FULL_FRAME  (0 << 2)
+#define  DC_COM_CRC_CONTROL_ACTIVE_DATA (1 << 2)
+#define  DC_COM_CRC_CONTROL_WAIT (1 << 1)
+#define  DC_COM_CRC_CONTROL_ENABLE (1 << 0)
 #define DC_COM_CRC_CHECKSUM			0x301
 #define DC_COM_PIN_OUTPUT_ENABLE(x) (0x302 + (x))
 #define DC_COM_PIN_OUTPUT_POLARITY(x) (0x306 + (x))
@@ -111,15 +119,17 @@
 #define DC_COM_CRC_CHECKSUM_LATCHED		0x329
 
 #define DC_DISP_DISP_SIGNAL_OPTIONS0		0x400
-#define H_PULSE_0_ENABLE (1 <<  8)
-#define H_PULSE_1_ENABLE (1 << 10)
-#define H_PULSE_2_ENABLE (1 << 12)
+#define H_PULSE0_ENABLE (1 <<  8)
+#define H_PULSE1_ENABLE (1 << 10)
+#define H_PULSE2_ENABLE (1 << 12)
 
 #define DC_DISP_DISP_SIGNAL_OPTIONS1		0x401
 
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
 #define HDMI_ENABLE	(1 << 30)
 #define DSI_ENABLE	(1 << 29)
+#define SOR1_TIMING_CYA	(1 << 27)
+#define SOR1_ENABLE	(1 << 26)
 #define SOR_ENABLE	(1 << 25)
 #define CURSOR_ENABLE	(1 << 16)
 
@@ -239,9 +249,20 @@
 #define BASE_COLOR_SIZE565     (6 << 0)
 #define BASE_COLOR_SIZE332     (7 << 0)
 #define BASE_COLOR_SIZE888     (8 << 0)
+#define DITHER_CONTROL_MASK    (3 << 8)
 #define DITHER_CONTROL_DISABLE (0 << 8)
 #define DITHER_CONTROL_ORDERED (2 << 8)
 #define DITHER_CONTROL_ERRDIFF (3 << 8)
+#define BASE_COLOR_SIZE_MASK   (0xf << 0)
+#define BASE_COLOR_SIZE_666    (0 << 0)
+#define BASE_COLOR_SIZE_111    (1 << 0)
+#define BASE_COLOR_SIZE_222    (2 << 0)
+#define BASE_COLOR_SIZE_333    (3 << 0)
+#define BASE_COLOR_SIZE_444    (4 << 0)
+#define BASE_COLOR_SIZE_555    (5 << 0)
+#define BASE_COLOR_SIZE_565    (6 << 0)
+#define BASE_COLOR_SIZE_332    (7 << 0)
+#define BASE_COLOR_SIZE_888    (8 << 0)
 
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
 #define  SC1_H_QUALIFIER_NONE	(1 << 16)
@@ -437,9 +458,5 @@
 #define DC_WINBUF_AD_UFLOW_STATUS		0xbca
 #define DC_WINBUF_BD_UFLOW_STATUS		0xdca
 #define DC_WINBUF_CD_UFLOW_STATUS		0xfca
-
-/* synchronization points */
-#define SYNCPT_VBLANK0 26
-#define SYNCPT_VBLANK1 27
 
 #endif /* TEGRA_DC_H */

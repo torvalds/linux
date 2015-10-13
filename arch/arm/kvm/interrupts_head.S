@@ -402,7 +402,6 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  * Assumes vcpu pointer in vcpu reg
  */
 .macro save_vgic_state
-#ifdef CONFIG_KVM_ARM_VGIC
 	/* Get VGIC VCTRL base into r2 */
 	ldr	r2, [vcpu, #VCPU_KVM]
 	ldr	r2, [r2, #KVM_VGIC_VCTRL]
@@ -413,7 +412,6 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	add	r11, vcpu, #VCPU_VGIC_CPU
 
 	/* Save all interesting registers */
-	ldr	r3, [r2, #GICH_HCR]
 	ldr	r4, [r2, #GICH_VMCR]
 	ldr	r5, [r2, #GICH_MISR]
 	ldr	r6, [r2, #GICH_EISR0]
@@ -421,7 +419,6 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	ldr	r8, [r2, #GICH_ELRSR0]
 	ldr	r9, [r2, #GICH_ELRSR1]
 	ldr	r10, [r2, #GICH_APR]
-ARM_BE8(rev	r3, r3	)
 ARM_BE8(rev	r4, r4	)
 ARM_BE8(rev	r5, r5	)
 ARM_BE8(rev	r6, r6	)
@@ -430,7 +427,6 @@ ARM_BE8(rev	r8, r8	)
 ARM_BE8(rev	r9, r9	)
 ARM_BE8(rev	r10, r10	)
 
-	str	r3, [r11, #VGIC_V2_CPU_HCR]
 	str	r4, [r11, #VGIC_V2_CPU_VMCR]
 	str	r5, [r11, #VGIC_V2_CPU_MISR]
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -460,7 +456,6 @@ ARM_BE8(rev	r6, r6	)
 	subs	r4, r4, #1
 	bne	1b
 2:
-#endif
 .endm
 
 /*
@@ -469,7 +464,6 @@ ARM_BE8(rev	r6, r6	)
  * Assumes vcpu pointer in vcpu reg
  */
 .macro restore_vgic_state
-#ifdef CONFIG_KVM_ARM_VGIC
 	/* Get VGIC VCTRL base into r2 */
 	ldr	r2, [vcpu, #VCPU_KVM]
 	ldr	r2, [r2, #KVM_VGIC_VCTRL]
@@ -501,7 +495,6 @@ ARM_BE8(rev	r6, r6  )
 	subs	r4, r4, #1
 	bne	1b
 2:
-#endif
 .endm
 
 #define CNTHCTL_PL1PCTEN	(1 << 0)
@@ -515,7 +508,6 @@ ARM_BE8(rev	r6, r6  )
  * Clobbers r2-r5
  */
 .macro save_timer_state
-#ifdef CONFIG_KVM_ARM_TIMER
 	ldr	r4, [vcpu, #VCPU_KVM]
 	ldr	r2, [r4, #KVM_TIMER_ENABLED]
 	cmp	r2, #0
@@ -523,8 +515,7 @@ ARM_BE8(rev	r6, r6  )
 
 	mrc	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
 	str	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
-	bic	r2, #1			@ Clear ENABLE
-	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+
 	isb
 
 	mrrc	p15, 3, rr_lo_hi(r2, r3), c14	@ CNTV_CVAL
@@ -537,7 +528,9 @@ ARM_BE8(rev	r6, r6  )
 	mcrr	p15, 4, r2, r2, c14	@ CNTVOFF
 
 1:
-#endif
+	mov	r2, #0			@ Clear ENABLE
+	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
+
 	@ Allow physical timer/counter access for the host
 	mrc	p15, 4, r2, c14, c1, 0	@ CNTHCTL
 	orr	r2, r2, #(CNTHCTL_PL1PCEN | CNTHCTL_PL1PCTEN)
@@ -559,7 +552,6 @@ ARM_BE8(rev	r6, r6  )
 	bic	r2, r2, #CNTHCTL_PL1PCEN
 	mcr	p15, 4, r2, c14, c1, 0	@ CNTHCTL
 
-#ifdef CONFIG_KVM_ARM_TIMER
 	ldr	r4, [vcpu, #VCPU_KVM]
 	ldr	r2, [r4, #KVM_TIMER_ENABLED]
 	cmp	r2, #0
@@ -579,7 +571,6 @@ ARM_BE8(rev	r6, r6  )
 	and	r2, r2, #3
 	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
 1:
-#endif
 .endm
 
 .equ vmentry,	0
@@ -599,8 +590,13 @@ ARM_BE8(rev	r6, r6  )
 .endm
 
 /* Configures the HCPTR (Hyp Coprocessor Trap Register) on entry/return
- * (hardware reset value is 0). Keep previous value in r2. */
-.macro set_hcptr operation, mask
+ * (hardware reset value is 0). Keep previous value in r2.
+ * An ISB is emited on vmexit/vmtrap, but executed on vmexit only if
+ * VFP wasn't already enabled (always executed on vmtrap).
+ * If a label is specified with vmexit, it is branched to if VFP wasn't
+ * enabled.
+ */
+.macro set_hcptr operation, mask, label = none
 	mrc	p15, 4, r2, c1, c1, 2
 	ldr	r3, =\mask
 	.if \operation == vmentry
@@ -609,6 +605,17 @@ ARM_BE8(rev	r6, r6  )
 	bic	r3, r2, r3		@ Don't trap defined coproc-accesses
 	.endif
 	mcr	p15, 4, r3, c1, c1, 2
+	.if \operation != vmentry
+	.if \operation == vmexit
+	tst	r2, #(HCPTR_TCP(10) | HCPTR_TCP(11))
+	beq	1f
+	.endif
+	isb
+	.if \label != none
+	b	\label
+	.endif
+1:
+	.endif
 .endm
 
 /* Configures the HDCR (Hyp Debug Configuration Register) on entry/return

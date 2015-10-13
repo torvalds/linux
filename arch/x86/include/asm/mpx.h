@@ -13,55 +13,50 @@
 #define MPX_BNDCFG_ENABLE_FLAG	0x1
 #define MPX_BD_ENTRY_VALID_FLAG	0x1
 
-#ifdef CONFIG_X86_64
-
-/* upper 28 bits [47:20] of the virtual address in 64-bit used to
- * index into bounds directory (BD).
+/*
+ * The upper 28 bits [47:20] of the virtual address in 64-bit
+ * are used to index into bounds directory (BD).
+ *
+ * The directory is 2G (2^31) in size, and with 8-byte entries
+ * it has 2^28 entries.
  */
-#define MPX_BD_ENTRY_OFFSET	28
-#define MPX_BD_ENTRY_SHIFT	3
-/* bits [19:3] of the virtual address in 64-bit used to index into
- * bounds table (BT).
+#define MPX_BD_SIZE_BYTES_64	(1UL<<31)
+#define MPX_BD_ENTRY_BYTES_64	8
+#define MPX_BD_NR_ENTRIES_64	(MPX_BD_SIZE_BYTES_64/MPX_BD_ENTRY_BYTES_64)
+
+/*
+ * The 32-bit directory is 4MB (2^22) in size, and with 4-byte
+ * entries it has 2^20 entries.
  */
-#define MPX_BT_ENTRY_OFFSET	17
-#define MPX_BT_ENTRY_SHIFT	5
-#define MPX_IGN_BITS		3
-#define MPX_BD_ENTRY_TAIL	3
+#define MPX_BD_SIZE_BYTES_32	(1UL<<22)
+#define MPX_BD_ENTRY_BYTES_32	4
+#define MPX_BD_NR_ENTRIES_32	(MPX_BD_SIZE_BYTES_32/MPX_BD_ENTRY_BYTES_32)
 
-#else
+/*
+ * A 64-bit table is 4MB total in size, and an entry is
+ * 4 64-bit pointers in size.
+ */
+#define MPX_BT_SIZE_BYTES_64	(1UL<<22)
+#define MPX_BT_ENTRY_BYTES_64	32
+#define MPX_BT_NR_ENTRIES_64	(MPX_BT_SIZE_BYTES_64/MPX_BT_ENTRY_BYTES_64)
 
-#define MPX_BD_ENTRY_OFFSET	20
-#define MPX_BD_ENTRY_SHIFT	2
-#define MPX_BT_ENTRY_OFFSET	10
-#define MPX_BT_ENTRY_SHIFT	4
-#define MPX_IGN_BITS		2
-#define MPX_BD_ENTRY_TAIL	2
-
-#endif
-
-#define MPX_BD_SIZE_BYTES (1UL<<(MPX_BD_ENTRY_OFFSET+MPX_BD_ENTRY_SHIFT))
-#define MPX_BT_SIZE_BYTES (1UL<<(MPX_BT_ENTRY_OFFSET+MPX_BT_ENTRY_SHIFT))
+/*
+ * A 32-bit table is 16kB total in size, and an entry is
+ * 4 32-bit pointers in size.
+ */
+#define MPX_BT_SIZE_BYTES_32	(1UL<<14)
+#define MPX_BT_ENTRY_BYTES_32	16
+#define MPX_BT_NR_ENTRIES_32	(MPX_BT_SIZE_BYTES_32/MPX_BT_ENTRY_BYTES_32)
 
 #define MPX_BNDSTA_TAIL		2
 #define MPX_BNDCFG_TAIL		12
 #define MPX_BNDSTA_ADDR_MASK	(~((1UL<<MPX_BNDSTA_TAIL)-1))
 #define MPX_BNDCFG_ADDR_MASK	(~((1UL<<MPX_BNDCFG_TAIL)-1))
-#define MPX_BT_ADDR_MASK	(~((1UL<<MPX_BD_ENTRY_TAIL)-1))
-
-#define MPX_BNDCFG_ADDR_MASK	(~((1UL<<MPX_BNDCFG_TAIL)-1))
 #define MPX_BNDSTA_ERROR_CODE	0x3
 
-#define MPX_BD_ENTRY_MASK	((1<<MPX_BD_ENTRY_OFFSET)-1)
-#define MPX_BT_ENTRY_MASK	((1<<MPX_BT_ENTRY_OFFSET)-1)
-#define MPX_GET_BD_ENTRY_OFFSET(addr)	((((addr)>>(MPX_BT_ENTRY_OFFSET+ \
-		MPX_IGN_BITS)) & MPX_BD_ENTRY_MASK) << MPX_BD_ENTRY_SHIFT)
-#define MPX_GET_BT_ENTRY_OFFSET(addr)	((((addr)>>MPX_IGN_BITS) & \
-		MPX_BT_ENTRY_MASK) << MPX_BT_ENTRY_SHIFT)
-
 #ifdef CONFIG_X86_INTEL_MPX
-siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-				struct xsave_struct *xsave_buf);
-int mpx_handle_bd_fault(struct xsave_struct *xsave_buf);
+siginfo_t *mpx_generate_siginfo(struct pt_regs *regs);
+int mpx_handle_bd_fault(void);
 static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 {
 	return (mm->bd_addr != MPX_INVALID_BOUNDS_DIR);
@@ -77,12 +72,11 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end);
 #else
-static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-					      struct xsave_struct *xsave_buf)
+static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 {
 	return NULL;
 }
-static inline int mpx_handle_bd_fault(struct xsave_struct *xsave_buf)
+static inline int mpx_handle_bd_fault(void)
 {
 	return -EINVAL;
 }

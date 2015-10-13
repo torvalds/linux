@@ -4090,7 +4090,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					continue;
 				}
 				depth = scsi_track_queue_full(sdev,
-				    current_depth - 1);
+					sdev->queue_depth - 1);
 				if (depth > 0)
 					sdev_printk(KERN_INFO, sdev,
 					"Queue depth reduced to (%d)\n",
@@ -4100,7 +4100,7 @@ mptsas_handle_queue_full_event(struct fw_event_work *fw_event)
 					"Tagged Command Queueing is being "
 					"disabled\n");
 				else if (depth == 0)
-					sdev_printk(KERN_INFO, sdev,
+					sdev_printk(KERN_DEBUG, sdev,
 					"Queue depth not changed yet\n");
 			}
 		}

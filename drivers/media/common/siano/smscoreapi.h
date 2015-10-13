@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef __SMS_CORE_API_H__
 #define __SMS_CORE_API_H__
 
+#define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
+
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -30,6 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/timer.h>
+
+#include <media/media-device.h>
 
 #include <asm/page.h>
 
@@ -215,6 +219,10 @@ struct smscore_device_t {
 	bool is_usb_device;
 
 	int led_state;
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_device *media_dev;
+#endif
 };
 
 /* GPIO definitions for antenna frequency domain control (SMS8021) */
@@ -1002,6 +1010,7 @@ struct sms_rx_stats_ex {
 	s32 mrc_in_band_pwr;	/* In band power in dBM */
 };
 
+#define	SRVM_MAX_PID_FILTERS 8
 
 /* statistics information returned as response for
  * SmsHostApiGetstatisticsEx_Req for DVB applications, SMS1100 and up */
@@ -1013,7 +1022,6 @@ struct sms_stats_dvb {
 	struct sms_tx_stats transmission_data;
 
 	/* Burst parameters, valid only for DVB-H */
-#define	SRVM_MAX_PID_FILTERS 8
 	struct sms_pid_data pid_data[SRVM_MAX_PID_FILTERS];
 };
 
@@ -1027,7 +1035,6 @@ struct sms_stats_dvb_ex {
 	struct sms_tx_stats transmission_data;
 
 	/* Burst parameters, valid only for DVB-H */
-#define	SRVM_MAX_PID_FILTERS 8
 	struct sms_pid_data pid_data[SRVM_MAX_PID_FILTERS];
 };
 
@@ -1115,7 +1122,8 @@ extern int smscore_register_hotplug(hotplug_t hotplug);
 extern void smscore_unregister_hotplug(hotplug_t hotplug);
 
 extern int smscore_register_device(struct smsdevice_params_t *params,
-				   struct smscore_device_t **coredev);
+				   struct smscore_device_t **coredev,
+				   void *mdev);
 extern void smscore_unregister_device(struct smscore_device_t *coredev);
 
 extern int smscore_start_device(struct smscore_device_t *coredev);
@@ -1167,26 +1175,5 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 
 
 /* ------------------------------------------------------------------------ */
-
-#define DBG_INFO 1
-#define DBG_ADV  2
-
-#define sms_printk(kern, fmt, arg...) \
-	printk(kern "%s: " fmt "\n", __func__, ##arg)
-
-#define dprintk(kern, lvl, fmt, arg...) do {\
-	if (sms_dbg & lvl) \
-		sms_printk(kern, fmt, ##arg); \
-} while (0)
-
-#define sms_log(fmt, arg...) sms_printk(KERN_INFO, fmt, ##arg)
-#define sms_err(fmt, arg...) \
-	sms_printk(KERN_ERR, "line: %d: " fmt, __LINE__, ##arg)
-#define sms_warn(fmt, arg...)  sms_printk(KERN_WARNING, fmt, ##arg)
-#define sms_info(fmt, arg...) \
-	dprintk(KERN_INFO, DBG_INFO, fmt, ##arg)
-#define sms_debug(fmt, arg...) \
-	dprintk(KERN_DEBUG, DBG_ADV, fmt, ##arg)
-
 
 #endif /* __SMS_CORE_API_H__ */

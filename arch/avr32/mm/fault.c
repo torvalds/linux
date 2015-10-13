@@ -14,11 +14,11 @@
 #include <linux/pagemap.h>
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/mmu_context.h>
 #include <asm/sysreg.h>
 #include <asm/tlb.h>
-#include <asm/uaccess.h>
 
 #ifdef CONFIG_KPROBES
 static inline int notify_page_fault(struct pt_regs *regs, int trap)
@@ -81,7 +81,7 @@ asmlinkage void do_page_fault(unsigned long ecr, struct pt_regs *regs)
 	 * If we're in an interrupt or have no user context, we must
 	 * not take the fault...
 	 */
-	if (in_atomic() || !mm || regs->sr & SYSREG_BIT(GM))
+	if (faulthandler_disabled() || !mm || regs->sr & SYSREG_BIT(GM))
 		goto no_context;
 
 	local_irq_enable();

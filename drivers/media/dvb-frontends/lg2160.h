@@ -67,7 +67,7 @@ struct lg2160_config {
 	enum lg_chip_type lg_chip;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LG2160)
+#if IS_REACHABLE(CONFIG_DVB_LG2160)
 extern
 struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 				     struct i2c_adapter *i2c_adap);

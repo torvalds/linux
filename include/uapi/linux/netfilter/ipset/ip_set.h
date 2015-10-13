@@ -15,11 +15,11 @@
 /* The protocol version */
 #define IPSET_PROTOCOL		6
 
-/* The maximum permissible comment length we will accept over netlink */
-#define IPSET_MAX_COMMENT_SIZE	255
-
 /* The max length of strings including NUL: set and type identifiers */
 #define IPSET_MAXNAMELEN	32
+
+/* The maximum permissible comment length we will accept over netlink */
+#define IPSET_MAX_COMMENT_SIZE	255
 
 /* Message types and commands */
 enum ipset_cmd {

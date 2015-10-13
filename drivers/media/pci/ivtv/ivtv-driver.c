@@ -805,11 +805,11 @@ static void ivtv_init_struct2(struct ivtv *itv)
 {
 	int i;
 
-	for (i = 0; i < IVTV_CARD_MAX_VIDEO_INPUTS; i++)
+	for (i = 0; i < IVTV_CARD_MAX_VIDEO_INPUTS - 1; i++)
 		if (itv->card->video_inputs[i].video_type == 0)
 			break;
 	itv->nof_inputs = i;
-	for (i = 0; i < IVTV_CARD_MAX_AUDIO_INPUTS; i++)
+	for (i = 0; i < IVTV_CARD_MAX_AUDIO_INPUTS - 1; i++)
 		if (itv->card->audio_inputs[i].audio_type == 0)
 			break;
 	itv->nof_audio_inputs = i;
@@ -1284,7 +1284,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	return 0;
 
 free_streams:
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 free_irq:
 	free_irq(itv->pdev->irq, (void *)itv);
 free_i2c:
@@ -1444,7 +1444,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	flush_kthread_worker(&itv->irq_worker);
 	kthread_stop(itv->irq_worker_task);
 
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 	ivtv_udma_free(itv);
 
 	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);

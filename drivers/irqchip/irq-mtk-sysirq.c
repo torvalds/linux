@@ -13,6 +13,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -20,8 +21,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-
-#include "irqchip.h"
 
 struct mtk_sysirq_chip_data {
 	spinlock_t lock;
@@ -111,7 +110,7 @@ static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_data);
 }
 
-static struct irq_domain_ops sysirq_domain_ops = {
+static const struct irq_domain_ops sysirq_domain_ops = {
 	.xlate = mtk_sysirq_domain_xlate,
 	.alloc = mtk_sysirq_domain_alloc,
 	.free = irq_domain_free_irqs_common,
@@ -144,7 +143,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 	chip_data->intpol_base = ioremap(res.start, size);
 	if (!chip_data->intpol_base) {
 		pr_err("mtk_sysirq: unable to map sysirq register\n");
-		ret = PTR_ERR(chip_data->intpol_base);
+		ret = -ENXIO;
 		goto out_free;
 	}
 

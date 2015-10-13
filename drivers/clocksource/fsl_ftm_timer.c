@@ -153,19 +153,16 @@ static int ftm_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static void ftm_set_mode(enum clock_event_mode mode,
-				struct clock_event_device *evt)
+static int ftm_set_oneshot(struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		ftm_set_next_event(priv->periodic_cyc, evt);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		ftm_counter_disable(priv->clkevt_base);
-		break;
-	default:
-		return;
-	}
+	ftm_counter_disable(priv->clkevt_base);
+	return 0;
+}
+
+static int ftm_set_periodic(struct clock_event_device *evt)
+{
+	ftm_set_next_event(priv->periodic_cyc, evt);
+	return 0;
 }
 
 static irqreturn_t ftm_evt_interrupt(int irq, void *dev_id)
@@ -174,7 +171,7 @@ static irqreturn_t ftm_evt_interrupt(int irq, void *dev_id)
 
 	ftm_irq_acknowledge(priv->clkevt_base);
 
-	if (likely(evt->mode == CLOCK_EVT_MODE_ONESHOT)) {
+	if (likely(clockevent_state_oneshot(evt))) {
 		ftm_irq_disable(priv->clkevt_base);
 		ftm_counter_disable(priv->clkevt_base);
 	}
@@ -185,11 +182,13 @@ static irqreturn_t ftm_evt_interrupt(int irq, void *dev_id)
 }
 
 static struct clock_event_device ftm_clockevent = {
-	.name		= "Freescale ftm timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= ftm_set_mode,
-	.set_next_event	= ftm_set_next_event,
-	.rating		= 300,
+	.name			= "Freescale ftm timer",
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.set_state_periodic	= ftm_set_periodic,
+	.set_state_oneshot	= ftm_set_oneshot,
+	.set_next_event		= ftm_set_next_event,
+	.rating			= 300,
 };
 
 static struct irqaction ftm_timer_irq = {

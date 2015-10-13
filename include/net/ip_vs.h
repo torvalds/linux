@@ -47,13 +47,13 @@ static inline struct net *skb_net(const struct sk_buff *skb)
 	 * Start with the most likely hit
 	 * End with BUG
 	 */
-	if (likely(skb->dev && skb->dev->nd_net))
+	if (likely(skb->dev && dev_net(skb->dev)))
 		return dev_net(skb->dev);
 	if (skb_dst(skb) && skb_dst(skb)->dev)
 		return dev_net(skb_dst(skb)->dev);
 	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
 		      __func__, __LINE__);
-	if (likely(skb->sk && skb->sk->sk_net))
+	if (likely(skb->sk && sock_net(skb->sk)))
 		return sock_net(skb->sk);
 	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
 		__func__, __LINE__);
@@ -71,11 +71,11 @@ static inline struct net *skb_sknet(const struct sk_buff *skb)
 #ifdef CONFIG_NET_NS
 #ifdef CONFIG_IP_VS_DEBUG
 	/* Start with the most likely hit */
-	if (likely(skb->sk && skb->sk->sk_net))
+	if (likely(skb->sk && sock_net(skb->sk)))
 		return sock_net(skb->sk);
 	WARN(skb->dev, "Maybe skb_net should be used instead in %s() line:%d\n",
 		       __func__, __LINE__);
-	if (likely(skb->dev && skb->dev->nd_net))
+	if (likely(skb->dev && dev_net(skb->dev)))
 		return dev_net(skb->dev);
 	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
 		__func__, __LINE__);
@@ -365,15 +365,15 @@ struct ip_vs_seq {
 
 /* counters per cpu */
 struct ip_vs_counters {
-	__u32		conns;		/* connections scheduled */
-	__u32		inpkts;		/* incoming packets */
-	__u32		outpkts;	/* outgoing packets */
+	__u64		conns;		/* connections scheduled */
+	__u64		inpkts;		/* incoming packets */
+	__u64		outpkts;	/* outgoing packets */
 	__u64		inbytes;	/* incoming bytes */
 	__u64		outbytes;	/* outgoing bytes */
 };
 /* Stats per cpu */
 struct ip_vs_cpu_stats {
-	struct ip_vs_counters   ustats;
+	struct ip_vs_counters   cnt;
 	struct u64_stats_sync   syncp;
 };
 
@@ -383,23 +383,40 @@ struct ip_vs_estimator {
 
 	u64			last_inbytes;
 	u64			last_outbytes;
-	u32			last_conns;
-	u32			last_inpkts;
-	u32			last_outpkts;
+	u64			last_conns;
+	u64			last_inpkts;
+	u64			last_outpkts;
 
-	u32			cps;
-	u32			inpps;
-	u32			outpps;
-	u32			inbps;
-	u32			outbps;
+	u64			cps;
+	u64			inpps;
+	u64			outpps;
+	u64			inbps;
+	u64			outbps;
+};
+
+/*
+ * IPVS statistics object, 64-bit kernel version of struct ip_vs_stats_user
+ */
+struct ip_vs_kstats {
+	u64			conns;		/* connections scheduled */
+	u64			inpkts;		/* incoming packets */
+	u64			outpkts;	/* outgoing packets */
+	u64			inbytes;	/* incoming bytes */
+	u64			outbytes;	/* outgoing bytes */
+
+	u64			cps;		/* current connection rate */
+	u64			inpps;		/* current in packet rate */
+	u64			outpps;		/* current out packet rate */
+	u64			inbps;		/* current in byte rate */
+	u64			outbps;		/* current out byte rate */
 };
 
 struct ip_vs_stats {
-	struct ip_vs_stats_user	ustats;		/* statistics */
+	struct ip_vs_kstats	kstats;		/* kernel statistics */
 	struct ip_vs_estimator	est;		/* estimator */
 	struct ip_vs_cpu_stats __percpu	*cpustats;	/* per cpu counters */
 	spinlock_t		lock;		/* spin lock */
-	struct ip_vs_stats_user	ustats0;	/* reset values */
+	struct ip_vs_kstats	kstats0;	/* reset values */
 };
 
 struct dst_entry;
@@ -829,6 +846,17 @@ struct ipvs_master_sync_state {
 /* How much time to keep dests in trash */
 #define IP_VS_DEST_TRASH_PERIOD		(120 * HZ)
 
+struct ipvs_sync_daemon_cfg {
+	union nf_inet_addr	mcast_group;
+	int			syncid;
+	u16			sync_maxlen;
+	u16			mcast_port;
+	u8			mcast_af;
+	u8			mcast_ttl;
+	/* multicast interface name */
+	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
+};
+
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
@@ -924,6 +952,7 @@ struct netns_ipvs {
 	int			sysctl_nat_icmp_send;
 	int			sysctl_pmtu_disc;
 	int			sysctl_backup_only;
+	int			sysctl_conn_reuse_mode;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -943,15 +972,10 @@ struct netns_ipvs {
 	spinlock_t		sync_buff_lock;
 	struct task_struct	**backup_threads;
 	int			threads_mask;
-	int			send_mesg_maxlen;
-	int			recv_mesg_maxlen;
 	volatile int		sync_state;
-	volatile int		master_syncid;
-	volatile int		backup_syncid;
 	struct mutex		sync_mutex;
-	/* multicast interface name */
-	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	struct ipvs_sync_daemon_cfg	mcfg;	/* Master Configuration */
+	struct ipvs_sync_daemon_cfg	bcfg;	/* Backup Configuration */
 	/* net name space ptr */
 	struct net		*net;            /* Needed by timer routines */
 	/* Number of heterogeneous destinations, needed becaus heterogeneous
@@ -1042,6 +1066,11 @@ static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 	       ipvs->sysctl_backup_only;
 }
 
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_conn_reuse_mode;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1107,6 +1136,11 @@ static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
 static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 #endif
@@ -1380,7 +1414,8 @@ static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 /* IPVS sync daemon data and function prototypes
  * (from ip_vs_sync.c)
  */
-int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid);
+int start_sync_thread(struct net *net, struct ipvs_sync_daemon_cfg *cfg,
+		      int state);
 int stop_sync_thread(struct net *net, int state);
 void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
 
@@ -1388,8 +1423,7 @@ void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
 void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);
 void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats);
 void ip_vs_zero_estimator(struct ip_vs_stats *stats);
-void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
-			  struct ip_vs_stats *stats);
+void ip_vs_read_estimator(struct ip_vs_kstats *dst, struct ip_vs_stats *stats);
 
 /* Various IPVS packet transmitters (from ip_vs_xmit.c) */
 int ip_vs_null_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,

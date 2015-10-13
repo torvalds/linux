@@ -12,6 +12,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/clk-provider.h>
@@ -42,6 +43,18 @@ struct freq_tbl *qcom_find_freq(const struct freq_tbl *f, unsigned long rate)
 	return f - 1;
 }
 EXPORT_SYMBOL_GPL(qcom_find_freq);
+
+int qcom_find_src_index(struct clk_hw *hw, const struct parent_map *map, u8 src)
+{
+	int i, num_parents = clk_hw_get_num_parents(hw);
+
+	for (i = 0; i < num_parents; i++)
+		if (src == map[i].src)
+			return i;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(qcom_find_src_index);
 
 struct regmap *
 qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
@@ -132,3 +145,5 @@ void qcom_cc_remove(struct platform_device *pdev)
 	reset_controller_unregister(platform_get_drvdata(pdev));
 }
 EXPORT_SYMBOL_GPL(qcom_cc_remove);
+
+MODULE_LICENSE("GPL v2");

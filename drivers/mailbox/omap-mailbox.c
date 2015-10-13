@@ -604,7 +604,7 @@ static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
 	return ret;
 }
 
-static struct mbox_chan_ops omap_mbox_chan_ops = {
+static const struct mbox_chan_ops omap_mbox_chan_ops = {
 	.startup        = omap_mbox_chan_startup,
 	.send_data      = omap_mbox_chan_send_data,
 	.shutdown       = omap_mbox_chan_shutdown,
@@ -639,18 +639,18 @@ static struct mbox_chan *omap_mbox_of_xlate(struct mbox_controller *controller,
 
 	mdev = container_of(controller, struct omap_mbox_device, controller);
 	if (WARN_ON(!mdev))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	node = of_find_node_by_phandle(phandle);
 	if (!node) {
 		pr_err("%s: could not find node phandle 0x%x\n",
 		       __func__, phandle);
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	mbox = omap_mbox_device_find(mdev, node->name);
 	of_node_put(node);
-	return mbox ? mbox->chan : NULL;
+	return mbox ? mbox->chan : ERR_PTR(-ENOENT);
 }
 
 static int omap_mbox_probe(struct platform_device *pdev)

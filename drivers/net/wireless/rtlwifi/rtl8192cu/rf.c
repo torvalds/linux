@@ -66,7 +66,6 @@ void rtl92cu_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32 tx_agc[2] = { 0, 0 }, tmpval = 0;
@@ -74,14 +73,8 @@ void rtl92cu_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 	u8 idx1, idx2;
 	u8 *ptr;
 
-	if (rtlhal->interface == INTF_PCI) {
-		if (rtlefuse->eeprom_regulatory != 0)
-			turbo_scanoff = true;
-	} else {
-		if ((rtlefuse->eeprom_regulatory != 0) ||
-		    (rtlefuse->external_pa))
-			turbo_scanoff = true;
-	}
+	if ((rtlefuse->eeprom_regulatory != 0) || (rtlefuse->external_pa))
+		turbo_scanoff = true;
 	if (mac->act_scanning) {
 		tx_agc[RF90_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF90_PATH_B] = 0x3f3f3f3f;
@@ -90,11 +83,8 @@ void rtl92cu_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 			    (ppowerlevel[idx1] << 8) |
 			    (ppowerlevel[idx1] << 16) |
 			    (ppowerlevel[idx1] << 24);
-			if (rtlhal->interface == INTF_USB) {
-				if (tx_agc[idx1] > 0x20 &&
-				    rtlefuse->external_pa)
-					tx_agc[idx1] = 0x20;
-			}
+			if (tx_agc[idx1] > 0x20 && rtlefuse->external_pa)
+				tx_agc[idx1] = 0x20;
 		}
 	} else {
 		if (rtlpriv->dm.dynamic_txhighpower_lvl ==
@@ -452,9 +442,6 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 		udelay(1);
 		switch (rfpath) {
 		case RF90_PATH_A:
-			rtstatus = rtl92cu_phy_config_rf_with_headerfile(hw,
-					(enum radio_path) rfpath);
-			break;
 		case RF90_PATH_B:
 			rtstatus = rtl92cu_phy_config_rf_with_headerfile(hw,
 					(enum radio_path) rfpath);
@@ -483,7 +470,6 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 		}
 	}
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "<---\n");
-	return rtstatus;
 phy_rf_cfg_fail:
 	return rtstatus;
 }

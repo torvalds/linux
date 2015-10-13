@@ -173,5 +173,4 @@ static int __init intel_mid_device_create(void)
 
 	return platform_device_register(&vrtc_device);
 }
-
-module_init(intel_mid_device_create);
+device_initcall(intel_mid_device_create);

@@ -21,9 +21,11 @@
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
+#endif
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -94,7 +96,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 	}
 
 	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %08x %08lx\n", dbgname, (u32)ptr, size);
+		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
 
 	return ptr;
 }
@@ -102,7 +104,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
-		printk(KERN_DEBUG "IO:W %08x %08x\n", (u32)addr, data);
+		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
 	writel(data, addr);
 }
 
@@ -110,8 +112,67 @@ u32 msm_readl(const void __iomem *addr)
 {
 	u32 val = readl(addr);
 	if (reglog)
-		printk(KERN_ERR "IO:R %08x %08x\n", (u32)addr, val);
+		printk(KERN_ERR "IO:R %p %08x\n", addr, val);
 	return val;
+}
+
+struct vblank_event {
+	struct list_head node;
+	int crtc_id;
+	bool enable;
+};
+
+static void vblank_ctrl_worker(struct work_struct *work)
+{
+	struct msm_vblank_ctrl *vbl_ctrl = container_of(work,
+						struct msm_vblank_ctrl, work);
+	struct msm_drm_private *priv = container_of(vbl_ctrl,
+					struct msm_drm_private, vblank_ctrl);
+	struct msm_kms *kms = priv->kms;
+	struct vblank_event *vbl_ev, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
+		list_del(&vbl_ev->node);
+		spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+
+		if (vbl_ev->enable)
+			kms->funcs->enable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+		else
+			kms->funcs->disable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+
+		kfree(vbl_ev);
+
+		spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+}
+
+static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
+					int crtc_id, bool enable)
+{
+	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
+	struct vblank_event *vbl_ev;
+	unsigned long flags;
+
+	vbl_ev = kzalloc(sizeof(*vbl_ev), GFP_ATOMIC);
+	if (!vbl_ev)
+		return -ENOMEM;
+
+	vbl_ev->crtc_id = crtc_id;
+	vbl_ev->enable = enable;
+
+	spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	list_add_tail(&vbl_ev->node, &vbl_ctrl->event_list);
+	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+
+	queue_work(priv->wq, &vbl_ctrl->work);
+
+	return 0;
 }
 
 /*
@@ -123,6 +184,18 @@ static int msm_unload(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
+	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
+	struct vblank_event *vbl_ev, *tmp;
+
+	/* We must cancel and cleanup any pending vblank enable/disable
+	 * work before drm_irq_uninstall() to avoid work re-enabling an
+	 * irq after uninstall has disabled it.
+	 */
+	cancel_work_sync(&vbl_ctrl->work);
+	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
+		list_del(&vbl_ev->node);
+		kfree(vbl_ev);
+	}
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -143,8 +216,8 @@ static int msm_unload(struct drm_device *dev)
 	if (gpu) {
 		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		gpu->funcs->destroy(gpu);
 		mutex_unlock(&dev->struct_mutex);
+		gpu->funcs->destroy(gpu);
 	}
 
 	if (priv->vram.paddr) {
@@ -177,9 +250,86 @@ static int get_mdp_ver(struct platform_device *pdev)
 	const struct of_device_id *match;
 	match = of_match_node(match_types, dev->of_node);
 	if (match)
-		return (int)match->data;
+		return (int)(unsigned long)match->data;
 #endif
 	return 4;
+}
+
+#include <linux/of_address.h>
+
+static int msm_init_vram(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	unsigned long size = 0;
+	int ret = 0;
+
+#ifdef CONFIG_OF
+	/* In the device-tree world, we could have a 'memory-region'
+	 * phandle, which gives us a link to our "vram".  Allocating
+	 * is all nicely abstracted behind the dma api, but we need
+	 * to know the entire size to allocate it all in one go. There
+	 * are two cases:
+	 *  1) device with no IOMMU, in which case we need exclusive
+	 *     access to a VRAM carveout big enough for all gpu
+	 *     buffers
+	 *  2) device with IOMMU, but where the bootloader puts up
+	 *     a splash screen.  In this case, the VRAM carveout
+	 *     need only be large enough for fbdev fb.  But we need
+	 *     exclusive access to the buffer to avoid the kernel
+	 *     using those pages for other purposes (which appears
+	 *     as corruption on screen before we have a chance to
+	 *     load and do initial modeset)
+	 */
+	struct device_node *node;
+
+	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
+	if (node) {
+		struct resource r;
+		ret = of_address_to_resource(node, 0, &r);
+		if (ret)
+			return ret;
+		size = r.end - r.start;
+		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
+	} else
+#endif
+
+	/* if we have no IOMMU, then we need to use carveout allocator.
+	 * Grab the entire CMA chunk carved out in early startup in
+	 * mach-msm:
+	 */
+	if (!iommu_present(&platform_bus_type)) {
+		DRM_INFO("using %s VRAM carveout\n", vram);
+		size = memparse(vram, NULL);
+	}
+
+	if (size) {
+		DEFINE_DMA_ATTRS(attrs);
+		void *p;
+
+		priv->vram.size = size;
+
+		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
+		/* note that for no-kernel-mapping, the vaddr returned
+		 * is bogus, but non-null if allocation succeeded:
+		 */
+		p = dma_alloc_attrs(dev->dev, size,
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
+		if (!p) {
+			dev_err(dev->dev, "failed to allocate VRAM\n");
+			priv->vram.paddr = 0;
+			return -ENOMEM;
+		}
+
+		dev_info(dev->dev, "VRAM: %08x->%08x\n",
+				(uint32_t)priv->vram.paddr,
+				(uint32_t)(priv->vram.paddr + size));
+	}
+
+	return ret;
 }
 
 static int msm_load(struct drm_device *dev, unsigned long flags)
@@ -203,43 +353,11 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->fence_cbs);
+	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
+	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
+	spin_lock_init(&priv->vblank_ctrl.lock);
 
 	drm_mode_config_init(dev);
-
-	/* if we have no IOMMU, then we need to use carveout allocator.
-	 * Grab the entire CMA chunk carved out in early startup in
-	 * mach-msm:
-	 */
-	if (!iommu_present(&platform_bus_type)) {
-		DEFINE_DMA_ATTRS(attrs);
-		unsigned long size;
-		void *p;
-
-		DBG("using %s VRAM carveout", vram);
-		size = memparse(vram, NULL);
-		priv->vram.size = size;
-
-		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
-
-		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-
-		/* note that for no-kernel-mapping, the vaddr returned
-		 * is bogus, but non-null if allocation succeeded:
-		 */
-		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, GFP_KERNEL, &attrs);
-		if (!p) {
-			dev_err(dev->dev, "failed to allocate VRAM\n");
-			priv->vram.paddr = 0;
-			ret = -ENOMEM;
-			goto fail;
-		}
-
-		dev_info(dev->dev, "VRAM: %08x->%08x\n",
-				(uint32_t)priv->vram.paddr,
-				(uint32_t)(priv->vram.paddr + size));
-	}
 
 	platform_set_drvdata(pdev, dev);
 
@@ -247,6 +365,10 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)
 		return ret;
+
+	ret = msm_init_vram(dev);
+	if (ret)
+		goto fail;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
@@ -283,10 +405,6 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
 	ret = drm_vblank_init(dev, priv->num_crtcs);
@@ -373,9 +491,11 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 
 static void msm_lastclose(struct drm_device *dev)
 {
+#ifdef CONFIG_DRM_MSM_FBDEV
 	struct msm_drm_private *priv = dev->dev_private;
 	if (priv->fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
+#endif
 }
 
 static irqreturn_t msm_irq(int irq, void *arg)
@@ -418,7 +538,7 @@ static int msm_enable_vblank(struct drm_device *dev, int crtc_id)
 	if (!kms)
 		return -ENXIO;
 	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	return kms->funcs->enable_vblank(kms, priv->crtcs[crtc_id]);
+	return vblank_ctrl_queue_work(priv, crtc_id, true);
 }
 
 static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
@@ -428,7 +548,7 @@ static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
 	if (!kms)
 		return;
 	DBG("dev=%p, crtc=%d", dev, crtc_id);
-	kms->funcs->disable_vblank(kms, priv->crtcs[crtc_id]);
+	vblank_ctrl_queue_work(priv, crtc_id, false);
 }
 
 /*
@@ -587,8 +707,8 @@ static void msm_debugfs_cleanup(struct drm_minor *minor)
  * Fences:
  */
 
-int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		struct timespec *timeout)
+int msm_wait_fence(struct drm_device *dev, uint32_t fence,
+		ktime_t *timeout , bool interruptible)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
@@ -606,16 +726,23 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 		/* no-wait: */
 		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
 	} else {
-		unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
-		unsigned long start_jiffies = jiffies;
+		ktime_t now = ktime_get();
 		unsigned long remaining_jiffies;
 
-		if (time_after(start_jiffies, timeout_jiffies))
+		if (ktime_compare(*timeout, now) < 0) {
 			remaining_jiffies = 0;
-		else
-			remaining_jiffies = timeout_jiffies - start_jiffies;
+		} else {
+			ktime_t rem = ktime_sub(*timeout, now);
+			struct timespec ts = ktime_to_timespec(rem);
+			remaining_jiffies = timespec_to_jiffies(&ts);
+		}
 
-		ret = wait_event_interruptible_timeout(priv->fence_event,
+		if (interruptible)
+			ret = wait_event_interruptible_timeout(priv->fence_event,
+				fence_completed(dev, fence),
+				remaining_jiffies);
+		else
+			ret = wait_event_timeout(priv->fence_event,
 				fence_completed(dev, fence),
 				remaining_jiffies);
 
@@ -722,13 +849,17 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 			args->flags, &args->handle);
 }
 
-#define TS(t) ((struct timespec){ .tv_sec = (t).tv_sec, .tv_nsec = (t).tv_nsec })
+static inline ktime_t to_ktime(struct drm_msm_timespec timeout)
+{
+	return ktime_set(timeout.tv_sec, timeout.tv_nsec);
+}
 
 static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_gem_cpu_prep *args = data;
 	struct drm_gem_object *obj;
+	ktime_t timeout = to_ktime(args->timeout);
 	int ret;
 
 	if (args->op & ~MSM_PREP_FLAGS) {
@@ -740,7 +871,7 @@ static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	ret = msm_gem_cpu_prep(obj, args->op, &TS(args->timeout));
+	ret = msm_gem_cpu_prep(obj, args->op, &timeout);
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -790,14 +921,14 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_wait_fence *args = data;
+	ktime_t timeout = to_ktime(args->timeout);
 
 	if (args->pad) {
 		DRM_ERROR("invalid pad: %08x\n", args->pad);
 		return -EINVAL;
 	}
 
-	return msm_wait_fence_interruptable(dev, args->fence,
-			&TS(args->timeout));
+	return msm_wait_fence(dev, args->fence, &timeout, true);
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -835,6 +966,7 @@ static struct drm_driver msm_driver = {
 				DRIVER_GEM |
 				DRIVER_PRIME |
 				DRIVER_RENDER |
+				DRIVER_ATOMIC |
 				DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
@@ -1030,6 +1162,7 @@ static struct platform_driver msm_platform_driver = {
 static int __init msm_drm_register(void)
 {
 	DBG("init");
+	msm_dsi_register();
 	msm_edp_register();
 	hdmi_register();
 	adreno_register();
@@ -1043,6 +1176,7 @@ static void __exit msm_drm_unregister(void)
 	hdmi_unregister();
 	adreno_unregister();
 	msm_edp_unregister();
+	msm_dsi_unregister();
 }
 
 module_init(msm_drm_register);

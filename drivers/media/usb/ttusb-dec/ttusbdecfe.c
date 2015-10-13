@@ -39,7 +39,7 @@ struct ttusbdecfe_state {
 
 
 static int ttusbdecfe_dvbs_read_status(struct dvb_frontend *fe,
-	fe_status_t *status)
+				       enum fe_status *status)
 {
 	*status = FE_HAS_SIGNAL | FE_HAS_VITERBI |
 		FE_HAS_SYNC | FE_HAS_CARRIER | FE_HAS_LOCK;
@@ -48,7 +48,7 @@ static int ttusbdecfe_dvbs_read_status(struct dvb_frontend *fe,
 
 
 static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
-	fe_status_t *status)
+				       enum fe_status *status)
 {
 	struct ttusbdecfe_state* state = fe->demodulator_priv;
 	u8 b[] = { 0x00, 0x00, 0x00, 0x00,
@@ -169,7 +169,8 @@ static int ttusbdecfe_dvbs_diseqc_send_master_cmd(struct dvb_frontend* fe, struc
 }
 
 
-static int ttusbdecfe_dvbs_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int ttusbdecfe_dvbs_set_tone(struct dvb_frontend *fe,
+				    enum fe_sec_tone_mode tone)
 {
 	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
 
@@ -179,7 +180,8 @@ static int ttusbdecfe_dvbs_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t 
 }
 
 
-static int ttusbdecfe_dvbs_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int ttusbdecfe_dvbs_set_voltage(struct dvb_frontend *fe,
+				       enum fe_sec_voltage voltage)
 {
 	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
 

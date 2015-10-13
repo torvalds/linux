@@ -291,27 +291,25 @@ struct eeh_pe *eeh_pe_get(struct eeh_dev *edev)
  */
 static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
 {
-	struct device_node *dn;
 	struct eeh_dev *parent;
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	/*
 	 * It might have the case for the indirect parent
 	 * EEH device already having associated PE, but
 	 * the direct parent EEH device doesn't have yet.
 	 */
-	dn = edev->dn->parent;
-	while (dn) {
+	pdn = pdn ? pdn->parent : NULL;
+	while (pdn) {
 		/* We're poking out of PCI territory */
-		if (!PCI_DN(dn)) return NULL;
-
-		parent = of_node_to_eeh_dev(dn);
-		/* We're poking out of PCI territory */
-		if (!parent) return NULL;
+		parent = pdn_to_eeh_dev(pdn);
+		if (!parent)
+			return NULL;
 
 		if (parent->pe)
 			return parent->pe;
 
-		dn = dn->parent;
+		pdn = pdn->parent;
 	}
 
 	return NULL;
@@ -330,6 +328,13 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent;
 
+	/* Check if the PE number is valid */
+	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
+		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%d\n",
+		       __func__, edev->config_addr, edev->phb->global_number);
+		return -EINVAL;
+	}
+
 	/*
 	 * Search the PE has been existing or not according
 	 * to the PE address. If that has been existing, the
@@ -338,21 +343,18 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 */
 	pe = eeh_pe_get(edev);
 	if (pe && !(pe->type & EEH_PE_INVALID)) {
-		if (!edev->pe_config_addr) {
-			pr_err("%s: PE with addr 0x%x already exists\n",
-				__func__, edev->config_addr);
-			return -EEXIST;
-		}
-
 		/* Mark the PE as type of PCI bus */
 		pe->type = EEH_PE_BUS;
 		edev->pe = pe;
 
 		/* Put the edev to PE */
 		list_add_tail(&edev->list, &pe->edevs);
-		pr_debug("EEH: Add %s to Bus PE#%x\n",
-			edev->dn->full_name, pe->addr);
-
+		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
+			edev->phb->global_number,
+			edev->config_addr >> 8,
+			PCI_SLOT(edev->config_addr & 0xFF),
+			PCI_FUNC(edev->config_addr & 0xFF),
+			pe->addr);
 		return 0;
 	} else if (pe && (pe->type & EEH_PE_INVALID)) {
 		list_add_tail(&edev->list, &pe->edevs);
@@ -368,9 +370,14 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			parent->type &= ~(EEH_PE_INVALID | EEH_PE_KEEP);
 			parent = parent->parent;
 		}
-		pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
-			edev->dn->full_name, pe->addr, pe->parent->addr);
 
+		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
+			 "PE#%x, Parent PE#%x\n",
+			edev->phb->global_number,
+			edev->config_addr >> 8,
+                        PCI_SLOT(edev->config_addr & 0xFF),
+                        PCI_FUNC(edev->config_addr & 0xFF),
+			pe->addr, pe->parent->addr);
 		return 0;
 	}
 
@@ -409,8 +416,13 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->list, &pe->edevs);
 	edev->pe = pe;
-	pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
-		edev->dn->full_name, pe->addr, pe->parent->addr);
+	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
+		 "Device PE#%x, Parent PE#%x\n",
+		 edev->phb->global_number,
+		 edev->config_addr >> 8,
+		 PCI_SLOT(edev->config_addr & 0xFF),
+		 PCI_FUNC(edev->config_addr & 0xFF),
+		 pe->addr, pe->parent->addr);
 
 	return 0;
 }
@@ -430,8 +442,11 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	int cnt;
 
 	if (!edev->pe) {
-		pr_debug("%s: No PE found for EEH device %s\n",
-			 __func__, edev->dn->full_name);
+		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
+			 __func__,  edev->phb->global_number,
+			 edev->config_addr >> 8,
+			 PCI_SLOT(edev->config_addr & 0xFF),
+			 PCI_FUNC(edev->config_addr & 0xFF));
 		return -EEXIST;
 	}
 
@@ -642,6 +657,28 @@ void eeh_pe_state_clear(struct eeh_pe *pe, int state)
 	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
 }
 
+/**
+ * eeh_pe_state_mark_with_cfg - Mark PE state with unblocked config space
+ * @pe: PE
+ * @state: PE state to be set
+ *
+ * Set specified flag to PE and its child PEs. The PCI config space
+ * of some PEs is blocked automatically when EEH_PE_ISOLATED is set,
+ * which isn't needed in some situations. The function allows to set
+ * the specified flag to indicated PEs without blocking their PCI
+ * config space.
+ */
+void eeh_pe_state_mark_with_cfg(struct eeh_pe *pe, int state)
+{
+	eeh_pe_traverse(pe, __eeh_pe_state_mark, &state);
+	if (!(state & EEH_PE_ISOLATED))
+		return;
+
+	/* Clear EEH_PE_CFG_BLOCKED, which might be set just now */
+	state = EEH_PE_CFG_BLOCKED;
+	eeh_pe_traverse(pe, __eeh_pe_state_clear, &state);
+}
+
 /*
  * Some PCI bridges (e.g. PLX bridges) have primary/secondary
  * buses assigned explicitly by firmware, and we probably have
@@ -653,9 +690,9 @@ void eeh_pe_state_clear(struct eeh_pe *pe, int state)
  * blocked on normal path during the stage. So we need utilize
  * eeh operations, which is always permitted.
  */
-static void eeh_bridge_check_link(struct eeh_dev *edev,
-				  struct device_node *dn)
+static void eeh_bridge_check_link(struct eeh_dev *edev)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int cap;
 	uint32_t val;
 	int timeout = 0;
@@ -675,32 +712,32 @@ static void eeh_bridge_check_link(struct eeh_dev *edev,
 
 	/* Check slot status */
 	cap = edev->pcie_cap;
-	eeh_ops->read_config(dn, cap + PCI_EXP_SLTSTA, 2, &val);
+	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
 		pr_debug("  No card in the slot (0x%04x) !\n", val);
 		return;
 	}
 
 	/* Check power status if we have the capability */
-	eeh_ops->read_config(dn, cap + PCI_EXP_SLTCAP, 2, &val);
+	eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCAP, 2, &val);
 	if (val & PCI_EXP_SLTCAP_PCP) {
-		eeh_ops->read_config(dn, cap + PCI_EXP_SLTCTL, 2, &val);
+		eeh_ops->read_config(pdn, cap + PCI_EXP_SLTCTL, 2, &val);
 		if (val & PCI_EXP_SLTCTL_PCC) {
 			pr_debug("  In power-off state, power it on ...\n");
 			val &= ~(PCI_EXP_SLTCTL_PCC | PCI_EXP_SLTCTL_PIC);
 			val |= (0x0100 & PCI_EXP_SLTCTL_PIC);
-			eeh_ops->write_config(dn, cap + PCI_EXP_SLTCTL, 2, val);
+			eeh_ops->write_config(pdn, cap + PCI_EXP_SLTCTL, 2, val);
 			msleep(2 * 1000);
 		}
 	}
 
 	/* Enable link */
-	eeh_ops->read_config(dn, cap + PCI_EXP_LNKCTL, 2, &val);
+	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCTL, 2, &val);
 	val &= ~PCI_EXP_LNKCTL_LD;
-	eeh_ops->write_config(dn, cap + PCI_EXP_LNKCTL, 2, val);
+	eeh_ops->write_config(pdn, cap + PCI_EXP_LNKCTL, 2, val);
 
 	/* Check link */
-	eeh_ops->read_config(dn, cap + PCI_EXP_LNKCAP, 4, &val);
+	eeh_ops->read_config(pdn, cap + PCI_EXP_LNKCAP, 4, &val);
 	if (!(val & PCI_EXP_LNKCAP_DLLLARC)) {
 		pr_debug("  No link reporting capability (0x%08x) \n", val);
 		msleep(1000);
@@ -713,7 +750,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev,
 		msleep(20);
 		timeout += 20;
 
-		eeh_ops->read_config(dn, cap + PCI_EXP_LNKSTA, 2, &val);
+		eeh_ops->read_config(pdn, cap + PCI_EXP_LNKSTA, 2, &val);
 		if (val & PCI_EXP_LNKSTA_DLLLA)
 			break;
 	}
@@ -728,9 +765,9 @@ static void eeh_bridge_check_link(struct eeh_dev *edev,
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))
 #define SAVED_BYTE(OFF)	(((u8 *)(edev->config_space))[BYTE_SWAP(OFF)])
 
-static void eeh_restore_bridge_bars(struct eeh_dev *edev,
-				    struct device_node *dn)
+static void eeh_restore_bridge_bars(struct eeh_dev *edev)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int i;
 
 	/*
@@ -738,49 +775,49 @@ static void eeh_restore_bridge_bars(struct eeh_dev *edev,
 	 * Bus numbers and windows: 0x18 - 0x30
 	 */
 	for (i = 4; i < 13; i++)
-		eeh_ops->write_config(dn, i*4, 4, edev->config_space[i]);
+		eeh_ops->write_config(pdn, i*4, 4, edev->config_space[i]);
 	/* Rom: 0x38 */
-	eeh_ops->write_config(dn, 14*4, 4, edev->config_space[14]);
+	eeh_ops->write_config(pdn, 14*4, 4, edev->config_space[14]);
 
 	/* Cache line & Latency timer: 0xC 0xD */
-	eeh_ops->write_config(dn, PCI_CACHE_LINE_SIZE, 1,
+	eeh_ops->write_config(pdn, PCI_CACHE_LINE_SIZE, 1,
                 SAVED_BYTE(PCI_CACHE_LINE_SIZE));
-        eeh_ops->write_config(dn, PCI_LATENCY_TIMER, 1,
+        eeh_ops->write_config(pdn, PCI_LATENCY_TIMER, 1,
                 SAVED_BYTE(PCI_LATENCY_TIMER));
 	/* Max latency, min grant, interrupt ping and line: 0x3C */
-	eeh_ops->write_config(dn, 15*4, 4, edev->config_space[15]);
+	eeh_ops->write_config(pdn, 15*4, 4, edev->config_space[15]);
 
 	/* PCI Command: 0x4 */
-	eeh_ops->write_config(dn, PCI_COMMAND, 4, edev->config_space[1]);
+	eeh_ops->write_config(pdn, PCI_COMMAND, 4, edev->config_space[1]);
 
 	/* Check the PCIe link is ready */
-	eeh_bridge_check_link(edev, dn);
+	eeh_bridge_check_link(edev);
 }
 
-static void eeh_restore_device_bars(struct eeh_dev *edev,
-				    struct device_node *dn)
+static void eeh_restore_device_bars(struct eeh_dev *edev)
 {
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	int i;
 	u32 cmd;
 
 	for (i = 4; i < 10; i++)
-		eeh_ops->write_config(dn, i*4, 4, edev->config_space[i]);
+		eeh_ops->write_config(pdn, i*4, 4, edev->config_space[i]);
 	/* 12 == Expansion ROM Address */
-	eeh_ops->write_config(dn, 12*4, 4, edev->config_space[12]);
+	eeh_ops->write_config(pdn, 12*4, 4, edev->config_space[12]);
 
-	eeh_ops->write_config(dn, PCI_CACHE_LINE_SIZE, 1,
+	eeh_ops->write_config(pdn, PCI_CACHE_LINE_SIZE, 1,
 		SAVED_BYTE(PCI_CACHE_LINE_SIZE));
-	eeh_ops->write_config(dn, PCI_LATENCY_TIMER, 1,
+	eeh_ops->write_config(pdn, PCI_LATENCY_TIMER, 1,
 		SAVED_BYTE(PCI_LATENCY_TIMER));
 
 	/* max latency, min grant, interrupt pin and line */
-	eeh_ops->write_config(dn, 15*4, 4, edev->config_space[15]);
+	eeh_ops->write_config(pdn, 15*4, 4, edev->config_space[15]);
 
 	/*
 	 * Restore PERR & SERR bits, some devices require it,
 	 * don't touch the other command bits
 	 */
-	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cmd);
+	eeh_ops->read_config(pdn, PCI_COMMAND, 4, &cmd);
 	if (edev->config_space[1] & PCI_COMMAND_PARITY)
 		cmd |= PCI_COMMAND_PARITY;
 	else
@@ -789,7 +826,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev,
 		cmd |= PCI_COMMAND_SERR;
 	else
 		cmd &= ~PCI_COMMAND_SERR;
-	eeh_ops->write_config(dn, PCI_COMMAND, 4, cmd);
+	eeh_ops->write_config(pdn, PCI_COMMAND, 4, cmd);
 }
 
 /**
@@ -804,16 +841,16 @@ static void eeh_restore_device_bars(struct eeh_dev *edev,
 static void *eeh_restore_one_device_bars(void *data, void *flag)
 {
 	struct eeh_dev *edev = (struct eeh_dev *)data;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	/* Do special restore for bridges */
 	if (edev->mode & EEH_DEV_BRIDGE)
-		eeh_restore_bridge_bars(edev, dn);
+		eeh_restore_bridge_bars(edev);
 	else
-		eeh_restore_device_bars(edev, dn);
+		eeh_restore_device_bars(edev);
 
-	if (eeh_ops->restore_config)
-		eeh_ops->restore_config(dn);
+	if (eeh_ops->restore_config && pdn)
+		eeh_ops->restore_config(pdn);
 
 	return NULL;
 }

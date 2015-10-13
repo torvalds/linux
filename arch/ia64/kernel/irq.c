@@ -67,7 +67,7 @@ static char irq_redir [NR_IRQS]; // = { [0 ... NR_IRQS-1] = 1 };
 void set_irq_affinity_info (unsigned int irq, int hwid, int redir)
 {
 	if (irq < NR_IRQS) {
-		cpumask_copy(irq_get_irq_data(irq)->affinity,
+		cpumask_copy(irq_get_affinity_mask(irq),
 			     cpumask_of(cpu_logical_id(hwid)));
 		irq_redir[irq] = (char) (redir & 0xff);
 	}
@@ -119,8 +119,8 @@ static void migrate_irqs(void)
 		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (cpumask_any_and(data->affinity, cpu_online_mask)
-		    >= nr_cpu_ids) {
+		if (cpumask_any_and(irq_data_get_affinity_mask(data),
+				    cpu_online_mask) >= nr_cpu_ids) {
 			/*
 			 * Save it for phase 2 processing
 			 */

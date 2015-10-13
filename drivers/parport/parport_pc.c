@@ -2255,7 +2255,7 @@ out5:
 		release_region(base+0x3, 5);
 	release_region(base, 3);
 out4:
-	parport_put_port(p);
+	parport_del_port(p);
 out3:
 	kfree(priv);
 out2:
@@ -2294,7 +2294,7 @@ void parport_pc_unregister_port(struct parport *p)
 				    priv->dma_handle);
 #endif
 	kfree(p->private_data);
-	parport_put_port(p);
+	parport_del_port(p);
 	kfree(ops); /* hope no-one cached it */
 }
 EXPORT_SYMBOL(parport_pc_unregister_port);

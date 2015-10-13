@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -170,6 +171,7 @@ struct rs_rate {
 	bool sgi;
 	bool ldpc;
 	bool stbc;
+	bool bfer;
 };
 
 
@@ -315,14 +317,20 @@ struct iwl_lq_sta {
 	u8 max_siso_rate_idx;
 	u8 max_mimo2_rate_idx;
 
+	/* Optimal rate based on RSSI and STA caps.
+	 * Used only to reflect link speed to userspace.
+	 */
+	struct rs_rate optimal_rate;
+	unsigned long optimal_rate_mask;
+	const struct rs_init_rate_info *optimal_rates;
+	int optimal_nentries;
+
 	u8 missed_rate_counter;
 
 	struct iwl_lq_cmd lq;
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
 	u8 tx_agg_tid_en;
 
-	/* used to be in sta_info */
-	int last_txrate_idx;
 	/* last tx rate_n_flags */
 	u32 last_rate_n_flags;
 	/* packets destined for this STA are aggregated */
@@ -331,17 +339,18 @@ struct iwl_lq_sta {
 	/* tx power reduce for this sta */
 	int tpc_reduce;
 
-	/* force STBC/BFER/SISO for testing */
-	enum rs_ss_force_opt ss_force;
-
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {
 #ifdef CONFIG_MAC80211_DEBUGFS
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
+
+		/* force STBC/BFER/SISO for testing */
+		enum rs_ss_force_opt ss_force;
 #endif
 		u8 chains;
 		s8 chain_signal[IEEE80211_MAX_CHAINS];
+		s8 last_rssi;
 		struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
 		struct iwl_mvm *drv;
 	} pers;

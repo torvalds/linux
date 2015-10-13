@@ -73,6 +73,24 @@ nvkm_boolopt(const char *optstr, const char *opt, bool value)
 	return value;
 }
 
+long
+nvkm_longopt(const char *optstr, const char *opt, long value)
+{
+	long result = value;
+	int arglen;
+	char *s;
+
+	optstr = nvkm_stropt(optstr, opt, &arglen);
+	if (optstr && (s = kstrndup(optstr, arglen, GFP_KERNEL))) {
+		int ret = kstrtol(s, 0, &value);
+		if (ret == 0)
+			result = value;
+		kfree(s);
+	}
+
+	return result;
+}
+
 int
 nvkm_dbgopt(const char *optstr, const char *sub)
 {
@@ -95,7 +113,7 @@ nvkm_dbgopt(const char *optstr, const char *sub)
 				else if (!strncasecmpz(optstr, "warn", len))
 					level = NV_DBG_WARN;
 				else if (!strncasecmpz(optstr, "info", len))
-					level = NV_DBG_INFO_NORMAL;
+					level = NV_DBG_INFO;
 				else if (!strncasecmpz(optstr, "debug", len))
 					level = NV_DBG_DEBUG;
 				else if (!strncasecmpz(optstr, "trace", len))

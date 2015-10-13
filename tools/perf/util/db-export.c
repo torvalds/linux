@@ -122,6 +122,7 @@ int db_export__machine(struct db_export *dbe, struct machine *machine)
 int db_export__thread(struct db_export *dbe, struct thread *thread,
 		      struct machine *machine, struct comm *comm)
 {
+	struct thread *main_thread;
 	u64 main_thread_db_id = 0;
 	int err;
 
@@ -131,8 +132,6 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 	thread->db_id = ++dbe->thread_last_db_id;
 
 	if (thread->pid_ != -1) {
-		struct thread *main_thread;
-
 		if (thread->pid_ == thread->tid) {
 			main_thread = thread;
 		} else {
@@ -144,14 +143,16 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 			err = db_export__thread(dbe, main_thread, machine,
 						comm);
 			if (err)
-				return err;
+				goto out_put;
 			if (comm) {
 				err = db_export__comm_thread(dbe, comm, thread);
 				if (err)
-					return err;
+					goto out_put;
 			}
 		}
 		main_thread_db_id = main_thread->db_id;
+		if (main_thread != thread)
+			thread__put(main_thread);
 	}
 
 	if (dbe->export_thread)
@@ -159,6 +160,10 @@ int db_export__thread(struct db_export *dbe, struct thread *thread,
 					  machine);
 
 	return 0;
+
+out_put:
+	thread__put(main_thread);
+	return err;
 }
 
 int db_export__comm(struct db_export *dbe, struct comm *comm,
@@ -229,7 +234,7 @@ int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 static struct thread *get_main_thread(struct machine *machine, struct thread *thread)
 {
 	if (thread->pid_ == thread->tid)
-		return thread;
+		return thread__get(thread);
 
 	if (thread->pid_ == -1)
 		return NULL;
@@ -282,13 +287,13 @@ int db_export__branch_type(struct db_export *dbe, u32 branch_type,
 
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
-		      struct thread *thread, struct addr_location *al)
+		      struct addr_location *al)
 {
+	struct thread* thread = al->thread;
 	struct export_sample es = {
 		.event = event,
 		.sample = sample,
 		.evsel = evsel,
-		.thread = thread,
 		.al = al,
 	};
 	struct thread *main_thread;
@@ -309,12 +314,12 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 
 	err = db_export__thread(dbe, thread, al->machine, comm);
 	if (err)
-		return err;
+		goto out_put;
 
 	if (comm) {
 		err = db_export__comm(dbe, comm, main_thread);
 		if (err)
-			return err;
+			goto out_put;
 		es.comm_db_id = comm->db_id;
 	}
 
@@ -322,7 +327,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 
 	err = db_ids_from_al(dbe, al, &es.dso_db_id, &es.sym_db_id, &es.offset);
 	if (err)
-		return err;
+		goto out_put;
 
 	if ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	    sample_addr_correlates_sym(&evsel->attr)) {
@@ -332,20 +337,22 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)
-			return err;
+			goto out_put;
 		if (dbe->crp) {
 			err = thread_stack__process(thread, comm, sample, al,
 						    &addr_al, es.db_id,
 						    dbe->crp);
 			if (err)
-				return err;
+				goto out_put;
 		}
 	}
 
 	if (dbe->export_sample)
-		return dbe->export_sample(dbe, &es);
+		err = dbe->export_sample(dbe, &es);
 
-	return 0;
+out_put:
+	thread__put(main_thread);
+	return err;
 }
 
 static struct {

@@ -6,6 +6,7 @@
 
 #include <linux/sunrpc/cache.h>
 #include <uapi/linux/nfsd/export.h>
+#include <linux/nfs4.h>
 
 struct knfsd_fh;
 struct svc_fh;

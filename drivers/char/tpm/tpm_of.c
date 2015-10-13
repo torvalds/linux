@@ -49,7 +49,7 @@ int read_log(struct tpm_bios_log *log)
 
 	basep = of_get_property(np, "linux,sml-base", NULL);
 	if (basep == NULL) {
-		pr_err(KERN_ERR "%s: ERROR - SML not found\n", __func__);
+		pr_err("%s: ERROR - SML not found\n", __func__);
 		goto cleanup_eio;
 	}
 

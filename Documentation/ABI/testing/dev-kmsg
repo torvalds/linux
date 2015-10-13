@@ -98,4 +98,13 @@ Description:	The /dev/kmsg character device node provides userspace access
 		logic is used internally when messages are printed to the
 		console, /proc/kmsg or the syslog() syscall.
 
+		By default, kernel tries to avoid fragments by concatenating
+		when it can and fragments are rare; however, when extended
+		console support is enabled, the in-kernel concatenation is
+		disabled and /dev/kmsg output will contain more fragments. If
+		the log consumer performs concatenation, the end result
+		should be the same. In the future, the in-kernel concatenation
+		may be removed entirely and /dev/kmsg users are recommended to
+		implement fragment handling.
+
 Users:		dmesg(1), userspace kernel log consumers

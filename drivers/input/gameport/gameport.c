@@ -149,9 +149,9 @@ static int old_gameport_measure_speed(struct gameport *gameport)
 
 	for(i = 0; i < 50; i++) {
 		local_irq_save(flags);
-		rdtscl(t1);
+		t1 = rdtsc();
 		for (t = 0; t < 50; t++) gameport_read(gameport);
-		rdtscl(t2);
+		t2 = rdtsc();
 		local_irq_restore(flags);
 		udelay(i * 10);
 		if (t2 - t1 < tx) tx = t2 - t1;

@@ -1,0 +1,7 @@
+config VFIO_PLATFORM_CALXEDAXGMAC_RESET
+	tristate "VFIO support for calxeda xgmac reset"
+	depends on VFIO_PLATFORM
+	help
+	  Enables the VFIO platform driver to handle reset for Calxeda xgmac
+
+	  If you don't know what to do here, say N.

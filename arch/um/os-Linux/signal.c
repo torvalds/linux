@@ -112,9 +112,11 @@ void timer_init(void)
 
 void set_sigstack(void *sig_stack, int size)
 {
-	stack_t stack = ((stack_t) { .ss_flags	= 0,
-				     .ss_sp	= (__ptr_t) sig_stack,
-				     .ss_size 	= size - sizeof(void *) });
+	stack_t stack = {
+		.ss_flags = 0,
+		.ss_sp = sig_stack,
+		.ss_size = size - sizeof(void *)
+	};
 
 	if (sigaltstack(&stack, NULL) != 0)
 		panic("enabling signal stack failed, errno = %d\n", errno);

@@ -81,7 +81,13 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 		return -ETIMEDOUT;
 
 	cmd = __raw_readl(priv->base + MDIO_CMD);
-	if (cmd & MDIO_READ_FAIL)
+
+	/* Some broken devices are known not to release the line during
+	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
+	 * that condition here and ignore the MDIO controller read failure
+	 * indication.
+	 */
+	if (!(bus->phy_ignore_ta_mask & 1 << phy_id) && (cmd & MDIO_READ_FAIL))
 		return -EIO;
 
 	return cmd & 0xffff;
@@ -110,6 +116,48 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
 
 	if (!timeout)
 		return -ETIMEDOUT;
+
+	return 0;
+}
+
+/* Workaround for integrated BCM7xxx Gigabit PHYs which have a problem with
+ * their internal MDIO management controller making them fail to successfully
+ * be read from or written to for the first transaction.  We insert a dummy
+ * BMSR read here to make sure that phy_get_device() and get_phy_id() can
+ * correctly read the PHY MII_PHYSID1/2 registers and successfully register a
+ * PHY device for this peripheral.
+ *
+ * Once the PHY driver is registered, we can workaround subsequent reads from
+ * there (e.g: during system-wide power management).
+ *
+ * bus->reset is invoked before mdiobus_scan during mdiobus_register and is
+ * therefore the right location to stick that workaround. Since we do not want
+ * to read from non-existing PHYs, we either use bus->phy_mask or do a manual
+ * Device Tree scan to limit the search area.
+ */
+static int unimac_mdio_reset(struct mii_bus *bus)
+{
+	struct device_node *np = bus->dev.of_node;
+	struct device_node *child;
+	u32 read_mask = 0;
+	int addr;
+
+	if (!np) {
+		read_mask = ~bus->phy_mask;
+	} else {
+		for_each_available_child_of_node(np, child) {
+			addr = of_mdio_parse_addr(&bus->dev, child);
+			if (addr < 0)
+				continue;
+
+			read_mask |= 1 << addr;
+		}
+	}
+
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		if (read_mask & 1 << addr)
+			mdiobus_read(bus, addr, MII_BMSR);
+	}
 
 	return 0;
 }
@@ -149,6 +197,7 @@ static int unimac_mdio_probe(struct platform_device *pdev)
 	bus->parent = &pdev->dev;
 	bus->read = unimac_mdio_read;
 	bus->write = unimac_mdio_write;
+	bus->reset = unimac_mdio_reset;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", pdev->name);
 
 	bus->irq = kcalloc(PHY_MAX_ADDR, sizeof(int), GFP_KERNEL);
@@ -187,7 +236,7 @@ static int unimac_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id unimac_mdio_ids[] = {
+static const struct of_device_id unimac_mdio_ids[] = {
 	{ .compatible = "brcm,genet-mdio-v4", },
 	{ .compatible = "brcm,genet-mdio-v3", },
 	{ .compatible = "brcm,genet-mdio-v2", },
@@ -195,6 +244,7 @@ static struct of_device_id unimac_mdio_ids[] = {
 	{ .compatible = "brcm,unimac-mdio", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, unimac_mdio_ids);
 
 static struct platform_driver unimac_mdio_driver = {
 	.driver = {

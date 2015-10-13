@@ -39,6 +39,8 @@
 #define IPVLAN_MAC_FILTER_SIZE	(1 << IPVLAN_MAC_FILTER_BITS)
 #define IPVLAN_MAC_FILTER_MASK	(IPVLAN_MAC_FILTER_SIZE - 1)
 
+#define IPVLAN_QBACKLOG_LIMIT	1000
+
 typedef enum {
 	IPVL_IPV6 = 0,
 	IPVL_ICMPV6,
@@ -65,8 +67,6 @@ struct ipvl_dev {
 	struct ipvl_port	*port;
 	struct net_device	*phy_dev;
 	struct list_head	addrs;
-	int			ipv4cnt;
-	int			ipv6cnt;
 	struct ipvl_pcpu_stats	__percpu *pcpu_stats;
 	DECLARE_BITMAP(mac_filters, IPVLAN_MAC_FILTER_SIZE);
 	netdev_features_t	sfeatures;
@@ -93,6 +93,8 @@ struct ipvl_port {
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
 	struct rcu_head		rcu;
+	struct work_struct	wq;
+	struct sk_buff_head	backlog;
 	int			count;
 	u16			mode;
 };
@@ -100,6 +102,11 @@ struct ipvl_port {
 static inline struct ipvl_port *ipvlan_port_get_rcu(const struct net_device *d)
 {
 	return rcu_dereference(d->rx_handler_data);
+}
+
+static inline struct ipvl_port *ipvlan_port_get_rcu_bh(const struct net_device *d)
+{
+	return rcu_dereference_bh(d->rx_handler_data);
 }
 
 static inline struct ipvl_port *ipvlan_port_get_rtnl(const struct net_device *d)
@@ -112,6 +119,7 @@ void ipvlan_set_port_mode(struct ipvl_port *port, u32 nval);
 void ipvlan_init_secret(void);
 unsigned int ipvlan_mac_hash(const unsigned char *addr);
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb);
+void ipvlan_process_multicast(struct work_struct *work);
 int ipvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev);
 void ipvlan_ht_addr_add(struct ipvl_dev *ipvlan, struct ipvl_addr *addr);
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
@@ -119,5 +127,5 @@ struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6);
 struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
 					const void *iaddr, bool is_v6);
-void ipvlan_ht_addr_del(struct ipvl_addr *addr, bool sync);
+void ipvlan_ht_addr_del(struct ipvl_addr *addr);
 #endif /* __IPVLAN_H */
