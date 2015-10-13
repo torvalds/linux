@@ -426,7 +426,7 @@
 				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
 				clocks = <&ssc0_clk>;
 				clock-names = "pclk";
-				status = "disable";
+				status = "disabled";
 			};
 
 			ssc1: ssc@fffd4000 {
@@ -437,7 +437,7 @@
 				pinctrl-0 = <&pinctrl_ssc1_tx &pinctrl_ssc1_rx>;
 				clocks = <&ssc1_clk>;
 				clock-names = "pclk";
-				status = "disable";
+				status = "disabled";
 			};
 
 			ssc2: ssc@fffd8000 {
@@ -448,7 +448,7 @@
 				pinctrl-0 = <&pinctrl_ssc2_tx &pinctrl_ssc2_rx>;
 				clocks = <&ssc2_clk>;
 				clock-names = "pclk";
-				status = "disable";
+				status = "disabled";
 			};
 
 			macb0: ethernet@fffbc000 {
