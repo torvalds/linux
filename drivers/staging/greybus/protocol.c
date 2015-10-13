@@ -188,7 +188,6 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	u8 id;
 	u8 major;
 	u8 minor;
-	u8 protocol_count;
 
 	id = protocol->id;
 	major = protocol->major;
@@ -196,16 +195,11 @@ void gb_protocol_put(struct gb_protocol *protocol)
 
 	spin_lock_irq(&gb_protocols_lock);
 	protocol = gb_protocol_find(id, major, minor);
-	if (protocol) {
-		protocol_count = protocol->count;
-		if (protocol_count)
-			protocol->count--;
-		module_put(protocol->owner);
-	}
+	if (WARN_ON(!protocol || !protocol->count))
+		goto out;
+
+	protocol->count--;
+	module_put(protocol->owner);
+out:
 	spin_unlock_irq(&gb_protocols_lock);
-	if (protocol)
-		WARN_ON(!protocol_count);
-	else
-		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
-			id, major, minor);
 }
