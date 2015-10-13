@@ -123,7 +123,7 @@ struct connect_attr {
 
 struct rcvd_async_info {
 	u8 *buffer;
-	u32 u32Length;
+	u32 len;
 };
 
 struct channel_attr {
@@ -4482,8 +4482,7 @@ void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length)
 	msg.id = HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO;
 	msg.drv = hif_drv;
 
-
-	msg.body.async_info.u32Length = u32Length;
+	msg.body.async_info.len = u32Length;
 	msg.body.async_info.buffer = kmalloc(u32Length, GFP_KERNEL);
 	memcpy(msg.body.async_info.buffer, pu8Buffer, u32Length);
 
