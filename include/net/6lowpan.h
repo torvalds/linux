@@ -287,19 +287,20 @@ static inline void raw_dump_inline(const char *caller, char *msg,
 				   const unsigned char *buf, int len) { }
 #endif
 
-static inline int lowpan_fetch_skb_u8(struct sk_buff *skb, u8 *val)
-{
-	if (unlikely(!pskb_may_pull(skb, 1)))
-		return -EINVAL;
-
-	*val = skb->data[0];
-	skb_pull(skb, 1);
-
-	return 0;
-}
-
-static inline bool lowpan_fetch_skb(struct sk_buff *skb,
-		void *data, const unsigned int len)
+/**
+ * lowpan_fetch_skb - getting inline data from 6LoWPAN header
+ *
+ * This function will pull data from sk buffer and put it into data to
+ * remove the 6LoWPAN inline data. This function returns true if the
+ * sk buffer is too small to pull the amount of data which is specified
+ * by len.
+ *
+ * @skb: the buffer where the inline data should be pulled from.
+ * @data: destination buffer for the inline data.
+ * @len: amount of data which should be pulled in bytes.
+ */
+static inline bool lowpan_fetch_skb(struct sk_buff *skb, void *data,
+				    unsigned int len)
 {
 	if (unlikely(!pskb_may_pull(skb, len)))
 		return true;

@@ -265,8 +265,8 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 	raw_dump_table(__func__, "raw skb data dump uncompressed",
 		       skb->data, skb->len);
 
-	if (lowpan_fetch_skb_u8(skb, &iphc0) ||
-	    lowpan_fetch_skb_u8(skb, &iphc1))
+	if (lowpan_fetch_skb(skb, &iphc0, sizeof(iphc0)) ||
+	    lowpan_fetch_skb(skb, &iphc1, sizeof(iphc1)))
 		return -EINVAL;
 
 	/* another if the CID flag is set */
