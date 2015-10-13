@@ -1689,6 +1689,7 @@ config FORCE_MAX_ZONEORDER
 	range 11 64 if ARCH_SHMOBILE_LEGACY
 	default "12" if SOC_AM33XX
 	default "9" if SA1111 || ARCH_EFM32
+	default "14" if ARCH_MXC
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
