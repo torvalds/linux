@@ -110,7 +110,7 @@ struct scan_attr {
 struct connect_attr {
 	u8 *bssid;
 	u8 *ssid;
-	size_t ssidLen;
+	size_t ssid_len;
 	u8 *pu8IEs;
 	size_t IEsLen;
 	u8 u8security;
@@ -1036,12 +1036,12 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 		memcpy(hif_drv->strWILC_UsrConnReq.pu8bssid, pstrHostIFconnectAttr->bssid, 6);
 	}
 
-	hif_drv->strWILC_UsrConnReq.ssidLen = pstrHostIFconnectAttr->ssidLen;
+	hif_drv->strWILC_UsrConnReq.ssidLen = pstrHostIFconnectAttr->ssid_len;
 	if (pstrHostIFconnectAttr->ssid != NULL) {
-		hif_drv->strWILC_UsrConnReq.pu8ssid = kmalloc(pstrHostIFconnectAttr->ssidLen + 1, GFP_KERNEL);
+		hif_drv->strWILC_UsrConnReq.pu8ssid = kmalloc(pstrHostIFconnectAttr->ssid_len + 1, GFP_KERNEL);
 		memcpy(hif_drv->strWILC_UsrConnReq.pu8ssid, pstrHostIFconnectAttr->ssid,
-			    pstrHostIFconnectAttr->ssidLen);
-		hif_drv->strWILC_UsrConnReq.pu8ssid[pstrHostIFconnectAttr->ssidLen] = '\0';
+			    pstrHostIFconnectAttr->ssid_len);
+		hif_drv->strWILC_UsrConnReq.pu8ssid[pstrHostIFconnectAttr->ssid_len] = '\0';
 	}
 
 	hif_drv->strWILC_UsrConnReq.ConnReqIEsLen = pstrHostIFconnectAttr->IEsLen;
@@ -1132,8 +1132,8 @@ static s32 Handle_Connect(struct host_if_drv *hif_drv,
 
 
 	if (pstrHostIFconnectAttr->ssid != NULL) {
-		memcpy(pu8CurrByte, pstrHostIFconnectAttr->ssid, pstrHostIFconnectAttr->ssidLen);
-		pu8CurrByte[pstrHostIFconnectAttr->ssidLen] = '\0';
+		memcpy(pu8CurrByte, pstrHostIFconnectAttr->ssid, pstrHostIFconnectAttr->ssid_len);
+		pu8CurrByte[pstrHostIFconnectAttr->ssid_len] = '\0';
 	}
 	pu8CurrByte += MAX_SSID_LEN;
 	*(pu8CurrByte++) = INFRASTRUCTURE;
@@ -3625,7 +3625,7 @@ s32 host_int_set_join_req(struct host_if_drv *hif_drv, u8 *pu8bssid,
 	}
 
 	if (pu8ssid != NULL) {
-		msg.body.con_info.ssidLen = ssidLen;
+		msg.body.con_info.ssid_len = ssidLen;
 		msg.body.con_info.ssid = kmalloc(ssidLen, GFP_KERNEL);
 		memcpy(msg.body.con_info.ssid, pu8ssid, ssidLen);
 	}
