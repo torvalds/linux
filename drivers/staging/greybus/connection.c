@@ -178,7 +178,7 @@ gb_connection_create_range(struct greybus_host_device *hd,
 	 * about holding the connection lock.
 	 */
 	if (bundle && gb_connection_intf_find(bundle->intf, cport_id)) {
-		pr_err("duplicate interface cport id 0x%04hx\n", cport_id);
+		dev_err(parent, "cport 0x%04hx already connected\n", cport_id);
 		return NULL;
 	}
 
@@ -223,8 +223,8 @@ gb_connection_create_range(struct greybus_host_device *hd,
 		connection->hd_cport_id = CPORT_ID_BAD;
 		put_device(&connection->dev);
 
-		pr_err("failed to add connection device for cport 0x%04hx\n",
-			cport_id);
+		dev_err(parent, "failed to register connection to cport %04hx: %d\n",
+				cport_id, retval);
 
 		goto err_remove_ida;
 	}
