@@ -605,10 +605,76 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 	return 0;
 }
 
+static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
+			struct ib_reg_wr *wr, u8 *len16, u8 t5dev)
+{
+	struct c4iw_mr *mhp = to_c4iw_mr(wr->mr);
+	struct fw_ri_immd *imdp;
+	__be64 *p;
+	int i;
+	int pbllen = roundup(mhp->mpl_len * sizeof(u64), 32);
+	int rem;
+
+	if (mhp->mpl_len > t4_max_fr_depth(use_dsgl))
+		return -EINVAL;
+
+	wqe->fr.qpbinde_to_dcacpu = 0;
+	wqe->fr.pgsz_shift = ilog2(wr->mr->page_size) - 12;
+	wqe->fr.addr_type = FW_RI_VA_BASED_TO;
+	wqe->fr.mem_perms = c4iw_ib_to_tpt_access(wr->access);
+	wqe->fr.len_hi = 0;
+	wqe->fr.len_lo = cpu_to_be32(mhp->ibmr.length);
+	wqe->fr.stag = cpu_to_be32(wr->key);
+	wqe->fr.va_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
+	wqe->fr.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova &
+					0xffffffff);
+
+	if (t5dev && use_dsgl && (pbllen > max_fr_immd)) {
+		struct fw_ri_dsgl *sglp;
+
+		for (i = 0; i < mhp->mpl_len; i++)
+			mhp->mpl[i] = (__force u64)cpu_to_be64((u64)mhp->mpl[i]);
+
+		sglp = (struct fw_ri_dsgl *)(&wqe->fr + 1);
+		sglp->op = FW_RI_DATA_DSGL;
+		sglp->r1 = 0;
+		sglp->nsge = cpu_to_be16(1);
+		sglp->addr0 = cpu_to_be64(mhp->mpl_addr);
+		sglp->len0 = cpu_to_be32(pbllen);
+
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*sglp), 16);
+	} else {
+		imdp = (struct fw_ri_immd *)(&wqe->fr + 1);
+		imdp->op = FW_RI_DATA_IMMD;
+		imdp->r1 = 0;
+		imdp->r2 = 0;
+		imdp->immdlen = cpu_to_be32(pbllen);
+		p = (__be64 *)(imdp + 1);
+		rem = pbllen;
+		for (i = 0; i < mhp->mpl_len; i++) {
+			*p = cpu_to_be64((u64)mhp->mpl[i]);
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		BUG_ON(rem < 0);
+		while (rem) {
+			*p = 0;
+			rem -= sizeof(*p);
+			if (++p == (__be64 *)&sq->queue[sq->size])
+				p = (__be64 *)sq->queue;
+		}
+		*len16 = DIV_ROUND_UP(sizeof(wqe->fr) + sizeof(*imdp)
+				      + pbllen, 16);
+	}
+	return 0;
+}
+
 static int build_fastreg(struct t4_sq *sq, union t4_wr *wqe,
 			 struct ib_send_wr *send_wr, u8 *len16, u8 t5dev)
 {
 	struct ib_fast_reg_wr *wr = fast_reg_wr(send_wr);
+
 	struct fw_ri_immd *imdp;
 	__be64 *p;
 	int i;
@@ -814,6 +880,14 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					    !is_t4(
 					    qhp->rhp->rdev.lldi.adapter_type) ?
 					    1 : 0);
+			break;
+		case IB_WR_REG_MR:
+			fw_opcode = FW_RI_FR_NSMR_WR;
+			swsqe->opcode = FW_RI_FAST_REGISTER;
+			err = build_memreg(&qhp->wq.sq, wqe, reg_wr(wr), &len16,
+					   is_t5(
+					   qhp->rhp->rdev.lldi.adapter_type) ?
+					   1 : 0);
 			break;
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
