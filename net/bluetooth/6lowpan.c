@@ -21,8 +21,6 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
-#include <net/af_ieee802154.h> /* to get the address type */
-
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
@@ -272,7 +270,6 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 			   struct l2cap_chan *chan)
 {
 	const u8 *saddr, *daddr;
-	u8 iphc0, iphc1;
 	struct lowpan_dev *dev;
 	struct lowpan_peer *peer;
 
@@ -287,22 +284,7 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 	saddr = peer->eui64_addr;
 	daddr = dev->netdev->dev_addr;
 
-	/* at least two bytes will be used for the encoding */
-	if (skb->len < 2)
-		return -EINVAL;
-
-	if (lowpan_fetch_skb_u8(skb, &iphc0))
-		return -EINVAL;
-
-	if (lowpan_fetch_skb_u8(skb, &iphc1))
-		return -EINVAL;
-
-	return lowpan_header_decompress(skb, netdev,
-					saddr, IEEE802154_ADDR_LONG,
-					EUI64_ADDR_LEN, daddr,
-					IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
-					iphc0, iphc1);
-
+	return lowpan_header_decompress(skb, netdev, daddr, saddr);
 }
 
 static int recv_pkt(struct sk_buff *skb, struct net_device *dev,

@@ -157,7 +157,8 @@ out:
 	return ret;
 }
 
-int lowpan_nhc_do_uncompression(struct sk_buff *skb, struct net_device *dev,
+int lowpan_nhc_do_uncompression(struct sk_buff *skb,
+				const struct net_device *dev,
 				struct ipv6hdr *hdr)
 {
 	struct lowpan_nhc *nhc;

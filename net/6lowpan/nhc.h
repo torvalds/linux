@@ -119,7 +119,8 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
  * @dev: netdevice for print logging information.
  * @hdr: ipv6hdr for setting nexthdr value.
  */
-int lowpan_nhc_do_uncompression(struct sk_buff *skb, struct net_device *dev,
+int lowpan_nhc_do_uncompression(struct sk_buff *skb,
+				const struct net_device *dev,
 				struct ipv6hdr *hdr);
 
 /**

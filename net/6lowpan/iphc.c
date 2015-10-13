@@ -49,21 +49,71 @@
 #include <linux/bitops.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
+
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
-#include <net/af_ieee802154.h>
+
+/* special link-layer handling */
+#include <net/mac802154.h>
 
 #include "nhc.h"
+
+static inline void iphc_uncompress_eui64_lladdr(struct in6_addr *ipaddr,
+						const void *lladdr)
+{
+	/* fe:80::XXXX:XXXX:XXXX:XXXX
+	 *        \_________________/
+	 *              hwaddr
+	 */
+	ipaddr->s6_addr[0] = 0xFE;
+	ipaddr->s6_addr[1] = 0x80;
+	memcpy(&ipaddr->s6_addr[8], lladdr, EUI64_ADDR_LEN);
+	/* second bit-flip (Universe/Local)
+	 * is done according RFC2464
+	 */
+	ipaddr->s6_addr[8] ^= 0x02;
+}
+
+static inline void iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
+						 const void *lladdr)
+{
+	const struct ieee802154_addr *addr = lladdr;
+	u8 eui64[EUI64_ADDR_LEN] = { };
+
+	switch (addr->mode) {
+	case IEEE802154_ADDR_LONG:
+		ieee802154_le64_to_be64(eui64, &addr->extended_addr);
+		iphc_uncompress_eui64_lladdr(ipaddr, eui64);
+		break;
+	case IEEE802154_ADDR_SHORT:
+		/* fe:80::ff:fe00:XXXX
+		 *                \__/
+		 *             short_addr
+		 *
+		 * Universe/Local bit is zero.
+		 */
+		ipaddr->s6_addr[0] = 0xFE;
+		ipaddr->s6_addr[1] = 0x80;
+		ipaddr->s6_addr[11] = 0xFF;
+		ipaddr->s6_addr[12] = 0xFE;
+		ieee802154_le16_to_be16(&ipaddr->s6_addr16[7],
+					&addr->short_addr);
+		break;
+	default:
+		/* should never handled and filtered by 802154 6lowpan */
+		WARN_ON_ONCE(1);
+		break;
+	}
+}
 
 /* Uncompress address function for source and
  * destination address(non-multicast).
  *
  * address_mode is sam value or dam value.
  */
-static int uncompress_addr(struct sk_buff *skb,
-			   struct in6_addr *ipaddr, const u8 address_mode,
-			   const u8 *lladdr, const u8 addr_type,
-			   const u8 addr_len)
+static int uncompress_addr(struct sk_buff *skb, const struct net_device *dev,
+			   struct in6_addr *ipaddr, u8 address_mode,
+			   const void *lladdr)
 {
 	bool fail;
 
@@ -88,36 +138,13 @@ static int uncompress_addr(struct sk_buff *skb,
 		break;
 	case LOWPAN_IPHC_ADDR_03:
 		fail = false;
-		switch (addr_type) {
-		case IEEE802154_ADDR_LONG:
-			/* fe:80::XXXX:XXXX:XXXX:XXXX
-			 *        \_________________/
-			 *              hwaddr
-			 */
-			ipaddr->s6_addr[0] = 0xFE;
-			ipaddr->s6_addr[1] = 0x80;
-			memcpy(&ipaddr->s6_addr[8], lladdr, addr_len);
-			/* second bit-flip (Universe/Local)
-			 * is done according RFC2464
-			 */
-			ipaddr->s6_addr[8] ^= 0x02;
-			break;
-		case IEEE802154_ADDR_SHORT:
-			/* fe:80::ff:fe00:XXXX
-			 *		  \__/
-			 *	       short_addr
-			 *
-			 * Universe/Local bit is zero.
-			 */
-			ipaddr->s6_addr[0] = 0xFE;
-			ipaddr->s6_addr[1] = 0x80;
-			ipaddr->s6_addr[11] = 0xFF;
-			ipaddr->s6_addr[12] = 0xFE;
-			ipaddr->s6_addr16[7] = htons(*((u16 *)lladdr));
+		switch (lowpan_priv(dev)->lltype) {
+		case LOWPAN_LLTYPE_IEEE802154:
+			iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
 		default:
-			pr_debug("Invalid addr_type set\n");
-			return -EINVAL;
+			iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+			break;
 		}
 		break;
 	default:
@@ -228,19 +255,19 @@ static int lowpan_uncompress_multicast_daddr(struct sk_buff *skb,
 /* TTL uncompression values */
 static const u8 lowpan_ttl_values[] = { 0, 1, 64, 255 };
 
-int
-lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
-			 const u8 *saddr, const u8 saddr_type,
-			 const u8 saddr_len, const u8 *daddr,
-			 const u8 daddr_type, const u8 daddr_len,
-			 u8 iphc0, u8 iphc1)
+int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
+			     const void *daddr, const void *saddr)
 {
 	struct ipv6hdr hdr = {};
-	u8 tmp, num_context = 0;
+	u8 iphc0, iphc1, tmp, num_context = 0;
 	int err;
 
 	raw_dump_table(__func__, "raw skb data dump uncompressed",
 		       skb->data, skb->len);
+
+	if (lowpan_fetch_skb_u8(skb, &iphc0) ||
+	    lowpan_fetch_skb_u8(skb, &iphc1))
+		return -EINVAL;
 
 	/* another if the CID flag is set */
 	if (iphc1 & LOWPAN_IPHC_CID) {
@@ -323,8 +350,7 @@ lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		/* Source address uncompression */
 		pr_debug("source address stateless compression\n");
-		err = uncompress_addr(skb, &hdr.saddr, tmp, saddr,
-				      saddr_type, saddr_len);
+		err = uncompress_addr(skb, dev, &hdr.saddr, tmp, saddr);
 	}
 
 	/* Check on error of previous branch */
@@ -347,8 +373,7 @@ lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
 				return -EINVAL;
 		}
 	} else {
-		err = uncompress_addr(skb, &hdr.daddr, tmp, daddr,
-				      daddr_type, daddr_len);
+		err = uncompress_addr(skb, dev, &hdr.daddr, tmp, daddr);
 		pr_debug("dest: stateless compression mode %d dest %pI6c\n",
 			 tmp, &hdr.daddr);
 		if (err)

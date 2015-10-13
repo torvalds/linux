@@ -319,12 +319,24 @@ static inline void lowpan_push_hc_data(u8 **hc_ptr, const void *data,
 
 void lowpan_netdev_setup(struct net_device *dev, enum lowpan_lltypes lltype);
 
-int
-lowpan_header_decompress(struct sk_buff *skb, struct net_device *dev,
-			 const u8 *saddr, const u8 saddr_type,
-			 const u8 saddr_len, const u8 *daddr,
-			 const u8 daddr_type, const u8 daddr_len,
-			 u8 iphc0, u8 iphc1);
+/**
+ * lowpan_header_decompress - replace 6LoWPAN header with IPv6 header
+ *
+ * This function replaces the IPHC 6LoWPAN header which should be pointed at
+ * skb->data and skb_network_header, with the IPv6 header.
+ * It would be nice that the caller have the necessary headroom of IPv6 header
+ * and greatest Transport layer header, this would reduce the overhead for
+ * reallocate headroom.
+ *
+ * @skb: the buffer which should be manipulate.
+ * @dev: the lowpan net device pointer.
+ * @daddr: destination lladdr of mac header which is used for compression
+ *	methods.
+ * @saddr: source lladdr of mac header which is used for compression
+ *	methods.
+ */
+int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
+			     const void *daddr, const void *saddr);
 
 /**
  * lowpan_header_compress - replace IPv6 header with 6LoWPAN header
