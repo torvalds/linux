@@ -154,8 +154,7 @@ struct del_sta {
 };
 
 struct power_mgmt_param {
-
-	bool bIsEnabled;
+	bool enabled;
 	u32 u32Timeout;
 };
 
@@ -2763,7 +2762,7 @@ static void Handle_PowerManagement(struct host_if_drv *hif_drv,
 
 	strWID.id = (u16)WID_POWER_MANAGEMENT;
 
-	if (strPowerMgmtParam->bIsEnabled == true)
+	if (strPowerMgmtParam->enabled == true)
 		s8PowerMode = MIN_FAST_PS;
 	else
 		s8PowerMode = NO_POWERSAVE;
@@ -4881,7 +4880,7 @@ s32 host_int_set_power_mgmt(struct host_if_drv *hif_drv,
 	msg.id = HOST_IF_MSG_POWER_MGMT;
 	msg.drv = hif_drv;
 
-	pstrPowerMgmtParam->bIsEnabled = bIsEnabled;
+	pstrPowerMgmtParam->enabled = bIsEnabled;
 	pstrPowerMgmtParam->u32Timeout = u32Timeout;
 
 
