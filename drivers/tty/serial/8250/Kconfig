@@ -371,6 +371,8 @@ config SERIAL_8250_INGENIC
 config SERIAL_8250_MID
 	tristate "Support for serial ports on Intel MID platforms"
 	depends on SERIAL_8250 && PCI
+	select HSU_DMA if SERIAL_8250_DMA
+	select HSU_DMA_PCI if X86_INTEL_MID
 	help
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
